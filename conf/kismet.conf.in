@@ -33,6 +33,38 @@ channelvelocity=5
 # setting above and dwell on each channel for the given number of seconds.
 #channeldwell=10
 
+# Channels are defined as:
+# channellist=name:ch1,ch2,ch3
+# or
+# channellist=name:range-start-end-width-offset,ch,range,ch,...
+#
+# Channels may be a numeric channel or a frequency
+#
+# Channels may specify an additional wait period.  For common default channels,
+# an additional wait period can be useful.  Wait periods delay for that number 
+# of times per second - so a configuration hopping 10 times per second with a
+# channel of 6:3 would delay 3/10ths of a second on channel 6.
+#
+# Ranges are meant for "power users" who wish to define a very large number of
+# channels.  A range may specify channels or frequencies, and will automatically
+# sort themselves to cover channels in a non-overlapping fashion.  An example
+# range for the normal 802.11b/g spectrum would be:
+#
+# range-1-11-3-1
+#
+# which indicates starting at 1, ending at 11, a channel width of 3 channels,
+# incrementing by one.  A frequency based definition would be:
+#
+# range-2412-2462-22-5
+#
+# since 11g channels are 22 mhz wide and 5 mhz apart.
+#
+# Ranges have the flaw that they cannot be shared between sources in a non-overlapping
+# way, so multiple sources using the same range may hop in lockstep with eachother
+# and duplicate the coverage.
+#
+# channellist=demo:1:3,6:3,11:3,range-5000-6000-20-10
+
 # Users outside the US might want to use this list:
 # channellist=IEEE80211b:1,7,13,2,8,3,14,9,4,10,5,11,6,12
 channellist=IEEE80211b:1:3,6:3,11:3,2,7,3,8,4,9,5,10

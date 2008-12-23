@@ -829,9 +829,28 @@ int DroneClientFrame::SendChannelData(pst_packetsource *in_src, unsigned int in_
 			cpkt->num_channels = 0;
 		} else {
 			cpkt->num_channels = kis_hton16(chl->channel_vec.size());
-			for (unsigned int c = 0; c < chl->channel_vec.size(); c++) {
+			for (unsigned int c = 0; 
+				 c < kismin(chl->channel_vec.size(), IPC_SOURCE_MAX_CHANS); c++) {
+				if (chl->channel_vec[c].range == 0) {
+					cpkt->chandata[c].u.chan_t.channel =
+						kis_hton16(chl->channel_vec[c].u.chan_t.channel);
+					cpkt->chandata[c].u.chan_t.dwell =
+						kis_hton16(chl->channel_vec[c].u.chan_t.channel);
+				} else {
+					cpkt->chandata[c].u.range_t.start =
+						kis_hton16(chl->channel_vec[c].u.range_t.start | (1 << 15));
+					cpkt->chandata[c].u.range_t.end =
+						kis_hton16(chl->channel_vec[c].u.range_t.end);
+					cpkt->chandata[c].u.range_t.width =
+						kis_hton16(chl->channel_vec[c].u.range_t.width);
+					cpkt->chandata[c].u.range_t.iter =
+						kis_hton16(chl->channel_vec[c].u.range_t.iter);
+				}
+
+				/*
 				cpkt->channels[c] = kis_hton16(chl->channel_vec[c].channel);
 				cpkt->channels_dwell[c] = kis_hton16(chl->channel_vec[c].dwell);
+				*/
 			}
 		}
 	} else if (in_cmd == DRONE_CHS_CMD_SETHOPDWELL) {

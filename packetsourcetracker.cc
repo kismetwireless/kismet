@@ -152,9 +152,22 @@ int Protocol_SOURCE(PROTO_PARMS) {
 				} else {
 					for (unsigned int c = 0; c < psrc->channel_ptr->channel_vec.size();
 						 c++) {
-						osstr << psrc->channel_ptr->channel_vec[c].channel;
-						if (psrc->channel_ptr->channel_vec[c].dwell != 0)
-							osstr << ":" << psrc->channel_ptr->channel_vec[c].dwell;
+
+						if (psrc->channel_ptr->channel_vec[c].range == 0) {
+							osstr << psrc->channel_ptr->channel_vec[c].u.chan_t.channel;
+							if (psrc->channel_ptr->channel_vec[c].u.chan_t.dwell != 0)
+								osstr << ":" <<
+									psrc->channel_ptr->channel_vec[c].u.chan_t.dwell;
+						} else {
+							osstr << "range-" <<
+								psrc->channel_ptr->channel_vec[c].u.range_t.start << 
+								"-" <<
+								psrc->channel_ptr->channel_vec[c].u.range_t.end <<
+								"-" <<
+								psrc->channel_ptr->channel_vec[c].u.range_t.width <<
+								"-" <<
+								psrc->channel_ptr->channel_vec[c].u.range_t.iter;
+						}
 
 						if (c != psrc->channel_ptr->channel_vec.size() - 1)
 							osstr << ",";
@@ -553,29 +566,34 @@ uint16_t Packetsourcetracker::AddChannelList(string in_chanlist) {
 	}
 
 	for (unsigned int x = 0; x < cvec.size(); x++) {
-		ch.channel = 0;
-		ch.dwell = 1;
-
 		tvec = StrTokenize(cvec[x], ":");
 		
 		if (tvec.size() >= 1) {
-			if (sscanf(tvec[0].c_str(), "%u", &ch.channel) != 1) {
+			if (sscanf(tvec[0].c_str(), "%u", &ch.u.chan_t.channel) == 1) {
+				ch.u.chan_t.dwell = 1;
+				ch.range = 0;
+			} else if (sscanf(tvec[0].c_str(), "range-%u-%u-%u-%u", 
+							  &ch.u.range_t.start, &ch.u.range_t.end,
+							  &ch.u.range_t.width, &ch.u.range_t.iter) == 4) {
+				ch.range = 1;
+			} else {
 				_MSG("Invalid channel in channel list '" + name + "', expected "
-					 "channel number or mhz frequency.", MSGFLAG_ERROR);
+					 "channel number, mhz frequency, or range definition", 
+					 MSGFLAG_ERROR);
 				return 0;
 			}
 		}
 
-		if (tvec.size() >= 2) {
-			if (sscanf(tvec[1].c_str(), "%u", &ch.dwell) != 1) {
+		if (tvec.size() >= 2 && ch.range == 0) {
+			if (sscanf(tvec[1].c_str(), "%u", &ch.u.chan_t.dwell) != 1) {
 				_MSG("Invalid dwell time in channel list '" + name + "', expected "
 					 "a dwell time as a number.", MSGFLAG_ERROR);
 				return 0;
 			}
 		}
 
-		if (ch.dwell > 5) {
-			_MSG("Dwell time in channel list '" + name + "' is over 5 periods, "
+		if (ch.u.chan_t.dwell > 6) {
+			_MSG("Dwell time in channel list '" + name + "' is over 6 periods, "
 				 "this might indicate a typo in the channel config as it is longer "
 				 "than expected.", MSGFLAG_ERROR);
 		}
@@ -633,6 +651,7 @@ uint16_t Packetsourcetracker::AddPacketSource(string in_source,
 	pstsource->channel_ptr = NULL;
 	pstsource->channel_hop = -1;
 	pstsource->channel_position = 0;
+	pstsource->range_position = 0;
 	pstsource->channel_dwell = -1;
 	pstsource->channel_rate = -1;
 	pstsource->channel_split = 1;
@@ -1098,8 +1117,23 @@ int Packetsourcetracker::IpcAddChannelList(ipc_source_add_chanlist *in_ipc) {
 		 x < kismin(IPC_SOURCE_MAX_CHANS, in_ipc->num_channels); x++) {
 		pst_channel ch;
 
+		// Derive from high bit in channel
+		ch.range = in_ipc->chandata[x].u.range_t.start >> 15;
+		if (ch.range == 0) {
+			ch.u.chan_t.channel = in_ipc->chandata[x].u.chan_t.channel;
+			ch.u.chan_t.dwell = in_ipc->chandata[x].u.chan_t.dwell;
+		} else {
+			// Extract the start (mask the high bit used to indicate range)
+			ch.u.range_t.start = in_ipc->chandata[x].u.range_t.start & ~(1 << 15);
+			ch.u.range_t.end = in_ipc->chandata[x].u.range_t.end;
+			ch.u.range_t.width = in_ipc->chandata[x].u.range_t.width;
+			ch.u.range_t.iter = in_ipc->chandata[x].u.range_t.iter;
+		}
+
+		/*
 		ch.channel = in_ipc->chan_list[x];
 		ch.dwell = in_ipc->chan_dwell_list[x];
+		*/
 
 		chlist->channel_vec.push_back(ch);
 	}
@@ -1244,6 +1278,7 @@ int Packetsourcetracker::IpcChannelSet(ipc_source_chanset *in_ipc) {
 	// Update other info
 	if (channellist_map.find(in_ipc->chanset_id) != channellist_map.end()) {
 		pstsource->channel_position = 0;
+		pstsource->range_position = 0;
 		pstsource->channel_list = in_ipc->chanset_id;
 		pstsource->channel_ptr = channellist_map[in_ipc->chanset_id];
 	} else {
@@ -1490,8 +1525,23 @@ void Packetsourcetracker::SendIPCChannellist(pst_channellist *in_list) {
 
 	for (unsigned int x = 0; x < kismin(IPC_SOURCE_MAX_CHANS, 
 										in_list->channel_vec.size()); x++) {
+		if (in_list->channel_vec[x].range == 0) {
+			addch->chandata[x].u.chan_t.channel = 
+				in_list->channel_vec[x].u.chan_t.channel;
+			addch->chandata[x].u.chan_t.dwell = in_list->channel_vec[x].u.chan_t.dwell;
+		} else {
+			addch->chandata[x].u.range_t.start = in_list->channel_vec[x].u.range_t.start;
+			// Flag it as a range
+			addch->chandata[x].u.range_t.start |= (1 << 15);
+			addch->chandata[x].u.range_t.end = in_list->channel_vec[x].u.range_t.end;
+			addch->chandata[x].u.range_t.width = in_list->channel_vec[x].u.range_t.width;
+			addch->chandata[x].u.range_t.iter = in_list->channel_vec[x].u.range_t.iter;
+		}
+
+		/*
 		addch->chan_list[x] = in_list->channel_vec[x].channel;
 		addch->chan_dwell_list[x] = in_list->channel_vec[x].dwell;
+		*/
 	}
 
 	rootipc->SendIPC(ipc);
@@ -1960,9 +2010,12 @@ void Packetsourcetracker::ChannelTimer() {
 					push_report = 1;
 				}
 
-				pst->rate_timer =
-					pst->channel_ptr->channel_vec[pst->channel_position].dwell *
-					(SERVER_TIMESLICES_SEC - pst->channel_rate);
+				if (pst->channel_ptr->channel_vec[pst->channel_position].range)
+					pst->rate_timer = 1;
+				else 
+					pst->rate_timer =
+					pst->channel_ptr->channel_vec[pst->channel_position].u.chan_t.dwell *
+						(SERVER_TIMESLICES_SEC - pst->channel_rate);
 
 			} else if (pst->channel_dwell) {
 				pst->dwell_timer--;
@@ -1987,9 +2040,13 @@ void Packetsourcetracker::ChannelTimer() {
 					push_report = 1;
 				}
 
-				pst->dwell_timer =
-					pst->channel_ptr->channel_vec[pst->channel_position].dwell *
-					(SERVER_TIMESLICES_SEC * pst->channel_dwell);
+				// Ranges all dwell for the default
+				if (pst->channel_ptr->channel_vec[pst->channel_position].range)
+					pst->dwell_timer = pst->channel_dwell * SERVER_TIMESLICES_SEC;
+				else 
+					pst->dwell_timer =
+					pst->channel_ptr->channel_vec[pst->channel_position].u.chan_t.dwell *
+						(SERVER_TIMESLICES_SEC * pst->channel_dwell);
 			} else {
 				if (channel_touched.find(channel) == channel_touched.end()) {
 					channel_touched[channel] = 1;
@@ -2019,9 +2076,24 @@ void Packetsourcetracker::ChannelTimer() {
 				SendIPCReport(pst);
 			}
 
-			// Set the local channel
-			pst->channel = 
-				pst->channel_ptr->channel_vec[pst->channel_position].channel;
+			// Total for the range position, filled in if needed
+			int range_t = 0;
+
+			// Set the local channel via chanset or range
+			if (pst->channel_ptr->channel_vec[pst->channel_position].range == 0) {
+				pst->channel = 
+				pst->channel_ptr->channel_vec[pst->channel_position].u.chan_t.channel;
+			} else {
+				// total = ((end - start) / iteration) + 1
+				// jump = width / iteration
+				// slot = (pos * jump) % total
+				// chan = start + (slot * iteration)
+				range_t = ((pst->channel_ptr->channel_vec[pst->channel_position].u.range_t.end - pst->channel_ptr->channel_vec[pst->channel_position].u.range_t.start) / pst->channel_ptr->channel_vec[pst->channel_position].u.range_t.iter) + 1;
+				int j = pst->channel_ptr->channel_vec[pst->channel_position].u.range_t.width / pst->channel_ptr->channel_vec[pst->channel_position].u.range_t.iter;
+				int s = (pst->range_position * j) % range_t;
+
+				pst->channel = pst->channel_ptr->channel_vec[pst->channel_position].u.range_t.start + (s * pst->channel_ptr->channel_vec[pst->channel_position].u.range_t.iter);
+			}
 
 			// printf("debug - hop list new channel %d\n", pst->channel);
 
@@ -2040,7 +2112,18 @@ void Packetsourcetracker::ChannelTimer() {
 				pst->consec_channel_err = 0;
 			}
 
-			pst->channel_position++;
+			// if we're in a channel, we advance, otherwise if we're in a range
+			// we need to advance the range position and then advance the channel
+			// if we've completed the range
+			if (pst->channel_ptr->channel_vec[pst->channel_position].range == 0) {
+				pst->channel_position++;
+			} else {
+				pst->range_position++;
+				if (pst->range_position >= range_t) {
+					pst->range_position = 0;
+					pst->channel_position++;
+				}
+			}
 		}
 	}
 

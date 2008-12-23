@@ -176,8 +176,29 @@ struct drone_channelset_packet {
 	uint16_t channel_hop;
 	uint16_t num_channels;
 
+	/* Updated, breaks unreleased compat */
+	struct chandata_t {
+		union {
+			struct {
+				// Highest bit (1 << 15) == 0 if channel
+				uint16_t channel;
+				uint16_t dwell;
+			} chan_t;
+
+			struct {
+				// Highest bit (1 << 15) == 1 if range
+				uint16_t start;
+				uint16_t end;
+				uint16_t width;
+				uint16_t iter;
+			} range_t;
+		} u;
+	} chandata[IPC_SOURCE_MAX_CHANS];
+
+	/*
 	uint16_t channels[IPC_SOURCE_MAX_CHANS];
 	uint16_t channels_dwell[IPC_SOURCE_MAX_CHANS];
+	*/
 
 	uint16_t channel_rate;
 	uint16_t channel_dwell;

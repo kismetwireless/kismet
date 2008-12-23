@@ -64,12 +64,24 @@
 
 // Channel record
 struct pst_channel {
-	// Channel # or frequency (handled at set time, we don't care)
-	unsigned int channel;
+	// are we a range
+	int range;
 
-	// Dwell time (ticks of timer system) for this channel (NOT one second
-	// increments of system-wide dwell time)
-	unsigned int dwell;
+	union {
+		// Frequency/dwell pair
+		struct {
+			unsigned int channel;
+			unsigned int dwell;
+		} chan_t;
+
+		// Range defintion plus local counter
+		struct {
+			unsigned int start;
+			unsigned int end;
+			unsigned int width;
+			unsigned int iter;
+		} range_t;
+	} u;
 };
 
 struct pst_channellist {
@@ -129,6 +141,7 @@ struct pst_packetsource {
 
 	// Position in list, initialized by source splitting
 	int channel_position;
+	int range_position;
 
 	// Number of consec channel set errors
 	int consec_channel_err;

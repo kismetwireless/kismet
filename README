@@ -73,3 +73,20 @@ channellist=foo:1:3,6:3,11:3,2,3,4,5,7,8,9,10
 
 would wait 3 times longer on channels 1, 6, 11 than on the other channels.
 
+Channels may also be defined as ranges of the format:
+
+channellist=foo:range-1-11-3-1
+
+Ranges will automatically hop in a non-overlapping pattern, may be specified
+as frequencies, and may be combined with normal channel definitions or
+as a series of ranges.
+
+Ranges are NOT, however, shared between sources.  Multiple sources hopping
+on the same range may be synced and duplicate coverage, however multiple
+sources hopping on the same channel definition containing ranges will be
+split over the total channel list (in other words, ranges are treated as
+a single channel entry).
+
+Currently, extremely large channel ranges may have unexpected negative
+results when the server reports channel status.
+

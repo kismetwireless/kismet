@@ -636,9 +636,27 @@ int KisDroneFramework::SendChannels(int in_cl, pst_packetsource *in_int) {
 	cpkt->channel_hop = kis_hton16(in_int->channel_hop);
 
 	cpkt->num_channels = kis_hton16(channels->channel_vec.size());
-	for (unsigned int x = 0; x < channels->channel_vec.size(); x++) {
-		cpkt->channels[x] = kis_hton16(channels->channel_vec[x].channel);
-		cpkt->channels_dwell[x] = kis_hton16(channels->channel_vec[x].dwell);
+	for (unsigned int x = 0; 
+		 x < kismin(channels->channel_vec.size(), IPC_SOURCE_MAX_CHANS); x++) {
+		if (channels->channel_vec[x].range == 0) {
+			cpkt->chandata[x].u.chan_t.channel =
+				kis_hton16(channels->channel_vec[x].u.chan_t.channel);
+			cpkt->chandata[x].u.chan_t.dwell =
+				kis_hton16(channels->channel_vec[x].u.chan_t.channel);
+		} else {
+			cpkt->chandata[x].u.range_t.start =
+				kis_hton16(channels->channel_vec[x].u.range_t.start | (1 << 15));
+			cpkt->chandata[x].u.range_t.end =
+				kis_hton16(channels->channel_vec[x].u.range_t.end);
+			cpkt->chandata[x].u.range_t.width =
+				kis_hton16(channels->channel_vec[x].u.range_t.width);
+			cpkt->chandata[x].u.range_t.iter =
+				kis_hton16(channels->channel_vec[x].u.range_t.iter);
+		}
+	   /*
+	   cpkt->channels[x] = kis_hton16(channels->channel_vec[x].channel);
+	   cpkt->channels_dwell[x] = kis_hton16(channels->channel_vec[x].dwell);
+	   */
 	}
 
 	cpkt->channel_rate = kis_hton16(in_int->channel_rate);
@@ -936,9 +954,26 @@ int KisDroneFramework::channel_handler(const drone_packet *in_pack) {
 		chstr << intuuid.UUID2String() << ":";
 
 		for (unsigned int x = 0; x < nch; x++) {
+			/*
 			uint16_t ch = kis_ntoh16(csp->channels[x]);
 			uint16_t dw = kis_ntoh16(csp->channels_dwell[x]);
 			chstr << ch << ":" << dw << ",";
+			*/
+
+			if (kis_ntoh16(csp->chandata[x].u.chan_t.channel) >> 15) {
+				chstr << "range-" <<
+					(kis_ntoh16(csp->chandata[x].u.range_t.start) & ~(1 << 15)) <<
+					"-" <<
+					kis_ntoh16(csp->chandata[x].u.range_t.end) << "-" <<
+					kis_ntoh16(csp->chandata[x].u.range_t.width) << "-" <<
+					kis_ntoh16(csp->chandata[x].u.range_t.iter);
+			} else {
+				chstr << kis_ntoh16(csp->chandata[x].u.chan_t.channel) << ":" <<
+					kis_ntoh16(csp->chandata[x].u.chan_t.dwell);
+			}
+
+			if (x != (unsigned int) nch - 1)
+				chstr << ",";
 		}
 
 		_MSG("Setting source " + intuuid.UUID2String() + " channel vector to " +
