@@ -590,12 +590,12 @@ uint16_t Packetsourcetracker::AddChannelList(string in_chanlist) {
 					 "a dwell time as a number.", MSGFLAG_ERROR);
 				return 0;
 			}
-		}
 
-		if (ch.u.chan_t.dwell > 6) {
-			_MSG("Dwell time in channel list '" + name + "' is over 6 periods, "
-				 "this might indicate a typo in the channel config as it is longer "
-				 "than expected.", MSGFLAG_ERROR);
+			if (ch.u.chan_t.dwell > 6) {
+				_MSG("Dwell time in channel list '" + name + "' is over 6 periods, "
+					 "this might indicate a typo in the channel config as it is longer "
+					 "than expected.", MSGFLAG_ERROR);
+			}
 		}
 
 		chvec.push_back(ch);
@@ -764,7 +764,8 @@ uint16_t Packetsourcetracker::AddPacketSource(string in_source,
 		pstsource->channel_hop = 0;
 
 	} else {
-		pstsource->channel_hop = 1;
+		pstsource->channel_hop = default_channel_rate;
+		pstsource->channel_dwell = default_channel_dwell;
 
 		if (FetchOpt("channel", &options) != "") {
 			_MSG("Source '" + interface + "' ignoring channel= in the source "
@@ -920,7 +921,7 @@ int Packetsourcetracker::LoadConfiguration() {
 
 	if (globalreg->kismet_config->FetchOpt("channeldwell") != "" &&
 		sscanf(globalreg->kismet_config->FetchOpt("channeldwell").c_str(),
-			   "%d", &default_channel_rate) != 1) {
+			   "%d", &default_channel_dwell) != 1) {
 		_MSG("Invalid channeldwell=... in the Kismet config file, expected "
 			 "a number of seconds per channel to wait", MSGFLAG_FATAL);
 		globalreg->fatal_condition = 1;
@@ -1976,8 +1977,9 @@ void Packetsourcetracker::ChannelTimer() {
 		pst_packetsource *pst = packetsource_vec[x];
 
 		if (pst->strong_source == NULL || pst->channel_ptr == NULL ||
-			(pst->channel_hop == 0 && pst->channel_dwell == 0))
+			(pst->channel_hop == 0 && pst->channel_dwell == 0)) {
 			continue;
+		}
 
 		// Hop sources we have open.  Non-hoppable sources won't be set to hop
 		if (pst->strong_source->FetchDescriptor() >= 0) {
@@ -2011,7 +2013,7 @@ void Packetsourcetracker::ChannelTimer() {
 				}
 
 				if (pst->channel_ptr->channel_vec[pst->channel_position].range)
-					pst->rate_timer = 1;
+					pst->rate_timer = (SERVER_TIMESLICES_SEC - pst->channel_rate);
 				else 
 					pst->rate_timer =
 					pst->channel_ptr->channel_vec[pst->channel_position].u.chan_t.dwell *
@@ -2031,8 +2033,9 @@ void Packetsourcetracker::ChannelTimer() {
 					}
 				}
 
-				if (pst->dwell_timer > 0)
+				if (pst->dwell_timer > 0) {
 					continue;
+				}
 
 				if (pst->channel_position >= 
 					(int) pst->channel_ptr->channel_vec.size()) {
