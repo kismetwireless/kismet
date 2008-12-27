@@ -76,7 +76,7 @@ const char *REMOVE_fields_text[] = {
 };
 
 const char *CLIENT_fields_text[] = {
-    "mac", "type", "firsttime", "lasttime",
+    "bssid", "mac", "type", "firsttime", "lasttime",
     "manufkey", "manufscore",
     "llcpackets", "datapackets", "cryptpackets", 
     "gpsfixed",

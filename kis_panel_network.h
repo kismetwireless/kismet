@@ -167,6 +167,10 @@ protected:
 	// BECAUSE THEY MAY BE REFERENCED ELSEWHERE.
 	vector<Netracker::tracked_network *> meta_vec;
 
+	// Vector of tracked clients, should never be freed here because they can be
+	// referenced elsewhere
+	vector<Netracker::tracked_client *> client_vec;
+
 	// Clear display data and set dirty
 	void ClearSetDirty();
 };

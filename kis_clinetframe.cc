@@ -172,8 +172,10 @@ int KisNetClient::RegisterProtoHandler(string in_proto, string in_fieldlist,
 		proto_field_dmap.find(in_proto);
 
 	if (dmitr == proto_field_dmap.end()) {
+		/*
 		_MSG("Kis net client - trying to register for unknown protocol '" + 
 			 in_proto + "'", MSGFLAG_ERROR);
+		*/
 		return -1;
 	}
 

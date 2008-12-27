@@ -258,11 +258,11 @@ int KisPanelInterface::RemoveNetClient(KisNetClient *in_cli) {
 
 void KisPanelInterface::NetClientConfigure(KisNetClient *in_cli, int in_recon) {
 	// Reset the card list.  This assumes we only ever have one client, which
-	// is the case despite the stubs for multi-client.  Sorry.  -d
-	
+	// is the case despite the stubs for multi-client.  Sorry.  We do this here
+	// so we don't get deltas before the reconnect event in configure.  
 	for (map<uuid, KisPanelInterface::knc_card *>::iterator x = netcard_map.begin();
 		 x != netcard_map.end(); ++x) {
-		delete(x->second);
+		delete x->second;
 	}
 	netcard_map.clear();
 
