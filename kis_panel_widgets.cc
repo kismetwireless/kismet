@@ -2777,7 +2777,7 @@ void Kis_IntGraph::DrawComponent() {
 		}
 
 		for (int gx = 0; gx < gw && inter_x; gx++) {
-			int r, py, nuse = 0;
+			int r = 0, py, nuse = 0;
 			// We make the assumption here that T is a numerical
 			// type in some fashion, if this is ever not true we'll have
 			// to do something else
@@ -2796,21 +2796,33 @@ void Kis_IntGraph::DrawComponent() {
 						continue;
 
 					// Max depending on if we're neg or pos data
-					if (((*(data_vec[x].data))[r + pos] >= 0 &&
-						 (*(data_vec[x].data))[r + pos] > max) || 
-						((*(data_vec[x].data))[r + pos] <= 0 &&
-						 (*(data_vec[x].data))[r + pos] < max))
-						max = (*(data_vec[x].data))[r + pos];
+					if ((*(data_vec[x].data))[r + pos] >= 0 &&
+						 (*(data_vec[x].data))[r + pos] > max) {
+						if ((*(data_vec[x].data))[r+pos] > dmax_y) {
+							max = dmax_y;
+						} else {
+							max = (*(data_vec[x].data))[r + pos];
+						}
+					} else if ((*(data_vec[x].data))[r + pos] <= 0 &&
+						 (*(data_vec[x].data))[r + pos] < max) {
+						if ((*(data_vec[x].data))[r+pos] < dmin_y) {
+							max = dmin_y;
+						} else {
+							max = (*(data_vec[x].data))[r + pos];
+						}
+					}
+
 					nuse++;
 				} 
 			} else {
 				nuse = 1;
 				// int gofft = kismin((1.0f / dvsize) * gw, gx);
 				unsigned int pos = (unsigned int) (((float) gx/gw) * dvsize);
-				if (pos >= (*(data_vec)[x].data).size() || pos < 0)
+				if (pos >= (*(data_vec)[x].data).size() || pos < 0) {
 					max = min_y;
-				else
+				} else {
 					max = (*(data_vec)[x].data)[pos];
+				}
 			}
 
 			if (nuse == 0)

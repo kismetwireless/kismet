@@ -2301,7 +2301,7 @@ Kis_ChanDetails_Panel::Kis_ChanDetails_Panel(GlobalRegistry *in_globalreg,
 							' ', ' ', 1, &sigvec);
 	siggraph->AddExtDataVec("Noise", 4, "channel_noise", "green,green",
 							' ', ' ', 1, &noisevec);
-	AddComponentVec(siggraph, KIS_PANEL_COMP_DRAW);
+	// AddComponentVec(siggraph, KIS_PANEL_COMP_DRAW);
 
 	packetgraph = new Kis_IntGraph(globalreg, this);
 	packetgraph->SetName("CHANNEL_PPS");
@@ -2311,7 +2311,7 @@ Kis_ChanDetails_Panel::Kis_ChanDetails_Panel(GlobalRegistry *in_globalreg,
 	packetgraph->Show();
 	packetgraph->AddExtDataVec("Packet Rate", 4, "channel_pps", "green,green",
 							   ' ', ' ', 1, &packvec);
-	AddComponentVec(packetgraph, KIS_PANEL_COMP_DRAW);
+	// AddComponentVec(packetgraph, KIS_PANEL_COMP_DRAW);
 
 	bytegraph = new Kis_IntGraph(globalreg, this);
 	bytegraph->SetName("CHANNEL_BPS");
@@ -2321,7 +2321,7 @@ Kis_ChanDetails_Panel::Kis_ChanDetails_Panel(GlobalRegistry *in_globalreg,
 	bytegraph->Show();
 	bytegraph->AddExtDataVec("Traffic", 4, "channel_bytes", "green,green",
 							 ' ', ' ', 1, &bytevec);
-	AddComponentVec(bytegraph, KIS_PANEL_COMP_DRAW);
+	// AddComponentVec(bytegraph, KIS_PANEL_COMP_DRAW);
 
 	netgraph = new Kis_IntGraph(globalreg, this);
 	netgraph->SetName("CHANNEL_NETS");
@@ -2333,7 +2333,7 @@ Kis_ChanDetails_Panel::Kis_ChanDetails_Panel(GlobalRegistry *in_globalreg,
 							' ', ' ', 1, &netvec);
 	netgraph->AddExtDataVec("Active", 4, "channel_actnets", "green,green",
 							' ', ' ', 1, &anetvec);
-	AddComponentVec(netgraph, KIS_PANEL_COMP_DRAW);
+	// AddComponentVec(netgraph, KIS_PANEL_COMP_DRAW);
 
 	SetTitle("");
 
@@ -2421,7 +2421,10 @@ int Kis_ChanDetails_Panel::GraphTimer() {
 			noisevec.push_back(x->second->noise_rssi);
 		} else if (x->second->sig_dbm != 0) {
 			sigvec.push_back(x->second->sig_dbm);
-			noisevec.push_back(x->second->noise_dbm);
+			if (x->second->noise_dbm == 0)
+				noisevec.push_back(-256);
+			else
+				noisevec.push_back(x->second->noise_dbm);
 		} else {
 			sigvec.push_back(-256);
 			noisevec.push_back(-256);

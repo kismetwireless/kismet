@@ -2383,6 +2383,16 @@ int Kis_Info_Bits::UpdatePrefs() {
 void Kis_Info_Bits::DrawComponent() {
 	UpdatePrefs();
 
+	if (kpinterface->FetchFirstNetclient() == NULL ||
+		(kpinterface->FetchFirstNetclient() != NULL &&
+		 kpinterface->FetchFirstNetclient()->Valid() <= 0)) {
+		vector<string> titletext = title->GetText();
+		if (titletext.size() == 1) {
+			titletext.push_back("\004rDiscon'd\004R");
+			title->SetText(titletext);
+		}
+	}
+
 	parent_panel->InitColorPref("info_normal_color", "white,black");
 	parent_panel->ColorFromPref(info_color_normal, "info_normal_color");
 

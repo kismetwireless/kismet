@@ -470,6 +470,9 @@ public:
 
 	virtual void SetText(string in_text);
 	virtual void SetText(vector<string> in_text);
+	virtual vector<string> GetText() {
+		return text_vec;
+	}
 
 	virtual void SetAlignment(int in_alignment) {
 		alignment = in_alignment;
