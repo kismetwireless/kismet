@@ -248,13 +248,15 @@ void Channeltracker::ChainHandler(kis_packet *in_pack) {
 		// Todo - fill in time handling
 	}
 
-	if (radioinfo->signal_dbm > crec->max_signal_dbm || crec->sent_reset) 
+	if ((radioinfo->signal_dbm > crec->max_signal_dbm &&
+		 radioinfo->signal_dbm != 0) || crec->sent_reset) 
 		crec->max_signal_dbm = radioinfo->signal_dbm;
 	
 	if (radioinfo->signal_rssi > crec->max_signal_rssi || crec->sent_reset) 
 		crec->max_signal_rssi = radioinfo->signal_rssi;
 
-	if (radioinfo->noise_dbm > crec->max_noise_dbm || crec->sent_reset) 
+	if ((radioinfo->noise_dbm > crec->max_noise_dbm  &&
+		 radioinfo->noise_dbm != 0) || crec->sent_reset) 
 		crec->max_noise_dbm = radioinfo->noise_dbm;
 
 	if (radioinfo->noise_rssi > crec->max_noise_rssi || crec->sent_reset) 
