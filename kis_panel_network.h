@@ -49,28 +49,6 @@
 // since the bulk of them will not be updating.  There is no reason to sort
 // or recalculate networks which are unchanging.
 
-// What we expect from the client
-#define KCLI_BSSID_FIELDS	"bssid,type,llcpackets,datapackets,cryptpackets," \
-	"channel,firsttime,lasttime,atype,rangeip,netmaskip,gatewayip,gpsfixed," \
-	"minlat,minlon,minalt,minspd,maxlat,maxlon,maxalt,maxspd,"\
-	"signal_dbm,noise_dbm,minsignal_dbm,minnoise_dbm,maxsignal_dbm,maxnoise_dbm,"\
-	"signal_rssi,noise_rssi,minsignal_rssi,minnoise_rssi,maxsignal_rssi,"\
-	"maxnoise_rssi,bestlat,bestlon,bestalt,agglat," \
-	"agglon,aggalt,aggpoints,datasize,turbocellnid,turbocellmode,turbocellsat," \
-	"carrierset,maxseenrate,encodingset,decrypted,dupeivpackets,bsstimestamp," \
-	"cdpdevice,cdpport,fragments,retries,newpackets,freqmhz"
-#define KCLI_BSSID_NUMFIELDS	56
-
-#define KCLI_SSID_FIELDS	"mac,checksum,type,ssid,beaconinfo,cryptset," \
-	"cloaked,firsttime,lasttime,maxrate,beaconrate,packets,beacons"
-#define KCLI_SSID_NUMFIELDS		13
-
-#define KCLI_INFO_TIME_FIELDS	"timesec"
-#define KCLI_INFO_TIME_NUMFIELDS	1
-
-#define KCLI_INFO_INFO_FIELDS	"networks,packets,rate,filtered"
-#define KCLI_INFO_INFO_NUMFIELDS	4
-
 // TODO - add SSID handling and group naming
 class Kis_Display_NetGroup {
 public:
@@ -279,6 +257,10 @@ protected:
 	// Horizontal position
 	int hpos;
 
+	// Assembled protocol fields
+	string asm_ssid_fields, asm_bssid_fields, asm_client_fields;
+	int asm_ssid_num, asm_bssid_num, asm_client_num;
+
 	// We try to optimize our memory usage so that there is only
 	// one copy of the TCP data network, as well as only one copy of
 	// the display group network.
@@ -376,6 +358,9 @@ protected:
 	int filtered_packets;
 
 	int info_color_normal;
+
+	string asm_time_fields, asm_info_fields;
+	int asm_time_num, asm_info_num;
 };
 
 #endif // panel

@@ -141,6 +141,8 @@ vector<smart_word_token> SmartStrTokenize(string in_str, string in_split,
 vector<smart_word_token> NetStrTokenize(string in_str, string in_split, 
 										int return_partial = 1);
 
+int TokenNullJoin(string *ret_str, const char **in_list);
+
 string InLineWrap(string in_txt, unsigned int in_hdr_len,
 				  unsigned int in_max_len);
 vector<string> LineWrap(string in_txt, unsigned int in_hdr_len, 

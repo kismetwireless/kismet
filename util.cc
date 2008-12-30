@@ -391,6 +391,21 @@ vector<smart_word_token> NetStrTokenize(string in_str, string in_split,
 	return ret;
 }
 
+int TokenNullJoin(string *ret_str, const char **in_list) {
+	int ret = 0;
+
+	while (in_list[ret] != NULL) {
+		(*ret_str) += in_list[ret];
+
+		if (in_list[ret + 1] != NULL)
+			(*ret_str) += ",";
+
+		ret++;
+	}
+
+	return ret;
+}
+
 // Find an option - just like config files
 string FetchOpt(string in_key, vector<opt_pair> *in_vec) {
 	string lkey = StrLower(in_key);

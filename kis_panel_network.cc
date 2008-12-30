@@ -64,6 +64,39 @@ const char *bssid_extras_details[][2] = {
 	{ NULL, NULL}
 };
 
+const char *bssid_fields[] = {
+	"bssid", "type", "llcpackets", "datapackets", "cryptpackets", 
+	"channel", "firsttime", "lasttime", "atype", "rangeip", "netmaskip",
+	"gatewayip", "gpsfixed", "minlat", "minlon", "minalt", "minspd", 
+	"maxlat", "maxlon", "maxalt", "maxspd", "signal_dbm", "noise_dbm", 
+	"minsignal_dbm", "minnoise_dbm", "maxsignal_dbm", "maxnoise_dbm",
+	"signal_rssi", "noise_rssi", "minsignal_rssi", "minnoise_rssi",
+	"maxsignal_rssi", "maxnoise_rssi", "bestlat", "bestlon", "bestalt", 
+	"agglat", "agglon", "aggalt", "aggpoints", "datasize", "turbocellnid",
+	"turbocellmode", "turbocellsat", "carrierset", "maxseenrate", 
+	"encodingset", "decrypted", "dupeivpackets", "bsstimestamp", 
+	"cdpdevice", "cdpport", "fragments", "retries", "newpackets", "freqmhz",
+	NULL
+};
+
+const char *ssid_fields[] = {
+	"mac", "checksum", "type", "ssid", "beaconinfo", "cryptset",
+	"cloaked", "firsttime", "lasttime", "maxrate", "beaconrate", 
+	"packets", "beacons", NULL
+};
+
+const char *client_fields[] = {
+	"bssid", "mac", "type", "firsttime", "lasttime", "llcpackets", "datapackets",
+	"cryptpackets", "maxrate", "signal_dbm", "noise_dbm", "signal_rssi", "noise_rssi",
+	"bestlat", "bestlon", "bestalt", "atype", "ip", "gatewayip", "datasize",
+	"maxseenrate", "encodingset", "carrierset", "decrypted", "channel", "fragments",
+	"retries", "newpackets", "freqmhz", NULL
+};
+
+const char *time_fields[] = { "timesec", NULL };
+
+const char *info_fields[] = { "networks", "packets", "rate", "filtered", NULL };
+
 // Netgroup management
 Kis_Display_NetGroup::Kis_Display_NetGroup() {
 	local_metanet = 0;
@@ -372,6 +405,13 @@ void KisNetlist_SSID(CLIPROTO_CB_PARMS) {
 										 proto_parsed, srccli, auxptr);
 }
 
+void KisNetlist_CLIENT(CLIPROTO_CB_PARMS) {
+	/*
+	((Kis_Netlist *) auxptr)->Proto_CLIENT(globalreg, proto_string,
+										   proto_parsed, srccli, auxptr);
+	*/
+}
+
 // Event callbacks
 int Event_Netlist_Update(TIMEEVENT_PARMS) {
 	((Kis_Netlist *) parm)->UpdateTrigger();
@@ -415,6 +455,11 @@ Kis_Netlist::Kis_Netlist(GlobalRegistry *in_globalreg, Kis_Panel *in_panel) :
 	for (int x = 0; x < 5; x++)
 		color_map[x] = 0;
 	color_inactive = 0;
+
+	// Assemble our protocol lines
+	asm_bssid_num = TokenNullJoin(&asm_bssid_fields, bssid_fields);
+	asm_ssid_num = TokenNullJoin(&asm_ssid_fields, ssid_fields);
+	asm_client_num = TokenNullJoin(&asm_client_fields, client_fields);
 
 	// Set default preferences for BSSID columns if we don't have any in the
 	// preferences file, then update the column vector
@@ -611,7 +656,7 @@ void Kis_Netlist::NetClientConfigure(KisNetClient *in_cli, int in_recon) {
 		return;
 	}
 
-	if (in_cli->RegisterProtoHandler("BSSID", KCLI_BSSID_FIELDS,
+	if (in_cli->RegisterProtoHandler("BSSID", asm_bssid_fields, 
 									 KisNetlist_BSSID, this) < 0) {
 		_MSG("Could not register BSSID protocol with remote server, connection "
 			 "will be terminated.", MSGFLAG_ERROR);
@@ -619,9 +664,17 @@ void Kis_Netlist::NetClientConfigure(KisNetClient *in_cli, int in_recon) {
 		return;
 	}
 
-	if (in_cli->RegisterProtoHandler("SSID", KCLI_SSID_FIELDS,
+	if (in_cli->RegisterProtoHandler("SSID", asm_ssid_fields,
 									 KisNetlist_SSID, this) < 0) {
 		_MSG("Could not register SSID protocol with remote server, connection "
+			 "will be terminated.", MSGFLAG_ERROR);
+		in_cli->KillConnection();
+		return;
+	}
+
+	if (in_cli->RegisterProtoHandler("CLIENT", asm_client_fields,
+									 KisNetlist_CLIENT, this) < 0) {
+		_MSG("Could not register CLIENT protocol with remote server, connection "
 			 "will be terminated.", MSGFLAG_ERROR);
 		in_cli->KillConnection();
 		return;
@@ -671,7 +724,7 @@ void Kis_Netlist::SetPosition(int isx, int isy, int iex, int iey) {
 }
 
 void Kis_Netlist::Proto_BSSID(CLIPROTO_CB_PARMS) {
-	if (proto_parsed->size() < KCLI_BSSID_NUMFIELDS) {
+	if (proto_parsed->size() < (unsigned int) asm_bssid_num) {
 		return;
 	}
 
@@ -1079,7 +1132,7 @@ void Kis_Netlist::Proto_BSSID(CLIPROTO_CB_PARMS) {
 }
 
 void Kis_Netlist::Proto_SSID(CLIPROTO_CB_PARMS) {
-	if (proto_parsed->size() < KCLI_SSID_NUMFIELDS) {
+	if (proto_parsed->size() < (unsigned int) asm_ssid_num) {
 		return;
 	}
 
@@ -2311,6 +2364,9 @@ Kis_Info_Bits::Kis_Info_Bits(GlobalRegistry *in_globalreg, Kis_Panel *in_panel) 
 	title->Show();
 	Pack_End(title, 0, 0);
 
+	asm_time_num = TokenNullJoin(&asm_time_fields, time_fields);
+	asm_info_num = TokenNullJoin(&asm_info_fields, info_fields);
+
 	UpdatePrefs();
 }
 
@@ -2328,8 +2384,9 @@ int Kis_Info_Bits::UpdatePrefs() {
 		kpinterface->prefs.SetOpt("NETINFO_ITEMS", ibits, 1);
 	}
 
-	if (kpinterface->prefs.FetchOptDirty("NETINFO_ITEMS") == 0)
+	if (kpinterface->prefs.FetchOptDirty("NETINFO_ITEMS") == 0) {
 		return 0;
+	}
 
 	kpinterface->prefs.SetOptDirty("NETINFO_ITEMS", 0);
 
@@ -2388,7 +2445,8 @@ void Kis_Info_Bits::DrawComponent() {
 		 kpinterface->FetchFirstNetclient()->Valid() <= 0)) {
 		vector<string> titletext = title->GetText();
 		if (titletext.size() == 1) {
-			titletext.push_back("\004rDiscon'd\004R");
+			titletext.push_back("\004rNot\004R");
+			titletext.push_back("\004rConnected\004R");
 			title->SetText(titletext);
 		}
 	}
@@ -2409,14 +2467,14 @@ void Kis_Info_Bits::NetClientConfigure(KisNetClient *in_cli, int in_recon) {
 	if (in_recon)
 		return;
 
-	if (in_cli->RegisterProtoHandler("TIME", KCLI_INFO_TIME_FIELDS,
+	if (in_cli->RegisterProtoHandler("TIME", asm_time_fields,
 									 KisInfobits_TIME, this) < 0) {
 		_MSG("Could not register TIME protocol with remote server, connection "
 			 "will be terminated.", MSGFLAG_ERROR);
 		in_cli->KillConnection();
 	}
 
-	if (in_cli->RegisterProtoHandler("INFO", KCLI_INFO_INFO_FIELDS,
+	if (in_cli->RegisterProtoHandler("INFO", asm_info_fields,
 									 KisInfobits_INFO, this) < 0) {
 		_MSG("Could not register INFO protocol with remote server, connection "
 			 "will be terminated.", MSGFLAG_ERROR);
@@ -2432,7 +2490,7 @@ void Kis_Info_Bits::NetClientAdd(KisNetClient *in_cli, int add) {
 }
 
 void Kis_Info_Bits::Proto_TIME(CLIPROTO_CB_PARMS) {
-	if (proto_parsed->size() < KCLI_INFO_TIME_NUMFIELDS) {
+	if (proto_parsed->size() < (unsigned int) asm_time_num) {
 		return;
 	}
 
@@ -2460,7 +2518,7 @@ void Kis_Info_Bits::Proto_TIME(CLIPROTO_CB_PARMS) {
 }
 
 void Kis_Info_Bits::Proto_INFO(CLIPROTO_CB_PARMS) {
-	if (proto_parsed->size() < KCLI_INFO_INFO_NUMFIELDS) {
+	if (proto_parsed->size() < (unsigned int) asm_info_num) {
 		return;
 	}
 

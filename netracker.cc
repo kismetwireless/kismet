@@ -98,8 +98,8 @@ const char *CLIENT_fields_text[] = {
 };
 
 const char *INFO_fields_text[] = {
-	"networks", "packets", "crypt", "noise", "dropped", "rate", "filtered", "clients",
-	"llcpackets", "datapackets",
+	"networks", "packets", "crypt", "noise", "dropped", "rate", 
+	"filtered", "clients", "llcpackets", "datapackets",
 	NULL
 };
 
