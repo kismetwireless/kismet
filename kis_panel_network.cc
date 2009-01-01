@@ -87,10 +87,28 @@ const char *ssid_fields[] = {
 
 const char *client_fields[] = {
 	"bssid", "mac", "type", "firsttime", "lasttime", "llcpackets", "datapackets",
-	"cryptpackets", "maxrate", "signal_dbm", "noise_dbm", "signal_rssi", "noise_rssi",
-	"bestlat", "bestlon", "bestalt", "atype", "ip", "gatewayip", "datasize",
-	"maxseenrate", "encodingset", "carrierset", "decrypted", "channel", "fragments",
-	"retries", "newpackets", "freqmhz", NULL
+	"cryptpackets", 
+
+	"signal_dbm", "noise_dbm", "minsignal_dbm", 
+	"minnoise_dbm", "maxsignal_dbm", "maxnoise_dbm", 
+
+	"signal_rssi", "noise_rssi", "minsignal_rssi",
+	"minnoise_rssi", "maxsignal_rssi", "maxnoise_rssi",
+
+	"gpsfixed",
+
+	"bestlat", "bestlon", "bestalt", 
+
+	"agglat", "agglon", "aggalt", "aggpoints",
+
+	"minlat", "minlon", "minalt",
+	"maxlat", "maxlon", "maxalt",
+	
+	"atype", "ip", "gatewayip", "datasize",
+	"maxseenrate", "encodingset", "carrierset", "decrypted", 
+	"channel", "fragments", "retries", "newpackets", "freqmhz", 
+	"cdpdevice", "cdpport",
+	NULL
 };
 
 const char *time_fields[] = { "timesec", NULL };
@@ -133,6 +151,9 @@ void Kis_Display_NetGroup::ClearSetDirty() {
 	grpcache.clear();
 }
 
+// Update merged network
+//
+// meta Group will not have update map of clients since they can collide between networks
 void Kis_Display_NetGroup::Update() {
 	if (dirty == 0)
 		return;
@@ -406,10 +427,8 @@ void KisNetlist_SSID(CLIPROTO_CB_PARMS) {
 }
 
 void KisNetlist_CLIENT(CLIPROTO_CB_PARMS) {
-	/*
 	((Kis_Netlist *) auxptr)->Proto_CLIENT(globalreg, proto_string,
 										   proto_parsed, srccli, auxptr);
-	*/
 }
 
 // Event callbacks
@@ -1250,6 +1269,393 @@ void Kis_Netlist::Proto_SSID(CLIPROTO_CB_PARMS) {
 		net->dirty = 1;
 		dirty_raw_vec.push_back(net);
 	}
+
+	return;
+}
+
+void Kis_Netlist::Proto_CLIENT(CLIPROTO_CB_PARMS) {
+	if (proto_parsed->size() < (unsigned int) asm_client_num) {
+		return;
+	}
+
+	int fnum = 0;
+	
+	Netracker::tracked_client *cli = new Netracker::tracked_client;
+	Netracker::tracked_network *pnet = NULL;
+
+	int tint;
+	float tfloat;
+	long double tlf;
+	long long unsigned int tlld;
+	mac_addr tmac;
+
+	// BSSID
+	tmac = mac_addr((*proto_parsed)[fnum++].word.c_str());
+	if (tmac.error) {
+		delete cli;
+		return;
+	}
+	// Reject if we don't know the network
+	if (bssid_raw_map.find(tmac) == bssid_raw_map.end()) {
+		delete cli;
+		return;
+	}
+	pnet = bssid_raw_map[tmac];
+	cli->bssid = tmac;
+
+	tmac = mac_addr((*proto_parsed)[fnum++].word.c_str());
+	if (tmac.error) {
+		delete cli;
+		return;
+	}
+	cli->mac = tmac;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tint) != 1) {
+		delete cli;
+		return;
+	}
+	cli->type = (client_type) tint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tint) != 1) {
+		delete cli;
+		return;
+	}
+	cli->first_time = tint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tint) != 1) {
+		delete cli;
+		return;
+	}
+	cli->last_time = tint;
+
+	// Packet counts
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", 
+			   &(cli->llc_packets)) != 1) {
+		delete cli;
+		return;
+	}
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", 
+			   &(cli->data_packets)) != 1) {
+		delete cli;
+		return;
+	}
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", 
+			   &(cli->crypt_packets)) != 1) {
+		delete cli;
+		return;
+	}
+
+	// Signal levels
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", 
+			   &(cli->snrdata.last_signal_dbm)) != 1) {
+		delete cli;
+		return;
+	}
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d",
+			   &(cli->snrdata.last_noise_dbm)) != 1) {
+		delete cli;
+		return;
+	}
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d",
+			   &(cli->snrdata.min_signal_dbm)) != 1) {
+		delete cli;
+		return;
+	}
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d",
+			   &(cli->snrdata.min_noise_dbm)) != 1) {
+		delete cli;
+		return;
+	}
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d",
+			   &(cli->snrdata.max_signal_dbm)) != 1) {
+		delete cli;
+		return;
+	}
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d",
+			   &(cli->snrdata.max_noise_dbm)) != 1) {
+		delete cli;
+		return;
+	}
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", 
+			   &(cli->snrdata.last_signal_rssi)) != 1) {
+		delete cli;
+		return;
+	}
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d",
+			   &(cli->snrdata.last_noise_rssi)) != 1) {
+		delete cli;
+		return;
+	}
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d",
+			   &(cli->snrdata.min_signal_rssi)) != 1) {
+		delete cli;
+		return;
+	}
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d",
+			   &(cli->snrdata.min_noise_rssi)) != 1) {
+		delete cli;
+		return;
+	}
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d",
+			   &(cli->snrdata.max_signal_rssi)) != 1) {
+		delete cli;
+		return;
+	}
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d",
+			   &(cli->snrdata.max_noise_rssi)) != 1) {
+		delete cli;
+		return;
+	}
+
+	// GPS
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d",
+			   &(cli->gpsdata.gps_valid)) != 1) {
+		delete cli;
+		return;
+	}
+
+	// SNR lat/lon
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%f", &tfloat) != 1) {
+		delete cli;
+		return;
+	}
+	cli->snrdata.peak_lat = tfloat;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%f", &tfloat) != 1) {
+		delete cli;
+		return;
+	}
+	cli->snrdata.peak_lon = tfloat;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%f", &tfloat) != 1) {
+		delete cli;
+		return;
+	}
+	cli->snrdata.peak_alt = tfloat;
+
+	// gpsdata aggregates
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%Lf", &tlf) != 1) {
+		delete cli;
+		return;
+	}
+	cli->gpsdata.aggregate_lat = tlf;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%Lf", &tlf) != 1) {
+		delete cli;
+		return;
+	}
+	cli->gpsdata.aggregate_lon = tlf;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%Lf", &tlf) != 1) {
+		delete cli;
+		return;
+	}
+	cli->gpsdata.aggregate_alt = tlf;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%ld", 
+			   &(cli->gpsdata.aggregate_points)) != 1) {
+		delete cli;
+		return;
+	}
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%f", &tfloat) != 1) {
+		delete cli;
+		return;
+	}
+	cli->gpsdata.min_lat = tfloat;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%f", &tfloat) != 1) {
+		delete cli;
+		return;
+	}
+	cli->gpsdata.min_lon = tfloat;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%f", &tfloat) != 1) {
+		delete cli;
+		return;
+	}
+	cli->gpsdata.min_alt = tfloat;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%f", &tfloat) != 1) {
+		delete cli;
+		return;
+	}
+	cli->gpsdata.max_lat = tfloat;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%f", &tfloat) != 1) {
+		delete cli;
+		return;
+	}
+	cli->gpsdata.max_lon = tfloat;
+	
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%f", &tfloat) != 1) {
+		delete cli;
+		return;
+	}
+	cli->gpsdata.max_alt = tfloat;
+
+	// Atype
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tint) != 1) {
+		delete cli;
+		return;
+	}
+	cli->guess_ipdata.ip_type = (ipdata_type) tint;
+
+	// Rangeip
+	if (inet_aton((*proto_parsed)[fnum++].word.c_str(), 
+				  &(cli->guess_ipdata.ip_addr_block)) == 0) {
+		delete cli;
+		return;
+	}
+
+	// Maskip
+	if (inet_aton((*proto_parsed)[fnum++].word.c_str(),
+				  &(cli->guess_ipdata.ip_netmask)) == 0) {
+		delete cli;
+		return;
+	}
+
+	// Gateip
+	if (inet_aton((*proto_parsed)[fnum++].word.c_str(),
+				  &(cli->guess_ipdata.ip_gateway)) == 0) {
+		delete cli;
+		return;
+	}
+
+	// Data size
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%llu", &tlld) != 1) {
+		delete cli;
+		return;
+	}
+	cli->datasize = tlld;
+
+	// SNR carrierset
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d",
+			   &(cli->snrdata.maxseenrate)) != 1) {
+		delete cli;
+		return;
+	}
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d",
+			   &(cli->snrdata.encodingset)) != 1) {
+		delete cli;
+		return;
+	}
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", 
+			   &(cli->snrdata.carrierset)) != 1) {
+		delete cli;
+		return;
+	}
+
+	// Decrypted
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &(cli->decrypted)) != 1) {
+		delete cli;
+		return;
+	}
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &(cli->channel)) != 1) {
+		delete cli;
+		return;
+	}
+
+	// Fragments
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &(cli->fragments)) != 1) {
+		delete cli;
+		return;
+	}
+
+	// Retries
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &(cli->retries)) != 1) {
+		delete cli;
+		return;
+	}
+
+	// New packets
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", 
+			   &(cli->new_packets)) != 1) {
+		delete cli;
+		return;
+	}
+
+	// Frequency packed field
+	vector<string> freqtoks = StrTokenize((*proto_parsed)[fnum++].word, "*");
+	for (unsigned int fi = 0; fi < freqtoks.size(); fi++) {
+		unsigned int freq, count;
+
+		// Just ignore parse errors
+		if (sscanf(freqtoks[fi].c_str(), "%u:%u", &freq, &count) != 2)
+			continue;
+
+		cli->freq_mhz_map[freq] = count;
+	}
+
+	// CDP data
+	cli->cdp_dev_id = MungeToPrintable((*proto_parsed)[fnum++].word);
+	cli->cdp_port_id = MungeToPrintable((*proto_parsed)[fnum++].word);
+
+	// Merge or new
+	map<mac_addr, Netracker::tracked_client *>::iterator ti =
+		pnet->client_map.find(cli->mac);
+
+	if (ti == pnet->client_map.end()) {
+		// Flag dirty, add to vector, we'll deal with it later
+		if (pnet->dirty == 0) {
+			pnet->dirty = 1;
+			dirty_raw_vec.push_back(pnet);
+		}
+		pnet->client_map.insert(make_pair(cli->mac, cli));
+		return;
+	}
+
+	Netracker::tracked_client *ocli = ti->second;
+
+	// Merge the new data into the old data - don't replace the pointer since we have
+	// other things referencing it
+	ocli->type = cli->type;
+	ocli->last_time = cli->last_time;
+	ocli->decrypted = cli->decrypted;
+
+	ocli->bssid = cli->bssid;
+	ocli->channel = cli->channel;
+
+	ocli->freq_mhz_map = cli->freq_mhz_map;
+
+	ocli->llc_packets = cli->llc_packets;
+	ocli->data_packets = cli->data_packets;
+	ocli->crypt_packets = cli->crypt_packets;
+
+	ocli->last_sequence = cli->last_sequence;
+
+	ocli->datasize = cli->datasize;
+
+	ocli->fragments = cli->fragments;
+	ocli->retries = cli->retries;
+
+	ocli->cdp_dev_id = cli->cdp_dev_id;
+	ocli->cdp_port_id = cli->cdp_port_id;
+
+	ocli->new_packets = cli->new_packets;
+
+	ocli->guess_ipdata = cli->guess_ipdata;
+	ocli->snrdata = cli->snrdata;
+	ocli->gpsdata = cli->gpsdata;
+
+	delete cli;
+
+	// We don't do anything as fancy with client dirty tracking since we'll only
+	// be displaying them in sub-windows
 
 	return;
 }

@@ -93,7 +93,6 @@ enum CLIENT_fields {
     CLIENT_minlat, CLIENT_minlon, CLIENT_minalt, CLIENT_minspd,
     CLIENT_maxlat, CLIENT_maxlon, CLIENT_maxalt, CLIENT_maxspd,
     CLIENT_agglat, CLIENT_agglon, CLIENT_aggalt, CLIENT_aggpoints,
-    CLIENT_maxrate,
     CLIENT_signal_dbm, CLIENT_noise_dbm, 
 	CLIENT_minsignal_dbm, CLIENT_minnoise_dbm,
     CLIENT_maxsignal_dbm, CLIENT_maxnoise_dbm,
@@ -104,7 +103,7 @@ enum CLIENT_fields {
     CLIENT_atype, CLIENT_ip, CLIENT_gatewayip, CLIENT_datasize, CLIENT_maxseenrate, 
 	CLIENT_encodingset, CLIENT_carrierset, CLIENT_decrypted, 
 	CLIENT_channel, CLIENT_fragments, CLIENT_retries, CLIENT_newpackets,
-	CLIENT_freqmhz,
+	CLIENT_freqmhz, CLIENT_cdpdevice, CLIENT_cdpport,
 	CLIENT_maxfield
 };
 

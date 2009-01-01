@@ -215,6 +215,7 @@ public:
 	// Kismet protocol parsers
 	void Proto_BSSID(CLIPROTO_CB_PARMS);
 	void Proto_SSID(CLIPROTO_CB_PARMS);
+	void Proto_CLIENT(CLIPROTO_CB_PARMS);
 
 	// Trigger a sort and redraw update
 	void UpdateTrigger(void);

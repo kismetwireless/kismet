@@ -83,7 +83,6 @@ const char *CLIENT_fields_text[] = {
     "minlat", "minlon", "minalt", "minspd",
     "maxlat", "maxlon", "maxalt", "maxspd",
     "agglat", "agglon", "aggalt", "aggpoints",
-    "maxrate",
     "signal_dbm", "noise_dbm",
 	"minsignal_dbm", "minnoise_dbm",
 	"maxsignal_dbm", "maxnoise_dbm",
@@ -94,6 +93,7 @@ const char *CLIENT_fields_text[] = {
     "atype", "ip", "gatewayip", "datasize", "maxseenrate", "encodingset",
 	"carrierset", "decrypted", "channel",
 	"fragments", "retries", "newpackets", "freqmhz",
+	"cdpdevice", "cdpport",
     NULL
 };
 
@@ -804,6 +804,22 @@ int Protocol_CLIENT(PROTO_PARMS) {
 				osstr << cli->new_packets;
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
+				break;
+			case CLIENT_cdpdevice:
+				if (cli->cdp_dev_id.length() == 0)
+					scratch = "\001 \001";
+				else
+					scratch = "\001" + cli->cdp_dev_id + "\001";
+				out_string += scratch;
+				cache->Cache(fnum, scratch);
+				break;
+			case CLIENT_cdpport:
+				if (cli->cdp_port_id.length() == 0)
+					scratch = "\001 \001";
+				else
+					scratch = "\001" + cli->cdp_port_id + "\001";
+				out_string += scratch;
+				cache->Cache(fnum, scratch);
 				break;
 		}
 
