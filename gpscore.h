@@ -96,7 +96,7 @@ protected:
     time_t last_disconnect;
 
     double lat, lon, alt, spd, hed;
-    int mode;
+    int mode, gps_ever_lock;
 
     // Last location used for softheading calcs
     double last_lat, last_lon, last_hed;

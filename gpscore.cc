@@ -108,6 +108,7 @@ GPSCore::GPSCore(GlobalRegistry *in_globalreg) : ClientFramework(in_globalreg) {
 
     mode = -1;
     lat = lon = alt = spd = hed = last_lat = last_lon = last_hed = 0;
+	gps_ever_lock = 0;
 
 	gpseventid = -1;
 }
@@ -253,23 +254,30 @@ double GPSCore::CalcRad(double lat) {
 }
 
 int GPSCore::Timer() {
-    // Send it to the client
-    GPS_data gdata;
+	// Pick up if we've ever locked in
+	if (mode >= 2)
+		gps_ever_lock = 1;
 
-    snprintf(errstr, 32, "%lf", lat);
-    gdata.lat = errstr;
-    snprintf(errstr, 32, "%lf", lon);
-    gdata.lon = errstr;
-    snprintf(errstr, 32, "%lf", alt);
-    gdata.alt = errstr;
-    snprintf(errstr, 32, "%lf", spd);
-    gdata.spd = errstr;
-    snprintf(errstr, 32, "%lf", hed);
-    gdata.heading = errstr;
-    snprintf(errstr, 32, "%d", mode);
-    gdata.mode = errstr;
+	// Don't send any info if we've never gotten a gps lock
+	if (gps_ever_lock) {
+		// Send it to the client
+		GPS_data gdata;
 
-    globalreg->kisnetserver->SendToAll(gps_proto_ref, (void *) &gdata);
+		snprintf(errstr, 32, "%lf", lat);
+		gdata.lat = errstr;
+		snprintf(errstr, 32, "%lf", lon);
+		gdata.lon = errstr;
+		snprintf(errstr, 32, "%lf", alt);
+		gdata.alt = errstr;
+		snprintf(errstr, 32, "%lf", spd);
+		gdata.spd = errstr;
+		snprintf(errstr, 32, "%lf", hed);
+		gdata.heading = errstr;
+		snprintf(errstr, 32, "%d", mode);
+		gdata.mode = errstr;
+
+		globalreg->kisnetserver->SendToAll(gps_proto_ref, (void *) &gdata);
+	}
 
 	// Make an empty packet w/ just GPS data for the gpsxml logger to catch
 	kis_packet *newpack = globalreg->packetchain->GeneratePacket();

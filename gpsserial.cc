@@ -177,6 +177,10 @@ int GPSSerial::ParseData() {
 			netclient->MarkRead(inptok[it].length() + 1);
 		}
 
+		// If we've seen anything off the serial declare that we've seen the
+		// gps in some state so we report that we have one
+		gps_ever_lock = 1;
+
 		if (inptok[it].length() < 4)
 			continue;
 

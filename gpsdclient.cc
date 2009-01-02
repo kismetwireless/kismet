@@ -413,6 +413,10 @@ int GPSDClient::ParseData() {
 	if (use_coord) {
 		lat = in_lat;
 		lon = in_lon;
+		
+		// Update the "did we ever get anything" so we say "no fix" not "no gps"
+		// as soon as we get a valid sentence of any sort
+		gps_ever_lock = 1;
 	}
 
 	return 1;

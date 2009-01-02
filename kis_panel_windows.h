@@ -93,6 +93,7 @@ public:
 	void NetClientConfigure(KisNetClient *in_cli, int in_recon);
 	void NetClientAdd(KisNetClient *in_cli, int add);
 	void Proto_INFO(CLIPROTO_CB_PARMS);
+	void Proto_GPS(CLIPROTO_CB_PARMS);
 
 protected:
 	int mn_file, mi_connect, mi_disconnect, mi_addcard, mi_conf, mi_quit;
@@ -107,7 +108,7 @@ protected:
 		mi_sort_packets, mi_sort_packets_d;
 
 	int mn_view, mi_netdetails, mi_chandetails, mi_shownetworks, mi_showsummary, 
-		mi_showstatus, mi_showpps, mi_showsources;
+		mi_showstatus, mi_showgps, mi_showpps, mi_showsources;
 
 	int connect_enable;
 
@@ -117,7 +118,7 @@ protected:
 	Kis_Status_Text *statustext;
 	Kis_Netlist *netlist;
 	Kis_Info_Bits *infobits;
-	Kis_Free_Text *sourceinfo;
+	Kis_Free_Text *sourceinfo, *gpsinfo;
 
 	Kis_Panel_Packbox *netbox, *optbox, *linebox, *hbox, *vbox;
 
@@ -139,6 +140,9 @@ protected:
 	int lastpackets, lastdata;
 
 	int addref;
+
+	string agg_gps_fields;
+	int agg_gps_num;
 };
 
 class Kis_Connect_Panel : public Kis_Panel {

@@ -56,6 +56,11 @@ void KisMainPanel_INFO(CLIPROTO_CB_PARMS) {
 											proto_parsed, srccli, auxptr);
 }
 
+void KisMainPanel_GPS(CLIPROTO_CB_PARMS) {
+	((Kis_Main_Panel *) auxptr)->Proto_GPS(globalreg, proto_string,
+										   proto_parsed, srccli, auxptr);
+}
+
 int NetlistActivateCB(COMPONENT_CALLBACK_PARMS) {
 	Kis_NetDetails_Panel *dp = 
 		new Kis_NetDetails_Panel(globalreg, 
@@ -65,6 +70,10 @@ int NetlistActivateCB(COMPONENT_CALLBACK_PARMS) {
 
 	return 1;
 }
+
+const char *gps_fields[] = {
+	"fix", "lat", "lon", "alt", "spd", "heading", NULL
+};
 
 Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg, 
 							   KisPanelInterface *in_intf) : 
@@ -125,10 +134,11 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	mi_chandetails = menu->AddMenuItem("Channel Details", mn_view, 'c');
 	menu->AddMenuItem("-", mn_view, 0);
 	mi_shownetworks = menu->AddMenuItem("Network List", mn_view, 'n');
-	mi_showsummary = menu->AddMenuItem("Info Pane", mn_view, 'S');
-	mi_showstatus = menu->AddMenuItem("Status Pane", mn_view, 's');
-	mi_showpps = menu->AddMenuItem("Packet Rate", mn_view, 'p');
-	mi_showsources = menu->AddMenuItem("Source Status", mn_view, 'C');
+	mi_showgps = menu->AddMenuItem("GPS Data", mn_view, 'g');
+	mi_showsummary = menu->AddMenuItem("General Info", mn_view, 'S');
+	mi_showstatus = menu->AddMenuItem("Status", mn_view, 's');
+	mi_showpps = menu->AddMenuItem("Packet Graph", mn_view, 'p');
+	mi_showsources = menu->AddMenuItem("Source Info", mn_view, 'C');
 
 	menu->Show();
 	AddComponentVec(menu, KIS_PANEL_COMP_EVT);
@@ -220,6 +230,13 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 
 	optbox->Pack_End(sourceinfo, 0, 0);
 
+	gpsinfo = new Kis_Free_Text(globalreg, this);
+	gpsinfo->SetName("KIS_MAIN_GPSINFO");
+	gpsinfo->SetAlignment(1);
+	gpsinfo->SetText("No GPS info (GPS not connected)");
+	gpsinfo->Show();
+	linebox->Pack_End(gpsinfo, 0, 0);
+
 	// Pack our boxes together
 	hbox->Pack_End(netbox, 1, 0);
 	hbox->Pack_End(optbox, 0, 0);
@@ -266,6 +283,8 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 
 	UpdateViewMenu(-1);
 
+	agg_gps_num = TokenNullJoin(&agg_gps_fields, gps_fields);
+
 	addref = 
 		kpinterface->Add_NetCli_AddCli_CB(KisMainPanel_AddCli, (void *) this);
 
@@ -287,15 +306,27 @@ Kis_Main_Panel::~Kis_Main_Panel() {
 	kpinterface->Remove_Netcli_AddCli_CB(addref);
 	kpinterface->Remove_AllNetcli_ProtoHandler("INFO",
 											   KisMainPanel_INFO, this);
+	kpinterface->Remove_AllNetcli_ProtoHandler("GPS",
+											   KisMainPanel_GPS, this);
 }
 
 void Kis_Main_Panel::NetClientConfigure(KisNetClient *in_cli, int in_recon) {
+	// Reset the GPS text
+	gpsinfo->SetText("No GPS info (GPS not connected)");
+	
 	if (in_recon)
 		return;
 
 	if (in_cli->RegisterProtoHandler("INFO", "packets,llcpackets,",
 									 KisMainPanel_INFO, this) < 0) {
 		_MSG("Could not register INFO protocol with remote server, connection "
+			 "will be terminated.", MSGFLAG_ERROR);
+		in_cli->KillConnection();
+	}
+
+	if (in_cli->RegisterProtoHandler("GPS", agg_gps_fields,
+									 KisMainPanel_GPS, this) < 0) {
+		_MSG("Could not register GPS protocol with remote server, connection "
 			 "will be terminated.", MSGFLAG_ERROR);
 		in_cli->KillConnection();
 	}
@@ -334,6 +365,40 @@ void Kis_Main_Panel::Proto_INFO(CLIPROTO_CB_PARMS) {
 		datapps.erase(datapps.begin(), datapps.begin() + datapps.size() - 50);
 	lastpackets = pkts;
 	lastdata = datapkts;
+}
+
+void Kis_Main_Panel::Proto_GPS(CLIPROTO_CB_PARMS) {
+	if (proto_parsed->size() < (unsigned int) agg_gps_num)
+		return;
+
+	int fnum = 0, fix;
+	float lat, lon, alt, spd;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &fix) != 1)
+		return;
+
+	if (fix < 2) {
+		gpsinfo->SetText("No GPS info (GPS does not have signal)");
+		return;
+	}
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%f", &lat) != 1)
+		return;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%f", &lon) != 1)
+		return;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%f", &alt) != 1)
+		return;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%f", &spd) != 1)
+		return;
+
+	gpsinfo->SetText(NtoString<float>(lat).Str() + string(" ") + 
+					 NtoString<float>(lon).Str() + string(" ") +
+					 NtoString<float>(alt).Str() + string("ft ") + 
+					 NtoString<float>(spd).Str() + string("mph ") +
+					 IntToString(fix) + string("d fix"));
 }
 
 void Kis_Main_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {
@@ -467,6 +532,7 @@ void Kis_Main_Panel::MenuAction(int opt) {
 	} else if (opt == mi_showsummary ||
 			   opt == mi_showstatus ||
 			   opt == mi_showpps ||
+			   opt == mi_showgps ||
 			   opt == mi_showsources ||
 			   opt == mi_shownetworks) {
 		UpdateViewMenu(opt);
@@ -711,6 +777,17 @@ void Kis_Main_Panel::UpdateViewMenu(int mi) {
 			menu->SetMenuItemChecked(mi_showstatus, 1);
 			statustext->Show();
 		}
+	} else if (mi == mi_showgps) {
+		opt = kpinterface->prefs.FetchOpt("MAIN_SHOWGPS");
+		if (opt == "" || opt == "true") {
+			kpinterface->prefs.SetOpt("MAIN_SHOWGPS", "false", 1);
+			menu->SetMenuItemChecked(mi_showgps, 0);
+			linebox->Hide();
+		} else {
+			kpinterface->prefs.SetOpt("MAIN_SHOWGPS", "true", 1);
+			menu->SetMenuItemChecked(mi_showgps, 1);
+			linebox->Show();
+		}
 	} else if (mi == mi_showpps) {
 		opt = kpinterface->prefs.FetchOpt("MAIN_SHOWPPS");
 		if (opt == "" || opt == "true") {
@@ -772,6 +849,15 @@ void Kis_Main_Panel::UpdateViewMenu(int mi) {
 		} else {
 			menu->SetMenuItemChecked(mi_showpps, 0);
 			packetrate->Hide();
+		}
+
+		opt = kpinterface->prefs.FetchOpt("MAIN_SHOWGPS");
+		if (opt == "" || opt == "true") {
+			menu->SetMenuItemChecked(mi_showgps, 1);
+			linebox->Show();
+		} else {
+			menu->SetMenuItemChecked(mi_showgps, 0);
+			linebox->Hide();
 		}
 
 		opt = kpinterface->prefs.FetchOpt("MAIN_SHOWSOURCE");
@@ -2057,7 +2143,7 @@ void Kis_NetDetails_Panel::DrawPanel() {
 			k = AppendNetworkInfo(k, tng, NULL);
 		} else {
 			td[0] = "";
-			td[1] = "No network selected / Empty network selected";
+			td[1] = "No network selected / Empty group selected";
 			netdetails->AddRow(0, td);
 		}
 	}
