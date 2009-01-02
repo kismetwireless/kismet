@@ -1929,6 +1929,16 @@ int Kis_NetDetails_Panel::AppendNetworkInfo(int k, Kis_Display_NetGroup *tng,
 	td[1] = osstr.str();
 	netdetails->AddRow(k++, td);
 
+	if (net->cdp_dev_id.length() > 0) {
+		td[0] = "CDP Device:";
+		td[1] = net->cdp_dev_id;
+		netdetails->AddRow(k++, td);
+
+		td[0] = "CDP Port:";
+		td[1] = net->cdp_port_id;
+		netdetails->AddRow(k++, td);
+	}
+
 	return k;
 }
 
