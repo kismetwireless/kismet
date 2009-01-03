@@ -105,6 +105,7 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	mi_netcolprefs = menu->AddMenuItem("Network Columns...", mn_preferences, 'N');
 	mi_netextraprefs = menu->AddMenuItem("Network Extras...", mn_preferences, 'E');
 	mi_infoprefs = menu->AddMenuItem("Info Pane...", mn_preferences, 'I');
+	mi_gpsprefs = menu->AddMenuItem("GPS...", mn_preferences, 'G');
 
 	menu->AddMenuItem("-", mn_file, 0);
 
@@ -374,6 +375,8 @@ void Kis_Main_Panel::Proto_GPS(CLIPROTO_CB_PARMS) {
 	int fnum = 0, fix;
 	float lat, lon, alt, spd;
 
+	string gpstext;
+
 	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &fix) != 1)
 		return;
 
@@ -394,11 +397,44 @@ void Kis_Main_Panel::Proto_GPS(CLIPROTO_CB_PARMS) {
 	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%f", &spd) != 1)
 		return;
 
-	gpsinfo->SetText(NtoString<float>(lat).Str() + string(" ") + 
-					 NtoString<float>(lon).Str() + string(" ") +
-					 NtoString<float>(alt).Str() + string("ft ") + 
-					 NtoString<float>(spd).Str() + string("mph ") +
-					 IntToString(fix) + string("d fix"));
+	int eng = StrLower(kpinterface->prefs.FetchOpt("GPSUNIT")) != "metric";
+
+	if (eng) {
+		// Convert speed to feet/sec
+		spd /= 3.2808;
+		// Convert alt to feet
+		alt /= 3.2808;
+	}
+
+	gpstext = string("GPS ") + 
+		NtoString<float>(lat).Str() + string(" ") + 
+		NtoString<float>(lon).Str() + string(" ");
+
+	if (eng) {
+		if (spd > 2500)
+			gpstext += NtoString<float>(spd / 5280, 2).Str() + "miles/hr ";
+		else
+			gpstext += NtoString<float>(spd, 2).Str() + "feet/hr ";
+
+		if (alt > 2500)
+			gpstext += NtoString<float>(alt / 5280, 2).Str() + "miles";
+		else
+			gpstext += NtoString<float>(alt, 2).Str() + "feet";
+
+	} else {
+		if (spd > 1000)
+			gpstext += NtoString<float>(spd / 1000, 2).Str() + "Km/hr ";
+		else
+			gpstext += NtoString<float>(spd, 2).Str() + "m/hr ";
+
+		if (alt > 1000)
+			gpstext += NtoString<float>(alt / 1000, 2).Str() + "Km ";
+		else
+			gpstext += NtoString<float>(alt, 2).Str() + "m ";
+	}
+
+	
+	gpsinfo->SetText(gpstext + IntToString(fix) + string("d fix"));
 }
 
 void Kis_Main_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {
@@ -575,6 +611,10 @@ void Kis_Main_Panel::MenuAction(int opt) {
 		SpawnNetextraPrefs();
 	} else if (opt == mi_infoprefs) {
 		SpawnInfoPrefs();
+	} else if (opt == mi_gpsprefs) {
+		Kis_GpsPref_Panel *pp = new Kis_GpsPref_Panel(globalreg, kpinterface);
+		pp->Position(WIN_CENTER(10, 70));
+		kpinterface->AddPanel(pp);
 	} else {
 		for (unsigned int p = 0; p < plugin_menu_vec.size(); p++) {
 			if (opt == plugin_menu_vec[p].menuitem) {

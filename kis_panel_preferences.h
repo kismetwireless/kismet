@@ -239,6 +239,30 @@ protected:
 	vector<Kis_Keyshort_Panel::pref_shorts> pref_vec;
 };
 
+class Kis_GpsPref_Panel : public Kis_Panel {
+public:
+	Kis_GpsPref_Panel() {
+		fprintf(stderr, "FATAL OOPS: Kis_Gps_Panel called w/out globalreg\n");
+		exit(1);
+	}
+
+	Kis_GpsPref_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_kpf);
+	virtual ~Kis_GpsPref_Panel();
+
+	virtual void Position(int in_sy, int in_sx, int in_y, int in_x);
+	virtual void DrawPanel();
+
+	virtual void ButtonAction(Kis_Panel_Component *in_button);
+
+protected:
+	Kis_Radiobutton *metrad, *engrad;
+	Kis_Free_Text *helptext;
+	Kis_Button *okbutton;
+	Kis_Button *cancelbutton;
+
+	Kis_Panel_Packbox *vbox, *cbox, *bbox;
+};
+
 #endif // curses
 
 #endif // prefs

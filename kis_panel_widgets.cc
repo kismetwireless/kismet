@@ -2627,7 +2627,8 @@ int Kis_Radiobutton::KeyPress(int in_key) {
 		return 0;
 
 	if (in_key == KEY_ENTER || in_key == '\n' || in_key == ' ') {
-		SetChecked(!checked);
+		if (!checked)
+			SetChecked(1);
 
 		if (cb_activate != NULL) 
 			(*cb_activate)(this, 1, cb_activate_aux, globalreg);
@@ -2646,7 +2647,8 @@ int Kis_Radiobutton::MouseEvent(MEVENT *mevent) {
 	mwy = mevent->y - mwy;
 
 	if (mevent->bstate == 4 && mwy == sy && mwx >= sx && mwx <= ex) {
-		SetChecked(!checked);
+		if (!checked)
+			SetChecked(1);
 
 		if (cb_activate != NULL) 
 			(*cb_activate)(this, 1, cb_activate_aux, globalreg);

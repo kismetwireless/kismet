@@ -776,5 +776,124 @@ void Kis_ColumnPref_Panel::ColumnPref(string in_pref, string name) {
 	SetTitle(name + " Column Preferences");
 }
 
+int GpsconfButtonCB(COMPONENT_CALLBACK_PARMS) {
+	((Kis_GpsPref_Panel *) aux)->ButtonAction(component);
+	return 1;
+}
+
+Kis_GpsPref_Panel::Kis_GpsPref_Panel(GlobalRegistry *in_globalreg, 
+									 KisPanelInterface *in_intf):
+	Kis_Panel(in_globalreg, in_intf) {
+
+	metrad = new Kis_Radiobutton(globalreg, this);
+	metrad->SetText("Metric");
+	metrad->SetCallback(COMPONENT_CBTYPE_ACTIVATED, GpsconfButtonCB, this);
+	metrad->Show();
+	metrad->SetChecked(1);
+	AddComponentVec(metrad, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+							 KIS_PANEL_COMP_TAB));
+
+	engrad = new Kis_Radiobutton(globalreg, this);
+	engrad->SetText("English");
+	engrad->SetCallback(COMPONENT_CBTYPE_ACTIVATED, GpsconfButtonCB, this);
+	engrad->Show();
+	engrad->SetChecked(1);
+	AddComponentVec(engrad, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+							  KIS_PANEL_COMP_TAB));
+
+	engrad->LinkRadiobutton(metrad);
+	metrad->LinkRadiobutton(engrad);
+
+	okbutton = new Kis_Button(globalreg, this);
+	okbutton->SetText("OK");
+	okbutton->Show();
+	AddComponentVec(okbutton, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+							   KIS_PANEL_COMP_TAB));
+	
+	cancelbutton = new Kis_Button(globalreg, this);
+	cancelbutton->SetText("Cancel");
+	cancelbutton->Show();
+	AddComponentVec(cancelbutton, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+								   KIS_PANEL_COMP_TAB));
+
+	okbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, GpsconfButtonCB, this);
+	cancelbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, GpsconfButtonCB, this);
+
+	SetTitle("Configure GPS");
+
+	cbox = new Kis_Panel_Packbox(globalreg, this);
+	cbox->SetPackH();
+	cbox->SetHomogenous(1);
+	cbox->SetSpacing(1);
+	cbox->SetCenter(1);
+	AddComponentVec(cbox, KIS_PANEL_COMP_DRAW);
+	cbox->Pack_End(metrad, 0, 0);
+	cbox->Pack_End(engrad, 0, 0);
+	cbox->Show();
+
+	bbox = new Kis_Panel_Packbox(globalreg, this);
+	bbox->SetPackH();
+	bbox->SetHomogenous(1);
+	bbox->SetSpacing(0);
+	bbox->SetCenter(1);
+	AddComponentVec(bbox, KIS_PANEL_COMP_DRAW);
+
+	bbox->Pack_End(cancelbutton, 0, 0);
+	bbox->Pack_End(okbutton, 0, 0);
+	bbox->Show();
+
+	helptext = new Kis_Free_Text(globalreg, this);
+	helptext->SetText("Display GPS in Metric (km) or English (miles)");
+	helptext->Show();
+
+	vbox = new Kis_Panel_Packbox(globalreg, this);
+	vbox->SetPackV();
+	vbox->SetHomogenous(0);
+	vbox->SetSpacing(1);
+	AddComponentVec(vbox, KIS_PANEL_COMP_DRAW);
+	vbox->Pack_End(helptext, 0, 0);
+	vbox->Pack_End(cbox, 1, 0);
+	vbox->Pack_End(bbox, 0, 0);
+	
+	vbox->Show();
+
+	tab_pos = 0;
+	metrad->Activate(1);
+	active_component = metrad;
+
+	if (StrLower(kpinterface->prefs.FetchOpt("GPSUNIT")) != "metric") {
+		engrad->SetChecked(1);
+	} else {
+		metrad->SetChecked(1);
+	}
+}
+
+Kis_GpsPref_Panel::~Kis_GpsPref_Panel() {
+}
+
+void Kis_GpsPref_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {
+	Kis_Panel::Position(in_sy, in_sx, in_y, in_x);
+
+	vbox->SetPosition(1, 1, in_x - 1, in_y - 2);
+}
+
+void Kis_GpsPref_Panel::DrawPanel() {
+	Kis_Panel::DrawPanel();
+}
+
+void Kis_GpsPref_Panel::ButtonAction(Kis_Panel_Component *in_button) {
+	if (in_button == okbutton) {
+		if (engrad->GetChecked()) {
+			kpinterface->prefs.SetOpt("GPSUNIT", "english", 1);
+		} else {
+			kpinterface->prefs.SetOpt("GPSUNIT", "metric", 1);
+		}
+
+		kpinterface->KillPanel(this);
+	} else if (in_button == cancelbutton) {
+		kpinterface->KillPanel(this);
+	}
+}
+
 #endif
 

@@ -383,11 +383,16 @@ int GPSDClient::ParseData() {
 		}
 	} 
 
+	// Return metric for now
 	if (use_alt)
-		alt = in_alt * 3.3;
+		alt = in_alt; // * 3.3;
 
+	// For some reason this is reported in KNOTS.  Great.  So turn it into 
+	// feet and then meters so we report metric internally
 	if (use_spd)
-		spd = in_spd * (6076.12 / 5280);
+		spd = (in_spd * 6076.12) / 3.2808;
+
+		//spd = in_spd * (6076.12 / 5280);
 
 	if (use_hed) {
 		last_hed = hed;
