@@ -279,6 +279,43 @@ int GPSSerial::ParseData() {
 			set_spd = 1;
 
 			continue;
+		} else if (inptok[it].substr(0, 6) == "$GPGSV") {
+			// $GPGSV,3,1,09,22,80,170,40,14,58,305,19,01,46,291,,18,44,140,33*7B
+			// $GPGSV,3,2,09,05,39,105,31,12,34,088,32,30,31,137,31,09,26,047,34*72
+			// $GPGSV,3,3,09,31,26,222,31*46
+			//
+			// # of sentences for data
+			// sentence #
+			// # of sats in view
+			//
+			// sat #
+			// elevation
+			// azimuth
+			// snr
+
+			vector<string> svvec = StrTokenize(inptok[it], ",");
+			GPSCore::sat_pos sp;
+
+			if (svvec.size() < 6)
+				continue;
+
+			// We don't care about # of sentences and sentence number
+
+			unsigned int pos = 4;
+			while (pos + 4 < svvec.size()) {
+				if (sscanf(svvec[pos++].c_str(), "%d", &sp.prn) != 1) 
+					break;
+				if (sscanf(svvec[pos++].c_str(), "%d", &sp.elevation) != 1)
+					break;
+				if (sscanf(svvec[pos++].c_str(), "%d", &sp.azimuth) != 1)
+					break;
+				if (sscanf(svvec[pos++].c_str(), "%d", &sp.snr) != 1)
+					break;
+
+				sat_pos_map[sp.prn] = sp;
+			}
+
+			continue;
 		}
 
 	}

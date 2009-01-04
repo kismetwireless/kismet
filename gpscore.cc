@@ -51,6 +51,9 @@ int Protocol_GPS(PROTO_PARMS) {
         case GPS_fix:
             out_string += gdata->mode;
             break;
+		case GPS_satinfo:
+			out_string += gdata->satinfo;
+			break;
         default:
             out_string = "Unknown field requested.";
             return -1;
@@ -263,18 +266,21 @@ int GPSCore::Timer() {
 		// Send it to the client
 		GPS_data gdata;
 
-		snprintf(errstr, 32, "%lf", lat);
-		gdata.lat = errstr;
-		snprintf(errstr, 32, "%lf", lon);
-		gdata.lon = errstr;
-		snprintf(errstr, 32, "%lf", alt);
-		gdata.alt = errstr;
-		snprintf(errstr, 32, "%lf", spd);
-		gdata.spd = errstr;
-		snprintf(errstr, 32, "%lf", hed);
-		gdata.heading = errstr;
-		snprintf(errstr, 32, "%d", mode);
-		gdata.mode = errstr;
+		gdata.lat = NtoString<double>(lat).Str();
+		gdata.lon = NtoString<double>(lon).Str();
+		gdata.alt = NtoString<double>(alt).Str();
+		gdata.spd = NtoString<double>(spd).Str();
+		gdata.heading = NtoString<double>(hed).Str();
+
+		gdata.satinfo = "\001";
+		for (map<int, sat_pos>::iterator x = sat_pos_map.begin(); 
+			 x != sat_pos_map.end(); ++x) {
+			gdata.satinfo += IntToString(x->second.prn) + string(":") +
+				IntToString(x->second.elevation) + string(":") +
+				IntToString(x->second.azimuth) + string(":") +
+				IntToString(x->second.snr) + string(",");
+		}
+		gdata.satinfo += "\001";
 
 		globalreg->kisnetserver->SendToAll(gps_proto_ref, (void *) &gdata);
 	}

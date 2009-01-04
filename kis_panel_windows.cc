@@ -412,25 +412,25 @@ void Kis_Main_Panel::Proto_GPS(CLIPROTO_CB_PARMS) {
 
 	if (eng) {
 		if (spd > 2500)
-			gpstext += NtoString<float>(spd / 5280, 2).Str() + "miles/hr ";
+			gpstext += "Spd: " + NtoString<float>(spd / 5280, 2).Str() + " mph ";
 		else
-			gpstext += NtoString<float>(spd, 2).Str() + "feet/hr ";
+			gpstext += "Spd: " + NtoString<float>(spd, 2).Str() + " fph ";
 
 		if (alt > 2500)
-			gpstext += NtoString<float>(alt / 5280, 2).Str() + "miles";
+			gpstext += "Alt: " + NtoString<float>(alt / 5280, 2).Str() + " m ";
 		else
-			gpstext += NtoString<float>(alt, 2).Str() + "feet";
+			gpstext += "Alt: " + NtoString<float>(alt, 2).Str() + " ft ";
 
 	} else {
 		if (spd > 1000)
-			gpstext += NtoString<float>(spd / 1000, 2).Str() + "Km/hr ";
+			gpstext += "Spd: " + NtoString<float>(spd / 1000, 2).Str() + "Km/hr ";
 		else
-			gpstext += NtoString<float>(spd, 2).Str() + "m/hr ";
+			gpstext += "Spd: " + NtoString<float>(spd, 2).Str() + "m/hr ";
 
 		if (alt > 1000)
-			gpstext += NtoString<float>(alt / 1000, 2).Str() + "Km ";
+			gpstext += "Alt: " + NtoString<float>(alt / 1000, 2).Str() + "Km ";
 		else
-			gpstext += NtoString<float>(alt, 2).Str() + "m ";
+			gpstext += "Alt: " + NtoString<float>(alt, 2).Str() + "m ";
 	}
 
 	

@@ -30,11 +30,11 @@
 #define GPSD_OPT_FORCEMODE    1
 
 enum GPS_fields {
-    GPS_lat, GPS_lon, GPS_alt, GPS_spd, GPS_heading, GPS_fix
+    GPS_lat, GPS_lon, GPS_alt, GPS_spd, GPS_heading, GPS_fix, GPS_satinfo
 };
 
 struct GPS_data {
-    string lat, lon, alt, spd, heading, mode;
+    string lat, lon, alt, spd, heading, mode, satinfo;
 };
 
 int Protocol_GPS(PROTO_PARMS);
@@ -89,6 +89,13 @@ public:
 
     virtual int Reconnect() = 0;
 
+	struct sat_pos {
+		int prn;
+		int elevation;
+		int azimuth;
+		int snr;
+	};
+
 protected:
     uint32_t gps_options;
 
@@ -100,6 +107,9 @@ protected:
 
     // Last location used for softheading calcs
     double last_lat, last_lon, last_hed;
+
+	// Satellite position info
+	map<int, sat_pos> sat_pos_map;
 
 	// Scan options & register systems
 	int ScanOptions();
