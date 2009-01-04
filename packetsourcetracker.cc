@@ -288,6 +288,12 @@ int pst_channeltimer(TIMEEVENT_PARMS) {
 	return 1;
 }
 
+int pst_opentimer(TIMEEVENT_PARMS) {
+	((Packetsourcetracker *) parm)->OpenTimer();
+
+	return 1;
+}
+
 int pst_sourceprototimer(TIMEEVENT_PARMS) {
 	((Packetsourcetracker *) parm)->BlitSources(-1);
 
@@ -390,6 +396,10 @@ Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) {
 
 	channel_time_id = 
 		globalreg->timetracker->RegisterTimer(1, NULL, 1, &pst_channeltimer, this);
+
+	open_time_id = 
+		globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 
+											  1, &pst_opentimer, this);
 
 	source_protoref =
 		globalreg->kisnetserver->RegisterProtocol("SOURCE", 0, 1,
@@ -667,6 +677,7 @@ uint16_t Packetsourcetracker::AddPacketSource(string in_source,
 	pstsource->consec_channel_err = 0;
 
 	pstsource->error = 0;
+	pstsource->reopen = 1;
 
 	// Try to map the type when they tell us what it is
 	if ((type = FetchOpt("type", &options)) != "" && type != "auto" &&
@@ -865,6 +876,16 @@ uint16_t Packetsourcetracker::AddPacketSource(string in_source,
 				 "channel list and will instead hop normally", MSGFLAG_INFO);
 			pstsource->channel_split = 0;
 		}
+	}
+
+	if (FetchOpt("retry", &options) == "" || FetchOpt("retry", &options) == "true") {
+		_MSG("Will attempt to reopen on source '" + interface + "' if there are errors",
+			 MSGFLAG_INFO);
+		pstsource->reopen = 1;
+	} else {
+		_MSG("Will not attempt to reopen source '" + interface + "' if there are errors",
+			 MSGFLAG_INFO);
+		pstsource->reopen = 0;
 	}
 
 	// Add the created strong source to our list
@@ -1165,6 +1186,7 @@ int Packetsourcetracker::IpcAddPacketsource(ipc_source_add *in_ipc) {
 	pstsource->channel_rate = in_ipc->channel_rate;
 	pstsource->channel_position = in_ipc->channel_position;
 	pstsource->error = 0;
+	pstsource->reopen = 1;
 
 	pstsource->tm_hop_start.tv_sec = 0;
 	pstsource->tm_hop_start.tv_usec = 0;
@@ -1314,6 +1336,15 @@ int Packetsourcetracker::IpcSourceReport(ipc_source_report *in_ipc) {
 	// Copy the last channel we were on
 	pstsource->channel = in_ipc->last_channel;
 
+	if ((in_ipc->flags) & IPC_SRCREP_FLAG_ERROR) {
+		if (pstsource->reopen && pstsource->error == 0) {
+			_MSG("Packet source '" + pstsource->strong_source->FetchName() + "' "
+				 "encountered an error, Kismet will attempt to reopen it in "
+				 "10 seconds", MSGFLAG_ERROR);
+		}
+		pstsource->error = 1;
+	}
+
 	return 1;
 }
 
@@ -1424,6 +1455,8 @@ int Packetsourcetracker::StartSource(uint16_t in_source_id) {
 		SendIPCStart(pstsource);
 		return 0;
 	}
+
+	pstsource->error = 0;
 
 	// Enable monitor and open it, because we're either the IPC and root, 
 	// or the parent and root, or we're going to fail
@@ -2104,12 +2137,26 @@ void Packetsourcetracker::ChannelTimer() {
 				pst->strong_source->SetChannel(pst->channel) < 0) {
 				pst->consec_channel_err++;
 
+				if (pst->strong_source->FetchError()) {
+					_MSG("Packet source '" + pst->strong_source->FetchName() + 
+						 "' has encountered an unrecoverable error setting channel "
+						 "and will be shut down.", MSGFLAG_ERROR);
+					pst->strong_source->CloseSource();
+					pst->error = 1;
+				} 
+
 				if (pst->consec_channel_err > MAX_CONSEC_CHAN_ERR) {
-					_MSG("Packet source '" + pst->strong_source->FetchInterface() + 
+					_MSG("Packet source '" + pst->strong_source->FetchName() + 
 						 "' has had too many consecutive errors and will be shut down.",
 						 MSGFLAG_ERROR);
 					pst->strong_source->CloseSource();
 					pst->error = 1;
+				}
+
+				if (pst->error && pst->reopen) {
+					_MSG("Kismet will attempt to re-open packet source '" + 
+						 pst->strong_source->FetchName() + "' in 10 seconds", 
+						 MSGFLAG_ERROR);
 				}
 			} else {
 				pst->consec_channel_err = 0;
@@ -2135,6 +2182,19 @@ void Packetsourcetracker::ChannelTimer() {
 		timer_counter = 0;
 		SendIPCChanreport();
 		ClearChannelTickMap();
+	}
+}
+
+void Packetsourcetracker::OpenTimer() {
+	for (unsigned int x = 0; x < packetsource_vec.size(); x++) {
+		pst_packetsource *pst = packetsource_vec[x];
+
+		if (pst->reopen && pst->error) {
+			_MSG("Attempting to re-open errored packet source " +
+				 pst->strong_source->FetchName(), MSGFLAG_INFO);
+
+			StartSource(pst->source_id);
+		}
 	}
 }
 

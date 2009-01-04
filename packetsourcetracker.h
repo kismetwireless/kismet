@@ -152,6 +152,9 @@ struct pst_packetsource {
 
 	// Are we in error state?
 	int error;
+
+	// Do we re-open on error?
+	int reopen;
 };
 
 // Callback for actions on sources.  Gives the source and action type, flags,
@@ -284,6 +287,7 @@ public:
 	pst_channellist *FetchSourceChannelList(pst_packetsource *in_src);
 
 	void ChannelTimer();
+	void OpenTimer();
 
 	// Packet chain to IPC / DLT demangle
 	void ChainHandler(kis_packet *in_pack);
@@ -355,7 +359,7 @@ protected:
 	int default_channel_rate;
 	int default_channel_dwell;
 
-	int channel_time_id, proto_source_time_id;
+	int channel_time_id, proto_source_time_id, open_time_id;
 	int source_protoref;
 
 	int timer_counter;

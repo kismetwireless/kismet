@@ -52,6 +52,8 @@ Available source options:
     dwell=#             Dwell on each channel for # seconds
     split=true|false    Disable channel list splitting (will not share a list of
                          channels over multiple sources)
+    retry=true|false    Attempt to re-open a device which has failed
+                        (default true)
     vap=interface       Create a VAP interface (mac80211)
     wpa_scan=time       When using a mac80211 VAP, trigger wpa_supplicant
                         scans at regular intervals (useful for sta+rfmon

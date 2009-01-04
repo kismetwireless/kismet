@@ -458,14 +458,23 @@ int PacketSource_Wext::DisableMonitor() {
 
 int PacketSource_Wext::SetChannel(unsigned int in_ch) {
 	char errstr[STATUS_MAX];
+	int err = 0;
 
 	// Set and exit if we're ok
-    if (Iwconfig_Set_Channel(interface.c_str(), in_ch, errstr) >= 0) {
+    if ((err = Iwconfig_Set_Channel(interface.c_str(), in_ch, errstr)) >= 0) {
 		consec_error = 0;
         return 1;
     }
 
 	_MSG(errstr, MSGFLAG_PRINTERROR);
+
+	if (err == -2) {
+		_MSG("Failed to change channel on interface '" + interface +"' and it looks "
+			 "like the device has been removed (or the drivers have lost track of "
+			 "it somehow)", MSGFLAG_ERROR);
+		error = 1;
+		return -1;
+	}
 
 	int curmode;
 	if (Iwconfig_Get_Mode(interface.c_str(), errstr, &curmode) < 0) {
@@ -474,6 +483,7 @@ int PacketSource_Wext::SetChannel(unsigned int in_ch) {
 			 "failed to fetch current interface state when determining the "
 			 "cause of the error.  It is likely that the drivers are in a "
 			 "broken or unavailable state.", MSGFLAG_PRINTERROR);
+		error = 1;
 		return -1;
 	}
 
@@ -484,6 +494,7 @@ int PacketSource_Wext::SetChannel(unsigned int in_ch) {
 			 "that an external program has changed the device mode.  Make sure no "
 			 "network management tools (such as networkmanager) are running "
 			 "before starting Kismet.", MSGFLAG_PRINTERROR);
+		error = 1;
 		return -1;
 	}
 

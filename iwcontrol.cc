@@ -527,6 +527,7 @@ int Iwconfig_Get_Channel(const char *in_dev, char *in_err) {
 int Iwconfig_Set_Channel(const char *in_dev, int in_ch, char *in_err) {
     struct iwreq wrq;
     int skfd;
+	int ret = 0;
 
     if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
         snprintf(in_err, STATUS_MAX, "Failed to create AF_INET DGRAM socket %d:%s", 
@@ -553,10 +554,16 @@ int Iwconfig_Set_Channel(const char *in_dev, int in_ch, char *in_err) {
         select(0, NULL, NULL, NULL, &tm);
 
         if (ioctl(skfd, SIOCSIWFREQ, &wrq) < 0) {
-            snprintf(in_err, STATUS_MAX, "Failed to set channel %d %d:%s", in_ch,
-                     errno, strerror(errno));
+			if (errno == ENODEV) {
+				ret = -2;
+			} else {
+				ret = -1;
+			}
+
+            snprintf(in_err, STATUS_MAX, "Failed to set channel %d: %s", in_ch,
+                     strerror(errno));
             close(skfd);
-            return -1;
+            return ret;
         }
     }
 
