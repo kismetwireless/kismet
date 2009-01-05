@@ -764,6 +764,9 @@ public:
 		xgraph_size = 0;
 		label_x_graphref = -1;
 		draw_scale = 1;
+		draw_layers = 1;
+		min_y = 0;
+		max_y = 0;
 	}
 	virtual ~Kis_IntGraph() { };
 
@@ -810,6 +813,10 @@ public:
 		draw_scale = in_draw_scale;
 	}
 
+	virtual void SetDrawLayers(int in_draw_layers) {
+		draw_layers = in_draw_layers;
+	}
+
 	// Add a data vector at a layer with a color preference, representation
 	// character, over/under (1 over, 0 n/a, -1 under), and external vector.
 	// All data sources must share a common min/max representation
@@ -829,7 +836,7 @@ protected:
 	// 1 = over/under
 	int graph_mode;
 
-	int draw_scale;
+	int draw_scale, draw_layers;
 
 	// Graph source vector
 	vector<graph_source> data_vec;
@@ -840,6 +847,52 @@ protected:
 	// Labels
 	vector<graph_label> label_x;
 	int xgraph_size, label_x_graphref;
+};
+
+// Polar graph
+class Kis_PolarGraph : public Kis_Panel_Component {
+public:
+	struct graph_point {
+		int id;
+
+		string colorpref;
+		string colordefault;
+		int colorval;
+
+		string name;
+
+		double r, theta;
+	};
+
+	Kis_PolarGraph() {
+		fprintf(stderr, "FATAL OOPS: Kis_PolarGraph() called w/out globalreg\n");
+		exit(1);
+	}
+
+	Kis_PolarGraph(GlobalRegistry *in_globalreg, Kis_Panel *in_panel) : 
+		Kis_Panel_Component(in_globalreg, in_panel) {
+
+		globalreg = in_globalreg;
+		active = 0;
+		color_fw = 0;
+
+		maxr = 0;
+	}
+	virtual ~Kis_PolarGraph() { };
+
+	virtual void DrawComponent();
+
+	virtual int KeyPress(int in_key);
+
+	virtual void AddPoint(int id, graph_point gp);
+	virtual void DelPoint(int id);
+	virtual void ClearPoints();
+
+protected:
+	int color_fw;
+	double maxr;
+
+	vector<Kis_PolarGraph::graph_point> point_vec;
 };
 
 class Kis_Panel {

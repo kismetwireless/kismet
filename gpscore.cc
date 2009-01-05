@@ -24,7 +24,7 @@
 #include "packetchain.h"
 
 const char *GPS_fields_text[] = {
-    "lat", "lon", "alt", "spd", "heading", "fix",
+    "lat", "lon", "alt", "spd", "heading", "fix", "satinfo",
     NULL
 };
 
@@ -271,6 +271,7 @@ int GPSCore::Timer() {
 		gdata.alt = NtoString<double>(alt).Str();
 		gdata.spd = NtoString<double>(spd).Str();
 		gdata.heading = NtoString<double>(hed).Str();
+		gdata.mode = IntToString(mode);
 
 		gdata.satinfo = "\001";
 		for (map<int, sat_pos>::iterator x = sat_pos_map.begin(); 

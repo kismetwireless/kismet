@@ -133,6 +133,7 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	mn_view = menu->AddMenu("View", 0);
 	mi_netdetails = menu->AddMenuItem("Network Details", mn_view, 'd');
 	mi_chandetails = menu->AddMenuItem("Channel Details", mn_view, 'c');
+	mi_gps = menu->AddMenuItem("GPS Details", mn_view, 'G');
 	menu->AddMenuItem("-", mn_view, 0);
 	mi_shownetworks = menu->AddMenuItem("Network List", mn_view, 'n');
 	mi_showgps = menu->AddMenuItem("GPS Data", mn_view, 'g');
@@ -565,6 +566,10 @@ void Kis_Main_Panel::MenuAction(int opt) {
 		Kis_ChanDetails_Panel *dp = new Kis_ChanDetails_Panel(globalreg, kpinterface);
 		dp->Position(WIN_CENTER(LINES, COLS));
 		kpinterface->AddPanel(dp);
+	} else if (opt == mi_gps) {
+		Kis_Gps_Panel *gp = new Kis_Gps_Panel(globalreg, kpinterface);
+		gp->Position(WIN_CENTER(20, 60));
+		kpinterface->AddPanel(gp);
 	} else if (opt == mi_showsummary ||
 			   opt == mi_showstatus ||
 			   opt == mi_showpps ||
@@ -3216,6 +3221,257 @@ void Kis_Chanconf_Panel::ButtonAction(Kis_Panel_Component *in_button) {
 		last_radio = dwellrad;
 		radio_changed = 1;
 	}
+}
+
+static const char *gpsinfo_fields[] = {
+	"fix", "lat", "lon", "alt", "spd", "satinfo", NULL
+};
+
+void GpsProtoGPS(CLIPROTO_CB_PARMS) {
+	((Kis_Gps_Panel *) auxptr)->Proto_GPS(globalreg, proto_string,
+										  proto_parsed, srccli, auxptr);
+}
+
+void GpsCliConfigured(CLICONF_CB_PARMS) {
+	if (recon)
+		return;
+
+	string agg_gps_fields;
+
+	TokenNullJoin(&agg_gps_fields, gpsinfo_fields);
+
+	if (kcli->RegisterProtoHandler("GPS", agg_gps_fields, GpsProtoGPS, auxptr) < 0) {
+		_MSG("Could not register GPS protocol with remote server, connection "
+			 "will be terminated", MSGFLAG_ERROR);
+		kcli->KillConnection();
+	}
+}
+
+void GpsCliAdd(KPI_ADDCLI_CB_PARMS) {
+	if (add == 0)
+		return;
+
+	netcli->AddConfCallback(GpsCliConfigured, 1, auxptr);
+}
+
+int GpsButtonCB(COMPONENT_CALLBACK_PARMS) {
+	((Kis_Gps_Panel *) aux)->ButtonAction(component);
+	return 1;
+}
+
+Kis_Gps_Panel::Kis_Gps_Panel(GlobalRegistry *in_globalreg, 
+									   KisPanelInterface *in_intf):
+	Kis_Panel(in_globalreg, in_intf) {
+
+	okbutton = new Kis_Button(globalreg, this);
+	okbutton->SetText("OK");
+	okbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, GpsButtonCB, this);
+	okbutton->Show();
+	AddComponentVec(okbutton, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+							   KIS_PANEL_COMP_TAB));
+	okbutton->Activate(0);
+
+	SetTitle("GPS Info");
+
+	gpssiggraph = new Kis_IntGraph(globalreg, this);
+	gpssiggraph->SetName("GPS_SIG");
+	gpssiggraph->SetPreferredSize(0, 12);
+	gpssiggraph->SetInterpolation(0);
+	gpssiggraph->SetMode(0);
+	gpssiggraph->SetDrawScale(0);
+	gpssiggraph->SetDrawLayers(0);
+	gpssiggraph->AddExtDataVec("PRN SNR", 3, "gps_prn", "green,green",
+							   ' ', ' ', 1, &sat_info_vec);
+	gpssiggraph->SetXLabels(sat_label_vec, "PRN SNR");
+	gpssiggraph->Show();
+
+	gpslocinfo = new Kis_Free_Text(globalreg, this);
+	gpslocinfo->Show();
+
+	gpsmoveinfo = new Kis_Free_Text(globalreg, this);
+	gpsmoveinfo->Show();
+
+	gpssatinfo = new Kis_Free_Text(globalreg, this);
+	gpssatinfo->Show();
+
+	/*
+	tbox = new Kis_Panel_Packbox(globalreg, this);
+	tbox->SetPackV();
+	tbox->SetHomogenous(0);
+	tbox->SetSpacing(0);
+	tbox->SetCenter(0);
+	tbox->Pack_End(gpslocinfo, 0, 0);
+	tbox->Pack_End(gpsmoveinfo, 0, 0);
+	tbox->Pack_End(gpssatinfo, 0, 0);
+	tbox->Pack_End(gpssiggraph, 0, 0);
+	tbox->Show();
+
+	gpspolgraph = new Kis_PolarGraph(globalreg, this);
+	gpspolgraph->SetPreferredSize(12, 12);
+	gpspolgraph->Show();
+
+	hbox = new Kis_Panel_Packbox(globalreg, this);
+	hbox->SetPackH();
+	hbox->SetHomogenous(1);
+	hbox->SetSpacing(1);
+	hbox->Pack_End(gpspolgraph, 0, 0);
+	hbox->Pack_End(gpssiggraph, 0, 0);
+	hbox->Show();
+	*/
+
+	vbox = new Kis_Panel_Packbox(globalreg, this);
+	vbox->SetPackV();
+	vbox->SetHomogenous(0);
+	vbox->SetSpacing(1);
+	AddComponentVec(vbox, KIS_PANEL_COMP_DRAW);
+	vbox->Pack_End(gpslocinfo, 0, 0);
+	vbox->Pack_End(gpsmoveinfo, 0, 0);
+	vbox->Pack_End(gpssatinfo, 0, 0);
+	vbox->Pack_End(gpssiggraph, 1, 0);
+	vbox->Pack_End(okbutton, 0, 0);
+	
+	vbox->Show();
+
+	active_component = okbutton;
+	tab_pos = 0;
+
+	addref = 
+		kpinterface->Add_NetCli_AddCli_CB(GpsCliAdd, (void *) this);
+
+	agg_gps_num = TokenNullJoin(&agg_gps_fields, gpsinfo_fields);
+}
+
+Kis_Gps_Panel::~Kis_Gps_Panel() {
+	kpinterface->Remove_Netcli_AddCli_CB(addref);
+	kpinterface->Remove_AllNetcli_ProtoHandler("GPS", GpsProtoGPS, this);
+}
+
+void Kis_Gps_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {
+	Kis_Panel::Position(in_sy, in_sx, in_y, in_x);
+
+	vbox->SetPosition(1, 1, in_x - 1, in_y - 2);
+}
+
+void Kis_Gps_Panel::DrawPanel() {
+
+	Kis_Panel::DrawPanel();
+}
+
+void Kis_Gps_Panel::ButtonAction(Kis_Panel_Component *in_button) {
+	if (in_button == okbutton) {
+		kpinterface->KillPanel(this);
+		return;
+	}
+}
+
+#define DEG_2_RAD 0.0174532925199432957692369076848861271
+void Kis_Gps_Panel::Proto_GPS(CLIPROTO_CB_PARMS) {
+	if (proto_parsed->size() < (unsigned int) agg_gps_num)
+		return;
+
+	int fnum = 0, fix;
+	float lat, lon, alt, spd;
+
+	string gpstext;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &fix) != 1)
+		return;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%f", &lat) != 1)
+		return;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%f", &lon) != 1)
+		return;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%f", &alt) != 1)
+		return;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%f", &spd) != 1)
+		return;
+
+	int eng = StrLower(kpinterface->prefs.FetchOpt("GPSUNIT")) != "metric";
+
+	if (eng) {
+		// Convert speed to feet/sec
+		spd /= 3.2808;
+		// Convert alt to feet
+		alt /= 3.2808;
+	}
+
+	if (fix < 2) {
+		gpslocinfo->SetText("No position (GPS does not have signal)");
+		gpsmoveinfo->SetText("");
+	} else {
+		gpstext = string("Lat ") + 
+			NtoString<float>(lat).Str() + string(" Lon ") + 
+			NtoString<float>(lon).Str();
+		gpslocinfo->SetText(gpstext);
+
+		if (eng) {
+			if (spd > 2500)
+				gpstext = "Spd: " + NtoString<float>(spd / 5280, 2).Str() + " mph ";
+			else
+				gpstext = "Spd: " + NtoString<float>(spd, 2).Str() + " fph ";
+
+			if (alt > 2500)
+				gpstext += "Alt: " + NtoString<float>(alt / 5280, 2).Str() + " m ";
+			else
+				gpstext += "Alt: " + NtoString<float>(alt, 2).Str() + " ft ";
+		} else {
+			if (spd > 1000)
+				gpstext = "Spd: " + NtoString<float>(spd / 1000, 2).Str() + "Km/hr ";
+			else
+				gpstext = "Spd: " + NtoString<float>(spd, 2).Str() + "m/hr ";
+
+			if (alt > 1000)
+				gpstext += "Alt: " + NtoString<float>(alt / 1000, 2).Str() + "Km ";
+			else
+				gpstext += "Alt: " + NtoString<float>(alt, 2).Str() + "m ";
+		} 
+
+		gpsmoveinfo->SetText(gpstext);
+	}
+
+	vector<string> satblocks = StrTokenize((*proto_parsed)[fnum++].word, ",");
+
+	sat_info_vec.clear();
+	sat_label_vec.clear();
+	// gpspolgraph->ClearPoints();
+	
+	for (unsigned int x = 0; x < satblocks.size(); x++) {
+		int prn, azimuth, elevation, snr;
+
+		if (sscanf(satblocks[x].c_str(), "%d:%d:%d:%d", &prn, &elevation,
+				   &azimuth, &snr) != 4)
+			continue;
+
+		sat_info_vec.push_back(snr);
+
+		Kis_IntGraph::graph_label lab;
+		lab.position = x;
+		lab.label = IntToString(prn);
+		sat_label_vec.push_back(lab);
+
+		/*
+		Kis_PolarGraph::graph_point gp;
+		gp.colorpref = "GPS_WEAKSNR";
+		gp.colordefault = "red,black";
+		gp.name = IntToString(prn);
+
+		gp.r = ((90.0 - (double) elevation) / 90.0);
+		gp.theta = azimuth * DEG_2_RAD;
+
+		// fprintf(stderr, "debug - added %d %f %f\n", prn, gp.theta, gp.r);
+
+		gpspolgraph->AddPoint(x, gp);
+		*/
+
+	}
+
+	gpssatinfo->SetText(IntToString(sat_info_vec.size()) + " satellites, " +
+						IntToString(fix) + string("d fix"));
+	gpssiggraph->SetXLabels(sat_label_vec, "PRN SNR");
+
 }
 
 #endif

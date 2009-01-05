@@ -107,7 +107,7 @@ protected:
 		mi_sort_first_d, mi_sort_last, mi_sort_last_d, mi_sort_bssid, mi_sort_ssid,
 		mi_sort_packets, mi_sort_packets_d;
 
-	int mn_view, mi_netdetails, mi_chandetails, mi_shownetworks, mi_showsummary, 
+	int mn_view, mi_netdetails, mi_chandetails, mi_gps, mi_shownetworks, mi_showsummary, 
 		mi_showstatus, mi_showgps, mi_showpps, mi_showsources;
 
 	int connect_enable;
@@ -468,6 +468,41 @@ protected:
 
 	int last_selected, radio_changed;
 	Kis_Radiobutton *last_radio;
+};
+
+class Kis_Gps_Panel : public Kis_Panel {
+public:
+	Kis_Gps_Panel() {
+		fprintf(stderr, "FATAL OOPS: Kis_Gps_Panel called w/out globalreg\n");
+		exit(1);
+	}
+
+	Kis_Gps_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_kpf);
+	virtual ~Kis_Gps_Panel();
+
+	virtual void Position(int in_sy, int in_sx, int in_y, int in_x);
+	virtual void DrawPanel();
+
+	void ButtonAction(Kis_Panel_Component *component);
+
+	void Proto_GPS(CLIPROTO_CB_PARMS);
+
+protected:
+	Kis_IntGraph *gpssiggraph;
+	// Kis_PolarGraph *gpspolgraph;
+	Kis_Free_Text *gpslocinfo, *gpsmoveinfo, *gpssatinfo;
+	
+	Kis_Button *okbutton;
+
+	Kis_Panel_Packbox *vbox; //, *tbox, *hbox;
+
+	vector<int> sat_info_vec;
+	vector<Kis_IntGraph::graph_label> sat_label_vec;
+
+	string agg_gps_fields;
+	int agg_gps_num;
+
+	int addref;
 };
 
 #endif

@@ -2910,33 +2910,35 @@ void Kis_IntGraph::DrawComponent() {
 		}
 	}
 
-	// Draw the labels (right-hand)
-	int posmod = 0, negmod = 0;
-	// Set the backing blank
-	memset(backing, ' ', 32);
-	if ((maxlabel + 4) >=  32)
-		maxlabel = (32 - 4);
-	backing[maxlabel + 4] = '\0';
-	// Draw the component name labels
-	for (unsigned int x = 0; x < data_vec.size(); x++) {
-		// Position
-		int lpos = 0;
-		// Text color
-		if (data_vec[x].overunder < 0 && graph_mode == 1) {
-			lpos = ey - negmod++;
-		} else {
-			lpos = sy + posmod++;
-		}
-		// Fill in the blocking
-		wattrset(window, color_fw);
-		mvwaddstr(window, lpos, ex - (maxlabel + 4), backing);
-		// Fill in the label
-		mvwaddstr(window, lpos, ex - (maxlabel), data_vec[x].name.c_str());
+	if (draw_layers) {
+		// Draw the labels (right-hand)
+		int posmod = 0, negmod = 0;
+		// Set the backing blank
+		memset(backing, ' ', 32);
+		if ((maxlabel + 4) >=  32)
+			maxlabel = (32 - 4);
+		backing[maxlabel + 4] = '\0';
+		// Draw the component name labels
+		for (unsigned int x = 0; x < data_vec.size(); x++) {
+			// Position
+			int lpos = 0;
+			// Text color
+			if (data_vec[x].overunder < 0 && graph_mode == 1) {
+				lpos = ey - negmod++;
+			} else {
+				lpos = sy + posmod++;
+			}
+			// Fill in the blocking
+			wattrset(window, color_fw);
+			mvwaddstr(window, lpos, ex - (maxlabel + 4), backing);
+			// Fill in the label
+			mvwaddstr(window, lpos, ex - (maxlabel), data_vec[x].name.c_str());
 
-		// Fill in the colors
-		wattrset(window, data_vec[x].colorval);
-		mvwaddstr(window, lpos, ex - (maxlabel + 3), data_vec[x].line);
-		mvwaddstr(window, lpos, ex - (maxlabel + 2), data_vec[x].fill);
+			// Fill in the colors
+			wattrset(window, data_vec[x].colorval);
+			mvwaddstr(window, lpos, ex - (maxlabel + 3), data_vec[x].line);
+			mvwaddstr(window, lpos, ex - (maxlabel + 2), data_vec[x].fill);
+		}
 	}
 
 	// Draw the X marker labels
@@ -2962,6 +2964,79 @@ void Kis_IntGraph::DrawComponent() {
 		snprintf(backing, 32, " %d ", min_y);
 		mvwaddstr(window, gzero, sx, backing);
 	}
+}
+
+int Kis_PolarGraph::KeyPress(int in_key) { 
+	return 1;
+}
+
+void Kis_PolarGraph::DrawComponent() { 
+	if (visible == 0)
+		return;
+
+	// Square ourselves to the shortest dimension
+	if (lx < ly)
+		ly = lx;
+	else
+		lx = ly;
+
+	parent_panel->InitColorPref("panel_text_color", "white,black");
+	parent_panel->ColorFromPref(color_fw, "panel_text_color");
+
+	for (unsigned int x = 0; x < point_vec.size(); x++) {
+		// Real position
+		int px = (lx / 2) + point_vec[x].r * sin(point_vec[x].theta) * (lx / 2);
+		int py = (ly / 2) - point_vec[x].r * cos(point_vec[x].theta) * (lx / 2);
+
+		// fprintf(stderr, "debug - graph %s pos %d %d\n", point_vec[x].name.c_str(), px, py);
+
+		// Plot the text at the position
+		//wattrset(window, point_vec[x].colorval);
+
+		// Plot w/in boundaries
+		mvwaddnstr(window, sy + py, sx + px, point_vec[x].name.c_str(),
+				  point_vec[x].name.length());
+	}
+
+}
+
+void Kis_PolarGraph::AddPoint(int id, graph_point gp) {
+	parent_panel->InitColorPref(gp.colorpref, gp.colordefault);
+	parent_panel->ColorFromPref(gp.colorval, gp.colorpref);
+
+	gp.id = id;
+
+	if (fabs(gp.r) > maxr)
+		maxr = fabs(gp.r);
+
+	for (unsigned int x = 0; x < point_vec.size(); x++) {
+		if (point_vec[x].id == id) {
+			point_vec[x] = gp;
+			return;
+		}
+	}
+
+	point_vec.push_back(gp);
+}
+
+void Kis_PolarGraph::DelPoint(int id) {
+	maxr = 0;
+
+	for (unsigned int x = 0; x < point_vec.size(); x++) {
+		if (point_vec[x].id == id) {
+			point_vec.erase(point_vec.begin() + x);
+			x--;
+			continue;
+		}
+
+		if (fabs(point_vec[x].r) > maxr)
+			maxr = fabs(point_vec[x].r);
+	}
+}
+
+void Kis_PolarGraph::ClearPoints() {
+	maxr = 0;
+	point_vec.clear();
 }
 
 Kis_Panel::Kis_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_intf) {
