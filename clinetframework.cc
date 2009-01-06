@@ -54,7 +54,7 @@ unsigned int NetworkClient::MergeSet(unsigned int in_max_fd, fd_set *out_rset,
     if (cl_valid) {
         FD_SET(cli_fd, out_rset);
 
-        if (write_buf->FetchLen() > 0) {
+        if (write_buf != NULL && write_buf->FetchLen() > 0) {
             FD_SET(cli_fd, out_wset);
 		}
     }
@@ -108,7 +108,7 @@ int NetworkClient::FlushRings() {
     globalreg->fatal_condition = 0;
     
     while ((time(0) - flushtime) < 2) {
-        if (write_buf->FetchLen() <= 0)
+        if (write_buf == NULL || (write_buf != NULL && write_buf->FetchLen() <= 0))
             return 1;
 
         max = 0;
@@ -158,6 +158,9 @@ void NetworkClient::KillConnection() {
 }
 
 int NetworkClient::WriteData(void *in_data, int in_len) {
+	if (write_buf == NULL)
+		return 0;
+
     if (write_buf->InsertDummy(in_len) == 0) {
         snprintf(errstr, STATUS_MAX, "NetworkClient::WriateData no room in ring "
                  "buffer to insert %d bytes", in_len);
@@ -172,16 +175,25 @@ int NetworkClient::WriteData(void *in_data, int in_len) {
 }
 
 int NetworkClient::FetchReadLen() {
+	if (read_buf == NULL)
+		return 0;
+
     return (int) read_buf->FetchLen();
 }
 
 int NetworkClient::ReadData(void *ret_data, int in_max, int *ret_len) {
+	if (read_buf == NULL)
+		return 0;
+
     read_buf->FetchPtr((uint8_t *) ret_data, in_max, ret_len);
 
     return (*ret_len);
 }
 
 int NetworkClient::MarkRead(int in_readlen) {
+	if (read_buf == NULL)
+		return 1;
+
     read_buf->MarkRead(in_readlen);
 
     return 1;
