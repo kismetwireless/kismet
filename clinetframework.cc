@@ -139,14 +139,18 @@ int NetworkClient::FlushRings() {
 
 void NetworkClient::KillConnection() {
     if (cl_valid) {
-        delete read_buf;
-        delete write_buf;
+		if (read_buf != NULL)
+			delete read_buf;
+		if (write_buf != NULL)
+			delete write_buf;
 		read_buf = NULL;
 		write_buf = NULL;
     }
 
-    if (cli_fd)
+    if (cli_fd >= 0)
         close(cli_fd);
+
+	cli_fd = -1;
 
     cl_valid = 0;
 

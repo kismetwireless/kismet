@@ -473,6 +473,13 @@ public:
 	virtual vector<string> GetText() {
 		return text_vec;
 	}
+	virtual void AppendText(string in_text);
+	virtual void SetMaxText(int in_max) { max_text = in_max; }
+
+	// Follow the end of the text unless we're scrolled differently
+	virtual void SetFollowTail(int in_set) {
+		follow_tail = in_set;
+	}
 
 	virtual void SetAlignment(int in_alignment) {
 		alignment = in_alignment;
@@ -483,6 +490,8 @@ protected:
 
 	int scroll_pos;
 	int alignment;
+	int max_text;
+	int follow_tail;
 };
 
 class KisStatusText_Messageclient : public MessageClient {
@@ -942,10 +951,21 @@ public:
 	void DelComponentVec(Kis_Panel_Component *in_comp);
 
 protected:
-	// Bit values of what components are allowed to do
+	// Bit values of what components expect to happen
+	// COMP_DRAW - issue a draw command to this component during panel draw
+	//             components inside a packbox get called by the packbox and
+	//             don't need an explicit draw
+	// COMP_TAB  - Include in the list of components we tab to and activate,
+	//             gets an activate event and becomes the focus for keyboard
+	//             input
+	// COMP_EVT  - Generates events when triggered but may not necessarily be
+	// 			   tabable (menus gets COMP_EVT only)
+	// COMP_STATIC Is not freed when the panel is destroyed, used for widgets
+	//             managed outside the panel itself
 #define KIS_PANEL_COMP_DRAW			1
 #define KIS_PANEL_COMP_TAB			2
 #define KIS_PANEL_COMP_EVT			4
+#define KIS_PANEL_COMP_STATIC		8
 	struct component_entry {
 		int comp_flags;
 		Kis_Panel_Component *comp;

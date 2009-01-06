@@ -139,7 +139,7 @@ public:
     virtual ~ClientFramework() { };
 
     // Register the network server core that we use to talk out
-    void RegisterNetworkClient(NetworkClient *in_netc) {
+    virtual void RegisterNetworkClient(NetworkClient *in_netc) {
         netclient = in_netc;
     }
 

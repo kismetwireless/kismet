@@ -1594,6 +1594,8 @@ Kis_Free_Text::Kis_Free_Text(GlobalRegistry *in_globalreg, Kis_Panel *in_panel) 
 	scroll_pos = 0;
 	SetMinSize(1, 1);
 	alignment = 0;
+	follow_tail = 0;
+	max_text = -1;
 }
 
 Kis_Free_Text::~Kis_Free_Text() {
@@ -1692,6 +1694,21 @@ void Kis_Free_Text::SetText(vector<string> in_text) {
 	text_vec = in_text;
 
 	SetPreferredSize(ml, in_text.size());
+}
+
+void Kis_Free_Text::AppendText(string in_text) {
+	text_vec.push_back(in_text);
+
+	if (max_text > 0 && (int) text_vec.size() > max_text) {
+		text_vec.erase(text_vec.begin(), text_vec.begin() + text_vec.size() - max_text);
+	}
+
+	if (lx < (int) Kis_Panel_Specialtext::Strlen(in_text))
+		SetPreferredSize(Kis_Panel_Specialtext::Strlen(in_text), text_vec.size());
+
+	// If we're following the tail then jump to the bottom when we add text
+	if (ly < (int) text_vec.size() && follow_tail)
+		scroll_pos = text_vec.size() - ly;
 }
 
 void KisStatusText_Messageclient::ProcessMessage(string in_msg, int in_flags) {
@@ -3060,6 +3077,9 @@ Kis_Panel::Kis_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_intf) {
 
 Kis_Panel::~Kis_Panel() {
 	for (unsigned int x = 0; x < pan_comp_vec.size(); x++) {
+		if (pan_comp_vec[x].comp_flags & KIS_PANEL_COMP_STATIC)
+			continue;
+
 		delete pan_comp_vec[x].comp;
 	}
 
