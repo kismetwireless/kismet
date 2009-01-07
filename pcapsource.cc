@@ -1176,16 +1176,24 @@ carrier_type PcapSourceWrt54g::IEEE80211Carrier() {
 int PcapSourceRadiotap::OpenSource() {
 	// XXX this is a hack to avoid duplicating code
 	int s = PcapSource::OpenSource();
+
 	if (s < 0)
 		return s;
+
+	/* this is handled in the pcapsource opensource now */
 	if (!CheckForDLT(DLT_IEEE802_11_RADIO)) {
 		snprintf(errstr, 1024, "No support for radiotap data link");
-		return -1;
+		if (!CheckForDLT(DLT_IEEE802_11)) {
+			snprintf(errstr, 1024, "No support for radiotap (ieee80211_radio)"
+					 "or for straight 802.11 data link");
+		}
 	} else {
+		(void) pcap_set_datalink(pd, DLT_IEEE802_11_RADIO);
 		(void) pcap_set_datalink(pd, DLT_IEEE802_11_RADIO);
 		datalink_type = DLT_IEEE802_11_RADIO;
 		return s;
 	}
+	*/
 }
 
 // Check for data link type support
