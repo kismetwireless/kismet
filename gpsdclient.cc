@@ -395,7 +395,7 @@ int GPSDClient::ParseData() {
 				if (sscanf(svvec[pos++].c_str(), "%d", &sp.azimuth) != 1)
 					break;
 				if (sscanf(svvec[pos++].c_str(), "%d", &sp.snr) != 1)
-					break;
+					sp.snr = 0;
 
 				sat_pos_map[sp.prn] = sp;
 			}

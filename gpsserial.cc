@@ -296,8 +296,9 @@ int GPSSerial::ParseData() {
 			vector<string> svvec = StrTokenize(inptok[it], ",");
 			GPSCore::sat_pos sp;
 
-			if (svvec.size() < 6)
+			if (svvec.size() < 6) {
 				continue;
+			}
 
 			// We don't care about # of sentences and sentence number
 
@@ -310,7 +311,7 @@ int GPSSerial::ParseData() {
 				if (sscanf(svvec[pos++].c_str(), "%d", &sp.azimuth) != 1)
 					break;
 				if (sscanf(svvec[pos++].c_str(), "%d", &sp.snr) != 1)
-					break;
+					sp.snr = 0;
 
 				sat_pos_map[sp.prn] = sp;
 			}
