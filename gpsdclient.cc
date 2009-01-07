@@ -384,7 +384,11 @@ int GPSDClient::ParseData() {
 			if (svvec.size() < 6)
 				continue;
 
-			// We don't care about # of sentences and sentence number
+			// If we're on the last sentence, move the new vec to the transmitted one
+			if (svvec[1] == svvec[2]) {
+				sat_pos_map = sat_pos_map_tmp;
+				sat_pos_map_tmp.clear();
+			}
 
 			unsigned int pos = 4;
 			while (pos + 4 < svvec.size()) {
@@ -397,7 +401,7 @@ int GPSDClient::ParseData() {
 				if (sscanf(svvec[pos++].c_str(), "%d", &sp.snr) != 1)
 					sp.snr = 0;
 
-				sat_pos_map[sp.prn] = sp;
+				sat_pos_map_tmp[sp.prn] = sp;
 			}
 
 			continue;

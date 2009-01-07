@@ -110,6 +110,7 @@ protected:
 
 	// Satellite position info
 	map<int, sat_pos> sat_pos_map;
+	map<int, sat_pos> sat_pos_map_tmp;
 
 	// Scan options & register systems
 	int ScanOptions();
