@@ -68,6 +68,9 @@ int NetworkClient::Poll(fd_set& in_rset, fd_set& in_wset) {
     if (!cl_valid)
         return 0;
 
+	if (cli_fd < 0)
+		return 0;
+
     // Look for stuff to read
     if (FD_ISSET(cli_fd, &in_rset)) {
         // If we failed reading, die.
