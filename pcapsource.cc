@@ -1180,7 +1180,7 @@ int PcapSourceRadiotap::OpenSource() {
 	if (s < 0)
 		return s;
 
-	/* this is handled in the pcapsource opensource now */
+	/* this is handled in the pcapsource opensource now 
 	if (!CheckForDLT(DLT_IEEE802_11_RADIO)) {
 		snprintf(errstr, 1024, "No support for radiotap data link");
 		if (!CheckForDLT(DLT_IEEE802_11)) {
