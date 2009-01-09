@@ -2162,8 +2162,9 @@ int Kis_NetDetails_Panel::AppendNetworkInfo(int k, Kis_Display_NetGroup *tng,
 		if (net->lastssid->beacons > net->lastssid->beaconrate)
 			net->lastssid->beacons = net->lastssid->beaconrate;
 		osstr.str("");
-		osstr << setw(3) << left << ((double) net->lastssid->beacons /
-				  (double) net->lastssid->beaconrate) * 100;
+		osstr << setw(4) << left << 
+			(int) (((double) net->lastssid->beacons /
+					(double) net->lastssid->beaconrate) * 100);
 		td[1] = osstr.str();
 		netdetails->AddRow(k++, td);
 
