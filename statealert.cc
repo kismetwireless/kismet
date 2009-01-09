@@ -81,7 +81,7 @@ int BSSTSStateAlert::ProcessPacket(kis_packet *in_pack) {
 
 	bss_rec *br = smi->second;
 
-	if (packinfo->timestamp < br->bss_timestamp) {
+	if (packinfo->timestamp < (br->bss_timestamp - 50)) {
 		if (br->incident > 0) {
 			// Raise an alert
 			ostringstream oss;
