@@ -84,6 +84,11 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	menu->SetCallback(COMPONENT_CBTYPE_ACTIVATED, MenuActivateCB, this);
 
 	mn_file = menu->AddMenu("Kismet", 0);
+	mi_startserver = menu->AddMenuItem("Start Server...", mn_file, 'S');
+	mi_serverconsole = menu->AddMenuItem("Server Console...", mn_file, 'c');
+
+	menu->AddMenuItem("-", mn_file, 0);
+
 	mi_connect = menu->AddMenuItem("Connect...", mn_file, 'C');
 	mi_disconnect = menu->AddMenuItem("Disconnect", mn_file, 'D');
 	menu->AddMenuItem("-", mn_file, 0);
@@ -499,6 +504,12 @@ int Kis_Main_Panel::MouseEvent(MEVENT *mevent) {
 		connect_enable = 0;
 	}
 
+	if (kpinterface->FetchServerFramework() == NULL) {
+		menu->EnableMenuItem(mi_startserver);
+	} else {
+		menu->DisableMenuItem(mi_startserver);
+	}
+
 	return Kis_Panel::MouseEvent(mevent);
 }
 
@@ -529,6 +540,14 @@ void Kis_Main_Panel::MenuAction(int opt) {
 	} else if (opt == mi_connect) {
 		Kis_Connect_Panel *cp = new Kis_Connect_Panel(globalreg, kpinterface);
 		cp->Position(WIN_CENTER(8, 40));
+		kpinterface->AddPanel(cp);
+	} else if (opt == mi_startserver) {
+		Kis_Spawn_Panel *sp = new Kis_Spawn_Panel(globalreg, kpinterface);
+		sp->Position(WIN_CENTER(8, 40));
+		kpinterface->AddPanel(sp);
+	} else if (opt == mi_serverconsole) {
+		Kis_Console_Panel *cp = new Kis_Console_Panel(globalreg, kpinterface);
+		cp->Position(WIN_CENTER(LINES, COLS));
 		kpinterface->AddPanel(cp);
 	} else if (opt == mi_disconnect) {
 		if (clivec->size() > 0) {
@@ -1055,6 +1074,183 @@ void Kis_Connect_Panel::ButtonAction(Kis_Panel_Component *component) {
 		// Cancel and close
 		globalreg->panel_interface->KillPanel(this);
 	}
+}
+
+int SpawnButtonCB(COMPONENT_CALLBACK_PARMS) {
+	((Kis_Spawn_Panel *) aux)->ButtonAction(component);
+	return 1;
+}
+
+Kis_Spawn_Panel::Kis_Spawn_Panel(GlobalRegistry *in_globalreg, 
+									 KisPanelInterface *in_intf) :
+	Kis_Panel(in_globalreg, in_intf) {
+
+	options = new Kis_Single_Input(globalreg, this);
+	cancelbutton = new Kis_Button(globalreg, this);
+	okbutton = new Kis_Button(globalreg, this);
+
+	cancelbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, SpawnButtonCB, this);
+	okbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, SpawnButtonCB, this);
+
+	tab_pos = 0;
+
+	active_component = options;
+	options->Activate(0);
+
+	SetTitle("Start Kismet Server");
+
+	options->SetLabel("Options", LABEL_POS_LEFT);
+	options->SetTextLen(120);
+	options->SetCharFilter(FILTER_ALPHANUMSYM);
+	options->SetText(kpinterface->prefs.FetchOpt("default_server_options"), -1, -1);
+
+	okbutton->SetText("Start");
+	cancelbutton->SetText("Cancel");
+
+	options->Show();
+	okbutton->Show();
+	cancelbutton->Show();
+
+	vbox = new Kis_Panel_Packbox(globalreg, this);
+	vbox->SetPackV();
+	vbox->SetHomogenous(0);
+	vbox->SetSpacing(1);
+	vbox->Show();
+
+	bbox = new Kis_Panel_Packbox(globalreg, this);
+	bbox->SetPackH();
+	bbox->SetHomogenous(1);
+	bbox->SetSpacing(1);
+	bbox->SetCenter(1);
+	bbox->Show();
+
+	bbox->Pack_End(cancelbutton, 0, 0);
+	bbox->Pack_End(okbutton, 0, 0);
+
+	vbox->Pack_End(options, 0, 0);
+	vbox->Pack_End(bbox, 1, 0);
+
+	AddComponentVec(options, (KIS_PANEL_COMP_TAB | KIS_PANEL_COMP_EVT));
+	AddComponentVec(okbutton, (KIS_PANEL_COMP_TAB | KIS_PANEL_COMP_EVT));
+	AddComponentVec(cancelbutton, (KIS_PANEL_COMP_TAB | KIS_PANEL_COMP_EVT));
+
+	AddComponentVec(vbox, KIS_PANEL_COMP_DRAW);
+}
+
+Kis_Spawn_Panel::~Kis_Spawn_Panel() {
+}
+
+void Kis_Spawn_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {
+	Kis_Panel::Position(in_sy, in_sx, in_y, in_x);
+
+	vbox->SetPosition(1, 2, in_x - 2, in_y - 3);
+}
+
+void Kis_Spawn_Panel::ButtonAction(Kis_Panel_Component *component) {
+	if (component == okbutton) {
+		kpinterface->SpawnServer(options->GetText());
+		kpinterface->KillPanel(this);
+
+		Kis_Console_Panel *cp = new Kis_Console_Panel(globalreg, kpinterface);
+		cp->Position(WIN_CENTER(LINES, COLS));
+		kpinterface->AddPanel(cp);
+	} else if (component == cancelbutton) {
+		// Cancel and close
+		kpinterface->KillPanel(this);
+	}
+}
+
+int ConsoleButtonCB(COMPONENT_CALLBACK_PARMS) {
+	((Kis_Console_Panel *) aux)->ButtonAction(component);
+	return 1;
+}
+
+void ConsoleTextCB(TEXTCLI_PARMS) {
+	((Kis_Console_Panel *) auxptr)->AddConsoleText(text);
+}
+
+Kis_Console_Panel::Kis_Console_Panel(GlobalRegistry *in_globalreg, 
+									 KisPanelInterface *in_intf) :
+	Kis_Panel(in_globalreg, in_intf) {
+
+	constext = new Kis_Free_Text(globalreg, this);
+	killbutton = new Kis_Button(globalreg, this);
+	okbutton = new Kis_Button(globalreg, this);
+
+	killbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, ConsoleButtonCB, this);
+	okbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, ConsoleButtonCB, this);
+
+	tab_pos = 0;
+
+	active_component = constext; 
+	constext->Activate(0);
+
+	SetTitle("Kismet Server Console");
+
+	// Import the existing console
+	constext->SetFollowTail(1);
+	constext->SetMaxText(50);
+	if (kpinterface->FetchServerFramework() == NULL)  {
+		constext->SetText("Kismet server not started (or not started via this client)");
+		textcb = -1;
+	} else {
+		constext->SetText(*(kpinterface->FetchServerConsole()));
+		textcb = kpinterface->FetchServerFramework()->AddCallback(ConsoleTextCB, this);
+	}
+
+	okbutton->SetText("Close");
+	killbutton->SetText("Kill Server");
+
+	constext->Show();
+	okbutton->Show();
+	killbutton->Show();
+
+	vbox = new Kis_Panel_Packbox(globalreg, this);
+	vbox->SetPackV();
+	vbox->SetHomogenous(0);
+	vbox->SetSpacing(1);
+	vbox->Show();
+
+	bbox = new Kis_Panel_Packbox(globalreg, this);
+	bbox->SetPackH();
+	bbox->SetHomogenous(1);
+	bbox->SetSpacing(1);
+	bbox->SetCenter(1);
+	bbox->Show();
+
+	bbox->Pack_End(killbutton, 0, 0);
+	bbox->Pack_End(okbutton, 0, 0);
+
+	vbox->Pack_End(constext, 1, 0);
+	vbox->Pack_End(bbox, 0, 0);
+
+	AddComponentVec(constext, (KIS_PANEL_COMP_TAB | KIS_PANEL_COMP_EVT));
+	AddComponentVec(okbutton, (KIS_PANEL_COMP_TAB | KIS_PANEL_COMP_EVT));
+	AddComponentVec(killbutton, (KIS_PANEL_COMP_TAB | KIS_PANEL_COMP_EVT));
+
+	AddComponentVec(vbox, KIS_PANEL_COMP_DRAW);
+}
+
+Kis_Console_Panel::~Kis_Console_Panel() {
+	if (kpinterface->FetchServerFramework() != NULL)  {
+		kpinterface->FetchServerFramework()->RemoveCallback(textcb);
+	}
+}
+
+void Kis_Console_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {
+	Kis_Panel::Position(in_sy, in_sx, in_y, in_x);
+
+	vbox->SetPosition(1, 2, in_x - 2, in_y - 3);
+}
+
+void Kis_Console_Panel::ButtonAction(Kis_Panel_Component *component) {
+	if (component == okbutton) {
+		kpinterface->KillPanel(this);
+	}
+}
+
+void Kis_Console_Panel::AddConsoleText(string in_text) {
+	constext->AppendText(in_text);
 }
 
 int ModalAckCB(COMPONENT_CALLBACK_PARMS) {

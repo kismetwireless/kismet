@@ -1613,17 +1613,19 @@ void Kis_Free_Text::DrawComponent() {
 
 	SetTransColor(color_active);
 
+	if (ly < (int) text_vec.size() && follow_tail && scroll_pos < 0)
+		scroll_pos = text_vec.size() - ly + 1;
+
 	if (scroll_pos < 0 || scroll_pos > (int) text_vec.size())
 		scroll_pos = 0;
 
-	for (unsigned int x = 0; x < text_vec.size() && (int) x < ly; x++) {
-		if (x + scroll_pos > text_vec.size()) {
-			scroll_pos = x;
-		}
+	int px = 0;
+	for (unsigned int x = scroll_pos; x < text_vec.size() && px < ly; x++) {
 		// Use the special formatter
-		Kis_Panel_Specialtext::Mvwaddnstr(window, sy + x, sx, 
-										  text_vec[x + scroll_pos],
+		Kis_Panel_Specialtext::Mvwaddnstr(window, sy + px, sx, 
+										  text_vec[x],
 										  lx - 1);
+		px++;
 	}
 
 	if ((int) text_vec.size() > ly) {
@@ -1647,7 +1649,7 @@ int Kis_Free_Text::KeyPress(int in_key) {
 
 	int scrollable = 1;
 
-	if ((int) text_vec.size() <= ey)
+	if ((int) text_vec.size() <= ly)
 		scrollable = 0;
 
 	if (scrollable && in_key == KEY_UP && scroll_pos > 0) {
@@ -1656,22 +1658,23 @@ int Kis_Free_Text::KeyPress(int in_key) {
 	}
 
 	if (scrollable && in_key == KEY_DOWN && 
-		scroll_pos < ((int) text_vec.size() - ey)) {
+		// Don't allow scrolling off the end
+		scroll_pos < ((int) text_vec.size() - ly)) {
 		scroll_pos++;
 		return 0;
 	}
 
 	if (scrollable && in_key == KEY_PPAGE && scroll_pos > 0) {
-		scroll_pos -= (ey - 1);
+		scroll_pos -= (ly - 1);
 		if (scroll_pos < 0)
 			scroll_pos = 0;
 		return 0;
 	}
 
 	if (scrollable && in_key == KEY_NPAGE) {
-		scroll_pos += (ey - 1);
-		if (scroll_pos >= ((int) text_vec.size() - ey)) 
-			scroll_pos = ((int) text_vec.size() - ey);
+		scroll_pos += (ly - 1);
+		if (scroll_pos >= ((int) text_vec.size() - ly)) 
+			scroll_pos = ((int) text_vec.size() - ly);
 		return 0;
 	}
 
@@ -1694,6 +1697,9 @@ void Kis_Free_Text::SetText(vector<string> in_text) {
 	text_vec = in_text;
 
 	SetPreferredSize(ml, in_text.size());
+
+	if (follow_tail)
+		scroll_pos = -1;
 }
 
 void Kis_Free_Text::AppendText(string in_text) {

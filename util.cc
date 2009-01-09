@@ -391,6 +391,44 @@ vector<smart_word_token> NetStrTokenize(string in_str, string in_split,
 	return ret;
 }
 
+vector<string> QuoteStrTokenize(string in_str, string in_split) {
+	size_t begin = 0;
+	size_t end = in_str.find(in_split);
+	vector<string> ret;
+	int special = 0;
+	
+	if (in_str.length() == 0)
+		return ret;
+
+	while (end != string::npos) {
+		if (in_str[begin] == '\'') {
+			end = in_str.find("\'", begin + 1);
+			special = 1;
+		}
+
+		if (in_str[begin] == '\"') {
+			end = in_str.find("\"", begin + 1);
+			special = 1;
+		}
+
+		string sub = in_str.substr(begin + special, end - begin - special);
+
+		begin = end + 1 + special;
+
+		end = in_str.find(in_split, begin);
+
+		ret.push_back(sub);
+		
+		special = 0;
+	}
+
+	if (begin != in_str.size()) {
+		ret.push_back(in_str.substr(begin, in_str.size() - begin));
+	}
+	
+	return ret;
+}
+
 int TokenNullJoin(string *ret_str, const char **in_list) {
 	int ret = 0;
 

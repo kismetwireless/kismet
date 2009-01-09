@@ -303,6 +303,9 @@ int IPCRemote::SpawnIPC() {
 			signal(SIGPIPE, SIG_IGN);
 			signal(SIGCHLD, SIG_IGN);
 
+			// Close our copy of the other half
+			close(sockpair[1]);
+
 			// Write a single byte on the FD to sync us
 			write(sockpair[0], &(sockpair[0]), 1);
 

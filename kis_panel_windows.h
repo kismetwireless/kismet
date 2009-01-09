@@ -96,7 +96,8 @@ public:
 	void Proto_GPS(CLIPROTO_CB_PARMS);
 
 protected:
-	int mn_file, mi_connect, mi_disconnect, mi_addcard, mi_conf, mi_quit;
+	int mn_file, mi_startserver, mi_serverconsole, mi_connect, mi_disconnect, 
+		mi_addcard, mi_conf, mi_quit;
 
 	int mn_plugins, mi_addplugin, mi_noplugins;
 
@@ -167,6 +168,53 @@ protected:
 	Kis_Button *cancelbutton;
 
 	Kis_Panel_Packbox *vbox, *bbox;
+};
+
+class Kis_Spawn_Panel : public Kis_Panel {
+public:
+	Kis_Spawn_Panel() {
+		fprintf(stderr, "FATAL OOPS: Kis_Spawn_Panel called w/out globalreg\n");
+		exit(1);
+	}
+
+	Kis_Spawn_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_kpf);
+	virtual ~Kis_Spawn_Panel();
+
+	virtual void Position(int in_sy, int in_sx, int in_y, int in_x);
+
+	void ButtonAction(Kis_Panel_Component *component);
+
+protected:
+	Kis_Single_Input *options;
+	Kis_Button *okbutton;
+	Kis_Button *cancelbutton;
+
+	Kis_Panel_Packbox *vbox, *bbox;
+};
+
+class Kis_Console_Panel : public Kis_Panel {
+public:
+	Kis_Console_Panel() {
+		fprintf(stderr, "FATAL OOPS: Kis_Consol_Panel called w/out globalreg\n");
+		exit(1);
+	}
+
+	Kis_Console_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_kpf);
+	virtual ~Kis_Console_Panel();
+
+	virtual void Position(int in_sy, int in_sx, int in_y, int in_x);
+
+	void ButtonAction(Kis_Panel_Component *component);
+
+	void AddConsoleText(string in_text);
+
+protected:
+	Kis_Free_Text *constext;
+	Kis_Button *okbutton, *killbutton;
+
+	Kis_Panel_Packbox *vbox, *bbox;
+	
+	int textcb;
 };
 
 class Kis_AddCard_Panel : public Kis_Panel {

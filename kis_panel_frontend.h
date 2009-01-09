@@ -42,6 +42,9 @@
 
 #include "configfile.h"
 
+#include "popenclient.h"
+#include "text_cliframe.h"
+
 class KisPanelInterface;
 
 // Our specialized actual kismet frontend
@@ -152,6 +155,13 @@ public:
 	ConfigFile prefs;
 	Kis_Panel_Color colors;
 
+	// Interface level since it's independent of the UI
+	void SpawnServer(string in_parm);
+	void SpawnServer();
+	void KillServer();
+	TextCliFrame *FetchServerFramework() { return server_framework; }
+	vector<string> *FetchServerConsole() { return &server_console; }
+
 protected:
 	vector<KisNetClient *> netclient_vec;
 
@@ -167,6 +177,12 @@ protected:
 	KisPanelPluginData plugdata;
 
 	Kis_Main_Panel *mainp;
+
+	// Server monitoring stuff
+	TextCliFrame *server_framework;
+	PopenClient *server_popen;
+	string server_parm;
+	vector<string> server_console;
 };
 
 #endif // panel

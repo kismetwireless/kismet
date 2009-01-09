@@ -23,9 +23,14 @@ TextCliFrame::TextCliFrame(GlobalRegistry *in_globalreg) :
 	ClientFramework(in_globalreg) {
 	netclient = NULL;
 	next_id = 0;
+
+	globalreg->RegisterPollableSubsys(this);
 }
 
 TextCliFrame::~TextCliFrame() {
+	if (globalreg != NULL) {
+		globalreg->RemovePollableSubsys(this);
+	}
 }
 
 void TextCliFrame::RegisterNetworkClient(NetworkClient *in_netc) {

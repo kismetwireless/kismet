@@ -161,6 +161,9 @@ KisPanelInterface::KisPanelInterface(GlobalRegistry *in_globalreg) :
 	addcb_ref = 0;
 
 	mainp = NULL;
+
+	server_framework = NULL;
+	server_popen = NULL;
 }
 
 KisPanelInterface::~KisPanelInterface() {
@@ -177,6 +180,8 @@ KisPanelInterface::~KisPanelInterface() {
 
 	for (unsigned int x = 0; x < netclient_vec.size(); x++)
 		delete netclient_vec[x];
+
+	KillServer();
 }
 
 void KisPanelInterface::AddPanel(Kis_Panel *in_panel) {
@@ -464,6 +469,56 @@ void KisPanelInterface::LoadPlugins() {
 			}
 		}
 	}
+}
+
+// keep the last 50 lines of server console for when the window is first opened
+void kpi_textcli_consolevec(TEXTCLI_PARMS) {
+	vector<string> *console = 
+		((KisPanelInterface *) auxptr)->FetchServerConsole();
+	console->push_back(text);
+	if (console->size() > 50) 
+		console->erase(console->begin(), console->begin() + console->size() - 50);
+}
+
+void KisPanelInterface::SpawnServer(string in_parm) {
+	server_parm = in_parm;
+	SpawnServer();
+}
+
+void KisPanelInterface::SpawnServer() {
+	string servercmd = "kismet_server --silent " + server_parm;
+
+	if (server_framework == NULL) {
+		server_framework = new TextCliFrame(globalreg);
+		server_popen = new PopenClient(globalreg);
+
+		if (server_popen->Connect(servercmd.c_str(), 'r') < 0) {
+			_MSG("Failed to launch kismet_server", MSGFLAG_ERROR);
+			delete server_popen;
+			delete server_framework;
+			server_popen = NULL;
+			server_framework = NULL;
+		}
+
+		server_framework->RegisterNetworkClient(server_popen);
+		server_popen->RegisterClientFramework(server_framework);
+
+		server_framework->AddCallback(kpi_textcli_consolevec, this);
+	}
+}
+
+void KisPanelInterface::KillServer() {
+	fprintf(stderr, "debug - kpi killserver\n");
+	if (server_framework != NULL) {
+		server_popen->KillConnection();
+		server_framework->KillConnection();
+		delete server_popen;
+		delete server_framework;
+		server_popen = NULL;
+		server_framework = NULL;
+	}
+
+	server_console.clear();
 }
 
 #endif

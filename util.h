@@ -141,6 +141,10 @@ vector<smart_word_token> SmartStrTokenize(string in_str, string in_split,
 vector<smart_word_token> NetStrTokenize(string in_str, string in_split, 
 										int return_partial = 1);
 
+// Simplified quoted string tokenizer, expects " ' to start at the beginning
+// of the token, no abc"def ghi"
+vector<string> QuoteStrTokenize(string in_str, string in_split);
+
 int TokenNullJoin(string *ret_str, const char **in_list);
 
 string InLineWrap(string in_txt, unsigned int in_hdr_len,

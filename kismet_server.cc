@@ -137,6 +137,9 @@ void SmartStdoutMessageClient::ProcessMessage(string in_msg, int in_flags) {
 		else
 			fprintf(stderr, "FATAL: %s\n", in_msg.c_str());
 	}
+
+	fflush(stdout);
+	fflush(stderr);
     
     return;
 }

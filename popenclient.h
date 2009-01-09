@@ -63,14 +63,23 @@ public:
 
 	virtual void KillConnection();
 
+	unsigned int MergeSet(unsigned int in_max_fd, fd_set *out_rset, 
+						  fd_set *out_wset);
+
+	int Poll(fd_set& in_rset, fd_set& in_wset);
+
 protected:
     virtual int Validate() {
         return 1;
     }
 
-	FILE *ppipe;
+	// Stdin/out/err pipe pairs
+	int ipipe[2], opipe[2], epipe[2];
+
+	pid_t childpid;
 
     virtual int ReadBytes();
+    virtual int ReadEBytes();
     virtual int WriteBytes();
 };
 
