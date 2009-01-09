@@ -90,9 +90,7 @@ int PopenClient::Connect(const char *in_remotehost, short int in_port) {
 }
 
 void PopenClient::KillConnection() {
-	fprintf(stderr, "killconnection pid %d\n", childpid);
 	if (childpid > 0) {
-		fprintf(stderr, "killing child pid %d from %d\n", childpid, getpid());
 		kill(childpid, SIGQUIT);
 
 		close(ipipe[1]);

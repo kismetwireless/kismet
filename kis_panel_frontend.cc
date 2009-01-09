@@ -64,7 +64,6 @@ void KisPanelInterface::proto_SOURCE(CLIPROTO_CB_PARMS) {
 	//	"velocity,dwell,hop_time_sec,hop_time_usec,channellist"
 
 	if (proto_parsed->size() < 12) {
-		fprintf(stderr, "invalid size %d\n", proto_parsed->size());
 		return;
 	}
 
@@ -508,7 +507,6 @@ void KisPanelInterface::SpawnServer() {
 }
 
 void KisPanelInterface::KillServer() {
-	fprintf(stderr, "debug - kpi killserver\n");
 	if (server_framework != NULL) {
 		server_popen->KillConnection();
 		server_framework->KillConnection();
