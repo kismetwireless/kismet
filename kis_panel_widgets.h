@@ -996,6 +996,9 @@ protected:
 	int sx, sy, sizex, sizey;
 
 	int text_color, border_color;
+
+	// Main component sized to the full window (usually a packbox)
+	Kis_Panel_Component *main_component;
 };
 
 // Pollable supersystem for handling panels and input

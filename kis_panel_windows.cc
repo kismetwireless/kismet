@@ -105,6 +105,7 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	menu->DisableMenuItem(mi_noplugins);
 
 	mn_preferences = menu->AddSubMenuItem("Preferences", mn_file, 'P');
+	mi_startprefs = menu->AddMenuItem("Startup & Shutdown...", mn_preferences, 's');
 	mi_serverprefs = menu->AddMenuItem("Servers...", mn_preferences, 'S');
 	mi_colorprefs = menu->AddMenuItem("Colors...", mn_preferences, 'C');
 	mi_netcolprefs = menu->AddMenuItem("Network Columns...", mn_preferences, 'N');
@@ -627,6 +628,10 @@ void Kis_Main_Panel::MenuAction(int opt) {
 		kpinterface->AddPanel(pp);
 	} else if (opt == mi_colorprefs) {
 		SpawnColorPrefs();
+	} else if (opt == mi_startprefs) {
+		Kis_StartupPref_Panel *sp = new Kis_StartupPref_Panel(globalreg, kpinterface);
+		sp->Position(WIN_CENTER(14, 70));
+		kpinterface->AddPanel(sp);
 	} else if (opt == mi_serverprefs) {
 		SpawnServerPrefs();
 	} else if (opt == mi_netcolprefs) {

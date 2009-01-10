@@ -3078,6 +3078,7 @@ Kis_Panel::Kis_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_intf) {
 	sx = sy = sizex = sizey = 0;
 
 	active_component = NULL;
+	main_component = NULL;
 	tab_pos = -1;
 }
 
@@ -3244,6 +3245,9 @@ void Kis_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {
 	}
 
 	keypad(win, true);
+
+	if (main_component != NULL)
+		main_component->SetPosition(1, 1, in_x - 1, in_y - 1);
 }
 
 int Kis_Panel::Poll() {

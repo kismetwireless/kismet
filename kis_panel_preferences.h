@@ -263,6 +263,27 @@ protected:
 	Kis_Panel_Packbox *vbox, *cbox, *bbox;
 };
 
+class Kis_StartupPref_Panel : public Kis_Panel {
+public:
+	Kis_StartupPref_Panel() {
+		fprintf(stderr, "FATAL OOPS: Kis_Gps_Panel called w/out globalreg\n");
+		exit(1);
+	}
+
+	Kis_StartupPref_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_kpf);
+	virtual ~Kis_StartupPref_Panel();
+
+	virtual void ButtonAction(Kis_Panel_Component *in_button);
+
+protected:
+	Kis_Checkbox *startkis_check, *startkisprompt_check, *startcons_check, 
+				 *stopkis_check, *stopkisprompt_check;
+	Kis_Button *okbutton;
+	Kis_Button *cancelbutton;
+
+	Kis_Panel_Packbox *vbox, *bbox;
+};
+
 #endif // curses
 
 #endif // prefs
