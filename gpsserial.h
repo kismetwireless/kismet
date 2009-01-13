@@ -46,7 +46,6 @@ public:
     }
     
     virtual int ParseData();
-    virtual int KillConnection();
     
     virtual int Shutdown();
 

@@ -145,7 +145,6 @@ public:
 	virtual ~SpectoolsClient();
 
 	virtual int ParseData();
-	virtual int KillConnection();
 
 	virtual int Shutdown();
 

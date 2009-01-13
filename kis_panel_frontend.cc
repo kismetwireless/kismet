@@ -137,6 +137,8 @@ KisPanelInterface::KisPanelInterface(GlobalRegistry *in_globalreg) :
 	PanelInterface(in_globalreg) {
 	globalreg = in_globalreg;
 
+	shutdown_mode = 0;
+
 	// Load the preferences file
 	LoadPreferences();
 
@@ -163,10 +165,23 @@ KisPanelInterface::KisPanelInterface(GlobalRegistry *in_globalreg) :
 
 	server_framework = NULL;
 	server_popen = NULL;
+	server_text_cb = -1;
+
+	endwin();
 }
 
 KisPanelInterface::~KisPanelInterface() {
+	Shutdown();
+
+	for (unsigned int x = 0; x < netclient_vec.size(); x++)
+		delete netclient_vec[x];
+	netclient_vec.clear();
+}
+
+void KisPanelInterface::Shutdown() {
 	SavePreferences();
+
+	Remove_All_Netcli_Conf_CB(KisPanelClient_Configured);
 
 	Remove_AllNetcli_ProtoHandler("STATUS", KisPanelClient_STATUS, this);
 	Remove_AllNetcli_ProtoHandler("SOURCE", KisPanelClient_SOURCE, this);
@@ -174,13 +189,32 @@ KisPanelInterface::~KisPanelInterface() {
 	// Destroy panels in this destructor, if they get destroyed in the
 	// parent destructor sadness happens
 	for (unsigned int x = 0; x < live_panels.size(); x++)
-		delete live_panels[x];
-	live_panels.clear();
+		KillPanel(live_panels[x]);
 
-	for (unsigned int x = 0; x < netclient_vec.size(); x++)
-		delete netclient_vec[x];
+	// we don't kill the clients since we might still be issuing shutdown
+	// commands
 
-	KillServer();
+	// we don't kill the server if it exists, but we do kill the callback
+	// referencing ourselves
+	if (server_framework != NULL)
+		server_framework->RemoveCallback(server_text_cb);
+
+	shutdown_mode = 1;
+}
+
+unsigned int KisPanelInterface::MergeSet(unsigned int in_max_fd, fd_set *out_rset, 
+										 fd_set *out_wset) {
+	if (shutdown_mode)
+		return in_max_fd;
+
+	return PanelInterface::MergeSet(in_max_fd, out_rset, out_wset);
+}
+
+int KisPanelInterface::Poll(fd_set& in_rset, fd_set& in_wset) {
+	if (shutdown_mode)
+		return 0;
+
+	return PanelInterface::Poll(in_rset, in_wset);
 }
 
 void KisPanelInterface::AddPanel(Kis_Panel *in_panel) {
@@ -293,7 +327,7 @@ void KisPanelInterface::NetClientConfigure(KisNetClient *in_cli, int in_recon) {
 int KisPanelInterface::Remove_AllNetcli_ProtoHandler(string in_proto,
 													 CliProto_Callback in_cb,
 													 void *in_aux) {
-	for (unsigned int x = 0; x < netclient_vec.size(); ++x) {
+	for (unsigned int x = 0; x < netclient_vec.size(); x++) {
 		netclient_vec[x]->RemoveProtoHandler(in_proto, in_cb, in_aux);
 	}
 
@@ -357,6 +391,12 @@ void KisPanelInterface::Remove_Netcli_AddCli_CB(int in_cbref) {
 			addclicb_vec.erase(addclicb_vec.begin() + x);
 			return;
 		}
+	}
+}
+
+void KisPanelInterface::Remove_All_Netcli_Conf_CB(CliConf_Callback in_cb) {
+	for (unsigned int x = 0; x < netclient_vec.size(); x++) {
+		netclient_vec[x]->RemoveConfCallback(in_cb);
 	}
 }
 
@@ -502,21 +542,16 @@ void KisPanelInterface::SpawnServer() {
 		server_framework->RegisterNetworkClient(server_popen);
 		server_popen->RegisterClientFramework(server_framework);
 
-		server_framework->AddCallback(kpi_textcli_consolevec, this);
+		server_text_cb = 
+			server_framework->RegisterCallback(kpi_textcli_consolevec, this);
 	}
 }
 
 void KisPanelInterface::KillServer() {
 	if (server_framework != NULL) {
-		server_popen->KillConnection();
-		server_framework->KillConnection();
-		delete server_popen;
-		delete server_framework;
-		server_popen = NULL;
-		server_framework = NULL;
+		server_popen->SoftKillConnection();
+		server_framework->RemoveCallback(server_text_cb);
 	}
-
-	server_console.clear();
 }
 
 #endif

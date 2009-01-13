@@ -64,6 +64,13 @@ public:
 	KisPanelInterface(GlobalRegistry *in_globalreg);
 	virtual ~KisPanelInterface();
 
+	virtual unsigned int MergeSet(unsigned int in_max_fd, fd_set *out_rset, 
+								  fd_set *out_wset);
+
+	virtual int Poll(fd_set& in_rset, fd_set& in_wset);
+
+	virtual void Shutdown();
+
 	virtual void AddPanel(Kis_Panel *in_panel);
 
 	virtual int LoadPreferences();
@@ -73,6 +80,7 @@ public:
 	virtual int AddNetClient(string in_host, int in_reconnect);
 	virtual int Add_NetCli_AddCli_CB(KPI_AddCli_Callback in_cb, void *in_aux);
 	virtual void Remove_Netcli_AddCli_CB(int in_cbref);
+	virtual void Remove_All_Netcli_Conf_CB(CliConf_Callback in_cb);
 
 	// Fetch a list of clients
 	virtual vector<KisNetClient *> FetchNetClientVec();
@@ -159,10 +167,14 @@ public:
 	void SpawnServer(string in_parm);
 	void SpawnServer();
 	void KillServer();
+	// These need to be exposed to the callbacks for clean shutdown
 	TextCliFrame *FetchServerFramework() { return server_framework; }
+	PopenClient *FetchServerPopen() { return server_popen; }
 	vector<string> *FetchServerConsole() { return &server_console; }
 
 protected:
+	int shutdown_mode; 
+
 	vector<KisNetClient *> netclient_vec;
 
 	// Map of UUIDs of sources to representations
@@ -183,6 +195,7 @@ protected:
 	PopenClient *server_popen;
 	string server_parm;
 	vector<string> server_console;
+	int server_text_cb;
 };
 
 #endif // panel

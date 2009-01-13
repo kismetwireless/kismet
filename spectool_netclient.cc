@@ -187,7 +187,6 @@ SpectoolsClient::SpectoolsClient(GlobalRegistry *in_globalreg) :
 			 MSGFLAG_INFO);
 	}
 
-	globalreg->RegisterPollableSubsys(this);
 }
 
 SpectoolsClient::~SpectoolsClient() {
@@ -198,17 +197,7 @@ SpectoolsClient::~SpectoolsClient() {
 
 	globalreg->RemovePollableSubsys(this);
 
-	if (tcpcli != NULL && tcpcli->Valid()) {
-		tcpcli->KillConnection();
-		delete tcpcli;
-	}
-}
-
-int SpectoolsClient::KillConnection() {
-	if (tcpcli != NULL && tcpcli->Valid())
-		tcpcli->KillConnection();
-
-	return 1;
+	KillConnection();
 }
 
 int SpectoolsClient::Shutdown() {

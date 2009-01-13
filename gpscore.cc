@@ -157,9 +157,6 @@ int GPSCore::RegisterComponents() {
 		globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1, 
 											  &GpsEvent, (void *) this);
 
-	// Register the TCP component of the GPS system with the main service loop
-	globalreg->RegisterPollableSubsys(this);
-
 	return 1;
 }
 

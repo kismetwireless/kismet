@@ -57,16 +57,20 @@ public:
     PopenClient(GlobalRegistry *in_globalreg);
     virtual ~PopenClient();
 
+	virtual int CheckPidVec();
+
 	// Bastardized Connect() overload - remotehost used as path to program,
 	// port expected to be a char 'r' or 'w'
     virtual int Connect(const char *in_remotehost, short int in_port);
 
 	virtual void KillConnection();
+	virtual void SoftKillConnection();
+	virtual void DetatchConnection();
 
-	unsigned int MergeSet(unsigned int in_max_fd, fd_set *out_rset, 
-						  fd_set *out_wset);
+	virtual unsigned int MergeSet(unsigned int in_max_fd, fd_set *out_rset, 
+								  fd_set *out_wset);
 
-	int Poll(fd_set& in_rset, fd_set& in_wset);
+	virtual int Poll(fd_set& in_rset, fd_set& in_wset);
 
 protected:
     virtual int Validate() {

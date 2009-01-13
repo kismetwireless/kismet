@@ -24,7 +24,6 @@ TextCliFrame::TextCliFrame(GlobalRegistry *in_globalreg) :
 	netclient = NULL;
 	next_id = 0;
 
-	globalreg->RegisterPollableSubsys(this);
 }
 
 TextCliFrame::~TextCliFrame() {
@@ -38,7 +37,7 @@ void TextCliFrame::RegisterNetworkClient(NetworkClient *in_netc) {
 	netclient->RegisterClientFramework(this);
 }
 
-int TextCliFrame::AddCallback(textcli_cb in_cb, void *in_aux) {
+int TextCliFrame::RegisterCallback(textcli_cb in_cb, void *in_aux) {
 	textcli_cb_s cbs;
 
 	cbs.id = next_id++;
@@ -95,13 +94,6 @@ int TextCliFrame::ParseData() {
 			(*callback_vec[c].cb)(inptok[it], callback_vec[c].auxptr);
 		}
 	}
-
-	return 1;
-}
-
-int TextCliFrame::KillConnection() {
-	if (netclient != NULL)
-		netclient->KillConnection();
 
 	return 1;
 }

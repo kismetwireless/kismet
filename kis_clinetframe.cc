@@ -56,16 +56,14 @@ KisNetClient::KisNetClient(GlobalRegistry *in_globalreg) :
 
 	// Counter for configure level
 	configured = 1;
-	
-	globalreg->RegisterPollableSubsys(this);
 }
 
 KisNetClient::~KisNetClient() {
+	KillConnection();
+
 	if (tcpcli != NULL) {
-		tcpcli->KillConnection();
 		delete tcpcli;
 		tcpcli = NULL;
-		netclient = NULL;
 	}
 
 	if (reconid > -1)
@@ -113,8 +111,7 @@ int KisNetClient::Connect(string in_host, int in_reconnect) {
 }
 
 int KisNetClient::KillConnection() {
-	if (tcpcli != NULL && tcpcli->Valid())
-		tcpcli->KillConnection();
+	ClientFramework::KillConnection();
 
 	last_disconnect = time(0);
 

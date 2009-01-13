@@ -312,6 +312,7 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 Kis_Main_Panel::~Kis_Main_Panel() {
 	globalreg->messagebus->RemoveClient(statuscli);
 	kpinterface->Remove_Netcli_AddCli_CB(addref);
+	kpinterface->Remove_All_Netcli_Conf_CB(KisMainPanel_Configured);
 	kpinterface->Remove_AllNetcli_ProtoHandler("INFO",
 											   KisMainPanel_INFO, this);
 	kpinterface->Remove_AllNetcli_ProtoHandler("GPS",
@@ -530,13 +531,88 @@ int Kis_Main_Panel::KeyPress(int in_key) {
 	return Kis_Panel::KeyPress(in_key);
 }
 
+
+// Dump text to stderr
+void kmp_textcli_stderr(TEXTCLI_PARMS) {
+	fprintf(stderr, "%s\n", text.c_str());
+}
+
+// Set fatal condition on error
+void kmp_spawnserver_fail(CLIFRAME_FAIL_CB_PARMS) {
+	fprintf(stderr, "Spawned Kismet server has exited\n");
+	globalreg->fatal_condition = 1;
+}
+
+// This function is "fun".
+//
+// In any case, we're shutting down.
+//
+// If the user says "yes, kill the server", and we started the server locally,
+// we teardown the UI structure, set a callback that prints to stderr on the server,
+// and set a death callback that sets the system to fatal and turns us off entirely.
+//
+// Otherwise, we just set the server to teardown.
+void kmp_prompt_killserver(KIS_PROMPT_CB_PARMS) {
+	// Kis_Main_Panel *kmp = (Kis_Main_Panel *) auxptr;
+	TextCliFrame *cf = globalreg->panel_interface->FetchServerFramework();
+	PopenClient *po = globalreg->panel_interface->FetchServerPopen();
+	KisNetClient *knc = globalreg->panel_interface->FetchFirstNetclient();
+
+	_MSG("Quitting...", MSGFLAG_ERROR);
+
+	if (ok && knc != NULL) {
+		// fprintf(stderr, "debug - injecting shutdown command\n");
+		knc->InjectCommand("SHUTDOWN");
+	}
+
+	// This kicks off the curses teardown entirely
+	globalreg->panel_interface->Shutdown();
+
+	if (ok && cf != NULL) {
+		cf->RegisterCallback(kmp_textcli_stderr, NULL);
+		cf->RegisterFailCB(kmp_spawnserver_fail, NULL);
+		if (po != NULL) {
+			po->SoftKillConnection();
+		}
+	} else {
+		globalreg->fatal_condition = 1;
+	}
+}
+
 void Kis_Main_Panel::MenuAction(int opt) {
 	vector<KisNetClient *> *clivec = kpinterface->FetchNetClientVecPtr();
 
 	// Menu processed an event, do something with it
 	if (opt == mi_quit) {
-		globalreg->fatal_condition = 1;
-		_MSG("Quitting...", MSGFLAG_INFO);
+		if (kpinterface->FetchFirstNetclient() == NULL &&
+			kpinterface->FetchServerFramework() == NULL) {
+			globalreg->fatal_condition = 1;
+			_MSG("Quitting...", MSGFLAG_INFO);
+		}
+
+		if (kpinterface->prefs.FetchOpt("STOP_PROMPTSERVER") == "true" &&
+			kpinterface->prefs.FetchOpt("STOP_SERVER") == "true") {
+			vector<string> t;
+			t.push_back("Stop Kismet server before quitting?");
+			t.push_back("This will stop capture & shut down any other");
+			t.push_back("clients that might be connected to this server");
+
+			Kis_Prompt_Panel *kpp = 
+				new Kis_Prompt_Panel(globalreg, kpinterface);
+			kpp->SetTitle("Stop Kismet Server");
+			kpp->SetDisplayText(t);
+			kpp->SetCallback(kmp_prompt_killserver, this);
+			kpp->SetDefaultButton(1);
+			kpp->Position(WIN_CENTER(7, 50));
+			kpinterface->AddPanel(kpp);
+			return;
+		} else if (kpinterface->prefs.FetchOpt("STOP_SERVER") == "true") {
+			
+		} else {
+			globalreg->fatal_condition = 1;
+			_MSG("Quitting...", MSGFLAG_INFO);
+		}
+
 		return;
 	} else if (opt == mi_connect) {
 		Kis_Connect_Panel *cp = new Kis_Connect_Panel(globalreg, kpinterface);
@@ -1081,6 +1157,107 @@ void Kis_Connect_Panel::ButtonAction(Kis_Panel_Component *component) {
 	}
 }
 
+int PromptButtonCB(COMPONENT_CALLBACK_PARMS) {
+	((Kis_Prompt_Panel *) aux)->ButtonAction(component);
+	return 1;
+}
+
+Kis_Prompt_Panel::Kis_Prompt_Panel(GlobalRegistry *in_globalreg, 
+									 KisPanelInterface *in_intf) :
+	Kis_Panel(in_globalreg, in_intf) {
+
+	ftext = new Kis_Free_Text(globalreg, this);
+	cancelbutton = new Kis_Button(globalreg, this);
+	okbutton = new Kis_Button(globalreg, this);
+
+	cancelbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, PromptButtonCB, this);
+	okbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, PromptButtonCB, this);
+
+	okbutton->SetText("OK");
+	cancelbutton->SetText("Cancel");
+
+	ftext->Show();
+	okbutton->Show();
+	cancelbutton->Show();
+
+	vbox = new Kis_Panel_Packbox(globalreg, this);
+	vbox->SetPackV();
+	vbox->SetHomogenous(0);
+	vbox->SetSpacing(0);
+	vbox->Show();
+
+	bbox = new Kis_Panel_Packbox(globalreg, this);
+	bbox->SetPackH();
+	bbox->SetHomogenous(1);
+	bbox->SetSpacing(1);
+	bbox->SetCenter(1);
+	bbox->Show();
+
+	bbox->Pack_End(cancelbutton, 0, 0);
+	bbox->Pack_End(okbutton, 0, 0);
+
+	vbox->Pack_End(ftext, 1, 0);
+	vbox->Pack_End(bbox, 0, 0);
+
+	AddComponentVec(ftext, (KIS_PANEL_COMP_TAB | KIS_PANEL_COMP_EVT));
+	AddComponentVec(okbutton, (KIS_PANEL_COMP_TAB | KIS_PANEL_COMP_EVT));
+	AddComponentVec(cancelbutton, (KIS_PANEL_COMP_TAB | KIS_PANEL_COMP_EVT));
+
+	AddComponentVec(vbox, KIS_PANEL_COMP_DRAW);
+
+	main_component = vbox;
+
+	auxptr = NULL;
+	callback = NULL;
+
+	SetDefaultButton(1);
+}
+
+void Kis_Prompt_Panel::SetDefaultButton(int in_ok) {
+	if (in_ok) {
+		okbutton->Activate(0);
+		active_component = okbutton;
+		tab_pos = 1;
+	} else {
+		cancelbutton->Activate(0);
+		active_component = okbutton;
+		tab_pos = 2;
+	}
+}
+
+void Kis_Prompt_Panel::SetButtonText(string in_oktext, string in_notext) {
+	if (in_oktext == "")
+		okbutton->Hide();
+	else if (in_notext == "")
+		cancelbutton->Hide();
+}
+
+void Kis_Prompt_Panel::SetCallback(ksp_prompt_cb in_callback, void *in_auxptr) {
+	auxptr = in_auxptr;
+	callback = in_callback;
+}
+
+void Kis_Prompt_Panel::SetDisplayText(vector<string> in_text) {
+	ftext->SetText(in_text);
+}
+
+Kis_Prompt_Panel::~Kis_Prompt_Panel() {
+}
+
+void Kis_Prompt_Panel::ButtonAction(Kis_Panel_Component *component) {
+	if (component == okbutton) {
+		if (callback != NULL)
+			(*callback)(globalreg, 1, auxptr);
+
+		kpinterface->KillPanel(this);
+	} else if (component == cancelbutton) {
+		if (callback != NULL)
+			(*callback)(globalreg, 0, auxptr);
+
+		kpinterface->KillPanel(this);
+	}
+}
+
 int SpawnButtonCB(COMPONENT_CALLBACK_PARMS) {
 	((Kis_Spawn_Panel *) aux)->ButtonAction(component);
 	return 1;
@@ -1098,7 +1275,6 @@ Kis_Spawn_Panel::Kis_Spawn_Panel(GlobalRegistry *in_globalreg,
 	okbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, SpawnButtonCB, this);
 
 	tab_pos = 0;
-
 	active_component = options;
 	options->Activate(0);
 
@@ -1140,15 +1316,11 @@ Kis_Spawn_Panel::Kis_Spawn_Panel(GlobalRegistry *in_globalreg,
 	AddComponentVec(cancelbutton, (KIS_PANEL_COMP_TAB | KIS_PANEL_COMP_EVT));
 
 	AddComponentVec(vbox, KIS_PANEL_COMP_DRAW);
+
+	main_component = vbox;
 }
 
 Kis_Spawn_Panel::~Kis_Spawn_Panel() {
-}
-
-void Kis_Spawn_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {
-	Kis_Panel::Position(in_sy, in_sx, in_y, in_x);
-
-	vbox->SetPosition(1, 2, in_x - 2, in_y - 3);
 }
 
 void Kis_Spawn_Panel::ButtonAction(Kis_Panel_Component *component) {
@@ -1200,10 +1372,11 @@ Kis_Console_Panel::Kis_Console_Panel(GlobalRegistry *in_globalreg,
 		textcb = -1;
 	} else {
 		constext->SetText(*(kpinterface->FetchServerConsole()));
-		textcb = kpinterface->FetchServerFramework()->AddCallback(ConsoleTextCB, this);
+		textcb = 
+			kpinterface->FetchServerFramework()->RegisterCallback(ConsoleTextCB, this);
 	}
 
-	okbutton->SetText("Close");
+	okbutton->SetText("Close Console Window");
 	killbutton->SetText("Kill Server");
 
 	constext->Show();
@@ -2703,6 +2876,7 @@ Kis_ChanDetails_Panel::Kis_ChanDetails_Panel(GlobalRegistry *in_globalreg,
 
 Kis_ChanDetails_Panel::~Kis_ChanDetails_Panel() {
 	kpinterface->Remove_Netcli_AddCli_CB(addref);
+	kpinterface->Remove_All_Netcli_Conf_CB(ChanDetailsCliConfigured);
 	kpinterface->Remove_AllNetcli_ProtoHandler("CHANNEL", ChanDetailsProtoCHANNEL, this);
 	globalreg->timetracker->RemoveTimer(grapheventid);
 }
@@ -3178,12 +3352,6 @@ Kis_Chanconf_Panel::~Kis_Chanconf_Panel() {
 
 }
 
-void Kis_Chanconf_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {
-	Kis_Panel::Position(in_sy, in_sx, in_y, in_x);
-
-	vbox->SetPosition(1, 1, in_x - 1, in_y - 2);
-}
-
 void Kis_Chanconf_Panel::DrawPanel() {
 	map<uuid, KisPanelInterface::knc_card *> *cardmap =
 		kpinterface->FetchNetCardMap();
@@ -3545,18 +3713,8 @@ Kis_Gps_Panel::Kis_Gps_Panel(GlobalRegistry *in_globalreg,
 
 Kis_Gps_Panel::~Kis_Gps_Panel() {
 	kpinterface->Remove_Netcli_AddCli_CB(addref);
+	kpinterface->Remove_All_Netcli_Conf_CB(GpsCliConfigured);
 	kpinterface->Remove_AllNetcli_ProtoHandler("GPS", GpsProtoGPS, this);
-}
-
-void Kis_Gps_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {
-	Kis_Panel::Position(in_sy, in_sx, in_y, in_x);
-
-	vbox->SetPosition(1, 1, in_x - 1, in_y - 2);
-}
-
-void Kis_Gps_Panel::DrawPanel() {
-
-	Kis_Panel::DrawPanel();
 }
 
 void Kis_Gps_Panel::ButtonAction(Kis_Panel_Component *in_button) {

@@ -146,6 +146,38 @@ protected:
 	int agg_gps_num;
 };
 
+#define KIS_PROMPT_CB_PARMS	GlobalRegistry *globalreg, int ok, void *auxptr
+typedef void (*ksp_prompt_cb)(KIS_PROMPT_CB_PARMS);
+
+class Kis_Prompt_Panel : public Kis_Panel {
+public:
+	Kis_Prompt_Panel() {
+		fprintf(stderr, "FATAL OOPS: Kis_Prompt_Panel called w/out globalreg\n");
+		exit(1);
+	}
+
+	Kis_Prompt_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_kpf);
+	
+	virtual ~Kis_Prompt_Panel();
+
+	void SetDefaultButton(int in_ok);
+	void SetButtonText(string in_oktext, string in_notext);
+	void SetCallback(ksp_prompt_cb in_callback, void *in_auxptr);
+	void SetDisplayText(vector<string> in_text);
+
+	void ButtonAction(Kis_Panel_Component *component);
+
+protected:
+	void *auxptr;
+	ksp_prompt_cb callback;
+
+	Kis_Free_Text *ftext;
+	Kis_Button *okbutton;
+	Kis_Button *cancelbutton;
+
+	Kis_Panel_Packbox *vbox, *bbox;
+};
+
 class Kis_Connect_Panel : public Kis_Panel {
 public:
 	Kis_Connect_Panel() {
@@ -179,8 +211,6 @@ public:
 
 	Kis_Spawn_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_kpf);
 	virtual ~Kis_Spawn_Panel();
-
-	virtual void Position(int in_sy, int in_sx, int in_y, int in_x);
 
 	void ButtonAction(Kis_Panel_Component *component);
 
@@ -498,7 +528,6 @@ public:
 	Kis_Chanconf_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_kpf);
 	virtual ~Kis_Chanconf_Panel();
 
-	virtual void Position(int in_sy, int in_sx, int in_y, int in_x);
 	virtual void DrawPanel();
 
 	void ButtonAction(Kis_Panel_Component *component);
@@ -527,9 +556,6 @@ public:
 
 	Kis_Gps_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_kpf);
 	virtual ~Kis_Gps_Panel();
-
-	virtual void Position(int in_sy, int in_sx, int in_y, int in_x);
-	virtual void DrawPanel();
 
 	void ButtonAction(Kis_Panel_Component *component);
 

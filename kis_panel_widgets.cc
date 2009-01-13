@@ -3247,7 +3247,7 @@ void Kis_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {
 	keypad(win, true);
 
 	if (main_component != NULL)
-		main_component->SetPosition(1, 1, in_x - 1, in_y - 1);
+		main_component->SetPosition(1, 1, in_x - 1, in_y - 2);
 }
 
 int Kis_Panel::Poll() {

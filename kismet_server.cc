@@ -380,6 +380,7 @@ int main(int argc, char *argv[], char *envp[]) {
     signal(SIGINT, CatchShutdown);
     signal(SIGTERM, CatchShutdown);
     signal(SIGHUP, CatchShutdown);
+    signal(SIGQUIT, CatchShutdown);
 	signal(SIGCHLD, CatchChild);
     signal(SIGPIPE, SIG_IGN);
 

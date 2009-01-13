@@ -81,18 +81,8 @@ GPSDClient::GPSDClient(GlobalRegistry *in_globalreg) : GPSCore(in_globalreg) {
 GPSDClient::~GPSDClient() {
 	// Unregister ourselves from the main tcp service loop
 	globalreg->RemovePollableSubsys(this);
-	
-    if (tcpcli != NULL && tcpcli->Valid()) {
-        tcpcli->KillConnection();
-        delete tcpcli;
-    }
-}
 
-int GPSDClient::KillConnection() {
-    if (tcpcli != NULL && tcpcli->Valid())
-        tcpcli->KillConnection();
-
-    return 1;
+	KillConnection();
 }
 
 int GPSDClient::Shutdown() {

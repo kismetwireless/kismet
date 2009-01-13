@@ -86,6 +86,11 @@ int NetworkClient::Poll(fd_set& in_rset, fd_set& in_wset) {
         }
     }
 
+	if (cli_fd < 0 || !cl_valid) {
+		KillConnection();
+		return -1;
+	}
+
     // Look for stuff to write
     if (FD_ISSET(cli_fd, &in_wset)) {
         // If we can't write data, die.
@@ -156,6 +161,9 @@ void NetworkClient::KillConnection() {
 	cli_fd = -1;
 
     cl_valid = 0;
+
+	if (cliframework != NULL)
+		cliframework->KillConnection();
 
     return;
 }

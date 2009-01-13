@@ -84,18 +84,6 @@ GPSSerial::GPSSerial(GlobalRegistry *in_globalreg) : GPSCore(in_globalreg) {
 GPSSerial::~GPSSerial() {
 	// Unregister ourselves from the main tcp service loop
 	globalreg->RemovePollableSubsys(this);
-	
-    if (sercli != NULL && sercli->Valid()) {
-        sercli->KillConnection();
-        delete sercli;
-    }
-}
-
-int GPSSerial::KillConnection() {
-    if (sercli != NULL && sercli->Valid())
-        sercli->KillConnection();
-
-    return 1;
 }
 
 int GPSSerial::Shutdown() {

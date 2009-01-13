@@ -161,6 +161,32 @@ void ErrorShutdown() {
     exit(1);
 }
 
+void CatchChild(int sig) {
+	int status;
+	pid_t pid;
+
+	if (globalregistry->spindown)
+		return;
+
+	while (1) {
+		pid = waitpid(-1, &status, WNOHANG);
+
+		if (pid != 0)
+			break;
+	}
+
+	if (pid < 0) {
+		return;
+	}
+
+	pid_fail frec;
+
+	frec.pid = pid;
+	frec.status = status;
+
+	globalregistry->sigchild_vec.push_back(frec);
+}
+
 // Catch our interrupt
 void CatchShutdown(int sig) {
 	if (globalregistry->panel_interface != NULL) {
@@ -260,7 +286,9 @@ int main(int argc, char *argv[], char *envp[]) {
     signal(SIGINT, CatchShutdown);
     signal(SIGTERM, CatchShutdown);
     signal(SIGHUP, CatchShutdown);
-    signal(SIGPIPE, CatchShutdown);
+    signal(SIGQUIT, CatchShutdown);
+	signal(SIGCHLD, CatchChild);
+    signal(SIGPIPE, SIG_IGN);
 	signal(SIGWINCH, CatchWinch);
 
 	// Start filling in key components of the globalregistry

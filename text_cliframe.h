@@ -33,11 +33,10 @@ public:
 	virtual ~TextCliFrame();
 
 	int ParseData();
-	int KillConnection();
 
     void RegisterNetworkClient(NetworkClient *in_netc);
 
-	int AddCallback(textcli_cb in_cb, void *in_aux);
+	int RegisterCallback(textcli_cb in_cb, void *in_aux);
 	void RemoveCallback(int in_id);
 
 	struct textcli_cb_s {

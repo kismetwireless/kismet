@@ -33,6 +33,21 @@ PopenClient::~PopenClient() {
 	KillConnection();
 }
 
+int PopenClient::CheckPidVec() {
+	if (childpid <= 0)
+		return 0;
+
+	for (unsigned int x = 0; x < globalreg->sigchild_vec.size(); x++) {
+		if (globalreg->sigchild_vec[x].pid == childpid) {
+			KillConnection();
+			globalreg->sigchild_vec.erase(globalreg->sigchild_vec.begin() + x);
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
 int PopenClient::Connect(const char *in_remotehost, short int in_port) {
 	(void) in_port;
 
@@ -48,7 +63,7 @@ int PopenClient::Connect(const char *in_remotehost, short int in_port) {
 		vector<string> args = QuoteStrTokenize(in_remotehost, " ");
 		char **eargv;
 
-		eargv = (char **) malloc(sizeof(char *) * args.size() + 1);
+		eargv = (char **) malloc(sizeof(char *) * (args.size() + 1));
 
 		for (unsigned int x = 0; x < args.size(); x++) 
 			eargv[x] = strdup(args[x].c_str());
@@ -59,7 +74,7 @@ int PopenClient::Connect(const char *in_remotehost, short int in_port) {
 		dup2(opipe[1], STDOUT_FILENO);
 		dup2(epipe[1], STDERR_FILENO);
 
-		/* We don't need these cpies anymore */
+		/* We don't need these copies anymore */
 		close(ipipe[0]);
 		close(ipipe[1]);
 		close(opipe[0]);
@@ -90,6 +105,7 @@ int PopenClient::Connect(const char *in_remotehost, short int in_port) {
 }
 
 void PopenClient::KillConnection() {
+	// fprintf(stderr, "debug - popenclient killconnection\n");
 	if (childpid > 0) {
 		kill(childpid, SIGQUIT);
 
@@ -100,14 +116,38 @@ void PopenClient::KillConnection() {
 		childpid = 0;
 	}
 
+	cli_fd = -1;
+
+	// fprintf(stderr, "debug - popenclient calling networkclient killonnection\n");
 	NetworkClient::KillConnection();
+}
+
+void PopenClient::SoftKillConnection() {
+	// Send a soft kill and let it die on it's own, so we can capture the
+	// output if any
+	if (childpid > 0) {
+		// fprintf(stderr, "debug - sending sigterm to %d\n", childpid);
+		kill(childpid, SIGTERM);
+	}
+}
+
+void PopenClient::DetatchConnection() {
+	if (childpid > 0) {
+		close(ipipe[1]);
+		close(opipe[0]);
+		close(epipe[0]);
+
+		childpid = 0;
+	}
+
+	cl_valid = 0;
 }
 
 unsigned int PopenClient::MergeSet(unsigned int in_max_fd, fd_set *out_rset, 
 								   fd_set *out_wset) {
     unsigned int max;
 
-	if (!cl_valid)
+	if (CheckPidVec() < 0 || !cl_valid)
 		return in_max_fd;
 
 	max = in_max_fd;
@@ -135,7 +175,7 @@ unsigned int PopenClient::MergeSet(unsigned int in_max_fd, fd_set *out_rset,
 int PopenClient::Poll(fd_set& in_rset, fd_set& in_wset) {
     int ret = 0;
 
-    if (!cl_valid)
+    if (CheckPidVec() < 0 || !cl_valid)
         return 0;
 
     // Look for stuff to read, opipe and epipe are where we read from

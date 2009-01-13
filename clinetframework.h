@@ -123,6 +123,9 @@ protected:
     struct hostent *client_host;
 };
 
+#define CLIFRAME_FAIL_CB_PARMS	GlobalRegistry *globalreg, int errno, void *auxptr
+typedef void (*cliframe_fail_cb)(CLIFRAME_FAIL_CB_PARMS);
+
 // Skeleton to a protocol interface
 class ClientFramework : public Pollable {
 public:
@@ -134,6 +137,9 @@ public:
     ClientFramework(GlobalRegistry *in_reg) {
         globalreg = in_reg;
         netclient = NULL;
+		fail_cb = NULL;
+		fail_aux = NULL;
+		globalreg->RegisterPollableSubsys(this);
     }
 
     virtual ~ClientFramework() { };
@@ -147,7 +153,18 @@ public:
     virtual int ParseData() = 0;
 
     // Kill a connection
-    virtual int KillConnection() = 0;
+    virtual int KillConnection() {
+		globalreg->RemovePollableSubsys(this);
+
+		if (netclient != NULL && netclient->Valid()) {
+			netclient->KillConnection();
+		}
+
+		if (fail_cb != NULL)
+			(*fail_cb)(globalreg, 0, fail_aux);
+
+		return 1;
+	}
 
     // Shutdown the protocol
     virtual int Shutdown();
@@ -172,8 +189,16 @@ public:
 
 		return netclient->Poll(in_rset, in_wset);
 	}
+
+	virtual void RegisterFailCB(cliframe_fail_cb in_cb, void *in_aux) {
+		fail_cb = in_cb;
+		fail_aux = in_aux;
+	}
     
 protected:
+	cliframe_fail_cb fail_cb;
+	void *fail_aux;
+
     char errstr[STATUS_MAX];
 
     GlobalRegistry *globalreg;
