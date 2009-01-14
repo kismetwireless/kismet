@@ -217,6 +217,7 @@ PanelInterface::~PanelInterface() {
 	
 	globalreg->RemovePollableSubsys(this);
 
+	erase();
 	endwin();
 }
 

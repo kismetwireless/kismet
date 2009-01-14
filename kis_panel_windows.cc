@@ -319,6 +319,38 @@ Kis_Main_Panel::~Kis_Main_Panel() {
 											   KisMainPanel_GPS, this);
 }
 
+void kmp_prompt_startserver(KIS_PROMPT_CB_PARMS) {
+	if (ok) {
+		Kis_Spawn_Panel *sp = new Kis_Spawn_Panel(globalreg, globalreg->panel_interface);
+		sp->Position(WIN_CENTER(6, 40));
+		globalreg->panel_interface->AddPanel(sp);
+	}
+}
+
+void Kis_Main_Panel::Startup() {
+	if (kpinterface->prefs.FetchOpt("STARTUP_PROMPTSERVER") == "true" ||
+		kpinterface->prefs.FetchOpt("STARTUP_PROMPTSERVER") == "") {
+
+		vector<string> t;
+		t.push_back("Automatically start Kismet server?");
+		t.push_back("Launch Kismet server and connect to it automatically.");
+		t.push_back("If you use a Kismet server started elsewhere, choose");
+		t.push_back("No and change the Startup preferences.");
+
+		Kis_Prompt_Panel *kpp = 
+			new Kis_Prompt_Panel(globalreg, kpinterface);
+		kpp->SetTitle("Start Kismet Server");
+		kpp->SetDisplayText(t);
+		kpp->SetCallback(kmp_prompt_startserver, this);
+		kpp->SetDefaultButton(1);
+		kpp->Position(WIN_CENTER(7, 50));
+		kpinterface->AddPanel(kpp);
+	} else if (kpinterface->prefs.FetchOpt("STARTUP_SERVER") == "true" ||
+			   kpinterface->prefs.FetchOpt("STARTUP_SERVER") == "") {
+		kmp_prompt_startserver(globalreg, 1, this);
+	}
+}
+
 void Kis_Main_Panel::NetClientConfigure(KisNetClient *in_cli, int in_recon) {
 	// Reset the GPS text
 	gpsinfo->SetText("No GPS info (GPS not connected)");
@@ -590,8 +622,11 @@ void Kis_Main_Panel::MenuAction(int opt) {
 			_MSG("Quitting...", MSGFLAG_INFO);
 		}
 
-		if (kpinterface->prefs.FetchOpt("STOP_PROMPTSERVER") == "true" &&
-			kpinterface->prefs.FetchOpt("STOP_SERVER") == "true") {
+		if ((kpinterface->prefs.FetchOpt("STOP_PROMPTSERVER") == "true" ||
+			 kpinterface->prefs.FetchOpt("STOP_PROMPTSERVER") == "") &&
+			(kpinterface->prefs.FetchOpt("STOP_SERVER") == "true" ||
+			 kpinterface->prefs.FetchOpt("STOP_SERVER") == "")) {
+
 			vector<string> t;
 			t.push_back("Stop Kismet server before quitting?");
 			t.push_back("This will stop capture & shut down any other");
@@ -606,8 +641,11 @@ void Kis_Main_Panel::MenuAction(int opt) {
 			kpp->Position(WIN_CENTER(7, 50));
 			kpinterface->AddPanel(kpp);
 			return;
-		} else if (kpinterface->prefs.FetchOpt("STOP_SERVER") == "true") {
-			
+		} else if (kpinterface->prefs.FetchOpt("STOP_SERVER") == "true" ||
+				   kpinterface->prefs.FetchOpt("STOP_SERVER") == "") {
+			// if we're stopping the server without prompt, just call the
+			// prompt handler and tell it OK
+			kmp_prompt_killserver(globalreg, 1, NULL);
 		} else {
 			globalreg->fatal_condition = 1;
 			_MSG("Quitting...", MSGFLAG_INFO);
@@ -620,7 +658,7 @@ void Kis_Main_Panel::MenuAction(int opt) {
 		kpinterface->AddPanel(cp);
 	} else if (opt == mi_startserver) {
 		Kis_Spawn_Panel *sp = new Kis_Spawn_Panel(globalreg, kpinterface);
-		sp->Position(WIN_CENTER(8, 40));
+		sp->Position(WIN_CENTER(6, 40));
 		kpinterface->AddPanel(sp);
 	} else if (opt == mi_serverconsole) {
 		Kis_Console_Panel *cp = new Kis_Console_Panel(globalreg, kpinterface);

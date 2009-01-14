@@ -354,6 +354,7 @@ int main(int argc, char *argv[], char *envp[]) {
 											   globalregistry->panel_interface);
 	mainp->Position(0, 0, LINES, COLS);
 	globalregistry->panel_interface->AddPanel(mainp);
+	mainp->Startup();
 
 	// Kickstart our saved plugins
 	globalregistry->panel_interface->LoadPlugins();

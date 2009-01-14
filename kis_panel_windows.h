@@ -47,6 +47,10 @@ public:
 	Kis_Main_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_intf);
 	virtual ~Kis_Main_Panel();
 
+	// separate function for post-add startups so that we exist in the panel
+	// vect and we can make new windows properly
+	virtual void Startup();
+
 	virtual void Position(int in_sy, int in_sx, int in_y, int in_x);
 	virtual void DrawPanel();
 	virtual int KeyPress(int in_key);

@@ -1479,6 +1479,9 @@ int Packetsourcetracker::StartSource(uint16_t in_source_id) {
 		return -1;
 	}
 
+	_MSG("Started source '" + pstsource->strong_source->FetchName() + "'",
+		 MSGFLAG_INFO);
+
 	SendIPCReport(pstsource);
 
 	return 0;
