@@ -328,6 +328,12 @@ void kmp_prompt_startserver(KIS_PROMPT_CB_PARMS) {
 }
 
 void Kis_Main_Panel::Startup() {
+	if (kpinterface->prefs.FetchOpt("DEFAULT_HOST") == "") {
+		kpinterface->prefs.SetOpt("DEFAULT_HOST", "localhost", 1);
+		kpinterface->prefs.SetOpt("DEFAULT_PORT", "2501", 1);
+		kpinterface->prefs.SetOpt("AUTOCONNECT", "true", 1);
+	}
+
 	if (kpinterface->prefs.FetchOpt("STARTUP_PROMPTSERVER") == "true" ||
 		kpinterface->prefs.FetchOpt("STARTUP_PROMPTSERVER") == "") {
 
