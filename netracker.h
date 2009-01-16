@@ -56,7 +56,7 @@ int NetrackerUpdateTimer(TIMEEVENT_PARMS);
 enum BSSID_fields {
     BSSID_bssid, BSSID_type,
     BSSID_llcpackets, BSSID_datapackets, BSSID_cryptpackets,
-    BSSID_channel, BSSID_firsttime, BSSID_lasttime, 
+	BSSID_manuf, BSSID_channel, BSSID_firsttime, BSSID_lasttime, 
 	BSSID_atype, BSSID_rangeip, BSSID_netmaskip,
 	BSSID_gatewayip, BSSID_gpsfixed,
     BSSID_minlat, BSSID_minlon, BSSID_minalt, BSSID_minspd,
@@ -87,8 +87,7 @@ enum SSID_fields {
 
 enum CLIENT_fields {
     CLIENT_bssid, CLIENT_mac, CLIENT_type, CLIENT_firsttime, CLIENT_lasttime,
-    CLIENT_manufkey, CLIENT_manufscore,
-    CLIENT_llcpackets, CLIENT_datapackets, CLIENT_cryptpackets, 
+    CLIENT_manuf, CLIENT_llcpackets, CLIENT_datapackets, CLIENT_cryptpackets, 
     CLIENT_gpsfixed,
     CLIENT_minlat, CLIENT_minlon, CLIENT_minalt, CLIENT_minspd,
     CLIENT_maxlat, CLIENT_maxlon, CLIENT_maxalt, CLIENT_maxspd,
@@ -557,6 +556,8 @@ public:
 		int data_packets;
 		int crypt_packets;
 
+		string manuf;
+
 		// Clients seen associated with this network - we don't need
 		// to use a macmap since they'll all be unique/unmasked
 		map<mac_addr, Netracker::tracked_client *> client_map;
@@ -683,10 +684,7 @@ public:
 
 		// Manufacturer info - MAC address key to the manuf map and score
 		// for easy mapping
-		/*
-		manuf *manuf_ref;
-		int manuf_score;
-		*/
+		string manuf;
 
 		// Last sequence number seen
 		int last_sequence;

@@ -60,7 +60,6 @@ const char *bssid_extras_details[][2] = {
 	{ "bssid", "BSSID" },
 	{ "crypt", "Encryption types" },
 	{ "manuf", "Manufacturer info" },
-	{ "model", "Model" },
 	{ NULL, NULL}
 };
 
@@ -76,6 +75,7 @@ const char *bssid_fields[] = {
 	"turbocellmode", "turbocellsat", "carrierset", "maxseenrate", 
 	"encodingset", "decrypted", "dupeivpackets", "bsstimestamp", 
 	"cdpdevice", "cdpport", "fragments", "retries", "newpackets", "freqmhz",
+	"manuf",
 	NULL
 };
 
@@ -108,6 +108,7 @@ const char *client_fields[] = {
 	"maxseenrate", "encodingset", "carrierset", "decrypted", 
 	"channel", "fragments", "retries", "newpackets", "freqmhz", 
 	"cdpdevice", "cdpport",
+	"manuf",
 	NULL
 };
 
@@ -195,6 +196,8 @@ void Kis_Display_NetGroup::Update() {
 		if (first) {
 			metanet->bssid = mv->bssid;
 
+			metanet->manuf = mv->manuf;
+
 			metanet->type = mv->type;
 
 			metanet->llc_packets = mv->llc_packets;
@@ -237,6 +240,10 @@ void Kis_Display_NetGroup::Update() {
 
 			first = 0;
 		} else {
+			// Compare the OUIs for manuf
+			if (metanet->bssid.OUI() != mv->bssid.OUI())
+				metanet->manuf = "Mixed";
+
 			// Mask the BSSIDs
 			metanet->bssid.longmac &= mv->bssid.longmac;
 
@@ -580,7 +587,7 @@ int Kis_Netlist::UpdateBExtPrefs() {
 
 	// Use a default set of columns if we don't find one
 	if ((pcols = kpinterface->prefs.FetchOpt("NETLIST_EXTRAS")) == "") {
-		pcols = "bssid,lastseen,crypt,ip,manuf,model";
+		pcols = "bssid,lastseen,crypt,ip,manuf";
 		kpinterface->prefs.SetOpt("NETLIST_EXTRAS", pcols, 1);
 	}
 
@@ -604,8 +611,6 @@ int Kis_Netlist::UpdateBExtPrefs() {
 		else if (t == "ip")
 			display_bexts.push_back(bext_ip);
 		else if (t == "manuf")
-			display_bexts.push_back(bext_manuf);
-		else if (t == "model")
 			display_bexts.push_back(bext_manuf);
 		else if (t == "bssid")
 			display_bexts.push_back(bext_bssid);
@@ -1096,6 +1101,9 @@ void Kis_Netlist::Proto_BSSID(CLIPROTO_CB_PARMS) {
 		net->freq_mhz_map[freq] = count;
 	}
 
+	// Manuf field
+	net->manuf = MungeToPrintable((*proto_parsed)[fnum++].word);
+
 	/*
 	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &(net->freq_mhz)) != 1) {
 		delete net;
@@ -1139,6 +1147,8 @@ void Kis_Netlist::Proto_BSSID(CLIPROTO_CB_PARMS) {
 
 	onet->snrdata = net->snrdata;
 	onet->gpsdata = net->gpsdata;
+
+	onet->manuf = net->manuf;
 
 	delete net;
 
@@ -1607,6 +1617,9 @@ void Kis_Netlist::Proto_CLIENT(CLIPROTO_CB_PARMS) {
 	cli->cdp_dev_id = MungeToPrintable((*proto_parsed)[fnum++].word);
 	cli->cdp_port_id = MungeToPrintable((*proto_parsed)[fnum++].word);
 
+	// manuf
+	cli->manuf = MungeToPrintable((*proto_parsed)[fnum++].word);
+
 	// Merge or new
 	map<mac_addr, Netracker::tracked_client *>::iterator ti =
 		pnet->client_map.find(cli->mac);
@@ -1653,6 +1666,8 @@ void Kis_Netlist::Proto_CLIENT(CLIPROTO_CB_PARMS) {
 	ocli->guess_ipdata = cli->guess_ipdata;
 	ocli->snrdata = cli->snrdata;
 	ocli->gpsdata = cli->gpsdata;
+
+	ocli->manuf = cli->manuf;
 
 	delete cli;
 
@@ -2492,11 +2507,9 @@ void Kis_Netlist::DrawComponent() {
 								 meta->bssid.Mac2String().c_str());
 						rofft += 24;
 					} else if (e == bext_manuf) {
-						// TODO - manuf stuff
-						continue;
-					} else if (e == bext_model) {
-						// TODO - manuf stuff
-						continue;
+						snprintf(rline + rofft, 1024 - rofft, "Manuf: %s",
+								 meta->manuf.c_str());
+						rofft += kismin(17, 7 + meta->manuf.length());
 					} else {
 						continue;
 					}

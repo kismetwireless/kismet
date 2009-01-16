@@ -242,6 +242,10 @@ struct mac_addr {
         return index64(longmac, mdex);
     }
 
+	inline uint32_t OUI() const {
+		return (longmac >> 24);
+	}
+
     inline string Mac2String() const {
         char tempstr[MAC_STR_LEN];
 

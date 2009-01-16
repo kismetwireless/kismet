@@ -146,6 +146,7 @@ int Dumpfile_Nettxt::Flush() {
 
 		fprintf(txtfile, "Network %d: BSSID %s\n", netnum, 
 				net->bssid.Mac2String().c_str());
+		fprintf(txtfile, " Manuf      : %s\n", net->manuf.c_str());
 		fprintf(txtfile, " First      : %.24s\n", ctime(&(net->first_time)));
 		fprintf(txtfile, " Last       : %.24s\n", ctime(&(net->last_time)));
 		fprintf(txtfile, " Type       : %s\n", ntype.c_str());
@@ -360,6 +361,7 @@ int Dumpfile_Nettxt::Flush() {
 
 			fprintf(txtfile, " Client %d: MAC %s\n", clinum, 
 					cli->mac.Mac2String().c_str());
+			fprintf(txtfile, "  Manuf      : %s\n", cli->manuf.c_str());
 			fprintf(txtfile, "  First      : %.24s\n", ctime(&(cli->first_time)));
 			fprintf(txtfile, "  Last       : %.24s\n", ctime(&(cli->last_time)));
 			fprintf(txtfile, "  Type       : %s\n", ctype.c_str());

@@ -49,6 +49,8 @@ class Dumpfile;
 // Root-level ipc system
 class IPCRemote;
 class KisPanelInterface;
+// Manuf db
+class Manuf;
 
 // These are the offsets into the array of protocol references, not
 // the reference itself.
@@ -155,6 +157,7 @@ public:
 	KisBuiltinDissector *builtindissector;
 	IPCRemote *rootipc;
 	KisPanelInterface *panel_interface;
+	Manuf *manufdb;
 
 	string version_major;
 	string version_minor;
@@ -245,6 +248,7 @@ public:
 		builtindissector = NULL;
 		rootipc = NULL;
 		panel_interface = NULL;
+		manufdb = NULL;
 
         start_time = 0;
 

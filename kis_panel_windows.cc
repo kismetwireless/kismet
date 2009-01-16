@@ -2275,6 +2275,10 @@ int Kis_NetDetails_Panel::AppendNetworkInfo(int k, Kis_Display_NetGroup *tng,
 	td[1] = net->bssid.Mac2String();
 	netdetails->AddRow(k++, td);
 
+	td[0] = "Manuf:";
+	td[1] = net->manuf;
+	netdetails->AddRow(k++, td);
+
 	td[0] = "First Seen:";
 	osstr.str("");
 	osstr << setw(14) << left << 

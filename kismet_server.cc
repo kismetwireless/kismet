@@ -84,6 +84,8 @@
 
 #include "spectool_netclient.h"
 
+#include "manuf.h"
+
 #ifndef exec_name
 char *exec_name;
 #endif
@@ -622,6 +624,11 @@ int main(int argc, char *argv[], char *envp[]) {
 	// Create the spectools server
 	SpectoolsClient *speccli;
 	speccli = new SpectoolsClient(globalregistry);
+	if (globalregistry->fatal_condition)
+		CatchShutdown(-1);
+
+	// Create the manuf db
+	globalregistry->manufdb = new Manuf(globalregistry);
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
 

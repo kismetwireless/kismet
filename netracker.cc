@@ -35,12 +35,13 @@
 #include "packet.h"
 #include "gpsdclient.h"
 #include "alertracker.h"
+#include "manuf.h"
 
 // TCP server hooks
 const char *BSSID_fields_text[] = {
     "bssid", "type",
     "llcpackets", "datapackets", "cryptpackets",
-    "channel", "firsttime", "lasttime", "atype", 
+    "manuf", "channel", "firsttime", "lasttime", "atype", 
 	"rangeip", "netmaskip",
 	"gatewayip", "gpsfixed",
     "minlat", "minlon", "minalt", "minspd",
@@ -77,8 +78,7 @@ const char *REMOVE_fields_text[] = {
 
 const char *CLIENT_fields_text[] = {
     "bssid", "mac", "type", "firsttime", "lasttime",
-    "manufkey", "manufscore",
-    "llcpackets", "datapackets", "cryptpackets", 
+    "manuf", "llcpackets", "datapackets", "cryptpackets", 
     "gpsfixed",
     "minlat", "minlon", "minalt", "minspd",
     "maxlat", "maxlon", "maxalt", "maxspd",
@@ -154,6 +154,10 @@ int Protocol_BSSID(PROTO_PARMS) {
 				osstr << net->crypt_packets;
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
+				break;
+			case BSSID_manuf:
+				out_string += "\001" + net->manuf + "\001";
+				cache->Cache(fnum, "\001" + net->manuf + "\001");
 				break;
 			case BSSID_channel:
 				osstr << net->channel;
@@ -580,12 +584,9 @@ int Protocol_CLIENT(PROTO_PARMS) {
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
-			case CLIENT_manufkey:
-			case CLIENT_manufscore:
-				// Deprecated/broken
-				// FIXME manfkey
-				out_string += osstr.str();
-				cache->Cache(fnum, "0");
+			case CLIENT_manuf:
+				out_string += "\001" + cli->manuf + "\001";
+				cache->Cache(fnum, "\001" + cli->manuf + "\001");
 				break;
 			case CLIENT_llcpackets:
 				osstr << cli->llc_packets;
@@ -1449,6 +1450,9 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 
 		net->bssid = packinfo->bssid_mac;
 
+		if (globalreg->manufdb != NULL)
+			net->manuf = globalreg->manufdb->LookupOUI(net->bssid);
+
 		if (packinfo->type == packet_management && 
 			packinfo->subtype == packet_sub_probe_req) {
 			net->type = network_probe;
@@ -1497,6 +1501,9 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 
 		cli->mac = packinfo->source_mac;
 		cli->bssid = net->bssid;
+
+		if (globalreg->manufdb != NULL)
+			cli->manuf = globalreg->manufdb->LookupOUI(cli->mac);
 
 		// Set the distribution type
 		if (packinfo->distrib == distrib_from)

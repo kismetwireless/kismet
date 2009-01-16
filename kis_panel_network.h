@@ -184,7 +184,7 @@ extern const char *bssid_column_details[][2];
 
 // Extra display options per-line
 enum bssid_extras {
-	bext_lastseen, bext_bssid, bext_crypt, bext_ip, bext_manuf, bext_model
+	bext_lastseen, bext_bssid, bext_crypt, bext_ip, bext_manuf
 };
 
 extern const char *bssid_extras_details[][2];

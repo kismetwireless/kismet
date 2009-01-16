@@ -56,6 +56,7 @@ PSO	= util.o cygwin_utils.o ringbuf.o messagebus.o configfile.o getopt.o \
 	packetchain.o \
 	plugintracker.o alertracker.o timetracker.o \
 	packetdissectors.o netracker.o channeltracker.o \
+	manuf.o \
 	dumpfile.o dumpfile_pcap.o dumpfile_gpsxml.o \
 	dumpfile_tuntap.o dumpfile_netxml.o dumpfile_nettxt.o dumpfile_string.o \
 	dumpfile_alert.o statealert.o \
@@ -170,8 +171,6 @@ commoninstall:
 	install -o $(INSTUSR) -g $(INSTGRP) -m 644 wav/traffic.wav $(WAV)/traffic.wav
 	install -o $(INSTUSR) -g $(INSTGRP) -m 644 wav/junk_traffic.wav $(WAV)/junk_traffic.wav
 	install -o $(INSTUSR) -g $(INSTGRP) -m 644 wav/alert.wav $(WAV)/alert.wav
-	install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/ap_manuf $(ETC)/ap_manuf; 
-	install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/client_manuf $(ETC)/client_manuf; 
 
 suidinstall: $(CS)
 	$(MAKE) -e commoninstall
@@ -286,8 +285,6 @@ ipkg: $(PS) $(NC)
 	@cp scripts/kismet packaging/ipkg/$(BIN)/kismet
 	@cp conf/kismet.conf packaging/ipkg/$(ETC)/kismet.conf
 	@cp conf/kismet_ui.conf packaging/ipkg/$(ETC)/kismet_ui.conf
-	@cp conf/ap_manuf packaging/ipkg/$(ETC)/ap_manuf
-	@cp conf/client_manuf packaging/ipkg/$(ETC)/client_manuf
 	@chmod a+x packaging/ipkg/$(BIN)/*
 	@chown root.root packaging/ipkg -R
 	@echo "Making ipkg..."
