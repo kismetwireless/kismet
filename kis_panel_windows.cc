@@ -2247,8 +2247,12 @@ void Kis_NetDetails_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {
 
 int Kis_NetDetails_Panel::AppendNetworkInfo(int k, Kis_Display_NetGroup *tng,
 											Netracker::tracked_network *net) {
+	vector<Netracker::tracked_network *> *netvec = NULL;
 	vector<string> td;
 	ostringstream osstr;
+
+	if (tng != NULL)
+		netvec = tng->FetchNetworkVec();
 
 	td.push_back("");
 	td.push_back("");
@@ -2257,14 +2261,16 @@ int Kis_NetDetails_Panel::AppendNetworkInfo(int k, Kis_Display_NetGroup *tng,
 	td[1] = tng->GetName(net);
 	netdetails->AddRow(k++, td);
 
-	td[0] = "# Networks:";
-	osstr.str("");
-	osstr << tng->FetchNetworkVec()->size();
-	td[1] = osstr.str();
-	netdetails->AddRow(k++, td);
+	if (net == NULL && netvec != NULL) {
+		td[0] = "# Networks:";
+		osstr.str("");
+		osstr << netvec->size();
+		td[1] = osstr.str();
+		netdetails->AddRow(k++, td);
+	}
 
 	// Use the display metanet if we haven't been given one
-	if (net == NULL)
+	if (net == NULL && dng != NULL)
 		net = dng->FetchNetwork();
 
 	// Catch nulls just incase
@@ -2384,15 +2390,17 @@ int Kis_NetDetails_Panel::AppendNetworkInfo(int k, Kis_Display_NetGroup *tng,
 			td[1] += " Keyguard";
 		netdetails->AddRow(k++, td);
 
-		td[0] = "Beacon %:";
-		if (net->lastssid->beacons > net->lastssid->beaconrate)
-			net->lastssid->beacons = net->lastssid->beaconrate;
-		osstr.str("");
-		osstr << setw(4) << left << 
-			(int) (((double) net->lastssid->beacons /
-					(double) net->lastssid->beaconrate) * 100);
-		td[1] = osstr.str();
-		netdetails->AddRow(k++, td);
+		if (net->type == network_ap) {
+			td[0] = "Beacon %:";
+			if (net->lastssid->beacons > net->lastssid->beaconrate)
+				net->lastssid->beacons = net->lastssid->beaconrate;
+			osstr.str("");
+			osstr << setw(4) << left << 
+				(int) (((double) net->lastssid->beacons /
+						(double) net->lastssid->beaconrate) * 100);
+			td[1] = osstr.str();
+			netdetails->AddRow(k++, td);
+		}
 
 	} else {
 		td[0] = "Encryption:";
@@ -2491,6 +2499,19 @@ int Kis_NetDetails_Panel::AppendNetworkInfo(int k, Kis_Display_NetGroup *tng,
 		td[0] = "CDP Port:";
 		td[1] = net->cdp_port_id;
 		netdetails->AddRow(k++, td);
+	}
+
+	if (netvec == NULL)
+		return k;
+
+	if (netvec->size() == 1)
+		return k;
+
+	for (unsigned int x = 0; x < netvec->size(); x++) {
+		td[0] = "";
+		td[1] = "-------";
+		netdetails->AddRow(k++, td);
+		k = AppendNetworkInfo(k, NULL, (*netvec)[x]);
 	}
 
 	return k;
