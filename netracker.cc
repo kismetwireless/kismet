@@ -773,6 +773,11 @@ int Protocol_CLIENT(PROTO_PARMS) {
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
+			case CLIENT_carrierset:
+				osstr << cli->snrdata.carrierset;
+				out_string += osstr.str();
+				cache->Cache(fnum, osstr.str());
+				break;
 			case CLIENT_decrypted:
 				osstr << cli->decrypted;
 				out_string += osstr.str();

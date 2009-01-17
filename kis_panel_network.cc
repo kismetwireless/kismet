@@ -1286,6 +1286,7 @@ void Kis_Netlist::Proto_SSID(CLIPROTO_CB_PARMS) {
 }
 
 void Kis_Netlist::Proto_CLIENT(CLIPROTO_CB_PARMS) {
+	fprintf(stderr, "debug - proto client triggered\n");
 	if (proto_parsed->size() < (unsigned int) asm_client_num) {
 		return;
 	}
@@ -1527,13 +1528,6 @@ void Kis_Netlist::Proto_CLIENT(CLIPROTO_CB_PARMS) {
 	// Rangeip
 	if (inet_aton((*proto_parsed)[fnum++].word.c_str(), 
 				  &(cli->guess_ipdata.ip_addr_block)) == 0) {
-		delete cli;
-		return;
-	}
-
-	// Maskip
-	if (inet_aton((*proto_parsed)[fnum++].word.c_str(),
-				  &(cli->guess_ipdata.ip_netmask)) == 0) {
 		delete cli;
 		return;
 	}
@@ -2099,7 +2093,7 @@ int Kis_Netlist::PrintNetworkLine(Kis_Display_NetGroup *ng,
 			rofft += 4;
 		} else if (b == bcol_clients) {
 			// TODO - handle clients
-			snprintf(rline + rofft, max - rofft, "%4d", 0);
+			snprintf(rline + rofft, max - rofft, "%4d", net->client_map.size());
 			rofft += 4;
 		} else if (b == bcol_datasize) {
 			char dt = ' ';
