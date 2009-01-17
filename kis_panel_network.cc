@@ -1286,7 +1286,6 @@ void Kis_Netlist::Proto_SSID(CLIPROTO_CB_PARMS) {
 }
 
 void Kis_Netlist::Proto_CLIENT(CLIPROTO_CB_PARMS) {
-	fprintf(stderr, "debug - proto client triggered\n");
 	if (proto_parsed->size() < (unsigned int) asm_client_num) {
 		return;
 	}
