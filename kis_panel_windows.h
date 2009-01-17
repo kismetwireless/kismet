@@ -218,12 +218,16 @@ public:
 
 	void ButtonAction(Kis_Panel_Component *component);
 
+	void SpawnConsole(int in_console) { spawn_console = in_console; }
+
 protected:
 	Kis_Single_Input *options;
 	Kis_Button *okbutton;
 	Kis_Button *cancelbutton;
 
 	Kis_Panel_Packbox *vbox, *bbox;
+
+	int spawn_console;
 };
 
 class Kis_Console_Panel : public Kis_Panel {

@@ -252,9 +252,9 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	netbox->Pack_End(netlist, 1, 0);
 	netbox->Pack_End(linebox, 0, 0);
 	netbox->Pack_End(packetrate, 0, 0);
+	netbox->Pack_End(statustext, 0, 0);
 
 	vbox->Pack_End(hbox, 1, 0);
-	vbox->Pack_End(statustext, 0, 0);
 
 	active_component = netlist;
 	netlist->Activate(0);
@@ -323,6 +323,13 @@ void kmp_prompt_startserver(KIS_PROMPT_CB_PARMS) {
 	if (ok) {
 		Kis_Spawn_Panel *sp = new Kis_Spawn_Panel(globalreg, globalreg->panel_interface);
 		sp->Position(WIN_CENTER(6, 40));
+
+		if (globalreg->panel_interface->prefs.FetchOpt("STARTUP_CONSOLE") == "true" ||
+			globalreg->panel_interface->prefs.FetchOpt("STARTUP_CONSOLE") == "") 
+			sp->SpawnConsole(1);
+		else
+			sp->SpawnConsole(0);
+
 		globalreg->panel_interface->AddPanel(sp);
 	}
 }
@@ -1311,6 +1318,8 @@ Kis_Spawn_Panel::Kis_Spawn_Panel(GlobalRegistry *in_globalreg,
 									 KisPanelInterface *in_intf) :
 	Kis_Panel(in_globalreg, in_intf) {
 
+	spawn_console = 1;
+
 	options = new Kis_Single_Input(globalreg, this);
 	cancelbutton = new Kis_Button(globalreg, this);
 	okbutton = new Kis_Button(globalreg, this);
@@ -1372,9 +1381,11 @@ void Kis_Spawn_Panel::ButtonAction(Kis_Panel_Component *component) {
 		kpinterface->SpawnServer(options->GetText());
 		kpinterface->KillPanel(this);
 
-		Kis_Console_Panel *cp = new Kis_Console_Panel(globalreg, kpinterface);
-		cp->Position(WIN_CENTER(LINES, COLS));
-		kpinterface->AddPanel(cp);
+		if (spawn_console) {
+			Kis_Console_Panel *cp = new Kis_Console_Panel(globalreg, kpinterface);
+			cp->Position(WIN_CENTER(LINES, COLS));
+			kpinterface->AddPanel(cp);
+		}
 	} else if (component == cancelbutton) {
 		// Cancel and close
 		kpinterface->KillPanel(this);
