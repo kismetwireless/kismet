@@ -2361,6 +2361,12 @@ int Kis_NetDetails_Panel::AppendNetworkInfo(int k, Kis_Display_NetGroup *tng,
 		td[1] = net->lastssid->ssid;
 		netdetails->AddRow(k++, td);
 
+		if (net->lastssid->ssid_cloaked) {
+			td[0] = "";
+			td[1] = "(Cloaked)";
+			netdetails->AddRow(k++, td);
+		}
+
 		td[0] = "Encryption:";
 		td[1] = "";
 		if (net->lastssid->cryptset == 0)

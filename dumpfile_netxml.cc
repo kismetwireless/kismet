@@ -203,9 +203,9 @@ int Dumpfile_Netxml::Flush() {
 			if (m->second->cryptset & crypt_keyguard)
 				fprintf(xmlfile, "        <encryption>Keyguard</encryption>\n");
 
-			if (m->second->ssid_cloaked == 0)
-				fprintf(xmlfile, "        <essid>%s</essid>\n",
-						SanitizeXML(m->second->ssid).c_str());
+			fprintf(xmlfile, "        <essid cloaked=\"%s\">%s</essid>\n",
+					m->second->ssid_cloaked ? "true" : "false", 
+					SanitizeXML(m->second->ssid).c_str());
 			if (m->second->beacon_info.length() > 0)
 				fprintf(xmlfile, "        <info>%s</info>\n",
 						SanitizeXML(m->second->beacon_info).c_str());

@@ -469,11 +469,7 @@ int Protocol_SSID(PROTO_PARMS) {
 				cache->Cache(fnum, osstr.str());
 				break;
 			case SSID_ssid:
-				if (ssid->ssid_cloaked) {
-					osstr << "\001\001";
-				} else {
-					osstr << "\001" << ssid->ssid << "\001";
-				}
+				osstr << "\001" << ssid->ssid << "\001";
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;

@@ -165,10 +165,8 @@ int Dumpfile_Nettxt::Flush() {
 
 			fprintf(txtfile, "   SSID %d\n", ssidnum);
 			fprintf(txtfile, "    Type       : %s\n", typestr.c_str());
-			if (m->second->ssid_cloaked)
-				fprintf(txtfile, "    SSID       : <cloaked>\n");
-			else
-				fprintf(txtfile, "    SSID       : %s\n", m->second->ssid.c_str());
+			fprintf(txtfile, "    SSID       : \"%s\" %s\n", m->second->ssid.c_str(),
+					m->second->ssid_cloaked ? "(Cloaked)" : "");
 			if (m->second->beacon_info.length() > 0)
 				fprintf(txtfile, "    Info       : %s\n", 
 						m->second->beacon_info.c_str());
