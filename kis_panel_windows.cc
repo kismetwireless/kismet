@@ -3432,6 +3432,8 @@ Kis_Chanconf_Panel::Kis_Chanconf_Panel(GlobalRegistry *in_globalreg,
 	last_selected = 0;
 	radio_changed = 0;
 	last_radio = lockrad;
+
+	main_component = vbox;
 }
 
 Kis_Chanconf_Panel::~Kis_Chanconf_Panel() {
