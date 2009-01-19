@@ -525,7 +525,7 @@ void KisPanelInterface::SpawnServer(string in_parm) {
 }
 
 void KisPanelInterface::SpawnServer() {
-	string servercmd = "kismet_server --silent " + server_parm;
+	string servercmd = string(BIN_LOC) + "/kismet_server --silent " + server_parm;
 
 	if (server_framework == NULL) {
 		server_framework = new TextCliFrame(globalreg);
