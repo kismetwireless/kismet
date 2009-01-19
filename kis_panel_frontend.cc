@@ -531,6 +531,12 @@ void KisPanelInterface::SpawnServer() {
 		server_framework = new TextCliFrame(globalreg);
 		server_popen = new PopenClient(globalreg);
 
+		server_framework->RegisterNetworkClient(server_popen);
+		server_popen->RegisterClientFramework(server_framework);
+
+		server_text_cb = 
+			server_framework->RegisterCallback(kpi_textcli_consolevec, this);
+
 		if (server_popen->Connect(servercmd.c_str(), 'r') < 0) {
 			_MSG("Failed to launch kismet_server", MSGFLAG_ERROR);
 			delete server_popen;
@@ -538,12 +544,6 @@ void KisPanelInterface::SpawnServer() {
 			server_popen = NULL;
 			server_framework = NULL;
 		}
-
-		server_framework->RegisterNetworkClient(server_popen);
-		server_popen->RegisterClientFramework(server_framework);
-
-		server_text_cb = 
-			server_framework->RegisterCallback(kpi_textcli_consolevec, this);
 	}
 }
 

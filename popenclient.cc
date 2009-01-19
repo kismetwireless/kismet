@@ -39,6 +39,10 @@ int PopenClient::CheckPidVec() {
 
 	for (unsigned int x = 0; x < globalreg->sigchild_vec.size(); x++) {
 		if (globalreg->sigchild_vec[x].pid == childpid) {
+
+			_MSG("Opened process pid " + IntToString(childpid) + " failed: " +
+				 IntToString(globalreg->sigchild_vec[x].status), MSGFLAG_ERROR);
+
 			KillConnection();
 			globalreg->sigchild_vec.erase(globalreg->sigchild_vec.begin() + x);
 			return -1;
@@ -60,6 +64,8 @@ int PopenClient::Connect(const char *in_remotehost, short int in_port) {
 		_MSG("Failed to fork: " + string(strerror(errno)), MSGFLAG_ERROR);
 		return -1;
 	} else if (childpid == 0) {
+		usleep(500);
+
 		vector<string> args = QuoteStrTokenize(in_remotehost, " ");
 		char **eargv;
 
@@ -82,7 +88,9 @@ int PopenClient::Connect(const char *in_remotehost, short int in_port) {
 		close(epipe[0]);
 		close(epipe[1]);
 
-		execv(eargv[0], eargv);
+		execve(eargv[0], eargv, globalreg->envp);
+
+		fprintf(stderr, "Launching '%s' failed: %s\n", eargv[0], strerror(errno));
 
 		exit(255);
 	}
@@ -105,8 +113,8 @@ int PopenClient::Connect(const char *in_remotehost, short int in_port) {
 }
 
 void PopenClient::KillConnection() {
-	// fprintf(stderr, "debug - popenclient killconnection\n");
 	if (childpid > 0) {
+		fprintf(stderr, "Kill con childpid > 0\n");
 		kill(childpid, SIGQUIT);
 
 		close(ipipe[1]);
@@ -129,6 +137,9 @@ void PopenClient::SoftKillConnection() {
 		// fprintf(stderr, "debug - sending sigterm to %d\n", childpid);
 		kill(childpid, SIGTERM);
 	}
+
+	if (cl_valid == 0)
+		KillConnection();
 }
 
 void PopenClient::DetatchConnection() {
@@ -200,7 +211,7 @@ int PopenClient::Poll(fd_set& in_rset, fd_set& in_wset) {
             return ret;
 		}
 
-        // If we've got new data, try to parse.  if we fail, die.
+        // If we've got new data, try to parse.  If we fail, die.
         if (ret != 0 && cliframework->ParseData() < 0) {
             KillConnection();
             return -1;
@@ -236,7 +247,6 @@ int PopenClient::ReadBytes() {
     if (ret == 0) {
         snprintf(errstr, 1024, "Popen application closed");
         globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
-		KillConnection();
         return -1;
     }
 
