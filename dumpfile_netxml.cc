@@ -215,7 +215,7 @@ int Dumpfile_Netxml::Flush() {
 
 		fprintf(xmlfile, "    <BSSID>%s</BSSID>\n", net->bssid.Mac2String().c_str());
 
-		fprintf(xmlfile, "    <manuf>%s</manuf>\n", net->manuf.c_str());
+		fprintf(xmlfile, "    <manuf>%s</manuf>\n", SanitizeXML(net->manuf).c_str());
 
 		fprintf(xmlfile, "    <channel>%d</channel>\n", net->channel);
 		for (map<unsigned int, unsigned int>::const_iterator fmi = net->freq_mhz_map.begin(); fmi != net->freq_mhz_map.end(); ++fmi) {
@@ -395,7 +395,7 @@ int Dumpfile_Netxml::Flush() {
 					cli->mac.Mac2String().c_str());
 
 			fprintf(xmlfile, "      <client-manuf>%s</client-manuf>\n", 
-					cli->manuf.c_str());
+					SanitizeXML(cli->manuf).c_str());
 
 			for (map<uint32_t, Netracker::adv_ssid_data *>::iterator m =
 				 cli->ssid_map.begin(); m != cli->ssid_map.end(); ++m) {
