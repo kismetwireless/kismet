@@ -2256,6 +2256,80 @@ void Kis_NetDetails_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {
 	vbox->SetPosition(1, 1, in_x - 1, in_y - 2);
 }
 
+int Kis_NetDetails_Panel::AppendSSIDInfo(int k, Netracker::tracked_network *net,
+										 Netracker::adv_ssid_data *ssid) {
+	ostringstream osstr;
+	vector<string> td;
+	td.push_back("");
+	td.push_back("");
+
+	if (ssid != NULL) {
+		td[0] = "SSID:";
+		td[1] = ssid->ssid;
+		netdetails->AddRow(k++, td);
+
+		if (ssid->ssid_cloaked) {
+			td[0] = "";
+			td[1] = "(Cloaked)";
+			netdetails->AddRow(k++, td);
+		}
+
+		td[0] = " Encryption:";
+		td[1] = "";
+		if (ssid->cryptset == 0)
+			td[1] = "None (Open)";
+		if (ssid->cryptset == crypt_wep)
+			td[1] = "WEP (Privacy bit set)";
+		if (ssid->cryptset & crypt_layer3)
+			td[1] += " Layer3";
+		if (ssid->cryptset & crypt_wep40)
+			td[1] += " WEP40";
+		if (ssid->cryptset & crypt_wep104)
+			td[1] += " WEP104";
+		if (ssid->cryptset & crypt_wpa)
+			td[1] += " WPA";
+		if (ssid->cryptset & crypt_tkip)
+			td[1] += " TKIP";
+		if (ssid->cryptset & crypt_psk)
+			td[1] += " PSK";
+		if (ssid->cryptset & crypt_aes_ocb)
+			td[1] += " AES-OCB";
+		if (ssid->cryptset & crypt_aes_ccm)
+			td[1] += " AES-CCM";
+		if (ssid->cryptset & crypt_leap)
+			td[1] += " LEAP";
+		if (ssid->cryptset & crypt_ttls)
+			td[1] += " TTLS";
+		if (ssid->cryptset & crypt_tls)
+			td[1] += " TLS";
+		if (ssid->cryptset & crypt_peap)
+			td[1] += " PEAP";
+		if (ssid->cryptset & crypt_isakmp)
+			td[1] += " ISA-KMP";
+		if (ssid->cryptset & crypt_pptp)
+			td[1] += " PPTP";
+		if (ssid->cryptset & crypt_fortress)
+			td[1] += " Fortress";
+		if (ssid->cryptset & crypt_keyguard)
+			td[1] += " Keyguard";
+		netdetails->AddRow(k++, td);
+
+		if (net->type == network_ap) {
+			td[0] = " Beacon %:";
+			if (ssid->beacons > ssid->beaconrate)
+				ssid->beacons = ssid->beaconrate;
+			osstr.str("");
+			osstr << setw(4) << left << 
+				(int) (((double) ssid->beacons /
+						(double) ssid->beaconrate) * 100);
+			td[1] = osstr.str();
+			netdetails->AddRow(k++, td);
+		}
+	}
+
+	return k;
+}
+
 int Kis_NetDetails_Panel::AppendNetworkInfo(int k, Kis_Display_NetGroup *tng,
 											Netracker::tracked_network *net) {
 	vector<Netracker::tracked_network *> *netvec = NULL;
@@ -2360,69 +2434,14 @@ int Kis_NetDetails_Panel::AppendNetworkInfo(int k, Kis_Display_NetGroup *tng,
 		td[0] = "Last ssid:";
 		td[1] = net->lastssid->ssid;
 		netdetails->AddRow(k++, td);
-
-		if (net->lastssid->ssid_cloaked) {
-			td[0] = "";
-			td[1] = "(Cloaked)";
-			netdetails->AddRow(k++, td);
-		}
-
-		td[0] = "Encryption:";
-		td[1] = "";
-		if (net->lastssid->cryptset == 0)
-			td[1] = "None (Open)";
-		if (net->lastssid->cryptset == crypt_wep)
-			td[1] = "WEP (Privacy bit set)";
-		if (net->lastssid->cryptset & crypt_layer3)
-			td[1] += " Layer3";
-		if (net->lastssid->cryptset & crypt_wep40)
-			td[1] += " WEP40";
-		if (net->lastssid->cryptset & crypt_wep104)
-			td[1] += " WEP104";
-		if (net->lastssid->cryptset & crypt_wpa)
-			td[1] += " WPA";
-		if (net->lastssid->cryptset & crypt_tkip)
-			td[1] += " TKIP";
-		if (net->lastssid->cryptset & crypt_psk)
-			td[1] += " PSK";
-		if (net->lastssid->cryptset & crypt_aes_ocb)
-			td[1] += " AES-OCB";
-		if (net->lastssid->cryptset & crypt_aes_ccm)
-			td[1] += " AES-CCM";
-		if (net->lastssid->cryptset & crypt_leap)
-			td[1] += " LEAP";
-		if (net->lastssid->cryptset & crypt_ttls)
-			td[1] += " TTLS";
-		if (net->lastssid->cryptset & crypt_tls)
-			td[1] += " TLS";
-		if (net->lastssid->cryptset & crypt_peap)
-			td[1] += " PEAP";
-		if (net->lastssid->cryptset & crypt_isakmp)
-			td[1] += " ISA-KMP";
-		if (net->lastssid->cryptset & crypt_pptp)
-			td[1] += " PPTP";
-		if (net->lastssid->cryptset & crypt_fortress)
-			td[1] += " Fortress";
-		if (net->lastssid->cryptset & crypt_keyguard)
-			td[1] += " Keyguard";
-		netdetails->AddRow(k++, td);
-
-		if (net->type == network_ap) {
-			td[0] = "Beacon %:";
-			if (net->lastssid->beacons > net->lastssid->beaconrate)
-				net->lastssid->beacons = net->lastssid->beaconrate;
-			osstr.str("");
-			osstr << setw(4) << left << 
-				(int) (((double) net->lastssid->beacons /
-						(double) net->lastssid->beaconrate) * 100);
-			td[1] = osstr.str();
-			netdetails->AddRow(k++, td);
-		}
-
 	} else {
-		td[0] = "Encryption:";
-		td[1] = "No info available";
+		td[1] = "No SSID data available";
 		netdetails->AddRow(k++, td);
+	}
+
+	for (map<uint32_t, Netracker::adv_ssid_data *>::iterator s = net->ssid_map.begin();
+		 s != net->ssid_map.end(); ++s) {
+		k = AppendSSIDInfo(k, net, s->second);
 	}
 
 	if (net->snrdata.last_signal_dbm == -256 || net->snrdata.last_signal_dbm == 0) {
