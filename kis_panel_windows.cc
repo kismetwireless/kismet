@@ -3816,6 +3816,8 @@ Kis_Gps_Panel::Kis_Gps_Panel(GlobalRegistry *in_globalreg,
 		kpinterface->Add_NetCli_AddCli_CB(GpsCliAdd, (void *) this);
 
 	agg_gps_num = TokenNullJoin(&agg_gps_fields, gpsinfo_fields);
+
+	main_component = vbox;
 }
 
 Kis_Gps_Panel::~Kis_Gps_Panel() {
