@@ -32,16 +32,26 @@ Manuf::Manuf(GlobalRegistry *in_globalreg) {
 		exit(1);
 	}
 
-	string fname;
-	if ((fname = globalreg->kismet_config->FetchOpt("ouifile")) == "") {
+	vector<string> fname = globalreg->kismet_config->FetchOptVec("ouifile");
+	if (fname.size() == 0) {
 		_MSG("Missing 'ouifile' option in config, will not resolve manufacturer "
 			 "names for MAC addresses", MSGFLAG_ERROR);
 		return;
 	}
 
-	if ((mfile = fopen(fname.c_str(), "r")) == NULL) {
-		_MSG("Could not open oui file '" + fname + "': " + string(strerror(errno)),
-			 MSGFLAG_ERROR);
+	for (unsigned int x = 0; x < fname.size(); x++) {
+		if ((mfile = fopen(fname[x].c_str(), "r")) != NULL) {
+			_MSG("Opened OUI file '" + fname[x], MSGFLAG_INFO);
+			break;
+		}
+
+		_MSG("Could not open OUI file '" + fname[x] + "': " +
+			 string(strerror(errno)), MSGFLAG_ERROR);
+	}
+
+	if (mfile == NULL) {
+		_MSG("No OUI files were available, will not resolve manufacturer "
+			 "names for MAC addresses", MSGFLAG_ERROR);
 		return;
 	}
 
