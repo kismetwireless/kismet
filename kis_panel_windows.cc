@@ -138,6 +138,7 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 
 	mn_view = menu->AddMenu("View", 0);
 	mi_netdetails = menu->AddMenuItem("Network Details", mn_view, 'd');
+	mi_clientlist = menu->AddMenuItem("Client List", mn_view, 'L');
 	mi_chandetails = menu->AddMenuItem("Channel Details", mn_view, 'c');
 	mi_gps = menu->AddMenuItem("GPS Details", mn_view, 'G');
 	menu->AddMenuItem("-", mn_view, 0);
@@ -709,6 +710,10 @@ void Kis_Main_Panel::MenuAction(int opt) {
 		Kis_NetDetails_Panel *dp = new Kis_NetDetails_Panel(globalreg, kpinterface);
 		dp->Position(WIN_CENTER(LINES, COLS));
 		kpinterface->AddPanel(dp);
+	} else if (opt == mi_clientlist) {
+		Kis_Clientlist_Panel *cl = new Kis_Clientlist_Panel(globalreg, kpinterface);
+		cl->Position(WIN_CENTER(LINES, COLS));
+		kpinterface->AddPanel(cl);
 	} else if (opt == mi_chandetails) {
 		Kis_ChanDetails_Panel *dp = new Kis_ChanDetails_Panel(globalreg, kpinterface);
 		dp->Position(WIN_CENTER(LINES, COLS));
@@ -2703,8 +2708,11 @@ void Kis_NetDetails_Panel::MenuAction(int opt) {
 		kpinterface->FetchMainPanel()->FetchDisplayNetlist()->KeyPress(KEY_UP);
 		dng = NULL;
 		return;
-	} else if (opt == mi_net || opt == mi_clients ||
-			   opt == mi_graphsig || opt == mi_graphpacket ||
+	} else if (opt == mi_clients) {
+		Kis_Clientlist_Panel *cl = new Kis_Clientlist_Panel(globalreg, kpinterface);
+		cl->Position(WIN_CENTER(LINES, COLS));
+		kpinterface->AddPanel(cl);
+	} else if (opt == mi_net || opt == mi_graphsig || opt == mi_graphpacket ||
 			   opt == mi_graphretry) {
 		UpdateViewMenu(opt);
 	}
@@ -3940,7 +3948,161 @@ void Kis_Gps_Panel::Proto_GPS(CLIPROTO_CB_PARMS) {
 	gpssatinfo->SetText(IntToString(sat_info_vec.size()) + " satellites, " +
 						IntToString(fix) + string("d fix"));
 	gpssiggraph->SetXLabels(sat_label_vec, "PRN SNR");
+}
 
+int ClientListButtonCB(COMPONENT_CALLBACK_PARMS) {
+	((Kis_Clientlist_Panel *) aux)->ButtonAction(component);
+	return 1;
+}
+
+int ClientListMenuCB(COMPONENT_CALLBACK_PARMS) {
+	((Kis_Clientlist_Panel *) aux)->MenuAction(status);
+	return 1;
+}
+
+Kis_Clientlist_Panel::Kis_Clientlist_Panel(GlobalRegistry *in_globalreg,
+										   KisPanelInterface *in_kpf) :
+	Kis_Panel(in_globalreg, in_kpf) {
+
+	menu = new Kis_Menu(globalreg, this);
+	menu->SetCallback(COMPONENT_CBTYPE_ACTIVATED, ClientListMenuCB, this);
+
+	mn_clients = menu->AddMenu("Clients", 0);
+	mi_nextnet = menu->AddMenuItem("Next network", mn_clients, 'n');
+	mi_prevnet = menu->AddMenuItem("Prev network", mn_clients, 'p');
+	menu->AddMenuItem("-", mn_clients, 0);
+	mi_close = menu->AddMenuItem("Close window", mn_clients, 'w');
+
+	mn_sort = menu->AddMenu("Sort", 0);
+	mi_sort_auto = menu->AddMenuItem("Auto-fit", mn_sort, 'a');
+	menu->AddMenuItem("-", mn_sort, 0);
+	mi_sort_first = menu->AddMenuItem("First Seen", mn_sort, 'f');
+	mi_sort_first_d = menu->AddMenuItem("First Seen (descending)", mn_sort, 'F');
+	mi_sort_last = menu->AddMenuItem("Latest Seen", mn_sort, 'l');
+	mi_sort_last_d = menu->AddMenuItem("Latest Seen (descending)", mn_sort, 'L');
+	mi_sort_mac = menu->AddMenuItem("MAC", mn_sort, 's');
+	mi_sort_packets = menu->AddMenuItem("Packets", mn_sort, 'p');
+	mi_sort_packets_d = menu->AddMenuItem("Packets (descending)", mn_sort, 'P');
+
+	menu->Show();
+	AddComponentVec(menu, KIS_PANEL_COMP_EVT);
+
+	clientlist = new Kis_Clientlist(globalreg, this);
+
+	active_component = clientlist;
+	clientlist->Show();
+	clientlist->Activate(1);
+	AddComponentVec(clientlist, KIS_PANEL_COMP_EVT);
+	clientlist->SetCallback(COMPONENT_CBTYPE_ACTIVATED, ClientListButtonCB, this);
+	tab_pos = 0;
+
+	vbox = new Kis_Panel_Packbox(globalreg, this);
+	vbox->SetPackV();
+	vbox->SetHomogenous(0);
+	vbox->SetSpacing(0);
+	vbox->Show();
+
+	vbox->Pack_End(clientlist, 1, 0);
+
+	AddComponentVec(vbox, KIS_PANEL_COMP_DRAW);
+	main_component = vbox;
+
+	grapheventid = -1;
+
+	UpdateSortMenu();
+}
+
+Kis_Clientlist_Panel::~Kis_Clientlist_Panel() {
+	if (grapheventid >= 0 && globalreg != NULL)
+		globalreg->timetracker->RemoveTimer(grapheventid);
+}
+
+void Kis_Clientlist_Panel::ButtonAction(Kis_Panel_Component *in_button) {
+	return;
+}
+
+void Kis_Clientlist_Panel::MenuAction(int opt) {
+	if (opt == mi_close) {
+		globalreg->panel_interface->KillPanel(this);
+		return;
+	} else if (opt == mi_nextnet) {
+		kpinterface->FetchMainPanel()->FetchDisplayNetlist()->KeyPress(KEY_DOWN);
+		return;
+	} else if (opt == mi_prevnet) {
+		kpinterface->FetchMainPanel()->FetchDisplayNetlist()->KeyPress(KEY_UP);
+		return;
+	} else if (opt == mi_sort_auto) {
+		kpinterface->prefs.SetOpt("CLIENTLIST_SORT", "auto", 1);
+	} else if (opt == mi_sort_first) {
+		kpinterface->prefs.SetOpt("CLIENTLIST_SORT", "first", 1);
+	} else if (opt == mi_sort_first_d) {
+		kpinterface->prefs.SetOpt("CLIENTLIST_SORT", "first_desc", 1);
+	} else if (opt == mi_sort_last) {
+		kpinterface->prefs.SetOpt("CLIENTLIST_SORT", "last", 1);
+	} else if (opt == mi_sort_last_d) {
+		kpinterface->prefs.SetOpt("CLIENTLIST_SORT", "last_desc", 1);
+	} else if (opt == mi_sort_mac) {
+		kpinterface->prefs.SetOpt("CLIENTLIST_SORT", "mac", 1);
+	} else if (opt == mi_sort_packets) {
+		kpinterface->prefs.SetOpt("CLIENTLIST_SORT", "packets", 1);
+	} else if (opt == mi_sort_packets_d) {
+		kpinterface->prefs.SetOpt("CLIENTLIST_SORT", "packets_desc", 1);
+	}
+
+	clientlist->UpdateSortPrefs();
+	UpdateSortMenu();
+}
+
+void Kis_Clientlist_Panel::UpdateSortMenu() {
+	clientsort_opts so = clientlist->FetchSortMode();
+
+	if (so == clientsort_autofit)
+		menu->SetMenuItemChecked(mi_sort_auto, 1);
+	else
+		menu->SetMenuItemChecked(mi_sort_auto, 0);
+
+	if (so == clientsort_first)
+		menu->SetMenuItemChecked(mi_sort_first, 1);
+	else
+		menu->SetMenuItemChecked(mi_sort_first, 0);
+
+	if (so == clientsort_first_desc)
+		menu->SetMenuItemChecked(mi_sort_first_d, 1);
+	else
+		menu->SetMenuItemChecked(mi_sort_first_d, 0);
+
+	if (so == clientsort_last)
+		menu->SetMenuItemChecked(mi_sort_last, 1);
+	else
+		menu->SetMenuItemChecked(mi_sort_last, 0);
+
+	if (so == clientsort_last_desc)
+		menu->SetMenuItemChecked(mi_sort_last_d, 1);
+	else
+		menu->SetMenuItemChecked(mi_sort_last_d, 0);
+
+	if (so == clientsort_mac)
+		menu->SetMenuItemChecked(mi_sort_mac, 1);
+	else
+		menu->SetMenuItemChecked(mi_sort_mac, 0);
+
+	if (so == clientsort_packets)
+		menu->SetMenuItemChecked(mi_sort_packets, 1);
+	else
+		menu->SetMenuItemChecked(mi_sort_packets, 0);
+
+	if (so == clientsort_packets_desc)
+		menu->SetMenuItemChecked(mi_sort_packets_d, 1);
+	else
+		menu->SetMenuItemChecked(mi_sort_packets_d, 0);
+}
+
+void Kis_Clientlist_Panel::UpdateViewMenu(int mi) {
+	return;
+}
+
+int Kis_Clientlist_Panel::GraphTimer() {
+	return 0;
 }
 
 #endif

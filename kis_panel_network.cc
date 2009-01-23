@@ -1613,6 +1613,8 @@ void Kis_Netlist::Proto_CLIENT(CLIPROTO_CB_PARMS) {
 	// manuf
 	cli->manuf = MungeToPrintable((*proto_parsed)[fnum++].word);
 
+	cli->dirty = 1;
+
 	// Merge or new
 	map<mac_addr, Netracker::tracked_client *>::iterator ti =
 		pnet->client_map.find(cli->mac);
@@ -1661,6 +1663,8 @@ void Kis_Netlist::Proto_CLIENT(CLIPROTO_CB_PARMS) {
 	ocli->gpsdata = cli->gpsdata;
 
 	ocli->manuf = cli->manuf;
+
+	ocli->dirty = 1;
 
 	delete cli;
 
@@ -2990,6 +2994,916 @@ void Kis_Info_Bits::Proto_INFO(CLIPROTO_CB_PARMS) {
 		it[1] = n;
 		infowidgets[info_filtered]->SetText(it);
 	}
+}
+
+const char *client_column_details[][2] = {
+	{ "decay", "Recent activity" },
+	{ "MAC", "MAC address" },
+	{ "BSSID", "BSSID client is attached to" },
+	{ "SSID", "SSID client is attached to" },
+	{ "crypt", "Client uses encryption" },
+	{ "packdata", "Number of data packets" },
+	{ "packllc", "Number of control packets" },
+	{ "packcrypt", "Number of encrypted packets" },
+	{ "packets", "Total number of packets" },
+	{ "datasize", "Total data captured" },
+	{ "signal_dbm", "Last signal level in dBm" },
+	{ "signal_rssi", "Last signal level in RSSI" },
+	{ "freq_mhz", "Last-seen frequency" },
+	{ "manuf", "Manufacturer" },
+	{ NULL, NULL }
+};
+
+const char *client_extras_details[][2] = {
+	{ "lastseen", "Last seen timestamp" },
+	{ "crypt", "Encryption types" },
+	{ "ip", "IP Address" },
+	{ "manuf", "Manufacturer info" },
+	{ NULL, NULL}
+};
+
+int Event_Clientlist_Update(TIMEEVENT_PARMS) {
+	((Kis_Clientlist *) parm)->UpdateTrigger();
+	return 1;
+}
+
+Kis_Clientlist::Kis_Clientlist(GlobalRegistry *in_globalreg, Kis_Panel *in_panel) :
+	Kis_Panel_Component(in_globalreg, in_panel) {
+	kpinterface = in_panel->FetchPanelInterface();
+
+	viewable_lines = 0;
+	viewable_cols = 0;
+
+	sort_mode = clientsort_autofit;
+
+	// Don't need to add client protocol dissectors here since we're not
+	// actually talking to the server, we're leeching off the netlist
+	// code which handled everything for us already
+
+	updateref = globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC,
+													  NULL, 1, 
+													  &Event_Clientlist_Update,
+													  (void *) this);
+
+	hpos = 0;
+	selected_line = -1;
+	first_line = 0;
+	last_line = 0;
+
+	for (int x = 0; x < 5; x++)
+		color_map[x] = 0;
+	color_inactive = 0;
+
+	// Set default preferences for BSSID columns if we don't have any in the
+	// preferences file, then update the column vector
+	UpdateCColPrefs();
+	UpdateCExtPrefs();
+	UpdateSortPrefs();
+	UpdateTrigger();
+}
+
+Kis_Clientlist::~Kis_Clientlist() {
+	// Remove the timer
+	globalreg->timetracker->RemoveTimer(updateref);
+}
+
+int Kis_Clientlist::UpdateCColPrefs() {
+	string pcols;
+
+	// Use a default set of columns if we don't find one
+	if ((pcols = kpinterface->prefs.FetchOpt("CLIENTLIST_COLUMNS")) == "") {
+		pcols = "decay,mac,type,freq_mhz,packets,datasize,manuf";
+		kpinterface->prefs.SetOpt("CLIENTLIST_COLUMNS", pcols, 1);
+	}
+
+	if (kpinterface->prefs.FetchOptDirty("CLIENTLIST_COLUMNS") == 0)
+		return 0;
+
+	kpinterface->prefs.SetOptDirty("CLIENTLIST_COLUMNS", 0);
+
+	display_ccols.clear();
+
+	vector<string> toks = StrTokenize(pcols, ",");
+	string t;
+
+	// Clear the cached headers
+	colhdr_cache = "";
+
+	for (unsigned int x = 0; x < toks.size(); x++) {
+		t = StrLower(toks[x]);
+
+		if (t == "decay")
+			display_ccols.push_back(ccol_decay);
+		else if (t == "mac")
+			display_ccols.push_back(ccol_mac);
+		else if (t == "type")
+			display_ccols.push_back(ccol_type);
+		else if (t == "bssid")
+			display_ccols.push_back(ccol_bssid);
+		else if (t == "ssid")
+			display_ccols.push_back(ccol_ssid);
+		else if (t == "packdata")
+			display_ccols.push_back(ccol_packdata);
+		else if (t == "packllc")
+			display_ccols.push_back(ccol_packllc);
+		else if (t == "packcrypt")
+			display_ccols.push_back(ccol_packcrypt);
+		else if (t == "packets")
+			display_ccols.push_back(ccol_packets);
+		else if (t == "datasize")
+			display_ccols.push_back(ccol_datasize);
+		else if (t == "signal_dbm")
+			display_ccols.push_back(ccol_signal_dbm);
+		else if (t == "signal_rssi")
+			display_ccols.push_back(ccol_signal_rssi);
+		else if (t == "freq_mhz")
+			display_ccols.push_back(ccol_freq_mhz);
+		else if (t == "manuf")
+			display_ccols.push_back(ccol_manuf);
+		else
+			_MSG("Unknown client display column '" + t + "', skipping.",
+				 MSGFLAG_INFO);
+	}
+	
+	return 1;
+}
+
+int Kis_Clientlist::UpdateCExtPrefs() {
+	string pcols;
+
+	// Use a default set of columns if we don't find one
+	if ((pcols = kpinterface->prefs.FetchOpt("CLIENTLIST_EXTRAS")) == "") {
+		pcols = "lastseen,crypt,ip";
+		kpinterface->prefs.SetOpt("CLIENTLIST_EXTRAS", pcols, 1);
+	}
+
+	if (kpinterface->prefs.FetchOptDirty("CLIENTLIST_EXTRAS") == 0)
+		return 0;
+
+	kpinterface->prefs.SetOptDirty("CLIENTLIST_EXTRAS", 0);
+
+	display_cexts.clear();
+
+	vector<string> toks = StrTokenize(pcols, ",");
+	string t;
+
+	for (unsigned int x = 0; x < toks.size(); x++) {
+		t = StrLower(toks[x]);
+
+		if (t == "lastseen") 
+			display_cexts.push_back(cext_lastseen);
+		else if (t == "crypt")
+			display_cexts.push_back(cext_crypt);
+		else if (t == "ip")
+			display_cexts.push_back(cext_ip);
+		else if (t == "manuf")
+			display_cexts.push_back(cext_manuf);
+		else
+			_MSG("Unknown client display extra field '" + t + "', skipping.",
+				 MSGFLAG_INFO);
+	}
+
+	return 1;
+}
+
+int Kis_Clientlist::UpdateSortPrefs() {
+	string sort;
+
+	// Use a default set of columns if we don't find one
+	if ((sort = kpinterface->prefs.FetchOpt("CLIENTLIST_SORT")) == "") {
+		sort = "auto";
+		kpinterface->prefs.SetOpt("CLIENTLIST_SORT", sort, 1);
+	}
+
+	if (kpinterface->prefs.FetchOptDirty("CLIENTLIST_SORT") == 0)
+		return 0;
+
+	kpinterface->prefs.SetOptDirty("CLIENTLIST_SORT", 0);
+
+	sort = StrLower(sort);
+
+	if (sort == "auto")
+		sort_mode = clientsort_autofit;
+	else if (sort == "recent")
+		sort_mode = clientsort_recent;
+	else if (sort == "first")
+		sort_mode = clientsort_first;
+	else if (sort == "first_desc")
+		sort_mode = clientsort_first_desc;
+	else if (sort == "last")
+		sort_mode = clientsort_last;
+	else if (sort == "last_desc")
+		sort_mode = clientsort_last_desc;
+	else if (sort == "mac")
+		sort_mode = clientsort_mac;
+	else if (sort == "packets")
+		sort_mode = clientsort_packets;
+	else if (sort == "packets_desc")
+		sort_mode = clientsort_packets_desc;
+	else
+		sort_mode = clientsort_autofit;
+
+	return 1;
+}
+
+void Kis_Clientlist::SetPosition(int isx, int isy, int iex, int iey) {
+	Kis_Panel_Component::SetPosition(isx, isy, iex, iey);
+		
+	viewable_lines = ly - 1;
+	viewable_cols = ex;
+}
+
+void Kis_Clientlist::UpdateTrigger(void) {
+	if (kpinterface->FetchMainPanel()->FetchSelectedNetgroup() != dng) {
+		dng = kpinterface->FetchMainPanel()->FetchSelectedNetgroup();
+
+		display_vec.clear();
+	}
+
+	if (dng == NULL) {
+		return;
+	}
+
+	// Add all the networks clients together
+	vector<Netracker::tracked_network *> *dngnv = dng->FetchNetworkVec();
+	for (unsigned int n = 0; n < dngnv->size(); n++) {
+		for (map<mac_addr, Netracker::tracked_client *>::iterator x = 
+			 (*dngnv)[n]->client_map.begin(); x != (*dngnv)[n]->client_map.end(); ++x) {
+
+			int match = 0;
+			for (unsigned int y = 0; y < display_vec.size(); y++) {
+				// This sucks but uses less ram
+				if (display_vec[y].cli == x->second) {
+					match = 1;
+					break;
+				}
+			}
+
+			if (match == 0) {
+				display_client dc;
+				dc.cli = x->second;
+				dc.num_lines = 0;
+
+				display_vec.push_back(dc);
+			}
+		}
+	}
+
+	// Show extended info?
+	if (kpinterface->prefs.FetchOpt("CLIENTLIST_SHOWEXT") == "0")
+		show_ext_info = 0;
+	else
+		show_ext_info = 1;
+
+	switch (sort_mode) {
+		case clientsort_autofit:
+			stable_sort(display_vec.begin(), display_vec.end(),
+						KisClientlist_Sort_LastDesc());
+			break;
+		case clientsort_first:
+			stable_sort(display_vec.begin(), display_vec.end(), 
+						KisClientlist_Sort_First());
+			break;
+		case clientsort_first_desc:
+			stable_sort(display_vec.begin(), display_vec.end(), 
+						KisClientlist_Sort_FirstDesc());
+			break;
+		case clientsort_last:
+			stable_sort(display_vec.begin(), display_vec.end(), 
+						KisClientlist_Sort_Last());
+			break;
+		case clientsort_last_desc:
+			stable_sort(display_vec.begin(), display_vec.end(), 
+						KisClientlist_Sort_LastDesc());
+			break;
+		case clientsort_mac:
+			stable_sort(display_vec.begin(), display_vec.end(), 
+						KisClientlist_Sort_Mac());
+			break;
+		case clientsort_packets:
+			stable_sort(display_vec.begin(), display_vec.end(), 
+						KisClientlist_Sort_Packets());
+			break;
+		case clientsort_packets_desc:
+			stable_sort(display_vec.begin(), display_vec.end(), 
+						KisClientlist_Sort_PacketsDesc());
+			break;
+		default:
+			break;
+	}
+}
+
+int Kis_Clientlist::PrintClientLine(Netracker::tracked_client *cli,
+								  int rofft, char *rline, int max) {
+	if (cli == NULL)
+		return rofft;
+
+	for (unsigned c = 0; c < display_ccols.size(); c++) {
+		client_columns b = display_ccols[c];
+
+		if (b == ccol_decay) {
+			char d;
+			int to;
+
+			to = time(0) - cli->last_time;
+
+			if (to < 3)
+				d = '!';
+			else if (to < 5)
+				d = '.';
+			else
+				d = ' ';
+
+			snprintf(rline + rofft, max - rofft, "%c", d);
+			rofft += 1;
+		} else if (b == ccol_ssid) {
+			snprintf(rline + rofft, max - rofft, "%-20.20s", "n/a");
+			rofft += 20;
+		} else if (b == ccol_freq_mhz) {
+			unsigned int maxmhz = 0, maxval = 0;
+
+			for (map<unsigned int, unsigned int>::const_iterator fmi = cli->freq_mhz_map.begin(); fmi != cli->freq_mhz_map.end(); ++fmi) {
+				if (fmi->second > maxval)
+					maxmhz = fmi->first;
+			}
+
+			if (maxmhz == 0) {
+				snprintf(rline + rofft, max - rofft, "%4s", "----");
+			} else {
+				snprintf(rline + rofft, max - rofft, "%4d", maxmhz);
+			}
+			rofft += 4;
+		} else if (b == ccol_manuf) {
+			snprintf(rline + rofft, max - rofft, "%-20.20s", cli->manuf.c_str());
+			rofft += 20;
+		} else if (b == ccol_packdata) {
+			snprintf(rline + rofft, max - rofft, "%5d", cli->data_packets);
+			rofft += 5;
+		} else if (b == ccol_packllc) {
+			snprintf(rline + rofft, max - rofft, "%5d", cli->llc_packets);
+			rofft += 5;
+		} else if (b == ccol_packcrypt) {
+			snprintf(rline + rofft, max - rofft, "%5d", cli->crypt_packets);
+			rofft += 5;
+		} else if (b == ccol_mac) {
+			snprintf(rline + rofft, max - rofft, "%-17s", 
+					 cli->mac.Mac2String().c_str());
+			rofft += 17;
+		} else if (b == ccol_type) {
+			string t;
+
+			if (cli->type == client_fromds)
+				t = "Wired/AP";
+			else if (cli->type == client_tods || cli->type == client_established)
+				t = "Wireless";
+			else if (cli->type == client_adhoc)
+				t = "Adhoc";
+			else
+				t = "Unknown";
+
+			snprintf(rline + rofft, max - rofft, "%-8s", t.c_str());
+			rofft += 8;
+		} else if (b == ccol_packets) {
+			snprintf(rline + rofft, max - rofft, "%5d",
+					 cli->llc_packets + cli->data_packets);
+			rofft += 5;
+		} else if (b == ccol_datasize) {
+			char dt = ' ';
+			long int ds = 0;
+
+			if (cli->datasize < 1024) {
+				ds = cli->datasize;
+				dt = 'B';
+			} else if (cli->datasize < (1024*1024)) {
+				ds = cli->datasize / 1024;
+				dt = 'K';
+			} else {
+				ds = cli->datasize / 1024 / 1024;
+				dt = 'M';
+			}
+
+			snprintf(rline + rofft, max - rofft, "%4ld%c", ds, dt);
+			rofft += 5;
+		} else if (b == ccol_signal_dbm) {
+			if (time(0) - cli->last_time > 5) {
+				snprintf(rline + rofft, max - rofft, "---");
+			} else {
+				snprintf(rline + rofft, max - rofft, "%3d", 
+						 cli->snrdata.last_signal_dbm);
+			}
+			rofft += 3;
+		} else if (b == ccol_signal_rssi) {
+			if (time(0) - cli->last_time > 5) {
+				snprintf(rline + rofft, max - rofft, "---");
+			} else {
+				snprintf(rline + rofft, max - rofft, "%3d", 
+						 cli->snrdata.last_signal_rssi);
+			}
+			rofft += 3;
+		} else {
+			continue;
+		}
+
+		if (rofft < (max - 1)) {
+			// Update the endline conditions
+			rline[rofft++] = ' ';
+			rline[rofft] = '\0';
+		} else {
+			break;
+		}
+	} // column loop
+
+	return rofft;
+}
+
+void Kis_Clientlist::DrawComponent() {
+	if (visible == 0)
+		return;
+
+	parent_panel->InitColorPref("panel_textdis_color", "grey,black");
+	parent_panel->ColorFromPref(color_inactive, "panel_textdis_color");
+
+	parent_panel->InitColorPref("netlist_normal_color", "green,black");
+	parent_panel->ColorFromPref(color_map[kis_netlist_color_normal], 
+								"netlist_normal_color");
+	parent_panel->InitColorPref("netlist_crypt_color", "yellow,black");
+	parent_panel->ColorFromPref(color_map[kis_netlist_color_crypt], 
+								"netlist_crypt_color");
+	parent_panel->InitColorPref("netlist_group_color", "blue,black");
+	parent_panel->ColorFromPref(color_map[kis_netlist_color_group], 
+								"netlist_group_color");
+	parent_panel->InitColorPref("netlist_factory_color", "red,black");
+	parent_panel->ColorFromPref(color_map[kis_netlist_color_factory], 
+								"netlist_factory_color");
+	parent_panel->InitColorPref("netlist_header_color", "blue,black");
+	parent_panel->ColorFromPref(color_map[kis_netlist_color_header], 
+								"netlist_header_color");
+
+	// This is the largest we should ever expect a window to be wide, so
+	// we'll consider it a reasonable static line size
+	char rline[1024];
+	int rofft = 0;
+
+	// Used to track number of lines needed for expanded info
+	int nlines = 0;
+	int recovered_lines = 0;
+	int redraw = 0;
+
+	time_t now = time(0);
+
+	// Printed line and a temp string to hold memory, used for cache
+	// aliasing
+	char *pline;
+	string pt;
+
+	if ((sort_mode != clientsort_autofit && sort_mode != clientsort_recent) &&
+		(selected_line < first_line || selected_line > (int) display_vec.size()))
+		selected_line = first_line;
+
+	// Get any updated columns
+	UpdateCColPrefs();
+	UpdateCExtPrefs();
+
+	// Column headers
+	if (colhdr_cache == "") {
+		rofft = 0;
+
+		for (unsigned c = 0; c < display_ccols.size(); c++) {
+			client_columns cc = display_ccols[c];
+
+			if (cc == ccol_decay) {
+				snprintf(rline + rofft, 1024 - rofft, " ");
+				rofft += 1;
+			} else if (cc == ccol_ssid) {
+				snprintf(rline + rofft, 1024 - rofft, "%-20.20s", "SSID");
+				rofft += 20;
+			} else if (cc == ccol_mac) {
+				snprintf(rline + rofft, 1024 - rofft, "%-17s", "MAC");
+				rofft += 17;
+			} else if (cc == ccol_type) {
+				snprintf(rline + rofft, 1024 - rofft, "%-8s", "Type");
+				rofft += 8;
+			} else if (cc == ccol_bssid) {
+				snprintf(rline + rofft, 1024 - rofft, "%-17s", "BSSID");
+				rofft += 17;
+			} else if (cc == ccol_manuf) {
+				snprintf(rline + rofft, 1024 - rofft, "%-20.20s", "Manuf");
+				rofft += 20;
+			} else if (cc == ccol_freq_mhz) {
+				snprintf(rline + rofft, 1024 - rofft, "Freq");
+				rofft += 4;
+			} else if (cc == ccol_packdata) {
+				snprintf(rline + rofft, 1024 - rofft, " Data");
+				rofft += 5;
+			} else if (cc == ccol_packllc) {
+				snprintf(rline + rofft, 1024 - rofft, "  LLC");
+				rofft += 5;
+			} else if (cc == ccol_packcrypt) {
+				snprintf(rline + rofft, 1024 - rofft, "Crypt");
+				rofft += 5;
+			} else if (cc == ccol_packets) {
+				snprintf(rline + rofft, 1024 - rofft, " Pkts");
+				rofft += 5;
+			} else if (cc == ccol_datasize) {
+				snprintf(rline + rofft, 1024 - rofft, " Size");
+				rofft += 5;
+			} else if (cc == ccol_signal_dbm) {
+				snprintf(rline + rofft, 1024 - rofft, "Sig");
+				rofft += 3;
+			} else if (cc == ccol_signal_rssi) {
+				snprintf(rline + rofft, 1024 - rofft, "Sig");
+				rofft += 3;
+			}
+
+			if (rofft < 1023) {
+				// Update the endline conditions
+				rline[rofft++] = ' ';
+				rline[rofft] = '\0';
+			} else {
+				break;
+			}
+		}
+
+		colhdr_cache = rline;
+	}
+
+	// Draw the cached header
+	string pcache = colhdr_cache + string(ex - sx - colhdr_cache.length(), ' ');
+
+	if (active)
+		wattrset(window, color_map[kis_netlist_color_header]);
+
+	Kis_Panel_Specialtext::Mvwaddnstr(window, sy, sx, 
+									  "\004u" + pcache + "\004U", 
+									  ex - sx);
+
+	if (display_vec.size() == 0) {
+		if (active)
+			wattrset(window, color_map[kis_netlist_color_normal]);
+		vector<KisNetClient *> *clivec = kpinterface->FetchNetClientVecPtr();
+		int con = 0;
+
+		for (unsigned int c = 0; c < clivec->size(); c++) {
+			if ((*clivec)[c]->Valid()) {
+				con = 1;
+				break;
+			}
+		}
+
+		if (con == 0) {
+			mvwaddnstr(window, sy + 2, sx, 
+					   "[ --- Not connected to a Kismet server --- ]", lx);
+		} else {
+			mvwaddnstr(window, sy + 2, sx, "[ --- No clients seen --- ]", 
+					   ex - sx);
+		}
+		return;
+	}
+
+
+	if (sort_mode == clientsort_autofit)
+		first_line = 0;
+
+	// For as many lines as we can fit
+	int dpos = 1;
+	for (unsigned int x = first_line; x < display_vec.size() && 
+		 dpos <= viewable_lines; x++) {
+		Netracker::tracked_client *tc = display_vec[x].cli;
+		int color = -1;
+
+		nlines = 0;
+
+		// Recompute the output line if the client is dirty or changed
+		// recently
+		if (tc != NULL && (tc->dirty || 
+						   ((now - tc->last_time) < 10))) {
+			rofft = 0;
+
+			rofft = PrintClientLine(tc, rofft, rline, 1024);
+
+			// Fill to the end if we need to for highlighting
+			if (rofft < (ex - sx) && ((ex - sx) - rofft) < 1024) {
+				memset(rline + rofft, ' ', (ex - sx) - rofft);
+				rline[(ex - sx)] = '\0';
+			}
+
+			pline = rline;
+
+			display_vec[x].cached_line = pline;
+		} else {
+			pline = (char *) display_vec[x].cached_line.c_str();
+		}
+
+		nlines++;
+
+		if (color <= 0)
+			color = kis_netlist_color_normal;
+
+		if (active)
+			wattrset(window, color_map[color]);
+
+		// Draw the line
+		if (selected_line == (int) x && sort_mode != clientsort_autofit && active)
+			wattron(window, WA_REVERSE);
+
+		// Kis_Panel_Specialtext::Mvwaddnstr(window, sy + dpos, sx, pline, ex);
+		// We don't use our specialtext here since we don't want something that
+		// snuck into the SSID to affect the printing
+		mvwaddnstr(window, sy + dpos, sx, pline, ex - sx);
+		dpos++;
+
+		// Draw the expanded info for the client
+		if (selected_line == (int) x && sort_mode != clientsort_autofit &&
+			show_ext_info) {
+			// Cached print lines (also a direct shortcut into the cache
+			// storage system)
+			vector<string> *pevcache;
+			// Reset the offset we're printing into on rline
+			rofft = 0;
+
+			pevcache = &(display_vec[x].cached_details);
+
+			// If we're dirty, we don't have details cached, or it's been
+			// w/in 10 seconds, we recalc the details
+			if (display_vec[x].cli->dirty || 
+				(now - display_vec[x].cli->last_time < 10) ||
+				pevcache->size() == 0) {
+
+				rofft = 1;
+				rline[0] = ' ';
+
+				pevcache->clear();
+
+				// Offset for decay if we have it first
+				if (display_ccols[0] == ccol_decay) {
+					snprintf(rline + rofft, 1024 - rofft, "  ");
+					rofft += 2;
+				}
+
+				for (unsigned int c = 0; c < display_cexts.size(); c++) {
+					client_extras e = display_cexts[c];
+
+					if (e == cext_lastseen) {
+						snprintf(rline + rofft, 1024 - rofft, "Last seen: %.15s",
+								 ctime((const time_t *) 
+									   &(display_vec[x].cli->last_time)) + 4);
+						rofft += 26;
+#if 0
+					} else if (e == cext_crypt) {
+						snprintf(rline + rofft, 1024 - rofft, "Crypt:");
+						rofft += 6;
+					
+						if (cc == NULL) {
+							snprintf(rline + rofft, 1024 - rofft, " Unknown");
+							rofft += 8;
+						} else {
+							if ((display_vec[x].cli->cryptset == 0)) {
+								snprintf(rline + rofft, 1024 - rofft, " None");
+								rofft += 5;
+							}
+							if ((display_vec[x].cli->cryptset == crypt_wep)) {
+								snprintf(rline + rofft, 1024 - rofft, " WEP");
+								rofft += 4;
+							} 
+							if ((display_vec[x].cli->cryptset & crypt_layer3)) {
+								snprintf(rline + rofft, 1024 - rofft, " L3");
+								rofft += 3;
+							} 
+							if ((display_vec[x].cli->cryptset & crypt_wep40)) {
+								snprintf(rline + rofft, 1024 - rofft, " WEP40");
+								rofft += 6;
+							} 
+							if ((display_vec[x].cli->cryptset & crypt_wep104)) {
+								snprintf(rline + rofft, 1024 - rofft, " WEP104");
+								rofft += 7;
+							} 
+							if ((display_vec[x].cli->cryptset & crypt_tkip)) {
+								snprintf(rline + rofft, 1024 - rofft, " TKIP");
+								rofft += 5;
+							} 
+							if ((display_vec[x].cli->cryptset & crypt_wpa)) {
+								snprintf(rline + rofft, 1024 - rofft, " WPA");
+								rofft += 4;
+							} 
+							if ((display_vec[x].cli->cryptset & crypt_psk)) {
+								snprintf(rline + rofft, 1024 - rofft, " PSK");
+								rofft += 4;
+							} 
+							if ((display_vec[x].cli->cryptset & crypt_aes_ocb)) {
+								snprintf(rline + rofft, 1024 - rofft, " AESOCB");
+								rofft += 7;
+							} 
+							if ((display_vec[x].cli->cryptset & crypt_aes_ccm)) {
+								snprintf(rline + rofft, 1024 - rofft, " AESCCM");
+								rofft += 7;
+							} 
+							if ((display_vec[x].cli->cryptset & crypt_leap)) {
+								snprintf(rline + rofft, 1024 - rofft, " LEAP");
+								rofft += 5;
+							} 
+							if ((display_vec[x].cli->cryptset & crypt_ttls)) {
+								snprintf(rline + rofft, 1024 - rofft, " TTLS");
+								rofft += 5;
+							} 
+							if ((display_vec[x].cli->cryptset & crypt_tls)) {
+								snprintf(rline + rofft, 1024 - rofft, " TLS");
+								rofft += 4;
+							} 
+							if ((display_vec[x].cli->cryptset & crypt_peap)) {
+								snprintf(rline + rofft, 1024 - rofft, " PEAP");
+								rofft += 5;
+							} 
+							if ((display_vec[x].cli->cryptset & crypt_isakmp)) {
+								snprintf(rline + rofft, 1024 - rofft, " ISAKMP");
+								rofft += 7;
+							} 
+							if ((display_vec[x].cli->cryptset & crypt_pptp)) {
+								snprintf(rline + rofft, 1024 - rofft, " PPTP");
+								rofft += 5;
+							}
+							if ((display_vec[x].cli->cryptset & crypt_fortress)) {
+								snprintf(rline + rofft, 1024 - rofft, " Fortress");
+								rofft += 9;
+							}
+							if ((display-vec[x].cli->cryptset & crypt_keyguard)) {
+								snprintf(rline + rofft, 1024 - rofft, " Keyguard");
+								rofft += 9;
+							}
+						} 
+					} else if (e == cext_ip) {
+						snprintf(rline + rofft, 1024 - rofft, "IP: %s",
+							inet_ntoa(display_vec[x].cli->guess_ipdata.ip_addr_block));
+						rofft += 3 + 
+							strlen(
+							inet_ntoa(display_vec[x].cli->guess_ipdata.ip_addr_block));
+#endif
+					} else if (e == cext_manuf) {
+						snprintf(rline + rofft, 1024 - rofft, "Manuf: %s",
+								 display_vec[x].cli->manuf.c_str());
+						rofft += kismin(17, 7 + display_vec[x].cli->manuf.length());
+					} else {
+						continue;
+					}
+
+					if (rofft < 1023) {
+						// Update the endline conditions
+						rline[rofft++] = ' ';
+						rline[rofft] = '\0';
+					} else {
+						break;
+					}
+				}
+
+				// Fill to the end if we need to for highlighting
+				if (rofft < (ex - sx) && ((ex - sx) - rofft) < 1024) {
+					memset(rline + rofft, ' ', (ex - sx) - rofft);
+					rline[(ex - sx)] = '\0';
+				}
+
+				pevcache->push_back(rline);
+			}
+
+			/* Handle scrolling down if we're at the end.  Yeah, this is 
+			 * obnoxious. */
+			
+
+			for (unsigned int d = 0; d < pevcache->size(); d++) {
+				nlines++;
+
+				// If we need to get more space...
+				if (dpos >= viewable_lines && (int) x != first_line) {
+					// We're going to have to redraw this whole thing anyhow
+					redraw = 1;
+
+					// If we've recovered enough lines, we just take some away.
+					// Don't try to take away from the first one - if it doesn't
+					// fit, TFB.
+					if (recovered_lines > 0) {
+						recovered_lines--;
+					} else {
+						// Otherwise we need to start sliding down the list to
+						// recover some lines.  selected is the raw # in dv,
+						// not the visual offset, so we don't have to play any
+						// games there.
+						recovered_lines += display_vec[first_line].num_lines;
+						first_line++;
+					}
+				}
+
+				// Only draw if we don't need to redraw everything, but always
+				// increment the dpos so we know how many lines we need to recover
+				if (redraw == 0 && dpos < viewable_lines)
+					mvwaddnstr(window, sy + dpos, sx, (*pevcache)[d].c_str(), 
+							   ex - sx);
+				dpos++;
+			}
+		}
+
+		if (selected_line == (int) x && sort_mode != clientsort_autofit && active)
+			wattroff(window, WA_REVERSE);
+
+		display_vec[x].num_lines = nlines;
+
+		last_line = x;
+
+		// Set it no longer dirty (we've cached everything along the way
+		// so this is safe to do here regardless)
+		display_vec[x].cli->dirty = 0;
+	} // Netlist 
+
+	// Call ourselves again and redraw if we have to.  Only loop on 1, -1 used
+	// for first-line overflow
+	if (redraw == 1) {
+		DrawComponent();
+	}
+}
+
+void Kis_Clientlist::Activate(int subcomponent) {
+	active = 1;
+}
+
+void Kis_Clientlist::Deactivate() {
+	active = 0;
+}
+
+int Kis_Clientlist::KeyPress(int in_key) {
+	if (visible == 0)
+		return 0;
+
+	ostringstream osstr;
+
+	// Selected is the literal selected line in the display vector, not the 
+	// line # on the screen, so when we scroll, we need to scroll it as well
+
+	// Autofit gets no love
+	if (sort_mode == clientsort_autofit)
+		return 0;
+
+	if (in_key == KEY_DOWN || in_key == '+') {
+		if (selected_line < first_line || selected_line > last_line) {
+			selected_line = first_line;
+			return 0;
+		}
+
+		// If we're at the bottom and we can go further, slide the selection
+		// and the first line down
+		if (selected_line == last_line &&
+			last_line < (int) display_vec.size() - 1) {
+			selected_line++;
+			first_line++;
+		} else if (selected_line != last_line) {
+			// Otherwise we just move the selected line
+			selected_line++;
+		}
+	} else if (in_key == KEY_UP || in_key == '-') {
+		if (selected_line < first_line || selected_line > last_line) {
+			selected_line = first_line;
+			return 0;
+		}
+
+		// If we're at the top and we can go further, slide the selection
+		// and the first line UP
+		if (selected_line == first_line && first_line > 0) {
+			selected_line--;
+			first_line--;
+		} else if (selected_line != first_line) {
+			// Just slide up the selection
+			selected_line--;
+		}
+	} else if (in_key == KEY_PPAGE) {
+		if (selected_line < 0 || selected_line > last_line) {
+			selected_line = first_line;
+			return 0;
+		}
+	
+		first_line = kismax(0, first_line - viewable_lines);
+		selected_line = first_line;
+	} else if (in_key == KEY_NPAGE) {
+		if (selected_line < 0 || selected_line > last_line) {
+			selected_line = first_line;
+			return 0;
+		}
+
+		first_line = kismin((int) display_vec.size() - 1, 
+							first_line + viewable_lines);
+		selected_line = first_line;
+	} else if (in_key == '\n' || in_key == KEY_ENTER) {
+		if (cb_activate != NULL) 
+			(*cb_activate)(this, 1, cb_activate_aux, globalreg);
+	}
+
+	return 0;
+}
+
+Kis_Display_NetGroup *Kis_Clientlist::FetchSelectedNetgroup() {
+	return dng;
+}
+
+Netracker::tracked_client *Kis_Clientlist::FetchSelectedClient() {
+	if (selected_line < 0 || selected_line >= (int) display_vec.size())
+		return NULL;
+
+	return display_vec[selected_line].cli;
 }
 
 #endif // panel

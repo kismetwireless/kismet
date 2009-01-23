@@ -183,5 +183,80 @@ public:
 	}
 };
 
+class KisNetlist_Sort_Clients {
+public:
+	inline bool operator()(Kis_Display_NetGroup *x, 
+						   Kis_Display_NetGroup *y) const {
+		Netracker::tracked_network *xm = x->FetchNetwork();
+		Netracker::tracked_network *ym = y->FetchNetwork();
+
+		if (xm == NULL || ym == NULL)
+			return 0;
+
+		if (xm == NULL || ym == NULL)
+			return 0;
+
+		return (xm->client_map.size()) < (ym->client_map.size());
+	}
+};
+
+class KisClientlist_Sort_First {
+public:
+	inline bool operator()(Kis_Clientlist::display_client x, 
+						   Kis_Clientlist::display_client y) const {
+		return x.cli->first_time < y.cli->first_time;
+	}
+};
+
+class KisClientlist_Sort_FirstDesc {
+public:
+	inline bool operator()(Kis_Clientlist::display_client x, 
+						   Kis_Clientlist::display_client y) const {
+		return x.cli->first_time > y.cli->first_time;
+	}
+};
+
+class KisClientlist_Sort_Last {
+public:
+	inline bool operator()(Kis_Clientlist::display_client x, 
+						   Kis_Clientlist::display_client y) const {
+		return x.cli->last_time < y.cli->last_time;
+	}
+};
+
+class KisClientlist_Sort_LastDesc {
+public:
+	inline bool operator()(Kis_Clientlist::display_client x, 
+						   Kis_Clientlist::display_client y) const {
+		return x.cli->last_time > y.cli->last_time;
+	}
+};
+
+class KisClientlist_Sort_Mac {
+public:
+	inline bool operator()(Kis_Clientlist::display_client x, 
+						   Kis_Clientlist::display_client y) const {
+		return x.cli->mac < y.cli->mac;
+	}
+};
+
+class KisClientlist_Sort_Packets {
+public:
+	inline bool operator()(Kis_Clientlist::display_client x, 
+						   Kis_Clientlist::display_client y) const {
+		return (x.cli->llc_packets + x.cli->data_packets) < 
+			(y.cli->llc_packets + x.cli->data_packets);
+	}
+};
+
+class KisClientlist_Sort_PacketsDesc {
+public:
+	inline bool operator()(Kis_Clientlist::display_client x, 
+						   Kis_Clientlist::display_client y) const {
+		return (x.cli->llc_packets + x.cli->data_packets) > 
+			(y.cli->llc_packets + x.cli->data_packets);
+	}
+};
+
 #endif
 

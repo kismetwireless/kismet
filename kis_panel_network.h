@@ -233,6 +233,14 @@ public:
 	// Network column text
 	static const char *bssid_columns_text[]; 
 
+
+	// Parse the bssid columns preferences
+	int UpdateBColPrefs();
+	// Parse the bssid extras
+	int UpdateBExtPrefs();
+	// Parse the sort type
+	int UpdateSortPrefs();
+
 protected:
 	int color_map[5];
 	int color_inactive;
@@ -295,13 +303,6 @@ protected:
 	// Show extended info
 	int show_ext_info;
 
-	// Parse the bssid columns preferences
-	int UpdateBColPrefs();
-	// Parse the bssid extras
-	int UpdateBExtPrefs();
-	// Parse the sort type
-	int UpdateSortPrefs();
-
 	// Cached column headers
 	string colhdr_cache;
 
@@ -311,6 +312,117 @@ protected:
 	int DeleteGroup(Kis_Display_NetGroup *in_group);
 
 	int PrintNetworkLine(Kis_Display_NetGroup *ng, Netracker::tracked_network *net,
+						 int rofft, char *rline, int max);
+};
+
+enum clientsort_opts {
+	clientsort_autofit, clientsort_recent, clientsort_first, 
+	clientsort_first_desc, clientsort_last, clientsort_last_desc, 
+	clientsort_mac, clientsort_packets, clientsort_packets_desc,
+};
+
+// Network columns
+enum client_columns {
+	ccol_decay, ccol_mac, ccol_bssid, ccol_ssid,
+	ccol_packdata, ccol_packllc, ccol_packcrypt,
+	ccol_packets, ccol_datasize, ccol_signal_dbm, ccol_signal_rssi,
+	ccol_freq_mhz, ccol_manuf, ccol_type
+};
+
+// Do not expect this to be in numerical order with the above enum, this is
+// for setting up the preferences panels, etc
+extern const char *client_column_details[][2];
+
+// Extra display options per-line
+enum client_extras {
+	cext_lastseen, cext_crypt, cext_ip, cext_manuf
+};
+
+extern const char *client_extras_details[][2];
+
+class Kis_Clientlist : public Kis_Panel_Component {
+public:
+	Kis_Clientlist() {
+		fprintf(stderr, "FATAL OOPS: Kis_Clientlist() called w/out globalreg\n");
+		exit(1);
+	}
+	Kis_Clientlist(GlobalRegistry *in_globalreg, Kis_Panel *in_panel);
+	virtual ~Kis_Clientlist();
+
+	virtual void DrawComponent();
+	virtual void Activate(int subcomponent);
+	virtual void Deactivate();
+
+	virtual int KeyPress(int in_key);
+
+	virtual void SetPosition(int isx, int isy, int iex, int iey);
+
+	// Trigger a sort and redraw update
+	void UpdateTrigger(void);
+
+	// Fetch a pointer to the currently drawing group
+	Kis_Display_NetGroup *FetchSelectedNetgroup();
+
+	// Fetch a pointer to the current client
+	Netracker::tracked_client *FetchSelectedClient();
+
+	// Return sort mode
+	clientsort_opts FetchSortMode() { return sort_mode; }
+
+	static const char *client_columns_text[]; 
+
+	struct display_client {
+		Netracker::tracked_client *cli;
+		string cached_line;
+		vector<string> cached_details;
+		int num_lines;
+	};
+
+	// Parse the bssid columns preferences
+	int UpdateCColPrefs();
+	// Parse the bssid extras
+	int UpdateCExtPrefs();
+	// Parse the sort type
+	int UpdateSortPrefs();
+
+protected:
+	int color_map[5];
+	int color_inactive;
+
+	clientsort_opts sort_mode;
+
+	// Event reference for update trigger
+	int updateref;
+
+	// Interface
+	KisPanelInterface *kpinterface;
+
+	// Group we're displaying
+	Kis_Display_NetGroup *dng;
+
+	// Drawing offsets into the display vector & other drawing trackers
+	int viewable_lines;
+	int viewable_cols;
+
+	int first_line, last_line, selected_line;
+	// Horizontal position
+	int hpos;
+
+	// Vector of displayed network clients
+	vector<display_client> display_vec;
+
+	// Columns we display
+	vector<client_columns> display_ccols;
+	// Extras we display
+	vector<client_extras> display_cexts;
+
+	// Show extended info
+	int show_ext_info;
+
+	// Cached column headers
+	string colhdr_cache;
+
+	int PrintClientLine(Netracker::tracked_client *cli,
 						 int rofft, char *rline, int max);
 };
 

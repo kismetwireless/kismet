@@ -112,8 +112,9 @@ protected:
 		mi_sort_first_d, mi_sort_last, mi_sort_last_d, mi_sort_bssid, mi_sort_ssid,
 		mi_sort_packets, mi_sort_packets_d;
 
-	int mn_view, mi_netdetails, mi_chandetails, mi_gps, mi_shownetworks, mi_showsummary, 
-		mi_showstatus, mi_showgps, mi_showpps, mi_showsources;
+	int mn_view, mi_netdetails, mi_clientlist, mi_chandetails, mi_gps, 
+		mi_shownetworks, mi_showsummary, mi_showstatus, mi_showgps, mi_showpps, 
+		mi_showsources;
 
 	int connect_enable;
 
@@ -588,6 +589,36 @@ protected:
 	int agg_gps_num;
 
 	int addref;
+};
+
+class Kis_Clientlist_Panel : public Kis_Panel {
+public:
+	Kis_Clientlist_Panel() {
+		fprintf(stderr, "FATAL OOPS: Kis_Clientlist_Panel called w/out globalreg\n");
+		exit(1);
+	}
+
+	Kis_Clientlist_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_kpf);
+	virtual ~Kis_Clientlist_Panel();
+
+	virtual void ButtonAction(Kis_Panel_Component *in_button);
+	virtual void MenuAction(int opt);
+
+	virtual int GraphTimer();
+
+protected:
+	virtual void UpdateViewMenu(int mi);
+	virtual void UpdateSortMenu();
+	
+	Kis_Panel_Packbox *vbox;
+	Kis_Clientlist *clientlist;
+
+	int mn_clients, mi_nextnet, mi_prevnet, mi_close;
+	int mn_sort, mi_sort_auto, mi_sort_first, mi_sort_first_d, 
+		mi_sort_last, mi_sort_last_d, mi_sort_mac, 
+		mi_sort_packets, mi_sort_packets_d;
+
+	int grapheventid;
 };
 
 #endif
