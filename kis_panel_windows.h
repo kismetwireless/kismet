@@ -614,7 +614,7 @@ protected:
 	Kis_Clientlist *clientlist;
 
 	int mn_clients, mi_nextnet, mi_prevnet, mi_close;
-	int mn_sort, mi_sort_auto, mi_sort_first, mi_sort_first_d, 
+	int mn_sort, mi_sort_auto, mi_sort_type, mi_sort_first, mi_sort_first_d, 
 		mi_sort_last, mi_sort_last_d, mi_sort_mac, 
 		mi_sort_packets, mi_sort_packets_d;
 

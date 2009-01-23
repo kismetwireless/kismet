@@ -240,6 +240,14 @@ public:
 	}
 };
 
+class KisClientlist_Sort_Type {
+public:
+	inline bool operator()(Kis_Clientlist::display_client x, 
+						   Kis_Clientlist::display_client y) const {
+		return x.cli->type < y.cli->type;
+	}
+};
+
 class KisClientlist_Sort_Packets {
 public:
 	inline bool operator()(Kis_Clientlist::display_client x, 

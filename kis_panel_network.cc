@@ -3196,6 +3196,8 @@ int Kis_Clientlist::UpdateSortPrefs() {
 		sort_mode = clientsort_last_desc;
 	else if (sort == "mac")
 		sort_mode = clientsort_mac;
+	else if (sort == "type")
+		sort_mode = clientsort_type;
 	else if (sort == "packets")
 		sort_mode = clientsort_packets;
 	else if (sort == "packets_desc")
@@ -3218,9 +3220,19 @@ void Kis_Clientlist::UpdateTrigger(void) {
 		dng = kpinterface->FetchMainPanel()->FetchSelectedNetgroup();
 
 		display_vec.clear();
+
+		hpos = 0;
+		selected_line = -1;
+		first_line = 0;
+		last_line = 0;
 	}
 
 	if (dng == NULL) {
+		hpos = 0;
+		selected_line = -1;
+		first_line = 0;
+		last_line = 0;
+
 		return;
 	}
 
@@ -3243,6 +3255,7 @@ void Kis_Clientlist::UpdateTrigger(void) {
 				display_client dc;
 				dc.cli = x->second;
 				dc.num_lines = 0;
+				dc.color = -1;
 
 				display_vec.push_back(dc);
 			}
@@ -3279,6 +3292,10 @@ void Kis_Clientlist::UpdateTrigger(void) {
 		case clientsort_mac:
 			stable_sort(display_vec.begin(), display_vec.end(), 
 						KisClientlist_Sort_Mac());
+			break;
+		case clientsort_type:
+			stable_sort(display_vec.begin(), display_vec.end(), 
+						KisClientlist_Sort_Type());
 			break;
 		case clientsort_packets:
 			stable_sort(display_vec.begin(), display_vec.end(), 
@@ -3423,21 +3440,25 @@ void Kis_Clientlist::DrawComponent() {
 	parent_panel->InitColorPref("panel_textdis_color", "grey,black");
 	parent_panel->ColorFromPref(color_inactive, "panel_textdis_color");
 
-	parent_panel->InitColorPref("netlist_normal_color", "green,black");
-	parent_panel->ColorFromPref(color_map[kis_netlist_color_normal], 
-								"netlist_normal_color");
-	parent_panel->InitColorPref("netlist_crypt_color", "yellow,black");
-	parent_panel->ColorFromPref(color_map[kis_netlist_color_crypt], 
-								"netlist_crypt_color");
-	parent_panel->InitColorPref("netlist_group_color", "blue,black");
-	parent_panel->ColorFromPref(color_map[kis_netlist_color_group], 
-								"netlist_group_color");
-	parent_panel->InitColorPref("netlist_factory_color", "red,black");
-	parent_panel->ColorFromPref(color_map[kis_netlist_color_factory], 
-								"netlist_factory_color");
-	parent_panel->InitColorPref("netlist_header_color", "blue,black");
-	parent_panel->ColorFromPref(color_map[kis_netlist_color_header], 
-								"netlist_header_color");
+	parent_panel->InitColorPref("clientlist_normal_color", "grey,black");
+	parent_panel->ColorFromPref(color_map[kis_clientlist_color_normal], 
+								"clientlist_normal_color");
+
+	parent_panel->InitColorPref("clientlist_ap_color", "blue,black");
+	parent_panel->ColorFromPref(color_map[kis_clientlist_color_ap], 
+								"clientlist_ap_color");
+
+	parent_panel->InitColorPref("clientlist_wireless_color", "green,black");
+	parent_panel->ColorFromPref(color_map[kis_clientlist_color_wireless], 
+								"clientlist_wireless_color");
+
+	parent_panel->InitColorPref("clientlist_adhoc_color", "magenta,black");
+	parent_panel->ColorFromPref(color_map[kis_clientlist_color_adhoc], 
+								"clientlist_adhoc_color");
+
+	parent_panel->InitColorPref("clientlist_header_color", "blue,black");
+	parent_panel->ColorFromPref(color_map[kis_clientlist_color_header], 
+								"clientlist_header_color");
 
 	// This is the largest we should ever expect a window to be wide, so
 	// we'll consider it a reasonable static line size
@@ -3531,7 +3552,7 @@ void Kis_Clientlist::DrawComponent() {
 	string pcache = colhdr_cache + string(ex - sx - colhdr_cache.length(), ' ');
 
 	if (active)
-		wattrset(window, color_map[kis_netlist_color_header]);
+		wattrset(window, color_map[kis_clientlist_color_header]);
 
 	Kis_Panel_Specialtext::Mvwaddnstr(window, sy, sx, 
 									  "\004u" + pcache + "\004U", 
@@ -3539,7 +3560,8 @@ void Kis_Clientlist::DrawComponent() {
 
 	if (display_vec.size() == 0) {
 		if (active)
-			wattrset(window, color_map[kis_netlist_color_normal]);
+			wattrset(window, color_map[kis_clientlist_color_normal]);
+
 		vector<KisNetClient *> *clivec = kpinterface->FetchNetClientVecPtr();
 		int con = 0;
 
@@ -3589,15 +3611,28 @@ void Kis_Clientlist::DrawComponent() {
 
 			pline = rline;
 
+			if (display_vec[x].cli->type == client_fromds)
+				color = kis_clientlist_color_ap;
+			else if (display_vec[x].cli->type == client_tods || 
+					 display_vec[x].cli->type == client_established)
+				color = kis_clientlist_color_wireless;
+			else if (display_vec[x].cli->type == client_adhoc)
+				color = kis_clientlist_color_adhoc;
+			else
+				color = kis_clientlist_color_normal;
+
 			display_vec[x].cached_line = pline;
+			display_vec[x].color = color;
+
 		} else {
 			pline = (char *) display_vec[x].cached_line.c_str();
+			color = display_vec[x].color;
 		}
 
 		nlines++;
 
-		if (color <= 0)
-			color = kis_netlist_color_normal;
+		if (color < 0)
+			color = kis_clientlist_color_normal;
 
 		if (active)
 			wattrset(window, color_map[color]);

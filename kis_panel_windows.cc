@@ -3976,6 +3976,7 @@ Kis_Clientlist_Panel::Kis_Clientlist_Panel(GlobalRegistry *in_globalreg,
 	mn_sort = menu->AddMenu("Sort", 0);
 	mi_sort_auto = menu->AddMenuItem("Auto-fit", mn_sort, 'a');
 	menu->AddMenuItem("-", mn_sort, 0);
+	mi_sort_type = menu->AddMenuItem("Client Type", mn_sort, 't');
 	mi_sort_first = menu->AddMenuItem("First Seen", mn_sort, 'f');
 	mi_sort_first_d = menu->AddMenuItem("First Seen (descending)", mn_sort, 'F');
 	mi_sort_last = menu->AddMenuItem("Latest Seen", mn_sort, 'l');
@@ -4033,6 +4034,8 @@ void Kis_Clientlist_Panel::MenuAction(int opt) {
 		return;
 	} else if (opt == mi_sort_auto) {
 		kpinterface->prefs.SetOpt("CLIENTLIST_SORT", "auto", 1);
+	} else if (opt == mi_sort_type) {
+		kpinterface->prefs.SetOpt("CLIENTLIST_SORT", "type", 1);
 	} else if (opt == mi_sort_first) {
 		kpinterface->prefs.SetOpt("CLIENTLIST_SORT", "first", 1);
 	} else if (opt == mi_sort_first_d) {
@@ -4060,6 +4063,11 @@ void Kis_Clientlist_Panel::UpdateSortMenu() {
 		menu->SetMenuItemChecked(mi_sort_auto, 1);
 	else
 		menu->SetMenuItemChecked(mi_sort_auto, 0);
+
+	if (so == clientsort_type) 
+		menu->SetMenuItemChecked(mi_sort_type, 1);
+	else
+		menu->SetMenuItemChecked(mi_sort_type, 0);
 
 	if (so == clientsort_first)
 		menu->SetMenuItemChecked(mi_sort_first, 1);

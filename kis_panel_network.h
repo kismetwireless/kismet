@@ -318,16 +318,24 @@ protected:
 enum clientsort_opts {
 	clientsort_autofit, clientsort_recent, clientsort_first, 
 	clientsort_first_desc, clientsort_last, clientsort_last_desc, 
-	clientsort_mac, clientsort_packets, clientsort_packets_desc,
+	clientsort_mac, clientsort_type, clientsort_packets, 
+	clientsort_packets_desc,
 };
 
-// Network columns
+// client columns
 enum client_columns {
 	ccol_decay, ccol_mac, ccol_bssid, ccol_ssid,
 	ccol_packdata, ccol_packllc, ccol_packcrypt,
 	ccol_packets, ccol_datasize, ccol_signal_dbm, ccol_signal_rssi,
 	ccol_freq_mhz, ccol_manuf, ccol_type
 };
+
+/* color array positions */
+#define kis_clientlist_color_normal 	0
+#define kis_clientlist_color_ap			1
+#define kis_clientlist_color_wireless	2
+#define kis_clientlist_color_adhoc		3
+#define kis_clientlist_color_header		4
 
 // Do not expect this to be in numerical order with the above enum, this is
 // for setting up the preferences panels, etc
@@ -376,6 +384,7 @@ public:
 		string cached_line;
 		vector<string> cached_details;
 		int num_lines;
+		int color;
 	};
 
 	// Parse the bssid columns preferences
