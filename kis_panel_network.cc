@@ -3730,13 +3730,11 @@ void Kis_Clientlist::DrawComponent() {
 								rofft += 9;
 							}
 						} 
-					} else if (e == cext_ip) {
-						snprintf(rline + rofft, 1024 - rofft, "IP: %s",
-							inet_ntoa(display_vec[x].cli->guess_ipdata.ip_addr_block));
-						rofft += 3 + 
-							strlen(
-							inet_ntoa(display_vec[x].cli->guess_ipdata.ip_addr_block));
 #endif
+					} else if (e == cext_ip) {
+						string i = string(inet_ntoa(display_vec[x].cli->guess_ipdata.ip_addr_block));
+						snprintf(rline + rofft, 1024 - rofft, "IP: %s", i.c_str());
+						rofft += 4 + i.length();
 					} else if (e == cext_manuf) {
 						snprintf(rline + rofft, 1024 - rofft, "Manuf: %s",
 								 display_vec[x].cli->manuf.c_str());
