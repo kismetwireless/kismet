@@ -518,7 +518,8 @@ int Kis_Netlist::UpdateBColPrefs() {
 		kpinterface->prefs.SetOpt("NETLIST_COLUMNS", pcols, 1);
 	}
 
-	if (kpinterface->prefs.FetchOptDirty("NETLIST_COLUMNS") == 0)
+	if (kpinterface->prefs.FetchOptDirty("NETLIST_COLUMNS") == 0 &&
+		display_bcols.size() != 0)
 		return 0;
 
 	kpinterface->prefs.SetOptDirty("NETLIST_COLUMNS", 0);
@@ -591,7 +592,8 @@ int Kis_Netlist::UpdateBExtPrefs() {
 		kpinterface->prefs.SetOpt("NETLIST_EXTRAS", pcols, 1);
 	}
 
-	if (kpinterface->prefs.FetchOptDirty("NETLIST_EXTRAS") == 0)
+	if (kpinterface->prefs.FetchOptDirty("NETLIST_EXTRAS") == 0 &&
+		display_bexts.size() != 0)
 		return 0;
 
 	kpinterface->prefs.SetOptDirty("NETLIST_EXTRAS", 0);
@@ -2174,6 +2176,8 @@ void Kis_Netlist::DrawComponent() {
 	parent_panel->ColorFromPref(color_map[kis_netlist_color_header], 
 								"netlist_header_color");
 
+	wattrset(window, color_inactive);
+
 	// This is the largest we should ever expect a window to be wide, so
 	// we'll consider it a reasonable static line size
 	char rline[1024];
@@ -2384,7 +2388,7 @@ void Kis_Netlist::DrawComponent() {
 
 		// Draw the expanded info for the network
 		if (selected_line == (int) x && sort_mode != netsort_autofit &&
-			show_ext_info && ng->GetExpanded() == 0) {
+			active && show_ext_info && ng->GetExpanded() == 0) {
 			// Cached print lines (also a direct shortcut into the cache
 			// storage system)
 			vector<string> *pevcache;
@@ -3076,7 +3080,8 @@ int Kis_Clientlist::UpdateCColPrefs() {
 		kpinterface->prefs.SetOpt("CLIENTLIST_COLUMNS", pcols, 1);
 	}
 
-	if (kpinterface->prefs.FetchOptDirty("CLIENTLIST_COLUMNS") == 0)
+	if (kpinterface->prefs.FetchOptDirty("CLIENTLIST_COLUMNS") == 0 &&
+		display_ccols.size() != 0)
 		return 0;
 
 	kpinterface->prefs.SetOptDirty("CLIENTLIST_COLUMNS", 0);
@@ -3137,7 +3142,8 @@ int Kis_Clientlist::UpdateCExtPrefs() {
 		kpinterface->prefs.SetOpt("CLIENTLIST_EXTRAS", pcols, 1);
 	}
 
-	if (kpinterface->prefs.FetchOptDirty("CLIENTLIST_EXTRAS") == 0)
+	if (kpinterface->prefs.FetchOptDirty("CLIENTLIST_EXTRAS") == 0 &&
+		display_cexts.size() != 0)
 		return 0;
 
 	kpinterface->prefs.SetOptDirty("CLIENTLIST_EXTRAS", 0);
@@ -3216,6 +3222,9 @@ void Kis_Clientlist::SetPosition(int isx, int isy, int iex, int iey) {
 }
 
 void Kis_Clientlist::UpdateTrigger(void) {
+	if (kpinterface->FetchMainPanel() == NULL)
+		return;
+
 	if (kpinterface->FetchMainPanel()->FetchSelectedNetgroup() != dng) {
 		dng = kpinterface->FetchMainPanel()->FetchSelectedNetgroup();
 
@@ -3256,6 +3265,9 @@ void Kis_Clientlist::UpdateTrigger(void) {
 				dc.cli = x->second;
 				dc.num_lines = 0;
 				dc.color = -1;
+
+				// Force them dirty
+				dc.cli->dirty = 1;
 
 				display_vec.push_back(dc);
 			}
@@ -3460,6 +3472,8 @@ void Kis_Clientlist::DrawComponent() {
 	parent_panel->ColorFromPref(color_map[kis_clientlist_color_header], 
 								"clientlist_header_color");
 
+	wattrset(window, color_inactive);
+
 	// This is the largest we should ever expect a window to be wide, so
 	// we'll consider it a reasonable static line size
 	char rline[1024];
@@ -3486,7 +3500,7 @@ void Kis_Clientlist::DrawComponent() {
 	UpdateCExtPrefs();
 
 	// Column headers
-	if (colhdr_cache == "") {
+	if (colhdr_cache.length() == 0) {
 		rofft = 0;
 
 		for (unsigned c = 0; c < display_ccols.size(); c++) {
@@ -3555,8 +3569,7 @@ void Kis_Clientlist::DrawComponent() {
 		wattrset(window, color_map[kis_clientlist_color_header]);
 
 	Kis_Panel_Specialtext::Mvwaddnstr(window, sy, sx, 
-									  "\004u" + pcache + "\004U", 
-									  ex - sx);
+									  "\004u" + pcache + "\004U", lx);
 
 	if (display_vec.size() == 0) {
 		if (active)
@@ -3576,9 +3589,9 @@ void Kis_Clientlist::DrawComponent() {
 			mvwaddnstr(window, sy + 2, sx, 
 					   "[ --- Not connected to a Kismet server --- ]", lx);
 		} else {
-			mvwaddnstr(window, sy + 2, sx, "[ --- No clients seen --- ]", 
-					   ex - sx);
+			mvwaddnstr(window, sy + 2, sx, "[ --- No clients seen --- ]", lx);
 		}
+
 		return;
 	}
 
@@ -3644,12 +3657,13 @@ void Kis_Clientlist::DrawComponent() {
 		// Kis_Panel_Specialtext::Mvwaddnstr(window, sy + dpos, sx, pline, ex);
 		// We don't use our specialtext here since we don't want something that
 		// snuck into the SSID to affect the printing
-		mvwaddnstr(window, sy + dpos, sx, pline, ex - sx);
+		mvwaddnstr(window, sy + dpos, sx, pline, lx);
+
 		dpos++;
 
 		// Draw the expanded info for the client
 		if (selected_line == (int) x && sort_mode != clientsort_autofit &&
-			show_ext_info) {
+			active && show_ext_info) {
 			// Cached print lines (also a direct shortcut into the cache
 			// storage system)
 			vector<string> *pevcache;

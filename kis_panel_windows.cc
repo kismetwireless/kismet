@@ -137,17 +137,19 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	mi_sort_packets_d = menu->AddMenuItem("Packets (descending)", mn_sort, 'P');
 
 	mn_view = menu->AddMenu("View", 0);
-	mi_netdetails = menu->AddMenuItem("Network Details", mn_view, 'd');
-	mi_clientlist = menu->AddMenuItem("Client List", mn_view, 'L');
-	mi_chandetails = menu->AddMenuItem("Channel Details", mn_view, 'c');
-	mi_gps = menu->AddMenuItem("GPS Details", mn_view, 'G');
-	menu->AddMenuItem("-", mn_view, 0);
 	mi_shownetworks = menu->AddMenuItem("Network List", mn_view, 'n');
+	mi_showclients = menu->AddMenuItem("Client List", mn_view, 'c');
 	mi_showgps = menu->AddMenuItem("GPS Data", mn_view, 'g');
 	mi_showsummary = menu->AddMenuItem("General Info", mn_view, 'S');
 	mi_showstatus = menu->AddMenuItem("Status", mn_view, 's');
 	mi_showpps = menu->AddMenuItem("Packet Graph", mn_view, 'p');
 	mi_showsources = menu->AddMenuItem("Source Info", mn_view, 'C');
+
+	mn_windows = menu->AddMenu("Windows", 0);
+	mi_netdetails = menu->AddMenuItem("Network Details", mn_windows, 'd');
+	mi_clientlist = menu->AddMenuItem("Client List", mn_windows, 'L');
+	mi_chandetails = menu->AddMenuItem("Channel Details", mn_windows, 'c');
+	mi_gps = menu->AddMenuItem("GPS Details", mn_windows, 'G');
 
 	menu->Show();
 	AddComponentVec(menu, KIS_PANEL_COMP_EVT);
@@ -208,6 +210,11 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	netlist->Show();
 	netlist->SetCallback(COMPONENT_CBTYPE_ACTIVATED, NetlistActivateCB, this);
 
+	clientlist = new Kis_Clientlist(globalreg, this);
+	clientlist->SetName("KIS_MAIN_CLIENTLIST");
+	clientlist->Show();
+	// clientlist->SetCallback(COMPONENT_CBTYPE_ACTIVATED, NetlistActivateCB, this);
+
 	// Set up the packet rate graph as over/under linked to the
 	// packets per second
 	packetrate = new Kis_IntGraph(globalreg, this);
@@ -251,6 +258,7 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	hbox->Pack_End(optbox, 0, 0);
 
 	netbox->Pack_End(netlist, 1, 0);
+	netbox->Pack_End(clientlist, 1, 0);
 	netbox->Pack_End(linebox, 0, 0);
 	netbox->Pack_End(packetrate, 0, 0);
 	netbox->Pack_End(statustext, 0, 0);
@@ -262,6 +270,7 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	tab_pos = 0;
 
 	AddComponentVec(netlist, KIS_PANEL_COMP_TAB | KIS_PANEL_COMP_EVT);
+	AddComponentVec(clientlist, KIS_PANEL_COMP_TAB | KIS_PANEL_COMP_EVT);
 
 	AddComponentVec(vbox, KIS_PANEL_COMP_DRAW);
 
@@ -280,6 +289,11 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	AddColorPref("netlist_crypt_color", "Netlist Encrypted");
 	AddColorPref("netlist_group_color", "Netlist Group");
 	AddColorPref("netlist_factory_color", "Netlist Factory");
+	AddColorPref("clientlist_header_color", "Clientlist Header");
+	AddColorPref("clientlist_normal_color", "Clientlist Unknown");
+	AddColorPref("clientlist_ap_color", "Clientlist AP");
+	AddColorPref("clientlist_wireless_color", "Clientlist Wireless");
+	AddColorPref("clientlist_adhoc_color", "Clientlist Ad-Hoc");
 	AddColorPref("status_normal_color", "Status Text");
 	AddColorPref("info_normal_color", "Info Pane");
 
@@ -727,7 +741,8 @@ void Kis_Main_Panel::MenuAction(int opt) {
 			   opt == mi_showpps ||
 			   opt == mi_showgps ||
 			   opt == mi_showsources ||
-			   opt == mi_shownetworks) {
+			   opt == mi_shownetworks ||
+			   opt == mi_showclients) {
 		UpdateViewMenu(opt);
 	} else if (opt == mi_addcard) {
 		vector<KisNetClient *> *cliref = kpinterface->FetchNetClientVecPtr();
@@ -1022,6 +1037,17 @@ void Kis_Main_Panel::UpdateViewMenu(int mi) {
 			menu->SetMenuItemChecked(mi_shownetworks, 1);
 			netlist->Show();
 		}
+	} else if (mi == mi_showclients) {
+		opt = kpinterface->prefs.FetchOpt("MAIN_SHOWCLIENTLIST");
+		if (opt == "true") {
+			kpinterface->prefs.SetOpt("MAIN_SHOWCLIENTLIST", "false", 1);
+			menu->SetMenuItemChecked(mi_showclients, 0);
+			clientlist->Hide();
+		} else {
+			kpinterface->prefs.SetOpt("MAIN_SHOWCLIENTLIST", "true", 1);
+			menu->SetMenuItemChecked(mi_showclients, 1);
+			clientlist->Show();
+		}
 	}
 
 	if (mi == -1) {
@@ -1077,6 +1103,15 @@ void Kis_Main_Panel::UpdateViewMenu(int mi) {
 		} else {
 			menu->SetMenuItemChecked(mi_shownetworks, 0);
 			netlist->Hide();
+		}
+
+		opt = kpinterface->prefs.FetchOpt("MAIN_SHOWCLIENTLIST");
+		if (opt == "true") {
+			menu->SetMenuItemChecked(mi_showclients, 1);
+			clientlist->Show();
+		} else {
+			menu->SetMenuItemChecked(mi_showclients, 0);
+			clientlist->Hide();
 		}
 	}
 }
