@@ -265,10 +265,6 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 
 	vbox->Pack_End(hbox, 1, 0);
 
-	active_component = netlist;
-	netlist->Activate(0);
-	tab_pos = 0;
-
 	AddComponentVec(netlist, KIS_PANEL_COMP_TAB | KIS_PANEL_COMP_EVT);
 	AddComponentVec(clientlist, KIS_PANEL_COMP_TAB | KIS_PANEL_COMP_EVT);
 
@@ -322,6 +318,10 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 
 		kpinterface->AddNetClient(constr, 1);
 	}
+
+	active_component = netlist;
+	netlist->Activate(0);
+	tab_pos = 0;
 }
 
 Kis_Main_Panel::~Kis_Main_Panel() {
