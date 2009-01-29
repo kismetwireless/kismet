@@ -74,6 +74,8 @@ GPSDClient::GPSDClient(GlobalRegistry *in_globalreg) : GPSCore(in_globalreg) {
 
 	last_mode = -1;
 
+	last_update = time(0);
+
 	snprintf(errstr, STATUS_MAX, "Using GPSD server on %s:%d", host, port);
 	globalreg->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
 }
@@ -107,6 +109,13 @@ int GPSDClient::Timer() {
 	// Send version probe if we're setting up a new connection
 	// Send the poll command if we're stuck in older polling mode
 	if (netclient->Valid()) {
+		if (time(0) - last_update > 15) {
+			_MSG("No update from GPSD in 15 seconds or more, attempting to "
+				 "reconnect", MSGFLAG_ERROR);
+			netclient->KillConnection();
+			return GPSCore::Timer();
+		}
+
 		if (poll_mode < 0) {
 			ret = netclient->WriteData((void *) gpsd_init_command,
 									   strlen(gpsd_init_command));
@@ -190,6 +199,8 @@ int GPSDClient::ParseData() {
 
 		// Trim garbage out of it
 		inptok[it] = StrPrintable(inptok[it]);
+
+		last_update = time(0);
 
 		if (poll_mode == 0 && inptok[it] == "GPSD") {
 			// Look for a really old gpsd which doesn't do anything intelligent

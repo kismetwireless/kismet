@@ -70,6 +70,8 @@ protected:
 	int si_units, si_raw;
 
 	time_t last_hed_time;
+
+	time_t last_update;
 };
 
 #endif
