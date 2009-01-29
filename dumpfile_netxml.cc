@@ -346,8 +346,6 @@ int Dumpfile_Netxml::Flush() {
 
 		fprintf(xmlfile, "    <bsstimestamp>%llu</bsstimestamp>\n", 
 				(long long unsigned int) net->bss_timestamp);
-		fprintf(xmlfile, "    <datasize>%llu</datasize>\n", 
-				(long long unsigned int) net->datasize);
 		fprintf(xmlfile, "    <cdp-device>%s</cdp-device>\n",
 				SanitizeXML(net->cdp_dev_id).c_str());
 		fprintf(xmlfile, "    <cdp-portid>%s</cdp-portid>\n",
@@ -521,8 +519,8 @@ int Dumpfile_Netxml::Flush() {
 					cli->retries);
 			fprintf(xmlfile, "       </packets>\n");
 
-			fprintf(xmlfile, "       <datasize>%ld</datasize>\n", 
-					(long int) cli->datasize);
+			fprintf(xmlfile, "       <datasize>%llud</datasize>\n", 
+					(long long unsigned int) cli->datasize);
 
 			if (cli->snrdata.last_signal_rssi != 0 ||
 				cli->snrdata.last_signal_dbm != 0) {
