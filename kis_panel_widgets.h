@@ -922,6 +922,10 @@ public:
 
 	virtual int Poll();
 
+	virtual void ClearPanel() {
+		wclear(win);
+	}
+
 	virtual void DrawPanel() {
 		ColorFromPref(text_color, "panel_text_color");
 		ColorFromPref(border_color, "panel_border_color");

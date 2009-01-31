@@ -255,6 +255,12 @@ int PanelInterface::Poll(fd_set& in_rset, fd_set& in_wset) {
 }
 
 void PanelInterface::ResizeInterface() {
+	if (hsize == COLS && vsize == LINES)
+		return;
+
+	hsize = COLS;
+	vsize = LINES;
+
 	for (unsigned int x = 0; x < live_panels.size(); x++) {
 		// If it's full screen, keep it full screen, otherwise
 		// re-center it
@@ -269,11 +275,7 @@ void PanelInterface::ResizeInterface() {
 }
 
 int PanelInterface::DrawInterface() {
-	if (hsize != COLS || vsize != LINES) {
-		ResizeInterface();
-		hsize = COLS;
-		vsize = LINES;
-	}
+	ResizeInterface();
 
 	// Draw all the panels
 	for (unsigned int x = 0; x < live_panels.size(); x++) {
@@ -3243,6 +3245,7 @@ void Kis_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {
 		wresize(win, sizey, sizex);
 		replace_panel(pan, win);
 		move_panel(pan, sy, sx);
+		ClearPanel();
 	}
 
 	keypad(win, true);
