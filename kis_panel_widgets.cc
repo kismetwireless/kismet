@@ -205,8 +205,7 @@ PanelInterface::PanelInterface(GlobalRegistry *in_globalreg) {
 
 	globalreg->RegisterPollableSubsys(this);
 
-	hsize = COLS;
-	vsize = LINES;
+	getmaxyx(stdscr, hsize, vsize);
 };
 
 PanelInterface::~PanelInterface() {
@@ -255,28 +254,42 @@ int PanelInterface::Poll(fd_set& in_rset, fd_set& in_wset) {
 }
 
 void PanelInterface::ResizeInterface() {
-	if (hsize == COLS && vsize == LINES)
-		return;
+	int nh, nv;
 
-	hsize = COLS;
-	vsize = LINES;
+	endwin();
+	refresh();
+
+	getmaxyx(stdscr, nh, nv);
+
+	if (hsize == nh && vsize == nv) {
+		return;
+	} 
 
 	for (unsigned int x = 0; x < live_panels.size(); x++) {
 		// If it's full screen, keep it full screen, otherwise
 		// re-center it
-		if (live_panels[x]->FetchSzy() == vsize &&
-			live_panels[x]->FetchSzx() == hsize) {
-			live_panels[x]->Position(0, 0, LINES, COLS);
+		if (live_panels[x]->FetchSzy() == hsize &&
+			live_panels[x]->FetchSzx() == vsize) {
+			live_panels[x]->Position(0, 0, nh, nv);
 		} else {
-			live_panels[x]->Position(WIN_CENTER(live_panels[x]->FetchSzy(),
-												live_panels[x]->FetchSzx()));
+			int rsy = live_panels[x]->FetchSzy(), rsx = live_panels[x]->FetchSzx();
+
+			if (rsy > nh)
+				rsy = nh;
+
+			if (rsx > nv)
+				rsx = nv;
+
+			live_panels[x]->Position(WIN_CENTER(rsx, rsy));
 		}
 	}
+
+	hsize = nh;
+	vsize = nv;
+
 }
 
 int PanelInterface::DrawInterface() {
-	ResizeInterface();
-
 	// Draw all the panels
 	for (unsigned int x = 0; x < live_panels.size(); x++) {
 		live_panels[x]->DrawPanel();

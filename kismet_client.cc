@@ -264,7 +264,7 @@ void CatchShutdown(int sig) {
 
 void CatchWinch(int sig) {
 	if (globalregistry->panel_interface != NULL) 
-		globalregistry->panel_interface->DrawInterface();
+		globalregistry->panel_interface->ResizeInterface();
 }
 
 int Usage(char *argv) {
