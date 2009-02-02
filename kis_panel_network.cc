@@ -1072,6 +1072,11 @@ void Kis_Netlist::Proto_BSSID(CLIPROTO_CB_PARMS) {
 	net->cdp_dev_id = MungeToPrintable((*proto_parsed)[fnum++].word);
 	net->cdp_port_id = MungeToPrintable((*proto_parsed)[fnum++].word);
 
+	if (net->cdp_dev_id == " ")
+		net->cdp_dev_id = "";
+	if (net->cdp_port_id == " ")
+		net->cdp_port_id = "";
+
 	// Fragments
 	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &(net->fragments)) != 1) {
 		delete net;
@@ -1612,6 +1617,11 @@ void Kis_Netlist::Proto_CLIENT(CLIPROTO_CB_PARMS) {
 	cli->cdp_dev_id = MungeToPrintable((*proto_parsed)[fnum++].word);
 	cli->cdp_port_id = MungeToPrintable((*proto_parsed)[fnum++].word);
 
+	if (cli->cdp_dev_id == " ")
+		cli->cdp_dev_id = "";
+	if (cli->cdp_port_id == " ")
+		cli->cdp_port_id = "";
+
 	// manuf
 	cli->manuf = MungeToPrintable((*proto_parsed)[fnum++].word);
 
@@ -1665,6 +1675,8 @@ void Kis_Netlist::Proto_CLIENT(CLIPROTO_CB_PARMS) {
 	ocli->gpsdata = cli->gpsdata;
 
 	ocli->manuf = cli->manuf;
+
+	ocli->netptr = pnet;
 
 	ocli->dirty = 1;
 
@@ -3057,6 +3069,8 @@ Kis_Clientlist::Kis_Clientlist(GlobalRegistry *in_globalreg, Kis_Panel *in_panel
 	for (int x = 0; x < 5; x++)
 		color_map[x] = 0;
 	color_inactive = 0;
+
+	dng = NULL;
 
 	// Set default preferences for BSSID columns if we don't have any in the
 	// preferences file, then update the column vector

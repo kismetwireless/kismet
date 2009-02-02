@@ -773,7 +773,7 @@ Kis_Menu::Kis_Menu(GlobalRegistry *in_globalreg, Kis_Panel *in_panel) :
 	mouse_triggered = 0;
 	menuwin = NULL;
 	submenuwin = NULL;
-	text_color = border_color = 0;
+	text_color = border_color = disable_color = 0;
 }
 
 Kis_Menu::~Kis_Menu() {

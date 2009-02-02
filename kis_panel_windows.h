@@ -619,8 +619,56 @@ protected:
 	int mn_sort, mi_sort_auto, mi_sort_type, mi_sort_first, mi_sort_first_d, 
 		mi_sort_last, mi_sort_last_d, mi_sort_mac, 
 		mi_sort_packets, mi_sort_packets_d;
+	int mn_view, mi_details;
 
 	int grapheventid;
+};
+
+class Kis_ClientDetails_Panel : public Kis_Panel {
+public:
+	Kis_ClientDetails_Panel() {
+		fprintf(stderr, "FATAL OOPS: Kis_ClientDetails_Panel called w/out globalreg\n");
+		exit(1);
+	}
+
+	Kis_ClientDetails_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_kpf);
+	virtual ~Kis_ClientDetails_Panel();
+
+	virtual void DrawPanel();
+	virtual void ButtonAction(Kis_Panel_Component *in_button);
+	virtual void MenuAction(int opt);
+
+	virtual int GraphTimer();
+
+	virtual void SetClientlist(Kis_Clientlist *in_list) {
+		clientlist = in_list;
+	}
+
+protected:
+	virtual void UpdateViewMenu(int mi);
+	void ClearGraphVectors();
+	void UpdateGraphVectors(int signal, int pps, int retry);
+	
+	int DeriveDisplayUpdate();
+
+	Kis_Panel_Packbox *vbox, *bbox;
+	Kis_Scrollable_Table *clientdetails;
+
+	Kis_IntGraph *siggraph, *packetgraph, *retrygraph;
+	vector<int> sigpoints, packetpps, retrypps;
+	int lastpackets;
+
+	time_t last_dirty;
+	mac_addr last_mac;
+	Kis_Display_NetGroup *dng;
+	Netracker::tracked_client *dcli;
+
+	int mn_client, mi_nextcli, mi_prevcli, mi_close;
+	int mn_view, mi_cli, mi_graphsig, mi_graphpacket, mi_graphretry;
+
+	int grapheventid;
+
+	Kis_Clientlist *clientlist;
 };
 
 #endif
