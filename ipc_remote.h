@@ -33,6 +33,10 @@
  * The child binary must call SetChildExecMode(argc, argv) prior to filling in the
  * registered protocols, then call SpawnIPC() to kickstart processing.
  *
+ * On some platforms (linux) a framework for passing file descriptors is available
+ * as well via named unix sockets.  Caller must send IPC to open early in the
+ * initialization process and then try to open the socket locally.
+ *
  */
 
 #ifndef __IPC_REMOTE_H__
@@ -48,14 +52,23 @@
 #include <algorithm>
 #include <string>
 
+#ifdef SYS_LINUX
+#include <stdio.h>
+#include <stdlib.h>
+#include <errno.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/un.h>
+#endif
+
+
 #include <sys/types.h>
 #include <unistd.h>
 
 #include "globalregistry.h"
 #include "pollable.h"
 #include "messagebus.h"
-
-#include "ipc_remote.h"
 
 #define IPC_CMD_PARMS GlobalRegistry *globalreg, const void *data, int len, \
 	const void *auxptr, int parent
@@ -65,7 +78,8 @@ typedef int (*IPCmdCallback)(IPC_CMD_PARMS);
 #define DIE_CMD_ID			1
 #define MSG_CMD_ID			2
 #define SYNC_CMD_ID			3
-#define LAST_BUILTIN_CMD_ID	4
+#define FDPASS_CMD_ID		4
+#define LAST_BUILTIN_CMD_ID	5
 
 // Message client to redirect messages over the IPC link
 class IPC_MessageClient : public MessageClient {
@@ -144,6 +158,16 @@ public:
 
 	virtual int SyncIPCCmd(ipc_sync *data);
 
+	virtual int OpenFDPassSock();
+
+	// Send a descriptor
+	virtual int SendDescriptor(int in_fd);
+	// Get a descriptor - there is no way to sync names or something to them,
+	// so these should be called in pairs - send one, send a ipc command to
+	// the other side to read it, and get it read.  If commands are stacked in
+	// order it should be fine.
+	virtual int ReceiveDescriptor();
+
 	// Kick a command across (either direction)
 	virtual int SendIPC(ipc_packet *pack);
 
@@ -214,6 +238,49 @@ protected:
 	friend class IPC_MessageClient;
 	friend int ipc_die_callback(IPC_CMD_PARMS);
 	friend int ipc_ack_callback(IPC_CMD_PARMS);
+
+	// Descriptor to the file descriptor passer (if one exists)
+	int ipc_fd_fd;
+	struct sockaddr_un unixsock;
+};
+
+// Special IPCremote class for root control binary, used by IPC remote and
+// tuntap control, among others
+class RootIPCRemote : public IPCRemote {
+public:
+	RootIPCRemote() { IPCRemote(); }
+	RootIPCRemote(GlobalRegistry *in_globalreg, string procname) : 
+		IPCRemote(in_globalreg, procname) { 
+			SetChildCmd(string(BIN_LOC) + "/kismet_capture");
+		}
+	virtual ~RootIPCRemote() { }
+
+	virtual void CatchSigChild(int status) {
+		if (!globalreg->spindown) {
+			_MSG("Suid-root control binary failed: " + 
+				 string(strerror(WEXITSTATUS(status))), MSGFLAG_FATAL);
+
+			if (WEXITSTATUS(status) == EACCES) 
+				_MSG("Permission denied executing the root capture binary.  Make sure "
+					 "that your user is part of the Kismet capture group "
+					 "(by default, this group is \"kismet\").  If you just added your "
+					 "user to this group, you will need to log out and in again.  "
+					 "You can check what groups your user is in with the \"groups\" "
+					 "command.", MSGFLAG_FATAL);
+		}
+
+		globalreg->fatal_condition = 1;
+		IPCRemote::CatchSigChild(0);
+	}
+
+	virtual void IPCDie() {
+		if (!globalreg->spindown) {
+			_MSG("Root IPC control binary has died, shutting down", MSGFLAG_FATAL);
+			globalreg->fatal_condition = 1;
+		}
+
+		IPCRemote::IPCDie();
+	}
 };
 
 #endif

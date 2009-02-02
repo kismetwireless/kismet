@@ -415,9 +415,7 @@ int main(int argc, char *argv[], char *envp[]) {
 			"launch root control binary (" + string(BIN_LOC) + "/kismet_capture) to "
 			"control cards.", MSGFLAG_INFO);
 
-		globalregistry->rootipc = new PSTIPCRemote(globalregistry, 
-												   "kismet control");
-		globalregistry->rootipc->SetChildCmd(string(BIN_LOC) + "/kismet_capture");
+		globalregistry->rootipc = new RootIPCRemote(globalregistry, "kismet_root");
 		globalregistry->rootipc->SpawnIPC();
 	} else {
 		globalregistry->messagebus->InjectMessage(

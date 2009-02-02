@@ -284,6 +284,27 @@ protected:
 	Kis_Panel_Packbox *vbox, *bbox;
 };
 
+class Kis_AudioPref_Panel : public Kis_Panel {
+public:
+	Kis_AudioPref_Panel() {
+		fprintf(stderr, "FATAL OOPS: Kis_AudioPref_Panel called w/out globalreg\n");
+		exit(1);
+	}
+
+	Kis_AudioPref_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_intf);
+	virtual ~Kis_AudioPref_Panel();
+
+	virtual void DrawPanel();
+
+	struct audprefpair {
+		string trigger, wav, speech;
+	};
+
+protected:
+	Kis_Scrollable_Table *audiolist;
+	vector<Kis_ColorPref_Panel::cprefpair> listedcolors;
+};
+
 #endif // curses
 
 #endif // prefs
