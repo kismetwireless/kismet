@@ -57,6 +57,10 @@ GPSDClient::GPSDClient(GlobalRegistry *in_globalreg) : GPSCore(in_globalreg) {
 	}
 	snprintf(host, MAXHOSTNAMELEN, "%s", temphost);
 
+	last_mode = -1;
+
+	last_update = time(0);
+
 	if (tcpcli->Connect(host, port) < 0) {
 		globalreg->messagebus->InjectMessage("Could not create initial "
 											 "connection to the GPSD server", 
@@ -71,10 +75,6 @@ GPSDClient::GPSDClient(GlobalRegistry *in_globalreg) : GPSCore(in_globalreg) {
 		// Start a command
 		Timer();
 	}
-
-	last_mode = -1;
-
-	last_update = time(0);
 
 	snprintf(errstr, STATUS_MAX, "Using GPSD server on %s:%d", host, port);
 	globalreg->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
@@ -113,6 +113,7 @@ int GPSDClient::Timer() {
 			_MSG("No update from GPSD in 15 seconds or more, attempting to "
 				 "reconnect", MSGFLAG_ERROR);
 			netclient->KillConnection();
+			last_disconnect = time(0);
 			return GPSCore::Timer();
 		}
 
