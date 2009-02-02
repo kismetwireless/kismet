@@ -4337,37 +4337,27 @@ void Kis_ClientDetails_Panel::UpdateGraphVectors(int signal, int pps, int retry)
 
 int Kis_ClientDetails_Panel::GraphTimer() {
 	Netracker::tracked_client *ldcli;
-	int update = 0;
 
 	if (clientlist == NULL)
-		return 0;
+		return 1;
 
 	if (kpinterface == NULL)
-		return 0;
+		return 1;
 
-	ldcli = dcli;
-
-	dcli = clientlist->FetchSelectedClient();
-	if (dcli != NULL) {
-		if (ldcli == NULL) {
-			ldcli = dcli;
-			update = 1;
-		} else if (ldcli != dcli) {
-			ldcli = dcli;
-			update = 1;
+	ldcli = clientlist->FetchSelectedClient();
+	if (ldcli != NULL) {
+		if (ldcli != dcli) 
 			ClearGraphVectors();
-		}
 	} else {
 		ClearGraphVectors();
+		return 1;
 	}
 
-	if (update && dcli != NULL) {
-		UpdateGraphVectors(dcli->snrdata.last_signal_dbm == -256 ?
-						   dcli->snrdata.last_signal_rssi :
-						   dcli->snrdata.last_signal_dbm,
-						   dcli->llc_packets + dcli->data_packets,
-						   dcli->retries);
-	}
+	UpdateGraphVectors(ldcli->snrdata.last_signal_dbm == -256 ?
+					   ldcli->snrdata.last_signal_rssi :
+					   ldcli->snrdata.last_signal_dbm,
+					   ldcli->llc_packets + ldcli->data_packets,
+					   ldcli->retries);
 
 	return 1;
 }
