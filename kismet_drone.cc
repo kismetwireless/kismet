@@ -313,7 +313,8 @@ int main(int argc, char *argv[], char *envp[]) {
 	// Generate the root ipc packet capture and spawn it immediately, then register
 	// and sync the packet protocol stuff
 	if (getuid() != 0) {
-		globalregistry->rootipc = new IPCRemote(globalregistry, "root capture control");
+		globalregistry->rootipc = new RootIPCRemote(globalregistry, 
+													"root capture control");
 		globalregistry->rootipc->SetChildCmd(string(BIN_LOC) + "/kismet_capture");
 		globalregistry->rootipc->SpawnIPC();
 		globalregistry->messagebus->InjectMessage("Spawned root IPC capture control",

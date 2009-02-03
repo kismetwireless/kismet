@@ -46,8 +46,9 @@ class KisBuiltinDissector;
 class Pollable;
 // Vector of dumpfiles to destroy
 class Dumpfile;
-// Root-level ipc system
+// ipc system
 class IPCRemote;
+class RootIPCRemote;
 class KisPanelInterface;
 // Manuf db
 class Manuf;
@@ -155,7 +156,7 @@ public:
     SpeechControl *speechctl;
     SoundControl *soundctl;
 	KisBuiltinDissector *builtindissector;
-	IPCRemote *rootipc;
+	RootIPCRemote *rootipc;
 	KisPanelInterface *panel_interface;
 	Manuf *manufdb;
 

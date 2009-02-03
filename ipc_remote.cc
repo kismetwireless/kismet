@@ -123,13 +123,6 @@ int ipc_sync_callback(IPC_CMD_PARMS) {
 	return ((IPCRemote *) auxptr)->SyncIPCCmd((ipc_sync *) data);
 }
 
-int ipc_fdpass_callback(IPC_CMD_PARMS) {
-	if (parent == 1)
-		return 0;
-
-	return ((IPCRemote *) auxptr)->OpenFDPassSock();
-}
-
 IPCRemote::IPCRemote() {
 	fprintf(stderr, "FATAL OOPS:  IPCRemote called w/ no globalreg\n");
 	exit(1);
@@ -155,7 +148,6 @@ IPCRemote::IPCRemote(GlobalRegistry *in_globalreg, string in_procname) {
 	RegisterIPCCmd(&ipc_die_callback, NULL, this, "DIE");
 	RegisterIPCCmd(&ipc_msg_callback, NULL, this, "MSG");
 	RegisterIPCCmd(&ipc_sync_callback, NULL, this, "SYNC");
-	RegisterIPCCmd(&ipc_fdpass_callback, NULL, this, "FDPASS");
 
 	globalreg->RegisterPollableSubsys(this);
 }
@@ -170,7 +162,6 @@ int IPCRemote::CheckPidVec() {
 
 	for (unsigned int x = 0; x < globalreg->sigchild_vec.size(); x++) {
 		if (globalreg->sigchild_vec[x].pid == ipc_pid) {
-			printf("debug - parent found pid %d in child pidvec, handling it\n", ipc_pid);
 			CatchSigChild(globalreg->sigchild_vec[x].status);
 			globalreg->sigchild_vec.erase(globalreg->sigchild_vec.begin() + x);
 			return -1;
@@ -517,20 +508,10 @@ void IPCRemote::IPC_Child_Loop() {
 }
 
 void IPCRemote::IPCDie() {
-	char sockpath[32];
 	// If we're the child...
 	if (ipc_pid == 0 && ipc_spawned > 0) {
 		// Shut down the child socket fd
 		close(sockpair[0]);
-	
-		// Clean up the socket if it exists
-		if (ipc_fd_fd >= 0) {
-			snprintf(sockpath, 32, "/tmp/kisfdsock_%u", getpid());
-			close(ipc_fd_fd);
-			ipc_fd_fd = -1;
-			unlink(sockpath);
-		}
-
 		// and exit, we're done
 		exit(0);
 	}  else if (ipc_pid == 0) {
@@ -578,126 +559,6 @@ void IPCRemote::IPCDie() {
 
 	ipc_pid = 0;
 	ipc_spawned = 0;
-}
-
-int IPCRemote::OpenFDPassSock() {
-#ifdef SYS_LINUX
-	char sockpath[32];
-
-	memset(&unixsock, 0, sizeof(struct sockaddr_un));
-
-	if (ipc_pid == 0) {
-		snprintf(sockpath, 32, "/tmp/kisfdsock_%u", getpid());
-
-		// Unlink if it exists
-		unlink(sockpath);
-
-		unixsock.sun_family = AF_UNIX;
-		strcpy(unixsock.sun_path, sockpath);
-
-		if ((ipc_fd_fd = socket(PF_UNIX, SOCK_DGRAM, 0)) < 0) {
-			_MSG("Failed to open socket to pass file descriptors: " +
-				 string(strerror(errno)), MSGFLAG_ERROR);
-			return -1;
-		}
-
-		if (bind(ipc_fd_fd, (const struct sockaddr *) &unixsock, sizeof(unixsock))) {
-			close(ipc_fd_fd);
-			_MSG("Failed to bind socket to pass file descriptors: " + 
-				 string(strerror(errno)), MSGFLAG_ERROR);
-			return -1;
-		}
-
-		return ipc_fd_fd;
-	}
-
-	unixsock.sun_family = AF_UNIX;
-	snprintf(sockpath, 32, "/tmp/kisfdsock_%u", ipc_pid);
-	strcpy(unixsock.sun_path, sockpath);
-	if ((ipc_fd_fd = socket(PF_UNIX, SOCK_DGRAM, 0)) < 0) {
-		_MSG("Failed to open socket for passing file descriptors: " +
-			 string(strerror(errno)), MSGFLAG_ERROR);
-		return -1;
-	}
-#endif
-
-	return -1;
-}
-
-int IPCRemote::SendDescriptor(int in_fd) {
-#ifdef SYS_LINUX
-	struct msghdr msg;
-	char ccmsg[CMSG_SPACE(sizeof(in_fd))];
-	struct cmsghdr *cmsg;
-	struct iovec vec;
-	char str[] = {"x"};
-
-	msg.msg_name = (struct sockaddr *) &unixsock;
-	msg.msg_namelen = sizeof(unixsock);
-
-	/* we have to send at least one byte */
-	vec.iov_base = str;
-	vec.iov_len = 1;
-	msg.msg_iov = &vec;
-	msg.msg_iovlen = 1;
-
-	msg.msg_control = ccmsg;
-	msg.msg_controllen = sizeof(ccmsg);
-	cmsg = CMSG_FIRSTHDR(&msg);
-	cmsg->cmsg_level = SOL_SOCKET;
-	cmsg->cmsg_type = SCM_RIGHTS;
-	cmsg->cmsg_len = CMSG_LEN(sizeof(in_fd));
-	
-	(*(int *) CMSG_DATA(cmsg)) = in_fd;
-
-	msg.msg_flags = 0;
-
-	return sendmsg(ipc_fd_fd, &msg, 0);
-#endif
-
-	return -1;
-}
-
-int IPCRemote::ReceiveDescriptor() {
-#ifdef SYS_LINUX
-	struct msghdr msg;
-	struct iovec iov;
-	char buf[1];
-	int connfd = -1;
-	char ccmsg[CMSG_SPACE(sizeof(connfd))];
-	struct cmsghdr *cmsg;
-
-	if (ipc_fd_fd < 0)
-		return -1;
-
-	iov.iov_base = buf;
-	iov.iov_len = 1;
-
-	msg.msg_name = 0;
-	msg.msg_namelen = 0;
-	msg.msg_iov = &iov;
-	msg.msg_iovlen = 1;
-
-	msg.msg_control = ccmsg;
-	msg.msg_controllen = sizeof(ccmsg);
-
-	if (recvmsg(ipc_fd_fd, &msg, 0) < 0) {
-		_MSG("IPC failed to receive file descriptor: " + string(strerror(errno)),
-			 MSGFLAG_ERROR);
-		return -1;
-	}
-
-	cmsg = CMSG_FIRSTHDR(&msg);
-	if (!cmsg->cmsg_type == SCM_RIGHTS) {
-		_MSG("IPC got unknown control msg " + IntToString(cmsg->cmsg_type) + " on "
-			 "FD exchange", MSGFLAG_ERROR);
-		return -1;
-	}
-
-	return (*(int *) CMSG_DATA(cmsg));
-#endif
-
-	return -1;
 }
 
 unsigned int IPCRemote::MergeSet(unsigned int in_max_fd, fd_set *out_rset,
@@ -908,5 +769,196 @@ int IPCRemote::Poll(fd_set& in_rset, fd_set& in_wset) {
 
 	
 	return 1;
+}
+
+int ipc_fdpass_callback(IPC_CMD_PARMS) {
+	if (parent == 1)
+		return 0;
+
+	return ((RootIPCRemote *) auxptr)->OpenFDPassSock();
+}
+
+RootIPCRemote::RootIPCRemote(GlobalRegistry *in_globalreg, string procname) : 
+	IPCRemote(in_globalreg, procname) { 
+
+	SetChildCmd(string(BIN_LOC) + "/kismet_capture");
+	RegisterIPCCmd(&ipc_fdpass_callback, NULL, this, "FDPASS");
+
+}
+
+int RootIPCRemote::ShutdownIPC(ipc_packet *packet) {
+	ShutdownIPCPassFD();
+	return IPCRemote::ShutdownIPC(packet);
+}
+
+void RootIPCRemote::ShutdownIPCPassFD() {
+	char sockpath[32];
+
+#ifdef SYS_LINUX
+	if (ipc_pid == 0) {
+		// Clean up the socket if it exists
+		if (ipc_fd_fd >= 0) {
+			snprintf(sockpath, 32, "/tmp/kisfdsock_%u", getpid());
+			close(ipc_fd_fd);
+			ipc_fd_fd = -1;
+			unlink(sockpath);
+		}
+	} else if (ipc_fd_fd >= 0) {
+		close(ipc_fd_fd);
+	}
+#endif
+}
+
+void RootIPCRemote::IPCDie() {
+	if (!globalreg->spindown) {
+		_MSG("Root IPC control binary has died, shutting down", MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+	}
+
+	ShutdownIPCPassFD();
+
+	return IPCRemote::IPCDie();
+}
+
+
+int RootIPCRemote::OpenFDPassSock() {
+#ifdef SYS_LINUX
+	char sockpath[32];
+
+	memset(&unixsock, 0, sizeof(struct sockaddr_un));
+
+	// Child creates it, since child probably has more privs
+	if (ipc_pid == 0) {
+		snprintf(sockpath, 32, "/tmp/kisfdsock_%u", getpid());
+
+		// Unlink if it exists
+		unlink(sockpath);
+
+		unixsock.sun_family = AF_UNIX;
+		strcpy(unixsock.sun_path, sockpath);
+
+		if ((ipc_fd_fd = socket(PF_UNIX, SOCK_DGRAM, 0)) < 0) {
+			_MSG("Failed to open socket to pass file descriptors: " +
+				 string(strerror(errno)), MSGFLAG_ERROR);
+			return -1;
+		}
+
+		if (bind(ipc_fd_fd, (const struct sockaddr *) &unixsock, sizeof(unixsock))) {
+			close(ipc_fd_fd);
+			_MSG("Failed to bind socket to pass file descriptors: " + 
+				 string(strerror(errno)), MSGFLAG_ERROR);
+			return -1;
+		}
+
+		return ipc_fd_fd;
+	}
+
+	// Otherwise try to open it a few times
+	for (int x = 0; x < 10; x++) {
+		unixsock.sun_family = AF_UNIX;
+		snprintf(sockpath, 32, "/tmp/kisfdsock_%u", ipc_pid);
+		strcpy(unixsock.sun_path, sockpath);
+		if ((ipc_fd_fd = socket(PF_UNIX, SOCK_DGRAM, 0)) < 0) {
+			struct timeval tm;
+
+			tm.tv_sec = 0;
+			tm.tv_usec = 1000;
+
+			select(0, NULL, NULL, NULL, &tm);
+		}
+
+		return ipc_fd_fd;
+	}
+#endif
+
+	return -1;
+}
+
+int RootIPCRemote::SendDescriptor(int in_fd) {
+#ifdef SYS_LINUX
+	struct msghdr msg;
+	char ccmsg[CMSG_SPACE(sizeof(in_fd))];
+	struct cmsghdr *cmsg;
+	struct iovec vec;
+	char str[] = {"x"};
+
+	msg.msg_name = (struct sockaddr *) &unixsock;
+	msg.msg_namelen = sizeof(unixsock);
+
+	/* we have to send at least one byte */
+	vec.iov_base = str;
+	vec.iov_len = 1;
+	msg.msg_iov = &vec;
+	msg.msg_iovlen = 1;
+
+	msg.msg_control = ccmsg;
+	msg.msg_controllen = sizeof(ccmsg);
+	cmsg = CMSG_FIRSTHDR(&msg);
+	cmsg->cmsg_level = SOL_SOCKET;
+	cmsg->cmsg_type = SCM_RIGHTS;
+	cmsg->cmsg_len = CMSG_LEN(sizeof(in_fd));
+	
+	(*(int *) CMSG_DATA(cmsg)) = in_fd;
+
+	msg.msg_flags = 0;
+
+	return sendmsg(ipc_fd_fd, &msg, 0);
+#endif
+
+	return -1;
+}
+
+int RootIPCRemote::ReceiveDescriptor() {
+#ifdef SYS_LINUX
+	struct msghdr msg;
+	struct iovec iov;
+	char buf[1];
+	int connfd = -1;
+	char ccmsg[CMSG_SPACE(sizeof(connfd))];
+	struct cmsghdr *cmsg;
+
+	if (ipc_fd_fd < 0)
+		return -1;
+
+	iov.iov_base = buf;
+	iov.iov_len = 1;
+
+	msg.msg_name = 0;
+	msg.msg_namelen = 0;
+	msg.msg_iov = &iov;
+	msg.msg_iovlen = 1;
+
+	msg.msg_control = ccmsg;
+	msg.msg_controllen = sizeof(ccmsg);
+
+	if (recvmsg(ipc_fd_fd, &msg, 0) < 0) {
+		_MSG("IPC failed to receive file descriptor: " + string(strerror(errno)),
+			 MSGFLAG_ERROR);
+		return -1;
+	}
+
+	cmsg = CMSG_FIRSTHDR(&msg);
+	if (!cmsg->cmsg_type == SCM_RIGHTS) {
+		_MSG("IPC got unknown control msg " + IntToString(cmsg->cmsg_type) + " on "
+			 "FD exchange", MSGFLAG_ERROR);
+		return -1;
+	}
+
+	return (*(int *) CMSG_DATA(cmsg));
+#endif
+
+	return -1;
+}
+
+int RootIPCRemote::SyncIPC() {
+	if (ipc_pid != 0) {
+		// Open the passing socket we made when we spawned the child
+		if (OpenFDPassSock() < 0) {
+			_MSG("Failed to open file descriptor passing socket during root IPC "
+				 "synchronization, may cause problems in the future", MSGFLAG_ERROR);
+		}
+	}
+
+	return IPCRemote::SyncIPC();
 }
 

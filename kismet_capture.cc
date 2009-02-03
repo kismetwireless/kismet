@@ -82,6 +82,7 @@ int Usage(char *argv) {
 }
 
 void CatchShutdown(int) {
+	globalreg->rootipc->ShutdownIPC(NULL);
 	exit(1);
 }
 
@@ -142,7 +143,7 @@ int main(int argc, char *argv[], char *envp[]) {
 	globalreg->messagebus = new MessageBus;
 
 	// Create the IPC system
-	globalreg->rootipc = new IPCRemote(globalreg, "root capture control");
+	globalreg->rootipc = new RootIPCRemote(globalreg, "root capture control");
 
 	if (globalreg->rootipc->SetChildExecMode(argc, argv) < 0) {
 		fprintf(stderr, "FATAL:  Failed to attach to parent IPC.  Do not run this "
@@ -150,6 +151,9 @@ int main(int argc, char *argv[], char *envp[]) {
 				"Kismet IPC framework.\n");
 		exit(1);
 	}
+
+	// Open the FD passing descriptor
+	globalreg->rootipc->OpenFDPassSock();
 
 	// Add the IPC messagebus
 	IPC_MessageClient *ipccli =

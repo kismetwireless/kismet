@@ -78,8 +78,7 @@ typedef int (*IPCmdCallback)(IPC_CMD_PARMS);
 #define DIE_CMD_ID			1
 #define MSG_CMD_ID			2
 #define SYNC_CMD_ID			3
-#define FDPASS_CMD_ID		4
-#define LAST_BUILTIN_CMD_ID	5
+#define LAST_BUILTIN_CMD_ID	4
 
 // Message client to redirect messages over the IPC link
 class IPC_MessageClient : public MessageClient {
@@ -158,16 +157,6 @@ public:
 
 	virtual int SyncIPCCmd(ipc_sync *data);
 
-	virtual int OpenFDPassSock();
-
-	// Send a descriptor
-	virtual int SendDescriptor(int in_fd);
-	// Get a descriptor - there is no way to sync names or something to them,
-	// so these should be called in pairs - send one, send a ipc command to
-	// the other side to read it, and get it read.  If commands are stacked in
-	// order it should be fine.
-	virtual int ReceiveDescriptor();
-
 	// Kick a command across (either direction)
 	virtual int SendIPC(ipc_packet *pack);
 
@@ -239,9 +228,6 @@ protected:
 	friend int ipc_die_callback(IPC_CMD_PARMS);
 	friend int ipc_ack_callback(IPC_CMD_PARMS);
 
-	// Descriptor to the file descriptor passer (if one exists)
-	int ipc_fd_fd;
-	struct sockaddr_un unixsock;
 };
 
 // Special IPCremote class for root control binary, used by IPC remote and
@@ -249,11 +235,8 @@ protected:
 class RootIPCRemote : public IPCRemote {
 public:
 	RootIPCRemote() { IPCRemote(); }
-	RootIPCRemote(GlobalRegistry *in_globalreg, string procname) : 
-		IPCRemote(in_globalreg, procname) { 
-			SetChildCmd(string(BIN_LOC) + "/kismet_capture");
-		}
-	virtual ~RootIPCRemote() { }
+	RootIPCRemote(GlobalRegistry *in_globalreg, string procname);
+	virtual ~RootIPCRemote() { IPCDie(); }
 
 	virtual void CatchSigChild(int status) {
 		if (!globalreg->spindown) {
@@ -273,14 +256,30 @@ public:
 		IPCRemote::CatchSigChild(0);
 	}
 
-	virtual void IPCDie() {
-		if (!globalreg->spindown) {
-			_MSG("Root IPC control binary has died, shutting down", MSGFLAG_FATAL);
-			globalreg->fatal_condition = 1;
-		}
+	virtual int OpenFDPassSock();
 
-		IPCRemote::IPCDie();
-	}
+	// Send a descriptor
+	virtual int SendDescriptor(int in_fd);
+	// Get a descriptor - there is no way to sync names or something to them,
+	// so these should be called in pairs - send one, send a ipc command to
+	// the other side to read it, and get it read.  If commands are stacked in
+	// order it should be fine.
+	virtual int ReceiveDescriptor();
+
+	virtual int SyncIPC();
+
+	virtual int ShutdownIPC(ipc_packet *pack);
+
+protected:
+	virtual void IPCDie();
+	virtual void ShutdownIPCPassFD();
+
+#ifdef SYS_LINUX
+	// Descriptor to the file descriptor passer (if one exists)
+	int ipc_fd_fd;
+	struct sockaddr_un unixsock;
+#endif
+
 };
 
 #endif
