@@ -518,7 +518,8 @@ int main(int argc, char *argv[], char *envp[]) {
 
 	// Sync the IPC system -- everything that needs to be registered with the root 
 	// IPC needs to be registered before now
-	globalregistry->rootipc->SyncIPC();
+	if (globalregistry->rootipc != NULL)
+		globalregistry->rootipc->SyncIPC();
 
 	// Fire the tuntap device setup now that we've sync'd the IPC system
 	dtun->OpenTuntap();
