@@ -70,7 +70,6 @@ Dumpfile_Netxml::~Dumpfile_Netxml() {
 	// Close files
 	if (xmlfile != NULL) {
 		Flush();
-		fclose(xmlfile);
 		_MSG("Closed netxml log file '" + fname + "'", MSGFLAG_INFO);
 	}
 
@@ -81,10 +80,15 @@ Dumpfile_Netxml::~Dumpfile_Netxml() {
 }
 
 int Dumpfile_Netxml::Flush() {
-	if (xmlfile == NULL)
-		return 0;
+	if (xmlfile != NULL)
+		fclose(xmlfile);
 
-	rewind(xmlfile);
+	string tempname = fname + ".temp";
+	if ((xmlfile = fopen(tempname.c_str(), "w")) == NULL) {
+		_MSG("Failed to open temporary netxml file for writing: " +
+			 string(strerror(errno)), MSGFLAG_ERROR);
+		return -1;
+	}
 
     // Write the XML headers
     fprintf(xmlfile, "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>\n"
@@ -631,6 +635,14 @@ int Dumpfile_Netxml::Flush() {
 	fprintf(xmlfile, "</detection-run>\n");
 
 	fflush(xmlfile);
+
+	fclose(xmlfile);
+
+	if (rename(tempname.c_str(), fname.c_str()) < 0) {
+		_MSG("Failed to rename netxml temp file " + tempname + " to " + fname + ":" +
+			 string(strerror(errno)), MSGFLAG_ERROR);
+		return -1;
+	}
 
 	return 1;
 }

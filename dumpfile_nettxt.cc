@@ -75,7 +75,6 @@ Dumpfile_Nettxt::~Dumpfile_Nettxt() {
 	// Close files
 	if (txtfile != NULL) {
 		Flush();
-		fclose(txtfile);
 		_MSG("Closed nettxt log file '" + fname + "'", MSGFLAG_INFO);
 	}
 
@@ -86,11 +85,16 @@ Dumpfile_Nettxt::~Dumpfile_Nettxt() {
 }
 
 int Dumpfile_Nettxt::Flush() {
-	if (txtfile == NULL)
-		return 0;
+	if (txtfile != NULL)
+		fclose(txtfile);
 
-	rewind(txtfile);
-
+	string tempname = fname + ".temp";
+	if ((txtfile = fopen(tempname.c_str(), "w")) == NULL) {
+		_MSG("Failed to open temporary nettxt file for writing: " +
+			 string(strerror(errno)), MSGFLAG_ERROR);
+		return -1;
+	}
+	
 	fprintf(txtfile, "Kismet (http://www.kismetwireless.net)\n"
 			"%.24s - Kismet %s.%s.%s\n"
 			"-----------------\n\n",
@@ -529,6 +533,14 @@ int Dumpfile_Nettxt::Flush() {
 	}
 
 	fflush(txtfile);
+
+	fclose(txtfile);
+
+	if (rename(tempname.c_str(), fname.c_str()) < 0) {
+		_MSG("Failed to rename nettxt temp file " + tempname + " to " + fname + ":" +
+			 string(strerror(errno)), MSGFLAG_ERROR);
+		return -1;
+	}
 
 	return 1;
 }
