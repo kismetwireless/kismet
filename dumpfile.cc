@@ -30,25 +30,17 @@ Dumpfile::Dumpfile(GlobalRegistry *in_globalreg) {
 	resume = 0;
 	dumped_frames = 0;
 
-	if (globalreg->packetchain == NULL) {
-		fprintf(stderr, "FATAL OOPS:  Dumpfile() called before packetchain built\n");
-		exit(1);
-	}
-
-	if (globalreg->kismet_config == NULL) {
-		fprintf(stderr, "FATAL OOPS: Dumpfile() called before config built\n");
-		exit(1);
-	}
-
-	export_filter = new FilterCore(globalreg);
-	vector<string> filterlines = 
-		globalreg->kismet_config->FetchOptVec("filter_export");
-	for (unsigned int fl = 0; fl < filterlines.size(); fl++) {
-		if (export_filter->AddFilterLine(filterlines[fl]) < 0) {
-			_MSG("Failed to add filter_export config line from the Kismet config "
-				 "file.", MSGFLAG_FATAL);
-			globalreg->fatal_condition = 1;
-			return;
+	if (globalreg->kismet_config != NULL) {
+		export_filter = new FilterCore(globalreg);
+		vector<string> filterlines = 
+			globalreg->kismet_config->FetchOptVec("filter_export");
+		for (unsigned int fl = 0; fl < filterlines.size(); fl++) {
+			if (export_filter->AddFilterLine(filterlines[fl]) < 0) {
+				_MSG("Failed to add filter_export config line from the Kismet config "
+					 "file.", MSGFLAG_FATAL);
+				globalreg->fatal_condition = 1;
+				return;
+			}
 		}
 	}
 }

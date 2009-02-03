@@ -77,6 +77,10 @@
 
 #endif
 
+struct ipc_dft_open {
+	uint8_t tapdevice[32];
+};
+
 // Hook for grabbing packets
 int dumpfiletuntap_chain_hook(CHAINCALL_PARMS);
 
@@ -87,10 +91,17 @@ public:
 	Dumpfile_Tuntap(GlobalRegistry *in_globalreg);
 	virtual ~Dumpfile_Tuntap();
 
+	virtual int OpenTuntap();
+	virtual int GetTapFd();
+	virtual void SetTapDevice(string in_dev) { fname = in_dev; }
+
+	virtual void RegisterIPC();
+
 	virtual int chain_handler(kis_packet *in_pack);
 	virtual int Flush();
 protected:
 	int tuntap_fd;
+	int ipc_sync_id, ipc_trigger_id;
 };
 
 #endif /* __dump... */

@@ -795,7 +795,7 @@ void RootIPCRemote::ShutdownIPCPassFD() {
 	char sockpath[32];
 
 #ifdef SYS_LINUX
-	if (ipc_pid == 0) {
+	if (ipc_pid != 0) {
 		// Clean up the socket if it exists
 		if (ipc_fd_fd >= 0) {
 			snprintf(sockpath, 32, "/tmp/kisfdsock_%u", getpid());
@@ -825,17 +825,15 @@ int RootIPCRemote::OpenFDPassSock() {
 #ifdef SYS_LINUX
 	char sockpath[32];
 
-	memset(&unixsock, 0, sizeof(struct sockaddr_un));
-
 	// Child creates it, since child probably has more privs
-	if (ipc_pid == 0) {
-		snprintf(sockpath, 32, "/tmp/kisfdsock_%u", getpid());
+	if (ipc_pid != 0) {
+		snprintf(sockpath, 32, "/tmp/kisfdsock_%d", ipc_pid);
 
 		// Unlink if it exists
 		unlink(sockpath);
 
 		unixsock.sun_family = AF_UNIX;
-		strcpy(unixsock.sun_path, sockpath);
+		strncpy(unixsock.sun_path, sockpath, sizeof(unixsock.sun_path));
 
 		if ((ipc_fd_fd = socket(PF_UNIX, SOCK_DGRAM, 0)) < 0) {
 			_MSG("Failed to open socket to pass file descriptors: " +
@@ -853,56 +851,63 @@ int RootIPCRemote::OpenFDPassSock() {
 		return ipc_fd_fd;
 	}
 
-	// Otherwise try to open it a few times
-	for (int x = 0; x < 10; x++) {
-		unixsock.sun_family = AF_UNIX;
-		snprintf(sockpath, 32, "/tmp/kisfdsock_%u", ipc_pid);
-		strcpy(unixsock.sun_path, sockpath);
-		if ((ipc_fd_fd = socket(PF_UNIX, SOCK_DGRAM, 0)) < 0) {
-			struct timeval tm;
-
-			tm.tv_sec = 0;
-			tm.tv_usec = 1000;
-
-			select(0, NULL, NULL, NULL, &tm);
-		}
-
-		return ipc_fd_fd;
+	if ((ipc_fd_fd = socket(PF_UNIX, SOCK_DGRAM, 0)) < 0) {
+		_MSG("Failed to open socket to pass file descriptors: " +
+			 string(strerror(errno)), MSGFLAG_ERROR);
+		return -1;
 	}
+
+	unixsock.sun_family = AF_UNIX;
+	snprintf(sockpath, 32, "/tmp/kisfdsock_%u", getpid());
+	strcpy(unixsock.sun_path, sockpath);
+
+	return ipc_fd_fd;
 #endif
 
 	return -1;
 }
 
+typedef struct {
+	struct cmsghdr header;
+	int            fd;
+} __attribute__((packed)) cmsg_fd;
+
 int RootIPCRemote::SendDescriptor(int in_fd) {
 #ifdef SYS_LINUX
 	struct msghdr msg;
-	char ccmsg[CMSG_SPACE(sizeof(in_fd))];
-	struct cmsghdr *cmsg;
-	struct iovec vec;
-	char str[] = {"x"};
+	struct iovec vec[1];
+	cmsg_fd cm;
+	struct msghdr m;
+	char str[1] = {'x'};
+
+	/* we have to send at least one byte */
+	vec[0].iov_base = str;
+	vec[0].iov_len = sizeof(str);
 
 	msg.msg_name = (struct sockaddr *) &unixsock;
 	msg.msg_namelen = sizeof(unixsock);
 
-	/* we have to send at least one byte */
-	vec.iov_base = str;
-	vec.iov_len = 1;
-	msg.msg_iov = &vec;
+	msg.msg_iov = vec;
 	msg.msg_iovlen = 1;
 
-	msg.msg_control = ccmsg;
-	msg.msg_controllen = sizeof(ccmsg);
-	cmsg = CMSG_FIRSTHDR(&msg);
-	cmsg->cmsg_level = SOL_SOCKET;
-	cmsg->cmsg_type = SCM_RIGHTS;
-	cmsg->cmsg_len = CMSG_LEN(sizeof(in_fd));
-	
-	(*(int *) CMSG_DATA(cmsg)) = in_fd;
+	msg.msg_control = &cm;
+	msg.msg_controllen = sizeof(cm);
 
-	msg.msg_flags = 0;
+	m.msg_flags = 0;
 
-	return sendmsg(ipc_fd_fd, &msg, 0);
+	cm.header.cmsg_len = sizeof(cm);
+	cm.header.cmsg_level = SOL_SOCKET;
+	cm.header.cmsg_type = SCM_RIGHTS;
+
+	cm.fd = in_fd;
+
+	if (sendmsg(ipc_fd_fd, &msg, 0) < 0) {
+		_MSG("Root IPC file descriptor sendmsg() failed: " +
+			 string(strerror(errno)), MSGFLAG_ERROR);
+		return -1;
+	}
+
+	return 1;
 #endif
 
 	return -1;
@@ -910,41 +915,33 @@ int RootIPCRemote::SendDescriptor(int in_fd) {
 
 int RootIPCRemote::ReceiveDescriptor() {
 #ifdef SYS_LINUX
-	struct msghdr msg;
-	struct iovec iov;
 	char buf[1];
-	int connfd = -1;
-	char ccmsg[CMSG_SPACE(sizeof(connfd))];
-	struct cmsghdr *cmsg;
+	struct msghdr m;
+	struct iovec iov[1];
+	cmsg_fd cm;
 
 	if (ipc_fd_fd < 0)
 		return -1;
 
-	iov.iov_base = buf;
-	iov.iov_len = 1;
+	iov[0].iov_base = buf;
+	iov[0].iov_len = sizeof(buf);
 
-	msg.msg_name = 0;
-	msg.msg_namelen = 0;
-	msg.msg_iov = &iov;
-	msg.msg_iovlen = 1;
+	memset(&m, 0, sizeof(m));
+	
+	cm.header.cmsg_len = sizeof(cm);
+	m.msg_iov = iov;
+	m.msg_iovlen = 1;
+	m.msg_control = &cm;
+	m.msg_controllen = sizeof(cm);
 
-	msg.msg_control = ccmsg;
-	msg.msg_controllen = sizeof(ccmsg);
-
-	if (recvmsg(ipc_fd_fd, &msg, 0) < 0) {
-		_MSG("IPC failed to receive file descriptor: " + string(strerror(errno)),
-			 MSGFLAG_ERROR);
+	if (recvmsg(ipc_fd_fd, &m, 0) < 0) {
+		_MSG("Root IPC failed to receive passed file descriptor: " +
+			 string(strerror(errno)), MSGFLAG_ERROR);
 		return -1;
 	}
 
-	cmsg = CMSG_FIRSTHDR(&msg);
-	if (!cmsg->cmsg_type == SCM_RIGHTS) {
-		_MSG("IPC got unknown control msg " + IntToString(cmsg->cmsg_type) + " on "
-			 "FD exchange", MSGFLAG_ERROR);
-		return -1;
-	}
+	return cm.fd;
 
-	return (*(int *) CMSG_DATA(cmsg));
 #endif
 
 	return -1;

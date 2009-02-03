@@ -45,6 +45,9 @@
 #include "packetsource_darwin.h"
 #include "packetsourcetracker.h"
 
+#include "dumpfile.h"
+#include "dumpfile_tuntap.h"
+
 #include "timetracker.h"
 
 #include "netframework.h"
@@ -160,7 +163,7 @@ int main(int argc, char *argv[], char *envp[]) {
 		new IPC_MessageClient(globalreg, globalreg->rootipc);
 	globalreg->messagebus->RegisterClient(ipccli, MSGFLAG_ALL);
 
-	DropPrivCapabilities();
+	// DropPrivCapabilities();
 	
 	// Allocate some other critical stuff
 	globalreg->timetracker = new Timetracker(globalreg);
@@ -221,6 +224,12 @@ int main(int argc, char *argv[], char *envp[]) {
 	if (globalreg->sourcetracker->RegisterPacketSource(new PacketSource_Darwin(globalreg)) < 0 || globalreg->fatal_condition) 
 		CatchShutdown(-1);
 #endif
+
+	// Prep the tuntap 
+	new Dumpfile_Tuntap(globalreg);
+	if (globalreg->fatal_condition)
+		CatchShutdown(-1);
+
 
 	if (globalreg->fatal_condition)
 		CatchShutdown(-1);

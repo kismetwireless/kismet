@@ -509,9 +509,19 @@ int main(int argc, char *argv[], char *envp[]) {
 	if (globalregistry->rootipc != NULL) {
 		globalregistry->sourcetracker->RegisterIPC(globalregistry->rootipc, 0);
 
-		// Sync the IPC system
-		globalregistry->rootipc->SyncIPC();
 	}
+
+	// Prep the tuntap device
+	Dumpfile_Tuntap *dtun = new Dumpfile_Tuntap(globalregistry);
+	if (globalregistry->fatal_condition)
+		CatchShutdown(-1);
+
+	// Sync the IPC system -- everything that needs to be registered with the root 
+	// IPC needs to be registered before now
+	globalregistry->rootipc->SyncIPC();
+
+	// Fire the tuntap device setup now that we've sync'd the IPC system
+	dtun->OpenTuntap();
 
 	// Create the basic drone server
 	globalregistry->kisdroneserver = new KisDroneFramework(globalregistry);
@@ -577,13 +587,6 @@ int main(int argc, char *argv[], char *envp[]) {
 	// Enable cards from config/cmdline
 	if (globalregistry->sourcetracker->LoadConfiguration() < 0)
 		CatchShutdown(-1);
-
-	// Make the tuntap device as root, if we need to
-#if 0
-	new Dumpfile_Tuntap(globalregistry);
-	if (globalregistry->fatal_condition)
-		CatchShutdown(-1);
-#endif
 
 	// Create the basic network/protocol server
 	globalregistry->kisnetserver->Activate();

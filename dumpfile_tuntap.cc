@@ -22,6 +22,39 @@
 
 #include "dumpfile_tuntap.h"
 #include "ifcontrol.h"
+#include "ipc_remote.h"
+
+int dft_ipc_open(IPC_CMD_PARMS) {
+	if (parent) {
+		// If we're the parent, we use this as a signal that we've opened it
+		// and we need to pull the file descriptor
+		if (len < (int) sizeof(ipc_dft_open))
+			return 0;
+
+		globalreg->packetchain->RegisterHandler(&dumpfiletuntap_chain_hook, 
+												(void *) auxptr,
+												CHAINPOS_LOGGING, -100);
+		globalreg->RegisterDumpFile((Dumpfile_Tuntap *) auxptr);
+
+		return ((Dumpfile_Tuntap *) auxptr)->GetTapFd();
+	} else {
+		// If we're the child, we now know our tap device name from the 
+		// config parser in the parent, record it and open
+		// fname = string(((ipc_dft_open *) data)->tapdevice);
+		ipc_dft_open *dfo = (ipc_dft_open *) data;
+		((Dumpfile_Tuntap *) auxptr)->SetTapDevice(string((char *) dfo->tapdevice));
+		((Dumpfile_Tuntap *) auxptr)->OpenTuntap();
+		return 1;
+	}
+}
+
+int dft_ipc_sync_complete(IPC_CMD_PARMS) {
+	if (parent) return 0;
+
+	((Dumpfile_Tuntap *) auxptr)->RegisterIPC();
+
+	return 1;
+}
 
 int dumpfiletuntap_chain_hook(CHAINCALL_PARMS) {
 	Dumpfile_Tuntap *auxptr = (Dumpfile_Tuntap *) auxdata;
@@ -35,34 +68,82 @@ Dumpfile_Tuntap::Dumpfile_Tuntap() {
 
 Dumpfile_Tuntap::Dumpfile_Tuntap(GlobalRegistry *in_globalreg) : 
 	Dumpfile(in_globalreg) {
-	char errstr[STATUS_MAX];
 	globalreg = in_globalreg;
 
 	tuntap_fd = -1;
 
 	type = "tuntap";
 
-	if (globalreg->sourcetracker == NULL) {
-		fprintf(stderr, "FATAL OOPS:  Sourcetracker missing before "
-				"Dumpfile_Tuntap\n");
-		exit(1);
+	// If we have a config, push it to the other side
+	if (globalreg->kismet_config != NULL) {
+		if (globalreg->kismet_config->FetchOpt("tuntap_export") != "true") {
+			return;
+		}
+
+		if ((fname = globalreg->kismet_config->FetchOpt("tuntap_device")) == "") {
+			_MSG("No 'tuntap_device' specified in Kismet config file", MSGFLAG_FATAL);
+			globalreg->fatal_condition = 1;
+			return;
+		}
 	}
 
-	if (globalreg->kismet_config == NULL) {
-		fprintf(stderr, "FATAL OOPS:  Config file missing before "
-				"Dumpfile_Tuntap\n");
-		exit(1);
+	// Register the IPC channel
+	if (globalreg->rootipc != NULL) {
+		ipc_sync_id =
+			globalreg->rootipc->RegisterIPCCmd(&dft_ipc_sync_complete, NULL,
+											   this, "SYNCCOMPLETE");
+		ipc_trigger_id =
+			globalreg->rootipc->RegisterIPCCmd(&dft_ipc_open, NULL, 
+											   this, "TUNTAP_TRIGGER");
+
+	}
+}
+
+void Dumpfile_Tuntap::RegisterIPC() {
+	if (globalreg->rootipc != NULL) {
+		ipc_trigger_id =
+			globalreg->rootipc->RegisterIPCCmd(&dft_ipc_open, NULL, 
+											   this, "TUNTAP_TRIGGER");
+	}
+}
+
+Dumpfile_Tuntap::~Dumpfile_Tuntap() {
+	globalreg->packetchain->RemoveHandler(&dumpfiletuntap_chain_hook,
+										  CHAINPOS_LOGGING);
+	if (tuntap_fd >= 0) {
+		close(tuntap_fd);
+		tuntap_fd = -1;
+		_MSG("Closed tun/tap virtual interface '" + fname + "'", MSGFLAG_INFO);
+	}
+}
+
+int Dumpfile_Tuntap::OpenTuntap() {
+	// Open the tuntap device and optionally send it over IPC if we're running
+	// split-priv
+	char errstr[STATUS_MAX];
+
+	// If we have a file name, and we have IPC, assume we need to send it 
+	// to the other side of the IPC
+	if (fname != "" && globalreg->rootipc != NULL &&
+		globalreg->rootipc->FetchSpawnPid() > 0)  {
+		ipc_packet *ipc =
+			(ipc_packet *) malloc(sizeof(ipc_packet) +
+								  sizeof(ipc_dft_open));
+		ipc_dft_open *dfto = (ipc_dft_open *) ipc->data;
+
+		ipc->data_len = sizeof(ipc_dft_open);
+		ipc->ipc_ack = 0;
+		ipc->ipc_cmdnum = ipc_trigger_id;
+
+		snprintf((char *) dfto->tapdevice, 32, "%s", fname.c_str());
+
+		globalreg->rootipc->SendIPC(ipc);
+
+		return 1;
 	}
 
-	if (globalreg->kismet_config->FetchOpt("tuntap_export") != "true") {
-		return;
-	}
-
-	if ((fname = globalreg->kismet_config->FetchOpt("tuntap_device")) == "") {
-		_MSG("No 'tuntap_device' specified in Kismet config file", MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
-		return;
-	}
+	if (fname == "")
+		return -1;
 
 #ifdef SYS_LINUX
 	// Linux has dynamic tun-tap, so we allocate our device that way
@@ -87,7 +168,7 @@ Dumpfile_Tuntap::Dumpfile_Tuntap(GlobalRegistry *in_globalreg) :
 		}
 		_MSG(errstr, MSGFLAG_FATAL);
 		globalreg->fatal_condition = 1;
-		return;
+		return -1;
 	}
 
 	// Create the tap interface
@@ -100,7 +181,7 @@ Dumpfile_Tuntap::Dumpfile_Tuntap(GlobalRegistry *in_globalreg) :
 				 strerror(errno));
 		_MSG(errstr, MSGFLAG_FATAL);
 		globalreg->fatal_condition = 1;
-		return;
+		return -1;
 	}
 
 	// Try to set the link type
@@ -114,14 +195,14 @@ Dumpfile_Tuntap::Dumpfile_Tuntap(GlobalRegistry *in_globalreg) :
 		_MSG(errstr, MSGFLAG_ERROR);
 		// globalreg->fatal_condition = 1;
 		sleep(1);
-		return;
+		return -1;
 	}
 
 	if (ioctl(tuntap_fd, TUNSETNOCSUM, 1) < 0) {
 		_MSG("Unable to disable checksumming on tun/tap interface " + fname + ": " +
 			 string(strerror(errno)), MSGFLAG_FATAL);
 		globalreg->fatal_condition = 1;
-		return;
+		return -1;
 	}
 #endif
 
@@ -131,7 +212,7 @@ Dumpfile_Tuntap::Dumpfile_Tuntap(GlobalRegistry *in_globalreg) :
 		_MSG(errstr, MSGFLAG_FATAL);
 		_MSG("Failed bringing virtual interface " + fname + " up", MSGFLAG_FATAL);
 		globalreg->fatal_condition = 1;
-		return;
+		return -1;
 	}
 
 #ifndef SYS_LINUX
@@ -140,27 +221,50 @@ Dumpfile_Tuntap::Dumpfile_Tuntap(GlobalRegistry *in_globalreg) :
 		_MSG("Unable to open tun/tap interface " + fname + ": " +
 			 string(strerror(errno)), MSGFLAG_FATAL);
 		globalreg->fatal_condition = 1;
-		return;
+		return -1;
 	}
 
 #endif
 
-	globalreg->packetchain->RegisterHandler(&dumpfiletuntap_chain_hook, this,
-											CHAINPOS_LOGGING, -100);
-
-	globalreg->RegisterDumpFile(this);
-
 	_MSG("Opened tun/tap replicator '" + fname + "'", MSGFLAG_INFO);
+
+	if (globalreg->rootipc != NULL) {
+		if (globalreg->rootipc->SendDescriptor(tuntap_fd) < 0) {
+			_MSG("tuntap failed to send tap descriptor over IPC", MSGFLAG_FATAL);
+			globalreg->fatal_condition = 1;
+			return -1;
+		}
+
+		ipc_packet *ipc =
+			(ipc_packet *) malloc(sizeof(ipc_packet) +
+								  sizeof(ipc_dft_open));
+		ipc_dft_open *dfto = new ipc_dft_open;
+
+		ipc->data_len = sizeof(ipc_dft_open);
+		ipc->ipc_ack = 0;
+		ipc->ipc_cmdnum = ipc_trigger_id;
+
+		dfto->tapdevice[0] = 0;
+
+		globalreg->rootipc->SendIPC(ipc);
+	} else {
+		// Otherwise we're running with no privsep so register ourselves
+		globalreg->packetchain->RegisterHandler(&dumpfiletuntap_chain_hook, this,
+												CHAINPOS_LOGGING, -100);
+		globalreg->RegisterDumpFile(this);
+	}
+
+	return 0;
 }
 
-Dumpfile_Tuntap::~Dumpfile_Tuntap() {
-	globalreg->packetchain->RemoveHandler(&dumpfiletuntap_chain_hook,
-										  CHAINPOS_LOGGING);
-	if (tuntap_fd >= 0) {
-		close(tuntap_fd);
-		tuntap_fd = -1;
-		_MSG("Closed tun/tap virtual interface '" + fname + "'", MSGFLAG_INFO);
-	}
+int Dumpfile_Tuntap::GetTapFd() {
+	// Get the descriptor form the root IPC
+	if (globalreg->rootipc == NULL)
+		return -1;
+
+	tuntap_fd = globalreg->rootipc->ReceiveDescriptor();
+
+	return tuntap_fd;
 }
 
 int Dumpfile_Tuntap::Flush() {
