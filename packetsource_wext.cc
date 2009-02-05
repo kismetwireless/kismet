@@ -630,10 +630,7 @@ int PacketSource_Madwifi::EnableMonitor() {
 				 "Do not enable novapkill unless you know you want it.",
 				 MSGFLAG_PRINTERROR);
 			continue;
-		}
-
-		// We have a monitor vap, set it
-		if (iwmode == LINUX_WLEXT_MONITOR) {
+		} else if (iwmode == LINUX_WLEXT_MONITOR) {
 			_MSG("Madwifi source " + name + ": Found monitor-mode VAP " + 
 				 interface + "::" + vaplist[x] + 
 				 ".  We'll use that instead of making a new one.",
@@ -641,6 +638,7 @@ int PacketSource_Madwifi::EnableMonitor() {
 			sleep(1);
 			monvap = vaplist[x];
 			interface = vaplist[x];
+			continue;
 		}
 	}
 
