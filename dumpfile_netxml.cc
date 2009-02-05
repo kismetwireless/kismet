@@ -638,6 +638,8 @@ int Dumpfile_Netxml::Flush() {
 
 	fclose(xmlfile);
 
+	xmlfile = NULL;
+
 	if (rename(tempname.c_str(), fname.c_str()) < 0) {
 		_MSG("Failed to rename netxml temp file " + tempname + " to " + fname + ":" +
 			 string(strerror(errno)), MSGFLAG_ERROR);
