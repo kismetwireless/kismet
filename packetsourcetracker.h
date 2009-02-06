@@ -202,7 +202,8 @@ public:
 	// If a strong source is passed (instead of NULL) the type matching will be
 	// bypassed and the strong source assigned.  This should only be used for
 	// dynamic sources added locally (such as the drone code)
-	uint16_t AddPacketSource(string in_source, KisPacketSource *in_strong);
+	int AddPacketSource(string in_source, KisPacketSource *in_strong,
+						uint16_t *source_id);
 
 	int RemovePacketSource(pst_packetsource *in_source);
 
@@ -337,6 +338,8 @@ protected:
 	map<uint16_t, pst_packetsource *> packetsource_map;
 	// Because iterating maps is super slow
 	vector<pst_packetsource *> packetsource_vec;
+
+	vector<string> named_vec;
 
 	// Map of channel IDs
 	map<uint16_t, pst_channellist *> channellist_map;

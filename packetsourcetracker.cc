@@ -624,8 +624,9 @@ uint16_t Packetsourcetracker::AddChannelList(string in_chanlist) {
 	return chlist->channel_id;
 }
 
-uint16_t Packetsourcetracker::AddPacketSource(string in_source, 
-											  KisPacketSource *in_strong) {
+int Packetsourcetracker::AddPacketSource(string in_source, 
+											  KisPacketSource *in_strong,
+											  uint16_t *source_id) {
 	string interface;
 	string type;
 	string chanlistname;
@@ -642,7 +643,7 @@ uint16_t Packetsourcetracker::AddPacketSource(string in_source,
 						 &options) < 0) {
 			_MSG("Invalid options list for source '" + interface + "', expected "
 				 "ncsource=interface[,option=value]+", MSGFLAG_ERROR);
-			return 0;
+			return -1;
 		}
 	}
 
@@ -679,6 +680,29 @@ uint16_t Packetsourcetracker::AddPacketSource(string in_source,
 	pstsource->error = 0;
 	pstsource->reopen = 1;
 
+	string name = StrLower(FetchOpt("name", &options));
+	if (name == "")
+		name = interface;
+
+	int matched = 0;
+
+	if (named_vec.size() == 0)
+		matched = 1;
+
+	for (unsigned int y = 0; y < named_vec.size(); y++) {
+		if (StrLower(named_vec[y]) == name) {
+			matched = 1;
+			break;
+		}
+	}
+
+	if (matched == 0 && pstsource->strong_source == NULL) {
+		_MSG("Source '" + name + "' not in enable_sources list, will not be "
+			 "enabled.", MSGFLAG_INFO);
+		delete pstsource;
+		return 0;
+	}
+
 	// Try to map the type when they tell us what it is
 	if ((type = FetchOpt("type", &options)) != "" && type != "auto" &&
 		pstsource->strong_source == NULL) {
@@ -697,7 +721,7 @@ uint16_t Packetsourcetracker::AddPacketSource(string in_source,
 				 "into this build of Kismet, check the output of the 'configure' "
 				 "script if you compiled Kismet yourself.", MSGFLAG_ERROR);
 			delete pstsource;
-			return 0;
+			return -1;
 		}
 	} 
 
@@ -719,7 +743,7 @@ uint16_t Packetsourcetracker::AddPacketSource(string in_source,
 				 "you will have to tell Kismet what it is by adding a "
 				 "type=[card type] to the ncsource config", MSGFLAG_ERROR);
 			delete pstsource;
-			return 0;
+			return -1;
 		}
 	}
 
@@ -754,7 +778,7 @@ uint16_t Packetsourcetracker::AddPacketSource(string in_source,
 		_MSG("Missing channel list '" + chanlistname + "' for source '" +
 			 interface + "'.  Make sure your kismet.conf file contains a "
 			 "channellist=" + chanlistname + " line", MSGFLAG_ERROR);
-		return 0;
+		return -1;
 	}
 
 	// Do the initial build of a strong source now that we know the type
@@ -800,7 +824,7 @@ uint16_t Packetsourcetracker::AddPacketSource(string in_source,
 				_MSG("Invalid channel for source '" + interface + "', expected "
 					 "channel number or frequency", MSGFLAG_ERROR);
 				delete pstsource;
-				return 0;
+				return -1;
 			}
 
 			_MSG("Source '" + interface + "' will be locked to channel " +
@@ -821,7 +845,7 @@ uint16_t Packetsourcetracker::AddPacketSource(string in_source,
 			_MSG("Invalid time for source '" + interface + "' dwell time, expected "
 				 "time in seconds to dwell on a channel", MSGFLAG_ERROR);
 			delete pstsource;
-			return 0;
+			return -1;
 		}
 
 		_MSG("Source '" + interface + "' will dwell on each channel " +
@@ -834,7 +858,7 @@ uint16_t Packetsourcetracker::AddPacketSource(string in_source,
 			_MSG("Invalid time for source '" + interface + "' hop rate, expected "
 				 "velocity in channels per second to (attempt) hopping", MSGFLAG_ERROR);
 			delete pstsource;
-			return 0;
+			return -1;
 		}
 
 		if (pstsource->channel_dwell > 0) {
@@ -904,7 +928,9 @@ uint16_t Packetsourcetracker::AddPacketSource(string in_source,
 						   cb_vec[x]->auxdata);
 	}
 
-	return pstsource->source_id;
+	*source_id = pstsource->source_id;
+
+	return 1;
 }
 
 int Packetsourcetracker::LoadConfiguration() {
@@ -1008,6 +1034,8 @@ int Packetsourcetracker::LoadConfiguration() {
 		return -1;
 	}
 
+	named_vec = StrTokenize(named_sources, ",");
+
 	// Fetch the channel lists and add them
 	chan_vec = 
 		globalreg->kismet_config->FetchOptVec("channellist");
@@ -1036,7 +1064,9 @@ int Packetsourcetracker::LoadConfiguration() {
 
 	// Process sources
 	for (unsigned int x = 0; x < src_input_vec.size(); x++) {
-		if (AddPacketSource(src_input_vec[x], NULL) == 0) {
+		uint16_t id = 0;
+
+		if (AddPacketSource(src_input_vec[x], NULL, &id) < 0) {
 			_MSG("Failed to add source '" + src_input_vec[x] + "', check your "
 				 "syntax and remember Kismet recently changed how it handles "
 				 "source definitions!", MSGFLAG_FATAL);
@@ -1117,6 +1147,9 @@ int Packetsourcetracker::LoadConfiguration() {
 			SendIPCChanset(y->second);
 		}
 	}
+
+	// Clear the named vec so we don't use it to compare enable sources again
+	named_vec.clear();
 
 	return 1;
 }
@@ -1928,11 +1961,15 @@ int Packetsourcetracker::SetSourceHopDwell(uuid in_uuid, int in_rate, int in_dwe
 
 int Packetsourcetracker::AddLivePacketSource(string in_source, 
 											 KisPacketSource *in_strong) {
-	uint8_t new_id = 0;
+	uint16_t new_id = 0;
+	int ret;
 
-	if ((new_id = AddPacketSource(in_source, in_strong)) == 0) {
+	if ((ret = AddPacketSource(in_source, in_strong, &new_id)) < 0) {
 		return -1;
 	}
+
+	if (ret == 0)
+		return 1;
 
 	StartSource(new_id);
 
@@ -2257,9 +2294,9 @@ int Packetsourcetracker::cmd_ADDSOURCE(int in_clid, KisNetFramework *framework,
 
 	uint16_t new_source_id;
 
-	new_source_id = AddPacketSource((*parsedcmdline)[0].word, NULL);
+	int ret = AddPacketSource((*parsedcmdline)[0].word, NULL, &new_source_id);
 
-	if (new_source_id == 0) {
+	if (ret <= 0) {
 		snprintf(errstr, 1024, "ADDSOURCE command failed");
 		return -1;
 	}
