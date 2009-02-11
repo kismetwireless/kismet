@@ -1,3 +1,121 @@
+Kismet 2009-02-TEST1
+Mike Kershaw <dragorn@kismetwireless.net>
+http://www.kismetwireless.net
+
+1.  What is Kismet
+
+    Kismet is an 802.11 wireless network detector, sniffer, and intrusion
+    detection system.  Kismet will work with any wireless card which
+    supports raw monitoring mode, and can sniff 802.11b, 802.11a, 802.11g,
+    and 802.11n traffic (devices and drivers permitting).
+
+    Kismet also sports a plugin architecture allowing for additional
+    non-802.11 protocols to be decoded.
+
+    Kismet identifies networks by passively collecting packets and detecting
+    networks, which allows it to detect (and given time, expose the names
+    of) hidden networks and the presence of non-beaconing networks via data
+    traffic.
+
+2.  Upgrading from earlier Kismet versions
+
+    This release marks a major change in how Kismet works and is configured.
+    While many aspects are similar, many others (the client, configuring
+    sources and channels, etc) are very different.  Users are encouraged to
+    replace their configuration files with the newcore configurations and
+    make changes rather than try to merge changes into older files.
+
+    Most notably:
+     * Sources are defined differently.  See the "Capture Sources" section.
+     * All UI configuration is handled inside the Kismet client
+     * Most situations which were previously fatal conditions which caused
+       Kismet to exit can now be recovered from.
+
+3.  Quick start
+
+    PLEASE read the full manual, but for the impatient, here is the BARE
+    MINIMUM needed to get Kismet working:
+
+    * Download Kismet from http://www.kismetwireless.net/download.shtml
+    * Run ``./configure''.  Pay attention to the output!  If Kismet cannot
+      find all the headers and libraries it needs, major functionality may
+      be missing.
+    * Compile Kismet with ``make''.
+    * Install Kismet with either ``make install'' or ``make suidinstall''.
+      YOU MUST READ THE "SUID INSTALLATION & SECURITY" SECTION OF THE 
+      README OR YOUR SYSTEM MAY BE VULNERABLE.
+    * If you have installed Kismet as suid-root, add your user to the
+      "kismet" group
+    * Edit the config file (by default, "/usr/local/etc/kismet.conf")
+    * Define a capture source.  At it's most simple, this should be:
+      ncsource=wlan0
+      (where wlan0 is the name of your wireless device.  It may be wlan1,
+      eth1, ath0, etc).
+      NOT ALL CAPTURE SOURCES WILL AUTOMATICALLY DETECT THE DEVICE TYPE
+      (NOTABLY, DEVICES USING THE MADWIFI DRIVERS CAN NOT BE AUTOMATICALLY
+      DETECTED).  IF KISMET IS UNABLE TO AUTOMATICALLY DETECT YOUR CARD TYPE
+      YOU WILL NEED TO MANUALLY CONFIGURE IT.
+    * Add an absolute path to the "logtemplate" configuration option if you
+      want Kismet to always log in the same directory instead of the
+      directory you start it in.
+
+    * Run ``kismet''.  If you did not install Kismet with suid-root support,
+      you will most likely need to start it as root.  This is not
+      recommended as it is less secure than separating the privileges.
+    * READ THE REST OF THIS README.  Kismet has a lot of features and a lot
+      of configuration options, to get the most out of it you should read
+      all of the documentation.
+
+3b.  Windows Quick Start
+
+    * Download the Win32/Cygwin installer created by CACE and linked from
+      the download page (http://www.kismetwireless.net/download.shtml
+    * Run the installer
+    * Start Kismet
+    * Pick your AirPcap or Kismet Drone sources
+
+    * READ THE READ OF THIS README.
+
+    NOTE: KISMET WILL **ONLY** WORK WITH THE CACE AIRPCAP DEVICE -OR- REMOTE
+    KISMET DRONES RUNNING ON A SUPPORTED PLATFORM.  NO OTHER HARDWARE IS
+    SUPPORTED IN WINDOWS, PERIOD.  WINDOWS DRIVERS DO NOT INCLUDE SUPPORT
+    FOR WIFI MONITORING WHICH KISMET REQUIRES.
+
+3c.  OSX/Darwin Quick Start
+
+    * Download Kismet from http://www.kismetwireless.net/download.shtml
+    * Run ``./configure''.  Pay attention to the output!  If Kismet cannot
+      find all the headers and libraries it needs, major functionality may
+      be missing.
+    * Compile Kismet with ``gmake''.
+    * Install Kismet with either ``gmake install'' or ``gmake suidinstall''.
+      YOU MUST READ THE "SUID INSTALLATION & SECURITY" SECTION OF THE 
+      README OR YOUR SYSTEM MAY BE VULNERABLE.
+    * If you have installed Kismet as suid-root, add your user to the
+      "kismet" group
+    * Edit the config file (by default, "/usr/local/etc/kismet.conf")
+    * Define a capture source.  At it's most simple, this should be:
+      ncsource=en1
+      However depending on your model of Mac the device may be en0 or en2,
+      consult the output of ``ifconfig -a''
+    * Add an absolute path to the "logtemplate" configuration option if you
+      want Kismet to always log to the same directory instead of the
+      directory that you start it in.
+
+    * Run ``kismet''.  If you did not install Kismet with suid-root support,
+      you will most likely need to start it as root.  This is not
+      recommended as it is less secure than separating the privileges.
+    * READ THE REST OF THIS README
+
+4.  Suidroot & Security
+
+    In order to configure the wireless card for monitor mode and start
+    capturing packets, Kismet needs root access.  There are two ways to
+    accomplish this:  Start Kismet as root, or install it so that the
+    control components are set to start as root.
+
+
+
 To be replaced soon.  See README.newcore for devel info.
 
 NOTE: NEWCORE HAS CHANGED HOW THINGS ARE CONFIGURED IN SOME SIGNIFICANT
