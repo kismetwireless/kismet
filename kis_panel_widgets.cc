@@ -2171,7 +2171,7 @@ int Kis_Scrollable_Table::AddRow(int in_key, vector<string> in_fields) {
 
 int Kis_Scrollable_Table::DelRow(int in_key) {
 	if (key_map.find(in_key) == key_map.end()) {
-		_MSG("Scrollable_Table tried to del row that doesn't exist", MSGFLAG_ERROR);
+		// _MSG("Scrollable_Table tried to del row that doesn't exist", MSGFLAG_ERROR);
 		return -1;
 	}
 

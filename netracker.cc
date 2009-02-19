@@ -1659,15 +1659,16 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 			globalreg->alertracker->PotentialAlert(alert_wepflap_ref)) {
 			ostringstream outs;
 
-			outs << "Network BSSID " << net->bssid.Mac2String() << " changed advertised "
-				"SSID '" + packinfo->ssid + "' encryption ";
+			outs << "Network BSSID " << net->bssid.Mac2String() << 
+				" changed advertised SSID '" + packinfo->ssid + 
+				"' encryption ";
 
 			if (packinfo->cryptset == 0)
 				outs << "to no encryption when it was previous advertised, an "
 					"impersonation attack may be underway";
 			else if (packinfo->cryptset < adssid->cryptset)
-				outs << "to a weaker encryption set than previously advertised, which "
-					"may indicate an attack";
+				outs << "to a weaker encryption set than previously "
+					"advertised, which may indicate an attack";
 			else
 				outs << "a different encryption set than previous advertised";
 
@@ -1727,8 +1728,9 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 			globalreg->alertracker->PotentialAlert(alert_airjackssid_ref)) {
 			ostringstream outs;
 
-			outs << "Network BSSID " << net->bssid.Mac2String() << " broadcasting "
-				"SSID 'AirJack' which implies an attempt to disrupt networks";
+			outs << "Network BSSID " << net->bssid.Mac2String() << 
+				" broadcasting SSID 'AirJack' which implies an attempt "
+				"to disrupt networks";
 
 			globalreg->alertracker->RaiseAlert(alert_airjackssid_ref, in_pack, 
 											   packinfo->bssid_mac, 
@@ -1744,8 +1746,8 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 				globalreg->alertracker->PotentialAlert(alert_wepflap_ref)) {
 				ostringstream outs;
 
-				outs << "Network BSSID " << net->bssid.Mac2String() << " stopped "
-					"advertising encryption";
+				outs << "Network BSSID " << net->bssid.Mac2String() << 
+					" stopped advertising encryption";
 
 				globalreg->alertracker->RaiseAlert(alert_wepflap_ref, in_pack,
 												   packinfo->bssid_mac,
@@ -1788,7 +1790,8 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 		}
 
 		if (l1info != NULL) {
-			if (cli->freq_mhz_map.find(l1info->freq_mhz) != cli->freq_mhz_map.end())
+			if (cli->freq_mhz_map.find(l1info->freq_mhz) != 
+				cli->freq_mhz_map.end())
 				cli->freq_mhz_map[l1info->freq_mhz]++;
 			else
 				cli->freq_mhz_map[l1info->freq_mhz] = 1;
@@ -1827,8 +1830,8 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 			globalreg->alertracker->PotentialAlert(alert_wepflap_ref)) {
 			ostringstream outs;
 
-			outs << "Network BSSID " << net->bssid.Mac2String() << " responding to "
-				"SSID '" + packinfo->ssid + "' with ";
+			outs << "Network BSSID " << net->bssid.Mac2String() << 
+				" responding to SSID '" + packinfo->ssid + "' with ";
 
 			if (packinfo->cryptset == 0)
 				outs << "no encryption when it was previously advertised as "
@@ -1882,7 +1885,7 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 		net->data_packets++;
 		cli->data_packets++;
 
-		if (packinfo->encrypted) {
+		if (packinfo->cryptset) {
 			net->crypt_packets++;
 			cli->crypt_packets++;
 		}
@@ -2067,7 +2070,8 @@ int Netracker::datatracker_chain_handler(kis_packet *in_pack) {
 	// things all over the place.
 	int ipdata_dirty = 0;
 
-	if ((packinfo->source_mac == net->bssid && datainfo->proto == proto_dhcp_offer) ||
+	if ((packinfo->source_mac == net->bssid && 
+		 datainfo->proto == proto_dhcp_offer) ||
 		packinfo->source_mac != net->bssid) {
 		if (datainfo->proto  == proto_dhcp_offer) {
 			// DHCP Offers are about the most complete and authoritative IP info we
@@ -2078,9 +2082,10 @@ int Netracker::datatracker_chain_handler(kis_packet *in_pack) {
 			// if we've seen an offer before, it will be this address.
 			in_addr ip_calced_range;
 			ip_calced_range.s_addr = 
-				(datainfo->ip_dest_addr.s_addr & datainfo->ip_netmask_addr.s_addr);
+			(datainfo->ip_dest_addr.s_addr & datainfo->ip_netmask_addr.s_addr);
 
-			if (alert_dhcpcon_ref >= 0 && net->guess_ipdata.ip_type == ipdata_dhcp &&
+			if (alert_dhcpcon_ref >= 0 && 
+				net->guess_ipdata.ip_type == ipdata_dhcp &&
 				ip_calced_range.s_addr != net->guess_ipdata.ip_addr_block.s_addr &&
 				ip_calced_range.s_addr != 0 &&
 				net->guess_ipdata.ip_addr_block.s_addr != 0 &&
@@ -2105,8 +2110,11 @@ int Netracker::datatracker_chain_handler(kis_packet *in_pack) {
 			net->guess_ipdata.ip_type = ipdata_dhcp;
 			// IP range goes straight in masked w/ offered netmask
 			net->guess_ipdata.ip_addr_block.s_addr = ip_calced_range.s_addr;
-			net->guess_ipdata.ip_netmask.s_addr = datainfo->ip_netmask_addr.s_addr;
-			net->guess_ipdata.ip_gateway.s_addr = datainfo->ip_gateway_addr.s_addr;
+			net->guess_ipdata.ip_netmask.s_addr = 
+				datainfo->ip_netmask_addr.s_addr;
+			net->guess_ipdata.ip_gateway.s_addr = 
+				datainfo->ip_gateway_addr.s_addr;
+
 			if (net->dirty == 0) {
 				net->dirty = 1;
 				dirty_net_vec.push_back(net);
@@ -2115,8 +2123,10 @@ int Netracker::datatracker_chain_handler(kis_packet *in_pack) {
 			// Copy it into our client ip data too
 			cli->guess_ipdata.ip_type = ipdata_dhcp;
 			cli->guess_ipdata.ip_addr_block.s_addr = ip_calced_range.s_addr;
-			cli->guess_ipdata.ip_netmask.s_addr = datainfo->ip_netmask_addr.s_addr;
-			cli->guess_ipdata.ip_gateway.s_addr = datainfo->ip_gateway_addr.s_addr;
+			cli->guess_ipdata.ip_netmask.s_addr = 
+				datainfo->ip_netmask_addr.s_addr;
+			cli->guess_ipdata.ip_gateway.s_addr = 
+				datainfo->ip_gateway_addr.s_addr;
 			if (cli->dirty == 0) {
 				cli->dirty = 1;
 				dirty_cli_vec.push_back(cli);

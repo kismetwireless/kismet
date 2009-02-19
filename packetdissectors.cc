@@ -1781,6 +1781,8 @@ int KisBuiltinDissector::wep_data_decryptor(kis_packet *in_pack) {
 	if (bwmitr == wepkeys.end())
 		return 0;
 
+	// fprintf(stderr, "debug - got wep key for net %s\n", packinfo->bssid_mac.Mac2String().c_str());
+
 	// Password field
 	char pwd[WEPKEY_MAX + 3];
 	memset(pwd, 0, WEPKEY_MAX + 3);
@@ -1831,11 +1833,11 @@ int KisBuiltinDissector::wep_data_decryptor(kis_packet *in_pack) {
 		keyblock[kba] = keyblock[kbb];
 		keyblock[kbb] = oldkey;
 
-		// Decode the byte into the pos - 4 (no wepkey header)
+		// Decode the packet into the mangle chunk
 		manglechunk->data[dpos - 4] = 
 			chunk->data[dpos] ^ keyblock[(keyblock[kba] + keyblock[kbb]) & 0xFF];
 
-		crc = wep_crc32_table[(crc ^ manglechunk->data[dpos]) & 0xFF] ^ (crc >> 8);
+		crc = wep_crc32_table[(crc ^ manglechunk->data[dpos - 4]) & 0xFF] ^ (crc >> 8);
 	}
 
 	// Check the CRC
@@ -1854,8 +1856,7 @@ int KisBuiltinDissector::wep_data_decryptor(kis_packet *in_pack) {
 		keyblock[kba] = keyblock[kbb];
 		keyblock[kbb] = oldkey;
 
-		if ((c_crc[crcpos] ^ keyblock[(keyblock[kba] + keyblock[kbb]) & 0xFF]) !=
-			icv[crcpos]) {
+		if ((c_crc[crcpos] ^ keyblock[(keyblock[kba] + keyblock[kbb]) & 0xFF]) != icv[crcpos]) {
 			crcfailure = 1;
 			break;
 		}
@@ -1863,6 +1864,7 @@ int KisBuiltinDissector::wep_data_decryptor(kis_packet *in_pack) {
 
 	// If the CRC check failed, delete the moddata
 	if (crcfailure) {
+		// fprintf(stderr, "debug - crc failure %s\n", packinfo->bssid_mac.Mac2String().c_str());
 		(*bwmitr->second)->failed++;
 		delete manglechunk;
 		return 0;
@@ -1870,6 +1872,13 @@ int KisBuiltinDissector::wep_data_decryptor(kis_packet *in_pack) {
 
 	(*bwmitr->second)->decrypted++;
 	packinfo->decrypted = 1;
+
+	// Remove the privacy flag in the mangled data
+    frame_control *fc = (frame_control *) manglechunk->data;
+	fc->wep = 0;
+
+	// fprintf(stderr, "debug - inserting mangle chunk %p\n", manglechunk);
+
 	in_pack->insert(_PCM(PACK_COMP_MANGLEFRAME), manglechunk);
 	return 1;
 }

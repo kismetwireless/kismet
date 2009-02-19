@@ -2314,6 +2314,10 @@ int Kis_NetDetails_Panel::AppendSSIDInfo(int k, Netracker::tracked_network *net,
 			netdetails->AddRow(k++, td);
 		}
 
+		td[0] = "SSID Len:";
+		td[1] = IntToString(ssid->ssid.length());
+		netdetails->AddRow(k++, td);
+
 		td[0] = " Encryption:";
 		td[1] = "";
 		if (ssid->cryptset == 0)
@@ -2359,11 +2363,15 @@ int Kis_NetDetails_Panel::AppendSSIDInfo(int k, Netracker::tracked_network *net,
 			if (ssid->beacons > ssid->beaconrate)
 				ssid->beacons = ssid->beaconrate;
 			osstr.str("");
-			osstr << setw(4) << left << 
-				(int) (((double) ssid->beacons /
-						(double) ssid->beaconrate) * 100);
-			td[1] = osstr.str();
-			netdetails->AddRow(k++, td);
+			int brate = (int) (((double) ssid->beacons /
+								(double) ssid->beaconrate) * 100);
+
+			if (brate > 0) {
+
+				osstr << setw(4) << left << brate;
+				td[1] = osstr.str();
+				netdetails->AddRow(k++, td);
+			}
 		}
 	}
 
@@ -2471,7 +2479,7 @@ int Kis_NetDetails_Panel::AppendNetworkInfo(int k, Kis_Display_NetGroup *tng,
 	}
 
 	if (net->lastssid != NULL) {
-		td[0] = "Last ssid:";
+		td[0] = "Latest SSID:";
 		td[1] = net->lastssid->ssid;
 		netdetails->AddRow(k++, td);
 	} else {
@@ -3489,6 +3497,7 @@ Kis_Chanconf_Panel::Kis_Chanconf_Panel(GlobalRegistry *in_globalreg,
 	vbox->Show();
 
 	tab_pos = 0;
+	active_component = cardlist;
 	cardlist->Activate(1);
 
 	last_selected = 0;
@@ -3510,6 +3519,7 @@ void Kis_Chanconf_Panel::DrawPanel() {
 
 	for (map<uuid, KisPanelInterface::knc_card *>::iterator x = cardmap->begin();
 		 x != cardmap->end(); ++x) {
+		// Did we have a "no cards" row?
 		int sel = cardlist->DelRow(0);
 
 		td.clear();
@@ -3522,7 +3532,8 @@ void Kis_Chanconf_Panel::DrawPanel() {
 
 		cardlist->ReplaceRow(x->second->uuid_hash, td);
 
-		if (sel) {
+		// If we had a no cards row, we need to select the first row we add
+		if (sel == 1) {
 			cardlist->SetSelected(x->second->uuid_hash);
 		}
 	}

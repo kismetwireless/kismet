@@ -49,7 +49,7 @@
 #define FILTER_ALPHANUMSYM "ABCDEFGHIJKLMNOPQRSTUVWXYZ" \
 	"abcdefghijklmnopqrstuvwxyz" \
 	"0123456789 " \
-	".,~!@#$%^&*()_-+/:"
+	".,~!@#$%^&*()_-+/:="
 #define FILTER_NUM "0123456789"
 
 class Kis_Panel;
