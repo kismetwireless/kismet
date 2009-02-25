@@ -816,6 +816,7 @@ if test "$havenetlink" = "yes"; then
 			#include <linux/wireless.h>
 			]], [[
 			NL80211_IFTYPE_MONITOR;
+			NL80211_CMD_NEW_INTERFACE;
 			return 0;
 			]])],[havenetlink=yes],[havenetlink=no])
 else
