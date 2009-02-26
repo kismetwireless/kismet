@@ -1054,7 +1054,7 @@ void Packetracker::ProcessDataPacket(kis_packet *packet, packet_info *info,
 
         if (info->gps_lon < client->min_lon || client->min_lon == -180)
             client->min_lon = info->gps_lon;
-        if (info->gps_lon > client->max_lon == 180)
+        if (info->gps_lon > client->max_lon || client->max_lon == 180)
             client->max_lon = info->gps_lon;
 
         if (info->gps_alt < client->min_alt || client->min_alt == 0)
