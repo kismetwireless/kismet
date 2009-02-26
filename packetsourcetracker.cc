@@ -155,7 +155,7 @@ int Protocol_SOURCE(PROTO_PARMS) {
 
 						if (psrc->channel_ptr->channel_vec[c].range == 0) {
 							osstr << psrc->channel_ptr->channel_vec[c].u.chan_t.channel;
-							if (psrc->channel_ptr->channel_vec[c].u.chan_t.dwell != 0)
+							if (psrc->channel_ptr->channel_vec[c].u.chan_t.dwell > 1)
 								osstr << ":" <<
 									psrc->channel_ptr->channel_vec[c].u.chan_t.dwell;
 						} else {
