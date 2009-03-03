@@ -2293,7 +2293,12 @@ void Kis_Netlist::DrawComponent() {
 	}
 
 	// Draw the cached header
-	string pcache = colhdr_cache + string(ex - sx - colhdr_cache.length(), ' ');
+	
+	// Make a padded header
+	int padlen = ex - sx - colhdr_cache.length();
+	if (padlen < 0)
+		padlen = 0;
+	string pcache = colhdr_cache + string(padlen, ' ');
 
 	if (active)
 		wattrset(window, color_map[kis_netlist_color_header]);
