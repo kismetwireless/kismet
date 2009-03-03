@@ -523,7 +523,7 @@ int Dumpfile_Netxml::Flush() {
 					cli->retries);
 			fprintf(xmlfile, "       </packets>\n");
 
-			fprintf(xmlfile, "       <datasize>%llud</datasize>\n", 
+			fprintf(xmlfile, "       <datasize>%llu</datasize>\n", 
 					(long long unsigned int) cli->datasize);
 
 			if (cli->snrdata.last_signal_rssi != 0 ||
