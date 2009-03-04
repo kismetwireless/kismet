@@ -54,7 +54,7 @@ const char gpsd_init_command[] = "l\n";
 const char gpsd_opt_commands[] = "j=1\n";
 
 // Watcher mode
-const char gpsd_watch_command[] = "J=1,w=1\n";
+const char gpsd_watch_command[] = "J=1,w=1,w+\n";
 
 // GPS poll command
 const char gpsd_poll_command[] = "PAVM\n";
