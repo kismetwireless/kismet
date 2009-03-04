@@ -257,6 +257,14 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
                                         pcapsource_11g_registrant,
                                         monitor_wext, unmonitor_wext,
                                         chancontrol_wext, 1);
+    sourcetracker->RegisterPacketsource("rt2680sta", 1, "IEEE80211g", 6,
+                                        pcapsource_11g_registrant,
+                                        monitor_wext, unmonitor_wext,
+                                        chancontrol_wext, 1);
+    sourcetracker->RegisterPacketsource("rt2680", 1, "IEEE80211g", 6,
+                                        pcapsource_11g_registrant,
+                                        monitor_wext, unmonitor_wext,
+                                        chancontrol_wext, 1);
     sourcetracker->RegisterPacketsource("rt8180", 1, "IEEE80211b", 6,
                                         pcapsource_wext_registrant,
                                         monitor_wext, unmonitor_wext,
@@ -328,6 +336,8 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
 
     REG_EMPTY_CARD(sourcetracker, "rt2400");
     REG_EMPTY_CARD(sourcetracker, "rt73");
+    REG_EMPTY_CARD(sourcetracker, "rt2680sta");
+    REG_EMPTY_CARD(sourcetracker, "rt2680");
     REG_EMPTY_CARD(sourcetracker, "rt61");
     REG_EMPTY_CARD(sourcetracker, "rt2500");
     REG_EMPTY_CARD(sourcetracker, "rt8180");
