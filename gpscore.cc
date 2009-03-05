@@ -76,6 +76,10 @@ int kis_gpspack_hook(CHAINCALL_PARMS) {
 
 	kis_gps_packinfo *gpsdat = new kis_gps_packinfo;
 
+	// Don't override if we already have a tagged packet (like from a drone)
+	if (in_pack->fetch(_PCM(PACK_COMP_GPS)) != NULL)
+		return 1;
+
 	cli->FetchLoc(&(gpsdat->lat), &(gpsdat->lon), &(gpsdat->alt),
 				  &(gpsdat->spd), &(gpsdat->heading), &(gpsdat->gps_fix));
 	
