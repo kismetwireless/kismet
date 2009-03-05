@@ -165,6 +165,8 @@ public:
 	kis_gps_packinfo *gps;
 };
 
+class kis_alert_info;
+
 // Netracker itself
 class Netracker {
 public:
@@ -619,6 +621,8 @@ public:
 		// Client pointers to do "stuff"
 		void *groupptr;
 		adv_ssid_data *lastssid;
+
+		vector<kis_alert_info *> recent_alerts;
 	};
 
 	// Mini-client for counting global unique clients
@@ -823,6 +827,9 @@ protected:
 	FilterCore *track_filter;
 	// Filter core for network client
 	FilterCore *netcli_filter;
+
+	// Number of alerts per network to store
+	int num_stored_alerts;
 
 	// Let the hooks call directly in
 	friend int kis_80211_netracker_hook(CHAINCALL_PARMS);

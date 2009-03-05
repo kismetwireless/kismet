@@ -1194,6 +1194,13 @@ Netracker::Netracker(GlobalRegistry *in_globalreg) {
 		}
 	}
 
+	if (sscanf(globalreg->kismet_config->FetchOpt("numalertsnet").c_str(), "%d", 
+			   &num_stored_alerts) != 1) {
+		_MSG("No numalertsnet found in config file, defaulting to 10 alerts "
+			 "stored per network", MSGFLAG_ERROR);
+		num_stored_alerts = 10;
+	}
+
 	// Register network protocols with the tcp server
 	_NPM(PROTO_REF_BSSID) =
 		globalreg->kisnetserver->RegisterProtocol("BSSID", 0, 1, 

@@ -44,6 +44,7 @@ const char *bssid_column_details[][2] = {
 	{ "signal_dbm", "Signal (in dBm, depends on source" },
 	{ "signal_rssi", "Signal (in RSSI, depends on source" },
 	{ "freq_mhz", "Frequency (MHz)" },
+	{ "manuf", "Manufacturer" },
 	{ NULL, NULL }
 };
 
@@ -571,6 +572,8 @@ int Kis_Netlist::UpdateBColPrefs() {
 			display_bcols.push_back(bcol_signal_rssi);
 		else if (t == "freq_mhz")
 			display_bcols.push_back(bcol_freq_mhz);
+		else if (t == "manuf")
+			display_bcols.push_back(bcol_manuf);
 		else
 			_MSG("Unknown display column '" + t + "', skipping.",
 				 MSGFLAG_INFO);
@@ -2149,6 +2152,9 @@ int Kis_Netlist::PrintNetworkLine(Kis_Display_NetGroup *ng,
 						 net->snrdata.last_signal_rssi);
 			}
 			rofft += 3;
+		} else if (b == bcol_manuf) {
+			snprintf(rline + rofft, max - rofft, "%-20.20s", net->manuf.c_str());
+			rofft += 20;
 		} else {
 			continue;
 		}
@@ -2278,6 +2284,9 @@ void Kis_Netlist::DrawComponent() {
 			} else if (b == bcol_signal_rssi) {
 				snprintf(rline + rofft, 1024 - rofft, "Sig");
 				rofft += 3;
+			} else if (b == bcol_manuf) {
+				snprintf(rline + rofft, 1024 - rofft, "%-20.20s", "Manuf");
+				rofft += 20;
 			}
 
 			if (rofft < 1023) {
