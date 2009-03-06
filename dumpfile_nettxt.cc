@@ -311,21 +311,23 @@ int Dumpfile_Nettxt::Flush() {
 		fprintf(txtfile, " Last BSSTS : %llu\n", 
 				(long long unsigned int) net->bss_timestamp);
 
-		for (map<uuid, Netracker::source_data>::iterator sdi = net->source_map.begin();
+		for (map<uuid, Netracker::source_data *>::iterator sdi = net->source_map.begin();
 			 sdi != net->source_map.end(); ++sdi) {
 			KisPacketSource *kps = 
-			globalreg->sourcetracker->FindKisPacketSourceUUID(sdi->second.source_uuid);
+			globalreg->sourcetracker->FindKisPacketSourceUUID(sdi->second->source_uuid);
 
 			if (kps == NULL) {
 				fprintf(txtfile, "    Seen By : (Deleted Source) %s %d packets\n",
-						kps->FetchUUID().UUID2String().c_str(), sdi->second.num_packets);
+						kps->FetchUUID().UUID2String().c_str(), 
+						sdi->second->num_packets);
 			} else {
 				fprintf(txtfile, "    Seen By : %s (%s) %s %d packets\n",
 						kps->FetchName().c_str(), kps->FetchInterface().c_str(), 
-						kps->FetchUUID().UUID2String().c_str(), sdi->second.num_packets);
+						kps->FetchUUID().UUID2String().c_str(), 
+						sdi->second->num_packets);
 			}
 			fprintf(txtfile, "              %.24s\n",
-					ctime((const time_t *) &(sdi->second.last_seen)));
+					ctime((const time_t *) &(sdi->second->last_seen)));
 
 		}
 
@@ -541,22 +543,22 @@ int Dumpfile_Nettxt::Flush() {
 						inet_ntoa(cli->guess_ipdata.ip_gateway));
 			}
 
-			for (map<uuid, Netracker::source_data>::iterator sdi = 
+			for (map<uuid, Netracker::source_data *>::iterator sdi = 
 				 cli->source_map.begin(); sdi != cli->source_map.end(); ++sdi) {
-				KisPacketSource *kps = globalreg->sourcetracker->FindKisPacketSourceUUID(sdi->second.source_uuid);
+				KisPacketSource *kps = globalreg->sourcetracker->FindKisPacketSourceUUID(sdi->second->source_uuid);
 
 				if (kps == NULL) {
 					fprintf(txtfile, "     Seen By : (Deleted Source) %s %d packets\n",
 							kps->FetchUUID().UUID2String().c_str(), 
-							sdi->second.num_packets);
+							sdi->second->num_packets);
 				} else {
 					fprintf(txtfile, "     Seen By : %s (%s) %s %d packets\n",
 							kps->FetchName().c_str(), kps->FetchInterface().c_str(), 
 							kps->FetchUUID().UUID2String().c_str(), 
-							sdi->second.num_packets);
+							sdi->second->num_packets);
 				}
 				fprintf(txtfile, "               %.24s\n",
-						ctime((const time_t *) &(sdi->second.last_seen)));
+						ctime((const time_t *) &(sdi->second->last_seen)));
 			}
 
 			if (cli->cdp_dev_id.length() > 0)

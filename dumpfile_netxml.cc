@@ -410,17 +410,17 @@ int Dumpfile_Netxml::Flush() {
 		fprintf(xmlfile, "    <cdp-portid>%s</cdp-portid>\n",
 				SanitizeXML(net->cdp_port_id).c_str());
 
-		for (map<uuid, Netracker::source_data>::iterator sdi = 
+		for (map<uuid, Netracker::source_data *>::iterator sdi = 
 			 net->source_map.begin(); sdi != net->source_map.end(); ++sdi) {
-			KisPacketSource *kps = globalreg->sourcetracker->FindKisPacketSourceUUID(sdi->second.source_uuid);
+			KisPacketSource *kps = globalreg->sourcetracker->FindKisPacketSourceUUID(sdi->second->source_uuid);
 
 			fprintf(xmlfile, "    <seen-card>\n");
 			fprintf(xmlfile, "     <seen-uuid>%s</seen-uuid>\n",
 					kps->FetchUUID().UUID2String().c_str());
 			fprintf(xmlfile, "     <seen-time>%.24s</seen-time>\n",
-					ctime((const time_t *) &(sdi->second.last_seen)));
+					ctime((const time_t *) &(sdi->second->last_seen)));
 			fprintf(xmlfile, "     <seen-packets>%d</seen-packets>\n",
-					sdi->second.num_packets);
+					sdi->second->num_packets);
 			fprintf(xmlfile, "    </seen-card\n");
 		}
 
@@ -695,17 +695,17 @@ int Dumpfile_Netxml::Flush() {
 			fprintf(xmlfile, "      <cdp-portid>%s</cdp-portid>\n",
 					SanitizeXML(cli->cdp_port_id).c_str());
 
-			for (map<uuid, Netracker::source_data>::iterator sdi = 
+			for (map<uuid, Netracker::source_data *>::iterator sdi = 
 				 cli->source_map.begin(); sdi != cli->source_map.end(); ++sdi) {
-				KisPacketSource *kps = globalreg->sourcetracker->FindKisPacketSourceUUID(sdi->second.source_uuid);
+				KisPacketSource *kps = globalreg->sourcetracker->FindKisPacketSourceUUID(sdi->second->source_uuid);
 
 				fprintf(xmlfile, "      <seen-card>\n");
 				fprintf(xmlfile, "       <seen-uuid>%s</seen-uuid>\n",
 						kps->FetchUUID().UUID2String().c_str());
 				fprintf(xmlfile, "       <seen-time>%.24s</seen-time>\n",
-						ctime((const time_t *) &(sdi->second.last_seen)));
+						ctime((const time_t *) &(sdi->second->last_seen)));
 				fprintf(xmlfile, "       <seen-packets>%d</seen-packets>\n",
-						sdi->second.num_packets);
+						sdi->second->num_packets);
 				fprintf(xmlfile, "      </seen-card\n");
 			}
 

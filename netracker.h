@@ -107,6 +107,16 @@ enum CLIENT_fields {
 	CLIENT_maxfield
 };
 
+enum BSSIDSRC_fields {
+	BSSIDSRC_bssid, BSSIDSRC_uuid, BSSIDSRC_lasttime, BSSIDSRC_numpackets,
+	BSSIDSRC_maxfield
+};
+
+enum CLISRC_fields {
+	CLISRC_bssid, CLISRC_mac, CLISRC_uuid, CLISRC_lasttime, CLISRC_numpackets,
+	CLISRC_maxfield
+};
+
 enum REMOVE_fields {
     REMOVE_bssid
 };
@@ -184,6 +194,8 @@ public:
 		uuid source_uuid;
 		time_t last_seen;
 		uint32_t num_packets;
+		mac_addr bssid;
+		mac_addr mac;
 	};
 
 	struct ip_data {
@@ -638,7 +650,7 @@ public:
 		vector<kis_alert_info *> recent_alerts;
 
 		// Map of sources which have seen this network
-		map<uuid, source_data> source_map;
+		map<uuid, source_data *> source_map;
 	};
 
 	// Mini-client for counting global unique clients
@@ -736,7 +748,7 @@ public:
 		Netracker::tracked_network *netptr;
 
 		// Map of sources which have seen this network
-		map<uuid, source_data> source_map;
+		map<uuid, source_data *> source_map;
 	};
 
 	Netracker();
@@ -849,6 +861,9 @@ protected:
 
 	// Number of alerts per network to store
 	int num_stored_alerts;
+
+	// Nonglobal protocols
+	int proto_ref_bssidsrc, proto_ref_clisrc;
 
 	// Let the hooks call directly in
 	friend int kis_80211_netracker_hook(CHAINCALL_PARMS);

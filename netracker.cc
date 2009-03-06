@@ -72,6 +72,16 @@ const char *SSID_fields_text[] = {
 	NULL
 };
 
+const char *BSSIDSRC_fields_text[] = {
+	"bssid", "uuid", "lasttime", "numpackets", 
+	NULL
+};
+
+const char *CLISRC_fields_text[] = {
+	"bssid", "mac", "uuid", "lasttime", "numpackets",
+	NULL
+};
+
 const char *REMOVE_fields_text[] = {
     "bssid",
     NULL
@@ -833,6 +843,107 @@ int Protocol_CLIENT(PROTO_PARMS) {
     return 1;
 }
 
+int Protocol_BSSIDSRC(PROTO_PARMS) {
+	Netracker::source_data *sd = (Netracker::source_data *) data;
+	ostringstream osstr;
+	string scratch;
+
+	// Alloc the cache quickly
+	cache->Filled(field_vec->size());
+
+    for (unsigned int x = 0; x < field_vec->size(); x++) {
+        unsigned int fnum = (*field_vec)[x];
+        if (fnum >= BSSIDSRC_maxfield) {
+            out_string = "Unknown field requested.";
+            return -1;
+		}
+
+		osstr.str("");
+
+		// Shortcut test the cache once and print/bail immediately
+		if (cache->Filled(fnum)) {
+			out_string += cache->GetCache(fnum) + " ";
+			continue;
+		}
+
+		// Fill in the cached element
+		switch(fnum) {
+			case BSSIDSRC_bssid:
+				scratch = sd->bssid.Mac2String().c_str();
+				break;
+			case BSSIDSRC_uuid:
+				scratch = sd->source_uuid.UUID2String().c_str();
+				break;
+			case BSSIDSRC_lasttime:
+				scratch = IntToString(sd->last_seen);
+				break;
+			case BSSIDSRC_numpackets:
+				scratch = IntToString(sd->num_packets);
+				break;
+		}
+
+		out_string += scratch;
+		cache->Cache(fnum, scratch);
+
+		// print the newly filled in cache
+		out_string += " ";
+    }
+
+    return 1;
+}
+
+int Protocol_CLISRC(PROTO_PARMS) {
+	Netracker::source_data *sd = (Netracker::source_data *) data;
+	ostringstream osstr;
+	string scratch;
+
+	// Alloc the cache quickly
+	cache->Filled(field_vec->size());
+
+    for (unsigned int x = 0; x < field_vec->size(); x++) {
+        unsigned int fnum = (*field_vec)[x];
+        if (fnum >= CLISRC_maxfield) {
+            out_string = "Unknown field requested.";
+            return -1;
+		}
+
+		osstr.str("");
+
+		// Shortcut test the cache once and print/bail immediately
+		if (cache->Filled(fnum)) {
+			out_string += cache->GetCache(fnum) + " ";
+			continue;
+		}
+
+		// Fill in the cached element
+		switch(fnum) {
+			case CLISRC_bssid:
+				scratch = sd->bssid.Mac2String().c_str();
+				break;
+			case CLISRC_mac:
+				scratch = sd->mac.Mac2String().c_str();
+				break;
+			case CLISRC_uuid:
+				scratch = sd->source_uuid.UUID2String().c_str();
+				break;
+			case CLISRC_lasttime:
+				scratch = IntToString(sd->last_seen);
+				break;
+			case CLISRC_numpackets:
+				scratch = IntToString(sd->num_packets);
+				break;
+		}
+
+		out_string += scratch;
+		cache->Cache(fnum, scratch);
+
+		// print the newly filled in cache
+		out_string += " ";
+    }
+
+    return 1;
+}
+
 int Protocol_REMOVE(PROTO_PARMS) {
     string *str = (string *) data;
     out_string += *str;
@@ -1218,6 +1329,16 @@ Netracker::Netracker(GlobalRegistry *in_globalreg) {
 												  CLIENT_fields_text, 
 												  &Protocol_CLIENT, 
 												  &Protocol_CLIENT_enable, this);
+	proto_ref_bssidsrc =
+		globalreg->kisnetserver->RegisterProtocol("BSSIDSRC", 0, 1,
+												  BSSIDSRC_fields_text, 
+												  &Protocol_BSSIDSRC, 
+												  NULL, this);
+	proto_ref_clisrc =
+		globalreg->kisnetserver->RegisterProtocol("CLISRC", 0, 1,
+												  CLISRC_fields_text, 
+												  &Protocol_CLISRC, 
+												  NULL, this);
 	_NPM(PROTO_REF_REMOVE) =
 		globalreg->kisnetserver->RegisterProtocol("REMOVE", 0, 1,
 												  REMOVE_fields_text, 
@@ -1326,6 +1447,11 @@ int Netracker::TimerKick() {
 			asi->second->beacons = 0;
 		}
 
+		for (map<uuid, source_data *>::iterator sdi = net->source_map.begin();
+			 sdi != net->source_map.end(); ++sdi) {
+			globalreg->kisnetserver->SendToAll(proto_ref_bssidsrc,
+											   (void *) sdi->second);
+		}
 
 		/* Reset the frag, retry, and packet counters */
 		net->fragments = 0;
@@ -1358,6 +1484,12 @@ int Netracker::TimerKick() {
 
 		globalreg->kisnetserver->SendToAll(_NPM(PROTO_REF_CLIENT),
 										   (void *) cli);
+
+		for (map<uuid, source_data *>::iterator sdi = cli->source_map.begin();
+			 sdi != cli->source_map.end(); ++sdi) {
+			globalreg->kisnetserver->SendToAll(proto_ref_clisrc,
+											   (void *) sdi->second);
+		}
 
 		for (asi = cli->ssid_map.begin(); asi != cli->ssid_map.end(); ++asi) {
 			if (asi->second->dirty == 0)
@@ -1550,30 +1682,33 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 	kis_ref_capsource *capsource = (kis_ref_capsource *)
 		in_pack->fetch(_PCM(PACK_COMP_KISCAPSRC));
 	if (capsource != NULL && capsource->ref_source != NULL) {
-		map<uuid, source_data>::iterator sdi;
+		map<uuid, source_data *>::iterator sdi;
 
 		if ((sdi = net->source_map.find(capsource->ref_source->FetchUUID())) !=
 			net->source_map.end()) {
-			sdi->second.last_seen = time(0);
-			sdi->second.num_packets++;
+			sdi->second->last_seen = time(0);
+			sdi->second->num_packets++;
 		} else {
-			source_data sd;
-			sd.source_uuid = capsource->ref_source->FetchUUID();
-			sd.last_seen = time(0);
-			sd.num_packets = 1;
-			net->source_map[sd.source_uuid] = sd;
+			source_data *sd = new source_data;
+			sd->source_uuid = capsource->ref_source->FetchUUID();
+			sd->last_seen = time(0);
+			sd->num_packets = 1;
+			sd->bssid = net->bssid;
+			net->source_map[sd->source_uuid] = sd;
 		}
 
 		if ((sdi = cli->source_map.find(capsource->ref_source->FetchUUID())) !=
 			cli->source_map.end()) {
-			sdi->second.last_seen = time(0);
-			sdi->second.num_packets++;
+			sdi->second->last_seen = time(0);
+			sdi->second->num_packets++;
 		} else {
-			source_data sd;
-			sd.source_uuid = capsource->ref_source->FetchUUID();
-			sd.last_seen = time(0);
-			sd.num_packets = 1;
-			cli->source_map[sd.source_uuid] = sd;
+			source_data *sd = new source_data;
+			sd->source_uuid = capsource->ref_source->FetchUUID();
+			sd->last_seen = time(0);
+			sd->num_packets = 1;
+			sd->bssid = net->bssid;
+			sd->mac = cli->mac;
+			cli->source_map[sd->source_uuid] = sd;
 		}
 	}
 
