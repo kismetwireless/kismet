@@ -36,6 +36,7 @@
 #include "gpsdclient.h"
 #include "alertracker.h"
 #include "manuf.h"
+#include "packetsource.h"
 
 // TCP server hooks
 const char *BSSID_fields_text[] = {
@@ -1543,6 +1544,37 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 			cli->type = client_interds;
 		else if (packinfo->distrib == distrib_adhoc)
 			cli->type = client_adhoc;
+	}
+
+	// Add the source to the network record of who has seen us and when
+	kis_ref_capsource *capsource = (kis_ref_capsource *)
+		in_pack->fetch(_PCM(PACK_COMP_KISCAPSRC));
+	if (capsource != NULL && capsource->ref_source != NULL) {
+		map<uuid, source_data>::iterator sdi;
+
+		if ((sdi = net->source_map.find(capsource->ref_source->FetchUUID())) !=
+			net->source_map.end()) {
+			sdi->second.last_seen = time(0);
+			sdi->second.num_packets++;
+		} else {
+			source_data sd;
+			sd.source_uuid = capsource->ref_source->FetchUUID();
+			sd.last_seen = time(0);
+			sd.num_packets = 1;
+			net->source_map[sd.source_uuid] = sd;
+		}
+
+		if ((sdi = cli->source_map.find(capsource->ref_source->FetchUUID())) !=
+			cli->source_map.end()) {
+			sdi->second.last_seen = time(0);
+			sdi->second.num_packets++;
+		} else {
+			source_data sd;
+			sd.source_uuid = capsource->ref_source->FetchUUID();
+			sd.last_seen = time(0);
+			sd.num_packets = 1;
+			cli->source_map[sd.source_uuid] = sd;
+		}
 	}
 
 	// Link it to the packet for future chain elements

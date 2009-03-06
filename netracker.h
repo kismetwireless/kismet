@@ -39,6 +39,7 @@
 #include "filtercore.h"
 #include "gpscore.h"
 #include "packet.h"
+#include "uuid.h"
 
 // Cache file versioning
 #define NETRACKER_SSIDCACHE_VERSION 	2
@@ -173,6 +174,17 @@ public:
 	// Forward defs
 	class tracked_network;
 	class tracked_client;
+
+	struct source_data {
+		source_data() {
+			last_seen = 0;
+			num_packets = 0;
+		}
+
+		uuid source_uuid;
+		time_t last_seen;
+		uint32_t num_packets;
+	};
 
 	struct ip_data {
 		ip_data() {
@@ -622,7 +634,11 @@ public:
 		void *groupptr;
 		adv_ssid_data *lastssid;
 
+		// Cache of alerts related to this network
 		vector<kis_alert_info *> recent_alerts;
+
+		// Map of sources which have seen this network
+		map<uuid, source_data> source_map;
 	};
 
 	// Mini-client for counting global unique clients
@@ -718,6 +734,9 @@ public:
 
 		// Pointer to the network we belong to, for fast compares
 		Netracker::tracked_network *netptr;
+
+		// Map of sources which have seen this network
+		map<uuid, source_data> source_map;
 	};
 
 	Netracker();

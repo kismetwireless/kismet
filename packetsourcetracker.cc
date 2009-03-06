@@ -1997,6 +1997,15 @@ pst_packetsource *Packetsourcetracker::FindLivePacketSourceUUID(uuid in_uuid) {
 	return NULL;
 }
 
+KisPacketSource *Packetsourcetracker::FindKisPacketSourceUUID(uuid in_uuid) {
+	pst_packetsource *pst = FindLivePacketSourceUUID(in_uuid);
+
+	if (pst != NULL)
+		return pst->strong_source;
+
+	return NULL;
+}
+
 int Packetsourcetracker::RemoveLivePacketSource(KisPacketSource *in_strong) {
 	pst_packetsource *pstsource = FindLivePacketSource(in_strong);
 
@@ -2050,7 +2059,8 @@ void Packetsourcetracker::ChannelTimer() {
 		pst_packetsource *pst = packetsource_vec[x];
 
 		if (pst->strong_source == NULL || pst->channel_ptr == NULL ||
-			(pst->channel_hop == 0 && pst->channel_dwell == 0)) {
+			(pst->channel_hop == 0 && pst->channel_dwell == 0) ||
+			 pst->error == 1) {
 			continue;
 		}
 

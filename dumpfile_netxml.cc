@@ -23,6 +23,8 @@
 #include "globalregistry.h"
 #include "gpsdclient.h"
 #include "dumpfile_netxml.h"
+#include "packetsource.h"
+#include "packetsourcetracker.h"
 
 Dumpfile_Netxml::Dumpfile_Netxml() {
 	fprintf(stderr, "FATAL OOPS: Dumpfile_Netxml called with no globalreg\n");
@@ -100,7 +102,60 @@ int Dumpfile_Netxml::Flush() {
 			VERSION_MAJOR, VERSION_MINOR, VERSION_TINY,
             ctime(&(globalreg->start_time)));
 
-	// Get the tracket network and client->ap maps
+	// Get the source info
+	const vector<pst_packetsource *> *sources =
+		globalreg->sourcetracker->FetchSourceVec();
+
+	for (unsigned int s = 0; s < sources->size(); s++) {
+		if ((*sources)[s]->strong_source == NULL)
+			continue;
+
+		fprintf(xmlfile, "<card-source uuid=\"%s\">\n",
+				(*sources)[s]->strong_source->FetchUUID().UUID2String().c_str());
+
+		fprintf(xmlfile, " <card-source>%s</card-source>\n",
+				SanitizeXML((*sources)[s]->sourceline).c_str());
+
+		fprintf(xmlfile, " <card-name>%s</card-name>\n",
+				SanitizeXML((*sources)[s]->strong_source->FetchName()).c_str());
+		fprintf(xmlfile, " <car-interface>%s</card-interface>\n",
+				SanitizeXML((*sources)[s]->strong_source->FetchInterface()).c_str());
+		fprintf(xmlfile, " <card-type>%s</card-type>\n",
+				SanitizeXML((*sources)[s]->strong_source->FetchType()).c_str());
+		fprintf(xmlfile, " <card-packets>%d</card-packets>\n",
+				(*sources)[s]->strong_source->FetchNumPackets());
+
+		fprintf(xmlfile, " <card-hop>%s</card-hop>\n",
+				((*sources)[s]->channel_dwell || (*sources)[s]->channel_hop) ? 
+						"true" : "false");
+
+		if ((*sources)[s]->channel_ptr != NULL) {
+			string channels;
+
+			for (unsigned int c = 0; c < (*sources)[s]->channel_ptr->channel_vec.size();
+				 c++) {
+
+				if ((*sources)[s]->channel_ptr->channel_vec[c].range == 0) {
+					channels += IntToString((*sources)[s]->channel_ptr->channel_vec[c].u.chan_t.channel);
+					if ((*sources)[s]->channel_ptr->channel_vec[c].u.chan_t.dwell > 1)
+						channels += string(":") +
+							IntToString((*sources)[s]->channel_ptr->channel_vec[c].u.chan_t.dwell);
+				} else {
+					channels += string("range-") + IntToString((*sources)[s]->channel_ptr->channel_vec[c].u.range_t.start) + string("-") + IntToString((*sources)[s]->channel_ptr->channel_vec[c].u.range_t.end) + string("-") + IntToString((*sources)[s]->channel_ptr->channel_vec[c].u.range_t.width) + string("-") + IntToString((*sources)[s]->channel_ptr->channel_vec[c].u.range_t.iter);
+				}
+
+				if (c != (*sources)[s]->channel_ptr->channel_vec.size() - 1)
+					channels += ",";
+			}
+
+			fprintf(xmlfile, " <card-channels>%s</card-channels>\n",
+					channels.c_str());
+		}
+
+		fprintf(xmlfile, "</card-source>\n");
+	}
+
+	// Get the tracked network and client->ap maps
 	const map<mac_addr, Netracker::tracked_network *> tracknet =
 		globalreg->netracker->FetchTrackedNets();
 
@@ -354,6 +409,20 @@ int Dumpfile_Netxml::Flush() {
 				SanitizeXML(net->cdp_dev_id).c_str());
 		fprintf(xmlfile, "    <cdp-portid>%s</cdp-portid>\n",
 				SanitizeXML(net->cdp_port_id).c_str());
+
+		for (map<uuid, Netracker::source_data>::iterator sdi = 
+			 net->source_map.begin(); sdi != net->source_map.end(); ++sdi) {
+			KisPacketSource *kps = globalreg->sourcetracker->FindKisPacketSourceUUID(sdi->second.source_uuid);
+
+			fprintf(xmlfile, "    <seen-card>\n");
+			fprintf(xmlfile, "     <seen-uuid>%s</seen-uuid>\n",
+					kps->FetchUUID().UUID2String().c_str());
+			fprintf(xmlfile, "     <seen-time>%.24s</seen-time>\n",
+					ctime((const time_t *) &(sdi->second.last_seen)));
+			fprintf(xmlfile, "     <seen-packets>%d</seen-packets>\n",
+					sdi->second.num_packets);
+			fprintf(xmlfile, "    </seen-card\n");
+		}
 
 		int clinum = 0;
 
@@ -625,6 +694,21 @@ int Dumpfile_Netxml::Flush() {
 					SanitizeXML(cli->cdp_dev_id).c_str());
 			fprintf(xmlfile, "      <cdp-portid>%s</cdp-portid>\n",
 					SanitizeXML(cli->cdp_port_id).c_str());
+
+			for (map<uuid, Netracker::source_data>::iterator sdi = 
+				 cli->source_map.begin(); sdi != cli->source_map.end(); ++sdi) {
+				KisPacketSource *kps = globalreg->sourcetracker->FindKisPacketSourceUUID(sdi->second.source_uuid);
+
+				fprintf(xmlfile, "      <seen-card>\n");
+				fprintf(xmlfile, "       <seen-uuid>%s</seen-uuid>\n",
+						kps->FetchUUID().UUID2String().c_str());
+				fprintf(xmlfile, "       <seen-time>%.24s</seen-time>\n",
+						ctime((const time_t *) &(sdi->second.last_seen)));
+				fprintf(xmlfile, "       <seen-packets>%d</seen-packets>\n",
+						sdi->second.num_packets);
+				fprintf(xmlfile, "      </seen-card\n");
+			}
+
 			fprintf(xmlfile, "    </wireless-client>\n");
 
 		}

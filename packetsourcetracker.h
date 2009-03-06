@@ -218,6 +218,7 @@ public:
 	int RemoveLivePacketSource(KisPacketSource *in_strong);
 	pst_packetsource *FindLivePacketSource(KisPacketSource *in_strong);
 	pst_packetsource *FindLivePacketSourceUUID(uuid in_uuid);
+	KisPacketSource *FindKisPacketSourceUUID(uuid in_uuid);
 
 	// Actually load the configuration
 	int LoadConfiguration();
@@ -294,7 +295,6 @@ public:
 	//
 	// The channel list will be sent immediately upon parsing to the IPC process
 	uint16_t AddChannelList(string in_chanlist);
-
 
 protected:
 	void SendIPCSourceAdd(pst_packetsource *in_source);
