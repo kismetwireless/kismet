@@ -217,6 +217,8 @@ public:
 	void Proto_BSSID(CLIPROTO_CB_PARMS);
 	void Proto_SSID(CLIPROTO_CB_PARMS);
 	void Proto_CLIENT(CLIPROTO_CB_PARMS);
+	void Proto_BSSIDSRC(CLIPROTO_CB_PARMS);
+	void Proto_CLISRC(CLIPROTO_CB_PARMS);
 
 	// Trigger a sort and redraw update
 	void UpdateTrigger(void);
@@ -268,8 +270,10 @@ protected:
 	int hpos;
 
 	// Assembled protocol fields
-	string asm_ssid_fields, asm_bssid_fields, asm_client_fields;
-	int asm_ssid_num, asm_bssid_num, asm_client_num;
+	string asm_ssid_fields, asm_bssid_fields, asm_client_fields,
+		   asm_bssidsrc_fields, asm_clisrc_fields;
+	int asm_ssid_num, asm_bssid_num, asm_client_num, asm_bssidsrc_num,
+		asm_clisrc_num;
 
 	// We try to optimize our memory usage so that there is only
 	// one copy of the TCP data network, as well as only one copy of

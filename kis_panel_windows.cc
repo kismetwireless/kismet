@@ -2575,6 +2575,30 @@ int Kis_NetDetails_Panel::AppendNetworkInfo(int k, Kis_Display_NetGroup *tng,
 	td[1] = osstr.str();
 	netdetails->AddRow(k++, td);
 
+	map<uuid, KisPanelInterface::knc_card *> *cardmap =
+		kpinterface->FetchNetCardMap();
+	map<uuid, KisPanelInterface::knc_card *>::iterator kci;
+
+	for (map<uuid, Netracker::source_data *>::iterator sdi = net->source_map.begin();
+		 sdi != net->source_map.end(); ++sdi) {
+		if ((kci = cardmap->find(sdi->second->source_uuid)) == cardmap->end()) {
+			td[0] = "Seen By:";
+			td[1] = string("(Unknown Card) ") + sdi->second->source_uuid.UUID2String();
+			netdetails->AddRow(k++, td);
+		} else {
+			td[0] = "Seen By:";
+			td[1] = kci->second->name + " (" + kci->second->interface + ")" +
+				sdi->second->source_uuid.UUID2String();
+			netdetails->AddRow(k++, td);
+		}
+		td[0] = "";
+		osstr.str("");
+		osstr << setw(14) << left << 
+		(string(ctime((const time_t *) &(sdi->second->last_seen)) + 4).substr(0, 15));
+		td[1] = osstr.str();
+		netdetails->AddRow(k++, td);
+	}
+
 	if (net->cdp_dev_id.length() > 0) {
 		td[0] = "CDP Device:";
 		td[1] = net->cdp_dev_id;
@@ -4632,6 +4656,32 @@ void Kis_ClientDetails_Panel::DrawPanel() {
 				osstr << (int) (dcli->datasize / 1024 / 1024) << "M";
 			td[1] = osstr.str();
 			clientdetails->AddRow(k++, td);
+
+			map<uuid, KisPanelInterface::knc_card *> *cardmap =
+				kpinterface->FetchNetCardMap();
+			map<uuid, KisPanelInterface::knc_card *>::iterator kci;
+
+			for (map<uuid, Netracker::source_data *>::iterator sdi = 
+				 dcli->source_map.begin();
+				 sdi != dcli->source_map.end(); ++sdi) {
+				if ((kci = cardmap->find(sdi->second->source_uuid)) == cardmap->end()) {
+					td[0] = "Seen By:";
+					td[1] = string("(Unknown Card) ") + 
+						sdi->second->source_uuid.UUID2String();
+					clientdetails->AddRow(k++, td);
+				} else {
+					td[0] = "Seen By:";
+					td[1] = kci->second->name + " (" + kci->second->interface + ") " +
+						sdi->second->source_uuid.UUID2String();
+					clientdetails->AddRow(k++, td);
+				}
+				td[0] = "";
+				osstr.str("");
+				osstr << setw(14) << left << 
+					(string(ctime((const time_t *) &(sdi->second->last_seen)) + 4).substr(0, 15));
+				td[1] = osstr.str();
+				clientdetails->AddRow(k++, td);
+			}
 
 			if (dcli->cdp_dev_id.length() > 0) {
 				td[0] = "CDP Device:";

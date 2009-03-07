@@ -113,6 +113,14 @@ const char *client_fields[] = {
 	NULL
 };
 
+const char *bssidsrc_fields[] = {
+	"bssid", "uuid", "lasttime", "numpackets", NULL
+};
+
+const char *clisrc_fields[] = {
+	"bssid", "mac", "uuid", "lasttime", "numpackets", NULL
+};
+
 const char *time_fields[] = { "timesec", NULL };
 
 const char *info_fields[] = { "networks", "packets", "rate", "filtered", NULL };
@@ -439,6 +447,16 @@ void KisNetlist_CLIENT(CLIPROTO_CB_PARMS) {
 										   proto_parsed, srccli, auxptr);
 }
 
+void KisNetlist_BSSIDSRC(CLIPROTO_CB_PARMS) {
+	((Kis_Netlist *) auxptr)->Proto_BSSIDSRC(globalreg, proto_string,
+											 proto_parsed, srccli, auxptr);
+}
+
+void KisNetlist_CLISRC(CLIPROTO_CB_PARMS) {
+	((Kis_Netlist *) auxptr)->Proto_CLISRC(globalreg, proto_string,
+										   proto_parsed, srccli, auxptr);
+}
+
 // Event callbacks
 int Event_Netlist_Update(TIMEEVENT_PARMS) {
 	((Kis_Netlist *) parm)->UpdateTrigger();
@@ -487,6 +505,8 @@ Kis_Netlist::Kis_Netlist(GlobalRegistry *in_globalreg, Kis_Panel *in_panel) :
 	asm_bssid_num = TokenNullJoin(&asm_bssid_fields, bssid_fields);
 	asm_ssid_num = TokenNullJoin(&asm_ssid_fields, ssid_fields);
 	asm_client_num = TokenNullJoin(&asm_client_fields, client_fields);
+	asm_bssidsrc_num = TokenNullJoin(&asm_bssidsrc_fields, bssidsrc_fields);
+	asm_clisrc_num = TokenNullJoin(&asm_clisrc_fields, clisrc_fields);
 
 	// Set default preferences for BSSID columns if we don't have any in the
 	// preferences file, then update the column vector
@@ -503,6 +523,8 @@ Kis_Netlist::~Kis_Netlist() {
 	kpinterface->Remove_AllNetcli_ProtoHandler("BSSID", KisNetlist_BSSID, this);
 	kpinterface->Remove_AllNetcli_ProtoHandler("SSID", KisNetlist_SSID, this);
 	kpinterface->Remove_AllNetcli_ProtoHandler("CLIENT", KisNetlist_CLIENT, this);
+	kpinterface->Remove_AllNetcli_ProtoHandler("BSSIDSRC", KisNetlist_BSSIDSRC, this);
+	kpinterface->Remove_AllNetcli_ProtoHandler("CLISRC", KisNetlist_CLISRC, this);
 	// Remove the timer
 	globalreg->timetracker->RemoveTimer(updateref);
 	
@@ -683,6 +705,23 @@ void Kis_Netlist::NetClientConfigure(KisNetClient *in_cli, int in_recon) {
 		_MSG("This looks like an old kismet-stable server, the Kismet-newcore "
 			 "client can only talk to Kismet-newcore servers, connection will "
 			 "be terminated.", MSGFLAG_ERROR);
+		in_cli->KillConnection();
+		return;
+	}
+
+	// Register these first so we get the first pass of data when the network
+	// populates
+	if (in_cli->RegisterProtoHandler("BSSIDSRC", asm_bssidsrc_fields, 
+									 KisNetlist_BSSIDSRC, this) < 0) {
+		_MSG("Could not register BSSIDSRC protocol with remote server, connection "
+			 "will be terminated.", MSGFLAG_ERROR);
+		in_cli->KillConnection();
+		return;
+	}
+	if (in_cli->RegisterProtoHandler("CLISRC", asm_clisrc_fields, 
+									 KisNetlist_CLISRC, this) < 0) {
+		_MSG("Could not register BSSIDSRC protocol with remote server, connection "
+			 "will be terminated.", MSGFLAG_ERROR);
 		in_cli->KillConnection();
 		return;
 	}
@@ -1687,6 +1726,149 @@ void Kis_Netlist::Proto_CLIENT(CLIPROTO_CB_PARMS) {
 
 	// We don't do anything as fancy with client dirty tracking since we'll only
 	// be displaying them in sub-windows
+
+	return;
+}
+
+void Kis_Netlist::Proto_BSSIDSRC(CLIPROTO_CB_PARMS) {
+	if (proto_parsed->size() < (unsigned int) asm_bssidsrc_num) {
+		return;
+	}
+
+	int fnum = 0;
+
+	int newsd = 0;
+
+	Netracker::source_data *sd = NULL;
+	Netracker::tracked_network *net = NULL;
+
+	mac_addr tmac;
+	unsigned int tint;
+	uuid tuuid;
+
+	tmac = mac_addr((*proto_parsed)[fnum++].word.c_str());
+	if (tmac.error) {
+		return;
+	}
+
+	// Try to find the network this belongs to, if for some reason we don't have
+	// a record of it, throw it out and stop processing
+	macmap<Netracker::tracked_network *>::iterator tni = bssid_raw_map.find(tmac);
+
+	if (tni == bssid_raw_map.end()) {
+		return;
+	}
+	net = *(tni->second);
+
+
+	tuuid = uuid((*proto_parsed)[fnum++].word);
+	if (tuuid.error) {
+		return;
+	}
+
+	if (net->source_map.find(tuuid) == net->source_map.end()) {
+		sd = new Netracker::source_data;
+		newsd = 1;
+	} else {
+		sd = net->source_map[tuuid];
+	}
+
+	sd->bssid = tmac;
+	sd->source_uuid = tuuid;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%u", &tint) != 1) {
+		delete sd;
+		return;
+	}
+	sd->last_seen = (time_t) tint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%u", &tint) != 1) {
+		delete sd;
+		return;
+	}
+	sd->num_packets = (time_t) tint;
+
+	if (newsd)
+		net->source_map[sd->source_uuid] = sd;
+
+	return;
+}
+
+void Kis_Netlist::Proto_CLISRC(CLIPROTO_CB_PARMS) {
+	if (proto_parsed->size() < (unsigned int) asm_bssidsrc_num) {
+		return;
+	}
+
+	int fnum = 0;
+
+	int newsd = 0;
+
+	Netracker::source_data *sd = NULL;
+	Netracker::tracked_network *net = NULL;
+	Netracker::tracked_client *cli = NULL;
+
+	mac_addr tmac;
+	unsigned int tint;
+	uuid tuuid;
+
+	tmac = mac_addr((*proto_parsed)[fnum++].word.c_str());
+	if (tmac.error) {
+		return;
+	}
+
+	// Try to find the network this belongs to, if for some reason we don't have
+	// a record of it, throw it out and stop processing
+	macmap<Netracker::tracked_network *>::iterator tni = bssid_raw_map.find(tmac);
+
+	if (tni == bssid_raw_map.end()) {
+		return;
+	}
+	net = *(tni->second);
+
+	tmac = mac_addr((*proto_parsed)[fnum++].word.c_str());
+	if (tmac.error) {
+		return;
+	}
+
+	map<mac_addr, Netracker::tracked_client *>::iterator ti =
+		net->client_map.find(tmac);
+
+	if (ti == net->client_map.end()) {
+		return;
+	}
+
+	cli = ti->second;
+
+	tuuid = uuid((*proto_parsed)[fnum++].word);
+	if (tuuid.error) {
+		return;
+	}
+
+	if (net->source_map.find(tuuid) == net->source_map.end()) {
+		sd = new Netracker::source_data;
+		newsd = 1;
+	} else {
+		sd = net->source_map[tuuid];
+	}
+
+	sd->bssid = net->bssid;
+	sd->mac = cli->mac;
+	sd->source_uuid = tuuid;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%u", &tint) != 1) {
+		delete sd;
+		return;
+	}
+	sd->last_seen = (time_t) tint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%u", &tint) != 1) {
+		delete sd;
+		return;
+	}
+	sd->num_packets = (time_t) tint;
+
+	if (newsd)
+		cli->source_map[sd->source_uuid] = sd;
 
 	return;
 }
