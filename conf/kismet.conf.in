@@ -14,7 +14,6 @@ allowplugins=true
 
 # See the README for full information on the new source format
 # ncsource=interface:options
-ncsource=null
 # for example:
 # ncsource=wlan0
 # ncsource=wifi0:type=madwifi

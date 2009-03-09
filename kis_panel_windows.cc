@@ -36,8 +36,6 @@
 #include "kis_panel_windows.h"
 #include "kis_panel_preferences.h"
 
-#define WIN_CENTER(h, w)	(LINES / 2) - ((h) / 2), (COLS / 2) - ((w) / 2), (h), (w)
-
 int MenuActivateCB(COMPONENT_CALLBACK_PARMS) {
 	((Kis_Main_Panel *) aux)->MenuAction(status);
 	return 1;
@@ -1330,6 +1328,7 @@ void Kis_Prompt_Panel::SetCallback(ksp_prompt_cb in_callback, void *in_auxptr) {
 
 void Kis_Prompt_Panel::SetDisplayText(vector<string> in_text) {
 	ftext->SetText(in_text);
+	Position(WIN_CENTER(in_text.size() + 3, 50));
 }
 
 Kis_Prompt_Panel::~Kis_Prompt_Panel() {
@@ -1739,7 +1738,7 @@ void Kis_ServerList_Picker::ConfigurePicker(string in_title, kpi_sl_cb_hook in_h
 void sp_addcard_cb(KPI_SL_CB_PARMS) {
 	Kis_AddCard_Panel *acp = new Kis_AddCard_Panel(globalreg, kpi);
 
-	acp->Position((LINES / 2) - 5, (COLS / 2) - (40 / 2), 10, 40);
+	acp->Position(WIN_CENTER(10, 40));
 
 	acp->SetTargetClient(picked);
 

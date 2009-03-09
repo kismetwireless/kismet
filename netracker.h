@@ -121,14 +121,6 @@ enum REMOVE_fields {
     REMOVE_bssid
 };
 
-// The info protocol lives in here for lack of anywhere better to live
-enum INFO_fields {
-	INFO_networks, INFO_packets, INFO_cryptpackets,
-	INFO_noisepackets, INFO_droppedpackets, INFO_packetrate, 
-	INFO_filteredpackets, INFO_clients, INFO_llcpackets, INFO_datapackets,
-	INFO_maxfield
-};
-
 // Enums explicitly defined for the ease of client writers
 enum network_type {
 	network_ap = 0,
@@ -175,8 +167,6 @@ public:
 	kis_layer1_packinfo *lay1;
 	kis_gps_packinfo *gps;
 };
-
-class kis_alert_info;
 
 // Netracker itself
 class Netracker {
@@ -645,9 +635,6 @@ public:
 		// Client pointers to do "stuff"
 		void *groupptr;
 		adv_ssid_data *lastssid;
-
-		// Cache of alerts related to this network
-		vector<kis_alert_info *> recent_alerts;
 
 		// Map of sources which have seen this network
 		map<uuid, source_data *> source_map;

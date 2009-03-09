@@ -1026,12 +1026,10 @@ int Packetsourcetracker::LoadConfiguration() {
 
 	if (src_input_vec.size() == 0) {
 		_MSG("No sources found - Remember, Kismet recently changed the format of "
-			 "sources, and to make it easier to find old configs, sources are now "
-			 "defined by the ncsource=... config file line.  Please check the "
-			 "Kismet devel blog for details and update your config file.",
-			 MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
-		return -1;
+			 "sources, and to make it easier to identify old configs, sources are "
+			 "now identified by the 'ncsource=...' config file line.  Kismet CAN "
+			 "be started with no predefined sources, however MAKE SURE this is "
+			 "what you wanted!", MSGFLAG_ERROR);
 	}
 
 	named_vec = StrTokenize(named_sources, ",");

@@ -59,6 +59,11 @@ void KisPanelClient_SOURCE(CLIPROTO_CB_PARMS) {
 												 proto_parsed, srccli, auxptr);
 }
 
+void KisPanelClient_INFO(CLIPROTO_CB_PARMS) {
+	((KisPanelInterface *) auxptr)->proto_INFO(globalreg, proto_string,
+											   proto_parsed, srccli, auxptr);
+}
+
 void KisPanelInterface::proto_SOURCE(CLIPROTO_CB_PARMS) {
 	// "uuid,interface,type,username,channel,packets,hop," 
 	//	"velocity,dwell,hop_time_sec,hop_time_usec,channellist"
@@ -124,6 +129,49 @@ void KisPanelInterface::proto_SOURCE(CLIPROTO_CB_PARMS) {
 	source->channellist = (*proto_parsed)[fnum++].word;
 }
 
+void kpi_prompt_addsource(KIS_PROMPT_CB_PARMS) {
+	if (ok && globalreg->panel_interface->FetchFirstNetclient() != NULL) {
+		Kis_AddCard_Panel *acp = 
+			new Kis_AddCard_Panel(globalreg, globalreg->panel_interface);
+		acp->Position(WIN_CENTER(10, 40));
+		acp->SetTargetClient(globalreg->panel_interface->FetchFirstNetclient());
+		globalreg->panel_interface->AddPanel(acp);
+	}
+}
+
+void KisPanelInterface::proto_INFO(CLIPROTO_CB_PARMS) {
+	// Numsources
+
+	if (proto_parsed->size() < 1) {
+		return;
+	}
+
+	int fnum = 0;
+	int tint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tint) != 1)
+		return;
+
+	if (tint == 0 && warned_no_sources == 0) {
+		warned_no_sources = 1;
+
+		vector<string> t;
+
+		t.push_back("Kismet started with no packet sources defined.");
+		t.push_back("Kismet will not be able to capture any data until ");
+		t.push_back("a capture interface is added.  Add a source now?");
+
+		Kis_Prompt_Panel *kpp =
+			new Kis_Prompt_Panel(globalreg, this);
+		kpp->SetTitle("No sources");
+		kpp->SetDisplayText(t);
+		kpp->SetCallback(kpi_prompt_addsource, this);
+		kpp->SetDefaultButton(1);
+		AddPanel(kpp);
+	}
+
+}
+
 void KisPanelClient_Configured(CLICONF_CB_PARMS) {
 	((KisPanelInterface *) auxptr)->NetClientConfigure(kcli, recon);
 }
@@ -185,6 +233,7 @@ void KisPanelInterface::Shutdown() {
 
 	Remove_AllNetcli_ProtoHandler("STATUS", KisPanelClient_STATUS, this);
 	Remove_AllNetcli_ProtoHandler("SOURCE", KisPanelClient_SOURCE, this);
+	Remove_AllNetcli_ProtoHandler("INFO", KisPanelClient_SOURCE, this);
 
 	// Destroy panels in this destructor, if they get destroyed in the
 	// parent destructor sadness happens
@@ -319,6 +368,13 @@ void KisPanelInterface::NetClientConfigure(KisNetClient *in_cli, int in_recon) {
 	if (in_cli->RegisterProtoHandler("SOURCE", KPI_SOURCE_FIELDS,
 									 KisPanelClient_SOURCE, this) < 0) {
 		_MSG("Could not register SOURCE protocol with remote server, connection "
+			 "will be terminated.", MSGFLAG_ERROR);
+		in_cli->KillConnection();
+	}
+
+	if (in_cli->RegisterProtoHandler("INFO", "numsources",
+									 KisPanelClient_INFO, this) < 0) {
+		_MSG("Could not register INFO protocol with remote server, connection "
 			 "will be terminated.", MSGFLAG_ERROR);
 		in_cli->KillConnection();
 	}

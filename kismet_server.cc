@@ -94,6 +94,98 @@ char *exec_name;
 int glob_linewrap = 1;
 int glob_silent = 0;
 
+// The info protocol lives in here for lack of anywhere better to live
+enum INFO_fields {
+	INFO_networks, INFO_packets, INFO_cryptpackets,
+	INFO_noisepackets, INFO_droppedpackets, INFO_packetrate, 
+	INFO_filteredpackets, INFO_clients, INFO_llcpackets, INFO_datapackets,
+	INFO_numsources,
+	INFO_maxfield
+};
+
+const char *INFO_fields_text[] = {
+	"networks", "packets", "crypt", "noise", "dropped", "rate", 
+	"filtered", "clients", "llcpackets", "datapackets", "numsources",
+	NULL
+};
+
+int Protocol_INFO(PROTO_PARMS) {
+	ostringstream osstr;
+
+	// Alloc the cache quickly
+	cache->Filled(field_vec->size());
+
+    for (unsigned int x = 0; x < field_vec->size(); x++) {
+        unsigned int fnum = (*field_vec)[x];
+        if (fnum >= INFO_maxfield) {
+            out_string = "Unknown field requested.";
+            return -1;
+		}
+
+		osstr.str("");
+
+		// Shortcut test the cache once and print/bail immediately
+		if (cache->Filled(fnum)) {
+			out_string += cache->GetCache(fnum) + " ";
+			continue;
+		}
+
+		// Fill in the cached element
+		switch(fnum) {
+			case INFO_networks:
+				osstr << globalreg->netracker->FetchNumNetworks();
+				cache->Cache(fnum, osstr.str());
+				break;
+			case INFO_clients:
+				osstr << globalreg->netracker->FetchNumClients();
+				cache->Cache(fnum, osstr.str());
+				break;
+			case INFO_packets:
+				osstr << globalreg->netracker->FetchNumPackets();
+				cache->Cache(fnum, osstr.str());
+				break;
+			case INFO_cryptpackets:
+				osstr << globalreg->netracker->FetchNumCryptpackets();
+				cache->Cache(fnum, osstr.str());
+				break;
+			case INFO_llcpackets:
+				osstr << globalreg->netracker->FetchNumLLCpackets();
+				cache->Cache(fnum, osstr.str());
+				break;
+			case INFO_datapackets:
+				osstr << globalreg->netracker->FetchNumDatapackets();
+				cache->Cache(fnum, osstr.str());
+				break;
+			case INFO_noisepackets:
+				osstr << globalreg->netracker->FetchNumErrorpackets();
+				cache->Cache(fnum, osstr.str());
+				break;
+			case INFO_droppedpackets:
+				osstr << (globalreg->netracker->FetchNumErrorpackets() +
+						  globalreg->netracker->FetchNumFiltered());
+				cache->Cache(fnum, osstr.str());
+				break;
+			case INFO_packetrate:
+				osstr << globalreg->netracker->FetchPacketRate();
+				cache->Cache(fnum, osstr.str());
+				break;
+			case INFO_filteredpackets:
+				osstr << globalreg->netracker->FetchNumFiltered();
+				cache->Cache(fnum, osstr.str());
+				break;
+			case INFO_numsources:
+				osstr << globalreg->sourcetracker->FetchSourceVec()->size();
+				cache->Cache(fnum, osstr.str());
+				break;
+		}
+
+		// print the newly filled in cache
+		out_string += cache->GetCache(fnum) + " ";
+    }
+
+    return 1;
+}
+
 // Message clients that are attached at the master level
 // Smart standard out client that understands the silence options
 class SmartStdoutMessageClient : public MessageClient {
@@ -370,6 +462,13 @@ int FlushDatafilesEvent(TIMEEVENT_PARMS) {
 	return 1;
 }
 
+int InfoTimerEvent(TIMEEVENT_PARMS) {
+	// Send the info frame to everyone
+	globalreg->kisnetserver->SendToAll(_NPM(PROTO_REF_INFO), NULL);
+
+	return 1;
+}
+
 int main(int argc, char *argv[], char *envp[]) {
 	exec_name = argv[0];
 	char errstr[STATUS_MAX];
@@ -377,6 +476,7 @@ int main(int argc, char *argv[], char *envp[]) {
 	ConfigFile *conf;
 	int option_idx = 0;
 	int data_dump = 0;
+	GlobalRegistry *globalreg;
 
 	// Catch the interrupt handler to shut down
     signal(SIGINT, CatchShutdown);
@@ -388,6 +488,7 @@ int main(int argc, char *argv[], char *envp[]) {
 
 	// Start filling in key components of the globalregistry
 	globalregistry = new GlobalRegistry;
+	globalreg = globalregistry;
 
 	// Copy for modules
 	globalregistry->argc = argc;
@@ -710,12 +811,28 @@ int main(int argc, char *argv[], char *envp[]) {
 	// Initialize the crc tables
 	crc32_init_table_80211(globalregistry->crc32_table);
 
+	/* Register the info protocol */
+	_NPM(PROTO_REF_INFO) =
+		globalregistry->kisnetserver->RegisterProtocol("INFO", 0, 1,
+												  INFO_fields_text, 
+												  &Protocol_INFO, NULL, NULL);
+
+	globalregistry->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC,
+											   NULL, 1, 
+											   &InfoTimerEvent, NULL);
+
 	// Blab about starting
 	globalregistry->messagebus->InjectMessage("Kismet starting to gather packets",
 											  MSGFLAG_INFO);
 
 	// Start sources
 	globalregistry->sourcetracker->StartSource(0);
+
+	if (globalregistry->sourcetracker->FetchSourceVec()->size() == 0) {
+		_MSG("No packet sources defined.  You MUST ADD SOME using the Kismet "
+			 "client, or by placing them in the Kismet config file (" + 
+			 string(SYSCONF_LOC) + config_base + ")", MSGFLAG_INFO);
+	}
 	
 	// Set the global silence now that we're set up
 	glob_silent = local_silent;

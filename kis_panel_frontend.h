@@ -45,6 +45,8 @@
 #include "popenclient.h"
 #include "text_cliframe.h"
 
+#define WIN_CENTER(h, w)	(LINES / 2) - ((h) / 2), (COLS / 2) - ((w) / 2), (h), (w)
+
 class KisPanelInterface;
 
 // Our specialized actual kismet frontend
@@ -141,6 +143,8 @@ public:
 	// Fetch the list of cards from the system
 	map<uuid, KisPanelInterface::knc_card *> *FetchNetCardMap();
 
+	void proto_INFO(CLIPROTO_CB_PARMS);
+
 	struct addcli_cb_rec {
 		int refnum;
 		KPI_AddCli_Callback cb;
@@ -196,6 +200,9 @@ protected:
 	string server_parm;
 	vector<string> server_console;
 	int server_text_cb;
+
+	// Have we yelled at the user for not having any sources enabled?
+	int warned_no_sources;
 };
 
 #endif // panel

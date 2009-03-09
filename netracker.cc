@@ -108,12 +108,6 @@ const char *CLIENT_fields_text[] = {
     NULL
 };
 
-const char *INFO_fields_text[] = {
-	"networks", "packets", "crypt", "noise", "dropped", "rate", 
-	"filtered", "clients", "llcpackets", "datapackets",
-	NULL
-};
-
 mac_addr bcast_mac = mac_addr("FF:FF:FF:FF:FF:FF");
 
 int Protocol_BSSID(PROTO_PARMS) {
@@ -1109,79 +1103,6 @@ int Netracker_Clicmd_ADDNETCLIFILTER(CLIENT_PARMS) {
 	return 1;
 }
 
-int Protocol_INFO(PROTO_PARMS) {
-	ostringstream osstr;
-
-	// Alloc the cache quickly
-	cache->Filled(field_vec->size());
-
-    for (unsigned int x = 0; x < field_vec->size(); x++) {
-        unsigned int fnum = (*field_vec)[x];
-        if (fnum >= INFO_maxfield) {
-            out_string = "Unknown field requested.";
-            return -1;
-		}
-
-		osstr.str("");
-
-		// Shortcut test the cache once and print/bail immediately
-		if (cache->Filled(fnum)) {
-			out_string += cache->GetCache(fnum) + " ";
-			continue;
-		}
-
-		// Fill in the cached element
-		switch(fnum) {
-			case INFO_networks:
-				osstr << globalreg->netracker->FetchNumNetworks();
-				cache->Cache(fnum, osstr.str());
-				break;
-			case INFO_clients:
-				osstr << globalreg->netracker->FetchNumClients();
-				cache->Cache(fnum, osstr.str());
-				break;
-			case INFO_packets:
-				osstr << globalreg->netracker->FetchNumPackets();
-				cache->Cache(fnum, osstr.str());
-				break;
-			case INFO_cryptpackets:
-				osstr << globalreg->netracker->FetchNumCryptpackets();
-				cache->Cache(fnum, osstr.str());
-				break;
-			case INFO_llcpackets:
-				osstr << globalreg->netracker->FetchNumLLCpackets();
-				cache->Cache(fnum, osstr.str());
-				break;
-			case INFO_datapackets:
-				osstr << globalreg->netracker->FetchNumDatapackets();
-				cache->Cache(fnum, osstr.str());
-				break;
-			case INFO_noisepackets:
-				osstr << globalreg->netracker->FetchNumErrorpackets();
-				cache->Cache(fnum, osstr.str());
-				break;
-			case INFO_droppedpackets:
-				osstr << (globalreg->netracker->FetchNumErrorpackets() +
-						  globalreg->netracker->FetchNumFiltered());
-				cache->Cache(fnum, osstr.str());
-				break;
-			case INFO_packetrate:
-				osstr << globalreg->netracker->FetchPacketRate();
-				cache->Cache(fnum, osstr.str());
-				break;
-			case INFO_filteredpackets:
-				osstr << globalreg->netracker->FetchNumFiltered();
-				cache->Cache(fnum, osstr.str());
-				break;
-		}
-
-		// print the newly filled in cache
-		out_string += cache->GetCache(fnum) + " ";
-    }
-
-    return 1;
-}
-
 // These are both just dropthroughs into the class itself
 int kis_80211_netracker_hook(CHAINCALL_PARMS) {
 	Netracker *auxptr = (Netracker *) auxdata;
@@ -1343,10 +1264,6 @@ Netracker::Netracker(GlobalRegistry *in_globalreg) {
 		globalreg->kisnetserver->RegisterProtocol("REMOVE", 0, 1,
 												  REMOVE_fields_text, 
 												  &Protocol_REMOVE, NULL, this);
-	_NPM(PROTO_REF_INFO) =
-		globalreg->kisnetserver->RegisterProtocol("INFO", 0, 1,
-												  INFO_fields_text, 
-												  &Protocol_INFO, NULL, this);
 
 	// Add the client command
 	addfiltercmd_ref =
@@ -1512,9 +1429,6 @@ int Netracker::TimerKick() {
 	dirty_net_vec.clear();
 	dirty_cli_vec.clear();
 	
-	// Send the info frame to everyone
-	globalreg->kisnetserver->SendToAll(_NPM(PROTO_REF_INFO), NULL);
-
 	num_packetdelta = 0;
 
 	return 1;
