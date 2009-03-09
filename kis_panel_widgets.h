@@ -43,14 +43,13 @@
 #include "messagebus.h"
 
 // Some standard filters we'd use on input
-#define FILTER_ALPHANUM	"ABCDEFGHIJKLMNOPQRSTUVWXYZ" \
+#define FILTER_ALPHA   	"ABCDEFGHIJKLMNOPQRSTUVWXYZ" \
 	"abcdefghijklmnopqrstuvwxyz" \
-	"0123456789 "
-#define FILTER_ALPHANUMSYM "ABCDEFGHIJKLMNOPQRSTUVWXYZ" \
-	"abcdefghijklmnopqrstuvwxyz" \
-	"0123456789 " \
-	".,~!@#$%^&*()_-+/:="
-#define FILTER_NUM "0123456789"
+	"0123456789"
+#define FILTER_NUM      "0123456789"
+#define FILTER_ALPHANUM	FILTER_ALPHA FILTER_NUM " "
+#define FILTER_ALPHANUMSYM FILTER_ALPHA FILTER_NUM \
+	" .,~!@#$%^&*()_-+/:="
 
 class Kis_Panel;
 class KisPanelInterface;

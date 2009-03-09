@@ -335,7 +335,6 @@ Kis_Main_Panel::~Kis_Main_Panel() {
 void kmp_prompt_startserver(KIS_PROMPT_CB_PARMS) {
 	if (ok) {
 		Kis_Spawn_Panel *sp = new Kis_Spawn_Panel(globalreg, globalreg->panel_interface);
-		sp->Position(WIN_CENTER(6, 40));
 
 		if (globalreg->panel_interface->prefs.FetchOpt("STARTUP_CONSOLE") == "true" ||
 			globalreg->panel_interface->prefs.FetchOpt("STARTUP_CONSOLE") == "") 
@@ -684,7 +683,6 @@ void Kis_Main_Panel::MenuAction(int opt) {
 		kpinterface->AddPanel(cp);
 	} else if (opt == mi_startserver) {
 		Kis_Spawn_Panel *sp = new Kis_Spawn_Panel(globalreg, kpinterface);
-		sp->Position(WIN_CENTER(6, 40));
 		kpinterface->AddPanel(sp);
 	} else if (opt == mi_serverconsole) {
 		Kis_Console_Panel *cp = new Kis_Console_Panel(globalreg, kpinterface);
@@ -1360,11 +1358,14 @@ Kis_Spawn_Panel::Kis_Spawn_Panel(GlobalRegistry *in_globalreg,
 	spawn_console = 1;
 
 	options = new Kis_Single_Input(globalreg, this);
+	logname = new Kis_Single_Input(globalreg, this);
 	cancelbutton = new Kis_Button(globalreg, this);
 	okbutton = new Kis_Button(globalreg, this);
+	logging_check = new Kis_Checkbox(globalreg, this);
 
 	cancelbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, SpawnButtonCB, this);
 	okbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, SpawnButtonCB, this);
+	logging_check->SetCallback(COMPONENT_CBTYPE_ACTIVATED, SpawnButtonCB, this);
 
 	tab_pos = 0;
 	active_component = options;
@@ -1377,12 +1378,22 @@ Kis_Spawn_Panel::Kis_Spawn_Panel(GlobalRegistry *in_globalreg,
 	options->SetCharFilter(FILTER_ALPHANUMSYM);
 	options->SetText(kpinterface->prefs.FetchOpt("default_server_options"), -1, -1);
 
+	logging_check->SetText("Logging");
+	logging_check->SetChecked(1);
+
+	logname->SetLabel("Log Title", LABEL_POS_LEFT);
+	logname->SetTextLen(64);
+	logname->SetCharFilter(FILTER_ALPHA FILTER_NUM);
+	logname->SetText("Kismet", -1, -1);
+
 	okbutton->SetText("Start");
 	cancelbutton->SetText("Cancel");
 
 	options->Show();
 	okbutton->Show();
 	cancelbutton->Show();
+	logging_check->Show();
+	logname->Show();
 
 	vbox = new Kis_Panel_Packbox(globalreg, this);
 	vbox->SetPackV();
@@ -1401,15 +1412,21 @@ Kis_Spawn_Panel::Kis_Spawn_Panel(GlobalRegistry *in_globalreg,
 	bbox->Pack_End(okbutton, 0, 0);
 
 	vbox->Pack_End(options, 0, 0);
+	vbox->Pack_End(logging_check, 0, 0);
+	vbox->Pack_End(logname, 0, 0);
 	vbox->Pack_End(bbox, 1, 0);
 
 	AddComponentVec(options, (KIS_PANEL_COMP_TAB | KIS_PANEL_COMP_EVT));
+	AddComponentVec(logging_check, (KIS_PANEL_COMP_TAB | KIS_PANEL_COMP_EVT));
+	AddComponentVec(logname, (KIS_PANEL_COMP_TAB | KIS_PANEL_COMP_EVT));
 	AddComponentVec(okbutton, (KIS_PANEL_COMP_TAB | KIS_PANEL_COMP_EVT));
 	AddComponentVec(cancelbutton, (KIS_PANEL_COMP_TAB | KIS_PANEL_COMP_EVT));
 
 	AddComponentVec(vbox, KIS_PANEL_COMP_DRAW);
 
 	main_component = vbox;
+
+	Position(WIN_CENTER(9, 40));
 }
 
 Kis_Spawn_Panel::~Kis_Spawn_Panel() {
@@ -1417,6 +1434,14 @@ Kis_Spawn_Panel::~Kis_Spawn_Panel() {
 
 void Kis_Spawn_Panel::ButtonAction(Kis_Panel_Component *component) {
 	if (component == okbutton) {
+		string opt = options->GetText();
+		
+		if (logging_check->GetChecked()) {
+			opt += " -t " + logname->GetText();
+		} else {
+			opt += " -n";
+		}
+
 		kpinterface->SpawnServer(options->GetText());
 		kpinterface->KillPanel(this);
 

@@ -224,7 +224,8 @@ public:
 	void SpawnConsole(int in_console) { spawn_console = in_console; }
 
 protected:
-	Kis_Single_Input *options;
+	Kis_Single_Input *options, *logname;
+	Kis_Checkbox *logging_check;
 	Kis_Button *okbutton;
 	Kis_Button *cancelbutton;
 
