@@ -225,7 +225,7 @@ public:
 
 protected:
 	Kis_Single_Input *options, *logname;
-	Kis_Checkbox *logging_check;
+	Kis_Checkbox *logging_check, *console_check;
 	Kis_Button *okbutton;
 	Kis_Button *cancelbutton;
 

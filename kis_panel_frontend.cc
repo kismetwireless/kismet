@@ -353,6 +353,8 @@ void KisPanelInterface::NetClientConfigure(KisNetClient *in_cli, int in_recon) {
 	}
 	netcard_map.clear();
 
+	warned_no_sources = 0;
+
 	if (in_recon)
 		return;
 
