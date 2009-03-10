@@ -130,11 +130,10 @@ void KisPanelInterface::proto_SOURCE(CLIPROTO_CB_PARMS) {
 }
 
 void kpi_prompt_addsource(KIS_PROMPT_CB_PARMS) {
-	if (ok && globalreg->panel_interface->FetchFirstNetclient() != NULL) {
+	if (ok && globalreg->panel_interface->FetchNetClient() != NULL) {
 		Kis_AddCard_Panel *acp = 
 			new Kis_AddCard_Panel(globalreg, globalreg->panel_interface);
 		acp->Position(WIN_CENTER(10, 40));
-		acp->SetTargetClient(globalreg->panel_interface->FetchFirstNetclient());
 		globalreg->panel_interface->AddPanel(acp);
 	}
 }
@@ -221,9 +220,7 @@ KisPanelInterface::KisPanelInterface(GlobalRegistry *in_globalreg) :
 KisPanelInterface::~KisPanelInterface() {
 	Shutdown();
 
-	for (unsigned int x = 0; x < netclient_vec.size(); x++)
-		delete netclient_vec[x];
-	netclient_vec.clear();
+	delete network_client;
 }
 
 void KisPanelInterface::Shutdown() {
@@ -315,32 +312,24 @@ int KisPanelInterface::AddNetClient(string in_host, int in_reconnect) {
 	if (netcl->Connect(in_host, in_reconnect) < 0)
 		return -1;
 
-	netclient_vec.push_back(netcl);
+	if (network_client != NULL)
+		delete network_client;
+
+	network_client = netcl;
 
 	return 1;
 }
 
-vector<KisNetClient *> KisPanelInterface::FetchNetClientVec() {
-	return netclient_vec;
-}
-
-vector<KisNetClient *> *KisPanelInterface::FetchNetClientVecPtr() {
-	return &netclient_vec;
-}
-
-int KisPanelInterface::RemoveNetClient(KisNetClient *in_cli) {
-	for (unsigned int x = 0; x < netclient_vec.size(); x++) {
-		if (netclient_vec[x] == in_cli) {
-			for (unsigned int c = 0; c < addclicb_vec.size(); c++)
-				(*(addclicb_vec[c]->cb))(globalreg, in_cli, 0, 
-										 addclicb_vec[c]->auxptr);
-			delete netclient_vec[x];
-			netclient_vec.erase(netclient_vec.begin() + x);
-			return 1;
-		}
+void KisPanelInterface::RemoveNetClient() {
+	if (network_client != NULL) {
+		for (unsigned int c = 0; c < addclicb_vec.size(); c++)
+			(*(addclicb_vec[c]->cb))(globalreg, network_client, 0, 
+									 addclicb_vec[c]->auxptr);
+		delete network_client;
+		network_client = NULL;
 	}
 
-	return 0;
+	return;
 }
 
 void KisPanelInterface::NetClientConfigure(KisNetClient *in_cli, int in_recon) {
@@ -385,9 +374,8 @@ void KisPanelInterface::NetClientConfigure(KisNetClient *in_cli, int in_recon) {
 int KisPanelInterface::Remove_AllNetcli_ProtoHandler(string in_proto,
 													 CliProto_Callback in_cb,
 													 void *in_aux) {
-	for (unsigned int x = 0; x < netclient_vec.size(); x++) {
-		netclient_vec[x]->RemoveProtoHandler(in_proto, in_cb, in_aux);
-	}
+	if (network_client != NULL)
+		network_client->RemoveProtoHandler(in_proto, in_cb, in_aux);
 
 	return 0;
 }
@@ -401,17 +389,6 @@ void KisPanelInterface::RaiseAlert(string in_title, string in_text) {
 	
 	globalreg->panel_interface->AddPanel(ma);
 
-}
-
-void KisPanelInterface::RaiseServerPicker(string in_title, kpi_sl_cb_hook in_hook,
-										  void *in_aux) {
-	Kis_ServerList_Picker *slp = new Kis_ServerList_Picker(globalreg, this);
-
-	slp->Position((LINES / 2) - 5, (COLS / 2) - 17, 10, 34);
-
-	slp->ConfigurePicker(in_title, in_hook, in_aux);
-
-	globalreg->panel_interface->AddPanel(slp);
 }
 
 map<uuid, KisPanelInterface::knc_card *> *KisPanelInterface::FetchNetCardMap() {
@@ -430,13 +407,9 @@ int KisPanelInterface::Add_NetCli_AddCli_CB(KPI_AddCli_Callback in_cb,
 
 	addclicb_vec.push_back(cbr);
 
-	// Call it for all the existing clients, since if we're adding a function
-	// to take action when a client gets added, we probably want to be able
-	// to take action on all the existing.  We can add a parm to control
-	// this sometime if this ever turns out to be not the case, but I don't
-	// think it will.
-	for (unsigned int x = 0; x < netclient_vec.size(); ++x) {
-		(*(in_cb))(globalreg, netclient_vec[x], 1, in_auxptr);
+	// Call it immediately if we're already connected
+	if (network_client != NULL) {
+		(*(in_cb))(globalreg, network_client, 1, in_auxptr);
 	}
 
 	return cbr->refnum;
@@ -453,8 +426,8 @@ void KisPanelInterface::Remove_Netcli_AddCli_CB(int in_cbref) {
 }
 
 void KisPanelInterface::Remove_All_Netcli_Conf_CB(CliConf_Callback in_cb) {
-	for (unsigned int x = 0; x < netclient_vec.size(); x++) {
-		netclient_vec[x]->RemoveConfCallback(in_cb);
+	if (network_client != NULL) {
+		network_client->RemoveConfCallback(in_cb);
 	}
 }
 

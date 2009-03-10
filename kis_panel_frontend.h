@@ -78,17 +78,17 @@ public:
 	virtual int LoadPreferences();
 	virtual int SavePreferences();
 
-	// Add a new client
+	// Connect to a network client & register callbacks for when one is added
 	virtual int AddNetClient(string in_host, int in_reconnect);
+	virtual void RemoveNetClient();
+
 	virtual int Add_NetCli_AddCli_CB(KPI_AddCli_Callback in_cb, void *in_aux);
 	virtual void Remove_Netcli_AddCli_CB(int in_cbref);
 	virtual void Remove_All_Netcli_Conf_CB(CliConf_Callback in_cb);
 
-	// Fetch a list of clients
-	virtual vector<KisNetClient *> FetchNetClientVec();
-	virtual vector<KisNetClient *> *FetchNetClientVecPtr();
-	// Remove a client
-	virtual int RemoveNetClient(KisNetClient *in_cli);
+	// Fetch the client
+	KisNetClient *FetchNetClient() { return network_client; }
+	
 	// Configured client callback
 	virtual void NetClientConfigure(KisNetClient *in_cli, int in_recon);
 
@@ -100,12 +100,6 @@ public:
 
 	// Bring up a modal alert
 	virtual void RaiseAlert(string in_title, string in_text);
-
-	// Bring up a modal picker for connected servers -- This is generic
-	// enough that it's worth having a main hook here for other panels
-	// to get access to the common code
-	virtual void RaiseServerPicker(string in_title, kpi_sl_cb_hook in_hook,
-								   void *in_aux);
 
 	// We track cards at the interface level because we need instant feedback on them
 	// without waiting for individual widgets to do their own activate and poll, though
@@ -158,11 +152,6 @@ public:
 
 	Kis_Main_Panel *FetchMainPanel() { return mainp; }
 
-	KisNetClient *FetchFirstNetclient() { 
-		if (netclient_vec.size()) return netclient_vec[0];
-		return NULL;
-	}
-
 	// Public so we don't have pointless wrappers
 	ConfigFile prefs;
 	Kis_Panel_Color colors;
@@ -179,7 +168,10 @@ public:
 protected:
 	int shutdown_mode; 
 
-	vector<KisNetClient *> netclient_vec;
+	// Only allow one server, I don't think anyone really used multiple
+	// simultaneous servers and if they did, too bad, it introduced way too
+	// much hassle
+	KisNetClient *network_client;
 
 	// Map of UUIDs of sources to representations
 	map<uuid, KisPanelInterface::knc_card *> netcard_map;

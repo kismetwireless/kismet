@@ -551,13 +551,13 @@ void Kis_Main_Panel::DrawPanel() {
 }
 
 int Kis_Main_Panel::MouseEvent(MEVENT *mevent) {
-	vector<KisNetClient *> *clivec = kpinterface->FetchNetClientVecPtr();
+	KisNetClient *cli = kpinterface->FetchNetClient();
 
-	if (clivec->size() == 0 && connect_enable == 0) {
+	if (cli == NULL && connect_enable == 0) {
 		menu->EnableMenuItem(mi_connect);
 		menu->DisableMenuItem(mi_disconnect);
 		connect_enable = 1;
-	} else if (clivec->size() > 0 && connect_enable) {
+	} else if (cli != NULL && connect_enable) {
 		menu->EnableMenuItem(mi_disconnect);
 		menu->DisableMenuItem(mi_connect);
 		connect_enable = 0;
@@ -573,13 +573,13 @@ int Kis_Main_Panel::MouseEvent(MEVENT *mevent) {
 }
 
 int Kis_Main_Panel::KeyPress(int in_key) {
-	vector<KisNetClient *> *clivec = kpinterface->FetchNetClientVecPtr();
+	KisNetClient *cli = kpinterface->FetchNetClient();
 
-	if (clivec->size() == 0 && connect_enable == 0) {
+	if (cli == NULL && connect_enable == 0) {
 		menu->EnableMenuItem(mi_connect);
 		menu->DisableMenuItem(mi_disconnect);
 		connect_enable = 1;
-	} else if (clivec->size() > 0 && connect_enable) {
+	} else if (cli != NULL && connect_enable) {
 		menu->EnableMenuItem(mi_disconnect);
 		menu->DisableMenuItem(mi_connect);
 		connect_enable = 0;
@@ -613,7 +613,7 @@ void kmp_prompt_killserver(KIS_PROMPT_CB_PARMS) {
 	// Kis_Main_Panel *kmp = (Kis_Main_Panel *) auxptr;
 	TextCliFrame *cf = globalreg->panel_interface->FetchServerFramework();
 	PopenClient *po = globalreg->panel_interface->FetchServerPopen();
-	KisNetClient *knc = globalreg->panel_interface->FetchFirstNetclient();
+	KisNetClient *knc = globalreg->panel_interface->FetchNetClient();
 
 	_MSG("Quitting...", MSGFLAG_ERROR);
 
@@ -637,11 +637,11 @@ void kmp_prompt_killserver(KIS_PROMPT_CB_PARMS) {
 }
 
 void Kis_Main_Panel::MenuAction(int opt) {
-	vector<KisNetClient *> *clivec = kpinterface->FetchNetClientVecPtr();
+	KisNetClient *cli = kpinterface->FetchNetClient();
 
 	// Menu processed an event, do something with it
 	if (opt == mi_quit) {
-		if (kpinterface->FetchFirstNetclient() == NULL &&
+		if (cli == NULL &&
 			kpinterface->FetchServerFramework() == NULL) {
 			globalreg->fatal_condition = 1;
 			_MSG("Quitting...", MSGFLAG_INFO);
@@ -689,8 +689,8 @@ void Kis_Main_Panel::MenuAction(int opt) {
 		cp->Position(WIN_CENTER(LINES, COLS));
 		kpinterface->AddPanel(cp);
 	} else if (opt == mi_disconnect) {
-		if (clivec->size() > 0) {
-			kpinterface->RemoveNetClient((*clivec)[0]);
+		if (cli != NULL) {
+			kpinterface->RemoveNetClient();
 		}
 	} else if (opt == mi_sort_auto) {
 		kpinterface->prefs.SetOpt("NETLIST_SORT", "auto", 1);
@@ -741,21 +741,18 @@ void Kis_Main_Panel::MenuAction(int opt) {
 			   opt == mi_showclients) {
 		UpdateViewMenu(opt);
 	} else if (opt == mi_addcard) {
-		vector<KisNetClient *> *cliref = kpinterface->FetchNetClientVecPtr();
-		if (cliref->size() == 0) {
+		if (kpinterface->FetchNetClient() == NULL) {
 			kpinterface->RaiseAlert("No servers",
 									"There are no servers.  You must\n"
 									"connect to a server before adding\n"
 									"cards.\n");
-		} else if (cliref->size() == 1) {
-			sp_addcard_cb(globalreg, kpinterface, (*cliref)[0], NULL);
-		} else {
-			kpinterface->RaiseServerPicker("Choose server", sp_addcard_cb,
-										   NULL);
+		} else if (cli != NULL) {
+			Kis_AddCard_Panel *acp = new Kis_AddCard_Panel(globalreg, kpinterface);
+			acp->Position(WIN_CENTER(10, 40));
+			kpinterface->AddPanel(acp);
 		} 
 	} else if (opt == mi_conf) {
-		vector<KisNetClient *> *cliref = kpinterface->FetchNetClientVecPtr();
-		if (cliref->size() == 0) {
+		if (kpinterface->FetchNetClient() == NULL) {
 			kpinterface->RaiseAlert("No servers",
 									"There are no servers.  You must\n"
 									"connect to a server before setting\n"
@@ -1633,157 +1630,6 @@ void Kis_ModalAlert_Panel::ConfigureAlert(string in_title, string in_text) {
 	ftxt->SetText(in_text);
 }
 
-Kis_ServerList_Picker::Kis_ServerList_Picker(GlobalRegistry *in_globalreg, 
-											 KisPanelInterface *in_intf) :
-	Kis_Panel(in_globalreg, in_intf) {
-
-	// Grab the pointer to the list of clients maintained
-	netcliref = kpinterface->FetchNetClientVecPtr();
-
-	srvlist = new Kis_Scrollable_Table(globalreg, this);
-
-	AddComponentVec(srvlist, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
-							  KIS_PANEL_COMP_TAB));
-
-	// TODO -- Add name parsing to KISMET proto in netclient, add support here
-	vector<Kis_Scrollable_Table::title_data> titles;
-	Kis_Scrollable_Table::title_data t;
-	t.width = 16;
-	t.title = "Host";
-	t.alignment = 0;
-	titles.push_back(t);
-	t.width = 5;
-	t.title = "Port";
-	t.alignment = 2;
-	titles.push_back(t);
-	t.width = 4;
-	t.title = "Cntd";
-	t.alignment = 0;
-	titles.push_back(t);
-	t.width = 3;
-	t.title = "Rdy";
-	t.alignment = 0;
-	titles.push_back(t);
-	srvlist->AddTitles(titles);
-
-	// Population is done during draw
-
-	active_component = srvlist;
-	srvlist->Activate(1);
-
-	SetTitle("");
-
-	cb_hook = NULL;
-	cb_aux = NULL;
-}
-
-Kis_ServerList_Picker::~Kis_ServerList_Picker() {
-}
-
-void Kis_ServerList_Picker::Position(int in_sy, int in_sx, int in_y, int in_x) {
-	Kis_Panel::Position(in_sy, in_sx, in_y, in_x);
-
-	srvlist->SetPosition(1, 1, in_x - 2, in_y - 2);
-
-	srvlist->Show();
-}
-
-void Kis_ServerList_Picker::DrawPanel() {
-	ColorFromPref(text_color, "panel_text_color");
-	ColorFromPref(border_color, "panel_border_color");
-
-	wbkgdset(win, text_color);
-	werase(win);
-
-	DrawTitleBorder();
-
-	wattrset(win, text_color);
-
-	DrawTitleBorder();
-
-	// Grab the list of servers and populate with it.  We'll assume that the number
-	// of servers, and their order, cannot change while we're in the picker, since
-	// the user can't get at it.  We WILL have to handle updating the connection
-	// status based on the position key.  This is NOT A SAFE ASSUMPTION for any other
-	// of the picker types (like cards), so don't blind-copy this code later.
-	vector<string> td;
-	ostringstream osstr;
-	for (unsigned int x = 0; x < netcliref->size(); x++) {
-		td.clear();
-
-		td.push_back((*netcliref)[x]->FetchHost());
-
-		osstr << (*netcliref)[x]->FetchPort();
-		td.push_back(osstr.str());
-		osstr.str("");
-
-		if ((*netcliref)[x]->Valid()) {
-			td.push_back("Yes");
-			if ((*netcliref)[x]->FetchConfigured() < 0)
-				td.push_back("Tes");
-			else
-				td.push_back("No");
-		} else {
-			td.push_back("No");
-			td.push_back("No");
-		}
-
-		srvlist->ReplaceRow(x, td);
-	}
-
-	DrawComponentVec();
-
-	wmove(win, 0, 0);
-}
-
-int Kis_ServerList_Picker::KeyPress(int in_key) {
-	int ret;
-	int listkey;
-	
-	// Rotate through the tabbed items
-	if (in_key == '\n' || in_key == '\r') {
-		listkey = srvlist->GetSelected();
-
-		// Sanity check, even though nothing should be able to change this
-		// while we're open since we claim the input.
-		// We could raise an alert but theres nothing the user could do 
-		// about it so we'll just silently close the window
-		if (listkey >= 0 && listkey < (int) netcliref->size()) {
-			(*cb_hook)(globalreg, kpinterface, (*netcliref)[listkey], cb_aux);
-		}
-
-		globalreg->panel_interface->KillPanel(this);
-	}
-
-	// Otherwise the menu didn't touch the key, so pass it to the top
-	// component
-	if (active_component != NULL) {
-		ret = active_component->KeyPress(in_key);
-	}
-
-	return 0;
-}
-
-void Kis_ServerList_Picker::ConfigurePicker(string in_title, kpi_sl_cb_hook in_hook,
-											void *in_aux) {
-	SetTitle(in_title);
-	cb_hook = in_hook;
-	cb_aux = in_aux;
-}
-
-// Addcard callback is used to actually build the addcard window once
-// we've picked a source.  This will be called directly from the main
-// menu handlers if there aren't any sources.
-void sp_addcard_cb(KPI_SL_CB_PARMS) {
-	Kis_AddCard_Panel *acp = new Kis_AddCard_Panel(globalreg, kpi);
-
-	acp->Position(WIN_CENTER(10, 40));
-
-	acp->SetTargetClient(picked);
-
-	kpi->AddPanel(acp);
-}
-
 int AddCardButtonCB(COMPONENT_CALLBACK_PARMS) {
 	((Kis_AddCard_Panel *) aux)->ButtonAction(component);
 	return 1;
@@ -1866,6 +1712,8 @@ Kis_AddCard_Panel::Kis_AddCard_Panel(GlobalRegistry *in_globalreg,
 	vbox->Pack_End(bbox, 1, 0);
 
 	AddComponentVec(vbox, KIS_PANEL_COMP_DRAW);
+
+	target_cli = kpinterface->FetchNetClient();
 }
 
 Kis_AddCard_Panel::~Kis_AddCard_Panel() {
@@ -1874,15 +1722,6 @@ Kis_AddCard_Panel::~Kis_AddCard_Panel() {
 void Kis_AddCard_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {
 	Kis_Panel::Position(in_sy, in_sx, in_y, in_x);
 	vbox->SetPosition(1, 2, in_x - 1, in_y - 2);
-}
-
-void Kis_AddCard_Panel::SetTargetClient(KisNetClient *in_cli) {
-	target_cli = in_cli;
-
-	ostringstream osstr;
-	osstr << "Add Source to " << in_cli->FetchHost() << ":" << in_cli->FetchPort();
-
-	SetTitle(osstr.str());
 }
 
 void Kis_AddCard_Panel::DrawPanel() {
@@ -3737,7 +3576,7 @@ void Kis_Chanconf_Panel::ButtonAction(Kis_Panel_Component *in_button) {
 			return;
 		}
 
-		if (kpinterface->FetchFirstNetclient() == NULL) {
+		if (kpinterface->FetchNetClient() == NULL) {
 			kpinterface->RaiseAlert("No server",
 					"Not connected to a server, you \n"
 					"shouldn't have been able to get to\n"
@@ -3771,7 +3610,7 @@ void Kis_Chanconf_Panel::ButtonAction(Kis_Panel_Component *in_button) {
 				return;
 			}
 
-			kpinterface->FetchFirstNetclient()->InjectCommand("HOPSOURCE " + 
+			kpinterface->FetchNetClient()->InjectCommand("HOPSOURCE " + 
 				card->carduuid.UUID2String() + " LOCK " + 
 				inpchannel->GetText());
 			kpinterface->KillPanel(this);
@@ -3790,10 +3629,10 @@ void Kis_Chanconf_Panel::ButtonAction(Kis_Panel_Component *in_button) {
 			}
 
 			if (inpchannel->GetText() != card->channellist) 
-				kpinterface->FetchFirstNetclient()->InjectCommand("CHANSOURCE " +
+				kpinterface->FetchNetClient()->InjectCommand("CHANSOURCE " +
 					card->carduuid.UUID2String() + " " + inpchannel->GetText());
 
-			kpinterface->FetchFirstNetclient()->InjectCommand("HOPSOURCE " + 
+			kpinterface->FetchNetClient()->InjectCommand("HOPSOURCE " + 
 				card->carduuid.UUID2String() + string(" ") + 
 				string(last_radio == hoprad ? "HOP" : "DWELL") +
 				string(" ") + inprate->GetText());

@@ -272,8 +272,6 @@ public:
 	virtual void Position(int in_sy, int in_sx, int in_y, int in_x);
 	virtual void DrawPanel();
 
-	virtual void SetTargetClient(KisNetClient *in_cli);
-
 	void ButtonAction(Kis_Panel_Component *in_button);
 
 protected:
@@ -325,31 +323,6 @@ public:
 
 protected:
 	Kis_Scrollable_Table *cardlist;
-};
-
-class Kis_ServerList_Picker : public Kis_Panel {
-public:
-	Kis_ServerList_Picker() {
-		fprintf(stderr, "FATAL OOPS: Kis_ServerList_Picker called w/out globalreg\n");
-		exit(1);
-	}
-
-	Kis_ServerList_Picker(GlobalRegistry *in_globalreg, KisPanelInterface *in_intf);
-	virtual ~Kis_ServerList_Picker();
-
-	virtual void Position(int in_sy, int in_sx, int in_y, int in_x);
-	virtual void DrawPanel();
-	virtual int KeyPress(int in_key);
-
-	virtual void ConfigurePicker(string in_title, kpi_sl_cb_hook in_hook,
-								 void *in_aux);
-
-protected:
-	Kis_Scrollable_Table *srvlist;
-
-	kpi_sl_cb_hook cb_hook;
-	void *cb_aux;
-	vector<KisNetClient *> *netcliref;
 };
 
 class Kis_ModalAlert_Panel : public Kis_Panel {

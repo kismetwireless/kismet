@@ -2501,23 +2501,15 @@ void Kis_Netlist::DrawComponent() {
 	if (display_vec.size() == 0) {
 		if (active)
 			wattrset(window, color_map[kis_netlist_color_normal]);
-		vector<KisNetClient *> *clivec = kpinterface->FetchNetClientVecPtr();
-		int con = 0;
 
-		for (unsigned int c = 0; c < clivec->size(); c++) {
-			if ((*clivec)[c]->Valid()) {
-				con = 1;
-				break;
-			}
-		}
-
-		if (con == 0) {
+		if (kpinterface->FetchNetClient() == NULL) {
 			mvwaddnstr(window, sy + 2, sx, 
 					   "[ --- Not connected to a Kismet server --- ]", lx);
 		} else {
 			mvwaddnstr(window, sy + 2, sx, "[ --- No networks seen --- ]", 
 					   ex - sx);
 		}
+
 		return;
 	}
 
@@ -3071,9 +3063,9 @@ int Kis_Info_Bits::UpdatePrefs() {
 void Kis_Info_Bits::DrawComponent() {
 	UpdatePrefs();
 
-	if (kpinterface->FetchFirstNetclient() == NULL ||
-		(kpinterface->FetchFirstNetclient() != NULL &&
-		 kpinterface->FetchFirstNetclient()->Valid() <= 0)) {
+	if (kpinterface->FetchNetClient() == NULL ||
+		(kpinterface->FetchNetClient() != NULL &&
+		 kpinterface->FetchNetClient()->Valid() <= 0)) {
 		vector<string> titletext = title->GetText();
 		if (titletext.size() == 1) {
 			titletext.push_back("\004rNot\004R");
@@ -3785,17 +3777,7 @@ void Kis_Clientlist::DrawComponent() {
 		if (active)
 			wattrset(window, color_map[kis_clientlist_color_normal]);
 
-		vector<KisNetClient *> *clivec = kpinterface->FetchNetClientVecPtr();
-		int con = 0;
-
-		for (unsigned int c = 0; c < clivec->size(); c++) {
-			if ((*clivec)[c]->Valid()) {
-				con = 1;
-				break;
-			}
-		}
-
-		if (con == 0) {
+		if (kpinterface->FetchNetClient() == 0) {
 			mvwaddnstr(window, sy + 2, sx, 
 					   "[ --- Not connected to a Kismet server --- ]", lx);
 		} else {
