@@ -421,7 +421,7 @@ int Dumpfile_Netxml::Flush() {
 					ctime((const time_t *) &(sdi->second->last_seen)));
 			fprintf(xmlfile, "     <seen-packets>%d</seen-packets>\n",
 					sdi->second->num_packets);
-			fprintf(xmlfile, "    </seen-card\n");
+			fprintf(xmlfile, "    </seen-card>\n");
 		}
 
 		int clinum = 0;
