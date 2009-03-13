@@ -194,6 +194,9 @@ int PacketSource_Pcap::FetchDescriptor() {
 	if (pd == NULL)
 		return -1;
 
+	if (error)
+		return -1;
+
 #ifdef HAVE_PCAP_GETSELFD
     return pcap_get_selectable_fd(pd);
 #else

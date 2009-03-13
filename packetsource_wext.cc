@@ -456,6 +456,9 @@ int PacketSource_Wext::DisableMonitor() {
 		return -1;
 	}
 
+	if (wpa_local_path != "")
+		unlink(wpa_local_path.c_str());
+
 	return PACKSOURCE_UNMONITOR_RET_OKWITHWARN;
 }
 

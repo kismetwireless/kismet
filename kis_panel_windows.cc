@@ -368,7 +368,6 @@ void Kis_Main_Panel::Startup() {
 		kpp->SetDisplayText(t);
 		kpp->SetCallback(kmp_prompt_startserver, this);
 		kpp->SetDefaultButton(1);
-		kpp->Position(WIN_CENTER(7, 50));
 		kpinterface->AddPanel(kpp);
 	} else if (kpinterface->prefs.FetchOpt("STARTUP_SERVER") == "true" ||
 			   kpinterface->prefs.FetchOpt("STARTUP_SERVER") == "") {
@@ -663,7 +662,6 @@ void Kis_Main_Panel::MenuAction(int opt) {
 			kpp->SetDisplayText(t);
 			kpp->SetCallback(kmp_prompt_killserver, this);
 			kpp->SetDefaultButton(1);
-			kpp->Position(WIN_CENTER(7, 50));
 			kpinterface->AddPanel(kpp);
 			return;
 		} else if (kpinterface->prefs.FetchOpt("STOP_SERVER") == "true" ||
@@ -679,14 +677,12 @@ void Kis_Main_Panel::MenuAction(int opt) {
 		return;
 	} else if (opt == mi_connect) {
 		Kis_Connect_Panel *cp = new Kis_Connect_Panel(globalreg, kpinterface);
-		cp->Position(WIN_CENTER(8, 40));
 		kpinterface->AddPanel(cp);
 	} else if (opt == mi_startserver) {
 		Kis_Spawn_Panel *sp = new Kis_Spawn_Panel(globalreg, kpinterface);
 		kpinterface->AddPanel(sp);
 	} else if (opt == mi_serverconsole) {
 		Kis_Console_Panel *cp = new Kis_Console_Panel(globalreg, kpinterface);
-		cp->Position(WIN_CENTER(LINES, COLS));
 		kpinterface->AddPanel(cp);
 	} else if (opt == mi_disconnect) {
 		if (cli != NULL) {
@@ -718,15 +714,12 @@ void Kis_Main_Panel::MenuAction(int opt) {
 		kpinterface->prefs.SetOpt("NETLIST_SORT", "packets_desc", 1);
 	} else if (opt == mi_netdetails) {
 		Kis_NetDetails_Panel *dp = new Kis_NetDetails_Panel(globalreg, kpinterface);
-		dp->Position(WIN_CENTER(LINES, COLS));
 		kpinterface->AddPanel(dp);
 	} else if (opt == mi_clientlist) {
 		Kis_Clientlist_Panel *cl = new Kis_Clientlist_Panel(globalreg, kpinterface);
-		cl->Position(WIN_CENTER(LINES, COLS));
 		kpinterface->AddPanel(cl);
 	} else if (opt == mi_chandetails) {
 		Kis_ChanDetails_Panel *dp = new Kis_ChanDetails_Panel(globalreg, kpinterface);
-		dp->Position(WIN_CENTER(LINES, COLS));
 		kpinterface->AddPanel(dp);
 	} else if (opt == mi_gps) {
 		Kis_Gps_Panel *gp = new Kis_Gps_Panel(globalreg, kpinterface);
@@ -748,7 +741,6 @@ void Kis_Main_Panel::MenuAction(int opt) {
 									"cards.\n");
 		} else if (cli != NULL) {
 			Kis_AddCard_Panel *acp = new Kis_AddCard_Panel(globalreg, kpinterface);
-			acp->Position(WIN_CENTER(10, 40));
 			kpinterface->AddPanel(acp);
 		} 
 	} else if (opt == mi_conf) {
@@ -759,18 +751,15 @@ void Kis_Main_Panel::MenuAction(int opt) {
 									"channels.\n");
 		} else {
 			Kis_Chanconf_Panel *cp = new Kis_Chanconf_Panel(globalreg, kpinterface);
-			cp->Position(WIN_CENTER(14, 50));
 			kpinterface->AddPanel(cp);
 		}
 	} else if (opt == mi_addplugin) {
 		Kis_Plugin_Picker *pp = new Kis_Plugin_Picker(globalreg, kpinterface);
-		pp->Position(WIN_CENTER(16, 70));
 		kpinterface->AddPanel(pp);
 	} else if (opt == mi_colorprefs) {
 		SpawnColorPrefs();
 	} else if (opt == mi_startprefs) {
 		Kis_StartupPref_Panel *sp = new Kis_StartupPref_Panel(globalreg, kpinterface);
-		sp->Position(WIN_CENTER(14, 70));
 		kpinterface->AddPanel(sp);
 	} else if (opt == mi_serverprefs) {
 		SpawnServerPrefs();
@@ -782,7 +771,6 @@ void Kis_Main_Panel::MenuAction(int opt) {
 		SpawnInfoPrefs();
 	} else if (opt == mi_gpsprefs) {
 		Kis_GpsPref_Panel *pp = new Kis_GpsPref_Panel(globalreg, kpinterface);
-		pp->Position(WIN_CENTER(10, 70));
 		kpinterface->AddPanel(pp);
 	} else {
 		for (unsigned int p = 0; p < plugin_menu_vec.size(); p++) {
@@ -830,7 +818,6 @@ void Kis_Main_Panel::SpawnColorPrefs() {
 		cpp->AddColorPref(color_pref_vec[x].pref, color_pref_vec[x].text);
 	}
 
-	cpp->Position((LINES / 2) - 10, (COLS / 2) - 25, 20, 50);
 	kpinterface->AddPanel(cpp);
 }
 
@@ -843,8 +830,6 @@ void Kis_Main_Panel::SpawnNetcolPrefs() {
 	}
 
 	cpp->ColumnPref("netlist_columns", "Network List");
-
-	cpp->Position((LINES / 2) - 9, (COLS / 2) - 30, 18, 60);
 	kpinterface->AddPanel(cpp);
 }
 
@@ -857,8 +842,6 @@ void Kis_Main_Panel::SpawnNetextraPrefs() {
 	}
 
 	cpp->ColumnPref("netlist_extras", "Network Extras");
-
-	cpp->Position((LINES / 2) - 9, (COLS / 2) - 30, 18, 60);
 	kpinterface->AddPanel(cpp);
 }
 
@@ -871,15 +854,11 @@ void Kis_Main_Panel::SpawnInfoPrefs() {
 	}
 
 	cpp->ColumnPref("netinfo_items", "Info Pane");
-
-	cpp->Position((LINES / 2) - 9, (COLS / 2) - 30, 18, 60);
 	kpinterface->AddPanel(cpp);
 }
 
 void Kis_Main_Panel::SpawnServerPrefs() {
 	Kis_AutoConPref_Panel *cpp = new Kis_AutoConPref_Panel(globalreg, kpinterface);
-
-	cpp->Position((LINES / 2) - 5, (COLS / 2) - 20, 11, 40);
 	kpinterface->AddPanel(cpp);
 }
 
@@ -1180,6 +1159,8 @@ Kis_Connect_Panel::Kis_Connect_Panel(GlobalRegistry *in_globalreg,
 
 	active_component = hostname;
 	hostname->Activate(1);
+
+	Position(WIN_CENTER(8, 40));
 }
 
 Kis_Connect_Panel::~Kis_Connect_Panel() {
@@ -1323,7 +1304,13 @@ void Kis_Prompt_Panel::SetCallback(ksp_prompt_cb in_callback, void *in_auxptr) {
 
 void Kis_Prompt_Panel::SetDisplayText(vector<string> in_text) {
 	ftext->SetText(in_text);
-	Position(WIN_CENTER(in_text.size() + 3, 50));
+
+	unsigned int maxlen = 0;
+	for (unsigned int x = 0; x < in_text.size(); x++) 
+		if (in_text[x].length() > maxlen)
+			maxlen = in_text[x].length();
+
+	Position(WIN_CENTER(in_text.size() + 3, maxlen + 4));
 }
 
 Kis_Prompt_Panel::~Kis_Prompt_Panel() {
@@ -1714,6 +1701,8 @@ Kis_AddCard_Panel::Kis_AddCard_Panel(GlobalRegistry *in_globalreg,
 	AddComponentVec(vbox, KIS_PANEL_COMP_DRAW);
 
 	target_cli = kpinterface->FetchNetClient();
+
+	Position(WIN_CENTER(10, 40));
 }
 
 Kis_AddCard_Panel::~Kis_AddCard_Panel() {
@@ -1886,6 +1875,8 @@ Kis_Plugin_Picker::Kis_Plugin_Picker(GlobalRegistry *in_globalreg,
 	pluglist->Activate(1);
 
 	SetTitle("");
+
+	Position(WIN_CENTER(16, 70));
 }
 
 Kis_Plugin_Picker::~Kis_Plugin_Picker() {
@@ -2062,34 +2053,6 @@ Kis_NetDetails_Panel::Kis_NetDetails_Panel(GlobalRegistry *in_globalreg,
 
 	ClearGraphVectors();
 
-	/*
-	closebutton = new Kis_Button(globalreg, this);
-	closebutton->SetText("Close");
-	closebutton->Show();
-	closebutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, NetDetailsButtonCB, this);
-
-	nextbutton = new Kis_Button(globalreg, this);
-	nextbutton->SetText("Next");
-	nextbutton->Show();
-	nextbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, NetDetailsButtonCB, this);
-
-	prevbutton = new Kis_Button(globalreg, this);
-	prevbutton->SetText("Prev");
-	prevbutton->Show();
-	prevbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, NetDetailsButtonCB, this);
-
-	bbox = new Kis_Panel_Packbox(globalreg, this);
-	bbox->SetPackH();
-	bbox->SetHomogenous(1);
-	bbox->SetSpacing(1);
-	bbox->SetCenter(1);
-	bbox->Show();
-
-	bbox->Pack_End(closebutton, 0, 0);
-	bbox->Pack_End(prevbutton, 0, 0);
-	bbox->Pack_End(nextbutton, 0, 0);
-	*/
-
 	SetTitle("");
 
 	vbox = new Kis_Panel_Packbox(globalreg, this);
@@ -2105,16 +2068,6 @@ Kis_NetDetails_Panel::Kis_NetDetails_Panel(GlobalRegistry *in_globalreg,
 	vbox->Pack_End(netdetails, 1, 0);
 
 	AddComponentVec(vbox, KIS_PANEL_COMP_DRAW);
-	/*
-	vbox->Pack_End(bbox, 0, 0);
-
-	AddComponentVec(closebutton, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_TAB |
-								  KIS_PANEL_COMP_EVT));
-	AddComponentVec(prevbutton, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_TAB |
-								  KIS_PANEL_COMP_EVT));
-	AddComponentVec(nextbutton, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_TAB |
-								  KIS_PANEL_COMP_EVT));
-	*/
 
 	tab_pos = 0;
 
@@ -2128,6 +2081,8 @@ Kis_NetDetails_Panel::Kis_NetDetails_Panel(GlobalRegistry *in_globalreg,
 	netdetails->AddRow(0, td);
 
 	UpdateViewMenu(-1);
+
+	Position(WIN_CENTER(LINES, COLS));
 }
 
 Kis_NetDetails_Panel::~Kis_NetDetails_Panel() {
@@ -2654,7 +2609,6 @@ void Kis_NetDetails_Panel::MenuAction(int opt) {
 		return;
 	} else if (opt == mi_clients) {
 		Kis_Clientlist_Panel *cl = new Kis_Clientlist_Panel(globalreg, kpinterface);
-		cl->Position(WIN_CENTER(LINES, COLS));
 		kpinterface->AddPanel(cl);
 	} else if (opt == mi_net || opt == mi_graphsig || opt == mi_graphpacket ||
 			   opt == mi_graphretry) {
@@ -2929,6 +2883,8 @@ Kis_ChanDetails_Panel::Kis_ChanDetails_Panel(GlobalRegistry *in_globalreg,
 	GraphTimer();
 
 	addref = kpinterface->Add_NetCli_AddCli_CB(ChanDetailsCliAdd, (void *) this);	
+
+	Position(WIN_CENTER(LINES, COLS));
 }
 
 Kis_ChanDetails_Panel::~Kis_ChanDetails_Panel() {
@@ -3406,6 +3362,8 @@ Kis_Chanconf_Panel::Kis_Chanconf_Panel(GlobalRegistry *in_globalreg,
 	last_radio = lockrad;
 
 	main_component = vbox;
+
+	Position(WIN_CENTER(14, 50));
 }
 
 Kis_Chanconf_Panel::~Kis_Chanconf_Panel() {
@@ -3726,31 +3684,6 @@ Kis_Gps_Panel::Kis_Gps_Panel(GlobalRegistry *in_globalreg,
 	gpssatinfo = new Kis_Free_Text(globalreg, this);
 	gpssatinfo->Show();
 
-	/*
-	tbox = new Kis_Panel_Packbox(globalreg, this);
-	tbox->SetPackV();
-	tbox->SetHomogenous(0);
-	tbox->SetSpacing(0);
-	tbox->SetCenter(0);
-	tbox->Pack_End(gpslocinfo, 0, 0);
-	tbox->Pack_End(gpsmoveinfo, 0, 0);
-	tbox->Pack_End(gpssatinfo, 0, 0);
-	tbox->Pack_End(gpssiggraph, 0, 0);
-	tbox->Show();
-
-	gpspolgraph = new Kis_PolarGraph(globalreg, this);
-	gpspolgraph->SetPreferredSize(12, 12);
-	gpspolgraph->Show();
-
-	hbox = new Kis_Panel_Packbox(globalreg, this);
-	hbox->SetPackH();
-	hbox->SetHomogenous(1);
-	hbox->SetSpacing(1);
-	hbox->Pack_End(gpspolgraph, 0, 0);
-	hbox->Pack_End(gpssiggraph, 0, 0);
-	hbox->Show();
-	*/
-
 	vbox = new Kis_Panel_Packbox(globalreg, this);
 	vbox->SetPackV();
 	vbox->SetHomogenous(0);
@@ -3773,6 +3706,8 @@ Kis_Gps_Panel::Kis_Gps_Panel(GlobalRegistry *in_globalreg,
 	agg_gps_num = TokenNullJoin(&agg_gps_fields, gpsinfo_fields);
 
 	main_component = vbox;
+
+	Position(WIN_CENTER(20, 60));
 }
 
 Kis_Gps_Panel::~Kis_Gps_Panel() {
@@ -3961,6 +3896,8 @@ Kis_Clientlist_Panel::Kis_Clientlist_Panel(GlobalRegistry *in_globalreg,
 	grapheventid = -1;
 
 	UpdateSortMenu();
+
+	Position(WIN_CENTER(LINES, COLS));
 }
 
 Kis_Clientlist_Panel::~Kis_Clientlist_Panel() {
@@ -3973,7 +3910,6 @@ void Kis_Clientlist_Panel::ButtonAction(Kis_Panel_Component *in_button) {
 		Kis_ClientDetails_Panel *cp = 
 			new Kis_ClientDetails_Panel(globalreg, kpinterface);
 		cp->SetClientlist(clientlist);
-		cp->Position(WIN_CENTER(LINES, COLS));
 		kpinterface->AddPanel(cp);
 	}
 
@@ -3994,7 +3930,6 @@ void Kis_Clientlist_Panel::MenuAction(int opt) {
 		Kis_ClientDetails_Panel *cp = 
 			new Kis_ClientDetails_Panel(globalreg, kpinterface);
 		cp->SetClientlist(clientlist);
-		cp->Position(WIN_CENTER(LINES, COLS));
 		kpinterface->AddPanel(cp);
 		return;
 	} else if (opt == mi_sort_auto) {
@@ -4211,6 +4146,8 @@ Kis_ClientDetails_Panel::Kis_ClientDetails_Panel(GlobalRegistry *in_globalreg,
 	clientlist = NULL;
 
 	UpdateViewMenu(-1);
+
+	Position(WIN_CENTER(LINES, COLS));
 }
 
 Kis_ClientDetails_Panel::~Kis_ClientDetails_Panel() {

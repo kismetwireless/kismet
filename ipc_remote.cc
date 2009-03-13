@@ -798,7 +798,7 @@ void RootIPCRemote::ShutdownIPCPassFD() {
 	if (ipc_pid != 0) {
 		// Clean up the socket if it exists
 		if (ipc_fd_fd >= 0) {
-			snprintf(sockpath, 32, "/tmp/kisfdsock_%u", getpid());
+			snprintf(sockpath, 32, "/tmp/kisfdsock_%u", ipc_pid);
 			close(ipc_fd_fd);
 			ipc_fd_fd = -1;
 			unlink(sockpath);

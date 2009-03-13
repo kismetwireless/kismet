@@ -298,6 +298,8 @@ Kis_ColorPref_Panel::Kis_ColorPref_Panel(GlobalRegistry *in_globalref,
 	titles.push_back(t);
 
 	colorlist->AddTitles(titles);
+
+	Position(WIN_CENTER(20, 50));
 }
 
 Kis_ColorPref_Panel::~Kis_ColorPref_Panel() {
@@ -453,6 +455,9 @@ Kis_AutoConPref_Panel::Kis_AutoConPref_Panel(GlobalRegistry *in_globalreg,
 
 	active_component = hostname;
 	hostname->Activate(1);
+	main_component = vbox;
+
+	Position(WIN_CENTER(11, 40));
 }
 
 Kis_AutoConPref_Panel::~Kis_AutoConPref_Panel() {
@@ -678,6 +683,8 @@ Kis_ColumnPref_Panel::Kis_ColumnPref_Panel(GlobalRegistry *in_globalreg,
 	AddComponentVec(vbox, KIS_PANEL_COMP_DRAW);
 
 	pref = "";
+
+	Position(WIN_CENTER(18, 60));
 }
 
 Kis_ColumnPref_Panel::~Kis_ColumnPref_Panel() {
@@ -866,6 +873,9 @@ Kis_GpsPref_Panel::Kis_GpsPref_Panel(GlobalRegistry *in_globalreg,
 	} else {
 		metrad->SetChecked(1);
 	}
+
+	main_component = vbox;
+	Position(WIN_CENTER(10, 70));
 }
 
 Kis_GpsPref_Panel::~Kis_GpsPref_Panel() {
@@ -1017,6 +1027,8 @@ Kis_StartupPref_Panel::Kis_StartupPref_Panel(GlobalRegistry *in_globalreg,
 	} else {
 		stopkisprompt_check->SetChecked(1);
 	}
+
+	Position(WIN_CENTER(14, 70));
 }
 
 Kis_StartupPref_Panel::~Kis_StartupPref_Panel() {
