@@ -118,7 +118,7 @@ int Dumpfile_Netxml::Flush() {
 
 		fprintf(xmlfile, " <card-name>%s</card-name>\n",
 				SanitizeXML((*sources)[s]->strong_source->FetchName()).c_str());
-		fprintf(xmlfile, " <car-interface>%s</card-interface>\n",
+		fprintf(xmlfile, " <card-interface>%s</card-interface>\n",
 				SanitizeXML((*sources)[s]->strong_source->FetchInterface()).c_str());
 		fprintf(xmlfile, " <card-type>%s</card-type>\n",
 				SanitizeXML((*sources)[s]->strong_source->FetchType()).c_str());
@@ -706,7 +706,7 @@ int Dumpfile_Netxml::Flush() {
 						ctime((const time_t *) &(sdi->second->last_seen)));
 				fprintf(xmlfile, "       <seen-packets>%d</seen-packets>\n",
 						sdi->second->num_packets);
-				fprintf(xmlfile, "      </seen-card\n");
+				fprintf(xmlfile, "      </seen-card>\n");
 			}
 
 			fprintf(xmlfile, "    </wireless-client>\n");
