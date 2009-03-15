@@ -516,6 +516,7 @@ Kis_OrderlistPref_Component::Kis_OrderlistPref_Component(GlobalRegistry *in_glob
 	Kis_Scrollable_Table(in_globalreg, in_panel) {
 	globalreg = in_globalreg;
 
+	selected = -1;
 	orderable = 0;
 	enable_fid = -1;
 	field_yes = field_no = "";
