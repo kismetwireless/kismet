@@ -793,6 +793,8 @@ int PacketSource_Wrt54Prism::RegisterSources(Packetsourcetracker *tracker) {
 }
 
 int PacketSource_Wrt54Prism::OpenSource() {
+	error = 0;
+
 	// Store the interface
 	string realsrc = interface;
 

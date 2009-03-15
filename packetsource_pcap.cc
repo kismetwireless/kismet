@@ -96,6 +96,8 @@ int PacketSource_Pcap::OpenSource() {
 	char errstr[STATUS_MAX] = "";
 	last_channel = 0;
 	char *unconst = strdup(interface.c_str());
+
+	error = 0;
 	
 	pd = pcap_open_live(unconst, MAX_PACKET_LEN, 1, 1000, errstr);
 
@@ -191,11 +193,13 @@ int PacketSource_Pcap::DatalinkType() {
 }
 
 int PacketSource_Pcap::FetchDescriptor() {
-	if (pd == NULL)
+	if (pd == NULL) {
 		return -1;
+	}
 
-	if (error)
+	if (error) {
 		return -1;
+	}
 
 #ifdef HAVE_PCAP_GETSELFD
     return pcap_get_selectable_fd(pd);

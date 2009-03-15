@@ -1484,6 +1484,9 @@ int Packetsourcetracker::StartSource(uint16_t in_source_id) {
 			 pstsource->strong_source->FetchInterface() + "' to IPC child",
 			 MSGFLAG_INFO);
 		SendIPCStart(pstsource);
+		
+		// Assume we're not in error state, we'll get an IPC back if we are
+		pstsource->error = 0;
 		return 0;
 	}
 
@@ -2084,8 +2087,9 @@ void Packetsourcetracker::ChannelTimer() {
 
 				pst->rate_timer--;
 
-				if (pst->rate_timer > 0) 
+				if (pst->rate_timer > 0) {
 					continue;
+				}
 
 				if (pst->channel_position >= 
 					(int) pst->channel_ptr->channel_vec.size()) {
@@ -2155,8 +2159,6 @@ void Packetsourcetracker::ChannelTimer() {
 				pst->tm_hop_start.tv_sec = tv.tv_sec;
 				pst->tm_hop_start.tv_usec = tv.tv_usec;
 
-				// fprintf(stderr, "debug - looped channel set in %usec %uusec\n", (unsigned int) pst->tm_hop_time.tv_sec, (unsigned int) pst->tm_hop_time.tv_usec);
-
 				SendIPCReport(pst);
 			}
 
@@ -2166,7 +2168,7 @@ void Packetsourcetracker::ChannelTimer() {
 			// Set the local channel via chanset or range
 			if (pst->channel_ptr->channel_vec[pst->channel_position].range == 0) {
 				pst->channel = 
-				pst->channel_ptr->channel_vec[pst->channel_position].u.chan_t.channel;
+					pst->channel_ptr->channel_vec[pst->channel_position].u.chan_t.channel;
 			} else {
 				// total = ((end - start) / iteration) + 1
 				// jump = width / iteration
