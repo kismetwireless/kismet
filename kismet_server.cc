@@ -831,7 +831,7 @@ int main(int argc, char *argv[], char *envp[]) {
 	if (globalregistry->sourcetracker->FetchSourceVec()->size() == 0) {
 		_MSG("No packet sources defined.  You MUST ADD SOME using the Kismet "
 			 "client, or by placing them in the Kismet config file (" + 
-			 string(SYSCONF_LOC) + config_base + ")", MSGFLAG_INFO);
+			 string(SYSCONF_LOC) + "/" + config_base + ")", MSGFLAG_INFO);
 	}
 	
 	// Set the global silence now that we're set up

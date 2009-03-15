@@ -280,13 +280,12 @@ void PanelInterface::ResizeInterface() {
 			if (rsx > nv)
 				rsx = nv;
 
-			live_panels[x]->Position(WIN_CENTER(rsx, rsy));
+			live_panels[x]->Position(WIN_CENTER(rsy, rsx));
 		}
 	}
 
 	hsize = nh;
 	vsize = nv;
-
 }
 
 int PanelInterface::DrawInterface() {
