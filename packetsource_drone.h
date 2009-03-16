@@ -55,6 +55,9 @@ public:
 
 	virtual unsigned int MergeSet(unsigned int in_max_fd, fd_set *out_rset,
 								  fd_set *out_wset) {
+		if (netclient == NULL)
+			return in_max_fd;
+
 		return netclient->MergeSet(in_max_fd, out_rset, out_wset);
 	}
 

@@ -138,6 +138,9 @@ int DroneClientFrame::OpenConnection(string in_conparm, int in_recon) {
 				cli_port << " failed (" << strerror(errno) << ") and reconnection "
 				"not enabled";
 			_MSG(osstr.str(), MSGFLAG_ERROR);
+			delete tcpcli;
+			tcpcli = NULL;
+			netclient = NULL;
 			return -1;
 		} else {
 			osstr << "Could not create initial connection to the Kismet drone "
@@ -917,6 +920,13 @@ PacketSource_Drone::~PacketSource_Drone() {
 }
 
 int PacketSource_Drone::OpenSource() {
+	if (error) {
+		_MSG("packetsource drone (" + name + ") failed to initialize "
+			 "drone framework and open connection, check previous errors "
+			 "for why.", MSGFLAG_ERROR);
+		return -1;
+	}
+
 	if (droneframe == NULL)
 		droneframe = new DroneClientFrame(globalreg);
 
@@ -926,7 +936,8 @@ int PacketSource_Drone::OpenSource() {
 		globalreg->fatal_condition) {
 		_MSG("Packetsource drone (" + name + ") failed to create drone "
 			 "framework and open connection", MSGFLAG_ERROR);
-		return 0;
+		error = 1;
+		return -1;
 	}
 
 	return 1;
