@@ -88,13 +88,6 @@ int kis_gpspack_hook(CHAINCALL_PARMS) {
 	return 1;
 }
 
-int GpsEvent(Timetracker::timer_event *evt, void *parm,
-			 GlobalRegistry *globalreg) {
-	GPSCore *gps = (GPSCore *) parm;
-
-	return gps->Timer();
-}
-
 GPSCore::GPSCore() {
     fprintf(stderr, "FATAL OOPS: GPSCore called with no globalreg\n");
 	exit(-1);
@@ -156,10 +149,6 @@ int GPSCore::RegisterComponents() {
 		globalreg->packetchain->RegisterPacketComponent("gps");
 	globalreg->packetchain->RegisterHandler(&kis_gpspack_hook, this,
 											CHAINPOS_POSTCAP, -100);
-
-	gpseventid = 
-		globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1, 
-											  &GpsEvent, (void *) this);
 
 	return 1;
 }

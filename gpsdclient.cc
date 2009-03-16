@@ -23,6 +23,13 @@
 #include "soundcontrol.h"
 #include "packetchain.h"
 
+int GpsdGpsEvent(Timetracker::timer_event *evt, void *parm,
+			 GlobalRegistry *globalreg) {
+	GPSDClient *gps = (GPSDClient *) parm;
+
+	return gps->Timer();
+}
+
 GPSDClient::GPSDClient() {
     fprintf(stderr, "FATAL OOPS: gpsdclient called with no globalreg\n");
 	exit(-1);
@@ -45,6 +52,10 @@ GPSDClient::GPSDClient(GlobalRegistry *in_globalreg) : GPSCore(in_globalreg) {
 
 	ScanOptions();
 	RegisterComponents();
+
+	gpseventid = 
+		globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1, 
+											  &GpsdGpsEvent, (void *) this);
 
 	char temphost[129];
 	if (sscanf(globalreg->kismet_config->FetchOpt("gpshost").c_str(), 

@@ -23,6 +23,13 @@
 #include "soundcontrol.h"
 #include "packetchain.h"
 
+int SerialGpsEvent(Timetracker::timer_event *evt, void *parm,
+			 GlobalRegistry *globalreg) {
+	GPSSerial *gps = (GPSSerial *) parm;
+
+	return gps->Timer();
+}
+
 GPSSerial::GPSSerial() {
     fprintf(stderr, "FATAL OOPS: gpsserial called with no globalreg\n");
 	exit(-1);
@@ -47,34 +54,15 @@ GPSSerial::GPSSerial(GlobalRegistry *in_globalreg) : GPSCore(in_globalreg) {
 	ScanOptions();
 	RegisterComponents();
 
+	gpseventid = 
+		globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1, 
+											  &SerialGpsEvent, (void *) this);
+
 	snprintf(device, 128, "%s", 
 			 globalreg->kismet_config->FetchOpt("gpsdevice").c_str());
 
-	if (sercli->Connect(device, 0) < 0) {
-		_MSG("GPSSerial: Could not open serial port " + string(device),
-			 MSGFLAG_ERROR);
-		if (reconnect_attempt < 0) {
-			_MSG("GPSSerial: Reconnection not enabled (gpsreconnect), disabling "
-				 "GPS", MSGFLAG_ERROR);
-			return;
-		}
-		last_disconnect = time(0);
-	} else {
-		struct termios options;
-
-		sercli->GetOptions(&options);
-
-		options.c_oflag = 0;
-		options.c_iflag = 0;
-		options.c_iflag &= (IXON | IXOFF | IXANY);
-		options.c_cflag |= CLOCAL | CREAD;
-		options.c_cflag &= ~HUPCL;
-
-		cfsetispeed(&options, B4800);
-		cfsetospeed(&options, B4800);
-
-		sercli->SetOptions(TCSANOW, &options);
-	}
+	if (Reconnect() < 0)
+		return;
 
 	last_mode = -1;
 
@@ -97,15 +85,16 @@ int GPSSerial::Shutdown() {
 }
 
 int GPSSerial::Reconnect() {
-    if (sercli->Connect(device, 0) < 0) {
-        snprintf(errstr, STATUS_MAX, "GPSSerial: Could not open GPS device %s, will "
-                 "reconnect in %d seconds", device, 
-				 kismin(reconnect_attempt + 1, 6) * 5);
-        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
-        reconnect_attempt++;
-        last_disconnect = time(0);
-        return 0;
-    }
+	if (sercli->Connect(device, 0) < 0) {
+		_MSG("GPSSerial: Could not open serial port " + string(device),
+			 MSGFLAG_ERROR);
+		if (reconnect_attempt < 0) {
+			_MSG("GPSSerial: Reconnection not enabled (gpsreconnect), disabling "
+				 "GPS", MSGFLAG_ERROR);
+		}
+
+		return 0;
+	}
 
 	// Reset the device options
 	struct termios options;
@@ -378,9 +367,11 @@ int GPSSerial::ParseData() {
 }
 
 int GPSSerial::Timer() {
+	// fprintf(stderr, "debug - serial timer valid %d attempt %d last time %d\n", netclient->Valid(), reconnect_attempt, last_disconnect);
     // Timed backoff up to 30 seconds
     if (netclient->Valid() == 0 && reconnect_attempt >= 0 &&
         (time(0) - last_disconnect >= (kismin(reconnect_attempt, 6) * 5))) {
+		// fprintf(stderr, "debug - serial reconnect?\n");
         if (Reconnect() <= 0)
             return 0;
     }

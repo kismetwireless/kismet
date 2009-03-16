@@ -41,6 +41,7 @@ int SerialClient::Connect(const char *in_remotehost, short int in_port) {
 		_MSG("SerialClient::Connect() failed to open serial device " +
 			 string(in_remotehost) + ": " + string(strerror(errno)),
 			 MSGFLAG_ERROR);
+		cl_valid = 0;
 		return -1;
 	}
 
