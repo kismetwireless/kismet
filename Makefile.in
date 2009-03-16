@@ -147,31 +147,31 @@ checkuiconfig:
 	fi
 
 binsuidinstall:
-	install -o $(INSTUSR) -g $(SUIDGROUP) $(STRIPOPT) -m 4550 $(CS) $(BIN)/$(CS); 
+	$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) $(STRIPOPT) -m 4550 $(CS) $(BIN)/$(CS); 
 	
 commoninstall:
 	mkdir -p $(ETC)
 	mkdir -p $(BIN)
 
-	install -o $(INSTUSR) -g $(INSTGRP) -m 555 scripts/kismet $(BIN)/kismet
-	install -o $(INSTUSR) -g $(INSTGRP) $(STRIPOPT) -m 555 $(NC) $(BIN)/$(NC)
-	install -o $(INSTUSR) -g $(INSTGRP) $(STRIPOPT) -m 555 $(PS) $(BIN)/$(PS); 
-	install -o $(INSTUSR) -g $(INSTGRP) $(STRIPOPT) -m 555 $(DRONE) $(BIN)/$(DRONE);
+	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 scripts/kismet $(BIN)/kismet
+	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(STRIPOPT) -m 555 $(NC) $(BIN)/$(NC)
+	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(STRIPOPT) -m 555 $(PS) $(BIN)/$(PS); 
+	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(STRIPOPT) -m 555 $(DRONE) $(BIN)/$(DRONE);
 
 	mkdir -p $(MAN)/man1
-	install -o $(INSTUSR) -g $(MANGRP) -m 644 man/kismet.1 $(MAN)/man1/kismet.1
-	install -o $(INSTUSR) -g $(MANGRP) -m 644 man/kismet_drone.1 $(MAN)/man1/kismet_drone.1
+	$(INSTALL) -o $(INSTUSR) -g $(MANGRP) -m 644 man/kismet.1 $(MAN)/man1/kismet.1
+	$(INSTALL) -o $(INSTUSR) -g $(MANGRP) -m 644 man/kismet_drone.1 $(MAN)/man1/kismet_drone.1
 
 	mkdir -p $(MAN)/man5
-	install -o $(INSTUSR) -g $(MANGRP) -m 644 man/kismet.conf.5 $(MAN)/man5/kismet.conf.5
-	install -o $(INSTUSR) -g $(MANGRP) -m 644 man/kismet_ui.conf.5 $(MAN)/man5/kismet_ui.conf.5
-	install -o $(INSTUSR) -g $(MANGRP) -m 644 man/kismet_drone.conf.5 $(MAN)/man5/kismet_drone.conf.5
+	$(INSTALL) -o $(INSTUSR) -g $(MANGRP) -m 644 man/kismet.conf.5 $(MAN)/man5/kismet.conf.5
+	$(INSTALL) -o $(INSTUSR) -g $(MANGRP) -m 644 man/kismet_ui.conf.5 $(MAN)/man5/kismet_ui.conf.5
+	$(INSTALL) -o $(INSTUSR) -g $(MANGRP) -m 644 man/kismet_drone.conf.5 $(MAN)/man5/kismet_drone.conf.5
 
 	mkdir -p $(WAV)
-	install -o $(INSTUSR) -g $(INSTGRP) -m 644 wav/new_network.wav $(WAV)/new_network.wav
-	install -o $(INSTUSR) -g $(INSTGRP) -m 644 wav/traffic.wav $(WAV)/traffic.wav
-	install -o $(INSTUSR) -g $(INSTGRP) -m 644 wav/junk_traffic.wav $(WAV)/junk_traffic.wav
-	install -o $(INSTUSR) -g $(INSTGRP) -m 644 wav/alert.wav $(WAV)/alert.wav
+	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 wav/new_network.wav $(WAV)/new_network.wav
+	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 wav/traffic.wav $(WAV)/traffic.wav
+	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 wav/junk_traffic.wav $(WAV)/junk_traffic.wav
+	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 wav/alert.wav $(WAV)/alert.wav
 
 suidinstall: $(CS)
 	$(MAKE) -e commoninstall
@@ -179,14 +179,14 @@ suidinstall: $(CS)
 	@if test -f $(ETC)/kismet.conf; then \
 		$(MAKE) -e checkconfig; \
     else \
-		install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet.conf $(ETC)/kismet.conf;  \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet.conf $(ETC)/kismet.conf;  \
 		echo install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet.conf $(ETC)/kismet.conf;  \
 		echo "Installed config into $(ETC)/kismet.conf."; \
 	fi
 	@if test -f $(ETC)/kismet_drone.conf; then \
 		$(MAKE) -e checkdroneconfig; \
     else \
-		install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet_drone.conf $(ETC)/kismet_drone.conf;  \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet_drone.conf $(ETC)/kismet_drone.conf;  \
 		echo install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet_drone.conf $(ETC)/kismet_drone.conf;  \
 		echo "Installed drone config into $(ETC)/kismet_drone.conf."; \
 	fi
@@ -207,21 +207,21 @@ install: $(PS) $(CS) $(DRONE) $(NC)
 	@if test -f $(ETC)/kismet.conf; then \
 		$(MAKE) -e checkconfig; \
     else \
-		install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet.conf $(ETC)/kismet.conf;  \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet.conf $(ETC)/kismet.conf;  \
 		echo install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet.conf $(ETC)/kismet.conf;  \
 		echo "Installed config into $(ETC)/kismet.conf."; \
 	fi
 	@if test -f $(ETC)/kismet_drone.conf; then \
 		$(MAKE) -e checkdroneconfig; \
     else \
-		install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet_drone.conf $(ETC)/kismet_drone.conf;  \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet_drone.conf $(ETC)/kismet_drone.conf;  \
 		echo install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet_drone.conf $(ETC)/kismet_drone.conf;  \
 		echo "Installed drone config into $(ETC)/kismet_drone.conf."; \
 	fi
 	@if test -f $(ETC)/kismet_ui.conf; then \
 		$(MAKE) -e checkuiconfig; \
 	else \
-		install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet_ui.conf $(ETC)/kismet_ui.conf;  \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet_ui.conf $(ETC)/kismet_ui.conf;  \
 		echo install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet_ui.conf $(ETC)/kismet_ui.conf;  \
 		echo "Installed UI config into $(ETC)/kismet_ui.conf."; \
 	fi
