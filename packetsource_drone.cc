@@ -222,8 +222,9 @@ int DroneClientFrame::Reconnect() {
 }
 
 int DroneClientFrame::KillConnection() {
-	if (tcpcli != NULL)
-		tcpcli->KillConnection();
+	ClientFramework::KillConnection();
+
+	last_disconnect = time(0);
 
 	// Kill all our faked packet sources
 	for (map<uuid, int>::iterator i = virtual_src_map.begin();
@@ -299,6 +300,7 @@ int DroneClientFrame::ParseData() {
 				 "TCP connection.  Will attempt to reconnect in 5 seconds",
 				 MSGFLAG_ERROR);
 			last_disconnect = time(0);
+
 			KillConnection();
 			delete[] buf;
 			return 0;
