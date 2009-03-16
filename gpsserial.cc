@@ -78,7 +78,8 @@ GPSSerial::GPSSerial(GlobalRegistry *in_globalreg) : GPSCore(in_globalreg) {
 
 	last_mode = -1;
 
-	_MSG("Using GPS device on " + string(device), MSGFLAG_INFO);
+	if (last_disconnect == 0)
+		_MSG("Using GPS device on " + string(device), MSGFLAG_INFO);
 }
 
 GPSSerial::~GPSSerial() {
