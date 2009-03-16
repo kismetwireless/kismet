@@ -1343,7 +1343,7 @@ int Packetsourcetracker::IpcChannelSet(ipc_source_chanset *in_ipc) {
 
 	pstsource->channel_hop = in_ipc->channel_hop;
 	pstsource->channel_dwell = in_ipc->channel_dwell;
-	pstsource->channel_rate = in_ipc->channel;
+	pstsource->channel_rate = in_ipc->channel_rate;
 	pstsource->channel_split = in_ipc->channel_split;
 
 	return 1;
@@ -2088,6 +2088,7 @@ void Packetsourcetracker::ChannelTimer() {
 				pst->rate_timer--;
 
 				if (pst->rate_timer > 0) {
+					// fprintf(stderr, "debug - source %s timer %d\n", pst->interface.c_str(), pst->rate_timer);
 					continue;
 				}
 
@@ -2097,12 +2098,14 @@ void Packetsourcetracker::ChannelTimer() {
 					push_report = 1;
 				}
 
-				if (pst->channel_ptr->channel_vec[pst->channel_position].range)
+				if (pst->channel_ptr->channel_vec[pst->channel_position].range) {
 					pst->rate_timer = (SERVER_TIMESLICES_SEC - pst->channel_rate);
-				else 
+				} else {
 					pst->rate_timer =
 					pst->channel_ptr->channel_vec[pst->channel_position].u.chan_t.dwell *
 						(SERVER_TIMESLICES_SEC - pst->channel_rate);
+					// fprintf(stderr, "debug - set timer to %d dwell %d + slices %d - rate %d\n", pst->rate_timer, pst->channel_ptr->channel_vec[pst->channel_position].u.chan_t.dwell, SERVER_TIMESLICES_SEC, pst->channel_rate);
+				}
 
 			} else if (pst->channel_dwell) {
 				pst->dwell_timer--;
@@ -2181,7 +2184,7 @@ void Packetsourcetracker::ChannelTimer() {
 				pst->channel = pst->channel_ptr->channel_vec[pst->channel_position].u.range_t.start + (s * pst->channel_ptr->channel_vec[pst->channel_position].u.range_t.iter);
 			}
 
-			// printf("debug - hop list new channel %d\n", pst->channel);
+			// fprintf(stderr, "debug - hop list interface %s new channel %d\n", pst->interface.c_str(), pst->channel);
 
 			if (pst->strong_source->FetchError() == 0 && 
 				pst->strong_source->SetChannel(pst->channel) < 0) {
