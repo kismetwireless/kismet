@@ -112,7 +112,7 @@ int DroneClientFrame::OpenConnection(string in_conparm, int in_recon) {
 	if (sscanf(in_conparm.c_str(), "%10[^:]://%128[^:]:%d",
 			   cli_proto, cli_host, &cli_port) != 3) {
 		_MSG("Drone client unable to parse remote server info from '" + 
-			 in_conparm + "', expected proto://host:port", MSGFLAG_ERROR);
+			 in_conparm + "', expected proto://host:port", MSGFLAG_PRINTERROR);
 		return -1;
 	}
 
@@ -126,7 +126,7 @@ int DroneClientFrame::OpenConnection(string in_conparm, int in_recon) {
 		cli_type = 0;
 	} else {
 		_MSG("Invalid protocol '" + string(cli_proto) + "' for drone connection",
-			 MSGFLAG_ERROR);
+			 MSGFLAG_PRINTERROR);
 		return -1;
 	}
 
@@ -137,7 +137,7 @@ int DroneClientFrame::OpenConnection(string in_conparm, int in_recon) {
 			osstr << "Kismet drone initial connection to " << cli_host << ":" <<
 				cli_port << " failed (" << strerror(errno) << ") and reconnection "
 				"not enabled";
-			_MSG(osstr.str(), MSGFLAG_ERROR);
+			_MSG(osstr.str(), MSGFLAG_PRINTERROR);
 			delete tcpcli;
 			tcpcli = NULL;
 			netclient = NULL;
@@ -146,7 +146,7 @@ int DroneClientFrame::OpenConnection(string in_conparm, int in_recon) {
 			osstr << "Could not create initial connection to the Kismet drone "
 				"server at " << cli_host << ":" << cli_port << " (" <<
 				strerror(errno) << "), will attempt to reconnect in 5 seconds";
-			_MSG(osstr.str(), MSGFLAG_ERROR);
+			_MSG(osstr.str(), MSGFLAG_PRINTERROR);
 		}
 
 		last_disconnect = time(0);
@@ -923,7 +923,7 @@ int PacketSource_Drone::OpenSource() {
 	if (error) {
 		_MSG("packetsource drone (" + name + ") failed to initialize "
 			 "drone framework and open connection, check previous errors "
-			 "for why.", MSGFLAG_ERROR);
+			 "for why.", MSGFLAG_PRINTERROR);
 		return -1;
 	}
 
@@ -935,7 +935,7 @@ int PacketSource_Drone::OpenSource() {
 	if (droneframe->OpenConnection(connecturl, reconnect) < 0 ||
 		globalreg->fatal_condition) {
 		_MSG("Packetsource drone (" + name + ") failed to create drone "
-			 "framework and open connection", MSGFLAG_ERROR);
+			 "framework and open connection", MSGFLAG_PRINTERROR);
 		error = 1;
 		return -1;
 	}
