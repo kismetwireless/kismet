@@ -2103,7 +2103,7 @@ void Packetsourcetracker::ChannelTimer() {
 				} else {
 					pst->rate_timer =
 					pst->channel_ptr->channel_vec[pst->channel_position].u.chan_t.dwell *
-						(SERVER_TIMESLICES_SEC - pst->channel_rate);
+						(float) ((float) SERVER_TIMESLICES_SEC / pst->channel_rate);
 					// fprintf(stderr, "debug - set timer to %d dwell %d + slices %d - rate %d\n", pst->rate_timer, pst->channel_ptr->channel_vec[pst->channel_position].u.chan_t.dwell, SERVER_TIMESLICES_SEC, pst->channel_rate);
 				}
 
