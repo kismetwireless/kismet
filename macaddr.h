@@ -73,7 +73,7 @@ struct mac_addr {
 			longmac |= (uint64_t) bs_in[5] << ((MAC_LEN - 5 - 1) * 8);
 
             // If it has a mask component, get that
-            char *in_mask = strchr(in, '/');
+            const char *in_mask = strchr(in, '/');
             if (in_mask != NULL) {
                 longmask = 0;
 
