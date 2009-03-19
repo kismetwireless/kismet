@@ -71,7 +71,7 @@ int madwifing_list_vaps(const char *ifname, vector<string> *retvec) {
 				if (fscanf(pf, "%s", pname) != 1) {
 					fclose(pf);
 					continue;
-				} else if (strcmp(pname, ifname) == 0) {
+				} else {
 					retvec->push_back(devfile->d_name);
 				}
 
@@ -80,8 +80,7 @@ int madwifing_list_vaps(const char *ifname, vector<string> *retvec) {
 		} else {
 			string ownername = "net:" + string(ifname);
 
-			if (strncmp("net:", devfile->d_name, 4) == 0 && 
-				devfile->d_name != ownername)
+			if (strncmp("net:", devfile->d_name, 4) == 0)
 				retvec->push_back(devfile->d_name + 4);
 		}
 	}
@@ -89,6 +88,15 @@ int madwifing_list_vaps(const char *ifname, vector<string> *retvec) {
 	closedir(devdir);
 
 	return retvec->size();
+}
+
+int madwifing_find_parent(vector<string> *vaplist) {
+	for (unsigned int x = 0; x < vaplist->size(); x++) {
+		if ((*vaplist)[x].find("wifi") != string::npos)
+			return x;
+	}
+
+	return -1;
 }
 
 int madwifing_destroy_vap(const char *ifname, char *errstr) {

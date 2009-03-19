@@ -587,6 +587,10 @@ int PacketSource_Madwifi::EnableMonitor() {
 	for (unsigned int x = 0; x < vaplist.size(); x++) {
 		int iwmode;
 
+		// Don't bother looking at devices that look like the parent
+		if (vaplist[x].find("wifi") != string::npos)
+			continue;
+
 		if (Iwconfig_Get_Mode(vaplist[x].c_str(), errstr, &iwmode) < 0) {
 			_MSG("Madwifi source " + name + ": Could not get mode of VAP " + 
 				 interface + "::" +
@@ -594,7 +598,7 @@ int PacketSource_Madwifi::EnableMonitor() {
 				 "normal mode and monitor mode VAPs operating at the same time. "
 				 "You may need to manually remove them.", MSGFLAG_PRINTERROR);
 			sleep(1);
-			break;
+			continue;
 		}
 
 		if (iwmode == LINUX_WLEXT_MASTER) {
@@ -606,7 +610,7 @@ int PacketSource_Madwifi::EnableMonitor() {
 				 "loss may occur however, so you may want to remove this VAP "
 				 "manually.", MSGFLAG_PRINTERROR);
 			sleep(1);
-			break;
+			continue;
 		}
 
 		if (iwmode != LINUX_WLEXT_MONITOR && vapdestroy) {
@@ -623,7 +627,7 @@ int PacketSource_Madwifi::EnableMonitor() {
 					 interface + "::" + vaplist[x] + ": " +
 					 string(errstr), MSGFLAG_PRINTERROR);
 				return -1;
-				break;
+				continue;
 			}
 
 			sleep(1);
@@ -652,10 +656,22 @@ int PacketSource_Madwifi::EnableMonitor() {
 	// we already have one, and dont change the mode on an existing monitor
 	// vap.
 	if (monvap == "") {
-		if (madwifing_build_vap(interface.c_str(), errstr, "kis", newdev,
+		// Find the parent device
+		if (parent == "") {
+			int p = madwifing_find_parent(&vaplist);
+
+			// Just use the interface if we can't find a parent?  This will
+			// probably fail soon after, but whatever
+			if (p < 0)
+				parent = interface;
+			else
+				parent = vaplist[p];
+		}
+
+		if (madwifing_build_vap(parent.c_str(), errstr, "kis", newdev,
 								IEEE80211_M_MONITOR, IEEE80211_CLONE_BSSID) >= 0) {
 			_MSG("Madwifi source " + name + " created monitor-mode VAP " +
-				 interface + "::" + newdev + ".", MSGFLAG_INFO);
+				 parent + "::" + newdev + ".", MSGFLAG_INFO);
 
 			FILE *controlf;
 			string cpath = "/proc/sys/net/" + string(newdev) + "/dev_type";
@@ -756,25 +772,12 @@ int PacketSource_Madwifi::DisableMonitor() {
 }
 
 int PacketSource_Madwifi::AutotypeProbe(string in_device) {
-#if 0
-	// Madwifi doesn't seem to sanely report this on the wifi0 device...
-	ethtool_drvinfo drvinfo;
-	char errstr[1024];
-
-	if (Linux_GetDrvInfo(in_device.c_str(), errstr, &drvinfo) < 0) {
-		_MSG(errstr, MSGFLAG_FATAL);
-		_MSG("Failed to get ethtool information from device '" + in_device + "'. "
-			 "This information is needed to detect the capture type for 'auto' "
-			 "sources.", MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
-		return -1;
-	}
-
-	if (string(drvinfo.driver) == "ath_pci") {
+	// See if it looks like a madwifi-ng device if we can't match anything else
+	vector<string> mwngvaps;
+	if (madwifing_list_vaps(in_device.c_str(), &mwngvaps) > 0) {
+		type = "madwifi";
 		return 1;
 	}
-
-#endif
 
 	return 0;
 }

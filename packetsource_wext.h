@@ -167,6 +167,7 @@ protected:
 	int vapdestroy;
 	int driver_ng;
 	int shutdowndestroy;
+	string parent;
 };
 
 // Wrt54prism subclass

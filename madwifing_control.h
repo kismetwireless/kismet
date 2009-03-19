@@ -39,6 +39,9 @@
 /* Get a list of all vaps on an interface */
 int madwifing_list_vaps(const char *ifname, vector<string> *retvec);
 
+/* Get the parent interface index in a vap list */
+int madwifing_find_parent(vector<string> *vaplist);
+
 /* Destroy a vap */
 int madwifing_destroy_vap(const char *ifname, char *errstr);
 
