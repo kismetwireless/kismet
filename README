@@ -52,9 +52,8 @@ http://www.kismetwireless.net
       (where wlan0 is the name of your wireless device.  It may be wlan1,
       eth1, ath0, etc).
       NOT ALL CAPTURE SOURCES WILL AUTOMATICALLY DETECT THE DEVICE TYPE
-      (NOTABLY, DEVICES USING THE MADWIFI DRIVERS CAN NOT BE AUTOMATICALLY
-      DETECTED).  IF KISMET IS UNABLE TO AUTOMATICALLY DETECT YOUR CARD TYPE
-      YOU WILL NEED TO MANUALLY CONFIGURE IT.
+      IF KISMET IS UNABLE TO AUTOMATICALLY DETECT YOUR CARD TYPE
+      YOU WILL NEED TO MANUALLY CONFIGURE IT USING THE type=foo OPTION
     * Add an absolute path to the "logtemplate" configuration option if you
       want Kismet to always log in the same directory instead of the
       directory you start it in.
@@ -145,8 +144,7 @@ ncsource=interface[:[option,]+]
 For interfaces where autodetect is supported, all that is needed is
 ncsource=wlan0
 
-For interfaces where autodetect does not work (for example, madwifi with no
-supporting VAPs), the "type" option is used:
+For interfaces where autodetect does not work the "type" option is used:
 
 ncsource=wifi0:type=madwifi_g
 
