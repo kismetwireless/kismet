@@ -268,8 +268,8 @@ void Kis_ColorPref_Picker::LinkColorPref(string in_prefname) {
 
 }
 
-int ColorPrefSelCB(COMPONENT_CALLBACK_PARMS) {
-	((Kis_ColorPref_Panel *) aux)->SelectedAction(status);
+int ColorPrefCB(COMPONENT_CALLBACK_PARMS) {
+	((Kis_ColorPref_Panel *) aux)->SelectedAction(component, status);
 	return 1;
 }
 
@@ -279,11 +279,9 @@ Kis_ColorPref_Panel::Kis_ColorPref_Panel(GlobalRegistry *in_globalref,
 
 	colorlist = new Kis_Scrollable_Table(globalreg, this);
 
-	colorlist->SetCallback(COMPONENT_CBTYPE_ACTIVATED, ColorPrefSelCB, this);
+	colorlist->SetCallback(COMPONENT_CBTYPE_ACTIVATED, ColorPrefCB, this);
 
-	AddComponentVec(colorlist, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT));
-	active_component = colorlist;
-	colorlist->Activate(0);
+	AddComponentVec(colorlist, (KIS_PANEL_COMP_TAB | KIS_PANEL_COMP_EVT));
 
 	vector<Kis_Scrollable_Table::title_data> titles;
 	Kis_Scrollable_Table::title_data t;
@@ -298,6 +296,29 @@ Kis_ColorPref_Panel::Kis_ColorPref_Panel(GlobalRegistry *in_globalref,
 	titles.push_back(t);
 
 	colorlist->AddTitles(titles);
+	colorlist->Show();
+
+	closebutton = new Kis_Button(globalreg, this);
+	closebutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, ColorPrefCB, this);
+	closebutton->SetText("Close");
+	closebutton->Show();
+	AddComponentVec(closebutton, (KIS_PANEL_COMP_TAB | KIS_PANEL_COMP_EVT));
+
+	vbox = new Kis_Panel_Packbox(globalreg, this);
+	vbox->SetPackV();
+	vbox->SetHomogenous(0);
+	vbox->SetSpacing(1);
+	vbox->Show();
+	AddComponentVec(vbox, KIS_PANEL_COMP_DRAW);
+
+	vbox->Pack_End(colorlist, 1, 0);
+	vbox->Pack_End(closebutton, 0, 0);
+
+	active_component = colorlist;
+	tab_pos = 0;
+	colorlist->Activate(0);
+
+	main_component = vbox;
 
 	Position(WIN_CENTER(20, 50));
 }
@@ -305,18 +326,7 @@ Kis_ColorPref_Panel::Kis_ColorPref_Panel(GlobalRegistry *in_globalref,
 Kis_ColorPref_Panel::~Kis_ColorPref_Panel() {
 }
 
-void Kis_ColorPref_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {
-	Kis_Panel::Position(in_sy, in_sx, in_y, in_x);
-
-	colorlist->SetPosition(2, 1, in_x - 4, in_y - 2);
-
-	colorlist->Show();
-}
-
 void Kis_ColorPref_Panel::DrawPanel() {
-	ColorFromPref(text_color, "panel_text_color");
-	ColorFromPref(border_color, "panel_border_color");
-
 	vector<string> td;
 	for (unsigned int x = 0; x < listedcolors.size(); x++) {
 		td.clear();
@@ -325,41 +335,21 @@ void Kis_ColorPref_Panel::DrawPanel() {
 		colorlist->ReplaceRow(x, td);
 	}
 
-	td.clear();
-	td.push_back("Close");
-	td.push_back("");
-	colorlist->ReplaceRow(listedcolors.size(), td);
-
-	wbkgdset(win, text_color);
-
-	werase(win);
-
-	DrawTitleBorder();
-
-	wattrset(win, text_color);
-
-	for (unsigned int x = 0; x < pan_comp_vec.size(); x++) {
-		if ((pan_comp_vec[x].comp_flags & KIS_PANEL_COMP_DRAW) == 0)
-			continue;
-
-		pan_comp_vec[x].comp->DrawComponent();
-	}
-
-	wmove(win, 0, 0);
+	Kis_Panel::DrawPanel();
 }
 
-void Kis_ColorPref_Panel::SelectedAction(int listkey) {
-	if (listkey >= 0 && listkey <= (int) listedcolors.size()) {
-		if (listkey == (int) listedcolors.size()) {
-			globalreg->panel_interface->KillPanel(this);
-			return;
+void Kis_ColorPref_Panel::SelectedAction(Kis_Panel_Component *component, int listkey) {
+	if (component == colorlist) {
+		if (listkey >= 0 && listkey <= (int) listedcolors.size()) {
+			Kis_ColorPref_Picker *cp = 
+				new Kis_ColorPref_Picker(globalreg, kpinterface);
+			cp->LinkColorPref(listedcolors[listkey].pref);
+			cp->Position((LINES / 2) - 4, (COLS / 2) - 25, 10, 50);
+			kpinterface->AddPanel(cp);
 		}
-
-		Kis_ColorPref_Picker *cp = 
-			new Kis_ColorPref_Picker(globalreg, kpinterface);
-		cp->LinkColorPref(listedcolors[listkey].pref);
-		cp->Position((LINES / 2) - 4, (COLS / 2) - 25, 10, 50);
-		kpinterface->AddPanel(cp);
+	} else if (component == closebutton) {
+		globalreg->panel_interface->KillPanel(this);
+		return;
 	}
 
 	return;

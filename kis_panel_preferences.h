@@ -122,12 +122,11 @@ public:
 	Kis_ColorPref_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_intf);
 	virtual ~Kis_ColorPref_Panel();
 
-	virtual void Position(int in_sy, int in_sx, int in_y, int in_x);
 	virtual void DrawPanel();
 
 	virtual void AddColorPref(string pref, string name);
 
-	virtual void SelectedAction(int listkey);
+	virtual void SelectedAction(Kis_Panel_Component *component, int listkey);
 
 	struct cprefpair {
 		string text, pref;
@@ -135,6 +134,9 @@ public:
 
 protected:
 	Kis_Scrollable_Table *colorlist;
+	Kis_Button *closebutton;
+	Kis_Panel_Packbox *vbox;
+
 	vector<Kis_ColorPref_Panel::cprefpair> listedcolors;
 };
 
