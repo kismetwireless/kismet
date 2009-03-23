@@ -163,6 +163,7 @@ int main(int argc, char *argv[], char *envp[]) {
 		new IPC_MessageClient(globalreg, globalreg->rootipc);
 	globalreg->messagebus->RegisterClient(ipccli, MSGFLAG_ALL);
 
+	// We can't make this work with tuntap right now
 	// DropPrivCapabilities();
 	
 	// Allocate some other critical stuff

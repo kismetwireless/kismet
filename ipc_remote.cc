@@ -42,7 +42,7 @@ void IPC_MessageClient::ProcessMessage(string in_msg, int in_flags) {
 
 	msgb->msg_flags = in_flags;
 	msgb->msg_len = in_msg.length() + 1;
-	snprintf(msgb->msg, msgb->msg_len, in_msg.c_str());
+	snprintf(msgb->msg, msgb->msg_len, "%s", in_msg.c_str());
 
 	pack->data_len = 8 + in_msg.length() + 1;
 
@@ -54,7 +54,7 @@ void IPC_MessageClient::ProcessMessage(string in_msg, int in_flags) {
 		((IPCRemote *) auxptr)->ShutdownIPC(pack);
 		return;
 	}
-	
+
 	// Push it via the IPC
 	((IPCRemote *) auxptr)->SendIPC(pack);
 

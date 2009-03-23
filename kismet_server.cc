@@ -202,32 +202,32 @@ void SmartStdoutMessageClient::ProcessMessage(string in_msg, int in_flags) {
 
     if ((in_flags & MSGFLAG_DEBUG)) {
 		if (glob_linewrap)
-			fprintf(stdout, "%s", InLineWrap("DEBUG: " + in_msg, 7, 80).c_str());
+			fprintf(stdout, "%s", InLineWrap("DEBUG: " + in_msg, 7, 75).c_str());
 		else
 			fprintf(stdout, "DEBUG: %s\n", in_msg.c_str());
 	} else if ((in_flags & MSGFLAG_LOCAL)) {
 		if (glob_linewrap)
-			fprintf(stdout, "%s", InLineWrap("LOCAL: " + in_msg, 7, 80).c_str());
+			fprintf(stdout, "%s", InLineWrap("LOCAL: " + in_msg, 7, 75).c_str());
 		else
 			fprintf(stdout, "LOCAL: %s\n", in_msg.c_str());
 	} else if ((in_flags & MSGFLAG_INFO)) {
 		if (glob_linewrap)
-			fprintf(stdout, "%s", InLineWrap("INFO: " + in_msg, 6, 80).c_str());
+			fprintf(stdout, "%s", InLineWrap("INFO: " + in_msg, 6, 75).c_str());
 		else
 			fprintf(stdout, "INFO: %s\n", in_msg.c_str());
 	} else if ((in_flags & MSGFLAG_ERROR)) {
 		if (glob_linewrap)
-			fprintf(stdout, "%s", InLineWrap("ERROR: " + in_msg, 7, 80).c_str());
+			fprintf(stdout, "%s", InLineWrap("ERROR: " + in_msg, 7, 75).c_str());
 		else
 			fprintf(stdout, "ERROR: %s\n", in_msg.c_str());
 	} else if ((in_flags & MSGFLAG_ALERT)) {
 		if (glob_linewrap)
-			fprintf(stdout, "%s", InLineWrap("ALERT: " + in_msg, 7, 80).c_str());
+			fprintf(stdout, "%s", InLineWrap("ALERT: " + in_msg, 7, 75).c_str());
 		else
 			fprintf(stdout, "ALERT: %s\n", in_msg.c_str());
 	} else if (in_flags & MSGFLAG_FATAL) {
 		if (glob_linewrap)
-			fprintf(stderr, "%s", InLineWrap("FATAL: " + in_msg, 7, 80).c_str());
+			fprintf(stderr, "%s", InLineWrap("FATAL: " + in_msg, 7, 75).c_str());
 		else
 			fprintf(stderr, "FATAL: %s\n", in_msg.c_str());
 	}

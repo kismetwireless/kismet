@@ -846,9 +846,6 @@ protected:
 	// Filter core for network client
 	FilterCore *netcli_filter;
 
-	// Number of alerts per network to store
-	int num_stored_alerts;
-
 	// Nonglobal protocols
 	int proto_ref_bssidsrc, proto_ref_clisrc;
 
