@@ -953,6 +953,8 @@ public:
 	void AddComponentVec(Kis_Panel_Component *in_comp, int in_flags);
 	void DelComponentVec(Kis_Panel_Component *in_comp);
 
+	void SetActiveComponent(Kis_Panel_Component *in_comp);
+
 protected:
 	// Bit values of what components expect to happen
 	// COMP_DRAW - issue a draw command to this component during panel draw

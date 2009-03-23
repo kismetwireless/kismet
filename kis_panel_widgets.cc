@@ -3129,6 +3129,16 @@ void Kis_Panel::DelComponentVec(Kis_Panel_Component *in_comp) {
 	}
 }
 
+void Kis_Panel::SetActiveComponent(Kis_Panel_Component *in_comp) {
+	for (unsigned int x = 0; x < pan_comp_vec.size(); x++) {
+		if (pan_comp_vec[x].comp == in_comp) {
+			active_component = in_comp;
+			tab_pos = x;
+			return;
+		}
+	}
+}
+
 int Kis_Panel::KeyPress(int in_key) {
 	int ret;
 

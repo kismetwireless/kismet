@@ -372,7 +372,7 @@ void Kis_Main_Panel::Startup() {
 		kpinterface->AddPanel(kpp);
 	} else if (kpinterface->prefs.FetchOpt("STARTUP_SERVER") == "true" ||
 			   kpinterface->prefs.FetchOpt("STARTUP_SERVER") == "") {
-		kmp_prompt_startserver(globalreg, 1, this);
+		kmp_prompt_startserver(globalreg, 1, -1, this);
 	}
 }
 
@@ -669,7 +669,7 @@ void Kis_Main_Panel::MenuAction(int opt) {
 				   kpinterface->prefs.FetchOpt("STOP_SERVER") == "") {
 			// if we're stopping the server without prompt, just call the
 			// prompt handler and tell it OK
-			kmp_prompt_killserver(globalreg, 1, NULL);
+			kmp_prompt_killserver(globalreg, 1, -1, NULL);
 		} else {
 			globalreg->fatal_condition = 1;
 			_MSG("Quitting...", MSGFLAG_INFO);
@@ -1235,6 +1235,7 @@ Kis_Prompt_Panel::Kis_Prompt_Panel(GlobalRegistry *in_globalreg,
 	ftext = new Kis_Free_Text(globalreg, this);
 	cancelbutton = new Kis_Button(globalreg, this);
 	okbutton = new Kis_Button(globalreg, this);
+	check = new Kis_Checkbox(globalreg, this);
 
 	cancelbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, PromptButtonCB, this);
 	okbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, PromptButtonCB, this);
@@ -1245,6 +1246,7 @@ Kis_Prompt_Panel::Kis_Prompt_Panel(GlobalRegistry *in_globalreg,
 	ftext->Show();
 	okbutton->Show();
 	cancelbutton->Show();
+	check->Hide();
 
 	vbox = new Kis_Panel_Packbox(globalreg, this);
 	vbox->SetPackV();
@@ -1263,9 +1265,11 @@ Kis_Prompt_Panel::Kis_Prompt_Panel(GlobalRegistry *in_globalreg,
 	bbox->Pack_End(okbutton, 0, 0);
 
 	vbox->Pack_End(ftext, 1, 0);
+	vbox->Pack_End(check, 0, 0);
 	vbox->Pack_End(bbox, 0, 0);
 
-	AddComponentVec(ftext, (KIS_PANEL_COMP_TAB | KIS_PANEL_COMP_EVT));
+	AddComponentVec(ftext, (KIS_PANEL_COMP_DRAW));
+	AddComponentVec(check, (KIS_PANEL_COMP_TAB | KIS_PANEL_COMP_EVT));
 	AddComponentVec(okbutton, (KIS_PANEL_COMP_TAB | KIS_PANEL_COMP_EVT));
 	AddComponentVec(cancelbutton, (KIS_PANEL_COMP_TAB | KIS_PANEL_COMP_EVT));
 
@@ -1282,12 +1286,10 @@ Kis_Prompt_Panel::Kis_Prompt_Panel(GlobalRegistry *in_globalreg,
 void Kis_Prompt_Panel::SetDefaultButton(int in_ok) {
 	if (in_ok) {
 		okbutton->Activate(0);
-		active_component = okbutton;
-		tab_pos = 1;
+		SetActiveComponent(okbutton);
 	} else {
 		cancelbutton->Activate(0);
-		active_component = okbutton;
-		tab_pos = 2;
+		SetActiveComponent(cancelbutton);
 	}
 }
 
@@ -1296,6 +1298,22 @@ void Kis_Prompt_Panel::SetButtonText(string in_oktext, string in_notext) {
 		okbutton->Hide();
 	else if (in_notext == "")
 		cancelbutton->Hide();
+
+	okbutton->SetText(in_oktext);
+	cancelbutton->SetText(in_notext);
+}
+
+void Kis_Prompt_Panel::SetCheckText(string in_text) {
+	if (in_text == "")
+		check->Hide();
+	else
+		check->Show();
+
+	check->SetText(in_text);
+}
+
+void Kis_Prompt_Panel::SetChecked(int in_check) {
+	check->SetChecked(in_check);
 }
 
 void Kis_Prompt_Panel::SetCallback(ksp_prompt_cb in_callback, void *in_auxptr) {
@@ -1320,12 +1338,12 @@ Kis_Prompt_Panel::~Kis_Prompt_Panel() {
 void Kis_Prompt_Panel::ButtonAction(Kis_Panel_Component *component) {
 	if (component == okbutton) {
 		if (callback != NULL)
-			(*callback)(globalreg, 1, auxptr);
+			(*callback)(globalreg, 1, check->GetChecked(), auxptr);
 
 		kpinterface->KillPanel(this);
 	} else if (component == cancelbutton) {
 		if (callback != NULL)
-			(*callback)(globalreg, 0, auxptr);
+			(*callback)(globalreg, 0, check->GetChecked(), auxptr);
 
 		kpinterface->KillPanel(this);
 	}

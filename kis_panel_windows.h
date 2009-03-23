@@ -153,7 +153,7 @@ protected:
 	int agg_gps_num;
 };
 
-#define KIS_PROMPT_CB_PARMS	GlobalRegistry *globalreg, int ok, void *auxptr
+#define KIS_PROMPT_CB_PARMS	GlobalRegistry *globalreg, int ok, int check, void *auxptr
 typedef void (*ksp_prompt_cb)(KIS_PROMPT_CB_PARMS);
 
 class Kis_Prompt_Panel : public Kis_Panel {
@@ -169,6 +169,8 @@ public:
 
 	void SetDefaultButton(int in_ok);
 	void SetButtonText(string in_oktext, string in_notext);
+	void SetCheckText(string in_text1);
+	void SetChecked(int in_checked);
 	void SetCallback(ksp_prompt_cb in_callback, void *in_auxptr);
 	void SetDisplayText(vector<string> in_text);
 
@@ -179,8 +181,8 @@ protected:
 	ksp_prompt_cb callback;
 
 	Kis_Free_Text *ftext;
-	Kis_Button *okbutton;
-	Kis_Button *cancelbutton;
+	Kis_Button *okbutton, *cancelbutton;
+	Kis_Checkbox *check;
 
 	Kis_Panel_Packbox *vbox, *bbox;
 };
