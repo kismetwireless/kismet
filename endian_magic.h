@@ -40,6 +40,9 @@
 #define kis_letoh16(x) kis_swap16((x))
 #define kis_betoh16(x) (x)
 
+#define kis_letoh32(x) kis_swap32((x))
+#define kis_betoh32(x) (x)
+
 #define kis_htole16(x) kis_swap16((x))
 #define kis_htobe16(x) (x)
 
@@ -66,6 +69,9 @@
 
 #define kis_betoh16(x) kis_swap16((x))
 #define kis_letoh16(x) (x)
+
+#define kis_betoh32(x) kis_swap32((x))
+#define kis_letoh32(x) (x)
 
 #define kis_htole16(x) (x)
 #define kis_htobe16(x) kis_swap16((x))

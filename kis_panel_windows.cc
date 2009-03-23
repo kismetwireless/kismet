@@ -367,6 +367,7 @@ void Kis_Main_Panel::Startup() {
 		kpp->SetTitle("Start Kismet Server");
 		kpp->SetDisplayText(t);
 		kpp->SetCallback(kmp_prompt_startserver, this);
+		kpp->SetButtonText("Yes", "No");
 		kpp->SetDefaultButton(1);
 		kpinterface->AddPanel(kpp);
 	} else if (kpinterface->prefs.FetchOpt("STARTUP_SERVER") == "true" ||

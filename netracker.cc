@@ -2340,6 +2340,7 @@ int Netracker::datatracker_chain_handler(kis_packet *in_pack) {
 }
 
 int Netracker::ReadSSIDCache() {
+#if 0
 	FILE *ssidf;
 	char errstr[1024];
 	int ver;
@@ -2396,6 +2397,7 @@ int Netracker::ReadSSIDCache() {
 	} while (!feof(ssidf));
 
 	fclose(ssidf);
+#endif
 
 	return 1;
 }
@@ -2426,6 +2428,7 @@ int Netracker::WriteSSIDCache() {
 }
 
 int Netracker::ReadIPCache() {
+#if 0
 	FILE *ipf;
 	char errstr[1024];
 	int ver;
@@ -2488,6 +2491,7 @@ int Netracker::ReadIPCache() {
 	} while (!feof(ipf));
 
 	fclose(ipf);
+#endif
 
 	return 1;
 }

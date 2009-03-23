@@ -33,13 +33,14 @@
 enum SOURCE_fields {
 	SOURCE_interface, SOURCE_type, SOURCE_username, SOURCE_channel, SOURCE_uuid, 
 	SOURCE_packets, SOURCE_hop, SOURCE_velocity, SOURCE_dwell, SOURCE_hop_tv_sec,
-	SOURCE_hop_tv_usec, SOURCE_channellist,
+	SOURCE_hop_tv_usec, SOURCE_channellist, SOURCE_error,
 	SOURCE_maxfield
 };
 
 const char *SOURCE_fields_text[] = {
 	"interface", "type", "username", "channel", "uuid", "packets", "hop",
 	"velocity", "dwell", "hop_time_sec", "hop_time_usec", "channellist",
+	"error",
 	NULL
 };
 
@@ -143,6 +144,15 @@ int Protocol_SOURCE(PROTO_PARMS) {
 
 			case SOURCE_hop_tv_usec:
 				osstr << psrc->tm_hop_time.tv_usec;
+				cache->Cache(fnum, osstr.str());
+				break;
+
+			case SOURCE_error:
+				if (psrc->error || (psrc->strong_source != NULL &&
+									psrc->strong_source->FetchError()))
+					osstr << "1";
+				else
+					osstr << "0";
 				cache->Cache(fnum, osstr.str());
 				break;
 
@@ -741,9 +751,12 @@ int Packetsourcetracker::AddPacketSource(string in_source,
 		if (type == "" || type == "auto") {
 			_MSG("Failed to find a type for auto-type source '" + interface + "', "
 				 "you will have to tell Kismet what it is by adding a "
-				 "type=[card type] to the ncsource config", MSGFLAG_ERROR);
+				 "type=[card type] to the ncsource config", MSGFLAG_PRINTERROR);
+			_MSG("It is possible that the device for interface '" + interface + "' "
+				 "is not active or was not plugged in.  Kismet will ignore this "
+				 "interface, you may re-add it later.", MSGFLAG_PRINTERROR);
 			delete pstsource;
-			return -1;
+			return 0;
 		}
 	}
 
@@ -823,8 +836,11 @@ int Packetsourcetracker::AddPacketSource(string in_source,
 					   &(pstsource->channel)) != 1) {
 				_MSG("Invalid channel for source '" + interface + "', expected "
 					 "channel number or frequency", MSGFLAG_ERROR);
+				_MSG("Kismet will ignore the source '" + interface + "' due to "
+					 "unrecoverable errors during setup, you may add it again "
+					 "later once these errors are resolved", MSGFLAG_PRINTERROR);
 				delete pstsource;
-				return -1;
+				return 0;
 			}
 
 			_MSG("Source '" + interface + "' will be locked to channel " +
@@ -844,8 +860,11 @@ int Packetsourcetracker::AddPacketSource(string in_source,
 				   &pstsource->channel_dwell) != 1) {
 			_MSG("Invalid time for source '" + interface + "' dwell time, expected "
 				 "time in seconds to dwell on a channel", MSGFLAG_ERROR);
+			_MSG("Kismet will ignore the source '" + interface + "' due to "
+				 "unrecoverable errors during setup, you may add it again "
+				 "later once these errors are resolved", MSGFLAG_PRINTERROR);
 			delete pstsource;
-			return -1;
+			return 0;
 		}
 
 		_MSG("Source '" + interface + "' will dwell on each channel " +
@@ -858,7 +877,7 @@ int Packetsourcetracker::AddPacketSource(string in_source,
 			_MSG("Invalid time for source '" + interface + "' hop rate, expected "
 				 "velocity in channels per second to (attempt) hopping", MSGFLAG_ERROR);
 			delete pstsource;
-			return -1;
+			return 0;
 		}
 
 		if (pstsource->channel_dwell > 0) {

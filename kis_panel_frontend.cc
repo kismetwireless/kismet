@@ -33,7 +33,7 @@
 #include "kis_panel_frontend.h"
 
 #define KPI_SOURCE_FIELDS	"uuid,interface,type,username,channel,packets,hop," \
-	"velocity,dwell,hop_time_sec,hop_time_usec,channellist"
+	"velocity,dwell,hop_time_sec,hop_time_usec,channellist,error"
 
 // STATUS protocol parser that injects right into the messagebus
 void KisPanelClient_STATUS(CLIPROTO_CB_PARMS) {
@@ -127,6 +127,11 @@ void KisPanelInterface::proto_SOURCE(CLIPROTO_CB_PARMS) {
 	source->hop_tm.tv_usec = tint;
 
 	source->channellist = (*proto_parsed)[fnum++].word;
+
+	source->error = (*proto_parsed)[fnum++].word == "1";
+
+	if (source->error)
+		num_source_errors++;
 }
 
 void kpi_prompt_addsource(KIS_PROMPT_CB_PARMS) {
@@ -151,13 +156,40 @@ void KisPanelInterface::proto_INFO(CLIPROTO_CB_PARMS) {
 	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tint) != 1)
 		return;
 
+	// If we've found all our defined sources, make sure they're not all in
+	// an error state
+	if (tint != 0 && warned_all_errors == 0 && num_source_errors == tint) {
+		warned_all_errors = 1;
+
+		vector<string> t;
+
+		t.push_back("All packet sources are in error state.");
+		t.push_back("Kismet will not be able to capture any data");
+		t.push_back("until a packet source is out of error mode.");
+		t.push_back("In most cases Kismet will continue to try to");
+		t.push_back("re-enable errored packet sources.");
+
+		Kis_Prompt_Panel *kpp =
+			new Kis_Prompt_Panel(globalreg, this);
+		kpp->SetTitle("Sources Failed");
+		kpp->SetDisplayText(t);
+		kpp->SetDefaultButton(1);
+		kpp->SetButtonText("OK", "");
+		AddPanel(kpp);
+	}
+
+	num_source_errors = 0;
+
+	// If we have no sources and we haven't warned the user about that, do so
 	if (tint == 0 && warned_no_sources == 0) {
 		warned_no_sources = 1;
 
 		vector<string> t;
 
 		t.push_back("Kismet started with no packet sources defined.");
-		t.push_back("Kismet will not be able to capture any data until ");
+		t.push_back("No sources were defined or all defined sources");
+		t.push_back("encountered unrecoverable errors.");
+		t.push_back("Kismet will not be able to capture any data until");
 		t.push_back("a capture interface is added.  Add a source now?");
 
 		Kis_Prompt_Panel *kpp =
@@ -165,6 +197,7 @@ void KisPanelInterface::proto_INFO(CLIPROTO_CB_PARMS) {
 		kpp->SetTitle("No sources");
 		kpp->SetDisplayText(t);
 		kpp->SetCallback(kpi_prompt_addsource, this);
+		kpp->SetButtonText("Yes", "No");
 		kpp->SetDefaultButton(1);
 		AddPanel(kpp);
 	}
@@ -343,6 +376,7 @@ void KisPanelInterface::NetClientConfigure(KisNetClient *in_cli, int in_recon) {
 	netcard_map.clear();
 
 	warned_no_sources = 0;
+	warned_all_errors = 0;
 
 	if (in_recon)
 		return;

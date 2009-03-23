@@ -786,6 +786,7 @@ int PacketSource_Pcap::PPI2KisPack(kis_packet *packet, kis_datachunk *linkchunk)
 	// Make a datachunk for the reformatted frame
 	kis_datachunk *eight11chunk = NULL;
 	kis_layer1_packinfo *radioheader = NULL;
+	kis_gps_packinfo *gpsinfo = NULL;
 
 	if (linkchunk->length < sizeof(ppi_packet_header)) {
 		_MSG("pcap PPI converter got runt PPI frame", MSGFLAG_ERROR);
@@ -881,6 +882,34 @@ int PacketSource_Pcap::PPI2KisPack(kis_packet *packet, kis_datachunk *linkchunk)
 				radioheader->carrier = carrier_80211n20;
 			else
 				radioheader->carrier = carrier_80211n40;
+		} else if (fh_type == PPI_FIELD_GPS) {
+			ppi_gps *ppigps = (ppi_gps *) ppi_fh;
+
+			if (ppigps->version == 0 &&
+				(ppigps->fields_present & (PPI_GPS_FLAG_LAT | PPI_GPS_FLAG_LON))) {
+				if (gpsinfo == NULL)
+					gpsinfo = new kis_gps_packinfo;
+
+				uint32_t tu32;
+
+				tu32 = kis_letoh32(ppigps->lon);
+				gpsinfo->lon = lon_to_double(tu32);
+				tu32 = kis_letoh32(ppigps->lat);
+				gpsinfo->lat = lat_to_double(tu32);
+
+				if (ppigps->fields_present & PPI_GPS_FLAG_ALT) {
+					gpsinfo->gps_fix = 3;
+					tu32 = kis_letoh32(ppigps->alt);
+					gpsinfo->alt = alt_to_double(tu32);
+				} else {
+					gpsinfo->gps_fix = 2;
+				}
+
+				gpsinfo->spd = 0;
+				gpsinfo->heading = 0;
+
+				packet->insert(_PCM(PACK_COMP_GPS), gpsinfo);
+			}
 		}
 	}
 

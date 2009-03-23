@@ -212,5 +212,16 @@ typedef struct {
 
 list<_kis_lex_rec> LexString(string in_line, string& errstr);
 
+#define LAT_CONVERSION_FACTOR 10000000
+#define LON_CONVERSION_FACTOR 10000000
+#define ALT_CONVERSION_FACTOR 1000
+uint32_t lat_to_uint32(double lat);
+uint32_t lon_to_uint32(double lat);
+uint32_t alt_to_uint32(double alt);
+
+double lat_to_double(uint32_t lat);
+double lon_to_double(uint32_t lon);
+double alt_to_double(uint32_t lon);
+
 #endif
 

@@ -130,6 +130,9 @@ public:
 
 		// Store as a string since we don't necessarily care
 		string channellist;
+
+		// Are we in an error state?
+		int error;
 	};
 
 	// Internal parser for the CARD proto, linked to the callback
@@ -195,6 +198,9 @@ protected:
 
 	// Have we yelled at the user for not having any sources enabled?
 	int warned_no_sources;
+	// Or are they all broken?
+	int warned_all_errors;
+	int num_source_errors;
 };
 
 #endif // panel

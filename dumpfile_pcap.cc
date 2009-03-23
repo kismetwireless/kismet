@@ -184,6 +184,9 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 	kis_spectrum_data *specdata =
 		(kis_spectrum_data *) in_pack->fetch(_PCM(PACK_COMP_SPECTRUM));
 
+	kis_gps_packinfo *gpsdata =
+		(kis_gps_packinfo *) in_pack->fetch(_PCM(PACK_COMP_GPS));
+
 	if (chunk == NULL) {
 		if ((chunk = 
 			 (kis_datachunk *) in_pack->fetch(_PCM(PACK_COMP_80211FRAME))) == NULL) {
@@ -237,6 +240,10 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 			ppi_len += sizeof(ppi_80211_common);
 		if (specdata != NULL)
 			ppi_len += sizeof(ppi_spectrum) + specdata->rssi_vec.size();
+#if 0
+		if (gpsdata != NULL && gpsdata->gps_fix >= 2)
+			ppi_len += sizeof(ppi_gps);
+#endif
 
 		dump_len += ppi_len;
 
@@ -319,6 +326,26 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 			ppi_common->signal_dbm = radioinfo->signal_dbm;
 			ppi_common->noise_dbm = radioinfo->noise_dbm;
 		}
+
+#if 0
+		if (gpsdata != NULL && gpsdata->gps_fix >= 2) {
+			ppi_gps *ppigps;
+			ppigps = (ppi_gps *) &(dump_data[ppi_pos]);
+			ppi_pos += sizeof(ppi_gps);
+
+			ppigps->pfh_datatype = kis_htole16(PPI_FIELD_GPS);
+			ppigps->pfh_datalen = kis_htole16(sizeof(ppi_gps) -
+											  sizeof(ppi_field_header));
+
+			ppigps->versio = 0;
+			ppigps->pad = 0;
+			// ??
+			ppigps->gps_len = ppigps->pfh_datalen;
+
+			ppigps->fields_present = PPI_GPS_FLAG_LAT | PPI_GPS_FLAG_LON;
+		}
+#endif
+
 	}
 
 	if (dump_data == NULL)

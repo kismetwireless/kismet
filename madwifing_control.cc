@@ -51,10 +51,8 @@ int madwifing_list_vaps(const char *ifname, vector<string> *retvec) {
 	dirpath = "/sys/class/net/" + string(ifname) + "/device/";
 
 	if ((devdir = opendir(dirpath.c_str())) == NULL) {
-		printf("debug - open failed: %s %s\n", dirpath.c_str(), strerror(errno));
 		dirpath = "/proc/sys/net/";
 		if ((devdir = opendir(dirpath.c_str())) == NULL) {
-			printf("debug - open failed: %s %s\n", dirpath.c_str(), strerror(errno));
 			return -1;
 		}
 		kern24model = 1;
