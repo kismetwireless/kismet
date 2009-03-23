@@ -549,13 +549,13 @@ void Kis_Main_Panel::DrawPanel() {
 }
 
 int Kis_Main_Panel::MouseEvent(MEVENT *mevent) {
-	KisNetClient *cli = kpinterface->FetchNetClient();
+	int con = kpinterface->FetchNetConnected();
 
-	if (cli == NULL && connect_enable == 0) {
+	if (con == 0 && connect_enable == 0) {
 		menu->EnableMenuItem(mi_connect);
 		menu->DisableMenuItem(mi_disconnect);
 		connect_enable = 1;
-	} else if (cli != NULL && connect_enable) {
+	} else if (con && connect_enable) {
 		menu->EnableMenuItem(mi_disconnect);
 		menu->DisableMenuItem(mi_connect);
 		connect_enable = 0;
@@ -571,13 +571,13 @@ int Kis_Main_Panel::MouseEvent(MEVENT *mevent) {
 }
 
 int Kis_Main_Panel::KeyPress(int in_key) {
-	KisNetClient *cli = kpinterface->FetchNetClient();
+	int con = kpinterface->FetchNetConnected();
 
-	if (cli == NULL && connect_enable == 0) {
+	if (con == 0 && connect_enable == 0) {
 		menu->EnableMenuItem(mi_connect);
 		menu->DisableMenuItem(mi_disconnect);
 		connect_enable = 1;
-	} else if (cli != NULL && connect_enable) {
+	} else if (con && connect_enable) {
 		menu->EnableMenuItem(mi_disconnect);
 		menu->DisableMenuItem(mi_connect);
 		connect_enable = 0;
@@ -635,11 +635,11 @@ void kmp_prompt_killserver(KIS_PROMPT_CB_PARMS) {
 }
 
 void Kis_Main_Panel::MenuAction(int opt) {
-	KisNetClient *cli = kpinterface->FetchNetClient();
+	int con = kpinterface->FetchNetConnected();
 
 	// Menu processed an event, do something with it
 	if (opt == mi_quit) {
-		if (cli == NULL &&
+		if (con == 0 &&
 			kpinterface->FetchServerFramework() == NULL) {
 			globalreg->fatal_condition = 1;
 			_MSG("Quitting...", MSGFLAG_INFO);
@@ -684,7 +684,7 @@ void Kis_Main_Panel::MenuAction(int opt) {
 		Kis_Console_Panel *cp = new Kis_Console_Panel(globalreg, kpinterface);
 		kpinterface->AddPanel(cp);
 	} else if (opt == mi_disconnect) {
-		if (cli != NULL) {
+		if (con) {
 			kpinterface->RemoveNetClient();
 		}
 	} else if (opt == mi_sort_auto) {
@@ -733,25 +733,11 @@ void Kis_Main_Panel::MenuAction(int opt) {
 			   opt == mi_showclients) {
 		UpdateViewMenu(opt);
 	} else if (opt == mi_addcard) {
-		if (kpinterface->FetchNetClient() == NULL) {
-			kpinterface->RaiseAlert("No servers",
-									"There are no servers.  You must\n"
-									"connect to a server before adding\n"
-									"cards.\n");
-		} else if (cli != NULL) {
-			Kis_AddCard_Panel *acp = new Kis_AddCard_Panel(globalreg, kpinterface);
-			kpinterface->AddPanel(acp);
-		} 
+		Kis_AddCard_Panel *acp = new Kis_AddCard_Panel(globalreg, kpinterface);
+		kpinterface->AddPanel(acp);
 	} else if (opt == mi_conf) {
-		if (kpinterface->FetchNetClient() == NULL) {
-			kpinterface->RaiseAlert("No servers",
-									"There are no servers.  You must\n"
-									"connect to a server before setting\n"
-									"channels.\n");
-		} else {
-			Kis_Chanconf_Panel *cp = new Kis_Chanconf_Panel(globalreg, kpinterface);
-			kpinterface->AddPanel(cp);
-		}
+		Kis_Chanconf_Panel *cp = new Kis_Chanconf_Panel(globalreg, kpinterface);
+		kpinterface->AddPanel(cp);
 	} else if (opt == mi_addplugin) {
 		Kis_Plugin_Picker *pp = new Kis_Plugin_Picker(globalreg, kpinterface);
 		kpinterface->AddPanel(pp);
@@ -1652,9 +1638,7 @@ Kis_AddCard_Panel::~Kis_AddCard_Panel() {
 }
 
 void Kis_AddCard_Panel::DrawPanel() {
-	KisNetClient *knc = kpinterface->FetchNetClient();
-
-	if (knc == NULL || (knc != NULL && knc->Valid() == 0)) {
+	if (kpinterface->FetchNetConnected() == 0) {
 		kpinterface->RaiseAlert("Not connected", 
 								"Not connected to a Kismet server, sources can\n"
 								"only be added once a connection has been made.");
@@ -3294,6 +3278,14 @@ Kis_Chanconf_Panel::~Kis_Chanconf_Panel() {
 }
 
 void Kis_Chanconf_Panel::DrawPanel() {
+	if (kpinterface->FetchNetConnected() == 0) {
+		kpinterface->RaiseAlert("Not connected", 
+								"Not connected to a Kismet server, channels can\n"
+								"only be configured once a connection has been made.");
+		kpinterface->KillPanel(this);
+		return;
+	}
+
 	map<uuid, KisPanelInterface::knc_card *> *cardmap =
 		kpinterface->FetchNetCardMap();
 
@@ -3457,7 +3449,7 @@ void Kis_Chanconf_Panel::ButtonAction(Kis_Panel_Component *in_button) {
 			return;
 		}
 
-		if (kpinterface->FetchNetClient() == NULL) {
+		if (kpinterface->FetchNetConnected() == 0) {
 			kpinterface->RaiseAlert("No server",
 					"Not connected to a server, you \n"
 					"shouldn't have been able to get to\n"

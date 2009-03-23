@@ -88,6 +88,13 @@ public:
 
 	// Fetch the client
 	KisNetClient *FetchNetClient() { return network_client; }
+
+	// Are we connected to a client?
+	int FetchNetConnected() {
+		if (network_client && network_client->Valid())
+			return 1;
+		return 0;
+	}
 	
 	// Configured client callback
 	virtual void NetClientConfigure(KisNetClient *in_cli, int in_recon);
