@@ -415,14 +415,14 @@ int KisPanelInterface::Remove_AllNetcli_ProtoHandler(string in_proto,
 }
 
 void KisPanelInterface::RaiseAlert(string in_title, string in_text) {
-	Kis_ModalAlert_Panel *ma = new Kis_ModalAlert_Panel(globalreg, this);
+	vector<string> t = StrTokenize(in_text, "\n");
 
-	ma->Position((LINES / 2) - 5, (COLS / 2) - 20, 10, 40);
-
-	ma->ConfigureAlert(in_title, in_text);
-	
-	globalreg->panel_interface->AddPanel(ma);
-
+	Kis_Prompt_Panel *kpp =
+		new Kis_Prompt_Panel(globalreg, this);
+	kpp->SetTitle(in_title);
+	kpp->SetDisplayText(t);
+	kpp->SetButtonText("OK", "");
+	AddPanel(kpp);
 }
 
 map<uuid, KisPanelInterface::knc_card *> *KisPanelInterface::FetchNetCardMap() {

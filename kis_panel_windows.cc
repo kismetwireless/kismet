@@ -317,9 +317,7 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 		kpinterface->AddNetClient(constr, 1);
 	}
 
-	active_component = netlist;
-	netlist->Activate(0);
-	tab_pos = 0;
+	SetActiveComponent(netlist);
 }
 
 Kis_Main_Panel::~Kis_Main_Panel() {
@@ -1106,11 +1104,6 @@ Kis_Connect_Panel::Kis_Connect_Panel(GlobalRegistry *in_globalreg,
 	cancelbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, ConnectButtonCB, this);
 	okbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, ConnectButtonCB, this);
 
-	tab_pos = 0;
-
-	active_component = hostname;
-	hostname->Activate(0);
-
 	SetTitle("Connect to Server");
 
 	hostname->SetLabel("Host", LABEL_POS_LEFT);
@@ -1158,8 +1151,7 @@ Kis_Connect_Panel::Kis_Connect_Panel(GlobalRegistry *in_globalreg,
 
 	AddComponentVec(vbox, KIS_PANEL_COMP_DRAW);
 
-	active_component = hostname;
-	hostname->Activate(1);
+	SetActiveComponent(hostname);
 
 	Position(WIN_CENTER(8, 40));
 }
@@ -1285,31 +1277,41 @@ Kis_Prompt_Panel::Kis_Prompt_Panel(GlobalRegistry *in_globalreg,
 
 void Kis_Prompt_Panel::SetDefaultButton(int in_ok) {
 	if (in_ok) {
-		okbutton->Activate(0);
 		SetActiveComponent(okbutton);
 	} else {
-		cancelbutton->Activate(0);
 		SetActiveComponent(cancelbutton);
 	}
 }
 
 void Kis_Prompt_Panel::SetButtonText(string in_oktext, string in_notext) {
-	if (in_oktext == "")
+	if (in_oktext == "") {
 		okbutton->Hide();
-	else if (in_notext == "")
+		cancelbutton->Show();
+		SetActiveComponent(cancelbutton);
+	} else if (in_notext == "") {
 		cancelbutton->Hide();
+		okbutton->Show();
+		SetActiveComponent(okbutton);
+	}
 
-	okbutton->SetText(in_oktext);
 	cancelbutton->SetText(in_notext);
+	okbutton->SetText(in_oktext);
 }
 
 void Kis_Prompt_Panel::SetCheckText(string in_text) {
-	if (in_text == "")
+	int rp = 0;
+
+	if (in_text == "" && check->GetVisible() != 0) {
 		check->Hide();
-	else
+		rp = -1;
+	} else if (in_text != "" && check->GetVisible() == 0) {
 		check->Show();
+		rp = 1;
+	}
 
 	check->SetText(in_text);
+	if (rp)
+		Position(WIN_CENTER(sizey + rp, sizex));
 }
 
 void Kis_Prompt_Panel::SetChecked(int in_check) {
@@ -1329,13 +1331,14 @@ void Kis_Prompt_Panel::SetDisplayText(vector<string> in_text) {
 		if (in_text[x].length() > maxlen)
 			maxlen = in_text[x].length();
 
-	Position(WIN_CENTER(in_text.size() + 3, maxlen + 4));
+	Position(WIN_CENTER(in_text.size() + 3 + check->GetVisible(), maxlen + 4));
 }
 
 Kis_Prompt_Panel::~Kis_Prompt_Panel() {
 }
 
 void Kis_Prompt_Panel::ButtonAction(Kis_Panel_Component *component) {
+	okbutton->Debug();
 	if (component == okbutton) {
 		if (callback != NULL)
 			(*callback)(globalreg, 1, check->GetChecked(), auxptr);
@@ -1376,10 +1379,6 @@ Kis_Spawn_Panel::Kis_Spawn_Panel(GlobalRegistry *in_globalreg,
 	okbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, SpawnButtonCB, this);
 	logging_check->SetCallback(COMPONENT_CBTYPE_ACTIVATED, SpawnButtonCB, this);
 	console_check->SetCallback(COMPONENT_CBTYPE_ACTIVATED, SpawnButtonCB, this);
-
-	tab_pos = 0;
-	active_component = options;
-	options->Activate(0);
 
 	SetTitle("Start Kismet Server");
 
@@ -1442,6 +1441,8 @@ Kis_Spawn_Panel::Kis_Spawn_Panel(GlobalRegistry *in_globalreg,
 
 	main_component = vbox;
 
+	SetActiveComponent(options);
+
 	Position(WIN_CENTER(11, 40));
 }
 
@@ -1491,11 +1492,6 @@ Kis_Console_Panel::Kis_Console_Panel(GlobalRegistry *in_globalreg,
 	killbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, ConsoleButtonCB, this);
 	okbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, ConsoleButtonCB, this);
 
-	tab_pos = 0;
-
-	active_component = constext; 
-	constext->Activate(0);
-
 	SetTitle("Kismet Server Console");
 
 	// Import the existing console
@@ -1542,6 +1538,10 @@ Kis_Console_Panel::Kis_Console_Panel(GlobalRegistry *in_globalreg,
 
 	AddComponentVec(vbox, KIS_PANEL_COMP_DRAW);
 
+	SetActiveComponent(constext);
+
+	main_component = vbox;
+
 	Position(WIN_CENTER(LINES, COLS));
 }
 
@@ -1549,12 +1549,6 @@ Kis_Console_Panel::~Kis_Console_Panel() {
 	if (kpinterface->FetchServerFramework() != NULL)  {
 		kpinterface->FetchServerFramework()->RemoveCallback(textcb);
 	}
-}
-
-void Kis_Console_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {
-	Kis_Panel::Position(in_sy, in_sx, in_y, in_x);
-
-	vbox->SetPosition(1, 2, in_x - 2, in_y - 3);
 }
 
 void Kis_Console_Panel::ButtonAction(Kis_Panel_Component *component) {
@@ -1565,75 +1559,6 @@ void Kis_Console_Panel::ButtonAction(Kis_Panel_Component *component) {
 
 void Kis_Console_Panel::AddConsoleText(string in_text) {
 	constext->AppendText(in_text);
-}
-
-int ModalAckCB(COMPONENT_CALLBACK_PARMS) {
-	((Kis_ModalAlert_Panel *) aux)->AckAction();
-
-	return 1;
-}
-
-Kis_ModalAlert_Panel::Kis_ModalAlert_Panel(GlobalRegistry *in_globalreg, 
-										   KisPanelInterface *in_intf) :
-	Kis_Panel(in_globalreg, in_intf) {
-
-	tab_pos = 0;
-
-	ftxt = new Kis_Free_Text(globalreg, this);
-	ackbutton = new Kis_Button(globalreg, this);
-
-	AddComponentVec(ftxt, KIS_PANEL_COMP_DRAW);
-	AddComponentVec(ackbutton, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_TAB |
-								KIS_PANEL_COMP_EVT));
-
-	active_component = ackbutton;
-	ackbutton->Activate(0);
-
-	SetTitle("");
-
-	ackbutton->SetText("OK");
-
-	ackbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, ModalAckCB, this);
-}
-
-Kis_ModalAlert_Panel::~Kis_ModalAlert_Panel() {
-}
-
-void Kis_ModalAlert_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {
-	Kis_Panel::Position(in_sy, in_sx, in_y, in_x);
-
-	ftxt->SetPosition(1, 1, in_x - 2, in_y - 3);
-	ackbutton->SetPosition((in_x / 2) - 7, in_y - 2, (in_x / 2) + 7, in_y - 1);
-
-	ackbutton->Activate(1);
-	active_component = ackbutton;
-
-	ftxt->Show();
-	ackbutton->Show();
-}
-
-void Kis_ModalAlert_Panel::DrawPanel() {
-	ColorFromPref(text_color, "panel_text_color");
-	ColorFromPref(border_color, "panel_border_color");
-
-	wbkgdset(win, text_color);
-	werase(win);
-
-	DrawTitleBorder();
-
-	DrawComponentVec();
-
-	wmove(win, 0, 0);
-}
-
-void Kis_ModalAlert_Panel::AckAction() {
-	// We're done
-	globalreg->panel_interface->KillPanel(this);
-}
-
-void Kis_ModalAlert_Panel::ConfigureAlert(string in_title, string in_text) {
-	SetTitle(in_title);
-	ftxt->SetText(in_text);
 }
 
 int AddCardButtonCB(COMPONENT_CALLBACK_PARMS) {
@@ -1667,18 +1592,13 @@ Kis_AddCard_Panel::Kis_AddCard_Panel(GlobalRegistry *in_globalreg,
 	AddComponentVec(cancelbutton, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
 								   KIS_PANEL_COMP_TAB));
 
-	tab_pos = 0;
-
 	SetTitle("Add Source");
 
 	srciface->SetLabel("Intf", LABEL_POS_LEFT);
 	srciface->SetTextLen(32);
 	srciface->SetCharFilter(FILTER_ALPHANUMSYM);
 	srciface->Show();
-		
-	active_component = srciface;
-	srciface->Activate(0);
-
+	
 	srcname->SetLabel("Name", LABEL_POS_LEFT);
 	srcname->SetTextLen(32);
 	srcname->SetCharFilter(FILTER_ALPHANUMSYM);
@@ -1721,18 +1641,27 @@ Kis_AddCard_Panel::Kis_AddCard_Panel(GlobalRegistry *in_globalreg,
 
 	target_cli = kpinterface->FetchNetClient();
 
+	SetActiveComponent(srciface);
+
+	main_component = vbox;
+
 	Position(WIN_CENTER(10, 40));
 }
 
 Kis_AddCard_Panel::~Kis_AddCard_Panel() {
 }
 
-void Kis_AddCard_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {
-	Kis_Panel::Position(in_sy, in_sx, in_y, in_x);
-	vbox->SetPosition(1, 2, in_x - 1, in_y - 2);
-}
-
 void Kis_AddCard_Panel::DrawPanel() {
+	KisNetClient *knc = kpinterface->FetchNetClient();
+
+	if (knc == NULL || (knc != NULL && knc->Valid() == 0)) {
+		kpinterface->RaiseAlert("Not connected", 
+								"Not connected to a Kismet server, sources can\n"
+								"only be added once a connection has been made.");
+		kpinterface->KillPanel(this);
+		return;
+	}
+
 	ColorFromPref(text_color, "panel_text_color");
 	ColorFromPref(border_color, "panel_border_color");
 
@@ -1889,9 +1818,9 @@ Kis_Plugin_Picker::Kis_Plugin_Picker(GlobalRegistry *in_globalreg,
 		pluglist->ReplaceRow(0, td);
 	}
 
-	tab_pos = 0;
-	active_component = pluglist;
-	pluglist->Activate(1);
+	SetActiveComponent(pluglist);
+
+	main_component = vbox;
 
 	SetTitle("");
 
@@ -1899,12 +1828,6 @@ Kis_Plugin_Picker::Kis_Plugin_Picker(GlobalRegistry *in_globalreg,
 }
 
 Kis_Plugin_Picker::~Kis_Plugin_Picker() {
-}
-
-void Kis_Plugin_Picker::Position(int in_sy, int in_sx, int in_y, int in_x) {
-	Kis_Panel::Position(in_sy, in_sx, in_y, in_x);
-
-	vbox->SetPosition(1, 1, in_x - 1, in_y - 2);
 }
 
 void Kis_Plugin_Picker::DrawPanel() {
@@ -2033,9 +1956,7 @@ Kis_NetDetails_Panel::Kis_NetDetails_Panel(GlobalRegistry *in_globalreg,
 
 	netdetails->AddTitles(titles);
 
-	active_component = netdetails;
 	netdetails->Show();
-	netdetails->Activate(1);
 
 	siggraph = new Kis_IntGraph(globalreg, this);
 	siggraph->SetName("DETAIL_SIG");
@@ -2088,8 +2009,6 @@ Kis_NetDetails_Panel::Kis_NetDetails_Panel(GlobalRegistry *in_globalreg,
 
 	AddComponentVec(vbox, KIS_PANEL_COMP_DRAW);
 
-	tab_pos = 0;
-
 	last_dirty = 0;
 	last_mac = mac_addr(0);
 	dng = NULL;
@@ -2100,6 +2019,10 @@ Kis_NetDetails_Panel::Kis_NetDetails_Panel(GlobalRegistry *in_globalreg,
 	netdetails->AddRow(0, td);
 
 	UpdateViewMenu(-1);
+
+	SetActiveComponent(netdetails);
+
+	main_component = vbox;
 
 	Position(WIN_CENTER(LINES, COLS));
 }
@@ -2136,15 +2059,6 @@ void Kis_NetDetails_Panel::UpdateGraphVectors(int signal, int pps, int retry) {
 	retrypps.push_back(retry);
 	if (retrypps.size() > 120)
 		retrypps.erase(retrypps.begin(), retrypps.begin() + retrypps.size() - 120);
-}
-
-void Kis_NetDetails_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {
-	Kis_Panel::Position(in_sy, in_sx, in_y, in_x);
-
-	menu->SetPosition(1, 0, 0, 0);
-
-	// All we have to do is position the main box now
-	vbox->SetPosition(1, 1, in_x - 1, in_y - 2);
 }
 
 int Kis_NetDetails_Panel::AppendSSIDInfo(int k, Netracker::tracked_network *net,
@@ -2832,9 +2746,7 @@ Kis_ChanDetails_Panel::Kis_ChanDetails_Panel(GlobalRegistry *in_globalreg,
 
 	chansummary->AddTitles(titles);
 
-	active_component = chansummary;
 	chansummary->Show();
-	chansummary->Activate(1);
 
 	siggraph = new Kis_IntGraph(globalreg, this);
 	siggraph->SetName("CHANNEL_SIG");
@@ -2896,12 +2808,14 @@ Kis_ChanDetails_Panel::Kis_ChanDetails_Panel(GlobalRegistry *in_globalreg,
 	vbox->Pack_End(chansummary, 0, 0);
 	AddComponentVec(vbox, KIS_PANEL_COMP_DRAW);
 
-	tab_pos = 0;
+	SetActiveComponent(chansummary);
 
 	UpdateViewMenu(-1);
 	GraphTimer();
 
 	addref = kpinterface->Add_NetCli_AddCli_CB(ChanDetailsCliAdd, (void *) this);	
+
+	main_component = vbox;
 
 	Position(WIN_CENTER(LINES, COLS));
 }
@@ -2930,14 +2844,6 @@ void Kis_ChanDetails_Panel::NetClientAdd(KisNetClient *in_cli, int add) {
 		return;
 
 	in_cli->AddConfCallback(ChanDetailsCliConfigured, 1, this);
-}
-
-void Kis_ChanDetails_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {
-	Kis_Panel::Position(in_sy, in_sx, in_y, in_x);
-
-	menu->SetPosition(1, 0, 0, 0);
-
-	vbox->SetPosition(1, 1, in_x - 1, in_y - 2);
 }
 
 int Kis_ChanDetails_Panel::GraphTimer() {
@@ -3372,9 +3278,7 @@ Kis_Chanconf_Panel::Kis_Chanconf_Panel(GlobalRegistry *in_globalreg,
 	
 	vbox->Show();
 
-	tab_pos = 0;
-	active_component = cardlist;
-	cardlist->Activate(1);
+	SetActiveComponent(cardlist);
 
 	last_selected = 0;
 	radio_changed = 0;
@@ -3678,7 +3582,6 @@ Kis_Gps_Panel::Kis_Gps_Panel(GlobalRegistry *in_globalreg,
 	okbutton->Show();
 	AddComponentVec(okbutton, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
 							   KIS_PANEL_COMP_TAB));
-	okbutton->Activate(0);
 
 	SetTitle("GPS Info");
 
@@ -3716,8 +3619,7 @@ Kis_Gps_Panel::Kis_Gps_Panel(GlobalRegistry *in_globalreg,
 	
 	vbox->Show();
 
-	active_component = okbutton;
-	tab_pos = 0;
+	SetActiveComponent(okbutton);
 
 	addref = 
 		kpinterface->Add_NetCli_AddCli_CB(GpsCliAdd, (void *) this);
@@ -3894,12 +3796,9 @@ Kis_Clientlist_Panel::Kis_Clientlist_Panel(GlobalRegistry *in_globalreg,
 
 	clientlist = new Kis_Clientlist(globalreg, this);
 
-	active_component = clientlist;
 	clientlist->Show();
-	clientlist->Activate(1);
 	AddComponentVec(clientlist, KIS_PANEL_COMP_EVT);
 	clientlist->SetCallback(COMPONENT_CBTYPE_ACTIVATED, ClientListButtonCB, this);
-	tab_pos = 0;
 
 	vbox = new Kis_Panel_Packbox(globalreg, this);
 	vbox->SetPackV();
@@ -3915,6 +3814,8 @@ Kis_Clientlist_Panel::Kis_Clientlist_Panel(GlobalRegistry *in_globalreg,
 	grapheventid = -1;
 
 	UpdateSortMenu();
+
+	SetActiveComponent(clientlist);
 
 	Position(WIN_CENTER(LINES, COLS));
 }
@@ -4094,10 +3995,7 @@ Kis_ClientDetails_Panel::Kis_ClientDetails_Panel(GlobalRegistry *in_globalreg,
 
 	clientdetails->AddTitles(titles);
 
-	active_component = clientdetails;
 	clientdetails->Show();
-	clientdetails->Activate(1);
-	tab_pos = 0;
 
 	siggraph = new Kis_IntGraph(globalreg, this);
 	siggraph->SetName("DETAIL_SIG");
@@ -4161,6 +4059,8 @@ Kis_ClientDetails_Panel::Kis_ClientDetails_Panel(GlobalRegistry *in_globalreg,
 	clientdetails->AddRow(0, td);
 
 	main_component = vbox;
+
+	SetActiveComponent(clientdetails);
 
 	clientlist = NULL;
 

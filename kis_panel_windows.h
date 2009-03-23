@@ -246,8 +246,6 @@ public:
 	Kis_Console_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_kpf);
 	virtual ~Kis_Console_Panel();
 
-	virtual void Position(int in_sy, int in_sx, int in_y, int in_x);
-
 	void ButtonAction(Kis_Panel_Component *component);
 
 	void AddConsoleText(string in_text);
@@ -271,7 +269,6 @@ public:
 	Kis_AddCard_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_kpf);
 	virtual ~Kis_AddCard_Panel();
 
-	virtual void Position(int in_sy, int in_sx, int in_y, int in_x);
 	virtual void DrawPanel();
 
 	void ButtonAction(Kis_Panel_Component *in_button);
@@ -291,25 +288,6 @@ protected:
 // AddCard callback to trigger building the window
 void sp_addcard_cb(KPI_SL_CB_PARMS);
 
-class Kis_ServerList_Panel : public Kis_Panel {
-public:
-	Kis_ServerList_Panel() {
-		fprintf(stderr, "FATAL OOPS: Kis_ServerList_Panel called w/out globalreg\n");
-		exit(1);
-	}
-
-	Kis_ServerList_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_intf);
-	virtual ~Kis_ServerList_Panel();
-
-	virtual void Position(int in_sy, int in_sx, int in_y, int in_x);
-	virtual void DrawPanel();
-	virtual int KeyPress(int in_key);
-
-protected:
-	Kis_Scrollable_Table *srvlist;
-	Kis_Menu *menu;
-};
-
 class Kis_CardList_Panel : public Kis_Panel {
 public:
 	Kis_CardList_Panel() {
@@ -327,28 +305,6 @@ protected:
 	Kis_Scrollable_Table *cardlist;
 };
 
-class Kis_ModalAlert_Panel : public Kis_Panel {
-public:
-	Kis_ModalAlert_Panel() {
-		fprintf(stderr, "FATAL OOPS: Kis_ModalAlert_Panel called w/out globalreg\n");
-		exit(1);
-	}
-
-	Kis_ModalAlert_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_intf);
-	virtual ~Kis_ModalAlert_Panel();
-
-	virtual void Position(int in_sy, int in_sx, int in_y, int in_x);
-	virtual void DrawPanel();
-
-	virtual void ConfigureAlert(string in_title, string in_text);
-
-	virtual void AckAction();
-
-protected:
-	Kis_Free_Text *ftxt;
-	Kis_Button *ackbutton;
-};
-
 class Kis_Plugin_Picker : public Kis_Panel {
 	// Plugin picker lists .so files in the plugin director(ies) and lets 
 	// the user pick one to load.
@@ -361,7 +317,6 @@ public:
 	Kis_Plugin_Picker(GlobalRegistry *in_globalreg, KisPanelInterface *in_intf);
 	virtual ~Kis_Plugin_Picker();
 
-	virtual void Position(int in_sy, int in_sx, int in_y, int in_x);
 	virtual void DrawPanel();
 	virtual void ButtonAction(Kis_Panel_Component *in_button);
 
@@ -384,7 +339,6 @@ public:
 	Kis_NetDetails_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_kpf);
 	virtual ~Kis_NetDetails_Panel();
 
-	virtual void Position(int in_sy, int in_sx, int in_y, int in_x);
 	virtual void DrawPanel();
 	virtual void ButtonAction(Kis_Panel_Component *in_button);
 	virtual void MenuAction(int opt);
@@ -436,7 +390,6 @@ public:
 	Kis_ChanDetails_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_kpf);
 	virtual ~Kis_ChanDetails_Panel();
 
-	virtual void Position(int in_sy, int in_sx, int in_y, int in_x);
 	virtual void DrawPanel();
 	virtual void ButtonAction(Kis_Panel_Component *in_button);
 	virtual void MenuAction(int opt);

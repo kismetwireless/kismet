@@ -127,6 +127,11 @@ public:
 		return name;
 	}
 
+	virtual void Debug() {
+		fprintf(stderr, "debug - widget %p sx %d sy %d ex %d ey %d lx %d "
+				"ly %d px %d py %d\n", this, sx, sy, ex, ey, lx, ly, px, py);
+	}
+
 	// Set the position inside a window (start x, y, and width, height)
 	virtual void SetPosition(int isx, int isy, int iex, int iey) {
 		sx = isx;

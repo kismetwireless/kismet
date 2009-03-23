@@ -485,10 +485,16 @@ void Kis_Panel_Packbox::Pack_Widgets() {
 		int perbox = 0;
 
 		for (i = packed_items.begin(); i != packed_items.end(); ++i) {
+			if ((*i).widget->GetVisible() == 0) {
+				ndivs--;
+				continue;
+			}
+		}
+
+		for (i = packed_items.begin(); i != packed_items.end(); ++i) {
 			int wmsize;
 
 			if ((*i).widget->GetVisible() == 0) {
-				ndivs--;
 				continue;
 			}
 
@@ -506,8 +512,10 @@ void Kis_Panel_Packbox::Pack_Widgets() {
 			if (wmsize > perbox) {
 				// If we simply can't fix the widget in, period, then bail on
 				// drawing.
-				if (ndivs <= 1) 
+				if (ndivs <= 1) {
+					// fprintf(stderr, "we couldn't find, wah\n");
 					return;
+				}
 
 				ndivs -= 1;
 				i = packed_items.begin();
@@ -517,8 +525,10 @@ void Kis_Panel_Packbox::Pack_Widgets() {
 
 		i = packed_items.begin();
 		for (int x = 0; x < ndivs && i != packed_items.end(); x++, ++i) {
-			if ((*i).widget->GetVisible() == 0)
+			if ((*i).widget->GetVisible() == 0) {
+				x--;
 				continue;
+			}
 
 			// Set the position of each widget
 			int ww = perbox - ((*i).padding * 2);
@@ -529,19 +539,9 @@ void Kis_Panel_Packbox::Pack_Widgets() {
 			if ((*i).fill == 0) {
 				if (packing == 0) {
 					psize = (*i).widget->GetPrefX() + ((*i).padding * 2);
-					/*
-					op = (*i).widget->GetPrefY();
-					if (op > ly || op == 0)
-						op = ly;
-					*/
 					op = ly;
 				} else {
 					psize = (*i).widget->GetPrefY() + ((*i).padding * 2);
-					/*
-					op = (*i).widget->GetPrefX();
-					if (op > lx || op == 0)
-						op = lx;
-						*/
 					op = lx;
 				}
 
@@ -3134,7 +3134,9 @@ void Kis_Panel::SetActiveComponent(Kis_Panel_Component *in_comp) {
 		if (pan_comp_vec[x].comp == in_comp) {
 			active_component = in_comp;
 			tab_pos = x;
-			return;
+			in_comp->Activate(0);
+		} else {
+			pan_comp_vec[x].comp->Deactivate();
 		}
 	}
 }
@@ -3271,6 +3273,9 @@ void Kis_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {
 	}
 
 	keypad(win, true);
+
+	if (menu != NULL)
+		menu->SetPosition(1, 0, 0, 0);
 
 	if (main_component != NULL)
 		main_component->SetPosition(1, 1, in_x - 1, in_y - 2);
