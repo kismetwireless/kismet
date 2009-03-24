@@ -107,6 +107,7 @@ struct ipc_source_chanset {
 	int32_t channel_dwell;
 	int32_t channel_rate;
 	int32_t channel_split;
+	uint16_t channel_pos;
 };
 
 // Parent->Child - Start/Stop a source

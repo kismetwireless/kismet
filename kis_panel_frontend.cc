@@ -138,7 +138,6 @@ void kpi_prompt_addsource(KIS_PROMPT_CB_PARMS) {
 	if (ok && globalreg->panel_interface->FetchNetClient() != NULL) {
 		Kis_AddCard_Panel *acp = 
 			new Kis_AddCard_Panel(globalreg, globalreg->panel_interface);
-		acp->Position(WIN_CENTER(10, 40));
 		globalreg->panel_interface->AddPanel(acp);
 	}
 }

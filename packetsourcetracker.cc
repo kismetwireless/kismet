@@ -635,8 +635,8 @@ uint16_t Packetsourcetracker::AddChannelList(string in_chanlist) {
 }
 
 int Packetsourcetracker::AddPacketSource(string in_source, 
-											  KisPacketSource *in_strong,
-											  uint16_t *source_id) {
+										 KisPacketSource *in_strong,
+										 uint16_t *source_id) {
 	string interface;
 	string type;
 	string chanlistname;
@@ -1102,10 +1102,11 @@ int Packetsourcetracker::LoadConfiguration() {
 		if (x->second->channel_hop == 0 || x->second->channel_split == 0)
 			continue;
 
-		if (chanid_count_map.find(x->second->channel_list) == chanid_count_map.end())
-			chanid_count_map[x->second->channel_list] = 0;
-
-		chanid_count_map[x->second->channel_list]++;
+		if (chanid_count_map.find(x->second->channel_list) == chanid_count_map.end()) {
+			chanid_count_map[x->second->channel_list] = 1;
+		} else {
+			chanid_count_map[x->second->channel_list]++;
+		}
 	}
 
 	// Second check for mismatched dwell, nasty multiple-search of the map
@@ -1145,10 +1146,10 @@ int Packetsourcetracker::LoadConfiguration() {
 	// Third pass to actually assign offsets to our metasources
 	for (map<uint16_t, int>::iterator x = chanid_count_map.begin();
 		 x != chanid_count_map.end(); ++x) {
-		if (x->first < 2)
+		if (x->second < 2)
 			continue;
 
-		int offset = channellist_map[x->first]->channel_vec.size() / (x->second + 1);
+		int offset = 1 + (channellist_map[x->first]->channel_vec.size() / x->second);
 		int offnum = 0;
 
 		for (map<uint16_t, pst_packetsource *>::iterator y = packetsource_map.begin();
@@ -1350,7 +1351,7 @@ int Packetsourcetracker::IpcChannelSet(ipc_source_chanset *in_ipc) {
 
 	// Update other info
 	if (channellist_map.find(in_ipc->chanset_id) != channellist_map.end()) {
-		pstsource->channel_position = 0;
+		pstsource->channel_position = in_ipc->channel_pos;
 		pstsource->range_position = 0;
 		pstsource->channel_list = in_ipc->chanset_id;
 		pstsource->channel_ptr = channellist_map[in_ipc->chanset_id];
@@ -1744,6 +1745,7 @@ void Packetsourcetracker::SendIPCChanset(pst_packetsource *in_source) {
 	chanset->channel_dwell = in_source->channel_dwell;
 	chanset->channel_rate = in_source->channel_rate;
 	chanset->channel_split = in_source->channel_split;
+	chanset->channel_pos = in_source->channel_position;
 
 	rootipc->SendIPC(ipc);
 }

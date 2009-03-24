@@ -398,10 +398,14 @@ public:
 					in.lay1->noise_rssi != 0) 
 					max_noise_rssi = in.lay1->noise_rssi;
 
-				last_signal_rssi = in.lay1->signal_rssi;
-				last_signal_dbm = in.lay1->signal_dbm;
-				last_noise_rssi = in.lay1->noise_dbm;
-				last_noise_dbm = in.lay1->noise_dbm;
+				if (in.lay1->signal_rssi != 0)
+					last_signal_rssi = in.lay1->signal_rssi;
+				if (in.lay1->signal_dbm != 0)
+					last_signal_dbm = in.lay1->signal_dbm;
+				if (in.lay1->noise_rssi != 0)
+					last_noise_rssi = in.lay1->noise_rssi;
+				if (in.lay1->noise_dbm != 0)
+					last_noise_dbm = in.lay1->noise_dbm;
 
 				carrierset |= in.lay1->carrier;
 				encodingset |= in.lay1->encoding;
