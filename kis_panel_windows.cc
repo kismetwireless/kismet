@@ -2226,13 +2226,15 @@ int Kis_NetDetails_Panel::AppendNetworkInfo(int k, Kis_Display_NetGroup *tng,
 		netdetails->AddRow(k++, td);
 	}
 
-	if (net->lastssid != NULL) {
-		td[0] = "Latest SSID:";
-		td[1] = net->lastssid->ssid;
-		netdetails->AddRow(k++, td);
-	} else {
-		td[1] = "No SSID data available";
-		netdetails->AddRow(k++, td);
+	if (net->ssid_map.size() > 1) {
+		if (net->lastssid != NULL) {
+			td[0] = "Latest SSID:";
+			td[1] = net->lastssid->ssid;
+			netdetails->AddRow(k++, td);
+		} else {
+			td[1] = "No SSID data available";
+			netdetails->AddRow(k++, td);
+		}
 	}
 
 	for (map<uint32_t, Netracker::adv_ssid_data *>::iterator s = net->ssid_map.begin();
