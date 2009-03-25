@@ -1780,7 +1780,7 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 		ostringstream ssid_st;
 
 		// Combine some fields into a string
-		ssid_st << packinfo->ssid << packinfo->ssid_len << packinfo->cryptset;
+		ssid_st << packinfo->ssid << packinfo->ssid_len;
 
 		packinfo->ssid_csum = 
 			Adler32Checksum(ssid_st.str().c_str(), ssid_st.str().length());
@@ -1907,21 +1907,14 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 		}
 
 		// Alert on crypto change
-		if (adssid->cryptset != packinfo->cryptset && adssid->cryptset != 0 &&
+		if (packinfo->cryptset == 0 && adssid->cryptset != 0 &&
 			globalreg->alertracker->PotentialAlert(alert_wepflap_ref)) {
 			ostringstream outs;
 
 			outs << "Network BSSID " << net->bssid.Mac2String() << 
-				" responding to SSID '" + packinfo->ssid + "' with ";
-
-			if (packinfo->cryptset == 0)
-				outs << "no encryption when it was previously advertised as "
-					"encrypted, an impersonation attack may be underway";
-			else if (packinfo->cryptset < adssid->cryptset)
-				outs << "a weaker encryption set than previously advertised, "
-					"which may indicate an attack";
-			else
-				outs << "a different encryption set";
+				" responding to SSID '" + packinfo->ssid + "' with "
+				"no encryption when it was previously advertised as "
+				"encrypted, an impersonation attack may be underway";
 
 			globalreg->alertracker->RaiseAlert(alert_wepflap_ref, in_pack, 
 											   packinfo->bssid_mac, 
@@ -1931,7 +1924,7 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 											   packinfo->channel, outs.str());
 		}
 
-		adssid->cryptset = packinfo->cryptset;
+		adssid->cryptset |= packinfo->cryptset;
 
 		adssid->last_time = globalreg->timestamp.tv_sec;
 		adssid->packets++;

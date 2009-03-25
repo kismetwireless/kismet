@@ -1324,7 +1324,6 @@ Kis_Prompt_Panel::~Kis_Prompt_Panel() {
 }
 
 void Kis_Prompt_Panel::ButtonAction(Kis_Panel_Component *component) {
-	okbutton->Debug();
 	if (component == okbutton) {
 		if (callback != NULL)
 			(*callback)(globalreg, 1, check->GetChecked(), auxptr);
