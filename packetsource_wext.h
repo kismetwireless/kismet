@@ -115,6 +115,8 @@ protected:
 	int stored_privmode;
 
 	string vap;
+	int use_mac80211;
+	void *nlhandle, *nlcache, *nlfamily;
 
 	virtual void FetchRadioData(kis_packet *in_packet);
 

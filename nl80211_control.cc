@@ -28,11 +28,69 @@
 #include <netlink/genl/ctrl.h>
 #include <netlink/msg.h>
 #include <netlink/attr.h>
-#include <linux/nl80211.h>
+#include "nl80211.h"
 #include <net/if.h>
 #endif
 
 #include <stdio.h>
+
+#include "util.h"
+
+int mac80211_connect(const char *interface, void **handle, void **cache,
+					 void **family, char *errstr) {
+#ifndef HAVE_LINUX_NETLINK
+	snprintf(errstr, STATUS_MAX, "Kismet was not compiled with netlink/mac80211 "
+			 "support, check the output of ./configure for why");
+	return -1;
+#else
+	struct nl_handle *nl_handle;
+	struct nl_cache *nl_cache;
+	struct genl_family *nl80211;
+
+	if ((nl_handle = nl_handle_alloc()) == NULL) {
+		snprintf(errstr, STATUS_MAX, "mac80211_setchannel() failed to "
+				 "allocate nlhandle");
+		return -1;
+	}
+
+	if (genl_connect(nl_handle)) {
+		snprintf(errstr, STATUS_MAX, "mac80211_setchannel() failed to connect "
+				 "to generic netlink");
+		nl_handle_destroy(nl_handle);
+		return -1;
+	}
+
+	if ((nl_cache = genl_ctrl_alloc_cache(nl_handle)) == NULL) {
+		snprintf(errstr, STATUS_MAX, "mac80211_setchannel() failed to allocate generic "
+				 "netlink cache");
+		nl_handle_destroy(nl_handle);
+		return -1;
+	}
+
+	if ((nl80211 = genl_ctrl_search_by_name(nl_cache, "nl80211")) == NULL) {
+		snprintf(errstr, STATUS_MAX, "mac80211_setchannel() failed to find nl80211 "
+				 "controls, kernel may be too old");
+		nl_handle_destroy(nl_handle);
+		return -1;
+	}
+
+	(*handle) = (void *) nl_handle;
+	(*cache) = (void *) nl_cache;
+	(*family) = (void *) nl80211;
+
+	return 1;
+#endif
+}
+
+void mac80211_disconnect(void *handle) {
+#ifndef HAVE_LINUX_NETLINK
+	snprintf(errstr, STATUS_MAX, "Kismet was not compiled with netlink/mac80211 "
+			 "support, check the output of ./configure for why");
+	return -1;
+#else
+	nl_handle_destroy((nl_handle *) handle);
+#endif
+}
 
 int mac80211_createvap(const char *interface, const char *newinterface, char *errstr) {
 #ifndef HAVE_LINUX_NETLINK
@@ -49,36 +107,14 @@ int mac80211_createvap(const char *interface, const char *newinterface, char *er
 	if (if_nametoindex(newinterface) > 0) 
 		return 1;
 
-	if ((nl_handle = nl_handle_alloc()) == NULL) {
-		snprintf(errstr, STATUS_MAX, "mac80211_createvap() failed to allocate nlhandle");
+	if (mac80211_connect(interface, (void **) &nl_handle, 
+						 (void **) &nl_cache, (void **) &nl80211, errstr) < 0)
 		return -1;
-	}
-
-	if (genl_connect(nl_handle)) {
-		snprintf(errstr, STATUS_MAX, "mac80211_createvap() failed to connect to generic "
-				 "netlink");
-		nl_handle_destroy(nl_handle);
-		return -1;
-	}
-
-	if ((nl_cache = genl_ctrl_alloc_cache(nl_handle)) == NULL) {
-		snprintf(errstr, STATUS_MAX, "mac80211_createvap() failed to allocate generic "
-				 "netlink cache");
-		nl_handle_destroy(nl_handle);
-		return -1;
-	}
-
-	if ((nl80211 = genl_ctrl_search_by_name(nl_cache, "nl80211")) == NULL) {
-		snprintf(errstr, STATUS_MAX, "mac80211_createvap() failed to find nl80211 "
-				 "controls, kernel may be too old");
-		nl_handle_destroy(nl_handle);
-		return -1;
-	}
 
 	if ((msg = nlmsg_alloc()) == NULL) {
 		snprintf(errstr, STATUS_MAX, "mac80211_createvap() failed to allocate "
 				 "message");
-		nl_handle_destroy(nl_handle);
+		mac80211_disconnect(nl_handle);
 		return -1;
 	}
 
@@ -93,12 +129,13 @@ nla_put_failure:
 		snprintf(errstr, STATUS_MAX, "mac80211_createvap() failed to create "
 				 "interface '%s'", newinterface);
 		nlmsg_free(msg);
-		nl_handle_destroy(nl_handle);
+		mac80211_disconnect(nl_handle);
 		return -1;
 	}
 
 	nlmsg_free(msg);
-	nl_handle_destroy(nl_handle);
+
+	mac80211_disconnect(nl_handle);
 
 	if (if_nametoindex(newinterface) <= 0) {
 		snprintf(errstr, STATUS_MAX, "mac80211_createvap() thought we made a vap, "
@@ -107,6 +144,83 @@ nla_put_failure:
 	}
 
 	return 0;
+#endif
+}
+
+int mac80211_setchannel_cache(const char *interface, void *handle,
+							  void *family, int channel,
+							  unsigned int chmode, char *errstr) {
+#ifndef HAVE_LINUX_NETLINK
+	snprintf(errstr, STATUS_MAX, "Kismet was not compiled with netlink/mac80211 "
+			 "support, check the output of ./configure for why");
+	return -1;
+#else
+	struct nl_handle *nl_handle = (struct nl_handle *) handle;
+	struct genl_family *nl80211 = (struct genl_family *) family;
+	struct nl_msg *msg;
+
+	int chanmode[] = {
+		NL80211_CHAN_NO_HT, NL80211_CHAN_HT20, 
+		NL80211_CHAN_HT40PLUS, NL80211_CHAN_HT40MINUS
+	};
+
+	if (chmode > 4) {
+		snprintf(errstr, STATUS_MAX, "Invalid channel mode\n");
+		return -1;
+	}
+
+	if ((msg = nlmsg_alloc()) == NULL) {
+		snprintf(errstr, STATUS_MAX, "mac80211_setchannel() failed to allocate "
+				 "message");
+		nl_handle_destroy(nl_handle);
+		return -1;
+	}
+
+	genlmsg_put(msg, 0, 0, genl_family_get_id(nl80211), 0, 0, 
+				NL80211_CMD_SET_WIPHY, 0);
+	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, if_nametoindex(interface));
+	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY_FREQ, ChanToFreq(channel));
+	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY_CHANNEL_TYPE, chanmode[chmode]);
+
+	if (nl_send_auto_complete(nl_handle, msg) < 0 || nl_wait_for_ack(nl_handle) < 0) {
+nla_put_failure:
+		snprintf(errstr, STATUS_MAX, "mac80211_setchannel() could not set channel "
+				 "%d/%d on interface '%s'", channel, ChanToFreq(channel), interface);
+		nlmsg_free(msg);
+		nl_handle_destroy(nl_handle);
+		return -1;
+	}
+
+	// fprintf(stderr, "debug - nl channel set success\n");
+
+	nlmsg_free(msg);
+
+	return 0;
+#endif
+}
+
+int mac80211_setchannel(const char *interface, int channel, 
+						unsigned int chmode, char *errstr) {
+#ifndef HAVE_LINUX_NETLINK
+	snprintf(errstr, STATUS_MAX, "Kismet was not compiled with netlink/mac80211 "
+			 "support, check the output of ./configure for why");
+	return -1;
+#else
+	struct nl_handle *nl_handle;
+	struct nl_cache *nl_cache;
+	struct genl_family *nl80211;
+
+	if (mac80211_connect(interface, (void **) &nl_handle, 
+						 (void **) &nl_cache, (void **) &nl80211, errstr) < 0)
+		return -1;
+
+	int ret = 
+		mac80211_setchannel_cache(interface, (void *) nl_handle,
+								  (void *) nl80211, channel, chmode, errstr);
+
+	mac80211_disconnect(nl_handle);
+
+	return ret;
 #endif
 }
 

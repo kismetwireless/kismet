@@ -828,7 +828,7 @@ int Packetsourcetracker::AddPacketSource(string in_source,
 		pstsource->channel_hop = 0;
 
 		if (FetchOpt("channel", &options) == "") {
-			_MSG("Source '" + interface + "' has no no channel= in the source "
+			_MSG("Source '" + interface + "' has no channel= in the source "
 				 "options and has channel hopping disabled, it will be left on "
 				 "whatever channel it is currently on", MSGFLAG_INFO);
 		} else {

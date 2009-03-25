@@ -60,6 +60,9 @@ PacketSource_Wext::PacketSource_Wext(GlobalRegistry *in_globalreg,
 	memset(&wpa_local, 0, sizeof(struct sockaddr_un));
 	memset(&wpa_dest, 0, sizeof(struct sockaddr_un));
 
+	use_mac80211 = 0;
+	nlhandle = nlcache = nlfamily = NULL;
+
 	// Type derived by our higher parent
 	if (type == "nokia770") {
 		SetValidateCRC(1);
@@ -298,12 +301,31 @@ int PacketSource_Wext::ScanWpaSupplicant() {
 int PacketSource_Wext::EnableMonitor() {
 	char errstr[STATUS_MAX];
 
+	if (Linux_GetSysDrvAttr(interface.c_str(), "phy80211")) {
+		use_mac80211 = 1;
+		if (mac80211_connect(interface.c_str(), &nlhandle, &nlcache, 
+							 &nlfamily, errstr) < 0) {
+			_MSG(errstr, MSGFLAG_PRINTERROR);
+			return -1;
+		}
+	}
+
 	// Defer the wpa_supplicant open to here, but do it before the vap
 	// since the vap changes our interface name
 	OpenWpaSupplicant();
 
 	// Defer the vap creation to here so we're sure we're root
-	if (vap != "") {
+	if (vap != "" && use_mac80211) {
+		if (Ifconfig_Delta_Flags(interface.c_str(), errstr, 
+								 IFF_UP | IFF_RUNNING | IFF_PROMISC) < 0) {
+			_MSG(errstr, MSGFLAG_PRINTERROR);
+			_MSG("Failed to bring up interface '" + interface + "', this "
+				 "often means there is a problem with the driver (such as "
+				 "missing firmware), check the output of `dmesg'.",
+				 MSGFLAG_PRINTERROR);
+			return -1;
+		}
+
 		_MSG("Source '" + interface + "' attempting to create mac80211 VAP '" + 
 			 vap + "'", MSGFLAG_INFO);
 		if (mac80211_createvap(interface.c_str(), vap.c_str(), errstr) < 0) {
@@ -313,6 +335,7 @@ int PacketSource_Wext::EnableMonitor() {
 		}
 
 		interface = vap;
+		vap = "";
 	}
 
 	if (Ifconfig_Get_Flags(interface.c_str(), errstr, &stored_flags) < 0) {
@@ -467,10 +490,18 @@ int PacketSource_Wext::SetChannel(unsigned int in_ch) {
 	int err = 0;
 
 	// Set and exit if we're ok
-    if ((err = Iwconfig_Set_Channel(interface.c_str(), in_ch, errstr)) >= 0) {
-		consec_error = 0;
-        return 1;
-    }
+	if (use_mac80211) {
+		if ((err = mac80211_setchannel_cache(interface.c_str(), nlhandle, 
+											 nlfamily, in_ch, 0, errstr)) >= 0) {
+			consec_error = 0;
+			return 1;
+		}
+	} else {
+		if ((err = Iwconfig_Set_Channel(interface.c_str(), in_ch, errstr)) >= 0) {
+			consec_error = 0;
+			return 1;
+		}
+	}
 
 	_MSG(errstr, MSGFLAG_PRINTERROR);
 

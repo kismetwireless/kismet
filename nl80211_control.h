@@ -21,8 +21,19 @@
 #ifndef __NL80211_CONFIG__
 #define __NL80211_CONFIG__
 
+int mac80211_connect(const char *interface, void **handle, void **cache,
+					 void **family, char *errstr);
+void mac80211_disconnect(void *handle);
+
 // Make a vap under mac80211
 int mac80211_createvap(const char *interface, const char *newinterface, char *errstr);
+
+// Set channel using nl80211 instead of SIOCWCHAN
+int mac80211_setchannel(const char *interface, int channel, 
+						unsigned int chmode, char *errstr);
+int mac80211_setchannel_cache(const char *interface, void *handle,
+							  void *family, int channel,
+							  unsigned int chmode, char *errstr);
 
 #endif
 
