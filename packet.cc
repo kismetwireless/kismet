@@ -529,7 +529,7 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
 				// Copy and munge the beacon info if it falls w/in our
 				// boundaries
 				if ((unsigned int) (tag_offset + 11) < packet->len && temp >= 11) {
-					snprintf(ret_packinfo->beacon_info, SSID_SIZE,
+					snprintf(ret_packinfo->beacon_info, SSID_SIZE, "%s",
 						MungeToPrintable((char *) &(packet->data[tag_offset+11]), 
 										 temp - 11).c_str());
                 }
