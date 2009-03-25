@@ -301,6 +301,7 @@ int PacketSource_Wext::ScanWpaSupplicant() {
 int PacketSource_Wext::EnableMonitor() {
 	char errstr[STATUS_MAX];
 
+#ifdef HAVE_LINUX_NETLINK
 	if (Linux_GetSysDrvAttr(interface.c_str(), "phy80211")) {
 		use_mac80211 = 1;
 		if (mac80211_connect(interface.c_str(), &nlhandle, &nlcache, 
@@ -309,6 +310,7 @@ int PacketSource_Wext::EnableMonitor() {
 			return -1;
 		}
 	}
+#endif
 
 	// Defer the wpa_supplicant open to here, but do it before the vap
 	// since the vap changes our interface name
