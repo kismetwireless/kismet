@@ -125,7 +125,7 @@ int SoundControl::PlaySound(string in_text) {
 		(ipc_packet *) malloc(sizeof(ipc_packet) + strlen(snd) + 1);
 	char *msg = (char *) pack->data;
 
-	snprintf(msg, strlen(snd) + 1, snd);
+	snprintf(msg, strlen(snd) + 1, "%s", snd);
 	
 	pack->data_len = strlen(snd) + 1;
 	pack->ipc_cmdnum = sound_ipc_id;

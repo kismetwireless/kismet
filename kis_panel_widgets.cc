@@ -2277,6 +2277,10 @@ void Kis_Single_Input::DrawComponent() {
 	if (draw_len < 0)
 		draw_len = 0;
 
+	// Don't let us fall behind start
+	if (curs_pos < 0)
+		curs_pos = 0;
+
 	// Clean up any silliness that might be present from initialization
 	if (inp_pos - curs_pos >= draw_len)
 		curs_pos = inp_pos - draw_len + 1;
@@ -2341,6 +2345,7 @@ int Kis_Single_Input::KeyPress(int in_key) {
 
 		return 0;
 	}
+
 	if (in_key == KEY_END) {
 		inp_pos = text.length();
 		curs_pos = inp_pos - draw_len + 1;
@@ -3273,6 +3278,7 @@ void Kis_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {
 	}
 
 	keypad(win, true);
+	meta(win, true);
 
 	if (menu != NULL)
 		menu->SetPosition(1, 0, 0, 0);

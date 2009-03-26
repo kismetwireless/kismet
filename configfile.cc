@@ -378,7 +378,8 @@ int GroupConfigFile::ParseConfig(const char *in_fname) {
 	GroupEntity *sub = root;
 
 	while (!feof(configf)) {
-		fgets(confline, 8192, configf);
+		if (fgets(confline, 8192, configf) == NULL)
+			break;
 
 		if (feof(configf)) break;
 

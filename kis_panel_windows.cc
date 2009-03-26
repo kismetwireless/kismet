@@ -3205,13 +3205,6 @@ Kis_Chanconf_Panel::Kis_Chanconf_Panel(GlobalRegistry *in_globalreg,
 	AddComponentVec(inprate, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
 							  KIS_PANEL_COMP_TAB));
 
-	/*
-	if (kpinterface->FetchMainPanel()->FetchDisplayNetlist()->FetchSelectedNetgroup() != NULL)
-		inpchannel->SetText(IntToString(kpinterface->FetchMainPanel()->FetchDisplayNetlist()->FetchSelectedNetgroup()->FetchNetwork()->channel), -1, -1);
-	else
-		inpchannel->SetText("6", -1, -1);
-	*/
-
 	okbutton = new Kis_Button(globalreg, this);
 	okbutton->SetText("Change");
 	okbutton->Show();
@@ -3349,7 +3342,7 @@ void Kis_Chanconf_Panel::DrawPanel() {
 
 				inpchannel->SetLabel("Channels", LABEL_POS_LEFT);
 				inpchannel->SetTextLen(256);
-				inpchannel->SetCharFilter(string(FILTER_NUM) + ",:");
+				inpchannel->SetCharFilter(string(FILTER_NUM) + "range-,:");
 				inpchannel->SetText(card->channellist, -1, -1);
 				inpchannel->Show();
 
@@ -3365,7 +3358,7 @@ void Kis_Chanconf_Panel::DrawPanel() {
 
 				inpchannel->SetLabel("Channels", LABEL_POS_LEFT);
 				inpchannel->SetTextLen(256);
-				inpchannel->SetCharFilter(string(FILTER_NUM) + ",:");
+				inpchannel->SetCharFilter(string(FILTER_NUM) + "range-,:");
 				inpchannel->SetText(card->channellist, -1, -1);
 				inpchannel->Show();
 
