@@ -172,7 +172,6 @@ int mac80211_setchannel_cache(const char *interface, void *handle,
 	if ((msg = nlmsg_alloc()) == NULL) {
 		snprintf(errstr, STATUS_MAX, "mac80211_setchannel() failed to allocate "
 				 "message");
-		nl_handle_destroy(nl_handle);
 		return -1;
 	}
 
@@ -187,7 +186,6 @@ nla_put_failure:
 		snprintf(errstr, STATUS_MAX, "mac80211_setchannel() could not set channel "
 				 "%d/%d on interface '%s'", channel, ChanToFreq(channel), interface);
 		nlmsg_free(msg);
-		nl_handle_destroy(nl_handle);
 		return -1;
 	}
 
