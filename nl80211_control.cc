@@ -158,6 +158,7 @@ int mac80211_setchannel_cache(const char *interface, void *handle,
 	struct nl_handle *nl_handle = (struct nl_handle *) handle;
 	struct genl_family *nl80211 = (struct genl_family *) family;
 	struct nl_msg *msg;
+	int ret = 0;
 
 	int chanmode[] = {
 		NL80211_CHAN_NO_HT, NL80211_CHAN_HT20, 
@@ -181,12 +182,9 @@ int mac80211_setchannel_cache(const char *interface, void *handle,
 	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY_FREQ, ChanToFreq(channel));
 	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY_CHANNEL_TYPE, chanmode[chmode]);
 
-	if (nl_send_auto_complete(nl_handle, msg) < 0 || nl_wait_for_ack(nl_handle) < 0) {
-nla_put_failure:
-		snprintf(errstr, STATUS_MAX, "mac80211_setchannel() could not set channel "
-				 "%d/%d on interface '%s'", channel, ChanToFreq(channel), interface);
-		nlmsg_free(msg);
-		return -1;
+	if ((ret = nl_send_auto_complete(nl_handle, msg)) >= 0) {
+		if ((ret = nl_wait_for_ack(nl_handle)) < 0) 
+			goto nla_put_failure;
 	}
 
 	// fprintf(stderr, "debug - nl channel set success\n");
@@ -194,6 +192,13 @@ nla_put_failure:
 	nlmsg_free(msg);
 
 	return 0;
+
+nla_put_failure:
+		snprintf(errstr, STATUS_MAX, "mac80211_setchannel() could not set channel "
+				 "%d/%d on interface '%s' err %d", channel, ChanToFreq(channel), 
+				 interface, ret);
+		nlmsg_free(msg);
+		return ret;
 #endif
 }
 
