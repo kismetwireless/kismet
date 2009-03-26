@@ -194,11 +194,11 @@ int mac80211_setchannel_cache(const char *interface, void *handle,
 	return 0;
 
 nla_put_failure:
-		snprintf(errstr, STATUS_MAX, "mac80211_setchannel() could not set channel "
-				 "%d/%d on interface '%s' err %d", channel, ChanToFreq(channel), 
-				 interface, ret);
-		nlmsg_free(msg);
-		return ret;
+	snprintf(errstr, STATUS_MAX, "mac80211_setchannel() could not set channel "
+			 "%d/%d on interface '%s' err %d", channel, ChanToFreq(channel), 
+			 interface, ret);
+	nlmsg_free(msg);
+	return ret;
 #endif
 }
 
