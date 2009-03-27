@@ -153,7 +153,8 @@ int mac80211_setchannel_cache(const char *interface, void *handle,
 #ifndef HAVE_LINUX_NETLINK
 	snprintf(errstr, STATUS_MAX, "Kismet was not compiled with netlink/mac80211 "
 			 "support, check the output of ./configure for why");
-	return -1;
+	// Return the same error as we get if the device doesn't support nlfreq
+	return -22;
 #else
 	struct nl_handle *nl_handle = (struct nl_handle *) handle;
 	struct genl_family *nl80211 = (struct genl_family *) family;
@@ -207,7 +208,9 @@ int mac80211_setchannel(const char *interface, int channel,
 #ifndef HAVE_LINUX_NETLINK
 	snprintf(errstr, STATUS_MAX, "Kismet was not compiled with netlink/mac80211 "
 			 "support, check the output of ./configure for why");
-	return -1;
+	// Return the same error as if the device doesn't support nl freq control
+	// so we catch it elsewhere
+	return -22;
 #else
 	struct nl_handle *nl_handle;
 	struct nl_cache *nl_cache;

@@ -510,6 +510,15 @@ int PacketSource_Wext::SetChannel(unsigned int in_ch) {
 
 	_MSG(errstr, MSGFLAG_PRINTERROR);
 
+	if (err == -22 && use_mac80211) {
+		_MSG("Failed to change channel on interface '" + interface +"' and it looks "
+			 "like the device is mac80211 based but does not accept channel control "
+			 "over nl80211.  Kismet will fall back to using the IW* channel "
+			 "methods.", MSGFLAG_PRINTERROR);
+		use_mac80211 = 0;
+		return SetChannel(in_ch);
+	}
+
 	if (err == -2) {
 		_MSG("Failed to change channel on interface '" + interface +"' and it looks "
 			 "like the device has been removed (or the drivers have lost track of "
