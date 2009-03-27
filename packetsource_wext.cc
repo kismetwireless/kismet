@@ -114,10 +114,6 @@ int PacketSource_Wext::ParseOptions(vector<opt_pair> *in_opts) {
 
 		if (wpa_path == "")
 			wpa_path = "/var/run/wpa_supplicant";
-
-		wpa_path += "/" + interface;
-
-		wpa_local_path = "/tmp/kis_wpa_ctrl_" + interface + "_" + IntToString(getpid());
 	}
 
 	return 1;
@@ -232,6 +228,8 @@ int wext_ping_wpasup_event(TIMEEVENT_PARMS) {
 }
 
 void PacketSource_Wext::OpenWpaSupplicant() {
+	wpa_local_path = "/tmp/kis_wpa_ctrl_" + parent + "_" + IntToString(getpid());
+
 	// Register the timer now so it can try to reconnect us
 	if (scan_wpa && wpa_timer_id < 0) 
 		wpa_timer_id = 
@@ -245,7 +243,7 @@ void PacketSource_Wext::OpenWpaSupplicant() {
 		snprintf(wpa_local.sun_path, sizeof(wpa_local.sun_path), 
 				 "%s", wpa_local_path.c_str());
 		if (bind(wpa_sock, (struct sockaddr *) &wpa_local, sizeof(wpa_local)) < 0) {
-			_MSG("Source '" + interface + "' failed to bind local socket for "
+			_MSG("Source '" + parent + "' failed to bind local socket for "
 				 "wpa_supplicant, disabling scan_wpa: " + string(strerror(errno)),
 				 MSGFLAG_PRINTERROR);
 			close(wpa_sock);
@@ -253,11 +251,12 @@ void PacketSource_Wext::OpenWpaSupplicant() {
 		} else {
 			wpa_dest.sun_family = AF_UNIX;
 			snprintf(wpa_dest.sun_path, sizeof(wpa_dest.sun_path), "%s", 
-					 wpa_path.c_str());
+					 (wpa_path + "/" + parent).c_str());
 			if (connect(wpa_sock, (struct sockaddr *) &wpa_dest, sizeof(wpa_dest)) < 0) {
-				_MSG("Source '" + interface + "' failed to connect to wpa_supplicant "
-					 "control socket " + wpa_path + ".  Make sure that the "
-					 "wpa_ctrl_path option is set correctly.", MSGFLAG_PRINTERROR);
+				_MSG("Source '" + parent + "' failed to connect to wpa_supplicant "
+					 "control socket " + wpa_path + "/" + parent + ".  Make sure "
+					 "that the wpa_ctrl_path option is set correctly.", 
+					 MSGFLAG_PRINTERROR);
 				close(wpa_sock);
 				return;
 			}
@@ -287,7 +286,7 @@ int PacketSource_Wext::ScanWpaSupplicant() {
 	const char *scan = "SCAN";
 
 	if (write(wpa_sock, scan, sizeof(scan)) != sizeof(scan)) {
-		_MSG("Source '" + interface + "' error writing to wpa_supplicant socket, "
+		_MSG("Source '" + parent + "' error writing to wpa_supplicant socket, "
 			 "reopening connection: " + string(strerror(errno)), MSGFLAG_ERROR);
 		close(wpa_sock);
 		wpa_sock = -1;
@@ -312,32 +311,36 @@ int PacketSource_Wext::EnableMonitor() {
 	}
 #endif
 
-	// Defer the wpa_supplicant open to here, but do it before the vap
-	// since the vap changes our interface name
+	// If we don't already have a parent interface, it's whatever was specified
+	// as our interface; we'll make the vap if we need to and use this for
+	// reconnect
+	if (parent == "")
+		parent = interface;
+
 	OpenWpaSupplicant();
 
 	// Defer the vap creation to here so we're sure we're root
 	if (vap != "" && use_mac80211) {
-		if (Ifconfig_Delta_Flags(interface.c_str(), errstr, 
+		if (Ifconfig_Delta_Flags(parent.c_str(), errstr, 
 								 IFF_UP | IFF_RUNNING | IFF_PROMISC) < 0) {
 			_MSG(errstr, MSGFLAG_PRINTERROR);
-			_MSG("Failed to bring up interface '" + interface + "', this "
+			_MSG("Failed to bring up interface '" + parent + "', this "
 				 "often means there is a problem with the driver (such as "
 				 "missing firmware), check the output of `dmesg'.",
 				 MSGFLAG_PRINTERROR);
 			return -1;
 		}
 
-		_MSG("Source '" + interface + "' attempting to create mac80211 VAP '" + 
+		_MSG("Source '" + parent + "' attempting to create mac80211 VAP '" + 
 			 vap + "'", MSGFLAG_INFO);
-		if (mac80211_createvap(interface.c_str(), vap.c_str(), errstr) < 0) {
-			_MSG("Source '" + interface + "' failed to create mac80211 VAP: " +
+		if (mac80211_createvap(parent.c_str(), vap.c_str(), errstr) < 0) {
+			_MSG("Source '" + parent + "' failed to create mac80211 VAP: " +
 				 string(errstr), MSGFLAG_PRINTERROR);
 			return -1;
 		}
 
+		// Switch our main processing interface to the vap
 		interface = vap;
-		vap = "";
 	}
 
 	if (Ifconfig_Get_Flags(interface.c_str(), errstr, &stored_flags) < 0) {

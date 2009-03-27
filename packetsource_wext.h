@@ -114,7 +114,7 @@ protected:
 	int stored_mode;
 	int stored_privmode;
 
-	string vap;
+	string vap, parent;
 	int use_mac80211;
 	void *nlhandle, *nlcache, *nlfamily;
 
