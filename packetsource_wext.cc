@@ -159,6 +159,16 @@ int PacketSource_Wext::AutotypeProbe(string in_device) {
 		return 1;
 	}
 
+	if (sysdriver == "orinoco_cs") {
+		type = sysdriver;
+		_MSG("Detected 'orinoco_cs' driver for itnerface " + in_device + 
+			 "; This driver doesn't appear to provide any packets in monitor mode "
+			 "and probably won't work with Kismet.  Kismet will continue to attempt "
+			 "to use this card incase the drivers have added support, but you "
+			 "probably won't see any data.", MSGFLAG_PRINTERROR);
+		return 1;
+	}
+
 	// Detect unknown mac80211 devices, ask for help, assume wext
 	if (Linux_GetSysDrvAttr(in_device.c_str(), "phy80211")) {
 		type = "wext";
@@ -197,6 +207,8 @@ int PacketSource_Wext::RegisterSources(Packetsourcetracker *tracker) {
 	tracker->RegisterPacketProto("libertas_usb", this, "IEEE80211b", 1);
 	tracker->RegisterPacketProto("libertas_tf", this, "IEEE80211b", 1);
 	tracker->RegisterPacketProto("nokia770", this, "IEEE80211b", 1);
+	tracker->RegisterPacketProto("orinoco", this, "IEEE80211b", 1);
+	tracker->RegisterPacketProto("orinoco_cs", this, "IEEE80211b", 1);
 	tracker->RegisterPacketProto("prism54", this, "IEEE80211b", 1);
 	tracker->RegisterPacketProto("p54", this, "IEEE80211b", 1);
 	tracker->RegisterPacketProto("rndis_wlan", this, "IEEE80211b", 1);
