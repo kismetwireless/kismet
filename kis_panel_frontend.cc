@@ -33,7 +33,9 @@
 #include "kis_panel_frontend.h"
 
 #define KPI_SOURCE_FIELDS	"uuid,interface,type,username,channel,packets,hop," \
-	"velocity,dwell,hop_time_sec,hop_time_usec,channellist,error"
+	"velocity,dwell,hop_time_sec,hop_time_usec,channellist,error,warning"
+
+#define KPI_ALERT_FIELDS	"sec,usec,header,bssid,source,dest,other,channel,text"
 
 // STATUS protocol parser that injects right into the messagebus
 void KisPanelClient_STATUS(CLIPROTO_CB_PARMS) {
@@ -59,6 +61,11 @@ void KisPanelClient_SOURCE(CLIPROTO_CB_PARMS) {
 												 proto_parsed, srccli, auxptr);
 }
 
+void KisPanelClient_ALERT(CLIPROTO_CB_PARMS) {
+	((KisPanelInterface *) auxptr)->proto_ALERT(globalreg, proto_string,
+												proto_parsed, srccli, auxptr);
+}
+
 void KisPanelClient_INFO(CLIPROTO_CB_PARMS) {
 	((KisPanelInterface *) auxptr)->proto_INFO(globalreg, proto_string,
 											   proto_parsed, srccli, auxptr);
@@ -66,9 +73,10 @@ void KisPanelClient_INFO(CLIPROTO_CB_PARMS) {
 
 void KisPanelInterface::proto_SOURCE(CLIPROTO_CB_PARMS) {
 	// "uuid,interface,type,username,channel,packets,hop," 
-	//	"velocity,dwell,hop_time_sec,hop_time_usec,channellist"
+	//	"velocity,dwell,hop_time_sec,hop_time_usec,channellist,
+	//	error,warning"
 
-	if (proto_parsed->size() < 12) {
+	if (proto_parsed->size() < 14) {
 		return;
 	}
 
@@ -132,6 +140,81 @@ void KisPanelInterface::proto_SOURCE(CLIPROTO_CB_PARMS) {
 
 	if (source->error)
 		num_source_errors++;
+
+	string warning = (*proto_parsed)[fnum++].word;
+	
+	if (warning != "" && warning != source->warning) 
+		RaiseAlert("Source Warning", InLineWrap(warning, 0, 50));
+
+	source->warning = warning;
+
+}
+
+void KisPanelInterface::proto_ALERT(CLIPROTO_CB_PARMS) {
+	// sec, usec, header, bssid, source, dest, other, channel, text
+	
+	if (proto_parsed->size() < 9) {
+		return;
+	}
+
+	int fnum = 0;
+	int tint;
+	unsigned int tuint;
+	mac_addr tmac;
+
+	knc_alert *alert = new knc_alert;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%u", &tuint) != 1) {
+		delete alert;
+		return;
+	}
+	alert->tv.tv_sec = tuint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%u", &tuint) != 1) {
+		delete alert;
+		return;
+	}
+	alert->tv.tv_usec = tuint;
+
+	alert->alertname = MungeToPrintable((*proto_parsed)[fnum++].word);
+
+	tmac = mac_addr((*proto_parsed)[fnum++].word.c_str());
+	if (tmac.error) {
+		delete alert;
+		return;
+	}
+	alert->bssid = tmac;
+
+	tmac = mac_addr((*proto_parsed)[fnum++].word.c_str());
+	if (tmac.error) {
+		delete alert;
+		return;
+	}
+	alert->source = tmac;
+
+	tmac = mac_addr((*proto_parsed)[fnum++].word.c_str());
+	if (tmac.error) {
+		delete alert;
+		return;
+	}
+	alert->dest = tmac;
+
+	tmac = mac_addr((*proto_parsed)[fnum++].word.c_str());
+	if (tmac.error) {
+		delete alert;
+		return;
+	}
+	alert->other = tmac;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tint) != 1) {
+		delete alert;
+		return;
+	}
+	alert->channel = tint;
+
+	alert->text = (*proto_parsed)[fnum++].word;
+
+	alert_vec.push_back(alert);
 }
 
 void kpi_prompt_addsource(KIS_PROMPT_CB_PARMS) {
@@ -262,7 +345,8 @@ void KisPanelInterface::Shutdown() {
 
 	Remove_AllNetcli_ProtoHandler("STATUS", KisPanelClient_STATUS, this);
 	Remove_AllNetcli_ProtoHandler("SOURCE", KisPanelClient_SOURCE, this);
-	Remove_AllNetcli_ProtoHandler("INFO", KisPanelClient_SOURCE, this);
+	Remove_AllNetcli_ProtoHandler("INFO", KisPanelClient_INFO, this);
+	Remove_AllNetcli_ProtoHandler("ALERT", KisPanelClient_ALERT, this);
 
 	// Destroy panels in this destructor, if they get destroyed in the
 	// parent destructor sadness happens
@@ -399,6 +483,13 @@ void KisPanelInterface::NetClientConfigure(KisNetClient *in_cli, int in_recon) {
 	if (in_cli->RegisterProtoHandler("INFO", "numsources",
 									 KisPanelClient_INFO, this) < 0) {
 		_MSG("Could not register INFO protocol with remote server, connection "
+			 "will be terminated.", MSGFLAG_ERROR);
+		in_cli->KillConnection();
+	}
+
+	if (in_cli->RegisterProtoHandler("ALERT", KPI_ALERT_FIELDS,
+									 KisPanelClient_ALERT, this) < 0) {
+		_MSG("Could not register ALERT protocol with remote server, connection "
 			 "will be terminated.", MSGFLAG_ERROR);
 		in_cli->KillConnection();
 	}

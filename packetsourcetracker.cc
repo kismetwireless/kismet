@@ -33,14 +33,14 @@
 enum SOURCE_fields {
 	SOURCE_interface, SOURCE_type, SOURCE_username, SOURCE_channel, SOURCE_uuid, 
 	SOURCE_packets, SOURCE_hop, SOURCE_velocity, SOURCE_dwell, SOURCE_hop_tv_sec,
-	SOURCE_hop_tv_usec, SOURCE_channellist, SOURCE_error,
+	SOURCE_hop_tv_usec, SOURCE_channellist, SOURCE_error, SOURCE_warning,
 	SOURCE_maxfield
 };
 
 const char *SOURCE_fields_text[] = {
 	"interface", "type", "username", "channel", "uuid", "packets", "hop",
 	"velocity", "dwell", "hop_time_sec", "hop_time_usec", "channellist",
-	"error",
+	"error", "warning",
 	NULL
 };
 
@@ -154,6 +154,16 @@ int Protocol_SOURCE(PROTO_PARMS) {
 				else
 					osstr << "0";
 				cache->Cache(fnum, osstr.str());
+				break;
+
+			case SOURCE_warning:
+				if (psrc->strong_source != NULL)
+					cache->Cache(fnum, string("\001") + 
+								 psrc->strong_source->FetchWarning() + 
+								 string("\001"));
+				else
+					cache->Cache(fnum, "\001\001");
+
 				break;
 
 			case SOURCE_channellist:

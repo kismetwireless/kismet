@@ -298,6 +298,8 @@ public:
 
 	virtual int FetchError() { return error; }
 
+	virtual string FetchWarning() { return warning; }
+
 protected:
 	virtual void FetchRadioData(kis_packet *in_packet) = 0;
 
@@ -346,6 +348,9 @@ protected:
 
 	// Generic packetsource optional parameters
 	packet_parm genericparms;
+
+	// Warning state
+	string warning;
 };
 
 // Packetchain reference for packet sources to be attached to the 

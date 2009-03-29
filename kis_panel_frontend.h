@@ -140,7 +140,22 @@ public:
 
 		// Are we in an error state?
 		int error;
+
+		// Do we have a warning?
+		string warning;
 	};
+
+	struct knc_alert {
+		struct timeval tv;
+		string alertname;
+		mac_addr bssid, source, dest, other;
+		int channel;
+		string text;
+	};
+
+	// Internal parser for ALERT proto
+	void proto_ALERT(CLIPROTO_CB_PARMS);
+	vector<KisPanelInterface::knc_alert *> *FetchAlertVec();
 
 	// Internal parser for the CARD proto, linked to the callback
 	void proto_SOURCE(CLIPROTO_CB_PARMS);
@@ -185,6 +200,9 @@ protected:
 
 	// Map of UUIDs of sources to representations
 	map<uuid, KisPanelInterface::knc_card *> netcard_map;
+
+	// Alerts
+	vector<KisPanelInterface::knc_alert *> alert_vec;
 
 	int addcb_ref;
 	vector<KisPanelInterface::addcli_cb_rec *> addclicb_vec;

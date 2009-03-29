@@ -564,6 +564,7 @@ public:
 			new_packets = 0;
 			groupptr = NULL;
 			lastssid = NULL;
+			alert = 0;
 		}
 
 		// What we last saw it as
@@ -642,6 +643,9 @@ public:
 
 		// Map of sources which have seen this network
 		map<uuid, source_data *> source_map;
+
+		// Alert triggered
+		int alert;
 	};
 
 	// Mini-client for counting global unique clients
@@ -791,9 +795,6 @@ protected:
 	int ReadIPCache();
 	int WriteIPCache();
 
-	// Combine networks (probe into normal)
-	void MergeNetwork(Netracker::tracked_network *net1,
-					  Netracker::tracked_network *net2);
 	// Build a SSID record
 	Netracker::adv_ssid_data *BuildAdvSSID(uint32_t ssid_csum, 
 										   kis_ieee80211_packinfo *packinfo);

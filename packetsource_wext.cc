@@ -68,6 +68,28 @@ PacketSource_Wext::PacketSource_Wext(GlobalRegistry *in_globalreg,
 		SetValidateCRC(1);
 	}
 
+	// Catch warning states
+	if (type == "wl") {
+		warning = 
+			"Detected 'wl' binary-only broadcom driver for interface " + interface +
+			"; This driver does not provide monitor-mode support (which is "
+			"required by Kismet)  Try the in-kernel open source drivers for "
+			"the Broadcom cards.  Kismet will continue to attempt to use "
+			"this card incase the drivers have recently added support, but "
+			"this will probably fail.";
+		_MSG(warning, MSGFLAG_PRINTERROR);
+	}
+
+	if (type == "orinoco_cs") {
+		warning =
+			"Detected 'orinoco_cs' driver for interface " + interface + 
+			"; This driver will not report packets in rfmon under many firmware "
+			"versions.  Kismet will continue trying to use it, however if you don't "
+			"see any packets check `dmesg' and consider changing firmware on your "
+			"card.";
+		_MSG(warning, MSGFLAG_PRINTERROR);
+	}
+
 	ParseOptions(in_opts);
 }
 
@@ -141,31 +163,13 @@ int PacketSource_Wext::AutotypeProbe(string in_device) {
 		sysdriver == "rt2400pci" || sysdriver == "rt2x00usb" ||
 		sysdriver == "rt2400pci" || sysdriver == "rt61pci" ||
 		sysdriver == "rtl8180"  || sysdriver == "zd1201" ||
-		sysdriver == "rtl8187" || sysdriver == "zd1211rw") {
+		sysdriver == "rtl8187" || sysdriver == "zd1211rw" ||
+		//  These drivers don't behave sanely but throw errors when we open them
+		sysdriver == "wl" || sysdriver == "orinoco" || 
+		sysdriver == "orinoco_cs") {
 		
 		// Set the weaksource type to what we derived
 		type = sysdriver;
-		return 1;
-	}
-
-	if (sysdriver == "wl") {
-		type = sysdriver;
-		_MSG("Detected 'wl' binary-only broadcom driver for interface " + in_device +
-			 "; This driver does not provide monitor-mode support (which is required " 
-			 "by Kismet)  Try the in-kernel open source drivers for the Broadcom "
-			 "cards.  Kismet will continue to attempt to use this card incase "
-			 "the drivers have recently added support, but this will probably "
-			 "fail.", MSGFLAG_PRINTERROR);
-		return 1;
-	}
-
-	if (sysdriver == "orinoco_cs") {
-		type = sysdriver;
-		_MSG("Detected 'orinoco_cs' driver for itnerface " + in_device + 
-			 "; This driver doesn't appear to provide any packets in monitor mode "
-			 "and probably won't work with Kismet.  Kismet will continue to attempt "
-			 "to use this card incase the drivers have added support, but you "
-			 "probably won't see any data.", MSGFLAG_PRINTERROR);
 		return 1;
 	}
 
