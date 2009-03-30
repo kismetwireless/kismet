@@ -3087,6 +3087,7 @@ Kis_Panel::Kis_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_intf) {
 	kpinterface = in_intf;
 	win = newwin(0, 0, 0, 0);
 	pan = new_panel(win);
+	hide_panel(pan);
 	menu = NULL;
 
 	text_color = border_color = 0;

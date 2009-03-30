@@ -257,7 +257,7 @@ void KisPanelInterface::proto_INFO(CLIPROTO_CB_PARMS) {
 		kpp->SetDisplayText(t);
 		kpp->SetDefaultButton(1);
 		kpp->SetButtonText("OK", "");
-		AddPanel(kpp);
+		QueueModalPanel(kpp);
 	}
 
 	num_source_errors = 0;
@@ -281,7 +281,7 @@ void KisPanelInterface::proto_INFO(CLIPROTO_CB_PARMS) {
 		kpp->SetCallback(kpi_prompt_addsource, this);
 		kpp->SetButtonText("Yes", "No");
 		kpp->SetDefaultButton(1);
-		AddPanel(kpp);
+		QueueModalPanel(kpp);
 	}
 
 }
@@ -380,6 +380,8 @@ int KisPanelInterface::Poll(fd_set& in_rset, fd_set& in_wset) {
 }
 
 void KisPanelInterface::AddPanel(Kis_Panel *in_panel) {
+	in_panel->ShowPanel();
+
 	PanelInterface::AddPanel(in_panel);
 
 	if (plugdata.mainpanel == NULL)
@@ -387,6 +389,23 @@ void KisPanelInterface::AddPanel(Kis_Panel *in_panel) {
 
 	if (mainp == NULL)
 		mainp = (Kis_Main_Panel *) in_panel;
+}
+
+void KisPanelInterface::KillPanel(Kis_Panel *in_panel) {
+	// Kill the panel (this will delete it so be careful)
+	PanelInterface::KillPanel(in_panel);
+
+	// If it's a modal panel, remove it from the modal vec list.  We only ever display
+	// the head of the modal vec list, so this check is sane.  We're also only doing
+	// a pointer compare, so it being destroyed above is also sane
+	if (modal_vec.size() > 0 && modal_vec[0] == in_panel) {
+		modal_vec.erase(modal_vec.begin());
+
+		// If we have another modal alert queued, put it up
+		if (modal_vec.size() > 0)
+			AddPanel(modal_vec[0]);
+	}
+
 }
 
 int KisPanelInterface::LoadPreferences() {
@@ -512,7 +531,20 @@ void KisPanelInterface::RaiseAlert(string in_title, string in_text) {
 	kpp->SetTitle(in_title);
 	kpp->SetDisplayText(t);
 	kpp->SetButtonText("OK", "");
-	AddPanel(kpp);
+
+	if (modal_vec.size() != 0)
+		modal_vec.push_back(kpp);
+	else
+		AddPanel(kpp);
+}
+
+void KisPanelInterface::QueueModalPanel(Kis_Panel *in_panel) {
+	if (modal_vec.size() > 0) {
+		modal_vec.push_back(in_panel);
+	} else {
+		modal_vec.push_back(in_panel);
+		AddPanel(in_panel);
+	}
 }
 
 map<uuid, KisPanelInterface::knc_card *> *KisPanelInterface::FetchNetCardMap() {

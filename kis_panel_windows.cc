@@ -344,6 +344,12 @@ void kmp_prompt_startserver(KIS_PROMPT_CB_PARMS) {
 	}
 }
 
+void kmp_prompt_asroot(KIS_PROMPT_CB_PARMS) {
+	if (check) {
+		globalreg->panel_interface->prefs.SetOpt("STARTUP_WARNROOT", "false", 1);
+	}
+}
+
 void Kis_Main_Panel::Startup() {
 	if (kpinterface->prefs.FetchOpt("DEFAULT_HOST") == "") {
 		kpinterface->prefs.SetOpt("DEFAULT_HOST", "localhost", 1);
@@ -351,9 +357,30 @@ void Kis_Main_Panel::Startup() {
 		kpinterface->prefs.SetOpt("AUTOCONNECT", "true", 1);
 	}
 
-	if (kpinterface->prefs.FetchOpt("STARTUP_PROMPTSERVER") == "true" ||
-		kpinterface->prefs.FetchOpt("STARTUP_PROMPTSERVER") == "") {
+	if ((getuid() == 0 || geteuid() == 0) &&
+		kpinterface->prefs.FetchOpt("STARTUP_WARNROOT") == "" ||
+		kpinterface->prefs.FetchOpt("STARTUP_WARNROOT") == "true") {
+		vector<string> t;
+		t.push_back("Kismet is running as root");
+		t.push_back("Kismet was started as root.  This isn't the recommended");
+		t.push_back("way to start Kismet as it can be dangerous -- the risk");
+		t.push_back("to your system from any programming errors is increased.");
+		t.push_back("See the README section 'SUID INSTALLATION & SECURITY' for");
+		t.push_back("more information.");
 
+		Kis_Prompt_Panel *kpp =
+			new Kis_Prompt_Panel(globalreg, kpinterface);
+		kpp->SetTitle("Kismet running as root");
+		kpp->SetDisplayText(t);
+		kpp->SetCheckText("Do not show this warning in the future");
+		kpp->SetChecked(0);
+		kpp->SetButtonText("OK", "");
+		kpp->SetCallback(kmp_prompt_asroot, this);
+		kpinterface->QueueModalPanel(kpp);
+	}
+
+	if (kpinterface->prefs.FetchOpt("STARTUP_PROMPTSERVER") == "" ||
+		kpinterface->prefs.FetchOpt("STARTUP_PROMPTSERVER") == "true") {
 		vector<string> t;
 		t.push_back("Automatically start Kismet server?");
 		t.push_back("Launch Kismet server and connect to it automatically.");
@@ -367,7 +394,7 @@ void Kis_Main_Panel::Startup() {
 		kpp->SetCallback(kmp_prompt_startserver, this);
 		kpp->SetButtonText("Yes", "No");
 		kpp->SetDefaultButton(1);
-		kpinterface->AddPanel(kpp);
+		kpinterface->QueueModalPanel(kpp);
 	} else if (kpinterface->prefs.FetchOpt("STARTUP_SERVER") == "true" ||
 			   kpinterface->prefs.FetchOpt("STARTUP_SERVER") == "") {
 		kmp_prompt_startserver(globalreg, 1, -1, this);
@@ -661,7 +688,7 @@ void Kis_Main_Panel::MenuAction(int opt) {
 			kpp->SetDisplayText(t);
 			kpp->SetCallback(kmp_prompt_killserver, this);
 			kpp->SetDefaultButton(1);
-			kpinterface->AddPanel(kpp);
+			kpinterface->QueueModalPanel(kpp);
 			return;
 		} else if (kpinterface->prefs.FetchOpt("STOP_SERVER") == "true" ||
 				   kpinterface->prefs.FetchOpt("STOP_SERVER") == "") {

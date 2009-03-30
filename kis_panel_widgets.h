@@ -917,6 +917,7 @@ public:
 	Kis_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *kpinterface);
 	virtual ~Kis_Panel();
 
+	virtual void ShowPanel() { show_panel(pan); }
 	virtual void Position(int in_sy, int in_sx, int in_y, int in_x);
 
 	virtual int FetchSy() { return sy; }

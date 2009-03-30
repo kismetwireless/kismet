@@ -74,6 +74,7 @@ public:
 	virtual void Shutdown();
 
 	virtual void AddPanel(Kis_Panel *in_panel);
+	virtual void KillPanel(Kis_Panel *in_panel); 
 
 	virtual int LoadPreferences();
 	virtual int SavePreferences();
@@ -105,8 +106,11 @@ public:
 											  CliProto_Callback in_cb,
 											  void *in_aux);
 
-	// Bring up a modal alert
+	// Bring up a modal alert (may be queued if an alert is already displayed)
 	virtual void RaiseAlert(string in_title, string in_text);
+	// Queue a modal panel, we only display one modal panel at a time.
+	// Alerts are modal, prompt boxes should almost always be considered modal.
+	virtual void QueueModalPanel(Kis_Panel *in_panel);
 
 	// We track cards at the interface level because we need instant feedback on them
 	// without waiting for individual widgets to do their own activate and poll, though
@@ -226,6 +230,8 @@ protected:
 	// Or are they all broken?
 	int warned_all_errors;
 	int num_source_errors;
+
+	vector<Kis_Panel *> modal_vec;
 };
 
 #endif // panel
