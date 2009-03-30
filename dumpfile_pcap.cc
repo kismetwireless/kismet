@@ -231,10 +231,8 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 	// Assemble the full packet
 	if (dumpformat == dump_ppi) {
 		ppi_packet_header *ppi_ph;
-		unsigned int ppi_len = 0;
+		unsigned int ppi_len = sizeof(ppi_packet_header);
 		unsigned int ppi_pos = sizeof(ppi_packet_header);
-
-		dump_len += sizeof(ppi_packet_header);
 
 		if (radioinfo != NULL) 
 			ppi_len += sizeof(ppi_80211_common);
