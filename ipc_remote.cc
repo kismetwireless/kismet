@@ -285,6 +285,10 @@ int IPCRemote::SpawnIPC() {
 			return -1;
 		}
 
+		unsigned int socksize = 32768;
+		setsockopt(sockpair[0], SOL_SOCKET, SO_SNDBUF, &socksize, sizeof(socksize));
+		setsockopt(sockpair[1], SOL_SOCKET, SO_SNDBUF, &socksize, sizeof(socksize));
+
 		// Fork and launch the child control loop & set up the rest of our internal
 		// info.
 		if ((ipc_pid = fork()) < 0) {
