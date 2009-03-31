@@ -36,6 +36,28 @@
 
 #include "util.h"
 
+// Libnl1->Libnl2 compatability mode since the API changed, cribbed from 'iw'
+#ifndef HAVE_LIBNL20
+#define nl_sock nl_handle
+
+static inline struct nl_handle *nl_socket_alloc(void) {
+	return nl_handle_alloc();
+}
+
+static inline void nl_socket_free(struct nl_sock *h) {
+	nl_handle_destroy(h);
+}
+
+static inline int __genl_ctrl_alloc_cache(struct nl_sock *h, struct nl_cache **cache) {
+	struct nl_cache *tmp = genl_ctrl_alloc_cache(h);
+	if (!tmp)
+		return -ENOMEM;
+	*cache = tmp;
+	return 0;
+}
+#define genl_ctrl_alloc_cache __genl_ctrl_alloc_cache
+#endif
+
 int mac80211_connect(const char *interface, void **handle, void **cache,
 					 void **family, char *errstr) {
 #ifndef HAVE_LINUX_NETLINK
@@ -43,11 +65,11 @@ int mac80211_connect(const char *interface, void **handle, void **cache,
 			 "support, check the output of ./configure for why");
 	return -1;
 #else
-	struct nl_handle *nl_handle;
+	struct nl_sock *nl_handle;
 	struct nl_cache *nl_cache;
 	struct genl_family *nl80211;
 
-	if ((nl_handle = nl_handle_alloc()) == NULL) {
+	if ((nl_handle = nl_socket_alloc()) == NULL) {
 		snprintf(errstr, STATUS_MAX, "mac80211_setchannel() failed to "
 				 "allocate nlhandle");
 		return -1;
@@ -56,21 +78,21 @@ int mac80211_connect(const char *interface, void **handle, void **cache,
 	if (genl_connect(nl_handle)) {
 		snprintf(errstr, STATUS_MAX, "mac80211_setchannel() failed to connect "
 				 "to generic netlink");
-		nl_handle_destroy(nl_handle);
+		nl_socket_free(nl_handle);
 		return -1;
 	}
 
-	if ((nl_cache = genl_ctrl_alloc_cache(nl_handle)) == NULL) {
+	if (genl_ctrl_alloc_cache(nl_handle, &nl_cache) != 0) {
 		snprintf(errstr, STATUS_MAX, "mac80211_setchannel() failed to allocate generic "
 				 "netlink cache");
-		nl_handle_destroy(nl_handle);
+		nl_socket_free(nl_handle);
 		return -1;
 	}
 
 	if ((nl80211 = genl_ctrl_search_by_name(nl_cache, "nl80211")) == NULL) {
 		snprintf(errstr, STATUS_MAX, "mac80211_setchannel() failed to find nl80211 "
 				 "controls, kernel may be too old");
-		nl_handle_destroy(nl_handle);
+		nl_socket_free(nl_handle);
 		return -1;
 	}
 
@@ -84,7 +106,7 @@ int mac80211_connect(const char *interface, void **handle, void **cache,
 
 void mac80211_disconnect(void *handle) {
 #ifdef HAVE_LINUX_NETLINK
-	nl_handle_destroy((nl_handle *) handle);
+	nl_socket_free((nl_sock *) handle);
 #endif
 }
 
@@ -95,7 +117,7 @@ int mac80211_createvap(const char *interface, const char *newinterface, char *er
 	return -1;
 #else
 
-	struct nl_handle *nl_handle;
+	struct nl_sock *nl_handle;
 	struct nl_cache *nl_cache;
 	struct genl_family *nl80211;
 	struct nl_msg *msg;
@@ -152,7 +174,7 @@ int mac80211_setchannel_cache(const char *interface, void *handle,
 	// Return the same error as we get if the device doesn't support nlfreq
 	return -22;
 #else
-	struct nl_handle *nl_handle = (struct nl_handle *) handle;
+	struct nl_sock *nl_handle = (struct nl_sock *) handle;
 	struct genl_family *nl80211 = (struct genl_family *) family;
 	struct nl_msg *msg;
 	int ret = 0;
@@ -208,7 +230,7 @@ int mac80211_setchannel(const char *interface, int channel,
 	// so we catch it elsewhere
 	return -22;
 #else
-	struct nl_handle *nl_handle;
+	struct nl_sock *nl_handle;
 	struct nl_cache *nl_cache;
 	struct genl_family *nl80211;
 

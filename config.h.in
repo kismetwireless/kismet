@@ -51,6 +51,9 @@
 /* libnl netlink library */
 #undef HAVE_LIBNL
 
+/* libnl-2.0 netlink library */
+#undef HAVE_LIBNL20
+
 /* Panel terminal lib */
 #undef HAVE_LIBPANEL
 

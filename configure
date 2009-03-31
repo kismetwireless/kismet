@@ -645,6 +645,11 @@ zbuild
 zaurus
 suid
 suidgroup
+libnl1_LIBS
+libnl1_CFLAGS
+libnl20_LIBS
+libnl20_CFLAGS
+PKG_CONFIG
 pcap
 pcaplnk
 wantpcap
@@ -750,7 +755,12 @@ CPPFLAGS
 CXX
 CXXFLAGS
 CCC
-CPP'
+CPP
+PKG_CONFIG
+libnl20_CFLAGS
+libnl20_LIBS
+libnl1_CFLAGS
+libnl1_LIBS'
 
 
 # Initialize some variables set by options.
@@ -1405,6 +1415,14 @@ Some influential environment variables:
   CXX         C++ compiler command
   CXXFLAGS    C++ compiler flags
   CPP         C preprocessor
+  PKG_CONFIG  path to pkg-config utility
+  libnl20_CFLAGS
+              C compiler flags for libnl20, overriding pkg-config
+  libnl20_LIBS
+              linker flags for libnl20, overriding pkg-config
+  libnl1_CFLAGS
+              C compiler flags for libnl1, overriding pkg-config
+  libnl1_LIBS linker flags for libnl1, overriding pkg-config
 
 Use these variables to override the choices made by `configure' or to help
 it to find libraries and programs with nonstandard names/locations.
@@ -10610,89 +10628,292 @@ fi
 done
 
 
+
+#if test "$havenetlink" = "yes"; then
+#	AC_CHECK_LIB([nl], [nl_handle_alloc],
+#    AC_DEFINE(HAVE_LIBNL, 1, libnl netlink library), havenetlink=no)
+#else
+#	AC_MSG_WARN(Missing libnl or libnl too old support will not be able to control mac80211 vaps)
+#fi
+
 if test "$havenetlink" = "yes"; then
-	{ $as_echo "$as_me:$LINENO: checking for nl_handle_alloc in -lnl" >&5
-$as_echo_n "checking for nl_handle_alloc in -lnl... " >&6; }
-if test "${ac_cv_lib_nl_nl_handle_alloc+set}" = set; then
+
+
+if test "x$ac_cv_env_PKG_CONFIG_set" != "xset"; then
+	if test -n "$ac_tool_prefix"; then
+  # Extract the first word of "${ac_tool_prefix}pkg-config", so it can be a program name with args.
+set dummy ${ac_tool_prefix}pkg-config; ac_word=$2
+{ $as_echo "$as_me:$LINENO: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if test "${ac_cv_path_PKG_CONFIG+set}" = set; then
   $as_echo_n "(cached) " >&6
 else
-  ac_check_lib_save_LIBS=$LIBS
-LIBS="-lnl  $LIBS"
-cat >conftest.$ac_ext <<_ACEOF
-/* confdefs.h.  */
-_ACEOF
-cat confdefs.h >>conftest.$ac_ext
-cat >>conftest.$ac_ext <<_ACEOF
-/* end confdefs.h.  */
+  case $PKG_CONFIG in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_PKG_CONFIG="$PKG_CONFIG" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+  for ac_exec_ext in '' $ac_executable_extensions; do
+  if { test -f "$as_dir/$ac_word$ac_exec_ext" && $as_test_x "$as_dir/$ac_word$ac_exec_ext"; }; then
+    ac_cv_path_PKG_CONFIG="$as_dir/$ac_word$ac_exec_ext"
+    $as_echo "$as_me:$LINENO: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+done
+IFS=$as_save_IFS
 
-/* Override any GCC internal prototype to avoid an error.
-   Use char because int might match the return type of a GCC
-   builtin and then its argument prototype would still apply.  */
-#ifdef __cplusplus
-extern "C"
-#endif
-char nl_handle_alloc ();
-int
-main ()
-{
-return nl_handle_alloc ();
-  ;
-  return 0;
-}
-_ACEOF
-rm -f conftest.$ac_objext conftest$ac_exeext
-if { (ac_try="$ac_link"
-case "(($ac_try" in
-  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
-  *) ac_try_echo=$ac_try;;
+  ;;
 esac
-eval ac_try_echo="\"\$as_me:$LINENO: $ac_try_echo\""
-$as_echo "$ac_try_echo") >&5
-  (eval "$ac_link") 2>conftest.er1
-  ac_status=$?
-  grep -v '^ *+' conftest.er1 >conftest.err
-  rm -f conftest.er1
-  cat conftest.err >&5
-  $as_echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); } && {
-	 test -z "$ac_c_werror_flag" ||
-	 test ! -s conftest.err
-       } && test -s conftest$ac_exeext && {
-	 test "$cross_compiling" = yes ||
-	 $as_test_x conftest$ac_exeext
-       }; then
-  ac_cv_lib_nl_nl_handle_alloc=yes
+fi
+PKG_CONFIG=$ac_cv_path_PKG_CONFIG
+if test -n "$PKG_CONFIG"; then
+  { $as_echo "$as_me:$LINENO: result: $PKG_CONFIG" >&5
+$as_echo "$PKG_CONFIG" >&6; }
 else
-  $as_echo "$as_me: failed program was:" >&5
-sed 's/^/| /' conftest.$ac_ext >&5
-
-	ac_cv_lib_nl_nl_handle_alloc=no
+  { $as_echo "$as_me:$LINENO: result: no" >&5
+$as_echo "no" >&6; }
 fi
 
-rm -rf conftest.dSYM
-rm -f core conftest.err conftest.$ac_objext conftest_ipa8_conftest.oo \
-      conftest$ac_exeext conftest.$ac_ext
-LIBS=$ac_check_lib_save_LIBS
+
 fi
-{ $as_echo "$as_me:$LINENO: result: $ac_cv_lib_nl_nl_handle_alloc" >&5
-$as_echo "$ac_cv_lib_nl_nl_handle_alloc" >&6; }
-if test "x$ac_cv_lib_nl_nl_handle_alloc" = x""yes; then
+if test -z "$ac_cv_path_PKG_CONFIG"; then
+  ac_pt_PKG_CONFIG=$PKG_CONFIG
+  # Extract the first word of "pkg-config", so it can be a program name with args.
+set dummy pkg-config; ac_word=$2
+{ $as_echo "$as_me:$LINENO: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if test "${ac_cv_path_ac_pt_PKG_CONFIG+set}" = set; then
+  $as_echo_n "(cached) " >&6
+else
+  case $ac_pt_PKG_CONFIG in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_ac_pt_PKG_CONFIG="$ac_pt_PKG_CONFIG" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+  for ac_exec_ext in '' $ac_executable_extensions; do
+  if { test -f "$as_dir/$ac_word$ac_exec_ext" && $as_test_x "$as_dir/$ac_word$ac_exec_ext"; }; then
+    ac_cv_path_ac_pt_PKG_CONFIG="$as_dir/$ac_word$ac_exec_ext"
+    $as_echo "$as_me:$LINENO: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+done
+IFS=$as_save_IFS
+
+  ;;
+esac
+fi
+ac_pt_PKG_CONFIG=$ac_cv_path_ac_pt_PKG_CONFIG
+if test -n "$ac_pt_PKG_CONFIG"; then
+  { $as_echo "$as_me:$LINENO: result: $ac_pt_PKG_CONFIG" >&5
+$as_echo "$ac_pt_PKG_CONFIG" >&6; }
+else
+  { $as_echo "$as_me:$LINENO: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+  if test "x$ac_pt_PKG_CONFIG" = x; then
+    PKG_CONFIG=""
+  else
+    case $cross_compiling:$ac_tool_warned in
+yes:)
+{ $as_echo "$as_me:$LINENO: WARNING: using cross tools not prefixed with host triplet" >&5
+$as_echo "$as_me: WARNING: using cross tools not prefixed with host triplet" >&2;}
+ac_tool_warned=yes ;;
+esac
+    PKG_CONFIG=$ac_pt_PKG_CONFIG
+  fi
+else
+  PKG_CONFIG="$ac_cv_path_PKG_CONFIG"
+fi
+
+fi
+if test -n "$PKG_CONFIG"; then
+	_pkg_min_version=0.9.0
+	{ $as_echo "$as_me:$LINENO: checking pkg-config is at least version $_pkg_min_version" >&5
+$as_echo_n "checking pkg-config is at least version $_pkg_min_version... " >&6; }
+	if $PKG_CONFIG --atleast-pkgconfig-version $_pkg_min_version; then
+		{ $as_echo "$as_me:$LINENO: result: yes" >&5
+$as_echo "yes" >&6; }
+	else
+		{ $as_echo "$as_me:$LINENO: result: no" >&5
+$as_echo "no" >&6; }
+		PKG_CONFIG=""
+	fi
+
+fi
+
+pkg_failed=no
+{ $as_echo "$as_me:$LINENO: checking for libnl20" >&5
+$as_echo_n "checking for libnl20... " >&6; }
+
+if test -n "$libnl20_CFLAGS"; then
+    pkg_cv_libnl20_CFLAGS="$libnl20_CFLAGS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { ($as_echo "$as_me:$LINENO: \$PKG_CONFIG --exists --print-errors \"libnl-2.0\"") >&5
+  ($PKG_CONFIG --exists --print-errors "libnl-2.0") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; then
+  pkg_cv_libnl20_CFLAGS=`$PKG_CONFIG --cflags "libnl-2.0" 2>/dev/null`
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+if test -n "$libnl20_LIBS"; then
+    pkg_cv_libnl20_LIBS="$libnl20_LIBS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { ($as_echo "$as_me:$LINENO: \$PKG_CONFIG --exists --print-errors \"libnl-2.0\"") >&5
+  ($PKG_CONFIG --exists --print-errors "libnl-2.0") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; then
+  pkg_cv_libnl20_LIBS=`$PKG_CONFIG --libs "libnl-2.0" 2>/dev/null`
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+
+
+
+if test $pkg_failed = yes; then
+
+if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
+        _pkg_short_errors_supported=yes
+else
+        _pkg_short_errors_supported=no
+fi
+        if test $_pkg_short_errors_supported = yes; then
+	        libnl20_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors "libnl-2.0" 2>&1`
+        else
+	        libnl20_PKG_ERRORS=`$PKG_CONFIG --print-errors "libnl-2.0" 2>&1`
+        fi
+	# Put the nasty error message in config.log where it belongs
+	echo "$libnl20_PKG_ERRORS" >&5
+
+	{ $as_echo "$as_me:$LINENO: result: no" >&5
+$as_echo "no" >&6; }
+                libnl20=no
+elif test $pkg_failed = untried; then
+	libnl20=no
+else
+	libnl20_CFLAGS=$pkg_cv_libnl20_CFLAGS
+	libnl20_LIBS=$pkg_cv_libnl20_LIBS
+        { $as_echo "$as_me:$LINENO: result: yes" >&5
+$as_echo "yes" >&6; }
+	libnl20=yes
+fi
+
+pkg_failed=no
+{ $as_echo "$as_me:$LINENO: checking for libnl1" >&5
+$as_echo_n "checking for libnl1... " >&6; }
+
+if test -n "$libnl1_CFLAGS"; then
+    pkg_cv_libnl1_CFLAGS="$libnl1_CFLAGS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { ($as_echo "$as_me:$LINENO: \$PKG_CONFIG --exists --print-errors \"libnl-1\"") >&5
+  ($PKG_CONFIG --exists --print-errors "libnl-1") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; then
+  pkg_cv_libnl1_CFLAGS=`$PKG_CONFIG --cflags "libnl-1" 2>/dev/null`
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+if test -n "$libnl1_LIBS"; then
+    pkg_cv_libnl1_LIBS="$libnl1_LIBS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { ($as_echo "$as_me:$LINENO: \$PKG_CONFIG --exists --print-errors \"libnl-1\"") >&5
+  ($PKG_CONFIG --exists --print-errors "libnl-1") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; then
+  pkg_cv_libnl1_LIBS=`$PKG_CONFIG --libs "libnl-1" 2>/dev/null`
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+
+
+
+if test $pkg_failed = yes; then
+
+if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
+        _pkg_short_errors_supported=yes
+else
+        _pkg_short_errors_supported=no
+fi
+        if test $_pkg_short_errors_supported = yes; then
+	        libnl1_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors "libnl-1" 2>&1`
+        else
+	        libnl1_PKG_ERRORS=`$PKG_CONFIG --print-errors "libnl-1" 2>&1`
+        fi
+	# Put the nasty error message in config.log where it belongs
+	echo "$libnl1_PKG_ERRORS" >&5
+
+	{ $as_echo "$as_me:$LINENO: result: no" >&5
+$as_echo "no" >&6; }
+                libnl1=no
+elif test $pkg_failed = untried; then
+	libnl1=no
+else
+	libnl1_CFLAGS=$pkg_cv_libnl1_CFLAGS
+	libnl1_LIBS=$pkg_cv_libnl1_LIBS
+        { $as_echo "$as_me:$LINENO: result: yes" >&5
+$as_echo "yes" >&6; }
+	libnl1=yes
+fi
+	if test "$libnl20" = "yes"; then
 
 cat >>confdefs.h <<\_ACEOF
 #define HAVE_LIBNL 1
 _ACEOF
 
-else
-  havenetlink=no
-fi
 
-else
-	{ $as_echo "$as_me:$LINENO: WARNING: Missing libnl or libnl too old support will not be able to control mac80211 vaps" >&5
-$as_echo "$as_me: WARNING: Missing libnl or libnl too old support will not be able to control mac80211 vaps" >&2;}
+cat >>confdefs.h <<\_ACEOF
+#define HAVE_LIBNL20 1
+_ACEOF
+
+		NLLIBS="-lnl-genl -lnl"
+	elif test "$libnl1" = "yes"; then
+
+cat >>confdefs.h <<\_ACEOF
+#define HAVE_LIBNL 1
+_ACEOF
+
+		NLLIBS="-lnl"
+	else
+		havenetlink="no"
+	fi
 fi
 
 if test "$havenetlink" = "yes"; then
-	LIBS="$LIBS -lnl"
+	OLIBS="$LIBS"
+	LIBS="$LIBS $NLLIBS"
 	{ $as_echo "$as_me:$LINENO: checking For mac80211 support in netlink library" >&5
 $as_echo_n "checking For mac80211 support in netlink library... " >&6; }
 	cat >conftest.$ac_ext <<_ACEOF
@@ -10760,6 +10981,7 @@ rm -f core conftest.err conftest.$ac_objext conftest_ipa8_conftest.oo \
 else
 	{ $as_echo "$as_me:$LINENO: WARNING: Missing libnl netlink library will not be able to control mac80211 vaps" >&5
 $as_echo "$as_me: WARNING: Missing libnl netlink library will not be able to control mac80211 vaps" >&2;}
+	LIBS="$OLIBS"
 fi
 
 if test "$havenetlink" = "yes"; then

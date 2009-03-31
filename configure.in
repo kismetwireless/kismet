@@ -793,15 +793,32 @@ havenetlink=yes
 	AC_DEFINE(HAVE_NETLINKHEADERS, 1, Netlink headers are there), 
 	havenetlink=no)
 
+
+#if test "$havenetlink" = "yes"; then
+#	AC_CHECK_LIB([nl], [nl_handle_alloc],
+#    AC_DEFINE(HAVE_LIBNL, 1, libnl netlink library), havenetlink=no)
+#else
+#	AC_MSG_WARN(Missing libnl or libnl too old support will not be able to control mac80211 vaps)
+#fi
+
 if test "$havenetlink" = "yes"; then
-	AC_CHECK_LIB([nl], [nl_handle_alloc],
-    AC_DEFINE(HAVE_LIBNL, 1, libnl netlink library), havenetlink=no)
-else
-	AC_MSG_WARN(Missing libnl or libnl too old support will not be able to control mac80211 vaps)
+	PKG_CHECK_MODULES(libnl20, [libnl-2.0], libnl20=yes, libnl20=no)
+	PKG_CHECK_MODULES(libnl1, [libnl-1], libnl1=yes, libnl1=no)
+	if test "$libnl20" = "yes"; then
+		AC_DEFINE(HAVE_LIBNL, 1, libnl netlink library)
+		AC_DEFINE(HAVE_LIBNL20, 1, libnl-2.0 netlink library)
+		NLLIBS="-lnl-genl -lnl"
+	elif test "$libnl1" = "yes"; then
+		AC_DEFINE(HAVE_LIBNL, 1, libnl netlink library)
+		NLLIBS="-lnl"
+	else
+		havenetlink="no"
+	fi
 fi
 
 if test "$havenetlink" = "yes"; then
-	LIBS="$LIBS -lnl"
+	OLIBS="$LIBS"
+	LIBS="$LIBS $NLLIBS"
 	AC_MSG_CHECKING(For mac80211 support in netlink library)
 	AC_LINK_IFELSE([AC_LANG_PROGRAM([[
 			#include <stdio.h>
@@ -821,6 +838,7 @@ if test "$havenetlink" = "yes"; then
 			]])],[havenetlink=yes],[havenetlink=no])
 else
 	AC_MSG_WARN(Missing libnl netlink library will not be able to control mac80211 vaps)
+	LIBS="$OLIBS"
 fi
 
 if test "$havenetlink" = "yes"; then
