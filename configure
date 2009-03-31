@@ -11011,7 +11011,11 @@ else
 fi
 
 
-suidgroup="kismet"
+if test "$darwin" = "yes"; then
+	suidgroup="staff"
+else
+	suidgroup="kismet"
+fi
 
 # Check whether --with-suidgroup was given.
 if test "${with_suidgroup+set}" = set; then

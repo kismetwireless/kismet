@@ -859,7 +859,11 @@ AC_ARG_ENABLE(setuid,
 	[suid=yes]
 )
 
-suidgroup="kismet"
+if test "$darwin" = "yes"; then
+	suidgroup="staff"
+else
+	suidgroup="kismet"
+fi
 AC_ARG_WITH(suidgroup,
 	[  --with-suidgroup=group       Group allowed to execute the kismet_capture suid root helper process ],
 	[
