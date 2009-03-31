@@ -1543,6 +1543,17 @@ int Packetsourcetracker::StartSource(uint16_t in_source_id) {
 		return -1;
 	}
 
+	if (pstsource->channel > 0) {
+		pstsource->strong_source->SetChannel(pstsource->channel);
+		SendIPCChanreport();
+	} else {
+		int tint = pstsource->strong_source->FetchHardwareChannel();
+		if (tint > 0) {
+			pstsource->channel = (uint16_t) tint;
+			SendIPCChanreport();
+		}
+	}
+
 	_MSG("Started source '" + pstsource->strong_source->FetchName() + "'",
 		 MSGFLAG_INFO);
 

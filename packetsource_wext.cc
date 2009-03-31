@@ -580,6 +580,8 @@ int PacketSource_Wext::FetchHardwareChannel() {
         return -1;
     }
 
+	last_channel = chan;
+
     return chan;
 }
 
