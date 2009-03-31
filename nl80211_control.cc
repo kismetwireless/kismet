@@ -51,7 +51,7 @@ static inline void nl_socket_free(struct nl_sock *h) {
 static inline int __genl_ctrl_alloc_cache(struct nl_sock *h, struct nl_cache **cache) {
 	struct nl_cache *tmp = genl_ctrl_alloc_cache(h);
 	if (!tmp)
-		return -ENOMEM;
+		return -1;
 	*cache = tmp;
 	return 0;
 }
