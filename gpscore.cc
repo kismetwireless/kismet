@@ -19,7 +19,6 @@
 #include "config.h"
 #include "gpscore.h"
 #include "configfile.h"
-#include "speechcontrol.h"
 #include "soundcontrol.h"
 #include "packetchain.h"
 

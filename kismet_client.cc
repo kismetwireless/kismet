@@ -42,7 +42,6 @@
 
 #include "timetracker.h"
 
-#include "speechcontrol.h"
 #include "soundcontrol.h"
 
 #include "ipc_remote.h"

@@ -38,7 +38,6 @@ class KisNetFramework;
 class KisDroneFramework;
 class ConfigFile;
 class GroupConfigFile;
-class SpeechControl;
 class SoundControl;
 class Plugintracker;
 class KisBuiltinDissector;
@@ -153,7 +152,6 @@ public:
     KisDroneFramework *kisdroneserver;
     ConfigFile *kismet_config;
     ConfigFile *kismetui_config;
-    SpeechControl *speechctl;
     SoundControl *soundctl;
 	KisBuiltinDissector *builtindissector;
 	RootIPCRemote *rootipc;
@@ -244,7 +242,6 @@ public:
         kisdroneserver = NULL;
         kismet_config = NULL;
         kismetui_config = NULL;
-        speechctl = NULL;
         soundctl = NULL;
 		builtindissector = NULL;
 		rootipc = NULL;

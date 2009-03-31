@@ -25,6 +25,17 @@
 #include "pollable.h"
 #include "ipc_remote.h"
 
+#define SPEECH_ENCODING_NORMAL   0
+#define SPEECH_ENCODING_NATO     1
+#define SPEECH_ENCODING_SPELL    2
+
+struct soundcontrol_ipc_frame {
+	time_t timestamp;
+	char msg[0];
+};
+
+extern char speech_alphabet[2][36][12];
+
 class SoundControl {
 public:
     SoundControl();
@@ -34,22 +45,25 @@ public:
     // Kill
     void Shutdown();
    
-    // Send something to the speech pipe
     int PlaySound(string in_text);
+	int SayText(string in_text);
 
-	string FetchPlayer() { return player; }
+	string EncodeSpeechString(string in_str);
+
+	int LocalPlay(string key);
+	int LocalSpeech(string text);
 
 protected:
     int SpawnChildProcess();
-	int LocalPlay(string key);
+	int SendPacket(string text, int id);
 
     GlobalRegistry *globalreg;
 
 	IPCRemote *sound_remote;
 
-	uint32_t sound_ipc_id;
+	uint32_t sound_ipc_id, speech_ipc_id;
 
-	int sound_enable;
+	int sound_enable, speech_enable;
     
     char errstr[STATUS_MAX];
 
@@ -58,6 +72,9 @@ protected:
     map<string, string> wav_map;
 
 	friend int sound_ipc_callback(IPC_CMD_PARMS);
+
+	int speech_encoding;
+	string speaker;
 };
 
 #endif

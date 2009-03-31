@@ -358,8 +358,8 @@ void Kis_Main_Panel::Startup() {
 	}
 
 	if ((getuid() == 0 || geteuid() == 0) &&
-		kpinterface->prefs.FetchOpt("STARTUP_WARNROOT") == "" ||
-		kpinterface->prefs.FetchOpt("STARTUP_WARNROOT") == "true") {
+		(kpinterface->prefs.FetchOpt("STARTUP_WARNROOT") == "" ||
+		 kpinterface->prefs.FetchOpt("STARTUP_WARNROOT") == "true")) {
 		vector<string> t;
 		t.push_back("Kismet is running as root");
 		t.push_back("Kismet was started as root.  This isn't the recommended");

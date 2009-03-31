@@ -53,7 +53,7 @@ CAPSOURCES = \
 PSO	= util.o cygwin_utils.o ringbuf.o messagebus.o configfile.o getopt.o \
 	filtercore.o ifcontrol.o iwcontrol.o madwifing_control.o nl80211_control.o \
 	$(OBJC_LINK) \
-	ipc_remote.o soundcontrol.o speechcontrol.o \
+	ipc_remote.o soundcontrol.o \
 	netframework.o clinetframework.o tcpserver.o tcpclient.o serialclient.o \
 	packetsourcetracker.o $(CAPSOURCES) \
 	kis_netframe.o kis_droneframe.o \
@@ -71,7 +71,7 @@ PS	= kismet_server
 
 DRONEO = util.o cygwin_utils.o ringbuf.o messagebus.o configfile.o getopt.o \
 		 ifcontrol.o iwcontrol.o madwifing_control.o nl80211_control.o $(OBJC_LINK) \
-		 ipc_remote.o soundcontrol.o speechcontrol.o \
+		 ipc_remote.o soundcontrol.o \
 		 netframework.o clinetframework.o tcpserver.o tcpclient.o serialclient.o \
 		 drone_kisnetframe.o kis_droneframe.o \
 		 gpswrapper.o gpscore.o gpsdclient.o gpsserial.o \
@@ -95,7 +95,7 @@ CS	= kismet_capture
 DRONE = kismet_drone
 
 NCO	= util.o ringbuf.o messagebus.o configfile.o getopt.o \
-	  soundcontrol.o speechcontrol.o timetracker.o ipc_remote.o \
+	  soundcontrol.o timetracker.o ipc_remote.o \
 	  clinetframework.o tcpclient.o popenclient.o kis_clinetframe.o \
 	  text_cliframe.o \
 	  kis_panel_widgets.o kis_panel_network.o kis_panel_windows.o \
@@ -255,8 +255,6 @@ clean:
 	@-rm -f $(CS)
 	@-rm -f $(DRONE)
 	@-rm -f $(NC)
-	# @-rm -f $(HOPPER)
-	@-( cd extra/buzzme; $(MAKE) clean )
 
 distclean:
 	@-$(MAKE) clean
@@ -269,10 +267,7 @@ distclean:
 	@-rm -rf packaging/pak
 	@-rm -rf *.ipk
 	@-rm -f scripts/kismet
-#@-rm -f scripts/kismet_monitor
-#@-rm -f scripts/kismet_unmonitor
 	@-( cd extra/; $(MAKE) distclean )
-	@-( cd extra/buzzme; $(MAKE) distclean )
 	@-rm -f Makefile
 
 arm: $(PS) $(NC) $(ZBUILD)
@@ -305,7 +300,7 @@ ipkg: $(PS) $(NC)
 dep:
 	@$(MAKE) depend
 
-depend:
+depend: Makefile
 	@$(MAKE) $(DEPEND)
 
 $(DEPEND):

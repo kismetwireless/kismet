@@ -19,7 +19,6 @@
 #include "config.h"
 #include "gpsserial.h"
 #include "configfile.h"
-#include "speechcontrol.h"
 #include "soundcontrol.h"
 #include "packetchain.h"
 
@@ -320,10 +319,10 @@ int GPSSerial::ParseData() {
             mode = 2;
         } else {
             if (mode < 2 && in_mode >= 2) {
-                    globalreg->speechctl->SayText("Got G P S position fix");
+                    globalreg->soundctl->SayText("Got G P S position fix");
                     globalreg->soundctl->PlaySound("gpslock");
             } else if (mode >= 2 && in_mode < 2) {
-                    globalreg->speechctl->SayText("Lost G P S position fix");
+                    globalreg->soundctl->SayText("Lost G P S position fix");
                     globalreg->soundctl->PlaySound("gpslost");
             }
             mode = in_mode;

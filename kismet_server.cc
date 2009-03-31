@@ -60,7 +60,6 @@
 #include "kis_netframe.h"
 #include "kis_droneframe.h"
 
-#include "speechcontrol.h"
 #include "soundcontrol.h"
 
 #include "gpswrapper.h"
@@ -710,9 +709,6 @@ int main(int argc, char *argv[], char *envp[]) {
 
 	// Assign the speech and sound handlers
 	globalregistry->soundctl = new SoundControl(globalregistry);
-	if (globalregistry->fatal_condition)
-		CatchShutdown(-1);
-	globalregistry->speechctl = new SpeechControl(globalregistry);
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
 
