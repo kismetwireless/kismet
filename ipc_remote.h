@@ -227,7 +227,6 @@ protected:
 	friend class IPC_MessageClient;
 	friend int ipc_die_callback(IPC_CMD_PARMS);
 	friend int ipc_ack_callback(IPC_CMD_PARMS);
-
 };
 
 // Special IPCremote class for root control binary, used by IPC remote and

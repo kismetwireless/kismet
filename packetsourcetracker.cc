@@ -1439,6 +1439,10 @@ int Packetsourcetracker::IpcPacket(ipc_source_packet *in_ipc) {
 	pst_packetsource *pstsource = NULL;
 	kis_packet *newpack = NULL;
 
+	// Stop processing during shutdown
+	if (globalreg->spindown)
+		return 0;
+
 	if (running_as_ipc == 1)
 		return 0;
 

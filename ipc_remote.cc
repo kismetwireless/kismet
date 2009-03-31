@@ -392,14 +392,6 @@ int IPCRemote::ShutdownIPC(ipc_packet *pack) {
 		sock = sockpair[0];
 	} else {
 		sock = sockpair[1];
-#if 0
-		r = waitpid(ipc_pid, &s, WNOHANG);
-		if (WIFEXITED(s) || r < 0) {
-			ipc_spawned = -1;
-			IPCDie();
-			return 0;
-		}
-#endif
 	}
 
 	// If we have a last frame, send it
@@ -795,7 +787,7 @@ void RootIPCRemote::ShutdownIPCPassFD() {
 	char sockpath[32];
 
 #ifdef SYS_LINUX
-	if (ipc_pid != 0) {
+	if (ipc_pid >= 0) {
 		// Clean up the socket if it exists
 		if (ipc_fd_fd >= 0) {
 			snprintf(sockpath, 32, "/tmp/kisfdsock_%u", ipc_pid);
@@ -803,21 +795,23 @@ void RootIPCRemote::ShutdownIPCPassFD() {
 			ipc_fd_fd = -1;
 			unlink(sockpath);
 		}
-	} else if (ipc_fd_fd >= 0) {
-		close(ipc_fd_fd);
 	}
 #endif
+
+	ipc_fd_fd = -1;
 }
 
 void RootIPCRemote::IPCDie() {
-	if (!globalreg->spindown) {
-		_MSG("Root IPC control binary has died, shutting down", MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
+	if (ipc_pid != 0 && ipc_spawned > 0) {
+		if (!globalreg->spindown) {
+			_MSG("Root IPC control binary has died, shutting down", MSGFLAG_FATAL);
+			globalreg->fatal_condition = 1;
+		}
 	}
 
 	ShutdownIPCPassFD();
 
-	return IPCRemote::IPCDie();
+	IPCRemote::IPCDie();
 }
 
 
