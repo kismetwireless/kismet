@@ -796,9 +796,9 @@ void RootIPCRemote::ShutdownIPCPassFD() {
 			unlink(sockpath);
 		}
 	}
-#endif
 
 	ipc_fd_fd = -1;
+#endif
 }
 
 void RootIPCRemote::IPCDie() {
