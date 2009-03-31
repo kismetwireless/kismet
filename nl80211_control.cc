@@ -83,11 +83,7 @@ int mac80211_connect(const char *interface, void **handle, void **cache,
 }
 
 void mac80211_disconnect(void *handle) {
-#ifndef HAVE_LINUX_NETLINK
-	snprintf(errstr, STATUS_MAX, "Kismet was not compiled with netlink/mac80211 "
-			 "support, check the output of ./configure for why");
-	return -1;
-#else
+#ifdef HAVE_LINUX_NETLINK
 	nl_handle_destroy((nl_handle *) handle);
 #endif
 }
