@@ -24,7 +24,7 @@
 #include "kis_panel_network.h"
 #include "kis_panel_windows.h"
 #include "kis_panel_frontend.h"
-#include "kis_panel_netsort.h"
+#include "kis_panel_sort.h"
 
 const char *bssid_column_details[][2] = {
 	{ "decay", "Recent activity" },

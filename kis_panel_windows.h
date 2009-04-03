@@ -600,6 +600,30 @@ protected:
 	Kis_Clientlist *clientlist;
 };
 
+class Kis_AlertDetails_Panel : public Kis_Panel {
+public:
+	Kis_AlertDetails_Panel() {
+		fprintf(stderr, "FATAL OOPS: Kis_AlertDetails_Panel called w/out globalreg\n");
+		exit(1);
+	}
+
+	Kis_AlertDetails_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_kpf);
+	virtual ~Kis_AlertDetails_Panel();
+
+	virtual void DrawPanel();
+	virtual void ButtonAction(Kis_Panel_Component *in_button);
+	virtual void MenuAction(int opt);
+
+protected:
+	virtual void UpdateSortMenu(int mi);
+	
+	Kis_Panel_Packbox *vbox;
+	Kis_Scrollable_Table *alertlist, *alertdetails;
+
+	int mn_alert, mi_clear, mi_close;
+	int mn_sort, mi_time, mi_latest, mi_type, mi_bssid;
+};
+
 #endif
 
 #endif

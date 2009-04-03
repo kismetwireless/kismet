@@ -16,10 +16,13 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#ifndef __KIS_PANEL_NETWORT_H__
-#define __KIS_PANEL_NETWORT_H__
+#ifndef __KIS_PANEL_SORT_H__
+#define __KIS_PANEL_SORT_H__
 
 #include "config.h"
+
+#include "kis_panel_network.h"
+#include "kis_panel_frontend.h"
 
 class KisNetlist_Sort_Type {
 public:

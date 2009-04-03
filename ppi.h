@@ -83,14 +83,8 @@ typedef struct {
 	uint8_t pad;
 	uint16_t gps_len;
 	uint32_t fields_present;
-	/* Technically independent but we're going to throw out anything that
-	 * doesn't have both */
-	uint32_t lon;
-	uint32_t lat;
-	uint32_t alt;
-	/* Frame supports gpstime as well, but we don't care & it's easier 
-	 * to handle alt present/missing without it */
-} ppi_gps;
+	uint8_t field_data[0];
+} ppi_gps_hdr;
 
 #define PPI_GPS_FLAG_LAT			1
 #define PPI_GPS_FLAG_LON			2

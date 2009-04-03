@@ -4554,6 +4554,130 @@ void Kis_ClientDetails_Panel::UpdateViewMenu(int mi) {
 	}
 }
 
+int AlertDetailsButtonCB(COMPONENT_CALLBACK_PARMS) {
+	((Kis_AlertDetails_Panel *) aux)->ButtonAction(component);
+	return 1;
+}
+
+int AlertDetailsMenuCB(COMPONENT_CALLBACK_PARMS) {
+	((Kis_AlertDetails_Panel *) aux)->MenuAction(status);
+	return 1;
+}
+
+Kis_AlertDetails_Panel::Kis_AlertDetails_Panel(GlobalRegistry *in_globalreg, 
+											   KisPanelInterface *in_intf) :
+	Kis_Panel(in_globalreg, in_intf) {
+
+	menu = new Kis_Menu(globalreg, this);
+
+	menu->SetCallback(COMPONENT_CBTYPE_ACTIVATED, CliDetailsMenuCB, this);
+
+	mn_alert = menu->AddMenu("Alert", 0);
+	mi_clear = menu->AddMenuItem("Clear alerts", mn_alert, 'c');
+	menu->AddMenuItem("-", mn_alert, 0);
+	mi_close = menu->AddMenuItem("Close window", mn_alert, 'w');
+
+	mn_sort = menu->AddMenu("Sort", 0);
+	mi_time = menu->AddMenuItem("Time", mn_sort, 't');
+	mi_latest = menu->AddMenuItem("Latest", mn_sort, 'l');
+	mi_type = menu->AddMenuItem("Type", mn_sort, 'T');
+	mi_bssid = menu->AddMenuItem("BSSID", mn_sort, 'b');
+
+	menu->Show();
+	AddComponentVec(menu, KIS_PANEL_COMP_EVT);
+
+	alertlist = new Kis_Scrollable_Table(globalreg, this);
+	alertlist->SetHighlightSelected(1);
+	alertlist->SetLockScrollTop(1);
+	alertlist->SetDrawTitles(0);
+	AddComponentVec(alertlist, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+								KIS_PANEL_COMP_TAB));
+
+	vector<Kis_Scrollable_Table::title_data> titles;
+	Kis_Scrollable_Table::title_data t;
+	t.width = 8;
+	t.title = "time";
+	t.alignment = 2;
+	titles.push_back(t);
+	t.width = 10;
+	t.title = "header";
+	t.alignment = 0;
+	titles.push_back(t);
+	t.width = 0;
+	t.title = "text";
+	t.alignment = 0;
+
+	alertlist->AddTitles(titles);
+	alertlist->Show();
+
+	alertdetails = new Kis_Scrollable_Table(globalreg, this);
+	alertdetails->SetHighlightSelected(0);
+	alertdetails->SetLockScrollTop(1);
+	alertdetails->SetDrawTitles(0);
+	AddComponentVec(alertdetails, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+								KIS_PANEL_COMP_TAB));
+
+	titles.clear();
+
+	t.width = 12;
+	t.title = "field";
+	t.alignment = 2;
+	titles.push_back(t);
+	t.width = 0;
+	t.title = "text";
+	t.alignment = 0;
+
+	alertdetails->AddTitles(titles);
+	alertdetails->SetPreferredSize(0, 5);
+	alertdetails->Show();
+
+	SetTitle("");
+
+	vbox = new Kis_Panel_Packbox(globalreg, this);
+	vbox->SetPackV();
+	vbox->SetHomogenous(0);
+	vbox->SetSpacing(0);
+	vbox->Show();
+
+	vbox->Pack_End(alertlist, 0, 0);
+	vbox->Pack_End(alertdetails, 0, 0);
+
+	AddComponentVec(vbox, KIS_PANEL_COMP_DRAW);
+
+	vector<string> td;
+	td.push_back("");
+	td.push_back("");
+	td.push_back("No alerts");
+	alertlist->AddRow(0, td);
+
+	main_component = vbox;
+
+	SetActiveComponent(alertlist);
+
+	UpdateSortMenu(-1);
+
+	Position(WIN_CENTER(LINES, COLS));
+}
+
+Kis_AlertDetails_Panel::~Kis_AlertDetails_Panel() {
+
+}
+
+void Kis_AlertDetails_Panel::DrawPanel() {
+
+}
+
+void Kis_AlertDetails_Panel::ButtonAction(Kis_Panel_Component *in_button) {
+
+}
+
+void Kis_AlertDetails_Panel::MenuAction(int opt) {
+
+}
+
+void Kis_AlertDetails_Panel::UpdateSortMenu(int mi) {
+
+}
 
 #endif
 

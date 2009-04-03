@@ -883,7 +883,8 @@ int PacketSource_Pcap::PPI2KisPack(kis_packet *packet, kis_datachunk *linkchunk)
 			else
 				radioheader->carrier = carrier_80211n40;
 		} else if (fh_type == PPI_FIELD_GPS) {
-			ppi_gps *ppigps = (ppi_gps *) ppi_fh;
+#if 0
+			ppi_gps_hdr *ppigps = (ppi_gps_hdr *) ppi_fh;
 
 			if (ppigps->version == 0 &&
 				(ppigps->fields_present & (PPI_GPS_FLAG_LAT | PPI_GPS_FLAG_LON))) {
@@ -910,6 +911,7 @@ int PacketSource_Pcap::PPI2KisPack(kis_packet *packet, kis_datachunk *linkchunk)
 
 				packet->insert(_PCM(PACK_COMP_GPS), gpsinfo);
 			}
+#endif
 		}
 	}
 

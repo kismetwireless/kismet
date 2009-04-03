@@ -238,10 +238,13 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 			ppi_len += sizeof(ppi_80211_common);
 		if (specdata != NULL)
 			ppi_len += sizeof(ppi_spectrum) + specdata->rssi_vec.size();
-#if 0
-		if (gpsdata != NULL && gpsdata->gps_fix >= 2)
-			ppi_len += sizeof(ppi_gps);
-#endif
+
+		if (gpsdata != NULL) {
+			if (gpsdata->gps_fix >= 2)
+				ppi_len += sizeof(ppi_gps_hdr) + 8;
+			if (gpsdata->gps_fix > 2)
+				ppi_len += 4;
+		}
 
 		dump_len += ppi_len;
 
@@ -325,25 +328,56 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 			ppi_common->noise_dbm = radioinfo->noise_dbm;
 		}
 
-#if 0
-		if (gpsdata != NULL && gpsdata->gps_fix >= 2) {
-			ppi_gps *ppigps;
-			ppigps = (ppi_gps *) &(dump_data[ppi_pos]);
-			ppi_pos += sizeof(ppi_gps);
+		if (gpsdata != NULL) {
+			ppi_gps_hdr *ppigps = NULL;
+			union block {
+				uint8_t u8;
+				uint16_t u16;
+				uint32_t u32;
+			} *u;
+			unsigned int ppi_int_offt = 0;
 
-			ppigps->pfh_datatype = kis_htole16(PPI_FIELD_GPS);
-			ppigps->pfh_datalen = kis_htole16(sizeof(ppi_gps) -
-											  sizeof(ppi_field_header));
+			if (gpsdata->gps_fix >= 2) {
+				ppi_len += sizeof(ppi_gps_hdr) + 8;
+				ppigps = (ppi_gps_hdr *) &(dump_data[ppi_pos]);
 
-			ppigps->versio = 0;
-			ppigps->pad = 0;
-			// ??
-			ppigps->gps_len = ppigps->pfh_datalen;
+				ppigps->pfh_datatype = kis_htole16(PPI_FIELD_GPS);
+				// Header + lat/lon minus PPI overhead.  Fix this later.
+				ppigps->pfh_datalen = sizeof(ppi_gps_hdr) + 8 - 4;
 
-			ppigps->fields_present = PPI_GPS_FLAG_LAT | PPI_GPS_FLAG_LON;
+				ppigps->version = 0;
+				ppigps->pad = 0;
+				ppigps->gps_len = sizeof(ppi_gps_hdr) + 8;
+
+				ppigps->fields_present = PPI_GPS_FLAG_LAT | PPI_GPS_FLAG_LON;
+
+				u = (block *) &(ppigps->field_data[ppi_int_offt]);
+				u->u32 = kis_htole32(lat_to_uint32(gpsdata->lat));
+				ppi_int_offt += 4;
+
+				u = (block *) &(ppigps->field_data[ppi_int_offt]);
+				u->u32 = kis_htole32(lon_to_uint32(gpsdata->lon));
+				ppi_int_offt += 4;
+			} 
+			
+			if (gpsdata->gps_fix > 2) {
+				ppigps->pfh_datalen += 4;
+				ppigps->gps_len += 4;
+
+				u = (block *) &(ppigps->field_data[ppi_int_offt]);
+				u->u32 = kis_htole32(alt_to_uint32(gpsdata->alt));
+				ppi_int_offt += 4;
+
+				ppigps->fields_present |= PPI_GPS_FLAG_ALT;
+			}
+
+			ppi_pos += ppigps->pfh_datalen;
+
+			// Convert endian state
+			ppigps->fields_present = kis_htole32(ppigps->fields_present);
+			ppigps->pfh_datalen = kis_htole32(ppigps->pfh_datalen);
+			ppigps->gps_len = kis_htole16(ppigps->gps_len);
 		}
-#endif
-
 	}
 
 	if (dump_data == NULL)
