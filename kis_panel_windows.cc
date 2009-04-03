@@ -3761,8 +3761,9 @@ void Kis_Gps_Panel::Proto_GPS(CLIPROTO_CB_PARMS) {
 
 	}
 
-	gpssatinfo->SetText(IntToString(sat_info_vec.size()) + " satellites, " +
-						IntToString(fix) + string("d fix"));
+	gpssatinfo->SetText(IntToString(sat_info_vec.size()) + " satellites" +
+						(fix >= 2 ? string(", ") + IntToString(fix) + string("d fix") : 
+						", No position"));
 	gpssiggraph->SetXLabels(sat_label_vec, "PRN SNR");
 }
 

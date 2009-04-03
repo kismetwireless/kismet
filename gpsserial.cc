@@ -172,7 +172,7 @@ int GPSSerial::ParseData() {
 			int tint;
 			float tfloat;
 
-			if (gpstoks.size() != 15)
+			if (gpstoks.size() < 15)
 				continue;
 
 			// Parse the basic gps coodinate string
@@ -201,6 +201,54 @@ int GPSSerial::ParseData() {
 			continue;
 		}
 
+		if (gpstoks[0] == "$GPRMC") {
+			// recommended minimum
+			// $GPRMC,time,valid,lat,lathemi,lon,lonhemi,speed-knots,bearing,utc,,checksum
+			int tint;
+			float tfloat;
+
+			if (gpstoks.size() < 12)
+				continue;
+
+			if (gpstoks[2] == "A") {
+				// Kluge - if we have a 3d fix, we're getting another sentence
+				// which contains better information, so we don't override it. 
+				// If we < a 2d fix, we up it to 2d.
+				if (last_mode < 3) {
+					in_mode = 2;
+					set_mode = 1;
+				} 
+			} else {
+				continue;
+			}
+
+			if (sscanf(gpstoks[3].c_str(), "%2d%f", &tint, &tfloat) != 2)
+				continue;
+			in_lat = (float) tint + (tfloat / 60);
+			if (gpstoks[4] == "S")
+				in_lat = in_lat * -1;
+
+			if (sscanf(gpstoks[5].c_str(), "%3d%f", &tint, &tfloat) != 2)
+				continue;
+			in_lon = (float) tint + (tfloat / 60);
+			if (gpstoks[6] == "W")
+				in_lon = in_lon * -1;
+
+			if (sscanf(gpstoks[7].c_str(), "%f", &tfloat) != 1) 
+				continue;
+			in_spd = tfloat;
+			set_spd = 1;
+
+			// Inherit the altitude we had before since this sentence doesn't
+			// have any alt records
+			in_alt = alt;
+
+			// printf("debug - %f, %f spd %f\n", in_lat, in_lon, in_spd);
+			set_data = 1;
+
+			continue;
+		}
+
 		// GPS DOP and active sats
 		if (gpstoks[0] == "$GPGSA") {
 			/*
@@ -221,7 +269,7 @@ int GPSSerial::ParseData() {
 			 */
 			int tint;
 
-			if (gpstoks.size() != 18)
+			if (gpstoks.size() < 18)
 				continue;
 
 			if (sscanf(gpstoks[2].c_str(), "%d", &tint) != 1)
@@ -243,7 +291,7 @@ int GPSSerial::ParseData() {
 			// $GPVTG,,T,,M,0.00,N,0.0,K,A*13
 			float tfloat;
 
-			if (gpstoks.size() != 10) {
+			if (gpstoks.size() < 10) {
 				continue;
 			}
 

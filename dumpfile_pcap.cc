@@ -231,7 +231,7 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 	// Assemble the full packet
 	if (dumpformat == dump_ppi) {
 		ppi_packet_header *ppi_ph;
-		unsigned int ppi_len = sizeof(ppi_packet_header);
+		unsigned int ppi_len = 0;
 		unsigned int ppi_pos = sizeof(ppi_packet_header);
 
 		if (radioinfo != NULL) 
@@ -244,7 +244,14 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 				ppi_len += sizeof(ppi_gps_hdr) + 8;
 			if (gpsdata->gps_fix > 2)
 				ppi_len += 4;
+
+			// printf("debug - got gps data fix %d ppi_len %d\n", gpsdata->gps_fix, ppi_len);
 		}
+
+		if (dump_len == 0 && ppi_len == 0)
+			return 0;
+
+		ppi_len += sizeof(ppi_packet_header);
 
 		dump_len += ppi_len;
 
@@ -338,6 +345,7 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 			unsigned int ppi_int_offt = 0;
 
 			if (gpsdata->gps_fix >= 2) {
+				// printf("debug - logging ppi gps packet\n");
 				ppi_len += sizeof(ppi_gps_hdr) + 8;
 				ppigps = (ppi_gps_hdr *) &(dump_data[ppi_pos]);
 
@@ -358,27 +366,34 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 				u = (block *) &(ppigps->field_data[ppi_int_offt]);
 				u->u32 = kis_htole32(lon_to_uint32(gpsdata->lon));
 				ppi_int_offt += 4;
-			} 
 			
-			if (gpsdata->gps_fix > 2) {
-				ppigps->pfh_datalen += 4;
-				ppigps->gps_len += 4;
+				if (gpsdata->gps_fix > 2) {
+					ppigps->pfh_datalen += 4;
+					ppigps->gps_len += 4;
 
-				u = (block *) &(ppigps->field_data[ppi_int_offt]);
-				u->u32 = kis_htole32(alt_to_uint32(gpsdata->alt));
-				ppi_int_offt += 4;
+					u = (block *) &(ppigps->field_data[ppi_int_offt]);
+					u->u32 = kis_htole32(alt_to_uint32(gpsdata->alt));
+					ppi_int_offt += 4;
 
-				ppigps->fields_present |= PPI_GPS_FLAG_ALT;
+					ppigps->fields_present |= PPI_GPS_FLAG_ALT;
+				}
+
+				ppi_pos += ppigps->pfh_datalen;
+
+				// Convert endian state
+				ppigps->fields_present = kis_htole32(ppigps->fields_present);
+				ppigps->pfh_datalen = kis_htole32(ppigps->pfh_datalen);
+				ppigps->gps_len = kis_htole16(ppigps->gps_len);
 			}
-
-			ppi_pos += ppigps->pfh_datalen;
-
-			// Convert endian state
-			ppigps->fields_present = kis_htole32(ppigps->fields_present);
-			ppigps->pfh_datalen = kis_htole32(ppigps->pfh_datalen);
-			ppigps->gps_len = kis_htole16(ppigps->gps_len);
 		}
 	}
+
+	if (dump_len == 0) {
+		// printf("debug - nothing to dump\n");
+		return 0;
+	}
+
+	// printf("debug - making new dump, len %d\n", dump_len);
 
 	if (dump_data == NULL)
 		dump_data = new u_char[dump_len];
