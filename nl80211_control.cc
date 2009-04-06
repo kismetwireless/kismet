@@ -18,9 +18,8 @@
 
 #include "config.h"
 
-#ifdef SYS_LINUX
+#if defined(SYS_LINUX) && defined(HAVE_LINUX_NETLINK)
 
-#ifdef HAVE_LINUX_NETLINK
 #include <sys/types.h>
 #include <asm/types.h>
 #include <netlink/genl/genl.h>
@@ -31,7 +30,6 @@
 #include <netlink/netlink.h>
 #include "nl80211.h"
 #include <net/if.h>
-#endif
 
 #include <stdio.h>
 
