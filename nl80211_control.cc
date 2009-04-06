@@ -28,6 +28,7 @@
 #include <netlink/genl/ctrl.h>
 #include <netlink/msg.h>
 #include <netlink/attr.h>
+#include <netlink/netlink.h>
 #include "nl80211.h"
 #include <net/if.h>
 #endif
