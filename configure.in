@@ -846,7 +846,7 @@ if test "$havenetlink" = "yes"; then
 	AC_MSG_RESULT(yes)
 	AC_DEFINE(HAVE_LINUX_NETLINK, 1, Netlink works) 
 else
-	AC_MSG_RESULT(no netlink support for mac80211 will not be able to control mac80211 vaps)
+	AC_MSG_RESULT(libnl detected but no support for mac80211 your kernel is probably too old for mac80211 or nl80211 upgrade your kernel then reinstall the latest netlink to get mac80211 support.)
 fi
 
 fi
