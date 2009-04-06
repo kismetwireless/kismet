@@ -1607,7 +1607,7 @@ Kis_AddCard_Panel::Kis_AddCard_Panel(GlobalRegistry *in_globalreg,
 	SetTitle("Add Source");
 
 	srciface->SetLabel("Intf", LABEL_POS_LEFT);
-	srciface->SetTextLen(32);
+	srciface->SetTextLen(128);
 	srciface->SetCharFilter(FILTER_ALPHANUMSYM);
 	srciface->Show();
 	
@@ -1617,7 +1617,7 @@ Kis_AddCard_Panel::Kis_AddCard_Panel(GlobalRegistry *in_globalreg,
 	srcname->Show();
 
 	srcopts->SetLabel("Opts", LABEL_POS_LEFT);
-	srcopts->SetTextLen(64);
+	srcopts->SetTextLen(128);
 	srcopts->SetCharFilter(FILTER_ALPHANUMSYM);
 	srcopts->Show();
 
