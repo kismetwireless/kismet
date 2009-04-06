@@ -800,6 +800,15 @@ int PacketSource_Pcap::PPI2KisPack(kis_packet *packet, kis_datachunk *linkchunk)
 		return 0;
 	}
 
+	// Fix broken kismet dumps where kismet logged the wrong size (always
+	// size 24) - if we're size 24, we have a PPI 11n common header, and
+	// we can fit it all, then we adjust the header size up
+	if (ph_len == 24 && linkchunk->length > 32) {
+		ppi_fh = (ppi_field_header *) &(linkchunk->data[ppi_fh_offt]);
+		if (kis_letoh16(ppi_fh->pfh_datatype) == PPI_FIELD_11COMMON) 
+			ph_len = 32;
+	}
+
 	// Ignore the DLT and treat it all as 802.11... for now
 	while (ppi_fh_offt < linkchunk->length &&
 		   ppi_fh_offt < ph_len) {
