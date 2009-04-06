@@ -839,6 +839,7 @@ if test "$havenetlink" = "yes"; then
 else
 	AC_MSG_WARN(Missing libnl netlink library will not be able to control mac80211 vaps)
 	LIBS="$OLIBS"
+	havenetlink=no
 fi
 
 if test "$havenetlink" = "yes"; then

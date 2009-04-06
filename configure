@@ -10982,6 +10982,7 @@ else
 	{ $as_echo "$as_me:$LINENO: WARNING: Missing libnl netlink library will not be able to control mac80211 vaps" >&5
 $as_echo "$as_me: WARNING: Missing libnl netlink library will not be able to control mac80211 vaps" >&2;}
 	LIBS="$OLIBS"
+	havenetlink=no
 fi
 
 if test "$havenetlink" = "yes"; then
