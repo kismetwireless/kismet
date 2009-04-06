@@ -883,35 +883,57 @@ int PacketSource_Pcap::PPI2KisPack(kis_packet *packet, kis_datachunk *linkchunk)
 			else
 				radioheader->carrier = carrier_80211n40;
 		} else if (fh_type == PPI_FIELD_GPS) {
-#if 0
 			ppi_gps_hdr *ppigps = (ppi_gps_hdr *) ppi_fh;
 
-			if (ppigps->version == 0 &&
-				(ppigps->fields_present & (PPI_GPS_FLAG_LAT | PPI_GPS_FLAG_LON))) {
-				if (gpsinfo == NULL)
-					gpsinfo = new kis_gps_packinfo;
+			if (ppigps->version == 0) {
+				unsigned int data_offt = 0;
+				uint32_t fields_present = kis_letoh32(ppigps->fields_present);
+				uint16_t gps_len = kis_letoh16(ppigps->gps_len) - sizeof(ppi_gps_hdr);
 
-				uint32_t tu32;
+				union block {
+					uint8_t u8;
+					uint16_t u16;
+					uint32_t u32;
+					uint64_t u64;
+				} *u;
 
-				tu32 = kis_letoh32(ppigps->lon);
-				gpsinfo->lon = lon_to_double(tu32);
-				tu32 = kis_letoh32(ppigps->lat);
-				gpsinfo->lat = lat_to_double(tu32);
+				// printf("debug - gps present, %u len %d %d %d %d\n", fields_present, gps_len, fields_present & PPI_GPS_FLAG_LAT, fields_present & PPI_GPS_FLAG_LON, fields_present & PPI_GPS_FLAG_ALT);
 
-				if (ppigps->fields_present & PPI_GPS_FLAG_ALT) {
-					gpsinfo->gps_fix = 3;
-					tu32 = kis_letoh32(ppigps->alt);
-					gpsinfo->alt = alt_to_double(tu32);
-				} else {
-					gpsinfo->gps_fix = 2;
+				if ((fields_present & PPI_GPS_FLAG_LAT) &&
+					(fields_present & PPI_GPS_FLAG_LON) &&
+					gps_len >= 8) {
+
+					if (gpsinfo == NULL)
+						gpsinfo = new kis_gps_packinfo;
+
+					u = (block *) &(ppigps->field_data[data_offt]);
+					gpsinfo->lon = lon_to_double(kis_letoh32(u->u32));
+					data_offt += 4;
+
+					u = (block *) &(ppigps->field_data[data_offt]);
+					gpsinfo->lat = lat_to_double(kis_letoh32(u->u32));
+					data_offt += 4;
+
+					if ((fields_present & PPI_GPS_FLAG_ALT) && gps_len >= 12) {
+						gpsinfo->gps_fix = 3;
+
+						u = (block *) &(ppigps->field_data[data_offt]);
+						gpsinfo->alt = lat_to_double(kis_letoh32(u->u32));
+						data_offt += 4;
+					} else {
+						gpsinfo->gps_fix = 2;
+						gpsinfo->alt = 0;
+					}
+
+					gpsinfo->spd = 0;
+					gpsinfo->heading = 0;
+
+					// fprintf(stderr, "debug - gps packet %f %f %f\n", gpsinfo->lat, gpsinfo->lon, gpsinfo->alt);
+
+					packet->insert(_PCM(PACK_COMP_GPS), gpsinfo);
 				}
 
-				gpsinfo->spd = 0;
-				gpsinfo->heading = 0;
-
-				packet->insert(_PCM(PACK_COMP_GPS), gpsinfo);
 			}
-#endif
 		}
 	}
 

@@ -86,9 +86,9 @@ typedef struct {
 	uint8_t field_data[0];
 } ppi_gps_hdr;
 
-#define PPI_GPS_FLAG_LAT			1
-#define PPI_GPS_FLAG_LON			2
-#define PPI_GPS_FLAG_ALT			4
+#define PPI_GPS_FLAG_LAT			2
+#define PPI_GPS_FLAG_LON			4
+#define PPI_GPS_FLAG_ALT			8
 
 #define PPI_80211_FLAG_FCS			1
 #define PPI_80211_FLAG_TSFMS		2

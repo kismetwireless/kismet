@@ -407,8 +407,11 @@ class KismetStblGpsHandler(xml.sax.handler.ContentHandler):
         if (name == "network-file"):
             self.in_netfile = 1
         elif (name == "gps-point"):
-            gp = GpsPoint(attributes)
-            self.gpspoints.append(gp)
+            try:
+                gp = GpsPoint(attributes)
+                self.gpspoints.append(gp)
+            except:
+                print "Error on GPS point"
 
     def characters(self, data):
         if (self.in_netfile):
@@ -866,11 +869,47 @@ def help():
     print " -v/--verbose            Verbose output"
     print " -o/--output-image       Image to write"
     print " -z/--zoom               Zoom level"
+    print " -C/--config             Alternate config file"
+    print " -c/--center             Center of map (lat,lon)"
+    print " -r/--radius             Radius (in miles) to plot around center"
+
+def BoundingSquare(lat, lon, r):
+    rlat = (lat * pi) / 180
+    rlon = (lon * pi) / 180
+    # Earth in KM
+    R = 6371
+    d = float(r)/R
+
+    a = 0
+    tlat = asin(sin(rlat) * cos(d) + cos(rlat) * sin(d) * cos(a))
+    tlon = ((rlon + atan2(sin(a) * sin(d) * cos(rlat), cos(d) - sin(rlat) * sin(tlat))) * 180) / pi
+    tlat = (tlat * 180) / pi
+    maxlat = tlat
+
+    a = 270 * pi / 180
+    tlat = asin(sin(rlat) * cos(d) + cos(rlat) * sin(d) * cos(a))
+    tlon = ((rlon + atan2(sin(a) * sin(d) * cos(rlat), cos(d) - sin(rlat) * sin(tlat))) * 180) / pi
+    tlat = (tlat * 180) / pi
+    maxlon = tlon
+
+    a = 90
+    tlat = asin(sin(rlat) * cos(d) + cos(rlat) * sin(d) * cos(a))
+    tlon = ((rlon + atan2(sin(a) * sin(d) * cos(rlat), cos(d) - sin(rlat) * sin(tlat))) * 180) / pi
+    tlat = (tlat * 180) / pi
+    minlon = tlon
+
+    a = 180 
+    tlat = asin(sin(rlat) * cos(d) + cos(rlat) * sin(d) * cos(a))
+    tlon = ((rlon + atan2(sin(a) * sin(d) * cos(rlat), cos(d) - sin(rlat) * sin(tlat))) * 180) / pi
+    tlat = (tlat * 180) / pi
+    minlat = tlat
+
+    return (minlat, minlon, maxlat, maxlon)
 
 def main():
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hvz:o:c:",
-            ["help", "verbose", "zoom", "output-image", "config"])
+        opts, args = getopt.getopt(sys.argv[1:], "hvz:o:C:c:r:",
+            ["help", "verbose", "zoom", "output-image", "config", "center", "radius"])
     except getopt.error, msg:
         print msg
         print "For help, %s --help" % sys.argv[0]
@@ -883,7 +922,9 @@ def main():
         "zoom": "3",
         "filename": "kismap.png",
         "cachexml": "true",
-        "cachedir": "."
+        "cachedir": ".",
+        "map-center": "",
+        "map-radius": ""
     }
 
     conf_drawing = {
@@ -918,7 +959,7 @@ def main():
 
     # Parse just the config option
     for o, a in opts:
-        if o in ("-c", "--config"):
+        if o in ("-C", "--config"):
             conffile = a
 
     cf = None
@@ -975,6 +1016,10 @@ def main():
                 sys.exit(2)
         elif o in ("-o", "--output-image"):
             conf_main["filename"] = a
+        elif o in ("-c", "--center"):
+            conf_main["map-center"] = a
+        elif o in ("-r", "--radius"):
+            conf_main["map-radius"] = a
 
     if len(args) == 0:
         print "Specify at least one XML file"
@@ -1049,7 +1094,20 @@ def main():
     if verbose:
         print "Using zoom", conf_main["zoom"]
 
-    tm.PrepCoords(agg.min_lat, agg.min_lon, agg.max_lat, agg.max_lon, conf_main["zoom"])
+    if (conf_main["map-center"] == ""):
+        tm.PrepCoords(agg.min_lat, agg.min_lon, agg.max_lat, agg.max_lon, conf_main["zoom"])
+    else:
+        try:
+            (slat,slon) = string.split(conf_main["map-center"], ",")
+            clat = float(slat)
+            clon = float(slon)
+        except:
+            print "Invalid map center, expected lat,lon"
+            raise
+
+        (minlat,minlon,maxlat,maxlon) = BoundingSquare(clat, clon, float(conf_main["map-radius"]))
+
+        tm.PrepCoords(minlat, minlon, maxlat, maxlon, conf_main["zoom"])
     
     if verbose:
         print "Needs", tm.FetchTileCount(), "tiles"
