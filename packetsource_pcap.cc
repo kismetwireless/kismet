@@ -1011,7 +1011,8 @@ int PacketSource_Pcapfile::OpenSource() {
 	if (DatalinkType() < 0)
 		return -1;
 
-	fcsbytes = 4;
+	fcsbytes = 0;
+	genericparms.weak_dissect = 1;
 	
 	return 1;
 }
