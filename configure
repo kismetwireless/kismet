@@ -10979,7 +10979,7 @@ else
   $as_echo "$as_me: failed program was:" >&5
 sed 's/^/| /' conftest.$ac_ext >&5
 
-	havenetlink=no
+	havenetlink=no LIBS="$OLIBS"
 fi
 
 rm -rf conftest.dSYM
@@ -10988,7 +10988,6 @@ rm -f core conftest.err conftest.$ac_objext conftest_ipa8_conftest.oo \
 else
 	{ $as_echo "$as_me:$LINENO: WARNING: Missing libnl netlink library will not be able to control mac80211 vaps" >&5
 $as_echo "$as_me: WARNING: Missing libnl netlink library will not be able to control mac80211 vaps" >&2;}
-	LIBS="$OLIBS"
 	havenetlink=no
 fi
 
