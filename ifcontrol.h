@@ -35,11 +35,13 @@
 #include <net/if.h>
 #endif
 
+#ifndef SYS_CYGWIN
 #include <net/if_arp.h>
 #include <sys/ioctl.h>
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
 #include <arpa/inet.h>
+#endif
 
 #ifdef SYS_NETBSD
 #include <net80211/ieee80211.h>
