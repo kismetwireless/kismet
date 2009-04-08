@@ -640,7 +640,7 @@ AC_ARG_ENABLE(airpcap,
 )
 
 if test "$want_airpcap" = "yes"; then
-airpcap_devpack="./Airpcap_Devpack"
+airpcap_devpack="Airpcap_Devpack"
 AC_ARG_WITH(airpcap-devpack, 
 [  --with-airpcap[=DIR]     Location of the CACE AirPcap device pack NOTE cygwin appears to have link errors if the path is not within the current directory], 
 [ airpcap_devpack="$withval" ])
@@ -650,7 +650,7 @@ LDFLAGS="$LDFLAGS -L$airpcap_devpack/Lib"
 CPPFLAGS="$CPPFLAGS -I$airpcap_devpack/Include"
 fi # want_airpcap
 
-winpcap_devpack="./Winpcap_Devpack"
+winpcap_devpack="Winpcap_Devpack"
 AC_ARG_WITH(winpcap-devpack, 
 [  --with-winpcap[=DIR]     Location of the WinPcap device pack NOTE cygwin appears to have link errors if the path is not within the current directory], 
 [ winpcap_devpack="$withval" ])

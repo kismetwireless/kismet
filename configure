@@ -9408,7 +9408,7 @@ fi
 
 
 if test "$want_airpcap" = "yes"; then
-airpcap_devpack="./Airpcap_Devpack"
+airpcap_devpack="Airpcap_Devpack"
 
 # Check whether --with-airpcap-devpack was given.
 if test "${with_airpcap_devpack+set}" = set; then
@@ -9421,7 +9421,7 @@ LDFLAGS="$LDFLAGS -L$airpcap_devpack/Lib"
 CPPFLAGS="$CPPFLAGS -I$airpcap_devpack/Include"
 fi # want_airpcap
 
-winpcap_devpack="./Winpcap_Devpack"
+winpcap_devpack="Winpcap_Devpack"
 
 # Check whether --with-winpcap-devpack was given.
 if test "${with_winpcap_devpack+set}" = set; then
