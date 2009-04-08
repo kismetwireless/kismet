@@ -28,6 +28,7 @@
 #include <unistd.h>
 
 int Ifconfig_Set_Flags(const char *in_dev, char *errstr, int flags) {
+#ifndef SYS_CYGWIN
     struct ifreq ifr;
     int skfd;
 
@@ -54,11 +55,12 @@ int Ifconfig_Set_Flags(const char *in_dev, char *errstr, int flags) {
     }
 
     close(skfd);
-
+#endif
     return 0;
 }
 
 int Ifconfig_Get_Flags(const char *in_dev, char *errstr, int *flags) {
+#ifndef SYS_CYGWIN
     struct ifreq ifr;
     int skfd;
 
@@ -86,11 +88,12 @@ int Ifconfig_Get_Flags(const char *in_dev, char *errstr, int *flags) {
 #endif
 
     close(skfd);
-
+#endif
     return 0;
 }
 
 int Ifconfig_Delta_Flags(const char *in_dev, char *errstr, int flags) {
+#ifndef SYS_CYGWIN
     int ret;
     int rflags;
 
@@ -98,6 +101,8 @@ int Ifconfig_Delta_Flags(const char *in_dev, char *errstr, int flags) {
         return ret;
 
     rflags |= flags;
+
+#endif
 
     return Ifconfig_Set_Flags(in_dev, errstr, rflags);
 }
