@@ -735,6 +735,7 @@ enable_linuxwext
 enable_pcre
 enable_airpcap
 with_airpcap_devpack
+with_winpcap_devpack
 enable_pcap
 enable_setuid
 with_suidgroup
@@ -1402,6 +1403,7 @@ Optional Packages:
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
   --with-linuxheaders=DIR     Custom location of the Linux kernel headers if the glibc copies are insufficient
   --with-airpcap=DIR     Location of the CACE AirPcap device pack NOTE cygwin appears to have link errors if the path is not within the current directory
+  --with-winpcap=DIR     Location of the WinPcap device pack NOTE cygwin appears to have link errors if the path is not within the current directory
   --with-suidgroup=group       Group allowed to execute the kismet_capture suid root helper process
 
 Some influential environment variables:
@@ -9400,14 +9402,13 @@ if test "${enable_airpcap+set}" = set; then
 	   *) want_airpcap=no ;;
 	 esac
 else
-  want_airpcap=no
+  want_airpcap=yes
 
 fi
 
 
 if test "$want_airpcap" = "yes"; then
-
-airpcap_devpack="none"
+airpcap_devpack="./Airpcap_Devpack"
 
 # Check whether --with-airpcap-devpack was given.
 if test "${with_airpcap_devpack+set}" = set; then
@@ -9415,17 +9416,23 @@ if test "${with_airpcap_devpack+set}" = set; then
 fi
 
 
-if test "$airpcap_devpack" = "none"; then
-	{ { $as_echo "$as_me:$LINENO: error: No airpcap path provided use --with-airpcap-devpack" >&5
-$as_echo "$as_me: error: No airpcap path provided use --with-airpcap-devpack" >&2;}
-   { (exit 1); exit 1; }; }
-fi # devpack none
+# Set the libs and includes
+LDFLAGS="$LDFLAGS -L$airpcap_devpack/Lib"
+CPPFLAGS="$CPPFLAGS -I$airpcap_devpack/Include"
+fi # want_airpcap
+
+winpcap_devpack="./Winpcap_Devpack"
+
+# Check whether --with-winpcap-devpack was given.
+if test "${with_winpcap_devpack+set}" = set; then
+  withval=$with_winpcap_devpack;  winpcap_devpack="$withval"
+fi
+
 
 # Set the libs and includes
-LDFLAGS="$LDFLAGS -L$airpcap_devpack/WinPcap_Devpack/Lib -L$airpcap_devpack/Airpcap_Devpack/lib"
-CPPFLAGS="$CPPFLAGS -I$airpcap_devpack/WinPcap_Devpack/Include -I$airpcap_devpack/Airpcap_Devpack/include"
+LDFLAGS="$LDFLAGS -L$winpcap_devpack/Lib"
+CPPFLAGS="$CPPFLAGS -I$winpcap_devpack/Include"
 
-fi # want_airpcap
 fi # cygwin
 
 # Check whether --enable-pcap was given.
