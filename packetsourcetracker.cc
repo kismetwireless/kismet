@@ -1485,7 +1485,11 @@ int Packetsourcetracker::IpcChannelReport(ipc_source_chanreport *in_ipc) {
 }
 
 int Packetsourcetracker::StartSource(uint16_t in_source_id) {
+#ifndef SYS_CYGWIN
 	uid_t euid = geteuid();
+#else
+	uid_t euid = 0;
+#endif
 	pst_packetsource *pstsource = NULL;
 	int failure = 0;
 

@@ -508,6 +508,7 @@ int main(int argc, char *argv[], char *envp[]) {
 	// Register the smart msg printer for everything
 	globalregistry->messagebus->RegisterClient(smartmsgcli, MSGFLAG_ALL);
 
+#ifndef SYS_CYGWIN
 	// Generate the root ipc packet capture and spawn it immediately, then register
 	// and sync the packet protocol stuff
 	if (getuid() != 0) {
@@ -525,6 +526,7 @@ int main(int argc, char *argv[], char *envp[]) {
 			"file section about Installation & Security and be sure this is "
 			"what you want to do.", MSGFLAG_ERROR);
 	}
+#endif
 
 	// Allocate some other critical stuff
 	globalregistry->timetracker = new Timetracker(globalregistry);
