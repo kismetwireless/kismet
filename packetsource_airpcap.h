@@ -45,6 +45,7 @@ typedef signed char			CHAR, *PCHAR;
 typedef unsigned char		BYTE, *PBYTE;
 typedef void				VOID, *PVOID;
 typedef void				*HANDLE;
+typedef unsigned long long	ULONGLONG, *PULONGLONG;
 
 #include <airpcap.h>
 }

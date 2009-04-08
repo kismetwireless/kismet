@@ -45,7 +45,6 @@ extern "C" int pcap_setmintocopy (pcap_t *p, int size);
 
 int PacketSource_AirPcap::OpenSource() {
 	char errstr[STATUS_MAX] = "";
-	channel = 0;
 	char *unconst = strdup(interface.c_str());
 
 	pd = pcap_open_live(unconst, MAX_PACKET_LEN, 1, 1000, errstr);
@@ -69,36 +68,23 @@ int PacketSource_AirPcap::OpenSource() {
 
 	// Fetch the airpcap handle
 	if ((airpcap_handle = pcap_get_airpcap_handle(pd)) == NULL) {
-		_MSG("Adapter " + interface + " does not have airpcap wireless extensions",
-			 MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
+		_MSG("Adapter " + interface + " does not have airpcap wireless "
+			 "extensions", MSGFLAG_PRINTERROR);
 		pcap_close(pd);
 		return -1;
 	}
 
-	// Set the link mode to give us radiotap headers
-	// Non-deterministic, we don't know if we've set radiotap mode or just
-	// changed the link type, removed
-#if 0
-	if (!AirpcapSetLinkType(airpcap_handle, AIRPCAP_LT_802_11_PLUS_RADIO)) {
-		_MSG("Adapter " + interface + " failed setting airpcap radiotap "
-			 "link layer: " + 
-			 string((const char *) AirpcapGetLastError(airpcap_handle)),
-			 MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
-		pcap_close(pd);
-		return -1;
-	}
-#endif
 
-	// Tell the adapter to only give us packets which pass internal FCS validation.
-	// All we do is throw away frames which do not, so theres no reason to add
-	// the overhead of locally processing the checksum.
-	if (!AirpcapSetFcsValidation(airpcap_handle, AIRPCAP_VT_ACCEPT_CORRECT_FRAMES)) {
-		_MSG("Airpcap adapter " + interface + " failed setting FCS validation: " +
+	// Tell the adapter to only give us packets which pass internal 
+	// FCS validation. All we do is throw away frames which do not, 
+	// so theres no reason to add the overhead of locally processing 
+	// the checksum.
+	if (!AirpcapSetFcsValidation(airpcap_handle, 
+							AIRPCAP_VT_ACCEPT_CORRECT_FRAMES)) {
+		_MSG("Airpcap adapter " + interface + " failed setting FCS "
+			 "validation: " + 
 			 string((const char *) AirpcapGetLastError(airpcap_handle)), 
-			 MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
+			 MSGFLAG_PRINTERROR);
 		pcap_close(pd);
 		return -1;
 	}
@@ -137,15 +123,15 @@ PacketSource_AirPcap::PacketSource_AirPcap(GlobalRegistry *in_globalreg,
 	PacketSource_Pcap(in_globalreg, in_interface, in_opts) {
 
 	// Go through the prompting game for 'ask' variant
-	if (in_type == "airpcap_ask") {
+	if (type == "airpcap_ask") {
 		pcap_if_t *alldevs, *d;
 		int i, intnum;
 		char errbuf[1024];
 
 		if (pcap_findalldevs(&alldevs, errbuf) == -1) {
-			_MSG("AirPcapSource failed to find pcap devices: " + string(errbuf),
-				 MSGFLAG_FATAL);
-			globalreg->fatal_condition = 1;
+			_MSG("AirPcapSource failed to find pcap devices: " + 
+				 string(errbuf),
+				 MSGFLAG_PRINTERROR);
 			return;
 		}
 
@@ -160,9 +146,9 @@ PacketSource_AirPcap::PacketSource_AirPcap(GlobalRegistry *in_globalreg,
 
 		if (i == 0) {
 			pcap_freealldevs(alldevs);
-			_MSG("airPcapSource failed to find any devices, are WinPcap and AirPcap "
-				 "properly installed?", MSGFLAG_FATAL);
-			globalreg->fatal_condition = 1;
+			_MSG("airPcapSource failed to find any devices, are "
+			     "WinPcap and AirPcap properly installed?", 
+			     MSGFLAG_PRINTERROR);
 			return;
 		}
 
@@ -174,7 +160,8 @@ PacketSource_AirPcap::PacketSource_AirPcap(GlobalRegistry *in_globalreg,
 			}
 
 			if (intnum < 1 || intnum > i) {
-				fprintf(stdout, "Invalid entry, expected between 1 and %d\n", i);
+				fprintf(stdout, "Invalid entry, expected between 1 "
+						"and %d\n", i);
 				continue;
 			}
 

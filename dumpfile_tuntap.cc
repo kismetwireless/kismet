@@ -24,6 +24,8 @@
 #include "ifcontrol.h"
 #include "ipc_remote.h"
 
+#ifndef SYS_CYGWIN
+
 int dft_ipc_open(IPC_CMD_PARMS) {
 	if (parent) {
 		// If we're the parent, we use this as a signal that we've opened it
@@ -299,4 +301,6 @@ int Dumpfile_Tuntap::chain_handler(kis_packet *in_pack) {
 
 	return 1;
 }
+
+#endif
 

@@ -226,10 +226,12 @@ int main(int argc, char *argv[], char *envp[]) {
 		CatchShutdown(-1);
 #endif
 
+#ifndef SYS_CYGWIN
 	// Prep the tuntap 
 	new Dumpfile_Tuntap(globalreg);
 	if (globalreg->fatal_condition)
 		CatchShutdown(-1);
+#endif
 
 
 	if (globalreg->fatal_condition)

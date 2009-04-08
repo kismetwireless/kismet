@@ -611,18 +611,22 @@ int main(int argc, char *argv[], char *envp[]) {
 
 	}
 
+#ifndef SYS_CYGWIN
 	// Prep the tuntap device
 	Dumpfile_Tuntap *dtun = new Dumpfile_Tuntap(globalregistry);
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
+#endif
 
 	// Sync the IPC system -- everything that needs to be registered with the root 
 	// IPC needs to be registered before now
 	if (globalregistry->rootipc != NULL)
 		globalregistry->rootipc->SyncIPC();
 
+#ifndef SYS_CYGWIN
 	// Fire the tuntap device setup now that we've sync'd the IPC system
 	dtun->OpenTuntap();
+#endif
 
 	// Create the basic drone server
 	globalregistry->kisdroneserver = new KisDroneFramework(globalregistry);

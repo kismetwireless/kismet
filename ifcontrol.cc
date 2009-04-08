@@ -102,9 +102,11 @@ int Ifconfig_Delta_Flags(const char *in_dev, char *errstr, int flags) {
 
     rflags |= flags;
 
-#endif
 
     return Ifconfig_Set_Flags(in_dev, errstr, rflags);
+#endif
+
+	return 0;
 }
 
 #ifdef SYS_LINUX
