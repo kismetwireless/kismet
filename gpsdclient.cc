@@ -168,9 +168,9 @@ int GPSDClient::ParseData() {
     int len, rlen, roft = 0;
     char *buf;
     string strbuf;
-	float in_lat, in_lon, in_alt, in_spd, in_hed;
+	float in_lat, in_lon, in_alt, in_spd, in_hed, in_hdop, in_vdop;
 	int in_mode, use_alt = 1, use_spd = 1, use_hed = 1, use_data = 0,
-		use_mode = 0, use_coord = 0;
+		use_mode = 0, use_coord = 0, use_dop = 0;;
 
     len = netclient->FetchReadLen();
     buf = new char[len + 1];
@@ -316,6 +316,12 @@ int GPSDClient::ParseData() {
 			if (sscanf(ggavec[5].c_str(), "%f", &in_alt) != 1)
 				use_alt = 0;
 
+			if (sscanf(ggavec[6].c_str(), "%f", &in_hdop) != 1) 
+				use_dop = 0;
+
+			if (sscanf(ggavec[7].c_str(), "%f", &in_vdop) != 1)
+				use_dop = 0;
+
 			if (sscanf(ggavec[8].c_str(), "%f", &in_hed) != 1)
 				use_hed = 0;
 
@@ -430,6 +436,11 @@ int GPSDClient::ParseData() {
 		in_mode = 2;
 	} else if (in_mode < 2) {
 		in_mode = 0;
+	}
+
+	if (use_dop) {
+		hdop = in_hdop;
+		vdop = in_vdop;
 	}
 
 	// Some internal mode jitter protection, means our mode is slightly lagged

@@ -30,11 +30,13 @@
 #define GPSD_OPT_FORCEMODE    1
 
 enum GPS_fields {
-    GPS_lat, GPS_lon, GPS_alt, GPS_spd, GPS_heading, GPS_fix, GPS_satinfo
+    GPS_lat, GPS_lon, GPS_alt, GPS_spd, GPS_heading, GPS_fix, GPS_satinfo,
+	GPS_hdop, GPS_vdop, 
+	GPS_maxfield
 };
 
 struct GPS_data {
-    string lat, lon, alt, spd, heading, mode, satinfo;
+    string lat, lon, alt, spd, heading, mode, satinfo, hdop, vdop;
 };
 
 int Protocol_GPS(PROTO_PARMS);
@@ -45,6 +47,7 @@ public:
 	kis_gps_packinfo() {
 		self_destruct = 1; // Nothing special, just delete us
 		lat = lon = alt = spd = heading = -1000;
+		hdop = vdop = 0;
 		gps_fix = 0;
 	}
 
@@ -53,6 +56,7 @@ public:
     double alt;
     double spd;
     double heading;
+	double hdop, vdop;
     int gps_fix;
 };
 
@@ -102,7 +106,7 @@ protected:
     int reconnect_attempt;
     time_t last_disconnect;
 
-    double lat, lon, alt, spd, hed;
+    double lat, lon, alt, spd, hed, hdop, vdop;
     int mode, gps_ever_lock;
 
     // Last location used for softheading calcs

@@ -927,7 +927,7 @@ int PacketSource_Pcap::PPI2KisPack(kis_packet *packet, kis_datachunk *linkchunk)
 						gpsinfo->gps_fix = 3;
 
 						u = (block *) &(ppigps->field_data[data_offt]);
-						gpsinfo->alt = lat_to_double(kis_letoh32(u->u32));
+						gpsinfo->alt = alt_to_double(kis_letoh32(u->u32));
 						data_offt += 4;
 					} else {
 						gpsinfo->gps_fix = 2;

@@ -134,11 +134,12 @@ int Dumpfile_Gpsxml::chain_handler(kis_packet *in_pack) {
 		 in_pack->fetch(_PCM(PACK_COMP_80211))) == NULL) {
 		fprintf(xmlfile, "    <gps-point bssid=\"%s\" time-sec=\"%ld\" "
 				"time-usec=\"%ld\" lat=\"%f\" lon=\"%f\" alt=\"%f\" spd=\"%f\" "
-				"heading=\"%f\" fix=\"%d\" />\n",
+				"heading=\"%f\" fix=\"%d\" hdop=\"%f\" vdop=\"%f\"/>\n",
 				gps_track_bssid,
 				(long int) in_pack->ts.tv_sec, (long int) in_pack->ts.tv_usec,
 				gpsinfo->lat, gpsinfo->lon, gpsinfo->alt, gpsinfo->spd,
-				gpsinfo->heading, gpsinfo->gps_fix);
+				gpsinfo->heading, gpsinfo->gps_fix, gpsinfo->hdop, 
+				gpsinfo->vdop);
 		dumped_frames++;
 		return 1;
 	}

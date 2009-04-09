@@ -23,7 +23,7 @@
 #include "packetchain.h"
 
 const char *GPS_fields_text[] = {
-    "lat", "lon", "alt", "spd", "heading", "fix", "satinfo",
+    "lat", "lon", "alt", "spd", "heading", "fix", "satinfo", "hdop", "vdop",
     NULL
 };
 
@@ -31,6 +31,11 @@ int Protocol_GPS(PROTO_PARMS) {
     GPS_data *gdata = (GPS_data *) data;
 
     for (unsigned int x = 0; x < field_vec->size(); x++) {
+		if ((*field_vec)[x] >= GPS_maxfield) {
+			out_string += "Unknown field requested";
+			return -1;
+		}
+
         switch ((GPS_fields) (*field_vec)[x]) {
         case GPS_lat:
             out_string += gdata->lat;
@@ -52,6 +57,12 @@ int Protocol_GPS(PROTO_PARMS) {
             break;
 		case GPS_satinfo:
 			out_string += gdata->satinfo;
+			break;
+		case GPS_hdop:
+			out_string += gdata->hdop;
+			break;
+		case GPS_vdop:
+			out_string += gdata->vdop;
 			break;
         default:
             out_string = "Unknown field requested.";
@@ -107,6 +118,7 @@ GPSCore::GPSCore(GlobalRegistry *in_globalreg) : ClientFramework(in_globalreg) {
 
     mode = -1;
     lat = lon = alt = spd = hed = last_lat = last_lon = last_hed = 0;
+	hdop = vdop = 0;
 	gps_ever_lock = 0;
 
 	gpseventid = -1;
@@ -261,6 +273,8 @@ int GPSCore::Timer() {
 		gdata.spd = NtoString<double>(spd).Str();
 		gdata.heading = NtoString<double>(hed).Str();
 		gdata.mode = IntToString(mode);
+		gdata.hdop = NtoString<double>(hdop).Str();
+		gdata.vdop = NtoString<double>(vdop).Str();
 
 		gdata.satinfo = "\001";
 		for (map<int, sat_pos>::iterator x = sat_pos_map.begin(); 
