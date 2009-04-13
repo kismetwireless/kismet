@@ -122,12 +122,40 @@ PacketSource_AirPcap::PacketSource_AirPcap(GlobalRegistry *in_globalreg,
 										   vector<opt_pair> *in_opts) :
 	PacketSource_Pcap(in_globalreg, in_interface, in_opts) {
 
+	pcap_if_t *alldevs, *d;
+	int i, intnum;
+	char errbuf[1024];
+
+	// Look for the first airpcap interface if we're just called "airpcap"
+	if (interface == "airpcap") {
+		if (pcap_findalldevs(&alldevs, errbuf) == -1) {
+			_MSG("AirPcapSource failed to find pcap devices: " + 
+				 string(errbuf),
+				 MSGFLAG_PRINTERROR);
+			return;
+		}
+
+		i = 0;
+		for (d = alldevs; d != NULL; d = d->next) {
+			if (string(d->name).find("airpcap") != string::npos) {
+				interface = d->name;
+				i = 1;
+				break;
+			}
+		}
+
+		if (i == 0) {
+			_MSG("AirPcapSource failed to find any device which looked like "
+				 "airpcap, if you're SURE you have an airpcap device you'll "
+				 "need to specify a device.  NOTE: KISMET WILL ONLY WORK WITH "
+				 "THE AIRPCAP DEVICES.  THIS IS A SPECIFIC PIECE OF HARDWARE. "
+				 "IT WILL NOT WORK WITH ANY OTHER CARDS.", MSGFLAG_PRINTERROR);
+			return;
+		}
+	}
+
 	// Go through the prompting game for 'ask' variant
 	if (type == "airpcap_ask") {
-		pcap_if_t *alldevs, *d;
-		int i, intnum;
-		char errbuf[1024];
-
 		if (pcap_findalldevs(&alldevs, errbuf) == -1) {
 			_MSG("AirPcapSource failed to find pcap devices: " + 
 				 string(errbuf),
