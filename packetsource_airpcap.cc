@@ -52,8 +52,7 @@ int PacketSource_AirPcap::OpenSource() {
 	free(unconst);
 
 	if (strlen(errstr) > 0) {
-		_MSG(errstr, MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
+		_MSG(errstr, MSGFLAG_PRINTERROR);
 		return -1;
 	}
 
@@ -253,8 +252,7 @@ int PacketSource_AirPcap::SetChannel(unsigned int in_ch) {
 	if (!AirpcapSetDeviceChannel(airpcap_handle, in_ch)) {
 		_MSG("Airpcap adapter " + interface + " failed setting channel: " +
 			 string((const char *) AirpcapGetLastError(airpcap_handle)), 
-			 MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
+			 MSGFLAG_PRINTERROR);
 		return -1;
 	}
 
