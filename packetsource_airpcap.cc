@@ -113,14 +113,20 @@ int PacketSource_AirPcap::AutotypeProbe(string in_device) {
 	char errbuf[1024];
 
 	if (interface == "airpcap" || interface == "airpcap_ask") {
-		type = airpcap;
+		type = "airpcap";
 		return 1;
+	}
+
+	if (pcap_findalldevs(&alldevs, errbuf) == -1) {
+		_MSG("AirPcapSource failed to find pcap devices: " + 
+			 string(errbuf), MSGFLAG_PRINTERROR);
+		return 0;
 	}
 
 	i = 0;
 	for (d = alldevs; d != NULL; d = d->next) {
 		if (string(d->name) == interface) {
-			type = airpcap;
+			type = "airpcap";
 			return 1;
 		}
 	}
