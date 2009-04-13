@@ -319,16 +319,12 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
 #endif
 
         fixed_parameters *fixparm;
-        if (fc->subtype == 4) {
-			// Short handling of probe reqs since they don't have a fixed parameters
-			// field...
+        if (fc->subtype == 4 || fc->subtype == 10 ||
+			fc->subtype == 11 || fc->subtype == 12) {
+			// Short handling of probe reqs and disassocs since they don't have a 
+			// fixed parameters field...
             ret_packinfo->header_offset = 24;
             fixparm = NULL;
-		} else if (fc->subtype == 11 || fc->subtype == 12) {
-			//  Auth and deauth packets don't have a management fixparm
-			//  either, don't process them
-			ret_packinfo->header_offset = 36;
-			fixparm = NULL;
         } else {
             ret_packinfo->header_offset = 36;
             fixparm = (fixed_parameters *) &packet->data[24];
@@ -704,25 +700,6 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
 				} /* 48 */
 			}
 
-# if 0
-			// Extract WPA info -- we have to look at all the tags
-			if ((tcitr = tag_cache_map.find(48)) != tag_cache_map.end() &&
-				(ret_packinfo->crypt_set & crypt_wep)) {
-				for (unsigned int tagct = 0; tagct < tcitr->second.size(); tagct++) {
-					tag_offset = tcitr->second[tagct];
-					temp = (packet->data[tag_offset] & 0xFF);
-
-					if (temp > 6 && 
-						memcmp(&(packet->data[tag_offset+1]), 
-							   RSN_AES_TAGPARM_SIGNATURE,
-							   sizeof(RSN_AES_TAGPARM_SIGNATURE)) == 0) {
-						(int) ret_packinfo->crypt_set |= crypt_wpa2aes;
-						break;
-					}
-				}
-			}
-#endif
-
             ret_packinfo->dest_mac = addr0;
             ret_packinfo->source_mac = addr1;
             ret_packinfo->bssid_mac = addr2;
@@ -736,13 +713,6 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
             if (found_ssid_tag == 0 || found_rate_tag == 0)
                 ret_packinfo->corrupt = 1;
 
-            /*
-            if (ret_packinfo->ess == 0) {
-                // Weird adhoc beacon where the BSSID isn't 'right' so we use the source instead.
-                ret_packinfo->bssid_mac = ret_packinfo->source_mac;
-                ret_packinfo->distrib = adhoc_distribution;
-                }
-                */
         } else if (fc->subtype == 9) {
             // I'm not positive this is the right handling of atim packets.  Do something
             // smarter in the future
