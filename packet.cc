@@ -766,6 +766,8 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
 
             ret_packinfo->reason_code = rcode;
 
+			fixparm = NULL;
+
         } else if (fc->subtype == 11) {
             ret_packinfo->subtype = packet_sub_authentication;
 
