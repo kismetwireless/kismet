@@ -109,7 +109,6 @@ int PacketSource_AirPcap::Poll() {
 
 int PacketSource_AirPcap::AutotypeProbe(string in_device) {
 	pcap_if_t *alldevs, *d;
-	int i, intnum;
 	char errbuf[1024];
 
 	if (interface == "airpcap" || interface == "airpcap_ask") {
@@ -123,7 +122,6 @@ int PacketSource_AirPcap::AutotypeProbe(string in_device) {
 		return 0;
 	}
 
-	i = 0;
 	for (d = alldevs; d != NULL; d = d->next) {
 		if (string(d->name) == interface) {
 			type = "airpcap";
