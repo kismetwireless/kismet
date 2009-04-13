@@ -111,18 +111,18 @@ public:
 	}
 
 	virtual KisPacketSource *CreateSource(GlobalRegistry *in_globalreg, 
-										  string in_type, string in_name, 
-										  string in_dev, string in_opts) {
-		return new PacketSource_BSDRT(in_globalreg, in_type, in_name, in_dev, in_opts);
+										  string in_interface,
+										  vector<opt_pair> *in_opts) {
+		return new PacketSource_BSDRT(in_globalreg, in_interface, in_opts);
 	}
 
 	virtual int AutotypeProbe(string in_device);
 	virtual int RegisterSources(Packetsourcetracker *tracker);
 
-	PacketSource_BSDRT(GlobalRegistry *in_globalreg, string in_type,
-					   string in_name, string in_dev, string in_opts) :
-		PacketSource_Pcap(in_globalreg, in_type, in_name, in_dev, in_opts) {
-			bsdcon = new Radiotap_BSD_Controller(in_globalreg, in_dev.c_str());
+	PacketSource_BSDRT(GlobalRegistry *in_globalreg, string in_interface,
+					   vector<opt_pair> *in_opts) :
+		PacketSource_Pcap(in_globalreg, in_interface, in_opts) {
+			bsdcon = new Radiotap_BSD_Controller(in_globalreg, in_interface.c_str());
 		}
 	virtual ~PacketSource_BSDRT() { }
 
