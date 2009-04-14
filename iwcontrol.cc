@@ -95,7 +95,7 @@ int FloatChan2Int(float in_chan) {
         x++;
     }
 
-    return 0;
+    return mod_chan;
 }
 
 int Iwconfig_Set_SSID(const char *in_dev, char *errstr, const char *in_essid) {
@@ -620,6 +620,177 @@ int Iwconfig_Set_Mode(const char *in_dev, char *in_err, int in_mode) {
 
     close(skfd);
     return 0;
+}
+
+/* straight from wireless-tools; range struct definitions */
+#define IW15_MAX_FREQUENCIES	16
+#define IW15_MAX_BITRATES		8
+#define IW15_MAX_TXPOWER		8
+#define IW15_MAX_ENCODING_SIZES	8
+#define IW15_MAX_SPY			8
+#define IW15_MAX_AP				8
+struct iw15_range {
+	uint32_t throughput;
+	uint32_t min_nwid;
+	uint32_t max_nwid;
+	uint16_t num_channels;
+	uint8_t num_frequency;
+	struct iw_freq freq[IW15_MAX_FREQUENCIES];
+	int32_t sensitivity;
+	struct iw_quality max_qual;
+	uint8_t num_bitrates;
+	int32_t bitrate[IW15_MAX_BITRATES];
+	int32_t min_rts;
+	int32_t max_rts;
+	int32_t min_frag;
+	int32_t max_frag;
+	int32_t min_pmp;
+	int32_t max_pmp;
+	int32_t min_pmt;
+	int32_t max_pmt;
+	uint16_t pmp_flags;
+	uint16_t pmt_flags;
+	uint16_t pm_capa;
+	uint16_t encoding_size[IW15_MAX_ENCODING_SIZES];
+	uint8_t  num_encoding_sizes;
+	uint8_t  max_encoding_tokens;
+	uint16_t txpower_capa;
+	uint8_t  num_txpower;
+	int32_t txpower[IW15_MAX_TXPOWER];
+	uint8_t  we_version_compiled;
+	uint8_t  we_version_source;
+	uint16_t retry_capa;
+	uint16_t retry_flags;
+	uint16_t r_time_flags;
+	int32_t min_retry;
+	int32_t max_retry;
+	int32_t min_r_time;
+	int32_t  max_r_time;
+	struct iw_quality avg_qual;
+};
+
+union iw_range_raw {
+	struct iw15_range range15;	/* WE 9->15 */
+	struct iw_range	range;		/* WE 16->current */
+};
+
+/*
+ * Offsets in iw_range struct
+ */
+#define iwr15_off(f)	( ((char *) &(((struct iw15_range *) NULL)->f)) - \
+			  (char *) NULL)
+#define iwr_off(f)	( ((char *) &(((struct iw_range *) NULL)->f)) - \
+			  (char *) NULL)
+
+/* Get hw supported channels; rewritten from wireless-tools by Jean Tourilhes */
+int Iwconfig_Get_Chanlist(const char *interface, char *errstr, 
+						  vector<unsigned int> *chan_list) {
+	struct iwreq wrq;
+	int skfd;
+	char buffer[sizeof(struct iw_range) * 2];
+	union iw_range_raw *range_raw;
+	struct iw_range range;
+
+	if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+		snprintf(errstr, STATUS_MAX, "%s: Failed to create ioctl socket on %s: %s",
+				 __FUNCTION__, interface, strerror(errno));
+		return -1;
+	}
+
+	bzero(buffer, sizeof(buffer));
+
+	memset(&wrq, 0, sizeof(struct iwreq));
+
+	wrq.u.data.pointer = (caddr_t) buffer;
+	wrq.u.data.length = sizeof(buffer);
+	wrq.u.data.flags = 0;
+
+	strncpy(wrq.ifr_name, interface, IFNAMSIZ);
+
+	if (ioctl(skfd, SIOCGIWRANGE, &wrq) < 0) {
+		snprintf(errstr, STATUS_MAX, "%s: Failed to get frequency range on %s: %s",
+				 __FUNCTION__, interface, strerror(errno));
+		close(skfd);
+		return -1;
+	}
+
+	range_raw = (union iw_range_raw *) buffer;
+
+	/* Magic number to detect old versions */
+	/* For new versions, we can check the version directly, for old versions
+	 * we use magic. 300 bytes is a also magic number, don't touch... */
+	if (wrq.u.data.length < 300) {
+		snprintf(errstr, STATUS_MAX, "Interface %s using wireless extensions which "
+				 "are too old to extract the supported channels list", interface);
+		close(skfd);
+		return -1;
+	}
+
+	/* Direct copy from wireless-tools; mangle the range code and
+	 * figure out what we need to do with it */
+	if (range_raw->range.we_version_compiled > 15) {
+		memcpy((char *) &range, buffer, sizeof(iw_range));
+	} else {
+		/* Zero unknown fields */
+		bzero((char *) &range, sizeof(struct iw_range));
+
+		/* Initial part unmoved */
+		memcpy((char *) &range, buffer, iwr15_off(num_channels));
+		/* Frequencies pushed futher down towards the end */
+		memcpy((char *) &range + iwr_off(num_channels),
+			   buffer + iwr15_off(num_channels), 
+			   iwr15_off(sensitivity) - iwr15_off(num_channels));
+		/* This one moved up */
+		memcpy((char *) &range + iwr_off(sensitivity),
+			   buffer + iwr15_off(sensitivity),
+			   iwr15_off(num_bitrates) - iwr15_off(sensitivity));
+		/* This one goes after avg_qual */
+		memcpy((char *) &range + iwr_off(num_bitrates),
+			   buffer + iwr15_off(num_bitrates),
+			   iwr15_off(min_rts) - iwr15_off(num_bitrates));
+		/* Number of bitrates has changed, put it after */
+		memcpy((char *) &range + iwr_off(min_rts),
+			   buffer + iwr15_off(min_rts),
+			   iwr15_off(txpower_capa) - iwr15_off(min_rts));
+		/* Added encoding_login_index, put it after */
+		memcpy((char *) &range + iwr_off(txpower_capa),
+			   buffer + iwr15_off(txpower_capa),
+			   iwr15_off(txpower) - iwr15_off(txpower_capa));
+		/* Hum... That's an unexpected glitch. Bummer. */
+		memcpy((char *) &range + iwr_off(txpower),
+			   buffer + iwr15_off(txpower),
+			   iwr15_off(avg_qual) - iwr15_off(txpower));
+		/* Avg qual moved up next to max_qual */
+		memcpy((char *) &range + iwr_off(avg_qual),
+			   buffer + iwr15_off(avg_qual),
+			   sizeof(struct iw_quality));
+	}
+
+	if (range.we_version_compiled <= 10) {
+		snprintf(errstr, STATUS_MAX, "Interface %s using wireless extensions which "
+				 "are too old to extract the supported channels list", interface);
+		close(skfd);
+		return -1;
+	}
+
+	if (range.we_version_compiled > WE_MAX_VERSION) {
+		snprintf(errstr, STATUS_MAX, "Interface %s using wireless extensions from "
+				 "the future; Recompile Kismet with your new kernel before Skynet "
+				 "takes over", interface);
+		close(skfd);
+		return -1;
+	}
+
+	if (range.num_frequency > 0) {
+		/* Print them all */
+		for (int k = 0; k < range.num_frequency; k++) {
+			float freq = ((double) range.freq[k].m) * pow(10, range.freq[k].e);
+			chan_list->push_back(FloatChan2Int(freq));
+		}
+	}
+
+	close(skfd);
+	return chan_list->size();
 }
 
 #endif

@@ -36,6 +36,9 @@
 // Wireless extentions master mode
 #define LINUX_WLEXT_MASTER  3
 
+// Max version of wext we know about
+#define WE_MAX_VERSION			22
+
 // remove the SSID of the device.  Some cards seem to need this.
 int Iwconfig_Set_SSID(const char *in_dev, char *errstr, const char *in_essid);
 int Iwconfig_Get_SSID(const char *in_dev, char *errstr, char *in_essid);
@@ -72,6 +75,9 @@ int Iwconfig_Set_Mode(const char *in_dev, char *errstr, int in_mode);
 
 // Info conversion
 int FloatChan2Int(float in_chan);
+
+int Iwconfig_Get_Chanlist(const char *interface, char *errstr, 
+						  vector<unsigned int> *chan_list);
 
 #endif
 
