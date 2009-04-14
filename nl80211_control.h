@@ -21,6 +21,11 @@
 #ifndef __NL80211_CONFIG__
 #define __NL80211_CONFIG__
 
+struct mac80211_channel_block {
+	string phyname;
+	vector<unsigned int> channel_list;
+};
+
 int mac80211_connect(const char *interface, void **handle, void **cache,
 					 void **family, char *errstr);
 void mac80211_disconnect(void *handle);
@@ -34,6 +39,10 @@ int mac80211_setchannel(const char *interface, int channel,
 int mac80211_setchannel_cache(const char *interface, void *handle,
 							  void *family, int channel,
 							  unsigned int chmode, char *errstr);
+
+string mac80211_find_parent(const char *interface);
+
+vector<unsigned int>  mac80211_get_chanlist(const char *interface, char *errstr);
 
 #endif
 

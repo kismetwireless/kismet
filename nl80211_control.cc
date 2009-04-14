@@ -33,9 +33,13 @@
 #include <net/if.h>
 #endif
 
+#include <dirent.h>
+#include <fcntl.h>
 #include <stdio.h>
 
 #include "util.h"
+
+#include "nl80211_control.h"
 
 // Libnl1->Libnl2 compatability mode since the API changed, cribbed from 'iw'
 #if !defined(HAVE_LIBNL20) && defined(HAVE_LINUX_NETLINK)
@@ -247,6 +251,154 @@ int mac80211_setchannel(const char *interface, int channel,
 
 	return ret;
 #endif
+}
+
+static int mac80211_freqlist_cb(struct nl_msg *msg, void *arg) {
+#ifndef HAVE_LINUX_NETLINK
+	return 0;
+#else
+	struct nlattr *tb_msg[NL80211_ATTR_MAX + 1];
+	struct genlmsghdr *gnlh = (struct genlmsghdr *) nlmsg_data(nlmsg_hdr(msg));
+	struct nlattr *tb_band[NL80211_BAND_ATTR_MAX + 1];
+	struct nlattr *tb_freq[NL80211_FREQUENCY_ATTR_MAX + 1];
+	struct nlattr *nl_band, *nl_freq;
+	int rem_band, rem_freq;
+	uint32_t freq;
+	mac80211_channel_block *chanb = (mac80211_channel_block *) arg;
+
+	nla_parse(tb_msg, NL80211_ATTR_MAX, genlmsg_attrdata(gnlh, 0),
+			  genlmsg_attrlen(gnlh, 0), NULL);
+
+	if (!tb_msg[NL80211_ATTR_WIPHY_BANDS]) {
+		return NL_SKIP;
+	}
+
+	if (tb_msg[NL80211_ATTR_WIPHY_NAME]) {
+		if (strcmp(nla_get_string(tb_msg[NL80211_ATTR_WIPHY_NAME]), 
+				   chanb->phyname.c_str()) != 0) {
+			return NL_SKIP;
+		}
+	}
+
+	for (nl_band = (struct nlattr *) nla_data(tb_msg[NL80211_ATTR_WIPHY_BANDS]),
+		 rem_band = nla_len(tb_msg[NL80211_ATTR_WIPHY_BANDS]);
+		 nla_ok(nl_band, rem_band); 
+		 nl_band = (struct nlattr *) nla_next(nl_band, &rem_band)) {
+
+		nla_parse(tb_band, NL80211_BAND_ATTR_MAX, (struct nlattr *) nla_data(nl_band),
+				  nla_len(nl_band), NULL);
+
+		for (nl_freq = (struct nlattr *) nla_data(tb_band[NL80211_BAND_ATTR_FREQS]),
+			 rem_freq = nla_len(tb_band[NL80211_BAND_ATTR_FREQS]);
+			 nla_ok(nl_freq, rem_freq); 
+			 nl_freq = (struct nlattr *) nla_next(nl_freq, &rem_freq)) {
+
+			nla_parse(tb_freq, NL80211_FREQUENCY_ATTR_MAX, 
+					  (struct nlattr *) nla_data(nl_freq),
+					  nla_len(nl_freq), NULL);
+
+			if (!tb_freq[NL80211_FREQUENCY_ATTR_FREQ])
+				continue;
+
+			freq = nla_get_u32(tb_freq[NL80211_FREQUENCY_ATTR_FREQ]);
+
+			chanb->channel_list.push_back(FreqToChan(freq));
+		}
+	}
+
+	return NL_SKIP;
+#endif
+}
+
+static int mac80211_error_cb(struct sockaddr_nl *nla, struct nlmsgerr *err,
+			 void *arg) {
+	int *ret = (int *) arg;
+	*ret = err->error;
+	return NL_STOP;
+}
+
+static int mac80211_finish_cb(struct nl_msg *msg, void *arg) {
+	int *ret = (int *) arg;
+	*ret = 0;
+	return NL_SKIP;
+}
+
+vector<unsigned int> mac80211_get_chanlist(const char *interface, char *errstr) {
+	mac80211_channel_block cblock;
+
+#ifndef HAVE_LINUX_NETLINK
+	snprintf(errstr, STATUS_MAX, "Kismet was not compiled with netlink/mac80211 "
+			 "support, check the output of ./configure for why");
+	return cblock.channel_list;
+#else
+	void *handle, *cache, *family;
+	struct nl_cb *cb;
+	int err;
+	struct nl_msg *msg;
+
+	cblock.phyname = mac80211_find_parent(interface);
+	if (cblock.phyname == "") {
+		if (if_nametoindex(interface) <= 0) {
+			snprintf(errstr, STATUS_MAX, "Interface %s doesn't exist", interface);
+		} else {
+			snprintf(errstr, STATUS_MAX, "Kismet could not find a parent phy device "
+					 "for interface %s, either it isn't mac80211 or it doesn't exist.",
+					 interface);
+		}
+		return cblock.channel_list;
+	}
+
+	if (mac80211_connect(interface, &handle, &cache, &family, errstr) < 0) {
+		return cblock.channel_list;
+	}
+
+	msg = nlmsg_alloc();
+	cb = nl_cb_alloc(NL_CB_DEFAULT);
+
+	err = 1;
+
+	nl_cb_set(cb, NL_CB_VALID, NL_CB_CUSTOM, mac80211_freqlist_cb, &cblock);
+	nl_cb_set(cb, NL_CB_FINISH, NL_CB_CUSTOM, mac80211_finish_cb, &err);
+	nl_cb_err(cb, NL_CB_CUSTOM, mac80211_error_cb, &err);
+
+	genlmsg_put(msg, 0, 0, genl_family_get_id((struct genl_family *) family),
+			  0, NLM_F_DUMP, NL80211_CMD_GET_WIPHY, 0);
+
+	if (nl_send_auto_complete((struct nl_sock *) handle, msg) < 0) {
+		snprintf(errstr, STATUS_MAX, "%s: Failed to write nl80211 message",
+				__FUNCTION__);
+		mac80211_disconnect(handle);
+		return cblock.channel_list;
+	}
+
+	while (err)
+		nl_recvmsgs((struct nl_sock *) handle, cb);
+
+	mac80211_disconnect(handle);
+	return cblock.channel_list;
+#endif
+}
+
+string mac80211_find_parent(const char *interface) {
+	DIR *devdir;
+	struct dirent *devfile;
+	string dirpath;
+
+	dirpath = string("/sys/class/net/") + interface + string("/phy80211/device");
+
+	if ((devdir = opendir(dirpath.c_str())) == NULL)
+		return "";
+
+	while ((devfile = readdir(devdir)) != NULL) {
+		if (strncmp("ieee80211:phy", devfile->d_name, 13) == 0) {
+			closedir(devdir);
+			return (string(devfile->d_name + 10));
+		}
+	}
+
+	closedir(devdir);
+
+	return "";
 }
 
 #endif /* linux */
