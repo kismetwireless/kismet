@@ -42,7 +42,11 @@ int mac80211_setchannel_cache(const char *interface, void *handle,
 
 string mac80211_find_parent(const char *interface);
 
-vector<unsigned int>  mac80211_get_chanlist(const char *interface, char *errstr);
+#define MAC80211_CHANLIST_NO_INTERFACE		-2
+#define MAC80211_CHANLIST_NOT_MAC80211		-3
+#define MAC80211_CHANLIST_GENERIC			-4
+int mac80211_get_chanlist(const char *interface, vector<unsigned int> *chan_list,
+						  char *errstr);
 
 #endif
 

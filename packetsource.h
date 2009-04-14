@@ -245,6 +245,12 @@ public:
 	// Set the card to a channel w/ a given modulation
 	virtual int SetChannel(unsigned int in_ch) = 0;
 
+	// Fetch supported channels from hardware, if we can
+	virtual vector<unsigned int> FetchSupportedChannels() { 
+		vector<unsigned int> ret; 
+		return ret; 
+	}
+
     // Open the packet source
     virtual int OpenSource() = 0;
     virtual int CloseSource() = 0;

@@ -323,7 +323,8 @@ static int mac80211_finish_cb(struct nl_msg *msg, void *arg) {
 	return NL_SKIP;
 }
 
-vector<unsigned int> mac80211_get_chanlist(const char *interface, char *errstr) {
+int mac80211_get_chanlist(const char *interface, vector<unsigned int> *chan_list,
+						  char *errstr) {
 	mac80211_channel_block cblock;
 
 #ifndef HAVE_LINUX_NETLINK
@@ -340,16 +341,16 @@ vector<unsigned int> mac80211_get_chanlist(const char *interface, char *errstr) 
 	if (cblock.phyname == "") {
 		if (if_nametoindex(interface) <= 0) {
 			snprintf(errstr, STATUS_MAX, "Interface %s doesn't exist", interface);
-		} else {
-			snprintf(errstr, STATUS_MAX, "Kismet could not find a parent phy device "
-					 "for interface %s, either it isn't mac80211 or it doesn't exist.",
-					 interface);
-		}
-		return cblock.channel_list;
+			return MAC80211_CHANLIST_NO_INTERFACE;
+		} 
+
+		snprintf(errstr, STATUS_MAX, "Kismet could not find a parent phy device "
+				 "for interface %s, it isn't mac80211?", interface);
+		return MAC80211_CHANLIST_NOT_MAC80211;
 	}
 
 	if (mac80211_connect(interface, &handle, &cache, &family, errstr) < 0) {
-		return cblock.channel_list;
+		return MAC80211_CHANLIST_GENERIC;
 	}
 
 	msg = nlmsg_alloc();
@@ -368,14 +369,15 @@ vector<unsigned int> mac80211_get_chanlist(const char *interface, char *errstr) 
 		snprintf(errstr, STATUS_MAX, "%s: Failed to write nl80211 message",
 				__FUNCTION__);
 		mac80211_disconnect(handle);
-		return cblock.channel_list;
+		return MAC80211_CHANLIST_GENERIC;
 	}
 
 	while (err)
 		nl_recvmsgs((struct nl_sock *) handle, cb);
 
 	mac80211_disconnect(handle);
-	return cblock.channel_list;
+	(*chan_list) = cblock.channel_list;
+	return cblock.channel_list.size();
 #endif
 }
 
