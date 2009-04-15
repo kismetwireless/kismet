@@ -299,6 +299,9 @@ static int mac80211_freqlist_cb(struct nl_msg *msg, void *arg) {
 			if (!tb_freq[NL80211_FREQUENCY_ATTR_FREQ])
 				continue;
 
+			if (tb_freq[NL80211_FREQUENCY_ATTR_DISABLED])
+				continue;
+
 			freq = nla_get_u32(tb_freq[NL80211_FREQUENCY_ATTR_FREQ]);
 
 			chanb->channel_list.push_back(FreqToChan(freq));

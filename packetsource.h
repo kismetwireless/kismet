@@ -246,7 +246,7 @@ public:
 	virtual int SetChannel(unsigned int in_ch) = 0;
 
 	// Fetch supported channels from hardware, if we can
-	virtual vector<unsigned int> FetchSupportedChannels() { 
+	virtual vector<unsigned int> FetchSupportedChannels(string in_interface) { 
 		vector<unsigned int> ret; 
 		return ret; 
 	}

@@ -95,7 +95,7 @@ public:
 	virtual int SetChannel(unsigned int in_ch);
 	virtual int FetchHardwareChannel();
 
-	virtual vector<unsigned int> FetchSupportedChannels();
+	virtual vector<unsigned int> FetchSupportedChannels(string in_interface);
 
 	virtual int ScanWpaSupplicant();
 

@@ -647,6 +647,8 @@ uint16_t Packetsourcetracker::AddChannelList(string in_chanlist) {
 
 uint16_t Packetsourcetracker::GenChannelList(vector<unsigned int> in_channellist) {
 	unsigned int compared;
+	pst_channellist *chlist;
+	pst_channel pch;
 
 	if (in_channellist.size() >= IPC_SOURCE_MAX_CHANS) {
 		return 0;
@@ -676,24 +678,32 @@ uint16_t Packetsourcetracker::GenChannelList(vector<unsigned int> in_channellist
 			}
 		}
 
-		if (compared == channellist_map.size())
+		if (compared == in_channellist.size())
 			return chi->first;
 	}
 
-	// Slower way of doing things but again it only happens during startup;
-	// build a string and then fire off a normal channel assignment creation.
-	// Cheat the next channel id
-	string channeltxt = string("auto") + IntToString(next_channel_id) + 
-		string(":");
+	chlist = new pst_channellist;
+	chlist->auto_generated = 1;
+	chlist->channel_id = next_channel_id;
+	chlist->name = "auto" + IntToString(next_channel_id); 
+
+	next_channel_id++;
+	channellist_map[chlist->channel_id] = chlist;
+
+	pch.range = 0;
+	pch.u.chan_t.dwell = 1;
 
 	for (unsigned int x = 0; x < in_channellist.size() - 1; x++) {
 		int s = (x * 4) % (in_channellist.size() - 1);
-		channeltxt += IntToString(in_channellist[s]) + ",";
+		pch.u.chan_t.channel = in_channellist[s];
+		chlist->channel_vec.push_back(pch);
 	}
-	channeltxt += IntToString(in_channellist[in_channellist.size() - 1]);
+	pch.u.chan_t.channel = in_channellist[in_channellist.size() - 1];
+	chlist->channel_vec.push_back(pch);
 
-	// Generate a channel list normally
-	return AddChannelList(channeltxt);
+	SendIPCChannellist(chlist);
+
+	return chlist->channel_id;
 }
 
 int Packetsourcetracker::AddPacketSource(string in_source, 
@@ -830,9 +840,27 @@ int Packetsourcetracker::AddPacketSource(string in_source,
 	chanlistname = FetchOpt("channellist", &options);
 
 	if (chanlistname == "")  {
-		chanlistname = pstsource->proto_source->default_channelset;
-		_MSG("Using default channel list '" + chanlistname + "' on source '" +
-			 interface + "'", MSGFLAG_INFO);
+		vector<unsigned int> chvec = 
+			pstsource->proto_source->weak_source->FetchSupportedChannels(interface);
+		uint16_t chid = 0;
+		string chlist;
+
+		if (chvec.size() > 0) 
+			chid = GenChannelList(chvec);
+
+		if (chid <= 0) {
+			_MSG("Using default channel list '" + chanlistname + "' on source '" +
+				 interface + "'", MSGFLAG_INFO);
+		} else {
+			chanlistname = pstsource->proto_source->default_channelset;
+			for (unsigned int z = 0; z < chvec.size() - 1; z++) 
+				chlist += IntToString(chvec[z]) + ",";
+			chlist += IntToString(chvec[chvec.size() - 1]);
+			chanlistname = channellist_map[chid]->name;
+			_MSG("Using hardware channel list " + chlist + ", " +
+				 IntToString(chvec.size()) + " channels on source " + interface, 
+				 MSGFLAG_INFO);
+		}
 	} else {
 		_MSG("Using channel list '" + chanlistname + "' on source '" + 
 			 interface + "' instead of the default", MSGFLAG_INFO);
