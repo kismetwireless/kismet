@@ -36,6 +36,7 @@
 #include <dirent.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "util.h"
 
@@ -253,10 +254,8 @@ int mac80211_setchannel(const char *interface, int channel,
 #endif
 }
 
+#ifdef HAVE_LINUX_NETLINK
 static int mac80211_freqlist_cb(struct nl_msg *msg, void *arg) {
-#ifndef HAVE_LINUX_NETLINK
-	return 0;
-#else
 	struct nlattr *tb_msg[NL80211_ATTR_MAX + 1];
 	struct genlmsghdr *gnlh = (struct genlmsghdr *) nlmsg_data(nlmsg_hdr(msg));
 	struct nlattr *tb_band[NL80211_BAND_ATTR_MAX + 1];
@@ -307,8 +306,8 @@ static int mac80211_freqlist_cb(struct nl_msg *msg, void *arg) {
 	}
 
 	return NL_SKIP;
-#endif
 }
+#endif
 
 #ifdef HAVE_LINUX_NETLINK
 static int mac80211_error_cb(struct sockaddr_nl *nla, struct nlmsgerr *err,
