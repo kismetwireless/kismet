@@ -574,7 +574,8 @@ vector<unsigned int> PacketSource_Wext::FetchSupportedChannels(string in_interfa
 
 	/* If we couldn't figure out what we are with mac80211, or if we don't
 	 * have mac80211, go on to iwcontrol */
-	if (mac80211_get_chanlist(in_interface.c_str(), &ret, errstr) <= 0) {
+	if (mac80211_get_chanlist(in_interface.c_str(), &ret, errstr) <= 0 ||
+		ret.size() == 0) {
 		/* I guess we don't really care about the return code here either */
 		Iwconfig_Get_Chanlist(in_interface.c_str(), errstr, &ret);
 	}

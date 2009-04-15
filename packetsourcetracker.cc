@@ -650,7 +650,8 @@ uint16_t Packetsourcetracker::GenChannelList(vector<unsigned int> in_channellist
 	pst_channellist *chlist;
 	pst_channel pch;
 
-	if (in_channellist.size() >= IPC_SOURCE_MAX_CHANS) {
+	if (in_channellist.size() >= IPC_SOURCE_MAX_CHANS ||
+		in_channellist.size() == 0) {
 		return 0;
 	}
 
@@ -849,10 +850,10 @@ int Packetsourcetracker::AddPacketSource(string in_source,
 			chid = GenChannelList(chvec);
 
 		if (chid <= 0) {
+			chanlistname = pstsource->proto_source->default_channelset;
 			_MSG("Using default channel list '" + chanlistname + "' on source '" +
 				 interface + "'", MSGFLAG_INFO);
 		} else {
-			chanlistname = pstsource->proto_source->default_channelset;
 			for (unsigned int z = 0; z < chvec.size() - 1; z++) 
 				chlist += IntToString(chvec[z]) + ",";
 			chlist += IntToString(chvec[chvec.size() - 1]);
