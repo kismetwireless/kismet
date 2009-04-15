@@ -259,5 +259,41 @@ int PacketSource_AirPcap::SetChannel(unsigned int in_ch) {
 	return 0;
 }
 
+vector<unsigned int> PacketSource_AirPcap::FetchSupportedChannels(string in_interface) {
+	char errstr[STATUS_MAX] = "";
+	vector<unsigned int> ret;
+	unsigned int numchans;
+	AirpcapChannelInfo *channels;
+
+	/* We have to open the device in pcap to get the airpcap handle to
+	 * get the channel list.  */
+	pd = pcap_open_live((char *) in_interface.c_str(), MAX_PACKET_LEN, 
+						1, 1000, errstr);
+
+	if (strlen(errstr) > 0) {
+		_MSG(errstr, MSGFLAG_PRINTERROR);
+		return ret;
+	}
+
+	// Fetch the airpcap handle
+	if ((airpcap_handle = pcap_get_airpcap_handle(pd)) == NULL) {
+		pcap_close(pd);
+		return ret;
+	}
+
+	if (AirpcapGetDeviceSupportedChannels(airpcap_handle, &channels,
+	    &numchans) == 0) {
+		pcap_close(pd);
+		return ret;
+	}
+
+	for (unsigned int x = 0; x < numchans; x++) {
+		ret.push_back(FreqToChan(channels[x].Frequency));
+	}
+
+	pcap_close(pd);
+	return ret;
+}
+
 #endif 
 

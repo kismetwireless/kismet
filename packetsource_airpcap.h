@@ -103,6 +103,8 @@ public:
 	virtual int SetChannel(unsigned int in_ch);
 	virtual int FetchHardwareChannel();
 
+	virtual vector<unsigned int> FetchSupportedChannels(string in_interface);
+
 protected:
 	virtual void FetchRadioData(kis_packet *in_packet) { };
 
