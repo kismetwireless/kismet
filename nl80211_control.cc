@@ -310,6 +310,7 @@ static int mac80211_freqlist_cb(struct nl_msg *msg, void *arg) {
 #endif
 }
 
+#ifdef HAVE_LINUX_NETLINK
 static int mac80211_error_cb(struct sockaddr_nl *nla, struct nlmsgerr *err,
 			 void *arg) {
 	int *ret = (int *) arg;
@@ -322,6 +323,7 @@ static int mac80211_finish_cb(struct nl_msg *msg, void *arg) {
 	*ret = 0;
 	return NL_SKIP;
 }
+#endif
 
 int mac80211_get_chanlist(const char *interface, vector<unsigned int> *chan_list,
 						  char *errstr) {
