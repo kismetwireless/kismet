@@ -264,10 +264,33 @@ vector<unsigned int> PacketSource_AirPcap::FetchSupportedChannels(string in_inte
 	vector<unsigned int> ret;
 	unsigned int numchans;
 	AirpcapChannelInfo *channels;
+	string qint = in_interface;
+	pcap_if_t *alldevs, *d;
+	int i;
+
+	// Look for the first airpcap interface if we're just called "airpcap"
+	if (in_interface == "airpcap") {
+		if (pcap_findalldevs(&alldevs, errstr) == -1) {
+			return ret;
+		}
+
+		i = 0;
+		for (d = alldevs; d != NULL; d = d->next) {
+			if (string(d->name).find("airpcap") != string::npos) {
+				qint = d->name;
+				i = 1;
+				break;
+			}
+		}
+
+		if (i == 0) {
+			return ret;
+		}
+	}
 
 	/* We have to open the device in pcap to get the airpcap handle to
 	 * get the channel list.  */
-	pd = pcap_open_live((char *) in_interface.c_str(), MAX_PACKET_LEN, 
+	pd = pcap_open_live((char *) qint.c_str(), MAX_PACKET_LEN, 
 						1, 1000, errstr);
 
 	if (strlen(errstr) > 0) {
@@ -287,7 +310,10 @@ vector<unsigned int> PacketSource_AirPcap::FetchSupportedChannels(string in_inte
 		return ret;
 	}
 
-	for (unsigned int x = 0; x < numchans; x++) {
+	for (unsigned int x = 0, i = 0; x < numchans; x++) {
+		if (channels[x].Frequency == i)
+			continue;
+		i = channels[x].Frequency;
 		ret.push_back(FreqToChan(channels[x].Frequency));
 	}
 
