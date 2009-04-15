@@ -632,6 +632,7 @@ uint16_t Packetsourcetracker::AddChannelList(string in_chanlist) {
 	}
 
 	chlist = new pst_channellist;
+	chlist->auto_generated = 0;
 	chlist->channel_id = next_channel_id;
 	chlist->name = StrLower(name);
 	chlist->channel_vec = chvec;
@@ -642,6 +643,57 @@ uint16_t Packetsourcetracker::AddChannelList(string in_chanlist) {
 	SendIPCChannellist(chlist);
 
 	return chlist->channel_id;
+}
+
+uint16_t Packetsourcetracker::GenChannelList(vector<unsigned int> in_channellist) {
+	unsigned int compared;
+
+	if (in_channellist.size() >= IPC_SOURCE_MAX_CHANS) {
+		return 0;
+	}
+
+	// Look for the channels in one of the existing channel vectors (must be
+	// an autocreated list to share an ID with another autocreated list).
+	for (map<uint16_t, pst_channellist *>::iterator chi = channellist_map.begin();
+		 chi != channellist_map.end(); ++chi) {
+
+		if (chi->second->auto_generated == 0)
+			continue;
+
+		if (chi->second->channel_vec.size() != in_channellist.size())
+			continue;
+
+		compared = 0;
+		/* Nasty slow compare but we only do it during startup on a limited number
+		 * of channels anyhow */
+		for (unsigned int x = 0; x < chi->second->channel_vec.size(); x++) {
+			for (unsigned int y = 0; y < in_channellist.size(); y++) {
+				if (chi->second->channel_vec[x].range)
+					continue;
+
+				if (chi->second->channel_vec[x].u.chan_t.channel == in_channellist[y]) 
+					compared++;
+			}
+		}
+
+		if (compared == channellist_map.size())
+			return chi->first;
+	}
+
+	// Slower way of doing things but again it only happens during startup;
+	// build a string and then fire off a normal channel assignment creation.
+	// Cheat the next channel id
+	string channeltxt = string("auto") + IntToString(next_channel_id) + 
+		string(":");
+
+	for (unsigned int x = 0; x < in_channellist.size() - 1; x++) {
+		int s = (x * 4) % (in_channellist.size() - 1);
+		channeltxt += IntToString(in_channellist[s]) + ",";
+	}
+	channeltxt += IntToString(in_channellist[in_channellist.size() - 1]);
+
+	// Generate a channel list normally
+	return AddChannelList(channeltxt);
 }
 
 int Packetsourcetracker::AddPacketSource(string in_source, 
