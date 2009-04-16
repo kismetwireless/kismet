@@ -533,7 +533,10 @@ KisNetFramework::KisNetFramework(GlobalRegistry *in_globalreg) {
 	// evaluation shortcuts
 	if (listenline.length() == 0 && 
 		(listenline = globalreg->kismet_config->FetchOpt("listen")) == "") {
-		_MSG("No 'listen' config line defined for the Kismet UI server", 
+		_MSG("No 'listen' config line defined for the Kismet UI server; This "
+			 "usually means you have not upgraded your Kismet config file.  Copy "
+			 "the config file from the source directory and replace your "
+			 "current kismet.conf (Or specify the new config file manually)", 
 			 MSGFLAG_FATAL);
 		globalreg->fatal_condition = 1;
 		return;
