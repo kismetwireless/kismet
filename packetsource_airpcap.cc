@@ -250,7 +250,8 @@ int PacketSource_AirPcap::FetchDescriptor() {
 
 int PacketSource_AirPcap::SetChannel(unsigned int in_ch) {
 	if (!AirpcapSetDeviceChannel(airpcap_handle, in_ch)) {
-		_MSG("Airpcap adapter " + interface + " failed setting channel: " +
+		_MSG("Airpcap adapter " + interface + " failed setting channel " +
+			 IntToString(in_ch) + ": " +
 			 string((const char *) AirpcapGetLastError(airpcap_handle)), 
 			 MSGFLAG_PRINTERROR);
 		return -1;
