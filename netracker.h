@@ -82,7 +82,7 @@ enum SSID_fields {
 	SSID_mac, SSID_checksum, SSID_type, SSID_ssid,
 	SSID_beaconinfo, SSID_cryptset, SSID_cloaked,
 	SSID_firsttime, SSID_lasttime, SSID_maxrate, SSID_beaconrate,
-	SSID_packets, SSID_beacons,
+	SSID_packets, SSID_beacons, SSID_dot11d,
 	SSID_maxfield
 };
 
@@ -103,7 +103,7 @@ enum CLIENT_fields {
     CLIENT_atype, CLIENT_ip, CLIENT_gatewayip, CLIENT_datasize, CLIENT_maxseenrate, 
 	CLIENT_encodingset, CLIENT_carrierset, CLIENT_decrypted, 
 	CLIENT_channel, CLIENT_fragments, CLIENT_retries, CLIENT_newpackets,
-	CLIENT_freqmhz, CLIENT_cdpdevice, CLIENT_cdpport,
+	CLIENT_freqmhz, CLIENT_cdpdevice, CLIENT_cdpport, CLIENT_dot11d,
 	CLIENT_maxfield
 };
 
@@ -485,6 +485,7 @@ public:
 			beaconrate = 0;
 			packets = 0;
 			beacons = 0;
+			dot11d_country = "XXX";
 		}
 
 		inline adv_ssid_data& operator= (const adv_ssid_data& in) {
@@ -536,6 +537,9 @@ public:
 
 		// Number of beacons seen in the last second (for calculating loss)
 		int beacons;
+
+		string dot11d_country;
+		vector<dot11d_range_info> dot11d_vec;
 
 		// SSID is dirty and should be resent
 		int dirty;
@@ -678,6 +682,7 @@ public:
 			retries = 0;
 			new_packets = 0;
 			dirty = 0;
+			dot11d_country = "XXX";
 		}
 
 		// DS detected type
@@ -744,6 +749,9 @@ public:
 
 		// Map of sources which have seen this network
 		map<uuid, source_data *> source_map;
+
+		string dot11d_country;
+		vector<dot11d_range_info> dot11d_vec;
 	};
 
 	Netracker();

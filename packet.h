@@ -161,6 +161,18 @@ public:
 	int fcsvalid;
 };
 
+// Dot11d struct
+struct dot11d_range_info {
+	dot11d_range_info() {
+		startchan = 0;
+		numchan = 0;
+		txpower = 0;
+	}
+
+	int startchan, numchan, txpower;
+};
+
+
 // Info from the IEEE 802.11 frame headers for kismet
 class kis_ieee80211_packinfo : public packet_component {
 public:
@@ -198,6 +210,7 @@ public:
         datasize = 0;
 		qos = 0;
 		ssid_csum = 0;
+		dot11d_country = "XXX";
     }
 
     // Corrupt 802.11 frame
@@ -262,6 +275,9 @@ public:
     int datasize;
 
 	uint32_t ssid_csum;
+
+	string dot11d_country;
+	vector<dot11d_range_info> dot11d_vec;
 };
 
 // some protocols we do try to track

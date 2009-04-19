@@ -262,6 +262,19 @@ int Dumpfile_Netxml::Flush() {
 			if (m->second->cryptset & crypt_keyguard)
 				fprintf(xmlfile, "        <encryption>Keyguard</encryption>\n");
 
+			if (m->second->dot11d_vec.size() > 0) {
+				fprintf(xmlfile, "        <dot11d country=\"%s\">\n",
+						SanitizeXML(m->second->dot11d_country).c_str());
+				for (unsigned int z = 0; z < m->second->dot11d_vec.size(); z++) {
+					fprintf(xmlfile, "          <dot11d-range start=\"%u\" end=\"%u\" "
+							"max-power=\"%u\"/>\n",
+							m->second->dot11d_vec[z].startchan,
+							m->second->dot11d_vec[z].numchan,
+							m->second->dot11d_vec[z].txpower);
+				}
+				fprintf(xmlfile, "        </dot11d>\n");
+			}
+
 			fprintf(xmlfile, "        <essid cloaked=\"%s\">%s</essid>\n",
 					m->second->ssid_cloaked ? "true" : "false", 
 					SanitizeXML(m->second->ssid).c_str());
@@ -493,6 +506,19 @@ int Dumpfile_Netxml::Flush() {
 				if (m->second->beaconrate != 0)
 					fprintf(xmlfile, "            <beaconrate>%d</beaconrate>\n",
 							m->second->beaconrate);
+
+				if (m->second->dot11d_vec.size() > 0) {
+					fprintf(xmlfile, "            <dot11d country=\"%s\">\n",
+							SanitizeXML(m->second->dot11d_country).c_str());
+					for (unsigned int z = 0; z < m->second->dot11d_vec.size(); z++) {
+						fprintf(xmlfile, "              <dot11d-range start=\"%u\" "
+								"end=\"%u\" max-power=\"%u\"/>\n",
+								m->second->dot11d_vec[z].startchan,
+								m->second->dot11d_vec[z].numchan,
+								m->second->dot11d_vec[z].txpower);
+					}
+					fprintf(xmlfile, "        </dot11d>\n");
+				}
 
 				if (m->second->cryptset == 0)
 					fprintf(xmlfile, "            <encryption>None</encryption>\n");

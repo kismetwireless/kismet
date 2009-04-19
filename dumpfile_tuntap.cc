@@ -295,7 +295,8 @@ int Dumpfile_Tuntap::chain_handler(kis_packet *in_pack) {
 
 	// May not be safe, do we need a ringbuffer?  Keep in mind of we have
 	// hanging problems
-	write(tuntap_fd, chunk->data, chunk->length);
+	if (write(tuntap_fd, chunk->data, chunk->length) <= 0)
+		return 0;
 
 	dumped_frames++;
 

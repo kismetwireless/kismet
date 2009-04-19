@@ -603,7 +603,7 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
         packinfo->distrib = distrib_inter;
 
     // Rip apart management frames
-    if (fc->type == 0) {
+    if (fc->type == packet_management) {
         packinfo->type = packet_management;
 
         packinfo->distrib = distrib_unknown;
@@ -620,8 +620,10 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
 
         fixed_parameters *fixparm;
 
-        if (fc->subtype == 4 || fc->subtype == 10 || fc->subtype == 11 || 
-			fc->subtype == 12) {
+        if (fc->subtype == packet_sub_probe_req || 
+			fc->subtype == packet_sub_disassociation || 
+			fc->subtype == packet_sub_authentication || 
+			fc->subtype == packet_sub_deauthentication) {
 			// Shortcut handling of probe req, disassoc, auth, deauth since they're
 			// not normal management frames
             packinfo->header_offset = 24;
@@ -666,7 +668,9 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
         int found_rate_tag = 0;
         int found_channel_tag = 0;
 
-        if (fc->subtype == 8 || fc->subtype == 4 || fc->subtype == 5) {
+        if (fc->subtype == packet_sub_beacon || 
+			fc->subtype == packet_sub_probe_req || 
+			fc->subtype == packet_sub_probe_resp) {
             // This is guaranteed to only give us tags that fit within the packets,
             // so we don't have to do more error checking
             if (GetIEEETagOffsets(packinfo->header_offset, chunk, 
@@ -780,6 +784,35 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
 				
                 packinfo->channel = (int) (chunk->data[tag_offset+1]);
             }
+
+            if ((tcitr = tag_cache_map.find(7)) != tag_cache_map.end()) {
+                tag_offset = tcitr->second[0];
+
+                taglen = (chunk->data[tag_offset] & 0xFF);
+
+				tag_offset++;
+
+				if (taglen < 6 || tag_offset + taglen > chunk->length) {
+					packinfo->corrupt = 1;
+					in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
+					return 0;
+				}
+				
+				packinfo->dot11d_country =
+					MungeToPrintable(string((const char *) &(chunk->data[tag_offset]), 
+											0, 3));
+
+				// We don't have to check taglen since we check that above
+				for (unsigned int p = 3; p + 3 <= taglen; p += 3) {
+					dot11d_range_info ri;
+
+					ri.startchan = chunk->data[tag_offset + p];
+					ri.numchan = chunk->data[tag_offset + p + 1];
+					ri.txpower = chunk->data[tag_offset + p + 2];
+
+					packinfo->dot11d_vec.push_back(ri);
+				}
+			}
         }
 
         if (fc->subtype == 0) {

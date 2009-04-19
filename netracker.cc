@@ -69,6 +69,7 @@ const char *SSID_fields_text[] = {
 	"beaconinfo", "cryptset", "cloaked",
 	"firsttime", "lasttime", "maxrate",
 	"beaconrate", "packets", "beacons",
+	"dot11d",
 	NULL
 };
 
@@ -104,7 +105,7 @@ const char *CLIENT_fields_text[] = {
     "atype", "ip", "gatewayip", "datasize", "maxseenrate", "encodingset",
 	"carrierset", "decrypted", "channel",
 	"fragments", "retries", "newpackets", "freqmhz",
-	"cdpdevice", "cdpport",
+	"cdpdevice", "cdpport", "dot11d",
     NULL
 };
 
@@ -526,6 +527,19 @@ int Protocol_SSID(PROTO_PARMS) {
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
+			case SSID_dot11d:
+				// Complex packed field (suck, I know):
+				// \001 COUNTRYCODE:start-num-dbm:start-num-dbm:.. \001
+				osstr << "\001" + ssid->dot11d_country << ":";
+				for (unsigned int z = 0; z < ssid->dot11d_vec.size(); z++) {
+					osstr << ssid->dot11d_vec[z].startchan << "-" <<
+						ssid->dot11d_vec[z].numchan << "-" <<
+						ssid->dot11d_vec[z].txpower << ":";
+					osstr << "\001";
+					out_string += osstr.str();
+					cache->Cache(fnum, osstr.str());
+				}
+				break;
 		}
 
 		// print the newly filled in cache
@@ -827,6 +841,17 @@ int Protocol_CLIENT(PROTO_PARMS) {
 					scratch = "\001" + cli->cdp_port_id + "\001";
 				out_string += scratch;
 				cache->Cache(fnum, scratch);
+				break;
+			case CLIENT_dot11d:
+				osstr << "\001" + cli->dot11d_country << ":";
+				for (unsigned int z = 0; z < cli->dot11d_vec.size(); z++) {
+					osstr << cli->dot11d_vec[z].startchan << "-" <<
+						cli->dot11d_vec[z].numchan << "-" <<
+						cli->dot11d_vec[z].txpower << ":";
+					osstr << "\001";
+					out_string += osstr.str();
+					cache->Cache(fnum, osstr.str());
+				}
 				break;
 		}
 
@@ -1877,6 +1902,10 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 			else
 				cli->freq_mhz_map[l1info->freq_mhz] = 1;
 		}
+
+		// Copy the dot11d data
+		adssid->dot11d_country = packinfo->dot11d_country;
+		adssid->dot11d_vec = packinfo->dot11d_vec;
 	}
 
 	// Catch probe responses, handle adding probe resp SSIDs

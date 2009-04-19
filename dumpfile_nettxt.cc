@@ -186,6 +186,17 @@ int Dumpfile_Nettxt::Flush() {
 				fprintf(txtfile, "    Beacon     : %d\n", m->second->beaconrate);
 			fprintf(txtfile, "    Packets    : %d\n", m->second->packets);
 
+			if (m->second->dot11d_vec.size() > 0) {
+				fprintf(txtfile, "    Country    : %s\n", 
+						m->second->dot11d_country.c_str());
+				for (unsigned int z = 0; z < m->second->dot11d_vec.size(); z++) {
+					fprintf(txtfile, "     Chan Range: %u-%u %u dBm\n", 
+							m->second->dot11d_vec[z].startchan,
+							m->second->dot11d_vec[z].numchan,
+							m->second->dot11d_vec[z].txpower);
+				}
+			}
+
 			if (m->second->cryptset == 0)
 				fprintf(txtfile, "    Encryption : None\n");
 			if (m->second->cryptset & crypt_wep)
@@ -420,6 +431,17 @@ int Dumpfile_Nettxt::Flush() {
 				if (m->second->beaconrate != 0) 
 					fprintf(txtfile, "    Beacon     : %d\n", m->second->beaconrate);
 				fprintf(txtfile, "    Packets    : %d\n", m->second->packets);
+
+				if (m->second->dot11d_vec.size() > 0) {
+					fprintf(txtfile, "    Country    : %s\n", 
+							m->second->dot11d_country.c_str());
+					for (unsigned int z = 0; z < m->second->dot11d_vec.size(); z++) {
+						fprintf(txtfile, "     Chan Range: %u-%u %u dBm\n", 
+								m->second->dot11d_vec[z].startchan,
+								m->second->dot11d_vec[z].numchan,
+								m->second->dot11d_vec[z].txpower);
+					}
+				}
 
 				if (m->second->cryptset == 0)
 					fprintf(txtfile, "    Encryption : None\n");
