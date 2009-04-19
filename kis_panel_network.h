@@ -176,7 +176,7 @@ enum bssid_columns {
 	bcol_crypt, bcol_channel, bcol_packdata, bcol_packllc, bcol_packcrypt,
 	bcol_bssid, bcol_packets, bcol_clients, bcol_datasize, bcol_signalbar,
 	bcol_beaconperc, bcol_signal_dbm, bcol_signal_rssi, bcol_freq_mhz,
-	bcol_manuf
+	bcol_manuf, bcol_11dcountry
 };
 
 // Do not expect this to be in numerical order with the above enum, this is

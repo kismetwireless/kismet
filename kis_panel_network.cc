@@ -45,6 +45,7 @@ const char *bssid_column_details[][2] = {
 	{ "signal_rssi", "Signal (in RSSI, depends on source" },
 	{ "freq_mhz", "Frequency (MHz)" },
 	{ "manuf", "Manufacturer" },
+	{ "11dcountry", "802.11d Country" },
 	{ NULL, NULL }
 };
 
@@ -53,6 +54,7 @@ const char *Kis_Netlist::bssid_columns_text[] = {
 	"crypt", "channel", "packdata", "packllc", "packcrypt",
 	"bssid", "packets", "clients", "datasize", "signalbar",
 	"beaconperc", "signal_dbm", "signal_rssi", "freq_mhz",
+	"11dcountry",
 	NULL
 };
 
@@ -83,7 +85,7 @@ const char *bssid_fields[] = {
 const char *ssid_fields[] = {
 	"mac", "checksum", "type", "ssid", "beaconinfo", "cryptset",
 	"cloaked", "firsttime", "lasttime", "maxrate", "beaconrate", 
-	"packets", "beacons", NULL
+	"packets", "beacons", "dot11d", NULL
 };
 
 const char *client_fields[] = {
@@ -596,6 +598,8 @@ int Kis_Netlist::UpdateBColPrefs() {
 			display_bcols.push_back(bcol_freq_mhz);
 		else if (t == "manuf")
 			display_bcols.push_back(bcol_manuf);
+		else if (t == "11dcountry")
+			display_bcols.push_back(bcol_11dcountry);
 		else
 			_MSG("Unknown display column '" + t + "', skipping.",
 				 MSGFLAG_INFO);
@@ -1306,6 +1310,22 @@ void Kis_Netlist::Proto_SSID(CLIPROTO_CB_PARMS) {
 	}
 	asd->beacons = tint;
 
+	vector<string> dot11d = StrTokenize((*proto_parsed)[fnum++].word, ":");
+
+	if (dot11d.size() >= 2) {
+		asd->dot11d_country = MungeToPrintable(dot11d[0]);
+
+		for (unsigned int x = 1; x < dot11d.size(); x++) {
+			dot11d_range_info ri;
+			if (sscanf(dot11d[x].c_str(), "%u-%u-%u", &(ri.startchan), 
+					   &(ri.numchan), &(ri.txpower)) != 3) {
+				delete asd;
+				return;
+			}
+
+			asd->dot11d_vec.push_back(ri);
+		}
+	}
 
 	map<uint32_t, Netracker::adv_ssid_data *>::iterator asi =
 		net->ssid_map.find(asd->checksum);
@@ -2335,8 +2355,18 @@ int Kis_Netlist::PrintNetworkLine(Kis_Display_NetGroup *ng,
 			}
 			rofft += 3;
 		} else if (b == bcol_manuf) {
-			snprintf(rline + rofft, max - rofft, "%-20.20s", net->manuf.c_str());
-			rofft += 20;
+			snprintf(rline + rofft, max - rofft, "%-10.10s", net->manuf.c_str());
+			rofft += 10;
+		} else if (b == bcol_11dcountry) {
+			if (net->lastssid == NULL) {
+				snprintf(rline + rofft, max - rofft, "???");
+			} else if (net->lastssid->dot11d_vec.size() == 0) {
+				snprintf(rline + rofft, max - rofft, "???");
+			} else {
+				snprintf(rline + rofft, max - rofft, "%-3.3s", 
+						 net->lastssid->dot11d_country.c_str());
+			}
+			rofft += 3;
 		} else {
 			continue;
 		}
@@ -2467,8 +2497,11 @@ void Kis_Netlist::DrawComponent() {
 				snprintf(rline + rofft, 1024 - rofft, "Sig");
 				rofft += 3;
 			} else if (b == bcol_manuf) {
-				snprintf(rline + rofft, 1024 - rofft, "%-20.20s", "Manuf");
-				rofft += 20;
+				snprintf(rline + rofft, 1024 - rofft, "%-10.10s", "Manuf");
+				rofft += 10;
+			} else if (b == bcol_11dcountry) {
+				snprintf(rline + rofft, 1024 - rofft, "%-3.3s", "Cty");
+				rofft += 3;
 			}
 
 			if (rofft < 1023) {
