@@ -2093,6 +2093,25 @@ int Kis_NetDetails_Panel::AppendSSIDInfo(int k, Netracker::tracked_network *net,
 		td[1] = IntToString(ssid->ssid.length());
 		netdetails->AddRow(k++, td);
 
+		if (ssid->dot11d_vec.size() > 0) {
+			td[0] = "Country:";
+			td[1] = ssid->dot11d_country;
+			netdetails->AddRow(k++, td);
+
+			td[0] = "";
+			for (unsigned int z = 0; z < ssid->dot11d_vec.size(); z++) {
+				td[1] = string("Channel ") + 
+					IntToString(ssid->dot11d_vec[z].startchan) +
+					string("-") +
+					IntToString(ssid->dot11d_vec[z].startchan +
+								ssid->dot11d_vec[z].numchan) +
+					string(" ") +
+					IntToString(ssid->dot11d_vec[z].txpower) + 
+					string("dBm");
+				netdetails->AddRow(k++, td);
+			}
+		}
+
 		td[0] = " Encryption:";
 		td[1] = "";
 		if (ssid->cryptset == 0)

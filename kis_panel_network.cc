@@ -2359,9 +2359,9 @@ int Kis_Netlist::PrintNetworkLine(Kis_Display_NetGroup *ng,
 			rofft += 10;
 		} else if (b == bcol_11dcountry) {
 			if (net->lastssid == NULL) {
-				snprintf(rline + rofft, max - rofft, "???");
+				snprintf(rline + rofft, max - rofft, "---");
 			} else if (net->lastssid->dot11d_vec.size() == 0) {
-				snprintf(rline + rofft, max - rofft, "???");
+				snprintf(rline + rofft, max - rofft, "---");
 			} else {
 				snprintf(rline + rofft, max - rofft, "%-3.3s", 
 						 net->lastssid->dot11d_country.c_str());
