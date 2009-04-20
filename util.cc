@@ -729,6 +729,8 @@ int IEEE80211Freq[][2] = {
 	{12, 2467},
 	{13, 2472},
 	{14, 2484},
+	// We could do the math here, but what about 4ghz nonsense?
+	// We'll do table lookups for now.
 	{36, 5180},
 	{37, 5185},
 	{38, 5190},
@@ -743,7 +745,13 @@ int IEEE80211Freq[][2] = {
 	{47, 5235},
 	{48, 5240},
 	{52, 5260},
+	{53, 5265},
+	{54, 5270},
+	{55, 5275},
 	{56, 5280},
+	{57, 5285},
+	{58, 5290},
+	{59, 5295},
 	{60, 5300},
 	{64, 5320},
 	{149, 5745},
@@ -763,7 +771,7 @@ int ChanToFreq(int in_chan) {
 
     while (IEEE80211Freq[x][0] != 0) {
         if (IEEE80211Freq[x][0] == in_chan) {
-            return IEEE80211Freq[x][0];
+            return IEEE80211Freq[x][1];
         }
         x++;
     }
@@ -775,7 +783,7 @@ int FreqToChan(int in_freq) {
     int x = 0;
     // 80211b frequencies to channels
 
-    while (IEEE80211Freq[x][0] != 0) {
+    while (IEEE80211Freq[x][1] != 0) {
         if (IEEE80211Freq[x][1] == in_freq) {
             return IEEE80211Freq[x][0];
         }

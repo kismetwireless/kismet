@@ -784,8 +784,9 @@ int Iwconfig_Get_Chanlist(const char *interface, char *errstr,
 	if (range.num_frequency > 0) {
 		/* Print them all */
 		for (int k = 0; k < range.num_frequency; k++) {
-			float freq = ((double) range.freq[k].m) * pow(10, range.freq[k].e);
-			chan_list->push_back(FloatChan2Int(freq));
+			int freq = (((double) range.freq[k].m) * pow(10, range.freq[k].e)) /
+				1000000;
+			chan_list->push_back(FreqToChan(freq));
 		}
 	}
 
