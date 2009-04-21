@@ -84,7 +84,7 @@ int panel_plugin_init(GlobalRegistry *globalreg, KisPanelPluginData *pdata) {
 
 	pdata->mainpanel->AddComponentVec(adata->spectrum, KIS_PANEL_COMP_DRAW);
 
-	string opt = pdata->kpinterface->prefs.FetchOpt("MAIN_SHOWSPECTRUM");
+	string opt = pdata->kpinterface->prefs->FetchOpt("MAIN_SHOWSPECTRUM");
 	if (opt == "true" || opt == "") {
 		adata->spectrum->Show();
 		pdata->mainpanel->SetPluginMenuItemChecked(adata->mi_showspectrum, 1);
@@ -207,13 +207,13 @@ int showspectrum_menu_callback(void *auxptr) {
 	GlobalRegistry *globalreg = pdata->globalreg;
 	spec_data *adata = (spec_data *) pdata->pluginaux;
 
-	string opt = pdata->kpinterface->prefs.FetchOpt("MAIN_SHOWSPECTRUM");
+	string opt = pdata->kpinterface->prefs->FetchOpt("MAIN_SHOWSPECTRUM");
 	if (opt == "" || opt == "true") {
-		pdata->kpinterface->prefs.SetOpt("MAIN_SHOWSPECTRUM", "false", 1);
+		pdata->kpinterface->prefs->SetOpt("MAIN_SHOWSPECTRUM", "false", 1);
 		pdata->mainpanel->SetPluginMenuItemChecked(adata->mi_showspectrum, 0);
 		adata->spectrum->Hide();
 	} else {
-		pdata->kpinterface->prefs.SetOpt("MAIN_SHOWSPECTRUM", "true", 1);
+		pdata->kpinterface->prefs->SetOpt("MAIN_SHOWSPECTRUM", "true", 1);
 		pdata->mainpanel->SetPluginMenuItemChecked(adata->mi_showspectrum, 1);
 		adata->spectrum->Show();
 	}

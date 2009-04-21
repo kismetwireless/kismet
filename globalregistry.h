@@ -158,6 +158,8 @@ public:
 	KisPanelInterface *panel_interface;
 	Manuf *manufdb;
 
+	string log_prefix;
+
 	string version_major;
 	string version_minor;
 	string version_tiny;

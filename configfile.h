@@ -37,7 +37,7 @@
 
 class ConfigFile {
 public:
-	ConfigFile() { checksum = 0; }
+	ConfigFile(GlobalRegistry *in_globalreg) { globalreg = in_globalreg; checksum = 0; }
 
     int ParseConfig(const char *in_fname);
 	int SaveConfig(const char *in_fname);
@@ -51,13 +51,14 @@ public:
 	void SetOpt(string in_key, string in_val, int in_dirty);
 	void SetOptVec(string in_key, vector<string> in_val, int in_dirty);
 
-    static string ExpandLogPath(string path, string logname, string type, 
-								int start, int overwrite = 0);
+    string ExpandLogPath(string path, string logname, string type, 
+						 int start, int overwrite = 0);
 
 	// Fetches the load-time checksum of the config values.
 	uint32_t FetchFileChecksum();
 
 protected:
+	GlobalRegistry *globalreg;
 	void CalculateChecksum();
 
     map<string, vector<string> > config_map;

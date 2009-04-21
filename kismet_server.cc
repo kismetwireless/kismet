@@ -430,7 +430,8 @@ int Usage(char *argv) {
 		   "the configuration file.\n");
 
 	printf(" *** Generic Options ***\n");
-	printf(" -f, --config-file <file>     Use alternate configuration file\n"
+	printf(" -p, --log-prefix <prefix>    Directory to store log files\n"
+		   " -f, --config-file <file>     Use alternate configuration file\n"
 		   "     --no-line-wrap           Turn of linewrapping of output\n"
 		   "                              (for grep, speed, etc)\n"
 		   " -s, --silent                 Turn off stdout output after setup phase\n"
@@ -541,17 +542,17 @@ int main(int argc, char *argv[], char *envp[]) {
 
 	// Standard getopt parse run
 	static struct option main_longopt[] = {
+		{ "log-prefix", required_argument, 0, 'p' },
 		{ "config-file", required_argument, 0, 'f' },
 		{ "no-line-wrap", no_argument, 0, nlwc },
 		{ "silent", no_argument, 0, 's' },
-		{ "resume", required_argument, 0, 'r' },
 		{ "help", no_argument, 0, 'h' },
 		{ 0, 0, 0, 0 }
 	};
 
 	while (1) {
 		int r = getopt_long(argc, argv, 
-							"-f:sh", 
+							"-f:sp:h", 
 							main_longopt, &option_idx);
 		if (r < 0) break;
 		if (r == 'h') {
@@ -563,6 +564,8 @@ int main(int argc, char *argv[], char *envp[]) {
 			glob_linewrap = 0;
 		} else if (r == 's') {
 			local_silent = 1;
+		} else if (r == 'p') {
+			globalreg->log_prefix = string(optarg);
 		}
 	}
 
@@ -577,14 +580,14 @@ int main(int argc, char *argv[], char *envp[]) {
 	snprintf(errstr, STATUS_MAX, "Reading from config file %s", configfilename);
 	globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
 	
-	conf = new ConfigFile;
+	conf = new ConfigFile(globalregistry);
 	if (conf->ParseConfig(configfilename) < 0) {
 		exit(1);
 	}
 	globalregistry->kismet_config = conf;
 
 	if (conf->FetchOpt("servername") == "") {
-		globalregistry->servername = "Unnamed Kismet";
+		globalregistry->servername = "Kismet";
 	} else {
 		globalregistry->servername = MungeToPrintable(conf->FetchOpt("servername"));
 	}

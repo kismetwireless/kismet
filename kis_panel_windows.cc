@@ -268,7 +268,7 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 
 	AddComponentVec(vbox, KIS_PANEL_COMP_DRAW);
 
-	if (kpinterface->prefs.FetchOpt("LOADEDFROMFILE") != "1") {
+	if (kpinterface->prefs->FetchOpt("LOADEDFROMFILE") != "1") {
 		_MSG("Failed to load preferences file, will use defaults", MSGFLAG_INFO);
 	}
 
@@ -305,12 +305,12 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	addref = 
 		kpinterface->Add_NetCli_AddCli_CB(KisMainPanel_AddCli, (void *) this);
 
-	if (kpinterface->prefs.FetchOpt("autoconnect") == "true" &&
-		kpinterface->prefs.FetchOpt("default_host") != "" &&
-		kpinterface->prefs.FetchOpt("default_port") != "") {
+	if (kpinterface->prefs->FetchOpt("autoconnect") == "true" &&
+		kpinterface->prefs->FetchOpt("default_host") != "" &&
+		kpinterface->prefs->FetchOpt("default_port") != "") {
 		string constr = string("tcp://") +
-			kpinterface->prefs.FetchOpt("default_host") + ":" +
-			kpinterface->prefs.FetchOpt("default_port");
+			kpinterface->prefs->FetchOpt("default_host") + ":" +
+			kpinterface->prefs->FetchOpt("default_port");
 
 		_MSG("Auto-connecting to " + constr, MSGFLAG_INFO);
 
@@ -334,8 +334,8 @@ void kmp_prompt_startserver(KIS_PROMPT_CB_PARMS) {
 	if (ok) {
 		Kis_Spawn_Panel *sp = new Kis_Spawn_Panel(globalreg, globalreg->panel_interface);
 
-		if (globalreg->panel_interface->prefs.FetchOpt("STARTUP_CONSOLE") == "true" ||
-			globalreg->panel_interface->prefs.FetchOpt("STARTUP_CONSOLE") == "") 
+		if (globalreg->panel_interface->prefs->FetchOpt("STARTUP_CONSOLE") == "true" ||
+			globalreg->panel_interface->prefs->FetchOpt("STARTUP_CONSOLE") == "") 
 			sp->SpawnConsole(1);
 		else
 			sp->SpawnConsole(0);
@@ -346,20 +346,20 @@ void kmp_prompt_startserver(KIS_PROMPT_CB_PARMS) {
 
 void kmp_prompt_asroot(KIS_PROMPT_CB_PARMS) {
 	if (check) {
-		globalreg->panel_interface->prefs.SetOpt("STARTUP_WARNROOT", "false", 1);
+		globalreg->panel_interface->prefs->SetOpt("STARTUP_WARNROOT", "false", 1);
 	}
 }
 
 void Kis_Main_Panel::Startup() {
-	if (kpinterface->prefs.FetchOpt("DEFAULT_HOST") == "") {
-		kpinterface->prefs.SetOpt("DEFAULT_HOST", "localhost", 1);
-		kpinterface->prefs.SetOpt("DEFAULT_PORT", "2501", 1);
-		kpinterface->prefs.SetOpt("AUTOCONNECT", "true", 1);
+	if (kpinterface->prefs->FetchOpt("DEFAULT_HOST") == "") {
+		kpinterface->prefs->SetOpt("DEFAULT_HOST", "localhost", 1);
+		kpinterface->prefs->SetOpt("DEFAULT_PORT", "2501", 1);
+		kpinterface->prefs->SetOpt("AUTOCONNECT", "true", 1);
 	}
 
 	if ((getuid() == 0 || geteuid() == 0) &&
-		(kpinterface->prefs.FetchOpt("STARTUP_WARNROOT") == "" ||
-		 kpinterface->prefs.FetchOpt("STARTUP_WARNROOT") == "true")) {
+		(kpinterface->prefs->FetchOpt("STARTUP_WARNROOT") == "" ||
+		 kpinterface->prefs->FetchOpt("STARTUP_WARNROOT") == "true")) {
 		vector<string> t;
 		t.push_back("Kismet is running as root");
 		t.push_back("Kismet was started as root.  This isn't the recommended");
@@ -379,8 +379,8 @@ void Kis_Main_Panel::Startup() {
 		kpinterface->QueueModalPanel(kpp);
 	}
 
-	if (kpinterface->prefs.FetchOpt("STARTUP_PROMPTSERVER") == "" ||
-		kpinterface->prefs.FetchOpt("STARTUP_PROMPTSERVER") == "true") {
+	if (kpinterface->prefs->FetchOpt("STARTUP_PROMPTSERVER") == "" ||
+		kpinterface->prefs->FetchOpt("STARTUP_PROMPTSERVER") == "true") {
 		vector<string> t;
 		t.push_back("Automatically start Kismet server?");
 		t.push_back("Launch Kismet server and connect to it automatically.");
@@ -395,8 +395,8 @@ void Kis_Main_Panel::Startup() {
 		kpp->SetButtonText("Yes", "No");
 		kpp->SetDefaultButton(1);
 		kpinterface->QueueModalPanel(kpp);
-	} else if (kpinterface->prefs.FetchOpt("STARTUP_SERVER") == "true" ||
-			   kpinterface->prefs.FetchOpt("STARTUP_SERVER") == "") {
+	} else if (kpinterface->prefs->FetchOpt("STARTUP_SERVER") == "true" ||
+			   kpinterface->prefs->FetchOpt("STARTUP_SERVER") == "") {
 		kmp_prompt_startserver(globalreg, 1, -1, this);
 	}
 }
@@ -487,7 +487,7 @@ void Kis_Main_Panel::Proto_GPS(CLIPROTO_CB_PARMS) {
 	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%f", &spd) != 1)
 		return;
 
-	int eng = StrLower(kpinterface->prefs.FetchOpt("GPSUNIT")) != "metric";
+	int eng = StrLower(kpinterface->prefs->FetchOpt("GPSUNIT")) != "metric";
 
 	if (eng) {
 		// Convert speed to feet/sec
@@ -672,10 +672,10 @@ void Kis_Main_Panel::MenuAction(int opt) {
 			_MSG("Quitting...", MSGFLAG_INFO);
 		}
 
-		if ((kpinterface->prefs.FetchOpt("STOP_PROMPTSERVER") == "true" ||
-			 kpinterface->prefs.FetchOpt("STOP_PROMPTSERVER") == "") &&
-			(kpinterface->prefs.FetchOpt("STOP_SERVER") == "true" ||
-			 kpinterface->prefs.FetchOpt("STOP_SERVER") == "")) {
+		if ((kpinterface->prefs->FetchOpt("STOP_PROMPTSERVER") == "true" ||
+			 kpinterface->prefs->FetchOpt("STOP_PROMPTSERVER") == "") &&
+			(kpinterface->prefs->FetchOpt("STOP_SERVER") == "true" ||
+			 kpinterface->prefs->FetchOpt("STOP_SERVER") == "")) {
 
 			vector<string> t;
 			t.push_back("Stop Kismet server before quitting?");
@@ -693,8 +693,8 @@ void Kis_Main_Panel::MenuAction(int opt) {
 			kpp->SetDefaultButton(1);
 			kpinterface->QueueModalPanel(kpp);
 			return;
-		} else if (kpinterface->prefs.FetchOpt("STOP_SERVER") == "true" ||
-				   kpinterface->prefs.FetchOpt("STOP_SERVER") == "") {
+		} else if (kpinterface->prefs->FetchOpt("STOP_SERVER") == "true" ||
+				   kpinterface->prefs->FetchOpt("STOP_SERVER") == "") {
 			// if we're stopping the server without prompt, just call the
 			// prompt handler and tell it OK
 			kmp_prompt_killserver(globalreg, 1, -1, NULL);
@@ -718,29 +718,29 @@ void Kis_Main_Panel::MenuAction(int opt) {
 			kpinterface->RemoveNetClient();
 		}
 	} else if (opt == mi_sort_auto) {
-		kpinterface->prefs.SetOpt("NETLIST_SORT", "auto", 1);
+		kpinterface->prefs->SetOpt("NETLIST_SORT", "auto", 1);
 	} else if (opt == mi_sort_type) {
-		kpinterface->prefs.SetOpt("NETLIST_SORT", "type", 1);
+		kpinterface->prefs->SetOpt("NETLIST_SORT", "type", 1);
 	} else if (opt == mi_sort_chan) {
-		kpinterface->prefs.SetOpt("NETLIST_SORT", "channel", 1);
+		kpinterface->prefs->SetOpt("NETLIST_SORT", "channel", 1);
 	} else if (opt == mi_sort_crypt) {
-		kpinterface->prefs.SetOpt("NETLIST_SORT", "crypt_type", 1);
+		kpinterface->prefs->SetOpt("NETLIST_SORT", "crypt_type", 1);
 	} else if (opt == mi_sort_first) {
-		kpinterface->prefs.SetOpt("NETLIST_SORT", "first", 1);
+		kpinterface->prefs->SetOpt("NETLIST_SORT", "first", 1);
 	} else if (opt == mi_sort_first_d) {
-		kpinterface->prefs.SetOpt("NETLIST_SORT", "first_desc", 1);
+		kpinterface->prefs->SetOpt("NETLIST_SORT", "first_desc", 1);
 	} else if (opt == mi_sort_last) {
-		kpinterface->prefs.SetOpt("NETLIST_SORT", "last", 1);
+		kpinterface->prefs->SetOpt("NETLIST_SORT", "last", 1);
 	} else if (opt == mi_sort_last_d) {
-		kpinterface->prefs.SetOpt("NETLIST_SORT", "last_desc", 1);
+		kpinterface->prefs->SetOpt("NETLIST_SORT", "last_desc", 1);
 	} else if (opt == mi_sort_bssid) {
-		kpinterface->prefs.SetOpt("NETLIST_SORT", "bssid", 1);
+		kpinterface->prefs->SetOpt("NETLIST_SORT", "bssid", 1);
 	} else if (opt == mi_sort_ssid) {
-		kpinterface->prefs.SetOpt("NETLIST_SORT", "ssid", 1);
+		kpinterface->prefs->SetOpt("NETLIST_SORT", "ssid", 1);
 	} else if (opt == mi_sort_packets) {
-		kpinterface->prefs.SetOpt("NETLIST_SORT", "packets", 1);
+		kpinterface->prefs->SetOpt("NETLIST_SORT", "packets", 1);
 	} else if (opt == mi_sort_packets_d) {
-		kpinterface->prefs.SetOpt("NETLIST_SORT", "packets_desc", 1);
+		kpinterface->prefs->SetOpt("NETLIST_SORT", "packets_desc", 1);
 	} else if (opt == mi_netdetails) {
 		Kis_NetDetails_Panel *dp = new Kis_NetDetails_Panel(globalreg, kpinterface);
 		kpinterface->AddPanel(dp);
@@ -959,86 +959,86 @@ void Kis_Main_Panel::UpdateViewMenu(int mi) {
 	string opt;
 
 	if (mi == mi_showsummary) {
-		opt = kpinterface->prefs.FetchOpt("MAIN_SHOWSUMMARY");
+		opt = kpinterface->prefs->FetchOpt("MAIN_SHOWSUMMARY");
 		if (opt == "" || opt == "true") {
-			kpinterface->prefs.SetOpt("MAIN_SHOWSUMMARY", "false", 1);
+			kpinterface->prefs->SetOpt("MAIN_SHOWSUMMARY", "false", 1);
 			menu->SetMenuItemChecked(mi_showsummary, 0);
 			optbox->Hide();
 		} else {
-			kpinterface->prefs.SetOpt("MAIN_SHOWSUMMARY", "true", 1);
+			kpinterface->prefs->SetOpt("MAIN_SHOWSUMMARY", "true", 1);
 			menu->SetMenuItemChecked(mi_showsummary, 1);
 			optbox->Show();
 		}
 	} else if (mi == mi_showstatus) {
-		opt = kpinterface->prefs.FetchOpt("MAIN_SHOWSTATUS");
+		opt = kpinterface->prefs->FetchOpt("MAIN_SHOWSTATUS");
 		if (opt == "" || opt == "true") {
-			kpinterface->prefs.SetOpt("MAIN_SHOWSTATUS", "false", 1);
+			kpinterface->prefs->SetOpt("MAIN_SHOWSTATUS", "false", 1);
 			menu->SetMenuItemChecked(mi_showstatus, 0);
 			statustext->Hide();
 		} else {
-			kpinterface->prefs.SetOpt("MAIN_SHOWSTATUS", "true", 1);
+			kpinterface->prefs->SetOpt("MAIN_SHOWSTATUS", "true", 1);
 			menu->SetMenuItemChecked(mi_showstatus, 1);
 			statustext->Show();
 		}
 	} else if (mi == mi_showgps) {
-		opt = kpinterface->prefs.FetchOpt("MAIN_SHOWGPS");
+		opt = kpinterface->prefs->FetchOpt("MAIN_SHOWGPS");
 		if (opt == "" || opt == "true") {
-			kpinterface->prefs.SetOpt("MAIN_SHOWGPS", "false", 1);
+			kpinterface->prefs->SetOpt("MAIN_SHOWGPS", "false", 1);
 			menu->SetMenuItemChecked(mi_showgps, 0);
 			linebox->Hide();
 		} else {
-			kpinterface->prefs.SetOpt("MAIN_SHOWGPS", "true", 1);
+			kpinterface->prefs->SetOpt("MAIN_SHOWGPS", "true", 1);
 			menu->SetMenuItemChecked(mi_showgps, 1);
 			linebox->Show();
 		}
 	} else if (mi == mi_showpps) {
-		opt = kpinterface->prefs.FetchOpt("MAIN_SHOWPPS");
+		opt = kpinterface->prefs->FetchOpt("MAIN_SHOWPPS");
 		if (opt == "" || opt == "true") {
-			kpinterface->prefs.SetOpt("MAIN_SHOWPPS", "false", 1);
+			kpinterface->prefs->SetOpt("MAIN_SHOWPPS", "false", 1);
 			menu->SetMenuItemChecked(mi_showpps, 0);
 			packetrate->Hide();
 		} else {
-			kpinterface->prefs.SetOpt("MAIN_SHOWPPS", "true", 1);
+			kpinterface->prefs->SetOpt("MAIN_SHOWPPS", "true", 1);
 			menu->SetMenuItemChecked(mi_showpps, 1);
 			packetrate->Show();
 		}
 	} else if (mi == mi_showsources) {
-		opt = kpinterface->prefs.FetchOpt("MAIN_SHOWSOURCE");
+		opt = kpinterface->prefs->FetchOpt("MAIN_SHOWSOURCE");
 		if (opt == "" || opt == "true") {
-			kpinterface->prefs.SetOpt("MAIN_SHOWSOURCE", "false", 1);
+			kpinterface->prefs->SetOpt("MAIN_SHOWSOURCE", "false", 1);
 			menu->SetMenuItemChecked(mi_showsources, 0);
 			sourceinfo->Hide();
 		} else {
-			kpinterface->prefs.SetOpt("MAIN_SHOWSOURCE", "true", 1);
+			kpinterface->prefs->SetOpt("MAIN_SHOWSOURCE", "true", 1);
 			menu->SetMenuItemChecked(mi_showsources, 1);
 			sourceinfo->Show();
 		}
 	} else if (mi == mi_shownetworks) {
-		opt = kpinterface->prefs.FetchOpt("MAIN_SHOWNETLIST");
+		opt = kpinterface->prefs->FetchOpt("MAIN_SHOWNETLIST");
 		if (opt == "" || opt == "true") {
-			kpinterface->prefs.SetOpt("MAIN_SHOWNETLIST", "false", 1);
+			kpinterface->prefs->SetOpt("MAIN_SHOWNETLIST", "false", 1);
 			menu->SetMenuItemChecked(mi_shownetworks, 0);
 			netlist->Hide();
 		} else {
-			kpinterface->prefs.SetOpt("MAIN_SHOWNETLIST", "true", 1);
+			kpinterface->prefs->SetOpt("MAIN_SHOWNETLIST", "true", 1);
 			menu->SetMenuItemChecked(mi_shownetworks, 1);
 			netlist->Show();
 		}
 	} else if (mi == mi_showclients) {
-		opt = kpinterface->prefs.FetchOpt("MAIN_SHOWCLIENTLIST");
+		opt = kpinterface->prefs->FetchOpt("MAIN_SHOWCLIENTLIST");
 		if (opt == "true") {
-			kpinterface->prefs.SetOpt("MAIN_SHOWCLIENTLIST", "false", 1);
+			kpinterface->prefs->SetOpt("MAIN_SHOWCLIENTLIST", "false", 1);
 			menu->SetMenuItemChecked(mi_showclients, 0);
 			clientlist->Hide();
 		} else {
-			kpinterface->prefs.SetOpt("MAIN_SHOWCLIENTLIST", "true", 1);
+			kpinterface->prefs->SetOpt("MAIN_SHOWCLIENTLIST", "true", 1);
 			menu->SetMenuItemChecked(mi_showclients, 1);
 			clientlist->Show();
 		}
 	}
 
 	if (mi == -1) {
-		opt = kpinterface->prefs.FetchOpt("MAIN_SHOWSUMMARY");
+		opt = kpinterface->prefs->FetchOpt("MAIN_SHOWSUMMARY");
 		if (opt == "" || opt == "true") {
 			menu->SetMenuItemChecked(mi_showsummary, 1);
 			optbox->Show();
@@ -1047,7 +1047,7 @@ void Kis_Main_Panel::UpdateViewMenu(int mi) {
 			optbox->Hide();
 		}
 
-		opt = kpinterface->prefs.FetchOpt("MAIN_SHOWSTATUS");
+		opt = kpinterface->prefs->FetchOpt("MAIN_SHOWSTATUS");
 		if (opt == "" || opt == "true") {
 			menu->SetMenuItemChecked(mi_showstatus, 1);
 			statustext->Show();
@@ -1056,7 +1056,7 @@ void Kis_Main_Panel::UpdateViewMenu(int mi) {
 			statustext->Hide();
 		}
 
-		opt = kpinterface->prefs.FetchOpt("MAIN_SHOWPPS");
+		opt = kpinterface->prefs->FetchOpt("MAIN_SHOWPPS");
 		if (opt == "" || opt == "true") {
 			menu->SetMenuItemChecked(mi_showpps, 1);
 			packetrate->Show();
@@ -1065,7 +1065,7 @@ void Kis_Main_Panel::UpdateViewMenu(int mi) {
 			packetrate->Hide();
 		}
 
-		opt = kpinterface->prefs.FetchOpt("MAIN_SHOWGPS");
+		opt = kpinterface->prefs->FetchOpt("MAIN_SHOWGPS");
 		if (opt == "" || opt == "true") {
 			menu->SetMenuItemChecked(mi_showgps, 1);
 			linebox->Show();
@@ -1074,7 +1074,7 @@ void Kis_Main_Panel::UpdateViewMenu(int mi) {
 			linebox->Hide();
 		}
 
-		opt = kpinterface->prefs.FetchOpt("MAIN_SHOWSOURCE");
+		opt = kpinterface->prefs->FetchOpt("MAIN_SHOWSOURCE");
 		if (opt == "" || opt == "true") {
 			menu->SetMenuItemChecked(mi_showsources, 1);
 			sourceinfo->Show();
@@ -1083,7 +1083,7 @@ void Kis_Main_Panel::UpdateViewMenu(int mi) {
 			sourceinfo->Hide();
 		}
 
-		opt = kpinterface->prefs.FetchOpt("MAIN_SHOWNETLIST");
+		opt = kpinterface->prefs->FetchOpt("MAIN_SHOWNETLIST");
 		if (opt == "" || opt == "true") {
 			menu->SetMenuItemChecked(mi_shownetworks, 1);
 			netlist->Show();
@@ -1092,7 +1092,7 @@ void Kis_Main_Panel::UpdateViewMenu(int mi) {
 			netlist->Hide();
 		}
 
-		opt = kpinterface->prefs.FetchOpt("MAIN_SHOWCLIENTLIST");
+		opt = kpinterface->prefs->FetchOpt("MAIN_SHOWCLIENTLIST");
 		if (opt == "true") {
 			menu->SetMenuItemChecked(mi_showclients, 1);
 			clientlist->Show();
@@ -1125,12 +1125,12 @@ Kis_Connect_Panel::Kis_Connect_Panel(GlobalRegistry *in_globalreg,
 	hostname->SetLabel("Host", LABEL_POS_LEFT);
 	hostname->SetTextLen(120);
 	hostname->SetCharFilter(FILTER_ALPHANUMSYM);
-	hostname->SetText(kpinterface->prefs.FetchOpt("default_host"), -1, -1);
+	hostname->SetText(kpinterface->prefs->FetchOpt("default_host"), -1, -1);
 
 	hostport->SetLabel("Port", LABEL_POS_LEFT);
 	hostport->SetTextLen(5);
 	hostport->SetCharFilter(FILTER_NUM);
-	hostport->SetText(kpinterface->prefs.FetchOpt("default_port"), -1, -1);
+	hostport->SetText(kpinterface->prefs->FetchOpt("default_port"), -1, -1);
 
 	okbutton->SetText("Connect");
 	cancelbutton->SetText("Cancel");
@@ -1378,8 +1378,8 @@ Kis_Spawn_Panel::Kis_Spawn_Panel(GlobalRegistry *in_globalreg,
 
 	spawn_console = 0;
 
-	if (kpinterface->prefs.FetchOpt("STARTUP_CONSOLE") == "true" ||
-		kpinterface->prefs.FetchOpt("STARTUP_CONSOLE") == "")
+	if (kpinterface->prefs->FetchOpt("STARTUP_CONSOLE") == "true" ||
+		kpinterface->prefs->FetchOpt("STARTUP_CONSOLE") == "")
 		spawn_console = 1;
 
 
@@ -1400,7 +1400,7 @@ Kis_Spawn_Panel::Kis_Spawn_Panel(GlobalRegistry *in_globalreg,
 	options->SetLabel("Startup Options", LABEL_POS_LEFT);
 	options->SetTextLen(120);
 	options->SetCharFilter(FILTER_ALPHANUMSYM);
-	options->SetText(kpinterface->prefs.FetchOpt("default_server_options"), -1, -1);
+	options->SetText(kpinterface->prefs->FetchOpt("default_server_options"), -1, -1);
 
 	logging_check->SetText("Logging");
 	logging_check->SetChecked(1);
@@ -1801,7 +1801,7 @@ Kis_Plugin_Picker::Kis_Plugin_Picker(GlobalRegistry *in_globalreg,
 
 	for (unsigned int x = 0; x < plugins->size(); x++) {
 		vector<string> td;
-		vector<string> prefs = kpinterface->prefs.FetchOptVec("plugin_autoload");
+		vector<string> prefs = kpinterface->prefs->FetchOptVec("plugin_autoload");
 		string en = "";
 
 		td.push_back((*plugins)[x]->objectname);
@@ -1876,7 +1876,7 @@ void Kis_Plugin_Picker::ButtonAction(Kis_Panel_Component *in_button) {
 			}
 		}
 
-		kpinterface->prefs.SetOptVec("plugin_autoload", autoload, 1);
+		kpinterface->prefs->SetOptVec("plugin_autoload", autoload, 1);
 
 		globalreg->panel_interface->KillPanel(this);
 
@@ -2587,51 +2587,51 @@ void Kis_NetDetails_Panel::UpdateViewMenu(int mi) {
 	string opt;
 
 	if (mi == mi_net) {
-		opt = kpinterface->prefs.FetchOpt("DETAILS_SHOWNET");
+		opt = kpinterface->prefs->FetchOpt("DETAILS_SHOWNET");
 		if (opt == "" || opt == "true") {
-			kpinterface->prefs.SetOpt("DETAILS_SHOWNET", "false", 1);
+			kpinterface->prefs->SetOpt("DETAILS_SHOWNET", "false", 1);
 			menu->SetMenuItemChecked(mi_net, 0);
 			netdetails->Hide();
 		} else {
-			kpinterface->prefs.SetOpt("DETAILS_SHOWNET", "true", 1);
+			kpinterface->prefs->SetOpt("DETAILS_SHOWNET", "true", 1);
 			menu->SetMenuItemChecked(mi_net, 1);
 			netdetails->Show();
 		}
 	} else if (mi == mi_graphsig) {
-		opt = kpinterface->prefs.FetchOpt("DETAILS_SHOWGRAPHSIG");
+		opt = kpinterface->prefs->FetchOpt("DETAILS_SHOWGRAPHSIG");
 		if (opt == "" || opt == "true") {
-			kpinterface->prefs.SetOpt("DETAILS_SHOWGRAPHSIG", "false", 1);
+			kpinterface->prefs->SetOpt("DETAILS_SHOWGRAPHSIG", "false", 1);
 			menu->SetMenuItemChecked(mi_graphsig, 0);
 			siggraph->Hide();
 		} else {
-			kpinterface->prefs.SetOpt("DETAILS_SHOWGRAPHSIG", "true", 1);
+			kpinterface->prefs->SetOpt("DETAILS_SHOWGRAPHSIG", "true", 1);
 			menu->SetMenuItemChecked(mi_graphsig, 1);
 			siggraph->Show();
 		}
 	} else if (mi == mi_graphpacket) {
-		opt = kpinterface->prefs.FetchOpt("DETAILS_SHOWGRAPHPACKET");
+		opt = kpinterface->prefs->FetchOpt("DETAILS_SHOWGRAPHPACKET");
 		if (opt == "" || opt == "true") {
-			kpinterface->prefs.SetOpt("DETAILS_SHOWGRAPHPACKET", "false", 1);
+			kpinterface->prefs->SetOpt("DETAILS_SHOWGRAPHPACKET", "false", 1);
 			menu->SetMenuItemChecked(mi_graphpacket, 0);
 			packetgraph->Hide();
 		} else {
-			kpinterface->prefs.SetOpt("DETAILS_SHOWGRAPHPACKET", "true", 1);
+			kpinterface->prefs->SetOpt("DETAILS_SHOWGRAPHPACKET", "true", 1);
 			menu->SetMenuItemChecked(mi_graphpacket, 1);
 			packetgraph->Show();
 		}
 	} else if (mi == mi_graphretry) {
-		opt = kpinterface->prefs.FetchOpt("DETAILS_SHOWGRAPHRETRY");
+		opt = kpinterface->prefs->FetchOpt("DETAILS_SHOWGRAPHRETRY");
 		if (opt == "" || opt == "true") {
-			kpinterface->prefs.SetOpt("DETAILS_SHOWGRAPHRETRY", "false", 1);
+			kpinterface->prefs->SetOpt("DETAILS_SHOWGRAPHRETRY", "false", 1);
 			menu->SetMenuItemChecked(mi_graphretry, 0);
 			retrygraph->Hide();
 		} else {
-			kpinterface->prefs.SetOpt("DETAILS_SHOWGRAPHRETRY", "true", 1);
+			kpinterface->prefs->SetOpt("DETAILS_SHOWGRAPHRETRY", "true", 1);
 			menu->SetMenuItemChecked(mi_graphretry, 1);
 			retrygraph->Show();
 		}
 	} else if (mi == -1) {
-		opt = kpinterface->prefs.FetchOpt("DETAILS_SHOWNET");
+		opt = kpinterface->prefs->FetchOpt("DETAILS_SHOWNET");
 		if (opt == "" || opt == "true") {
 			menu->SetMenuItemChecked(mi_net, 1);
 			netdetails->Show();
@@ -2640,7 +2640,7 @@ void Kis_NetDetails_Panel::UpdateViewMenu(int mi) {
 			netdetails->Hide();
 		}
 
-		opt = kpinterface->prefs.FetchOpt("DETAILS_SHOWGRAPHSIG");
+		opt = kpinterface->prefs->FetchOpt("DETAILS_SHOWGRAPHSIG");
 		if (opt == "true") {
 			menu->SetMenuItemChecked(mi_graphsig, 1);
 			siggraph->Show();
@@ -2649,7 +2649,7 @@ void Kis_NetDetails_Panel::UpdateViewMenu(int mi) {
 			siggraph->Hide();
 		}
 
-		opt = kpinterface->prefs.FetchOpt("DETAILS_SHOWGRAPHPACKET");
+		opt = kpinterface->prefs->FetchOpt("DETAILS_SHOWGRAPHPACKET");
 		if (opt == "" || opt == "true") {
 			menu->SetMenuItemChecked(mi_graphpacket, 1);
 			packetgraph->Show();
@@ -2658,7 +2658,7 @@ void Kis_NetDetails_Panel::UpdateViewMenu(int mi) {
 			packetgraph->Hide();
 		}
 
-		opt = kpinterface->prefs.FetchOpt("DETAILS_SHOWGRAPHRETRY");
+		opt = kpinterface->prefs->FetchOpt("DETAILS_SHOWGRAPHRETRY");
 		if (opt == "true") {
 			menu->SetMenuItemChecked(mi_graphretry, 1);
 			retrygraph->Show();
@@ -2998,62 +2998,62 @@ void Kis_ChanDetails_Panel::UpdateViewMenu(int mi) {
 	string opt;
 
 	if (mi == mi_chansummary) {
-		opt = kpinterface->prefs.FetchOpt("CHANDETAILS_SHOWSUM");
+		opt = kpinterface->prefs->FetchOpt("CHANDETAILS_SHOWSUM");
 		if (opt == "" || opt == "true") {
-			kpinterface->prefs.SetOpt("CHANDETAILS_SHOWSUM", "false", 1);
+			kpinterface->prefs->SetOpt("CHANDETAILS_SHOWSUM", "false", 1);
 			menu->SetMenuItemChecked(mi_chansummary, 0);
 			chansummary->Hide();
 		} else {
-			kpinterface->prefs.SetOpt("CHANDETAILS_SHOWSUM", "true", 1);
+			kpinterface->prefs->SetOpt("CHANDETAILS_SHOWSUM", "true", 1);
 			menu->SetMenuItemChecked(mi_chansummary, 1);
 			chansummary->Show();
 		}
 	} else if (mi == mi_signal) {
-		opt = kpinterface->prefs.FetchOpt("CHANDETAILS_SHOWSIG");
+		opt = kpinterface->prefs->FetchOpt("CHANDETAILS_SHOWSIG");
 		if (opt == "" || opt == "true") {
-			kpinterface->prefs.SetOpt("CHANDETAILS_SHOWSIG", "false", 1);
+			kpinterface->prefs->SetOpt("CHANDETAILS_SHOWSIG", "false", 1);
 			menu->SetMenuItemChecked(mi_signal, 0);
 			siggraph->Hide();
 		} else {
-			kpinterface->prefs.SetOpt("CHANDETAILS_SHOWSIG", "true", 1);
+			kpinterface->prefs->SetOpt("CHANDETAILS_SHOWSIG", "true", 1);
 			menu->SetMenuItemChecked(mi_signal, 1);
 			siggraph->Show();
 		}
 	} else if (mi == mi_packets) {
-		opt = kpinterface->prefs.FetchOpt("CHANDETAILS_SHOWPACK");
+		opt = kpinterface->prefs->FetchOpt("CHANDETAILS_SHOWPACK");
 		if (opt == "" || opt == "true") {
-			kpinterface->prefs.SetOpt("CHANDETAILS_SHOWPACK", "false", 1);
+			kpinterface->prefs->SetOpt("CHANDETAILS_SHOWPACK", "false", 1);
 			menu->SetMenuItemChecked(mi_packets, 0);
 			packetgraph->Hide();
 		} else {
-			kpinterface->prefs.SetOpt("CHANDETAILS_SHOWPACK", "true", 1);
+			kpinterface->prefs->SetOpt("CHANDETAILS_SHOWPACK", "true", 1);
 			menu->SetMenuItemChecked(mi_packets, 1);
 			packetgraph->Show();
 		}
 	} else if (mi == mi_traffic) {
-		opt = kpinterface->prefs.FetchOpt("CHANDETAILS_SHOWTRAF");
+		opt = kpinterface->prefs->FetchOpt("CHANDETAILS_SHOWTRAF");
 		if (opt == "" || opt == "true") {
-			kpinterface->prefs.SetOpt("CHANDETAILS_SHOWTRAF", "false", 1);
+			kpinterface->prefs->SetOpt("CHANDETAILS_SHOWTRAF", "false", 1);
 			menu->SetMenuItemChecked(mi_traffic, 0);
 			bytegraph->Hide();
 		} else {
-			kpinterface->prefs.SetOpt("CHANDETAILS_SHOWTRAF", "true", 1);
+			kpinterface->prefs->SetOpt("CHANDETAILS_SHOWTRAF", "true", 1);
 			menu->SetMenuItemChecked(mi_traffic, 1);
 			bytegraph->Show();
 		}
 	} else if (mi == mi_networks) {
-		opt = kpinterface->prefs.FetchOpt("CHANDETAILS_SHOWNET");
+		opt = kpinterface->prefs->FetchOpt("CHANDETAILS_SHOWNET");
 		if (opt == "" || opt == "true") {
-			kpinterface->prefs.SetOpt("CHANDETAILS_SHOWNET", "false", 1);
+			kpinterface->prefs->SetOpt("CHANDETAILS_SHOWNET", "false", 1);
 			menu->SetMenuItemChecked(mi_networks, 0);
 			netgraph->Hide();
 		} else {
-			kpinterface->prefs.SetOpt("CHANDETAILS_SHOWNET", "true", 1);
+			kpinterface->prefs->SetOpt("CHANDETAILS_SHOWNET", "true", 1);
 			menu->SetMenuItemChecked(mi_networks, 1);
 			netgraph->Show();
 		}
 	} else if (mi == -1) {
-		opt = kpinterface->prefs.FetchOpt("CHANDETAILS_SHOWSUM");
+		opt = kpinterface->prefs->FetchOpt("CHANDETAILS_SHOWSUM");
 		if (opt == "" || opt == "true") {
 			menu->SetMenuItemChecked(mi_chansummary, 1);
 			chansummary->Show();
@@ -3061,7 +3061,7 @@ void Kis_ChanDetails_Panel::UpdateViewMenu(int mi) {
 			menu->SetMenuItemChecked(mi_chansummary, 0);
 			chansummary->Hide();
 		}
-		opt = kpinterface->prefs.FetchOpt("CHANDETAILS_SHOWSIG");
+		opt = kpinterface->prefs->FetchOpt("CHANDETAILS_SHOWSIG");
 		if (opt == "" || opt == "true") {
 			menu->SetMenuItemChecked(mi_signal, 1);
 			siggraph->Show();
@@ -3069,7 +3069,7 @@ void Kis_ChanDetails_Panel::UpdateViewMenu(int mi) {
 			menu->SetMenuItemChecked(mi_signal, 0);
 			siggraph->Hide();
 		}
-		opt = kpinterface->prefs.FetchOpt("CHANDETAILS_SHOWPACK");
+		opt = kpinterface->prefs->FetchOpt("CHANDETAILS_SHOWPACK");
 		if (opt == "" || opt == "true") {
 			menu->SetMenuItemChecked(mi_packets, 1);
 			packetgraph->Show();
@@ -3077,7 +3077,7 @@ void Kis_ChanDetails_Panel::UpdateViewMenu(int mi) {
 			menu->SetMenuItemChecked(mi_packets, 0);
 			packetgraph->Hide();
 		}
-		opt = kpinterface->prefs.FetchOpt("CHANDETAILS_SHOWTRAF");
+		opt = kpinterface->prefs->FetchOpt("CHANDETAILS_SHOWTRAF");
 		if (opt == "" || opt == "true") {
 			menu->SetMenuItemChecked(mi_traffic, 1);
 			bytegraph->Show();
@@ -3085,7 +3085,7 @@ void Kis_ChanDetails_Panel::UpdateViewMenu(int mi) {
 			menu->SetMenuItemChecked(mi_traffic, 0);
 			bytegraph->Hide();
 		}
-		opt = kpinterface->prefs.FetchOpt("CHANDETAILS_SHOWNET");
+		opt = kpinterface->prefs->FetchOpt("CHANDETAILS_SHOWNET");
 		if (opt == "" || opt == "true") {
 			menu->SetMenuItemChecked(mi_networks, 1);
 			netgraph->Show();
@@ -3704,7 +3704,7 @@ void Kis_Gps_Panel::Proto_GPS(CLIPROTO_CB_PARMS) {
 	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%f", &spd) != 1)
 		return;
 
-	int eng = StrLower(kpinterface->prefs.FetchOpt("GPSUNIT")) != "metric";
+	int eng = StrLower(kpinterface->prefs->FetchOpt("GPSUNIT")) != "metric";
 
 	if (eng) {
 		// Convert speed to feet/sec
@@ -3889,23 +3889,23 @@ void Kis_Clientlist_Panel::MenuAction(int opt) {
 		kpinterface->AddPanel(cp);
 		return;
 	} else if (opt == mi_sort_auto) {
-		kpinterface->prefs.SetOpt("CLIENTLIST_SORT", "auto", 1);
+		kpinterface->prefs->SetOpt("CLIENTLIST_SORT", "auto", 1);
 	} else if (opt == mi_sort_type) {
-		kpinterface->prefs.SetOpt("CLIENTLIST_SORT", "type", 1);
+		kpinterface->prefs->SetOpt("CLIENTLIST_SORT", "type", 1);
 	} else if (opt == mi_sort_first) {
-		kpinterface->prefs.SetOpt("CLIENTLIST_SORT", "first", 1);
+		kpinterface->prefs->SetOpt("CLIENTLIST_SORT", "first", 1);
 	} else if (opt == mi_sort_first_d) {
-		kpinterface->prefs.SetOpt("CLIENTLIST_SORT", "first_desc", 1);
+		kpinterface->prefs->SetOpt("CLIENTLIST_SORT", "first_desc", 1);
 	} else if (opt == mi_sort_last) {
-		kpinterface->prefs.SetOpt("CLIENTLIST_SORT", "last", 1);
+		kpinterface->prefs->SetOpt("CLIENTLIST_SORT", "last", 1);
 	} else if (opt == mi_sort_last_d) {
-		kpinterface->prefs.SetOpt("CLIENTLIST_SORT", "last_desc", 1);
+		kpinterface->prefs->SetOpt("CLIENTLIST_SORT", "last_desc", 1);
 	} else if (opt == mi_sort_mac) {
-		kpinterface->prefs.SetOpt("CLIENTLIST_SORT", "mac", 1);
+		kpinterface->prefs->SetOpt("CLIENTLIST_SORT", "mac", 1);
 	} else if (opt == mi_sort_packets) {
-		kpinterface->prefs.SetOpt("CLIENTLIST_SORT", "packets", 1);
+		kpinterface->prefs->SetOpt("CLIENTLIST_SORT", "packets", 1);
 	} else if (opt == mi_sort_packets_d) {
-		kpinterface->prefs.SetOpt("CLIENTLIST_SORT", "packets_desc", 1);
+		kpinterface->prefs->SetOpt("CLIENTLIST_SORT", "packets_desc", 1);
 	}
 
 	clientlist->UpdateSortPrefs();
@@ -4495,51 +4495,51 @@ void Kis_ClientDetails_Panel::UpdateViewMenu(int mi) {
 	string opt;
 
 	if (mi == mi_cli) {
-		opt = kpinterface->prefs.FetchOpt("CLIDETAILS_SHOWCLI");
+		opt = kpinterface->prefs->FetchOpt("CLIDETAILS_SHOWCLI");
 		if (opt == "" || opt == "true") {
-			kpinterface->prefs.SetOpt("CLIDETAILS_SHOWCLI", "false", 1);
+			kpinterface->prefs->SetOpt("CLIDETAILS_SHOWCLI", "false", 1);
 			menu->SetMenuItemChecked(mi_cli, 0);
 			clientdetails->Hide();
 		} else {
-			kpinterface->prefs.SetOpt("CLIDETAILS_SHOWCLI", "true", 1);
+			kpinterface->prefs->SetOpt("CLIDETAILS_SHOWCLI", "true", 1);
 			menu->SetMenuItemChecked(mi_cli, 1);
 			clientdetails->Show();
 		}
 	} else if (mi == mi_graphsig) {
-		opt = kpinterface->prefs.FetchOpt("CLIDETAILS_SHOWGRAPHSIG");
+		opt = kpinterface->prefs->FetchOpt("CLIDETAILS_SHOWGRAPHSIG");
 		if (opt == "" || opt == "true") {
-			kpinterface->prefs.SetOpt("CLIDETAILS_SHOWGRAPHSIG", "false", 1);
+			kpinterface->prefs->SetOpt("CLIDETAILS_SHOWGRAPHSIG", "false", 1);
 			menu->SetMenuItemChecked(mi_graphsig, 0);
 			siggraph->Hide();
 		} else {
-			kpinterface->prefs.SetOpt("CLIDETAILS_SHOWGRAPHSIG", "true", 1);
+			kpinterface->prefs->SetOpt("CLIDETAILS_SHOWGRAPHSIG", "true", 1);
 			menu->SetMenuItemChecked(mi_graphsig, 1);
 			siggraph->Show();
 		}
 	} else if (mi == mi_graphpacket) {
-		opt = kpinterface->prefs.FetchOpt("CLIDETAILS_SHOWGRAPHPACKET");
+		opt = kpinterface->prefs->FetchOpt("CLIDETAILS_SHOWGRAPHPACKET");
 		if (opt == "" || opt == "true") {
-			kpinterface->prefs.SetOpt("CLIDETAILS_SHOWGRAPHPACKET", "false", 1);
+			kpinterface->prefs->SetOpt("CLIDETAILS_SHOWGRAPHPACKET", "false", 1);
 			menu->SetMenuItemChecked(mi_graphpacket, 0);
 			packetgraph->Hide();
 		} else {
-			kpinterface->prefs.SetOpt("CLIDETAILS_SHOWGRAPHPACKET", "true", 1);
+			kpinterface->prefs->SetOpt("CLIDETAILS_SHOWGRAPHPACKET", "true", 1);
 			menu->SetMenuItemChecked(mi_graphpacket, 1);
 			packetgraph->Show();
 		}
 	} else if (mi == mi_graphretry) {
-		opt = kpinterface->prefs.FetchOpt("CLIDETAILS_SHOWGRAPHRETRY");
+		opt = kpinterface->prefs->FetchOpt("CLIDETAILS_SHOWGRAPHRETRY");
 		if (opt == "" || opt == "true") {
-			kpinterface->prefs.SetOpt("CLIDETAILS_SHOWGRAPHRETRY", "false", 1);
+			kpinterface->prefs->SetOpt("CLIDETAILS_SHOWGRAPHRETRY", "false", 1);
 			menu->SetMenuItemChecked(mi_graphretry, 0);
 			retrygraph->Hide();
 		} else {
-			kpinterface->prefs.SetOpt("CLIDETAILS_SHOWGRAPHRETRY", "true", 1);
+			kpinterface->prefs->SetOpt("CLIDETAILS_SHOWGRAPHRETRY", "true", 1);
 			menu->SetMenuItemChecked(mi_graphretry, 1);
 			retrygraph->Show();
 		}
 	} else if (mi == -1) {
-		opt = kpinterface->prefs.FetchOpt("CLIDETAILS_SHOWCLI");
+		opt = kpinterface->prefs->FetchOpt("CLIDETAILS_SHOWCLI");
 		if (opt == "" || opt == "true") {
 			menu->SetMenuItemChecked(mi_cli, 1);
 			clientdetails->Show();
@@ -4548,7 +4548,7 @@ void Kis_ClientDetails_Panel::UpdateViewMenu(int mi) {
 			clientdetails->Hide();
 		}
 
-		opt = kpinterface->prefs.FetchOpt("CLIDETAILS_SHOWGRAPHSIG");
+		opt = kpinterface->prefs->FetchOpt("CLIDETAILS_SHOWGRAPHSIG");
 		if (opt == "true") {
 			menu->SetMenuItemChecked(mi_graphsig, 1);
 			siggraph->Show();
@@ -4557,7 +4557,7 @@ void Kis_ClientDetails_Panel::UpdateViewMenu(int mi) {
 			siggraph->Hide();
 		}
 
-		opt = kpinterface->prefs.FetchOpt("CLIDETAILS_SHOWGRAPHPACKET");
+		opt = kpinterface->prefs->FetchOpt("CLIDETAILS_SHOWGRAPHPACKET");
 		if (opt == "" || opt == "true") {
 			menu->SetMenuItemChecked(mi_graphpacket, 1);
 			packetgraph->Show();
@@ -4566,7 +4566,7 @@ void Kis_ClientDetails_Panel::UpdateViewMenu(int mi) {
 			packetgraph->Hide();
 		}
 
-		opt = kpinterface->prefs.FetchOpt("CLIDETAILS_SHOWGRAPHRETRY");
+		opt = kpinterface->prefs->FetchOpt("CLIDETAILS_SHOWGRAPHRETRY");
 		if (opt == "true") {
 			menu->SetMenuItemChecked(mi_graphretry, 1);
 			retrygraph->Show();

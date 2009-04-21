@@ -223,7 +223,17 @@ string ConfigFile::ExpandLogPath(string path, string logname, string type,
             }
 
             logtemplate.insert(nl, pw->pw_dir);
-        }
+        } else if (op == 'p') {
+			string pfx;
+
+			if (globalreg->log_prefix == "") 
+				pfx = FetchOpt("logprefix");
+
+			if (pfx != "")
+				pfx += "/";
+
+			logtemplate.insert(nl, pfx);
+		}
     }
 
     // If we've got an incremental, go back and find it and start testing

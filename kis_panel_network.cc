@@ -538,16 +538,16 @@ int Kis_Netlist::UpdateBColPrefs() {
 	string pcols;
 
 	// Use a default set of columns if we don't find one
-	if ((pcols = kpinterface->prefs.FetchOpt("NETLIST_COLUMNS")) == "") {
+	if ((pcols = kpinterface->prefs->FetchOpt("NETLIST_COLUMNS")) == "") {
 		pcols = "decay,name,nettype,crypt,channel,packets,datasize";
-		kpinterface->prefs.SetOpt("NETLIST_COLUMNS", pcols, 1);
+		kpinterface->prefs->SetOpt("NETLIST_COLUMNS", pcols, 1);
 	}
 
-	if (kpinterface->prefs.FetchOptDirty("NETLIST_COLUMNS") == 0 &&
+	if (kpinterface->prefs->FetchOptDirty("NETLIST_COLUMNS") == 0 &&
 		display_bcols.size() != 0)
 		return 0;
 
-	kpinterface->prefs.SetOptDirty("NETLIST_COLUMNS", 0);
+	kpinterface->prefs->SetOptDirty("NETLIST_COLUMNS", 0);
 
 	display_bcols.clear();
 
@@ -616,16 +616,16 @@ int Kis_Netlist::UpdateBExtPrefs() {
 	string pcols;
 
 	// Use a default set of columns if we don't find one
-	if ((pcols = kpinterface->prefs.FetchOpt("NETLIST_EXTRAS")) == "") {
+	if ((pcols = kpinterface->prefs->FetchOpt("NETLIST_EXTRAS")) == "") {
 		pcols = "bssid,lastseen,crypt,ip,manuf";
-		kpinterface->prefs.SetOpt("NETLIST_EXTRAS", pcols, 1);
+		kpinterface->prefs->SetOpt("NETLIST_EXTRAS", pcols, 1);
 	}
 
-	if (kpinterface->prefs.FetchOptDirty("NETLIST_EXTRAS") == 0 &&
+	if (kpinterface->prefs->FetchOptDirty("NETLIST_EXTRAS") == 0 &&
 		display_bexts.size() != 0)
 		return 0;
 
-	kpinterface->prefs.SetOptDirty("NETLIST_EXTRAS", 0);
+	kpinterface->prefs->SetOptDirty("NETLIST_EXTRAS", 0);
 
 	display_bexts.clear();
 
@@ -657,15 +657,15 @@ int Kis_Netlist::UpdateSortPrefs() {
 	string sort;
 
 	// Use a default set of columns if we don't find one
-	if ((sort = kpinterface->prefs.FetchOpt("NETLIST_SORT")) == "") {
+	if ((sort = kpinterface->prefs->FetchOpt("NETLIST_SORT")) == "") {
 		sort = "auto";
-		kpinterface->prefs.SetOpt("NETLIST_SORT", sort, 1);
+		kpinterface->prefs->SetOpt("NETLIST_SORT", sort, 1);
 	}
 
-	if (kpinterface->prefs.FetchOptDirty("NETLIST_SORT") == 0)
+	if (kpinterface->prefs->FetchOptDirty("NETLIST_SORT") == 0)
 		return 0;
 
-	kpinterface->prefs.SetOptDirty("NETLIST_SORT", 0);
+	kpinterface->prefs->SetOptDirty("NETLIST_SORT", 0);
 
 	sort = StrLower(sort);
 
@@ -1938,7 +1938,7 @@ void Kis_Netlist::UpdateTrigger(void) {
 	// could get fixed.
 	
 	// Show extended info?
-	if (kpinterface->prefs.FetchOpt("NETLIST_SHOWEXT") == "0")
+	if (kpinterface->prefs->FetchOpt("NETLIST_SHOWEXT") == "0")
 		show_ext_info = 0;
 	else
 		show_ext_info = 1;
@@ -3035,16 +3035,16 @@ Kis_Info_Bits::~Kis_Info_Bits() {
 int Kis_Info_Bits::UpdatePrefs() {
 	string ibits;
 
-	if ((ibits = kpinterface->prefs.FetchOpt("NETINFO_ITEMS")) == "") {
+	if ((ibits = kpinterface->prefs->FetchOpt("NETINFO_ITEMS")) == "") {
 		ibits = "elapsed,numnets,numpkts,pktrate,numfilter";
-		kpinterface->prefs.SetOpt("NETINFO_ITEMS", ibits, 1);
+		kpinterface->prefs->SetOpt("NETINFO_ITEMS", ibits, 1);
 	}
 
-	if (kpinterface->prefs.FetchOptDirty("NETINFO_ITEMS") == 0) {
+	if (kpinterface->prefs->FetchOptDirty("NETINFO_ITEMS") == 0) {
 		return 0;
 	}
 
-	kpinterface->prefs.SetOptDirty("NETINFO_ITEMS", 0);
+	kpinterface->prefs->SetOptDirty("NETINFO_ITEMS", 0);
 
 	infovec.clear();
 
@@ -3310,16 +3310,16 @@ int Kis_Clientlist::UpdateCColPrefs() {
 	string pcols;
 
 	// Use a default set of columns if we don't find one
-	if ((pcols = kpinterface->prefs.FetchOpt("CLIENTLIST_COLUMNS")) == "") {
+	if ((pcols = kpinterface->prefs->FetchOpt("CLIENTLIST_COLUMNS")) == "") {
 		pcols = "decay,mac,type,freq_mhz,packets,datasize,manuf";
-		kpinterface->prefs.SetOpt("CLIENTLIST_COLUMNS", pcols, 1);
+		kpinterface->prefs->SetOpt("CLIENTLIST_COLUMNS", pcols, 1);
 	}
 
-	if (kpinterface->prefs.FetchOptDirty("CLIENTLIST_COLUMNS") == 0 &&
+	if (kpinterface->prefs->FetchOptDirty("CLIENTLIST_COLUMNS") == 0 &&
 		display_ccols.size() != 0)
 		return 0;
 
-	kpinterface->prefs.SetOptDirty("CLIENTLIST_COLUMNS", 0);
+	kpinterface->prefs->SetOptDirty("CLIENTLIST_COLUMNS", 0);
 
 	display_ccols.clear();
 
@@ -3372,16 +3372,16 @@ int Kis_Clientlist::UpdateCExtPrefs() {
 	string pcols;
 
 	// Use a default set of columns if we don't find one
-	if ((pcols = kpinterface->prefs.FetchOpt("CLIENTLIST_EXTRAS")) == "") {
+	if ((pcols = kpinterface->prefs->FetchOpt("CLIENTLIST_EXTRAS")) == "") {
 		pcols = "lastseen,crypt,ip";
-		kpinterface->prefs.SetOpt("CLIENTLIST_EXTRAS", pcols, 1);
+		kpinterface->prefs->SetOpt("CLIENTLIST_EXTRAS", pcols, 1);
 	}
 
-	if (kpinterface->prefs.FetchOptDirty("CLIENTLIST_EXTRAS") == 0 &&
+	if (kpinterface->prefs->FetchOptDirty("CLIENTLIST_EXTRAS") == 0 &&
 		display_cexts.size() != 0)
 		return 0;
 
-	kpinterface->prefs.SetOptDirty("CLIENTLIST_EXTRAS", 0);
+	kpinterface->prefs->SetOptDirty("CLIENTLIST_EXTRAS", 0);
 
 	display_cexts.clear();
 
@@ -3411,15 +3411,15 @@ int Kis_Clientlist::UpdateSortPrefs() {
 	string sort;
 
 	// Use a default set of columns if we don't find one
-	if ((sort = kpinterface->prefs.FetchOpt("CLIENTLIST_SORT")) == "") {
+	if ((sort = kpinterface->prefs->FetchOpt("CLIENTLIST_SORT")) == "") {
 		sort = "auto";
-		kpinterface->prefs.SetOpt("CLIENTLIST_SORT", sort, 1);
+		kpinterface->prefs->SetOpt("CLIENTLIST_SORT", sort, 1);
 	}
 
-	if (kpinterface->prefs.FetchOptDirty("CLIENTLIST_SORT") == 0)
+	if (kpinterface->prefs->FetchOptDirty("CLIENTLIST_SORT") == 0)
 		return 0;
 
-	kpinterface->prefs.SetOptDirty("CLIENTLIST_SORT", 0);
+	kpinterface->prefs->SetOptDirty("CLIENTLIST_SORT", 0);
 
 	sort = StrLower(sort);
 
@@ -3510,7 +3510,7 @@ void Kis_Clientlist::UpdateTrigger(void) {
 	}
 
 	// Show extended info?
-	if (kpinterface->prefs.FetchOpt("CLIENTLIST_SHOWEXT") == "0")
+	if (kpinterface->prefs->FetchOpt("CLIENTLIST_SHOWEXT") == "0")
 		show_ext_info = 0;
 	else
 		show_ext_info = 1;

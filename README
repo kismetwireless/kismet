@@ -21,15 +21,19 @@ http://www.kismetwireless.net
 
     This release marks a major change in how Kismet works and is configured.
     While many aspects are similar, many others (the client, configuring
-    sources and channels, etc) are very different.  Users are encouraged to
-    replace their configuration files with the newcore configurations and
-    make changes rather than try to merge changes into older files.
+    sources and channels, etc) are very different.  
 
+    To take advantage of the new features, replace your existing
+    configuration files with the latest configuration data.
+    
     Most notably:
      * Sources are defined differently.  See the "Capture Sources" section.
-     * All UI configuration is handled inside the Kismet client
+     * All UI configuration is handled inside the Kismet client and stored
+       in the users home directory in ~/.kismet/kismet_ui.conf
      * Most situations which were previously fatal conditions which caused
        Kismet to exit can now be recovered from.
+     * New filtering options
+     * New alert options
 
 3.  Quick start
 
@@ -37,35 +41,38 @@ http://www.kismetwireless.net
     MINIMUM needed to get Kismet working:
 
     * Download Kismet from http://www.kismetwireless.net/download.shtml
-    * Run ``./configure''.  Pay attention to the output!  If Kismet cannot
+    * Run "./configure".  Pay attention to the output!  If Kismet cannot
       find all the headers and libraries it needs, major functionality may
-      be missing.
-    * Compile Kismet with ``make''.
-    * Install Kismet with either ``make install'' or ``make suidinstall''.
+      be missing.  Most notably, compiling Kismet yourself will require
+      the development packages and headers, usually called foo-dev or
+      foo-devel.
+    * Compile Kismet with "make".
+    * Install Kismet with either "make install" or "make suidinstall".
       YOU MUST READ THE "SUID INSTALLATION & SECURITY" SECTION OF THE 
-      README OR YOUR SYSTEM MAY BE VULNERABLE.
+      README OR YOUR SYSTEM MAY BE INSECURE.
     * If you have installed Kismet as suid-root, add your user to the
       "kismet" group
-    * Edit the config file (by default, "/usr/local/etc/kismet.conf")
-    * Define a capture source.  At it's most simple, this should be:
-      ncsource=wlan0
-      (where wlan0 is the name of your wireless device.  It may be wlan1,
-      eth1, ath0, etc).
-      NOT ALL CAPTURE SOURCES WILL AUTOMATICALLY DETECT THE DEVICE TYPE
-      IF KISMET IS UNABLE TO AUTOMATICALLY DETECT YOUR CARD TYPE
-      YOU WILL NEED TO MANUALLY CONFIGURE IT USING THE type=foo OPTION
-    * Add an absolute path to the "logtemplate" configuration option if you
-      want Kismet to always log in the same directory instead of the
-      directory you start it in.
 
-    * Run ``kismet''.  If you did not install Kismet with suid-root support,
-      you will most likely need to start it as root.  This is not
-      recommended as it is less secure than separating the privileges.
+    * Run "kismet".  If you did not install Kismet with suid-root support,
+      you need to start it as root in nearly all situations.  This is not
+      recommended as it is less secure than privsep mode, where packet
+      processing is segregated from admin rights.
+    * When prompted to start the Kismet server, choose "Yes"
+    * When prompted to add a capture interface, add your wireless interface.
+      In nearly all cases, Kismet will autodetect the device type and
+      supported channels.  If it does not, you will have to manually define
+      the capture type (as explained later in this README)
+    * Logs will be stored in the directory you started Kismet from, unless
+      changed via the "logprefix" config file or "--log-prefix" startup
+      option.
+
     * READ THE REST OF THIS README.  Kismet has a lot of features and a lot
       of configuration options, to get the most out of it you should read
       all of the documentation.
 
 3b.  Windows Quick Start
+
+    Using the CACE Package:
 
     * Download the Win32/Cygwin installer created by CACE and linked from
       the download page (http://www.kismetwireless.net/download.shtml
@@ -75,35 +82,64 @@ http://www.kismetwireless.net
 
     * READ THE READ OF THIS README.
 
-    NOTE: KISMET WILL **ONLY** WORK WITH THE CACE AIRPCAP DEVICE -OR- REMOTE
-    KISMET DRONES RUNNING ON A SUPPORTED PLATFORM.  NO OTHER HARDWARE IS
-    SUPPORTED IN WINDOWS, PERIOD.  WINDOWS DRIVERS DO NOT INCLUDE SUPPORT
-    FOR WIFI MONITORING WHICH KISMET REQUIRES.
+    Compiling it yourself:
+
+    * Download the Cygwin setup tool (http://www.cygwin.org)
+    * Install Cygwin with make, GCC, libncurses, libncurses-dev
+    * Download the Airpcap_Devpack from CACE Support
+    * Put Airpcap_Devpack and Libpcap_Devpack in the kismet source directory
+    * Run "./configure"
+    * Compile Kismet with "make".
+    * Install Kismet with "make install"
+
+    NOTE: KISMET WILL **ONLY** WORK WITH THE CACE AIRPCAP DEVICE, SAVED PCAP
+    FILES, -OR- REMOTE KISMET DRONES RUNNING ON A SUPPORTED PLATFORM.  NO 
+    OTHER HARDWARE IS SUPPORTED IN WINDOWS, PERIOD.  WINDOWS DRIVERS DO NOT 
+    INCLUDE SUPPORT FOR WIFI MONITORING WHICH KISMET REQUIRES.  THERE IS NO
+    WAY TO CHANGE THIS.
 
 3c.  OSX/Darwin Quick Start
 
     * Download Kismet from http://www.kismetwireless.net/download.shtml
-    * Run ``./configure''.  Pay attention to the output!  If Kismet cannot
+    * Run "./configure".  Pay attention to the output!  If Kismet cannot
       find all the headers and libraries it needs, major functionality may
-      be missing.
-    * Compile Kismet with ``gmake''.
-    * Install Kismet with either ``gmake install'' or ``gmake suidinstall''.
+      be missing.  Notably, you may need to install libpcap manually.
+
+      The libpcap included with OSX does not support PPI logging.  Kismet
+      will not be able to log to PPI correctly.
+
+      Configure will automatically detect OSX and default to the group
+      "staff" for OSX suidinstall.
+
+    * Compile Kismet with "make".
+    * Install Kismet with either "make install" or "make suidinstall".
       YOU MUST READ THE "SUID INSTALLATION & SECURITY" SECTION OF THE 
       README OR YOUR SYSTEM MAY BE VULNERABLE.
     * If you have installed Kismet as suid-root, add your user to the
-      "kismet" group
-    * Edit the config file (by default, "/usr/local/etc/kismet.conf")
-    * Define a capture source.  At it's most simple, this should be:
-      ncsource=en1
-      However depending on your model of Mac the device may be en0 or en2,
-      consult the output of ``ifconfig -a''
-    * Add an absolute path to the "logtemplate" configuration option if you
-      want Kismet to always log to the same directory instead of the
-      directory that you start it in.
+      "staff" group if it is not already.
 
-    * Run ``kismet''.  If you did not install Kismet with suid-root support,
-      you will most likely need to start it as root.  This is not
-      recommended as it is less secure than separating the privileges.
+    * Run "kismet".  If you did not install Kismet with suid-root support,
+      you need to start it as root in nearly all situations.  This is not
+      recommended as it is less secure than privsep mode, where packet
+      processing is segregated from admin rights.
+    * When prompted to start the Kismet server, choose "Yes"
+    * When prompted to add a capture interface, add your wireless interface.
+      In nearly all cases, Kismet will autodetect the device type and
+      supported channels.  If it does not, you will have to manually define
+      the capture type (as explained later in this README)
+
+      For many Macs, this will be 'en1', however start a terminal and check
+      the output of "ifconfig -a".
+
+      The wireless interface must be enabled in the wireless control panel
+      for Kismet to work, otherwise it will not find any networks.
+
+      Kismet currently ONLY works with the Airport wireless devices, NOT USB
+      WIRELESS DEVICES.
+    * Logs will be stored in the directory you started Kismet from, unless
+      changed via the "logprefix" config file or "--log-prefix" startup
+      option.
+
     * READ THE REST OF THIS README
 
 4.  Suidroot & Security
@@ -113,7 +149,137 @@ http://www.kismetwireless.net
     accomplish this:  Start Kismet as root, or install it so that the
     control components are set to start as root.
 
+    Starting Kismet as root means that Kismet will continue running as root.
+    In theory this presents no additional risk, however if there are any
+    flaws in the Kismet packet dissection code then it may be possible for a
+    malicious packet to cause code execution as root.  Additionally,
+    third-party plugins will run as root, and may not be secure.
 
+    Installing Kismet as suid-root creates a limited-functionality binary
+    (kismet_capture) which is only launchable by members of the "kismet"
+    group.  Kismet uses this to configure cards and control the channels,
+    while packet decoding happens only in the user component, significantly
+    limiting the attack surface.
+
+    Distributions are strongly encouraged to use this method as it allows
+    standard group controls for what users can use Kismet to change card
+    states.
+
+    Embedded systems typically have much less storage space and RAM, and
+    often do not enforce user/root separation as strictly due to these
+    limitations.  On embedded systems, Kismet may be installed without the
+    kismet_capture binary and run in root mode only, however the above
+    risks still apply.
+
+5.  Capture sources
+
+    All packets in Kismet come from a capture source.  Capture sources are
+    typically network cards on the local system, however they can also be a
+    previously recorded file or a remote capture system running a Kismet
+    drone.
+
+    Kismet will, in most cases, autodetect the driver and supported channels
+    for a capture source given only the network interface.  For many users
+    this will be sufficient, however many expanded options are available for
+    capture sources.
+
+    Kismet captures packets at the 802.11 layer.  This requires changing the
+    mode of the network interface, making it unavailable for normal use.  In
+    most cases it is not possible to remain associated to a wireless network
+    while running Kismet on the same interface.
+
+    Capture sources may be added via the Kismet UI under the "Add Source"
+    option, in which case the options may be added under the "Options:"
+    field, comma separated.  They may also be defined in the kismet.conf
+    configuration file as the "ncsource=" option, such as:
+        ncsource=wlan0:option1=foo,option2=bar
+
+    Source options:
+      name=foo          Custom name for the source (otherwise it will be
+                         named the same as the capture interface).  This is
+                         completely arbitrary and meaningful only to the
+                         user.
+      type=foo          Sources which can not autodetect the type must have
+                         the type specified.  A full list of supported source
+                         types can be found later in this README.
+      uuid=foo          Users wishing a static unique identifier on sources
+                         may specify one here.  This is not necessary for
+                         most users.  UUID is of the format:
+                           XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX
+      hop=true|false    Disable channel hopping on this source.  Default
+                         behavior is for channel sources to hop channels to
+                         cover the entire spectrum.  
+      velocity=#        Channel hop velocity (number of channels per
+                         second), Kismet can hop 1-10 channels per second.
+      dwell=#           Channel dwell time, the number of seconds Kismet
+                         will wait on each channel.  If hopping is enabled
+                         and a channel dwell time is specified, Kismet will
+                         hop at N seconds per channel, instead of N channels
+                         per second.
+      channellist=name  Use an alternate channel list instead of the
+                         autodetected list of channels supported by this
+                         interface.  The channellist must be defined.
+      split=true|false  When multiple sources use the same channel list
+                         (either autodetected or by the channellist= option)
+                         Kismet will split them so that they do not cover the
+                         same channels at the same time.  Sources can be 
+                         forced to ignore this and begin hopping at the
+                         beginning of the channel list regardless of overlap.
+      retry=true|false  Kismet will attempt to re-open a capture source
+                         which has encountered an error.  This behavior can
+                         be disabled if the user wants the source to remain
+                         closed.
+      vap=interface     Create a secondary named interface for capture
+                         instead of trying to change the mode of the
+                         existing interface.  This is primarily only for use
+                         by drivers using the mac80211 interface under
+                         Linux.  Users wishing to do Kismet+Managed or
+                         Kismet+Injection should create a vap.
+      wpa_scan=time     When using a mac80211 VAP, Kismet can use
+                         wpa_supplicant on a managed interface to trigger
+                         hardware assisted scans, enabling some view of the
+                         rest of the spectrum without significantly
+                         disrupting operation of the managed VAP.  Suggested
+                         time for scan intervals is 15 seconds.
+      validatefcs=t|f   True/False.  Kismet normally will not bother trying
+                         to validate the FCS checksum of incoming packets
+                         because most drivers only report valid frames in
+                         the first place.  Packet sources which report
+                         invalid frames by default will enable this option
+                         automatically.  If the drivers have been manually
+                         configured to report invalid packets, this should
+                         be specified to prevent Kismet from processing
+                         broken packets.
+
+    Example sources:
+      Capture on wlan0, channel 6, don't channel hop
+       ncsource=wlan0:hop=false,channel=6
+
+      Capture on wlan0, 802.11b channels only even if it supports 5GHz
+       ncsource=wlan0:channellist=IEEE80211b
+
+      Create a VAP on wlan0 named wlan0mon and use wpa_supplicant to
+      give us some view of other channels, while remaining associated to a
+      network:
+       ncsource=wlan0:vap=wlan0mon,hop=false,wpa_scan=15
+                       
+6.  Other Configuration
+
+    Kismet is divided into two main processes:  kismet_server and
+    kismet_client.  The server portion (responsible for capture, logging,
+    and decoding) is controlled by kismet.conf (by default in
+    /usr/local/etc) and the client is configured via preferences options.
+
+    For the most part, Kismet can run with no additional configuration by
+    adding capture sources runtime with the UI, however for
+    standalone/headless operation or advanced configuration, users will want
+    to edit the config file.
+
+    The Kismet config is a plain text file with option=value pairs.  Lines
+    beginning with # are considered comments and are ignored.
+
+    Most configuration options are self-explanatory or documented in the
+    config file itself.
 
 To be replaced soon.  See README.newcore for devel info.
 

@@ -182,7 +182,7 @@ public:
 	Kis_Main_Panel *FetchMainPanel() { return mainp; }
 
 	// Public so we don't have pointless wrappers
-	ConfigFile prefs;
+	ConfigFile *prefs;
 	Kis_Panel_Color colors;
 
 	// Interface level since it's independent of the UI

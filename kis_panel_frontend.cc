@@ -299,17 +299,19 @@ KisPanelInterface::KisPanelInterface(GlobalRegistry *in_globalreg) :
 	PanelInterface(in_globalreg) {
 	globalreg = in_globalreg;
 
+	prefs = new ConfigFile(globalreg);
+
 	shutdown_mode = 0;
 
 	// Load the preferences file
 	LoadPreferences();
 
 	// Update the plugin dirs if we didn't get them
-	if (prefs.FetchOptVec("PLUGINDIR").size() == 0) {
+	if (prefs->FetchOptVec("PLUGINDIR").size() == 0) {
 		vector<string> pdv;
 		pdv.push_back("%h/.kismet/client_plugins/");
 		pdv.push_back(string(LIB_LOC) + "/kismet_client/");
-		prefs.SetOptVec("PLUGINDIR", pdv, 1);
+		prefs->SetOptVec("PLUGINDIR", pdv, 1);
 	}
 
 	// Initialize the plugin data record.  The first panel to get added
@@ -409,9 +411,9 @@ void KisPanelInterface::KillPanel(Kis_Panel *in_panel) {
 }
 
 int KisPanelInterface::LoadPreferences() {
-	if (prefs.ParseConfig(prefs.ExpandLogPath("%h/.kismet/kismet_ui.conf",
-											  "", "", 0, 1).c_str())) 
-		prefs.SetOpt("LOADEDFROMFILE", "1", 0);
+	if (prefs->ParseConfig(prefs->ExpandLogPath("%h/.kismet/kismet_ui.conf",
+												"", "", 0, 1).c_str())) 
+		prefs->SetOpt("LOADEDFROMFILE", "1", 0);
 
 	return 1;
 }
@@ -420,7 +422,7 @@ int KisPanelInterface::SavePreferences() {
 	// Try to make the dir
 	int ret;
 
-	string dir = prefs.ExpandLogPath("%h/.kismet", "", "", 0, 1);
+	string dir = prefs->ExpandLogPath("%h/.kismet", "", "", 0, 1);
 
 	ret = mkdir(dir.c_str(), S_IRUSR | S_IWUSR | S_IXUSR);
 
@@ -429,7 +431,7 @@ int KisPanelInterface::SavePreferences() {
 			 MSGFLAG_ERROR);
 	}
 
-	ret = prefs.SaveConfig(prefs.ExpandLogPath("%h/.kismet/kismet_ui.conf",
+	ret = prefs->SaveConfig(prefs->ExpandLogPath("%h/.kismet/kismet_ui.conf",
 											   "", "", 0, 1).c_str());
 
 	return ret;
@@ -623,12 +625,12 @@ void KisPanelInterface::LoadPlugin(string in_fname, string in_objname) {
 }
 
 void KisPanelInterface::ScanPlugins() {
-	vector<string> plugdirs = prefs.FetchOptVec("PLUGINDIR");
+	vector<string> plugdirs = prefs->FetchOptVec("PLUGINDIR");
 
 	for (unsigned int x = 0; x < plugdirs.size(); x++) {
 		DIR *plugdir;
 		struct dirent *plugfile;
-		string expanddir = ConfigFile::ExpandLogPath(plugdirs[x], "", "", 0, 1);
+		string expanddir = prefs->ExpandLogPath(plugdirs[x], "", "", 0, 1);
 
 		if ((plugdir = opendir(expanddir.c_str())) == NULL) {
 			continue;
@@ -681,7 +683,7 @@ void PluginSignalHandler(int sig) {
 
 void KisPanelInterface::LoadPlugins() {
 	// Scan for plugins to auto load
-	vector<string> plugprefs = prefs.FetchOptVec("plugin_autoload");
+	vector<string> plugprefs = prefs->FetchOptVec("plugin_autoload");
 	for (unsigned int x = 0; x < plugin_vec.size(); x++) {
 		for (unsigned int y = 0; y < plugprefs.size(); y++) {
 			if (plugin_vec[x]->objectname == plugprefs[y] &&

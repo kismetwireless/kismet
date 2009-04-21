@@ -125,7 +125,8 @@ string Dumpfile::ProcessConfigOpt(string in_type) {
 
 	// _MSG("Log file type '" + in_type + "' activated.", MSGFLAG_INFO);
 
-	retfname = ConfigFile::ExpandLogPath(logtemplate, logname, in_type, 0, 0);
+	retfname = 
+		globalreg->kismet_config->ExpandLogPath(logtemplate, logname, in_type, 0, 0);
 
 	return retfname;
 }

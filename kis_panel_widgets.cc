@@ -3242,14 +3242,14 @@ int Kis_Panel::MouseEvent(MEVENT *mevent) {
 }
 
 void Kis_Panel::InitColorPref(string in_pref, string in_def) {
-	if (kpinterface->prefs.FetchOpt(in_pref) == "")
-		kpinterface->prefs.SetOpt(in_pref, in_def, 1);
+	if (kpinterface->prefs->FetchOpt(in_pref) == "")
+		kpinterface->prefs->SetOpt(in_pref, in_def, 1);
 }
 
 void Kis_Panel::ColorFromPref(int &clr, string in_pref) {
-	if (kpinterface->prefs.FetchOptDirty(in_pref) || clr == 0) {
-		kpinterface->prefs.SetOptDirty(in_pref, 0);
-		clr = kpinterface->colors.AddColor(kpinterface->prefs.FetchOpt(in_pref));
+	if (kpinterface->prefs->FetchOptDirty(in_pref) || clr == 0) {
+		kpinterface->prefs->SetOptDirty(in_pref, 0);
+		clr = kpinterface->colors.AddColor(kpinterface->prefs->FetchOpt(in_pref));
 	}
 
 	return;

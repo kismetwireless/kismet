@@ -375,7 +375,7 @@ int main(int argc, char *argv[], char *envp[]) {
 	snprintf(errstr, STATUS_MAX, "Reading from config file %s", configfilename);
 	globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
 	
-	conf = new ConfigFile;
+	conf = new ConfigFile(globalregistry);
 	if (conf->ParseConfig(configfilename) < 0) {
 		exit(1);
 	}

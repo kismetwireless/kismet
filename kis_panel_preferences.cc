@@ -243,7 +243,7 @@ void Kis_ColorPref_Picker::DrawPanel() {
 
 void Kis_ColorPref_Picker::ButtonAction(Kis_Panel_Component *in_button) {
 	if (in_button == okbutton) {
-		kpinterface->prefs.SetOpt(prefname,
+		kpinterface->prefs->SetOpt(prefname,
 								  fgcolor->GetColor() + "," +
 								  bgcolor->GetColor(), 1);
 
@@ -260,7 +260,7 @@ void Kis_ColorPref_Picker::ButtonAction(Kis_Panel_Component *in_button) {
 void Kis_ColorPref_Picker::LinkColorPref(string in_prefname) {
 	prefname = in_prefname;
 
-	vector<string> sv = StrTokenize(kpinterface->prefs.FetchOpt(prefname), ",");
+	vector<string> sv = StrTokenize(kpinterface->prefs->FetchOpt(prefname), ",");
 	if (sv.size() >= 1)
 		fgcolor->SetColor(sv[0]);
 	if (sv.size() >= 2)
@@ -331,7 +331,7 @@ void Kis_ColorPref_Panel::DrawPanel() {
 	for (unsigned int x = 0; x < listedcolors.size(); x++) {
 		td.clear();
 		td.push_back(listedcolors[x].text);
-		td.push_back(StrLower(kpinterface->prefs.FetchOpt(listedcolors[x].pref)));
+		td.push_back(StrLower(kpinterface->prefs->FetchOpt(listedcolors[x].pref)));
 		colorlist->ReplaceRow(x, td);
 	}
 
@@ -401,15 +401,15 @@ Kis_AutoConPref_Panel::Kis_AutoConPref_Panel(GlobalRegistry *in_globalreg,
 	hostname->SetLabel("Host", LABEL_POS_LEFT);
 	hostname->SetTextLen(120);
 	hostname->SetCharFilter(FILTER_ALPHANUMSYM);
-	hostname->SetText(kpinterface->prefs.FetchOpt("default_host"), -1, -1);
+	hostname->SetText(kpinterface->prefs->FetchOpt("default_host"), -1, -1);
 
 	hostport->SetLabel("Port", LABEL_POS_LEFT);
 	hostport->SetTextLen(5);
 	hostport->SetCharFilter(FILTER_NUM);
-	hostport->SetText(kpinterface->prefs.FetchOpt("default_port"), -1, -1);
+	hostport->SetText(kpinterface->prefs->FetchOpt("default_port"), -1, -1);
 
 	autoconcheck->SetText("Auto-connect");
-	autoconcheck->SetChecked(kpinterface->prefs.FetchOpt("autoconnect") == "true");
+	autoconcheck->SetChecked(kpinterface->prefs->FetchOpt("autoconnect") == "true");
 
 	okbutton->SetText("Save");
 	cancelbutton->SetText("Cancel");
@@ -482,13 +482,13 @@ void Kis_AutoConPref_Panel::DrawPanel() {
 
 void Kis_AutoConPref_Panel::ButtonAction(Kis_Panel_Component *in_button) {
 	if (in_button == okbutton) {
-		kpinterface->prefs.SetOpt("default_host",
+		kpinterface->prefs->SetOpt("default_host",
 								  hostname->GetText(), 1);
 
-		kpinterface->prefs.SetOpt("default_port",
+		kpinterface->prefs->SetOpt("default_port",
 								  hostport->GetText(), 1);
 
-		kpinterface->prefs.SetOpt("autoconnect",
+		kpinterface->prefs->SetOpt("autoconnect",
 								  autoconcheck->GetChecked() ?
 								  "true" : "false", 1);
 
@@ -711,7 +711,7 @@ void Kis_ColumnPref_Panel::DrawPanel() {
 void Kis_ColumnPref_Panel::ButtonAction(Kis_Panel_Component *in_button) {
 	if (in_button == okbutton) {
 		if (pref != "") {
-			kpinterface->prefs.SetOpt(pref,
+			kpinterface->prefs->SetOpt(pref,
 									  orderlist->GetStringOrderList(), 1);
 		}
 
@@ -736,7 +736,7 @@ void Kis_ColumnPref_Panel::AddColumn(string colname, string description) {
 
 void Kis_ColumnPref_Panel::ColumnPref(string in_pref, string name) {
 	vector<string> curprefs = 
-		StrTokenize(kpinterface->prefs.FetchOpt(in_pref), ",");
+		StrTokenize(kpinterface->prefs->FetchOpt(in_pref), ",");
 	vector<string> fdata;
 	int k = 0;
 
@@ -859,7 +859,7 @@ Kis_GpsPref_Panel::Kis_GpsPref_Panel(GlobalRegistry *in_globalreg,
 	metrad->Activate(1);
 	active_component = metrad;
 
-	if (StrLower(kpinterface->prefs.FetchOpt("GPSUNIT")) != "metric") {
+	if (StrLower(kpinterface->prefs->FetchOpt("GPSUNIT")) != "metric") {
 		engrad->SetChecked(1);
 	} else {
 		metrad->SetChecked(1);
@@ -885,9 +885,9 @@ void Kis_GpsPref_Panel::DrawPanel() {
 void Kis_GpsPref_Panel::ButtonAction(Kis_Panel_Component *in_button) {
 	if (in_button == okbutton) {
 		if (engrad->GetChecked()) {
-			kpinterface->prefs.SetOpt("GPSUNIT", "english", 1);
+			kpinterface->prefs->SetOpt("GPSUNIT", "english", 1);
 		} else {
-			kpinterface->prefs.SetOpt("GPSUNIT", "metric", 1);
+			kpinterface->prefs->SetOpt("GPSUNIT", "metric", 1);
 		}
 
 		kpinterface->KillPanel(this);
@@ -989,31 +989,31 @@ Kis_StartupPref_Panel::Kis_StartupPref_Panel(GlobalRegistry *in_globalreg,
 	startkis_check->Activate(1);
 	active_component = startkis_check;
 
-	if (StrLower(kpinterface->prefs.FetchOpt("STARTUP_SERVER")) != "true") {
+	if (StrLower(kpinterface->prefs->FetchOpt("STARTUP_SERVER")) != "true") {
 		startkis_check->SetChecked(0);
 	} else {
 		startkis_check->SetChecked(1);
 	}
 
-	if (StrLower(kpinterface->prefs.FetchOpt("STARTUP_PROMPTSERVER")) != "true") {
+	if (StrLower(kpinterface->prefs->FetchOpt("STARTUP_PROMPTSERVER")) != "true") {
 		startkisprompt_check->SetChecked(0);
 	} else {
 		startkisprompt_check->SetChecked(1);
 	}
 
-	if (StrLower(kpinterface->prefs.FetchOpt("STARTUP_CONSOLE")) != "true") {
+	if (StrLower(kpinterface->prefs->FetchOpt("STARTUP_CONSOLE")) != "true") {
 		startcons_check->SetChecked(0);
 	} else {
 		startcons_check->SetChecked(1);
 	}
 
-	if (StrLower(kpinterface->prefs.FetchOpt("STOP_SERVER")) != "true") {
+	if (StrLower(kpinterface->prefs->FetchOpt("STOP_SERVER")) != "true") {
 		stopkis_check->SetChecked(0);
 	} else {
 		stopkis_check->SetChecked(1);
 	}
 
-	if (StrLower(kpinterface->prefs.FetchOpt("STOP_PROMPTSERVER")) != "true") {
+	if (StrLower(kpinterface->prefs->FetchOpt("STOP_PROMPTSERVER")) != "true") {
 		stopkisprompt_check->SetChecked(0);
 	} else {
 		stopkisprompt_check->SetChecked(1);
@@ -1028,33 +1028,33 @@ Kis_StartupPref_Panel::~Kis_StartupPref_Panel() {
 void Kis_StartupPref_Panel::ButtonAction(Kis_Panel_Component *in_button) {
 	if (in_button == okbutton) {
 		if (startkis_check->GetChecked()) {
-			kpinterface->prefs.SetOpt("STARTUP_SERVER", "true", 1);
+			kpinterface->prefs->SetOpt("STARTUP_SERVER", "true", 1);
 		} else {
-			kpinterface->prefs.SetOpt("STARTUP_SERVER", "false", 1);
+			kpinterface->prefs->SetOpt("STARTUP_SERVER", "false", 1);
 		}
 
 		if (startkisprompt_check->GetChecked()) {
-			kpinterface->prefs.SetOpt("STARTUP_PROMPTSERVER", "true", 1);
+			kpinterface->prefs->SetOpt("STARTUP_PROMPTSERVER", "true", 1);
 		} else {
-			kpinterface->prefs.SetOpt("STARTUP_PROMPTSERVER", "false", 1);
+			kpinterface->prefs->SetOpt("STARTUP_PROMPTSERVER", "false", 1);
 		}
 
 		if (startcons_check->GetChecked()) {
-			kpinterface->prefs.SetOpt("STARTUP_CONSOLE", "true", 1);
+			kpinterface->prefs->SetOpt("STARTUP_CONSOLE", "true", 1);
 		} else {
-			kpinterface->prefs.SetOpt("STARTUP_CONSOLE", "false", 1);
+			kpinterface->prefs->SetOpt("STARTUP_CONSOLE", "false", 1);
 		} 
 
 		if (stopkis_check->GetChecked()) {
-			kpinterface->prefs.SetOpt("STOP_SERVER", "true", 1);
+			kpinterface->prefs->SetOpt("STOP_SERVER", "true", 1);
 		} else {
-			kpinterface->prefs.SetOpt("STOP_SERVER", "false", 1);
+			kpinterface->prefs->SetOpt("STOP_SERVER", "false", 1);
 		} 
 
 		if (stopkisprompt_check->GetChecked()) {
-			kpinterface->prefs.SetOpt("STOP_PROMPTSERVER", "true", 1);
+			kpinterface->prefs->SetOpt("STOP_PROMPTSERVER", "true", 1);
 		} else {
-			kpinterface->prefs.SetOpt("STOP_PROMPTSERVER", "false", 1);
+			kpinterface->prefs->SetOpt("STOP_PROMPTSERVER", "false", 1);
 		}
 
 		kpinterface->KillPanel(this);
