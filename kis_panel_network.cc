@@ -2488,7 +2488,7 @@ void Kis_Netlist::DrawComponent() {
 				snprintf(rline + rofft, 1024 - rofft, "Signal  ");
 				rofft += 8;
 			} else if (b == bcol_beaconperc) {
-				snprintf(rline + rofft, 1024 - rofft, "Bprc");
+				snprintf(rline + rofft, 1024 - rofft, "Bcn%%");
 				rofft += 4;
 			} else if (b == bcol_signal_dbm) {
 				snprintf(rline + rofft, 1024 - rofft, "Sig");

@@ -681,11 +681,14 @@ void Kis_Main_Panel::MenuAction(int opt) {
 			t.push_back("Stop Kismet server before quitting?");
 			t.push_back("This will stop capture & shut down any other");
 			t.push_back("clients that might be connected to this server");
+			t.push_back("Not stopping the server will leave it running in");
+			t.push_back("the background.");
 
 			Kis_Prompt_Panel *kpp = 
 				new Kis_Prompt_Panel(globalreg, kpinterface);
 			kpp->SetTitle("Stop Kismet Server");
 			kpp->SetDisplayText(t);
+			kpp->SetButtonText("Kill", "Background");
 			kpp->SetCallback(kmp_prompt_killserver, this);
 			kpp->SetDefaultButton(1);
 			kpinterface->QueueModalPanel(kpp);
