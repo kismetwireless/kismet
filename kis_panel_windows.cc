@@ -1397,7 +1397,7 @@ Kis_Spawn_Panel::Kis_Spawn_Panel(GlobalRegistry *in_globalreg,
 
 	SetTitle("Start Kismet Server");
 
-	options->SetLabel("Options", LABEL_POS_LEFT);
+	options->SetLabel("Startup Options", LABEL_POS_LEFT);
 	options->SetTextLen(120);
 	options->SetCharFilter(FILTER_ALPHANUMSYM);
 	options->SetText(kpinterface->prefs.FetchOpt("default_server_options"), -1, -1);
