@@ -175,10 +175,10 @@ int PacketSource_Wext::AutotypeProbe(string in_device) {
 
 	// Detect unknown mac80211 devices, ask for help, assume wext
 	if (Linux_GetSysDrvAttr(in_device.c_str(), "phy80211")) {
-		type = "wext";
-		_MSG("Did't understand driver '" + sysdriver + "' for interface '" +
+		type = "mac80211";
+		_MSG("Didn't understand driver '" + sysdriver + "' for interface '" +
 			 in_device + "', but it looks like a mac80211 device so Kismet "
-			 "will use the generic wext options for it.  Please post on the Kismet "
+			 "will use the generic options for it.  Please post on the Kismet "
 			 "forum or stop by the IRC channel and report what driver it was.",
 			 MSGFLAG_PRINTERROR);
 		return 1;
@@ -211,6 +211,8 @@ int PacketSource_Wext::RegisterSources(Packetsourcetracker *tracker) {
 	tracker->RegisterPacketProto("libertas_usb", this, "IEEE80211b", 1);
 	tracker->RegisterPacketProto("libertas_tf", this, "IEEE80211b", 1);
 	tracker->RegisterPacketProto("nokia770", this, "IEEE80211b", 1);
+	tracker->RegisterPacketProto("nokia800", this, "IEEE80211b", 1);
+	tracker->RegisterPacketProto("nokia810", this, "IEEE80211b", 1);
 	tracker->RegisterPacketProto("orinoco", this, "IEEE80211b", 1);
 	tracker->RegisterPacketProto("orinoco_cs", this, "IEEE80211b", 1);
 	tracker->RegisterPacketProto("prism54", this, "IEEE80211b", 1);
@@ -235,6 +237,7 @@ int PacketSource_Wext::RegisterSources(Packetsourcetracker *tracker) {
 	tracker->RegisterPacketProto("zd1201", this, "IEEE80211b", 1);
 	tracker->RegisterPacketProto("zd1211rw", this, "IEEE80211b", 1);
 	tracker->RegisterPacketProto("wext", this, "IEEE80211b", 1);
+	tracker->RegisterPacketProto("mac80211", this, "IEEE80211b", 1);
 
 	return 1;
 }

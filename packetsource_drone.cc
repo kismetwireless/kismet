@@ -888,8 +888,8 @@ PacketSource_Drone::PacketSource_Drone(GlobalRegistry *in_globalreg,
 
 	// Look for the host and port
 	if (FetchOpt("host", in_opts) == "" || FetchOpt("port", in_opts) == "") {
-		_MSG("Drone source missing 'host' option.  Kismet now uses the 'host' and "
-			 "'port' source options to configure remote Drones (for example "
+		_MSG("Drone source missing 'host' or 'port' option.  Kismet now uses the "
+			 "'host' and 'port' source options to configure remote Drones (for example "
 			 "ncsource=drone:host=127.0.0.1,port=2502,reconnect=true)", MSGFLAG_ERROR);
 		error = 1;
 		return;

@@ -339,10 +339,11 @@ int PacketSource_BSDRT::AutotypeProbe(string in_device) {
 }
 
 int PacketSource_BSDRT::RegisterSources(Packetsourcetracker *tracker) {
-	tracker->RegisterPacketsource("radiotap_bsd_ag", this, 1, "IEEE80211ab", 6);
-	tracker->RegisterPacketsource("radiotap_bsd_a", this, 1, "IEEE80211a", 36);
-	tracker->RegisterPacketsource("radiotap_bsd_g", this, 1, "IEEE80211b", 6);
-	tracker->RegisterPacketsource("radiotap_bsd_b", this, 1, "IEEE80211b", 6);
+	tracker->RegisterPacketProto("radiotap_bsd_ag", this, 1, "IEEE80211ab");
+	tracker->RegisterPacketProto("radiotap_bsd_a", this, 1, "IEEE80211a");
+	tracker->RegisterPacketProto("radiotap_bsd_g", this, 1, "IEEE80211b");
+	tracker->RegisterPacketProto("radiotap_bsd", this, 1, "IEEE80211b");
+	tracker->RegisterPacketProto("bsd", this, 1, "IEEE80211b");
 	return 1;
 }
 

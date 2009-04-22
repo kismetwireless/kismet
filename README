@@ -3,6 +3,14 @@ Mike Kershaw <dragorn@kismetwireless.net>
 http://www.kismetwireless.net
 
 1.  What is Kismet
+2.  Upgrading from earlier versions
+3.  Quick start
+4.  Suidroot & Security
+5.  Capture sources
+6.  Caveats and quirks for specific drivers
+7.  Supported capture sources
+
+1.  What is Kismet
 
     Kismet is an 802.11 wireless network detector, sniffer, and intrusion
     detection system.  Kismet will work with any wireless card which
@@ -70,7 +78,7 @@ http://www.kismetwireless.net
       of configuration options, to get the most out of it you should read
       all of the documentation.
 
-3b.  Windows Quick Start
+3b.  Windows quick start
 
     Using the CACE Package:
 
@@ -98,7 +106,7 @@ http://www.kismetwireless.net
     INCLUDE SUPPORT FOR WIFI MONITORING WHICH KISMET REQUIRES.  THERE IS NO
     WAY TO CHANGE THIS.
 
-3c.  OSX/Darwin Quick Start
+3c.  OSX/Darwin quick start
 
     * Download Kismet from http://www.kismetwireless.net/download.shtml
     * Run "./configure".  Pay attention to the output!  If Kismet cannot
@@ -200,8 +208,9 @@ http://www.kismetwireless.net
                          completely arbitrary and meaningful only to the
                          user.
       type=foo          Sources which can not autodetect the type must have
-                         the type specified.  A full list of supported source
-                         types can be found later in this README.
+                         the type specified.  This is rarely necessary.
+                         Additional information on supported source types
+                         follows.
       uuid=foo          Users wishing a static unique identifier on sources
                          may specify one here.  This is not necessary for
                          most users.  UUID is of the format:
@@ -251,7 +260,8 @@ http://www.kismetwireless.net
                          be specified to prevent Kismet from processing
                          broken packets.
 
-    Example sources:
+    Example sources (these are given as config file parameters, however they
+    will work equally well as command-line options, ie "-c wlan0"):
       Capture on wlan0, channel 6, don't channel hop
        ncsource=wlan0:hop=false,channel=6
 
@@ -262,8 +272,187 @@ http://www.kismetwireless.net
       give us some view of other channels, while remaining associated to a
       network:
        ncsource=wlan0:vap=wlan0mon,hop=false,wpa_scan=15
+
+      Read from a pre-recorded pcap file:
+       ncsource=/home/foo/old.pcap
+
+      Capture using an Airpcap device on Windows
+       ncsource=airpcap
+
+      Capture using a remote capture drone
+       ncsource=drone:host=10.10.100.2,port=2502
+
+6.  Caveats and quirks for specific drivers:
+
+    Mac80211 General (Linux):
+
+      At the time of this release, the mac80211 drivers in Linux are
+      undergoing significant development, which means at any given time they
+      can exhibit extremely odd behavior or be outright broken.  Users are
+      encouraged to upgrade to the latest kernel, and to consider installing
+      the compat-wireless backport package, if problems are experienced.
+
+    Madwifi (Linux):
+
+      Madwifi-ng has been largely deprecated by ath5k/ath9k for normal
+      usage.  These drivers support multi-vap more cleanly via the mac80211
+      layer and do not, typically, have the same problems historically
+      present in madwifi.  
+      
+      Madwifi-ng sources can be specified as either the VAP (ath0, mon0,
+      etc) or as the control interface (wifi0, wifi1).  However, IF THE
+      CONTROL INTERFACE IS SPECIFIED, Kismet cannot extract the list of
+      supported channels, and will default to IEEE80211b channels.
+
+      Madwifi-ng continues to have problems with multi-vap and initial vap
+      creation.  It is recommended that the initial VAP creation be turned off
+      by the module parameter "autocreate=none" when loading ath_pci.  If the
+      madwifi monitor vap stops reporting packets soon after being created,
+      this is often the cause.
+
+      Combining managed and monitor VAPs appears to still not work well.
+
+    WL (Linux)
+
+      Broadcom has released a binary version of their drivers called WL.
+      These drivers are incapable of monitor mode, and cannot be used with
+      Kismet.  Kismet will autodetect them and report this to the user.
+
+    OTUS (Linux)
+
+      Atheros released a driver for the 802.11n USB devices; however, this
+      does not have support for monitor mode and cannot be used with Kismet.
+      The ar9170 driver project is providing mac80211 kernel support for
+      this card, and works with Kismet.  ar9170 has been merged with the
+      wireless-git development kernel and should be present in the
+      compat-wireless packages.
+
+    Orinoco (Linux)
+
+      Due to problems in monitor mode with newer firmwares, the Orinoco kernel
+      drivers have disabled monitor mode for newer/"modern" firmware versions
+      in the Orinoco cards.
+
+      Kismet will attempt to use the device, but warn the user that it will
+      probably fail.  Monitor support can be forced on in the module via the
+      module parameter "force_monitor=1" when loading orinoco.ko.
+
+    NDISWrapper (Linux)
+
+      The NDIS-Wrapper driver loads Windows drivers into the Linux network
+      stack.  These drivers are not capable of monitor mode, and will not
+      work with Kismet.
+
+      Note:  The rndis drivers are NOT the same as ndiswrapper.  rndis
+      drivers are for a specific USB chipset and are not related to
+      ndiswrapper.
+
+    BSD (BSD Generic)
+
+      Cards which work under the generic BSD framework for monitor mode with
+      radiotap headers should work with Kismet via the source types
+      "radiotap_bsd_ag", "radiotap_bsd_a", "radiotap_bsd_g", and
+      "radiotap_bsd".  Channel detection and device type autodetection are
+      currently not supported.
+
+      ncsource=wl0:type=radiotap_bsd_ag
+
+    Windows
+
+      ONLY THE AIRPCAP DEVICE IS SUPPORTED UNDER WINDOWS.  THIS IS A
+      SPECIFIC HARDWARE DEVICE MADE BY CACE TECHNOLOGIES.
+
+      The airpcap has monitor mode drivers with a public interface for
+      controlling them.  This is the only device Kismet can capture packets
+      from on Windows.
+
+    USB Devices (OSX)
+
+      Only devices using the Airport IOKit drivers are supported on OSX.
+      USB devices are, in general, not supported because the drivers lack
+      monitor mode or a method to set the channel.
+
+7.  Supported capture source types
+
+    Capture source types are only required in specific situations where
+    Kismet cannot detect the capture source type automatically.
+
+    Linux Capture Sources:
+
+      All modern drivers on Linux use the mac80211 driver framework.  Kismet
+      will auto-detect any driver using this framework.  A generic source
+      type 'mac80211' can be used for forcing a type, however it is not
+      strictly useful to do so.
+
+      adm8211           Kernel adm8211 driver
+      acx100            Kernel acx100 driver
+      hostap            Kernel prism2 driver
+      ipw2100           Kernel Intel 2100 driver
+      ipw2200           Kernel Intel 2200 driver
+      ipw2915           Kernel Intel 2915 driver
+      ipw3945           Kernel intel 3945 driver
+      mac80211          Generic mac80211 capture source for any mac80211
+                        drivers.
+      madwifi           Madwifi/Madwifi-ng
+      madwifi_a         Alias for madwifi, default 802.11a channels
+      madwifi_b         Alias for madwifi, default 802.11b/g channels
+      madwifi_g         Alias for madwifi, default 802.11b/g channels
+      madwifi_ag        Alias for madwifi, default 802.11abg channels
+      nokia770          Conexant-based driver in Nokia Maemo tablets
+      nokia800          Alias for nokia770
+      nokia810          Alias for nokia770
+
+      pcapfile          Pcap-formatted previously recorded file
+      drone             Remote Kismet packet capture, source options
+                        "host=..." and "port=..." are required.
+                        ncsource=drone:host=localhost,port=2502
+
+    BSD Capture Sources:
+
+      Currently, the BSD packet capture sources do not support autodetection
+      or channel detection.
+
+      Capture on BSD should work with any driver which supports monitor mode
+      and which uses the standard BSD IOCTLs to set the mode and channel.
+
+      Patches/Additional BSD support welcome.
+
+      radiotap_bsd      Generic BSD capture source, default 802.11b/g channels
+      radiotap_bsd_g    Default 802.11b/g channels
+      radiotap_bsd_a    Default 802.11a channels
+      radiotap_bsd_ag   Default 802.11abg channels
+
+      pcapfile          Pcap-formatted previously recorded file
+      drone             Remote Kismet packet capture, source options
+                        "host=..." and "port=..." are required.
+
+    Windows Capture Sources:
+
+      Currently ONLY THE AIRPCAP DEVICE, PCAP FILE, AND DRONES RUNNING ON A
+      SUPPORTED PLATFORM are supported under Windows.  NO OTHER DEVICES CAN
+      BE USED FOR PACKET CAPTURE.
+
+      airpcap           Airpcap generic source.  Will autodetect the channel
+                        ranges.  Interface 'airpcap' will detect the first
+                        airpcap device (ncsource=airpcap), interface paths
+                        may be used to specify specific devices
+                        (ncsource=\\.\airpcap01)
+      airpcap_ask       List available sources and ask which one to use.
+                        Should NOT be used when launched by the Kismet UI.
+
+      pcapfile          Pcap-formatted previously recorded file
+      drone             Remote Kismet packet capture, source options
+                        "host=..." and "port=..." are required.
+
+    OSX/Macintosh Capture Sources:
+      darwin            Any device controlled by the Airport IOKit drivers
+                        under OSX.  Default 802.11b/g channels.
+
+      pcapfile          Pcap-formatted previously recorded file
+      drone             Remote Kismet packet capture, source options
+                        "host=..." and "port=..." are required.
                        
-6.  Other Configuration
+8.  Other Configuration
 
     Kismet is divided into two main processes:  kismet_server and
     kismet_client.  The server portion (responsible for capture, logging,
