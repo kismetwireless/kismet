@@ -295,13 +295,12 @@ int GPSSerial::ParseData() {
 				continue;
 			}
 
-			if (sscanf(gpstoks[7].c_str(), "%f", &tfloat) != 1) 
-				continue;
-			in_spd = tfloat;
-
-			// printf("debug - spd %f\n", in_spd);
-
-			set_spd = 1;
+			if (set_spd == 0) {
+				if (sscanf(gpstoks[7].c_str(), "%f", &tfloat) != 1) 
+					continue;
+				in_spd = tfloat;
+				set_spd = 1;
+			}
 
 			continue;
 		} else if (inptok[it].substr(0, 6) == "$GPGSV") {
@@ -377,8 +376,9 @@ int GPSSerial::ParseData() {
         }
 	}
 
+	// This is always in knots from nmea, convert to meters/sec like gpsd uses */
 	if (set_spd)
-		spd = in_spd;
+		spd = in_spd * 0.514;
 
 #if 0
     // send it to the client

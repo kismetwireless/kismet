@@ -9,6 +9,10 @@ http://www.kismetwireless.net
 5.  Capture sources
 6.  Caveats and quirks for specific drivers
 7.  Supported capture sources
+8.  Plugins
+9.  GPS
+10. Logging
+10. Server configuration options
 
 1.  What is Kismet
 
@@ -179,6 +183,9 @@ http://www.kismetwireless.net
     kismet_capture binary and run in root mode only, however the above
     risks still apply.
 
+    Under no situation should the kismet_server binary itself be set
+    suidroot as this will bypass any security checks.
+
 5.  Capture sources
 
     All packets in Kismet come from a capture source.  Capture sources are
@@ -281,6 +288,52 @@ http://www.kismetwireless.net
 
       Capture using a remote capture drone
        ncsource=drone:host=10.10.100.2,port=2502
+
+    Channel lists:
+
+    Channel lists control the channels and patterns hopped to by capture
+    sources in Kismet, when the channels can not be autodetected (or when
+    the user wishes to override them for some reason).
+
+    Channels can typically be specified as IEEE channels (11, 36, etc) 
+    or as frequencies (2401, 5200) however some platforms and drivers may
+    not support specifying channels or frequencies out of the IEEE standard
+    range.
+
+    channellist=name:channel,channel,channel
+
+    Additionally, individual channels in the list can be weighted so that
+    more time is spent on them; for a weighting value of 3, 3x more time is
+    spent on that channel.
+
+    channellist=foo:1:3,6:3,11:3,2,3,4,5,6,7,8,9,10
+
+    Up to 256 channels may be specified in a channel list.  For greater
+    numbers of channels, a range must be specified.
+
+    Ranges may consist of channels or of frequencies.
+
+    channellist=name:range-[start]-[end]-[overlap]-[iteration]
+
+    Channels between start and end, at a given iteration.  Kismet will not hop
+    directly between channels that overlap.
+
+    channellist=foo:range-1-11-3-1
+
+    A similar range using frequencies (802.11 2.4GHz channels are ~20MHz
+    wide; technically 22 but 20 suffices, and 5 MHz apart).
+
+    channellist=foo:range-2412-2462-20-5
+
+    Ranges are NOT split between sources.  Multiple sources hopping on the
+    same channel list which includes a range will not split the expanded
+    range - in other words, channel ranges are treated as a single channel
+    entry.
+
+    Multiple ranges can be specified in a single channel list, separated by
+    commas.  They may also be mixed with channels:
+
+    channellist=foo:range-1-11-3-1,36,52
 
 6.  Caveats and quirks for specific drivers:
 
@@ -451,8 +504,102 @@ http://www.kismetwireless.net
       pcapfile          Pcap-formatted previously recorded file
       drone             Remote Kismet packet capture, source options
                         "host=..." and "port=..." are required.
-                       
-8.  Other Configuration
+8.  Plugins
+
+    Kismet plugins can do almost anything that the native Kismet process can
+    do.  This includes extending the logging capability, adding IDS alerts,
+    defining new capture sources (within some limitations), and adding new
+    features to the Kismet UI.
+
+    Plugins for the Kismet server (capture and logging process) are loaded
+    from the system-wide plugin directory (/usr/local/lib/kismet/ by
+    default) or from the users Kismet settings directory
+    (~/.kismet/plugins).
+
+    When running Kismet with privilege separation enabled (installed
+    kismet_capture as root), plugins are loaded after the root control
+    daemon is started.  Plugins cannot perform root-only operations.
+
+    When running Kismet without privilege separation (launching as root),
+    plugins run with root privileges.  This is not recommended.
+
+    Server plugins are only loaded when kismet.conf contains:
+      allowplugins=true
+
+    Client plugins are loaded from the system-wide plugin directory
+    (/usr/local/lib/kismet_client by default) or from the users Kismet
+    settings directory (~/.kismet/client_plugins).
+
+    The Kismet UI provides mechanisms for loading plugins (and specifying
+    plugins to be loaded automatically on startup) via the Plugins menu.
+
+    Occasionally, plugins can cause startup problems (due to errors, or more
+    often, version mismatches).  Kismet will attempt to specify which plugin
+    caused the failure.  Removing the offending plugin from the plugins
+    directory will resolve the problem.  Recompiling the plugin with the
+    installed version of Kismet will often fix loading problems.
+
+9.  GPS
+
+    Kismet can integrate with a GPS device to provide coordinates for
+    networks it has detected.  These can be logged to the pcap file when PPI
+    logging is enabled, and to an XML file for processing with Kismap, included 
+    with the Kismet source, as well as other third-party tools.
+
+    Kismet can use the GPS network daemon 'gpsd', or can parse NMEA directly
+    from the GPS unit.
+
+    The GPS is controlled with the Kismet server config, kismet.conf.  For
+    using gpsd with gpsd running on the local system:
+
+      gps=true
+      gpstype=gpsd
+      gpshost=localhost:2947
+      gpsmodelock=false
+      gpsreconnect=true
+
+    By specifying gpsreconnect, if gpsd crashes or Kismet otherwises looses
+    its connection, it will be re-established.  Gpsmodelock compensates for
+    certain broken GPS/GPSd combinations, where the GPS never reports a
+    valid lock.  By forcing a gpsmodelock=true, Kismet assumes the GPS
+    always has a 2d lock.
+
+    For using a GPS device without gpsd:
+
+      gps=true
+      gpstype=serial
+      gpsdevice=/dev/ttyS0
+      gpsreconnect=true
+
+    The gpsdevice parameter should be set to the proper serial device for
+    your GPS.  For USB GPS devices this will typically be /dev/ttyUSB0, and 
+    for bluetooth devices this will often by /dev/rfcomm0 or similar.  Check
+    the output of "dmesg" after plugging in your device.
+
+    Kismet cannot know the location of a network, it can only know the
+    location where it saw a signal.   By circling the suspected location,
+    you can provide more GPS data for processing the network center point.
+
+    Kismet keeps running averages of the network location, however this is
+    not incredibly accurate, due to averaging and imprecision in
+    floating point math.  For plotting network locations, the gps file
+    should be used.
+
+10. Logging
+
+    By default Kismet will log the pcap file, gps log, alerts, and network
+    log in XML and plaintext.
+
+    By default, Kismet will try to log to pcapfiles using the PPI per-packet
+    header.  The PPI header is a well-documented header supported by
+    Wireshark and other tools, which can contain spectrum data, radio data
+    such as signal and noise levels, and GPS data.
+
+    PPI is only available with recent libpcap versions.  When it is not
+    available, Kismet will fall back to standard 802.11 format with no extra
+    headers.
+
+10. Other Configuration
 
     Kismet is divided into two main processes:  kismet_server and
     kismet_client.  The server portion (responsible for capture, logging,
@@ -470,96 +617,45 @@ http://www.kismetwireless.net
     Most configuration options are self-explanatory or documented in the
     config file itself.
 
-To be replaced soon.  See README.newcore for devel info.
+    By default Kismet only listens to the loopback interface on port 2501.
+    This may be changed:
 
-NOTE: NEWCORE HAS CHANGED HOW THINGS ARE CONFIGURED IN SOME SIGNIFICANT
-WAYS, BUT BY USING DIFFERENT OPTIONS THE CONFIG FILE CAN STILL BE SHARED WITH
-KISMET-STABLE.  REFER TO THE KISMET DEVEL BLOG, THIS README, AND THE COMMENTS
-IN CONF/KISMET.CONF FOR THE NEW CONFIGURATION OPTIONS.
+    listen=tcp://ip:port     Define the IP and port Kismet listens on.  By 
+                              default, for security reasons, Kismet will 
+                              listen only on 127.0.0.1, the loopback interface.  
+                              To listen on any interface, use the IP 0.0.0.0.
+    allowedhosts=...         Comma-separated list of IP addresses allowed to 
+                              connect to the Kismet server.  IP ranges may be 
+                              specified with netmasks (ie 10.10.10.0/24)
+    maxclients=N             Maximum number of clients allowed to simultaneously
+                              connect to the Kismet server.
+    maxbacklog=5000          Maximum number of backlogged "lines" the server
+                              keeps for clients which are not keeping up
+                              with the network protocol.  This also affects
+                              the amount of RAM potentially used by the
+                              Kismet server process, and may need to be
+                              lowered on extremely RAM-limited systems.
 
-New security model:
+    Kismet servers may also be configured to act as Kismet drones, exporting
+    a TCP stream of live packets:
 
-Kismet now uses a suid-root group-exec-only helper binary called kismet_capture
-which allows it to control and capture from interfaces.  When installed in suid
-mode, this program will be installed as group-executable only for the Kismet
-group.
+    dronelisten=..           Same as above, for drone capabilities
+    droneallowedhosts=..     ...
+    dronemaxclients=..       ...
+    droneringlen=65535       Equivalent of maxbacklog for Kismet clients,
+                              maximum amount of space used for backlogged
+                              packets as a drone.  May be reduced on
+                              extremely RAM-limited systems.
 
-Kismet can be run without installation and WITHOUT PRIVILEGE SEPARATION by
-running it out of the source directory as root.
+    Kismet can export packets directly to other tools by creating a virtual
+    network interface (supported on Linux, minimal support on OSX and BSD
+    due to limited tuntap driver implementations on these platforms):
 
-In either use, this REMOVES the need to specify a user to drop privs to.
+    tuntap_export=true       Enable tuntap export
+    tuntap_device=kistap0    Virtual network interface created
 
-Newcore sources:
-
-In an attempt to make it easier to configure, Newcore has a new source config
-format:
-
-ncsource=interface[:[option,]+]
-
-For interfaces where autodetect is supported, all that is needed is
-ncsource=wlan0
-
-For interfaces where autodetect does not work the "type" option is used:
-
-ncsource=wifi0:type=madwifi_g
-
-Multiple options can be included:
-
-ncsource=wlan0:name=intel,hop=false,channel=11
-
-Available source options:
-    name=foo            Name the source (otherwise it will be referred 
-                         to by the interface)
-    type=foo            Set the type (such as iwl4965, madwfifi_g, etc) for types
-                         which can not be auto-detected
-    uuid=foo            Force a specific UUID for this source (not needed for
-                         most users)
-    hop=true|false      Control hopping on this source
-    velocity=#          Set the channel hop velocity of this source
-    weakvalidate        Do not strongly force packet validation (somtimes needed
-                         for handling FCS data)
-    channellist=list    Use named channel list
-    channel=#           Set a channel/frequency
-    dwell=#             Dwell on each channel for # seconds
-    split=true|false    Disable channel list splitting (will not share a list of
-                         channels over multiple sources)
-    retry=true|false    Attempt to re-open a device which has failed
-                        (default true)
-    vap=interface       Create a VAP interface (mac80211)
-    wpa_scan=time       When using a mac80211 VAP, trigger wpa_supplicant
-                        scans at regular intervals (useful for sta+rfmon
-                        mvap)
-    validatefcs=t|f     True/False - validate the FCS (if the driver passes
-                        packets which don't have a valid FCS.  Few do.)
-
-Newcore channels:
-
-In an attempt to make it easier to configure, Newcore has a new channel config
-format:
-
-channellist=name:channel,channel,channel
-
-Additionally individual channels can be weighted so that more time is spent
-on them:
-
-channellist=foo:1:3,6:3,11:3,2,3,4,5,7,8,9,10
-
-would wait 3 times longer on channels 1, 6, 11 than on the other channels.
-
-Channels may also be defined as ranges of the format:
-
-channellist=foo:range-1-11-3-1
-
-Ranges will automatically hop in a non-overlapping pattern, may be specified
-as frequencies, and may be combined with normal channel definitions or
-as a series of ranges.
-
-Ranges are NOT, however, shared between sources.  Multiple sources hopping
-on the same range may be synced and duplicate coverage, however multiple
-sources hopping on the same channel definition containing ranges will be
-split over the total channel list (in other words, ranges are treated as
-a single channel entry).
-
-Currently, extremely large channel ranges may have unexpected negative
-results when the server reports channel status.
+    Sound can be generated by the Kismet server, however typically this
+    would be done by the Kismet UI and thusly sound is disabled by default.
+    The options sound, soundplay, sound_new, etc, in the Kismet config file
+    control sound and speech playing from the server.
 

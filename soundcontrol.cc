@@ -279,6 +279,9 @@ string SoundControl::EncodeSpeechString(string in_str) {
 
 int SoundControl::LocalPlay(string key) {
 	string snd;
+	char *argv[3];
+	pid_t sndpid;
+	int status;
 
 	if (wav_map.size() == 0)
 		snd = MungeToShell(key);
@@ -287,10 +290,18 @@ int SoundControl::LocalPlay(string key) {
 	else
 		return 0;
 
-	char plr[1024];
-	snprintf(plr, 1024, "%s %s", player.c_str(), snd.c_str());
+	argv[0] = strdup(player.c_str());
+	argv[1] = strdup(snd.c_str());
+	argv[2] = NULL;
 
-	return system(plr);
+	if ((sndpid = fork()) == 0) {
+		execvp(argv[0], argv);
+		exit(1);
+	}
+
+	waitpid(sndpid, &status, 0);
+
+	return 1;
 }
 
 int SoundControl::LocalSpeech(string text) {

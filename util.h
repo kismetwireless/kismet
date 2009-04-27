@@ -87,7 +87,7 @@ public:
 		ostringstream osstr;
 
 		if (in_precision)
-			osstr << setprecision(in_precision) << in_n;
+			osstr << setprecision(in_precision) << fixed << in_n;
 		else
 			osstr << in_n;
 

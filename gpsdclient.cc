@@ -327,8 +327,8 @@ int GPSDClient::ParseData() {
 
 			if (sscanf(ggavec[9].c_str(), "%f", &in_spd) != 1)
 				use_spd = 0;
-			else if (si_units)
-				in_spd *= 1.9438445;	/*new gpsd uses m/s intead of knots*/
+			else if (si_units == 0)
+				in_spd *= 0.514; /* Speed in meters/sec from knots */
 
 			use_mode = 1;
 			use_coord = 1;

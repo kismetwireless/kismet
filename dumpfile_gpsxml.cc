@@ -133,13 +133,19 @@ int Dumpfile_Gpsxml::chain_handler(kis_packet *in_pack) {
 	if ((eight11 = (kis_ieee80211_packinfo *)
 		 in_pack->fetch(_PCM(PACK_COMP_80211))) == NULL) {
 		fprintf(xmlfile, "    <gps-point bssid=\"%s\" time-sec=\"%ld\" "
-				"time-usec=\"%ld\" lat=\"%f\" lon=\"%f\" alt=\"%f\" spd=\"%f\" "
-				"heading=\"%f\" fix=\"%d\" hdop=\"%f\" vdop=\"%f\"/>\n",
+				"time-usec=\"%ld\" lat=\"%f\" lon=\"%f\" spd=\"%f\" heading=\"%f\" "
+				"fix=\"%d\"",
 				gps_track_bssid,
 				(long int) in_pack->ts.tv_sec, (long int) in_pack->ts.tv_usec,
-				gpsinfo->lat, gpsinfo->lon, gpsinfo->alt, gpsinfo->spd,
-				gpsinfo->heading, gpsinfo->gps_fix, gpsinfo->hdop, 
-				gpsinfo->vdop);
+				gpsinfo->lat, gpsinfo->lon, gpsinfo->spd, gpsinfo->heading,
+				gpsinfo->gps_fix);
+		if (gpsinfo->gps_fix >= 3)
+			fprintf(xmlfile, " alt=\"%f\"", gpsinfo->alt);
+		if (gpsinfo->hdop != 0 || gpsinfo->vdop != 0)
+			fprintf(xmlfile, " hdop=\"%f\" vdop=\"%f\"",
+					gpsinfo->hdop, gpsinfo->vdop);
+		fprintf(xmlfile, ">\n");
+
 		dumped_frames++;
 		return 1;
 	}
@@ -147,19 +153,25 @@ int Dumpfile_Gpsxml::chain_handler(kis_packet *in_pack) {
 	// Otherwise we want to try to log the signal levels too
 	radio = (kis_layer1_packinfo *) in_pack->fetch(_PCM(PACK_COMP_RADIODATA));
 
-    fprintf(xmlfile, "    <gps-point bssid=\"%s\" source=\"%s\" time-sec=\"%ld\" "
-			"time-usec=\"%ld\" lat=\"%f\" lon=\"%f\" alt=\"%f\" spd=\"%f\" "
-			"heading=\"%f\" fix=\"%d\" signal_dbm=\"%d\" noise_dbm=\"%d\"/> "
-			"signal_rssi=\"%d\" noise_rssi=\"%d\"\n",
+	fprintf(xmlfile, "    <gps-point bssid=\"%s\" source=\"%s\" time-sec=\"%ld\" "
+			"time-usec=\"%ld\" lat=\"%f\" lon=\"%f\" spd=\"%f\" heading=\"%f\" "
+			"fix=\"%d\"",
 			eight11->bssid_mac.Mac2String().c_str(),
 			eight11->source_mac.Mac2String().c_str(),
 			(long int) in_pack->ts.tv_sec, (long int) in_pack->ts.tv_usec,
-			gpsinfo->lat, gpsinfo->lon, gpsinfo->alt, gpsinfo->spd,
-			gpsinfo->heading, gpsinfo->gps_fix,
-			radio == NULL ? 0 : radio->signal_dbm,
-			radio == NULL ? 0 : radio->noise_dbm,
-			radio == NULL ? 0 : radio->signal_rssi,
-			radio == NULL ? 0 : radio->noise_rssi);
+			gpsinfo->lat, gpsinfo->lon, gpsinfo->spd, gpsinfo->heading,
+			gpsinfo->gps_fix);
+	if (gpsinfo->gps_fix >= 3)
+		fprintf(xmlfile, " alt=\"%f\"", gpsinfo->alt);
+	if (gpsinfo->hdop != 0 || gpsinfo->vdop != 0)
+		fprintf(xmlfile, " hdop=\"%f\" vdop=\"%f\"",
+				gpsinfo->hdop, gpsinfo->vdop);
+	if (radio != NULL)
+		fprintf(xmlfile, " signal_dbm=\"%d\" noise_dbm=\"%d\"/> "
+				"signal_rssi=\"%d\" noise_rssi=\"%d\"\n",
+				radio->signal_dbm, radio->noise_dbm, 
+				radio->signal_rssi, radio->noise_rssi);
+	fprintf(xmlfile, ">\n");
 
 	dumped_frames++;
 

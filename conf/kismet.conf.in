@@ -94,7 +94,6 @@ maxbacklog=5000
 # Server + Drone config options
 # dronelisten=tcp://127.0.0.1:3501
 # droneallowedhosts=127.0.0.1
-# dronebindaddress=127.0.0.1
 # dronemaxclients=5
 # droneringlen=65535
 
@@ -238,20 +237,6 @@ speech_type=nato
 speech_encrypted=New network detected, s.s.i.d. %s, channel %c, network encrypted.
 speech_unencrypted=New network detected, s.s.i.d. %s, channel %c, network open.
 
-# Where do we get our manufacturer fingerprints from?  Assumed to be in the
-# default config directory if an absolute path is not given.
-ap_manuf=ap_manuf
-client_manuf=client_manuf
-
-# Use metric measurements in the output?
-metric=false
-
-# Do we write waypoints for gpsdrive to load?  Note:  This is NOT related to
-# recent versions of GPSDrive's native support of Kismet.
-waypoints=false
-# GPSMap waypoint file.  This WILL be truncated.
-waypointdata=%h/.gpsdrive/way_kismet.txt
-
 # How many alerts do we backlog for new clients?  Only change this if you have
 # a -very- low memory system and need those extra bytes, or if you have a high
 # memory system and a huge number of alert conditions.
@@ -264,15 +249,6 @@ logtypes=pcapdump,gpsxml,netxml,nettxt,alert
 pcapdumpformat=ppi
 # pcapdumpformat=80211
 
-# Do we track probe responses and merge probe networks into their owners?
-# This isn't always desireable, depending on the type of monitoring you're
-# trying to do.
-trackprobenets=true
-
-# Do we log "noise" packets that we can't decipher?  I tend to not, since 
-# they don't have anything interesting at all in them.
-noiselog=false
-
 # Do we log corrupt packets?  Corrupt packets have enough header information
 # to see what they are, but someting is wrong with them that prevents us from
 # completely dissecting them.  Logging these is usually not a bad idea.
@@ -284,21 +260,11 @@ beaconlog=true
 # Do we log PHY layer packets or do we filter them out of the dumpfile
 phylog=true
 
-# Do we mangle packets if we can decrypt them or if they're fuzzy-detected
-mangledatalog=true
-
-# What type of dump do we generate? 
-# valid option: "wiretap" 
-dumptype=wiretap
 # Do we limit the size of dump logs?  Sometimes ethereal can't handle big ones.
 # 0 = No limit
 # Anything else = Max number of packets to log to a single file before closing
 # and opening a new one.
 dumplimit=0
-
-# Do we write data packets to a FIFO for an external data-IDS (such as Snort)?
-# See the docs before enabling this.
-#fifo=/tmp/kismet_dump
 
 # Default log title
 logdefault=Kismet
