@@ -47,8 +47,9 @@ Dumpfile::Dumpfile(GlobalRegistry *in_globalreg) {
 
 void Dumpfile::Usage(char *name) {
 	printf(" *** Dump/Logging Options ***\n");
-	printf(" -T, --log-types              Override activated log types\n"
-		   " -t, --log-title              Override default log title\n"
+	printf(" -T, --log-types <types>      Override activated log types\n"
+		   " -t, --log-title <title>      Override default log title\n"
+		   " -p, --log-prefix <prefix>    Directory to store log files\n"
 		   " -n, --no-logging             Disable logging entirely\n");
 }
 
@@ -61,6 +62,7 @@ string Dumpfile::ProcessConfigOpt(string in_type) {
 	static struct option logfile_long_options[] = {
 		{ "log-types", required_argument, 0, 'T' },
 		{ "log-title", required_argument, 0, 't' },
+		{ "log-prefix", required_argument, 0, 'p' },
 		{ "no-logging", no_argument, 0, 'n' },
 		{ 0, 0, 0, 0 }
 	};
@@ -76,7 +78,7 @@ string Dumpfile::ProcessConfigOpt(string in_type) {
 
 	while (1) {
 		int r = getopt_long(globalreg->argc, globalreg->argv,
-							"-T:t:n", 
+							"-T:t:np:", 
 							logfile_long_options, &option_idx);
 		if (r < 0) break;
 		switch (r) {
@@ -88,6 +90,9 @@ string Dumpfile::ProcessConfigOpt(string in_type) {
 				break;
 			case 'n':
 				return "";
+				break;
+			case 'p':
+				globalreg->log_prefix = string(optarg);
 				break;
 		}
 	}

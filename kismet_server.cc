@@ -430,8 +430,7 @@ int Usage(char *argv) {
 		   "the configuration file.\n");
 
 	printf(" *** Generic Options ***\n");
-	printf(" -p, --log-prefix <prefix>    Directory to store log files\n"
-		   " -f, --config-file <file>     Use alternate configuration file\n"
+	printf(" -f, --config-file <file>     Use alternate configuration file\n"
 		   "     --no-line-wrap           Turn of linewrapping of output\n"
 		   "                              (for grep, speed, etc)\n"
 		   " -s, --silent                 Turn off stdout output after setup phase\n"
@@ -558,7 +557,6 @@ int main(int argc, char *argv[], char *envp[]) {
 
 	// Standard getopt parse run
 	static struct option main_longopt[] = {
-		{ "log-prefix", required_argument, 0, 'p' },
 		{ "config-file", required_argument, 0, 'f' },
 		{ "no-line-wrap", no_argument, 0, nlwc },
 		{ "silent", no_argument, 0, 's' },
@@ -580,8 +578,6 @@ int main(int argc, char *argv[], char *envp[]) {
 			glob_linewrap = 0;
 		} else if (r == 's') {
 			local_silent = 1;
-		} else if (r == 'p') {
-			globalreg->log_prefix = string(optarg);
 		}
 	}
 
