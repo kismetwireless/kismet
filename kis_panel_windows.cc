@@ -834,9 +834,9 @@ void Kis_Main_Panel::SpawnColorPrefs() {
 void Kis_Main_Panel::SpawnNetcolPrefs() {
 	Kis_ColumnPref_Panel *cpp = new Kis_ColumnPref_Panel(globalreg, kpinterface);
 
-	for (unsigned int x = 0; bssid_column_details[x][0] != NULL; x++) {
-		cpp->AddColumn(bssid_column_details[x][0],
-					   bssid_column_details[x][1]);
+	for (unsigned int x = 0; bssid_column_details[x].pref != NULL; x++) {
+		cpp->AddColumn(bssid_column_details[x].pref,
+					   bssid_column_details[x].name);
 	}
 
 	cpp->ColumnPref("netlist_columns", "Network List");
@@ -846,9 +846,9 @@ void Kis_Main_Panel::SpawnNetcolPrefs() {
 void Kis_Main_Panel::SpawnNetextraPrefs() {
 	Kis_ColumnPref_Panel *cpp = new Kis_ColumnPref_Panel(globalreg, kpinterface);
 
-	for (unsigned int x = 0; bssid_extras_details[x][0] != NULL; x++) {
-		cpp->AddColumn(bssid_extras_details[x][0],
-					   bssid_extras_details[x][1]);
+	for (unsigned int x = 0; bssid_extras_details[x].pref != NULL; x++) {
+		cpp->AddColumn(bssid_extras_details[x].pref,
+					   bssid_extras_details[x].name);
 	}
 
 	cpp->ColumnPref("netlist_extras", "Network Extras");

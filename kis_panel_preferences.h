@@ -28,6 +28,13 @@
 #include "kis_clinetframe.h"
 #include "kis_panel_widgets.h"
 
+// Common struct for column/extra prefs
+struct common_col_pref {
+	const char *pref;
+	const char *name;
+	int ref;
+};
+
 // Color picker - draws all the colors and lets you pick one with 
 // left/right/space|enter
 class Kis_ColorPref_Component : public Kis_Panel_Component {

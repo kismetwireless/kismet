@@ -26,27 +26,28 @@
 #include "kis_panel_frontend.h"
 #include "kis_panel_sort.h"
 
-const char *bssid_column_details[][2] = {
-	{ "decay", "Recent activity" },
-	{ "name", "Name or SSID" },
-	{ "shortname", "Shortened name or SSID" },
-	{ "nettype", "Type of network" },
-	{ "crypt", "Encryption options" },
-	{ "channel", "Channel" },
-	{ "packets", "Total packets" },
-	{ "packdata", "Number of data packets" },
-	{ "packllc", "Number of LLC/Management packets" },
-	{ "packcrypt", "Number of encrypted data packets" },
-	{ "bssid", "BSSID" },
-	{ "clients", "Number of associated clients" },
-	{ "datasize", "Amount of data seen" },
-	{ "beaconperc", "Percentage of expected beacons seen" },
-	{ "signal_dbm", "Signal (in dBm, depends on source" },
-	{ "signal_rssi", "Signal (in RSSI, depends on source" },
-	{ "freq_mhz", "Frequency (MHz)" },
-	{ "manuf", "Manufacturer" },
-	{ "11dcountry", "802.11d Country" },
-	{ NULL, NULL }
+const common_col_pref bssid_column_details[] = {
+	{ "decay", "Recent activity", bcol_decay },
+	{ "name", "Name or SSID", bcol_name },
+	{ "shortname", "Shortened name or SSID", bcol_shortname },
+	{ "nettype", "Type of network", bcol_nettype },
+	{ "crypt", "Encryption options", bcol_crypt },
+	{ "channel", "Channel", bcol_channel },
+	{ "packets", "Total packets", bcol_packets },
+	{ "packdata", "Number of data packets", bcol_packdata },
+	{ "packllc", "Number of LLC/Management packets", bcol_packllc },
+	{ "packcrypt", "Number of encrypted data packets", bcol_packcrypt },
+	{ "bssid", "BSSID", bcol_bssid },
+	{ "clients", "Number of associated clients", bcol_clients },
+	{ "datasize", "Amount of data seen", bcol_datasize },
+	{ "beaconperc", "Percentage of expected beacons seen", bcol_beaconperc },
+	{ "signal_dbm", "Signal (in dBm, depends on source", bcol_signal_dbm },
+	{ "signal_rssi", "Signal (in RSSI, depends on source", bcol_signal_rssi },
+	{ "freq_mhz", "Frequency (MHz)", bcol_freq_mhz },
+	{ "manuf", "Manufacturer", bcol_manuf },
+	{ "11dcountry", "802.11d Country", bcol_11dcountry },
+	{ "seenby", "Sources that have seen this network", bcol_seenby },
+	{ NULL, NULL, NULL }
 };
 
 const char *Kis_Netlist::bssid_columns_text[] = {
@@ -58,11 +59,13 @@ const char *Kis_Netlist::bssid_columns_text[] = {
 	NULL
 };
 
-const char *bssid_extras_details[][2] = {
-	{ "lastseen", "Last seen timestamp" },
-	{ "bssid", "BSSID" },
-	{ "crypt", "Encryption types" },
-	{ "manuf", "Manufacturer info" },
+const common_col_pref bssid_extras_details[] = {
+	{ "lastseen", "Last seen timestamp", bext_lastseen },
+	{ "bssid", "BSSID", bext_bssid },
+	{ "crypt", "Encryption types", bext_crypt },
+	{ "ip", "IP Address Guess", bext_manuf },
+	{ "manuf", "Manufacturer info", bext_manuf },
+	{ "seenby", "Sources that have seen this network", bext_seenby },
 	{ NULL, NULL}
 };
 
@@ -559,48 +562,17 @@ int Kis_Netlist::UpdateBColPrefs() {
 
 	for (unsigned int x = 0; x < toks.size(); x++) {
 		t = StrLower(toks[x]);
+		int set = 0;
 
-		if (t == "decay")
-			display_bcols.push_back(bcol_decay);
-		else if (t == "name")
-			display_bcols.push_back(bcol_name);
-		else if (t == "shortname")
-			display_bcols.push_back(bcol_shortname);
-		else if (t == "nettype")
-			display_bcols.push_back(bcol_nettype);
-		else if (t == "crypt")
-			display_bcols.push_back(bcol_crypt);
-		else if (t == "channel")
-			display_bcols.push_back(bcol_channel);
-		else if (t == "datapack")
-			display_bcols.push_back(bcol_packdata);
-		else if (t == "llcpack")
-			display_bcols.push_back(bcol_packllc);
-		else if (t == "cryptpack")
-			display_bcols.push_back(bcol_packcrypt);
-		else if (t == "bssid")
-			display_bcols.push_back(bcol_bssid);
-		else if (t == "packets")
-			display_bcols.push_back(bcol_packets);
-		else if (t == "clients")
-			display_bcols.push_back(bcol_clients);
-		else if (t == "datasize")
-			display_bcols.push_back(bcol_datasize);
-		else if (t == "signalbar")
-			display_bcols.push_back(bcol_signalbar);
-		else if (t == "beaconperc")
-			display_bcols.push_back(bcol_beaconperc);
-		else if (t == "signal_dbm")
-			display_bcols.push_back(bcol_signal_dbm);
-		else if (t == "signal_rssi")
-			display_bcols.push_back(bcol_signal_rssi);
-		else if (t == "freq_mhz")
-			display_bcols.push_back(bcol_freq_mhz);
-		else if (t == "manuf")
-			display_bcols.push_back(bcol_manuf);
-		else if (t == "11dcountry")
-			display_bcols.push_back(bcol_11dcountry);
-		else
+		for (unsigned int y = 0; bssid_column_details[y].pref != NULL; y++) {
+			if (t == StrLower(bssid_column_details[y].pref)) {
+				display_bcols.push_back((bssid_columns) bssid_column_details[y].ref);
+				set = 1;
+				break;
+			}
+		}
+
+		if (set == 0)
 			_MSG("Unknown display column '" + t + "', skipping.",
 				 MSGFLAG_INFO);
 	}
@@ -634,18 +606,17 @@ int Kis_Netlist::UpdateBExtPrefs() {
 
 	for (unsigned int x = 0; x < toks.size(); x++) {
 		t = StrLower(toks[x]);
+		int set = 0;
 
-		if (t == "lastseen") 
-			display_bexts.push_back(bext_lastseen);
-		else if (t == "crypt")
-			display_bexts.push_back(bext_crypt);
-		else if (t == "ip")
-			display_bexts.push_back(bext_ip);
-		else if (t == "manuf")
-			display_bexts.push_back(bext_manuf);
-		else if (t == "bssid")
-			display_bexts.push_back(bext_bssid);
-		else
+		for (unsigned int y = 0; bssid_extras_details[y].pref != NULL; y++) {
+			if (t == StrLower(bssid_extras_details[y].pref)) {
+				display_bexts.push_back((bssid_extras) bssid_extras_details[y].ref);
+				set = 1;
+				break;
+			}
+		}
+
+		if (set == 0)
 			_MSG("Unknown display extra field '" + t + "', skipping.",
 				 MSGFLAG_INFO);
 	}
@@ -2184,6 +2155,9 @@ int Kis_Netlist::PrintNetworkLine(Kis_Display_NetGroup *ng,
 		usenet = 0;
 	}
 
+	map<uuid, KisPanelInterface::knc_card *> *cardmap = kpinterface->FetchNetCardMap();
+	map<uuid, KisPanelInterface::knc_card *>::iterator kci;
+
 	for (unsigned c = 0; c < display_bcols.size(); c++) {
 		bssid_columns b = display_bcols[c];
 
@@ -2367,6 +2341,23 @@ int Kis_Netlist::PrintNetworkLine(Kis_Display_NetGroup *ng,
 						 net->lastssid->dot11d_country.c_str());
 			}
 			rofft += 3;
+		} else if (b == bcol_seenby) {
+			string clist;
+			
+			if (net->source_map.size() == 0)
+				clist = "----";
+
+			for (map<uuid, Netracker::source_data *>::iterator sdi =
+				 net->source_map.begin(); sdi != net->source_map.end(); ++sdi) {
+				if ((kci = cardmap->find(sdi->second->source_uuid)) == cardmap->end()) {
+					clist += "(Unk) ";
+				} else {
+					clist += kci->second->name + string(" ");
+				}
+			}
+
+			snprintf(rline + rofft, max - rofft, "%-10.10s", clist.c_str());
+			rofft += 10;
 		} else {
 			continue;
 		}
@@ -2502,6 +2493,9 @@ void Kis_Netlist::DrawComponent() {
 			} else if (b == bcol_11dcountry) {
 				snprintf(rline + rofft, 1024 - rofft, "%-3.3s", "Cty");
 				rofft += 3;
+			} else if (b == bcol_seenby) {
+				snprintf(rline + rofft, 1024 - rofft, "%-10.10s", "Seen By");
+				rofft += 10;
 			}
 
 			if (rofft < 1023) {
@@ -2630,6 +2624,10 @@ void Kis_Netlist::DrawComponent() {
 
 			pevcache = ng->GetDetCache();
 
+			map<uuid, KisPanelInterface::knc_card *> *cardmap = 
+				kpinterface->FetchNetCardMap();
+			map<uuid, KisPanelInterface::knc_card *>::iterator kci;
+
 			// If we're dirty, we don't have details cached, or it's been
 			// w/in 10 seconds, we recalc the details
 			if (ng->DispDirty() || 
@@ -2744,6 +2742,26 @@ void Kis_Netlist::DrawComponent() {
 						snprintf(rline + rofft, 1024 - rofft, "Manuf: %s",
 								 meta->manuf.c_str());
 						rofft += kismin(17, 7 + meta->manuf.length());
+					} else if (e == bext_seenby) {
+						string clist;
+
+						if (meta->source_map.size() == 0)
+							clist = "----";
+
+						for (map<uuid, Netracker::source_data *>::iterator sdi =
+							 meta->source_map.begin(); sdi != 
+							 meta->source_map.end(); ++sdi) {
+							if ((kci = cardmap->find(sdi->second->source_uuid)) == 
+								cardmap->end()) {
+								clist += "(Unk) ";
+							} else {
+								clist += kci->second->name + string(" ");
+							}
+						}
+
+						snprintf(rline + rofft, 1024 - rofft, "SeenBy: %-10.10s", 
+								 clist.c_str());
+						rofft += kismin(18, 8 + clist.length());
 					} else {
 						continue;
 					}

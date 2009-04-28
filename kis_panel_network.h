@@ -27,6 +27,7 @@
 #include "netracker.h"
 #include "kis_clinetframe.h"
 #include "kis_panel_widgets.h"
+#include "kis_panel_preferences.h"
 
 // Core network display list
 //
@@ -176,19 +177,19 @@ enum bssid_columns {
 	bcol_crypt, bcol_channel, bcol_packdata, bcol_packllc, bcol_packcrypt,
 	bcol_bssid, bcol_packets, bcol_clients, bcol_datasize, bcol_signalbar,
 	bcol_beaconperc, bcol_signal_dbm, bcol_signal_rssi, bcol_freq_mhz,
-	bcol_manuf, bcol_11dcountry
+	bcol_manuf, bcol_11dcountry, bcol_seenby
 };
 
 // Do not expect this to be in numerical order with the above enum, this is
 // for setting up the preferences panels, etc
-extern const char *bssid_column_details[][2];
+extern const common_col_pref bssid_column_details[];
 
 // Extra display options per-line
 enum bssid_extras {
-	bext_lastseen, bext_bssid, bext_crypt, bext_ip, bext_manuf
+	bext_lastseen, bext_bssid, bext_crypt, bext_ip, bext_manuf, bext_seenby
 };
 
-extern const char *bssid_extras_details[][2];
+extern const common_col_pref bssid_extras_details[];
 
 class Kis_Netlist : public Kis_Panel_Component {
 public:
