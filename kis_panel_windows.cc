@@ -1376,6 +1376,7 @@ Kis_Spawn_Panel::Kis_Spawn_Panel(GlobalRegistry *in_globalreg,
 		kpinterface->prefs->FetchOpt("STARTUP_CONSOLE") == "")
 		spawn_console = 1;
 
+	Kis_Free_Text *logwarn = NULL;
 
 	options = new Kis_Single_Input(globalreg, this);
 	logname = new Kis_Single_Input(globalreg, this);
@@ -1394,10 +1395,26 @@ Kis_Spawn_Panel::Kis_Spawn_Panel(GlobalRegistry *in_globalreg,
 	options->SetLabel("Startup Options", LABEL_POS_LEFT);
 	options->SetTextLen(120);
 	options->SetCharFilter(FILTER_ALPHANUMSYM);
-	options->SetText(kpinterface->prefs->FetchOpt("default_server_options"), -1, -1);
+
+	if (globalreg->argc <= 1) {
+		options->SetText(kpinterface->prefs->FetchOpt("default_server_options"), -1, -1);
+	} else {
+		string sopt;
+		for (int x = 1; x < globalreg->argc; x++) {
+			if (string(globalreg->argv[x]) == "-n" ||
+				string(globalreg->argv[x]) == "--no-logging") {
+				logwarn = new Kis_Free_Text(globalreg, this);
+				logwarn->Show();
+				logwarn->SetText("Logging disabled on CLI, fix startup options");
+			}
+
+			sopt += string(globalreg->argv[x]) + string(" ");
+		}
+		options->SetText(sopt, -1, -1);
+	}
 
 	logging_check->SetText("Logging");
-	logging_check->SetChecked(1);
+	logging_check->SetChecked(logwarn == NULL);
 
 	logname->SetLabel("Log Title", LABEL_POS_LEFT);
 	logname->SetTextLen(64);
@@ -1434,6 +1451,8 @@ Kis_Spawn_Panel::Kis_Spawn_Panel(GlobalRegistry *in_globalreg,
 	bbox->Pack_End(okbutton, 0, 0);
 
 	vbox->Pack_End(options, 0, 0);
+	if (logwarn)
+		vbox->Pack_End(logwarn, 0, 0);
 	vbox->Pack_End(logging_check, 0, 0);
 	vbox->Pack_End(logname, 0, 0);
 	vbox->Pack_End(console_check, 0, 0);
@@ -1452,7 +1471,14 @@ Kis_Spawn_Panel::Kis_Spawn_Panel(GlobalRegistry *in_globalreg,
 
 	SetActiveComponent(options);
 
-	Position(WIN_CENTER(11, 40));
+	int w = 40, h = 11;
+
+	if (logwarn != NULL) {
+		w += 10;
+		h += 2;
+	}
+
+	Position(WIN_CENTER(h, w));
 }
 
 Kis_Spawn_Panel::~Kis_Spawn_Panel() {

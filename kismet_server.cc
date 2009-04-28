@@ -486,6 +486,22 @@ int main(int argc, char *argv[], char *envp[]) {
 	signal(SIGCHLD, CatchChild);
     signal(SIGPIPE, SIG_IGN);
 
+	// Runt getopt for --help
+	static struct option main_runtopt[] = {
+		{ "help", no_argument, 0, 'h' },
+		{ 0, 0, 0, 0 }
+	};
+
+	while (1) {
+		int r = getopt_long(argc, argv, 
+							"h", main_runtopt, &option_idx);
+		if (r < 0) break;
+		if (r == 'h') {
+			Usage(argv[0]);
+			exit(1);
+		}
+	}
+
 	// Start filling in key components of the globalregistry
 	globalregistry = new GlobalRegistry;
 	globalreg = globalregistry;

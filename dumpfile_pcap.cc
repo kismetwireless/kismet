@@ -104,30 +104,9 @@ Dumpfile_Pcap::Dumpfile_Pcap(GlobalRegistry *in_globalreg) : Dumpfile(in_globalr
 
 	_MSG("Opened pcapdump log file '" + fname + "'", MSGFLAG_INFO);
 
-	if (globalreg->kismet_config->FetchOpt("beaconlog") == "true") {
-		_MSG("Pcap log saving all beacon frames", MSGFLAG_INFO);
-		beaconlog = 1;
-	} else {
-		_MSG("Pcap log saving only first and different beacon frames",
-			 MSGFLAG_INFO);
-		beaconlog = 0;
-	} 
-
-	if (globalreg->kismet_config->FetchOpt("phylog") == "true") {
-		_MSG("Pcap log saving PHY frame types", MSGFLAG_INFO);
-		phylog = 1;
-	} else {
-		_MSG("Pcap log file not saving PHY frame types", MSGFLAG_INFO);
-		phylog = 0;
-	}
-
-	if (globalreg->kismet_config->FetchOpt("corruptlog") == "true") {
-		_MSG("Pcap log saving corrupt frames", MSGFLAG_INFO);
-		corruptlog = 1;
-	} else {
-		_MSG("Pcap log not saving corrupt frames", MSGFLAG_INFO);
-		corruptlog = 0;
-	}
+	beaconlog = 1;
+	phylog = 1;
+	corruptlog = 1;
 
 	globalreg->packetchain->RegisterHandler(&dumpfilepcap_chain_hook, this,
 											CHAINPOS_LOGGING, -100);

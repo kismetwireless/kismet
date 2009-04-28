@@ -1193,38 +1193,7 @@ Netracker::Netracker(GlobalRegistry *in_globalreg) {
 	globalreg->packetchain->RegisterHandler(&kis_80211_datatracker_hook, this,
 											CHAINPOS_CLASSIFIER, -99);
 
-	if (globalreg->kismet_config->FetchOpt("track_probenets") == "true") {
-		_MSG("Probe network tracking enabled by config file", MSGFLAG_INFO);
-		track_probenets = 1;
-	} else {
-		_MSG("Probe network tracking disabled by config file", MSGFLAG_INFO);
-		track_probenets = 0;
-	}
-	
-	string config_path;
-	if ((config_path = globalreg->kismet_config->FetchOpt("configdir")) != "") {
-		if ((ssid_cache_path = globalreg->kismet_config->FetchOpt("ssidmap")) != "") {
-			ssid_cache_path = 
-				globalreg->kismet_config->ExpandLogPath(config_path + ssid_cache_path,
-														"", "", 0, 1);
-			ReadSSIDCache();
-		} else {
-			ssid_cache_track = 0;
-		}
-
-		if ((ip_cache_path = globalreg->kismet_config->FetchOpt("ipmap")) != "") {
-			ip_cache_path = 
-				globalreg->kismet_config->ExpandLogPath(config_path + ip_cache_path,
-														"", "", 0, 1);
-			ReadIPCache();
-		} else {
-			ssid_cache_track = 0;
-		}
-
-	} else {
-		ssid_cache_track = 0;
-		ssid_cache_track = 0;
-	}
+	track_probenets = 1;
 
 	// Parse the filtering for the tracker
 	track_filter = new FilterCore(globalreg);

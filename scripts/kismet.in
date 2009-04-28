@@ -5,8 +5,15 @@ exec_prefix=@exec_prefix@
 ETC=@sysconfdir@
 BIN=@bindir@
 
-echo "Starting UI..."
-exec ${BIN}/kismet_client $client
+oargs=$*
 
-echo "Kismet exited."
+until test -z "$1"; do
+	if test "$1" = "--help" -o "$1" = "-h"; then
+		exec ${BIN}/kismet_server --help
+	fi
+
+	shift
+done
+
+exec ${BIN}/kismet_client $client $oargs
 

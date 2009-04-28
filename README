@@ -599,6 +599,42 @@ http://www.kismetwireless.net
     available, Kismet will fall back to standard 802.11 format with no extra
     headers.
 
+    The pcap logging format is controlled by:
+      pcapdumpformat=ppi
+      or
+      pcapdumpformat=80211
+
+    The naming of logfiles is controlled by the "logtemplate" configuration
+    option.  By default, Kismet logs in the directory it is started in
+    (unless modified with the "--log-prefix" option).
+
+    The following variables can be used in the logtemplate:
+        %p      Prefix (as given by --log-prefix)
+        %n      Logging name (as given by --log-title)
+        %d      Starting date, Mmm-DD-YYYY
+        %D      Starting date, YYYYMMDD
+        %t      Starting time, HH-MM-SS
+        %i      Incremental, in the case of multiple logs of the same name
+        %l      Log type (pcapdump, netxml, etc)
+        %h      Home directory of the user Kismet was started as
+
+    The default log template with a --log-prefix of /tmp and a --log-title
+    of Kismet would expand from:
+      logtemplate=%p%n-%D-%t-%i.%l
+    to (for example):
+      /tmp/Kismet-20090428-12-45-33-1.pcapdump
+
+    Nested directories may be used (for example, with a template of the form
+    "%p/%l/%D-%t"), however they must be created prior to starting Kismet,
+    Kismet will not create the directories itself.
+
+    Most users should never need to change the logtemplate, however the
+    option remains available.  When changing the template, be sure to
+    include the "%p" prefix option in a logical location (ie, at the
+    beginning of the template) or else the --log-prefix argument will not
+    function as expected.
+
+
 10. Other Configuration
 
     Kismet is divided into two main processes:  kismet_server and
