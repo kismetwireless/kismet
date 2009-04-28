@@ -1370,13 +1370,28 @@ Kis_Spawn_Panel::Kis_Spawn_Panel(GlobalRegistry *in_globalreg,
 									 KisPanelInterface *in_intf) :
 	Kis_Panel(in_globalreg, in_intf) {
 
+	int log = 1;
+	string logtitle, argpassed;
+
+	// Wish we could use getopt here but can't figure out a way */
+	for (int x = 1; x < globalreg->argc; x++) {
+		string vs = string(globalreg->argv[x]);
+
+		if (vs == "-n" || vs == "--no-logging") {
+			log = 0;
+		} else if (vs == "-t" && x <= (globalreg->argc - 1)) {
+			logtitle = string(globalreg->argv[x+1]);
+			x++;
+		} else {
+			argpassed += vs + " ";
+		}
+	}
+
 	spawn_console = 0;
 
 	if (kpinterface->prefs->FetchOpt("STARTUP_CONSOLE") == "true" ||
 		kpinterface->prefs->FetchOpt("STARTUP_CONSOLE") == "")
 		spawn_console = 1;
-
-	Kis_Free_Text *logwarn = NULL;
 
 	options = new Kis_Single_Input(globalreg, this);
 	logname = new Kis_Single_Input(globalreg, this);
@@ -1399,27 +1414,20 @@ Kis_Spawn_Panel::Kis_Spawn_Panel(GlobalRegistry *in_globalreg,
 	if (globalreg->argc <= 1) {
 		options->SetText(kpinterface->prefs->FetchOpt("default_server_options"), -1, -1);
 	} else {
-		string sopt;
-		for (int x = 1; x < globalreg->argc; x++) {
-			if (string(globalreg->argv[x]) == "-n" ||
-				string(globalreg->argv[x]) == "--no-logging") {
-				logwarn = new Kis_Free_Text(globalreg, this);
-				logwarn->Show();
-				logwarn->SetText("Logging disabled on CLI, fix startup options");
-			}
-
-			sopt += string(globalreg->argv[x]) + string(" ");
-		}
-		options->SetText(sopt, -1, -1);
+		options->SetText(argpassed, -1, -1);
 	}
 
 	logging_check->SetText("Logging");
-	logging_check->SetChecked(logwarn == NULL);
+	logging_check->SetChecked(log);
 
 	logname->SetLabel("Log Title", LABEL_POS_LEFT);
 	logname->SetTextLen(64);
 	logname->SetCharFilter(FILTER_ALPHA FILTER_NUM);
-	logname->SetText("Kismet", -1, -1);
+
+	if (logtitle == "")
+		logname->SetText("Kismet", -1, -1);
+	else
+		logname->SetText(logtitle, -1, -1);
 
 	console_check->SetText("Show Console");
 	console_check->SetChecked(spawn_console);
@@ -1451,8 +1459,6 @@ Kis_Spawn_Panel::Kis_Spawn_Panel(GlobalRegistry *in_globalreg,
 	bbox->Pack_End(okbutton, 0, 0);
 
 	vbox->Pack_End(options, 0, 0);
-	if (logwarn)
-		vbox->Pack_End(logwarn, 0, 0);
 	vbox->Pack_End(logging_check, 0, 0);
 	vbox->Pack_End(logname, 0, 0);
 	vbox->Pack_End(console_check, 0, 0);
@@ -1471,14 +1477,7 @@ Kis_Spawn_Panel::Kis_Spawn_Panel(GlobalRegistry *in_globalreg,
 
 	SetActiveComponent(options);
 
-	int w = 40, h = 11;
-
-	if (logwarn != NULL) {
-		w += 10;
-		h += 2;
-	}
-
-	Position(WIN_CENTER(h, w));
+	Position(WIN_CENTER(11, 40));
 }
 
 Kis_Spawn_Panel::~Kis_Spawn_Panel() {
