@@ -485,17 +485,14 @@ int main(int argc, char *argv[], char *envp[]) {
 	signal(SIGCHLD, CatchChild);
     signal(SIGPIPE, SIG_IGN);
 
-	// Runt getopt for --help
-	static struct option main_runtopt[] = {
-		{ "help", no_argument, 0, 'h' },
-		{ 0, 0, 0, 0 }
-	};
+	// Turn off the getopt error reporting
+	opterr = 0;
+	optind = 0;
 
-	while (1) {
-		int r = getopt_long(argc, argv, 
-							"h", main_runtopt, &option_idx);
-		if (r < 0) break;
-		if (r == 'h') {
+	// Look for "help"
+	for (unsigned int x = 1; x < argc; x++) {
+		if (strcmp(argv[x], "-h") == 0 ||
+			strcmp(argv[x], "--help") == 0) {
 			Usage(argv[0]);
 			exit(1);
 		}
@@ -547,9 +544,6 @@ int main(int argc, char *argv[], char *envp[]) {
 	// Allocate some other critical stuff
 	globalregistry->timetracker = new Timetracker(globalregistry);
 
-	// Turn off the getopt error reporting
-	opterr = 0;
-
 	// Timer for silence
 	int local_silent = 0;
 
@@ -564,15 +558,17 @@ int main(int argc, char *argv[], char *envp[]) {
 		{ 0, 0, 0, 0 }
 	};
 
+	// Reset the options index
+	optind = 0;
+	option_idx = 0;
+
 	while (1) {
 		int r = getopt_long(argc, argv, 
-							"-f:sp:h", 
+							"-f:sp:", 
 							main_longopt, &option_idx);
 		if (r < 0) break;
-		if (r == 'h') {
-			Usage(argv[0]);
-			exit(1);
-		} else if (r == 'f') {
+
+		if (r == 'f') {
 			configfilename = strdup(optarg);
 		} else if (r == nlwc) {
 			glob_linewrap = 0;

@@ -71,8 +71,9 @@ int PopenClient::Connect(const char *in_remotehost, short int in_port) {
 
 		eargv = (char **) malloc(sizeof(char *) * (args.size() + 1));
 
-		for (unsigned int x = 0; x < args.size(); x++) 
+		for (unsigned int x = 0; x < args.size(); x++)  {
 			eargv[x] = strdup(args[x].c_str());
+		}
 
 		eargv[args.size()] = NULL;
 
@@ -88,7 +89,7 @@ int PopenClient::Connect(const char *in_remotehost, short int in_port) {
 		close(epipe[0]);
 		close(epipe[1]);
 
-		execve(eargv[0], eargv, globalreg->envp);
+		execvp(eargv[0], eargv);
 
 		fprintf(stderr, "Launching '%s' failed: %s\n", eargv[0], strerror(errno));
 
