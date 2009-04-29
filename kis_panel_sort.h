@@ -150,7 +150,7 @@ public:
 			return 0;
 
 		return (xm->llc_packets + xm->data_packets) < 
-			(ym->llc_packets + xm->data_packets);
+			(ym->llc_packets + ym->data_packets);
 	}
 };
 
@@ -165,7 +165,7 @@ public:
 			return 0;
 
 		return (xm->llc_packets + xm->data_packets) > 
-			(ym->llc_packets + xm->data_packets);
+			(ym->llc_packets + ym->data_packets);
 	}
 };
 
