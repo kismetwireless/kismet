@@ -696,7 +696,7 @@ uint16_t Packetsourcetracker::GenChannelList(vector<unsigned int> in_channellist
 
 	unsigned int c = 0, l = 0;
 	for (unsigned int x = 0; c < in_channellist.size(); x+=4, c++) {
-		if (x > in_channellist.size())
+		if (x >= in_channellist.size())
 			x = ++l;
 		pch.u.chan_t.channel = in_channellist[x];
 		chlist->channel_vec.push_back(pch);
