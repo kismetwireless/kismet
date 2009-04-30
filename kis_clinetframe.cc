@@ -305,6 +305,8 @@ int KisNetClient::InjectCommand(string in_cmdtext) {
 
 	cmd << "!" << curid << " " << in_cmdtext << "\n";
 
+	// fprintf(stderr, "debug - %p INJECTCMD %s\n", this, cmd.str().c_str());
+
 	if (tcpcli->WriteData((void *) cmd.str().c_str(), cmd.str().length()) < 0 ||
 		globalreg->fatal_condition) {
 		KillConnection();

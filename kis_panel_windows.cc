@@ -613,7 +613,7 @@ int Kis_Main_Panel::KeyPress(int in_key) {
 
 // Dump text to stderr
 void kmp_textcli_stderr(TEXTCLI_PARMS) {
-	fprintf(stderr, "%s\n", text.c_str());
+	fprintf(stderr, "[SERVER] %s\n", text.c_str());
 }
 
 // Set fatal condition on error
@@ -631,31 +631,30 @@ void kmp_spawnserver_fail(CLIFRAME_FAIL_CB_PARMS) {
 // and set a death callback that sets the system to fatal and turns us off entirely.
 //
 // Otherwise, we just set the server to teardown.
+extern void CatchShutdown(int);
 void kmp_prompt_killserver(KIS_PROMPT_CB_PARMS) {
 	// Kis_Main_Panel *kmp = (Kis_Main_Panel *) auxptr;
 	TextCliFrame *cf = globalreg->panel_interface->FetchServerFramework();
 	PopenClient *po = globalreg->panel_interface->FetchServerPopen();
 	KisNetClient *knc = globalreg->panel_interface->FetchNetClient();
 
-	_MSG("Quitting...", MSGFLAG_ERROR);
+	endwin();
 
-	if (ok && knc != NULL) {
-		// fprintf(stderr, "debug - injecting shutdown command\n");
-		knc->InjectCommand("SHUTDOWN");
-	}
-
-	// This kicks off the curses teardown entirely
-	globalreg->panel_interface->Shutdown();
-
-	if (ok && cf != NULL) {
+	if (ok && cf != NULL && po != NULL) {
+		// Kill and spin down cleanly
 		cf->RegisterCallback(kmp_textcli_stderr, NULL);
 		cf->RegisterFailCB(kmp_spawnserver_fail, NULL);
-		if (po != NULL) {
-			po->SoftKillConnection();
-		}
-	} else {
-		globalreg->fatal_condition = 1;
+		po->SoftKillConnection();
+	} else if (ok && knc != NULL) {
+		// Send a kill command if we're killing and we're not running it locally
+		knc->InjectCommand("SHUTDOWN");
+	} else if (po != NULL) {
+		// Detatch
+		po->DetatchConnection();
 	}
+
+	// Spindown
+	CatchShutdown(0);
 }
 
 void Kis_Main_Panel::MenuAction(int opt) {
@@ -665,8 +664,7 @@ void Kis_Main_Panel::MenuAction(int opt) {
 	if (opt == mi_quit) {
 		if (con == 0 &&
 			kpinterface->FetchServerFramework() == NULL) {
-			globalreg->fatal_condition = 1;
-			_MSG("Quitting...", MSGFLAG_INFO);
+			kmp_prompt_killserver(globalreg, 1, -1, NULL);
 		}
 
 		if ((kpinterface->prefs->FetchOpt("STOP_PROMPTSERVER") == "true" ||
@@ -678,14 +676,21 @@ void Kis_Main_Panel::MenuAction(int opt) {
 			t.push_back("Stop Kismet server before quitting?");
 			t.push_back("This will stop capture & shut down any other");
 			t.push_back("clients that might be connected to this server");
-			t.push_back("Not stopping the server will leave it running in");
-			t.push_back("the background.");
+
+			if (globalreg->panel_interface->FetchServerFramework() != NULL) {
+				t.push_back("Not stopping the server will leave it running in");
+				t.push_back("the background.");
+			}
 
 			Kis_Prompt_Panel *kpp = 
 				new Kis_Prompt_Panel(globalreg, kpinterface);
 			kpp->SetTitle("Stop Kismet Server");
 			kpp->SetDisplayText(t);
-			kpp->SetButtonText("Kill", "Background");
+			if (globalreg->panel_interface->FetchServerFramework() == NULL) {
+				kpp->SetButtonText("Kill", "Leave");
+			} else {
+				kpp->SetButtonText("Kill", "Background");
+			}
 			kpp->SetCallback(kmp_prompt_killserver, this);
 			kpp->SetDefaultButton(1);
 			kpinterface->QueueModalPanel(kpp);
@@ -696,8 +701,7 @@ void Kis_Main_Panel::MenuAction(int opt) {
 			// prompt handler and tell it OK
 			kmp_prompt_killserver(globalreg, 1, -1, NULL);
 		} else {
-			globalreg->fatal_condition = 1;
-			_MSG("Quitting...", MSGFLAG_INFO);
+			kmp_prompt_killserver(globalreg, 1, -1, NULL);
 		}
 
 		return;

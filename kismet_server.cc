@@ -470,6 +470,13 @@ int InfoTimerEvent(TIMEEVENT_PARMS) {
 	return 1;
 }
 
+int cmd_SHUTDOWN(CLIENT_PARMS) {
+	_MSG("Received SHUTDOWN command", MSGFLAG_FATAL);
+	CatchShutdown(0);
+
+	return 1;
+}
+
 int main(int argc, char *argv[], char *envp[]) {
 	exec_name = argv[0];
 	char errstr[STATUS_MAX];
@@ -612,6 +619,10 @@ int main(int argc, char *argv[], char *envp[]) {
 	globalregistry->kisnetserver = new KisNetFramework(globalregistry);
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
+
+	globalregistry->kisnetserver->RegisterClientCommand("SHUTDOWN",
+														&cmd_SHUTDOWN,
+														NULL);
 
 	// Start the plugin handler
 	globalregistry->plugintracker = new Plugintracker(globalregistry);

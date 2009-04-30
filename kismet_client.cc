@@ -190,19 +190,12 @@ void CatchChild(int sig) {
 
 // Catch our interrupt
 void CatchShutdown(int sig) {
-	if (globalregistry->panel_interface != NULL) {
-		delete globalregistry->panel_interface;
-		globalregistry->panel_interface = NULL;
-	}
-
     if (sig == SIGPIPE)
         fprintf(stderr, "FATAL: A pipe closed unexpectedly, trying to shut down "
                 "cleanly...\n");
 
-    string termstr = "Kismet client terminating.";
-
 	// Start a short shutdown cycle for 2 seconds
-	fprintf(stderr, "\n*** KISMET IS FLUSHING BUFFERS AND SHUTTING DOWN ***\n");
+	fprintf(stderr, "\n*** KISMET CLIENT IS SHUTTING DOWN ***\n");
 	globalregistry->spindown = 1;
 	time_t shutdown_target = time(0) + 2;
 	int max_fd = 0;
@@ -227,6 +220,11 @@ void CatchShutdown(int sig) {
 				globalregistry->subsys_pollable_vec[x]->MergeSet(max_fd, &rset, 
 																 &wset);
 
+		// fprintf(stderr, "debug - curses maxfd %u spin\n", max_fd);
+
+		if (max_fd == 0)
+			break;
+
 		tm.tv_sec = 0;
 		tm.tv_usec = 100000;
 
@@ -245,21 +243,22 @@ void CatchShutdown(int sig) {
 		}
 	}
 
-	if (globalregistry->rootipc != NULL) {
-		// Shut down the channel control child
-		globalregistry->rootipc->ShutdownIPC(NULL);;
+	// This kicks off the curses teardown entirely
+	if (globalregistry->panel_interface != NULL) {
+		globalregistry->panel_interface->Shutdown();
+		delete globalregistry->panel_interface;
 	}
 
 	// Be noisy
 	if (globalregistry->fatal_condition) {
-		fprintf(stderr, "\n*** KISMET-UI SHUTTING DOWN.  ***\n");
+		fprintf(stderr, "\n*** KISMET CLIENT SHUTTING DOWN.  ***\n");
 	}
     
     // Dump fatal errors again
     if (fqmescli != NULL) 
         fqmescli->DumpFatals();
 
-    fprintf(stderr, "Kismet exiting.\n");
+    fprintf(stderr, "Kismet client exiting.\n");
     exit(0);
 }
 
