@@ -207,8 +207,6 @@ protected:
 
 	int mn_client, mi_nextcli, mi_prevcli, mi_close;
 
-	int mn_preferences, mi_clicolprefs, mi_cliextraprefs;
-
 	int mn_view, mi_cli, mi_graphsig, mi_graphpacket, mi_graphretry;
 
 	int grapheventid;

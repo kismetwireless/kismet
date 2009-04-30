@@ -1338,12 +1338,6 @@ Kis_ClientDetails_Panel::Kis_ClientDetails_Panel(GlobalRegistry *in_globalreg,
 	mi_nextcli = menu->AddMenuItem("Next client", mn_client, 'n');
 	mi_prevcli = menu->AddMenuItem("Prev client", mn_client, 'p');
 	menu->AddMenuItem("-", mn_client, 0);
-
-	mn_preferences = menu->AddSubMenuItem("Preferences", mn_client, 'P');
-	mi_clicolprefs = menu->AddMenuItem("Client Columns...", mn_preferences, 'N');
-	mi_cliextraprefs = menu->AddMenuItem("Client Extras...", mn_preferences, 'E');
-
-	menu->AddMenuItem("-", mn_client, 0);
 	mi_close = menu->AddMenuItem("Close window", mn_client, 'w');
 
 	mn_view = menu->AddMenu("View", 0);
@@ -1833,26 +1827,6 @@ void Kis_ClientDetails_Panel::MenuAction(int opt) {
 	if (opt == mi_close) {
 		globalreg->panel_interface->KillPanel(this);
 		return;
-	} else if (opt == mi_clicolprefs) {
-		Kis_ColumnPref_Panel *cpp = new Kis_ColumnPref_Panel(globalreg, kpinterface);
-
-		for (unsigned int x = 0; client_column_details[x].pref != NULL; x++) {
-			cpp->AddColumn(client_column_details[x].pref,
-						   client_column_details[x].name);
-		}
-
-		cpp->ColumnPref("clientlist_columns", "Client List");
-		kpinterface->AddPanel(cpp);
-	} else if (opt == mi_cliextraprefs) {
-		Kis_ColumnPref_Panel *cpp = new Kis_ColumnPref_Panel(globalreg, kpinterface);
-
-		for (unsigned int x = 0; client_extras_details[x].pref != NULL; x++) {
-			cpp->AddColumn(client_extras_details[x].pref,
-						   client_extras_details[x].name);
-		}
-
-		cpp->ColumnPref("clientlist_extras", "Client Extras");
-		kpinterface->AddPanel(cpp);
 	} else if (opt == mi_nextcli && clientlist != NULL) {
 		clientlist->KeyPress(KEY_DOWN);
 		dcli = NULL;

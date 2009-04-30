@@ -2526,6 +2526,12 @@ Kis_Clientlist_Panel::Kis_Clientlist_Panel(GlobalRegistry *in_globalreg,
 	mi_nextnet = menu->AddMenuItem("Next network", mn_clients, 'n');
 	mi_prevnet = menu->AddMenuItem("Prev network", mn_clients, 'p');
 	menu->AddMenuItem("-", mn_clients, 0);
+
+	mn_preferences = menu->AddSubMenuItem("Preferences", mn_clients, 'P');
+	mi_clicolprefs = menu->AddMenuItem("Client Columns...", mn_preferences, 'N');
+	mi_cliextraprefs = menu->AddMenuItem("Client Extras...", mn_preferences, 'E');
+
+	menu->AddMenuItem("-", mn_clients, 0);
 	mi_close = menu->AddMenuItem("Close window", mn_clients, 'w');
 
 	mn_sort = menu->AddMenu("Sort", 0);
@@ -2598,6 +2604,26 @@ void Kis_Clientlist_Panel::MenuAction(int opt) {
 	} else if (opt == mi_prevnet) {
 		kpinterface->FetchMainPanel()->FetchDisplayNetlist()->KeyPress(KEY_UP);
 		return;
+	} else if (opt == mi_clicolprefs) {
+		Kis_ColumnPref_Panel *cpp = new Kis_ColumnPref_Panel(globalreg, kpinterface);
+
+		for (unsigned int x = 0; client_column_details[x].pref != NULL; x++) {
+			cpp->AddColumn(client_column_details[x].pref,
+						   client_column_details[x].name);
+		}
+
+		cpp->ColumnPref("clientlist_columns", "Client List");
+		kpinterface->AddPanel(cpp);
+	} else if (opt == mi_cliextraprefs) {
+		Kis_ColumnPref_Panel *cpp = new Kis_ColumnPref_Panel(globalreg, kpinterface);
+
+		for (unsigned int x = 0; client_extras_details[x].pref != NULL; x++) {
+			cpp->AddColumn(client_extras_details[x].pref,
+						   client_extras_details[x].name);
+		}
+
+		cpp->ColumnPref("clientlist_extras", "Client Extras");
+		kpinterface->AddPanel(cpp);
 	} else if (opt == mi_details) {
 		Kis_ClientDetails_Panel *cp = 
 			new Kis_ClientDetails_Panel(globalreg, kpinterface);
