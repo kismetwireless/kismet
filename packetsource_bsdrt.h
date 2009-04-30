@@ -67,8 +67,8 @@ public:
 	Radiotap_BSD_Controller(GlobalRegistry *in_globalreg, string in_dev);
 	~Radiotap_BSD_Controller();
 
-	int MonitorEnable(int initch);
-	int MonitorReset(int initch);
+	int MonitorEnable();
+	int MonitorReset();
 	int ChangeChannel(int in_ch);
 
 	int GetMediaOpt(int& options, int& mode);
@@ -133,7 +133,6 @@ public:
 	virtual int EnableMonitor();
 	virtual int DisableMonitor();
 	virtual int SetChannel(unsigned int in_ch);
-	virtual int SetChannelSequence(vector<unsigned int> in_seq);
 	virtual int FetchHardwareChannel();
 	
 protected:

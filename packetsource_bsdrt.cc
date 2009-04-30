@@ -54,7 +54,7 @@ Radiotap_BSD_Controller::~Radiotap_BSD_Controller() {
 		close(sock);
 }
 
-int Radiotap_BSD_Controller::MonitorEnable(int initch) {
+int Radiotap_BSD_Controller::MonitorEnable() {
 	// Get current state 
 	(void) GetMediaOpt(prev_options, prev_mode);
 	(void) Get80211(IEEE80211_IOC_CHANNEL, prev_chan, 0, NULL);
@@ -68,6 +68,7 @@ int Radiotap_BSD_Controller::MonitorEnable(int initch) {
 		return 0;
 	}
 
+#if 0
 	if (Set80211(IEEE80211_IOC_CHANNEL, prev_chan, 0, NULL) < 0) {
 		_MSG("BSD interface set channel operation failed, attempting to restore "
 			 "previous operation mode and terminate", MSGFLAG_FATAL);
@@ -75,6 +76,7 @@ int Radiotap_BSD_Controller::MonitorEnable(int initch) {
 		(void) SetMediaOpt(prev_options, prev_mode);
 		return 0;
 	}
+#endif
 
 #if defined(SYS_FREEBSD)
 	if (SetIfFlags(prev_flags | IFF_PPROMISC | IFF_UP) == 0) {
@@ -92,10 +94,10 @@ int Radiotap_BSD_Controller::MonitorEnable(int initch) {
 	return 1;
 }
 
-int Radiotap_BSD_Controller::MonitorReset(int initch) {
+int Radiotap_BSD_Controller::MonitorReset() {
 	(void) SetIfFlags(prev_flags);
 	// Reset the channel before switching modes
-	(void) Set80211(IEEE80211_IOC_CHANNEL, prev_chan, 0, NULL);
+	// (void) Set80211(IEEE80211_IOC_CHANNEL, prev_chan, 0, NULL);
 	(void) SetMediaOpt(prev_options, prev_mode);
 	return 1;
 }
@@ -161,8 +163,7 @@ int Radiotap_BSD_Controller::SetMediaOpt(int options, int mode) {
 	mwords = new int[ifmr.ifm_count];
 	if (mwords == NULL) {
 		_MSG("BSD interface control cannot malloc interface array, out of "
-			 "memory or other badness.", MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
+			 "memory or other badness.", MSGFLAG_PRINTERROR);
 		return 0;
 	}
 
@@ -313,8 +314,7 @@ int Radiotap_BSD_Controller::SetIfFlags(int flags) {
 #endif
 	if (ioctl(sock, SIOCSIFFLAGS, (caddr_t) &ifr) < 0) {
 		_MSG("BSD interface control failed to set interface flags for '" + dev + 
-			 "': " + strerror(errno), MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
+			 "': " + strerror(errno), MSGFLAG_PRINTERROR);
 		return 0;
 	}   
 
@@ -339,20 +339,19 @@ int PacketSource_BSDRT::AutotypeProbe(string in_device) {
 }
 
 int PacketSource_BSDRT::RegisterSources(Packetsourcetracker *tracker) {
-	tracker->RegisterPacketProto("radiotap_bsd_ag", this, 1, "IEEE80211ab");
-	tracker->RegisterPacketProto("radiotap_bsd_a", this, 1, "IEEE80211a");
-	tracker->RegisterPacketProto("radiotap_bsd_g", this, 1, "IEEE80211b");
-	tracker->RegisterPacketProto("radiotap_bsd", this, 1, "IEEE80211b");
-	tracker->RegisterPacketProto("bsd", this, 1, "IEEE80211b");
+	tracker->RegisterPacketProto("radiotap_bsd_ag", this, "IEEE80211ab", 1);
+	tracker->RegisterPacketProto("radiotap_bsd_a", this, "IEEE80211a", 1);
+	tracker->RegisterPacketProto("radiotap_bsd_g", this, "IEEE80211b", 1);
+	tracker->RegisterPacketProto("radiotap_bsd", this, "IEEE80211b", 1);
+	tracker->RegisterPacketProto("bsd", this, "IEEE80211b", 1);
 	return 1;
 }
 
 int PacketSource_BSDRT::EnableMonitor() {
-	if (bsdcon->MonitorEnable(initial_channel) == 0) {
+	if (bsdcon->MonitorEnable() == 0) {
 		delete bsdcon;
 		_MSG("Unable to enable monitor mode on '" + interface + "'.", 
-			 MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
+			 MSGFLAG_PRINTERROR);
 		return -1;
 	}
 
@@ -372,18 +371,16 @@ int PacketSource_BSDRT::DisableMonitor() {
 	if (bsdcon == NULL) {
 		_MSG("BSD interface controller left in unknown mode for " + interface + 
 			 ".  Interface cannot be cleanly returned to previous settings and "
-			 "may be left in an unusable state.", MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
+			 "may be left in an unusable state.", MSGFLAG_PRINTERROR);
 		return -1;
 	}
 
-	if (bsdcon->MonitorReset(initial_channel) == 0) {
+	if (bsdcon->MonitorReset() == 0) {
 		delete bsdcon;
 		bsdcon = NULL;
 		_MSG("Failed to reset wireless mode of '" + interface + 
 			 "' to stored values. " "It may be left in an unusable state.", 
-			 MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
+			 MSGFLAG_PRINTERROR);
 		return -1;
 	}
 
@@ -396,8 +393,7 @@ int PacketSource_BSDRT::DisableMonitor() {
 int PacketSource_BSDRT::SetChannel(unsigned int in_ch) {
 	if (bsdcon == NULL) {
 		_MSG("PacketSource_BSD channel set called while bsdcon controller is NULL",
-			 MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
+			 MSGFLAG_PRINTERROR);
 		return -1;
 	}
 
@@ -405,7 +401,6 @@ int PacketSource_BSDRT::SetChannel(unsigned int in_ch) {
 		consec_error++;
 
 		if (consec_error > 5) {
-			globalreg->fatal_condition = 1;
 			return -1;
 		}
 		
@@ -415,10 +410,6 @@ int PacketSource_BSDRT::SetChannel(unsigned int in_ch) {
 	consec_error = 0;
 
 	return 1;
-}
-
-int PacketSource_BSDRT::SetChannelSequence(vector<unsigned int> in_seq) {
-	return PacketSource_Pcap::SetChannelSequence(in_seq);
 }
 
 int PacketSource_BSDRT::CheckDLT(int dlt) {
@@ -463,8 +454,7 @@ int PacketSource_BSDRT::OpenSource() {
 
 	if (CheckDLT(DLT_IEEE802_11_RADIO) == 0) {
 		_MSG("No support for radiotap data link type on '" + interface + "'",
-			 MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
+			 MSGFLAG_PRINTERROR);
 		return -1;
 	}
 
