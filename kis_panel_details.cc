@@ -300,7 +300,7 @@ int Kis_NetDetails_Panel::AppendSSIDInfo(int k, Netracker::tracked_network *net,
 
 			if (brate > 0) {
 
-				osstr << setw(4) << left << brate;
+				osstr << setw(5) << left << fixed << setprecision(3) << brate;
 				td[1] = osstr.str();
 				netdetails->AddRow(k++, td);
 			}
@@ -1338,6 +1338,12 @@ Kis_ClientDetails_Panel::Kis_ClientDetails_Panel(GlobalRegistry *in_globalreg,
 	mi_nextcli = menu->AddMenuItem("Next client", mn_client, 'n');
 	mi_prevcli = menu->AddMenuItem("Prev client", mn_client, 'p');
 	menu->AddMenuItem("-", mn_client, 0);
+
+	mn_preferences = menu->AddSubMenuItem("Preferences", mn_client, 'P');
+	mi_clicolprefs = menu->AddMenuItem("Client Columns...", mn_preferences, 'N');
+	mi_cliextraprefs = menu->AddMenuItem("Client Extras...", mn_preferences, 'E');
+
+	menu->AddMenuItem("-", mn_client, 0);
 	mi_close = menu->AddMenuItem("Close window", mn_client, 'w');
 
 	mn_view = menu->AddMenu("View", 0);
@@ -1800,6 +1806,18 @@ void Kis_ClientDetails_Panel::DrawPanel() {
 				td[1] = dcli->cdp_port_id;
 				clientdetails->AddRow(k++, td);
 			}
+
+			if (dcli->dhcp_host.length() > 0) {
+				td[0] = "DHCP Name:";
+				td[1] = dcli->dhcp_host;
+				clientdetails->AddRow(k++, td);
+			}
+
+			if (dcli->dhcp_vendor.length() > 0) {
+				td[0] = "DHCP OS:";
+				td[1] = dcli->dhcp_vendor;
+				clientdetails->AddRow(k++, td);
+			}
 		}
 	}
 
@@ -1815,6 +1833,26 @@ void Kis_ClientDetails_Panel::MenuAction(int opt) {
 	if (opt == mi_close) {
 		globalreg->panel_interface->KillPanel(this);
 		return;
+	} else if (opt == mi_clicolprefs) {
+		Kis_ColumnPref_Panel *cpp = new Kis_ColumnPref_Panel(globalreg, kpinterface);
+
+		for (unsigned int x = 0; client_column_details[x].pref != NULL; x++) {
+			cpp->AddColumn(client_column_details[x].pref,
+						   client_column_details[x].name);
+		}
+
+		cpp->ColumnPref("clientlist_columns", "Client List");
+		kpinterface->AddPanel(cpp);
+	} else if (opt == mi_cliextraprefs) {
+		Kis_ColumnPref_Panel *cpp = new Kis_ColumnPref_Panel(globalreg, kpinterface);
+
+		for (unsigned int x = 0; client_extras_details[x].pref != NULL; x++) {
+			cpp->AddColumn(client_extras_details[x].pref,
+						   client_extras_details[x].name);
+		}
+
+		cpp->ColumnPref("clientlist_extras", "Client Extras");
+		kpinterface->AddPanel(cpp);
 	} else if (opt == mi_nextcli && clientlist != NULL) {
 		clientlist->KeyPress(KEY_DOWN);
 		dcli = NULL;
@@ -1926,9 +1964,51 @@ int AlertDetailsMenuCB(COMPONENT_CALLBACK_PARMS) {
 	return 1;
 }
 
+class KisAlert_Sort_Time {
+public:
+	inline bool operator()(KisPanelInterface::knc_alert *x, 
+						   KisPanelInterface::knc_alert *y) const {
+		if (x->tv.tv_sec < y->tv.tv_sec ||
+			(x->tv.tv_sec == y->tv.tv_sec && x->tv.tv_usec < y->tv.tv_usec))
+			return 1;
+
+		return 0;
+	}
+};
+
+class KisAlert_Sort_TimeInv {
+public:
+	inline bool operator()(KisPanelInterface::knc_alert *x, 
+						   KisPanelInterface::knc_alert *y) const {
+		if (x->tv.tv_sec < y->tv.tv_sec ||
+			(x->tv.tv_sec == y->tv.tv_sec && x->tv.tv_usec < y->tv.tv_usec))
+			return 0;
+
+		return 1;
+	}
+};
+
+class KisAlert_Sort_Type {
+public:
+	inline bool operator()(KisPanelInterface::knc_alert *x, 
+						   KisPanelInterface::knc_alert *y) const {
+		return x->alertname < y->alertname;
+	}
+};
+
+class KisAlert_Sort_Bssid {
+public:
+	inline bool operator()(KisPanelInterface::knc_alert *x, 
+						   KisPanelInterface::knc_alert *y) const {
+		return x->bssid < y->bssid;
+	}
+};
+
 Kis_AlertDetails_Panel::Kis_AlertDetails_Panel(GlobalRegistry *in_globalreg, 
 											   KisPanelInterface *in_intf) :
 	Kis_Panel(in_globalreg, in_intf) {
+
+	last_alert = NULL;
 
 	menu = new Kis_Menu(globalreg, this);
 
@@ -2016,6 +2096,7 @@ Kis_AlertDetails_Panel::Kis_AlertDetails_Panel(GlobalRegistry *in_globalreg,
 
 	SetActiveComponent(alertlist);
 
+	UpdateSortPrefs();
 	UpdateSortMenu(-1);
 
 	Position(WIN_CENTER(LINES, COLS));
@@ -2026,6 +2107,50 @@ Kis_AlertDetails_Panel::~Kis_AlertDetails_Panel() {
 }
 
 void Kis_AlertDetails_Panel::DrawPanel() {
+	vector<KisPanelInterface::knc_alert *> *raw_alerts = kpinterface->FetchAlertVec();
+	int k = 0;
+	vector<string> td;
+
+	// No custom drawing if we have no alerts or no changes
+	
+	if (raw_alerts->size() == 0)
+		return;
+
+	if ((*raw_alerts)[raw_alerts->size() - 1] == last_alert && UpdateSortPrefs() == 0)
+		return;
+
+	sorted_alerts = *raw_alerts;
+
+	switch (sort_mode) {
+		case alertsort_time:
+			stable_sort(sorted_alerts.begin(), sorted_alerts.end(), 
+						KisAlert_Sort_Time());
+			break;
+		case alertsort_latest:
+			stable_sort(sorted_alerts.begin(), sorted_alerts.end(), 
+						KisAlert_Sort_TimeInv());
+			break;
+		case alertsort_type:
+			stable_sort(sorted_alerts.begin(), sorted_alerts.end(), 
+						KisAlert_Sort_Type());
+			break;
+		case alertsort_bssid:
+			stable_sort(sorted_alerts.begin(), sorted_alerts.end(), 
+						KisAlert_Sort_Bssid());
+			break;
+	}
+
+	td.push_back("");
+	td.push_back("");
+	td.push_back("");
+
+	for (unsigned int x = 0; x < sorted_alerts.size(); x++) {
+		td[0] = 
+			string(ctime((const time_t *) &(sorted_alerts[x]->tv.tv_sec))).substr(11, 8);
+		td[1] = sorted_alerts[x]->alertname;
+		td[2] = sorted_alerts[x]->text;
+		alertlist->AddRow(k++, td);
+	}
 
 }
 
@@ -2038,7 +2163,39 @@ void Kis_AlertDetails_Panel::MenuAction(int opt) {
 }
 
 void Kis_AlertDetails_Panel::UpdateSortMenu(int mi) {
+	menu->SetMenuItemChecked(mi_time, sort_mode == alertsort_time);
+	menu->SetMenuItemChecked(mi_latest, sort_mode == alertsort_latest);
+	menu->SetMenuItemChecked(mi_type, sort_mode == alertsort_type);
+	menu->SetMenuItemChecked(mi_bssid, sort_mode == alertsort_bssid);
+}
 
+int Kis_AlertDetails_Panel::UpdateSortPrefs() {
+	string sort;
+
+	if ((sort = kpinterface->prefs->FetchOpt("ALERTLIST_SORT")) == "") {
+		sort = "latest";
+		kpinterface->prefs->SetOpt("ALERTLIST_SORT", sort, 1);
+	}
+
+	if (kpinterface->prefs->FetchOptDirty("ALERTLIST_SORT") == 0)
+		return 0;
+
+	kpinterface->prefs->SetOptDirty("ALERTLIST_SORT", 0);
+
+	sort = StrLower(sort);
+
+	if (sort == "latest")
+		sort_mode = alertsort_latest;
+	if (sort == "time")
+		sort_mode = alertsort_time;
+	if (sort == "type")
+		sort_mode = alertsort_type;
+	if (sort == "bssid")
+		sort_mode = alertsort_bssid;
+	else
+		sort_mode = alertsort_latest;
+
+	return 1;
 }
 
 #endif

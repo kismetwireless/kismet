@@ -104,6 +104,7 @@ enum CLIENT_fields {
 	CLIENT_encodingset, CLIENT_carrierset, CLIENT_decrypted, 
 	CLIENT_channel, CLIENT_fragments, CLIENT_retries, CLIENT_newpackets,
 	CLIENT_freqmhz, CLIENT_cdpdevice, CLIENT_cdpport, CLIENT_dot11d,
+	CLIENT_dhcphost, CLIENT_dhcpvendor,
 	CLIENT_maxfield
 };
 
@@ -734,6 +735,9 @@ public:
 		// CDP tracking
 		string cdp_dev_id;
 		string cdp_port_id;
+
+		// DHCP discovery tracking
+		string dhcp_host, dhcp_vendor;
 
 		// Packets since last push
 		int new_packets;

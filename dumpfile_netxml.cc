@@ -716,10 +716,19 @@ int Dumpfile_Netxml::Flush() {
 				fprintf(xmlfile, "      </ip-address>\n");
 			}
 
-			fprintf(xmlfile, "      <cdp-device>%s</cdp-device>\n",
-					SanitizeXML(cli->cdp_dev_id).c_str());
-			fprintf(xmlfile, "      <cdp-portid>%s</cdp-portid>\n",
-					SanitizeXML(cli->cdp_port_id).c_str());
+			if (cli->cdp_dev_id.length() > 0)
+				fprintf(xmlfile, "      <cdp-device>%s</cdp-device>\n",
+						SanitizeXML(cli->cdp_dev_id).c_str());
+			if (cli->cdp_port_id.length() > 0)
+				fprintf(xmlfile, "      <cdp-portid>%s</cdp-portid>\n",
+						SanitizeXML(cli->cdp_port_id).c_str());
+
+			if (cli->dhcp_host.length() > 0)
+				fprintf(xmlfile, "      <dhcp-hostname>%s</dhcp-hostname>\n",
+						SanitizeXML(cli->dhcp_host).c_str());
+			if (cli->dhcp_vendor.length() > 0)
+				fprintf(xmlfile, "      <dhcp-vendor>%s</dhcp-vendor>\n",
+						SanitizeXML(cli->dhcp_vendor).c_str());
 
 			for (map<uuid, Netracker::source_data *>::iterator sdi = 
 				 cli->source_map.begin(); sdi != cli->source_map.end(); ++sdi) {

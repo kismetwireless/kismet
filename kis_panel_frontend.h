@@ -159,7 +159,7 @@ public:
 
 	// Internal parser for ALERT proto
 	void proto_ALERT(CLIPROTO_CB_PARMS);
-	vector<KisPanelInterface::knc_alert *> *FetchAlertVec();
+	vector<KisPanelInterface::knc_alert *> *FetchAlertVec() { return &alert_vec; }
 
 	// Internal parser for the CARD proto, linked to the callback
 	void proto_SOURCE(CLIPROTO_CB_PARMS);

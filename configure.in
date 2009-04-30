@@ -14,8 +14,6 @@ AC_PROG_INSTALL
 AC_PROG_MAKE_SET
 AC_PROG_CPP
 
-stripopt="-s"
-
 # Liberated from ethereal's configure.in
 #
 # Add any platform-specific compiler flags needed.
@@ -50,7 +48,6 @@ then
         AC_MSG_RESULT(Apple GCC - added Apple80211 frameworks and no-precomp)
 		AC_DEFINE(SYS_DARWIN, 1, Compiling for OSX/Darwin)
 		darwin="yes"
-		stripopt=""
         ;;
 	linux*)
 		AC_MSG_RESULT(none needed)
@@ -101,7 +98,6 @@ else
         AC_MSG_RESULT(Apple GCC - added Apple80211 frameworks and no-precomp)
 		AC_DEFINE(SYS_DARWIN, 1, Compiling for OSX/Darwin)
 		darwin="yes"
-		stripopt=""
         ;;
 	linux*)
 		AC_MSG_RESULT(none needed)
@@ -138,9 +134,6 @@ fi
 
 # Substitute in the objc linkages if we need them
 AC_SUBST(objc_link)
-
-# Substitute binary stripping
-AC_SUBST(stripopt)
 
 if test "$cygwin" = "yes"; then
 	AC_MSG_CHECKING(cygwin compile flags)

@@ -675,7 +675,7 @@ Kis_ColumnPref_Panel::Kis_ColumnPref_Panel(GlobalRegistry *in_globalreg,
 
 	pref = "";
 
-	Position(WIN_CENTER(18, 60));
+	Position(WIN_CENTER(20, 60));
 }
 
 Kis_ColumnPref_Panel::~Kis_ColumnPref_Panel() {

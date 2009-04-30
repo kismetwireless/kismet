@@ -106,7 +106,7 @@ protected:
 	int mn_plugins, mi_addplugin, mi_noplugins;
 
 	int mn_preferences, mi_startprefs, mi_serverprefs, mi_colorprefs, mi_netcolprefs,
-		mi_netextraprefs, mi_infoprefs, mi_gpsprefs;
+		mi_netextraprefs, mi_clicolprefs, mi_cliextraprefs, mi_infoprefs, mi_gpsprefs;
 
 	int mn_sort, mi_sort_auto, mi_sort_type, mi_sort_chan, mi_sort_crypt, mi_sort_first, 
 		mi_sort_first_d, mi_sort_last, mi_sort_last_d, mi_sort_bssid, mi_sort_ssid,
@@ -137,8 +137,6 @@ protected:
 
 	virtual void SpawnColorPrefs();
 	virtual void SpawnServerPrefs();
-	virtual void SpawnNetcolPrefs();
-	virtual void SpawnNetextraPrefs();
 	virtual void SpawnInfoPrefs();
 
 	vector<colorpref> color_pref_vec;

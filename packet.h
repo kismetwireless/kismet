@@ -287,6 +287,7 @@ enum kis_protocol_info_type {
 	proto_tcp, 
 	proto_arp, 
 	proto_dhcp_offer,
+	proto_dhcp_discover,
     proto_cdp,
     proto_turbocell,
 	proto_netstumbler_probe,
@@ -331,6 +332,9 @@ public:
 	// The two CDP fields we really care about for anything
 	string cdp_dev_id;
 	string cdp_port_id;
+
+	// DHCP Discover data
+	string discover_host, discover_vendor;
 
 	// An extra field that can be filled in
 	int field1;

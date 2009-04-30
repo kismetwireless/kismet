@@ -113,8 +113,7 @@ const char *client_fields[] = {
 	"atype", "ip", "gatewayip", "datasize",
 	"maxseenrate", "encodingset", "carrierset", "decrypted", 
 	"channel", "fragments", "retries", "newpackets", "freqmhz", 
-	"cdpdevice", "cdpport",
-	"manuf",
+	"cdpdevice", "cdpport", "manuf", "dhcphost", "dhcpvendor",
 	NULL
 };
 
@@ -1657,6 +1656,14 @@ void Kis_Netlist::Proto_CLIENT(CLIPROTO_CB_PARMS) {
 
 	// manuf
 	cli->manuf = MungeToPrintable((*proto_parsed)[fnum++].word);
+
+	cli->dhcp_host = MungeToPrintable((*proto_parsed)[fnum++].word);
+	cli->dhcp_vendor = MungeToPrintable((*proto_parsed)[fnum++].word);
+
+	if (cli->dhcp_host == " ")
+		cli->dhcp_host = "";
+	if (cli->dhcp_vendor == " ")
+		cli->dhcp_vendor = "";
 
 	cli->dirty = 1;
 
@@ -3251,30 +3258,34 @@ void Kis_Info_Bits::Proto_INFO(CLIPROTO_CB_PARMS) {
 	}
 }
 
-const char *client_column_details[][2] = {
-	{ "decay", "Recent activity" },
-	{ "MAC", "MAC address" },
-	{ "BSSID", "BSSID client is attached to" },
-	{ "SSID", "SSID client is attached to" },
-	{ "crypt", "Client uses encryption" },
-	{ "packdata", "Number of data packets" },
-	{ "packllc", "Number of control packets" },
-	{ "packcrypt", "Number of encrypted packets" },
-	{ "packets", "Total number of packets" },
-	{ "datasize", "Total data captured" },
-	{ "signal_dbm", "Last signal level in dBm" },
-	{ "signal_rssi", "Last signal level in RSSI" },
-	{ "freq_mhz", "Last-seen frequency" },
-	{ "manuf", "Manufacturer" },
-	{ NULL, NULL }
+const common_col_pref client_column_details[] = {
+	{ "decay", "Recent activity", ccol_decay },
+	{ "MAC", "MAC address", ccol_mac },
+	{ "BSSID", "BSSID client is attached to", ccol_bssid },
+	{ "SSID", "SSID client is attached to", ccol_ssid },
+	{ "crypt", "Client uses encryption", ccol_packcrypt },
+	{ "packdata", "Number of data packets", ccol_packdata },
+	{ "packllc", "Number of control packets", ccol_packllc },
+	{ "packcrypt", "Number of encrypted packets", ccol_packcrypt },
+	{ "packets", "Total number of packets", ccol_packets },
+	{ "datasize", "Total data captured", ccol_datasize },
+	{ "signal_dbm", "Last signal level in dBm", ccol_signal_dbm },
+	{ "signal_rssi", "Last signal level in RSSI", ccol_signal_rssi },
+	{ "freq_mhz", "Last-seen frequency", ccol_freq_mhz },
+	{ "manuf", "Manufacturer", ccol_manuf },
+	{ "dhcphost", "DHCP host name", ccol_dhcphost },
+	{ "dhcpos", "DHCP OS vendor", ccol_dhcpvendor },
+	{ NULL, NULL, 0 }
 };
 
-const char *client_extras_details[][2] = {
-	{ "lastseen", "Last seen timestamp" },
-	{ "crypt", "Encryption types" },
-	{ "ip", "IP Address" },
-	{ "manuf", "Manufacturer info" },
-	{ NULL, NULL}
+const common_col_pref client_extras_details[] = {
+	{ "lastseen", "Last seen timestamp", cext_lastseen },
+	{ "crypt", "Encryption types", cext_crypt },
+	{ "ip", "IP Address", cext_ip },
+	{ "manuf", "Manufacturer info", cext_manuf },
+	{ "dhcphost", "DHCP host name", cext_dhcphost },
+	{ "dhcpos", "DHCP OS vendor", cext_dhcpvendor },
+	{ NULL, NULL, 0}
 };
 
 int Event_Clientlist_Update(TIMEEVENT_PARMS) {
@@ -3349,36 +3360,17 @@ int Kis_Clientlist::UpdateCColPrefs() {
 
 	for (unsigned int x = 0; x < toks.size(); x++) {
 		t = StrLower(toks[x]);
+		int set = 0;
 
-		if (t == "decay")
-			display_ccols.push_back(ccol_decay);
-		else if (t == "mac")
-			display_ccols.push_back(ccol_mac);
-		else if (t == "type")
-			display_ccols.push_back(ccol_type);
-		else if (t == "bssid")
-			display_ccols.push_back(ccol_bssid);
-		else if (t == "ssid")
-			display_ccols.push_back(ccol_ssid);
-		else if (t == "packdata")
-			display_ccols.push_back(ccol_packdata);
-		else if (t == "packllc")
-			display_ccols.push_back(ccol_packllc);
-		else if (t == "packcrypt")
-			display_ccols.push_back(ccol_packcrypt);
-		else if (t == "packets")
-			display_ccols.push_back(ccol_packets);
-		else if (t == "datasize")
-			display_ccols.push_back(ccol_datasize);
-		else if (t == "signal_dbm")
-			display_ccols.push_back(ccol_signal_dbm);
-		else if (t == "signal_rssi")
-			display_ccols.push_back(ccol_signal_rssi);
-		else if (t == "freq_mhz")
-			display_ccols.push_back(ccol_freq_mhz);
-		else if (t == "manuf")
-			display_ccols.push_back(ccol_manuf);
-		else
+		for (unsigned int y = 0; client_column_details[y].pref != NULL; y++) {
+			if (t == StrLower(client_column_details[y].pref)) {
+				display_ccols.push_back((client_columns) client_column_details[y].ref);
+				set = 1;
+				break;
+			}
+		}
+
+		if (set == 0)
 			_MSG("Unknown client display column '" + t + "', skipping.",
 				 MSGFLAG_INFO);
 	}
@@ -3408,17 +3400,18 @@ int Kis_Clientlist::UpdateCExtPrefs() {
 
 	for (unsigned int x = 0; x < toks.size(); x++) {
 		t = StrLower(toks[x]);
+		int set = 0;
 
-		if (t == "lastseen") 
-			display_cexts.push_back(cext_lastseen);
-		else if (t == "crypt")
-			display_cexts.push_back(cext_crypt);
-		else if (t == "ip")
-			display_cexts.push_back(cext_ip);
-		else if (t == "manuf")
-			display_cexts.push_back(cext_manuf);
-		else
-			_MSG("Unknown client display extra field '" + t + "', skipping.",
+		for (unsigned int y = 0; client_extras_details[y].pref != NULL; y++) {
+			if (t == StrLower(client_extras_details[y].pref)) {
+				display_cexts.push_back((client_extras) client_extras_details[y].ref);
+				set = 1;
+				break;
+			}
+		}
+
+		if (set == 0)
+			_MSG("Unknown display column '" + t + "', skipping.",
 				 MSGFLAG_INFO);
 	}
 
@@ -3682,6 +3675,21 @@ int Kis_Clientlist::PrintClientLine(Netracker::tracked_client *cli,
 						 cli->snrdata.last_signal_rssi);
 			}
 			rofft += 3;
+		} else if (b == ccol_dhcphost) {
+			if (cli->dhcp_host.length() == 0) {
+				snprintf(rline + rofft, max - rofft, "%-10.10s", "---");
+			} else {
+				snprintf(rline + rofft, max - rofft, "%-10.10s", cli->dhcp_host.c_str());
+			}
+			rofft += 10;
+		} else if (b == ccol_dhcpvendor) {
+			if (cli->dhcp_vendor.length() == 0) {
+				snprintf(rline + rofft, max - rofft, "%-10.10s", "---");
+			} else {
+				snprintf(rline + rofft, max - rofft, "%-10.10s", 
+						 cli->dhcp_vendor.c_str());
+			}
+			rofft += 10;
 		} else {
 			continue;
 		}
@@ -3777,6 +3785,12 @@ void Kis_Clientlist::DrawComponent() {
 			} else if (cc == ccol_manuf) {
 				snprintf(rline + rofft, 1024 - rofft, "%-20.20s", "Manuf");
 				rofft += 20;
+			} else if (cc == ccol_dhcphost) {
+				snprintf(rline + rofft, 1024 - rofft, "%-10.10s", "DHCP Host");
+				rofft += 10;
+			} else if (cc == ccol_dhcpvendor) {
+				snprintf(rline + rofft, 1024 - rofft, "%-10.10s", "DHCP OS");
+				rofft += 10;
 			} else if (cc == ccol_freq_mhz) {
 				snprintf(rline + rofft, 1024 - rofft, "Freq");
 				rofft += 4;
@@ -4031,6 +4045,20 @@ void Kis_Clientlist::DrawComponent() {
 						snprintf(rline + rofft, 1024 - rofft, "Manuf: %s",
 								 display_vec[x].cli->manuf.c_str());
 						rofft += kismin(17, 7 + display_vec[x].cli->manuf.length());
+					} else if (e == cext_dhcphost) {
+						if (display_vec[x].cli->dhcp_host.length() > 0) {
+							snprintf(rline + rofft, 1024 - rofft, "Host: %s",
+									 display_vec[x].cli->dhcp_host.c_str());
+							rofft += kismin(17, 6 + 
+											display_vec[x].cli->dhcp_host.length());
+						}
+					} else if (e == cext_dhcpvendor) {
+						if (display_vec[x].cli->dhcp_vendor.length() > 0) {
+							snprintf(rline + rofft, 1024 - rofft, "DHCP OS: %s",
+									 display_vec[x].cli->dhcp_vendor.c_str());
+							rofft += kismin(17, 9 + 
+											display_vec[x].cli->dhcp_vendor.length());
+						}
 					} else {
 						continue;
 					}

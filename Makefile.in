@@ -30,7 +30,6 @@ CXXFLAGS 	= -Wall @CXXFLAGS@
 CPPFLAGS 	= @CPPFLAGS@
 SUID		= @suid@
 SUIDGROUP 	= @suidgroup@
-STRIPOPT	= @stripopt@
 
 prefix 		= @prefix@
 exec_prefix = @exec_prefix@
@@ -120,7 +119,7 @@ $(DRONE):	$(DRONEO)
 	$(LD) $(LDFLAGS) -o $(DRONE) $(DRONEO) $(LIBS) $(CXXLIBS) $(PCAPLNK)
 
 $(NC):	$(NCO)
-	$(LD) $(LDFLAGS) -o $(NC) $(NCO) $(LIBS) $(CXXLIBS) $(CLIENTLIBS)
+	$(LD) $(LDFLAGS) -o $(NC) $(NCO) $(CXXLIBS) $(CLIENTLIBS)
 
 #$(HOPPER):	$(HOPPERO)
 #	$(LD) $(LDFLAGS) -o $(HOPPER) $(HOPPERO)
@@ -153,16 +152,16 @@ checkuiconfig:
 	fi
 
 binsuidinstall:
-	$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) $(STRIPOPT) -m 4550 $(CS) $(BIN)/$(CS); 
+	$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CS) $(BIN)/$(CS); 
 	
 commoninstall:
 	mkdir -p $(ETC)
 	mkdir -p $(BIN)
 
 	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 scripts/kismet $(BIN)/kismet
-	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(STRIPOPT) -m 555 $(NC) $(BIN)/$(NC)
-	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(STRIPOPT) -m 555 $(PS) $(BIN)/$(PS); 
-	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(STRIPOPT) -m 555 $(DRONE) $(BIN)/$(DRONE);
+	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(NC) $(BIN)/$(NC)
+	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(PS) $(BIN)/$(PS); 
+	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(DRONE) $(BIN)/$(DRONE);
 
 	mkdir -p $(MAN)/man1
 	$(INSTALL) -o $(INSTUSR) -g $(MANGRP) -m 644 man/kismet.1 $(MAN)/man1/kismet.1

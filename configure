@@ -663,7 +663,6 @@ CXXLIBS
 LIBOBJS
 EGREP
 GREP
-stripopt
 objc_link
 CPP
 SET_MAKE
@@ -3652,8 +3651,6 @@ ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $
 ac_compiler_gnu=$ac_cv_c_compiler_gnu
 
 
-stripopt="-s"
-
 # Liberated from ethereal's configure.in
 #
 # Add any platform-specific compiler flags needed.
@@ -3695,7 +3692,6 @@ cat >>confdefs.h <<\_ACEOF
 _ACEOF
 
 		darwin="yes"
-		stripopt=""
         ;;
 	linux*)
 		{ $as_echo "$as_me:$LINENO: result: none needed" >&5
@@ -3778,7 +3774,6 @@ cat >>confdefs.h <<\_ACEOF
 _ACEOF
 
 		darwin="yes"
-		stripopt=""
         ;;
 	linux*)
 		{ $as_echo "$as_me:$LINENO: result: none needed" >&5
@@ -3840,9 +3835,6 @@ $as_echo "none needed" >&6; }
 fi
 
 # Substitute in the objc linkages if we need them
-
-
-# Substitute binary stripping
 
 
 if test "$cygwin" = "yes"; then

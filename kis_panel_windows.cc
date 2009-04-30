@@ -109,6 +109,8 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	mi_colorprefs = menu->AddMenuItem("Colors...", mn_preferences, 'C');
 	mi_netcolprefs = menu->AddMenuItem("Network Columns...", mn_preferences, 'N');
 	mi_netextraprefs = menu->AddMenuItem("Network Extras...", mn_preferences, 'E');
+	mi_clicolprefs = menu->AddMenuItem("Client Columns...", mn_preferences, 'N');
+	mi_cliextraprefs = menu->AddMenuItem("Client Extras...", mn_preferences, 'E');
 	mi_infoprefs = menu->AddMenuItem("Info Pane...", mn_preferences, 'I');
 	mi_gpsprefs = menu->AddMenuItem("GPS...", mn_preferences, 'G');
 
@@ -774,9 +776,45 @@ void Kis_Main_Panel::MenuAction(int opt) {
 	} else if (opt == mi_serverprefs) {
 		SpawnServerPrefs();
 	} else if (opt == mi_netcolprefs) {
-		SpawnNetcolPrefs();
+		Kis_ColumnPref_Panel *cpp = new Kis_ColumnPref_Panel(globalreg, kpinterface);
+
+		for (unsigned int x = 0; bssid_column_details[x].pref != NULL; x++) {
+			cpp->AddColumn(bssid_column_details[x].pref,
+						   bssid_column_details[x].name);
+		}
+
+		cpp->ColumnPref("netlist_columns", "Network List");
+		kpinterface->AddPanel(cpp);
 	} else if (opt == mi_netextraprefs) {
-		SpawnNetextraPrefs();
+		Kis_ColumnPref_Panel *cpp = new Kis_ColumnPref_Panel(globalreg, kpinterface);
+
+		for (unsigned int x = 0; bssid_extras_details[x].pref != NULL; x++) {
+			cpp->AddColumn(bssid_extras_details[x].pref,
+						   bssid_extras_details[x].name);
+		}
+
+		cpp->ColumnPref("netlist_extras", "Network Extras");
+		kpinterface->AddPanel(cpp);
+	} else if (opt == mi_clicolprefs) {
+		Kis_ColumnPref_Panel *cpp = new Kis_ColumnPref_Panel(globalreg, kpinterface);
+
+		for (unsigned int x = 0; client_column_details[x].pref != NULL; x++) {
+			cpp->AddColumn(client_column_details[x].pref,
+						   client_column_details[x].name);
+		}
+
+		cpp->ColumnPref("clientlist_columns", "Client List");
+		kpinterface->AddPanel(cpp);
+	} else if (opt == mi_cliextraprefs) {
+		Kis_ColumnPref_Panel *cpp = new Kis_ColumnPref_Panel(globalreg, kpinterface);
+
+		for (unsigned int x = 0; client_extras_details[x].pref != NULL; x++) {
+			cpp->AddColumn(client_extras_details[x].pref,
+						   client_extras_details[x].name);
+		}
+
+		cpp->ColumnPref("clientlist_extras", "Client Extras");
+		kpinterface->AddPanel(cpp);
 	} else if (opt == mi_infoprefs) {
 		SpawnInfoPrefs();
 	} else if (opt == mi_gpsprefs) {
@@ -831,30 +869,6 @@ void Kis_Main_Panel::SpawnColorPrefs() {
 	kpinterface->AddPanel(cpp);
 }
 
-void Kis_Main_Panel::SpawnNetcolPrefs() {
-	Kis_ColumnPref_Panel *cpp = new Kis_ColumnPref_Panel(globalreg, kpinterface);
-
-	for (unsigned int x = 0; bssid_column_details[x].pref != NULL; x++) {
-		cpp->AddColumn(bssid_column_details[x].pref,
-					   bssid_column_details[x].name);
-	}
-
-	cpp->ColumnPref("netlist_columns", "Network List");
-	kpinterface->AddPanel(cpp);
-}
-
-void Kis_Main_Panel::SpawnNetextraPrefs() {
-	Kis_ColumnPref_Panel *cpp = new Kis_ColumnPref_Panel(globalreg, kpinterface);
-
-	for (unsigned int x = 0; bssid_extras_details[x].pref != NULL; x++) {
-		cpp->AddColumn(bssid_extras_details[x].pref,
-					   bssid_extras_details[x].name);
-	}
-
-	cpp->ColumnPref("netlist_extras", "Network Extras");
-	kpinterface->AddPanel(cpp);
-}
-
 void Kis_Main_Panel::SpawnInfoPrefs() {
 	Kis_ColumnPref_Panel *cpp = new Kis_ColumnPref_Panel(globalreg, kpinterface);
 
@@ -889,65 +903,18 @@ vector<Kis_Display_NetGroup *> *Kis_Main_Panel::FetchDisplayNetgroupVector() {
 void Kis_Main_Panel::UpdateSortMenu() {
 	netsort_opts so = netlist->FetchSortMode();
 
-	if (so == netsort_autofit)
-		menu->SetMenuItemChecked(mi_sort_auto, 1);
-	else
-		menu->SetMenuItemChecked(mi_sort_auto, 0);
-
-	if (so == netsort_type)
-		menu->SetMenuItemChecked(mi_sort_type, 1);
-	else
-		menu->SetMenuItemChecked(mi_sort_type, 0);
-
-	if (so == netsort_channel)
-		menu->SetMenuItemChecked(mi_sort_chan, 1);
-	else
-		menu->SetMenuItemChecked(mi_sort_chan, 0);
-
-	if (so == netsort_crypt)
-		menu->SetMenuItemChecked(mi_sort_crypt, 1);
-	else
-		menu->SetMenuItemChecked(mi_sort_crypt, 0);
-
-	if (so == netsort_first)
-		menu->SetMenuItemChecked(mi_sort_first, 1);
-	else
-		menu->SetMenuItemChecked(mi_sort_first, 0);
-
-	if (so == netsort_first_desc)
-		menu->SetMenuItemChecked(mi_sort_first_d, 1);
-	else
-		menu->SetMenuItemChecked(mi_sort_first_d, 0);
-
-	if (so == netsort_last)
-		menu->SetMenuItemChecked(mi_sort_last, 1);
-	else
-		menu->SetMenuItemChecked(mi_sort_last, 0);
-
-	if (so == netsort_last_desc)
-		menu->SetMenuItemChecked(mi_sort_last_d, 1);
-	else
-		menu->SetMenuItemChecked(mi_sort_last_d, 0);
-
-	if (so == netsort_bssid)
-		menu->SetMenuItemChecked(mi_sort_bssid, 1);
-	else
-		menu->SetMenuItemChecked(mi_sort_bssid, 0);
-
-	if (so == netsort_ssid)
-		menu->SetMenuItemChecked(mi_sort_ssid, 1);
-	else
-		menu->SetMenuItemChecked(mi_sort_ssid, 0);
-
-	if (so == netsort_packets)
-		menu->SetMenuItemChecked(mi_sort_packets, 1);
-	else
-		menu->SetMenuItemChecked(mi_sort_packets, 0);
-
-	if (so == netsort_packets_desc)
-		menu->SetMenuItemChecked(mi_sort_packets_d, 1);
-	else
-		menu->SetMenuItemChecked(mi_sort_packets_d, 0);
+	menu->SetMenuItemChecked(mi_sort_auto, so == netsort_autofit);
+	menu->SetMenuItemChecked(mi_sort_type, so == netsort_type);
+	menu->SetMenuItemChecked(mi_sort_chan, so == netsort_channel);
+	menu->SetMenuItemChecked(mi_sort_crypt, so == netsort_crypt);
+	menu->SetMenuItemChecked(mi_sort_first, so == netsort_first);
+	menu->SetMenuItemChecked(mi_sort_first_d, so == netsort_first_desc);
+	menu->SetMenuItemChecked(mi_sort_last, so == netsort_last);
+	menu->SetMenuItemChecked(mi_sort_last_d, so == netsort_last_desc);
+	menu->SetMenuItemChecked(mi_sort_bssid, so == netsort_bssid);
+	menu->SetMenuItemChecked(mi_sort_ssid, so == netsort_ssid);
+	menu->SetMenuItemChecked(mi_sort_packets, so == netsort_packets);
+	menu->SetMenuItemChecked(mi_sort_packets_d, so == netsort_packets_desc);
 }
 
 void Kis_Main_Panel::UpdateViewMenu(int mi) {

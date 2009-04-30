@@ -333,7 +333,7 @@ enum client_columns {
 	ccol_decay, ccol_mac, ccol_bssid, ccol_ssid,
 	ccol_packdata, ccol_packllc, ccol_packcrypt,
 	ccol_packets, ccol_datasize, ccol_signal_dbm, ccol_signal_rssi,
-	ccol_freq_mhz, ccol_manuf, ccol_type
+	ccol_freq_mhz, ccol_manuf, ccol_type, ccol_dhcphost, ccol_dhcpvendor
 };
 
 /* color array positions */
@@ -345,14 +345,14 @@ enum client_columns {
 
 // Do not expect this to be in numerical order with the above enum, this is
 // for setting up the preferences panels, etc
-extern const char *client_column_details[][2];
+extern const common_col_pref client_column_details[];
 
 // Extra display options per-line
 enum client_extras {
-	cext_lastseen, cext_crypt, cext_ip, cext_manuf
+	cext_lastseen, cext_crypt, cext_ip, cext_manuf, cext_dhcphost, cext_dhcpvendor
 };
 
-extern const char *client_extras_details[][2];
+extern const common_col_pref client_extras_details[];
 
 class Kis_Clientlist : public Kis_Panel_Component {
 public:

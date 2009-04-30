@@ -206,11 +206,18 @@ protected:
 	Netracker::tracked_client *dcli;
 
 	int mn_client, mi_nextcli, mi_prevcli, mi_close;
+
+	int mn_preferences, mi_clicolprefs, mi_cliextraprefs;
+
 	int mn_view, mi_cli, mi_graphsig, mi_graphpacket, mi_graphretry;
 
 	int grapheventid;
 
 	Kis_Clientlist *clientlist;
+};
+
+enum alertsort_opts {
+	alertsort_time, alertsort_latest, alertsort_type, alertsort_bssid
 };
 
 class Kis_AlertDetails_Panel : public Kis_Panel {
@@ -229,12 +236,19 @@ public:
 
 protected:
 	virtual void UpdateSortMenu(int mi);
-	
+	virtual int UpdateSortPrefs();
+
 	Kis_Panel_Packbox *vbox;
 	Kis_Scrollable_Table *alertlist, *alertdetails;
 
+	alertsort_opts sort_mode;
+
 	int mn_alert, mi_clear, mi_close;
 	int mn_sort, mi_time, mi_latest, mi_type, mi_bssid;
+
+	vector<KisPanelInterface::knc_alert *> sorted_alerts;
+
+	KisPanelInterface::knc_alert *last_alert;
 };
 
 #endif

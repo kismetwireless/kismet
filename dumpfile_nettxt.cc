@@ -589,7 +589,12 @@ int Dumpfile_Nettxt::Flush() {
 			if (cli->cdp_port_id.length() > 0)
 				fprintf(txtfile, "  CDP Port   : \"%s\"\n", 
 						cli->cdp_port_id.c_str());
-
+			if (cli->dhcp_host.length() > 0)
+				fprintf(txtfile, "   DHCP Host : \"%s\"\n", 
+						cli->dhcp_host.c_str());
+			if (cli->dhcp_vendor.length() > 0)
+				fprintf(txtfile, "     DHCP OS : \"%s\"\n", 
+						cli->dhcp_vendor.c_str());
 		}
 
 	}

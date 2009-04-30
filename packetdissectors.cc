@@ -1657,77 +1657,97 @@ int KisBuiltinDissector::basicdata_dissector(kis_packet *in_pack) {
 
 		}
 
-		if ((header_offset + DHCPD_OFFSET +
-			 sizeof(DHCPD_SIGNATURE)) < chunk->length &&
-			memcmp(&(chunk->data[header_offset + DHCPD_OFFSET]),
-				   DHCPD_SIGNATURE, sizeof(DHCPD_SIGNATURE)) == 0) { 
-			datainfo->proto = proto_dhcp_offer;
+		/* DHCP Offer */
+		if (packinfo->dest_mac == broadcast_mac &&
+			datainfo->ip_source_port == 67 &&
+			datainfo->ip_dest_port == 68) {
 
-			// Now we go through the dhcp options until we find 1, 3, and 53
-			unsigned int offset = header_offset + DHCPD_OFFSET + 252;
+			// Extract the DHCP tags the same way we get IEEE 80211 tags,
+			// infact we can re-use the code
+			map<int, vector<int> > dhcp_tag_map;
 
-			while ((offset + 1) < chunk->length) {
-				if (chunk->data[offset] == 0x01) {
-					// netmask
-					// bail if we're a boring DHCP ack w/ no real content
-					if (chunk->data[offset + 2] == 0x00) {
-						datainfo->proto = proto_udp;
-						in_pack->insert(_PCM(PACK_COMP_BASICDATA), datainfo);
-						return 1;
-					}
+			// This is convenient since it won't return anything that is outside
+			// the context of the packet, we can feed it the length w/out checking 
+			// and we can trust the tags
+			GetIEEETagOffsets(header_offset + DHCPD_OFFSET + 252,
+							  chunk, &dhcp_tag_map);
 
-					// Bail if we're misformed
-					if (offset + 6 >= chunk->length) {
-						delete datainfo;
-						return 0;
-					}
+			if (dhcp_tag_map.find(53) != dhcp_tag_map.end() &&
+				dhcp_tag_map[53].size() != 0 &&
+				chunk->data[dhcp_tag_map[53][0] + 1] == 0x02) {
 
-					memcpy(&(datainfo->ip_netmask_addr.s_addr), 
-						   &(chunk->data[offset + 2]), 4);
-				} else if (chunk->data[offset] == 0x03) {
-					// Gateway
-					if (chunk->data[offset + 2] == 0x00) {
-						datainfo->proto = proto_udp;
-						in_pack->insert(_PCM(PACK_COMP_BASICDATA), datainfo);
-						return 1;
-					}
+				// We're a DHCP offer...
+				datainfo->proto = proto_dhcp_offer;
 
-					// Bail if we're misformed
-					if (offset + 6 >= chunk->length) {
-						delete datainfo;
-						return 0;
-					}
-
-					memcpy(&(datainfo->ip_gateway_addr.s_addr), 
-						   &(chunk->data[offset + 2]), 4);
-				} else if (chunk->data[offset] == 0x35) {
-					// Offered addr
-					
-					// Boring
-					if (chunk->data[offset + 2] == 0x00) {
-						datainfo->proto = proto_udp;
-						in_pack->insert(_PCM(PACK_COMP_BASICDATA), datainfo);
-						return 1;
-					}
-
-					// Have to dig all the way into the bootp segment
-					
-					// Bail if we're misformed
-					if ((header_offset + DHCPD_OFFSET + 32) >= chunk->length) {
-						delete datainfo;
-						return 0;
-					}
-
-					memcpy(&(datainfo->ip_dest_addr.s_addr), 
-						   &(chunk->data[header_offset + DHCPD_OFFSET + 28]), 4);
+				// This should never be possible, but let's check
+				if ((header_offset + DHCPD_OFFSET + 32) >= chunk->length) {
+					delete datainfo;
+					return 0;
 				}
 
-				offset += chunk->data[offset + 1] + 2;
-			}
+				memcpy(&(datainfo->ip_dest_addr.s_addr), 
+					   &(chunk->data[header_offset + DHCPD_OFFSET + 28]), 4);
 
-			in_pack->insert(_PCM(PACK_COMP_BASICDATA), datainfo);
-			return 1;
-		} // DHCP
+				if (dhcp_tag_map.find(1) != dhcp_tag_map.end() &&
+					dhcp_tag_map[1].size() != 0) {
+
+					memcpy(&(datainfo->ip_netmask_addr.s_addr), 
+						   &(chunk->data[dhcp_tag_map[1][0] + 1]), 4);
+				}
+
+				if (dhcp_tag_map.find(3) != dhcp_tag_map.end() &&
+					dhcp_tag_map[3].size() != 0) {
+
+					memcpy(&(datainfo->ip_gateway_addr.s_addr), 
+						   &(chunk->data[dhcp_tag_map[3][0] + 1]), 4);
+				}
+			}
+		}
+
+		/* DHCP Discover */
+		if (packinfo->dest_mac == broadcast_mac &&
+			datainfo->ip_source_port == 68 &&
+			datainfo->ip_dest_port == 67) {
+
+			// Extract the DHCP tags the same way we get IEEE 80211 tags,
+			// infact we can re-use the code
+			map<int, vector<int> > dhcp_tag_map;
+
+			// This is convenient since it won't return anything that is outside
+			// the context of the packet, we can feed it the length w/out checking 
+			// and we can trust the tags
+			GetIEEETagOffsets(header_offset + DHCPD_OFFSET + 252,
+							  chunk, &dhcp_tag_map);
+
+			if (dhcp_tag_map.find(53) != dhcp_tag_map.end() &&
+				dhcp_tag_map[53].size() != 0 &&
+				chunk->data[dhcp_tag_map[53][0] + 1] == 0x01) {
+
+				// We're definitely a dhcp discover
+				datainfo->proto = proto_dhcp_discover;
+
+				if (dhcp_tag_map.find(12) != dhcp_tag_map.end() &&
+					dhcp_tag_map[12].size() != 0) {
+
+					datainfo->discover_host = 
+						string((char *) &(chunk->data[dhcp_tag_map[12][0] + 1]), 
+							   chunk->data[dhcp_tag_map[12][0]]);
+
+					datainfo->discover_host = MungeToPrintable(datainfo->discover_host);
+				}
+
+				if (dhcp_tag_map.find(60) != dhcp_tag_map.end() &&
+					dhcp_tag_map[60].size() != 0) {
+
+					datainfo->discover_vendor = 
+						string((char *) &(chunk->data[dhcp_tag_map[60][0] + 1]), 
+							   chunk->data[dhcp_tag_map[60][0]]);
+					datainfo->discover_vendor = 
+						MungeToPrintable(datainfo->discover_vendor);
+				}
+
+			}
+		}
 
 		in_pack->insert(_PCM(PACK_COMP_BASICDATA), datainfo);
 		return 1;

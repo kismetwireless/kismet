@@ -105,7 +105,7 @@ const char *CLIENT_fields_text[] = {
     "atype", "ip", "gatewayip", "datasize", "maxseenrate", "encodingset",
 	"carrierset", "decrypted", "channel",
 	"fragments", "retries", "newpackets", "freqmhz",
-	"cdpdevice", "cdpport", "dot11d",
+	"cdpdevice", "cdpport", "dot11d", "dhcphost", "dhcpvendor",
     NULL
 };
 
@@ -843,7 +843,7 @@ int Protocol_CLIENT(PROTO_PARMS) {
 				cache->Cache(fnum, scratch);
 				break;
 			case CLIENT_dot11d:
-				osstr << "\001" + cli->dot11d_country << ":";
+				osstr << "\001" << cli->dot11d_country << ":";
 				for (unsigned int z = 0; z < cli->dot11d_vec.size(); z++) {
 					osstr << cli->dot11d_vec[z].startchan << "-" <<
 						cli->dot11d_vec[z].numchan << "-" <<
@@ -852,6 +852,16 @@ int Protocol_CLIENT(PROTO_PARMS) {
 					out_string += osstr.str();
 					cache->Cache(fnum, osstr.str());
 				}
+				break;
+			case CLIENT_dhcphost:
+				osstr << "\001" << cli->dhcp_host << "\001";
+				out_string += osstr.str();
+				cache->Cache(fnum, osstr.str());
+				break;
+			case CLIENT_dhcpvendor:
+				osstr << "\001" << cli->dhcp_vendor << "\001";
+				out_string += osstr.str();
+				cache->Cache(fnum, osstr.str());
 				break;
 		}
 
@@ -2136,6 +2146,13 @@ int Netracker::datatracker_chain_handler(kis_packet *in_pack) {
 		cli->cdp_port_id = datainfo->cdp_port_id;
 	} 
 
+	// Apply the DHCP discovery on the client
+	if (datainfo->proto  == proto_dhcp_discover) {
+		// TODO - alert here for hijack?
+		cli->dhcp_host = datainfo->discover_host;
+		cli->dhcp_vendor = datainfo->discover_vendor;
+	}
+
 	// Start comparing IP stuff and move it into the network.  We don't
 	// trust IPs coming from the the AP itself UNLESS they're DHCP-Offers because
 	// an AP in router mode tends to replicate in internet addresses and confuse
@@ -2145,6 +2162,7 @@ int Netracker::datatracker_chain_handler(kis_packet *in_pack) {
 	if ((packinfo->source_mac == net->bssid && 
 		 datainfo->proto == proto_dhcp_offer) ||
 		packinfo->source_mac != net->bssid) {
+
 		if (datainfo->proto  == proto_dhcp_offer) {
 			// DHCP Offers are about the most complete and authoritative IP info we
 			// can get, so we just overwrite our network knowledge with it.
