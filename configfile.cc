@@ -165,7 +165,7 @@ string ConfigFile::ExpandLogPath(string path, string logname, string type,
     logtemplate = path;
 
     for (unsigned int nl = logtemplate.find("%"); nl < logtemplate.length();
-         nl = logtemplate.find("%", nl+1))
+         nl = logtemplate.find("%", nl))
     {
         char op = logtemplate[nl+1];
         logtemplate.erase(nl, 2);
