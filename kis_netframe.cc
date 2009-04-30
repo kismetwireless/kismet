@@ -681,6 +681,7 @@ int KisNetFramework::Accept(int in_fd) {
     // Create their options
     client_opt *opt = new client_opt;
     client_optmap[in_fd] = opt;
+	char temp[512];
 
     // Set the mandatory sentences.  We don't have to do error checking here because
     // it can't exist in the required vector if it isn't registered.
@@ -697,15 +698,15 @@ int KisNetFramework::Accept(int in_fd) {
 
     // Send the mandatory stuff like the Kismet info
     KISMET_data kdat;
-    char temp[512];
 
     kdat.version = "0.0.0";
     snprintf(temp, 512, "%u", (unsigned int) globalreg->start_time);
     kdat.starttime = string(temp);
     kdat.servername = globalreg->servername;
     kdat.timestamp = "0";
-    snprintf(temp, 512, "%s.%s.%s", VERSION_MAJOR, VERSION_MINOR, VERSION_TINY);
-    kdat.newversion = string(temp);
+    kdat.newversion = globalreg->version_major + string(",") + 
+		globalreg->version_minor + string(",") +
+		globalreg->version_tiny;
 	kdat.uid = geteuid();
    
     SendToClient(in_fd, globalreg->netproto_map[PROTO_REF_KISMET], 

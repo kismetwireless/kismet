@@ -22,7 +22,6 @@
 #include "config.h"
 
 #include <unistd.h>
-#include "version.h"
 #include "util.h"
 #include "macaddr.h"
 // #include "packet.h"
@@ -163,6 +162,8 @@ public:
 	string version_major;
 	string version_minor;
 	string version_tiny;
+	string revision;
+	string revdate;
 
 	// Vector of pollable subservices for main()...  You should use the util 
 	// functions for this, but main needs to be able to see it directly
@@ -218,10 +219,6 @@ public:
 	unsigned int crc32_table[256];
     
     GlobalRegistry() { 
-		version_major = VERSION_MAJOR;
-		version_minor = VERSION_MINOR;
-		version_tiny = VERSION_TINY;
-
         fatal_condition = 0;
 		spindown = 0;
 

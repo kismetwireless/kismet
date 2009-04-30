@@ -99,7 +99,9 @@ int Dumpfile_Netxml::Flush() {
 
     fprintf(xmlfile, "<detection-run kismet-version=\"%s.%s.%s\" "
 			"start-time=\"%.24s\">\n\n",
-			VERSION_MAJOR, VERSION_MINOR, VERSION_TINY,
+			globalreg->version_major.c_str(),
+			globalreg->version_minor.c_str(),
+			globalreg->version_tiny.c_str(),
             ctime(&(globalreg->start_time)));
 
 	// Get the source info

@@ -102,7 +102,9 @@ int Dumpfile_Nettxt::Flush() {
 			"%.24s - Kismet %s.%s.%s\n"
 			"-----------------\n\n",
 			ctime(&(globalreg->start_time)),
-			VERSION_MAJOR, VERSION_MINOR, VERSION_TINY);
+			globalreg->version_major.c_str(),
+			globalreg->version_minor.c_str(),
+			globalreg->version_tiny.c_str());
 
 	// Get the tracked network and client->ap maps
 	const map<mac_addr, Netracker::tracked_network *> tracknet =

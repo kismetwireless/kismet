@@ -18,6 +18,8 @@
 
 #include "config.h"
 
+#include "version.h"
+
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -136,6 +138,12 @@ int main(int argc, char *argv[], char *envp[]) {
 
 	// Start filling in key components of the globalregistry
 	globalreg = new GlobalRegistry;
+
+	globalreg->version_major = VERSION_MAJOR;
+	globalreg->version_minor = VERSION_MINOR;
+	globalreg->version_tiny = VERSION_TINY;
+	globalreg->revision = REVISION;
+	globalreg->revdate = REVDATE;
 
 	// Copy for modules
 	globalreg->argc = argc;

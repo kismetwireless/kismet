@@ -20,6 +20,8 @@
 
 #define KISMET_CLIENT
 
+#include "version.h"
+
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -292,6 +294,12 @@ int main(int argc, char *argv[], char *envp[]) {
 
 	// Start filling in key components of the globalregistry
 	globalregistry = new GlobalRegistry;
+
+	globalregistry->version_major = VERSION_MAJOR;
+	globalregistry->version_minor = VERSION_MINOR;
+	globalregistry->version_tiny = VERSION_TINY;
+	globalregistry->revision = REVISION;
+	globalregistry->revdate = REVDATE;
 
 	// Copy for modules
 	globalregistry->argc = argc;
