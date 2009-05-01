@@ -1283,6 +1283,10 @@ Netracker::Netracker(GlobalRegistry *in_globalreg) {
 		globalreg->alertracker->ActivateConfiguredAlert("AIRJACKSSID");
 	alert_wepflap_ref =
 		globalreg->alertracker->ActivateConfiguredAlert("CRYPTODROP");
+	alert_dhcpname_ref =
+		globalreg->alertracker->ActivateConfiguredAlert("DHCPNAMECHANGE");
+	alert_dhcpos_ref =
+		globalreg->alertracker->ActivateConfiguredAlert("DHCPOSCHANGE");
 
 	// Register timer kick
 	netrackereventid = 
@@ -2148,7 +2152,40 @@ int Netracker::datatracker_chain_handler(kis_packet *in_pack) {
 
 	// Apply the DHCP discovery on the client
 	if (datainfo->proto  == proto_dhcp_discover) {
-		// TODO - alert here for hijack?
+		if (cli->dhcp_host != datainfo->discover_host &&
+			cli->dhcp_host != "" && 
+			globalreg->alertracker->PotentialAlert(alert_dhcpname_ref)) {
+
+			string al = "Network BSSID " + net->bssid.Mac2String() + " client " +
+				cli->mac.Mac2String() + " changed advertised hostname in DHCP " +
+				"from '" + cli->dhcp_host + "' to '" + datainfo->discover_host + "' " +
+				"which may indicate client spoofing/impersonation";
+
+			globalreg->alertracker->RaiseAlert(alert_dhcpname_ref, in_pack, 
+											   packinfo->bssid_mac, 
+											   packinfo->source_mac, 
+											   packinfo->dest_mac, 
+											   packinfo->other_mac, 
+											   packinfo->channel, al);
+		}
+
+		if (cli->dhcp_vendor != datainfo->discover_vendor &&
+			cli->dhcp_vendor != "" && 
+			globalreg->alertracker->PotentialAlert(alert_dhcpos_ref)) {
+
+			string al = "Network BSSID " + net->bssid.Mac2String() + " client " +
+				cli->mac.Mac2String() + " changed advertised vendor in DHCP " +
+				"from '" + cli->dhcp_vendor + "' to '" + datainfo->discover_vendor + 
+				"' which may indicate client spoofing/impersonation";
+
+			globalreg->alertracker->RaiseAlert(alert_dhcpos_ref, in_pack, 
+											   packinfo->bssid_mac, 
+											   packinfo->source_mac, 
+											   packinfo->dest_mac, 
+											   packinfo->other_mac, 
+											   packinfo->channel, al);
+		}
+
 		cli->dhcp_host = datainfo->discover_host;
 		cli->dhcp_vendor = datainfo->discover_vendor;
 	}

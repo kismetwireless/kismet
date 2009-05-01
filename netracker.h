@@ -845,11 +845,8 @@ protected:
 	int ssid_cache_track, ip_cache_track;
 
 	// Alert references
-	int alert_chan_ref;
-	int alert_dhcpcon_ref;
-	int alert_bcastdcon_ref;
-	int alert_airjackssid_ref;
-	int alert_wepflap_ref;
+	int alert_chan_ref, alert_dhcpcon_ref, alert_bcastdcon_ref, alert_airjackssid_ref,
+		alert_wepflap_ref, alert_dhcpname_ref, alert_dhcpos_ref;
 
 	// Timer refs
 	int netrackereventid;

@@ -217,7 +217,9 @@ PanelInterface::~PanelInterface() {
 	globalreg->RemovePollableSubsys(this);
 
 	erase();
-	endwin();
+
+	if (isendwin() == 0)
+		endwin();
 }
 
 unsigned int PanelInterface::MergeSet(unsigned int in_max_fd, fd_set *out_rset, 

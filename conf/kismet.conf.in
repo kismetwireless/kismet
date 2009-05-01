@@ -179,6 +179,8 @@ alert=MSFNETGEARBEACON,5/min,1/sec
 alert=LONGSSID,5/min,1/sec
 alert=DISCONCODEINVALID,5/min,1/sec
 alert=DEAUTHCODEINVALID,5/min,1/sec
+alert=DHCPNAMECHANGE,5/min,1/sec
+alert=DHCPOSCHANGE,5/min,1/sec
 
 # Known WEP keys to decrypt, bssid,hexkey.  This is only for networks where
 # the keys are already known, and it may impact throughput on slower hardware.
