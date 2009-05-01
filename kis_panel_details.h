@@ -241,12 +241,12 @@ protected:
 
 	alertsort_opts sort_mode;
 
-	int mn_alert, mi_clear, mi_close;
+	int mn_alert, mi_close;
 	int mn_sort, mi_time, mi_latest, mi_type, mi_bssid;
 
 	vector<KisPanelInterface::knc_alert *> sorted_alerts;
 
-	KisPanelInterface::knc_alert *last_alert;
+	KisPanelInterface::knc_alert *last_alert, *last_selected;
 };
 
 #endif

@@ -1983,13 +1983,13 @@ Kis_AlertDetails_Panel::Kis_AlertDetails_Panel(GlobalRegistry *in_globalreg,
 	Kis_Panel(in_globalreg, in_intf) {
 
 	last_alert = NULL;
+	last_selected = NULL;
 
 	menu = new Kis_Menu(globalreg, this);
 
 	menu->SetCallback(COMPONENT_CBTYPE_ACTIVATED, CliDetailsMenuCB, this);
 
 	mn_alert = menu->AddMenu("Alert", 0);
-	mi_clear = menu->AddMenuItem("Clear alerts", mn_alert, 'c');
 	menu->AddMenuItem("-", mn_alert, 0);
 	mi_close = menu->AddMenuItem("Close window", mn_alert, 'w');
 
@@ -2060,12 +2060,6 @@ Kis_AlertDetails_Panel::Kis_AlertDetails_Panel(GlobalRegistry *in_globalreg,
 
 	AddComponentVec(vbox, KIS_PANEL_COMP_DRAW);
 
-	vector<string> td;
-	td.push_back("");
-	td.push_back("");
-	td.push_back("No alerts");
-	alertlist->AddRow(0, td);
-
 	main_component = vbox;
 
 	SetActiveComponent(alertlist);
@@ -2085,45 +2079,100 @@ void Kis_AlertDetails_Panel::DrawPanel() {
 	int k = 0;
 	vector<string> td;
 
-	// No custom drawing if we have no alerts or no changes
-	
-	if (raw_alerts->size() == 0)
+	td.push_back("");
+	td.push_back("");
+	td.push_back("");
+
+	// No custom drawing if we have no alerts
+	if (raw_alerts->size() == 0) {
+		sorted_alerts.clear();
+		alertdetails->Clear();
+		alertlist->Clear();
+		td[0] = "";
+		td[1] = "";
+		td[2] = "No alerts currently logged";
+		alertlist->AddRow(k++, td);
 		return;
-
-	if ((*raw_alerts)[raw_alerts->size() - 1] == last_alert && UpdateSortPrefs() == 0)
-		return;
-
-	sorted_alerts = *raw_alerts;
-
-	switch (sort_mode) {
-		case alertsort_time:
-			stable_sort(sorted_alerts.begin(), sorted_alerts.end(), 
-						KisAlert_Sort_Time());
-			break;
-		case alertsort_latest:
-			stable_sort(sorted_alerts.begin(), sorted_alerts.end(), 
-						KisAlert_Sort_TimeInv());
-			break;
-		case alertsort_type:
-			stable_sort(sorted_alerts.begin(), sorted_alerts.end(), 
-						KisAlert_Sort_Type());
-			break;
-		case alertsort_bssid:
-			stable_sort(sorted_alerts.begin(), sorted_alerts.end(), 
-						KisAlert_Sort_Bssid());
-			break;
 	}
 
-	td.push_back("");
-	td.push_back("");
-	td.push_back("");
+	// If we've changed the list
+	if ((*raw_alerts)[raw_alerts->size() - 1] != last_alert && UpdateSortPrefs() == 0) {
+		sorted_alerts = *raw_alerts;
 
-	for (unsigned int x = 0; x < sorted_alerts.size(); x++) {
-		td[0] = 
+		switch (sort_mode) {
+			case alertsort_time:
+				stable_sort(sorted_alerts.begin(), sorted_alerts.end(), 
+							KisAlert_Sort_Time());
+				break;
+			case alertsort_latest:
+				stable_sort(sorted_alerts.begin(), sorted_alerts.end(), 
+							KisAlert_Sort_TimeInv());
+				break;
+			case alertsort_type:
+				stable_sort(sorted_alerts.begin(), sorted_alerts.end(), 
+							KisAlert_Sort_Type());
+				break;
+			case alertsort_bssid:
+				stable_sort(sorted_alerts.begin(), sorted_alerts.end(), 
+							KisAlert_Sort_Bssid());
+				break;
+		}
+
+		for (unsigned int x = 0; x < sorted_alerts.size(); x++) {
+			td[0] = 
 			string(ctime((const time_t *) &(sorted_alerts[x]->tv.tv_sec))).substr(11, 8);
-		td[1] = sorted_alerts[x]->alertname;
-		td[2] = sorted_alerts[x]->text;
-		alertlist->AddRow(k++, td);
+			td[1] = sorted_alerts[x]->alertname;
+			td[2] = sorted_alerts[x]->text;
+			alertlist->AddRow(k++, td);
+		}
+	}
+
+	td.clear();
+	td.push_back("");
+	td.push_back("");
+	k = 0;
+
+	// Update the details for the selected alert if we've changed
+	if (alertlist->GetSelected() >= 0 && 
+		alertlist->GetSelected() < (int) sorted_alerts.size()) {
+		if (sorted_alerts[alertlist->GetSelected()] != last_selected) {
+			last_selected = sorted_alerts[alertlist->GetSelected()];
+			alertdetails->Clear();
+
+			td[0] = "Time:";
+			td[1] = string(ctime((const time_t *) 
+								 &(last_selected->tv.tv_sec))).substr(4, 15);
+			alertdetails->ReplaceRow(k++, td);
+
+			td[0] = "Alert:";
+			td[1] = last_selected->alertname;
+			alertdetails->ReplaceRow(k++, td);
+
+			td[0] = "BSSID:";
+			td[1] = last_selected->bssid.Mac2String();
+			alertdetails->ReplaceRow(k++, td);
+
+			td[0] = "Source:";
+			td[1] = last_selected->source.Mac2String();
+			alertdetails->ReplaceRow(k++, td);
+
+			td[0] = "Dest:";
+			td[1] = last_selected->dest.Mac2String();
+			alertdetails->ReplaceRow(k++, td);
+
+			td[0] = "Channel:";
+			td[1] = IntToString(last_selected->channel);
+			alertdetails->ReplaceRow(k++, td);
+
+			td[0] = "Text:";
+			td[1] = last_selected->text;
+			alertdetails->ReplaceRow(k++, td);
+		}
+	} else {
+		alertdetails->Clear();
+		td[0] = "";
+		td[1] = "No alert selected";
+		alertdetails->ReplaceRow(k++, td);
 	}
 
 }
@@ -2133,7 +2182,25 @@ void Kis_AlertDetails_Panel::ButtonAction(Kis_Panel_Component *in_button) {
 }
 
 void Kis_AlertDetails_Panel::MenuAction(int opt) {
-
+	// Menu processed an event, do something with it
+	if (opt == mi_close) {
+		globalreg->panel_interface->KillPanel(this);
+		return;
+	} else if (opt == mi_time) {
+		kpinterface->prefs->SetOpt("ALERTLIST_SORT", "time", 1);
+	} else if (opt == mi_latest) {
+		kpinterface->prefs->SetOpt("ALERTLIST_SORT", "latest", 1);
+	} else if (opt == mi_type) {
+		kpinterface->prefs->SetOpt("ALERTLIST_SORT", "type", 1);
+	} else if (opt == mi_bssid) {
+		kpinterface->prefs->SetOpt("ALERTLIST_SORT", "bssid", 1);
+	}
+	
+	if (opt == mi_time || opt == mi_latest || opt == mi_type ||
+			   opt == mi_bssid) {
+		UpdateSortPrefs();
+		UpdateSortMenu(opt);
+	}
 }
 
 void Kis_AlertDetails_Panel::UpdateSortMenu(int mi) {

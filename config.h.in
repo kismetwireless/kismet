@@ -172,9 +172,6 @@
 /* Define to 1 if you have the `strstr' function. */
 #undef HAVE_STRSTR
 
-/* setuid capable */
-#undef HAVE_SUID
-
 /* System headers are there */
 #undef HAVE_SYSHEADERS
 
@@ -199,29 +196,11 @@
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
 
-/* Viha headers are there */
-#undef HAVE_VIHAHEADERS
-
-/* Define to 1 if you have the <WiFi/IEEE80211Frame.h> header file. */
-#undef HAVE_WIFI_IEEE80211FRAME_H
-
-/* Define to 1 if you have the <WiFi/WFException.h> header file. */
-#undef HAVE_WIFI_WFEXCEPTION_H
-
-/* Define to 1 if you have the <WiFi/WLFrame.h> header file. */
-#undef HAVE_WIFI_WLFRAME_H
-
-/* Define to 1 if you have the <WiFi/WLPacketSource.h> header file. */
-#undef HAVE_WIFI_WLPACKETSOURCE_H
-
 /* Define to 1 if you have the <Win32-Extensions.h> header file. */
 #undef HAVE_WIN32_EXTENSIONS_H
 
 /* Define to 1 if you have the <windows.h> header file. */
 #undef HAVE_WINDOWS_H
-
-/* wsp100 remote sensor support */
-#undef HAVE_WSP100
 
 /* __PROGNAME glibc macro available */
 #undef HAVE___PROGNAME
@@ -286,9 +265,6 @@
 
 /* Define to 1 if your <sys/time.h> declares `struct tm'. */
 #undef TM_IN_SYS_TIME
-
-/* Use local dumper code */
-#undef USE_LOCAL_DUMP
 
 /* Define WORDS_BIGENDIAN to 1 if your processor stores words with the most
    significant byte first (like Motorola and SPARC, unlike Intel). */

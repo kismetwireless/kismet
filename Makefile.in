@@ -28,7 +28,6 @@ CAPLIBS		= @caplibs@
 CLIENTFLAGS = @CLIENTCFLAGS@
 CXXFLAGS 	= -Wall @CXXFLAGS@
 CPPFLAGS 	= @CPPFLAGS@
-SUID		= @suid@
 SUIDGROUP 	= @suidgroup@
 
 prefix 		= @prefix@
@@ -126,7 +125,7 @@ $(NC):	$(NCO)
 
 Makefile: Makefile.in configure
 	@-echo "'Makefile.in' or 'configure' are more current than this Makefile.  You should re-run 'configure'."
-	
+
 checkconfig:
 	@if test "`grep version= conf/kismet.conf | cut -f 2 -d=`" != "`grep version= $(ETC)/kismet.conf | cut -f 2 -d=`"; then \
 		echo "The configuration file has been updated.  It is STRONGLY reccomended "; \
@@ -304,7 +303,7 @@ dep:
 depend: Makefile
 	@$(MAKE) $(DEPEND)
 
-$(DEPEND):
+$(DEPEND): Makefile
 	@-rm -f $(DEPEND)
 	@echo "Generating dependencies... "
 	@echo > $(DEPEND)
