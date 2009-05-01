@@ -283,6 +283,7 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	AddColorPref("menu_border_color", "Menu Border");
 	AddColorPref("netlist_header_color", "Netlist Header");
 	AddColorPref("netlist_normal_color", "Netlist Unencrypted");
+	AddColorPref("netlist_wep_color", "Netlist WEP");
 	AddColorPref("netlist_crypt_color", "Netlist Encrypted");
 	AddColorPref("netlist_group_color", "Netlist Group");
 	AddColorPref("netlist_factory_color", "Netlist Factory");

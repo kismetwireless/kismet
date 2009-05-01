@@ -1076,9 +1076,12 @@ fi
 printf "   Capability Dropping: "
 if test "$havecap" = "yes"; then
 	echo "yes";
+elif test "$linux" != "yes"; then
+	echo "n/a (only Linux)"
 else
 	echo "no";
 fi
+
 printf "         Linux Netlink: "
 if test "$havenetlink" = "yes"; then
 	echo "yes (mac80211 VAP creation)";

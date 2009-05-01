@@ -2391,6 +2391,9 @@ void Kis_Netlist::DrawComponent() {
 	parent_panel->InitColorPref("netlist_normal_color", "green,black");
 	parent_panel->ColorFromPref(color_map[kis_netlist_color_normal], 
 								"netlist_normal_color");
+	parent_panel->InitColorPref("netlist_wep_color", "red,black");
+	parent_panel->ColorFromPref(color_map[kis_netlist_color_wep], 
+								"netlist_wep_color");
 	parent_panel->InitColorPref("netlist_crypt_color", "yellow,black");
 	parent_panel->ColorFromPref(color_map[kis_netlist_color_crypt], 
 								"netlist_crypt_color");
@@ -2588,9 +2591,13 @@ void Kis_Netlist::DrawComponent() {
 				rline[(ex - sx)] = '\0';
 			}
 
-			if (color < 0 && meta->lastssid != NULL && 
-				meta->lastssid->cryptset != 0)
-				color = kis_netlist_color_crypt;
+			if (color < 0 && meta->lastssid != NULL) {
+				if (meta->lastssid->cryptset == crypt_wep) {
+					color = kis_netlist_color_wep;
+				} else if (meta->lastssid->cryptset != 0) {
+					color = kis_netlist_color_crypt;
+				}
+			}
 
 			ng->SetColor(color);
 			ng->SetLineCache(rline);
