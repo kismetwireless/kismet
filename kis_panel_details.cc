@@ -2092,7 +2092,7 @@ void Kis_AlertDetails_Panel::DrawPanel() {
 		td[0] = "";
 		td[1] = "";
 		td[2] = "No alerts";
-		alertlist->AddRow(k++, td);
+		alertlist->ReplaceRow(k++, td);
 		Kis_Panel::DrawPanel();
 		return;
 	}
@@ -2125,7 +2125,7 @@ void Kis_AlertDetails_Panel::DrawPanel() {
 			string(ctime((const time_t *) &(sorted_alerts[x]->tv.tv_sec))).substr(11, 8);
 			td[1] = sorted_alerts[x]->alertname;
 			td[2] = sorted_alerts[x]->text;
-			alertlist->AddRow(k++, td);
+			alertlist->ReplaceRow(k++, td);
 		}
 	}
 
