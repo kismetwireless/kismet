@@ -115,7 +115,7 @@ protected:
 	int mn_view, mi_shownetworks, mi_showclients, mi_showsummary, mi_showstatus, 
 		mi_showgps, mi_showpps, mi_showsources;
 
-	int mn_windows, mi_netdetails, mi_clientlist, mi_chandetails, mi_gps;
+	int mn_windows, mi_netdetails, mi_clientlist, mi_chandetails, mi_gps, mi_alerts;
 
 	int connect_enable;
 

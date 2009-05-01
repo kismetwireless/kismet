@@ -1990,7 +1990,6 @@ Kis_AlertDetails_Panel::Kis_AlertDetails_Panel(GlobalRegistry *in_globalreg,
 	menu->SetCallback(COMPONENT_CBTYPE_ACTIVATED, CliDetailsMenuCB, this);
 
 	mn_alert = menu->AddMenu("Alert", 0);
-	menu->AddMenuItem("-", mn_alert, 0);
 	mi_close = menu->AddMenuItem("Close window", mn_alert, 'w');
 
 	mn_sort = menu->AddMenu("Sort", 0);
@@ -2022,6 +2021,7 @@ Kis_AlertDetails_Panel::Kis_AlertDetails_Panel(GlobalRegistry *in_globalreg,
 	t.width = 0;
 	t.title = "text";
 	t.alignment = 0;
+	titles.push_back(t);
 
 	alertlist->AddTitles(titles);
 	alertlist->Show();
@@ -2042,6 +2042,7 @@ Kis_AlertDetails_Panel::Kis_AlertDetails_Panel(GlobalRegistry *in_globalreg,
 	t.width = 0;
 	t.title = "text";
 	t.alignment = 0;
+	titles.push_back(t);
 
 	alertdetails->AddTitles(titles);
 	alertdetails->SetPreferredSize(0, 5);
@@ -2090,8 +2091,9 @@ void Kis_AlertDetails_Panel::DrawPanel() {
 		alertlist->Clear();
 		td[0] = "";
 		td[1] = "";
-		td[2] = "No alerts currently logged";
+		td[2] = "No alerts";
 		alertlist->AddRow(k++, td);
+		Kis_Panel::DrawPanel();
 		return;
 	}
 
@@ -2175,6 +2177,7 @@ void Kis_AlertDetails_Panel::DrawPanel() {
 		alertdetails->ReplaceRow(k++, td);
 	}
 
+	Kis_Panel::DrawPanel();
 }
 
 void Kis_AlertDetails_Panel::ButtonAction(Kis_Panel_Component *in_button) {

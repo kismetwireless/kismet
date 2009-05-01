@@ -148,9 +148,10 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 
 	mn_windows = menu->AddMenu("Windows", 0);
 	mi_netdetails = menu->AddMenuItem("Network Details", mn_windows, 'd');
-	mi_clientlist = menu->AddMenuItem("Client List", mn_windows, 'L');
+	mi_clientlist = menu->AddMenuItem("Client List", mn_windows, 'l');
 	mi_chandetails = menu->AddMenuItem("Channel Details", mn_windows, 'c');
-	mi_gps = menu->AddMenuItem("GPS Details", mn_windows, 'G');
+	mi_gps = menu->AddMenuItem("GPS Details", mn_windows, 'g');
+	mi_alerts = menu->AddMenuItem("Alerts", mn_windows, 'a');
 
 	menu->Show();
 	AddComponentVec(menu, KIS_PANEL_COMP_EVT);
@@ -754,8 +755,10 @@ void Kis_Main_Panel::MenuAction(int opt) {
 		kpinterface->AddPanel(dp);
 	} else if (opt == mi_gps) {
 		Kis_Gps_Panel *gp = new Kis_Gps_Panel(globalreg, kpinterface);
-		gp->Position(WIN_CENTER(20, 60));
 		kpinterface->AddPanel(gp);
+	} else if (opt == mi_alerts) {
+		Kis_AlertDetails_Panel *ap = new Kis_AlertDetails_Panel(globalreg, kpinterface);
+		kpinterface->AddPanel(ap);
 	} else if (opt == mi_showsummary ||
 			   opt == mi_showstatus ||
 			   opt == mi_showpps ||
