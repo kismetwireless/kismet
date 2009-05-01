@@ -126,8 +126,6 @@ public:
 		}
 	virtual ~PacketSource_BSDRT() { }
 
-	virtual int OpenSource();
-
 	virtual int FetchChannelCapable() { return 1; }
 
 	virtual int EnableMonitor();
