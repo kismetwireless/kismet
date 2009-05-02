@@ -128,7 +128,7 @@ gpsreconnect=true
 # Do we export packets over tun/tap virtual interfaces?
 tuntap_export=false
 # What virtual interface do we use
-tuntap_device=tap0
+tuntap_device=kistap0
 
 # Packet filtering options:
 # filter_tracker - Packets filtered from the tracker are not processed or
@@ -160,27 +160,26 @@ tuntap_device=tap0
 # limit the number of alerts to 10 per minute.
 # A throttle rate of 0 disables throttling of the alert.
 # See the README for a list of alert types.
-alert=NETSTUMBLER,5/min,1/sec
-alert=WELLENREITER,5/min,1/sec
-alert=LUCENTTEST,5/min,1/sec
-alert=DEAUTHFLOOD,5/min,2/sec
-alert=BCASTDISCON,5/min,2/sec
-alert=CHANCHANGE,5/min,1/sec
 alert=AIRJACKSSID,5/min,1/sec
-alert=PROBENOJOIN,5/min,1/sec
-alert=DISASSOCTRAFFIC,10/min,1/sec
-alert=NULLPROBERESP,5/min,1/sec
+alert=BCASTDISCON,5/min,2/sec
 alert=BSSTIMESTAMP,5/min,1/sec
-alert=DHCPCONFLICT,10/min,1/sec
+alert=CHANCHANGE,5/min,1/sec
 alert=CRYPTODROP,5/min,1/sec
+alert=DISASSOCTRAFFIC,10/min,1/sec
+alert=DEAUTHFLOOD,5/min,2/sec
+alert=DEAUTHCODEINVALID,5/min,1/sec
+alert=DISCONCODEINVALID,5/min,1/sec
+alert=DHCPNAMECHANGE,5/min,1/sec
+alert=DHCPOSCHANGE,5/min,1/sec
+alert=DHCPCONFLICT,10/min,1/sec
+alert=NETSTUMBLER,5/min,1/sec
+alert=LUCENTTEST,5/min,1/sec
+alert=LONGSSID,5/min,1/sec
 alert=MSFBCOMSSID,5/min,1/sec
 alert=MSFDLINKRATE,5/min,1/sec
 alert=MSFNETGEARBEACON,5/min,1/sec
-alert=LONGSSID,5/min,1/sec
-alert=DISCONCODEINVALID,5/min,1/sec
-alert=DEAUTHCODEINVALID,5/min,1/sec
-alert=DHCPNAMECHANGE,5/min,1/sec
-alert=DHCPOSCHANGE,5/min,1/sec
+alert=NULLPROBERESP,5/min,1/sec
+#alert=PROBENOJOIN,5/min,1/sec
 
 # Known WEP keys to decrypt, bssid,hexkey.  This is only for networks where
 # the keys are already known, and it may impact throughput on slower hardware.

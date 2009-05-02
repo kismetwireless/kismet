@@ -446,24 +446,6 @@ void PacketSource_BSDRT::FetchRadioData(kis_packet *in_packet) {
 	return;
 }
 
-int PacketSource_BSDRT::OpenSource() {
-	// XXX Hack to avoid duplicate code, open using normal methods
-	int ret = PacketSource_Pcap::OpenSource();
-	if (ret < 0)
-		return ret;
-
-	if (CheckDLT(DLT_IEEE802_11_RADIO) == 0) {
-		_MSG("No support for radiotap data link type on '" + interface + "'",
-			 MSGFLAG_PRINTERROR);
-		return -1;
-	}
-
-	(void) pcap_set_datalink(pd, DLT_IEEE802_11_RADIO);
-	datalink_type = DLT_IEEE802_11_RADIO;
-
-	return 1;
-}
-
 int PacketSource_BSDRT::DatalinkType() {
 	// We do no checking here because we don't really care, the open test
 	// clears up any link problems or fails on its own.

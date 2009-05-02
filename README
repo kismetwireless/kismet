@@ -12,7 +12,9 @@ http://www.kismetwireless.net
 8.  Plugins
 9.  GPS
 10. Logging
-10. Server configuration options
+11. Filtering
+12. Alerts & IDS
+13. Server configuration options
 
 1.  What is Kismet
 
@@ -634,8 +636,189 @@ http://www.kismetwireless.net
     beginning of the template) or else the --log-prefix argument will not
     function as expected.
 
+11. Filtering
 
-10. Other Configuration
+    Kismet supports basic filtering; networks can be excluded from tracking,
+    pcap logging, or general logging, based on BSSID, source, or destination
+    MAC addresses.
+
+    Filters, when enabled, are "positive-pass"; anything matched by the
+    filter will be allowed, and all other matches are excluded.  This
+    behavior can be inverted by using the '!' operator:
+
+        filter_tracker=BSSID(!AA:BB:CC:DD:EE:FF)
+
+    Would exclude all traffic on the network AA:BB:CC:DD:EE:FF.  Multiple
+    MAC addresses can be stacked on the same filter line, to filter two
+    networks from being processed:
+
+        filter_tracker=BSSID(!AA:BB:CC:DD:EE:FF,!00:11:22:33:44:55)
+
+    MAC addresses may also be masked in a fashion similar to IP netmasks; to
+    process only networks of a single manufacturer:
+
+        filter_tracker=BSSID(AA:BB:CC:00:00:00/FF:FF:FF:00:00:00)
+
+    Similarly, SOURCE(...), DEST(...), and AND(...) may be used to filter
+    packets.
+
+12. Alerts & IDS
+
+    Kismet includes IDS functionality, providing a stateless and stateful
+    IDS for layer 2 and layer 3 wireless attacks.  Kismet can alert on
+    fingerprints (specific single-packet attacks) and trends (unusual
+    probes, disassociation floods, etc).
+
+    Kismet can integrate with other tools using the tun/tap export to
+    provide a virtual network interface of wireless traffic; tools such as
+    Packet-o-Matic and Snort can use this exported data to perform
+    additional IDS functions.
+
+    Kismet as an IDS is most effective in a stationary (ie, non-wardriving)
+    setup, and for best results, a non-hopping source should be available on
+    the channels the primary networks are on.  Kismet IDS functions CAN be
+    used in mobile or channel-hopping installations (and are turned on by
+    default) but accuracy may suffer.
+
+    Alerts are configured with the "alert=" configuration option in
+    kismet.conf, and have two time parameters:  Throttle, and Burst.  The
+    throttle option controls how many alerts are allowed total per time
+    unit, while the burst option controls how many alerts are allowed in a
+    row.  For example:
+
+        alert=NETSTUMBLER,5/min,1/sec
+
+    Will allow 1 alert per second, at a maximum of 5 per minute.
+
+    Kismet supports the following alerts, where applicable the WVE (Wireless
+    Vulnerability and Exploits, http://www.wve.org) ID is included:
+
+        AIRJACKSSID         Fingerprint         Deprecated
+            The original 802.11 hacking tools, Airjack, set the initial SSID
+            to 'airjack' when starting up.  This alert is no longer relevant
+            as the Airjack tools have long since been discontinued.
+
+        BSSTIMESTAMP        Trend/Stateful
+            Invalid/Out-of-sequence BSS Timestamps can indicate AP spoofing.
+            APs with fluctuating BSS timestamps could be suffering an "evil
+            twin" spoofing attack, as many tools do not attempt to sync the
+            BSS timestamp at all, and the fine-grained nature of the BSS
+            timestamp field makes it difficult to spoof accurately.  Some
+            APs may reset the BSS timestamp regularly, leading to a
+            false-positive.
+
+            References:
+                WVE-2005-0019
+
+        CHANCHANGE          Trend/Stateful
+            A previously detected access point changing channels may
+            indicate a spoofing attack.  By spoofing a legitimate AP on a
+            different channel, an attacker can lure clients to the spoofed
+            access point.  An AP changing channel during normal operation
+            may indicate such an attack is in process, however centrally
+            managed networks may automatically change AP channels to
+            less-used areas of the spectrum.
+
+             References:
+                WVE-2005-0019
+
+        CRYPTODROP          Trend/Stateful
+            Spoofing an AP with less-secure encryption options may fool
+            clients into connecting with compromised credentials.  The only
+            situation in which an access point should reduce encryption
+            security is when the AP is reconfigured.
+
+        DEAUTHFLOOD         Trend/Stateful
+        BCASTDISCON         Trend/Stateful
+            By spoofing disassociate and deauthenticate packets an attacker
+            may disconnect clients from a network, causing a
+            denial-of-service which lasts only as long as the attacker is
+            able to send the packets.
+
+            References:
+                WVE-2005-0019, WVE-2005-0045, WVE-2005-0046, WVE-2005-0061
+                http://802.11ninja.net
+                http://home.jwu.edu/jwright/papers/l2-wlan-ids.pdf
+
+        DHCPCONFLICT        Trend/Stateful
+            Clients which receive a DHCP address and continue to use a
+            different IP address may indicate a misconfigured or spoofed
+            client.
+
+        DISASSOCTRAFFIC     Trend/Stateful
+            A client which is disassociated from a network should not
+            immediately continue exchanging data.  This can indicate a
+            spoofed client attempting to incorrectly inject data into a
+            network, or can indicate a client being the victim of a
+            denial-of-service attack.
+
+        DISCONCODEINVALID   Fingerprint
+        DEAUTHCODEINVALID   Fingerprint
+            The 802.11 specification defines valid reason codes for
+            disconnect and deauthenticate events.  Various client and access
+            point drivers have been reported to improperly handle
+            invalid/undefined reason codes.
+
+        DHCPNAMECHANGE      Fingerprint
+        DHCPOSCHANGE        Fingerprint
+            The DHCP configuration protocol allows clients to optionally put
+            the hostname and DHCP client vendor/operating system in the DHCP
+            Discover packet.  These values should only change if the client
+            has changed drastically (such as a dual-boot system).  Changing
+            values can often indicate a client spoofing/MAC cloning attack.
+
+        LONGSSID            Fingerprint
+            The 802.11 specification allows a maximum of 32 bytes for the
+            SSID.  Over-sized SSIDs are indicative of an attack attempting
+            to exploit vulnerabilities in several drivers.
+
+        LUCENTTEST          Fingerprint         Deprecated
+            Old Lucent Orinoco cards in certain scanning test modes generate
+            identifiable packets.
+
+        MSFBCOMSSID         Fingerprint
+            Some versions of the Windows Broadcom wireless drivers do not
+            properly handle SSID fields longer than the 802.11
+            specification, leading to system compromise and code execution.
+            This vulnerability is exploited by the Metasploit framework.
+
+            References:
+                WVE-2006-0071
+
+        MSFDLINKRATE        Fingerprint
+            Some versions of the Windows D-Link wireless drivers do not
+            properly handle extremely long 802.11 valid rate fields, leading
+            to system compromise and code execution.  This vulnerability is
+            exploited by the Metasploit framework.
+
+            References:
+                WVE-2006-0072
+
+        MSFNETGEARBEACON    Fingerprint
+            Some versions of the Windows netgear wireless drivers do not
+            properly handle over-sized beacon frames, leading to system
+            compromise and code execution.  This vulnerability is exploited
+            by the Metasploit framework.
+
+        NETSTUMBLER         Fingerprint         Deprecated
+            Older versions of Netstumbler (3.22, 3.23, 3.30) generate, in
+            certain conditions, specific packets.
+
+        NULLPROBERESP       Fingerprint
+            Probe-response packets with a SSID IE tag component of length 0
+            can cause older cards (prism2, orinoco, airport-classic) to
+            fail.
+
+            References:
+                WVE-2005-0019
+
+        PROBENOJOIN         Trend/Stateful
+            Active scanning tools such as Netstumbler constantly send
+            network discovery probes but never join any of the networks
+            which respond.  This alert can cause excessive false positives
+            while channel hopping, and is disabled by default.
+
+13. Other Configuration
 
     Kismet is divided into two main processes:  kismet_server and
     kismet_client.  The server portion (responsible for capture, logging,
