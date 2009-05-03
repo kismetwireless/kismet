@@ -166,9 +166,6 @@ void CatchChild(int sig) {
 	int status;
 	pid_t pid;
 
-	if (globalregistry->spindown)
-		return;
-
 	while (1) {
 		pid = waitpid(-1, &status, WNOHANG);
 
@@ -197,7 +194,7 @@ void CatchShutdown(int sig) {
 	// Start a short shutdown cycle for 2 seconds
 	fprintf(stderr, "\n*** KISMET CLIENT IS SHUTTING DOWN ***\n");
 	globalregistry->spindown = 1;
-	time_t shutdown_target = time(0) + 2;
+	time_t shutdown_target = time(0) + 5;
 	int max_fd = 0;
 	fd_set rset, wset;
 	struct timeval tm;
@@ -219,8 +216,6 @@ void CatchShutdown(int sig) {
 			max_fd = 
 				globalregistry->subsys_pollable_vec[x]->MergeSet(max_fd, &rset, 
 																 &wset);
-
-		// fprintf(stderr, "debug - curses maxfd %u spin\n", max_fd);
 
 		if (max_fd == 0)
 			break;

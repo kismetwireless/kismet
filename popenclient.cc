@@ -41,7 +41,8 @@ int PopenClient::CheckPidVec() {
 		if (globalreg->sigchild_vec[x].pid == childpid) {
 			// Run a final data parse to get any terminating info
 			if (cliframework != NULL) {
-				ReadBytes();
+				ReadBytes(); 
+				ReadEBytes();
 				cliframework->ParseData();
 			}
 
@@ -139,12 +140,8 @@ void PopenClient::SoftKillConnection() {
 	// Send a soft kill and let it die on it's own, so we can capture the
 	// output if any
 	if (childpid > 0) {
-		// fprintf(stderr, "debug - sending sigterm to %d\n", childpid);
 		kill(childpid, SIGTERM);
 	}
-
-	if (cl_valid == 0)
-		KillConnection();
 }
 
 void PopenClient::DetatchConnection() {
