@@ -272,20 +272,14 @@ public:
 	};
 
 protected:
-	virtual void UpdateSortMenu(int mi);
-	virtual int UpdateSortPrefs();
-
 	Kis_Panel_Packbox *vbox;
 	Kis_Scrollable_Table *reglist;
-	Kis_Scrollable_Table *alertlist, *alertdetails;
+	Kis_Netlist *netlist;
+	Kis_Free_Text *text;
 
-	alertsort_opts sort_mode;
-
-	int mn_alert, mi_close;
-	int mn_sort, mi_time, mi_latest, mi_type, mi_bssid;
+	int mn_regd, mi_close;
 
 	vector<reg_block *> regblock_vec;
-
 };
 
 #endif

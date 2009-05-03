@@ -1987,7 +1987,7 @@ Kis_AlertDetails_Panel::Kis_AlertDetails_Panel(GlobalRegistry *in_globalreg,
 
 	menu = new Kis_Menu(globalreg, this);
 
-	menu->SetCallback(COMPONENT_CBTYPE_ACTIVATED, CliDetailsMenuCB, this);
+	menu->SetCallback(COMPONENT_CBTYPE_ACTIVATED, AlertDetailsMenuCB, this);
 
 	mn_alert = menu->AddMenu("Alert", 0);
 	mi_close = menu->AddMenuItem("Close window", mn_alert, 'w');
@@ -2240,6 +2240,91 @@ int Kis_AlertDetails_Panel::UpdateSortPrefs() {
 		sort_mode = alertsort_latest;
 
 	return 1;
+}
+
+int RegDetailsMenuCB(COMPONENT_CALLBACK_PARMS) {
+	((Kis_RegDetails_Panel *) aux)->MenuAction(status);
+	return 1;
+}
+
+Kis_RegDetails_Panel::Kis_RegDetails_Panel(GlobalRegistry *in_globalreg, 
+											   KisPanelInterface *in_intf) :
+	Kis_Panel(in_globalreg, in_intf) {
+
+	menu = new Kis_Menu(globalreg, this);
+
+	menu->SetCallback(COMPONENT_CBTYPE_ACTIVATED, RegDetailsMenuCB, this);
+
+	mn_regd = menu->AddMenu("Reg", 0);
+	mi_close = menu->AddMenuItem("Close window", mn_regd, 'w');
+
+	menu->Show();
+	AddComponentVec(menu, KIS_PANEL_COMP_EVT);
+
+	reglist = new Kis_Scrollable_Table(globalreg, this);
+	reglist->SetHighlightSelected(1);
+	reglist->SetLockScrollTop(1);
+	reglist->SetDrawTitles(1);
+	AddComponentVec(reglist, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+							  KIS_PANEL_COMP_TAB));
+
+	vector<Kis_Scrollable_Table::title_data> titles;
+	Kis_Scrollable_Table::title_data t;
+	t.width = 8;
+	t.title = "Cty";
+	t.alignment = 0;
+	titles.push_back(t);
+	t.width = 4;
+	t.title = "#Net";
+	t.alignment = 3;
+	titles.push_back(t);
+	t.width = 0;
+	t.title = "Channels";
+	t.alignment = 0;
+	titles.push_back(t);
+
+	netlist = new Kis_Netlist(globalreg, this);
+	netlist->Show();
+	netlist->SetPreferredSize(0, 10);
+	AddComponentVec(netlist, KIS_PANEL_COMP_TAB | KIS_PANEL_COMP_EVT);
+
+	text = new Kis_Free_Text(globalreg, this);
+	text->Show();
+
+	SetTitle("");
+
+	vbox = new Kis_Panel_Packbox(globalreg, this);
+	vbox->SetPackV();
+	vbox->SetHomogenous(0);
+	vbox->SetSpacing(0);
+	vbox->Show();
+
+	vbox->Pack_End(reglist, 1, 0);
+	vbox->Pack_End(netlist, 0, 0);
+	vbox->Pack_End(text, 0, 0);
+
+	AddComponentVec(vbox, KIS_PANEL_COMP_DRAW);
+
+	main_component = vbox;
+
+	SetActiveComponent(reglist);
+
+	Position(WIN_CENTER(LINES, COLS));
+}
+
+Kis_RegDetails_Panel::~Kis_RegDetails_Panel() {
+	delete netlist;
+}
+
+void Kis_RegDetails_Panel::DrawPanel() {
+
+}
+
+void Kis_RegDetails_Panel::MenuAction(int opt) {
+	if (opt == mi_close) {
+		globalreg->panel_interface->KillPanel(this);
+		return;
+	}
 }
 
 #endif
