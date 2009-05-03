@@ -40,8 +40,10 @@ int PopenClient::CheckPidVec() {
 	for (unsigned int x = 0; x < globalreg->sigchild_vec.size(); x++) {
 		if (globalreg->sigchild_vec[x].pid == childpid) {
 			// Run a final data parse to get any terminating info
-			if (cliframework != NULL)
+			if (cliframework != NULL) {
+				ReadBytes();
 				cliframework->ParseData();
+			}
 
 			_MSG("Opened process pid " + IntToString(childpid) + " failed: " +
 				 IntToString(globalreg->sigchild_vec[x].status), MSGFLAG_ERROR);

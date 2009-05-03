@@ -395,10 +395,10 @@ void CatchShutdown(int sig) {
     if (fqmescli != NULL && globalregistry->fatal_condition) 
         fqmescli->DumpFatals();
 
-	fprintf(stderr, "NOTE: Kismet changes the configuration of network devices.  \n"
-					"In most cases you will need to restart networking on your \n"
-					"interface (varies per distribution/OS, but usually:\n"
-					"  \"/etc/init.d/networking restart\n\n");
+	fprintf(stderr, "WARNING: Kismet changes the configuration of network devices.\n"
+					"         In most cases you will need to restart networking for\n"
+					"         your interface (varies per distribution/OS, but \n"
+					"         usually:  /etc/init.d/networking restart\n\n");
 
     fprintf(stderr, "Kismet exiting.\n");
     exit(0);

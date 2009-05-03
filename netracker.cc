@@ -1721,6 +1721,8 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 	// Extract info from probe request frames if its a probe network
 	if (packinfo->type == packet_management &&
 		packinfo->subtype == packet_sub_probe_req) {
+
+		// printf("debug - net %s ssid %s probereq cryptset %llu\n", packinfo->bssid_mac.Mac2String().c_str(), packinfo->ssid.c_str(), packinfo->cryptset);
 		
 		// Build the SSID block checksum
 		ostringstream ssid_st;
@@ -1783,6 +1785,8 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 	// give us good info...
 	if (packinfo->type == packet_management && 
 		packinfo->subtype == packet_sub_beacon) {
+
+		// printf("debug - net %s ssid %s beacon cryptset %llu\n", packinfo->bssid_mac.Mac2String().c_str(), packinfo->ssid.c_str(), packinfo->cryptset);
 
 		// Build the SSID block checksum
 		ostringstream ssid_st;
@@ -1848,6 +1852,9 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 			}
 		}
 
+		// Copy the crypto data
+		adssid->cryptset = packinfo->cryptset;
+
 		// Fire off an alert if the channel changes
 		if (alert_chan_ref >= 0 && newnetwork == 0 && net->channel != 0 &&
 			packinfo->channel != 0 && net->channel != packinfo->channel &&
@@ -1895,6 +1902,8 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 
 	if (packinfo->type == packet_management &&
 		packinfo->subtype == packet_sub_probe_resp) {
+
+		// printf("debug - net %s ssid %s proberesp cryptset %llu\n", packinfo->bssid_mac.Mac2String().c_str(), packinfo->ssid.c_str(), packinfo->cryptset);
 
 		// Build the SSID block checksum
 		ostringstream ssid_st;

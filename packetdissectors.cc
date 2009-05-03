@@ -638,8 +638,9 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
 			}
             packinfo->header_offset = 36;
             fixparm = (fixed_parameters *) &(chunk->data[24]);
-			if (fixparm->wep)
+			if (fixparm->wep) {
 				packinfo->cryptset |= crypt_wep;
+			}
 
 			// Set the transmitter info
 			packinfo->ess = fixparm->ess;
@@ -813,88 +814,6 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
 					packinfo->dot11d_vec.push_back(ri);
 				}
 			}
-        }
-
-        if (fc->subtype == 0) {
-            packinfo->subtype = packet_sub_association_req;
-
-            packinfo->dest_mac = addr0;
-            packinfo->source_mac = addr1;
-            packinfo->bssid_mac = addr2;
-
-        } else if (fc->subtype == 1) {
-            packinfo->subtype = packet_sub_association_resp;
-
-            packinfo->dest_mac = addr0;
-            packinfo->source_mac = addr1;
-            packinfo->bssid_mac = addr2;
-
-        } else if (fc->subtype == 2) {
-            packinfo->subtype = packet_sub_reassociation_req;
-
-            packinfo->dest_mac = addr0;
-            packinfo->source_mac = addr1;
-            packinfo->bssid_mac = addr2;
-
-        } else if (fc->subtype == 3) {
-            packinfo->subtype = packet_sub_reassociation_resp;
-
-            packinfo->dest_mac = addr0;
-            packinfo->source_mac = addr1;
-            packinfo->bssid_mac = addr2;
-
-        } else if (fc->subtype == 4) {
-            packinfo->subtype = packet_sub_probe_req;
-
-            packinfo->distrib = distrib_to;
-            
-            packinfo->source_mac = addr1;
-            packinfo->bssid_mac = addr1;
-           
-            // Probe req's with no SSID are bad
-            if (found_ssid_tag == 0) {
-                packinfo->corrupt = 1;
-                in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
-                return 0;
-            }
-
-        } else if (fc->subtype == 5) {
-            packinfo->subtype = packet_sub_probe_resp;
-
-            packinfo->dest_mac = addr0;
-            packinfo->source_mac = addr1;
-            packinfo->bssid_mac = addr2;
-
-            /*
-            if (ret_packinfo->ess == 0) {
-                // A lot of cards seem to rotate through adhoc BSSID's, so we use 
-				// the source instead
-                ret_packinfo->bssid_mac = ret_packinfo->source_mac;
-                ret_packinfo->distrib = adhoc_distribution;
-                }
-                */
-
-        } else if (fc->subtype == 8) {
-            packinfo->subtype = packet_sub_beacon;
-
-            packinfo->beacon_interval = kis_letoh16(fixparm->beacon);
-
-            // Extract the CISCO beacon info
-            if ((tcitr = tag_cache_map.find(133)) != tag_cache_map.end()) {
-                tag_offset = tcitr->second[0];
-                taglen = (chunk->data[tag_offset] & 0xFF);
-
-				// Copy and munge the beacon info if it falls w/in our
-				// boundaries
-				if ((tag_offset + 11) < chunk->length && taglen >= 11) {
-					packinfo->beacon_info = 
-						MungeToPrintable((char *) &(chunk->data[tag_offset+11]), 
-										 taglen - 11, 1);
-                }
-
-				// Non-fatal fail since beacon info might not have that
-				// 11 byte leader on it, I don't know
-            }
 
 			// WPA frame matching if we have the privacy bit set
 			if ((packinfo->cryptset & crypt_wep)) {
@@ -991,6 +910,7 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
 							in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
 							return 0;
 						}
+
 						packinfo->cryptset |= 
 							WPACipherConv(chunk->data[tag_orig + offt + 3]);
 						offt += 4;
@@ -1025,6 +945,90 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
 					}
 				} /* 48 */
 			}
+
+
+        }
+
+        if (fc->subtype == 0) {
+            packinfo->subtype = packet_sub_association_req;
+
+            packinfo->dest_mac = addr0;
+            packinfo->source_mac = addr1;
+            packinfo->bssid_mac = addr2;
+
+        } else if (fc->subtype == 1) {
+            packinfo->subtype = packet_sub_association_resp;
+
+            packinfo->dest_mac = addr0;
+            packinfo->source_mac = addr1;
+            packinfo->bssid_mac = addr2;
+
+        } else if (fc->subtype == 2) {
+            packinfo->subtype = packet_sub_reassociation_req;
+
+            packinfo->dest_mac = addr0;
+            packinfo->source_mac = addr1;
+            packinfo->bssid_mac = addr2;
+
+        } else if (fc->subtype == 3) {
+            packinfo->subtype = packet_sub_reassociation_resp;
+
+            packinfo->dest_mac = addr0;
+            packinfo->source_mac = addr1;
+            packinfo->bssid_mac = addr2;
+
+        } else if (fc->subtype == 4) {
+            packinfo->subtype = packet_sub_probe_req;
+
+            packinfo->distrib = distrib_to;
+            
+            packinfo->source_mac = addr1;
+            packinfo->bssid_mac = addr1;
+           
+            // Probe req's with no SSID are bad
+            if (found_ssid_tag == 0) {
+                packinfo->corrupt = 1;
+                in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
+                return 0;
+            }
+
+        } else if (fc->subtype == 5) {
+            packinfo->subtype = packet_sub_probe_resp;
+
+            packinfo->dest_mac = addr0;
+            packinfo->source_mac = addr1;
+            packinfo->bssid_mac = addr2;
+
+            /*
+            if (ret_packinfo->ess == 0) {
+                // A lot of cards seem to rotate through adhoc BSSID's, so we use 
+				// the source instead
+                ret_packinfo->bssid_mac = ret_packinfo->source_mac;
+                ret_packinfo->distrib = adhoc_distribution;
+                }
+                */
+
+        } else if (fc->subtype == 8) {
+            packinfo->subtype = packet_sub_beacon;
+
+            packinfo->beacon_interval = kis_letoh16(fixparm->beacon);
+
+            // Extract the CISCO beacon info
+            if ((tcitr = tag_cache_map.find(133)) != tag_cache_map.end()) {
+                tag_offset = tcitr->second[0];
+                taglen = (chunk->data[tag_offset] & 0xFF);
+
+				// Copy and munge the beacon info if it falls w/in our
+				// boundaries
+				if ((tag_offset + 11) < chunk->length && taglen >= 11) {
+					packinfo->beacon_info = 
+						MungeToPrintable((char *) &(chunk->data[tag_offset+11]), 
+										 taglen - 11, 1);
+                }
+
+				// Non-fatal fail since beacon info might not have that
+				// 11 byte leader on it, I don't know
+            }
 
             packinfo->dest_mac = addr0;
             packinfo->source_mac = addr1;

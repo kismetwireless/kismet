@@ -113,12 +113,14 @@ PacketSource_Wext::PacketSource_Wext(GlobalRegistry *in_globalreg,
 		if (FindProcess(look_procs[x], interface))
 			processes += look_procs[x] + string(" ");
 
+	processes = processes.substr(0, processes.length() - 1);
+
 	if (processes != "" && warning == "") {
 		warning =
 			"Detected the following processes that appear to be using the "
 			"interface " + interface + ", which can cause problems with Kismet "
 			"by changing the configuration of the network device: " + processes +
-			"If  Kismet stops running or stops capturing packets, try killing "
+			".  If  Kismet stops running or stops capturing packets, try killing "
 			"one (or all) of these processes or stopping the network for this "
 			"interface.";
 		_MSG(warning, MSGFLAG_PRINTERROR);
