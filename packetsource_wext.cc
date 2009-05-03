@@ -27,6 +27,8 @@
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 
+#include "psutils.h"
+
 #ifdef HAVE_LINUX_WIRELESS
 // Some kernels include ethtool headers in wireless.h and seem to break
 // terribly if these aren't defined
@@ -91,6 +93,36 @@ PacketSource_Wext::PacketSource_Wext(GlobalRegistry *in_globalreg,
 	}
 
 	ParseOptions(in_opts);
+
+	// Don't warn about wpa_supplicant if we're going to use it
+	string processes;
+	if (scan_wpa == 0) {
+		if (FindProcess("wpa_action", interface))
+			processes += "wpa_action ";
+		if (FindProcess("wpa_supplicant", interface))
+			processes += "wpa_supplicant ";
+		if (FindProcess("wpa_cli", interface))
+			processes += "wpa_cli ";
+	}
+
+	vector<string> look_procs = 
+		StrTokenize("dhclient,ifplugd,dhcpbd,dhcpcd,NetworkManager,knetworkmanager,"
+					"avahi-daemon,wlanassistant,wifibox", ",");
+
+	for (unsigned int x = 0; x < look_procs.size(); x++) 
+		if (FindProcess(look_procs[x], interface))
+			processes += look_procs[x] + string(" ");
+
+	if (processes != "" && warning == "") {
+		warning =
+			"Detected the following processes that appear to be using the "
+			"interface " + interface + ", which can cause problems with Kismet "
+			"by changing the configuration of the network device: " + processes +
+			"If  Kismet stops running or stops capturing packets, try killing "
+			"one (or all) of these processes or stopping the network for this "
+			"interface.";
+		_MSG(warning, MSGFLAG_PRINTERROR);
+	}
 }
 
 PacketSource_Wext::~PacketSource_Wext() {

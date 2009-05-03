@@ -51,7 +51,7 @@ CAPSOURCES = \
 PSO	= util.o cygwin_utils.o ringbuf.o messagebus.o configfile.o getopt.o \
 	filtercore.o ifcontrol.o iwcontrol.o madwifing_control.o nl80211_control.o \
 	$(OBJC_LINK) \
-	ipc_remote.o soundcontrol.o \
+	psutils.o ipc_remote.o soundcontrol.o \
 	netframework.o clinetframework.o tcpserver.o tcpclient.o serialclient.o \
 	packetsourcetracker.o $(CAPSOURCES) \
 	kis_netframe.o kis_droneframe.o \
@@ -69,7 +69,7 @@ PS	= kismet_server
 
 DRONEO = util.o cygwin_utils.o ringbuf.o messagebus.o configfile.o getopt.o \
 		 ifcontrol.o iwcontrol.o madwifing_control.o nl80211_control.o $(OBJC_LINK) \
-		 ipc_remote.o soundcontrol.o \
+		 psutils.o ipc_remote.o soundcontrol.o \
 		 netframework.o clinetframework.o tcpserver.o tcpclient.o serialclient.o \
 		 drone_kisnetframe.o kis_droneframe.o \
 		 gpswrapper.o gpscore.o gpsdclient.o gpsserial.o \
@@ -83,7 +83,7 @@ DRONEO = util.o cygwin_utils.o ringbuf.o messagebus.o configfile.o getopt.o \
 CSO = util.o cygwin_utils.o ringbuf.o messagebus.o configfile.o getopt.o \
 	filtercore.o ifcontrol.o iwcontrol.o madwifing_control.o nl80211_control.o \
 	$(OBJC_LINK) \
-	ipc_remote.o netframework.o clinetframework.o tcpserver.o tcpclient.o \
+	psutils.o ipc_remote.o netframework.o clinetframework.o tcpserver.o tcpclient.o \
 	timetracker.o drone_kisnetframe.o \
 	packetsourcetracker.o packetchain.o $(CAPSOURCES) \
 	dumpfile.o dumpfile_tuntap.o \
