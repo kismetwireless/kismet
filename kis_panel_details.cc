@@ -2045,7 +2045,7 @@ Kis_AlertDetails_Panel::Kis_AlertDetails_Panel(GlobalRegistry *in_globalreg,
 	titles.push_back(t);
 
 	alertdetails->AddTitles(titles);
-	alertdetails->SetPreferredSize(0, 5);
+	alertdetails->SetPreferredSize(0, 6);
 	alertdetails->Show();
 
 	SetTitle("");
@@ -2056,7 +2056,7 @@ Kis_AlertDetails_Panel::Kis_AlertDetails_Panel(GlobalRegistry *in_globalreg,
 	vbox->SetSpacing(0);
 	vbox->Show();
 
-	vbox->Pack_End(alertlist, 0, 0);
+	vbox->Pack_End(alertlist, 1, 0);
 	vbox->Pack_End(alertdetails, 0, 0);
 
 	AddComponentVec(vbox, KIS_PANEL_COMP_DRAW);

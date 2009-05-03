@@ -249,6 +249,45 @@ protected:
 	KisPanelInterface::knc_alert *last_alert, *last_selected;
 };
 
+class Kis_RegDetails_Panel : public Kis_Panel {
+public:
+	Kis_RegDetails_Panel() {
+		fprintf(stderr, "FATAL OOPS: Kis_RegDetails_Panel called w/out globalreg\n");
+		exit(1);
+	}
+
+	Kis_RegDetails_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_kpf);
+	virtual ~Kis_RegDetails_Panel();
+
+	virtual void DrawPanel();
+	virtual void MenuAction(int opt);
+
+	// Map country settings to a range of networks, one of these per
+	// country + channel range we've seen.  Divergent power ranges inside
+	// an advertised country will show up as different regblocks
+	struct reg_block {
+		string dot11d_country;
+		vector<dot11d_range_info> dot11d_vec;
+		vector<Kis_Display_NetGroup *> netgroup_vec;
+	};
+
+protected:
+	virtual void UpdateSortMenu(int mi);
+	virtual int UpdateSortPrefs();
+
+	Kis_Panel_Packbox *vbox;
+	Kis_Scrollable_Table *reglist;
+	Kis_Scrollable_Table *alertlist, *alertdetails;
+
+	alertsort_opts sort_mode;
+
+	int mn_alert, mi_close;
+	int mn_sort, mi_time, mi_latest, mi_type, mi_bssid;
+
+	vector<reg_block *> regblock_vec;
+
+};
+
 #endif
 
 #endif

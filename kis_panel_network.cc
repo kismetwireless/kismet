@@ -512,6 +512,9 @@ Kis_Netlist::Kis_Netlist(GlobalRegistry *in_globalreg, Kis_Panel *in_panel) :
 	asm_bssidsrc_num = TokenNullJoin(&asm_bssidsrc_fields, bssidsrc_fields);
 	asm_clisrc_num = TokenNullJoin(&asm_clisrc_fields, clisrc_fields);
 
+	draw_vec = &display_vec;
+	filter_dirty = 0;
+
 	// Set default preferences for BSSID columns if we don't have any in the
 	// preferences file, then update the column vector
 	UpdateBColPrefs();
@@ -576,8 +579,8 @@ int Kis_Netlist::UpdateBColPrefs() {
 				 MSGFLAG_INFO);
 	}
 	
-	for (unsigned int x = 0; x < display_vec.size(); x++) {
-		display_vec[x]->SetDispDirty(1);
+	for (unsigned int x = 0; x < draw_vec->size(); x++) {
+		(*draw_vec)[x]->SetDispDirty(1);
 	}
 
 	return 1;
@@ -749,6 +752,7 @@ void Kis_Netlist::NetClientAdd(KisNetClient *in_cli, int add) {
 		delete display_vec[x];
 	}
 	display_vec.clear();
+	filter_display_vec.clear();
 	netgroup_asm_map.clear();
 
 	probe_autogroup = NULL;
@@ -758,6 +762,23 @@ void Kis_Netlist::NetClientAdd(KisNetClient *in_cli, int add) {
 	// Add a client configured callback to the new client so we can load
 	// our protocols
 	in_cli->AddConfCallback(KisNetlist_Configured, 1, this);
+}
+
+void Kis_Netlist::SetFilter(vector<mac_addr> filter, int display_only) {
+	filter_vec = filter;
+	display_filter_only = display_only;
+
+	filter_dirty = 1;
+
+	filter_display_vec.clear();
+
+	// Reset the vector we render if we have a filter
+	if (filter_vec.size() != 0)
+		draw_vec = &filter_display_vec;
+	else
+		draw_vec = &display_vec;
+
+	UpdateTrigger();
 }
 
 void Kis_Netlist::SetPosition(int isx, int isy, int iex, int iey) {
@@ -1879,6 +1900,13 @@ int Kis_Netlist::DeleteGroup(Kis_Display_NetGroup *in_group) {
 		}
 	}
 
+	for (unsigned int x = 0; x < filter_display_vec.size(); x++) {
+		if (filter_display_vec[x] == in_group) {
+			filter_display_vec.erase(filter_display_vec.begin() + x);
+			break;
+		}
+	}
+
 	vector<Netracker::tracked_network *> *nv = in_group->FetchNetworkVec();
 
 	// Shift all the networks into the dirty vector, unlink them from the
@@ -1914,6 +1942,22 @@ void Kis_Netlist::UpdateTrigger(void) {
 	// This code exposes some nasty problems with the macmap iterators,
 	// namely that they're always pointers no matter what.  Some day, this
 	// could get fixed.
+
+	// If we've changed the filter, re-filter all the existing display stuff
+	if (filter_dirty) {
+		for (unsigned int x = 0; x < display_vec.size(); x++) {
+			if (display_vec[x]->FetchNetwork() == NULL)
+				continue;
+
+			for (unsigned int y = 0; y < filter_vec.size(); y++) {
+				if (filter_vec[y] == display_vec[x]->FetchNetwork()->bssid) {
+					break;
+				}
+			}
+		}
+
+		filter_dirty = 0;
+	}
 	
 	// Show extended info?
 	if (kpinterface->prefs->FetchOpt("NETLIST_SHOWEXT") == "0")
@@ -2043,6 +2087,16 @@ void Kis_Netlist::UpdateTrigger(void) {
 		if (nsmi == netgroup_stored_map.end()) {
 			ng = new Kis_Display_NetGroup(net);
 			netgroup_asm_map.insert(net->bssid, ng);
+
+			// Add it to our filter vec
+			for (unsigned int f = 0; f < filter_vec.size(); f++) {
+				if (filter_vec[f] == net->bssid) {
+					filter_display_vec.push_back(ng);
+					break;
+				}
+			}
+
+			// Add it to our normal display vec
 			display_vec.push_back(ng);
 			continue;
 		}
@@ -2061,6 +2115,15 @@ void Kis_Netlist::UpdateTrigger(void) {
 			// dirty vector, because it gets linked instantly
 			Kis_Display_NetGroup *ng = new Kis_Display_NetGroup(net);
 			netgroup_asm_map.insert(*(nsmi->second), ng);
+
+			// Add it to our filter vec
+			for (unsigned int f = 0; f < filter_vec.size(); f++) {
+				if (filter_vec[f] == *(nsmi->second)) {
+					filter_display_vec.push_back(ng);
+					break;
+				}
+			}
+
 			display_vec.push_back(ng);
 		}
 	}
@@ -2382,6 +2445,8 @@ int Kis_Netlist::PrintNetworkLine(Kis_Display_NetGroup *ng,
 }
 
 void Kis_Netlist::DrawComponent() {
+	vector<Kis_Display_NetGroup *> *draw_vec = NULL;
+
 	if (visible == 0)
 		return;
 
@@ -2426,8 +2491,13 @@ void Kis_Netlist::DrawComponent() {
 	char *pline;
 	string pt;
 
+	if (filter_display_vec.size() > 0)
+		draw_vec = &filter_display_vec;
+	else
+		draw_vec = &display_vec;
+
 	if ((sort_mode != netsort_autofit && sort_mode != netsort_recent) &&
-		(selected_line < first_line || selected_line > (int) display_vec.size()))
+		(selected_line < first_line || selected_line > (int) draw_vec->size()))
 		selected_line = first_line;
 
 	// Get any updated columns
@@ -2535,7 +2605,7 @@ void Kis_Netlist::DrawComponent() {
 									  "\004u" + pcache + "\004U", 
 									  ex - sx);
 
-	if (display_vec.size() == 0) {
+	if (draw_vec->size() == 0) {
 		if (active)
 			wattrset(window, color_map[kis_netlist_color_normal]);
 
@@ -2556,9 +2626,9 @@ void Kis_Netlist::DrawComponent() {
 
 	// For as many lines as we can fit
 	int dpos = 1;
-	for (unsigned int x = first_line; x < display_vec.size() && 
+	for (unsigned int x = first_line; x < draw_vec->size() && 
 		 dpos <= viewable_lines; x++) {
-		Kis_Display_NetGroup *ng = display_vec[x];
+		Kis_Display_NetGroup *ng = (*draw_vec)[x];
 		Netracker::tracked_network *meta = ng->FetchNetwork();
 		int color = -1;
 
@@ -2820,7 +2890,7 @@ void Kis_Netlist::DrawComponent() {
 						// recover some lines.  selected is the raw # in dv,
 						// not the visual offset, so we don't have to play any
 						// games there.
-						recovered_lines += display_vec[first_line]->GetNLines();
+						recovered_lines += (*draw_vec)[first_line]->GetNLines();
 						first_line++;
 					}
 				}
@@ -2873,7 +2943,7 @@ void Kis_Netlist::DrawComponent() {
 					if (recovered_lines > 0) {
 						recovered_lines--;
 					} else {
-						recovered_lines += display_vec[first_line]->GetNLines();
+						recovered_lines += (*draw_vec)[first_line]->GetNLines();
 						first_line++;
 					}
 				}
@@ -2935,7 +3005,7 @@ int Kis_Netlist::KeyPress(int in_key) {
 		// If we're at the bottom and we can go further, slide the selection
 		// and the first line down
 		if (selected_line == last_line &&
-			last_line < (int) display_vec.size() - 1) {
+			last_line < (int) draw_vec->size() - 1) {
 			selected_line++;
 			first_line++;
 		} else if (selected_line != last_line) {
@@ -2971,16 +3041,16 @@ int Kis_Netlist::KeyPress(int in_key) {
 			return 0;
 		}
 
-		first_line = kismin((int) display_vec.size() - 1, 
+		first_line = kismin((int) draw_vec->size() - 1, 
 							first_line + viewable_lines);
 		selected_line = first_line;
 	} else if (in_key == ' ') {
 		if (selected_line < 0 || selected_line > last_line ||
-			selected_line >= (int) display_vec.size()) {
+			selected_line >= (int) draw_vec->size()) {
 			return 0;
 		}
 
-		Kis_Display_NetGroup *ng = display_vec[selected_line];
+		Kis_Display_NetGroup *ng = (*draw_vec)[selected_line];
 
 		if (ng->FetchNumNetworks() <= 1)
 			return 0;
@@ -2995,10 +3065,10 @@ int Kis_Netlist::KeyPress(int in_key) {
 }
 
 Kis_Display_NetGroup *Kis_Netlist::FetchSelectedNetgroup() {
-	if (selected_line < 0 || selected_line >= (int) display_vec.size())
+	if (selected_line < 0 || selected_line >= (int) draw_vec->size())
 		return NULL;
 
-	return display_vec[selected_line];
+	return (*draw_vec)[selected_line];
 }
 
 const char *info_bits_details[][2] = {

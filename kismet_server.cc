@@ -328,7 +328,7 @@ void CatchShutdown(int sig) {
 		globalregistry->plugintracker->ShutdownPlugins();
 
 	// Start a short shutdown cycle for 2 seconds
-	fprintf(stderr, "\n*** KISMET IS FLUSHING BUFFERS AND SHUTTING DOWN ***\n");
+	fprintf(stderr, "\n*** KISMET IS SHUTTING DOWN ***\n");
 	time_t shutdown_target = time(0) + 2;
 	int max_fd = 0;
 	fd_set rset, wset;
@@ -394,6 +394,11 @@ void CatchShutdown(int sig) {
     // Dump fatal errors again
     if (fqmescli != NULL && globalregistry->fatal_condition) 
         fqmescli->DumpFatals();
+
+	fprintf(stderr, "NOTE: Kismet changes the configuration of network devices.  \n"
+					"In most cases you will need to restart networking on your \n"
+					"interface (varies per distribution/OS, but usually:\n"
+					"  \"/etc/init.d/networking restart\n\n");
 
     fprintf(stderr, "Kismet exiting.\n");
     exit(0);

@@ -215,6 +215,10 @@ public:
 	// Added a client in the panel interface
 	void NetClientAdd(KisNetClient *in_cli, int add);
 
+	// Filter display (vector of MAC/Mac-masks to filter, display_only == 1 for
+	// only displaying networks which match the filter, 0 for only which do not
+	void SetFilter(vector<mac_addr> filter, int display_only);
+
 	// Kismet protocol parsers
 	void Proto_BSSID(CLIPROTO_CB_PARMS);
 	void Proto_SSID(CLIPROTO_CB_PARMS);
@@ -230,7 +234,7 @@ public:
 
 	// Fetch a pointer to the display vector (don't change this!  bad things will
 	// happen!)
-	vector<Kis_Display_NetGroup *> *FetchDisplayVector() { return &display_vec; }
+	vector<Kis_Display_NetGroup *> *FetchDisplayVector() { return draw_vec; }
 
 	// Return sort mode
 	netsort_opts FetchSortMode() { return sort_mode; }
@@ -295,6 +299,9 @@ protected:
 	
 	// Vector of displayed network groups
 	vector<Kis_Display_NetGroup *> display_vec;
+	// Vector of filtered displayed network groups
+	vector<Kis_Display_NetGroup *> filter_display_vec;
+	vector<Kis_Display_NetGroup *> *draw_vec;
 
 	// Assembled groups - GID to Group object
 	macmap<Kis_Display_NetGroup *> netgroup_asm_map;
@@ -306,6 +313,10 @@ protected:
 	vector<bssid_columns> display_bcols;
 	// Extras we display
 	vector<bssid_extras> display_bexts;
+
+	// Filtering
+	vector<mac_addr> filter_vec;
+	int display_filter_only, filter_dirty;
 
 	// Show extended info
 	int show_ext_info;
