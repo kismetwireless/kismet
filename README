@@ -367,6 +367,14 @@ http://www.kismetwireless.net
 
       Combining managed and monitor VAPs appears to still not work well.
 
+    RT2870 (Linux)
+
+      Some distributions seem to favor the out-of-kernel nonstandard
+      rt2870sta drivers instead of the mac80211 standard drivers.  These
+      drivers cannot be autodetected (they don't provide a valid identifier
+      in /sys) so the driver type 'rt2870sta' must be given on the source
+      line.
+
     WL (Linux)
 
       Broadcom has released a binary version of their drivers called WL.

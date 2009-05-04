@@ -198,6 +198,8 @@ int PacketSource_Wext::AutotypeProbe(string in_device) {
 		sysdriver == "rt2400pci" || sysdriver == "rt61pci" ||
 		sysdriver == "rtl8180"  || sysdriver == "zd1201" ||
 		sysdriver == "rtl8187" || sysdriver == "zd1211rw" ||
+		// These don't seem to work but i'll autodet anyhow
+		sysdriver == "rt2870sta" ||
 		//  These drivers don't behave sanely but throw errors when we open them
 		sysdriver == "wl" || sysdriver == "orinoco" || 
 		sysdriver == "orinoco_cs") {
@@ -272,6 +274,7 @@ int PacketSource_Wext::RegisterSources(Packetsourcetracker *tracker) {
 	tracker->RegisterPacketProto("zd1211rw", this, "IEEE80211b", 1);
 	tracker->RegisterPacketProto("wext", this, "IEEE80211b", 1);
 	tracker->RegisterPacketProto("mac80211", this, "IEEE80211b", 1);
+	tracker->RegisterPacketProto("rt2870sta", this, "IEEE80211b", 1);
 
 	return 1;
 }
