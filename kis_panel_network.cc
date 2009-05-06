@@ -63,7 +63,7 @@ const common_col_pref bssid_extras_details[] = {
 	{ "lastseen", "Last seen timestamp", bext_lastseen },
 	{ "bssid", "BSSID", bext_bssid },
 	{ "crypt", "Encryption types", bext_crypt },
-	{ "ip", "IP Address Guess", bext_manuf },
+	{ "ip", "IP Address Guess", bext_ip },
 	{ "manuf", "Manufacturer info", bext_manuf },
 	{ "seenby", "Sources that have seen this network", bext_seenby },
 	{ NULL, NULL}
