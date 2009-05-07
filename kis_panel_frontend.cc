@@ -233,7 +233,7 @@ void KisPanelInterface::proto_INFO(CLIPROTO_CB_PARMS) {
 	}
 
 	int fnum = 0;
-	int tint;
+	int tint = 0;
 
 	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tint) != 1)
 		return;
@@ -298,6 +298,8 @@ KisPanelInterface::KisPanelInterface() {
 KisPanelInterface::KisPanelInterface(GlobalRegistry *in_globalreg) :
 	PanelInterface(in_globalreg) {
 	globalreg = in_globalreg;
+
+	network_client = NULL;
 
 	prefs = new ConfigFile(globalreg);
 
@@ -481,6 +483,7 @@ void KisPanelInterface::NetClientConfigure(KisNetClient *in_cli, int in_recon) {
 
 	warned_no_sources = 0;
 	warned_all_errors = 0;
+	num_source_errors = 0;
 
 	if (in_recon)
 		return;

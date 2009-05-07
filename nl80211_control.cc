@@ -395,9 +395,14 @@ string mac80211_find_parent(const char *interface) {
 		return "";
 
 	while ((devfile = readdir(devdir)) != NULL) {
+		if (strlen(devfile->d_name) < 13)
+			continue;
+
 		if (strncmp("ieee80211:phy", devfile->d_name, 13) == 0) {
+			string dev = string(devfile->d_name + 10);
+
 			closedir(devdir);
-			return (string(devfile->d_name + 10));
+			return dev;
 		}
 	}
 

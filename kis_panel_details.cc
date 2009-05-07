@@ -2309,6 +2309,8 @@ Kis_RegDetails_Panel::Kis_RegDetails_Panel(GlobalRegistry *in_globalreg,
 
 	SetActiveComponent(reglist);
 
+	main_netlist = kpinterface->FetchMainPanel()->FetchDisplayNetlist();
+
 	Position(WIN_CENTER(LINES, COLS));
 }
 
@@ -2317,6 +2319,12 @@ Kis_RegDetails_Panel::~Kis_RegDetails_Panel() {
 }
 
 void Kis_RegDetails_Panel::DrawPanel() {
+	// Kind of ugly but it's a specialty panel
+	if (main_netlist == NULL)
+		return;
+
+	vector<Kis_Display_NetGroup *> *display_vctor = main_netlist->FetchDisplayVector();
+
 
 }
 

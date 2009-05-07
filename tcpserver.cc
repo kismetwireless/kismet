@@ -15,6 +15,8 @@ TcpServer::TcpServer(GlobalRegistry *in_globalreg) : NetworkServer(in_globalreg)
     max_fd = 0;
 
 	int_ring_len = SRV_RING_LEN;
+
+    FD_ZERO(&server_fdset);
 }
 
 TcpServer::~TcpServer() {

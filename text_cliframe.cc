@@ -59,7 +59,7 @@ void TextCliFrame::RemoveCallback(int in_id) {
 }
 
 int TextCliFrame::ParseData() {
-	int len, rlen, roft = 0;
+	int len, rlen = 0, roft = 0;
 	char *buf;
 	string strbuf;
 

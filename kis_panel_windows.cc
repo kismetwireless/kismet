@@ -1321,6 +1321,7 @@ void Kis_Prompt_Panel::SetDisplayText(vector<string> in_text) {
 }
 
 Kis_Prompt_Panel::~Kis_Prompt_Panel() {
+	delete bbox;
 }
 
 void Kis_Prompt_Panel::ButtonAction(Kis_Panel_Component *component) {
@@ -1457,6 +1458,7 @@ Kis_Spawn_Panel::Kis_Spawn_Panel(GlobalRegistry *in_globalreg,
 }
 
 Kis_Spawn_Panel::~Kis_Spawn_Panel() {
+	delete bbox;
 }
 
 void Kis_Spawn_Panel::ButtonAction(Kis_Panel_Component *component) {

@@ -274,7 +274,7 @@ public:
 protected:
 	Kis_Panel_Packbox *vbox;
 	Kis_Scrollable_Table *reglist;
-	Kis_Netlist *netlist;
+	Kis_Netlist *netlist, *main_netlist;
 	Kis_Free_Text *text;
 
 	int mn_regd, mi_close;

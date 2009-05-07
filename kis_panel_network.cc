@@ -475,20 +475,7 @@ Kis_Netlist::Kis_Netlist(GlobalRegistry *in_globalreg, Kis_Panel *in_panel) :
 	viewable_cols = 0;
 
 	sort_mode = netsort_autofit;
-
-	// Add the addcli reference.  This also kicks off adding it for any
-	// active clients, so we'd better be ready (IE, leave this at the end 
-	// of the constructor)....
-	//
-	// New (and current) clients -> AddCli
-	// AddCli -> Netlist instance AddCli
-	// NetlistAddcli -> Add ConfigureCB
-	// ConfigureCB -> Netlist instance ConfigureCB
-	// NetlistConfigureCB -> RegisterProtoHandler
-	//
-	// Good crap.
-	addref = kpinterface->Add_NetCli_AddCli_CB(KisNetlist_AddCli, (void *) this);
-
+	
 	updateref = globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC,
 													  NULL, 1, 
 													  &Event_Netlist_Update,
@@ -520,6 +507,8 @@ Kis_Netlist::Kis_Netlist(GlobalRegistry *in_globalreg, Kis_Panel *in_panel) :
 	UpdateBColPrefs();
 	UpdateBExtPrefs();
 	UpdateSortPrefs();
+
+	addref = kpinterface->Add_NetCli_AddCli_CB(KisNetlist_AddCli, (void *) this);
 }
 
 Kis_Netlist::~Kis_Netlist() {

@@ -327,8 +327,11 @@ int GPSDClient::ParseData() {
 
 			if (sscanf(ggavec[9].c_str(), "%f", &in_spd) != 1)
 				use_spd = 0;
-			else if (si_units == 0)
+
+#if 0
+			if (si_units == 0)
 				in_spd *= 0.514; /* Speed in meters/sec from knots */
+#endif
 
 			use_mode = 1;
 			use_coord = 1;
@@ -344,6 +347,7 @@ int GPSDClient::ParseData() {
 
 			use_mode = 1;
 			use_data = 1;
+			/*
 		} else if (si_raw && inptok[it].substr(0, 6) == "$GPVTG") {
 			vector<string> vtvec = StrTokenize(inptok[it], ",");
 
@@ -355,6 +359,7 @@ int GPSDClient::ParseData() {
 
 			use_spd = 1;
 			use_data = 1;
+			*/
 		} else if (si_raw && inptok[it].substr(0, 6) == "$GPGGA") {
 			vector<string> gavec = StrTokenize(inptok[it], ",");
 			int tint;
@@ -457,12 +462,12 @@ int GPSDClient::ParseData() {
 	if (use_alt)
 		alt = in_alt; // * 3.3;
 
-	// For some reason this is reported in KNOTS.  Great.  So turn it into 
-	// feet and then meters so we report metric internally
-	if (use_spd)
-		spd = (in_spd * 6076.12) / 3.2808;
-
-		//spd = in_spd * (6076.12 / 5280);
+	// If we're using speed,and if we're in the older gpsd that provides it in
+	// knots, convert it, otherwise it's already meters/sec
+	if (use_spd) {
+		if (si_units == 0)
+			in_spd *= 0.514; /* Speed in meters/sec from knots */
+	}
 
 	if (use_hed) {
 		last_hed = hed;
