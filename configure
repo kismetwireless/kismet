@@ -6555,6 +6555,7 @@ fi
 
 
 # Do we need to use -ldl?
+usedl=0
 { $as_echo "$as_me:$LINENO: checking for dlopen in -ldl" >&5
 $as_echo_n "checking for dlopen in -ldl... " >&6; }
 if test "${ac_cv_lib_dl_dlopen+set}" = set; then
@@ -6621,12 +6622,17 @@ fi
 { $as_echo "$as_me:$LINENO: result: $ac_cv_lib_dl_dlopen" >&5
 $as_echo "$ac_cv_lib_dl_dlopen" >&6; }
 if test "x$ac_cv_lib_dl_dlopen" = x""yes; then
-  LIBS="$LIBS -ldl"
+  usedl=1
 else
   { $as_echo "$as_me:$LINENO: WARNING: libdl doesn't seem to be needed on this system" >&5
 $as_echo "$as_me: WARNING: libdl doesn't seem to be needed on this system" >&2;}
 fi
 
+
+if test "$usedl" -eq 1; then
+	LIBS="$LIBS -ldl"
+	CLIENTCLIBS="$CLIENTCLIBS -ldl"
+fi
 
 # sqlite3=yes
 # AC_CHECK_HEADER([sqlite3.h],

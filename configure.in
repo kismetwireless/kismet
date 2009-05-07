@@ -279,9 +279,15 @@ CFLAGS="$OCFL"
 AC_SYS_LARGEFILE
 
 # Do we need to use -ldl?
+usedl=0
 AC_CHECK_LIB([dl], [dlopen], 
-			 LIBS="$LIBS -ldl",
+			usedl=1,
 			 AC_MSG_WARN([libdl doesn't seem to be needed on this system]))
+
+if test "$usedl" -eq 1; then
+	LIBS="$LIBS -ldl"
+	CLIENTCLIBS="$CLIENTCLIBS -ldl"
+fi
 
 # sqlite3=yes
 # AC_CHECK_HEADER([sqlite3.h],
