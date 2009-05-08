@@ -1287,6 +1287,8 @@ Netracker::Netracker(GlobalRegistry *in_globalreg) {
 		globalreg->alertracker->ActivateConfiguredAlert("DHCPNAMECHANGE");
 	alert_dhcpos_ref =
 		globalreg->alertracker->ActivateConfiguredAlert("DHCPOSCHANGE");
+	alert_adhoc_ref =
+		globalreg->alertracker->ActivateConfiguredAlert("ADHOCCONFLICT");
 
 	// Register timer kick
 	netrackereventid = 
@@ -1532,15 +1534,28 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 		// Everything else needs to change with new frames so we fill it in
 		// outside of the new network code, obviously
 	} else {
-		// Update network types for existing networks
-		if (packinfo->distrib == distrib_adhoc) {
-			// Adhoc gets the network mode flopped
-			net->type = network_adhoc;
+		if (packinfo->distrib == distrib_adhoc && net->type == network_ap) {
+			if (globalreg->alertracker->PotentialAlert(alert_adhoc_ref)) {
+
+				string al = "Network BSSID " + net->bssid.Mac2String() + 
+					" advertised as AP network, now advertising as Ad-Hoc IBSS, "
+					"which may indicate AP spoofing/impersonation";
+
+				globalreg->alertracker->RaiseAlert(alert_adhoc_ref, in_pack, 
+												   packinfo->bssid_mac, 
+												   packinfo->source_mac, 
+												   packinfo->dest_mac, 
+												   packinfo->other_mac, 
+												   packinfo->channel, al);
+
+			}
 		} else if (packinfo->type == packet_management && packinfo->ess &&
 				   net->type == network_data) {
 			// Management frames from an AP on a data-only network turn it into
 			// an AP network
 			net->type = network_ap;
+		} else if (packinfo->distrib == distrib_adhoc) {
+			net->type = network_adhoc;
 		}
 	}
 

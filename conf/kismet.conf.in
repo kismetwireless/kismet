@@ -160,6 +160,7 @@ tuntap_device=kistap0
 # limit the number of alerts to 10 per minute.
 # A throttle rate of 0 disables throttling of the alert.
 # See the README for a list of alert types.
+alert=ADHOCCONFLICT,5/min,1/sec
 alert=AIRJACKSSID,5/min,1/sec
 alert=BCASTDISCON,5/min,2/sec
 alert=BSSTIMESTAMP,5/min,1/sec
