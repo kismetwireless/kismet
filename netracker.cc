@@ -1731,6 +1731,12 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 			net->freq_mhz_map[l1info->freq_mhz]++;
 		else
 			net->freq_mhz_map[l1info->freq_mhz] = 1;
+
+		if (cli->freq_mhz_map.find(l1info->freq_mhz) != 
+			cli->freq_mhz_map.end())
+			cli->freq_mhz_map[l1info->freq_mhz]++;
+		else
+			cli->freq_mhz_map[l1info->freq_mhz] = 1;
 	}
 
 	// Extract info from probe request frames if its a probe network
@@ -1898,14 +1904,6 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 			// carry the beacon
 			net->channel = FreqToChan(l1info->freq_mhz);
 			cli->channel = net->channel;
-		}
-
-		if (l1info != NULL) {
-			if (cli->freq_mhz_map.find(l1info->freq_mhz) != 
-				cli->freq_mhz_map.end())
-				cli->freq_mhz_map[l1info->freq_mhz]++;
-			else
-				cli->freq_mhz_map[l1info->freq_mhz] = 1;
 		}
 
 		// Copy the dot11d data
