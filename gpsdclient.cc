@@ -112,6 +112,7 @@ int GPSDClient::Timer() {
     // Timed backoff up to 30 seconds
     if (netclient->Valid() == 0 && reconnect_attempt >= 0 &&
         (time(0) - last_disconnect >= (kismin(reconnect_attempt, 6) * 5))) {
+
         if (Reconnect() <= 0)
             return 0;
     }
@@ -122,8 +123,9 @@ int GPSDClient::Timer() {
 		if (time(0) - last_update > 15) {
 			_MSG("No update from GPSD in 15 seconds or more, attempting to "
 				 "reconnect", MSGFLAG_ERROR);
+
 			netclient->KillConnection();
-			last_disconnect = time(0);
+			last_update = last_disconnect = time(0);
 			return GPSCore::Timer();
 		}
 
