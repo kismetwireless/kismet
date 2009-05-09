@@ -910,38 +910,40 @@ int PacketSource_Pcap::PPI2KisPack(kis_packet *packet, kis_datachunk *linkchunk)
 
 				if ((fields_present & PPI_GPS_FLAG_LAT) &&
 					(fields_present & PPI_GPS_FLAG_LON) &&
-					gps_len >= 8) {
+					gps_len - data_offt >= 8) {
 
 					if (gpsinfo == NULL)
 						gpsinfo = new kis_gps_packinfo;
 
 					u = (block *) &(ppigps->field_data[data_offt]);
-					gpsinfo->lon = lon_to_double(kis_letoh32(u->u32));
-					data_offt += 4;
-
-					u = (block *) &(ppigps->field_data[data_offt]);
 					gpsinfo->lat = lat_to_double(kis_letoh32(u->u32));
 					data_offt += 4;
 
-					if ((fields_present & PPI_GPS_FLAG_ALT) && gps_len >= 12) {
-						gpsinfo->gps_fix = 3;
+					u = (block *) &(ppigps->field_data[data_offt]);
+					gpsinfo->lon = lon_to_double(kis_letoh32(u->u32));
+					data_offt += 4;
 
-						u = (block *) &(ppigps->field_data[data_offt]);
-						gpsinfo->alt = alt_to_double(kis_letoh32(u->u32));
-						data_offt += 4;
-					} else {
-						gpsinfo->gps_fix = 2;
-						gpsinfo->alt = 0;
-					}
-
-					gpsinfo->spd = 0;
-					gpsinfo->heading = 0;
-
-					// fprintf(stderr, "debug - gps packet %f %f %f\n", gpsinfo->lat, gpsinfo->lon, gpsinfo->alt);
-
-					packet->insert(_PCM(PACK_COMP_GPS), gpsinfo);
+					gpsinfo->gps_fix = 2;
+					gpsinfo->alt = 0;
 				}
 
+				if ((fields_present & PPI_GPS_FLAG_SPD) &&
+					gps_len - data_offt >= 4) {
+
+					u = (block *) &(ppigps->field_data[data_offt]);
+					gpsinfo->spd = lon_to_double(kis_letoh32(u->u32));
+					data_offt += 4;
+				}
+
+				if ((fields_present & PPI_GPS_FLAG_ALT) && gps_len - data_offt >= 4) {
+					gpsinfo->gps_fix = 3;
+
+					u = (block *) &(ppigps->field_data[data_offt]);
+					gpsinfo->alt = alt_to_double(kis_letoh32(u->u32));
+					data_offt += 4;
+				}
+
+				packet->insert(_PCM(PACK_COMP_GPS), gpsinfo);
 			}
 		}
 	}
