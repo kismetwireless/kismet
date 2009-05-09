@@ -2161,6 +2161,19 @@ int Netracker::datatracker_chain_handler(kis_packet *in_pack) {
 
 	cli = clipackinfo->cliref;
 
+	kis_datachunk *chunk = 
+		(kis_datachunk *) in_pack->fetch(_PCM(PACK_COMP_MANGLEFRAME));
+
+	if (chunk == NULL) {
+		if ((chunk = 
+			 (kis_datachunk *) in_pack->fetch(_PCM(PACK_COMP_80211FRAME))) == NULL) {
+			if ((chunk = (kis_datachunk *) 
+				 in_pack->fetch(_PCM(PACK_COMP_LINKFRAME))) == NULL) {
+				return 0;
+			}
+		}
+	}
+
 	// Apply the network-level stuff
 	if (packinfo->source_mac == net->bssid) {
 		// Things that come from the MAC of the AP carry special weight.  

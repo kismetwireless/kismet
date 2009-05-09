@@ -199,7 +199,6 @@ public:
 		channel = 0;
         encrypted = 0;
         beacon_interval = 0;
-        ivset = 0;
         maxrate = 0;
         timestamp = 0;
         sequence_number = 0;
@@ -260,8 +259,6 @@ public:
     // Some cisco APs seem to fill in this info field
 	string beacon_info;
 
-    uint32_t ivset;
-
     double maxrate;
 
     uint64_t timestamp;
@@ -314,6 +311,7 @@ public:
 		ip_netmask_addr.s_addr = 0;
 		ip_gateway_addr.s_addr = 0;
 		field1 = 0;
+        ivset[0] = ivset[1] = ivset[2] = 0;
 	}
 
 	kis_protocol_info_type proto;
@@ -335,6 +333,9 @@ public:
 
 	// DHCP Discover data
 	string discover_host, discover_vendor;
+
+	// IV
+	uint8_t ivset[3];
 
 	// An extra field that can be filled in
 	int field1;

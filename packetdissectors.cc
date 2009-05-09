@@ -1278,11 +1278,6 @@ int KisBuiltinDissector::basicdata_dissector(kis_packet *in_pack) {
 		 packinfo->subtype != packet_sub_data_qos_data))
 		return 0;
 
-	// If it's encrypted and hasn't been decrypted, we can't do anything
-	// smart with it, so toss.
-	if (packinfo->cryptset != 0 && packinfo->decrypted == 0)
-		return 0;
-	
 	// Grab the mangled frame if we have it, then try to grab up the list of
 	// data types and die if we can't get anything
 	kis_datachunk *chunk = 
@@ -1303,7 +1298,23 @@ int KisBuiltinDissector::basicdata_dissector(kis_packet *in_pack) {
         return 0;
 
 	unsigned int header_offset = packinfo->header_offset;
-	
+
+	// If it's wep, get the IVs
+	if (chunk->length > header_offset + 3 &&
+		packinfo->cryptset == crypt_wep) {
+
+		datainfo = new kis_data_packinfo;
+
+		memcpy(datainfo->ivset, &(chunk->data[header_offset]), 3);
+
+		in_pack->insert(_PCM(PACK_COMP_BASICDATA), datainfo);
+		return 1;
+	}
+
+	// We can't do anything else if it's encrypted
+	if (packinfo->cryptset != 0 && packinfo->decrypted == 0)
+		return 0;
+
 	datainfo = new kis_data_packinfo;
 
 	if (chunk->length > header_offset + LLC_UI_OFFSET + 
