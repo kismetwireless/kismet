@@ -220,11 +220,9 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 
 		if (gpsdata != NULL) {
 			if (gpsdata->gps_fix >= 2)
-				ppi_len += sizeof(ppi_gps_hdr) + 8;
+				ppi_len += sizeof(ppi_gps_hdr) + 12;
 			if (gpsdata->gps_fix > 2)
 				ppi_len += 4;
-
-			// printf("debug - got gps data fix %d ppi_len %d\n", gpsdata->gps_fix, ppi_len);
 		}
 
 		if (dump_len == 0 && ppi_len == 0)
@@ -330,20 +328,25 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 
 				ppigps->pfh_datatype = kis_htole16(PPI_FIELD_GPS);
 				// Header + lat/lon minus PPI overhead.  Fix this later.
-				ppigps->pfh_datalen = sizeof(ppi_gps_hdr) + 8 - 4;
+				ppigps->pfh_datalen = sizeof(ppi_gps_hdr) + 12 - 4;
 
 				ppigps->version = 0;
-				ppigps->pad = 0;
+				ppigps->magic = PPI_GPS_MAGIC;
 				ppigps->gps_len = sizeof(ppi_gps_hdr) + 8;
 
-				ppigps->fields_present = PPI_GPS_FLAG_LAT | PPI_GPS_FLAG_LON;
+				ppigps->fields_present = PPI_GPS_FLAG_LAT | PPI_GPS_FLAG_LON |
+					PPI_GPS_FLAG_SPD;
+
+				u = (block *) &(ppigps->field_data[ppi_int_offt]);
+				u->u32 = kis_htole32(lon_to_uint32(gpsdata->lon));
+				ppi_int_offt += 4;
 
 				u = (block *) &(ppigps->field_data[ppi_int_offt]);
 				u->u32 = kis_htole32(lat_to_uint32(gpsdata->lat));
 				ppi_int_offt += 4;
 
 				u = (block *) &(ppigps->field_data[ppi_int_offt]);
-				u->u32 = kis_htole32(lon_to_uint32(gpsdata->lon));
+				u->u32 = kis_htole32(alt_to_uint32(gpsdata->spd));
 				ppi_int_offt += 4;
 			
 				if (gpsdata->gps_fix > 2) {

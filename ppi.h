@@ -48,7 +48,7 @@ typedef struct {
 #define PPI_FIELD_SPECMAP		5
 #define PPI_FIELD_PROCINFO		6
 #define PPI_FIELD_CAPINFO		7
-#define PPI_FIELD_GPS			30002
+#define PPI_FIELD_GPS			30003
 
 typedef struct {
 	uint16_t pfh_datatype;
@@ -80,15 +80,18 @@ typedef struct {
 	uint16_t pfh_datatype;
 	uint16_t pfh_datalen;
 	uint8_t version;
-	uint8_t pad;
+	uint8_t magic;
 	uint16_t gps_len;
 	uint32_t fields_present;
 	uint8_t field_data[0];
 } ppi_gps_hdr;
 
-#define PPI_GPS_FLAG_LAT			2
-#define PPI_GPS_FLAG_LON			4
-#define PPI_GPS_FLAG_ALT			8
+#define PPI_GPS_MAGIC				0xCF
+
+#define PPI_GPS_FLAG_LON			2
+#define PPI_GPS_FLAG_LAT			4
+#define PPI_GPS_FLAG_SPD			8
+#define PPI_GPS_FLAG_ALT			16
 
 #define PPI_80211_FLAG_FCS			1
 #define PPI_80211_FLAG_TSFMS		2
