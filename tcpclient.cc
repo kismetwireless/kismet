@@ -83,8 +83,10 @@ int TcpClient::Connect(const char *in_remotehost, short int in_port) {
     read_buf = new RingBuffer(CLI_RING_LEN);
     write_buf = new RingBuffer(CLI_RING_LEN);
 
+	/*
     snprintf(errstr, 1024, "TcpClient connected to %s:%hd", in_remotehost, in_port);
     globalreg->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
+	*/
 
     return 1;
 }
