@@ -459,11 +459,15 @@ int FlushDatafilesEvent(TIMEEVENT_PARMS) {
 	if (globalreg->subsys_dumpfile_vec.size() == 0)
 		return 1;
 
-	_MSG("Saving data files", MSGFLAG_INFO);
+	int r = 0;
 
 	for (unsigned int x = 0; x < globalreg->subsys_dumpfile_vec.size(); x++) {
-		globalreg->subsys_dumpfile_vec[x]->Flush();
+		if (globalreg->subsys_dumpfile_vec[x]->Flush())
+			r = 1;
 	}
+
+	if (r)
+		_MSG("Saved data files", MSGFLAG_INFO);
 
 	return 1;
 }

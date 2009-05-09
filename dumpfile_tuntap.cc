@@ -271,7 +271,7 @@ int Dumpfile_Tuntap::GetTapFd() {
 
 int Dumpfile_Tuntap::Flush() {
 	// Nothing to see here
-	return 1;
+	return 0;
 }
 
 int Dumpfile_Tuntap::chain_handler(kis_packet *in_pack) {
