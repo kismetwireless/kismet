@@ -1,0 +1,450 @@
+/*
+    This file is part of Kismet
+
+	This file was derived directly from aircrack-ng, and most of the other files in 
+	this directory come, almost unmodified, from that project.
+
+	For more information about aircrack-ng, visit:
+	http://aircrack-ng.org
+
+    Kismet is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    Kismet is distributed in the hope that it will be useful,
+      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Kismet; if not, write to the Free Software
+    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+    In addition, as a special exception, the copyright holders give
+    permission to link the code of portions of this program with the
+    OpenSSL library under certain conditions as described in each
+    individual source file, and distribute linked combinations
+    including the two.
+    You must obey the GNU General Public License in all respects
+    for all of the code used other than OpenSSL. *  If you modify
+    file(s) with this exception, you may extend this exception to your
+    version of the file(s), but you are not obligated to do so. *  If you
+    do not wish to do so, delete this exception statement from your
+    version. *  If you delete this exception statement from all source
+    files in the program, then also delete it here.
+*/
+
+#include <config.h>
+#include <string>
+#include <errno.h>
+#include <time.h>
+
+#include <pthread.h>
+
+#include <sstream>
+#include <iomanip>
+
+#include <util.h>
+#include <messagebus.h>
+#include <packet.h>
+#include <packetchain.h>
+#include <packetsource.h>
+#include <packetsourcetracker.h>
+#include <timetracker.h>
+#include <configfile.h>
+#include <plugintracker.h>
+#include <globalregistry.h>
+#include <netracker.h>
+
+#include "aircrack-crypto.h"
+#include "aircrack-ptw2-lib.h"
+
+GlobalRegistry *globalreg = NULL;
+
+struct kisptw_net {
+	mac_addr bssid;
+
+	PTW2_attackstate *ptw_clean;
+	PTW2_attackstate *ptw_vague;
+
+	int last_crack_ivs, last_crack_vivs;
+
+	int num_ptw_ivs, num_ptw_vivs;
+	int ptw_solved;
+
+	// Dupes for our thread
+	pthread_t crackthread;
+	int threaded;
+	PTW2_attackstate *ptw_clean_t;
+	PTW2_attackstate *ptw_vague_t;
+	int num_ptw_ivs_t, num_ptw_vivs_t;
+
+	time_t last_packet;
+};
+
+struct kisptw_state {
+	map<mac_addr, kisptw_net *> netmap;
+};
+
+void *kisptw_crack(void *arg) {
+	kisptw_net *pnet = (kisptw_net *) arg;
+	int i, j;
+	int numpackets = 0;
+
+	uint8_t wepkey[64];
+	int (* all)[256];
+	int PTW_DEFAULTBF[PTW2_KEYHSBYTES] = 
+		{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+	int len = 0;
+
+	memset(wepkey, 0, sizeof(wepkey));
+	all = (int (*)[256]) alloca(256 * 32 * sizeof(int));
+
+	for (i = 0; i < 32; i++) {
+		for (j = 0; j < 256; j++) {
+			all[i][j] = 1;
+		}
+	}
+
+	if (pnet->num_ptw_ivs_t > 99) {
+		_MSG("Trying to crack WEP key on " + pnet->bssid.Mac2String() + ": " +
+			 IntToString(pnet->num_ptw_ivs_t) + " clean IVs", MSGFLAG_INFO);
+
+		if (PTW2_computeKey(pnet->ptw_clean_t, wepkey, 5, 1000, 
+						   PTW_DEFAULTBF, all, 1) == 1)
+			len = 5;
+		else if (PTW2_computeKey(pnet->ptw_clean_t, wepkey, 13, (2000000), 
+								PTW_DEFAULTBF, all, 1) == 1)
+			len = 13;
+		else if (PTW2_computeKey(pnet->ptw_clean_t, wepkey, 5, (100000),
+								PTW_DEFAULTBF, all, 1) == 1)
+			len = 5;
+	} 
+	
+	if (len == 0 && pnet->num_ptw_vivs_t != 0) {
+		_MSG("Trying to crack WEP key on " + pnet->bssid.Mac2String() + ": " +
+			 IntToString(pnet->num_ptw_vivs_t) + " vague IVs", MSGFLAG_INFO);
+
+		PTW_DEFAULTBF[10] = PTW_DEFAULTBF[11] = 1;
+
+		if (PTW2_computeKey(pnet->ptw_vague_t, wepkey, 5, 1000, 
+						   PTW_DEFAULTBF, all, 1) == 1)
+			len = 5;
+		else if (PTW2_computeKey(pnet->ptw_vague_t, wepkey, 13, (2000000), 
+								PTW_DEFAULTBF, all, 1) == 1)
+			len = 13;
+		else if (PTW2_computeKey(pnet->ptw_vague_t, wepkey, 5, (200000),
+								PTW_DEFAULTBF, all, 1) == 1)
+			len = 5;
+	}
+
+	if (len) {
+		ostringstream osstr;
+
+		for (int x = 0; x < len; x++) {
+			osstr << hex << setfill('0') << setw(2) << (int) wepkey[x];
+		}
+
+		_MSG("Cracked WEP key on " + pnet->bssid.Mac2String() + ": " +
+			 osstr.str(), MSGFLAG_INFO);
+
+		pnet->ptw_solved = 1;
+	}
+
+	pthread_exit((void *) 0);
+}
+
+int kisptw_event_timer(TIMEEVENT_PARMS) {
+	kisptw_state *kst = (kisptw_state *) parm;
+
+	for (map<mac_addr, kisptw_net *>::iterator x = kst->netmap.begin();
+		  x != kst->netmap.end(); ++x) {
+		// If we solved this network, we keep the record but free the rest
+		if (x->second->ptw_solved && x->second->ptw_solved < 2) {
+			if (x->second->ptw_clean != NULL) {
+				PTW2_freeattackstate(x->second->ptw_clean);
+				x->second->ptw_clean = NULL;
+			}
+
+			if (x->second->ptw_clean_t != NULL) {
+				PTW2_freeattackstate(x->second->ptw_clean_t);
+				x->second->ptw_clean_t = NULL;
+			}
+
+			if (x->second->ptw_vague != NULL) {
+				PTW2_freeattackstate(x->second->ptw_vague);
+				x->second->ptw_vague = NULL;
+			}
+
+			if (x->second->ptw_vague_t != NULL) {
+				PTW2_freeattackstate(x->second->ptw_vague_t);
+				x->second->ptw_vague_t = NULL;
+			}
+
+			_MSG("Cleaned up WEP data on " + x->second->bssid.Mac2String(), 
+				 MSGFLAG_INFO);
+			x->second->ptw_solved = 2;
+		}
+
+		if (x->second->threaded) {
+			void *ret;
+
+			if (pthread_tryjoin_np(x->second->crackthread, &ret) == 0) {
+				x->second->threaded = 0;
+			}
+		}
+
+		if (time(0) - x->second->last_packet > 1800 &&
+			x->second->last_packet != 0 && x->second->threaded == 0) {
+			_MSG("No packets from " + x->second->bssid.Mac2String() + " for 30 "
+				 "minutes, removing PTW WEP cracking data", MSGFLAG_INFO);
+			if (x->second->ptw_clean != NULL) {
+				PTW2_freeattackstate(x->second->ptw_clean);
+				x->second->ptw_clean = NULL;
+			}
+
+			if (x->second->ptw_clean_t != NULL) {
+				PTW2_freeattackstate(x->second->ptw_clean_t);
+				x->second->ptw_clean_t = NULL;
+			}
+
+			if (x->second->ptw_vague != NULL) {
+				PTW2_freeattackstate(x->second->ptw_vague);
+				x->second->ptw_vague = NULL;
+			}
+
+			if (x->second->ptw_vague_t != NULL) {
+				PTW2_freeattackstate(x->second->ptw_vague_t);
+				x->second->ptw_vague_t = NULL;
+			}
+
+			x->second->last_packet = 0;
+		}
+
+		if (x->second->ptw_solved == 0 && 
+			(x->second->num_ptw_ivs > x->second->last_crack_ivs + 1000 ||
+			 x->second->num_ptw_vivs > x->second->last_crack_vivs + 5000) &&
+			x->second->threaded == 0) {
+
+			if (x->second->ptw_clean_t)
+				PTW2_freeattackstate(x->second->ptw_clean_t);
+			if (x->second->ptw_vague_t)
+				PTW2_freeattackstate(x->second->ptw_vague_t);
+
+			x->second->ptw_clean_t = NULL;
+			x->second->ptw_vague_t = NULL;
+
+			x->second->ptw_clean_t = PTW2_copyattackstate(x->second->ptw_clean);
+			if (x->second->ptw_clean_t == NULL) {
+				_MSG("Not enough free memory to copy PTW state", MSGFLAG_ERROR);
+				return 0;
+			}
+
+			x->second->ptw_vague_t = PTW2_copyattackstate(x->second->ptw_vague);
+			if (x->second->ptw_vague_t == NULL) {
+				_MSG("Not enough free memory to copy PTW state", MSGFLAG_ERROR);
+				PTW2_freeattackstate(x->second->ptw_clean_t);
+				return 0;
+			}
+
+			x->second->last_crack_vivs = 
+				x->second->num_ptw_ivs_t = x->second->num_ptw_ivs;
+			x->second->last_crack_vivs = 
+				x->second->num_ptw_vivs_t = x->second->num_ptw_vivs;
+
+			x->second->threaded = 1;
+
+			pthread_create(&(x->second->crackthread), NULL, kisptw_crack, x->second);
+		}
+	}
+
+	return 1;
+}
+
+int kisptw_datachain_hook(CHAINCALL_PARMS) {
+	kisptw_state *kptw = (kisptw_state *) auxdata;
+	kisptw_net *pnet = NULL;
+
+	// Fetch the info from the packet chain data
+	kis_ieee80211_packinfo *packinfo = (kis_ieee80211_packinfo *) 
+		in_pack->fetch(_PCM(PACK_COMP_80211));
+
+	// No 802.11 info, we don't handle it.
+	if (packinfo == NULL) {
+		return 0;
+	}
+
+	// Not an 802.11 frame type we known how to track, we'll just skip
+	// it, too
+	if (packinfo->corrupt || packinfo->type == packet_noise ||
+		packinfo->type == packet_unknown || 
+		packinfo->subtype == packet_sub_unknown) {
+		return 0;
+	}
+
+	kis_data_packinfo *datainfo = (kis_data_packinfo *)
+		in_pack->fetch(_PCM(PACK_COMP_BASICDATA));
+
+	// No data info?  We can't handle it
+	if (datainfo == NULL) {
+		return 0;
+	}
+
+	// Make sure we got a network
+	Netracker::tracked_network *net;
+	kis_netracker_netinfo *netpackinfo =
+		(kis_netracker_netinfo *) in_pack->fetch(_PCM(PACK_COMP_TRACKERNET));
+
+	// No network?  Can't handle this either.
+	if (netpackinfo == NULL) {
+		return 0;
+	}
+
+	net = netpackinfo->netref;
+
+	// Make sure we got a client, too
+	Netracker::tracked_client *cli;
+	kis_netracker_cliinfo *clipackinfo =
+		(kis_netracker_cliinfo *) in_pack->fetch(_PCM(PACK_COMP_TRACKERCLIENT));
+
+	// No network?  Can't handle this either.
+	if (clipackinfo == NULL) {
+		return 0;
+	}
+
+	cli = clipackinfo->cliref;
+
+	kis_datachunk *chunk = 
+		(kis_datachunk *) in_pack->fetch(_PCM(PACK_COMP_MANGLEFRAME));
+
+	if (chunk == NULL) {
+		if ((chunk = 
+			 (kis_datachunk *) in_pack->fetch(_PCM(PACK_COMP_80211FRAME))) == NULL) {
+			if ((chunk = (kis_datachunk *) 
+				 in_pack->fetch(_PCM(PACK_COMP_LINKFRAME))) == NULL) {
+				return 0;
+			}
+		}
+	}
+
+	// Handle WEP + PTW
+	if (packinfo->cryptset == crypt_wep &&
+		chunk != NULL && packinfo->header_offset < chunk->length) {
+
+		if (kptw->netmap.find(net->bssid) == kptw->netmap.end()) {
+			pnet = new kisptw_net;
+			pnet->ptw_clean = pnet->ptw_vague = NULL;
+			pnet->ptw_clean_t = pnet->ptw_vague_t = NULL;
+			pnet->num_ptw_ivs = pnet->num_ptw_vivs = 0;
+			pnet->num_ptw_ivs_t = pnet->num_ptw_vivs_t = 0;
+			pnet->last_crack_vivs = pnet->last_crack_ivs = 0;
+			pnet->ptw_solved = 0;
+			pnet->threaded = 0;
+			pnet->bssid = net->bssid;
+			pnet->last_packet = time(0);
+			kptw->netmap.insert(make_pair(net->bssid, pnet));
+		} else {
+			pnet = kptw->netmap.find(net->bssid)->second;
+		}
+
+		if (pnet->ptw_solved)
+			return 1;
+
+		int clearsize, i, j, k;
+		int weight[16];
+		unsigned char clear[2048];
+		unsigned char clear2[2048];
+
+		memset(weight, 0, sizeof(weight));
+		memset(clear, 0, sizeof(clear));
+		memset(clear2, 0, sizeof(clear2));
+
+		k = known_clear(clear, &clearsize, clear2, 
+						chunk->data + packinfo->header_offset, 
+						chunk->length - packinfo->header_offset - 8);
+
+		if (clearsize >= 16) {
+			for (j = 0; j < k; j++) {
+				for (i = 0; i < clearsize && 
+					 4 + i + packinfo->header_offset < chunk->length; i++) {
+
+					clear[i+(PTW2_KSBYTES*j)] ^= 
+						chunk->data[4 + i + packinfo->header_offset];
+				}
+			}
+
+			if (pnet->ptw_clean == NULL) {
+				pnet->ptw_clean = PTW2_newattackstate();
+				if (pnet->ptw_clean == NULL) {
+					_MSG("Failed to allocate memory for PTW attack state",
+						 MSGFLAG_ERROR);
+					return 1;
+				}
+			}
+
+			if (pnet->ptw_vague == NULL) {
+				pnet->ptw_vague = PTW2_newattackstate();
+				if (pnet->ptw_vague == NULL) {
+					_MSG("Failed to allocate memory for PTW attack state",
+						 MSGFLAG_ERROR);
+					return 1;
+				}
+			}
+
+			int added = 0;
+			if (k == 1) {
+				if (PTW2_addsession(pnet->ptw_clean, 
+								   chunk->data + packinfo->header_offset,
+								   clear, clear2, k)) {
+					pnet->num_ptw_ivs++;
+					added = 1;
+				}
+			} else {
+				if (PTW2_addsession(pnet->ptw_vague, 
+								   chunk->data + packinfo->header_offset,
+								   clear, clear2, k)) {
+					pnet->num_ptw_vivs++;
+					added = 1;
+				}
+			}
+
+			if (added) {
+				pnet->last_packet = time(0);
+			}
+		}
+	}
+}
+
+int kisptw_unregister(GlobalRegistry *in_globalreg) {
+	return 0;
+}
+
+int kisptw_register(GlobalRegistry *in_globalreg) {
+	globalreg = in_globalreg;
+
+	kisptw_state *state = new kisptw_state;
+
+	globalreg->packetchain->RegisterHandler(&kisptw_datachain_hook, state,
+											CHAINPOS_CLASSIFIER, 100);
+
+	globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 5, NULL, 1,
+										  &kisptw_event_timer, state);
+
+	return 1;
+}
+
+extern "C" {
+	int kis_plugin_info(plugin_usrdata *data) {
+		data->pl_name = "AIRCRACK-PTW";
+		data->pl_version = "1.0.0";
+		data->pl_description = "Aircrack PTW Plugin";
+		data->pl_unloadable = 0; // We can't be unloaded because we defined a source
+		data->plugin_register = kisptw_register;
+		data->plugin_unregister = kisptw_unregister;
+
+		return 1;
+	}
+}
+
