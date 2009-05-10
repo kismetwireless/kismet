@@ -85,7 +85,10 @@ struct kisptw_net {
 
 struct kisptw_state {
 	map<mac_addr, kisptw_net *> netmap;
+	int timer_ref;
 };
+
+kisptw_state *state;
 
 void *kisptw_crack(void *arg) {
 	kisptw_net *pnet = (kisptw_net *) arg;
@@ -194,6 +197,12 @@ int kisptw_event_timer(TIMEEVENT_PARMS) {
 			if (pthread_tryjoin_np(x->second->crackthread, &ret) == 0) {
 				x->second->threaded = 0;
 			}
+		}
+
+		// Reset the vague packet buffer if it gets out of hand
+		if (x->second->num_ptw_vivs > 200000 && x->second->ptw_vague) {
+			x->second->num_ptw_vivs = 0;
+			PTW2_freeattackstate(x->second->ptw_vague);
 		}
 
 		if (time(0) - x->second->last_packet > 1800 &&
@@ -418,19 +427,22 @@ int kisptw_datachain_hook(CHAINCALL_PARMS) {
 }
 
 int kisptw_unregister(GlobalRegistry *in_globalreg) {
+	globalreg->packetchain->RemoveHandler(&kisptw_datachain_hook, CHAINPOS_CLASSIFIER);
+	globalreg->timetracker->RemoveTimer(state->timer_ref);
 	return 0;
 }
 
 int kisptw_register(GlobalRegistry *in_globalreg) {
 	globalreg = in_globalreg;
 
-	kisptw_state *state = new kisptw_state;
+	state = new kisptw_state;
 
 	globalreg->packetchain->RegisterHandler(&kisptw_datachain_hook, state,
 											CHAINPOS_CLASSIFIER, 100);
 
-	globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 5, NULL, 1,
-										  &kisptw_event_timer, state);
+	state->timer_ref =
+		globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 5, NULL, 1,
+											  &kisptw_event_timer, state);
 
 	return 1;
 }
