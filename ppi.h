@@ -48,7 +48,7 @@ typedef struct {
 #define PPI_FIELD_SPECMAP		5
 #define PPI_FIELD_PROCINFO		6
 #define PPI_FIELD_CAPINFO		7
-#define PPI_FIELD_GPS			30003
+#define PPI_FIELD_GPS			30006
 
 typedef struct {
 	uint16_t pfh_datatype;
