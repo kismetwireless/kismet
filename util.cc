@@ -475,21 +475,48 @@ vector<string> FetchOptVec(string in_key, vector<opt_pair> *in_vec) {
 }
 
 int StringToOpts(string in_line, string in_sep, vector<opt_pair> *in_vec) {
-	vector<string> lines = StrTokenize(in_line, in_sep);
 	vector<string> optv;
 	opt_pair optp;
 
-	for (unsigned int x = 0; x < lines.size(); x++) {
-		optv = StrTokenize(lines[x], "=");
+	int in_tag = 1, in_quote = 0;
+	
+	optp.quoted = 0;
 
-		if (optv.size() != 2)
-			return -1;
+	for (unsigned int x = 0; x < in_line.length(); x++) {
+		if (in_tag && in_line[x] != '=') {
+			optp.opt += in_line[x];
+			continue;
+		}
 
-		optp.opt = StrLower(optv[0]);
-		optp.val = optv[1];
+		if (in_tag && in_line[x] == '=') {
+			in_tag = 0;
+			continue;
+		}
 
-		in_vec->push_back(optp);
+		if (in_line[x] == '"') {
+			if (in_quote == 0) {
+				in_quote = 1;
+				optp.quoted = 1;
+			} else {
+				in_quote = 0;
+			}
+
+			continue;
+		}
+
+		if (in_quote == 0 && in_line[x] == in_sep[0]) {
+			in_vec->push_back(optp);
+			optp.quoted = 0;
+			optp.opt = "";
+			optp.val = "";
+			in_tag = 1;
+			continue;
+		}
+
+		optp.val += in_line[x];
 	}
+
+	in_vec->push_back(optp);
 
 	return 1;
 }

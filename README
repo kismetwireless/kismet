@@ -706,6 +706,25 @@ http://www.kismetwireless.net
             to 'airjack' when starting up.  This alert is no longer relevant
             as the Airjack tools have long since been discontinued.
 
+        APSPOOF             Fingerprint
+            A list of valid MAC addresses for a SSID may be given via the
+            'apspoof=' configuration file option.  If a beacon or probe
+            response for that SSID is seen from a MAC address not in that
+            list, this alert will be raised.  This can be used to detect
+            conflicting access points, spoofed access points, or attacks
+            such as Karma/Airbase which respond to all probe requests.
+
+            The 'apspoof=' configuration option can specific exact SSID
+            matches, regular expressions (if Kismet is compiled with PCRE
+            support), and single, multiple, or masked MAC addresses:
+                apspoof=Foo1:ssidregex="[FfOoBbAaRr]",validmacs=00:11:22:33:44:55
+
+                apspoof=Foo2:ssid="Foobar",
+                    validmacs="00:11:22:33:44:55,AA:BB:CC:DD:EE:FF"
+
+            When multiple MAC addresses are specified, they should be
+            enclosed in quotes (as above).
+
         BSSTIMESTAMP        Trend/Stateful
             Invalid/Out-of-sequence BSS Timestamps can indicate AP spoofing.
             APs with fluctuating BSS timestamps could be suffering an "evil

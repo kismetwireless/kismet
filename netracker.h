@@ -549,6 +549,26 @@ public:
 	// Fwd def for our map
 	class tracked_client;
 
+	class ssid_alert_data {
+	public:
+		ssid_alert_data() {
+#ifdef HAVE_LIBPCRE
+			ssid_re = NULL;
+			ssid_study = NULL;
+#endif
+		}
+		string name;
+
+#ifdef HAVE_LIBPCRE
+		pcre *ssid_re;
+		pcre_extra *ssid_study;
+		string filter;
+#endif
+		string ssid;
+
+		macmap<int> allow_mac_map;
+	};
+
 	class tracked_network {
 	public:
 		tracked_network() {
@@ -809,7 +829,8 @@ protected:
 
 	// Build a SSID record
 	Netracker::adv_ssid_data *BuildAdvSSID(uint32_t ssid_csum, 
-										   kis_ieee80211_packinfo *packinfo);
+										   kis_ieee80211_packinfo *packinfo,
+										   kis_packet *in_pack);
 
 	// Kick the timer event to update all the clients
 	int TimerKick();
@@ -834,6 +855,8 @@ protected:
 	vector<Netracker::tracked_network *> dirty_net_vec;
 	vector<Netracker::tracked_client *> dirty_cli_vec;
 
+	vector<Netracker::ssid_alert_data *> apspoof_vec;
+
 	// Manufacturer maps
 	/*
 	macmap<vector<manuf *> > ap_manuf_map;
@@ -846,7 +869,8 @@ protected:
 
 	// Alert references
 	int alert_chan_ref, alert_dhcpcon_ref, alert_bcastdcon_ref, alert_airjackssid_ref,
-		alert_wepflap_ref, alert_dhcpname_ref, alert_dhcpos_ref, alert_adhoc_ref;
+		alert_wepflap_ref, alert_dhcpname_ref, alert_dhcpos_ref, alert_adhoc_ref,
+		alert_ssidmatch_ref;
 
 	// Timer refs
 	int netrackereventid;

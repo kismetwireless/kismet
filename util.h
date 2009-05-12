@@ -109,6 +109,7 @@ void SubtractTimeval(struct timeval *in_tv1, struct timeval *in_tv2,
 struct opt_pair {
 	string opt;
 	string val;
+	int quoted;
 };
 
 // Generic option handlers

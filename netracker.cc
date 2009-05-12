@@ -1231,6 +1231,121 @@ Netracker::Netracker(GlobalRegistry *in_globalreg) {
 		}
 	}
 
+	// Parse the SSID alert data
+	vector<string> spoof_vec = globalreg->kismet_config->FetchOptVec("apspoof");
+	for (unsigned int x = 0; x < spoof_vec.size(); x++) {
+		string name;
+		size_t pos = spoof_vec[x].find(":");
+		vector<opt_pair> opts;
+		ssid_alert_data *ssid_alert = NULL;
+#ifdef HAVE_LIBPCRE
+		const char *error = NULL, *study_err = NULL;
+		int err_offt;
+		pcre *re = NULL;
+		pcre_extra *study = NULL;
+#endif
+
+		
+		if (pos == string::npos || pos >= spoof_vec[x].length() - 1) {
+			_MSG("Malformed apspoof= config line in Kismet config file, expected "
+				 "apspoof=name:options, got '" + spoof_vec[x] + "'", MSGFLAG_ERROR);
+			continue;
+		}
+
+		name = spoof_vec[x].substr(0, pos);
+
+		if (StringToOpts(spoof_vec[x].substr(pos + 1, spoof_vec[x].length()),
+						 ",", &opts) < 0 || opts.size() == 0) {
+			_MSG("Malformed apspoof= alert config line in Kismet config file, expected "
+				 "apspoof=name:options, got '" + spoof_vec[x] + "'", MSGFLAG_ERROR);
+			continue;
+		}
+
+		if (FetchOpt("validmacs", &opts) == "" ||
+			(FetchOpt("ssidregex", &opts) == "" && FetchOpt("ssid", &opts) == "")) {
+			_MSG("Malformed apspoof= alert config line expects 'validmacs' option "
+				 "and 'ssid' or 'ssidregex' options", MSGFLAG_ERROR);
+			continue;
+		}
+
+		if (FetchOpt("ssidregex", &opts) != "") {
+#ifndef HAVE_LIBPCRE
+			_MSG("Kismet was not compiled with PCRE, cannot use 'ssidregex' option "
+				 "in an apspoof filter", MSGFLAG_ERROR);
+			continue;
+#else
+			if ((re = pcre_compile(FetchOpt("ssidregex", &opts).c_str(), 0, &error,
+								   &err_offt, NULL)) == NULL) {
+				_MSG("Couldn't parse APSPOOF filter line, invalid PCRE regex "  
+					 "'" + FetchOpt("ssidregex", &opts) + 
+					 "', regex failure: " + string(error) + " at " +
+					 IntToString(err_offt), MSGFLAG_ERROR);
+				continue;
+			}
+
+			if ((study = pcre_study(re, 0, &study_err)) == NULL && study_err != NULL) {
+				_MSG("Couldn't parse APSPOOF filter line '" + 
+					 FetchOpt("ssidregex", &opts) +
+					 "', optimization failure: " + string(study_err), MSGFLAG_ERROR);
+				free(re);
+				continue;
+			}
+#endif
+		}
+
+		ssid_alert = new ssid_alert_data;
+
+		ssid_alert->name = name;
+
+		if (FetchOpt("ssid", &opts) != "") {
+#ifdef HAVE_LIBPCRE
+			if (re != NULL) {
+				_MSG("Duplicate 'ssid' and 'ssidregex' options in APSPOOF "
+					 "filter line, the 'ssidregex' filter will be used.",
+					 MSGFLAG_ERROR);
+			}
+#endif
+		}
+
+#ifdef HAVE_LIBPCRE
+		if (re != NULL) {
+			ssid_alert->ssid_re = re;
+			ssid_alert->ssid_study = study;
+			ssid_alert->filter = FetchOpt("ssidregex", &opts);
+		} 
+#endif
+		ssid_alert->ssid = FetchOpt("ssid", &opts);
+
+		vector<string> macvec = StrTokenize(FetchOpt("validmacs", &opts), ",");
+	
+		int mac_error = 0;
+		for (unsigned int m = 0; m < macvec.size(); m++) {
+			mac_addr ma = mac_addr(macvec[m].c_str());
+
+			if (ma.error) {
+				_MSG("Invalid MAC address '" + macvec[m] + "' in 'validmacs' option "
+					 "in APSPOOF filter line, ignoring line", MSGFLAG_ERROR);
+				mac_error = 1;
+				break;
+			}
+
+			ssid_alert->allow_mac_map.insert(ma, 1);
+		}
+
+		if (mac_error) {
+#ifdef HAVE_LIBPCRE
+			if (re)
+				pcre_free(re);
+			if (study)
+				pcre_free(study);
+#endif
+			free(ssid_alert);
+			continue;
+		}
+
+		apspoof_vec.push_back(ssid_alert);
+	}
+
 	// Register network protocols with the tcp server
 	_NPM(PROTO_REF_BSSID) =
 		globalreg->kisnetserver->RegisterProtocol("BSSID", 0, 1, 
@@ -1289,6 +1404,8 @@ Netracker::Netracker(GlobalRegistry *in_globalreg) {
 		globalreg->alertracker->ActivateConfiguredAlert("DHCPOSCHANGE");
 	alert_adhoc_ref =
 		globalreg->alertracker->ActivateConfiguredAlert("ADHOCCONFLICT");
+	alert_ssidmatch_ref =
+		globalreg->alertracker->ActivateConfiguredAlert("APSPOOF");
 
 	// Register timer kick
 	netrackereventid = 
@@ -1759,7 +1876,7 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 		Netracker::adv_ssid_data *adssid;
 
 		if (ssidi == net->ssid_map.end()) {
-			adssid = BuildAdvSSID(packinfo->ssid_csum, packinfo);
+			adssid = BuildAdvSSID(packinfo->ssid_csum, packinfo, in_pack);
 			adssid->type = ssid_probereq;
 			cli->ssid_map[packinfo->ssid_csum] = adssid;
 		} else {
@@ -1824,7 +1941,7 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 		Netracker::adv_ssid_data *adssid;
 
 		if (ssidi == net->ssid_map.end()) {
-			adssid = BuildAdvSSID(packinfo->ssid_csum, packinfo);
+			adssid = BuildAdvSSID(packinfo->ssid_csum, packinfo, in_pack);
 			adssid->type = ssid_beacon;
 			net->ssid_map[packinfo->ssid_csum] = adssid;
 		} else {
@@ -1933,7 +2050,7 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 		Netracker::adv_ssid_data *adssid;
 
 		if (ssidi == net->ssid_map.end()) {
-			adssid = BuildAdvSSID(packinfo->ssid_csum, packinfo);
+			adssid = BuildAdvSSID(packinfo->ssid_csum, packinfo, in_pack);
 			adssid->type = ssid_proberesp;
 			net->ssid_map[packinfo->ssid_csum] = adssid;
 		} else {
@@ -2649,7 +2766,8 @@ const map<mac_addr, Netracker::tracked_network *> Netracker::FetchProbeNets() {
 }
 
 Netracker::adv_ssid_data *Netracker::BuildAdvSSID(uint32_t ssid_csum, 
-												  kis_ieee80211_packinfo *packinfo) {
+												  kis_ieee80211_packinfo *packinfo,
+												  kis_packet *in_pack) {
 	Netracker::adv_ssid_data *adssid;
 
 	adssid = new Netracker::adv_ssid_data;
@@ -2664,6 +2782,64 @@ Netracker::adv_ssid_data *Netracker::BuildAdvSSID(uint32_t ssid_csum,
 	adssid->maxrate = packinfo->maxrate;
 	adssid->beaconrate = Ieee80211Interval2NSecs(packinfo->beacon_interval);
 	adssid->packets = 0;
+
+	if (packinfo->type == packet_management &&
+		(packinfo->subtype == packet_sub_probe_resp || 
+		 packinfo->subtype == packet_sub_beacon)) {
+
+		// Run it through the AP spoof protection system
+		for (unsigned int x = 0; x < apspoof_vec.size(); x++) {
+			// Shortcut to checking the mac address first, if it's one we 
+			// have then we don't have to do the expensive operation of pcre or
+			// string matching
+			if (apspoof_vec[x]->allow_mac_map.find(packinfo->source_mac) !=
+				apspoof_vec[x]->allow_mac_map.end()) {
+				continue;
+			}
+
+			int match = 0, matched = 0;
+			string match_type;
+
+#ifdef HAVE_LIBPCRE
+			if (apspoof_vec[x]->ssid_re != NULL) {
+				int ovector[128];
+
+				match = (pcre_exec(apspoof_vec[x]->ssid_re, apspoof_vec[x]->ssid_study,
+								   packinfo->ssid.c_str(), packinfo->ssid.length(),
+								   0, 0, ovector, 128) >= 0);
+
+				match_type = "regular expression";
+				matched = 1;
+			}
+#endif
+
+			if (matched == 0) {
+				match = (apspoof_vec[x]->ssid == packinfo->ssid);
+				match_type = "SSID";
+				matched = 1;
+			}
+
+			if (match && globalreg->alertracker->PotentialAlert(alert_adhoc_ref)) {
+				string ntype = 
+					packinfo->subtype == packet_sub_beacon ? string("advertising") :
+					string("responding for");
+
+				string al = "Unauthorized device (" + 
+					packinfo->source_mac.Mac2String() + string(") ") + ntype + 
+					" for SSID '" + packinfo->ssid + "', matching APSPOOF "
+					"rule " + apspoof_vec[x]->name + string(" with ") + match_type + 
+					string(" which may indicate spoofing or impersonation.");
+
+				globalreg->alertracker->RaiseAlert(alert_ssidmatch_ref, in_pack, 
+												   packinfo->bssid_mac, 
+												   packinfo->source_mac, 
+												   packinfo->dest_mac, 
+												   packinfo->other_mac, 
+												   packinfo->channel, al);
+				break;
+			}
+		}
+	}
 
 	return adssid;
 }

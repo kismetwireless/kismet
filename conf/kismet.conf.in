@@ -162,6 +162,7 @@ tuntap_device=kistap0
 # See the README for a list of alert types.
 alert=ADHOCCONFLICT,5/min,1/sec
 alert=AIRJACKSSID,5/min,1/sec
+alert=APSPOOF,10/min,1/sec
 alert=BCASTDISCON,5/min,2/sec
 alert=BSSTIMESTAMP,5/min,1/sec
 alert=CHANCHANGE,5/min,1/sec
@@ -181,6 +182,13 @@ alert=MSFDLINKRATE,5/min,1/sec
 alert=MSFNETGEARBEACON,5/min,1/sec
 alert=NULLPROBERESP,5/min,1/sec
 #alert=PROBENOJOIN,5/min,1/sec
+
+# Controls behavior of the APSPOOF alert.  SSID may be a literal match (ssid=) or
+# a regex (ssidregex=) if PCRE was available when kismet was built.  The allowed 
+# MAC list must be comma-separated and enclosed in quotes if there are multiple 
+# MAC addresses allowed.  MAC address masks are allowed.
+apspoof=Foo1:ssidregex="[FfOoBbAaRr]",validmacs=00:11:22:33:44:55
+apspoof=Foo2:ssid="Foobar",validmacs="00:11:22:33:44:55,aa:bb:cc:dd:ee:ff"
 
 # Known WEP keys to decrypt, bssid,hexkey.  This is only for networks where
 # the keys are already known, and it may impact throughput on slower hardware.

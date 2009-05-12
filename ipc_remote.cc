@@ -310,7 +310,8 @@ int IPCRemote::SpawnIPC() {
 			close(sockpair[1]);
 
 			// Write a single byte on the FD to sync us
-			write(sockpair[0], &(sockpair[0]), 1);
+			if (write(sockpair[0], &(sockpair[0]), 1) < 1)
+				exit(1);
 
 			// Run the client binary if we have one
 			if (child_cmd != "") {
@@ -338,7 +339,8 @@ int IPCRemote::SpawnIPC() {
 
 		// Blocking read the sync byte
 		char sync;
-		read(sockpair[1], &sync, 1);
+		if (read(sockpair[1], &sync, 1) < 1)
+			return -1;
 	}
 
 	// We've spawned, can't set new commands anymore
