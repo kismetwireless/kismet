@@ -187,7 +187,7 @@ alert=NULLPROBERESP,5/min,1/sec
 # a regex (ssidregex=) if PCRE was available when kismet was built.  The allowed 
 # MAC list must be comma-separated and enclosed in quotes if there are multiple 
 # MAC addresses allowed.  MAC address masks are allowed.
-apspoof=Foo1:ssidregex="[FfOoBbAaRr]",validmacs=00:11:22:33:44:55
+apspoof=Foo1:ssidregex="(?i:foobar)",validmacs=00:11:22:33:44:55
 apspoof=Foo2:ssid="Foobar",validmacs="00:11:22:33:44:55,aa:bb:cc:dd:ee:ff"
 
 # Known WEP keys to decrypt, bssid,hexkey.  This is only for networks where
