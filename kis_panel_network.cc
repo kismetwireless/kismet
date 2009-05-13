@@ -2592,7 +2592,7 @@ void Kis_Netlist::DrawComponent() {
 
 	Kis_Panel_Specialtext::Mvwaddnstr(window, sy, sx, 
 									  "\004u" + pcache + "\004U", 
-									  ex - sx);
+									  lx - 1);
 
 	if (draw_vec->size() == 0) {
 		if (active)
@@ -3905,7 +3905,7 @@ void Kis_Clientlist::DrawComponent() {
 		wattrset(window, color_map[kis_clientlist_color_header]);
 
 	Kis_Panel_Specialtext::Mvwaddnstr(window, sy, sx, 
-									  "\004u" + pcache + "\004U", lx);
+									  "\004u" + pcache + "\004U", lx - 1);
 
 	if (display_vec.size() == 0) {
 		if (active)
