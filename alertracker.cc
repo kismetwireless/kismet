@@ -291,17 +291,19 @@ int Alertracker::RaiseAlert(int in_ref, kis_packet *in_pack,
 	}
 
 	// Try to get the existing alert info
-	kis_alert_component *acomp = 
-		(kis_alert_component *) in_pack->fetch(_PCM(PACK_COMP_ALERT));
+	if (in_pack != NULL)  {
+		kis_alert_component *acomp = 
+			(kis_alert_component *) in_pack->fetch(_PCM(PACK_COMP_ALERT));
 
-	// if we don't have an alert container, make one on this packet
-	if (acomp == NULL) {
-		acomp = new kis_alert_component;
-		in_pack->insert(_PCM(PACK_COMP_ALERT), acomp);
+		// if we don't have an alert container, make one on this packet
+		if (acomp == NULL) {
+			acomp = new kis_alert_component;
+			in_pack->insert(_PCM(PACK_COMP_ALERT), acomp);
+		}
+
+		// Attach it to the packet
+		acomp->alert_vec.push_back(info);
 	}
-
-	// Attach it to the packet
-	acomp->alert_vec.push_back(info);
 
 	// Send it to the network as an alert
 	globalreg->kisnetserver->SendToAll(_NPM(PROTO_REF_ALERT), (void *) info);
@@ -309,7 +311,6 @@ int Alertracker::RaiseAlert(int in_ref, kis_packet *in_pack,
 	// Send the text info
 	globalreg->messagebus->InjectMessage((info->header + " " + info->text), 
 										 MSGFLAG_ALERT);
-
 
 	return 1;
 }

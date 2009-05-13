@@ -56,6 +56,8 @@
 #include <plugintracker.h>
 #include <globalregistry.h>
 #include <netracker.h>
+#include <packetdissectors.h>
+#include <alertracker.h>
 
 #include "aircrack-crypto.h"
 #include "aircrack-ptw2-lib.h"
@@ -81,11 +83,15 @@ struct kisptw_net {
 	int num_ptw_ivs_t, num_ptw_vivs_t;
 
 	time_t last_packet;
+
+	int len;
+	uint8_t wepkey[64];
 };
 
 struct kisptw_state {
 	map<mac_addr, kisptw_net *> netmap;
 	int timer_ref;
+	int alert_ref;
 };
 
 kisptw_state *state;
@@ -95,14 +101,10 @@ void *kisptw_crack(void *arg) {
 	int i, j;
 	int numpackets = 0;
 
-	uint8_t wepkey[64];
 	int (* all)[256];
 	int PTW_DEFAULTBF[PTW2_KEYHSBYTES] = 
 		{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
 			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-	int len = 0;
-
-	memset(wepkey, 0, sizeof(wepkey));
 	all = (int (*)[256]) alloca(256 * 32 * sizeof(int));
 
 	for (i = 0; i < 32; i++) {
@@ -112,47 +114,32 @@ void *kisptw_crack(void *arg) {
 	}
 
 	if (pnet->num_ptw_ivs_t > 99) {
-		_MSG("Trying to crack WEP key on " + pnet->bssid.Mac2String() + ": " +
-			 IntToString(pnet->num_ptw_ivs_t) + " clean IVs", MSGFLAG_INFO);
-
-		if (PTW2_computeKey(pnet->ptw_clean_t, wepkey, 5, 1000, 
+		if (PTW2_computeKey(pnet->ptw_clean_t, pnet->wepkey, 5, 1000, 
 						   PTW_DEFAULTBF, all, 1) == 1)
-			len = 5;
-		else if (PTW2_computeKey(pnet->ptw_clean_t, wepkey, 13, (2000000), 
+			pnet->len = 5;
+		else if (PTW2_computeKey(pnet->ptw_clean_t, pnet->wepkey, 13, (2000000), 
 								PTW_DEFAULTBF, all, 1) == 1)
-			len = 13;
-		else if (PTW2_computeKey(pnet->ptw_clean_t, wepkey, 5, (100000),
+			pnet->len = 13;
+		else if (PTW2_computeKey(pnet->ptw_clean_t, pnet->wepkey, 5, (100000),
 								PTW_DEFAULTBF, all, 1) == 1)
-			len = 5;
+			pnet->len = 5;
 	} 
 	
-	if (len == 0 && pnet->num_ptw_vivs_t != 0) {
-		_MSG("Trying to crack WEP key on " + pnet->bssid.Mac2String() + ": " +
-			 IntToString(pnet->num_ptw_vivs_t) + " vague IVs", MSGFLAG_INFO);
-
+	if (pnet->len == 0 && pnet->num_ptw_vivs_t != 0) {
 		PTW_DEFAULTBF[10] = PTW_DEFAULTBF[11] = 1;
 
-		if (PTW2_computeKey(pnet->ptw_vague_t, wepkey, 5, 1000, 
+		if (PTW2_computeKey(pnet->ptw_vague_t, pnet->wepkey, 5, 1000, 
 						   PTW_DEFAULTBF, all, 1) == 1)
-			len = 5;
-		else if (PTW2_computeKey(pnet->ptw_vague_t, wepkey, 13, (2000000), 
+			pnet->len = 5;
+		else if (PTW2_computeKey(pnet->ptw_vague_t, pnet->wepkey, 13, (2000000), 
 								PTW_DEFAULTBF, all, 1) == 1)
-			len = 13;
-		else if (PTW2_computeKey(pnet->ptw_vague_t, wepkey, 5, (200000),
+			pnet->len = 13;
+		else if (PTW2_computeKey(pnet->ptw_vague_t, pnet->wepkey, 5, (200000),
 								PTW_DEFAULTBF, all, 1) == 1)
-			len = 5;
+			pnet->len = 5;
 	}
 
-	if (len) {
-		ostringstream osstr;
-
-		for (int x = 0; x < len; x++) {
-			osstr << hex << setfill('0') << setw(2) << (int) wepkey[x];
-		}
-
-		_MSG("Cracked WEP key on " + pnet->bssid.Mac2String() + ": " +
-			 osstr.str(), MSGFLAG_INFO);
-
+	if (pnet->len) {
 		pnet->ptw_solved = 1;
 	}
 
@@ -185,6 +172,26 @@ int kisptw_event_timer(TIMEEVENT_PARMS) {
 				PTW2_freeattackstate(x->second->ptw_vague_t);
 				x->second->ptw_vague_t = NULL;
 			}
+
+			ostringstream osstr;
+
+			for (int k = 0; k < x->second->len; k++) {
+				osstr << hex << setfill('0') << setw(2) << (int) x->second->wepkey[k];
+			}
+
+			string al = "Cracked WEP key on " + x->second->bssid.Mac2String() + ": " +
+				 osstr.str();
+
+			globalreg->alertracker->RaiseAlert(state->alert_ref, NULL,
+											   x->second->bssid,
+											   x->second->bssid,
+											   x->second->bssid,
+											   x->second->bssid,
+											   0, al);
+
+			globalreg->builtindissector->AddWepKey(x->second->bssid,
+												   x->second->wepkey,
+												   x->second->len, 1);
 
 			_MSG("Cleaned up WEP data on " + x->second->bssid.Mac2String(), 
 				 MSGFLAG_INFO);
@@ -264,6 +271,10 @@ int kisptw_event_timer(TIMEEVENT_PARMS) {
 				x->second->num_ptw_vivs_t = x->second->num_ptw_vivs;
 
 			x->second->threaded = 1;
+
+			_MSG("Trying to crack WEP key on " + x->second->bssid.Mac2String() + ": " +
+				 IntToString(x->second->num_ptw_vivs_t + x->second->num_ptw_ivs_t) + 
+				 " IVs", MSGFLAG_INFO);
 
 			pthread_create(&(x->second->crackthread), NULL, kisptw_crack, x->second);
 		}
@@ -353,6 +364,8 @@ int kisptw_datachain_hook(CHAINCALL_PARMS) {
 			pnet->threaded = 0;
 			pnet->bssid = net->bssid;
 			pnet->last_packet = time(0);
+			memset(pnet->wepkey, 0, sizeof(pnet->wepkey));
+			pnet->len = 0;
 			kptw->netmap.insert(make_pair(net->bssid, pnet));
 		} else {
 			pnet = kptw->netmap.find(net->bssid)->second;
@@ -443,6 +456,10 @@ int kisptw_register(GlobalRegistry *in_globalreg) {
 	state->timer_ref =
 		globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 5, NULL, 1,
 											  &kisptw_event_timer, state);
+
+	state->alert_ref =
+		globalreg->alertracker->RegisterAlert("WEPCRACK", sat_minute, 20,
+											  sat_second, 5);
 
 	return 1;
 }

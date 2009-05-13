@@ -47,6 +47,10 @@ const char *WEPKEY_fields_text[] = {
     NULL
 };
 
+void proto_WEPKEY_enable(PROTO_ENABLE_PARMS) {
+	((KisBuiltinDissector *) data)->BlitKeys(in_fd);
+}
+
 int proto_WEPKEY(PROTO_PARMS) {
 	wep_key_info *winfo = (wep_key_info *) data;
 	ostringstream osstr;
@@ -69,21 +73,23 @@ int proto_WEPKEY(PROTO_PARMS) {
 				out_string += winfo->bssid.Mac2String();
 				break;
 			case WEPKEY_key:
+				/*
+				printf("debug - key len %u\n", winfo->len);
+				printf("debug - key %02hx%02hx%02hx%02hx\n", winfo->key[0], winfo->key[1], winfo->key[2], winfo->key[3]);
+				*/
+
 				for (unsigned int kpos = 0; kpos < WEPKEY_MAX && 
 					 kpos < winfo->len; kpos++) {
-					osstr << setprecision(2) << hex << winfo->key[kpos];
-					if (kpos < (WEPKEY_MAX - 1) && kpos < (winfo->len - 1))
-						osstr << ":";
-					out_string += osstr.str();
+					osstr << hex << setfill('0') << setw(2) << (int) winfo->key[kpos];
 				}
+
+				out_string += osstr.str();
 				break;
 			case WEPKEY_decrypted:
-				osstr << winfo->decrypted;
-				out_string += osstr.str();
+				out_string += IntToString(winfo->decrypted);
 				break;
 			case WEPKEY_failed:
-				osstr << winfo->failed;
-				out_string += osstr.str();
+				out_string += IntToString(winfo->failed);
 				break;
 			default:
 				out_string = "\001Unknown field requested\001";
@@ -125,6 +131,12 @@ int clicmd_STRINGSFILTER_hook(CLIENT_PARMS) {
 	KisBuiltinDissector *di = (KisBuiltinDissector *) auxptr;
 	return di->cmd_stringsfilter(in_clid, framework, globalreg, errstr, cmdline,
 								 parsedcmdline, auxptr);
+}
+
+int pbd_blittimer(TIMEEVENT_PARMS) {
+	((KisBuiltinDissector *) parm)->BlitKeys(-1);
+
+	return 1;
 }
 
 // CRC32 index for verifying WEP - cribbed from ethereal
@@ -316,7 +328,8 @@ KisBuiltinDissector::KisBuiltinDissector(GlobalRegistry *in_globalreg) {
 	// Register network protocols for WEP key transfer commands
 	_NPM(PROTO_REF_WEPKEY) =
 		globalreg->kisnetserver->RegisterProtocol("WEPKEY", 0, 0, WEPKEY_fields_text,
-												  &proto_WEPKEY, NULL, this);
+												  &proto_WEPKEY, 
+												  &proto_WEPKEY_enable, this);
 	listwepkey_cmdid =
 		globalreg->kisnetserver->RegisterClientCommand("LISTWEPKEYS", 
 													   clicmd_LISTWEPKEYS_hook,
@@ -340,6 +353,10 @@ KisBuiltinDissector::KisBuiltinDissector(GlobalRegistry *in_globalreg) {
 		globalreg->kisnetserver->RegisterClientCommand("ADDSTRINGSFILTER", 
 													   clicmd_STRINGSFILTER_hook,
 													   this);
+
+	blit_time_id =
+		globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1, 
+											  &pbd_blittimer, this);
 
     // Convert the WEP mappings to our real map
     vector<string> raw_wepmap_vec;
@@ -410,6 +427,24 @@ KisBuiltinDissector::KisBuiltinDissector(GlobalRegistry *in_globalreg) {
 				 "file.", MSGFLAG_FATAL);
 			globalreg->fatal_condition = 1;
 			return;
+		}
+	}
+}
+
+void KisBuiltinDissector::BlitKeys(int in_fd) {
+	for (macmap<wep_key_info *>::iterator x = wepkeys.begin(); 
+		 x != wepkeys.end(); ++x) {
+		kis_protocol_cache cache;
+
+		if (in_fd == -1) {
+			if (globalreg->kisnetserver->SendToAll(_NPM(PROTO_REF_WEPKEY),
+												   (void *) *(x->second)) < 0)
+				break;
+		} else {
+			if (globalreg->kisnetserver->SendToClient(in_fd, _NPM(PROTO_REF_WEPKEY),
+													  (void *) *(x->second),
+													  &cache) < 0)
+				break;
 		}
 	}
 }
@@ -1951,6 +1986,31 @@ int KisBuiltinDissector::wep_data_decryptor(kis_packet *in_pack) {
 	return 1;
 }
 
+void KisBuiltinDissector::AddWepKey(mac_addr bssid, uint8_t *key, unsigned int len, 
+									int temp) {
+	if (len > WEPKEY_MAX)
+		return;
+
+    wep_key_info *winfo = new wep_key_info;
+
+	winfo->decrypted = 0;
+	winfo->failed = 0;
+    winfo->bssid = bssid;
+	winfo->fragile = temp;
+    winfo->len = len;
+
+    memcpy(winfo->key, key, len);
+
+    // Replace exiting ones
+	if (wepkeys.find(winfo->bssid) != wepkeys.end()) {
+		delete wepkeys[winfo->bssid];
+		wepkeys[winfo->bssid] = winfo;
+		return;
+	}
+
+	wepkeys.insert(winfo->bssid, winfo);
+}
+
 int KisBuiltinDissector::cmd_listwepkeys(CLIENT_PARMS) {
     if (client_wepkey_allowed == 0) {
         snprintf(errstr, 1024, "Server does not allow clients to fetch keys");
@@ -1988,30 +2048,20 @@ int KisBuiltinDissector::cmd_addwepkey(CLIENT_PARMS) {
         return -1;
     }
 
-    wep_key_info *winfo = new wep_key_info;
-    winfo->fragile = 1;
-    winfo->bssid = keyvec[0].c_str();
-
-    if (winfo->bssid.error) {
-        snprintf(errstr, 1024, "Illegal addwepkey bssid");
-        return -1;
-    }
+	mac_addr bssid = keyvec[0].c_str();
+	if (bssid.error) {
+		snprintf(errstr, 1024, "Illegal BSSID for addwepkey");
+		return -1;
+	}
 
     unsigned char key[WEPKEY_MAX];
     int len = Hex2UChar((unsigned char *) keyvec[1].c_str(), key);
 
-    winfo->len = len;
-    memcpy(winfo->key, key, sizeof(unsigned char) * WEPKEY_MAX);
-
-    // Replace exiting ones
-	if (wepkeys.find(winfo->bssid) != wepkeys.end())
-		delete wepkeys[winfo->bssid];
-
-	wepkeys.insert(winfo->bssid, winfo);
+	AddWepKey(bssid, key, len, 1);
 
     snprintf(errstr, 1024, "Added key %s length %d for BSSID %s",
              (*parsedcmdline)[0].word.c_str(), len, 
-			 winfo->bssid.Mac2String().c_str());
+			 bssid.Mac2String().c_str());
 
     _MSG(errstr, MSGFLAG_INFO);
 

@@ -125,6 +125,10 @@ public:
 
 	void SetStringExtract(int in_extr);
 
+	void AddWepKey(mac_addr bssid, uint8_t *key, unsigned int len, int temp);
+
+	void BlitKeys(int in_fd);
+
 protected:
 	int cmd_listwepkeys(CLIENT_PARMS);
 	int cmd_addwepkey(CLIENT_PARMS);
@@ -155,6 +159,8 @@ protected:
 	int delwepkey_cmdid;
 	int strings_cmdid;
 	int stringsfilter_cmdid;
+
+	int blit_time_id;
 
 	unsigned char wep_identity[256];
 
