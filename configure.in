@@ -500,8 +500,8 @@ AC_ARG_WITH(linuxheaders,
     fi
 	])
 
-AC_ARG_ENABLE(linuxwext, 
-	[  --disable-linuxwext        disable linux wireless extension support],
+AC_ARG_ENABLE(linuxwext,
+	[  --disable-linuxwext     disable Linux wireless extensions],
 	[case "${enableval}" in
 	  no) wantwext=no ;;
 	   *) wantwext=yes ;;
@@ -523,7 +523,7 @@ if test "$wantwext" = "yes"; then
 		])
 
 	if test "$foundwexth" != "yes"; then
-		AC_MSG_ERROR(Failed to find a usable linux/wireless.h header for Linux Wireless Extensions.  Either your kernel headers are missing or are incorrect.  See config.log for the exact error.)
+		AC_MSG_ERROR(Failed to find a usable linux/wireless.h header for Linux Wireless Extensions.  Either your kernel headers are missing or are incorrect.  See config.log for the exact error.  Compiling without wireless headers must be explicitly disabled)
 	fi
 
     AC_MSG_CHECKING(that linux/wireless.h is what we expect)
@@ -732,6 +732,10 @@ if test "$wantpcap" = yes; then
 	fi
 fi
 
+if test "$wantpcap" = "yes" -a "$pcap" != "yes"; then
+	AC_MSG_ERROR(Could not find working libpcap.  Libpcap is vital for the majority of capture sources Kismet supports.  It must be explicitly disabled.)
+fi
+
 if test "$wantpcap" != "yes" -o "$pcap" != "yes"; then
     AC_MSG_WARN(Compiling without libpcap support.  Many capture sources will be disabled.)
 fi
@@ -853,15 +857,6 @@ fi
 
 fi
 
-AC_ARG_ENABLE(setuid,
-	[  --disable-setuid        disable setuid/privdrop ability (not reccomended)],
-	[case "${enableval}" in
-	  no) suid=no ;;
-	   *) suid=yes ;;
-	 esac],
-	[suid=yes]
-)
-
 if test "$darwin" = "yes"; then
 	suidgroup="staff"
 else
@@ -923,14 +918,6 @@ echo "           C++ Library: $foundcxxl"
 echo "   Installing as group: $instgrp"
 echo "    Man pages owned by: $mangrp"
 echo "       Installing into: $prefix"
-printf "        Setuid capable: "
-if test "$suid" = "yes"; then
-	echo "yes"
-elif test "$cygwin" = "yes"; then
-	echo "n/a (Cygwin/Win32";
-else
-	echo "no"
-fi
 printf "          Setuid group: "
 if test "$cygwin" = "yes"; then
 	echo "n/a (Cygwin/Win32";

@@ -732,7 +732,6 @@ enable_airpcap
 with_airpcap_devpack
 with_winpcap_devpack
 enable_pcap
-enable_setuid
 with_suidgroup
 enable_optimization
 '
@@ -1378,11 +1377,10 @@ Optional Features:
   --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
   --disable-largefile     omit support for large files
   --disable-client        disable kismet client
-  --disable-linuxwext        disable linux wireless extension support
+  --disable-linuxwext     disable Linux wireless extensions
   --disable-pcre          disable building pcre components
   --enable-airpcap        enable checking for CACE airpcap
   --disable-pcap          disable libpcap (most sources) capture support
-  --disable-setuid        disable setuid/privdrop ability (not reccomended)
   --disable-optimization        disable -Ox gcc optimization
 
 Optional Packages:
@@ -8461,8 +8459,8 @@ fi
 
 
 	if test "$foundwexth" != "yes"; then
-		{ { $as_echo "$as_me:$LINENO: error: Failed to find a usable linux/wireless.h header for Linux Wireless Extensions.  Either your kernel headers are missing or are incorrect.  See config.log for the exact error." >&5
-$as_echo "$as_me: error: Failed to find a usable linux/wireless.h header for Linux Wireless Extensions.  Either your kernel headers are missing or are incorrect.  See config.log for the exact error." >&2;}
+		{ { $as_echo "$as_me:$LINENO: error: Failed to find a usable linux/wireless.h header for Linux Wireless Extensions.  Either your kernel headers are missing or are incorrect.  See config.log for the exact error.  Compiling without wireless headers must be explicitly disabled" >&5
+$as_echo "$as_me: error: Failed to find a usable linux/wireless.h header for Linux Wireless Extensions.  Either your kernel headers are missing or are incorrect.  See config.log for the exact error.  Compiling without wireless headers must be explicitly disabled" >&2;}
    { (exit 1); exit 1; }; }
 	fi
 
@@ -10133,6 +10131,12 @@ $as_echo "no" >&6; }
 	fi
 fi
 
+if test "$wantpcap" = "yes" -a "$pcap" != "yes"; then
+	{ { $as_echo "$as_me:$LINENO: error: Could not find working libpcap.  Libpcap is vital for the majority of capture sources Kismet supports.  It must be explicitly disabled." >&5
+$as_echo "$as_me: error: Could not find working libpcap.  Libpcap is vital for the majority of capture sources Kismet supports.  It must be explicitly disabled." >&2;}
+   { (exit 1); exit 1; }; }
+fi
+
 if test "$wantpcap" != "yes" -o "$pcap" != "yes"; then
     { $as_echo "$as_me:$LINENO: WARNING: Compiling without libpcap support.  Many capture sources will be disabled." >&5
 $as_echo "$as_me: WARNING: Compiling without libpcap support.  Many capture sources will be disabled." >&2;}
@@ -10991,18 +10995,6 @@ $as_echo "libnl detected but no support for mac80211 your kernel is probably too
 fi
 
 fi
-
-# Check whether --enable-setuid was given.
-if test "${enable_setuid+set}" = set; then
-  enableval=$enable_setuid; case "${enableval}" in
-	  no) suid=no ;;
-	   *) suid=yes ;;
-	 esac
-else
-  suid=yes
-
-fi
-
 
 if test "$darwin" = "yes"; then
 	suidgroup="staff"
@@ -12325,14 +12317,6 @@ echo "           C++ Library: $foundcxxl"
 echo "   Installing as group: $instgrp"
 echo "    Man pages owned by: $mangrp"
 echo "       Installing into: $prefix"
-printf "        Setuid capable: "
-if test "$suid" = "yes"; then
-	echo "yes"
-elif test "$cygwin" = "yes"; then
-	echo "n/a (Cygwin/Win32";
-else
-	echo "no"
-fi
 printf "          Setuid group: "
 if test "$cygwin" = "yes"; then
 	echo "n/a (Cygwin/Win32";

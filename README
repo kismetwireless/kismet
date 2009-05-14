@@ -1,13 +1,13 @@
-Kismet 2009-02-TEST1
+Kismet 2009-05-RC1
 Mike Kershaw <dragorn@kismetwireless.net>
 http://www.kismetwireless.net
 
 1.  What is Kismet
 2.  Upgrading from earlier versions
 3.  Quick start
-4.  Suidroot & Security
+4.  Suidroot & security
 5.  Capture sources
-6.  Caveats and quirks for specific drivers
+6.  Caveats & quirks for specific drivers
 7.  Supported capture sources
 8.  Plugins
 9.  GPS
@@ -15,6 +15,10 @@ http://www.kismetwireless.net
 11. Filtering
 12. Alerts & IDS
 13. Server configuration options
+14. Kismet UI
+15. Kismet drones
+17. Troubleshooting
+18. Frequently asked questions
 
 1.  What is Kismet
 
@@ -907,4 +911,260 @@ http://www.kismetwireless.net
     would be done by the Kismet UI and thusly sound is disabled by default.
     The options sound, soundplay, sound_new, etc, in the Kismet config file
     control sound and speech playing from the server.
+
+    The OUI file (used by Kismet to determine the manufacturer of a device)
+    can be shared with other tools (such as Wireshark), so long as they use 
+    a compatible format.  By default, Kismet searches:
+        /etc/manuf
+        /usr/share/wireshark/wireshark/manuf
+        /usr/share/wireshark/manuf
+    Additional search paths can be added with the 'ouifile=' configuration
+    option.
+
+14. Kismet UI
+
+    The default Kismet UI uses the text-based ncurses library.  Additional
+    UIs may be available from the Links page on the Kismet website.
+
+    The Kismet UI functions much as any other curses application (such as
+    Midnight Commander or Links) does.  The menu is activated with 'escape',
+    '`' or '~'.  Navigation between elements of the UI is done with 'tab'.
+
+    The main Kismet window consists of the network list, GPS information,
+    a summary of the current server statistics and packet source status, and
+    the status panel where errors and announcements are printed.  Additional
+    components of the main window may be turned on with the 'View' menu.
+
+    Configuration of the Kismet UI is done entirely inside the UI via the
+    'Kismet->Preferences->...' menus.  Preference changes are (for the most
+    part) immediate and do not require restarting.
+
+    By default, the Kismet UI will prompt on startup to launch the Kismet
+    server, this behavior (as well as auto-connection and server setup) can 
+    be changed via the preferences.
+
+    Kismet menus support shortcuts, for example '~Wl' is the same as
+    navigating to the 'Windows->Client List' menu option.
+
+15. Kismet Drones
+
+    Kismet Drones are designed to turn Kismet into a distributed IDS system.
+    Drones support all of the capture methods Kismet normally supports,
+    including multiple capture devices per drone.  Drones capture wireless
+    data and forward to a Kismet server over a secondary connection (ie,
+    wired Ethernet).  Drones do not do any decoding of packets and have
+    minimal hardware requirements.
+
+    A Kismet server connects to the drones and will provide a single Kismet
+    UI display, packet dump, and alert generation point.  Capture sources on
+    remote Kismet drones are forwarded to the Kismet server and appear as
+    independent capture devices which can be configured for channel hopping,
+    locking, etc.
+
+    Using the tun/tap export function, the central Kismet server can export
+    the packets from all attached drones to a virtual network interface for
+    use with external IDS/packet capture systems (such as Snort).
+
+    To start using Drones, launch the kismet_drone process on a remote
+    system (editing the kismet_drone.conf file to control what hosts are
+    allowed to connect) or turn on drone capabilities in the Kismet server
+    (by enabling the drone config options in kismet_server.conf).  When
+    running a kismet_server instance as a drone, local logging will act as
+    usual and Kismet clients can be connected to the server as normal; When
+    running kismet_drone, Kismet clients cannot connect directly to it, and
+    it will not log, a Kismet server instance must be started to provide
+    packet decoding, logging, and Kismet UI connectivity.
+
+17. Troubleshooting
+
+    Congratulations!  You're actually reading the troubleshooting section of
+    the README!  Many don't.
+
+    If you are having trouble getting Kismet to capture packets at all,
+    launch kismet_server independently of the client and watch the output,
+    it may be easier to spot problems then.
+
+    Some common problems with Kismet have easy solutions:
+
+    PROBLEM:  Fatal errors about old configuration files/missing config
+              values
+              Kismet has evolved over time, and has recently had a
+              significant rewrite of the entire application, rendering many
+              of the old configuration values obsolete, and changing many
+              others.
+    FIX:      Update your config files.  If you are moving to the latest
+              release of Kismet, it may be best to just remove your old
+              config files, copy the new ones, and reconfigure.
+
+    PROBLEM:  Kismet crashes immediately while starting up
+    FIX:      If you are building Kismet from SVN routinely, it's possible
+              that the build system has gotten screwed up with a recent
+              change.  Run 'make distclean' then './configure' and 'make'
+              again.  If the kismet_capture binary is out-of-sync with the
+              kismet_server or kismet_drone binaries, things will behave
+              oddly.
+
+    PROBLEM:  Kismet shows FATAL errors about permission denied
+    FIX:      Are you trying to capture from a network interface without
+              root privileges?  Kismet must either be installed as suid-root
+              (and the user starting it must be in the kismet group) or it
+              must be started as root, see the "Suid Root & Security"
+              section of the README.
+
+    PROBLEM:  Kismet can not autodetect my card type or doesn't understand
+              the "type=..." source option.
+    FIX:      Some drivers do not register with the /sys filesystem and can
+              not be properly autodetected.  Check the list of capture
+              sources known to be problematic in this README.
+              Secondly, check the output of './configure' when building
+              Kismet and make sure that support for your capture type is
+              present, most commonly support for pcap or wext is missing.
+
+    PROBLEM:  Kismet warns about interfering processes while starting up.
+              Many network services can interfere with Kismet (DHCP,
+              networkmanager, etc) by reconfiguring or shutting down the
+              network interface while Kismet is running.
+    FIX:      Only necessary if Kismet is not behaving as expected, or
+              encountering errors.  Shutdown or kill the offending
+              processes.  This can often be most quickly accomplished by
+              stopping the networking services for your interface ('ifdown
+              wlan0' for example).  In some specific configurations, these
+              alerts may be spurious (dhcp and wpa_supplicant alerts on a
+              multi-vap mac80211 interface doing sta+rfmon with a
+              wpa_supplicant scanning option, for example).
+
+    PROBLEM:  Kismet complains about multiple VAPs under madwifi-ng
+    FIX:      Destroy the other VAPs, or ignore this warning if there are no
+              run-time failures.  Madwifi-ng has historically had
+              significant problems with multi-vap and rfmon (for example, a
+              STA VAP and a RFMON VAP).
+
+    PROBLEM:  Shortly after starting on madwifi-ng, Kismet stops reporting
+              packets.
+    FIX:      There appears to be a race condition in madwifi-ng startup
+              where an autocreated VAP causes errors in future VAPs.  A
+              temporary fix is to reload the madwifi-ng driver before
+              starting Kismet, with the 'autocreate=none' modparm ('rmmod
+              ath_pci; modprobe ath_pci autocreate=none'), a more permanent
+              fix is to put this in the default module parameters for
+              ath_pci and make the necessary changes to your startup scripts
+              to create a managed VAP on startup.
+
+    PROBLEM:  './configure' is unable to find libpcap, wext, ncurses, pcre,
+              or some other library when building from source.
+    FIX:      Many distributions separate the runtime data from the data
+              necessary to compile programs against a library.  Install the
+              '-dev' or '-devel' or 'devel-' packages for each of the
+              libraries ('apt-get install libpcap-dev' for example)
+
+    PROBLEM:  Kismet exits immediately on Cygwin with no output.
+    FIX:      Cygwin appears to have problems linking static libraries when
+              they are not in a sub-directory of the build.  By default,
+              './configure' will look in "Airpcap_Devpack" and
+              "Winpcap_Devpack", you should probably just expand the devpack
+              zips there.
+
+    PROBLEM:  I can't capture on (some device that isn't an AirPCAP that I
+              bought from CACE) on Windows!
+    FIX:      Buy an AirPCAP and read the docs.
+
+    PROBLEM:  I can't see some parts of the Kismet UI
+    FIX:      Some terminals have bad default color assignments and render
+              dark grey as black.  Go into the Kismet color preferences and
+              change the items.
+
+    PROBLEM:  A plugin crashes Kismet (server or UI)
+    FIX:      Recompile the plugin and make sure it's build with the same
+              code as the Kismet server/client.  This is especially
+              problematic if you are following Kismet development in SVN.
+
+    PROBLEM:  Kismet makes the mouse slow or crashes the whole system
+    FIX:      This isn't actually Kismet.  Only the kernel layer should be
+              able to cause the system to lockup or crash, or interfere with
+              interrupts so badly that the mouse becomes unresponsive.
+              Kismet may exacerbate this behavior by changing the card
+              configuration and exposing flaws in the driver;  This most
+              often can happen while changing channels, try disabling
+              channel hopping (or slowing it down), and upgrade to the
+              latest drivers for your device.
+
+18. Frequently Asked Questions
+
+    Q: Where did the name Kismet come from?
+    A: 'Kismet' means 'Fate' or 'Destiny'; While I wish I could take credit
+       for some plan about picking it for Kismets ability to uncover any
+       network in the area, I really just needed a name and clicked through
+       a thesaurus until I found a word that wasn't used in any other OSS
+       projects.
+
+    Q: Is there anything illegal about Kismet?
+    A: In and of itself, there should be nothing illegal about Kismet (it's
+       fundamentally no different than any other capture tool) but you
+       should check your local laws first.  Note, however:
+        - Recording data from networks that you do not have permission to
+          may be considered an illegal wiretap.
+        - Using networks you do not have permission to use may be considered
+          'Theft of Service' and is illegal.
+        - Don't be stupid.
+        - If you are stupid, I'm not responsible.
+
+    Q: What's the deal with Newcore, and where did it go?
+    A: Newcore was a total rewrite of Kismet, which lasted years longer in a
+       development state than planned.  If you're reading this, you've got
+       the release that Newcore became already.
+
+    Q: What happened to the version numbers?
+    A: They stopped making sense.  3.0 to 3.1 was a 30,000 line change, but
+       calling it 4.0 didn't make any sense either.  I hate project
+       perpetually in 0.1, 0.9 status, but I also hate artificially
+       expanding the version numbers.  So, now, it's versioned by the
+       release date, YYYY-MM-RR.
+
+    Q: What is RFMON/Monitor mode?
+    A: In the wired world, promiscuous mode turns off the filtering
+       mechanism in the device and reports all packets on the Ethernet (or
+       whatever) layer.
+       With wireless drivers, this doesn't necessarily mean anything
+       (sometimes it causes different results, sometimes it doesn't).
+       Wireless drivers present a fake Ethernet device to the operating
+       systems, which reports only 802.11 data frames.  When looking at WPA
+       encrypted networks, this is even more limited, because packets are
+       encrypted for each client and only multicast/broadcast packets or
+       packets destined to the capture device could be reported as valid
+       data frames anyhow.
+       Monitor/RFMON mode is a special mode for wireless devices which
+       reports all packets the card sees, with the 802.11 headers intact,
+       including 802.11 management and control frames.
+
+    Q: Does Kismet work differently than NetStumbler?
+    A: Absolutely.  Netstumbler (and Ministumbler, InSSIDer, etc) work by
+       instructing the card to probe for networks and report the networks
+       the card sees responses from.  This method is obviously competent at
+       detecting networks in the area, however it can't record data, find
+       hidden networks, detect clients using networks, etc.
+
+    Q: Why are some probe SSIDs full of strange nonsense characters?
+    A: It appears with Windows Zero Config in many versions of Windows XP
+       has an off-by-one error which leaks a little bit of memory into a
+       probe request.  
+
+    Q: Why is the range of a network sometimes totally bogus when using a
+       GPS with Kismet?
+    A: Doing real-time GPS averaging leads to increasingly bad data due to
+       floating-point accuracy and averaging.  For more exact GPS data,
+       process the gpsxml file.
+
+    Q: How can I merge multiple capture files?
+    A: Use the 'mergecap' tool that comes with Wireshark.
+
+    Q: How can I support device X with Kismet on operating system Y?
+    A: Kismet is designed to be fairly modular (especially the newest
+       versions based on Newcore).  So long as your environment is something
+       like Posix and your device supports raw capture modes, it should be
+       possible.  Swing by IRC (#kismet on freenode) and chat.
+
+    Q: What happens when I ask a question already here?
+    A: I'll probably be rude to you (or someone else will).  But that would
+       never happen, because everyone reads the docs all the way to the end,
+       right?  Right!?
 
