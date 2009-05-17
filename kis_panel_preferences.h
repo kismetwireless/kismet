@@ -312,6 +312,9 @@ public:
 protected:
 	Kis_Scrollable_Table *audiolist;
 	vector<Kis_ColorPref_Panel::cprefpair> listedcolors;
+	Kis_Single_Input *sound_prefix, *festival_path, *play_path;
+	Kis_Checkbox *sound_check, speech_check;
+	Kis_Button *config_speech_button, *close_button;
 };
 
 #endif // curses

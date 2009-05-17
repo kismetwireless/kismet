@@ -139,7 +139,7 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 
 	mn_view = menu->AddMenu("View", 0);
 	mi_shownetworks = menu->AddMenuItem("Network List", mn_view, 'n');
-	// mi_showclients = menu->AddMenuItem("Client List", mn_view, 'c');
+	mi_showclients = menu->AddMenuItem("Client List", mn_view, 'c');
 	mi_showgps = menu->AddMenuItem("GPS Data", mn_view, 'g');
 	mi_showsummary = menu->AddMenuItem("General Info", mn_view, 'S');
 	mi_showstatus = menu->AddMenuItem("Status", mn_view, 's');
@@ -212,10 +212,11 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	netlist->Show();
 	netlist->SetCallback(COMPONENT_CBTYPE_ACTIVATED, NetlistActivateCB, this);
 
-	// clientlist = new Kis_Clientlist(globalreg, this);
-	// clientlist->SetName("KIS_MAIN_CLIENTLIST");
-	// clientlist->Show();
-	// clientlist->SetCallback(COMPONENT_CBTYPE_ACTIVATED, NetlistActivateCB, this);
+	clientlist = new Kis_Clientlist(globalreg, this);
+	clientlist->SetName("KIS_MAIN_CLIENTLIST");
+	clientlist->FollowDNG(1);
+	clientlist->Show();
+	clientlist->SetCallback(COMPONENT_CBTYPE_ACTIVATED, NetlistActivateCB, this);
 
 	// Set up the packet rate graph as over/under linked to the
 	// packets per second
@@ -260,7 +261,7 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	hbox->Pack_End(optbox, 0, 0);
 
 	netbox->Pack_End(netlist, 1, 0);
-	// netbox->Pack_End(clientlist, 1, 0);
+	netbox->Pack_End(clientlist, 1, 0);
 	netbox->Pack_End(linebox, 0, 0);
 	netbox->Pack_End(packetrate, 0, 0);
 	netbox->Pack_End(statustext, 0, 0);
@@ -268,7 +269,7 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	vbox->Pack_End(hbox, 1, 0);
 
 	AddComponentVec(netlist, KIS_PANEL_COMP_TAB | KIS_PANEL_COMP_EVT);
-	// AddComponentVec(clientlist, KIS_PANEL_COMP_TAB | KIS_PANEL_COMP_EVT);
+	AddComponentVec(clientlist, KIS_PANEL_COMP_TAB | KIS_PANEL_COMP_EVT);
 
 	AddComponentVec(vbox, KIS_PANEL_COMP_DRAW);
 
@@ -721,29 +722,29 @@ void Kis_Main_Panel::MenuAction(int opt) {
 			kpinterface->RemoveNetClient();
 		}
 	} else if (opt == mi_sort_auto) {
-		kpinterface->prefs->SetOpt("NETLIST_SORT", "auto", 1);
+		kpinterface->prefs->SetOpt("NETLIST_SORT", "auto", time(0));
 	} else if (opt == mi_sort_type) {
-		kpinterface->prefs->SetOpt("NETLIST_SORT", "type", 1);
+		kpinterface->prefs->SetOpt("NETLIST_SORT", "type", time(0));
 	} else if (opt == mi_sort_chan) {
-		kpinterface->prefs->SetOpt("NETLIST_SORT", "channel", 1);
+		kpinterface->prefs->SetOpt("NETLIST_SORT", "channel", time(0));
 	} else if (opt == mi_sort_crypt) {
-		kpinterface->prefs->SetOpt("NETLIST_SORT", "crypt_type", 1);
+		kpinterface->prefs->SetOpt("NETLIST_SORT", "crypt_type", time(0));
 	} else if (opt == mi_sort_first) {
-		kpinterface->prefs->SetOpt("NETLIST_SORT", "first", 1);
+		kpinterface->prefs->SetOpt("NETLIST_SORT", "first", time(0));
 	} else if (opt == mi_sort_first_d) {
-		kpinterface->prefs->SetOpt("NETLIST_SORT", "first_desc", 1);
+		kpinterface->prefs->SetOpt("NETLIST_SORT", "first_desc", time(0));
 	} else if (opt == mi_sort_last) {
-		kpinterface->prefs->SetOpt("NETLIST_SORT", "last", 1);
+		kpinterface->prefs->SetOpt("NETLIST_SORT", "last", time(0));
 	} else if (opt == mi_sort_last_d) {
-		kpinterface->prefs->SetOpt("NETLIST_SORT", "last_desc", 1);
+		kpinterface->prefs->SetOpt("NETLIST_SORT", "last_desc", time(0));
 	} else if (opt == mi_sort_bssid) {
-		kpinterface->prefs->SetOpt("NETLIST_SORT", "bssid", 1);
+		kpinterface->prefs->SetOpt("NETLIST_SORT", "bssid", time(0));
 	} else if (opt == mi_sort_ssid) {
-		kpinterface->prefs->SetOpt("NETLIST_SORT", "ssid", 1);
+		kpinterface->prefs->SetOpt("NETLIST_SORT", "ssid", time(0));
 	} else if (opt == mi_sort_packets) {
-		kpinterface->prefs->SetOpt("NETLIST_SORT", "packets", 1);
+		kpinterface->prefs->SetOpt("NETLIST_SORT", "packets", time(0));
 	} else if (opt == mi_sort_packets_d) {
-		kpinterface->prefs->SetOpt("NETLIST_SORT", "packets_desc", 1);
+		kpinterface->prefs->SetOpt("NETLIST_SORT", "packets_desc", time(0));
 	} else if (opt == mi_netdetails) {
 		Kis_NetDetails_Panel *dp = new Kis_NetDetails_Panel(globalreg, kpinterface);
 		kpinterface->AddPanel(dp);
@@ -764,7 +765,8 @@ void Kis_Main_Panel::MenuAction(int opt) {
 			   opt == mi_showpps ||
 			   opt == mi_showgps ||
 			   opt == mi_showsources ||
-			   opt == mi_shownetworks) {
+			   opt == mi_shownetworks ||
+			   opt == mi_showclients) {
 		UpdateViewMenu(opt);
 	} else if (opt == mi_addcard) {
 		Kis_AddCard_Panel *acp = new Kis_AddCard_Panel(globalreg, kpinterface);
@@ -993,7 +995,6 @@ void Kis_Main_Panel::UpdateViewMenu(int mi) {
 			menu->SetMenuItemChecked(mi_shownetworks, 1);
 			netlist->Show();
 		}
-		/*
 	} else if (mi == mi_showclients) {
 		opt = kpinterface->prefs->FetchOpt("MAIN_SHOWCLIENTLIST");
 		if (opt == "true") {
@@ -1005,7 +1006,6 @@ void Kis_Main_Panel::UpdateViewMenu(int mi) {
 			menu->SetMenuItemChecked(mi_showclients, 1);
 			clientlist->Show();
 		}
-		*/
 	}
 
 	if (mi == -1) {
@@ -1063,7 +1063,6 @@ void Kis_Main_Panel::UpdateViewMenu(int mi) {
 			netlist->Hide();
 		}
 
-		/*
 		opt = kpinterface->prefs->FetchOpt("MAIN_SHOWCLIENTLIST");
 		if (opt == "true") {
 			menu->SetMenuItemChecked(mi_showclients, 1);
@@ -1072,7 +1071,6 @@ void Kis_Main_Panel::UpdateViewMenu(int mi) {
 			menu->SetMenuItemChecked(mi_showclients, 0);
 			clientlist->Hide();
 		}
-		*/
 	}
 }
 
@@ -2704,23 +2702,23 @@ void Kis_Clientlist_Panel::MenuAction(int opt) {
 		kpinterface->AddPanel(cp);
 		return;
 	} else if (opt == mi_sort_auto) {
-		kpinterface->prefs->SetOpt("CLIENTLIST_SORT", "auto", 1);
+		kpinterface->prefs->SetOpt("CLIENTLIST_SORT", "auto", time(0));
 	} else if (opt == mi_sort_type) {
-		kpinterface->prefs->SetOpt("CLIENTLIST_SORT", "type", 1);
+		kpinterface->prefs->SetOpt("CLIENTLIST_SORT", "type", time(0));
 	} else if (opt == mi_sort_first) {
-		kpinterface->prefs->SetOpt("CLIENTLIST_SORT", "first", 1);
+		kpinterface->prefs->SetOpt("CLIENTLIST_SORT", "first", time(0));
 	} else if (opt == mi_sort_first_d) {
-		kpinterface->prefs->SetOpt("CLIENTLIST_SORT", "first_desc", 1);
+		kpinterface->prefs->SetOpt("CLIENTLIST_SORT", "first_desc", time(0));
 	} else if (opt == mi_sort_last) {
-		kpinterface->prefs->SetOpt("CLIENTLIST_SORT", "last", 1);
+		kpinterface->prefs->SetOpt("CLIENTLIST_SORT", "last", time(0));
 	} else if (opt == mi_sort_last_d) {
-		kpinterface->prefs->SetOpt("CLIENTLIST_SORT", "last_desc", 1);
+		kpinterface->prefs->SetOpt("CLIENTLIST_SORT", "last_desc", time(0));
 	} else if (opt == mi_sort_mac) {
-		kpinterface->prefs->SetOpt("CLIENTLIST_SORT", "mac", 1);
+		kpinterface->prefs->SetOpt("CLIENTLIST_SORT", "mac", time(0));
 	} else if (opt == mi_sort_packets) {
-		kpinterface->prefs->SetOpt("CLIENTLIST_SORT", "packets", 1);
+		kpinterface->prefs->SetOpt("CLIENTLIST_SORT", "packets", time(0));
 	} else if (opt == mi_sort_packets_d) {
-		kpinterface->prefs->SetOpt("CLIENTLIST_SORT", "packets_desc", 1);
+		kpinterface->prefs->SetOpt("CLIENTLIST_SORT", "packets_desc", time(0));
 	}
 
 	clientlist->UpdateSortPrefs();

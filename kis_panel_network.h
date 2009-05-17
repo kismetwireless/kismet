@@ -254,6 +254,8 @@ protected:
 	int color_map[6];
 	int color_inactive;
 
+	time_t bcol_pref_t, bext_pref_t, sort_pref_t;
+
 	// Sort modes
 	// Sort type
 	netsort_opts sort_mode;
@@ -389,6 +391,9 @@ public:
 	// We want to pull a new display group from the current network
 	void UpdateDNG(void);
 
+	// We want to follow the dng every update (default: no, we don't)
+	void FollowDNG(int in_follow) { followdng = in_follow; }
+
 	// Fetch a pointer to the currently drawing group
 	Kis_Display_NetGroup *FetchSelectedNetgroup();
 
@@ -419,10 +424,15 @@ protected:
 	int color_map[5];
 	int color_inactive;
 
+	time_t ccol_pref_t, cext_pref_t, sort_pref_t;
+
 	clientsort_opts sort_mode;
 
 	// Event reference for update trigger
 	int updateref;
+
+	// Do we follow the DNG and update it continually?
+	int followdng;
 
 	// Interface
 	KisPanelInterface *kpinterface;

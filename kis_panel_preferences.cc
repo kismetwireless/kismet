@@ -245,7 +245,7 @@ void Kis_ColorPref_Picker::ButtonAction(Kis_Panel_Component *in_button) {
 	if (in_button == okbutton) {
 		kpinterface->prefs->SetOpt(prefname,
 								  fgcolor->GetColor() + "," +
-								  bgcolor->GetColor(), 1);
+								  bgcolor->GetColor(), time(0));
 
 		globalreg->panel_interface->KillPanel(this);
 		return;
@@ -712,7 +712,7 @@ void Kis_ColumnPref_Panel::ButtonAction(Kis_Panel_Component *in_button) {
 	if (in_button == okbutton) {
 		if (pref != "") {
 			kpinterface->prefs->SetOpt(pref,
-									  orderlist->GetStringOrderList(), 1);
+									  orderlist->GetStringOrderList(), time(0));
 		}
 
 		globalreg->panel_interface->KillPanel(this);
@@ -1062,6 +1062,143 @@ void Kis_StartupPref_Panel::ButtonAction(Kis_Panel_Component *in_button) {
 		kpinterface->KillPanel(this);
 	}
 }
+
+#if 0
+Kis_AudioPref_Panel::Kis_StartupPref_Panel(GlobalRegistry *in_globalreg, 
+									 KisPanelInterface *in_intf):
+	Kis_Panel(in_globalreg, in_intf) {
+
+	audiolist = new Kis_Scrollable_Table(globalreg, this);
+
+	audiolist->SetCallback(COMPONENT_CBTYPE_ACTIVATED, ColorPrefCB, this);
+
+	AddComponentVec(audiolist, (KIS_PANEL_COMP_TAB | KIS_PANEL_COMP_EVT));
+
+	vector<Kis_Scrollable_Table::title_data> titles;
+	Kis_Scrollable_Table::title_data t;
+	t.width = 8;
+	t.title = "Trigger";
+	t.alignment = 0;
+	titles.push_back(t);
+
+	t.width = 4;
+	t.title = "Play";
+	t.alignment = 0;
+	titles.push_back(t);
+
+	t.width = 15;
+	t.title = "File";
+	t.alignment = 0;
+	titles.push_back(t);
+
+	colorlist->AddTitles(titles);
+	colorlist->Show();
+
+	AddComponentVec(startkisprompt_check, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+									 KIS_PANEL_COMP_TAB));
+
+	startcons_check = new Kis_Checkbox(globalreg, this);
+	startcons_check->SetText("Show Kismet server console on startup");
+	startcons_check->SetCallback(COMPONENT_CBTYPE_ACTIVATED, StartupButtonCB, this);
+	startcons_check->Show();
+	AddComponentVec(startcons_check, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+									  KIS_PANEL_COMP_TAB));
+
+	stopkis_check = new Kis_Checkbox(globalreg, this);
+	stopkis_check->SetText("Stop Kismet server on exit");
+	stopkis_check->SetCallback(COMPONENT_CBTYPE_ACTIVATED, StartupButtonCB, this);
+	stopkis_check->Show();
+	AddComponentVec(stopkis_check, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+									KIS_PANEL_COMP_TAB));
+
+	stopkisprompt_check = new Kis_Checkbox(globalreg, this);
+	stopkisprompt_check->SetText("Prompt before stopping Kismet server");
+	stopkisprompt_check->SetCallback(COMPONENT_CBTYPE_ACTIVATED, StartupButtonCB, this);
+	stopkisprompt_check->Show();
+	AddComponentVec(stopkisprompt_check, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+										  KIS_PANEL_COMP_TAB));
+
+	okbutton = new Kis_Button(globalreg, this);
+	okbutton->SetText("OK");
+	okbutton->Show();
+	AddComponentVec(okbutton, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+							   KIS_PANEL_COMP_TAB));
+	
+	cancelbutton = new Kis_Button(globalreg, this);
+	cancelbutton->SetText("Cancel");
+	cancelbutton->Show();
+	AddComponentVec(cancelbutton, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+								   KIS_PANEL_COMP_TAB));
+
+	okbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, GpsconfButtonCB, this);
+	cancelbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, GpsconfButtonCB, this);
+
+	SetTitle("Startup Options");
+
+	bbox = new Kis_Panel_Packbox(globalreg, this);
+	bbox->SetPackH();
+	bbox->SetHomogenous(1);
+	bbox->SetSpacing(0);
+	bbox->SetCenter(1);
+	AddComponentVec(bbox, KIS_PANEL_COMP_DRAW);
+
+	bbox->Pack_End(cancelbutton, 0, 0);
+	bbox->Pack_End(okbutton, 0, 0);
+	bbox->Show();
+
+	vbox = new Kis_Panel_Packbox(globalreg, this);
+	vbox->SetPackV();
+	vbox->SetHomogenous(0);
+	vbox->SetSpacing(1);
+	AddComponentVec(vbox, KIS_PANEL_COMP_DRAW);
+	vbox->Pack_End(startkis_check, 0, 0);
+	vbox->Pack_End(startkisprompt_check, 0, 0);
+	vbox->Pack_End(startcons_check, 0, 0);
+	vbox->Pack_End(stopkis_check, 0, 0);
+	vbox->Pack_End(stopkisprompt_check, 0, 0);
+	vbox->Pack_End(bbox, 0, 0);
+	
+	vbox->Show();
+
+	main_component = vbox;
+
+	tab_pos = 0;
+	startkis_check->Activate(1);
+	active_component = startkis_check;
+
+	if (StrLower(kpinterface->prefs->FetchOpt("STARTUP_SERVER")) != "true") {
+		startkis_check->SetChecked(0);
+	} else {
+		startkis_check->SetChecked(1);
+	}
+
+	if (StrLower(kpinterface->prefs->FetchOpt("STARTUP_PROMPTSERVER")) != "true") {
+		startkisprompt_check->SetChecked(0);
+	} else {
+		startkisprompt_check->SetChecked(1);
+	}
+
+	if (StrLower(kpinterface->prefs->FetchOpt("STARTUP_CONSOLE")) != "true") {
+		startcons_check->SetChecked(0);
+	} else {
+		startcons_check->SetChecked(1);
+	}
+
+	if (StrLower(kpinterface->prefs->FetchOpt("STOP_SERVER")) != "true") {
+		stopkis_check->SetChecked(0);
+	} else {
+		stopkis_check->SetChecked(1);
+	}
+
+	if (StrLower(kpinterface->prefs->FetchOpt("STOP_PROMPTSERVER")) != "true") {
+		stopkisprompt_check->SetChecked(0);
+	} else {
+		stopkisprompt_check->SetChecked(1);
+	}
+
+	Position(WIN_CENTER(14, 70));
+}
+#endif
 
 #endif
 
