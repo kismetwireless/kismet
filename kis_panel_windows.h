@@ -112,7 +112,7 @@ protected:
 		mi_sort_first_d, mi_sort_last, mi_sort_last_d, mi_sort_bssid, mi_sort_ssid,
 		mi_sort_packets, mi_sort_packets_d;
 
-	int mn_view, mi_shownetworks, mi_showclients, mi_showsummary, mi_showstatus, 
+	int mn_view, mi_shownetworks, /* mi_showclients, */ mi_showsummary, mi_showstatus, 
 		mi_showgps, mi_showpps, mi_showsources;
 
 	int mn_windows, mi_netdetails, mi_clientlist, mi_chandetails, mi_gps, mi_alerts;
@@ -124,7 +124,7 @@ protected:
 	KisStatusText_Messageclient *statuscli;
 	Kis_Status_Text *statustext;
 	Kis_Netlist *netlist;
-	Kis_Clientlist *clientlist;
+	// Kis_Clientlist *clientlist;
 	Kis_Info_Bits *infobits;
 	Kis_Free_Text *sourceinfo, *gpsinfo;
 
@@ -409,6 +409,7 @@ protected:
 	
 	Kis_Panel_Packbox *vbox;
 	Kis_Clientlist *clientlist;
+	Kis_Free_Text *nettitle;
 
 	int mn_clients, mi_nextnet, mi_prevnet, mi_close;
 	int mn_preferences, mi_clicolprefs, mi_cliextraprefs;

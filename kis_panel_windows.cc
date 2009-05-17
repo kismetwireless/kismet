@@ -139,7 +139,7 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 
 	mn_view = menu->AddMenu("View", 0);
 	mi_shownetworks = menu->AddMenuItem("Network List", mn_view, 'n');
-	mi_showclients = menu->AddMenuItem("Client List", mn_view, 'c');
+	// mi_showclients = menu->AddMenuItem("Client List", mn_view, 'c');
 	mi_showgps = menu->AddMenuItem("GPS Data", mn_view, 'g');
 	mi_showsummary = menu->AddMenuItem("General Info", mn_view, 'S');
 	mi_showstatus = menu->AddMenuItem("Status", mn_view, 's');
@@ -212,9 +212,9 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	netlist->Show();
 	netlist->SetCallback(COMPONENT_CBTYPE_ACTIVATED, NetlistActivateCB, this);
 
-	clientlist = new Kis_Clientlist(globalreg, this);
-	clientlist->SetName("KIS_MAIN_CLIENTLIST");
-	clientlist->Show();
+	// clientlist = new Kis_Clientlist(globalreg, this);
+	// clientlist->SetName("KIS_MAIN_CLIENTLIST");
+	// clientlist->Show();
 	// clientlist->SetCallback(COMPONENT_CBTYPE_ACTIVATED, NetlistActivateCB, this);
 
 	// Set up the packet rate graph as over/under linked to the
@@ -260,7 +260,7 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	hbox->Pack_End(optbox, 0, 0);
 
 	netbox->Pack_End(netlist, 1, 0);
-	netbox->Pack_End(clientlist, 1, 0);
+	// netbox->Pack_End(clientlist, 1, 0);
 	netbox->Pack_End(linebox, 0, 0);
 	netbox->Pack_End(packetrate, 0, 0);
 	netbox->Pack_End(statustext, 0, 0);
@@ -268,7 +268,7 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	vbox->Pack_End(hbox, 1, 0);
 
 	AddComponentVec(netlist, KIS_PANEL_COMP_TAB | KIS_PANEL_COMP_EVT);
-	AddComponentVec(clientlist, KIS_PANEL_COMP_TAB | KIS_PANEL_COMP_EVT);
+	// AddComponentVec(clientlist, KIS_PANEL_COMP_TAB | KIS_PANEL_COMP_EVT);
 
 	AddComponentVec(vbox, KIS_PANEL_COMP_DRAW);
 
@@ -764,8 +764,7 @@ void Kis_Main_Panel::MenuAction(int opt) {
 			   opt == mi_showpps ||
 			   opt == mi_showgps ||
 			   opt == mi_showsources ||
-			   opt == mi_shownetworks ||
-			   opt == mi_showclients) {
+			   opt == mi_shownetworks) {
 		UpdateViewMenu(opt);
 	} else if (opt == mi_addcard) {
 		Kis_AddCard_Panel *acp = new Kis_AddCard_Panel(globalreg, kpinterface);
@@ -994,6 +993,7 @@ void Kis_Main_Panel::UpdateViewMenu(int mi) {
 			menu->SetMenuItemChecked(mi_shownetworks, 1);
 			netlist->Show();
 		}
+		/*
 	} else if (mi == mi_showclients) {
 		opt = kpinterface->prefs->FetchOpt("MAIN_SHOWCLIENTLIST");
 		if (opt == "true") {
@@ -1005,6 +1005,7 @@ void Kis_Main_Panel::UpdateViewMenu(int mi) {
 			menu->SetMenuItemChecked(mi_showclients, 1);
 			clientlist->Show();
 		}
+		*/
 	}
 
 	if (mi == -1) {
@@ -1062,6 +1063,7 @@ void Kis_Main_Panel::UpdateViewMenu(int mi) {
 			netlist->Hide();
 		}
 
+		/*
 		opt = kpinterface->prefs->FetchOpt("MAIN_SHOWCLIENTLIST");
 		if (opt == "true") {
 			menu->SetMenuItemChecked(mi_showclients, 1);
@@ -1070,6 +1072,7 @@ void Kis_Main_Panel::UpdateViewMenu(int mi) {
 			menu->SetMenuItemChecked(mi_showclients, 0);
 			clientlist->Hide();
 		}
+		*/
 	}
 }
 
@@ -2568,12 +2571,34 @@ Kis_Clientlist_Panel::Kis_Clientlist_Panel(GlobalRegistry *in_globalreg,
 	AddComponentVec(clientlist, KIS_PANEL_COMP_EVT);
 	clientlist->SetCallback(COMPONENT_CBTYPE_ACTIVATED, ClientListButtonCB, this);
 
+	nettitle = new Kis_Free_Text(globalreg, this);
+
+	Kis_Display_NetGroup *cdng = NULL;
+	Netracker::tracked_network *cnet = NULL;
+	if ((cdng = clientlist->FetchSelectedNetgroup()) != NULL) {
+		cnet = cdng->FetchNetwork();
+
+		if (cnet != NULL) {
+			string ttext = "Selected network: ";
+			ttext += cnet->bssid.Mac2String() + " ";
+			if (cnet->lastssid != NULL) {
+				ttext += string("(") + cnet->lastssid->ssid + string(")");
+			}
+			nettitle->SetText(ttext);
+		}
+	} else {
+		nettitle->SetText("No network selected");
+	}
+	nettitle->Show();
+	AddComponentVec(nettitle, KIS_PANEL_COMP_DRAW);
+
 	vbox = new Kis_Panel_Packbox(globalreg, this);
 	vbox->SetPackV();
 	vbox->SetHomogenous(0);
 	vbox->SetSpacing(0);
 	vbox->Show();
 
+	vbox->Pack_End(nettitle, 0, 0);
 	vbox->Pack_End(clientlist, 1, 0);
 
 	AddComponentVec(vbox, KIS_PANEL_COMP_DRAW);
@@ -2610,9 +2635,47 @@ void Kis_Clientlist_Panel::MenuAction(int opt) {
 		return;
 	} else if (opt == mi_nextnet) {
 		kpinterface->FetchMainPanel()->FetchDisplayNetlist()->KeyPress(KEY_DOWN);
+		clientlist->UpdateDNG();
+
+		Kis_Display_NetGroup *cdng = NULL;
+		Netracker::tracked_network *cnet = NULL;
+		if ((cdng = clientlist->FetchSelectedNetgroup()) != NULL) {
+			cnet = cdng->FetchNetwork();
+
+			if (cnet != NULL) {
+				string ttext = "Selected network: ";
+				ttext += cnet->bssid.Mac2String() + " ";
+				if (cnet->lastssid != NULL) {
+					ttext += string("(") + cnet->lastssid->ssid + string(")");
+				}
+				nettitle->SetText(ttext);
+			}
+		} else {
+			nettitle->SetText("No network selected");
+		}
+
 		return;
 	} else if (opt == mi_prevnet) {
 		kpinterface->FetchMainPanel()->FetchDisplayNetlist()->KeyPress(KEY_UP);
+		clientlist->UpdateDNG();
+
+		Kis_Display_NetGroup *cdng = NULL;
+		Netracker::tracked_network *cnet = NULL;
+		if ((cdng = clientlist->FetchSelectedNetgroup()) != NULL) {
+			cnet = cdng->FetchNetwork();
+
+			if (cnet != NULL) {
+				string ttext = "Selected network: ";
+				ttext += cnet->bssid.Mac2String() + " ";
+				if (cnet->lastssid != NULL) {
+					ttext += string("(") + cnet->lastssid->ssid + string(")");
+				}
+				nettitle->SetText(ttext);
+			}
+		} else {
+			nettitle->SetText("No network selected");
+		}
+
 		return;
 	} else if (opt == mi_clicolprefs) {
 		Kis_ColumnPref_Panel *cpp = new Kis_ColumnPref_Panel(globalreg, kpinterface);

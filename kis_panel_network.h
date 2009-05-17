@@ -386,6 +386,9 @@ public:
 	// Trigger a sort and redraw update
 	void UpdateTrigger(void);
 
+	// We want to pull a new display group from the current network
+	void UpdateDNG(void);
+
 	// Fetch a pointer to the currently drawing group
 	Kis_Display_NetGroup *FetchSelectedNetgroup();
 

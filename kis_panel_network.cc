@@ -3533,11 +3533,23 @@ void Kis_Clientlist::SetPosition(int isx, int isy, int iex, int iey) {
 	viewable_cols = ex;
 }
 
+void Kis_Clientlist::UpdateDNG(void) {
+	if (kpinterface->FetchMainPanel() == NULL)
+		return;
+
+
+	if (kpinterface->FetchMainPanel()->FetchSelectedNetgroup() != dng) {
+		dng = NULL;
+		UpdateTrigger();
+	}
+}
+
 void Kis_Clientlist::UpdateTrigger(void) {
 	if (kpinterface->FetchMainPanel() == NULL)
 		return;
 
-	if (kpinterface->FetchMainPanel()->FetchSelectedNetgroup() != dng) {
+	if (kpinterface->FetchMainPanel()->FetchSelectedNetgroup() != dng &&
+		dng == NULL) {
 		dng = kpinterface->FetchMainPanel()->FetchSelectedNetgroup();
 
 		display_vec.clear();
