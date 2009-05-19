@@ -293,6 +293,29 @@ protected:
 	Kis_Panel_Packbox *vbox, *bbox;
 };
 
+class Kis_AudioPicker_Panel : public Kis_Panel {
+public:
+	Kis_AudioPicker_Panel() {
+		fprintf(stderr, "FATAL OOPS: Kis_AudioPicker_Panel()\n");
+		exit(1);
+	}
+
+	Kis_AudioPicker_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_intf);
+	virtual ~Kis_AudioPicker_Panel();
+
+	virtual void SetPref(string in_trigger, string in_enable, string in_file);
+
+	virtual void Action(Kis_Panel_Component *in_component, int in_status);
+
+protected:
+	Kis_Filepicker *filelist;
+	Kis_Single_Input *directory;
+	Kis_Checkbox *enablecheck;
+	Kis_Button *okbutton, *cancelbutton, *dirbutton;
+	Kis_Panel_Packbox *vbox, *dbox, *bbox;
+	string trigger;
+};
+
 class Kis_AudioPref_Panel : public Kis_Panel {
 public:
 	Kis_AudioPref_Panel() {
@@ -305,16 +328,13 @@ public:
 
 	virtual void DrawPanel();
 
-	struct audprefpair {
-		string trigger, wav, speech;
-	};
+	virtual void SelectedAction(Kis_Panel_Component *in_component, int in_status);
 
 protected:
 	Kis_Scrollable_Table *audiolist;
-	vector<Kis_ColorPref_Panel::cprefpair> listedcolors;
-	Kis_Single_Input *sound_prefix, *festival_path, *play_path;
-	Kis_Checkbox *sound_check, speech_check;
-	Kis_Button *config_speech_button, *close_button;
+	Kis_Checkbox *sound_check, *speech_check;
+	Kis_Button *config_speech_button, *config_sound_button, *close_button;
+	Kis_Panel_Packbox *cbox, *vbox;
 };
 
 #endif // curses

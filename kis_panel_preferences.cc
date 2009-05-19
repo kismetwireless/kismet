@@ -1063,14 +1063,178 @@ void Kis_StartupPref_Panel::ButtonAction(Kis_Panel_Component *in_button) {
 	}
 }
 
-#if 0
-Kis_AudioPref_Panel::Kis_StartupPref_Panel(GlobalRegistry *in_globalreg, 
-									 KisPanelInterface *in_intf):
+int AudioPickerCB(COMPONENT_CALLBACK_PARMS) {
+	((Kis_AudioPicker_Panel *) aux)->Action(component, status);
+	return 1;
+}
+
+Kis_AudioPicker_Panel::Kis_AudioPicker_Panel(GlobalRegistry *in_globalreg, 
+											 KisPanelInterface *in_intf):
+	Kis_Panel(in_globalreg, in_intf) {
+
+	filelist = new Kis_Filepicker(globalreg, this);
+	filelist->Show();
+	AddComponentVec(filelist, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+							   KIS_PANEL_COMP_TAB));
+
+	directory = new Kis_Single_Input(globalreg, this);
+	directory->SetLabel("Dir:", LABEL_POS_LEFT);
+	directory->SetCharFilter(FILTER_ALPHANUMSYM);
+	directory->Show();
+	AddComponentVec(directory, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+								KIS_PANEL_COMP_TAB));
+	
+	dirbutton = new Kis_Button(globalreg, this);
+	dirbutton->SetLabel("Change Dir");
+	dirbutton->Show();
+	dirbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, AudioPickerCB, this);
+
+	enablecheck = new Kis_Checkbox(globalreg, this);
+	enablecheck->SetLabel("Play Sound");
+	enablecheck->SetCallback(COMPONENT_CBTYPE_ACTIVATED, AudioPickerCB, this);
+	AddComponentVec(enablecheck, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+								   KIS_PANEL_COMP_TAB));
+
+	okbutton = new Kis_Button(globalreg, this);
+	okbutton->SetLabel("Save");
+	okbutton->Show();
+	okbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, AudioPickerCB, this);
+	AddComponentVec(okbutton, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+							   KIS_PANEL_COMP_TAB));
+
+	cancelbutton = new Kis_Button(globalreg, this);
+	cancelbutton->SetLabel("Cancel");
+	cancelbutton->Show();
+	cancelbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, AudioPickerCB, this);
+	AddComponentVec(cancelbutton, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+							   KIS_PANEL_COMP_TAB));
+
+	SetTitle("Pick Sound");
+
+	dbox = new Kis_Panel_Packbox(globalreg, this);
+	dbox->SetPackH();
+	dbox->SetHomogenous(0);
+	dbox->SetSpacing(0);
+	dbox->SetCenter(1);
+	AddComponentVec(dbox, KIS_PANEL_COMP_DRAW);
+
+	dbox->Pack_End(directory, 1, 0);
+	dbox->Pack_End(dirbutton, 0, 0);
+	dbox->Show();
+
+	bbox = new Kis_Panel_Packbox(globalreg, this);
+	bbox->SetPackH();
+	bbox->SetHomogenous(1);
+	bbox->SetSpacing(1);
+	bbox->SetCenter(1);
+	AddComponentVec(bbox, KIS_PANEL_COMP_DRAW);
+
+	bbox->Pack_End(cancelbutton, 0, 0);
+	bbox->Pack_End(okbutton, 0, 0);
+	bbox->Show();
+
+	vbox = new Kis_Panel_Packbox(globalreg, this);
+	vbox->SetPackV();
+	vbox->SetHomogenous(0);
+	vbox->SetSpacing(1);
+	AddComponentVec(vbox, KIS_PANEL_COMP_DRAW);
+
+	vbox->Pack_End(filelist, 1, 0);
+	vbox->Pack_End(dbox, 0, 0);
+	vbox->Pack_End(enablecheck, 0, 0);
+	vbox->Pack_End(bbox, 0, 0);
+	
+	vbox->Show();
+
+	main_component = vbox;
+
+	SetActiveComponent(filelist);
+
+	Position(WIN_CENTER(15, 70));
+}
+
+Kis_AudioPicker_Panel::~Kis_AudioPicker_Panel() {
+
+}
+
+void Kis_AudioPicker_Panel::SetPref(string in_trigger, string in_enable, 
+									string in_file) {
+	trigger = in_trigger;
+	size_t dpos;
+
+	enablecheck->SetChecked(in_enable == "true");
+
+	if ((dpos = in_file.rfind("/")) == string::npos) {
+		filelist->SetDirectory(kpinterface->prefs->FetchOpt("SOUND_PREFIX"));
+		filelist->SetFile(in_file);
+		directory->SetText(kpinterface->prefs->FetchOpt("SOUND_PREFIX"), -1, -1);
+	} else {
+		filelist->SetDirectory(in_file.substr(0, dpos));
+		filelist->SetFile(in_file.substr(dpos + 1, in_file.length()));
+		directory->SetText(in_file.substr(0, dpos), -1, -1);
+	}
+}
+
+void Kis_AudioPicker_Panel::Action(Kis_Panel_Component *in_component, int in_status) {
+	if (in_component == cancelbutton) {
+		kpinterface->KillPanel(this);
+		return;
+	}
+
+	if (in_component == dirbutton) {
+		filelist->SetDirectory(directory->GetText());
+		return;
+	}
+
+	if (in_component == okbutton) {
+		string d = filelist->GetDirectory();
+		vector<string> sd = filelist->GetSelectedData();
+		struct stat sbuf;
+
+		if (sd.size() == 0) {
+			kpinterface->RaiseAlert("No selected file",
+				InLineWrap("No file to play was selected, pick one or cancel", 0, 50));
+			return;
+		}
+
+		if (d == kpinterface->prefs->FetchOpt("SOUND_PREFIX") ||
+			(d + "/") == kpinterface->prefs->FetchOpt("SOUND_PREFIX"))
+			d = sd[0];
+		else
+			d += sd[0];
+
+		if (stat(d.c_str(), &sbuf) != 0) {
+			kpinterface->RaiseAlert("Selected file missing",
+				InLineWrap(string("Selected file is missing (") + 
+						   string(strerror(errno)) + string("), pick another or cancel"),
+						   0, 50));
+			return;
+		}
+
+		if (S_ISDIR(sbuf.st_mode)) {
+			kpinterface->RaiseAlert("Selected directory",
+				InLineWrap("Selected is a directory, pick a file or cancel", 0, 50));
+			return;
+		}
+
+		kpinterface->prefs->SetOpt("SOUND", trigger + string(",") + 
+								   (enablecheck->GetChecked() ? "true" : "false") +
+								   string(",") + d, 1);
+	}
+}
+
+int AudioPrefCB(COMPONENT_CALLBACK_PARMS) {
+	((Kis_AudioPref_Panel *) aux)->SelectedAction(component, status);
+	return 1;
+}
+
+Kis_AudioPref_Panel::Kis_AudioPref_Panel(GlobalRegistry *in_globalreg, 
+										 KisPanelInterface *in_intf):
 	Kis_Panel(in_globalreg, in_intf) {
 
 	audiolist = new Kis_Scrollable_Table(globalreg, this);
 
-	audiolist->SetCallback(COMPONENT_CBTYPE_ACTIVATED, ColorPrefCB, this);
+	audiolist->SetCallback(COMPONENT_CBTYPE_ACTIVATED, AudioPrefCB, this);
 
 	AddComponentVec(audiolist, (KIS_PANEL_COMP_TAB | KIS_PANEL_COMP_EVT));
 
@@ -1087,118 +1251,134 @@ Kis_AudioPref_Panel::Kis_StartupPref_Panel(GlobalRegistry *in_globalreg,
 	titles.push_back(t);
 
 	t.width = 15;
-	t.title = "File";
+	t.title = "Sound";
 	t.alignment = 0;
 	titles.push_back(t);
 
-	colorlist->AddTitles(titles);
-	colorlist->Show();
+	audiolist->AddTitles(titles);
+	audiolist->Show();
 
-	AddComponentVec(startkisprompt_check, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+	sound_check = new Kis_Checkbox(globalreg, this);
+	sound_check->SetText("Enable Sound");
+	sound_check->SetChecked(StrLower(kpinterface->prefs->FetchOpt("SOUND_ENABLE")) == 
+							"true");
+	sound_check->SetCallback(COMPONENT_CBTYPE_ACTIVATED, AudioPrefCB, this);
+	AddComponentVec(sound_check, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
 									 KIS_PANEL_COMP_TAB));
 
-	startcons_check = new Kis_Checkbox(globalreg, this);
-	startcons_check->SetText("Show Kismet server console on startup");
-	startcons_check->SetCallback(COMPONENT_CBTYPE_ACTIVATED, StartupButtonCB, this);
-	startcons_check->Show();
-	AddComponentVec(startcons_check, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
-									  KIS_PANEL_COMP_TAB));
+	speech_check = new Kis_Checkbox(globalreg, this);
+	speech_check->SetText("Enable Speech");
+	speech_check->SetChecked(StrLower(kpinterface->prefs->FetchOpt("SPEECH_ENABLE")) ==
+							 "true");
+	speech_check->SetCallback(COMPONENT_CBTYPE_ACTIVATED, AudioPrefCB, this);
+	AddComponentVec(speech_check, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+									 KIS_PANEL_COMP_TAB));
 
-	stopkis_check = new Kis_Checkbox(globalreg, this);
-	stopkis_check->SetText("Stop Kismet server on exit");
-	stopkis_check->SetCallback(COMPONENT_CBTYPE_ACTIVATED, StartupButtonCB, this);
-	stopkis_check->Show();
-	AddComponentVec(stopkis_check, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
-									KIS_PANEL_COMP_TAB));
-
-	stopkisprompt_check = new Kis_Checkbox(globalreg, this);
-	stopkisprompt_check->SetText("Prompt before stopping Kismet server");
-	stopkisprompt_check->SetCallback(COMPONENT_CBTYPE_ACTIVATED, StartupButtonCB, this);
-	stopkisprompt_check->Show();
-	AddComponentVec(stopkisprompt_check, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+	config_sound_button = new Kis_Button(globalreg, this);
+	config_sound_button->SetText("Configure Sound Player");
+	config_sound_button->Show();
+	config_sound_button->SetCallback(COMPONENT_CBTYPE_ACTIVATED, AudioPrefCB, this);
+	AddComponentVec(config_sound_button, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
 										  KIS_PANEL_COMP_TAB));
 
-	okbutton = new Kis_Button(globalreg, this);
-	okbutton->SetText("OK");
-	okbutton->Show();
-	AddComponentVec(okbutton, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
-							   KIS_PANEL_COMP_TAB));
-	
-	cancelbutton = new Kis_Button(globalreg, this);
-	cancelbutton->SetText("Cancel");
-	cancelbutton->Show();
-	AddComponentVec(cancelbutton, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+	config_speech_button = new Kis_Button(globalreg, this);
+	config_speech_button->SetText("Configure Speech");
+	config_speech_button->Show();
+	config_speech_button->SetCallback(COMPONENT_CBTYPE_ACTIVATED, AudioPrefCB, this);
+	AddComponentVec(config_speech_button, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+										   KIS_PANEL_COMP_TAB));
+
+	close_button = new Kis_Button(globalreg, this);
+	close_button->SetText("Close");
+	close_button->Show();
+	close_button->SetCallback(COMPONENT_CBTYPE_ACTIVATED, AudioPrefCB, this);
+	AddComponentVec(close_button, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
 								   KIS_PANEL_COMP_TAB));
+	
+	SetTitle("Sound Options");
 
-	okbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, GpsconfButtonCB, this);
-	cancelbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, GpsconfButtonCB, this);
+	cbox = new Kis_Panel_Packbox(globalreg, this);
+	cbox->SetPackH();
+	cbox->SetHomogenous(1);
+	cbox->SetSpacing(0);
+	cbox->SetCenter(1);
+	AddComponentVec(cbox, KIS_PANEL_COMP_DRAW);
 
-	SetTitle("Startup Options");
-
-	bbox = new Kis_Panel_Packbox(globalreg, this);
-	bbox->SetPackH();
-	bbox->SetHomogenous(1);
-	bbox->SetSpacing(0);
-	bbox->SetCenter(1);
-	AddComponentVec(bbox, KIS_PANEL_COMP_DRAW);
-
-	bbox->Pack_End(cancelbutton, 0, 0);
-	bbox->Pack_End(okbutton, 0, 0);
-	bbox->Show();
+	cbox->Pack_End(config_sound_button, 0, 0);
+	cbox->Pack_End(config_speech_button, 0, 0);
+	cbox->Show();
 
 	vbox = new Kis_Panel_Packbox(globalreg, this);
 	vbox->SetPackV();
 	vbox->SetHomogenous(0);
 	vbox->SetSpacing(1);
 	AddComponentVec(vbox, KIS_PANEL_COMP_DRAW);
-	vbox->Pack_End(startkis_check, 0, 0);
-	vbox->Pack_End(startkisprompt_check, 0, 0);
-	vbox->Pack_End(startcons_check, 0, 0);
-	vbox->Pack_End(stopkis_check, 0, 0);
-	vbox->Pack_End(stopkisprompt_check, 0, 0);
-	vbox->Pack_End(bbox, 0, 0);
+	vbox->Pack_End(audiolist, 1, 0);
+	vbox->Pack_End(cbox, 0, 0);
+	vbox->Pack_End(close_button, 0, 0);
 	
 	vbox->Show();
 
 	main_component = vbox;
 
-	tab_pos = 0;
-	startkis_check->Activate(1);
-	active_component = startkis_check;
+	SetActiveComponent(audiolist);
 
-	if (StrLower(kpinterface->prefs->FetchOpt("STARTUP_SERVER")) != "true") {
-		startkis_check->SetChecked(0);
-	} else {
-		startkis_check->SetChecked(1);
-	}
-
-	if (StrLower(kpinterface->prefs->FetchOpt("STARTUP_PROMPTSERVER")) != "true") {
-		startkisprompt_check->SetChecked(0);
-	} else {
-		startkisprompt_check->SetChecked(1);
-	}
-
-	if (StrLower(kpinterface->prefs->FetchOpt("STARTUP_CONSOLE")) != "true") {
-		startcons_check->SetChecked(0);
-	} else {
-		startcons_check->SetChecked(1);
-	}
-
-	if (StrLower(kpinterface->prefs->FetchOpt("STOP_SERVER")) != "true") {
-		stopkis_check->SetChecked(0);
-	} else {
-		stopkis_check->SetChecked(1);
-	}
-
-	if (StrLower(kpinterface->prefs->FetchOpt("STOP_PROMPTSERVER")) != "true") {
-		stopkisprompt_check->SetChecked(0);
-	} else {
-		stopkisprompt_check->SetChecked(1);
-	}
-
-	Position(WIN_CENTER(14, 70));
+	Position(WIN_CENTER(15, 70));
 }
-#endif
+
+Kis_AudioPref_Panel::~Kis_AudioPref_Panel() {
+
+}
+
+void Kis_AudioPref_Panel::SelectedAction(Kis_Panel_Component *in_component, 
+										 int in_status) {
+	if (in_component == audiolist) {
+		vector<string> selrow = audiolist->GetSelectedData();
+
+	}
+}
+
+void Kis_AudioPref_Panel::DrawPanel() {
+	// Another inefficient method, but another one that is pointless to worry 
+	// about doing it better; this only happens for a handful of items inside a 
+	// prefs window only open rarely
+	vector<string> aprefs = kpinterface->prefs->FetchOptVec("SOUND");
+
+	vector<string> tdata;
+	tdata.push_back("");
+	tdata.push_back("");
+	tdata.push_back("");
+
+	for (unsigned int a = 0; a < aprefs.size(); a++) {
+		vector<string> pvec = StrTokenize(aprefs[a], ",");
+		int valid = 0;
+		
+		if (pvec.size() != 3)
+			continue;
+
+		pvec[0] = StrLower(pvec[0]);
+
+		// Only process the sounds we know about
+		if (pvec[0] == "alert") {
+			valid = 1;
+			tdata[0] = "Alert";
+		} else if (pvec[0] == "traffic") {
+			valid = 1;
+			tdata[0] = "Traffic";
+		} else if (pvec[0] == "new") {
+			valid = 1;
+			tdata[0] = "New Network";
+		}
+
+		if (valid) {
+			string enable = (StrLower(pvec[1]) == "true") ? "Yes" : "No";
+			tdata[1] = enable;
+			tdata[2] = pvec[2];
+
+			audiolist->ReplaceRow(a, tdata);
+		}
+	}
+}
 
 #endif
 

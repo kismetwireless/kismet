@@ -1935,6 +1935,9 @@ void Kis_Netlist::UpdateTrigger(void) {
 	// namely that they're always pointers no matter what.  Some day, this
 	// could get fixed.
 
+	// Remember what we had selected
+	Kis_Display_NetGroup *prev_sel = FetchSelectedNetgroup();
+
 	// If we've changed the filter, re-filter all the existing display stuff
 	if (filter_dirty) {
 		for (unsigned int x = 0; x < display_vec.size(); x++) {
@@ -2148,56 +2151,84 @@ void Kis_Netlist::UpdateTrigger(void) {
 	// We've handled it all
 	dirty_raw_vec.clear();
 
+	// Only sort the drawing vec, since it's the one we display
 	switch (sort_mode) {
 		case netsort_autofit:
-			stable_sort(display_vec.begin(), display_vec.end(),
+			stable_sort(draw_vec->begin(), draw_vec->end(),
 						KisNetlist_Sort_LastDesc());
 			break;
 		case netsort_type:
-			stable_sort(display_vec.begin(), display_vec.end(), 
+			stable_sort(draw_vec->begin(), draw_vec->end(), 
 						KisNetlist_Sort_Type());
 			break;
 		case netsort_channel:
-			stable_sort(display_vec.begin(), display_vec.end(), 
+			stable_sort(draw_vec->begin(), draw_vec->end(), 
 						KisNetlist_Sort_Channel());
 			break;
 		case netsort_first:
-			stable_sort(display_vec.begin(), display_vec.end(), 
+			stable_sort(draw_vec->begin(), draw_vec->end(), 
 						KisNetlist_Sort_First());
 			break;
 		case netsort_first_desc:
-			stable_sort(display_vec.begin(), display_vec.end(), 
+			stable_sort(draw_vec->begin(), draw_vec->end(), 
 						KisNetlist_Sort_FirstDesc());
 			break;
 		case netsort_last:
-			stable_sort(display_vec.begin(), display_vec.end(), 
+			stable_sort(draw_vec->begin(), draw_vec->end(), 
 						KisNetlist_Sort_Last());
 			break;
 		case netsort_last_desc:
-			stable_sort(display_vec.begin(), display_vec.end(), 
+			stable_sort(draw_vec->begin(), draw_vec->end(), 
 						KisNetlist_Sort_LastDesc());
 			break;
 		case netsort_bssid:
-			stable_sort(display_vec.begin(), display_vec.end(), 
+			stable_sort(draw_vec->begin(), draw_vec->end(), 
 						KisNetlist_Sort_Bssid());
 			break;
 		case netsort_ssid:
-			stable_sort(display_vec.begin(), display_vec.end(), 
+			stable_sort(draw_vec->begin(), draw_vec->end(), 
 						KisNetlist_Sort_Ssid());
 			break;
 		case netsort_packets:
-			stable_sort(display_vec.begin(), display_vec.end(), 
+			stable_sort(draw_vec->begin(), draw_vec->end(), 
 						KisNetlist_Sort_Packets());
 			break;
 		case netsort_packets_desc:
-			stable_sort(display_vec.begin(), display_vec.end(), 
+			stable_sort(draw_vec->begin(), draw_vec->end(), 
 						KisNetlist_Sort_PacketsDesc());
 			break;
 		case netsort_crypt:
-			stable_sort(display_vec.begin(), display_vec.end(),
+			stable_sort(draw_vec->begin(), draw_vec->end(),
 						KisNetlist_Sort_Crypt());
 		default:
 			break;
+	}
+
+	if (selected_line < (int) draw_vec->size() &&
+		selected_line >= 0 &&
+		(*draw_vec)[selected_line] != prev_sel) {
+		// Remember what we had selected before
+		for (unsigned int x = 0; x < draw_vec->size(); x++) {
+			if (prev_sel == (*draw_vec)[x]) {
+
+				if ((int) x <= viewable_lines) {
+					// if the head of the list fits, fit it
+					first_line = 0;
+					selected_line = x;
+				} else {
+					// Otherwise scroll the top down to fit us
+					int end_offt = draw_vec->size() - viewable_lines;
+
+					if (end_offt > (int) x) {
+						first_line = x - (viewable_lines / 2);
+						selected_line = x;
+					} else {
+						first_line = draw_vec->size() - viewable_lines;
+						selected_line = x;
+					}
+				}
+			}
+		}
 	}
 }
 
@@ -2437,8 +2468,6 @@ int Kis_Netlist::PrintNetworkLine(Kis_Display_NetGroup *ng,
 }
 
 void Kis_Netlist::DrawComponent() {
-	vector<Kis_Display_NetGroup *> *draw_vec = NULL;
-
 	if (visible == 0)
 		return;
 
@@ -2482,11 +2511,6 @@ void Kis_Netlist::DrawComponent() {
 	// aliasing
 	char *pline;
 	string pt;
-
-	if (filter_display_vec.size() > 0)
-		draw_vec = &filter_display_vec;
-	else
-		draw_vec = &display_vec;
 
 	if ((sort_mode != netsort_autofit && sort_mode != netsort_recent) &&
 		(selected_line < first_line || selected_line > (int) draw_vec->size()))

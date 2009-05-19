@@ -18,6 +18,11 @@
 
 #include "config.h"
 
+#include <sys/types.h>
+#include <dirent.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
 // Panel has to be here to pass configure, so just test these
 #if (defined(HAVE_LIBNCURSES) || defined (HAVE_LIBCURSES))
 
@@ -3083,6 +3088,129 @@ void Kis_PolarGraph::ClearPoints() {
 	maxr = 0;
 	point_vec.clear();
 }
+
+Kis_Filepicker::Kis_Filepicker(GlobalRegistry *in_globalreg, Kis_Panel *in_panel) : 
+	Kis_Scrollable_Table(in_globalreg, in_panel) {
+
+	globalreg = in_globalreg;
+	active = 0;
+
+	vector<Kis_Scrollable_Table::title_data> titles;
+	Kis_Scrollable_Table::title_data t;
+	t.width = 0;
+	t.title = "File";
+	t.alignment = 0;
+	titles.push_back(t);
+
+	AddTitles(titles);
+
+	SetDrawTitles(0);
+	SetLockScrollTop(1);
+}
+
+Kis_Filepicker::~Kis_Filepicker() {
+
+}
+
+void Kis_Filepicker::SetDirectory(string in_dir) {
+	DIR *dir;
+	struct dirent *file;
+	struct stat sbuf;
+	vector<string> content;
+
+	if (in_dir == cur_directory)
+		return;
+
+	if (in_dir[in_dir.length() - 1] != '/')
+		in_dir += "/";
+
+	cur_directory = in_dir;
+
+	if ((dir = opendir(in_dir.c_str())) == NULL) {
+		content.push_back("[ Invalid Directory:");
+		content.push_back(string(" ") + in_dir + string(" ]"));
+		return;
+	}
+
+	while ((file = readdir(dir)) != NULL) {
+		if (string(file->d_name) == ".")
+			continue;
+
+		if (stat(file->d_name, &sbuf) < 0)
+			continue;
+
+		if (S_ISDIR(sbuf.st_mode)) {
+			string n = string(file->d_name);
+			if (n != "..")
+				n += "/";
+
+			content.push_back(n);
+		}
+	}
+
+	rewinddir(dir);
+
+	while ((file = readdir(dir)) != NULL) {
+		if (stat(file->d_name, &sbuf) < 0)
+			continue;
+
+		if (S_ISREG(sbuf.st_mode)) {
+			content.push_back(string(file->d_name));
+		}
+	}
+
+	closedir(dir);
+
+	vector<string> td;
+	td.push_back("");
+
+	for (unsigned int x = 0; x < content.size(); x++) {
+		td[0] = content[x];
+		ReplaceRow(x, td);
+	}
+
+	SetFile(set_file);
+}
+
+void Kis_Filepicker::SetFile(string in_file) {
+	set_file = in_file;
+
+	if (set_file == "")
+		return;
+
+	for (unsigned int x = 0; x < data_vec.size(); x++) {
+		if (data_vec[x]->data[0] == set_file) {
+			SetSelected(x);
+			return;
+		}
+	}
+}
+
+int Kis_Filepicker::KeyPress(int in_key) {
+	struct stat sbuf;
+
+	if (visible == 0)
+		return 0;
+
+	if (data_vec.size() > 0 && (in_key == '\n' || in_key == '\r' || in_key == ' ')) {
+		vector<string> sel = GetSelectedData();
+		if (sel.size() == 1) {
+			if (stat(string(cur_directory + sel[0]).c_str(), &sbuf) == 0) {
+				if (sel[0] == "..") {
+					if (sel[0].rfind("/") != string::npos) {
+						SetDirectory(sel[0].substr(0, sel[0].rfind("/")));
+					}
+				} else if (S_ISDIR(sbuf.st_mode)) {
+					SetDirectory(cur_directory + sel[0]);
+					return 0;
+				}
+			}
+		}
+	}
+
+	return Kis_Scrollable_Table::KeyPress(in_key);
+}
+
 
 Kis_Panel::Kis_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_intf) {
 	globalreg = in_globalreg;

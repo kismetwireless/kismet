@@ -676,6 +676,7 @@ public:
 	virtual int KeyPress(int in_key);
 	virtual int MouseEvent(MEVENT *mevent);
 
+	virtual void SetLabel(string in_text) { SetText(in_text); }
 	virtual void SetText(string in_text);
 
 protected:
@@ -699,6 +700,7 @@ public:
 	virtual int KeyPress(int in_key);
 	virtual int MouseEvent(MEVENT *mevent);
 
+	virtual void SetLabel(string in_text) { SetText(in_text); }
 	virtual void SetText(string in_text);
 
 	virtual int GetChecked();
@@ -906,6 +908,26 @@ protected:
 	double maxr;
 
 	vector<Kis_PolarGraph::graph_point> point_vec;
+};
+
+// File picker widget, derivation of the scrollable table
+// Due to widget tabbing structure, can't easily nest multiple widgets into a
+// virtual packbox so directory changing has to be an external text box
+class Kis_Filepicker : public Kis_Scrollable_Table {
+public:
+	Kis_Filepicker() { fprintf(stderr, "FATAL OOPS: Kis_Filepicker();\n"); exit(1); }
+
+	Kis_Filepicker(GlobalRegistry *in_globalreg, Kis_Panel *in_panel);
+	virtual ~Kis_Filepicker();
+
+	virtual void SetDirectory(string in_dir);
+	virtual void SetFile(string in_file);
+	virtual string GetDirectory() { return cur_directory; }
+
+	virtual int KeyPress(int in_key);
+
+protected:
+	string cur_directory, set_file;
 };
 
 class Kis_Panel {

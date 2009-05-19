@@ -70,6 +70,17 @@ int NetlistActivateCB(COMPONENT_CALLBACK_PARMS) {
 	return 1;
 }
 
+int ClilistActivateCB(COMPONENT_CALLBACK_PARMS) {
+	Kis_ClientDetails_Panel *dp = 
+		new Kis_ClientDetails_Panel(globalreg, 
+									((Kis_Main_Panel *) aux)->FetchPanelInterface());
+	dp->SetClientlist((Kis_Clientlist *) component);
+	dp->Position(WIN_CENTER(LINES, COLS));
+	((Kis_Main_Panel *) aux)->FetchPanelInterface()->AddPanel(dp);
+
+	return 1;
+}
+
 const char *gps_fields[] = {
 	"fix", "lat", "lon", "alt", "spd", "heading", NULL
 };
@@ -216,7 +227,7 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	clientlist->SetName("KIS_MAIN_CLIENTLIST");
 	clientlist->FollowDNG(1);
 	clientlist->Show();
-	clientlist->SetCallback(COMPONENT_CBTYPE_ACTIVATED, NetlistActivateCB, this);
+	clientlist->SetCallback(COMPONENT_CBTYPE_ACTIVATED, ClilistActivateCB, this);
 
 	// Set up the packet rate graph as over/under linked to the
 	// packets per second
