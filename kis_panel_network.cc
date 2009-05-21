@@ -2471,7 +2471,6 @@ void Kis_Netlist::DrawComponent() {
 	if (visible == 0)
 		return;
 
-	parent_panel->InitColorPref("panel_textdis_color", "grey,black");
 	parent_panel->ColorFromPref(color_inactive, "panel_textdis_color");
 
 	parent_panel->InitColorPref("netlist_normal_color", "green,black");
@@ -2619,7 +2618,7 @@ void Kis_Netlist::DrawComponent() {
 
 	Kis_Panel_Specialtext::Mvwaddnstr(window, sy, sx, 
 									  "\004u" + pcache + "\004U", 
-									  lx - 1);
+									  lx - 1, parent_panel);
 
 	if (draw_vec->size() == 0) {
 		if (active)
@@ -3130,8 +3129,10 @@ Kis_Info_Bits::Kis_Info_Bits(GlobalRegistry *in_globalreg, Kis_Panel *in_panel) 
 	SetSpacing(1);
 
 	info_color_normal = -1;
+	parent_panel->InitColorPref("info_normal_color", "white,black");
 
 	title = new Kis_Free_Text(globalreg, parent_panel);
+	title->SetColorPrefs("info_normal_color", "info_normal_color");
 	title->SetText("\004uKismet\004U");
 	title->SetAlignment(1);
 	title->Show();
@@ -3202,6 +3203,7 @@ int Kis_Info_Bits::UpdatePrefs() {
 
 		infovec.push_back(optnum);
 		ft = new Kis_Free_Text(globalreg, parent_panel);
+		ft->SetColorPrefs("info_normal_color", "info_normal_color");
 		ft->Show();
 		ft->SetAlignment(1);
 		Pack_End(ft, 0, 0);
@@ -3214,6 +3216,10 @@ int Kis_Info_Bits::UpdatePrefs() {
 void Kis_Info_Bits::DrawComponent() {
 	UpdatePrefs();
 
+	parent_panel->ColorFromPref(info_color_normal, "info_normal_color");
+
+	wattrset(window, info_color_normal);
+
 	if (kpinterface->FetchNetClient() == NULL ||
 		(kpinterface->FetchNetClient() != NULL &&
 		 kpinterface->FetchNetClient()->Valid() <= 0)) {
@@ -3224,11 +3230,6 @@ void Kis_Info_Bits::DrawComponent() {
 			title->SetText(titletext);
 		}
 	}
-
-	parent_panel->InitColorPref("info_normal_color", "white,black");
-	parent_panel->ColorFromPref(info_color_normal, "info_normal_color");
-
-	wattrset(window, info_color_normal);
 
 	Kis_Panel_Packbox::DrawComponent();
 }
@@ -3818,10 +3819,9 @@ void Kis_Clientlist::DrawComponent() {
 	if (visible == 0)
 		return;
 
-	parent_panel->InitColorPref("panel_textdis_color", "grey,black");
 	parent_panel->ColorFromPref(color_inactive, "panel_textdis_color");
 
-	parent_panel->InitColorPref("clientlist_normal_color", "grey,black");
+	parent_panel->InitColorPref("clientlist_normal_color", "white,black");
 	parent_panel->ColorFromPref(color_map[kis_clientlist_color_normal], 
 								"clientlist_normal_color");
 
@@ -3947,7 +3947,8 @@ void Kis_Clientlist::DrawComponent() {
 		wattrset(window, color_map[kis_clientlist_color_header]);
 
 	Kis_Panel_Specialtext::Mvwaddnstr(window, sy, sx, 
-									  "\004u" + pcache + "\004U", lx - 1);
+									  "\004u" + pcache + "\004U", lx - 1,
+									  parent_panel);
 
 	if (display_vec.size() == 0) {
 		if (active)

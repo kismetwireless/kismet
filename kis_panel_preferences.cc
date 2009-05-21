@@ -1063,6 +1063,7 @@ void Kis_StartupPref_Panel::ButtonAction(Kis_Panel_Component *in_button) {
 	}
 }
 
+#if 0
 int AudioPickerCB(COMPONENT_CALLBACK_PARMS) {
 	((Kis_AudioPicker_Panel *) aux)->Action(component, status);
 	return 1;
@@ -1223,8 +1224,10 @@ void Kis_AudioPicker_Panel::Action(Kis_Panel_Component *in_component, int in_sta
 	}
 }
 
+#endif
+
 int AudioPrefCB(COMPONENT_CALLBACK_PARMS) {
-	((Kis_AudioPref_Panel *) aux)->SelectedAction(component, status);
+	((Kis_AudioPref_Panel *) aux)->Action(component, status);
 	return 1;
 }
 
@@ -1241,17 +1244,12 @@ Kis_AudioPref_Panel::Kis_AudioPref_Panel(GlobalRegistry *in_globalreg,
 	vector<Kis_Scrollable_Table::title_data> titles;
 	Kis_Scrollable_Table::title_data t;
 	t.width = 8;
-	t.title = "Trigger";
+	t.title = "Sound";
 	t.alignment = 0;
 	titles.push_back(t);
 
 	t.width = 4;
 	t.title = "Play";
-	t.alignment = 0;
-	titles.push_back(t);
-
-	t.width = 15;
-	t.title = "Sound";
 	t.alignment = 0;
 	titles.push_back(t);
 
@@ -1330,11 +1328,46 @@ Kis_AudioPref_Panel::~Kis_AudioPref_Panel() {
 
 }
 
-void Kis_AudioPref_Panel::SelectedAction(Kis_Panel_Component *in_component, 
+void Kis_AudioPref_Panel::Action(Kis_Panel_Component *in_component, 
 										 int in_status) {
+	if (in_component == close_button) {
+		for (unsigned int x = 0; x < keys.size(); x++) {
+			vector<string> prefs;
+			string h;
+			vector<string> td = audiolist->GetRow(keys[x]);
+
+			if (td[0] == "Alert")
+				h = "alert";
+			else if (td[0] == "Traffic")
+				h = "traffic";
+			else if (td[0] == "New Network")
+				h = "new";
+
+			prefs.push_back(h + string(",") + (td[1] == "Yes" ? "true" : "false"));
+
+			kpinterface->prefs->SetOptVec("sound", prefs, 1);
+		}
+
+		kpinterface->prefs->SetOpt("sound_enable", 
+								   sound_check->GetChecked() ? "true" : "false", 1);
+		kpinterface->prefs->SetOpt("speech_enable",
+								   speech_check->GetChecked() ? "true" : "false", 1);
+
+		kpinterface->KillPanel(this);
+		return;
+	}
+
 	if (in_component == audiolist) {
 		vector<string> selrow = audiolist->GetSelectedData();
+		if (selrow.size() == 0)
+			return;
 
+		if (selrow[1] == "Yes")
+			selrow[1] = "No";
+		else
+			selrow[1] = "Yes";
+
+		audiolist->ReplaceRow(audiolist->GetSelected(), selrow);
 	}
 }
 
@@ -1347,13 +1380,14 @@ void Kis_AudioPref_Panel::DrawPanel() {
 	vector<string> tdata;
 	tdata.push_back("");
 	tdata.push_back("");
-	tdata.push_back("");
+
+	keys.clear();
 
 	for (unsigned int a = 0; a < aprefs.size(); a++) {
 		vector<string> pvec = StrTokenize(aprefs[a], ",");
 		int valid = 0;
 		
-		if (pvec.size() != 3)
+		if (pvec.size() != 2)
 			continue;
 
 		pvec[0] = StrLower(pvec[0]);
@@ -1376,6 +1410,7 @@ void Kis_AudioPref_Panel::DrawPanel() {
 			tdata[2] = pvec[2];
 
 			audiolist->ReplaceRow(a, tdata);
+			keys.push_back(a);
 		}
 	}
 }

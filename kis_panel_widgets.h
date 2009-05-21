@@ -65,7 +65,8 @@ class KisPanelInterface;
 // \b .. \B  - Bold
 class Kis_Panel_Specialtext {
 public:
-	static void Mvwaddnstr(WINDOW *win, int y, int x, string str, int n);
+	static void Mvwaddnstr(WINDOW *win, int y, int x, string str, int n,
+						   Kis_Panel *panel);
 	static unsigned int Strlen(string str);
 };
 
@@ -73,10 +74,19 @@ class Kis_Panel_Color {
 public:
 	Kis_Panel_Color();
 
-	int AddColor(string color);
+	int AddColor(string color, string pref);
+
+	// Remap all instances using a color
+	void RemapAllColors(string oldcolor, string newcolor, ConfigFile *conf);
+
+	struct color_rec {
+		string pref;
+		string color[2];
+		int colorindex;
+	};
 protected:
 	int nextindex;
-	map<string, int> color_index_map;
+	map<string, Kis_Panel_Color::color_rec> color_index_map;
 };
 
 // Callback parameters - the component that activated, the status/return
@@ -210,6 +220,11 @@ public:
 							 void *aux);
 	virtual void ClearCallback(int cbtype);
 
+	virtual void SetColorPrefs(string in_active, string in_inactive) {
+		color_active_pref = in_active;
+		color_inactive_pref = in_inactive;
+	}
+
 protected:
 	// Silly function to pick the right color - give it the color you want,
 	// and it gives you the inactive color if the widget is inactive
@@ -225,6 +240,8 @@ protected:
 	// Primary colors
 	int color_active;
 	int color_inactive;
+
+	string color_active_pref, color_inactive_pref;
 
 	// Callbacks
 	int (*cb_switch)(COMPONENT_CALLBACK_PARMS);
@@ -864,6 +881,8 @@ protected:
 	int xgraph_size, label_x_graphref;
 };
 
+#if 0
+
 // Polar graph
 class Kis_PolarGraph : public Kis_Panel_Component {
 public:
@@ -930,6 +949,8 @@ protected:
 	string cur_directory, set_file;
 };
 
+#endif
+
 class Kis_Panel {
 public:
 	Kis_Panel() {
@@ -976,6 +997,7 @@ public:
 	// Map a color pair out of preferences
 	virtual void InitColorPref(string in_prefname, string in_def);
 	virtual void ColorFromPref(int &clr, string in_prefname);
+	virtual void RemapAllColors(string oldcolor, string newcolor);
 	virtual int AddColor(string in_color);
 
 	void AddComponentVec(Kis_Panel_Component *in_comp, int in_flags);

@@ -293,6 +293,8 @@ protected:
 	Kis_Panel_Packbox *vbox, *bbox;
 };
 
+#if 0
+
 class Kis_AudioPicker_Panel : public Kis_Panel {
 public:
 	Kis_AudioPicker_Panel() {
@@ -316,6 +318,8 @@ protected:
 	string trigger;
 };
 
+#endif
+
 class Kis_AudioPref_Panel : public Kis_Panel {
 public:
 	Kis_AudioPref_Panel() {
@@ -328,14 +332,17 @@ public:
 
 	virtual void DrawPanel();
 
-	virtual void SelectedAction(Kis_Panel_Component *in_component, int in_status);
+	virtual void Action(Kis_Panel_Component *in_component, int in_status);
 
 protected:
 	Kis_Scrollable_Table *audiolist;
 	Kis_Checkbox *sound_check, *speech_check;
 	Kis_Button *config_speech_button, *config_sound_button, *close_button;
 	Kis_Panel_Packbox *cbox, *vbox;
+
+	vector<int> keys;
 };
+
 
 #endif // curses
 

@@ -45,6 +45,24 @@ unsigned int Kis_Panel_Specialtext::Strlen(string str) {
 
 		if (escape) {
 			escape = 0;
+
+			if (str[pos] == 'C') {
+				// Color escape code:
+				// \004Ccolorpref;text
+
+				// Catch malforms at the end
+				if (pos >= str.length()) {
+					continue;
+				}
+
+				size_t colorend = str.find(";", pos + 1);
+
+				if (colorend == string::npos)
+					continue;
+
+				pos = colorend;
+			}
+
 			continue;
 		}
 
@@ -54,7 +72,8 @@ unsigned int Kis_Panel_Specialtext::Strlen(string str) {
 	return npos;
 }
 
-void Kis_Panel_Specialtext::Mvwaddnstr(WINDOW *win, int y, int x, string str, int n) {
+void Kis_Panel_Specialtext::Mvwaddnstr(WINDOW *win, int y, int x, string str, int n,
+									   Kis_Panel *panel) {
 	int npos = 0;
 	int escape = 0;
 
@@ -82,6 +101,28 @@ void Kis_Panel_Specialtext::Mvwaddnstr(WINDOW *win, int y, int x, string str, in
 				wattron(win, WA_BOLD);
 			} else if (str[pos] == 'B') {
 				wattroff(win, WA_BOLD);
+			} else if (str[pos] == 'C') {
+				// Color escape code:
+				// \004Ccolorpref;text
+
+				// Catch malforms at the end
+				if (pos >= str.length()) {
+					continue;
+				}
+
+				size_t colorend = str.find(";", pos + 1);
+
+				if (colorend != string::npos) {
+					string cpref = str.substr(pos + 1, colorend - pos - 1);
+					int c = 0;
+
+
+					panel->ColorFromPref(c, cpref);
+					pos = colorend;
+
+					if (c > 0)
+						wattrset(win, c);
+				}
 			} else {
 				// fprintf(stderr, "invalid escape '%c'\n", str[pos]);
 				// Backfill the unescaped data
@@ -115,14 +156,14 @@ Kis_Panel_Color::Kis_Panel_Color() {
 	nextindex = COLORS + 1;
 }
 
-int Kis_Panel_Color::AddColor(string color) {
-	map<string, int>::iterator cimi;
+int Kis_Panel_Color::AddColor(string color, string pref) {
+	map<string, Kis_Panel_Color::color_rec>::iterator cimi;
 	int nums[2] = {0, 0};
 	int bold;
 	int pair;
 
 	if ((cimi = color_index_map.find(StrLower(color))) != color_index_map.end()) {
-		return cimi->second;
+		return cimi->second.colorindex;
 	}
 
 	if (nextindex == COLOR_PAIRS - 1) {
@@ -174,10 +215,43 @@ int Kis_Panel_Color::AddColor(string color) {
 	if (bold)
 		pair |= A_BOLD;
 
-	color_index_map[StrLower(color)] = pair;
+	color_rec cr;
+	cr.pref = pref;
+	cr.color[0] = colorpair[0];
+	cr.color[1] = colorpair[1];
+	cr.colorindex = pair;
+
+	color_index_map[StrLower(color)] = cr;
 	nextindex++;
 
 	return pair;
+}
+
+void Kis_Panel_Color::RemapAllColors(string oldcolor, string newcolor, 
+									 ConfigFile *conf) {
+	map<string, Kis_Panel_Color::color_rec>::iterator cri;
+	string o = StrLower(oldcolor), n = StrLower(newcolor);
+
+	for (cri = color_index_map.begin(); cri != color_index_map.end(); ++cri) {
+		int s = 0;
+
+		if (cri->second.pref == "")
+			continue;
+
+		if (cri->second.color[0] == o) {
+			cri->second.color[0] = n;
+			s = 1;
+		}
+
+		if (cri->second.color[1] == o) {
+			cri->second.color[1] = n;
+			s = 1;
+		}
+
+		if (s) 
+			conf->SetOpt(cri->second.pref, cri->second.color[0] + string(",") +
+						 cri->second.color[1], time(0));
+	}
 }
 
 int panelint_draw_timer(TIMEEVENT_PARMS) {
@@ -343,6 +417,9 @@ Kis_Panel_Component::Kis_Panel_Component(GlobalRegistry *in_globalreg,
 	cb_switch = cb_activate = NULL;
 
 	color_active = color_inactive = 0;
+
+	color_active_pref = "panel_text_color";
+	color_inactive_pref = "panel_textdis_color";
 
 	name = "GENERIC_WIDGET";
 }
@@ -780,6 +857,10 @@ Kis_Menu::Kis_Menu(GlobalRegistry *in_globalreg, Kis_Panel *in_panel) :
 	menuwin = NULL;
 	submenuwin = NULL;
 	text_color = border_color = disable_color = 0;
+
+	parent_panel->InitColorPref("menu_text_color", "white,blue");
+	parent_panel->InitColorPref("menu_border_color", "cyan,blue");
+	parent_panel->InitColorPref("menu_disable_color", "cyan,blue");
 }
 
 Kis_Menu::~Kis_Menu() {
@@ -1033,7 +1114,12 @@ void Kis_Menu::DrawMenu(_menu *menu, WINDOW *win, int hpos, int vpos) {
 		}
 
 		// Format it with 'Foo     F'
-		menuline += menu->items[y]->text + " ";
+		if (menu->items[y]->enabled == 0) 
+			menuline += "(";
+		menuline += menu->items[y]->text;
+		if (menu->items[y]->enabled == 0) 
+			menuline += ")";
+		menuline += " ";
 		for (unsigned int z = menuline.length(); 
 			 (int) z <= menu->width + 2; z++) {
 			menuline = menuline + string(" ");
@@ -1078,9 +1164,6 @@ void Kis_Menu::DrawComponent() {
 	if (visible == 0)
 		return;
 
-	parent_panel->InitColorPref("menu_text_color", "white,blue");
-	parent_panel->InitColorPref("menu_border_color", "cyan,blue");
-	parent_panel->InitColorPref("menu_disable_color", "grey,blue");
 	parent_panel->ColorFromPref(text_color, "menu_text_color");
 	parent_panel->ColorFromPref(border_color, "menu_border_color");
 	parent_panel->ColorFromPref(disable_color, "menu_disable_color");
@@ -1418,6 +1501,8 @@ Kis_Pop_Menu::Kis_Pop_Menu(GlobalRegistry *in_globalreg, Kis_Panel *in_panel) :
 	menuwin = NULL;
 	submenuwin = NULL;
 	text_color = border_color = 0;
+	parent_panel->InitColorPref("menu_text_color", "white,blue");
+	parent_panel->InitColorPref("menu_border_color", "cyan,blue");
 }
 
 Kis_Pop_Menu::~Kis_Pop_Menu() {
@@ -1581,8 +1666,6 @@ void Kis_Pop_Menu::DrawComponent() {
 	if (visible == 0)
 		return;
 
-	parent_panel->InitColorPref("menu_text_color", "white,blue");
-	parent_panel->InitColorPref("menu_border_color", "cyan,blue");
 	parent_panel->ColorFromPref(text_color, "menu_text_color");
 	parent_panel->ColorFromPref(border_color, "menu_border_color");
 
@@ -1628,10 +1711,8 @@ void Kis_Free_Text::DrawComponent() {
 	if (visible == 0)
 		return;
 
-	parent_panel->InitColorPref("panel_text_color", "white,black");
-	parent_panel->InitColorPref("panel_textdis_color", "grey,black");
-	parent_panel->ColorFromPref(color_active, "panel_text_color");
-	parent_panel->ColorFromPref(color_inactive, "panel_textdis_color");
+	parent_panel->ColorFromPref(color_active, color_active_pref);
+	parent_panel->ColorFromPref(color_inactive, color_inactive_pref);
 
 	SetTransColor(color_active);
 
@@ -1646,7 +1727,7 @@ void Kis_Free_Text::DrawComponent() {
 		// Use the special formatter
 		Kis_Panel_Specialtext::Mvwaddnstr(window, sy + px, sx, 
 										  text_vec[x],
-										  lx - 1);
+										  lx - 1, parent_panel);
 		px++;
 	}
 
@@ -1756,6 +1837,7 @@ Kis_Status_Text::Kis_Status_Text(GlobalRegistry *in_globalreg, Kis_Panel *in_pan
 	globalreg = in_globalreg;
 	scroll_pos = 0;
 	status_color_normal = -1;
+	parent_panel->InitColorPref("status_normal_color", "white,black");
 }
 
 Kis_Status_Text::~Kis_Status_Text() {
@@ -1763,7 +1845,6 @@ Kis_Status_Text::~Kis_Status_Text() {
 }
 
 void Kis_Status_Text::DrawComponent() {
-	parent_panel->InitColorPref("status_normal_color", "white,black");
 	parent_panel->ColorFromPref(status_color_normal, "status_normal_color");
 
 	if (visible == 0)
@@ -1774,7 +1855,7 @@ void Kis_Status_Text::DrawComponent() {
 	for (unsigned int x = 0; x < text_vec.size() && (int) x < ly; x++) {
 		Kis_Panel_Specialtext::Mvwaddnstr(window, ey - x, sx,
 										  text_vec[text_vec.size() - x - 1],
-										  ex - 1);
+										  ex - 1, parent_panel);
 	}
 }
 
@@ -1812,10 +1893,8 @@ void Kis_Field_List::DrawComponent() {
 	if (visible == 0)
 		return;
 
-	parent_panel->InitColorPref("panel_text_color", "white,black");
-	parent_panel->InitColorPref("panel_textdis_color", "grey,black");
-	parent_panel->ColorFromPref(color_active, "panel_text_color");
-	parent_panel->ColorFromPref(color_inactive, "panel_textdis_color");
+	parent_panel->ColorFromPref(color_active, color_active_pref);
+	parent_panel->ColorFromPref(color_inactive, color_inactive_pref);
 
 	SetTransColor(color_active);
 
@@ -1931,10 +2010,8 @@ void Kis_Scrollable_Table::DrawComponent() {
 	if (visible == 0)
 		return;
 
-	parent_panel->InitColorPref("panel_text_color", "white,black");
-	parent_panel->InitColorPref("panel_textdis_color", "grey,black");
-	parent_panel->ColorFromPref(color_active, "panel_text_color");
-	parent_panel->ColorFromPref(color_inactive, "panel_textdis_color");
+	parent_panel->ColorFromPref(color_active, color_active_pref);
+	parent_panel->ColorFromPref(color_inactive, color_inactive_pref);
 
 	SetTransColor(color_active);
 
@@ -2255,10 +2332,8 @@ void Kis_Single_Input::DrawComponent() {
 	if (visible == 0)
 		return;
 
-	parent_panel->InitColorPref("panel_text_color", "white,black");
-	parent_panel->InitColorPref("panel_textdis_color", "grey,black");
-	parent_panel->ColorFromPref(color_active, "panel_text_color");
-	parent_panel->ColorFromPref(color_inactive, "panel_textdis_color");
+	parent_panel->ColorFromPref(color_active, color_active_pref);
+	parent_panel->ColorFromPref(color_inactive, color_inactive_pref);
 
 	SetTransColor(color_active);
 
@@ -2465,10 +2540,8 @@ void Kis_Button::DrawComponent() {
 	if (visible == 0)
 		return;
 
-	parent_panel->InitColorPref("panel_text_color", "white,black");
-	parent_panel->InitColorPref("panel_textdis_color", "grey,black");
-	parent_panel->ColorFromPref(color_active, "panel_text_color");
-	parent_panel->ColorFromPref(color_inactive, "panel_textdis_color");
+	parent_panel->ColorFromPref(color_active, color_active_pref);
+	parent_panel->ColorFromPref(color_inactive, color_inactive_pref);
 
 	SetTransColor(color_active);
 
@@ -2542,10 +2615,8 @@ void Kis_Checkbox::DrawComponent() {
 	if (visible == 0)
 		return;
 
-	parent_panel->InitColorPref("panel_text_color", "white,black");
-	parent_panel->InitColorPref("panel_textdis_color", "grey,black");
-	parent_panel->ColorFromPref(color_active, "panel_text_color");
-	parent_panel->ColorFromPref(color_inactive, "panel_textdis_color");
+	parent_panel->ColorFromPref(color_active, color_active_pref);
+	parent_panel->ColorFromPref(color_inactive, color_inactive_pref);
 
 	SetTransColor(color_active);
 
@@ -2639,10 +2710,8 @@ void Kis_Radiobutton::DrawComponent() {
 	if (visible == 0)
 		return;
 
-	parent_panel->InitColorPref("panel_text_color", "white,black");
-	parent_panel->InitColorPref("panel_textdis_color", "grey,black");
-	parent_panel->ColorFromPref(color_active, "panel_text_color");
-	parent_panel->ColorFromPref(color_inactive, "panel_textdis_color");
+	parent_panel->ColorFromPref(color_active, color_active_pref);
+	parent_panel->ColorFromPref(color_inactive, color_inactive_pref);
 
 	SetTransColor(color_active);
 
@@ -2772,8 +2841,7 @@ void Kis_IntGraph::DrawComponent() {
 
 	char backing[32];
 
-	parent_panel->InitColorPref("panel_text_color", "white,black");
-	parent_panel->ColorFromPref(color_fw, "panel_text_color");
+	parent_panel->ColorFromPref(color_fw, color_active_pref);
 
 	for (unsigned int x = 0; x < data_vec.size(); x++) {
 		parent_panel->InitColorPref(data_vec[x].colorpref, data_vec[x].colordefault);
@@ -3016,6 +3084,7 @@ void Kis_IntGraph::DrawComponent() {
 	}
 }
 
+#if 0
 int Kis_PolarGraph::KeyPress(int in_key) { 
 	return 1;
 }
@@ -3030,8 +3099,8 @@ void Kis_PolarGraph::DrawComponent() {
 	else
 		lx = ly;
 
-	parent_panel->InitColorPref("panel_text_color", "white,black");
-	parent_panel->ColorFromPref(color_fw, "panel_text_color");
+	parent_panel->InitColorPref(color_active_pref, "white,black");
+	parent_panel->ColorFromPref(color_fw, color_active_pref);
 
 	for (unsigned int x = 0; x < point_vec.size(); x++) {
 		// Real position
@@ -3211,6 +3280,7 @@ int Kis_Filepicker::KeyPress(int in_key) {
 	return Kis_Scrollable_Table::KeyPress(in_key);
 }
 
+#endif
 
 Kis_Panel::Kis_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_intf) {
 	globalreg = in_globalreg;
@@ -3377,16 +3447,25 @@ void Kis_Panel::InitColorPref(string in_pref, string in_def) {
 }
 
 void Kis_Panel::ColorFromPref(int &clr, string in_pref) {
+	/*
 	if (kpinterface->prefs->FetchOptDirty(in_pref) || clr == 0) {
 		kpinterface->prefs->SetOptDirty(in_pref, 0);
-		clr = kpinterface->colors.AddColor(kpinterface->prefs->FetchOpt(in_pref));
+		*/
+		clr = kpinterface->colors.AddColor(kpinterface->prefs->FetchOpt(in_pref),
+										   in_pref);
+		/*
 	}
+	*/
 
 	return;
 }
 
+void Kis_Panel::RemapAllColors(string oldcolor, string newcolor) {
+	kpinterface->colors.RemapAllColors(oldcolor, newcolor, kpinterface->prefs);
+}
+
 int Kis_Panel::AddColor(string in_color) {
-	return kpinterface->colors.AddColor(in_color);
+	return kpinterface->colors.AddColor(in_color, "");
 }
 
 void Kis_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {

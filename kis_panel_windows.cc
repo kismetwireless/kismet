@@ -288,6 +288,10 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 		_MSG("Failed to load preferences file, will use defaults", MSGFLAG_INFO);
 	}
 
+	// Initialize base colors
+	InitColorPref("panel_text_color", "white,black");
+	InitColorPref("panel_textdis_color", "white,black");
+
 	AddColorPref("panel_text_color", "Text");
 	AddColorPref("panel_textdis_color", "Text-Inactive");
 	AddColorPref("panel_border_color", "Window Border");
@@ -357,7 +361,7 @@ void kmp_prompt_startserver(KIS_PROMPT_CB_PARMS) {
 		else
 			sp->SpawnConsole(0);
 
-		globalreg->panel_interface->AddPanel(sp);
+		globalreg->panel_interface->QueueModalPanel(sp);
 	}
 }
 
@@ -367,11 +371,46 @@ void kmp_prompt_asroot(KIS_PROMPT_CB_PARMS) {
 	}
 }
 
+void kmp_prompt_greycolor(KIS_PROMPT_CB_PARMS) {
+	if (ok) 
+		globalreg->panel_interface->prefs->SetOpt("panel_textdis_color", 
+												  "grey,black", time(0));
+
+	globalreg->panel_interface->prefs->SetOpt("STARTUP_COLOR", "true", time(0));
+}
+
 void Kis_Main_Panel::Startup() {
 	if (kpinterface->prefs->FetchOpt("DEFAULT_HOST") == "") {
 		kpinterface->prefs->SetOpt("DEFAULT_HOST", "localhost", 1);
 		kpinterface->prefs->SetOpt("DEFAULT_PORT", "2501", 1);
 		kpinterface->prefs->SetOpt("AUTOCONNECT", "true", 1);
+	}
+
+	if (kpinterface->prefs->FetchOpt("STARTUP_COLOR") == "") {
+		vector<string> t;
+
+		Kis_Prompt_Panel *kpp =
+			new Kis_Prompt_Panel(globalreg, kpinterface);
+		
+		kpp->InitColorPref("grey_color", "grey,black");
+		kpp->InitColorPref("white_color", "white,black");
+
+		t.push_back("\004Cwhite_color;Some terminals don't display some colors "
+					"(notably, dark grey)");
+		t.push_back("correctly.  The next line of text should read 'Dark grey text': ");
+		t.push_back("\004Cgrey_color;Dark grey text");
+		t.push_back("\004Cwhite_color;Is it visible?  If you answer 'No', dark grey ");
+		t.push_back("will not be used in the default color scheme.  Remember, you ");
+		t.push_back("can always change colors to your taste by going to ");
+		t.push_back("Kismet->Preferences->Colors.");
+		t.push_back("");
+
+		kpp->SetTitle("Terminal colors");
+		kpp->SetCallback(kmp_prompt_greycolor, this);
+		kpp->SetDisplayText(t);
+		kpp->SetButtonText("Yes", "No");
+		// kpp->SetCallback(kmp_prompt_asroot, this);
+		kpinterface->QueueModalPanel(kpp);
 	}
 
 	if ((getuid() == 0 || geteuid() == 0) &&
