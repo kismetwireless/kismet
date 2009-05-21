@@ -193,6 +193,8 @@ public:
 	TextCliFrame *FetchServerFramework() { return server_framework; }
 	PopenClient *FetchServerPopen() { return server_popen; }
 	vector<string> *FetchServerConsole() { return &server_console; }
+	
+	void ResetWarnAllClear() { warned_cleared = 1; warned_all_errors_consec = 0; }
 
 protected:
 	int shutdown_mode; 
@@ -227,9 +229,9 @@ protected:
 
 	// Have we yelled at the user for not having any sources enabled?
 	int warned_no_sources;
+
 	// Or are they all broken?
-	int warned_all_errors;
-	int num_source_errors;
+	int warned_all_errors, warned_all_errors_consec, warned_cleared;
 
 	vector<Kis_Panel *> modal_vec;
 };

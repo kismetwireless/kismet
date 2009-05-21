@@ -100,18 +100,21 @@ enum INFO_fields {
 	INFO_networks, INFO_packets, INFO_cryptpackets,
 	INFO_noisepackets, INFO_droppedpackets, INFO_packetrate, 
 	INFO_filteredpackets, INFO_clients, INFO_llcpackets, INFO_datapackets,
-	INFO_numsources,
+	INFO_numsources, INFO_numerrorsources,
 	INFO_maxfield
 };
 
 const char *INFO_fields_text[] = {
 	"networks", "packets", "crypt", "noise", "dropped", "rate", 
 	"filtered", "clients", "llcpackets", "datapackets", "numsources",
+	"numerrorsources",
 	NULL
 };
 
 int Protocol_INFO(PROTO_PARMS) {
 	ostringstream osstr;
+	int num_error;
+	vector<pst_packetsource *> *sourcevec = globalreg->sourcetracker->FetchSourceVec();
 
 	// Alloc the cache quickly
 	cache->Filled(field_vec->size());
@@ -175,7 +178,16 @@ int Protocol_INFO(PROTO_PARMS) {
 				cache->Cache(fnum, osstr.str());
 				break;
 			case INFO_numsources:
-				osstr << globalreg->sourcetracker->FetchSourceVec()->size();
+				osstr << sourcevec->size();
+				cache->Cache(fnum, osstr.str());
+				break;
+			case INFO_numerrorsources:
+				num_error = 0;
+				for (unsigned int e = 0; e < sourcevec->size(); e++) {
+					if ((*sourcevec)[e]->error)
+						num_error++;
+				}
+				osstr << num_error;
 				cache->Cache(fnum, osstr.str());
 				break;
 		}

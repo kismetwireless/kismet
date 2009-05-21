@@ -138,9 +138,6 @@ void KisPanelInterface::proto_SOURCE(CLIPROTO_CB_PARMS) {
 
 	source->error = (*proto_parsed)[fnum++].word == "1";
 
-	if (source->error)
-		num_source_errors++;
-
 	string warning = (*proto_parsed)[fnum++].word;
 	
 	if (warning != "" && warning != source->warning) 
@@ -225,23 +222,40 @@ void kpi_prompt_addsource(KIS_PROMPT_CB_PARMS) {
 	}
 }
 
+void kpi_prompt_warnallerr(KIS_PROMPT_CB_PARMS) {
+	if (check)
+		globalreg->panel_interface->prefs->SetOpt("WARN_ALLERRSOURCE", "false", 1);
+
+	((KisPanelInterface *) auxptr)->ResetWarnAllClear();
+}
+
 void KisPanelInterface::proto_INFO(CLIPROTO_CB_PARMS) {
-	// Numsources
+	// Numsources,numerrorsources
 
 	if (proto_parsed->size() < 1) {
 		return;
 	}
 
 	int fnum = 0;
-	int tint = 0;
+	int ns = 0, ne = 0;
 
-	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tint) != 1)
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &ns) != 1)
 		return;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &ne) != 1)
+		return;
+
+	if (ns != 0 && ne >= ns)
+		warned_all_errors_consec++;
 
 	// If we've found all our defined sources, make sure they're not all in
 	// an error state
-	if (tint != 0 && warned_all_errors == 0 && num_source_errors == tint) {
-		warned_all_errors = 1;
+	if (ns != 0 && time(0) - warned_all_errors > 60 && 
+		warned_cleared && ne >= ns && warned_all_errors_consec > 20 && 
+		prefs->FetchOpt("WARN_ALLERRSOURCE") != "false") {
+
+		warned_all_errors = time(0);
+		warned_all_errors_consec = 0;
 
 		vector<string> t;
 
@@ -255,15 +269,15 @@ void KisPanelInterface::proto_INFO(CLIPROTO_CB_PARMS) {
 			new Kis_Prompt_Panel(globalreg, this);
 		kpp->SetTitle("Sources Failed");
 		kpp->SetDisplayText(t);
+		kpp->SetCheckText("Do not show this warning in the future");
+		kpp->SetChecked(0);
 		kpp->SetDefaultButton(1);
 		kpp->SetButtonText("OK", "");
 		QueueModalPanel(kpp);
 	}
 
-	num_source_errors = 0;
-
 	// If we have no sources and we haven't warned the user about that, do so
-	if (tint == 0 && warned_no_sources == 0) {
+	if (ns == 0 && warned_no_sources == 0) {
 		warned_no_sources = 1;
 
 		vector<string> t;
@@ -332,6 +346,10 @@ KisPanelInterface::KisPanelInterface(GlobalRegistry *in_globalreg) :
 	server_framework = NULL;
 	server_popen = NULL;
 	server_text_cb = -1;
+
+	warned_no_sources = 0;
+	warned_all_errors = warned_all_errors_consec = 0;
+	warned_cleared = 1;
 
 	endwin();
 }
@@ -482,8 +500,8 @@ void KisPanelInterface::NetClientConfigure(KisNetClient *in_cli, int in_recon) {
 	netcard_map.clear();
 
 	warned_no_sources = 0;
-	warned_all_errors = 0;
-	num_source_errors = 0;
+	warned_all_errors = warned_all_errors_consec = 0;
+	warned_cleared = 1;
 
 	if (in_recon)
 		return;
@@ -504,7 +522,7 @@ void KisPanelInterface::NetClientConfigure(KisNetClient *in_cli, int in_recon) {
 		in_cli->KillConnection();
 	}
 
-	if (in_cli->RegisterProtoHandler("INFO", "numsources",
+	if (in_cli->RegisterProtoHandler("INFO", "numsources,numerrorsources",
 									 KisPanelClient_INFO, this) < 0) {
 		_MSG("Could not register INFO protocol with remote server, connection "
 			 "will be terminated.", MSGFLAG_ERROR);
