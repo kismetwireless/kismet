@@ -194,7 +194,11 @@ public:
 	PopenClient *FetchServerPopen() { return server_popen; }
 	vector<string> *FetchServerConsole() { return &server_console; }
 	
-	void ResetWarnAllClear() { warned_cleared = 1; warned_all_errors_consec = 0; }
+	void ResetWarnAllClear() { 
+		warned_cleared = 1; 
+		warned_all_errors_consec = 0; 
+		warned_all_errors = time(0);
+	}
 
 protected:
 	int shutdown_mode; 

@@ -247,6 +247,8 @@ void KisPanelInterface::proto_INFO(CLIPROTO_CB_PARMS) {
 
 	if (ns != 0 && ne >= ns)
 		warned_all_errors_consec++;
+	else
+		warned_all_errors_consec = 0;
 
 	// If we've found all our defined sources, make sure they're not all in
 	// an error state
