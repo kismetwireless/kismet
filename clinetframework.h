@@ -123,7 +123,7 @@ protected:
     struct hostent *client_host;
 };
 
-#define CLIFRAME_FAIL_CB_PARMS	GlobalRegistry *globalreg, int errno, void *auxptr
+#define CLIFRAME_FAIL_CB_PARMS	GlobalRegistry *globalreg, int in_errno, void *auxptr
 typedef void (*cliframe_fail_cb)(CLIFRAME_FAIL_CB_PARMS);
 
 // Skeleton to a protocol interface

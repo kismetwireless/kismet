@@ -754,6 +754,14 @@ void KisPanelInterface::SpawnServer(string in_parm) {
 	SpawnServer();
 }
 
+void kpi_serverpopen_fail(CLIFRAME_FAIL_CB_PARMS) {
+	((KisPanelInterface *) auxptr)->RaiseAlert("Kismet Server Failed",
+		InLineWrap("Locally started Kismet server exited unexpectedly "
+		"with error " + IntToString(in_errno) + ".  Something "
+		"has gone wrong.  Check the Kismet server console for "
+		"more information and errors.", 0, 50));
+}
+
 void KisPanelInterface::SpawnServer() {
 	string servercmd = string(BIN_LOC) + "/kismet_server " + server_parm;
 
@@ -762,6 +770,7 @@ void KisPanelInterface::SpawnServer() {
 		server_popen = new PopenClient(globalreg);
 
 		server_framework->RegisterNetworkClient(server_popen);
+		server_framework->RegisterFailCB(kpi_serverpopen_fail, this);
 		server_popen->RegisterClientFramework(server_framework);
 
 		server_text_cb = 

@@ -834,7 +834,9 @@ void Kis_Main_Panel::MenuAction(int opt) {
 	// Menu processed an event, do something with it
 	if (opt == mi_quit) {
 		if (con == 0 &&
-			kpinterface->FetchServerFramework() == NULL) {
+			(kpinterface->FetchServerFramework() == NULL ||
+			 (kpinterface->FetchServerFramework() != NULL &&
+			  kpinterface->FetchServerFramework()->Valid() == 0))) {
 			kmp_prompt_killserver(globalreg, 1, -1, NULL);
 		}
 
