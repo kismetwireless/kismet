@@ -205,6 +205,7 @@ int PacketSource_Wext::AutotypeProbe(string in_device) {
 		sysdriver == "orinoco_cs") {
 		
 		// Set the weaksource type to what we derived
+		warning = "";
 		type = sysdriver;
 		return 1;
 	}
@@ -212,11 +213,11 @@ int PacketSource_Wext::AutotypeProbe(string in_device) {
 	// Detect unknown mac80211 devices, ask for help, assume wext
 	if (Linux_GetSysDrvAttr(in_device.c_str(), "phy80211")) {
 		type = "mac80211";
-		_MSG("Didn't understand driver '" + sysdriver + "' for interface '" +
+		warning = "Didn't understand driver '" + sysdriver + "' for interface '" +
 			 in_device + "', but it looks like a mac80211 device so Kismet "
 			 "will use the generic options for it.  Please post on the Kismet "
-			 "forum or stop by the IRC channel and report what driver it was.",
-			 MSGFLAG_PRINTERROR);
+			 "forum or stop by the IRC channel and report what driver it was.";
+		_MSG(warning, MSGFLAG_PRINTERROR);
 		return 1;
 	}
 

@@ -340,6 +340,7 @@ protected:
 	// List of prototype source, we don't need a map (saves on ram and binary,
 	// to some extent)
 	vector<pst_protosource *> protosource_vec;
+	pst_protosource *broken_proto;
 
 	// Map of ID to strong packet sources we've made
 	map<uint16_t, pst_packetsource *> packetsource_map;

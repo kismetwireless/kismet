@@ -37,7 +37,7 @@ http://www.kismetwireless.net
 
 2.  Upgrading from earlier Kismet versions
 
-    This release marks a major change in how Kismet works and is configured.
+    This release marks a MAJOR change in how Kismet works and is configured.
     While many aspects are similar, many others (the client, configuring
     sources and channels, etc) are very different.  
 
@@ -52,6 +52,13 @@ http://www.kismetwireless.net
        Kismet to exit can now be recovered from.
      * New filtering options
      * New alert options
+     * Completely new UI
+     * Revamped network protocol
+     * Significantly less CPU used for high numbers of networks
+     * Plugins
+
+     While this release breaks almost everything from previous releases, it
+     opens the door for smoother upgrades and major feature enhancements.
 
 3.  Quick start
 
@@ -124,10 +131,12 @@ http://www.kismetwireless.net
       be missing.  Notably, you may need to install libpcap manually.
 
       The libpcap included with OSX does not support PPI logging.  Kismet
-      will not be able to log to PPI correctly.
+      will not be able to log to PPI correctly (so it will log 802.11
+      packets with no per-packet headers.)
 
       Configure will automatically detect OSX and default to the group
-      "staff" for OSX suidinstall.
+      "staff" for OSX suidinstall.  This may be overridden with the
+      '--with-suidgroup' configure option.
 
     * Compile Kismet with "make".
     * Install Kismet with either "make install" or "make suidinstall".
@@ -1108,6 +1117,16 @@ http://www.kismetwireless.net
         - Don't be stupid.
         - If you are stupid, I'm not responsible.
 
+    Q: Can Kismet crack WEP?
+    A: Yes, but also, no.  The base Kismet code does not do any WEP
+       cracking, however due to constant requests, there IS an Aircrack-PTW
+       plugin which will do PASSIVE WEP cracking only.  It will NOT do
+       arp-replay, fragmentation, or other active attacks, however if enough
+       packets are gathered it will attempt to crack the WEP key and insert
+       it into Kismet to decrypt that network.
+       The PTW-WEP cracking plugin is in the Kismet source tree in the
+       plugin-ptw/ directory.
+
     Q: What's the deal with Newcore, and where did it go?
     A: Newcore was a total rewrite of Kismet, which lasted years longer in a
        development state than planned.  If you're reading this, you've got
@@ -1119,6 +1138,15 @@ http://www.kismetwireless.net
        perpetually in 0.1, 0.9 status, but I also hate artificially
        expanding the version numbers.  So, now, it's versioned by the
        release date, YYYY-MM-RR.
+
+    Q: Can I use the old Kismet UI still?
+    A: No, sorry, too much has changed in the protocols, and the new UI is
+       much more flexible anyhow
+
+    Q: Can I use the old drones still?
+    A: No, again, too much has changed (however from now on it should be 
+       possible to mix versions since the drone protocol has been expanded
+       to be expandable)
 
     Q: What is RFMON/Monitor mode?
     A: In the wired world, promiscuous mode turns off the filtering

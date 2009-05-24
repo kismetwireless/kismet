@@ -30,6 +30,51 @@
 #include "configfile.h"
 #include "getopt.h"
 
+// Broken source assigned to sources which utterly fail to parse during startup, 
+// with the goal of setting the warning so that it'll pop in the UI properly.
+// Should only ever be used as a protosource
+class PacketSource_Broken : public KisPacketSource {
+public:
+	PacketSource_Broken() { }
+	PacketSource_Broken(GlobalRegistry *in_globalreg) : KisPacketSource(in_globalreg) { }
+
+	virtual KisPacketSource *CreateSource(GlobalRegistry *in_globalreg,
+										  string in_interface,
+										  vector<opt_pair> *in_opts) {
+		return NULL;
+	}
+
+	virtual void SetWarning(string in_warning) {
+		warning = in_warning;
+	}
+
+	virtual int AutotypeProbe(string in_device) { return 0; }
+	virtual int RegisterSources(Packetsourcetracker *tracker) { return 0; }
+
+	PacketSource_Broken(GlobalRegistry *in_globalreg, string in_interface,
+						vector<opt_pair> *in_opts) :
+		KisPacketSource(in_globalreg, in_interface, in_opts) { }
+
+	virtual ~PacketSource_Broken() { }
+
+	virtual int EnableMonitor() { return 0; }
+	virtual int DisableMonitor() { return 0; }
+	virtual int FetchChannelCapable() { return 0; }
+	virtual int SetChannel(unsigned int in_ch) { return 0; }
+	virtual int ChildIPCControl() { return 0; }
+	virtual int OpenSource() { return 0; }
+	virtual int CloseSource() { return 0; }
+	virtual int FetchDescriptor() { return -1; }
+	virtual int Poll() { return 0; }
+	virtual int FetchHardwareChannel() { return 0; }
+	virtual int ManglePacket(kis_packet *packet, kis_datachunk *linkchunk) { return 0; }
+
+protected:
+	virtual int DatalinkType() { return 0; }
+	virtual void FetchRadioData(kis_packet *in_packet) { }
+
+};
+
 enum SOURCE_fields {
 	SOURCE_interface, SOURCE_type, SOURCE_username, SOURCE_channel, SOURCE_uuid, 
 	SOURCE_packets, SOURCE_hop, SOURCE_velocity, SOURCE_dwell, SOURCE_hop_tv_sec,
@@ -160,6 +205,11 @@ int Protocol_SOURCE(PROTO_PARMS) {
 				if (psrc->strong_source != NULL)
 					cache->Cache(fnum, string("\001") + 
 								 psrc->strong_source->FetchWarning() + 
+								 string("\001"));
+				else if (psrc->proto_source != NULL &&
+						 psrc->proto_source->weak_source != NULL)
+					cache->Cache(fnum, string("\001") + 
+								 psrc->proto_source->weak_source->FetchWarning() + 
 								 string("\001"));
 				else
 					cache->Cache(fnum, "\001\001");
@@ -828,7 +878,31 @@ int Packetsourcetracker::AddPacketSource(string in_source,
 			_MSG("It is possible that the device for interface '" + interface + "' "
 				 "is not active or was not plugged in.  Kismet will ignore this "
 				 "interface, you may re-add it later.", MSGFLAG_PRINTERROR);
-			delete pstsource;
+
+			pst_protosource *broken_weak = new pst_protosource;
+			broken_weak->type = "BROKEN";
+			broken_weak->require_root = 0;
+			broken_weak->weak_source = new PacketSource_Broken(globalreg);
+
+			((PacketSource_Broken *) broken_weak->weak_source)->SetWarning(
+				"Couldn't auto-detect a driver for interface '" + interface + "'. "
+				"There may be a problem with the device (such as it not existing) or it "
+				"may use one of the drivers which cannot be auto-detected.  See the "
+				"README section 'Caveats and quirks for specific drivers' to learn how "
+				"to configure the specific driver.");
+
+			pstsource->proto_source = broken_weak;
+
+			// Push it into the vec so that we pop a warning on the client
+			pstsource->error = 1;
+			pstsource->reopen = 0;
+			pstsource->strong_source = NULL;
+
+			pstsource->source_id = next_source_id;
+			packetsource_map[pstsource->source_id] = pstsource;
+			packetsource_vec.push_back(pstsource);
+			next_source_id++;
+
 			return 0;
 		}
 	}
@@ -1584,7 +1658,7 @@ int Packetsourcetracker::StartSource(uint16_t in_source_id) {
 
 		return failure;
 	} 
-	
+
 	if (packetsource_map.find(in_source_id) != packetsource_map.end()) {
 		pstsource = packetsource_map[in_source_id];
 	} else {
@@ -1592,6 +1666,11 @@ int Packetsourcetracker::StartSource(uint16_t in_source_id) {
 			 "id, something is wrong.", MSGFLAG_ERROR);
 		return -1;
 	}
+
+	// Nothing to do if we don't have a complete source (like a really broken
+	// startup source)
+	if (pstsource->strong_source == NULL)
+		return 0;
 
 	if (euid != 0 && pstsource->proto_source->require_root && running_as_ipc) {
 		_MSG("IPC child Source '" + pstsource->strong_source->FetchInterface() + 
