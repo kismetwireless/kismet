@@ -62,6 +62,11 @@ void KisMainPanel_GPS(CLIPROTO_CB_PARMS) {
 										   proto_parsed, srccli, auxptr);
 }
 
+void KisMainPanel_ALERT(CLIPROTO_CB_PARMS) {
+	((Kis_Main_Panel *) auxptr)->Proto_ALERT(globalreg, proto_string,
+											 proto_parsed, srccli, auxptr);
+}
+
 int NetlistActivateCB(COMPONENT_CALLBACK_PARMS) {
 	Kis_NetDetails_Panel *dp = 
 		new Kis_NetDetails_Panel(globalreg, 
@@ -340,6 +345,8 @@ Kis_Main_Panel::~Kis_Main_Panel() {
 											   KisMainPanel_INFO, this);
 	kpinterface->Remove_AllNetcli_ProtoHandler("GPS",
 											   KisMainPanel_GPS, this);
+	kpinterface->Remove_AllNetcli_ProtoHandler("ALERT",
+											   KisMainPanel_ALERT, this);
 }
 
 void kmp_prompt_startserver(KIS_PROMPT_CB_PARMS) {
@@ -486,6 +493,13 @@ void Kis_Main_Panel::NetClientConfigure(KisNetClient *in_cli, int in_recon) {
 	if (in_cli->RegisterProtoHandler("GPS", agg_gps_fields,
 									 KisMainPanel_GPS, this) < 0) {
 		_MSG("Could not register GPS protocol with remote server, connection "
+			 "will be terminated.", MSGFLAG_ERROR);
+		in_cli->KillConnection();
+	}
+
+	if (in_cli->RegisterProtoHandler("ALERT", "header",
+									 KisMainPanel_ALERT, this) < 0) {
+		_MSG("Could not register ALERT protocol with remote server, connection "
 			 "will be terminated.", MSGFLAG_ERROR);
 		in_cli->KillConnection();
 	}
@@ -658,6 +672,26 @@ void Kis_Main_Panel::Proto_GPS(CLIPROTO_CB_PARMS) {
 	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%f", &spd) != 1)
 		return;
 
+	// Use the gpslock/lost prefs to determine if we play the sound or if we
+	// already have played this state
+	if (fix < 2 && snd_gpslost != 0 && snd_gpslost < 2) {
+		snd_gpslost = 2;
+
+		if (snd_gpslock)
+			snd_gpslock = 1;
+
+		globalreg->soundctl->PlaySound(sound_prefix + string("/") + "gpslost.wav");
+	}
+
+	if (fix >= 2 && snd_gpslock != 0 && snd_gpslock < 2) {
+		snd_gpslock = 2;
+		
+		if (snd_gpslost)
+			snd_gpslost = 1;
+
+		globalreg->soundctl->PlaySound(sound_prefix + string("/") + "gpslock.wav");
+	}
+
 	int eng = StrLower(kpinterface->prefs->FetchOpt("GPSUNIT")) != "metric";
 
 	gpstext = string("GPS ") + 
@@ -690,6 +724,11 @@ void Kis_Main_Panel::Proto_GPS(CLIPROTO_CB_PARMS) {
 
 	
 	gpsinfo->SetText(gpstext + IntToString(fix) + string("d fix"));
+}
+
+void Kis_Main_Panel::Proto_ALERT(CLIPROTO_CB_PARMS) {
+	if (snd_alert)
+		globalreg->soundctl->PlaySound(sound_prefix + string("/") + "alert.wav");
 }
 
 void Kis_Main_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {

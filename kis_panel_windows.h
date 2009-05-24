@@ -101,6 +101,7 @@ public:
 	void NetClientAdd(KisNetClient *in_cli, int add);
 	void Proto_INFO(CLIPROTO_CB_PARMS);
 	void Proto_GPS(CLIPROTO_CB_PARMS);
+	void Proto_ALERT(CLIPROTO_CB_PARMS);
 
 protected:
 	int mn_file, mi_startserver, mi_serverconsole, mi_connect, mi_disconnect, 
