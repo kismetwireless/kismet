@@ -57,7 +57,7 @@ int sound_ipc_callback(IPC_CMD_PARMS) {
 	if (time(0) - f->timestamp > 2)
 		return 0;
 
-	int ret = ((SoundControl *) auxptr)->LocalPlay(f->msg);
+	int ret = ((SoundControl *) auxptr)->LocalPlay(f->player, f->msg);
 
 	if (ret < 0)
 		return -1;
@@ -82,7 +82,7 @@ int speech_ipc_callback(IPC_CMD_PARMS) {
 	if (time(0) - f->timestamp > 2)
 		return 0;
 
-	int ret = ((SoundControl *) auxptr)->LocalSpeech(f->msg);
+	int ret = ((SoundControl *) auxptr)->LocalSpeech(f->player, f->opt, f->msg);
 
 	if (ret < 0)
 		return -1;
@@ -98,108 +98,58 @@ SoundControl::SoundControl() {
 SoundControl::SoundControl(GlobalRegistry *in_globalreg) {
     globalreg = in_globalreg;
 
-	sound_enable = -1;
+	sound_enable = 0;
+	speech_enable = 0;
+	speech_festival = 0;
 
-    if (globalreg->kismet_config->FetchOpt("sound") == "true") {
-        if (globalreg->kismet_config->FetchOpt("soundplay") != "") {
-            player = globalreg->kismet_config->FetchOpt("soundplay");
+	if ((nulfd = open("/dev/null", O_RDWR)) < 0) {
+		_MSG("SoundControl() opening /dev/null failed (" + string(strerror(errno)) +
+			 ") something is weird with your system.)", MSGFLAG_ERROR);
+	}
 
-            if (globalreg->kismet_config->FetchOpt("soundopts") != "")
-                player += " " + globalreg->kismet_config->FetchOpt("soundopts");
-
-			player = MungeToShell(player);
-
-            sound_enable = 1;
-
-            if (globalreg->kismet_config->FetchOpt("sound_new") != "")
-                wav_map["new"] = globalreg->kismet_config->FetchOpt("sound_new");
-            if (globalreg->kismet_config->FetchOpt("sound_new_wep") != "")
-                wav_map["new_wep"] = 
-					globalreg->kismet_config->FetchOpt("sound_new_wep");
-            if (globalreg->kismet_config->FetchOpt("sound_traffic") != "")
-                wav_map["traffic"] = 
-					globalreg->kismet_config->FetchOpt("sound_traffic");
-            if (globalreg->kismet_config->FetchOpt("sound_junktraffic") != "")
-                wav_map["junktraffic"] = 
-					globalreg->kismet_config->FetchOpt("sound_traffic");
-            if (globalreg->kismet_config->FetchOpt("sound_gpslock") != "")
-                wav_map["gpslock"] = 
-					globalreg->kismet_config->FetchOpt("sound_gpslock");
-            if (globalreg->kismet_config->FetchOpt("sound_gpslost") != "")
-                wav_map["gpslost"] = 
-					globalreg->kismet_config->FetchOpt("sound_gpslost");
-            if (globalreg->kismet_config->FetchOpt("sound_alert") != "")
-                wav_map["alert"] = 
-					globalreg->kismet_config->FetchOpt("sound_alert");
-
-        } else {
-            _MSG("Sound alerts enabled but no sound player specified, "
-				 "sound will be disabled", MSGFLAG_ERROR);
-            sound_enable = 0;
-        }
-    } else if (sound_enable == -1) {
-        sound_enable = 0;
-    }
-
-    if (globalreg->kismet_config->FetchOpt("speech") == "true") {
-        if (globalreg->kismet_config->FetchOpt("festival") != "") {
-            speaker = globalreg->kismet_config->FetchOpt("festival").c_str();
-            speech_enable = 1;
-
-			speaker = MungeToShell(speaker);
-
-            string speechtype = globalreg->kismet_config->FetchOpt("speech_type");
-
-            if (!strcasecmp(speechtype.c_str(), "nato"))
-                speech_encoding = SPEECH_ENCODING_NATO;
-            else if (!strcasecmp(speechtype.c_str(), "spell"))
-                speech_encoding = SPEECH_ENCODING_SPELL;
-            else
-                speech_encoding = SPEECH_ENCODING_NORMAL;
-
-            // Make sure we have encrypted text lines
-            if (globalreg->kismet_config->FetchOpt("speech_encrypted") == "" || 
-                globalreg->kismet_config->FetchOpt("speech_unencrypted") == "") {
-                _MSG("Speech requested but no speech templates given "
-					 "in the config file.  Speech will be disabled.", MSGFLAG_ERROR);
-                speech_enable = 0;
-            }
-        } else {
-            _MSG("Speech requested but no path to festival has been "
-				 "specified.  Speech will be disabled", MSGFLAG_ERROR);
-            speech_enable = 0;
-        }
-    } else if (speech_enable == -1) {
-        speech_enable = 0;
-    }
-
+	// Always spawn the sound control daemon
 	sound_remote = new IPCRemote(globalreg, "sound daemon");
 	sound_ipc_id = 
 		sound_remote->RegisterIPCCmd(&sound_ipc_callback, NULL, this, "SOUND");
 	speech_ipc_id = 
 		sound_remote->RegisterIPCCmd(&speech_ipc_callback, NULL, this, "SPEECH");
-    
+
+	shutdown = 0;
 }
 
 SoundControl::~SoundControl() {
     Shutdown();
 }
 
+void SoundControl::SetSpeechEncode(string in_encode) {
+	string lenc = StrLower(in_encode);
+	
+	if (lenc == "nato")
+		speech_encoding = SPEECH_ENCODING_NATO;
+	if (lenc == "spell")
+		speech_encoding = SPEECH_ENCODING_SPELL;
+	else
+		speech_encoding = SPEECH_ENCODING_NORMAL;
+}
+
 int SoundControl::PlaySound(string in_text) {
 	if (sound_enable <= 0)
 		return 0;
 
-	return SendPacket(in_text, sound_ipc_id);
+	return SendPacket(in_text, player, 0, sound_ipc_id);
 }
 
 int SoundControl::SayText(string in_text) {
 	if (speech_enable <= 0)
 		return 0;
 
-	return SendPacket(in_text, speech_ipc_id);
+	return SendPacket(in_text, speaker, speech_festival, speech_ipc_id);
 }
 
-int SoundControl::SendPacket(string text, int id) {
+int SoundControl::SendPacket(string text, string in_player, int opt, int id) {
+	if (shutdown)
+		return 0;
+
 	if (sound_remote->FetchSpawnPid() == 0) {
 		if (SpawnChildProcess() < 0 || globalreg->fatal_condition)
 			return -1;
@@ -212,7 +162,10 @@ int SoundControl::SendPacket(string text, int id) {
 
 	soundcontrol_ipc_frame *frame = (soundcontrol_ipc_frame *) pack->data;
 
-	snprintf(frame->msg, text.length(), "%s", text.c_str());
+	snprintf(frame->player, 256, "%s", in_player.c_str());
+	snprintf(frame->msg, text.length() + 1, "%s", text.c_str());
+	frame->opt = opt;
+	frame->timestamp = time(0);
 	
 	pack->data_len = sizeof(soundcontrol_ipc_frame) + text.length() + 1;
 	pack->ipc_cmdnum = id;
@@ -227,6 +180,7 @@ void SoundControl::Shutdown() {
 	sound_remote->ShutdownIPC(NULL);
 	globalreg->RemovePollableSubsys(sound_remote);
 	delete sound_remote;
+	shutdown = 1;
 }
 
 int SoundControl::SpawnChildProcess() {
@@ -277,43 +231,119 @@ string SoundControl::EncodeSpeechString(string in_str) {
     return encodestr;
 }
 
-int SoundControl::LocalPlay(string key) {
-	string snd;
-	char *argv[3];
+// Spawn a sound process and block until it ends, max 5 seconds for a sound
+// to finish playing
+int SoundControl::LocalPlay(string in_player, string key) {
+	vector<string> args;
+	char **eargv;
+
 	pid_t sndpid;
 	int status;
 
-	if (wav_map.size() == 0)
-		snd = MungeToShell(key);
-	if (wav_map.find(key) != wav_map.end())
-		snd = MungeToShell(wav_map[key]);
-	else
-		return 0;
+	args = QuoteStrTokenize(in_player, " ");
 
-	argv[0] = strdup(player.c_str());
-	argv[1] = strdup(snd.c_str());
-	argv[2] = NULL;
+	eargv = (char **) malloc(sizeof(char *) * (args.size() + 2));
+
+	for (unsigned int x = 0; x < args.size(); x++) {
+		eargv[x] = strdup(args[x].c_str());
+	}
+	eargv[args.size()] = strdup(key.c_str());
+	eargv[args.size() + 1] = NULL;
 
 	if ((sndpid = fork()) == 0) {
-		execvp(argv[0], argv);
+		dup2(nulfd, 1);
+		dup2(nulfd, 2);
+		execvp(eargv[0], eargv);
 		exit(1);
 	}
 
-	waitpid(sndpid, &status, 0);
+	for (unsigned int x = 0; x < args.size() + 2; x++)
+		free(eargv[x]);
+	free(eargv);
+
+	time_t play_start = time(0);
+
+	// Spin waiting for the sound to end for 5 seconds, then make it end
+	while (1) {
+		if (waitpid(sndpid, &status, WNOHANG) == 0) {
+			if ((time(0) - play_start) > 5) {
+				kill(sndpid, SIGKILL);
+				continue;
+			}
+
+			usleep(10000);
+		} else {
+			break;
+		}
+	}
 
 	return 1;
 }
 
-int SoundControl::LocalSpeech(string text) {
-	// Make sure it's shell-clean, we shouldn't be sent something that isn't,
-	// but why risk it?
-	text = MungeToShell(text);
-	char spk_call[2048];
-	snprintf(spk_call, 2048, "echo \"(SayText \\\"%s\\\")\" | %s "
-			 ">/dev/null 2>/dev/null", text.c_str(), speaker.c_str());
+// Spawn a speech process and wait for it to end, it gets more slack time than a 
+// sound process before we kill it (20 seconds)
+int SoundControl::LocalSpeech(string in_speaker, int in_festival, string text) {
+	vector<string> args;
+	char **eargv;
+	string speech;
 
-	// Blocking system call, this will block the ack until its done.  This
-	// is fine.
-	return system(spk_call);
+	pid_t sndpid;
+	int status;
+	int pfd[2];
+
+	if (pipe(pfd) != 0) {
+		return -1;
+	}
+
+	args = QuoteStrTokenize(in_speaker, " ");
+
+	eargv = (char **) malloc(sizeof(char *) * (args.size() + 1));
+
+	for (unsigned int x = 0; x < args.size(); x++) {
+		eargv[x] = strdup(args[x].c_str());
+	}
+	eargv[args.size()] = NULL;
+
+	if ((sndpid = fork()) == 0) {
+		dup2(pfd[0], STDIN_FILENO);
+		close(pfd[1]);
+		dup2(nulfd, STDOUT_FILENO);
+		dup2(nulfd, STDERR_FILENO);
+		execvp(eargv[0], eargv);
+		exit(1);
+	}
+
+	// Format it for festival
+	if (in_festival) {
+		speech = "(SayText \"" + text + "\")";
+	} else {
+		speech = text;
+	}
+
+	if (write(pfd[1], text.c_str(), speech.length() + 1) < 0) 
+		_MSG(string(__FUNCTION__) + ": Failed to write speech to player: " +
+			 string(strerror(errno)), MSGFLAG_ERROR);
+
+	for (unsigned int x = 0; x < args.size() + 1; x++)
+		free(eargv[x]);
+	free(eargv);
+
+	time_t play_start = time(0);
+
+	while (1) {
+		if (waitpid(sndpid, &status, WNOHANG) == 0) {
+			if ((time(0) - play_start) > 30) {
+				kill(sndpid, SIGKILL);
+				continue;
+			}
+
+			usleep(10000);
+		} else {
+			break;
+		}
+	}
+
+	return 1;
 }
+
 

@@ -2024,6 +2024,10 @@ void Kis_Scrollable_Table::DrawComponent() {
 	// into them.  We'll assume the caller doesn't generate a horizontally
 	// scrollable table with variable width fields.
 	int ndynf = 0, spare = lx;
+
+	if ((int) data_vec.size() > ly) 
+		spare -= 1;
+
 	for (unsigned int x = 0; x < title_vec.size(); x++) {
 		title_vec[x].draw_width = title_vec[x].width;
 

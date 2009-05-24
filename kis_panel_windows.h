@@ -80,6 +80,9 @@ public:
 	// Passthrough to color handling
 	void AddColorPref(string in_pref, string in_txt);
 
+	// Load sound prefrences from config file
+	void LoadAudioPrefs();
+
 	struct plugin_menu_opt {
 		int menuitem;
 		int (*callback)(void *);
@@ -150,6 +153,10 @@ protected:
 
 	string agg_gps_fields;
 	int agg_gps_num;
+
+	// Sound options
+	int snd_new, snd_packet, snd_gpslock, snd_gpslost, snd_alert;
+	string sound_prefix;
 };
 
 #define KIS_PROMPT_CB_PARMS	GlobalRegistry *globalreg, int ok, int check, void *auxptr

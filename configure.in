@@ -178,7 +178,15 @@ LIB_DIR=`(
     test "$exec_prefix" = NONE && exec_prefix=${prefix}
     eval echo "$LIB_DIR"
 )`
-AC_DEFINE_UNQUOTED(LIB_LOC, "$LIB_DIR", system binary directory)
+AC_DEFINE_UNQUOTED(LIB_LOC, "$LIB_DIR", system library directory)
+
+DATA_DIR=$datarootdir
+DATA_DIR=`(
+    test "$prefix" = NONE && prefix=$ac_default_prefix
+    test "$exec_prefix" = NONE && exec_prefix=${prefix}
+    eval echo "$DATA_DIR"
+)`
+AC_DEFINE_UNQUOTED(DATA_LOC, "$DATA_DIR", system data directory)
 
 # Check for endian
 AC_C_BIGENDIAN

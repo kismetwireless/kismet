@@ -206,35 +206,32 @@ writeinterval=300
 # Do we use sound?
 # Not to be confused with GUI sound parameter, this controls wether or not the
 # server itself will play sound.  Primarily for headless or automated systems.
-sound=false
+enablesound=false
 # Path to sound player
-soundplay=/usr/bin/play
-# Optional parameters to pass to the player
-# soundopts=--volume=.3
-# New network found
-sound_new=@sharedatadir@/kismet/wav/new_network.wav
-# Wepped new network
-# sound_new_wep=@sharedstatedir@/kismet/wav/new_wep_network.wav
-# Network traffic sound
-sound_traffic=@sharedatadir@/kismet/wav/traffic.wav
-# Network junk traffic found
-sound_junktraffic=@sharedatadir@/kismet/wav/junk_traffic.wav
-# GPS lock aquired sound
-# sound_gpslock=@sharedatadir@/kismet/wav/foo.wav
-# GPS lock lost sound
-# sound_gpslost=@sharedatadir@/kismet/wav/bar.wav
-# Alert sound
-sound_alert=@sharedatadir@/kismet/wav/alert.wav
+soundbin=play
+
+sound=newnet,true
+sound=newcryptnet,true
+sound=packet,true
+sound=gpslock,true
+sound=gpslost,true
+sound=alert,true
 
 # Does the server have speech? (Again, not to be confused with the GUI's speech)
-speech=false
-# Server's path to Festival
-festival=/usr/bin/festival
+enablespeech=false
+# Binary used for speech (if not in path, full path must be specified)
+speechbin=flite
+# Specify raw or festival; Flite (and anything else that doesn't need formatting
+# around the string to speak) is 'raw', festival requires the string be wrapped in
+# SayText("...")
+speechtype=raw
+
 # How do we speak?  Valid options:
 # speech    Normal speech
 # nato      NATO spellings (alpha, bravo, charlie)
 # spell     Spell the letters out (aye, bee, sea)
-speech_type=nato
+speechencoding=nato
+
 # speech_encrypted and speech_unencrypted - Speech templates
 # Similar to the logtemplate option, this lets you customize the speech output.
 # speech_encrypted is used for an encrypted network spoken string

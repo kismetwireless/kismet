@@ -105,9 +105,7 @@ int KisNetClient::Connect(string in_host, int in_reconnect) {
 	last_disconnect = 1;
 
 	// Let the reconnect trigger handle the rest
-	Reconnect();
-
-	return 1;
+	return Reconnect();
 }
 
 int KisNetClient::KillConnection() {
@@ -318,7 +316,6 @@ int KisNetClient::InjectCommand(string in_cmdtext) {
 
 int KisNetClient::Reconnect() {
 	if (tcpcli == NULL) {
-		fprintf(stderr, "tcpcli null\n");
 		return -1;
 	}
 

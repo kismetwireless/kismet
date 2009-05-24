@@ -6,6 +6,9 @@
 /* system binary directory */
 #undef BIN_LOC
 
+/* system data directory */
+#undef DATA_LOC
+
 /* libairpcap header */
 #undef HAVE_AIRPCAP_H
 
@@ -205,7 +208,7 @@
 /* __PROGNAME glibc macro available */
 #undef HAVE___PROGNAME
 
-/* system binary directory */
+/* system library directory */
 #undef LIB_LOC
 
 /* system state directory */

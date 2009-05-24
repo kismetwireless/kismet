@@ -71,6 +71,11 @@ void KisPanelClient_INFO(CLIPROTO_CB_PARMS) {
 											   proto_parsed, srccli, auxptr);
 }
 
+void kpi_prompt_sourcewarnings(KIS_PROMPT_CB_PARMS) {
+	if (check) 
+		globalreg->panel_interface->prefs->SetOpt("WARN_SOURCEWARN", "false", 1);
+}
+
 void KisPanelInterface::proto_SOURCE(CLIPROTO_CB_PARMS) {
 	// "uuid,interface,type,username,channel,packets,hop," 
 	//	"velocity,dwell,hop_time_sec,hop_time_usec,channellist,
@@ -140,8 +145,24 @@ void KisPanelInterface::proto_SOURCE(CLIPROTO_CB_PARMS) {
 
 	string warning = (*proto_parsed)[fnum++].word;
 	
-	if (warning != "" && warning != source->warning) 
-		RaiseAlert("Source Warning", InLineWrap(warning, 0, 50));
+	if (warning != "" && warning != source->warning && 
+		prefs->FetchOpt("WARN_SOURCEWARN") != "false") {
+
+		vector<string> t;
+
+		t = StrTokenize(InLineWrap(warning, 0, 50), "\n");
+		Kis_Prompt_Panel *kpp =
+			new Kis_Prompt_Panel(globalreg, this);
+
+		kpp->SetTitle("Sources Warning");
+		kpp->SetDisplayText(t);
+		kpp->SetCheckText("Do not show source warnings in the future");
+		kpp->SetChecked(0);
+		kpp->SetDefaultButton(1);
+		kpp->SetButtonText("OK", "");
+		kpp->SetCallback(kpi_prompt_sourcewarnings, this);
+		QueueModalPanel(kpp);
+	}
 
 	source->warning = warning;
 
@@ -460,7 +481,12 @@ int KisPanelInterface::SavePreferences() {
 }
 
 int KisPanelInterface::AddNetClient(string in_host, int in_reconnect) {
+	if (network_client != NULL)
+		delete network_client;
+
 	KisNetClient *netcl = new KisNetClient(globalreg);
+
+	network_client = netcl;
 
 	netcl->AddConfCallback(KisPanelClient_Configured, 1, this);
 
@@ -468,15 +494,7 @@ int KisPanelInterface::AddNetClient(string in_host, int in_reconnect) {
 		(*(addclicb_vec[x]->cb))(globalreg, netcl, 1, 
 								 addclicb_vec[x]->auxptr);
 
-	if (netcl->Connect(in_host, in_reconnect) < 0)
-		return -1;
-
-	if (network_client != NULL)
-		delete network_client;
-
-	network_client = netcl;
-
-	return 1;
+	return netcl->Connect(in_host, in_reconnect);
 }
 
 void KisPanelInterface::RemoveNetClient() {

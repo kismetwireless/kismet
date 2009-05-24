@@ -33,6 +33,8 @@
 #include "kis_panel_windows.h"
 #include "kis_panel_preferences.h"
 
+#include "soundcontrol.h"
+
 const char *coloransi[] = {
 	"white", "red", "green", "yellow", "blue", "magenta", "cyan", "white",
 	"hi-black", "hi-red", "hi-green", "hi-yellow", 
@@ -1243,7 +1245,7 @@ Kis_AudioPref_Panel::Kis_AudioPref_Panel(GlobalRegistry *in_globalreg,
 
 	vector<Kis_Scrollable_Table::title_data> titles;
 	Kis_Scrollable_Table::title_data t;
-	t.width = 8;
+	t.width = 0;
 	t.title = "Sound";
 	t.alignment = 0;
 	titles.push_back(t);
@@ -1253,13 +1255,60 @@ Kis_AudioPref_Panel::Kis_AudioPref_Panel(GlobalRegistry *in_globalreg,
 	t.alignment = 0;
 	titles.push_back(t);
 
+	audiolist->SetPreferredSize(6, 0);
+
 	audiolist->AddTitles(titles);
 	audiolist->Show();
+
+	vector<string> aprefs = kpinterface->prefs->FetchOptVec("SOUND");
+
+	vector<string> tdata;
+	tdata.push_back("");
+	tdata.push_back("");
+
+	keys.clear();
+
+	for (unsigned int a = 0; a < aprefs.size(); a++) {
+		vector<string> pvec = StrTokenize(aprefs[a], ",");
+		int valid = 0;
+		
+		if (pvec.size() != 2)
+			continue;
+
+		pvec[0] = StrLower(pvec[0]);
+
+		// Only process the sounds we know about
+		if (pvec[0] == "alert") {
+			valid = 1;
+			tdata[0] = "Alert";
+		} else if (pvec[0] == "packet") {
+			valid = 1;
+			tdata[0] = "Packet";
+		} else if (pvec[0] == "newnet") {
+			valid = 1;
+			tdata[0] = "New Network";
+		} else if (pvec[0] == "gpslock") {
+			valid = 1;
+			tdata[0] = "GPS Lock";
+		} else if (pvec[0] == "gpslost") {
+			valid = 1;
+			tdata[0] = "GPS Lost";
+		}
+
+		if (valid) {
+			string enable = (StrLower(pvec[1]) == "true") ? "Yes" : "No";
+			tdata[1] = enable;
+
+			audiolist->ReplaceRow(a, tdata);
+			keys.push_back(a);
+		}
+	}
 
 	sound_check = new Kis_Checkbox(globalreg, this);
 	sound_check->SetText("Enable Sound");
 	sound_check->SetChecked(StrLower(kpinterface->prefs->FetchOpt("SOUND_ENABLE")) == 
 							"true");
+	sound_check->Show();
 	sound_check->SetCallback(COMPONENT_CBTYPE_ACTIVATED, AudioPrefCB, this);
 	AddComponentVec(sound_check, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
 									 KIS_PANEL_COMP_TAB));
@@ -1269,15 +1318,18 @@ Kis_AudioPref_Panel::Kis_AudioPref_Panel(GlobalRegistry *in_globalreg,
 	speech_check->SetChecked(StrLower(kpinterface->prefs->FetchOpt("SPEECH_ENABLE")) ==
 							 "true");
 	speech_check->SetCallback(COMPONENT_CBTYPE_ACTIVATED, AudioPrefCB, this);
+	speech_check->Show();
 	AddComponentVec(speech_check, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
 									 KIS_PANEL_COMP_TAB));
 
-	config_sound_button = new Kis_Button(globalreg, this);
-	config_sound_button->SetText("Configure Sound Player");
-	config_sound_button->Show();
-	config_sound_button->SetCallback(COMPONENT_CBTYPE_ACTIVATED, AudioPrefCB, this);
-	AddComponentVec(config_sound_button, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
-										  KIS_PANEL_COMP_TAB));
+	sound_player = new Kis_Single_Input(globalreg, this);
+	sound_player->SetLabel("Player", LABEL_POS_LEFT);
+	sound_player->SetText(kpinterface->prefs->FetchOpt("SOUNDBIN"), -1, -1);
+	sound_player->SetCharFilter(FILTER_ALPHANUMSYM);
+	sound_player->SetTextLen(64);
+	sound_player->Show();
+	AddComponentVec(sound_player, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+								   KIS_PANEL_COMP_TAB));
 
 	config_speech_button = new Kis_Button(globalreg, this);
 	config_speech_button->SetText("Configure Speech");
@@ -1302,8 +1354,8 @@ Kis_AudioPref_Panel::Kis_AudioPref_Panel(GlobalRegistry *in_globalreg,
 	cbox->SetCenter(1);
 	AddComponentVec(cbox, KIS_PANEL_COMP_DRAW);
 
-	cbox->Pack_End(config_sound_button, 0, 0);
-	cbox->Pack_End(config_speech_button, 0, 0);
+	cbox->Pack_End(sound_check, 0, 0);
+	cbox->Pack_End(speech_check, 0, 0);
 	cbox->Show();
 
 	vbox = new Kis_Panel_Packbox(globalreg, this);
@@ -1313,6 +1365,8 @@ Kis_AudioPref_Panel::Kis_AudioPref_Panel(GlobalRegistry *in_globalreg,
 	AddComponentVec(vbox, KIS_PANEL_COMP_DRAW);
 	vbox->Pack_End(audiolist, 1, 0);
 	vbox->Pack_End(cbox, 0, 0);
+	vbox->Pack_End(sound_player, 0, 0);
+	vbox->Pack_End(config_speech_button, 0, 0);
 	vbox->Pack_End(close_button, 0, 0);
 	
 	vbox->Show();
@@ -1321,7 +1375,7 @@ Kis_AudioPref_Panel::Kis_AudioPref_Panel(GlobalRegistry *in_globalreg,
 
 	SetActiveComponent(audiolist);
 
-	Position(WIN_CENTER(15, 70));
+	Position(WIN_CENTER(15, 50));
 }
 
 Kis_AudioPref_Panel::~Kis_AudioPref_Panel() {
@@ -1331,27 +1385,48 @@ Kis_AudioPref_Panel::~Kis_AudioPref_Panel() {
 void Kis_AudioPref_Panel::Action(Kis_Panel_Component *in_component, 
 										 int in_status) {
 	if (in_component == close_button) {
+		vector<string> prefs;
 		for (unsigned int x = 0; x < keys.size(); x++) {
-			vector<string> prefs;
 			string h;
 			vector<string> td = audiolist->GetRow(keys[x]);
+			if (td.size() != 2)
+				continue;
 
 			if (td[0] == "Alert")
 				h = "alert";
-			else if (td[0] == "Traffic")
-				h = "traffic";
+			else if (td[0] == "Packet")
+				h = "packet";
 			else if (td[0] == "New Network")
-				h = "new";
+				h = "newnet";
+			else if (td[0] == "GPS Lost")
+				h = "gpslost";
+			else if (td[0] == "GPS Lock")
+				h = "gpslock";
+			else  {
+				_MSG("INTERNAL ERROR: SNDPREF saw '" + td[0] + "' and didn't know what "
+					 "it was", MSGFLAG_ERROR);
+				continue;
+			}
 
 			prefs.push_back(h + string(",") + (td[1] == "Yes" ? "true" : "false"));
+		}
+		kpinterface->prefs->SetOptVec("sound", prefs, 1);
 
-			kpinterface->prefs->SetOptVec("sound", prefs, 1);
+		kpinterface->prefs->SetOpt("soundenable", 
+								   sound_check->GetChecked() ? "true" : "false", 1);
+		globalreg->soundctl->SetSoundEnable(sound_check->GetChecked());
+
+		kpinterface->prefs->SetOpt("speechenable",
+								   speech_check->GetChecked() ? "true" : "false", 1);
+		globalreg->soundctl->SetSpeechEnable(sound_check->GetChecked());
+
+		if (sound_player->GetText() != kpinterface->prefs->FetchOpt("SOUNDBIN")) {
+			kpinterface->prefs->SetOpt("SOUNDBIN", sound_player->GetText(), 0);
+			globalreg->soundctl->SetPlayer(sound_player->GetText());
 		}
 
-		kpinterface->prefs->SetOpt("sound_enable", 
-								   sound_check->GetChecked() ? "true" : "false", 1);
-		kpinterface->prefs->SetOpt("speech_enable",
-								   speech_check->GetChecked() ? "true" : "false", 1);
+		// Reload the prefs
+		kpinterface->FetchMainPanel()->LoadAudioPrefs();
 
 		kpinterface->KillPanel(this);
 		return;
@@ -1359,6 +1434,7 @@ void Kis_AudioPref_Panel::Action(Kis_Panel_Component *in_component,
 
 	if (in_component == audiolist) {
 		vector<string> selrow = audiolist->GetSelectedData();
+
 		if (selrow.size() == 0)
 			return;
 
@@ -1372,47 +1448,7 @@ void Kis_AudioPref_Panel::Action(Kis_Panel_Component *in_component,
 }
 
 void Kis_AudioPref_Panel::DrawPanel() {
-	// Another inefficient method, but another one that is pointless to worry 
-	// about doing it better; this only happens for a handful of items inside a 
-	// prefs window only open rarely
-	vector<string> aprefs = kpinterface->prefs->FetchOptVec("SOUND");
-
-	vector<string> tdata;
-	tdata.push_back("");
-	tdata.push_back("");
-
-	keys.clear();
-
-	for (unsigned int a = 0; a < aprefs.size(); a++) {
-		vector<string> pvec = StrTokenize(aprefs[a], ",");
-		int valid = 0;
-		
-		if (pvec.size() != 2)
-			continue;
-
-		pvec[0] = StrLower(pvec[0]);
-
-		// Only process the sounds we know about
-		if (pvec[0] == "alert") {
-			valid = 1;
-			tdata[0] = "Alert";
-		} else if (pvec[0] == "traffic") {
-			valid = 1;
-			tdata[0] = "Traffic";
-		} else if (pvec[0] == "new") {
-			valid = 1;
-			tdata[0] = "New Network";
-		}
-
-		if (valid) {
-			string enable = (StrLower(pvec[1]) == "true") ? "Yes" : "No";
-			tdata[1] = enable;
-			tdata[2] = pvec[2];
-
-			audiolist->ReplaceRow(a, tdata);
-			keys.push_back(a);
-		}
-	}
+	Kis_Panel::DrawPanel();
 }
 
 #endif

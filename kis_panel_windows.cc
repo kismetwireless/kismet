@@ -37,6 +37,8 @@
 #include "kis_panel_details.h"
 #include "kis_panel_preferences.h"
 
+#include "soundcontrol.h"
+
 int MenuActivateCB(COMPONENT_CALLBACK_PARMS) {
 	((Kis_Main_Panel *) aux)->MenuAction(status);
 	return 1;
@@ -124,6 +126,7 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	mi_cliextraprefs = menu->AddMenuItem("Client Extras...", mn_preferences, 'E');
 	mi_infoprefs = menu->AddMenuItem("Info Pane...", mn_preferences, 'I');
 	mi_gpsprefs = menu->AddMenuItem("GPS...", mn_preferences, 'G');
+	mi_audioprefs = menu->AddMenuItem("Audio...", mn_preferences, 'A');
 
 	menu->AddMenuItem("-", mn_file, 0);
 
@@ -326,18 +329,6 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	addref = 
 		kpinterface->Add_NetCli_AddCli_CB(KisMainPanel_AddCli, (void *) this);
 
-	if (kpinterface->prefs->FetchOpt("autoconnect") == "true" &&
-		kpinterface->prefs->FetchOpt("default_host") != "" &&
-		kpinterface->prefs->FetchOpt("default_port") != "") {
-		string constr = string("tcp://") +
-			kpinterface->prefs->FetchOpt("default_host") + ":" +
-			kpinterface->prefs->FetchOpt("default_port");
-
-		_MSG("Auto-connecting to " + constr, MSGFLAG_INFO);
-
-		kpinterface->AddNetClient(constr, 1);
-	}
-
 	SetActiveComponent(netlist);
 }
 
@@ -380,10 +371,28 @@ void kmp_prompt_greycolor(KIS_PROMPT_CB_PARMS) {
 }
 
 void Kis_Main_Panel::Startup() {
+	int initclient = 0;
+
+	// Load audio prefs and set up defaults
+	LoadAudioPrefs();
+
 	if (kpinterface->prefs->FetchOpt("DEFAULT_HOST") == "") {
 		kpinterface->prefs->SetOpt("DEFAULT_HOST", "localhost", 1);
 		kpinterface->prefs->SetOpt("DEFAULT_PORT", "2501", 1);
 		kpinterface->prefs->SetOpt("AUTOCONNECT", "true", 1);
+	}
+
+	if (kpinterface->prefs->FetchOpt("autoconnect") == "true" &&
+		kpinterface->prefs->FetchOpt("default_host") != "" &&
+		kpinterface->prefs->FetchOpt("default_port") != "") {
+
+		string constr = string("tcp://") +
+			kpinterface->prefs->FetchOpt("default_host") + ":" +
+			kpinterface->prefs->FetchOpt("default_port");
+
+		_MSG("Auto-connecting to " + constr, MSGFLAG_INFO);
+
+		initclient = kpinterface->AddNetClient(constr, 1);
 	}
 
 	if (kpinterface->prefs->FetchOpt("STARTUP_COLOR") == "") {
@@ -409,7 +418,6 @@ void Kis_Main_Panel::Startup() {
 		kpp->SetCallback(kmp_prompt_greycolor, this);
 		kpp->SetDisplayText(t);
 		kpp->SetButtonText("Yes", "No");
-		// kpp->SetCallback(kmp_prompt_asroot, this);
 		kpinterface->QueueModalPanel(kpp);
 	}
 
@@ -435,8 +443,11 @@ void Kis_Main_Panel::Startup() {
 		kpinterface->QueueModalPanel(kpp);
 	}
 
-	if (kpinterface->prefs->FetchOpt("STARTUP_PROMPTSERVER") == "" ||
-		kpinterface->prefs->FetchOpt("STARTUP_PROMPTSERVER") == "true") {
+	// If we're supposed to prompt for the server and we haven't successfully
+	// auto-connected to the default...
+	if ((kpinterface->prefs->FetchOpt("STARTUP_PROMPTSERVER") == "" ||
+		 kpinterface->prefs->FetchOpt("STARTUP_PROMPTSERVER") == "true") &&
+		initclient <= 0) {
 		vector<string> t;
 		t.push_back("Automatically start Kismet server?");
 		t.push_back("Launch Kismet server and connect to it automatically.");
@@ -451,8 +462,9 @@ void Kis_Main_Panel::Startup() {
 		kpp->SetButtonText("Yes", "No");
 		kpp->SetDefaultButton(1);
 		kpinterface->QueueModalPanel(kpp);
-	} else if (kpinterface->prefs->FetchOpt("STARTUP_SERVER") == "true" ||
-			   kpinterface->prefs->FetchOpt("STARTUP_SERVER") == "") {
+	} else if ((kpinterface->prefs->FetchOpt("STARTUP_SERVER") == "true" ||
+				kpinterface->prefs->FetchOpt("STARTUP_SERVER") == "") &&
+			   initclient <= 0) {
 		kmp_prompt_startserver(globalreg, 1, -1, this);
 	}
 }
@@ -464,7 +476,7 @@ void Kis_Main_Panel::NetClientConfigure(KisNetClient *in_cli, int in_recon) {
 	if (in_recon)
 		return;
 
-	if (in_cli->RegisterProtoHandler("INFO", "packets,llcpackets,",
+	if (in_cli->RegisterProtoHandler("INFO", "packets,llcpackets,rate,networks",
 									 KisMainPanel_INFO, this) < 0) {
 		_MSG("Could not register INFO protocol with remote server, connection "
 			 "will be terminated.", MSGFLAG_ERROR);
@@ -486,17 +498,120 @@ void Kis_Main_Panel::NetClientAdd(KisNetClient *in_cli, int add) {
 	in_cli->AddConfCallback(KisMainPanel_Configured, 1, this);
 }
 
+void Kis_Main_Panel::LoadAudioPrefs() {
+	// Set up the sound and speech options and fill in all the prefs so they're
+	// in the file in the future
+	if (kpinterface->prefs->FetchOpt("SOUNDBIN") == "")
+		kpinterface->prefs->SetOpt("SOUNDBIN", "play", 1);
+	globalreg->soundctl->SetPlayer(kpinterface->prefs->FetchOpt("SOUNDBIN"));
+
+	if (kpinterface->prefs->FetchOpt("SPEECHBIN") == "")
+		kpinterface->prefs->SetOpt("SPEECHBIN", "flite", 1);
+	if (kpinterface->prefs->FetchOpt("SPEECHTYPE") == "")
+		kpinterface->prefs->SetOpt("SPEECHTYPE", "raw", 1);
+	globalreg->soundctl->SetSpeaker(kpinterface->prefs->FetchOpt("SPEECHBIN"),
+								  kpinterface->prefs->FetchOpt("SPEECHTYPE"));
+
+	if (kpinterface->prefs->FetchOpt("SOUNDENABLE") == "") {
+		// TODO - call "do you want to enable sound" prompt
+		kpinterface->prefs->SetOpt("SOUNDENABLE", "false", 1);
+	}
+	globalreg->soundctl->SetSoundEnable(StrLower(kpinterface->prefs->FetchOpt("SOUNDENABLE")) == "true");
+
+	if (kpinterface->prefs->FetchOpt("SPEECHENABLE") == "") {
+		// TOO - call "do you want to enable speech" prompt
+		kpinterface->prefs->SetOpt("SPEECHENABLE", "false", 1);
+	}
+	globalreg->soundctl->SetSpeechEnable(StrLower(kpinterface->prefs->FetchOpt("SPEECHENABLE")) == "true");
+
+	snd_new = snd_packet = snd_gpslock = snd_gpslost = snd_alert = -1;
+
+	if (kpinterface->prefs->FetchOpt("SOUNDPREFIX") == "") 
+		kpinterface->prefs->SetOpt("SOUNDPREFIX", 
+								   string(DATA_LOC) + "/kismet/wav", 1);
+	sound_prefix = kpinterface->prefs->FetchOpt("SOUNDPREFIX");
+
+	vector<string> sndpref = kpinterface->prefs->FetchOptVec("SOUND");
+	vector<string> sndparse;
+	string snd;
+	int val;
+
+	for (unsigned s = 0; s < sndpref.size(); s++) {
+		sndparse = StrTokenize(sndpref[s], ",");
+		if (sndparse.size() != 2)
+			continue;
+
+		snd = StrLower(sndparse[0]);
+		val = (StrLower(sndparse[1]) == "true");
+
+		if (snd == "newnet")
+			snd_new = val;
+		else if (snd == "packet")
+			snd_packet = val;
+		else if (snd == "gpslock")
+			snd_gpslock = val;
+		else if (snd == "gpslost")
+			snd_gpslost = val;
+		else if (snd == "alert")
+			snd_alert = val;
+	}
+
+	if (snd_new < 0) {
+		snd_new = 1;
+		sndpref.push_back("newnet,true");
+	}
+
+	if (snd_packet < 0) {
+		snd_packet = 1;
+		sndpref.push_back("packet,true");
+	}
+
+	if (snd_gpslock < 0) {
+		snd_gpslock = 1;
+		sndpref.push_back("gpslock,true");
+	}
+
+	if (snd_gpslost < 0) {
+		snd_gpslost = 1;
+		sndpref.push_back("gpslost,true");
+	}
+
+	if (snd_alert == 0) {
+		snd_alert = 1;
+		sndpref.push_back("alert,true");
+	}
+
+	kpinterface->prefs->SetOptVec("sound", sndpref, time(0));
+
+	// TODO set up speech
+}
+
 void Kis_Main_Panel::Proto_INFO(CLIPROTO_CB_PARMS) {
-	if (proto_parsed->size() < 2)
+	// "packets,llcpackets,rate,networks",
+	
+	if (proto_parsed->size() < 4)
 		return;
 
-	int pkts, datapkts;
+	int pkts, datapkts, networks;
 
 	if (sscanf((*proto_parsed)[0].word.c_str(), "%d", &pkts) != 1) 
 		return;
 
 	if (sscanf((*proto_parsed)[1].word.c_str(), "%d", &datapkts) != 1) 
 		return;
+
+	// Parse out of order, networks are a higher sound priority than packets
+	if (sscanf((*proto_parsed)[3].word.c_str(), "%d", &networks) != 1)
+		return;
+
+	// Use the sound pref tracker as the # of new networks counter
+	if (networks != 0 && snd_new != 0 && networks != snd_new) {
+		snd_new = networks;
+		globalreg->soundctl->PlaySound(sound_prefix + string("/") + "new.wav");
+	}
+
+	if ((*proto_parsed)[2].word != "0" && snd_packet)
+		globalreg->soundctl->PlaySound(sound_prefix + string("/") + "packet.wav");
 
 	if (lastpackets == 0)
 		lastpackets = pkts;
@@ -706,6 +821,9 @@ void kmp_prompt_killserver(KIS_PROMPT_CB_PARMS) {
 		po->DetatchConnection();
 	}
 
+	if (knc != NULL)
+		knc->Shutdown();
+
 	// Spindown
 	CatchShutdown(0);
 }
@@ -878,6 +996,9 @@ void Kis_Main_Panel::MenuAction(int opt) {
 		SpawnInfoPrefs();
 	} else if (opt == mi_gpsprefs) {
 		Kis_GpsPref_Panel *pp = new Kis_GpsPref_Panel(globalreg, kpinterface);
+		kpinterface->AddPanel(pp);
+	} else if (opt == mi_audioprefs) {
+		Kis_AudioPref_Panel *pp = new Kis_AudioPref_Panel(globalreg, kpinterface);
 		kpinterface->AddPanel(pp);
 	} else {
 		for (unsigned int p = 0; p < plugin_menu_vec.size(); p++) {

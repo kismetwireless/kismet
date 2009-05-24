@@ -337,7 +337,8 @@ public:
 protected:
 	Kis_Scrollable_Table *audiolist;
 	Kis_Checkbox *sound_check, *speech_check;
-	Kis_Button *config_speech_button, *config_sound_button, *close_button;
+	Kis_Single_Input *sound_player;
+	Kis_Button *config_speech_button, *close_button;
 	Kis_Panel_Packbox *cbox, *vbox;
 
 	vector<int> keys;

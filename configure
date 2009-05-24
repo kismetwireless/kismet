@@ -3887,6 +3887,18 @@ cat >>confdefs.h <<_ACEOF
 _ACEOF
 
 
+DATA_DIR=$datarootdir
+DATA_DIR=`(
+    test "$prefix" = NONE && prefix=$ac_default_prefix
+    test "$exec_prefix" = NONE && exec_prefix=${prefix}
+    eval echo "$DATA_DIR"
+)`
+
+cat >>confdefs.h <<_ACEOF
+#define DATA_LOC "$DATA_DIR"
+_ACEOF
+
+
 # Check for endian
 
 

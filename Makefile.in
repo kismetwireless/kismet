@@ -172,9 +172,8 @@ commoninstall:
 	$(INSTALL) -o $(INSTUSR) -g $(MANGRP) -m 644 man/kismet_drone.conf.5 $(MAN)/man5/kismet_drone.conf.5
 
 	mkdir -p $(WAV)
-	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 wav/new_network.wav $(WAV)/new_network.wav
-	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 wav/traffic.wav $(WAV)/traffic.wav
-	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 wav/junk_traffic.wav $(WAV)/junk_traffic.wav
+	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 wav/new.wav $(WAV)/new_network.wav
+	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 wav/packet.wav $(WAV)/traffic.wav
 	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 wav/alert.wav $(WAV)/alert.wav
 
 suidinstall: $(CS)

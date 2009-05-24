@@ -148,20 +148,6 @@ FatalQueueMessageClient *fqmescli = NULL;
 // Ultimate registry of global components
 GlobalRegistry *globalregistry = NULL;
 
-// Quick shutdown to clean up from a fatal config after we opened the child
-void ErrorShutdown() {
-	if (globalregistry->panel_interface) {
-		delete globalregistry->panel_interface;
-		globalregistry->panel_interface = NULL;
-	}
-
-    // Shouldn't need to requeue fatal errors here since error shutdown means 
-    // we just printed something about fatal errors.  Probably.
-
-    fprintf(stderr, "Kismet exiting.\n");
-    exit(1);
-}
-
 void CatchChild(int sig) {
 	int status;
 	pid_t pid;
@@ -187,13 +173,19 @@ void CatchChild(int sig) {
 
 // Catch our interrupt
 void CatchShutdown(int sig) {
+	/*
     if (sig == SIGPIPE)
         fprintf(stderr, "FATAL: A pipe closed unexpectedly, trying to shut down "
                 "cleanly...\n");
+	*/
 
 	// Start a short shutdown cycle for 2 seconds
 	fprintf(stderr, "\n*** KISMET CLIENT IS SHUTTING DOWN ***\n");
 	globalregistry->spindown = 1;
+
+	// Kill the sound entirely
+	globalregistry->soundctl->Shutdown();
+	
 	time_t shutdown_target = time(0) + 5;
 	int max_fd = 0;
 	fd_set rset, wset;
@@ -335,15 +327,8 @@ int main(int argc, char *argv[], char *envp[]) {
 		}
 	}
 
-	// Assign the speech and sound handlers
-#if 0
+	// Create the sound control
 	globalregistry->soundctl = new SoundControl(globalregistry);
-	if (globalregistry->fatal_condition)
-		CatchShutdown(-1);
-	globalregistry->speechctl = new SpeechControl(globalregistry);
-	if (globalregistry->fatal_condition)
-		CatchShutdown(-1);
-#endif
 
 	// Create the panel interface
 	globalregistry->panel_interface = new KisPanelInterface(globalregistry);

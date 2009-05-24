@@ -31,6 +31,8 @@
 
 struct soundcontrol_ipc_frame {
 	time_t timestamp;
+	char player[256];
+	int opt;
 	char msg[0];
 };
 
@@ -50,31 +52,38 @@ public:
 
 	string EncodeSpeechString(string in_str);
 
-	int LocalPlay(string key);
-	int LocalSpeech(string text);
+	int LocalPlay(string player, string wav);
+	int LocalSpeech(string player, int in_festival, string text);
+
+	void SetSoundEnable(int en) { sound_enable = en; }
+	void SetSpeechEnable(int en) { speech_enable = en; }
+
+	void SetSpeechEncode(string in_encode);
+	void SetPlayer(string in_pl) { player = in_pl; }
+	void SetSpeaker(string in_sp, string in_type) { 
+		speaker = in_sp; speech_festival = (StrLower(in_type) != "raw"); 
+	}
 
 protected:
     int SpawnChildProcess();
-	int SendPacket(string text, int id);
+	int SendPacket(string text, string in_player, int opt, int id);
+
+	int nulfd;
 
     GlobalRegistry *globalreg;
 
 	IPCRemote *sound_remote;
 
+	int shutdown;
+
 	uint32_t sound_ipc_id, speech_ipc_id;
 
-	int sound_enable, speech_enable;
+	string player, speaker;
+	int sound_enable, speech_enable, speech_festival;
     
-    char errstr[STATUS_MAX];
-
-    string player;
-
-    map<string, string> wav_map;
-
 	friend int sound_ipc_callback(IPC_CMD_PARMS);
 
 	int speech_encoding;
-	string speaker;
 };
 
 #endif

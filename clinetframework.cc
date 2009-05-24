@@ -111,7 +111,7 @@ int NetworkClient::FlushRings() {
     
     time_t flushtime = time(0);
 
-    // Nuke the fatal conditon so we can track our own failures
+    // Nuke the fatal condition so we can track our own failures
     int old_fcon = globalreg->fatal_condition;
     globalreg->fatal_condition = 0;
     
