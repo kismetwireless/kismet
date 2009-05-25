@@ -1848,6 +1848,10 @@ void Kis_Console_Panel::ButtonAction(Kis_Panel_Component *component) {
 	if (component == okbutton) {
 		kpinterface->KillPanel(this);
 	}
+
+	if (component == killbutton) {
+		kpinterface->KillServer();
+	}
 }
 
 void Kis_Console_Panel::AddConsoleText(string in_text) {
