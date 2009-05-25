@@ -26,6 +26,8 @@
 #include "kis_panel_frontend.h"
 #include "kis_panel_sort.h"
 
+#include "soundcontrol.h"
+
 const common_col_pref bssid_column_details[] = {
 	{ "decay", "Recent activity", bcol_decay },
 	{ "name", "Name or SSID", bcol_name },
@@ -1321,6 +1323,7 @@ void Kis_Netlist::Proto_SSID(CLIPROTO_CB_PARMS) {
 
 		vector<string> spktxt;
 		spktxt.push_back(asd->ssid == "" ? "unknown" : asd->ssid);
+		spktxt[0] = globalreg->soundctl->EncodeSpeechString(spktxt[0]);
 		spktxt.push_back(IntToString(net->channel));
 		spktxt.push_back(net->bssid.Mac2String());
 

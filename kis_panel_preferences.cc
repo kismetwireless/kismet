@@ -1306,7 +1306,7 @@ Kis_AudioPref_Panel::Kis_AudioPref_Panel(GlobalRegistry *in_globalreg,
 
 	sound_check = new Kis_Checkbox(globalreg, this);
 	sound_check->SetText("Enable Sound");
-	sound_check->SetChecked(StrLower(kpinterface->prefs->FetchOpt("SOUND_ENABLE")) == 
+	sound_check->SetChecked(StrLower(kpinterface->prefs->FetchOpt("SOUNDENABLE")) == 
 							"true");
 	sound_check->Show();
 	sound_check->SetCallback(COMPONENT_CBTYPE_ACTIVATED, AudioPrefCB, this);
@@ -1315,7 +1315,7 @@ Kis_AudioPref_Panel::Kis_AudioPref_Panel(GlobalRegistry *in_globalreg,
 
 	speech_check = new Kis_Checkbox(globalreg, this);
 	speech_check->SetText("Enable Speech");
-	speech_check->SetChecked(StrLower(kpinterface->prefs->FetchOpt("SPEECH_ENABLE")) ==
+	speech_check->SetChecked(StrLower(kpinterface->prefs->FetchOpt("SPEECHENABLE")) ==
 							 "true");
 	speech_check->SetCallback(COMPONENT_CBTYPE_ACTIVATED, AudioPrefCB, this);
 	speech_check->Show();
@@ -1412,11 +1412,11 @@ void Kis_AudioPref_Panel::Action(Kis_Panel_Component *in_component,
 		}
 		kpinterface->prefs->SetOptVec("sound", prefs, 1);
 
-		kpinterface->prefs->SetOpt("soundenable", 
+		kpinterface->prefs->SetOpt("SOUNDENABLE", 
 								   sound_check->GetChecked() ? "true" : "false", 1);
 		globalreg->soundctl->SetSoundEnable(sound_check->GetChecked());
 
-		kpinterface->prefs->SetOpt("speechenable",
+		kpinterface->prefs->SetOpt("SPEECHENABLE",
 								   speech_check->GetChecked() ? "true" : "false", 1);
 		globalreg->soundctl->SetSpeechEnable(sound_check->GetChecked());
 
