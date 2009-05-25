@@ -955,6 +955,26 @@ http://www.kismetwireless.net
     Kismet menus support shortcuts, for example '~Wl' is the same as
     navigating to the 'Windows->Client List' menu option.
 
+    The Kismet UI handles sound and speech playing for most users.  Sound
+    playing is straightforward (WAV files are installed, by default, to
+    /usr/local/share/kismet/wav) and can be played with any sound player
+    compatible with your install.
+
+    Speech is supported on Festival and Flite.  Any other text-to-speech
+    program should work as long as it accepts plain text on standard in.
+    Speech text is encoded depending on the type of speech event, where %1, %2,
+    etc are replaced with data by Kismet.  The supported events and
+    replacements are:
+        New network:
+            1. Network SSID encoded to speech encoding setting (spell, nato,
+               plain)
+            2. Network channel
+            3. Network BSSID
+        Alert:
+            1. Alert type
+        GPS Lost, GPS Lock:
+            No replacement options
+
 15. Kismet Drones
 
     Kismet Drones are designed to turn Kismet into a distributed IDS system.

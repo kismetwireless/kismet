@@ -1318,6 +1318,14 @@ void Kis_Netlist::Proto_SSID(CLIPROTO_CB_PARMS) {
 		asd->dirty = 1;
 		net->ssid_map[asd->checksum] = asd;
 		net->lastssid = asd;
+
+		vector<string> spktxt;
+		spktxt.push_back(asd->ssid == "" ? "unknown" : asd->ssid);
+		spktxt.push_back(IntToString(net->channel));
+		spktxt.push_back(net->bssid.Mac2String());
+
+		kpinterface->FetchMainPanel()->SpeakString("new", spktxt);
+
 	} else {
 		// Otherwise we need to copy all our stuff into the existing record
 		Netracker::adv_ssid_data *oasd = asi->second;

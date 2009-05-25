@@ -526,6 +526,11 @@ void Kis_Main_Panel::LoadAudioPrefs() {
 	globalreg->soundctl->SetSpeaker(kpinterface->prefs->FetchOpt("SPEECHBIN"),
 								  kpinterface->prefs->FetchOpt("SPEECHTYPE"));
 
+	if (kpinterface->prefs->FetchOpt("SPEECHENCODING") == "")
+		kpinterface->prefs->SetOpt("SPEECHTYPE", "spell", 1);
+	globalreg->soundctl->SetSpeechEncode(kpinterface->prefs->FetchOpt("SPEECHENCODING"));
+	
+
 	if (kpinterface->prefs->FetchOpt("SOUNDENABLE") == "") {
 		// TODO - call "do you want to enable sound" prompt
 		kpinterface->prefs->SetOpt("SOUNDENABLE", "false", 1);
@@ -597,7 +602,70 @@ void Kis_Main_Panel::LoadAudioPrefs() {
 
 	kpinterface->prefs->SetOptVec("sound", sndpref, time(0));
 
-	// TODO set up speech
+	sndpref = kpinterface->prefs->FetchOptVec("speech");
+	for (unsigned int x = 0; x < sndpref.size(); x++) {
+		sndparse = QuoteStrTokenize(sndpref[x], ",");
+
+		if (sndparse.size() != 2)
+			continue;
+
+		snd = StrLower(sndparse[0]);
+
+		if (snd == "new") 
+			spk_new = sndparse[1];
+		else if (snd == "alert")
+			spk_alert = sndparse[1];
+		else if (snd == "gpslost")
+			spk_gpslost = sndparse[1];
+		else if (snd == "gpslock")
+			spk_gpslock = sndparse[1];
+	}
+
+	if (spk_new == "") {
+		spk_new = "New network detected s.s.i.d. %1 channel %2";
+		sndpref.push_back("new,\"" + spk_new + "\"");
+	}
+
+	if (spk_alert == "") {
+		spk_alert = "Alert %1";
+		sndpref.push_back("alert,\"" + spk_alert + "\"");
+	}
+
+	if (spk_gpslost == "") {
+		spk_gpslost = "G.P.S. signal lost";
+		sndpref.push_back("gpslost,\"" + spk_gpslost + "\"");
+	}
+
+	if (spk_gpslock == "") {
+		spk_gpslock = "G.P.S. signal O.K.";
+		sndpref.push_back("gpslock,\"" + spk_gpslock + "\"");
+	}
+
+	kpinterface->prefs->SetOptVec("SPEECH", sndpref, 1);
+
+}
+
+void Kis_Main_Panel::SpeakString(string type, vector<string> text) {
+	string base;
+
+	if (type == "new")
+		base = spk_new;
+	else if (type == "alert")
+		base = spk_alert;
+	else if (type == "gpslost")
+		base = spk_gpslost;
+	else if (type == "gpslock")
+		base = spk_gpslock;
+	else
+		return;
+
+	for (unsigned int x = 0; x < text.size(); x++) {
+		string k = "%" + IntToString(x + 1);
+		if (base.find(k) != string::npos)
+			base.replace(base.find(k), k.length(), text[x]);
+	}
+
+	globalreg->soundctl->SayText(base);
 }
 
 void Kis_Main_Panel::Proto_INFO(CLIPROTO_CB_PARMS) {

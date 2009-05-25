@@ -344,6 +344,30 @@ protected:
 	vector<int> keys;
 };
 
+class Kis_SpeechPref_Panel : public Kis_Panel {
+public:
+	Kis_SpeechPref_Panel() {
+		fprintf(stderr, "FATAL OOPS: Kis_AudioPref_Panel called w/out globalreg\n");
+		exit(1);
+	}
+
+	Kis_SpeechPref_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_intf);
+	virtual ~Kis_SpeechPref_Panel();
+
+	virtual void Action(Kis_Panel_Component *in_component, int in_status);
+
+protected:
+	Kis_Free_Text *speechtype_text, *speechplayer_text;
+	Kis_Single_Input *speech_new, *speech_alert, *speech_gpslost, *speech_gpslock,
+					 *speaker;
+	Kis_Checkbox *fest_check;
+
+	Kis_Free_Text *encode_text;
+	Kis_Radiobutton *encode_none_radio, *encode_nato_radio, *encode_spell_radio;
+
+	Kis_Button *close_button;
+	Kis_Panel_Packbox *rbox, *vbox, *vbox2;
+};
 
 #endif // curses
 

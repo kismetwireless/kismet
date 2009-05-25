@@ -1255,7 +1255,7 @@ Kis_AudioPref_Panel::Kis_AudioPref_Panel(GlobalRegistry *in_globalreg,
 	t.alignment = 0;
 	titles.push_back(t);
 
-	audiolist->SetPreferredSize(6, 0);
+	audiolist->SetPreferredSize(0, 6);
 
 	audiolist->AddTitles(titles);
 	audiolist->Show();
@@ -1445,10 +1445,243 @@ void Kis_AudioPref_Panel::Action(Kis_Panel_Component *in_component,
 
 		audiolist->ReplaceRow(audiolist->GetSelected(), selrow);
 	}
+
+	if (in_component == config_speech_button) {
+		Kis_SpeechPref_Panel *sp = new Kis_SpeechPref_Panel(globalreg, kpinterface);
+		kpinterface->AddPanel(sp);
+	}
 }
 
 void Kis_AudioPref_Panel::DrawPanel() {
 	Kis_Panel::DrawPanel();
+}
+
+int SpeechPrefCB(COMPONENT_CALLBACK_PARMS) {
+	((Kis_SpeechPref_Panel *) aux)->Action(component, status);
+	return 1;
+}
+
+Kis_SpeechPref_Panel::Kis_SpeechPref_Panel(GlobalRegistry *in_globalreg, 
+										   KisPanelInterface *in_intf):
+	Kis_Panel(in_globalreg, in_intf) {
+
+	vector<string> ft;
+
+	speechtype_text = new Kis_Free_Text(globalreg, this);
+	ft.clear();
+	ft.push_back("See the Kismet README for how speech strings are expanded");
+	speechtype_text->SetText(ft);
+	speechtype_text->Show();
+
+	speech_new = new Kis_Single_Input(globalreg, this);
+	speech_new->SetLabel("New", LABEL_POS_LEFT);
+	speech_new->SetCharFilter(FILTER_ALPHANUMSYM);
+	speech_new->SetTextLen(64);
+	AddComponentVec(speech_new, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+								 KIS_PANEL_COMP_TAB));
+	speech_new->Show();
+
+	speech_alert = new Kis_Single_Input(globalreg, this);
+	speech_alert->SetLabel("Alert", LABEL_POS_LEFT);
+	speech_alert->SetCharFilter(FILTER_ALPHANUMSYM);
+	speech_alert->SetTextLen(64);
+	AddComponentVec(speech_alert, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+								   KIS_PANEL_COMP_TAB));
+	speech_alert->Show();
+
+	speech_gpslost = new Kis_Single_Input(globalreg, this);
+	speech_gpslost->SetLabel("GPS Lost", LABEL_POS_LEFT);
+	speech_gpslost->SetCharFilter(FILTER_ALPHANUMSYM);
+	speech_gpslost->SetTextLen(64);
+	AddComponentVec(speech_gpslost, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+									 KIS_PANEL_COMP_TAB));
+	speech_gpslost->Show();
+
+	speech_gpslock = new Kis_Single_Input(globalreg, this);
+	speech_gpslock->SetLabel("GPS OK", LABEL_POS_LEFT);
+	speech_gpslock->SetCharFilter(FILTER_ALPHANUMSYM);
+	speech_gpslock->SetTextLen(64);
+	AddComponentVec(speech_gpslock, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+									 KIS_PANEL_COMP_TAB));
+	speech_gpslock->Show();
+
+	speechplayer_text = new Kis_Free_Text(globalreg, this);
+	ft.clear();
+	ft.push_back("If using Festival, be sure to enable the Festival mode checkbox");
+	speechplayer_text->SetText(ft);
+	speechplayer_text->Show();
+
+	speaker = new Kis_Single_Input(globalreg, this);
+	speaker->SetLabel("Speech Player", LABEL_POS_LEFT);
+	speaker->SetCharFilter(FILTER_ALPHANUMSYM);
+	speaker->SetTextLen(64);
+	AddComponentVec(speaker, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+							  KIS_PANEL_COMP_TAB));
+	speaker->Show();
+	speaker->SetText(kpinterface->prefs->FetchOpt("SPEECHBIN"), -1, -1);
+
+	fest_check = new Kis_Checkbox(globalreg, this);
+	fest_check->SetLabel("Festival Mode");
+	AddComponentVec(fest_check, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+								 KIS_PANEL_COMP_TAB));
+	fest_check->Show();
+	fest_check->SetChecked(
+		StrLower(kpinterface->prefs->FetchOpt("SPEECHTYPE")) == "festival");
+
+
+	encode_text = new Kis_Free_Text(globalreg, this);
+	ft.clear();
+	ft.push_back("SSID encoding:");
+	encode_text->SetText(ft);
+	encode_text->Show();
+
+	encode_none_radio = new Kis_Radiobutton(globalreg, this);
+	encode_none_radio->SetText("Normal");
+	encode_none_radio->SetCallback(COMPONENT_CBTYPE_ACTIVATED, SpeechPrefCB, this);
+	encode_none_radio->Show();
+	encode_none_radio->SetChecked(1);
+	AddComponentVec(encode_none_radio, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+										KIS_PANEL_COMP_TAB));
+
+	encode_nato_radio = new Kis_Radiobutton(globalreg, this);
+	encode_nato_radio->SetText("Nato");
+	encode_nato_radio->SetCallback(COMPONENT_CBTYPE_ACTIVATED, SpeechPrefCB, this);
+	encode_nato_radio->Show();
+	encode_nato_radio->SetChecked(1);
+	AddComponentVec(encode_nato_radio, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+										KIS_PANEL_COMP_TAB));
+
+	encode_spell_radio = new Kis_Radiobutton(globalreg, this);
+	encode_spell_radio->SetText("Spell");
+	encode_spell_radio->SetCallback(COMPONENT_CBTYPE_ACTIVATED, SpeechPrefCB, this);
+	encode_spell_radio->Show();
+	encode_spell_radio->SetChecked(1);
+	AddComponentVec(encode_spell_radio, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+										 KIS_PANEL_COMP_TAB));
+
+	encode_none_radio->LinkRadiobutton(encode_nato_radio);
+	encode_none_radio->LinkRadiobutton(encode_spell_radio);
+	encode_nato_radio->LinkRadiobutton(encode_none_radio);
+	encode_nato_radio->LinkRadiobutton(encode_spell_radio);
+	encode_spell_radio->LinkRadiobutton(encode_nato_radio);
+	encode_spell_radio->LinkRadiobutton(encode_none_radio);
+
+	if (StrLower(kpinterface->prefs->FetchOpt("SPEECHENCODING")) == "nato") {
+		encode_nato_radio->SetChecked(1);
+	} else if (StrLower(kpinterface->prefs->FetchOpt("SPEECHENCODING")) == "spell") {
+		encode_spell_radio->SetChecked(1);
+	} else {
+		encode_none_radio->SetChecked(1);
+	}
+
+	close_button = new Kis_Button(globalreg, this);
+	close_button->SetText("Close");
+	close_button->Show();
+	close_button->SetCallback(COMPONENT_CBTYPE_ACTIVATED, SpeechPrefCB, this);
+	AddComponentVec(close_button, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+								   KIS_PANEL_COMP_TAB));
+	
+	SetTitle("Sound Options");
+
+	rbox = new Kis_Panel_Packbox(globalreg, this);
+	rbox->SetPackH();
+	rbox->SetHomogenous(1);
+	rbox->SetSpacing(0);
+	rbox->SetCenter(1);
+	AddComponentVec(rbox, KIS_PANEL_COMP_DRAW);
+
+	rbox->Pack_End(encode_none_radio, 0, 0);
+	rbox->Pack_End(encode_nato_radio, 0, 0);
+	rbox->Pack_End(encode_spell_radio, 0, 0);
+	rbox->Show();
+
+	vbox = new Kis_Panel_Packbox(globalreg, this);
+	vbox->SetPackV();
+	vbox->SetHomogenous(0);
+	vbox->SetSpacing(1);
+	AddComponentVec(vbox, KIS_PANEL_COMP_DRAW);
+
+	vbox2 = new Kis_Panel_Packbox(globalreg, this);
+	vbox2->SetPackV();
+	vbox2->SetHomogenous(0);
+	vbox2->SetSpacing(0);
+	AddComponentVec(vbox2, KIS_PANEL_COMP_DRAW);
+	vbox2->Pack_End(speechtype_text, 0, 0);
+	vbox2->Pack_End(speech_new, 0, 0);
+	vbox2->Pack_End(speech_alert, 0, 0);
+	vbox2->Pack_End(speech_gpslost, 0, 0);
+	vbox2->Pack_End(speech_gpslock, 0, 0);
+	vbox2->SetPreferredSize(0, 5);
+	vbox2->Show();
+	vbox->Pack_End(vbox2, 0, 0);
+
+	vbox->Pack_End(speechplayer_text, 0, 0);
+	vbox->Pack_End(speaker, 0, 0);
+	vbox->Pack_End(fest_check, 0, 0);
+	vbox->Pack_End(encode_text, 0, 0);
+	vbox->Pack_End(rbox, 0, 0);
+	vbox->Pack_End(close_button, 0, 0);
+
+	vbox->Show();
+
+	main_component = vbox;
+
+	SetActiveComponent(speech_new);
+
+	Position(WIN_CENTER(18, 50));
+
+	vector<string> spref = kpinterface->prefs->FetchOptVec("speech");
+	vector<string> sf;
+	string st;
+	for (unsigned int x = 0; x < spref.size(); x++) {
+		sf = QuoteStrTokenize(spref[x], ",");
+
+		if (sf.size() != 2)
+			continue;
+
+		st = StrLower(sf[0]);
+
+		if (st == "new") 
+			speech_new->SetText(sf[1], -1, -1);
+		else if (st == "alert")
+			speech_alert->SetText(sf[1], -1, -1);
+		else if (st == "gpslost")
+			speech_gpslost->SetText(sf[1], -1, -1);
+		else if (st == "gpslock")
+			speech_gpslock->SetText(sf[1], -1, -1);
+	}
+}
+
+Kis_SpeechPref_Panel::~Kis_SpeechPref_Panel() {
+
+}
+
+void Kis_SpeechPref_Panel::Action(Kis_Panel_Component *in_component, 
+								  int in_status) {
+	if (in_component == close_button) {
+		vector<string> prefs;
+		prefs.push_back("new,\"" + speech_new->GetText() + "\"");
+		prefs.push_back("alert,\"" + speech_alert->GetText() + "\"");
+		prefs.push_back("gpslost,\"" + speech_gpslost->GetText() + "\"");
+		prefs.push_back("gpslock,\"" + speech_gpslock->GetText() + "\"");
+
+		kpinterface->prefs->SetOptVec("SPEECH", prefs, 1);
+
+		kpinterface->prefs->SetOpt("SPEECHBIN", speaker->GetText(), 1);
+
+		kpinterface->prefs->SetOpt("SPEECHTYPE",
+								   fest_check->GetChecked() ? "festival" : "raw", 1);
+
+		if (encode_none_radio->GetChecked())
+			kpinterface->prefs->SetOpt("SPEECHENCODING", "speech", 1);
+		else if (encode_nato_radio->GetChecked())
+			kpinterface->prefs->SetOpt("SPEECHENCODING", "nato", 1);
+		else if (encode_spell_radio->GetChecked())
+			kpinterface->prefs->SetOpt("SPEECHENCODING", "spell", 1);
+
+		kpinterface->KillPanel(this);
+		return;
+	}
 }
 
 #endif

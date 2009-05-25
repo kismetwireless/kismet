@@ -313,16 +313,19 @@ int SoundControl::LocalSpeech(string in_speaker, int in_festival, string text) {
 		exit(1);
 	}
 
+	close(pfd[0]);
+
 	// Format it for festival
 	if (in_festival) {
-		speech = "(SayText \"" + text + "\")";
+		speech = "(SayText \"" + text + "\")\n";
 	} else {
-		speech = text;
+		speech = text + "\n";
 	}
 
 	if (write(pfd[1], text.c_str(), speech.length() + 1) < 0) 
 		_MSG(string(__FUNCTION__) + ": Failed to write speech to player: " +
 			 string(strerror(errno)), MSGFLAG_ERROR);
+	close(pfd[1]);
 
 	for (unsigned int x = 0; x < args.size() + 1; x++)
 		free(eargv[x]);

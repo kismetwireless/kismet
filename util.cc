@@ -392,40 +392,36 @@ vector<smart_word_token> NetStrTokenize(string in_str, string in_split,
 }
 
 vector<string> QuoteStrTokenize(string in_str, string in_split) {
-	size_t begin = 0;
-	size_t end = in_str.find(in_split);
 	vector<string> ret;
-	int special = 0;
-	
+	string val;
+	int in_quote = 0;
+
 	if (in_str.length() == 0)
 		return ret;
 
-	while (end != string::npos) {
-		if (in_str[begin] == '\'') {
-			end = in_str.find("\'", begin + 1);
-			special = 1;
+	for (unsigned int x = 0; x < in_str.length(); x++) {
+		if (in_str[x] == '"') {
+			if (in_quote == 0) {
+				in_quote = 1;
+			} else {
+				in_quote = 0;
+			}
+
+			continue;
 		}
 
-		if (in_str[begin] == '\"') {
-			end = in_str.find("\"", begin + 1);
-			special = 1;
+		if (in_quote == 0 && in_str.find(in_split, x) == x) {
+			ret.push_back(val);
+			val = "";
+			x += in_split.length();
+			continue;
 		}
 
-		string sub = in_str.substr(begin + special, end - begin - special);
-
-		begin = end + 1 + special;
-
-		end = in_str.find(in_split, begin);
-
-		ret.push_back(sub);
-		
-		special = 0;
+		val += in_str[x];
 	}
 
-	if (begin != in_str.size()) {
-		ret.push_back(in_str.substr(begin, in_str.size() - begin));
-	}
-	
+	ret.push_back(val);
+
 	return ret;
 }
 

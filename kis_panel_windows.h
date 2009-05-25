@@ -82,6 +82,10 @@ public:
 
 	// Load sound prefrences from config file
 	void LoadAudioPrefs();
+	// Speak a keyed string (ugly way to do it but there's no other quick way
+	// and speech happens so rarely it's not worth doing an integer lookup
+	// table for the speech keys)
+	void SpeakString(string type, vector<string> text);
 
 	struct plugin_menu_opt {
 		int menuitem;
@@ -158,6 +162,7 @@ protected:
 	// Sound options
 	int snd_new, snd_packet, snd_gpslock, snd_gpslost, snd_alert;
 	string sound_prefix;
+	string spk_new, spk_alert, spk_gpslost, spk_gpslock;
 };
 
 #define KIS_PROMPT_CB_PARMS	GlobalRegistry *globalreg, int ok, int check, void *auxptr
