@@ -298,7 +298,7 @@ http://www.kismetwireless.net
       Read from a pre-recorded pcap file:
        ncsource=/home/foo/old.pcap
 
-      Capture using an Airpcap device on Windows
+      Capture using the first Airpcap device on Windows
        ncsource=airpcap
 
       Capture using a remote capture drone
@@ -433,7 +433,7 @@ http://www.kismetwireless.net
 
       ncsource=wl0:type=radiotap_bsd_ag
 
-    Windows
+    Windows (Generic)
 
       ONLY THE AIRPCAP DEVICE IS SUPPORTED UNDER WINDOWS.  THIS IS A
       SPECIFIC HARDWARE DEVICE MADE BY CACE TECHNOLOGIES.
@@ -441,6 +441,13 @@ http://www.kismetwireless.net
       The airpcap has monitor mode drivers with a public interface for
       controlling them.  This is the only device Kismet can capture packets
       from on Windows.
+
+    AirPcap (Windows)
+
+      By default Kismet will open the first Airpcap device found.  Multiple
+      devices can be opened by using the full named interface, which can be
+      found in the AirPcap tools but follows the pattern \\.\airpcapXX ; The
+      first device is \\.\airpcap00, the second is \\.\airpcap01, and so on.
 
     USB Devices (OSX)
 
@@ -540,8 +547,9 @@ http://www.kismetwireless.net
     (~/.kismet/plugins).
 
     When running Kismet with privilege separation enabled (installed
-    kismet_capture as root), plugins are loaded after the root control
-    daemon is started.  Plugins cannot perform root-only operations.
+    kismet_capture as root), plugins are only loaded by the Kismet server
+    process and not the root-level Kismet capture process, and plugins
+    cannot perform tasks that require root privileges.
 
     When running Kismet without privilege separation (launching as root),
     plugins run with root privileges.  This is not recommended.
