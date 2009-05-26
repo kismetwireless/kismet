@@ -1,3 +1,14 @@
+May 29 2009 2009-05 Release
+                    Added Intel sources
+                    Added rt2680 sources
+                    Tweaked GPSD handling
+                    Tweaked BSD DLT setting
+                    Added Ath9k
+
+                    ** This is now the Kismet-Old branch and is deprecated, all 
+                    development takes place in the new Kismet branch, formerly
+                    Kismet-Newcore **
+
 Jun 23 2008  devel  Merged patches from Enrico Scholz / Fedora to fix compile 
                      warnings on typedef, string const, XML sizes in printf
                     Merged patch from Kili to fix some of the gpsmap IM stuff

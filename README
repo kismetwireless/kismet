@@ -1,7 +1,14 @@
-Kismet 2008-05-R1
+Kismet-Old 2009-05-R1
 Mike Kershaw <dragorn@kismetwireless.net>
 http://www.kismetwireless.net
 Licensed under the GPL
+
+** NOTE **
+
+This version of Kismet is based on the previous code base (previously known
+as Kismet-Stable) and is now deprecated.  It is made available for those not
+willing or able to make the switch to the new release, however it is not the
+recommended version.
 
 1.  What is Kismet
 2.  Quick Start
@@ -511,6 +518,7 @@ Licensed under the GPL
       Known supported cards: Atmel_USB, ACX100, ADMTek, Atheros, Cisco, Prism2, 
        Orinoco, WSP100, Drone, wtapfile, pcapfile, wrt54g, ipw2100, rt2400,
        rt2500, rt73, rt8180, ipw2200, ipw2915, ipw3945, iwl3945, iwl4965,
+       iwl5000, iwlagn, iwl5100, iwl5300
        Broadcom 43xx
 
       Kismet will work with any distribution of Linux.  Currently, Linux is the
@@ -772,6 +780,18 @@ Licensed under the GPL
                     Intel's new IPW drivers using the mac80211 kernel
                     layer.
 
+    iwlagn          Intel/Centrino      Linux       iwl4965
+                    Intel's new IPW drivers using the mac80211 kernel
+                    layer.
+
+    iwl5100         Intel/Centrino      Linux       iwl4965
+                    Intel's new IPW drivers using the mac80211 kernel
+                    layer.
+
+    iwl5300         Intel/Centrino      Linux       iwl4965
+                    Intel's new IPW drivers using the mac80211 kernel
+                    layer.
+
     kismet_drone    n/a                 Any         n/a
                     Capture interface:  'dronehost:port'  
                     The remote drone capture source connects to a Kismet
@@ -908,6 +928,12 @@ Licensed under the GPL
                     http://rt2x00.serialmonkey.com/
                     Ralink 2500 802.11g cards using the serialmonkey GPL'd 
                      rt2x00 drivers.  Must use 1.1.0 beta 2 or newer drivers.
+
+    rt2860          Ralink 2860         Linux
+                    Ralink rt2860 out-of-kernel drivers
+
+    rt2860sta       Ralink 2860         Linux
+                    Ralink rt2860 out-of-kernel drivers
 
     rt73            Ralink 73   11g     Linux       rt73-gpl-cvs
                     http://rt2x00.serialmonkey.com/
