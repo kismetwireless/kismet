@@ -369,6 +369,25 @@ protected:
 	Kis_Panel_Packbox *rbox, *vbox, *vbox2;
 };
 
+class Kis_WarnPref_Panel : public Kis_Panel {
+public:
+	Kis_WarnPref_Panel() { 
+		fprintf(stderr, "FATAL OOPS: Kis_WarnPref_Panel()\n"); exit(1); 
+	}
+
+	Kis_WarnPref_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_intf);
+	virtual ~Kis_WarnPref_Panel();
+
+	virtual void Action(Kis_Panel_Component *in_component, int in_status);
+
+
+protected:
+	Kis_Scrollable_Table *warntable;
+	Kis_Button *closebutton;
+	Kis_Panel_Packbox *vbox;
+	int k;
+};
+
 #endif // curses
 
 #endif // prefs

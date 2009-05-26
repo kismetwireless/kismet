@@ -1684,5 +1684,132 @@ void Kis_SpeechPref_Panel::Action(Kis_Panel_Component *in_component,
 	}
 }
 
+int WarnPrefCB(COMPONENT_CALLBACK_PARMS) {
+	((Kis_WarnPref_Panel *) aux)->Action(component, status);
+	return 1;
+}
+
+Kis_WarnPref_Panel::Kis_WarnPref_Panel(GlobalRegistry *in_globalreg, 
+										   KisPanelInterface *in_intf):
+	Kis_Panel(in_globalreg, in_intf) {
+
+	warntable = new Kis_Scrollable_Table(globalreg, this);
+
+	warntable->SetCallback(COMPONENT_CBTYPE_ACTIVATED, WarnPrefCB, this);
+
+	AddComponentVec(warntable, (KIS_PANEL_COMP_TAB | KIS_PANEL_COMP_EVT));
+
+	vector<Kis_Scrollable_Table::title_data> titles;
+	Kis_Scrollable_Table::title_data t;
+	t.width = 0;
+	t.title = "Warning";
+	t.alignment = 0;
+	titles.push_back(t);
+
+	t.width = 7;
+	t.title = "Display";
+	t.alignment = 0;
+	titles.push_back(t);
+
+	t.width = -1;
+	t.title = "[pref]";
+	t.alignment = 0;
+	titles.push_back(t);
+
+	warntable->SetPreferredSize(0, 6);
+
+	warntable->AddTitles(titles);
+	warntable->Show();
+
+	vector<string> ft;
+
+	closebutton = new Kis_Button(globalreg, this);
+	closebutton->SetText("Close");
+	closebutton->Show();
+	closebutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, WarnPrefCB, this);
+	AddComponentVec(closebutton, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+								   KIS_PANEL_COMP_TAB));
+	
+	SetTitle("Warning Options");
+
+	vbox = new Kis_Panel_Packbox(globalreg, this);
+	vbox->SetPackV();
+	vbox->SetHomogenous(0);
+	vbox->SetSpacing(1);
+	AddComponentVec(vbox, KIS_PANEL_COMP_DRAW);
+
+	vbox->Pack_End(warntable, 1, 0);
+	vbox->Pack_End(closebutton, 0, 0);
+
+	vbox->Show();
+
+	main_component = vbox;
+
+	SetActiveComponent(warntable);
+
+	Position(WIN_CENTER(10, 45));
+
+	vector<string> td;
+	k = 0;
+
+	td.push_back("");
+	td.push_back("");
+	td.push_back("");
+
+	td[0] = "Source Warnings";
+	td[2] = "WARN_SOURCEWARN";
+	if (kpinterface->prefs->FetchOpt(td[2]) != "false") {
+		td[1] = "Yes";
+	} else {
+		td[1] = "No";
+	}
+	warntable->ReplaceRow(k++, td);
+
+	td[0] = "All Sources Errored";
+	td[2] = "WARN_ALLERRSOURCE";
+	if (kpinterface->prefs->FetchOpt(td[2]) != "false") {
+		td[1] = "Yes";
+	} else {
+		td[1] = "No";
+	}
+	warntable->ReplaceRow(k++, td);
+
+}
+
+Kis_WarnPref_Panel::~Kis_WarnPref_Panel() {
+
+}
+
+void Kis_WarnPref_Panel::Action(Kis_Panel_Component *in_component, 
+								int in_status) {
+	if (in_component == closebutton) {
+		for (int x = 0; x < k; x++) {
+			vector<string> td = warntable->GetRow(x);
+			if (td.size() != 3)
+				continue;
+
+			kpinterface->prefs->SetOpt(td[2], td[1] == "Yes" ? "true" : "false", 1);
+		}
+
+		kpinterface->KillPanel(this);
+		return;
+	}
+
+	if (in_component == warntable) {
+		vector<string> selrow = warntable->GetSelectedData();
+
+		if (selrow.size() != 3)
+			return;
+
+		if (selrow[1] == "Yes")
+			selrow[1] = "No";
+		else
+			selrow[1] = "Yes";
+
+		warntable->ReplaceRow(warntable->GetSelected(), selrow);
+	}
+
+}
+
 #endif
 
