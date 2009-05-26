@@ -166,6 +166,8 @@ public:
 
 	virtual int Reconnect();
 
+	virtual int FetchPacketCompId() { return packet_comp_id; }
+
 protected:
 	TcpClient *tcpcli;
 
@@ -177,6 +179,8 @@ protected:
 	int recon_timer_id;
 
 	int spec_proto_id;
+
+	int packet_comp_id;
 
 	vector<spectool_dev *> device_vec;
 };

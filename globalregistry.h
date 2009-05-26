@@ -50,6 +50,8 @@ class RootIPCRemote;
 class KisPanelInterface;
 // Manuf db
 class Manuf;
+// Pcap dump (only built-in dumpfile which supports plugin hooks currently)
+class Dumpfile_Pcap;
 
 // These are the offsets into the array of protocol references, not
 // the reference itself.
@@ -92,8 +94,7 @@ class Manuf;
 #define PACK_COMP_BASICDATA		11
 #define PACK_COMP_STRINGS		12
 #define PACK_COMP_FCSBYTES		13
-#define PACK_COMP_SPECTRUM		14
-#define PACK_COMP_MAX			15
+#define PACK_COMP_MAX			14
 
 // Same game again, with alerts that internal things need to generate
 #define ALERT_REF_KISMET		0
@@ -217,6 +218,8 @@ public:
 	int alertref_map[ALERT_REF_MAX];
 
 	unsigned int crc32_table[256];
+
+	Dumpfile_Pcap *pcapdump;
     
     GlobalRegistry() { 
         fatal_condition = 0;
@@ -279,6 +282,7 @@ public:
 		for (unsigned int x = 0; x < ALERT_REF_MAX; x++)
 			alertref_map[x] = -1;
 
+		pcapdump = NULL;
     }
 
     // External globals -- allow other things to tie structs to us

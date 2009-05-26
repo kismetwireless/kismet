@@ -613,7 +613,7 @@ http://www.kismetwireless.net
 
     Kismet keeps running averages of the network location, however this is
     not incredibly accurate, due to averaging and imprecision in
-    floating point math.  For plotting network locations, the gps file
+    floating point math.  For plotting network locations, the GPSXML file
     should be used.
 
 10. Logging
@@ -1209,6 +1209,14 @@ http://www.kismetwireless.net
     A: Doing real-time GPS averaging leads to increasingly bad data due to
        floating-point accuracy and averaging.  For more exact GPS data,
        process the gpsxml file.
+
+    Q: What happened to gpsmap?
+    A: gpsmap was the old mapper code for Kismet.  It stopped being useful a
+       long time ago when the map sources it used went away.  It's being
+       replaced with a tile-based mapper, the beginnings of which are in
+       the kismap/ directory in the source code.  Kismap isn't quite
+       finished for the RC1 release, but development continues on it and it
+       will be available hopefully soon.
 
     Q: How can I merge multiple capture files?
     A: Use the 'mergecap' tool that comes with Wireshark.

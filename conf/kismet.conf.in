@@ -97,9 +97,6 @@ maxbacklog=5000
 # dronemaxclients=5
 # droneringlen=65535
 
-# Do we use a spectools server for spectrum data?  (From devices like the Wi-Spy)
-# spectools=tcp://localhost:30569
-
 # OUI file, expected format 00:11:22<tab>manufname
 # IEEE OUI file used to look up manufacturer info.  We default to the
 # wireshark one since most people have that.

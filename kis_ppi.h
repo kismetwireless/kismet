@@ -67,18 +67,6 @@ typedef struct {
 typedef struct {
 	uint16_t pfh_datatype;
 	uint16_t pfh_datalen;
-	uint32_t start_khz;
-	uint32_t res_hz;
-	uint32_t amp_offset_mdbm;
-	uint32_t amp_res_mdbm;
-	uint16_t rssi_max;
-	uint16_t num_samples;
-	uint8_t data[0];
-} ppi_spectrum;
-
-typedef struct {
-	uint16_t pfh_datatype;
-	uint16_t pfh_datalen;
 	uint8_t version;
 	uint8_t magic;
 	uint16_t gps_len;

@@ -147,7 +147,7 @@ SpectoolsClient::SpectoolsClient(GlobalRegistry *in_globalreg) :
 	}
 
 	// Packetchain spectrum data
-	_PCM(PACK_COMP_SPECTRUM) =
+	packet_comp_id = 
 		globalreg->packetchain->RegisterPacketComponent("SPECTRUM");
 
 	// *SPECTRUM protocol
@@ -423,7 +423,7 @@ int SpectoolsClient::ParseData() {
 
 				newpack->ts = specdata->start_tm;
 
-				newpack->insert(_PCM(PACK_COMP_SPECTRUM), specdata);
+				newpack->insert(packet_comp_id, specdata);
 
 				globalreg->packetchain->ProcessPacket(newpack);
 

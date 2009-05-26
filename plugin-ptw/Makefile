@@ -3,11 +3,11 @@
 # Installation goes here
 KIS_DEST_DIR ?= /usr/local
 # You will need kismet newcore sources
-KIS_SRC_DIR ?= /usr/src/kismet-newcore
+KIS_SRC_DIR ?= /usr/src/kismet
 KIS_INC_DIR ?= $(KIS_SRC_DIR)
 
-HOME	= .
-top_builddir = $(HOME)
+BLDHOME	= .
+top_builddir = $(BLDHOME)
 CXX	= g++
 CC	= gcc
 LD	= g++
@@ -25,6 +25,9 @@ $(PLUGOUT):	$(PLUGOBJS)
 
 install:	$(PLUGOUT)
 	install -D $^ $(KIS_DEST_DIR)/lib/kismet/$^
+
+userinstall:	$(PLUGOUT)
+	install -D $(PLUGOUT) ${HOME}/.kismet/plugins/$(PLUGOUT)
 
 clean:
 	@-rm -f *.o

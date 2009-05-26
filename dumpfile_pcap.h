@@ -46,6 +46,17 @@ enum dumpfile_pcap_format {
 	dump_unknown, dump_80211, dump_ppi
 };
 
+// Plugin/module PPI callback
+// This is a little wonky; each callback function will be called twice, once with
+// allocate set to 1 to indicate how much space it will require in the PPI header,
+// and once with the partial header and offset to fill it in.  The return value when
+// called with allocate should be the amount of space it will use, while the 
+// return value for non-allocate should indicate the new position (absolute new
+// position, not offset!)
+#define DUMPFILE_PPI_PARMS	GlobalRegistry *in_globalreg, int in_allocate, \
+	kis_packet *in_pack, uint8_t *dump_data, int dump_pos, void *aux
+typedef int (*dumpfile_ppi_cb)(DUMPFILE_PPI_PARMS);
+
 // Pcap-based packet writer
 class Dumpfile_Pcap : public Dumpfile {
 public:
@@ -55,6 +66,15 @@ public:
 
 	virtual int chain_handler(kis_packet *in_pack);
 	virtual int Flush();
+
+	virtual void RegisterPPICallback(dumpfile_ppi_cb in_cb, void *in_aux);
+	virtual void RemovePPICallback(dumpfile_ppi_cb in_cb, void *in_aux);
+
+	struct ppi_cb_rec {
+		dumpfile_ppi_cb cb;
+		void *aux;
+	};
+
 protected:
 	pcap_t *dumpfile;
 	pcap_dumper_t *dumper;
@@ -63,6 +83,8 @@ protected:
 	dumpfile_pcap_format dumpformat;
 
 	macmap<uint32_t> bssid_csum_map;
+
+	vector<ppi_cb_rec> ppi_cb_vec;
 };
 
 #endif /* pcap */

@@ -47,7 +47,7 @@ extern "C" {
 #endif
 }
 
-#include "ppi.h"
+#include "kis_ppi.h"
 
 // Include the various variations of BSD radiotap headers from the system if
 // we can get them, incidentally pull in other stuff but I'm not sure whats

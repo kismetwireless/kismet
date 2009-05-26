@@ -83,8 +83,6 @@
 
 #include "statealert.h"
 
-#include "spectool_netclient.h"
-
 #include "manuf.h"
 
 #ifndef exec_name
@@ -777,12 +775,6 @@ int main(int argc, char *argv[], char *envp[]) {
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
 
-	// Create the spectools server
-	SpectoolsClient *speccli;
-	speccli = new SpectoolsClient(globalregistry);
-	if (globalregistry->fatal_condition)
-		CatchShutdown(-1);
-
 	// Create the manuf db
 	globalregistry->manufdb = new Manuf(globalregistry);
 	if (globalregistry->fatal_condition)
@@ -808,7 +800,8 @@ int main(int argc, char *argv[], char *envp[]) {
 	globalregistry->messagebus->InjectMessage("Registering dumpfiles...",
 											  MSGFLAG_INFO);
 #ifdef HAVE_LIBPCAP
-	new Dumpfile_Pcap(globalregistry);
+	// Pcapdump is special since plugins might hook it
+	globalreg->pcapdump = new Dumpfile_Pcap(globalregistry);
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
 #endif

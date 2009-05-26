@@ -25,7 +25,6 @@
 #include "endian_magic.h"
 #include "dumpfile_pcap.h"
 #include "packetsource_pcap.h"
-#include "spectool_netclient.h"
 
 int dumpfilepcap_chain_hook(CHAINCALL_PARMS) {
 	Dumpfile_Pcap *auxptr = (Dumpfile_Pcap *) auxdata;
@@ -148,6 +147,28 @@ int Dumpfile_Pcap::Flush() {
 	return 1;
 }
 
+void Dumpfile_Pcap::RegisterPPICallback(dumpfile_ppi_cb in_cb, void *in_aux) {
+	for (unsigned int x = 0; x < ppi_cb_vec.size(); x++) {
+		if (ppi_cb_vec[x].cb == in_cb && ppi_cb_vec[x].aux == in_aux)
+			return;
+	}
+
+	ppi_cb_rec r;
+	r.cb = in_cb;
+	r.aux = in_aux;
+
+	ppi_cb_vec.push_back(r);
+}
+
+void Dumpfile_Pcap::RemovePPICallback(dumpfile_ppi_cb in_cb, void *in_aux) {
+	for (unsigned int x = 0; x < ppi_cb_vec.size(); x++) {
+		if (ppi_cb_vec[x].cb == in_cb && ppi_cb_vec[x].aux == in_aux) {
+			ppi_cb_vec.erase(ppi_cb_vec.begin() + x);
+			return;
+		}
+	}
+}
+
 int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 	// Grab the mangled frame if we have it, then try to grab up the list of
 	// data types and die if we can't get anything
@@ -159,9 +180,6 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 
 	kis_layer1_packinfo *radioinfo =
 		(kis_layer1_packinfo *) in_pack->fetch(_PCM(PACK_COMP_RADIODATA));
-
-	kis_spectrum_data *specdata =
-		(kis_spectrum_data *) in_pack->fetch(_PCM(PACK_COMP_SPECTRUM));
 
 	kis_gps_packinfo *gpsdata =
 		(kis_gps_packinfo *) in_pack->fetch(_PCM(PACK_COMP_GPS));
@@ -215,14 +233,18 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 
 		if (radioinfo != NULL) 
 			ppi_len += sizeof(ppi_80211_common);
-		if (specdata != NULL)
-			ppi_len += sizeof(ppi_spectrum) + specdata->rssi_vec.size();
 
 		if (gpsdata != NULL) {
 			if (gpsdata->gps_fix >= 2)
 				ppi_len += sizeof(ppi_gps_hdr) + 12;
 			if (gpsdata->gps_fix > 2)
 				ppi_len += 4;
+		}
+
+		// Collate the allocation sizes of any callbacks
+		for (unsigned int p = 0; p < ppi_cb_vec.size(); p++) {
+			ppi_len += (*(ppi_cb_vec[p].cb))(globalreg, 1, in_pack, NULL, 0,
+											 ppi_cb_vec[p].aux);
 		}
 
 		if (dump_len == 0 && ppi_len == 0)
@@ -242,26 +264,6 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 
 		// Hardcode 80211 DLT for now
 		ppi_ph->pph_dlt = kis_htole32(105);
-
-		if (specdata != NULL) {
-			ppi_spectrum *ppi_spec;
-			ppi_spec = (ppi_spectrum *) &(dump_data[ppi_pos]);
-			ppi_pos += sizeof(ppi_spectrum) + specdata->rssi_vec.size();
-
-			ppi_spec->pfh_datatype = kis_htole16(PPI_FIELD_SPECMAP);
-			ppi_spec->pfh_datalen = kis_htole16(sizeof(ppi_spectrum) -
-												sizeof(ppi_field_header) +
-												specdata->rssi_vec.size());
-
-			ppi_spec->start_khz = kis_htole32(specdata->start_khz);
-			ppi_spec->res_hz = kis_htole32(specdata->res_hz);
-			ppi_spec->amp_offset_mdbm = kis_htole32(abs(specdata->amp_offset_mdbm));
-			ppi_spec->amp_res_mdbm = kis_htole32(specdata->amp_res_mdbm);
-			ppi_spec->rssi_max = kis_htole16(specdata->rssi_max);
-			ppi_spec->num_samples = kis_htole16(specdata->rssi_vec.size());
-			for (unsigned int s = 0; s < specdata->rssi_vec.size(); s++) 
-				ppi_spec->data[s] = specdata->rssi_vec[s];
-		}
 
 		if (radioinfo != NULL) {
 			ppi_80211_common *ppi_common;
@@ -367,6 +369,13 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 				ppigps->pfh_datalen = kis_htole32(ppigps->pfh_datalen);
 				ppigps->gps_len = kis_htole16(ppigps->gps_len);
 			}
+		}
+
+		// Collate the allocation sizes of any callbacks
+		for (unsigned int p = 0; p < ppi_cb_vec.size(); p++) {
+			// Ignore errors for now
+			ppi_pos = (*(ppi_cb_vec[p].cb))(globalreg, 0, in_pack, dump_data, ppi_pos,
+											ppi_cb_vec[p].aux);
 		}
 	}
 
