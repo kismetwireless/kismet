@@ -413,7 +413,7 @@ vector<string> QuoteStrTokenize(string in_str, string in_split) {
 		if (in_quote == 0 && in_str.find(in_split, x) == x) {
 			ret.push_back(val);
 			val = "";
-			x += in_split.length();
+			x += in_split.length() - 1;
 			continue;
 		}
 
