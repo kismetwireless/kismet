@@ -165,6 +165,10 @@ Kis_NetDetails_Panel::Kis_NetDetails_Panel(GlobalRegistry *in_globalreg,
 	td.push_back("");
 	td.push_back("No network selected / Empty network selected");
 	netdetails->AddRow(0, td);
+	td[1] = "Change sort order to anything other than \"Auto Fit\"";
+	netdetails->AddRow(1, td);
+	td[1] = "and highlight a network.";
+	netdetails->AddRow(2, td);
 
 	UpdateViewMenu(-1);
 
@@ -242,7 +246,7 @@ int Kis_NetDetails_Panel::AppendSSIDInfo(int k, Netracker::tracked_network *net,
 					IntToString(ssid->dot11d_vec[z].startchan) +
 					string("-") +
 					IntToString(ssid->dot11d_vec[z].startchan +
-								ssid->dot11d_vec[z].numchan) +
+								ssid->dot11d_vec[z].numchan - 1) +
 					string(" ") +
 					IntToString(ssid->dot11d_vec[z].txpower) + 
 					string("dBm");
@@ -299,9 +303,7 @@ int Kis_NetDetails_Panel::AppendSSIDInfo(int k, Netracker::tracked_network *net,
 								(double) ssid->beaconrate) * 100);
 
 			if (brate > 0) {
-
-				osstr << setw(5) << left << fixed << setprecision(3) << brate;
-				td[1] = osstr.str();
+				td[1] = IntToString(brate);
 				netdetails->AddRow(k++, td);
 			}
 		}
@@ -404,8 +406,8 @@ int Kis_NetDetails_Panel::AppendNetworkInfo(int k, Kis_Display_NetGroup *tng,
 		td[0] = "Frequency:";
 		osstr.str("");
 		osstr << fmi->first << " (" << chtxt.str() << ") - " << 
-			fmi->second << " packets, " <<
-			setprecision(2) << perc << "%";
+			fmi->second << " packets, " << 
+			NtoString<float>(perc, 2).Str() << "%";
 		td[1] = osstr.str();
 		netdetails->AddRow(k++, td);
 	}
@@ -676,6 +678,10 @@ void Kis_NetDetails_Panel::DrawPanel() {
 			td[0] = "";
 			td[1] = "No network selected / Empty group selected";
 			netdetails->AddRow(0, td);
+			td[1] = "Change sort order to anything other than \"Auto Fit\"";
+			netdetails->AddRow(1, td);
+			td[1] = "and highlight a network.";
+			netdetails->AddRow(2, td);
 		}
 	}
 
@@ -1674,8 +1680,8 @@ void Kis_ClientDetails_Panel::DrawPanel() {
 
 				osstr.str("");
 				osstr << fmi->first << " (" << chtxt.str() << ") - " << 
-					fmi->second << " packets, " <<
-					setprecision(2) << perc << "%";
+					fmi->second << " packets, " << 
+					NtoString<float>(perc, 2).Str() << "%";
 				td[1] = osstr.str();
 				clientdetails->AddRow(k++, td);
 				td[0] = "";

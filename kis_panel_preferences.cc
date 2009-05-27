@@ -1774,6 +1774,15 @@ Kis_WarnPref_Panel::Kis_WarnPref_Panel(GlobalRegistry *in_globalreg,
 	}
 	warntable->ReplaceRow(k++, td);
 
+	td[0] = "Running As Root";
+	td[2] = "STARTUP_WARNROOT";
+	if (kpinterface->prefs->FetchOpt(td[2]) != "false") {
+		td[1] = "Yes";
+	} else {
+		td[1] = "No";
+	}
+	warntable->ReplaceRow(k++, td);
+
 }
 
 Kis_WarnPref_Panel::~Kis_WarnPref_Panel() {
