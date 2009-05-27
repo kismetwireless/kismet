@@ -144,7 +144,7 @@ int Dumpfile_Gpsxml::chain_handler(kis_packet *in_pack) {
 		if (gpsinfo->hdop != 0 || gpsinfo->vdop != 0)
 			fprintf(xmlfile, " hdop=\"%f\" vdop=\"%f\"",
 					gpsinfo->hdop, gpsinfo->vdop);
-		fprintf(xmlfile, ">\n");
+		fprintf(xmlfile, "/>\n");
 
 		dumped_frames++;
 		return 1;
@@ -171,7 +171,7 @@ int Dumpfile_Gpsxml::chain_handler(kis_packet *in_pack) {
 				"signal_rssi=\"%d\" noise_rssi=\"%d\"\n",
 				radio->signal_dbm, radio->noise_dbm, 
 				radio->signal_rssi, radio->noise_rssi);
-	fprintf(xmlfile, ">\n");
+	fprintf(xmlfile, "/>\n");
 
 	dumped_frames++;
 
