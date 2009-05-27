@@ -24,7 +24,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
-#include <time.h>
 #include "configfile.h"
 #include "util.h"
 
@@ -39,8 +38,8 @@ int ConfigFile::ParseConfig(const char *in_fname) {
     }
 
     while (!feof(configf)) {
-        if (fgets(confline, 8192, configf) == NULL ||
-	    feof(configf)) break;
+        if (fgets(confline, 8192, configf) == NULL || feof(configf)) 
+			break;
 
         // It's easier to parse this using C++ functions
         string parsestr = StrStrip(confline);
@@ -61,7 +60,8 @@ int ConfigFile::ParseConfig(const char *in_fname) {
             value = StrStrip(parsestr.substr(eq+1, parsestr.length()));
 
             if (value == "") {
-                fprintf(stderr, "ERROR: Illegal config option: %s\n", parsestr.c_str());
+                fprintf(stderr, "ERROR: Illegal config option: %s\n", 
+						parsestr.c_str());
                 continue;
             }
 
@@ -73,6 +73,7 @@ int ConfigFile::ParseConfig(const char *in_fname) {
                     return -1;
             } else {
                 config_map[StrLower(directive)].push_back(value);
+                config_map_dirty[StrLower(directive)] = 1;
             }
         }
     }
@@ -80,6 +81,24 @@ int ConfigFile::ParseConfig(const char *in_fname) {
     fclose(configf);
 
     return 1;
+}
+
+int ConfigFile::SaveConfig(const char *in_fname) {
+	FILE *wf = NULL;
+
+	if ((wf = fopen(in_fname, "w")) == NULL) {
+		return -1;
+	}
+
+	for (map<string, vector<string> >::iterator x = config_map.begin();
+		 x != config_map.end(); ++x) {
+		for (unsigned int y = 0; y < x->second.size(); y++) {
+			fprintf(wf, "%s=%s\n", x->first.c_str(), x->second[y].c_str());
+		}
+	}
+
+	fclose(wf);
+	return 1;
 }
 
 string ConfigFile::FetchOpt(string in_key) {
@@ -109,6 +128,30 @@ vector<string> ConfigFile::FetchOptVec(string in_key) {
     return cmitr->second;
 }
 
+int ConfigFile::FetchOptDirty(string in_key) {
+	if (config_map_dirty.find(StrLower(in_key)) == config_map_dirty.end())
+		return 0;
+
+	return config_map_dirty[StrLower(in_key)];
+}
+
+void ConfigFile::SetOptDirty(string in_key, int in_dirty) {
+	config_map_dirty[StrLower(in_key)] = in_dirty;
+}
+
+void ConfigFile::SetOpt(string in_key, string in_val, int in_dirty) {
+	vector<string> v;
+	v.push_back(in_val);
+	config_map[StrLower(in_key)] = v;
+	SetOptDirty(in_key, in_dirty);
+}
+
+void ConfigFile::SetOptVec(string in_key, vector<string> in_val, int in_dirty) {
+	config_map[StrLower(in_key)] = in_val;
+	SetOptDirty(in_key, in_dirty);
+}
+
+
 // Expand a logfile into a full filename
 // Path/template from config
 // Logfile name to use
@@ -119,12 +162,10 @@ string ConfigFile::ExpandLogPath(string path, string logname, string type,
     string logtemplate;
     int inc = 0;
 
-	int found_type = 0, found_num = 0;
-
     logtemplate = path;
 
     for (unsigned int nl = logtemplate.find("%"); nl < logtemplate.length();
-         nl = logtemplate.find("%", nl+1))
+         nl = logtemplate.find("%", nl))
     {
         char op = logtemplate[nl+1];
         logtemplate.erase(nl, 2);
@@ -166,45 +207,34 @@ string ConfigFile::ExpandLogPath(string path, string logname, string type,
 
             logtemplate.insert(nl, timestr);
         }
-        else if (op == 'l') {
+        else if (op == 'l')
             logtemplate.insert(nl, type.c_str());
-			found_type = 1;
-		} else if (op == 'i') {
+        else if (op == 'i')
             inc = nl;
-			found_num = 1;
-		} else if (op == 'h') {
+        else if (op == 'h') {
             struct passwd *pw;
 
             pw = getpwuid(getuid());
 
             if (pw == NULL) {
                 fprintf(stderr, "ERROR:  Could not explode home directory path, "
-						"getpwuid() failed: %s.\n", strerror(errno));
+						"getpwuid() failed.\n");
                 exit(1);
             }
 
             logtemplate.insert(nl, pw->pw_dir);
-        }
+        } else if (op == 'p') {
+			string pfx;
+
+			if (globalreg->log_prefix == "") 
+				pfx = FetchOpt("logprefix");
+
+			if (pfx != "")
+				pfx += "/";
+
+			logtemplate.insert(nl, pfx);
+		}
     }
-
-#if 0
-	// Good idea but doesn't work here, do it in newcore
-	if (found_type == 0) {
-		fprintf(stderr, "WARNING:  No file type (%%l) marker found in template, "
-				"all files will overwrite each other.  This is probably not what "
-				"you want to have happen.  Fix the logtemplate line in kismet.conf "
-				"and consult the comments and README section 2\n");
-		sleep(1);
-	}
-
-	if (found_num == 0) {
-		fprintf(stderr, "WARNING:  No file number (%%i) marker found in template, "
-				"logging files will not work properly.  This is probably not what "
-				"you want to have happen.  Fix the logtemplate line in kismet.conf "
-				"and consult the comments and README section 2\n");
-		sleep(1);
-	}
-#endif
 
     // If we've got an incremental, go back and find it and start testing
     if (inc) {
@@ -212,48 +242,92 @@ string ConfigFile::ExpandLogPath(string path, string logname, string type,
 
         if (start == 0) {
             // If we don't have a number we want to use, find the next free
-
-            // This is almost solely for the use of the packetlimit logger
-
             for (int num = 1; num < 100; num++) {
-                string copied = logtemplate;
+				string copied;
                 struct stat filstat;
 
                 // This is annoying
                 char numstr[5];
                 snprintf(numstr, 5, "%d", num);
 
+                copied = logtemplate;
+                copied.insert(inc, numstr);
+				copied += ".gz";
+
+                if (stat(copied.c_str(), &filstat) == 0) {
+					continue;
+				}
+
+                copied = logtemplate;
+                copied.insert(inc, numstr);
+				copied += ".bz2";
+
+                if (stat(copied.c_str(), &filstat) == 0) {
+					continue;
+				}
+
+                copied = logtemplate;
                 copied.insert(inc, numstr);
 
-                if (stat(copied.c_str(), &filstat) == -1) {
-                    found = 1;
-                    logtemplate = copied;
-                    break;
-                }
+                if (stat(copied.c_str(), &filstat) == 0) {
+					continue;
+				}
+
+				// If we haven't been found with any of our variants, we're
+				// clean, mark us found
+			
+				found = 1;
+				logtemplate = copied;
+				break;
             }
         } else {
             // Otherwise find out if this incremental is taken
-            string copied = logtemplate;
+            string copied;
             struct stat filstat;
             char numstr[5];
             snprintf(numstr, 5, "%d", start);
+			int localfound = 1;
 
             copied.insert(inc, numstr);
 
-            if (stat(copied.c_str(), &filstat) != -1 && overwrite == 0) {
-                logtemplate = "";
-            } else {
-                logtemplate = copied;
-            }
+			copied = logtemplate;
+			copied.insert(inc, numstr);
+			copied += ".gz";
 
-            found = 1;
+            if (stat(copied.c_str(), &filstat) == 0 && overwrite != 0) {
+				localfound = 0;
+			}
+
+			copied = logtemplate;
+			copied.insert(inc, numstr);
+			copied += ".bz2";
+
+            if (stat(copied.c_str(), &filstat) == 0 && overwrite != 0) {
+				localfound = 0;
+			}
+
+			copied = logtemplate;
+			copied.insert(inc, numstr);
+
+            if (stat(copied.c_str(), &filstat) == 0 && overwrite != 0) {
+				localfound = 0;
+			}
+
+			// If we haven't been found with any of our variants, we're
+			// clean, mark us found
+
+			found = localfound;
+			if (localfound == 0)
+				logtemplate = "";
+			else
+				logtemplate = copied;
         }
 
 
         if (!found) {
-            fprintf(stderr, "ERROR:  Unable to find a logging file within 100 hits.  If you really are\n"
-                    "        logging this many times in 1 day, change log names or edit the \n"
-                    "        source.\n");
+            fprintf(stderr, "ERROR:  Unable to find a logging file within 100 hits. "
+					"If you really are logging this many times in 1 day, change "
+					"log names or edit the source.\n");
             exit(1);
         }
     } else {
@@ -270,169 +344,192 @@ string ConfigFile::ExpandLogPath(string path, string logname, string type,
     return logtemplate;
 }
 
-int ConfigFile::ParseFilterLine(string filter_str, macmap<int> *bssid_map,
-                                macmap<int> *source_map,
-                                macmap<int> *dest_map,
-                                int *bssid_invert, int *source_invert, int *dest_invert) {
-    // Break it into filter terms
-    size_t parse_pos = 0;
-    size_t parse_error = 0;
+uint32_t ConfigFile::FetchFileChecksum() {
+	if (checksum == 0)
+		CalculateChecksum();
 
-    while (parse_pos < filter_str.length()) {
-        size_t addr_term_end;
-        size_t address_target = 0; // 1=bssid 2=source 4=dest 7=any
-
-        if (filter_str[parse_pos] == ',' || filter_str[parse_pos] == ' ') {
-            parse_pos++;
-            continue;
-        }
-
-        if ((addr_term_end = filter_str.find('(', parse_pos + 1)) == string::npos) {
-            fprintf(stderr, "FATAL:  Couldn't parse filter line, no '(' found.\n");
-            parse_error = 1;
-            break;
-        }
-
-        string addr_term = StrLower(filter_str.substr(parse_pos, addr_term_end - parse_pos));
-
-        parse_pos = addr_term_end + 1;
-
-        if (addr_term.length() == 0) {
-            fprintf(stderr, "FATAL: Couldn't parse filter line, no address type given.\n");
-            parse_error = 1;
-            break;
-        }
-
-        if (addr_term == "any") {
-            address_target = 7;
-        } else if (addr_term == "bssid") {
-            address_target = 1;
-        } else if (addr_term == "source") {
-            address_target = 2;
-        } else if (addr_term == "dest") {
-            address_target = 4;
-        } else {
-            fprintf(stderr, "FATAL:  Couldn't parse filter line, unknown address type '%s'\n",
-                    addr_term.c_str());
-            parse_error = 1;
-            break;
-        }
-
-        if ((addr_term_end = filter_str.find(')', parse_pos + 1)) == string::npos) {
-            fprintf(stderr, "FATAL: Couldn't parse filter line, no ')' found.\n");
-            parse_error = 1;
-            break;
-        }
-
-        string term_contents = filter_str.substr(parse_pos, addr_term_end - parse_pos);
-
-        parse_pos = addr_term_end + 1;
-
-        if (term_contents.length() == 0) {
-            fprintf(stderr, "FATAL: Couldn't parse filter line, no addresses listed.\n");
-            parse_error = 1;
-            break;
-        }
-
-        size_t term_parse_pos = 0;
-        while (term_parse_pos < term_contents.length()) {
-            size_t term_end;
-            size_t invert = 0;
-
-            if (term_contents[term_parse_pos] == ' ' || term_contents[term_parse_pos] == ',') {
-                term_parse_pos++;
-                continue;
-            }
-
-            if (term_contents[term_parse_pos] == '!') {
-                invert = 1;
-                term_parse_pos++;
-            }
-
-            if ((term_end = term_contents.find(',', term_parse_pos + 1)) == string::npos)
-                term_end = term_contents.length();
-
-            string single_addr = term_contents.substr(term_parse_pos, term_end - term_parse_pos);
-
-            mac_addr mac = single_addr.c_str();
-            if (mac.error != 0) {
-                fprintf(stderr, "FATAL:  Couldn't parse filter MAC address '%s'\n",
-                        single_addr.c_str());
-                parse_error = 1;
-                break;
-            }
-
-            // Catch non-inverted 'ANY'
-            if (address_target == 7 && invert == 0) {
-                fprintf(stderr, "FATAL:  Filtering type 'ANY' with a standard address will discard all packets.  'ANY' can only be used with inverted matches.\n");
-                parse_error = 1;
-                break;
-            }
-
-            // Insert it into the map, we'll look later to see if it's an inversion collision
-            if (address_target & 0x01) {
-                bssid_map->insert(mac, invert);
-            } if (address_target & 0x02) {
-                source_map->insert(mac, invert);
-            } if (address_target & 0x04) {
-                dest_map->insert(mac, invert);
-            }
-
-            term_parse_pos = term_end + 1;
-
-        }
-
-    }
-
-    if (parse_error == 1)
-        return -1;
-
-    int inversion_tracker = -1;
-
-    for (macmap<int>::iterator x = bssid_map->begin(); x != bssid_map->end(); x++) {
-
-        if (inversion_tracker == -1) {
-            inversion_tracker = *x->second;
-            continue;
-        }
-
-        if (*x->second != inversion_tracker) {
-            fprintf(stderr, "FATAL:  BSSID filter has an illegal mix of normal and inverted addresses.  All addresses must be inverted or standard.\n");
-            return -1;
-        }
-    }
-    *bssid_invert = inversion_tracker;
-
-    inversion_tracker = -1;
-    for (macmap<int>::iterator x = source_map->begin(); x != source_map->end(); x++) {
-
-        if (inversion_tracker == -1) {
-            inversion_tracker = *x->second;
-            continue;
-        }
-
-        if (*x->second != inversion_tracker) {
-            fprintf(stderr, "FATAL:  Source filter has an illegal mix of normal and inverted addresses.  All addresses must be inverted or standard.\n");
-            return -1;
-        }
-    }
-    *source_invert = inversion_tracker;
-
-    inversion_tracker = -1;
-    for (macmap<int>::iterator x = dest_map->begin(); x != dest_map->end(); x++) {
-
-        if (inversion_tracker == -1) {
-            inversion_tracker = *x->second;
-            continue;
-        }
-
-        if (*x->second != inversion_tracker) {
-            fprintf(stderr, "FATAL:  Destination filter has an illegal mix of normal and inverted addresses.  All addresses must be inverted or standard.\n");
-            return -1;
-        }
-    }
-    *dest_invert = inversion_tracker;
-
-    return 1;
+	return checksum;
 }
+
+void ConfigFile::CalculateChecksum() {
+	string cks;
+
+	for (map<string, vector<string> >::iterator x = config_map.begin();
+		 x != config_map.end(); ++x) {
+		cks += x->first;
+		for (unsigned int y = 0; y < x->second.size(); y++) {
+			cks += x->second[y];
+		}
+	}
+
+	checksum = Adler32Checksum(cks.c_str(), cks.length());
+}
+
+int GroupConfigFile::ParseConfig(const char *in_fname) {
+	FILE *configf;
+	char confline[8192];
+
+	if ((configf = fopen(in_fname, "r")) == NULL) {
+		fprintf(stderr, "ERROR:  Reading grouped config file '%s': %s\n", in_fname,
+				strerror(errno));
+		return -1;
+	}
+
+	root = new GroupEntity;
+	root->name = ":root:";
+
+	vector<GroupEntity *> group_stack;
+	group_stack.push_back(root);
+
+	vector<GroupEntity *> primervec;
+
+	parsed_group_map[root] = primervec;
+
+	GroupEntity *sub = root;
+
+	while (!feof(configf)) {
+		if (fgets(confline, 8192, configf) == NULL)
+			break;
+
+		if (feof(configf)) break;
+
+		string parsestr = StrStrip(confline);
+		string directive, value;
+
+		if (parsestr.length() == 0)
+			continue;
+		if (parsestr[0] == '#')
+			continue;
+
+		size_t eq;
+		if ((eq = parsestr.find("=")) == string::npos) {
+			// Look for a "foo {".  { must be the end
+			if (parsestr[parsestr.length() - 1] == '{') {
+				directive = StrStrip(parsestr.substr(0, parsestr.length() - 1));
+
+				GroupEntity *newent = new GroupEntity;
+				parsed_group_map[sub].push_back(newent);
+
+				sub = newent;
+				sub->name = directive;
+				parsed_group_map[sub] = primervec;
+				group_stack.push_back(sub);
+
+				continue;
+			}
+
+			// Look for an ending }.  Must be the first character, everything after
+			// it is ignored
+			if (parsestr[0] == '}') {
+				if (sub == root) {
+					fprintf(stderr, "ERROR:  Unexpected closing '}'\n");
+					return -1;
+				}
+
+				group_stack.pop_back();
+				sub = group_stack.back();
+
+				continue;
+			}
+		} else {
+			// Process a directive
+			directive = StrStrip(parsestr.substr(0, eq));
+			value = StrStrip(parsestr.substr(eq + 1, parsestr.length()));
+
+			if (value == "") {
+				fprintf(stderr, "ERROR:  Illegal config option: '%s'\n",
+						parsestr.c_str());
+				continue;
+			}
+
+			if (directive == "include") {
+				fprintf(stderr, "ERROR:  Can't include sub-files right now\n");
+				return -1;
+			}
+
+			sub->value_map[StrLower(directive)].push_back(value);
+		}
+	}
+
+	return 1;
+}
+
+string GroupConfigFile::FetchOpt(string in_key, GroupEntity *in_parent) {
+	if (in_parent == NULL)
+		in_parent = root;
+
+    map<string, vector<string> >::iterator cmitr = 
+		in_parent->value_map.find(StrLower(in_key));
+    // No such key
+    if (cmitr == in_parent->value_map.end())
+        return "";
+
+    // Get a single key if we can
+    if (cmitr->second.size() == 0)
+        return "";
+
+    string val = cmitr->second[0];
+
+    return val;
+}
+
+vector<string> GroupConfigFile::FetchOptVec(string in_key, GroupEntity *in_parent) {
+    // Empty vec to return
+    vector<string> eretvec;
+
+	if (in_parent == NULL)
+		in_parent = root;
+
+    map<string, vector<string> >::iterator cmitr = 
+		in_parent->value_map.find(StrLower(in_key));
+    // No such key
+    if (cmitr == in_parent->value_map.end())
+        return eretvec;
+
+    return cmitr->second;
+}
+
+vector<GroupConfigFile::GroupEntity *> GroupConfigFile::FetchEntityGroup(GroupEntity *in_parent) {
+	map<GroupEntity *, vector<GroupEntity *> >::iterator itr;
+	if (in_parent == NULL)
+		itr = parsed_group_map.find(root);
+	else
+		itr = parsed_group_map.find(in_parent);
+
+	if (itr == parsed_group_map.end()) {
+		vector<GroupEntity *> ret;
+		return ret;
+	}
+
+	return itr->second;
+}
+
+uint32_t GroupConfigFile::FetchFileChecksum() {
+	if (checksum == 0)
+		CalculateChecksum();
+
+	return checksum;
+}
+
+void GroupConfigFile::CalculateChecksum() {
+	string cks;
+
+	map<GroupEntity *, vector<GroupEntity *> >::iterator x;
+	for (x = parsed_group_map.begin(); x != parsed_group_map.end(); ++x) {
+		for (unsigned int y = 0; y < x->second.size(); y++) {
+			cks += x->second[y]->name;
+			for (map<string, vector<string> >::iterator z = 
+				 x->second[y]->value_map.begin(); z != x->second[y]->value_map.end();
+				 ++z) {
+				cks += z->first;
+				for (unsigned int zz = 0; zz < z->second.size(); zz++) {
+					cks += z->second[zz];
+				}
+			}
+		}
+	}
+
+	checksum = Adler32Checksum(cks.c_str(), cks.length());
+}
+
 

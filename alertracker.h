@@ -29,8 +29,53 @@
 #include <algorithm>
 #include <string>
 
-#include "tcpserver.h"
-#include "server_protocols.h"
+#include "globalregistry.h"
+#include "messagebus.h"
+#include "packetchain.h"
+#include "timetracker.h"
+#include "kis_netframe.h"
+
+class kis_alert_info : public packet_component {
+public:
+	kis_alert_info() {
+		tm.tv_sec = 0;
+		tm.tv_usec = 0;
+		channel = 0;
+
+		// We do NOT self-destruct because we get cached in the alertracker
+		// for playbacks.  It's responsible for discarding us
+		self_destruct = 0;
+	}
+
+	string header;
+	struct timeval tm;
+	mac_addr bssid;
+	mac_addr source;
+	mac_addr dest;
+	mac_addr other;
+	int channel;
+	string text;
+};
+
+class kis_alert_component : public packet_component {
+public:
+	kis_alert_component() {
+		// We can self destruct because we won't clear out the vector
+		// of actual alert info
+		self_destruct = 1;
+	}
+
+	vector<kis_alert_info *> alert_vec;
+};
+
+enum ALERT_fields {
+    ALERT_sec, ALERT_usec, ALERT_header, ALERT_bssid, ALERT_source,
+    ALERT_dest, ALERT_other, ALERT_channel, ALERT_text,
+	ALERT_maxfield
+};
+
+int Protocol_ALERT(PROTO_PARMS); // kis_alert_info
+void Protocol_ALERT_enable(PROTO_ENABLE_PARMS);
 
 static const int alert_time_unit_conv[] = {
     1, 60, 3600, 86400
@@ -66,15 +111,19 @@ public:
 		time_t time_last;
     };
 
-    Alertracker();
-    ~Alertracker();
+	// Simple struct from reading config lines
+	struct alert_conf_rec {
+		string header;
+        alert_time_unit limit_unit;
+        int limit_rate;
+		alert_time_unit burst_unit;
+        int limit_burst;
+	};
 
-    // Tell us where to send packets
-    void AddTcpServer(TcpServer *in_server);
-    // Tell us the protocol ref
-    void AddAlertProtoRef(int in_ref);
-    // Set the alert backlog
-    void SetAlertBacklog(int in_backlog);
+
+    Alertracker();
+    Alertracker(GlobalRegistry *in_globalreg);
+    ~Alertracker();
 
     // Register an alert and get an alert reference number back.
     int RegisterAlert(const char *in_header, alert_time_unit in_unit, int in_rate,
@@ -86,29 +135,48 @@ public:
     // Will an alert succeed?
     int PotentialAlert(int in_ref);
 
-    // Raise an alert
-    int RaiseAlert(int in_ref, 
+    // Raise an alert ...
+    int RaiseAlert(int in_ref, kis_packet *in_pack,
                    mac_addr bssid, mac_addr source, mac_addr dest, mac_addr other,
                    int in_channel, string in_text);
 
     // Send backlogged alerts
     void BlitBacklogged(int in_fd);
 
+	// Load an alert reference from a config file (not tied only to the
+	// kismet conf in globalreg)
+	int ParseAlertStr(string alert_str, string *ret_name, 
+					  alert_time_unit *ret_limit_unit, int *ret_limit_rate,
+					  alert_time_unit *ret_limit_burst, int *ret_burst_rate);
+
+	// Load alert rates from a config file...  Called on kismet_config by
+	// default
+	int ParseAlertConfig(ConfigFile *in_conf);
+
+	// Activate a preconfigured alert from a file
+	int ActivateConfiguredAlert(const char *in_header);
+
+	const vector<kis_alert_info *> *FetchBacklog();
+
 protected:
     // Check and age times
     int CheckTimes(alert_rec *arec);
 
-    TcpServer *server;
-    int protoref;
+	// Parse a foo/bar rate/unit option
+	int ParseRateUnit(string in_ru, alert_time_unit *ret_unit, int *ret_rate);
+
+    GlobalRegistry *globalreg;
 
     int next_alert_id;
 
     map<string, int> alert_name_map;
     map<int, alert_rec *> alert_ref_map;
 
-    unsigned int max_backlog;
-    vector<ALERT_data *> alert_backlog;
+	vector<kis_alert_info *> alert_backlog;
 
+    int num_backlog;
+
+	map<string, alert_conf_rec *> alert_conf_map;
 };
 
 #endif

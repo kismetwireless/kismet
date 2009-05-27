@@ -16,21 +16,16 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#define __STDC_FORMAT_MACROS
 #include "config.h"
 
 #include "finitestate.h"
 #include "packetracker.h"
 #include "util.h"
 
-ProbeNoJoinAutomata::ProbeNoJoinAutomata(Packetracker *in_ptracker, 
-										 Alertracker *in_atracker,
-                                         alert_time_unit in_unit, int in_rate, 
-										 alert_time_unit in_bunit, int in_burstrate) {
-    atracker = in_atracker;
-    ptracker = in_ptracker;
-    alertid = atracker->RegisterAlert("PROBENOJOIN", in_unit, in_rate, 
-									  in_bunit, in_burstrate);
+ProbeNoJoinAutomata::ProbeNoJoinAutomata(GlobalRegistry *in_globalreg,
+                                         alert_time_unit in_unit, int in_rate, int in_burstrate) {
+    globalreg = in_globalreg;
+    alertid = globalreg->alertracker->RegisterAlert("PROBENOJOIN", in_unit, in_rate, in_burstrate);
 }
 
 ProbeNoJoinAutomata::~ProbeNoJoinAutomata() {
@@ -74,7 +69,7 @@ int ProbeNoJoinAutomata::ProcessPacket(const packet_info *in_info) {
                 char atext[STATUS_MAX];
                 snprintf(atext, STATUS_MAX, "Suspicious client %s - probing networks but never participating.",
                          iter->first.Mac2String().c_str());
-                atracker->RaiseAlert(alertid, 0, iter->first, 0, 0, in_info->channel, atext);
+                globalreg->alertracker->RaiseAlert(alertid, 0, iter->first, 0, 0, in_info->channel, atext);
             }
 
         }
@@ -103,15 +98,10 @@ int ProbeNoJoinAutomata::ProcessPacket(const packet_info *in_info) {
     return 0;
 }
 
-DisassocTrafficAutomata::DisassocTrafficAutomata(Packetracker *in_ptracker, 
-												 Alertracker *in_atracker,
-												 alert_time_unit in_unit, int in_rate,
-												 alert_time_unit in_bunit, 
-												 int in_burstrate) {
-    atracker = in_atracker;
-    ptracker = in_ptracker;
-    alertid = atracker->RegisterAlert("DISASSOCTRAFFIC", in_unit, in_rate, 
-									  in_bunit, in_burstrate);
+DisassocTrafficAutomata::DisassocTrafficAutomata(GlobalRegistry *in_globalreg,
+                        alert_time_unit in_unit, int in_rate, int in_burstrate) {
+    globalreg = in_globalreg;
+    alertid = globalreg->alertracker->RegisterAlert("DISASSOCTRAFFIC", in_unit, in_rate, in_burstrate);
 }
 
 DisassocTrafficAutomata::~DisassocTrafficAutomata() {
@@ -166,12 +156,12 @@ int DisassocTrafficAutomata::ProcessPacket(const packet_info *in_info) {
 
             snprintf(atext, STATUS_MAX, "Suspicious traffic on %s.  Data traffic within 10 seconds of disassociate.",
                      in_info->source_mac.Mac2String().c_str());
-            atracker->RaiseAlert(alertid, in_info->bssid_mac, in_info->source_mac, 
-                                 0, 0, in_info->channel, atext);
+            globalreg->alertracker->RaiseAlert(alertid, in_info->bssid_mac, in_info->source_mac, 
+                                               0, 0, in_info->channel, atext);
 
             return 1;
         } else {
-            delete iter->second;
+            delete[] iter->second;
             source_map.erase(iter);
         }
 
@@ -180,15 +170,10 @@ int DisassocTrafficAutomata::ProcessPacket(const packet_info *in_info) {
     return 0;
 }
 
-BssTimestampAutomata::BssTimestampAutomata(Packetracker *in_ptracker, 
-										   Alertracker *in_atracker,
-										   alert_time_unit in_unit, int in_rate, 
-										   alert_time_unit in_bunit, 
-										   int in_burstrate) {
-    atracker = in_atracker;
-    ptracker = in_ptracker;
-    alertid = atracker->RegisterAlert("BSSTIMESTAMP", in_unit, in_rate, 
-									  in_bunit, in_burstrate);
+BssTimestampAutomata::BssTimestampAutomata(GlobalRegistry *in_globalreg,
+                        alert_time_unit in_unit, int in_rate, int in_burstrate) {
+    globalreg = in_globalreg;
+    alertid = globalreg->alertracker->RegisterAlert("BSSTIMESTAMP", in_unit, in_rate, in_burstrate);
 }
 
 BssTimestampAutomata::~BssTimestampAutomata() {
@@ -203,13 +188,11 @@ int BssTimestampAutomata::ProcessPacket(const packet_info *in_info) {
     char atext[1024];
 
     // Don't track BSS timestamp for non-beacon frames or for adhoc networks
-    if (in_info->type != packet_management || 
-		in_info->subtype != packet_sub_beacon || 
-		in_info->distrib == adhoc_distribution)
+    if (in_info->timestamp == 0 || in_info->type != packet_management || 
+        in_info->subtype != packet_sub_beacon || in_info->distrib == adhoc_distribution)
         return 0;
 
-    macmap<BssTimestampAutomata::_bs_fsa_element *>::iterator iter = 
-		bss_map.find(in_info->bssid_mac);
+    macmap<BssTimestampAutomata::_bs_fsa_element *>::iterator iter = bss_map.find(in_info->bssid_mac);
     if (iter == bss_map.end()) {
         elem = new _bs_fsa_element;
         elem->bss_timestamp = in_info->timestamp;
@@ -224,11 +207,10 @@ int BssTimestampAutomata::ProcessPacket(const packet_info *in_info) {
             // Generate an alert, we're getting a bunch of invalid timestamps
 
             snprintf(atext, STATUS_MAX, "Out-of-sequence BSS timestamp on %s "
-                     "- got %"PRIx64", expected %"PRIx64" - this could indicate AP spoofing",
+                     "- got %llx, expected %llx - this could indicate AP spoofing",
                      in_info->bssid_mac.Mac2String().c_str(), in_info->timestamp,
                      elem->bss_timestamp);
-            atracker->RaiseAlert(alertid, in_info->bssid_mac, 0, 0, 0, 
-								 in_info->channel, atext);
+            globalreg->alertracker->RaiseAlert(alertid, in_info->bssid_mac, 0, 0, 0, in_info->channel, atext);
 
             // Reset so we don't keep thrashing here
             elem->counter = 0;
@@ -248,15 +230,10 @@ int BssTimestampAutomata::ProcessPacket(const packet_info *in_info) {
     return 0;
 }
 
-WepRebroadcastAutomata::WepRebroadcastAutomata(Packetracker *in_ptracker, 
-											   Alertracker *in_atracker,
-                                               alert_time_unit in_unit, int in_rate, 
-											   alert_time_unit in_bunit,
-											   int in_burstrate) {
-    atracker = in_atracker;
-    ptracker = in_ptracker;
-    alertid = atracker->RegisterAlert("WEPREBROADCAST", in_unit, in_rate, 
-									  in_bunit, in_burstrate);
+WepRebroadcastAutomata::WepRebroadcastAutomata(GlobalRegistry *in_globalreg,
+                                               alert_time_unit in_unit, int in_rate, int in_burstrate) {
+    globalreg = in_globalreg;
+    alertid = globalreg->alertracker->RegisterAlert("WEPREBROADCAST", in_unit, in_rate, in_burstrate);
 }
 
 WepRebroadcastAutomata::~WepRebroadcastAutomata() {

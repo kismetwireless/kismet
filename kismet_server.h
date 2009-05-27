@@ -25,12 +25,11 @@
 #include <string>
 
 #include "tcpserver.h"
-#include "tracktypes.h"
+#include "netracker.h"
 
 void WriteDatafiles(int in_shutdown);
 void CatchShutdown(int sig);
 int Usage(char *argv);
-void handle_command(TcpServer *tcps, client_command *cc);
 int NetWriteStatus(const char *in_status);
 void NetWriteInfo();
 int SayText(string in_text);

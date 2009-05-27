@@ -1,1064 +1,401 @@
-May 29 2009 2009-05 Release
-                    Added Intel sources
-                    Added rt2680 sources
-                    Tweaked GPSD handling
-                    Tweaked BSD DLT setting
-                    Added Ath9k
+REMEMBER:  I don't always update the changelog for newcore, check the SVN
+log for current progress
 
-                    ** This is now the Kismet-Old branch and is deprecated, all 
-                    development takes place in the new Kismet branch, formerly
-                    Kismet-Newcore **
-
-Jun 23 2008  devel  Merged patches from Enrico Scholz / Fedora to fix compile 
-                     warnings on typedef, string const, XML sizes in printf
-                    Merged patch from Kili to fix some of the gpsmap IM stuff
-Jun 20 2008  devel  Flag packets > 802.11 MTU as errors in the early-stage capture
-                    Fix segv in wrapper script shutdown due to odd file closure
-                     pattern
-                    Merge antijitter into W=1 for buggy gpsd
-                    Fix wrt54g channel set
-Jun 19 2008  devel  Escape escape character in mungeprintable and escape ; as octal
-                     in CSV (as per Fidge)
-
-May 29 2008 2008-05 Release
-                     wrt54 fixes
-                     Multiple Darwin fixes
-                     GPS rewrite and fixes
-                     Nokia tweaks
-                     Imagemagick fixes
-
-May 19 2008  devel  More wrt54 prism0 hacks
-May 15 2008  devel  Tweaked the wrt54 stuff more (where does prism0 come from?)
-May 14 2008  devel  Tweaked wrt54 source
-May 12 2008  devel  Added configure patch for OSX and debian control files
-                     from Evan Broder
-                    Fixed imagemagick detect on modern IM installs
-May 09 2008  devel  Added gpsmap patches from Kripton to support open street maps
-Apr 09 2008  devel  Added DLT80211 and DLT80211_AVS to the linktype setting
-                     code on Darwin, BSD
-                    Added 'kismet' wrapper binary, conf files to clean/distclean
-Apr 08 2008  devel  Fixed assorted messages being printed in quiet mode
-Mar 25 2008  devel  Added additional warnings/info for madwifi-ng about
-                     autocreate=none when other vaps are found.
-Mar 19 2008  devel  Removed wlancond/power setting on Maemo/Nokia since it
-                     doesn't seem to reliably help
-Mar 16 2008  devel  Merged patches from Alexandre Balavas to clean up warnings
-                     on CentOS
-Mar 02 2008  devel  Re-ordered headers in panelfront_display to prevent weird
-                     compiler issue on Darwin
-Feb 24 2008  devel  Fixed gpsd speed issue on water mode, thanks again to
-                     Antonio
-Feb 12 2008  devel  Fixed segv on gps=false introduced in recent gps rewrite
-                     (thanks Antonio Eugenio Burriel for patch)
-                    Added rt61 and rt8187 source names
-Feb 06 2008  devel  Fixed segv on OSX in client on closedir
-Jan 30 2008  devel  Revamped GPS to use 'watch' mode in GPSD
-                    Revamped GPS again to work with watch better and to 
-                     dynamically use poll mode on older GPSD implementations
-                    Revamped GPS a third time in the same day to take the
-                     seemingly broken Maemo GPSD into account and use R=1
-                     debug mode on Maemo devices
-Jan 29 2008  devel  Added Hildon GPS support
-                    Fixed huge bug in IE tag parsing that ignored large
-                     beacon frames, thanks to Duane Compton
-Jan 26 2008  devel  Disabled probenojoin by default in config, it's sort of a
-                     useless alert which makes a lot of noise.
-                    More capture source control changes to try to solve
-                     problems capturing reliably on Nokia 8x0 devices
-Dec 19 2007  devel  Nokia-specific changes
-Dec 17 2007  devel  Added kernel version detection for Darwin to accept enX
-                     on >= Leopard, VERY NEW LIBPCAP required.
-Dec 15 2007  devel  Fixed admtek fatal error on ssid zero (errors now ignored)
-Dec 11 2007  devel  Fixed a problem where the first connection to the server
-                     would be ignored.
-Dec 10 2007  devel  Merged a patchset from Pavol Rusnak and SUSE including
-                     some ncurses cleanups, format string quirks with size_t,
-                     and header massaging
-Nov 20 2007  devel  Fixed 'make install' and 'make suidinstall' not dep'ing
-                     'kismet' binary
-Nov 06 2007  devel  Added --disable-dbus to configure for environments
-                     which don't detect properly
-Oct 06 2007 2007-10 Long time in coming, Kismet-2007-10-R1
-                     Basic 802.11N support (IE tag parsing)
-                     Airpcap 11n header support (PPI)
-                     DBUS support for controlling NetworkManager
-                     Significant memory reduction in server/client
-                     Significantly faster client code
-                     D80211 device support (iwl, others)
-                     Darwin (OSX) native support
-                     Revamped madwifi-ng support
-                     GPSD anti-jitter handling
-                     Innumerable bug fixes (encryption detection, device
-                     handling, client crashes, etc)
-
-                     There have been many options added to the config file,
-                     be sure to update your configs!
-Oct 06 2007  devel  Added trackiv option (set to false) to turn on IV tracking
-                     (previous default behavior)
-                    Added kismet-watchdog script in extra/ from JeanII
-                    Fixed radiotap detection on netbsd
-Oct 04 2007  devel  Added 11n IE tag decoding and display
-Sep 28 2007  devel  Added DBUS support for controlling networkmanager
-                    Added ath5k support
-Sep 27 2007  devel  Started moving struct elements to dynamic allocation
-                     vs. static maps
-Sep 24 2007  devel  Added support for Cace PPI DLT
-Sep 20 2007  devel  Enabled channel hopping on wrt54g source - Packagers, you
-                     should probably turn OFF channel hopping by default in
-                     the packaged config files on wrt54 platforms.
-Sep 16 2007  devel  Added tracking of send-to clients which are inferred from
-                     data destined TO them with no data FROM them.  Only
-                     the last modified time is tracked on these clients.
-Sep 15 2007  devel  Added anti-jitter to gpsd handler to compensate for current
-                     gpsd implementations toggling 2d/3d
-Sep 01 2007  devel  Merged 2 more patches from Jean to add network expiration
-                     and memory limiting for very small-resource platforms.
-Aug 28 2007  devel  Merged patch from Jean Tourrilhes to change how logging
-                     handles temp files
-Aug 24 2007  devel  Added iwl4965 source
-                    Fixed bringing down interfaces during config tests
-Aug 18 2007  devel  Rewrote 'kismet' wrapper script to be a C program which
-                     properly handles stderr/stdout and queues error output
-                     for replay on exit, also handles timing on long-startup
-                     sources (like darwin warnings) properly
-Aug 18 2007  devel  Aliased b43/b43legacy for broadcom driver split
-Aug 13 2007  devel  Aliased iwl3945 for ipw3945
-Aug 03 2007  devel  Tweaks to Darwin source handling
-Jul 25 2007  devel  First pass at battery support for Darwin
-Jul 24 2007  devel  Backported WEP display from newcore to only show WEP if no
-                     expanded crypto options are available
-                    Fixed lurking bug where networks with WPA improperly got
-                     WEP40 set as well
-Jul 23 2007  devel  Added madwifi-ng support for Linux-2.4
-                    Added vap teardown code for madwifi-ng
-                    Updated README
-Jul 22 2007  devel  Revamped channel fetching system to use last ack'd set, rather
-                     than fetching live.  This should reduce the load by 4 or 5
-                     syscalls per packet, a good thing.  (And enable channel display
-                     on Darwin capture sources)
-                    Throttled channel control down to the rate at which it can 
-                     acknowledge that a set succeeded
-Jul 21 2007  devel  Added Darwin card type detection to properly use Broadcom cards
-                    Added Darwin channel control
-Jul 04 2007  devel  Added beginnings of Darwin support for OSX-Intel (atheros)
-May 30 2007  devel  Removed airpcap radiotap set since it results in
-                     non-deterministic behavior on some configurations
-Mar 07 2007  devel  Aliased rt73 source (same as rt2500)
-Feb 13 2007  devel  Fixed scrolling (again)
-                    Added ifconfig down to wext monitor mode for dscape
-Feb 10 2007  devel  Fixed long-standing bug in new network info in 
-                     kismet_client
-Feb 08 2007  devel  Fixed scrolling in kismet_client
-                    Fixed handling of bursty traffic in kismet_client
-                    Fixed gpsd parsing when lock forcing is used
-                    Merged patch from Alan Grow for RSSI and better signal
-                     plotting in kismet_client
-Feb 07 2007  devel  Fixed mis-detecting some networks as WEP
-                    Fixed not assigning crypt types from data frames
-                    Added TKIP and CCMP detection in data frames
-
-Jan 25 2007  *****  SVN ate its face off, bulk commit of previous patches from
-                    time of last SVN backup.  Sorry everyone.
-
-Jan 25 2007  devel  Fixed several minor errors including closing -1 fds
-Jan 25 2007  devel  Fixed gps file being left when gpsd not available
-Jan 24 2007  devel  Added significant optimization to manuf lookups
-                    Fixed manuf lookups in the client
-                    Reduced client memory requirements
-Jan 22 2007  devel  Added daemon mode on request
-Jan 17 2007  devel  Fixed compilation on  2.4.x linux kernels
-                    Merged patch from Kili fixing use of unsigned ints as
-                     fds (eliminates warnings and potentially bunk error
-                     messages)
-
-Jan 16 2007 2007-01 Minor patch to properly #ifdef around a linux source
-                    And again.
-
-Jan 15 2007 2007-01 Released Kismet-2007-01-R1
-                    Added multiple IDS alerts (invalid disconnect codes, WVE
-                     alerts, MSF driver exploits)
-                    Added Win32 native capture support with CACE Airpcap
-                    Improved BSD support & bugfixes
-                    Memory mismanagement crashes fixed
-                    Cleaner autoconf output
-                    Nokia770/800 support
-                    Removed embedded libpcap copy
-                    Updated ap_ and client_ manuf
-                    
-Jan 15 2007  devel  Tweaked IP handling
-                    Merged (and fixed)  openwrt patches (some of them)
-Jan 13 2007  devel  Added DISCONCODEINVALID and DEAUTHCODEINVALID alerts
-Jan 10 2007  devel  Added MSF dlink rate exploit alert
-                    Added MSF netgear large beacon exploit alert
-Jan 06 2007  devel  Fixed long-standing bug in autogrouping in the client
-                    Fixed network removal code double-touching a vector
-Jan 03 2007  devel  Updated README
-                    Added WVE references for alerts in README
-Jan 02 2007  devel  Added new IDS signatures for MSF Broadcom code exec and
-                     overlong SSID exploits
-                    Merged ap_ and client_ manuf updates from joe haldon posted
-                     to wifisec
-Dec 27 2006  devel  Merged README patches from Pedro
-                    Merged OpenBSD patches from Pedro to remove cisco_openbsd
-                     source (deprecated)
-Dec 12 2006  devel  Merged openbsd patches from Pedro
-Nov 30 2006  devel  Merged patch to treat radiotap as little-endian at all
-                     times.  I suspect this will break some platforms in
-                     the future and will address it later.
-Nov 17 2006  devel  Tweaked channel set to use mode fixed (Daniel Drake)
-Nov 11 2006  devel  Added proper support for AirPcap (CACEtech, win32)
-                    Added patch from Khorben for NetBSD battery reporting
-Oct 13 2006  devel  Tweaks for libwpcap oddities
-Sep 05 2006  devel  First shot at supporting the Cace AirPcap device (untested)
-                    Removed embedded libpcap finally.  If your distro doesn't
-                     have an updated libpcap by now, update it.
-                    Added configure support for airpcap tests
-                    Disabled setuid on cygwin in all cases
-                    Added smarter output for platform-specific tests
-Aug 28 2006  devel  First shot at support for the Nokia770 (FCS checking)
-                    Added source nokia770
-Jul 27 2006  devel  Merged patch from Rob Deker to handle QoS to some extent
-May 20 2006  devel  Merged gpsmap patch from rr to add european expedia maps
-Apr 25 2006  devel  Merged OpenBSD patches from Matthias Kilian:
-                     Detect stdc++ OpenBSD properly
-                     Fix possible overflow in expat handling
-                     Handle OpenBSD APM info
-                     Fix return values in packet source
-                    Merged various patches from Enrico:
-                     c++-ism casting in expat parsers
-                     Honor return values in several cases from syscalls
-                     Move compiler attributes
-                     Fix my stupidity in string handlers in some places
-                     Fix buffers to be more efficient
-                     Fix an initialization in macaddr structs
-Apr 12 2006  devel  Added --retain-monitor cmdline option on request
-Mar 31 2006  devel  Added setting madwifi-ng to radiotap mode
-                    Fixed several crashes due to not checking noise/junk
-                     packet params
-Mar 30 2006  devel  Added zd1211 capture source (with warnings)
-                    Fixed madwifi-ng fcs bytes
-                    Fixed madwifi-ng not shutting down rfmon vap
-Mar 29 2006  devel  Fixed madwifi_ag with madwifi-ng drivers
-Mar 28 2006  devel  Moved ipw3945parasite to ipwlivetap
-                    Moved madwifing support into madwifi standard as an
-                     auto-detect
-                    Lots of little tweaks to handle moving sources
-Mar 19 2006  devel  Added the initial ipw3945 support.  You'll need a current
-                     (read: latest) ipw3945 driver.  If it doesn't work,
-                     let me know.  There are no doc entries for this until
-                     I get it officially tested.
-Mar 15 2006  devel  Switched ACX100 capture to not expect the FCS bytes.
-                    Remember, kismet devel is happening in the newcore
-                     branch now.  It's not dead. :)
-Jan 09 2006  devel  Added memset 0 to gpsd code to explicity zero the gps data
-                     buffer on startup
-Dec 11 2005  devel  Added a fix to ringbuf from Shane Schisler
-                    Added extremely experimental support for broadcom 43xx
-                     devices (yes, you read right, broadcom.  Look at the 
-                     README file.)
-                    Changed prism2 header conversion to ignore a broken length
-                     field in the header.  Recent versions of madwifi-ng return
-                     a garbage length value (brokenly!).  Basic madwifi-ng
-                     support restored for now, still very experimental.
-Nov 08 2005  devel  Added madwifi-ng support
-Nov 02 2005  devel  Fixed off-by-one in packet.cc for terminating null in
-                     netbios string, missing format element in gpsmap
-                     error (thanks, David)
-Oct 17 2005  devel  All the new development is in newcore, for people who 
-                     haven't noticed that yet.
-                    Minor updates:
-                     Fixed SSID being trimmed sometimes in network protocol
-                     Fixed SSID munging more
-Aug 15 2005 2005-08 Released 2005-08-R1.  This fixes several potential security
-                     problems.  ALL USERS SHOULD UPGRADE.
-Aug 15 2005  devel  Merged patch from JD Shmidt to add a toggle for gpsdrive
-                     waypoint logging
-                    Merged patch from Sven-Ola Tuecke to add the BSS timestamp
-                     to the panels display
-Aug 08 2005  devel  Removed ethereal checking from configure script, too lazy
-                     to remove the source this close to newcore working
-                    Changed tests for using wireless.h from system headers
-                     for some vendor kernels
-Aug 07 2005  devel  Fixed new network announcement text thinking a network
-                     was always unencrypted
-                    Tweaked munging to be more efficient
-Aug 06 2005  devel  Fixed SSID handling for SSIDs with non-zero lengths but
-                     no SSID data (cisco cloaking for one) disagreeing with
-                     the new SSID munger code
-Aug 04 2005  devel  Added more bounds checking to packet dissectors and protocol
-                     dissectors
-Aug 03 2005  devel  Fixed an integer overflow in the CDP protocol processor that
-                     at the least could lead to a crash and maybe worse.  Thanks
-                     to Stefan Esser @ hardenedphp for pointing this one out.
-                    Fixed CDP for CDPv2
-                    Fixed one-off on DHCP protocol parsing (non-security-related)
-                    Added some checks for prism2 protocol lengths and offsets
-                     (should be non-exploitable since they only come from
-                      kernel space but a good idea to clean anyhow)
-Aug 02 2005  devel  Tweaked configure sockaddr_t testing to handle gcc4 being
-                     bitchy about initialization
-                    Ifdef'd the wrt54 source to compile when extensions are
-                     are missing and blat out a reasonable warning
-                    Fixed REALLY stupid error I made myself yesterday -- if you
-                     got yesterdays SVN, update it.
-                    Made some changes to how some packets are processed.  No idea
-                     if this was a real problem but it was wonky code.
-Aug 01 2005  devel  After hearing about a presentation criticizing handling of
-                     unprintable characters in the SSID, modified how SSIDs
-                     are munged to printable to make non-standard charachters
-                     represented by \OCT (see man ascii)
-                    Tweaked new munger code to handle ' ' better (ttuttle)
-Jul 25 2005 2005-07 Released 2005-07-R1a source.  These are minor changes to 
-                     fix a last-minute BSD compilation problem, anyone not on
-                     BSD doesn't need to worry about it and there will not be
-                     new binary packages.
-Jul 24 2005 2005-07 Released 2005-07-R1.  This is mostly a bugfix and minor
-                     feature enhancement release.  Fixes and additions include:
-                     - Linux Radiotap support
-                     - Wrt54g support on openwrt and (likely) ddwrt
-                     - Radiotap _DBM_x support
-                     - Full WPA/WPA2 detection for WEP40, WEP104, TKIP, PSK,
-                       AES-OCB, AES-CCM, WPA, and WPA2
-                     - Fixes to compilation under some compilers
-                     - Segfault fixes to kismet_client
-                     - OpenBSD fixes and configuration updates
-Jul 21 2005  devel  Fixed rendering negative signal levels in kismet_client to
-                     reflect actual strength properly
-                    Changed wrt54g source to try to fall back to 'wl monitor' if
-                     the ioctls don't seem to be available
-                    Tweaked best signal handling to deal with negatives better
-Jul 20 2005  devel  Added Radiotap DBM_x field support
-Jul 19 2005  devel  Moved radiotap support to work on Linux as well, to coincide
-                     with my ieee80211/ipw2200 patches to bring radiotap over.
-                     A bit of a kluge, but sufficient for now.
-Jul 08 2005  devel  Merged stage1 of patches from Pedro for configure to allow
-                     disabling all gpsmap tests and compilation
-                    Removed HAVE_GPS ifdefs from the code, since the option
-                     was no longer supported and removing the def caused
-                     compile time errors
-Jun 30 2005  devel  Merged OpenBSD config patches and RADIOTAP_F_FCS patches
-                     from Pedro
-Jun 28 2005  devel  Fixed WPA reporting when the first packet isn't WPA
-                    Added WPA2-AES detection
-                    Rewrote WPA detection to do full WPA header decoding
-                    Added WEP40, WEP104, TKIP, PSK, AES-OCB and AES-CCM
-                     detection
-                    Fixed gcc-3.4.x compilation
-                    Tweaked client for slightly better performance
-                    Fixed issue where re-grouping an auto-group led to 
-                     Bad Things in the client
-                    Rewrote chunks of group management code, possibly resolving
-                     lurking segfault in client
-Jun 25 2005  devel  Added support for new wrt54g revisions/firmwares that use
-                     prism0 for monitor data.  Set your capture type to
-                     wrt54g,eth1:prism0,foo
-Jun 21 2005 2005-06 Released 2005-06-R1.  Major code improvements and bugfixes,
-                     including:
-                     OpenBSD radiotap support
-                     New gpsd interface code
-                     Segfault fixes
-                     IPW2200 Linux support
-                     IPW2915 Linux support
-                     Client updates (follow mode, segfaults, packet rate, 
-                                     speed increases)
-                     Fixed WPA detection
-                     Cygwin fixes
-                     IP detection rewrite and fixes
-                     Reduced binary size by 100k for server/drone
-                     Flite speech support
-                     Drone GPS fixes
-                     Autoconf fixes on RH and other distros
-                     RT8180 Linux support
-                     GPSMap speedups
-                     GPSMap deprecation of broken sources
-                     Various packet dissection fixes
-                     Lots of other updates and bugfixes.
-Jun 21 2005  devel  Merged patches from Pedro for OpenBSD ralink, prism2, and
-                     readme
-                    Deprecated broken gpsmap sources and set default to blank
-                    Added "--disable-optimization" flag to turn off -Ox
-Jun 20 2005  devel  Fixed condition where gps mode wasn't updated 
-                    Updated to libpcap 0.9.1-kis
-                    Patched libpcap to not include filtering code.  Kismet
-                     doesn't use it, and its 100k of binary we can drop
-Jun 19 2005  devel  Added more wireless vendors to the manuf map
-Jun 18 2005  devel  Updated AP manuf/defaults info
-                    Rewrote GPSD handling to be more like newcore, to correctly
-                     handle error conditions with ESRs new GPSD code
-                    Rewrote distance and heading code to (hopefully) clear
-                     up some bugs
-                    Fixed 'follow gps' in client (broken in -devel only)
-                    Fixed 'follow network' heading calculations in client
-                    Fixed range to only show 3 significant digits in client
-Jun 13 2005  devel  Fixed a pile of little broken parts of code thanks to a
-                     pass through a static code analyser
-Jun 11 2005  devel  Fixed compile error on wsp100 capture type, but I suspect
-                     the capture source has other problems still.
-                    Updated README, added some FAQs in the silly hope someone
-                     will read them.
-                    Fixed minor linewrap issues in display
-                    Fixed minor rate graph issue where it overflowed the box,
-                     still sometimes looks too small
-Jun 09 2005  devel  Fixed stupid error introduced last night in new prism2 code
-                    Merged patch from Pedro for fbsd compat
-                    Changed net/cli info 'WEP' to 'Privacy'
-                    Added ad-hoc autogrouping to kismet_client
-Jun 08 2005  devel  Tweaked prism2 pcap header length handling for extra safety
-                    Tweaked configure to error out on socklen_t properly on
-                     cygwin
-Jun 05 2005  devel  Fixed segfault on some conditions in kismet_client
-                     group management code
-                    Fixed segfaults in tcpclient code and corrupted protocol
-                     lines (non-exploitable)
-                    Added W(O) documentation to client help
-Jun 03 2005  devel  Minor code format changes, possible fd-exhaustion bug on 
-                     OpenBSD fixed
-Jun 02 2005  devel  Removed theoretical loophole in bss-timestamp finitestate
-Jun 01 2005  devel  README changes
-May 31 2005  devel  Fixed segfault condition in kismet_client caused by the 
-                     "powerbar" column or "Signal Levels" window and funny
-                     signal levels
-                    Added "netfuzzycrypt" option, defaulted to true.  This uses
-                     the network classifier to force a fuzzy encryption on
-                     unencrypted data frames classified as part of an encrypted
-                     network.
-                    More fixes to IP handling -- client aggregation works
-                     better now when finding a network IP
-                    Fixed sigfpu/channel sets for real
-May 30 2005  devel  Added 'flite' config parameter for 'festival lite', if
-                     using flite instead of festival, set it to true
-                    Fixed client signal/noise levels in kismet_client
-May 27 2005  devel  Merged README updates and OpenBSD updates from Pedro
-                    Merged OpenBSD channel display from pedro
-                    Added ipw2915 packet source for centrinto a/g cards.
-                     Same as the 2200, just has the default channels set to 
-                     include 11a.
-                    Fixed sigfpu failure if the default channel sets are
-                     missing
-                    Added OpenBSD workaround for atheros FCS bytes
-May 26 2005  devel  Moved to drone protocol 9.  Drone GPS status is now carried
-                     in the version packet.  If GPS is enabled on the drone,
-                     it will be used for coordinates, if it is not, the server GPS
-                     will be used.
-                    Updated README and some error messages
-                    Took default carrier type out of packet reporting since it
-                     could give bad info
-                    Fixed several segfaults in kismet_client caused by groups
-                     or networks being auto-deleted (like probe_networks being 
-                     merged)
-                    Sped up kismet_client a fair bit (only recalculate groups
-                     when we need to)
-                    Merged burst-rate-unit alert support from newcore-devel.
-                     You can now set a timeunit for burstrates of alerts, ie
-                     10/min burst of 1/sec.
-                    Reverted UpdateNetworks() in panelfront so that it would
-                     update idle dieoff correctly again
-                    Fixed minor bug in pcapsource avs parsing
-May 25 2005  devel  Configure changes for openbsd (pedro)
-                    Tweaked cisci_wifix error message
-                    Introduced a slight delay into the channel control process
-                     for ipw2200 to prevent channel sets immediately on top of
-                     one another causing the card to stop seeing packets.
-May 24 2005  devel  Fixed configure on RH and other distros that modify it so
-                     you can't use kernel headers
-                    Copied latest automake config.sub and config.guess
-                    Merged set of updates from Pedro to handle Open/Net BSD
-                     capture devices (Yup, OpenBSD 3.7 support)
-May 21 2005  devel  Fixed panels client displaying garbage data for battery
-                     percentage while charging
-May 20 2005  devel  Fixed up WPA more to handle multiple tag 221 instances
-May 19 2005  devel  Changed WPA detection to use more of the tagged parm to
-                     determine the encryption, should prevent false positives
-                     on "capable but not enabled" APs
-                    Fixed some relatively small memory leaks
-May 18 2005  devel  Backed out my BROKEN ipw2200 sw_reset and followed James' 
-                     advice to set the channel to 0 to restore scanning mode.
-                     ipw2200 appears to come out of monitor mode cleanly now.
-                    Fixed FloatChan2Int not handling absolute channels from the
-                     driver layer.  I thought I'd merged a patch from someone to
-                     do just this, but...
-                    Dropped packet counter no longer includes phy frames
-May 17 2005  devel  Added ipw2200 support with temporary sw_reset support to try
-                     to come out of monitor mode.  You'll need the 1.0.4 drivers
-                     and new firmware, and you can force a reset of the card by
-                     reloading the drivers
-                    Added ipw2200 to fuzzy crypt list
-                    Tweaked IP detection to not attempt to process IPs for any
-                     packet associated with an encrypted network
-May 15 2005  devel  Added auth frames to the probe network classifier (auth to
-                     unknown network creates a probe net, auth to known network
-                     acts normally)
-May 06 2005  devel  Fixed another glaring inefficiency in gpsmap, providing an
-                     order of magnitude speed boost to interpolated power calcs.
-May 05 2005  devel  Fixed a bunch of ops that didn't need to be done in inverse
-                     weighting in gpsmap   
-Apr 18 2005  devel  Changed WPA detection to only trigger when the WEP flag is also
-                     set.  APs advertise WPA capability even when encryption isn't
-                     turned on, it seems reasonable to cloak that if it isn't 
-                     actually being used.
-                    Tentatively changed docs to call rt2x00 'ralink' instead of
-                     'realtek', though I still haven't seen anything to prove it
-                     one way or the other.
-                    Tweaked gpsmap to handle WPA w/ no WEP as non-wep (plotting
-                     data the same as its handled in -devel now)
-Apr 09 2005  devel  Added RT8180 capture support
-Apr 02 2005 2005-04 Released 2005-04-R1.  Primarily a bugfix release, but with
-                     some new features, including:
-                     GPSD reconnection fixes
-                     LEAP/TKIP/EAP/WPA/PPTP detection
-                     Better momentary card failure handling on channel control
-                     Various compile-time issues with ImageMagick APIs
-                     String handling cleanup
-                     Major fixes to IP guessing
-                     rt2x00 support
-                     Interface binding
-Mar 30 2005  devel  Fixed another case of bad IP discovery
-Mar 23 2005  devel  Fixed xml parsing error in expat.cc and new encryption
-                     fields.  You'll want to purge your old cache files.
-Mar 22 2005  devel  Changed IP detection algorithms to ignore TCP and UDP frames
-                     sourced from the AP.  This should avoid most of the IP detection
-                     problems caused by AP/routers which source remote IP data
-                     from the local MAC.
-Mar 21 2005  devel  Added "consecutive failure" support to card channel control.
-                     For drivers with intermittent failure changing channel,
-                     this will delay Kismet exiting until 5 failures in a row
-                     occur.
-Mar 15 2005  devel  Merged patch from Josh Wright to add PPTP detection of some L3
-                     VPNs.  This slightly breaks old-client compatability in that a
-                     L3 VPN network will show up as WEP in old clients.
-Mar 13 2005  devel  Reverted crypt_set to push out 'wep' protocol field for 
-                     backwards compatability.  Same data, old field name.
-Mar 10 2005  devel  Merged long-delayed patch from Josh Wright to add detection
-                     for LEAP, TLS, TTLS, PEAP, and ISAKMP exchanges in networks.
-                    Expanded "wep" attribute to "cryptset".  WEP is still reported
-                     when a network uses encryption (WEP/Privacy bit is set), and
-                     network details show the encryption options.  Networks with
-                     extra encryption are listed as 'O'ther in the client.
-                    Expanded XML, ascii, csv logs
-                    Added/fixed client WEP fields
-                    Fixed bug that caused some removed networks to not be sent for
-                     removal if the times collided
-                    Added very basic WPA detection and reporting
-Mar 07 2005  devel  Merged patch from Chris Kuethe cleaning up some possible
-                     over-by-one string parsing and to remove two warnings.
-Feb 08 2005  devel  Merged patch from Mindfab to potentially resolve some of the
-                     problems with gpsd reconnecting.  Untested at the moment
-                     since I don't have my GPS handy.
-Feb 06 2005  devel  Merged patch from Delicious Nougat to handle binding only
-                     to the specified address for TCP servers, vs. INADDR_ANY.
-                    Currently left in the config to bind to localhost only,
-                     I've not yet decided if this will be the default for the
-                     next release or if the default will be ANY.
-Feb 03 2005  devel  Added support for the rt2x00 11b and 11g cards for the
-                     drivers to be released shortly
-Jan 26 2005  devel  Added typedef for MagickBooleanType on old IM libs
-Jan 17 2005  devel  Updated ipkg spec
-                    Changed configure to accept --with-linuxheaders for 
-                     cross-compiling with a different kernel header path
-                     than the current /lib/modules/...
-Jan 13 2005 2005-01 Released 2005-01-R1.  Not the major rewrite yet, sorry,
-                    pushed out for the CHIP magazine CD.  Minor bugfixes and 
-                    general updates:
-                     Fixed non-intel compilation bugs in previous release
-                     Fixed gcc version issues that crept into previous release
-                     Tweaked ipw2100 channel control to try to minimize driver 
-                      errors
-                     Tweaked signal/noise handlers to work with Madwifi again
-                     Added Atmel-USB support (rudimentary pseudo-rfmon)
-                     Tweaked configure scripts
-                     Fixed alpha blending elements of gpsmap images on new 
-                      image magick libs
-                     Fixed label positioning code in gpsmap
-                     Documentation and spelling errors fixed up
-Jan 13 2005  devel  Tweaked configure.in/configure to use $(...) instead of `...`
-                     to find the kernel headers since it seems to not always
-                     translate correctly (Andreas 'GlaDiaC' Schneider)
-Jan 11 2005  devel  Added card type 'atmel_usb' for the berlios.de atmel USB 
-                     drivers with pseudo-monitor support
-Jan 09 2005  devel  Minor tweak to signal/noise handlers to report the signal
-                     level if noise is equal to 0.  (This fixes behavior on
-                     madwifi drivers that report a signal and no noise)
-Jan 03 2005  devel  Merged documentation spelling patch from Andreas Mohr
-Jan 01 2005  devel  Merged gpsmap patch from Daniel Dorau to fix gpsmap alpha
-                     blending on imagemagick 6.x, label positioning bugs, and a
-                     cleaner text drawer for labels.
-Nov 16 2004  devel  Fixed compiler warning in iwconfig.cc
-                    Added microsleep delay to ipw2100 channel control function
-                     to try to alleviate driver errors
-Nov 15 2004  devel  Tweaked includes in ringbuf.h to handle stdint.h correctly
-Nov 04 2004  devel  Tweaked macaddr.h again to try to appease different gcc
-                     versions.
-Nov 01 2004  devel  Tweaked endian_magic and mac_addr - should compile
-                     cleanly on non-linux systems and on gcc 2.95 now.
-Oct 25 2004 2004-10 Released 2004-10-R1.  Major changes include:
-                     Some fixup to gpsd handling (More to come)
-                     GCC-3.4 cleanups
-                     BSS Timestamp alerts
-                     Centrino support (This has been in -devel forever)
-                     Support for GPL ADMTek drivers
-                     Support for alternate cisco drivers
-                     Imagemagick support for new imagemagick api changes
-                     Fixed some cygwin compiler errors
-                     Expanded alert protocol to carry additional info about the
-                      environment that generated the alert
-                     Fixed packet number and delta calculations, and sound 
-                      output for traffic seen
-                     Fixed crankiness with hostap if interface is down
-                     Added default "no-type" card to force new users to 
-                      configure
-                     Lots of other bug fixes
-                     Trimmed CHANGELOG file to only this year
-                     WSP100 is known to be broken in this release
-Oct 25 2004  devel  Fixed 2 errors on bigendian in "stable-devel"
-                    Fixed hanging socket on gpsd reconnect
-                    Fixed compile error on uclibc with rintf
-Sep 08 2004  devel  Fixed earthdistance math w/ info from ESR for network 
-                     distance guessing during live capture
-Sep 01 2004  devel  Split up packet.h into endian and macaddr files in prep
-                    Re-fixed friend class issue in macmap.h in gcc3.4
-Aug 15 2004  devel  Fixed log sync event to not start if logging is disabled
-                    Fixed BSS timestamp alerts to not trigger in adhoc networks
-Aug 14 2004  devel  Fixed util.cc on gcc 3.4
-Aug 13 2004  devel  Fixed error message for channel locking when in autofit 
-                     sort
-Aug 11 2004  devel  Fixed Run/ExecSysCmd functions in util
-Aug 09 2004  devel  Split ringbuffer and iwconfig stuff into their own files,
-                     cleaned up util.h
-                    Fixed 64 bit bugs re-introduced with new util.cc
-                    Tweaked string tokenizer for new TCP parsers
-                    Applied spelling patches from ESR
-                    Added smart tokenizer
-Aug 06 2004  devel  Fixed gpsmap network count to work with scatter-only plots
-Jul 27 2004  devel  Fixed Imagemagick 6.x (again)
-                    Merged gpsmap packet-count filtering patch from 
-                     Scott Brooks from Binary Solutions
-Jul 23 2004  devel  Added support for new Cisco drivers (see download page)
-                    Added support for the new GPL drivers for admtek
-                    Tweaked admtek support to not fetch channel if interface
-                     is down.
-                    Fixed attempts to restore mode or channel when the 
-                     original mode/channel was unavailable
-Jul 14 2004  devel  Merged patch from Sebastian to clean up ipw2100 behavior a
-                     bit more
-Jul 12 2004  devel  Fixed Imagemagick support for 6.x
-Jun 25 2004  devel  Removed net/bpf.h since it isn't needed and isn't present
-                     in some systems
-Jun 18 2004  devel  Changed string = char * to string = string(char *) since
-                     cygwin seems to have broken constructors for that
-                     (thanks JM)
-                    Added checks to hopefully bypass fetching channels from
-                     down interfaces under hostap which led to failures from
-                     driver crankiness
-Jun 14 2004  devel  Added channel to alert tracking and protocol
-Jun 13 2004  devel  Merged fix from Million to repair delta calculations and
-                     fix playing the correct sound for traffic
-Jun 10 2004  devel  Expanded alert protocol to carry source, dest, bssid, and
-                     other mac address fields for better programatic handling
-                     of alerts through external clients
-Jun 09 2004  devel  Added BSS timestamp spoof detection - BSSTIMESTAMP alert.
-                    Created "None" packet source for default config to stem
-                     the new people being confused with cisco errors
-                    Modified packetsource unmonitor_ code to not print warnings
-                     about not leaving monitor mode cleanly if not relevant for
-                     all active packetsources (ie, pcapfile and drones don't
-                     warn about trying to disable rfmon)
-Jun 06 2004  devel  Merged patch from Michael Scherer to fix gcc3.4 compiling
-May 30 2004  devel  Fixed docs for OpenBSD
-                    Merged patch from KW which should fix the problems on 64bit
-                     platforms.
-                    Merged patches from TZ to add more delays into monitor code
-                     to make Socket CF cards happy
-May 15 2004  devel  Added support for ipw2100 (Centrino) cards using the latest
-                     drivers from sourceforge.
-                    Merged patch from Antonio Eugenio Burriel for proper 
-                     channel detection with drivers that report channel
-                     number instead of frequency
-May 14 2004  devel  Fixed segfault issue with too-large packets inside 
-                     pcapsource.  As far as I can tell this can only be 
-                     generated by a flawed driver so it shouldn't be a 
-                     security issue.  Root is dropped for pcapfiles so this
-                     should be safe from that angle, too.
-May 13 2004  devel  See, I haven't abandoned you all, just been really busy
-                    Kluged out compile errors on some vendor-modified kernels
-                     that include ethtool.h in wireless.h
-                    Updated config file version and took out defunct examples
-                    Fixed the rest of the compile errors on some kernels, 
-                     with luck
-Apr 22 2004  devel  Fixed initial-channel -I arg for single named sources
-Apr 10 2004  devel  New devel cycle
-Apr 07 2004 2004-04 Released 2004-04R1.
-                    Major improvements in this release:
-                      Fixed 'Too many open files' errors on all platforms
-                      Tweaked autoconf scripts to make some distros happier 
-                       with finding components
-                      Additional FreeBSD support and compile-time fixes
-                      Better error reporting for most fatal conditions
-                      Fixed echoing to console fatal error conditions before 
-                       the client connects
-                      Support for latest Ethereal wtaplibs
-                      Support for ADMTek cards
-                      Fixed support for ACX100 cards
-                      Fixed support for prism2_legacy (please, upgrade 
-                       and stop using this)
-                      Fixed pcap on platforms like OSX, should compile 
-                       cleanly out of the box
-                      Fixed segfaults with empty *_manuf files
-                      Added support for dumpfiles greater than 2GB
-                      Added unmonitor support for more sources
-                      Fixed sound playing on many drivers
-                      Added optional fourth option to source= configfile 
-                       lines to set initial channels
-                      Modified monitor-entry IOCTLs to agree with more 
-                       drivers
-                      Added support for signal levels in dBm
-                      Changed release numbering to YYYY-MM-Relnum to make 
-                       people happy
-                    Also there have been a LOT of gpsmap updates:
-                      Binary caching of parsed XML for reduced processing 
-                       time on repeated mappings of the same data
-                      Rewritten power interpolation that actually works right 
-                       now
-                      Proper handling of signal and noise levels in dBm
-                      Feathered range circle drawing mode (translucent fading 
-                       edges to range estimations)
-                      Feathered scatterplot drawing (Very very slow however)
-                      Background map color saturation control (Desaturation 
-                       percentage control instead of pure greyscale)
-                      Background map intensity control (Overlay map 
-                       translucently over white or black)
-                      Revamped and extended network labeling support
-                      Revamped network center averaging code to sift the most 
-                       relevant center points and average them
-                      Moved to GMP for some math ops for extra precision
-                      Fixed Mapblast support
-                      Earthamap map source support
-                      Null map source (blank screen)
-                      Terraserver topographic map source
-                      Terraserver autoscale support
-                      Added gpsxml-sanitize command to clean XML files 
-                       outside of gpsmap
-                      Gobs of bugfixes.
-Apr 07 2004  devel  Set gpsmap caching to save empty files
-Apr 06 2004  devel  Fixed ACX100 FCS bytes
-Apr 05 2004  devel  Fixed packet count bug in csv
-Apr 04 2004  devel  Merged patch from Jamie for channel dwelling (multisecond
-                     channel hopping)
-Apr 02 2004  devel  Fixed bug in gpsmap cache that assigned the same id to all
-                     points, eating an entire file if any points were filtered.
-                    Code cleanup - Fixed several -pedantic warnings in gpsmap
-                    Various other -pedantic cleanups
-                    Flagged networks as dirty after a sort op to force a 
-                     resort even when disconnected
-                    Made gpsmap cache creation errors nonfatal
-Mar 31 2004  devel  Fixed gpsmap cache error reporting mistake
-                    Changed 'best signal' and 'best noise' stuff to handle dBm
-                    Fixed signal recording for wext
-                    Changed text in panel signal window slightly
-                    Fixed gpsmap to count actual valid samples instead of all
-                     samples in a file when determining if any samples were
-                     collected
-                    Added --color-saturation and --map-intensity to gpsmap to
-                     change the greyscale desaturation and overall intensity
-                     of the background map image.
-Mar 30 2004  devel  Tentative support for calculating SNR from signal levels
-                     in dBm for Kismet and gpsmap
-Mar 29 2004  devel  Removed size restriction testing for now, let the remote
-                     mapsource blow up if we're not a valid size.
-                    Put scale ranges into --help
-                    Fixed error in tcpclient reading new major/minors
-                    Added Null mapsource for blank background to gpsmap
-Mar 27 2004  devel  Fixed Mapblast map source in GPSMap, left Earthamap as the
-                     default however.  (Thanks, poptix!)
-                    Fixed mapblast user-scale
-Mar 26 2004  devel  Added feathered scatter plot drawing to gpsmap.  This is
-                     VERY slow but produces some nice effects in combination
-                     with channel coloring to show saturation in an area.
-                    Tweaked feather circle center drawing
-Mar 25 2004  devel  Added binary caching to gpsmap, this more than doubles
-                     the speed of gpsmap when repeatedly processing the same
-                     sets of XML data.
-Mar 23 2004  devel  Tweaked gpsmap channel color allocation
-                    Tweaked legend drawing to scale to US 11 channels if
-                     there are no networks on higher channels.  This makes
-                     the legend look much nicer.
-Mar 22 2004  devel  Added --feather-range to gpsmap to blur network range
-                     circles into invisibility.  Imagemagick is very very
-                     poorly documented.
-                    Fixed various other bugs in gpsmap
-                    Fixed various bugs with feathering and some data sets
-Mar 21 2004  devel  Additional tweaks to prism54 avs monitoring
-Mar 20 2004  devel  Fixed gpsmap trying to autoscale even with user scales
-                    Merged patch from Antonio Eugenio Burriel to enable AVS 
-                     headers on current prism54 drivers
-                    Merged patch from Scott Taylor for translucent bounding
-                     rects in gpsmap
-                    Merged another patch from Scott for using terraserver
-                     topo maps
-Mar 19 2004  devel  Merged earthamap map source support from Ryan Maple
-                    Added autoscale map selection to Earthamap and Terraserver
-                    Marked Mapblast and Mappoint sources as defunct
-                    Added earthamap script to makefile and cvs
-                    Removed 'total' networks from legend, left 'visible'.
-                     Total didn't make much sense.
-                    New gpsmap labeling method, labels now drawn in the order
-                     given, added new labels, bssid, ssid, manuf, info,
-                     location
-                    Tweaked labeling
-Mar 18 2004  devel  Fixed expat error
-Mar 17 2004  devel  Tweaked gpsmap to error out on no sample points
-                    Fixed error string typo in get_ssid
-                    Changed monitor mode controls to not nuke most SSIDs since
-                     drivers don't seem to mind anymore, also updated prism54
-                     and fixed a compile warning on acx100
-                    Tweaked configure/makefiles to not allow 'make gpsmap' if
-                     it wasn't enabled by configure
-Mar 16 2004  devel  Tweaked acx100 source to match acx's new orinoco-esque
-                     method
-Mar 15 2004  devel  Finished gpsxml-sanitize, util takes a xml files and prints
-                     the valid points back to stdout.
-                    Fixed sending a removed network as a NETWORK statement
-                     during the initial NETWORK enable seed
-Mar 14 2004  devel  Split gpsmap sample manipulation voodoo off into its own
-                     file for other utils to tie into
-                    Started adding extras/ util to sanitize XML files for other
-                     programs to use
-Mar 13 2004  devel  Updated readme, added client column lists
-                    Added unmonitor support for madwifi
-                    Added switch to gpsmap to use old pure-average network 
-                     center finding code
-                    Moved fifodump out of logging, fifo will still happen with
-                     '-n' now
-                    Added fourth optional parameter to source= config lines to
-                     set the initial channel
-                    Updated spec file
-Mar 12 2004  devel  Changed sound exec to dup2 /dev/null instead of closing
-                     stdout and stderr, should prevent sox being mad about
-                     not having output paths
-Mar 11 2004  devel  Made blanking SSID during entering monitor mode a nonfatal
-                     condition.  Should alleviate difficulties with some
-                     drivers (prism54, maybe cisco)
-                    Added large-file checking and defines, should overcome the
-                     2GB file size limit on systems that support it
-                    Changed versioning (again) - YYYY-MM-Release.
-Mar 10 2004  devel  Fixed a segfault in the client command protocol
-                    Improved error reporting for madwifi monitor mode
-Mar 08 2004  devel  Fixed a segfault with a 0-length macaddr struct (exposed
-                     by an empty manuf map file).  No security implications.
-                    Changed ifdef block in pcapsource, added ifndef to 
-                     compensate for pcap on some platforms
-Mar 07 2004  devel  Fixed another bsd compile error
-                    Revamped error reporting to print errors to console even
-                     when silent if there are no clients.  Should force showing
-                     fast-startup errors that got hidden before.
-Mar 04 2004  devel  Fixed undefined function error on BSDs introduced from
-                     other error catching
-                    Fixed stupid config test copy and paste bug for GMP
-                    Reordered orinoco monitor commands
-                    More major gpsmap updates
-                     Total rewrite of interpolation.  Previous code was 
-                      terminally broken.  New interpolation algos are MUCH
-                      more adept at handling "generic wardriving" data.
-                     Moved interpolation to only process "relevant center"
-                      (see previous gpsmap update) instead of every point
-                     Fixed legend drawing when using default network colors
-                      and doing power interpolation
-                    Tweaked orinoco channel control - should eliminate errors
-                     seen with some older drivers and -devel
-Mar 03 2004  devel  Rewrote gpsmap network-center guessing to find groups of
-                     sample points and use those
-                    Started rewriting gpsmap to use GMP for math.  GMP is
-                     now required.
-                    Added support for ADMTek cards
-Mar 01 2004  devel  Tweaked error reporting to client.
-                    Fixed wtapfile support for new ethereal wiretap versions
-                    Merged ifdefs from Thomas Dettbarn to fix compiling on 
-                     some freebsd systems
-Feb 28 2004  devel  Changed wtaplocaldump code to have better drive-ful error
-                     messages
-Feb 26 2004  devel  Smart determination of channel controls on new orinoco
-                     drivers, correct exiting of rfmon on new orinoco drivers
-                    Added new orinoco capture source orinoco_14 to handle the
-                     changes in the new orinoco 0.14 cvs tree
-Feb 25 2004  devel  Fixed expat parsing the new kismet version strings
-Feb 24 2004  devel  Fixed prism2_legacy (wow, someone still uses this) to trim
-                     the FCS off the frames correctly, and to mute the wlanctl
-                     commands
-                    Added more intelligent error messages for the interface
-                     going away in the middle of a capture.
-Feb 22 2004  devel  Merged FreeBSD patch from Sam (with some changes):
-                     * Renamed to radiotap_fbsd_X (me.  radiotap_freebsd_x was
-                       just getting kind of silly to type.)
-                     * Split source into ab/a/b, like MadWifi
-                     * Trimmed out redundant/unused FetchChannel()
-                     * Workaround for varargs for legible error messages
-                     * Save and restore interface settings
-Feb 20 2004  devel  Added tentative support for the orinoco_cs CVS drivers as
-                     part of the existing orinoco source
-                    Merged patch from Deker to fix inverse bssid filtering
-                    Tweaked wext header finding, added big warning
-Feb 13 2004  devel  Reordered stuff in configure for some distros being cranky
-Feb 10 2004  devel  Fixed 2 socket closure bugs, neither of which should have
-                     any real world effect (both fatal conditions anyhow)
-Feb 09 2004  devel  New devel cylcle started
-                    Added check of new makefile.in and configure to makefile
-Feb 09 2004 Feb0401 Released successor to 3.x with new versioning scheme. Enjoy
-                     the new stable release, hopefully beginning a more monthly
-                     release schedule.  Everyone should upgrade to this release
-                     and don't forget to look at the readme for changes in card
-                     source name.  New toys in this release:
-                     * Rewritten packet engine, tens of times faster than 3.x,
-                       migrated monitor mode and channel change to ioctl calls
-                       for greater speed and efficiency
-                     * Support for FreeBSD radiotap
-                     * Improved OpenBSD support
-                     * Support for running kismet on WRT54G aps
-                     * Support for Prism54 and Madwifi
-                     * Fixed remote drones
-                     * Unmonitor support
-                     * Improved error handling and return codes
-                     * Vastly improved gpsmap data filtering
-                     * Gpsmap legend drawing, bugs in multiple gpsxml file
-                       parsing, allocation bugs, 
-                     * Much improved packet dissection and validation, 
-                       duplicate IV detection
-                     * Countless other bug fixes to protocol consistency, 
-                       OSX support, variable initialization, CSV output, and
-                       more.
-Feb 09 2004  devel  Changed major-minor-tiny designation to new versioning
-                     scheme, Month-Year-Release# to match the new versioning
-                     scheme.  *KISMET protocol now carries 'newversion' field,
-                     everyone writing their own clients should update to this.
-Feb 06 2004  3.1.0  Added warning for unmonitor mode
-Feb 04 2004  3.1.0  Merged more diffs from Pedro to fix the stackprot alerts on
-                     OpenBSD
-                    Changed framework of unmonitor support.  This breaks some 
-                     things right now, this sync only temporary.  Expect a 
-                     fully fixed devel sync later this afternoon.
-                    Added unmonitor support for HostAP, fixed broken stuff from
-                     earlier.
-                    Added unmonitor support for prism54
-                    Added smarter output on termination, tied to unmonitor
-                    Removed zeroing IPs from interfaces going into rfmon.  This
-                     places the onus on the drivers to Do The Right Thing, but
-                     makes my life a lot easier for restoring card states.
-                    Added unmonitor support for orinoco, acx100
-                    Revamped ifconfig internals to only process flags
-                    Removed stub, broken unmonitor from wlanng sources
-Feb 02 2004  3.1.0  Tweaked probe req handling to assign to_ds
-                    Changed panels channel display to show --- for uncontrolled
-                     source channels
-Feb 01 2004  3.1.0  Fixed broken channel stuff in wlanng to use stored last
-                     channel if wext isn't available.
-                    Added source picking window for channel locking on multiple
-                     sources
-                    Added smarter channel hopping setup, added server hopping
-                     status to KISMET protocol
-Jan 31 2004  3.1.0  wlanng no longer depends on wireless extentions
-Jan 28 2004  3.1.0  Panels client now scrolls to next network after tagging
-                    Fixed changelog dates (Thanks Alexander...)
-                    Added a dirty flag to tcpclient networks listing to save
-                     on CPU usage when the network list isn't actually changing
-                    Improved use of the dirty flag to conserve cpu
-                    Fixed init of a variable in panels
-                    Fixed various bugs in panels
-Jan 27 2004  3.1.0  Modified internals to packet source handling to allow for
-                     restoring card details on sources that support it
-                    Merged patch from Pedro for more OpenBSD stuff
-                    Merged patch from Sam for more radiotap support on freebsd.
-                     Pending a patch to the MadWifi drivers, this should bring
-                     functional support for FreeBSD.
-Jan 26 2004  3.1.0  Fixed FCS byte trimming for MadWifi, this should fix Kismet
-                     discarding most packets as invalid (Thanks, Anton)
-                    Fixed monitor_wext not setting the initial channel if the
-                     card is already in monitor mode (Thanks, Anton)
-                    Merged additional patches from Sam for FreeBSD/Radiotap
-Jan 25 2004  3.1.0  Long-asked for, the panels client is now able to lock
-                     onto the channel of a selected network and stop 
-                     hopping.  'L' to lock, 'H' to hop.  Currently only works
-                     with a single capture source, multisource support to 
-                     follow soon.
-                    Merged patch from Josh Wright to handle airopeek files with
-                     wtapfile
-                    Merged patch from Pedro to fix bringing an interface up in
-                     OpenBSD
-Jan 24 2004  3.1.0  Merged patch from Ray Essick to add an alternate date 
-                     format to the logfile naming format
-                    Unitialized variable fix in panels client
-Jan 23 2004  3.1.0  Added packsource channel locking to server protocol
-                    First-run merge of FreeBSD Radiotap support from Sam
-                     Leffler
-Jan 22 2004  3.1.0  Added channel hopping status to CARD field
-                    Added '*' to panelfront channel display when source is
-                     hopping
-                    Fixed probe and data autogroups from being created for
-                     only a single network (broken by yesterdays fix.)
-                    Added intro window to panels client for new users, this
-                     can be turned off by editing the ui config and putting
-                     'showintro=false'
-                    Added 'trackprobenets' config option to turn off following
-                     probe responses and tracking probenets.
-                    Merged patch from Anton fixing issues with scrolling the 
-                     list of servers
-Jan 21 2004  3.1.0  Fixed embarassingly stupid bug in panels probe/data
-                     autogroup, minor efficiency improvements as well
-                    Removed debug printing on corrupt dronesource packets
-                    Made probed networks clients of themselves
-                    Minor speed update to packet tracking
-                    Added setgid to setuid privdropping, leaving us as gid0 is
-                     also bad.
-Jan 17 2004  3.1.0  Tweaked empty SSID assignment (again)
-                    Forced wext-fetched signal levels to abs values
-                    Fixed initialization of client sort value in panels
-                    Moved group updates into population code in panels
-                    Added --gui long-option to kismet_client
-Jan 16 2004  3.1.0  Fixed offset mangling in probe request parsing
-Jan 15 2004  3.1.0  Fixed data network autogrouping
-                    Fixed panels client segfault when viewing details on a 
-                     network absorbed into an autogroup
-                    Fixed bug where single-packet new networks sometimes showed
-                     up as having no packets in panels client
-Jan 13 2004  3.1.0  Added more packet sanitizing.  Most invalid management
-                     frames now intercepted, data frames still problematic.
-                    Merged gpsmap patches from Andrew Knutsen to add labeling
-                     of manufacturer and beacon info, avoid overlapping network
-                     labels, and scripts in the extras directory to generate
-                     multiple maps of an area and to merge the IEEE 
-                     manufacturer list into the Kismet manuf file.
-                    Tweaked mac_map to separate insert and fast_insert
-                    Added autogrouping data-only networks
-                    Added validation checks before calling Packetsource::Close,
-                     fixes segfault for invalid pcapfile opens
-                    Improved probed network integration code
-Jan 12 2004  3.1.0  Fixed stupid word-transposition in default config, should
-                     be channelsplit not splitchannels.
-Jan 10 2004  3.1.0  Started implementing wsp100 snmp calls in new framework
-                    Added sanity checks to ExecSysCmd() calls in pcapsource
-                    Added coloring of decloaked networks to panelfront
-Jan 09 2004  3.1.0  Merged patch from Bjarke Pedersen for different sounds for
-                     new wepped networks
-Jan 07 2004  3.1.0  Fixed more wep keysize bugs
-Jan 04 2004  3.1.0  Changed probe network autogrouping to not group when there
-                     is only 1 probe network
-Jan 03 2004  3.1.0  Fixed nullproberesp alert
-                    Fixed segfault if acpi/ACAD/ not found
-                    Merged patch from Million adding more ACPI support
-                    Merged patch from Million with numerous variable init
-                     and other memory checks to kismet_server
-                    Added more defaults to ap_manuf file
-                    Added type counts and percentages to gpsmap legends
-Jan 02 2004  3.1.0  Fixed association of probe nets
-                    Fixed weirdness with now-defunct quality bar
-                    Fixed map legends w/ no network colors and no powerbar
-Jan 01 2004  3.1.0  Added legend drawing to GPSMap, finally
-                    Various speedups inside gpsmap
-                    Readme updates
-                    Fixed legend drawing eating one map file
-                    Significant speed boosts to gpsmap filtering
-                    Changed algo.h sort() calls to stable_sort(). This seems
-                     to be a bug in some gcc versions that causes segfaults.
-                    Moved most of gpsmaps messages into the 'verbose' setting
-                     (gpsmap -v ... )
-                    Revamped column positioning code for gpsmap legends
-                    Fixed missing '/' in pcapsource wlanng (thanks falter)
-                    Merged patch from Million fixing memory and var init bugs
-                     in panels and goto calls.
+Apr 20 2006  devel  Fixed BSSID protocol in kismet_server
+                    Added various sources
+                    Added BSSID protocol decoder to client
+Apr 07 2006  devel  Added server picker window
+                    Added "add source" window
+Mar 20 2006  devel  Added keepalive to drone protocol
+Mar 12 2006  devel  I know it's been a while, stuff going on in life, sorry.
+                    Added CARD protocol support to kp_frontend
+                    Changed behavior of kp_Scrollable_Table to add a row
+                     during a replace of a nonexistent row
+Feb 22 2006  devel  Lots of un-changelog'd work in svn
+                    Increased max iwpriv ioctls per interface, will produce
+                     a different error on madwifi-ng using madwifi-old sources
+                    Finished cli matrix widget
+                    Added ModalAlert panel
+                    "File->Connect" actually connects to the Kismet server
+Feb 02 2006  devel  More work on panels client
+                    Work on new tcp client code
+                    Fixed stupid error in server that didn't send capabilities
+Jan 16 2006  devel  Finished client panel single input line widget
+                    Fixed menu not eating input when selecting nonexistent
+                     menus or items via keyboard
+                    Fixed consecutive disabled items in menus
+                    Fixed stupid error in window positioning
+                    Added button widget
+                    Added "Connect" demo window
+Jan 12 2006  devel  Finished client panel menu widget code
+                    Finished client panel arbitrary text scroller widget code
+                    Added Madwifi-NG support (with dyanamic interface
+                     creation and destruction support)
+                    Removed prism2 header length validation, not needed and
+                     some drivers are broken
+                    Split widgets and windows into their own files
+                    Added client panel 2-field widget
+                    Added picking list type demo
+                    Added inline text style formatting class, added to
+                     freetext widget
+Jan 08 2006  devel  Started newcore client development (Current client code
+                     is demo only and will not do anything useful)
+                    Changed menu drivers to go to menubar mode and allow
+                     picking the menu by underlined key
+Dec 29 2005  devel  Added runstate loaders to kismet_server (do not use yet)
+                    Added runstate support to gpsxml
+                    Added runstate logging to netracker
+                    Added runstate loading to netracker
+                    Added runstate net totals logging/loading
+                    Runstate loading should be usable
+Dec 28 2005  devel  Added runstate dumpfile framework for freezing the Kismet
+                     running state
+                    Tweaked runstate dumpfile parsing
+                    Added bcm43xx source
+                    Started adding dumpfile resume code
+Dec 21 2005  devel  Fixed error in netframe caching
+Dec 19 2005  devel  Added dynamic source creation/removal via ADDSOURCE and
+                     DELSOURCE commands
+Dec 18 2005  devel  Fixed drone starting if drone server doesn't start
+                    Added --source-options command line switch
+Dec 16 2005  devel  Fixed vector resize with uclibc++
+                    Added uclibc++ autodetect in autoconf
+                    Added libm autodetect in autoconf
+                    Removed const qualifier in macaddr.h to allow compiling on
+                     uclibc c++
+Dec 15 2005  devel  Added remote drone name to messages passed from it
+                    Fixed drone stream syncing problem which caused sentinel
+                     errors
+                    Fixed compilation error when libpcap disabled
+Dec 14 2005  devel  Fixed queuing of dumpfiles when dumping is disabled
+Dec 13 2005  devel  Fixed loading of servername in server/drone
+                    Restored wrt54prism capture source for OpenWRT
+                    Fixed packet processing loop in packetsource_drone
+Dec 12 2005  devel  Revamped AddSource callback API into a generic SourceAction
+                     API
+                    Wrote drone interface channel push code
+                    Added SourceAction hooks for setting hop, vectors
+                    Added drone server-side handling of channelset for hopping
+                     and vector
+                    Changed internal channel representation to unsigned int
+                    Added packet sending to drone client
+                    Added channelset packet generation to drone client
+                    Added proper bitmap handling of channelset frames in
+                     drone server
+                    Added channel sequence command (CHANSEQ)
+                    Fixed card commands (hop, etc) from segfaulting
+                    Fixed dumpfiles unregistering callbacks during destruction
+                    Fixed more blatant errors in uuid
+                    Fixed stupid errors in drone server handling
+Dec 11 2005  devel  Added fix to ringbuf from Shane Schisler
+                    Added drone_source_packet generators to drone protocol to
+                     push a capture source upstream
+                    Added endian-flipping to bitmap fields in drone protocol
+                    Completed server side of drone interface push system
+                    Fixed UUID '<' operator
+                    Added remote source pushing via drone protocol, remote sources
+                     now show up
+                    Added purging of virtual sources when drone connection is
+                     broken
+Dec 10 2005  devel  Added UUID to drone protocol
+                    Added LocalChannelHop() to packetsources to prevent conflicts
+                     with virtual drone interfaces
+                    Fixed compilation of new packetsource framework on BSD
+                    Fixed div-by-0 on channel assignment to virtual stuff like
+                     drones
+                    Fixed breaking drones by always splitting interfaces in
+                     packetsource.h
+Dec 05 2005  devel  Began to add remote drone virtual sources
+                    Wrote some documentation on the new PacketSource api
+Dec 04 2005  devel  Major code drop:
+                    - Moved root IPC for channel control out of packetsourcetracker
+                    - Rewrote how packetsourcetracker and packetsources work entirely
+                    - Added UUID tracking of each source
+                    * This code drop is KNOWN TO BREAK on *BSD and on compiling
+                      drones!  I wanted to get it off my drive and versioned,
+                      more updates later tonight.
+                    Fixed drone to use new packetsource framework
+                    Set wext packet sources to pull UUID node from the
+                     interface MAC address
+                    Ported BSDRT source to new packetsource framework (untested)
+Nov 19 2005  devel  Fixed quirks in drone protocol
+                    Implemented standalone kismet_drone binary
+Nov 18 2005  devel  Did beginnings of drone packet source & client framework
+                    Activated packetsource_drone (does nothing yet)
+                    Initial drone support usable
+Nov 17 2005  devel  Added 'sourceopts' config line to set per-source special
+                     options ('fuzzycrypt' moved to here, added 'weakvalidate'
+                     to loosen frame header validation restrictions)
+Nov 16 2005  devel  Fixed up error exporting to do _LOCAL | _FOO
+                    Added command parsing to drone server
+                    Activated drone server in kismet_server.cc
+                    Fixed drone server stupidity
+Nov 15 2005  devel  Standardized some error reporting in netframe
+                    Started drone protocol rewrite
+Nov 13 2005  devel  Fixed netframe fatal oops to match other code
+                    Added float mantissa components to util
+                    Added globalreg component for non-char getopt
+Nov 11 2005  devel  Fixed filtercore compiling on systems without libpcre
+                    Fixed dual-registration of STRING protocl
+Nov 10 2005  devel  Added string extraction (currently always on)
+                    Added PCRE string filtering
+                    Fixed PCRE negation tests
+                    Fixed filter examples to show "00:11:.." quoted mac strings
+                    Added STRINGS (0|1) and ADDSTRINGSFILTER commands to toggle
+                     string fetching
+                    Added string logfile (type 'string')
+                    Added alert logtile (type 'alert')
+Nov 08 2005  devel  Added libpcre checks to configure
+                    Fixed util.cc compiling process title stuff
+                    Added basic lexer to util.cc
+                    Re-implemented MAC address filtering
+                    Added stubs for pcre filters
+                    Added PCRE filter string parsing
+                    Fixed infinite loop in linewrapper
+                    Added filter_netclient and PCRE execution for SSID filters
+Nov 07 2005  devel  Fixed encryption/decryption check for data dissectors
+Nov 03 2005  devel  Added smarter error message if the card drops out of monitor
+Oct 30 2005  devel  Docs, plugin tweaks
+Oct 29 2005  devel  Updated info text on header mode iwprivs on linux
+                    Added set_prismhdr to default wext set
+Oct 28 2005  devel  Updated README.newcore
+Oct 26 2005  devel  Turned on assorted packet sources (ipw2915, admtek, prism54g)
+Oct 25 2005  devel  Added checking for *.bz2 *.gz files in logfile enumeration
+                    Revamped attaching alerts to packets so that more than one
+                     alert can be tracked
+                    Cleaned up nettxt export
+                    Added backlogged alerts to nettxt output per network
+                    Added fetching alert backlog to alertracker
+Oct 23 2005  devel  Added client CDP port/dev tracking
+                    Added client XML output
+                    Fixed rampant client allocation bug
+                    Fixed negative bsstimestamp in netxml
+                    Fixed negative datasize, aggpoints in netxml
+                    Added nettxt dumpfile
+Oct 22 2005  devel  Added export filter initialization to dumpfile core
+                    Fixed pcap references from copying pcap dump to gpsxml
+                    Added netxml dumpfile
+                    Added hooks for fetching const maps of netracker internals
+Oct 21 2005  devel  Smartened up linewrap
+Oct 20 2005  devel  Implemented shutdown&cleanup of root capsources via IPC
+                    Fixed ieee80211 linktype
+Oct 19 2005  devel  Cosmetic - added IPC child process name control
+                    Ported sound controller to IPC framework
+                    Moved speech/sound spawn to after privdrop
+                    Removed gpsdclient from globalreg
+Oct 18 2005  devel  Fixed invalid handling of map when cleaning up kisclient
+                     protocols during a disconnect
+                    Ported speech handler to IPC framework
+Oct 17 2005  devel  Fixed packetsourcetracker not being updated for meta msgclient
+                    Removed packetsource_bsd stub class
+                    Moved packetsource_bsd to packetsource_bsdrt
+                    Fixed up IPC framework to a working state
+                    Ported packetsource root controller to IPC framework
+Oct 16 2005  devel  Added tracker meta to packsources for chain components
+                     to access
+                    Added "monitor_mode" ioctl set attempt to generic
+                     monitor
+                    Fixed gpscore/gpsdclient double pollable registration
+                    Fixed gpsdclient parsing more
+                    Added void* aux pointer to message clients for incoming
+                     IPC_remote generic and other message clients linked to
+                     replication of messages (netframe)
+                    Added IPC generic framework (incomplete)
+                    Took drone/client/etc out of Makefile for now
+Oct 13 2005  devel  Converted BSD interface control framework from stable
+                    Removed radiotap availability check, since we force it on
+                     with local headers now anyhow
+                    Fixed local radiotap inclusion
+                    Fleshed out BSD capture sources
+                    Added CRYPTODROP alert for networks dropping advertised
+                     encryption
+                    Changed network/client crypto tracking to take the last
+                     advertised crypto set instead of the aggregate of all
+                     crypto ever seen
+                    Added per-sec throttling to kismet.conf defaults
+Oct 12 2005  devel  Tweaked configure for BSD radiotap detection
+                    Removed some OS specific stuff from generic pcapsource
+                    Removed -O2 from default makefile cxxflags (oops)
+Oct 10 2005  devel  Removed wext22 check from configure (unneeded)
+                    Cleaned up more of the configure file
+                    Set auto-fail for missing wext headers on linux
+                    Changed config warning for disabling wext
+                    Removed netlink socket checking from configure
+Oct 09 2005  devel  Started adding failure conditions to autoconf and forcing
+                     explicit disabling of expected components (like ncurses)
+                     which is the "right" thing to do.
+                    Removed some linux-specific stuff from the radiotap header,
+                     renamed it to local_radiotap_header.h
+Oct 06 2005  devel  Removed double-cache-lookup in NETWORK protocol handler
+                    Removed double-cache-lookup in CLIENT protocol handler
+Oct 04 2005  devel  Moved versioning into header file for plugins to draw
+                     from
+                    Removed the timestamp file and zeroed out the timestamp
+                     element in the protocol.  This should have been done
+                     a long time ago.
+Sep 29 2005  devel  Various BSD related fixups, buffer size checks
+                    Added libdl check to autoconf (for BSD systems)
+Sep 26 2005  devel  Moved dirty network and client tracking into vector, fixed
+                     constantly sending networks
+Sep 21 2005  devel  Split GPS into gpscore and gpsdclient in anticipation of
+                     adding additional GPS capture methods
+Sep 20 2005  devel  Implemented INFO protocol, added additional fields,
+                     deprecated 'signal' field
+                    Fixed maxsignal initialization in SNR fields
+Sep 19 2005  devel  Fixed config file cmdline option
+                    Finished redoing CARD protocol
+                    Fixed stupid error in gpsxml logging
+Sep 18 2005  devel  Moved CARD protocol into packetsourcetracker
+                    Fixed "client ring buffer full" message going into the
+                     client ring buffer
+                    Fixed loop in clinetframe kill procedure, fixed hammering
+                     "Socket closed" error messages
+                    Fixed gpsd reconnect if nothing to connect to
+Sep 17 2005  devel  Added tracking of multiple SSIDs per network, and tracking
+                     all networks a client has probed for.  No methods to export
+                     this information yet.
+                    Added removal abilities for client commands and network
+                     protocols in netframe
+                    Added auxptr to network protocols for enable functions to
+                     hook a class
+                    Added plugin listing protocol
+                    Added plugin shutdown
+                    Put plugintracker in globalreg
+Sep 15 2005  devel  Added user plugin directory scanning and loading
+                    Implemented actually kickstarting the plugins
+                    Made better errors for dlopen() being stupid
+                    Fixed plugin symbol exporting
+                    Wrote demo NULL plugin (crappy example, better to come)
+                    Plugins should now be functional.  YOU WILL NEED TO RERUN
+                     CONFIGURE for plugins to enable properly, you will also
+                     need to turn on 'allowplugins=true' in your config file.
+Sep 14 2005  devel  Imported -stable autoconf with all its little fixes
+                    Added LIB_LOC to config.h
+                    Fixed config.h.bot glitch
+                    Changed privdrop behavior to keep running when there is a
+                     user/target mismatch provided neither is root, and kismet
+                     isn't started as root.  (ie, Kismet configured to drop to
+                     'bob', started as 'susan', now runs as 'susan' with an
+                     error warning)
+                    Added linewrap to fataloutput message client
+                    Added plugin core (funny how small a note that is) and
+                     started plugin loaders
+Sep 12 2005  devel  Added per-network and per-client packet rate data
+                    Added packetrate fields to NETWORK and CLIENT protos
+Sep 11 2005  devel  Turned on hostap (straight 'mode foo' control, no priv
+                     monitor)
+                    Started new filter core class
+                    Added filtering to netracker for filter_tracker
+                    Removed 'FILTER' packetchain stage since it's not going to
+                     be used that way
+                    Fixed AVS handling
+                    Fixed class overload of fcsbytes causing all sorts of issues
+                    Fixed some errors with compiling with suid disabled
+                    Added ADDTRACKERFILTER client command to nettracker
+Sep 10 2005  devel  Turned on ipw2100 source again
+                    Turned on acx100 source (kluge to hopefully work with
+                     modern acx100 drivers)
+                    Turned on atmel-usb sourceA
+                    Turned on rt2400, rt2500, rt8180
+Sep 09 2005  devel  Started implementing 'auto' device support
+                    Skeleton of 'auto' capsource in place (for the one capsource
+                     newcore supports currently)
+                    Added Madwifi capsource back
+Sep 08 2005  devel  Added BCASTDISCON and AIRJACKSSID alerts
+Sep 07 2005  devel  Fixed client/server protocol caching
+                    Added probereq SSID tracking
+                    Added tracked network type updating
+                    Changed timestamp/timetracker set/tick to head of loop
+                    Added 'retry' flag to ieee80211 packet info
+                    Added fragments/retries tracking
+                    Added fragments and retries to CLIENT and NETWORK protocols
+                    Fixed CLIENT protocol enable
+                    Added CLIENT to nettracker tick
+Sep 06 2005  devel  Added some support for flooding clients with more than the
+                     ringbuf can handle
+Sep 05 2005  devel  Fixed DHCP handling
+                    Fixed UDP handling
+                    Fixed packetchain ordering
+                    Added IP tracking
+                    Fixed network/client packet attachments
+Sep 04 2005  devel  Started adding data processing, IP guessing
+                    Added DHCPCONFLICT alert to catch multiple DHCP servers
+                     on one network.  Maybe a little too layer-3ish
+                    Added CDP ids to NETWORK protocol
+                    Added client creation and association
+Sep 03 2005  devel  Fixed CDP processing
+Sep 02 2005  devel  Fixed alert on channel 0 networks getting a channel
+                    Fixed treating probe req, disassoc, auth, and death as
+                     frames that have a normal fixparm
+                    Fixed IAPP handling
+                    Added CDP support (untested)
+Sep 01 2005  devel  Added timer kick to netracker to push network updates to
+                     kismet clients
+                    Fixed numerous uses of unitialzed memory
+                    Fixed gaping memory leakage due to destructor inheritance
+Aug 31 2005  devel  Added WEP decryptor, MANGLE packet element, updated pcap
+                     and tun loggers to write the mangled frame
+                    Added Adler-32 checksum to util.[h|cc]
+                    Added bsstimestamp network field
+                    Fixed gpsd adding null data to each frame
+                    Fixed turbocell nid returning \001 buffered crap
+                    Fixed newcore server working with existing client
+Aug 29 2005  devel  Added writeinterval support
+Aug 27 2005  devel  Added auxptr to client command pointers
+                    Moved wepkey code into private functions in kisbuiltindis
+Aug 26 2005  devel  Moved wepkey loading code and network protocols into 
+                     packetdissectors.cc/kisbuiltindissector
+Aug 25 2005  devel  Data dissector cleanup, merged packinfo crypset into data
+Aug 24 2005  devel  Added constants for IAPP/other data sizes
+                    Added ARP ip dissector, generic IP dissector
+                    Added IAPP dissector (untested)
+                    Added DHCP dissector (untested)
+                    Added ISAKMP dissector (untested)
+Aug 23 2005  devel  Added 16/32/64 bit ptr extractor
+                    Added EAP data detection (untested)
+Aug 22 2005  devel  Fixed opening tcpserver before channel child
+                    Moved packet dissectors into helper class
+                    Moved packet registration and alert stuff into dissector
+                     helper class
+                    Added data dissection framework
+                    Added lucent signatures/detection/alert
+Aug 20 2005  devel  Fixed alerts again (parsing enable lines)
+                    Restored '-s/--silent' cmd line option for server
+                    Implemented --help and cross-module --help output
+Aug 19 2005  devel  Fixed some header wonkiness
+                    Started implementing alert framework (mostly there)
+                    Added alert rate parsing from config files
+                    Added --no-line-wrap for grep behavior
+                    Fixed alerts
+                    Activated channel change network alert
+Aug 18 2005  devel  Restored WPA tag dissection from stable
+                    Fixed over-aggressive "new network detected"
+                    Added linewrap to stdout text and fixed linewrap code
+                     boundary checks, made linewrap word length relational
+                    Added extended supported rates support
+Aug 17 2005  devel  Started implementing server protocol generic caching to
+                     eliminate the use of crummy vector converts of the entire
+                     struct
+                    Began enabling netracker NETWORK protocol
+                    Finished netracker NETWORK protocol rewrite
+                    Finished netracker CLIENT protocol rewrite
+Aug 14 2005  devel  Added tun/tap virtual interface support for sharing packets
+                    Added patches/ dir and linux kernel patch for tuntap
+                    Fixed stupid timing inversion on channel hop
+Aug 13 2005  devel  Resumed use of CHANGELOG file for newcore development as it
+                     is finally on its feet enough
+                    Added GPS-only packetchain data injection to gpsdclient
+                    Moved startup time and current timestamp to timetracker
+                    Changed global timestamp to usec precision
+                    Added GPSXML dumpfile module
+                    Change dumpfile superclass dumpfile name generation
+                    Added Flush() to dumpfile superclass and subs
+                    Added README.newcore
+                    Fixed gpsd parsing of \0 characters
+                    Fixed closing dumpfiles
+                    Echo client command errors to messagebus
+                    Added placeholder WEP field for clients
+                    Started phasing out broken protocol references to
+                     tracktypes networks, commented out network protocols
+                     for now
+--- -- ----  -----  Newcore changelog started

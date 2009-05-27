@@ -19,12 +19,24 @@
 #include "config.h"
 #include "iwcontrol.h"
 
-// We need this to make uclibc happy since they don't even have rintf...
+#ifdef SYS_LINUX
+#include <net/if_arp.h>
+#include <sys/socket.h>
+#include <sys/ioctl.h>
+#include <netinet/in.h>
+#include <netinet/if_ether.h>
+#include <arpa/inet.h>
+
+#ifdef HAVE_LINUX_WIRELESS
+#include <asm/types.h>
+#include <linux/if.h>
+#include <linux/wireless.h>
+
+#endif // wireless
+
 #ifndef rintf
 #define rintf(x) (float) rint((double) (x))
 #endif
-
-#ifdef HAVE_LINUX_WIRELESS
 
 float IwFreq2Float(iwreq *inreq) {
     return ((float) inreq->u.freq.m) * pow(10,inreq->u.freq.e);
@@ -32,8 +44,8 @@ float IwFreq2Float(iwreq *inreq) {
 
 void IwFloat2Freq(double in_val, struct iw_freq *out_freq) {
 	if (in_val <= 165) {
-		out_freq->m = (uint32_t) in_val;
-		out_freq->e = 0;
+        out_freq->m = (uint32_t) in_val;            
+        out_freq->e = 0;
 		return;
 	}
 
@@ -41,16 +53,17 @@ void IwFloat2Freq(double in_val, struct iw_freq *out_freq) {
     if(out_freq->e > 8) {  
         out_freq->m = ((long) (floor(in_val / pow(10,out_freq->e - 6)))) * 100; 
         out_freq->e -= 8;
-    } else {  
+    }  
+    else {  
         out_freq->m = (uint32_t) in_val;            
         out_freq->e = 0;
     }  
 }
 
 int FloatChan2Int(float in_chan) {
-	if (in_chan > 0 && in_chan <= 165)
+	if (in_chan > 0 && in_chan < 165)
 		return (int) in_chan;
-	
+
     int mod_chan = (int) rintf(in_chan / 1000000);
     int x = 0;
     // 80211b frequencies to channels
@@ -82,10 +95,10 @@ int FloatChan2Int(float in_chan) {
         x++;
     }
 
-    return 0;
+    return mod_chan;
 }
 
-int Iwconfig_Set_SSID(const char *in_dev, char *errstr, char *in_essid) {
+int Iwconfig_Set_SSID(const char *in_dev, char *errstr, const char *in_essid) {
     struct iwreq wrq;
     int skfd;
     char essid[IW_ESSID_MAX_SIZE + 1];
@@ -98,8 +111,8 @@ int Iwconfig_Set_SSID(const char *in_dev, char *errstr, char *in_essid) {
     }
     
     if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-        snprintf(errstr, STATUS_MAX, "Failed to create AF_INET DGRAM socket %d:%s", 
-                 errno, strerror(errno));
+        snprintf(errstr, STATUS_MAX, "Failed to create ioctl socket to set SSID on %s: %s", 
+                 in_dev, strerror(errno));
         return -1;
     }
 
@@ -110,8 +123,8 @@ int Iwconfig_Set_SSID(const char *in_dev, char *errstr, char *in_essid) {
     wrq.u.essid.flags = 1;
 
     if (ioctl(skfd, SIOCSIWESSID, &wrq) < 0) {
-        snprintf(errstr, STATUS_MAX, "Failed to set SSID %d:%s", errno, 
-                 strerror(errno));
+        snprintf(errstr, STATUS_MAX, "Failed to set SSID on %s: %s",  
+                 in_dev, strerror(errno));
         close(skfd);
         return -1;
     }
@@ -126,8 +139,8 @@ int Iwconfig_Get_SSID(const char *in_dev, char *errstr, char *in_essid) {
     char essid[IW_ESSID_MAX_SIZE + 1];
 
     if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-        snprintf(errstr, STATUS_MAX, "Failed to create AF_INET DGRAM socket %d:%s", 
-                 errno, strerror(errno));
+        snprintf(errstr, STATUS_MAX, "Failed to create socket to fetch SSID on %s: %s", 
+                 in_dev, strerror(errno));
         return -1;
     }
 
@@ -137,8 +150,8 @@ int Iwconfig_Get_SSID(const char *in_dev, char *errstr, char *in_essid) {
     wrq.u.essid.flags = 0;
 
     if (ioctl(skfd, SIOCGIWESSID, &wrq) < 0) {
-        snprintf(errstr, STATUS_MAX, "Failed to get SSID %d:%s", errno, 
-                 strerror(errno));
+        snprintf(errstr, STATUS_MAX, "Failed to fetch SSID from %s: %s", 
+                 in_dev, strerror(errno));
         close(skfd);
         return -1;
     }
@@ -155,15 +168,15 @@ int Iwconfig_Get_Name(const char *in_dev, char *errstr, char *in_name) {
     int skfd;
 
     if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-        snprintf(errstr, STATUS_MAX, "Failed to create AF_INET DGRAM socket %d:%s", 
-                 errno, strerror(errno));
+        snprintf(errstr, STATUS_MAX, "Failed to create socket to get name on %s: %s",
+                 in_dev, strerror(errno));
         return -1;
     }
 
     strncpy(wrq.ifr_name, in_dev, IFNAMSIZ);
 
     if (ioctl(skfd, SIOCGIWNAME, &wrq) < 0) {
-        snprintf(errstr, STATUS_MAX, "Failed to get NAME %d:%s", errno, 
+        snprintf(errstr, STATUS_MAX, "Failed to get name on %s :%s", in_dev,
                  strerror(errno));
         close(skfd);
         return -1;
@@ -192,8 +205,8 @@ int Iwconfig_Set_IntPriv(const char *in_dev, const char *privcmd,
     memset(priv, 0, sizeof(priv));
 
     if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-        snprintf(errstr, STATUS_MAX, "Failed to create AF_INET DGRAM socket %d:%s", 
-                 errno, strerror(errno));
+        snprintf(errstr, STATUS_MAX, "Failed to create socket to set private ioctl on %s: %s",
+                 in_dev, strerror(errno));
         return -1;
     }
 
@@ -205,8 +218,8 @@ int Iwconfig_Set_IntPriv(const char *in_dev, const char *privcmd,
     wrq.u.data.flags = 0;
 
     if (ioctl(skfd, SIOCGIWPRIV, &wrq) < 0) {
-        snprintf(errstr, STATUS_MAX, "Failed to retrieve list of private ioctls %d:%s",
-                 errno, strerror(errno));
+        snprintf(errstr, STATUS_MAX, "Failed to retrieve list of private ioctls on %s: %s",
+                 in_dev, strerror(errno));
         close(skfd);
         return -1;
     }
@@ -215,7 +228,8 @@ int Iwconfig_Set_IntPriv(const char *in_dev, const char *privcmd,
     while ((++pn < wrq.u.data.length) && strcmp(priv[pn].name, privcmd));
 
     if (pn == wrq.u.data.length) {
-        snprintf(errstr, STATUS_MAX, "Unable to find private ioctl '%s'", privcmd);
+        snprintf(errstr, STATUS_MAX, "Unable to find private ioctl '%s' on %s", 
+                 privcmd, in_dev);
         close(skfd);
         return -2;
     }
@@ -229,7 +243,8 @@ int Iwconfig_Set_IntPriv(const char *in_dev, const char *privcmd,
                                              (priv[j].get_args != priv[pn].get_args)));
         
         if (j == wrq.u.data.length) {
-            snprintf(errstr, STATUS_MAX, "Unable to find subioctl '%s'", privcmd);
+            snprintf(errstr, STATUS_MAX, "Unable to find subioctl '%s' on %s", 
+                     privcmd, in_dev);
             close(skfd);
             return -2;
         }
@@ -242,15 +257,15 @@ int Iwconfig_Set_IntPriv(const char *in_dev, const char *privcmd,
     // Make sure its an iwpriv we can set
     if ((priv[pn].set_args & IW_PRIV_TYPE_MASK) == 0 ||
         (priv[pn].set_args & IW_PRIV_SIZE_MASK) == 0) {
-        snprintf(errstr, STATUS_MAX, "Unable to set values for private ioctl '%s'", 
-                 privcmd);
+        snprintf(errstr, STATUS_MAX, "Unable to set values for private ioctl '%s' on %s", 
+                 privcmd, in_dev);
         close(skfd);
         return -1;
     }
   
     if ((priv[pn].set_args & IW_PRIV_TYPE_MASK) != IW_PRIV_TYPE_INT) {
-        snprintf(errstr, STATUS_MAX, "'%s' does not accept integer parameters.",
-                 privcmd);
+        snprintf(errstr, STATUS_MAX, "'%s' on %s does not accept integer parameters.",
+                 privcmd, in_dev);
         close(skfd);
         return -1;
     }
@@ -258,7 +273,8 @@ int Iwconfig_Set_IntPriv(const char *in_dev, const char *privcmd,
     // Find out how many arguments it takes and die if we can't handle it
     int nargs = (priv[pn].set_args & IW_PRIV_SIZE_MASK);
     if (nargs > 2) {
-        snprintf(errstr, STATUS_MAX, "Private ioctl expects more than 2 arguments.");
+        snprintf(errstr, STATUS_MAX, "Private ioctl '%s' on %s expects more than "
+                 "2 arguments.", privcmd, in_dev);
         close(skfd);
         return -1;
     }
@@ -289,8 +305,8 @@ int Iwconfig_Set_IntPriv(const char *in_dev, const char *privcmd,
 
     // Actually do it.
     if (ioctl(skfd, priv[pn].cmd, &wrq) < 0) {
-        snprintf(errstr, STATUS_MAX, "Failed to set private ioctl '%s': %s",
-                 privcmd, strerror(errno));
+        snprintf(errstr, STATUS_MAX, "Failed to set private ioctl '%s' on %s: %s",
+                 privcmd, in_dev, strerror(errno));
         close(skfd);
         return -1;
     }
@@ -311,8 +327,8 @@ int Iwconfig_Get_IntPriv(const char *in_dev, const char *privcmd,
     memset(priv, 0, sizeof(priv));
 
     if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-        snprintf(errstr, STATUS_MAX, "Failed to create AF_INET DGRAM socket %d:%s", 
-                 errno, strerror(errno));
+        snprintf(errstr, STATUS_MAX, "Failed to create socket to fetch private ioctl on %s: %s",
+                 in_dev, strerror(errno));
         return -1;
     }
 
@@ -324,8 +340,8 @@ int Iwconfig_Get_IntPriv(const char *in_dev, const char *privcmd,
     wrq.u.data.flags = 0;
 
     if (ioctl(skfd, SIOCGIWPRIV, &wrq) < 0) {
-        snprintf(errstr, STATUS_MAX, "Failed to retrieve list of private ioctls %d:%s",
-                 errno, strerror(errno));
+        snprintf(errstr, STATUS_MAX, "Failed to retrieve list of private ioctls on %s: %s",
+                 in_dev, strerror(errno));
         close(skfd);
         return -1;
     }
@@ -334,7 +350,8 @@ int Iwconfig_Get_IntPriv(const char *in_dev, const char *privcmd,
     while ((++pn < wrq.u.data.length) && strcmp(priv[pn].name, privcmd));
 
     if (pn == wrq.u.data.length) {
-        snprintf(errstr, STATUS_MAX, "Unable to find private ioctl '%s'", privcmd);
+        snprintf(errstr, STATUS_MAX, "Unable to find private ioctl '%s' on %s", 
+                 privcmd, in_dev);
         close(skfd);
         return -2;
     }
@@ -348,7 +365,8 @@ int Iwconfig_Get_IntPriv(const char *in_dev, const char *privcmd,
                                              (priv[j].get_args != priv[pn].get_args)));
         
         if (j == wrq.u.data.length) {
-            snprintf(errstr, STATUS_MAX, "Unable to find subioctl '%s'", privcmd);
+            snprintf(errstr, STATUS_MAX, "Unable to find subioctl '%s' on %s", 
+                     privcmd, in_dev);
             close(skfd);
             return -2;
         }
@@ -361,15 +379,15 @@ int Iwconfig_Get_IntPriv(const char *in_dev, const char *privcmd,
     // Make sure its an iwpriv we can set
     if ((priv[pn].get_args & IW_PRIV_TYPE_MASK) == 0 ||
         (priv[pn].get_args & IW_PRIV_SIZE_MASK) == 0) {
-        snprintf(errstr, STATUS_MAX, "Unable to get values for private ioctl '%s'", 
-                 privcmd);
+        snprintf(errstr, STATUS_MAX, "Unable to get values for private ioctl '%s' on %s", 
+                 privcmd, in_dev);
         close(skfd);
         return -1;
     }
   
     if ((priv[pn].get_args & IW_PRIV_TYPE_MASK) != IW_PRIV_TYPE_INT) {
-        snprintf(errstr, STATUS_MAX, "'%s' does not return integer parameters.",
-                 privcmd);
+        snprintf(errstr, STATUS_MAX, "Private ioctl '%s' on %s does not return "
+                 "integer parameters.", privcmd, in_dev);
         close(skfd);
         return -1;
     }
@@ -377,7 +395,8 @@ int Iwconfig_Get_IntPriv(const char *in_dev, const char *privcmd,
     // Find out how many arguments it takes and die if we can't handle it
     int nargs = (priv[pn].get_args & IW_PRIV_SIZE_MASK);
     if (nargs > 1) {
-        snprintf(errstr, STATUS_MAX, "Private ioctl returns more than 1 parameter and we can't handle that.");
+        snprintf(errstr, STATUS_MAX, "Private ioctl '%s' on %s returns more than 1 "
+                 "parameter and we can't handle that at the moment.", privcmd, in_dev);
         close(skfd);
         return -1;
     }
@@ -404,8 +423,8 @@ int Iwconfig_Get_IntPriv(const char *in_dev, const char *privcmd,
 
     // Actually do it.
     if (ioctl(skfd, priv[pn].cmd, &wrq) < 0) {
-        snprintf(errstr, STATUS_MAX, "Failed to call get private ioctl '%s': %s",
-                 privcmd, strerror(errno));
+        snprintf(errstr, STATUS_MAX, "Failed to call get private ioctl '%s' on %s: %s",
+                 privcmd, in_dev, strerror(errno));
         close(skfd);
         return -1;
     }
@@ -502,13 +521,13 @@ int Iwconfig_Get_Channel(const char *in_dev, char *in_err) {
     }
 
     close(skfd);
-
     return (FloatChan2Int(IwFreq2Float(&wrq)));
 }
 
 int Iwconfig_Set_Channel(const char *in_dev, int in_ch, char *in_err) {
     struct iwreq wrq;
     int skfd;
+	int ret = 0;
 
     if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
         snprintf(in_err, STATUS_MAX, "Failed to create AF_INET DGRAM socket %d:%s", 
@@ -522,8 +541,6 @@ int Iwconfig_Set_Channel(const char *in_dev, int in_ch, char *in_err) {
 #ifdef HAVE_LINUX_IWFREQFLAG
 	wrq.u.freq.flags = IW_FREQ_FIXED;
 #endif
-	// If it's > 1024 then it's in MHz not channel numbers, multiply it by
-	// the MHz constant and send it instead
 	if (in_ch > 1024) 
 		IwFloat2Freq(in_ch * 1e6, &wrq.u.freq);
 	else
@@ -537,10 +554,16 @@ int Iwconfig_Set_Channel(const char *in_dev, int in_ch, char *in_err) {
         select(0, NULL, NULL, NULL, &tm);
 
         if (ioctl(skfd, SIOCSIWFREQ, &wrq) < 0) {
-            snprintf(in_err, STATUS_MAX, "Failed to set channel %d %d:%s", in_ch,
-                     errno, strerror(errno));
+			if (errno == ENODEV) {
+				ret = -2;
+			} else {
+				ret = -1;
+			}
+
+            snprintf(in_err, STATUS_MAX, "Failed to set channel %d: %s", in_ch,
+                     strerror(errno));
             close(skfd);
-            return -1;
+            return ret;
         }
     }
 
@@ -599,87 +622,176 @@ int Iwconfig_Set_Mode(const char *in_dev, char *in_err, int in_mode) {
     return 0;
 }
 
-// do something a little fugly - we need to cache the entire iwreq, so we
-// put it in a void, we can just issue a set to restore.  Caller must free
-// 'power', but we allocate it.
-int Iwconfig_Get_Power(const char *in_dev, char *in_err, void **power) {
-    struct iwreq *wrq;
-    int skfd;
+/* straight from wireless-tools; range struct definitions */
+#define IW15_MAX_FREQUENCIES	16
+#define IW15_MAX_BITRATES		8
+#define IW15_MAX_TXPOWER		8
+#define IW15_MAX_ENCODING_SIZES	8
+#define IW15_MAX_SPY			8
+#define IW15_MAX_AP				8
+struct iw15_range {
+	uint32_t throughput;
+	uint32_t min_nwid;
+	uint32_t max_nwid;
+	uint16_t num_channels;
+	uint8_t num_frequency;
+	struct iw_freq freq[IW15_MAX_FREQUENCIES];
+	int32_t sensitivity;
+	struct iw_quality max_qual;
+	uint8_t num_bitrates;
+	int32_t bitrate[IW15_MAX_BITRATES];
+	int32_t min_rts;
+	int32_t max_rts;
+	int32_t min_frag;
+	int32_t max_frag;
+	int32_t min_pmp;
+	int32_t max_pmp;
+	int32_t min_pmt;
+	int32_t max_pmt;
+	uint16_t pmp_flags;
+	uint16_t pmt_flags;
+	uint16_t pm_capa;
+	uint16_t encoding_size[IW15_MAX_ENCODING_SIZES];
+	uint8_t  num_encoding_sizes;
+	uint8_t  max_encoding_tokens;
+	uint16_t txpower_capa;
+	uint8_t  num_txpower;
+	int32_t txpower[IW15_MAX_TXPOWER];
+	uint8_t  we_version_compiled;
+	uint8_t  we_version_source;
+	uint16_t retry_capa;
+	uint16_t retry_flags;
+	uint16_t r_time_flags;
+	int32_t min_retry;
+	int32_t max_retry;
+	int32_t min_r_time;
+	int32_t  max_r_time;
+	struct iw_quality avg_qual;
+};
 
-    if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-        snprintf(in_err, STATUS_MAX, "Failed to create AF_INET DGRAM socket %d:%s", 
-                 errno, strerror(errno));
-        return -1;
-    }
+union iw_range_raw {
+	struct iw15_range range15;	/* WE 9->15 */
+	struct iw_range	range;		/* WE 16->current */
+};
 
-	wrq = (struct iwreq *) malloc(sizeof(struct iwreq));
-    memset(wrq, 0, sizeof(struct iwreq));
-    strncpy(wrq->ifr_name, in_dev, IFNAMSIZ);
+/*
+ * Offsets in iw_range struct
+ */
+#define iwr15_off(f)	( ((char *) &(((struct iw15_range *) NULL)->f)) - \
+			  (char *) NULL)
+#define iwr_off(f)	( ((char *) &(((struct iw_range *) NULL)->f)) - \
+			  (char *) NULL)
 
-    if (ioctl(skfd, SIOCGIWPOWER, wrq) < 0) {
-        snprintf(in_err, STATUS_MAX, "channel get power ioctl failed %s",
-                 strerror(errno));
-        close(skfd);
-        return -1;
-    }
+/* Get hw supported channels; rewritten from wireless-tools by Jean Tourilhes */
+int Iwconfig_Get_Chanlist(const char *interface, char *errstr, 
+						  vector<unsigned int> *chan_list) {
+	struct iwreq wrq;
+	int skfd;
+	char buffer[sizeof(struct iw_range) * 2];
+	union iw_range_raw *range_raw;
+	struct iw_range range;
 
-    close(skfd);
+	if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+		snprintf(errstr, STATUS_MAX, "%s: Failed to create ioctl socket on %s: %s",
+				 __FUNCTION__, interface, strerror(errno));
+		return -1;
+	}
 
-	*power = wrq;
+	bzero(buffer, sizeof(buffer));
 
-	return 1;
-}
+	memset(&wrq, 0, sizeof(struct iwreq));
 
-int Iwconfig_Restore_Power(const char *in_dev, char *in_err, void *in_power) {
-    struct iwreq *wrq = (struct iwreq *) in_power;
-    int skfd;
+	wrq.u.data.pointer = (caddr_t) buffer;
+	wrq.u.data.length = sizeof(buffer);
+	wrq.u.data.flags = 0;
 
-    if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-        snprintf(in_err, STATUS_MAX, "Failed to create AF_INET DGRAM socket %d:%s", 
-                 errno, strerror(errno));
-        return -1;
-    }
+	strncpy(wrq.ifr_name, interface, IFNAMSIZ);
 
-	wrq = (struct iwreq *) malloc(sizeof(struct iwreq));
-    memset(wrq, 0, sizeof(struct iwreq));
-    strncpy(wrq->ifr_name, in_dev, IFNAMSIZ);
+	if (ioctl(skfd, SIOCGIWRANGE, &wrq) < 0) {
+		snprintf(errstr, STATUS_MAX, "%s: Failed to get frequency range on %s: %s",
+				 __FUNCTION__, interface, strerror(errno));
+		close(skfd);
+		return -1;
+	}
 
-    if (ioctl(skfd, SIOCSIWPOWER, wrq) < 0) {
-        snprintf(in_err, STATUS_MAX, "channel set power ioctl failed %s",
-                 strerror(errno));
-        close(skfd);
-        return -1;
-    }
+	range_raw = (union iw_range_raw *) buffer;
 
-    close(skfd);
+	/* Magic number to detect old versions */
+	/* For new versions, we can check the version directly, for old versions
+	 * we use magic. 300 bytes is a also magic number, don't touch... */
+	if (wrq.u.data.length < 300) {
+		snprintf(errstr, STATUS_MAX, "Interface %s using wireless extensions which "
+				 "are too old to extract the supported channels list", interface);
+		close(skfd);
+		return -1;
+	}
 
-	return 1;
-}
+	/* Direct copy from wireless-tools; mangle the range code and
+	 * figure out what we need to do with it */
+	if (range_raw->range.we_version_compiled > 15) {
+		memcpy((char *) &range, buffer, sizeof(iw_range));
+	} else {
+		/* Zero unknown fields */
+		bzero((char *) &range, sizeof(struct iw_range));
 
-int Iwconfig_Disable_Power(const char *in_dev, char *in_err) {
-    struct iwreq wrq;
-    int skfd;
+		/* Initial part unmoved */
+		memcpy((char *) &range, buffer, iwr15_off(num_channels));
+		/* Frequencies pushed futher down towards the end */
+		memcpy((char *) &range + iwr_off(num_channels),
+			   buffer + iwr15_off(num_channels), 
+			   iwr15_off(sensitivity) - iwr15_off(num_channels));
+		/* This one moved up */
+		memcpy((char *) &range + iwr_off(sensitivity),
+			   buffer + iwr15_off(sensitivity),
+			   iwr15_off(num_bitrates) - iwr15_off(sensitivity));
+		/* This one goes after avg_qual */
+		memcpy((char *) &range + iwr_off(num_bitrates),
+			   buffer + iwr15_off(num_bitrates),
+			   iwr15_off(min_rts) - iwr15_off(num_bitrates));
+		/* Number of bitrates has changed, put it after */
+		memcpy((char *) &range + iwr_off(min_rts),
+			   buffer + iwr15_off(min_rts),
+			   iwr15_off(txpower_capa) - iwr15_off(min_rts));
+		/* Added encoding_login_index, put it after */
+		memcpy((char *) &range + iwr_off(txpower_capa),
+			   buffer + iwr15_off(txpower_capa),
+			   iwr15_off(txpower) - iwr15_off(txpower_capa));
+		/* Hum... That's an unexpected glitch. Bummer. */
+		memcpy((char *) &range + iwr_off(txpower),
+			   buffer + iwr15_off(txpower),
+			   iwr15_off(avg_qual) - iwr15_off(txpower));
+		/* Avg qual moved up next to max_qual */
+		memcpy((char *) &range + iwr_off(avg_qual),
+			   buffer + iwr15_off(avg_qual),
+			   sizeof(struct iw_quality));
+	}
 
-    if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-        snprintf(in_err, STATUS_MAX, "Failed to create AF_INET DGRAM socket %d:%s", 
-                 errno, strerror(errno));
-        return -1;
-    }
+	if (range.we_version_compiled <= 10) {
+		snprintf(errstr, STATUS_MAX, "Interface %s using wireless extensions which "
+				 "are too old to extract the supported channels list", interface);
+		close(skfd);
+		return -1;
+	}
 
-    memset(&wrq, 0, sizeof(struct iwreq));
-    strncpy(wrq.ifr_name, in_dev, IFNAMSIZ);
+	if (range.we_version_compiled > WE_MAX_VERSION) {
+		snprintf(errstr, STATUS_MAX, "Interface %s using wireless extensions from "
+				 "the future; Recompile Kismet with your new kernel before Skynet "
+				 "takes over", interface);
+		close(skfd);
+		return -1;
+	}
 
-	wrq.u.power.disabled = 0;
+	if (range.num_frequency > 0) {
+		/* Print them all */
+		for (int k = 0; k < range.num_frequency; k++) {
+			int freq = (((double) range.freq[k].m) * pow(10, range.freq[k].e)) /
+				1000000;
+			chan_list->push_back(FreqToChan(freq));
+		}
+	}
 
-    if (ioctl(skfd, SIOCSIWMODE, &wrq) < 0) {
-        snprintf(in_err, STATUS_MAX, "power set disabled ioctl failed %s",
-                 strerror(errno));
-        close(skfd);
-        return -1;
-    }
-
-    close(skfd);
-    return 0;
+	close(skfd);
+	return chan_list->size();
 }
 
 #endif

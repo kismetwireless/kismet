@@ -173,6 +173,7 @@ struct mac_addr {
     }
 
     inline mac_addr(int in) {
+		in = in; // Silence gcc
         longmac = 0;
         longmask = 0;
         error = 0;
@@ -240,6 +241,10 @@ struct mac_addr {
 
         return index64(longmac, mdex);
     }
+
+	inline uint32_t OUI() const {
+		return (longmac >> 24);
+	}
 
     inline string Mac2String() const {
         char tempstr[MAC_STR_LEN];
@@ -512,12 +517,11 @@ public:
         return singleton_map.size() + mask_vec.size();
     }
 
-	void clear() {
-		singleton_map.erase (singleton_map.begin(), singleton_map.end());
-		vec_offset_map.erase(vec_offset_map.begin(), vec_offset_map.end());
-		mask_vec.erase (mask_vec.begin(), mask_vec.end());
-		return;
-	} 
+	inline void clear(void) {
+		vec_offset_map.clear();
+		singleton_map.clear();
+		mask_vec.clear();
+	}
 
     inline void reindex(void) {
         // Order it

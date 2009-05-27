@@ -1,0 +1,26 @@
+=AlertTracker=
+
+AlertTracker is responsible for defining IDS alerts, throttling alert rates 
+based on configuration, and other alert duties.
+
+Alerts are created with:
+	int RegisterAlert(const char *in_header, alert_time_unit in_unit, int 
+					  in_rate, int in_burst);
+
+	The returned integer is the reference value for the created alert or (-1) 
+	for failure.  This reference value is needed for other alert funtions.
+	
+	``in_header'' is the name of the alert sent in the *ALERT protocol.
+
+	Rate limiting should be read from the ConfigFile.
+
+Alerts are raised with:
+	int RaiseAlert(int in_ref, mac_addr bssid, mac_addr source, mac_addr dest, 
+				   mac_addr other, int in_channel, string in_text);
+
+If generating a given alert is a time consuming task, a quick test can be 
+performed to see if the alert would be sent:
+	int PotentialAlert(int in_ref);
+
+----
+related: IndeX

@@ -21,607 +21,361 @@
 
 #include "config.h"
 
-#include <stdio.h>
-#include <ctype.h>
-#include <sys/time.h>
-#include <sys/resource.h>
-#include <sys/types.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
-#include <string.h>
-#include <signal.h>
-#include <unistd.h>
 #ifdef HAVE_STDINT_H
 #include <stdint.h>
 #endif
 #ifdef HAVE_INTTYPES_H
 #include <inttypes.h>
 #endif
+
 #include <algorithm>
 #include <string>
 #include <vector>
 #include <map>
 
 #include "macaddr.h"
-#include "endian_magic.h"
+#include "packet_ieee80211.h"
 
-#define DEVNAME_LEN 16
-#define MAX_PACKET_LEN 10240
+// This is the main switch for how big the vector is.  If something ever starts
+// bumping up against this we'll need to increase it, but that'll slow down 
+// generating a packet (slightly) so I'm leaving it relatively low.
+#define MAX_PACKET_COMPONENTS	64
 
-#define SSID_SIZE 255
+// Maximum length of a frame
+#define MAX_PACKET_LEN			8192
 
-#define MAC_LEN 6
-#define MAC_STR_LEN ((MAC_LEN * 2) + 6)
-
-// Parmeters to the packet info
-struct packet_parm {
-    int fuzzy_crypt;
-	int fuzzy_decode;
+// High-level packet component so that we can provide our own destructors
+class packet_component {
+public:
+    packet_component() { self_destruct = 1; };
+	virtual ~packet_component() { }
+	int self_destruct;
 };
 
-// Signalling layer info - what protocol are we seeing data on?
-// Not all of these types are currently supported, of course
-enum carrier_type {
-    carrier_unknown,
-    carrier_80211b,
-    carrier_80211bplus,
-    carrier_80211a,
-    carrier_80211g,
-    carrier_80211fhss,
-    carrier_80211dsss,
-	carrier_80211n20,
-	carrier_80211n40
-};
-
-// Packet encoding info - how are packets encoded?
-enum encoding_type {
-    encoding_unknown,
-    encoding_cck,
-    encoding_pbcc,
-    encoding_ofdm
-};
-
-// Very similar to pcap_pkthdr and wtap_pkthdr.  This is our
-// common packet header that we convert everything to.
-typedef struct {
-    unsigned int len;		// The amount of data we've actually got
-    unsigned int caplen;	// The amount of data originally captured
-    struct timeval ts;          // Capture timestamp
-    int quality;                // Signal quality
-    int signal;                 // Signal strength
-    int noise;                  // Noise level
-    int error;                  // Capture source told us this was a bad packet
-    int channel;                // Hardware receive channel, if the drivers tell us
-    int modified;               // Has moddata been populated?
-    uint8_t *data;              // Raw packet data
-    uint8_t *moddata;           // Modified packet data
-    char sourcename[32];        // Name of the source that generated the data
-    carrier_type carrier;       // Signal carrier
-    encoding_type encoding;     // Signal encoding
-    int datarate;               // Data rate in units of 100 kbps
-    float gps_lat;              // GPS coordinates
-    float gps_lon;
-    float gps_alt;
-    float gps_spd;
-    float gps_heading;
-    int gps_fix;
-    packet_parm parm;           // Parameters from the packet source that trickle down
-} kis_packet;
-
-#ifdef WORDS_BIGENDIAN
-// Byte ordering for bigendian systems.  Bitwise strcts are so funky.
-typedef struct {
-    unsigned short subtype : 4 __attribute__ ((packed));
-    unsigned short type : 2 __attribute__ ((packed));
-    unsigned short version : 2 __attribute__ ((packed));
-
-    unsigned short order : 1 __attribute__ ((packed));
-    unsigned short wep : 1 __attribute__ ((packed));
-    unsigned short more_data : 1 __attribute__ ((packed));
-    unsigned short power_management : 1 __attribute__ ((packed));
-
-    unsigned short retry : 1 __attribute__ ((packed));
-    unsigned short more_fragments : 1 __attribute__ ((packed));
-    unsigned short from_ds : 1 __attribute__ ((packed));
-    unsigned short to_ds : 1 __attribute__ ((packed));
-} frame_control;
-
-typedef struct {
-    unsigned short frag : 12 __attribute__ ((packed));
-    unsigned short sequence : 4 __attribute__ ((packed));
-} wireless_fragseq;
-
-typedef struct {
-    uint8_t timestamp[8];
-
-    // This field must be converted to host-endian before being used
-    unsigned int beacon : 16 __attribute__ ((packed));
-
-    unsigned short agility : 1 __attribute__ ((packed));
-    unsigned short pbcc : 1 __attribute__ ((packed));
-    unsigned short short_preamble : 1 __attribute__ ((packed));
-    unsigned short wep : 1 __attribute__ ((packed));
-
-    unsigned short unused2 : 1 __attribute__ ((packed));
-    unsigned short unused1 : 1 __attribute__ ((packed));
-    unsigned short ibss : 1 __attribute__ ((packed));
-    unsigned short ess : 1 __attribute__ ((packed));
-
-    unsigned int coordinator : 8 __attribute__ ((packed));
-
-} fixed_parameters;
-
-#else
-// And 802.11 packet frame header
-typedef struct {
-    unsigned short version : 2 __attribute__ ((packed));
-    unsigned short type : 2 __attribute__ ((packed));
-    unsigned short subtype : 4 __attribute__ ((packed));
-
-    unsigned short to_ds : 1 __attribute__ ((packed));
-    unsigned short from_ds : 1 __attribute__ ((packed));
-    unsigned short more_fragments : 1 __attribute__ ((packed));
-    unsigned short retry : 1 __attribute__ ((packed));
-
-    unsigned short power_management : 1 __attribute__ ((packed));
-    unsigned short more_data : 1 __attribute__ ((packed));
-    unsigned short wep : 1 __attribute__ ((packed));
-    unsigned short order : 1 __attribute__ ((packed));
-} frame_control;
-
-typedef struct {
-    unsigned short frag : 4 __attribute__ ((packed));
-    unsigned short sequence : 12 __attribute__ ((packed));
-} wireless_fragseq;
-
-typedef struct {
-    uint8_t timestamp[8];
-
-    // This field must be converted to host-endian before being used
-    unsigned int beacon : 16 __attribute__ ((packed));
-
-    unsigned short ess : 1 __attribute__ ((packed));
-    unsigned short ibss : 1 __attribute__ ((packed));
-    unsigned short unused1 : 1 __attribute__ ((packed));
-    unsigned short unused2 : 1 __attribute__ ((packed));
-
-    unsigned short wep : 1 __attribute__ ((packed));
-    unsigned short short_preamble : 1 __attribute__ ((packed));
-    unsigned short pbcc : 1 __attribute__ ((packed));
-    unsigned short agility : 1 __attribute__ ((packed));
-
-    unsigned int coordinator : 8 __attribute__ ((packed));
-} fixed_parameters;
-
-
-#endif
-
-enum protocol_info_type {
-    proto_unknown,
-    proto_udp, proto_misc_tcp, proto_arp, proto_dhcp_server,
-    proto_cdp,
-    proto_netbios, proto_netbios_tcp,
-    proto_ipx,
-    proto_ipx_tcp,
-    proto_turbocell,
-    proto_netstumbler,
-    proto_lucenttest,
-    proto_wellenreiter,
-    proto_iapp,
-    proto_leap,
-    proto_ttls,
-    proto_tls,
-    proto_peap,
-    proto_isakmp,
-    proto_pptp,
-};
-
-enum protocol_netbios_type {
-    proto_netbios_unknown,
-    proto_netbios_host, proto_netbios_master,
-    proto_netbios_domain, proto_netbios_query, proto_netbios_pdcquery
-};
-
-// CDP
-// Cisco Discovery Protocol
-// This spews a tremendous amount of revealing information about the
-// internals of a network, if they have cisco equipment.
-typedef struct {
-    unsigned int : 8 __attribute__ ((packed));
-    unsigned int : 8 __attribute__ ((packed));
-
-    unsigned int : 8 __attribute__ ((packed));
-    unsigned int : 1 __attribute__ ((packed));
-    unsigned int level1 : 1 __attribute__ ((packed));
-    unsigned int igmp_forward : 1 __attribute__ ((packed));
-    unsigned int nlp : 1 __attribute__ ((packed));
-    unsigned int level2_switching : 1 __attribute__ ((packed));
-    unsigned int level2_sourceroute : 1 __attribute__ ((packed));
-    unsigned int level2_transparent : 1 __attribute__ ((packed));
-    unsigned int level3 : 1 __attribute__ ((packed));
-} cdp_capabilities;
-
-typedef struct {
-    char dev_id[128];
-    uint8_t ip[4];
-    char interface[128];
-    cdp_capabilities cap;
-    char software[512];
-    char platform[128];
-} cdp_packet;
-
-typedef struct {
-    unsigned int type : 16 __attribute__ ((packed));
-    unsigned int length : 16 __attribute__ ((packed));
-    char data;
-} cdp_element;
-
-// 802.1x Header
-typedef struct dot1x_header {
-    uint8_t    version;
-    uint8_t    type;
-    uint16_t   length;
-} __attribute__ ((packed)) dot1x_header_t;
-
-// EAP Packet header
-typedef struct eap_packet {
-    uint8_t    code; /* 1=request, 2=response, 3=success, 4=failure */
-    uint8_t    identifier; /* Sequential counter, not sure what it's for */
-    uint16_t   length; /* Length of the entire EAP message */
-    uint8_t    type; /* 0x11 for LEAP */
-    /* The fields that follow the type octet are variable, depending on the
-       type and code values.  This information isn't important for us. */
-} __attribute__ ((packed)) eap_packet_t;
-
-// ISAKMP packet header
-typedef struct isakmp_packet {
-    uint8_t    init_cookie[8];
-    uint8_t    resp_cookie[8];
-    uint8_t    next_payload;
-    uint8_t    version;
-    uint8_t    exchtype;
-    uint8_t    flags;
-    uint32_t   messageid;
-    uint32_t   length;
-} __attribute__ ((packed)) isakmp_packet_t;
-
-typedef struct {
-    unsigned int type : 8 __attribute__ ((packed));
-    unsigned int length : 8 __attribute__ ((packed));
-    unsigned int proto : 8 __attribute__ ((packed));
-    unsigned int : 8 __attribute__ ((packed));
-    unsigned int proto_length : 8 __attribute__ ((packed));
-    char addr;
-} cdp_proto_element;
-
-// Info about a protocol
-struct proto_info {
-    protocol_info_type type;
-
-    uint8_t source_ip[4];
-    uint8_t dest_ip[4];
-
-    uint8_t misc_ip[4];
-
-    uint8_t mask[4];
-
-    uint8_t gate_ip[4];
-
-    uint16_t sport, dport;
-
-    cdp_packet cdp;
-
-    char netbios_source[17];
-
-    protocol_netbios_type nbtype;
-
-    // Extra versioning/details of the proto type
-    int prototype_extra;
-
-};
-
-// packet conversion and extraction utilities
-// Packet types, these should correspond to the frame header types
-enum packet_type {
-    packet_noise = -2,  // We're too short or otherwise corrupted
-    packet_unknown = -1, // What are we?
-    packet_management = 0, // LLC management
-    packet_phy = 1, // Physical layer packets, most drivers can't provide these
-    packet_data = 2 // Data frames
-};
-
-// Subtypes are a little odd because we re-use values depending on the type
-enum packet_sub_type {
-    packet_sub_unknown = -1,
-    // Management subtypes
-    packet_sub_association_req = 0,
-    packet_sub_association_resp = 1,
-    packet_sub_reassociation_req = 2,
-    packet_sub_reassociation_resp = 3,
-    packet_sub_probe_req = 4,
-    packet_sub_probe_resp = 5,
-    packet_sub_beacon = 8,
-    packet_sub_atim = 9,
-    packet_sub_disassociation = 10,
-    packet_sub_authentication = 11,
-    packet_sub_deauthentication = 12,
-    // Phy subtypes
-    packet_sub_rts = 11,
-    packet_sub_cts = 12,
-    packet_sub_ack = 13,
-    packet_sub_cf_end = 14,
-    packet_sub_cf_end_ack = 15,
-    // Data subtypes
-    packet_sub_data = 0,
-    packet_sub_data_cf_ack = 1,
-    packet_sub_data_cf_poll = 2,
-    packet_sub_data_cf_ack_poll = 3,
-    packet_sub_data_null = 4,
-    packet_sub_cf_ack = 5,
-    packet_sub_cf_ack_poll = 6,
-    packet_sub_data_qos_data = 8,
-    packet_sub_data_qos_data_cf_ack = 9,
-    packet_sub_data_qos_data_cf_poll = 10,
-    packet_sub_data_qos_data_cf_ack_poll = 11,
-    packet_sub_data_qos_null = 12,
-    packet_sub_data_qos_cf_poll_nod = 14,
-    packet_sub_data_qos_cf_ack_poll = 15
-    
-};
-
-// distribution directions
-enum distribution_type {
-    no_distribution, from_distribution, to_distribution, inter_distribution, adhoc_distribution
-};
-
-// Turbocell modes
-enum turbocell_type {
-    turbocell_unknown,
-    turbocell_ispbase, // 0xA0
-    turbocell_pollbase, // 0x80
-    turbocell_nonpollbase, // 0x00
-    turbocell_base // 0x40
-};
-
-// IAPP stuff
-enum iapp_type {
-    iapp_announce_request = 0,
-    iapp_announce_response = 1,
-    iapp_handover_request = 2,
-    iapp_handover_response = 3
-};
-
-enum iapp_pdu {
-    iapp_pdu_ssid = 0x00,
-    iapp_pdu_bssid = 0x01,
-    iapp_pdu_oldbssid = 0x02,
-    iapp_pdu_msaddr = 0x03,
-    iapp_pdu_capability = 0x04,
-    iapp_pdu_announceint = 0x05,
-    iapp_pdu_hotimeout = 0x06,
-    iapp_pdu_messageid = 0x07,
-    iapp_pdu_phytype = 0x10,
-    iapp_pdu_regdomain = 0x11,
-    iapp_pdu_channel = 0x12,
-    iapp_pdu_beaconint = 0x13,
-    iapp_pdu_ouiident = 0x80,
-    iapp_pdu_authinfo = 0x81
-};
-
-enum iapp_cap {
-    iapp_cap_forwarding = 0x40,
-    iapp_cap_wep = 0x20
-};
-
-enum iapp_phy {
-    iapp_phy_prop = 0x00,
-    iapp_phy_fhss = 0x01,
-    iapp_phy_dsss = 0x02,
-    iapp_phy_ir = 0x03,
-    iapp_phy_ofdm = 0x04
-};
-
-enum iapp_dom {
-    iapp_dom_fcc = 0x10,
-    iapp_dom_ic = 0x20,
-    iapp_dom_etsi = 0x30,
-    iapp_dom_spain = 0x31,
-    iapp_dom_france = 0x32,
-    iapp_dom_mkk = 0x40
-};
-
-enum iapp_auth {
-    iapp_auth_status = 0x01,
-    iapp_auth_username = 0x02,
-    iapp_auth_provname = 0x03,
-    iapp_auth_rxpkts = 0x04,
-    iapp_auth_txpkts = 0x05,
-    iapp_auth_rxbytes = 0x06,
-    iapp_auth_txbytes = 0x07,
-    iapp_auth_logintime = 0x08,
-    iapp_auth_timelimit = 0x09,
-    iapp_auth_vollimit = 0x0a,
-    iapp_auth_acccycle = 0x0b,
-    iapp_auth_rxgwords = 0x0c,
-    iapp_auth_txgwords = 0x0d,
-    iapp_auth_ipaddr = 0x0e,
-    iapp_auth_trailer = 0xff
-};
-
-typedef struct {
-    unsigned iapp_version : 8 __attribute__ ((packed));
-    unsigned iapp_type : 8 __attribute__ ((packed));
-} iapp_header;
-
-typedef struct {
-    unsigned pdu_type : 8 __attribute__ ((packed));
-    unsigned pdu_len : 16 __attribute__ ((packed));
-} iapp_pdu_header;
-
-enum crypt_type {
-	crypt_none = 0,
-	crypt_unknown = 1,
-	crypt_wep = 2,
-	crypt_layer3 = 4,
-	// Derived from WPA headers
-	crypt_wep40 = 8,
-	crypt_wep104 = 16,
-	crypt_tkip = 32,
-	crypt_wpa = 64,
-	crypt_psk = 128,
-	crypt_aes_ocb = 256,
-	crypt_aes_ccm = 512,
-	// Derived from data traffic
-	crypt_leap = 1024,
-	crypt_ttls = 2048,
-	crypt_tls = 4096,
-	crypt_peap = 8192,
-	crypt_isakmp = 16384,
-    crypt_pptp = 32768,
-	crypt_ccmp = 65536
-};
-
-// Info about a packet
-typedef struct {
-    // Packet info type
-    packet_type type;
-    packet_sub_type subtype;
-
-    // Packet QoS Data
-    uint16_t qos; 
-
-    // Is it a corrupt packet?  We might want to know what type it is
-    // even if it's corrupt
-    int corrupt;
-
-    // reason code for some management protocols
-    int reason_code;
-
-    // Timestamp.  Second precision is fine.
+// Overall packet container that holds packet information
+class kis_packet {
+public:
+    // Time of packet creation
     struct timeval ts;
 
-    // Connection info
-    int quality;
-    int signal;
-    int noise;
+    // Do we know this is in error from the capture source
+    // itself?
+    int error;
 
-    // SSID
-    char ssid[SSID_SIZE+1];
+	// Actual vector of bits in the packet
+	vector<packet_component *> content_vec;
+   
+    // Init stuff
+    kis_packet() {
+        error = 0;
+
+		// Stock and init the content vector
+		content_vec.resize(MAX_PACKET_COMPONENTS, NULL);
+		/*
+		for (unsigned int y = 0; y < MAX_PACKET_COMPONENTS; y++)
+			content_vec[y] = NULL;
+		*/
+    }
+
+    ~kis_packet() {
+        // Delete everything we contain when we die.  I hope whomever put
+        // it there expected this.
+		for (unsigned int y = 0; y < MAX_PACKET_COMPONENTS; y++) {
+			packet_component *pcm = content_vec[y];
+
+			if (pcm == NULL)
+				continue;
+
+			// If it's marked for self-destruction, delete it.  Otherwise, 
+			// someone else is responsible for removing it.
+			if (pcm->self_destruct)
+				delete pcm;
+
+			content_vec[y] = NULL;
+        }
+    }
+   
+    inline void insert(const unsigned int index, packet_component *data) {
+		if (index >= MAX_PACKET_COMPONENTS)
+			return;
+        content_vec[index] = data;
+    }
+    inline void *fetch(const unsigned int index) {
+		if (index >= MAX_PACKET_COMPONENTS)
+			return NULL;
+
+		return content_vec[index];
+    }
+    inline void erase(const unsigned int index) {
+		if (index >= MAX_PACKET_COMPONENTS)
+			return;
+
+        // Delete it if we can - both from our array and from 
+        // memory.  Whatever inserted it had better expect this
+        // to happen or it will be very unhappy
+		if (content_vec[index] != NULL) {
+			delete content_vec[index];
+			content_vec[index] = NULL;
+        }
+    }
+    inline packet_component *operator[] (const unsigned int& index) const {
+		if (index >= MAX_PACKET_COMPONENTS)
+			return NULL;
+
+		return content_vec[index];
+    }
+};
+
+// Arbitrary 802.11 data chunk
+class kis_datachunk : public packet_component {
+public:
+    uint8_t *data;
+    unsigned int length;
+	int dlt;
+	uint16_t source_id;
+   
+    kis_datachunk() {
+		self_destruct = 1; // Our delete() handles everything
+        data = NULL;
+        length = 0;
+		source_id = 0;
+    }
+
+    virtual ~kis_datachunk() {
+        delete[] data;
+        length = 0;
+    }
+};
+
+class kis_fcs_bytes : public packet_component {
+public:
+	kis_fcs_bytes() {
+		self_destruct = 1;
+		fcs[0] = fcs[1] = fcs[2] = fcs[3] = 0;
+		fcsp = (uint32_t *) fcs;
+		fcsvalid = 0;
+	}
+
+	uint8_t fcs[4];
+	uint32_t *fcsp;
+	int fcsvalid;
+};
+
+// Dot11d struct
+struct dot11d_range_info {
+	dot11d_range_info() {
+		startchan = 0;
+		numchan = 0;
+		txpower = 0;
+	}
+
+	int startchan, numchan, txpower;
+};
+
+
+// Info from the IEEE 802.11 frame headers for kismet
+class kis_ieee80211_packinfo : public packet_component {
+public:
+    kis_ieee80211_packinfo() {
+		self_destruct = 1; // Our delete() handles this
+        corrupt = 0;
+        header_offset = 0;
+        type = packet_unknown;
+        subtype = packet_sub_unknown;
+        mgt_reason_code = 0;
+        ssid_len = 0;
+		ssid_blank = 0;
+        source_mac = mac_addr(0);
+        dest_mac = mac_addr(0);
+        bssid_mac = mac_addr(0);
+        other_mac = mac_addr(0);
+        distrib = distrib_unknown;
+		cryptset = 0;
+		decrypted = 0;
+        fuzzywep = 0;
+		fmsweak = 0;
+        ess = 0;
+		ibss = 0;
+		channel = 0;
+        encrypted = 0;
+        beacon_interval = 0;
+        maxrate = 0;
+        timestamp = 0;
+        sequence_number = 0;
+        frag_number = 0;
+		fragmented = 0;
+		retry = 0;
+        duration = 0;
+        datasize = 0;
+		qos = 0;
+		ssid_csum = 0;
+		dot11d_country = "XXX";
+    }
+
+    // Corrupt 802.11 frame
+    int corrupt;
+   
+    // Offset to data components in frame
+    unsigned int header_offset;
+    
+    ieee_80211_type type;
+    ieee_80211_subtype subtype;
+  
+    uint8_t mgt_reason_code;
+    
+    // Raw SSID
+	string ssid;
+	// Length of the SSID header field
     int ssid_len;
+	// Is the SSID empty spaces?
+	int ssid_blank;
 
-    // Source name
-    char sourcename[32];
-
-    // Where did it come from?
-    distribution_type distrib;
-
-	// What crypt set is used?
-	int crypt_set;
-
-    // Was the encryption detection fuzzy?
-    int fuzzy;
-    // Was it flagged as ess? (ap)
-    int ess;
-    // What channel?
-    int channel;
-    // Is this encrypted?
-    int encrypted;
-    // Did we decode it?
-    int decoded;
-    // Is it weak crypto?
-    int interesting;
-    // What carrier brought us this packet?
-    carrier_type carrier;
-    // What encoding?
-    encoding_type encoding;
-    // What data rate?
-    int datarate;
-
+    // Address set
     mac_addr source_mac;
     mac_addr dest_mac;
     mac_addr bssid_mac;
+    mac_addr other_mac;
+    
+    ieee_80211_disttype distrib;
+ 
+	uint64_t cryptset;
+	int decrypted; // Might as well put this in here?
+    int fuzzywep;
+	int fmsweak;
 
-    // Beacon interval if this is a beacon packet, raw 16bit format
-    int beacon;
+    // Was it flagged as ess? (ap)
+    int ess;
+	int ibss;
 
-    // Cisco tacks extra info into the beacon.  This is nice.
-    char beacon_info[SSID_SIZE+1];
+	// What channel does it report
+	int channel;
 
-    // Offset of the header
-    unsigned int header_offset;
+    // Is this encrypted?
+    int encrypted;
+    int beacon_interval;
 
-    proto_info proto;
+	uint16_t qos;
+
+    // Some cisco APs seem to fill in this info field
+	string beacon_info;
 
     double maxrate;
 
     uint64_t timestamp;
     int sequence_number;
     int frag_number;
+	int fragmented;
+	int retry;
 
     int duration;
 
     int datasize;
 
-    // Turbocell tracking info
-    int turbocell_nid;
-    turbocell_type turbocell_mode;
-    int turbocell_sat;
+	uint32_t ssid_csum;
 
-    // Location info
-    float gps_lat, gps_lon, gps_alt, gps_spd, gps_heading;
-    int gps_fix;
-
-    // ICV and key number
-    uint32_t ivset;
-
-	// IDS hooks kluged into stable
-	int ids_msfdlinkrate;
-	int ids_msfnetgearbeacon;
-
-} packet_info;
-
-typedef struct {
-    int fragile;
-    mac_addr bssid;
-    unsigned char key[WEPKEY_MAX];
-    unsigned int len;
-    unsigned int decrypted;
-    unsigned int failed;
-} wep_key_info;
-
-// ----------------------------------
-// String munger
-string MungeToPrintable(char *in_data, int len);
-
-// Info extraction functions
-int GetTagOffset(int init_offset, int tagnum, kis_packet *packet,
-                 map<int, vector<int> > *tag_cache_map);
-void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
-                   macmap<wep_key_info *> *bssid_wep_map, unsigned char *identity);
-void ProcessPacketCrypto(kis_packet *packet, packet_info *ret_packinfo,
-						 macmap<wep_key_info *> *bssid_wep_map,
-						 unsigned char *identity);
-void GetProtoInfo(kis_packet *packet, packet_info *in_info);
-void DecryptPacket(kis_packet *packet, packet_info *in_info, 
-                   macmap<wep_key_info *> *bssid_wep_map, unsigned char *identity);
-int MangleDeCryptPacket(const kis_packet *packet, const packet_info *in_info,
-                        kis_packet *outpack, uint8_t *data, uint8_t *moddata);
-int MangleFuzzyCryptPacket(const kis_packet *packet, const packet_info *in_info,
-                           kis_packet *outpack, uint8_t *data, uint8_t *moddata);
-
-vector<string> GetPacketStrings(const packet_info *in_info, const kis_packet *packet);
-
-// Sort packet_infos
-class SortPacketInfos {
-public:
-    inline bool operator() (const packet_info x, const packet_info y) const {
-        if (x.ts.tv_sec < y.ts.tv_sec ||
-            (x.ts.tv_sec == y.ts.tv_sec && x.ts.tv_usec < y.ts.tv_usec))
-            return 1;
-        return 0;
-    }
+	string dot11d_country;
+	vector<dot11d_range_info> dot11d_vec;
 };
 
+// some protocols we do try to track
+enum kis_protocol_info_type {
+    proto_unknown,
+    proto_udp, 
+	proto_tcp, 
+	proto_arp, 
+	proto_dhcp_offer,
+	proto_dhcp_discover,
+    proto_cdp,
+    proto_turbocell,
+	proto_netstumbler_probe,
+	proto_lucent_probe,
+    proto_iapp,
+    proto_leap,
+    proto_ttls,
+    proto_tls,
+    proto_peap,
+	proto_eap_unknown,
+    proto_isakmp,
+    proto_pptp,
+};
+
+class kis_data_packinfo : public packet_component {
+public:
+	kis_data_packinfo() {
+		self_destruct = 1; // Safe to delete us
+		proto = proto_unknown;
+		ip_source_port = 0;
+		ip_dest_port = 0;
+		ip_source_addr.s_addr = 0;
+		ip_dest_addr.s_addr = 0;
+		ip_netmask_addr.s_addr = 0;
+		ip_gateway_addr.s_addr = 0;
+		field1 = 0;
+        ivset[0] = ivset[1] = ivset[2] = 0;
+	}
+
+	kis_protocol_info_type proto;
+
+	// IP info, we re-use a subset of the kis_protocol_info_type enum to fill
+	// in where we got our IP data from.  A little klugey, but really no reason
+	// not to do it
+	int ip_source_port;
+	int ip_dest_port;
+	in_addr ip_source_addr;
+	in_addr ip_dest_addr;
+	in_addr ip_netmask_addr;
+	in_addr ip_gateway_addr;
+	kis_protocol_info_type ip_type;
+
+	// The two CDP fields we really care about for anything
+	string cdp_dev_id;
+	string cdp_port_id;
+
+	// DHCP Discover data
+	string discover_host, discover_vendor;
+
+	// IV
+	uint8_t ivset[3];
+
+	// An extra field that can be filled in
+	int field1;
+
+};
+
+// Layer 1 radio info record for kismet
+class kis_layer1_packinfo : public packet_component {
+public:
+	kis_layer1_packinfo() {
+		self_destruct = 1;  // Safe to delete us
+		signal_dbm = noise_dbm = 0;
+		signal_rssi = noise_rssi = 0;
+		carrier = carrier_unknown;
+		encoding = encoding_unknown;
+		datarate = 0;
+		freq_mhz = 0;
+		accuracy = 0;
+	}
+
+	// How "accurate" are we?  Higher == better.  Nothing uses this yet
+	// but we might as well track it here.
+	int accuracy;
+
+	// Frequency seen on
+	int freq_mhz;
+
+    // Connection info
+    int signal_dbm, signal_rssi;
+    int noise_dbm, noise_rssi;
+
+    // What carrier brought us this packet?
+    phy_carrier_type carrier;
+
+    // What encoding?
+    phy_encoding_type encoding;
+
+    // What data rate?
+    int datarate;
+};
 
 #endif
 

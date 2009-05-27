@@ -6,29 +6,23 @@
 /* system binary directory */
 #undef BIN_LOC
 
-/* Build curses-based UI */
-#undef BUILD_CURSES
-
-/* Build panel UI */
-#undef BUILD_PANEL
+/* system data directory */
+#undef DATA_LOC
 
 /* libairpcap header */
 #undef HAVE_AIRPCAP_H
 
-/* AssumeDefaultColors present */
-#undef HAVE_ASSUME_DEFAULT_COLORS
+/* Define to 1 if you have the <asm/types.h> header file. */
+#undef HAVE_ASM_TYPES_H
 
-/* Ncurses header */
-#undef HAVE_CURSES_H
+/* BSD radiotap packet headers */
+#undef HAVE_BSD_SYS_RADIOTAP
 
-/* dbus integration */
-#undef HAVE_DBUS
+/* kernel capability support */
+#undef HAVE_CAPABILITY
 
 /* Define to 1 if you have the <errno.h> header file. */
 #undef HAVE_ERRNO_H
-
-/* Expat XML library */
-#undef HAVE_EXPAT
 
 /* Define to 1 if you have the <getopt.h> header file. */
 #undef HAVE_GETOPT_H
@@ -39,17 +33,8 @@
 /* Define to 1 if you have the `gettimeofday' function. */
 #undef HAVE_GETTIMEOFDAY
 
-/* GMP math library */
-#undef HAVE_GMP
-
 /* GPS support will be built. */
 #undef HAVE_GPS
-
-/* we have libhildon */
-#undef HAVE_HILDON
-
-/* Imagemagick image library */
-#undef HAVE_IMAGEMAGICK
 
 /* inttypes.h is present */
 #undef HAVE_INTTYPES_H
@@ -57,11 +42,20 @@
 /* libairpcap win32 control lib */
 #undef HAVE_LIBAIRPCAP
 
+/* Define to 1 if you have the `cap' library (-lcap). */
+#undef HAVE_LIBCAP
+
 /* Curses terminal lib */
 #undef HAVE_LIBCURSES
 
 /* NCurses terminal lib */
 #undef HAVE_LIBNCURSES
+
+/* libnl netlink library */
+#undef HAVE_LIBNL
+
+/* libnl-2.0 netlink library */
+#undef HAVE_LIBNL20
 
 /* Panel terminal lib */
 #undef HAVE_LIBPANEL
@@ -69,23 +63,32 @@
 /* libpcap packet capture lib */
 #undef HAVE_LIBPCAP
 
-/* Libz compression lib */
-#undef HAVE_LIBZ
+/* libpcre regex support */
+#undef HAVE_LIBPCRE
+
+/* Define to 1 if you have the <libutil.h> header file. */
+#undef HAVE_LIBUTIL_H
+
+/* Define to 1 if you have the <linux/if_arp.h> header file. */
+#undef HAVE_LINUX_IF_ARP_H
 
 /* Linux wireless iwfreq.flag */
 #undef HAVE_LINUX_IWFREQFLAG
 
-/* Linux netlink socket capture present */
+/* Netlink works */
 #undef HAVE_LINUX_NETLINK
+
+/* Define to 1 if you have the <linux/nl80211.h> header file. */
+#undef HAVE_LINUX_NL80211_H
 
 /* Linux wireless extentions present */
 #undef HAVE_LINUX_WIRELESS
 
-/* Linux wireless extentions v22 or better present */
-#undef HAVE_LINUX_WIRELESS22
+/* Define to 1 if you have the <linux/wireless.h> header file. */
+#undef HAVE_LINUX_WIRELESS_H
 
-/* Define to 1 if you have the <machine/apmvar.h> header file. */
-#undef HAVE_MACHINE_APMVAR_H
+/* local radiotap packet headers */
+#undef HAVE_LOCAL_RADIOTAP
 
 /* Define to 1 if you have the <memory.h> header file. */
 #undef HAVE_MEMORY_H
@@ -96,8 +99,23 @@
 /* Define to 1 if you have the <netdb.h> header file. */
 #undef HAVE_NETDB_H
 
-/* panel header */
-#undef HAVE_PANEL_H
+/* Netlink headers are there */
+#undef HAVE_NETLINKHEADERS
+
+/* Define to 1 if you have the <netlink/attr.h> header file. */
+#undef HAVE_NETLINK_ATTR_H
+
+/* Define to 1 if you have the <netlink/genl/ctrl.h> header file. */
+#undef HAVE_NETLINK_GENL_CTRL_H
+
+/* Define to 1 if you have the <netlink/genl/family.h> header file. */
+#undef HAVE_NETLINK_GENL_FAMILY_H
+
+/* Define to 1 if you have the <netlink/genl/genl.h> header file. */
+#undef HAVE_NETLINK_GENL_GENL_H
+
+/* Define to 1 if you have the <netlink/msg.h> header file. */
+#undef HAVE_NETLINK_MSG_H
 
 /* pcap/pcap.h */
 #undef HAVE_PCAPPCAP_H
@@ -114,14 +132,17 @@
 /* Nonblocking-capable libpcap */
 #undef HAVE_PCAP_NONBLOCK
 
-/* pthread threading library */
-#undef HAVE_PTHREAD
+/* libpcap supports PPI */
+#undef HAVE_PPI
 
-/* radiotap packet headers */
-#undef HAVE_RADIOTAP
+/* Define to 1 if you have the `pstat' function. */
+#undef HAVE_PSTAT
 
 /* Define to 1 if you have the `select' function. */
 #undef HAVE_SELECT
+
+/* Define to 1 if you have the `setproctitle' function. */
+#undef HAVE_SETPROCTITLE
 
 /* Define to 1 if you have the `socket' function. */
 #undef HAVE_SOCKET
@@ -154,11 +175,11 @@
 /* Define to 1 if you have the `strstr' function. */
 #undef HAVE_STRSTR
 
-/* setuid capable */
-#undef HAVE_SUID
-
 /* System headers are there */
 #undef HAVE_SYSHEADERS
+
+/* Define to 1 if you have the <sys/pstat.h> header file. */
+#undef HAVE_SYS_PSTAT_H
 
 /* Define to 1 if you have the <sys/socket.h> header file. */
 #undef HAVE_SYS_SOCKET_H
@@ -178,29 +199,17 @@
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
 
-/* Viha headers are there */
-#undef HAVE_VIHAHEADERS
-
-/* Define to 1 if you have the <WiFi/IEEE80211Frame.h> header file. */
-#undef HAVE_WIFI_IEEE80211FRAME_H
-
-/* Define to 1 if you have the <WiFi/WFException.h> header file. */
-#undef HAVE_WIFI_WFEXCEPTION_H
-
-/* Define to 1 if you have the <WiFi/WLFrame.h> header file. */
-#undef HAVE_WIFI_WLFRAME_H
-
-/* Define to 1 if you have the <WiFi/WLPacketSource.h> header file. */
-#undef HAVE_WIFI_WLPACKETSOURCE_H
-
 /* Define to 1 if you have the <Win32-Extensions.h> header file. */
 #undef HAVE_WIN32_EXTENSIONS_H
 
 /* Define to 1 if you have the <windows.h> header file. */
 #undef HAVE_WINDOWS_H
 
-/* wsp100 remote sensor support */
-#undef HAVE_WSP100
+/* __PROGNAME glibc macro available */
+#undef HAVE___PROGNAME
+
+/* system library directory */
+#undef LIB_LOC
 
 /* system state directory */
 #undef LOCALSTATE_DIR
@@ -224,6 +233,9 @@
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
 
+/* writeable argv type */
+#undef PF_ARGV_TYPE
+
 /* Define as the return type of signal handlers (`int' or `void'). */
 #undef RETSIGTYPE
 
@@ -236,7 +248,7 @@
 /* Compiling for Cygwin */
 #undef SYS_CYGWIN
 
-/* Compiling for Darwin/OSX */
+/* Compiling for OSX/Darwin */
 #undef SYS_DARWIN
 
 /* Compiling for FreeBSD */
@@ -256,9 +268,6 @@
 
 /* Define to 1 if your <sys/time.h> declares `struct tm'. */
 #undef TM_IN_SYS_TIME
-
-/* Use local dumper code */
-#undef USE_LOCAL_DUMP
 
 /* Define WORDS_BIGENDIAN to 1 if your processor stores words with the most
    significant byte first (like Motorola and SPARC, unlike Intel). */
@@ -280,6 +289,12 @@
 
 /* Define to empty if `const' does not conform to ANSI C. */
 #undef const
+/* proftpd argv stuff */
+#define PF_ARGV_NONE        0
+#define PF_ARGV_NEW     	1
+#define PF_ARGV_WRITEABLE   2
+#define PF_ARGV_PSTAT       3
+#define PF_ARGV_PSSTRINGS   4
 
 /* Maximum number of characters in the status line */
 #define STATUS_MAX 1024
@@ -305,6 +320,9 @@
 
 // Timer slices per second
 #define SERVER_TIMESLICES_SEC 10
+
+// Max chars in SSID
+#define MAX_SSID_LEN    255
 
 /* Namespace (on non-obj-c files) */
 #ifndef __IN_OBJC_FILE__

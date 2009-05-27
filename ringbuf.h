@@ -35,10 +35,14 @@ public:
     int InsertData(uint8_t *in_data, int in_len);
     // Fetch the length of the longest continual piece of data
     int FetchLen();
+	// Fetch the size of the buffer
+	int FetchSize();
     // Fetch the longest continual piece of data
     void FetchPtr(uint8_t *in_dptr, int max_len, int *in_len);
     // Flag bytes as read.  Will only flag as many bytes are available
     void MarkRead(int in_len);
+	// Change the size of the ring buffer
+	int Resize(int in_newlen);
 protected:
     int ring_len;
     uint8_t *ring_data;

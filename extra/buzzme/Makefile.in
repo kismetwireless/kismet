@@ -11,7 +11,6 @@ SUID	= @suid@
 
 prefix = @prefix@
 exec_prefix = @exec_prefix@
-datarootdir = @datarootdir@
 ETC	= @sysconfdir@
 BIN	= @bindir@
 SHARE = @datadir@/kismet/

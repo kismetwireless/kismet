@@ -18,1099 +18,2686 @@
 
 #include "config.h"
 
+#include <string>
+#include <sstream>
+
+#include <unistd.h>
+#include <sys/types.h>
+
 #include "util.h"
 #include "packetsourcetracker.h"
+#include "packetsource.h"
+#include "configfile.h"
+#include "getopt.h"
 
-// Ugly hack reference to retain monitor from command line
-extern int retain_monitor;
+// Broken source assigned to sources which utterly fail to parse during startup, 
+// with the goal of setting the warning so that it'll pop in the UI properly.
+// Should only ever be used as a protosource
+class PacketSource_Broken : public KisPacketSource {
+public:
+	PacketSource_Broken() { }
+	PacketSource_Broken(GlobalRegistry *in_globalreg) : KisPacketSource(in_globalreg) { }
 
-Packetsourcetracker::Packetsourcetracker() {
-    next_packsource_id = 0;
-    next_meta_id = 0;
-    gpsd = NULL;
-    timetracker = NULL;
-    chanchild_pid = 0;
-    sockpair[0] = sockpair[1] = 0;
-	cmd_ack = 1;
+	virtual KisPacketSource *CreateSource(GlobalRegistry *in_globalreg,
+										  string in_interface,
+										  vector<opt_pair> *in_opts) {
+		return NULL;
+	}
+
+	virtual void SetWarning(string in_warning) {
+		warning = in_warning;
+	}
+
+	virtual int AutotypeProbe(string in_device) { return 0; }
+	virtual int RegisterSources(Packetsourcetracker *tracker) { return 0; }
+
+	PacketSource_Broken(GlobalRegistry *in_globalreg, string in_interface,
+						vector<opt_pair> *in_opts) :
+		KisPacketSource(in_globalreg, in_interface, in_opts) { }
+
+	virtual ~PacketSource_Broken() { }
+
+	virtual int EnableMonitor() { return 0; }
+	virtual int DisableMonitor() { return 0; }
+	virtual int FetchChannelCapable() { return 0; }
+	virtual int SetChannel(unsigned int in_ch) { return 0; }
+	virtual int ChildIPCControl() { return 0; }
+	virtual int OpenSource() { return 0; }
+	virtual int CloseSource() { return 0; }
+	virtual int FetchDescriptor() { return -1; }
+	virtual int Poll() { return 0; }
+	virtual int FetchHardwareChannel() { return 0; }
+	virtual int ManglePacket(kis_packet *packet, kis_datachunk *linkchunk) { return 0; }
+
+protected:
+	virtual int DatalinkType() { return 0; }
+	virtual void FetchRadioData(kis_packet *in_packet) { }
+
+};
+
+enum SOURCE_fields {
+	SOURCE_interface, SOURCE_type, SOURCE_username, SOURCE_channel, SOURCE_uuid, 
+	SOURCE_packets, SOURCE_hop, SOURCE_velocity, SOURCE_dwell, SOURCE_hop_tv_sec,
+	SOURCE_hop_tv_usec, SOURCE_channellist, SOURCE_error, SOURCE_warning,
+	SOURCE_maxfield
+};
+
+const char *SOURCE_fields_text[] = {
+	"interface", "type", "username", "channel", "uuid", "packets", "hop",
+	"velocity", "dwell", "hop_time_sec", "hop_time_usec", "channellist",
+	"error", "warning",
+	NULL
+};
+
+enum PROTOSOURCE_fields {
+	PROTOSOURCE_type, PROTOSOURCE_root, PROTOSOURCE_defaultchanlist,
+	PROTOSOURCE_maxfield
+};
+
+const char *PROTOSOURCE_fields_text[] = {
+	"type", "root", "defaultchannellist",
+	NULL
+};
+
+void Protocol_SOURCE_enable(PROTO_ENABLE_PARMS) {
+	((Packetsourcetracker *) data)->BlitSources(in_fd);
+}
+
+void Protocol_PROTOSOURCE_enable(PROTO_ENABLE_PARMS) {
+	((Packetsourcetracker *) data)->BlitProtoSources(in_fd);
+}
+
+int Protocol_SOURCE(PROTO_PARMS) {
+	pst_packetsource *psrc = (pst_packetsource *) data;
+	ostringstream osstr;
+
+	cache->Filled(field_vec->size());
+
+	for (unsigned int x = 0; x < field_vec->size(); x++) {
+		unsigned int fnum = (*field_vec)[x];
+		if (fnum >= SOURCE_maxfield) {
+			out_string += "Unknown field requested";
+			return -1;
+		}
+
+		osstr.str("");
+
+		if (cache->Filled(fnum)) {
+			out_string += cache->GetCache(fnum) + " ";
+			continue;
+		}
+
+		switch (fnum) {
+			case SOURCE_interface:
+				cache->Cache(fnum, psrc->interface);
+				break;
+
+			case SOURCE_type:
+				if (psrc->strong_source != NULL)
+					cache->Cache(fnum, psrc->strong_source->FetchType());
+				else
+					cache->Cache(fnum, "N/A");
+				break;
+
+			case SOURCE_username:
+				if (psrc->strong_source != NULL)
+					cache->Cache(fnum, psrc->strong_source->FetchName());
+				else
+					cache->Cache(fnum, "N/A");
+				break;
+
+			case SOURCE_channel:
+				osstr << psrc->channel;
+				cache->Cache(fnum, osstr.str());
+				break;
+
+			case SOURCE_uuid:
+				if (psrc->strong_source != NULL)
+					cache->Cache(fnum, psrc->strong_source->FetchUUID().UUID2String());
+				else
+					cache->Cache(fnum, "00000000-0000-0000-0000-000000000000");
+				break;
+
+			case SOURCE_packets:
+				if (psrc->strong_source != NULL) {
+					osstr << psrc->strong_source->FetchNumPackets();
+					cache->Cache(fnum, osstr.str());
+				} else {
+					cache->Cache(fnum, "0");
+				}
+				break;
+
+			case SOURCE_hop:
+				osstr << psrc->channel_hop;
+				cache->Cache(fnum, osstr.str());
+				break;
+
+			case SOURCE_velocity:
+				osstr << psrc->channel_rate;
+				cache->Cache(fnum, osstr.str());
+				break;
+
+			case SOURCE_dwell:
+				osstr << psrc->channel_dwell;
+				cache->Cache(fnum, osstr.str());
+				break;
+
+			case SOURCE_hop_tv_sec:
+				osstr << psrc->tm_hop_time.tv_sec;
+				cache->Cache(fnum, osstr.str());
+				break;
+
+			case SOURCE_hop_tv_usec:
+				osstr << psrc->tm_hop_time.tv_usec;
+				cache->Cache(fnum, osstr.str());
+				break;
+
+			case SOURCE_error:
+				if (psrc->error || (psrc->strong_source != NULL &&
+									psrc->strong_source->FetchError()))
+					osstr << "1";
+				else
+					osstr << "0";
+				cache->Cache(fnum, osstr.str());
+				break;
+
+			case SOURCE_warning:
+				if (psrc->strong_source != NULL)
+					cache->Cache(fnum, string("\001") + 
+								 psrc->strong_source->FetchWarning() + 
+								 string("\001"));
+				else if (psrc->proto_source != NULL &&
+						 psrc->proto_source->weak_source != NULL)
+					cache->Cache(fnum, string("\001") + 
+								 psrc->proto_source->weak_source->FetchWarning() + 
+								 string("\001"));
+				else
+					cache->Cache(fnum, "\001\001");
+
+				break;
+
+			case SOURCE_channellist:
+				if (psrc->channel_ptr == NULL) {
+					cache->Cache(fnum, IntToString(psrc->channel));
+				} else {
+					for (unsigned int c = 0; c < psrc->channel_ptr->channel_vec.size();
+						 c++) {
+
+						if (psrc->channel_ptr->channel_vec[c].range == 0) {
+							osstr << psrc->channel_ptr->channel_vec[c].u.chan_t.channel;
+							if (psrc->channel_ptr->channel_vec[c].u.chan_t.dwell > 1)
+								osstr << ":" <<
+									psrc->channel_ptr->channel_vec[c].u.chan_t.dwell;
+						} else {
+							osstr << "range-" <<
+								psrc->channel_ptr->channel_vec[c].u.range_t.start << 
+								"-" <<
+								psrc->channel_ptr->channel_vec[c].u.range_t.end <<
+								"-" <<
+								psrc->channel_ptr->channel_vec[c].u.range_t.width <<
+								"-" <<
+								psrc->channel_ptr->channel_vec[c].u.range_t.iter;
+						}
+
+						if (c != psrc->channel_ptr->channel_vec.size() - 1)
+							osstr << ",";
+					}
+					cache->Cache(fnum, osstr.str());
+				}
+
+				break;
+		}
+
+		out_string += cache->GetCache(fnum) + " ";
+	}
+
+	return 1;
+}
+
+// IPC hooks
+int pst_ipc_add_source(IPC_CMD_PARMS) {
+	if (parent) return 0;
+
+	if (len < (int) sizeof(ipc_source_add))
+		return 0;
+
+	((Packetsourcetracker *) auxptr)->IpcAddPacketsource((ipc_source_add *) data);
+
+	return 1;
+}
+
+int pst_ipc_add_channellist(IPC_CMD_PARMS) {
+	if (parent) return 0;
+
+	if (len < (int) sizeof(ipc_source_add_chanlist))
+		return 0;
+
+	((Packetsourcetracker *) auxptr)->IpcAddChannelList(
+							(ipc_source_add_chanlist *) data);
+
+	return 1;
+}
+
+int pst_ipc_set_channel(IPC_CMD_PARMS) {
+	if (parent) return 0;
+
+	if (len < (int) sizeof(ipc_source_chanset))
+		return 0;
+
+	((Packetsourcetracker *) auxptr)->IpcChannelSet((ipc_source_chanset *) data);
+
+	return 1;
+}
+
+int pst_ipc_sync_complete(IPC_CMD_PARMS) {
+	if (parent) return 0;
+
+	((Packetsourcetracker *) auxptr)->RegisterIPC(NULL, 0);
+
+	return 1;
+}
+
+int pst_ipc_rx_stats(IPC_CMD_PARMS) {
+	if (!parent) return 0;
+
+	if (len < (int) sizeof(ipc_source_report))
+		return 0;
+
+	((Packetsourcetracker *) auxptr)->IpcSourceReport((ipc_source_report *) data);
+
+	return 1;
+}
+
+int pst_ipc_run(IPC_CMD_PARMS) {
+	if (parent) return 0;
+
+	if (len < (int) sizeof(ipc_source_run))
+		return 0;
+
+	((Packetsourcetracker *) auxptr)->IpcSourceRun((ipc_source_run *) data);
+
+	return 1;
+}
+
+int pst_ipc_remove(IPC_CMD_PARMS) {
+	if (parent) return 0;
+
+	if (len < (int) sizeof(ipc_source_remove))
+		return 0;
+
+	((Packetsourcetracker *) auxptr)->IpcSourceRemove((ipc_source_remove *) data);
+
+	return 1;
+}
+
+int pst_ipc_packet(IPC_CMD_PARMS) {
+	if (!parent) return 0;
+
+	if (len < (int) sizeof(ipc_source_packet))
+		return 0;
+
+	((Packetsourcetracker *) auxptr)->IpcPacket((ipc_source_packet *) data);
+
+	return 1;
+}
+
+int pst_ipc_chanreport(IPC_CMD_PARMS) {
+	if (!parent) return 0;
+
+	if (len < (int) sizeof(ipc_source_chanreport))
+		return 0;
+
+	((Packetsourcetracker *) auxptr)->IpcChannelReport((ipc_source_chanreport *) data);
+
+	return 1;
+}
+
+int pst_channeltimer(TIMEEVENT_PARMS) {
+	((Packetsourcetracker *) parm)->ChannelTimer();
+
+	return 1;
+}
+
+int pst_opentimer(TIMEEVENT_PARMS) {
+	((Packetsourcetracker *) parm)->OpenTimer();
+
+	return 1;
+}
+
+int pst_sourceprototimer(TIMEEVENT_PARMS) {
+	((Packetsourcetracker *) parm)->BlitSources(-1);
+
+	return 1;
+}
+
+int pst_chain_hook(CHAINCALL_PARMS) {
+	((Packetsourcetracker *) auxdata)->ChainHandler(in_pack);
+	return 1;
+}
+
+int pst_cmd_ADDSOURCE(CLIENT_PARMS) {
+	return
+		((Packetsourcetracker *) auxptr)->cmd_ADDSOURCE(in_clid, framework,
+														errstr, cmdline, parsedcmdline);
+}
+
+int pst_cmd_RESTARTSOURCE(CLIENT_PARMS) {
+	return
+		((Packetsourcetracker *) auxptr)->cmd_RESTARTSOURCE(in_clid, framework,
+															errstr, cmdline, 
+															parsedcmdline);
+}
+
+int pst_cmd_DELSOURCE(CLIENT_PARMS) {
+	return
+		((Packetsourcetracker *) auxptr)->cmd_DELSOURCE(in_clid, framework,
+														errstr, cmdline, parsedcmdline);
+}
+
+int pst_cmd_HOPSOURCE(CLIENT_PARMS) {
+	return
+		((Packetsourcetracker *) auxptr)->cmd_HOPSOURCE(in_clid, framework,
+														errstr, cmdline, parsedcmdline);
+}
+
+int pst_cmd_CHANLIST(CLIENT_PARMS) {
+	return
+		((Packetsourcetracker *) auxptr)->cmd_CHANLIST(in_clid, framework,
+													   errstr, cmdline, parsedcmdline);
+}
+
+
+void Packetsourcetracker::Usage(char *name) {
+	printf(" *** Packet Capture Source Options ***\n");
+	printf(" -c, --capture-source         Specify a new packet capture source\n"
+		   "                              (Identical syntax to the config file)\n"
+		   " -C, --enable-capture-sources Enable capture sources (comma-separated\n"
+		   "                              list of names or interfaces)\n");
+}
+
+Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) {
+    globalreg = in_globalreg;
+
+	timer_counter = 0;
+
+	if (globalreg->kisnetserver == NULL) {
+		fprintf(stderr, "FATAL OOPS:  Packetsourcetracker called before "
+				"kisnetframework\n");
+		exit(1);
+	} 
+
+	if (globalreg->timetracker == NULL) {
+		fprintf(stderr, "FATAL OOPS:  Packetsourcetracker called before timetracker\n");
+		exit(1);
+	}
+
+	if (globalreg->packetchain == NULL) {
+		fprintf(stderr, "FATAL OOPS:  Packetsourcetracker called before packetchain\n");
+		exit(1);
+	}
+
+	// Register our packet components 
+	// back-refer to the capsource so we can get names and parameters
+	_PCM(PACK_COMP_KISCAPSRC) =
+		globalreg->packetchain->RegisterPacketComponent("KISCAPSRC");
+	// Basic packet chunks everyone needs - while it doesn't necessarily
+	// make sense to do this here, it makes as much sense as anywhere else
+	_PCM(PACK_COMP_RADIODATA) =
+		globalreg->packetchain->RegisterPacketComponent("RADIODATA");
+	_PCM(PACK_COMP_LINKFRAME) =
+		globalreg->packetchain->RegisterPacketComponent("LINKFRAME");
+	_PCM(PACK_COMP_80211FRAME) =
+		globalreg->packetchain->RegisterPacketComponent("80211FRAME");
+	_PCM(PACK_COMP_FCSBYTES) =
+		globalreg->packetchain->RegisterPacketComponent("FCSBYTES");
+
+	globalreg->packetchain->RegisterHandler(&pst_chain_hook, this,
+											CHAINPOS_POSTCAP, -100);
+
+	// Register the packetsourcetracker as a pollable subsystem
+	globalreg->RegisterPollableSubsys(this);
+
+	// Set up the base source IDs - 0 indicates error
+	next_source_id = 1;
+	next_channel_id = 1;
+
+	running_as_ipc = 0;
+	rootipc = NULL;
+
+	channel_time_id = 
+		globalreg->timetracker->RegisterTimer(1, NULL, 1, &pst_channeltimer, this);
+
+	open_time_id = 
+		globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 
+											  1, &pst_opentimer, this);
+
+	source_protoref =
+		globalreg->kisnetserver->RegisterProtocol("SOURCE", 0, 1,
+												  SOURCE_fields_text,
+												  &Protocol_SOURCE,
+												  &Protocol_SOURCE_enable,
+												  this);
+
+	cmd_addsource_id =
+		globalreg->kisnetserver->RegisterClientCommand("ADDSOURCE",
+														&pst_cmd_ADDSOURCE,
+														(void *) this);
+	cmd_delsource_id =
+		globalreg->kisnetserver->RegisterClientCommand("DELSOURCE",
+														&pst_cmd_DELSOURCE,
+														(void *) this);
+	
+	cmd_restartsource_id =
+		globalreg->kisnetserver->RegisterClientCommand("RESTARTSOURCE",
+														&pst_cmd_RESTARTSOURCE,
+														(void *) this);
+
+	cmd_hopsource_id =
+		globalreg->kisnetserver->RegisterClientCommand("HOPSOURCE",
+														&pst_cmd_HOPSOURCE,
+														(void *) this);
+	cmd_channellist_id =
+		globalreg->kisnetserver->RegisterClientCommand("CHANSOURCE",
+														&pst_cmd_CHANLIST,
+														(void *) this);
+
+	proto_source_time_id =
+		globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1,
+											  &pst_sourceprototimer, this);
 }
 
 Packetsourcetracker::~Packetsourcetracker() {
-    for (map<string, packsource_protorec *>::iterator x = cardtype_map.begin();
-         x != cardtype_map.end(); ++x)
-        delete x->second;
+	globalreg->RemovePollableSubsys(this);
+
+	globalreg->timetracker->RemoveTimer(channel_time_id);
+
+	if (globalreg->packetchain != NULL)
+		globalreg->packetchain->RemoveHandler(&pst_chain_hook, CHAINPOS_POSTCAP);
+
+	// We could delete the card stuff but we're only ever called during
+	// shutdown and fail, so who cares.
 }
 
-unsigned int Packetsourcetracker::MergeSet(fd_set *in_rset, fd_set *in_wset,
-                                           unsigned int in_max) {
+void Packetsourcetracker::RegisterIPC(IPCRemote *in_ipc, int in_as_ipc) {
+	// Ignore params if we're called with NULL
+	if (in_ipc != NULL) {
+		rootipc = in_ipc;
+		running_as_ipc = in_as_ipc;
+		sync_ipc_id = 
+			rootipc->RegisterIPCCmd(*pst_ipc_sync_complete, NULL, this, "SYNCCOMPLETE");
+	}
 
-    unsigned int max = in_max;
-
-    if (chanchild_pid != 0) {
-        if (in_max < (unsigned int) sockpair[1])
-            max = sockpair[1];
-
-        // Set the read sock all the time
-        FD_SET(sockpair[1], in_rset);
-
-        // Set it for writing if we have some queued
-        if (ipc_buffer.size() > 0 && cmd_ack)
-            FD_SET(sockpair[1], in_wset);
-    }
-
-    for (unsigned int metc = 0; metc < meta_packsources.size(); metc++) {
-        meta_packsource *meta = meta_packsources[metc];
-
-        FD_SET(meta->capsource->FetchDescriptor(), in_rset);
-        if (meta->capsource->FetchDescriptor() > (int) max)
-            max = meta->capsource->FetchDescriptor();
-    }
-
-    return max;
+	// Register on both sides of the IPC so the negotiation works properly
+	source_ipc_id =
+		rootipc->RegisterIPCCmd(&pst_ipc_add_source, NULL, this, "SOURCEADD");
+	channellist_ipc_id =
+		rootipc->RegisterIPCCmd(&pst_ipc_add_channellist, NULL, this, "SOURCEADDCHAN");
+	channel_ipc_id =
+		rootipc->RegisterIPCCmd(&pst_ipc_set_channel, NULL, this, "SOURCESETCHAN");
+	report_ipc_id =
+		rootipc->RegisterIPCCmd(&pst_ipc_rx_stats, NULL, this, "SOURCEREPORT");
+	run_ipc_id =
+		rootipc->RegisterIPCCmd(&pst_ipc_run, NULL, this, "SOURCERUN");
+	packet_ipc_id =
+		rootipc->RegisterIPCCmd(&pst_ipc_packet, NULL, this, "SOURCEFRAME");
+	remove_ipc_id =
+		rootipc->RegisterIPCCmd(&pst_ipc_remove, NULL, this, "SOURCEREMOVE");
+	chanreport_ipc_id =
+		rootipc->RegisterIPCCmd(&pst_ipc_chanreport, NULL, this, "SOURCECHANREPORT");
 }
 
-// Read from the socket and return text if we have any
-int Packetsourcetracker::Poll(fd_set *in_rset, fd_set *in_wset) {
-    // This should only ever get called when the fd is set so we don't need to do our 
-    // own select...
-    chanchild_packhdr in_pak;
-    uint8_t *data;
+// Simple aggregate of all our pollable sources.  Sources linked via IPC will
+// be ignored (they'll return -1 for the descriptor)
+unsigned int Packetsourcetracker::MergeSet(unsigned int in_max_fd, 
+										   fd_set *out_rset, fd_set *out_wset) {
+	// don't merge during shutdown
+	if (globalreg->spindown)
+		return in_max_fd;
 
-    // Write packets out if we have them queued, and write as many as we can
-    if (FD_ISSET(sockpair[1], in_wset)) {
-        while (ipc_buffer.size() > 0) {
-            chanchild_packhdr *pak = ipc_buffer.front();
+	unsigned int max = in_max_fd;
 
-            // Send the header if we didn't already
-            if (dataframe_only == 0) {
-                if (send(sockpair[1], pak, 
-						 sizeof(chanchild_packhdr) - sizeof(void *), 0) < 0) {
-                    if (errno == ENOBUFS) {
-                        break;
-                    } else {
-                        snprintf(errstr, 1024, "ipc header send() failed: %d:%s", 
-								 errno, strerror(errno));
-                        return -1;
-                    }
-                } 
-            }
+	for (map<uint16_t, pst_packetsource *>::const_iterator x = packetsource_map.begin();
+		 x != packetsource_map.end(); ++x) {
+		if (x->second->strong_source == NULL || x->second->error == 1)
+			continue;
 
-            // send the payload if there is one
-            if (pak->datalen > 0) {
-                if (send(sockpair[1], pak->data, pak->datalen, 0) < 0) {
-                    if (errno == ENOBUFS) {
-                        dataframe_only = 1;
-                        break;
-                    } else {
-                        snprintf(errstr, 1024, "ipc content send() failed: %d:%s", 
-								 errno, strerror(errno));
-                        return -1;
-                    }
-                }
-            }
+		int capd = x->second->strong_source->FetchDescriptor();
 
-            dataframe_only = 0;
+		if (capd < 0)
+			continue;
 
-            ipc_buffer.pop_front();
-            free(pak->data);
-            delete pak;
-        }
+		FD_SET(capd, out_rset);
+		if (capd > (int) max)
+			max = capd;
+	}
 
-    }
-    
-    // Read responses from the capture child
-    if (FD_ISSET(sockpair[1], in_rset)) {
-        if (recv(sockpair[1], &in_pak, sizeof(chanchild_packhdr) - sizeof(void *), 0) < 0) {
-            snprintf(errstr, 1024, "header recv() error: %d:%s", errno, strerror(errno));
-            return -1;
-        }
+	return max;
+}
 
-        // Keep trying to go on...
-        if (in_pak.sentinel != CHANSENTINEL) {
-            snprintf(errstr, 1024, "Got packet from channel control with invalid "
-                     "sentinel.");
-            return 1;
-        }
+// Kick a packet source poll event
+int Packetsourcetracker::Poll(fd_set& in_rset, fd_set& in_wset) {
+	if (globalreg->spindown)
+		return 0;
 
-        // These don't mean anything to us.
-        if (in_pak.packtype == CHANPACK_DIE || in_pak.packtype == CHANPACK_CHANNEL)
-            return 0;
+	for (map<uint16_t, pst_packetsource *>::iterator x = packetsource_map.begin();
+		 x != packetsource_map.end(); ++x) {
+		if (x->second->strong_source == NULL)
+			continue;
 
-        if (in_pak.datalen == 0) {
-            return 0;
-        }
+		int capd = x->second->strong_source->FetchDescriptor();
 
-        // Other packets have a data component so we need to allocate it plus a null
-        data = (uint8_t *) malloc(sizeof(uint8_t) * (in_pak.datalen + 1));
+		if (capd >= 0 && FD_ISSET(capd, &in_rset))
+			x->second->strong_source->Poll();
+	}
 
-        if (recv(sockpair[1], data, in_pak.datalen, 0) < 0) {
-            snprintf(errstr, 1024, "data recv() error: %d:%s", errno, strerror(errno));
-            return -1;
-        }
+	return 1;
+}
 
-		// Return acks set the flag and the local channel
-        if (in_pak.packtype == CHANPACK_CMDACK) {
-			if (in_pak.datalen != sizeof(chanchild_changepacket)) {
-				// Something happened... just bail
-				snprintf(errstr, 1024, "Invalid return size in command ack, "
-						 "something weird happened");
-				return -1;
+int Packetsourcetracker::RegisterPacketSource(KisPacketSource *in_weak) {
+	return in_weak->RegisterSources(this);
+}
+
+int Packetsourcetracker::RegisterPacketProto(string in_type, KisPacketSource *in_weak,
+											 string in_defaultchan, int in_root) {
+	pst_protosource *proto;
+
+	for (unsigned int x = 0; x != protosource_vec.size(); x++) {
+		if (protosource_vec[x]->type == StrLower(in_type)) {
+			_MSG("Packet source type '" + in_type + "' already registered, ignoring.",
+				 MSGFLAG_ERROR);
+			return 0;
+		}
+	}
+
+	proto = new pst_protosource;
+
+	proto->type = in_type;
+	proto->weak_source = in_weak;
+	proto->default_channelset = in_defaultchan;
+	proto->require_root = in_root;
+
+	protosource_vec.push_back(proto);
+
+	return 1;
+}
+
+uint16_t Packetsourcetracker::AddChannelList(string in_chanlist) {
+	vector<string> cvec;
+	vector<string> tvec;
+	string name;
+	size_t pos = in_chanlist.find(":");
+	pst_channellist *chlist;
+	vector<pst_channel> chvec;
+	pst_channel ch;
+
+	if (in_chanlist.length() == 0 || pos == string::npos) {
+		_MSG("Invalid channel list, expected 'channellist=<name>:{<ch>[:<dwell>],}+'",
+			 MSGFLAG_ERROR);
+		return 0;
+	}
+
+	name = in_chanlist.substr(0, pos);
+	cvec = StrTokenize(in_chanlist.substr(pos + 1, in_chanlist.size() - pos - 1), ",");
+
+	if (cvec.size() == 0) {
+		_MSG("Invalid channel list, expected 'channellist=<name>:{<ch>[:<dwell>],}+'",
+			 MSGFLAG_ERROR);
+		return 0;
+	}
+
+	for (unsigned int x = 0; x < cvec.size(); x++) {
+		tvec = StrTokenize(cvec[x], ":");
+		
+		if (tvec.size() >= 1) {
+			if (sscanf(tvec[0].c_str(), "%u", &ch.u.chan_t.channel) == 1) {
+				ch.u.chan_t.dwell = 1;
+				ch.range = 0;
+			} else if (sscanf(tvec[0].c_str(), "range-%u-%u-%u-%u", 
+							  &ch.u.range_t.start, &ch.u.range_t.end,
+							  &ch.u.range_t.width, &ch.u.range_t.iter) == 4) {
+				ch.range = 1;
+			} else {
+				_MSG("Invalid channel in channel list '" + name + "', expected "
+					 "channel number, mhz frequency, or range definition", 
+					 MSGFLAG_ERROR);
+				return 0;
+			}
+		}
+
+		if (tvec.size() >= 2 && ch.range == 0) {
+			if (sscanf(tvec[1].c_str(), "%u", &ch.u.chan_t.dwell) != 1) {
+				_MSG("Invalid dwell time in channel list '" + name + "', expected "
+					 "a dwell time as a number.", MSGFLAG_ERROR);
+				return 0;
 			}
 
-			chanchild_changepacket *ackdata = (chanchild_changepacket *) data;
-
-            // Data should be an 8bit uint with the meta number.
-            if (ackdata->meta_num >= meta_packsources.size()) {
-                snprintf(errstr, 1024, "illegal command ack for meta number %d", 
-						 ackdata->meta_num);
-                return -1;
-            }
-
-            // Set the command ack
-            cmd_ack = 1;
-
-			// Set the local channel
-			meta_packsources[ackdata->meta_num]->capsource->SetLocalChannel(ackdata->channel);
-
-            free(data);
-
-            return 0;
-        } else if (in_pak.packtype == CHANPACK_TEXT) {
-            // Just to be safe
-            data[in_pak.datalen] = '\0';
-            snprintf(errstr, 1024, "%s", (char *) data);
-
-            free(data);
-
-            // Fatal packets return a fatal condition
-            if (in_pak.flags & CHANFLAG_FATAL)
-                return -1;
-
-            return 1;
-        }
-    }
-
-    return 0;
-}
-
-meta_packsource *Packetsourcetracker::FetchMetaID(int in_id) {
-    if (in_id < 0 || in_id >= (int) meta_packsources.size())
-        return NULL;
-
-    return meta_packsources[in_id];
-}
-
-// Explicitly set a channel.  Caller is responsible for turning off hopping
-// on this source if they want it to really stay on this channel
-int Packetsourcetracker::SetChannel(int in_ch, meta_packsource *in_meta) {
-    if (in_meta->prototype->channelcon == NULL)
-        return 0;
-
-#ifndef HAVE_SUID
-    int ret = (*in_meta->prototype->channelcon)(in_meta->capsource->FetchInterface(),
-                                                in_ch, errstr, 
-                                                (void *) in_meta->capsource);
-    if (ret < 0)
-        return ret;
-
-	in_meta->capsource->SetLocalChannel(in_ch);
-#else
-    if (in_meta->prototype->child_control == 0) {
-        int ret;
-        ret = (*in_meta->prototype->channelcon)(in_meta->capsource->FetchInterface(),
-                                                in_ch, errstr,
-                                                (void *) in_meta->capsource);
-        if (ret < 0)
-            return ret;
-
-		in_meta->capsource->SetLocalChannel(in_ch);
-    }
-
-    chanchild_packhdr *chancmd = new chanchild_packhdr;
-    chanchild_changepacket *data = (chanchild_changepacket *)
-        malloc(sizeof(chanchild_changepacket));
-
-    memset(chancmd, 0, sizeof(chanchild_packhdr));
-
-    if (data == NULL) {
-        snprintf(errstr, STATUS_MAX, "Could not allocate data struct for "
-                 "changing channels: %s", strerror(errno));
-        return -1;
-    }
-    memset(data, 0, sizeof(chanchild_changepacket));
-
-    chancmd->sentinel = CHANSENTINEL;
-    chancmd->packtype = CHANPACK_CHANNEL;
-    chancmd->flags = CHANFLAG_NONE;
-    chancmd->datalen = sizeof(chanchild_changepacket);
-    chancmd->data = (uint8_t *) data;
-
-    data->meta_num = (uint8_t) in_meta->id;
-    data->channel = (uint16_t) in_ch;
-
-    ipc_buffer.push_back(chancmd);
-#endif
-
-    return 1;
-}
-
-int Packetsourcetracker::SetHopping(int in_hopping, meta_packsource *in_meta) {
-    if (in_meta->prototype->channelcon == NULL)
-        return 0;
-
-    in_meta->ch_hop = in_hopping;
-
-    return 0;
-}
-
-// Hop the packet sources up a channel
-int Packetsourcetracker::AdvanceChannel() {
-    for (unsigned int metac = 0; metac < meta_packsources.size(); metac++) {
-        meta_packsource *meta = meta_packsources[metac];
-
-        // Don't do anything for sources with no channel controls
-        if (meta->prototype->channelcon == NULL)
-            continue;
-
-        // Don't do anything if this source doesn't hop
-        if (meta->ch_hop == 0)
-            continue;
-
-        int ret = SetChannel(meta->channels[meta->ch_pos++], meta);
-        
-
-        if (meta->ch_pos >= (int) meta->channels.size())
-            meta->ch_pos = 0;
-
-        if (ret < 0)
-            return ret;
-
-    }
-
-    return 1;
-}
-
-// Map a cardtype string to the registrant function.  Should be called from main() or 
-// wherever packet sources get loaded from.  (Plugin hook)
-int Packetsourcetracker::RegisterPacketsource(const char *in_cardtype, int in_root, 
-                                              const char *in_defaultchanset, 
-                                              int in_initch, 
-                                              packsource_registrant in_registrant, 
-                                              packsource_monitor in_monitor,
-                                              packsource_monitor in_unmonitor,
-                                              packsource_chcontrol in_channelcon,
-                                              int in_childcontrol) {
-    // Do we have it?  Can't register a type that's already registered.
-    if (cardtype_map.find(in_cardtype) != cardtype_map.end())
-        return -1;
-
-    // Register it.
-    packsource_protorec *rec = new packsource_protorec;
-
-    rec->id = next_packsource_id++;
-    rec->root_required = in_root;
-    rec->default_channelset = in_defaultchanset;
-    rec->initial_channel = in_initch;
-
-    rec->registrant = in_registrant;
-    rec->monitor_enable = in_monitor;
-    rec->monitor_disable = in_unmonitor;
-    rec->channelcon = in_channelcon;
-
-    rec->child_control = in_childcontrol;
-
-    rec->cardtype = in_cardtype;
-
-    cardtype_map[StrLower(in_cardtype)] = rec;
-
-    return rec->id;
-}
-
-int Packetsourcetracker::RegisterDefaultChannels(vector<string> *in_defchannels) {
-    vector<string> tokens;
-
-    for (unsigned int sc = 0; sc < in_defchannels->size(); sc++) {
-        tokens.clear();
-        tokens = StrTokenize((*in_defchannels)[sc], ":");
-
-        if (tokens.size() < 2) {
-            snprintf(errstr, 1024, "Illegal default channel line '%s'", 
-                     (*in_defchannels)[sc].c_str());
-            return -1;
-        }
-
-        vector<int> channel_bits = Str2IntVec(tokens[1]);
-
-        if (channel_bits.size() == 0) {
-            snprintf(errstr, 1024, "Illegal channel list '%s' in default channel "
-                     "line '%s'", tokens[1].c_str(), (*in_defchannels)[sc].c_str());
-            return -1;
-        }
-
-        if (defaultch_map.find(StrLower(tokens[0])) != defaultch_map.end()) {
-            snprintf(errstr, 1024, "Already have defaults for type '%s'",
-                     tokens[0].c_str());
-            return-1;
-        }
-
-        defaultch_map[StrLower(tokens[0])] = channel_bits;
-
-    }
-    // Default channels for non-hopping types
-    vector<int> no_channel;
-    no_channel.push_back(0);
-    defaultch_map["na"] = no_channel;
-    return 1;
-}
-
-vector<KisPacketSource *> Packetsourcetracker::FetchSourceVec() {
-    return live_packsources;
-}
-
-vector<meta_packsource *> Packetsourcetracker::FetchMetaSourceVec() {
-    return meta_packsources;
-}
-
-// Big scary function to build the meta-packsource records from the requested configs 
-// provided. These configs can come from either the config file or the command line 
-// options, caller is responsible for figuring out which ones override and get sent 
-// to us.
-//
-// enableline: vector of source names to be enabled
-// cardlines: vector of config lines defining actual capture sources,
-// sourcechannels: vector of config lines defining explicit channel sequences for a 
-// source
-// initchannels: vector of initial channel settings
-// chhop: Is hopping enabled?
-// chsplit: Are channel allocations split across multiple interfaces?
-int Packetsourcetracker::ProcessCardList(string in_enableline, 
-                                         vector<string> *in_cardlines, 
-                                         vector<string> *in_sourcechannels, 
-                                         vector<string> *in_initchannels,
-                                         int& in_chhop, int in_chsplit) {
-    // reuseable token vector
-    vector<string> tokens;
-    // capsource names to be enabled
-    map<string, int> enable_map;
-    // We enable all packet sources if none were explicitly listed
-    int all_enable = 0;
-    // Capsource names mapped to initial channel
-    map<string, int> initch_map;
-    // Lots of maps to track the channel divisions
-    // capname to sequence id
-    map<string, int> chan_cap_seqid_map;
-    // sequence id to channel sequence
-    map<int, vector<int> > chan_seqid_seq_map;
-    // Sequence counts, if we're splitting we need to know how many instances use 
-    // each seqid
-    map<int, int> chan_seqid_count_map;
-    // Sequence id counter
-    int chan_seqid = 0;
-    // Was anything able to hop?
-    int hop_possible = 0;
-
-    // Split the enable lines into a map saying if a source should be turned on
-    tokens.clear();
-    tokens = StrTokenize(in_enableline, ",");
-    for (unsigned int x = 0; x < tokens.size(); x++) {
-        enable_map[StrLower(tokens[x])] = 1;
-    }
-
-    if (enable_map.size() == 0) {
-        all_enable = 1;
-    }
-
-    // Split the initial channel allocations, with a little help for people with only one
-    // capture source enabled - if only a number is given, assume it's a for the only 
-    // enabled source.
-    if (enable_map.size() == 1 && in_initchannels->size() == 1 &&
-        (*in_initchannels)[0].find(":") == string::npos) {
-        int tmpchan;
-        if (sscanf((*in_initchannels)[0].c_str(), "%d", &tmpchan) != 1) {
-            snprintf(errstr, 1024, "Illegal initial channel '%s'", 
-                     (*in_initchannels)[0].c_str());
-            return -1;
-        }
-
-        initch_map[enable_map.begin()->first] = tmpchan;
-    } else {
-        for (unsigned int nic = 0; nic < in_initchannels->size(); nic++) {
-            tokens.clear();
-            tokens = StrTokenize((*in_initchannels)[nic], ":");
-
-            if (tokens.size() < 2) {
-                snprintf(errstr, 1024, "Illegal initial channel '%s'", 
-                         (*in_initchannels)[nic].c_str());
-                return -1;
-            }
-
-            int tmpchan;
-            if (sscanf(tokens[1].c_str(), "%d", &tmpchan) != 1) {
-                snprintf(errstr, 1024, "Illegal initial channel '%s'", 
-                         (*in_initchannels)[nic].c_str());
-                return -1;
-            }
-
-            initch_map[StrLower(tokens[0])] = tmpchan;
-        }
-    }
-
-    // Register the default channels by making them look like capsource name maps, 
-    // giving them their own sequence ids we can count during assignment to see how we 
-    // need to split things
-    for (map<string, vector<int> >::iterator dchi = defaultch_map.begin(); 
-         dchi != defaultch_map.end(); ++dchi) {
-        chan_cap_seqid_map[dchi->first] = chan_seqid;
-        chan_seqid_seq_map[chan_seqid] = dchi->second;
-        chan_seqid++;
-    }
-    
-    // Parse the channel lines into our channel assignment tracking maps
-    for (unsigned int sc = 0; sc < in_sourcechannels->size(); sc++) {
-        tokens.clear();
-        tokens = StrTokenize((*in_sourcechannels)[sc], ":");
-
-        if (tokens.size() < 2) {
-            snprintf(errstr, 1024, "Illegal sourcechannel line '%s'", (*in_sourcechannels)[sc].c_str());
-            return -1;
-        }
-
-        vector<string> chan_capsource_bits = StrTokenize(tokens[0], ",");
-        vector<int> chan_channel_bits = Str2IntVec(tokens[1]);
-
-        if (chan_channel_bits.size() == 0) {
-            snprintf(errstr, 1024, "Illegal channel list '%s' in sourcechannel line '%s'", 
-                     tokens[1].c_str(), (*in_sourcechannels)[sc].c_str());
-            return -1;
-        }
-
-        // Assign the intvec a sequence id
-        chan_seqid_seq_map[chan_seqid] = chan_channel_bits;
-
-        // Assign it to each name slot
-        for (unsigned int cap = 0; cap < chan_capsource_bits.size(); cap++) {
-            if (chan_cap_seqid_map.find(StrLower(chan_capsource_bits[cap])) != 
-                chan_cap_seqid_map.end()) {
-                snprintf(errstr, 1024, "Capture source '%s' assigned multiple channel sequences.",
-                         chan_capsource_bits[cap].c_str());
-                return -1;
-            }
-
-            chan_cap_seqid_map[StrLower(chan_capsource_bits[cap])] = chan_seqid;
-        }
-
-        // Set this up now to make math easy later
-        chan_seqid_count_map[chan_seqid] = 0;
-        
-        chan_seqid++;
-    }
-    
-    // Parse the card lines into meta records for the sources that will be enabled
-    for (unsigned int cl = 0; cl < in_cardlines->size(); cl++) {
-        tokens.clear();
-        tokens = StrTokenize((*in_cardlines)[cl], ",");
-        int sourceline_initch = -1;
-
-        if (tokens.size() < 3) {
-            snprintf(errstr, 1024, "Illegal card source line '%s'", (*in_cardlines)[cl].c_str());
-            return -1;
-        }
-
-        // Look for the card type, we won't even create a metasource if we dont' have one.
-        if (cardtype_map.find(StrLower(tokens[0])) == cardtype_map.end()) {
-            snprintf(errstr, 1024, "Unknown capture source type '%s' in source '%s'", 
-                     tokens[0].c_str(), (*in_cardlines)[cl].c_str());
-            return -1;
-        }
-
-        // Look for stuff the code knows about but which was disabled
-        if (cardtype_map[StrLower(tokens[0])]->registrant == NULL) {
-            snprintf(errstr, 1024, "Support for capture source type '%s' was not built.  "
-                     "Check the output from 'configure' for more information about why it might "
-                     "not have been compiled in.", tokens[0].c_str());
-            return -1;
-        }
-
-        // If they have four elements in the source line, take the fourth as the
-        // initial channel
-        if (tokens.size() > 3) {
-            if (sscanf(tokens[3].c_str(), "%d", &sourceline_initch) != 1) {
-                snprintf(errstr, 1024, "Illegal initial channel '%s' specified on "
-                         "the sourceline for '%s'", tokens[3].c_str(), 
-                         tokens[0].c_str());
-                return -1;
-            }
-        }
-
-        if (enable_map.find(StrLower(tokens[2])) != enable_map.end() ||
-            all_enable == 1) {
-
-            meta_packsource *meta = new meta_packsource;
-            meta->id = next_meta_id++;
-            meta->valid = 0;
-            meta->prototype = cardtype_map[StrLower(tokens[0])];
-            meta->name = tokens[2];
-            meta->device = tokens[1];
-            meta->capsource = NULL;
-            meta->stored_interface = NULL;
-            meta->ch_pos = 0;
-            meta->cur_ch = 0;
-			meta->channel_seqid = -1;
-            // Hopping is turned on in any source that has a channel control pointer.
-            // This isn't controlling if kismet hops in general, only if this source
-            // changes channel when Kismet decides to channel hop.
-            if (meta->prototype->channelcon == NULL) {
-                meta->ch_hop = 0;
-            } else {
-                meta->ch_hop = 1;
-                hop_possible++;
-            }
-
-            // Assign the initial channel - the kismet command line takes the highest
-            // priority, then if they defined a quad-element sourceline, and finally
-            // the prototype default if nothing overrides it
-            if (initch_map.find(StrLower(meta->name)) != initch_map.end()) {
-                meta->cur_ch = initch_map[StrLower(meta->name)];
-            } else {
-                // If they didn't request an initial channel, and they specified one on
-                // the source line, set it to that, otherwise use the prototype initial
-                // channel
-                if (sourceline_initch > 0)
-                    meta->cur_ch = sourceline_initch;
-                else
-                    meta->cur_ch = meta->prototype->initial_channel;
-            }
-
-            // Assign the channels - if it doesn't have a specific name, we look for 
-            // the default channel set.  Assignment counts are used in the next run 
-            // through to assign initial channel offsets.  These map references are 
-            // pretty ridiculous, but they only happen once during startup so it 
-            // doesn't make much sense to go nuts trying to optimize them
-            if (chan_cap_seqid_map.find(StrLower(meta->name)) != 
-                chan_cap_seqid_map.end()) {
-                // Hard-fault on sources that have an explicit channel hop but can't 
-                // hop...
-                if (meta->prototype->default_channelset == "none") {
-                    snprintf(errstr, 1024, "Channel set assigned to capsource %s, "
-                             "which cannot channel hop.",
-                             meta->name.c_str());
-                    return -1;
-                }
-
-                meta->channel_seqid = chan_cap_seqid_map[StrLower(meta->name)];
-                chan_seqid_count_map[meta->channel_seqid]++;
-            } else if (chan_cap_seqid_map.find(StrLower(meta->prototype->default_channelset)) 
-                       != chan_cap_seqid_map.end()) {
-                meta->channel_seqid = 
-                    chan_cap_seqid_map[StrLower(meta->prototype->default_channelset)];
-                chan_seqid_count_map[meta->channel_seqid]++;
+			if (ch.u.chan_t.dwell > 6) {
+				_MSG("Dwell time in channel list '" + name + "' is over 6 periods, "
+					 "this might indicate a typo in the channel config as it is longer "
+					 "than expected.", MSGFLAG_ERROR);
 			}
-                        
-            meta_packsources.push_back(meta);
-        }
-    }
+		}
 
-    // Even if we asked for channel hopping, if nothing we enabled is able to,
-    // turn it off.
-    if (hop_possible == 0)
-        in_chhop = 0;
-    
-    // Now we assign split channels by going through all the meta sources, if we're 
-    // hopping and splitting channels, that is.
-    //
-    // If we're not hopping, this doesn't happen, meta->channels.size() == 0, and 
-    // we know not to hop on this device
-    if (in_chhop) {
-        map<int, int> tmp_seqid_assign_map;
+		chvec.push_back(ch);
+	}
 
-        for (unsigned int metc = 0; metc < meta_packsources.size(); metc++) {
-            meta_packsource *meta = meta_packsources[metc];
+	chlist = new pst_channellist;
+	chlist->auto_generated = 0;
+	chlist->channel_id = next_channel_id;
+	chlist->name = StrLower(name);
+	chlist->channel_vec = chvec;
 
-			if (chan_seqid_seq_map.find(meta->channel_seqid) == 
-				chan_seqid_seq_map.end()) {
-				snprintf(errstr, 1024, "Unable to find default channel set %s or "
-						 "specific channel sets for source %s",
-						 meta->prototype->default_channelset.c_str(),
-						 meta->name.c_str());
-				return -1;
+	next_channel_id++;
+	channellist_map[chlist->channel_id] = chlist;
+
+	SendIPCChannellist(chlist);
+
+	return chlist->channel_id;
+}
+
+uint16_t Packetsourcetracker::GenChannelList(vector<unsigned int> in_channellist) {
+	unsigned int compared;
+	pst_channellist *chlist;
+	pst_channel pch;
+
+	if (in_channellist.size() >= IPC_SOURCE_MAX_CHANS ||
+		in_channellist.size() == 0) {
+		return 0;
+	}
+
+	// Look for the channels in one of the existing channel vectors (must be
+	// an autocreated list to share an ID with another autocreated list).
+	for (map<uint16_t, pst_channellist *>::iterator chi = channellist_map.begin();
+		 chi != channellist_map.end(); ++chi) {
+
+		if (chi->second->auto_generated == 0)
+			continue;
+
+		if (chi->second->channel_vec.size() != in_channellist.size())
+			continue;
+
+		compared = 0;
+		/* Nasty slow compare but we only do it during startup on a limited number
+		 * of channels anyhow */
+		for (unsigned int x = 0; x < chi->second->channel_vec.size(); x++) {
+			for (unsigned int y = 0; y < in_channellist.size(); y++) {
+				if (chi->second->channel_vec[x].range)
+					continue;
+
+				if (chi->second->channel_vec[x].u.chan_t.channel == in_channellist[y]) 
+					compared++;
+			}
+		}
+
+		if (compared == in_channellist.size())
+			return chi->first;
+	}
+
+	chlist = new pst_channellist;
+	chlist->auto_generated = 1;
+	chlist->channel_id = next_channel_id;
+	chlist->name = "auto" + IntToString(next_channel_id); 
+
+	next_channel_id++;
+	channellist_map[chlist->channel_id] = chlist;
+
+	pch.range = 0;
+	pch.u.chan_t.dwell = 1;
+
+	unsigned int c = 0, l = 0;
+	for (unsigned int x = 0; c < in_channellist.size(); x+=4, c++) {
+		if (x >= in_channellist.size())
+			x = ++l;
+		pch.u.chan_t.channel = in_channellist[x];
+		chlist->channel_vec.push_back(pch);
+	}
+
+	SendIPCChannellist(chlist);
+
+	return chlist->channel_id;
+}
+
+int Packetsourcetracker::AddPacketSource(string in_source, 
+										 KisPacketSource *in_strong,
+										 uint16_t *source_id) {
+	string interface;
+	string type;
+	string chanlistname;
+	vector<opt_pair> options;
+	size_t pos = in_source.find(":");
+	pst_packetsource *pstsource = NULL;
+	int found = 0;
+
+	if (pos == string::npos) {
+		interface = in_source;
+	} else {
+		interface = in_source.substr(0, pos);
+		if (StringToOpts(in_source.substr(pos + 1, in_source.size() - pos - 1), ",",
+						 &options) < 0) {
+			_MSG("Invalid options list for source '" + interface + "', expected "
+				 "ncsource=interface[,option=value]+", MSGFLAG_ERROR);
+			return -1;
+		}
+	}
+
+	pstsource = new pst_packetsource;
+	pstsource->interface = interface;
+	if (in_strong != NULL)
+		pstsource->local_only = 1;
+	else
+		pstsource->local_only = 0;
+	pstsource->sourceline = in_source;
+	pstsource->strong_source = in_strong;
+	pstsource->proto_source = NULL;
+	// Set to an undefined status first
+	pstsource->channel = 0;
+	pstsource->channel_list = 0;
+	pstsource->channel_ptr = NULL;
+	pstsource->channel_hop = -1;
+	pstsource->channel_position = 0;
+	pstsource->range_position = 0;
+	pstsource->channel_dwell = -1;
+	pstsource->channel_rate = -1;
+	pstsource->channel_split = 1;
+
+	pstsource->rate_timer = 0;
+	pstsource->dwell_timer = 0;
+
+	pstsource->tm_hop_start.tv_sec = 0;
+	pstsource->tm_hop_start.tv_usec = 0;
+	pstsource->tm_hop_time.tv_sec = 0;
+	pstsource->tm_hop_time.tv_usec = 0;
+
+	pstsource->consec_channel_err = 0;
+
+	pstsource->error = 0;
+	pstsource->reopen = 1;
+
+	string name = StrLower(FetchOpt("name", &options));
+	if (name == "")
+		name = interface;
+
+	int matched = 0;
+
+	if (named_vec.size() == 0)
+		matched = 1;
+
+	for (unsigned int y = 0; y < named_vec.size(); y++) {
+		if (StrLower(named_vec[y]) == name) {
+			matched = 1;
+			break;
+		}
+	}
+
+	if (matched == 0 && pstsource->strong_source == NULL) {
+		_MSG("Source '" + name + "' not in enable_sources list, will not be "
+			 "enabled.", MSGFLAG_INFO);
+		delete pstsource;
+		return 0;
+	}
+
+	// Try to map the type when they tell us what it is
+	if ((type = FetchOpt("type", &options)) != "" && type != "auto" &&
+		pstsource->strong_source == NULL) {
+		found = 0;
+
+		for (unsigned int x = 0; x < protosource_vec.size(); x++) {
+			if (protosource_vec[x]->type == StrLower(type)) {
+				found = 1;
+				pstsource->proto_source = protosource_vec[x];
+				break;
+			}
+		}
+
+		if (found == 0) {
+			_MSG("Invalid type '" + type + "'; Unknown, or support was not compiled "
+				 "into this build of Kismet, check the output of the 'configure' "
+				 "script if you compiled Kismet yourself.", MSGFLAG_ERROR);
+			delete pstsource;
+			return -1;
+		}
+	} 
+
+	// Try to figure out the auto types
+	if (pstsource->strong_source == NULL && (type == "auto" || type == "")) {
+		for (unsigned int x = 0; x < protosource_vec.size(); x++) {
+			if (protosource_vec[x]->weak_source->AutotypeProbe(interface) != 0) {
+				pstsource->proto_source = protosource_vec[x];
+				type = pstsource->proto_source->weak_source->FetchType();
+				_MSG("Matched source type '" + type + "' for auto-type source '" + 
+					 interface + "'", MSGFLAG_INFO);
+				ReplaceAllOpts("type", type, &options);
+				break;
+			}
+		}
+
+		if (type == "" || type == "auto") {
+			_MSG("Failed to find a type for auto-type source '" + interface + "', "
+				 "you will have to tell Kismet what it is by adding a "
+				 "type=[card type] to the ncsource config", MSGFLAG_PRINTERROR);
+			_MSG("It is possible that the device for interface '" + interface + "' "
+				 "is not active or was not plugged in.  Kismet will ignore this "
+				 "interface, you may re-add it later.", MSGFLAG_PRINTERROR);
+
+			pst_protosource *broken_weak = new pst_protosource;
+			broken_weak->type = "BROKEN";
+			broken_weak->require_root = 0;
+			broken_weak->weak_source = new PacketSource_Broken(globalreg);
+
+			((PacketSource_Broken *) broken_weak->weak_source)->SetWarning(
+				"Couldn't auto-detect a driver for interface '" + interface + "'. "
+				"There may be a problem with the device (such as it not existing) or it "
+				"may use one of the drivers which cannot be auto-detected.  See the "
+				"README section 'Caveats and quirks for specific drivers' to learn how "
+				"to configure the specific driver.");
+
+			pstsource->proto_source = broken_weak;
+
+			// Push it into the vec so that we pop a warning on the client
+			pstsource->error = 1;
+			pstsource->reopen = 0;
+			pstsource->strong_source = NULL;
+
+			pstsource->source_id = next_source_id;
+			packetsource_map[pstsource->source_id] = pstsource;
+			packetsource_vec.push_back(pstsource);
+			next_source_id++;
+
+			return 0;
+		}
+	}
+
+	// Push the option set if we were given a strong source
+	if (in_strong != NULL)
+		pstsource->strong_source->ParseOptions(&options);
+
+	// Resolve the channel list
+	chanlistname = FetchOpt("channellist", &options);
+
+	if (chanlistname == "")  {
+		vector<unsigned int> chvec = 
+			pstsource->proto_source->weak_source->FetchSupportedChannels(interface);
+		uint16_t chid = 0;
+		string chlist;
+
+		if (chvec.size() > 0) 
+			chid = GenChannelList(chvec);
+
+		if (chid <= 0) {
+			chanlistname = pstsource->proto_source->default_channelset;
+			_MSG("Using default channel list '" + chanlistname + "' on source '" +
+				 interface + "'", MSGFLAG_INFO);
+		} else {
+			for (unsigned int z = 0; z < chvec.size() - 1; z++) 
+				chlist += IntToString(chvec[z]) + ",";
+			chlist += IntToString(chvec[chvec.size() - 1]);
+			chanlistname = channellist_map[chid]->name;
+			_MSG("Using hardware channel list " + chlist + ", " +
+				 IntToString(chvec.size()) + " channels on source " + interface, 
+				 MSGFLAG_INFO);
+		}
+	} else {
+		_MSG("Using channel list '" + chanlistname + "' on source '" + 
+			 interface + "' instead of the default", MSGFLAG_INFO);
+	}
+
+	found = 0;
+	for (map<uint16_t, pst_channellist *>::iterator x = channellist_map.begin();
+		 x != channellist_map.end(); ++x) {
+		if (StrLower(chanlistname) == x->second->name) {
+			found = 1;
+			pstsource->channel_list = x->first;
+			pstsource->channel_ptr = x->second;
+			break;
+		}
+	}
+
+	if (found == 0 && chanlistname != "n/a") {
+		_MSG("Missing channel list '" + chanlistname + "' for source '" +
+			 interface + "'.  Make sure your kismet.conf file contains a "
+			 "channellist=" + chanlistname + " line", MSGFLAG_ERROR);
+		return -1;
+	}
+
+	// Do the initial build of a strong source now that we know the type
+	pstsource->strong_source = 
+		pstsource->proto_source->weak_source->CreateSource(globalreg, interface, 
+														   &options);
+
+	_MSG("Created source " + interface + " with UUID " +
+		 pstsource->strong_source->FetchUUID().UUID2String(), MSGFLAG_INFO);
+
+
+	// Figure out stuff we need the source definition for, after we've errored out
+	// on the common failures
+	
+	if (pstsource->strong_source->FetchChannelCapable() == 0) {
+		_MSG("Disabling channel hopping on source '" + interface + "' because "
+			 "it is not capable of setting the channel.", MSGFLAG_INFO);
+		pstsource->channel_hop = 0;
+
+	} else {
+		pstsource->channel_hop = default_channel_rate;
+		pstsource->channel_dwell = default_channel_dwell;
+
+		if (FetchOpt("channel", &options) != "") {
+			_MSG("Source '" + interface + "' ignoring channel= in the source "
+				 "options because it is set to hop, specify hop=false to lock "
+				 "to a specific channel.", MSGFLAG_INFO);
+		}
+	}
+
+	if (FetchOpt("hop", &options) != "true" && FetchOpt("hop", &options) != "") {
+		_MSG("Disabling channel hopping on source '" + interface + "' because the "
+			 "source options include hop=false", MSGFLAG_INFO);
+		pstsource->channel_hop = 0;
+
+		if (FetchOpt("channel", &options) == "") {
+			_MSG("Source '" + interface + "' has no channel= in the source "
+				 "options and has channel hopping disabled, it will be left on "
+				 "whatever channel it is currently on", MSGFLAG_INFO);
+		} else {
+			if (sscanf(FetchOpt("channel", &options).c_str(), "%hu", 
+					   &(pstsource->channel)) != 1) {
+				_MSG("Invalid channel for source '" + interface + "', expected "
+					 "channel number or frequency", MSGFLAG_ERROR);
+				_MSG("Kismet will ignore the source '" + interface + "' due to "
+					 "unrecoverable errors during setup, you may add it again "
+					 "later once these errors are resolved", MSGFLAG_PRINTERROR);
+				delete pstsource;
+				return 0;
 			}
 
-            meta->channels = chan_seqid_seq_map[meta->channel_seqid];
-    
-            // Bail if we don't split hop positions
-            if (in_chsplit == 0)
-                continue;
+			_MSG("Source '" + interface + "' will be locked to channel " +
+				 FetchOpt("channel", &options), MSGFLAG_INFO);
+		}
+	} 
+	
+	if (FetchOpt("hop", &options) == "" && FetchOpt("channel", &options) != "" &&
+			   pstsource->channel_hop != 0) {
+		_MSG("Ignoring channel= option for source '" + interface + "' because "
+			 "the source is channel hopping.  Set hop=false on the source options "
+			 "to disable hopping and lock to the specified channel", MSGFLAG_INFO);
+	}
 
-            // Track how many actual assignments we've made so far and use it to 
-            // offset the channel position.
-            if (tmp_seqid_assign_map.find(meta->channel_seqid) == 
-                tmp_seqid_assign_map.end())
-                tmp_seqid_assign_map[meta->channel_seqid] = 0;
+	if (FetchOpt("dwell", &options) != "" && pstsource->channel_hop) {
+		if (sscanf(FetchOpt("dwell", &options).c_str(), "%d", 
+				   &pstsource->channel_dwell) != 1) {
+			_MSG("Invalid time for source '" + interface + "' dwell time, expected "
+				 "time in seconds to dwell on a channel", MSGFLAG_ERROR);
+			_MSG("Kismet will ignore the source '" + interface + "' due to "
+				 "unrecoverable errors during setup, you may add it again "
+				 "later once these errors are resolved", MSGFLAG_PRINTERROR);
+			delete pstsource;
+			return 0;
+		}
 
-			meta->ch_pos = (meta->channels.size() / 
-							chan_seqid_count_map[meta->channel_seqid]) * 
-				tmp_seqid_assign_map[meta->channel_seqid];
+		_MSG("Source '" + interface + "' will dwell on each channel " +
+			 FetchOpt("dwell", &options) + " second(s)", MSGFLAG_INFO);
+	}
 
-            tmp_seqid_assign_map[meta->channel_seqid]++;
-        }
-    }
+	if (FetchOpt("velocity", &options) != "" && pstsource->channel_hop) {
+		if (sscanf(FetchOpt("velocity", &options).c_str(), "%d", 
+				   &pstsource->channel_rate) != 1) {
+			_MSG("Invalid time for source '" + interface + "' hop rate, expected "
+				 "velocity in channels per second to (attempt) hopping", MSGFLAG_ERROR);
+			delete pstsource;
+			return 0;
+		}
 
-    if (meta_packsources.size() == 0) {
-        snprintf(errstr, STATUS_MAX, "No packsources were enabled.  Make sure that "
-                 "if you use an enablesource line that you specify the correct "
-                 "sources.");
-        return -1;
-    }
+		if (pstsource->channel_dwell > 0) {
+			_MSG("Conflicting options for source '" + interface + "', cannot specify "
+				 "both dwell (seconds spend on channel) and rate (channels per second "
+				 "hop rate) for the same source, dwell will be ignored and hop rate "
+				 "will be used.", MSGFLAG_ERROR);
+			pstsource->channel_dwell = 0;
+		}
 
-    return 1;
+		if (pstsource->channel_rate > SERVER_TIMESLICES_SEC) {
+			ostringstream osstr;
+
+			osstr << "Channel rate for source '" << interface << "' specified as " <<
+				pstsource->channel_rate << " but Kismet only allows a maximum of " <<
+				SERVER_TIMESLICES_SEC << " channel hops per second, packet rate " 
+				"will be fixed to the maximum supported rate.";
+
+			_MSG(osstr.str(), MSGFLAG_ERROR);
+
+			pstsource->channel_rate = SERVER_TIMESLICES_SEC;
+		}
+
+		_MSG("Source '" + interface + "' will attempt to hop at " +
+			 FetchOpt("velocity", &options) + " channel(s) per second.", MSGFLAG_INFO);
+	}
+
+	// Assume the defaults
+	if (pstsource->channel_dwell < 0)
+		pstsource->channel_dwell = default_channel_dwell;
+	if (pstsource->channel_rate < 0)
+		pstsource->channel_rate = default_channel_rate;
+
+	if (FetchOpt("split", &options) != "" && pstsource->channel_hop) {
+		if (FetchOpt("split", &options) != "true") {
+			_MSG("Disabling channel list splitting on interface '" + interface + "' "
+				 "because split=false was in the source options.  This source will "
+				 "not balance channel offsets with other sources using the same "
+				 "channel list and will instead hop normally", MSGFLAG_INFO);
+			pstsource->channel_split = 0;
+		}
+	}
+
+	if (FetchOpt("retry", &options) == "" || FetchOpt("retry", &options) == "true") {
+		_MSG("Will attempt to reopen on source '" + interface + "' if there are errors",
+			 MSGFLAG_INFO);
+		pstsource->reopen = 1;
+	} else {
+		_MSG("Will not attempt to reopen source '" + interface + "' if there are errors",
+			 MSGFLAG_INFO);
+		pstsource->reopen = 0;
+	}
+
+	// Add the created strong source to our list
+	pstsource->source_id = next_source_id;
+	packetsource_map[pstsource->source_id] = pstsource;
+	packetsource_vec.push_back(pstsource);
+
+	next_source_id++;
+
+	if (pstsource->proto_source->require_root)
+		SendIPCSourceAdd(pstsource);
+
+	// Send a notify to all the registered callbacks
+	for (unsigned int x = 0; x < cb_vec.size(); x++) {
+		(*(cb_vec[x]->cb))(globalreg, pstsource, SOURCEACT_ADDSOURCE, 0, 
+						   cb_vec[x]->auxdata);
+	}
+
+	*source_id = pstsource->source_id;
+
+	return 1;
 }
 
-int Packetsourcetracker::BindSources(int in_root) {
-    // Walk through all our packet sources and create an instance and opensource all the
-    // ones that require root
-    for (unsigned int x = 0; x < meta_packsources.size(); x++) {
-        meta_packsource *meta = meta_packsources[x];
+int Packetsourcetracker::LoadConfiguration() {
+	vector<string> src_input_vec;
+	vector<string> chan_vec;
+	string named_sources;
 
-        // Skip sources that don't apply to this user mode
-        if (!meta->prototype->root_required && in_root) {
-            continue;
-        } else if (meta->prototype->root_required && !in_root) {
-            continue;
-        }
-        
-        // Call the registrant to allocate a packet source ... nasty little error
-        // handler but it works.
-        errstr[0] = '\0';
-        meta->capsource = (*meta->prototype->registrant)(meta->name, meta->device, errstr);
+	int option_idx = 0;
 
-        if (meta->capsource == NULL) {
-            if (strlen(errstr) == 0)
-                snprintf(errstr, 1024, "Unable to create source instance for source '%s'",
-                         meta->name.c_str());
-            return -1;
-        }
+	static struct option packetsource_long_options[] = {
+		{ "capture-source", required_argument, 0, 'c' },
+		{ "enable-capture-source", required_argument, 0, 'C' },
+		{ 0, 0, 0, 0 }
+	};
 
-        // Enable monitor mode
-        int ret = 0;
-        if (meta->prototype->monitor_enable != NULL) {
-            fprintf(stderr, "Source %d (%s): Enabling monitor mode for %s source "
-                    "interface %s channel %d...\n",
-                    x, meta->name.c_str(), meta->prototype->cardtype.c_str(), 
-                    meta->device.c_str(), meta->cur_ch);
+	default_channel_rate = 5;
+	default_channel_dwell = 0;
 
-            ret = (*meta->prototype->monitor_enable)(meta->device.c_str(), 
-                                                     meta->cur_ch, errstr,
-                                                     &meta->stored_interface,
-                                                     (void *) meta->capsource);
-        }
+	if (globalreg->kismet_config == NULL) {
+		_MSG("Packetsourcetracker LoadConfiguration called before kismet_config "
+			 "loaded", MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return -1;
+	}
 
-        if (ret < 0) {
-            // Errstr gets filled out by the monitor command via reference argument
-            return -1;
-        }
+	// Parse the default velocity and dwell
+	if (globalreg->kismet_config->FetchOpt("channelvelocity") != "" &&
+		sscanf(globalreg->kismet_config->FetchOpt("channelvelocity").c_str(),
+			   "%d", &default_channel_rate) != 1) {
+		_MSG("Invalid channelvelocity=... in the Kismet config file, expected "
+			 "a number of channels per second to attempt to hop.", MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return -1;
+	} 
 
-        // Add it to the live sources vector
-        live_packsources.push_back(meta->capsource);
-        
-        // Register the trackers with it
-        meta->capsource->AddTimetracker(timetracker);
-        meta->capsource->AddGpstracker(gpsd);
-       
-        // Open it
-        fprintf(stderr, "Source %d (%s): Opening %s source interface %s...\n",
-                x, meta->name.c_str(), meta->prototype->cardtype.c_str(), 
-				meta->capsource->FetchInterface());
-        if (meta->capsource->OpenSource() < 0) {
-            meta->valid = 0;
-            snprintf(errstr, 1024, "%s", meta->capsource->FetchError());
-            return -1;
-        }
+	if (globalreg->kismet_config->FetchOpt("channeldwell") != "" &&
+		sscanf(globalreg->kismet_config->FetchOpt("channeldwell").c_str(),
+			   "%d", &default_channel_dwell) != 1) {
+		_MSG("Invalid channeldwell=... in the Kismet config file, expected "
+			 "a number of seconds per channel to wait", MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return -1;
+	} 
 
-        meta->valid = 1;
+	if (default_channel_dwell != 0) {
+		_MSG("Kismet will dwell on each channel for " +
+			 globalreg->kismet_config->FetchOpt("channeldwell") + " seconds "
+			 "unless overridden by source-specific options.", MSGFLAG_INFO);
+	} else if (default_channel_rate != 0) {
+		_MSG("Kismet will attempt to hop channels at " +
+			 globalreg->kismet_config->FetchOpt("channelvelocity") + " channels "
+			 "per second unless overridden by source-specific options", MSGFLAG_INFO);
+	} else {
+		_MSG("No default channel dwell or hop rates specified, Kismet will attempt "
+			 "to hop 5 channels per second.", MSGFLAG_INFO);
+		default_channel_rate = 5;
+	}
 
-    }
+	// Hack the extern getopt index
+	optind = 0;
 
-    return 0;
-    
+	while (1) {
+		int r = getopt_long(globalreg->argc, globalreg->argv, "-c:C:",
+							packetsource_long_options, &option_idx);
+
+		if (r < 0) break;
+
+		switch (r) {
+			case 'C':
+				named_sources = string(optarg);
+				break;
+			case 'c':
+				src_input_vec.push_back(string(optarg));
+				break;
+		}
+	}
+
+	// If we didn't get any command line options, pull both from the config
+	// file options
+	if (named_sources.length() == 0 && src_input_vec.size() == 0) {
+		_MSG("No specific sources named on the command line, sources will be read "
+			 "from kismet.conf", MSGFLAG_INFO);
+		named_sources =
+			globalreg->kismet_config->FetchOpt("enablesources");
+		src_input_vec =
+			globalreg->kismet_config->FetchOptVec("ncsource");
+	} else if (src_input_vec.size() == 0) {
+		_MSG("Reading sources from kismet.conf but only enabling sources specified "
+			 "on the command line", MSGFLAG_INFO);
+		src_input_vec =
+			globalreg->kismet_config->FetchOptVec("ncsource");
+	}
+
+	if (src_input_vec.size() == 0) {
+		_MSG("No sources found - Remember, Kismet recently changed the format of "
+			 "sources, and to make it easier to identify old configs, sources are "
+			 "now identified by the 'ncsource=...' config file line.  Kismet CAN "
+			 "be started with no predefined sources, however MAKE SURE this is "
+			 "what you wanted!", MSGFLAG_ERROR);
+	}
+
+	named_vec = StrTokenize(named_sources, ",");
+
+	// Fetch the channel lists and add them
+	chan_vec = 
+		globalreg->kismet_config->FetchOptVec("channellist");
+
+	if (chan_vec.size() == 0) {
+		if (chan_vec.size() == 0) {
+			_MSG("No channels found - Remember, Kismet recently changed the format of "
+				 "channels, and to make it easier to find old configs, channels are now "
+				 "defined by the channellist=... config file line.  Please check the "
+				 "Kismet devel blog for details and update your config file.",
+				 MSGFLAG_FATAL);
+			globalreg->fatal_condition = 1;
+			return -1;
+		}
+	}
+
+	for (unsigned int x = 0; x < chan_vec.size(); x++) {
+		if (AddChannelList(chan_vec[x]) == 0) {
+			_MSG("Failed to add channel list '" + chan_vec[x] + "', check your "
+				 "syntax and remember Kismet recently changed how it handles "
+				 "channels!", MSGFLAG_FATAL);
+			globalreg->fatal_condition = 1;
+			return -1;
+		}
+	}
+
+	// Process sources
+	for (unsigned int x = 0; x < src_input_vec.size(); x++) {
+		uint16_t id = 0;
+
+		if (AddPacketSource(src_input_vec[x], NULL, &id) < 0) {
+			_MSG("Failed to add source '" + src_input_vec[x] + "', check your "
+				 "syntax and remember Kismet recently changed how it handles "
+				 "source definitions!", MSGFLAG_FATAL);
+			globalreg->fatal_condition = 1;
+			return -1;
+		}
+	}
+
+	// Figure out our split channel assignments by mapping assigned counts,
+	// then checking to see if we're sharing on any sources which have 
+	// differing dwell/hop rates and warn, then assign offsets
+	map<uint16_t, int> chanid_count_map;
+
+	for (map<uint16_t, pst_packetsource *>::iterator x = packetsource_map.begin();
+		 x != packetsource_map.end(); ++x) {
+		if (x->second->channel_hop == 0 || x->second->channel_split == 0)
+			continue;
+
+		if (chanid_count_map.find(x->second->channel_list) == chanid_count_map.end()) {
+			chanid_count_map[x->second->channel_list] = 1;
+		} else {
+			chanid_count_map[x->second->channel_list]++;
+		}
+	}
+
+	// Second check for mismatched dwell, nasty multiple-search of the map
+	// but we don't care since it's a short map and we only do this during
+	// startup
+	for (map<uint16_t, int>::iterator x = chanid_count_map.begin();
+		 x != chanid_count_map.end(); ++x) {
+		int chrate = -1, chdwell = -1;
+
+		for (map<uint16_t, pst_packetsource *>::iterator y = packetsource_map.begin();
+			 y != packetsource_map.end(); ++y) {
+			if (y->second->channel_list != x->first || y->second->channel_hop == 0 || 
+				y->second->channel_split == 0)
+				continue;
+
+			if (chrate < 0)
+				chrate = y->second->channel_rate;
+			if (chdwell < 0)
+				chdwell = y->second->channel_dwell;
+
+			string warntype;
+			if (chrate != y->second->channel_rate)
+				warntype = "hop rate";
+			if (chdwell != y->second->channel_dwell)
+				warntype = "dwell time";
+
+			if (warntype != "") {
+				_MSG("Mismatched " + warntype + " for source '" + 
+					 y->second->strong_source->FetchInterface() + "' splitting "
+					 "channel list " + channellist_map[x->first]->name + ".  "
+					 "Mismatched " + warntype + " values will cause split hopping "
+					 "to drift over time.", MSGFLAG_ERROR);
+			}
+		}
+	}
+
+	// Third pass to actually assign offsets to our metasources
+	for (map<uint16_t, int>::iterator x = chanid_count_map.begin();
+		 x != chanid_count_map.end(); ++x) {
+		if (x->second < 2)
+			continue;
+
+		int offset = 1 + (channellist_map[x->first]->channel_vec.size() / x->second);
+		int offnum = 0;
+
+		for (map<uint16_t, pst_packetsource *>::iterator y = packetsource_map.begin();
+			 y != packetsource_map.end(); ++y) {
+			if (y->second->channel_list != x->first || y->second->channel_hop == 0 || 
+				y->second->channel_split == 0)
+				continue;
+
+			y->second->channel_position = offnum * offset;
+			offnum++;
+
+			// Push it to the IPC
+			SendIPCChanset(y->second);
+		}
+	}
+
+	// Clear the named vec so we don't use it to compare enable sources again
+	named_vec.clear();
+
+	return 1;
 }
 
-int Packetsourcetracker::PauseSources() {
-    for (unsigned int metc = 0; metc < meta_packsources.size(); metc++) {
-        meta_packsource *meta = meta_packsources[metc];
+int Packetsourcetracker::IpcAddChannelList(ipc_source_add_chanlist *in_ipc) {
+	pst_channellist *chlist;
 
-        meta->capsource->Pause();
-    }
+	// Replace channel lists if we get the same one
+	if (channellist_map.find(in_ipc->chanset_id) != channellist_map.end()) {
+		chlist = channellist_map[in_ipc->chanset_id];
+		
+		chlist->channel_vec.clear();
+	} else {
+		chlist = new pst_channellist;
 
-    return 1;
+		channellist_map[in_ipc->chanset_id] = chlist;
+	}
+
+	for (unsigned int x = 0; 
+		 x < kismin(IPC_SOURCE_MAX_CHANS, in_ipc->num_channels); x++) {
+		pst_channel ch;
+
+		// Derive from high bit in channel
+		ch.range = in_ipc->chandata[x].u.range_t.start >> 15;
+		if (ch.range == 0) {
+			ch.u.chan_t.channel = in_ipc->chandata[x].u.chan_t.channel;
+			ch.u.chan_t.dwell = in_ipc->chandata[x].u.chan_t.dwell;
+		} else {
+			// Extract the start (mask the high bit used to indicate range)
+			ch.u.range_t.start = in_ipc->chandata[x].u.range_t.start & ~(1 << 15);
+			ch.u.range_t.end = in_ipc->chandata[x].u.range_t.end;
+			ch.u.range_t.width = in_ipc->chandata[x].u.range_t.width;
+			ch.u.range_t.iter = in_ipc->chandata[x].u.range_t.iter;
+		}
+
+		/*
+		ch.channel = in_ipc->chan_list[x];
+		ch.dwell = in_ipc->chan_dwell_list[x];
+		*/
+
+		chlist->channel_vec.push_back(ch);
+	}
+
+	return 1;
 }
 
-int Packetsourcetracker::ResumeSources() {
-    for (unsigned int metc = 0; metc < meta_packsources.size(); metc++) {
-        meta_packsource *meta = meta_packsources[metc];
+int Packetsourcetracker::IpcAddPacketsource(ipc_source_add *in_ipc) {
+	string interface;
+	vector<opt_pair> options;
+	string in_source = string(in_ipc->sourceline);
+	size_t pos = in_source.find(":");
+	pst_packetsource *pstsource = NULL;
+	int found = 0;
 
-        meta->capsource->Resume();
-    }
+	pstsource = new pst_packetsource;
+	pstsource->local_only = 0;
+	pstsource->sourceline = string(in_ipc->sourceline);
+	pstsource->strong_source = NULL;
+	pstsource->proto_source = NULL;
 
-    return 1;
+	// Import from the IPC packet
+	pstsource->channel = in_ipc->channel;
+	pstsource->channel_list = in_ipc->channel_id;
+	pstsource->channel_ptr = NULL;
+	pstsource->channel_hop = in_ipc->channel_hop;
+	pstsource->channel_dwell = in_ipc->channel_dwell;
+	pstsource->channel_rate = in_ipc->channel_rate;
+	pstsource->channel_position = in_ipc->channel_position;
+	pstsource->error = 0;
+	pstsource->reopen = 1;
+
+	pstsource->tm_hop_start.tv_sec = 0;
+	pstsource->tm_hop_start.tv_usec = 0;
+	pstsource->tm_hop_time.tv_sec = 0;
+	pstsource->tm_hop_time.tv_usec = 0;
+
+	pstsource->rate_timer = 0;
+	pstsource->dwell_timer = 0;
+
+	pstsource->consec_channel_err = 0;
+
+	// We assume all our incoming data is valid but we'll check everything again
+	// just to be sure
+	if (pos == string::npos) {
+		interface = in_source;
+		if (interface.find(",") != string::npos) {
+			_MSG("Found a ',' in the interface.  This probably means the ncsource "
+				 "line is malformed - expected ncsource=interface:options",
+				 MSGFLAG_ERROR);
+		}
+	} else {
+		interface = in_source.substr(0, pos);
+		if (StringToOpts(in_source.substr(pos + 1, in_source.size() - pos - 1), ",",
+						 &options) < 0) {
+			_MSG("Invalid options list for source '" + interface + "', expected "
+				 "ncsource=interface[:option=value,]", MSGFLAG_ERROR);
+			pstsource->error = 1;
+			SendIPCReport(pstsource);
+			delete pstsource;
+			return -1;
+		}
+	}
+
+	pstsource->interface = interface;
+
+	string type = string(in_ipc->type);
+
+	for (unsigned int x = 0; x < protosource_vec.size(); x++) {
+		if (protosource_vec[x]->type == StrLower(type)) {
+			found = 1;
+			pstsource->proto_source = protosource_vec[x];
+			break;
+		}
+	}
+
+	// These shouldn't happen but send it back as an error if it does
+	if (found == 0) {
+		_MSG("Invalid type '" + type + "'; Unknown, or support was not "
+			 "compiled into this build of Kismet, check the output of the 'configure' "
+			 "script if you compiled Kismet yourself.", MSGFLAG_ERROR);
+		pstsource->error = 1;
+		SendIPCReport(pstsource);
+		delete pstsource;
+		return -1;
+	}
+
+	// check the channel
+	if (channellist_map.find(pstsource->channel_list) == channellist_map.end()) {
+		_MSG("Packet source IPC got a source with an invalid channel list id, "
+			 "this should never happen, check that all code sending sources sends "
+			 "channel list updates first", MSGFLAG_ERROR);
+		pstsource->error = 1;
+		SendIPCReport(pstsource);
+		delete pstsource;
+		return -1;
+	}
+
+	pstsource->channel_ptr = channellist_map[pstsource->channel_list];
+
+	// Build a strong source now that we know how, this parses any source-local
+	// options in the source string that we can't pre-process.  This shouldn't
+	// error since we've already passed this stage before
+	pstsource->strong_source = 
+		pstsource->proto_source->weak_source->CreateSource(globalreg, interface, 
+														   &options);
+
+	// All the hop/dwell/etc code is done on the server before it comes to us over IPC
+
+	// Add the created strong source to our list
+	pstsource->source_id = in_ipc->source_id;
+	packetsource_map[pstsource->source_id] = pstsource;
+	packetsource_vec.push_back(pstsource);
+
+	return 1;
 }
 
-int Packetsourcetracker::SetTypeParms(string in_types, packet_parm in_parm) {
-    vector<string> tokens = StrTokenize(in_types, ",");
+int Packetsourcetracker::IpcChannelSet(ipc_source_chanset *in_ipc) {
+	pst_packetsource *pstsource = NULL;
 
-    for (unsigned int metc = 0; metc < meta_packsources.size(); metc++) {
-        meta_packsource *meta = meta_packsources[metc];
-        
-        for (unsigned int ctype = 0; ctype < tokens.size(); ctype++) {
-            if ((StrLower(meta->prototype->cardtype) == StrLower(tokens[ctype]) ||
-                StrLower(tokens[ctype]) == "all") &&
-                meta->capsource != NULL) {
-                meta->capsource->SetPackparm(in_parm);
-            }
-        }
+	if (packetsource_map.find(in_ipc->source_id) == packetsource_map.end()) {
+		_MSG("Packet source IPC unable to find requested source id for "
+			 "channel set, something is wrong", MSGFLAG_ERROR);
+		return -1;
+	}
 
-    }
+	pstsource = packetsource_map[in_ipc->source_id];
 
-    return 1;
+	if (in_ipc->chanset_id != 0 && 
+		channellist_map.find(in_ipc->chanset_id) == channellist_map.end()) {
+		_MSG("Packet source IPC unable to find requested channel id for "
+			 "channel set, something is wrong", MSGFLAG_ERROR);
+	}
+
+	if (in_ipc->channel_hop == 0 && in_ipc->channel_dwell == 0) {
+		// Actually set the channel if we're locking
+		pstsource->channel = in_ipc->channel;
+		if (pstsource->strong_source->SetChannel(pstsource->channel) < 0) 
+			_MSG("Packet source failed to set channel on source '" + 
+				 pstsource->interface + "'", MSGFLAG_ERROR);
+	}
+
+	// Update other info
+	if (channellist_map.find(in_ipc->chanset_id) != channellist_map.end()) {
+		pstsource->channel_position = in_ipc->channel_pos;
+		pstsource->range_position = 0;
+		pstsource->channel_list = in_ipc->chanset_id;
+		pstsource->channel_ptr = channellist_map[in_ipc->chanset_id];
+	} else {
+		_MSG("Packet source failed to set channel set id on source '" +
+			 pstsource->interface + "' couldn't match chanset ID",
+			 MSGFLAG_ERROR);
+	}
+
+	pstsource->channel_hop = in_ipc->channel_hop;
+	pstsource->channel_dwell = in_ipc->channel_dwell;
+	pstsource->channel_rate = in_ipc->channel_rate;
+	pstsource->channel_split = in_ipc->channel_split;
+
+	return 1;
 }
 
-int Packetsourcetracker::CloseSources() {
-    uid_t uid = getuid();
-    int talk = 0;
+int Packetsourcetracker::IpcSourceReport(ipc_source_report *in_ipc) {
+	pst_packetsource *pstsource = NULL;
 
-    for (unsigned int metc = 0; metc < meta_packsources.size(); metc++) {
-        meta_packsource *meta = meta_packsources[metc];
-     
-        // If we're not root and we can't close stuff, don't.  This might need to
-        // turn into something that checks caps later...
-        if (uid != 0 && meta->prototype->root_required != 0)
-            continue;
+	if (packetsource_map.find(in_ipc->source_id) == packetsource_map.end()) {
+		_MSG("Packet source tracker unable to find source id for "
+			 "report, something is wrong", MSGFLAG_ERROR);
+		return -1;
+	}
 
-        // close if we can
-        if (meta->valid)
-            meta->capsource->CloseSource();
+	pstsource = packetsource_map[in_ipc->source_id];
 
-        meta->valid = 0;
+	// Copy the hop timestamp
+	pstsource->tm_hop_time.tv_sec = in_ipc->hop_tm_sec;
+	pstsource->tm_hop_time.tv_usec = in_ipc->hop_tm_usec;
 
-        // Unmonitor if we can
-        if (meta->prototype->monitor_disable != NULL && retain_monitor == 0) {
-            int umon_ret = 0;
-            if ((umon_ret = 
-                 (*meta->prototype->monitor_disable)(meta->capsource->FetchInterface(), 0, 
-                                                     errstr, 
-                                                     &meta->stored_interface,
-                                                     (void *) meta->capsource)) < 0) {
-                fprintf(stderr, "WARNING: Error disabling monitor mode: %s\n",
-                        errstr);
-                fprintf(stderr, 
-                        "WARNING: %s (%s) left in an unknown state.  You may need to "
-                        "manually\n"
-                        "         restart or reconfigure it for normal operation.\n",
-                        meta->name.c_str(), meta->device.c_str());
-            }
+	// Copy the last channel we were on
+	pstsource->channel = in_ipc->last_channel;
 
-            // return 0 if we want to be quiet
-            if (umon_ret != 0)
-                talk = 1;
-        } else {
-            fprintf(stderr, 
-                    "WARNING: %s (%s) unable to exit monitor mode automatically.  "
-                    "You may\n"
-                    "         need to manually restart the device and reconfigure it "
-                    "for normal\n"
-                    "         operation.", meta->name.c_str(), meta->device.c_str());
-        }
+	if ((in_ipc->flags) & IPC_SRCREP_FLAG_ERROR) {
+		if (pstsource->reopen && pstsource->error == 0) {
+			_MSG("Packet source '" + pstsource->strong_source->FetchName() + "' "
+				 "encountered an error, Kismet will attempt to reopen it in "
+				 "10 seconds", MSGFLAG_ERROR);
+		}
+		pstsource->error = 1;
+	}
 
-		// delete
-		delete meta->capsource;
-
-    }
-
-    if (talk == 1) {
-        fprintf(stderr, "WARNING: Sometimes cards don't always come out "
-                "of monitor mode\n"
-                "         cleanly.  If your card is not fully working, you "
-                "may need to\n"
-                "         restart or reconfigure it for normal operation.\n");
-    }
-        
-    return 1;
+	return 1;
 }
 
-int Packetsourcetracker::SpawnChannelChild() {
-    // If we don't do priv dropping don't bother opening a channel control child
-#ifndef HAVE_SUID
-    return 1;
+int Packetsourcetracker::IpcSourceRun(ipc_source_run *in_ipc) {
+	if (in_ipc->start)
+		return StartSource(in_ipc->source_id);
+	else
+		return StopSource(in_ipc->source_id);
+	
+	return 1;
+}
+
+int Packetsourcetracker::IpcSourceRemove(ipc_source_remove *in_ipc) {
+	pst_packetsource *pstsource = NULL;
+
+	if (running_as_ipc == 0)
+		return 0;
+
+	if (packetsource_map.find(in_ipc->source_id) == packetsource_map.end()) {
+		_MSG("Packet source tracker unable to find source id for "
+			 "remove, something is wrong", MSGFLAG_ERROR);
+		return -1;
+	}
+
+	pstsource = packetsource_map[in_ipc->source_id];
+
+	return RemovePacketSource(pstsource);
+}
+
+int Packetsourcetracker::IpcPacket(ipc_source_packet *in_ipc) {
+	pst_packetsource *pstsource = NULL;
+	kis_packet *newpack = NULL;
+
+	// Stop processing during shutdown
+	if (globalreg->spindown)
+		return 0;
+
+	if (running_as_ipc == 1)
+		return 0;
+
+	if (packetsource_map.find(in_ipc->source_id) == packetsource_map.end()) {
+		_MSG("Packet source tracker unable to find source id for "
+			 "packet, something is wrong", MSGFLAG_ERROR);
+		return -1;
+	}
+
+	pstsource = packetsource_map[in_ipc->source_id];
+
+	newpack = globalreg->packetchain->GeneratePacket();
+
+	newpack->ts.tv_sec = in_ipc->tv_sec;
+	newpack->ts.tv_usec = in_ipc->tv_usec;
+
+	kis_datachunk *linkchunk = new kis_datachunk;
+	linkchunk->dlt = in_ipc->dlt;
+	linkchunk->source_id = in_ipc->source_id;
+	linkchunk->data = new uint8_t[in_ipc->pkt_len];
+	linkchunk->length = in_ipc->pkt_len;
+	memcpy(linkchunk->data, in_ipc->data, in_ipc->pkt_len);
+	newpack->insert(_PCM(PACK_COMP_LINKFRAME), linkchunk);
+
+	kis_ref_capsource *csrc_ref = new kis_ref_capsource;
+	csrc_ref->ref_source = pstsource->strong_source;
+	newpack->insert(_PCM(PACK_COMP_KISCAPSRC), csrc_ref);
+
+	globalreg->packetchain->ProcessPacket(newpack);
+
+	return 1;
+}
+
+int Packetsourcetracker::IpcChannelReport(ipc_source_chanreport *in_ipc) {
+	for (unsigned int x = 0; x < in_ipc->num_channels; x++) {
+		channel_tick_map[in_ipc->channels[x]] = in_ipc->channels_time[x];
+	}
+
+	return 1;
+}
+
+int Packetsourcetracker::StartSource(uint16_t in_source_id) {
+#ifndef SYS_CYGWIN
+	uid_t euid = geteuid();
 #else
-
-    int child_control = 0;
-    for (unsigned int metac = 0; metac < meta_packsources.size(); metac++) {
-        if (meta_packsources[metac]->prototype->child_control == 1) {
-            child_control = 1;
-            break;
-        }
-    }
-
-    // Don't spawn a process if we don't ahve anyting to do with it
-    if (child_control == 0) {
-        chanchild_pid = 0;
-        return 1;
-    }
-    
-    // Generate socket pair before we split
-    if (socketpair(PF_UNIX, SOCK_DGRAM, 0, sockpair) < 0) {
-        fprintf(stderr, "FATAL:  Unable to create child socket pair for channel control: %d, %s\n",
-                errno, strerror(errno));
-        return -1;
-    }
-
-    // Fork
-    if ((chanchild_pid = fork()) < 0) {
-        fprintf(stderr, "FATAL:  Unable to create child process for channel control.\n");
-        return -1;
-    } else if (chanchild_pid == 0) {
-        // Spawn the child loop code
-        ChannelChildLoop();
-        exit(0);
-    }
-
-    fprintf(stderr, "Spawned channel control process %d\n", chanchild_pid);
-    
-    return 1;
+	uid_t euid = 0;
 #endif
+	pst_packetsource *pstsource = NULL;
+	int failure = 0;
+
+	// Start all sources.  Incrementally count failure conditions and let the caller
+	// decide how to deal with them
+	if (in_source_id == 0) {
+		for (unsigned int x = 0; x < packetsource_vec.size(); x++) {
+			if (StartSource(packetsource_vec[x]->source_id) < 0)
+				failure--;
+		}
+
+		return failure;
+	} 
+
+	if (packetsource_map.find(in_source_id) != packetsource_map.end()) {
+		pstsource = packetsource_map[in_source_id];
+	} else {
+		_MSG("Packetsourcetracker::StartSource called with unknown packet source "
+			 "id, something is wrong.", MSGFLAG_ERROR);
+		return -1;
+	}
+
+	// Nothing to do if we don't have a complete source (like a really broken
+	// startup source)
+	if (pstsource->strong_source == NULL)
+		return 0;
+
+	if (euid != 0 && pstsource->proto_source->require_root && running_as_ipc) {
+		_MSG("IPC child Source '" + pstsource->strong_source->FetchInterface() + 
+			 "' requires root permissions to open, but we're not running "
+			 "as root.  Something is wrong.", MSGFLAG_ERROR);
+		return -1;
+	} else if (euid != 0 && pstsource->proto_source->require_root) {
+		_MSG("Deferring opening of packet source '" + 
+			 pstsource->strong_source->FetchInterface() + "' to IPC child",
+			 MSGFLAG_INFO);
+		SendIPCStart(pstsource);
+		
+		// Assume we're not in error state, we'll get an IPC back if we are
+		pstsource->error = 0;
+		return 0;
+	}
+
+	pstsource->error = 0;
+
+	// Enable monitor and open it, because we're either the IPC and root, 
+	// or the parent and root, or we're going to fail
+	
+	pstsource->strong_source->SetSourceID(pstsource->source_id);
+	
+	// Don't decode the DLT if we're the IPC target
+	if (running_as_ipc)
+		pstsource->strong_source->SetDLTMangle(0);
+
+	if (pstsource->strong_source->EnableMonitor() < 0) {
+		pstsource->error = 1;
+		SendIPCReport(pstsource);
+		return -1;
+	}
+
+	if (pstsource->strong_source->OpenSource() < 0) {
+		pstsource->error = 1;
+		SendIPCReport(pstsource);
+		return -1;
+	}
+
+	if (pstsource->channel > 0) {
+		pstsource->strong_source->SetChannel(pstsource->channel);
+		SendIPCChanreport();
+	} else {
+		int tint = pstsource->strong_source->FetchHardwareChannel();
+		if (tint > 0) {
+			pstsource->channel = (uint16_t) tint;
+			SendIPCChanreport();
+		}
+	}
+
+	_MSG("Started source '" + pstsource->strong_source->FetchName() + "'",
+		 MSGFLAG_INFO);
+
+	SendIPCReport(pstsource);
+
+	return 0;
 }
 
-// Die cleanly
-int Packetsourcetracker::ShutdownChannelChild() {
-#ifndef HAVE_SUID
-    return 1;
-#else
-    chanchild_packhdr death_packet;
-
-    if (chanchild_pid == 0)
-        return 1;
-   
-    memset(&death_packet, 0, sizeof(chanchild_packhdr));
-    
-    death_packet.sentinel = CHANSENTINEL;
-    death_packet.packtype = CHANPACK_DIE;
-    death_packet.flags = CHANFLAG_FATAL;
-    death_packet.datalen = 0;
-    death_packet.data = NULL;
-
-    // THIS NEEDS TO BE TIMERED against blocking
-    fprintf(stderr, "Sending termination request to channel control child %d...\n",
-            chanchild_pid);
-    send(sockpair[1], &death_packet, sizeof(chanchild_packhdr) - sizeof(void *), 0);
-
-    // THIS NEEDS TO BE TIMERED TOO
-    // At least it should die in 5 seconds from lack of commands if nothing
-    // else....
-    fprintf(stderr, "Waiting for channel control child %d to exit...\n",
-            chanchild_pid);
-    wait4(chanchild_pid, NULL, 0, NULL);
-
-    return 1;
-#endif
+int Packetsourcetracker::StopSource(uint16_t in_source_id) {
+	// Todo - implement this
+	return 0;
 }
 
-// Interrupt handler - we just die.
-void ChanChildSignal(int sig) {
-    exit(0);
+void Packetsourcetracker::SendIPCSourceAdd(pst_packetsource *in_source) {
+	if (running_as_ipc == 1)
+		return;
+
+	if (rootipc == NULL)
+		return;
+
+	if (in_source == NULL) {
+		for (unsigned int x = 0; x < packetsource_vec.size(); x++) {
+			SendIPCSourceAdd(packetsource_vec[x]);
+		}
+
+		return;
+	}
+
+	if (in_source->local_only == 1)
+		return;
+
+	ipc_packet *ipc =
+		(ipc_packet *) malloc(sizeof(ipc_packet) +
+							  sizeof(ipc_source_add));
+	ipc_source_add *add = (ipc_source_add *) ipc->data;
+
+	ipc->data_len = sizeof(ipc_source_add);
+	ipc->ipc_ack = 0;
+	ipc->ipc_cmdnum = source_ipc_id;
+
+	add->source_id = in_source->source_id;
+	snprintf(add->type, 64, "%s", in_source->strong_source->FetchType().c_str());
+	snprintf(add->sourceline, 1024, "%s", in_source->sourceline.c_str());
+	add->channel_id = in_source->channel_list;
+	add->channel = in_source->channel;
+	add->channel_hop = in_source->channel_hop;
+	add->channel_dwell = in_source->channel_dwell;
+	add->channel_rate = in_source->channel_rate;
+	add->channel_position = in_source->channel_position;
+
+	rootipc->SendIPC(ipc);
 }
 
-// Handle reading channel change requests and driving them
-void Packetsourcetracker::ChannelChildLoop() {
-    list<chanchild_packhdr *> child_ipc_buffer;
-    fd_set rset, wset;
-    int child_dataframe_only = 0;
-    char txtbuf[1024];
-   
-    signal(SIGINT, SIG_IGN);
-    signal(SIGTERM, SIG_IGN);
-    signal(SIGHUP, SIG_IGN);
-    signal(SIGQUIT, SIG_IGN);
-    signal(SIGPIPE, ChanChildSignal);
-    
-    while (1) {
-        int max_fd = 0;
+void Packetsourcetracker::SendIPCChannellist(pst_channellist *in_list) {
+	if (running_as_ipc == 1)
+		return;
 
-        FD_ZERO(&rset);
-        FD_ZERO(&wset);
+	if (rootipc == NULL)
+		return;
 
-        FD_SET(sockpair[0], &rset);
-        max_fd = sockpair[0];
+	if (in_list == NULL) {
+		for (map<uint16_t, pst_channellist *>::iterator x = channellist_map.begin();
+			 x != channellist_map.end(); ++x) {
+			SendIPCChannellist(x->second);
+		}
 
-        // Do we need to send packets?
-        if (child_ipc_buffer.size() > 0)
-            FD_SET(sockpair[0], &wset);
+		return;
+	}
 
-        struct timeval tm;
-        tm.tv_sec = 1;
-        tm.tv_usec = 0;
+	ipc_packet *ipc =
+		(ipc_packet *) malloc(sizeof(ipc_packet) +
+							  sizeof(ipc_source_add_chanlist));
+	ipc_source_add_chanlist *addch = (ipc_source_add_chanlist *) ipc->data;
 
-        // Timeout after 1 second to see if we stopped getting commands
-        if (select(max_fd + 1, &rset, &wset, NULL, &tm) < 0) {
-            // Die violently if select blows itself up
-            fprintf(stderr, "FATAL:  Channel control child %d got select() error "
-                    "%d:%s\n", getpid(), errno, strerror(errno));
-            exit(1);
-        }
+	ipc->data_len = sizeof(ipc_source_add_chanlist);
+	ipc->ipc_ack = 0;
+	ipc->ipc_cmdnum = channellist_ipc_id;
 
-        // Obey incoming data
-        if (FD_ISSET(sockpair[0], &rset)) {
-            chanchild_packhdr pak;
+	addch->chanset_id = in_list->channel_id;
+	addch->num_channels = in_list->channel_vec.size();
 
-            if (recv(sockpair[0], &pak, sizeof(chanchild_packhdr) - sizeof(void *), 0) < 0) {
-                exit(1);
-            }
+	for (unsigned int x = 0; x < kismin(IPC_SOURCE_MAX_CHANS, 
+										in_list->channel_vec.size()); x++) {
+		if (in_list->channel_vec[x].range == 0) {
+			addch->chandata[x].u.chan_t.channel = 
+				in_list->channel_vec[x].u.chan_t.channel;
+			addch->chandata[x].u.chan_t.dwell = in_list->channel_vec[x].u.chan_t.dwell;
+		} else {
+			addch->chandata[x].u.range_t.start = in_list->channel_vec[x].u.range_t.start;
+			// Flag it as a range
+			addch->chandata[x].u.range_t.start |= (1 << 15);
+			addch->chandata[x].u.range_t.end = in_list->channel_vec[x].u.range_t.end;
+			addch->chandata[x].u.range_t.width = in_list->channel_vec[x].u.range_t.width;
+			addch->chandata[x].u.range_t.iter = in_list->channel_vec[x].u.range_t.iter;
+		}
 
-            if (pak.sentinel != CHANSENTINEL) {
-                snprintf(txtbuf, 1024, "capture child %d got IPC frame without valid "
-                         "sentinel", getpid());
-                child_ipc_buffer.push_front(CreateTextPacket(txtbuf, CHANFLAG_NONE));
-                continue;
-            }
+		/*
+		addch->chan_list[x] = in_list->channel_vec[x].channel;
+		addch->chan_dwell_list[x] = in_list->channel_vec[x].dwell;
+		*/
+	}
 
-            // Drop dead
-            if (pak.packtype == CHANPACK_DIE || pak.flags & CHANFLAG_FATAL) {
-                CloseSources();
-                exit(1);
-            }
-          
-            if (pak.packtype == CHANPACK_CMDACK)
-                continue;
+	rootipc->SendIPC(ipc);
+}
 
-            // Handle changing channels
-            if (pak.packtype == CHANPACK_CHANNEL) {
-                chanchild_changepacket chanpak;
+void Packetsourcetracker::SendIPCReport(pst_packetsource *in_source) {
+	if (running_as_ipc == 0)
+		return;
 
-                // Just die if we can't receive data
-                if (recv(sockpair[0], &chanpak, sizeof(chanchild_changepacket), 0) < 0)
-                    exit(1);
+	if (rootipc == NULL)
+		return;
 
-                // Sanity check
-                if (chanpak.meta_num >= meta_packsources.size()) {
-                    snprintf(txtbuf, 1024, "Channel control got illegal metasource "
-							 "number %d", chanpak.meta_num);
-                    child_ipc_buffer.push_front(CreateTextPacket(txtbuf, 
-																 CHANFLAG_NONE));
-                    continue;
-                }
+	if (in_source == NULL) {
+		for (unsigned int x = 0; x < packetsource_vec.size(); x++) {
+			SendIPCReport(packetsource_vec[x]);
+		}
 
-                // Can this source change the channel?
-                if (meta_packsources[chanpak.meta_num]->prototype->channelcon == NULL)
-                    continue;
+		return;
+	}
 
-                // Actually change it and blow up if we failed.
-                // We pass a void * cast of the instance, which may or may not
-                // be valid - channel change stuff has to be smart enough to test
-                // for null and report an error accordingly if it uses this
-                // data.
-				//
-				// If a channel has more than N consecutive errors, we actually
-				// fail out, send a fatal condition, and die.
-                if ((*meta_packsources[chanpak.meta_num]->prototype->channelcon)
-                    (meta_packsources[chanpak.meta_num]->capsource->FetchInterface(), 
-                     chanpak.channel, errstr, 
-                     (void *) (meta_packsources[chanpak.meta_num]->capsource)) < 0) {
-#if 0
+	ipc_packet *ipc =
+		(ipc_packet *) malloc(sizeof(ipc_packet) +
+							  sizeof(ipc_source_report));
+	ipc_source_report *report = (ipc_source_report *) ipc->data;
 
-					meta_packsources[chanpak.meta_num]->consec_errors++;
+	ipc->data_len = sizeof(ipc_source_report);
+	ipc->ipc_ack = 0;
+	ipc->ipc_cmdnum = report_ipc_id;
 
-					if (meta_packsources[chanpak.meta_num]->consec_errors >= 
-						MAX_CONSEC_CHAN_ERR) {
-						// Push an explanation and the final error
-						snprintf(txtbuf, 1024, "Packet source %s (%s) has suffered "
-								 "%d consecutive errors setting the channel.  This "
-								 "most likely means the drivers have become "
-								 "confused.",
-								 meta_packsources[chanpak.meta_num]->name.c_str(),
-								 meta_packsources[chanpak.meta_num]->capsource->FetchInterface(),
-								 MAX_CONSEC_CHAN_ERR);
-						child_ipc_buffer.push_front(CreateTextPacket(txtbuf, 
-																	 CHANFLAG_NONE));
+	report->source_id = in_source->source_id;
+	report->chanset_id = in_source->channel_list;
+	// TODO figure out capabilities
+	report->capabilities = 0;
 
-						snprintf(txtbuf, 1024, "%s", errstr);
-						child_ipc_buffer.push_front(CreateTextPacket(txtbuf, 
-																	 CHANFLAG_FATAL));
-						continue;
+	report->flags = 0;
+	if (in_source->strong_source != NULL) {
+		if (in_source->strong_source->FetchDescriptor() >= 0)
+			report->flags |= IPC_SRCREP_FLAG_RUNNING;
+	}
+
+	if (in_source->error)
+		report->flags |= IPC_SRCREP_FLAG_ERROR;
+
+	report->hop_tm_sec = (uint32_t) in_source->tm_hop_time.tv_sec;
+	report->hop_tm_usec = (uint32_t) in_source->tm_hop_time.tv_usec;
+
+	report->last_channel = in_source->channel;
+
+	rootipc->SendIPC(ipc);
+}
+
+void Packetsourcetracker::SendIPCStart(pst_packetsource *in_source) {
+	if (running_as_ipc == 1)
+		return;
+
+	if (rootipc == NULL)
+		return;
+
+	if (in_source == NULL) {
+		for (unsigned int x = 0; x < packetsource_vec.size(); x++) {
+			SendIPCStart(packetsource_vec[x]);
+		}
+
+		return;
+	}
+
+	ipc_packet *ipc =
+		(ipc_packet *) malloc(sizeof(ipc_packet) +
+							  sizeof(ipc_source_run));
+	ipc_source_run *run = (ipc_source_run *) ipc->data;
+
+	ipc->data_len = sizeof(ipc_source_run);
+	ipc->ipc_ack = 0;
+	ipc->ipc_cmdnum = run_ipc_id;
+
+	run->source_id = in_source->source_id;
+	run->start = 1;
+
+	rootipc->SendIPC(ipc);
+}
+
+void Packetsourcetracker::SendIPCChanset(pst_packetsource *in_source) {
+	if (running_as_ipc == 1)
+		return;
+
+	if (rootipc == NULL)
+		return;
+
+	if (in_source == NULL) {
+		for (unsigned int x = 0; x < packetsource_vec.size(); x++) {
+			SendIPCChanset(packetsource_vec[x]);
+		}
+
+		return;
+	}
+
+	ipc_packet *ipc =
+		(ipc_packet *) malloc(sizeof(ipc_packet) +
+							  sizeof(ipc_source_chanset));
+	ipc_source_chanset *chanset = (ipc_source_chanset *) ipc->data;
+
+	ipc->data_len = sizeof(ipc_source_chanset);
+	ipc->ipc_ack = 0;
+	ipc->ipc_cmdnum = channel_ipc_id;
+
+	chanset->source_id = in_source->source_id;
+	chanset->chanset_id = in_source->channel_list;
+	chanset->channel = in_source->channel;
+	chanset->channel_hop = in_source->channel_hop;
+	chanset->channel_dwell = in_source->channel_dwell;
+	chanset->channel_rate = in_source->channel_rate;
+	chanset->channel_split = in_source->channel_split;
+	chanset->channel_pos = in_source->channel_position;
+
+	rootipc->SendIPC(ipc);
+}
+
+void Packetsourcetracker::SendIPCRemove(pst_packetsource *in_source) {
+	if (running_as_ipc == 1)
+		return;
+
+	if (rootipc == NULL)
+		return;
+
+	if (in_source == NULL) {
+		for (unsigned int x = 0; x < packetsource_vec.size(); x++) {
+			SendIPCRemove(packetsource_vec[x]);
+		}
+
+		return;
+	}
+
+	ipc_packet *ipc =
+		(ipc_packet *) malloc(sizeof(ipc_packet) +
+							  sizeof(ipc_source_remove));
+	ipc_source_remove *remove = (ipc_source_remove *) ipc->data;
+
+	ipc->data_len = sizeof(ipc_source_remove);
+	ipc->ipc_ack = 0;
+	ipc->ipc_cmdnum = remove_ipc_id;
+
+	remove->source_id = in_source->source_id;
+
+	rootipc->SendIPC(ipc);
+}
+
+void Packetsourcetracker::SendIPCPacket(kis_packet *in_pack, 
+										kis_datachunk *in_linkchunk) {
+	if (running_as_ipc == 0)
+		return;
+
+	if (rootipc == NULL)
+		return;
+
+	ipc_packet *ipc =
+		(ipc_packet *) malloc(sizeof(ipc_packet) +
+							  sizeof(ipc_source_packet) +
+							  in_linkchunk->length);
+	ipc_source_packet *pack = (ipc_source_packet *) ipc->data;
+
+	ipc->data_len = sizeof(ipc_source_packet) + in_linkchunk->length;
+	ipc->ipc_ack = 0;
+	ipc->ipc_cmdnum = packet_ipc_id;
+
+	pack->source_id = in_linkchunk->source_id;
+	pack->tv_sec = in_pack->ts.tv_sec;
+	pack->tv_usec = in_pack->ts.tv_usec;
+	pack->dlt = in_linkchunk->dlt;
+	pack->pkt_len = in_linkchunk->length;
+	memcpy(pack->data, in_linkchunk->data, in_linkchunk->length);
+
+	rootipc->SendIPC(ipc);
+}
+
+void Packetsourcetracker::SendIPCChanreport() {
+	if (running_as_ipc == 0)
+		return;
+
+	if (rootipc == NULL)
+		return;
+
+	ipc_packet *ipc =
+		(ipc_packet *) malloc(sizeof(ipc_packet) +
+							  sizeof(ipc_source_chanreport));
+	ipc_source_chanreport *report = (ipc_source_chanreport *) ipc->data;
+
+	ipc->data_len = sizeof(ipc_source_chanreport);
+	ipc->ipc_ack = 0;
+	ipc->ipc_cmdnum = chanreport_ipc_id;
+
+	report->num_channels = kismin(channel_tick_map.size(), IPC_SOURCE_MAX_CHANS);
+	unsigned int p = 0;
+	for (map<uint32_t, int>::iterator x = channel_tick_map.begin();
+		 x != channel_tick_map.end() && p < IPC_SOURCE_MAX_CHANS; ++x) {
+		report->channels[p] = x->first;
+		report->channels_time[p] = x->second;
+		p++;
+	}
+
+	rootipc->SendIPC(ipc);
+}
+
+int Packetsourcetracker::RegisterSourceActCallback(SourceActCallback in_cb,
+												   void *in_aux) {
+	// Make a cb rec
+	sourceactcb_rec *cbr = new sourceactcb_rec;
+	cbr->cb = in_cb;
+	cbr->auxdata = in_aux;
+
+	cb_vec.push_back(cbr);
+
+	return 1;
+}
+
+int Packetsourcetracker::RemoveSourceActCallback(SourceActCallback in_cb) {
+	for (unsigned int x = 0; x < cb_vec.size(); x++) {
+		if (cb_vec[x]->cb != in_cb)
+			continue;
+
+		delete cb_vec[x];
+		cb_vec.erase(cb_vec.begin() + x);
+		return 1;
+	}
+
+	return 0;
+}
+
+int Packetsourcetracker::SetSourceHopping(uuid in_uuid, int in_hopping, 
+										  uint16_t in_channel) {
+	pst_packetsource *pstsource = NULL;
+
+	for (unsigned int x = 0; x < packetsource_vec.size(); x++) {
+		if (packetsource_vec[x]->strong_source->FetchUUID() == in_uuid) {
+			pstsource = packetsource_vec[x];
+			break;
+		}
+	}
+
+	if (pstsource == NULL) {
+		_MSG("No packet source with UUID " + in_uuid.UUID2String() + 
+			 " in change channel/hopping request", MSGFLAG_ERROR);
+		return -1;
+	}
+
+	// Set the local info
+	pstsource->channel_hop = in_hopping;
+	pstsource->channel = in_channel;
+
+	// Send it over IPC - we don't care if it's controlled locally
+	SendIPCChanset(pstsource);
+
+	// Send a notify to all the registered callbacks
+	int opt;                                   
+	if (in_hopping) {
+		opt = SOURCEACT_HOPENABLE;
+	} else {
+		opt = SOURCEACT_HOPDISABLE;
+
+		// Set it locally if we need to
+		if ((rootipc == NULL || pstsource->proto_source->require_root == 0) &&
+			in_hopping == 0) {
+			if (pstsource->strong_source->SetChannel(pstsource->channel) < 0) 
+				_MSG("Packet source failed to set channel on source '" + 
+					 pstsource->interface + "'", MSGFLAG_ERROR);
+		}
+	}
+
+	for (unsigned int x = 0; x < cb_vec.size(); x++) {
+		(*(cb_vec[x]->cb))(globalreg, pstsource, opt, 0, cb_vec[x]->auxdata);
+	}
+
+	return 1;
+}
+
+int Packetsourcetracker::SetSourceNewChannellist(uuid in_uuid, string in_channellist) {
+	pst_packetsource *pstsource = NULL;
+
+	for (unsigned int x = 0; x < packetsource_vec.size(); x++) {
+		if (packetsource_vec[x]->strong_source->FetchUUID() == in_uuid) {
+			pstsource = packetsource_vec[x];
+			break;
+		}
+	}
+
+	if (pstsource == NULL) {
+		_MSG("No packet source with UUID " + in_uuid.UUID2String() + 
+			 " to change channel list", MSGFLAG_ERROR);
+		return -1;
+	}
+
+	// Parse the new channel list
+	uint16_t new_id = AddChannelList(in_channellist);
+	if (new_id == 0) {
+		_MSG("Failed to change source '" + pstsource->strong_source->FetchInterface() +
+			 "' UUID " + in_uuid.UUID2String().c_str() + " channel list because "
+			 "the provided channel list definition is not valid", MSGFLAG_ERROR);
+		return -1;
+	}
+
+	// Set the source up
+	pstsource->channel_list = new_id;
+	pstsource->channel_position = 0;
+
+	// Send the channel update to switch us to the new list
+	SendIPCChanset(pstsource);
+
+	// Send a notify to all the registered callbacks
+	for (unsigned int x = 0; x < cb_vec.size(); x++) {
+		(*(cb_vec[x]->cb))(globalreg, pstsource, SOURCEACT_CHVECTOR, 
+						   0, cb_vec[x]->auxdata);
+	}
+
+	return 1;
+}
+
+int Packetsourcetracker::SetSourceHopDwell(uuid in_uuid, int in_rate, int in_dwell) {
+	pst_packetsource *pstsource = NULL;
+
+	for (unsigned int x = 0; x < packetsource_vec.size(); x++) {
+		if (packetsource_vec[x]->strong_source->FetchUUID() == in_uuid) {
+			pstsource = packetsource_vec[x];
+			break;
+		}
+	}
+
+	if (pstsource == NULL) {
+		_MSG("No packet source with UUID " + in_uuid.UUID2String() + 
+			 " in change hop/dwell request", MSGFLAG_ERROR);
+		return -1;
+	}
+
+	// Set the local info
+	pstsource->channel_rate = in_rate;
+	pstsource->channel_dwell = in_dwell;
+
+	// Send it over IPC - we don't care if it's controlled locally
+	SendIPCChanset(pstsource);
+
+	// Send a notify to all the registered callbacks
+	for (unsigned int x = 0; x < cb_vec.size(); x++) {
+		(*(cb_vec[x]->cb))(globalreg, pstsource, SOURCEACT_CHHOPDWELL, 
+						   0, cb_vec[x]->auxdata);
+	}
+
+
+	return 1;
+}
+
+int Packetsourcetracker::AddLivePacketSource(string in_source, 
+											 KisPacketSource *in_strong) {
+	uint16_t new_id = 0;
+	int ret;
+
+	if ((ret = AddPacketSource(in_source, in_strong, &new_id)) < 0) {
+		return -1;
+	}
+
+	if (ret == 0)
+		return 1;
+
+	StartSource(new_id);
+
+	return 1;
+}
+
+pst_packetsource *Packetsourcetracker::FindLivePacketSource(KisPacketSource *in_strong) {
+	for (unsigned int x = 0; x < packetsource_vec.size(); x++) {
+		if (packetsource_vec[x]->strong_source == in_strong)
+			return packetsource_vec[x];
+	}
+
+	return NULL;
+}
+
+pst_packetsource *Packetsourcetracker::FindLivePacketSourceUUID(uuid in_uuid) {
+	for (unsigned int x = 0; x < packetsource_vec.size(); x++) {
+		if (packetsource_vec[x]->strong_source == NULL)
+			continue;
+
+		if (packetsource_vec[x]->strong_source->FetchUUID() == in_uuid)
+			return packetsource_vec[x];
+	}
+
+	return NULL;
+}
+
+KisPacketSource *Packetsourcetracker::FindKisPacketSourceUUID(uuid in_uuid) {
+	pst_packetsource *pst = FindLivePacketSourceUUID(in_uuid);
+
+	if (pst != NULL)
+		return pst->strong_source;
+
+	return NULL;
+}
+
+int Packetsourcetracker::RemoveLivePacketSource(KisPacketSource *in_strong) {
+	pst_packetsource *pstsource = FindLivePacketSource(in_strong);
+
+	if (pstsource != NULL)
+		return RemovePacketSource(pstsource);
+
+	return 0;
+}
+
+int Packetsourcetracker::RemovePacketSource(pst_packetsource *in_source) {
+	if (in_source == NULL)
+		return 0;
+
+	packetsource_map.erase(packetsource_map.find(in_source->source_id));
+	for (unsigned int x = 0; x < packetsource_vec.size(); x++) {
+		if (packetsource_vec[x]->source_id == in_source->source_id) {
+			packetsource_vec.erase(packetsource_vec.begin() + x);
+			break;
+		}
+	}
+
+	if (in_source->error == 0) {
+		in_source->strong_source->CloseSource();
+	}
+
+	SendIPCRemove(in_source);
+
+	// Send a notify to all the registered callbacks
+	for (unsigned int x = 0; x < cb_vec.size(); x++) {
+		(*(cb_vec[x]->cb))(globalreg, in_source, SOURCEACT_DELSOURCE, 0, 
+						   cb_vec[x]->auxdata);
+	}
+
+	delete in_source;
+
+	return 1;
+}
+
+pst_channellist *Packetsourcetracker::FetchSourceChannelList(pst_packetsource *in_src) {
+	if (channellist_map.find(in_src->channel_list) == channellist_map.end())
+		return NULL;
+
+	return channellist_map[in_src->channel_list];
+}
+
+void Packetsourcetracker::ChannelTimer() {
+	// Is another source sharing this channel at this time?
+	map<uint32_t, int> channel_touched;
+
+	for (unsigned int x = 0; x < packetsource_vec.size(); x++) {
+		pst_packetsource *pst = packetsource_vec[x];
+
+		if (pst->strong_source == NULL || pst->channel_ptr == NULL ||
+			(pst->channel_hop == 0 && pst->channel_dwell == 0) ||
+			 pst->error == 1) {
+			continue;
+		}
+
+		// Hop sources we have open.  Non-hoppable sources won't be set to hop
+		if (pst->strong_source->FetchDescriptor() >= 0) {
+			struct timeval tv;
+			int push_report = 0;
+			int channel = FreqToChan(pst->channel);
+
+			if (pst->channel_hop) {
+				// Only increment it for one packet source, if we have multiple
+				// that are on the same channel
+				if (channel_touched.find(channel) == channel_touched.end()) {
+					channel_touched[channel] = 1;
+					map<uint32_t, int>::iterator ctmi;
+					if ((ctmi = channel_tick_map.find(channel)) == 
+						channel_tick_map.end()) {
+						channel_tick_map[channel] = 1;
+					} else {
+						ctmi->second++;
 					}
-#endif
-                } else {
-					// Otherwise reset the error count
-					meta_packsources[chanpak.meta_num]->consec_errors = 0;
 				}
 
+				pst->rate_timer--;
 
-                // Acknowledge
-                chanchild_packhdr *ackpak = new chanchild_packhdr;
+				if (pst->rate_timer > 0) {
+					// fprintf(stderr, "debug - source %s timer %d\n", pst->interface.c_str(), pst->rate_timer);
+					continue;
+				}
 
-                memset(ackpak, 0, sizeof(chanchild_packhdr));
-                ackpak->sentinel = CHANSENTINEL;
-                ackpak->packtype = CHANPACK_CMDACK;
-                ackpak->flags = CHANFLAG_NONE;
-                ackpak->datalen = sizeof(chanchild_changepacket);
-                ackpak->data = (uint8_t *) malloc(sizeof(chanchild_changepacket));
-				((chanchild_changepacket *) ackpak->data)->meta_num = 
-					chanpak.meta_num;
-				((chanchild_changepacket *) ackpak->data)->channel = 
-					chanpak.channel;
-                child_ipc_buffer.push_back(ackpak);
-            }
-        } 
+				if (pst->channel_position >= 
+					(int) pst->channel_ptr->channel_vec.size()) {
+					pst->channel_position = 0;
+					push_report = 1;
+				}
 
-        // Write a packet - wset should never be set if child_ipc_buffer is empty
-        if (FD_ISSET(sockpair[0], &wset)) {
-            chanchild_packhdr *pak = child_ipc_buffer.front();
+				if (pst->channel_ptr->channel_vec[pst->channel_position].range) {
+					pst->rate_timer = (SERVER_TIMESLICES_SEC - pst->channel_rate);
+				} else {
+					pst->rate_timer =
+					pst->channel_ptr->channel_vec[pst->channel_position].u.chan_t.dwell *
+						(float) ((float) SERVER_TIMESLICES_SEC / (float) pst->channel_rate);
+					// fprintf(stderr, "debug - set timer to %d dwell %d + slices %d - rate %d\n", pst->rate_timer, pst->channel_ptr->channel_vec[pst->channel_position].u.chan_t.dwell, SERVER_TIMESLICES_SEC, pst->channel_rate);
+				}
 
-            // Send the header if we didn't already
-            if (child_dataframe_only == 0) {
-                if (send(sockpair[0], pak, sizeof(chanchild_packhdr) - sizeof(void *), 0) < 0) {
-                    if (errno == ENOBUFS)
-                        continue;
-                    else
-                        exit(1);
-                } 
-            }
+			} else if (pst->channel_dwell) {
+				pst->dwell_timer--;
 
-            // send the payload if there is one
-            if (pak->datalen > 0) {
-                if (send(sockpair[0], pak->data, pak->datalen, 0) < 0) {
-                    if (errno == ENOBUFS) {
-                        child_dataframe_only = 1;
-                        continue;
-                    } else {
-                        exit(1);
-                    }
-                }
-            }
+				if (channel_touched.find(channel) == channel_touched.end()) {
+					channel_touched[channel] = 1;
+					map<uint32_t, int>::iterator ctmi;
+					if ((ctmi = channel_tick_map.find(channel)) == 
+						channel_tick_map.end()) {
+						channel_tick_map[channel] = 1;
+					} else {
+						ctmi->second++;
+					}
+				}
 
-            child_dataframe_only = 0;
+				if (pst->dwell_timer > 0) {
+					continue;
+				}
 
-            // Blow ourselves away if we just wrote a fatal failure
-            if (pak->flags & CHANFLAG_FATAL)
-                exit(1);
+				if (pst->channel_position >= 
+					(int) pst->channel_ptr->channel_vec.size()) {
+					pst->channel_position = 0;
+					push_report = 1;
+				}
 
-            child_ipc_buffer.pop_front();
-            free(pak->data);
-            delete pak;
-        }
+				// Ranges all dwell for the default
+				if (pst->channel_ptr->channel_vec[pst->channel_position].range)
+					pst->dwell_timer = pst->channel_dwell * SERVER_TIMESLICES_SEC;
+				else 
+					pst->dwell_timer =
+					pst->channel_ptr->channel_vec[pst->channel_position].u.chan_t.dwell *
+						(SERVER_TIMESLICES_SEC * pst->channel_dwell);
+			} else {
+				if (channel_touched.find(channel) == channel_touched.end()) {
+					channel_touched[channel] = 1;
+					map<uint32_t, int>::iterator ctmi;
+					if ((ctmi = channel_tick_map.find(channel)) == 
+						channel_tick_map.end()) {
+						channel_tick_map[channel] = 1;
+					} else {
+						ctmi->second++;
+					}
+				}
+			}
 
-    }
+			// Set and advertise the channel
 
-    exit(1);
+			if (push_report) {
+
+				gettimeofday(&tv, NULL);
+
+				SubtractTimeval(&tv, &(pst->tm_hop_start), &(pst->tm_hop_time));
+
+				pst->tm_hop_start.tv_sec = tv.tv_sec;
+				pst->tm_hop_start.tv_usec = tv.tv_usec;
+
+				SendIPCReport(pst);
+			}
+
+			// Total for the range position, filled in if needed
+			int range_t = 0;
+
+			// Set the local channel via chanset or range
+			if (pst->channel_ptr->channel_vec[pst->channel_position].range == 0) {
+				pst->channel = 
+					pst->channel_ptr->channel_vec[pst->channel_position].u.chan_t.channel;
+			} else {
+				// total = ((end - start) / iteration) + 1
+				// jump = width / iteration
+				// slot = (pos * jump) % total
+				// chan = start + (slot * iteration)
+				range_t = ((pst->channel_ptr->channel_vec[pst->channel_position].u.range_t.end - pst->channel_ptr->channel_vec[pst->channel_position].u.range_t.start) / pst->channel_ptr->channel_vec[pst->channel_position].u.range_t.iter) + 1;
+				int j = pst->channel_ptr->channel_vec[pst->channel_position].u.range_t.width / pst->channel_ptr->channel_vec[pst->channel_position].u.range_t.iter;
+				int s = (pst->range_position * j) % range_t;
+
+				pst->channel = pst->channel_ptr->channel_vec[pst->channel_position].u.range_t.start + (s * pst->channel_ptr->channel_vec[pst->channel_position].u.range_t.iter);
+			}
+
+			// fprintf(stderr, "debug - hop list interface %s new channel %d\n", pst->interface.c_str(), pst->channel);
+
+			if (pst->strong_source->FetchError() == 0 && 
+				pst->strong_source->SetChannel(pst->channel) < 0) {
+				pst->consec_channel_err++;
+
+				if (pst->strong_source->FetchError()) {
+					_MSG("Packet source '" + pst->strong_source->FetchName() + 
+						 "' has encountered an unrecoverable error setting channel "
+						 "and will be shut down.", MSGFLAG_ERROR);
+					pst->strong_source->CloseSource();
+					pst->error = 1;
+				} 
+
+				if (pst->consec_channel_err > MAX_CONSEC_CHAN_ERR) {
+					_MSG("Packet source '" + pst->strong_source->FetchName() + 
+						 "' has had too many consecutive errors and will be shut down.",
+						 MSGFLAG_ERROR);
+					pst->strong_source->CloseSource();
+					pst->error = 1;
+				}
+
+				if (pst->error && pst->reopen) {
+					_MSG("Kismet will attempt to re-open packet source '" + 
+						 pst->strong_source->FetchName() + "' in 10 seconds", 
+						 MSGFLAG_ERROR);
+				}
+			} else {
+				pst->consec_channel_err = 0;
+			}
+
+			// if we're in a channel, we advance, otherwise if we're in a range
+			// we need to advance the range position and then advance the channel
+			// if we've completed the range
+			if (pst->channel_ptr->channel_vec[pst->channel_position].range == 0) {
+				pst->channel_position++;
+			} else {
+				pst->range_position++;
+				if (pst->range_position >= range_t) {
+					pst->range_position = 0;
+					pst->channel_position++;
+				}
+			}
+		}
+	}
+
+	timer_counter++;
+	if (timer_counter == SERVER_TIMESLICES_SEC + 1) {
+		timer_counter = 0;
+		SendIPCChanreport();
+		ClearChannelTickMap();
+	}
 }
 
-Packetsourcetracker::chanchild_packhdr *Packetsourcetracker::CreateTextPacket(string in_text, int8_t in_flags) {
-    chanchild_packhdr *ret = new chanchild_packhdr;
+void Packetsourcetracker::OpenTimer() {
+	for (unsigned int x = 0; x < packetsource_vec.size(); x++) {
+		pst_packetsource *pst = packetsource_vec[x];
 
-    memset(ret, 0, sizeof(chanchild_packhdr));
-    ret->sentinel = CHANSENTINEL;
-    ret->packtype = CHANPACK_TEXT;
-    ret->flags = in_flags;
-    ret->datalen = in_text.length();
-    ret->data = (uint8_t *) strdup(in_text.c_str());
+		if (pst->reopen && pst->error) {
+			_MSG("Attempting to re-open errored packet source " +
+				 pst->strong_source->FetchName(), MSGFLAG_INFO);
 
-    return ret;
+			StartSource(pst->source_id);
+		}
+	}
 }
 
+void Packetsourcetracker::ChainHandler(kis_packet *in_pack) {
+	kis_datachunk *linkchunk = 
+		(kis_datachunk *) in_pack->fetch(_PCM(PACK_COMP_LINKFRAME));
+
+	if (linkchunk == NULL)
+		return;
+
+	if (running_as_ipc) {
+		// Send it through the IPC system
+		SendIPCPacket(in_pack, linkchunk);
+	} else {
+		// Send it through the packet source demangler
+		kis_ref_capsource *csrc_ref = 
+			(kis_ref_capsource *) in_pack->fetch(_PCM(PACK_COMP_KISCAPSRC));
+
+		if (csrc_ref == NULL) {
+			_MSG("We got a packet in the PST chainhandler with data but no capsource "
+				 "reference so we don't know how to handle it, we're going to have "
+				 "to throw it on the floor, something is wrong.", MSGFLAG_ERROR);
+			return;
+		}
+
+		csrc_ref->ref_source->ManglePacket(in_pack, linkchunk);
+	}
+}
+
+void Packetsourcetracker::BlitSources(int in_fd) {
+	for (unsigned int x = 0; x < packetsource_vec.size(); x++) {
+		kis_protocol_cache cache;
+
+		if (in_fd == -1) {
+			if (globalreg->kisnetserver->SendToAll(source_protoref,
+												   (void *) packetsource_vec[x]) < 0)
+				break;
+		} else {
+			if (globalreg->kisnetserver->SendToClient(in_fd, source_protoref,
+													  (void *) packetsource_vec[x],
+													  &cache) < 0)
+				break;
+		}
+	}
+}
+
+void Packetsourcetracker::BlitProtoSources(int in_fd) {
+}
+
+int Packetsourcetracker::cmd_ADDSOURCE(int in_clid, KisNetFramework *framework, 
+									   char *errstr, string cmdline, 
+									   vector<smart_word_token> *parsedcmdline) {
+	if (parsedcmdline->size() < 1) {
+		snprintf(errstr, 1024, "Illegal ADDSOURCE command, expected source line");
+		return -1;
+	}
+
+	uint16_t new_source_id;
+
+	int ret = AddPacketSource((*parsedcmdline)[0].word, NULL, &new_source_id);
+
+	if (ret <= 0) {
+		snprintf(errstr, 1024, "ADDSOURCE command failed");
+		return -1;
+	}
+
+	_MSG("Added source '" + (*parsedcmdline)[0].word + "' from client ADDSOURCE",
+		 MSGFLAG_INFO);
+
+	if (StartSource(new_source_id) < 0) {
+		snprintf(errstr, 1024, "ADDSOURCE failed to activate new source");
+		return -1;
+	}
+
+	snprintf(errstr, 1024, "Created new source");
+
+	return 1;
+}
+
+int Packetsourcetracker::cmd_DELSOURCE(int in_clid, KisNetFramework *framework, 
+									   char *errstr, string cmdline, 
+									   vector<smart_word_token> *parsedcmdline) {
+	if (parsedcmdline->size() < 1) {
+		snprintf(errstr, 1024, "Illegal DELSOURCE command, expected UUID");
+		return -1;
+	}
+
+	uuid inuuid = uuid((*parsedcmdline)[0].word);
+
+	if (inuuid.error) {
+		snprintf(errstr, 1024, "Invalid UUID in DELSOURCE command");
+		return -1;
+	}
+
+	pst_packetsource *pstsource = FindLivePacketSourceUUID(inuuid);
+
+	if (pstsource == NULL) {
+		snprintf(errstr, 1024, "Invalid UUID in DELSOURCE command, couldn't find "
+				 "source with UUID %s", inuuid.UUID2String().c_str());
+		return -1;
+	}
+
+	_MSG("Removing source '" + (*parsedcmdline)[0].word + "' from client DELSOURCE",
+		 MSGFLAG_INFO);
+
+	RemovePacketSource(pstsource);
+
+	return 1;
+
+}
+
+// HOPSOURCE uuid [HOP|DWELL|LOCK] [RATE|CHANNEL]
+int Packetsourcetracker::cmd_HOPSOURCE(int in_clid, KisNetFramework *framework, 
+									   char *errstr, string cmdline, 
+									   vector<smart_word_token> *parsedcmdline) {
+	if (parsedcmdline->size() < 2) {
+		snprintf(errstr, 1024, "Illegal HOPSOURCE command, expected UUID TYPE VAL");
+		return -1;
+	}
+
+	uuid inuuid = uuid((*parsedcmdline)[0].word);
+
+	if (inuuid.error) {
+		snprintf(errstr, 1024, "Invalid UUID in HOPSOURCE command");
+		return -1;
+	}
+
+	pst_packetsource *pstsource = FindLivePacketSourceUUID(inuuid);
+
+	if (pstsource == NULL) {
+		snprintf(errstr, 1024, "Invalid UUID in HOPSOURCE command, couldn't find "
+				 "source with UUID %s", inuuid.UUID2String().c_str());
+		return -1;
+	}
+
+	string cmd = StrLower((*parsedcmdline)[1].word);
+
+	unsigned int val = 0;
+	if (parsedcmdline->size() > 2) {
+		if (sscanf((*parsedcmdline)[2].word.c_str(), "%u", &val) != 1) {
+			snprintf(errstr, 1024, "Invalid value, expected number");
+			return -1;
+		}
+	}
+
+	if (cmd == "lock") {
+		if (parsedcmdline->size() < 2) {
+			snprintf(errstr, 1024, "Expected channel for HOPSOURCE LOCK");
+			return -1;
+		}
+
+		SetSourceHopping(inuuid, 0, val);
+
+	} else if (cmd == "hop") {
+		if (parsedcmdline->size() < 2) {
+			SetSourceHopping(inuuid, 1, 0);
+		} else {
+			SetSourceHopDwell(inuuid, val, 0);
+			SetSourceHopping(inuuid, 1, 0);
+		}
+	} else if (cmd == "dwell") {
+		if (parsedcmdline->size() < 2) {
+			SetSourceHopping(inuuid, 1, 0);
+		} else {
+			SetSourceHopDwell(inuuid, 0, val);
+			SetSourceHopping(inuuid, 1, 0);
+		}
+	} else {
+		snprintf(errstr, 1024, "Expected LOCK, HOP or DWELL");
+		return -1;
+	}
+
+	return 1;
+}
+
+// CHANLIST uuid channels
+int Packetsourcetracker::cmd_CHANLIST(int in_clid, KisNetFramework *framework, 
+									  char *errstr, string cmdline, 
+									   vector<smart_word_token> *parsedcmdline) {
+	if (parsedcmdline->size() < 2) {
+		snprintf(errstr, 1024, "Illegal CHANLIST command, expected UUID "
+				 "chanlist");
+		return -1;
+	}
+
+	uuid inuuid = uuid((*parsedcmdline)[0].word);
+
+	if (inuuid.error) {
+		snprintf(errstr, 1024, "Invalid UUID in CHANLIST command");
+		return -1;
+	}
+
+	pst_packetsource *pstsource = FindLivePacketSourceUUID(inuuid);
+
+	if (pstsource == NULL) {
+		snprintf(errstr, 1024, "Invalid UUID in CHANLIST command, couldn't find "
+				 "source with UUID %s", inuuid.UUID2String().c_str());
+		return -1;
+	}
+
+	if (SetSourceNewChannellist(inuuid, pstsource->interface + string(":") +
+								(*parsedcmdline)[1].word) < 0) {
+		snprintf(errstr, 1024, "Failed to set channel list for source %s UUID %s",
+				 pstsource->interface.c_str(), inuuid.UUID2String().c_str());
+		return -1;
+	}
+
+	return 1;
+}
+
+int Packetsourcetracker::cmd_RESTARTSOURCE(int in_clid, KisNetFramework *framework,
+										   char *errstr, 
+										   string cmdline, 
+										   vector<smart_word_token> *parsedcmdline) {
+	if (parsedcmdline->size() < 1) {
+		snprintf(errstr, 1024, "Illegal DELSOURCE command, expected source line");
+		return -1;
+	}
+
+	uuid inuuid = uuid((*parsedcmdline)[1].word);
+
+	if (inuuid.error) {
+		snprintf(errstr, 1024, "Invalid UUID in DELSOURCE command");
+		return -1;
+	}
+
+	pst_packetsource *pstsource = FindLivePacketSourceUUID(inuuid);
+
+	if (pstsource == NULL) {
+		snprintf(errstr, 1024, "Invalid UUID in DELSOURCE command, couldn't find "
+				 "source with UUID %s", inuuid.UUID2String().c_str());
+		return -1;
+	}
+
+	_MSG("Restarting source '" + (*parsedcmdline)[1].word + "' from client "
+		 "RESTARTSOURCE", MSGFLAG_INFO);
+
+	StopSource(pstsource->source_id);
+	StartSource(pstsource->source_id);
+
+	return 1;
+}
 

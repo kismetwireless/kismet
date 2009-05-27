@@ -1,0 +1,30 @@
+= Kismet Development Wiki =
+
+== What you'll find ==
+
+This wiki is for holding information about writing plugins and other ways to 
+interact with the Kismet source.
+
+== About the Wiki ==
+
+This Wiki was created using Wicked, the VIM wiki plugin.  It can be exported
+to other formats using the Wicked tools (which don't require VIM) available at
+http://www.redsheep.de/wiked/ .  
+
+== Core code components ==
+
+Kismet is divided into multiple, mostly self-contained subsystems.  To hook 
+into the inner workings, you must register components with each.
+
+AlertTracker		: IDS alert system
+GlobalRegistry		: Global registry of core components
+KisNetFramework		: Kismet server/client protocol system
+MessageBus 			: Text message dispatch system
+NetTracker 			: Network classifier and tracker
+PacketChain 		: Packet traversal
+PacketsourceTracker : Capture source system
+TimeTracker			: Event system
+
+ConfigFile			: Configuration file reading
+NetworkSubsystem	: Networking subsystem classes
+

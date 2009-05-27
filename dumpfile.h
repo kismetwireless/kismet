@@ -21,55 +21,47 @@
 
 #include "config.h"
 
+#include <stdio.h>
 #include <string>
-#include <map>
 
-#include "packet.h"
+#include "globalregistry.h"
+#include "configfile.h"
+#include "messagebus.h"
+#include "packetchain.h"
+#include "filtercore.h"
 
-// Packet capture source superclass
-class DumpFile {
+class Dumpfile {
 public:
-    virtual ~DumpFile() { }
+	Dumpfile();
+	Dumpfile(GlobalRegistry *in_globalreg);
+	virtual ~Dumpfile() { };
 
-    // Open the packet source
-    virtual int OpenDump(const char *file) = 0;
+	static void Usage(char *name);
 
-    virtual int CloseDump() = 0;
+	// Fetch the number of items logged
+	int FetchNumDumped() { return dumped_frames; }
 
-    // Get a packet from the medium
-    virtual int DumpPacket(const packet_info *in_info, const kis_packet *packet) = 0;
+	// Fetch the name of the file being dumped to
+	string FetchFileName() { return fname; }
 
-    // Do we log beacons?
-    void SetBeaconLog(int in_log) { beacon_log = in_log; };
-    // Do we log phy-layer stuff?
-    void SetPhyLog(int in_log) { phy_log = in_log; };
-    // Do we mangle packets?
-    void SetMangleLog(int in_log) { mangle_log = in_log; };
+	// Fetch the type of the file being dumped to
+	string FetchFileType() { return type; }
 
-    // Get the number of packets
-    int FetchDumped() { return(num_dumped); };
-
-    // Say what we are
-    char *FetchType() { return(type); };
-
-    // Get the error
-    char *FetchError() { return(errstr); };
-
-    // Get the file name
-    char *FetchFilename() { return(filename); };
+	// Cleanly flush the file to disk
+	virtual int Flush() = 0;
 
 protected:
-    char errstr[1024];
-    char type[64];
-    char filename[1024];
+	GlobalRegistry *globalreg;
+	FilterCore *export_filter;
+	string fname;
+	string type;
 
-    int num_dumped;
-    int beacon_log;
-    int phy_log;
-    int mangle_log;
+	int dumped_frames;
 
-    map<mac_addr, string> beacon_logged_map;
+	virtual string ProcessConfigOpt(string in_type);
 
+	int resume;
 };
 
 #endif
+

@@ -23,7 +23,15 @@
 #include "timetracker.h"
 
 Timetracker::Timetracker() {
+    fprintf(stderr, "Timetracker::Timetracker() called with no globalreg\n");
+}
+
+Timetracker::Timetracker(GlobalRegistry *in_globalreg) {
+    globalreg = in_globalreg;
     next_timer_id = 0;
+
+	globalreg->start_time = time(0);
+	gettimeofday(&(globalreg->timestamp), NULL);
 }
 
 Timetracker::~Timetracker() {
@@ -37,24 +45,28 @@ int Timetracker::Tick() {
     // Handle scheduled events
     struct timeval cur_tm;
     gettimeofday(&cur_tm, NULL);
+	globalreg->timestamp.tv_sec = cur_tm.tv_sec;
+	globalreg->timestamp.tv_usec = cur_tm.tv_usec;
     timer_event *evt;
 
     for (unsigned int x = 0; x < sorted_timers.size(); x++) {
         evt = sorted_timers[x];
 
         if ((cur_tm.tv_sec < evt->trigger_tm.tv_sec) ||
-            ((cur_tm.tv_sec == evt->trigger_tm.tv_sec) && (cur_tm.tv_usec < evt->trigger_tm.tv_usec)))
+            ((cur_tm.tv_sec == evt->trigger_tm.tv_sec) && 
+			 (cur_tm.tv_usec < evt->trigger_tm.tv_usec)))
             return 1;
 
         // Call the function with the given parameters
         int ret;
-        ret = (*evt->callback)(evt, evt->callback_parm);
+        ret = (*evt->callback)(evt, evt->callback_parm, globalreg);
 
         if (ret > 0 && evt->timeslices != -1 && evt->recurring) {
             evt->schedule_tm.tv_sec = cur_tm.tv_sec;
             evt->schedule_tm.tv_usec = cur_tm.tv_usec;
             evt->trigger_tm.tv_sec = evt->schedule_tm.tv_sec + (evt->timeslices / 10);
-            evt->trigger_tm.tv_usec = evt->schedule_tm.tv_usec + (100000 * (evt->timeslices % 10));
+            evt->trigger_tm.tv_usec = evt->schedule_tm.tv_usec + 
+				(100000 * (evt->timeslices % 10));
 
             if (evt->trigger_tm.tv_usec > 999999) {
                 evt->trigger_tm.tv_usec = evt->trigger_tm.tv_usec - 1000000;
@@ -62,7 +74,8 @@ int Timetracker::Tick() {
             }
 
             // Resort the list
-            stable_sort(sorted_timers.begin(), sorted_timers.end(), SortTimerEventsTrigger());
+            stable_sort(sorted_timers.begin(), sorted_timers.end(), 
+						SortTimerEventsTrigger());
         } else {
             RemoveTimer(evt->timer_id);
         }
@@ -73,7 +86,8 @@ int Timetracker::Tick() {
 }
 
 int Timetracker::RegisterTimer(int in_timeslices, struct timeval *in_trigger,
-                               int in_recurring, int (*in_callback)(timer_event *, void *),
+                               int in_recurring, 
+                               int (*in_callback)(TIMEEVENT_PARMS),
                                void *in_parm) {
     timer_event *evt = new timer_event;
 

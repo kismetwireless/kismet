@@ -1,0 +1,83 @@
+=PacketChain=
+
+== PacketChain basics ==
+
+The PacketChain is the core mechanism by which packets make their way through 
+Kismet.  Packets are inserted into the chain by capture devices, and may have 
+any number of custom attributes attached to them.
+
+The base stages of the PacketChain are:
+	* GENESIS
+	* POST-CAPTURE
+	* PROTO-DISSECTION
+	* FILTER
+	* DECRYPT
+	* DATA-DISSECTION
+	* CLASSIFICATION
+	* LOGGING
+	* DESTRUCTION
+
+== Packet components/attributes ==
+
+Packet components are subclasses of the stub ``packet_component''.  A packet 
+component can contain any information about a packet.  A packet may have many 
+components or it may have only one or two.  Builtin components include the raw 
+captured data, the data modified to fit the 80211 standard, decrypted data, 
+80211 layer2 signal information, gps information, and more.
+
+For a component to be used on a packet, it must be registered.  Registering a 
+component gives an integer reference to that component type.
+
+Manipulating components in a kis_packet:
+	kis_packet *foo;
+	...
+	foo->insert(mycompref, mycomp);
+	...
+	foo->fetch(globalreg->pcr_gps_ref);  // NULL if no gps data
+	...
+	foo->erase(mycompref);
+
+Registering and unregistering packet components from the Packetchain:
+	int RegisterPacketComponent(string in_component);
+
+	An integer value for fast-reference to the added packet type is returned.  
+	The string may be used by other components in the future to fetch a 
+	reference to the component id.
+
+    int RemovePacketComponent(int in_id);
+
+	Unregister a component.
+
+== Packetchain packet genesis ==
+
+Packet creation is normally done only during genesis from a capture source.
+
+Creating packets:
+	kis_packet *GeneratePacket();
+
+Generate a packet and return it to the caller for genesis components.
+
+	int ProcessPacket(kis_packet *in_pack);
+
+Inject a packet into the chain.
+
+== Chain handlers ==
+
+To be part of the packet chain and process packets, you must register a packet 
+handler:
+
+	int RegisterHandler(pc_callback in_cb, void *in_aux, int in_chain, int 
+		in_prio);
+
+The handler consists of a callback function which will be used to trigger your 
+handler, a pointer to arbitrary auxillary data, the portion of the chain the 
+handler will be attached to, and the priority.  Priorities less than zero are 
+reserved for Kismet internal handlers, and replacing them will likely lead to a 
+number of problems.
+
+A chain handler receives the packet with all components currently available.  
+It may do any processing it wishes on the packet, and add components to it 
+before releasing it.
+
+----
+related: IndeX

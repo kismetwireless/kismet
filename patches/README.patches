@@ -1,0 +1,11 @@
+This directory includes patches for host systems which Kismet may need
+to perform properly (or at all) or to use more advanced features.
+
+linux-tuntapsetlink
+-------------------
+	This is a simple patch which applies to the Linux 2.6.x kernels and
+	provides the ability to set the ARP link type on tun/tap virtual
+	interfaces.  Kismet uses this to set the link type of the tapX
+	interface to wireless, so that other tools interpret the replicated
+	packets properly.
+

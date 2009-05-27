@@ -19,157 +19,166 @@
 #include "config.h"
 
 #include <stdio.h>
-
+#include "configfile.h"
+#include "messagebus.h"
+#include "util.h"
 #include "manuf.h"
-#include "packetracker.h"
 
-int manuf_max_score = 8;
+Manuf::Manuf(GlobalRegistry *in_globalreg) {
+	globalreg = in_globalreg;
 
-int ReadManufMap(FILE *in_file, int ap_map,
-				 macmap<vector<manuf *> > *ret_map) {
-    vector<manuf *> rvec;
+	if (globalreg->kismet_config == NULL) {
+		fprintf(stderr, "FATAL OOPS:  Manuf called before kismet_config\n");
+		exit(1);
+	}
 
-    manuf *manf;
+	vector<string> fname = globalreg->kismet_config->FetchOptVec("ouifile");
+	if (fname.size() == 0) {
+		_MSG("Missing 'ouifile' option in config, will not resolve manufacturer "
+			 "names for MAC addresses", MSGFLAG_ERROR);
+		return;
+	}
 
-    // Push an unknown record
-    manf = new manuf;
-    manf->name = "Unknown";
-    manf->model = "Unknown";
-    manf->ssid_default = "";
-    manf->mac_tag = "00:00:00:00:00:00";
-    manf->channel_default = 0;
-    memset(&manf->ipdata, 0, sizeof(net_ip_data));
+	for (unsigned int x = 0; x < fname.size(); x++) {
+		if ((mfile = fopen(fname[x].c_str(), "r")) != NULL) {
+			_MSG("Opened OUI file '" + fname[x], MSGFLAG_INFO);
+			break;
+		}
 
-    rvec.push_back(manf);
-    ret_map->fast_insert(manf->mac_tag, rvec);
+		_MSG("Could not open OUI file '" + fname[x] + "': " +
+			 string(strerror(errno)), MSGFLAG_ERROR);
+	}
 
-    int linenum = 0;
+	if (mfile == NULL) {
+		_MSG("No OUI files were available, will not resolve manufacturer "
+			 "names for MAC addresses", MSGFLAG_ERROR);
+		return;
+	}
 
-    // Read from the file
-    char dline[8192];
-    while (!feof(in_file)) {
-        if (fgets(dline, 8192, in_file) == NULL ||
-	    feof(in_file)) break;
-
-        linenum++;
-
-        // Cut the newline
-        dline[strlen(dline) - 1] = '\0';
-
-        vector<string> line_vec = StrTokenize(dline, "\t");
-
-        manf = new manuf;
-        manf->name = "";
-        manf->model = "";
-        manf->mac_tag = "";
-        manf->ssid_default = "";
-        manf->channel_default = 0;
-        memset(&manf->ipdata, 0, sizeof(net_ip_data));
-
-        // If we're loading a AP manuf map, we handle it this way
-        if (line_vec.size() < 2) {
-            delete manf;
-            continue;
-        }
-
-        if (ap_map) {
-            // If we're loading a AP manuf map, we handle it this way
-            manf->mac_tag = line_vec[0].c_str();
-
-            manf->name = line_vec[1];
-            if (line_vec.size() >= 3) {
-                manf->model = line_vec[2];
-                if (line_vec.size() >= 4) {
-                    manf->ssid_default = line_vec[3];
-                    if (line_vec.size() >= 5) {
-                        int chan;
-                        if (sscanf(line_vec[4].c_str(), "%d", &chan) == 1)
-                            manf->channel_default = chan;
-                        if (line_vec.size() >= 6) {
-                            short int ipr[4];
-                            if (sscanf(line_vec[5].c_str(), "%hd.%hd.%hd.%hd",
-                                       &ipr[0], &ipr[1], &ipr[2], &ipr[3]) == 4) {
-                                manf->ipdata.atype = address_factory;
-                                manf->ipdata.octets = 4;
-                                for (unsigned int x = 0; x < 4; x++)
-                                    manf->ipdata.range_ip[x] = ipr[x];
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (ret_map->find(manf->mac_tag) != ret_map->end()) {
-                (*ret_map)[manf->mac_tag].push_back(manf);
-            } else {
-                rvec.clear();
-                rvec.push_back(manf);
-                ret_map->fast_insert(manf->mac_tag, rvec);
-            }
-        } else {
-            // Otherwise we handle clients this way
-
-            manf->mac_tag = line_vec[0].c_str();
-
-            manf->name = line_vec[1];
-            if (line_vec.size() >= 3)
-                manf->model = line_vec[2];
-
-            if (ret_map->find(manf->mac_tag) != ret_map->end()) {
-                (*ret_map)[manf->mac_tag].push_back(manf);
-            } else {
-                rvec.clear();
-                rvec.push_back(manf);
-                ret_map->fast_insert(manf->mac_tag, rvec);
-            }
-
-        }
-    }
-
-    ret_map->reindex();
-    return 1;
+	IndexOUI();
 }
 
-// Find the best match for a likely manufacturer, based on tags (for clients) and
-// default SSIDs, channel, etc (for access points)
-// Returned in the parameters are the pointers to the best manufacturer record, the
-// score, and the modified mac address which matched it
-manuf *MatchBestManuf(macmap<vector<manuf *> > *in_manuf, mac_addr in_mac, 
-					  string in_ssid, int in_channel, int in_wep, int in_cloaked, 
-					  int *manuf_score) {
-    manuf *best_manuf = NULL;
-    int best_score = 0;
-    int best_pos = 0;
+void Manuf::IndexOUI() {
+	char buf[1024];
+	int line = 0;
+	fpos_t prev_pos;
+	short int m[3];
 
-    macmap<vector<manuf *> >::iterator mitr = in_manuf->find(in_mac);
+	if (mfile == NULL)
+		return;
 
-    if (mitr != in_manuf->end()) {
-        vector<manuf *> manuf_list = *(mitr->second);
+	_MSG("Indexing manufacturer db", MSGFLAG_INFO);
 
-        for (unsigned int x = 0; x < manuf_list.size(); x++) {
-            manuf *likely_manuf = manuf_list[x];
-            int score = 0;
+	fgetpos(mfile, &prev_pos);
 
-            score += 6;
-            if (in_ssid != "" && in_ssid == likely_manuf->ssid_default)
-                score += 1;
-            if (in_channel != 0 && in_channel == likely_manuf->channel_default)
-                score += 1;
-            if (in_wep)
-                score -= 1;
-            if (in_cloaked)
-                score -= 1;
+	while (!feof(mfile)) {
+		if (fgets(buf, 1024, mfile) == NULL || feof(mfile))
+			break;
 
-            if (score > best_score) {
-                best_score = score;
-                best_pos = x;
-                best_manuf = likely_manuf;
-            }
-        }
+		if ((line % 50) == 0) {
+			if (sscanf(buf, "%hx:%hx:%hx",
+					   &(m[0]), &(m[1]), &(m[2])) == 3) {
 
-    }
+				// Log a position at the previous pos - which is the line before
+				// this one, so we're inclusive
+				index_pos ip;
+				uint32_t oui;
 
-    *manuf_score = best_score;
-    return best_manuf;
+				oui = 0;
+				oui |= (uint32_t) m[0] << 16;
+				oui |= (uint32_t) m[1] << 8;
+				oui |= (uint32_t) m[2];
+
+				ip.oui = oui;
+				ip.pos = prev_pos;
+
+				index_vec.push_back(ip);
+			} else {
+				// Compensate for not getting a reasonable line (probably a
+				// comment) by decrementing here so we keep trying at each
+				// index point until we get info we're looking for
+				line--;
+			}
+		}
+
+		fgetpos(mfile, &prev_pos);
+		line++;
+	}
+
+	_MSG("Completed indexing manufacturer db, " + IntToString(line) + " lines " +
+		 IntToString(index_vec.size()) + " indexes", MSGFLAG_INFO);
 }
+
+string Manuf::LookupOUI(mac_addr in_mac) {
+	uint32_t soui = in_mac.OUI(), toui;
+	int matched = -1;
+	char buf[1024];
+	short int m[3];
+	char manuf[16];
+
+	if (mfile == NULL)
+		return "Unknown";
+
+	// Use the cache first
+	if (oui_map.find(soui) != oui_map.end()) {
+		return oui_map[soui].manuf;
+	}
+
+	for (unsigned int x = 0; x < index_vec.size(); x++) {
+		if (soui > index_vec[x].oui)
+			continue;
+
+		matched = x - 1;
+		break;
+	}
+
+	// Cache unknown to save us effort in the future
+	if (matched < 0) {
+		manuf_data md;
+		md.oui = soui;
+		md.manuf = "Unknown";
+		oui_map[soui] = md;
+
+		return md.manuf;
+	}
+
+	fsetpos(mfile, &(index_vec[matched].pos));
+
+	while (!feof(mfile)) {
+		if (fgets(buf, 1024, mfile) == NULL || feof(mfile))
+			break;
+
+		if (sscanf(buf, "%hx:%hx:%hx\t%10s",
+				   &(m[0]), &(m[1]), &(m[2]), manuf) == 4) {
+
+			// Log a position at the previous pos - which is the line before
+			// this one, so we're inclusive
+			toui = 0;
+			toui |= (uint32_t) m[0] << 16;
+			toui |= (uint32_t) m[1] << 8;
+			toui |= (uint32_t) m[2];
+
+			if (toui == soui) {
+				manuf_data md;
+				md.oui = soui;
+				md.manuf = MungeToPrintable(string(manuf));
+				oui_map[soui] = md;
+
+				return md.manuf;
+			}
+
+			if (toui > soui) {
+				manuf_data md;
+				md.oui = soui;
+				md.manuf = "Unknown";
+				oui_map[soui] = md;
+
+				return md.manuf;
+			}
+		}
+	}
+
+	return "Unknown";
+}
+
 

@@ -1,0 +1,66 @@
+Kismet-Spectools
+
+1.  What is Kismet-Spectools
+2.  Compiling
+3.  Installing
+4.  Using
+
+1.  What is Kismet-Spectools?
+
+    Kismet-Spectools is a Kismet server and UI plugin which links to the
+    Spectools spectrum analyzer network export
+    (http://www.kismetwireless.net/spectools/), which lets Kismet display
+    information about the wireless spectrum discovered by hardware such as
+    the Wi-Spy (tm Metageek)
+
+2.  Compiling
+
+    Compiling the Kismet-Spectools plugin requires the Kismet source be
+    installed and configured on the system.
+
+    By default, Kismet-Spectools expects the Kismet source to be in
+    /usr/src/kismet, this can be overridden by setting the KIS_SRC_DIR
+    environment variable or by symlinking this directory to your preferred
+    build location.
+
+        cd plugin-spectools
+        KIS_SRC_DIR=/home/foo/src/kismet make
+
+3.  Installing
+
+    Kismet plugins may be installed system-wide in the plugins directory (by
+    default, /usr/local/lib/kismet and /usr/local/lib/kismet_client) or in
+    the users home directory (~/.kismet/plugins and
+    ~/.kismet/client_plugins)
+
+    The default installation path can be overridden with the KIS_DEST_DIR
+    variable if you have not installed Kismet in the default location and
+    wish to install the plugin in the system-wide plugins directory:
+        cd plugin-spectools
+        KIS_DEST_DIR=/usr make install
+
+    Plugins can be installed in the current users home directory with:
+        cd plugin-spectools
+        make userinstall
+
+4.  Using Kismet-Spectools
+
+    Once the plugins are installed, configure kismet_server to load plugins
+    and to specify where spectools_net will be running by setting and adding
+    the following to kismet.conf (by default in /usr/local/etc/):
+
+        allowplugins=true
+        spectools=tcp://localhost:30569
+
+    The spectools parameter should, obviously, be configured for whatever
+    host you will use, if it is not running locally.
+
+    Then load the Kismet UI plugin by starting Kismet and enabling it in
+    "Kismet->Plugins->Select Plugins"
+
+    The spectrum view can be shown or hidden via "Kismet->Plugins->Show
+    Spectrum"
+
+    If pcap logging is enabled, with the PPI logging format, Kismet will log
+    PPI spectrum data once per second.
+

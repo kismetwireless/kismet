@@ -1,0 +1,345 @@
+Kismet Newcore
+
+The existing Kismet codebase has grown from its beginnings.  While it works,
+generally, it has been grown, not designed, and has numerous quirks and 
+poorly implemented parts.
+
+The newcore branch of Kismet is a nearly complete rewrite of the entire
+codebase, focusing on design, maintainablity, and modular code.  A major
+goal of the rewrite is to allow a plugin architecture, which is well 
+under way.
+
+After nearly a year of development, the newcore codebase is finally functional.
+Now that it is standing on its own, development will go much more quickly.
+Major modules are still missing from the code, however they are being filled
+in rapidly.  Like any major rewrite, there will be growing pains as platform
+or interface-specific components are put back into action.
+
+Once newcore has reached an equivalent level of functionality with the 
+stable code branch, it will replace the existing Kismet codebase.
+
+SECURITY MODEL
+
+Kismet now uses a suid-root group-exec-only binary configure interfaces, similar
+to how wireshark now brokers access.
+
+When Kismet is compiled and installed with suidroot, the kismet_server and 
+kismet_drone processes are installed as normal with no suid capabilities.
+Early in the execution process, kismet_capture is fork-exec'd to provide a 
+structured IPC interface to a root control process.
+
+If Kismet is not compiled with suidroot or if it is launched as root, it will
+not launch the kismet_capture process and will remain running as root.
+
+This security model is meant to make it easier for distro package maintainers and
+users, and removes the suid_user element from the config file.
+
+DEVELOPING IN NEWCORE
+
+Some disjointed comments about the design...
+
+Everything in newcore is (primarily) a fully self-contained module.  The module
+can do its own config file parsing, command line argument parsing, etc.
+Modules can (and should) register their own packet components and their
+own network protocols.
+
+The core packet model is the "packet chain".  Packets are created and then
+injected into the chain.  As they pass through the chain, new components
+can be added to them;  For example, most packets will have a raw link data
+component, a 802.11 raw component, a parsed 802.11 information block, and
+a gps data component.
+
+The base event loop is driven by the core single select() and the timetracker
+event module.  All modules which need to participate in the select() event loop
+should be derived from the Pollable class and register themselves with the
+global polling system.
+
+Every module should connect to the GlobalRegistry.  This is a large 
+super-class of variables which takes the place of a messy pile of globals.
+Non-mainline modules can register new tracked components with the global
+registry to share between classes.  The globalreg functions as the main
+tracking system for injecting messages, accessing runtime configuration,
+and communicating with other modules.
+
+The messagebus is a common system for sending information to the user.  A text
+string injected into the messagebus carries flags to indicate the type of
+message.  Subscribers to the messagebus can then display the message, log it
+to a file, queue it for output to stdout on exit, etc.
+
+NEWCORE EXECUTION PATHS
+
+For anyone interested in developing modules or plugins, it's important
+to know how the kismet engine actually works, now:
+
+* Startup
+    - Allocate global registry
+    - Initialize argc/argv/env variables
+    - Initialize messagebus and message clients (stdout, fatal)
+    - Launch forked root control process (if uid != 0)
+    - initialize timetracker
+    - Parse command line options
+    - Parse config file
+    - Initialize network framework
+    - Initialize plugin framework
+    - Initialize alert framework
+    - Initialize capture source framework
+    - Activate root plugins
+    - Process configured capture sources
+    - Register tun/tap dumpfile
+    - Spawn root control IPC child
+    - Activate network framework
+    - Scan user plugins
+    - Initialize builtin packet dissectors
+    - Activate sound and speech IPC processes
+    - Activate gpsd client
+    - Activate network tracker framework
+    - Activate dump files
+    - Activate timer events
+    - Give plugins a final chance to activate
+    - Activate packet sources
+    - Begin main loop
+
+* Main loop
+    - Aggregate fd_sets from all subsystems registered with Pollable
+    - Select()
+    - Tick the timer framework
+    - Poll all subsystems registered with Pollable()
+
+EXAMPLES
+
+Currently one of the best examples of the newcore design is the GPS client
+module, gpsdclient.[h|cc].  It excercises many of the new methods.
+
+NETWORK TRACKING
+
+Network tracking is basically the same as it was before, however some things
+have been made more explicit:
+
+* All networks now have at least one client.  The network itself is a client
+  of itself.  This handles many weird discrepencies in the old model about
+  how client data was different from network data, how IPs were calculated, 
+  etc.
+
+* Network totals are still tracked realtime.  This is much cheaper than
+  iterating over the clients in a network shell.
+
+* Network numbers must be recalculated when moving a client to another network.
+  subtract all the totals of client1 from net1 and add them to net2
+
+* The kisclient will be responsible for moving clients between networks on
+  the client end of things, but doesn't need to be smart enough to move
+  packet totals -- the new packet total for the network shell will be pushed
+  in the NETWORK update.
+
+PLUGIN ARCHITECTURE
+
+Plugins are scary things.  They can do basically anything to you.  Be careful
+what you load!
+
+Root plugins:  Plugins that load as root before the privdrop must be in
+               the system plugin directory (/install-prefix/lib/kismet/).
+               That directory must be owned by root:root.  The directory
+               must not be writeable by anyone else (mode 755 or more
+               restrictive).  The plugin must be owned by root:root, and
+               not be writeable by anyone else (755 or more restrictive).
+               Finally, the plugin MUST be specified in the kismet.conf
+               config on a 'rootplugin=foo.so' line.
+
+User plugins:  Anything found in a plugin directory after the privdrop,
+               that wasn't loaded as root, is probed and loaded.
+               Plugin directories are '/install-prefix/lib/kismet/' and
+               'userconfig/plugins/' (typically ~/.kismet/plugins).
+
+Security mentality:  Root plugins are super-dangerous.  We can't keep
+the user from loading one, but we can make sure that other users on the
+system can't corrupt it, and we can make sure only ones actively approved
+are loaded during startup.
+
+Plugins must be enabled in the config file!
+
+Plugins are expected to have 1 exported extern "C" function, and respond
+to register/unregister events appropriately.  Look at the example plugin
+for more info.
+
+The plugin registrant is called many times during load, until it returns a
+value that indicates total failure or success.  A plugin can look at the
+globalregistry pointers for standard system components to determine if the
+plugin is able to load yet.  If it isn't, it should return 0 and it will be
+asked again later.
+
+Plugins are responsible for adding their own callbacks to the system
+components, and for removing them cleanly on request.  Plugins have
+access to any system component that Kismet itself can access, which gives
+them extroadinary power.
+
+Things to remember about C++ and plugins:
+    * Don't do things that would cause the kismet_server code to new an
+      object.  Use a helper function.  This should be pretty easy to 
+      maintain since it's all callbacks that insert objects into
+      kismet_server components anyway
+    * All classes used in a plugin must have virtual destructors.  All
+      their parents must have virtual destructors.  Even if they don't
+      actually need one.  If you find a kismet core class you need to
+      use in a plugin, tell me, and I'll make sure it's got virtual
+      destructors.
+
+Documentation on the system components and APIs will be forthcoming.
+
+DRONE PROTOCOL
+
+The newcore drone protocol is similar to the original remote capture drone
+protocol from Kismet, however it is different in several key ways at not
+backwards compatible with the original drone protocol.
+
+The Newcore-drone protocol is designed to be forward- and backward-compatible
+with itself, so that different versions of the drone client and drone server
+can communicate with eachother, as completely as their protocol implementations
+allow.
+
+While not exactly encouraged, the more robust newcore protocol will allow
+for third-party drone clients to participate as well.
+
+Frames with dynamic components such as captured_packet are split into
+sub-frames and combined with bitfields to indicate what data is present.
+Frames with an unknown cmdnum can be ignored.  New frame elements must be
+added AFTER known frame elements, so that clients can parse the known 
+bitfield elements.  Clients are assumed to know the size of each
+element in the bitfield.  The length field in each type and subtype is used
+to skip unknown data once known data has been read.
+
+All integers are in network-endian format.  uint8s are avoided to prevent
+struct packing problems on some platforms.  Doubles are extracted into
+mantissa, exponent, and sign components and each component is translated to
+network endian before transmission.
+
+Basic frame formats:
+    drone_packet
+        sentinel
+        cmdnum/packet type
+        data len
+        [... data ...]
+    
+    capture_packet (placed in drone_packet->data)
+        content bitmap (radio|gps|ieee|rawdata)
+        packet data offset (to head of packet)
+        [... packed data of all headers indicated in bitfield, followed by
+             raw frame ...]
+
+        (optional if radio header present in content bitmap)
+        radio header len
+        radio header bitmap (accuracy|channel|signal...datarate)
+        radio accuracy
+        radio channel
+        radio signal
+        radio noise
+        radio carrier
+        radio encoding
+        radio datarate
+        [... future expansion by adding to radio header bitmap ...]
+
+        (optional if gps header present in content bitmap)
+        gps header len
+        gps header bitmap
+        gps fix
+        gps lat
+        ...
+        gps heading
+        [... future expansion by adding to gps header bitmap ...]
+
+        (optional if IEEEpacket set)
+        eight11 header len (goes to start of packet)
+        eight11 header bitmap
+        packet len
+        error
+        tv_sec
+        tv_usec
+        [... future expansion by adding to gps header bitmap ...]
+        [ packet data ]
+
+PACKETSOURCES
+
+A packetsource is the os and driver specific code used to get packets from
+whatever, and turn them into something Kismet can use.  A packetsource need
+not be a lot of code - the BSD radtiotap packetsource is only 600 lines of code.
+
+The packetsource defines everything needed to turn packets into the normal format
+used by Kismet and to control the device, including setting monitor mode, caching
+former values, resetting the card to the previous operational mode, and changing
+channels.
+
+Packetsources have a globally unique UUID.  When multiple servers use a drone
+source, they will all get the same UUID and can use it to correlate data.
+
+How the KisPacketSource class works:
+
+All packetsources are subclassed from the KisPacketSource class.  Sometimes,
+it makes sense to nest classes two or three deep below KisPacketSource.  Normally
+this would be a bad idea, but it seems to make the most sense here.
+
+Instantatiations of a KisPacketSource have two types, weak and strong.  Weak
+packetsources never themselves become strong packetsources, but are used to
+register the actual types with the packetsourcetracker, test the autoprobe
+function to identify types, and to create the actual strong packet source.
+Weak instances can expect globalregistry to be available, but not much else.
+They should not try to open any devices or capture packets (and packetsourcetracker
+will never as them to).
+
+Strong instances of a KisPacketSource are created with the CreateSource(...)
+function in the weak instance.  Strong sources are given the globalregistry,
+type string, interface, and name.  Strong sources are expected to handle channel
+control, monitor control, etc.
+
+Things to keep in mind making your own:
+
+Options on the source line are passed via the in_opts vector
+
+Registering types gives the packetsourcetracker a method to call your
+CreateSource.  You should register all the types you intend to provide.
+
+Kismet uses a #define to indicate to kismet_server.cc and kismet_drone.cc that
+an instance of your source should be bootstrapped into the packetsourcetracker.
+Define something like USE_PACKETSOURCE_FOO and add it to the #ifdefs in
+main().  This prevents cluttering the main function with convoluted ifdef
+tests -- put those in your header before you define USE_PACKETSOURCE_...
+
+If you don't need root to control the source, don't specify it on the proto 
+registration - it'll only create overhead.
+
+Most kismet sources support a grace period when setting the channel, incase a 
+card has a momentary hiccup.  I usually use 5 consecutive errors as an indication
+it's really broken and don't return a fail condition on SetChannel until I hit
+that.
+
+The autotypeprobe function will be called with nothing more than a string
+indicating the device.  It's up to you to try to identify it.  Sysfs is usually
+a good way to go on this.  On Darwin, it's identified by the interface name.
+
+If you can get the MAC address of the source, it wouldn't be a bad thing to
+re-seed the UUID using it.  packetsource_wext does this on Linux.  The
+packetsourcetracker won't expect the UUID until after EnableMonitor() is 
+called.
+
+NEWCORE SOURCE CONTROL KISMET COMMANDS
+
+Lock to channel:            CHANLOCK uuid chnum
+Hop across channel list:    CHANHOP uuid
+Set channel list:           CHANSEQ uuid ch1,ch2,ch3,ch4
+Add a new source:           ADDSOURCE interface:options
+Delete a source:            DELSOURCE uuid
+
+NEWCORE SAVE STATE
+
+Kismet now supports resuming from a previous state.  The 'runstate' dump
+file type logs the important current states every time dump files are logged.
+
+To write the current state along with other dumpfiles, add 'runstate' to
+your logtypes.
+
+To resume a previous runstate, use '--resume' or '-r' on the runstate file.
+
+Runstates should be resumed under the same config file and options as they
+were created under.  Warnings will be issued if the config file has changed.
+
+For consistency, only dumpfiles enabled when the runstate was created are
+enabled when a runstate is resumed.
+

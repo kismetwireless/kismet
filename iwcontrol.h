@@ -26,22 +26,6 @@
 #include <stdio.h>
 #include <unistd.h>
 
-#ifdef SYS_LINUX
-#include <net/if_arp.h>
-#include <sys/socket.h>
-#include <sys/ioctl.h>
-#include <netinet/in.h>
-#include <netinet/if_ether.h>
-#include <arpa/inet.h>
-
-#ifdef HAVE_LINUX_WIRELESS
-#include <asm/types.h>
-#include <linux/if.h>
-#include <linux/wireless.h>
-#endif
-
-#endif
-
 #include "util.h"
 
 #ifdef HAVE_LINUX_WIRELESS
@@ -52,8 +36,11 @@
 // Wireless extentions master mode
 #define LINUX_WLEXT_MASTER  3
 
+// Max version of wext we know about
+#define WE_MAX_VERSION			22
+
 // remove the SSID of the device.  Some cards seem to need this.
-int Iwconfig_Set_SSID(const char *in_dev, char *errstr, char *in_essid);
+int Iwconfig_Set_SSID(const char *in_dev, char *errstr, const char *in_essid);
 int Iwconfig_Get_SSID(const char *in_dev, char *errstr, char *in_essid);
 
 // Get the name
@@ -86,14 +73,11 @@ int Iwconfig_Set_Channel(const char *in_dev, int in_ch, char *errstr);
 int Iwconfig_Get_Mode(const char *in_dev, char *errstr, int *in_mode);
 int Iwconfig_Set_Mode(const char *in_dev, char *errstr, int in_mode);
 
-int Iwconfig_Get_Power(const char *in_dev, char *errstr, void **power);
-int Iwconfig_Restore_Power(const char *in_dev, char *errstr, void *in_power);
-int Iwconfig_Disable_Power(const char *in_dev, char *errstr);
-
 // Info conversion
-float IwFreq2Float(iwreq *inreq);
-float IwFreq2Float(iwreq *inreq);
 int FloatChan2Int(float in_chan);
+
+int Iwconfig_Get_Chanlist(const char *interface, char *errstr, 
+						  vector<unsigned int> *chan_list);
 
 #endif
 

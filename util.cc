@@ -21,13 +21,46 @@
 #include "util.h"
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 #include <fcntl.h>
+#include <stdarg.h>
+#include <math.h>
 #include <string.h>
+
+#ifdef HAVE_LIBUTIL_H
+# include <libutil.h>
+#endif /* HAVE_LIBUTIL_H */
+
+#if PF_ARGV_TYPE == PF_ARGV_PSTAT
+#error "pstat?"
+#endif
+
+#if PF_ARGV_TYPE == PF_ARGV_PSTAT
+# ifdef HAVE_SYS_PSTAT_H
+#  include <sys/pstat.h>
+# else
+#  undef PF_ARGV_TYPE
+#  define PF_ARGV_TYPE PF_ARGV_WRITEABLE
+# endif /* HAVE_SYS_PSTAT_H */
+#endif /* PF_ARGV_PSTAT */
+
+#if PF_ARGV_TYPE == PF_ARGV_PSSTRINGS
+# ifndef HAVE_SYS_EXEC_H
+#  undef PF_ARGV_TYPE
+#  define PF_ARGV_TYPE PF_ARGV_WRITEABLE
+# else
+#  include <machine/vmparam.h>
+#  include <sys/exec.h>
+# endif /* HAVE_SYS_EXEC_H */
+#endif /* PF_ARGV_PSSTRINGS */
 
 // We need this to make uclibc happy since they don't even have rintf...
 #ifndef rintf
 #define rintf(x) (float) rint((double) (x))
 #endif
+
+#include <sstream>
+#include <iomanip>
 
 // Munge input to shell-safe
 void MungeToShell(char *in_data, int max) {
@@ -67,13 +100,48 @@ string MungeToShell(string in_data) {
     return ret;
 }
 
+// Munge text down to printable characters only.  Simpler, cleaner munger than
+// before (and more blatant when munging)
+string MungeToPrintable(const char *in_data, int max, int nullterm) {
+	string ret;
+	int i;
+
+	for (i = 0; i < max; i++) {
+		if ((unsigned char) in_data[i] == 0 && nullterm == 1)
+			return ret;
+
+		if ((unsigned char) in_data[i] >= 32 && (unsigned char) in_data[i] <= 126) {
+			ret += in_data[i];
+		} else {
+			ret += '\\';
+			ret += ((in_data[i] >> 6) & 0x03) + '0';
+			ret += ((in_data[i] >> 3) & 0x07) + '0';
+			ret += ((in_data[i] >> 0) & 0x07) + '0';
+		}
+	}
+
+	return ret;
+}
+
+string MungeToPrintable(string in_str) {
+	return MungeToPrintable(in_str.c_str(), in_str.length(), 1);
+}
+
 string StrLower(string in_str) {
     string thestr = in_str;
     for (unsigned int i = 0; i < thestr.length(); i++)
         thestr[i] = tolower(thestr[i]);
 
     return thestr;
+}
 
+string StrUpper(string in_str) {
+    string thestr = in_str;
+
+    for (unsigned int i = 0; i < thestr.length(); i++)
+        thestr[i] = toupper(thestr[i]);
+
+    return thestr;
 }
 
 string StrStrip(string in_str) {
@@ -100,7 +168,92 @@ string StrStrip(string in_str) {
     }
 
     return in_str.substr(start, end-start+1);
+}
 
+string StrPrintable(string in_str) {
+    string thestr;
+
+    for (unsigned int i = 0; i < in_str.length(); i++) {
+		if (isprint(in_str[i])) {
+			thestr += in_str[i];
+		}
+	}
+
+    return thestr;
+}
+
+int IsBlank(const char *s) {
+    int len, i;
+
+    if (NULL == s) { 
+		return 1; 
+	}
+
+    if (0 == (len = strlen(s))) { 
+		return 1; 
+	}
+
+    for (i = 0; i < len; ++i) {
+        if (' ' != s[i]) { 
+			return 0; 
+		}
+    }
+
+    return 1;
+}
+
+string AlignString(string in_txt, char in_spacer, int in_align, int in_width) {
+	if (in_align == 1) {
+		// Center -- half, text, chop to fit
+		int sp = (in_width / 2) - (in_txt.length() / 2);
+		string ts = "";
+
+		if (sp > 0) {
+			ts = string(sp, in_spacer);
+		}
+
+		ts += in_txt.substr(0, in_width);
+
+		return ts;
+	} else if (in_align == 2) {
+		// Right -- width - len, chop to fit
+		int sp = (in_width - in_txt.length());
+		string ts = "";
+
+		if (sp > 0) {
+			ts = string(sp, in_spacer);
+		}
+
+		ts += in_txt.substr(0, in_width);
+
+		return ts;
+	}
+
+	// Left align -- make sure it's not too long
+	return in_txt.substr(0, in_width);
+}
+
+int HexStrToUint8(string in_str, uint8_t *in_buf, int in_buflen) {
+	int decode_pos = 0;
+	int str_pos = 0;
+
+	while ((unsigned int) str_pos < in_str.length() && decode_pos < in_buflen) {
+		short int tmp;
+
+		if (in_str[str_pos] == ' ') {
+			str_pos++;
+			continue;
+		}
+
+		if (sscanf(in_str.substr(str_pos, 2).c_str(), "%2hx", &tmp) != 1) {
+			return -1;
+		}
+
+		in_buf[decode_pos++] = tmp;
+		str_pos += 2;
+	}
+
+	return decode_pos;
 }
 
 int XtoI(char x) {
@@ -193,16 +346,215 @@ vector<smart_word_token> SmartStrTokenize(string in_str, string in_split, int re
     return ret;
 }
 
-vector<string> LineWrap(string in_txt, unsigned int in_hdr_len, unsigned int in_maxlen) {
+vector<smart_word_token> NetStrTokenize(string in_str, string in_split, 
+										int return_partial) {
+	size_t begin = 0;
+	size_t end = in_str.find(in_split);
+	vector<smart_word_token> ret;
+    smart_word_token stok;
+	int special = 0;
+	
+	if (in_str.length() == 0)
+		return ret;
+
+	while (end != string::npos) {
+		if (in_str[begin] == '\001') {
+			// Look for a special inner field which buffers the splitvar inside the 
+			// field..  That means we need to recalculate the end of the field
+			// based on the special splitter
+			end = in_str.find("\001", begin + 1);
+			special = 1;
+		}
+
+		string sub = in_str.substr(begin + special, end - begin - special);
+
+		begin = end + 1 + special;
+
+		end = in_str.find(in_split, begin);
+
+		stok.begin = begin;
+		stok.end = end;
+		stok.word = sub;
+
+		ret.push_back(stok);
+		
+		special = 0;
+	}
+
+	if (return_partial && begin != in_str.size()) {
+		stok.begin = begin;
+		stok.end = in_str.size() - begin;
+		stok.word = in_str.substr(begin, in_str.size() - begin);
+		ret.push_back(stok);
+	}
+	
+	return ret;
+}
+
+vector<string> QuoteStrTokenize(string in_str, string in_split) {
+	vector<string> ret;
+	string val;
+	int in_quote = 0;
+
+	if (in_str.length() == 0)
+		return ret;
+
+	for (unsigned int x = 0; x < in_str.length(); x++) {
+		if (in_str[x] == '"') {
+			if (in_quote == 0) {
+				in_quote = 1;
+			} else {
+				in_quote = 0;
+			}
+
+			continue;
+		}
+
+		if (in_quote == 0 && in_str.find(in_split, x) == x) {
+			ret.push_back(val);
+			val = "";
+			x += in_split.length();
+			continue;
+		}
+
+		val += in_str[x];
+	}
+
+	ret.push_back(val);
+
+	return ret;
+}
+
+int TokenNullJoin(string *ret_str, const char **in_list) {
+	int ret = 0;
+
+	while (in_list[ret] != NULL) {
+		(*ret_str) += in_list[ret];
+
+		if (in_list[ret + 1] != NULL)
+			(*ret_str) += ",";
+
+		ret++;
+	}
+
+	return ret;
+}
+
+// Find an option - just like config files
+string FetchOpt(string in_key, vector<opt_pair> *in_vec) {
+	string lkey = StrLower(in_key);
+
+	if (in_vec == NULL)
+		return "";
+
+	for (unsigned int x = 0; x < in_vec->size(); x++) {
+		if ((*in_vec)[x].opt == lkey)
+			return (*in_vec)[x].val;
+	}
+
+	return "";
+}
+
+vector<string> FetchOptVec(string in_key, vector<opt_pair> *in_vec) {
+	string lkey = StrLower(in_key);
+	vector<string> ret;
+
+	if (in_vec == NULL)
+		return ret;
+
+	for (unsigned int x = 0; x < in_vec->size(); x++) {
+		if ((*in_vec)[x].opt == lkey)
+			ret.push_back((*in_vec)[x].val);
+	}
+
+	return ret;
+}
+
+int StringToOpts(string in_line, string in_sep, vector<opt_pair> *in_vec) {
+	vector<string> optv;
+	opt_pair optp;
+
+	int in_tag = 1, in_quote = 0;
+	
+	optp.quoted = 0;
+
+	for (unsigned int x = 0; x < in_line.length(); x++) {
+		if (in_tag && in_line[x] != '=') {
+			optp.opt += in_line[x];
+			continue;
+		}
+
+		if (in_tag && in_line[x] == '=') {
+			in_tag = 0;
+			continue;
+		}
+
+		if (in_line[x] == '"') {
+			if (in_quote == 0) {
+				in_quote = 1;
+				optp.quoted = 1;
+			} else {
+				in_quote = 0;
+			}
+
+			continue;
+		}
+
+		if (in_quote == 0 && in_line[x] == in_sep[0]) {
+			in_vec->push_back(optp);
+			optp.quoted = 0;
+			optp.opt = "";
+			optp.val = "";
+			in_tag = 1;
+			continue;
+		}
+
+		optp.val += in_line[x];
+	}
+
+	in_vec->push_back(optp);
+
+	return 1;
+}
+
+void AddOptToOpts(string opt, string val, vector<opt_pair> *in_vec) {
+	opt_pair optp;
+
+	optp.opt = StrLower(opt);
+	optp.val = val;
+
+	in_vec->push_back(optp);
+}
+
+void ReplaceAllOpts(string opt, string val, vector<opt_pair> *in_vec) {
+	opt_pair optp;
+
+	optp.opt = StrLower(opt);
+	optp.val = val;
+
+	for (unsigned int x = 0; x < in_vec->size(); x++) {
+		if ((*in_vec)[x].val == optp.val) {
+			in_vec->erase(in_vec->begin() + x);
+			x--;
+			continue;
+		}
+	}
+
+	in_vec->push_back(optp);
+}
+
+vector<string> LineWrap(string in_txt, unsigned int in_hdr_len, 
+						unsigned int in_maxlen) {
 	vector<string> ret;
 
 	size_t pos, prev_pos, start, hdroffset;
 	start = hdroffset = 0;
 
-	for (pos = prev_pos = in_txt.find(' ', in_hdr_len); pos != string::npos; pos = in_txt.find(' ', pos + 1)) {
-		if ((hdroffset + pos) - start > in_maxlen) {
-			if (pos - prev_pos > 8) {
-				prev_pos = start + (in_maxlen - hdroffset);
+	for (pos = prev_pos = in_txt.find(' ', in_hdr_len); pos != string::npos; 
+		 pos = in_txt.find(' ', pos + 1)) {
+		if ((hdroffset + pos) - start >= in_maxlen) {
+			if (pos - prev_pos > (in_maxlen / 5)) {
+				pos = prev_pos = start + (in_maxlen - hdroffset);
 			}
 
 			string str(hdroffset, ' ');
@@ -215,9 +567,63 @@ vector<string> LineWrap(string in_txt, unsigned int in_hdr_len, unsigned int in_
 
 		prev_pos = pos + 1;
 	}
+
+	while (in_txt.length() - start > (in_maxlen - hdroffset)) {
+		string str(hdroffset, ' ');
+		hdroffset = in_hdr_len;
+
+		str += in_txt.substr(start, (prev_pos - start));
+		ret.push_back(str);
+
+		start = prev_pos;
+
+		prev_pos+= (in_maxlen - hdroffset);
+	}
+
 	string str(hdroffset, ' ');
 	str += in_txt.substr(start, in_txt.length() - start);
 	ret.push_back(str);
+
+	return ret;
+}
+
+string InLineWrap(string in_txt, unsigned int in_hdr_len, 
+				  unsigned int in_maxlen) {
+	vector<string> raw = LineWrap(in_txt, in_hdr_len, in_maxlen);
+	string ret;
+
+	for (unsigned int x = 0; x < raw.size(); x++) {
+		ret += raw[x] + "\n";
+	}
+
+	return ret;
+}
+
+string SanitizeXML(string in_str) {
+	// Ghetto-fied XML sanitizer.  Add more stuff later if we need to.
+	string ret;
+	for (unsigned int x = 0; x < in_str.length(); x++) {
+		if (in_str[x] == '&')
+			ret += "&amp;";
+		else if (in_str[x] == '<')
+			ret += "&lt;";
+		else if (in_str[x] == '>')
+			ret += "&gt;";
+		else
+			ret += in_str[x];
+	}
+
+	return ret;
+}
+
+string SanitizeCSV(string in_str) {
+	string ret;
+	for (unsigned int x = 0; x < in_str.length(); x++) {
+		if (in_str[x] == ';')
+			ret += " ";
+		else
+			ret += in_str[x];
+	}
 
 	return ret;
 }
@@ -284,6 +690,7 @@ int FetchSysLoadAvg(uint8_t *in_avgmaj, uint8_t *in_avgmin) {
     short unsigned int tmaj, tmin;
 
     if ((lf = fopen("/proc/loadavg", "r")) == NULL) {
+        fclose(lf);
         return -1;
     }
 
@@ -301,11 +708,20 @@ int FetchSysLoadAvg(uint8_t *in_avgmaj, uint8_t *in_avgmin) {
 }
 #endif
 
-#define CHAR_OFFSET 0
-uint32_t Adler32Checksum(char *buf1, int len) {
+// Convert the beacon interval to # of packets per second
+unsigned int Ieee80211Interval2NSecs(int in_interval) {
+	double interval_per_sec;
+
+	interval_per_sec = (double) in_interval * 1024 / 1000000;
+	
+	return (unsigned int) ceil(1.0f / interval_per_sec);
+}
+
+uint32_t Adler32Checksum(const char *buf1, int len) {
 	int i;
 	uint32_t s1, s2;
 	char *buf = (char *)buf1;
+	int CHAR_OFFSET = 0;
 
 	s1 = s2 = 0;
 	for (i = 0; i < (len-4); i+=4) {
@@ -321,8 +737,322 @@ uint32_t Adler32Checksum(char *buf1, int len) {
 	return (s1 & 0xffff) + (s2 << 16);
 }
 
+int IEEE80211Freq[][2] = {
+	{1, 2412},
+	{2, 2417},
+	{3, 2422},
+	{4, 2427},
+	{5, 2432},
+	{6, 2437},
+	{7, 2442},
+	{8, 2447},
+	{9, 2452},
+	{10, 2457},
+	{11, 2462},
+	{12, 2467},
+	{13, 2472},
+	{14, 2484},
+	// We could do the math here, but what about 4ghz nonsense?
+	// We'll do table lookups for now.
+	{36, 5180},
+	{37, 5185},
+	{38, 5190},
+	{39, 5195},
+	{40, 5200},
+	{41, 5205},
+	{42, 5210},
+	{43, 5215},
+	{44, 5220},
+	{45, 5225},
+	{46, 5230},
+	{47, 5235},
+	{48, 5240},
+	{52, 5260},
+	{53, 5265},
+	{54, 5270},
+	{55, 5275},
+	{56, 5280},
+	{57, 5285},
+	{58, 5290},
+	{59, 5295},
+	{60, 5300},
+	{64, 5320},
+	{149, 5745},
+	{150, 5750},
+	{152, 5760},
+	{153, 5765},
+	{157, 5785},
+	{160, 5800},
+	{161, 5805},
+	{165, 5825},
+	{0, 0}
+};
+
+int ChanToFreq(int in_chan) {
+    int x = 0;
+    // 80211b frequencies to channels
+
+    while (IEEE80211Freq[x][0] != 0) {
+        if (IEEE80211Freq[x][0] == in_chan) {
+            return IEEE80211Freq[x][1];
+        }
+        x++;
+    }
+
+    return in_chan;
+}
+
+int FreqToChan(int in_freq) {
+    int x = 0;
+    // 80211b frequencies to channels
+
+    while (IEEE80211Freq[x][1] != 0) {
+        if (IEEE80211Freq[x][1] == in_freq) {
+            return IEEE80211Freq[x][0];
+        }
+        x++;
+    }
+
+    return in_freq;
+}
+
+// Multiplatform method of setting a process title.  Lifted from proftpd main.c
+// * ProFTPD - FTP server daemon
+// * Copyright (c) 1997, 1998 Public Flood Software
+// * Copyright (c) 1999, 2000 MacGyver aka Habeeb J. Dihu <macgyver@tos.net>
+// * Copyright (c) 2001, 2002, 2003 The ProFTPD Project team
+//
+// Process title munging is ugly!
+
+// Externs to glibc
+#ifdef HAVE___PROGNAME
+extern char *__progname, *__progname_full;
+#endif /* HAVE___PROGNAME */
+extern char **environ;
+
+// This is not good at all.  i should probably rewrite this, but...
+static char **Argv = NULL;
+static char *LastArgv = NULL;
+
+void init_proc_title(int argc, char *argv[], char *envp[]) {
+	register int i, envpsize;
+	char **p;
+
+	/* Move the environment so setproctitle can use the space. */
+	for (i = envpsize = 0; envp[i] != NULL; i++)
+		envpsize += strlen(envp[i]) + 1;
+
+	if ((p = (char **)malloc((i + 1) * sizeof(char *))) != NULL) {
+		environ = p;
+
+		// Stupid strncpy because it makes the linker not whine
+		for (i = 0; envp[i] != NULL; i++)
+			if ((environ[i] = (char *) malloc(strlen(envp[i]) + 1)) != NULL)
+				strncpy(environ[i], envp[i], strlen(envp[i]) + 1);
+
+		environ[i] = NULL;
+	}
+
+	Argv = argv;
+
+	for (i = 0; i < argc; i++)
+		if (!i || (LastArgv + 1 == argv[i]))
+			LastArgv = argv[i] + strlen(argv[i]);
+
+	for (i = 0; envp[i] != NULL; i++)
+		if ((LastArgv + 1) == envp[i])
+			LastArgv = envp[i] + strlen(envp[i]);
+
+#ifdef HAVE___PROGNAME
+	/* Set the __progname and __progname_full variables so glibc and company
+	 * don't go nuts.
+	 */
+	__progname = strdup("kismet");
+	__progname_full = strdup(argv[0]);
+#endif /* HAVE___PROGNAME */
+}
+
+void set_proc_title(const char *fmt, ...) {
+	va_list msg;
+	static char statbuf[BUFSIZ];
+
+#ifndef HAVE_SETPROCTITLE
+#if PF_ARGV_TYPE == PF_ARGV_PSTAT
+	union pstun pst;
+#endif /* PF_ARGV_PSTAT */
+	char *p;
+	int i,maxlen = (LastArgv - Argv[0]) - 2;
+#endif /* HAVE_SETPROCTITLE */
+
+	va_start(msg,fmt);
+
+	memset(statbuf, 0, sizeof(statbuf));
+
+#ifdef HAVE_SETPROCTITLE
+# if __FreeBSD__ >= 4 && !defined(FREEBSD4_0) && !defined(FREEBSD4_1)
+	/* FreeBSD's setproctitle() automatically prepends the process name. */
+	vsnprintf(statbuf, sizeof(statbuf), fmt, msg);
+
+# else /* FREEBSD4 */
+	/* Manually append the process name for non-FreeBSD platforms. */
+	snprintf(statbuf, sizeof(statbuf), "%s: ", Argv[0]);
+	vsnprintf(statbuf + strlen(statbuf), sizeof(statbuf) - strlen(statbuf),
+			  fmt, msg);
+
+# endif /* FREEBSD4 */
+	setproctitle("%s", statbuf);
+
+#else /* HAVE_SETPROCTITLE */
+	/* Manually append the process name for non-setproctitle() platforms. */
+	snprintf(statbuf, sizeof(statbuf), "%s: ", Argv[0]);
+	vsnprintf(statbuf + strlen(statbuf), sizeof(statbuf) - strlen(statbuf),
+			  fmt, msg);
+
+#endif /* HAVE_SETPROCTITLE */
+
+	va_end(msg);
+
+#ifdef HAVE_SETPROCTITLE
+	return;
+#else
+	i = strlen(statbuf);
+
+#if PF_ARGV_TYPE == PF_ARGV_NEW
+	/* We can just replace argv[] arguments.  Nice and easy.
+	*/
+	Argv[0] = statbuf;
+	Argv[1] = NULL;
+#endif /* PF_ARGV_NEW */
+
+#if PF_ARGV_TYPE == PF_ARGV_WRITEABLE
+	/* We can overwrite individual argv[] arguments.  Semi-nice.
+	*/
+	snprintf(Argv[0], maxlen, "%s", statbuf);
+	p = &Argv[0][i];
+
+	while(p < LastArgv)
+		*p++ = '\0';
+	Argv[1] = NULL;
+#endif /* PF_ARGV_WRITEABLE */
+
+#if PF_ARGV_TYPE == PF_ARGV_PSTAT
+	pst.pst_command = statbuf;
+	pstat(PSTAT_SETCMD, pst, i, 0, 0);
+#endif /* PF_ARGV_PSTAT */
+
+#if PF_ARGV_TYPE == PF_ARGV_PSSTRINGS
+	PS_STRINGS->ps_nargvstr = 1;
+	PS_STRINGS->ps_argvstr = statbuf;
+#endif /* PF_ARGV_PSSTRINGS */
+
+#endif /* HAVE_SETPROCTITLE */
+}
+
+list<_kis_lex_rec> LexString(string in_line, string& errstr) {
+	list<_kis_lex_rec> ret;
+	int curstate = _kis_lex_none;
+	_kis_lex_rec cpr;
+	string tempstr;
+	char lastc = 0;
+	char c = 0;
+
+	cpr.type = _kis_lex_none;
+	cpr.data = "";
+	ret.push_back(cpr);
+
+	for (size_t pos = 0; pos < in_line.length(); pos++) {
+		lastc = c;
+		c = in_line[pos];
+
+		cpr.data = "";
+
+		if (curstate == _kis_lex_none) {
+			// Open paren
+			if (c == '(') {
+				cpr.type = _kis_lex_popen;
+				ret.push_back(cpr);
+				continue;
+			}
+
+			// Close paren
+			if (c == ')') {
+				cpr.type = _kis_lex_pclose;
+				ret.push_back(cpr);
+				continue;
+			}
+
+			// Negation
+			if (c == '!') {
+				cpr.type = _kis_lex_negate;
+				ret.push_back(cpr);
+				continue;
+			}
+
+			// delimiter
+			if (c == ',') {
+				cpr.type = _kis_lex_delim;
+				ret.push_back(cpr);
+				continue;
+			}
+
+			// start a quoted string
+			if (c == '"') {
+				curstate = _kis_lex_quotestring;
+				tempstr = "";
+				continue;
+			}
+		
+			curstate = _kis_lex_string;
+			tempstr = c;
+			continue;
+		}
+
+		if (curstate == _kis_lex_quotestring) {
+			// We don't close on an escaped \"
+			if (c == '"' && lastc != '\\') {
+				// Drop out of the string and make the lex stack element
+				curstate = _kis_lex_none;
+				cpr.type = _kis_lex_quotestring;
+				cpr.data = tempstr;
+				ret.push_back(cpr);
+
+				tempstr = "";
+
+				continue;
+			}
+
+			// Add it to the quoted temp strnig
+			tempstr += c;
+		}
+
+		if (curstate == _kis_lex_string) {
+			// If we're a special character break out and add the lex stack element
+			// otherwise increase our unquoted string
+			if (c == '(' || c == ')' || c == '!' || c == '"' || c == ',') {
+				cpr.type = _kis_lex_string;
+				cpr.data = tempstr;
+				ret.push_back(cpr);
+				tempstr = "";
+				curstate = _kis_lex_none;
+				pos--;
+				continue;
+			}
+
+			tempstr += c;
+			continue;
+		}
+	}
+
+	if (curstate == _kis_lex_quotestring) {
+		errstr = "Unfinished quoted string in line '" + in_line + "'";
+		ret.clear();
+	}
+
+	return ret;
+}
+
 // Taken from the BBN USRP 802.11 encoding code
-inline unsigned int update_crc32_80211(unsigned int crc, const unsigned char *data,
+unsigned int update_crc32_80211(unsigned int crc, const unsigned char *data,
 								int len, unsigned int poly) {
 	int i, j;
 	unsigned short ch;
@@ -351,7 +1081,8 @@ void crc32_init_table_80211(unsigned int *crc32_table) {
 	}
 }
 
-unsigned int crc32_le_80211(unsigned int *crc32_table, const unsigned char *buf, int len) {
+unsigned int crc32_le_80211(unsigned int *crc32_table, const unsigned char *buf, 
+							int len) {
 	int i;
 	unsigned int crc = 0xFFFFFFFF;
 
@@ -362,5 +1093,87 @@ unsigned int crc32_le_80211(unsigned int *crc32_table, const unsigned char *buf,
 	crc ^= 0xFFFFFFFF;
 
 	return crc;
+}
+
+void SubtractTimeval(struct timeval *in_tv1, struct timeval *in_tv2,
+					 struct timeval *out_tv) {
+	if (in_tv1->tv_sec < in_tv2->tv_sec ||
+		(in_tv1->tv_sec == in_tv2->tv_sec && in_tv1->tv_usec < in_tv2->tv_usec) ||
+		in_tv1->tv_sec == 0 || in_tv2->tv_sec == 0) {
+		out_tv->tv_sec = 0;
+		out_tv->tv_usec = 0;
+		return;
+	}
+
+	if (in_tv2->tv_usec > in_tv1->tv_usec) {
+		out_tv->tv_usec = 1000000 + in_tv1->tv_usec - in_tv2->tv_usec;
+		out_tv->tv_sec = in_tv1->tv_sec - in_tv2->tv_sec - 1;
+	} else {
+		out_tv->tv_usec = in_tv1->tv_usec - in_tv2->tv_usec;
+		out_tv->tv_sec = in_tv1->tv_sec - in_tv2->tv_sec;
+	}
+}
+
+/* Airware PPI gps conversion code from Johnny Csh */
+
+//Input: a latitude inbetween -180 to positive 180. 
+//Output: a latitude between 0 and 360 * 10^7
+uint32_t lat_to_uint32(double lat) {
+    if (lat < -180 || lat >= 180) 
+		return 0;
+
+	//This may be positive or negative.
+    int32_t scaled_lat =  (int32_t) ((lat) * (double) LAT_CONVERSION_FACTOR); 
+
+	//If the input conditions are met, this will now always be positive.
+    uint32_t  ret = (u_int32_t) (scaled_lat +  ((int32_t) 180 * LAT_CONVERSION_FACTOR)); 
+
+    return ret;
+}
+
+//Input: a longitude inbetween -180 to positive 180. 
+//Output: a latitude between 0 and 360 * 10^7
+uint32_t lon_to_uint32(double lon) {
+    if(lon < -180 || lon >= 180)
+		return 0;
+
+    int32_t scaled_lon = (int32_t) ((lon) * (double) LON_CONVERSION_FACTOR); 
+    uint32_t ret = (u_int32_t) (scaled_lon + ((int32_t) 180 * LON_CONVERSION_FACTOR));
+    return ret;
+}
+
+
+//input: a altitude between -1800000 and 1800000
+//output: a unsigned long betwen 0 and 10^6 meters
+uint32_t alt_to_uint32(double alt) {
+    if(alt < -1800000 || alt >= 1800000)
+		return 0;
+
+    int32_t scaled_alt = (int32_t) ((alt) * (double) ALT_CONVERSION_FACTOR);
+    uint32_t ret = (u_int32_t) (scaled_alt + ((int32_t) 180 * ALT_CONVERSION_FACTOR));
+
+    return ret;
+}
+
+//input: an unsigned int between 0 and 360 * 10000000
+//output: a double between -180.0 and 180.0
+double lat_to_double(uint32_t lat) {
+    int32_t remapped_lat = lat - (180 * LAT_CONVERSION_FACTOR);
+    double ret = (double) ((double) remapped_lat / LAT_CONVERSION_FACTOR);
+    return ret;
+}
+
+//input: an unsigned int between 0 and 360 * 10000000
+//output: a double between -180.0 and 180.0
+double lon_to_double(uint32_t lon) {
+    int32_t remapped_lon = lon - (180 * LON_CONVERSION_FACTOR);
+    double ret = (double) ((double) remapped_lon / LON_CONVERSION_FACTOR);
+    return ret;
+}
+
+double alt_to_double(uint32_t alt) {
+    int32_t remapped_alt = alt - (180 * ALT_CONVERSION_FACTOR);
+    double ret = (double) ((double) remapped_alt / ALT_CONVERSION_FACTOR);
+    return ret;
 }
 

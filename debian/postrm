@@ -1,8 +1,0 @@
-#! /bin/sh
-
-if [ "$1" = "purge" ]; then
-  rm -rf /var/lib/kismet/
-  rm -rf /var/log/kismet/
-fi
-
-#DEBHELPER#

@@ -22,33 +22,47 @@
 #include "config.h"
 
 #include <string>
-#include <vector>
-#include <map>
-#include "packet.h"
-#include "tracktypes.h"
+#include <ctype.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <errno.h>
+#ifdef HAVE_STDINT_H
+#include <stdint.h>
+#endif
+#ifdef HAVE_INTTYPES_H
+#include <inttypes.h>
+#endif
+#include "util.h"
+#include "globalregistry.h"
 
-// What we need to know about a manufacturer
-class manuf {
+class Manuf {
 public:
-    string name;
-    string model;
+	Manuf() { fprintf(stderr, "FATAL OOPS: Manuf()\n"); exit(1); }
+	Manuf(GlobalRegistry *in_globalreg);
 
-    mac_addr mac_tag;
-    string ssid_default;
-    int channel_default;
+	void IndexOUI();
 
-    net_ip_data ipdata;
+	string LookupOUI(mac_addr in_mac);
+
+	struct index_pos {
+		uint32_t oui;
+		fpos_t pos;
+	};
+
+	struct manuf_data {
+		uint32_t oui;
+		string manuf;
+	}; 
+
+protected:
+	GlobalRegistry *globalreg;
+
+	vector<index_pos> index_vec;
+
+	map<uint32_t, manuf_data> oui_map;
+
+	FILE *mfile;
 };
 
-extern int manuf_max_score;
-
-// Read a manuf file
-int ReadManufMap(FILE *in_file, int ap_map, 
-				 macmap<vector<manuf *> > *ret_map);
-// Match the best manufacturer given a vector and pertinent info, returning the index to
-// the matching manufacturer and the score in the parameters.  NULL's are acceptable.
-manuf *MatchBestManuf(macmap<vector<manuf *> > *in_manuf, mac_addr in_mac, 
-					  string in_ssid, int in_channel, int in_wep, int in_cloaked, 
-					  int *manuf_score);
-
 #endif
+
