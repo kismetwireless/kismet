@@ -490,10 +490,11 @@ int KisPanelInterface::SavePreferences() {
 	ret = prefs->SaveConfig(prefs->ExpandLogPath("%h/.kismet/kismet_ui.conf",
 											   "", "", 0, 1).c_str());
 
-	RaiseAlert("Could not save prefs",
-			   "Could not save the preferences file, check error\n"
-			   "messages.  Kismet will continue to run, however\n"
-			   "preference changes will not be preserved.\n");
+	if (ret < 0)
+		RaiseAlert("Could not save prefs",
+				   "Could not save the preferences file, check error\n"
+				   "messages.  Kismet will continue to run, however\n"
+				   "preference changes will not be preserved.\n");
 
 	return ret;
 }
