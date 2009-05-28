@@ -382,6 +382,8 @@ AC_ARG_ENABLE(client,
 	[wantclient=yes]
 )
 
+# Add additional cflags since some distros bury panel.h
+CPPFLAGS="$CPPFLAGS -I/usr/include/ncurses"
 
 termcontrol="none";
 

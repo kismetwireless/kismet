@@ -1744,7 +1744,7 @@ Kis_Spawn_Panel::Kis_Spawn_Panel(GlobalRegistry *in_globalreg,
 
 	main_component = vbox;
 
-	SetActiveComponent(options);
+	SetActiveComponent(okbutton);
 
 	Position(WIN_CENTER(11, 40));
 }

@@ -49,7 +49,7 @@
 #define FILTER_NUM      "0123456789"
 #define FILTER_ALPHANUM	FILTER_ALPHA FILTER_NUM " "
 #define FILTER_ALPHANUMSYM FILTER_ALPHA FILTER_NUM \
-	" .,~!@#$%^&*()_-+/:="
+	" .,~!@#$%^&*()_-+/\\:="
 
 class Kis_Panel;
 class KisPanelInterface;
