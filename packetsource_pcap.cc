@@ -257,7 +257,8 @@ int PacketSource_Pcap::Poll() {
 	kis_packet *newpack = globalreg->packetchain->GeneratePacket();
 
 	// Get the timestamp from the pcap callback
-	newpack->ts = callback_header.ts;
+	newpack->ts.tv_sec = callback_header.ts.tv_sec;
+	newpack->ts.tv_usec = callback_header.ts.tv_usec;
 
 	// Add the link-layer raw data to the packet, for the pristine copy
 	kis_datachunk *linkchunk = new kis_datachunk;
@@ -728,7 +729,7 @@ int PacketSource_Pcap::Radiotap2KisPack(kis_packet *packet, kis_datachunk *linkc
                 case IEEE80211_RADIOTAP_RSSI:
                     /* Convert to Kismet units...  No reason to use RSSI units
 					 * here since we know the conversion factor */
-                    packet->signal_dbm = int((float(u.u8) / float(u2.u8) * 255));
+                    radioheader->signal_dbm = int((float(u.u8) / float(u2.u8) * 255));
                     break;
 #endif
                 default:
@@ -1041,7 +1042,8 @@ int PacketSource_Pcapfile::Poll() {
 		return 0;
 
 	// Get the timestamp from the pcap callback
-	newpack->ts = callback_header.ts;
+	newpack->ts.tv_sec = callback_header.ts.tv_sec;
+	newpack->ts.tv_usec = callback_header.ts.tv_usec;
 
 	// Add the link-layer raw data to the packet, for the pristine copy
 	kis_datachunk *linkchunk = new kis_datachunk;

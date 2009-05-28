@@ -790,9 +790,9 @@ int RootIPCRemote::ShutdownIPC(ipc_packet *packet) {
 }
 
 void RootIPCRemote::ShutdownIPCPassFD() {
+#ifdef SYS_LINUX
 	char sockpath[32];
 
-#ifdef SYS_LINUX
 	if (ipc_pid >= 0) {
 		// Clean up the socket if it exists
 		if (ipc_fd_fd >= 0) {

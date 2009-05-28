@@ -159,7 +159,7 @@ Kis_Panel_Color::Kis_Panel_Color() {
 int Kis_Panel_Color::AddColor(string color, string pref) {
 	map<string, Kis_Panel_Color::color_rec>::iterator cimi;
 	int nums[2] = {0, 0};
-	int bold;
+	int bold = 0;
 	int pair;
 
 	if ((cimi = color_index_map.find(StrLower(color))) != color_index_map.end()) {

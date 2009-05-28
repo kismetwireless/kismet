@@ -357,7 +357,7 @@ int DroneClientFrame::ParseData() {
 			// Nothing special to do here, treat it as an update packet
 		} else if (dcid == DRONE_CMDNUM_HELO) {
 			drone_helo_packet *hpkt = (drone_helo_packet *) dpkt->data;
-			char rname[32];
+			char rname[33];
 
 			sscanf((char *) hpkt->host_name, "%32s", rname);
 			remote_name = string(rname);

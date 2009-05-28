@@ -49,7 +49,7 @@ const common_col_pref bssid_column_details[] = {
 	{ "manuf", "Manufacturer", bcol_manuf },
 	{ "11dcountry", "802.11d Country", bcol_11dcountry },
 	{ "seenby", "Sources that have seen this network", bcol_seenby },
-	{ NULL, NULL, NULL }
+	{ NULL, NULL, 0 }
 };
 
 const char *Kis_Netlist::bssid_columns_text[] = {

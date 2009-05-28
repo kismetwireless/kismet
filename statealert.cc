@@ -60,6 +60,7 @@ int BSSTSStateAlert::ProcessPacket(kis_packet *in_pack) {
 	// Get the 802.11 data
 	kis_ieee80211_packinfo *packinfo =
 		(kis_ieee80211_packinfo *) in_pack->fetch(_PCM(PACK_COMP_80211));
+
 	if (packinfo == NULL)
 		return 0;
 
@@ -81,7 +82,7 @@ int BSSTSStateAlert::ProcessPacket(kis_packet *in_pack) {
 
 	bss_rec *br = smi->second;
 
-	if (packinfo->timestamp < (br->bss_timestamp - 50)) {
+	if (packinfo->timestamp < (br->bss_timestamp - 500000)) {
 		if (br->incident > 0) {
 			// Raise an alert
 			ostringstream oss;
