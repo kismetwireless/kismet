@@ -158,7 +158,7 @@ Kis_Panel_Color::Kis_Panel_Color() {
 
 int Kis_Panel_Color::AddColor(string color, string pref) {
 	map<string, Kis_Panel_Color::color_rec>::iterator cimi;
-	int nums[2] = {0, 0};
+	short nums[2] = {0, 0};
 	int bold = 0;
 	int pair;
 
@@ -182,6 +182,9 @@ int Kis_Panel_Color::AddColor(string color, string pref) {
 
 	for (unsigned int x = 0; x < 2; x++) {
 		string clr = colorpair[x];
+
+		if (clr == "grey" || clr == "gray")
+			clr = "hi-black";
 		
 		// First, find if theres a hi-
 		if (clr.substr(0, 3) == "hi-") {
@@ -190,7 +193,9 @@ int Kis_Panel_Color::AddColor(string color, string pref) {
 		}
 
 		// Then match all the colors
-		if (clr == "black")
+		if (clr == "default") 
+			nums[x] = -1;
+		else if (clr == "black")
 			nums[x] = COLOR_BLACK;
 		else if (clr == "red")
 			nums[x] = COLOR_RED;
@@ -212,8 +217,9 @@ int Kis_Panel_Color::AddColor(string color, string pref) {
 
 	pair = COLOR_PAIR(nextindex);
 
-	if (bold)
+	if (bold) {
 		pair |= A_BOLD;
+	}
 
 	color_rec cr;
 	cr.pref = pref;
@@ -276,6 +282,7 @@ PanelInterface::PanelInterface(GlobalRegistry *in_globalreg) {
 	meta(stdscr, 1);
 	mousemask(ALL_MOUSE_EVENTS | REPORT_MOUSE_POSITION, NULL);
 	start_color();
+	use_default_colors();
 
 	draweventid = 
 		globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC / 2,
@@ -2370,6 +2377,9 @@ void Kis_Single_Input::DrawComponent() {
 	// Clean up any silliness that might be present from initialization
 	if (inp_pos - curs_pos >= draw_len)
 		curs_pos = inp_pos - draw_len + 1;
+
+	// Reset the default color again since we messed with bold attributes
+	SetTransColor(color_active);
 
 	// Invert for the text
 	wattron(window, WA_REVERSE);
