@@ -268,7 +268,7 @@ int kisptw_event_timer(TIMEEVENT_PARMS) {
 				return 0;
 			}
 
-			x->second->last_crack_vivs = 
+			x->second->last_crack_ivs = 
 				x->second->num_ptw_ivs_t = x->second->num_ptw_ivs;
 			x->second->last_crack_vivs = 
 				x->second->num_ptw_vivs_t = x->second->num_ptw_vivs;
