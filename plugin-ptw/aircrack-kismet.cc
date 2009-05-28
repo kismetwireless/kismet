@@ -179,6 +179,9 @@ int kisptw_event_timer(TIMEEVENT_PARMS) {
 				osstr << hex << setfill('0') << setw(2) << (int) x->second->wepkey[k];
 			}
 
+			globalreg->netracker->SetNetworkTag(x->second->bssid, "WEP-PTW",
+												osstr.str());
+
 			string al = "Cracked WEP key on " + x->second->bssid.Mac2String() + ": " +
 				 osstr.str();
 
