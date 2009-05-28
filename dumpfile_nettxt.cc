@@ -194,7 +194,8 @@ int Dumpfile_Nettxt::Flush() {
 				for (unsigned int z = 0; z < m->second->dot11d_vec.size(); z++) {
 					fprintf(txtfile, "     Chan Range: %u-%u %u dBm\n", 
 							m->second->dot11d_vec[z].startchan,
-							m->second->dot11d_vec[z].numchan,
+							m->second->dot11d_vec[z].startchan + 
+							m->second->dot11d_vec[z].numchan - 1,
 							m->second->dot11d_vec[z].txpower);
 				}
 			}

@@ -271,7 +271,8 @@ int Dumpfile_Netxml::Flush() {
 					fprintf(xmlfile, "          <dot11d-range start=\"%u\" end=\"%u\" "
 							"max-power=\"%u\"/>\n",
 							m->second->dot11d_vec[z].startchan,
-							m->second->dot11d_vec[z].numchan,
+							m->second->dot11d_vec[z].startchan + 
+							m->second->dot11d_vec[z].numchan - 1,
 							m->second->dot11d_vec[z].txpower);
 				}
 				fprintf(xmlfile, "        </dot11d>\n");

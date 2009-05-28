@@ -3132,6 +3132,9 @@ int Kis_Netlist::KeyPress(int in_key) {
 }
 
 Kis_Display_NetGroup *Kis_Netlist::FetchSelectedNetgroup() {
+	if (sort_mode == netsort_autofit)
+		return NULL;
+
 	if (selected_line < 0 || selected_line >= (int) draw_vec->size())
 		return NULL;
 

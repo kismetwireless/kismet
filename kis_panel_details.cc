@@ -667,6 +667,28 @@ void Kis_NetDetails_Panel::DrawPanel() {
 		update = 1;
 	}
 
+	if (dng == NULL) {
+		if ((dng = kpinterface->FetchMainPanel()->FetchSelectedNetgroup()) == NULL) {
+			kpinterface->RaiseAlert("No network",
+									"Cannot view details, no network was selected.\n"
+									"Set the Sort type to anything besides Auto-Fit\n"
+									"and highlight a network, then view details.\n");
+			kpinterface->KillPanel(this);
+			return;
+		}
+
+		Netracker::tracked_network *meta = dng->FetchNetwork();
+
+		if (meta == NULL) {
+			kpinterface->RaiseAlert("No network",
+									"Cannot view details, no network was selected.\n"
+									"Set the Sort type to anything besides Auto-Fit\n"
+									"and highlight a network, then view details.\n");
+			kpinterface->KillPanel(this);
+			return;
+		}
+	}
+
 	if (update) {
 		netdetails->Clear();
 
