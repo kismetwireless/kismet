@@ -116,7 +116,7 @@ extern "C" {
 	int kis_plugin_info(plugin_usrdata *data) {
 		data->pl_name = "SPECTOOL";
 		data->pl_version = "2009-05-R1";
-		data->pl_description = "Aircrack PTW Plugin";
+		data->pl_description = "Spectool-Net";
 		data->pl_unloadable = 0; 
 		data->plugin_register = kisspec_register;
 		data->plugin_unregister = kisspec_unregister;

@@ -357,7 +357,7 @@ vector<smart_word_token> NetStrTokenize(string in_str, string in_split,
 	if (in_str.length() == 0)
 		return ret;
 
-	while (end != string::npos) {
+	while (end < in_str.size()) {
 		if (in_str[begin] == '\001') {
 			// Look for a special inner field which buffers the splitvar inside the 
 			// field..  That means we need to recalculate the end of the field
@@ -372,6 +372,9 @@ vector<smart_word_token> NetStrTokenize(string in_str, string in_split,
 
 		end = in_str.find(in_split, begin);
 
+		if (end == string::npos)
+			end = in_str.size();
+
 		stok.begin = begin;
 		stok.end = end;
 		stok.word = sub;
@@ -381,7 +384,7 @@ vector<smart_word_token> NetStrTokenize(string in_str, string in_split,
 		special = 0;
 	}
 
-	if (return_partial && begin != in_str.size()) {
+	if (return_partial && begin < in_str.size()) {
 		stok.begin = begin;
 		stok.end = in_str.size() - begin;
 		stok.word = in_str.substr(begin, in_str.size() - begin);

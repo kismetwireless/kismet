@@ -453,6 +453,11 @@ void KisNetlist_CLIENT(CLIPROTO_CB_PARMS) {
 										   proto_parsed, srccli, auxptr);
 }
 
+void KisNetlist_NETTAG(CLIPROTO_CB_PARMS) {
+	((Kis_Netlist *) auxptr)->Proto_NETTAG(globalreg, proto_string,
+										   proto_parsed, srccli, auxptr);
+}
+
 void KisNetlist_BSSIDSRC(CLIPROTO_CB_PARMS) {
 	((Kis_Netlist *) auxptr)->Proto_BSSIDSRC(globalreg, proto_string,
 											 proto_parsed, srccli, auxptr);
@@ -711,6 +716,11 @@ void Kis_Netlist::NetClientConfigure(KisNetClient *in_cli, int in_recon) {
 			 "will be terminated.", MSGFLAG_ERROR);
 		in_cli->KillConnection();
 		return;
+	}
+
+	if (in_cli->RegisterProtoHandler("NETTAG", "bssid,tag,value",
+									 KisNetlist_NETTAG, this) < 0) {
+		_MSG("Could not register NETTAG protocol with remote server", MSGFLAG_ERROR);
 	}
 
 	if (in_cli->RegisterProtoHandler("CLIENT", asm_client_fields,
@@ -1891,6 +1901,37 @@ void Kis_Netlist::Proto_CLISRC(CLIPROTO_CB_PARMS) {
 
 	if (newsd)
 		cli->source_map[sd->source_uuid] = sd;
+
+	return;
+}
+
+void Kis_Netlist::Proto_NETTAG(CLIPROTO_CB_PARMS) {
+	if (proto_parsed->size() < 3) {
+		return;
+	}
+
+	Netracker::tracked_network *net = NULL;
+
+	mac_addr bssid = mac_addr((*proto_parsed)[0].word.c_str());
+	if (bssid.error) {
+		return;
+	}
+
+	macmap<Netracker::tracked_network *>::iterator tni = bssid_raw_map.find(bssid);
+
+	if (tni == bssid_raw_map.end()) {
+		return;
+	}
+	net = *(tni->second);
+
+	net->arb_tag_map[(*proto_parsed)[1].word] = 
+		MungeToPrintable((*proto_parsed)[2].word);
+
+	// Set the net dirty and push it into the dirty vec if it isn't there already
+	if (net->dirty == 0) {
+		net->dirty = 1;
+		dirty_raw_vec.push_back(net);
+	}
 
 	return;
 }

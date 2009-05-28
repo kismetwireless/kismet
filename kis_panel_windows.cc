@@ -167,11 +167,12 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	mi_showsources = menu->AddMenuItem("Source Info", mn_view, 'C');
 
 	mn_windows = menu->AddMenu("Windows", 0);
-	mi_netdetails = menu->AddMenuItem("Network Details", mn_windows, 'd');
-	mi_clientlist = menu->AddMenuItem("Client List", mn_windows, 'l');
-	mi_chandetails = menu->AddMenuItem("Channel Details", mn_windows, 'c');
-	mi_gps = menu->AddMenuItem("GPS Details", mn_windows, 'g');
-	mi_alerts = menu->AddMenuItem("Alerts", mn_windows, 'a');
+	mi_netdetails = menu->AddMenuItem("Network Details...", mn_windows, 'd');
+	mi_clientlist = menu->AddMenuItem("Client List...", mn_windows, 'l');
+	mi_addnote = menu->AddMenuItem("Add Network Note...", mn_windows, 'N');
+	mi_chandetails = menu->AddMenuItem("Channel Details...", mn_windows, 'c');
+	mi_gps = menu->AddMenuItem("GPS Details...", mn_windows, 'g');
+	mi_alerts = menu->AddMenuItem("Alerts...", mn_windows, 'a');
 
 	menu->Show();
 	AddComponentVec(menu, KIS_PANEL_COMP_EVT);
@@ -380,6 +381,9 @@ void kmp_prompt_greycolor(KIS_PROMPT_CB_PARMS) {
 
 void Kis_Main_Panel::Startup() {
 	int initclient = 0;
+
+	// Save preferences to detect errors
+	kpinterface->SavePreferences();
 
 	// Load audio prefs and set up defaults
 	LoadAudioPrefs();
@@ -1025,6 +1029,9 @@ void Kis_Main_Panel::MenuAction(int opt) {
 		kpinterface->prefs->SetOpt("NETLIST_SORT", "packets_desc", time(0));
 	} else if (opt == mi_netdetails) {
 		Kis_NetDetails_Panel *dp = new Kis_NetDetails_Panel(globalreg, kpinterface);
+		kpinterface->AddPanel(dp);
+	} else if (opt == mi_addnote) {
+		Kis_AddNetNote_Panel *dp = new Kis_AddNetNote_Panel(globalreg, kpinterface);
 		kpinterface->AddPanel(dp);
 	} else if (opt == mi_clientlist) {
 		Kis_Clientlist_Panel *cl = new Kis_Clientlist_Panel(globalreg, kpinterface);
@@ -3068,6 +3075,132 @@ void Kis_Clientlist_Panel::UpdateViewMenu(int mi) {
 
 int Kis_Clientlist_Panel::GraphTimer() {
 	return 0;
+}
+
+int AddNetNoteCB(COMPONENT_CALLBACK_PARMS) {
+	((Kis_AddNetNote_Panel *) aux)->Action(component, status);
+	return 1;
+}
+
+Kis_AddNetNote_Panel::Kis_AddNetNote_Panel(GlobalRegistry *in_globalreg, 
+										   KisPanelInterface *in_intf) :
+	Kis_Panel(in_globalreg, in_intf) {
+
+	dng = NULL;
+
+	notetxt = new Kis_Single_Input(globalreg, this);
+	notetxt->SetLabel("Note", LABEL_POS_LEFT);
+	notetxt->SetCharFilter(FILTER_ALPHANUMSYM);
+	notetxt->SetTextLen(256);
+	AddComponentVec(notetxt, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+							  KIS_PANEL_COMP_TAB));
+	notetxt->Show();
+
+	okbutton = new Kis_Button(globalreg, this);
+	okbutton->SetLabel("Add Note");
+	okbutton->Show();
+	okbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, AddNetNoteCB, this);
+	AddComponentVec(okbutton, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+							   KIS_PANEL_COMP_TAB));
+	okbutton->Show();
+
+	cancelbutton = new Kis_Button(globalreg, this);
+	cancelbutton->SetLabel("Cancel");
+	cancelbutton->Show();
+	cancelbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, AddNetNoteCB, this);
+	AddComponentVec(cancelbutton, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+								   KIS_PANEL_COMP_TAB));
+
+
+	bbox = new Kis_Panel_Packbox(globalreg, this);
+	bbox->SetPackH();
+	bbox->SetHomogenous(1);
+	bbox->SetSpacing(0);
+	bbox->SetCenter(1);
+	bbox->Show();
+	AddComponentVec(bbox, KIS_PANEL_COMP_DRAW);
+
+	bbox->Pack_End(cancelbutton, 0, 0);
+	bbox->Pack_End(okbutton, 0, 0);
+
+	vbox = new Kis_Panel_Packbox(globalreg, this);
+	vbox->SetPackV();
+	vbox->SetHomogenous(0);
+	vbox->SetSpacing(1);
+	AddComponentVec(vbox, KIS_PANEL_COMP_DRAW);
+	vbox->Show();
+
+	vbox->Pack_End(notetxt, 0, 0);
+	vbox->Pack_End(bbox, 0, 0);
+
+	main_component = vbox;
+	SetActiveComponent(notetxt);
+
+	Position(WIN_CENTER(5, 60));
+}
+
+Kis_AddNetNote_Panel::~Kis_AddNetNote_Panel() {
+
+}
+
+void Kis_AddNetNote_Panel::DrawPanel() {
+	if (dng == NULL) {
+		if ((dng = kpinterface->FetchMainPanel()->FetchSelectedNetgroup()) == NULL) {
+			kpinterface->RaiseAlert("No network",
+									"Cannot add a note, no network was selected.\n"
+									"Set the Sort type to anything besides Auto-Fit\n"
+									"and highlight a network, then add a note.\n");
+			kpinterface->KillPanel(this);
+			return;
+		}
+
+		Netracker::tracked_network *meta = dng->FetchNetwork();
+
+		if (meta == NULL) {
+			kpinterface->RaiseAlert("No network",
+									"Cannot add a note, no network was selected.\n"
+									"Set the Sort type to anything besides Auto-Fit\n"
+									"and highlight a network, then add a note.\n");
+			kpinterface->KillPanel(this);
+			return;
+		}
+
+		string oldnote = "";
+		for (map<string, string>::const_iterator si = meta->arb_tag_map.begin();
+			 si != meta->arb_tag_map.end(); ++si) {
+			if (si->first == "User Note") {
+				oldnote = si->second;
+				break;
+			}
+		}
+
+		bssid = meta->bssid;
+
+		notetxt->SetText(oldnote, -1, -1);
+	}
+
+	Kis_Panel::DrawPanel();
+}
+
+void Kis_AddNetNote_Panel::Action(Kis_Panel_Component *in_button, int in_state) {
+	if (in_button == cancelbutton) {
+		kpinterface->KillPanel(this);
+	} else if (in_button == okbutton) {
+		if (kpinterface->FetchNetClient() == NULL) {
+			kpinterface->RaiseAlert("No connection",
+									"No longer connected to a Kismet server, cannot\n"
+									"add a note to a network.\n");
+			kpinterface->KillPanel(this);
+			return;
+		}
+
+		kpinterface->FetchNetClient()->InjectCommand("ADDNETTAG " +
+							bssid.Mac2String() + " \001User Note\001 "
+							"\001" + notetxt->GetText() + "\001");
+
+		kpinterface->KillPanel(this);
+		return;
+	}
 }
 
 #endif

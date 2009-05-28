@@ -124,7 +124,8 @@ protected:
 	int mn_view, mi_shownetworks, mi_showclients, mi_showsummary, mi_showstatus, 
 		mi_showgps, mi_showpps, mi_showsources;
 
-	int mn_windows, mi_netdetails, mi_clientlist, mi_chandetails, mi_gps, mi_alerts;
+	int mn_windows, mi_netdetails, mi_addnote, mi_clientlist, 
+		mi_chandetails, mi_gps, mi_alerts;
 
 	int connect_enable;
 
@@ -433,6 +434,28 @@ protected:
 	int mn_view, mi_details;
 
 	int grapheventid;
+};
+
+class Kis_AddNetNote_Panel : public Kis_Panel {
+public:
+	Kis_AddNetNote_Panel() {
+		fprintf(stderr, "FATAL OOPS: Kis_AddNetNote_Panel()\n");
+		exit(1);
+	}
+
+	Kis_AddNetNote_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_kpf);
+	virtual ~Kis_AddNetNote_Panel();
+
+	virtual void DrawPanel();
+	virtual void Action(Kis_Panel_Component *in_button, int in_state);
+
+protected:
+	Kis_Panel_Packbox *vbox, *bbox;
+	Kis_Single_Input *notetxt;
+	Kis_Button *cancelbutton, *okbutton;
+
+	Kis_Display_NetGroup *dng;
+	mac_addr bssid;
 };
 
 #endif

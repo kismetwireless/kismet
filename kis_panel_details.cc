@@ -64,6 +64,8 @@ Kis_NetDetails_Panel::Kis_NetDetails_Panel(GlobalRegistry *in_globalreg,
 	menu->SetCallback(COMPONENT_CBTYPE_ACTIVATED, NetDetailsMenuCB, this);
 
 	mn_network = menu->AddMenu("Network", 0);
+	mi_addnote = menu->AddMenuItem("Add Note...", mn_network, 'N');
+	menu->AddMenuItem("-", mn_network, 0);
 	mi_nextnet = menu->AddMenuItem("Next network", mn_network, 'n');
 	mi_prevnet = menu->AddMenuItem("Prev network", mn_network, 'p');
 	menu->AddMenuItem("-", mn_network, 0);
@@ -545,6 +547,15 @@ int Kis_NetDetails_Panel::AppendNetworkInfo(int k, Kis_Display_NetGroup *tng,
 		netdetails->AddRow(k++, td);
 	}
 
+	for (map<string, string>::const_iterator ai = net->arb_tag_map.begin();
+		 ai != net->arb_tag_map.end(); ++ai) {
+		if (ai->first == "" || ai->second == "")
+			continue;
+		td[0] = ai->first + ":";
+		td[1] = ai->second;
+		netdetails->AddRow(k++, td);
+	}
+
 	if (netvec == NULL)
 		return k;
 
@@ -707,6 +718,9 @@ void Kis_NetDetails_Panel::MenuAction(int opt) {
 	if (opt == mi_close) {
 		globalreg->panel_interface->KillPanel(this);
 		return;
+	} else if (opt == mi_addnote) {
+		Kis_AddNetNote_Panel *np = new Kis_AddNetNote_Panel(globalreg, kpinterface);
+		kpinterface->AddPanel(np);
 	} else if (opt == mi_nextnet) {
 		kpinterface->FetchMainPanel()->FetchDisplayNetlist()->KeyPress(KEY_DOWN);
 		dng = NULL;

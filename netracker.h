@@ -118,6 +118,11 @@ enum CLISRC_fields {
 	CLISRC_maxfield
 };
 
+enum NETTAG_fields {
+	NETTAG_bssid, NETTAG_tag, NETTAG_value,
+	NETTAG_maxfield
+};
+
 enum REMOVE_fields {
     REMOVE_bssid
 };
@@ -671,6 +676,10 @@ public:
 
 		// Alert triggered
 		int alert;
+
+		// Map of arbitrary tags associated with this network
+		// Tags are case sensitive!
+		map<string, string> arb_tag_map;
 	};
 
 	// Mini-client for counting global unique clients
@@ -795,6 +804,9 @@ public:
 	int AddFilter(string in_filter);
 	int AddNetcliFilter(string in_filter);
 
+	void SetNetworkTag(mac_addr in_net, string in_tag, string in_data);
+	void ClearNetworkTag(mac_addr in_net, string in_tag);
+
 	// Fetch the internal maps.  Touching these is Bad.  Should only be used when
 	// the chain API is insufficient, like logging xml/net ascii
 	const map<mac_addr, Netracker::tracked_network *> FetchTrackedNets();
@@ -876,8 +888,7 @@ protected:
 	int netrackereventid;
 
 	// Command refs
-	int addfiltercmd_ref;
-	int addnetclifiltercmd_ref;
+	int addfiltercmd_ref, addnetclifiltercmd_ref, addnettagcmd_ref, delnettagcmd_ref;
 
 	// Filter core for tracker
 	FilterCore *track_filter;
@@ -885,7 +896,7 @@ protected:
 	FilterCore *netcli_filter;
 
 	// Nonglobal protocols
-	int proto_ref_bssidsrc, proto_ref_clisrc;
+	int proto_ref_bssidsrc, proto_ref_clisrc, proto_ref_nettag;
 
 	// Let the hooks call directly in
 	friend int kis_80211_netracker_hook(CHAINCALL_PARMS);
@@ -893,6 +904,7 @@ protected:
 	friend void Protocol_BSSID_enable(PROTO_ENABLE_PARMS);
 	friend void Protocol_SSID_enable(PROTO_ENABLE_PARMS);
 	friend void Protocol_CLIENT_enable(PROTO_ENABLE_PARMS);
+	friend void Protocol_NETTAG_enable(PROTO_ENABLE_PARMS);
 	friend int NetrackerUpdateTimer(TIMEEVENT_PARMS);
 };
 

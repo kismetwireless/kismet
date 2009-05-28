@@ -455,8 +455,11 @@ void KisPanelInterface::KillPanel(Kis_Panel *in_panel) {
 
 int KisPanelInterface::LoadPreferences() {
 	if (prefs->ParseConfig(prefs->ExpandLogPath("%h/.kismet/kismet_ui.conf",
-												"", "", 0, 1).c_str())) 
+												"", "", 0, 1).c_str())) {
 		prefs->SetOpt("LOADEDFROMFILE", "1", 0);
+	} 
+
+	SavePreferences();
 
 	return 1;
 }
@@ -470,12 +473,27 @@ int KisPanelInterface::SavePreferences() {
 	ret = mkdir(dir.c_str(), S_IRUSR | S_IWUSR | S_IXUSR);
 
 	if (ret < 0 && errno != EEXIST) {
-		_MSG("Failed to create dir " + dir + ": " + string(strerror(errno)),
+		string err = string(strerror(errno));
+		_MSG("Failed to create dir " + dir + ": " + err,
 			 MSGFLAG_ERROR);
+
+		RaiseAlert("Could not save prefs",
+					"Could not save preferences file, failed to create\n"
+					"directory " + dir + ":\n"
+					"  " + err + "\n"
+					"Kismet will continue to run, however changes to\n"
+					"preferences will not be saved.\n");
+
+		return -1;
 	}
 
 	ret = prefs->SaveConfig(prefs->ExpandLogPath("%h/.kismet/kismet_ui.conf",
 											   "", "", 0, 1).c_str());
+
+	RaiseAlert("Could not save prefs",
+			   "Could not save the preferences file, check error\n"
+			   "messages.  Kismet will continue to run, however\n"
+			   "preference changes will not be preserved.\n");
 
 	return ret;
 }

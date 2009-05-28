@@ -390,6 +390,15 @@ int Dumpfile_Netxml::Flush() {
 			fprintf(xmlfile, "    </gps-info>\n");
 		}
 
+		for (map<string, string>::const_iterator ai = net->arb_tag_map.begin();
+			 ai != net->arb_tag_map.end(); ++ai) {
+			if (ai->first == "" || ai->second == "")
+				continue;
+
+			fprintf(xmlfile, "<tag name=\"%s\">%s</tag>\n", 
+					SanitizeXML(ai->first).c_str(), SanitizeXML(ai->second).c_str());
+		}
+
 		if (net->guess_ipdata.ip_type > ipdata_factoryguess && 
 			net->guess_ipdata.ip_type < ipdata_group) {
 			string iptype;

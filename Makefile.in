@@ -179,7 +179,7 @@ commoninstall:
 	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 wav/gpslock.wav $(WAV)/gpslock.wav
 
 suidinstall: $(CS)
-	groupadd -f $(SUIDGROUP)
+	-groupadd -f $(SUIDGROUP)
 	$(MAKE) -e commoninstall
 	$(MAKE) -e binsuidinstall
 	@if test -f $(ETC)/kismet.conf; then \

@@ -225,6 +225,7 @@ public:
 	void Proto_CLIENT(CLIPROTO_CB_PARMS);
 	void Proto_BSSIDSRC(CLIPROTO_CB_PARMS);
 	void Proto_CLISRC(CLIPROTO_CB_PARMS);
+	void Proto_NETTAG(CLIPROTO_CB_PARMS);
 
 	// Trigger a sort and redraw update
 	void UpdateTrigger(void);

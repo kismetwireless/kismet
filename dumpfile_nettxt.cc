@@ -349,6 +349,15 @@ int Dumpfile_Nettxt::Flush() {
 		if (net->cdp_port_id.length() > 0)
 			fprintf(txtfile, " CDP Port   : \"%s\"\n", net->cdp_port_id.c_str());
 
+		for (map<string, string>::const_iterator ai = net->arb_tag_map.begin();
+			 ai != net->arb_tag_map.end(); ++ai)  {
+			if (ai->first == "" || ai->second == "")
+				continue;
+
+			fprintf(txtfile, "%11.11s : \"%s\"\n", ai->first.c_str(), 
+					ai->second.c_str());
+		}
+
 		// Sloppy iteration but it doesn't happen often and alert backlogs shouldn't
 		// be that huge
 		for (unsigned int an = 0; an < alerts->size(); an++) {

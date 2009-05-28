@@ -797,7 +797,7 @@ int KisNetFramework::ParseData(int in_fd) {
             inptok[it] = inptok[it].substr(0, inptok[it].length() - 1);
         }
         
-        vector<smart_word_token> cmdtoks = SmartStrTokenize(inptok[it], " ");
+        vector<smart_word_token> cmdtoks = NetStrTokenize(inptok[it], " ");
 
         if (cmdtoks.size() < 2) {
             // Silently fail since there wasn't enough to deal with it
@@ -822,7 +822,10 @@ int KisNetFramework::ParseData(int in_fd) {
 			client_cmd_map.find(StrLower(cmdtoks[0].word));
         if (ccitr != client_cmd_map.end()) {
             // Nuke the first word again - we just pulled it off to get the command
+			// fprintf(stderr, "debug - ctoks '%s' %u %u %u\n", cmdtoks[0].word.c_str(), cmdtoks.size(), cmdtoks[0].end, inptok[it].length());
             cmdtoks.erase(cmdtoks.begin());
+
+			// fprintf(stderr, "debug - fullcmd '%s' %u %u %u\n", cmdtoks[0].word.c_str(), cmdtoks.size(), cmdtoks[0].end, inptok[it].length());
 
             string fullcmd = 
 				inptok[it].substr(cmdtoks[0].end, (inptok[it].length() - 
