@@ -3268,10 +3268,6 @@ int Kis_Info_Bits::UpdatePrefs() {
 void Kis_Info_Bits::DrawComponent() {
 	UpdatePrefs();
 
-	parent_panel->ColorFromPref(info_color_normal, "info_normal_color");
-
-	wattrset(window, info_color_normal);
-
 	if (kpinterface->FetchNetClient() == NULL ||
 		(kpinterface->FetchNetClient() != NULL &&
 		 kpinterface->FetchNetClient()->Valid() <= 0)) {

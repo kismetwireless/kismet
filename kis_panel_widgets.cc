@@ -73,7 +73,7 @@ unsigned int Kis_Panel_Specialtext::Strlen(string str) {
 }
 
 void Kis_Panel_Specialtext::Mvwaddnstr(WINDOW *win, int y, int x, string str, int n,
-									   Kis_Panel *panel) {
+									   Kis_Panel *panel, int colorpair) {
 	int npos = 0;
 	int escape = 0;
 
@@ -98,9 +98,11 @@ void Kis_Panel_Specialtext::Mvwaddnstr(WINDOW *win, int y, int x, string str, in
 			} else if (str[pos] == 'R') {
 				wattroff(win, WA_REVERSE);
 			} else if (str[pos] == 'b') {
-				wattron(win, WA_BOLD);
+				if ((colorpair & A_BOLD) == 0) 
+					wattron(win, WA_BOLD);
 			} else if (str[pos] == 'B') {
-				wattroff(win, WA_BOLD);
+				if ((colorpair & A_BOLD) == 0) 
+					wattroff(win, WA_BOLD);
 			} else if (str[pos] == 'C') {
 				// Color escape code:
 				// \004Ccolorpref;text
@@ -1718,10 +1720,12 @@ void Kis_Free_Text::DrawComponent() {
 	if (visible == 0)
 		return;
 
+	int c;
+
 	parent_panel->ColorFromPref(color_active, color_active_pref);
 	parent_panel->ColorFromPref(color_inactive, color_inactive_pref);
 
-	SetTransColor(color_active);
+	c = SetTransColor(color_active);
 
 	if (ly < (int) text_vec.size() && follow_tail && scroll_pos < 0)
 		scroll_pos = text_vec.size() - ly + 1;
@@ -1734,7 +1738,7 @@ void Kis_Free_Text::DrawComponent() {
 		// Use the special formatter
 		Kis_Panel_Specialtext::Mvwaddnstr(window, sy + px, sx, 
 										  text_vec[x],
-										  lx - 1, parent_panel);
+										  lx - 1, parent_panel, c);
 		px++;
 	}
 
@@ -1862,7 +1866,7 @@ void Kis_Status_Text::DrawComponent() {
 	for (unsigned int x = 0; x < text_vec.size() && (int) x < ly; x++) {
 		Kis_Panel_Specialtext::Mvwaddnstr(window, ey - x, sx,
 										  text_vec[text_vec.size() - x - 1],
-										  ex - 1, parent_panel);
+										  ex - 1, parent_panel, status_color_normal);
 	}
 }
 

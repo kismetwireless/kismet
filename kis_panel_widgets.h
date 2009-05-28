@@ -66,7 +66,7 @@ class KisPanelInterface;
 class Kis_Panel_Specialtext {
 public:
 	static void Mvwaddnstr(WINDOW *win, int y, int x, string str, int n,
-						   Kis_Panel *panel);
+						   Kis_Panel *panel, int colorpair = 0);
 	static unsigned int Strlen(string str);
 };
 
@@ -228,11 +228,14 @@ public:
 protected:
 	// Silly function to pick the right color - give it the color you want,
 	// and it gives you the inactive color if the widget is inactive
-	inline void SetTransColor(int want_color) {
-		if (active)
+	inline int SetTransColor(int want_color) {
+		if (active) {
 			wattrset(window, want_color);
-		else
+			return want_color;
+		} else {
 			wattrset(window, color_inactive);
+			return color_inactive;
+		}
 	}
 
 	GlobalRegistry *globalreg;
