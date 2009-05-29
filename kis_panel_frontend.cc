@@ -455,7 +455,7 @@ void KisPanelInterface::KillPanel(Kis_Panel *in_panel) {
 
 int KisPanelInterface::LoadPreferences() {
 	if (prefs->ParseConfig(prefs->ExpandLogPath("%h/.kismet/kismet_ui.conf",
-												"", "", 0, 1).c_str())) {
+												"", "", 0, 1).c_str()) >= 0) {
 		prefs->SetOpt("LOADEDFROMFILE", "1", 0);
 	} 
 
