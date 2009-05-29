@@ -324,6 +324,8 @@ KisBuiltinDissector::KisBuiltinDissector(GlobalRegistry *in_globalreg) {
 		globalreg->alertracker->ActivateConfiguredAlert("DISCONCODEINVALID");
 	deauthcodeinvalid_aref =
 		globalreg->alertracker->ActivateConfiguredAlert("DEAUTHCODEINVALID");
+	dhcp_clientid_aref =
+		globalreg->alertracker->ActivateConfiguredAlert("DHCPCLIENTID");
 
 	// Register network protocols for WEP key transfer commands
 	_NPM(PROTO_REF_WEPKEY) =
@@ -1796,6 +1798,20 @@ int KisBuiltinDissector::basicdata_dissector(kis_packet *in_pack) {
 						MungeToPrintable(datainfo->discover_vendor);
 				}
 
+				if (dhcp_tag_map.find(61) != dhcp_tag_map.end() &&
+					dhcp_tag_map[61].size() == 7) {
+					mac_addr clmac = mac_addr(&(chunk->data[dhcp_tag_map[61][0] + 2]));
+
+					if (clmac != packinfo->source_mac) {
+						_ALERT(dhcp_clientid_aref, in_pack, packinfo, 
+							   string("DHCP request on network ") + 
+							   packinfo->bssid_mac.Mac2String() + string(" from ") +
+							   packinfo->source_mac.Mac2String() + 
+							   string(" doesn't match DHCP DISCOVER client id ") +
+							   clmac.Mac2String() + string(" which can indicate "
+								"a DHCP spoofing attack"));
+					}
+				}
 			}
 		}
 

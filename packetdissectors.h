@@ -147,6 +147,7 @@ protected:
 	int longssid_aref;
 	int disconcodeinvalid_aref;
 	int deauthcodeinvalid_aref;
+	int dhcp_clientid_aref;
 
 	int client_wepkey_allowed;
 	macmap<wep_key_info *> wepkeys;

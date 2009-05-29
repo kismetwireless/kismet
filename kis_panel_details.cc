@@ -2073,6 +2073,7 @@ Kis_AlertDetails_Panel::Kis_AlertDetails_Panel(GlobalRegistry *in_globalreg,
 	alertdetails->SetHighlightSelected(0);
 	alertdetails->SetLockScrollTop(1);
 	alertdetails->SetDrawTitles(0);
+	alertdetails->SetPreferredSize(0, 6);
 	AddComponentVec(alertdetails, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
 								KIS_PANEL_COMP_TAB));
 

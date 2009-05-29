@@ -170,6 +170,7 @@ alert=DEAUTHCODEINVALID,5/min,1/sec
 alert=DISCONCODEINVALID,5/min,1/sec
 alert=DHCPNAMECHANGE,5/min,1/sec
 alert=DHCPOSCHANGE,5/min,1/sec
+alert=DHCPCLIENTID,5/min,1/sec
 alert=DHCPCONFLICT,10/min,1/sec
 alert=NETSTUMBLER,5/min,1/sec
 alert=LUCENTTEST,5/min,1/sec

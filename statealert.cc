@@ -89,7 +89,8 @@ int BSSTSStateAlert::ProcessPacket(kis_packet *in_pack) {
 
 			oss << "Network BSSID " << packinfo->bssid_mac.Mac2String() << 
 				" BSS timestamp fluctuating, which may indicate a spoofed "
-				"network cloning the MAC address";
+				"network cloning the MAC address (BSSTS " << 
+				packinfo->timestamp << " vs " << br->bss_timestamp << ")";
 			globalreg->alertracker->RaiseAlert(alert_bss_ts_ref, in_pack,
 											   packinfo->bssid_mac,
 											   packinfo->source_mac,

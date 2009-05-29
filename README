@@ -791,6 +791,12 @@ http://www.kismetwireless.net
                 http://802.11ninja.net
                 http://home.jwu.edu/jwright/papers/l2-wlan-ids.pdf
 
+        DHCPCLIENTID        Fingerprint
+            A client which sends a DHCP DISCOVER packet containing a
+            Client-ID tag (Tag 61) which doesn't match the source MAC of the
+            packet may be doing a DHCP denial-of-service to exhaust the DHCP
+            pool.
+
         DHCPCONFLICT        Trend/Stateful
             Clients which receive a DHCP address and continue to use a
             different IP address may indicate a misconfigured or spoofed
@@ -810,8 +816,8 @@ http://www.kismetwireless.net
             point drivers have been reported to improperly handle
             invalid/undefined reason codes.
 
-        DHCPNAMECHANGE      Fingerprint
-        DHCPOSCHANGE        Fingerprint
+        DHCPNAMECHANGE      Trend/Stateful
+        DHCPOSCHANGE        Trend/Stateful
             The DHCP configuration protocol allows clients to optionally put
             the hostname and DHCP client vendor/operating system in the DHCP
             Discover packet.  These values should only change if the client
