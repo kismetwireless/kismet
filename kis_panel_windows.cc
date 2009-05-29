@@ -827,7 +827,9 @@ void Kis_Main_Panel::DrawPanel() {
 	for (map<uuid, KisPanelInterface::knc_card *>::iterator x = cardmap->begin();
 		 x != cardmap->end(); ++x) {
 		sourceinfotxt.push_back("\004u" + x->second->name + "\004U");
-		if (x->second->hopping)
+		if (x->second->dwell)
+			sourceinfotxt.push_back("Dwell");
+		else if (x->second->hopping)
 			sourceinfotxt.push_back("Hop");
 		else
 			sourceinfotxt.push_back(IntToString(x->second->channel));
@@ -2420,7 +2422,7 @@ void Kis_Chanconf_Panel::DrawPanel() {
 				inprate->SetLabel("Dwell", LABEL_POS_LEFT);
 				inprate->SetTextLen(3);
 				inprate->SetCharFilter(FILTER_NUM);
-				inprate->SetText(IntToString(card->hopvelocity), -1, -1);
+				inprate->SetText(IntToString(card->dwell), -1, -1);
 				inprate->Show();
 
 			} else if (card->hopping) {
@@ -2469,7 +2471,7 @@ void Kis_Chanconf_Panel::DrawPanel() {
 				inprate->SetLabel("Dwell", LABEL_POS_LEFT);
 				inprate->SetTextLen(3);
 				inprate->SetCharFilter(FILTER_NUM);
-				inprate->SetText(IntToString(card->hopvelocity), -1, -1);
+				inprate->SetText(IntToString(card->dwell), -1, -1);
 				inprate->Show();
 
 			} else if (last_radio == hoprad) {

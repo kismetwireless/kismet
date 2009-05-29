@@ -2026,6 +2026,7 @@ Kis_AlertDetails_Panel::Kis_AlertDetails_Panel(GlobalRegistry *in_globalreg,
 
 	last_alert = NULL;
 	last_selected = NULL;
+	last_sort = 0;
 
 	menu = new Kis_Menu(globalreg, this);
 
@@ -2035,8 +2036,8 @@ Kis_AlertDetails_Panel::Kis_AlertDetails_Panel(GlobalRegistry *in_globalreg,
 	mi_close = menu->AddMenuItem("Close window", mn_alert, 'w');
 
 	mn_sort = menu->AddMenu("Sort", 0);
-	mi_time = menu->AddMenuItem("Time", mn_sort, 't');
 	mi_latest = menu->AddMenuItem("Latest", mn_sort, 'l');
+	mi_time = menu->AddMenuItem("Time", mn_sort, 't');
 	mi_type = menu->AddMenuItem("Type", mn_sort, 'T');
 	mi_bssid = menu->AddMenuItem("BSSID", mn_sort, 'b');
 
@@ -2107,7 +2108,7 @@ Kis_AlertDetails_Panel::Kis_AlertDetails_Panel(GlobalRegistry *in_globalreg,
 
 	SetActiveComponent(alertlist);
 
-	UpdateSortPrefs();
+	UpdateSortPrefs(1);
 	UpdateSortMenu(-1);
 
 	Position(WIN_CENTER(LINES, COLS));
@@ -2140,7 +2141,7 @@ void Kis_AlertDetails_Panel::DrawPanel() {
 	}
 
 	// If we've changed the list
-	if ((*raw_alerts)[raw_alerts->size() - 1] != last_alert && UpdateSortPrefs() == 0) {
+	if ((*raw_alerts)[raw_alerts->size() - 1] != last_alert) {
 		sorted_alerts = *raw_alerts;
 
 		switch (sort_mode) {
@@ -2232,18 +2233,18 @@ void Kis_AlertDetails_Panel::MenuAction(int opt) {
 		globalreg->panel_interface->KillPanel(this);
 		return;
 	} else if (opt == mi_time) {
-		kpinterface->prefs->SetOpt("ALERTLIST_SORT", "time", 1);
+		kpinterface->prefs->SetOpt("ALERTLIST_SORT", "time", time(0));
 	} else if (opt == mi_latest) {
-		kpinterface->prefs->SetOpt("ALERTLIST_SORT", "latest", 1);
+		kpinterface->prefs->SetOpt("ALERTLIST_SORT", "latest", time(0));
 	} else if (opt == mi_type) {
-		kpinterface->prefs->SetOpt("ALERTLIST_SORT", "type", 1);
+		kpinterface->prefs->SetOpt("ALERTLIST_SORT", "type", time(0));
 	} else if (opt == mi_bssid) {
-		kpinterface->prefs->SetOpt("ALERTLIST_SORT", "bssid", 1);
+		kpinterface->prefs->SetOpt("ALERTLIST_SORT", "bssid", time(0));
 	}
 	
 	if (opt == mi_time || opt == mi_latest || opt == mi_type ||
 			   opt == mi_bssid) {
-		UpdateSortPrefs();
+		UpdateSortPrefs(0);
 		UpdateSortMenu(opt);
 	}
 }
@@ -2255,28 +2256,28 @@ void Kis_AlertDetails_Panel::UpdateSortMenu(int mi) {
 	menu->SetMenuItemChecked(mi_bssid, sort_mode == alertsort_bssid);
 }
 
-int Kis_AlertDetails_Panel::UpdateSortPrefs() {
+int Kis_AlertDetails_Panel::UpdateSortPrefs(int always) {
 	string sort;
 
 	if ((sort = kpinterface->prefs->FetchOpt("ALERTLIST_SORT")) == "") {
 		sort = "latest";
-		kpinterface->prefs->SetOpt("ALERTLIST_SORT", sort, 1);
+		kpinterface->prefs->SetOpt("ALERTLIST_SORT", sort, time(0));
 	}
 
-	if (kpinterface->prefs->FetchOptDirty("ALERTLIST_SORT") == 0)
+	if (kpinterface->prefs->FetchOptDirty("ALERTLIST_SORT") < last_sort && always == 0)
 		return 0;
 
-	kpinterface->prefs->SetOptDirty("ALERTLIST_SORT", 0);
+	last_sort = kpinterface->prefs->FetchOptDirty("ALERTLIST_SORT");
 
 	sort = StrLower(sort);
 
 	if (sort == "latest")
 		sort_mode = alertsort_latest;
-	if (sort == "time")
+	else if (sort == "time")
 		sort_mode = alertsort_time;
-	if (sort == "type")
+	else if (sort == "type")
 		sort_mode = alertsort_type;
-	if (sort == "bssid")
+	else if (sort == "bssid")
 		sort_mode = alertsort_bssid;
 	else
 		sort_mode = alertsort_latest;

@@ -234,11 +234,12 @@ public:
 
 protected:
 	virtual void UpdateSortMenu(int mi);
-	virtual int UpdateSortPrefs();
+	virtual int UpdateSortPrefs(int always);
 
 	Kis_Panel_Packbox *vbox;
 	Kis_Scrollable_Table *alertlist, *alertdetails;
 
+	time_t last_sort;
 	alertsort_opts sort_mode;
 
 	int mn_alert, mi_close;
