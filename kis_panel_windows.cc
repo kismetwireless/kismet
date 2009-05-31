@@ -532,7 +532,7 @@ void Kis_Main_Panel::LoadAudioPrefs() {
 								  kpinterface->prefs->FetchOpt("SPEECHTYPE"));
 
 	if (kpinterface->prefs->FetchOpt("SPEECHENCODING") == "")
-		kpinterface->prefs->SetOpt("SPEECHTYPE", "spell", 1);
+		kpinterface->prefs->SetOpt("SPEECHENCODING", "spell", 1);
 	globalreg->soundctl->SetSpeechEncode(kpinterface->prefs->FetchOpt("SPEECHENCODING"));
 	
 

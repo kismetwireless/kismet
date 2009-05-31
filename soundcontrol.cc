@@ -126,7 +126,7 @@ void SoundControl::SetSpeechEncode(string in_encode) {
 	
 	if (lenc == "nato")
 		speech_encoding = SPEECH_ENCODING_NATO;
-	if (lenc == "spell")
+	else if (lenc == "spell")
 		speech_encoding = SPEECH_ENCODING_SPELL;
 	else
 		speech_encoding = SPEECH_ENCODING_NORMAL;

@@ -1672,12 +1672,19 @@ void Kis_SpeechPref_Panel::Action(Kis_Panel_Component *in_component,
 		kpinterface->prefs->SetOpt("SPEECHTYPE",
 								   fest_check->GetChecked() ? "festival" : "raw", 1);
 
-		if (encode_none_radio->GetChecked())
+		globalreg->soundctl->SetSpeaker(speaker->GetText(),
+										fest_check->GetChecked() ? "festival" : "raw");
+
+		if (encode_none_radio->GetChecked()) {
 			kpinterface->prefs->SetOpt("SPEECHENCODING", "speech", 1);
-		else if (encode_nato_radio->GetChecked())
+			globalreg->soundctl->SetSpeechEncode("speech");
+		} else if (encode_nato_radio->GetChecked()) {
 			kpinterface->prefs->SetOpt("SPEECHENCODING", "nato", 1);
-		else if (encode_spell_radio->GetChecked())
+			globalreg->soundctl->SetSpeechEncode("nato");
+		} else if (encode_spell_radio->GetChecked()) { 
 			kpinterface->prefs->SetOpt("SPEECHENCODING", "spell", 1);
+			globalreg->soundctl->SetSpeechEncode("spell");
+		}
 
 		kpinterface->KillPanel(this);
 		return;
