@@ -83,13 +83,16 @@ string HexStrFromUint8(uint8_t *in_buf, int in_buflen);
 
 template<class t> class NtoString {
 public:
-	NtoString(t in_n, int in_precision = 0) { 
+	NtoString(t in_n, int in_precision = 0, int in_hex = 0) { 
 		ostringstream osstr;
 
+		if (in_hex)
+			osstr << hex;
+
 		if (in_precision)
-			osstr << setprecision(in_precision) << fixed << in_n;
-		else
-			osstr << in_n;
+			osstr << setprecision(in_precision) << fixed;
+
+		osstr << in_n;
 
 		s = osstr.str();
 	}
@@ -100,6 +103,7 @@ public:
 };
 
 #define IntToString(I)			NtoString<int>((I)).Str()
+#define HexIntToString(I)		NtoString<int>((I), 0, 1).Str()
 #define LongIntToString(L)		NtoString<long int>((L)).Str()
 
 void SubtractTimeval(struct timeval *in_tv1, struct timeval *in_tv2,

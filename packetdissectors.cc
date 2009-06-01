@@ -655,7 +655,111 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
             return 0;
         }
 
-        fixed_parameters *fixparm;
+        fixed_parameters *fixparm = NULL;
+
+        if (fc->subtype == 0) {
+            packinfo->subtype = packet_sub_association_req;
+
+            packinfo->dest_mac = addr0;
+            packinfo->source_mac = addr1;
+            packinfo->bssid_mac = addr2;
+
+        } else if (fc->subtype == 1) {
+            packinfo->subtype = packet_sub_association_resp;
+
+            packinfo->dest_mac = addr0;
+            packinfo->source_mac = addr1;
+            packinfo->bssid_mac = addr2;
+
+        } else if (fc->subtype == 2) {
+            packinfo->subtype = packet_sub_reassociation_req;
+
+            packinfo->dest_mac = addr0;
+            packinfo->source_mac = addr1;
+            packinfo->bssid_mac = addr2;
+
+        } else if (fc->subtype == 3) {
+            packinfo->subtype = packet_sub_reassociation_resp;
+
+            packinfo->dest_mac = addr0;
+            packinfo->source_mac = addr1;
+            packinfo->bssid_mac = addr2;
+
+        } else if (fc->subtype == 4) {
+            packinfo->subtype = packet_sub_probe_req;
+
+            packinfo->distrib = distrib_to;
+            
+            packinfo->source_mac = addr1;
+            packinfo->bssid_mac = addr1;
+           
+        } else if (fc->subtype == 5) {
+            packinfo->subtype = packet_sub_probe_resp;
+
+            packinfo->dest_mac = addr0;
+            packinfo->source_mac = addr1;
+            packinfo->bssid_mac = addr2;
+
+        } else if (fc->subtype == 8) {
+            packinfo->subtype = packet_sub_beacon;
+
+            packinfo->dest_mac = addr0;
+            packinfo->source_mac = addr1;
+            packinfo->bssid_mac = addr2;
+
+            // If beacons aren't do a broadcast destination, consider them corrupt.
+            if (packinfo->dest_mac != broadcast_mac) 
+                packinfo->corrupt = 1;
+            
+        } else if (fc->subtype == 9) {
+            // I'm not positive this is the right handling of atim packets.  
+			// Do something smarter in the future
+            packinfo->subtype = packet_sub_atim;
+
+            packinfo->dest_mac = addr0;
+            packinfo->source_mac = addr1;
+            packinfo->bssid_mac = addr2;
+
+            packinfo->distrib = distrib_unknown;
+
+        } else if (fc->subtype == 10) {
+            packinfo->subtype = packet_sub_disassociation;
+
+            packinfo->dest_mac = addr0;
+            packinfo->source_mac = addr1;
+            packinfo->bssid_mac = addr2;
+
+            uint16_t rcode;
+            memcpy(&rcode, (const char *) &(chunk->data[24]), 2);
+
+            packinfo->mgt_reason_code = rcode;
+
+        } else if (fc->subtype == 11) {
+            packinfo->subtype = packet_sub_authentication;
+
+            packinfo->dest_mac = addr0;
+            packinfo->source_mac = addr1;
+            packinfo->bssid_mac = addr2;
+
+            uint16_t rcode;
+            memcpy(&rcode, (const char *) &(chunk->data[24]), 2);
+
+            packinfo->mgt_reason_code = rcode;
+
+        } else if (fc->subtype == 12) {
+            packinfo->subtype = packet_sub_deauthentication;
+
+            packinfo->dest_mac = addr0;
+            packinfo->source_mac = addr1;
+            packinfo->bssid_mac = addr2;
+
+            uint16_t rcode;
+            memcpy(&rcode, (const char *) &(chunk->data[24]), 2);
+
+            packinfo->mgt_reason_code = rcode;
+        } else {
+            packinfo->subtype = packet_sub_unknown;
+        }
 
         if (fc->subtype == packet_sub_probe_req || 
 			fc->subtype == packet_sub_disassociation || 
@@ -698,6 +802,22 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
 #endif
         }
 
+		// Look for MSF opcode beacons before tag decode
+		if (fc->subtype == packet_sub_beacon &&
+			packinfo->source_mac == msfopcode_mac) {
+
+			_ALERT(msfbcomssid_aref, in_pack, packinfo,
+				   "MSF-style poisoned beacon packet for Broadcom drivers detected");
+		}
+
+		if (fc->subtype == packet_sub_beacon &&
+			chunk->length >= 1184) {
+			if (memcmp(&(chunk->data[1180]), "\x6a\x39\x58\x01", 4) == 0)
+				_ALERT(msfnetgearbeacon_aref, in_pack, packinfo,
+					   "MSF-style poisoned options in over-sized beacon for Netgear "
+					   "driver attack");
+		}
+
         map<int, vector<int> > tag_cache_map;
         map<int, vector<int> >::iterator tcitr;
 
@@ -709,6 +829,10 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
         if (fc->subtype == packet_sub_beacon || 
 			fc->subtype == packet_sub_probe_req || 
 			fc->subtype == packet_sub_probe_resp) {
+
+			if (fc->subtype == packet_sub_beacon)
+				packinfo->beacon_interval = kis_letoh16(fixparm->beacon);
+
             // This is guaranteed to only give us tags that fit within the packets,
             // so we don't have to do more error checking
             if (GetIEEETagOffsets(packinfo->header_offset, chunk, 
@@ -752,6 +876,9 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
 						packinfo->ssid_blank = 1;
 					}
                 } else { 
+					_ALERT(longssid_aref, in_pack, packinfo,
+						   "Illegal SSID (greater than 32 bytes) detected, this "
+						   "likely indicates an exploit attempt against a client");
                     // Otherwise we're corrupt, set it and stop processing
                     packinfo->corrupt = 1;
                     in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
@@ -759,6 +886,31 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
                 }
             } else {
                 packinfo->ssid_len = 0;
+            }
+
+            // Probe req's with no SSID are bad
+			if (fc->subtype == packet_sub_probe_resp) {
+				if (found_ssid_tag == 0) {
+					packinfo->corrupt = 1;
+					in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
+					return 0;
+				}
+			}
+
+            // Extract the CISCO beacon info
+            if ((tcitr = tag_cache_map.find(133)) != tag_cache_map.end()) {
+                tag_offset = tcitr->second[0];
+                taglen = (chunk->data[tag_offset] & 0xFF);
+
+				// Copy and munge the beacon info if it falls w/in our
+				// boundaries
+				if ((tag_offset + 11) < chunk->length && taglen >= 11) {
+					packinfo->beacon_info = 
+						MungeToPrintable((char *) &(chunk->data[tag_offset+11]), 
+										 taglen - 11, 1);
+                }
+
+				// Other conditions on beacon info non-fatal
             }
 
             // Extract the supported rates
@@ -771,6 +923,23 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
                     packinfo->corrupt = 1;
                     in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
                     return 0;
+				}
+
+				for (unsigned int t = 0; t < tcitr->second.size(); t++) {
+					int moffset = tcitr->second[t];
+
+					if ((chunk->data[moffset] & 0xFF) == 75 &&
+						memcmp(&(chunk->data[moffset + 1]), "\xEB\x49", 2) == 0) {
+
+						_ALERT(msfdlinkrate_aref, in_pack, packinfo,
+							   "MSF-style poisoned rate field in beacon for network " +
+							   packinfo->bssid_mac.Mac2String() + ", exploit attempt "
+							   "against D-Link drivers");
+
+						packinfo->corrupt = 1;
+						in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
+						return 0;
+					}
 				}
 
                 found_rate_tag = 1;
@@ -802,6 +971,12 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
 							(chunk->data[tag_offset+1+x] & 0x7F) * 0.5;
                 }
             }
+
+            // If beacons don't have a SSID and a basicrate then we consider them
+            // corrupt
+            if (found_ssid_tag == 0 || found_rate_tag == 0) {
+                packinfo->corrupt = 1;
+			}
 
             // Find the offset of flag 3 and get the channel.   802.11a doesn't have 
             // this tag so we use the hardware channel, assigned at the beginning of 
@@ -984,160 +1159,26 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
 			}
 
 
-        }
+        } else if (fc->subtype == packet_sub_deauthentication) {
+			if ((packinfo->mgt_reason_code >= 25 && packinfo->mgt_reason_code <= 31) ||
+				packinfo->mgt_reason_code > 45) {
 
-        if (fc->subtype == 0) {
-            packinfo->subtype = packet_sub_association_req;
-
-            packinfo->dest_mac = addr0;
-            packinfo->source_mac = addr1;
-            packinfo->bssid_mac = addr2;
-
-        } else if (fc->subtype == 1) {
-            packinfo->subtype = packet_sub_association_resp;
-
-            packinfo->dest_mac = addr0;
-            packinfo->source_mac = addr1;
-            packinfo->bssid_mac = addr2;
-
-        } else if (fc->subtype == 2) {
-            packinfo->subtype = packet_sub_reassociation_req;
-
-            packinfo->dest_mac = addr0;
-            packinfo->source_mac = addr1;
-            packinfo->bssid_mac = addr2;
-
-        } else if (fc->subtype == 3) {
-            packinfo->subtype = packet_sub_reassociation_resp;
-
-            packinfo->dest_mac = addr0;
-            packinfo->source_mac = addr1;
-            packinfo->bssid_mac = addr2;
-
-        } else if (fc->subtype == 4) {
-            packinfo->subtype = packet_sub_probe_req;
-
-            packinfo->distrib = distrib_to;
-            
-            packinfo->source_mac = addr1;
-            packinfo->bssid_mac = addr1;
-           
-            // Probe req's with no SSID are bad
-            if (found_ssid_tag == 0) {
-                packinfo->corrupt = 1;
-                in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
-                return 0;
-            }
-
-        } else if (fc->subtype == 5) {
-            packinfo->subtype = packet_sub_probe_resp;
-
-            packinfo->dest_mac = addr0;
-            packinfo->source_mac = addr1;
-            packinfo->bssid_mac = addr2;
-
-            /*
-            if (ret_packinfo->ess == 0) {
-                // A lot of cards seem to rotate through adhoc BSSID's, so we use 
-				// the source instead
-                ret_packinfo->bssid_mac = ret_packinfo->source_mac;
-                ret_packinfo->distrib = adhoc_distribution;
-                }
-                */
-
-        } else if (fc->subtype == 8) {
-            packinfo->subtype = packet_sub_beacon;
-
-            packinfo->beacon_interval = kis_letoh16(fixparm->beacon);
-
-            // Extract the CISCO beacon info
-            if ((tcitr = tag_cache_map.find(133)) != tag_cache_map.end()) {
-                tag_offset = tcitr->second[0];
-                taglen = (chunk->data[tag_offset] & 0xFF);
-
-				// Copy and munge the beacon info if it falls w/in our
-				// boundaries
-				if ((tag_offset + 11) < chunk->length && taglen >= 11) {
-					packinfo->beacon_info = 
-						MungeToPrintable((char *) &(chunk->data[tag_offset+11]), 
-										 taglen - 11, 1);
-                }
-
-				// Non-fatal fail since beacon info might not have that
-				// 11 byte leader on it, I don't know
-            }
-
-            packinfo->dest_mac = addr0;
-            packinfo->source_mac = addr1;
-            packinfo->bssid_mac = addr2;
-
-            // If beacons aren't do a broadcast destination, consider them corrupt.
-            if (packinfo->dest_mac != broadcast_mac) 
-                packinfo->corrupt = 1;
-            
-            // If beacons don't have a SSID and a basicrate then we consider them
-            // corrupt
-            if (found_ssid_tag == 0 || found_rate_tag == 0) {
-                packinfo->corrupt = 1;
+				_ALERT(deauthcodeinvalid_aref, in_pack, packinfo,
+					   "Unknown deauthentication code " +
+					   HexIntToString(packinfo->mgt_reason_code) + 
+					   " from network " + packinfo->bssid_mac.Mac2String());
 			}
+        } else if (fc->subtype == packet_sub_disassociation) {
+			if ((packinfo->mgt_reason_code >= 25 && packinfo->mgt_reason_code <= 31) ||
+				packinfo->mgt_reason_code > 45) {
 
-            /*
-            if (ret_packinfo->ess == 0) {
-                // Weird adhoc beacon where the BSSID isn't 'right' so we use the 
-				// source instead.
-                ret_packinfo->bssid_mac = ret_packinfo->source_mac;
-                ret_packinfo->distrib = adhoc_distribution;
-                }
-                */
-        } else if (fc->subtype == 9) {
-            // I'm not positive this is the right handling of atim packets.  
-			// Do something smarter in the future
-            packinfo->subtype = packet_sub_atim;
+				_ALERT(disconcodeinvalid_aref, in_pack, packinfo,
+					   "Unknown disassociation code " +
+					   HexIntToString(packinfo->mgt_reason_code) + 
+					   " from network " + packinfo->bssid_mac.Mac2String());
+			}
+		}
 
-            packinfo->dest_mac = addr0;
-            packinfo->source_mac = addr1;
-            packinfo->bssid_mac = addr2;
-
-            packinfo->distrib = distrib_unknown;
-
-        } else if (fc->subtype == 10) {
-            packinfo->subtype = packet_sub_disassociation;
-
-            packinfo->dest_mac = addr0;
-            packinfo->source_mac = addr1;
-            packinfo->bssid_mac = addr2;
-
-            uint16_t rcode;
-            memcpy(&rcode, (const char *) &(chunk->data[24]), 2);
-
-            packinfo->mgt_reason_code = rcode;
-
-        } else if (fc->subtype == 11) {
-            packinfo->subtype = packet_sub_authentication;
-
-            packinfo->dest_mac = addr0;
-            packinfo->source_mac = addr1;
-            packinfo->bssid_mac = addr2;
-
-            uint16_t rcode;
-            memcpy(&rcode, (const char *) &(chunk->data[24]), 2);
-
-            packinfo->mgt_reason_code = rcode;
-
-        } else if (fc->subtype == 12) {
-            packinfo->subtype = packet_sub_deauthentication;
-
-            packinfo->dest_mac = addr0;
-            packinfo->source_mac = addr1;
-            packinfo->bssid_mac = addr2;
-
-            uint16_t rcode;
-            memcpy(&rcode, (const char *) &(chunk->data[24]), 2);
-
-            packinfo->mgt_reason_code = rcode;
-        } else {
-            packinfo->subtype = packet_sub_unknown;
-        }
     } else if (fc->type == 1) {
         packinfo->type = packet_phy;
 

@@ -134,4 +134,6 @@ const uint8_t ISAKMP_EXCH_NEWGRP = 33;
 // PPTP
 const uint16_t PPTP_PORT = 1723;
 
+const mac_addr msfopcode_mac = mac_addr("90:E9:75:00:00:00/FF:FF:FF:00:00:00");
+
 #endif
