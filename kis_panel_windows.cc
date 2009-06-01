@@ -485,9 +485,6 @@ void Kis_Main_Panel::NetClientConfigure(KisNetClient *in_cli, int in_recon) {
 	// Reset the GPS text
 	gpsinfo->SetText("No GPS info (GPS not connected)");
 	
-	if (in_recon)
-		return;
-
 	if (in_cli->RegisterProtoHandler("INFO", "packets,llcpackets,rate,networks",
 									 KisMainPanel_INFO, this) < 0) {
 		_MSG("Could not register INFO protocol with remote server, connection "

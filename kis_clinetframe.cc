@@ -30,6 +30,11 @@ int KisNetClientReconEvent(TIMEEVENT_PARMS) {
 	return 1;
 }
 
+int KisNetClientTimeoutEvent(TIMEEVENT_PARMS) {
+	((KisNetClient *) parm)->Timer();
+	return 1;
+}
+
 KisNetClient::KisNetClient() {
 	fprintf(stderr, "FATAL OOPS:  kisnetclient called with no globalreg\n");
 	exit(-1);
@@ -54,8 +59,15 @@ KisNetClient::KisNetClient(GlobalRegistry *in_globalreg) :
 	cmdid = 1;
 	last_disconnect = 0;
 
+	last_read = 0;
+
 	// Counter for configure level
 	configured = 1;
+
+	timerid =
+		globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 5,
+											  NULL, 1, &KisNetClientTimeoutEvent,
+											  (void *) this);
 }
 
 KisNetClient::~KisNetClient() {
@@ -68,6 +80,9 @@ KisNetClient::~KisNetClient() {
 
 	if (reconid > -1)
 		globalreg->timetracker->RemoveTimer(reconid);
+
+	if (timerid > -1)
+		globalreg->timetracker->RemoveTimer(timerid);
 
 	globalreg->RemovePollableSubsys(this);
 }
@@ -314,13 +329,32 @@ int KisNetClient::InjectCommand(string in_cmdtext) {
 	return curid;
 }
 
+int KisNetClient::Timer() {
+	if (tcpcli == NULL)
+		return -1;
+
+	if (tcpcli->Valid() == 0)
+		return 0;
+
+	if (time(0) - last_read > 10) {
+		_MSG("No data from Kismet server in over 10 seconds, disconnecting",
+			 MSGFLAG_ERROR);
+		KillConnection();
+		return 1;
+	}
+
+	return 0;
+}
+
 int KisNetClient::Reconnect() {
 	if (tcpcli == NULL) {
 		return -1;
 	}
 
+	/*
 	if (tcpcli->Valid() == 0)
 		last_disconnect = time(0);
+	*/
 
 	if (tcpcli->Valid() || last_disconnect == 0) {
 		return 1;
@@ -332,7 +366,7 @@ int KisNetClient::Reconnect() {
 		osstr << "Could not connect to Kismet server '" << host << ":" << port <<
 			"' will attempt to reconnect in 5 seconds.";
 		_MSG(osstr.str(), MSGFLAG_ERROR);
-		last_disconnect = time(0);
+		// last_disconnect = time(0);
 		return 0;
 	}
 
@@ -342,14 +376,16 @@ int KisNetClient::Reconnect() {
 	last_disconnect = 0;
 
 	// Set the start time and initialize configured to 1
-	time_connected = time(0);
+	last_read = time_connected = time(0);
 	configured = 1;
 
 	// Inject all the enable commands we had queued
+	/*
 	for (map<string, kcli_configured_proto_rec>::iterator hi = 
 		 handler_cb_map.begin(); hi != handler_cb_map.end(); ++hi) {
 		InjectCommand("ENABLE " + hi->first + " " + hi->second.fields);
 	}
+	*/
 
 	num_reconnects++;
 
@@ -365,14 +401,22 @@ int KisNetClient::ParseData() {
     // Scratch variables for parsing data
     char header[65];
 
-	if (netclient == NULL)
-		return 0;
+	// fprintf(stderr, "debug - knc::parsedata\n");
 
-	if (netclient->Valid() == 0)
+	if (netclient == NULL) {
+		// fprintf(stderr, "debug - netclient null\n");
 		return 0;
+	}
+
+	if (netclient->Valid() == 0) {
+		// fprintf(stderr, "debug - netclient not valid\n");
+		return 0;
+	}
 
     len = netclient->FetchReadLen();
     buf = new char[len + 1];
+
+	// fprintf(stderr, "debug - knc buflen %d\n", len); fflush(stderr);
 
     if (netclient->ReadData(buf, len, &rlen) < 0) {
 		_MSG("Kismet protocol parser failed to get data from the TCP connection",
@@ -380,6 +424,8 @@ int KisNetClient::ParseData() {
         return -1;
     }
     buf[len] = '\0';
+
+	last_read = time(0);
 
     // Parse without including partials, so we don't get a fragmented command 
     // out of the buffer
@@ -559,6 +605,7 @@ int KisNetClient::ParseData() {
 	// Make sure we've been running long enough to get all the data flushed
 	// through.  This is safe to hardcode here because the TIME will always
 	// wake us up.
+	// fprintf(stderr, "debug - configured %d time delta %lu\n", configured, (time(0) - time_connected));
 	if (configured == 0 && (time(0) - time_connected) > 2) {
 		for (unsigned int x = 0; x < conf_cb_vec.size(); x++) {
 			if (conf_cb_vec[x]->on_recon == 0 && num_reconnects != 0)

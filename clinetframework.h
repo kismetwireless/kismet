@@ -142,7 +142,9 @@ public:
 		globalreg->RegisterPollableSubsys(this);
     }
 
-    virtual ~ClientFramework() { };
+    virtual ~ClientFramework() {
+		globalreg->RemovePollableSubsys(this);
+	};
 
     // Register the network server core that we use to talk out
     virtual void RegisterNetworkClient(NetworkClient *in_netc) {
@@ -154,8 +156,6 @@ public:
 
     // Kill a connection
     virtual int KillConnection() {
-		globalreg->RemovePollableSubsys(this);
-
 		if (netclient != NULL && netclient->Valid()) {
 			netclient->KillConnection();
 		}

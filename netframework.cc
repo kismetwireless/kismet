@@ -45,8 +45,14 @@ unsigned int NetworkServer::MergeSet(unsigned int in_max_fd, fd_set *out_rset,
         max = in_max_fd;
     }
 
-    // Set the server fd
-    FD_SET(serv_fd, out_rset);
+    // Set the server fdif we're not in spindown, if we are spinning down,
+	// stop listening and shut down
+	if (globalreg->spindown && serv_fd >= 0) {
+		close(serv_fd);
+		serv_fd = -1;
+	} else if (serv_fd >= 0) {
+		FD_SET(serv_fd, out_rset);
+	}
     
     for (unsigned int x = 0; x <= max; x++) {
         // Incoming read or our own clients
@@ -69,7 +75,7 @@ int NetworkServer::Poll(fd_set& in_rset, fd_set& in_wset) {
 
     // Look for new connections we need to accept
     int accept_fd = 0;
-    if (FD_ISSET(serv_fd, &in_rset)) {
+    if (serv_fd >= 0 && FD_ISSET(serv_fd, &in_rset)) {
         // Accept an inbound connection.  This is non-fatal if it fails
         if ((accept_fd = Accept()) < 0)
             return 0;

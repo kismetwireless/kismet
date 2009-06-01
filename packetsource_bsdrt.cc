@@ -355,15 +355,6 @@ int PacketSource_BSDRT::EnableMonitor() {
 		return -1;
 	}
 
-#ifdef SYS_OPENBSD
-	// Temporary hack around OpenBSD drivers not standardizing on wether FCS
-	// bytes are appended, nor having any method to indicate their presence.
-	if (strncmp(interface.c_str(), "ath", 3) == 0 || 
-		strncmp(interface.c_str(), "ural", 4) == 0) {
-		SetFCSBytes(4);
-	}
-#endif
-
 	return 0;
 }
 

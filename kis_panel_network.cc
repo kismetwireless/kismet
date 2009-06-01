@@ -674,8 +674,24 @@ int Kis_Netlist::UpdateSortPrefs() {
 void Kis_Netlist::NetClientConfigure(KisNetClient *in_cli, int in_recon) {
 	void (*null_proto)(CLIPROTO_CB_PARMS) = NULL;
 	
-	if (in_recon)
-		return;
+	for (macmap<Netracker::tracked_network *>::iterator x = bssid_raw_map.begin();
+		 x != bssid_raw_map.end(); ++x) {
+		// Ugly hack to deal with "broken" macmap iterators which are really pointers
+		delete *(x->second);
+	}
+	bssid_raw_map.clear();
+	dirty_raw_vec.clear();
+
+	for (unsigned int x = 0; x < display_vec.size(); x++) {
+		delete display_vec[x];
+	}
+	display_vec.clear();
+	filter_display_vec.clear();
+	netgroup_asm_map.clear();
+
+	probe_autogroup = NULL;
+	adhoc_autogroup = NULL;
+	data_autogroup = NULL;
 
 	if (in_cli->RegisterProtoHandler("NETWORK", "*", null_proto, this) >= 0) {
 		_MSG("This looks like an old kismet-stable server, the Kismet-newcore "
@@ -737,31 +753,6 @@ void Kis_Netlist::NetClientAdd(KisNetClient *in_cli, int add) {
 		// Ignore remove events for now
 		return;
 	}
-
-	// Assume we only have one server at a time (true) then we need to clear
-	// on a connection add event
-	//
-	// We have to do it here because on a reconnect event we'll get issues where
-	// the network deltas come from the protocol cache before we get the connect
-	// event
-	for (macmap<Netracker::tracked_network *>::iterator x = bssid_raw_map.begin();
-		 x != bssid_raw_map.end(); ++x) {
-		// Ugly hack to deal with "broken" macmap iterators which are really pointers
-		delete *(x->second);
-	}
-	bssid_raw_map.clear();
-	dirty_raw_vec.clear();
-
-	for (unsigned int x = 0; x < display_vec.size(); x++) {
-		delete display_vec[x];
-	}
-	display_vec.clear();
-	filter_display_vec.clear();
-	netgroup_asm_map.clear();
-
-	probe_autogroup = NULL;
-	adhoc_autogroup = NULL;
-	data_autogroup = NULL;
 
 	// Add a client configured callback to the new client so we can load
 	// our protocols
@@ -3289,9 +3280,6 @@ void Kis_Info_Bits::NetClientConfigure(KisNetClient *in_cli, int in_recon) {
 	first_time = in_cli->FetchServerStarttime();
 	
 	title->SetText("\004u" + in_cli->FetchServerName() + "\004U");
-
-	if (in_recon)
-		return;
 
 	if (in_cli->RegisterProtoHandler("TIME", asm_time_fields,
 									 KisInfobits_TIME, this) < 0) {

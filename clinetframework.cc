@@ -40,11 +40,7 @@ unsigned int NetworkClient::MergeSet(unsigned int in_max_fd, fd_set *out_rset,
 									 fd_set *out_wset) {
     unsigned int max;
 
-    /*
-    Trust the caller to have given us good sets
-    FD_ZERO(out_rset);
-    FD_ZERO(out_wset);
-    */
+	// fprintf(stderr, "debug - networkclient mergeset valid %d clifd %d\n", cl_valid, cli_fd); fflush(stderr);
 
     if ((int) in_max_fd < cli_fd && cl_valid)
         max = cli_fd;

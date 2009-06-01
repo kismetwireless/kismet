@@ -1039,9 +1039,6 @@ Kis_ChanDetails_Panel::~Kis_ChanDetails_Panel() {
 }
 
 void Kis_ChanDetails_Panel::NetClientConfigured(KisNetClient *in_cli, int in_recon) {
-	if (in_recon)
-		return;
-
 	if (in_cli->RegisterProtoHandler("CHANNEL", KCLI_CHANDETAILS_CHANNEL_FIELDS,
 									 ChanDetailsProtoCHANNEL, this) < 0) {
 		_MSG("Could not register CHANNEL protocol with remote server, connection "

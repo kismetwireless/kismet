@@ -42,20 +42,6 @@
 
 #define USE_PACKETSOURCE_BSDRT
 
-// Prism 802.11 headers from the openbsd Hermes drivers, even though they don't return
-// a valid linktype yet.  Structure lifted from bsd_airtools by dachb0den labs.
-typedef struct {
-	u_int16_t wi_status;
-	u_int16_t wi_ts0;
-	u_int16_t wi_ts1;
-	u_int8_t  wi_silence;
-	u_int8_t  wi_signal;
-	u_int8_t  wi_rate;
-	u_int8_t  wi_rx_flow;
-	u_int16_t wi_rsvd0;
-	u_int16_t wi_rsvd1;
-} bsd_80211_header;
-
 #define KDLT_BSD802_11			-100
 #define KDLT_IEEE802_11_RADIO	127
 

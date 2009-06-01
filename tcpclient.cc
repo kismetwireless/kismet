@@ -55,6 +55,8 @@ int TcpClient::Connect(const char *in_remotehost, short int in_port) {
         return -1;
     }
 
+	// fprintf(stderr, "debug - tcpcli socket() %d\n", cli_fd);
+
     // Bind local half
     memset(&local_sock, 0, sizeof(local_sock));
     local_sock.sin_family = AF_INET;
@@ -75,6 +77,7 @@ int TcpClient::Connect(const char *in_remotehost, short int in_port) {
         globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
 		*/
 		close(cli_fd);
+		cli_fd = -1;
         return -1;
     }
 
@@ -83,10 +86,7 @@ int TcpClient::Connect(const char *in_remotehost, short int in_port) {
     read_buf = new RingBuffer(CLI_RING_LEN);
     write_buf = new RingBuffer(CLI_RING_LEN);
 
-	/*
-    snprintf(errstr, 1024, "TcpClient connected to %s:%hd", in_remotehost, in_port);
-    globalreg->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
-	*/
+    // fprintf(stderr, "debug - TcpClient connected to %s:%hd %d\n", in_remotehost, in_port, cli_fd);
 
     return 1;
 }

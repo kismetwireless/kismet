@@ -130,8 +130,14 @@ unsigned int TcpServer::MergeSet(unsigned int in_max_fd,
         max = in_max_fd;
     }
 
-    // Set the server fd
-    FD_SET(serv_fd, out_rset);
+    // Set the server fd if we're not in spindown mode, if we are in spindown
+	// we shouldn't accept any new connections so shut down the listener socket
+	if (globalreg->spindown && serv_fd >= 0) {
+		close(serv_fd);
+		serv_fd = -1;
+	} else if (serv_fd >= 0) {
+		FD_SET(serv_fd, out_rset);
+	}
     
     for (unsigned int x = 0; x <= max; x++) {
         // Incoming read or our own clients

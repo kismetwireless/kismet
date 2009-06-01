@@ -79,6 +79,7 @@ public:
 	virtual int InjectCommand(string in_cmdtext);
 
 	virtual int Reconnect();
+	virtual int Timer();
 
 	virtual string FetchServerName() {
 		return server_name;
@@ -140,14 +141,13 @@ protected:
 	map<string, kcli_configured_proto_rec> handler_cb_map;
 
 	int reconnect;
-	int reconid;
+	int reconid, timerid;
 	
 	// Have we gotten configure data for everything?
 	int configured;
 
 	int cmdid;
-	time_t last_disconnect;
-	time_t time_connected;
+	time_t last_disconnect, time_connected, last_read;
 	int num_reconnects;
 
 	time_t last_time;

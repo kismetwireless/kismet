@@ -542,9 +542,6 @@ void KisPanelInterface::NetClientConfigure(KisNetClient *in_cli, int in_recon) {
 	warned_all_errors = warned_all_errors_consec = 0;
 	warned_cleared = 1;
 
-	if (in_recon)
-		return;
-
 	_MSG("Got configure event for client", MSGFLAG_INFO);
 
 	if (in_cli->RegisterProtoHandler("STATUS", "text,flags",
