@@ -447,8 +447,34 @@ void PacketSource_BSDRT::FetchRadioData(kis_packet *in_packet) {
 }
 
 int PacketSource_BSDRT::DatalinkType() {
-	// We do no checking here because we don't really care, the open test
-	// clears up any link problems or fails on its own.
+    char errstr[STATUS_MAX] = "";
+
+    datalink_type = pcap_datalink(pd);
+
+	// Known good pcap generic header types
+	if (datalink_type == DLT_PRISM_HEADER ||
+		datalink_type == DLT_IEEE802_11_RADIO ||
+		datalink_type == DLT_IEEE802_11_RADIO_AVS ||
+		datalink_type == DLT_IEEE802_11 ||
+		datalink_type == DLT_PPI)
+		return 1;
+
+    // Blow up if we're not valid 802.11 headers
+	// Need to not blow up on en10mb?  Override.
+    if (datalink_type == DLT_EN10MB) {
+        snprintf(errstr, STATUS_MAX, "pcap reported netlink type 1 (EN10MB) for %s.  "
+                 "This probably means you're not in RFMON mode or your drivers are "
+                 "reporting a bad value.  Make sure you have the correct drivers "
+                 "and that entering monitor mode succeeded.", interface.c_str());
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
+		return 0;
+    } else {
+        snprintf(errstr, STATUS_MAX, "Unknown link type %d reported.  Continuing on "
+                 "blindly and hoping we get something useful...  This is ALMOST "
+				 "CERTIANLY NOT GOING TO WORK RIGHT", datalink_type);
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
+    }
+
 	return 1;
 }
 
