@@ -1772,7 +1772,7 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 	// Not an 802.11 frame type we known how to track, we'll just skip
 	// it, too
 	if (packinfo->corrupt || packinfo->type == packet_noise ||
-		packinfo->type == packet_unknown || 
+		in_pack->error || packinfo->type == packet_unknown || 
 		packinfo->subtype == packet_sub_unknown) {
 		num_errorpackets++;
 		return 0;
