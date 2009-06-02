@@ -864,7 +864,9 @@ int Kis_Main_Panel::MouseEvent(MEVENT *mevent) {
 		connect_enable = 0;
 	}
 
-	if (kpinterface->FetchServerFramework() == NULL) {
+	if (kpinterface->FetchServerFramework() == NULL ||
+		(kpinterface->FetchServerFramework() != NULL &&
+		 kpinterface->FetchServerFramework()->Valid() == 0)) {
 		menu->EnableMenuItem(mi_startserver);
 	} else {
 		menu->DisableMenuItem(mi_startserver);

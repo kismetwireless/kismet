@@ -32,7 +32,6 @@
 
 #include "globalregistry.h"
 #include "timetracker.h"
-#include "gpsdclient.h"
 #include "packetsource.h"
 #include "pollable.h"
 #include "ipc_remote.h"

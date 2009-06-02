@@ -403,6 +403,22 @@ http://www.kismetwireless.net
       wireless-git development kernel and should be present in the
       compat-wireless packages.
 
+    Nokia ITT (Linux)
+
+      For any chance of Kismet working on the Nokia ITT, the scan interval
+      must be set to zero in the Nokia system control panel, connectivity
+      section.  It should be disconnected from any network, but wireless
+      must be turned on.
+
+      The Nokia drivers like to report bunk packets.  Most of these can be
+      filtered with validatefcs, but it appears to still cause bunk data
+      networks.
+
+      The Nokia device does not autodetect properly, a driver type of
+      'nokia770', 'nokia800', 'nokia810', or 'nokiaitt' must be set.
+      'nokiaitt' is a generic source which should work on any Nokia ITT
+      tablet.
+
     Orinoco (Linux)
 
       Due to problems in monitor mode with newer firmwares, the Orinoco kernel
@@ -484,6 +500,7 @@ http://www.kismetwireless.net
       nokia770          Conexant-based driver in Nokia Maemo tablets
       nokia800          Alias for nokia770
       nokia810          Alias for nokia770
+      nokiaitt          Alias for nokia770
 
       pcapfile          Pcap-formatted previously recorded file
       drone             Remote Kismet packet capture, source options

@@ -2910,7 +2910,7 @@ void Kis_IntGraph::DrawComponent() {
 		int dvsize = data_vec[x].data->size();
 
 		if (inter_x) {
-			xmod = ceilf((float) dvsize / (float) gw);
+			xmod = (int) ceilf((float) dvsize / (float) gw);
 			xgroup = xmod * 2;
 		}
 
@@ -2926,7 +2926,7 @@ void Kis_IntGraph::DrawComponent() {
 			if (gw < dvsize) {
 				// R is the range of samples we tied together to 
 				// interpolate the graph to fit
-				r = ((float) gx / (float) gw) * (float) dvsize;
+				r = (int) ((float) gx / (float) gw) * (float) dvsize;
 
 				// Determine the local max across our range
 				for (int pos = -1 * (xgroup / 2); pos < (xgroup / 2); pos++) {
@@ -2979,7 +2979,7 @@ void Kis_IntGraph::DrawComponent() {
 			}
 
 			// Scale it to the height of the graph
-			py = (float) gh * adapted;
+			py = (int) ((float) gh * adapted);
 
 			// Set the color once
 			wattrset(window, data_vec[x].colorval);
@@ -3000,11 +3000,11 @@ void Kis_IntGraph::DrawComponent() {
 			}
 		}
 
-		int rwidth = kismin(2, (1.0f / dvsize) * gw);
+		int rwidth = (int) kismin(2, (1.0f / dvsize) * gw);
 		for (int dvx = 0; dvx < dvsize && inter_x == 0; dvx++) {
 			int py = 0;
 			int max = (*(data_vec)[x].data)[dvx];
-			int drawx = ((float) dvx / dvsize) * gw;
+			int drawx = (int) ((float) dvx / dvsize) * gw;
 
 			// If we're negative, do the math differently
 			// Adapt the group max to our scale
@@ -3019,7 +3019,7 @@ void Kis_IntGraph::DrawComponent() {
 			}
 
 			// Scale it to the height of the graph
-			py = (float) gh * adapted;
+			py = (int) ((float) gh * adapted);
 
 			// Set the color once
 			wattrset(window, data_vec[x].colorval);
@@ -3081,8 +3081,8 @@ void Kis_IntGraph::DrawComponent() {
 	wattrset(window, color_fw);
 	for (unsigned int x = 0; x < label_x.size() && label_x_graphref >= 0; x++) {
 		// GX within the # of samples on the graph
-		int lgx = ((float) gw / data_vec[label_x_graphref].data->size()) * 
-			label_x[x].position;
+		int lgx = (int) (((float) gw / data_vec[label_x_graphref].data->size()) * 
+			label_x[x].position);
 		for (unsigned int y = 0; y < label_x[x].label.size(); y++) {
 			mvwaddch(window, gzero + y + 1, sx + lgx + gxofft, label_x[x].label[y]);
 		}

@@ -66,7 +66,8 @@ PacketSource_Wext::PacketSource_Wext(GlobalRegistry *in_globalreg,
 	nlhandle = nlcache = nlfamily = NULL;
 
 	// Type derived by our higher parent
-	if (type == "nokia770") {
+	if (type == "nokia770" || type == "nokia800" || 
+		type == "nokia810" || type == "nokiaitt") {
 		SetValidateCRC(1);
 	}
 
@@ -250,6 +251,7 @@ int PacketSource_Wext::RegisterSources(Packetsourcetracker *tracker) {
 	tracker->RegisterPacketProto("nokia770", this, "IEEE80211b", 1);
 	tracker->RegisterPacketProto("nokia800", this, "IEEE80211b", 1);
 	tracker->RegisterPacketProto("nokia810", this, "IEEE80211b", 1);
+	tracker->RegisterPacketProto("nokiaitt", this, "IEEE80211b", 1);
 	tracker->RegisterPacketProto("orinoco", this, "IEEE80211b", 1);
 	tracker->RegisterPacketProto("orinoco_cs", this, "IEEE80211b", 1);
 	tracker->RegisterPacketProto("prism54", this, "IEEE80211b", 1);

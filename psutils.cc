@@ -34,7 +34,7 @@ int FindProcess(string in_proc, string in_option) {
 	struct dirent *pid;
 	FILE *pfile;
 	string path, targ;
-	char c;
+	int c;
 	vector<string> parsed;
 
 	if ((procdir = opendir("/proc")) == NULL)
