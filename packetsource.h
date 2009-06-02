@@ -220,6 +220,12 @@ public:
 				 interface + "'", MSGFLAG_INFO);
 		}
 
+		if (FetchOpt("fcs", in_opts) == "true") {
+			_MSG("Forcing assumption that source '" + interface + "' contains "
+				 "four trailing bytes of FCS checksum data", MSGFLAG_INFO);
+			SetFCSBytes(4);
+		}
+
 		return 1;
 	}
 

@@ -69,6 +69,7 @@ PacketSource_Wext::PacketSource_Wext(GlobalRegistry *in_globalreg,
 	if (type == "nokia770" || type == "nokia800" || 
 		type == "nokia810" || type == "nokiaitt") {
 		SetValidateCRC(1);
+		SetFCSBytes(4);
 	}
 
 	// Catch warning states

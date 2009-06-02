@@ -337,6 +337,8 @@ int PacketSource_Pcap::Eight2KisPack(kis_packet *packet, kis_datachunk *linkchun
 
 		packet->insert(_PCM(PACK_COMP_FCSBYTES), fcschunk);
 
+		// fprintf(stderr, "debug - dot11 to kis got fcs bytes\n");
+
 		// Compare it and flag the packet
 		uint32_t calc_crc =
 			crc32_le_80211(globalreg->crc32_table, eight11chunk->data, 
@@ -345,6 +347,7 @@ int PacketSource_Pcap::Eight2KisPack(kis_packet *packet, kis_datachunk *linkchun
 		if (memcmp(fcschunk->fcsp, &calc_crc, 4)) {
 			packet->error = 1;
 			fcschunk->fcsvalid = 0;
+			// fprintf(stderr, "debug - dot11 to kis, fcs invalid\n");
 		} else {
 			fcschunk->fcsvalid = 1;
 		}
@@ -1014,7 +1017,6 @@ int PacketSource_Pcapfile::OpenSource() {
 	if (DatalinkType() < 0)
 		return -1;
 
-	fcsbytes = 0;
 	genericparms.weak_dissect = 1;
 	
 	return 1;

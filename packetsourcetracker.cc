@@ -1096,12 +1096,6 @@ int Packetsourcetracker::AddPacketSource(string in_source,
 		pstsource->reopen = 0;
 	}
 
-	if (FetchOpt("validatefcs", &options) == "true") {
-		_MSG("Will attempt to validate FCS on source '" + interface + "'",
-			 MSGFLAG_INFO);
-		pstsource->strong_source->SetValidateCRC(1);
-	}
-
 	// Add the created strong source to our list
 	pstsource->source_id = next_source_id;
 	packetsource_map[pstsource->source_id] = pstsource;

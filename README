@@ -281,6 +281,14 @@ http://www.kismetwireless.net
                          configured to report invalid packets, this should
                          be specified to prevent Kismet from processing
                          broken packets.
+     fcs=true|false     Force handling of FCS bytes on a packet source.
+                         Default is "false", which implies "native FCS
+                         handling".  Packet sources which include per-packet
+                         headers like radiotap or PPI will ignore this value
+                         as the FCS is encoded in the radio header.  Packet
+                         sources such as pcapfile, reading raw 802.11 pcap
+                         files with no headers, may need this turned on for
+                         proper behavior.
 
     Example sources (these are given as config file parameters, however they
     will work equally well as command-line options, ie "-c wlan0"):
