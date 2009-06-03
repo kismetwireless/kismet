@@ -333,11 +333,19 @@ public:
 	virtual void DrawPanel();
 	virtual void ButtonAction(Kis_Panel_Component *in_button);
 
+	virtual void Proto_PLUGIN(CLIPROTO_CB_PARMS);
+	virtual void Proto_PLUGIN_complete();
+
 protected:
 	Kis_Scrollable_Table *pluglist;
-	Kis_Free_Text *helptext;
+	Kis_Scrollable_Table *spluglist;
+	Kis_Free_Text *helptext, *shelptext;
 	Kis_Button *okbutton;
 	Kis_Panel_Packbox *vbox, *bbox;
+
+	int net_plugin_ref;
+
+	int srv_plugin_info;
 
 	vector<panel_plugin_meta *> *plugins;
 };

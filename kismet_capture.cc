@@ -58,8 +58,6 @@
 #include "kis_netframe.h"
 #include "kis_droneframe.h"
 
-#include "gpswrapper.h"
-
 #include "ipc_remote.h"
 
 #ifdef HAVE_CAPABILITY

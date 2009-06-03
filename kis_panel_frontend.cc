@@ -388,10 +388,10 @@ void KisPanelInterface::Shutdown() {
 
 	Remove_All_Netcli_Conf_CB(KisPanelClient_Configured);
 
-	Remove_AllNetcli_ProtoHandler("STATUS", KisPanelClient_STATUS, this);
-	Remove_AllNetcli_ProtoHandler("SOURCE", KisPanelClient_SOURCE, this);
-	Remove_AllNetcli_ProtoHandler("INFO", KisPanelClient_INFO, this);
-	Remove_AllNetcli_ProtoHandler("ALERT", KisPanelClient_ALERT, this);
+	Remove_All_Netcli_ProtoHandler("STATUS", KisPanelClient_STATUS, this);
+	Remove_All_Netcli_ProtoHandler("SOURCE", KisPanelClient_SOURCE, this);
+	Remove_All_Netcli_ProtoHandler("INFO", KisPanelClient_INFO, this);
+	Remove_All_Netcli_ProtoHandler("ALERT", KisPanelClient_ALERT, this);
 
 	// Destroy panels in this destructor, if they get destroyed in the
 	// parent destructor sadness happens
@@ -573,13 +573,20 @@ void KisPanelInterface::NetClientConfigure(KisNetClient *in_cli, int in_recon) {
 	}
 }
 
-int KisPanelInterface::Remove_AllNetcli_ProtoHandler(string in_proto,
+int KisPanelInterface::Remove_All_Netcli_ProtoHandler(string in_proto,
 													 CliProto_Callback in_cb,
 													 void *in_aux) {
 	if (network_client != NULL)
 		network_client->RemoveProtoHandler(in_proto, in_cb, in_aux);
 
 	return 0;
+}
+
+void KisPanelInterface::Remove_All_Netcli_Cmd_CB(CliCmd_Callback in_cb, void *in_aux) {
+	if (network_client != NULL)
+		network_client->RemoveAllCmdCallbacks(in_cb, in_aux);
+
+	return;
 }
 
 void KisPanelInterface::RaiseAlert(string in_title, string in_text) {

@@ -86,6 +86,10 @@ public:
 	virtual int Add_NetCli_AddCli_CB(KPI_AddCli_Callback in_cb, void *in_aux);
 	virtual void Remove_Netcli_AddCli_CB(int in_cbref);
 	virtual void Remove_All_Netcli_Conf_CB(CliConf_Callback in_cb);
+	virtual void Remove_All_Netcli_Cmd_CB(CliCmd_Callback in_cb, void *in_aux);
+	virtual int Remove_All_Netcli_ProtoHandler(string in_proto,
+											   CliProto_Callback in_cb,
+											   void *in_aux);
 
 	// Fetch the client
 	KisNetClient *FetchNetClient() { return network_client; }
@@ -99,12 +103,6 @@ public:
 	
 	// Configured client callback
 	virtual void NetClientConfigure(KisNetClient *in_cli, int in_recon);
-
-	// Callthroughs to operate on the entire list of clients, so that panels
-	// and, via them, widgets, can manipulate protocols, etc
-	virtual int Remove_AllNetcli_ProtoHandler(string in_proto,
-											  CliProto_Callback in_cb,
-											  void *in_aux);
 
 	// Bring up a modal alert (may be queued if an alert is already displayed)
 	virtual void RaiseAlert(string in_title, string in_text);

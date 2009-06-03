@@ -36,6 +36,10 @@ typedef void (*CliProto_Callback)(CLIPROTO_CB_PARMS);
 	int recon, void *auxptr
 typedef void (*CliConf_Callback)(CLICONF_CB_PARMS);
 
+#define CLICMD_CB_PARMS		GlobalRegistry *globalreg, KisNetClient *kcli, \
+	int valid, string response, void *auxptr
+typedef void (*CliCmd_Callback)(CLICMD_CB_PARMS);
+
 class KisNetClient : public ClientFramework {
 public:
 	KisNetClient();
@@ -67,7 +71,8 @@ public:
 
 	// Register a handler for a protocol.  There can be multiple handlers.
 	virtual int RegisterProtoHandler(string in_proto, string in_fieldlist,
-									 CliProto_Callback in_cb, void *in_aux);
+									 CliProto_Callback in_cb, void *in_aux,
+									 CliCmd_Callback in_cmd_complete = NULL);
 	virtual void RemoveProtoHandler(string in_proto, CliProto_Callback in_cb,
 									void *in_aux);
 
@@ -76,7 +81,14 @@ public:
 	virtual int FetchProtoCapabilities(string in_proto, 
 									   map<string, int> *ret_fields);
 
-	virtual int InjectCommand(string in_cmdtext);
+	// Inject a command, with optional callbacks that will trigger when it 
+	// completes with a success or fail
+	virtual int InjectCommand(string in_cmdtext, CliCmd_Callback in_cb = NULL,
+							  void *in_aux = NULL);
+	// Cancel all pending command callbacks referencing a specific cb/ptr
+	// (used when shutting down a receiver to make sure no existing callbacks
+	// can be triggered after the rx is destroyed)
+	virtual void RemoveAllCmdCallbacks(CliCmd_Callback in_cb, void *in_aux);
 
 	virtual int Reconnect();
 	virtual int Timer();
@@ -125,6 +137,11 @@ public:
 		int usecount; 
 	};
 
+	struct kcli_cmdcb_rec {
+		void *auxptr;
+		CliCmd_Callback callback;
+	};
+
 protected:
 	TcpClient *tcpcli;
 
@@ -139,6 +156,9 @@ protected:
 
 	// Map of protocols to handlers
 	map<string, kcli_configured_proto_rec> handler_cb_map;
+
+	// Map of command callback events
+	map<int, kcli_cmdcb_rec> command_cb_map;
 
 	int reconnect;
 	int reconid, timerid;

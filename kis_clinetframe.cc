@@ -167,7 +167,8 @@ void KisNetClient::RemoveConfCallback(CliConf_Callback in_cb) {
 }
 
 int KisNetClient::RegisterProtoHandler(string in_proto, string in_fieldlist,
-									   CliProto_Callback in_cb, void *in_aux) {
+									   CliProto_Callback in_cb, void *in_aux,
+									   CliCmd_Callback in_cmd_complete) {
 	in_proto = StrLower(in_proto);
 
 	/*
@@ -241,7 +242,8 @@ int KisNetClient::RegisterProtoHandler(string in_proto, string in_fieldlist,
 	}
 
 	// Send the command
-	InjectCommand("ENABLE " + in_proto + " " + combo_fieldlist);
+	InjectCommand("ENABLE " + in_proto + " " + combo_fieldlist,
+				  in_cmd_complete, in_aux);
 
 	handler_cb_map[in_proto].fields = combo_fieldlist;
 	handler_cb_map[in_proto].abs_to_conf_fnum_map = a_l_map;
@@ -309,7 +311,8 @@ int KisNetClient::FetchProtoCapabilities(string in_proto,
 	return 1;
 }
 
-int KisNetClient::InjectCommand(string in_cmdtext) {
+int KisNetClient::InjectCommand(string in_cmdtext, CliCmd_Callback in_cb,
+								void *in_aux) {
 	if (tcpcli->Valid() == 0)
 		return 0;
 
@@ -326,7 +329,25 @@ int KisNetClient::InjectCommand(string in_cmdtext) {
 		return -1;
 	}
 
+	if (in_cb != NULL) {
+		kcli_cmdcb_rec cbr;
+		cbr.auxptr = in_aux;
+		cbr.callback = in_cb;
+
+		command_cb_map[curid] = cbr;
+	}
+
 	return curid;
+}
+
+void KisNetClient::RemoveAllCmdCallbacks(CliCmd_Callback in_cb, void *in_aux) {
+	for (map<int, kcli_cmdcb_rec>::iterator x = command_cb_map.begin();
+		 x != command_cb_map.end(); ++x) {
+		if (x->second.auxptr == in_aux && x->second.callback == in_cb) {
+			command_cb_map.erase(x);
+			x = command_cb_map.begin();
+		}
+	}
 }
 
 int KisNetClient::Timer() {
@@ -560,12 +581,28 @@ int KisNetClient::ParseData() {
 			// Decrement our configure count
 			configured--;
 
-		} else if (!strncmp(header, "ERROR", 64)) {
-			// Nothing smart to do here yet, it ought to handle callbacks to
-			// command req's at some point
+		} else if (!strncmp(header, "ERROR", 64) && net_toks.size() >= 2) {
+			int cmdnum;
+			if (sscanf(net_toks[0].word.c_str(), "%d", &cmdnum) != 0) {
+				map<int, kcli_cmdcb_rec>::iterator cbi;
+
+				if ((cbi = command_cb_map.find(cmdnum)) != command_cb_map.end()) {
+					(*(cbi->second.callback))(globalreg, this, 0, net_toks[1].word,
+											  cbi->second.auxptr);
+					command_cb_map.erase(cbi);
+				}
+			}
 		} else if (!strncmp(header, "ACK", 64)) {
-			// Nothing smart to do here yet, it ought to handle callbacks to
-			// command req's at some point
+			int cmdnum;
+			if (sscanf(net_toks[0].word.c_str(), "%d", &cmdnum) != 0) {
+				map<int, kcli_cmdcb_rec>::iterator cbi;
+
+				if ((cbi = command_cb_map.find(cmdnum)) != command_cb_map.end()) {
+					(*(cbi->second.callback))(globalreg, this, 1, net_toks[1].word,
+											  cbi->second.auxptr);
+					command_cb_map.erase(cbi);
+				}
+			}
 		} else if (!strncmp(header, "TIME", 64)) {
 			// Graceful handling of junk time proto, set us to 0.
 			int tint;

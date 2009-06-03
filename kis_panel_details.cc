@@ -1034,7 +1034,8 @@ Kis_ChanDetails_Panel::Kis_ChanDetails_Panel(GlobalRegistry *in_globalreg,
 Kis_ChanDetails_Panel::~Kis_ChanDetails_Panel() {
 	kpinterface->Remove_Netcli_AddCli_CB(addref);
 	kpinterface->Remove_All_Netcli_Conf_CB(ChanDetailsCliConfigured);
-	kpinterface->Remove_AllNetcli_ProtoHandler("CHANNEL", ChanDetailsProtoCHANNEL, this);
+	kpinterface->Remove_All_Netcli_ProtoHandler("CHANNEL", 
+												ChanDetailsProtoCHANNEL, this);
 	globalreg->timetracker->RemoveTimer(grapheventid);
 }
 

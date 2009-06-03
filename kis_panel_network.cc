@@ -526,11 +526,11 @@ Kis_Netlist::~Kis_Netlist() {
 	kpinterface->Remove_Netcli_AddCli_CB(addref);
 	kpinterface->Remove_All_Netcli_Conf_CB(KisNetlist_Configured);
 	// Remove the callback the hard way from anyone still using it
-	kpinterface->Remove_AllNetcli_ProtoHandler("BSSID", KisNetlist_BSSID, this);
-	kpinterface->Remove_AllNetcli_ProtoHandler("SSID", KisNetlist_SSID, this);
-	kpinterface->Remove_AllNetcli_ProtoHandler("CLIENT", KisNetlist_CLIENT, this);
-	kpinterface->Remove_AllNetcli_ProtoHandler("BSSIDSRC", KisNetlist_BSSIDSRC, this);
-	kpinterface->Remove_AllNetcli_ProtoHandler("CLISRC", KisNetlist_CLISRC, this);
+	kpinterface->Remove_All_Netcli_ProtoHandler("BSSID", KisNetlist_BSSID, this);
+	kpinterface->Remove_All_Netcli_ProtoHandler("SSID", KisNetlist_SSID, this);
+	kpinterface->Remove_All_Netcli_ProtoHandler("CLIENT", KisNetlist_CLIENT, this);
+	kpinterface->Remove_All_Netcli_ProtoHandler("BSSIDSRC", KisNetlist_BSSIDSRC, this);
+	kpinterface->Remove_All_Netcli_ProtoHandler("CLISRC", KisNetlist_CLISRC, this);
 	// Remove the timer
 	globalreg->timetracker->RemoveTimer(updateref);
 	
@@ -3193,8 +3193,8 @@ Kis_Info_Bits::Kis_Info_Bits(GlobalRegistry *in_globalreg, Kis_Panel *in_panel) 
 Kis_Info_Bits::~Kis_Info_Bits() {
 	kpinterface->Remove_Netcli_AddCli_CB(addref);
 	kpinterface->Remove_All_Netcli_Conf_CB(KisInfobits_Configured);
-	kpinterface->Remove_AllNetcli_ProtoHandler("TIME", KisInfobits_TIME, this);
-	kpinterface->Remove_AllNetcli_ProtoHandler("INFO", KisInfobits_INFO, this);
+	kpinterface->Remove_All_Netcli_ProtoHandler("TIME", KisInfobits_TIME, this);
+	kpinterface->Remove_All_Netcli_ProtoHandler("INFO", KisInfobits_INFO, this);
 }
 
 int Kis_Info_Bits::UpdatePrefs() {

@@ -343,12 +343,12 @@ Kis_Main_Panel::~Kis_Main_Panel() {
 	globalreg->messagebus->RemoveClient(statuscli);
 	kpinterface->Remove_Netcli_AddCli_CB(addref);
 	kpinterface->Remove_All_Netcli_Conf_CB(KisMainPanel_Configured);
-	kpinterface->Remove_AllNetcli_ProtoHandler("INFO",
-											   KisMainPanel_INFO, this);
-	kpinterface->Remove_AllNetcli_ProtoHandler("GPS",
-											   KisMainPanel_GPS, this);
-	kpinterface->Remove_AllNetcli_ProtoHandler("ALERT",
-											   KisMainPanel_ALERT, this);
+	kpinterface->Remove_All_Netcli_ProtoHandler("INFO",
+												KisMainPanel_INFO, this);
+	kpinterface->Remove_All_Netcli_ProtoHandler("GPS",
+												KisMainPanel_GPS, this);
+	kpinterface->Remove_All_Netcli_ProtoHandler("ALERT",
+												KisMainPanel_ALERT, this);
 }
 
 void kmp_prompt_startserver(KIS_PROMPT_CB_PARMS) {
@@ -2037,16 +2037,44 @@ int PluginPickerButtonCB(COMPONENT_CALLBACK_PARMS) {
 	return 1;
 }
 
+void kpp_proto_PLUGIN_complete(CLICMD_CB_PARMS) {
+	((Kis_Plugin_Picker *) auxptr)->Proto_PLUGIN_complete();
+}
+
+void kpp_proto_PLUGIN(CLIPROTO_CB_PARMS) {
+	((Kis_Plugin_Picker *) auxptr)->Proto_PLUGIN(globalreg, proto_string,
+												 proto_parsed, srccli, auxptr);
+}
+
+void kpp_netclinetconfigured(CLICONF_CB_PARMS) {
+	// Register the plugin handler with an ENABLE complete to notify us when we've
+	// finished getting our list of initial plugins
+	if (kcli->RegisterProtoHandler("PLUGIN", "name,version,description",
+								   kpp_proto_PLUGIN, auxptr, 
+								   kpp_proto_PLUGIN_complete) < 0) {
+		_MSG("Could not register PLUGIN protocol with remote server, "
+			 "connection will be terminated.", MSGFLAG_ERROR);
+		kcli->KillConnection();
+	}
+}
+
+void kpp_netcliadd(KPI_ADDCLI_CB_PARMS) {
+	if (add) 
+		netcli->AddConfCallback(kpp_netclinetconfigured, 1, auxptr);
+}
+
 Kis_Plugin_Picker::Kis_Plugin_Picker(GlobalRegistry *in_globalreg, 
 									 KisPanelInterface *in_intf) :
 	Kis_Panel(in_globalreg, in_intf) {
 
 	pluglist = new Kis_Scrollable_Table(globalreg, this);
 
+	srv_plugin_info = 0;
+
 	vector<Kis_Scrollable_Table::title_data> titles;
 	Kis_Scrollable_Table::title_data t;
 	t.width = 40;
-	t.title = "Plugin";
+	t.title = "Client Plugin";
 	t.alignment = 0;
 	titles.push_back(t);
 	t.width = 9;
@@ -2060,9 +2088,52 @@ Kis_Plugin_Picker::Kis_Plugin_Picker(GlobalRegistry *in_globalreg,
 	pluglist->AddTitles(titles);
 	pluglist->SetCallback(COMPONENT_CBTYPE_ACTIVATED, PluginPickerButtonCB, this);
 	pluglist->Show();
+	pluglist->SetPreferredSize(0, 10);
 	AddComponentVec(pluglist, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
 							   KIS_PANEL_COMP_TAB));
 
+
+	vector<string> ht;
+
+	helptext = new Kis_Free_Text(globalreg, this);
+	helptext->Show();
+	ht.push_back("For more information about Kismet UI plugins see the README");
+	ht.push_back("Kismet UI Plugins:");
+	helptext->SetText(ht);
+	AddComponentVec(helptext, (KIS_PANEL_COMP_DRAW));
+
+	ht.clear();
+	shelptext = new Kis_Free_Text(globalreg, this);
+	shelptext->Show();
+	ht.push_back("");
+	ht.push_back("Kismet Server Plugins:");
+	shelptext->SetText(ht);
+	AddComponentVec(shelptext, (KIS_PANEL_COMP_DRAW));
+
+	spluglist = new Kis_Scrollable_Table(globalreg, this);
+
+	titles.clear();
+
+	t.width = 20;
+	t.title = "Server Plugin";
+	t.alignment = 0;
+	titles.push_back(t);
+
+	t.width = 9;
+	t.title = "Version";
+	t.alignment = 0;
+	titles.push_back(t);
+
+	t.width = 0;
+	t.title = "Description";
+	t.alignment = 0;
+	titles.push_back(t);
+
+	spluglist->AddTitles(titles);
+	spluglist->Show();
+	AddComponentVec(spluglist, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+							   KIS_PANEL_COMP_TAB));
+	spluglist->SetPreferredSize(0, 4);
 
 	okbutton = new Kis_Button(globalreg, this);
 	okbutton->SetText("Close");
@@ -2071,14 +2142,6 @@ Kis_Plugin_Picker::Kis_Plugin_Picker(GlobalRegistry *in_globalreg,
 	AddComponentVec(okbutton, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
 							   KIS_PANEL_COMP_TAB));
 
-	helptext = new Kis_Free_Text(globalreg, this);
-	helptext->Show();
-	vector<string> ht;
-	ht.push_back("Select plugins to load at startup");
-	ht.push_back("To unload a plugin, disable auto-loading for that plugin");
-	ht.push_back("and restart the client (quit and run it again)");
-	helptext->SetText(ht);
-	AddComponentVec(helptext, (KIS_PANEL_COMP_DRAW));
 
 	vbox = new Kis_Panel_Packbox(globalreg, this);
 	vbox->SetPackV();
@@ -2086,17 +2149,37 @@ Kis_Plugin_Picker::Kis_Plugin_Picker(GlobalRegistry *in_globalreg,
 	vbox->SetSpacing(0);
 	vbox->SetCenter(0);
 	AddComponentVec(vbox, KIS_PANEL_COMP_DRAW);
-	vbox->Pack_End(pluglist, 1, 0);
+
 	vbox->Pack_End(helptext, 0, 0);
+	vbox->Pack_End(pluglist, 1, 0);
+
+	vbox->Pack_End(shelptext, 0, 0);
+	vbox->Pack_End(spluglist, 1, 0);
 	vbox->Pack_End(okbutton, 0, 0);
+
 	vbox->Show();
 
 	plugins = kpinterface->FetchPluginVec();
 
+	vector<string> td;
+
+	if (kpinterface->FetchNetClient() == NULL) {
+		td.push_back("");
+		td.push_back("");
+		td.push_back("No server connection");
+		spluglist->ReplaceRow(0, td);
+	} else {
+		td.push_back("");
+		td.push_back("");
+		td.push_back("Loading list of Server plugins...");
+		spluglist->ReplaceRow(0, td);
+	}
+
 	for (unsigned int x = 0; x < plugins->size(); x++) {
-		vector<string> td;
 		vector<string> prefs = kpinterface->prefs->FetchOptVec("plugin_autoload");
 		string en = "";
+
+		td.clear();
 
 		td.push_back((*plugins)[x]->objectname);
 		td.push_back("no");
@@ -2131,10 +2214,43 @@ Kis_Plugin_Picker::Kis_Plugin_Picker(GlobalRegistry *in_globalreg,
 
 	SetTitle("");
 
-	Position(WIN_CENTER(16, 70));
+	net_plugin_ref = 
+		kpinterface->Add_NetCli_AddCli_CB(kpp_netcliadd, (void *) this);
+
+	Position(WIN_CENTER(20, 70));
 }
 
 Kis_Plugin_Picker::~Kis_Plugin_Picker() {
+	kpinterface->Remove_Netcli_AddCli_CB(net_plugin_ref);
+	kpinterface->Remove_All_Netcli_Conf_CB(kpp_netclinetconfigured);
+	kpinterface->Remove_All_Netcli_ProtoHandler("PLUGIN", kpp_proto_PLUGIN, this);
+	kpinterface->Remove_All_Netcli_Cmd_CB(kpp_proto_PLUGIN_complete, this);
+}
+
+void Kis_Plugin_Picker::Proto_PLUGIN(CLIPROTO_CB_PARMS) {
+	// Bad kluge; plugin only sends on enable, but this is a bad assumption to
+	// make.  We'll make it anyway.
+	if (proto_parsed->size() < 3)
+		return;
+
+	vector<string> td;
+
+	td.push_back((*proto_parsed)[0].word);
+	td.push_back((*proto_parsed)[1].word);
+	td.push_back((*proto_parsed)[2].word);
+
+	spluglist->ReplaceRow(srv_plugin_info++, td);
+}
+
+void Kis_Plugin_Picker::Proto_PLUGIN_complete() {
+	// Kick "no plugins" text on the server plugin table if we don't have
+	// any, we only et here once ENABLE is done sending our initial *PLUGIN list
+	if (srv_plugin_info == 0) {
+		vector<string> td;
+		td.push_back("");
+		td.push_back("");
+		td.push_back("No plugins loaded");
+	}
 }
 
 void Kis_Plugin_Picker::DrawPanel() {
@@ -2692,7 +2808,7 @@ Kis_Gps_Panel::Kis_Gps_Panel(GlobalRegistry *in_globalreg,
 Kis_Gps_Panel::~Kis_Gps_Panel() {
 	kpinterface->Remove_Netcli_AddCli_CB(addref);
 	kpinterface->Remove_All_Netcli_Conf_CB(GpsCliConfigured);
-	kpinterface->Remove_AllNetcli_ProtoHandler("GPS", GpsProtoGPS, this);
+	kpinterface->Remove_All_Netcli_ProtoHandler("GPS", GpsProtoGPS, this);
 }
 
 void Kis_Gps_Panel::ButtonAction(Kis_Panel_Component *in_button) {
