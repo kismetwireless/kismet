@@ -276,7 +276,6 @@ int main(int argc, char *argv[], char *envp[]) {
     signal(SIGQUIT, CatchShutdown);
 	signal(SIGCHLD, CatchChild);
     signal(SIGPIPE, SIG_IGN);
-	signal(SIGWINCH, CatchWinch);
 
 	// Start filling in key components of the globalregistry
 	globalregistry = new GlobalRegistry;
@@ -349,6 +348,8 @@ int main(int argc, char *argv[], char *envp[]) {
 	KisNetClient *kcli = new KisNetClient(globalregistry);
 	kcli->Connect("tcp://localhost:2501", 1);
 #endif
+
+	signal(SIGWINCH, CatchWinch);
 
 	globalregistry->messagebus->InjectMessage("Welcome to the Kismet Newcore "
 											  "Client... Press '`' or '~' to "
