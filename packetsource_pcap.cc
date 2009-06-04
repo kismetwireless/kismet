@@ -741,6 +741,14 @@ int PacketSource_Pcap::Radiotap2KisPack(kis_packet *packet, kis_datachunk *linkc
         }
     }
 
+	if (EXTRACT_LE_16BITS(&(hdr->it_len)) + fcs_cut > (int) linkchunk->length) {
+		_MSG("Pcap Radiotap converter got corrupted Radiotap frame, not "
+			 "long enough for radiotap header plus indicated FCS", MSGFLAG_ERROR);
+		delete eight11chunk;
+		delete radioheader;
+        return 0;
+	}
+
 	eight11chunk->length = linkchunk->length - 
 		EXTRACT_LE_16BITS(&(hdr->it_len)) - fcs_cut;
 	eight11chunk->data = new uint8_t[eight11chunk->length];
