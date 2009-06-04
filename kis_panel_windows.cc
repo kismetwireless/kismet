@@ -2098,6 +2098,7 @@ Kis_Plugin_Picker::Kis_Plugin_Picker(GlobalRegistry *in_globalreg,
 	helptext = new Kis_Free_Text(globalreg, this);
 	helptext->Show();
 	ht.push_back("For more information about Kismet UI plugins see the README");
+	ht.push_back("Select a plugin and press enter to toggle loaded/unloaded");
 	ht.push_back("Kismet UI Plugins:");
 	helptext->SetText(ht);
 	AddComponentVec(helptext, (KIS_PANEL_COMP_DRAW));
@@ -2106,6 +2107,7 @@ Kis_Plugin_Picker::Kis_Plugin_Picker(GlobalRegistry *in_globalreg,
 	shelptext = new Kis_Free_Text(globalreg, this);
 	shelptext->Show();
 	ht.push_back("");
+	ht.push_back("Server plugins cannot currently be loaded/unloaded from the UI");
 	ht.push_back("Kismet Server Plugins:");
 	shelptext->SetText(ht);
 	AddComponentVec(shelptext, (KIS_PANEL_COMP_DRAW));

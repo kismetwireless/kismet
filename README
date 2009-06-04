@@ -587,11 +587,17 @@ http://www.kismetwireless.net
     settings directory (~/.kismet/client_plugins).
 
     The Kismet UI provides mechanisms for loading plugins (and specifying
-    plugins to be loaded automatically on startup) via the Plugins menu.
+    plugins to be loaded automatically on startup) via the Plugins menu item.
 
     Once a Kismet UI plugin is loaded, it cannot be unloaded.  To unload a
     Kismet plugin, go to the Plugins window, configure the plugin to not
-    load on start, and restart Kismet.
+    load on start, and restart Kismet.  To configure plugin loading in the
+    UI, select the plugin (the list is automatically generated from plugins
+    installed in the system and user plugin directories) and press enter.
+    Plugins will be loaded when the plugin window is closed.
+
+    Kismet server plugins cannot currently be manipulated via the Kismet UI,
+    but loaded plugins will be displayed.
 
     Occasionally, plugins can cause startup problems (due to errors, or more
     often, version mismatches).  Kismet will attempt to specify which plugin
