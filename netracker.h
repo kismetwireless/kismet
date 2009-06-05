@@ -818,6 +818,8 @@ public:
 	typedef map<mac_addr, string>::iterator ssidcache_iter;
 	typedef map<mac_addr, Netracker::tracked_mini_client *>::iterator client_mini_iter;
 
+	static void Usage(char *argv);
+
 protected:
 	GlobalRegistry *globalreg;
 

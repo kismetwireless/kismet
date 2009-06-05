@@ -461,6 +461,8 @@ int Usage(char *argv) {
 	Dumpfile::Usage(argv);
 	printf("\n");
 	Packetsourcetracker::Usage(argv);
+	printf("\n");
+	Netracker::Usage(argv);
 
 	exit(1);
 }

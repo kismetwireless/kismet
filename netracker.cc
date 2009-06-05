@@ -1283,10 +1283,36 @@ Netracker::Netracker() {
 	fprintf(stderr, "FATAL OOPS: Netracker() called with no global registry\n");
 }
 
+void Netracker::Usage(char *name) {
+	printf(" *** Kismet Net Tracking Options ***\n");
+	printf("     --filter-tracker         Tracker filtering\n");
+}
+
 Netracker::Netracker(GlobalRegistry *in_globalreg) {
 	globalreg = in_globalreg;
 	track_filter = NULL;
 	netcli_filter = NULL;
+	vector<string> filterlines;
+
+	int ftc = globalreg->getopt_long_num++;
+
+	static struct option netracker_long_options[] = {
+		{ "filter-tracker", required_argument, 0, ftc },
+		{ 0, 0, 0, 0 }
+	};
+	int option_idx = 0;
+
+	optind = 0;
+
+	while (1) {
+		int r = getopt_long(globalreg->argc, globalreg->argv,
+							"-",
+							netracker_long_options, &option_idx);
+		if (r < 0) break;
+
+		if (r == ftc)
+			filterlines.push_back(string(optarg));
+	}
 
 	// Sanity
 	if (globalreg->packetchain == NULL) {
@@ -1330,8 +1356,15 @@ Netracker::Netracker(GlobalRegistry *in_globalreg) {
 
 	// Parse the filtering for the tracker
 	track_filter = new FilterCore(globalreg);
-	vector<string> filterlines = 
-		globalreg->kismet_config->FetchOptVec("filter_tracker");
+
+	if (filterlines.size() != 0) {
+		_MSG("Net tracker filters specified on command line, not loading filters "
+			 "from the Kismet config file", MSGFLAG_INFO);
+	} else {
+		filterlines = 
+			globalreg->kismet_config->FetchOptVec("filter_tracker");
+	}
+
 	for (unsigned int fl = 0; fl < filterlines.size(); fl++) {
 		if (track_filter->AddFilterLine(filterlines[fl]) < 0) {
 			_MSG("Failed to add filter_tracker config line from the Kismet config "
