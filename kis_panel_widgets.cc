@@ -923,6 +923,8 @@ int Kis_Menu::AddMenuItem(string in_text, int menuid, char extra) {
 	item->visible = 1;
 	item->checked = -1;
 	item->colorpair = -1;
+	item->callback = NULL;
+	item->auxptr = NULL;
 
 	// Auto-disable spacers
 	if (item->text[0] != '-')
@@ -1005,6 +1007,34 @@ void Kis_Menu::DisableMenuItem(int in_item) {
 		return;
 
 	menubar[mid]->items[iid]->enabled = 0;
+}
+
+void Kis_Menu::SetMenuItemCallback(int in_item, kis_menuitem_cb in_cb, void *in_aux) {
+	int mid = in_item / 100;
+	int iid = (in_item % 100) - 1;
+
+	if (mid < 0 || mid >= (int) menubar.size())
+		return;
+
+	if (iid < 0 || iid > (int) menubar[mid]->items.size())
+		return;
+
+	menubar[mid]->items[iid]->callback = in_cb;
+	menubar[mid]->items[iid]->auxptr = in_aux;
+}
+
+void Kis_Menu::ClearMenuItemCallback(int in_item) {
+	int mid = in_item / 100;
+	int iid = (in_item % 100) - 1;
+
+	if (mid < 0 || mid >= (int) menubar.size())
+		return;
+
+	if (iid < 0 || iid > (int) menubar[mid]->items.size())
+		return;
+
+	menubar[mid]->items[iid]->callback = NULL;
+	menubar[mid]->items[iid]->auxptr = NULL;
 }
 
 void Kis_Menu::EnableMenuItem(int in_item) {
@@ -1378,11 +1408,19 @@ int Kis_Menu::KeyPress(int in_key) {
 		}
 
 		int ret = (cur_menu * 100) + cur_item + 1;
-		Deactivate();
-		
+
+		// Per-menu callbacks
+		if (menubar[cur_menu]->items[cur_item]->callback != NULL) 
+			(*(menubar[cur_menu]->items[cur_item]->callback))(globalreg, ret,
+					menubar[cur_menu]->items[cur_item]->auxptr);
+	
+		// Widget-wide callbacks
 		if (cb_activate != NULL) 
 			(*cb_activate)(this, ret, cb_activate_aux, globalreg);
 
+		Deactivate();
+
+		// Generic fallthrough
 		return ret;
 	}
 

@@ -344,6 +344,9 @@ protected:
 	int homogenous, packing, spacing, center;
 };
 
+#define MENUITEM_CB_PARMS	GlobalRegistry *globalreg, int menuitem, void *auxptr
+typedef void (*kis_menuitem_cb)(MENUITEM_CB_PARMS);
+
 class Kis_Menu : public Kis_Panel_Component {
 public:
 	Kis_Menu() {
@@ -382,6 +385,10 @@ public:
 	// Set a menu color
 	virtual void SetMenuItemColor(int in_item, string in_color);
 
+	// Set a menu item callback
+	virtual void SetMenuItemCallback(int in_item, kis_menuitem_cb in_cb, void *in_aux);
+	virtual void ClearMenuItemCallback(int in_item);
+
 	// Delete all the menus
 	virtual void ClearMenus();
 
@@ -398,6 +405,9 @@ public:
 		int visible;
 		int checked;
 		int colorpair;
+
+		kis_menuitem_cb callback;
+		void *auxptr;
 	};
 
 	struct _menu {
@@ -996,6 +1006,8 @@ public:
 
 	virtual WINDOW *FetchDrawWindow() { return win; }
 	virtual KisPanelInterface *FetchPanelInterface() { return kpinterface; }
+
+	virtual Kis_Menu *FetchMenu() { return menu; }
 
 	// Map a color pair out of preferences
 	virtual void InitColorPref(string in_prefname, string in_def);
