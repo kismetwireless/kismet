@@ -925,6 +925,7 @@ int Kis_Menu::AddMenuItem(string in_text, int menuid, char extra) {
 	item->colorpair = -1;
 	item->callback = NULL;
 	item->auxptr = NULL;
+	item->checksymbol = 'X';
 
 	// Auto-disable spacers
 	if (item->text[0] != '-')
@@ -1037,6 +1038,19 @@ void Kis_Menu::ClearMenuItemCallback(int in_item) {
 	menubar[mid]->items[iid]->auxptr = NULL;
 }
 
+void Kis_Menu::SetMenuItemCheckSymbol(int in_item, char in_sym) {
+	int mid = in_item / 100;
+	int iid = (in_item % 100) - 1;
+
+	if (mid < 0 || mid >= (int) menubar.size())
+		return;
+
+	if (iid < 0 || iid > (int) menubar[mid]->items.size())
+		return;
+
+	menubar[mid]->items[iid]->checksymbol = in_sym;
+}
+
 void Kis_Menu::EnableMenuItem(int in_item) {
 	int mid = in_item / 100;
 	int iid = (in_item % 100) - 1;
@@ -1048,6 +1062,22 @@ void Kis_Menu::EnableMenuItem(int in_item) {
 		return;
 
 	menubar[mid]->items[iid]->enabled = 1;
+}
+
+void Kis_Menu::EnableAllItems(int in_menu) {
+	if (in_menu < 0 || in_menu >= (int) menubar.size())
+		return;
+
+	for (unsigned int x = 0; x < menubar[in_menu]->items.size(); x++) 
+		menubar[in_menu]->items[x]->enabled = 1;
+}
+
+void Kis_Menu::DisableAllItems(int in_menu) {
+	if (in_menu < 0 || in_menu >= (int) menubar.size())
+		return;
+
+	for (unsigned int x = 0; x < menubar[in_menu]->items.size(); x++) 
+		menubar[in_menu]->items[x]->enabled = 0;
 }
 
 void Kis_Menu::SetMenuItemVis(int in_item, int in_vis) {
@@ -1096,14 +1126,26 @@ void Kis_Menu::DrawMenu(_menu *menu, WINDOW *win, int hpos, int vpos) {
 	int subvpos = -1;
 	int subhpos = -1;
 	int dsz = 0;
+	int width_add_check = 0, width_add_en = 0, mod_width = 0;
 
-	// Resize the menu window, taking invisible items into account.
+	// Resize the menu window, taking invisible items into account, also
+	// figure out the offset for any checked or disabled items
 	for (unsigned int y = 0; y < menu->items.size(); y++) {
-		if (menu->items[y]->visible)
+		if (menu->items[y]->visible) {
 			dsz++;
+
+			if (menu->items[y]->checked > -1)
+				width_add_check = 3;
+
+			if (menu->items[y]->enabled < 1)
+				width_add_en = 2;
+
+		}
 	}
 
-	wresize(win, dsz + 2, menu->width + 7);
+	mod_width = menu->width + 5 + width_add_check + width_add_en;
+
+	wresize(win, dsz + 2, mod_width);
 
 	// move it
 	mvderwin(win, vpos, hpos);
@@ -1123,9 +1165,9 @@ void Kis_Menu::DrawMenu(_menu *menu, WINDOW *win, int hpos, int vpos) {
 		// Shortcut out a spacer
 		if (menu->items[y]->text[0] == '-') {
 			wattrset(win, border_color);
-			mvwhline(win, 1 + dsz, 1, ACS_HLINE, menu->width + 5);
+			mvwhline(win, 1 + dsz, 1, ACS_HLINE, mod_width - 1);
 			mvwaddch(win, 1 + dsz, 0, ACS_LTEE);
-			mvwaddch(win, 1 + dsz, menu->width + 6, ACS_RTEE);
+			mvwaddch(win, 1 + dsz, mod_width - 1, ACS_RTEE);
 			dsz++;
 			continue;
 		}
@@ -1142,7 +1184,9 @@ void Kis_Menu::DrawMenu(_menu *menu, WINDOW *win, int hpos, int vpos) {
 
 		// Draw the check 
 		if (menu->items[y]->checked == 1) {
-			menuline += "X ";
+			string cs = "  ";
+			cs[0] = menu->items[y]->checksymbol;
+			menuline += cs;
 		} else if (menu->items[y]->checked == 0 || menu->checked > -1) {
 			menuline += "  ";
 		}
@@ -1160,7 +1204,7 @@ void Kis_Menu::DrawMenu(_menu *menu, WINDOW *win, int hpos, int vpos) {
 			menuline += ")";
 		menuline += " ";
 		for (unsigned int z = menuline.length(); 
-			 (int) z <= menu->width + 2; z++) {
+			 (int) z <= mod_width - 5; z++) {
 			menuline = menuline + string(" ");
 		}
 
@@ -1536,208 +1580,6 @@ int Kis_Menu::MouseEvent(MEVENT *mevent) {
 	}
 
 	return 0;
-}
-
-Kis_Pop_Menu::Kis_Pop_Menu(GlobalRegistry *in_globalreg, Kis_Panel *in_panel) :
-	Kis_Menu(in_globalreg, in_panel) {
-	globalreg = in_globalreg;
-	cur_menu = -1;
-	cur_item = -1;
-	sub_item = -1;
-	sub_menu = -1;
-	menuwin = NULL;
-	submenuwin = NULL;
-	text_color = border_color = 0;
-	parent_panel->InitColorPref("menu_text_color", "white,blue");
-	parent_panel->InitColorPref("menu_border_color", "cyan,blue");
-}
-
-Kis_Pop_Menu::~Kis_Pop_Menu() {
-	// The parent deconstructor handles clearing menus
-}
-
-int Kis_Pop_Menu::KeyPress(int in_key) {
-	if (visible == 0)
-		return 0;
-
-	if ((in_key == 0x0A || in_key == 0x0A) && cur_menu < 0) {
-		Activate(1);
-		cur_item = 0;
-		FindNextEnabledItem();
-		return -1;
-	}
-
-	int ret = Kis_Menu::KeyPress(in_key);
-
-	// Update the menu selection if we picked something
-	if (cur_menu < 0) {
-		Activate(1);
-		cur_item = 0;
-		FindNextEnabledItem();
-	}
-
-	return ret;
-}
-
-void Kis_Pop_Menu::DrawMenu(_menu *menu, WINDOW *win, int hpos, int vpos) {
-	_menu *submenu = NULL;
-	int subvpos = -1;
-	int subhpos = -1;
-	int dsz = 0;
-	int scrollable = 0;
-
-	// Resize the menu window, taking invisible items into account.
-	for (unsigned int y = 0; y < menu->items.size(); y++) {
-		if (menu->items[y]->visible)
-			dsz++;
-	}
-
-	// Try to size it max, but stay w/in the window constraints
-	if (dsz > parent_panel->FetchSzy() - 6) {
-		dsz = parent_panel->FetchSzy() - 6;
-		scrollable = 1;
-	}
-
-	// Position it - hpos and vpos are passed as the position of the menu, so
-	// we can fit it inside the window w/in those constraints
-	if (scrollable) {
-		// If we're scrollable, then we're maxed out on size anyhow, so we
-		// set the vpos directly
-		vpos = 2;
-	} else {
-		// We can fit in the panel w/out scrolling, so div the height in half
-		// and position it relative to where we started
-		vpos -= (dsz / 2);
-	}
-
-	if (hpos + menu->width + 7 > parent_panel->FetchSzx()) {
-		// If we can't fit in before the end of the window, slide the menu over
-		hpos -= (parent_panel->FetchSzx() - (menu->width + 7));
-	}
-
-	wresize(win, dsz + 2, menu->width + 7);
-
-	// move it
-	mvderwin(win, vpos, hpos);
-
-	// Draw the box
-	wattrset(win, border_color);
-	box(win, 0, 0);
-
-	// Use dsz as the position to draw into
-	dsz = 0;
-	for (unsigned int y = 0; y < menu->items.size(); y++) {
-		string menuline;
-
-		if (menu->items[y]->visible == 0)
-			continue;
-
-		// Shortcut out a spacer
-		if (menu->items[y]->text[0] == '-') {
-			wattrset(win, border_color);
-			mvwhline(win, 1 + dsz, 1, ACS_HLINE, menu->width + 5);
-			mvwaddch(win, 1 + dsz, 0, ACS_LTEE);
-			mvwaddch(win, 1 + dsz, menu->width + 6, ACS_RTEE);
-			dsz++;
-			continue;
-		}
-
-		wattrset(win, text_color);
-
-		if (menu->items[y]->colorpair != -1)
-			wattrset(win, menu->items[y]->colorpair);
-
-		// Hilight the current item
-		if (((int) menu->id == cur_menu && (int) y == cur_item) || 
-			((int) menu->id == sub_menu && (int) y == sub_item))
-			wattron(win, WA_REVERSE);
-
-		// Draw the check 
-		if (menu->items[y]->checked == 1) {
-			menuline += "X ";
-		} else if (menu->items[y]->checked == 0 || menu->checked > -1) {
-			menuline += "  ";
-		}
-
-		// Dim a disabled item
-		if (menu->items[y]->enabled == 0)
-			wattron(win, WA_DIM);
-
-		// Format it with 'Foo     F'
-		menuline += menu->items[y]->text + " ";
-		for (unsigned int z = menuline.length(); 
-			 (int) z <= menu->width + 2; z++) {
-			menuline = menuline + string(" ");
-		}
-
-		if (menu->items[y]->submenu != -1) {
-			menuline = menuline + ">>";
-
-			// Draw again, using our submenu, if it's active
-			if (menu->items[y]->submenu == cur_menu) {
-				submenu = menubar[menu->items[y]->submenu];
-				subvpos = vpos + dsz;
-				subhpos = hpos + menu->width + 6;
-
-			}
-		} else if (menu->items[y]->extrachar != 0) {
-			menuline = menuline + " " + menu->items[y]->extrachar;
-		} else {
-			menuline = menuline + "  ";
-		}
-
-		// Print it
-		mvwaddstr(win, 1 + dsz, 1, menuline.c_str());
-
-		// Dim a disabled item
-		if (menu->items[y]->enabled == 0)
-			wattroff(win, WA_DIM);
-
-		if (((int) menu->id == cur_menu && (int) y == cur_item) || 
-			((int) menu->id == sub_menu && (int) y == sub_item))
-			wattroff(win, WA_REVERSE);
-
-		dsz++;
-	}
-
-	// Draw the expanded submenu
-	if (subvpos > 0 && subhpos > 0) {
-		if (submenuwin == NULL)
-			submenuwin = derwin(window, 1, 1, 0, 0);
-
-		DrawMenu(submenu, submenuwin, subhpos, subvpos);
-	}
-}
-
-void Kis_Pop_Menu::DrawComponent() {
-	if (visible == 0)
-		return;
-
-	parent_panel->ColorFromPref(text_color, "menu_text_color");
-	parent_panel->ColorFromPref(border_color, "menu_border_color");
-
-	if (menuwin == NULL)
-		menuwin = derwin(window, 1, 1, 0, 0);
-
-	wattron(window, border_color);
-
-	// Draw the menu item itself
-	if (menubar.size() == 0)
-		return;
-
-	if (cur_menu)
-		wattron(window, WA_REVERSE);
-
-	// Draw the menu
-	mvwaddstr(window, sy, sx, string(menubar[0]->text + " V").c_str());
-
-	if (cur_menu)
-		wattroff(window, WA_REVERSE);
-
-	// Draw the menu itself, if we've got an item selected in it
-	if (cur_menu == 0 && (sub_item >= 0 || cur_item >= 0)) {
-		DrawMenu(menubar[0], menuwin, sx, sy);
-	}
 }
 
 Kis_Free_Text::Kis_Free_Text(GlobalRegistry *in_globalreg, Kis_Panel *in_panel) :

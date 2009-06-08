@@ -157,6 +157,19 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	mi_sort_packets = menu->AddMenuItem("Packets", mn_sort, 'p');
 	mi_sort_packets_d = menu->AddMenuItem("Packets (descending)", mn_sort, 'P');
 
+	menu->SetMenuItemCheckSymbol(mi_sort_auto, '*');
+	menu->SetMenuItemCheckSymbol(mi_sort_type, '*');
+	menu->SetMenuItemCheckSymbol(mi_sort_chan, '*');
+	menu->SetMenuItemCheckSymbol(mi_sort_crypt, '*');
+	menu->SetMenuItemCheckSymbol(mi_sort_first, '*');
+	menu->SetMenuItemCheckSymbol(mi_sort_first_d, '*');
+	menu->SetMenuItemCheckSymbol(mi_sort_last, '*');
+	menu->SetMenuItemCheckSymbol(mi_sort_last_d, '*');
+	menu->SetMenuItemCheckSymbol(mi_sort_bssid, '*');
+	menu->SetMenuItemCheckSymbol(mi_sort_ssid, '*');
+	menu->SetMenuItemCheckSymbol(mi_sort_packets, '*');
+	menu->SetMenuItemCheckSymbol(mi_sort_packets_d, '*');
+
 	mn_view = menu->AddMenu("View", 0);
 	mi_shownetworks = menu->AddMenuItem("Network List", mn_view, 'n');
 	mi_showclients = menu->AddMenuItem("Client List", mn_view, 'c');
@@ -2961,15 +2974,24 @@ Kis_Clientlist_Panel::Kis_Clientlist_Panel(GlobalRegistry *in_globalreg,
 
 	mn_sort = menu->AddMenu("Sort", 0);
 	mi_sort_auto = menu->AddMenuItem("Auto-fit", mn_sort, 'a');
+	menu->SetMenuItemCheckSymbol(mi_sort_auto, '*');
 	menu->AddMenuItem("-", mn_sort, 0);
 	mi_sort_type = menu->AddMenuItem("Client Type", mn_sort, 't');
+	menu->SetMenuItemCheckSymbol(mi_sort_type, '*');
 	mi_sort_first = menu->AddMenuItem("First Seen", mn_sort, 'f');
+	menu->SetMenuItemCheckSymbol(mi_sort_first, '*');
 	mi_sort_first_d = menu->AddMenuItem("First Seen (descending)", mn_sort, 'F');
+	menu->SetMenuItemCheckSymbol(mi_sort_first_d, '*');
 	mi_sort_last = menu->AddMenuItem("Latest Seen", mn_sort, 'l');
+	menu->SetMenuItemCheckSymbol(mi_sort_last, '*');
 	mi_sort_last_d = menu->AddMenuItem("Latest Seen (descending)", mn_sort, 'L');
+	menu->SetMenuItemCheckSymbol(mi_sort_last_d, '*');
 	mi_sort_mac = menu->AddMenuItem("MAC", mn_sort, 's');
+	menu->SetMenuItemCheckSymbol(mi_sort_mac, '*');
 	mi_sort_packets = menu->AddMenuItem("Packets", mn_sort, 'p');
+	menu->SetMenuItemCheckSymbol(mi_sort_packets, '*');
 	mi_sort_packets_d = menu->AddMenuItem("Packets (descending)", mn_sort, 'P');
+	menu->SetMenuItemCheckSymbol(mi_sort_packets_d, '*');
 
 	mn_view = menu->AddMenu("View", 0);
 	mi_details = menu->AddMenuItem("Client details", mn_view, 'c');

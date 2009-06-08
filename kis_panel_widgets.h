@@ -385,6 +385,9 @@ public:
 	// Set a menu color
 	virtual void SetMenuItemColor(int in_item, string in_color);
 
+	// Set a menu item symbol (radio vs check vs ...)
+	virtual void SetMenuItemCheckSymbol(int in_item, char in_symbol);
+
 	// Set a menu item callback
 	virtual void SetMenuItemCallback(int in_item, kis_menuitem_cb in_cb, void *in_aux);
 	virtual void ClearMenuItemCallback(int in_item);
@@ -394,6 +397,9 @@ public:
 
 	virtual void EnableMenuItem(int in_item);
 	virtual void DisableMenuItem(int in_item);
+
+	virtual void EnableAllItems(int in_menu);
+	virtual void DisableAllItems(int in_menu);
 
 	struct _menuitem {
 		int parentmenu;
@@ -405,6 +411,7 @@ public:
 		int visible;
 		int checked;
 		int colorpair;
+		char checksymbol;
 
 		kis_menuitem_cb callback;
 		void *auxptr;
