@@ -213,6 +213,8 @@ int Dumpfile_Netxml::Flush() {
 				adtype = "Beacon";
 			else if (m->second->type == ssid_proberesp)
 				adtype = "Probe Response";
+			else if (m->second->type == ssid_file)
+				adtype = "Cached SSID";
 
 			fprintf(xmlfile, "    <SSID first-time=\"%.24s\" last-time=\"%.24s\">\n"
 					"        <type>%s</type>\n"

@@ -1496,9 +1496,19 @@ int Kis_Menu::KeyPress(int in_key) {
 				if (in_key == menubar[cur_menu]->items[x]->extrachar &&
 					menubar[cur_menu]->items[x]->enabled == 1) {
 					int ret = (cur_menu * 100) + x + 1;
-					Deactivate();
+
+					// Per-menu callbacks
+					if (menubar[cur_menu]->items[cur_item]->callback != NULL) 
+						(*(menubar[cur_menu]->items[cur_item]->callback))
+							(globalreg, ret, menubar[cur_menu]->items[cur_item]->auxptr);
+	
+					// Widget-wide callbacks
 					if (cb_activate != NULL) 
 						(*cb_activate)(this, ret, cb_activate_aux, globalreg);
+
+					Deactivate();
+
+					// Generic fallthrough
 					return ret;
 				}
 			}

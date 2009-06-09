@@ -95,7 +95,7 @@ Kis_NetDetails_Panel::Kis_NetDetails_Panel(GlobalRegistry *in_globalreg,
 	// the row handler knows how to draw them
 	vector<Kis_Scrollable_Table::title_data> titles;
 	Kis_Scrollable_Table::title_data t;
-	t.width = 12;
+	t.width = 15;
 	t.title = "field";
 	t.alignment = 2;
 	titles.push_back(t);
@@ -222,19 +222,55 @@ int Kis_NetDetails_Panel::AppendSSIDInfo(int k, Netracker::tracked_network *net,
 	td.push_back("");
 	td.push_back("");
 
+	td[1] = "------";
+	netdetails->AddRow(k++, td);
+
 	if (ssid != NULL) {
 		td[0] = "SSID:";
-		td[1] = ssid->ssid;
-		netdetails->AddRow(k++, td);
+
+		if (ssid->ssid != "")
+			td[1] = ssid->ssid + " ";
 
 		if (ssid->ssid_cloaked) {
-			td[0] = "";
-			td[1] = "(Cloaked)";
-			netdetails->AddRow(k++, td);
+			td[1] += "(Cloaked)";
+		}
+
+		netdetails->AddRow(k++, td);
+
+		// Look for probable matches
+		if (ssid->ssid_cloaked && ssid->ssid == "" && ssid->type == ssid_beacon) {
+			ssid_type t = ssid_file;
+
+			for (map<uint32_t, Netracker::adv_ssid_data *>::iterator asi =
+				 net->ssid_map.begin(); asi != net->ssid_map.end(); ++asi) {
+				if (asi->second->type == ssid_proberesp && t == ssid_file) {
+					td[0] = "Decloak:";
+					td[1] = asi->second->ssid;
+					netdetails->AddRow(k++, td);
+					break;
+				} else if (asi->second->type == ssid_file) {
+					td[0] = "Cached:";
+					td[1] = asi->second->ssid;
+					netdetails->AddRow(k++, td);
+				}
+			}
 		}
 
 		td[0] = "SSID Len:";
 		td[1] = IntToString(ssid->ssid.length());
+		netdetails->AddRow(k++, td);
+
+		td[0] = "SSID Type:";
+		if (ssid->type == ssid_beacon)
+			td[1] = "Beacon (advertising AP)";
+		else if (ssid->type == ssid_probereq)
+			td[1] = "Request (searching client)";
+		else if (ssid->type == ssid_proberesp)
+			td[1] = "Response (responding AP)";
+		else if (ssid->type == ssid_file)
+			td[1] = "Previously cached SSID";
+		else
+			td[1] = "Unknown";
 		netdetails->AddRow(k++, td);
 
 		if (ssid->dot11d_vec.size() > 0) {
@@ -416,9 +452,11 @@ int Kis_NetDetails_Panel::AppendNetworkInfo(int k, Kis_Display_NetGroup *tng,
 
 	if (net->ssid_map.size() > 1) {
 		if (net->lastssid != NULL) {
-			td[0] = "Latest SSID:";
-			td[1] = net->lastssid->ssid;
-			netdetails->AddRow(k++, td);
+			if (net->lastssid->ssid != "") {
+				td[0] = "Latest SSID:";
+				td[1] = net->lastssid->ssid;
+				netdetails->AddRow(k++, td);
+			}
 		} else {
 			td[1] = "No SSID data available";
 			netdetails->AddRow(k++, td);
@@ -428,6 +466,12 @@ int Kis_NetDetails_Panel::AppendNetworkInfo(int k, Kis_Display_NetGroup *tng,
 	for (map<uint32_t, Netracker::adv_ssid_data *>::iterator s = net->ssid_map.begin();
 		 s != net->ssid_map.end(); ++s) {
 		k = AppendSSIDInfo(k, net, s->second);
+	}
+
+	if (net->ssid_map.size() > 0) {
+		td[0] = "";
+		td[1] = "------";
+		netdetails->AddRow(k++, td);
 	}
 
 	if (net->snrdata.last_signal_dbm == -256 || net->snrdata.last_signal_dbm == 0) {

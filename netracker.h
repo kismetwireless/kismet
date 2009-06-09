@@ -40,6 +40,7 @@
 #include "gpscore.h"
 #include "packet.h"
 #include "uuid.h"
+#include "configfile.h"
 
 // Cache file versioning
 #define NETRACKER_SSIDCACHE_VERSION 	2
@@ -161,6 +162,7 @@ enum ssid_type {
 	ssid_beacon = 0,
 	ssid_proberesp = 1,
 	ssid_probereq = 2,
+	ssid_file = 3,
 };
 
 class Packinfo_Sig_Combo {
@@ -499,6 +501,7 @@ public:
 			type = in.type;
 			mac = in.mac;
 			ssid = in.ssid;
+			ssid_cloaked = in.ssid_cloaked;
 			beacon_info = in.beacon_info;
 			cryptset = in.cryptset;
 			first_time = in.first_time;
@@ -509,6 +512,12 @@ public:
 			packets = in.packets;
 
 			beacons = in.beacons;
+
+			dot11d_country = in.dot11d_country; 
+
+			dot11d_vec = in.dot11d_vec;
+
+			dirty = in.dirty;
 
 			return *this;
 		}
@@ -835,12 +844,6 @@ protected:
 	int netracker_chain_handler(kis_packet *in_pack);
 	int datatracker_chain_handler(kis_packet *in_pack);
 
-	// Read and write the cache files
-	int ReadSSIDCache();
-	int WriteSSIDCache();
-	int ReadIPCache();
-	int WriteIPCache();
-
 	// Build a SSID record
 	Netracker::adv_ssid_data *BuildAdvSSID(uint32_t ssid_csum, 
 										   kis_ieee80211_packinfo *packinfo,
@@ -848,6 +851,9 @@ protected:
 
 	// Kick the timer event to update all the clients
 	int TimerKick();
+
+	// Save SSID map
+	void SaveSSID();
 
 	// Associate probes w/ networks
 	int track_probenets;
@@ -899,6 +905,10 @@ protected:
 
 	// Nonglobal protocols
 	int proto_ref_bssidsrc, proto_ref_clisrc, proto_ref_nettag;
+
+	// SSID cloak file as a config
+	ConfigFile *ssid_conf;
+	time_t ssid_save;
 
 	// Let the hooks call directly in
 	friend int kis_80211_netracker_hook(CHAINCALL_PARMS);

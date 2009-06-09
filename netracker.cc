@@ -69,7 +69,7 @@ const char *SSID_fields_text[] = {
 	"beaconinfo", "cryptset", "cloaked",
 	"firsttime", "lasttime", "maxrate",
 	"beaconrate", "packets", "beacons",
-	"dot11d",
+	"dot11d", 
 	NULL
 };
 
@@ -1586,9 +1586,17 @@ Netracker::Netracker(GlobalRegistry *in_globalreg) {
 
 	num_packets = num_datapackets = num_cryptpackets = num_errorpackets = 
 		num_filterpackets = num_packetdelta = num_llcpackets = 0;
+
+	// Build the config file
+	ssid_save = globalreg->timestamp.tv_sec;
+	ssid_conf = new ConfigFile(globalreg);
+
+	ssid_conf->ParseConfig(ssid_conf->ExpandLogPath(globalreg->kismet_config->FetchOpt("configdir") + "/" + "ssid_map.conf", "", "", 0, 1).c_str());
 }
 
 Netracker::~Netracker() {
+	SaveSSID();
+
 	// FIXME:  More cleanup here
 	if (netrackereventid >= 0 && globalreg != NULL)
 		globalreg->timetracker->RemoveTimer(netrackereventid);
@@ -1598,6 +1606,29 @@ Netracker::~Netracker() {
 	if (netcli_filter != NULL)
 		delete netcli_filter;
 
+}
+
+void Netracker::SaveSSID() {
+	int ret;
+
+	string dir = 
+		ssid_conf->ExpandLogPath(globalreg->kismet_config->FetchOpt("configdir"),
+								 "", "", 0, 1);
+
+	ret = mkdir(dir.c_str(), S_IRUSR | S_IWUSR | S_IXUSR);
+
+	if (ret < 0 && errno != EEXIST) {
+		string err = string(strerror(errno));
+		_MSG("Failed to create Kismet settings directory " + dir + ": " + err,
+			 MSGFLAG_ERROR);
+	}
+
+	ret = ssid_conf->SaveConfig(ssid_conf->ExpandLogPath(globalreg->kismet_config->FetchOpt("configdir") + "/" + "ssid_map.conf", "", "", 0, 1).c_str());
+
+	if (ret < 0)
+		_MSG("Could not save SSID map cache, check previous error messages (probably "
+			 "no permission to write to the Kismet config directory: " + dir,
+			 MSGFLAG_ERROR);
 }
 
 int Netracker::AddFilter(string in_filter) {
@@ -1643,6 +1674,12 @@ void Netracker::ClearNetworkTag(mac_addr in_net, string in_tag) {
 }
 
 int Netracker::TimerKick() {
+	// Save SSID config file regularly
+	if (globalreg->timestamp.tv_sec - ssid_save > 120) {
+		ssid_save = globalreg->timestamp.tv_sec;
+		SaveSSID();
+	}
+
 	// Push new networks and reset their rate counters
 	for (unsigned int x = 0; x < dirty_net_vec.size(); x++) {
 		tracked_network *net = dirty_net_vec[x];
@@ -1949,12 +1986,12 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 
 		if ((sdi = net->source_map.find(capsource->ref_source->FetchUUID())) !=
 			net->source_map.end()) {
-			sdi->second->last_seen = time(0);
+			sdi->second->last_seen = globalreg->timestamp.tv_sec;
 			sdi->second->num_packets++;
 		} else {
 			source_data *sd = new source_data;
 			sd->source_uuid = capsource->ref_source->FetchUUID();
-			sd->last_seen = time(0);
+			sd->last_seen = globalreg->timestamp.tv_sec;
 			sd->num_packets = 1;
 			sd->bssid = net->bssid;
 			net->source_map[sd->source_uuid] = sd;
@@ -1962,12 +1999,12 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 
 		if ((sdi = cli->source_map.find(capsource->ref_source->FetchUUID())) !=
 			cli->source_map.end()) {
-			sdi->second->last_seen = time(0);
+			sdi->second->last_seen = globalreg->timestamp.tv_sec;
 			sdi->second->num_packets++;
 		} else {
 			source_data *sd = new source_data;
 			sd->source_uuid = capsource->ref_source->FetchUUID();
-			sd->last_seen = time(0);
+			sd->last_seen = globalreg->timestamp.tv_sec;
 			sd->num_packets = 1;
 			sd->bssid = net->bssid;
 			sd->mac = cli->mac;
@@ -2142,6 +2179,27 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 
 		// printf("debug - net %s ssid %s beacon cryptset %llu\n", packinfo->bssid_mac.Mac2String().c_str(), packinfo->ssid.c_str(), packinfo->cryptset);
 
+		// If we're a new network, look up cached and add us to the ssid map
+		if (newnetwork) {
+			string cached; 
+			
+			if ((cached = ssid_conf->FetchOpt(packinfo->bssid_mac.Mac2String())) != "") {
+				// If we have some indication of the length thanks to nulled-out 
+				// bytes, don't import a cache with a different length, otherwise
+				// import the cache and flag that we're from a file
+				if ((packinfo->ssid_len != 0 && 
+					 packinfo->ssid_len == (int) cached.length()) ||
+					packinfo->ssid_len == 0) {
+
+					adv_ssid_data *cd = new adv_ssid_data;
+
+					cd->type = ssid_file;
+					cd->ssid = cached;
+					net->ssid_map[0] = cd;
+				}
+			}
+		}
+
 		// Build the SSID block checksum
 		ostringstream ssid_st;
 
@@ -2248,8 +2306,6 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 
 	if (packinfo->type == packet_management &&
 		packinfo->subtype == packet_sub_probe_resp) {
-
-		// printf("debug - net %s ssid %s proberesp cryptset %llu\n", packinfo->bssid_mac.Mac2String().c_str(), packinfo->ssid.c_str(), packinfo->cryptset);
 
 		// Build the SSID block checksum
 		ostringstream ssid_st;
@@ -2746,197 +2802,6 @@ int Netracker::datatracker_chain_handler(kis_packet *in_pack) {
 	return 1;
 }
 
-int Netracker::ReadSSIDCache() {
-#if 0
-	FILE *ssidf;
-	char errstr[1024];
-	int ver;
-
-	if ((ssidf = fopen(ssid_cache_path.c_str(), "r")) == NULL) {
-		snprintf(errstr, 1024, "Netracker failed to read SSID cache file '%s':  %s",
-				 ssid_cache_path.c_str(), strerror(errno));
-		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
-		return -1;
-	}
-
-	// Hijack the error string as a convenient buffer
-	fgets(errstr, 1024, ssidf);
-	if (sscanf(errstr, "SSIDCACHE_VERSION: %d\n", &ver) != 1) {
-		globalreg->messagebus->InjectMessage("Netracker failed to read SSID cache "
-											 "file version, cache file will be "
-											 "replaced", MSGFLAG_ERROR);
-		fclose(ssidf);
-		return 0;
-	}
-
-	if (ver != NETRACKER_SSIDCACHE_VERSION) {
-		snprintf(errstr, 1024, "Netracker got different SSID Cache version, cache "
-				 "file will be replaced.  (Got %d expected %d)", ver,
-				 NETRACKER_SSIDCACHE_VERSION);
-		fclose(ssidf);
-		return 0;
-	}
-
-	do {
-		char macstr[19];
-		char ssid[65];
-		mac_addr mac;
-
-		// Keep hijacking the error buffer
-		fgets(errstr, 1024, ssidf);
-
-		if (sscanf(errstr, "%18s \001%64[^\001]\001\n", macstr, ssid) != 2) {
-			globalreg->messagebus->InjectMessage("Netracker got invalid line in "
-												 "SSID cache file, skipping",
-												 MSGFLAG_INFO);
-			continue;
-		}
-
-		mac = macstr;
-		if (mac.error) {
-			globalreg->messagebus->InjectMessage("Netracker got invalid MAC address "
-												 "in SSID cache file, skipping",
-												 MSGFLAG_INFO);
-			continue;
-		}
-
-		bssid_cloak_map[mac] = string(ssid);
-	} while (!feof(ssidf));
-
-	fclose(ssidf);
-#endif
-
-	return 1;
-}
-
-int Netracker::WriteSSIDCache() {
-	FILE *ssidf;
-	char errstr[1024];
-
-	if ((ssidf = fopen(ssid_cache_path.c_str(), "w")) == NULL) {
-		snprintf(errstr, 1024, "Netracker failed to open SSID cache file '%s':  %s",
-				 ssid_cache_path.c_str(), strerror(errno));
-		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
-	}
-
-	fprintf(ssidf, "SSIDCACHE_VERSION: %d\n", NETRACKER_SSIDCACHE_VERSION);
-
-	// Write out everything in the cache map (this must be updated as new networks
-	// are found/uncloaked)
-	for (ssidcache_iter x = bssid_cloak_map.begin(); 
-		 x != bssid_cloak_map.end(); ++x) {
-		fprintf(ssidf, "%s \001%64s\001\n", x->first.Mac2String().c_str(),
-				x->second.c_str());
-	}
-
-	fclose(ssidf);
-
-	return 1;
-}
-
-int Netracker::ReadIPCache() {
-#if 0
-	FILE *ipf;
-	char errstr[1024];
-	int ver;
-
-	if ((ipf = fopen(ip_cache_path.c_str(), "r")) == NULL) {
-		snprintf(errstr, 1024, "Netracker failed to read IP cache file '%s':  %s",
-				 ip_cache_path.c_str(), strerror(errno));
-		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
-		return -1;
-	}
-
-	// Hijack the error string as a convenient buffer
-	fgets(errstr, 1024, ipf);
-	if (sscanf(errstr, "IPCACHE_VERSION: %d\n", &ver) != 1) {
-		globalreg->messagebus->InjectMessage("Netracker failed to read IP cache "
-											 "file version, cache file will be "
-											 "replaced", MSGFLAG_ERROR);
-		fclose(ipf);
-		return 0;
-	}
-
-	if (ver != NETRACKER_IPCACHE_VERSION) {
-		snprintf(errstr, 1024, "Netracker got different IP Cache version, cache "
-				 "file will be replaced.  (Got %d expected %d)", ver,
-				 NETRACKER_IPCACHE_VERSION);
-		fclose(ipf);
-		return 0;
-	}
-
-	do {
-		char macstr[19];
-		ip_data ipd;
-		mac_addr mac;
-		int ipaddr, netmask, gateway;
-
-		// Keep hijacking the error buffer
-		fgets(errstr, 1024, ipf);
-
-		if (sscanf(errstr, "%18s %d %d %d\n", macstr, &ipaddr, 
-				   &netmask, &gateway) != 4) {
-			globalreg->messagebus->InjectMessage("Netracker got invalid line in "
-												 "IP cache file, skipping",
-												 MSGFLAG_INFO);
-			continue;
-		}
-
-		mac = macstr;
-		if (mac.error) {
-			globalreg->messagebus->InjectMessage("Netracker got invalid MAC address "
-												 "in IP cache file, skipping",
-												 MSGFLAG_INFO);
-			continue;
-		}
-
-		ipd.ip_addr_block.s_addr = ipaddr;
-		ipd.ip_netmask.s_addr = netmask;
-		ipd.ip_gateway.s_addr = gateway;
-
-		bssid_ip_map[mac] = ipd;
-	} while (!feof(ipf));
-
-	fclose(ipf);
-#endif
-
-	return 1;
-}
-
-int Netracker::WriteIPCache() {
-	FILE *ipf;
-	char errstr[1024];
-
-	if ((ipf = fopen(ip_cache_path.c_str(), "w")) == NULL) {
-		snprintf(errstr, 1024, "Netracker failed to open IP cache file '%s':  %s",
-				 ip_cache_path.c_str(), strerror(errno));
-		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
-	}
-
-	fprintf(ipf, "IPCACHE_VERSION: %d\n", NETRACKER_IPCACHE_VERSION);
-
-	// If we're cached and don't exist in the real map, write it out
-	// If we're in the real map, write that out instead
-	for (ipcache_iter x = bssid_ip_map.begin(); x != bssid_ip_map.end(); ++x) {
-		track_iter triter;
-		ip_data ipd;
-		
-		if ((triter = tracked_map.find(x->first)) != tracked_map.end())
-			ipd = triter->second->guess_ipdata;
-		else
-			ipd = x->second;
-
-		fprintf(ipf, "%s %d %d %d\n", x->first.Mac2String().c_str(),
-				(int) x->second.ip_addr_block.s_addr, 
-				(int) x->second.ip_netmask.s_addr,
-				(int) x->second.ip_gateway.s_addr);
-	}
-
-	fclose(ipf);
-
-	return 1;
-}
-
 int Netracker::FetchNumNetworks() {
 	return tracked_map.size();
 }
@@ -2985,19 +2850,50 @@ Netracker::adv_ssid_data *Netracker::BuildAdvSSID(uint32_t ssid_csum,
 												  kis_ieee80211_packinfo *packinfo,
 												  kis_packet *in_pack) {
 	Netracker::adv_ssid_data *adssid;
+	Netracker::tracked_network *net = NULL;
 
 	adssid = new Netracker::adv_ssid_data;
 	adssid->checksum = ssid_csum;
 	adssid->mac = packinfo->bssid_mac;
 	adssid->ssid = string(packinfo->ssid);
-	if (packinfo->ssid_len == 0 || packinfo->ssid_blank)
+	if (packinfo->ssid_len == 0 || packinfo->ssid_blank) {
 		adssid->ssid_cloaked = 1;
+	}
+
 	adssid->beacon_info = string(packinfo->beacon_info);
 	adssid->cryptset = packinfo->cryptset;
 	adssid->first_time = globalreg->timestamp.tv_sec;
 	adssid->maxrate = packinfo->maxrate;
 	adssid->beaconrate = Ieee80211Interval2NSecs(packinfo->beacon_interval);
 	adssid->packets = 0;
+
+	// If it's a probe response record it in the SSID cache, we only record
+	// one per BSSID for now and only if we have a cloaked SSID on this record.
+	// While we're at it, also figure out if we're responding for SSIDs we've never
+	// been advertising (in a non-cloaked way), that's probably not a good
+	// thing.
+	if (packinfo->type == packet_management &&
+		packinfo->subtype == packet_sub_probe_resp &&
+		(packinfo->ssid_len || packinfo->ssid_blank == 0)) {
+
+		if (tracked_map.find(packinfo->bssid_mac) != tracked_map.end()) {
+			net = tracked_map[packinfo->bssid_mac];
+
+			for (map<uint32_t, Netracker::adv_ssid_data *>::iterator asi = 
+				 net->ssid_map.begin(); asi != net->ssid_map.end(); ++asi) {
+
+				// Catch beacon, cloaked situation
+				if (asi->second->type == ssid_beacon &&
+					asi->second->ssid_cloaked) {
+					// Remember the revealed SSID
+					ssid_conf->SetOpt(packinfo->bssid_mac.Mac2String(), 
+									  packinfo->ssid, 
+									  globalreg->timestamp.tv_sec);
+				}
+
+			}
+		}
+	}
 
 	if (packinfo->type == packet_management &&
 		(packinfo->subtype == packet_sub_probe_resp || 

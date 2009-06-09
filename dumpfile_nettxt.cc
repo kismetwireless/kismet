@@ -171,6 +171,8 @@ int Dumpfile_Nettxt::Flush() {
 				typestr = "Probe Response";
 			else if (m->second->type == ssid_probereq)
 				typestr = "Probe Request";
+			else if (m->second->type == ssid_file)
+				typestr = "Cached SSID";
 
 			fprintf(txtfile, "   SSID %d\n", ssidnum);
 			fprintf(txtfile, "    Type       : %s\n", typestr.c_str());
