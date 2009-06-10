@@ -51,9 +51,9 @@ public:
 	virtual int GraphTimer();
 
 protected:
-	int AppendNetworkInfo(int k, Kis_Display_NetGroup *tng, 
+	int AppendNetworkInfo(vector<string> *td, Kis_Display_NetGroup *tng, 
 						  Netracker::tracked_network *net);
-	int AppendSSIDInfo(int k, Netracker::tracked_network *net, 
+	int AppendSSIDInfo(vector<string> *td, Netracker::tracked_network *net, 
 					   Netracker::adv_ssid_data *ssid);
 
 	virtual void UpdateViewMenu(int mi);
@@ -63,7 +63,8 @@ protected:
 	int DeriveDisplayUpdate();
 
 	Kis_Panel_Packbox *vbox, *bbox;
-	Kis_Scrollable_Table *netdetails;
+	// Kis_Scrollable_Table *netdetails;
+	Kis_Free_Text *netdetailt;
 
 	Kis_IntGraph *siggraph, *packetgraph, *retrygraph;
 	vector<int> sigpoints, packetpps, retrypps;

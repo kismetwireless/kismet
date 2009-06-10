@@ -82,6 +82,11 @@ Kis_NetDetails_Panel::Kis_NetDetails_Panel(GlobalRegistry *in_globalreg,
 	menu->Show();
 	AddComponentVec(menu, KIS_PANEL_COMP_EVT);
 
+	netdetailt = new Kis_Free_Text(globalreg, this);
+	AddComponentVec(netdetailt, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+								 KIS_PANEL_COMP_TAB));
+
+#if 0
 	// Details scroll list doesn't get the current one highlighted and
 	// doesn't draw titles, also lock to fit inside the window
 	netdetails = new Kis_Scrollable_Table(globalreg, this);
@@ -107,6 +112,7 @@ Kis_NetDetails_Panel::Kis_NetDetails_Panel(GlobalRegistry *in_globalreg,
 	netdetails->AddTitles(titles);
 
 	netdetails->Show();
+#endif
 
 	siggraph = new Kis_IntGraph(globalreg, this);
 	siggraph->SetName("DETAIL_SIG");
@@ -155,7 +161,7 @@ Kis_NetDetails_Panel::Kis_NetDetails_Panel(GlobalRegistry *in_globalreg,
 	vbox->Pack_End(packetgraph, 0, 0);
 	vbox->Pack_End(retrygraph, 0, 0);
 
-	vbox->Pack_End(netdetails, 1, 0);
+	vbox->Pack_End(netdetailt, 1, 0);
 
 	AddComponentVec(vbox, KIS_PANEL_COMP_DRAW);
 
@@ -166,15 +172,14 @@ Kis_NetDetails_Panel::Kis_NetDetails_Panel(GlobalRegistry *in_globalreg,
 	vector<string> td;
 	td.push_back("");
 	td.push_back("No network selected / Empty network selected");
-	netdetails->AddRow(0, td);
-	td[1] = "Change sort order to anything other than \"Auto Fit\"";
-	netdetails->AddRow(1, td);
-	td[1] = "and highlight a network.";
-	netdetails->AddRow(2, td);
+	td.push_back("Change sort order to anything other than \"Auto Fit\"");
+	td.push_back("and highlight a network.");
+
+	netdetailt->SetText(td);
 
 	UpdateViewMenu(-1);
 
-	SetActiveComponent(netdetails);
+	SetActiveComponent(netdetailt);
 
 	main_component = vbox;
 
@@ -215,27 +220,26 @@ void Kis_NetDetails_Panel::UpdateGraphVectors(int signal, int pps, int retry) {
 		retrypps.erase(retrypps.begin(), retrypps.begin() + retrypps.size() - 120);
 }
 
-int Kis_NetDetails_Panel::AppendSSIDInfo(int k, Netracker::tracked_network *net,
+int Kis_NetDetails_Panel::AppendSSIDInfo(vector<string> *td, 
+										 Netracker::tracked_network *net,
 										 Netracker::adv_ssid_data *ssid) {
 	ostringstream osstr;
-	vector<string> td;
-	td.push_back("");
-	td.push_back("");
-
-	td[1] = "------";
-	netdetails->AddRow(k++, td);
 
 	if (ssid != NULL) {
-		td[0] = "SSID:";
+		osstr.str("");
+		osstr << ssid->ssid;
 
-		if (ssid->ssid != "")
-			td[1] = ssid->ssid + " ";
+		if (ssid->type == ssid_beacon) {
+			if (ssid->ssid != "")
+				osstr << " ";
 
-		if (ssid->ssid_cloaked) {
-			td[1] += "(Cloaked)";
+			if (ssid->ssid_cloaked) 
+				osstr << "(Cloaked)";
+		} else if (ssid->type == ssid_probereq && ssid->ssid == "") {
+			osstr << "(Broadcast request)";
 		}
 
-		netdetails->AddRow(k++, td);
+		td->push_back(AlignString("SSID: ", ' ', 2, 15) + osstr.str());
 
 		// Look for probable matches
 		if (ssid->ssid_cloaked && ssid->ssid == "" && ssid->type == ssid_beacon) {
@@ -244,134 +248,119 @@ int Kis_NetDetails_Panel::AppendSSIDInfo(int k, Netracker::tracked_network *net,
 			for (map<uint32_t, Netracker::adv_ssid_data *>::iterator asi =
 				 net->ssid_map.begin(); asi != net->ssid_map.end(); ++asi) {
 				if (asi->second->type == ssid_proberesp && t == ssid_file) {
-					td[0] = "Decloak:";
-					td[1] = asi->second->ssid;
-					netdetails->AddRow(k++, td);
+					td->push_back(AlignString("Probable Decloak: ", ' ', 2, 18) + 
+								  asi->second->ssid);
 					break;
 				} else if (asi->second->type == ssid_file) {
-					td[0] = "Cached:";
-					td[1] = asi->second->ssid;
-					netdetails->AddRow(k++, td);
+					td->push_back(AlignString("Cached: ", ' ', 2, 18) + 
+								  asi->second->ssid);
 				}
 			}
 		}
 
-		td[0] = "SSID Len:";
-		td[1] = IntToString(ssid->ssid.length());
-		netdetails->AddRow(k++, td);
+		td->push_back(AlignString("Length: ", ' ', 2, 18) + 
+					  IntToString(ssid->ssid.length()));
 
-		td[0] = "SSID Type:";
+		osstr.str("");
 		if (ssid->type == ssid_beacon)
-			td[1] = "Beacon (advertising AP)";
+			osstr << "Beacon (advertising AP)";
 		else if (ssid->type == ssid_probereq)
-			td[1] = "Request (searching client)";
+			osstr << "Request (searching client)";
 		else if (ssid->type == ssid_proberesp)
-			td[1] = "Response (responding AP)";
+			osstr << "Response (responding AP)";
 		else if (ssid->type == ssid_file)
-			td[1] = "Previously cached SSID";
+			osstr << "Previously cached SSID";
 		else
-			td[1] = "Unknown";
-		netdetails->AddRow(k++, td);
+			osstr << "Unknown";
+		td->push_back(AlignString("Type: ", ' ', 2, 18) + osstr.str());
 
 		if (ssid->dot11d_vec.size() > 0) {
-			td[0] = "Country:";
-			td[1] = ssid->dot11d_country;
-			netdetails->AddRow(k++, td);
+			td->push_back(AlignString("802.11d Country: ", ' ', 2, 18) + 
+						  ssid->dot11d_country);
 
-			td[0] = "";
 			for (unsigned int z = 0; z < ssid->dot11d_vec.size(); z++) {
-				td[1] = string("Channel ") + 
-					IntToString(ssid->dot11d_vec[z].startchan) +
-					string("-") +
-					IntToString(ssid->dot11d_vec[z].startchan +
-								ssid->dot11d_vec[z].numchan - 1) +
-					string(" ") +
-					IntToString(ssid->dot11d_vec[z].txpower) + 
-					string("dBm");
-				netdetails->AddRow(k++, td);
+				td->push_back(AlignString("", ' ', 2, 18) + 
+							  string("Channel ") + 
+							  IntToString(ssid->dot11d_vec[z].startchan) +
+							  string("-") +
+							  IntToString(ssid->dot11d_vec[z].startchan +
+										  ssid->dot11d_vec[z].numchan - 1) +
+							  string(" ") +
+							  IntToString(ssid->dot11d_vec[z].txpower) + 
+							  string("dBm"));
 			}
 		}
 
-		td[0] = " Encryption:";
-		td[1] = "";
+		osstr.str("");
 		if (ssid->cryptset == 0)
-			td[1] = "None (Open)";
+			osstr << "None (Open)";
 		if (ssid->cryptset == crypt_wep)
-			td[1] = "WEP (Privacy bit set)";
+			osstr << "WEP (Privacy bit set)";
 		if (ssid->cryptset & crypt_layer3)
-			td[1] += " Layer3";
+			osstr << " Layer3";
 		if (ssid->cryptset & crypt_wep40)
-			td[1] += " WEP40";
+			osstr << " WEP (40bit)";
 		if (ssid->cryptset & crypt_wep104)
-			td[1] += " WEP104";
+			osstr << " WEP (104bit)";
 		if (ssid->cryptset & crypt_wpa)
-			td[1] += " WPA";
+			osstr << " WPA";
 		if (ssid->cryptset & crypt_tkip)
-			td[1] += " TKIP";
+			osstr << " TKIP";
 		if (ssid->cryptset & crypt_psk)
-			td[1] += " PSK";
+			osstr << " PSK";
 		if (ssid->cryptset & crypt_aes_ocb)
-			td[1] += " AES-OCB";
+			osstr << " AES-ECB";
 		if (ssid->cryptset & crypt_aes_ccm)
-			td[1] += " AES-CCM";
+			osstr << " AES-CCM";
 		if (ssid->cryptset & crypt_leap)
-			td[1] += " LEAP";
+			osstr << " LEAP";
 		if (ssid->cryptset & crypt_ttls)
-			td[1] += " TTLS";
+			osstr << " TTLS";
 		if (ssid->cryptset & crypt_tls)
-			td[1] += " TLS";
+			osstr << " TLS";
 		if (ssid->cryptset & crypt_peap)
-			td[1] += " PEAP";
+			osstr << " PEAP";
 		if (ssid->cryptset & crypt_isakmp)
-			td[1] += " ISA-KMP";
+			osstr << " ISA-KMP";
 		if (ssid->cryptset & crypt_pptp)
-			td[1] += " PPTP";
+			osstr << " PPTP";
 		if (ssid->cryptset & crypt_fortress)
-			td[1] += " Fortress";
+			osstr << " Fortress";
 		if (ssid->cryptset & crypt_keyguard)
-			td[1] += " Keyguard";
-		netdetails->AddRow(k++, td);
+			osstr << " Keyguard";
+		td->push_back(AlignString("Encryption: ", ' ', 2, 18) + osstr.str());
 
 		if (net->type == network_ap) {
-			td[0] = " Beacon %:";
 			if (ssid->beacons > ssid->beaconrate)
 				ssid->beacons = ssid->beaconrate;
-			osstr.str("");
+
 			int brate = (int) (((double) ssid->beacons /
 								(double) ssid->beaconrate) * 100);
 
 			if (brate > 0) {
-				td[1] = IntToString(brate);
-				netdetails->AddRow(k++, td);
+				td->push_back(AlignString("Beacon %: ", ' ', 2, 18) + 
+							  IntToString(brate));
 			}
 		}
 	}
 
-	return k;
+	return 1;
 }
 
-int Kis_NetDetails_Panel::AppendNetworkInfo(int k, Kis_Display_NetGroup *tng,
+int Kis_NetDetails_Panel::AppendNetworkInfo(vector<string> *td,
+											Kis_Display_NetGroup *tng,
 											Netracker::tracked_network *net) {
 	vector<Netracker::tracked_network *> *netvec = NULL;
-	vector<string> td;
 	ostringstream osstr;
 
 	if (tng != NULL)
 		netvec = tng->FetchNetworkVec();
 
-	td.push_back("");
-	td.push_back("");
+	td->push_back(AlignString("Name: ", ' ', 2, 16) + tng->GetName(net));
 
-	td[0] = "Name:";
-	td[1] = tng->GetName(net);
-	netdetails->AddRow(k++, td);
-
-	if (net == NULL && netvec != NULL) {
-		td[0] = "# Networks:";
-		osstr.str("");
-		osstr << netvec->size();
-		td[1] = osstr.str();
-		netdetails->AddRow(k++, td);
+	if (net == NULL && netvec != NULL && netvec->size() > 1) {
+		td->push_back(AlignString("# Networks: ", ' ', 2, 16) + 
+					 IntToString(netvec->size()));
 	}
 
 	// Use the display metanet if we haven't been given one
@@ -380,53 +369,43 @@ int Kis_NetDetails_Panel::AppendNetworkInfo(int k, Kis_Display_NetGroup *tng,
 
 	// Catch nulls just incase
 	if (net == NULL)
-		return k;
+		return 0;
 
-	td[0] = "BSSID:";
-	td[1] = net->bssid.Mac2String();
-	netdetails->AddRow(k++, td);
+	td->push_back(AlignString("BSSID: ", ' ', 2, 16) + net->bssid.Mac2String());
 
-	td[0] = "Manuf:";
-	td[1] = net->manuf;
-	netdetails->AddRow(k++, td);
+	td->push_back(AlignString("Manuf: ", ' ', 2, 16) + net->manuf);
 
-	td[0] = "First Seen:";
 	osstr.str("");
 	osstr << setw(14) << left << 
 		(string(ctime((const time_t *) &(net->first_time)) + 4).substr(0, 15));
-	td[1] = osstr.str();
-	netdetails->AddRow(k++, td);
+	td->push_back(AlignString("First Seen: ", ' ', 2, 16) + osstr.str());
 
-	td[0] = "Last Seen:";
 	osstr.str("");
 	osstr << setw(14) << left << 
 		(string(ctime((const time_t *) &(net->last_time)) + 4).substr(0, 15));
-	td[1] = osstr.str();
-	netdetails->AddRow(k++, td);
+	td->push_back(AlignString("Last Seen: ", ' ', 2, 16) + osstr.str());
 
-	td[0] = "Type:";
+	osstr.str("");
 	if (net->type == network_ap)
-		td[1] = "Access Point (Managed/Infrastructure)";
+		osstr << "Access Point (Managed/Infrastructure)";
 	else if (net->type == network_probe)
-		td[1] = "Probe (Client)";
+		osstr << "Probe (Client)";
 	else if (net->type == network_turbocell)
-		td[1] = "Turbocell";
+		osstr << "Turbocell";
 	else if (net->type == network_data)
-		td[1] = "Data Only (No management)";
+		osstr << "Data Only (No management)";
 	else if (net->type == network_mixed)
-		td[1] = "Mixed (Multiple network types in group)";
+		osstr << "Mixed (Multiple network types in group)";
 	else
-		td[1] = "Unknown";
-	netdetails->AddRow(k++, td);
+		osstr << "Unknown";
+	td->push_back(AlignString("Type: ", ' ', 2, 16) + osstr.str());
 
-	td[0] = "Channel:";
 	osstr.str("");
 	if (net->channel != 0)
 		osstr << net->channel;
 	else
 		osstr << "No channel identifying information seen";
-	td[1] = osstr.str();
-	netdetails->AddRow(k++, td);
+	td->push_back(AlignString("Channel: ", ' ', 2, 16) + osstr.str());
 
 	for (map<unsigned int, unsigned int>::const_iterator fmi = 
 		 net->freq_mhz_map.begin(); fmi != net->freq_mhz_map.end(); ++fmi) {
@@ -440,113 +419,81 @@ int Kis_NetDetails_Panel::AppendNetworkInfo(int k, Kis_Display_NetGroup *tng,
 		else
 			chtxt << "Unk";
 
-
-		td[0] = "Frequency:";
 		osstr.str("");
 		osstr << fmi->first << " (" << chtxt.str() << ") - " << 
 			fmi->second << " packets, " << 
 			NtoString<float>(perc, 2).Str() << "%";
-		td[1] = osstr.str();
-		netdetails->AddRow(k++, td);
+		td->push_back(AlignString(fmi == net->freq_mhz_map.begin() ? 
+								  "Frequency: " : "", ' ', 2, 16) + osstr.str());
 	}
 
-	if (net->ssid_map.size() > 1) {
-		if (net->lastssid != NULL) {
-			if (net->lastssid->ssid != "") {
-				td[0] = "Latest SSID:";
-				td[1] = net->lastssid->ssid;
-				netdetails->AddRow(k++, td);
+	if (netvec == NULL || (netvec != NULL && netvec->size() == 1)) {
+		if (net->ssid_map.size() > 1) {
+			if (net->lastssid != NULL) {
+				if (net->lastssid->ssid != "") {
+					td->push_back(AlignString("Latest SSID: ", ' ', 2, 16) + 
+								  tng->GetName(net));
+				}
+			} else {
+				td->push_back(AlignString("", ' ', 2, 16) + "No SSID data seen");
 			}
-		} else {
-			td[1] = "No SSID data available";
-			netdetails->AddRow(k++, td);
 		}
-	}
 
-	for (map<uint32_t, Netracker::adv_ssid_data *>::iterator s = net->ssid_map.begin();
-		 s != net->ssid_map.end(); ++s) {
-		k = AppendSSIDInfo(k, net, s->second);
-	}
-
-	if (net->ssid_map.size() > 0) {
-		td[0] = "";
-		td[1] = "------";
-		netdetails->AddRow(k++, td);
+		if (net->ssid_map.size() > 0) {
+			td->push_back("");
+			for (map<uint32_t, Netracker::adv_ssid_data *>::iterator s = 
+				 net->ssid_map.begin(); s != net->ssid_map.end(); ++s) {
+				AppendSSIDInfo(td, net, s->second);
+				td->push_back("");
+			}
+		}
 	}
 
 	if (net->snrdata.last_signal_dbm == -256 || net->snrdata.last_signal_dbm == 0) {
 		if (net->snrdata.last_signal_rssi == 0) {
-			td[0] = "Signal:";
-			td[1] = "No signal data available";
-			netdetails->AddRow(k++, td);
+			td->push_back(AlignString("Signal: ", ' ', 2, 16) + 
+						  "No signal data available");
 		} else {
-			td[0] = "Sig RSSI:";
 			osstr.str("");
-			osstr << net->snrdata.last_signal_rssi << " (max " <<
-				net->snrdata.max_signal_rssi << ")";
-			td[1] = osstr.str();
-			netdetails->AddRow(k++, td);
+			osstr << net->snrdata.last_signal_rssi << " RSSI (max " <<
+				net->snrdata.max_signal_rssi << " RSSI)";
+			td->push_back(AlignString("Signal: ", ' ', 2, 16) + osstr.str());
 
-			td[0] = "Noise RSSI:";
 			osstr.str("");
-			osstr << net->snrdata.last_noise_rssi << " (max " <<
-				net->snrdata.max_noise_rssi << ")";
-			td[1] = osstr.str();
-			netdetails->AddRow(k++, td);
+			osstr << net->snrdata.last_noise_rssi << " RSSI (max " <<
+				net->snrdata.max_noise_rssi << " RSSI)";
+			td->push_back(AlignString("Noise: ", ' ', 2, 16) + osstr.str());
 		}
 	} else {
-		td[0] = "Sig dBm";
 		osstr.str("");
-		osstr << net->snrdata.last_signal_dbm << " (max " <<
-			net->snrdata.max_signal_dbm << ")";
-		td[1] = osstr.str();
-		netdetails->AddRow(k++, td);
+		osstr << net->snrdata.last_signal_dbm << "dBm (max " <<
+			net->snrdata.max_signal_dbm << "dBm)";
+		td->push_back(AlignString("Signal: ", ' ', 2, 16) + osstr.str());
 
-		td[0] = "Noise dBm";
 		osstr.str("");
-		osstr << net->snrdata.last_noise_dbm << " (max " <<
-			net->snrdata.max_noise_dbm << ")";
-		td[1] = osstr.str();
-		netdetails->AddRow(k++, td);
+		osstr << net->snrdata.last_noise_dbm << "dBm (max " <<
+			net->snrdata.max_noise_dbm << "dBm)";
+		td->push_back(AlignString("Noise: ", ' ', 2, 16) + osstr.str());
 	}
 
-	td[0] = "Packets:";
-	osstr.str("");
-	osstr << net->llc_packets + net->data_packets;
-	td[1] = osstr.str();
-	netdetails->AddRow(k++, td);
+	td->push_back(AlignString("Packets: ", ' ', 2, 16) + 
+				  IntToString(net->llc_packets + net->data_packets));
 
-	td[0] = "Data Pkts:";
-	osstr.str("");
-	osstr << net->data_packets;
-	td[1] = osstr.str();
-	netdetails->AddRow(k++, td);
+	td->push_back(AlignString("Data Packets: ", ' ', 2, 16) + 
+				  IntToString(net->data_packets));
 
-	td[0] = "Mgmt Pkts:";
-	osstr.str("");
-	osstr << net->llc_packets;
-	td[1] = osstr.str();
-	netdetails->AddRow(k++, td);
+	td->push_back(AlignString("Mgmt Packets: ", ' ', 2, 16) + 
+				  IntToString(net->llc_packets));
 
-	td[0] = "Crypt Pkts:";
-	osstr.str("");
-	osstr << net->crypt_packets;
-	td[1] = osstr.str();
-	netdetails->AddRow(k++, td);
+	td->push_back(AlignString("Crypt Packets: ", ' ', 2, 16) + 
+				  IntToString(net->crypt_packets));
 
-	td[0] = "Fragments:";
-	osstr.str("");
-	osstr << net->fragments << "/sec";
-	td[1] = osstr.str();
-	netdetails->AddRow(k++, td);
+	td->push_back(AlignString("Fragments: ", ' ', 2, 16) + 
+				  IntToString(net->fragments) + "/sec");
 
-	td[0] = "Retries:";
-	osstr.str("");
-	osstr << net->retries << "/sec";
-	td[1] = osstr.str();
-	netdetails->AddRow(k++, td);
+	td->push_back(AlignString("Retries: ", ' ', 2, 16) + 
+				  IntToString(net->retries) + "/sec");
 
-	td[0] = "Bytes:";
 	osstr.str("");
 	if (net->datasize < 1024) 
 		osstr << net->datasize << "B";
@@ -554,8 +501,7 @@ int Kis_NetDetails_Panel::AppendNetworkInfo(int k, Kis_Display_NetGroup *tng,
 		osstr << (int) (net->datasize / 1024) << "K";
 	else 
 		osstr << (int) (net->datasize / 1024 / 1024) << "M";
-	td[1] = osstr.str();
-	netdetails->AddRow(k++, td);
+	td->push_back(AlignString("Data Size: ", ' ', 2, 16) + osstr.str());
 
 	map<uuid, KisPanelInterface::knc_card *> *cardmap =
 		kpinterface->FetchNetCardMap();
@@ -564,56 +510,43 @@ int Kis_NetDetails_Panel::AppendNetworkInfo(int k, Kis_Display_NetGroup *tng,
 	for (map<uuid, Netracker::source_data *>::iterator sdi = net->source_map.begin();
 		 sdi != net->source_map.end(); ++sdi) {
 		if ((kci = cardmap->find(sdi->second->source_uuid)) == cardmap->end()) {
-			td[0] = "Seen By:";
-			td[1] = string("(Unknown Card) ") + sdi->second->source_uuid.UUID2String();
-			netdetails->AddRow(k++, td);
+			td->push_back(AlignString("Seen By: ", ' ', 2, 16) + "(Unknown Source) " + 
+						  sdi->second->source_uuid.UUID2String());
 		} else {
-			td[0] = "Seen By:";
-			td[1] = kci->second->name + " (" + kci->second->interface + ")" +
-				sdi->second->source_uuid.UUID2String();
-			netdetails->AddRow(k++, td);
+			td->push_back(AlignString("Seen By: ", ' ', 2, 16) +
+						  kci->second->name + " (" + kci->second->interface + ")" +
+						  sdi->second->source_uuid.UUID2String());
 		}
-		td[0] = "";
 		osstr.str("");
 		osstr << setw(14) << left << 
 		(string(ctime((const time_t *) &(sdi->second->last_seen)) + 4).substr(0, 15));
-		td[1] = osstr.str();
-		netdetails->AddRow(k++, td);
+		td->push_back(AlignString("", ' ', 2, 16) + osstr.str());
 	}
 
 	if (net->cdp_dev_id.length() > 0) {
-		td[0] = "CDP Device:";
-		td[1] = net->cdp_dev_id;
-		netdetails->AddRow(k++, td);
-
-		td[0] = "CDP Port:";
-		td[1] = net->cdp_port_id;
-		netdetails->AddRow(k++, td);
+		td->push_back(AlignString("CDP Device: ", ' ', 2, 16) + net->cdp_dev_id);
+		td->push_back(AlignString("CDP Port: ", ' ', 2, 16) + net->cdp_port_id);
 	}
 
 	for (map<string, string>::const_iterator ai = net->arb_tag_map.begin();
 		 ai != net->arb_tag_map.end(); ++ai) {
 		if (ai->first == "" || ai->second == "")
 			continue;
-		td[0] = ai->first + ":";
-		td[1] = ai->second;
-		netdetails->AddRow(k++, td);
+		td->push_back(AlignString(ai->first + ": ", ' ', 2, 16) + ai->second);
 	}
 
 	if (netvec == NULL)
-		return k;
+		return 1;
 
 	if (netvec->size() == 1)
-		return k;
+		return 1;
 
 	for (unsigned int x = 0; x < netvec->size(); x++) {
-		td[0] = "";
-		td[1] = "-------";
-		netdetails->AddRow(k++, td);
-		k = AppendNetworkInfo(k, NULL, (*netvec)[x]);
+		td->push_back("");
+		AppendNetworkInfo(td, NULL, (*netvec)[x]);
 	}
 
-	return k;
+	return 1;
 }
 
 int Kis_NetDetails_Panel::GraphTimer() {
@@ -667,8 +600,6 @@ void Kis_NetDetails_Panel::DrawPanel() {
 	Netracker::tracked_network *meta, *tmeta;
 	int update = 0;
 	vector<string> td;
-
-	int k = 0;
 
 	ColorFromPref(text_color, "panel_text_color");
 	ColorFromPref(border_color, "panel_border_color");
@@ -734,33 +665,23 @@ void Kis_NetDetails_Panel::DrawPanel() {
 	}
 
 	if (update) {
-		netdetails->Clear();
-
 		if (dng != NULL)
 			meta = dng->FetchNetwork();
 		else
 			meta = NULL;
 
-		k = 0;
-		td.push_back("");
-		td.push_back("");
+		td.clear();
 
 		if (dng != NULL) {
-			td[0] = "";
-			td[1] = "Group";
-			netdetails->AddRow(k++, td);
-
-			k = AppendNetworkInfo(k, tng, NULL);
+			AppendNetworkInfo(&td, tng, NULL);
 		} else {
-			td[0] = "";
-			td[1] = "No network selected / Empty group selected";
-			netdetails->AddRow(0, td);
-			td[1] = "Change sort order to anything other than \"Auto Fit\"";
-			netdetails->AddRow(1, td);
-			td[1] = "and highlight a network.";
-			netdetails->AddRow(2, td);
+			td.push_back("No network selected");
+			td.push_back("Change sort order to anything other than \"Auto Fit\"");
+			td.push_back("and highlight a network.");
 		}
 	}
+
+	netdetailt->SetText(td);
 
 	DrawComponentVec();
 
@@ -812,11 +733,11 @@ void Kis_NetDetails_Panel::UpdateViewMenu(int mi) {
 		if (opt == "" || opt == "true") {
 			kpinterface->prefs->SetOpt("DETAILS_SHOWNET", "false", 1);
 			menu->SetMenuItemChecked(mi_net, 0);
-			netdetails->Hide();
+			netdetailt->Hide();
 		} else {
 			kpinterface->prefs->SetOpt("DETAILS_SHOWNET", "true", 1);
 			menu->SetMenuItemChecked(mi_net, 1);
-			netdetails->Show();
+			netdetailt->Show();
 		}
 	} else if (mi == mi_graphsig) {
 		opt = kpinterface->prefs->FetchOpt("DETAILS_SHOWGRAPHSIG");
@@ -855,10 +776,10 @@ void Kis_NetDetails_Panel::UpdateViewMenu(int mi) {
 		opt = kpinterface->prefs->FetchOpt("DETAILS_SHOWNET");
 		if (opt == "" || opt == "true") {
 			menu->SetMenuItemChecked(mi_net, 1);
-			netdetails->Show();
+			netdetailt->Show();
 		} else {
 			menu->SetMenuItemChecked(mi_net, 0);
-			netdetails->Hide();
+			netdetailt->Hide();
 		}
 
 		opt = kpinterface->prefs->FetchOpt("DETAILS_SHOWGRAPHSIG");
