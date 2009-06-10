@@ -514,7 +514,7 @@ int Kis_NetDetails_Panel::AppendNetworkInfo(vector<string> *td,
 						  sdi->second->source_uuid.UUID2String());
 		} else {
 			td->push_back(AlignString("Seen By: ", ' ', 2, 16) +
-						  kci->second->name + " (" + kci->second->interface + ")" +
+						  kci->second->name + " (" + kci->second->interface + ") " +
 						  sdi->second->source_uuid.UUID2String());
 		}
 		osstr.str("");
@@ -1355,27 +1355,10 @@ Kis_ClientDetails_Panel::Kis_ClientDetails_Panel(GlobalRegistry *in_globalreg,
 	menu->Show();
 	AddComponentVec(menu, KIS_PANEL_COMP_EVT);
 
-	clientdetails = new Kis_Scrollable_Table(globalreg, this);
-	clientdetails->SetHighlightSelected(0);
-	clientdetails->SetLockScrollTop(1);
-	clientdetails->SetDrawTitles(0);
-	AddComponentVec(clientdetails, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+	clientdetailt = new Kis_Free_Text(globalreg, this);
+	AddComponentVec(clientdetailt, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
 									KIS_PANEL_COMP_TAB));
-
-	vector<Kis_Scrollable_Table::title_data> titles;
-	Kis_Scrollable_Table::title_data t;
-	t.width = 12;
-	t.title = "field";
-	t.alignment = 2;
-	titles.push_back(t);
-	t.width = 0;
-	t.title = "value";
-	t.alignment = 0;
-	titles.push_back(t);
-
-	clientdetails->AddTitles(titles);
-
-	clientdetails->Show();
+	clientdetailt->Show();
 
 	siggraph = new Kis_IntGraph(globalreg, this);
 	siggraph->SetName("DETAIL_SIG");
@@ -1424,7 +1407,7 @@ Kis_ClientDetails_Panel::Kis_ClientDetails_Panel(GlobalRegistry *in_globalreg,
 	vbox->Pack_End(packetgraph, 0, 0);
 	vbox->Pack_End(retrygraph, 0, 0);
 
-	vbox->Pack_End(clientdetails, 1, 0);
+	vbox->Pack_End(clientdetailt, 1, 0);
 
 	AddComponentVec(vbox, KIS_PANEL_COMP_DRAW);
 
@@ -1434,13 +1417,14 @@ Kis_ClientDetails_Panel::Kis_ClientDetails_Panel(GlobalRegistry *in_globalreg,
 	dcli = NULL;
 
 	vector<string> td;
-	td.push_back("");
 	td.push_back("No client selected");
-	clientdetails->AddRow(0, td);
+	td.push_back("Change client list sort order to something other than ");
+	td.push_back("\"Autofit\" and select a client.");
+	clientdetailt->SetText(td);
 
 	main_component = vbox;
 
-	SetActiveComponent(clientdetails);
+	SetActiveComponent(clientdetailt);
 
 	clientlist = NULL;
 
@@ -1516,8 +1500,6 @@ void Kis_ClientDetails_Panel::DrawPanel() {
 	vector<string> td;
 	ostringstream osstr;
 
-	int k = 0;
-
 	ColorFromPref(text_color, "panel_text_color");
 	ColorFromPref(border_color, "panel_border_color");
 
@@ -1546,125 +1528,121 @@ void Kis_ClientDetails_Panel::DrawPanel() {
 		ClearGraphVectors();
 	}
 
-	td.push_back("");
-	td.push_back("");
-
 	if (update) {
-		clientdetails->Clear();
+		if (dcli != NULL) {
+			td.push_back(AlignString("MAC Address: ", ' ', 2, 16) + 
+						  dcli->mac.Mac2String());
 
-		if (dcli == NULL) {
-			td[0] = "";
-			td[1] = "No client selected";
-			clientdetails->AddRow(0, td);
-		} else {
-			td[0] = "MAC:";
-			td[1] = dcli->mac.Mac2String();
-			clientdetails->AddRow(k++, td);
+			td.push_back(AlignString("Manuf: ", ' ', 2, 16) + dcli->manuf);
 
-			td[0] = "Manuf:";
-			td[1] = dcli->manuf;
-			clientdetails->AddRow(k++, td);
-
-			td[0] = "Network:";
-			td[1] = dcli->bssid.Mac2String();
-			clientdetails->AddRow(k++, td);
+			td.push_back(AlignString("Network: ", ' ', 2, 16) + 
+						  dcli->bssid.Mac2String());
 
 			if (dcli->netptr != NULL) {
-				td[0] = "Net Manuf:";
-				td[1] = dcli->netptr->manuf;
-				clientdetails->AddRow(k++, td);
+				if (dcli->netptr->lastssid != NULL &&
+					dcli->netptr->lastssid->ssid != "") {
+					td.push_back(AlignString("Net SSID: ", ' ', 2, 16) + 
+								  dcli->netptr->lastssid->ssid);
+				}
+
+				td.push_back(AlignString("Net Manuf: ", ' ', 2, 16) + 
+							  dcli->netptr->manuf);
 			}
 
-			td[0] = "Type:";
+			osstr.str("");
 			if (dcli->type == client_unknown)
-				td[1] = "Unknown";
+				osstr << "Unknown";
 			else if (dcli->type == client_fromds) 
-				td[1] = "Wired (traffic from AP only)";
+				osstr << "Wired (traffic from AP only)";
 			else if (dcli->type == client_tods)
-				td[1] = "Wireless (traffic from wireless only)";
+				osstr << "Wireless (traffic from wireless only)";
 			else if (dcli->type == client_interds)
-				td[1] = "Inter-AP traffic (WDS)";
+				osstr << "Inter-AP traffic (WDS)";
 			else if (dcli->type == client_established)
-				td[1] = "Wireless (traffic to and from AP)";
+				osstr << "Wireless (traffic to and from AP)";
 			else if (dcli->type == client_adhoc)
-				td[1] = "Wireless Ad-Hoc";
-			clientdetails->AddRow(k++, td);
+				osstr << "Wireless Ad-Hoc";
+			td.push_back(AlignString("Type: ", ' ', 2, 16) + osstr.str());
 
-			td[0] = "First Seen:";
 			osstr.str("");
 			osstr << setw(14) << left <<
 				(string(ctime((const time_t *) &(dcli->first_time)) + 4).substr(0, 15));
-			td[1] = osstr.str();
-			clientdetails->AddRow(k++, td);
+			td.push_back(AlignString("First Seen: ", ' ', 2, 16) + osstr.str());
 
-			td[0] = "Last Seen:";
 			osstr.str("");
 			osstr << setw(14) << left <<
 				(string(ctime((const time_t *) &(dcli->last_time)) + 4).substr(0, 15));
-			td[1] = osstr.str();
-			clientdetails->AddRow(k++, td);
+			td.push_back(AlignString("Last Seen: ", ' ', 2, 16) + osstr.str());
 
-			td[0] = "Probed Networks:";
-			for (map<uint32_t, Netracker::adv_ssid_data *>::iterator si =
-				 dcli->ssid_map.begin(); si != dcli->ssid_map.end(); ++si) {
-				osstr.str("");
-				osstr << si->second->ssid << " ";
+			if (dcli->ssid_map.size() > 0) {
+				td.push_back("");
+				for (map<uint32_t, Netracker::adv_ssid_data *>::iterator si =
+					 dcli->ssid_map.begin(); si != dcli->ssid_map.end(); ++si) {
 
-				if (si->second->cryptset == 0)
-					osstr << "(No crypto)";
-				else if (si->second->cryptset == crypt_wep)
-					osstr << "(WEP)";
-				else 
-					osstr << "(";
+					osstr.str("");
+					if (si->second->ssid == "") 
+						osstr << "(Broadcast request) ";
+					else
+						osstr << si->second->ssid << " ";
 
-				if (si->second->cryptset & crypt_layer3)
-					osstr << " Layer3";
-				if (si->second->cryptset & crypt_wep40)
-					osstr << " WEP40";
-				if (si->second->cryptset & crypt_wep104)
-					osstr << " WEP104";
-				if (si->second->cryptset & crypt_wpa)
-					osstr << " WPA";
-				if (si->second->cryptset & crypt_tkip)
-					osstr << " TKIP";
-				if (si->second->cryptset & crypt_psk)
-					osstr << " PSK";
-				if (si->second->cryptset & crypt_aes_ocb)
-					osstr << " AES-OCB";
-				if (si->second->cryptset & crypt_aes_ccm)
-					osstr << " AES-CCM";
-				if (si->second->cryptset & crypt_leap)
-					osstr << " LEAP";
-				if (si->second->cryptset & crypt_ttls)
-					osstr << " TTLS";
-				if (si->second->cryptset & crypt_tls)
-					osstr << " TLS";
-				if (si->second->cryptset & crypt_peap)
-					osstr << " PEAP";
-				if (si->second->cryptset & crypt_isakmp)
-					osstr << " ISA-KMP";
-				if (si->second->cryptset & crypt_pptp)
-					osstr << " PPTP";
-				if (si->second->cryptset & crypt_fortress)
-					osstr << " Fortress";
-				if (si->second->cryptset & crypt_keyguard)
-					osstr << " Keyguard";
+					td.push_back(AlignString("Probed Network: ", ' ', 2, 16) + 
+								 osstr.str());
 
-				if (si->second->cryptset != 0 &&
-					si->second->cryptset != crypt_wep) 
-					osstr << " )";
+					osstr.str("");
 
-				td[1] = osstr.str();
+					if (si->second->cryptset == 0)
+						osstr << "No crypto";
+					else if (si->second->cryptset == crypt_wep)
+						osstr << "WEP";
 
-				clientdetails->AddRow(k++, td);
-				td[0] = "";
+					if (si->second->cryptset & crypt_layer3)
+						osstr << " Layer3";
+					if (si->second->cryptset & crypt_wep40)
+						osstr << " WEP40";
+					if (si->second->cryptset & crypt_wep104)
+						osstr << " WEP104";
+					if (si->second->cryptset & crypt_wpa)
+						osstr << " WPA";
+					if (si->second->cryptset & crypt_tkip)
+						osstr << " TKIP";
+					if (si->second->cryptset & crypt_psk)
+						osstr << " PSK";
+					if (si->second->cryptset & crypt_aes_ocb)
+						osstr << " AES-OCB";
+					if (si->second->cryptset & crypt_aes_ccm)
+						osstr << " AES-CCM";
+					if (si->second->cryptset & crypt_leap)
+						osstr << " LEAP";
+					if (si->second->cryptset & crypt_ttls)
+						osstr << " TTLS";
+					if (si->second->cryptset & crypt_tls)
+						osstr << " TLS";
+					if (si->second->cryptset & crypt_peap)
+						osstr << " PEAP";
+					if (si->second->cryptset & crypt_isakmp)
+						osstr << " ISA-KMP";
+					if (si->second->cryptset & crypt_pptp)
+						osstr << " PPTP";
+					if (si->second->cryptset & crypt_fortress)
+						osstr << " Fortress";
+					if (si->second->cryptset & crypt_keyguard)
+						osstr << " Keyguard";
+
+					td.push_back(AlignString("Encryption: ", ' ', 2, 18) + osstr.str());
+
+					osstr.str("");
+					osstr << setw(14) << left << 
+						(string(ctime((const time_t *) 
+									  &(si->second->last_time)) + 4).substr(0, 15));
+					td.push_back(AlignString("Last Probed: ", ' ', 2, 18) + osstr.str());
+
+					td.push_back("");
+				}
 			}
 
-			td[0] = "Decrypted:";
-			td[1] = dcli->decrypted ? "Yes" : "No";
-			clientdetails->AddRow(k++, td);
+			td.push_back(AlignString("Decrypted: ", ' ', 2, 16) + 
+						  (dcli->decrypted ? "Yes" : "No"));
 
-			td[0] = "Frequency:";
 			for (map<unsigned int, unsigned int>::const_iterator fmi = 
 				 dcli->freq_mhz_map.begin(); fmi != dcli->freq_mhz_map.end(); ++fmi) {
 				float perc = ((float) fmi->second / 
@@ -1681,85 +1659,62 @@ void Kis_ClientDetails_Panel::DrawPanel() {
 				osstr << fmi->first << " (" << chtxt.str() << ") - " << 
 					fmi->second << " packets, " << 
 					NtoString<float>(perc, 2).Str() << "%";
-				td[1] = osstr.str();
-				clientdetails->AddRow(k++, td);
-				td[0] = "";
+				td.push_back(AlignString(fmi == dcli->freq_mhz_map.begin() ? 
+										  "Frequency: " : "", ' ', 2, 16) + osstr.str());
 			}
 
 			if (dcli->snrdata.last_signal_dbm == -256 || 
 				dcli->snrdata.last_signal_dbm == 0) {
 				if (dcli->snrdata.last_signal_rssi == 0) {
-					td[0] = "Signal:";
-					td[1] = "No signal data available";
-					clientdetails->AddRow(k++, td);
+					td.push_back(AlignString("Signal: ", ' ', 2, 16) + 
+								  "No signal data available");
 				} else {
-					td[0] = "Sig RSSI:";
 					osstr.str("");
-					osstr << dcli->snrdata.last_signal_rssi << " (max " <<
-						dcli->snrdata.max_signal_rssi << ")";
-					td[1] = osstr.str();
-					clientdetails->AddRow(k++, td);
+					osstr << dcli->snrdata.last_signal_rssi << " RSSI (max " <<
+						dcli->snrdata.max_signal_rssi << " RSSI)";
+					td.push_back(AlignString("Signal: ", ' ', 2, 16) + osstr.str());
 
-					td[0] = "Noise RSSI:";
 					osstr.str("");
-					osstr << dcli->snrdata.last_noise_rssi << " (max " <<
-						dcli->snrdata.max_noise_rssi << ")";
-					td[1] = osstr.str();
-					clientdetails->AddRow(k++, td);
+					osstr << dcli->snrdata.last_noise_rssi << " RSSI (max " <<
+						dcli->snrdata.max_noise_rssi << " RSSI)";
+					td.push_back(AlignString("Noise: ", ' ', 2, 16) + osstr.str());
 				}
 			} else {
-				td[0] = "Sig dBm";
 				osstr.str("");
-				osstr << dcli->snrdata.last_signal_dbm << " (max " <<
-					dcli->snrdata.max_signal_dbm << ")";
-				td[1] = osstr.str();
-				clientdetails->AddRow(k++, td);
+				osstr << dcli->snrdata.last_signal_dbm << "dBm (max " <<
+					dcli->snrdata.max_signal_dbm << "dBm)";
+				td.push_back(AlignString("Signal: ", ' ', 2, 16) + osstr.str());
 
-				td[0] = "Noise dBm";
 				osstr.str("");
-				osstr << dcli->snrdata.last_noise_dbm << " (max " <<
-					dcli->snrdata.max_noise_dbm << ")";
-				td[1] = osstr.str();
-				clientdetails->AddRow(k++, td);
+				osstr << dcli->snrdata.last_noise_dbm << "dBm (max " <<
+					dcli->snrdata.max_noise_dbm << "dBm)";
+				td.push_back(AlignString("Noise: ", ' ', 2, 16) + osstr.str());
 			}
 
-			td[0] = "Packets:";
 			osstr.str("");
 			osstr << dcli->llc_packets + dcli->data_packets;
-			td[1] = osstr.str();
-			clientdetails->AddRow(k++, td);
+			td.push_back(AlignString("Packets: ", ' ', 2, 16) + osstr.str());
 
-			td[0] = "Data Pkts:";
 			osstr.str("");
 			osstr << dcli->data_packets;
-			td[1] = osstr.str();
-			clientdetails->AddRow(k++, td);
+			td.push_back(AlignString("Data Packets: ", ' ', 2, 16) + osstr.str());
 
-			td[0] = "Mgmt Pkts:";
 			osstr.str("");
 			osstr << dcli->llc_packets;
-			td[1] = osstr.str();
-			clientdetails->AddRow(k++, td);
+			td.push_back(AlignString("Mgmt Packets: ", ' ', 2, 16) + osstr.str());
 
-			td[0] = "Crypt Pkts:";
 			osstr.str("");
 			osstr << dcli->crypt_packets;
-			td[1] = osstr.str();
-			clientdetails->AddRow(k++, td);
+			td.push_back(AlignString("Crypt Packets: ", ' ', 2, 16) + osstr.str());
 
-			td[0] = "Fragments:";
 			osstr.str("");
 			osstr << dcli->fragments << "/sec";
-			td[1] = osstr.str();
-			clientdetails->AddRow(k++, td);
+			td.push_back(AlignString("Fragments: ", ' ', 2, 16) + osstr.str());
 
-			td[0] = "Retries:";
 			osstr.str("");
 			osstr << dcli->retries << "/sec";
-			td[1] = osstr.str();
-			clientdetails->AddRow(k++, td);
+			td.push_back(AlignString("Retries: ", ' ', 2, 16) + osstr.str());
 
-			td[0] = "Bytes:";
 			osstr.str("");
 			if (dcli->datasize < 1024) 
 				osstr << dcli->datasize << "B";
@@ -1767,8 +1722,7 @@ void Kis_ClientDetails_Panel::DrawPanel() {
 				osstr << (int) (dcli->datasize / 1024) << "K";
 			else 
 				osstr << (int) (dcli->datasize / 1024 / 1024) << "M";
-			td[1] = osstr.str();
-			clientdetails->AddRow(k++, td);
+			td.push_back(AlignString("Data Size: ", ' ', 2, 16) + osstr.str());
 
 			map<uuid, KisPanelInterface::knc_card *> *cardmap =
 				kpinterface->FetchNetCardMap();
@@ -1778,47 +1732,42 @@ void Kis_ClientDetails_Panel::DrawPanel() {
 				 dcli->source_map.begin();
 				 sdi != dcli->source_map.end(); ++sdi) {
 				if ((kci = cardmap->find(sdi->second->source_uuid)) == cardmap->end()) {
-					td[0] = "Seen By:";
-					td[1] = string("(Unknown Card) ") + 
-						sdi->second->source_uuid.UUID2String();
-					clientdetails->AddRow(k++, td);
+					td.push_back(AlignString("Seen By: ", ' ', 2, 16) + 
+								  "(Unknown Source) " + 
+								  sdi->second->source_uuid.UUID2String());
 				} else {
-					td[0] = "Seen By:";
-					td[1] = kci->second->name + " (" + kci->second->interface + ") " +
-						sdi->second->source_uuid.UUID2String();
-					clientdetails->AddRow(k++, td);
+					td.push_back(AlignString("Seen By: ", ' ', 2, 16) +
+								  kci->second->name + " (" + kci->second->interface + 
+								  ") " +
+								  sdi->second->source_uuid.UUID2String());
 				}
-				td[0] = "";
 				osstr.str("");
 				osstr << setw(14) << left << 
-					(string(ctime((const time_t *) &(sdi->second->last_seen)) + 4).substr(0, 15));
-				td[1] = osstr.str();
-				clientdetails->AddRow(k++, td);
+					(string(ctime((const time_t *) 
+								  &(sdi->second->last_seen)) + 4).substr(0, 15));
+				td.push_back(AlignString("", ' ', 2, 16) + osstr.str());
 			}
 
 			if (dcli->cdp_dev_id.length() > 0) {
-				td[0] = "CDP Device:";
-				td[1] = dcli->cdp_dev_id;
-				clientdetails->AddRow(k++, td);
-
-				td[0] = "CDP Port:";
-				td[1] = dcli->cdp_port_id;
-				clientdetails->AddRow(k++, td);
+				td.push_back(AlignString("CDP Device: ", ' ', 2, 16) + 
+							  dcli->cdp_dev_id);
+				td.push_back(AlignString("CDP Port: ", ' ', 2, 16) + 
+							  dcli->cdp_port_id);
 			}
 
 			if (dcli->dhcp_host.length() > 0) {
-				td[0] = "DHCP Name:";
-				td[1] = dcli->dhcp_host;
-				clientdetails->AddRow(k++, td);
+				td.push_back(AlignString("DHCP Name: ", ' ', 2, 16) + 
+							  dcli->dhcp_host);
 			}
 
 			if (dcli->dhcp_vendor.length() > 0) {
-				td[0] = "DHCP OS:";
-				td[1] = dcli->dhcp_vendor;
-				clientdetails->AddRow(k++, td);
+				td.push_back(AlignString("DHCP OS: ", ' ', 2, 16) + 
+							  dcli->dhcp_vendor);
 			}
 		}
 	}
+
+	clientdetailt->SetText(td);
 
 	DrawComponentVec();
 	wmove(win, 0, 0);
@@ -1855,11 +1804,11 @@ void Kis_ClientDetails_Panel::UpdateViewMenu(int mi) {
 		if (opt == "" || opt == "true") {
 			kpinterface->prefs->SetOpt("CLIDETAILS_SHOWCLI", "false", 1);
 			menu->SetMenuItemChecked(mi_cli, 0);
-			clientdetails->Hide();
+			clientdetailt->Hide();
 		} else {
 			kpinterface->prefs->SetOpt("CLIDETAILS_SHOWCLI", "true", 1);
 			menu->SetMenuItemChecked(mi_cli, 1);
-			clientdetails->Show();
+			clientdetailt->Show();
 		}
 	} else if (mi == mi_graphsig) {
 		opt = kpinterface->prefs->FetchOpt("CLIDETAILS_SHOWGRAPHSIG");
@@ -1898,10 +1847,10 @@ void Kis_ClientDetails_Panel::UpdateViewMenu(int mi) {
 		opt = kpinterface->prefs->FetchOpt("CLIDETAILS_SHOWCLI");
 		if (opt == "" || opt == "true") {
 			menu->SetMenuItemChecked(mi_cli, 1);
-			clientdetails->Show();
+			clientdetailt->Show();
 		} else {
 			menu->SetMenuItemChecked(mi_cli, 0);
-			clientdetails->Hide();
+			clientdetailt->Hide();
 		}
 
 		opt = kpinterface->prefs->FetchOpt("CLIDETAILS_SHOWGRAPHSIG");

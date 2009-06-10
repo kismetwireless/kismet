@@ -195,7 +195,7 @@ protected:
 	int DeriveDisplayUpdate();
 
 	Kis_Panel_Packbox *vbox, *bbox;
-	Kis_Scrollable_Table *clientdetails;
+	Kis_Free_Text *clientdetailt;
 
 	Kis_IntGraph *siggraph, *packetgraph, *retrygraph;
 	vector<int> sigpoints, packetpps, retrypps;
