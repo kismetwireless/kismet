@@ -581,13 +581,38 @@ int Packetsourcetracker::Poll(fd_set& in_rset, fd_set& in_wset) {
 
 	for (map<uint16_t, pst_packetsource *>::iterator x = packetsource_map.begin();
 		 x != packetsource_map.end(); ++x) {
+
 		if (x->second->strong_source == NULL)
+			continue;
+
+		if (x->second->error)
 			continue;
 
 		int capd = x->second->strong_source->FetchDescriptor();
 
-		if (capd >= 0 && FD_ISSET(capd, &in_rset))
-			x->second->strong_source->Poll();
+		if (capd >= 0 && FD_ISSET(capd, &in_rset)) {
+			if (x->second->strong_source->Poll() <= 0) {
+				x->second->zeropoll++;
+			} else {
+				x->second->zeropoll = 0;
+			}
+		}
+
+		if (x->second->zeropoll > 100) {
+			_MSG("Packet source '" + x->second->strong_source->FetchName() + 
+				 "' is no longer returning any data when polled, it has "
+				 "probably been disconnected, and will be closed.", MSGFLAG_ERROR);
+
+			if (x->second->reopen) 
+				_MSG("Kismet will attempt to re-open packet source '" + 
+					 x->second->strong_source->FetchName() + "' in 10 seconds", 
+					 MSGFLAG_ERROR);
+
+			x->second->strong_source->CloseSource();
+			x->second->error = 1;
+			SendIPCReport(x->second);
+			x->second->zeropoll = 0;
+		}
 	}
 
 	return 1;
@@ -812,6 +837,7 @@ int Packetsourcetracker::AddPacketSource(string in_source,
 
 	pstsource->error = 0;
 	pstsource->reopen = 1;
+	pstsource->zeropoll = 0;
 
 	string name = StrLower(FetchOpt("name", &options));
 	if (name == "")

@@ -156,6 +156,9 @@ struct pst_packetsource {
 
 	// Do we re-open on error?
 	int reopen;
+
+	// How many zero-polls have we had in a row?
+	int zeropoll;
 };
 
 // Callback for actions on sources.  Gives the source and action type, flags,
