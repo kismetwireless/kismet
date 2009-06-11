@@ -2787,6 +2787,7 @@ Kis_Gps_Panel::Kis_Gps_Panel(GlobalRegistry *in_globalreg,
 	gpssiggraph->Show();
 
 	gpslocinfo = new Kis_Free_Text(globalreg, this);
+	gpslocinfo->SetText("No GPS data (GPS not connected?)");
 	gpslocinfo->Show();
 
 	gpsmoveinfo = new Kis_Free_Text(globalreg, this);

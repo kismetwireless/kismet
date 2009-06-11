@@ -89,6 +89,9 @@
 char *exec_name;
 #endif
 
+// Daemonize?
+int daemonize = 0;
+
 // One of our few globals in this file
 int glob_linewrap = 1;
 int glob_silent = 0;
@@ -338,7 +341,8 @@ void CatchShutdown(int sig) {
 		globalregistry->plugintracker->ShutdownPlugins();
 
 	// Start a short shutdown cycle for 2 seconds
-	fprintf(stderr, "\n*** KISMET IS SHUTTING DOWN ***\n");
+	if (daemonize == 0)
+		fprintf(stderr, "\n*** KISMET IS SHUTTING DOWN ***\n");
 	time_t shutdown_target = time(0) + 2;
 	int max_fd = 0;
 	fd_set rset, wset;
@@ -405,12 +409,15 @@ void CatchShutdown(int sig) {
     if (fqmescli != NULL && globalregistry->fatal_condition) 
         fqmescli->DumpFatals();
 
-	fprintf(stderr, "WARNING: Kismet changes the configuration of network devices.\n"
-					"         In most cases you will need to restart networking for\n"
-					"         your interface (varies per distribution/OS, but \n"
-					"         usually:  /etc/init.d/networking restart\n\n");
+	if (daemonize == 0) {
+		fprintf(stderr, "WARNING: Kismet changes the configuration of network devices.\n"
+				"         In most cases you will need to restart networking for\n"
+				"         your interface (varies per distribution/OS, but \n"
+				"         usually:  /etc/init.d/networking restart\n\n");
 
-    fprintf(stderr, "Kismet exiting.\n");
+		fprintf(stderr, "Kismet exiting.\n");
+	}
+
     exit(0);
 }
 
@@ -451,6 +458,7 @@ int Usage(char *argv) {
 		   "     --no-line-wrap           Turn of linewrapping of output\n"
 		   "                              (for grep, speed, etc)\n"
 		   " -s, --silent                 Turn off stdout output after setup phase\n"
+		   "     --daemonize              Spawn detatched in the background\n"
 		   );
 
 	printf("\n");
@@ -507,6 +515,9 @@ int main(int argc, char *argv[], char *envp[]) {
 	int data_dump = 0;
 	GlobalRegistry *globalreg;
 
+	// Timer for silence
+	int local_silent = 0;
+
 	// Catch the interrupt handler to shut down
     signal(SIGINT, CatchShutdown);
     signal(SIGTERM, CatchShutdown);
@@ -514,19 +525,6 @@ int main(int argc, char *argv[], char *envp[]) {
     signal(SIGQUIT, CatchShutdown);
 	signal(SIGCHLD, CatchChild);
     signal(SIGPIPE, SIG_IGN);
-
-	// Turn off the getopt error reporting
-	opterr = 0;
-	optind = 0;
-
-	// Look for "help"
-	for (int x = 1; x < argc; x++) {
-		if (strcmp(argv[x], "-h") == 0 ||
-			strcmp(argv[x], "--help") == 0) {
-			Usage(argv[0]);
-			exit(1);
-		}
-	}
 
 	// Start filling in key components of the globalregistry
 	globalregistry = new GlobalRegistry;
@@ -543,6 +541,49 @@ int main(int argc, char *argv[], char *envp[]) {
 	globalregistry->argv = argv;
 	globalregistry->envp = envp;
 	
+
+	// Turn off the getopt error reporting
+	opterr = 0;
+	optind = 0;
+
+	const int nlwc = globalregistry->getopt_long_num++;
+	const int dwc = globalregistry->getopt_long_num++;
+
+	// Standard getopt parse run
+	static struct option main_longopt[] = {
+		{ "config-file", required_argument, 0, 'f' },
+		{ "no-line-wrap", no_argument, 0, nlwc },
+		{ "silent", no_argument, 0, 's' },
+		{ "help", no_argument, 0, 'h' },
+		{ "daemonize", no_argument, 0, dwc },
+		{ 0, 0, 0, 0 }
+	};
+
+	// Reset the options index
+	optind = 0;
+	option_idx = 0;
+
+	while (1) {
+		int r = getopt_long(argc, argv, 
+							"-f:sp:", 
+							main_longopt, &option_idx);
+		if (r < 0) break;
+
+		if (r == 'h') {
+			Usage(argv[0]);
+			exit(1);
+		} else if (r == 'f') {
+			configfilename = strdup(optarg);
+		} else if (r == nlwc) {
+			glob_linewrap = 0;
+		} else if (r == 's') {
+			local_silent = 1;
+		} else if (r == dwc) {
+			daemonize = 1;
+			local_silent = 1;
+		}
+	}
+
 	// First order - create our message bus and our client for outputting
 	globalregistry->messagebus = new MessageBus;
 
@@ -580,39 +621,6 @@ int main(int argc, char *argv[], char *envp[]) {
 	// Allocate some other critical stuff
 	globalregistry->timetracker = new Timetracker(globalregistry);
 
-	// Timer for silence
-	int local_silent = 0;
-
-	const int nlwc = globalregistry->getopt_long_num++;
-
-	// Standard getopt parse run
-	static struct option main_longopt[] = {
-		{ "config-file", required_argument, 0, 'f' },
-		{ "no-line-wrap", no_argument, 0, nlwc },
-		{ "silent", no_argument, 0, 's' },
-		{ "help", no_argument, 0, 'h' },
-		{ 0, 0, 0, 0 }
-	};
-
-	// Reset the options index
-	optind = 0;
-	option_idx = 0;
-
-	while (1) {
-		int r = getopt_long(argc, argv, 
-							"-f:sp:", 
-							main_longopt, &option_idx);
-		if (r < 0) break;
-
-		if (r == 'f') {
-			configfilename = strdup(optarg);
-		} else if (r == nlwc) {
-			glob_linewrap = 0;
-		} else if (r == 's') {
-			local_silent = 1;
-		}
-	}
-
 	// Open, initial parse, and assign the config file
 	if (configfilename == NULL) {
 		configfilename = new char[1024];
@@ -629,6 +637,17 @@ int main(int argc, char *argv[], char *envp[]) {
 		exit(1);
 	}
 	globalregistry->kismet_config = conf;
+
+	if (daemonize) {
+		if (fork() != 0) {
+			fprintf(stderr, "Silencing output and entering daemon mode...\n");
+			exit(1);
+		}
+
+		// remove messagebus clients
+		globalregistry->messagebus->RemoveClient(fqmescli);
+		globalregistry->messagebus->RemoveClient(smartmsgcli);
+	}
 
 	if (conf->FetchOpt("servername") == "") {
 		globalregistry->servername = "Kismet";

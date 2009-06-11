@@ -3395,6 +3395,7 @@ const common_col_pref client_column_details[] = {
 	{ "decay", "Recent activity", ccol_decay },
 	{ "MAC", "MAC address", ccol_mac },
 	{ "BSSID", "BSSID client is attached to", ccol_bssid },
+	{ "Type", "Type of client", ccol_type },
 	/* { "SSID", "SSID client is attached to", ccol_ssid }, */
 	{ "crypt", "Client uses encryption", ccol_packcrypt },
 	{ "packdata", "Number of data packets", ccol_packdata },
