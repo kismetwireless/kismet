@@ -68,6 +68,9 @@
 char *exec_name;
 #endif
 
+// Daemonize?
+int daemonize = 0;
+
 // One of our few globals in this file
 int glob_linewrap = 1;
 int glob_silent = 0;
@@ -161,26 +164,6 @@ char *configfile = NULL;
 // Ultimate registry of global components
 GlobalRegistry *globalregistry = NULL;
 
-// Quick shutdown to clean up from a fatal config after we opened the child
-void ErrorShutdown() {
-    // Shut down the packet sources
-    if (globalregistry->sourcetracker != NULL) {
-        globalregistry->sourcetracker->StopSource(0);
-
-    }
-
-	// Shut down the root IPC process
-	if (globalregistry->rootipc != NULL) {
-		globalregistry->rootipc->ShutdownIPC(NULL);
-	}
-
-    // Shouldn't need to requeue fatal errors here since error shutdown means 
-    // we just printed something about fatal errors.  Probably.
-
-    fprintf(stderr, "Kismet drone exiting.\n");
-    exit(1);
-}
-
 // Catch our interrupt
 void CatchShutdown(int sig) {
     string termstr = "Kismet drone terminating.";
@@ -194,7 +177,9 @@ void CatchShutdown(int sig) {
 		globalregistry->plugintracker->ShutdownPlugins();
 
 	// Start a short shutdown cycle for 2 seconds
-	fprintf(stderr, "\n*** KISMET DRONE IS FLUSHING BUFFERS AND SHUTTING DOWN ***\n");
+	if (daemonize == 0)
+		fprintf(stderr, 
+				"\n*** KISMET DRONE IS FLUSHING BUFFERS AND SHUTTING DOWN ***\n");
 	globalregistry->spindown = 1;
 	time_t shutdown_target = time(0) + 2;
 	int max_fd = 0;
@@ -243,7 +228,7 @@ void CatchShutdown(int sig) {
 	}
 
 	// Be noisy
-	if (globalregistry->fatal_condition) {
+	if (globalregistry->fatal_condition && daemonize == 0) {
 		fprintf(stderr, "\n*** KISMET DRONE HAS ENCOUNTERED A FATAL ERROR AND CANNOT "
 				"CONTINUE.  ***\n");
 	}
@@ -252,7 +237,8 @@ void CatchShutdown(int sig) {
     if (fqmescli != NULL) 
         fqmescli->DumpFatals();
 
-    fprintf(stderr, "Kismet drone exiting.\n");
+	if (daemonize == 0)
+		fprintf(stderr, "Kismet drone exiting.\n");
     exit(0);
 }
 
@@ -267,6 +253,7 @@ int Usage(char *argv) {
 		   "     --no-line-wrap           Turn of linewrapping of output\n"
 		   "                              (for grep, speed, etc)\n"
 		   " -s, --silent                 Turn off stdout output after setup phase\n"
+		   "     --daemonize              Spawn detatched in the background\n"
 		   );
 
 	printf("\n");
@@ -305,6 +292,46 @@ int main(int argc, char *argv[], char *envp[]) {
 	globalregistry->argc = argc;
 	globalregistry->argv = argv;
 	globalregistry->envp = envp;
+
+	// Turn off the getopt error reporting
+	opterr = 0;
+
+	// Timer for silence
+	int local_silent = 0;
+
+	const int nlwc = globalregistry->getopt_long_num++;
+	const int dwc = globalregistry->getopt_long_num++;
+
+	// Standard getopt parse run
+	static struct option main_longopt[] = {
+		{ "config-file", required_argument, 0, 'f' },
+		{ "no-line-wrap", no_argument, 0, nlwc },
+		{ "silent", no_argument, 0, 's' },
+		{ "help", no_argument, 0, 'h' },
+		{ "daemonize", no_argument, 0, dwc },
+		{ 0, 0, 0, 0 }
+	};
+
+	while (1) {
+		int r = getopt_long(argc, argv, 
+							"-f:sh", 
+							main_longopt, &option_idx);
+		if (r < 0) break;
+		if (r == 'h') {
+			Usage(argv[0]);
+			exit(1);
+		} else if (r == 'f') {
+			configfilename = strdup(optarg);
+		} else if (r == nlwc) {
+			glob_linewrap = 0;
+		} else if (r == 's') {
+			local_silent = 1;
+		} else if (r == dwc) {
+			daemonize = 1;
+			local_silent = 1;
+		}
+	}
+
 	
 	// First order - create our message bus and our client for outputting
 	globalregistry->messagebus = new MessageBus;
@@ -337,40 +364,6 @@ int main(int argc, char *argv[], char *envp[]) {
 	// Allocate some other critical stuff
 	globalregistry->timetracker = new Timetracker(globalregistry);
 
-	// Turn off the getopt error reporting
-	opterr = 0;
-
-	// Timer for silence
-	int local_silent = 0;
-
-	const int nlwc = globalregistry->getopt_long_num++;
-
-	// Standard getopt parse run
-	static struct option main_longopt[] = {
-		{ "config-file", required_argument, 0, 'f' },
-		{ "no-line-wrap", no_argument, 0, nlwc },
-		{ "silent", no_argument, 0, 's' },
-		{ "help", no_argument, 0, 'h' },
-		{ 0, 0, 0, 0 }
-	};
-
-	while (1) {
-		int r = getopt_long(argc, argv, 
-							"-f:sh", 
-							main_longopt, &option_idx);
-		if (r < 0) break;
-		if (r == 'h') {
-			Usage(argv[0]);
-			exit(1);
-		} else if (r == 'f') {
-			configfilename = strdup(optarg);
-		} else if (r == nlwc) {
-			glob_linewrap = 0;
-		} else if (r == 's') {
-			local_silent = 1;
-		}
-	}
-
 	// Open, initial parse, and assign the config file
 	if (configfilename == NULL) {
 		configfilename = new char[1024];
@@ -388,6 +381,17 @@ int main(int argc, char *argv[], char *envp[]) {
 		exit(1);
 	}
 	globalregistry->kismet_config = conf;
+
+	if (daemonize) {
+		if (fork() != 0) {
+			fprintf(stderr, "Silencing output and entering daemon mode...\n");
+			exit(1);
+		}
+
+		// remove messagebus clients
+		globalregistry->messagebus->RemoveClient(fqmescli);
+		globalregistry->messagebus->RemoveClient(smartmsgcli);
+	}
  
 	if (conf->FetchOpt("servername") == "") {
 		globalregistry->servername = "Unnamed Drone";
