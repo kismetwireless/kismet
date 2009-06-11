@@ -271,8 +271,8 @@ int PacketSource_Pcap::Poll() {
 	newpack->insert(_PCM(PACK_COMP_LINKFRAME), linkchunk);
 
 	// Only decode the DLT if we're asked to
-	if (dlt_mangle && ManglePacket(newpack, linkchunk) < 0)
-		return 0;
+	if (dlt_mangle)
+		ManglePacket(newpack, linkchunk);
 
 	num_packets++;
 

@@ -2820,8 +2820,9 @@ void Kis_IntGraph::DrawComponent() {
 
 				// Determine the local max across our range
 				for (int pos = -1 * (xgroup / 2); pos < (xgroup / 2); pos++) {
-					if (r + pos >= dvsize || r + pos < 0)
+					if (r + pos >= dvsize || r + pos < 0) {
 						continue;
+					}
 
 					// Max depending on if we're neg or pos data
 					if ((*(data_vec[x].data))[r + pos] >= 0 &&
@@ -2844,7 +2845,6 @@ void Kis_IntGraph::DrawComponent() {
 				} 
 			} else {
 				nuse = 1;
-				// int gofft = kismin((1.0f / dvsize) * gw, gx);
 				unsigned int pos = (unsigned int) (((float) gx/gw) * dvsize);
 				if (pos >= (*(data_vec)[x].data).size() || pos < 0) {
 					max = min_y;
@@ -2853,8 +2853,9 @@ void Kis_IntGraph::DrawComponent() {
 				}
 			}
 
-			if (nuse == 0)
+			if (nuse == 0) {
 				continue;
+			}
 
 			// If we're negative, do the math differently
 			// Adapt the group max to our scale
@@ -2894,7 +2895,7 @@ void Kis_IntGraph::DrawComponent() {
 		for (int dvx = 0; dvx < dvsize && inter_x == 0; dvx++) {
 			int py = 0;
 			int max = (*(data_vec)[x].data)[dvx];
-			int drawx = (int) ((float) dvx / dvsize) * gw;
+			int drawx = (int) (((float) dvx / dvsize) * gw);
 
 			// If we're negative, do the math differently
 			// Adapt the group max to our scale
