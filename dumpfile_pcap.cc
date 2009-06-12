@@ -184,6 +184,9 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 	kis_gps_packinfo *gpsdata =
 		(kis_gps_packinfo *) in_pack->fetch(_PCM(PACK_COMP_GPS));
 
+	kis_fcs_bytes *fcsdata =
+		(kis_fcs_bytes *) in_pack->fetch(_PCM(PACK_COMP_FCSBYTES));
+
 	if (chunk == NULL) {
 		if ((chunk = 
 			 (kis_datachunk *) in_pack->fetch(_PCM(PACK_COMP_80211FRAME))) == NULL) {
@@ -197,6 +200,8 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 		_MSG("Weird frame in pcap logger with the wrong size...", MSGFLAG_ERROR);
 		return 0;
 	}
+
+	int dump_offset = 0;
 
 	if (packinfo != NULL) {
 		if (phylog == 0 && packinfo->type == packet_phy)
@@ -231,8 +236,12 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 		unsigned int ppi_len = 0;
 		unsigned int ppi_pos = sizeof(ppi_packet_header);
 
-		if (radioinfo != NULL) 
+		if (radioinfo != NULL) {
 			ppi_len += sizeof(ppi_80211_common);
+
+			if (fcsdata != NULL)
+				dump_len += 4;
+		}
 
 		if (gpsdata != NULL) {
 			if (gpsdata->gps_fix >= 2)
@@ -281,8 +290,16 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 
 			// Assemble the flags in host mode then convert them all at once
 			ppi_common->flags = 0;
+
 			if (packinfo != NULL && packinfo->corrupt)
 				ppi_common->flags |= PPI_80211_FLAG_PHYERROR;
+			if (fcsdata != NULL) {
+				ppi_common->flags |= PPI_80211_FLAG_FCS;
+
+				if (fcsdata->fcsvalid == 0)
+					ppi_common->flags |= PPI_80211_FLAG_INVALFCS;
+			}
+
 			ppi_common->flags = kis_htole16(ppi_common->flags);
 
 			ppi_common->rate = kis_htole16(radioinfo->datarate / 5);
@@ -377,6 +394,8 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 			ppi_pos = (*(ppi_cb_vec[p].cb))(globalreg, 0, in_pack, dump_data, ppi_pos,
 											ppi_cb_vec[p].aux);
 		}
+
+		dump_offset = ppi_pos;
 	}
 
 	if (dump_len == 0) {
@@ -390,8 +409,18 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 		dump_data = new u_char[dump_len];
 
 	// copy the packet content in, offset if necessary
-	if (chunk != NULL)
-		memcpy(&(dump_data[dump_len - chunk->length]), chunk->data, chunk->length);
+	if (chunk != NULL) {
+		memcpy(&(dump_data[dump_offset]), chunk->data, chunk->length);
+		dump_offset += chunk->length;
+	}
+
+	// Lousy little hack to append the FCS after the data in PPI
+	if (dumpformat == dump_ppi && fcsdata != NULL && 
+		chunk != NULL && radioinfo != NULL) {
+
+		memcpy(&(dump_data[dump_offset]), fcsdata->fcs, 4);
+		dump_offset += 4;
+	}
 
 	// Fake a header
 	struct pcap_pkthdr wh;

@@ -289,6 +289,25 @@ http://www.kismetwireless.net
                          sources such as pcapfile, reading raw 802.11 pcap
                          files with no headers, may need this turned on for
                          proper behavior.
+     fcsfail=true       Force a mac80211 VAP to report packets with a known
+                         bad FCS (packet checksum).  This is only available
+                         on Linux and only when using mac80211 drivers.
+                         This MUST come after a 'vap=' option or it will be
+                         ignored.  Enabling 'fcsfail' will enable
+                         'validatefcs' automatically.  The 'fcsfail' option 
+                         should only be enabled when logging to PPI; Logging
+                         to normal PCAP will not preserve the FCS data and
+                         will produce unreadable output.
+                         WARNING:  With some driver versions, enabling this
+                         seems to cause kernel OOPS warnings and the
+                         interface will become unresponsive if capture is
+                         stopped and resume.  This option is for specific
+                         expert use only, when in doubt, leave it alone.
+     plcpfail=true      Force a mac80211 VAP to report packets which do not
+                         pass the PLCP check (if possible on that
+                         interface).  The same warnings and conditions as
+                         'fcsfail' apply.  This option is for specific,
+                         expert use only, when in doubt, leave it alone.
 
     Example sources (these are given as config file parameters, however they
     will work equally well as command-line options, ie "-c wlan0"):

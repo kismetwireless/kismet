@@ -148,6 +148,36 @@ int PacketSource_Wext::ParseOptions(vector<opt_pair> *in_opts) {
 			 MSGFLAG_INFO);
 	}
 
+	if (FetchOpt("fcsfail", in_opts) == "true") {
+		if (vap == "") {
+			_MSG("Source '" + interface + "': 'fcsfail' enabled to tell "
+				 "mac80211 to report invalid packets, but not using a VAP. "
+				 "A vap must be specified with 'vap=' BEFORE the 'fcsfail' "
+				 "option.", MSGFLAG_PRINTERROR);
+		} else {
+			_MSG("Source '" + interface + "::" + vap + "': Telling mac80211 to report "
+				 "invalid packets which fail the FCS check.  Forcing FCS "
+				 "validation on as well.", MSGFLAG_INFO);
+			mac80211_flag_vec.push_back(nl80211_mntr_flag_fcsfail);
+			validate_fcs = 1;
+		}
+	}
+
+	if (FetchOpt("plcpfail", in_opts) == "true") {
+		if (vap == "") {
+			_MSG("Source '" + interface + "': 'plcpfail' enabled to tell "
+				 "mac80211 to report invalid packets, but not using a VAP. "
+				 "A vap must be specified with 'vap=' BEFORE the 'plcpfail' "
+				 "option.", MSGFLAG_PRINTERROR);
+		} else {
+			_MSG("Source '" + interface + "::" + vap + "': Telling mac80211 to report "
+				 "invalid packets which fail the PLCP check.  Forcing FCS "
+				 "validation on as well.", MSGFLAG_INFO);
+			mac80211_flag_vec.push_back(nl80211_mntr_flag_plcpfail);
+			validate_fcs = 1;
+		}
+	}
+
 	wpa_path = FetchOpt("wpa_ctrl_path", in_opts);
 
 	if (FetchOpt("wpa_scan", in_opts) != "") {
@@ -401,6 +431,22 @@ int PacketSource_Wext::EnableMonitor() {
 
 		// Switch our main processing interface to the vap
 		interface = vap;
+
+		// Set the flags if we have any, vap must be down to do so
+		if (mac80211_flag_vec.size() > 0) {
+			int oldflags;
+			Ifconfig_Get_Flags(interface.c_str(), errstr, &oldflags);
+			if (Ifconfig_Set_Flags(interface.c_str(), errstr,
+								   oldflags & ~(IFF_UP | IFF_RUNNING)) < 0) {
+				_MSG("Failed to bring down interface '" + interface + "' to "
+					 "configure flags: " + string(errstr), MSGFLAG_PRINTERROR);
+			}
+
+			if (mac80211_setvapflag(interface.c_str(), mac80211_flag_vec, errstr) < 0) {
+				_MSG("Source '" + parent + "' failed to set flags on VAP '" +
+					 interface + "': " + string(errstr), MSGFLAG_PRINTERROR);
+			}
+		}
 	}
 
 	if (Ifconfig_Get_Flags(interface.c_str(), errstr, &stored_flags) < 0) {

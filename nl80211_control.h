@@ -21,6 +21,14 @@
 #ifndef __NL80211_CONFIG__
 #define __NL80211_CONFIG__
 
+// Use our own defines incase we don't have nl80211
+#define nl80211_mntr_flag_none		0
+#define nl80211_mntr_flag_fcsfail	1
+#define nl80211_mntr_flag_plcpfail	2
+#define nl80211_mntr_flag_control	3
+#define nl80211_mntr_flag_otherbss	4
+#define nl80211_mntr_flag_cookframe	5
+
 struct mac80211_channel_block {
 	string phyname;
 	vector<unsigned int> channel_list;
@@ -32,6 +40,10 @@ void mac80211_disconnect(void *handle);
 
 // Make a vap under mac80211
 int mac80211_createvap(const char *interface, const char *newinterface, char *errstr);
+
+// Set vap flags
+int mac80211_setvapflag(const char *interface, vector<unsigned int> in_flags, 
+						char *errstr);
 
 // Set channel using nl80211 instead of SIOCWCHAN
 int mac80211_setchannel(const char *interface, int channel, 

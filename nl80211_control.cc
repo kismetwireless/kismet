@@ -37,6 +37,7 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
 
 #include "util.h"
 
@@ -166,6 +167,102 @@ nla_put_failure:
 				 "but it wasn't there when we looked");
 		return -1;
 	}
+
+	return 0;
+#endif
+}
+
+// Has to be a separate function because of gotos, ew
+void mac80211_parseflags(vector<unsigned int> in_flags, struct nl_msg *msg) {
+#ifdef HAVE_LINUX_NETLINK
+	struct nl_msg *flags;
+	enum nl80211_mntr_flags flag = NL80211_MNTR_FLAG_MAX;
+
+	if ((flags = nlmsg_alloc()) == NULL) {
+		return;
+	}
+
+	for (unsigned int x = 0; x < in_flags.size(); x++) {
+		switch (in_flags[x]) {
+			case nl80211_mntr_flag_none:
+				continue;
+				break;
+			case nl80211_mntr_flag_fcsfail:
+				flag = NL80211_MNTR_FLAG_FCSFAIL;
+				break;
+			case nl80211_mntr_flag_plcpfail:
+				flag = NL80211_MNTR_FLAG_PLCPFAIL;
+				break;
+			case nl80211_mntr_flag_control:
+				flag = NL80211_MNTR_FLAG_CONTROL;
+				break;
+			case nl80211_mntr_flag_otherbss:
+				flag = NL80211_MNTR_FLAG_OTHER_BSS;
+				break;
+			case nl80211_mntr_flag_cookframe:
+				flag = NL80211_MNTR_FLAG_COOK_FRAMES;
+				break;
+		}
+
+		NLA_PUT_FLAG(flags, flag);
+	}
+
+	nla_put_nested(msg, NL80211_ATTR_MNTR_FLAGS, flags);
+
+nla_put_failure:
+	nlmsg_free(flags);
+#endif
+}
+
+int mac80211_setvapflag(const char *interface, vector<unsigned int> in_flags,
+						char *errstr) {
+#ifndef HAVE_LINUX_NETLINK
+	snprintf(errstr, STATUS_MAX, "Kismet was not compiled with netlink/mac80211 "
+			 "support, check the output of ./configure for why");
+	return -1;
+#else
+
+	struct nl_sock *nl_handle;
+	struct nl_cache *nl_cache;
+	struct genl_family *nl80211;
+	struct nl_msg *msg;
+
+	if (mac80211_connect(interface, (void **) &nl_handle, 
+						 (void **) &nl_cache, (void **) &nl80211, errstr) < 0)
+		return -1;
+
+	if ((msg = nlmsg_alloc()) == NULL) {
+		snprintf(errstr, STATUS_MAX, "%s failed to allocate message",
+				 __FUNCTION__);
+		mac80211_disconnect(nl_handle);
+		return -1;
+	}
+
+	genlmsg_put(msg, 0, 0, genl_family_get_id(nl80211), 0, 0, 
+				NL80211_CMD_SET_INTERFACE, 0);
+
+	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, if_nametoindex(interface));
+	NLA_PUT_U32(msg, NL80211_ATTR_IFTYPE, NL80211_IFTYPE_MONITOR);
+
+	mac80211_parseflags(in_flags, msg);
+
+	if (nl_send_auto_complete(nl_handle, msg) >= 0) { 
+		if (nl_wait_for_ack(nl_handle) < 0) {
+			goto nla_put_failure;
+		}
+	} else {
+nla_put_failure:
+		snprintf(errstr, STATUS_MAX, "%s failed to set flags on "
+				 "interface '%s': %s", __FUNCTION__, interface,
+				 strerror(errno));
+		nlmsg_free(msg);
+		mac80211_disconnect(nl_handle);
+		return -1;
+	}
+
+	nlmsg_free(msg);
+
+	mac80211_disconnect(nl_handle);
 
 	return 0;
 #endif
