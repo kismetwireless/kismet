@@ -1340,6 +1340,8 @@ Kis_ClientDetails_Panel::Kis_ClientDetails_Panel(GlobalRegistry *in_globalreg,
 	menu->SetCallback(COMPONENT_CBTYPE_ACTIVATED, CliDetailsMenuCB, this);
 
 	mn_client = menu->AddMenu("Client", 0);
+	mi_addnote = menu->AddMenuItem("Add Note...", mn_client, 'N');
+	menu->AddMenuItem("-", mn_client, 0);
 	mi_nextcli = menu->AddMenuItem("Next client", mn_client, 'n');
 	mi_prevcli = menu->AddMenuItem("Prev client", mn_client, 'p');
 	menu->AddMenuItem("-", mn_client, 0);
@@ -1764,6 +1766,13 @@ void Kis_ClientDetails_Panel::DrawPanel() {
 				td.push_back(AlignString("DHCP OS: ", ' ', 2, 16) + 
 							  dcli->dhcp_vendor);
 			}
+
+			for (map<string, string>::const_iterator ai = dcli->arb_tag_map.begin();
+				 ai != dcli->arb_tag_map.end(); ++ai) {
+				if (ai->first == "" || ai->second == "")
+					continue;
+				td.push_back(AlignString(ai->first + ": ", ' ', 2, 16) + ai->second);
+			}
 		}
 	}
 
@@ -1780,6 +1789,11 @@ void Kis_ClientDetails_Panel::ButtonAction(Kis_Panel_Component *in_button) {
 void Kis_ClientDetails_Panel::MenuAction(int opt) {
 	if (opt == mi_close) {
 		globalreg->panel_interface->KillPanel(this);
+		return;
+	} else if (opt == mi_addnote) {
+		Kis_AddCliNote_Panel *np = new Kis_AddCliNote_Panel(globalreg, kpinterface);
+		np->SetClient(dcli);
+		kpinterface->AddPanel(np);
 		return;
 	} else if (opt == mi_nextcli && clientlist != NULL) {
 		clientlist->KeyPress(KEY_DOWN);

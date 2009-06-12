@@ -758,6 +758,15 @@ int Dumpfile_Netxml::Flush() {
 				fprintf(xmlfile, "      </seen-card>\n");
 			}
 
+			for (map<string, string>::const_iterator ai = cli->arb_tag_map.begin();
+				 ai != cli->arb_tag_map.end(); ++ai) {
+				if (ai->first == "" || ai->second == "")
+					continue;
+
+				fprintf(xmlfile, "      <tag name=\"%s\">%s</tag>\n", 
+						SanitizeXML(ai->first).c_str(), SanitizeXML(ai->second).c_str());
+			}
+
 			fprintf(xmlfile, "    </wireless-client>\n");
 
 		}

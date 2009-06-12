@@ -88,6 +88,11 @@ const char *NETTAG_fields_text[] = {
 	NULL
 };
 
+const char *CLITAG_fields_text[] = {
+	"bssid", "mac", "tag", "value",
+	NULL
+};
+
 const char *REMOVE_fields_text[] = {
     "bssid",
     NULL
@@ -926,8 +931,10 @@ int Protocol_BSSIDSRC(PROTO_PARMS) {
     return 1;
 }
 
+// Reuse the same struct for net and client tags
 struct nettag_struct {
 	mac_addr bssid;
+	mac_addr mac;
 	map<string, string>::const_iterator mi;
 };
 
@@ -995,6 +1002,81 @@ void Protocol_NETTAG_enable(PROTO_ENABLE_PARMS) {
 											globalreg->netracker->proto_ref_nettag,
 							  				(void *) &s, &cache) < 0)
 				break;
+		}
+	}
+}
+
+int Protocol_CLITAG(PROTO_PARMS) {
+	nettag_struct *s = (nettag_struct *) data;
+
+	string scratch;
+
+	// Alloc the cache quickly
+	cache->Filled(field_vec->size());
+
+    for (unsigned int x = 0; x < field_vec->size(); x++) {
+        unsigned int fnum = (*field_vec)[x];
+        if (fnum >= CLITAG_maxfield) {
+            out_string = "Unknown field requested.";
+            return -1;
+		}
+
+		// Shortcut test the cache once and print/bail immediately
+		if (cache->Filled(fnum)) {
+			out_string += cache->GetCache(fnum) + " ";
+			continue;
+		}
+
+		// Fill in the cached element
+		switch(fnum) {
+			case CLITAG_bssid:
+				scratch = s->bssid.Mac2String().c_str();
+				break;
+			case CLITAG_mac:
+				scratch = s->mac.Mac2String().c_str();
+				break;
+			case CLITAG_tag:
+				scratch = "\001" + s->mi->first + "\001";
+				break;
+			case CLITAG_value:
+				scratch = "\001" + s->mi->second + "\001";
+				break;
+		}
+
+		out_string += scratch;
+		cache->Cache(fnum, scratch);
+
+		out_string += " ";
+    }
+
+    return 1;
+}
+
+void Protocol_CLITAG_enable(PROTO_ENABLE_PARMS) {
+	// Push new networks and reset their rate counters
+	for (Netracker::track_iter x = globalreg->netracker->tracked_map.begin(); 
+		 x != globalreg->netracker->tracked_map.end(); ++x) {
+
+		if (x->second->type == network_remove)
+			continue;
+
+		for (Netracker::client_iter c = x->second->client_map.begin();
+			 c != x->second->client_map.end(); ++c) {
+
+			for (map<string, string>::const_iterator ai = c->second->arb_tag_map.begin();
+				 ai != c->second->arb_tag_map.end(); ++ai) {
+				nettag_struct s;
+
+				s.bssid = x->second->bssid;
+				s.mac = c->second->mac;
+				s.mi = ai;
+
+				kis_protocol_cache cache;
+				if (globalreg->kisnetserver->SendToClient(in_fd, 
+											  globalreg->netracker->proto_ref_clitag,
+											  (void *) &s, &cache) < 0)
+					break;
+			}
 		}
 	}
 }
@@ -1257,6 +1339,66 @@ int Netracker_Clicmd_DELNETTAG(CLIENT_PARMS) {
 	}
 
 	((Netracker *) auxptr)->ClearNetworkTag(net, (*parsedcmdline)[1].word);
+
+	return 1;
+}
+
+int Netracker_Clicmd_ADDCLITAG(CLIENT_PARMS) {
+	if (parsedcmdline->size() < 4) {
+		snprintf(errstr, 1024, "Illegal ADDCLITAG request, expected BSSID MAC "
+				 "TAG VALUES");
+		return -1;
+	}
+
+	mac_addr net = mac_addr((*parsedcmdline)[0].word.c_str());
+
+	if (net.error) {
+		snprintf(errstr, 1024, "Illegal ADDCLITAG request, expected BSSID MAC "
+				 "TAG VALUES");
+		return -1;
+	}
+
+	mac_addr cli = mac_addr((*parsedcmdline)[1].word.c_str());
+
+	if (cli.error) {
+		snprintf(errstr, 1024, "Illegal ADDCLITAG request, expected BSSID MAC "
+				 "TAG VALUES");
+		return -1;
+	}
+
+	string content;
+	for (unsigned int x = 3; x < parsedcmdline->size(); x++) {
+		content += (*parsedcmdline)[x].word;
+		if (x < parsedcmdline->size() - 1)
+			content += " ";
+	}
+
+	((Netracker *) auxptr)->SetClientTag(net, cli, (*parsedcmdline)[2].word, content);
+
+	return 1;
+}
+
+int Netracker_Clicmd_DELCLITAG(CLIENT_PARMS) {
+	if (parsedcmdline->size() < 3) {
+		snprintf(errstr, 1024, "Illegal DELCLITAG request, expected BSSID MAC TAG");
+		return -1;
+	}
+
+	mac_addr net = mac_addr((*parsedcmdline)[0].word.c_str());
+
+	if (net.error) {
+		snprintf(errstr, 1024, "Illegal DELCLITAG request, expected BSSID MAC TAG");
+		return -1;
+	}
+
+	mac_addr cli = mac_addr((*parsedcmdline)[1].word.c_str());
+
+	if (cli.error) {
+		snprintf(errstr, 1024, "Illegal DELCLITAG request, expected BSSID MAC TAG");
+		return -1;
+	}
+
+	((Netracker *) auxptr)->ClearClientTag(net, cli, (*parsedcmdline)[2].word);
 
 	return 1;
 }
@@ -1534,6 +1676,12 @@ Netracker::Netracker(GlobalRegistry *in_globalreg) {
 												  NETTAG_fields_text, 
 												  &Protocol_NETTAG, 
 												  &Protocol_NETTAG_enable, this);
+	proto_ref_clitag =
+		globalreg->kisnetserver->RegisterProtocol("CLITAG", 0, 1,
+												  CLITAG_fields_text, 
+												  &Protocol_CLITAG, 
+												  &Protocol_CLITAG_enable, this);
+
 	_NPM(PROTO_REF_REMOVE) =
 		globalreg->kisnetserver->RegisterProtocol("REMOVE", 0, 1,
 												  REMOVE_fields_text, 
@@ -1557,6 +1705,15 @@ Netracker::Netracker(GlobalRegistry *in_globalreg) {
 	delnettagcmd_ref =
 		globalreg->kisnetserver->RegisterClientCommand("DELNETTAG",
 													   &Netracker_Clicmd_DELNETTAG,
+													   this);
+	addclitagcmd_ref =
+		globalreg->kisnetserver->RegisterClientCommand("ADDCLITAG",
+													   &Netracker_Clicmd_ADDCLITAG,
+													   this);
+
+	delclitagcmd_ref =
+		globalreg->kisnetserver->RegisterClientCommand("DELCLITAG",
+													   &Netracker_Clicmd_DELCLITAG,
 													   this);
 
 	// See if we have some alerts to raise
@@ -1669,6 +1826,52 @@ void Netracker::ClearNetworkTag(mac_addr in_net, string in_tag) {
 		if (ti->second->dirty == 0) {
 			dirty_net_vec.push_back(ti->second);
 			ti->second->dirty = 1;
+		}
+	}
+}
+
+void Netracker::SetClientTag(mac_addr in_net, mac_addr in_cli, string in_tag, 
+							 string in_data) {
+	tracked_network *net;
+	tracked_client *cli;
+	track_iter ti;
+	client_iter ci;
+
+	if ((ti = tracked_map.find(in_net)) == tracked_map.end())
+		return;
+
+	net = ti->second;
+
+	if ((ci = net->client_map.find(in_cli)) == net->client_map.end())
+		return;
+
+	cli = ci->second;
+
+	cli->arb_tag_map[in_tag] = in_data;
+
+	if (cli->dirty == 0) {
+		dirty_cli_vec.push_back(cli);
+		cli->dirty = 1;
+	}
+}
+
+void Netracker::ClearClientTag(mac_addr in_net, mac_addr in_cli, string in_tag) {
+	track_iter ti;
+	client_iter ci;
+	map<string, string>::iterator si;
+
+	if ((ti = tracked_map.find(in_net)) == tracked_map.end())
+		return;
+
+	if ((ci = ti->second->client_map.find(in_cli)) == ti->second->client_map.end())
+		return;
+
+	if ((si = ci->second->arb_tag_map.find(in_tag)) != ci->second->arb_tag_map.end()) {
+		ci->second->arb_tag_map.erase(si);
+
+		if (ci->second->dirty == 0) {
+			dirty_cli_vec.push_back(ci->second);
+			ci->second->dirty = 1;
 		}
 	}
 }
@@ -1789,6 +1992,17 @@ int Netracker::TimerKick() {
 											   (void *) asi->second);
 
 			asi->second->dirty = 0;
+		}
+
+		for (map<string, string>::const_iterator ai = cli->arb_tag_map.begin();
+			 ai != cli->arb_tag_map.end(); ++ai) {
+			nettag_struct s;
+
+			s.bssid = cli->bssid;
+			s.mac = cli->mac;
+			s.mi = ai;
+
+			globalreg->kisnetserver->SendToAll(proto_ref_clitag, (void *) &s);
 		}
 
 		// Reset the frag, retry, and packet counts

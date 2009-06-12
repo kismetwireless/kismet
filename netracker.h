@@ -124,6 +124,11 @@ enum NETTAG_fields {
 	NETTAG_maxfield
 };
 
+enum CLITAG_fields {
+	CLITAG_bssid, CLITAG_mac, CLITAG_tag, CLITAG_value,
+	CLITAG_maxfield
+};
+
 enum REMOVE_fields {
     REMOVE_bssid
 };
@@ -794,6 +799,10 @@ public:
 
 		string dot11d_country;
 		vector<dot11d_range_info> dot11d_vec;
+
+		// Map of arbitrary tags associated with this network
+		// Tags are case sensitive!
+		map<string, string> arb_tag_map;
 	};
 
 	Netracker();
@@ -815,6 +824,9 @@ public:
 
 	void SetNetworkTag(mac_addr in_net, string in_tag, string in_data);
 	void ClearNetworkTag(mac_addr in_net, string in_tag);
+	void SetClientTag(mac_addr in_net, mac_addr in_cli, string in_tag,
+					  string in_data);
+	void ClearClientTag(mac_addr in_net, mac_addr in_cli, string in_tag);
 
 	// Fetch the internal maps.  Touching these is Bad.  Should only be used when
 	// the chain API is insufficient, like logging xml/net ascii
@@ -896,7 +908,8 @@ protected:
 	int netrackereventid;
 
 	// Command refs
-	int addfiltercmd_ref, addnetclifiltercmd_ref, addnettagcmd_ref, delnettagcmd_ref;
+	int addfiltercmd_ref, addnetclifiltercmd_ref, addnettagcmd_ref, delnettagcmd_ref,
+		addclitagcmd_ref, delclitagcmd_ref;
 
 	// Filter core for tracker
 	FilterCore *track_filter;
@@ -904,7 +917,7 @@ protected:
 	FilterCore *netcli_filter;
 
 	// Nonglobal protocols
-	int proto_ref_bssidsrc, proto_ref_clisrc, proto_ref_nettag;
+	int proto_ref_bssidsrc, proto_ref_clisrc, proto_ref_nettag, proto_ref_clitag;
 
 	// SSID cloak file as a config
 	ConfigFile *ssid_conf;
@@ -917,6 +930,7 @@ protected:
 	friend void Protocol_SSID_enable(PROTO_ENABLE_PARMS);
 	friend void Protocol_CLIENT_enable(PROTO_ENABLE_PARMS);
 	friend void Protocol_NETTAG_enable(PROTO_ENABLE_PARMS);
+	friend void Protocol_CLITAG_enable(PROTO_ENABLE_PARMS);
 	friend int NetrackerUpdateTimer(TIMEEVENT_PARMS);
 };
 

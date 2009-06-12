@@ -847,21 +847,19 @@ void Kis_Main_Panel::DrawPanel() {
 
 	sourceinfo->SetText(sourceinfotxt);
 
-	ColorFromPref(text_color, "panel_text_color");
-	ColorFromPref(border_color, "panel_border_color");
-
-	wbkgdset(win, text_color);
-	werase(win);
-
-	DrawTitleBorder();
-
 	UpdateSortMenu();
 
-	DrawComponentVec();
+	if (netlist->FetchSelectedNetgroup() != NULL) {
+		menu->EnableMenuItem(mi_addnote);
+		menu->EnableMenuItem(mi_netdetails);
+		menu->EnableMenuItem(mi_clientlist);
+	} else {
+		menu->DisableMenuItem(mi_addnote);
+		menu->DisableMenuItem(mi_netdetails);
+		menu->DisableMenuItem(mi_clientlist);
+	}
 
-	menu->DrawComponent();
-
-	wmove(win, 0, 0);
+	Kis_Panel::DrawPanel();
 }
 
 int Kis_Main_Panel::MouseEvent(MEVENT *mevent) {
@@ -2994,8 +2992,9 @@ Kis_Clientlist_Panel::Kis_Clientlist_Panel(GlobalRegistry *in_globalreg,
 	mi_sort_packets_d = menu->AddMenuItem("Packets (descending)", mn_sort, 'P');
 	menu->SetMenuItemCheckSymbol(mi_sort_packets_d, '*');
 
-	mn_view = menu->AddMenu("View", 0);
-	mi_details = menu->AddMenuItem("Client details", mn_view, 'c');
+	mn_view = menu->AddMenu("Windows", 0);
+	mi_addnote = menu->AddMenuItem("Add Note...", mn_view, 'N');
+	mi_details = menu->AddMenuItem("Client details...", mn_view, 'c');
 
 	menu->Show();
 	AddComponentVec(menu, KIS_PANEL_COMP_EVT);
@@ -3051,6 +3050,18 @@ Kis_Clientlist_Panel::Kis_Clientlist_Panel(GlobalRegistry *in_globalreg,
 Kis_Clientlist_Panel::~Kis_Clientlist_Panel() {
 	if (grapheventid >= 0 && globalreg != NULL)
 		globalreg->timetracker->RemoveTimer(grapheventid);
+}
+
+void Kis_Clientlist_Panel::DrawPanel() {
+	if (clientlist->FetchSelectedClient() != NULL) {
+		menu->EnableMenuItem(mi_addnote);
+		menu->EnableMenuItem(mi_details);
+	} else {
+		menu->DisableMenuItem(mi_addnote);
+		menu->DisableMenuItem(mi_details);
+	}
+
+	Kis_Panel::DrawPanel();
 }
 
 void Kis_Clientlist_Panel::ButtonAction(Kis_Panel_Component *in_button) {
@@ -3132,6 +3143,10 @@ void Kis_Clientlist_Panel::MenuAction(int opt) {
 
 		cpp->ColumnPref("clientlist_extras", "Client Extras");
 		kpinterface->AddPanel(cpp);
+	} else if (opt == mi_addnote) {
+		Kis_AddCliNote_Panel *dp = new Kis_AddCliNote_Panel(globalreg, kpinterface);
+		dp->SetClient(clientlist->FetchSelectedClient());
+		kpinterface->AddPanel(dp);
 	} else if (opt == mi_details) {
 		Kis_ClientDetails_Panel *cp = 
 			new Kis_ClientDetails_Panel(globalreg, kpinterface);
@@ -3339,6 +3354,125 @@ void Kis_AddNetNote_Panel::Action(Kis_Panel_Component *in_button, int in_state) 
 		kpinterface->FetchNetClient()->InjectCommand("ADDNETTAG " +
 							bssid.Mac2String() + " \001User Note\001 "
 							"\001" + notetxt->GetText() + "\001");
+
+		kpinterface->KillPanel(this);
+		return;
+	}
+}
+
+int AddCliNoteCB(COMPONENT_CALLBACK_PARMS) {
+	((Kis_AddCliNote_Panel *) aux)->Action(component, status);
+	return 1;
+}
+
+Kis_AddCliNote_Panel::Kis_AddCliNote_Panel(GlobalRegistry *in_globalreg, 
+										   KisPanelInterface *in_intf) :
+	Kis_Panel(in_globalreg, in_intf) {
+
+	cli = NULL;
+
+	notetxt = new Kis_Single_Input(globalreg, this);
+	notetxt->SetLabel("Note", LABEL_POS_LEFT);
+	notetxt->SetCharFilter(FILTER_ALPHANUMSYM);
+	notetxt->SetTextLen(256);
+	AddComponentVec(notetxt, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+							  KIS_PANEL_COMP_TAB));
+	notetxt->Show();
+
+	okbutton = new Kis_Button(globalreg, this);
+	okbutton->SetLabel("Add Note");
+	okbutton->Show();
+	okbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, AddCliNoteCB, this);
+	AddComponentVec(okbutton, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+							   KIS_PANEL_COMP_TAB));
+	okbutton->Show();
+
+	cancelbutton = new Kis_Button(globalreg, this);
+	cancelbutton->SetLabel("Cancel");
+	cancelbutton->Show();
+	cancelbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, AddCliNoteCB, this);
+	AddComponentVec(cancelbutton, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+								   KIS_PANEL_COMP_TAB));
+
+	bbox = new Kis_Panel_Packbox(globalreg, this);
+	bbox->SetPackH();
+	bbox->SetHomogenous(1);
+	bbox->SetSpacing(0);
+	bbox->SetCenter(1);
+	bbox->Show();
+	AddComponentVec(bbox, KIS_PANEL_COMP_DRAW);
+
+	bbox->Pack_End(cancelbutton, 0, 0);
+	bbox->Pack_End(okbutton, 0, 0);
+
+	vbox = new Kis_Panel_Packbox(globalreg, this);
+	vbox->SetPackV();
+	vbox->SetHomogenous(0);
+	vbox->SetSpacing(1);
+	AddComponentVec(vbox, KIS_PANEL_COMP_DRAW);
+	vbox->Show();
+
+	vbox->Pack_End(notetxt, 0, 0);
+	vbox->Pack_End(bbox, 0, 0);
+
+	main_component = vbox;
+	SetActiveComponent(notetxt);
+
+	Position(WIN_CENTER(5, 60));
+}
+
+Kis_AddCliNote_Panel::~Kis_AddCliNote_Panel() {
+
+}
+
+void Kis_AddCliNote_Panel::SetClient(Netracker::tracked_client *in_cli) {
+	cli = in_cli;
+
+	string oldnote = "";
+	for (map<string, string>::const_iterator si = cli->arb_tag_map.begin();
+		 si != cli->arb_tag_map.end(); ++si) {
+		if (si->first == "User Note") {
+			oldnote = si->second;
+			break;
+		}
+	}
+
+	notetxt->SetText(oldnote, -1, -1);
+}
+
+void Kis_AddCliNote_Panel::DrawPanel() {
+	if (cli == NULL) {
+		kpinterface->RaiseAlert("No client",
+								"Cannot add a note, no client was selected.\n"
+								"Set the Sort type to anything besides Auto-Fit\n"
+								"and highlight a client, then add a note.\n");
+		kpinterface->KillPanel(this);
+		return;
+	}
+
+	Kis_Panel::DrawPanel();
+}
+
+void Kis_AddCliNote_Panel::Action(Kis_Panel_Component *in_button, int in_state) {
+	if (in_button == cancelbutton) {
+		kpinterface->KillPanel(this);
+	} else if (in_button == okbutton) {
+		if (kpinterface->FetchNetClient() == NULL) {
+			kpinterface->RaiseAlert("No connection",
+									"No longer connected to a Kismet server, cannot\n"
+									"add a note to a client.\n");
+			kpinterface->KillPanel(this);
+			return;
+		}
+
+		if (cli == NULL) {
+			kpinterface->KillPanel(this);
+			return;
+		}
+
+		kpinterface->FetchNetClient()->InjectCommand("ADDCLITAG " +
+							cli->bssid.Mac2String() + " " + cli->mac.Mac2String() +
+							" \001User Note\001 \001" + notetxt->GetText() + "\001");
 
 		kpinterface->KillPanel(this);
 		return;

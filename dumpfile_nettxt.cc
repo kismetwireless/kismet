@@ -609,6 +609,15 @@ int Dumpfile_Nettxt::Flush() {
 			if (cli->dhcp_vendor.length() > 0)
 				fprintf(txtfile, "     DHCP OS : \"%s\"\n", 
 						cli->dhcp_vendor.c_str());
+
+			for (map<string, string>::const_iterator ai = cli->arb_tag_map.begin();
+				 ai != cli->arb_tag_map.end(); ++ai)  {
+				if (ai->first == "" || ai->second == "")
+					continue;
+
+				fprintf(txtfile, "%12.12s : \"%s\"\n", ai->first.c_str(), 
+						ai->second.c_str());
+			}
 		}
 
 	}

@@ -206,7 +206,7 @@ protected:
 	Kis_Display_NetGroup *dng;
 	Netracker::tracked_client *dcli;
 
-	int mn_client, mi_nextcli, mi_prevcli, mi_close;
+	int mn_client, mi_addnote, mi_nextcli, mi_prevcli, mi_close;
 
 	int mn_view, mi_cli, mi_graphsig, mi_graphpacket, mi_graphretry;
 

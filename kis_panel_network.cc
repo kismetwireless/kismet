@@ -458,6 +458,11 @@ void KisNetlist_NETTAG(CLIPROTO_CB_PARMS) {
 										   proto_parsed, srccli, auxptr);
 }
 
+void KisNetlist_CLITAG(CLIPROTO_CB_PARMS) {
+	((Kis_Netlist *) auxptr)->Proto_CLITAG(globalreg, proto_string,
+										   proto_parsed, srccli, auxptr);
+}
+
 void KisNetlist_BSSIDSRC(CLIPROTO_CB_PARMS) {
 	((Kis_Netlist *) auxptr)->Proto_BSSIDSRC(globalreg, proto_string,
 											 proto_parsed, srccli, auxptr);
@@ -531,6 +536,8 @@ Kis_Netlist::~Kis_Netlist() {
 	kpinterface->Remove_All_Netcli_ProtoHandler("CLIENT", KisNetlist_CLIENT, this);
 	kpinterface->Remove_All_Netcli_ProtoHandler("BSSIDSRC", KisNetlist_BSSIDSRC, this);
 	kpinterface->Remove_All_Netcli_ProtoHandler("CLISRC", KisNetlist_CLISRC, this);
+	kpinterface->Remove_All_Netcli_ProtoHandler("NETTAG", KisNetlist_NETTAG, this);
+	kpinterface->Remove_All_Netcli_ProtoHandler("CLITAG", KisNetlist_CLITAG, this);
 	// Remove the timer
 	globalreg->timetracker->RemoveTimer(updateref);
 	
@@ -737,6 +744,11 @@ void Kis_Netlist::NetClientConfigure(KisNetClient *in_cli, int in_recon) {
 	if (in_cli->RegisterProtoHandler("NETTAG", "bssid,tag,value",
 									 KisNetlist_NETTAG, this) < 0) {
 		_MSG("Could not register NETTAG protocol with remote server", MSGFLAG_ERROR);
+	}
+
+	if (in_cli->RegisterProtoHandler("CLITAG", "bssid,mac,tag,value",
+									 KisNetlist_CLITAG, this) < 0) {
+		_MSG("Could not register CLITAG protocol with remote server", MSGFLAG_ERROR);
 	}
 
 	if (in_cli->RegisterProtoHandler("CLIENT", asm_client_fields,
@@ -1915,7 +1927,7 @@ void Kis_Netlist::Proto_NETTAG(CLIPROTO_CB_PARMS) {
 	}
 	net = *(tni->second);
 
-	net->arb_tag_map[(*proto_parsed)[1].word] = 
+	net->arb_tag_map[MungeToPrintable((*proto_parsed)[1].word)] = 
 		MungeToPrintable((*proto_parsed)[2].word);
 
 	// Set the net dirty and push it into the dirty vec if it isn't there already
@@ -1923,6 +1935,46 @@ void Kis_Netlist::Proto_NETTAG(CLIPROTO_CB_PARMS) {
 		net->dirty = 1;
 		dirty_raw_vec.push_back(net);
 	}
+
+	return;
+}
+
+void Kis_Netlist::Proto_CLITAG(CLIPROTO_CB_PARMS) {
+	if (proto_parsed->size() < 4) {
+		return;
+	}
+
+	Netracker::tracked_network *net = NULL;
+	Netracker::tracked_client *cli = NULL;
+
+	mac_addr bssid = mac_addr((*proto_parsed)[0].word.c_str());
+	if (bssid.error) {
+		return;
+	}
+
+	mac_addr mac = mac_addr((*proto_parsed)[1].word.c_str());
+	if (mac.error) {
+		return;
+	}
+
+	macmap<Netracker::tracked_network *>::iterator tni = bssid_raw_map.find(bssid);
+
+	if (tni == bssid_raw_map.end()) {
+		return;
+	}
+	net = *(tni->second);
+
+	map<mac_addr, Netracker::tracked_client *>::iterator tci = net->client_map.find(mac);
+
+	if (tci == net->client_map.end()) {
+		return;
+	}
+	cli = tci->second;
+
+	cli->arb_tag_map[MungeToPrintable((*proto_parsed)[2].word)] = 
+		MungeToPrintable((*proto_parsed)[3].word);
+
+	cli->dirty = 1;
 
 	return;
 }

@@ -426,6 +426,8 @@ public:
 
 	virtual int GraphTimer();
 
+	virtual void DrawPanel();
+
 protected:
 	virtual void UpdateViewMenu(int mi);
 	virtual void UpdateSortMenu();
@@ -439,7 +441,7 @@ protected:
 	int mn_sort, mi_sort_auto, mi_sort_type, mi_sort_first, mi_sort_first_d, 
 		mi_sort_last, mi_sort_last_d, mi_sort_mac, 
 		mi_sort_packets, mi_sort_packets_d;
-	int mn_view, mi_details;
+	int mn_view, mi_addnote, mi_details;
 
 	int grapheventid;
 };
@@ -464,6 +466,29 @@ protected:
 
 	Kis_Display_NetGroup *dng;
 	mac_addr bssid;
+};
+
+class Kis_AddCliNote_Panel : public Kis_Panel {
+public:
+	Kis_AddCliNote_Panel() {
+		fprintf(stderr, "FATAL OOPS: Kis_AddCliNote_Panel()\n");
+		exit(1);
+	}
+
+	Kis_AddCliNote_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_kpf);
+	virtual ~Kis_AddCliNote_Panel();
+
+	virtual void SetClient(Netracker::tracked_client *in_cli);
+
+	virtual void DrawPanel();
+	virtual void Action(Kis_Panel_Component *in_button, int in_state);
+
+protected:
+	Kis_Panel_Packbox *vbox, *bbox;
+	Kis_Single_Input *notetxt;
+	Kis_Button *cancelbutton, *okbutton;
+
+	Netracker::tracked_client *cli;
 };
 
 #endif
