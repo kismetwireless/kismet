@@ -108,6 +108,10 @@ int PopenClient::Connect(const char *in_remotehost, short int in_port) {
 	close(opipe[1]);
 	close(epipe[1]);
 
+	// Set them to be nonblocking
+	fcntl(opipe[0], F_SETFL, (fcntl(opipe[0], F_GETFL, 0) | O_NONBLOCK));
+	fcntl(epipe[0], F_SETFL, (fcntl(opipe[0], F_GETFL, 0) | O_NONBLOCK));
+
 	cl_valid = 1;
 
 	write_buf = new RingBuffer(POPEN_RING_LEN);
@@ -238,7 +242,8 @@ int PopenClient::ReadBytes() {
     uint8_t recv_bytes[1024];
     int ret;
 
-    if ((ret = read(opipe[0], recv_bytes, 1024)) < 0) {
+    if ((ret = read(opipe[0], recv_bytes, 1024)) < 0 &&
+		errno != EINTR) {
         snprintf(errstr, 1024, "Popen client read() error: %s", 
                  strerror(errno));
         globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
@@ -269,7 +274,8 @@ int PopenClient::ReadEBytes() {
     uint8_t recv_bytes[1024];
     int ret;
 
-    if ((ret = read(epipe[0], recv_bytes, 1024)) < 0) {
+    if ((ret = read(epipe[0], recv_bytes, 1024)) < 0 &&
+		errno != EINTR) {
         snprintf(errstr, 1024, "Popen client read() error: %s", 
                  strerror(errno));
         globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
