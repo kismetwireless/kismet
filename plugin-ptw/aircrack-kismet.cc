@@ -437,6 +437,10 @@ int kisptw_datachain_hook(CHAINCALL_PARMS) {
 
 			if (added) {
 				pnet->last_packet = time(0);
+				globalreg->netracker->SetNetworkTag(pnet->bssid, "WEP-PTW-IV",
+													IntToString(pnet->num_ptw_ivs));
+				globalreg->netracker->SetNetworkTag(pnet->bssid, "WEP-PTW-UNK",
+													IntToString(pnet->num_ptw_vivs));
 			}
 		}
 	}
