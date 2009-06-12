@@ -578,7 +578,7 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
 		srcparms = capsrc->ref_source->FetchGenericParms();
 
 	// Flat-out dump if it's not big enough to be 80211.
-    if (chunk->length < 24) {
+    if (chunk->length < 10) {
         return 0;
 	}
 
@@ -1179,7 +1179,7 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
 			}
 		}
 
-    } else if (fc->type == 1) {
+    } else if (fc->type == packet_phy) {
         packinfo->type = packet_phy;
 
         // Throw away large phy packets just like we throw away large management.

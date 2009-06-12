@@ -723,7 +723,7 @@ http://www.kismetwireless.net
 
         filter_tracker=BSSID(AA:BB:CC:00:00:00/FF:FF:FF:00:00:00)
 
-    Similarly, SOURCE(...), DEST(...), and AND(...) may be used to filter
+    Similarly, SOURCE(...), DEST(...), and ANY(...) may be used to filter
     packets.
 
 12. Alerts & IDS

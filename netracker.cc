@@ -2593,22 +2593,25 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 		cli->llc_packets++;
 	} else if (packinfo->type == packet_data) {
 		num_datapackets++;
+
 		net->data_packets++;
 		cli->data_packets++;
 
 		if (packinfo->cryptset) {
+			num_cryptpackets++;
+
 			net->crypt_packets++;
 			cli->crypt_packets++;
 		}
+
+		// Handle data sizes
+		net->datasize += packinfo->datasize;
+		cli->datasize += packinfo->datasize;
 	}
 
 	// Increment per-unit rates
 	net->new_packets++;
 	cli->new_packets++;
-
-	// Handle data sizes
-	net->datasize += packinfo->datasize;
-	cli->datasize += packinfo->datasize;
 
 	// Handle fragment and retry values
 	if (packinfo->fragmented) {
@@ -2726,9 +2729,7 @@ int Netracker::datatracker_chain_handler(kis_packet *in_pack) {
 
 	// Not an 802.11 frame type we known how to track, we'll just skip
 	// it, too
-	if (packinfo->corrupt || packinfo->type == packet_noise ||
-		packinfo->type == packet_unknown || 
-		packinfo->subtype == packet_sub_unknown) {
+	if (packinfo->corrupt || packinfo->type != packet_data) { 
 		return 0;
 	}
 
