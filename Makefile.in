@@ -126,30 +126,6 @@ $(NC):	$(NCO)
 Makefile: Makefile.in configure
 	@-echo "'Makefile.in' or 'configure' are more current than this Makefile.  You should re-run 'configure'."
 
-checkconfig:
-	@if test "`grep version= conf/kismet.conf | cut -f 2 -d=`" != "`grep version= $(ETC)/kismet.conf | cut -f 2 -d=`"; then \
-		echo "The configuration file has been updated.  It is STRONGLY reccomended "; \
-		echo "that you run 'make forceinstall' to overwrite your configuration file,"; \
-		echo "and then edit it to match your setup.  Installed version is `grep version= $(ETC)/kismet.conf | cut -f 2 -d=`, "; \
-		echo "latest version is `grep version= conf/kismet.conf | cut -f 2 -d=`"; \
-	fi
-
-checkdroneconfig:
-	@if test "`grep version= conf/kismet_drone.conf | cut -f 2 -d=`" != "`grep version= $(ETC)/kismet_drone.conf | cut -f 2 -d=`"; then \
-		echo "The drone configuration file has been updated.  It is STRONGLY reccomended "; \
-		echo "that you run 'make forceinstall' to overwrite your configuration file,"; \
-		echo "and then edit it to match your setup.  Installed version is `grep version= $(ETC)/kismet_drone.conf | cut -f 2 -d=`, "; \
-		echo "latest version is `grep version= conf/kismet_drone.conf | cut -f 2 -d=`"; \
-	fi
-
-checkuiconfig:
-	@if test "`grep version= conf/kismet_ui.conf | cut -f 2 -d=`" != "`grep version= $(ETC)/kismet_ui.conf | cut -f 2 -d=`"; then \
-		echo "The UI configuration file has been updated.  It is STRONGLY reccomended "; \
-		echo "that you run 'make forceinstall' to overwrite your configuration file,"; \
-		echo "and then edit it to match your setup.  Installed version is `grep version= $(ETC)/kismet_ui.conf | cut -f 2 -d=`, "; \
-		echo "latest version is `grep version= conf/kismet_ui.conf | cut -f 2 -d=`"; \
-	fi
-
 binsuidinstall:
 	$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CS) $(BIN)/$(CS); 
 	
@@ -168,7 +144,6 @@ commoninstall:
 
 	mkdir -p $(MAN)/man5
 	$(INSTALL) -o $(INSTUSR) -g $(MANGRP) -m 644 man/kismet.conf.5 $(MAN)/man5/kismet.conf.5
-	$(INSTALL) -o $(INSTUSR) -g $(MANGRP) -m 644 man/kismet_ui.conf.5 $(MAN)/man5/kismet_ui.conf.5
 	$(INSTALL) -o $(INSTUSR) -g $(MANGRP) -m 644 man/kismet_drone.conf.5 $(MAN)/man5/kismet_drone.conf.5
 
 	mkdir -p $(WAV)
@@ -183,14 +158,18 @@ suidinstall: $(CS)
 	$(MAKE) -e commoninstall
 	$(MAKE) -e binsuidinstall
 	@if test -f $(ETC)/kismet.conf; then \
-		$(MAKE) -e checkconfig; \
+		echo "$(ETC)/kismet.conf already installed, not replacing it.  HOWEVER"; \
+		echo "if there have been any changes to the base config you will need"; \
+		echo "to add them to your config file."; \
     else \
 		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet.conf $(ETC)/kismet.conf;  \
 		echo install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet.conf $(ETC)/kismet.conf;  \
 		echo "Installed config into $(ETC)/kismet.conf."; \
 	fi
 	@if test -f $(ETC)/kismet_drone.conf; then \
-		$(MAKE) -e checkdroneconfig; \
+		echo "$(ETC)/kismet_drone.conf already installed, not replacing it.  HOWEVER"; \
+		echo "if there have been any changes to the base config you will need"; \
+		echo "to add them to your config file."; \
     else \
 		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet_drone.conf $(ETC)/kismet_drone.conf;  \
 		echo install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet_drone.conf $(ETC)/kismet_drone.conf;  \
@@ -206,30 +185,27 @@ suidinstall: $(CS)
 	@echo "users in the group '" $(SUIDGROUP) "'.  This WILL ALLOW USERS IN THIS GROUP "
 	@echo "TO ALTER YOUR NETWORK INTERACE STATES, but is more secure than running "
 	@echo "all of Kismet as root.  ONLY users in this group will be able to "
-	@echo "run Kismet."
+	@echo "run Kismet and capture from physical network devices."
 
 install: $(PS) $(CS) $(DRONE) $(NC)
 	$(MAKE) -e commoninstall
 	@if test -f $(ETC)/kismet.conf; then \
-		$(MAKE) -e checkconfig; \
+		echo "$(ETC)/kismet.conf already installed, not replacing it.  HOWEVER"; \
+		echo "if there have been any changes to the base config you will need"; \
+		echo "to add them to your config file."; \
     else \
 		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet.conf $(ETC)/kismet.conf;  \
 		echo install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet.conf $(ETC)/kismet.conf;  \
 		echo "Installed config into $(ETC)/kismet.conf."; \
 	fi
 	@if test -f $(ETC)/kismet_drone.conf; then \
-		$(MAKE) -e checkdroneconfig; \
+		echo "$(ETC)/kismet_drone.conf already installed, not replacing it.  HOWEVER"; \
+		echo "if there have been any changes to the base config you will need"; \
+		echo "to add them to your config file."; \
     else \
 		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet_drone.conf $(ETC)/kismet_drone.conf;  \
 		echo install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet_drone.conf $(ETC)/kismet_drone.conf;  \
 		echo "Installed drone config into $(ETC)/kismet_drone.conf."; \
-	fi
-	@if test -f $(ETC)/kismet_ui.conf; then \
-		$(MAKE) -e checkuiconfig; \
-	else \
-		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet_ui.conf $(ETC)/kismet_ui.conf;  \
-		echo install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet_ui.conf $(ETC)/kismet_ui.conf;  \
-		echo "Installed UI config into $(ETC)/kismet_ui.conf."; \
 	fi
 	@echo "Installed kismet into $(BIN)/."
 	@echo "If you have not done so already, read the README file and the FAQ file.  Additional"
@@ -237,13 +213,15 @@ install: $(PS) $(CS) $(DRONE) $(NC)
 	@echo "and configure Kismet for your system, or it will NOT run properly!"
 	@echo
 	@echo "Kismet has NOT been installed suid-root.  This means you will need to start "
-	@echo "it as root.  If you have no untrusted users on your system, it can be installed "
-	@echo "as suid-root via 'make suidinstall'."
+	@echo "it as root.  If you add your user to the $(SUIDGROUP) group and install "
+	@echo "Kismet with 'make suidinstall', users in that group will be able to "
+	@echo "run Kismet directly."
 	@echo
 	@echo "READ THE KISMET DOCUMENTATION ABOUT THE KISMET SECURITY MODEL TO"
 	@echo "DECIDE IF YOU WANT TO INSTALL IT SUID-ROOT"
 	@echo
-	@echo "It is more secure to install Kismet with the suid-root helper option."
+	@echo "It is generally  more secure to install Kismet with the suid-root helper "
+	@echo "option."
                 
 rpm:
 	@echo "Disabling SUID installation (RPM will handle setting the SUID bit.)"
@@ -286,7 +264,6 @@ ipkg: $(PS) $(NC)
 	# @cp $(HOPPER) packaging/ipkg/$(BIN)/$(HOPPER)
 	@cp scripts/kismet packaging/ipkg/$(BIN)/kismet
 	@cp conf/kismet.conf packaging/ipkg/$(ETC)/kismet.conf
-	@cp conf/kismet_ui.conf packaging/ipkg/$(ETC)/kismet_ui.conf
 	@chmod a+x packaging/ipkg/$(BIN)/*
 	@chown root.root packaging/ipkg -R
 	@echo "Making ipkg..."
