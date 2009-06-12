@@ -178,7 +178,8 @@ int IPCRemote::SyncIPCCmd(ipc_sync *data) {
 			 x != ipc_sync_map.end(); ++x) {
 
 			IPCmdCallback cback = x->second->callback;
-			(*cback)(globalreg, NULL, 0, x->second->auxptr, 0);
+			if (cback != NULL)
+				(*cback)(globalreg, NULL, 0, x->second->auxptr, 0);
 		}
 
 		return 1;
@@ -734,7 +735,7 @@ int IPCRemote::Poll(fd_set& in_rset, fd_set& in_wset) {
 								  cbackaux, ipc_pid);
 			}
 			last_ack = 1;
-		} else {
+		} else if (cback != NULL) {
 			// We "know" the rest is valid, so call the handler w/ this function.
 			// giving it the ipc pid lets us cheat and tell if its the parent or not,
 			// since the child has a 0 pid

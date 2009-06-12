@@ -123,6 +123,16 @@ void DropPrivCapabilities() {
 #endif
 }
 
+// When we've finished starting up on the server side (like if we've been sent
+// the tuntap information) this will let us drop privs
+int kc_startup_ipc(IPC_CMD_PARMS) {
+	if (parent)
+		return 0;
+
+	DropPrivCapabilities();
+	return 1;
+}
+
 int main(int argc, char *argv[], char *envp[]) {
 	exec_name = argv[0];
 	char errstr[STATUS_MAX];
@@ -189,6 +199,9 @@ int main(int argc, char *argv[], char *envp[]) {
 		CatchShutdown(-1);
 
 	globalreg->sourcetracker->RegisterIPC(globalreg->rootipc, 1);
+
+	// Add the startup command
+	globalreg->rootipc->RegisterIPCCmd(&kc_startup_ipc, NULL, NULL, "STARTUP");
 
 	// Add the packet sources
 #ifdef USE_PACKETSOURCE_PCAPFILE

@@ -540,7 +540,8 @@ int main(int argc, char *argv[], char *envp[]) {
 	globalregistry->argc = argc;
 	globalregistry->argv = argv;
 	globalregistry->envp = envp;
-	
+
+	int startup_ipc_id = -1;
 
 	// Turn off the getopt error reporting
 	opterr = 0;
@@ -608,6 +609,9 @@ int main(int argc, char *argv[], char *envp[]) {
 
 		globalregistry->rootipc = new RootIPCRemote(globalregistry, "kismet_root");
 		globalregistry->rootipc->SpawnIPC();
+
+		startup_ipc_id = 
+			globalregistry->rootipc->RegisterIPCCmd(NULL, NULL, NULL, "STARTUP");
 	} else {
 		globalregistry->messagebus->InjectMessage(
 			"Kismet was started as root, NOT launching external control binary.  "
@@ -699,6 +703,16 @@ int main(int argc, char *argv[], char *envp[]) {
 	// Fire the tuntap device setup now that we've sync'd the IPC system
 	dtun->OpenTuntap();
 #endif
+
+	// Fire the startup command to IPC, we're done and it can drop privs
+	if (globalregistry->rootipc != NULL) {
+		ipc_packet *ipc = (ipc_packet *) malloc(sizeof(ipc_packet));
+		ipc->data_len = 0;
+		ipc->ipc_ack = 0;
+		ipc->ipc_cmdnum = startup_ipc_id;
+
+		globalreg->rootipc->SendIPC(ipc);
+	}
 
 	// Create the basic drone server
 	globalregistry->kisdroneserver = new KisDroneFramework(globalregistry);
