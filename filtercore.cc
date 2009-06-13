@@ -57,7 +57,7 @@ int FilterCore::AddFilterLine(string filter_str) {
 	_kis_lex_rec ltop;
 	int type = _filter_stacker_none;
 	int mtype = _filter_type_none;
-	int negate = 0;
+	int negate = -1;
 	string errstr;
 
 	// Local copies to add so we can error out cleanly...  This is a cheap
@@ -184,16 +184,34 @@ int FilterCore::AddFilterLine(string filter_str) {
 				return -1;
 			}
 
-			ltop = precs.front();
-			if (ltop.type == _kis_lex_negate) {
-				negate = 1;
-				precs.pop_front();
-			}
-
 			continue;
 		}
 
 		if (type == _filter_stacker_mac) {
+			int addr_loc_negate = 0;
+
+			if (ltop.type == _kis_lex_negate) {
+				if (negate == 0) {
+					_MSG("Couldn't parse filter line '" + filter_str + "', cannot "
+						 "mix negated and non-negated MAC addresses on the same "
+						 "filter", MSGFLAG_ERROR);
+#ifdef HAVE_LIBPCRE
+					for (unsigned zed = 0; zed < local_pcre.size(); zed++) {
+						pcre_free(local_pcre[zed]->re);
+						pcre_free(local_pcre[zed]->study);
+						delete(local_pcre[zed]);
+					}
+#endif
+				}
+
+				// Double-hop on negates
+				negate = 1;
+				addr_loc_negate = 1;
+
+				ltop = precs.front();
+				precs.pop_front();
+			}
+
 			// Look for an address as a string
 			if (ltop.type != _kis_lex_string) {
 				_MSG("Couldn't parse filter line '" + filter_str + "', expected "
@@ -207,6 +225,21 @@ int FilterCore::AddFilterLine(string filter_str) {
 #endif
 				return -1;
 			}
+
+			if (negate == 1 && addr_loc_negate != 1) {
+				_MSG("Couldn't parse filter line '" + filter_str + "', cannot "
+					 "mix inverted and non-inverted MAC addresses on the same "
+					 "filter", MSGFLAG_ERROR);
+#ifdef HAVE_LIBPCRE
+				for (unsigned zed = 0; zed < local_pcre.size(); zed++) {
+					pcre_free(local_pcre[zed]->re);
+					pcre_free(local_pcre[zed]->study);
+					delete(local_pcre[zed]);
+				}
+#endif
+				return -1;
+			}
+
 
 			mac_addr mymac = ltop.data.c_str();
 
@@ -264,6 +297,9 @@ int FilterCore::AddFilterLine(string filter_str) {
 #endif
 					return -1;
 				}
+
+				if (negate < 0)
+					negate = 0;
 
 				local_inverts[mtype] = negate;
 				type = _filter_stacker_none;
@@ -674,7 +710,7 @@ int FilterCore::RunFilter(mac_addr bssidmac, mac_addr sourcemac,
 	// Clumsy artifact of how iters are defined for macmap currently, must
 	// be defined as an assign
 	macmap<int>::iterator fitr = bssid_map.find(bssidmac);
-
+	
 	if ((fitr != bssid_map.end() && bssid_invert == 1) ||
 		(fitr == bssid_map.end() && bssid_invert == 0)) {
 		bssid_hit++;

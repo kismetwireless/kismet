@@ -726,14 +726,18 @@ http://www.kismetwireless.net
     MAC addresses.
 
     Filters, when enabled, are "positive-pass"; anything matched by the
-    filter will be allowed, and all other matches are excluded.  This
-    behavior can be inverted by using the '!' operator:
+    filter will be allowed, and all other matches are excluded.  To process
+    ONLY packets to or from the network with the BSSID AA:BB:CC:DD:EE:FF:
+
+        filter_tracker=BSSID(AA:BB:CC:DD:EE:FF)
+    
+    This behavior can be inverted by using the '!' operator.  To exclude
+    packets to or from the BSSID AA:BB:CC:DD:EE:FF:
 
         filter_tracker=BSSID(!AA:BB:CC:DD:EE:FF)
 
-    Would exclude all traffic on the network AA:BB:CC:DD:EE:FF.  Multiple
-    MAC addresses can be stacked on the same filter line, to filter two
-    networks from being processed:
+    Multiple MAC addresses can be stacked on the same filter line, to filter 
+    two all packets from AA:BB:CC:DD:EE:FF and 00:11:22:33:44:55:
 
         filter_tracker=BSSID(!AA:BB:CC:DD:EE:FF,!00:11:22:33:44:55)
 
@@ -743,7 +747,10 @@ http://www.kismetwireless.net
         filter_tracker=BSSID(AA:BB:CC:00:00:00/FF:FF:FF:00:00:00)
 
     Similarly, SOURCE(...), DEST(...), and ANY(...) may be used to filter
-    packets.
+    packets.  To process only packets FROM the MAC address
+    11:22:33:44:55:66:
+
+        filter_tracker=SOURCE(11:22:33:44:55:66)
 
 12. Alerts & IDS
 

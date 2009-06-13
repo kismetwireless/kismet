@@ -239,7 +239,7 @@ int Kis_NetDetails_Panel::AppendSSIDInfo(vector<string> *td,
 			osstr << "(Broadcast request)";
 		}
 
-		td->push_back(AlignString("SSID: ", ' ', 2, 15) + osstr.str());
+		td->push_back(AlignString("SSID: ", ' ', 2, 16) + osstr.str());
 
 		// Look for probable matches
 		if (ssid->ssid_cloaked && ssid->ssid == "" && ssid->type == ssid_beacon) {
