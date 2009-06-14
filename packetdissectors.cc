@@ -661,6 +661,9 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
         } else {
             packinfo->subtype = packet_sub_unknown;
         }
+
+		in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
+		return 1;
 	}
 
     addr1 = &(chunk->data[10]);
