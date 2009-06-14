@@ -612,22 +612,12 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
     wireless_fragseq *sequence;
 
     addr0 = &(chunk->data[4]);
-    addr1 = &(chunk->data[10]);
-    addr2 = &(chunk->data[16]);
-    sequence = (wireless_fragseq *) &(chunk->data[22]);
-    addr3 = &(chunk->data[24]);
-
-    packinfo->sequence_number = sequence->sequence;
-    packinfo->frag_number = sequence->frag;
 
 	if (fc->more_fragments)
 		packinfo->fragmented = 1;
 
 	if (fc->retry)
 		packinfo->retry = 1;
-
-    unsigned int tag_offset = 0;
-	unsigned int taglen = 0;
 
     // Assign the distribution direction this packet is traveling
     if (fc->to_ds == 0 && fc->from_ds == 0)
@@ -638,6 +628,51 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
         packinfo->distrib = distrib_to;
     else if (fc->to_ds == 1 && fc->from_ds == 1)
         packinfo->distrib = distrib_inter;
+
+	// Shortcut PHYs here because they're usually very short
+    if (fc->type == packet_phy) {
+        packinfo->type = packet_phy;
+
+        // Throw away large phy packets just like we throw away large management.
+        // Phy stuff is all really small, so we set the limit smaller.
+        if (chunk->length > 128) {
+            packinfo->corrupt = 1;
+			in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
+            return 0;
+        }
+
+        if (fc->subtype == 11) {
+            packinfo->subtype = packet_sub_rts;
+
+        } else if (fc->subtype == 12) {
+            packinfo->subtype = packet_sub_cts;
+
+        } else if (fc->subtype == 13) {
+            packinfo->subtype = packet_sub_ack;
+
+            packinfo->dest_mac = addr0;
+
+        } else if (fc->subtype == 14) {
+            packinfo->subtype = packet_sub_cf_end;
+
+        } else if (fc->subtype == 15) {
+            packinfo->subtype = packet_sub_cf_end_ack;
+
+        } else {
+            packinfo->subtype = packet_sub_unknown;
+        }
+	}
+
+    addr1 = &(chunk->data[10]);
+    addr2 = &(chunk->data[16]);
+    sequence = (wireless_fragseq *) &(chunk->data[22]);
+    addr3 = &(chunk->data[24]);
+
+    packinfo->sequence_number = sequence->sequence;
+    packinfo->frag_number = sequence->frag;
+
+    unsigned int tag_offset = 0;
+	unsigned int taglen = 0;
 
     // Rip apart management frames
     if (fc->type == packet_management) {
@@ -1178,40 +1213,6 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
 					   " from network " + packinfo->bssid_mac.Mac2String());
 			}
 		}
-
-    } else if (fc->type == packet_phy) {
-        packinfo->type = packet_phy;
-
-        // Throw away large phy packets just like we throw away large management.
-        // Phy stuff is all really small, so we set the limit smaller.
-        if (chunk->length > 128) {
-            packinfo->corrupt = 1;
-			in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
-            return 0;
-        }
-
-        packinfo->distrib = distrib_unknown;
-
-        if (fc->subtype == 11) {
-            packinfo->subtype = packet_sub_rts;
-
-        } else if (fc->subtype == 12) {
-            packinfo->subtype = packet_sub_cts;
-
-        } else if (fc->subtype == 13) {
-            packinfo->subtype = packet_sub_ack;
-
-            packinfo->dest_mac = addr0;
-
-        } else if (fc->subtype == 14) {
-            packinfo->subtype = packet_sub_cf_end;
-
-        } else if (fc->subtype == 15) {
-            packinfo->subtype = packet_sub_cf_end_ack;
-
-        } else {
-            packinfo->subtype = packet_sub_unknown;
-        }
 
     } else if (fc->type == 2) {
         packinfo->type = packet_data;
