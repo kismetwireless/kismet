@@ -102,3 +102,6 @@ Kismet-PTW
     Network fields can be viewed under Network Details in the Kismet UI and
     will be logged in the nettxt and netxml files.
 
+    Networks which have not generated any data packets in 30 minutes will be
+    "forgotten"; That is, their PTW records will be cleared, to prevent
+    Kismet from using an obscene amount of RAM.
