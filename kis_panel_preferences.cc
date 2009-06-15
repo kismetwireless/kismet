@@ -909,35 +909,35 @@ Kis_StartupPref_Panel::Kis_StartupPref_Panel(GlobalRegistry *in_globalreg,
 
 
 	startkis_check = new Kis_Checkbox(globalreg, this);
-	startkis_check->SetText("Start Kismet server automatically");
+	startkis_check->SetText("Open Kismet server launch window automatically");
 	startkis_check->SetCallback(COMPONENT_CBTYPE_ACTIVATED, StartupButtonCB, this);
 	startkis_check->Show();
 	AddComponentVec(startkis_check, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
 									 KIS_PANEL_COMP_TAB));
 
 	startkisprompt_check = new Kis_Checkbox(globalreg, this);
-	startkisprompt_check->SetText("Prompt before starting Kismet server");
+	startkisprompt_check->SetText("Ask about launching server on startup");
 	startkisprompt_check->SetCallback(COMPONENT_CBTYPE_ACTIVATED, StartupButtonCB, this);
 	startkisprompt_check->Show();
 	AddComponentVec(startkisprompt_check, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
 									 KIS_PANEL_COMP_TAB));
 
 	startcons_check = new Kis_Checkbox(globalreg, this);
-	startcons_check->SetText("Show Kismet server console on startup");
+	startcons_check->SetText("Show Kismet server console by default");
 	startcons_check->SetCallback(COMPONENT_CBTYPE_ACTIVATED, StartupButtonCB, this);
 	startcons_check->Show();
 	AddComponentVec(startcons_check, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
 									  KIS_PANEL_COMP_TAB));
 
 	stopkis_check = new Kis_Checkbox(globalreg, this);
-	stopkis_check->SetText("Stop Kismet server on exit");
+	stopkis_check->SetText("Shut down Kismet server on exit automatically");
 	stopkis_check->SetCallback(COMPONENT_CBTYPE_ACTIVATED, StartupButtonCB, this);
 	stopkis_check->Show();
 	AddComponentVec(stopkis_check, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
 									KIS_PANEL_COMP_TAB));
 
 	stopkisprompt_check = new Kis_Checkbox(globalreg, this);
-	stopkisprompt_check->SetText("Prompt before stopping Kismet server");
+	stopkisprompt_check->SetText("Prompt before shutting down Kismet server");
 	stopkisprompt_check->SetCallback(COMPONENT_CBTYPE_ACTIVATED, StartupButtonCB, this);
 	stopkisprompt_check->Show();
 	AddComponentVec(stopkisprompt_check, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
@@ -991,34 +991,39 @@ Kis_StartupPref_Panel::Kis_StartupPref_Panel(GlobalRegistry *in_globalreg,
 	startkis_check->Activate(1);
 	active_component = startkis_check;
 
-	if (StrLower(kpinterface->prefs->FetchOpt("STARTUP_SERVER")) != "true") {
-		startkis_check->SetChecked(0);
-	} else {
+	if (StrLower(kpinterface->prefs->FetchOpt("STARTUP_SERVER")) == "true" ||
+		kpinterface->prefs->FetchOpt("STARTUP_SERVER") == "") {
 		startkis_check->SetChecked(1);
+	} else {
+		startkis_check->SetChecked(0);
 	}
 
-	if (StrLower(kpinterface->prefs->FetchOpt("STARTUP_PROMPTSERVER")) != "true") {
-		startkisprompt_check->SetChecked(0);
-	} else {
+	if (StrLower(kpinterface->prefs->FetchOpt("STARTUP_PROMPTSERVER")) == "true" ||
+		kpinterface->prefs->FetchOpt("STARTUP_PROMPTSERVER") == "") {
 		startkisprompt_check->SetChecked(1);
+	} else {
+		startkisprompt_check->SetChecked(0);
 	}
 
-	if (StrLower(kpinterface->prefs->FetchOpt("STARTUP_CONSOLE")) != "true") {
-		startcons_check->SetChecked(0);
-	} else {
+	if (StrLower(kpinterface->prefs->FetchOpt("STARTUP_CONSOLE")) == "true" ||
+		kpinterface->prefs->FetchOpt("STARTUP_CONSOLE") == "") {
 		startcons_check->SetChecked(1);
+	} else {
+		startcons_check->SetChecked(0);
 	}
 
-	if (StrLower(kpinterface->prefs->FetchOpt("STOP_SERVER")) != "true") {
-		stopkis_check->SetChecked(0);
-	} else {
+	if (StrLower(kpinterface->prefs->FetchOpt("STOP_SERVER")) == "true" ||
+		kpinterface->prefs->FetchOpt("STOP_SERVER") == "") {
 		stopkis_check->SetChecked(1);
+	} else {
+		stopkis_check->SetChecked(0);
 	}
 
-	if (StrLower(kpinterface->prefs->FetchOpt("STOP_PROMPTSERVER")) != "true") {
-		stopkisprompt_check->SetChecked(0);
-	} else {
+	if (StrLower(kpinterface->prefs->FetchOpt("STOP_PROMPTSERVER")) == "true" ||
+		kpinterface->prefs->FetchOpt("STOP_PROMPTSERVER") == "") {
 		stopkisprompt_check->SetChecked(1);
+	} else {
+		stopkisprompt_check->SetChecked(0);
 	}
 
 	Position(WIN_CENTER(14, 70));

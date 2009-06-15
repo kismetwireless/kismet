@@ -74,6 +74,7 @@ struct kisptw_net {
 
 	int num_ptw_ivs, num_ptw_vivs;
 	int ptw_solved;
+	int ptw_attempt;
 
 	// Dupes for our thread
 	pthread_t crackthread;
@@ -141,6 +142,8 @@ void *kisptw_crack(void *arg) {
 
 	if (pnet->len) {
 		pnet->ptw_solved = 1;
+	} else {
+		pnet->ptw_attempt = 2;
 	}
 
 	pthread_exit((void *) 0);
@@ -151,6 +154,13 @@ int kisptw_event_timer(TIMEEVENT_PARMS) {
 
 	for (map<mac_addr, kisptw_net *>::iterator x = kst->netmap.begin();
 		  x != kst->netmap.end(); ++x) {
+
+		if (x->second->ptw_attempt == 2) {
+			_MSG("Failed to crack WEP key on " + x->second->bssid.Mac2String() + ": "
+				 "Not enough data collected yet", MSGFLAG_INFO);
+			x->second->ptw_attempt = 0;
+		}
+
 		// If we solved this network, we keep the record but free the rest
 		if (x->second->ptw_solved && x->second->ptw_solved < 2) {
 			if (x->second->ptw_clean != NULL) {
@@ -274,6 +284,7 @@ int kisptw_event_timer(TIMEEVENT_PARMS) {
 				x->second->num_ptw_vivs_t = x->second->num_ptw_vivs;
 
 			x->second->threaded = 1;
+			x->second->ptw_attempt = 1;
 
 			_MSG("Trying to crack WEP key on " + x->second->bssid.Mac2String() + ": " +
 				 IntToString(x->second->num_ptw_vivs_t + x->second->num_ptw_ivs_t) + 
@@ -364,12 +375,16 @@ int kisptw_datachain_hook(CHAINCALL_PARMS) {
 			pnet->num_ptw_ivs_t = pnet->num_ptw_vivs_t = 0;
 			pnet->last_crack_vivs = pnet->last_crack_ivs = 0;
 			pnet->ptw_solved = 0;
+			pnet->ptw_attempt = 0;
 			pnet->threaded = 0;
 			pnet->bssid = net->bssid;
 			pnet->last_packet = time(0);
 			memset(pnet->wepkey, 0, sizeof(pnet->wepkey));
 			pnet->len = 0;
 			kptw->netmap.insert(make_pair(net->bssid, pnet));
+
+			_MSG("Collecting WEP PTW data on " + pnet->bssid.Mac2String(), 
+				 MSGFLAG_INFO);
 		} else {
 			pnet = kptw->netmap.find(net->bssid)->second;
 		}

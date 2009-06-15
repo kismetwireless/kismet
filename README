@@ -1049,7 +1049,23 @@ http://www.kismetwireless.net
 
     By default, the Kismet UI will prompt on startup to launch the Kismet
     server, this behavior (as well as auto-connection and server setup) can 
-    be changed via the preferences.
+    be changed via the Startup and Shutdown preferences
+    (Kismet->Preferences->Startup and Shutdown):
+
+        Open Kismet server launch window automatically
+            - Kismet will open the server startup window when the UI is
+              loaded, if the default server is not running.
+        Ask about launching server on startup
+            - Ask to start a server (instead of just opening the server
+              window)
+        Show Kismet server console by default
+            - Automatically open the Kismet server console window after
+              starting the server
+        Shut down Kismet server on exit automatically
+            - Kill locally started servers and issue a shutdown command to
+              remote servers when the UI exits
+        Prompt before shutting down Kismet server
+            - Don't kill servers without confirming
 
     Kismet menus support shortcuts, for example '~Wl' is the same as
     navigating to the 'Windows->Client List' menu option.

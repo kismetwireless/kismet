@@ -240,7 +240,13 @@ speech=gpslock,"G.P.S. signal O.K."
 # memory system and a huge number of alert conditions.
 alertbacklog=50
 
-# File types to log, comma seperated
+# File types to log, comma seperated.  Built-in log file types:
+# alert				Text file of alerts
+# gpsxml			XML per-packet GPS log
+# nettxt			Networks in text format
+# netxml			Networks in XML format
+# pcapdump			tcpdump/wireshark compatible pcap log file
+# string			All strings seen (increases CPU load)
 logtypes=pcapdump,gpsxml,netxml,nettxt,alert
 
 # Format of the pcap dump (PPI or 80211)
