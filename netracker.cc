@@ -2053,6 +2053,13 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 		return 0;
 	}
 
+	// Phy packets have no BSSID information so there's nothing else
+	// we can do
+	if (packinfo->type == packet_phy) {
+		num_llcpackets++;
+		return 1;
+	}
+
 	// Compare against the filter and return w/out making a network record or
 	// anything if we're due to be excluded anyhow.  This also keeps datatracker
 	// handlers from processing since they won't find a network reference
@@ -2306,8 +2313,9 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 	}
 
 	// Add to the LLC count
-	if (packinfo->type == packet_management || packinfo->type == packet_phy)
+	if (packinfo->type == packet_management) {
 		num_llcpackets++;
+	}
 
 	// Add to the frequency tracking, inefficient search but it's a small set
 	if (l1info != NULL) {
