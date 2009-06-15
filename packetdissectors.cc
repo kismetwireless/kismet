@@ -577,7 +577,8 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
 	if (capsrc != NULL)
 		srcparms = capsrc->ref_source->FetchGenericParms();
 
-	// Flat-out dump if it's not big enough to be 80211.
+	// Flat-out dump if it's not big enough to be 80211, don't even bother making a
+	// packinfo record for it because we're completely broken
     if (chunk->length < 10) {
         return 0;
 	}
@@ -611,6 +612,7 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
     // 2 bytes of sequence and fragment counts
     wireless_fragseq *sequence;
 
+	// We always have addr0 even on phy
     addr0 = &(chunk->data[4]);
 
 	if (fc->more_fragments)
@@ -629,7 +631,7 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
     else if (fc->to_ds == 1 && fc->from_ds == 1)
         packinfo->distrib = distrib_inter;
 
-	// Shortcut PHYs here because they're usually very short
+	// Shortcut PHYs here because they're shorter than normal packets
     if (fc->type == packet_phy) {
         packinfo->type = packet_phy;
 
@@ -662,8 +664,18 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
             packinfo->subtype = packet_sub_unknown;
         }
 
+		// Nothing more to do if we get a phy
 		in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
 		return 1;
+	}
+
+	// Anything from this point on can't be less than 24 bytes since we need
+	// a full 802.11 header, so throw it out
+	// Flat-out dump if it's not big enough to be 80211.
+    if (chunk->length < 24) {
+		packinfo->corrupt = 1;
+		in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
+        return 0;
 	}
 
     addr1 = &(chunk->data[10]);

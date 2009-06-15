@@ -2044,21 +2044,21 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 	num_packets++;
 	num_packetdelta++;
 
-	// Compare against the filter and return w/out making a network record or
-	// anything if we're due to be excluded anyhow.  This also keeps datatracker
-	// handlers from processing since they won't find a network reference
-	if (track_filter->RunFilter(packinfo->bssid_mac, packinfo->source_mac,
-								packinfo->dest_mac)) {
-		num_filterpackets++;
-		return 0;
-	}
-
 	// Not an 802.11 frame type we known how to track, we'll just skip
 	// it, too
 	if (packinfo->corrupt || packinfo->type == packet_noise ||
 		in_pack->error || packinfo->type == packet_unknown || 
 		packinfo->subtype == packet_sub_unknown) {
 		num_errorpackets++;
+		return 0;
+	}
+
+	// Compare against the filter and return w/out making a network record or
+	// anything if we're due to be excluded anyhow.  This also keeps datatracker
+	// handlers from processing since they won't find a network reference
+	if (track_filter->RunFilter(packinfo->bssid_mac, packinfo->source_mac,
+								packinfo->dest_mac)) {
+		num_filterpackets++;
 		return 0;
 	}
 
