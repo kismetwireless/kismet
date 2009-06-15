@@ -177,9 +177,13 @@ int SoundControl::SendPacket(string text, string in_player, int opt, int id) {
 }
 
 void SoundControl::Shutdown() {
-	sound_remote->ShutdownIPC(NULL);
-	globalreg->RemovePollableSubsys(sound_remote);
-	delete sound_remote;
+	if (sound_remote) {
+		sound_remote->ShutdownIPC(NULL);
+		globalreg->RemovePollableSubsys(sound_remote);
+		delete sound_remote;
+	}
+
+	sound_remote = NULL;
 	shutdown = 1;
 }
 
