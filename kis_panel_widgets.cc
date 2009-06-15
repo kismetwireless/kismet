@@ -310,15 +310,14 @@ PanelInterface::~PanelInterface() {
 		endwin();
 }
 
-unsigned int PanelInterface::MergeSet(unsigned int in_max_fd, fd_set *out_rset, 
-									  fd_set *out_wset) {
+int PanelInterface::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
 	if (live_panels.size() == 0)
 		return in_max_fd;
 
 	// add stdin to the listen set
 	FD_SET(fileno(stdin), out_rset);
 
-	if ((int) in_max_fd < fileno(stdin))
+	if (in_max_fd < fileno(stdin))
 		return fileno(stdin);
 
 	return in_max_fd;

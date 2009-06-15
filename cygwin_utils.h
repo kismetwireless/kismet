@@ -36,7 +36,7 @@ public:
     int Activate();
     void Reset();
     int GetFd();
-    unsigned int MergeSet(fd_set *set, unsigned int max);
+    int MergeSet(fd_set *set, int max);
     int IsEventSet(unsigned int HandleNumber);
 
 private:

@@ -562,8 +562,7 @@ void IPCRemote::IPCDie() {
 	ipc_spawned = 0;
 }
 
-unsigned int IPCRemote::MergeSet(unsigned int in_max_fd, fd_set *out_rset,
-								 fd_set *out_wset) {
+int IPCRemote::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
 	int sock;
 
 	// Don't call this on the child, we have a micro-select loop in the child
@@ -586,7 +585,7 @@ unsigned int IPCRemote::MergeSet(unsigned int in_max_fd, fd_set *out_rset,
 	if (cmd_buf.size() > 0)
 		FD_SET(sock, out_wset);
 
-	if (in_max_fd < (unsigned int) sock)
+	if (in_max_fd < sock)
 		return sock;
 
 	return in_max_fd;

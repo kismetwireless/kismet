@@ -120,9 +120,8 @@ int TcpServer::EnableServer() {
 }
 
 // Merge our file descriptors into an existing set
-unsigned int TcpServer::MergeSet(unsigned int in_max_fd,
-                                 fd_set *out_rset, fd_set *out_wset) {
-    unsigned int max;
+int TcpServer::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
+    int max;
 
     if (in_max_fd < max_fd) {
         max = max_fd;
@@ -139,7 +138,7 @@ unsigned int TcpServer::MergeSet(unsigned int in_max_fd,
 		FD_SET(serv_fd, out_rset);
 	}
     
-    for (unsigned int x = 0; x <= max; x++) {
+    for (int x = 0; x <= max; x++) {
         // Incoming read or our own clients
         if (FD_ISSET(x, &server_fdset))
             FD_SET(x, out_rset);

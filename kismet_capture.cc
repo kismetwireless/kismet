@@ -272,8 +272,7 @@ int main(int argc, char *argv[], char *envp[]) {
 		// Collect all the pollable descriptors
 		for (unsigned int x = 0; x < globalreg->subsys_pollable_vec.size(); x++) 
 			max_fd = 
-				globalreg->subsys_pollable_vec[x]->MergeSet(max_fd, &rset, 
-																 &wset);
+				globalreg->subsys_pollable_vec[x]->MergeSet(max_fd, &rset, &wset);
 
 		tm.tv_sec = 0;
 		tm.tv_usec = 100000;

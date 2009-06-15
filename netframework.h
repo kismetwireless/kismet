@@ -81,8 +81,7 @@ public:
     
     // Core select loop merge - combine FDs with the master FD list, and
     // handle a strobe across pending FDs
-    virtual unsigned int MergeSet(unsigned int in_max_fd, fd_set *out_rset, 
-								  fd_set *out_wset);
+    virtual int MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset);
     virtual int Poll(fd_set& in_rset, fd_set& in_wset);
 
     // Flush all output buffers if we can
@@ -160,7 +159,7 @@ protected:
     // Write ring buffers
     map<int, RingBuffer *> write_buf_map;
 
-    unsigned int max_fd;
+    int max_fd;
 };
 
 // Skeleton to a protocol interface
@@ -188,8 +187,7 @@ public:
         netserver = in_nets;
     }
 
-    virtual unsigned int MergeSet(unsigned int in_max_fd, fd_set *out_rset, 
-								  fd_set *out_wset) {
+    virtual int MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
 		if (netserver != NULL)
 			return netserver->MergeSet(in_max_fd, out_rset, out_wset);
 

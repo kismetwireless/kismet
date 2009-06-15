@@ -70,8 +70,7 @@ public:
 
     // Core select loop merge - combine FDs with the master FD list, and
     // handle a strobe across pending FDs
-    virtual unsigned int MergeSet(unsigned int in_max_fd, fd_set *out_rset, 
-								  fd_set *out_wset);
+    virtual int MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset);
     virtual int Poll(fd_set& in_rset, fd_set& in_wset);
 
     // Flush all output buffers if we can
@@ -175,8 +174,7 @@ public:
 		return netclient->Valid();
 	}
 
-	virtual unsigned int MergeSet(unsigned int in_max_fd, fd_set *out_rset,
-								  fd_set *out_wset) {
+	virtual int MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
 		if (netclient == NULL)
 			return in_max_fd;
 

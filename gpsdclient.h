@@ -43,8 +43,7 @@ public:
 	virtual int Timer();
 
     // Hooks so we can override straight to the TCP core
-    virtual unsigned int MergeSet(unsigned int in_max_fd, fd_set *out_rset, 
-								  fd_set *out_wset) {
+    virtual int MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
         return netclient->MergeSet(in_max_fd, out_rset, out_wset);
     }
 

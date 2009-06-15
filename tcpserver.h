@@ -71,8 +71,7 @@ public:
 
     // Core select loop merge - combine FDs with the master FD list, and
     // handle a strobe across pending FDs
-    virtual unsigned int MergeSet(unsigned int in_max_fd,
-                                  fd_set *out_rset, fd_set *out_wset);
+    virtual int MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset);
 
     // Kill a connection by client ID
     virtual void KillConnection(int in_fd);

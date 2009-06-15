@@ -187,9 +187,8 @@ public:
 	static void Usage(char *name);
 
 	// Pollable system handlers
-	unsigned int MergeSet(unsigned int in_max_fd, fd_set *out_rset,
-						  fd_set *out_wset);
-	int Poll(fd_set &in_rset, fd_set& in_wset);
+	virtual int MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset);
+	virtual int Poll(fd_set &in_rset, fd_set& in_wset);
 
 	// Register a packet source type (pass a weak source)
 	int RegisterPacketSource(KisPacketSource *in_weak);

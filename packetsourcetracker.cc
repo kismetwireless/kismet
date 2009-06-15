@@ -548,13 +548,12 @@ void Packetsourcetracker::RegisterIPC(IPCRemote *in_ipc, int in_as_ipc) {
 
 // Simple aggregate of all our pollable sources.  Sources linked via IPC will
 // be ignored (they'll return -1 for the descriptor)
-unsigned int Packetsourcetracker::MergeSet(unsigned int in_max_fd, 
-										   fd_set *out_rset, fd_set *out_wset) {
+int Packetsourcetracker::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
 	// don't merge during shutdown
 	if (globalreg->spindown)
 		return in_max_fd;
 
-	unsigned int max = in_max_fd;
+	int max = in_max_fd;
 
 	for (map<uint16_t, pst_packetsource *>::const_iterator x = packetsource_map.begin();
 		 x != packetsource_map.end(); ++x) {
@@ -567,7 +566,7 @@ unsigned int Packetsourcetracker::MergeSet(unsigned int in_max_fd,
 			continue;
 
 		FD_SET(capd, out_rset);
-		if (capd > (int) max)
+		if (capd > max)
 			max = capd;
 	}
 

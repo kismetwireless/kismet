@@ -53,8 +53,7 @@ public:
 	virtual void SetPacketsource(void *in_src);
 	virtual int OpenConnection(string in_conparm, int in_recon);
 
-	virtual unsigned int MergeSet(unsigned int in_max_fd, fd_set *out_rset,
-								  fd_set *out_wset) {
+	virtual int MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
 		if (netclient == NULL)
 			return in_max_fd;
 

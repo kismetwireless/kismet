@@ -55,7 +55,7 @@ public:
 	virtual void RemoveConfCallback(CliConf_Callback in_cb);
 	virtual int FetchConfigured() { return configured; }
 
-	virtual unsigned int MergeSet(unsigned int in_max_fd, fd_set *out_rset,
+	virtual int MergeSet(int in_max_fd, fd_set *out_rset,
 								  fd_set *out_wset) {
 		return netclient->MergeSet(in_max_fd, out_rset, out_wset);
 	}

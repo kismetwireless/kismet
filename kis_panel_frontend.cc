@@ -409,8 +409,7 @@ void KisPanelInterface::Shutdown() {
 	shutdown_mode = 1;
 }
 
-unsigned int KisPanelInterface::MergeSet(unsigned int in_max_fd, fd_set *out_rset, 
-										 fd_set *out_wset) {
+int KisPanelInterface::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
 	if (shutdown_mode)
 		return in_max_fd;
 

@@ -160,22 +160,21 @@ void PopenClient::DetatchConnection() {
 	cl_valid = 0;
 }
 
-unsigned int PopenClient::MergeSet(unsigned int in_max_fd, fd_set *out_rset, 
-								   fd_set *out_wset) {
-    unsigned int max;
+int PopenClient::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
+    int max;
 
 	if (CheckPidVec() < 0 || !cl_valid)
 		return in_max_fd;
 
 	max = in_max_fd;
 
-    if ((int) max < ipipe[1])
+    if (max < ipipe[1])
         max = ipipe[1];
 
-    if ((int) max < opipe[0])
+    if (max < opipe[0])
         max = opipe[0];
 
-    if ((int) max < epipe[0])
+    if (max < epipe[0])
         max = epipe[0];
 
 	// opipe is connected to stdout so we treat it as read, same with epipe

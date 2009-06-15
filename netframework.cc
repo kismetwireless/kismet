@@ -35,9 +35,8 @@ NetworkServer::NetworkServer(GlobalRegistry *in_reg) {
     srvframework = NULL;
 }
 
-unsigned int NetworkServer::MergeSet(unsigned int in_max_fd, fd_set *out_rset, 
-									 fd_set *out_wset) {
-    unsigned int max;
+int NetworkServer::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
+    int max;
 
     if (in_max_fd < max_fd) {
         max = max_fd;
@@ -54,7 +53,7 @@ unsigned int NetworkServer::MergeSet(unsigned int in_max_fd, fd_set *out_rset,
 		FD_SET(serv_fd, out_rset);
 	}
     
-    for (unsigned int x = 0; x <= max; x++) {
+    for (int x = 0; x <= max; x++) {
         // Incoming read or our own clients
         if (FD_ISSET(x, &server_fdset))
             FD_SET(x, out_rset);
@@ -94,7 +93,7 @@ int NetworkServer::Poll(fd_set& in_rset, fd_set& in_wset) {
 
     // Handle input and output, dispatching to our other functions so we can
     // be overridden
-    for (unsigned int x = 0; x <= max_fd; x++) {
+    for (int x = 0; x <= max_fd; x++) {
         // Handle reading data.  Accept() should have made them a 
         // ringbuffer.
         if (FD_ISSET(x, &in_rset) && FD_ISSET(x, &server_fdset)) {

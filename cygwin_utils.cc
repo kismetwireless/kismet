@@ -196,7 +196,7 @@ int Handle2Fd::GetFd() {
 }
 
 // Kismet-like MergeSet function
-unsigned int Handle2Fd::MergeSet(fd_set *set, unsigned int max) {
+unsigned int Handle2Fd::MergeSet(fd_set *set, int max) {
     Reset();	// Manual reset
 
     if (!FD_ISSET(GetFd(), set)) {

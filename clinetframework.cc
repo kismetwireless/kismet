@@ -36,13 +36,12 @@ NetworkClient::~NetworkClient() {
     KillConnection();
 }
 
-unsigned int NetworkClient::MergeSet(unsigned int in_max_fd, fd_set *out_rset, 
-									 fd_set *out_wset) {
-    unsigned int max;
+int NetworkClient::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
+    int max;
 
 	// fprintf(stderr, "debug - networkclient mergeset valid %d clifd %d\n", cl_valid, cli_fd); fflush(stderr);
 
-    if ((int) in_max_fd < cli_fd && cl_valid)
+    if (in_max_fd < cli_fd && cl_valid)
         max = cli_fd;
     else
         max = in_max_fd;

@@ -2293,9 +2293,7 @@ void Kis_RegDetails_Panel::DrawPanel() {
 	if (main_netlist == NULL)
 		return;
 
-	vector<Kis_Display_NetGroup *> *display_vctor = main_netlist->FetchDisplayVector();
-
-
+	// vector<Kis_Display_NetGroup *> *display_vctor = main_netlist->FetchDisplayVector();
 }
 
 void Kis_RegDetails_Panel::MenuAction(int opt) {

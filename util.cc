@@ -160,7 +160,8 @@ string StrStrip(string in_str) {
             break;
         }
     }
-    for (unsigned int x = in_str.length() - 1; x > 0; x--) {
+    for (unsigned int x = in_str.length(); x > 1; ) {
+		x--;
         if (in_str[x] != ' ' && in_str[x] != '\t' && in_str[x] != '\n') {
             end = x;
             break;
