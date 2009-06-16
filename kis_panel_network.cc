@@ -517,6 +517,8 @@ Kis_Netlist::Kis_Netlist(GlobalRegistry *in_globalreg, Kis_Panel *in_panel) :
 	draw_vec = &display_vec;
 	filter_dirty = 0;
 
+	last_mouse_click = 0;
+
 	// Set default preferences for BSSID columns if we don't have any in the
 	// preferences file, then update the column vector
 	UpdateBColPrefs();
@@ -3174,6 +3176,54 @@ int Kis_Netlist::KeyPress(int in_key) {
 	return 0;
 }
 
+int Kis_Netlist::MouseEvent(MEVENT *mevent) {
+	int mwx, mwy;
+	getbegyx(window, mwy, mwx);
+
+	mwx = mevent->x - mwx;
+	mwy = mevent->y - mwy;
+
+	// Not in our bounds at all
+	if ((mevent->bstate != 4 && mevent->bstate != 8) || 
+		mwy < sy || mwy > ey || mwx < sx || mwx > ex)
+		return 0;
+
+	// Not in a selectable mode, we consume it but do nothing
+	if (sort_mode == netsort_autofit)
+		return 1;
+
+	// Modify coordinates to be inside the widget
+	mwy -= sy;
+
+	int vpos = first_line + mwy - 1; 
+
+	if (selected_line < vpos)
+		vpos--;
+
+	if (vpos < 0 || vpos > (int) draw_vec->size())
+		return 1;
+
+	// Double-click, trigger the activation callback
+	if ((last_mouse_click - globalreg->timestamp.tv_sec < 1 &&
+		 selected_line == vpos) || mevent->bstate == 8) {
+		if (cb_activate != NULL) 
+			(*cb_activate)(this, 1, cb_activate_aux, globalreg);
+		return 1;
+	}
+
+	last_mouse_click = globalreg->timestamp.tv_sec;
+
+	// Otherwise select it and center the network list on it
+	selected_line = vpos;
+
+	first_line = selected_line - (ly / 2);
+
+	if (first_line < 0)
+		first_line = 0;
+
+	return 1;
+}
+
 Kis_Display_NetGroup *Kis_Netlist::FetchSelectedNetgroup() {
 	if (sort_mode == netsort_autofit)
 		return NULL;
@@ -3511,6 +3561,8 @@ Kis_Clientlist::Kis_Clientlist(GlobalRegistry *in_globalreg, Kis_Panel *in_panel
 	color_inactive = 0;
 
 	dng = NULL;
+
+	last_mouse_click = 0;
 
 	// Set default preferences for BSSID columns if we don't have any in the
 	// preferences file, then update the column vector
@@ -4415,6 +4467,54 @@ int Kis_Clientlist::KeyPress(int in_key) {
 	}
 
 	return 0;
+}
+
+int Kis_Clientlist::MouseEvent(MEVENT *mevent) {
+	int mwx, mwy;
+	getbegyx(window, mwy, mwx);
+
+	mwx = mevent->x - mwx;
+	mwy = mevent->y - mwy;
+
+	// Not in our bounds at all
+	if ((mevent->bstate != 4 && mevent->bstate != 8) || 
+		mwy < sy || mwy > ey || mwx < sx || mwx > ex)
+		return 0;
+
+	// Not in a selectable mode, we consume it but do nothing
+	if (sort_mode == clientsort_autofit)
+		return 1;
+
+	// Modify coordinates to be inside the widget
+	mwy -= sy;
+
+	int vpos = first_line + mwy - 1; 
+
+	if (selected_line < vpos)
+		vpos--;
+
+	if (vpos < 0 || vpos > (int) display_vec.size())
+		return 1;
+
+	// Double-click, trigger the activation callback
+	if ((last_mouse_click - globalreg->timestamp.tv_sec < 1 &&
+		 selected_line == vpos) || mevent->bstate == 8) {
+		if (cb_activate != NULL) 
+			(*cb_activate)(this, 1, cb_activate_aux, globalreg);
+		return 1;
+	}
+
+	last_mouse_click = globalreg->timestamp.tv_sec;
+
+	// Otherwise select it and center the network list on it
+	selected_line = vpos;
+
+	first_line = selected_line - (ly / 2);
+
+	if (first_line < 0)
+		first_line = 0;
+
+	return 1;
 }
 
 Kis_Display_NetGroup *Kis_Clientlist::FetchSelectedNetgroup() {

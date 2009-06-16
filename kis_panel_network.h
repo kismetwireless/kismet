@@ -195,6 +195,8 @@ extern const common_col_pref bssid_extras_details[];
 class Kis_Netlist : public Kis_Panel_Component {
 public:
 	Kis_Netlist() {
+
+		// Vector actually being drawn
 		fprintf(stderr, "FATAL OOPS: Kis_Netlist() called w/out globalreg\n");
 		exit(1);
 	}
@@ -206,6 +208,7 @@ public:
 	virtual void Deactivate();
 
 	virtual int KeyPress(int in_key);
+	virtual int MouseEvent(MEVENT *mevent);
 
 	virtual void SetPosition(int isx, int isy, int iex, int iey);
 
@@ -257,6 +260,7 @@ protected:
 	int color_inactive;
 
 	time_t bcol_pref_t, bext_pref_t, sort_pref_t;
+	time_t last_mouse_click;
 
 	// Sort modes
 	// Sort type
@@ -305,6 +309,8 @@ protected:
 	vector<Kis_Display_NetGroup *> display_vec;
 	// Vector of filtered displayed network groups
 	vector<Kis_Display_NetGroup *> filter_display_vec;
+
+	// Vector actually being draw
 	vector<Kis_Display_NetGroup *> *draw_vec;
 
 	// Assembled groups - GID to Group object
@@ -384,6 +390,7 @@ public:
 	virtual void Deactivate();
 
 	virtual int KeyPress(int in_key);
+	virtual int MouseEvent(MEVENT *mevent);
 
 	virtual void SetPosition(int isx, int isy, int iex, int iey);
 
@@ -427,6 +434,7 @@ protected:
 	int color_inactive;
 
 	time_t ccol_pref_t, cext_pref_t, sort_pref_t;
+	time_t last_mouse_click;
 
 	clientsort_opts sort_mode;
 
