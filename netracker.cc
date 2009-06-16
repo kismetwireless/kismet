@@ -2168,7 +2168,9 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 			cli->manuf = globalreg->manufdb->LookupOUI(cli->mac);
 
 		// Set the distribution type
-		if (packinfo->distrib == distrib_from)
+		if (packinfo->distrib == distrib_from || 
+			(packinfo->type == packet_management && 
+			 packinfo->subtype == packet_sub_beacon))
 			cli->type = client_fromds;
 		else if (packinfo->distrib == distrib_to)
 			cli->type = client_tods;
