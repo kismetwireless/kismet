@@ -822,10 +822,11 @@ public:
 	int AddFilter(string in_filter);
 	int AddNetcliFilter(string in_filter);
 
-	void SetNetworkTag(mac_addr in_net, string in_tag, string in_data);
+	void SetNetworkTag(mac_addr in_net, string in_tag, string in_data, 
+					   int in_persistent);
 	void ClearNetworkTag(mac_addr in_net, string in_tag);
 	void SetClientTag(mac_addr in_net, mac_addr in_cli, string in_tag,
-					  string in_data);
+					  string in_data, int in_persistent);
 	void ClearClientTag(mac_addr in_net, mac_addr in_cli, string in_tag);
 
 	// Fetch the internal maps.  Touching these is Bad.  Should only be used when
@@ -866,6 +867,7 @@ protected:
 
 	// Save SSID map
 	void SaveSSID();
+	void SaveTags();
 
 	// Associate probes w/ networks
 	int track_probenets;
@@ -920,8 +922,8 @@ protected:
 	int proto_ref_bssidsrc, proto_ref_clisrc, proto_ref_nettag, proto_ref_clitag;
 
 	// SSID cloak file as a config
-	ConfigFile *ssid_conf;
-	time_t ssid_save;
+	ConfigFile *ssid_conf, *tag_conf;
+	time_t conf_save;
 
 	// Let the hooks call directly in
 	friend int kis_80211_netracker_hook(CHAINCALL_PARMS);

@@ -182,7 +182,7 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	mn_windows = menu->AddMenu("Windows", 0);
 	mi_netdetails = menu->AddMenuItem("Network Details...", mn_windows, 'd');
 	mi_clientlist = menu->AddMenuItem("Client List...", mn_windows, 'l');
-	mi_addnote = menu->AddMenuItem("Add Network Note...", mn_windows, 'N');
+	mi_addnote = menu->AddMenuItem("Network Note...", mn_windows, 'N');
 	mi_chandetails = menu->AddMenuItem("Channel Details...", mn_windows, 'c');
 	mi_gps = menu->AddMenuItem("GPS Details...", mn_windows, 'g');
 	mi_alerts = menu->AddMenuItem("Alerts...", mn_windows, 'a');
@@ -3253,6 +3253,13 @@ Kis_AddNetNote_Panel::Kis_AddNetNote_Panel(GlobalRegistry *in_globalreg,
 							  KIS_PANEL_COMP_TAB));
 	notetxt->Show();
 
+	permanent = new Kis_Checkbox(globalreg, this);
+	permanent->SetLabel("Remember note when restarting Kismet");
+	permanent->SetChecked(1);
+	AddComponentVec(permanent, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+								KIS_PANEL_COMP_TAB));
+	permanent->Show();
+
 	okbutton = new Kis_Button(globalreg, this);
 	okbutton->SetLabel("Add Note");
 	okbutton->Show();
@@ -3288,12 +3295,13 @@ Kis_AddNetNote_Panel::Kis_AddNetNote_Panel(GlobalRegistry *in_globalreg,
 	vbox->Show();
 
 	vbox->Pack_End(notetxt, 0, 0);
+	vbox->Pack_End(permanent, 0, 0);
 	vbox->Pack_End(bbox, 0, 0);
 
 	main_component = vbox;
 	SetActiveComponent(notetxt);
 
-	Position(WIN_CENTER(5, 60));
+	Position(WIN_CENTER(7, 60));
 }
 
 Kis_AddNetNote_Panel::~Kis_AddNetNote_Panel() {
@@ -3351,8 +3359,12 @@ void Kis_AddNetNote_Panel::Action(Kis_Panel_Component *in_button, int in_state) 
 			return;
 		}
 
+		string perm = "0";
+		if (permanent->GetChecked())
+			perm = "1";
+
 		kpinterface->FetchNetClient()->InjectCommand("ADDNETTAG " +
-							bssid.Mac2String() + " \001User Note\001 "
+							bssid.Mac2String() + " " + perm + " \001User Note\001 "
 							"\001" + notetxt->GetText() + "\001");
 
 		kpinterface->KillPanel(this);
@@ -3378,6 +3390,13 @@ Kis_AddCliNote_Panel::Kis_AddCliNote_Panel(GlobalRegistry *in_globalreg,
 	AddComponentVec(notetxt, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
 							  KIS_PANEL_COMP_TAB));
 	notetxt->Show();
+
+	permanent = new Kis_Checkbox(globalreg, this);
+	permanent->SetLabel("Remember note after restarting Kismet");
+	permanent->SetChecked(1);
+	AddComponentVec(permanent, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+								KIS_PANEL_COMP_TAB));
+	permanent->Show();
 
 	okbutton = new Kis_Button(globalreg, this);
 	okbutton->SetLabel("Add Note");
@@ -3413,12 +3432,13 @@ Kis_AddCliNote_Panel::Kis_AddCliNote_Panel(GlobalRegistry *in_globalreg,
 	vbox->Show();
 
 	vbox->Pack_End(notetxt, 0, 0);
+	vbox->Pack_End(permanent, 0, 0);
 	vbox->Pack_End(bbox, 0, 0);
 
 	main_component = vbox;
 	SetActiveComponent(notetxt);
 
-	Position(WIN_CENTER(5, 60));
+	Position(WIN_CENTER(7, 60));
 }
 
 Kis_AddCliNote_Panel::~Kis_AddCliNote_Panel() {
@@ -3470,9 +3490,14 @@ void Kis_AddCliNote_Panel::Action(Kis_Panel_Component *in_button, int in_state) 
 			return;
 		}
 
+		string perm = "0";
+		if (permanent->GetChecked())
+			perm = "1";
+
 		kpinterface->FetchNetClient()->InjectCommand("ADDCLITAG " +
 							cli->bssid.Mac2String() + " " + cli->mac.Mac2String() +
-							" \001User Note\001 \001" + notetxt->GetText() + "\001");
+							" " + perm + " \001User Note\001 \001" + 
+							notetxt->GetText() + "\001");
 
 		kpinterface->KillPanel(this);
 		return;

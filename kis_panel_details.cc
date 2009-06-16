@@ -64,7 +64,7 @@ Kis_NetDetails_Panel::Kis_NetDetails_Panel(GlobalRegistry *in_globalreg,
 	menu->SetCallback(COMPONENT_CBTYPE_ACTIVATED, NetDetailsMenuCB, this);
 
 	mn_network = menu->AddMenu("Network", 0);
-	mi_addnote = menu->AddMenuItem("Add Note...", mn_network, 'N');
+	mi_addnote = menu->AddMenuItem("Network Note...", mn_network, 'N');
 	menu->AddMenuItem("-", mn_network, 0);
 	mi_nextnet = menu->AddMenuItem("Next network", mn_network, 'n');
 	mi_prevnet = menu->AddMenuItem("Prev network", mn_network, 'p');
@@ -1340,7 +1340,7 @@ Kis_ClientDetails_Panel::Kis_ClientDetails_Panel(GlobalRegistry *in_globalreg,
 	menu->SetCallback(COMPONENT_CBTYPE_ACTIVATED, CliDetailsMenuCB, this);
 
 	mn_client = menu->AddMenu("Client", 0);
-	mi_addnote = menu->AddMenuItem("Add Note...", mn_client, 'N');
+	mi_addnote = menu->AddMenuItem("Client Note...", mn_client, 'N');
 	menu->AddMenuItem("-", mn_client, 0);
 	mi_nextcli = menu->AddMenuItem("Next client", mn_client, 'n');
 	mi_prevcli = menu->AddMenuItem("Prev client", mn_client, 'p');

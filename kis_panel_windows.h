@@ -462,6 +462,7 @@ public:
 protected:
 	Kis_Panel_Packbox *vbox, *bbox;
 	Kis_Single_Input *notetxt;
+	Kis_Checkbox *permanent;
 	Kis_Button *cancelbutton, *okbutton;
 
 	Kis_Display_NetGroup *dng;
@@ -486,6 +487,7 @@ public:
 protected:
 	Kis_Panel_Packbox *vbox, *bbox;
 	Kis_Single_Input *notetxt;
+	Kis_Checkbox *permanent;
 	Kis_Button *cancelbutton, *okbutton;
 
 	Netracker::tracked_client *cli;

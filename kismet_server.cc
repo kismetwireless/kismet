@@ -297,28 +297,6 @@ int packnum = 0, localdropnum = 0;
 // Ultimate registry of global components
 GlobalRegistry *globalregistry = NULL;
 
-// Quick shutdown to clean up from a fatal config after we opened the child
-void ErrorShutdown() {
-	// Eat the child signal handler
-	signal(SIGCHLD, SIG_DFL);
-
-    // Shut down the packet sources
-    if (globalregistry->sourcetracker != NULL) {
-        globalregistry->sourcetracker->StopSource(0);
-    }
-
-	// Shut down the root IPC process
-	if (globalregistry->rootipc != NULL) {
-		globalregistry->rootipc->ShutdownIPC(NULL);
-	}
-
-    // Shouldn't need to requeue fatal errors here since error shutdown means 
-    // we just printed something about fatal errors.  Probably.
-
-    fprintf(stderr, "Kismet exiting.\n");
-    exit(1);
-}
-
 // Catch our interrupt
 void CatchShutdown(int sig) {
     string termstr = "Kismet server terminating.";
@@ -391,6 +369,11 @@ void CatchShutdown(int sig) {
 
 	if (globalregistry->kisnetserver != NULL) {
 		globalregistry->kisnetserver->Shutdown();
+	}
+
+	if (globalregistry->netracker != NULL) {
+		delete globalregistry->netracker;
+		globalregistry->netracker = NULL;
 	}
 
 	// Be noisy

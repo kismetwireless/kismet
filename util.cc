@@ -297,6 +297,63 @@ int Hex2UChar(unsigned char *in_hex, unsigned char *in_chr) {
     return(chrpos);
 }
 
+// Complex string tokenizer which understands nested delimiters, such as 
+// "foo","bar","baz,foo",something
+// and network protocols like
+// foo bar \001baz foo\001
+vector<smart_word_token> BaseStrTokenize(string in_str, 
+										 string in_split, string in_quote) {
+	size_t begin = 0;
+	size_t end = 0;
+	vector<smart_word_token> ret;
+    smart_word_token stok;
+	int special = 0;
+	string val;
+	
+	if (in_str.length() == 0)
+		return ret;
+
+	for (unsigned int x = 0; x < in_str.length(); x++) {
+		if (in_str.find(in_quote, x) == x) {
+			if (special == 0) {
+				// reset beginning on string if we're in a special block
+				begin = x;
+				special = 1;
+			} else {
+				special = 0;
+			}
+
+			continue;
+		}
+
+		if (special == 0 && in_str.find(in_split, x) == x) {
+			stok.begin = begin;
+			stok.end = end;
+			stok.word = val;
+
+			ret.push_back(stok);
+
+			val = "";
+			x += in_split.length() - 1;
+
+			begin = x;
+
+			continue;
+		}
+
+		val += in_str[x];
+		end = x;
+	}
+
+	stok.begin = begin;
+	stok.end = end;
+	stok.word = val;
+	ret.push_back(stok);
+
+	return ret;
+}
+
+// No-frills tokenize with no intelligence about nested delimiters
 vector<string> StrTokenize(string in_str, string in_split, int return_partial) {
     size_t begin = 0;
     size_t end = in_str.find(in_split);
@@ -318,113 +375,22 @@ vector<string> StrTokenize(string in_str, string in_split, int return_partial) {
     return ret;
 }
 
-vector<smart_word_token> SmartStrTokenize(string in_str, string in_split, int return_partial) {
-    size_t begin = 0;
-    size_t end = in_str.find(in_split);
-    vector<smart_word_token> ret;
-    smart_word_token stok;
-
-    if (in_str.length() == 0)
-        return ret;
-    
-    while (end != string::npos) {
-        stok.word = in_str.substr(begin, end-begin);
-        stok.begin = begin;
-        stok.end = end;
-
-        begin = end+1;
-        end = in_str.find(in_split, begin);
-        ret.push_back(stok);
-    }
-
-    if (return_partial && begin != in_str.size()) {
-        stok.word = in_str.substr(begin, in_str.size() - begin);
-        stok.begin = begin;
-        stok.end = in_str.size();
-        ret.push_back(stok);
-    }
-
-    return ret;
-}
-
+// Collapse into basic tokenizer
 vector<smart_word_token> NetStrTokenize(string in_str, string in_split, 
 										int return_partial) {
-	size_t begin = 0;
-	size_t end = in_str.find(in_split);
-	vector<smart_word_token> ret;
-    smart_word_token stok;
-	int special = 0;
-	
-	if (in_str.length() == 0)
-		return ret;
-
-	while (end < in_str.size()) {
-		if (in_str[begin] == '\001') {
-			// Look for a special inner field which buffers the splitvar inside the 
-			// field..  That means we need to recalculate the end of the field
-			// based on the special splitter
-			end = in_str.find("\001", begin + 1);
-			special = 1;
-		}
-
-		string sub = in_str.substr(begin + special, end - begin - special);
-
-		begin = end + 1 + special;
-
-		end = in_str.find(in_split, begin);
-
-		if (end == string::npos)
-			end = in_str.size();
-
-		stok.begin = begin;
-		stok.end = end;
-		stok.word = sub;
-
-		ret.push_back(stok);
-		
-		special = 0;
-	}
-
-	if (return_partial && begin < in_str.size()) {
-		stok.begin = begin;
-		stok.end = in_str.size() - begin;
-		stok.word = in_str.substr(begin, in_str.size() - begin);
-		ret.push_back(stok);
-	}
-	
-	return ret;
+	return BaseStrTokenize(in_str, in_split, "\001");
 }
 
+// Collapse into basic tokenizer rewrite
 vector<string> QuoteStrTokenize(string in_str, string in_split) {
 	vector<string> ret;
-	string val;
-	int in_quote = 0;
+	vector<smart_word_token> bret;
 
-	if (in_str.length() == 0)
-		return ret;
+	bret = BaseStrTokenize(in_str, in_split, "\"");
 
-	for (unsigned int x = 0; x < in_str.length(); x++) {
-		if (in_str[x] == '"') {
-			if (in_quote == 0) {
-				in_quote = 1;
-			} else {
-				in_quote = 0;
-			}
-
-			continue;
-		}
-
-		if (in_quote == 0 && in_str.find(in_split, x) == x) {
-			ret.push_back(val);
-			val = "";
-			x += in_split.length() - 1;
-			continue;
-		}
-
-		val += in_str[x];
+	for (unsigned int b = 0; b < bret.size(); b++) {
+		ret.push_back(bret[b].word);
 	}
-
-	ret.push_back(val);
 
 	return ret;
 }

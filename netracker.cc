@@ -1299,9 +1299,11 @@ int Netracker_Clicmd_ADDNETCLIFILTER(CLIENT_PARMS) {
 }
 
 int Netracker_Clicmd_ADDNETTAG(CLIENT_PARMS) {
-	if (parsedcmdline->size() < 3) {
+	int persist = 0;
+
+	if (parsedcmdline->size() < 4) {
 		snprintf(errstr, 1024, "Illegal ADDNETTAG request, expected BSSID "
-				 "TAG VALUES");
+				 "PERSIST TAG VALUES");
 		return -1;
 	}
 
@@ -1309,18 +1311,22 @@ int Netracker_Clicmd_ADDNETTAG(CLIENT_PARMS) {
 
 	if (net.error) {
 		snprintf(errstr, 1024, "Illegal ADDNETTAG request, expected BSSID "
-				 "TAG VALUES");
+				 "PERSIST TAG VALUES");
 		return -1;
 	}
 
+	if ((*parsedcmdline)[1].word != "0")
+		persist = 1;
+
 	string content;
-	for (unsigned int x = 2; x < parsedcmdline->size(); x++) {
+	for (unsigned int x = 3; x < parsedcmdline->size(); x++) {
 		content += (*parsedcmdline)[x].word;
 		if (x < parsedcmdline->size() - 1)
 			content += " ";
 	}
 
-	((Netracker *) auxptr)->SetNetworkTag(net, (*parsedcmdline)[1].word, content);
+	((Netracker *) auxptr)->SetNetworkTag(net, (*parsedcmdline)[2].word, content,
+										  persist);
 
 	return 1;
 }
@@ -1344,8 +1350,10 @@ int Netracker_Clicmd_DELNETTAG(CLIENT_PARMS) {
 }
 
 int Netracker_Clicmd_ADDCLITAG(CLIENT_PARMS) {
-	if (parsedcmdline->size() < 4) {
-		snprintf(errstr, 1024, "Illegal ADDCLITAG request, expected BSSID MAC "
+	int persist = 0;
+
+	if (parsedcmdline->size() < 5) {
+		snprintf(errstr, 1024, "Illegal ADDCLITAG request, expected BSSID MAC PERSIST "
 				 "TAG VALUES");
 		return -1;
 	}
@@ -1353,7 +1361,7 @@ int Netracker_Clicmd_ADDCLITAG(CLIENT_PARMS) {
 	mac_addr net = mac_addr((*parsedcmdline)[0].word.c_str());
 
 	if (net.error) {
-		snprintf(errstr, 1024, "Illegal ADDCLITAG request, expected BSSID MAC "
+		snprintf(errstr, 1024, "Illegal ADDCLITAG request, expected BSSID MAC PERSIST "
 				 "TAG VALUES");
 		return -1;
 	}
@@ -1361,19 +1369,23 @@ int Netracker_Clicmd_ADDCLITAG(CLIENT_PARMS) {
 	mac_addr cli = mac_addr((*parsedcmdline)[1].word.c_str());
 
 	if (cli.error) {
-		snprintf(errstr, 1024, "Illegal ADDCLITAG request, expected BSSID MAC "
+		snprintf(errstr, 1024, "Illegal ADDCLITAG request, expected BSSID MAC PERSIST "
 				 "TAG VALUES");
 		return -1;
 	}
 
+	if ((*parsedcmdline)[2].word != "0")
+		persist = 1;
+
 	string content;
-	for (unsigned int x = 3; x < parsedcmdline->size(); x++) {
+	for (unsigned int x = 4; x < parsedcmdline->size(); x++) {
 		content += (*parsedcmdline)[x].word;
 		if (x < parsedcmdline->size() - 1)
 			content += " ";
 	}
 
-	((Netracker *) auxptr)->SetClientTag(net, cli, (*parsedcmdline)[2].word, content);
+	((Netracker *) auxptr)->SetClientTag(net, cli, (*parsedcmdline)[3].word, content,
+										 persist);
 
 	return 1;
 }
@@ -1745,14 +1757,17 @@ Netracker::Netracker(GlobalRegistry *in_globalreg) {
 		num_filterpackets = num_packetdelta = num_llcpackets = 0;
 
 	// Build the config file
-	ssid_save = globalreg->timestamp.tv_sec;
+	conf_save = globalreg->timestamp.tv_sec;
 	ssid_conf = new ConfigFile(globalreg);
-
 	ssid_conf->ParseConfig(ssid_conf->ExpandLogPath(globalreg->kismet_config->FetchOpt("configdir") + "/" + "ssid_map.conf", "", "", 0, 1).c_str());
+
+	tag_conf = new ConfigFile(globalreg);
+	tag_conf->ParseConfig(tag_conf->ExpandLogPath(globalreg->kismet_config->FetchOpt("configdir") + "/" + "tag.conf", "", "", 0, 1).c_str());
 }
 
 Netracker::~Netracker() {
 	SaveSSID();
+	SaveTags();
 
 	// FIXME:  More cleanup here
 	if (netrackereventid >= 0 && globalreg != NULL)
@@ -1788,6 +1803,29 @@ void Netracker::SaveSSID() {
 			 MSGFLAG_ERROR);
 }
 
+void Netracker::SaveTags() {
+	int ret;
+
+	string dir = 
+		tag_conf->ExpandLogPath(globalreg->kismet_config->FetchOpt("configdir"),
+								"", "", 0, 1);
+
+	ret = mkdir(dir.c_str(), S_IRUSR | S_IWUSR | S_IXUSR);
+
+	if (ret < 0 && errno != EEXIST) {
+		string err = string(strerror(errno));
+		_MSG("Failed to create Kismet settings directory " + dir + ": " + err,
+			 MSGFLAG_ERROR);
+	}
+
+	ret = tag_conf->SaveConfig(tag_conf->ExpandLogPath(globalreg->kismet_config->FetchOpt("configdir") + "/" + "tag.conf", "", "", 0, 1).c_str());
+
+	if (ret < 0)
+		_MSG("Could not save tags, check previous error messages (probably "
+			 "no permission to write to the Kismet config directory: " + dir,
+			 MSGFLAG_ERROR);
+}
+
 int Netracker::AddFilter(string in_filter) {
 	return track_filter->AddFilterLine(in_filter);
 }
@@ -1796,7 +1834,8 @@ int Netracker::AddNetcliFilter(string in_filter) {
 	return netcli_filter->AddFilterLine(in_filter);
 }
 
-void Netracker::SetNetworkTag(mac_addr in_net, string in_tag, string in_data) {
+void Netracker::SetNetworkTag(mac_addr in_net, string in_tag, string in_data, int
+							  in_persistent) {
 	tracked_network *net;
 	track_iter ti;
 
@@ -1807,10 +1846,35 @@ void Netracker::SetNetworkTag(mac_addr in_net, string in_tag, string in_data) {
 
 	net->arb_tag_map[in_tag] = in_data;
 
+	if (in_persistent) {
+		vector<string> tfl = tag_conf->FetchOptVec(in_net.Mac2String());
+	
+		vector<smart_word_token> tflp;
+		int repl = 0;
+		for (unsigned int x = 0; x < tfl.size(); x++) {
+			tflp = NetStrTokenize(tfl[x], ",");
+
+			if (tflp.size() != 2)
+				continue;
+
+			if (tflp[0].word == in_tag) {
+				repl = 1;
+				tfl[x] = "\001" + in_tag + "\001,\001" + in_data + "\001";
+				break;
+			}
+		}
+
+		if (repl == 0) 
+			tfl.push_back("\001" + in_tag + "\001,\001" + in_data + "\001");
+
+		tag_conf->SetOptVec(in_net.Mac2String(), tfl, globalreg->timestamp.tv_sec);
+	}
+
 	if (net->dirty == 0) {
 		dirty_net_vec.push_back(net);
 		net->dirty = 1;
 	}
+
 }
 
 void Netracker::ClearNetworkTag(mac_addr in_net, string in_tag) {
@@ -1827,11 +1891,27 @@ void Netracker::ClearNetworkTag(mac_addr in_net, string in_tag) {
 			dirty_net_vec.push_back(ti->second);
 			ti->second->dirty = 1;
 		}
+
+		vector<string> tfl = tag_conf->FetchOptVec(in_net.Mac2String());
+		vector<smart_word_token> tflp;
+		for (unsigned int x = 0; x < tfl.size(); x++) {
+			tflp = NetStrTokenize(tfl[x], ",");
+
+			if (tflp.size() != 2)
+				continue;
+
+			if (tflp[0].word == in_tag) {
+				tfl.erase(tfl.begin() + x);
+				tag_conf->SetOptVec(in_net.Mac2String(), tfl, 
+									globalreg->timestamp.tv_sec);
+				break;
+			}
+		}
 	}
 }
 
 void Netracker::SetClientTag(mac_addr in_net, mac_addr in_cli, string in_tag, 
-							 string in_data) {
+							 string in_data, int in_persistent) {
 	tracked_network *net;
 	tracked_client *cli;
 	track_iter ti;
@@ -1848,6 +1928,32 @@ void Netracker::SetClientTag(mac_addr in_net, mac_addr in_cli, string in_tag,
 	cli = ci->second;
 
 	cli->arb_tag_map[in_tag] = in_data;
+
+	if (in_persistent) {
+		vector<string> tfl = 
+			tag_conf->FetchOptVec(in_net.Mac2String() + ":" + in_cli.Mac2String());
+	
+		vector<smart_word_token> tflp;
+		int repl = 0;
+		for (unsigned int x = 0; x < tfl.size(); x++) {
+			tflp = NetStrTokenize(tfl[x], ",");
+
+			if (tflp.size() != 2)
+				continue;
+
+			if (tflp[0].word == in_tag) {
+				repl = 1;
+				tfl[x] = "\001" + in_tag + "\001,\001" + in_data + "\001";
+				break;
+			}
+		}
+
+		if (repl == 0) 
+			tfl.push_back("\001" + in_tag + "\001,\001" + in_data + "\001");
+
+		tag_conf->SetOptVec(in_net.Mac2String() + ":" + in_cli.Mac2String(),
+							tfl, globalreg->timestamp.tv_sec);
+	}
 
 	if (cli->dirty == 0) {
 		dirty_cli_vec.push_back(cli);
@@ -1872,15 +1978,34 @@ void Netracker::ClearClientTag(mac_addr in_net, mac_addr in_cli, string in_tag) 
 		if (ci->second->dirty == 0) {
 			dirty_cli_vec.push_back(ci->second);
 			ci->second->dirty = 1;
+
+			vector<string> tfl = 
+				tag_conf->FetchOptVec(in_net.Mac2String() + ":" + in_cli.Mac2String());
+	
+			vector<smart_word_token> tflp;
+			for (unsigned int x = 0; x < tfl.size(); x++) {
+				tflp = NetStrTokenize(tfl[x], ",");
+
+				if (tflp.size() != 2)
+					continue;
+
+				if (tflp[0].word == in_tag) {
+					tfl.erase(tfl.begin() + x);
+					tag_conf->SetOptVec(in_net.Mac2String() + ":" + in_cli.Mac2String(),
+										tfl, globalreg->timestamp.tv_sec);
+				}
+			}
+
 		}
 	}
 }
 
 int Netracker::TimerKick() {
 	// Save SSID config file regularly
-	if (globalreg->timestamp.tv_sec - ssid_save > 120) {
-		ssid_save = globalreg->timestamp.tv_sec;
+	if (globalreg->timestamp.tv_sec - conf_save > 120) {
+		conf_save = globalreg->timestamp.tv_sec;
 		SaveSSID();
+		SaveTags();
 	}
 
 	// Push new networks and reset their rate counters
@@ -2099,6 +2224,19 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 
 		net->bssid = packinfo->bssid_mac;
 
+		// Load persistent tags
+		vector<string> tfl = tag_conf->FetchOptVec(net->bssid.Mac2String());
+	
+		vector<smart_word_token> tflp;
+		for (unsigned int x = 0; x < tfl.size(); x++) {
+			tflp = NetStrTokenize(tfl[x], ",");
+
+			if (tflp.size() != 2)
+				continue;
+
+			net->arb_tag_map[tflp[0].word] = tflp[1].word;
+		}
+
 		if (globalreg->manufdb != NULL)
 			net->manuf = globalreg->manufdb->LookupOUI(net->bssid);
 
@@ -2163,6 +2301,21 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 
 		cli->mac = packinfo->source_mac;
 		cli->bssid = net->bssid;
+
+		// Load persistent tags
+		vector<string> tfl = 
+			tag_conf->FetchOptVec(cli->bssid.Mac2String() + ":" + 
+								  cli->bssid.Mac2String());
+	
+		vector<smart_word_token> tflp;
+		for (unsigned int x = 0; x < tfl.size(); x++) {
+			tflp = NetStrTokenize(tfl[x], ",");
+
+			if (tflp.size() != 2)
+				continue;
+
+			net->arb_tag_map[tflp[0].word] = tflp[1].word;
+		}
 
 		if (globalreg->manufdb != NULL)
 			cli->manuf = globalreg->manufdb->LookupOUI(cli->mac);
@@ -2337,8 +2490,6 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 	if (packinfo->type == packet_management &&
 		packinfo->subtype == packet_sub_probe_req) {
 
-		// printf("debug - net %s ssid %s probereq cryptset %llu\n", packinfo->bssid_mac.Mac2String().c_str(), packinfo->ssid.c_str(), packinfo->cryptset);
-		
 		// Build the SSID block checksum
 		ostringstream ssid_st;
 
@@ -2400,8 +2551,6 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 	// give us good info...
 	if (packinfo->type == packet_management && 
 		packinfo->subtype == packet_sub_beacon) {
-
-		// printf("debug - net %s ssid %s beacon cryptset %llu\n", packinfo->bssid_mac.Mac2String().c_str(), packinfo->ssid.c_str(), packinfo->cryptset);
 
 		// If we're a new network, look up cached and add us to the ssid map
 		if (newnetwork) {

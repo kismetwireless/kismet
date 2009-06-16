@@ -141,8 +141,9 @@ struct smart_word_token {
         return *this;
     }
 };
-vector<smart_word_token> SmartStrTokenize(string in_str, string in_split, 
-										  int return_partial = 1);
+
+vector<smart_word_token> BaseStrTokenize(string in_str, 
+										 string in_split, string in_quote);
 vector<smart_word_token> NetStrTokenize(string in_str, string in_split, 
 										int return_partial = 1);
 

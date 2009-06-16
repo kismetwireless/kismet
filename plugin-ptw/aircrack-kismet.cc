@@ -190,7 +190,7 @@ int kisptw_event_timer(TIMEEVENT_PARMS) {
 			}
 
 			globalreg->netracker->SetNetworkTag(x->second->bssid, "WEP-PTW",
-												osstr.str());
+												osstr.str(), 1);
 
 			string al = "Cracked WEP key on " + x->second->bssid.Mac2String() + ": " +
 				 osstr.str();
@@ -453,9 +453,9 @@ int kisptw_datachain_hook(CHAINCALL_PARMS) {
 			if (added) {
 				pnet->last_packet = time(0);
 				globalreg->netracker->SetNetworkTag(pnet->bssid, "WEP-PTW-IV",
-													IntToString(pnet->num_ptw_ivs));
+													IntToString(pnet->num_ptw_ivs), 0);
 				globalreg->netracker->SetNetworkTag(pnet->bssid, "WEP-PTW-UNK",
-													IntToString(pnet->num_ptw_vivs));
+													IntToString(pnet->num_ptw_vivs), 0);
 			}
 		}
 	}
