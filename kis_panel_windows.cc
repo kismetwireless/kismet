@@ -3275,6 +3275,12 @@ Kis_AddNetNote_Panel::Kis_AddNetNote_Panel(GlobalRegistry *in_globalreg,
 	AddComponentVec(cancelbutton, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
 								   KIS_PANEL_COMP_TAB));
 
+	delbutton = new Kis_Button(globalreg, this);
+	delbutton->SetLabel("Delete Note");
+	delbutton->Show();
+	delbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, AddNetNoteCB, this);
+	AddComponentVec(delbutton, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+								KIS_PANEL_COMP_TAB));
 
 	bbox = new Kis_Panel_Packbox(globalreg, this);
 	bbox->SetPackH();
@@ -3284,6 +3290,7 @@ Kis_AddNetNote_Panel::Kis_AddNetNote_Panel(GlobalRegistry *in_globalreg,
 	bbox->Show();
 	AddComponentVec(bbox, KIS_PANEL_COMP_DRAW);
 
+	bbox->Pack_End(delbutton, 0, 0);
 	bbox->Pack_End(cancelbutton, 0, 0);
 	bbox->Pack_End(okbutton, 0, 0);
 
@@ -3350,6 +3357,20 @@ void Kis_AddNetNote_Panel::DrawPanel() {
 void Kis_AddNetNote_Panel::Action(Kis_Panel_Component *in_button, int in_state) {
 	if (in_button == cancelbutton) {
 		kpinterface->KillPanel(this);
+	} else if (in_button == delbutton) {
+		if (kpinterface->FetchNetClient() == NULL) {
+			kpinterface->RaiseAlert("No connection",
+									"No longer connected to a Kismet server, cannot\n"
+									"remove a note from a network.\n");
+			kpinterface->KillPanel(this);
+			return;
+		}
+
+		kpinterface->FetchNetClient()->InjectCommand("DELNETTAG " +
+							bssid.Mac2String() + " \001User Note\001");
+
+		kpinterface->KillPanel(this);
+
 	} else if (in_button == okbutton) {
 		if (kpinterface->FetchNetClient() == NULL) {
 			kpinterface->RaiseAlert("No connection",
@@ -3413,6 +3434,13 @@ Kis_AddCliNote_Panel::Kis_AddCliNote_Panel(GlobalRegistry *in_globalreg,
 	AddComponentVec(cancelbutton, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
 								   KIS_PANEL_COMP_TAB));
 
+	delbutton = new Kis_Button(globalreg, this);
+	delbutton->SetLabel("Delete Note");
+	delbutton->Show();
+	delbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, AddCliNoteCB, this);
+	AddComponentVec(delbutton, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+								KIS_PANEL_COMP_TAB));
+
 	bbox = new Kis_Panel_Packbox(globalreg, this);
 	bbox->SetPackH();
 	bbox->SetHomogenous(1);
@@ -3421,6 +3449,7 @@ Kis_AddCliNote_Panel::Kis_AddCliNote_Panel(GlobalRegistry *in_globalreg,
 	bbox->Show();
 	AddComponentVec(bbox, KIS_PANEL_COMP_DRAW);
 
+	bbox->Pack_End(delbutton, 0, 0);
 	bbox->Pack_End(cancelbutton, 0, 0);
 	bbox->Pack_End(okbutton, 0, 0);
 
@@ -3475,6 +3504,20 @@ void Kis_AddCliNote_Panel::DrawPanel() {
 
 void Kis_AddCliNote_Panel::Action(Kis_Panel_Component *in_button, int in_state) {
 	if (in_button == cancelbutton) {
+		kpinterface->KillPanel(this);
+	} else if (in_button == delbutton) {
+		if (kpinterface->FetchNetClient() == NULL) {
+			kpinterface->RaiseAlert("No connection",
+									"No longer connected to a Kismet server, cannot\n"
+									"remove a note from a client.\n");
+			kpinterface->KillPanel(this);
+			return;
+		}
+
+		kpinterface->FetchNetClient()->InjectCommand("DELCLITAG " +
+							cli->bssid.Mac2String() + " " + cli->mac.Mac2String() + 
+							" \001User Note\001");
+
 		kpinterface->KillPanel(this);
 	} else if (in_button == okbutton) {
 		if (kpinterface->FetchNetClient() == NULL) {

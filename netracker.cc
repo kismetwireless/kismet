@@ -1885,7 +1885,9 @@ void Netracker::ClearNetworkTag(mac_addr in_net, string in_tag) {
 		return;
 
 	if ((si = ti->second->arb_tag_map.find(in_tag)) != ti->second->arb_tag_map.end()) {
-		ti->second->arb_tag_map.erase(si);
+		// Set the content to "" so the client gets an update
+		// ti->second->arb_tag_map.erase(si);
+		si->second = "";
 
 		if (ti->second->dirty == 0) {
 			dirty_net_vec.push_back(ti->second);
@@ -1973,7 +1975,9 @@ void Netracker::ClearClientTag(mac_addr in_net, mac_addr in_cli, string in_tag) 
 		return;
 
 	if ((si = ci->second->arb_tag_map.find(in_tag)) != ci->second->arb_tag_map.end()) {
-		ci->second->arb_tag_map.erase(si);
+		// Set the content to "" so the client gets an update
+		// ti->second->arb_tag_map.erase(si);
+		si->second = "";
 
 		if (ci->second->dirty == 0) {
 			dirty_cli_vec.push_back(ci->second);

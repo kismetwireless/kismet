@@ -17,6 +17,7 @@ http://www.kismetwireless.net
 13. Server configuration options
 14. Kismet UI
 15. Kismet drones
+16. Talking to Kismet
 17. Troubleshooting
 18. Frequently asked questions
 
@@ -1043,6 +1044,8 @@ http://www.kismetwireless.net
     the status panel where errors and announcements are printed.  Additional
     components of the main window may be turned on with the 'View' menu.
 
+    - Preferences
+
     Configuration of the Kismet UI is done entirely inside the UI via the
     'Kismet->Preferences->...' menus.  Preference changes are (for the most
     part) immediate and do not require restarting.
@@ -1070,6 +1073,8 @@ http://www.kismetwireless.net
     Kismet menus support shortcuts, for example '~Wl' is the same as
     navigating to the 'Windows->Client List' menu option.
 
+    - Sound and Speech
+
     The Kismet UI handles sound and speech playing for most users.  Sound
     playing is straightforward (WAV files are installed, by default, to
     /usr/local/share/kismet/wav) and can be played with any sound player
@@ -1089,6 +1094,22 @@ http://www.kismetwireless.net
             1. Alert type
         GPS Lost, GPS Lock:
             No replacement options
+
+    - Tagging networks
+
+    Kismet can add custom data to a network in the form of tags.  In the
+    Kismet UI, networks and clients can both have tags added to them.  These
+    tags are displayed in the UI under network details, and logged to XML
+    and TXT output.
+
+    Tags can be set as permanent; By checking the "Remember note when
+    restarting Kismet" checkbox in the Network and Client Note windows, the
+    note is saved and will be re-applied to networks every time Kismet
+    loads.
+
+    Client tags are applied to a specific client in a specific network;
+    Currently there is no mechanism for adding a note to every instance of
+    the client.
 
 15. Kismet Drones
 
@@ -1118,6 +1139,120 @@ http://www.kismetwireless.net
     running kismet_drone, Kismet clients cannot connect directly to it, and
     it will not log, a Kismet server instance must be started to provide
     packet decoding, logging, and Kismet UI connectivity.
+
+16. Talking to Kismet
+
+    The Kismet client/server protocol is basic text.  Communicating with
+    Kismet can be as simple as using telnet or netcat, however writing a
+    full protocol dissector is suggested for serious applications.
+
+    This documents a simple case of the Kismet protocol and the basics of
+    communicating with a Kismet server, however for detailed information the
+    source should be consulted.  A more complete documentation of the
+    protocol will be done at some point.
+
+    The Kismet protocol consists of commands and response sentences.  A
+    command is of the form:
+
+        !ID COMMAND OPT1 OPT2 OPT3
+
+        Where ID is a number (which for proper error detection should be
+        unique) and the remainder of the arguments are the command and any
+        options it may take.
+
+        Options which contain spaces but should be treated as a single
+        argument should wrap those options in "\001...\001"
+
+    And a response sentence is of the form:
+    
+        *HEADER: f1 f2 f3 f4
+
+        Where HEADER is the sentence type, and the remainder are fields
+        requested by the client, in the order they were requested.
+
+        Fields are expected to be plain ASCII text, however a client should
+        take precautions to be sure that the value is sane for the terminal
+        before printing it.
+
+        Fields which may contain a space (used as the separator character)
+        are buffered with \001...\001.  As this could be any field, any
+        protocol parser should be able to handle fields so buffered.
+
+    Basic Kismet commands include:
+
+        !{#} SHUTDOWN
+            Shutdown Kismet instance
+
+        !{#} CAPABILITY {Sentence}
+            Query the accept fields for a protocol.  Returns the *CAPABILITY
+            sentence
+
+        !{#} ENABLE {Sentence} {Fields}|{*}
+            Enable a sentence, with either the provided fields and order, or
+            all fields in the default order if * is specified.
+
+        !{#} REMOVE {Sentence}
+            Remove a sentence.  Stop sending a sentence.
+
+        !{#} ADDNETTAG {BSSID} {Permanent} {Tag name} {Tag content}
+            Add an arbitrary tag to a network.  If permanent, it will be
+            cached in ~/.kismet/tags.conf
+
+        !{#} DELNETTAG {BSSID} {Tag name}
+            Remove a tag
+
+        !{#} ADDCLITAG {BSSID} {MAC} {Permanent} {Tag} {Content}
+            Add tag to specified client in network
+
+        !{#} DELCLITAG {BSSID} {MAC} {Tag}
+            Remove a tag
+
+        !{#} ADDSOURCE {source line}
+            Add a source dynamically.  Source line should be of the same
+            format as a 'ncsource=' config line
+
+    Protocol sentences:
+
+        When a sentence is enabled, any existing sentence data is sent (at
+        the discretion of the protocol handlers).  Additional data is sent
+        in the form of deltas; To conserve bandwidth and processing time,
+        only instances where the data has changed are sent.  For example,
+        when the *BSSID sentence is sent, a block of *BSSID records are
+        sent, for all networks previously detected by Kismet.  Until the
+        sentence is disabled, a record is sent once per second for each
+        network which has changed in some fashion (new packets).
+
+    Mandatory sentences:
+
+        Kismet expects a client to support AT LEAST the following mandatory
+        protocols, which are enabled by default.  At the very least, any
+        client should ignore these if it does not process them.  They may be
+        disabled with the REMOVE command.  In general, any client should
+        ignore protocols it does not understand.
+
+            *KISMET
+                Basic Kismet startup info
+            *PROTOCOLS
+                List of supported sentences
+            *ACK
+                Command response
+            *ERROR
+                Command failure
+            *TIME
+                Server timestamp
+
+    Example:
+
+        echo -e '\n!0 enable channel channel,networks' | nc localhost 2501
+
+        Enable the *CHANNEL sentence with the fields 'channel' and
+        'networks'.  The output could look something like:
+
+            *ACK: 0 OK 
+            *CHANNEL: 1 4 
+            *CHANNEL: 3 1 
+            *CHANNEL: 4 1 
+            *TIME: 1245176426
 
 17. Troubleshooting
 

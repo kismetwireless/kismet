@@ -463,7 +463,7 @@ protected:
 	Kis_Panel_Packbox *vbox, *bbox;
 	Kis_Single_Input *notetxt;
 	Kis_Checkbox *permanent;
-	Kis_Button *cancelbutton, *okbutton;
+	Kis_Button *cancelbutton, *okbutton, *delbutton;
 
 	Kis_Display_NetGroup *dng;
 	mac_addr bssid;
@@ -488,7 +488,7 @@ protected:
 	Kis_Panel_Packbox *vbox, *bbox;
 	Kis_Single_Input *notetxt;
 	Kis_Checkbox *permanent;
-	Kis_Button *cancelbutton, *okbutton;
+	Kis_Button *cancelbutton, *okbutton, *delbutton;
 
 	Netracker::tracked_client *cli;
 };
