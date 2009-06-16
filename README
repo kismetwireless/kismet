@@ -416,6 +416,19 @@ http://www.kismetwireless.net
       in /sys) so the driver type 'rt2870sta' must be given on the source
       line.
 
+      This driver defaults to the name 'rausbX' which exposes a bug in some
+      versions of libpcap and may require the device be renamed (See
+      'Troubleshooting' section)
+
+    rt73-k2wrlz (Linux)
+
+      An out-of-tree rt73 driver similar to rt2870sta.  It may be necessary
+      to specify a type of 'rt73' manually when using this driver.
+
+      This driver defaults to the name 'rausbX' which exposes a bug in some
+      versions of libpcap and may require the device be renamed (See
+      'Troubleshooting' section)
+
     WL (Linux)
 
       Broadcom has released a binary version of their drivers called WL.
@@ -1366,6 +1379,15 @@ http://www.kismetwireless.net
               often can happen while changing channels, try disabling
               channel hopping (or slowing it down), and upgrade to the
               latest drivers for your device.
+
+    PROBLEM:  Kismet cannot open a source, with the error:
+              "can't get usb bus index"
+    FIX:      Some versions of LibPcap interpret any interface with "USB"
+              in the name as a USB device on Linux, and attempt to do USB
+              bus capture instead of packet capture.
+              Rename the interface (with ifrename or udev rules) to
+              something that doesn't include 'usb'.  A newer version of
+              libpcap may also resolve this problem.
 
 18. Frequently Asked Questions
 
