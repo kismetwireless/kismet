@@ -960,7 +960,7 @@ int Protocol_NETTAG(PROTO_PARMS) {
 		}
 
 		// Fill in the cached element
-		switch(fnum) {
+		switch (fnum) {
 			case NETTAG_bssid:
 				scratch = s->bssid.Mac2String().c_str();
 				break;

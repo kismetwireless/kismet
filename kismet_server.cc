@@ -85,6 +85,8 @@
 
 #include "manuf.h"
 
+#include "battery.h"
+
 #ifndef exec_name
 char *exec_name;
 #endif
@@ -95,6 +97,8 @@ int daemonize = 0;
 // One of our few globals in this file
 int glob_linewrap = 1;
 int glob_silent = 0;
+
+int battery_proto_ref = -1;
 
 // The info protocol lives in here for lack of anywhere better to live
 enum INFO_fields {
@@ -110,6 +114,15 @@ const char *INFO_fields_text[] = {
 	"filtered", "clients", "llcpackets", "datapackets", "numsources",
 	"numerrorsources",
 	NULL
+};
+
+enum BATTERY_fields {
+	BATTERY_percentage, BATTERY_charging, BATTERY_ac, BATTERY_remaining,
+	BATTERY_maxfield
+};
+
+const char *BATTERY_fields_text[] = {
+	"percentage", "charging", "ac", "remaining", NULL
 };
 
 int Protocol_INFO(PROTO_PARMS) {
@@ -198,6 +211,49 @@ int Protocol_INFO(PROTO_PARMS) {
     }
 
     return 1;
+}
+
+int Protocol_BATTERY(PROTO_PARMS) {
+	kis_battery_info *b = (kis_battery_info *) data;
+
+	string scratch;
+
+	cache->Filled(field_vec->size());
+
+	for (unsigned int x = 0; x < field_vec->size(); x++) {
+		unsigned int fnum = (*field_vec)[x];
+		if (fnum >= BATTERY_maxfield) {
+			out_string += "Unknown field requested.";
+			return -1;
+		}
+
+		if (cache->Filled(fnum)) {
+			out_string += cache->GetCache(fnum) + " ";
+			continue;
+		}
+
+		switch (fnum) {
+			case BATTERY_percentage:
+				scratch = IntToString(b->percentage);
+				break;
+			case BATTERY_charging:
+				scratch = IntToString(b->charging);
+				break;
+			case BATTERY_ac:
+				scratch = IntToString(b->ac);
+				break;
+			case BATTERY_remaining:
+				scratch = IntToString(b->remaining_sec);
+				break;
+		}
+
+		out_string += scratch;
+		cache->Cache(fnum, scratch);
+
+		out_string += " ";
+	}
+
+	return 1;
 }
 
 // Message clients that are attached at the master level
@@ -475,9 +531,14 @@ int FlushDatafilesEvent(TIMEEVENT_PARMS) {
 	return 1;
 }
 
-int InfoTimerEvent(TIMEEVENT_PARMS) {
+int BaseTimerEvent(TIMEEVENT_PARMS) {
 	// Send the info frame to everyone
 	globalreg->kisnetserver->SendToAll(_NPM(PROTO_REF_INFO), NULL);
+
+	// Send the battery frame
+	kis_battery_info batinfo;
+	Fetch_Battery_Info(&batinfo);
+	globalreg->kisnetserver->SendToAll(battery_proto_ref, &batinfo);
 
 	return 1;
 }
@@ -881,9 +942,14 @@ int main(int argc, char *argv[], char *envp[]) {
 												  INFO_fields_text, 
 												  &Protocol_INFO, NULL, NULL);
 
+	battery_proto_ref =
+		globalregistry->kisnetserver->RegisterProtocol("BATTERY", 0, 1,
+												  BATTERY_fields_text, 
+												  &Protocol_BATTERY, NULL, NULL);
+
 	globalregistry->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC,
 											   NULL, 1, 
-											   &InfoTimerEvent, NULL);
+											   &BaseTimerEvent, NULL);
 
 	// Blab about starting
 	globalregistry->messagebus->InjectMessage("Kismet starting to gather packets",

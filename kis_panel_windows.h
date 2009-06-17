@@ -105,6 +105,7 @@ public:
 	void NetClientAdd(KisNetClient *in_cli, int add);
 	void Proto_INFO(CLIPROTO_CB_PARMS);
 	void Proto_GPS(CLIPROTO_CB_PARMS);
+	void Proto_BATTERY(CLIPROTO_CB_PARMS);
 	void Proto_ALERT(CLIPROTO_CB_PARMS);
 
 protected:
@@ -136,7 +137,7 @@ protected:
 	Kis_Netlist *netlist;
 	Kis_Clientlist *clientlist;
 	Kis_Info_Bits *infobits;
-	Kis_Free_Text *sourceinfo, *gpsinfo;
+	Kis_Free_Text *sourceinfo, *gpsinfo, *batteryinfo;
 
 	Kis_Panel_Packbox *netbox, *optbox, *linebox, *hbox, *vbox;
 

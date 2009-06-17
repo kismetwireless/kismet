@@ -62,6 +62,11 @@ void KisMainPanel_GPS(CLIPROTO_CB_PARMS) {
 										   proto_parsed, srccli, auxptr);
 }
 
+void KisMainPanel_BATTERY(CLIPROTO_CB_PARMS) {
+	((Kis_Main_Panel *) auxptr)->Proto_BATTERY(globalreg, proto_string,
+											   proto_parsed, srccli, auxptr);
+}
+
 void KisMainPanel_ALERT(CLIPROTO_CB_PARMS) {
 	((Kis_Main_Panel *) auxptr)->Proto_ALERT(globalreg, proto_string,
 											 proto_parsed, srccli, auxptr);
@@ -290,6 +295,12 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	gpsinfo->Show();
 	linebox->Pack_End(gpsinfo, 0, 0);
 
+	batteryinfo = new Kis_Free_Text(globalreg, this);
+	batteryinfo->SetName("KIS_MAIN_BATTERY");
+	batteryinfo->SetAlignment(1);
+	batteryinfo->Show();
+	linebox->Pack_End(batteryinfo, 0, 0);
+
 	// Pack our boxes together
 	hbox->Pack_End(netbox, 1, 0);
 	hbox->Pack_End(optbox, 0, 0);
@@ -360,6 +371,8 @@ Kis_Main_Panel::~Kis_Main_Panel() {
 												KisMainPanel_INFO, this);
 	kpinterface->Remove_All_Netcli_ProtoHandler("GPS",
 												KisMainPanel_GPS, this);
+	kpinterface->Remove_All_Netcli_ProtoHandler("BATTERY",
+												KisMainPanel_BATTERY, this);
 	kpinterface->Remove_All_Netcli_ProtoHandler("ALERT",
 												KisMainPanel_ALERT, this);
 }
@@ -508,6 +521,13 @@ void Kis_Main_Panel::NetClientConfigure(KisNetClient *in_cli, int in_recon) {
 	if (in_cli->RegisterProtoHandler("GPS", agg_gps_fields,
 									 KisMainPanel_GPS, this) < 0) {
 		_MSG("Could not register GPS protocol with remote server, connection "
+			 "will be terminated.", MSGFLAG_ERROR);
+		in_cli->KillConnection();
+	}
+
+	if (in_cli->RegisterProtoHandler("BATTERY", "percentage,charging,ac,remaining",
+									 KisMainPanel_BATTERY, this) < 0) {
+		_MSG("Could not register BATTERY protocol with remote server, connection "
 			 "will be terminated.", MSGFLAG_ERROR);
 		in_cli->KillConnection();
 	}
@@ -807,6 +827,48 @@ void Kis_Main_Panel::Proto_GPS(CLIPROTO_CB_PARMS) {
 
 	
 	gpsinfo->SetText(gpstext + IntToString(fix) + string("d fix"));
+}
+
+void Kis_Main_Panel::Proto_BATTERY(CLIPROTO_CB_PARMS) {
+	if (proto_parsed->size() < 4)
+		return;
+
+	// Bat-comment!
+	string battxt;
+
+	int charging = 0, percentage = 0, ac = 0, remaining = 0;
+
+	if (sscanf((*proto_parsed)[0].word.c_str(), "%d", &percentage) == 0)
+		return;
+
+	if (sscanf((*proto_parsed)[1].word.c_str(), "%d", &charging) == 0)
+		return;
+
+	if (sscanf((*proto_parsed)[2].word.c_str(), "%d", &ac) == 0)
+		return;
+
+	if (sscanf((*proto_parsed)[3].word.c_str(), "%d", &remaining) == 0)
+		return;
+
+	battxt = " | ";
+
+	if (ac) {
+		battxt += "AC";
+		if (charging == 1)
+			battxt += " (Charging)";
+	} else {
+		battxt += "Battery " + IntToString(percentage) + "%";
+	}
+
+	if (remaining > 0 && ac == 0) {
+		remaining /= 60;
+
+		battxt += " " + IntToString(remaining / 60) + "h " + 
+			NtoString<int>(remaining % 60, 2, 0).Str() + "m";
+	}
+
+	batteryinfo->SetText(battxt);
+
 }
 
 void Kis_Main_Panel::Proto_ALERT(CLIPROTO_CB_PARMS) {
