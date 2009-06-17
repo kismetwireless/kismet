@@ -3108,74 +3108,92 @@ int Netracker::datatracker_chain_handler(kis_packet *in_pack) {
 			}
 		}
 
-		// Recalculate the network IP characteristics
+		// Recalculate the network IP characteristics if it's not DHCP
 		if (ipdata_dirty && net->guess_ipdata.ip_type != ipdata_dhcp) {
-			// Track combined addresses for both types so we can pick the
-			// best one
-			in_addr combo_tcpudp;
-			in_addr combo_arp;
-			in_addr combo_nil; // This is dumb
-			combo_tcpudp.s_addr = ~0;
-			combo_arp.s_addr = ~0;
-			combo_nil.s_addr = ~0;
+			in_addr min_addr, max_addr, mask_addr;
+			uint32_t maskbits = ~0 & ~(1 << 0);
+
+			min_addr.s_addr = ~0;
+			max_addr.s_addr = 0;
+			mask_addr.s_addr = 0;
 
 			for (client_iter i = net->client_map.begin(); i != net->client_map.end();
 				 ++i) {
-				// Short out on DHCP, thats the best news we get, even though
-				// we should never get here thanks to the special handling of
-				// dhcp in the base ip catcher above
-				tracked_client *acli = i->second;
-				if (acli->guess_ipdata.ip_type == ipdata_dhcp) {
-					net->guess_ipdata = cli->guess_ipdata;
+
+				uint32_t ha;
+
+				// Immediately inherit DHCP data masked by the netmask
+				if (i->second->guess_ipdata.ip_type == ipdata_dhcp) {
+					net->guess_ipdata = i->second->guess_ipdata;
+					net->guess_ipdata.ip_addr_block.s_addr &=
+						net->guess_ipdata.ip_netmask.s_addr;
+
+					_MSG("Found IP range " + 
+						 string(inet_ntoa(net->guess_ipdata.ip_addr_block)) + "/" + 
+						 string(inet_ntoa(net->guess_ipdata.ip_netmask)) + 
+						 " via DHCP for network " + net->bssid.Mac2String(),
+						 MSGFLAG_INFO);
+
+					goto end_ip_decode;
 					break;
-				} else if (acli->guess_ipdata.ip_type == ipdata_arp) {
-					combo_arp.s_addr &=
-						acli->guess_ipdata.ip_addr_block.s_addr;
-				} else if (acli->guess_ipdata.ip_type == ipdata_udptcp) {
-					// Compare the tcpudp addresses
-					combo_tcpudp.s_addr &=
-						acli->guess_ipdata.ip_addr_block.s_addr;
 				}
+
+				// fprintf(stderr, "debug - client ip %s\n", inet_ntoa(i->second->guess_ipdata.ip_addr_block));
+
+				ha = ntohl(i->second->guess_ipdata.ip_addr_block.s_addr);
+
+				if (ha == 0)
+					continue;
+
+				if (ha < min_addr.s_addr)
+					min_addr.s_addr = ha;
+				if (ha > max_addr.s_addr)
+					max_addr.s_addr = ha;
 			}
 
-			// Find the "best" address.  If the arp stuff came out to 0
-			// we had no arp or it ANDed out to useless, we need to drop
-			// to the tcp field
+			min_addr.s_addr = htonl(min_addr.s_addr);
+			max_addr.s_addr = htonl(max_addr.s_addr);
 
-			if (net->guess_ipdata.ip_type != ipdata_dhcp) {
-				if (net->guess_ipdata.ip_type <= ipdata_arp &&
-					combo_arp.s_addr != combo_nil.s_addr && combo_arp.s_addr !=
-					net->guess_ipdata.ip_addr_block.s_addr) {
+			for (int x = 1; x < 31; x++) {
+				mask_addr.s_addr = htonl(maskbits);
 
-					net->guess_ipdata.ip_type = ipdata_arp;
-					net->guess_ipdata.ip_addr_block.s_addr =
-						combo_arp.s_addr;
-
-					_MSG("Found IP range " + string(inet_ntoa(combo_arp)) +
-						 " via ARP for network " + net->bssid.Mac2String(),
-						 MSGFLAG_INFO);
-
-				} else if (net->guess_ipdata.ip_type <= ipdata_udptcp &&
-						   combo_tcpudp.s_addr != combo_nil.s_addr && 
-						   combo_tcpudp.s_addr != 
-						   net->guess_ipdata.ip_addr_block.s_addr) {
-					net->guess_ipdata.ip_type = ipdata_udptcp;
-					net->guess_ipdata.ip_addr_block.s_addr =
-						combo_tcpudp.s_addr;
-
-					_MSG("Found IP range " + string(inet_ntoa(combo_tcpudp)) +
-						 " via TCP/UDP for network " + net->bssid.Mac2String(),
-						 MSGFLAG_INFO);
+				if ((mask_addr.s_addr & min_addr.s_addr) ==
+					(mask_addr.s_addr & max_addr.s_addr)) {
+					break;
 				}
 
-				net->guess_ipdata.ip_netmask.s_addr = 0;
+				maskbits &= ~(1 << x);
+			}
+
+			in_addr combo;
+
+			combo.s_addr = (min_addr.s_addr & mask_addr.s_addr);
+
+			// fprintf(stderr, "debug - %s min %s max %s mask %s new %s old %s\n", net->bssid.Mac2String().c_str(), strdup(inet_ntoa(min_addr)), strdup(inet_ntoa(max_addr)), strdup(inet_ntoa(mask_addr)), strdup(inet_ntoa(combo)), strdup(inet_ntoa(net->guess_ipdata.ip_addr_block))); 
+
+			if ((min_addr.s_addr & mask_addr.s_addr) != 
+				net->guess_ipdata.ip_addr_block.s_addr) {
+
+				net->guess_ipdata.ip_addr_block.s_addr = 
+					(min_addr.s_addr & mask_addr.s_addr);
+				net->guess_ipdata.ip_netmask = mask_addr;
 				net->guess_ipdata.ip_gateway.s_addr = 0;
 
-				// FIXME:  Add netmask calculation
-				// FIXME:  Add gateway detection
+				if (net->guess_ipdata.ip_type != ipdata_group) {
+					net->guess_ipdata.ip_type = ipdata_group;
+
+					_MSG("Found IP range " + 
+						 string(inet_ntoa(net->guess_ipdata.ip_addr_block)) + "/" + 
+						 string(inet_ntoa(net->guess_ipdata.ip_netmask)) + 
+						 " for network " + net->bssid.Mac2String(), MSGFLAG_INFO);
+				}
+
 			}
+
 		} // ipdata dirty
 	} // ip considered
+
+end_ip_decode:
 
 	return 1;
 }

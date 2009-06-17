@@ -49,6 +49,8 @@ const common_col_pref bssid_column_details[] = {
 	{ "manuf", "Manufacturer", bcol_manuf },
 	{ "11dcountry", "802.11d Country", bcol_11dcountry },
 	{ "seenby", "Sources that have seen this network", bcol_seenby },
+	{ "ip", "Best-guess IP subnet", bcol_ip },
+	{ "iprange", "Best-guess IP subnet + netmask", bcol_iprange },
 	{ NULL, NULL, 0 }
 };
 
@@ -2521,6 +2523,17 @@ int Kis_Netlist::PrintNetworkLine(Kis_Display_NetGroup *ng,
 		} else if (b == bcol_manuf) {
 			snprintf(rline + rofft, max - rofft, "%-10.10s", net->manuf.c_str());
 			rofft += 10;
+		} else if (b == bcol_ip) {
+			snprintf(rline + rofft, max - rofft, "%-15.15s", 
+					 inet_ntoa(net->guess_ipdata.ip_addr_block));
+			rofft += 15;
+		} else if (b == bcol_iprange) {
+			string r = 
+				string(inet_ntoa(net->guess_ipdata.ip_addr_block)) + "/" +
+				string(inet_ntoa(net->guess_ipdata.ip_netmask));
+
+			snprintf(rline + rofft, max - rofft, "%-31.31s", r.c_str());
+			rofft += 31;
 		} else if (b == bcol_11dcountry) {
 			if (net->lastssid == NULL) {
 				snprintf(rline + rofft, max - rofft, "---");
@@ -2688,6 +2701,12 @@ void Kis_Netlist::DrawComponent() {
 			} else if (b == bcol_seenby) {
 				snprintf(rline + rofft, 1024 - rofft, "%-10.10s", "Seen By");
 				rofft += 10;
+			} else if (b == bcol_ip) {
+				snprintf(rline + rofft, 1024 - rofft, "%-15.15s", "Best-Guess IP");
+				rofft += 15;
+			} else if (b == bcol_iprange) {
+				snprintf(rline + rofft, 1024 - rofft, "%-31.31s", "Best-Guess IP Range");
+				rofft += 15;
 			}
 
 			if (rofft < 1023) {
@@ -3511,6 +3530,7 @@ const common_col_pref client_column_details[] = {
 	{ "manuf", "Manufacturer", ccol_manuf },
 	{ "dhcphost", "DHCP host name", ccol_dhcphost },
 	{ "dhcpos", "DHCP OS vendor", ccol_dhcpvendor },
+	{ "ip", "Best-guess IP address", ccol_ip },
 	{ NULL, NULL, 0 }
 };
 
@@ -3943,6 +3963,10 @@ int Kis_Clientlist::PrintClientLine(Netracker::tracked_client *cli,
 						 cli->dhcp_vendor.c_str());
 			}
 			rofft += 10;
+		} else if (b == ccol_ip) {
+			snprintf(rline + rofft, max - rofft, "%-15.15s", 
+					 inet_ntoa(cli->guess_ipdata.ip_addr_block));
+			rofft += 15;
 		} else {
 			continue;
 		}
@@ -4043,6 +4067,9 @@ void Kis_Clientlist::DrawComponent() {
 			} else if (cc == ccol_dhcpvendor) {
 				snprintf(rline + rofft, 1024 - rofft, "%-10.10s", "DHCP OS");
 				rofft += 10;
+			} else if (cc == ccol_ip) {
+				snprintf(rline + rofft, 1024 - rofft, "%-15.15s", "Best-Guess IP");
+				rofft += 15;
 			} else if (cc == ccol_freq_mhz) {
 				snprintf(rline + rofft, 1024 - rofft, "Freq");
 				rofft += 4;

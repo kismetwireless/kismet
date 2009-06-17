@@ -427,11 +427,6 @@ void CatchShutdown(int sig) {
 		globalregistry->kisnetserver->Shutdown();
 	}
 
-	if (globalregistry->netracker != NULL) {
-		delete globalregistry->netracker;
-		globalregistry->netracker = NULL;
-	}
-
 	// Be noisy
 	if (globalregistry->fatal_condition) {
 		fprintf(stderr, "\n*** KISMET HAS ENCOUNTERED A FATAL ERROR AND CANNOT "
@@ -444,6 +439,11 @@ void CatchShutdown(int sig) {
 		delete globalregistry->subsys_dumpfile_vec[x];
 	}
     
+	if (globalregistry->netracker != NULL) {
+		delete globalregistry->netracker;
+		globalregistry->netracker = NULL;
+	}
+
     // Dump fatal errors again
     if (fqmescli != NULL && globalregistry->fatal_condition) 
         fqmescli->DumpFatals();

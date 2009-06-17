@@ -503,6 +503,44 @@ int Kis_NetDetails_Panel::AppendNetworkInfo(vector<string> *td,
 		osstr << (int) (net->datasize / 1024 / 1024) << "M";
 	td->push_back(AlignString("Data Size: ", ' ', 2, 16) + osstr.str());
 
+	if (net->guess_ipdata.ip_type >= ipdata_factoryguess &&
+		net->guess_ipdata.ip_type <= ipdata_group) {
+		td->push_back("");
+
+		osstr.str("");
+
+		switch (net->guess_ipdata.ip_type) {
+			case ipdata_group:
+				osstr << "Aggregated";
+				break;
+			case ipdata_udptcp:
+				osstr << "UDP/TCP";
+				break;
+			case ipdata_arp:
+				osstr << "ARP";
+				break;
+			case ipdata_dhcp:
+				osstr << "DHCP";
+				break;
+			default:
+				osstr << "Unknown";
+				break;
+		}
+
+		td->push_back(AlignString("IP Type: ", ' ', 2, 16) + osstr.str());
+
+		td->push_back(AlignString("IP Address: ", ' ', 2, 16) + 
+					 string(inet_ntoa(net->guess_ipdata.ip_addr_block)));
+		if (net->guess_ipdata.ip_netmask.s_addr != 0) 
+			td->push_back(AlignString("IP Netmask: ", ' ', 2, 16) +
+						 string(inet_ntoa(net->guess_ipdata.ip_netmask)));
+		if (net->guess_ipdata.ip_gateway.s_addr != 0) 
+			td->push_back(AlignString("IP Gateway: ", ' ', 2, 16) +
+						 string(inet_ntoa(net->guess_ipdata.ip_gateway)));
+
+		td->push_back("");
+	}
+
 	map<uuid, KisPanelInterface::knc_card *> *cardmap =
 		kpinterface->FetchNetCardMap();
 	map<uuid, KisPanelInterface::knc_card *>::iterator kci;
@@ -1765,6 +1803,41 @@ void Kis_ClientDetails_Panel::DrawPanel() {
 			if (dcli->dhcp_vendor.length() > 0) {
 				td.push_back(AlignString("DHCP OS: ", ' ', 2, 16) + 
 							  dcli->dhcp_vendor);
+			}
+
+			if (dcli->guess_ipdata.ip_type > ipdata_factoryguess &&
+				dcli->guess_ipdata.ip_type < ipdata_group) {
+				td.push_back("");
+
+				osstr.str("");
+
+				switch (dcli->guess_ipdata.ip_type) {
+					case ipdata_udptcp:
+						osstr << "UDP/TCP";
+						break;
+					case ipdata_arp:
+						osstr << "ARP";
+						break;
+					case ipdata_dhcp:
+						osstr << "DHCP";
+						break;
+					default:
+						osstr << "Unknown";
+						break;
+				}
+
+				td.push_back(AlignString("IP Type: ", ' ', 2, 16) + osstr.str());
+
+				td.push_back(AlignString("IP Address: ", ' ', 2, 16) + 
+							 string(inet_ntoa(dcli->guess_ipdata.ip_addr_block)));
+				if (dcli->guess_ipdata.ip_netmask.s_addr != 0) 
+					td.push_back(AlignString("IP Netmask: ", ' ', 2, 16) +
+								 string(inet_ntoa(dcli->guess_ipdata.ip_netmask)));
+				if (dcli->guess_ipdata.ip_gateway.s_addr != 0) 
+					td.push_back(AlignString("IP Gateway: ", ' ', 2, 16) +
+								 string(inet_ntoa(dcli->guess_ipdata.ip_gateway)));
+
+				td.push_back("");
 			}
 
 			for (map<string, string>::const_iterator ai = dcli->arb_tag_map.begin();

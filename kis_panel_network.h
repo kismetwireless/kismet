@@ -178,7 +178,7 @@ enum bssid_columns {
 	bcol_crypt, bcol_channel, bcol_packdata, bcol_packllc, bcol_packcrypt,
 	bcol_bssid, bcol_packets, bcol_clients, bcol_datasize, bcol_signalbar,
 	bcol_beaconperc, bcol_signal_dbm, bcol_signal_rssi, bcol_freq_mhz,
-	bcol_manuf, bcol_11dcountry, bcol_seenby
+	bcol_manuf, bcol_11dcountry, bcol_seenby, bcol_ip, bcol_iprange
 };
 
 // Do not expect this to be in numerical order with the above enum, this is
@@ -355,7 +355,8 @@ enum client_columns {
 	ccol_decay, ccol_mac, ccol_bssid, ccol_ssid,
 	ccol_packdata, ccol_packllc, ccol_packcrypt,
 	ccol_packets, ccol_datasize, ccol_signal_dbm, ccol_signal_rssi,
-	ccol_freq_mhz, ccol_manuf, ccol_type, ccol_dhcphost, ccol_dhcpvendor
+	ccol_freq_mhz, ccol_manuf, ccol_type, ccol_dhcphost, ccol_dhcpvendor,
+	ccol_ip
 };
 
 /* color array positions */
