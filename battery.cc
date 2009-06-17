@@ -189,14 +189,12 @@ apmfail:
 	if (rate > 0)
 		out->remaining_sec = (float) ((float) remain / rate) * 60 * 60;
 
-	return 1;
-
 #elif defined(SYS_DARWIN)
 	// Battery handling code from Kevin Finisterre & Apple specs
 	CFTypeRef blob = IOPSCopyPowerSourcesInfo();
 	CFArrayRef sources = IOPSCopyPowerSourcesList(blob);
 
-	int i;
+	int i, bat_available = 0;
 	CFDictionaryRef pSource = NULL;
 	const void *psValue;
 
@@ -223,12 +221,12 @@ apmfail:
 								CFSTR(kIOPSBatteryPowerValue), 0) == kCFCompareEqualTo) {
 					battflag = LCDP_BATT_UNKNOWN;
 					acstat = LCDP_AC_OFF;
-					bat_charging = 0;
+					out->charging = 0;
 				} else if (CFDictionaryGetValueIfPresent(pSource, 
 											 CFSTR(kIOPSIsChargingKey), &psValue)) {
 					if (CFBooleanGetValue((CFBooleanRef) psValue) > 0) {
 						battflag = LCDP_BATT_CHARGING;
-						bat_charging = 1;
+						out->charging = 1;
 					} else {
 						battflag = LCDP_BATT_UNKNOWN;
 					}
@@ -241,7 +239,6 @@ apmfail:
 					int timeToCharge = 0;
 
 					bat_available = 1;
-					bat_time = 0;
 
 					psValue = CFDictionaryGetValue(pSource, 
 												   CFSTR(kIOPSCurrentCapacityKey));
@@ -272,7 +269,7 @@ apmfail:
 					CFNumberGetValue((CFNumberRef) psValue, 
 									 kCFNumberSInt32Type, &timeToCharge);
 
-					if (bat_charging && timeToCharge > 0) {
+					if (out->charging && timeToCharge > 0) {
 						out->charging = 1;
 					} else if (remainingTime > 0) {
 						out->remaining_sec = remainingTime * 60;
@@ -382,5 +379,6 @@ apmfail:
 
 #endif
 
+	return 1;
 }
 
