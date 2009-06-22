@@ -767,8 +767,8 @@ void kpi_textcli_consolevec(TEXTCLI_PARMS) {
 	vector<string> *console = 
 		((KisPanelInterface *) auxptr)->FetchServerConsole();
 	console->push_back(text);
-	if (console->size() > 50) 
-		console->erase(console->begin(), console->begin() + console->size() - 50);
+	if (console->size() > 100) 
+		console->erase(console->begin(), console->begin() + console->size() - 100);
 }
 
 void KisPanelInterface::SpawnServer(string in_parm) {

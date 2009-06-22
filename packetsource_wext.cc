@@ -381,6 +381,7 @@ void PacketSource_Wext::OpenWpaSupplicant() {
 		// Set it nonblocking, and we'll just check that our whole command
 		// got written each time, not going to bother making a real queue
 		fcntl(wpa_sock, F_SETFL, fcntl(wpa_sock, F_GETFL, 0) | O_NONBLOCK);
+		unlink(wpa_local_path.c_str());
 	}
 }
 
