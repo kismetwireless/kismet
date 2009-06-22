@@ -309,6 +309,7 @@ protected:
 	void SendIPCChannellist(pst_channellist *in_list);
 	void SendIPCReport(pst_packetsource *in_source);
 	void SendIPCStart(pst_packetsource *in_source);
+	void SendIPCStop(pst_packetsource *in_source);
 	void SendIPCChanset(pst_packetsource *in_source);
 	void SendIPCRemove(pst_packetsource *in_source);
 	void SendIPCPacket(kis_packet *in_packet, kis_datachunk *in_linkchunk);
@@ -319,7 +320,7 @@ protected:
 
 	int source_ipc_id, channellist_ipc_id, channel_ipc_id,
 		report_ipc_id, run_ipc_id, remove_ipc_id, sync_ipc_id,
-		packet_ipc_id, chanreport_ipc_id;
+		packet_ipc_id, chanreport_ipc_id, stop_ipc_id;
 
 	int cmd_addsource_id, cmd_delsource_id, cmd_restartsource_id,
 		cmd_hopsource_id, cmd_channellist_id;

@@ -267,6 +267,13 @@ http://www.kismetwireless.net
                          by drivers using the mac80211 interface under
                          Linux.  Users wishing to do Kismet+Managed or
                          Kismet+Injection should create a vap.
+      forcevap=t|f      True/False.  Force creation of a monitor-mode VAP
+                         when possible (all Linux mac80211 based drivers
+                         support this).  Default is "true", a VAP will be
+                         made of the name '<interface>mon', ie 'wlan0mon',
+                         'wlan1mon' and capture will be done with this VAP.
+                         This behavior can be forced OFF with
+                         'forcevap=false'.
       wpa_scan=time     When using a mac80211 VAP, Kismet can use
                          wpa_supplicant on a managed interface to trigger
                          hardware assisted scans, enabling some view of the
@@ -282,7 +289,7 @@ http://www.kismetwireless.net
                          configured to report invalid packets, this should
                          be specified to prevent Kismet from processing
                          broken packets.
-     fcs=true|false     Force handling of FCS bytes on a packet source.
+      fcs=true|false    Force handling of FCS bytes on a packet source.
                          Default is "false", which implies "native FCS
                          handling".  Packet sources which include per-packet
                          headers like radiotap or PPI will ignore this value
@@ -290,7 +297,7 @@ http://www.kismetwireless.net
                          sources such as pcapfile, reading raw 802.11 pcap
                          files with no headers, may need this turned on for
                          proper behavior.
-     fcsfail=true       Force a mac80211 VAP to report packets with a known
+      fcsfail=true      Force a mac80211 VAP to report packets with a known
                          bad FCS (packet checksum).  This is only available
                          on Linux and only when using mac80211 drivers.
                          This MUST come after a 'vap=' option or it will be
@@ -304,7 +311,7 @@ http://www.kismetwireless.net
                          interface will become unresponsive if capture is
                          stopped and resume.  This option is for specific
                          expert use only, when in doubt, leave it alone.
-     plcpfail=true      Force a mac80211 VAP to report packets which do not
+      plcpfail=true     Force a mac80211 VAP to report packets which do not
                          pass the PLCP check (if possible on that
                          interface).  The same warnings and conditions as
                          'fcsfail' apply.  This option is for specific,

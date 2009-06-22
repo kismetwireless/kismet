@@ -806,7 +806,7 @@ void Kis_Main_Panel::Proto_GPS(CLIPROTO_CB_PARMS) {
 		if (spd > 0.447)
 			gpstext += "Spd: " + NtoString<float>(spd * 2.2369, 2).Str() + " mph ";
 		else
-			gpstext += "Spd: " + NtoString<float>(spd * 11811.0236, 2).Str() + " fph ";
+			gpstext += "Spd: " + NtoString<float>(spd * 3.2808399, 2).Str() + " fps ";
 
 		if (alt > 1609)
 			gpstext += "Alt: " + NtoString<float>((alt / 1000) * 0.6214, 2).Str() + 
@@ -817,7 +817,7 @@ void Kis_Main_Panel::Proto_GPS(CLIPROTO_CB_PARMS) {
 		if (spd > 0.2778)
 			gpstext += "Spd: " + NtoString<float>(spd * 3.6, 2).Str() + "Km/hr ";
 		else
-			gpstext += "Spd: " + NtoString<float>(spd * 3600, 2).Str() + "m/hr ";
+			gpstext += "Spd: " + NtoString<float>(spd, 2).Str() + "m/s ";
 
 		if (alt > 1000)
 			gpstext += "Alt: " + NtoString<float>(alt / 1000, 2).Str() + "Km ";

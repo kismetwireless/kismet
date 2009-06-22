@@ -85,6 +85,9 @@ int Usage(char *argv) {
 }
 
 void CatchShutdown(int) {
+	if (globalreg->sourcetracker)
+		globalreg->sourcetracker->StopSource(0);
+
 	globalreg->rootipc->ShutdownIPC(NULL);
 	exit(1);
 }

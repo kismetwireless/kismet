@@ -63,7 +63,10 @@ PacketSource_Wext::PacketSource_Wext(GlobalRegistry *in_globalreg,
 	memset(&wpa_dest, 0, sizeof(struct sockaddr_un));
 
 	use_mac80211 = 0;
+	opp_vap = 0;
 	nlhandle = nlcache = nlfamily = NULL;
+
+	stored_channel = stored_mode = stored_privmode = stored_flags = -1;
 
 	// Type derived by our higher parent
 	if (type == "nokia770" || type == "nokia800" || 
@@ -146,6 +149,29 @@ int PacketSource_Wext::ParseOptions(vector<opt_pair> *in_opts) {
 		_MSG("Source '" + interface + "' will attempt to create a monitor-only "
 			 "VAP '" + vap + "' instead of reconfiguring the main interface", 
 			 MSGFLAG_INFO);
+		// Opportunistic VAP off when specified
+		opp_vap = 0;
+	}
+
+	// Turn on VAP by default
+	if (vap == "" && (FetchOpt("forcevap", in_opts) == "" || 
+					  StrLower(FetchOpt("forcevap", in_opts)) == "true")) {
+
+		if (vap == "") {
+			// Only set a vap when we're not targetting a vap
+			if (mac80211_find_parent(string(interface + "mon").c_str()) == "") {
+				_MSG("Source '" + interface + "' will attempt to create and use a "
+					 "monitor-only VAP instead of reconfiguring the main interface",
+					 MSGFLAG_INFO);
+				vap = interface + "mon";
+			}
+
+			// Opportunistic VAP on
+			opp_vap = 1;
+		}
+	} else {
+		_MSG("Source '" + interface + "' forced into non-vap mode, this will "
+			 "modify the provided interface.", MSGFLAG_INFO);
 	}
 
 	if (FetchOpt("fcsfail", in_opts) == "true") {
@@ -398,8 +424,22 @@ int PacketSource_Wext::EnableMonitor() {
 			_MSG(errstr, MSGFLAG_PRINTERROR);
 			return -1;
 		}
+
 	}
+#else
+	use_mac80211 = 0;
 #endif
+
+	if (vap != "" && opp_vap == 1 && use_mac80211 == 0) {
+		_MSG("Source '" + interface + "' doesn't have mac80211 support, disabling "
+			 "VAP creation of default monitor mode VAP", MSGFLAG_PRINTERROR);
+		vap = "";
+	} else if (vap != "" && opp_vap == 0 && use_mac80211 == 0) {
+		_MSG("Source '" + interface + "' doesn't have mac80211 support, unable to "
+			 "create a VAP for capturing, specify the main device instead.",
+			 MSGFLAG_PRINTERROR);
+		return -1;
+	}
 
 	// If we don't already have a parent interface, it's whatever was specified
 	// as our interface; we'll make the vap if we need to and use this for
@@ -426,6 +466,10 @@ int PacketSource_Wext::EnableMonitor() {
 		if (mac80211_createvap(parent.c_str(), vap.c_str(), errstr) < 0) {
 			_MSG("Source '" + parent + "' failed to create mac80211 VAP: " +
 				 string(errstr), MSGFLAG_PRINTERROR);
+
+			if (opp_vap)
+				goto end_vap;
+
 			return -1;
 		}
 
@@ -439,7 +483,7 @@ int PacketSource_Wext::EnableMonitor() {
 			if (Ifconfig_Set_Flags(interface.c_str(), errstr,
 								   oldflags & ~(IFF_UP | IFF_RUNNING)) < 0) {
 				_MSG("Failed to bring down interface '" + interface + "' to "
-					 "configure flags: " + string(errstr), MSGFLAG_PRINTERROR);
+					 "configure monitor flags: " + string(errstr), MSGFLAG_PRINTERROR);
 			}
 
 			if (mac80211_setvapflag(interface.c_str(), mac80211_flag_vec, errstr) < 0) {
@@ -449,12 +493,8 @@ int PacketSource_Wext::EnableMonitor() {
 		}
 	}
 
-	if (Ifconfig_Get_Flags(interface.c_str(), errstr, &stored_flags) < 0) {
-		_MSG(errstr, MSGFLAG_PRINTERROR);
-		_MSG("Failed to get interface flags for '" + interface + "', "
-			 "this will probably fully fail in a moment when we try to configure "
-			 "the interface, but we'll keep going.", MSGFLAG_PRINTERROR);
-	}
+	// Yes, gotos suck.  Yes, go away
+end_vap:
 
 	// Try to grab the wireless mode
 	if (Iwconfig_Get_Mode(interface.c_str(), errstr, &stored_mode) < 0) {
@@ -465,6 +505,38 @@ int PacketSource_Wext::EnableMonitor() {
 		return -1;
 	}
 
+	if (use_mac80211) {
+		int oldflags;
+		Ifconfig_Get_Flags(interface.c_str(), errstr, &oldflags);
+		if (Ifconfig_Set_Flags(interface.c_str(), errstr,
+							   oldflags & ~(IFF_UP | IFF_RUNNING)) < 0) {
+			_MSG("Failed to bring down interface '" + interface + "' to "
+				 "configure monitor: " + string(errstr), MSGFLAG_PRINTERROR);
+			return -1;
+		}
+
+		// Force rfmon and vap flags, set mode with nl80211
+		mac80211_flag_vec.push_back(nl80211_mntr_flag_control);
+		mac80211_flag_vec.push_back(nl80211_mntr_flag_otherbss);
+
+		if (mac80211_setvapflag(interface.c_str(), mac80211_flag_vec, errstr) < 0) {
+			_MSG("Source '" + parent + "' failed to set flags on VAP '" +
+				 interface + "': " + string(errstr), MSGFLAG_PRINTERROR);
+		}
+
+		if (Ifconfig_Delta_Flags(interface.c_str(), errstr, 
+								 IFF_UP | IFF_RUNNING | IFF_PROMISC) < 0) {
+			_MSG("Failed to bring up interface '" + interface + "' after "
+				 "configuring flags, something is weird (probably with your driver) "
+				 "or your driver is missing firmware, check the output of 'dmesg': " +
+				 string(errstr), MSGFLAG_PRINTERROR);
+			return -1;
+		}
+
+		return 0;
+	}
+
+	// If it's already in monitor, make sure it's up and we're done
 	if (stored_mode == LINUX_WLEXT_MONITOR) {
 		_MSG("Interface '" + interface + "' is already marked as being in "
 			 "monitor mode, leaving it as it is.", MSGFLAG_INFO);
@@ -503,27 +575,6 @@ int PacketSource_Wext::EnableMonitor() {
 			 "in current state, bringing interface down and trying again",
 			 MSGFLAG_ERROR);
 
-#if 0
-		// Bring the interface up, zero its IP, etc
-		if (Ifconfig_Delta_Flags(interface.c_str(), errstr, 
-								 IFF_UP | IFF_RUNNING | IFF_PROMISC) < 0) {
-			_MSG(errstr, MSGFLAG_PRINTERROR);
-			_MSG("Failed to bring up interface '" + interface + "', check your "
-				 "permissions and configuration, and consult the Kismet README file",
-				 MSGFLAG_PRINTERROR);
-			return -1;
-		}
-
-		// Try to grab the channel
-		if ((stored_channel = Iwconfig_Get_Channel(interface.c_str(), errstr)) < 0) {
-			_MSG(errstr, MSGFLAG_PRINTERROR);
-			_MSG("Failed to get the current channel for interface '" + interface + 
-				 "'.  This may be a fatal problem, but we'll keep going in case "
-				 "the drivers are reporting incorrectly.", MSGFLAG_PRINTERROR);
-			stored_channel = -1;
-		}
-#endif
-
 		int oldflags;
 		Ifconfig_Get_Flags(interface.c_str(), errstr, &oldflags);
 
@@ -555,6 +606,7 @@ int PacketSource_Wext::EnableMonitor() {
 
 	}
 
+	// Make sure it's up if nothing else
 	if (Ifconfig_Delta_Flags(interface.c_str(), errstr, 
 							 IFF_UP | IFF_RUNNING | IFF_PROMISC) < 0) {
 		_MSG(errstr, MSGFLAG_PRINTERROR);
@@ -571,27 +623,36 @@ int PacketSource_Wext::EnableMonitor() {
 int PacketSource_Wext::DisableMonitor() {
 	char errstr[STATUS_MAX];
 
-	// We don't really care if any of these things fail.  Keep trying.
-	SetChannel(stored_channel);
-	
-	// We do care if this fails
-	if (Iwconfig_Set_Mode(interface.c_str(), errstr, stored_mode) < 0) {
-		_MSG(errstr, MSGFLAG_PRINTERROR);
-		_MSG("Failed to restore previous wireless mode for interface '" +
-			 interface + "'.  It may be left in an unknown or unusable state.",
-			 MSGFLAG_PRINTERROR);
-		return -1;
-	}
-
-	if (Ifconfig_Set_Flags(interface.c_str(), errstr, stored_flags) < 0) {
-		_MSG(errstr, MSGFLAG_PRINTERROR);
-		_MSG("Failed to restore previous interface settings for '" + interface + "'. "
-			 "It may be left in an unknown or unusable state.", MSGFLAG_PRINTERROR);
-		return -1;
-	}
-
 	if (wpa_local_path != "")
 		unlink(wpa_local_path.c_str());
+
+	// We don't really care if any of these things fail.  Keep trying.
+	if (stored_channel > 0)
+		SetChannel(stored_channel);
+
+	// We do care if this fails; reset the wireless mode if we need to and we're 
+	// not a VAP (those get left, we don't care)
+	if (stored_mode > 0 && stored_mode != LINUX_WLEXT_MONITOR && vap == "") {
+		if (Iwconfig_Set_Mode(interface.c_str(), errstr, stored_mode) < 0) {
+			int oldflags;
+			Ifconfig_Get_Flags(interface.c_str(), errstr, &oldflags);
+
+			if (Ifconfig_Set_Flags(interface.c_str(), errstr,
+								   oldflags & ~(IFF_UP | IFF_RUNNING)) < 0) {
+				_MSG("Failed to restore previous wireless mode for interface '" +
+					 interface + "'.  It may be left in an unknown or unusable state.",
+					 MSGFLAG_PRINTERROR);
+				return -1;
+			}
+
+			if (Iwconfig_Set_Mode(interface.c_str(), errstr, stored_mode) < 0) {
+				_MSG("Failed to restore previous wireless mode for interface '" +
+					 interface + "'.  It may be left in an unknown or unusable state.",
+					 MSGFLAG_PRINTERROR);
+				return -1;
+			}
+		}
+	}
 
 	return PACKSOURCE_UNMONITOR_RET_OKWITHWARN;
 }

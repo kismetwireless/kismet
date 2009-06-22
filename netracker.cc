@@ -2873,8 +2873,6 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 	}
 
 	// TODO/FIXME:  
-	//  Manuf matching
-	//  IV set handling
 	//	"Smart" vs. "Purely accurate" adhoc handling
 
 	return 1;

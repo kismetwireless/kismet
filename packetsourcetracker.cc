@@ -319,6 +319,17 @@ int pst_ipc_run(IPC_CMD_PARMS) {
 	return 1;
 }
 
+int pst_ipc_stop(IPC_CMD_PARMS) {
+	if (parent) return 0;
+
+	if (len < (int) sizeof(ipc_source_run))
+		return 0;
+
+	((Packetsourcetracker *) auxptr)->IpcSourceRun((ipc_source_run *) data);
+
+	return 1;
+}
+
 int pst_ipc_remove(IPC_CMD_PARMS) {
 	if (parent) return 0;
 
@@ -507,6 +518,8 @@ Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) {
 }
 
 Packetsourcetracker::~Packetsourcetracker() {
+	StopSource(0);
+
 	globalreg->RemovePollableSubsys(this);
 
 	globalreg->timetracker->RemoveTimer(channel_time_id);
@@ -538,6 +551,8 @@ void Packetsourcetracker::RegisterIPC(IPCRemote *in_ipc, int in_as_ipc) {
 		rootipc->RegisterIPCCmd(&pst_ipc_rx_stats, NULL, this, "SOURCEREPORT");
 	run_ipc_id =
 		rootipc->RegisterIPCCmd(&pst_ipc_run, NULL, this, "SOURCERUN");
+	stop_ipc_id =
+		rootipc->RegisterIPCCmd(&pst_ipc_stop, NULL, this, "SOURCESTOP");
 	packet_ipc_id =
 		rootipc->RegisterIPCCmd(&pst_ipc_packet, NULL, this, "SOURCEFRAME");
 	remove_ipc_id =
@@ -1756,7 +1771,66 @@ int Packetsourcetracker::StartSource(uint16_t in_source_id) {
 }
 
 int Packetsourcetracker::StopSource(uint16_t in_source_id) {
-	// Todo - implement this
+#ifndef SYS_CYGWIN
+	uid_t euid = geteuid();
+#else
+	uid_t euid = 0;
+#endif
+
+	pst_packetsource *pstsource = NULL;
+	int failure = 0;
+
+	// Start all sources.  Incrementally count failure conditions and let the caller
+	// decide how to deal with them
+	if (in_source_id == 0) {
+		for (unsigned int x = 0; x < packetsource_vec.size(); x++) {
+			if (StopSource(packetsource_vec[x]->source_id) < 0)
+				failure--;
+		}
+
+		return failure;
+	} 
+
+	if (packetsource_map.find(in_source_id) != packetsource_map.end()) {
+		pstsource = packetsource_map[in_source_id];
+	} else {
+		_MSG("Packetsourcetracker::StopSource called with unknown packet source "
+			 "id, something is wrong.", MSGFLAG_ERROR);
+		return -1;
+	}
+
+	if (pstsource->strong_source == NULL)
+		return 0;
+
+	if (euid != 0 && pstsource->proto_source->require_root && running_as_ipc) {
+		_MSG("IPC child Source '" + pstsource->strong_source->FetchInterface() + 
+			 "' requires root permissions to shut down, but we're not running "
+			 "as root.  Something is wrong.", MSGFLAG_ERROR);
+		return -1;
+	} else if (euid != 0 && pstsource->proto_source->require_root) {
+		_MSG("Deferring shutdown of packet source '" + 
+			 pstsource->strong_source->FetchInterface() + "' to IPC child",
+			 MSGFLAG_INFO);
+		SendIPCStop(pstsource);
+		return 0;
+	}
+
+	if (pstsource->strong_source->CloseSource() < 0) {
+		SendIPCReport(pstsource);
+		return -1;
+	}
+
+
+	if (pstsource->strong_source->DisableMonitor() < 0) {
+		SendIPCReport(pstsource);
+		return -1;
+	}
+
+	_MSG("Stopped source '" + pstsource->strong_source->FetchName() + "'",
+		 MSGFLAG_INFO);
+
+	SendIPCReport(pstsource);
+
 	return 0;
 }
 
@@ -1924,6 +1998,36 @@ void Packetsourcetracker::SendIPCStart(pst_packetsource *in_source) {
 
 	run->source_id = in_source->source_id;
 	run->start = 1;
+
+	rootipc->SendIPC(ipc);
+}
+
+void Packetsourcetracker::SendIPCStop(pst_packetsource *in_source) {
+	if (running_as_ipc == 1)
+		return;
+
+	if (rootipc == NULL)
+		return;
+
+	if (in_source == NULL) {
+		for (unsigned int x = 0; x < packetsource_vec.size(); x++) {
+			SendIPCStop(packetsource_vec[x]);
+		}
+
+		return;
+	}
+
+	ipc_packet *ipc =
+		(ipc_packet *) malloc(sizeof(ipc_packet) +
+							  sizeof(ipc_source_run));
+	ipc_source_run *run = (ipc_source_run *) ipc->data;
+
+	ipc->data_len = sizeof(ipc_source_run);
+	ipc->ipc_ack = 0;
+	ipc->ipc_cmdnum = stop_ipc_id;
+
+	run->source_id = in_source->source_id;
+	run->start = 0;
 
 	rootipc->SendIPC(ipc);
 }
