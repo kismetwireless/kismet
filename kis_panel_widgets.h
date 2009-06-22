@@ -334,6 +334,8 @@ public:
 		return -1;
 	}
 
+	virtual int GetVisible();
+
 	virtual void DrawComponent();
 
 protected:

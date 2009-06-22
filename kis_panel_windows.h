@@ -123,7 +123,7 @@ protected:
 		mi_sort_packets, mi_sort_packets_d;
 
 	int mn_view, mi_shownetworks, mi_showclients, mi_showsummary, mi_showstatus, 
-		mi_showgps, mi_showpps, mi_showsources;
+		mi_showgps, mi_showbattery, mi_showpps, mi_showsources;
 
 	int mn_windows, mi_netdetails, mi_addnote, mi_clientlist, 
 		mi_chandetails, mi_gps, mi_alerts;

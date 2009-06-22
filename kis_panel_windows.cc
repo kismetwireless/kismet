@@ -179,6 +179,7 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	mi_shownetworks = menu->AddMenuItem("Network List", mn_view, 'n');
 	mi_showclients = menu->AddMenuItem("Client List", mn_view, 'c');
 	mi_showgps = menu->AddMenuItem("GPS Data", mn_view, 'g');
+	mi_showbattery = menu->AddMenuItem("Battery", mn_view, 'b');
 	mi_showsummary = menu->AddMenuItem("General Info", mn_view, 'S');
 	mi_showstatus = menu->AddMenuItem("Status", mn_view, 's');
 	mi_showpps = menu->AddMenuItem("Packet Graph", mn_view, 'p');
@@ -850,7 +851,7 @@ void Kis_Main_Panel::Proto_BATTERY(CLIPROTO_CB_PARMS) {
 	if (sscanf((*proto_parsed)[3].word.c_str(), "%d", &remaining) == 0)
 		return;
 
-	battxt = " | ";
+	battxt = "Pwr: ";
 
 	if (ac) {
 		battxt += "AC";
@@ -1123,6 +1124,7 @@ void Kis_Main_Panel::MenuAction(int opt) {
 			   opt == mi_showstatus ||
 			   opt == mi_showpps ||
 			   opt == mi_showgps ||
+			   opt == mi_showbattery ||
 			   opt == mi_showsources ||
 			   opt == mi_shownetworks ||
 			   opt == mi_showclients) {
@@ -1321,11 +1323,22 @@ void Kis_Main_Panel::UpdateViewMenu(int mi) {
 		if (opt == "" || opt == "true") {
 			kpinterface->prefs->SetOpt("MAIN_SHOWGPS", "false", 1);
 			menu->SetMenuItemChecked(mi_showgps, 0);
-			linebox->Hide();
+			gpsinfo->Hide();
 		} else {
 			kpinterface->prefs->SetOpt("MAIN_SHOWGPS", "true", 1);
 			menu->SetMenuItemChecked(mi_showgps, 1);
-			linebox->Show();
+			gpsinfo->Show();
+		}
+	} else if (mi == mi_showbattery) {
+		opt = kpinterface->prefs->FetchOpt("MAIN_SHOWBAT");
+		if (opt == "" || opt == "true") {
+			kpinterface->prefs->SetOpt("MAIN_SHOWBAT", "false", 1);
+			menu->SetMenuItemChecked(mi_showbattery, 0);
+			batteryinfo->Hide();
+		} else {
+			kpinterface->prefs->SetOpt("MAIN_SHOWBAT", "true", 1);
+			menu->SetMenuItemChecked(mi_showbattery, 1);
+			batteryinfo->Show();
 		}
 	} else if (mi == mi_showpps) {
 		opt = kpinterface->prefs->FetchOpt("MAIN_SHOWPPS");
@@ -1404,10 +1417,19 @@ void Kis_Main_Panel::UpdateViewMenu(int mi) {
 		opt = kpinterface->prefs->FetchOpt("MAIN_SHOWGPS");
 		if (opt == "" || opt == "true") {
 			menu->SetMenuItemChecked(mi_showgps, 1);
-			linebox->Show();
+			gpsinfo->Show();
 		} else {
 			menu->SetMenuItemChecked(mi_showgps, 0);
-			linebox->Hide();
+			gpsinfo->Hide();
+		}
+
+		opt = kpinterface->prefs->FetchOpt("MAIN_SHOWBAT");
+		if (opt == "" || opt == "true") {
+			menu->SetMenuItemChecked(mi_showbattery, 1);
+			batteryinfo->Show();
+		} else {
+			menu->SetMenuItemChecked(mi_showbattery, 0);
+			batteryinfo->Hide();
 		}
 
 		opt = kpinterface->prefs->FetchOpt("MAIN_SHOWSOURCE");

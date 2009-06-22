@@ -1,4 +1,4 @@
-Kismet 2009-05-RC1
+Kismet 2009-06-R1
 Mike Kershaw <dragorn@kismetwireless.net>
 http://www.kismetwireless.net
 
@@ -36,7 +36,7 @@ http://www.kismetwireless.net
     of) hidden networks and the presence of non-beaconing networks via data
     traffic.
 
-2.  Upgrading from earlier Kismet versions
+2a. Upgrading from Kismet-old versions
 
     This release marks a MAJOR change in how Kismet works and is configured.
     While many aspects are similar, many others (the client, configuring
@@ -1059,6 +1059,10 @@ http://www.kismetwireless.net
     Midnight Commander or Links) does.  The menu is activated with 'escape',
     '`' or '~'.  Navigation between elements of the UI is done with 'tab'.
 
+    Use of a mouse is supported in much of the Kismet UI, although not all
+    widgets fully support mouse operation.  Basic use of the UI with no
+    keyboard should be reasonable, however.
+
     The main Kismet window consists of the network list, GPS information,
     a summary of the current server statistics and packet source status, and
     the status panel where errors and announcements are printed.  Additional
@@ -1130,6 +1134,16 @@ http://www.kismetwireless.net
     Client tags are applied to a specific client in a specific network;
     Currently there is no mechanism for adding a note to every instance of
     the client.
+
+    - Sorting
+
+    Kismet defaults to "autofit" mode, where it tries to put as many of the
+    currently active networks on the screen as possible.  Because autofit
+    mode is so variable, it doesn't make sense to try to allow selecting
+    networks in autofit.
+
+    To select a network and view details, first sort by another method (such
+    as channel, time, etc) via the Sort menu, then select a network.
 
 15. Kismet Drones
 
@@ -1497,6 +1511,13 @@ http://www.kismetwireless.net
        versions based on Newcore).  So long as your environment is something
        like Posix and your device supports raw capture modes, it should be
        possible.  Swing by IRC (#kismet on freenode) and chat.
+
+    Q: Why does Kismet make a new interface named foo-mon?
+    A: When mac80211 is available, Kismet will use to create a new virtual
+       interface, named after the existing interface (wlan0 for instance
+       will cause a wlan0mon to be created).  Kismet will use this virtual
+       interface for capture, so that it causes less disruption to the
+       configuration of the existing interface.
 
     Q: What happens when I ask a question already here?
     A: I'll probably be rude to you (or someone else will).  But that would

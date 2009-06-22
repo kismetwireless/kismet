@@ -472,6 +472,26 @@ Kis_Panel_Packbox::~Kis_Panel_Packbox() {
 	// Nothing to do really
 }
 
+int Kis_Panel_Packbox::GetVisible() {
+	if (visible == 0)
+		return 0;
+
+	int any_vis = 0;
+	
+	for (list<Kis_Panel_Packbox::packbox_details>::iterator x = packed_items.begin();
+		 x != packed_items.end(); ++x) {
+		if ((*x).widget->GetVisible()) {
+			any_vis = 1;
+			break;
+		}
+	}
+
+	if (any_vis)
+		return 1;
+	
+	return 0;
+}
+
 void Kis_Panel_Packbox::Pack_Start(Kis_Panel_Component *in_widget, int in_fill,
 								   int in_padding) {
 	packbox_details det;
