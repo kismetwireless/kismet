@@ -20,8 +20,8 @@
 #define __KISVERSION_H__
 
 #define VERSION_MAJOR	"2009"
-#define VERSION_MINOR	"05"
-#define VERSION_TINY	"RC2"
+#define VERSION_MINOR	"06"
+#define VERSION_TINY	"R1"
 
 #define REVISION		"$Rev$"
 #define REVDATE			"$LastChangedDate$"

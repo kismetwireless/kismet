@@ -36,7 +36,15 @@ http://www.kismetwireless.net
     of) hidden networks and the presence of non-beaconing networks via data
     traffic.
 
-2a. Upgrading from Kismet-old versions
+2a. Upgrading from recent versions
+
+    2009-06-R1 has changed some basic behavior when using multi-vap capable
+    devices (ie, modern in-kernel Linux drivers).  Whenever possible, it
+    will create a new VAP and reconfigure it, instead of modifying the
+    existing interface.  To preserve the old behavior, specify
+    'forcevap=false' on the source line.
+
+2b. Upgrading from Kismet-old versions
 
     This release marks a MAJOR change in how Kismet works and is configured.
     While many aspects are similar, many others (the client, configuring
@@ -97,6 +105,10 @@ http://www.kismetwireless.net
       all of the documentation.
 
 3b.  Windows quick start
+
+    * Note, at the time of this writing, the updated CACE install is not yet
+    * available, so users wishing to take advantage of the newcore
+    * functionality will need to build Kismet themselves in Cygwin
 
     Using the CACE Package:
 
@@ -417,11 +429,11 @@ http://www.kismetwireless.net
 
     RT2870 (Linux)
 
-      Some distributions seem to favor the out-of-kernel nonstandard
-      rt2870sta drivers instead of the mac80211 standard drivers.  These
-      drivers cannot be autodetected (they don't provide a valid identifier
-      in /sys) so the driver type 'rt2870sta' must be given on the source
-      line.
+      The rt2870 11n chipset does not have an in-kernel driver yet which
+      conforms to the ma80211 driver controls.  These drivers also cannot be
+      auto-detected (they don't provide a valid identifier in /sys) so the
+      driver type mus be manually specified with 'type=rt2870sta' on the
+      source line.
 
       This driver defaults to the name 'rausbX' which exposes a bug in some
       versions of libpcap and may require the device be renamed (See
@@ -436,11 +448,13 @@ http://www.kismetwireless.net
       versions of libpcap and may require the device be renamed (See
       'Troubleshooting' section)
 
-    WL (Linux)
+    WL (Linux, Intel)
 
       Broadcom has released a binary version of their drivers called WL.
       These drivers are incapable of monitor mode, and cannot be used with
-      Kismet.  Kismet will autodetect them and report this to the user.
+      Kismet.  Kismet will attempt to autodetect them and report this to the 
+      user.  Users of Broadcom cards should use the b43 or b43xx in-kernel
+      drivers.
 
     OTUS (Linux)
 
@@ -458,9 +472,9 @@ http://www.kismetwireless.net
       section.  It should be disconnected from any network, but wireless
       must be turned on.
 
-      The Nokia drivers like to report bunk packets.  Most of these can be
-      filtered with validatefcs, but it appears to still cause bunk data
-      networks.
+      The Nokia drivers often return FCS-invalid packets.  The Nokia source
+      line should include 'fcs=true,validatefcs=true' to prevent these from
+      creating multiple false networks out of invalid packets.
 
       The Nokia device does not autodetect properly, a driver type of
       'nokia770', 'nokia800', 'nokia810', or 'nokiaitt' must be set.
@@ -477,6 +491,8 @@ http://www.kismetwireless.net
       probably fail.  Monitor support can be forced on in the module via the
       module parameter "force_monitor=1" when loading orinoco.ko.
 
+      For non-hermes chipsets like prism2, use hostap (also in the kernel).
+
     NDISWrapper (Linux)
 
       The NDIS-Wrapper driver loads Windows drivers into the Linux network
@@ -485,7 +501,7 @@ http://www.kismetwireless.net
 
       Note:  The rndis drivers are NOT the same as ndiswrapper.  rndis
       drivers are for a specific USB chipset and are not related to
-      ndiswrapper.
+      ndiswrapper, rndis will work.
 
     BSD (BSD Generic)
 
@@ -500,9 +516,11 @@ http://www.kismetwireless.net
     Windows (Generic)
 
       ONLY THE AIRPCAP DEVICE IS SUPPORTED UNDER WINDOWS.  THIS IS A
-      SPECIFIC HARDWARE DEVICE MADE BY CACE TECHNOLOGIES.
+      SPECIFIC HARDWARE DEVICE MADE BY CACE TECHNOLOGIES.  IF YOU DID NOT GO
+      AND BUY AN AIRPCAP SPECIFICALLY FOR CAPTURING DATA, YOU DO NOT HAVE ONE, 
+      AND THIS WILL NOT WORK.
 
-      The airpcap has monitor mode drivers with a public interface for
+      The Airpcap has monitor mode drivers with a *public* interface for
       controlling them.  This is the only device Kismet can capture packets
       from on Windows.
 
@@ -551,6 +569,7 @@ http://www.kismetwireless.net
       nokiaitt          Alias for nokia770
 
       pcapfile          Pcap-formatted previously recorded file
+      rt2870sta         Out-of-kernel rt2870 11n driver
       drone             Remote Kismet packet capture, source options
                         "host=..." and "port=..." are required.
                         ncsource=drone:host=localhost,port=2502
