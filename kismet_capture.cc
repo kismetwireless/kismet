@@ -281,7 +281,7 @@ int main(int argc, char *argv[], char *envp[]) {
 		tm.tv_usec = 100000;
 
 		if (select(max_fd + 1, &rset, &wset, NULL, &tm) < 0) {
-			if (errno != EINTR) {
+			if (errno != EINTR && errno != EAGAIN) {
 				snprintf(errstr, STATUS_MAX, "Main select loop failed: %s",
 						 strerror(errno));
 				CatchShutdown(-1);

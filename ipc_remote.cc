@@ -491,7 +491,7 @@ void IPCRemote::IPC_Child_Loop() {
 
 		// Timeout after 1 second if we stopped getting commands
 		if (select(max_fd + 1, &rset, &wset, NULL, &tm) < 0) {
-			if (errno != EINTR) {
+			if (errno != EINTR && errno != EAGAIN) {
 				// Die violently
 				fprintf(stderr, "FATAL OOPS:  IPC command child %d got select() "
 						"error and cannot continue cleanly: %s\n",

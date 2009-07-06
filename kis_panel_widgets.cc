@@ -2823,7 +2823,7 @@ void Kis_IntGraph::DrawComponent() {
 			xgroup = xmod * 2;
 		}
 
-		for (int gx = 0; gx < gw && inter_x; gx++) {
+		for (int gx = 0; (gx < gw) && inter_x; gx++) {
 			int r = 0, py, nuse = 0;
 			// We make the assumption here that T is a numerical
 			// type in some fashion, if this is ever not true we'll have
@@ -2833,9 +2833,8 @@ void Kis_IntGraph::DrawComponent() {
 
 			// Interpolate down if we have too much data
 			if (gw < dvsize) {
-				// R is the range of samples we tied together to 
-				// interpolate the graph to fit
-				r = (int) ((float) gx / (float) gw) * (float) dvsize;
+				// Center of the samples we look at
+				r = (int) (((float) gx / (float) gw) * (float) dvsize);
 
 				// Determine the local max across our range
 				for (int pos = -1 * (xgroup / 2); pos < (xgroup / 2); pos++) {
@@ -2851,7 +2850,7 @@ void Kis_IntGraph::DrawComponent() {
 						} else {
 							max = (*(data_vec[x].data))[r + pos];
 						}
-					} else if ((*(data_vec[x].data))[r + pos] <= 0 &&
+					} else if ((*(data_vec[x].data))[r + pos] < 0 &&
 						 (*(data_vec[x].data))[r + pos] < max) {
 						if ((*(data_vec[x].data))[r+pos] < dmin_y) {
 							max = dmin_y;

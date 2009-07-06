@@ -231,7 +231,7 @@ int Dumpfile_Netxml::Flush() {
 
 			if (m->second->cryptset == 0)
 				fprintf(xmlfile, "        <encryption>None</encryption>\n");
-			if (m->second->cryptset & crypt_wep)
+			if (m->second->cryptset == crypt_wep)
 				fprintf(xmlfile, "        <encryption>WEP</encryption>\n");
 			if (m->second->cryptset & crypt_layer3)
 				fprintf(xmlfile, "        <encryption>Layer3</encryption>\n");
@@ -239,24 +239,26 @@ int Dumpfile_Netxml::Flush() {
 				fprintf(xmlfile, "        <encryption>WEP40</encryption>\n");
 			if (m->second->cryptset & crypt_wep104)
 				fprintf(xmlfile, "        <encryption>WEP104</encryption>\n");
-			if (m->second->cryptset & crypt_tkip)
-				fprintf(xmlfile, "        <encryption>TKIP</encryption>\n");
+			/*
 			if (m->second->cryptset & crypt_wpa)
 				fprintf(xmlfile, "        <encryption>WPA</encryption>\n");
+			*/
+			if (m->second->cryptset & crypt_tkip)
+				fprintf(xmlfile, "        <encryption>WPA+TKIP</encryption>\n");
 			if (m->second->cryptset & crypt_psk)
-				fprintf(xmlfile, "        <encryption>PSK</encryption>\n");
+				fprintf(xmlfile, "        <encryption>WPA+PSK</encryption>\n");
 			if (m->second->cryptset & crypt_aes_ocb)
-				fprintf(xmlfile, "        <encryption>AES-OCB</encryption>\n");
+				fprintf(xmlfile, "        <encryption>WPA+AES-OCB</encryption>\n");
 			if (m->second->cryptset & crypt_aes_ccm)
-				fprintf(xmlfile, "        <encryption>AES-CCM</encryption>\n");
+				fprintf(xmlfile, "        <encryption>WPA+AES-CCM</encryption>\n");
 			if (m->second->cryptset & crypt_leap)
-				fprintf(xmlfile, "        <encryption>LEAP</encryption>\n");
+				fprintf(xmlfile, "        <encryption>WPA+LEAP</encryption>\n");
 			if (m->second->cryptset & crypt_ttls)
-				fprintf(xmlfile, "        <encryption>TTLS</encryption>\n");
+				fprintf(xmlfile, "        <encryption>WPA+TTLS</encryption>\n");
 			if (m->second->cryptset & crypt_tls)
-				fprintf(xmlfile, "        <encryption>TLS</encryption>\n");
+				fprintf(xmlfile, "        <encryption>WPA+TLS</encryption>\n");
 			if (m->second->cryptset & crypt_peap)
-				fprintf(xmlfile, "        <encryption>PEAP</encryption>\n");
+				fprintf(xmlfile, "        <encryption>WPA+PEAP</encryption>\n");
 			if (m->second->cryptset & crypt_isakmp)
 				fprintf(xmlfile, "        <encryption>ISAKMP</encryption>\n");
 			if (m->second->cryptset & crypt_pptp)

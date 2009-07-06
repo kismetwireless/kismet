@@ -76,13 +76,26 @@ int BSSTSStateAlert::ProcessPacket(kis_packet *in_pack) {
 		bss_rec *r = new bss_rec;
 		r->incident = 0;
 		r->bss_timestamp = packinfo->timestamp;
+		r->ts.tv_sec = in_pack->ts.tv_sec;
+		r->ts.tv_usec = in_pack->ts.tv_usec;
 		state_map[packinfo->bssid_mac] = r;
 		return 0;
 	}
 
 	bss_rec *br = smi->second;
 
-	if (packinfo->timestamp < (br->bss_timestamp - 500000)) {
+	struct timeval ts_diff;
+	SubtractTimeval(&(in_pack->ts), &(br->ts), &ts_diff);
+	if (ts_diff.tv_sec > 1 || (ts_diff.tv_sec < 1 && ts_diff.tv_usec > 500000)) {
+		br->bss_timestamp = packinfo->timestamp;
+		br->ts.tv_sec = in_pack->ts.tv_sec;
+		br->ts.tv_usec = in_pack->ts.tv_usec;
+		br->incident = 0;
+		return 1;
+	}
+
+	if (packinfo->timestamp < br->bss_timestamp &&
+		(long int) br->bss_timestamp - (long int) packinfo->timestamp > 500000) {
 		if (br->incident > 0) {
 			// Raise an alert
 			ostringstream oss;
@@ -107,6 +120,8 @@ int BSSTSStateAlert::ProcessPacket(kis_packet *in_pack) {
 	}
 
 	br->bss_timestamp = packinfo->timestamp;
+	br->ts.tv_sec = in_pack->ts.tv_sec;
+	br->ts.tv_usec = in_pack->ts.tv_usec;
 
 	return 1;
 }

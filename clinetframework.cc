@@ -125,7 +125,7 @@ int NetworkClient::FlushRings() {
         tm.tv_usec = 100000;
 
         if (select(max + 1, &rset, &wset, NULL, &tm) < 0) {
-            if (errno != EINTR) {
+            if (errno != EINTR && errno != EAGAIN) {
                 globalreg->fatal_condition = 1;
                 return -1;
             }

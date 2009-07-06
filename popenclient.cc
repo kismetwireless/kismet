@@ -241,16 +241,18 @@ int PopenClient::ReadBytes() {
     uint8_t recv_bytes[1024];
     int ret;
 
-    if ((ret = read(opipe[0], recv_bytes, 1024)) < 0 &&
-		errno != EINTR) {
-        snprintf(errstr, 1024, "Popen client read() error: %s", 
-                 strerror(errno));
-        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
+    if ((ret = read(opipe[0], recv_bytes, 1024)) < 0) {
+		if (errno == EINTR || errno == EAGAIN) 
+			return 0;
+
+		snprintf(errstr, 1024, "Popen client read() error: %s", 
+				 strerror(errno));
+		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
 		KillConnection();
-        return -1;
+		return -1;
     }
 
-    if (ret == 0) {
+    if (ret <= 0) {
         snprintf(errstr, 1024, "Popen application closed");
         globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
         return -1;
@@ -273,8 +275,10 @@ int PopenClient::ReadEBytes() {
     uint8_t recv_bytes[1024];
     int ret;
 
-    if ((ret = read(epipe[0], recv_bytes, 1024)) < 0 &&
-		errno != EINTR) {
+    if ((ret = read(epipe[0], recv_bytes, 1024)) < 0) {
+		if (errno == EINTR || errno == EAGAIN) 
+			return 0;
+
         snprintf(errstr, 1024, "Popen client read() error: %s", 
                  strerror(errno));
         globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);

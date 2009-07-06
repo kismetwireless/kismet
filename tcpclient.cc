@@ -96,6 +96,9 @@ int TcpClient::ReadBytes() {
     int ret;
 
     if ((ret = read(cli_fd, recv_bytes, 1024)) < 0) {
+		if (errno == EINTR || errno == EAGAIN)
+			return 0;
+
         snprintf(errstr, 1024, "TCP client fd %d read() error: %s", 
                  cli_fd, strerror(errno));
         globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
@@ -103,7 +106,7 @@ int TcpClient::ReadBytes() {
         return -1;
     }
 
-    if (ret == 0) {
+    if (ret <= 0) {
         snprintf(errstr, 1024, "TCP client fd %d socket closed.", cli_fd);
         globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
 		KillConnection();
@@ -128,6 +131,9 @@ int TcpClient::WriteBytes() {
     write_buf->FetchPtr(dptr, 1024, &dlen);
 
     if ((ret = write(cli_fd, dptr, dlen)) <= 0) {
+		if (errno == EINTR || errno == EAGAIN)
+			return 0;
+
         snprintf(errstr, 1024, "TCP client: Killing client fd %d write error %s",
                  cli_fd, strerror(errno));
         globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);

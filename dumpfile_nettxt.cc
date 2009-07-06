@@ -204,7 +204,7 @@ int Dumpfile_Nettxt::Flush() {
 
 			if (m->second->cryptset == 0)
 				fprintf(txtfile, "    Encryption : None\n");
-			if (m->second->cryptset & crypt_wep)
+			if (m->second->cryptset == crypt_wep)
 				fprintf(txtfile, "    Encryption : WEP\n");
 			if (m->second->cryptset & crypt_layer3)
 				fprintf(txtfile, "    Encryption : Layer3\n");
@@ -212,24 +212,26 @@ int Dumpfile_Nettxt::Flush() {
 				fprintf(txtfile, "    Encryption : WEP40\n");
 			if (m->second->cryptset & crypt_wep104)
 				fprintf(txtfile, "    Encryption : WEP104\n");
-			if (m->second->cryptset & crypt_tkip)
-				fprintf(txtfile, "    Encryption : TKIP\n");
+			/*
 			if (m->second->cryptset & crypt_wpa)
 				fprintf(txtfile, "    Encryption : WPA\n");
+			*/
 			if (m->second->cryptset & crypt_psk)
-				fprintf(txtfile, "    Encryption : PSK\n");
+				fprintf(txtfile, "    Encryption : WPA+PSK\n");
+			if (m->second->cryptset & crypt_tkip)
+				fprintf(txtfile, "    Encryption : WPA+TKIP\n");
 			if (m->second->cryptset & crypt_aes_ocb)
-				fprintf(txtfile, "    Encryption : AES-OCB\n");
+				fprintf(txtfile, "    Encryption : WPA+AES-OCB\n");
 			if (m->second->cryptset & crypt_aes_ccm)
-				fprintf(txtfile, "    Encryption : AES-CCM\n");
+				fprintf(txtfile, "    Encryption : WPA+AES-CCM\n");
 			if (m->second->cryptset & crypt_leap)
-				fprintf(txtfile, "    Encryption : LEAP\n");
+				fprintf(txtfile, "    Encryption : WPA+LEAP\n");
 			if (m->second->cryptset & crypt_ttls)
-				fprintf(txtfile, "    Encryption : TTLS\n");
+				fprintf(txtfile, "    Encryption : WPA+TTLS\n");
 			if (m->second->cryptset & crypt_tls)
-				fprintf(txtfile, "    Encryption : TLS\n");
+				fprintf(txtfile, "    Encryption : WPA+TLS\n");
 			if (m->second->cryptset & crypt_peap)
-				fprintf(txtfile, "    Encryption : PEAP\n");
+				fprintf(txtfile, "    Encryption : WPA+PEAP\n");
 			if (m->second->cryptset & crypt_isakmp)
 				fprintf(txtfile, "    Encryption : ISAKMP\n");
 			if (m->second->cryptset & crypt_pptp)

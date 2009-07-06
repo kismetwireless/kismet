@@ -57,6 +57,7 @@ public:
 	typedef struct {
 		int incident;
 		uint64_t bss_timestamp;
+		struct timeval ts;
 	} bss_rec;
 
 	BSSTSStateAlert() { 

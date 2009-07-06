@@ -643,7 +643,10 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
             return 0;
         }
 
-        if (fc->subtype == 11) {
+		if (fc->subtype == 10) {
+			packinfo->subtype = packet_sub_pspoll;
+
+		} else if (fc->subtype == 11) {
             packinfo->subtype = packet_sub_rts;
 
         } else if (fc->subtype == 12) {

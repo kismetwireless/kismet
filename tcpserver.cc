@@ -330,13 +330,16 @@ int TcpServer::ReadBytes(int in_fd) {
     int ret;
 
     if ((ret = read(in_fd, recv_bytes, 1024)) < 0) {
+		if (errno == EINTR || errno == EAGAIN)
+			return 0;
+
         snprintf(errstr, STATUS_MAX, "TCP server client read() error for %s: %s", 
                  GetRemoteAddr(in_fd).c_str(), strerror(errno));
         globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
         return -1;
     }
 
-    if (ret == 0) {
+    if (ret <= 0) {
         snprintf(errstr, STATUS_MAX, "TCP server client read() ended for %s",
 				 GetRemoteAddr(in_fd).c_str());
         globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
@@ -362,6 +365,9 @@ int TcpServer::WriteBytes(int in_fd) {
     write_buf_map[in_fd]->FetchPtr(dptr, 1024, &dlen);
 
     if ((ret = write(in_fd, dptr, dlen)) <= 0) {
+		if (errno == EINTR || errno == EAGAIN)
+			return 0;
+
         snprintf(errstr, STATUS_MAX, "TCP server: Killing client %s, write "
 				 "error %s", GetRemoteAddr(in_fd).c_str(), strerror(errno));
         globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
