@@ -365,7 +365,12 @@ int kisptw_datachain_hook(CHAINCALL_PARMS) {
 
 	// Handle WEP + PTW
 	if (packinfo->cryptset == crypt_wep &&
-		chunk != NULL && packinfo->header_offset < chunk->length) {
+		chunk != NULL && packinfo->header_offset < chunk->length &&
+		chunk->length - packinfo->header_offset > 7) {
+
+		if (chunk->data[packinfo->header_offset + 3] & 0x20) {
+			return 0;
+		}
 
 		if (kptw->netmap.find(net->bssid) == kptw->netmap.end()) {
 			pnet = new kisptw_net;
@@ -459,6 +464,8 @@ int kisptw_datachain_hook(CHAINCALL_PARMS) {
 			}
 		}
 	}
+
+	return 0;
 }
 
 int kisptw_unregister(GlobalRegistry *in_globalreg) {
