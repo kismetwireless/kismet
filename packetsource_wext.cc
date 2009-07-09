@@ -64,7 +64,7 @@ PacketSource_Wext::PacketSource_Wext(GlobalRegistry *in_globalreg,
 
 	use_mac80211 = 0;
 	opp_vap = 0;
-	nlhandle = nlcache = nlfamily = NULL;
+	nlcache = nlfamily = NULL;
 
 	stored_channel = stored_mode = stored_privmode = stored_flags = -1;
 
@@ -420,12 +420,12 @@ int PacketSource_Wext::EnableMonitor() {
 #ifdef HAVE_LINUX_NETLINK
 	if (Linux_GetSysDrvAttr(interface.c_str(), "phy80211")) {
 		use_mac80211 = 1;
-		if (mac80211_connect(interface.c_str(), &nlhandle, &nlcache, 
+		if (mac80211_connect(interface.c_str(), &(globalreg->nlhandle), &nlcache, 
 							 &nlfamily, errstr) < 0) {
-			_MSG(errstr, MSGFLAG_PRINTERROR);
+			_MSG("Source '" + interface + "' failed to connect nl80211: " + errstr, 
+				 MSGFLAG_PRINTERROR);
 			return -1;
 		}
-
 	}
 #else
 	use_mac80211 = 0;
@@ -664,7 +664,7 @@ int PacketSource_Wext::SetChannel(unsigned int in_ch) {
 
 	// Set and exit if we're ok
 	if (use_mac80211) {
-		if ((err = mac80211_setchannel_cache(interface.c_str(), nlhandle, 
+		if ((err = mac80211_setchannel_cache(interface.c_str(), globalreg->nlhandle, 
 											 nlfamily, in_ch, 0, errstr)) >= 0) {
 			consec_error = 0;
 			return 1;

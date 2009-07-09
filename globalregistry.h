@@ -220,6 +220,9 @@ public:
 	unsigned int crc32_table[256];
 
 	Dumpfile_Pcap *pcapdump;
+
+	/* global netlink reference */
+	void *nlhandle;
     
     GlobalRegistry() { 
         fatal_condition = 0;
@@ -283,6 +286,8 @@ public:
 			alertref_map[x] = -1;
 
 		pcapdump = NULL;
+
+		nlhandle = NULL;
     }
 
     // External globals -- allow other things to tie structs to us

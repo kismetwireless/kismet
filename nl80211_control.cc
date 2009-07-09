@@ -76,29 +76,33 @@ int mac80211_connect(const char *interface, void **handle, void **cache,
 	struct nl_cache *nl_cache;
 	struct genl_family *nl80211;
 
-	if ((nl_handle = nl_socket_alloc()) == NULL) {
-		snprintf(errstr, STATUS_MAX, "mac80211_setchannel() failed to "
-				 "allocate nlhandle");
-		return -1;
-	}
+	if (*handle == NULL) {
+		if ((nl_handle = nl_socket_alloc()) == NULL) {
+			snprintf(errstr, STATUS_MAX, "%s failed to allocate nlhandle",
+					 __FUNCTION__);
+			return -1;
+		}
 
-	if (genl_connect(nl_handle)) {
-		snprintf(errstr, STATUS_MAX, "mac80211_setchannel() failed to connect "
-				 "to generic netlink");
-		nl_socket_free(nl_handle);
-		return -1;
+		if (genl_connect(nl_handle)) {
+			snprintf(errstr, STATUS_MAX, "%s failed to connect to generic netlink %s",
+					 __FUNCTION__, strerror(errno));
+			nl_socket_free(nl_handle);
+			return -1;
+		}
+	} else {
+		nl_handle = (struct nl_sock *) (*handle);
 	}
 
 	if (genl_ctrl_alloc_cache(nl_handle, &nl_cache) != 0) {
-		snprintf(errstr, STATUS_MAX, "mac80211_setchannel() failed to allocate generic "
-				 "netlink cache");
+		snprintf(errstr, STATUS_MAX, "%s failed to allocate generic netlink cache",
+				 __FUNCTION__);
 		nl_socket_free(nl_handle);
 		return -1;
 	}
 
 	if ((nl80211 = genl_ctrl_search_by_name(nl_cache, "nl80211")) == NULL) {
-		snprintf(errstr, STATUS_MAX, "mac80211_setchannel() failed to find nl80211 "
-				 "controls, kernel may be too old");
+		snprintf(errstr, STATUS_MAX, "%s failed to find nl80211 controls, "
+				 "kernel may be too old", __FUNCTION__);
 		nl_socket_free(nl_handle);
 		return -1;
 	}
@@ -124,9 +128,9 @@ int mac80211_createvap(const char *interface, const char *newinterface, char *er
 	return -1;
 #else
 
-	struct nl_sock *nl_handle;
-	struct nl_cache *nl_cache;
-	struct genl_family *nl80211;
+	struct nl_sock *nl_handle = NULL;
+	struct nl_cache *nl_cache = NULL;
+	struct genl_family *nl80211 = NULL;
 	struct nl_msg *msg;
 
 	if (if_nametoindex(newinterface) > 0) 
@@ -222,10 +226,10 @@ int mac80211_setvapflag(const char *interface, vector<unsigned int> in_flags,
 	return -1;
 #else
 
-	struct nl_sock *nl_handle;
-	struct nl_cache *nl_cache;
-	struct genl_family *nl80211;
-	struct nl_msg *msg;
+	struct nl_sock *nl_handle = NULL;
+	struct nl_cache *nl_cache = NULL;
+	struct genl_family *nl80211 = NULL;
+	struct nl_msg *msg = NULL;
 
 	if (mac80211_connect(interface, (void **) &nl_handle, 
 						 (void **) &nl_cache, (void **) &nl80211, errstr) < 0)
@@ -331,9 +335,9 @@ int mac80211_setchannel(const char *interface, int channel,
 	// so we catch it elsewhere
 	return -22;
 #else
-	struct nl_sock *nl_handle;
-	struct nl_cache *nl_cache;
-	struct genl_family *nl80211;
+	struct nl_sock *nl_handle = NULL;
+	struct nl_cache *nl_cache = NULL;
+	struct genl_family *nl80211 = NULL;
 
 	if (mac80211_connect(interface, (void **) &nl_handle, 
 						 (void **) &nl_cache, (void **) &nl80211, errstr) < 0)
@@ -432,7 +436,7 @@ int mac80211_get_chanlist(const char *interface, vector<unsigned int> *chan_list
 			 "support, check the output of ./configure for why");
 	return MAC80211_CHANLIST_NOT_MAC80211;
 #else
-	void *handle, *cache, *family;
+	void *handle = NULL, *cache = NULL, *family = NULL;
 	struct nl_cb *cb;
 	int err;
 	struct nl_msg *msg;
