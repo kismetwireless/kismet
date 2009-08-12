@@ -75,7 +75,7 @@ enum BSSID_fields {
     BSSID_carrierset, BSSID_maxseenrate, BSSID_encodingset,
     BSSID_decrypted, BSSID_dupeiv, BSSID_bsstimestamp,
 	BSSID_cdpdevice, BSSID_cdpport, BSSID_fragments, BSSID_retries,
-	BSSID_newpackets, BSSID_freqmhz,
+	BSSID_newpackets, BSSID_freqmhz, BSSID_datacryptset,
 	BSSID_maxfield
 };
 
@@ -105,7 +105,7 @@ enum CLIENT_fields {
 	CLIENT_encodingset, CLIENT_carrierset, CLIENT_decrypted, 
 	CLIENT_channel, CLIENT_fragments, CLIENT_retries, CLIENT_newpackets,
 	CLIENT_freqmhz, CLIENT_cdpdevice, CLIENT_cdpport, CLIENT_dot11d,
-	CLIENT_dhcphost, CLIENT_dhcpvendor,
+	CLIENT_dhcphost, CLIENT_dhcpvendor, CLIENT_datacryptset,
 	CLIENT_maxfield
 };
 
@@ -609,6 +609,7 @@ public:
 			groupptr = NULL;
 			lastssid = NULL;
 			alert = 0;
+			data_cryptset = 0;
 		}
 
 		// What we last saw it as
@@ -637,6 +638,9 @@ public:
 
 		time_t last_time;
 		time_t first_time;
+
+		// Cryptset seen from data packets not linked to a SSID
+		uint64_t data_cryptset;
 
 		// One of the SSIDs decrypted?
 		int decrypted;
@@ -727,6 +731,7 @@ public:
 			new_packets = 0;
 			dirty = 0;
 			dot11d_country = "XXX";
+			data_cryptset = 0;
 		}
 
 		// DS detected type
@@ -764,6 +769,9 @@ public:
 
 		// Last sequence number seen
 		int last_sequence;
+
+		// Data cryptset
+		uint64_t data_cryptset;
 
 		// Amount of data seen
 		uint64_t datasize;

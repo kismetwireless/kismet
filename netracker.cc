@@ -60,7 +60,7 @@ const char *BSSID_fields_text[] = {
     "carrierset", "maxseenrate", "encodingset",
     "decrypted", "dupeivpackets", "bsstimestamp",
 	"cdpdevice", "cdpport", "fragments", "retries",
-	"newpackets", "freqmhz",
+	"newpackets", "freqmhz", "datacryptset",
     NULL
 };
 
@@ -116,6 +116,7 @@ const char *CLIENT_fields_text[] = {
 	"carrierset", "decrypted", "channel",
 	"fragments", "retries", "newpackets", "freqmhz",
 	"cdpdevice", "cdpport", "dot11d", "dhcphost", "dhcpvendor",
+	"datacryptset", 
     NULL
 };
 
@@ -432,6 +433,11 @@ int Protocol_BSSID(PROTO_PARMS) {
 				break;
 			case BSSID_newpackets:
 				osstr << net->new_packets;
+				out_string += osstr.str();
+				cache->Cache(fnum, osstr.str());
+				break;
+			case BSSID_datacryptset:
+				osstr << net->data_cryptset;
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
@@ -870,6 +876,11 @@ int Protocol_CLIENT(PROTO_PARMS) {
 				break;
 			case CLIENT_dhcpvendor:
 				osstr << "\001" << cli->dhcp_vendor << "\001";
+				out_string += osstr.str();
+				cache->Cache(fnum, osstr.str());
+				break;
+			case CLIENT_datacryptset:
+				osstr << cli->data_cryptset;
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
@@ -2949,6 +2960,10 @@ int Netracker::datatracker_chain_handler(kis_packet *in_pack) {
 		cli->cdp_dev_id = datainfo->cdp_dev_id;
 		cli->cdp_port_id = datainfo->cdp_port_id;
 	} 
+
+	// Apply the data layer crypt info
+	net->data_cryptset |= packinfo->cryptset;
+	cli->data_cryptset |= packinfo->cryptset;
 
 	// Apply the DHCP discovery on the client
 	if (datainfo->proto  == proto_dhcp_discover) {

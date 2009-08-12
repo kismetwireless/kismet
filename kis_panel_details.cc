@@ -220,6 +220,51 @@ void Kis_NetDetails_Panel::UpdateGraphVectors(int signal, int pps, int retry) {
 		retrypps.erase(retrypps.begin(), retrypps.begin() + retrypps.size() - 120);
 }
 
+string crypt_to_str(uint64_t cryptset) {
+	ostringstream osstr;
+
+	if (cryptset == 0)
+		osstr << "None (Open)";
+	if (cryptset == crypt_wep)
+		osstr << "WEP (Privacy bit set)";
+	if (cryptset & crypt_layer3)
+		osstr << " Layer3";
+	if (cryptset & crypt_wep40)
+		osstr << " WEP (40bit)";
+	if (cryptset & crypt_wep104)
+		osstr << " WEP (104bit)";
+	if (cryptset & crypt_wpa)
+		osstr << " WPA";
+	if (cryptset & crypt_tkip)
+		osstr << " TKIP";
+	if (cryptset & crypt_psk)
+		osstr << " PSK";
+	if (cryptset & crypt_aes_ocb)
+		osstr << " AES-ECB";
+	if (cryptset & crypt_aes_ccm)
+		osstr << " AES-CCM";
+	if (cryptset & crypt_leap)
+		osstr << " LEAP";
+	if (cryptset & crypt_ttls)
+		osstr << " TTLS";
+	if (cryptset & crypt_tls)
+		osstr << " TLS";
+	if (cryptset & crypt_peap)
+		osstr << " PEAP";
+	if (cryptset & crypt_isakmp)
+		osstr << " ISA-KMP";
+	if (cryptset & crypt_pptp)
+		osstr << " PPTP";
+	if (cryptset & crypt_fortress)
+		osstr << " Fortress";
+	if (cryptset & crypt_keyguard)
+		osstr << " Keyguard";
+	if (cryptset & crypt_unknown_nonwep)
+		osstr << " WPA/ExtIV data";
+
+	return osstr.str();
+}
+
 int Kis_NetDetails_Panel::AppendSSIDInfo(vector<string> *td, 
 										 Netracker::tracked_network *net,
 										 Netracker::adv_ssid_data *ssid) {
@@ -291,43 +336,7 @@ int Kis_NetDetails_Panel::AppendSSIDInfo(vector<string> *td,
 			}
 		}
 
-		osstr.str("");
-		if (ssid->cryptset == 0)
-			osstr << "None (Open)";
-		if (ssid->cryptset == crypt_wep)
-			osstr << "WEP (Privacy bit set)";
-		if (ssid->cryptset & crypt_layer3)
-			osstr << " Layer3";
-		if (ssid->cryptset & crypt_wep40)
-			osstr << " WEP (40bit)";
-		if (ssid->cryptset & crypt_wep104)
-			osstr << " WEP (104bit)";
-		if (ssid->cryptset & crypt_wpa)
-			osstr << " WPA";
-		if (ssid->cryptset & crypt_tkip)
-			osstr << " TKIP";
-		if (ssid->cryptset & crypt_psk)
-			osstr << " PSK";
-		if (ssid->cryptset & crypt_aes_ocb)
-			osstr << " AES-ECB";
-		if (ssid->cryptset & crypt_aes_ccm)
-			osstr << " AES-CCM";
-		if (ssid->cryptset & crypt_leap)
-			osstr << " LEAP";
-		if (ssid->cryptset & crypt_ttls)
-			osstr << " TTLS";
-		if (ssid->cryptset & crypt_tls)
-			osstr << " TLS";
-		if (ssid->cryptset & crypt_peap)
-			osstr << " PEAP";
-		if (ssid->cryptset & crypt_isakmp)
-			osstr << " ISA-KMP";
-		if (ssid->cryptset & crypt_pptp)
-			osstr << " PPTP";
-		if (ssid->cryptset & crypt_fortress)
-			osstr << " Fortress";
-		if (ssid->cryptset & crypt_keyguard)
-			osstr << " Keyguard";
+		osstr.str(crypt_to_str(ssid->cryptset));
 		td->push_back(AlignString("Encryption: ", ' ', 2, 18) + osstr.str());
 
 		if (net->type == network_ap) {
@@ -474,6 +483,13 @@ int Kis_NetDetails_Panel::AppendNetworkInfo(vector<string> *td,
 		osstr << net->snrdata.last_noise_dbm << "dBm (max " <<
 			net->snrdata.max_noise_dbm << "dBm)";
 		td->push_back(AlignString("Noise: ", ' ', 2, 16) + osstr.str());
+	}
+
+	if (net->data_cryptset != 0) {
+		osstr.str(crypt_to_str(net->data_cryptset));
+		td->push_back(AlignString("Data Crypt: ", ' ', 2, 16) + osstr.str());
+		td->push_back(AlignString(" ", ' ', 2, 16) + "( Data encryption seen "
+					  "by BSSID )");
 	}
 
 	td->push_back(AlignString("Packets: ", ' ', 2, 16) + 
@@ -1628,46 +1644,7 @@ void Kis_ClientDetails_Panel::DrawPanel() {
 					td.push_back(AlignString("Probed Network: ", ' ', 2, 16) + 
 								 osstr.str());
 
-					osstr.str("");
-
-					if (si->second->cryptset == 0)
-						osstr << "No crypto";
-					else if (si->second->cryptset == crypt_wep)
-						osstr << "WEP";
-
-					if (si->second->cryptset & crypt_layer3)
-						osstr << " Layer3";
-					if (si->second->cryptset & crypt_wep40)
-						osstr << " WEP40";
-					if (si->second->cryptset & crypt_wep104)
-						osstr << " WEP104";
-					if (si->second->cryptset & crypt_wpa)
-						osstr << " WPA";
-					if (si->second->cryptset & crypt_tkip)
-						osstr << " TKIP";
-					if (si->second->cryptset & crypt_psk)
-						osstr << " PSK";
-					if (si->second->cryptset & crypt_aes_ocb)
-						osstr << " AES-OCB";
-					if (si->second->cryptset & crypt_aes_ccm)
-						osstr << " AES-CCM";
-					if (si->second->cryptset & crypt_leap)
-						osstr << " LEAP";
-					if (si->second->cryptset & crypt_ttls)
-						osstr << " TTLS";
-					if (si->second->cryptset & crypt_tls)
-						osstr << " TLS";
-					if (si->second->cryptset & crypt_peap)
-						osstr << " PEAP";
-					if (si->second->cryptset & crypt_isakmp)
-						osstr << " ISA-KMP";
-					if (si->second->cryptset & crypt_pptp)
-						osstr << " PPTP";
-					if (si->second->cryptset & crypt_fortress)
-						osstr << " Fortress";
-					if (si->second->cryptset & crypt_keyguard)
-						osstr << " Keyguard";
-
+					osstr.str(crypt_to_str(si->second->cryptset));
 					td.push_back(AlignString("Encryption: ", ' ', 2, 18) + osstr.str());
 
 					osstr.str("");
@@ -1729,6 +1706,14 @@ void Kis_ClientDetails_Panel::DrawPanel() {
 				osstr << dcli->snrdata.last_noise_dbm << "dBm (max " <<
 					dcli->snrdata.max_noise_dbm << "dBm)";
 				td.push_back(AlignString("Noise: ", ' ', 2, 16) + osstr.str());
+			}
+
+			if (dcli->data_cryptset != 0) {
+				osstr.str(crypt_to_str(dcli->data_cryptset));
+				td.push_back(AlignString("Data Crypt: ", ' ', 2, 16) + 
+							 osstr.str());
+				td.push_back(AlignString(" ", ' ', 2, 16) + "( Data encryption "
+							 "seen by client )");
 			}
 
 			osstr.str("");

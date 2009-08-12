@@ -85,7 +85,7 @@ const char *bssid_fields[] = {
 	"turbocellmode", "turbocellsat", "carrierset", "maxseenrate", 
 	"encodingset", "decrypted", "dupeivpackets", "bsstimestamp", 
 	"cdpdevice", "cdpport", "fragments", "retries", "newpackets", "freqmhz",
-	"manuf",
+	"manuf", "datacryptset",
 	NULL
 };
 
@@ -118,6 +118,9 @@ const char *client_fields[] = {
 	"maxseenrate", "encodingset", "carrierset", "decrypted", 
 	"channel", "fragments", "retries", "newpackets", "freqmhz", 
 	"cdpdevice", "cdpport", "manuf", "dhcphost", "dhcpvendor",
+
+	"datacryptset",
+
 	NULL
 };
 
@@ -1159,6 +1162,12 @@ void Kis_Netlist::Proto_BSSID(CLIPROTO_CB_PARMS) {
 	// Manuf field
 	net->manuf = MungeToPrintable((*proto_parsed)[fnum++].word);
 
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%llu", 
+			   &(net->data_cryptset)) != 1) {
+		delete net;
+		return;
+	}
+
 	/*
 	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &(net->freq_mhz)) != 1) {
 		delete net;
@@ -1204,6 +1213,8 @@ void Kis_Netlist::Proto_BSSID(CLIPROTO_CB_PARMS) {
 	onet->gpsdata = net->gpsdata;
 
 	onet->manuf = net->manuf;
+
+	onet->data_cryptset = net->data_cryptset;
 
 	delete net;
 
@@ -1706,6 +1717,12 @@ void Kis_Netlist::Proto_CLIENT(CLIPROTO_CB_PARMS) {
 	if (cli->dhcp_vendor == " ")
 		cli->dhcp_vendor = "";
 
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%llu", 
+			   &(cli->data_cryptset)) != 1) {
+		delete cli;
+		return;
+	}
+
 	cli->dirty = 1;
 
 	// Merge or new
@@ -1758,6 +1775,8 @@ void Kis_Netlist::Proto_CLIENT(CLIPROTO_CB_PARMS) {
 	ocli->manuf = cli->manuf;
 
 	ocli->netptr = pnet;
+
+	ocli->data_cryptset = cli->data_cryptset;
 
 	ocli->dirty = 1;
 
@@ -2706,7 +2725,7 @@ void Kis_Netlist::DrawComponent() {
 				rofft += 15;
 			} else if (b == bcol_iprange) {
 				snprintf(rline + rofft, 1024 - rofft, "%-31.31s", "Best-Guess IP Range");
-				rofft += 15;
+				rofft += 31;
 			}
 
 			if (rofft < 1023) {
