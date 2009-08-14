@@ -115,7 +115,7 @@ int Dumpfile_Netxml::Flush() {
 		fprintf(xmlfile, "<card-source uuid=\"%s\">\n",
 				(*sources)[s]->strong_source->FetchUUID().UUID2String().c_str());
 
-		fprintf(xmlfile, " <card-source>%s</card-source>\n",
+		fprintf(xmlfile, " <card-interface>%s</card-interface>\n",
 				SanitizeXML((*sources)[s]->sourceline).c_str());
 
 		fprintf(xmlfile, " <card-name>%s</card-name>\n",
