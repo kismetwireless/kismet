@@ -786,6 +786,10 @@ int Iwconfig_Get_Chanlist(const char *interface, char *errstr,
 		for (int k = 0; k < range.num_frequency; k++) {
 			int freq = (((double) range.freq[k].m) * pow(10, range.freq[k].e)) /
 				1000000;
+
+			if (freq == 0)
+				continue;
+
 			chan_list->push_back(FreqToChan(freq));
 		}
 	}
