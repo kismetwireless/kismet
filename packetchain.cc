@@ -60,7 +60,7 @@ int Packetchain::RegisterPacketComponent(string in_component) {
 	}
 
     if (component_str_map.find(StrLower(in_component)) != component_str_map.end()) {
-        return -1;
+		return component_str_map[StrLower(in_component)];
     }
 
     int num = next_componentid++;

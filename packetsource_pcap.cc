@@ -1099,10 +1099,10 @@ int PacketSource_Pcapfile::Poll() {
 		return 0;
 	}
 
-	kis_packet *newpack = globalreg->packetchain->GeneratePacket();
-
 	if (paused)
 		return 0;
+
+	kis_packet *newpack = globalreg->packetchain->GeneratePacket();
 
 	// Get the timestamp from the pcap callback
 	newpack->ts.tv_sec = callback_header.ts.tv_sec;
