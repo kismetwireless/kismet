@@ -673,10 +673,10 @@ int DroneClientFrame::ParseData() {
 				// Jump to thend of the capframe
 				poffst = kis_ntoh32(dcpkt->cap_packet_offset);
 
-				drone_capture_sub_80211 *ds11 = 
-					(drone_capture_sub_80211 *) &(dcpkt->content[poffst]);
+				drone_capture_sub_data *ds11 = 
+					(drone_capture_sub_data *) &(dcpkt->content[poffst]);
 
-				uint16_t sublen = kis_ntoh16(ds11->eight11_hdr_len);
+				uint16_t sublen = kis_ntoh16(ds11->data_hdr_len);
 
 				// Make sure our subframe is contained within the larger frame
 				if (poffst + sublen > dplen) {
@@ -689,33 +689,40 @@ int DroneClientFrame::ParseData() {
 					return 0;
 				}
 
+				// Make a data chunk, assuming 802.11 if we don't have
+				// a DLT, otherwise with the remote DLT
 				kis_datachunk *chunk = new kis_datachunk;
 
 				uuid new_uuid;
 
 				uint16_t rofft = 0;
-				uint32_t ecbm = kis_ntoh32(ds11->eight11_content_bitmap);
+				uint32_t ecbm = kis_ntoh32(ds11->data_content_bitmap);
 
-				if ((ecbm & DRONEBIT(DRONE_EIGHT11_PACKLEN)) &&
+				if ((ecbm & DRONEBIT(DRONE_DATA_UUID)) &&
+					(rofft + sizeof(drone_trans_uuid) <= sublen)) {
+					UUID_CONV_DRONE(&(ds11->uuid), new_uuid);
+					rofft += sizeof(drone_trans_uuid);
+				}
+				if ((ecbm & DRONEBIT(DRONE_DATA_PACKLEN)) &&
 					(rofft + 2 <= sublen)) {
 					chunk->length = kismin(kis_ntoh16(ds11->packet_len),
 										   (uint32_t) MAX_PACKET_LEN);
 					rofft += 2;
 				}
-				if ((ecbm & DRONEBIT(DRONE_EIGHT11_UUID)) &&
-					(rofft + sizeof(drone_trans_uuid) <= sublen)) {
-					UUID_CONV_DRONE(&(ds11->uuid), new_uuid);
-					rofft += sizeof(drone_trans_uuid);
-				}
-				if ((ecbm & DRONEBIT(DRONE_EIGHT11_TVSEC)) &&
+				if ((ecbm & DRONEBIT(DRONE_DATA_TVSEC)) &&
 					(rofft + 8 <= sublen)) {
 					newpack->ts.tv_sec = kis_ntoh64(ds11->tv_sec);
 					rofft += 8;
 				}
-				if ((ecbm & DRONEBIT(DRONE_EIGHT11_TVUSEC)) &&
+				if ((ecbm & DRONEBIT(DRONE_DATA_TVUSEC)) &&
 					(rofft + 8 <= sublen)) {
 					newpack->ts.tv_usec = kis_ntoh64(ds11->tv_usec);
 					rofft += 8;
+				}
+				if ((ecbm & DRONEBIT(DRONE_DATA_DLT)) &&
+					(rofft + 4 <= sublen)) {
+					chunk->dlt = kis_ntoh32(ds11->dlt);
+					rofft += 4;
 				}
 
 				// Fill in the rest of the chunk if it makes sense to

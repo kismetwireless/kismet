@@ -44,6 +44,10 @@
 // Maximum length of a frame
 #define MAX_PACKET_LEN			8192
 
+// Same as defined in libpcap/system, but we need to know the basic dot11 DLT
+// even when we don't have pcap
+#define KDLT_IEEE802_11			105
+
 // High-level packet component so that we can provide our own destructors
 class packet_component {
 public:

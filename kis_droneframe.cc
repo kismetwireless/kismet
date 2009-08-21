@@ -783,7 +783,7 @@ int KisDroneFramework::chain_handler(kis_packet *in_pack) {
 	if (radio != NULL)
 		packet_len += sizeof(drone_capture_sub_radio);
 	if (chunk != NULL) {
-		packet_len += sizeof(drone_capture_sub_80211);
+		packet_len += sizeof(drone_capture_sub_data);
 		packet_len += chunk->length;
 	}
 
@@ -870,27 +870,29 @@ int KisDroneFramework::chain_handler(kis_packet *in_pack) {
 	if (chunk != NULL && in_pack->error == 0 && csrc_ref != NULL) {
 		dcpkt->cap_content_bitmap |= DRONEBIT(DRONE_CONTENT_IEEEPACKET);
 
-		drone_capture_sub_80211 *e1pkt =
-			(drone_capture_sub_80211 *) &(dcpkt->content[suboffst]);
+		drone_capture_sub_data *e1pkt =
+			(drone_capture_sub_data *) &(dcpkt->content[suboffst]);
 
 		// Set the offset to be the head of the eight11 frame since we
 		// skip to the end of the content set
 		dcpkt->cap_packet_offset = kis_hton32(suboffst);
 
-		suboffst += sizeof(drone_capture_sub_80211);
+		suboffst += sizeof(drone_capture_sub_data);
 
-		e1pkt->eight11_hdr_len = kis_hton16(sizeof(drone_capture_sub_80211));
+		e1pkt->data_hdr_len = kis_hton16(sizeof(drone_capture_sub_data));
 
-		e1pkt->eight11_content_bitmap =
-			kis_hton32(DRONEBIT(DRONE_EIGHT11_PACKLEN) |
-					   DRONEBIT(DRONE_EIGHT11_UUID) |
-					   DRONEBIT(DRONE_EIGHT11_TVSEC) |
-					   DRONEBIT(DRONE_EIGHT11_TVUSEC));
+		e1pkt->data_content_bitmap =
+			kis_hton32(DRONEBIT(DRONE_DATA_PACKLEN) |
+					   DRONEBIT(DRONE_DATA_UUID) |
+					   DRONEBIT(DRONE_DATA_TVSEC) |
+					   DRONEBIT(DRONE_DATA_TVUSEC) |
+					   DRONEBIT(DRONE_DATA_DLT));
 
 		DRONE_CONV_UUID(csrc_ref->ref_source->FetchUUID(), &(e1pkt->uuid));
 		e1pkt->packet_len = kis_hton16(chunk->length);
 		e1pkt->tv_sec = kis_hton64(in_pack->ts.tv_sec);
 		e1pkt->tv_usec = kis_hton64(in_pack->ts.tv_usec);
+		e1pkt->dlt = kis_hton32(chunk->dlt);
 
 		memcpy(e1pkt->packdata, chunk->data, chunk->length);
 	}

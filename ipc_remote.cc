@@ -659,19 +659,27 @@ int IPCRemote::Poll(fd_set& in_rset, fd_set& in_wset) {
 		if ((ret = recv(sock, &ipchdr, 
 						sizeof(ipc_packet), MSG_PEEK)) < (int) sizeof(ipc_packet)) {
 			if (ret < 0) {
-				if (ipc_pid == 0) 
-					osstr << "IPC child got error receiving packet header "
-						"from controller: " << strerror(errno);
-				else
-					osstr << "IPC controller got error receiving packet header "
-						"from IPC child pid " << ipc_pid << ": " << strerror(errno);
-				_MSG(osstr.str(), MSGFLAG_FATAL);
-				globalreg->fatal_condition = 1;
-				return -1;
+				if (errno != EAGAIN) {
+					if (ipc_pid == 0) 
+						osstr << "IPC child got error receiving packet header "
+							"from controller: " << strerror(errno);
+					else
+						osstr << "IPC controller got error receiving packet header "
+							"from IPC child pid " << ipc_pid << ": " << strerror(errno);
+					_MSG(osstr.str(), MSGFLAG_FATAL);
+					globalreg->fatal_condition = 1;
+					return -1;
+				} else {
+					return 0;
+				}
 			} else {
 				return 0;
 			}
 		}
+
+		// Runt frame that's too small
+		if (ret < (int) sizeof(ipc_packet))
+			return 0;
 
 		// validate the ipc header
 		if (ipchdr.sentinel != IPCRemoteSentinel) {
@@ -697,7 +705,7 @@ int IPCRemote::Poll(fd_set& in_rset, fd_set& in_wset) {
 			else
 				osstr << "IPC controller got error receiving packet header "
 					"from IPC child pid " << ipc_pid << ": Unknown IPC command " <<
-					ipchdr.ipc_cmdnum;
+					ipchdr.ipc_cmdnum << " len " << ipchdr.data_len;
 			_MSG(osstr.str(), MSGFLAG_FATAL);
 			globalreg->fatal_condition = 1;
 			return -1;

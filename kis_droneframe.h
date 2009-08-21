@@ -293,19 +293,21 @@ struct drone_capture_sub_gps {
 } __attribute__((__packed__));
 
 // Bitmap fields for eitht11 subs
-#define DRONE_EIGHT11_UUID			0
-#define DRONE_EIGHT11_PACKLEN		1
-#define DRONE_EIGHT11_TVSEC			2
-#define DRONE_EIGHT11_TVUSEC		3
+#define DRONE_DATA_UUID			0
+#define DRONE_DATA_PACKLEN		1
+#define DRONE_DATA_TVSEC		2
+#define DRONE_DATA_TVUSEC		3
+#define DRONE_DATA_DLT			4
 
-// Capture data in ieee80211 format
-struct drone_capture_sub_80211 {
-	uint16_t eight11_hdr_len;
-	uint32_t eight11_content_bitmap;
+// Capture data 
+struct drone_capture_sub_data {
+	uint16_t data_hdr_len;
+	uint32_t data_content_bitmap;
 	drone_trans_uuid uuid;
 	uint16_t packet_len;
 	uint64_t tv_sec;
 	uint64_t tv_usec;
+	uint32_t dlt;
 	uint8_t packdata[0]; // Alias to the trailing packet data
 } __attribute__((__packed__));
 

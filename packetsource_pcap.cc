@@ -324,6 +324,8 @@ int PacketSource_Pcap::Eight2KisPack(kis_packet *packet, kis_datachunk *linkchun
 
 	eight11chunk = new kis_datachunk;
 
+	eight11chunk->dlt = KDLT_IEEE802_11;
+
 	eight11chunk->length = kismin((linkchunk->length - fcsbytes), 
 								  (uint32_t) MAX_PACKET_LEN);
 
@@ -385,6 +387,8 @@ int PacketSource_Pcap::Prism2KisPack(kis_packet *packet, kis_datachunk *linkchun
 		eight11chunk = new kis_datachunk;
 		radioheader = new kis_layer1_packinfo;
 
+		eight11chunk->dlt = KDLT_IEEE802_11;
+
         // Subtract the packet FCS since kismet doesn't do anything terribly bright
         // with it right now, also subtract the avs header.  We have to obey the
 		// header length here since avs could change
@@ -434,6 +438,8 @@ int PacketSource_Pcap::Prism2KisPack(kis_packet *packet, kis_datachunk *linkchun
 
 		eight11chunk = new kis_datachunk;
 		radioheader = new kis_layer1_packinfo;
+
+		eight11chunk->dlt = KDLT_IEEE802_11;
 
 #if 0
         // Subtract the packet FCS since kismet doesn't do anything terribly bright
@@ -632,6 +638,8 @@ int PacketSource_Pcap::Radiotap2KisPack(kis_packet *packet, kis_datachunk *linkc
 
 	eight11chunk = new kis_datachunk;
 	radioheader = new kis_layer1_packinfo;
+
+	eight11chunk->dlt = KDLT_IEEE802_11;
 	
     iter = (u_char*)(last_presentp + 1);
 
@@ -986,6 +994,8 @@ int PacketSource_Pcap::PPI2KisPack(kis_packet *packet, kis_datachunk *linkchunk)
 		applyfcs = 4;
 
 	eight11chunk = new kis_datachunk;
+
+	eight11chunk->dlt = KDLT_IEEE802_11;
 
 	// Subtract the packet FCS since kismet doesn't do anything terribly bright
 	// with it right now, also subtract the avs header.  We have to obey the

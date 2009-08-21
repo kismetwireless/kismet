@@ -101,6 +101,10 @@ extern "C" {
 #define DLT_PRISM_HEADER	119
 #endif
 
+#ifndef DLT_IEEE802_11
+#define DLT_IEEE802_11		105
+#endif
+
 #ifndef DLT_IEEE802_11_RADIO	
 #define DLT_IEEE802_11_RADIO 127
 #endif

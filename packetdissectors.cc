@@ -571,6 +571,10 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
 		}
 	}
 
+	// If we don't have a dot11 frame, throw it away
+	if (chunk->dlt != KDLT_IEEE802_11)
+		return 0;
+
 	kis_ref_capsource *capsrc =
 		(kis_ref_capsource *) in_pack->fetch(_PCM(PACK_COMP_KISCAPSRC));
 	packet_parm srcparms;
@@ -1390,6 +1394,10 @@ int KisBuiltinDissector::basicdata_dissector(kis_packet *in_pack) {
 		}
 	}
 
+	// If we don't have a dot11 frame, throw it away
+	if (chunk->dlt != KDLT_IEEE802_11)
+		return 0;
+
 	// Blow up on no content
     if (packinfo->header_offset > chunk->length)
         return 0;
@@ -1950,6 +1958,10 @@ int KisBuiltinDissector::wep_data_decryptor(kis_packet *in_pack) {
 		}
 	}
 
+	// If we don't have a dot11 frame, throw it away
+	if (chunk->dlt != KDLT_IEEE802_11)
+		return 0;
+
 	// Bail on size check
 	if (chunk->length < packinfo->header_offset ||
 		chunk->length - packinfo->header_offset <= 8)
@@ -2218,6 +2230,10 @@ int KisBuiltinDissector::basicstring_dissector(kis_packet *in_pack) {
 			}
 		}
 	}
+
+	// If we don't have a dot11 frame, throw it away
+	if (chunk->dlt != KDLT_IEEE802_11)
+		return 0;
 
 	// Blow up on no content
     if (packinfo->header_offset > chunk->length)
