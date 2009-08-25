@@ -627,6 +627,11 @@ int KisNetClient::ParseData() {
 					// number
 					int locfnum = hi->second.abs_to_conf_fnum_map[hi->second.handler_vec[hx]->local_fnums[nt]];
 
+					// Something has gone poorly and we've got a token in our req
+					// that isn't in our data
+					if (locfnum >= net_toks.size()) 
+						continue;
+
 					// Stack the field derived from the local field number
 					cb_toks.push_back(net_toks[locfnum]);
 				}

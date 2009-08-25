@@ -82,7 +82,7 @@ int PacketSource_AirPcap::OpenSource() {
 							AIRPCAP_VT_ACCEPT_CORRECT_FRAMES)) {
 		_MSG("Airpcap adapter " + interface + " failed setting FCS "
 			 "validation: " + 
-			 string((const char *) AirpcapGetLastError(airpcap_handle)), 
+			 StrStrip((const char *) AirpcapGetLastError(airpcap_handle)), 
 			 MSGFLAG_PRINTERROR);
 		pcap_close(pd);
 		return -1;
@@ -252,7 +252,7 @@ int PacketSource_AirPcap::SetChannel(unsigned int in_ch) {
 	if (!AirpcapSetDeviceChannel(airpcap_handle, in_ch)) {
 		_MSG("Airpcap adapter " + interface + " failed setting channel " +
 			 IntToString(in_ch) + ": " +
-			 string((const char *) AirpcapGetLastError(airpcap_handle)), 
+			 StrStrip((const char *) AirpcapGetLastError(airpcap_handle)), 
 			 MSGFLAG_PRINTERROR);
 		return -1;
 	}
