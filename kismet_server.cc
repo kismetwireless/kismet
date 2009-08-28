@@ -94,6 +94,9 @@ char *exec_name;
 // Daemonize?
 int daemonize = 0;
 
+// Plugins?
+int plugins = 1;
+
 // One of our few globals in this file
 int glob_linewrap = 1;
 int glob_silent = 0;
@@ -498,6 +501,7 @@ int Usage(char *argv) {
 		   "                              (for grep, speed, etc)\n"
 		   " -s, --silent                 Turn off stdout output after setup phase\n"
 		   "     --daemonize              Spawn detatched in the background\n"
+		   "     --no-plugins             Do not load plugins\n"
 		   );
 
 	printf("\n");
@@ -593,6 +597,7 @@ int main(int argc, char *argv[], char *envp[]) {
 
 	const int nlwc = globalregistry->getopt_long_num++;
 	const int dwc = globalregistry->getopt_long_num++;
+	const int npwc = globalregistry->getopt_long_num++;
 
 	// Standard getopt parse run
 	static struct option main_longopt[] = {
@@ -601,6 +606,7 @@ int main(int argc, char *argv[], char *envp[]) {
 		{ "silent", no_argument, 0, 's' },
 		{ "help", no_argument, 0, 'h' },
 		{ "daemonize", no_argument, 0, dwc },
+		{ "no-plugins", no_argument, 0, npwc },
 		{ 0, 0, 0, 0 }
 	};
 
@@ -626,6 +632,8 @@ int main(int argc, char *argv[], char *envp[]) {
 		} else if (r == dwc) {
 			daemonize = 1;
 			local_silent = 1;
+		} else if (r == npwc) {
+			plugins = 0;
 		}
 	}
 
@@ -713,7 +721,13 @@ int main(int argc, char *argv[], char *envp[]) {
 														NULL);
 
 	// Start the plugin handler
-	globalregistry->plugintracker = new Plugintracker(globalregistry);
+	if (plugins) {
+		globalregistry->plugintracker = new Plugintracker(globalregistry);
+	} else {
+		globalregistry->messagebus->InjectMessage(
+			"Plugins disabled on the command line, plugins will NOT be loaded...",
+			MSGFLAG_INFO);
+	}
 
 	// Create the packet chain
 	globalregistry->packetchain = new Packetchain(globalregistry);
@@ -811,12 +825,14 @@ int main(int argc, char *argv[], char *envp[]) {
 #endif
 
 	// Process userspace plugins
-	globalregistry->plugintracker->ScanUserPlugins();
-	globalregistry->plugintracker->ActivatePlugins();
-	if (globalregistry->fatal_condition) {
-		globalregistry->messagebus->InjectMessage(
-			"Failure during activating plugins\n", MSGFLAG_FATAL);
-		CatchShutdown(-1);
+	if (globalregistry->plugintracker != NULL) {
+		globalregistry->plugintracker->ScanUserPlugins();
+		globalregistry->plugintracker->ActivatePlugins();
+		if (globalregistry->fatal_condition) {
+			globalregistry->messagebus->InjectMessage(
+						"Failure during activating plugins", MSGFLAG_FATAL);
+			CatchShutdown(-1);
+		}
 	}
 
 	// Enable cards from config/cmdline
@@ -929,9 +945,11 @@ int main(int argc, char *argv[], char *envp[]) {
 	// Kick the plugin system one last time.  This will try to kick any plugins
 	// that aren't activated yet, and then bomb out if we can't turn them on at
 	// all.
-	globalregistry->plugintracker->LastChancePlugins();
-	if (globalregistry->fatal_condition)
-		CatchShutdown(-1);
+	if (globalregistry->plugintracker != NULL) {
+		globalregistry->plugintracker->LastChancePlugins();
+		if (globalregistry->fatal_condition)
+			CatchShutdown(-1);
+	}
 
 	// Initialize the crc tables
 	crc32_init_table_80211(globalregistry->crc32_table);
