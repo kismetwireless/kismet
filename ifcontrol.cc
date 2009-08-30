@@ -26,6 +26,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <strings.h>
 
 int Ifconfig_Set_Flags(const char *in_dev, char *errstr, int flags) {
 #ifndef SYS_CYGWIN

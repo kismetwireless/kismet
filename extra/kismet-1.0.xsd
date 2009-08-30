@@ -1,0 +1,307 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema"		
+		targetNamespace="http://www.kismetwireless.net/"
+		xmlns="http://www.kismetwireless.net/"
+		elementFormDefault="qualified"
+>
+
+	<xsd:element name="detection-run">
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element ref="card-source" minOccurs="0" maxOccurs="unbounded"/>
+				<xsd:element ref="wireless-network" minOccurs="0" maxOccurs="unbounded"/>
+			</xsd:sequence>
+			<xsd:attribute name="kismet-version" type="xsd:string" use="required"/>
+			<xsd:attribute name="start-time" type="xsd:string" use="required"/>
+		</xsd:complexType>
+	</xsd:element>
+	
+	<xsd:element name="card-source">
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element name="card-interface-detail" type="xsd:string"/>
+				<xsd:element name="card-name" type="xsd:string"/>
+				<xsd:element name="card-interface" type="xsd:string"/>
+				<xsd:element name="card-type" type="xsd:string"/>
+				<xsd:element name="card-packets" type="xsd:string"/>
+				<xsd:element name="card-hop" type="xsd:boolean"/>
+				<xsd:element name="card-channels" type="xsd:string"/>
+			</xsd:sequence>
+			<xsd:attribute name="uuid" type="xsd:string" use="required"/>
+		</xsd:complexType>
+	</xsd:element>
+	
+	<xsd:element name="wireless-network">
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element ref="SSID" minOccurs="0" maxOccurs="unbounded"/>
+				<xsd:element name="BSSID" type="xsd:string"/>
+				<xsd:element name="manuf" type="xsd:string"/>
+				<xsd:element name="channel" type="xsd:unsignedShort"/>
+				<xsd:element name="freqmhz" type="xsd:string" minOccurs="0" maxOccurs="unbounded"/>
+				<xsd:element name="maxseenrate" type="xsd:long"/>
+				<xsd:element name="carrier" type="carrierType" minOccurs="0" maxOccurs="unbounded"/>
+				<xsd:element name="encoding" type="encodingType" minOccurs="0" maxOccurs="unbounded"/>
+				<xsd:element ref="packets"/>
+				<xsd:element name="datasize" type="xsd:unsignedLong"/>
+				<xsd:element ref="snr-info" minOccurs="0"/>
+				<xsd:element name="gps-info" type="gpsInfoType" minOccurs="0"/>
+				<xsd:element name="tag" type="tagType" minOccurs="0" maxOccurs="unbounded"/>
+				<xsd:element name="ip-address" type="ipAddressType" minOccurs="0"/>
+				<xsd:element name="bsstimestamp" type="xsd:unsignedLong"/>
+				<xsd:element name="cdp-device" type="xsd:string"/>
+				<xsd:element name="cdp-portid" type="xsd:string"/>
+				<xsd:element ref="seen-card" minOccurs="0" maxOccurs="unbounded"/>
+				<xsd:element ref="wireless-client" minOccurs="0" maxOccurs="unbounded"/>
+			</xsd:sequence>
+			<xsd:attribute name="number" type="xsd:int" use="required"/>
+			<xsd:attribute name="type" type="networkType" use="required"/>
+			<xsd:attribute name="first-time" type="xsd:string" use="required"/>
+			<xsd:attribute name="last-time" type="xsd:string" use="required"/>
+		</xsd:complexType>
+	</xsd:element>
+	
+	<xsd:element name="wireless-client">
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element name="client-mac" type="xsd:string"/>
+				<xsd:element name="client-manuf" type="xsd:string"/>
+				<xsd:element ref="SSID" minOccurs="0" maxOccurs="unbounded"/>
+				<xsd:element name="channel" type="xsd:unsignedShort"/>
+				<xsd:element name="freqmhz" type="xsd:string" minOccurs="0" maxOccurs="unbounded"/>
+				<xsd:element name="maxseenrate" type="xsd:long"/>
+				<xsd:element name="carrier" type="carrierType" minOccurs="0" maxOccurs="unbounded"/>
+				<xsd:element name="encoding" type="encodingType" minOccurs="0" maxOccurs="unbounded"/>
+				<xsd:element ref="packets"/>
+				<xsd:element name="datasize" type="xsd:unsignedLong"/>
+				<xsd:element ref="snr-info" minOccurs="0"/>
+				<xsd:element name="gps-info" type="gpsInfoType" minOccurs="0"/>
+				<xsd:element name="ip-address" type="ipAddressType" minOccurs="0"/>
+				<xsd:element name="cdp-device" type="xsd:string" minOccurs="0"/>
+				<xsd:element name="cdp-portid" type="xsd:string" minOccurs="0"/>
+				<xsd:element name="dhcp-hostname" type="xsd:string" minOccurs="0"/>
+				<xsd:element name="dhcp-vendor" type="xsd:string" minOccurs="0"/>
+				<xsd:element ref="seen-card" minOccurs="0" maxOccurs="unbounded"/>
+				<xsd:element name="tag" type="tagType" minOccurs="0" maxOccurs="unbounded"/>
+			</xsd:sequence>
+			<xsd:attribute name="number" type="xsd:int" use="required"/>
+			<xsd:attribute name="type" type="clientType" use="required"/>
+			<xsd:attribute name="first-time" type="xsd:string" use="required"/>
+			<xsd:attribute name="last-time" type="xsd:string" use="required"/>
+		</xsd:complexType>
+	</xsd:element>
+	
+	<xsd:element name="SSID">
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element name="type" type="adType"/>
+				<xsd:element name="max-rate" type="xsd:double"/>
+				<xsd:element name="packets" type="xsd:int"/>
+				<xsd:element name="beaconrate" type="xsd:int" minOccurs="0"/>
+				<xsd:element name="encryption" type="encryptionType" minOccurs="0" maxOccurs="unbounded"/>
+				<xsd:element ref="dot11d" minOccurs="0"/>
+				<xsd:element ref="essid" minOccurs="0"/>
+				<xsd:element name="info" type="xsd:string" minOccurs="0"/>
+				<xsd:element name="ssid" type="xsd:string" minOccurs="0"/>
+			</xsd:sequence>
+			<xsd:attribute name="first-time" type="xsd:string" use="required"/>
+			<xsd:attribute name="last-time" type="xsd:string" use="required"/>
+		</xsd:complexType>
+	</xsd:element>
+	
+	<xsd:element name="dot11d">
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element name="dot11d-range" type="dot11dRangeType" minOccurs="0" maxOccurs="unbounded"/>
+			</xsd:sequence>
+			<xsd:attribute name="country" type="xsd:string" use="required"/>
+		</xsd:complexType>
+	</xsd:element>
+	
+	<xsd:complexType name="dot11dRangeType">
+		<xsd:attribute name="start" type="xsd:int" use="required"/>
+		<xsd:attribute name="end" type="xsd:int" use="required"/>
+		<xsd:attribute name="max-power" type="xsd:int" use="required"/>
+	</xsd:complexType>
+	
+	<xsd:element name="essid">
+		<xsd:complexType>
+			<xsd:simpleContent>
+				<xsd:extension base="xsd:string">
+					<xsd:attribute name="cloaked" type="xsd:boolean" use="required"/>
+				</xsd:extension>
+			</xsd:simpleContent>
+		</xsd:complexType>
+	</xsd:element>
+	
+	<xsd:element name="packets">
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element name="LLC" type="xsd:int"/>
+				<xsd:element name="data" type="xsd:int"/>
+				<xsd:element name="crypt" type="xsd:int"/>
+				<xsd:element name="total" type="xsd:int"/>
+				<xsd:element name="fragments" type="xsd:int"/>
+				<xsd:element name="retries" type="xsd:int"/>
+			</xsd:sequence>
+		</xsd:complexType>
+	</xsd:element>
+	
+	<xsd:element name="snr-info">
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element name="last_signal_dbm" type="xsd:int"/>
+				<xsd:element name="last_noise_dbm" type="xsd:int"/>
+				<xsd:element name="last_signal_rssi" type="xsd:int"/>
+				<xsd:element name="last_noise_rssi" type="xsd:int"/>
+				<xsd:element name="min_signal_dbm" type="xsd:int"/>
+				<xsd:element name="min_noise_dbm" type="xsd:int"/>
+				<xsd:element name="min_signal_rssi" type="xsd:int"/>
+				<xsd:element name="min_noise_rssi" type="xsd:int"/>
+				<xsd:element name="max_signal_dbm" type="xsd:int"/>
+				<xsd:element name="max_noise_dbm" type="xsd:int"/>
+				<xsd:element name="max_signal_rssi" type="xsd:int"/>
+				<xsd:element name="max_noise_rssi" type="xsd:int"/>
+			</xsd:sequence>
+		</xsd:complexType>
+	</xsd:element>
+	
+	<xsd:complexType name="gpsInfoType">
+		<xsd:sequence>
+			<xsd:element name="min-lat" type="xsd:double"/>
+			<xsd:element name="min-lon" type="xsd:double"/>
+			<xsd:element name="min-alt" type="xsd:double"/>
+			<xsd:element name="min-spd" type="xsd:double"/>
+			<xsd:element name="max-lat" type="xsd:double"/>
+			<xsd:element name="max-lon" type="xsd:double"/>
+			<xsd:element name="max-alt" type="xsd:double"/>
+			<xsd:element name="max-spd" type="xsd:double"/>
+			<xsd:element name="peak-lat" type="xsd:double"/>
+			<xsd:element name="peak-lon" type="xsd:double"/>
+			<xsd:element name="peak-alt" type="xsd:double"/>
+			<xsd:element name="avg-lat" type="xsd:double"/>
+			<xsd:element name="avg-lon" type="xsd:double"/>
+			<xsd:element name="avg-alt" type="xsd:double"/>
+		</xsd:sequence>
+	</xsd:complexType>
+	
+	<xsd:complexType name="tagType">
+		<xsd:simpleContent>
+			<xsd:extension base="xsd:string">
+				<xsd:attribute name="name" type="xsd:string" use="required"/>
+			</xsd:extension>
+		</xsd:simpleContent>
+	</xsd:complexType>
+	
+	<xsd:complexType name="ipAddressType">
+		<xsd:sequence>
+			<xsd:element name="ip-block" type="xsd:string"/>
+			<xsd:element name="ip-netmask" type="xsd:string"/>
+			<xsd:element name="ip-gateway" type="xsd:string"/>
+		</xsd:sequence>
+		<xsd:attribute name="type" type="ipType" use="required"/>
+	</xsd:complexType>
+	
+	<xsd:element name="seen-card">
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element name="seen-uuid" type="xsd:string"/>
+				<xsd:element name="seen-time" type="xsd:string"/>
+				<xsd:element name="seen-packets" type="xsd:int"/>
+			</xsd:sequence>
+		</xsd:complexType>
+	</xsd:element>
+	
+	<!-- ########## Enumerations ########## -->
+	
+	<xsd:simpleType name="clientType">
+		<xsd:restriction base="xsd:string">
+			<xsd:enumeration value="fromds"/>
+			<xsd:enumeration value="tods"/>
+			<xsd:enumeration value="interds"/>
+			<xsd:enumeration value="established"/>
+			<xsd:enumeration value="ad-hoc"/>
+			<xsd:enumeration value="unknown"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	
+	<xsd:simpleType name="networkType">
+		<xsd:restriction base="xsd:string">
+			<xsd:enumeration value="infrastructure"/>
+			<xsd:enumeration value="ad-hoc"/>
+			<xsd:enumeration value="probe"/>
+			<xsd:enumeration value="data"/>
+			<xsd:enumeration value="turbocell"/>
+			<xsd:enumeration value="unknown"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	
+	<xsd:simpleType name="carrierType">
+		<xsd:restriction base="xsd:string">
+			<xsd:enumeration value="IEEE 802.11b"/>
+			<xsd:enumeration value="IEEE 802.11b+"/>
+			<xsd:enumeration value="IEEE 802.11a"/>
+			<xsd:enumeration value="IEEE 802.11g"/>
+			<xsd:enumeration value="IEEE 802.11 FHSS"/>
+			<xsd:enumeration value="IEEE 802.11 DSSS"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	
+	<xsd:simpleType name="encodingType">
+		<xsd:restriction base="xsd:string">
+			<xsd:enumeration value="CCK"/>
+			<xsd:enumeration value="PBCC"/>
+			<xsd:enumeration value="OFDM"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	
+	<xsd:simpleType name="ipType">
+		<xsd:restriction base="xsd:string">
+			<xsd:enumeration value="UDP/TCP"/>
+			<xsd:enumeration value="ARP"/>
+			<xsd:enumeration value="DHCP"/>
+			<xsd:enumeration value="Unknown"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	
+	<xsd:simpleType name="encryptionType">
+		<xsd:restriction base="xsd:string">
+			<xsd:enumeration value="None"/>
+			<xsd:enumeration value="WEP"/>
+			<xsd:enumeration value="Layer3"/>
+			<xsd:enumeration value="WEP40"/>
+			<xsd:enumeration value="WEP104"/>
+			<xsd:enumeration value="Data-Non-Wep"/>
+			<xsd:enumeration value="WPA"/>
+			<xsd:enumeration value="WPA+TKIP"/>
+			<xsd:enumeration value="WPA+PSK"/>
+			<xsd:enumeration value="WPA+AES-OCB"/>
+			<xsd:enumeration value="WPA+AES-CCM"/>
+			<xsd:enumeration value="WPA+LEAP"/>
+			<xsd:enumeration value="WPA+TTLS"/>
+			<xsd:enumeration value="WPA+TLS"/>
+			<xsd:enumeration value="WPA+PEAP"/>
+			<xsd:enumeration value="ISAKMP"/>
+			<xsd:enumeration value="PPTP"/>
+			<xsd:enumeration value="Fortress"/>
+			<xsd:enumeration value="Keyguard"/>
+			<xsd:enumeration value="TKIP"/>
+			<xsd:enumeration value="PSK"/>
+			<xsd:enumeration value="AES-OCB"/>
+			<xsd:enumeration value="AES-CCM"/>
+			<xsd:enumeration value="LEAP"/>
+			<xsd:enumeration value="TTLS"/>
+			<xsd:enumeration value="TLS"/>
+			<xsd:enumeration value="PEAP"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	
+	<xsd:simpleType name="adType">
+		<xsd:restriction base="xsd:string">
+			<xsd:enumeration value="Beacon"/>
+			<xsd:enumeration value="Probe Response"/>
+			<xsd:enumeration value="Probe Request"/>
+			<xsd:enumeration value="Cached SSID"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+</xsd:schema>

@@ -11071,7 +11071,7 @@ sharedatadir=`(
 sharedatadir=${sharedatadir}
 
 
-ac_config_files="$ac_config_files Makefile scripts/kismet extra/buzzme/Makefile extra/Makefile conf/kismet.conf"
+ac_config_files="$ac_config_files Makefile scripts/kismet conf/kismet.conf"
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -11671,8 +11671,6 @@ do
     "config.h") CONFIG_HEADERS="$CONFIG_HEADERS config.h" ;;
     "Makefile") CONFIG_FILES="$CONFIG_FILES Makefile" ;;
     "scripts/kismet") CONFIG_FILES="$CONFIG_FILES scripts/kismet" ;;
-    "extra/buzzme/Makefile") CONFIG_FILES="$CONFIG_FILES extra/buzzme/Makefile" ;;
-    "extra/Makefile") CONFIG_FILES="$CONFIG_FILES extra/Makefile" ;;
     "conf/kismet.conf") CONFIG_FILES="$CONFIG_FILES conf/kismet.conf" ;;
 
   *) { { $as_echo "$as_me:$LINENO: error: invalid argument: $ac_config_target" >&5

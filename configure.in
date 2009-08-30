@@ -918,7 +918,7 @@ sharedatadir=`(
 sharedatadir=${sharedatadir}
 AC_SUBST(sharedatadir)
 
-AC_CONFIG_FILES([Makefile scripts/kismet extra/buzzme/Makefile extra/Makefile conf/kismet.conf])
+AC_CONFIG_FILES([Makefile scripts/kismet conf/kismet.conf])
 AC_OUTPUT
 
 echo
