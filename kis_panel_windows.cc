@@ -803,29 +803,33 @@ void Kis_Main_Panel::Proto_GPS(CLIPROTO_CB_PARMS) {
 		NtoString<float>(lon).Str() + string(" ");
 
 	if (eng) {
-		// meters/sec to mph or fph
-		if (spd > 0.447)
-			gpstext += "Spd: " + NtoString<float>(spd * 2.2369, 2).Str() + " mph ";
-		else
-			gpstext += "Spd: " + NtoString<float>(spd * 3.2808399, 2).Str() + " fps ";
+		// Convert speed to feet/sec
+		spd *= 3.2808;
+		// Convert alt to feet
+		alt *= 3.2808;
+	}
 
-		if (alt > 1609)
-			gpstext += "Alt: " + NtoString<float>((alt / 1000) * 0.6214, 2).Str() + 
-				" mi ";
+	if (eng) {
+		if (spd > 2500)
+			gpstext = "Spd: " + NtoString<float>(spd / 5280, 2).Str() + " mph ";
 		else
-			gpstext += "Alt: " + NtoString<float>(alt * 3.281, 2).Str() + " ft ";
+			gpstext = "Spd: " + NtoString<float>(spd, 2).Str() + " fph ";
+
+		if (alt > 2500)
+			gpstext += "Alt: " + NtoString<float>(alt / 5280, 2).Str() + " m ";
+		else
+			gpstext += "Alt: " + NtoString<float>(alt, 2).Str() + " ft ";
 	} else {
-		if (spd > 0.2778)
-			gpstext += "Spd: " + NtoString<float>(spd * 3.6, 2).Str() + "Km/hr ";
+		if (spd > 1000)
+			gpstext = "Spd: " + NtoString<float>(spd / 1000, 2).Str() + "Km/hr ";
 		else
-			gpstext += "Spd: " + NtoString<float>(spd, 2).Str() + "m/s ";
+			gpstext = "Spd: " + NtoString<float>(spd, 2).Str() + "m/hr ";
 
 		if (alt > 1000)
 			gpstext += "Alt: " + NtoString<float>(alt / 1000, 2).Str() + "Km ";
 		else
 			gpstext += "Alt: " + NtoString<float>(alt, 2).Str() + "m ";
-	}
-
+	} 
 	
 	gpsinfo->SetText(gpstext + IntToString(fix) + string("d fix"));
 }
@@ -2945,9 +2949,9 @@ void Kis_Gps_Panel::Proto_GPS(CLIPROTO_CB_PARMS) {
 
 	if (eng) {
 		// Convert speed to feet/sec
-		spd /= 3.2808;
+		spd *= 3.2808;
 		// Convert alt to feet
-		alt /= 3.2808;
+		alt *= 3.2808;
 	}
 
 	if (fix < 2) {
