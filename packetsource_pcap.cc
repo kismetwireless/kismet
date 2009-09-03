@@ -184,8 +184,9 @@ int PacketSource_Pcap::DatalinkType() {
 		return 0;
     } else {
         snprintf(errstr, STATUS_MAX, "Unknown link type %d reported.  Continuing on "
-                 "blindly and hoping we get something useful...  This is ALMOST "
-				 "CERTIANLY NOT GOING TO WORK RIGHT", datalink_type);
+                 "blindly and hoping we get something useful...  Unless you have "
+				 "loaded plugins for this packet type, Kismet is not going to report "
+				 "useful packets.", datalink_type);
         globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
     }
 
