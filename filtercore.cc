@@ -354,7 +354,7 @@ int FilterCore::AddFilterLine(string filter_str) {
 				osstr << "Couldn't parse filter line '" << filter_str << "', PCRE "
 					"compilation failure '" << error << "' at offset " << erroffset;
 				_MSG(osstr.str(), MSGFLAG_ERROR);
-				free(filt);
+				delete(filt);
 				for (unsigned zed = 0; zed < local_pcre.size(); zed++) {
 					pcre_free(local_pcre[zed]->re);
 					pcre_free(local_pcre[zed]->study);
@@ -369,7 +369,7 @@ int FilterCore::AddFilterLine(string filter_str) {
 					"study/optimization failure '" << study_err << "'";
 				_MSG(osstr.str(), MSGFLAG_ERROR);
 				pcre_free(filt->re);
-				free(filt);
+				delete(filt);
 				for (unsigned zed = 0; zed < local_pcre.size(); zed++) {
 					pcre_free(local_pcre[zed]->re);
 					pcre_free(local_pcre[zed]->study);
