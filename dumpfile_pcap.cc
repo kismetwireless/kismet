@@ -181,8 +181,10 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 	kis_layer1_packinfo *radioinfo =
 		(kis_layer1_packinfo *) in_pack->fetch(_PCM(PACK_COMP_RADIODATA));
 
+	/*
 	kis_gps_packinfo *gpsdata =
 		(kis_gps_packinfo *) in_pack->fetch(_PCM(PACK_COMP_GPS));
+	*/
 
 	kis_fcs_bytes *fcsdata =
 		(kis_fcs_bytes *) in_pack->fetch(_PCM(PACK_COMP_FCSBYTES));
@@ -243,12 +245,14 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 				dump_len += 4;
 		}
 
+		/*
 		if (gpsdata != NULL) {
 			if (gpsdata->gps_fix >= 2)
 				ppi_len += sizeof(ppi_gps_hdr) + 12;
 			if (gpsdata->gps_fix > 2)
 				ppi_len += 4;
 		}
+		*/
 
 		// Collate the allocation sizes of any callbacks
 		for (unsigned int p = 0; p < ppi_cb_vec.size(); p++) {
@@ -331,6 +335,7 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 			ppi_common->noise_dbm = radioinfo->noise_dbm;
 		}
 
+		/*
 		if (gpsdata != NULL) {
 			ppi_gps_hdr *ppigps = NULL;
 			union block {
@@ -387,6 +392,7 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 				ppigps->gps_len = kis_htole16(ppigps->gps_len);
 			}
 		}
+		*/
 
 		// Collate the allocation sizes of any callbacks
 		for (unsigned int p = 0; p < ppi_cb_vec.size(); p++) {
