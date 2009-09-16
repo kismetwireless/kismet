@@ -86,7 +86,10 @@ Kismet-PTW
 5.  Using
 
     Kismet-PTW is essentially automated.  Once loaded, it will gather IV
-    information for any WEP encrypted network detected.
+    information for any WEP encrypted network detected.  There is no
+    kismet-client side plugin - WEP key disclosures will be registered as an
+    alert, and the key and progress information will be shown in the network
+    details.
 
     While running, Kismet-PTW will put the IV counts into the network as
     WEP-PTW-IV (number of packets seen with guessable IVs, such as ARP
