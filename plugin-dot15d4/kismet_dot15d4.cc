@@ -64,6 +64,8 @@
 
 GlobalRegistry *globalreg = NULL;
 
+int pack_comp_dot15d4;
+
 int dot15d4_unregister(GlobalRegistry *in_globalreg) {
 	return 0;
 }
@@ -79,6 +81,9 @@ int dot15d4_register(GlobalRegistry *in_globalreg) {
 
 	globalreg->packetchain->RegisterHandler(&kis_dot15d4_dissector, NULL,
 											CHAINPOS_LLCDISSECT, 1);
+
+	pack_comp_dot15d4 =
+		globalreg->packetchain->RegisterPacketComponent("DOT15D4FRAME");
 
 	return 1;
 }

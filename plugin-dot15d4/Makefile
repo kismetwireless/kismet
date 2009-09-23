@@ -16,7 +16,7 @@ CFLAGS 	= -I/usr/include -I$(KIS_INC_DIR) -g -fPIC
 # CLIOBJS = spectools_ui.o
 # CLIOUT	= spectools_ui.so
 
-SRVOBJS = packetsource_raven.o packet_dot15d4.o kismet_dot15d4.o
+SRVOBJS = packetsource_raven.o packet_dot15d4.o packet_dot15d4_types.o kismet_dot15d4.o
 SRVOUT	= dot15dot4.so
 
 all:	$(SRVOUT) $(CLIOUT)

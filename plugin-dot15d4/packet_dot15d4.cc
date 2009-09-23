@@ -18,13 +18,16 @@
 
 #include "config.h"
 
-#include <usb.h>
-#include <pthread.h>
-
 #include <packetchain.h>
 #include <packetsource.h>
+#include <endian_magic.h>
 
 #include "packet_dot15d4.h"
+
+// From kismet_dot15d4
+extern int pack_comp_dot15d4;
+
+static int debugno = 0;
 
 int kis_dot15d4_dissector(CHAINCALL_PARMS) {
 	if (in_pack->error)
@@ -39,22 +42,41 @@ int kis_dot15d4_dissector(CHAINCALL_PARMS) {
 	if (chunk->dlt != KDLT_IEEE802_15_4)
 		return 0;
 
-	if (chunk->length < 2) {
+	debugno++;
+
+	if (chunk->length < 11) {
 		_MSG("Short dot15d4 frame!", MSGFLAG_ERROR);
+		in_pack->error = 1;
 		return 0;
 	}
 
 	uint16_t fh;
 
-	fh = (*((uint16_t *) chunk->data));
+	fh = kis_letoh16(*((uint16_t *) chunk->data));
 
-	printf("FH: %4.04x\n", fh);
+	printf("Packet %d FH: %4.04x\n", debugno, fh);
 	printf("  Frame Type    : %d\n", DOT154_FH_FRAMETYPE(fh));
 	printf("  Frame Security: %d\n", DOT154_FH_SECURITY(fh));
-	printf("  Frame DA Raw  : %u\n", (fh >> 10) & 0x2);
-	printf("  Frame DA Mode : %u\n", DOT154_FH_DESTADDRMODE(fh));
 	printf("  Frame SA Mode : %u\n", DOT154_FH_SRCADDRMODE(fh));
 	printf("  Frame Version : %u\n", DOT154_FH_FRAMEVERSION(fh));
+
+	uint8_t seqno;
+	uint16_t pan, addr1, addr2;
+
+	seqno = chunk->data[2];
+
+	pan = kis_letoh16(*((uint16_t *) &(chunk->data[3])));
+	addr1 = kis_letoh16(*((uint16_t *) &(chunk->data[5])));
+
+	if (DOT154_FH_FRAMETYPE(fh) == 0x01)
+		addr2 = kis_letoh16(*((uint16_t *) &(chunk->data[7])));
+	else
+		addr2 = 0xB00F;
+
+	printf("       Sequence : %hu\n", seqno);
+	printf("            PAN : %x\n", pan);
+	printf("          Addr1 : %x\n", addr1);
+	printf("          Addr2 : %x\n", addr2);
 
 	return 1;
 }

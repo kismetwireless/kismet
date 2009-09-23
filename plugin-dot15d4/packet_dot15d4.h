@@ -50,4 +50,57 @@
 
 int kis_dot15d4_dissector(CHAINCALL_PARMS);
 
+enum dot15d4_type {
+	d15d4_type_beacon = 0x00,
+	d15d4_type_data = 0x01,
+	d15d4_type_command = 0x03
+};
+extern const char *dot15d4_type_str[];
+
+enum dot15d4_cmd_subtype {
+	d15d4_subtype_cmd_assocreq = 0x01,
+	d15d4_subtype_cmd_assocresp = 0x02,
+	d15d4_subtype_cmd_disassoc = 0x03,
+	d15d4_subtype_cmd_datareq = 0x04,
+	d15d4_subtype_cmd_panconf = 0x05,
+	d15d4_subtype_cmd_orphan = 0x06,
+	d15d4_subtype_cmd_beaconreq = 0x07,
+	d15d4_subtype_cmd_coordrealign = 0x08,
+	d15d4_subtype_cmd_gtsreq = 0x09
+};
+extern const char *dot15d4_cmd_subtype_str[];
+
+class dot15d4_packinfo : public packet_component {
+public:
+	dot15d4_packinfo() {
+		self_destruct = 1;
+
+		frame_header = 0;
+		type = 0;
+		security = 0;
+		sourceaddr_mode = 0;
+		destaddr_mode = 0;
+		version = 0;
+		seqno = 0;
+		pan = 0;
+		source_addr = 0;
+		dest_addr = 0;
+	};
+
+	uint16_t frame_header;
+
+	unsigned int type;
+	unsigned int security;
+	unsigned int sourceaddr_mode;
+	unsigned int destaddr_mode;
+	unsigned int version;
+
+	unsigned int seqno;
+	unsigned int pan;
+
+	long unsigned int source_addr;
+	long unsigned int dest_addr;
+
+};
+
 #endif
