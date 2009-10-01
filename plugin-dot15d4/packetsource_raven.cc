@@ -287,7 +287,7 @@ int PacketSource_Raven::CloseSource() {
 }
 
 int PacketSource_Raven::SetChannel(unsigned int in_ch) {
-	char channel[2] = { 0x08, 0x00 };
+	char data[2];
 	int ret;
 
 	if (in_ch < 11 || in_ch > 26)
@@ -295,23 +295,28 @@ int PacketSource_Raven::SetChannel(unsigned int in_ch) {
 
 	if (thread_active <= 0 || devhdl == NULL)
 		return 0;
-	
-	channel[1] = (in_ch & 0xFF);
 
-	// pthread_mutex_lock(&device_lock);
+	data[0] = 0x07;
+	data[1] = 0x00;
 
-	if ((ret = usb_bulk_write(devhdl, 0x02, channel, 2, 10)) < 0) {
+	if ((ret = usb_bulk_write(devhdl, 0x02, data, 2, 10)) < 0) {
 		_MSG("RAVEN 802.15.4 '" + name + "' failed to write channel control: " +
 			 string(usb_strerror()), MSGFLAG_ERROR);
-		pthread_mutex_unlock(&device_lock);
 		return -1;
 	}
 
-	usb_bulk_read(devhdl, 0x84, channel, 1, 10);
+	data[0] = 0x08;
+	data[1] = (in_ch & 0xFF);
+
+	if ((ret = usb_bulk_write(devhdl, 0x02, data, 2, 10)) < 0) {
+		_MSG("RAVEN 802.15.4 '" + name + "' failed to write channel control: " +
+			 string(usb_strerror()), MSGFLAG_ERROR);
+		return -1;
+	}
+
+	usb_bulk_read(devhdl, 0x84, data, 1, 10);
 
 	last_channel = in_ch;
-
-	// pthread_mutex_unlock(&device_lock);
 
 	return 1;
 }

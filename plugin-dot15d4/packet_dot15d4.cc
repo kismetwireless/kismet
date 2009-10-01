@@ -30,6 +30,8 @@ extern int pack_comp_dot15d4;
 static int debugno = 0;
 
 int kis_dot15d4_dissector(CHAINCALL_PARMS) {
+	dot15d4_packinfo *pi = NULL;
+
 	if (in_pack->error)
 		return 0;
 
@@ -50,15 +52,26 @@ int kis_dot15d4_dissector(CHAINCALL_PARMS) {
 		return 0;
 	}
 
+	pi = new dot15d4_packinfo();
+
 	uint16_t fh;
 
 	fh = kis_letoh16(*((uint16_t *) chunk->data));
 
+	pi->frame_header = fh;
+	pi->type = DOT154_FH_FRAMETYPE(fh);
+	pi->security = DOT154_FH_SECURITY(fh);
+	pi->sourceaddr_mode = DOT154_FH_SRCADDRMODE(fh);
+	pi->destaddr_mode = DOT154_FH_DESTADDRMODE(fh);
+	pi->version = DOT154_FH_FRAMEVERSION(fh);
+
+#if 0
 	printf("Packet %d FH: %4.04x\n", debugno, fh);
 	printf("  Frame Type    : %d\n", DOT154_FH_FRAMETYPE(fh));
 	printf("  Frame Security: %d\n", DOT154_FH_SECURITY(fh));
 	printf("  Frame SA Mode : %u\n", DOT154_FH_SRCADDRMODE(fh));
 	printf("  Frame Version : %u\n", DOT154_FH_FRAMEVERSION(fh));
+#endif
 
 	uint8_t seqno;
 	uint16_t pan, addr1, addr2;
