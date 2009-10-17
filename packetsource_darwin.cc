@@ -31,34 +31,16 @@
 extern "C" {
 #include "apple80211.h"
 #include <Carbon/Carbon.h>
-#include "darwin_control_objc.h"
+#include "darwin_control_wrapper.h"
 }
 
 #include "packetsource_darwin.h"
 
 #include "packetsourcetracker.h"
 
-/* From Macstumber rev-eng darwin headers */
-WIErr wlc_ioctl(WirelessContextPtr ctx, int command, int bufsize, 
-				void *buffer, int outsize,  void *out) {
-	if (!buffer) 
-		bufsize = 0;
-
-	int *buf = (int *) malloc(bufsize+8);
-
-	buf[0] = 3;
-	buf[1] = command;
-
-	if (bufsize && buffer) {
-		memcpy(&buf[2], buffer, bufsize);
-	}
-
-	return WirelessPrivate(ctx, buf, bufsize+8, out, outsize);
-}
-
 /* Iterate over the IO registry, look for a specific type of card
  * thanks to Kevin Finisterre */
-int darwin_cardcheck(char *service) {
+int darwin_cardcheck(const char *service) {
 	mach_port_t masterPort;
 	io_iterator_t iterator;
 	io_object_t sdev;
@@ -107,7 +89,7 @@ int PacketSource_Darwin::AutotypeProbe(string in_device) {
 }
 
 int PacketSource_Darwin::RegisterSources(Packetsourcetracker *tracker) {
-	tracker->RegisterPacketProto("darwin", this, "IEEE80211b", 1);
+	tracker->RegisterPacketProto("darwin", this, "IEEE80211b", 0);
 	return 1;
 }
 
@@ -130,7 +112,13 @@ int PacketSource_Darwin::EnableMonitor() {
 		globalreg->fatal_condition = 1;
 	}
 
-	if (darwin_cardcheck("AirPort_Brcm43xx") == 0 ||
+	control = darwin_allocate_interface(devname);
+	
+	if (darwin_get_corewifi(control)) {
+		_MSG("Darwin source " + name + ": Looks like Snow Leopard (10.6) "
+				"or newer is installed and CoreWireless knew what we were.",
+				MSGFLAG_INFO);
+	} else if (darwin_cardcheck("AirPort_Brcm43xx") == 0 ||
 			   darwin_cardcheck("AirPortPCI_MM") == 0) {
 		if (darwin_bcom_testmonitor() < 0) {
 			_MSG("Darwin source " + name + ": Looks like a broadcom card running "
@@ -155,9 +143,9 @@ int PacketSource_Darwin::EnableMonitor() {
 			 "these drivers.", MSGFLAG_INFO);
 	} else {
 		_MSG("Darwin source " + name + ": Didn't look like Broadcom or "
-			 "Atheros under Darwin.  We'll treat it like an Atheros card and "
-			 "hope for the best, however it may not work properly.", 
-			 MSGFLAG_ERROR);
+				"Atheros under Darwin.  We'll treat it like an Atheros card and "
+				"hope for the best, however it may not work properly.", 
+				MSGFLAG_ERROR);
 		sleep(2);
 	}
 
@@ -184,22 +172,35 @@ int PacketSource_Darwin::EnableMonitor() {
 }
 
 int PacketSource_Darwin::DisableMonitor() {
+	darwin_free_interface(control);
 	return PACKSOURCE_UNMONITOR_RET_OKWITHWARN;
 }
 
-int PacketSource_Darwin::SetChannel(unsigned int in_ch) {
-	WirelessContextPtr gWCtxt = NULL;
+vector<unsigned int> PacketSource_Darwin::FetchSupportedChannels(string in_interface) { 
+        vector<unsigned int> ret;
 
-	if (WirelessAttach(&gWCtxt, 0) != 0) {
-		_MSG("OSX Darwin adapter " + interface + " failed WirelessAttach(): Could "
-			 "not set channel", MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
-		return -1;
+	int *channels;
+
+	int nch = darwin_get_channels(in_interface.c_str(), &channels);
+
+	for (int x = 0; x < nch; x++) {
+		ret.push_back(channels[x]);
 	}
-	wlc_ioctl(gWCtxt, 52, 0, NULL, 0, NULL); // Disassociate
-	wlc_ioctl(gWCtxt, 30, 8, &in_ch, 0, NULL); // Set channel
 
-	WirelessDetach(gWCtxt);
+	free(channels);
+
+        return ret;
+}
+
+
+int PacketSource_Darwin::SetChannel(unsigned int in_ch) {
+	char err[1024];
+
+	if (darwin_set_channel(in_ch, err, control) < 0) {
+		_MSG("Darwin source " + name + ": Failed to set channel " +
+		IntToString(in_ch) + ": " + string(err), 
+		MSGFLAG_ERROR);
+	}
 
 	return 0;
 }

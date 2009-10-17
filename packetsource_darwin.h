@@ -32,6 +32,8 @@
 #include "local_ieee80211_radiotap.h"
 #endif
 
+#include "darwin_control_wrapper.h"
+
 #define USE_PACKETSOURCE_DARWIN
 
 class PacketSource_Darwin : public PacketSource_Pcap {
@@ -68,8 +70,13 @@ public:
 	virtual int DisableMonitor();
 	virtual int SetChannel(unsigned int in_ch);
 
+	virtual vector<unsigned int> FetchSupportedChannels(string in_interface);
+
+
 protected:
 	virtual void FetchRadioData(kis_packet *in_packet) { };
+
+	void *control;
 };
 
 #endif /* osx and pcap */

@@ -40,7 +40,7 @@ WAV 		= ${SHARE}/wav/
 
 DEPEND		= .depend
 
-OBJC_CONTROL_O = darwin_control_objc.mo
+OBJC_CONTROL_O = darwin_control_wrapper.mo darwin_wificontrol.mo
 OBJC_LINK = @objc_link@
 
 CAPSOURCES = \

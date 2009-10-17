@@ -24,8 +24,16 @@
 #ifdef SYS_DARWIN
 
 int darwin_bcom_testmonitor();
-int darwin_bcom_enablemonitorfile(char *c_filename);
+int darwin_bcom_enablemonitorfile(const char *c_filename);
 int darwin_bcom_enablemonitor();
+
+void *darwin_allocate_interface(const char *in_iface);
+void darwin_free_interface(void *in_darwin);
+
+int darwin_get_channels(const char *in_iface, int **ret_channels);
+int darwin_set_channel(unsigned int in_channel, char *ret_err, void *in_darwin);
+
+int darwin_get_corewifi(void *in_darwin);
 
 #endif
 
