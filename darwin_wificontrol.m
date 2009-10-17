@@ -108,12 +108,14 @@ WIErr wlc_ioctl(WirelessContextPtr ctx, int command, int bufsize,
 		return [iface setChannel:c error:e];
 	} else if (ctx != nil) {
 		// Disassociate
-    		wlc_ioctl(ctx, 52, 0, NULL, 0, NULL);
+    	wlc_ioctl(ctx, 52, 0, NULL, 0, NULL);
 		// Set channel
-    		wlc_ioctl(ctx, 30, 8, &c, 0, NULL);
-	} else {
-		return 0;
+    	wlc_ioctl(ctx, 30, 8, &c, 0, NULL);
+
+		return 1;
 	}
+
+	return 0;
 }
 
 @end;	
