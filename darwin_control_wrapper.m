@@ -202,10 +202,9 @@ int darwin_set_channel(unsigned int in_channel, char *ret_err, void *in_darwin) 
 	BOOL result;
 	NSError *err;
 
-	result = [darwin setChannel:in_channel error:&err];
+	result = [darwin setChannel:in_channel error:ret_err];
 
 	if (!result) {
-		snprintf(ret_err, 1024, "%s", [[err localizedDescription] cString]);
 		return -1;
 	}
 
@@ -244,87 +243,6 @@ int darwin_get_channels(const char *in_iface, int **ret_channels) {
 
 	return x;
 }
-
-
-#if 0
-	if (iface == nil) {
-		if (WirelessAttach(ret->context, 0) != 0) {
-			snprintf(ret->error, 1024, "WirelessAttach() failed to connect to interface");
-		}
-
-		return ret;
-	}
-
-	printf("opened iface %p\n", iface);
-
-	ret->cw_iface = (void *) iface;
-	ret->cwi_class = (void *) CWI_class;
-
-	return ret;
-}
-
-void darwin_free_interface(darwin_control_data *in_data) {
-	NSAutoreleasePool *pool;
-	
-	if (in_data->context != NULL) {
-		WirelessDetach(in_data->context);
-	}
-
-	if (in_data->pool != NULL) {
-		pool = (NSAutoreleasePool *) in_data->pool;
-		[pool drain];
-	}
-
-	free(in_data);
-}
-
-int darwin_set_channel(unsigned int in_ch, darwin_control_data *in_data) {
-	NSError *err;
-	BOOL result;
-
-	id iface;
-	Class CWI_class;
-
-	// 10.5 ioctls
-	if (in_data->context != NULL) {
-	        if (wlc_ioctl(in_data->context, 52, 0, NULL, 0, NULL) < 0 ||
-       	   	    wlc_ioctl(in_data->context, 30, 8, &in_ch, 0, NULL) < 0) {
-			snprintf(in_data->error, 1024, "wlc ioctl to set channel failed");
-			return -1;
-		}
-
-		return 1;
-	}
-
-	if (in_data->cw_iface != NULL && in_data->cwi_class != NULL) {
-		// 10.6+ CoreWireless crap
-		CWI_class = in_data->cwi_class;
-
-		iface = [CWI_class interfaceWithName:"en1"];
-
-		for (id sup in [iface supportedChannels]) {
-			printf("Supported channel: %d\n", [sup intValue]);
-		}
-
-		result = [iface setChannel:in_ch error:&err];
-
-		if (!result) {
-			printf("!result\n");
-			snprintf(in_data->error, 1024, "%s", [[err localizedDescription] cString]);
-			return -1;
-		} else {
-			printf("result\n");
-		}
-
-		return 1;
-	} 
-
-	snprintf(in_data->error, 1024, "no valid context for interface");
-
-	return -1;
-}
-
-#endif
 
 #endif
 

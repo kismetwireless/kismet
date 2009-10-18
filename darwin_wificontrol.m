@@ -84,7 +84,7 @@ WIErr wlc_ioctl(WirelessContextPtr ctx, int command, int bufsize,
 		ctx = nil;
 	} else {
 		iface = nil;
-		ctx = WirelessAttach(&ctx, 0);
+		WirelessAttach(&ctx, 0);
 	}
 }
 
@@ -102,18 +102,30 @@ WIErr wlc_ioctl(WirelessContextPtr ctx, int command, int bufsize,
 	return ret;
 }
 
--(BOOL) setChannel: (unsigned int) c error: (NSError **) e {
+-(BOOL) setChannel: (unsigned int) c error: (char *) e {
+	NSError *wcerr;
+	BOOL ret;
+
 	if (iface != nil) {
 		[iface disassociate];
-		return [iface setChannel:c error:e];
+
+		ret = [iface setChannel:c error:&wcerr];
+
+		if (!ret) {
+			snprintf(e, 1024, "%s", [[wcerr localizedDescription] cString]);
+		}
+	
+		return ret;
 	} else if (ctx != nil) {
 		// Disassociate
-    	wlc_ioctl(ctx, 52, 0, NULL, 0, NULL);
+    		wlc_ioctl(ctx, 52, 0, NULL, 0, NULL);
 		// Set channel
-    	wlc_ioctl(ctx, 30, 8, &c, 0, NULL);
+    		wlc_ioctl(ctx, 30, 8, &c, 0, NULL);
 
 		return 1;
-	}
+	} 
+
+	snprintf(e, 1024, "Missing CoreWireless -and- older Darwin config info");
 
 	return 0;
 }

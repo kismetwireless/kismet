@@ -43,7 +43,7 @@
 -(void) setPool;
 -(void) setBundle;
 -(NSArray *) getSupportedChannels;
--(BOOL) setChannel: (unsigned int) c error: (NSError **) e;
+-(BOOL) setChannel: (unsigned int) c error: (char *) e;
 -(BOOL) getCoreWireless;
 
 @end;
