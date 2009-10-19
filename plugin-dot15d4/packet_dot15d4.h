@@ -44,16 +44,23 @@
 #define DOT154_FRAMEVERSION_MASK	0x12288
 #define DOT154_SOURCEADDRMODE_MASK	0x49152
 
-#define DOT154_FH_DESTADDRMODE(f)	((unsigned int) ((f) & 0xC00) >> 10)
+#define DOT154_FH_DESTADDRMODE(f)	((unsigned int) ((f) & 0x0C00) >> 10)
 #define DOT154_FH_FRAMEVERSION(f)	((unsigned int) ((f) & 0x3000) >> 12)
 #define DOT154_FH_SRCADDRMODE(f)	((unsigned int) ((f) & 0xC000) >> 14)
+
+#define DOT154_FH_ADDR_NONE			0x0000
+#define DOT154_FH_ADDR_SHORT		0x0002
+#define DOT154_FH_ADDR_LONG			0x0003
 
 int kis_dot15d4_dissector(CHAINCALL_PARMS);
 
 enum dot15d4_type {
 	d15d4_type_beacon = 0x00,
 	d15d4_type_data = 0x01,
-	d15d4_type_command = 0x03
+	d15d4_type_ack = 0x02,
+	d15d4_type_command = 0x03,
+	d15d4_type_max
+		
 };
 extern const char *dot15d4_type_str[];
 
@@ -66,9 +73,23 @@ enum dot15d4_cmd_subtype {
 	d15d4_subtype_cmd_orphan = 0x06,
 	d15d4_subtype_cmd_beaconreq = 0x07,
 	d15d4_subtype_cmd_coordrealign = 0x08,
-	d15d4_subtype_cmd_gtsreq = 0x09
+	d15d4_subtype_cmd_gtsreq = 0x09,
+	d15d4_subtype_cmd_max
 };
 extern const char *dot15d4_cmd_subtype_str[];
+
+enum dot15d4_crypt_type {
+	d15d4_crypt_none = 0x00,
+	d15d4_crypt_mic32 = 0x01,
+	d15d4_crypt_mic64 = 0x02,
+	d15d4_crypt_mic126 = 0x03,
+	d15d4_crypt_enc = 0x04,
+	d15d4_crypt_enc_mic32 = 0x05,
+	d15d4_crypt_enc_mic64 = 0x06,
+	d15d4_crypt_enc_mic128 = 0x07,
+	d15d4_crypt_max
+};
+extern const char *dot15d4_crypt_type_str[];
 
 class dot15d4_packinfo : public packet_component {
 public:
@@ -82,9 +103,14 @@ public:
 		destaddr_mode = 0;
 		version = 0;
 		seqno = 0;
-		pan = 0;
 		source_addr = 0;
 		dest_addr = 0;
+		source_pan = 0;
+		dest_pan = 0;
+		intrapan = 0;
+
+		uint8_t *data;
+		int data_len;
 	};
 
 	uint16_t frame_header;
@@ -94,10 +120,12 @@ public:
 	unsigned int sourceaddr_mode;
 	unsigned int destaddr_mode;
 	unsigned int version;
+	unsigned int intrapan;
 
 	unsigned int seqno;
-	unsigned int pan;
+	unsigned int source_pan, dest_pan;
 
+	// 2 or 8 bytes depending
 	long unsigned int source_addr;
 	long unsigned int dest_addr;
 

@@ -265,6 +265,7 @@ KisBuiltinDissector::KisBuiltinDissector(GlobalRegistry *in_globalreg) {
 
 	string_filter = NULL;
 	dissect_strings = 0;
+	dissect_all_strings = 0;
 
 	if (globalreg->packetchain == NULL) {
 		fprintf(stderr, "FATAL OOPS:  KisBuiltinDissector called before "
@@ -2192,7 +2193,7 @@ int KisBuiltinDissector::cmd_delwepkey(CLIENT_PARMS) {
 int KisBuiltinDissector::basicstring_dissector(kis_packet *in_pack) {
 	if (dissect_strings == 0)
 		return 0;
-	
+
 	kis_string_info *stringinfo = NULL;
 	vector<string> parsed_strings;
 
@@ -2215,6 +2216,14 @@ int KisBuiltinDissector::basicstring_dissector(kis_packet *in_pack) {
 	// smart with it, so toss.
 	if (packinfo->cryptset != 0 && packinfo->decrypted == 0)
 		return 0;
+
+	if (dissect_all_strings == 0 && dissect_strings) {
+		if (string_nets.find(packinfo->bssid_mac) == string_nets.end() &&
+			string_nets.find(packinfo->source_mac) == string_nets.end() &&
+			string_nets.find(packinfo->dest_mac) == string_nets.end()) {
+			return 0;
+		}
+	}
 	
 	// Grab the mangled frame if we have it, then try to grab up the list of
 	// data types and die if we can't get anything
@@ -2295,12 +2304,14 @@ void KisBuiltinDissector::SetStringExtract(int in_extr) {
 		return;
 	}
 
+	// If we're setting the extract here, we have to turn it on for all BSSIDs
 	dissect_strings = in_extr;
+	dissect_all_strings = in_extr;
 }
 
 int KisBuiltinDissector::cmd_strings(CLIENT_PARMS) {
 	// FIXME: write this
-    if (parsedcmdline->size() != 1) {
+    if (parsedcmdline->size() < 1) {
         snprintf(errstr, 1024, "Illegal string request");
 		_MSG(errstr, MSGFLAG_ERROR);
         return -1;
@@ -2320,10 +2331,32 @@ int KisBuiltinDissector::cmd_strings(CLIENT_PARMS) {
 		return 1;
 	}
 
-	if (req)
-		_MSG("String dissection from data frames enabled", MSGFLAG_INFO);
-	else
-		_MSG("String dissection from data frames disabled", MSGFLAG_INFO);
+	if (parsedcmdline->size() > 1) {
+		mac_addr ma = mac_addr((*parsedcmdline)[0].word.c_str());
+
+		if (ma.error) {
+			snprintf(errstr, 1024, "String dissection, got invalid MAC address");
+			_MSG(errstr, MSGFLAG_ERROR);
+			return -1;
+		}
+
+		if (req) {
+			string_nets.insert(ma, 1);
+			_MSG("String dissection turned on for " + ma.Mac2String(), MSGFLAG_INFO);
+		} else {
+			string_nets.erase(ma);
+			_MSG("String dissection turned off for " + ma.Mac2String(), MSGFLAG_INFO);
+		}
+
+	} else {
+		if (req) {
+			_MSG("String dissection from data frames enabled", MSGFLAG_INFO);
+			dissect_all_strings = 1;
+		} else {
+			_MSG("String dissection from data frames disabled", MSGFLAG_INFO);
+			dissect_all_strings = 0;
+		}
+	}
 
 	dissect_strings = req;
 	

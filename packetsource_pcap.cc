@@ -44,8 +44,10 @@ typedef unsigned long u64;
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/ioctl.h>
+extern "C" {
 #include <net/bpf.h>
 #include <pcap-bpf.h>
+}
 #endif
 
 #if defined(SYS_OPENBSD) || defined(SYS_NETBSD)

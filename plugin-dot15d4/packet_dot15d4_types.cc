@@ -27,6 +27,7 @@
 const char *dot15d4_type_str[] = {
 	"802.15.4 Beacon",
 	"802.15.4 Data",
+	"802.15.4 Ack",
 	"802.15.4 Command"
 };
 
@@ -40,5 +41,16 @@ const char *dot15d4_cmd_subtype_str[] = {
 	"802.15.4 Cmd Beacon Request",
 	"802.15.4 Cmd Coordinator Realign",
 	"802.15.4 Cmd GTS Request"
+};
+
+const char *dot15d4_crypt_type_str[] = {
+	"No encryption",
+	"No encryption, 32-bit MIC",
+	"No encryption, 64-bit MIC",
+	"No encryption, 128-bit MIC",
+	"Encrypted",
+	"Encrypted, 32-bit MIC",
+	"Encrypted, 64-bit MIC",
+	"Encrypted, 128-bit MIC"
 };
 

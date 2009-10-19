@@ -240,7 +240,7 @@ int Dumpfile_Tuntap::OpenTuntap() {
 		ipc_packet *ipc =
 			(ipc_packet *) malloc(sizeof(ipc_packet) +
 								  sizeof(ipc_dft_open));
-		ipc_dft_open *dfto = new ipc_dft_open;
+		ipc_dft_open *dfto = (ipc_dft_open *) ipc->data;
 
 		ipc->data_len = sizeof(ipc_dft_open);
 		ipc->ipc_ack = 0;

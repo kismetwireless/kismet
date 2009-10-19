@@ -30,6 +30,8 @@ extern int pack_comp_dot15d4;
 static int debugno = 0;
 
 int kis_dot15d4_dissector(CHAINCALL_PARMS) {
+	int offset = 0;
+
 	dot15d4_packinfo *pi = NULL;
 
 	if (in_pack->error)
@@ -64,6 +66,7 @@ int kis_dot15d4_dissector(CHAINCALL_PARMS) {
 	pi->sourceaddr_mode = DOT154_FH_SRCADDRMODE(fh);
 	pi->destaddr_mode = DOT154_FH_DESTADDRMODE(fh);
 	pi->version = DOT154_FH_FRAMEVERSION(fh);
+	pi->intrapan = DOT154_FH_INTRAPAN(fh);
 
 #if 0
 	printf("Packet %d FH: %4.04x\n", debugno, fh);
@@ -73,23 +76,98 @@ int kis_dot15d4_dissector(CHAINCALL_PARMS) {
 	printf("  Frame Version : %u\n", DOT154_FH_FRAMEVERSION(fh));
 #endif
 
-	uint8_t seqno;
-	uint16_t pan, addr1, addr2;
+	pi->seqno = chunk->data[2];
 
-	seqno = chunk->data[2];
+	offset = 3;
+	
+	if (pi->type == d15d4_type_beacon) {
+		if (chunk->length < offset + 2) {
+			delete pi;
+			in_pack->error = 1;
+			return 0;
+		}
 
-	pan = kis_letoh16(*((uint16_t *) &(chunk->data[3])));
-	addr1 = kis_letoh16(*((uint16_t *) &(chunk->data[5])));
+		memcpy(&(pi->source_pan), &(chunk->data[offset]), 2);
+		offset += 2;
 
-	if (DOT154_FH_FRAMETYPE(fh) == 0x01)
-		addr2 = kis_letoh16(*((uint16_t *) &(chunk->data[7])));
-	else
-		addr2 = 0xB00F;
+		if (pi->sourceaddr_mode == DOT154_FH_ADDR_LONG) {
+			if (chunk->length < offset + 8) {
+				delete pi;
+				in_pack->error = 1;
+				return 0;
+			}
 
-	printf("       Sequence : %hu\n", seqno);
-	printf("            PAN : %x\n", pan);
-	printf("          Addr1 : %x\n", addr1);
-	printf("          Addr2 : %x\n", addr2);
+			memcpy(&(pi->source_addr), &(chunk->data[offset]), 8);
+			offset += 8;
+		} else {
+			if (chunk->length < offset + 2) {
+				delete pi;
+				in_pack->error = 1;
+				return 0;
+			}
+
+			memcpy(&(pi->source_addr), &(chunk->data[offset]), 2);
+			offset += 2;
+		}
+	}
+
+	if (pi->type == d15d4_type_data ||
+		pi->type == d15d4_type_command) {
+
+		if (chunk->length < offset + 2) {
+			delete pi;
+			in_pack->error = 1;
+			return 0;
+		}
+
+		memcpy(&(pi->dest_pan), &(chunk->data[offset]), 2);
+		offset += 2;
+
+		if (pi->destaddr_mode == DOT154_FH_ADDR_LONG) {
+			if (chunk->length < offset + 8) {
+				delete pi;
+				in_pack->error = 1;
+				return 0;
+			}
+
+			memcpy(&(pi->dest_addr), &(chunk->data[offset]), 8);
+			offset += 8;
+		} else {
+			if (chunk->length < offset + 2) {
+				delete pi;
+				in_pack->error = 1;
+				return 0;
+			}
+
+			memcpy(&(pi->dest_addr), &(chunk->data[offset]), 2);
+			offset += 2;
+		}
+
+		if (pi->intrapan == 0) {
+			memcpy(&(pi->source_pan), &(chunk->data[offset]), 2);
+			offset += 2;
+		}
+
+		if (pi->sourceaddr_mode == DOT154_FH_ADDR_LONG) {
+			if (chunk->length < offset + 8) {
+				delete pi;
+				in_pack->error = 1;
+				return 0;
+			}
+
+			memcpy(&(pi->source_addr), &(chunk->data[offset]), 8);
+			offset += 8;
+		} else {
+			if (chunk->length < offset + 2) {
+				delete pi;
+				in_pack->error = 1;
+				return 0;
+			}
+
+			memcpy(&(pi->source_addr), &(chunk->data[offset]), 2);
+			offset += 2;
+		}
+	}
 
 	return 1;
 }

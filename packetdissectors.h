@@ -154,6 +154,8 @@ protected:
 
 	FilterCore *string_filter;
 	int dissect_strings;
+	int dissect_all_strings;
+	macmap<int> string_nets;
 
 	int listwepkey_cmdid;
 	int addwepkey_cmdid;

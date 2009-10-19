@@ -58,6 +58,7 @@
 #include <netracker.h>
 #include <packetdissectors.h>
 #include <alertracker.h>
+#include <dumpfile_pcap.h>
 
 #include "packetsource_raven.h"
 #include "packet_dot15d4.h"
@@ -84,6 +85,11 @@ int dot15d4_register(GlobalRegistry *in_globalreg) {
 
 	pack_comp_dot15d4 =
 		globalreg->packetchain->RegisterPacketComponent("DOT15D4FRAME");
+
+	// dumpfile that inherits from the global one
+	Dumpfile_Pcap *dot15d4dump = 
+		new Dumpfile_Pcap(globalreg, "pcap15d4", KDLT_IEEE802_15_4,
+						  globalreg->pcapdump, NULL, NULL);
 
 	return 1;
 }

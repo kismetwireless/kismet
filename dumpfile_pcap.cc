@@ -42,7 +42,8 @@ Dumpfile_Pcap::Dumpfile_Pcap(GlobalRegistry *in_globalreg) : Dumpfile(in_globalr
 	parent = NULL;
 	type = "pcapdump";
 
-	dlt = 0;
+	// Default to dot11
+	dlt = DLT_IEEE802_11;
 
 	cbfilter = NULL;
 	cbaux = NULL;
@@ -62,10 +63,16 @@ Dumpfile_Pcap::Dumpfile_Pcap(GlobalRegistry *in_globalreg, string in_type,
 	cbfilter = in_filter;
 	cbaux = in_aux;
 
+	// Use whatever DLT we got
+	dlt = in_dlt;
+
 	Startup_Dumpfile();
 }
 
 void Dumpfile_Pcap::Startup_Dumpfile() {
+	// Default DLT to the basic type
+	int fdlt = dlt;
+
 	dumpfile = NULL;
 	dumper = NULL;
 
@@ -77,39 +84,27 @@ void Dumpfile_Pcap::Startup_Dumpfile() {
 	// Process a resume request
 	dumpformat = dump_unknown;
 
-	// continue processing if we're not resuming
 	if (globalreg->kismet_config->FetchOpt(type + "format") == "ppi") {
 #ifndef HAVE_PPI
 		_MSG("Cannot log in PPI format, the libpcap available when Kismet was "
-			 "compiled did not support PPI, defaulting to 802.11 format.",
+			 "compiled did not support PPI, defaulting to basic packet format.",
 			 MSGFLAG_ERROR);
-		dlt = DLT_IEEE802_11;
 #else
 		_MSG("Pcap log in PPI format", MSGFLAG_INFO);
 		dumpformat = dump_ppi;
-		dlt = DLT_PPI;
+		// Set us to PPI
+		fdlt = DLT_PPI;
 #endif
-	} else if (dlt == 0) {
-		if (globalreg->kismet_config->FetchOpt(type + "format") == "80211") {
-			_MSG("Pcap log in 80211 format", MSGFLAG_INFO);
-			dumpformat = dump_dlt;
-			dlt = DLT_IEEE802_11;
-		} else {
-			_MSG("Pcap log defaulting to 80211 format", MSGFLAG_INFO);
-			dumpformat = dump_dlt;
-			dlt = DLT_IEEE802_11;
-		}
 	} else {
 		_MSG("Pcap logging for type " + type, MSGFLAG_INFO);
 	}
 
 	// Find the file name
-	if ((fname = ProcessConfigOpt(type)) == "" || 
-		globalreg->fatal_condition) {
+	if ((fname = ProcessConfigOpt(type)) == "" || globalreg->fatal_condition) {
 		return;
 	}
 
-	dumpfile = pcap_open_dead(dlt, MAX_PACKET_LEN);
+	dumpfile = pcap_open_dead(fdlt, MAX_PACKET_LEN);
 	if (dumpfile == NULL) {
 		_MSG("Failed to open pcap dump file '" + fname + "': " +
 			 string(strerror(errno)), MSGFLAG_FATAL);
@@ -199,6 +194,7 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 	kis_ieee80211_packinfo *packinfo =
 		(kis_ieee80211_packinfo *) in_pack->fetch(_PCM(PACK_COMP_80211));
 
+	// Grab the generic mangled frame
 	kis_datachunk *chunk = 
 		(kis_datachunk *) in_pack->fetch(_PCM(PACK_COMP_MANGLEFRAME));
 
@@ -213,10 +209,15 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 	kis_fcs_bytes *fcsdata =
 		(kis_fcs_bytes *) in_pack->fetch(_PCM(PACK_COMP_FCSBYTES));
 
-	if (chunk == NULL) {
+	if (cbfilter != NULL) {
+		// If we have a filter, grab the data using that
+		chunk = (*cbfilter)(globalreg, in_pack, cbaux);
+	} else if (chunk == NULL) {
+		// Look for the 802.11 frame
 		if ((chunk = 
 			 (kis_datachunk *) in_pack->fetch(_PCM(PACK_COMP_80211FRAME))) == NULL) {
 
+			// Look for any link frame, we'll check the DLT soon
 			chunk = 
 				(kis_datachunk *) in_pack->fetch(_PCM(PACK_COMP_LINKFRAME));
 		}
@@ -224,6 +225,11 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 
 	if (chunk != NULL && (chunk->length < 0 || chunk->length > MAX_PACKET_LEN)) {
 		_MSG("Weird frame in pcap logger with the wrong size...", MSGFLAG_ERROR);
+		return 0;
+	}
+
+	// Make sure we have the right DLT for simple matching conditions
+	if (cbfilter == NULL && chunk->dlt != dlt) {
 		return 0;
 	}
 
@@ -307,8 +313,8 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 		ppi_ph->pph_flags = 0;
 		ppi_ph->pph_len = kis_htole16(ppi_len);
 
-		// Hardcode 80211 DLT for now
-		ppi_ph->pph_dlt = kis_htole32(105);
+		// Use the DLT in the PPI internal
+		ppi_ph->pph_dlt = kis_htole32(dlt);
 
 		if (radioinfo != NULL) {
 			ppi_80211_common *ppi_common;
