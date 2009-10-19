@@ -37,15 +37,37 @@ Dumpfile_Pcap::Dumpfile_Pcap() {
 }
 
 Dumpfile_Pcap::Dumpfile_Pcap(GlobalRegistry *in_globalreg) : Dumpfile(in_globalreg) {
-	char errstr[STATUS_MAX] = "";
 	globalreg = in_globalreg;
 
-	dumpfile = NULL;
-	dumper = NULL;
-
+	parent = NULL;
 	type = "pcapdump";
 
-	int dlt = DLT_IEEE802_11;
+	dlt = 0;
+
+	cbfilter = NULL;
+	cbaux = NULL;
+
+	Startup_Dumpfile();
+}
+
+Dumpfile_Pcap::Dumpfile_Pcap(GlobalRegistry *in_globalreg, string in_type,
+							 int in_dlt, Dumpfile_Pcap *in_parent,
+							 dumpfile_pcap_filter_cb in_filter, void *in_aux) :
+		Dumpfile(in_globalreg) {
+
+	globalreg = in_globalreg;
+	type = in_type;
+	parent = in_parent;
+
+	cbfilter = in_filter;
+	cbaux = in_aux;
+
+	Startup_Dumpfile();
+}
+
+void Dumpfile_Pcap::Startup_Dumpfile() {
+	dumpfile = NULL;
+	dumper = NULL;
 
 	if (globalreg->sourcetracker == NULL) {
 		fprintf(stderr, "FATAL OOPS:  Sourcetracker missing before Dumpfile_Pcap\n");
@@ -56,7 +78,7 @@ Dumpfile_Pcap::Dumpfile_Pcap(GlobalRegistry *in_globalreg) : Dumpfile(in_globalr
 	dumpformat = dump_unknown;
 
 	// continue processing if we're not resuming
-	if (globalreg->kismet_config->FetchOpt("pcapdumpformat") == "ppi") {
+	if (globalreg->kismet_config->FetchOpt(type + "format") == "ppi") {
 #ifndef HAVE_PPI
 		_MSG("Cannot log in PPI format, the libpcap available when Kismet was "
 			 "compiled did not support PPI, defaulting to 802.11 format.",
@@ -67,36 +89,38 @@ Dumpfile_Pcap::Dumpfile_Pcap(GlobalRegistry *in_globalreg) : Dumpfile(in_globalr
 		dumpformat = dump_ppi;
 		dlt = DLT_PPI;
 #endif
-	} else if (globalreg->kismet_config->FetchOpt("pcapdumpformat") == "80211") {
-		_MSG("Pcap log in 80211 format", MSGFLAG_INFO);
-		dumpformat = dump_80211;
-		dlt = DLT_IEEE802_11;
+	} else if (dlt == 0) {
+		if (globalreg->kismet_config->FetchOpt(type + "format") == "80211") {
+			_MSG("Pcap log in 80211 format", MSGFLAG_INFO);
+			dumpformat = dump_dlt;
+			dlt = DLT_IEEE802_11;
+		} else {
+			_MSG("Pcap log defaulting to 80211 format", MSGFLAG_INFO);
+			dumpformat = dump_dlt;
+			dlt = DLT_IEEE802_11;
+		}
 	} else {
-		_MSG("Pcap log defaulting to 80211 format", MSGFLAG_INFO);
-		dumpformat = dump_80211;
-		dlt = DLT_IEEE802_11;
+		_MSG("Pcap logging for type " + type, MSGFLAG_INFO);
 	}
 
 	// Find the file name
-	if ((fname = ProcessConfigOpt("pcapdump")) == "" || 
+	if ((fname = ProcessConfigOpt(type)) == "" || 
 		globalreg->fatal_condition) {
 		return;
 	}
 
 	dumpfile = pcap_open_dead(dlt, MAX_PACKET_LEN);
 	if (dumpfile == NULL) {
-		snprintf(errstr, STATUS_MAX, "Failed to open pcap dump file '%s': %s",
-				 fname.c_str(), strerror(errno));
-		_MSG(errstr, MSGFLAG_FATAL);
+		_MSG("Failed to open pcap dump file '" + fname + "': " +
+			 string(strerror(errno)), MSGFLAG_FATAL);
 		globalreg->fatal_condition = 1;
 		return;
 	}
 
 	dumper = pcap_dump_open(dumpfile, fname.c_str());
 	if (dumper == NULL) {
-		snprintf(errstr, STATUS_MAX, "Failed to open pcap dump file '%s': %s",
-				 fname.c_str(), strerror(errno));
-		_MSG(errstr, MSGFLAG_FATAL);
+		_MSG("Failed to open pcap dump file '" + fname + "': " +
+			 string(strerror(errno)), MSGFLAG_FATAL);
 		globalreg->fatal_condition = 1;
 		return;
 	}
@@ -258,6 +282,14 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 		for (unsigned int p = 0; p < ppi_cb_vec.size(); p++) {
 			ppi_len += (*(ppi_cb_vec[p].cb))(globalreg, 1, in_pack, NULL, 0,
 											 ppi_cb_vec[p].aux);
+		}
+
+		// If we have a parent, call them
+		if (parent != NULL) {
+			for (unsigned int p = 0; p < parent->ppi_cb_vec.size(); p++) {
+				ppi_len += (*(parent->ppi_cb_vec[p].cb))(globalreg, 1, in_pack, NULL, 0,
+														 parent->ppi_cb_vec[p].aux);
+			}
 		}
 
 		if (dump_len == 0 && ppi_len == 0)
