@@ -108,6 +108,7 @@ public:
 		source_pan = 0;
 		dest_pan = 0;
 		intrapan = 0;
+		crypt = 0;
 
 		uint8_t *data;
 		int data_len;
@@ -126,8 +127,10 @@ public:
 	unsigned int source_pan, dest_pan;
 
 	// 2 or 8 bytes depending
-	long unsigned int source_addr;
-	long unsigned int dest_addr;
+	uint64_t source_addr;
+	uint64_t dest_addr;
+
+	unsigned int crypt;
 
 };
 

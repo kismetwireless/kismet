@@ -169,6 +169,8 @@ int kis_dot15d4_dissector(CHAINCALL_PARMS) {
 		}
 	}
 
+	in_pack->insert(pack_comp_dot15d4, pi);
+
 	return 1;
 }
 

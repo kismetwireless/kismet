@@ -250,8 +250,7 @@ void CatchShutdown(int sig) {
 }
 
 void CatchWinch(int sig) {
-	if (globalregistry->panel_interface != NULL) 
-		globalregistry->panel_interface->ResizeInterface();
+	globalregistry->winch = true;
 }
 
 int Usage(char *argv) {
@@ -384,6 +383,12 @@ int main(int argc, char *argv[], char *envp[]) {
 						 strerror(errno));
 				CatchShutdown(-1);
 			}
+		}
+
+		if (globalregistry->winch) {
+			globalregistry->winch = false;
+			if (globalregistry->panel_interface != NULL) 
+				globalregistry->panel_interface->ResizeInterface();
 		}
 
 		globalregistry->timetracker->Tick();

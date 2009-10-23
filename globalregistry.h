@@ -140,6 +140,9 @@ public:
 	// Are we in "spindown" mode, where we're giving components a little time
 	// to clean up their business with pollables and shut down
 	int spindown;
+
+	// Did we receive a SIGWINCH that hasn't been dealt with yet?
+	bool winch;
     
     MessageBus *messagebus;
 	Plugintracker *plugintracker;
@@ -227,6 +230,8 @@ public:
     GlobalRegistry() { 
         fatal_condition = 0;
 		spindown = 0;
+
+		winch = false;
 
 		argc = 0;
 		argv = NULL;

@@ -18,6 +18,8 @@ to do what you want.  What it CAN do, currently:
 * Drive the AVR RAVEN
 * Read pcap files
 * Print debug info about packets
+* Log to PCAP file
+* Do basic 802.15.4 decoding
 
 1.  What is Kismet-Dot15d4
 
@@ -33,8 +35,8 @@ to do what you want.  What it CAN do, currently:
     protocol.
 
     Kismet-Dot15d4 defines the decoders, loggers, and UI controls for
-    802.15.4 networks in a common fashion, and supports reading IEEE802.15.4
-    pcap files.
+    802.15.4 networks in a common fashion, and supports reading and writing
+    IEEE802.15.4 pcap files.
 
 2.  Caveats
 
@@ -89,4 +91,7 @@ to do what you want.  What it CAN do, currently:
     USB device ID specified with the 'usbdev' source option.  The definition
     of the usb device ID depends on the operating system, in Linux it is a
     number incremented for each device and shown in 'lsusb' and 'dmesg'
+
+    To enable pcap logging, the logfile must be turned on by adding
+    'pcap15d4' to the logtypes= line of the kismet.conf.
 
