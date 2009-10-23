@@ -346,15 +346,29 @@ int Plugintracker::ScanDirectory(DIR *in_dir, string in_path) {
 
 // Catch plugin failures so we can alert the user
 string global_plugin_load;
-void PluginSignalHandler(int sig) {
+void PluginServerSignalHandler(int sig) {
 	fprintf(stderr, "\n\n"
-			"FATAL: Kismet_Server crashed while loading a plugin...\n"
+			"FATAL: Kismet (server) crashed while loading a plugin...\n"
 			"Plugin loading: %s\n\n"
 			"This is either a bug in the plugin, or the plugin needs to be recompiled\n"
 			"to match the version of Kismet you are using (especially if you are using\n"
 			"development versions of Kismet or have recently upgraded.\n\n"
-			"If the plugin is automatically loaded, edit ~/.kismet/kismet_ui.conf and\n"
-			"remove the plugin_autoload line.\n\n", global_plugin_load.c_str());
+			"Remove the plugin or start Kismet with plugins disabled (--no-plugins)\n\n",
+			global_plugin_load.c_str());
+	exit(1);
+}
+
+void PluginClientSignalHandler(int sig) {
+	fprintf(stderr, "\n\n"
+			"FATAL: Kismet (UI) crashed while loading a plugin...\n"
+			"Plugin loading: %s\n\n"
+			"This is either a bug in the plugin, or the plugin needs to be recompiled\n"
+			"to match the version of Kismet you are using (especially if you are using\n"
+			"development versions of Kismet or have recently upgraded.\n\n"
+			"If the plugin is being automatically loaded, edit \n"
+			"~/.kismet/kismet_ui.conf and remove the plugin_autoload line\n"
+			"to stop Kismet from loading it.\n\n", 
+			global_plugin_load.c_str());
 	exit(1);
 }
 
@@ -364,7 +378,13 @@ int Plugintracker::ActivatePlugins() {
 		// Try to DLOPEN anything that isn't open
 		if (plugin_vec[x]->dlfileptr == NULL) {
 			global_plugin_load = plugin_vec[x]->filename;
-			signal(SIGSEGV, PluginSignalHandler);
+			// Key off kisnetserver to figure out if we're server or client,
+			// client will never have this
+			if (globalreg->kisnetserver) 
+				signal(SIGSEGV, PluginServerSignalHandler);
+			else
+				signal(SIGSEGV, PluginClientSignalHandler);
+
 
 			if ((plugin_vec[x]->dlfileptr = 
 				 dlopen(plugin_vec[x]->filename.c_str(), RTLD_LAZY)) == NULL) {
