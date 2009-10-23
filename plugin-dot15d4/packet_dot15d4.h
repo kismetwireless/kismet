@@ -109,6 +109,7 @@ public:
 		dest_pan = 0;
 		intrapan = 0;
 		crypt = 0;
+		channel = 0;
 
 		uint8_t *data;
 		int data_len;
@@ -131,6 +132,8 @@ public:
 	uint64_t dest_addr;
 
 	unsigned int crypt;
+
+	int channel;
 
 };
 

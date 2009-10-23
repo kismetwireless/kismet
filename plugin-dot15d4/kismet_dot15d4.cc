@@ -62,6 +62,7 @@
 
 #include "packetsource_raven.h"
 #include "packet_dot15d4.h"
+#include "tracker_dot15d4.h"
 
 GlobalRegistry *globalreg = NULL;
 
@@ -90,6 +91,9 @@ int dot15d4_register(GlobalRegistry *in_globalreg) {
 	Dumpfile_Pcap *dot15d4dump = 
 		new Dumpfile_Pcap(globalreg, "pcap15d4", KDLT_IEEE802_15_4,
 						  globalreg->pcapdump, NULL, NULL);
+
+	// Tracker
+	Tracker_Dot15d4 *track15d4 = new Tracker_Dot15d4(globalreg);
 
 	return 1;
 }

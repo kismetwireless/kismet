@@ -38,10 +38,37 @@ Tracker_Dot15d4::Tracker_Dot15d4(GlobalRegistry *in_globalreg) {
 }
 
 int Tracker_Dot15d4::chain_handler(kis_packet *in_pack) {
-	dot15d4_packinfo *d154 = (dot15d4_packinfo *) in_pack->fetch(pack_comp_dot15d4);
+	dot15d4_packinfo *d15d4 = (dot15d4_packinfo *) in_pack->fetch(pack_comp_dot15d4);
 
-	if (d154 == NULL)
+	if (d15d4 == NULL)
 		return 0;
 
+	dot15d4_network_id netid(d15d4);
+	dot15d4_network *net = NULL;
+
+	map<dot15d4_network_id, dot15d4_network *>::iterator titr = tracked_devs.find(netid);
+
+	if (titr == tracked_devs.end()) {
+		net = new dot15d4_network();
+		net->first_time = globalreg->timestamp.tv_sec;
+		net->netid = netid;
+
+		tracked_devs[netid] = net;
+	} else {
+		net = titr->second;
+	}
+
+	net->last_time = globalreg->timestamp.tv_sec;
+	net->num_packets++;
+
+	if (d15d4->type == d15d4_type_beacon) {
+		net->num_beacons++;
+	} else if (d15d4->type == d15d4_type_data) {
+		net->num_data++;
+	} else if (d15d4->type == d15d4_type_command) {
+		net->num_cmd++;
+	}
+
+	return 1;
 }
 

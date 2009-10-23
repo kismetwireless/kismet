@@ -24,42 +24,58 @@
 #include "globalregistry.h"
 #include "packet_dot15d4.h"
 
-// There isn't a whole lot to track and src/dst/pan are going to conflict
-// a lot so we're just tracking them as a communication between two devices
-class dot154_network {
+// Since we don't have a mac address we have to identify by other attributes
+class dot15d4_network_id {
 public:
-	dot154_network() {
+	dot15d4_network_id() {
 		source_addr = dest_addr = 0;
 		source_pan = dest_pan = 0;
 		crypt = 0;
-
-		first_time = 0;
-		last_time = 0;
-
-		num_packets = 0;
+		channel = 0;
 	}
 
-	inline dot154_network operator= (const dot154_network& in) {
+	// Build a network for searching out of a packet
+	dot15d4_network_id(dot15d4_packinfo *pack) {
+		dot15d4_network_id();
+
+		source_addr = pack->source_addr;
+		dest_addr = pack->dest_addr;
+		source_pan = pack->source_pan;
+		dest_pan = pack->dest_pan;
+		crypt = pack->crypt;
+		channel = pack->channel;
+	}
+
+	inline dot15d4_network_id operator= (const dot15d4_network_id& in) {
 		source_addr = in.source_addr;
 		dest_addr = in.dest_addr;
 		source_pan = in.source_pan;
 		dest_pan = in.dest_pan;
 		crypt = in.crypt;
 
-		first_time = in.first_time;
-		last_time = in.last_time;
-
-		num_packets = in.num_packets;
-
 		return *this;
 	}
 
-	inline bool operator== (const dot154_network& op) const {
+	inline bool operator== (const dot15d4_network_id& op) const {
 		if (source_addr == op.source_addr &&
 			dest_addr == op.dest_addr &&
 			source_pan == op.source_pan &&
 			dest_pan == op.dest_pan &&
-			crypt == op.crypt) {
+			crypt == op.crypt &&
+			channel == op.channel) {
+			return 1;
+		}
+
+		return 0;
+	}
+
+	inline bool operator< (const dot15d4_network_id& op) const {
+		if (source_addr < op.source_addr &&
+			dest_addr < op.dest_addr &&
+			source_pan < op.source_pan &&
+			dest_pan < op.dest_pan &&
+			crypt < op.crypt &&
+			channel < op.channel) {
 			return 1;
 		}
 
@@ -70,10 +86,26 @@ public:
 	unsigned int source_pan;
 	unsigned int dest_pan;
 	unsigned int crypt;
+	unsigned int channel;
+};
+
+class dot15d4_network {
+public:
+	dot15d4_network() {
+		first_time = 0;
+		last_time = 0;
+
+		num_packets = 0;
+		num_beacons = 0;
+		num_data = 0;
+		num_cmd = 0;
+	}
+
+	dot15d4_network_id netid;
+
+	int num_packets, num_beacons, num_data, num_cmd;
 
 	time_t first_time, last_time;
-
-	int num_packets;
 };
 
 class Tracker_Dot15d4 {
@@ -86,7 +118,7 @@ public:
 protected:
 	GlobalRegistry *globalreg;
 
-	map<dot154_network *, int> tracked_devs;
+	map<dot15d4_network_id, dot15d4_network *> tracked_devs;
 };
 
 #endif
