@@ -99,6 +99,8 @@ public:
 		num_beacons = 0;
 		num_data = 0;
 		num_cmd = 0;
+
+		dirty = 0;
 	}
 
 	dot15d4_network_id netid;
@@ -106,6 +108,8 @@ public:
 	int num_packets, num_beacons, num_data, num_cmd;
 
 	time_t first_time, last_time;
+
+	int dirty;
 };
 
 class Tracker_Dot15d4 {
@@ -115,10 +119,16 @@ public:
 
 	int chain_handler(kis_packet *in_pack);
 
+	void BlitDevices(int in_fd);
+
 protected:
 	GlobalRegistry *globalreg;
 
 	map<dot15d4_network_id, dot15d4_network *> tracked_devs;
+
+	int D15D4DEV_ref;
+	int timer_ref;
 };
 
 #endif
+
