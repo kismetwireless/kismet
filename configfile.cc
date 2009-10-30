@@ -224,9 +224,9 @@ string ConfigFile::ExpandLogPath(string path, string logname, string type,
 
             logtemplate.insert(nl, pw->pw_dir);
         } else if (op == 'p') {
-			string pfx;
+			string pfx = globalreg->log_prefix;
 
-			if (globalreg->log_prefix == "") 
+			if (pfx == "") 
 				pfx = FetchOpt("logprefix");
 
 			if (pfx != "")
