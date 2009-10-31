@@ -74,11 +74,13 @@ int SerialClient::ReadBytes() {
     int ret;
 
     if ((ret = read(cli_fd, recv_bytes, 1024)) < 0) {
-        snprintf(errstr, 1024, "Serial client fd %d read() error: %s", 
-                 cli_fd, strerror(errno));
-        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
-		KillConnection();
-        return -1;
+		if (errno != EINTR && errno != EAGAIN) {
+			snprintf(errstr, 1024, "Serial client fd %d read() error: %s", 
+					 cli_fd, strerror(errno));
+			globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
+			KillConnection();
+			return -1;
+		}
     }
 
     if (ret == 0) {
