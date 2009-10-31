@@ -223,6 +223,10 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 		}
 	}
 
+	// If after all of that we still didn't find a packet
+	if (chunk == NULL)
+		return 0;
+
 	if (chunk != NULL && (chunk->length < 0 || chunk->length > MAX_PACKET_LEN)) {
 		_MSG("Weird frame in pcap logger with the wrong size...", MSGFLAG_ERROR);
 		return 0;

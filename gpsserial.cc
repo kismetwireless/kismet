@@ -39,6 +39,8 @@ GPSSerial::GPSSerial(GlobalRegistry *in_globalreg) : GPSCore(in_globalreg) {
 	sercli = new SerialClient(globalreg);
 	netclient = sercli;
 
+	last_disconnect = 0;
+
     // Attach it to ourselves and opposite
     RegisterNetworkClient(sercli);
     sercli->RegisterClientFramework(this);
