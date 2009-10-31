@@ -81,6 +81,8 @@ int SerialClient::ReadBytes() {
 			KillConnection();
 			return -1;
 		}
+
+		return 0;
     }
 
     if (ret == 0) {

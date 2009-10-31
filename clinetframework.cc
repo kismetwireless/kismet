@@ -129,6 +129,8 @@ int NetworkClient::FlushRings() {
                 globalreg->fatal_condition = 1;
                 return -1;
             }
+
+			continue;
         }
 
         if (Poll(rset, wset) < 0 || globalreg->fatal_condition != 0)
