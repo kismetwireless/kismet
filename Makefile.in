@@ -8,7 +8,7 @@ PCAPLNK 	= @pcaplnk@
 
 THREADL 	= @threadlib@
 
-HOME		= @srcdir@
+BLDHOME		= @srcdir@
 CXX			= @CXX@
 CC			= @CC@
 LD			= @CXX@
@@ -288,6 +288,18 @@ $(DEPEND): Makefile
 	@$(CXX) $(CFLAGS) -MM \
 		`echo $(PSO) $(DRONEO) $(NCO) | \
 		sed -e "s/\.o/\.cc/g" | sed -e "s/\.mo/\.m/g"` >> $(DEPEND)
+
+plugins: Makefile
+	( for x in plugin-*/; do echo "PLUGIN: $$x"; pushd "$$x"; make; popd; done )
+
+plugins-clean: Makefile
+	( for x in plugin-*/; do echo "PLUGIN-CLEAN: $$x"; pushd "$$x"; make clean; popd; done )
+
+plugins-install: Makefile
+	( for x in plugin-*/; do echo "PLUGIN-INSTALL: $$x"; pushd "$$x"; make install; popd; done )
+
+plugins-userinstall: Makefile
+	( for x in plugin-*/; do echo "PLUGIN-USERINSTALL: $$x"; pushd "$$x"; make userinstall; popd; done )
 
 include $(DEPEND)
 

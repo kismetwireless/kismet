@@ -102,7 +102,8 @@ int kisspec_register(GlobalRegistry *in_globalreg) {
 	stc = new SpectoolsClient(globalreg);
 	pcm_specdata = stc->FetchPacketCompId();
 	globalreg->pcapdump->RegisterPPICallback(kisspec_dump, NULL);
-	
+
+	return 1;
 }
 
 int kisspec_unregister(GlobalRegistry *in_globalreg) {
