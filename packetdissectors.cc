@@ -1926,6 +1926,117 @@ int KisBuiltinDissector::basicdata_dissector(kis_packet *in_pack) {
 	return 1;
 }
 
+kis_datachunk *KisBuiltinDissector::DecryptWEP(kis_ieee80211_packinfo *in_packinfo,
+											   kis_datachunk *in_chunk,
+											   unsigned char *in_key, int in_key_len,
+											   unsigned char *in_id) {
+	kis_datachunk *manglechunk = NULL;
+
+	if (in_packinfo->corrupt)
+		return NULL;
+
+	// If we don't have a dot11 frame, throw it away
+	if (in_chunk->dlt != KDLT_IEEE802_11)
+		return NULL;
+
+	// Bail on size check
+	if (in_chunk->length < in_packinfo->header_offset ||
+		in_chunk->length - in_packinfo->header_offset <= 8)
+		return NULL;
+
+	// Password field
+	char pwd[WEPKEY_MAX + 3];
+	memset(pwd, 0, WEPKEY_MAX + 3);
+
+	// Extract the IV and add it to the key
+	pwd[0] = in_chunk->data[in_packinfo->header_offset + 0] & 0xFF;
+	pwd[1] = in_chunk->data[in_packinfo->header_offset + 1] & 0xFF;
+	pwd[2] = in_chunk->data[in_packinfo->header_offset + 2] & 0xFF;
+
+	// Add the supplied password to the key
+	memcpy(pwd + 3, in_key, WEPKEY_MAX);
+	int pwdlen = 3 + in_key_len;
+
+	// Prepare the keyblock for the rc4 cipher
+	unsigned char keyblock[256];
+	memcpy(keyblock, in_id, 256);
+	int kba = 0, kbb = 0;
+	for (kba = 0; kba < 256; kba++) {
+		kbb = (kbb + keyblock[kba] + pwd[kba % pwdlen]) & 0xFF;
+		unsigned char oldkey = keyblock[kba];
+		keyblock[kba] = keyblock[kbb];
+		keyblock[kbb] = oldkey;
+	}
+
+	// Allocate the mangled chunk -- 4 byte IV/Key# gone, 4 byte ICV gone
+	manglechunk = new kis_datachunk;
+	manglechunk->length = in_chunk->length - 8;
+	manglechunk->data = new uint8_t[manglechunk->length];
+
+	// Copy the packet headers to the new chunk
+	memcpy(manglechunk->data, in_chunk->data, in_packinfo->header_offset);
+
+	// Decrypt the data payload and check the CRC
+	kba = kbb = 0;
+	uint32_t crc = ~0;
+	uint8_t c_crc[4];
+	uint8_t icv[4];
+
+	// Copy the ICV into the CRC buffer for checking
+	memcpy(icv, &(in_chunk->data[in_chunk->length - 4]), 4);
+
+	for (unsigned int dpos = in_packinfo->header_offset + 4; 
+		 dpos < in_chunk->length - 4; dpos++) {
+		kba = (kba + 1) & 0xFF;
+		kbb = (kbb + keyblock[kba]) & 0xFF;
+
+		unsigned char oldkey = keyblock[kba];
+		keyblock[kba] = keyblock[kbb];
+		keyblock[kbb] = oldkey;
+
+		// Decode the packet into the mangle chunk
+		manglechunk->data[dpos - 4] = 
+			in_chunk->data[dpos] ^ keyblock[(keyblock[kba] + keyblock[kbb]) & 0xFF];
+
+		crc = wep_crc32_table[(crc ^ manglechunk->data[dpos - 4]) & 0xFF] ^ (crc >> 8);
+	}
+
+	// Check the CRC
+	crc = ~crc;
+	c_crc[0] = crc;
+	c_crc[1] = crc >> 8;
+	c_crc[2] = crc >> 16;
+	c_crc[3] = crc >> 24;
+
+	int crcfailure = 0;
+	for (unsigned int crcpos = 0; crcpos < 4; crcpos++) {
+		kba = (kba + 1) & 0xFF;
+		kbb = (kbb + keyblock[kba]) & 0xFF;
+
+		unsigned char oldkey = keyblock[kba];
+		keyblock[kba] = keyblock[kbb];
+		keyblock[kbb] = oldkey;
+
+		if ((c_crc[crcpos] ^ keyblock[(keyblock[kba] + 
+									   keyblock[kbb]) & 0xFF]) != icv[crcpos]) {
+			crcfailure = 1;
+			break;
+		}
+	}
+
+	// If the CRC check failed, delete the moddata
+	if (crcfailure) {
+		delete manglechunk;
+		return NULL;
+	}
+
+	// Remove the privacy flag in the mangled data
+    frame_control *fc = (frame_control *) manglechunk->data;
+	fc->wep = 0;
+
+	return manglechunk;
+}
+
 int KisBuiltinDissector::wep_data_decryptor(kis_packet *in_pack) {
 	kis_datachunk *manglechunk = NULL;
 
@@ -1963,113 +2074,21 @@ int KisBuiltinDissector::wep_data_decryptor(kis_packet *in_pack) {
 	if (chunk->dlt != KDLT_IEEE802_11)
 		return 0;
 
-	// Bail on size check
-	if (chunk->length < packinfo->header_offset ||
-		chunk->length - packinfo->header_offset <= 8)
-		return 0;
-
 	// Bail if we can't find a key match
 	macmap<wep_key_info *>::iterator bwmitr = wepkeys.find(packinfo->bssid_mac);
 	if (bwmitr == wepkeys.end())
 		return 0;
 
-	// fprintf(stderr, "debug - got wep key for net %s\n", packinfo->bssid_mac.Mac2String().c_str());
+	manglechunk = DecryptWEP(packinfo, chunk, (*bwmitr->second)->key,
+							 (*bwmitr->second)->len, wep_identity);
 
-	// Password field
-	char pwd[WEPKEY_MAX + 3];
-	memset(pwd, 0, WEPKEY_MAX + 3);
-
-	// Extract the IV and add it to the key
-	pwd[0] = chunk->data[packinfo->header_offset + 0] & 0xFF;
-	pwd[1] = chunk->data[packinfo->header_offset + 1] & 0xFF;
-	pwd[2] = chunk->data[packinfo->header_offset + 2] & 0xFF;
-
-	// Add the supplied password to the key
-	memcpy(pwd + 3, (*bwmitr->second)->key, WEPKEY_MAX);
-	int pwdlen = 3 + (*bwmitr->second)->len;
-
-	// Prepare the keyblock for the rc4 cipher
-	unsigned char keyblock[256];
-	memcpy(keyblock, wep_identity, 256);
-	int kba = 0, kbb = 0;
-	for (kba = 0; kba < 256; kba++) {
-		kbb = (kbb + keyblock[kba] + pwd[kba % pwdlen]) & 0xFF;
-		unsigned char oldkey = keyblock[kba];
-		keyblock[kba] = keyblock[kbb];
-		keyblock[kbb] = oldkey;
-	}
-
-	// Allocate the mangled chunk -- 4 byte IV/Key# gone, 4 byte ICV gone
-	manglechunk = new kis_datachunk;
-	manglechunk->length = chunk->length - 8;
-	manglechunk->data = new uint8_t[manglechunk->length];
-
-	// Copy the packet headers to the new chunk
-	memcpy(manglechunk->data, chunk->data, packinfo->header_offset);
-
-	// Decrypt the data payload and check the CRC
-	kba = kbb = 0;
-	uint32_t crc = ~0;
-	uint8_t c_crc[4];
-	uint8_t icv[4];
-
-	// Copy the ICV into the CRC buffer for checking
-	memcpy(icv, &(chunk->data[chunk->length - 4]), 4);
-
-	for (unsigned int dpos = packinfo->header_offset + 4; 
-		 dpos < chunk->length - 4; dpos++) {
-		kba = (kba + 1) & 0xFF;
-		kbb = (kbb + keyblock[kba]) & 0xFF;
-
-		unsigned char oldkey = keyblock[kba];
-		keyblock[kba] = keyblock[kbb];
-		keyblock[kbb] = oldkey;
-
-		// Decode the packet into the mangle chunk
-		manglechunk->data[dpos - 4] = 
-			chunk->data[dpos] ^ keyblock[(keyblock[kba] + keyblock[kbb]) & 0xFF];
-
-		crc = wep_crc32_table[(crc ^ manglechunk->data[dpos - 4]) & 0xFF] ^ (crc >> 8);
-	}
-
-	// Check the CRC
-	crc = ~crc;
-	c_crc[0] = crc;
-	c_crc[1] = crc >> 8;
-	c_crc[2] = crc >> 16;
-	c_crc[3] = crc >> 24;
-
-	int crcfailure = 0;
-	for (unsigned int crcpos = 0; crcpos < 4; crcpos++) {
-		kba = (kba + 1) & 0xFF;
-		kbb = (kbb + keyblock[kba]) & 0xFF;
-
-		unsigned char oldkey = keyblock[kba];
-		keyblock[kba] = keyblock[kbb];
-		keyblock[kbb] = oldkey;
-
-		if ((c_crc[crcpos] ^ keyblock[(keyblock[kba] + keyblock[kbb]) & 0xFF]) != icv[crcpos]) {
-			crcfailure = 1;
-			break;
-		}
-	}
-
-	// If the CRC check failed, delete the moddata
-	if (crcfailure) {
-		// fprintf(stderr, "debug - crc failure %s\n", packinfo->bssid_mac.Mac2String().c_str());
+	if (manglechunk == NULL) {
 		(*bwmitr->second)->failed++;
-		delete manglechunk;
 		return 0;
 	}
 
 	(*bwmitr->second)->decrypted++;
 	packinfo->decrypted = 1;
-
-	// Remove the privacy flag in the mangled data
-    frame_control *fc = (frame_control *) manglechunk->data;
-	fc->wep = 0;
-
-	// fprintf(stderr, "debug - inserting mangle chunk %p\n", manglechunk);
 
 	in_pack->insert(_PCM(PACK_COMP_MANGLEFRAME), manglechunk);
 	return 1;

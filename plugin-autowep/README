@@ -1,0 +1,59 @@
+Kismet-AutoWEP
+
+1.  What is Kismet-AutoWEP
+2.  Compiling
+3.  Installing
+4.  Using
+
+1.  What is Kismet-AutoWEP
+
+    Many nationwide carriers have started turning on WEP by default in
+    routers, however in addition to the normal flaws in WEP, the key is
+    easily derived from the BSSID and SSID
+    
+    http://xkyle.com/2009/03/03/verizon-fios-wireless-key-calculator/
+
+    explains the algorithm used for one popular carrier.
+
+2.  Compiling
+
+	Compiling the Kismet-AutoWEP plugin requires the Kismet source be installed
+	and configured.
+
+	By default, Kismet-AutoWEP expects the Kismet source to be in
+	/usr/src/kismet; this can be overridden by setting the
+	KIS_SRC_DIR environment variable:
+
+		cd plugin-autowep/
+		KIS_SRC_DIR=/home/foo/src/kismet make
+
+3.  Installing
+
+	Kismet plugins may be installed system-wide in the plugins directory (by
+	default, /usr/local/lib/kismet/) or in the users home directory
+	(~/.kismet/plugins)
+
+    The default installation path can be overridden with the KIS_DEST_DIR
+    variable if you have not installed Kismet in the default location and
+    wish to install the plugin in the system-wide plugins directory:
+        cd plugin-autowep
+        KIS_DEST_DIR=/usr make install
+
+    Plugins can be installed in the current users home directory with:
+        cd plugin-autowep
+        make userinstall
+
+4.  Using
+
+    Kismet-AutoWEP is essentially automatic.  Once loaded, it will look for
+    APs which match the OUIs of vendors using default algorithmic WEP keys, 
+    compare the SSIDs to make sure they match the pattern, and derive the 
+    WEP key.
+
+    A derived key will be added as a network tag (WEP-AUTO-LIKELY), and will
+    be transformed into a permanent tag (WEP-AUTO) once a data packet is
+    received and the keys can be confirmed.
+
+    An alert is raised (of class "AUTOWEP") when an access point is found to
+    be vulnerable.
+

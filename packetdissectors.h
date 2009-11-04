@@ -129,6 +129,13 @@ public:
 
 	void BlitKeys(int in_fd);
 
+	// Transform an encrypted chunk into a plaintext chunk, abstracted for use
+	// by other components
+	static kis_datachunk *DecryptWEP(kis_ieee80211_packinfo *in_packinfo,
+									 kis_datachunk *in_chunk, 
+									 unsigned char *in_key, int in_key_len,
+									 unsigned char *in_id);
+
 protected:
 	int cmd_listwepkeys(CLIENT_PARMS);
 	int cmd_addwepkey(CLIENT_PARMS);
