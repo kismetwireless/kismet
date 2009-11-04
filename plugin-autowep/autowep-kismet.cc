@@ -144,7 +144,14 @@ int kisautowep_packet_hook(CHAINCALL_PARMS) {
 			return 0;
 
 		kis_datachunk *chunk = 
-			(kis_datachunk *) in_pack->fetch(_PCM(PACK_COMP_MANGLEFRAME));
+			(kis_datachunk *) in_pack->fetch(_PCM(PACK_COMP_80211FRAME));
+
+		if (chunk == NULL) {
+			if ((chunk = 
+				 (kis_datachunk *) in_pack->fetch(_PCM(PACK_COMP_LINKFRAME))) == NULL) {
+				return 0;
+			}
+		}
 
 		if (chunk == NULL) {
 			return 0;
@@ -167,6 +174,11 @@ int kisautowep_packet_hook(CHAINCALL_PARMS) {
 
 		nmi->second->key_confirmed = 1;
 
+		snprintf(keystr, 11, "%02X%02X%02X%02X%02X",
+				 nmi->second->key[0], nmi->second->key[1],
+				 nmi->second->key[2], nmi->second->key[3],
+				 nmi->second->key[4]);
+
 		string al = "Auto-WEP confirmed default WEP key " + string(keystr) + 
 			" for network '" + MungeToPrintable(ssid->ssid) + "' BSSID " + 
 			net->bssid.Mac2String();
@@ -180,11 +192,6 @@ int kisautowep_packet_hook(CHAINCALL_PARMS) {
 										   net->bssid,
 										   net->bssid,
 										   0, al);
-
-		snprintf(keystr, 11, "%02X%02X%02X%02X%02X",
-				 nmi->second->key[0], nmi->second->key[1],
-				 nmi->second->key[2], nmi->second->key[3],
-				 nmi->second->key[4]);
 
 		globalreg->netracker->SetNetworkTag(net->bssid, "WEP-AUTO-LIKELY", "", 1);
 
