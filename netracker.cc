@@ -1923,6 +1923,20 @@ void Netracker::ClearNetworkTag(mac_addr in_net, string in_tag) {
 	}
 }
 
+string Netracker::GetNetworkTag(mac_addr in_net, string in_tag) {
+	track_iter ti;
+	map<string, string>::iterator si;
+
+	if ((ti = tracked_map.find(in_net)) == tracked_map.end())
+		return "";
+
+	if ((si = ti->second->arb_tag_map.find(in_tag)) != ti->second->arb_tag_map.end()) {
+		return si->second;
+	}
+
+	return "";
+}
+
 void Netracker::SetClientTag(mac_addr in_net, mac_addr in_cli, string in_tag, 
 							 string in_data, int in_persistent) {
 	tracked_network *net;
@@ -2013,6 +2027,24 @@ void Netracker::ClearClientTag(mac_addr in_net, mac_addr in_cli, string in_tag) 
 
 		}
 	}
+}
+
+string Netracker::GetClientTag(mac_addr in_net, mac_addr in_cli, string in_tag) {
+	track_iter ti;
+	client_iter ci;
+	map<string, string>::iterator si;
+
+	if ((ti = tracked_map.find(in_net)) == tracked_map.end())
+		return "";
+
+	if ((ci = ti->second->client_map.find(in_cli)) == ti->second->client_map.end())
+		return "";
+
+	if ((si = ci->second->arb_tag_map.find(in_tag)) != ci->second->arb_tag_map.end()) {
+		return si->second;
+	}
+
+	return "";
 }
 
 int Netracker::TimerKick() {

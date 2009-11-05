@@ -833,9 +833,12 @@ public:
 	void SetNetworkTag(mac_addr in_net, string in_tag, string in_data, 
 					   int in_persistent);
 	void ClearNetworkTag(mac_addr in_net, string in_tag);
+	string GetNetworkTag(mac_addr in_net, string in_tag);
+
 	void SetClientTag(mac_addr in_net, mac_addr in_cli, string in_tag,
 					  string in_data, int in_persistent);
 	void ClearClientTag(mac_addr in_net, mac_addr in_cli, string in_tag);
+	string GetClientTag(mac_addr in_net, mac_addr in_cli, string in_tag);
 
 	// Fetch the internal maps.  Touching these is Bad.  Should only be used when
 	// the chain API is insufficient, like logging xml/net ascii

@@ -155,6 +155,34 @@ int kisptw_event_timer(TIMEEVENT_PARMS) {
 	for (map<mac_addr, kisptw_net *>::iterator x = kst->netmap.begin();
 		  x != kst->netmap.end(); ++x) {
 
+		if (globalreg->netracker->GetNetworkTag(x->second->bssid, "WEP-AUTO") != "") {
+			_MSG("Stopping cracking attempts on the WEP key for " +
+				 x->second->bssid.Mac2String() + ": WEP key found via Auto-WEP",
+				 MSGFLAG_INFO);
+			x->second->ptw_solved = 1;
+
+			if (x->second->ptw_clean != NULL) {
+				PTW2_freeattackstate(x->second->ptw_clean);
+				x->second->ptw_clean = NULL;
+			}
+
+			if (x->second->ptw_clean_t != NULL) {
+				PTW2_freeattackstate(x->second->ptw_clean_t);
+				x->second->ptw_clean_t = NULL;
+			}
+
+			if (x->second->ptw_vague != NULL) {
+				PTW2_freeattackstate(x->second->ptw_vague);
+				x->second->ptw_vague = NULL;
+			}
+
+			if (x->second->ptw_vague_t != NULL) {
+				PTW2_freeattackstate(x->second->ptw_vague_t);
+				x->second->ptw_vague_t = NULL;
+			}
+
+		}
+
 		if (x->second->ptw_attempt == 2) {
 			_MSG("Failed to crack WEP key on " + x->second->bssid.Mac2String() + ": "
 				 "Not enough data collected yet", MSGFLAG_INFO);
@@ -388,8 +416,14 @@ int kisptw_datachain_hook(CHAINCALL_PARMS) {
 			pnet->len = 0;
 			kptw->netmap.insert(make_pair(net->bssid, pnet));
 
-			_MSG("Collecting WEP PTW data on " + pnet->bssid.Mac2String(), 
-				 MSGFLAG_INFO);
+			if (globalreg->netracker->GetNetworkTag(net->bssid, "WEP-AUTO") != "") {
+				_MSG("Not collecting WEP PTR data on " + pnet->bssid.Mac2String() + 
+					 " as it looks like an Auto-WEP network", MSGFLAG_INFO);
+				pnet->ptw_solved = 1;
+			} else {
+				_MSG("Collecting WEP PTW data on " + pnet->bssid.Mac2String(), 
+					 MSGFLAG_INFO);
+			}
 		} else {
 			pnet = kptw->netmap.find(net->bssid)->second;
 		}

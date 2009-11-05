@@ -44,7 +44,15 @@ GlobalRegistry *globalreg = NULL;
 
 mac_addr fios_macs[] = {
 	mac_addr("00:18:01:00:00:00/FF:FF:FF:00:00:00"),
-	mac_addr("00:1F:90:00:00:00/FF:FF:FF:00:00:00")
+	mac_addr("00:1F:90:00:00:00/FF:FF:FF:00:00:00"),
+	mac_addr("00:0F:B3:00:00:00/FF:FF:FF:00:00:00"),
+	mac_addr("00:15:05:00:00:00/FF:FF:FF:00:00:00"),
+	mac_addr("00:1B:03:00:00:00/FF:FF:FF:00:00:00"), 
+	mac_addr("00:1E:A7:00:00:00/FF:FF:FF:00:00:00"),
+	mac_addr("00:20:E0:00:00:00/FF:FF:FF:00:00:00"),
+	mac_addr("00:24:7B:00:00:00/FF:FF:FF:00:00:00"),
+	mac_addr("00:26:62:00:00:00/FF:FF:FF:00:00:00"),
+	mac_addr("00:26:B8:00:00:00/FF:FF:FF:00:00:00")
 };
 
 struct kisautowep_net {
@@ -193,7 +201,7 @@ int kisautowep_packet_hook(CHAINCALL_PARMS) {
 										   net->bssid,
 										   0, al);
 
-		globalreg->netracker->SetNetworkTag(net->bssid, "WEP-AUTO-LIKELY", "", 1);
+		globalreg->netracker->ClearNetworkTag(net->bssid, "WEP-AUTO-LIKELY");
 
 		globalreg->netracker->SetNetworkTag(net->bssid, "WEP-AUTO",
 											string(keystr), 1);
