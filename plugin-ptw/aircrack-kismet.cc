@@ -156,7 +156,7 @@ int kisptw_event_timer(TIMEEVENT_PARMS) {
 		  x != kst->netmap.end(); ++x) {
 
 		if (globalreg->netracker->GetNetworkTag(x->second->bssid, "WEP-AUTO") != "") {
-			_MSG("Stopping cracking attempts on the WEP key for " +
+			_MSG("Kismet-PTW stopping cracking attempts on the WEP key for " +
 				 x->second->bssid.Mac2String() + ": WEP key found via Auto-WEP",
 				 MSGFLAG_INFO);
 			x->second->ptw_solved = 1;
@@ -418,7 +418,7 @@ int kisptw_datachain_hook(CHAINCALL_PARMS) {
 			kptw->netmap.insert(make_pair(net->bssid, pnet));
 
 			if (globalreg->netracker->GetNetworkTag(net->bssid, "WEP-AUTO") != "") {
-				_MSG("Not collecting WEP PTR data on " + pnet->bssid.Mac2String() + 
+				_MSG("Not collecting WEP PTW data on " + pnet->bssid.Mac2String() + 
 					 " as it looks like an Auto-WEP network", MSGFLAG_INFO);
 				pnet->ptw_solved = 1;
 			} else {
