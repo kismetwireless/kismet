@@ -629,7 +629,7 @@ int KisNetClient::ParseData() {
 
 					// Something has gone poorly and we've got a token in our req
 					// that isn't in our data
-					if (locfnum >= net_toks.size()) 
+					if (locfnum >= (int) net_toks.size()) 
 						continue;
 
 					// Stack the field derived from the local field number

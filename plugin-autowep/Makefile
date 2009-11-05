@@ -20,7 +20,7 @@ $(PLUGOUT):	$(PLUGOBJS)
 	$(LD) $(LDFLAGS) $(PLUGOBJS) -o $(PLUGOUT) $(LIBS)
 
 install:	$(PLUGOUT)
-	install -D $^ $(prefix)/lib/kismet/$^
+	install -D $^ $(DESTDIR)$(prefix)/lib/kismet/$^
 
 userinstall:	$(PLUGOUT)
 	install -D $(PLUGOUT) ${HOME}/.kismet/plugins/$(PLUGOUT)

@@ -26,8 +26,8 @@ $(SRVOUT):	$(SRVOBJS)
 	$(LD) $(LDFLAGS) $(SRVOBJS) -o $(SRVOUT) $(LIBS)
 
 install:	$(SRVOUT) $(CLIOUT)
-	install -D $(SRVOUT) $(prefix)/lib/kismet/$(SRVOUT)
-	install -D $(CLIOUT) $(prefix)/lib/kismet_client/$(CLIOUT)
+	install -D $(SRVOUT) $(DESTDIR)$(prefix)/lib/kismet/$(SRVOUT)
+	install -D $(CLIOUT) $(DESTDIR)$(prefix)/lib/kismet_client/$(CLIOUT)
 
 userinstall:	$(SRVOUT) $(CLIOUT)
 	install -v -D $(SRVOUT) ${HOME}/.kismet/plugins/$(SRVOUT)
