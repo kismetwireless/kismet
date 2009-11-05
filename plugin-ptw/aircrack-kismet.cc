@@ -181,6 +181,7 @@ int kisptw_event_timer(TIMEEVENT_PARMS) {
 				x->second->ptw_vague_t = NULL;
 			}
 
+			return 0;
 		}
 
 		if (x->second->ptw_attempt == 2) {
