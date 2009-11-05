@@ -359,8 +359,12 @@ int Dumpfile_Nettxt::Flush() {
 			if (ai->first == "" || ai->second == "")
 				continue;
 
-			fprintf(txtfile, "%11.11s : \"%s\"\n", ai->first.c_str(), 
-					ai->second.c_str());
+			if (ai->first.length() <= 11)
+				fprintf(txtfile, "%11.11s : \"%s\"\n", ai->first.c_str(), 
+						ai->second.c_str());
+			else
+				fprintf(txtfile, "%s : \"%s\"\n", ai->first.c_str(), 
+						ai->second.c_str());
 		}
 
 		// Sloppy iteration but it doesn't happen often and alert backlogs shouldn't
@@ -617,8 +621,12 @@ int Dumpfile_Nettxt::Flush() {
 				if (ai->first == "" || ai->second == "")
 					continue;
 
-				fprintf(txtfile, "%12.12s : \"%s\"\n", ai->first.c_str(), 
-						ai->second.c_str());
+				if (ai->first.length() <= 12)
+					fprintf(txtfile, "%12.12s : \"%s\"\n", ai->first.c_str(), 
+							ai->second.c_str());
+				else
+					fprintf(txtfile, "%s : \"%s\"\n", ai->first.c_str(), 
+							ai->second.c_str());
 			}
 		}
 

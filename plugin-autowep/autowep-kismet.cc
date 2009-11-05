@@ -54,13 +54,14 @@ mac_addr fios_macs[] = {
 	mac_addr("00:26:62:00:00:00/FF:FF:FF:00:00:00"),
 	mac_addr("00:26:B8:00:00:00/FF:FF:FF:00:00:00")
 };
+#define num_fios_macs		10
 
 struct kisautowep_net {
 	mac_addr bssid;
 
-	int ssid_valid;
-
-	int key_confirmed;
+	unsigned int ssid_valid;
+	unsigned int key_confirmed;
+	unsigned int key_failed;
 
 	unsigned char key[5];
 };
@@ -78,6 +79,7 @@ kisautowep_net *kisautowep_new() {
 
 	net->ssid_valid = 0;
 	net->key_confirmed = 0;
+	net->key_failed = 0;
 
 	return net;
 }
@@ -128,7 +130,7 @@ int kisautowep_packet_hook(CHAINCALL_PARMS) {
 	int bssid_possible = 0;
 
 	// is it a fios AP?
-	for (unsigned int x = 0; x < sizeof(fios_macs); x++) {
+	for (unsigned int x = 0; x < num_fios_macs; x++) {
 		if (net->bssid == fios_macs[x]) {
 			bssid_possible = 1;
 			break;
@@ -151,6 +153,10 @@ int kisautowep_packet_hook(CHAINCALL_PARMS) {
 		if (nmi->second->key_confirmed)
 			return 0;
 
+		// If we're not a valid network, don't try
+		if (nmi->second->ssid_valid == 0)
+			return 0;
+
 		kis_datachunk *chunk = 
 			(kis_datachunk *) in_pack->fetch(_PCM(PACK_COMP_80211FRAME));
 
@@ -167,25 +173,87 @@ int kisautowep_packet_hook(CHAINCALL_PARMS) {
 
 		kis_datachunk *decrypted;
 
+		snprintf(keystr, 11, "%02X%02X%02X%02X%02X",
+				 nmi->second->key[0], nmi->second->key[1],
+				 nmi->second->key[2], nmi->second->key[3],
+				 nmi->second->key[4]);
+
 		decrypted = 
 			KisBuiltinDissector::DecryptWEP(packinfo, chunk,
 											nmi->second->key, 5,
 											kstate->wep_identity);
 
-		// If we couldn't decrypt, just ignore?  Maybe we need 'negative learn' 
-		// here?
-		if (decrypted == NULL)
+		// If we couldn't decrypt, we failed
+		if (decrypted == NULL) {
+			// Brute force the other keys, but only a few times!  Otherwise we're
+			// doing 10x decrypts on every packet.  We only try the other keys the
+			// first N data packets we see.  This is incase the wired mac used
+			// to derive the key is an actiontec OUI but not the same OUI
+			// as the wireless
+			if (nmi->second->key_failed < 5) {
+				unsigned char modkey[5];
+
+				memcpy(modkey, nmi->second->key, 5);
+
+				for (unsigned int x = 0; x < num_fios_macs; x++) {
+					modkey[0] = fios_macs[x][1];
+					modkey[1] = fios_macs[x][2];
+
+					decrypted = 
+						KisBuiltinDissector::DecryptWEP(packinfo, chunk,
+														modkey, 5,
+														kstate->wep_identity);
+
+					if (decrypted != NULL) {
+						memcpy(nmi->second->key, modkey, 5);
+
+						snprintf(keystr, 11, "%02X%02X%02X%02X%02X",
+								 nmi->second->key[0], nmi->second->key[1],
+								 nmi->second->key[2], nmi->second->key[3],
+								 nmi->second->key[4]);
+
+						_MSG("Auto-WEP found alternate WEP key " + string(keystr) + 
+							 " for network '" + MungeToPrintable(ssid->ssid) + 
+							 "' BSSID " + net->bssid.Mac2String(), MSGFLAG_INFO);
+
+						nmi->second->key_failed = 0;
+
+						globalreg->netracker->ClearNetworkTag(net->bssid, 
+															  "WEP-AUTO-FAIL");
+
+						goto autowep_key_ok;
+					}
+				}
+
+			}
+
+			// First-time-fail ops, set the fail attribute for the key, 
+			// remove the likely attribute
+			if (nmi->second->key_failed == 0) {
+				_MSG("Auto-WEP failed to confirm WEP key " + string(keystr) + 
+					 " for network '" + MungeToPrintable(ssid->ssid) + "' BSSID " + 
+					 net->bssid.Mac2String() + " network may not be using default WEP",
+					 MSGFLAG_INFO);
+
+				globalreg->netracker->ClearNetworkTag(net->bssid, "WEP-AUTO-LIKELY");
+
+				globalreg->netracker->SetNetworkTag(net->bssid, "WEP-AUTO-FAIL",
+													string(keystr), 1);
+			}
+
+			// Increment fail count
+			nmi->second->key_failed++;
+
 			return 0;
+		}
+
+		// I know.  Shut up.
+autowep_key_ok:
 
 		// Otherwise free what we just decrypted
 		free(decrypted);
 
 		nmi->second->key_confirmed = 1;
-
-		snprintf(keystr, 11, "%02X%02X%02X%02X%02X",
-				 nmi->second->key[0], nmi->second->key[1],
-				 nmi->second->key[2], nmi->second->key[3],
-				 nmi->second->key[4]);
 
 		string al = "Auto-WEP confirmed default WEP key " + string(keystr) + 
 			" for network '" + MungeToPrintable(ssid->ssid) + "' BSSID " + 
