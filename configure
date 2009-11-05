@@ -11071,7 +11071,7 @@ sharedatadir=`(
 sharedatadir=${sharedatadir}
 
 
-ac_config_files="$ac_config_files Makefile scripts/kismet conf/kismet.conf"
+ac_config_files="$ac_config_files Makefile Makefile.inc scripts/kismet conf/kismet.conf"
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -11670,6 +11670,7 @@ do
   case $ac_config_target in
     "config.h") CONFIG_HEADERS="$CONFIG_HEADERS config.h" ;;
     "Makefile") CONFIG_FILES="$CONFIG_FILES Makefile" ;;
+    "Makefile.inc") CONFIG_FILES="$CONFIG_FILES Makefile.inc" ;;
     "scripts/kismet") CONFIG_FILES="$CONFIG_FILES scripts/kismet" ;;
     "conf/kismet.conf") CONFIG_FILES="$CONFIG_FILES conf/kismet.conf" ;;
 
