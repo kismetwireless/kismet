@@ -65,11 +65,19 @@ int kisspec_dump(DUMPFILE_PPI_PARMS) {
 	kis_spectrum_data *specdata =
 		(kis_spectrum_data *) in_pack->fetch(pcm_specdata);
 
-	if (specdata == NULL)
-		return 0;
+	if (specdata == NULL) {
+		// Don't reset us to position 0 if data is missing and we've got a
+		// position set to dump do (this means we're logging data, but not
+		// in this packet!)
+		if (dump_pos != 0)
+			return dump_pos;
 
-	if (in_allocate) 
+		return 0;
+	}
+
+	if (in_allocate)  {
 		return sizeof(ppi_spectrum) + specdata->rssi_vec.size();
+	}
 
 	ppi_spectrum *ppi_spec;
 	ppi_spec = (ppi_spectrum *) &(dump_data[dump_pos]);
