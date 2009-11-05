@@ -94,6 +94,8 @@ int kisautowep_packet_hook(CHAINCALL_PARMS) {
 	kisautowep_net *anet = NULL;
 	char keystr[11];
 
+	// printf("debug - autoweb packet hook\n");
+
 	// Pull the dot11 decode
 	kis_ieee80211_packinfo *packinfo = (kis_ieee80211_packinfo *)
 		in_pack->fetch(_PCM(PACK_COMP_80211));
@@ -149,13 +151,31 @@ int kisautowep_packet_hook(CHAINCALL_PARMS) {
 	// look for it in the map
 	map<mac_addr, kisautowep_net *>::iterator nmi;
 	if ((nmi = kstate->netmap.find(net->bssid)) != kstate->netmap.end()) {
-		// If we've confirmed everything, we're done
-		if (nmi->second->key_confirmed)
+		// We don't care about anything but data if we've already seen the network
+		if (packinfo->type != packet_data || packinfo->decrypted) {
+			// printf("debug - not data, type %d\n", packinfo->type);
 			return 0;
+		}
+
+		// printf("debug - data, type %d\n", packinfo->type);
+
+		// If we've confirmed everything, we're done
+		if (nmi->second->key_confirmed)  {
+			// printf("debug - key confirmed, skipping network %s\n", nmi->second->bssid.Mac2String().c_str());
+			return 0;
+		}
 
 		// If we're not a valid network, don't try
-		if (nmi->second->ssid_valid == 0)
+		if (nmi->second->ssid_valid == 0) {
+			// printf("debug - known network %s, skipping, not valid\n", nmi->second->bssid.Mac2String().c_str());
 			return 0;
+		}
+
+		// If we've tried too much, we give up
+		if (nmi->second->key_failed > 5) {
+			// printf("debug - %s failed too much\n", nmi->second->bssid.Mac2String().c_str());
+			return 0;
+		}
 
 		kis_datachunk *chunk = 
 			(kis_datachunk *) in_pack->fetch(_PCM(PACK_COMP_80211FRAME));
@@ -163,6 +183,7 @@ int kisautowep_packet_hook(CHAINCALL_PARMS) {
 		if (chunk == NULL) {
 			if ((chunk = 
 				 (kis_datachunk *) in_pack->fetch(_PCM(PACK_COMP_LINKFRAME))) == NULL) {
+				// printf("debug - %s no data chunks\n", nmi->second->bssid.Mac2String().c_str());
 				return 0;
 			}
 		}
@@ -178,6 +199,14 @@ int kisautowep_packet_hook(CHAINCALL_PARMS) {
 				 nmi->second->key[2], nmi->second->key[3],
 				 nmi->second->key[4]);
 
+		// printf("debug - %s decrypting on %p %d\n", nmi->second->bssid.Mac2String().c_str(), chunk, chunk->length);
+
+#if 0
+		for (unsigned int z = 0; z < 80 && z < chunk->length; z++) {
+			printf("%02x ", chunk->data[z]);
+		}
+		printf("\n");
+#endif
 		decrypted = 
 			KisBuiltinDissector::DecryptWEP(packinfo, chunk,
 											nmi->second->key, 5,
@@ -224,7 +253,6 @@ int kisautowep_packet_hook(CHAINCALL_PARMS) {
 						goto autowep_key_ok;
 					}
 				}
-
 			}
 
 			// First-time-fail ops, set the fail attribute for the key, 
@@ -250,6 +278,8 @@ int kisautowep_packet_hook(CHAINCALL_PARMS) {
 		// I know.  Shut up.
 autowep_key_ok:
 
+		// printf("debug - %s got to key ok\n", nmi->second->bssid.Mac2String().c_str());
+
 		// Otherwise free what we just decrypted
 		free(decrypted);
 
@@ -267,9 +297,10 @@ autowep_key_ok:
 										   net->bssid,
 										   net->bssid,
 										   net->bssid,
-										   0, al);
+										   net->channel, al);
 
 		globalreg->netracker->ClearNetworkTag(net->bssid, "WEP-AUTO-LIKELY");
+		globalreg->netracker->ClearNetworkTag(net->bssid, "WEP-AUTO-FAIL");
 
 		globalreg->netracker->SetNetworkTag(net->bssid, "WEP-AUTO",
 											string(keystr), 1);
@@ -278,6 +309,11 @@ autowep_key_ok:
 
 		return 0;
 	}
+
+	// We can only make new networks on beacons
+	if (packinfo->type != packet_management ||
+		packinfo->subtype != packet_sub_beacon)
+		return 0;
 
 	// We need to make a net
 	anet = kisautowep_new();

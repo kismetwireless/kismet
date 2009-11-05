@@ -1396,12 +1396,16 @@ int KisBuiltinDissector::basicdata_dissector(kis_packet *in_pack) {
 	}
 
 	// If we don't have a dot11 frame, throw it away
-	if (chunk->dlt != KDLT_IEEE802_11)
+	if (chunk->dlt != KDLT_IEEE802_11) {
+		// printf("debug - dissector wrong dlt\n");
 		return 0;
+	}
 
 	// Blow up on no content
-    if (packinfo->header_offset > chunk->length)
+    if (packinfo->header_offset > chunk->length) {
+		// printf("debug - offset > len\n");
         return 0;
+	}
 
 	unsigned int header_offset = packinfo->header_offset;
 
@@ -1418,8 +1422,10 @@ int KisBuiltinDissector::basicdata_dissector(kis_packet *in_pack) {
 	}
 
 	// We can't do anything else if it's encrypted
-	if (packinfo->cryptset != 0 && packinfo->decrypted == 0)
+	if (packinfo->cryptset != 0 && packinfo->decrypted == 0) {
+		// printf("debug - packetdissector crypted packet\n");
 		return 0;
+	}
 
 	datainfo = new kis_data_packinfo;
 
@@ -1970,6 +1976,7 @@ kis_datachunk *KisBuiltinDissector::DecryptWEP(kis_ieee80211_packinfo *in_packin
 
 	// Allocate the mangled chunk -- 4 byte IV/Key# gone, 4 byte ICV gone
 	manglechunk = new kis_datachunk;
+	manglechunk->dlt = in_chunk->dlt;
 	manglechunk->length = in_chunk->length - 8;
 	manglechunk->data = new uint8_t[manglechunk->length];
 
@@ -2088,6 +2095,7 @@ int KisBuiltinDissector::wep_data_decryptor(kis_packet *in_pack) {
 	}
 
 	(*bwmitr->second)->decrypted++;
+	// printf("debug - flagging packet as decrypted\n");
 	packinfo->decrypted = 1;
 
 	in_pack->insert(_PCM(PACK_COMP_MANGLEFRAME), manglechunk);

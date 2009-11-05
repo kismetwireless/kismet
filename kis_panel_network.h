@@ -168,9 +168,10 @@ enum netsort_opts {
 #define kis_netlist_color_normal 	0
 #define kis_netlist_color_crypt 	1
 #define kis_netlist_color_group 	2
-#define kis_netlist_color_factory 	3
+#define kis_netlist_color_decrypt 	3
 #define kis_netlist_color_header 	4
 #define kis_netlist_color_wep 		5
+#define kis_netlist_color_max		6
 
 // Network columns
 enum bssid_columns {
@@ -256,7 +257,7 @@ public:
 	int UpdateSortPrefs();
 
 protected:
-	int color_map[6];
+	int color_map[kis_netlist_color_max];
 	int color_inactive;
 
 	time_t bcol_pref_t, bext_pref_t, sort_pref_t;

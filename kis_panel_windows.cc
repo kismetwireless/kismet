@@ -338,7 +338,7 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	AddColorPref("netlist_wep_color", "Netlist WEP");
 	AddColorPref("netlist_crypt_color", "Netlist Encrypted");
 	AddColorPref("netlist_group_color", "Netlist Group");
-	AddColorPref("netlist_factory_color", "Netlist Factory");
+	AddColorPref("netlist_decrypt_color", "Netlist Decrypted");
 	AddColorPref("clientlist_header_color", "Clientlist Header");
 	AddColorPref("clientlist_normal_color", "Clientlist Unknown");
 	AddColorPref("clientlist_ap_color", "Clientlist AP");

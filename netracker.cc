@@ -2982,6 +2982,12 @@ int Netracker::datatracker_chain_handler(kis_packet *in_pack) {
 		}
 	}
 
+	// Track decryption
+	if (packinfo->decrypted) {
+		net->decrypted++;
+		// printf("debug - decrypted packet, net %s %d\n", net->bssid.Mac2String().c_str(), net->decrypted);
+	}
+
 	// Apply the network-level stuff
 	if (packinfo->source_mac == net->bssid) {
 		// Things that come from the MAC of the AP carry special weight.  

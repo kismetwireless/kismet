@@ -508,7 +508,7 @@ Kis_Netlist::Kis_Netlist(GlobalRegistry *in_globalreg, Kis_Panel *in_panel) :
 
 	probe_autogroup = adhoc_autogroup = data_autogroup = NULL;
 
-	for (int x = 0; x < 5; x++)
+	for (int x = 0; x < kis_netlist_color_max; x++)
 		color_map[x] = 0;
 	color_inactive = 0;
 
@@ -2605,18 +2605,23 @@ void Kis_Netlist::DrawComponent() {
 	parent_panel->InitColorPref("netlist_normal_color", "green,black");
 	parent_panel->ColorFromPref(color_map[kis_netlist_color_normal], 
 								"netlist_normal_color");
+
 	parent_panel->InitColorPref("netlist_wep_color", "red,black");
 	parent_panel->ColorFromPref(color_map[kis_netlist_color_wep], 
 								"netlist_wep_color");
+
 	parent_panel->InitColorPref("netlist_crypt_color", "yellow,black");
 	parent_panel->ColorFromPref(color_map[kis_netlist_color_crypt], 
 								"netlist_crypt_color");
+
 	parent_panel->InitColorPref("netlist_group_color", "blue,black");
 	parent_panel->ColorFromPref(color_map[kis_netlist_color_group], 
 								"netlist_group_color");
-	parent_panel->InitColorPref("netlist_factory_color", "red,black");
-	parent_panel->ColorFromPref(color_map[kis_netlist_color_factory], 
-								"netlist_factory_color");
+
+	parent_panel->InitColorPref("netlist_decrypt_color", "hi-magenta,black");
+	parent_panel->ColorFromPref(color_map[kis_netlist_color_decrypt], 
+								"netlist_decrypt_color");
+
 	parent_panel->InitColorPref("netlist_header_color", "blue,black");
 	parent_panel->ColorFromPref(color_map[kis_netlist_color_header], 
 								"netlist_header_color");
@@ -2817,6 +2822,11 @@ void Kis_Netlist::DrawComponent() {
 				} else if (meta->lastssid->cryptset != 0) {
 					color = kis_netlist_color_crypt;
 				}
+			}
+
+			// Override color with decrypted color
+			if (meta->decrypted) {
+				color = kis_netlist_color_decrypt;
 			}
 
 			ng->SetColor(color);
