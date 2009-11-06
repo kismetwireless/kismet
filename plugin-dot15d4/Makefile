@@ -22,7 +22,7 @@ $(CLIOUT):	$(CLIOBJS)
 	$(LD) $(PLUGINLDFLAGS) $(CLIOBJS) -o $(CLIOUT) $(LIBS)
 
 $(SRVOUT):	$(SRVOBJS)
-	$(LD) $(LDFLAGS) $(SRVOBJS) -o $(SRVOUT) $(LIBS)
+	$(LD) $(PLUGINLDFLAGS) $(SRVOBJS) -o $(SRVOUT) $(LIBS)
 
 install:	$(SRVOUT) $(CLIOUT)
 	mkdir -p $(DESTDIR)$(prefix)/lib/kismet/
