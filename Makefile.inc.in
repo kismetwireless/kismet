@@ -38,3 +38,5 @@ SHARE 		= ${DESTDIR}@datadir@/kismet/
 MAN 		= ${DESTDIR}@mandir@
 WAV 		= ${SHARE}/wav/
 
+PLUGINLDFLAGS = @PLUGINLDFLAGS@
+

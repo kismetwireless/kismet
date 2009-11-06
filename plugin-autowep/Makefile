@@ -7,7 +7,8 @@ include $(KIS_SRC_DIR)/Makefile.inc
 BLDHOME	= .
 top_builddir = $(BLDHOME)
 
-LDFLAGS	+= -shared -rdynamic 
+PLUGINLDFLAGS ?= $(LDFLAGS)
+PLUGINLDFLAGS += -shared -rdynamic
 LIBS	+= -lstdc++ 
 CFLAGS 	+= -I/usr/include -I$(KIS_INC_DIR) -g -fPIC
 
@@ -17,7 +18,7 @@ PLUGOUT = autowep-kismet.so
 all:	$(PLUGOUT)
 
 $(PLUGOUT):	$(PLUGOBJS)
-	$(LD) $(LDFLAGS) $(PLUGOBJS) -o $(PLUGOUT) $(LIBS)
+	$(LD) $(PLUGINLDFLAGS) $(PLUGOBJS) -o $(PLUGOUT) $(LIBS)
 
 install:	$(PLUGOUT)
 	install -D $^ $(DESTDIR)$(prefix)/lib/kismet/$^

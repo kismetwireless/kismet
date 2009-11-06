@@ -7,7 +7,8 @@ include $(KIS_SRC_DIR)/Makefile.inc
 BLDHOME	= .
 top_builddir = $(BLDHOME)
 
-LDFLAGS	+= -shared -rdynamic 
+PLUGINLDFLAGS ?= $(LDFLAGS)
+PLUGINLDFLAGS += -shared -rdynamic
 LIBS	+= -lstdc++ -lusb -lpthread
 CFLAGS 	+= -I/usr/include -I$(KIS_INC_DIR) -g -fPIC
 
@@ -18,7 +19,7 @@ SRVOUT	= dot15dot4.so
 all:	$(SRVOUT) $(CLIOUT)
 
 $(CLIOUT):	$(CLIOBJS)
-	$(LD) $(LDFLAGS) $(CLIOBJS) -o $(CLIOUT) $(LIBS)
+	$(LD) $(PLUGINLDFLAGS) $(CLIOBJS) -o $(CLIOUT) $(LIBS)
 
 $(SRVOUT):	$(SRVOBJS)
 	$(LD) $(LDFLAGS) $(SRVOBJS) -o $(SRVOUT) $(LIBS)

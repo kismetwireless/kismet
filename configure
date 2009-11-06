@@ -660,6 +660,7 @@ LIBOBJS
 EGREP
 GREP
 objc_link
+PLUGINLDFLAGS
 CPP
 SET_MAKE
 INSTALL_DATA
@@ -3669,6 +3670,7 @@ $as_echo "HP ANSI C compiler - added -Ae +O2" >&6; }
         #
         CFLAGS="-no-cpp-precomp $CFLAGS"
 		LDFLAGS="$LDFLAGS -framework Foundation -framework CoreFoundation -F/System/Library/PrivateFrameworks -framework Apple80211 -framework IOKit"
+		PLUGINLDFLAGS="-bundle -flat_namespace -undefined suppress"
 		objc_link='$(OBJC_CONTROL_O)'
         { $as_echo "$as_me:$LINENO: result: Apple GCC - added Apple80211 frameworks and no-precomp" >&5
 $as_echo "Apple GCC - added Apple80211 frameworks and no-precomp" >&6; }
@@ -3821,6 +3823,7 @@ $as_echo "none needed" >&6; }
 fi
 
 # Substitute in the objc linkages if we need them
+
 
 
 if test "$cygwin" = "yes"; then
