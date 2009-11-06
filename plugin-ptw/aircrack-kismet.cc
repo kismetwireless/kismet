@@ -78,6 +78,9 @@ struct kisptw_net {
 
 	// Dupes for our thread
 	pthread_t crackthread;
+	// Use a mutex for trylock to tell if we're done, if we can lock it,
+	// we're done
+	pthread_mutex_t crackdone;
 	int threaded;
 	PTW2_attackstate *ptw_clean_t;
 	PTW2_attackstate *ptw_vague_t;
@@ -146,6 +149,7 @@ void *kisptw_crack(void *arg) {
 		pnet->ptw_attempt = 2;
 	}
 
+	pthread_mutex_unlock(&(pnet->crackdone));
 	pthread_exit((void *) 0);
 }
 
@@ -243,8 +247,14 @@ int kisptw_event_timer(TIMEEVENT_PARMS) {
 		if (x->second->threaded) {
 			void *ret;
 
+#if 0
 			if (pthread_tryjoin_np(x->second->crackthread, &ret) == 0) {
 				x->second->threaded = 0;
+			}
+#endif
+			if (pthread_mutex_trylock(&(x->second->crackdone)) != 0) {
+				x->second->threaded = 0;
+				pthread_mutex_unlock(&(x->second->crackdone));
 			}
 		}
 
@@ -319,6 +329,9 @@ int kisptw_event_timer(TIMEEVENT_PARMS) {
 				 IntToString(x->second->num_ptw_vivs_t + x->second->num_ptw_ivs_t) + 
 				 " IVs", MSGFLAG_INFO);
 
+			// Only use trylock, this is bad but we should never get here if we've
+			// got a running thread, but I don't want us to block if something gets funny
+			pthread_mutex_trylock(&(x->second->crackdone));
 			pthread_create(&(x->second->crackthread), NULL, kisptw_crack, x->second);
 		}
 	}
@@ -415,6 +428,7 @@ int kisptw_datachain_hook(CHAINCALL_PARMS) {
 			pnet->last_packet = time(0);
 			memset(pnet->wepkey, 0, sizeof(pnet->wepkey));
 			pnet->len = 0;
+			pthread_mutex_init(&(pnet->crackdone), NULL);
 			kptw->netmap.insert(make_pair(net->bssid, pnet));
 
 			if (globalreg->netracker->GetNetworkTag(net->bssid, "WEP-AUTO") != "") {

@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <pthread.h>
 #include "aircrack-ptw2-lib.h"
 
 #define SUCCESS  0
