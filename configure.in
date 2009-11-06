@@ -1021,9 +1021,18 @@ if test "$pcap" != "yes" -a "$linux" = "yes"; then
 	echo "library, however it now expects libpcap to be provided by the system."
 	echo "Kismet on Linux without LibPcap cannot capture data locally and will "
 	echo "almost certainly NOT BE WHAT YOU WANT."
-	echo "Your distribution should provide packages for libpcap (usually "
-	echo "called libpcap-devel), otherwise it can be downloaded from "
-	echo "http://tcpdump.org"
+	echo "You need both the libpcap libraries and development headers (called "
+	echo "libpcap-dev or libpcap-devel by most distributions)."
+fi
+
+if test "$havenetlink" != "yes" -a "$linux" = "yes"; then
+	echo "*** WARNING ***"
+	echo "LibNL/nl80211 support was not found.  Kismet uses libnl to control "
+	echo "mac80211 based wireless interfaces, which comprise the vast majority of"
+	echo "interfaces on modern Linux systems.  Unless you plan to use only "
+	echo "older drivers, you need libnl."
+	echo "You need both the libnl libraries and development headers (called "
+	echo "libnl-dev or libnl-devel by most distributions)."
 fi
 
 if test "`echo $host_os | grep linux`" = ""; then
