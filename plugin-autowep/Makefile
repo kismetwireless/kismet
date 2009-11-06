@@ -21,10 +21,12 @@ $(PLUGOUT):	$(PLUGOBJS)
 	$(LD) $(PLUGINLDFLAGS) $(PLUGOBJS) -o $(PLUGOUT) $(LIBS)
 
 install:	$(PLUGOUT)
-	install -D $^ $(DESTDIR)$(prefix)/lib/kismet/$^
+	mkdir -p $(DESTDIR)$(prefix)/lib/kismet/
+	install -o $(INSTUSR) -g $(INSTGRP) -m 644 $^ $(DESTDIR)$(prefix)/lib/kismet/$^
 
 userinstall:	$(PLUGOUT)
-	install -D $(PLUGOUT) ${HOME}/.kismet/plugins/$(PLUGOUT)
+	mkdir -p ${HOME}/.kismet/plugins/
+	install $(PLUGOUT) ${HOME}/.kismet/plugins/$(PLUGOUT)
 
 clean:
 	@-rm -f *.o
