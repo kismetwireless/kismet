@@ -64,6 +64,8 @@ struct kisautowep_net {
 	unsigned int key_failed;
 
 	unsigned char key[5];
+
+	Netracker::tracked_network *net;
 };
 
 struct kisautowep_state {
@@ -80,12 +82,11 @@ kisautowep_net *kisautowep_new() {
 	net->ssid_valid = 0;
 	net->key_confirmed = 0;
 	net->key_failed = 0;
+	net->net = NULL;
 
 	return net;
 }
 
-// One hook, at post-data, catches all packets, we sort out data 
-//
 // Sort all the lowest-effort stuff to the top of the pile, exclude
 // packets based on wrong phy, wrong OUI, missing tracking data, before
 // doing local map searches
@@ -122,12 +123,23 @@ int kisautowep_packet_hook(CHAINCALL_PARMS) {
 		return 0;
 	}
 
+	// We can only make new networks on beacons
+	if (packinfo->type != packet_management ||
+		packinfo->subtype != packet_sub_beacon)
+		return 0;
+
 	net = netpackinfo->netref;
 
 	// Has to have exactly 1 ssid, since no default ap is going to be doing
 	// anything clever
 	if (net->ssid_map.size() < 1)
 		return 0;
+
+	// If we already know about it, we only care about data frames
+	map<mac_addr, kisautowep_net *>::iterator nmi;
+	if ((nmi = kstate->netmap.find(net->bssid)) != kstate->netmap.end()) {
+		return 0;
+	}
 
 	int bssid_possible = 0;
 
@@ -147,178 +159,11 @@ int kisautowep_packet_hook(CHAINCALL_PARMS) {
 	Netracker::adv_ssid_data *ssid =
 		((net->ssid_map.begin())++)->second;
 
-	// Finally we're to the point that we might start building the WEP key, so
-	// look for it in the map
-	map<mac_addr, kisautowep_net *>::iterator nmi;
-	if ((nmi = kstate->netmap.find(net->bssid)) != kstate->netmap.end()) {
-		// We don't care about anything but data if we've already seen the network
-		if (packinfo->type != packet_data || packinfo->decrypted) {
-			// printf("debug - not data, type %d\n", packinfo->type);
-			return 0;
-		}
-
-		// printf("debug - data, type %d\n", packinfo->type);
-
-		// If we've confirmed everything, we're done
-		if (nmi->second->key_confirmed)  {
-			// printf("debug - key confirmed, skipping network %s\n", nmi->second->bssid.Mac2String().c_str());
-			return 0;
-		}
-
-		// If we're not a valid network, don't try
-		if (nmi->second->ssid_valid == 0) {
-			// printf("debug - known network %s, skipping, not valid\n", nmi->second->bssid.Mac2String().c_str());
-			return 0;
-		}
-
-		// If we've tried too much, we give up
-		if (nmi->second->key_failed > 5) {
-			// printf("debug - %s failed too much\n", nmi->second->bssid.Mac2String().c_str());
-			return 0;
-		}
-
-		kis_datachunk *chunk = 
-			(kis_datachunk *) in_pack->fetch(_PCM(PACK_COMP_80211FRAME));
-
-		if (chunk == NULL) {
-			if ((chunk = 
-				 (kis_datachunk *) in_pack->fetch(_PCM(PACK_COMP_LINKFRAME))) == NULL) {
-				// printf("debug - %s no data chunks\n", nmi->second->bssid.Mac2String().c_str());
-				return 0;
-			}
-		}
-
-		if (chunk == NULL) {
-			return 0;
-		}
-
-		kis_datachunk *decrypted;
-
-		snprintf(keystr, 11, "%02X%02X%02X%02X%02X",
-				 nmi->second->key[0], nmi->second->key[1],
-				 nmi->second->key[2], nmi->second->key[3],
-				 nmi->second->key[4]);
-
-		// printf("debug - %s decrypting on %p %d\n", nmi->second->bssid.Mac2String().c_str(), chunk, chunk->length);
-
-#if 0
-		for (unsigned int z = 0; z < 80 && z < chunk->length; z++) {
-			printf("%02x ", chunk->data[z]);
-		}
-		printf("\n");
-#endif
-		decrypted = 
-			KisBuiltinDissector::DecryptWEP(packinfo, chunk,
-											nmi->second->key, 5,
-											kstate->wep_identity);
-
-		// If we couldn't decrypt, we failed
-		if (decrypted == NULL) {
-			// Brute force the other keys, but only a few times!  Otherwise we're
-			// doing 10x decrypts on every packet.  We only try the other keys the
-			// first N data packets we see.  This is incase the wired mac used
-			// to derive the key is an actiontec OUI but not the same OUI
-			// as the wireless
-			if (nmi->second->key_failed < 5) {
-				unsigned char modkey[5];
-
-				memcpy(modkey, nmi->second->key, 5);
-
-				for (unsigned int x = 0; x < num_fios_macs; x++) {
-					modkey[0] = fios_macs[x][1];
-					modkey[1] = fios_macs[x][2];
-
-					decrypted = 
-						KisBuiltinDissector::DecryptWEP(packinfo, chunk,
-														modkey, 5,
-														kstate->wep_identity);
-
-					if (decrypted != NULL) {
-						memcpy(nmi->second->key, modkey, 5);
-
-						snprintf(keystr, 11, "%02X%02X%02X%02X%02X",
-								 nmi->second->key[0], nmi->second->key[1],
-								 nmi->second->key[2], nmi->second->key[3],
-								 nmi->second->key[4]);
-
-						_MSG("Auto-WEP found alternate WEP key " + string(keystr) + 
-							 " for network '" + MungeToPrintable(ssid->ssid) + 
-							 "' BSSID " + net->bssid.Mac2String(), MSGFLAG_INFO);
-
-						nmi->second->key_failed = 0;
-
-						globalreg->netracker->ClearNetworkTag(net->bssid, 
-															  "WEP-AUTO-FAIL");
-
-						goto autowep_key_ok;
-					}
-				}
-			}
-
-			// First-time-fail ops, set the fail attribute for the key, 
-			// remove the likely attribute
-			if (nmi->second->key_failed == 0) {
-				_MSG("Auto-WEP failed to confirm WEP key " + string(keystr) + 
-					 " for network '" + MungeToPrintable(ssid->ssid) + "' BSSID " + 
-					 net->bssid.Mac2String() + " network may not be using default WEP",
-					 MSGFLAG_INFO);
-
-				globalreg->netracker->ClearNetworkTag(net->bssid, "WEP-AUTO-LIKELY");
-
-				globalreg->netracker->SetNetworkTag(net->bssid, "WEP-AUTO-FAIL",
-													string(keystr), 1);
-			}
-
-			// Increment fail count
-			nmi->second->key_failed++;
-
-			return 0;
-		}
-
-		// I know.  Shut up.
-autowep_key_ok:
-
-		// printf("debug - %s got to key ok\n", nmi->second->bssid.Mac2String().c_str());
-
-		// Otherwise free what we just decrypted
-		free(decrypted);
-
-		nmi->second->key_confirmed = 1;
-
-		string al = "Auto-WEP confirmed default WEP key " + string(keystr) + 
-			" for network '" + MungeToPrintable(ssid->ssid) + "' BSSID " + 
-			net->bssid.Mac2String();
-
-		_MSG(al, MSGFLAG_INFO);
-
-		// Raise the alert
-		globalreg->alertracker->RaiseAlert(kstate->alert_ref, NULL,
-										   net->bssid,
-										   net->bssid,
-										   net->bssid,
-										   net->bssid,
-										   net->channel, al);
-
-		globalreg->netracker->ClearNetworkTag(net->bssid, "WEP-AUTO-LIKELY");
-		globalreg->netracker->ClearNetworkTag(net->bssid, "WEP-AUTO-FAIL");
-
-		globalreg->netracker->SetNetworkTag(net->bssid, "WEP-AUTO",
-											string(keystr), 1);
-
-		globalreg->builtindissector->AddWepKey(net->bssid, nmi->second->key, 5, 1);
-
-		return 0;
-	}
-
-	// We can only make new networks on beacons
-	if (packinfo->type != packet_management ||
-		packinfo->subtype != packet_sub_beacon)
-		return 0;
-
 	// We need to make a net
 	anet = kisautowep_new();
 
 	anet->bssid = net->bssid;
+	anet->net = net;
 
 	// Remember it
 	kstate->netmap[net->bssid] = anet;
@@ -383,8 +228,185 @@ autowep_key_ok:
 	return 0;
 }
 
+// Handle data frames before classification
+int kisautowep_data_hook(CHAINCALL_PARMS) {
+	kisautowep_state *kstate = (kisautowep_state *) auxdata;
+	kisautowep_net *anet = NULL;
+	char keystr[11];
+
+	// Pull the dot11 decode
+	kis_ieee80211_packinfo *packinfo = (kis_ieee80211_packinfo *)
+		in_pack->fetch(_PCM(PACK_COMP_80211));
+
+	if (packinfo == NULL) {
+		return 0;
+	}
+
+	// Not an 802.11 frame type we known how to track, we'll just skip
+	// it, too
+	if (packinfo->corrupt || packinfo->type == packet_noise ||
+		packinfo->type == packet_unknown || 
+		packinfo->subtype == packet_sub_unknown) {
+		return 0;
+	}
+
+	// We don't care about anything but data if we've already seen the network
+	if (packinfo->type != packet_data || packinfo->decrypted) {
+		return 0;
+	}
+
+	map<mac_addr, kisautowep_net *>::iterator nmi;
+
+	// Don't do anything if we don't know what this is
+	if ((nmi = kstate->netmap.find(packinfo->bssid_mac)) == kstate->netmap.end()) 
+		return 0;
+
+	// Get the SSID in the stupidest way possible (we know it's only 1...)
+	Netracker::adv_ssid_data *ssid =
+		((nmi->second->net->ssid_map.begin())++)->second;
+
+	// If we've confirmed everything, we're done
+	if (nmi->second->key_confirmed)  {
+		return 0;
+	}
+
+	// If we're not a valid network, don't try
+	if (nmi->second->ssid_valid == 0) {
+		return 0;
+	}
+
+	// If we've tried too much, we give up
+	if (nmi->second->key_failed > 5) {
+		return 0;
+	}
+
+	kis_datachunk *chunk = 
+		(kis_datachunk *) in_pack->fetch(_PCM(PACK_COMP_80211FRAME));
+
+	if (chunk == NULL) {
+		if ((chunk = 
+			 (kis_datachunk *) in_pack->fetch(_PCM(PACK_COMP_LINKFRAME))) == NULL) {
+			return 0;
+		}
+	}
+
+	if (chunk == NULL) {
+		return 0;
+	}
+
+	kis_datachunk *decrypted;
+
+	snprintf(keystr, 11, "%02X%02X%02X%02X%02X",
+			 nmi->second->key[0], nmi->second->key[1],
+			 nmi->second->key[2], nmi->second->key[3],
+			 nmi->second->key[4]);
+
+	decrypted = 
+		KisBuiltinDissector::DecryptWEP(packinfo, chunk,
+										nmi->second->key, 5,
+										kstate->wep_identity);
+
+	// If we couldn't decrypt, we failed
+	if (decrypted == NULL) {
+		// Brute force the other keys, but only a few times!  Otherwise we're
+		// doing 10x decrypts on every packet.  We only try the other keys the
+		// first N data packets we see.  This is incase the wired mac used
+		// to derive the key is an actiontec OUI but not the same OUI
+		// as the wireless
+		if (nmi->second->key_failed < 5) {
+			unsigned char modkey[5];
+
+			memcpy(modkey, nmi->second->key, 5);
+
+			for (unsigned int x = 0; x < num_fios_macs; x++) {
+				modkey[0] = fios_macs[x][1];
+				modkey[1] = fios_macs[x][2];
+
+				decrypted = 
+					KisBuiltinDissector::DecryptWEP(packinfo, chunk,
+													modkey, 5,
+													kstate->wep_identity);
+
+				if (decrypted != NULL) {
+					memcpy(nmi->second->key, modkey, 5);
+
+					snprintf(keystr, 11, "%02X%02X%02X%02X%02X",
+							 nmi->second->key[0], nmi->second->key[1],
+							 nmi->second->key[2], nmi->second->key[3],
+							 nmi->second->key[4]);
+
+					_MSG("Auto-WEP found alternate WEP key " + string(keystr) + 
+						 " for network '" + MungeToPrintable(ssid->ssid) + 
+						 "' BSSID " + nmi->second->bssid.Mac2String(), MSGFLAG_INFO);
+
+					nmi->second->key_failed = 0;
+
+					globalreg->netracker->ClearNetworkTag(nmi->second->bssid, 
+														  "WEP-AUTO-FAIL");
+
+					goto autowep_key_ok;
+				}
+			}
+		}
+
+		// First-time-fail ops, set the fail attribute for the key, 
+		// remove the likely attribute
+		if (nmi->second->key_failed == 0) {
+			_MSG("Auto-WEP failed to confirm WEP keys for network '" + 
+				 MungeToPrintable(ssid->ssid) + "' BSSID " + 
+				 nmi->second->bssid.Mac2String() + " network may not be using "
+				 "default WEP", MSGFLAG_INFO);
+
+			globalreg->netracker->ClearNetworkTag(nmi->second->bssid, "WEP-AUTO-LIKELY");
+
+			globalreg->netracker->SetNetworkTag(nmi->second->bssid, "WEP-AUTO-FAIL",
+												string(keystr), 1);
+		}
+
+		// Increment fail count
+		nmi->second->key_failed++;
+
+		return 0;
+	}
+
+	// I know.  Shut up.
+autowep_key_ok:
+
+	// printf("debug - %s got to key ok\n", nmi->second->bssid.Mac2String().c_str());
+
+	// Otherwise free what we just decrypted
+	free(decrypted);
+
+	nmi->second->key_confirmed = 1;
+
+	string al = "Auto-WEP confirmed default WEP key " + string(keystr) + 
+		" for network '" + MungeToPrintable(ssid->ssid) + "' BSSID " + 
+		nmi->second->bssid.Mac2String();
+
+	_MSG(al, MSGFLAG_INFO);
+
+	// Raise the alert
+	globalreg->alertracker->RaiseAlert(kstate->alert_ref, NULL,
+									   nmi->second->bssid,
+									   nmi->second->bssid,
+									   nmi->second->bssid,
+									   nmi->second->bssid,
+									   nmi->second->net->channel, al);
+
+	globalreg->netracker->ClearNetworkTag(nmi->second->bssid, "WEP-AUTO-LIKELY");
+	globalreg->netracker->ClearNetworkTag(nmi->second->bssid, "WEP-AUTO-FAIL");
+
+	globalreg->netracker->SetNetworkTag(nmi->second->bssid, "WEP-AUTO",
+										string(keystr), 1);
+
+	globalreg->builtindissector->AddWepKey(nmi->second->bssid, nmi->second->key, 5, 1);
+
+	return 0;
+}
+
 int kisautowep_unregister(GlobalRegistry *in_globalreg) {
 	globalreg->packetchain->RemoveHandler(&kisautowep_packet_hook, CHAINPOS_CLASSIFIER);
+	globalreg->packetchain->RemoveHandler(&kisautowep_data_hook, CHAINPOS_CLASSIFIER);
 	return 0;
 }
 
@@ -393,8 +415,14 @@ int kisautowep_register(GlobalRegistry *in_globalreg) {
 
 	state = new kisautowep_state;
 
+	// Hook after we've classified the network for detecting autowep networks,
+	// since we need the SSID to be associated
 	globalreg->packetchain->RegisterHandler(&kisautowep_packet_hook, state,
 											CHAINPOS_CLASSIFIER, 100);
+	// Register data handler late after the existing LLC handlers so we get all
+	// their state, but before the crypt handlers
+	globalreg->packetchain->RegisterHandler(&kisautowep_data_hook, state,
+											CHAINPOS_LLCDISSECT, 100);
 
 	state->alert_ref =
 		globalreg->alertracker->RegisterAlert("AUTOWEP", sat_minute, 20,
