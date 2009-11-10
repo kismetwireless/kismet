@@ -59,6 +59,7 @@
 #include <packetdissectors.h>
 #include <alertracker.h>
 #include <dumpfile_pcap.h>
+#include <version.h>
 
 #include "packetsource_raven.h"
 #include "packet_dot15d4.h"
@@ -108,6 +109,15 @@ extern "C" {
 		data->plugin_unregister = dot15d4_unregister;
 
 		return 1;
+	}
+
+	void kis_revision_info(plugin_revision *prev) {
+		if (prev->version_api_revision >= 1) {
+			prev->version_api_revision = 1;
+			prev->major = string(VERSION_MAJOR);
+			prev->minor = string(VERSION_MINOR);
+			prev->tiny = string(VERSION_TINY);
+		}
 	}
 }
 

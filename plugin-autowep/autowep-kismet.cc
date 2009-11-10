@@ -39,6 +39,7 @@
 #include <netracker.h>
 #include <packetdissectors.h>
 #include <alertracker.h>
+#include <version.h>
 
 GlobalRegistry *globalreg = NULL;
 
@@ -444,6 +445,15 @@ extern "C" {
 		data->plugin_unregister = kisautowep_unregister;
 
 		return 1;
+	}
+
+	void kis_revision_info(plugin_revision *prev) {
+		if (prev->version_api_revision >= 1) {
+			prev->version_api_revision = 1;
+			prev->major = string(VERSION_MAJOR);
+			prev->minor = string(VERSION_MINOR);
+			prev->tiny = string(VERSION_TINY);
+		}
 	}
 }
 

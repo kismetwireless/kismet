@@ -41,6 +41,7 @@
 #include <dumpfile_pcap.h>
 #include <kis_ppi.h>
 #include <endian_magic.h>
+#include <version.h>
 
 #include "spectool_netclient.h"
 
@@ -131,6 +132,15 @@ extern "C" {
 		data->plugin_unregister = kisspec_unregister;
 
 		return 1;
+	}
+
+	void kis_revision_info(plugin_revision *prev) {
+		if (prev->version_api_revision >= 1) {
+			prev->version_api_revision = 1;
+			prev->major = string(VERSION_MAJOR);
+			prev->minor = string(VERSION_MINOR);
+			prev->tiny = string(VERSION_TINY);
+		}
 	}
 }
 

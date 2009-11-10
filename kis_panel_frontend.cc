@@ -31,6 +31,7 @@
 #include "kis_panel_widgets.h"
 #include "kis_panel_windows.h"
 #include "kis_panel_frontend.h"
+#include "version.h"
 
 #define KPI_SOURCE_FIELDS	"uuid,interface,type,username,channel,packets,hop," \
 	"velocity,dwell,hop_time_sec,hop_time_usec,channellist,error,warning"
@@ -652,20 +653,83 @@ void KisPanelInterface::Remove_All_Netcli_Conf_CB(CliConf_Callback in_cb) {
 	}
 }
 
+string global_plugin_load;
+void PluginClientSignalHandler(int sig) {
+	fprintf(stderr, "\n\n"
+			"FATAL: Kismet (UI) crashed while loading a plugin...\n"
+			"Plugin loading: %s\n\n"
+			"This is either a bug in the plugin, or the plugin needs to be recompiled\n"
+			"to match the version of Kismet you are using (especially if you are using\n"
+			"development versions of Kismet or have recently upgraded.\n\n"
+			"Remove the plugin from the plugins directory to keep it from loading,\n"
+			"or manually edit ~/.kismet/kismet_ui.conf and remove the plugin_autoload\n"
+			"line to stop Kismet from trying to start it.\n\n",
+			global_plugin_load.c_str());
+	exit(1);
+}
+
 void KisPanelInterface::LoadPlugin(string in_fname, string in_objname) {
 	void *dlfile;
 	panel_plugin_hook plughook;
+	sighandler_t old_segv = SIG_DFL;
+
+	old_segv = signal(SIGSEGV, PluginClientSignalHandler);
+
+	global_plugin_load = in_fname;
 
 	if ((dlfile = dlopen(in_fname.c_str(), RTLD_LAZY)) == NULL) {
 		_MSG("Failed to open plugin '" + in_fname + "': " +
 			 dlerror(), MSGFLAG_ERROR);
+		signal(SIGSEGV, old_segv);
 		return;
+	}
+
+	// Resolve the version function
+	panel_plugin_revisioncall vsym = NULL;	
+	if ((vsym = (panel_plugin_revisioncall) dlsym(dlfile, 
+											"kis_revision_info")) == NULL) {
+		string msg = "Failed to find a Kismet version record in plugin '" + in_fname + 
+			 "'.  This plugin has not been "
+			 "updated to use the new version API.  Please download the "
+			 "latest version, or contact the plugin authors.  Kismet will "
+			 "still load this plugin, but BE WARNED, there is no way "
+			 "to know if it was compiled for this version of Kismet, and "
+			 "crashes may occur.";
+		RaiseAlert("Plugin Loading Error", InLineWrap(msg, 0, 50));
+	} else {
+		// Make a struct of whatever PREV we use, it will tell us what
+		// it supports in response.
+		panel_plugin_revision *prev = new panel_plugin_revision;
+		prev->version_api_revision = KIS_PANEL_PLUGIN_VREVISION;
+
+		(*vsym)(prev);
+
+		if (prev->version_api_revision >= 1) {
+			if (prev->major != string(VERSION_MAJOR) ||
+				prev->minor != string(VERSION_MINOR) ||
+				prev->tiny != string(VERSION_TINY)) {
+				string msg = 
+					"Failed to load plugin '" + in_fname + 
+					"': This plugin was compiled for a different version of "
+					"Kismet; Please recompile and reinstall it, or remove "
+					"it entirely.";
+				_MSG(msg, MSGFLAG_ERROR);
+
+				RaiseAlert("Loading Plugin Failed", InLineWrap(msg, 0, 50));
+
+				signal(SIGSEGV, old_segv);
+				return;
+			}
+		}
+
+		delete(prev);
 	}
 
 	if ((plughook = (panel_plugin_hook) dlsym(dlfile, "panel_plugin_init")) == NULL) {
 		_MSG("Failed to find 'panel_plugin_init' function in plugin '" + in_fname + 
 			 "': " + strerror(errno), MSGFLAG_ERROR);
 		dlclose(dlfile);
+		signal(SIGSEGV, old_segv);
 		return;
 	}
 
@@ -675,6 +739,7 @@ void KisPanelInterface::LoadPlugin(string in_fname, string in_objname) {
 	if (ret < 0) {
 		_MSG("Failed to initialize plugin '" + in_fname + "'", MSGFLAG_ERROR);
 		dlclose(dlfile);
+		signal(SIGSEGV, old_segv);
 		return;
 	}
 
@@ -685,6 +750,8 @@ void KisPanelInterface::LoadPlugin(string in_fname, string in_objname) {
 			break;
 		}
 	}
+
+	signal(SIGSEGV, old_segv);
 }
 
 void KisPanelInterface::ScanPlugins() {
@@ -730,20 +797,6 @@ void KisPanelInterface::ScanPlugins() {
 	}
 }
 
-// Catch plugin failures so we can alert the user
-string global_plugin_load;
-void PluginSignalHandler(int sig) {
-	fprintf(stderr, "\n\n"
-			"FATAL: Kismet_Client crashed while loading a plugin...\n"
-			"Plugin loading: %s\n\n"
-			"This is either a bug in the plugin, or the plugin needs to be recompiled\n"
-			"to match the version of Kismet you are using (especially if you are using\n"
-			"development versions of Kismet or have recently upgraded.\n\n"
-			"If the plugin is automatically loaded, edit ~/.kismet/kismet_ui.conf and\n"
-			"remove the plugin_autoload line.\n\n", global_plugin_load.c_str());
-	exit(1);
-}
-
 void KisPanelInterface::LoadPlugins() {
 	// Scan for plugins to auto load
 	vector<string> plugprefs = prefs->FetchOptVec("plugin_autoload");
@@ -751,11 +804,8 @@ void KisPanelInterface::LoadPlugins() {
 		for (unsigned int y = 0; y < plugprefs.size(); y++) {
 			if (plugin_vec[x]->objectname == plugprefs[y] &&
 				plugin_vec[x]->dlfileptr == 0x0) {
-				global_plugin_load = plugin_vec[x]->objectname;
-				signal(SIGSEGV, PluginSignalHandler);
 				_MSG("Auto-loading plugin '" + plugprefs[y] + "'", MSGFLAG_INFO);
 				LoadPlugin(plugin_vec[x]->filename, plugin_vec[x]->objectname);
-				signal(SIGSEGV, SIG_DFL);
 				break;
 			}
 		}

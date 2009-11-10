@@ -23,12 +23,13 @@
 #include <string>
 #include <sstream>
 
-#include "..//globalregistry.h"
-#include "..//kis_panel_plugin.h"
-#include "..//kis_panel_frontend.h"
-#include "..//kis_panel_windows.h"
-#include "..//kis_panel_network.h"
-#include "..//kis_panel_widgets.h"
+#include <globalregistry.h>
+#include <kis_panel_plugin.h>
+#include <kis_panel_frontend.h>
+#include <kis_panel_windows.h>
+#include <kis_panel_network.h>
+#include <kis_panel_widgets.h>
+#include <version.h>
 
 #define KCLI_SPECTRUM_CHANNEL_FIELDS	"devname,amp_offset_mdbm,amp_res_mdbm," \
 	"start_khz,res_hz,samples" 
@@ -100,6 +101,15 @@ int panel_plugin_init(GlobalRegistry *globalreg, KisPanelPluginData *pdata) {
 		pdata->kpinterface->Add_NetCli_AddCli_CB(SpecCliAdd, (void *) pdata);
 
 	return 1;
+}
+
+void kis_revision_info(panel_plugin_revision *prev) {
+	if (prev->version_api_revision >= 1) {
+		prev->version_api_revision = 1;
+		prev->major = string(VERSION_MAJOR);
+		prev->minor = string(VERSION_MINOR);
+		prev->tiny = string(VERSION_TINY);
+	}
 }
 
 }

@@ -60,6 +60,31 @@ class KisPanelInterface;
 	int add, void *auxptr
 typedef void (*KPI_AddCli_Callback)(KPI_ADDCLI_CB_PARMS);
 
+// Plugin version information, v1
+// This holds revision information for the KISMET THE PLUGIN WAS COMPILED WITH,
+// NOT THE PLUGIN VERSION (plugin version is passed in the info struct!)
+struct panel_plugin_revision {
+	// V1 data 
+
+	// Versioned for possible updates to the version api
+	int version_api_revision;
+
+	string major;
+	string minor;
+	string tiny;
+
+	// End V1 data
+};
+
+#define KIS_PANEL_PLUGIN_VREVISION		1
+
+// Plugin revision call.  If the kis_plugin_revision  symbol is available in the plugin,
+// then it will be passed an allocated plugin_revision struct, with the version_api_rev
+// set appropriately.  Plugins MUST ONLY use fields in the negotiated plugin version
+// record.  This record is not expected to change significantly over time, BUT IT MAY,
+// should it become necessary to add more complex data.
+typedef void (*panel_plugin_revisioncall)(panel_plugin_revision *);
+
 class KisPanelInterface : public PanelInterface {
 public:
 	KisPanelInterface();

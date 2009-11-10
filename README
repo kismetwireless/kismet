@@ -625,6 +625,21 @@ http://www.kismetwireless.net
     defining new capture sources (within some limitations), and adding new
     features to the Kismet UI.
 
+    Plugins need access to the Kismet source (and configuration
+    information) to compile, and should ALWAYS be recompiled when the 
+    Kismet version changes (for those using Kismet-SVN development code, 
+    this may require rebuilding plugins every time a checkout is done).
+
+    Plugins bundled with Kismet (and third-party plugins extracted into the
+    Kismet source dir) can be built with 'make plugins' and installed with
+    'make plugins-install' or 'make plugins-userinstall'.  These commands
+    will automatically configure the plugin to compile using the current
+    Kismet source directory, for third-party plugins compiled outside of the
+    tree (or for manually compiling plugins), the KIS_SRC_DIR variable must
+    be set or the symlinks to the Kismet source must be set up properly (see
+    the README for the plugin you are trying to compile for more
+    information).
+
     Plugins for the Kismet server (capture and logging process) are loaded
     from the system-wide plugin directory (/usr/local/lib/kismet/ by
     default) or from the users Kismet settings directory
@@ -658,11 +673,12 @@ http://www.kismetwireless.net
     Kismet server plugins cannot currently be manipulated via the Kismet UI,
     but loaded plugins will be displayed.
 
-    Occasionally, plugins can cause startup problems (due to errors, or more
-    often, version mismatches).  Kismet will attempt to specify which plugin
-    caused the failure.  Removing the offending plugin from the plugins
-    directory will resolve the problem.  Recompiling the plugin with the
-    installed version of Kismet will often fix loading problems.
+    If a plugin causes startup problems (most likely because it was compiled
+    for a different Kismet binary), Kismet will exit and explain which
+    plugin caused the crash during startup.  Plugins may also cause
+    instability during runtime; if runtime crashes occur while plugins are
+    loaded, remove them and re-test.  Often, recompiling the plugins against
+    the running Kismet source will help resolve these issues.
 
 9.  GPS
 

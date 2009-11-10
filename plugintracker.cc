@@ -32,6 +32,7 @@
 #include "messagebus.h"
 #include "plugintracker.h"
 #include "kis_netframe.h"
+#include "version.h"
 
 // Plugin protocol stuff
 enum PLUGIN_fields {
@@ -353,46 +354,66 @@ void PluginServerSignalHandler(int sig) {
 			"This is either a bug in the plugin, or the plugin needs to be recompiled\n"
 			"to match the version of Kismet you are using (especially if you are using\n"
 			"development versions of Kismet or have recently upgraded.\n\n"
-			"Remove the plugin or start Kismet with plugins disabled (--no-plugins)\n\n",
-			global_plugin_load.c_str());
-	exit(1);
-}
-
-void PluginClientSignalHandler(int sig) {
-	fprintf(stderr, "\n\n"
-			"FATAL: Kismet (UI) crashed while loading a plugin...\n"
-			"Plugin loading: %s\n\n"
-			"This is either a bug in the plugin, or the plugin needs to be recompiled\n"
-			"to match the version of Kismet you are using (especially if you are using\n"
-			"development versions of Kismet or have recently upgraded.\n\n"
-			"If the plugin is being automatically loaded, edit \n"
-			"~/.kismet/kismet_ui.conf and remove the plugin_autoload line\n"
-			"to stop Kismet from loading it.\n\n", 
+			"Remove the plugin from the plugins directory, or start Kismet with \n"
+			"plugins disabled (--no-plugins)\n\n",
 			global_plugin_load.c_str());
 	exit(1);
 }
 
 int Plugintracker::ActivatePlugins() {
+	sighandler_t old_segv = SIG_DFL;
+
 	// Try to activate all the plugins
 	for (unsigned int x = 0; x < plugin_vec.size(); x++) {
 		// Try to DLOPEN anything that isn't open
 		if (plugin_vec[x]->dlfileptr == NULL) {
 			global_plugin_load = plugin_vec[x]->filename;
-			// Key off kisnetserver to figure out if we're server or client,
-			// client will never have this
-			if (globalreg->kisnetserver) 
-				signal(SIGSEGV, PluginServerSignalHandler);
-			else
-				signal(SIGSEGV, PluginClientSignalHandler);
 
+			old_segv = signal(SIGSEGV, PluginServerSignalHandler);
 
 			if ((plugin_vec[x]->dlfileptr = 
 				 dlopen(plugin_vec[x]->filename.c_str(), RTLD_LAZY)) == NULL) {
 				_MSG("Failed to open plugin '"+ plugin_vec[x]->filename + "': " +
 					 dlerror(), MSGFLAG_FATAL);
 				globalreg->fatal_condition = 1;
-				signal(SIGSEGV, SIG_DFL);
+				signal(SIGSEGV, old_segv);
 				return -1;
+			}
+
+			// Resolve the version function
+			plugin_revisioncall vsym = NULL;	
+			if ((vsym = (plugin_revisioncall) dlsym(plugin_vec[x]->dlfileptr, 
+													"kis_revision_info")) == NULL) {
+				_MSG("Failed to find a Kismet version record in plugin '" +
+					 plugin_vec[x]->objectname + "'.  This plugin has not been "
+					 "updated to use the new version API.  Please download the "
+					 "latest version, or contact the plugin authors.  Kismet will "
+					 "still load this plugin, but BE WARNED, there is no way "
+					 "to know if it was compiled for this version of Kismet, and "
+					 "crashes may occur.", MSGFLAG_ERROR);
+			} else {
+				// Make a struct of whatever PREV we use, it will tell us what
+				// it supports in response.
+				plugin_revision *prev = new plugin_revision;
+				prev->version_api_revision = KIS_PLUGINTRACKER_VREVISION;
+
+				(*vsym)(prev);
+
+				if (prev->version_api_revision >= 1) {
+					if (prev->major != string(VERSION_MAJOR) ||
+						prev->minor != string(VERSION_MINOR) ||
+						prev->tiny != string(VERSION_TINY)) {
+						_MSG("Failed to load plugin '" + plugin_vec[x]->objectname + 
+							 "': This plugin was compiled for a different version of "
+							 "Kismet; Please recompile and reinstall it, or remove "
+							 "it entirely.", MSGFLAG_FATAL);
+						globalreg->fatal_condition = 1;
+						signal(SIGSEGV, old_segv);
+						return -1;
+					}
+				}
+
+				delete(prev);
 			}
 
 			// resolve the info function
@@ -402,7 +423,7 @@ int Plugintracker::ActivatePlugins() {
 					 plugin_vec[x]->objectname + "': " + strerror(errno),
 					 MSGFLAG_FATAL);
 				globalreg->fatal_condition = 1;
-				signal(SIGSEGV, SIG_DFL);
+				signal(SIGSEGV, old_segv);
 				return -1;
 			}
 
@@ -414,7 +435,7 @@ int Plugintracker::ActivatePlugins() {
 				_MSG("Failed to fetch info from plugin '" + 
 					 plugin_vec[x]->objectname + "'", MSGFLAG_FATAL);
 				globalreg->fatal_condition = 1;
-				signal(SIGSEGV, SIG_DFL);
+				signal(SIGSEGV, old_segv);
 				return -1;
 			}
 
@@ -438,7 +459,7 @@ int Plugintracker::ActivatePlugins() {
 			_MSG("Failed to activate plugin '" + plugin_vec[x]->filename + 
 				 "'", MSGFLAG_FATAL);
 			globalreg->fatal_condition = 1;
-			signal(SIGSEGV, SIG_DFL);
+			signal(SIGSEGV, old_segv);
 			return -1;
 		} else if (ret > 0) {
 			_MSG("Activated plugin '" + plugin_vec[x]->filename + "': " 
@@ -448,7 +469,7 @@ int Plugintracker::ActivatePlugins() {
 			plugin_vec[x]->activate = 1;
 		}
 
-		signal(SIGSEGV, SIG_DFL);
+		signal(SIGSEGV, old_segv);
 	}
 
 	return 1;
