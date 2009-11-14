@@ -438,7 +438,8 @@ int kisautowep_register(GlobalRegistry *in_globalreg) {
 extern "C" {
 	int kis_plugin_info(plugin_usrdata *data) {
 		data->pl_name = "AUTOWEP";
-		data->pl_version = "1.0.0";
+		data->pl_version = string(VERSION_MAJOR) + "-" + string(VERSION_MINOR) + "-" +
+			string(VERSION_TINY);
 		data->pl_description = "AutoWEP Plugin";
 		data->pl_unloadable = 0; // We can't be unloaded because we defined a source
 		data->plugin_register = kisautowep_register;

@@ -125,7 +125,8 @@ int kisspec_unregister(GlobalRegistry *in_globalreg) {
 extern "C" {
 	int kis_plugin_info(plugin_usrdata *data) {
 		data->pl_name = "SPECTOOL";
-		data->pl_version = "2009-05-R1";
+		data->pl_version = string(VERSION_MAJOR) + "-" + string(VERSION_MINOR) + "-" +
+			string(VERSION_TINY);
 		data->pl_description = "Spectool-Net";
 		data->pl_unloadable = 0; 
 		data->plugin_register = kisspec_register;
