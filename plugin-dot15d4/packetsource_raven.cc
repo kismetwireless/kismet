@@ -365,7 +365,7 @@ int PacketSource_Raven::Poll() {
 
 		rawchunk->dlt = KDLT_IEEE802_15_4;
 
-		newpack->insert(d154_packet_id, rawchunk);
+		newpack->insert(_PCM(PACK_COMP_LINKFRAME), rawchunk);
 
 		// printf("debug - Got packet chan %d len=%d\n", packet_queue[x]->channel, packet_queue[x]->len);
 

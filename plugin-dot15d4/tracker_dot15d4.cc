@@ -18,8 +18,8 @@
 
 #include "config.h"
 
-#include "globalregistry.h"
-#include "packetchain.h"
+#include <globalregistry.h>
+#include <packetchain.h>
 
 #include "packet_dot15d4.h"
 #include "tracker_dot15d4.h"
