@@ -47,6 +47,8 @@ public:
 	// Fetch the type of the file being dumped to
 	string FetchFileType() { return type; }
 
+	void SetVolatile(int in_volatile) { log_volatile = in_volatile; }
+
 	// Cleanly flush the file to disk
 	virtual int Flush() = 0;
 
@@ -61,6 +63,8 @@ protected:
 	virtual string ProcessConfigOpt(string in_type);
 
 	int resume;
+
+	int log_volatile;
 };
 
 #endif

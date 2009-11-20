@@ -153,8 +153,13 @@ Dumpfile_Pcap::~Dumpfile_Pcap() {
 	dumper = NULL;
 	dumpfile = NULL;
 
-	if (opened) 
+	if (opened && log_volatile && dumped_frames == 0) {
+		_MSG("Closed pcapdump log file '" + fname + "', no packets logged, "
+			 "removing empty file.", MSGFLAG_INFO);
+		unlink(fname.c_str());
+	} else if (opened) {
 		_MSG("Closed pcapdump log file '" + fname + "'", MSGFLAG_INFO);
+	}
 }
 
 int Dumpfile_Pcap::Flush() {

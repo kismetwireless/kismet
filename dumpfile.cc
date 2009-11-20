@@ -29,6 +29,7 @@ Dumpfile::Dumpfile(GlobalRegistry *in_globalreg) {
 	globalreg = in_globalreg;
 	resume = 0;
 	dumped_frames = 0;
+	log_volatile = 0;
 
 	if (globalreg->kismet_config != NULL) {
 		export_filter = new FilterCore(globalreg);

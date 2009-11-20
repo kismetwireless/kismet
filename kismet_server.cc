@@ -374,9 +374,6 @@ void CatchShutdown(int sig) {
 
 	globalregistry->spindown = 1;
 
-	if (globalregistry->plugintracker != NULL)
-		globalregistry->plugintracker->ShutdownPlugins();
-
 	// Start a short shutdown cycle for 2 seconds
 	if (daemonize == 0)
 		fprintf(stderr, "\n*** KISMET IS SHUTTING DOWN ***\n");
@@ -441,6 +438,11 @@ void CatchShutdown(int sig) {
 	for (unsigned int x = 0; x < globalregistry->subsys_dumpfile_vec.size(); x++) {
 		delete globalregistry->subsys_dumpfile_vec[x];
 	}
+
+	globalregistry->pcapdump = NULL;
+
+	if (globalregistry->plugintracker != NULL)
+		globalregistry->plugintracker->ShutdownPlugins();
     
 	if (globalregistry->netracker != NULL) {
 		delete globalregistry->netracker;

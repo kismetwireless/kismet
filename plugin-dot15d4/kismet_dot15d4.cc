@@ -89,9 +89,11 @@ int dot15d4_register(GlobalRegistry *in_globalreg) {
 		globalreg->packetchain->RegisterPacketComponent("DOT15D4FRAME");
 
 	// dumpfile that inherits from the global one
-	Dumpfile_Pcap *dot15d4dump = 
+	Dumpfile_Pcap *dot15d4dump;
+	dot15d4dump = 
 		new Dumpfile_Pcap(globalreg, "pcap15d4", KDLT_IEEE802_15_4,
 						  globalreg->pcapdump, NULL, NULL);
+	dot15d4dump->SetVolatile(1);
 
 	// Tracker
 	Tracker_Dot15d4 *track15d4 = new Tracker_Dot15d4(globalreg);
