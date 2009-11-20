@@ -224,7 +224,7 @@ int kisautowep_packet_hook(CHAINCALL_PARMS) {
 	_MSG(al, MSGFLAG_INFO);
 
 	globalreg->netracker->SetNetworkTag(net->bssid, "WEP-AUTO-LIKELY",
-										string(keystr), 1);
+										string(keystr), 0);
 
 	return 0;
 }
@@ -361,7 +361,7 @@ int kisautowep_data_hook(CHAINCALL_PARMS) {
 			globalreg->netracker->ClearNetworkTag(nmi->second->bssid, "WEP-AUTO-LIKELY");
 
 			globalreg->netracker->SetNetworkTag(nmi->second->bssid, "WEP-AUTO-FAIL",
-												string(keystr), 1);
+												"Not using default WEP key", 0);
 		}
 
 		// Increment fail count

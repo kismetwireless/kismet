@@ -71,6 +71,9 @@ GPSDClient::GPSDClient(GlobalRegistry *in_globalreg) : GPSCore(in_globalreg) {
 
 	last_update = time(0);
 
+	snprintf(errstr, STATUS_MAX, "Using GPSD server on %s:%d", host, port);
+	globalreg->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
+
 	if (tcpcli->Connect(host, port) < 0) {
 		globalreg->messagebus->InjectMessage("Could not create initial "
 											 "connection to the GPSD server", 
@@ -86,8 +89,6 @@ GPSDClient::GPSDClient(GlobalRegistry *in_globalreg) : GPSCore(in_globalreg) {
 		Timer();
 	}
 
-	snprintf(errstr, STATUS_MAX, "Using GPSD server on %s:%d", host, port);
-	globalreg->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
 }
 
 GPSDClient::~GPSDClient() {

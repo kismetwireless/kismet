@@ -39,6 +39,84 @@ struct GPS_data {
     string lat, lon, alt, spd, heading, mode, satinfo, hdop, vdop;
 };
 
+struct kis_gps_data {
+	kis_gps_data() {
+		gps_valid = 0;
+		// Pick absurd initial values to be clearly out-of-bounds
+		min_lat = 90;
+		max_lat = -90;
+		min_lon = 180;
+		max_lon = -180;
+		min_alt = 100000;
+		max_alt = -100000;
+		min_spd = 100000;
+		max_spd = -100000;
+
+		aggregate_lat = aggregate_lon = aggregate_alt = 0;
+		aggregate_points = 0;
+	}
+
+	inline kis_gps_data& operator= (const kis_gps_data& in) {
+		gps_valid = in.gps_valid;
+		min_lat = in.min_lat;
+		min_lon = in.min_lon;
+		max_lat = in.max_lat;
+		max_lon = in.max_lon;
+		min_alt = in.min_alt;
+		max_alt = in.max_alt;
+		min_spd = in.min_spd;
+		max_spd = in.max_spd;
+
+		aggregate_lat = in.aggregate_lat;
+		aggregate_lon = in.aggregate_lon;
+		aggregate_points = in.aggregate_points;
+
+		return *this;
+	}
+
+	inline kis_gps_data& operator+= (const kis_gps_data& in) {
+		if (in.gps_valid == 0)
+			return *this;
+
+		if (in.min_lat < min_lat)
+			min_lat = in.min_lat;
+
+		if (in.max_lat > max_lat)
+			max_lat = in.max_lat;
+
+		if (in.min_lon < min_lon)
+			min_lon = in.min_lon;
+
+		if (in.max_lon > max_lon)
+			max_lon = in.max_lon;
+
+		if (in.min_alt < min_alt)
+			min_alt = in.min_alt;
+
+		if (in.max_alt > max_alt)
+			max_alt = in.max_alt;
+
+		if (in.min_spd < min_spd)
+			min_spd = in.min_spd;
+
+		if (in.max_spd > max_spd)
+			max_spd = in.max_spd;
+
+		aggregate_lat += in.aggregate_lat;
+		aggregate_lon += in.aggregate_lon;
+		aggregate_points += in.aggregate_points;
+
+		return *this;
+	}
+
+	int gps_valid;
+	double min_lat, min_lon, min_alt, min_spd;
+	double max_lat, max_lon, max_alt, max_spd;
+	// Aggregate/avg center position
+	long double aggregate_lat, aggregate_lon, aggregate_alt;
+	long aggregate_points;
+};
+
 int Protocol_GPS(PROTO_PARMS);
 
 // GPS info linked into each packet
