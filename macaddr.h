@@ -172,6 +172,10 @@ struct mac_addr {
         string2long(in);
     }
 
+	inline mac_addr(const string in) {
+		mac_addr(in.c_str());
+	}
+
     inline mac_addr(int in) {
 		in = in; // Silence gcc
         longmac = 0;
