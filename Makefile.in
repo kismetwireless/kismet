@@ -70,6 +70,11 @@ NC	= kismet_client
 
 all:	Makefile $(DEPEND) $(PS) $(CS) $(DRONE) $(NC)
 
+all-with-plugins:
+	@make plugins-clean
+	@make all
+	@make plugins
+
 $(PS):	$(PSO)
 	$(LD) $(LDFLAGS) -o $(PS) $(PSO) $(LIBS) $(CXXLIBS) $(PCAPLNK) $(KSLIBS)
 

@@ -29,7 +29,6 @@ $(SRVOUT):	$(SRVOBJS)
 install:	$(SRVOUT) $(CLIOUT)
 	mkdir -p $(DESTDIR)$(prefix)/lib/kismet/
 	install -o $(INSTUSR) -g $(INSTGRP) -m 644 $(SRVOUT) $(DESTDIR)$(prefix)/lib/kismet/$(SRVOUT)
-
 	mkdir -p $(DESTDIR)$(prefix)/lib/kismet_client/
 	install -o $(INSTUSR) -g $(INSTGRP) -m 644 $(CLIOUT) $(DESTDIR)$(prefix)/lib/kismet_client/$(CLIOUT)
 
