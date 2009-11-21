@@ -118,6 +118,9 @@ int Dumpfile_Gpsxml::chain_handler(kis_packet *in_pack) {
 	kis_ieee80211_packinfo *eight11 = NULL;
 	kis_layer1_packinfo *radio = NULL;
 
+	if (in_pack->error)
+		return 0;
+
 	// No GPS info, no worky
 	if ((gpsinfo = (kis_gps_packinfo *) 
 		 in_pack->fetch(_PCM(PACK_COMP_GPS))) == NULL) {
@@ -149,6 +152,10 @@ int Dumpfile_Gpsxml::chain_handler(kis_packet *in_pack) {
 		dumped_frames++;
 		return 1;
 	}
+
+	// Don't log errored eight11 packets
+	if (eight11->corrupt || eight11->type == packet_unknown)
+		return 0;
 
 	// Otherwise we want to try to log the signal levels too
 	radio = (kis_layer1_packinfo *) in_pack->fetch(_PCM(PACK_COMP_RADIODATA));
