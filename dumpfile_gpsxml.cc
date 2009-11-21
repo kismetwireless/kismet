@@ -43,6 +43,8 @@ Dumpfile_Gpsxml::Dumpfile_Gpsxml(GlobalRegistry *in_globalreg) :
 
 	xmlfile = NULL;
 
+	last_track = 0;
+
 	type = "gpsxml";
 
 	if (globalreg->sourcetracker == NULL) {
@@ -135,6 +137,15 @@ int Dumpfile_Gpsxml::chain_handler(kis_packet *in_pack) {
 	// If all we're doing is logging the GPS info...
 	if ((eight11 = (kis_ieee80211_packinfo *)
 		 in_pack->fetch(_PCM(PACK_COMP_80211))) == NULL) {
+
+		// If we're only logging GPS track data, only do it once a second
+		// (plugins, specifically non-dot11 PHYs, may have GPS tagged packets
+		// with no eight11 record)
+		if (last_track == globalreg->timestamp.tv_sec)
+			return 0;
+
+		last_track = globalreg->timestamp.tv_sec;
+
 		fprintf(xmlfile, "    <gps-point bssid=\"%s\" time-sec=\"%ld\" "
 				"time-usec=\"%ld\" lat=\"%f\" lon=\"%f\" spd=\"%f\" heading=\"%f\" "
 				"fix=\"%d\"",

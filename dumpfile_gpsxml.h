@@ -44,6 +44,7 @@ public:
 	virtual int Flush();
 protected:
 	FILE *xmlfile;
+	time_t last_track;
 };
 
 #endif /* __dump... */
