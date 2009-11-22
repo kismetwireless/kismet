@@ -80,8 +80,6 @@ Dumpfile_String::Dumpfile_String(GlobalRegistry *in_globalreg) :
 }
 
 Dumpfile_String::~Dumpfile_String() {
-	int opened = 0;
-
 	globalreg->packetchain->RemoveHandler(&dumpfilestring_chain_hook,
 										  CHAINPOS_LOGGING);
 
@@ -89,13 +87,9 @@ Dumpfile_String::~Dumpfile_String() {
 	if (stringfile != NULL) {
 		Flush();
 		fclose(stringfile);
-		opened = 1;
 	}
 
 	stringfile = NULL;
-
-	if (opened) 
-		_MSG("Closed string log file '" + fname + "'", MSGFLAG_INFO);
 }
 
 int Dumpfile_String::Flush() {

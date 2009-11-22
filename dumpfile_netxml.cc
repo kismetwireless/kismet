@@ -72,7 +72,6 @@ Dumpfile_Netxml::~Dumpfile_Netxml() {
 	// Close files
 	if (xmlfile != NULL) {
 		Flush();
-		_MSG("Closed netxml log file '" + fname + "'", MSGFLAG_INFO);
 	}
 
 	xmlfile = NULL;
@@ -789,6 +788,8 @@ int Dumpfile_Netxml::Flush() {
 			 string(strerror(errno)), MSGFLAG_ERROR);
 		return -1;
 	}
+
+	dumped_frames = netnum;
 
 	return 1;
 }

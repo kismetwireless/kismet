@@ -78,7 +78,6 @@ Dumpfile_Nettxt::~Dumpfile_Nettxt() {
 	// Close files
 	if (txtfile != NULL) {
 		Flush();
-		_MSG("Closed nettxt log file '" + fname + "'", MSGFLAG_INFO);
 	}
 
 	txtfile = NULL;
@@ -643,6 +642,8 @@ int Dumpfile_Nettxt::Flush() {
 			 string(strerror(errno)), MSGFLAG_ERROR);
 		return -1;
 	}
+
+	dumped_frames = netnum;
 
 	return 1;
 }

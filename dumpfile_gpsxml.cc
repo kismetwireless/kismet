@@ -100,7 +100,6 @@ Dumpfile_Gpsxml::~Dumpfile_Gpsxml() {
 		fprintf(xmlfile, "</gps-run>\n");
 		Flush();
 		fclose(xmlfile);
-		_MSG("Closed gpsxml log file '" + fname + "'", MSGFLAG_INFO);
 	}
 
 	xmlfile = NULL;

@@ -46,6 +46,19 @@ Dumpfile::Dumpfile(GlobalRegistry *in_globalreg) {
 	}
 }
 
+Dumpfile::~Dumpfile() {
+	if (fname != "") {
+		if (log_volatile && dumped_frames == 0) {
+			_MSG("Closed " + type + " log file '" + fname + "', no packets logged, "
+				 "removing empty file.", MSGFLAG_INFO);
+			unlink(fname.c_str());
+		} else {
+			_MSG("Closed " + type + " log file '" + fname + "', " + 
+				 IntToString(dumped_frames) + " logged.", MSGFLAG_INFO);
+		}
+	}
+}
+
 void Dumpfile::Usage(char *name) {
 	printf(" *** Dump/Logging Options ***\n");
 	printf(" -T, --log-types <types>      Override activated log types\n"

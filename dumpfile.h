@@ -34,7 +34,7 @@ class Dumpfile {
 public:
 	Dumpfile();
 	Dumpfile(GlobalRegistry *in_globalreg);
-	virtual ~Dumpfile() { };
+	virtual ~Dumpfile();
 
 	static void Usage(char *name);
 
@@ -50,7 +50,7 @@ public:
 	void SetVolatile(int in_volatile) { log_volatile = in_volatile; }
 
 	// Cleanly flush the file to disk
-	virtual int Flush() = 0;
+	virtual int Flush() { return 0; };
 
 protected:
 	GlobalRegistry *globalreg;
