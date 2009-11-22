@@ -169,6 +169,20 @@ struct kis_gps_data {
 	long aggregate_points;
 };
 
+// Some nasty hacks for GPS automation in plugins w/out having to rewrite
+// the same code a dozen times
+#define GPS_COMMON_FIELDS(h)	\
+	h ## _gpsfixed, \
+	h ## _minlat, h ## _minlon, h ## _minalt, h ## _minspd, \
+	h ## _maxlat, h ## _maxlon, h ## _maxalt, h ## _maxspd, \
+	h ## _agglat, h ## _agglon, h ## _aggalt, h ## _aggpoints 
+
+#define GPS_COMMON_FIELDS_TEXT 	\
+	"gpsfixed", \
+	"minlat", "minlon", "minalt", "minspd", \
+	"maxlat", "maxlon", "maxalt", "maxspd", \
+	"agglat", "agglon", "aggalt", "aggpoints" 
+
 // Packetchain hook to add GPS data
 int kis_gpspack_hook(CHAINCALL_PARMS);
 
