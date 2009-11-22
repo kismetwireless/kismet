@@ -39,6 +39,27 @@ struct GPS_data {
     string lat, lon, alt, spd, heading, mode, satinfo, hdop, vdop;
 };
 
+int Protocol_GPS(PROTO_PARMS);
+
+// GPS info linked into each packet
+class kis_gps_packinfo : public packet_component {
+public:
+	kis_gps_packinfo() {
+		self_destruct = 1; // Nothing special, just delete us
+		lat = lon = alt = spd = heading = -1000;
+		hdop = vdop = 0;
+		gps_fix = 0;
+	}
+
+    double lat;
+    double lon;
+    double alt;
+    double spd;
+    double heading;
+	double hdop, vdop;
+    int gps_fix;
+};
+
 struct kis_gps_data {
 	kis_gps_data() {
 		gps_valid = 0;
@@ -70,6 +91,37 @@ struct kis_gps_data {
 		aggregate_lat = in.aggregate_lat;
 		aggregate_lon = in.aggregate_lon;
 		aggregate_points = in.aggregate_points;
+
+		return *this;
+	}
+
+	inline kis_gps_data& operator+= (const kis_gps_packinfo *in) {
+		if (in->gps_fix >= 2) {
+			gps_valid = 1;
+
+			if (in->lat < min_lat)
+				min_lat = in->lat;
+			if (in->lon < min_lon)
+				min_lon = in->lon;
+			if (in->alt < min_alt)
+				min_alt = in->alt;
+			if (in->spd < min_spd)
+				min_spd = in->spd;
+
+			if (in->lat > max_lat)
+				max_lat = in->lat;
+			if (in->lon > max_lon)
+				max_lon = in->lon;
+			if (in->alt > max_alt)
+				max_alt = in->alt;
+			if (in->spd > max_spd)
+				max_spd = in->spd;
+
+			aggregate_lat += in->lat;
+			aggregate_lon += in->lon;
+			aggregate_alt += in->alt;
+			aggregate_points++;
+		}
 
 		return *this;
 	}
@@ -115,27 +167,6 @@ struct kis_gps_data {
 	// Aggregate/avg center position
 	long double aggregate_lat, aggregate_lon, aggregate_alt;
 	long aggregate_points;
-};
-
-int Protocol_GPS(PROTO_PARMS);
-
-// GPS info linked into each packet
-class kis_gps_packinfo : public packet_component {
-public:
-	kis_gps_packinfo() {
-		self_destruct = 1; // Nothing special, just delete us
-		lat = lon = alt = spd = heading = -1000;
-		hdop = vdop = 0;
-		gps_fix = 0;
-	}
-
-    double lat;
-    double lon;
-    double alt;
-    double spd;
-    double heading;
-	double hdop, vdop;
-    int gps_fix;
 };
 
 // Packetchain hook to add GPS data

@@ -2454,57 +2454,9 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 		dirty_net_vec.push_back(net);
 	}
 
-	// Extract info from the GPS component, if we have one
-	if (gpsinfo != NULL && gpsinfo->gps_fix >= 2) {
-		net->gpsdata.gps_valid = 1;
-
-		if (gpsinfo->lat < net->gpsdata.min_lat)
-			net->gpsdata.min_lat = gpsinfo->lat;
-		if (gpsinfo->lon < net->gpsdata.min_lon)
-			net->gpsdata.min_lon = gpsinfo->lon;
-		if (gpsinfo->alt < net->gpsdata.min_alt)
-			net->gpsdata.min_alt = gpsinfo->alt;
-		if (gpsinfo->spd < net->gpsdata.min_spd)
-			net->gpsdata.min_spd = gpsinfo->spd;
-
-		if (gpsinfo->lat > net->gpsdata.max_lat)
-			net->gpsdata.max_lat = gpsinfo->lat;
-		if (gpsinfo->lon > net->gpsdata.max_lon)
-			net->gpsdata.max_lon = gpsinfo->lon;
-		if (gpsinfo->alt > net->gpsdata.max_alt)
-			net->gpsdata.max_alt = gpsinfo->alt;
-		if (gpsinfo->spd > net->gpsdata.max_spd)
-			net->gpsdata.max_spd = gpsinfo->spd;
-
-		net->gpsdata.aggregate_lat += gpsinfo->lat;
-		net->gpsdata.aggregate_lon += gpsinfo->lon;
-		net->gpsdata.aggregate_alt += gpsinfo->alt;
-		net->gpsdata.aggregate_points++;
-
-		cli->gpsdata.gps_valid = 1;
-
-		if (gpsinfo->lat < cli->gpsdata.min_lat)
-			cli->gpsdata.min_lat = gpsinfo->lat;
-		if (gpsinfo->lon < cli->gpsdata.min_lon)
-			cli->gpsdata.min_lon = gpsinfo->lon;
-		if (gpsinfo->alt < cli->gpsdata.min_alt)
-			cli->gpsdata.min_alt = gpsinfo->alt;
-		if (gpsinfo->spd < cli->gpsdata.min_spd)
-			cli->gpsdata.min_spd = gpsinfo->spd;
-
-		if (gpsinfo->lat > cli->gpsdata.max_lat)
-			cli->gpsdata.max_lat = gpsinfo->lat;
-		if (gpsinfo->lon > cli->gpsdata.max_lon)
-			cli->gpsdata.max_lon = gpsinfo->lon;
-		if (gpsinfo->alt > cli->gpsdata.max_alt)
-			cli->gpsdata.max_alt = gpsinfo->alt;
-		if (gpsinfo->spd > cli->gpsdata.max_spd)
-			cli->gpsdata.max_spd = gpsinfo->spd;
-
-		cli->gpsdata.aggregate_lat += gpsinfo->lat;
-		cli->gpsdata.aggregate_lon += gpsinfo->lon;
-		cli->gpsdata.aggregate_alt += gpsinfo->alt;
-		cli->gpsdata.aggregate_points++;
+	if (gpsinfo != NULL) {
+		net->gpsdata += gpsinfo;
+		cli->gpsdata += gpsinfo;
 	}
 
 	// Make an info pair and add it to our signaling layer
