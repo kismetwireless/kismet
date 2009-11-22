@@ -133,8 +133,6 @@ void Dumpfile_Pcap::Startup_Dumpfile() {
 }
 
 Dumpfile_Pcap::~Dumpfile_Pcap() {
-	int opened = 0;
-
 	globalreg->packetchain->RemoveHandler(&dumpfilepcap_chain_hook, 
 										  CHAINPOS_LOGGING);
 
@@ -143,7 +141,6 @@ Dumpfile_Pcap::~Dumpfile_Pcap() {
 		Flush();
 		pcap_dump_flush(dumper);
 		pcap_dump_close(dumper);
-		opened = 1;
 	}
 
 	if (dumpfile != NULL) {
@@ -152,14 +149,6 @@ Dumpfile_Pcap::~Dumpfile_Pcap() {
 
 	dumper = NULL;
 	dumpfile = NULL;
-
-	if (opened && log_volatile && dumped_frames == 0) {
-		_MSG("Closed pcapdump log file '" + fname + "', no packets logged, "
-			 "removing empty file.", MSGFLAG_INFO);
-		unlink(fname.c_str());
-	} else if (opened) {
-		_MSG("Closed pcapdump log file '" + fname + "'", MSGFLAG_INFO);
-	}
 }
 
 int Dumpfile_Pcap::Flush() {
