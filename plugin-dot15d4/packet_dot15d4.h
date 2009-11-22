@@ -16,8 +16,8 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#ifndef __PACKETSOURCE_DOT15D4_H__
-#define __PACKETSOURCE_DOT15D4_H__
+#ifndef __PACKET_DOT15D4_H__
+#define __PACKET_DOT15D4_H__
 
 #include "config.h"
 
