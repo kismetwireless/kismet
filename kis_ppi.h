@@ -33,14 +33,14 @@ typedef struct {
 	uint8_t pph_flags;
 	uint16_t pph_len;
 	uint32_t pph_dlt;
-} ppi_packet_header;
+} __attribute__((packed)) ppi_packet_header;
 
 #define PPI_PH_FLAG_ALIGNED		2
 
 typedef struct {
 	uint16_t pfh_datatype;
 	uint16_t pfh_datalen;
-} ppi_field_header;
+} __attribute__((packed)) ppi_field_header;
 
 #define PPI_FIELD_11COMMON		2
 #define PPI_FIELD_11NMAC		3
@@ -62,7 +62,7 @@ typedef struct {
 	uint8_t fhss_pattern;
 	int8_t signal_dbm;
 	int8_t noise_dbm;
-} ppi_80211_common;
+} __attribute__((packed)) ppi_80211_common;
 
 typedef struct {
 	uint16_t pfh_datatype;
@@ -72,7 +72,7 @@ typedef struct {
 	uint16_t gps_len;
 	uint32_t fields_present;
 	uint8_t field_data[0];
-} ppi_gps_hdr;
+} __attribute__((packed)) ppi_gps_hdr;
 
 #define PPI_GPS_MAGIC				0xCF
 
@@ -102,7 +102,7 @@ typedef struct {
 	uint32_t a_mpdu_id;
 	uint8_t num_delimiters;
 	uint8_t reserved[3];
-} ppi_11n_mac;
+} __attribute__((packed)) ppi_11n_mac;
 
 #define PPI_11NMAC_GREENFIELD		1
 #define PPI_11NMAC_HT2040			2
@@ -143,7 +143,7 @@ typedef struct {
 	uint32_t evm1;
 	uint32_t evm2;
 	uint32_t evm3;
-} ppi_11n_macphy;
+} __attribute__((packed)) ppi_11n_macphy;
 
 #endif
 
