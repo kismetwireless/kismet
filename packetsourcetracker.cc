@@ -2337,6 +2337,15 @@ pst_packetsource *Packetsourcetracker::FindLivePacketSourceUUID(uuid in_uuid) {
 	return NULL;
 }
 
+pst_packetsource *Packetsourcetracker::FindLivePacketSourceName(string name) {
+	for (unsigned int x = 0; x < packetsource_vec.size(); x++) {
+		if (packetsource_vec[x]->strong_source && packetsource_vec[x]->strong_source->FetchName() == name)
+			return packetsource_vec[x];
+	}
+
+	return NULL;
+}
+
 KisPacketSource *Packetsourcetracker::FindKisPacketSourceUUID(uuid in_uuid) {
 	pst_packetsource *pst = FindLivePacketSourceUUID(in_uuid);
 

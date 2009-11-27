@@ -223,6 +223,9 @@ public:
 	pst_packetsource *FindLivePacketSourceUUID(uuid in_uuid);
 	KisPacketSource *FindKisPacketSourceUUID(uuid in_uuid);
 
+	// Find source by name
+	pst_packetsource *FindLivePacketSourceName(string name);
+
 	// Actually load the configuration
 	int LoadConfiguration();
 
