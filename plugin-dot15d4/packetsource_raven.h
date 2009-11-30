@@ -67,6 +67,10 @@ public:
 	virtual int EnableMonitor() { return 1; }
 	virtual int DisableMonitor() { return 1; }
 
+	// We seem to crash the default & killerbee firmwares if we hop more rapidly
+	// than 3 times a second, throttle us.
+	virtual int FetchChannelMaxVelocity() { return 3; }
+
 	virtual int SetChannel(unsigned int in_ch);
 
 	virtual int FetchDescriptor();

@@ -1106,8 +1106,22 @@ int Packetsourcetracker::AddPacketSource(string in_source,
 			pstsource->channel_rate = SERVER_TIMESLICES_SEC;
 		}
 
+		if (pstsource->channel_rate > 
+			pstsource->strong_source->FetchChannelMaxVelocity()) {
+			_MSG("Channel rate for source '" + interface + "' specified as " +
+				 IntToString(pstsource->channel_rate) + " is greater than the "
+				 "maximum supported hop rate on that interface, and will be "
+				 "limited to the maximum rate, " + 
+				 IntToString(pstsource->strong_source->FetchChannelMaxVelocity()),
+				 MSGFLAG_INFO);
+
+			pstsource->channel_rate =
+				pstsource->strong_source->FetchChannelMaxVelocity();
+		}
+
 		_MSG("Source '" + interface + "' will attempt to hop at " +
-			 FetchOpt("velocity", &options) + " channel(s) per second.", MSGFLAG_INFO);
+			 IntToString(pstsource->channel_rate) + " channel(s) per second.", 
+			 MSGFLAG_INFO);
 	}
 
 	// Assume the defaults

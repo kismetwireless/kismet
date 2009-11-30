@@ -306,6 +306,11 @@ public:
 	// Return if we're channel capable or not, used for deriving hop
 	virtual int FetchChannelCapable() { return channel_capable; }
 
+	// Return the maximum hop velocity we support (if the source is known
+	// to have problems at higher velocities, this can be used to limit it)
+	// By default all sources can hop as fast as the Kismet timer, 10x a second
+	virtual int FetchChannelMaxVelocity() { return 10; }
+
 	virtual int FetchSkipChanhop() { return 0; }
 
 	virtual int FetchError() { return error; }
