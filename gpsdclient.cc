@@ -22,8 +22,7 @@
 #include "soundcontrol.h"
 #include "packetchain.h"
 
-int GpsdGpsEvent(Timetracker::timer_event *evt, void *parm,
-			 GlobalRegistry *globalreg) {
+int GpsdGpsEvent(Timetracker::timer_event *evt, void *parm, GlobalRegistry *globalreg) {
 	GPSDClient *gps = (GPSDClient *) parm;
 
 	return gps->Timer();
@@ -75,11 +74,11 @@ GPSDClient::GPSDClient(GlobalRegistry *in_globalreg) : GPSCore(in_globalreg) {
 	globalreg->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
 
 	if (tcpcli->Connect(host, port) < 0) {
-		globalreg->messagebus->InjectMessage("Could not create initial "
-											 "connection to the GPSD server", 
+		globalreg->messagebus->InjectMessage("Could not connect to GPSD server",
 											 MSGFLAG_ERROR);
+
 		if (reconnect_attempt < 0) {
-			globalreg->messagebus->InjectMessage("GPSD Reconnection not enabled, "
+			globalreg->messagebus->InjectMessage("GPSD reconnection not enabled, "
 												 "disabling GPSD", MSGFLAG_ERROR);
 			return;
 		}
@@ -112,10 +111,10 @@ int GPSDClient::Timer() {
 
     // Timed backoff up to 30 seconds
     if (netclient->Valid() == 0 && reconnect_attempt >= 0 &&
-        (time(0) - last_disconnect >= (kismin(reconnect_attempt, 6) * 5))) {
+        (globalreg->timestamp.tv_sec - last_disconnect >= 
+		 (kismin(reconnect_attempt, 6) * 5))) {
 
-        if (Reconnect() <= 0)
-            return 0;
+		Reconnect();
     }
 
 	// Send version probe if we're setting up a new connection
@@ -161,6 +160,7 @@ int GPSDClient::Reconnect() {
 		poll_mode = -1;
 		last_hed_time = 0;
 		si_units = 0;
+		reconnect_attempt = 1;
 		Timer();
 	}
     
