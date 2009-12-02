@@ -117,7 +117,7 @@ protected:
 	int stored_privmode;
 
 	string vap, parent;
-	int use_mac80211, opp_vap;
+	int use_mac80211, opp_vap, force_vap;
 	vector<unsigned int> mac80211_flag_vec;
 	void *nlcache, *nlfamily;
 

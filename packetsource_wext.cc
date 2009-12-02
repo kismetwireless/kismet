@@ -64,6 +64,7 @@ PacketSource_Wext::PacketSource_Wext(GlobalRegistry *in_globalreg,
 
 	use_mac80211 = 0;
 	opp_vap = 0;
+	force_vap = 0;
 	nlcache = nlfamily = NULL;
 
 	stored_channel = stored_mode = stored_privmode = stored_flags = -1;
@@ -152,6 +153,10 @@ int PacketSource_Wext::ParseOptions(vector<opt_pair> *in_opts) {
 		// Opportunistic VAP off when specified
 		opp_vap = 0;
 	}
+
+	// Record if the VAP is absolutely forced (no passive blank option)
+	if (StrLower(FetchOpt("forcevap", in_opts)) == "true")
+		force_vap = 1;
 
 	// Turn on VAP by default
 	if (vap == "" && (FetchOpt("forcevap", in_opts) == "" || 
@@ -448,10 +453,25 @@ int PacketSource_Wext::EnableMonitor() {
 	if (parent == "")
 		parent = interface;
 
+	// Try to grab the wireless mode before we go making vaps - don't make
+	// a vap for an interface that is already in monitor mode.  ignore failures
+	// and set a bogus stored mode so that we don't bypass the vap creation.  If
+	// for some reason an interface doesn't exist but a vap can still be created
+	// from it, we don't want to fall down
+	if (Iwconfig_Get_Mode(interface.c_str(), errstr, &stored_mode) < 0) {
+		stored_mode = IW_MODE_AUTO;
+	}
+
 	OpenWpaSupplicant();
 
 	// Defer the vap creation to here so we're sure we're root
-	if (vap != "" && use_mac80211) {
+	if (vap != "" && use_mac80211 && stored_mode == IW_MODE_MONITOR && force_vap == 0) {
+		_MSG("Not creating a VAP for " + interface + " even though one was "
+			 "requested, since the interface is already in monitor mode.  "
+			 "Perhaps an existing monitor mode VAP was specified.  To override "
+			 "this and create a new monitor mode vap no matter what, use the "
+			 "forcevap=true source option", MSGFLAG_PRINTERROR);
+	} else if (vap != "" && use_mac80211) {
 		if (Ifconfig_Delta_Flags(parent.c_str(), errstr, 
 								 IFF_UP | IFF_RUNNING | IFF_PROMISC) < 0) {
 			_MSG(errstr, MSGFLAG_PRINTERROR);
