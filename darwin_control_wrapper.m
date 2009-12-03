@@ -217,6 +217,12 @@ int darwin_get_corewifi(void *in_darwin) {
 	return [darwin getCoreWireless];
 }
 
+void darwin_disassociate(void *in_darwin) {
+	DarwinWifi *darwin = (DarwinWifi *) in_darwin;
+
+	[darwin disAssociate];
+}
+
 int darwin_get_channels(const char *in_iface, int **ret_channels) {
 	NSArray *supported;
 	int *ret = NULL;

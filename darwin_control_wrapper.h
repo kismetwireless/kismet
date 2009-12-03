@@ -33,6 +33,8 @@ void darwin_free_interface(void *in_darwin);
 int darwin_get_channels(const char *in_iface, int **ret_channels);
 int darwin_set_channel(unsigned int in_channel, char *ret_err, void *in_darwin);
 
+void darwin_disassociate(void *in_darwin);
+
 int darwin_get_corewifi(void *in_darwin);
 
 #endif

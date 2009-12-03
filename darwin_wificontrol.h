@@ -45,6 +45,7 @@
 -(NSArray *) getSupportedChannels;
 -(BOOL) setChannel: (unsigned int) c error: (char *) e;
 -(BOOL) getCoreWireless;
+-(void) disAssociate;
 
 @end;
 

@@ -94,12 +94,18 @@ WIErr wlc_ioctl(WirelessContextPtr ctx, int command, int bufsize,
 	// We only know how to return the channels on corewireless
 	if (iface != nil) {
 		ret = [iface supportedChannels];
-
-		printf("debug - device has %u channels\n", [ret count]);
-
 	}
 
 	return ret;
+}
+
+-(void) disAssociate {
+	if (iface != nil) {
+		[iface disassociate];
+	} else if (ctx != nil) {
+		// Disassociate
+    		wlc_ioctl(ctx, 52, 0, NULL, 0, NULL);
+	}
 }
 
 -(BOOL) setChannel: (unsigned int) c error: (char *) e {

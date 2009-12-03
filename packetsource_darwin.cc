@@ -112,6 +112,8 @@ int PacketSource_Darwin::EnableMonitor() {
 		globalreg->fatal_condition = 1;
 	}
 
+	cherror_pending = 0;
+
 	control = darwin_allocate_interface(devname);
 	
 	if (darwin_get_corewifi(control)) {
@@ -196,10 +198,32 @@ vector<unsigned int> PacketSource_Darwin::FetchSupportedChannels(string in_inter
 int PacketSource_Darwin::SetChannel(unsigned int in_ch) {
 	char err[1024];
 
+	// If we're in pending error state, spin
+	if (cherror_pending) {
+		if (globalreg->timestamp.tv_sec - cherror_pending <= 2) {
+			return 0;
+		} else {
+			cherror_pending = 0;
+			// Set the DLT back to the original
+    			pcap_set_datalink(pd, orig_dlt);
+			paused = 0;
+			_MSG("Resuming Darwin source " + name + "...", MSGFLAG_INFO);
+		}
+	}
+
 	if (darwin_set_channel(in_ch, err, control) < 0) {
 		_MSG("Darwin source " + name + ": Failed to set channel " +
-		IntToString(in_ch) + ": " + string(err), 
-		MSGFLAG_ERROR);
+		IntToString(in_ch) + ": " + string(err), MSGFLAG_ERROR);
+		_MSG("Attempting to reset Darwin source " + name + ", will resume channel "
+			"hopping once reset is complete.", MSGFLAG_ERROR);
+
+		// Remember the DLT, set us back to 10meg, set our delay time, set us to paused
+		// so that we don't process bogus packets
+		orig_dlt = pcap_datalink(pd);
+		darwin_disassociate(control);
+		pcap_set_datalink(pd, DLT_EN10MB);
+		cherror_pending = globalreg->timestamp.tv_sec;
+		paused = 1;
 	}
 
 	return 0;

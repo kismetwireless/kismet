@@ -77,6 +77,9 @@ protected:
 	virtual void FetchRadioData(kis_packet *in_packet) { };
 
 	void *control;
+
+	int orig_dlt;
+	int cherror_pending;
 };
 
 #endif /* osx and pcap */
