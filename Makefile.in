@@ -196,7 +196,7 @@ rpm:
 		export INSTUSR=`id -u`; $(MAKE) -e install )
 
 clean:
-	@-rm -f *.o
+	@-rm -f *.o *.mo
 	@-rm -f $(PS)
 	@-rm -f $(CS)
 	@-rm -f $(DRONE)
