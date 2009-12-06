@@ -130,9 +130,6 @@ tuntap_device=kistap0
 # Packet filtering options:
 # filter_tracker - Packets filtered from the tracker are not processed or
 #                  recorded in any way.
-# filter_dump    - Packets filtered at the dump level are tracked, displayed,
-#                  and written to the csv/xml/network/etc files, but not 
-#                  recorded in the packet dump
 # filter_export  - Controls what packets influence the exported CSV, network,
 #                  xml, gps, etc files.
 # All filtering options take arguments containing the type of address and
