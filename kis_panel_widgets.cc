@@ -1138,6 +1138,16 @@ void Kis_Menu::Deactivate() {
 	sub_menu = -1;
 	sub_item = -1;
 	mouse_triggered = 0;
+
+	if (submenuwin) {
+		delwin(submenuwin);
+		submenuwin = NULL;
+	}
+
+	if (menuwin) {
+		delwin(menuwin);
+		menuwin = NULL;
+	}
 }
 
 void Kis_Menu::DrawMenu(_menu *menu, WINDOW *win, int hpos, int vpos) {
@@ -1235,7 +1245,6 @@ void Kis_Menu::DrawMenu(_menu *menu, WINDOW *win, int hpos, int vpos) {
 				submenu = menubar[menu->items[y]->submenu];
 				subvpos = vpos + dsz;
 				subhpos = hpos + menu->width + 6;
-
 			}
 		} else if (menu->items[y]->extrachar != 0) {
 			menuline = menuline + " " + menu->items[y]->extrachar;
@@ -1306,6 +1315,7 @@ void Kis_Menu::DrawComponent() {
 		// Draw the menu itself, if we've got an item selected in it
 		if (((int) x == cur_menu || (int) x == sub_menu) && 
 			(sub_item >= 0 || cur_item >= 0 || mouse_triggered)) {
+
 			DrawMenu(menubar[x], menuwin, sx + hpos, sy + 1);
 		}
 
@@ -1368,6 +1378,12 @@ int Kis_Menu::KeyPress(int in_key) {
 				cur_menu = sub_menu;
 				cur_item = sub_item;
 				sub_menu = sub_item = -1;
+
+				if (submenuwin) {
+					delwin(submenuwin);
+					submenuwin = NULL;
+				}
+
 				return 0;
 			}
 
@@ -1539,6 +1555,10 @@ int Kis_Menu::KeyPress(int in_key) {
 }
 
 int Kis_Menu::MouseEvent(MEVENT *mevent) {
+	// Menu win/subwin coordinates
+	int wbx, wby, wlx, wly;
+	int match_any_win = 0;
+
 	if (mevent->bstate == 4 && mevent->y == sy) {
 		// Click happened somewhere in the menubar
 		int hpos = 3;
@@ -1557,7 +1577,18 @@ int Kis_Menu::MouseEvent(MEVENT *mevent) {
 				} else {
 					Activate(0);
 					cur_menu = x;
-					cur_item = -1;
+					cur_item = 0;
+
+					FindNextEnabledItem();
+
+					sub_menu = -1;
+					sub_item = -1;
+					
+					if (submenuwin) {
+						delwin(submenuwin);
+						submenuwin = NULL;
+					}
+
 					mouse_triggered = 1;
 					// Consume w/ no state change to caller
 					return -1;
@@ -1567,6 +1598,120 @@ int Kis_Menu::MouseEvent(MEVENT *mevent) {
 			hpos += menubar[x]->text.length() + 1;
 		} /* menu list */
 	} else if (mevent->bstate == 4 && mevent->y > sy && cur_menu >= 0) {
+		// If we have a submenu
+		if (submenuwin) {
+			// See if we fall w/in it
+			getparyx(submenuwin, wby, wbx);
+			getmaxyx(submenuwin, wly, wlx);
+
+			// If we're anywhere in the window we don't close menus
+			if (mevent->x >= wbx && mevent->x < wbx + wlx &&
+				mevent->y >= wby && mevent->y < wby + wly)
+				match_any_win = 1;
+
+			// Our range shouldn't include the borders
+			if (mevent->x > wbx && mevent->x < wbx + wlx &&
+				mevent->y > wby && mevent->y < wby + wly - 1) {
+
+				int mitem = mevent->y - wby - 1;
+
+				if (mitem >= 0 && mitem < (int) menubar[cur_menu]->items.size()) {
+					if (menubar[cur_menu]->items[mitem]->enabled == 1) {
+
+						int ret = (cur_menu * 100) + mitem + 1;
+
+						// Per-menu callbacks
+						if (menubar[cur_menu]->items[mitem]->callback != NULL) 
+							(*(menubar[cur_menu]->items[mitem]->callback))
+								(globalreg, ret, 
+								 menubar[cur_menu]->items[mitem]->auxptr);
+
+						// Widget-wide callbacks
+						if (cb_activate != NULL) 
+							(*cb_activate)(this, ret, cb_activate_aux, globalreg);
+
+						Deactivate();
+
+						return ret;
+					}
+				}
+			}
+		} 
+
+		if (menuwin) {
+			// See if we fall w/in the main menu
+			getparyx(menuwin, wby, wbx);
+			getmaxyx(menuwin, wly, wlx);
+
+			// If we're anywhere in the window we don't close menus
+			if (mevent->x >= wbx && mevent->x < wbx + wlx &&
+				mevent->y >= wby && mevent->y < wby + wly)
+				match_any_win = 1;
+
+			// Our range shouldn't include the borders
+			if (mevent->x > wbx && mevent->x < wbx + wlx &&
+				mevent->y > wby && mevent->y < wby + wly - 1) {
+
+				// If we had a sub menu, close it
+				if (sub_menu >= 0) {
+					cur_menu = sub_menu;
+					cur_item = sub_item;
+
+					sub_menu = sub_item = -1;
+
+					if (submenuwin) {
+						delwin(submenuwin);
+						submenuwin = NULL;
+					}
+
+					// And drop out of processing now, we don't want to select
+					// the original menu item
+					return -1;
+				}
+
+				int mitem = mevent->y - wby - 1;
+
+				if (mitem >= 0 && mitem < (int) menubar[cur_menu]->items.size()) {
+					if (menubar[cur_menu]->items[mitem]->enabled == 1) {
+
+						// Are we entering a submenu?
+						if (menubar[cur_menu]->items[mitem]->submenu != -1) {
+							// Remember where we were
+							sub_menu = cur_menu;
+							sub_item = cur_item;
+							cur_menu = menubar[cur_menu]->items[mitem]->submenu;
+							cur_item = 0;
+							return -1;
+						}
+
+						// Otherwise, trigger the menu item
+						int ret = (cur_menu * 100) + mitem + 1;
+
+						// Per-menu callbacks
+						if (menubar[cur_menu]->items[mitem]->callback != NULL) 
+							(*(menubar[cur_menu]->items[mitem]->callback))
+								(globalreg, ret, 
+								 menubar[cur_menu]->items[mitem]->auxptr);
+
+						// Widget-wide callbacks
+						if (cb_activate != NULL) 
+							(*cb_activate)(this, ret, cb_activate_aux, globalreg);
+
+						Deactivate();
+
+						return ret;
+					}
+				}
+			}
+		}
+
+		// Close menus entirely if we're clicking somewhere else in the screen
+		if (match_any_win == 0) {
+			Deactivate();
+			return -1;
+		}
+
+#if 0
 		int hpos = 3;
 		int ypos = sy + 2;
 		for (unsigned int x = 0; x < (unsigned int) (cur_menu + 1); x++) {
@@ -1606,6 +1751,9 @@ int Kis_Menu::MouseEvent(MEVENT *mevent) {
 				}
 			}
 		}
+
+#endif
+
 	}
 
 	return 0;
