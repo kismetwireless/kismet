@@ -49,6 +49,7 @@ public:
     virtual int Reconnect();
 protected:
 	struct gps_data_t *lgpst;
+	int lgpst_started;
 
 	string host, port;
 

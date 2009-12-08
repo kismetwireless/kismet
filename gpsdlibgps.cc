@@ -39,6 +39,7 @@ GPSLibGPS::GPSLibGPS() {
 
 GPSLibGPS::GPSLibGPS(GlobalRegistry *in_globalreg) : GPSCore(in_globalreg) {
 	lgpst = NULL;
+	lgpst_started = 0;
 
 	last_disconnect = globalreg->timestamp.tv_sec;
 
@@ -94,6 +95,9 @@ int GPSLibGPS::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
 	if (lgpst) {
 		FD_SET(lgpst->gps_fd, out_rset);
 
+		if (lgpst_started == 0)
+			FD_SET(lgpst->gps_fd, out_wset);
+
 		if (lgpst->gps_fd > in_max_fd)
 			return lgpst->gps_fd;
 	}
@@ -109,6 +113,11 @@ int GPSLibGPS::Poll(fd_set& in_rset, fd_set& in_wset) {
 
 	if (lgpst == NULL)
 		return -1;
+
+	if (FD_ISSET(lgpst->gps_fd, &in_wset)) {
+		gps_stream(lgpst, WATCH_ENABLE, NULL);
+		lgpst_started = 1;
+	}
 
 	if (FD_ISSET(lgpst->gps_fd, &in_rset)) {
 		if ((ret = gps_poll(lgpst)) < 0) {
@@ -243,14 +252,14 @@ int GPSLibGPS::Reconnect() {
 		gps_close(lgpst);
 	}
 
+	lgpst_started = 0;
+
 	if ((lgpst = gps_open(host.c_str(), port.c_str())) == NULL) {
 		_MSG("GPSD: Could not connect to " + host + ":" + port + " - " + 
 			 string(gps_errstr(errno)), MSGFLAG_ERROR);
 
 		return 0;
 	}
-
-	gps_stream(lgpst, WATCH_ENABLE, NULL);
 
     return 1;
 }
