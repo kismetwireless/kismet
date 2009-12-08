@@ -25,6 +25,7 @@
 #include <sys/types.h>
 
 #include "util.h"
+#include "kis_netframe.h"
 #include "packetsourcetracker.h"
 #include "packetsource.h"
 #include "configfile.h"

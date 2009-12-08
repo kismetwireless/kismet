@@ -17,6 +17,9 @@
 */
 
 #include "config.h"
+
+#ifndef HAVE_LIBGPS
+
 #include "gpsdclient.h"
 #include "configfile.h"
 #include "soundcontrol.h"
@@ -68,7 +71,7 @@ GPSDClient::GPSDClient(GlobalRegistry *in_globalreg) : GPSCore(in_globalreg) {
 
 	last_mode = -1;
 
-	last_update = time(0);
+	last_update = globalreg->timestamp.tv_sec;
 
 	snprintf(errstr, STATUS_MAX, "Using GPSD server on %s:%d", host, port);
 	globalreg->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
@@ -82,7 +85,7 @@ GPSDClient::GPSDClient(GlobalRegistry *in_globalreg) : GPSCore(in_globalreg) {
 												 "disabling GPSD", MSGFLAG_ERROR);
 			return;
 		}
-		last_disconnect = time(0);
+		last_disconnect = globalreg->timestamp.tv_sec;
 	} else {
 		// Start a command
 		Timer();
@@ -120,12 +123,12 @@ int GPSDClient::Timer() {
 	// Send version probe if we're setting up a new connection
 	// Send the poll command if we're stuck in older polling mode
 	if (netclient->Valid()) {
-		if (time(0) - last_update > 15) {
+		if (globalreg->timestamp.tv_sec - last_update > 15) {
 			_MSG("No update from GPSD in 15 seconds or more, attempting to "
 				 "reconnect", MSGFLAG_ERROR);
 
 			netclient->KillConnection();
-			last_update = last_disconnect = time(0);
+			last_update = last_disconnect = globalreg->timestamp.tv_sec;
 			return GPSCore::Timer();
 		}
 
@@ -139,7 +142,7 @@ int GPSDClient::Timer() {
 		}
 
 		if (ret < 0 || globalreg->fatal_condition) {
-			last_disconnect = time(0);
+			last_disconnect = globalreg->timestamp.tv_sec;
 			return -1;
 		}
 	}
@@ -153,7 +156,7 @@ int GPSDClient::Reconnect() {
                  "reconnect in %d seconds", kismin(reconnect_attempt + 1, 6) * 5);
         globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
         reconnect_attempt++;
-        last_disconnect = time(0);
+        last_disconnect = globalreg->timestamp.tv_sec;
         return 0;
     } else {
 		// Set the poll mode to initial setup and call the timer
@@ -214,7 +217,7 @@ int GPSDClient::ParseData() {
 		// Trim garbage out of it
 		inptok[it] = StrPrintable(inptok[it]);
 
-		last_update = time(0);
+		last_update = globalreg->timestmap.tv_sec;
 
 		if (poll_mode == 0 && inptok[it] == "GPSD") {
 			// Look for a really old gpsd which doesn't do anything intelligent
@@ -233,7 +236,7 @@ int GPSDClient::ParseData() {
 			// and do NMEA ourselves.
 			if (netclient->WriteData((void *) "R=1\n", 4) < 0 ||
 				globalreg->fatal_condition) {
-				last_disconnect = time(0);
+				last_disconnect = globalreg->timestamp.tv_sec;
 				return 0;
 			}
 
@@ -267,7 +270,7 @@ int GPSDClient::ParseData() {
 			if (netclient->WriteData((void *) gpsd_watch_command, 
 									 strlen(gpsd_watch_command)) < 0 ||
 				globalreg->fatal_condition) {
-				last_disconnect = time(0);
+				last_disconnect = globalreg->timestmap.tv_sec;
 				return 0;
 			}
 
@@ -478,8 +481,8 @@ int GPSDClient::ParseData() {
 	} else if (poll_mode && use_coord) {
 		// We only do manual heading calcs in poll mode
 		if (last_hed_time == 0) {
-			last_hed_time = time(0);
-		} else if (time(0) - last_hed_time > 1) {
+			last_hed_time = globalreg->timestamp.tv_sec;
+		} else if (globalreg->timestamp.tv_sec - last_hed_time > 1) {
 			// It's been more than a second since we updated the heading, so we
 			// can back up the lat/lon and do hed calcs
 			last_lat = lat;
@@ -487,7 +490,7 @@ int GPSDClient::ParseData() {
 			last_hed = hed;
 
 			hed = CalcHeading(in_lat, in_lon, last_lat, last_lon);
-			last_hed_time = time(0);
+			last_hed_time = globalreg->timestamp.tv_sec;
 		}
 	}
 
@@ -504,4 +507,6 @@ int GPSDClient::ParseData() {
 
 	return 1;
 }
+
+#endif
 

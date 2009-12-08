@@ -591,6 +591,16 @@ fi # want headers
 
 fi # linux 
 
+# Look for libgps
+havelgps="yes"
+AC_CHECK_LIB([gps], [gps_open],,havelgps=no)
+AC_CHECK_HEADER([gps.h],,havelgps=no)
+
+if test "$havelgps" = "yes"; then
+AC_DEFINE(HAVE_LIBGPS, 1, gpsd libgps client support)
+KSLIBS="$KSLIBS -lgps"
+fi
+
 # Look for capability support
 havecap="yes"
 AC_CHECK_LIB([cap], [cap_init],,havecap=no)
@@ -999,6 +1009,13 @@ elif test "$linux" != "yes"; then
 	echo "n/a (only Linux)"
 else
 	echo "no (will not be able to make mac80211 vaps)";
+fi
+
+printf "           GPSD LibGPS: "
+if test "$havelgps" = "yes"; then
+	echo "yes (GPSD LibGPS client)";
+else
+	echo "no (Using Kismet GPSD interface for GPSD <= 2.90)";
 fi
 
 # printf "               SQLite3: "

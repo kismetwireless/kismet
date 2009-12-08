@@ -48,6 +48,9 @@
 /* Curses terminal lib */
 #undef HAVE_LIBCURSES
 
+/* gpsd libgps client support */
+#undef HAVE_LIBGPS
+
 /* NCurses terminal lib */
 #undef HAVE_LIBNCURSES
 

@@ -21,7 +21,7 @@
 #include <errno.h>
 
 #include "globalregistry.h"
-#include "gpsdclient.h"
+#include "gpscore.h"
 #include "dumpfile_gpsxml.h"
 
 #define GPS_VERSION		5

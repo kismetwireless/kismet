@@ -20,6 +20,7 @@
 #include "gpscore.h"
 #include "gpsserial.h"
 #include "gpsdclient.h"
+#include "gpsdlibgps.h"
 #include "gpswrapper.h"
 #include "configfile.h"
 
@@ -44,8 +45,13 @@ GpsWrapper::GpsWrapper(GlobalRegistry *globalreg) {
 		GPSSerial *gs;
 		gs = new GPSSerial(globalreg);
 	} else if (gpsopt == "gpsd") {
+#ifdef HAVE_LIBGPS
+		GPSLibGPS *lgps;
+		lgps = new GPSLibGPS(globalreg);
+#else
 		GPSDClient *gc;
 		gc = new GPSDClient(globalreg);
+#endif
 	} else if (gpsopt == "") {
 		_MSG("GPS enabled but gpstype missing from kismet.conf", MSGFLAG_FATAL);
 		globalreg->fatal_condition = 1;

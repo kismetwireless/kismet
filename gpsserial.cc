@@ -419,10 +419,11 @@ int GPSSerial::Timer() {
 	// fprintf(stderr, "debug - serial timer valid %d attempt %d last time %d\n", netclient->Valid(), reconnect_attempt, last_disconnect);
     // Timed backoff up to 30 seconds
     if (netclient->Valid() == 0 && reconnect_attempt >= 0 &&
-        (time(0) - last_disconnect >= (kismin(reconnect_attempt, 6) * 5))) {
+        (globalreg->timestamp.tv_sec - last_disconnect >= 
+		 (kismin(reconnect_attempt, 6) * 5))) {
 		// fprintf(stderr, "debug - serial reconnect?\n");
         if (Reconnect() <= 0)
-            return 0;
+            return 1;
     }
 
 	return GPSCore::Timer();
