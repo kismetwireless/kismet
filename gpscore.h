@@ -31,12 +31,12 @@
 
 enum GPS_fields {
     GPS_lat, GPS_lon, GPS_alt, GPS_spd, GPS_heading, GPS_fix, GPS_satinfo,
-	GPS_hdop, GPS_vdop, 
+	GPS_hdop, GPS_vdop, GPS_connected,
 	GPS_maxfield
 };
 
 struct GPS_data {
-    string lat, lon, alt, spd, heading, mode, satinfo, hdop, vdop;
+    string lat, lon, alt, spd, heading, mode, satinfo, hdop, vdop, connected;
 };
 
 int Protocol_GPS(PROTO_PARMS);

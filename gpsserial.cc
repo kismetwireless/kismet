@@ -39,7 +39,8 @@ GPSSerial::GPSSerial(GlobalRegistry *in_globalreg) : GPSCore(in_globalreg) {
 	sercli = new SerialClient(globalreg);
 	netclient = sercli;
 
-	last_disconnect = time(0);
+	last_disconnect = 0;
+	last_hed_time = 0;
 
     // Attach it to ourselves and opposite
     RegisterNetworkClient(sercli);
@@ -92,9 +93,12 @@ int GPSSerial::Reconnect() {
 		if (reconnect_attempt < 0) {
 			_MSG("GPSSerial: Reconnection not enabled (gpsreconnect), disabling "
 				 "GPS", MSGFLAG_ERROR);
+
+			last_disconnect = globalreg->timestamp.tv_sec;
+
+			return 0;
 		}
 
-		return 0;
 	}
 
 	// Reset the device options
@@ -112,6 +116,12 @@ int GPSSerial::Reconnect() {
 	cfsetospeed(&options, B4800);
 
 	sercli->SetOptions(TCSANOW, &options);
+
+	last_hed_time = 0;
+	reconnect_attempt = 1;
+	last_disconnect = 0;
+
+	Timer();
 
     return 1;
 }
@@ -382,35 +392,21 @@ int GPSSerial::ParseData() {
 	if (set_spd)
 		spd = in_spd * 0.514;
 
-#if 0
-    // send it to the client
-    gps_data gdata;
+	if (set_data) {
+		if (last_hed_time == 0) {
+			last_hed_time = globalreg->timestamp.tv_sec;
+		} else if (globalreg->timestamp.tv_sec - last_hed_time > 1) {
+			// It's been more than a second since we updated the heading, so we
+			// can back up the lat/lon and do hed calcs
+			last_lat = lat;
+			last_lon = lon;
+			last_hed = hed;
 
-    snprintf(errstr, 32, "%lf", lat);
-    gdata.lat = errstr;
-    snprintf(errstr, 32, "%lf", lon);
-    gdata.lon = errstr;
-    snprintf(errstr, 32, "%lf", alt);
-    gdata.alt = errstr;
-    snprintf(errstr, 32, "%lf", spd);
-    gdata.spd = errstr;
-    snprintf(errstr, 32, "%lf", hed);
-    gdata.heading = errstr;
-    snprintf(errstr, 32, "%d", mode);
-    gdata.mode = errstr;
+			hed = CalcHeading(in_lat, in_lon, last_lat, last_lon);
+			last_hed_time = globalreg->timestamp.tv_sec;
+		}
+	}
 
-    globalreg->kisnetserver->SendToAll(gps_proto_ref, (void *) &gdata);
-
-	// Make an empty packet w/ just GPS data for the gpsxml logger to catch
-	kis_packet *newpack = globalreg->packetchain->GeneratePacket();
-	kis_gps_packinfo *gpsdat = new kis_gps_packinfo;
-	newpack->ts.tv_sec = globalreg->timestamp.tv_sec;
-	newpack->ts.tv_usec = globalreg->timestamp.tv_usec;
-	FetchLoc(&(gpsdat->lat), &(gpsdat->lon), &(gpsdat->alt),
-			 &(gpsdat->spd), &(gpsdat->heading), &(gpsdat->gps_fix));
-	newpack->insert(_PCM(PACK_COMP_GPS), gpsdat);
-	globalreg->packetchain->ProcessPacket(newpack);
-#endif
 
     return 1;
 }
@@ -426,6 +422,8 @@ int GPSSerial::Timer() {
             return 1;
     }
 
-	return GPSCore::Timer();
+	GPSCore::Timer();
+
+	return 1;
 }
 

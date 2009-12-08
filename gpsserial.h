@@ -58,6 +58,8 @@ protected:
 	char device[128];
 
 	int last_mode;
+
+	time_t last_hed_time;
 };
 
 #endif

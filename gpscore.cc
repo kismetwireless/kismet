@@ -24,6 +24,7 @@
 
 const char *GPS_fields_text[] = {
     "lat", "lon", "alt", "spd", "heading", "fix", "satinfo", "hdop", "vdop",
+	"connected",
     NULL
 };
 
@@ -63,6 +64,9 @@ int Protocol_GPS(PROTO_PARMS) {
 			break;
 		case GPS_vdop:
 			out_string += gdata->vdop;
+			break;
+		case GPS_connected:
+			out_string += gdata->connected;
 			break;
         default:
             out_string = "Unknown field requested.";
@@ -258,36 +262,36 @@ double GPSCore::CalcRad(double lat) {
 }
 
 int GPSCore::Timer() {
+	printf("debug - gpscore timer\n");
 	// Pick up if we've ever locked in
 	if (mode >= 2)
 		gps_ever_lock = 1;
 
-	// Don't send any info if we've never gotten a gps lock
-	if (gps_ever_lock) {
-		// Send it to the client
-		GPS_data gdata;
+	// Always send info
+	GPS_data gdata;
 
-		gdata.lat = NtoString<double>(lat).Str();
-		gdata.lon = NtoString<double>(lon).Str();
-		gdata.alt = NtoString<double>(alt).Str();
-		gdata.spd = NtoString<double>(spd).Str();
-		gdata.heading = NtoString<double>(hed).Str();
-		gdata.mode = IntToString(mode);
-		gdata.hdop = NtoString<double>(hdop).Str();
-		gdata.vdop = NtoString<double>(vdop).Str();
+	gdata.lat = NtoString<double>(lat).Str();
+	gdata.lon = NtoString<double>(lon).Str();
+	gdata.alt = NtoString<double>(alt).Str();
+	gdata.spd = NtoString<double>(spd).Str();
+	gdata.heading = NtoString<double>(hed).Str();
+	gdata.mode = last_disconnect == 0 ? IntToString(mode) : "0";
+	gdata.hdop = NtoString<double>(hdop).Str();
+	gdata.vdop = NtoString<double>(vdop).Str();
+	gdata.connected = last_disconnect == 0 ? "1" : "0";
 
-		gdata.satinfo = "\001";
-		for (map<int, sat_pos>::iterator x = sat_pos_map.begin(); 
-			 x != sat_pos_map.end(); ++x) {
-			gdata.satinfo += IntToString(x->second.prn) + string(":") +
-				IntToString(x->second.elevation) + string(":") +
-				IntToString(x->second.azimuth) + string(":") +
-				IntToString(x->second.snr) + string(",");
-		}
-		gdata.satinfo += "\001";
-
-		globalreg->kisnetserver->SendToAll(gps_proto_ref, (void *) &gdata);
+	gdata.satinfo = "\001";
+	for (map<int, sat_pos>::iterator x = sat_pos_map.begin(); 
+		 x != sat_pos_map.end(); ++x) {
+		gdata.satinfo += IntToString(x->second.prn) + string(":") +
+			IntToString(x->second.elevation) + string(":") +
+			IntToString(x->second.azimuth) + string(":") +
+			IntToString(x->second.snr) + string(",");
 	}
+	gdata.satinfo += "\001";
+
+	printf("debug - core send to all\n");
+	globalreg->kisnetserver->SendToAll(gps_proto_ref, (void *) &gdata);
 
 	// Make an empty packet w/ just GPS data for the gpsxml logger to catch
 	kis_packet *newpack = globalreg->packetchain->GeneratePacket();

@@ -112,11 +112,12 @@ int GPSDClient::Shutdown() {
 int GPSDClient::Timer() {
 	int ret = 0;
 
+	fprintf(stderr, "debug - head gpsd client timer\n");
+
     // Timed backoff up to 30 seconds
     if (netclient->Valid() == 0 && reconnect_attempt >= 0 &&
         (globalreg->timestamp.tv_sec - last_disconnect >= 
 		 (kismin(reconnect_attempt, 6) * 5))) {
-
 		Reconnect();
     }
 
@@ -129,7 +130,8 @@ int GPSDClient::Timer() {
 
 			netclient->KillConnection();
 			last_update = last_disconnect = globalreg->timestamp.tv_sec;
-			return GPSCore::Timer();
+			GPSCore::Timer();
+			return 1;
 		}
 
 		if (poll_mode < 0) {
@@ -147,7 +149,10 @@ int GPSDClient::Timer() {
 		}
 	}
 
-	return GPSCore::Timer();
+	fprintf(stderr, "debug - gpsd timer end\n");
+	GPSCore::Timer();
+
+	return 1;
 }
 
 int GPSDClient::Reconnect() {
@@ -158,14 +163,16 @@ int GPSDClient::Reconnect() {
         reconnect_attempt++;
         last_disconnect = globalreg->timestamp.tv_sec;
         return 0;
-    } else {
-		// Set the poll mode to initial setup and call the timer
-		poll_mode = -1;
-		last_hed_time = 0;
-		si_units = 0;
-		reconnect_attempt = 1;
-		Timer();
 	}
+
+	// Set the poll mode to initial setup and call the timer
+	poll_mode = -1;
+	last_hed_time = 0;
+	si_units = 0;
+	reconnect_attempt = 1;
+	last_disconnect = 0;
+
+	Timer();
     
     return 1;
 }
@@ -217,7 +224,7 @@ int GPSDClient::ParseData() {
 		// Trim garbage out of it
 		inptok[it] = StrPrintable(inptok[it]);
 
-		last_update = globalreg->timestmap.tv_sec;
+		last_update = globalreg->timestamp.tv_sec;
 
 		if (poll_mode == 0 && inptok[it] == "GPSD") {
 			// Look for a really old gpsd which doesn't do anything intelligent
@@ -270,7 +277,7 @@ int GPSDClient::ParseData() {
 			if (netclient->WriteData((void *) gpsd_watch_command, 
 									 strlen(gpsd_watch_command)) < 0 ||
 				globalreg->fatal_condition) {
-				last_disconnect = globalreg->timestmap.tv_sec;
+				last_disconnect = globalreg->timestamp.tv_sec;
 				return 0;
 			}
 

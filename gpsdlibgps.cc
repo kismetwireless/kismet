@@ -16,6 +16,11 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
+// CURRENTLY DISABLED
+//
+// libgps has some stability issues which are being addressed, until then, this
+// is disabled and normal gpsdclient code is used
+
 #include "config.h"
 
 #ifdef HAVE_LIBGPS
@@ -258,8 +263,16 @@ int GPSLibGPS::Reconnect() {
 		_MSG("GPSD: Could not connect to " + host + ":" + port + " - " + 
 			 string(gps_errstr(errno)), MSGFLAG_ERROR);
 
+		last_disconnect = globalreg->timestamp.tv_sec;
+
 		return 0;
 	}
+
+	last_disconnect = 0;
+	reconnect_attempt = 1;
+	last_hed_time = 0;
+
+	Timer();
 
     return 1;
 }
@@ -269,11 +282,16 @@ int GPSLibGPS::Timer() {
 	if (lgpst == NULL && reconnect_attempt >= 0 &&
         (globalreg->timestamp.tv_sec - last_disconnect >= 
 		 (kismin(reconnect_attempt, 6) * 5))) {
-        if (Reconnect() <= 0)
+
+        if (Reconnect() <= 0) {
+			reconnect_attempt++;
             return 1;
+		}
     }
 
-	return GPSCore::Timer();
+	GPSCore::Timer();
+
+	return 1;
 }
 
 #endif
