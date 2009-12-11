@@ -253,9 +253,7 @@ int KisDroneFramework::Activate() {
 		return -1;
 	}
 
-	TcpServer *tcpsrv = (TcpServer *) netserver;
-
-	if (tcpsrv->EnableServer() < 0 || globalreg->fatal_condition) {
+	if (netserver->EnableServer() < 0 || globalreg->fatal_condition) {
 		_MSG("Failed to enable TCP listener for Kismet drone server",
 			 MSGFLAG_FATAL);
 		globalreg->fatal_condition = 1;
@@ -263,9 +261,6 @@ int KisDroneFramework::Activate() {
 	}
 
 	netserver->RegisterServerFramework(this);
-
-	osstr << "Created Kismet drone TCP server on port " << tcpsrv->FetchPort();
-	_MSG(osstr.str(), MSGFLAG_INFO);
 
 	return 1;
 }

@@ -78,7 +78,7 @@ public:
 
     // Generic stuff that every network-y server will need to do.
     // Most of this needs to be overridden
-    
+
     // Core select loop merge - combine FDs with the master FD list, and
     // handle a strobe across pending FDs
     virtual int MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset);
@@ -127,6 +127,9 @@ public:
 
 	// Fetch a clients remote address
 	virtual string GetRemoteAddr(int in_fd) = 0;
+
+    // Enable server
+    virtual int EnableServer() = 0;
 
     // Shutdown the server
     virtual void Shutdown() = 0;

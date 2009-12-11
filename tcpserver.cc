@@ -116,6 +116,9 @@ int TcpServer::EnableServer() {
         free(maskaddr);
     }
 
+    snprintf(errstr, 1024, "Created TCP listener on port %d", 
+        FetchPort());
+    _MSG(errstr, MSGFLAG_INFO);
     return 1;
 }
 
