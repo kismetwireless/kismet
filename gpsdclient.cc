@@ -24,6 +24,7 @@
 #include "configfile.h"
 #include "soundcontrol.h"
 #include "packetchain.h"
+#include "kismet_json.h"
 
 int GpsdGpsEvent(Timetracker::timer_event *evt, void *parm, GlobalRegistry *globalreg) {
 	GPSDClient *gps = (GPSDClient *) parm;
@@ -112,8 +113,6 @@ int GPSDClient::Shutdown() {
 int GPSDClient::Timer() {
 	int ret = 0;
 
-	fprintf(stderr, "debug - head gpsd client timer\n");
-
     // Timed backoff up to 30 seconds
     if (netclient->Valid() == 0 && reconnect_attempt >= 0 &&
         (globalreg->timestamp.tv_sec - last_disconnect >= 
@@ -149,7 +148,6 @@ int GPSDClient::Timer() {
 		}
 	}
 
-	fprintf(stderr, "debug - gpsd timer end\n");
 	GPSCore::Timer();
 
 	return 1;
@@ -225,6 +223,25 @@ int GPSDClient::ParseData() {
 		inptok[it] = StrPrintable(inptok[it]);
 
 		last_update = globalreg->timestamp.tv_sec;
+
+#if 0
+		// Do we look like JSON?
+		if (inptok[it][0] == '{') {
+			struct JSON_value *json;
+			string err;
+
+			json = JSON_parse(inptok[it], err);
+
+			if (err.length() != 0) {
+				printf("debug - JSON error: %s\n", err.c_str());
+			}  else {
+				printf("debug - GPS JSON:\n");
+				JSON_dump(json, "", 0);
+			}
+
+			JSON_delete(json);
+		}
+#endif
 
 		if (poll_mode == 0 && inptok[it] == "GPSD") {
 			// Look for a really old gpsd which doesn't do anything intelligent

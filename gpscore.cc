@@ -262,7 +262,6 @@ double GPSCore::CalcRad(double lat) {
 }
 
 int GPSCore::Timer() {
-	printf("debug - gpscore timer\n");
 	// Pick up if we've ever locked in
 	if (mode >= 2)
 		gps_ever_lock = 1;
@@ -290,7 +289,6 @@ int GPSCore::Timer() {
 	}
 	gdata.satinfo += "\001";
 
-	printf("debug - core send to all\n");
 	globalreg->kisnetserver->SendToAll(gps_proto_ref, (void *) &gdata);
 
 	// Make an empty packet w/ just GPS data for the gpsxml logger to catch
