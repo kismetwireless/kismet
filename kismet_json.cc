@@ -54,6 +54,8 @@ struct JSON_value *JSON_parse(string in_json, string& error) {
 	tk.tok_str = "";
 	tk.tok_position = 0;
 
+	error = "";
+
 	// Step one, tokenize the input
 	for (unsigned int x = 0; x < in_json.length(); x++) {
 		if (tk_st_escaped > 0)
@@ -458,5 +460,69 @@ void JSON_dump(struct JSON_value *jsonv, string key, int depth) {
 	} else if (jsonv->value.tok_type == JSON_boolean) {
 		printf("%s%s%s\n", d.c_str(), key.c_str(), jsonv->value.tok_str.c_str());
 	}
+}
+
+struct JSON_value *JSON_dict_get_value(struct JSON_value *in_parent, string in_key,
+									   string& error) {
+	map<string, struct JSON_value *>::iterator vitr;
+
+	error = "";
+
+	if (in_parent == NULL) {
+		error = "JSON dictionary parent doesn't exist";
+		return NULL;
+	}
+
+	if (in_parent->value.tok_type != JSON_start) {
+		error = "JSON parent at " + IntToString(in_parent->value.tok_position) + 
+			" not a dictionary";
+		return NULL;
+	} 
+
+	if ((vitr = in_parent->value_map.find(in_key)) == in_parent->value_map.end()) {
+		error = "JSON no such key '" + in_key + "' in dictionary";
+		return NULL;
+	}
+
+	return vitr->second;
+}
+
+string JSON_dict_get_string(struct JSON_value *in_parent, string in_key,
+							string& error) {
+	struct JSON_value *v = JSON_dict_get_value(in_parent, in_key, error);
+	
+	error = "";
+
+	if (error.length() != 0)
+		return "";
+
+	if (v == NULL)
+		return "";
+
+	return v->value.tok_str;
+}
+
+float JSON_dict_get_number(struct JSON_value *in_parent, string in_key,
+						   string& error) {
+	float f = 0.0f;
+	string v = JSON_dict_get_string(in_parent, in_key, error);
+
+	error = "";
+
+	if (error.length() != 0)
+		return f;
+
+	if (v == "true") 
+		return 1.0f;
+
+	if (v == "false")
+		return 0.0f;
+
+	if (sscanf(v.c_str(), "%f", &f) != 1) {
+		error = "JSON expected a numerical value but didn't get one";
+		return 0.0f;
+	}
+
+	return f;
 }
 

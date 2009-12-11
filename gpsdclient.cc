@@ -87,9 +87,6 @@ GPSDClient::GPSDClient(GlobalRegistry *in_globalreg) : GPSCore(in_globalreg) {
 			return;
 		}
 		last_disconnect = globalreg->timestamp.tv_sec;
-	} else {
-		// Start a command
-		Timer();
 	}
 
 }
@@ -137,9 +134,11 @@ int GPSDClient::Timer() {
 			ret = netclient->WriteData((void *) gpsd_init_command,
 									   strlen(gpsd_init_command));
 			poll_mode = 0;
+			netclient->FlushRings();
 		} else if (poll_mode == 1) {
 			ret = netclient->WriteData((void *) gpsd_poll_command,
 									   strlen(gpsd_poll_command));
+			netclient->FlushRings();
 		}
 
 		if (ret < 0 || globalreg->fatal_condition) {
@@ -169,8 +168,6 @@ int GPSDClient::Reconnect() {
 	si_units = 0;
 	reconnect_attempt = 1;
 	last_disconnect = 0;
-
-	Timer();
     
     return 1;
 }
@@ -224,8 +221,8 @@ int GPSDClient::ParseData() {
 
 		last_update = globalreg->timestamp.tv_sec;
 
-#if 0
-		// Do we look like JSON?
+		// Do we look like JSON?  If it is, we process it independently of the normal
+		// methods...
 		if (inptok[it][0] == '{') {
 			struct JSON_value *json;
 			string err;
@@ -233,17 +230,136 @@ int GPSDClient::ParseData() {
 			json = JSON_parse(inptok[it], err);
 
 			if (err.length() != 0) {
-				printf("debug - JSON error: %s\n", err.c_str());
-			}  else {
-				printf("debug - GPS JSON:\n");
-				JSON_dump(json, "", 0);
+				_MSG("Invalid JSON data block from GPSD: " + err, MSGFLAG_ERROR);
+				continue;
+			}  
+
+			// printf("debug - GPS JSON:\n");
+			// JSON_dump(json, "", 0);
+
+			string msg_class = JSON_dict_get_string(json, "class", err);
+
+			if (msg_class == "VERSION") {
+				_MSG("Connected to a JSON-enabled GPSD version " +
+					 MungeToPrintable(JSON_dict_get_string(json, "release", err)) + 
+					 ", turning on JSON mode", MSGFLAG_INFO);
+				// Set JSON mode
+				poll_mode = 10;
+				// We get speed in meters/sec
+				si_units = 1;
+
+				if (netclient->WriteData((void *) "?WATCH={\"json\":true};\n", 22) < 0 ||
+					globalreg->fatal_condition) {
+					last_disconnect = globalreg->timestamp.tv_sec;
+					return 0;
+				}
+			} else if (msg_class == "TPV") {
+				float n;
+
+				n = JSON_dict_get_number(json, "mode", err);
+				if (err.length() == 0) {
+					in_mode = (int) n;
+					use_mode = 1;
+				}
+
+				// If we have a valid alt, use it
+				if (in_mode > 2) {
+					n = JSON_dict_get_number(json, "alt", err);
+					if (err.length() == 0) {
+						in_alt = n;
+						use_alt = 1;
+					}
+				} 
+
+				if (in_mode >= 2) {
+					// If we have LAT and LON, use them
+					n = JSON_dict_get_number(json, "lat", err);
+					if (err.length() == 0) {
+						in_lat = n;
+
+						n = JSON_dict_get_number(json, "lon", err);
+						if (err.length() == 0) {
+							in_lon = n;
+
+							use_coord = 1;
+							use_data = 1;
+						}
+					}
+
+					// If we have HDOP and VDOP, use them
+					n = JSON_dict_get_number(json, "epx", err);
+					if (err.length() == 0) {
+						in_hdop = n;
+
+						n = JSON_dict_get_number(json, "epy", err);
+						if (err.length() == 0) {
+							in_vdop = n;
+
+							use_dop = 1;
+						}
+					}
+
+					// Heading (track in gpsd speak)
+					n = JSON_dict_get_number(json, "track", err);
+					if (err.length() == 0) {
+						in_hed = n;
+						use_hed = 1;
+					}
+				}
+			} else if (msg_class == "SKY") {
+				GPSCore::sat_pos sp;
+				struct JSON_value *v = NULL, *s = NULL;
+
+				v = JSON_dict_get_value(json, "satellites", err);
+
+				if (err.length() == 0 && v != NULL) {
+					sat_pos_map.clear();
+
+					if (v->value.tok_type == JSON_arrstart) {
+						for (unsigned int z = 0; z < v->value_array.size(); z++) {
+							float prn = 0, ele = 0, az = 0, snr = 0;
+							int valid = 1;
+
+							s = v->value_array[z];
+
+							// If we're not a dictionary in the sat array, skip
+							if (s->value.tok_type != JSON_start) {
+								continue;
+							}
+
+							prn = JSON_dict_get_number(s, "PRN", err);
+							if (err.length() != 0) 
+								valid = 0;
+
+							ele = JSON_dict_get_number(s, "el", err);
+							if (err.length() != 0)
+								valid = 0;
+
+							az = JSON_dict_get_number(s, "az", err);
+							if (err.length() != 0)
+								valid = 0;
+
+							snr = JSON_dict_get_number(s, "ss", err);
+							if (err.length() != 0)
+								valid = 0;
+
+							if (valid) {
+								sp.prn = prn;
+								sp.elevation = ele;
+								sp.azimuth = az;
+								sp.snr = snr;
+
+								sat_pos_map[prn] = sp;
+							}
+						}
+
+					}
+
+				}
 			}
 
 			JSON_delete(json);
-		}
-#endif
-
-		if (poll_mode == 0 && inptok[it] == "GPSD") {
+		} else if (poll_mode == 0 && inptok[it] == "GPSD") {
 			// Look for a really old gpsd which doesn't do anything intelligent
 			// with the L (version) command.  Only do this once, if we've already
 			// figured out a poll mode then there's not much point in hammering
@@ -253,7 +369,7 @@ int GPSDClient::ParseData() {
 
 			Timer();
 			continue;
-		} else if (inptok[it].substr(0, 15) == "GPSD,L=2 1.0-25") {
+		} else if (poll_mode < 10 && inptok[it].substr(0, 15) == "GPSD,L=2 1.0-25") {
 			// Maemo ships a broken,broken GPS which doesn't parse NMEA correctly
 			// and results in no alt or fix in watcher or polling modes, so we
 			// have to detect this version and kick it into debug R=1 mode
@@ -266,7 +382,7 @@ int GPSDClient::ParseData() {
 
 			// Use raw for position
 			si_raw = 1;
-		} else if (inptok[it].substr(0, 7) == "GPSD,L=") {
+		} else if (poll_mode < 10 && inptok[it].substr(0, 7) == "GPSD,L=") {
 			// Look for the version response
 			vector<string> lvec = StrTokenize(inptok[it], " ");
 			int gma, gmi;
@@ -298,7 +414,7 @@ int GPSDClient::ParseData() {
 				return 0;
 			}
 
-		} else if (inptok[it].substr(0, 7) == "GPSD,P=") {
+		} else if (poll_mode < 10 && inptok[it].substr(0, 7) == "GPSD,P=") {
 			// Poll lines
 			vector<string> pollvec = StrTokenize(inptok[it], ",");
 
@@ -325,7 +441,7 @@ int GPSDClient::ParseData() {
 			use_coord = 1;
 			use_data = 1;
 
-		} else if (inptok[it].substr(0, 7) == "GPSD,O=") {
+		} else if (poll_mode < 10 && inptok[it].substr(0, 7) == "GPSD,O=") {
 			// Look for O= watch lines
 			vector<string> ggavec = StrTokenize(inptok[it], " ");
 
@@ -366,7 +482,7 @@ int GPSDClient::ParseData() {
 			use_mode = 1;
 			use_coord = 1;
 			use_data = 1;
-		} else if (si_raw && inptok[it].substr(0, 6) == "$GPGSA") {
+		} else if (poll_mode < 10 && si_raw && inptok[it].substr(0, 6) == "$GPGSA") {
 			vector<string> savec = StrTokenize(inptok[it], ",");
 
 			if (savec.size() != 18)
@@ -390,7 +506,7 @@ int GPSDClient::ParseData() {
 			use_spd = 1;
 			use_data = 1;
 			*/
-		} else if (si_raw && inptok[it].substr(0, 6) == "$GPGGA") {
+		} else if (poll_mode < 10 && si_raw && inptok[it].substr(0, 6) == "$GPGGA") {
 			vector<string> gavec = StrTokenize(inptok[it], ",");
 			int tint;
 			float tfloat;
@@ -417,7 +533,7 @@ int GPSDClient::ParseData() {
 			use_coord = 1;
 			use_alt = 1;
 			use_data = 1;
-		} else if (inptok[it].substr(0, 6) == "$GPGSV") {
+		} else if (poll_mode < 10 && inptok[it].substr(0, 6) == "$GPGSV") {
 			// $GPGSV,3,1,09,22,80,170,40,14,58,305,19,01,46,291,,18,44,140,33*7B
 			// $GPGSV,3,2,09,05,39,105,31,12,34,088,32,30,31,137,31,09,26,047,34*72
 			// $GPGSV,3,3,09,31,26,222,31*46

@@ -106,6 +106,17 @@ void JSON_delete(struct JSON_value *v);
 //    and array maps, examine the GPSD or look at the JSON_display() example function.
 struct JSON_value *JSON_parse(string in_json, string& error);
 
+struct JSON_value *JSON_dict_get_value(struct JSON_value *in_parent, string in_key,
+									   string& error);
+
+// Some basic JSON extraction functions for common actions
+string JSON_dict_get_string(struct JSON_value *in_parent, string in_key,
+							string& error);
+// Always return a float, cast it to an int if you need to, can be used
+// for bools too (you get a 0 or 1)
+float JSON_dict_get_number(struct JSON_value *in_parent, string in_key,
+							string& error);
+
 // Example function which dumps to stdout a representation of the parsed JSON data
 void JSON_dump(struct JSON_value *jsonv, string key, int depth);
 
