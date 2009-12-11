@@ -122,38 +122,6 @@ int TcpServer::EnableServer() {
     return 1;
 }
 
-// Merge our file descriptors into an existing set
-int TcpServer::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
-    int max;
-
-    if (in_max_fd < max_fd) {
-        max = max_fd;
-    } else {
-        max = in_max_fd;
-    }
-
-    // Set the server fd if we're not in spindown mode, if we are in spindown
-	// we shouldn't accept any new connections so shut down the listener socket
-	if (globalreg->spindown && serv_fd >= 0) {
-		close(serv_fd);
-		serv_fd = -1;
-	} else if (serv_fd >= 0) {
-		FD_SET(serv_fd, out_rset);
-	}
-    
-    for (int x = 0; x <= max; x++) {
-        // Incoming read or our own clients
-        if (FD_ISSET(x, &server_fdset))
-            FD_SET(x, out_rset);
-        // Incoming write or any clients with a pending write ring
-		if (write_buf_map.find(x) != write_buf_map.end() &&
-			write_buf_map[x]->FetchLen() > 0)
-			FD_SET(x, out_wset);
-    }
-   
-    return max;
-}
-
 void TcpServer::KillConnection(int in_fd) {
     NetworkServer::KillConnection(in_fd);
     

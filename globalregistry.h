@@ -346,7 +346,7 @@ public:
 	}
 
 	int RemoveDumpFile(Dumpfile *in_dump) {
-		for (unsigned int x = 0; x < subsys_pollable_vec.size(); x++) {
+		for (unsigned int x = 0; x < subsys_dumpfile_vec.size(); x++) {
 			if (subsys_dumpfile_vec[x] == in_dump) {
 				subsys_dumpfile_vec.erase(subsys_dumpfile_vec.begin() + x);
 				return 1;
