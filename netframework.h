@@ -166,7 +166,7 @@ protected:
 };
 
 // Skeleton to a protocol interface
-class ServerFramework : public Pollable {
+class ServerFramework {
 public:
     ServerFramework() {
         globalreg = NULL;
@@ -189,20 +189,6 @@ public:
     void RegisterNetworkServer(NetworkServer *in_nets) {
         netserver = in_nets;
     }
-
-    virtual int MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
-		if (netserver != NULL)
-			return netserver->MergeSet(in_max_fd, out_rset, out_wset);
-
-		return 0;
-	}
-
-    virtual int Poll(fd_set& in_rset, fd_set& in_wset) {
-		if (netserver != NULL)
-			return netserver->Poll(in_rset, in_wset);
-
-		return 0;
-	}
 
 	// Is this setup valid?
 	virtual int Valid() { return valid; }
