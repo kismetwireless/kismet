@@ -238,7 +238,7 @@ struct mac_addr {
         return (uint8_t) (val >> ((MAC_LEN - index - 1) * 8));
     }
 
-    inline const uint8_t operator[] (const int& index) const {
+    inline const uint8_t operator[] (int index) const {
         int mdex = index;
         if (index < 0 || index >= MAC_LEN)
             mdex = 0;
