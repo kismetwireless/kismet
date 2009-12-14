@@ -14,8 +14,8 @@ PSO	= util.o cygwin_utils.o ringbuf.o messagebus.o configfile.o getopt.o \
 	filtercore.o ifcontrol.o iwcontrol.o madwifing_control.o nl80211_control.o \
 	$(OBJC_LINK) \
 	psutils.o ipc_remote.o soundcontrol.o battery.o kismet_json.o \
-	netframework.o clinetframework.o tcpserver.o tcpclient.o serialclient.o \
-	packetsourcetracker.o $(CAPSOURCES) \
+	netframework.o clinetframework.o tcpserver.o tcpclient.o \
+	unixdomainserver.o serialclient.o packetsourcetracker.o $(CAPSOURCES) \
 	kis_netframe.o kis_droneframe.o \
 	gpswrapper.o gpscore.o gpsdclient.o gpsserial.o gpsdlibgps.o \
 	packetchain.o \
