@@ -613,6 +613,14 @@ caplibs="-lcap"
 AC_SUBST(caplibs)
 fi 
 
+AC_ARG_WITH(pcreheaders,
+	[  --with-pcreheaders[=DIR]      Custom location of the PCRE library headers ],
+	[
+   	 if test "$withval" != no -a "$withval" != "yes"; then
+        CPPFLAGS="$CPPFLAGS -I$withval"
+    fi
+	])
+
 AC_ARG_ENABLE(pcre,
 	[  --disable-pcre          disable building pcre components],
 	[case "${enableval}" in

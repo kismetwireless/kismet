@@ -728,6 +728,7 @@ enable_largefile
 enable_client
 with_linuxheaders
 enable_linuxwext
+with_pcreheaders
 enable_pcre
 enable_airpcap
 with_airpcap_devpack
@@ -1388,6 +1389,7 @@ Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
   --with-linuxheaders=DIR     Custom location of the Linux kernel headers if the glibc copies are insufficient
+  --with-pcreheaders=DIR      Custom location of the PCRE library headers
   --with-airpcap=DIR     Location of the CACE AirPcap device pack NOTE cygwin appears to have link errors if the path is not within the current directory
   --with-winpcap=DIR     Location of the WinPcap device pack NOTE cygwin appears to have link errors if the path is not within the current directory
   --with-suidgroup=group       Group allowed to execute the kismet_capture suid root helper process
@@ -9009,6 +9011,17 @@ _ACEOF
 caplibs="-lcap"
 
 fi
+
+
+# Check whether --with-pcreheaders was given.
+if test "${with_pcreheaders+set}" = set; then
+  withval=$with_pcreheaders;
+   	 if test "$withval" != no -a "$withval" != "yes"; then
+        CPPFLAGS="$CPPFLAGS -I$withval"
+    fi
+
+fi
+
 
 # Check whether --enable-pcre was given.
 if test "${enable_pcre+set}" = set; then
