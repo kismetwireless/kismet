@@ -65,9 +65,14 @@ public:
 	virtual int AddPluginMenuItem(string in_name, int (*callback)(void *),
 								   void *auxptr);
 
+	// Toggle check (mostly unused, plugins should add to the main menus now)
 	virtual void SetPluginMenuItemChecked(int in_mi, int in_checked) {
 		menu->SetMenuItemChecked(in_mi, in_checked);
 	}
+
+	// Add a divider to the View menu to add plugin view options (should be
+	// called by every plugin, will only add the separator once)
+	virtual void AddViewSeparator();
 
 	// Passthroughs to the plugin-relevant packing boxes used to build the UI
 	// Network box (contains network and gps-line)
@@ -124,6 +129,7 @@ protected:
 
 	int mn_view, mi_shownetworks, mi_showclients, mi_showsummary, mi_showstatus, 
 		mi_showgps, mi_showbattery, mi_showpps, mi_showsources;
+	int mn_view_appended;
 
 	int mn_windows, mi_netdetails, mi_addnote, mi_clientlist, 
 		mi_chandetails, mi_gps, mi_alerts;

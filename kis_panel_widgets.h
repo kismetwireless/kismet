@@ -394,6 +394,8 @@ public:
 	virtual void SetMenuItemCallback(int in_item, kis_menuitem_cb in_cb, void *in_aux);
 	virtual void ClearMenuItemCallback(int in_item);
 
+	virtual int FindMenu(string in_menu);
+
 	// Delete all the menus
 	virtual void ClearMenus();
 

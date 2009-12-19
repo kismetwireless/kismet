@@ -1121,6 +1121,15 @@ void Kis_Menu::ClearMenus() {
 	}
 }
 
+int Kis_Menu::FindMenu(string in_menu) {
+	for (unsigned int x = 0; x < menubar.size(); x++) {
+		if (menubar[x]->text == in_menu)
+			return menubar[x]->id;
+	}
+
+	return -1;
+}
+
 void Kis_Menu::Activate(int subcomponent) {
 	Kis_Panel_Component::Activate(subcomponent);
 

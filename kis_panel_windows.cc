@@ -196,6 +196,8 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	menu->Show();
 	AddComponentVec(menu, KIS_PANEL_COMP_EVT);
 
+	mn_view_appended = 0;
+
 	// Make a hbox to hold the network list and additional info widgets,
 	// and the vertical stack of optional widgets
 	hbox = new Kis_Panel_Packbox(globalreg, this);
@@ -969,6 +971,13 @@ int Kis_Main_Panel::KeyPress(int in_key) {
 	return Kis_Panel::KeyPress(in_key);
 }
 
+void Kis_Main_Panel::AddViewSeparator() {
+	if (mn_view_appended)
+		return;
+
+	mn_view_appended = 1;
+	menu->AddMenuItem("-", mn_view, 0);
+}
 
 // Dump text to stderr
 void kmp_textcli_stderr(TEXTCLI_PARMS) {

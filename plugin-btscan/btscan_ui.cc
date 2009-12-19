@@ -34,7 +34,8 @@
 #include "tracker_btscan.h"
 
 const char *btscandev_fields[] = {
-	"bdaddr", "name", "class", "firsttime", "lasttime", "packets"
+	"bdaddr", "name", "class", "firsttime", "lasttime", "packets",
+	NULL
 };
 
 struct btscan_data {
@@ -46,15 +47,28 @@ struct btscan_data {
 
 	int cliaddref;
 
+	int timerid;
+
 	string asm_btscandev_fields;
 	int asm_btscandev_num;
+
+	KisPanelPluginData *pdata;
+	Kis_Menu *menu;
 };
 
+// Menu events
 int Btscan_plugin_menu_cb(void *auxptr);
-int Btscan_show_menu_cb(void *auxptr);
+void Btscan_show_menu_cb(MENUITEM_CB_PARMS);
 
+// Network events
 void BtscanCliAdd(KPI_ADDCLI_CB_PARMS);
 void BtscanCliConfigured(CLICONF_CB_PARMS);
+
+// List select
+void BtscanDevlistCB(COMPONENT_CALLBACK_PARMS);
+
+// List content timer
+int BtscanTimer(TIMEEVENT_PARMS);
 
 extern "C" {
 
@@ -64,6 +78,8 @@ int panel_plugin_init(GlobalRegistry *globalreg, KisPanelPluginData *pdata) {
 	btscan_data *btscan = new btscan_data;
 
 	pdata->pluginaux = (void *) btscan;
+
+	btscan->pdata = pdata;
 
 	btscan->asm_btscandev_num = 
 		TokenNullJoin(&(btscan->asm_btscandev_fields), btscandev_fields);
@@ -95,6 +111,32 @@ int panel_plugin_init(GlobalRegistry *globalreg, KisPanelPluginData *pdata) {
 	t.alignment = 0;
 	titles.push_back(t);
 
+	btscan->btdevlist->AddTitles(titles);
+	btscan->btdevlist->SetPreferredSize(0, 10);
+
+	pdata->mainpanel->AddComponentVec(btscan->btdevlist, 
+									  (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+									   KIS_PANEL_COMP_TAB));
+	pdata->mainpanel->FetchNetBox()->Pack_After_Named("KIS_MAIN_NETLIST",
+													  btscan->btdevlist, 1, 0);
+
+	btscan->menu = pdata->kpinterface->FetchMainPanel()->FetchMenu();
+	int mn_view = btscan->menu->FindMenu("View");
+
+	pdata->kpinterface->FetchMainPanel()->AddViewSeparator();
+	btscan->mi_showbtscan = btscan->menu->AddMenuItem("BT Scan", mn_view, 0);
+	btscan->menu->SetMenuItemCallback(btscan->mi_showbtscan, Btscan_show_menu_cb, 
+									  btscan);
+
+	string opt = pdata->kpinterface->prefs->FetchOpt("PLUGIN_BTSCAN_SHOW");
+	if (opt == "true" || opt == "") {
+		btscan->btdevlist->Show();
+		btscan->menu->SetMenuItemChecked(btscan->mi_showbtscan, 1);
+	} else {
+		btscan->btdevlist->Hide();
+		btscan->menu->SetMenuItemChecked(btscan->mi_showbtscan, 0);
+	}
+
 	return 1;
 }
 
@@ -122,6 +164,27 @@ int Btscan_plugin_menu_cb(void *auxptr) {
 	return 1;
 }
 
+void Btscan_show_menu_cb(MENUITEM_CB_PARMS) {
+	btscan_data *btscan = (btscan_data *) auxptr;
+
+	if (btscan->pdata->kpinterface->prefs->FetchOpt("PLUGIN_BTSCAN_SHOW") == "true" ||
+		btscan->pdata->kpinterface->prefs->FetchOpt("PLUGIN_BTSCAN_SHOW") == "") {
+
+		btscan->pdata->kpinterface->prefs->SetOpt("PLUGIN_BTSCAN_SHOW", "false", 1);
+
+		btscan->btdevlist->Hide();
+
+		btscan->menu->SetMenuItemChecked(btscan->mi_showbtscan, 0);
+	} else {
+		btscan->pdata->kpinterface->prefs->SetOpt("PLUGIN_BTSCAN_SHOW", "true", 1);
+
+		btscan->btdevlist->Show();
+
+		btscan->menu->SetMenuItemChecked(btscan->mi_showbtscan, 1);
+	}
+
+	return;
+}
 
 void BtscanProtoBTSCANDEV(CLIPROTO_CB_PARMS) {
 	btscan_data *btscan = (btscan_data *) auxptr;
