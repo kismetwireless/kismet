@@ -128,6 +128,24 @@ int KisNetClient::KillConnection() {
 
 	last_disconnect = time(0);
 
+	// Remove all the configured protocols, they'll get re-registered by the 
+	// configure callbacks
+	map<string, kcli_configured_proto_rec>::iterator hitr;
+
+	for (hitr = handler_cb_map.begin(); hitr != handler_cb_map.end(); ++hitr) {
+		for (unsigned int x = 0; x < hitr->second.handler_vec.size(); x++) {
+			delete(hitr->second.handler_vec[x]);
+		}
+	}
+
+	handler_cb_map.clear();
+
+	// Clear the supported fields
+	proto_field_dmap.clear();
+
+	// Clear the command callback map (all commands are dead)
+	command_cb_map.clear();
+
 	return 1;
 }
 
