@@ -38,10 +38,16 @@ const char *btscandev_fields[] = {
 	NULL
 };
 
+enum btscan_sort_type {
+	btscan_sort_bdaddr, btscan_sort_bdname, btscan_sort_bdclass,
+	btscan_sort_firsttime, btscan_sort_lasttime, btscan_sort_packets
+};
+
 struct btscan_data {
 	int mi_plugin_btscan, mi_showbtscan;
 
 	map<mac_addr, btscan_network *> btdev_map;
+	vector<btscan_network *> btdev_vec;
 
 	Kis_Scrollable_Table *btdevlist;
 
@@ -52,8 +58,52 @@ struct btscan_data {
 	string asm_btscandev_fields;
 	int asm_btscandev_num;
 
+	btscan_sort_type sort_type;
+
 	KisPanelPluginData *pdata;
 	Kis_Menu *menu;
+};
+
+class Btscan_Sort_Bdaddr {
+public:
+	inline bool operator()(btscan_network *x, btscan_network *y) const {
+		return x->bd_addr < y->bd_addr;
+	}
+};
+
+class Btscan_Sort_Firsttime {
+public:
+	inline bool operator()(btscan_network *x, btscan_network *y) const {
+		return x->first_time < y->first_time;
+	}
+};
+
+class Btscan_Sort_Lasttime {
+public:
+	inline bool operator()(btscan_network *x, btscan_network *y) const {
+		return x->last_time < y->last_time;
+	}
+};
+
+class Btscan_Sort_Class {
+public:
+	inline bool operator()(btscan_network *x, btscan_network *y) const {
+		return x->bd_class < y->bd_class;
+	}
+};
+
+class Btscan_Sort_Name {
+public:
+	inline bool operator()(btscan_network *x, btscan_network *y) const {
+		return x->bd_name < y->bd_name;
+	}
+};
+
+class Btscan_Sort_Packets {
+public:
+	inline bool operator()(btscan_network *x, btscan_network *y) const {
+		return x->packets < y->packets;
+	}
 };
 
 // Menu events
@@ -81,15 +131,13 @@ int panel_plugin_init(GlobalRegistry *globalreg, KisPanelPluginData *pdata) {
 
 	btscan->pdata = pdata;
 
+	btscan->sort_type = btscan_sort_bdaddr;
+
 	btscan->asm_btscandev_num = 
 		TokenNullJoin(&(btscan->asm_btscandev_fields), btscandev_fields);
 
-	btscan->cliaddref =
-		pdata->kpinterface->Add_NetCli_AddCli_CB(BtscanCliAdd, (void *) btscan);
-
 	btscan->mi_plugin_btscan =
 		pdata->mainpanel->AddPluginMenuItem("BT Scan", Btscan_plugin_menu_cb, pdata);
-
 
 	btscan->btdevlist = new Kis_Scrollable_Table(globalreg, pdata->mainpanel);
 
@@ -114,6 +162,10 @@ int panel_plugin_init(GlobalRegistry *globalreg, KisPanelPluginData *pdata) {
 	btscan->btdevlist->AddTitles(titles);
 	btscan->btdevlist->SetPreferredSize(0, 10);
 
+	btscan->btdevlist->SetHighlightSelected(1);
+	btscan->btdevlist->SetLockScrollTop(1);
+	btscan->btdevlist->SetDrawTitles(1);
+
 	pdata->mainpanel->AddComponentVec(btscan->btdevlist, 
 									  (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
 									   KIS_PANEL_COMP_TAB));
@@ -136,6 +188,18 @@ int panel_plugin_init(GlobalRegistry *globalreg, KisPanelPluginData *pdata) {
 		btscan->btdevlist->Hide();
 		btscan->menu->SetMenuItemChecked(btscan->mi_showbtscan, 0);
 	}
+
+	// Register the timer event for populating the array
+	btscan->timerid = 
+		globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC, NULL,
+											  1, &BtscanTimer, btscan);
+
+	// Do this LAST.  The configure event is responsible for clearing out the
+	// list on reconnect, but MAY be called immediately upon being registered
+	// if the client is already valid.  We have to have made all the other
+	// bits first before it's valid to call this
+	btscan->cliaddref =
+		pdata->kpinterface->Add_NetCli_AddCli_CB(BtscanCliAdd, (void *) btscan);
 
 	return 1;
 }
@@ -202,8 +266,9 @@ void BtscanProtoBTSCANDEV(CLIPROTO_CB_PARMS) {
 
 	ma = mac_addr((*proto_parsed)[fnum++].word);
 
-	if (ma.error)
+	if (ma.error) {
 		return;
+	}
 
 	map<mac_addr, btscan_network *>::iterator bti;
 	string tstr;
@@ -214,6 +279,8 @@ void BtscanProtoBTSCANDEV(CLIPROTO_CB_PARMS) {
 		btn->bd_addr = ma;
 
 		btscan->btdev_map[ma] = btn;
+
+		btscan->btdev_vec.push_back(btn);
 	} else {
 		btn = bti->second;
 	}
@@ -230,16 +297,19 @@ void BtscanProtoBTSCANDEV(CLIPROTO_CB_PARMS) {
 	}
 	btn->bd_class = tstr;
 
-	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%u", &tuint) != 1) 
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%u", &tuint) != 1) {
 		return;
+	}
 	btn->first_time = tuint;
 
-	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%u", &tuint) != 1)
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%u", &tuint) != 1) {
 		return;
+	}
 	btn->last_time = tuint;
 
-	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%u", &tuint) != 1)
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%u", &tuint) != 1) {
 		return;
+	}
 	btn->packets = 1;
 
 	// TODO - gps
@@ -248,8 +318,8 @@ void BtscanProtoBTSCANDEV(CLIPROTO_CB_PARMS) {
 void BtscanCliConfigured(CLICONF_CB_PARMS) {
 	btscan_data *btscan = (btscan_data *) auxptr;
 
-	if (recon)
-		return;
+	// Wipe the scanlist
+	btscan->btdevlist->Clear();
 
 	if (kcli->RegisterProtoHandler("BTSCANDEV", btscan->asm_btscandev_fields,
 								   BtscanProtoBTSCANDEV, auxptr) < 0) {
@@ -269,5 +339,68 @@ void BtscanCliAdd(KPI_ADDCLI_CB_PARMS) {
 		return;
 
 	netcli->AddConfCallback(BtscanCliConfigured, 1, auxptr);
+}
+
+int BtscanTimer(TIMEEVENT_PARMS) {
+	btscan_data *btscan = (btscan_data *) parm;
+
+	// This isn't efficient at all.. but pull the current line, re-sort the 
+	// data vector, clear the display, recreate the strings in the table, 
+	// re-insert them, and reset the position to the stored one
+
+	vector<string> current_row = btscan->btdevlist->GetSelectedData();
+
+	mac_addr current_bdaddr;
+
+	if (current_row.size() >= 1) 
+		current_bdaddr = mac_addr(current_row[0]);
+
+	vector<string> add_row;
+
+	switch (btscan->sort_type) {
+		case btscan_sort_bdaddr:
+			stable_sort(btscan->btdev_vec.begin(), btscan->btdev_vec.end(),
+						Btscan_Sort_Bdaddr());
+			break;
+		case btscan_sort_bdname:
+			stable_sort(btscan->btdev_vec.begin(), btscan->btdev_vec.end(),
+						Btscan_Sort_Name());
+			break;
+		case btscan_sort_bdclass:
+			stable_sort(btscan->btdev_vec.begin(), btscan->btdev_vec.end(),
+						Btscan_Sort_Class());
+			break;
+		case btscan_sort_firsttime:
+			stable_sort(btscan->btdev_vec.begin(), btscan->btdev_vec.end(),
+						Btscan_Sort_Firsttime());
+			break;
+		case btscan_sort_lasttime:
+			stable_sort(btscan->btdev_vec.begin(), btscan->btdev_vec.end(),
+						Btscan_Sort_Lasttime());
+			break;
+		case btscan_sort_packets:
+			stable_sort(btscan->btdev_vec.begin(), btscan->btdev_vec.end(),
+						Btscan_Sort_Packets());
+			break;
+		default:
+			break;
+	}
+
+	btscan->btdevlist->Clear();
+
+	for (unsigned int x = 0; x < btscan->btdev_vec.size(); x++) {
+		add_row.clear();
+
+		add_row.push_back(btscan->btdev_vec[x]->bd_addr.Mac2String());
+		add_row.push_back(btscan->btdev_vec[x]->bd_name);
+		add_row.push_back(btscan->btdev_vec[x]->bd_class);
+
+		btscan->btdevlist->AddRow(x, add_row);
+
+		if (btscan->btdev_vec[x]->bd_addr == current_bdaddr)
+			btscan->btdevlist->SetSelected(x);
+	}
+
+	return 1;
 }
 

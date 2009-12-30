@@ -173,7 +173,7 @@ struct mac_addr {
     }
 
 	inline mac_addr(const string in) {
-		mac_addr(in.c_str());
+		string2long(in.c_str());
 	}
 
     inline mac_addr(int in) {
