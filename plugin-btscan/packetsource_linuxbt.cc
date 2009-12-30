@@ -128,9 +128,15 @@ void *linuxbt_cap_thread(void *arg) {
 
 			struct PacketSource_LinuxBT::linuxbt_pkt *rpkt = 
 				new PacketSource_LinuxBT::linuxbt_pkt;
+			char classbuf[8];
 
 			rpkt->bd_name = string(hci_name);
 			rpkt->bd_addr = mac_addr((const uint8_t *) &(hci_inq + x)->bdaddr.b);
+			snprintf(classbuf, 6, "%2.2x%2.2x%2.2x",
+					 (hci_inq + x)->dev_class[2],
+					 (hci_inq + x)->dev_class[1],
+					 (hci_inq + x)->dev_class[0]);
+			rpkt->bd_class = "0x" + string(classbuf);
 
 			linuxbt->packet_queue.push_back(rpkt);
 
@@ -258,7 +264,7 @@ int PacketSource_LinuxBT::Poll() {
 
 		newpack->insert(linuxbt_packet_id, pi);
 
-		printf("debug - got BT device %s %s\n", pi->bd_addr.Mac2String().c_str(), pi->bd_name.c_str());
+		// printf("debug - got BT device %s %s %s\n", pi->bd_addr.Mac2String().c_str(), pi->bd_name.c_str(), pi->bd_class.c_str());
 
 		num_packets++;
 
