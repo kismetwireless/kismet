@@ -46,6 +46,9 @@ enum btscan_sort_type {
 struct btscan_data {
 	int mi_plugin_btscan, mi_showbtscan;
 
+	int mn_sub_sort, mi_sort_bdaddr, mi_sort_bdname, mi_sort_bdclass,
+		mi_sort_firsttime, mi_sort_lasttime, mi_sort_packets;
+
 	map<mac_addr, btscan_network *> btdev_map;
 	vector<btscan_network *> btdev_vec;
 
@@ -109,6 +112,7 @@ public:
 // Menu events
 int Btscan_plugin_menu_cb(void *auxptr);
 void Btscan_show_menu_cb(MENUITEM_CB_PARMS);
+void Btscan_sort_menu_cb(MENUITEM_CB_PARMS);
 
 // Network events
 void BtscanCliAdd(KPI_ADDCLI_CB_PARMS);
@@ -180,13 +184,79 @@ int panel_plugin_init(GlobalRegistry *globalreg, KisPanelPluginData *pdata) {
 	btscan->menu->SetMenuItemCallback(btscan->mi_showbtscan, Btscan_show_menu_cb, 
 									  btscan);
 
-	string opt = pdata->kpinterface->prefs->FetchOpt("PLUGIN_BTSCAN_SHOW");
+	pdata->kpinterface->FetchMainPanel()->AddSortSeparator();
+	int mn_sort = btscan->menu->FindMenu("Sort");
+	btscan->mn_sub_sort = btscan->menu->AddSubMenuItem("BTScan", mn_sort, 0);
+	btscan->mi_sort_bdaddr = 
+		btscan->menu->AddMenuItem("BD Addr", btscan->mn_sub_sort, 0);
+	btscan->mi_sort_bdname = btscan->menu->AddMenuItem("Name", btscan->mn_sub_sort, 0);
+	btscan->mi_sort_bdclass = btscan->menu->AddMenuItem("Class", btscan->mn_sub_sort, 0);
+	btscan->mi_sort_firsttime = 
+		btscan->menu->AddMenuItem("First Time", btscan->mn_sub_sort, 0);
+	btscan->mi_sort_lasttime = 
+		btscan->menu->AddMenuItem("Last Time", btscan->mn_sub_sort, 0);
+	btscan->mi_sort_packets = 
+		btscan->menu->AddMenuItem("Times Seen", btscan->mn_sub_sort, 0);
+
+	btscan->menu->SetMenuItemCallback(btscan->mi_sort_bdaddr, Btscan_sort_menu_cb, 
+									  btscan);
+	btscan->menu->SetMenuItemCallback(btscan->mi_sort_bdname, Btscan_sort_menu_cb, 
+									  btscan);
+	btscan->menu->SetMenuItemCallback(btscan->mi_sort_bdclass, Btscan_sort_menu_cb, 
+									  btscan);
+	btscan->menu->SetMenuItemCallback(btscan->mi_sort_firsttime, Btscan_sort_menu_cb, 
+									  btscan);
+	btscan->menu->SetMenuItemCallback(btscan->mi_sort_lasttime, Btscan_sort_menu_cb, 
+									  btscan);
+	btscan->menu->SetMenuItemCallback(btscan->mi_sort_packets, Btscan_sort_menu_cb, 
+									  btscan);
+
+	string opt = StrLower(pdata->kpinterface->prefs->FetchOpt("PLUGIN_BTSCAN_SHOW"));
 	if (opt == "true" || opt == "") {
 		btscan->btdevlist->Show();
 		btscan->menu->SetMenuItemChecked(btscan->mi_showbtscan, 1);
+
+		btscan->menu->EnableMenuItem(btscan->mi_sort_bdaddr);
+		btscan->menu->EnableMenuItem(btscan->mi_sort_bdname);
+		btscan->menu->EnableMenuItem(btscan->mi_sort_bdclass);
+		btscan->menu->EnableMenuItem(btscan->mi_sort_firsttime);
+		btscan->menu->EnableMenuItem(btscan->mi_sort_lasttime);
+		btscan->menu->EnableMenuItem(btscan->mi_sort_packets);
+
 	} else {
 		btscan->btdevlist->Hide();
 		btscan->menu->SetMenuItemChecked(btscan->mi_showbtscan, 0);
+
+		btscan->menu->DisableMenuItem(btscan->mi_sort_bdaddr);
+		btscan->menu->DisableMenuItem(btscan->mi_sort_bdname);
+		btscan->menu->DisableMenuItem(btscan->mi_sort_bdclass);
+		btscan->menu->DisableMenuItem(btscan->mi_sort_firsttime);
+		btscan->menu->DisableMenuItem(btscan->mi_sort_lasttime);
+		btscan->menu->DisableMenuItem(btscan->mi_sort_packets);
+	}
+
+	opt = pdata->kpinterface->prefs->FetchOpt("PLUGIN_BTSCAN_SORT");
+	if (opt == "bdaddr") {
+		btscan->menu->SetMenuItemChecked(btscan->mi_sort_bdaddr, 1);
+		btscan->sort_type = btscan_sort_bdaddr;
+	} else if (opt == "bdname") {
+		btscan->menu->SetMenuItemChecked(btscan->mi_sort_bdname, 1);
+		btscan->sort_type = btscan_sort_bdname;
+	} else if (opt == "bdclass") {
+		btscan->menu->SetMenuItemChecked(btscan->mi_sort_bdclass, 1);
+		btscan->sort_type = btscan_sort_bdclass;
+	} else if (opt == "firsttime") {
+		btscan->menu->SetMenuItemChecked(btscan->mi_sort_firsttime, 1);
+		btscan->sort_type = btscan_sort_firsttime;
+	} else if (opt == "lasttime") {
+		btscan->menu->SetMenuItemChecked(btscan->mi_sort_lasttime, 1);
+		btscan->sort_type = btscan_sort_lasttime;
+	} else if (opt == "packets") {
+		btscan->menu->SetMenuItemChecked(btscan->mi_sort_packets, 1);
+		btscan->sort_type = btscan_sort_packets;
+	} else {
+		btscan->menu->SetMenuItemChecked(btscan->mi_sort_bdaddr, 1);
+		btscan->sort_type = btscan_sort_bdaddr;
 	}
 
 	// Register the timer event for populating the array
@@ -238,16 +308,73 @@ void Btscan_show_menu_cb(MENUITEM_CB_PARMS) {
 
 		btscan->btdevlist->Hide();
 
+		btscan->menu->DisableMenuItem(btscan->mi_sort_bdaddr);
+		btscan->menu->DisableMenuItem(btscan->mi_sort_bdname);
+		btscan->menu->DisableMenuItem(btscan->mi_sort_bdclass);
+		btscan->menu->DisableMenuItem(btscan->mi_sort_firsttime);
+		btscan->menu->DisableMenuItem(btscan->mi_sort_lasttime);
+		btscan->menu->DisableMenuItem(btscan->mi_sort_packets);
+
 		btscan->menu->SetMenuItemChecked(btscan->mi_showbtscan, 0);
 	} else {
 		btscan->pdata->kpinterface->prefs->SetOpt("PLUGIN_BTSCAN_SHOW", "true", 1);
 
 		btscan->btdevlist->Show();
 
+		btscan->menu->EnableMenuItem(btscan->mi_sort_bdaddr);
+		btscan->menu->EnableMenuItem(btscan->mi_sort_bdname);
+		btscan->menu->EnableMenuItem(btscan->mi_sort_bdclass);
+		btscan->menu->EnableMenuItem(btscan->mi_sort_firsttime);
+		btscan->menu->EnableMenuItem(btscan->mi_sort_lasttime);
+		btscan->menu->EnableMenuItem(btscan->mi_sort_packets);
+
 		btscan->menu->SetMenuItemChecked(btscan->mi_showbtscan, 1);
 	}
 
 	return;
+}
+
+void Btscan_sort_menu_cb(MENUITEM_CB_PARMS) {
+	btscan_data *btscan = (btscan_data *) auxptr;
+
+	btscan->menu->SetMenuItemChecked(btscan->mi_sort_bdaddr, 0);
+	btscan->menu->SetMenuItemChecked(btscan->mi_sort_bdname, 0);
+	btscan->menu->SetMenuItemChecked(btscan->mi_sort_bdclass, 0);
+	btscan->menu->SetMenuItemChecked(btscan->mi_sort_firsttime, 0);
+	btscan->menu->SetMenuItemChecked(btscan->mi_sort_lasttime, 0);
+	btscan->menu->SetMenuItemChecked(btscan->mi_sort_packets, 0);
+
+	if (menuitem == btscan->mi_sort_bdaddr) {
+		btscan->menu->SetMenuItemChecked(btscan->mi_sort_bdaddr, 1);
+		btscan->pdata->kpinterface->prefs->SetOpt("PLUGIN_BTSCAN_SORT", "bdaddr", 
+												  globalreg->timestamp.tv_sec);
+		btscan->sort_type = btscan_sort_bdaddr;
+	} else if (menuitem == btscan->mi_sort_bdname) {
+		btscan->menu->SetMenuItemChecked(btscan->mi_sort_bdname, 1);
+		btscan->pdata->kpinterface->prefs->SetOpt("PLUGIN_BTSCAN_SORT", "bdname", 
+												  globalreg->timestamp.tv_sec);
+		btscan->sort_type = btscan_sort_bdname;
+	} else if (menuitem == btscan->mi_sort_bdclass) {
+		btscan->menu->SetMenuItemChecked(btscan->mi_sort_bdclass, 1);
+		btscan->pdata->kpinterface->prefs->SetOpt("PLUGIN_BTSCAN_SORT", "bdclass", 
+												  globalreg->timestamp.tv_sec);
+		btscan->sort_type = btscan_sort_bdclass;
+	} else if (menuitem == btscan->mi_sort_firsttime) {
+		btscan->menu->SetMenuItemChecked(btscan->mi_sort_firsttime, 1);
+		btscan->pdata->kpinterface->prefs->SetOpt("PLUGIN_BTSCAN_SORT", "firsttime", 
+												  globalreg->timestamp.tv_sec);
+		btscan->sort_type = btscan_sort_firsttime;
+	} else if (menuitem == btscan->mi_sort_lasttime) {
+		btscan->menu->SetMenuItemChecked(btscan->mi_sort_lasttime, 1);
+		btscan->pdata->kpinterface->prefs->SetOpt("PLUGIN_BTSCAN_SORT", "lasttime", 
+												  globalreg->timestamp.tv_sec);
+		btscan->sort_type = btscan_sort_lasttime;
+	} else if (menuitem == btscan->mi_sort_packets) {
+		btscan->menu->SetMenuItemChecked(btscan->mi_sort_packets, 1);
+		btscan->pdata->kpinterface->prefs->SetOpt("PLUGIN_BTSCAN_SORT", "packets", 
+												  globalreg->timestamp.tv_sec);
+		btscan->sort_type = btscan_sort_packets;
+	}
 }
 
 void BtscanProtoBTSCANDEV(CLIPROTO_CB_PARMS) {

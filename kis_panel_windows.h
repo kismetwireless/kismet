@@ -73,6 +73,8 @@ public:
 	// Add a divider to the View menu to add plugin view options (should be
 	// called by every plugin, will only add the separator once)
 	virtual void AddViewSeparator();
+	// Similarly add a divider to the Sort menu to add plugin view options
+	virtual void AddSortSeparator();
 
 	// Passthroughs to the plugin-relevant packing boxes used to build the UI
 	// Network box (contains network and gps-line)
@@ -126,6 +128,7 @@ protected:
 	int mn_sort, mi_sort_auto, mi_sort_type, mi_sort_chan, mi_sort_crypt, mi_sort_first, 
 		mi_sort_first_d, mi_sort_last, mi_sort_last_d, mi_sort_bssid, mi_sort_ssid,
 		mi_sort_packets, mi_sort_packets_d;
+	int mn_sort_appended;
 
 	int mn_view, mi_shownetworks, mi_showclients, mi_showsummary, mi_showstatus, 
 		mi_showgps, mi_showbattery, mi_showpps, mi_showsources;

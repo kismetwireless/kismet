@@ -196,7 +196,7 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	menu->Show();
 	AddComponentVec(menu, KIS_PANEL_COMP_EVT);
 
-	mn_view_appended = 0;
+	mn_sort_appended = mn_view_appended = 0;
 
 	// Make a hbox to hold the network list and additional info widgets,
 	// and the vertical stack of optional widgets
@@ -977,6 +977,14 @@ void Kis_Main_Panel::AddViewSeparator() {
 
 	mn_view_appended = 1;
 	menu->AddMenuItem("-", mn_view, 0);
+}
+
+void Kis_Main_Panel::AddSortSeparator() {
+	if (mn_sort_appended)
+		return;
+
+	mn_sort_appended = 1;
+	menu->AddMenuItem("-", mn_sort, 0);
 }
 
 // Dump text to stderr
