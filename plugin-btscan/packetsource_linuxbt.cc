@@ -91,6 +91,11 @@ int PacketSource_LinuxBT::AutotypeProbe(string in_device) {
 void *linuxbt_cap_thread(void *arg) {
 	PacketSource_LinuxBT *linuxbt = (PacketSource_LinuxBT *) arg;
 
+	/* Clear the thread sigmask so we don't catch sigterm weirdly */
+	sigset_t sset;
+	sigfillset(&sset);
+	pthread_sigmask(SIG_BLOCK, &sset, NULL);
+
 	char hci_name[KIS_LINUXBT_NAME_MAX];
 	char hci_class[KIS_LINUXBT_CLASS_MAX];
 	inquiry_info *hci_inq = NULL;
@@ -99,11 +104,16 @@ void *linuxbt_cap_thread(void *arg) {
 	// printf("debug - cap thread\n");
 
 	while (linuxbt->thread_active > 0) {
+		// printf("debug - thread active, top of loop\n");
+
 		// Lock the device, do a blocking read of info, then sleep (if any)
+		// printf("debug - locking device lock\n");
 		pthread_mutex_lock(&(linuxbt->device_lock));
 
 		if ((hci_num_dev = hci_inquiry(linuxbt->hci_dev_id, linuxbt->bt_scan_time,
 									   100, NULL, &hci_inq, 0)) <= 0) {
+			// printf("debug - hci inq failed out\n");
+			pthread_mutex_unlock(&(linuxbt->device_lock));
 			sleep(linuxbt->bt_scan_delay);
 			continue;
 		}
@@ -112,8 +122,10 @@ void *linuxbt_cap_thread(void *arg) {
 			memset(hci_name, 0, KIS_LINUXBT_NAME_MAX);
 
 			if ((hci_read_remote_name(linuxbt->hci_dev, &(hci_inq + x)->bdaddr,
-									  KIS_LINUXBT_NAME_MAX, hci_name, 250000)) < 0)
+									  KIS_LINUXBT_NAME_MAX, hci_name, 250000)) < 0) {
+				// printf("debug - hci read remote failed out\n");
 				continue;
+			}
 
 			// Lock the queue, throw away if we have more than 100 records pending in
 			// the queue that haven't been handled, and raise the FD high if we need
@@ -150,6 +162,7 @@ void *linuxbt_cap_thread(void *arg) {
 
 		sleep(linuxbt->bt_scan_delay);
 
+		// printf("debug - unlocking device lock\n");
 		pthread_mutex_unlock(&(linuxbt->device_lock));
 	}
 
@@ -202,7 +215,12 @@ int PacketSource_LinuxBT::CloseSource() {
 		// Tell the thread to die
 		thread_active = 0;
 
+		// Kill it
+		// printf("debug - thread cancel\n");
+		pthread_cancel(cap_thread);
+
 		// Grab it back
+		// printf("debug - thread join\n");
 		pthread_join(cap_thread, &ret);
 
 		// Kill the mutexes
@@ -224,6 +242,8 @@ int PacketSource_LinuxBT::CloseSource() {
 		close(fake_fd[1]);
 		fake_fd[1] = -1;
 	}
+
+	// printf("debug - done closing source\n");
 
 	return 1;
 }
