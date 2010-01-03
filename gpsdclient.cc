@@ -168,6 +168,7 @@ int GPSDClient::Reconnect() {
 	si_units = 0;
 	reconnect_attempt = 1;
 	last_disconnect = 0;
+	gps_connected = 0;
     
     return 1;
 }
@@ -256,6 +257,8 @@ int GPSDClient::ParseData() {
 			} else if (msg_class == "TPV") {
 				float n;
 
+				gps_connected = 1;
+
 				n = JSON_dict_get_number(json, "mode", err);
 				if (err.length() == 0) {
 					in_mode = (int) n;
@@ -309,6 +312,8 @@ int GPSDClient::ParseData() {
 			} else if (msg_class == "SKY") {
 				GPSCore::sat_pos sp;
 				struct JSON_value *v = NULL, *s = NULL;
+
+				gps_connected = 1;
 
 				v = JSON_dict_get_value(json, "satellites", err);
 
@@ -387,6 +392,8 @@ int GPSDClient::ParseData() {
 			vector<string> lvec = StrTokenize(inptok[it], " ");
 			int gma, gmi;
 
+			gps_connected = 1;
+
 			if (lvec.size() < 3) {
 				poll_mode = 1;
 			} else if (sscanf(lvec[1].c_str(), "%d.%d", &gma, &gmi) != 2) {
@@ -415,6 +422,8 @@ int GPSDClient::ParseData() {
 			}
 
 		} else if (poll_mode < 10 && inptok[it].substr(0, 7) == "GPSD,P=") {
+			gps_connected = 1;
+
 			// Poll lines
 			vector<string> pollvec = StrTokenize(inptok[it], ",");
 
@@ -442,6 +451,8 @@ int GPSDClient::ParseData() {
 			use_data = 1;
 
 		} else if (poll_mode < 10 && inptok[it].substr(0, 7) == "GPSD,O=") {
+			gps_connected = 1;
+
 			// Look for O= watch lines
 			vector<string> ggavec = StrTokenize(inptok[it], " ");
 
@@ -483,6 +494,8 @@ int GPSDClient::ParseData() {
 			use_coord = 1;
 			use_data = 1;
 		} else if (poll_mode < 10 && si_raw && inptok[it].substr(0, 6) == "$GPGSA") {
+			gps_connected = 1;
+
 			vector<string> savec = StrTokenize(inptok[it], ",");
 
 			if (savec.size() != 18)
@@ -507,6 +520,8 @@ int GPSDClient::ParseData() {
 			use_data = 1;
 			*/
 		} else if (poll_mode < 10 && si_raw && inptok[it].substr(0, 6) == "$GPGGA") {
+			gps_connected = 1;
+
 			vector<string> gavec = StrTokenize(inptok[it], ",");
 			int tint;
 			float tfloat;
@@ -546,6 +561,8 @@ int GPSDClient::ParseData() {
 			// elevation
 			// azimuth
 			// snr
+
+			gps_connected = 1;
 
 			vector<string> svvec = StrTokenize(inptok[it], ",");
 			GPSCore::sat_pos sp;

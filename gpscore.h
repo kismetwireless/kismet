@@ -205,6 +205,9 @@ public:
     // Fetch mode
     int FetchMode() { return mode; }
 
+	// Fetch connection
+	int FetchConnected() { return (gps_connected == 1 && last_disconnect == 0); }
+
     // Various GPS transformations
     static double CalcHeading(double in_lat, double in_lon, 
 							  double in_lat2, double in_lon2);
@@ -231,6 +234,8 @@ protected:
 
     double lat, lon, alt, spd, hed, hdop, vdop;
     int mode, gps_ever_lock;
+
+	int gps_connected;
 
     // Last location used for softheading calcs
     double last_lat, last_lon, last_hed;

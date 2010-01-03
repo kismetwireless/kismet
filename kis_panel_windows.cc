@@ -94,7 +94,7 @@ int ClilistActivateCB(COMPONENT_CALLBACK_PARMS) {
 }
 
 const char *gps_fields[] = {
-	"fix", "lat", "lon", "alt", "spd", "heading", NULL
+	"connected", "fix", "lat", "lon", "alt", "spd", "heading", NULL
 };
 
 Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg, 
@@ -753,10 +753,18 @@ void Kis_Main_Panel::Proto_GPS(CLIPROTO_CB_PARMS) {
 	if (proto_parsed->size() < (unsigned int) agg_gps_num)
 		return;
 
-	int fnum = 0, fix;
+	int fnum = 0, connected, fix;
 	float lat, lon, alt, spd;
 
 	string gpstext;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &connected) != 1)
+		return;
+
+	if (connected <= 0) {
+		gpsinfo->SetText("No GPS data (GPS not connected)");
+		return;
+	}
 
 	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &fix) != 1)
 		return;
@@ -2829,7 +2837,7 @@ void Kis_Chanconf_Panel::ButtonAction(Kis_Panel_Component *in_button) {
 }
 
 static const char *gpsinfo_fields[] = {
-	"fix", "lat", "lon", "alt", "spd", "satinfo", NULL
+	"connected", "fix", "lat", "lon", "alt", "spd", "satinfo", NULL
 };
 
 void GpsProtoGPS(CLIPROTO_CB_PARMS) {
@@ -2890,7 +2898,7 @@ Kis_Gps_Panel::Kis_Gps_Panel(GlobalRegistry *in_globalreg,
 	gpssiggraph->Show();
 
 	gpslocinfo = new Kis_Free_Text(globalreg, this);
-	gpslocinfo->SetText("No GPS data (GPS not connected?)");
+	gpslocinfo->SetText("No GPS data (GPS not connected)");
 	gpslocinfo->Show();
 
 	gpsmoveinfo = new Kis_Free_Text(globalreg, this);
@@ -2942,10 +2950,13 @@ void Kis_Gps_Panel::Proto_GPS(CLIPROTO_CB_PARMS) {
 	if (proto_parsed->size() < (unsigned int) agg_gps_num)
 		return;
 
-	int fnum = 0, fix;
+	int fnum = 0, fix, connected;
 	float lat, lon, alt, spd;
 
 	string gpstext;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &connected) != 1)
+		return;
 
 	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &fix) != 1)
 		return;
@@ -2969,6 +2980,12 @@ void Kis_Gps_Panel::Proto_GPS(CLIPROTO_CB_PARMS) {
 		spd *= 3.2808;
 		// Convert alt to feet
 		alt *= 3.2808;
+	}
+
+	if (connected == 0) {
+		gpslocinfo->SetText("No GPS data (GPS not connected)");
+		gpsmoveinfo->SetText("");
+		return;
 	}
 
 	if (fix < 2) {

@@ -95,6 +95,7 @@ int GPSSerial::Reconnect() {
 				 "GPS", MSGFLAG_ERROR);
 
 			last_disconnect = globalreg->timestamp.tv_sec;
+			gps_connected = 0;
 
 			return 0;
 		}
@@ -184,6 +185,8 @@ int GPSSerial::ParseData() {
 			int tint;
 			float tfloat;
 
+			gps_connected = 1;
+
 			if (gpstoks.size() < 15)
 				continue;
 
@@ -218,6 +221,8 @@ int GPSSerial::ParseData() {
 			// $GPRMC,time,valid,lat,lathemi,lon,lonhemi,speed-knots,bearing,utc,,checksum
 			int tint;
 			float tfloat;
+			
+			gps_connected = 1;
 
 			if (gpstoks.size() < 12)
 				continue;
@@ -281,6 +286,8 @@ int GPSSerial::ParseData() {
 			 */
 			int tint;
 
+			gps_connected = 1;
+
 			if (gpstoks.size() < 18)
 				continue;
 
@@ -331,6 +338,8 @@ int GPSSerial::ParseData() {
 
 			vector<string> svvec = StrTokenize(inptok[it], ",");
 			GPSCore::sat_pos sp;
+
+			gps_connected = 1;
 
 			if (svvec.size() < 6) {
 				continue;

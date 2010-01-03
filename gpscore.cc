@@ -125,6 +125,8 @@ GPSCore::GPSCore(GlobalRegistry *in_globalreg) : ClientFramework(in_globalreg) {
 	hdop = vdop = 0;
 	gps_ever_lock = 0;
 
+	gps_connected = 0;
+
 	gpseventid = -1;
 }
 
@@ -277,7 +279,7 @@ int GPSCore::Timer() {
 	gdata.mode = last_disconnect == 0 ? IntToString(mode) : "0";
 	gdata.hdop = NtoString<double>(hdop).Str();
 	gdata.vdop = NtoString<double>(vdop).Str();
-	gdata.connected = last_disconnect == 0 ? "1" : "0";
+	gdata.connected = (gps_connected == 1 && last_disconnect == 0) ? "1" : "0";
 
 	gdata.satinfo = "\001";
 	for (map<int, sat_pos>::iterator x = sat_pos_map.begin(); 

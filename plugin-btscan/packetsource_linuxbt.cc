@@ -53,7 +53,7 @@ PacketSource_LinuxBT::PacketSource_LinuxBT(GlobalRegistry *in_globalreg,
 	pending_packet = 0;
 
 	bt_scan_delay = 1;
-	bt_scan_time = 8;
+	bt_scan_time = 4;
 
 	linuxbt_packet_id = globalreg->packetchain->RegisterPacketComponent("BTSCAN");
 }
@@ -112,7 +112,7 @@ void *linuxbt_cap_thread(void *arg) {
 			memset(hci_name, 0, KIS_LINUXBT_NAME_MAX);
 
 			if ((hci_read_remote_name(linuxbt->hci_dev, &(hci_inq + x)->bdaddr,
-									  KIS_LINUXBT_NAME_MAX, hci_name, 500000)) < 0)
+									  KIS_LINUXBT_NAME_MAX, hci_name, 250000)) < 0)
 				continue;
 
 			// Lock the queue, throw away if we have more than 100 records pending in

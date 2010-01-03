@@ -24,6 +24,7 @@
 #include <sstream>
 
 #include <globalregistry.h>
+#include <gpscore.h>
 #include <kis_panel_plugin.h>
 #include <kis_panel_frontend.h>
 #include <kis_panel_windows.h>
@@ -35,6 +36,7 @@
 
 const char *btscandev_fields[] = {
 	"bdaddr", "name", "class", "firsttime", "lasttime", "packets",
+	GPS_COMMON_FIELDS_TEXT,
 	NULL
 };
 
@@ -153,14 +155,19 @@ int panel_plugin_init(GlobalRegistry *globalreg, KisPanelPluginData *pdata) {
 	t.alignment = 0;
 	titles.push_back(t);
 
-	t.width = 15;
+	t.width = 16;
 	t.title = "Name";
 	t.alignment = 0;
 	titles.push_back(t);
 
-	t.width = 9;
+	t.width = 8;
 	t.title = "Class";
 	t.alignment = 0;
+	titles.push_back(t);
+
+	t.width = 5;
+	t.title = "Count";
+	t.alignment = 2;
 	titles.push_back(t);
 
 	btscan->btdevlist->AddTitles(titles);
@@ -437,9 +444,8 @@ void BtscanProtoBTSCANDEV(CLIPROTO_CB_PARMS) {
 	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%u", &tuint) != 1) {
 		return;
 	}
-	btn->packets = 1;
+	btn->packets = tuint;
 
-	// TODO - gps
 }
 
 void BtscanCliConfigured(CLICONF_CB_PARMS) {
@@ -521,6 +527,7 @@ int BtscanTimer(TIMEEVENT_PARMS) {
 		add_row.push_back(btscan->btdev_vec[x]->bd_addr.Mac2String());
 		add_row.push_back(btscan->btdev_vec[x]->bd_name);
 		add_row.push_back(btscan->btdev_vec[x]->bd_class);
+		add_row.push_back(IntToString(btscan->btdev_vec[x]->packets));
 
 		btscan->btdevlist->AddRow(x, add_row);
 
