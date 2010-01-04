@@ -253,7 +253,7 @@ int kisptw_event_timer(TIMEEVENT_PARMS) {
 				x->second->threaded = 0;
 			}
 #endif
-			if (pthread_mutex_trylock(&(x->second->crackdone)) != 0) {
+			if (pthread_mutex_trylock(&(x->second->crackdone)) == 0) {
 				x->second->threaded = 0;
 				pthread_mutex_unlock(&(x->second->crackdone));
 			}
