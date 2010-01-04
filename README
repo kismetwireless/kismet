@@ -355,7 +355,18 @@ http://www.kismetwireless.net
 
     Channel lists control the channels and patterns hopped to by capture
     sources in Kismet, when the channels can not be autodetected (or when
-    the user wishes to override them for some reason).
+    the user wishes to override them for some reason).  The default channel
+    lists (IEEE80211b, IEEE80211a, and IEEE80211ab) are used only when a
+    channel list is not provided by the driver, so should not be changed in
+    most cases.
+
+    When the channel list is automatically created from the channels
+    supported by the driver, the preferredchannels= option will control
+    which channels are weighted for extra time.  By setting this to channels
+    known to be defaults (such as 1, 6, 11) or channels with known networks
+    of interest (such as in a stationary install), Kismet will devote more
+    time to those channels to gather more information.  For more complex
+    channel timing, keep reading about how channel lists work.
 
     Channels can typically be specified as IEEE channels (11, 36, etc) 
     or as frequencies (2401, 5200) however some platforms and drivers may

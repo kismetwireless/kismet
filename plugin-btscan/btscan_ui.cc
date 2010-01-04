@@ -126,6 +126,32 @@ void BtscanDevlistCB(COMPONENT_CALLBACK_PARMS);
 // List content timer
 int BtscanTimer(TIMEEVENT_PARMS);
 
+// Details panel
+class Btscan_Details_Panel : public Kis_Panel {
+public:
+	Btscan_Details_Panel() {
+		fprintf(stderr, "FATAL OOPS: Btscan_Details_Panel()\n");
+		exit(1);
+	}
+
+	Btscan_Details_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_kpf);
+	virtual ~Btscan_Details_Panel();
+
+	virtual void DrawPanel();
+	virtual void ButtonAction(Kis_Panel_Component *in_button);
+	virtual void MenuAction(int opt);
+
+	void SetBtscan(btscan_data *in_bt) { btscan = in_bt; }
+	void SetDetailsNet(btscan_network *in_net) { btnet = in_net; }
+
+protected:
+	btscan_data *btscan;
+	btscan_network *btnet;
+
+	Kis_Panel_Packbox *vbox;
+	Kis_Free_Text *btdetailt;
+};
+
 extern "C" {
 
 int panel_plugin_init(GlobalRegistry *globalreg, KisPanelPluginData *pdata) {
@@ -407,6 +433,8 @@ void BtscanProtoBTSCANDEV(CLIPROTO_CB_PARMS) {
 	map<mac_addr, btscan_network *>::iterator bti;
 	string tstr;
 	unsigned int tuint;
+	float tfloat;
+	unsigned long tulong;
 
 	if ((bti = btscan->btdev_map.find(ma)) == btscan->btdev_map.end()) {
 		btn = new btscan_network;
@@ -446,6 +474,60 @@ void BtscanProtoBTSCANDEV(CLIPROTO_CB_PARMS) {
 	}
 	btn->packets = tuint;
 
+	// Only apply fixed value if we weren't before, never degrade
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%u", &tuint) != 1) {
+		return;
+	}
+	if (btn->gpsdata.gps_valid == 0)
+		btn->gpsdata.gps_valid = tuint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%f", &tfloat) != 1) 
+		return;
+	btn->gpsdata.min_lat = tfloat;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%f", &tfloat) != 1) 
+		return;
+	btn->gpsdata.min_lon = tfloat;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%f", &tfloat) != 1) 
+		return;
+	btn->gpsdata.min_alt = tfloat;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%f", &tfloat) != 1) 
+		return;
+	btn->gpsdata.min_spd = tfloat;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%f", &tfloat) != 1) 
+		return;
+	btn->gpsdata.max_lat = tfloat;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%f", &tfloat) != 1) 
+		return;
+	btn->gpsdata.max_lon = tfloat;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%f", &tfloat) != 1) 
+		return;
+	btn->gpsdata.max_alt = tfloat;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%f", &tfloat) != 1) 
+		return;
+	btn->gpsdata.max_spd = tfloat;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%f", &tfloat) != 1) 
+		return;
+	btn->gpsdata.aggregate_lat = tfloat;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%f", &tfloat) != 1) 
+		return;
+	btn->gpsdata.aggregate_lon = tfloat;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%f", &tfloat) != 1) 
+		return;
+	btn->gpsdata.aggregate_alt = tfloat;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%lu", &tulong) != 1) 
+		return;
+	btn->gpsdata.aggregate_points = tulong;
 }
 
 void BtscanCliConfigured(CLICONF_CB_PARMS) {
@@ -536,5 +618,28 @@ int BtscanTimer(TIMEEVENT_PARMS) {
 	}
 
 	return 1;
+}
+
+Btscan_Details_Panel::Btscan_Details_Panel(GlobalRegistry *in_globalreg,
+										   KisPanelInterface *in_intf) :
+	Kis_Panel(in_globalreg, in_intf) {
+
+	SetTitle("BTScan Details");
+
+	btdetailt = new Kis_Free_Text(globalreg, this);
+	AddComponentVec(btdetailt, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+								KIS_PANEL_COMP_TAB));
+	btdetailt->Show();
+
+	vbox = new Kis_Panel_Packbox(globalreg, this);
+	vbox->SetPackV();
+	vbox->SetHomogenous(0);
+	vbox->SetSpacing(0);
+	vbox->Show();
+
+	vbox->Pack_End(btdetailt, 0, 0);
+	AddComponentVec(vbox, KIS_PANEL_COMP_DRAW);
+
+	Position(WIN_CENTER(LINES, COLS));
 }
 

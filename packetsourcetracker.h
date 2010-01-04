@@ -362,6 +362,9 @@ protected:
 
 	// Number of ticks we've spent per channel in the past second
 	map<uint32_t, int> channel_tick_map;
+
+	// Preferred channels
+	vector<unsigned int> preferred_channels;
 };
 
 #endif

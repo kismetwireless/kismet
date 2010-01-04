@@ -969,9 +969,29 @@ int Packetsourcetracker::AddPacketSource(string in_source,
 			_MSG("Using default channel list '" + chanlistname + "' on source '" +
 				 interface + "'", MSGFLAG_INFO);
 		} else {
-			for (unsigned int z = 0; z < chvec.size() - 1; z++) 
-				chlist += IntToString(chvec[z]) + ",";
-			chlist += IntToString(chvec[chvec.size() - 1]);
+			string dmod = "";
+
+			for (unsigned int z = 0; z < chvec.size() - 1; z++) {
+				// Another stupidly inefficient method but it happens very rarely
+				for (unsigned int y = 0; y < preferred_channels.size(); y++) {
+					if (preferred_channels[y] == chvec[z]) {
+						dmod = ":3";
+						break;
+					}
+				}
+
+				chlist += (IntToString(chvec[z]) + dmod + ",");
+				dmod = "";
+			}
+
+			for (unsigned int y = 0; y < preferred_channels.size(); y++) {
+				if (preferred_channels[y] == chvec[chvec.size() - 1]) {
+					dmod = ":3";
+					break;
+				}
+			}
+			chlist += (IntToString(chvec[chvec.size() - 1]) + dmod);
+
 			chanlistname = channellist_map[chid]->name;
 			_MSG("Using hardware channel list " + chlist + ", " +
 				 IntToString(chvec.size()) + " channels on source " + interface, 
@@ -1213,6 +1233,31 @@ int Packetsourcetracker::LoadConfiguration() {
 		globalreg->fatal_condition = 1;
 		return -1;
 	} 
+
+	vector<string> tokvec = 
+		StrTokenize(globalreg->kismet_config->FetchOpt("preferredchannels"), ",");
+	for (unsigned int x = 0; x < tokvec.size(); x++) {
+		unsigned int tu;
+		if (sscanf(tokvec[x].c_str(), "%u", &tu) != 1) {
+			_MSG("Invalid channel in preferredchannels= in the Kismet config file, "
+				 "expected a channel number.", MSGFLAG_FATAL);
+			globalreg->fatal_condition = 1;
+			return -1;
+		}
+
+		preferred_channels.push_back(tu);
+	}
+
+	if (preferred_channels.size() > 0) {
+		string m = "Kismet will spend extra time on channels ";
+		for (unsigned int x = 0; x < preferred_channels.size(); x++) {
+			m += IntToString((int) preferred_channels[x]);
+			if (x != preferred_channels.size() - 1)
+				m += ",";
+		}
+
+		_MSG(m, MSGFLAG_INFO);
+	}
 
 	if (default_channel_dwell != 0) {
 		_MSG("Kismet will dwell on each channel for " +

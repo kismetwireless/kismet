@@ -12,7 +12,9 @@ servername=Kismet_2009
 # Prefix of where we log (as used in the logtemplate later)
 # logprefix=/some/path/to/logs
 
-# Do we allow plugins to be used?
+# Do we allow plugins to be used?  This will load plugins from the system
+# and user plugin directiories when set to true (See the README for the default
+# plugin locations).
 allowplugins=true
 
 # See the README for full information on the new source format
@@ -25,11 +27,20 @@ allowplugins=true
 # Comma-separated list of sources to enable.  This is only needed if you defined
 # multiple sources and only want to enable some of them.  By default, all defined
 # sources are enabled.
-# For example:
+# For example, if sources with name=prismsource and name=ciscosource are defined,
+# and you only want to enable those two:
 # enablesources=prismsource,ciscosource
 
+# Control which channels we like to spend more time on.  By default, the list
+# of channels is pulled from the driver automatically.  By setting preferred channels,
+# if they are present in the channel list, they'll be set with a timing delay so that
+# more time is spent on them.  Since 1, 6, 11 are the common default channels, it makes
+# sense to spend more time monitoring them.
+# For finer control, see further down in the config for the channellist= directives.
+preferredchannels=1,6,11
+
 # How many channels per second do we hop?  (1-10)
-channelvelocity=5
+channelvelocity=3
 
 # By setting the dwell time for channel hopping we override the channelvelocity
 # setting above and dwell on each channel for the given number of seconds.
@@ -75,6 +86,9 @@ channelvelocity=5
 # possible to change these, it is not recommended.  These are used when the supported
 # channel list can not be found for the source; to force using these instead of
 # the detected supported channels, override with channellist= in the source defintion
+#
+# IN GENERAL, if you think you want to modify these, what you REALLY want to do is
+# copy them and use channellist= in the packet source.
 channellist=IEEE80211b:1:3,6:3,11:3,2,7,3,8,4,9,5,10
 channellist=IEEE80211a:36,40,44,48,52,56,60,64,149,153,157,161,165
 channellist=IEEE80211ab:1:3,6:3,11:3,2,7,3,8,4,9,5,10,36,40,44,48,52,56,60,64,149,153,157,161,165
@@ -91,7 +105,8 @@ maxclients=5
 # bigger this number, the more memory and the more power it will use.
 maxbacklog=5000
 
-# Server + Drone config options
+# Server + Drone config options.  To have a Kismet server export live packets
+# as if it were a drone, uncomment these.
 # dronelisten=tcp://127.0.0.1:3501
 # droneallowedhosts=127.0.0.1
 # dronemaxclients=5
