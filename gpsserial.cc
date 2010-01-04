@@ -132,7 +132,7 @@ int GPSSerial::ParseData() {
 	char *buf;
 
 	double in_lat = 0, in_lon = 0, in_spd = 0, in_alt = 0;
-	int in_mode = 0, set_data, set_spd, set_mode;
+	int in_mode = 0, set_data = 0, set_spd = 0, set_mode = 0;
 
 	if (netclient == NULL)
 		return 0;

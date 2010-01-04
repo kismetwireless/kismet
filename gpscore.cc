@@ -118,6 +118,7 @@ GPSCore::GPSCore(GlobalRegistry *in_globalreg) : ClientFramework(in_globalreg) {
 		exit(1);
 	}
 
+	last_disconnect = 0;
     reconnect_attempt = -1;
 
     mode = -1;

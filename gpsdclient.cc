@@ -177,7 +177,8 @@ int GPSDClient::ParseData() {
     int len, rlen, roft = 0;
     char *buf;
     string strbuf;
-	float in_lat, in_lon, in_alt, in_spd, in_hed, in_hdop, in_vdop;
+	float in_lat = 0, in_lon = 0, in_alt = 0, 
+		  in_spd = 0, in_hed = 0, in_hdop = 0, in_vdop = 0;
 	int in_mode, use_alt = 1, use_spd = 1, use_hed = 1, use_data = 0,
 		use_mode = 0, use_coord = 0, use_dop = 0;;
 
