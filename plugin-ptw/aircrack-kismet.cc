@@ -99,7 +99,7 @@ struct kisptw_state {
 	int alert_ref;
 };
 
-kisptw_state *state;
+kisptw_state *state = NULL;
 
 void *kisptw_crack(void *arg) {
 	kisptw_net *pnet = (kisptw_net *) arg;
@@ -519,8 +519,41 @@ int kisptw_datachain_hook(CHAINCALL_PARMS) {
 }
 
 int kisptw_unregister(GlobalRegistry *in_globalreg) {
+	int warned = 0;
+	void *ret;
+
+	if (state == NULL)
+		return 0;
+
 	globalreg->packetchain->RemoveHandler(&kisptw_datachain_hook, CHAINPOS_CLASSIFIER);
 	globalreg->timetracker->RemoveTimer(state->timer_ref);
+
+	// Cancel the thread and wait for it to shut down
+	for (map<mac_addr, kisptw_net *>::iterator x = state->netmap.begin();
+		  x != state->netmap.end(); ++x) {
+
+		if (x->second->threaded == 0)
+			continue;
+
+		warned++;
+
+		pthread_cancel(x->second->crackthread);
+	}
+
+	if (warned) {
+		_MSG("Aircrack-PTW: Canceling & waiting for " + IntToString(warned) + 
+			 " pending PTW-crack threads to finish", MSGFLAG_INFO);
+
+		for (map<mac_addr, kisptw_net *>::iterator x = state->netmap.begin();
+			 x != state->netmap.end(); ++x) {
+
+			if (x->second->threaded == 0)
+				continue;
+
+			pthread_join(x->second->crackthread, &ret);
+		}
+	}
+
 	return 0;
 }
 
