@@ -106,6 +106,11 @@ void *kisptw_crack(void *arg) {
 	int i, j;
 	int numpackets = 0;
 
+	/* Clear the thread sigmask so we don't catch sigterm weirdly */
+	sigset_t sset;
+	sigfillset(&sset);
+	pthread_sigmask(SIG_BLOCK, &sset, NULL);
+
 	int (* all)[256];
 	int PTW_DEFAULTBF[PTW2_KEYHSBYTES] = 
 		{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
