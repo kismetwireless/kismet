@@ -141,9 +141,14 @@ void *linuxbt_cap_thread(void *arg) {
 			struct PacketSource_LinuxBT::linuxbt_pkt *rpkt = 
 				new PacketSource_LinuxBT::linuxbt_pkt;
 			char classbuf[8];
+			uint8_t swapmac[6];
+
+			for (unsigned int s = 0; s < 6; s++) {
+				swapmac[s] = (hci_inq + x)->bdaddr.b[5 - s];
+			}
 
 			rpkt->bd_name = string(hci_name);
-			rpkt->bd_addr = mac_addr((const uint8_t *) &(hci_inq + x)->bdaddr.b);
+			rpkt->bd_addr = mac_addr(swapmac);
 			snprintf(classbuf, 6, "%2.2x%2.2x%2.2x",
 					 (hci_inq + x)->dev_class[2],
 					 (hci_inq + x)->dev_class[1],

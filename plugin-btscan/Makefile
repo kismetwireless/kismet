@@ -35,6 +35,7 @@ install:	$(SRVOUT) $(CLIOUT)
 userinstall:	$(SRVOUT) $(CLIOUT)
 	mkdir -p ${HOME}/.kismet/plugins/
 	install -v $(SRVOUT) ${HOME}/.kismet/plugins/$(SRVOUT)
+	mkdir -p ${HOME}/.kismet/client_plugins/
 	install -v $(CLIOUT) ${HOME}/.kismet/client_plugins/$(CLIOUT)
 
 clean:

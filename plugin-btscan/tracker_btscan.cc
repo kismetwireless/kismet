@@ -178,6 +178,9 @@ int Tracker_BTScan::chain_handler(kis_packet *in_pack) {
 		btnet->bd_class = MungeToPrintable(bti->bd_class);
 
 		tracked_devs[bti->bd_addr] = btnet;
+
+		_MSG("Detected new bluetooth device \"" + btnet->bd_name + "\", MAC " +
+			 btnet->bd_addr.Mac2String() + " class " + btnet->bd_class, MSGFLAG_INFO);
 	} else {
 		btnet = titr->second;
 	}
@@ -188,7 +191,6 @@ int Tracker_BTScan::chain_handler(kis_packet *in_pack) {
 	if (gpsinfo != NULL && gpsinfo->gps_fix) {
 		btnet->gpsdata += gpsinfo;
 	}
-
 
 	btnet->last_time = globalreg->timestamp.tv_sec;
 	btnet->packets++;
