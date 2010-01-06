@@ -620,6 +620,7 @@ int BtscanTimer(TIMEEVENT_PARMS) {
 	return 1;
 }
 
+#if 0
 Btscan_Details_Panel::Btscan_Details_Panel(GlobalRegistry *in_globalreg,
 										   KisPanelInterface *in_intf) :
 	Kis_Panel(in_globalreg, in_intf) {
@@ -642,4 +643,5 @@ Btscan_Details_Panel::Btscan_Details_Panel(GlobalRegistry *in_globalreg,
 
 	Position(WIN_CENTER(LINES, COLS));
 }
+#endif
 
