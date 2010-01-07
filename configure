@@ -3662,6 +3662,21 @@ then
         { $as_echo "$as_me:$LINENO: result: HP ANSI C compiler - added -Ae +O2" >&5
 $as_echo "HP ANSI C compiler - added -Ae +O2" >&6; }
         ;;
+	darwin10*)
+		# Snow leopard and newer, no -bundle in plugins
+        CFLAGS="-no-cpp-precomp $CFLAGS"
+		LDFLAGS="$LDFLAGS -framework Foundation -framework CoreFoundation -F/System/Library/PrivateFrameworks -framework Apple80211 -framework IOKit"
+		PLUGINLDFLAGS="-flat_namespace -undefined suppress"
+		objc_link='$(OBJC_CONTROL_O)'
+        { $as_echo "$as_me:$LINENO: result: Apple OSX Snow Leopard or newer" >&5
+$as_echo "Apple OSX Snow Leopard or newer" >&6; }
+
+cat >>confdefs.h <<\_ACEOF
+#define SYS_DARWIN 1
+_ACEOF
+
+		darwin="yes"
+        ;;
     darwin*)
         #
         # It may be called "cc", but it's really a GCC derivative
@@ -3748,6 +3763,21 @@ else
         CFLAGS="$CFLAGS -Wno-return-type -DFUNCPROTO=15"
         { $as_echo "$as_me:$LINENO: result: GCC on Solaris - added -Wno-return-type -DFUNCPROTO=15" >&5
 $as_echo "GCC on Solaris - added -Wno-return-type -DFUNCPROTO=15" >&6; }
+        ;;
+	darwin10*)
+		# Snow leopard and newer, no -bundle in plugins
+        CFLAGS="-no-cpp-precomp $CFLAGS"
+		LDFLAGS="$LDFLAGS -framework Foundation -framework CoreFoundation -F/System/Library/PrivateFrameworks -framework Apple80211 -framework IOKit"
+		PLUGINLDFLAGS="-flat_namespace -undefined suppress"
+		objc_link='$(OBJC_CONTROL_O)'
+        { $as_echo "$as_me:$LINENO: result: Apple OSX Snow Leopard or newer" >&5
+$as_echo "Apple OSX Snow Leopard or newer" >&6; }
+
+cat >>confdefs.h <<\_ACEOF
+#define SYS_DARWIN 1
+_ACEOF
+
+		darwin="yes"
         ;;
     darwin*)
         #

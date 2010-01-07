@@ -34,6 +34,16 @@ then
         CFLAGS="-Ae +O2 $CFLAGS"
         AC_MSG_RESULT(HP ANSI C compiler - added -Ae +O2)
         ;;
+	darwin10*)
+		# Snow leopard and newer, no -bundle in plugins
+        CFLAGS="-no-cpp-precomp $CFLAGS"
+		LDFLAGS="$LDFLAGS -framework Foundation -framework CoreFoundation -F/System/Library/PrivateFrameworks -framework Apple80211 -framework IOKit"
+		PLUGINLDFLAGS="-flat_namespace -undefined suppress"
+		objc_link='$(OBJC_CONTROL_O)'
+        AC_MSG_RESULT(Apple OSX Snow Leopard or newer)
+		AC_DEFINE(SYS_DARWIN, 1, Compiling for OSX/Darwin)
+		darwin="yes"
+        ;;
     darwin*)
         #
         # It may be called "cc", but it's really a GCC derivative
@@ -88,6 +98,16 @@ else
         # and a lot don't include the return type
         CFLAGS="$CFLAGS -Wno-return-type -DFUNCPROTO=15"
         AC_MSG_RESULT(GCC on Solaris - added -Wno-return-type -DFUNCPROTO=15)
+        ;;
+	darwin10*)
+		# Snow leopard and newer, no -bundle in plugins
+        CFLAGS="-no-cpp-precomp $CFLAGS"
+		LDFLAGS="$LDFLAGS -framework Foundation -framework CoreFoundation -F/System/Library/PrivateFrameworks -framework Apple80211 -framework IOKit"
+		PLUGINLDFLAGS="-flat_namespace -undefined suppress"
+		objc_link='$(OBJC_CONTROL_O)'
+        AC_MSG_RESULT(Apple OSX Snow Leopard or newer)
+		AC_DEFINE(SYS_DARWIN, 1, Compiling for OSX/Darwin)
+		darwin="yes"
         ;;
     darwin*)
         #
