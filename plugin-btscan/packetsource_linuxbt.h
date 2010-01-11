@@ -97,6 +97,9 @@ public:
 	virtual int EnableMonitor() { return 1; }
 	virtual int DisableMonitor() { return 1; }
 
+	virtual int FetchChannel() { return -1; }
+	virtual int FetchChannelMod() { return -1; }
+
 	// We don't
 	virtual int SetChannel(unsigned int in_ch) { return 0; };
 

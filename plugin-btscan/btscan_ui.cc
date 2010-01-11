@@ -121,7 +121,7 @@ void BtscanCliAdd(KPI_ADDCLI_CB_PARMS);
 void BtscanCliConfigured(CLICONF_CB_PARMS);
 
 // List select
-void BtscanDevlistCB(COMPONENT_CALLBACK_PARMS);
+int BtscanDevlistCB(COMPONENT_CALLBACK_PARMS);
 
 // List content timer
 int BtscanTimer(TIMEEVENT_PARMS);
@@ -150,6 +150,8 @@ protected:
 
 	Kis_Panel_Packbox *vbox;
 	Kis_Free_Text *btdetailt;
+
+	Kis_Button *closebutton;
 };
 
 extern "C" {
@@ -202,6 +204,8 @@ int panel_plugin_init(GlobalRegistry *globalreg, KisPanelPluginData *pdata) {
 	btscan->btdevlist->SetHighlightSelected(1);
 	btscan->btdevlist->SetLockScrollTop(1);
 	btscan->btdevlist->SetDrawTitles(1);
+
+	btscan->btdevlist->SetCallback(COMPONENT_CBTYPE_ACTIVATED, BtscanDevlistCB, btscan);
 
 	pdata->mainpanel->AddComponentVec(btscan->btdevlist, 
 									  (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
@@ -620,7 +624,38 @@ int BtscanTimer(TIMEEVENT_PARMS) {
 	return 1;
 }
 
-#if 0
+int BtscanDevlistCB(COMPONENT_CALLBACK_PARMS) {
+	btscan_data *btscan = (btscan_data *) aux;
+	int selected = 0;
+
+	if (btscan->btdev_map.size() == 0) {
+		globalreg->panel_interface->RaiseAlert("No BT devices",
+			"No scanned bluetooth devices, can only show details\n"
+			"once a device has been found.\n");
+		return 1;
+	}
+
+	if ((selected = btscan->btdevlist->GetSelected()) < 0 ||
+			   selected > btscan->btdev_vec.size()) {
+		globalreg->panel_interface->RaiseAlert("No BT device selected",
+			"No bluetooth device selected in the BTScan list, can\n"
+			"only show details once a device has been selected.\n");
+		return 1;
+	}
+
+	Btscan_Details_Panel *dp = 
+		new Btscan_Details_Panel(globalreg, globalreg->panel_interface);
+	dp->SetBtscan(btscan);
+	dp->SetDetailsNet(btscan->btdev_vec[selected]);
+	globalreg->panel_interface->AddPanel(dp);
+
+	return 1;
+}
+
+int Btscan_Details_ButtonCB(COMPONENT_CALLBACK_PARMS) {
+	((Btscan_Details_Panel *) aux)->ButtonAction(component);
+}
+
 Btscan_Details_Panel::Btscan_Details_Panel(GlobalRegistry *in_globalreg,
 										   KisPanelInterface *in_intf) :
 	Kis_Panel(in_globalreg, in_intf) {
@@ -632,16 +667,70 @@ Btscan_Details_Panel::Btscan_Details_Panel(GlobalRegistry *in_globalreg,
 								KIS_PANEL_COMP_TAB));
 	btdetailt->Show();
 
+	closebutton = new Kis_Button(globalreg, this);
+	closebutton->SetText("Close");
+	closebutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, Btscan_Details_ButtonCB, this);
+	AddComponentVec(closebutton, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+								  KIS_PANEL_COMP_TAB));
+	closebutton->Show();
+
 	vbox = new Kis_Panel_Packbox(globalreg, this);
 	vbox->SetPackV();
 	vbox->SetHomogenous(0);
 	vbox->SetSpacing(0);
+
+	vbox->Pack_End(btdetailt, 1, 0);
+	vbox->Pack_End(closebutton, 0, 0);
+	AddComponentVec(vbox, KIS_PANEL_COMP_DRAW);
+
 	vbox->Show();
 
-	vbox->Pack_End(btdetailt, 0, 0);
-	AddComponentVec(vbox, KIS_PANEL_COMP_DRAW);
+	SetActiveComponent(btdetailt);
+
+	main_component = vbox;
 
 	Position(WIN_CENTER(LINES, COLS));
 }
-#endif
+
+Btscan_Details_Panel::~Btscan_Details_Panel() {
+
+}
+
+void Btscan_Details_Panel::DrawPanel() {
+	vector<string> td;
+
+	int selected;
+
+	if (btscan == NULL) {
+		td.push_back("BT details panel draw event happened before btscan");
+		td.push_back("known, something is busted internally, report this");
+	} else if (btnet == NULL) {
+		td.push_back("No BT network selected");
+	} else {
+		td.push_back(AlignString("Name: ", ' ', 2, 16) + btnet->bd_name);
+		td.push_back(AlignString("BDAddr: ", ' ', 2, 16) + btnet->bd_addr.Mac2String());
+		td.push_back(AlignString("Class: ", ' ', 2, 16) + btnet->bd_class);
+		td.push_back(AlignString("Count: ", ' ', 2, 16) + IntToString(btnet->packets));
+		td.push_back(AlignString("First Seen: ", ' ', 2, 16) +
+					string(ctime((const time_t *) 
+								 &(btnet->first_time)) + 4).substr(0, 15));
+		td.push_back(AlignString("Last Seen: ", ' ', 2, 16) +
+					string(ctime((const time_t *) 
+								 &(btnet->last_time)) + 4).substr(0, 15));
+	}
+
+	btdetailt->SetText(td);
+
+	Kis_Panel::DrawPanel();
+}
+
+void Btscan_Details_Panel::ButtonAction(Kis_Panel_Component *in_button) {
+	if (in_button == closebutton) {
+		globalreg->panel_interface->KillPanel(this);
+	}
+}
+
+void Btscan_Details_Panel::MenuAction(int opt) {
+
+}
 

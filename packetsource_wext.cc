@@ -255,7 +255,7 @@ int PacketSource_Wext::AutotypeProbe(string in_device) {
 		sysdriver == "libertas_usb" || sysdriver == "libertas_tf" ||
 		sysdriver == "prism54" || sysdriver == "rndis_wlan" ||
 		sysdriver == "rt2500pci" || sysdriver == "rt73usb" ||
-		sysdriver == "rt2860" ||
+		sysdriver == "rt2860" || sysdriver == "rt2800usb" ||
 		sysdriver == "rt2x00pci" || sysdriver == "rt61pci" ||
 		sysdriver == "rt2400pci" || sysdriver == "rt2x00usb" ||
 		sysdriver == "rt2400pci" || sysdriver == "rt61pci" ||
@@ -324,6 +324,7 @@ int PacketSource_Wext::RegisterSources(Packetsourcetracker *tracker) {
 	tracker->RegisterPacketProto("rt2400pci", this, "IEEE80211b", 1);
 	tracker->RegisterPacketProto("rt2500pci", this, "IEEE80211b", 1);
 	tracker->RegisterPacketProto("rt2x00pci", this, "IEEE80211b", 1);
+	tracker->RegisterPacketProto("rt2800usb", this, "IEEE80211b", 1);
 	tracker->RegisterPacketProto("rt61pci", this, "IEEE80211b", 1);
 	tracker->RegisterPacketProto("rt73", this, "IEEE80211b", 1);
 	tracker->RegisterPacketProto("rt73usb", this, "IEEE80211b", 1);
