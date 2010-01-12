@@ -1,4 +1,4 @@
-Kismet 2009-11-R1
+Kismet 2010-01-R1
 Mike Kershaw <dragorn@kismetwireless.net>
 http://www.kismetwireless.net
 
@@ -438,13 +438,18 @@ http://www.kismetwireless.net
 
       Combining managed and monitor VAPs appears to still not work well.
 
-    RT2870 (Linux)
+    RT28xx (Linux)
 
-      The rt2870 11n chipset does not have an in-kernel driver yet which
-      conforms to the ma80211 driver controls.  These drivers also cannot be
-      auto-detected (they don't provide a valid identifier in /sys) so the
-      driver type mus be manually specified with 'type=rt2870sta' on the
-      source line.
+      There are 2 drivers for the RT28xx chipsets.  The in-kernel driver
+      available as of Linux-2.6.31 works properly with Kismet.  This is by
+      far the preferred driver to use.  Be sure to enable the RT28xx driver
+      in the wireless drivers section, NOT the staging driver.  The staging
+      driver is not mac80211 based and will not necessarily behave.
+
+      The out-of-kernel driver does not conform to mac80211 controls.
+      This driver also cannot be auto-detected (they don't provide a valid 
+      identifier in /sys) so the driver type mus be manually specified with 
+      'type=rt2870sta' on the source line.
 
       This driver defaults to the name 'rausbX' which exposes a bug in some
       versions of libpcap and may require the device be renamed (See
@@ -567,7 +572,7 @@ http://www.kismetwireless.net
       ipw2200           Kernel Intel 2200 driver
       ipw2915           Kernel Intel 2915 driver
       ipw3945           Kernel intel 3945 driver
-      mac80211          Generic mac80211 capture source for any mac80211
+      mac80211          Generic mac80211 catch-all source for any mac80211
                         drivers.
       madwifi           Madwifi/Madwifi-ng
       madwifi_a         Alias for madwifi, default 802.11a channels
@@ -580,7 +585,8 @@ http://www.kismetwireless.net
       nokiaitt          Alias for nokia770
 
       pcapfile          Pcap-formatted previously recorded file
-      rt2870sta         Out-of-kernel rt2870 11n driver
+      rt2870sta         Out-of-kernel/Staging rt2870 11n driver (use
+                         in-kernel instead)
       drone             Remote Kismet packet capture, source options
                         "host=..." and "port=..." are required.
                         ncsource=drone:host=localhost,port=2502

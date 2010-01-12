@@ -78,5 +78,6 @@ Kismet-BTSCAN
     automatically detected as type 'btscan'.
 
     Kismet-BTSCAN cannot log to a pcap file, as individual packets are not
-    captured.
+    captured.  It can however log to a text file, enable 'btscantxt' in your
+    logtypes= line in kismet.conf
 
