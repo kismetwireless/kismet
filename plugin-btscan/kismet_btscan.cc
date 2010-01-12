@@ -64,6 +64,7 @@
 #include "packetsource_linuxbt.h"
 #include "packet_btscan.h"
 #include "tracker_btscan.h"
+#include "dumpfile_btscantxt.h"
 
 GlobalRegistry *globalreg = NULL;
 
@@ -88,20 +89,9 @@ int btscan_register(GlobalRegistry *in_globalreg) {
 	// Tracker
 	Tracker_BTScan *trackbtscan = new Tracker_BTScan(globalreg);
 
-#if 0
-	globalreg->packetchain->RegisterHandler(&kis_dot15d4_dissector, NULL,
-											CHAINPOS_LLCDISSECT, 1);
-
-	// dumpfile that inherits from the global one
-	Dumpfile_Pcap *dot15d4dump;
-	dot15d4dump = 
-		new Dumpfile_Pcap(globalreg, "pcap15d4", KDLT_IEEE802_15_4,
-						  globalreg->pcapdump, NULL, NULL);
-	dot15d4dump->SetVolatile(1);
-
-	// Tracker
-	Tracker_Dot15d4 *track15d4 = new Tracker_Dot15d4(globalreg);
-#endif
+	Dumpfile_Btscantxt *bttxt = new Dumpfile_Btscantxt(globalreg);
+	bttxt->SetVolatile(1);
+	bttxt->SetTracker(trackbtscan);
 
 	return 1;
 }

@@ -26,6 +26,9 @@
 
 #include "packet_btscan.h"
 
+// Fwd def of logger
+class Dumpfile_Btscantxt;
+
 class btscan_network {
 public:
 	btscan_network() {
@@ -44,7 +47,6 @@ public:
 	unsigned int dirty;
 };
 
-
 class Tracker_BTScan {
 public:
 	Tracker_BTScan() { fprintf(stderr, "FATAL OOPS: tracker_dot15d4()\n"); exit(1); }
@@ -61,6 +63,9 @@ protected:
 
 	int BTSCANDEV_ref;
 	int timer_ref;
+
+	// Friends with the logger for direct access
+	friend class Dumpfile_Btscantxt;
 };
 
 #endif

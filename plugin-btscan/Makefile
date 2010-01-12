@@ -12,7 +12,7 @@ PLUGINLDFLAGS += -shared -rdynamic
 LIBS	+= -lstdc++ -lbluetooth -lpthread
 CFLAGS 	+= -I/usr/include -I$(KIS_INC_DIR) -g -fPIC
 
-SRVOBJS = packetsource_linuxbt.o tracker_btscan.o kismet_btscan.o
+SRVOBJS = packetsource_linuxbt.o tracker_btscan.o dumpfile_btscantxt.o kismet_btscan.o
 SRVOUT	= btscan.so
 
 CLIOBJS	= btscan_ui.o
