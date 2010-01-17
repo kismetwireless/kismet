@@ -75,13 +75,13 @@ all-with-plugins:
 	@make all
 	@make plugins
 
-$(PS):	$(PSO)
+$(PS):	$(PSO) $(CS)
 	$(LD) $(LDFLAGS) -o $(PS) $(PSO) $(LIBS) $(CXXLIBS) $(PCAPLNK) $(KSLIBS)
 
 $(CS):	$(CSO)
 	$(LD) $(LDFLAGS) -o $(CS) $(CSO) $(LIBS) $(CXXLIBS) $(PCAPLNK) $(CAPLIBS)
 
-$(DRONE):	$(DRONEO)
+$(DRONE):	$(DRONEO) $(CS)
 	$(LD) $(LDFLAGS) -o $(DRONE) $(DRONEO) $(LIBS) $(CXXLIBS) $(PCAPLNK) $(KSLIBS)
 
 $(NC):	$(NCO)
