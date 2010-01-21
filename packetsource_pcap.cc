@@ -180,7 +180,7 @@ int PacketSource_Pcap::DatalinkType() {
 	if (datalink_type == DLT_EN10MB && override_dlt >= 0) {
 		_MSG("pcap reported netlink type 1 (EN10MB) for " + interface + ", but "
 			 "Kismet will override it with netlink " + IntToString(override_dlt),
-			 MSGFLAG_ERROR);
+			 MSGFLAG_INFO);
 		datalink_type = override_dlt;
 		return 1;
 	}

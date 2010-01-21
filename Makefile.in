@@ -8,7 +8,7 @@ OBJC_LINK = @objc_link@
 CAPSOURCES = \
 	packetsource_pcap.o packetsource_wext.o packetsource_bsdrt.o \
 	packetsource_drone.o packetsource_ipwlive.o packetsource_airpcap.o \
-	packetsource_darwin.o 
+	packetsource_darwin.o packetsource_macusb.o
 
 PSO	= util.o cygwin_utils.o ringbuf.o messagebus.o configfile.o getopt.o \
 	filtercore.o ifcontrol.o iwcontrol.o madwifing_control.o nl80211_control.o \
