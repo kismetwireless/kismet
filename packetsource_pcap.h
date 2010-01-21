@@ -192,6 +192,7 @@ public:
 					  vector<opt_pair> *in_opts) :
 		KisPacketSource(in_globalreg, in_interface, in_opts) { 
 			pd = NULL;
+			override_dlt = -1;
 		}
 	virtual ~PacketSource_Pcap() { }
 
@@ -235,6 +236,7 @@ protected:
 
 	pcap_t *pd;
 	int datalink_type;
+	int override_dlt;
 };	
 
 class PacketSource_Pcapfile : public PacketSource_Pcap {
