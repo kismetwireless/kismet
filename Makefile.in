@@ -36,9 +36,7 @@ DRONEO = util.o cygwin_utils.o ringbuf.o messagebus.o configfile.o getopt.o \
 		 drone_kisnetframe.o kis_droneframe.o \
 		 gpswrapper.o gpscore.o gpsdclient.o gpsserial.o gpsdlibgps.o \
 		 packetchain.o \
-		 packetsource_pcap.o packetsource_wext.o packetsource_bsdrt.o \
-		 packetsource_drone.o packetsource_ipwlive.o packetsource_airpcap.o \
-		 packetsource_darwin.o \
+		 $(CAPSOURCES) \
 		 plugintracker.o packetsourcetracker.o timetracker.o \
 		 kismet_drone.o
 
