@@ -81,6 +81,10 @@ int TcpClient::Connect(const char *in_remotehost, short int in_port) {
         return -1;
     }
 
+    // Set it to nonblocking
+    int save_mode = fcntl(cli_fd, F_GETFL, 0);
+    fcntl(cli_fd, F_SETFL, save_mode | O_NONBLOCK);
+
     cl_valid = 1;
 
     read_buf = new RingBuffer(CLI_RING_LEN);
