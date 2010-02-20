@@ -319,7 +319,7 @@ int DroneClientFrame::ParseData() {
 	}
 
 	// Loop through
-	while ((rlen - pos) >= (int) sizeof(drone_packet)) {
+	while (rlen > (int) pos && (rlen - pos) >= (int) sizeof(drone_packet)) {
 		drone_packet *dpkt = (drone_packet *) &(buf[pos]);
 
 		if (kis_ntoh32(dpkt->sentinel) != DroneSentinel) {
@@ -494,7 +494,8 @@ int DroneClientFrame::ParseData() {
 							 "source " + interfacestr + " something went wrong.",
 							 MSGFLAG_ERROR);
 						delete rem;
-						return 0;
+
+						break;
 					}
 
 					rem->SetPST(
