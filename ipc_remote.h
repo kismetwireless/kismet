@@ -139,6 +139,8 @@ public:
 
 	// Get a shutdown
 	virtual void CatchSigChild(int status) {
+		exit_errno = WEXITSTATUS(status);
+
 		ShutdownIPC(NULL);
 	}
 
@@ -169,6 +171,8 @@ public:
 	pid_t FetchSpawnPid() {
 		return ipc_pid;
 	}
+
+	int FetchErrno() { return exit_errno; }
 
 	// Pollable system
 	virtual int MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset);
@@ -226,6 +230,9 @@ protected:
 	friend class IPC_MessageClient;
 	friend int ipc_die_callback(IPC_CMD_PARMS);
 	friend int ipc_ack_callback(IPC_CMD_PARMS);
+
+	// Reason we're exiting
+	int exit_errno;
 };
 
 // Special IPCremote class for root control binary, used by IPC remote and
@@ -240,18 +247,10 @@ public:
 		if (!globalreg->spindown) {
 			_MSG("Suid-root control binary failed: " + 
 				 string(strerror(WEXITSTATUS(status))), MSGFLAG_FATAL);
-
-			if (WEXITSTATUS(status) == EACCES) 
-				_MSG("Permission denied executing the root capture binary.  Make sure "
-					 "that your user is part of the Kismet capture group "
-					 "(by default, this group is \"kismet\").  If you just added your "
-					 "user to this group, you will need to log out and in again.  "
-					 "You can check what groups your user is in with the \"groups\" "
-					 "command.", MSGFLAG_FATAL);
 		}
 
-		globalreg->fatal_condition = 1;
-		IPCRemote::CatchSigChild(0);
+		// globalreg->fatal_condition = 1;
+		IPCRemote::CatchSigChild(status);
 	}
 
 	virtual int OpenFDPassSock();
@@ -268,6 +267,10 @@ public:
 
 	virtual int ShutdownIPC(ipc_packet *pack);
 
+	virtual int FetchReadyState();
+
+	virtual void RootIPCSynced() { root_ipc_synced = 1; }
+
 protected:
 	virtual void IPCDie();
 	virtual void ShutdownIPCPassFD();
@@ -277,6 +280,8 @@ protected:
 	int ipc_fd_fd;
 	struct sockaddr_un unixsock;
 #endif
+
+	int root_ipc_synced;
 
 };
 

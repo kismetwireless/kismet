@@ -118,6 +118,14 @@ struct pid_fail {
 	int status;
 };
 
+// Record of how we failed critically.  We want to spin a critfail message out
+// to the client so it can do something intelligent.  A critical fail is something
+// like the root IPC process failing to load, or dropping dead.
+struct critical_fail {
+	time_t fail_time;
+	string fail_msg;
+};
+
 // Global registry of references to tracker objects and preferences.  This 
 // should supplant the masses of globals and externs we'd otherwise need.
 // 
@@ -224,8 +232,11 @@ public:
 
 	Dumpfile_Pcap *pcapdump;
 
-	/* global netlink reference */
+	// global netlink reference 
 	void *nlhandle;
+
+	// Critical failure elements
+	vector<critical_fail> critfail_vec;
     
     GlobalRegistry() { 
         fatal_condition = 0;

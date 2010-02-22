@@ -124,10 +124,22 @@ int Dumpfile_Tuntap::OpenTuntap() {
 	// split-priv
 	char errstr[STATUS_MAX];
 
+	if (fname == "")
+		return -1;
+
+	fprintf(stderr, "debug- opentuntap\n");
+
 	// If we have a file name, and we have IPC, assume we need to send it 
 	// to the other side of the IPC
-	if (fname != "" && globalreg->rootipc != NULL &&
-		globalreg->rootipc->FetchSpawnPid() > 0)  {
+	if (globalreg->rootipc != NULL) {
+		fprintf(stderr, "debug- opentuntap rootipc\n");
+		if (globalreg->rootipc->FetchReadyState() <0 ) {
+			_MSG("tun/tap driver needs root privileges to create the virtual "
+				 "interface, but the root control process doesn't appear to be "
+				 "running, tun/tap will not be configured.", MSGFLAG_ERROR);
+			return -1;
+		}
+
 		ipc_packet *ipc =
 			(ipc_packet *) malloc(sizeof(ipc_packet) +
 								  sizeof(ipc_dft_open));
@@ -144,8 +156,7 @@ int Dumpfile_Tuntap::OpenTuntap() {
 		return 1;
 	}
 
-	if (fname == "")
-		return -1;
+	fprintf(stderr, "debug- not opentuntap rootipc\n");
 
 #ifdef SYS_LINUX
 	// Linux has dynamic tun-tap, so we allocate our device that way

@@ -159,6 +159,9 @@ struct pst_packetsource {
 
 	// How many zero-polls have we had in a row?
 	int zeropoll;
+
+	// Do we have a PST-tracker level warning?
+	string warning;
 };
 
 // Callback for actions on sources.  Gives the source and action type, flags,

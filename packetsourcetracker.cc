@@ -111,6 +111,7 @@ void Protocol_PROTOSOURCE_enable(PROTO_ENABLE_PARMS) {
 int Protocol_SOURCE(PROTO_PARMS) {
 	pst_packetsource *psrc = (pst_packetsource *) data;
 	ostringstream osstr;
+	string w;
 
 	cache->Filled(field_vec->size());
 
@@ -203,17 +204,18 @@ int Protocol_SOURCE(PROTO_PARMS) {
 				break;
 
 			case SOURCE_warning:
-				if (psrc->strong_source != NULL)
-					cache->Cache(fnum, string("\001") + 
-								 psrc->strong_source->FetchWarning() + 
-								 string("\001"));
-				else if (psrc->proto_source != NULL &&
-						 psrc->proto_source->weak_source != NULL)
-					cache->Cache(fnum, string("\001") + 
-								 psrc->proto_source->weak_source->FetchWarning() + 
-								 string("\001"));
-				else
-					cache->Cache(fnum, "\001\001");
+				if (psrc->warning != "") {
+					w = psrc->warning;
+				} else if (psrc->strong_source != NULL) {
+					w = psrc->strong_source->FetchWarning();
+				} else if (psrc->proto_source != NULL &&
+						 psrc->proto_source->weak_source != NULL) {
+					psrc->proto_source->weak_source->FetchWarning();
+				} else {
+					w = "";
+				}
+
+				cache->Cache(fnum, string("\001") + w + string("\001"));
 
 				break;
 
@@ -1776,8 +1778,21 @@ int Packetsourcetracker::StartSource(uint16_t in_source_id) {
 		_MSG("IPC child Source '" + pstsource->strong_source->FetchInterface() + 
 			 "' requires root permissions to open, but we're not running "
 			 "as root.  Something is wrong.", MSGFLAG_ERROR);
+		pstsource->warning = "This source requires root privileges, but the root "
+			"control process isn't running as root.  Something is wrong with the "
+			"install.";
 		return -1;
 	} else if (euid != 0 && pstsource->proto_source->require_root) {
+		if (rootipc->FetchReadyState() <= 0) {
+			_MSG("Packet source '" + pstsource->strong_source->FetchInterface() + "' "
+				 "requires root to start, but the root control process is not "
+				 "running.", MSGFLAG_ERROR);
+			pstsource->error = 1;
+			pstsource->warning = "Packet source requires root privileges, but the "
+				"root control process isn't running.  Check the server error logs.";
+			return -1;
+		}
+
 		_MSG("Deferring opening of packet source '" + 
 			 pstsource->strong_source->FetchInterface() + "' to IPC child",
 			 MSGFLAG_INFO);

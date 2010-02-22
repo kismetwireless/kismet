@@ -136,9 +136,16 @@ int kc_startup_ipc(IPC_CMD_PARMS) {
 	return 1;
 }
 
+// Do nothing in the client
+int kc_rootsync_ipc(IPC_CMD_PARMS) {
+	return 1;
+}
+
 int main(int argc, char *argv[], char *envp[]) {
 	exec_name = argv[0];
 	char errstr[STATUS_MAX];
+
+	int ipc_sync;
 
 	// Catch the interrupt handler to shut down
     signal(SIGINT, CatchShutdown);
@@ -206,6 +213,10 @@ int main(int argc, char *argv[], char *envp[]) {
 	// Add the startup command
 	globalreg->rootipc->RegisterIPCCmd(&kc_startup_ipc, NULL, NULL, "STARTUP");
 
+	// Add the root IPC sync command
+	ipc_sync = 
+		globalreg->rootipc->RegisterIPCCmd(&kc_rootsync_ipc, NULL, NULL, "ROOTSYNCED");
+
 	// Add the packet sources
 #ifdef USE_PACKETSOURCE_PCAPFILE
 	if (globalreg->sourcetracker->RegisterPacketSource(new PacketSource_Pcapfile(globalreg)) < 0 || globalreg->fatal_condition) 
@@ -255,9 +266,16 @@ int main(int argc, char *argv[], char *envp[]) {
 		CatchShutdown(-1);
 #endif
 
-
 	if (globalreg->fatal_condition)
 		CatchShutdown(-1);
+
+	// If we're ready to go, send a root synced packet
+	ipc_packet *pack =
+		(ipc_packet *) malloc(sizeof(ipc_packet));
+	pack->data_len = 0;
+	pack->ipc_cmdnum = ipc_sync;
+	pack->ipc_ack = 0;
+	globalreg->rootipc->SendIPC(pack);
 
 	int max_fd = 0;
 	fd_set rset, wset;

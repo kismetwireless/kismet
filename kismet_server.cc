@@ -103,6 +103,7 @@ int glob_linewrap = 1;
 int glob_silent = 0;
 
 int battery_proto_ref = -1;
+int critfail_proto_ref = -1;
 
 // The info protocol lives in here for lack of anywhere better to live
 enum INFO_fields {
@@ -127,6 +128,15 @@ enum BATTERY_fields {
 
 const char *BATTERY_fields_text[] = {
 	"percentage", "charging", "ac", "remaining", NULL
+};
+
+enum CRITFAIL_fields {
+	CRITFAIL_id, CRITFAIL_time, CRITFAIL_message, 
+	CRITFAIL_maxfield
+};
+
+const char *CRITFAIL_fields_text[] = {
+	"id", "time", "message", NULL
 };
 
 int Protocol_INFO(PROTO_PARMS) {
@@ -248,6 +258,69 @@ int Protocol_BATTERY(PROTO_PARMS) {
 				break;
 			case BATTERY_remaining:
 				scratch = IntToString(b->remaining_sec);
+				break;
+		}
+
+		out_string += scratch;
+		cache->Cache(fnum, scratch);
+
+		out_string += " ";
+	}
+
+	return 1;
+}
+
+void Protocol_CRITFAIL_enable(PROTO_ENABLE_PARMS) {
+	for (unsigned int x = 0; x < globalreg->critfail_vec.size(); x++) {
+		kis_protocol_cache cache;
+
+		if (in_fd == -1) {
+			if (globalreg->kisnetserver->SendToAll(critfail_proto_ref, (void *) x) < 0)
+				break;
+		} else {
+			if (globalreg->kisnetserver->SendToClient(in_fd, critfail_proto_ref,
+													  (void *) x, &cache) < 0)
+				break;
+		}
+
+		// Often enough to be really obvious
+		if (time(0) % 5 == 0) 
+			_MSG("!!! CRITICAL ERROR !!! - " + globalreg->critfail_vec[x].fail_msg + 
+				 " - Kismet will not operate correctly.", MSGFLAG_FATAL);
+	}
+}
+
+int Protocol_CRITFAIL(PROTO_PARMS) {
+	unsigned int cf_num = (unsigned int) data;
+
+	if (cf_num >= globalreg->critfail_vec.size())
+		cf_num = 0;
+
+	string scratch;
+
+	cache->Filled(field_vec->size());
+
+	for (unsigned int x = 0; x < field_vec->size(); x++) {
+		unsigned int fnum = (*field_vec)[x];
+		if (fnum >= CRITFAIL_maxfield) {
+			out_string += "Unknown field requested.";
+			return -1;
+		}
+
+		if (cache->Filled(fnum)) {
+			out_string += cache->GetCache(fnum) + " ";
+			continue;
+		}
+
+		switch (fnum) {
+			case CRITFAIL_id:
+				scratch = IntToString(cf_num);
+				break;
+			case CRITFAIL_time:
+				scratch = IntToString(globalreg->critfail_vec[cf_num].fail_time);
+				break;
+			case CRITFAIL_message:
+				scratch = "\001" + globalreg->critfail_vec[cf_num].fail_msg + "\001";
 				break;
 		}
 
@@ -451,7 +524,7 @@ void CatchShutdown(int sig) {
 	}
 
     // Dump fatal errors again
-    if (fqmescli != NULL && globalregistry->fatal_condition) 
+    if (fqmescli != NULL) //  && globalregistry->fatal_condition) 
         fqmescli->DumpFatals();
 
 	if (daemonize == 0) {
@@ -473,8 +546,12 @@ void CatchChild(int sig) {
 	if (globalregistry->spindown)
 		return;
 
+	// printf("debug - sigchild\n");
+
 	while (1) {
 		pid = waitpid(-1, &status, WNOHANG);
+
+		// printf("debug - pid %d status %d exit %d\n", pid, status, WEXITSTATUS(status));
 
 		if (pid != 0)
 			break;
@@ -547,6 +624,9 @@ int BaseTimerEvent(TIMEEVENT_PARMS) {
 	Fetch_Battery_Info(&batinfo);
 	globalreg->kisnetserver->SendToAll(battery_proto_ref, &batinfo);
 
+	// Send critfails to everyone and print out as messages
+	Protocol_CRITFAIL_enable(-1, globalreg, NULL);
+
 	return 1;
 }
 
@@ -593,6 +673,10 @@ int main(int argc, char *argv[], char *envp[]) {
 	globalregistry->envp = envp;
 
 	int startup_ipc_id = -1;
+
+	int max_fd = 0;
+	fd_set rset, wset;
+	struct timeval tm;
 
 	// Turn off the getopt error reporting
 	opterr = 0;
@@ -667,6 +751,72 @@ int main(int argc, char *argv[], char *envp[]) {
 
 		startup_ipc_id = 
 			globalregistry->rootipc->RegisterIPCCmd(NULL, NULL, NULL, "STARTUP");
+
+		time_t ipc_spin_start = time(0);
+
+		while (1) {
+			FD_ZERO(&rset);
+			FD_ZERO(&wset);
+			max_fd = 0;
+
+			if (globalregistry->fatal_condition)
+				CatchShutdown(-1);
+
+			// Collect all the pollable descriptors
+			for (unsigned int x = 0; x < globalregistry->subsys_pollable_vec.size(); x++) 
+				max_fd = 
+					globalregistry->subsys_pollable_vec[x]->MergeSet(max_fd, &rset, 
+																	 &wset);
+			tm.tv_sec = 0;
+			tm.tv_usec = 100000;
+
+			if (select(max_fd + 1, &rset, &wset, NULL, &tm) < 0) {
+				if (errno != EINTR && errno != EAGAIN) {
+					snprintf(errstr, STATUS_MAX, "Main select loop failed: %s",
+							 strerror(errno));
+					CatchShutdown(-1);
+				}
+			}
+
+			for (unsigned int x = 0; 
+				 x < globalregistry->subsys_pollable_vec.size(); x++) {
+
+				if (globalregistry->subsys_pollable_vec[x]->Poll(rset, wset) < 0 &&
+					globalregistry->fatal_condition) {
+					CatchShutdown(-1);
+				}
+			}
+
+			if (globalregistry->rootipc->FetchReadyState() > 0)
+				break;
+
+			if (time(0) - ipc_spin_start > 2)
+				break;
+		}
+
+		if (globalregistry->rootipc->FetchReadyState() <= 0) {
+			critical_fail cf;
+			cf.fail_time = time(0);
+			cf.fail_msg = "Failed to start kismet_capture control binary.  Make sure "
+				"that kismet_capture is installed, is suid-root, and that your user "
+				"is in the 'kismet' group, or run Kismet as root.  See the "
+				"README for more information.";
+
+			int ipc_errno = globalregistry->rootipc->FetchErrno();
+
+			if (ipc_errno == EPERM || ipc_errno == EACCES) {
+				cf.fail_msg = "Could not launch kismet_capture control binary, "
+					"due to permission errors.  To run Kismet suid-root your user "
+					"MUST BE IN THE 'kismet' GROUP.  Use the 'groups' command to show "
+					"what groups your user is in, and consult the Kismet README for "
+					"more information.";
+			}
+
+			globalreg->critfail_vec.push_back(cf);
+
+			_MSG(cf.fail_msg, MSGFLAG_FATAL);
+		}
+
 	} else {
 		globalregistry->messagebus->InjectMessage(
 			"Kismet was started as root, NOT launching external control binary.  "
@@ -972,6 +1122,13 @@ int main(int argc, char *argv[], char *envp[]) {
 												  BATTERY_fields_text, 
 												  &Protocol_BATTERY, NULL, NULL);
 
+	critfail_proto_ref =
+		globalregistry->kisnetserver->RegisterProtocol("CRITFAIL", 0, 1,
+													   CRITFAIL_fields_text,
+													   &Protocol_CRITFAIL,
+													   &Protocol_CRITFAIL_enable,
+													   NULL);
+
 	globalregistry->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC,
 											   NULL, 1, 
 											   &BaseTimerEvent, NULL);
@@ -991,10 +1148,6 @@ int main(int argc, char *argv[], char *envp[]) {
 	
 	// Set the global silence now that we're set up
 	glob_silent = local_silent;
-
-	int max_fd = 0;
-	fd_set rset, wset;
-	struct timeval tm;
 
 	// Core loop
 	while (1) {

@@ -49,11 +49,15 @@ void IPC_MessageClient::ProcessMessage(string in_msg, int in_flags) {
 	pack->ipc_cmdnum = MSG_CMD_ID;
 	pack->ipc_ack = 0;
 
+#if 0
+	// Don't treat fatal as shutdown
+	//
 	// If it's a fatal frame, push it as a shutdown
 	if ((in_flags & MSGFLAG_FATAL)) {
 		((IPCRemote *) auxptr)->ShutdownIPC(pack);
 		return;
 	}
+#endif
 
 	// Push it via the IPC
 	((IPCRemote *) auxptr)->SendIPC(pack);
@@ -92,7 +96,7 @@ int ipc_die_callback(IPC_CMD_PARMS) {
 		// Call the internal shutdown process
 		((IPCRemote *) auxptr)->IPCDie();
 		// Exit entirely, if we didn't already
-		exit(1);
+		exit(0);
 	}
 
 	// Parent receiving DIE command knows child is dieing for some
@@ -144,6 +148,8 @@ IPCRemote::IPCRemote(GlobalRegistry *in_globalreg, string in_procname) {
 	ipc_spawned = 0;
 	last_ack = 1; // Our "last" command was ack'd
 
+	exit_errno = 0;
+
 	// Register builtin commands (in proper order!)
 	RegisterIPCCmd(&ipc_die_callback, NULL, this, "DIE");
 	RegisterIPCCmd(&ipc_msg_callback, NULL, this, "MSG");
@@ -157,11 +163,13 @@ IPCRemote::~IPCRemote() {
 }
 
 int IPCRemote::CheckPidVec() {
+	// printf("debug - checkpidvec ipc_pid %d\n", ipc_pid);
 	if (ipc_pid == 0)
 		return 0;
 
 	for (unsigned int x = 0; x < globalreg->sigchild_vec.size(); x++) {
 		if (globalreg->sigchild_vec[x].pid == ipc_pid) {
+			// printf("debug - check pid vec found pid %d status %d\n", ipc_pid, globalreg->sigchild_vec[x].status);
 			CatchSigChild(globalreg->sigchild_vec[x].status);
 			globalreg->sigchild_vec.erase(globalreg->sigchild_vec.begin() + x);
 			return -1;
@@ -293,6 +301,8 @@ int IPCRemote::SpawnIPC() {
 		// Fork and launch the child control loop & set up the rest of our internal
 		// info.
 		if ((ipc_pid = fork()) < 0) {
+			// If we fail we're still in the pid-space of the starting process and 
+			// we can set this cleanly
 			_MSG("Unable to fork() and create child process for IPC communication: " +
 				 string(strerror(errno)), MSGFLAG_FATAL);
 			globalreg->fatal_condition = 1;
@@ -311,8 +321,9 @@ int IPCRemote::SpawnIPC() {
 			close(sockpair[1]);
 
 			// Write a single byte on the FD to sync us
-			if (write(sockpair[0], &(sockpair[0]), 1) < 1)
+			if (write(sockpair[0], &(sockpair[0]), 1) < 1) {
 				exit(1);
+			}
 
 			// Run the client binary if we have one
 			if (child_cmd != "") {
@@ -323,11 +334,32 @@ int IPCRemote::SpawnIPC() {
 
 				snprintf(cmdarg[1], 4, "%d", sockpair[0]);
 
+				// We're running as the child here, we have to pass this failure
+				// up in the return value and this doesn't cause an immediate exit
+				// with error for the caller...
 				if (execve(cmdarg[0], cmdarg, NULL) < 0) {
 					int status = errno;
-					fprintf(stderr, "Failed to exec as IPC child: %s\n", 
-							strerror(status));
-					exit(status);
+
+					string fail = "Failed to launch IPC child: " +
+						string(strerror(status));
+
+					ipc_packet *pack = 
+						(ipc_packet *) malloc(sizeof(ipc_packet) + 8 + 
+											  fail.length() + 1);
+					ipc_msgbus_pass *msgb = (ipc_msgbus_pass *) pack->data;
+
+					msgb->msg_flags = MSGFLAG_FATAL;
+					msgb->msg_len = fail.length() + 1;
+					snprintf(msgb->msg, msgb->msg_len, "%s", fail.c_str());
+
+					pack->data_len = 8 + fail.length() + 1;
+
+					pack->ipc_cmdnum = MSG_CMD_ID;
+					pack->ipc_ack = 0;
+
+					exit_errno = status;
+
+					ShutdownIPC(pack);
 				}
 			}
 
@@ -391,8 +423,10 @@ int IPCRemote::SyncIPC() {
 }
 
 int IPCRemote::ShutdownIPC(ipc_packet *pack) {
+	/*
 	if (ipc_spawned <= 0) 
 		return 0;
+		*/
 
 	int sock;
 	if (ipc_pid == 0) {
@@ -435,7 +469,7 @@ int IPCRemote::SendIPC(ipc_packet *pack) {
 
 int IPCRemote::FetchReadyState() {
 	if (ipc_spawned == 0)
-		return 0;
+		return -1;
 
 	if (last_ack == 0)
 		return 0;
@@ -510,11 +544,15 @@ void IPCRemote::IPC_Child_Loop() {
 
 void IPCRemote::IPCDie() {
 	// If we're the child...
-	if (ipc_pid == 0 && ipc_spawned > 0) {
-		// Shut down the child socket fd
-		close(sockpair[0]);
+	if (ipc_pid == 0) {
+		if (sockpair[0] >= 0) {
+			// Shut down the child socket fd
+			close(sockpair[0]);
+			sockpair[0] = -1;
+		}
+
 		// and exit, we're done
-		exit(0);
+		exit(exit_errno);
 	}  else if (ipc_pid == 0) {
 		_MSG("IPC Die called on tracker with no child", MSGFLAG_ERROR);
 		return;
@@ -534,7 +572,9 @@ void IPCRemote::IPCDie() {
 	int dead = 0;
 	int res = 0;
 	for (unsigned int x = 0; x < 10; x++) {
-		if (waitpid(ipc_pid, &res, WNOHANG) > 0 && WIFEXITED(res)) {
+		int w = waitpid(ipc_pid, &res, WNOHANG);
+		// printf("debug - waitpid got %d wifexited %d\n", w, WIFEXITED(res));
+		if (w >= 0 && WIFEXITED(res)) {
 			dead = 1;
 			break;
 		}
@@ -558,7 +598,6 @@ void IPCRemote::IPCDie() {
 	_MSG("IPC controller IPC child process " + 
 		 IntToString((int) ipc_pid) + " has ended.", MSGFLAG_INFO);
 
-	ipc_pid = 0;
 	ipc_spawned = 0;
 }
 
@@ -568,9 +607,13 @@ int IPCRemote::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
 	// Don't call this on the child, we have a micro-select loop in the child
 	// process... also do nothing if we haven't spawned yet.
 	//
+	
+	int p = CheckPidVec();
+
 	// Let a forked child operate normally
-	if ((ipc_pid == 0 && child_exec_mode == 0) || ipc_spawned <= 0 || CheckPidVec() < 0)
+	if ((ipc_pid == 0 && child_exec_mode == 0) || ipc_spawned <= 0 || p < 0) {
 		return in_max_fd;
+	}
 
 	if (child_exec_mode)
 		sock = sockpair[0];
@@ -595,9 +638,12 @@ int IPCRemote::Poll(fd_set& in_rset, fd_set& in_wset) {
 	// This CAN be called by the parent or the child.  In the parent it's called
 	// by the normal pollable architecture.  In the child we manually call it
 	// from our micro-select loop.
+
+	int p = CheckPidVec();
 	
-	if (ipc_spawned <= 0 || CheckPidVec() < 0)
+	if (ipc_spawned <= 0 || p < 0) {
 		return -1;
+	}
 
 	ostringstream osstr;
 	int sock;
@@ -610,7 +656,7 @@ int IPCRemote::Poll(fd_set& in_rset, fd_set& in_wset) {
 	// Process packets out
 	if (FD_ISSET(sock, &in_wset)) {
 		// Send as many frames as we have room for
-		while (cmd_buf.size() > 0) {
+		while (cmd_buf.size() > 0 && ipc_spawned > 0) {
 			ipc_packet *pack = cmd_buf.front();
 
 			// Send the frame
@@ -628,7 +674,6 @@ int IPCRemote::Poll(fd_set& in_rset, fd_set& in_wset) {
 					osstr << "IPC controller got error writing data to IPC socket "
 						"for IPC child pid " << ipc_pid << ": " << strerror(errno);
 					_MSG(osstr.str(), MSGFLAG_FATAL);
-					globalreg->fatal_condition = 1;
 					ipc_spawned = -1;
 				}
 			}
@@ -774,7 +819,6 @@ int IPCRemote::Poll(fd_set& in_rset, fd_set& in_wset) {
 			}
 		}
 	}
-
 	
 	return 1;
 }
@@ -786,12 +830,27 @@ int ipc_fdpass_callback(IPC_CMD_PARMS) {
 	return ((RootIPCRemote *) auxptr)->OpenFDPassSock();
 }
 
+int ipc_rootipc_sync(IPC_CMD_PARMS) {
+	((RootIPCRemote *) auxptr)->RootIPCSynced();
+
+	return 1;
+}
+
 RootIPCRemote::RootIPCRemote(GlobalRegistry *in_globalreg, string procname) : 
 	IPCRemote(in_globalreg, procname) { 
 
+	root_ipc_synced = 0;
+
 	SetChildCmd(string(BIN_LOC) + "/kismet_capture");
 	RegisterIPCCmd(&ipc_fdpass_callback, NULL, this, "FDPASS");
+	RegisterIPCCmd(&ipc_rootipc_sync, NULL, this, "ROOTSYNCED");
+}
 
+int RootIPCRemote::FetchReadyState() {
+	if (root_ipc_synced == 0)
+		return 0;
+
+	return IPCRemote::FetchReadyState();
 }
 
 int RootIPCRemote::ShutdownIPC(ipc_packet *packet) {
@@ -820,8 +879,8 @@ void RootIPCRemote::ShutdownIPCPassFD() {
 void RootIPCRemote::IPCDie() {
 	if (ipc_pid != 0 && ipc_spawned > 0) {
 		if (!globalreg->spindown) {
-			_MSG("Root IPC control binary has died, shutting down", MSGFLAG_FATAL);
-			globalreg->fatal_condition = 1;
+			_MSG("Root IPC control binary has died", MSGFLAG_FATAL);
+			// globalreg->fatal_condition = 1;
 		}
 	}
 
