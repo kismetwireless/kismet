@@ -64,7 +64,7 @@ int TcpServer::EnableServer() {
     if (inet_pton(AF_INET, bindaddr.c_str(), &serv_sock.sin_addr.s_addr) == 0) {
         serv_sock.sin_addr.s_addr = htonl(INADDR_ANY);
     }
-    serv_sock.sin_addr.s_addr = htonl(INADDR_ANY);
+    // serv_sock.sin_addr.s_addr = htonl(INADDR_ANY);
     serv_sock.sin_port = htons(port);
 
     if ((serv_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
