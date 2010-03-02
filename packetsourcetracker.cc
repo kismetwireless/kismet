@@ -1761,18 +1761,23 @@ int Packetsourcetracker::StartSource(uint16_t in_source_id) {
 		return failure;
 	} 
 
+	// printf("debug - %d - startsource %d - ipc %d uid %d\n", getpid(), in_source_id, running_as_ipc, euid);
+
 	if (packetsource_map.find(in_source_id) != packetsource_map.end()) {
 		pstsource = packetsource_map[in_source_id];
 	} else {
 		_MSG("Packetsourcetracker::StartSource called with unknown packet source "
 			 "id, something is wrong.", MSGFLAG_ERROR);
+		printf("debug - %d - unknown packet source\n", getpid());
 		return -1;
 	}
 
 	// Nothing to do if we don't have a complete source (like a really broken
 	// startup source)
-	if (pstsource->strong_source == NULL)
+	if (pstsource->strong_source == NULL) {
+		// printf("debug - %d - strong source null\n", getpid());
 		return 0;
+	}
 
 	if (euid != 0 && pstsource->proto_source->require_root && running_as_ipc) {
 		_MSG("IPC child Source '" + pstsource->strong_source->FetchInterface() + 
@@ -1781,15 +1786,17 @@ int Packetsourcetracker::StartSource(uint16_t in_source_id) {
 		pstsource->warning = "This source requires root privileges, but the root "
 			"control process isn't running as root.  Something is wrong with the "
 			"install.";
+		// printf("debug - %d - not running as root in ipc\n", getpid());
 		return -1;
 	} else if (euid != 0 && pstsource->proto_source->require_root) {
-		if (rootipc->FetchReadyState() <= 0) {
+		if (((RootIPCRemote *) rootipc)->FetchRootIPCSynced() <= 0) {
 			_MSG("Packet source '" + pstsource->strong_source->FetchInterface() + "' "
 				 "requires root to start, but the root control process is not "
-				 "running.", MSGFLAG_ERROR);
+				 "running and sycned.", MSGFLAG_ERROR);
 			pstsource->error = 1;
 			pstsource->warning = "Packet source requires root privileges, but the "
 				"root control process isn't running.  Check the server error logs.";
+			// printf("debug - %d - requires root ad we do't have an ipc\n", getpid());
 			return -1;
 		}
 
@@ -1803,6 +1810,7 @@ int Packetsourcetracker::StartSource(uint16_t in_source_id) {
 		return 0;
 	}
 
+	// printf("debug - %d - starting to open source\n", getpid());
 	pstsource->error = 0;
 
 	// Enable monitor and open it, because we're either the IPC and root, 

@@ -787,14 +787,18 @@ int main(int argc, char *argv[], char *envp[]) {
 				}
 			}
 
-			if (globalregistry->rootipc->FetchReadyState() > 0)
+			if (globalregistry->rootipc->FetchRootIPCSynced() > 0) {
+				// printf("debug - kismet server startup got root sync\n");
 				break;
+			}
 
-			if (time(0) - ipc_spin_start > 2)
+			if (time(0) - ipc_spin_start > 2) {
+				// printf("debug - kismet server startup timed out\n");
 				break;
+			}
 		}
 
-		if (globalregistry->rootipc->FetchReadyState() <= 0) {
+		if (globalregistry->rootipc->FetchRootIPCSynced() <= 0) {
 			critical_fail cf;
 			cf.fail_time = time(0);
 			cf.fail_msg = "Failed to start kismet_capture control binary.  Make sure "
@@ -815,6 +819,9 @@ int main(int argc, char *argv[], char *envp[]) {
 			globalreg->critfail_vec.push_back(cf);
 
 			_MSG(cf.fail_msg, MSGFLAG_FATAL);
+		} else {
+			_MSG("Started kismet_capture control binary successfully, pid " +
+				 IntToString(globalreg->rootipc->FetchSpawnPid()), MSGFLAG_INFO);
 		}
 
 	} else {
@@ -907,13 +914,69 @@ int main(int argc, char *argv[], char *envp[]) {
 
 	// Sync the IPC system -- everything that needs to be registered with the root 
 	// IPC needs to be registered before now
-	if (globalregistry->rootipc != NULL)
+	if (globalregistry->rootipc != NULL) {
+		globalregistry->rootipc->SyncRoot();
 		globalregistry->rootipc->SyncIPC();
+
+#if 0
+		// Another startup spin to make sure the sync flushes through
+		time_t ipc_spin_start = time(0);
+
+		while (1) {
+			printf("debug - sync spin\n");
+
+			FD_ZERO(&rset);
+			FD_ZERO(&wset);
+			max_fd = 0;
+
+			if (globalregistry->fatal_condition)
+				CatchShutdown(-1);
+
+			// Collect all the pollable descriptors
+			for (unsigned int x = 0; x < globalregistry->subsys_pollable_vec.size(); x++) 
+				max_fd = 
+					globalregistry->subsys_pollable_vec[x]->MergeSet(max_fd, &rset, 
+																	 &wset);
+			tm.tv_sec = 0;
+			tm.tv_usec = 100000;
+
+			if (select(max_fd + 1, &rset, &wset, NULL, &tm) < 0) {
+				if (errno != EINTR && errno != EAGAIN) {
+					snprintf(errstr, STATUS_MAX, "Main select loop failed: %s",
+							 strerror(errno));
+					CatchShutdown(-1);
+				}
+			}
+
+			for (unsigned int x = 0; 
+				 x < globalregistry->subsys_pollable_vec.size(); x++) {
+
+				if (globalregistry->subsys_pollable_vec[x]->Poll(rset, wset) < 0 &&
+					globalregistry->fatal_condition) {
+					CatchShutdown(-1);
+				}
+			}
+
+			if (globalregistry->rootipc->FetchReadyState() > 0) {
+				printf("debug - ready\n");
+				break;
+			}
+
+			if (time(0) - ipc_spin_start > 2) {
+				printf("debug - timed out on sync spin\n");
+				break;
+			}
+		}
+
+		printf("debug - out of sync spin\n");
+#endif
+	}
 
 #ifndef SYS_CYGWIN
 	// Fire the tuntap device setup now that we've sync'd the IPC system
 	dtun->OpenTuntap();
 #endif
+
 
 	// Fire the startup command to IPC, we're done and it can drop privs
 	if (globalregistry->rootipc != NULL) {
@@ -1151,6 +1214,8 @@ int main(int argc, char *argv[], char *envp[]) {
 
 	// Core loop
 	while (1) {
+		// printf("debug - %d - main loop tick\n", getpid());
+
 		FD_ZERO(&rset);
 		FD_ZERO(&wset);
 		max_fd = 0;

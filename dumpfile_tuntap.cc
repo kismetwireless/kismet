@@ -127,13 +127,14 @@ int Dumpfile_Tuntap::OpenTuntap() {
 	if (fname == "")
 		return -1;
 
-	fprintf(stderr, "debug- opentuntap\n");
+	// fprintf(stderr, "debug- opentuntap %d\n", getpid());
 
 	// If we have a file name, and we have IPC, assume we need to send it 
 	// to the other side of the IPC
-	if (globalreg->rootipc != NULL) {
-		fprintf(stderr, "debug- opentuntap rootipc\n");
-		if (globalreg->rootipc->FetchReadyState() <0 ) {
+	if (globalreg->rootipc != NULL &&
+		globalreg->rootipc->FetchSpawnPid() > 0) {
+		// fprintf(stderr, "debug- opentuntap rootipc %d\n", getpid());
+		if (globalreg->rootipc->FetchRootIPCSynced() <0 ) {
 			_MSG("tun/tap driver needs root privileges to create the virtual "
 				 "interface, but the root control process doesn't appear to be "
 				 "running, tun/tap will not be configured.", MSGFLAG_ERROR);
@@ -240,8 +241,10 @@ int Dumpfile_Tuntap::OpenTuntap() {
 #endif
 
 	_MSG("Opened tun/tap replicator '" + fname + "'", MSGFLAG_INFO);
+	// printf("debug - %d opened tun/tap replicator\n", getpid());
 
 	if (globalreg->rootipc != NULL) {
+		// printf("debug - %d - calling senddescriptor\n", getpid());
 		if (globalreg->rootipc->SendDescriptor(tuntap_fd) < 0) {
 			_MSG("tuntap failed to send tap descriptor over IPC", MSGFLAG_FATAL);
 			globalreg->fatal_condition = 1;
@@ -259,6 +262,7 @@ int Dumpfile_Tuntap::OpenTuntap() {
 
 		dfto->tapdevice[0] = 0;
 
+		// printf("debug - %d queueing senddescriptor trigger command\n", getpid());
 		globalreg->rootipc->SendIPC(ipc);
 	} else {
 		// Otherwise we're running with no privsep so register ourselves

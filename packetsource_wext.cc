@@ -174,7 +174,7 @@ int PacketSource_Wext::ParseOptions(vector<opt_pair> *in_opts) {
 			// Opportunistic VAP on
 			opp_vap = 1;
 		}
-	} else {
+	} else if (vap == "") {
 		_MSG("Source '" + interface + "' forced into non-vap mode, this will "
 			 "modify the provided interface.", MSGFLAG_INFO);
 	}
@@ -764,7 +764,8 @@ int PacketSource_Wext::FetchHardwareChannel() {
 	// and if we blow up badly enough that we can't get channels, we'll
 	// blow up definitively on something else soon enough
     if ((chan = Iwconfig_Get_Channel(interface.c_str(), errstr)) < 0) {
-        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_PRINTERROR);
+        globalreg->messagebus->InjectMessage("Source '" + name + "': " + errstr, 
+											 MSGFLAG_PRINTERROR);
         return -1;
     }
 

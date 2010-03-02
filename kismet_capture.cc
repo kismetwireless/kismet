@@ -133,19 +133,14 @@ int kc_startup_ipc(IPC_CMD_PARMS) {
 		return 0;
 
 	DropPrivCapabilities();
-	return 1;
-}
 
-// Do nothing in the client
-int kc_rootsync_ipc(IPC_CMD_PARMS) {
-	return 1;
+	// Send generic ack
+	return 0;
 }
 
 int main(int argc, char *argv[], char *envp[]) {
 	exec_name = argv[0];
 	char errstr[STATUS_MAX];
-
-	int ipc_sync;
 
 	// Catch the interrupt handler to shut down
     signal(SIGINT, CatchShutdown);
@@ -213,10 +208,6 @@ int main(int argc, char *argv[], char *envp[]) {
 	// Add the startup command
 	globalreg->rootipc->RegisterIPCCmd(&kc_startup_ipc, NULL, NULL, "STARTUP");
 
-	// Add the root IPC sync command
-	ipc_sync = 
-		globalreg->rootipc->RegisterIPCCmd(&kc_rootsync_ipc, NULL, NULL, "ROOTSYNCED");
-
 	// Add the packet sources
 #ifdef USE_PACKETSOURCE_PCAPFILE
 	if (globalreg->sourcetracker->RegisterPacketSource(new PacketSource_Pcapfile(globalreg)) < 0 || globalreg->fatal_condition) 
@@ -270,16 +261,67 @@ int main(int argc, char *argv[], char *envp[]) {
 		CatchShutdown(-1);
 
 	// If we're ready to go, send a root synced packet
-	ipc_packet *pack =
-		(ipc_packet *) malloc(sizeof(ipc_packet));
-	pack->data_len = 0;
-	pack->ipc_cmdnum = ipc_sync;
-	pack->ipc_ack = 0;
-	globalreg->rootipc->SendIPC(pack);
+	globalreg->rootipc->SyncRoot();
+	printf("debug - kismet capture sending syncroot\n");
 
 	int max_fd = 0;
 	fd_set rset, wset;
 	struct timeval tm;
+	time_t ipc_spin_start = time(0);
+
+	// Wait for the return sync before sending anything more
+	while (1) {
+		printf("debug - capture startup loop\n");
+		FD_ZERO(&rset);
+		FD_ZERO(&wset);
+		max_fd = 0;
+
+		if (globalreg->fatal_condition)
+			CatchShutdown(-1);
+
+		// Collect all the pollable descriptors
+		for (unsigned int x = 0; x < globalreg->subsys_pollable_vec.size(); x++) 
+			max_fd = 
+				globalreg->subsys_pollable_vec[x]->MergeSet(max_fd, &rset, &wset);
+		tm.tv_sec = 0;
+		tm.tv_usec = 100000;
+
+		if (select(max_fd + 1, &rset, &wset, NULL, &tm) < 0) {
+			if (errno != EINTR && errno != EAGAIN) {
+				snprintf(errstr, STATUS_MAX, "Main select loop failed: %s",
+						 strerror(errno));
+				CatchShutdown(-1);
+			}
+		}
+
+		for (unsigned int x = 0; 
+			 x < globalreg->subsys_pollable_vec.size(); x++) {
+
+			if (globalreg->subsys_pollable_vec[x]->Poll(rset, wset) < 0 &&
+				globalreg->fatal_condition) {
+				printf("debug - capture got a fail in startup poll\n");
+				CatchShutdown(-1);
+			}
+		}
+
+		if (globalreg->rootipc->FetchRootIPCSynced() > 0)
+			break;
+
+		if (time(0) - ipc_spin_start > 2)
+			break;
+	}
+
+	printf("debug - capture got out of startup loop\n"); 
+
+	if (globalreg->rootipc->FetchRootIPCSynced() <= 0) {
+		_MSG("kismet_capture pid " + IntToString(getpid()) + " failed to get "
+			 "a sync from kismet_server in a timely fashion, something is wrong. "
+			 "Continuing, but this may lead to additional errors",
+			 MSGFLAG_ERROR);
+	} else {
+		_MSG("kismet_capture pid " + IntToString(getpid()) + " synced with Kismet "
+			 "server, starting service loop", MSGFLAG_INFO);
+	}
 
 	// Core loop
 	while (1) {

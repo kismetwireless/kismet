@@ -118,7 +118,9 @@ public:
         // memory.  Whatever inserted it had better expect this
         // to happen or it will be very unhappy
 		if (content_vec[index] != NULL) {
-			delete content_vec[index];
+			if (content_vec[index]->self_destruct)
+				delete content_vec[index];
+
 			content_vec[index] = NULL;
         }
     }

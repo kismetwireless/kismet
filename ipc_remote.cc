@@ -124,7 +124,9 @@ int ipc_sync_callback(IPC_CMD_PARMS) {
 		return -1;
 	}
 
-	return ((IPCRemote *) auxptr)->SyncIPCCmd((ipc_sync *) data);
+	((IPCRemote *) auxptr)->SyncIPCCmd((ipc_sync *) data);
+
+	return 0;
 }
 
 IPCRemote::IPCRemote() {
@@ -146,7 +148,7 @@ IPCRemote::IPCRemote(GlobalRegistry *in_globalreg, string in_procname) {
 	next_cmdid = 0;
 	ipc_pid = 0;
 	ipc_spawned = 0;
-	last_ack = 1; // Our "last" command was ack'd
+	ipc_synced = 0;
 
 	exit_errno = 0;
 
@@ -189,6 +191,8 @@ int IPCRemote::SyncIPCCmd(ipc_sync *data) {
 			if (cback != NULL)
 				(*cback)(globalreg, NULL, 0, x->second->auxptr, 0);
 		}
+
+		ipc_synced = 1;
 
 		return 1;
 	}
@@ -244,7 +248,7 @@ int IPCRemote::SetChildExecMode(int argc, char *argv[]) {
 }
 
 int IPCRemote::RegisterIPCCmd(IPCmdCallback in_callback, 
-							  IPCmdCallback in_ackcallback,
+							  IPCmdCallback discard_ackback,
 							  void *in_aux, string in_name) {
 	// Allow registering commands after spawning if we're running a child command
 	// since we can post-spawn sync
@@ -269,7 +273,6 @@ int IPCRemote::RegisterIPCCmd(IPCmdCallback in_callback,
 	ipc_cmd_rec *rec = new ipc_cmd_rec;
 	rec->auxptr = in_aux;
 	rec->callback = in_callback;
-	rec->ack_callback = in_ackcallback;
 	rec->name = in_name;
 	rec->id = next_cmdid;
 
@@ -279,6 +282,8 @@ int IPCRemote::RegisterIPCCmd(IPCmdCallback in_callback,
 	} else {
 		ipc_cmd_map[next_cmdid] = rec;
 	}
+
+	// printf("debug - %d registered cmd %s %d\n", getpid(), in_name.c_str(), next_cmdid);
 
 	return next_cmdid;
 }
@@ -468,14 +473,21 @@ int IPCRemote::SendIPC(ipc_packet *pack) {
 }
 
 int IPCRemote::FetchReadyState() {
-	if (ipc_spawned == 0)
+	int p = CheckPidVec();
+
+	if (p < 0) {
+		return p;
+	}
+
+	if (ipc_spawned == 0) {
+		// printf("debug - %d not spawned\n", getpid());
 		return -1;
+	}
 
-	if (last_ack == 0)
+	if (cmd_buf.size() != 0) {
+		// printf("debug - %d buf size\n", getpid());
 		return 0;
-
-	if (cmd_buf.size() != 0)
-		return 0;
+	}
 
 	return 1;
 }
@@ -612,6 +624,7 @@ int IPCRemote::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
 
 	// Let a forked child operate normally
 	if ((ipc_pid == 0 && child_exec_mode == 0) || ipc_spawned <= 0 || p < 0) {
+		// printf("debug - %d %p bailing on merge, ipc pid %d child mode %d spawned %d checkpid %d\n", getpid(), this, ipc_pid, child_exec_mode, ipc_spawned, p);
 		return in_max_fd;
 	}
 
@@ -622,11 +635,11 @@ int IPCRemote::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
 
 	// Set the socket to be read
 	FD_SET(sock, out_rset);
-	
-	// Set the write if we have data queued and our last command was
-	// ack'd.  If it wasn't, rate limit ourselves down until it is.
-	if (cmd_buf.size() > 0)
+
+	if (cmd_buf.size() > 0) {
+		// printf("debug - %d cmd_buf set, flaggig write in merge\n", getpid());
 		FD_SET(sock, out_wset);
+	}
 
 	if (in_max_fd < sock)
 		return sock;
@@ -638,10 +651,13 @@ int IPCRemote::Poll(fd_set& in_rset, fd_set& in_wset) {
 	// This CAN be called by the parent or the child.  In the parent it's called
 	// by the normal pollable architecture.  In the child we manually call it
 	// from our micro-select loop.
+	
+	// printf("debug - %d poll queue %d\n", getpid(), cmd_buf.size());
 
 	int p = CheckPidVec();
 	
 	if (ipc_spawned <= 0 || p < 0) {
+		// printf("debug - %d %p not spawned / checkpid fail checkpid %d ipc %d\n", getpid(), this, p, ipc_spawned);
 		return -1;
 	}
 
@@ -655,13 +671,16 @@ int IPCRemote::Poll(fd_set& in_rset, fd_set& in_wset) {
 
 	// Process packets out
 	if (FD_ISSET(sock, &in_wset)) {
-		// Send as many frames as we have room for
+		// printf("debug - %d %p poll wset\n", getpid(), this);
+		// Send as many frames as we have room for if we're not waiting for an ack
 		while (cmd_buf.size() > 0 && ipc_spawned > 0) {
 			ipc_packet *pack = cmd_buf.front();
 
+			// printf("debug - %d %p sending %d\n", getpid(), this, pack->ipc_cmdnum);
+
 			// Send the frame
 			if (send(sock, pack, sizeof(ipc_packet) + pack->data_len, 0) < 0) {
-				if (errno == ENOBUFS)
+				if (errno == ENOBUFS || errno == EINTR || errno == EAGAIN)
 					break;
 
 				if (ipc_pid == 0) {
@@ -678,33 +697,28 @@ int IPCRemote::Poll(fd_set& in_rset, fd_set& in_wset) {
 				}
 			}
 
-			// ACK frames themselves, msg frames, and death commands are not
-			// expected to ack back that the command is done.  everything else
-			// should.
-			if (pack->ipc_cmdnum != DIE_CMD_ID &&
-				pack->ipc_cmdnum != MSG_CMD_ID &&
-				pack->ipc_ack == 0) {
-				last_ack = 0;
-			}
-
 			// Finally delete it
 			cmd_buf.pop_front();
 			free(pack);
 		}
-
+	} else {
+		// printf("debug - %d %p write not set in fd\n", getpid(), this);
 	}
+
+	// printf("dbeug - %d %p to rset\n", getpid(), this);
 
 	// Process packets in
 	if (FD_ISSET(sock, &in_rset)) {
 		ipc_packet ipchdr;
 		ipc_packet *fullpack = NULL;
-		int ret;
+		int ret = 0;
 
 		// Peek at the packet header
 		if ((ret = recv(sock, &ipchdr, 
 						sizeof(ipc_packet), MSG_PEEK)) < (int) sizeof(ipc_packet)) {
 			if (ret < 0) {
-				if (errno != EAGAIN) {
+				if (errno != EAGAIN && errno != EINTR) {
+					// printf("debug - %d - failed recv %s\n", getpid(), strerror(errno));
 					if (ipc_pid == 0) 
 						osstr << "IPC child got error receiving packet header "
 							"from controller: " << strerror(errno);
@@ -715,6 +729,7 @@ int IPCRemote::Poll(fd_set& in_rset, fd_set& in_wset) {
 					globalreg->fatal_condition = 1;
 					return -1;
 				} else {
+					// printf("debug - %d - failed recv non-fatal - %s\n", getpid(), strerror(errno));
 					return 0;
 				}
 			} else {
@@ -728,6 +743,7 @@ int IPCRemote::Poll(fd_set& in_rset, fd_set& in_wset) {
 
 		// validate the ipc header
 		if (ipchdr.sentinel != IPCRemoteSentinel) {
+			// printf("debug - %d ipchdr sentiel ivalid %x != %x\n", getpid(), ipchdr.sentinel, IPCRemoteSentinel);
 			if (ipc_pid == 0) 
 				osstr << "IPC child got error receiving packet header from "
 					"controller: Invalid IPC sentinel value";
@@ -743,20 +759,23 @@ int IPCRemote::Poll(fd_set& in_rset, fd_set& in_wset) {
 		// See if its a command we understand
 		map<unsigned int, ipc_cmd_rec *>::iterator cbitr = 
 			ipc_cmd_map.find(ipchdr.ipc_cmdnum);
+
+		// printf("debug - IPC %d got ipc cmd %d ack %d\n", getpid(), ipchdr.ipc_cmdnum, ipchdr.ipc_ack);
+
 		if (cbitr == ipc_cmd_map.end()) {
+			// printf("debug - %d unknown cmd\n", getpid());
 			if (ipc_pid == 0) 
 				osstr << "IPC child got error receiving packet header from "
 					"controller: Unknown IPC command";
 			else
 				osstr << "IPC controller got error receiving packet header "
 					"from IPC child pid " << ipc_pid << ": Unknown IPC command " <<
-					ipchdr.ipc_cmdnum << " len " << ipchdr.data_len;
+					(int) ipchdr.ipc_cmdnum << " len " << ipchdr.data_len;
 			_MSG(osstr.str(), MSGFLAG_FATAL);
 			globalreg->fatal_condition = 1;
 			return -1;
 		}
 		IPCmdCallback cback = cbitr->second->callback;
-		IPCmdCallback ackcback = cbitr->second->ack_callback;
 		void *cbackaux = cbitr->second->auxptr;
 
 		// Get the full packet
@@ -775,19 +794,13 @@ int IPCRemote::Poll(fd_set& in_rset, fd_set& in_wset) {
 				globalreg->fatal_condition = 1;
 				return -1;
 			} else {
+				// printf("debug - %d got 0 reading full packet\n", getpid());
 				return 0;
 			}
 		}
 
-		// If we've got an ack frame, and there is an ack callback for this 
-		// command type, we send it on to them
-		if (ipchdr.ipc_ack) {
-			if (ackcback != NULL) {
-				ret = (*ackcback)(globalreg, fullpack->data, fullpack->data_len,
-								  cbackaux, ipc_pid);
-			}
-			last_ack = 1;
-		} else if (cback != NULL) {
+		// If we've got a callback, process it
+		if (cback != NULL) {
 			// We "know" the rest is valid, so call the handler w/ this function.
 			// giving it the ipc pid lets us cheat and tell if its the parent or not,
 			// since the child has a 0 pid
@@ -803,23 +816,11 @@ int IPCRemote::Poll(fd_set& in_rset, fd_set& in_wset) {
 				globalreg->fatal_condition = 1;
 				return -1;
 			}
-
-			free(fullpack);
-
-			// Queue a return ack frame that the command was received and processed
-			// if it's not die, msg, or ack, and ret == 0, ie, send a generic ack
-			if (ipchdr.ipc_cmdnum != DIE_CMD_ID &&
-				ipchdr.ipc_cmdnum != MSG_CMD_ID &&
-				ret == 0) {
-				ipc_packet *ackpack = (ipc_packet *) malloc(sizeof(ipc_packet));
-				ackpack->ipc_ack = 1;
-				ackpack->ipc_cmdnum = ipchdr.ipc_cmdnum;
-				ackpack->data_len = 0;
-				SendIPC(ackpack);
-			}
 		}
+
+		free(fullpack);
 	}
-	
+
 	return 1;
 }
 
@@ -842,13 +843,14 @@ RootIPCRemote::RootIPCRemote(GlobalRegistry *in_globalreg, string procname) :
 	root_ipc_synced = 0;
 
 	SetChildCmd(string(BIN_LOC) + "/kismet_capture");
-	RegisterIPCCmd(&ipc_fdpass_callback, NULL, this, "FDPASS");
-	RegisterIPCCmd(&ipc_rootipc_sync, NULL, this, "ROOTSYNCED");
+	fdpass_cmd = RegisterIPCCmd(&ipc_fdpass_callback, NULL, this, "FDPASS");
+	rootipcsync_cmd = RegisterIPCCmd(&ipc_rootipc_sync, NULL, this, "ROOTSYNCED");
 }
 
 int RootIPCRemote::FetchReadyState() {
-	if (root_ipc_synced == 0)
+	if (ipc_pid != 0 && root_ipc_synced == 0) {
 		return 0;
+	}
 
 	return IPCRemote::FetchReadyState();
 }
@@ -896,6 +898,8 @@ int RootIPCRemote::OpenFDPassSock() {
 
 	// Child creates it, since child probably has more privs
 	if (ipc_pid != 0) {
+		printf("debug - %d - child creating ipc fdfd\n", getpid());
+
 		snprintf(sockpath, 32, "/tmp/kisfdsock_%d", ipc_pid);
 
 		// Unlink if it exists
@@ -970,6 +974,8 @@ int RootIPCRemote::SendDescriptor(int in_fd) {
 
 	cm.fd = in_fd;
 
+	// printf("debug - %d child sending fd over fdfd\n", getpid());
+
 	if (sendmsg(ipc_fd_fd, &msg, 0) < 0) {
 		_MSG("Root IPC file descriptor sendmsg() failed: " +
 			 string(strerror(errno)), MSGFLAG_ERROR);
@@ -988,6 +994,8 @@ int RootIPCRemote::ReceiveDescriptor() {
 	struct msghdr m;
 	struct iovec iov[1];
 	cmsg_fd cm;
+
+	// printf("debug - %d receive descriptor\n", getpid());
 
 	if (ipc_fd_fd < 0)
 		return -1;

@@ -102,9 +102,9 @@ struct ipc_msgbus_pass {
 // reasonable structs for *data
 struct ipc_packet {
 	uint32_t sentinel;
-	uint8_t ipc_ack;
 	uint32_t ipc_cmdnum;
 	uint32_t data_len;
+	uint8_t ipc_ack;
 	uint8_t data[0];
 };
 
@@ -150,10 +150,9 @@ public:
 
 	// IPC commands are integers, which means we get away without having to care
 	// at all if they duplicate commands or whatever, so we don't even really
-	// care about unique callbacks.  Makes life easy for us.  If ackcallback
-	// is not null, the caller will get the ackframe called to their function
+	// care about unique callbacks.  Makes life easy for us.
 	virtual int RegisterIPCCmd(IPCmdCallback in_callback, 
-							   IPCmdCallback in_ackcallback, 
+							   IPCmdCallback discard_ackback,
 							   void *in_aux,
 							   string name);
 
@@ -174,6 +173,8 @@ public:
 
 	int FetchErrno() { return exit_errno; }
 
+	virtual int FetchIPCSynced() { return ipc_synced; }
+
 	// Pollable system
 	virtual int MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset);
 	virtual int Poll(fd_set& in_rset, fd_set& in_wset);
@@ -181,7 +182,6 @@ public:
 	struct ipc_cmd_rec {
 		void *auxptr;
 		IPCmdCallback callback;
-		IPCmdCallback ack_callback;
 		string name;
 		int id;
 	};
@@ -220,9 +220,6 @@ protected:
 	// to re-use the template
 	map<unsigned int, ipc_cmd_rec *> ipc_sync_map;
 
-	// Has the last command been acknowledged as complete?
-	int last_ack;
-
 	// Cmd to run instead of a copy of ourself. 
 	string child_cmd;
 	int child_exec_mode;
@@ -233,6 +230,9 @@ protected:
 
 	// Reason we're exiting
 	int exit_errno;
+
+	// Have we been synced?  (child)
+	int ipc_synced;
 };
 
 // Special IPCremote class for root control binary, used by IPC remote and
@@ -265,11 +265,21 @@ public:
 
 	virtual int SyncIPC();
 
+	virtual int SyncRoot() {
+		ipc_packet *pack =
+			(ipc_packet *) malloc(sizeof(ipc_packet));
+		pack->data_len = 0;
+		pack->ipc_cmdnum = rootipcsync_cmd;
+		pack->ipc_ack = 0;
+		return SendIPC(pack);
+	}
+
 	virtual int ShutdownIPC(ipc_packet *pack);
 
 	virtual int FetchReadyState();
 
 	virtual void RootIPCSynced() { root_ipc_synced = 1; }
+	virtual int FetchRootIPCSynced() { return root_ipc_synced; }
 
 protected:
 	virtual void IPCDie();
@@ -280,6 +290,8 @@ protected:
 	int ipc_fd_fd;
 	struct sockaddr_un unixsock;
 #endif
+
+	int fdpass_cmd, rootipcsync_cmd;
 
 	int root_ipc_synced;
 
