@@ -291,7 +291,9 @@ void Protocol_CRITFAIL_enable(PROTO_ENABLE_PARMS) {
 }
 
 int Protocol_CRITFAIL(PROTO_PARMS) {
-	unsigned int cf_num = (unsigned int) data;
+	// This is stupid but it makes gcc shut up.  Maybe.
+	unsigned long int cf_lnum = (unsigned long int) data;
+	unsigned int cf_num = (unsigned int) cf_lnum;
 
 	if (cf_num >= globalreg->critfail_vec.size())
 		cf_num = 0;
