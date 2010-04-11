@@ -631,6 +631,7 @@ int GPSDClient::ParseData() {
 	if (use_spd) {
 		if (si_units == 0)
 			in_spd *= 0.514; /* Speed in meters/sec from knots */
+		spd = in_spd;
 	}
 
 	if (use_hed) {
