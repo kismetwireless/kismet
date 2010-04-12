@@ -146,7 +146,7 @@ IPCRemote::IPCRemote(GlobalRegistry *in_globalreg, string in_procname) {
 	child_exec_mode = 0;
 
 	next_cmdid = 0;
-	ipc_pid = 0;
+	ipc_pid = -1;
 	ipc_spawned = 0;
 	ipc_synced = 0;
 
@@ -555,6 +555,9 @@ void IPCRemote::IPC_Child_Loop() {
 }
 
 void IPCRemote::IPCDie() {
+	if (ipc_pid < 0)
+		return;
+
 	// If we're the child...
 	if (ipc_pid == 0) {
 		if (sockpair[0] >= 0) {
@@ -565,9 +568,6 @@ void IPCRemote::IPCDie() {
 
 		// and exit, we're done
 		exit(exit_errno);
-	}  else if (ipc_pid == 0) {
-		_MSG("IPC Die called on tracker with no child", MSGFLAG_ERROR);
-		return;
 	}
 
 	// otherwise if we're the parent...
@@ -593,7 +593,7 @@ void IPCRemote::IPCDie() {
 		usleep(100000);
 	}
 
-	if (!dead) {
+	if (!dead && ipc_pid > 0) {
 		_MSG("Child process " + IntToString((int) ipc_pid) + " didn't die "
 			 "cleanly, killing it.", MSGFLAG_ERROR);
 		kill(ipc_pid, SIGKILL);
