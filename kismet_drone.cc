@@ -272,6 +272,15 @@ int main(int argc, char *argv[], char *envp[]) {
 	ConfigFile *conf;
 	int option_idx = 0;
 
+	GlobalRegistry *globalreg = NULL;
+
+	int startup_ipc_id = -1;
+
+	int max_fd = 0;
+	fd_set rset, wset;
+	struct timeval tm;
+
+
 	// ------ WE MAY BE RUNNING AS ROOT ------
 	
 	// Catch the interrupt handler to shut down
@@ -282,6 +291,8 @@ int main(int argc, char *argv[], char *envp[]) {
 
 	// Start filling in key components of the globalregistry
 	globalregistry = new GlobalRegistry;
+
+	globalreg = globalregistry;
 
 	globalregistry->version_major = VERSION_MAJOR;
 	globalregistry->version_minor = VERSION_MINOR;
@@ -346,21 +357,101 @@ int main(int argc, char *argv[], char *envp[]) {
 	globalregistry->messagebus->RegisterClient(fqmescli, MSGFLAG_FATAL);
 	globalregistry->messagebus->RegisterClient(smartmsgcli, MSGFLAG_ALL);
 
+#ifndef SYS_CYGWIN
 	// Generate the root ipc packet capture and spawn it immediately, then register
 	// and sync the packet protocol stuff
 	if (getuid() != 0) {
-		globalregistry->rootipc = new RootIPCRemote(globalregistry, 
-													"root capture control");
-		globalregistry->rootipc->SetChildCmd(string(BIN_LOC) + "/kismet_capture");
+		globalregistry->messagebus->InjectMessage("Not running as root - will try to "
+			"launch root control binary (" + string(BIN_LOC) + "/kismet_capture) to "
+			"control cards.", MSGFLAG_INFO);
+
+		globalregistry->rootipc = new RootIPCRemote(globalregistry, "kismet_root");
 		globalregistry->rootipc->SpawnIPC();
-		globalregistry->messagebus->InjectMessage("Spawned root IPC capture control",
-												  MSGFLAG_INFO);
+
+		startup_ipc_id = 
+			globalregistry->rootipc->RegisterIPCCmd(NULL, NULL, NULL, "STARTUP");
+
+		time_t ipc_spin_start = time(0);
+
+		while (1) {
+			FD_ZERO(&rset);
+			FD_ZERO(&wset);
+			max_fd = 0;
+
+			if (globalregistry->fatal_condition)
+				CatchShutdown(-1);
+
+			// Collect all the pollable descriptors
+			for (unsigned int x = 0; x < globalregistry->subsys_pollable_vec.size(); x++) 
+				max_fd = 
+					globalregistry->subsys_pollable_vec[x]->MergeSet(max_fd, &rset, 
+																	 &wset);
+			tm.tv_sec = 0;
+			tm.tv_usec = 100000;
+
+			if (select(max_fd + 1, &rset, &wset, NULL, &tm) < 0) {
+				if (errno != EINTR && errno != EAGAIN) {
+					snprintf(errstr, STATUS_MAX, "Main select loop failed: %s",
+							 strerror(errno));
+					CatchShutdown(-1);
+				}
+			}
+
+			for (unsigned int x = 0; 
+				 x < globalregistry->subsys_pollable_vec.size(); x++) {
+
+				if (globalregistry->subsys_pollable_vec[x]->Poll(rset, wset) < 0 &&
+					globalregistry->fatal_condition) {
+					CatchShutdown(-1);
+				}
+			}
+
+			if (globalregistry->rootipc->FetchRootIPCSynced() > 0) {
+				// printf("debug - kismet server startup got root sync\n");
+				break;
+			}
+
+			if (time(0) - ipc_spin_start > 2) {
+				// printf("debug - kismet server startup timed out\n");
+				break;
+			}
+		}
+
+		if (globalregistry->rootipc->FetchRootIPCSynced() <= 0) {
+			critical_fail cf;
+			cf.fail_time = time(0);
+			cf.fail_msg = "Failed to start kismet_capture control binary.  Make sure "
+				"that kismet_capture is installed, is suid-root, and that your user "
+				"is in the 'kismet' group, or run Kismet as root.  See the "
+				"README for more information.";
+
+			int ipc_errno = globalregistry->rootipc->FetchErrno();
+
+			if (ipc_errno == EPERM || ipc_errno == EACCES) {
+				cf.fail_msg = "Could not launch kismet_capture control binary, "
+					"due to permission errors.  To run Kismet suid-root your user "
+					"MUST BE IN THE 'kismet' GROUP.  Use the 'groups' command to show "
+					"what groups your user is in, and consult the Kismet README for "
+					"more information.";
+			}
+
+			globalreg->critfail_vec.push_back(cf);
+
+			_MSG(cf.fail_msg, MSGFLAG_FATAL);
+		} else {
+			_MSG("Started kismet_capture control binary successfully, pid " +
+				 IntToString(globalreg->rootipc->FetchSpawnPid()), MSGFLAG_INFO);
+		}
+
 	} else {
-		globalregistry->messagebus->InjectMessage("NOT spawning suid-root IPC capture "
-		   	"control, because we are ALREADY running as root.  This is not the "
-			"preferred method of running Kismet because it prevents certain security "
-			"features from operating.", MSGFLAG_ERROR);
+		globalregistry->messagebus->InjectMessage(
+			"Kismet was started as root, NOT launching external control binary.  "
+			"This is NOT the preferred method of starting Kismet as Kismet will "
+			"continue to run as root the entire time.  Please read the README "
+			"file section about Installation & Security and be sure this is "
+			"what you want to do.", MSGFLAG_ERROR);
 	}
+#endif
 
 	// Allocate some other critical stuff
 	globalregistry->timetracker = new Timetracker(globalregistry);
@@ -519,10 +610,6 @@ int main(int argc, char *argv[], char *envp[]) {
 	
 	// Set the global silence now that we're set up
 	glob_silent = local_silent;
-
-	int max_fd = 0;
-	fd_set rset, wset;
-	struct timeval tm;
 
 	// Core loop
 	while (1) {
