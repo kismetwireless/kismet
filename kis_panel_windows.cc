@@ -812,8 +812,11 @@ void Kis_Main_Panel::Proto_GPS(CLIPROTO_CB_PARMS) {
 		NtoString<float>(lat).Str() + string(" ") + 
 		NtoString<float>(lon).Str() + string(" ");
 
+	// Convert to m/hr
+	spd *= 3600;
+
 	if (eng) {
-		// Convert speed to feet/sec
+		// Convert speed to feet/hr
 		spd *= 3.2808;
 		// Convert alt to feet
 		alt *= 3.2808;
@@ -821,9 +824,9 @@ void Kis_Main_Panel::Proto_GPS(CLIPROTO_CB_PARMS) {
 
 	if (eng) {
 		if (spd > 2500)
-			gpstext = "Spd: " + NtoString<float>(spd / 5280, 2).Str() + " mph ";
+			gpstext += "Spd: " + NtoString<float>(spd / 5280, 2).Str() + " mph ";
 		else
-			gpstext = "Spd: " + NtoString<float>(spd, 2).Str() + " fph ";
+			gpstext += "Spd: " + NtoString<float>(spd, 2).Str() + " fph ";
 
 		if (alt > 2500)
 			gpstext += "Alt: " + NtoString<float>(alt / 5280, 2).Str() + " m ";
@@ -831,9 +834,9 @@ void Kis_Main_Panel::Proto_GPS(CLIPROTO_CB_PARMS) {
 			gpstext += "Alt: " + NtoString<float>(alt, 2).Str() + " ft ";
 	} else {
 		if (spd > 1000)
-			gpstext = "Spd: " + NtoString<float>(spd / 1000, 2).Str() + "Km/hr ";
+			gpstext += "Spd: " + NtoString<float>(spd / 1000, 2).Str() + "Km/hr ";
 		else
-			gpstext = "Spd: " + NtoString<float>(spd, 2).Str() + "m/hr ";
+			gpstext += "Spd: " + NtoString<float>(spd, 2).Str() + "m/hr ";
 
 		if (alt > 1000)
 			gpstext += "Alt: " + NtoString<float>(alt / 1000, 2).Str() + "Km ";
@@ -2975,8 +2978,11 @@ void Kis_Gps_Panel::Proto_GPS(CLIPROTO_CB_PARMS) {
 
 	int eng = StrLower(kpinterface->prefs->FetchOpt("GPSUNIT")) != "metric";
 
+	// Convert speed to m/hr
+	spd *= 3600;
+
 	if (eng) {
-		// Convert speed to feet/sec
+		// Convert speed to feet/hr
 		spd *= 3.2808;
 		// Convert alt to feet
 		alt *= 3.2808;
@@ -2998,6 +3004,7 @@ void Kis_Gps_Panel::Proto_GPS(CLIPROTO_CB_PARMS) {
 		gpslocinfo->SetText(gpstext);
 
 		if (eng) {
+			// Reset gpstext for locinfo
 			if (spd > 2500)
 				gpstext = "Spd: " + NtoString<float>(spd / 5280, 2).Str() + " mph ";
 			else
@@ -3008,6 +3015,7 @@ void Kis_Gps_Panel::Proto_GPS(CLIPROTO_CB_PARMS) {
 			else
 				gpstext += "Alt: " + NtoString<float>(alt, 2).Str() + " ft ";
 		} else {
+			// Reset gpstext for locinfo
 			if (spd > 1000)
 				gpstext = "Spd: " + NtoString<float>(spd / 1000, 2).Str() + "Km/hr ";
 			else
