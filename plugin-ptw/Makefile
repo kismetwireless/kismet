@@ -9,7 +9,7 @@ top_builddir = $(BLDHOME)
 
 PLUGINLDFLAGS ?= $(LDFLAGS)
 PLUGINLDFLAGS += -shared -rdynamic
-LIBS	+= -lstdc++ -lssl -lpthread
+LIBS	+= -lstdc++ -lssl -lpthread -lcrypto
 CFLAGS 	+= -I/usr/include -I$(KIS_INC_DIR) -g -fPIC
 
 PLUGOBJS = aircrack-crypto.o aircrack-ptw2-lib.o aircrack-kismet.o

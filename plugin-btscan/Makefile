@@ -9,7 +9,7 @@ top_builddir = $(BLDHOME)
 
 PLUGINLDFLAGS ?= $(LDFLAGS)
 PLUGINLDFLAGS += -shared -rdynamic
-LIBS	+= -lstdc++ -lbluetooth -lpthread
+LIBS	+= -lstdc++ -lbluetooth -lpthread -lncurses -lpanel
 CFLAGS 	+= -I/usr/include -I$(KIS_INC_DIR) -g -fPIC
 
 SRVOBJS = packetsource_linuxbt.o tracker_btscan.o dumpfile_btscantxt.o kismet_btscan.o
