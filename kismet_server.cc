@@ -705,7 +705,7 @@ int main(int argc, char *argv[], char *envp[]) {
 
 	while (1) {
 		int r = getopt_long(argc, argv, 
-							"-f:sp:", 
+							"-f:sp:h", 
 							main_longopt, &option_idx);
 		if (r < 0) break;
 
