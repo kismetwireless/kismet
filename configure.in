@@ -766,8 +766,7 @@ if test "$wantpcap" = yes; then
 			#include <stdio.h>
 			#include <pcap.h>
 			]], [[
-			DLT_PPI;
-			return 0;
+			return DLT_PPI==DLT_PPI;
 			]])],[haveppi=yes],[haveppi=no])
 	CFLAGS="$OCFL"
 	if test "$haveppi" = "yes"; then
