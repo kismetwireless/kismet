@@ -404,6 +404,7 @@ AC_ARG_ENABLE(client,
 	 esac],
 	[wantclient=yes]
 )
+AC_SUBST(wantclient)
 
 # Add additional cflags since some distros bury panel.h
 CPPFLAGS="$CPPFLAGS -I/usr/include/ncurses"

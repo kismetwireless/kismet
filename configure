@@ -653,6 +653,7 @@ caplibs
 CLIENTCFLAGS
 CLIENTCLIBS
 CLIBS
+wantclient
 mangrp
 instgrp
 CXXLIBS
@@ -7014,6 +7015,7 @@ else
   wantclient=yes
 
 fi
+
 
 
 # Add additional cflags since some distros bury panel.h
