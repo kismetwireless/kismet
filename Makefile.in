@@ -69,8 +69,10 @@ NC	= kismet_client
 BUILDCLIENT=@wantclient@
 
 ALL	= Makefile $(DEPEND) $(PS) $(CS) $(DRONE)
+INSTBINS = $(PS) $(CS) $(DRONE)
 ifeq ($(BUILDCLIENT), yes)
 ALL += $(NC)
+INSTBINS += $(NC)
 endif
 
 all:	$(ALL)
@@ -105,8 +107,11 @@ commoninstall:
 	mkdir -p $(ETC)
 	mkdir -p $(BIN)
 
-	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 scripts/kismet $(BIN)/kismet
-	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(NC) $(BIN)/$(NC)
+	if test -e $(NC); then \
+		echo "Installing client"; \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 scripts/kismet $(BIN)/kismet; \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(NC) $(BIN)/$(NC); \
+	fi;
 	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(PS) $(BIN)/$(PS); 
 	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(DRONE) $(BIN)/$(DRONE);
 
@@ -159,7 +164,7 @@ suidinstall: $(CS)
 	@echo "all of Kismet as root.  ONLY users in this group will be able to "
 	@echo "run Kismet and capture from physical network devices."
 
-install: $(PS) $(CS) $(DRONE) $(NC)
+install: $(INSTBINS)
 	$(MAKE) -e commoninstall
 	@if test -f $(ETC)/kismet.conf; then \
 		echo "$(ETC)/kismet.conf already installed, not replacing it.  HOWEVER"; \
