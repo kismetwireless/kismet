@@ -584,6 +584,9 @@ int Usage(char *argv) {
 		   " -s, --silent                 Turn off stdout output after setup phase\n"
 		   "     --daemonize              Spawn detatched in the background\n"
 		   "     --no-plugins             Do not load plugins\n"
+		   "     --no-root				  Do not start the kismet_capture binary \n"
+		   "                               when not running as root.  For no-priv \n"
+		   "                               remote capture ONLY.\n"
 		   );
 
 	printf("\n");
@@ -650,6 +653,7 @@ int main(int argc, char *argv[], char *envp[]) {
 
 	// Timer for silence
 	int local_silent = 0;
+	int startroot = 1;
 
 	// Catch the interrupt handler to shut down
     signal(SIGINT, CatchShutdown);
@@ -687,6 +691,7 @@ int main(int argc, char *argv[], char *envp[]) {
 	const int nlwc = globalregistry->getopt_long_num++;
 	const int dwc = globalregistry->getopt_long_num++;
 	const int npwc = globalregistry->getopt_long_num++;
+	const int nrwc = globalregistry->getopt_long_num++;
 
 	// Standard getopt parse run
 	static struct option main_longopt[] = {
@@ -696,6 +701,7 @@ int main(int argc, char *argv[], char *envp[]) {
 		{ "help", no_argument, 0, 'h' },
 		{ "daemonize", no_argument, 0, dwc },
 		{ "no-plugins", no_argument, 0, npwc },
+		{ "no-root", no_argument, 0, nrwc },
 		{ 0, 0, 0, 0 }
 	};
 
@@ -723,6 +729,8 @@ int main(int argc, char *argv[], char *envp[]) {
 			local_silent = 1;
 		} else if (r == npwc) {
 			plugins = 0;
+		} else if (r == nrwc) {
+			startroot = 0;
 		}
 	}
 
@@ -743,7 +751,12 @@ int main(int argc, char *argv[], char *envp[]) {
 #ifndef SYS_CYGWIN
 	// Generate the root ipc packet capture and spawn it immediately, then register
 	// and sync the packet protocol stuff
-	if (getuid() != 0) {
+	if (getuid() != 0 && startroot == 0) {
+		globalregistry->messagebus->InjectMessage("Not running as root, and --no-root "
+			"was requested.  Will not attempt to spawn Kismet capture binary.  This "
+			"will make it impossible to add sources which require root.", 
+			MSGFLAG_INFO | MSGFLAG_PRINTERROR);
+	} else if (getuid() != 0) {
 		globalregistry->messagebus->InjectMessage("Not running as root - will try to "
 			"launch root control binary (" + string(BIN_LOC) + "/kismet_capture) to "
 			"control cards.", MSGFLAG_INFO);

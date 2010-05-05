@@ -1789,7 +1789,7 @@ int Packetsourcetracker::StartSource(uint16_t in_source_id) {
 		// printf("debug - %d - not running as root in ipc\n", getpid());
 		return -1;
 	} else if (euid != 0 && pstsource->proto_source->require_root) {
-		if (((RootIPCRemote *) rootipc)->FetchRootIPCSynced() <= 0) {
+		if (rootipc == NULL || ((RootIPCRemote *) rootipc)->FetchRootIPCSynced() <= 0) {
 			_MSG("Packet source '" + pstsource->strong_source->FetchInterface() + "' "
 				 "requires root to start, but the root control process is not "
 				 "running and sycned.", MSGFLAG_ERROR);
