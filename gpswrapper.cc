@@ -56,9 +56,10 @@ GpsWrapper::GpsWrapper(GlobalRegistry *globalreg) {
 		_MSG("GPS enabled but gpstype missing from kismet.conf", MSGFLAG_FATAL);
 		globalreg->fatal_condition = 1;
 	} else {
-		_MSG("GPS unknown gpstype " + gpsopt + ", expected serial or gpsd",
-			 MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
+		_MSG("GPS unknown gpstype " + gpsopt + ", continuing on blindly and hoping "
+			 "we get something useful.  Unless you have loaded GPS plugins that "
+			 "handle this GPS type, Kismet is not going to be able to use the GPS",
+			 MSGFLAG_ERROR);
 	}
 }
 
