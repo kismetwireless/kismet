@@ -587,6 +587,9 @@ http://www.kismetwireless.net
       pcapfile          Pcap-formatted previously recorded file
       rt2870sta         Out-of-kernel/Staging rt2870 11n driver (use
                          in-kernel instead)
+      wl12xx            Patched wl12xx drivers for the N900, must use
+                         patched drivers from http://david.gnedt.eu/blog/,
+                         otherwise autodetected.
       drone             Remote Kismet packet capture, source options
                         "host=..." and "port=..." are required.
                         ncsource=drone:host=localhost,port=2502

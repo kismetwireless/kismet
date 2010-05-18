@@ -262,7 +262,7 @@ int main(int argc, char *argv[], char *envp[]) {
 
 	// If we're ready to go, send a root synced packet
 	globalreg->rootipc->SyncRoot();
-	printf("debug - kismet capture sending syncroot\n");
+	// printf("debug - kismet capture sending syncroot\n");
 
 	int max_fd = 0;
 	fd_set rset, wset;
@@ -271,7 +271,7 @@ int main(int argc, char *argv[], char *envp[]) {
 
 	// Wait for the return sync before sending anything more
 	while (1) {
-		printf("debug - capture startup loop\n");
+		// printf("debug - capture startup loop\n");
 		FD_ZERO(&rset);
 		FD_ZERO(&wset);
 		max_fd = 0;
@@ -299,7 +299,7 @@ int main(int argc, char *argv[], char *envp[]) {
 
 			if (globalreg->subsys_pollable_vec[x]->Poll(rset, wset) < 0 &&
 				globalreg->fatal_condition) {
-				printf("debug - capture got a fail in startup poll\n");
+				// printf("debug - capture got a fail in startup poll\n");
 				CatchShutdown(-1);
 			}
 		}
@@ -311,7 +311,7 @@ int main(int argc, char *argv[], char *envp[]) {
 			break;
 	}
 
-	printf("debug - capture got out of startup loop\n"); 
+	// printf("debug - capture got out of startup loop\n"); 
 
 	if (globalreg->rootipc->FetchRootIPCSynced() <= 0) {
 		_MSG("kismet_capture pid " + IntToString(getpid()) + " failed to get "

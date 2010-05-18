@@ -358,8 +358,6 @@ int main(int argc, char *argv[], char *envp[]) {
 	globalregistry->messagebus->RegisterClient(smartmsgcli, MSGFLAG_ALL);
 
 #ifndef SYS_CYGWIN
-	// Generate the root ipc packet capture and spawn it immediately, then register
-	// and sync the packet protocol stuff
 	if (getuid() != 0) {
 		globalregistry->messagebus->InjectMessage("Not running as root - will try to "
 			"launch root control binary (" + string(BIN_LOC) + "/kismet_capture) to "
@@ -514,8 +512,15 @@ int main(int argc, char *argv[], char *envp[]) {
 	if (globalregistry->rootipc != NULL) {
 		globalregistry->sourcetracker->RegisterIPC(globalregistry->rootipc, 0);
 
-		// Sync the IPC system
+		globalregistry->rootipc->SyncRoot();
 		globalregistry->rootipc->SyncIPC();
+
+		ipc_packet *ipc = (ipc_packet *) malloc(sizeof(ipc_packet));
+		ipc->data_len = 0;
+		ipc->ipc_ack = 0;
+		ipc->ipc_cmdnum = startup_ipc_id;
+
+		globalreg->rootipc->SendIPC(ipc);
 	}
 
 	// Create the basic drone server

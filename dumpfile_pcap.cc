@@ -347,21 +347,51 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 
 			// Assemble the channel flags then endian swap them
 			ppi_common->chan_flags = 0;
-			if (radioinfo->encoding == encoding_cck)
+			switch (radioinfo->encoding) {
+			case encoding_cck:
 				ppi_common->chan_flags |= PPI_80211_CHFLAG_CCK;
-			if (radioinfo->encoding == encoding_ofdm)
+				break;
+			case encoding_ofdm:
 				ppi_common->chan_flags |= PPI_80211_CHFLAG_OFDM;
-			if (radioinfo->encoding == encoding_dynamiccck)
+				break;
+			case encoding_dynamiccck:
 				ppi_common->chan_flags |= PPI_80211_CHFLAG_DYNAMICCCK;
-			if (radioinfo->encoding == encoding_gfsk)
+				break;
+			case encoding_gfsk:
 				ppi_common->chan_flags |= PPI_80211_CHFLAG_GFSK;
-			if (radioinfo->carrier == carrier_80211bplus)
-				ppi_common->chan_flags |= PPI_80211_CHFLAG_TURBO;
-			if (radioinfo->carrier == carrier_80211g)
-				ppi_common->chan_flags |= (PPI_80211_CHFLAG_OFDM |
-										   PPI_80211_CHFLAG_2GHZ);
-			if (radioinfo->carrier == carrier_80211a)
-				ppi_common->chan_flags |= PPI_80211_CHFLAG_5GHZ;
+				break;
+			case encoding_pbcc:
+			case encoding_unknown:
+				break;
+			}
+			switch (radioinfo->carrier) {
+			case carrier_80211b:
+				ppi_common->chan_flags |= (PPI_80211_CHFLAG_2GHZ | PPI_80211_CHFLAG_CCK);
+				break;
+			case carrier_80211bplus:
+				ppi_common->chan_flags |= (PPI_80211_CHFLAG_2GHZ | PPI_80211_CHFLAG_CCK | PPI_80211_CHFLAG_TURBO);
+				break;
+			case carrier_80211a:
+				ppi_common->chan_flags |= (PPI_80211_CHFLAG_5GHZ | PPI_80211_CHFLAG_OFDM);
+				break;
+			case carrier_80211g:
+				// Could be PPI_80211_CHFLAG_OFDM or PPI_80211_CHFLAG_DYNAMICCCK
+				ppi_common->chan_flags |= PPI_80211_CHFLAG_2GHZ;
+				break;
+			case carrier_80211fhss:
+				ppi_common->chan_flags |= (PPI_80211_CHFLAG_2GHZ | PPI_80211_CHFLAG_GFSK);
+				break;
+			case carrier_80211dsss:
+				ppi_common->chan_flags |= PPI_80211_CHFLAG_2GHZ;
+				break;
+			case carrier_80211n20:
+			case carrier_80211n40:
+				// FIXME Dunno how to restore spectrum
+				ppi_common->chan_flags |= PPI_80211_CHFLAG_OFDM;
+				break;
+			case carrier_unknown:
+				break;
+			}
 			ppi_common->chan_flags = kis_htole16(ppi_common->chan_flags);
 
 			ppi_common->fhss_hopset = 0;

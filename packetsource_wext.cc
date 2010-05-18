@@ -330,6 +330,7 @@ int PacketSource_Wext::RegisterSources(Packetsourcetracker *tracker) {
 	tracker->RegisterPacketProto("rt73usb", this, "IEEE80211b", 1);
 	tracker->RegisterPacketProto("rt2860", this, "IEEE80211b", 1);
 	tracker->RegisterPacketProto("rt2860sta", this, "IEEE80211b", 1);
+	tracker->RegisterPacketProto("rt2870sta", this, "IEEE80211b", 1);
 	tracker->RegisterPacketProto("rt8180", this, "IEEE80211b", 1);
 	tracker->RegisterPacketProto("rt8187", this, "IEEE80211g", 1);
 	tracker->RegisterPacketProto("rtl8180", this, "IEEE80211b", 1);
@@ -339,8 +340,8 @@ int PacketSource_Wext::RegisterSources(Packetsourcetracker *tracker) {
 	tracker->RegisterPacketProto("zd1201", this, "IEEE80211b", 1);
 	tracker->RegisterPacketProto("zd1211rw", this, "IEEE80211b", 1);
 	tracker->RegisterPacketProto("wext", this, "IEEE80211b", 1);
+	tracker->RegisterPacketProto("wl12xx", this, "IEEE80211b", 1);
 	tracker->RegisterPacketProto("mac80211", this, "IEEE80211b", 1);
-	tracker->RegisterPacketProto("rt2870sta", this, "IEEE80211b", 1);
 
 	return 1;
 }

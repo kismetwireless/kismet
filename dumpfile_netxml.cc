@@ -314,6 +314,10 @@ int Dumpfile_Netxml::Flush() {
 			fprintf(xmlfile, "    <carrier>IEEE 802.11 FHSS</carrier>\n");
 		if (net->snrdata.carrierset & (1 << (int) carrier_80211dsss))
 			fprintf(xmlfile, "    <carrier>IEEE 802.11 DSSS</carrier>\n");
+		if (net->snrdata.carrierset & (1 << (int) carrier_80211n20))
+			fprintf(xmlfile, "    <carrier>IEEE 802.11n 20MHz</carrier>\n");
+		if (net->snrdata.carrierset & (1 << (int) carrier_80211n40))
+			fprintf(xmlfile, "    <carrier>IEEE 802.11n 40MHz</carrier>\n");
 
 		if (net->snrdata.encodingset & (1 << (int) encoding_cck))
 			fprintf(xmlfile, "    <encoding>CCK</encoding>\n");
@@ -321,6 +325,10 @@ int Dumpfile_Netxml::Flush() {
 			fprintf(xmlfile, "    <encoding>PBCC</encoding>\n");
 		if (net->snrdata.encodingset & (1 << (int) encoding_ofdm))
 			fprintf(xmlfile, "    <encoding>OFDM</encoding>\n");
+		if (net->snrdata.encodingset & (1 << (int) encoding_dynamiccck))
+			fprintf(xmlfile, "    <encoding>Dynamic CCK-OFDM</encoding>\n");
+		if (net->snrdata.encodingset & (1 << (int) encoding_gfsk))
+			fprintf(xmlfile, "    <encoding>GFSK</encoding>\n");
 
 		fprintf(xmlfile, "     <packets>\n");
 		fprintf(xmlfile, "       <LLC>%d</LLC>\n", net->llc_packets);

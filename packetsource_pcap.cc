@@ -560,6 +560,8 @@ static u_int ieee80211_mhz2ieee(u_int freq, u_int flags) {
 	(IEEE80211_CHAN_2GHZ | IEEE80211_CHAN_GFSK)
 #define	IEEE80211_CHAN_A \
 	(IEEE80211_CHAN_5GHZ | IEEE80211_CHAN_OFDM)
+#define	IEEE80211_CHAN_BPLUS \
+	(IEEE80211_CHAN_2GHZ | IEEE80211_CHAN_CCK | IEEE80211_CHAN_TURBO)
 #define	IEEE80211_CHAN_B \
 	(IEEE80211_CHAN_2GHZ | IEEE80211_CHAN_CCK)
 #define	IEEE80211_CHAN_PUREG \
@@ -573,6 +575,8 @@ static u_int ieee80211_mhz2ieee(u_int freq, u_int flags) {
 	((_flags & IEEE80211_CHAN_FHSS) == IEEE80211_CHAN_FHSS)
 #define	IEEE80211_IS_CHAN_A(_flags) \
 	((_flags & IEEE80211_CHAN_A) == IEEE80211_CHAN_A)
+#define	IEEE80211_IS_CHAN_BPLUS(_flags) \
+	((_flags & IEEE80211_CHAN_BPLUS) == IEEE80211_CHAN_BPLUS)
 #define	IEEE80211_IS_CHAN_B(_flags) \
 	((_flags & IEEE80211_CHAN_B) == IEEE80211_CHAN_B)
 #define	IEEE80211_IS_CHAN_PUREG(_flags) \
@@ -720,9 +724,11 @@ int PacketSource_Pcap::Radiotap2KisPack(kis_packet *packet, kis_datachunk *linkc
                     // radioheader->channel = ieee80211_mhz2ieee(u.u16, u2.u16);
                     radioheader->freq_mhz = u.u16;
                     if (IEEE80211_IS_CHAN_FHSS(u2.u16))
-                        radioheader->carrier = carrier_80211dsss;
+                        radioheader->carrier = carrier_80211fhss;
                     else if (IEEE80211_IS_CHAN_A(u2.u16))
                         radioheader->carrier = carrier_80211a;
+                    else if (IEEE80211_IS_CHAN_BPLUS(u2.u16))
+                        radioheader->carrier = carrier_80211bplus;
                     else if (IEEE80211_IS_CHAN_B(u2.u16))
                         radioheader->carrier = carrier_80211b;
                     else if (IEEE80211_IS_CHAN_PUREG(u2.u16))
@@ -733,6 +739,16 @@ int PacketSource_Pcap::Radiotap2KisPack(kis_packet *packet, kis_datachunk *linkc
                         radioheader->carrier = carrier_80211a;/*XXX*/
                     else
                         radioheader->carrier = carrier_unknown;
+                    if ((u2.u16 & IEEE80211_CHAN_CCK) == IEEE80211_CHAN_CCK)
+                        radioheader->encoding = encoding_cck;
+                    else if ((u2.u16 & IEEE80211_CHAN_OFDM) == IEEE80211_CHAN_OFDM)
+                        radioheader->encoding = encoding_ofdm;
+                    else if ((u2.u16 & IEEE80211_CHAN_DYN) == IEEE80211_CHAN_DYN)
+                        radioheader->encoding = encoding_dynamiccck;
+                    else if ((u2.u16 & IEEE80211_CHAN_GFSK) == IEEE80211_CHAN_GFSK)
+                        radioheader->encoding = encoding_gfsk;
+                    else
+                        radioheader->encoding = encoding_unknown;
                     break;
                 case IEEE80211_RADIOTAP_RATE:
 					/* strip basic rate bit & convert to kismet units */
