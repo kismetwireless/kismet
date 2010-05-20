@@ -3385,6 +3385,9 @@ Kis_Panel::Kis_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_intf) {
 	active_component = NULL;
 	main_component = NULL;
 	tab_pos = -1;
+
+	last_key = 0;
+	last_key_time = 0;
 }
 
 Kis_Panel::~Kis_Panel() {
@@ -3585,6 +3588,33 @@ int Kis_Panel::Poll() {
 	int get = wgetch(win);
 	MEVENT mevent;
 	int ret;
+
+	if (get == 0x1b) {
+		last_key = 0x1b;
+		return 1;
+	} else if (last_key == 0x1b && get == 0x5b) {
+		last_key = 0x5b;
+		return 1;
+	} else if (last_key == 0x5b) {
+		switch (get) {
+			case 0x41:
+				get = KEY_UP;
+				break;
+			case 0x42:
+				get = KEY_DOWN;
+				break;
+			case 0x43:
+				get = KEY_RIGHT;
+				break;
+			case 0x44:
+				get = KEY_LEFT;
+				break;
+			default:
+				break;
+		}
+	} else {
+		last_key = 0;
+	}
 
 	if (get == KEY_MOUSE) {
 		getmouse(&mevent);
