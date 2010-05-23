@@ -267,16 +267,16 @@ $(DEPEND): Makefile
 		sed -e "s/\.o/\.cc/g" | sed -e "s/\.mo/\.m/g"` >> $(DEPEND)
 
 plugins: Makefile
-	@( export KIS_SRC_DIR=`pwd`; for x in plugin-*/; do echo "PLUGIN: $$x"; pushd "$$x"; make; popd; done )
+	@( export KIS_SRC_DIR=`pwd`; for x in plugin-*/; do echo "PLUGIN: $$x"; ( cd "$$x"; make; ); done )
 
 plugins-clean: Makefile
-	@( export KIS_SRC_DIR=`pwd`; for x in plugin-*/; do echo "PLUGIN-CLEAN: $$x"; pushd "$$x"; make clean; popd; done )
+	@( export KIS_SRC_DIR=`pwd`; for x in plugin-*/; do echo "PLUGIN-CLEAN: $$x"; ( cd "$$x"; make clean; ); done )
 
 plugins-install: Makefile
-	@( export KIS_SRC_DIR=`pwd`; for x in plugin-*/; do echo "PLUGIN-INSTALL: $$x"; pushd "$$x"; make install; popd; done )
+	@( export KIS_SRC_DIR=`pwd`; for x in plugin-*/; do echo "PLUGIN-INSTALL: $$x"; ( cd "$$x"; make install; ); done )
 
 plugins-userinstall: Makefile
-	@( export KIS_SRC_DIR=`pwd`; for x in plugin-*/; do echo "PLUGIN-USERINSTALL: $$x"; pushd "$$x"; make userinstall; popd; done )
+	@( export KIS_SRC_DIR=`pwd`; for x in plugin-*/; do echo "PLUGIN-USERINSTALL: $$x"; ( cd "$$x"; make userinstall; ); done )
 
 include $(DEPEND)
 
