@@ -159,6 +159,8 @@ protected:
 	int client_wepkey_allowed;
 	macmap<wep_key_info *> wepkeys;
 
+	int dissect_data;
+
 	FilterCore *string_filter;
 	int dissect_strings;
 	int dissect_all_strings;

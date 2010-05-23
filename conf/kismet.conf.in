@@ -12,6 +12,12 @@ servername=Kismet_2009
 # Prefix of where we log (as used in the logtemplate later)
 # logprefix=/some/path/to/logs
 
+# Do we process the contents of data frames?  If this is enabled, data
+# frames will be truncated to the headers only immediately after frame type
+# detection.  This will disable IP detection, etc, however it is likely
+# safer (and definitely more polite) if monitoring networks you do not own.
+# hidedata=true
+
 # Do we allow plugins to be used?  This will load plugins from the system
 # and user plugin directiories when set to true (See the README for the default
 # plugin locations).

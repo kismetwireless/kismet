@@ -264,6 +264,7 @@ KisBuiltinDissector::KisBuiltinDissector(GlobalRegistry *in_globalreg) {
 	char errstr[STATUS_MAX];
 
 	string_filter = NULL;
+	dissect_data = 1;
 	dissect_strings = 0;
 	dissect_all_strings = 0;
 
@@ -360,6 +361,13 @@ KisBuiltinDissector::KisBuiltinDissector(GlobalRegistry *in_globalreg) {
 	blit_time_id =
 		globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1, 
 											  &pbd_blittimer, this);
+
+	// Do we process the whole data packet?
+    if (StrLower(globalreg->kismet_config->FetchOpt("hidedata")) == "true") {
+		_MSG("hidedata= set in Kismet config.  Kismet will ignore the contents "
+			 "of data packets entirely", MSGFLAG_INFO);
+		dissect_data = 0;
+	}
 
     // Convert the WEP mappings to our real map
     vector<string> raw_wepmap_vec;
@@ -1405,6 +1413,12 @@ int KisBuiltinDissector::basicdata_dissector(kis_packet *in_pack) {
     if (packinfo->header_offset > chunk->length) {
 		// printf("debug - offset > len\n");
         return 0;
+	}
+
+	// If we're not processing data, short circuit the whole packet
+	if (dissect_data == 0) {
+		chunk->length = packinfo->header_offset;
+		return 0;
 	}
 
 	unsigned int header_offset = packinfo->header_offset;
