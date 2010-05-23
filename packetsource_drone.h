@@ -76,6 +76,8 @@ public:
 	
 	virtual int Reconnect();
 
+	virtual void ConnectCB(int status);
+
 protected:
 	TcpClient *tcpcli;
 	int reconnect;

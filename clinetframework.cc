@@ -30,6 +30,9 @@ NetworkClient::NetworkClient(GlobalRegistry *in_globalreg) {
     cli_fd = -1;
     read_buf = NULL;
     write_buf = NULL;
+	connect_complete = -1;
+	connect_cb = NULL;
+	connect_aux = NULL;
 }
 
 NetworkClient::~NetworkClient() {
@@ -40,6 +43,15 @@ int NetworkClient::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
     int max;
 
 	// fprintf(stderr, "debug - networkclient mergeset valid %d clifd %d\n", cl_valid, cli_fd); fflush(stderr);
+	if (connect_complete == 0) {
+		FD_SET(cli_fd, out_wset);
+		if (in_max_fd < cli_fd)
+			max = cli_fd;
+		else
+			max = in_max_fd;
+
+		return max;
+	}
 
     if (in_max_fd < cli_fd && cl_valid)
         max = cli_fd;
@@ -49,7 +61,7 @@ int NetworkClient::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
     if (cl_valid) {
         FD_SET(cli_fd, out_rset);
 
-        if (write_buf != NULL && write_buf->FetchLen() > 0) {
+        if ((write_buf != NULL && write_buf->FetchLen() > 0)) {
             FD_SET(cli_fd, out_wset);
 		}
     }
@@ -59,6 +71,40 @@ int NetworkClient::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
 
 int NetworkClient::Poll(fd_set& in_rset, fd_set& in_wset) {
     int ret = 0;
+
+	if (connect_complete == 0) {
+		if (FD_ISSET(cli_fd, &in_wset)) {
+			int r, e;
+			socklen_t l;
+
+			e = 0;
+			l = sizeof(int);
+
+			r = getsockopt(cli_fd, SOL_SOCKET, SO_ERROR, &e, &l);
+
+			// fprintf(stderr, "debug - deferred connect %d got r %d e %d l %d error %s\n", cli_fd, r, e, l, strerror(e));
+
+			if (r < 0 || e != 0) {
+
+				if (connect_cb != NULL)
+					(*connect_cb)(globalreg, e, connect_aux);
+
+				KillConnection();
+
+			} else {
+				// fprintf(stderr, "debug - %d deferred connect worked\n", cli_fd);
+				connect_complete = 1;
+				cl_valid = 1;
+
+				if (connect_cb != NULL)
+					(*connect_cb)(globalreg, 0, connect_aux);
+
+				return 0;
+			}
+		}
+
+		return 0;
+	}
 
     if (!cl_valid)
         return 0;
@@ -143,6 +189,8 @@ int NetworkClient::FlushRings() {
 }
 
 void NetworkClient::KillConnection() {
+	connect_complete = -1;
+
 	if (read_buf != NULL)
 		delete read_buf;
 	if (write_buf != NULL)

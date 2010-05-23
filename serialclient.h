@@ -59,7 +59,8 @@ public:
 
 	// Bastardized Connect() overload - port ignored, remotehost
 	// used as path to serial devie
-    virtual int Connect(const char *in_remotehost, short int in_port);
+    virtual int Connect(const char *in_remotehost, short int in_port,
+						netcli_connect_cb in_connect_cb, void *in_con_aux);
 
 	// Set serial port attributes
 	virtual int GetOptions(struct termios *options);

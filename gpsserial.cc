@@ -87,7 +87,7 @@ int GPSSerial::Shutdown() {
 }
 
 int GPSSerial::Reconnect() {
-	if (sercli->Connect(device, 0) < 0) {
+	if (sercli->Connect(device, 0, NULL, NULL) < 0) {
 		_MSG("GPSSerial: Could not open serial port " + string(device),
 			 MSGFLAG_ERROR);
 		if (reconnect_attempt < 0) {

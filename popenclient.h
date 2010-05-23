@@ -61,7 +61,8 @@ public:
 
 	// Bastardized Connect() overload - remotehost used as path to program,
 	// port expected to be a char 'r' or 'w'
-    virtual int Connect(const char *in_remotehost, short int in_port);
+    virtual int Connect(const char *in_remotehost, short int in_port,
+						netcli_connect_cb in_connect_cb, void *in_con_aux);
 
 	virtual void KillConnection();
 	virtual void SoftKillConnection();

@@ -51,6 +51,12 @@
 class NetworkClient;
 class ClientFramework;
 
+#define CLIFRAME_FAIL_CB_PARMS	GlobalRegistry *globalreg, int in_errno, void *auxptr
+typedef void (*cliframe_fail_cb)(CLIFRAME_FAIL_CB_PARMS);
+
+#define NETCLI_CONNECT_CB_PARMS	GlobalRegistry *globalreg, int status, void *auxptr
+typedef void (*netcli_connect_cb)(NETCLI_CONNECT_CB_PARMS);
+
 // Skeleton for a network server
 class NetworkClient : public Pollable {
 public:
@@ -77,7 +83,8 @@ public:
     virtual int FlushRings();
 
     // Connect
-    virtual int Connect(const char *in_remotehost, short int in_port) = 0;
+    virtual int Connect(const char *in_remotehost, short int in_port, 
+						netcli_connect_cb in_connect_cb, void *in_con_aux) = 0;
     
     // Kill the connection
     virtual void KillConnection();
@@ -107,10 +114,15 @@ protected:
     // Write pending bytes from the ringbuffer to whatever
     virtual int WriteBytes() = 0;
 
+	netcli_connect_cb connect_cb;
+	void *connect_aux;
+
     char errstr[STATUS_MAX];
 
     int cl_valid;
     int cli_fd;
+
+	int connect_complete;
 
     GlobalRegistry *globalreg;
     ClientFramework *cliframework;
@@ -121,9 +133,6 @@ protected:
     struct sockaddr_in client_sock, local_sock;
     struct hostent *client_host;
 };
-
-#define CLIFRAME_FAIL_CB_PARMS	GlobalRegistry *globalreg, int in_errno, void *auxptr
-typedef void (*cliframe_fail_cb)(CLIFRAME_FAIL_CB_PARMS);
 
 // Skeleton to a protocol interface
 class ClientFramework : public Pollable {

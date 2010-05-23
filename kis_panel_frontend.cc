@@ -848,7 +848,7 @@ void KisPanelInterface::SpawnServer() {
 		server_text_cb = 
 			server_framework->RegisterCallback(kpi_textcli_consolevec, this);
 
-		if (server_popen->Connect(servercmd.c_str(), 'r') < 0) {
+		if (server_popen->Connect(servercmd.c_str(), 'r', NULL, NULL) < 0) {
 			_MSG("Failed to launch kismet_server", MSGFLAG_ERROR);
 			delete server_popen;
 			delete server_framework;

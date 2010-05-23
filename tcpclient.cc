@@ -31,7 +31,15 @@ TcpClient::~TcpClient() {
 
 }
 
-int TcpClient::Connect(const char *in_remotehost, short int in_port) {
+int TcpClient::Connect(const char *in_remotehost, short int in_port,
+					   netcli_connect_cb in_connect_cb, void *in_con_aux) {
+	int ret;
+
+	connect_complete = -1;
+
+	connect_cb = in_connect_cb;
+	connect_aux = in_con_aux;
+
     if ((client_host = gethostbyname(in_remotehost)) == NULL) {
         snprintf(errstr, 1024, "TCP client could not resolve host \"%s\"",
                  in_remotehost);
@@ -57,6 +65,10 @@ int TcpClient::Connect(const char *in_remotehost, short int in_port) {
 
 	// fprintf(stderr, "debug - tcpcli socket() %d\n", cli_fd);
 
+	// Make the buffers
+    read_buf = new RingBuffer(CLI_RING_LEN);
+    write_buf = new RingBuffer(CLI_RING_LEN);
+
     // Bind local half
     memset(&local_sock, 0, sizeof(local_sock));
     local_sock.sin_family = AF_INET;
@@ -68,29 +80,127 @@ int TcpClient::Connect(const char *in_remotehost, short int in_port) {
         globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
 		close(cli_fd);
         return -1;
-    }
-
-    // Connect the sockets
-    if (connect(cli_fd, (struct sockaddr *) &client_sock, sizeof(client_sock)) < 0) {
-		/*
-        snprintf(errstr, 1024, "TCP client connect() failed: %s", strerror(errno));
-        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
-		*/
-		close(cli_fd);
-		cli_fd = -1;
-        return -1;
-    }
+    } 
 
     // Set it to nonblocking
     int save_mode = fcntl(cli_fd, F_GETFL, 0);
     fcntl(cli_fd, F_SETFL, save_mode | O_NONBLOCK);
 
-    cl_valid = 1;
+    // Connect the sockets
+    if ((ret = connect(cli_fd, (struct sockaddr *) &client_sock, 
+					   sizeof(client_sock))) < 0) {
+		// fprintf(stderr, "debug - connect %d ret %d\n", cli_fd, ret);
+		if (errno == EINPROGRESS) {
+			// fprintf(stderr, "debug - deferred connect started\n");
+			// We haven't completed the connection, set our connect_complete to a
+			// valid value and flag it in write select
+			connect_complete = 0;
 
+			return 0;
+		} else {
+			close(cli_fd);
+			cli_fd = -1;
+
+			// Call the connect callback, we failed right off
+			if (connect_cb != NULL)
+				(*connect_cb)(globalreg, errno, connect_aux);
+
+			return -1;
+		}
+    } else {
+		connect_complete = 1;
+		cl_valid = 1;
+	}
+
+	// Call the connect callback, we worked right off
+	if (connect_cb != NULL)
+		(*connect_cb)(globalreg, 0, connect_aux);
+
+    // fprintf(stderr, "debug - TcpClient connected to %s:%hd %d\n", in_remotehost, in_port, cli_fd);
+
+    return 1;
+}
+
+// Almost the same code as connect, annoying to have it twice, but sometimes
+// we really need a synchronous connect (like for the client initial connect)
+int TcpClient::ConnectSync(const char *in_remotehost, short int in_port,
+						   netcli_connect_cb in_connect_cb, void *in_con_aux) {
+	int ret;
+
+	// fprintf(stderr, "debug - tcpclient connect sync\n");
+
+	connect_complete = -1;
+
+	connect_cb = in_connect_cb;
+	connect_aux = in_con_aux;
+
+    if ((client_host = gethostbyname(in_remotehost)) == NULL) {
+        snprintf(errstr, 1024, "TCP client could not resolve host \"%s\"",
+                 in_remotehost);
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
+        return -1;
+    }
+
+    // This doesn't handle connecting to all the different IPs a name could
+    // resolve to.  Deal with this in the future.
+
+    memset(&client_sock, 0, sizeof(client_sock));
+    client_sock.sin_family = client_host->h_addrtype;
+    memcpy((char *) &client_sock.sin_addr.s_addr, client_host->h_addr_list[0],
+           client_host->h_length);
+    client_sock.sin_port = htons(in_port);
+
+    if ((cli_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+        snprintf(errstr, 1024, "TCP client socket() call failed: %s",
+                 strerror(errno));
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
+        return -1;
+    }
+
+	// fprintf(stderr, "debug - tcpcli socket() %d\n", cli_fd);
+
+	// Make the buffers
     read_buf = new RingBuffer(CLI_RING_LEN);
     write_buf = new RingBuffer(CLI_RING_LEN);
 
-    // fprintf(stderr, "debug - TcpClient connected to %s:%hd %d\n", in_remotehost, in_port, cli_fd);
+    // Bind local half
+    memset(&local_sock, 0, sizeof(local_sock));
+    local_sock.sin_family = AF_INET;
+    local_sock.sin_addr.s_addr = htonl(INADDR_ANY);
+    local_sock.sin_port = htons(0);
+
+    if (bind(cli_fd, (struct sockaddr *) &local_sock, sizeof(local_sock)) < 0) {
+        snprintf(errstr, 1024, "TCP client bind() failed: %s", strerror(errno));
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
+		close(cli_fd);
+        return -1;
+    } 
+
+    // Connect the sockets
+    if ((ret = connect(cli_fd, (struct sockaddr *) &client_sock, 
+					   sizeof(client_sock))) < 0) {
+		// fprintf(stderr, "debug - sync connect failed\n");
+		close(cli_fd);
+		cli_fd = -1;
+
+		// Call the connect callback, we failed right off
+		if (connect_cb != NULL)
+			(*connect_cb)(globalreg, errno, connect_aux);
+
+		return -1;
+	}
+
+	cl_valid = 1;
+
+    // Set it to nonblocking
+    int save_mode = fcntl(cli_fd, F_GETFL, 0);
+    fcntl(cli_fd, F_SETFL, save_mode | O_NONBLOCK);
+
+	// fprintf(stderr, "debug - sync connect succeeded\n");
+
+	// Call the connect callback, we worked right off
+	if (connect_cb != NULL)
+		(*connect_cb)(globalreg, 0, connect_aux);
 
     return 1;
 }
@@ -98,6 +208,10 @@ int TcpClient::Connect(const char *in_remotehost, short int in_port) {
 int TcpClient::ReadBytes() {
     uint8_t recv_bytes[1024];
     int ret;
+
+	// Don't read while we're in connect stage
+	if (connect_complete == 0)
+		return 0;
 
     if ((ret = read(cli_fd, recv_bytes, 1024)) < 0) {
 		if (errno == EINTR || errno == EAGAIN)
@@ -131,6 +245,10 @@ int TcpClient::ReadBytes() {
 int TcpClient::WriteBytes() {
     uint8_t dptr[1024];
     int dlen, ret;
+
+	// Don't write while we're in connect stage
+	if (connect_complete == 0)
+		return 0;
 
     write_buf->FetchPtr(dptr, 1024, &dlen);
 

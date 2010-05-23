@@ -37,6 +37,43 @@ GPSDClient::GPSDClient() {
 	exit(-1);
 }
 
+void gpsdc_connect_hook(GlobalRegistry *globalreg, int status, void *auxptr) {
+	((GPSDClient *) auxptr)->ConnectCB(status);
+}
+
+void GPSDClient::ConnectCB(int status) {
+	ostringstream osstr;
+
+	if (status != 0) {
+		if (reconnect_attempt < 0) {
+			globalreg->messagebus->InjectMessage("Could not connect to GPSD server",
+												 MSGFLAG_ERROR);
+
+			globalreg->messagebus->InjectMessage("GPSD reconnection not enabled, "
+												 "disabling GPSD", MSGFLAG_ERROR);
+			return;
+		} 
+
+		snprintf(errstr, STATUS_MAX, "Could not connect to the GPSD server, will "
+				 "reconnect in %d seconds", kismin(reconnect_attempt + 1, 6) * 5);
+		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
+		reconnect_attempt++;
+		last_disconnect = globalreg->timestamp.tv_sec;
+
+		return;
+	}
+
+	// Set the poll mode to initial setup and call the timer
+	poll_mode = -1;
+	last_hed_time = 0;
+	si_units = 0;
+	reconnect_attempt = 1;
+	last_disconnect = 0;
+	gps_connected = 0;
+
+	return;
+}
+
 GPSDClient::GPSDClient(GlobalRegistry *in_globalreg) : GPSCore(in_globalreg) {
     // The only GPSD connection method we support is a plain 
     // old TCP connection so we can generate it all internally
@@ -77,18 +114,7 @@ GPSDClient::GPSDClient(GlobalRegistry *in_globalreg) : GPSCore(in_globalreg) {
 	snprintf(errstr, STATUS_MAX, "Using GPSD server on %s:%d", host, port);
 	globalreg->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
 
-	if (tcpcli->Connect(host, port) < 0) {
-		globalreg->messagebus->InjectMessage("Could not connect to GPSD server",
-											 MSGFLAG_ERROR);
-
-		if (reconnect_attempt < 0) {
-			globalreg->messagebus->InjectMessage("GPSD reconnection not enabled, "
-												 "disabling GPSD", MSGFLAG_ERROR);
-			return;
-		}
-		last_disconnect = globalreg->timestamp.tv_sec;
-	}
-
+	tcpcli->Connect(host, port, gpsdc_connect_hook, this);
 }
 
 GPSDClient::~GPSDClient() {
@@ -153,23 +179,7 @@ int GPSDClient::Timer() {
 }
 
 int GPSDClient::Reconnect() {
-    if (tcpcli->Connect(host, port) < 0) {
-        snprintf(errstr, STATUS_MAX, "Could not connect to the GPSD server, will "
-                 "reconnect in %d seconds", kismin(reconnect_attempt + 1, 6) * 5);
-        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
-        reconnect_attempt++;
-        last_disconnect = globalreg->timestamp.tv_sec;
-        return 0;
-	}
-
-	// Set the poll mode to initial setup and call the timer
-	poll_mode = -1;
-	last_hed_time = 0;
-	si_units = 0;
-	reconnect_attempt = 1;
-	last_disconnect = 0;
-	gps_connected = 0;
-    
+    tcpcli->Connect(host, port, gpsdc_connect_hook, this);
     return 1;
 }
 

@@ -385,28 +385,20 @@ int KisNetClient::Timer() {
 	return 0;
 }
 
-int KisNetClient::Reconnect() {
-	if (tcpcli == NULL) {
-		return -1;
-	}
+void knc_connect_hook(GlobalRegistry *globalreg, int status, void *auxptr) {
+	((KisNetClient *) auxptr)->ConnectCB(status);
+}
 
-	/*
-	if (tcpcli->Valid() == 0)
-		last_disconnect = time(0);
-	*/
-
-	if (tcpcli->Valid() || last_disconnect == 0) {
-		return 1;
-	}
-
+void KisNetClient::ConnectCB(int status) {
 	ostringstream osstr;
 
-	if (tcpcli->Connect(host, port) < 0) {
+	if (status != 0) {
 		osstr << "Could not connect to Kismet server '" << host << ":" << port <<
-			"' will attempt to reconnect in 5 seconds.";
+			"' (" + string(strerror(status)) + ") will attempt to reconnect in 5 "
+			"seconds.";
 		_MSG(osstr.str(), MSGFLAG_ERROR);
-		// last_disconnect = time(0);
-		return 0;
+		last_disconnect = globalreg->timestamp.tv_sec;
+		return;
 	}
 
 	osstr << "Established connection with Kismet server '" << host << 
@@ -418,15 +410,26 @@ int KisNetClient::Reconnect() {
 	last_read = time_connected = time(0);
 	configured = 1;
 
-	// Inject all the enable commands we had queued
-	/*
-	for (map<string, kcli_configured_proto_rec>::iterator hi = 
-		 handler_cb_map.begin(); hi != handler_cb_map.end(); ++hi) {
-		InjectCommand("ENABLE " + hi->first + " " + hi->second.fields);
-	}
-	*/
-
 	num_reconnects++;
+}
+
+int KisNetClient::Reconnect() {
+	// fprintf(stderr, "debug - knc reconnect called\n");
+	if (tcpcli == NULL) {
+		return -1;
+	}
+
+	if (tcpcli->Valid() || last_disconnect == 0) {
+		return 1;
+	}
+
+	tcpcli->KillConnection();
+
+	ostringstream osstr;
+
+	if (tcpcli->ConnectSync(host, port, knc_connect_hook, this) < 0) {
+		return 0;
+	}
 
 	return 1;
 }
@@ -666,7 +669,7 @@ int KisNetClient::ParseData() {
 	// through.  This is safe to hardcode here because the TIME will always
 	// wake us up.
 	// fprintf(stderr, "debug - configured %d time delta %lu\n", configured, (time(0) - time_connected));
-	if (configured == 0 && (time(0) - time_connected) > 2) {
+	if (configured == 0 && (globalreg->timestamp.tv_sec - time_connected) > 2) {
 		for (unsigned int x = 0; x < conf_cb_vec.size(); x++) {
 			if (conf_cb_vec[x]->on_recon == 0 && num_reconnects != 0)
 				continue;

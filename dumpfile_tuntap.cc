@@ -157,7 +157,7 @@ int Dumpfile_Tuntap::OpenTuntap() {
 		return 1;
 	}
 
-	fprintf(stderr, "debug- not opentuntap rootipc\n");
+	// fprintf(stderr, "debug- not opentuntap rootipc\n");
 
 #ifdef SYS_LINUX
 	// Linux has dynamic tun-tap, so we allocate our device that way

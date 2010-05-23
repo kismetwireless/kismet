@@ -58,7 +58,8 @@ int PopenClient::CheckPidVec() {
 	return 0;
 }
 
-int PopenClient::Connect(const char *in_remotehost, short int in_port) {
+int PopenClient::Connect(const char *in_remotehost, short int in_port,
+						 netcli_connect_cb in_connect_cb, void *in_con_aux) {
 	(void) in_port;
 
 	if (pipe(ipipe) != 0 || pipe(opipe) != 0 || pipe(epipe) != 0) {

@@ -69,6 +69,8 @@ public:
 
 	virtual int Shutdown();
 
+	virtual void ConnectCB(int status);
+
 	// Register a handler for a protocol.  There can be multiple handlers.
 	virtual int RegisterProtoHandler(string in_proto, string in_fieldlist,
 									 CliProto_Callback in_cb, void *in_aux,

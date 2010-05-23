@@ -56,7 +56,11 @@ public:
     TcpClient(GlobalRegistry *in_globalreg);
     virtual ~TcpClient();
 
-    virtual int Connect(const char *in_remotehost, short int in_port);
+    virtual int Connect(const char *in_remotehost, short int in_port,
+						netcli_connect_cb in_connect_cb, void *in_con_aux);
+
+    virtual int ConnectSync(const char *in_remotehost, short int in_port,
+							netcli_connect_cb in_connect_cb, void *in_con_aux);
 
 protected:
     virtual int Validate() {

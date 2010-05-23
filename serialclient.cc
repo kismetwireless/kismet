@@ -32,15 +32,22 @@ SerialClient::~SerialClient() {
 
 }
 
-int SerialClient::Connect(const char *in_remotehost, short int in_port) {
+int SerialClient::Connect(const char *in_remotehost, short int in_port,
+						  netcli_connect_cb in_connect_cb, void *in_con_aux) {
 	(void) in_port;
 
 	cli_fd = open(in_remotehost, O_RDWR | O_NONBLOCK | O_NOCTTY);
 
 	if (cli_fd < 0) {
+		int e = errno;
+
 		_MSG("SerialClient::Connect() failed to open serial device " +
 			 string(in_remotehost) + ": " + string(strerror(errno)),
 			 MSGFLAG_ERROR);
+
+		if (in_connect_cb != NULL)
+			(*in_connect_cb)(globalreg, e, in_con_aux);
+
 		cl_valid = 0;
 		return -1;
 	}
@@ -49,6 +56,9 @@ int SerialClient::Connect(const char *in_remotehost, short int in_port) {
 
 	read_buf = new RingBuffer(SER_RING_LEN);
 	write_buf = new RingBuffer(SER_RING_LEN);
+
+	if (in_connect_cb != NULL)
+		(*in_connect_cb)(globalreg, 0, in_con_aux);
 
     return 1;
 }

@@ -122,6 +122,22 @@ int stc_recontimer(TIMEEVENT_PARMS) {
 	return 1;
 }
 
+void stc_connect_hook(GlobalRegistry *globalreg, int status, void *auxptr) {
+	((SpectoolsClient *) auxptr)->ConnectCB(status);
+}
+
+void SpectoolsClient::ConnectCB(int status) {
+	if (status == 0) {
+		_MSG("Using Spectools server on " + string(host) + ":" + IntToString(port),
+			 MSGFLAG_INFO);
+		last_disconnect = 0;
+	} else {
+		_MSG("Could not connect to the spectools server " + string(host) + ":" +
+			 IntToString(port), MSGFLAG_ERROR);
+		last_disconnect = globalreg->timestamp.tv_sec;
+	}
+}
+
 SpectoolsClient::SpectoolsClient(GlobalRegistry *in_globalreg) :
 	ClientFramework(in_globalreg) {
 	globalreg = in_globalreg;
@@ -145,6 +161,8 @@ SpectoolsClient::SpectoolsClient(GlobalRegistry *in_globalreg) :
 		fprintf(stderr, "FATAL OOPS:  Spectoolsclient called before kisnetserver\n");
 		exit(1);
 	}
+
+	last_disconnect = 0;
 
 	// Packetchain spectrum data
 	packet_comp_id = 
@@ -179,14 +197,7 @@ SpectoolsClient::SpectoolsClient(GlobalRegistry *in_globalreg) :
 
 	snprintf(host, MAXHOSTNAMELEN, "%s", temphost);
 
-	if (tcpcli->Connect(host, port) < 0) {
-		_MSG("Could not connect to the spectools server " + string(host) + ":" +
-			 IntToString(port), MSGFLAG_ERROR);
-	} else {
-		_MSG("Using Spectools server on " + string(host) + ":" + IntToString(port),
-			 MSGFLAG_INFO);
-	}
-
+	tcpcli->Connect(host, port, stc_connect_hook, this);
 }
 
 SpectoolsClient::~SpectoolsClient() {
@@ -210,12 +221,9 @@ int SpectoolsClient::Shutdown() {
 }
 
 int SpectoolsClient::Reconnect() {
-	if (tcpcli != NULL && tcpcli->Valid() == 0) {
-		if (tcpcli->Connect(host, port) < 0) {
-			_MSG("Could not connect to the spectools server " + string(host) + ":" +
-				 IntToString(port), MSGFLAG_ERROR);
-			return 0;
-		}
+	if (tcpcli != NULL && tcpcli->Valid() == 0 && last_disconnect != 0) {
+		tcpcli->KillConnection();
+		tcpcli->Connect(host, port, stc_connect_hook, this);
 	}
 
 	return 1;

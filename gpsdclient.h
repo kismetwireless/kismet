@@ -58,6 +58,8 @@ public:
     virtual int Shutdown();
 
     virtual int Reconnect();
+
+	virtual void ConnectCB(int status);
 protected:
     TcpClient *tcpcli;
 

@@ -168,6 +168,8 @@ public:
 
 	virtual int FetchPacketCompId() { return packet_comp_id; }
 
+	virtual void ConnectCB(int status);
+
 protected:
 	TcpClient *tcpcli;
 
@@ -181,6 +183,8 @@ protected:
 	int spec_proto_id;
 
 	int packet_comp_id;
+
+	int last_disconnect;
 
 	vector<spectool_dev *> device_vec;
 };
