@@ -133,6 +133,7 @@ void SoundControl::SetSpeechEncode(string in_encode) {
 }
 
 int SoundControl::PlaySound(string in_text) {
+	// fprintf(stderr, "debug - playsound %s enable %d\n", in_text.c_str(), sound_enable);
 	if (sound_enable <= 0)
 		return 0;
 
@@ -150,7 +151,8 @@ int SoundControl::SendPacket(string text, string in_player, int opt, int id) {
 	if (shutdown)
 		return 0;
 
-	if (sound_remote->FetchSpawnPid() == 0) {
+	// fprintf(stderr, "debug - fetchpid %d\n", sound_remote->FetchSpawnPid());
+	if (sound_remote->FetchSpawnPid() <= 0) {
 		if (SpawnChildProcess() < 0 || globalreg->fatal_condition)
 			return -1;
 	}
@@ -190,6 +192,7 @@ void SoundControl::Shutdown() {
 int SoundControl::SpawnChildProcess() {
 	ostringstream osstr;
 
+	// fprintf(stderr, "debug - soundremote spawnipc\n");
 	int ret = sound_remote->SpawnIPC();
 
 	if (ret < 0 || globalreg->fatal_condition) {
@@ -201,6 +204,9 @@ int SoundControl::SpawnChildProcess() {
 	osstr << "SoundControl spawned IPC child process pid " <<
 		sound_remote->FetchSpawnPid();
 	_MSG(osstr.str(), MSGFLAG_INFO);
+
+	// fprintf(stderr, "debug - soundremote syncipc\n");
+	sound_remote->SyncIPC();
 
     return 1;
 }
