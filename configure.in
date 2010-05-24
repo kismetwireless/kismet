@@ -1022,7 +1022,8 @@ if test "$haveppi" = "yes"; then
 else
 	echo "no - PPI logging unavailable, upgrade libpcap"
 fi
-printf "   Capability Dropping: "
+printf "LibCapability (enhanced\n"
+printf "   privilege dropping): "
 if test "$havecap" = "yes"; then
 	echo "yes";
 elif test "$linux" != "yes"; then
