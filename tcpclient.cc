@@ -91,7 +91,7 @@ int TcpClient::Connect(const char *in_remotehost, short int in_port,
 					   sizeof(client_sock))) < 0) {
 		// fprintf(stderr, "debug - connect %d ret %d\n", cli_fd, ret);
 		if (errno == EINPROGRESS) {
-			// fprintf(stderr, "debug - deferred connect started\n");
+			// fprintf(stderr, "debug - %d deferred connect started\n", cli_fd);
 			// We haven't completed the connection, set our connect_complete to a
 			// valid value and flag it in write select
 			connect_complete = 0;
@@ -108,6 +108,7 @@ int TcpClient::Connect(const char *in_remotehost, short int in_port,
 			return -1;
 		}
     } else {
+		// fprintf(stderr, "debug - %d connect complete already\n", cli_fd);
 		connect_complete = 1;
 		cl_valid = 1;
 	}
@@ -252,9 +253,13 @@ int TcpClient::WriteBytes() {
 
     write_buf->FetchPtr(dptr, 1024, &dlen);
 
+	// fprintf(stderr, "debug - %d writing %d bytes\n", cli_fd, dlen);
+
     if ((ret = write(cli_fd, dptr, dlen)) <= 0) {
 		if (errno == EINTR || errno == EAGAIN)
 			return 0;
+
+		// if (errno == EINPROGRESS) fprintf(stderr, "debug - %d ... einprog on write?  wtf?  ret %d\n", cli_fd, ret);
 
         snprintf(errstr, 1024, "TCP client: Killing client fd %d write error %s",
                  cli_fd, strerror(errno));

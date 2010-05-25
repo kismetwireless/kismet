@@ -43,7 +43,8 @@ int NetworkClient::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
     int max;
 
 	// fprintf(stderr, "debug - networkclient mergeset valid %d clifd %d\n", cl_valid, cli_fd); fflush(stderr);
-	if (connect_complete == 0) {
+	if (connect_complete == 0 && cli_fd >= 0) {
+		// fprintf(stderr, "debug - mergeing deferred %d\n", cli_fd);
 		FD_SET(cli_fd, out_wset);
 		if (in_max_fd < cli_fd)
 			max = cli_fd;
@@ -72,7 +73,13 @@ int NetworkClient::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
 int NetworkClient::Poll(fd_set& in_rset, fd_set& in_wset) {
     int ret = 0;
 
+	if (cli_fd < 0)
+		return 0;
+
+	// fprintf(stderr, "debug - %d connect complete %d\n", cli_fd, connect_complete);
+	
 	if (connect_complete == 0) {
+		// printf("debug - poll query %d\n", cli_fd);
 		if (FD_ISSET(cli_fd, &in_wset)) {
 			int r, e;
 			socklen_t l;
@@ -109,9 +116,6 @@ int NetworkClient::Poll(fd_set& in_rset, fd_set& in_wset) {
     if (!cl_valid)
         return 0;
 
-	if (cli_fd < 0)
-		return 0;
-
     // Look for stuff to read
     if (FD_ISSET(cli_fd, &in_rset)) {
         // If we failed reading, die.
@@ -134,6 +138,7 @@ int NetworkClient::Poll(fd_set& in_rset, fd_set& in_wset) {
 
     // Look for stuff to write
     if (FD_ISSET(cli_fd, &in_wset)) {
+		// fprintf(stderr, "debug - %d poll looks like something to write\n", cli_fd);
         // If we can't write data, die.
         if ((ret = WriteBytes()) < 0)
             KillConnection();

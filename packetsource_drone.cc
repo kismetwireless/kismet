@@ -84,7 +84,7 @@ DroneClientFrame::DroneClientFrame(GlobalRegistry *in_globalreg) :
 	last_disconnect = 0;
 	last_frame = 0;
 
-	globalreg->RegisterPollableSubsys(this);
+	// globalreg->RegisterPollableSubsys(this);
 }
 
 DroneClientFrame::~DroneClientFrame() {
@@ -112,9 +112,11 @@ void dcf_connect_hook(GlobalRegistry *globalreg, int status, void *auxptr) {
 void DroneClientFrame::ConnectCB(int status) {
 	ostringstream osstr;
 
+	// fprintf(stderr, "debug - dcf connectcb %u\n", status);
+
 	if (status != 0) {
 		if (reconnect == 0) {
-			osstr << "Kismet drone initial connection to " << cli_host << ":" <<
+			osstr << "Kismet drone connection to " << cli_host << ":" <<
 				cli_port << " failed (" << strerror(errno) << ") and reconnection "
 				"not enabled";
 			_MSG(osstr.str(), MSGFLAG_PRINTERROR);
@@ -123,7 +125,7 @@ void DroneClientFrame::ConnectCB(int status) {
 			netclient = NULL;
 			return;
 		} else {
-			osstr << "Could not create initial connection to the Kismet drone "
+			osstr << "Could not create connection to the Kismet drone "
 				"server at " << cli_host << ":" << cli_port << " (" <<
 				strerror(errno) << "), will attempt to reconnect in 5 seconds";
 			_MSG(osstr.str(), MSGFLAG_PRINTERROR);
@@ -135,12 +137,17 @@ void DroneClientFrame::ConnectCB(int status) {
 		return;
 	}
 
+	last_disconnect = 0;
+	last_frame = globalreg->timestamp.tv_sec;
+
 	return;
 }
 
 int DroneClientFrame::OpenConnection(string in_conparm, int in_recon) {
 	char cli_proto[11];
 	ostringstream osstr;
+
+	// fprintf(stderr, "debug - dcf openconnection\n");
 
 	if (sscanf(in_conparm.c_str(), "%10[^:]://%128[^:]:%d",
 			   cli_proto, cli_host, &cli_port) != 3) {
@@ -269,25 +276,11 @@ int DroneClientFrame::Poll(fd_set &in_rset, fd_set& in_wset) {
 	if (netclient == NULL)
 		return 0;
 
-	if (netclient->Valid() == 0)
-		return 0;
-
 	int ret = netclient->Poll(in_rset, in_wset);
 
 	if (ret < 0) {
-		if (reconnect) {
-			_MSG("Kismet drone client failed to poll data from the "
-				 "TCP connection.  Will attempt to reconnect in 5 seconds",
-				 MSGFLAG_ERROR);
-			KillConnection();
-			last_disconnect = globalreg->timestamp.tv_sec;
-			return 0;
-		} else {
-			_MSG("Kismet drone client failed to poll data from the "
-				 "TCP connection.   Automatic reconnection was not enabled "
-				 "so Kismet will not attempt to reestablish the link", MSGFLAG_ERROR);
-			return -1;
-		}
+		KillConnection();
+		last_disconnect = globalreg->timestamp.tv_sec;
 	}
 
 	return ret;
@@ -1008,6 +1001,9 @@ int PacketSource_DroneRemote::RegisterSources(Packetsourcetracker *tracker) {
 
 int PacketSource_DroneRemote::SetChannel(unsigned int in_ch) {
 	if (droneframe == NULL)
+		return 0;
+
+	if (droneframe->Valid() == 0)
 		return 0;
 
 	// Toss the error, we always "succeed"
