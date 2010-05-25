@@ -253,6 +253,13 @@ int TcpClient::WriteBytes() {
 
     write_buf->FetchPtr(dptr, 1024, &dlen);
 
+	if (dlen == 0) {
+		_MSG("TCP client: Client fd " + IntToString(cli_fd) + " got called to "
+			 "write data but has no data pending.  Check your RegisterPollable calls.",
+			 MSGFLAG_ERROR);
+		return 0;
+	}
+
 	// fprintf(stderr, "debug - %d writing %d bytes\n", cli_fd, dlen);
 
     if ((ret = write(cli_fd, dptr, dlen)) <= 0) {
