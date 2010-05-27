@@ -80,6 +80,9 @@ http://www.kismetwireless.net
       be missing.  Most notably, compiling Kismet yourself will require
       the development packages and headers, usually called foo-dev or
       foo-devel.
+    * Make sure that all the functionality you need was enabled properly in
+      configure.  Almost all users will need pcap and libnl support for
+      proper operation.
     * Compile Kismet with "make".
     * Install Kismet with either "make install" or "make suidinstall".
       YOU MUST READ THE "SUID INSTALLATION & SECURITY" SECTION OF THE 
@@ -1464,6 +1467,12 @@ http://www.kismetwireless.net
               Rename the interface (with ifrename or udev rules) to
               something that doesn't include 'usb'.  A newer version of
               libpcap may also resolve this problem.
+
+    PROBLEM:  configure cannot find libnl on Ubuntu, but libnl-dev is
+              installed
+    FIX:      Some distributions (apparently, Ubuntu) require
+              libnfnetlink-dev to be installed as well.  Currently there is
+              no good way to autodetect this.
 
 18. Frequently Asked Questions
 
