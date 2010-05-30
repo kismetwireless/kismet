@@ -1334,13 +1334,22 @@ void Kis_Menu::DrawComponent() {
 }
 
 void Kis_Menu::FindNextEnabledItem() {
+	int looped = 0;
+
 	// Handle disabled and spacer items
 	if (menubar[cur_menu]->items[cur_item]->enabled == 0) {
 		// find the next enabled item
 		for (int i = cur_item; i <= (int) menubar[cur_menu]->items.size(); i++) {
 			// Loop
-			if (i >= (int) menubar[cur_menu]->items.size())
+			if (i >= (int) menubar[cur_menu]->items.size()) {
+				looped = 1;
 				i = 0;
+			}
+
+			if (looped && i == cur_item) {
+				cur_item = 0;
+				break;
+			}
 
 			if (menubar[cur_menu]->items[i]->visible == 0)
 				continue;
@@ -1354,13 +1363,22 @@ void Kis_Menu::FindNextEnabledItem() {
 }
 
 void Kis_Menu::FindPrevEnabledItem() {
+	int looped = 0;
+
 	// Handle disabled and spacer items
 	if (menubar[cur_menu]->items[cur_item]->enabled == 0) {
 		// find the next enabled item
 		for (int i = cur_item; i >= -1; i--) {
 			// Loop
-			if (i < 0)
+			if (i < 0) {
 				i = menubar[cur_menu]->items.size() - 1;
+				looped = 1;
+			}
+
+			if (looped && i == cur_item) {
+				cur_item = 0;
+				break;
+			}
 
 			if (menubar[cur_menu]->items[i]->visible == 0)
 				continue;
@@ -1492,6 +1510,11 @@ int Kis_Menu::KeyPress(int in_key) {
 			sub_item = cur_item;
 			cur_menu = menubar[cur_menu]->items[cur_item]->submenu;
 			cur_item = 0;
+			return -1;
+		}
+
+		if (menubar[cur_menu]->items[cur_item]->enabled == 0) {
+			FindNextEnabledItem();
 			return -1;
 		}
 

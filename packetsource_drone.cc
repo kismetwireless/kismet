@@ -332,6 +332,13 @@ int DroneClientFrame::ParseData() {
 		drone_packet *dpkt = (drone_packet *) &(buf[pos]);
 
 		if (kis_ntoh32(dpkt->sentinel) != DroneSentinel) {
+			/*
+			fprintf(stderr, "debug - pkt sentinel mismatch pos %u rlen %u\n", pos, rlen);
+			for (unsigned int z = pos; z < rlen; z++)
+				fprintf(stderr, "%02x ", buf[z]);
+			fprintf(stderr, "\n");
+			*/
+
 			if (reconnect) {
 				_MSG("Kismet drone client failed to find the sentinel "
 					 "value in a packet header, dropping connection.  Will "
@@ -350,6 +357,8 @@ int DroneClientFrame::ParseData() {
 		}
 
 		unsigned int dplen = kis_ntoh32(dpkt->data_len);
+
+		// fprintf(stderr, "debug - dplen %u\n", dplen);
 
 		// Check for incomplete packets
 		if (rlen - (int) pos < (int) (dplen + sizeof(drone_packet))) {
