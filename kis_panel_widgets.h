@@ -1082,7 +1082,7 @@ protected:
 	Kis_Panel_Component *main_component;
 
 	int last_key;
-	time_t last_key_time;
+	struct timeval last_key_time;
 };
 
 // Pollable supersystem for handling panels and input

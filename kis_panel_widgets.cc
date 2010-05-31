@@ -3410,7 +3410,7 @@ Kis_Panel::Kis_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_intf) {
 	tab_pos = -1;
 
 	last_key = 0;
-	last_key_time = 0;
+	last_key_time.tv_sec = 0;
 }
 
 Kis_Panel::~Kis_Panel() {
@@ -3611,6 +3611,20 @@ int Kis_Panel::Poll() {
 	int get = wgetch(win);
 	MEVENT mevent;
 	int ret;
+
+	// Timeout on our internal escape handler
+	struct timeval key_diff;
+
+	SubtractTimeval(&(globalreg->timestamp), 
+					&last_key_time, 
+					&key_diff);
+
+	if (key_diff.tv_sec > 0 ||
+		key_diff.tv_usec > 250000)
+		last_key = 0;
+
+	last_key_time.tv_sec = globalreg->timestamp.tv_sec;
+	last_key_time.tv_usec = globalreg->timestamp.tv_usec;
 
 	if (get == 0x1b) {
 		last_key = 0x1b;
