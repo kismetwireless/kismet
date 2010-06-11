@@ -19,6 +19,6 @@ $k.connect()
 
 $k.run()
 
-$k.subscribe("bssid", ["bssid", "manuf", "channel"], :bssidcb, :bssiddiecb)
+$k.subscribe("bssid", ["bssid", "manuf", "channel"], Proc.new {|*args| bssidcb(*args)}, Proc.new {|*args| bssiddiecb(*args)})
 
 $k.wait()

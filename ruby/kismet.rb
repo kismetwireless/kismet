@@ -78,9 +78,11 @@ class Kismet
 		if p == "ACK"
 			f = parsedata(["cmdid", "text"], md[2])
 
-			if @ackbacks[f['cmdid'].to_i] != nil
-				send(@ackbacks[f['cmdid'].to_i], f['text'])
-				@ackbacks[f['cmdid'].to_i] = nil
+			id = f['cmdid'].to_i
+
+			if @ackbacks[id] != nil
+				@ackbacks[id].call(f['text'])
+				@ackbacks[id] = nil
 			end
 			
 			return p
@@ -89,7 +91,7 @@ class Kismet
 		if @callbacks[p] != nil
 			f = parsedata(@callbacks[p][0], md[2])
 			#puts "#{p} got #{f.length} fields"
-			send(@callbacks[p][1], p, f)
+			@callbacks[p][1].call(p, f)
 		end
 
 		return md[1]
