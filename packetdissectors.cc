@@ -363,7 +363,8 @@ KisBuiltinDissector::KisBuiltinDissector(GlobalRegistry *in_globalreg) {
 											  &pbd_blittimer, this);
 
 	// Do we process the whole data packet?
-    if (StrLower(globalreg->kismet_config->FetchOpt("hidedata")) == "true") {
+    if (StrLower(globalreg->kismet_config->FetchOpt("hidedata")) == "true" ||
+		StrLower(globalreg->kismet_config->FetchOpt("dontbeevil")) == "true") {
 		_MSG("hidedata= set in Kismet config.  Kismet will ignore the contents "
 			 "of data packets entirely", MSGFLAG_INFO);
 		dissect_data = 0;
