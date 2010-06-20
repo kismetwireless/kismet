@@ -1163,10 +1163,12 @@ void Kis_Netlist::Proto_BSSID(CLIPROTO_CB_PARMS) {
 	net->manuf = MungeToPrintable((*proto_parsed)[fnum++].word);
 
 	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%llu", 
-			   &(net->data_cryptset)) != 1) {
+			   &tlld) != 1) {
 		delete net;
 		return;
 	}
+
+	net->data_cryptset = tlld;
 
 	/*
 	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &(net->freq_mhz)) != 1) {
@@ -1718,10 +1720,11 @@ void Kis_Netlist::Proto_CLIENT(CLIPROTO_CB_PARMS) {
 		cli->dhcp_vendor = "";
 
 	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%llu", 
-			   &(cli->data_cryptset)) != 1) {
+			   &tlld) != 1) {
 		delete cli;
 		return;
 	}
+	cli->data_cryptset = tlld;
 
 	cli->dirty = 1;
 
@@ -2500,7 +2503,7 @@ int Kis_Netlist::PrintNetworkLine(Kis_Display_NetGroup *ng,
 			rofft += 4;
 		} else if (b == bcol_clients) {
 			// TODO - handle clients
-			snprintf(rline + rofft, max - rofft, "%4d", net->client_map.size());
+			snprintf(rline + rofft, max - rofft, "%4d", (int) net->client_map.size());
 			rofft += 4;
 		} else if (b == bcol_datasize) {
 			char dt = ' ';
