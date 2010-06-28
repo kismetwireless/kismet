@@ -506,7 +506,7 @@ void Kis_Main_Panel::Startup() {
 	} else if ((kpinterface->prefs->FetchOpt("STARTUP_SERVER") == "true" ||
 				kpinterface->prefs->FetchOpt("STARTUP_SERVER") == "") &&
 			   initclient <= 0) {
-		fprintf(stderr, "debug - kmp_prompt_startserver\n");
+		// fprintf(stderr, "debug - kmp_prompt_startserver\n");
 		kmp_prompt_startserver(globalreg, 1, -1, this);
 	}
 }

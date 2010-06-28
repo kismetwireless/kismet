@@ -25,6 +25,7 @@
 #include <unistd.h>
 #include <dlfcn.h>
 #include <dirent.h>
+#include <signal.h>
 
 #include "globalregistry.h"
 #include "configfile.h"
