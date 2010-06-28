@@ -362,7 +362,7 @@ void PluginServerSignalHandler(int sig) {
 }
 
 int Plugintracker::ActivatePlugins() {
-	sig_t old_segv = SIG_DFL;
+	sighandler_t old_segv = SIG_DFL;
 
 	// Try to activate all the plugins
 	for (unsigned int x = 0; x < plugin_vec.size(); x++) {

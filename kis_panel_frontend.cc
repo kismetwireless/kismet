@@ -671,7 +671,7 @@ void PluginClientSignalHandler(int sig) {
 void KisPanelInterface::LoadPlugin(string in_fname, string in_objname) {
 	void *dlfile;
 	panel_plugin_hook plughook;
-	sig_t old_segv = SIG_DFL;
+	signal_t old_segv = SIG_DFL;
 
 	old_segv = signal(SIGSEGV, PluginClientSignalHandler);
 
