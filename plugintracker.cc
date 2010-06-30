@@ -362,7 +362,11 @@ void PluginServerSignalHandler(int sig) {
 }
 
 int Plugintracker::ActivatePlugins() {
+#ifdef SYS_CYGWIN
+	_sig_func_ptr old_segv = SIG_DFL;
+#else
 	sighandler_t old_segv = SIG_DFL;
+#endif
 
 	// Try to activate all the plugins
 	for (unsigned int x = 0; x < plugin_vec.size(); x++) {
