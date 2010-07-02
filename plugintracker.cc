@@ -365,7 +365,7 @@ int Plugintracker::ActivatePlugins() {
 #ifdef SYS_CYGWIN
 	_sig_func_ptr old_segv = SIG_DFL;
 #else
-	sighandler_t old_segv = SIG_DFL;
+	sig_t old_segv = SIG_DFL;
 #endif
 
 	// Try to activate all the plugins

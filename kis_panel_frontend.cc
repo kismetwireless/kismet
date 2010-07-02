@@ -674,7 +674,7 @@ void KisPanelInterface::LoadPlugin(string in_fname, string in_objname) {
 #ifdef SYS_CYGWIN
 	_sig_func_ptr old_segv = SIG_DFL;
 #else
-	sighandler_t old_segv = SIG_DFL;
+	sig_t old_segv = SIG_DFL;
 #endif
 
 	old_segv = signal(SIGSEGV, PluginClientSignalHandler);
