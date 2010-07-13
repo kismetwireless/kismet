@@ -1,3 +1,17 @@
+2010-07-R1
+----------
+ Enhancements:
+  Ruby interface and examples
+  Proper TCP Async (for large numbers of drones and other situations)
+  Add hidedata= option for "safer" sniffing in public environments
+  Kluged escape handler for broken ncurses arrow handling on some systems
+  Add --no-root option for zero-priv drone-only deploys
+
+ Bugfixes:
+  Fix installation on Ubuntu dash
+  IPC updates and fixes for drone
+  IPC architectural fixes
+
 2010-01-R1
 ----------
  Enhancements:
