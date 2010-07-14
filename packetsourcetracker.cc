@@ -1413,7 +1413,11 @@ int Packetsourcetracker::LoadConfiguration() {
 	// Third pass to actually assign offsets to our metasources
 	for (map<uint16_t, int>::iterator x = chanid_count_map.begin();
 		 x != chanid_count_map.end(); ++x) {
-		if (x->second < 2)
+
+		// We don't worry about channel splitting if we have 1 ("or fewer") sources
+		// and we don't worry about anything which doesn't have an assigned 
+		// channel list (list id 0)
+		if (x->second < 2 || x->first == 0)
 			continue;
 
 		int offset = 1 + (channellist_map[x->first]->channel_vec.size() / x->second);
