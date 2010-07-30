@@ -111,8 +111,6 @@ int d15d4_serialdev_helper::SendCommand(uint8_t *command, unsigned int in_len,
 	if (in_len != 0)
 		memcpy(cmd + 3, in_data, in_len);
 
-	fprintf(stderr, "debug - sercli writing %d bytes\n", in_len + 3);
-
 	return sercli->WriteData(cmd, in_len + 3);
 }
 
