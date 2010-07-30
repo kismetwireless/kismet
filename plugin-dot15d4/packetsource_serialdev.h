@@ -170,13 +170,18 @@ public:
 
 	// This is stupid but i'm tired
 	struct serial_pkt {
-		char *data;
-		int len; 
-		int channel;
+		uint8_t *data;
+		unsigned int len; 
+		struct timeval ts;
+		unsigned int channel;
+		unsigned int sig_lq;
 	};
 
 protected:
 	virtual void FetchRadioData(kis_packet *in_packet) { };
+
+	virtual void QueuePacket(unsigned int in_len, uint8_t *in_data, 
+							 unsigned int in_sig);
 
 	int d154_packet_id;
 
@@ -190,6 +195,8 @@ protected:
 	int pending_packet;
 
 	d15d4_serialdev_helper *helper;
+
+	friend class d15d4_serialdev_helper;
 };
 
 #endif

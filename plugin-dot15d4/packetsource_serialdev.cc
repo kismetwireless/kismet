@@ -226,6 +226,8 @@ int d15d4_serialdev_helper::ParseData() {
 							fprintf(stderr, "%02x ", pkt_data[zz]);
 						}
 						fprintf(stderr, "\n");
+
+						packetsource->QueuePacket(s_len, pkt_data, s_level);
 					}
 				}
 			} else {
@@ -319,6 +321,8 @@ int PacketSource_Serialdev::OpenSource() {
 	cbuf[0] = SERIALDEV_MODE_RX;
 	helper->SendCommand(SERIALDEV_CMD_SETSTATE, 1, cbuf);
 
+	pending_packet = 0;
+
 	return ret;
 }
 
@@ -351,6 +355,8 @@ int PacketSource_Serialdev::SetChannel(unsigned int in_ch) {
 	cbuf[0] = (uint8_t) in_ch - 10;
 	helper->SendCommand(SERIALDEV_CMD_SETCHAN, 1, cbuf);
 
+	last_channel = in_ch;
+
 	return 1;
 }
 
@@ -364,42 +370,38 @@ int PacketSource_Serialdev::Poll() {
 	// Consume the junk byte we used to raise the FD high
 	read(fake_fd[0], &rx, 1);
 
-#if 0
-
 	pending_packet = 0;
 
 	for (unsigned int x = 0; x < packet_queue.size(); x++) {
 		kis_packet *newpack = globalreg->packetchain->GeneratePacket();
 
-		newpack->ts.tv_sec = globalreg->timestamp.tv_sec;
-		newpack->ts.tv_usec = globalreg->timestamp.tv_usec;
-
-		if (packet_queue[x]->len <= 9) {
-			delete[] packet_queue[x]->data;
-			continue;
-		}
+		newpack->ts.tv_sec = packet_queue[x]->ts.tv_sec;
+		newpack->ts.tv_usec = packet_queue[x]->ts.tv_usec;
 
 		kis_datachunk *rawchunk = new kis_datachunk;
 
-		// Offset by the 9 bytes of junk at the beginning
-		rawchunk->length = packet_queue[x]->len - 9;
-		// Copy the packet w/out the crap from the raven (interpret RSSI later)
-		rawchunk->data = new uint8_t[rawchunk->length];
-		memcpy(rawchunk->data, packet_queue[x]->data + 9, rawchunk->length);
-		rawchunk->source_id = source_id;
+		rawchunk->length = packet_queue[x]->len;
+		// Allocated during addpacket, freed during packet destruction, so 
+		// we just copy the ptr here
+		rawchunk->data = packet_queue[x]->data;
 
+		rawchunk->source_id = source_id;
 		rawchunk->dlt = KDLT_IEEE802_15_4;
 
 		newpack->insert(_PCM(PACK_COMP_LINKFRAME), rawchunk);
 
-		// printf("debug - Got packet chan %d len=%d\n", packet_queue[x]->channel, packet_queue[x]->len);
+		printf("debug - Got packet chan %d len=%d\n", packet_queue[x]->channel, packet_queue[x]->len);
+
+		// Flag the header
+		kis_ref_capsource *csrc_ref = new kis_ref_capsource;
+		csrc_ref->ref_source = this;
+		newpack->insert(_PCM(PACK_COMP_KISCAPSRC), csrc_ref);
 
 		num_packets++;
 
 		globalreg->packetchain->ProcessPacket(newpack);
 
-		// Delete the temp struct and data
-		delete packet_queue[x]->data;
+		// Delete the temp struct, NOT the data
 		delete packet_queue[x];
 	}
 
@@ -408,9 +410,37 @@ int PacketSource_Serialdev::Poll() {
 
 	// printf("debug - packet queue cleared %d\n", packet_queue.size());
 
-#endif
-
 	return 1;
+}
+
+void PacketSource_Serialdev::QueuePacket(unsigned int in_len, uint8_t *in_data,
+										 unsigned int in_sig) {
+	if (packet_queue.size() > 20) {
+		_MSG("d15d4_serialdev packet queue > 20 packets w/out pickup, something "
+			 "is acting weird", MSGFLAG_ERROR);
+		return;
+	}
+
+	struct PacketSource_Serialdev::serial_pkt *rpkt = 
+		new PacketSource_Serialdev::serial_pkt;
+
+	rpkt->sig_lq = in_sig;
+	rpkt->len = in_len;
+	rpkt->data = new uint8_t[in_len];
+
+	rpkt->ts.tv_sec = globalreg->timestamp.tv_sec;
+	rpkt->ts.tv_usec = globalreg->timestamp.tv_usec;
+
+	rpkt->channel = last_channel;
+
+	memcpy(rpkt->data, in_data, in_len);
+
+	packet_queue.push_back(rpkt);
+
+	if (pending_packet == 0) {
+		pending_packet = 1;
+		write(fake_fd[1], in_data, 1);
+	}
 }
 
 
