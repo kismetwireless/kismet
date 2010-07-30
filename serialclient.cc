@@ -79,6 +79,29 @@ int SerialClient::SetOptions(int optmode, struct termios *options) {
 	return 1;
 }
 
+int SerialClient::SetBaud(int in_baud) {
+	struct termios options;
+
+	GetOptions(&options);
+	options.c_oflag = 0;
+	options.c_iflag = 0;
+	
+	cfsetispeed(&options, in_baud);
+	cfsetospeed(&options, in_baud);
+
+	return SetOptions(TCSANOW, &options);
+}
+
+int SerialClient::FlushSerial(int in_selector) {
+	if (tcflush(cli_fd, in_selector) < 0) {
+		_MSG("SeriaLClient::FlushSerial failed to flush serial queue: " +
+			 string(strerror(errno)), MSGFLAG_ERROR);
+		return -1;
+	}
+
+	return 1;
+}
+
 int SerialClient::ReadBytes() {
     uint8_t recv_bytes[1024];
     int ret;

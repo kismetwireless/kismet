@@ -1772,7 +1772,7 @@ int Packetsourcetracker::StartSource(uint16_t in_source_id) {
 	} else {
 		_MSG("Packetsourcetracker::StartSource called with unknown packet source "
 			 "id, something is wrong.", MSGFLAG_ERROR);
-		printf("debug - %d - unknown packet source\n", getpid());
+		// printf("debug - %d - unknown packet source\n", getpid());
 		return -1;
 	}
 
@@ -2134,6 +2134,9 @@ void Packetsourcetracker::SendIPCChanset(pst_packetsource *in_source) {
 		return;
 	}
 
+	if (in_source->proto_source->require_root == 0)
+		return;
+
 	ipc_packet *ipc =
 		(ipc_packet *) malloc(sizeof(ipc_packet) +
 							  sizeof(ipc_source_chanset));
@@ -2340,6 +2343,7 @@ int Packetsourcetracker::SetSourceNewChannellist(uuid in_uuid, string in_channel
 	// Set the source up
 	pstsource->channel_list = new_id;
 	pstsource->channel_position = 0;
+	pstsource->channel_ptr = channellist_map[new_id];
 
 	// Send the channel update to switch us to the new list
 	SendIPCChanset(pstsource);

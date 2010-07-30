@@ -66,6 +66,10 @@ public:
 	virtual int GetOptions(struct termios *options);
 	virtual int SetOptions(int optmode, struct termios *options);
 
+	virtual int SetBaud(int in_baud);
+
+	virtual int FlushSerial(int in_selector);
+
 protected:
     virtual int Validate() {
         return 1;
