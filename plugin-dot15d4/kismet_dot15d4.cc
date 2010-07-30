@@ -62,6 +62,7 @@
 #include <version.h>
 
 #include "packetsource_raven.h"
+#include "packetsource_serialdev.h"
 #include "packet_dot15d4.h"
 #include "tracker_dot15d4.h"
 
@@ -79,8 +80,16 @@ int dot15d4_register(GlobalRegistry *in_globalreg) {
 	globalreg->sourcetracker->AddChannelList("IEEE802154:11,12,13,14,15,16,"
 											 "17,18,19,20,21,22,23,24,25,26");
 
+#ifdef USE_PACKETSOURCE_RAVEN
 	if (globalreg->sourcetracker->RegisterPacketSource(new PacketSource_Raven(globalreg)) < 0 || globalreg->fatal_condition)
 		return -1;
+#endif
+
+#ifdef USE_PACKETSOURCE_SERIALDEV
+	if (globalreg->sourcetracker->RegisterPacketSource(new PacketSource_Serialdev(globalreg)) < 0 || globalreg->fatal_condition)
+		return -1;
+	fprintf(stderr, "debug - registered serialdev\n");
+#endif
 
 	globalreg->packetchain->RegisterHandler(&kis_dot15d4_dissector, NULL,
 											CHAINPOS_LLCDISSECT, 1);

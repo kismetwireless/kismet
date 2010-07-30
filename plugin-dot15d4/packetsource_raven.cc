@@ -18,6 +18,8 @@
 
 #include "config.h"
 
+#ifdef SYS_LINUX
+
 #include <vector>
 
 #include <util.h>
@@ -74,6 +76,8 @@ int PacketSource_Raven::AutotypeProbe(string in_device) {
 		type = "raven";
 		return 1;
 	}
+
+	return 0;
 }
 
 // Capture thread to fake async io
@@ -388,4 +392,5 @@ int PacketSource_Raven::Poll() {
 	return 1;
 }
 
+#endif
 

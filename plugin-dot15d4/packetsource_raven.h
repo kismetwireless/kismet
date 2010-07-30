@@ -21,6 +21,8 @@
 
 #include "config.h"
 
+#ifdef SYS_LINUX
+
 #include <usb.h>
 #include <pthread.h>
 
@@ -116,3 +118,6 @@ protected:
 };
 
 #endif
+
+#endif
+

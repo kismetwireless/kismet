@@ -16,10 +16,11 @@ Unless you're in contact with me and are helping develop it, it's not likely
 to do what you want.  What it CAN do, currently:
 
 * Drive the AVR RAVEN
+* Drive a Linux-Serialdev device via userspace (should work on any platform)
 * Read pcap files
 * Print debug info about packets
 * Log to PCAP file
-* Do basic 802.15.4 decoding
+* Do VERY basic 802.15.4 decoding
 
 1.  What is Kismet-Dot15d4
 
@@ -28,8 +29,22 @@ to do what you want.  What it CAN do, currently:
     and other "mote" applications, and is the underpinning of Zigbee, 6pan,
     etc.
 
-    Driver support is included for the AVR USB RAVEN board, available here:
+    (Some) Driver support is included for the AVR USB RAVEN board, 
+    available here:
     http://search.digikey.com/scripts/DkSearch/dksus.dll?Detail&name=ATAVRRZUSBSTICK-ND
+
+    This driver works only under Linux.
+
+    Much more complete (and multiplatform) support is included for devices 
+    based on the Linux-Serialdev firmware.  This is a firmware which allows
+    an 802.15.4 device to be connected via a serial port.
+
+    Notable devices which support this firmware include the Redbee devices
+    (available from http://redwirellc.com/), and devices based on them,
+    such as the Quahogcon 2010 conference badge and likely the Ninja
+    Networks 2010 Defcon badge.  These devices MUST BE FLASHED to use the
+    Linux-Serialdev firmware, firmware and information available at:
+    http://mc1322x.devl.org/
 
     It CAN NOT BE USED with 802.11 wi-fi cards, it is a completely different
     protocol.
@@ -43,12 +58,9 @@ to do what you want.  What it CAN do, currently:
     This code is currently only partially developed and may not provide full
     functionality.
 
-    This code implements a user-space driver using libusb.  Sometimes things
-    go stupid and cause a sync issue and the server falls down.
-
-    This code has only been tested on Linux.  Libusb works on other
-    platforms, this code MAY work on other platforms, but currently it is
-    only developed with Linux as a target.
+    The Raven code implements a user-space driver using Libusb.  Sometimes
+    things go stupid and the card or the server fall down during a sync
+    problem.
 
 3.  Compiling
 
@@ -61,6 +73,9 @@ to do what you want.  What it CAN do, currently:
 
 		cd plugin-dot15d4/
 		KIS_SRC_DIR=/home/foo/src/kismet make
+
+    For Raven support, the LibUSB library (and development headers, most
+    likely called libusb-devel by your distribution) is required.
 
 4.  Installing
 
@@ -85,12 +100,20 @@ to do what you want.  What it CAN do, currently:
 
     To capture from an AVR RAVEN, plug in the USB device, and define a
     capture source in Kismet using the interface 'raven'.  The device will
-    be automatically detected.
+    be automatically detected:
+        ncdevice=raven
 
     To monitor with multiple Raven devices at once, each raven must have a
     USB device ID specified with the 'usbdev' source option.  The definition
     of the usb device ID depends on the operating system, in Linux it is a
     number incremented for each device and shown in 'lsusb' and 'dmesg'
+        ncdevice=raven:usbdev=...
+
+    To capture with a Linux-Serialdev device, plug in the usb device, and
+    define a capture source for d15d4serial with a device= option pointing
+    to the USB serial interface.  For redbee-based devices, this will be the
+    SECOND serial device registered:
+        ncdevice=d15d4serial:device=/dev/ttyUSB1
 
     To enable pcap logging, the logfile must be turned on by adding
     'pcap15d4' to the logtypes= line of the kismet.conf.
