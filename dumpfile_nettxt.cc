@@ -207,6 +207,8 @@ int Dumpfile_Nettxt::Flush() {
 				fprintf(txtfile, "    Encryption : WEP\n");
 			if (m->second->cryptset & crypt_layer3)
 				fprintf(txtfile, "    Encryption : Layer3\n");
+			if (m->second->cryptset & crypt_wpa_migmode)
+				fprintf(txtfile, "    Encryption : WPA Migration Mode\n");
 			if (m->second->cryptset & crypt_wep40)
 				fprintf(txtfile, "    Encryption : WEP40\n");
 			if (m->second->cryptset & crypt_wep104)

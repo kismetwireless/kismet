@@ -229,6 +229,8 @@ string crypt_to_str(uint64_t cryptset) {
 		osstr << "WEP (Privacy bit set)";
 	if (cryptset & crypt_layer3)
 		osstr << " Layer3";
+	if (cryptset & crypt_wpa_migmode)
+		osstr << " WPA Migration Mode";
 	if (cryptset & crypt_wep40)
 		osstr << " WEP (40bit)";
 	if (cryptset & crypt_wep104)

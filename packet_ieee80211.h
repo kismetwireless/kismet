@@ -215,6 +215,8 @@ enum crypt_type {
 	crypt_psk = (1 << 7),
 	crypt_aes_ocb = (1 << 8),
 	crypt_aes_ccm = (1 << 9),
+	//WPA Migration Mode
+	crypt_wpa_migmode = (1 << 19),
 	// Derived from data traffic
 	crypt_leap = (1 << 10),
 	crypt_ttls = (1 << 11),

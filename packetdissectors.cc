@@ -1148,6 +1148,10 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
 							}
 						}
 
+						// WPA Migration Mode
+						if ((packinfo->cryptset & crypt_tkip) && ((packinfo->cryptset & crypt_wep40) || (packinfo->cryptset & crypt_wep104)) )
+							packinfo->cryptset |= crypt_wpa_migmode;
+
 						// Match auth key components
 						offt += 2;
 						while (offt + 4 <= taglen) {

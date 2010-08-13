@@ -2437,7 +2437,7 @@ int Kis_Netlist::PrintNetworkLine(Kis_Display_NetGroup *ng,
 			if (net->lastssid == NULL) {
 				d = '?';
 			} else {
-				if (net->lastssid->cryptset == crypt_wep)
+				if (net->lastssid->cryptset == crypt_wep || (net->lastssid->cryptset & crypt_wpa_migmode))
 					d = 'W';
 				else if (net->lastssid->cryptset)
 					d = 'O';
@@ -2820,7 +2820,7 @@ void Kis_Netlist::DrawComponent() {
 			}
 
 			if (color < 0 && meta->lastssid != NULL) {
-				if (meta->lastssid->cryptset == crypt_wep) {
+				if (meta->lastssid->cryptset == crypt_wep || (meta->lastssid->cryptset & crypt_wpa_migmode)) {
 					color = kis_netlist_color_wep;
 				} else if (meta->lastssid->cryptset != 0) {
 					color = kis_netlist_color_crypt;
@@ -2920,6 +2920,10 @@ void Kis_Netlist::DrawComponent() {
 								snprintf(rline + rofft, 1024 - rofft, " L3");
 								rofft += 3;
 							} 
+							if ((meta->lastssid->cryptset & crypt_wpa_migmode)) {
+								snprintf(rline + rofft, 1024 - rofft, " WPA Migration Mode");
+								rofft += 19;
+							}
 							if ((meta->lastssid->cryptset & crypt_wep40)) {
 								snprintf(rline + rofft, 1024 - rofft, " WEP40");
 								rofft += 6;
@@ -4290,6 +4294,10 @@ void Kis_Clientlist::DrawComponent() {
 								snprintf(rline + rofft, 1024 - rofft, " L3");
 								rofft += 3;
 							} 
+							if ((display_vec[x].cli->cryptset & crypt_wpa_migmode)) {
+								snprintf(rline + rofft, 1024 - rofft, " WPA Migration Mode");
+								rofft += 19;
+							}
 							if ((display_vec[x].cli->cryptset & crypt_wep40)) {
 								snprintf(rline + rofft, 1024 - rofft, " WEP40");
 								rofft += 6;

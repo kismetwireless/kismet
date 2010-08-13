@@ -234,6 +234,8 @@ int Dumpfile_Netxml::Flush() {
 				fprintf(xmlfile, "        <encryption>WEP</encryption>\n");
 			if (m->second->cryptset & crypt_layer3)
 				fprintf(xmlfile, "        <encryption>Layer3</encryption>\n");
+			if (m->second->cryptset & crypt_wpa_migmode)
+				fprintf(xmlfile, "        <encryption>WPA Migration Mode</encryption>\n");
 			if (m->second->cryptset & crypt_wep40)
 				fprintf(xmlfile, "        <encryption>WEP40</encryption>\n");
 			if (m->second->cryptset & crypt_wep104)
