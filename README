@@ -141,6 +141,10 @@ http://www.kismetwireless.net
 
 3c.  OSX/Darwin quick start
 
+    * Please note:  Many have complained that iTerm does not send correct
+      key events.  However, Terminal.app appears to work fine, and is
+      recommended for using Kismet.
+
     * Download Kismet from http://www.kismetwireless.net/download.shtml
     * Run "./configure".  Pay attention to the output!  If Kismet cannot
       find all the headers and libraries it needs, major functionality may
