@@ -129,7 +129,13 @@ http://www.kismetwireless.net
     * Install Cygwin with make, GCC, libncurses, libncurses-dev
     * Download the Airpcap_Devpack from CACE Support
     * Put Airpcap_Devpack and Libpcap_Devpack in the kismet source directory
-    * Run "./configure"
+    * Run "./configure", adding the options:
+        --with-airpcap-devpack=... --with-winpcap-devpack=...
+        --enable-airpcap
+      The airpcap/winpcap devpack is available from the CACE website.
+      Due to bugs in Cygwin, it appears that the airpcap and winpcap
+      directories must be inside the kismet source directory.  If they are
+      not, the Kismet binary will immediately exit with no output.
     * Compile Kismet with "make".
     * Install Kismet with "make install"
 
