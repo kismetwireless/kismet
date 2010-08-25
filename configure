@@ -597,6 +597,8 @@ sharedatadir
 KSLIBS
 threadlib
 suidgroup
+libnl_LIBS
+libnl_CFLAGS
 libnl1_LIBS
 libnl1_CFLAGS
 libnl20_LIBS
@@ -715,7 +717,9 @@ PKG_CONFIG_LIBDIR
 libnl20_CFLAGS
 libnl20_LIBS
 libnl1_CFLAGS
-libnl1_LIBS'
+libnl1_LIBS
+libnl_CFLAGS
+libnl_LIBS'
 
 
 # Initialize some variables set by options.
@@ -1368,6 +1372,9 @@ Some influential environment variables:
   libnl1_CFLAGS
               C compiler flags for libnl1, overriding pkg-config
   libnl1_LIBS linker flags for libnl1, overriding pkg-config
+  libnl_CFLAGS
+              C compiler flags for libnl, overriding pkg-config
+  libnl_LIBS  linker flags for libnl, overriding pkg-config
 
 Use these variables to override the choices made by `configure' or to help
 it to find libraries and programs with nonstandard names/locations.
@@ -6897,6 +6904,75 @@ else
 $as_echo "yes" >&6; }
 	libnl1=yes
 fi
+
+pkg_failed=no
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for libnl" >&5
+$as_echo_n "checking for libnl... " >&6; }
+
+if test -n "$libnl_CFLAGS"; then
+    pkg_cv_libnl_CFLAGS="$libnl_CFLAGS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"libnl-0\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "libnl-0") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_libnl_CFLAGS=`$PKG_CONFIG --cflags "libnl-0" 2>/dev/null`
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+if test -n "$libnl_LIBS"; then
+    pkg_cv_libnl_LIBS="$libnl_LIBS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"libnl-0\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "libnl-0") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_libnl_LIBS=`$PKG_CONFIG --libs "libnl-0" 2>/dev/null`
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+
+
+
+if test $pkg_failed = yes; then
+   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
+        _pkg_short_errors_supported=yes
+else
+        _pkg_short_errors_supported=no
+fi
+        if test $_pkg_short_errors_supported = yes; then
+	        libnl_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors "libnl-0" 2>&1`
+        else
+	        libnl_PKG_ERRORS=`$PKG_CONFIG --print-errors "libnl-0" 2>&1`
+        fi
+	# Put the nasty error message in config.log where it belongs
+	echo "$libnl_PKG_ERRORS" >&5
+
+	libnl0=no
+elif test $pkg_failed = untried; then
+     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+	libnl0=no
+else
+	libnl_CFLAGS=$pkg_cv_libnl_CFLAGS
+	libnl_LIBS=$pkg_cv_libnl_LIBS
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+	libnl0=yes
+fi
 	if test "$libnl20" = "yes"; then
 
 $as_echo "#define HAVE_LIBNL 1" >>confdefs.h
@@ -6905,7 +6981,7 @@ $as_echo "#define HAVE_LIBNL 1" >>confdefs.h
 $as_echo "#define HAVE_LIBNL20 1" >>confdefs.h
 
 		NLLIBS="-lnl-genl -lnl"
-	elif test "$libnl1" = "yes"; then
+	elif test "$libnl1" = "yes" -o "$libnl0" = "yes"; then
 
 $as_echo "#define HAVE_LIBNL 1" >>confdefs.h
 
