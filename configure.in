@@ -863,12 +863,11 @@ havenetlink=yes
 if test "$havenetlink" = "yes"; then
 	PKG_CHECK_MODULES(libnl20, [libnl-2.0], libnl20=yes, libnl20=no)
 	PKG_CHECK_MODULES(libnl1, [libnl-1], libnl1=yes, libnl1=no)
-	PKG_CHECK_MODULES(libnl, [libnl-0], libnl0=yes, libnl0=no)
 	if test "$libnl20" = "yes"; then
 		AC_DEFINE(HAVE_LIBNL, 1, libnl netlink library)
 		AC_DEFINE(HAVE_LIBNL20, 1, libnl-2.0 netlink library)
 		NLLIBS="-lnl-genl -lnl"
-	elif test "$libnl1" = "yes" -o "$libnl0" = "yes"; then
+	elif test "$libnl1" = "yes"; then
 		AC_DEFINE(HAVE_LIBNL, 1, libnl netlink library)
 		NLLIBS="-lnl"
 	else
