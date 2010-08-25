@@ -813,7 +813,7 @@ if test "$want_airpcap" = "yes" -a "$pcap" = "yes"; then
 		AC_MSG_WARN(Compiling without airpcap support)
 	else
 		airpcap="yes"
-		LIBS="$LIBS -lairpcap"
+		KSLIBS="$KSLIBS -lairpcap"
 	fi
 fi
 
