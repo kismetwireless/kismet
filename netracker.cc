@@ -551,10 +551,10 @@ int Protocol_SSID(PROTO_PARMS) {
 					osstr << ssid->dot11d_vec[z].startchan << "-" <<
 						ssid->dot11d_vec[z].numchan << "-" <<
 						ssid->dot11d_vec[z].txpower << ":";
-					osstr << "\001";
-					out_string += osstr.str();
-					cache->Cache(fnum, osstr.str());
 				}
+				osstr << "\001";
+				out_string += osstr.str();
+				cache->Cache(fnum, osstr.str());
 				break;
 		}
 

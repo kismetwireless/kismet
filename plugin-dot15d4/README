@@ -101,19 +101,19 @@ to do what you want.  What it CAN do, currently:
     To capture from an AVR RAVEN, plug in the USB device, and define a
     capture source in Kismet using the interface 'raven'.  The device will
     be automatically detected:
-        ncdevice=raven
+        ncsource=raven
 
     To monitor with multiple Raven devices at once, each raven must have a
     USB device ID specified with the 'usbdev' source option.  The definition
     of the usb device ID depends on the operating system, in Linux it is a
     number incremented for each device and shown in 'lsusb' and 'dmesg'
-        ncdevice=raven:usbdev=...
+        ncsource=raven:usbdev=...
 
     To capture with a Linux-Serialdev device, plug in the usb device, and
     define a capture source for d15d4serial with a device= option pointing
     to the USB serial interface.  For redbee-based devices, this will be the
     SECOND serial device registered:
-        ncdevice=d15d4serial:device=/dev/ttyUSB1
+        ncsource=d15d4serial:device=/dev/ttyUSB1
 
     To enable pcap logging, the logfile must be turned on by adding
     'pcap15d4' to the logtypes= line of the kismet.conf.
