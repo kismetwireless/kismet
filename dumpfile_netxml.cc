@@ -200,8 +200,9 @@ int Dumpfile_Netxml::Flush() {
 		}
 
 		fprintf(xmlfile, "  <wireless-network number=\"%d\" type=\"%s\" "
-				"first-time=\"%.24s\" last-time=\"%.24s\">\n",
-				netnum, ntype.c_str(), ctime(&(net->first_time)), 
+				"first-time=\"%.24s\" ",
+				netnum, ntype.c_str(), ctime(&(net->first_time)));
+		fprintf(xmlfile, "last-time=\"%.24s\">\n",
 				ctime(&(net->last_time)));
 
 		for (map<uint32_t, Netracker::adv_ssid_data *>::iterator m =
@@ -215,11 +216,13 @@ int Dumpfile_Netxml::Flush() {
 			else if (m->second->type == ssid_file)
 				adtype = "Cached SSID";
 
-			fprintf(xmlfile, "    <SSID first-time=\"%.24s\" last-time=\"%.24s\">\n"
+			fprintf(xmlfile, "    <SSID first-time=\"%.24s\" ",
+					ctime(&(m->second->first_time)));
+			fprintf(xmlfile, "last-time=\"%.24s\">\n"
 					"        <type>%s</type>\n"
 					"        <max-rate>%f</max-rate>\n"
 					"        <packets>%d</packets>\n",
-					ctime(&(m->second->first_time)), ctime(&(m->second->last_time)),
+					ctime(&(m->second->last_time)),
 					adtype.c_str(),
 					m->second->maxrate,
 					m->second->packets);
@@ -496,9 +499,11 @@ int Dumpfile_Netxml::Flush() {
 			}
 
 			fprintf(xmlfile, "    <wireless-client number=\"%d\" type=\"%s\" "
-					"first-time=\"%.24s\" last-time=\"%.24s\">\n",
+					"first-time=\"%.24s\" ",
 					clinum, ctype.c_str(),
-					ctime(&(cli->first_time)), ctime(&(cli->last_time)));
+					ctime(&(cli->last_time)));
+			fprintf(xmlfile, "last-time=\"%.24s\">\n",
+					ctime(&(cli->last_time)));
 
 			fprintf(xmlfile, "      <client-mac>%s</client-mac>\n", 
 					cli->mac.Mac2String().c_str());
@@ -517,12 +522,12 @@ int Dumpfile_Netxml::Flush() {
 				else if (m->second->type == ssid_probereq)
 					adtype = "Probe Request";
 
-				fprintf(xmlfile, "        <SSID first-time=\"%.24s\" "
-						"last-time=\"%.24s\">\n"
+				fprintf(xmlfile, "        <SSID first-time=\"%.24s\" ",
+						ctime(&(m->second->first_time)));
+				fprintf(xmlfile, "last-time=\"%.24s\">\n"
 						"            <type>%s</type>\n"
 						"            <max-rate>%f</max-rate>\n"
 						"            <packets>%d</packets>\n",
-						ctime(&(m->second->first_time)), 
 						ctime(&(m->second->last_time)),
 						adtype.c_str(),
 						m->second->maxrate,
