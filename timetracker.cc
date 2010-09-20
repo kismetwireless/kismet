@@ -54,8 +54,10 @@ int Timetracker::Tick() {
 
         if ((cur_tm.tv_sec < evt->trigger_tm.tv_sec) ||
             ((cur_tm.tv_sec == evt->trigger_tm.tv_sec) && 
-			 (cur_tm.tv_usec < evt->trigger_tm.tv_usec)))
+			 (cur_tm.tv_usec < evt->trigger_tm.tv_usec))) {
+			// fprintf(stderr, "debug - tick at %u %u - queue is all older\n", cur_tm.tv_sec, cur_tm.tv_usec);
             return 1;
+		}
 
         // Call the function with the given parameters
         int ret;

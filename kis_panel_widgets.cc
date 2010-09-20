@@ -3411,6 +3411,8 @@ Kis_Panel::Kis_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_intf) {
 
 	last_key = 0;
 	last_key_time.tv_sec = 0;
+
+	escape_timer = -1;
 }
 
 Kis_Panel::~Kis_Panel() {
@@ -3607,11 +3609,21 @@ void Kis_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {
 		main_component->SetPosition(1, 1, in_x - 1, in_y - 2);
 }
 
+int kp_escape_timer(TIMEEVENT_PARMS) {
+	// fprintf(stderr, "trigger escape timer %u %u\n", globalreg->timestamp.tv_sec, globalreg->timestamp.tv_usec);
+	ungetch(0x00);
+	((Kis_Panel *) parm)->Poll();
+
+	return 0;
+}
+
 int Kis_Panel::Poll() {
 	int get = wgetch(win);
 	MEVENT mevent;
 	int ret;
+	int escape_timer_possible = 1;
 
+	/*
 	// Timeout on our internal escape handler
 	struct timeval key_diff;
 
@@ -3619,16 +3631,37 @@ int Kis_Panel::Poll() {
 					&last_key_time, 
 					&key_diff);
 
-	if (key_diff.tv_sec > 0 ||
-		key_diff.tv_usec > 250000)
+	if (key_diff.tv_sec > 1 ||
+		key_diff.tv_usec > 500000) {
 		last_key = 0;
+	}
 
 	last_key_time.tv_sec = globalreg->timestamp.tv_sec;
 	last_key_time.tv_usec = globalreg->timestamp.tv_usec;
+	*/
 
-	if (get == 0x1b) {
+	if (escape_timer > 0) {
+		globalreg->timetracker->RemoveTimer(escape_timer);
+		escape_timer = -1;
+
+		// Don't allow requeuing a second timer on a timered escape
+		escape_timer_possible = 0;
+	}
+
+	// If we're getting triggered from the timer callback
+	if (get == 0x00) {
+		get = 0x1b;
+	}
+
+	if (get == 0x1b && last_key != 0x1b) {
 		last_key = 0x1b;
-		return 1;
+		// fprintf(stderr, "schedule escape timer %u %u\n", globalreg->timestamp.tv_sec, globalreg->timestamp.tv_usec);
+		if (escape_timer_possible) {
+			escape_timer = 
+				globalreg->timetracker->RegisterTimer(2, NULL, 0, 
+													  &kp_escape_timer, this);
+			return 1;
+		}
 	} else if (last_key == 0x1b && get == 0x5b) {
 		last_key = 0x5b;
 		return 1;
@@ -3657,8 +3690,16 @@ int Kis_Panel::Poll() {
 		getmouse(&mevent);
 		ret = MouseEvent(&mevent);
 	} else {
+		// fprintf(stderr, "debug - passing key %02x\n", get);
 		ret = KeyPress(get);
 	}
+
+	// If we can't trigger a timer, this means we came in from a timer,
+	// which means we should force an extra interface redraw to handle what
+	// it may have changed, we don't get our normal redraw since we didn't get
+	// a real keypress
+	if (escape_timer_possible == 0)
+		kpinterface->DrawInterface();
 
 	if (ret < 0)
 		return ret;

@@ -1083,6 +1083,8 @@ protected:
 
 	int last_key;
 	struct timeval last_key_time;
+
+	int escape_timer;
 };
 
 // Pollable supersystem for handling panels and input
