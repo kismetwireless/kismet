@@ -438,6 +438,15 @@ int PacketSource_Wext::EnableMonitor() {
 	use_mac80211 = 0;
 #endif
 
+	if (type == "ipw2200" || type == "ipw2100") {
+		warning =
+			"Detected 'ipw2200' or 'ipw2100' for interface " + interface +
+			"; This driver will not change channel using mac80211 commands in most "
+			"cases.  Kismet will use legacy channel control commands.";
+		_MSG(warning, MSGFLAG_PRINTERROR);
+		use_mac80211 = 0;
+	}
+
 	if (vap != "" && opp_vap == 1 && use_mac80211 == 0) {
 		_MSG("Source '" + interface + "' doesn't have mac80211 support, disabling "
 			 "VAP creation of default monitor mode VAP", MSGFLAG_PRINTERROR);
