@@ -150,6 +150,13 @@ Plugintracker::Plugintracker(GlobalRegistry *in_globalreg) {
 		config_disable = 1;
 	}
 
+	plugins_protoref = 
+		globalreg->kisnetserver->RegisterProtocol("PLUGIN", 0, 0,
+												  PLUGIN_fields_text,
+												  &Protocol_PLUGIN,
+												  &Protocol_PLUGIN_enable,
+												  this);
+
 	if (config_disable || cmdline_disable) {
 		plugins_active = 0;
 		_MSG("Plugin system disabled by Kismet configuration file or command line",
@@ -159,12 +166,6 @@ Plugintracker::Plugintracker(GlobalRegistry *in_globalreg) {
 
 	plugins_active = 1;
 
-	plugins_protoref = 
-		globalreg->kisnetserver->RegisterProtocol("PLUGIN", 0, 0,
-												  PLUGIN_fields_text,
-												  &Protocol_PLUGIN,
-												  &Protocol_PLUGIN_enable,
-												  this);
 }
 
 Plugintracker::~Plugintracker() {
