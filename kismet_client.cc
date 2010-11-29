@@ -310,17 +310,21 @@ int main(int argc, char *argv[], char *envp[]) {
 
 	// Standard getopt parse run
 	static struct option main_longopt[] = {
+		{ "version", no_argument, 0, 'v' },
 		{ "help", no_argument, 0, 'h' },
 		{ 0, 0, 0, 0 }
 	};
 
 	while (1) {
 		int r = getopt_long(argc, argv, 
-							"-h", 
+							"-hv", 
 							main_longopt, &option_idx);
 		if (r < 0) break;
 		if (r == 'h') {
 			Usage(argv[0]);
+			exit(1);
+		} else if (r == 'v') {
+			printf("Kismet %s-%s-%s\n", VERSION_MAJOR, VERSION_MINOR, VERSION_TINY);
 			exit(1);
 		}
 	}
