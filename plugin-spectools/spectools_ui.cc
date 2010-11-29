@@ -37,7 +37,7 @@
 #define RSSI_CONVERT(O,R,D)	(int) ((D) * ((double) (R) / 1000.0f) + \
 								   ((double) (O) / 1000.0f))
 
-int showspectrum_menu_callback(void *auxptr);
+void showspectrum_menu_callback(MENUITEM_CB_PARMS);
 
 struct spec_data {
 	int mi_showspectrum;
@@ -65,9 +65,14 @@ int panel_plugin_init(GlobalRegistry *globalreg, KisPanelPluginData *pdata) {
 
 	pdata->pluginaux = (void *) adata;
 
-	adata->mi_showspectrum = 
-		pdata->mainpanel->AddPluginMenuItem("Show Spectrum", showspectrum_menu_callback,
-											pdata);
+	Kis_Menu *menu = pdata->kpinterface->FetchMainPanel()->FetchMenu();
+
+	int mn_view = menu->FindMenu("View");
+
+	pdata->kpinterface->FetchMainPanel()->AddViewSeparator();
+	adata->mi_showspectrum = menu->AddMenuItem("Spectrum", mn_view, 0);
+	menu->SetMenuItemCallback(adata->mi_showspectrum, showspectrum_menu_callback,
+							  pdata);
 
 	adata->spectrum = new Kis_IntGraph(globalreg, pdata->mainpanel);
 	adata->spectrum->SetName("SPECTRUM");
@@ -212,9 +217,8 @@ void SpecCliAdd(KPI_ADDCLI_CB_PARMS) {
 	netcli->AddConfCallback(SpecCliConfigured, 1, pdata);
 }
 
-int showspectrum_menu_callback(void *auxptr) {
+void showspectrum_menu_callback(MENUITEM_CB_PARMS) {
 	KisPanelPluginData *pdata = (KisPanelPluginData *) auxptr;
-	GlobalRegistry *globalreg = pdata->globalreg;
 	spec_data *adata = (spec_data *) pdata->pluginaux;
 
 	string opt = pdata->kpinterface->prefs->FetchOpt("MAIN_SHOWSPECTRUM");
@@ -227,7 +231,5 @@ int showspectrum_menu_callback(void *auxptr) {
 		pdata->mainpanel->SetPluginMenuItemChecked(adata->mi_showspectrum, 1);
 		adata->spectrum->Show();
 	}
-
-	return 1;
 }
 

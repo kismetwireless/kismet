@@ -145,6 +145,8 @@ PacketSource_Wext::~PacketSource_Wext() {
 }
 
 int PacketSource_Wext::ParseOptions(vector<opt_pair> *in_opts) {
+	PacketSource_Pcap::ParseOptions(in_opts);
+
 	if (FetchOpt("vap", in_opts) != "") {
 		vap = FetchOpt("vap", in_opts);
 		_MSG("Source '" + interface + "' will attempt to create a monitor-only "

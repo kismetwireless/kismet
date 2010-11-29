@@ -233,7 +233,7 @@ int d15d4_serialdev_helper::ParseData() {
 				if (s_status < 0)
 					s_status = buf[b] & 0xff;
 
-				fprintf(stderr, "debug - %x got status %x going to state 1\n", s_id, s_status);
+				// fprintf(stderr, "debug - %x got status %x going to state 1\n", s_id, s_status);
 
 				state = 1;
 			}
@@ -261,6 +261,8 @@ PacketSource_Serialdev::PacketSource_Serialdev(GlobalRegistry *in_globalreg,
 
 	helper = new d15d4_serialdev_helper(globalreg);
 	helper->AddPacketsource(this);
+
+	ParseOptions(in_opts);
 }
 
 PacketSource_Serialdev::~PacketSource_Serialdev() {
@@ -273,6 +275,10 @@ PacketSource_Serialdev::~PacketSource_Serialdev() {
 	
 
 int PacketSource_Serialdev::ParseOptions(vector<opt_pair> *in_opts) {
+
+	KisPacketSource::ParseOptions(in_opts);
+
+	fprintf(stderr, "debug - serialdev parseoptions\n");
 
 	if (FetchOpt("device", in_opts) != "") {
 		serialport = FetchOpt("device", in_opts);
@@ -296,7 +302,7 @@ int PacketSource_Serialdev::AutotypeProbe(string in_device) {
 int PacketSource_Serialdev::OpenSource() {
 	int ret;
 
-	fprintf(stderr, "debug - serialdev open helper %p\n", helper);
+	fprintf(stderr, "debug - serialdev open helper %p device %s\n", helper, serialport.c_str());
 	ret =  helper->OpenSerialDev(serialport);
 	fprintf(stderr, "debug - serialdev open ret %d\n", ret);
 
@@ -345,7 +351,7 @@ int PacketSource_Serialdev::CloseSource() {
 int PacketSource_Serialdev::SetChannel(unsigned int in_ch) {
 	uint8_t cbuf[1];
 
-	fprintf(stderr, "debug - set channel %u\n", in_ch);
+	// fprintf(stderr, "debug - set channel %u\n", in_ch);
 
 	if (helper == NULL)
 		return 0;

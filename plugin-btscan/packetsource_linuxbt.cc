@@ -56,6 +56,8 @@ PacketSource_LinuxBT::PacketSource_LinuxBT(GlobalRegistry *in_globalreg,
 	bt_scan_time = 4;
 
 	linuxbt_packet_id = globalreg->packetchain->RegisterPacketComponent("BTSCAN");
+
+	ParseOptions(in_opts);
 }
 
 PacketSource_LinuxBT::~PacketSource_LinuxBT() {
@@ -64,6 +66,8 @@ PacketSource_LinuxBT::~PacketSource_LinuxBT() {
 	
 
 int PacketSource_LinuxBT::ParseOptions(vector<opt_pair> *in_opts) {
+	KisPacketSource::ParseOptions(in_opts);
+
 	if (FetchOpt("scandelay", in_opts) != "") {
 		if (sscanf(FetchOpt("scandelay", in_opts).c_str(), "%d", &bt_scan_delay) != 1) {
 			_MSG("BTSCAN device " + interface + " invalid scandelay= option, expected "

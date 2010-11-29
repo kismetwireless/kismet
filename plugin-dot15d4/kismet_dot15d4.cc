@@ -88,7 +88,6 @@ int dot15d4_register(GlobalRegistry *in_globalreg) {
 #ifdef USE_PACKETSOURCE_SERIALDEV
 	if (globalreg->sourcetracker->RegisterPacketSource(new PacketSource_Serialdev(globalreg)) < 0 || globalreg->fatal_condition)
 		return -1;
-	fprintf(stderr, "debug - registered serialdev\n");
 #endif
 
 	globalreg->packetchain->RegisterHandler(&kis_dot15d4_dissector, NULL,

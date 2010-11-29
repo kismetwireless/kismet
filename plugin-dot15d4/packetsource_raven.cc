@@ -51,6 +51,8 @@ PacketSource_Raven::PacketSource_Raven(GlobalRegistry *in_globalreg, string in_i
 	pending_packet = 0;
 
 	d154_packet_id = globalreg->packetchain->RegisterPacketComponent("IEEE802_15_4");
+
+	ParseOptions(in_opts);
 }
 
 PacketSource_Raven::~PacketSource_Raven() {
@@ -59,6 +61,8 @@ PacketSource_Raven::~PacketSource_Raven() {
 	
 
 int PacketSource_Raven::ParseOptions(vector<opt_pair> *in_opts) {
+	KisPacketSource::ParseOptions(in_opts);
+
 	if (FetchOpt("device", in_opts) != "") {
 		usb_dev = FetchOpt("usbdev", in_opts);
 		_MSG("RAVEN 802.15.4 using USB device '" + usb_dev + "'", MSGFLAG_INFO);
