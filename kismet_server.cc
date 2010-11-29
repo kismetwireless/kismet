@@ -578,7 +578,8 @@ int Usage(char *argv) {
 		   "the configuration file.\n");
 
 	printf(" *** Generic Options ***\n");
-	printf(" -f, --config-file <file>     Use alternate configuration file\n"
+	printf(" -v, --version                Show version\n"
+		   " -f, --config-file <file>     Use alternate configuration file\n"
 		   "     --no-line-wrap           Turn of linewrapping of output\n"
 		   "                              (for grep, speed, etc)\n"
 		   " -s, --silent                 Turn off stdout output after setup phase\n"
@@ -695,6 +696,7 @@ int main(int argc, char *argv[], char *envp[]) {
 
 	// Standard getopt parse run
 	static struct option main_longopt[] = {
+		{ "version", no_argument, 0, 'v' },
 		{ "config-file", required_argument, 0, 'f' },
 		{ "no-line-wrap", no_argument, 0, nlwc },
 		{ "silent", no_argument, 0, 's' },
@@ -711,11 +713,14 @@ int main(int argc, char *argv[], char *envp[]) {
 
 	while (1) {
 		int r = getopt_long(argc, argv, 
-							"-f:sp:h", 
+							"-f:sp:hv", 
 							main_longopt, &option_idx);
 		if (r < 0) break;
 
-		if (r == 'h') {
+		if (r == 'v') {
+			printf("Kismet %s-%s-%s\n", VERSION_MAJOR, VERSION_MINOR, VERSION_TINY);
+			exit(1);
+		} else if (r == 'h') {
 			Usage(argv[0]);
 			exit(1);
 		} else if (r == 'f') {
