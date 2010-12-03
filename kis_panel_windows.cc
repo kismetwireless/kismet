@@ -1094,7 +1094,9 @@ void Kis_Main_Panel::MenuAction(int opt) {
 			// prompt handler and tell it OK
 			kmp_prompt_killserver(globalreg, 1, -1, NULL);
 		} else {
-			kmp_prompt_killserver(globalreg, 1, -1, NULL);
+			// Otherwise we're not prompting and we're not just stopping,
+			// so exit and don't stop
+			kmp_prompt_killserver(globalreg, 0, -1, NULL);
 		}
 
 		return;
