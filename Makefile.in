@@ -10,7 +10,8 @@ CAPSOURCES = \
 	packetsource_drone.o packetsource_ipwlive.o packetsource_airpcap.o \
 	packetsource_darwin.o packetsource_macusb.o
 
-PSO	= util.o cygwin_utils.o ringbuf.o messagebus.o configfile.o getopt.o \
+PSO	= util.o cygwin_utils.o globalregistry.o ringbuf.o \
+	messagebus.o configfile.o getopt.o \
 	filtercore.o ifcontrol.o iwcontrol.o madwifing_control.o nl80211_control.o \
 	$(OBJC_LINK) \
 	psutils.o ipc_remote.o soundcontrol.o battery.o kismet_json.o \
@@ -29,7 +30,8 @@ PSO	= util.o cygwin_utils.o ringbuf.o messagebus.o configfile.o getopt.o \
 
 PS	= kismet_server
 
-DRONEO = util.o cygwin_utils.o ringbuf.o messagebus.o configfile.o getopt.o \
+DRONEO = util.o cygwin_utils.o globalregistry.o ringbuf.o \
+		 messagebus.o configfile.o getopt.o \
 		 ifcontrol.o iwcontrol.o madwifing_control.o nl80211_control.o $(OBJC_LINK) \
 		 psutils.o ipc_remote.o soundcontrol.o kismet_json.o \
 		 netframework.o clinetframework.o tcpserver.o tcpclient.o serialclient.o \
@@ -40,7 +42,8 @@ DRONEO = util.o cygwin_utils.o ringbuf.o messagebus.o configfile.o getopt.o \
 		 plugintracker.o packetsourcetracker.o timetracker.o \
 		 kismet_drone.o
 
-CSO = util.o cygwin_utils.o ringbuf.o messagebus.o configfile.o getopt.o \
+CSO = util.o cygwin_utils.o globalregistry.o ringbuf.o \
+	messagebus.o configfile.o getopt.o \
 	filtercore.o ifcontrol.o iwcontrol.o madwifing_control.o nl80211_control.o \
 	$(OBJC_LINK) \
 	psutils.o ipc_remote.o netframework.o clinetframework.o tcpserver.o tcpclient.o \
@@ -52,7 +55,7 @@ CS	= kismet_capture
 
 DRONE = kismet_drone
 
-NCO	= util.o ringbuf.o messagebus.o configfile.o getopt.o \
+NCO	= util.o ringbuf.o globalregistry.o messagebus.o configfile.o getopt.o \
 	  soundcontrol.o timetracker.o ipc_remote.o \
 	  clinetframework.o tcpclient.o popenclient.o kis_clinetframe.o \
 	  text_cliframe.o \

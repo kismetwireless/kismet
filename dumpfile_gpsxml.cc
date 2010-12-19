@@ -80,13 +80,16 @@ Dumpfile_Gpsxml::Dumpfile_Gpsxml(GlobalRegistry *in_globalreg) :
             GPS_VERSION, ctime((const time_t *) &(globalreg->timestamp.tv_sec)));
 
 	string netxmlname;
-	if ((netxmlname = ProcessConfigOpt("netxml")) != "") {
-		fprintf(xmlfile, "    <network-file>%s</network-file>\n\n", 
-				netxmlname.c_str());
-	} else if (globalreg->fatal_condition) {
-		fclose(xmlfile);
-		return;
+	Dumpfile *netxmldump = globalreg->FindDumpFileType("netxml");
+
+	if (netxmldump == NULL) {
+		netxmlname = "error-netxml-not-found";
+	} else{
+		netxmlname = netxmldump->FetchFileName();
 	}
+
+	fprintf(xmlfile, "    <network-file>%s</network-file>\n\n", 
+			netxmlname.c_str());
 
 	globalreg->RegisterDumpFile(this);
 }

@@ -238,133 +238,22 @@ public:
 	// Critical failure elements
 	vector<critical_fail> critfail_vec;
     
-    GlobalRegistry() { 
-        fatal_condition = 0;
-		spindown = 0;
-
-		winch = false;
-
-		argc = 0;
-		argv = NULL;
-		envp = NULL;
-
-		getopt_long_num = 127;
-
-        next_ext_ref = 0;
-
-        messagebus = NULL;
-		plugintracker = NULL;
-        sourcetracker = NULL;
-		netracker = NULL;
-		packetchain = NULL;
-        alertracker = NULL;
-        timetracker = NULL;
-        kisnetserver = NULL;
-        kisdroneserver = NULL;
-        kismet_config = NULL;
-        kismetui_config = NULL;
-        soundctl = NULL;
-		builtindissector = NULL;
-		rootipc = NULL;
-		panel_interface = NULL;
-		manufdb = NULL;
-
-        start_time = 0;
-
-        metric = 0;
-
-		for (int x = 0; x < PROTO_REF_MAX; x++)
-			netproto_map[x] = -1;
-
-        filter_tracker = 0;
-        filter_tracker_bssid_invert = -1;
-        filter_tracker_source_invert = -1;
-        filter_tracker_dest_invert = -1;
-
-        filter_dump = 0;
-        filter_dump_bssid_invert = -1;
-        filter_dump_source_invert = -1;
-        filter_dump_dest_invert = -1;
-
-        filter_export = 0;
-        filter_export_bssid_invert = -1;
-        filter_export_source_invert = -1;
-        filter_export_dest_invert = -1;
-
-        broadcast_mac = mac_addr("FF:FF:FF:FF:FF:FF");
-
-        alert_backlog = 0;
-
-		for (unsigned int x = 0; x < PACK_COMP_MAX; x++)
-			packetcomp_map[x] = -1;
-
-		for (unsigned int x = 0; x < ALERT_REF_MAX; x++)
-			alertref_map[x] = -1;
-
-		pcapdump = NULL;
-
-		nlhandle = NULL;
-    }
+    GlobalRegistry();
 
     // External globals -- allow other things to tie structs to us
-    int RegisterExternalGlobal(string in_name) {
-        if (ext_name_map.find(StrLower(in_name)) != ext_name_map.end())
-            return -1;
-        
-        ext_name_map[StrLower(in_name)] = next_ext_ref++;
-    }
+    int RegisterExternalGlobal(string in_name);
+    int FetchExternalGlobalRef(string in_name);
+    void *FetchExternalGlobal(int in_ref);
+    int InsertExternalGlobal(int in_ref, void *in_data);
 
-    int FetchExternalGlobalRef(string in_name) {
-        if (ext_name_map.find(StrLower(in_name)) != ext_name_map.end())
-            return -1;
+	// Add something to the poll() main loop
+	int RegisterPollableSubsys(Pollable *in_subcli);
+	int RemovePollableSubsys(Pollable *in_subcli);
 
-        return ext_name_map[StrLower(in_name)];
-    }
-
-    void *FetchExternalGlobal(int in_ref) {
-        if (ext_data_map.find(in_ref) == ext_data_map.end())
-            return NULL;
-
-        return ext_data_map[in_ref];
-    }
-
-    int InsertExternalGlobal(int in_ref, void *in_data) {
-        if (ext_data_map.find(in_ref) == ext_data_map.end())
-            return -1;
-
-        ext_data_map[in_ref] = in_data;
-
-        return 1;
-    }
-
-	int RegisterPollableSubsys(Pollable *in_subcli) {
-		subsys_pollable_vec.push_back(in_subcli);
-		return 1;
-	}
-
-	int RemovePollableSubsys(Pollable *in_subcli) {
-		for (unsigned int x = 0; x < subsys_pollable_vec.size(); x++) {
-			if (subsys_pollable_vec[x] == in_subcli) {
-				subsys_pollable_vec.erase(subsys_pollable_vec.begin() + x);
-				return 1;
-			}
-		}
-		return 0;
-	}
-
-	void RegisterDumpFile(Dumpfile *in_dump) {
-		subsys_dumpfile_vec.push_back(in_dump);
-	}
-
-	int RemoveDumpFile(Dumpfile *in_dump) {
-		for (unsigned int x = 0; x < subsys_dumpfile_vec.size(); x++) {
-			if (subsys_dumpfile_vec[x] == in_dump) {
-				subsys_dumpfile_vec.erase(subsys_dumpfile_vec.begin() + x);
-				return 1;
-			}
-		}
-		return 0;
-	}
+	// Add a log file
+	void RegisterDumpFile(Dumpfile *in_dump);
+	int RemoveDumpFile(Dumpfile *in_dump);
+	Dumpfile *FindDumpFileType(string in_type);
 
 protected:
     // Exernal global references, string to intid
