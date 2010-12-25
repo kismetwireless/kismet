@@ -195,10 +195,8 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 	kis_layer1_packinfo *radioinfo =
 		(kis_layer1_packinfo *) in_pack->fetch(_PCM(PACK_COMP_RADIODATA));
 
-	/*
 	kis_gps_packinfo *gpsdata =
 		(kis_gps_packinfo *) in_pack->fetch(_PCM(PACK_COMP_GPS));
-	*/
 
 	kis_fcs_bytes *fcsdata =
 		(kis_fcs_bytes *) in_pack->fetch(_PCM(PACK_COMP_FCSBYTES));
@@ -273,14 +271,12 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 				dump_len += 4;
 		}
 
-		/*
 		if (gpsdata != NULL) {
 			if (gpsdata->gps_fix >= 2)
-				ppi_len += sizeof(ppi_gps_hdr) + 12;
-			if (gpsdata->gps_fix > 2)
+				ppi_len += sizeof(ppi_gps_hdr) + 4; //JC: dont know why, but 4 is the magic number here...
+			if (gpsdata->gps_fix > 2) 
 				ppi_len += 4;
 		}
-		*/
 
 		// Collate the allocation sizes of any callbacks
 		for (unsigned int p = 0; p < ppi_cb_vec.size(); p++) {
@@ -301,7 +297,7 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 
 		ppi_len += sizeof(ppi_packet_header);
 
-		dump_len += ppi_len;
+		dump_len += ppi_len + 8; //JC: GPS callback stuff accoutn for right size. . this is a workaround.
 
 		dump_data = new u_char[dump_len];
 
@@ -401,7 +397,6 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 			ppi_common->noise_dbm = radioinfo->noise_dbm;
 		}
 
-		/*
 		if (gpsdata != NULL) {
 			ppi_gps_hdr *ppigps = NULL;
 			union block {
@@ -418,37 +413,42 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 
 				ppigps->pfh_datatype = kis_htole16(PPI_FIELD_GPS);
 				// Header + lat/lon minus PPI overhead.  Fix this later.
-				ppigps->pfh_datalen = sizeof(ppi_gps_hdr) + 12 - 4;
+				ppigps->pfh_datalen = sizeof(ppi_gps_hdr) - 4 + 12;
 
-				ppigps->version = 0;
+				ppigps->version = 1;
 				ppigps->magic = PPI_GPS_MAGIC;
-				ppigps->gps_len = sizeof(ppi_gps_hdr) + 8;
+				ppigps->gps_len = sizeof(ppi_gps_hdr) -4 + 12;
 
-				ppigps->fields_present = PPI_GPS_FLAG_LAT | PPI_GPS_FLAG_LON |
-					PPI_GPS_FLAG_SPD;
+				ppigps->fields_present = PPI_GPS_FLAG_LAT | PPI_GPS_FLAG_LON;
 
+                printf("ppi_int_offt = %d\n", ppi_int_offt);
 				u = (block *) &(ppigps->field_data[ppi_int_offt]);
-				u->u32 = kis_htole32(lon_to_uint32(gpsdata->lon));
+				u->u32 = kis_htole32(double_to_fixed3_7(gpsdata->lon));
 				ppi_int_offt += 4;
 
+                printf("ppi_int_offt %d gpslen = %d\n", ppi_int_offt,ppigps->gps_len);
 				u = (block *) &(ppigps->field_data[ppi_int_offt]);
-				u->u32 = kis_htole32(lat_to_uint32(gpsdata->lat));
+				u->u32 = kis_htole32(double_to_fixed3_7(gpsdata->lat));
 				ppi_int_offt += 4;
 
-				u = (block *) &(ppigps->field_data[ppi_int_offt]);
-				u->u32 = kis_htole32(alt_to_uint32(gpsdata->spd));
-				ppi_int_offt += 4;
-			
 				if (gpsdata->gps_fix > 2) {
+                    printf("Altitude: ppi_int_offt = %d\n", ppi_int_offt);
 					ppigps->pfh_datalen += 4;
 					ppigps->gps_len += 4;
+                    printf("Altitude: ppi_int_gpslen= %d\n", ppigps->gps_len);
 
 					u = (block *) &(ppigps->field_data[ppi_int_offt]);
-					u->u32 = kis_htole32(alt_to_uint32(gpsdata->alt));
+					u->u32 = kis_htole32(double_to_fixed6_4(gpsdata->alt));
+					//u->u32 = kis_htole32(0x6b484390);
 					ppi_int_offt += 4;
 
 					ppigps->fields_present |= PPI_GPS_FLAG_ALT;
 				}
+                //printf("ppi_int_offt %d gpslen = %d\n", ppi_int_offt,ppigps->gps_len);
+				u = (block *) &(ppigps->field_data[ppi_int_offt]);
+				u->u32 = kis_htole32(0x0053494B); //KIS0
+				ppi_int_offt += 4;
+				ppigps->fields_present |= PPI_GPS_FLAG_APPID;
 
 				ppi_pos += ppigps->pfh_datalen;
 
@@ -458,7 +458,6 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 				ppigps->gps_len = kis_htole16(ppigps->gps_len);
 			}
 		}
-		*/
 
 		// Collate the allocation sizes of any callbacks
 		for (unsigned int p = 0; p < ppi_cb_vec.size(); p++) {
@@ -466,7 +465,9 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 			ppi_pos = (*(ppi_cb_vec[p].cb))(globalreg, 0, in_pack, dump_data, ppi_pos,
 											ppi_cb_vec[p].aux);
 		}
-
+        //XXX: JC: I don't know how to get this size propagated through the callback, but
+        //unless we add 4 to this we will overwrite the last 4 bytes of GPS data..
+        ppi_pos+=4;
 		dump_offset = ppi_pos;
 	}
 
@@ -505,7 +506,7 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 
 	delete[] dump_data;
 
-	// fprintf(stderr, "%d %d\n", wh.caplen, dumped_frames);
+	 fprintf(stderr, "%d %d\n", wh.caplen, dumped_frames);
 
 	dumped_frames++;
 

@@ -987,30 +987,33 @@ int PacketSource_Pcap::PPI2KisPack(kis_packet *packet, kis_datachunk *linkchunk)
 						gpsinfo = new kis_gps_packinfo;
 
 					u = (block *) &(ppigps->field_data[data_offt]);
-					gpsinfo->lat = lat_to_double(kis_letoh32(u->u32));
+					gpsinfo->lat = fixed3_7_to_double(kis_letoh32(u->u32));
 					data_offt += 4;
 
 					u = (block *) &(ppigps->field_data[data_offt]);
-					gpsinfo->lon = lon_to_double(kis_letoh32(u->u32));
+					gpsinfo->lon = fixed3_7_to_double(kis_letoh32(u->u32));
 					data_offt += 4;
 
 					gpsinfo->gps_fix = 2;
 					gpsinfo->alt = 0;
 				}
 
+                //Speed is stored as a velocity in VECTOR tags..
+                /*
 				if ((fields_present & PPI_GPS_FLAG_SPD) &&
 					gps_len - data_offt >= 4) {
 
 					u = (block *) &(ppigps->field_data[data_offt]);
-					gpsinfo->spd = lon_to_double(kis_letoh32(u->u32));
+					gpsinfo->spd = fixed3_7_to_double(kis_letoh32(u->u32));
 					data_offt += 4;
 				}
+                */
 
 				if ((fields_present & PPI_GPS_FLAG_ALT) && gps_len - data_offt >= 4) {
 					gpsinfo->gps_fix = 3;
 
 					u = (block *) &(ppigps->field_data[data_offt]);
-					gpsinfo->alt = alt_to_double(kis_letoh32(u->u32));
+					gpsinfo->alt = fixed6_4_to_double(kis_letoh32(u->u32));
 					data_offt += 4;
 				}
 

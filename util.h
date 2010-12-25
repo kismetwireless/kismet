@@ -221,13 +221,28 @@ list<_kis_lex_rec> LexString(string in_line, string& errstr);
 #define LAT_CONVERSION_FACTOR 10000000
 #define LON_CONVERSION_FACTOR 10000000
 #define ALT_CONVERSION_FACTOR 1000
-uint32_t lat_to_uint32(double lat);
-uint32_t lon_to_uint32(double lat);
-uint32_t alt_to_uint32(double alt);
 
-double lat_to_double(uint32_t lat);
-double lon_to_double(uint32_t lon);
-double alt_to_double(uint32_t lon);
+/* PPI-Geolocation tag conversion routines. (from lib_ppi_geotag)
+ * Floating point numbers are stored on disk in a handful of fixed-point formats (fixedX_Y)
+ * designed to preserve the appropriate amount of precision vs range. These functions convert
+ * the fixedX_Y fixed point values into 'native' doubles for displaying.
+ * Documentation on these formats can be found in the PPI-GEOLOCATION specification
+ */
+double fixed3_7_to_double(u_int32_t in);
+double fixed3_6_to_double(u_int32_t in);
+double fixed6_4_to_double(u_int32_t in);
+
+u_int32_t double_to_fixed3_7(double in);
+u_int32_t double_to_fixed3_6(double in);
+u_int32_t double_to_fixed6_4(double in);
+
+/*
+ * Some values are encoded as 32-bit unsigned nano-second counters.
+ * Usually we want to display these values as doubles.
+ */
+double    ns_to_double(u_int32_t in);
+u_int32_t double_to_ns(double in);
+
 
 #endif
 

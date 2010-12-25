@@ -1086,64 +1086,88 @@ void SubtractTimeval(struct timeval *in_tv1, struct timeval *in_tv2,
 
 /* Airware PPI gps conversion code from Johnny Csh */
 
-//Input: a latitude inbetween -180 to positive 180. 
-//Output: a latitude between 0 and 360 * 10^7
-uint32_t lat_to_uint32(double lat) {
-    if (lat < -180 || lat >= 180) 
-		return 0;
-
-	//This may be positive or negative.
-    int32_t scaled_lat =  (int32_t) ((lat) * (double) LAT_CONVERSION_FACTOR); 
-
-	//If the input conditions are met, this will now always be positive.
-    uint32_t  ret = (u_int32_t) (scaled_lat +  ((int32_t) 180 * LAT_CONVERSION_FACTOR)); 
-
+/*
+ * input: a unsigned 32-bit (native endian) value between 0 and 3600000000 (inclusive)
+ * output: a signed floating point value betwen -180.0000000 and + 180.0000000, inclusive)
+ */
+double fixed3_7_to_double(u_int32_t in) {
+    int32_t remapped_in = in - (180 * 10000000);
+    double ret = (double) ((double) remapped_in / 10000000);
+    return ret;
+}
+/*
+ * input: a native 32 bit unsigned value between 0 and 999999999
+ * output: a positive floating point value between 000.0000000 and 999.9999999
+ */
+double fixed3_6_to_double(u_int32_t in) {
+    double ret = (double) in  / 1000000.0;
+    return ret;
+}
+/*
+ * input: a native 32 bit unsigned value between 0 and 999.999999
+ * output: a signed floating point value between -180000.0000 and +180000.0000
+ */
+double fixed6_4_to_double(u_int32_t in) {
+    int32_t remapped_in = in - (180000 * 10000);
+    double ret = (double) ((double) remapped_in / 10000);
+    return ret;
+}
+/*
+ * input: a native 32 bit nano-second counter
+ * output: a signed floating point second counter
+ */
+double ns_to_double(u_int32_t in) {
+    double ret;
+    ret = (double) in / 1000000000;
     return ret;
 }
 
-//Input: a longitude inbetween -180 to positive 180. 
-//Output: a latitude between 0 and 360 * 10^7
-uint32_t lon_to_uint32(double lon) {
-    if(lon < -180 || lon >= 180)
-		return 0;
+/*
+ * input: a signed floating point value betwen -180.0000000 and + 180.0000000, inclusive)
+ * output: a unsigned 32-bit (native endian) value between 0 and 3600000000 (inclusive)
+ */
+u_int32_t double_to_fixed3_7(double in) 
+{
+    if (in < -180 || in >= 180) 
+        return 0;
+    //This may be positive or negative.
+    int32_t scaled_in =  (int32_t) ((in) * (double) 10000000); 
+    //If the input conditions are met, this will now always be positive.
+    u_int32_t  ret = (u_int32_t) (scaled_in +  ((int32_t) 180 * 10000000)); 
+    return ret;
+}
+/*
+ * input: a signed floating point value betwen -180000.0000 and + 180000.0000, inclusive)
+ * output: a unsigned 32-bit (native endian) value between 0 and 3600000000 (inclusive)
+ */
+u_int32_t double_to_fixed6_4(double in) 
+{
+    if (in < -180000.0001 || in >= 180000.0001) 
+        return 0;
+    //This may be positive or negative.
+    int32_t scaled_in =  (int32_t) ((in) * (double) 10000); 
+    //If the input conditions are met, this will now always be positive.
+    u_int32_t  ret = (u_int32_t) (scaled_in +  ((int32_t) 180000 * 10000)); 
+    return ret;
+}
+/*
+ * input: a positive floating point value between 000.0000000 and 999.9999999
+ * output: a native 32 bit unsigned value between 0 and 999999999
+ */
+u_int32_t double_to_fixed3_6(double in) {
+    u_int32_t ret = (u_int32_t) (in  * (double) 1000000.0);
+    return ret;
+}
 
-    int32_t scaled_lon = (int32_t) ((lon) * (double) LON_CONVERSION_FACTOR); 
-    uint32_t ret = (u_int32_t) (scaled_lon + ((int32_t) 180 * LON_CONVERSION_FACTOR));
+/*
+ * input: a signed floating point second counter
+ * output: a native 32 bit nano-second counter
+ */
+u_int32_t double_to_ns(double in) {
+    u_int32_t ret;
+    ret =  in * (double) 1000000000;
     return ret;
 }
 
 
-//input: a altitude between -1800000 and 1800000
-//output: a unsigned long betwen 0 and 10^6 meters
-uint32_t alt_to_uint32(double alt) {
-    if(alt < -1800000 || alt >= 1800000)
-		return 0;
-
-    int32_t scaled_alt = (int32_t) ((alt) * (double) ALT_CONVERSION_FACTOR);
-    uint32_t ret = (u_int32_t) (scaled_alt + ((int32_t) 180 * ALT_CONVERSION_FACTOR));
-
-    return ret;
-}
-
-//input: an unsigned int between 0 and 360 * 10000000
-//output: a double between -180.0 and 180.0
-double lat_to_double(uint32_t lat) {
-    int32_t remapped_lat = lat - (180 * LAT_CONVERSION_FACTOR);
-    double ret = (double) ((double) remapped_lat / LAT_CONVERSION_FACTOR);
-    return ret;
-}
-
-//input: an unsigned int between 0 and 360 * 10000000
-//output: a double between -180.0 and 180.0
-double lon_to_double(uint32_t lon) {
-    int32_t remapped_lon = lon - (180 * LON_CONVERSION_FACTOR);
-    double ret = (double) ((double) remapped_lon / LON_CONVERSION_FACTOR);
-    return ret;
-}
-
-double alt_to_double(uint32_t alt) {
-    int32_t remapped_alt = alt - (180 * ALT_CONVERSION_FACTOR);
-    double ret = (double) ((double) remapped_alt / ALT_CONVERSION_FACTOR);
-    return ret;
-}
 
