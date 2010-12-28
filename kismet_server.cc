@@ -600,6 +600,8 @@ int Usage(char *argv) {
 	Packetsourcetracker::Usage(argv);
 	printf("\n");
 	Netracker::Usage(argv);
+	printf("\n");
+	GpsWrapper::Usage(argv);
 
 	exit(1);
 }

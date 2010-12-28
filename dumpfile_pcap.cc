@@ -324,7 +324,7 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 				// printf("debug - logging ppi gps packet\n");
 				ppi_len += sizeof(ppi_gps_hdr) + 8;
 				ppigps = (ppi_gps_hdr *) &(dump_data[ppi_pos]);
-                printf("GPS: ppi_pos: %d\n", ppi_pos);
+                // printf("GPS: ppi_pos: %d\n", ppi_pos);
 
 				ppigps->pfh_datatype = kis_htole16(PPI_FIELD_GPS);
 				// Header + lat/lon minus PPI overhead.  Fix this later.
@@ -336,21 +336,21 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 
 				ppigps->fields_present = PPI_GPS_FLAG_LAT | PPI_GPS_FLAG_LON;
 
-                printf("ppi_int_offt = %d\n", ppi_int_offt);
+                // printf("ppi_int_offt = %d\n", ppi_int_offt);
 				u = (block *) &(ppigps->field_data[ppi_int_offt]);
 				u->u32 = kis_htole32(double_to_fixed3_7(gpsdata->lon));
 				ppi_int_offt += 4;
 
-                printf("ppi_int_offt %d gpslen = %d\n", ppi_int_offt,ppigps->gps_len);
+                // printf("ppi_int_offt %d gpslen = %d\n", ppi_int_offt,ppigps->gps_len);
 				u = (block *) &(ppigps->field_data[ppi_int_offt]);
 				u->u32 = kis_htole32(double_to_fixed3_7(gpsdata->lat));
 				ppi_int_offt += 4;
 
 				if (gpsdata->gps_fix > 2) {
-                    printf("Altitude: ppi_int_offt = %d\n", ppi_int_offt);
+                    // printf("Altitude: ppi_int_offt = %d\n", ppi_int_offt);
 					ppigps->pfh_datalen += 4;
 					ppigps->gps_len += 4;
-                    printf("Altitude: ppi_int_gpslen= %d\n", ppigps->gps_len);
+                    // printf("Altitude: ppi_int_gpslen= %d\n", ppigps->gps_len);
 
 					u = (block *) &(ppigps->field_data[ppi_int_offt]);
 					u->u32 = kis_htole32(double_to_fixed6_4(gpsdata->alt));
@@ -381,7 +381,7 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 		if (radioinfo != NULL) {
 			ppi_80211_common *ppi_common;
 			ppi_common = (ppi_80211_common *) &(dump_data[ppi_pos]);
-            printf("radioinfo:ppi_pos %d\n", ppi_pos);
+            // printf("radioinfo:ppi_pos %d\n", ppi_pos);
 			ppi_pos += sizeof(ppi_80211_common);
 
 			ppi_common->pfh_datatype = kis_htole16(PPI_FIELD_11COMMON);
@@ -469,7 +469,7 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
         //JC: This look doesnt ever iterate on my machine..
 		for (unsigned int p = 0; p < ppi_cb_vec.size(); p++) {
 			// Ignore errors for now
-            printf("%d: %d\n", p, ppi_pos);
+            // printf("%d: %d\n", p, ppi_pos);
 			ppi_pos = (*(ppi_cb_vec[p].cb))(globalreg, 0, in_pack, dump_data, ppi_pos,
 											ppi_cb_vec[p].aux);
 		}
@@ -511,7 +511,7 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 
 	delete[] dump_data;
 
-	 fprintf(stderr, "%d %d\n", wh.caplen, dumped_frames);
+	 // fprintf(stderr, "%d %d\n", wh.caplen, dumped_frames);
 
 	dumped_frames++;
 

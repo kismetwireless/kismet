@@ -32,6 +32,8 @@ public:
 		exit(1);
 	}
 
+	static void Usage(char *argv);
+
 	GpsWrapper(GlobalRegistry *globalreg);
 };
 
