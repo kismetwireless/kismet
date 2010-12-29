@@ -261,23 +261,45 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 	// Assemble the full packet
 	if (dumpformat == dump_ppi) {
 		ppi_packet_header *ppi_ph;
+        int gps_tagsize = 0; //include struct ppi fieldheader
+        int dot11common_tagsize = 0; //include ppi_fieldheader
+
 		unsigned int ppi_len = 0;
 		unsigned int ppi_pos = sizeof(ppi_packet_header);
 
+        /* The size of the gps tag varies depending if we have altitude or not
+         * we do all of the length math up front, and throughout the rest of the
+         * function make our decision based on the length, not the gpsdata.
+         * this helps keep logic error minimized.
+         */
+		if (gpsdata != NULL) {
+            gps_tagsize = sizeof(ppi_gps_hdr); //12
+			if (gpsdata->gps_fix <= 1) //no fix
+				gps_tagsize = 0; //dont bother storing anything
+			if (gpsdata->gps_fix >= 2) 
+				gps_tagsize += 12; // lon, lat, appid, 
+			if (gpsdata->gps_fix >= 3)
+				gps_tagsize +=4; // altitude
+            //Could eventually include hdop, vdop using simillar scheme here
+		}
+        /* although dot11common tags are constant size, we follow the same pattern here*/
 		if (radioinfo != NULL) {
-			ppi_len += sizeof(ppi_80211_common);
+            dot11common_tagsize = sizeof(ppi_80211_common);
 
 			if (fcsdata != NULL)
 				dump_len += 4;
 		}
+        //printf("sizeof ppi_gps_hdr:%d\n", sizeof(ppi_gps_hdr));
+        //printf("Computed gps tagsize of %d\n", gps_tagsize);
+        //printf("Computed dot11common tagsize of %d\n", dot11common_tagsize);
+        //printf("Sizeof ppi_packetheader: %d\n", sizeof(ppi_packet_header));
+		ppi_len += sizeof(ppi_packet_header);
+        ppi_len += gps_tagsize;
+        ppi_len += dot11common_tagsize;
+        //printf("ppi_len=%d\n", ppi_len);
 
-		if (gpsdata != NULL) {
-			if (gpsdata->gps_fix >= 2)
-				ppi_len += sizeof(ppi_gps_hdr) + 4; //JC: dont know why, but 4 is the magic number here...
-			if (gpsdata->gps_fix > 2) 
-				ppi_len += 4;
-		}
-
+        //With the static-ppi fields out of the way, handle any dynamic ones
+        //(f.ex) plugin-spectool
 		// Collate the allocation sizes of any callbacks
 		for (unsigned int p = 0; p < ppi_cb_vec.size(); p++) {
 			ppi_len += (*(ppi_cb_vec[p].cb))(globalreg, 1, in_pack, NULL, 0,
@@ -292,15 +314,14 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 			}
 		}
 
+		dump_len += ppi_len; //dumplen now accoutns for all ppi data
+        //printf("dump_len=%d\n", dump_len);
+
 		if (dump_len == 0 && ppi_len == 0)
 			return 0;
 
-		ppi_len += sizeof(ppi_packet_header);
-
-		dump_len += ppi_len + 8; //JC: GPS callback stuff accoutn for right size. . this is a workaround.
-
 		dump_data = new u_char[dump_len];
-
+        //memset(dump_data, 0xcc, dump_len); //Good for debugging ppi stuff.
 		ppi_ph = (ppi_packet_header *) dump_data;
 
 		ppi_ph->pph_version = 0;
@@ -310,78 +331,70 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 		// Use the DLT in the PPI internal
 		ppi_ph->pph_dlt = kis_htole32(dlt);
 
-
+        //First lay out the GPS tag, if applicable
 		if (gpsdata != NULL) {
-			ppi_gps_hdr *ppigps = NULL;
-			union block {
-				uint8_t u8;
-				uint16_t u16;
-				uint32_t u32;
-			} *u;
-			unsigned int ppi_int_offt = 0;
+			unsigned int gps_data_offt = 0; //offsets to fields, from begging of field data.
+			if (gps_tagsize > 0) {
+			    ppi_gps_hdr *ppigps = NULL;
+			    union block {
+				    uint8_t u8;
+				    uint16_t u16;
+				    uint32_t u32;
+			    } *u;
 
-			if (gpsdata->gps_fix >= 2) {
-				// printf("debug - logging ppi gps packet\n");
-				ppi_len += sizeof(ppi_gps_hdr) + 8;
+				//printf("debug - logging ppi gps packet. gps_tagsize: %d\n", gps_tagsize);
 				ppigps = (ppi_gps_hdr *) &(dump_data[ppi_pos]);
-                // printf("GPS: ppi_pos: %d\n", ppi_pos);
-
 				ppigps->pfh_datatype = kis_htole16(PPI_FIELD_GPS);
-				// Header + lat/lon minus PPI overhead.  Fix this later.
-				ppigps->pfh_datalen = sizeof(ppi_gps_hdr) - 4 + 12;
+				// Header + lat/lon minus PPI overhead. 
+				ppigps->pfh_datalen = gps_tagsize - 4; //subtract ppi fieldheader
 
 				ppigps->version = 1;
+				ppigps->fields_present = PPI_GPS_FLAG_LAT | PPI_GPS_FLAG_LON | PPI_GPS_FLAG_APPID;
+
+                //GPSLAT
+                //printf("lat: %3.7f %f \n", gpsdata->lat, gpsdata->lat);
+                u = (block *) &(ppigps->field_data[gps_data_offt]);
+                u->u32 = kis_htole32(double_to_fixed3_7(gpsdata->lat));
+                gps_data_offt += 4;
+
+                //GPSLON
+                //printf("lon: %3.7f %f\n", gpsdata->lon, gpsdata->lon);
+                u = (block *) &(ppigps->field_data[gps_data_offt]);
+                u->u32 = kis_htole32(double_to_fixed3_7(gpsdata->lon));
+                gps_data_offt += 4;
+
+                //GPSALT
+                if (gps_tagsize >= 28) //include alt
+                {
+                    u = (block *) &(ppigps->field_data[gps_data_offt]);
+                    u->u32 = kis_htole32(double_to_fixed6_4(gpsdata->alt));
+                    //u->u32 = kis_htole32(0x6b484390);
+                    gps_data_offt += 4;
+
+                    ppigps->fields_present |= PPI_GPS_FLAG_ALT;
+                }
+                //APPID
+                //printf("gps_data_offt %d gpslen = %d\n", gps_data_offt,ppigps->gps_len);
+                u = (block *) &(ppigps->field_data[gps_data_offt]);
+                u->u32 = kis_htole32(0x0053494B); //KIS0
+                gps_data_offt += 4;
 				ppigps->magic = PPI_GPS_MAGIC;
-				ppigps->gps_len = sizeof(ppi_gps_hdr) -4 + 12;
+				ppigps->gps_len = gps_tagsize - 4; //subtract ppi fieldheader
 
-				ppigps->fields_present = PPI_GPS_FLAG_LAT | PPI_GPS_FLAG_LON;
-
-                // printf("ppi_int_offt = %d\n", ppi_int_offt);
-				u = (block *) &(ppigps->field_data[ppi_int_offt]);
-				u->u32 = kis_htole32(double_to_fixed3_7(gpsdata->lon));
-				ppi_int_offt += 4;
-
-                // printf("ppi_int_offt %d gpslen = %d\n", ppi_int_offt,ppigps->gps_len);
-				u = (block *) &(ppigps->field_data[ppi_int_offt]);
-				u->u32 = kis_htole32(double_to_fixed3_7(gpsdata->lat));
-				ppi_int_offt += 4;
-
-				if (gpsdata->gps_fix > 2) {
-                    // printf("Altitude: ppi_int_offt = %d\n", ppi_int_offt);
-					ppigps->pfh_datalen += 4;
-					ppigps->gps_len += 4;
-                    // printf("Altitude: ppi_int_gpslen= %d\n", ppigps->gps_len);
-
-					u = (block *) &(ppigps->field_data[ppi_int_offt]);
-					u->u32 = kis_htole32(double_to_fixed6_4(gpsdata->alt));
-					//u->u32 = kis_htole32(0x6b484390);
-					ppi_int_offt += 4;
-
-					ppigps->fields_present |= PPI_GPS_FLAG_ALT;
-				}
-                //printf("ppi_int_offt %d gpslen = %d\n", ppi_int_offt,ppigps->gps_len);
-				u = (block *) &(ppigps->field_data[ppi_int_offt]);
-				u->u32 = kis_htole32(0x0053494B); //KIS0
-				ppi_int_offt += 4;
-				ppigps->fields_present |= PPI_GPS_FLAG_APPID;
-
-				ppi_pos += ppigps->pfh_datalen;
 
 				// Convert endian state
 				ppigps->fields_present = kis_htole32(ppigps->fields_present);
 				ppigps->pfh_datalen = kis_htole32(ppigps->pfh_datalen);
 				ppigps->gps_len = kis_htole16(ppigps->gps_len);
-			}
-        //XXX: JC: I don't know how to get this size propagated through the callback, but
-        //unless we add 4 to this we will overwrite the last 4 bytes of GPS data..
-        ppi_pos+=4;
+                //Advance ppi cursor for other PPI tags.
+				ppi_pos += gps_tagsize;
+            }//tagsize > 0
+		}//gpsdata present
 		dump_offset = ppi_pos;
-		}
 
 		if (radioinfo != NULL) {
 			ppi_80211_common *ppi_common;
 			ppi_common = (ppi_80211_common *) &(dump_data[ppi_pos]);
-            // printf("radioinfo:ppi_pos %d\n", ppi_pos);
 			ppi_pos += sizeof(ppi_80211_common);
 
 			ppi_common->pfh_datatype = kis_htole16(PPI_FIELD_11COMMON);
@@ -466,10 +479,8 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 			ppi_common->noise_dbm = radioinfo->noise_dbm;
 		}
 		// Collate the allocation sizes of any callbacks
-        //JC: This look doesnt ever iterate on my machine..
 		for (unsigned int p = 0; p < ppi_cb_vec.size(); p++) {
 			// Ignore errors for now
-            // printf("%d: %d\n", p, ppi_pos);
 			ppi_pos = (*(ppi_cb_vec[p].cb))(globalreg, 0, in_pack, dump_data, ppi_pos,
 											ppi_cb_vec[p].aux);
 		}
@@ -511,10 +522,7 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 
 	delete[] dump_data;
 
-	 // fprintf(stderr, "%d %d\n", wh.caplen, dumped_frames);
-
 	dumped_frames++;
-
 	return 1;
 }
 
