@@ -75,11 +75,23 @@ const char *SSID_fields_text[] = {
 
 const char *BSSIDSRC_fields_text[] = {
 	"bssid", "uuid", "lasttime", "numpackets", 
+    "signal_dbm", "noise_dbm",
+	"minsignal_dbm", "minnoise_dbm",
+	"maxsignal_dbm", "maxnoise_dbm",
+    "signal_rssi", "noise_rssi",
+	"minsignal_rssi", "minnoise_rssi",
+	"maxsignal_rssi", "maxnoise_rssi",
 	NULL
 };
 
 const char *CLISRC_fields_text[] = {
 	"bssid", "mac", "uuid", "lasttime", "numpackets",
+    "signal_dbm", "noise_dbm",
+	"minsignal_dbm", "minnoise_dbm",
+	"maxsignal_dbm", "maxnoise_dbm",
+    "signal_rssi", "noise_rssi",
+	"minsignal_rssi", "minnoise_rssi",
+	"maxsignal_rssi", "maxnoise_rssi",
 	NULL
 };
 
@@ -930,6 +942,42 @@ int Protocol_BSSIDSRC(PROTO_PARMS) {
 			case BSSIDSRC_numpackets:
 				scratch = IntToString(sd->num_packets);
 				break;
+			case BSSIDSRC_signal_dbm:
+				scratch = IntToString(sd->snrdata.last_signal_dbm);
+				break;
+			case BSSIDSRC_minsignal_dbm:
+				scratch = IntToString(sd->snrdata.min_signal_dbm);
+				break;
+			case BSSIDSRC_maxsignal_dbm:
+				scratch = IntToString(sd->snrdata.max_signal_dbm);
+				break;
+			case BSSIDSRC_noise_dbm:
+				scratch = IntToString(sd->snrdata.last_noise_dbm);
+				break;
+			case BSSIDSRC_minnoise_dbm:
+				scratch = IntToString(sd->snrdata.min_noise_dbm);
+				break;
+			case BSSIDSRC_maxnoise_dbm:
+				scratch = IntToString(sd->snrdata.max_noise_dbm);
+				break;
+			case BSSIDSRC_signal_rssi:
+				scratch = IntToString(sd->snrdata.last_signal_rssi);
+				break;
+			case BSSIDSRC_minsignal_rssi:
+				scratch = IntToString(sd->snrdata.min_signal_rssi);
+				break;
+			case BSSIDSRC_maxsignal_rssi:
+				scratch = IntToString(sd->snrdata.max_signal_rssi);
+				break;
+			case BSSIDSRC_noise_rssi:
+				scratch = IntToString(sd->snrdata.last_noise_rssi);
+				break;
+			case BSSIDSRC_minnoise_rssi:
+				scratch = IntToString(sd->snrdata.min_noise_rssi);
+				break;
+			case BSSIDSRC_maxnoise_rssi:
+				scratch = IntToString(sd->snrdata.max_noise_rssi);
+				break;
 		}
 
 		out_string += scratch;
@@ -1131,6 +1179,42 @@ int Protocol_CLISRC(PROTO_PARMS) {
 				break;
 			case CLISRC_numpackets:
 				scratch = IntToString(sd->num_packets);
+				break;
+			case CLISRC_signal_dbm:
+				scratch = IntToString(sd->snrdata.last_signal_dbm);
+				break;
+			case CLISRC_minsignal_dbm:
+				scratch = IntToString(sd->snrdata.min_signal_dbm);
+				break;
+			case CLISRC_maxsignal_dbm:
+				scratch = IntToString(sd->snrdata.max_signal_dbm);
+				break;
+			case CLISRC_noise_dbm:
+				scratch = IntToString(sd->snrdata.last_noise_dbm);
+				break;
+			case CLISRC_minnoise_dbm:
+				scratch = IntToString(sd->snrdata.min_noise_dbm);
+				break;
+			case CLISRC_maxnoise_dbm:
+				scratch = IntToString(sd->snrdata.max_noise_dbm);
+				break;
+			case CLISRC_signal_rssi:
+				scratch = IntToString(sd->snrdata.last_signal_rssi);
+				break;
+			case CLISRC_minsignal_rssi:
+				scratch = IntToString(sd->snrdata.min_signal_rssi);
+				break;
+			case CLISRC_maxsignal_rssi:
+				scratch = IntToString(sd->snrdata.max_signal_rssi);
+				break;
+			case CLISRC_noise_rssi:
+				scratch = IntToString(sd->snrdata.last_noise_rssi);
+				break;
+			case CLISRC_minnoise_rssi:
+				scratch = IntToString(sd->snrdata.min_noise_rssi);
+				break;
+			case CLISRC_maxnoise_rssi:
+				scratch = IntToString(sd->snrdata.max_noise_rssi);
 				break;
 		}
 
@@ -2200,6 +2284,8 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 	int newclient = 0;
 	char status[STATUS_MAX];
 
+	Packinfo_Sig_Combo *sc = NULL;
+
 	// Fetch the info from the packet chain data
 	kis_ieee80211_packinfo *packinfo = (kis_ieee80211_packinfo *) 
 		in_pack->fetch(_PCM(PACK_COMP_80211));
@@ -2401,40 +2487,6 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 			cli->type = client_adhoc;
 	}
 
-	// Add the source to the network record of who has seen us and when
-	kis_ref_capsource *capsource = (kis_ref_capsource *)
-		in_pack->fetch(_PCM(PACK_COMP_KISCAPSRC));
-	if (capsource != NULL && capsource->ref_source != NULL) {
-		map<uuid, source_data *>::iterator sdi;
-
-		if ((sdi = net->source_map.find(capsource->ref_source->FetchUUID())) !=
-			net->source_map.end()) {
-			sdi->second->last_seen = globalreg->timestamp.tv_sec;
-			sdi->second->num_packets++;
-		} else {
-			source_data *sd = new source_data;
-			sd->source_uuid = capsource->ref_source->FetchUUID();
-			sd->last_seen = globalreg->timestamp.tv_sec;
-			sd->num_packets = 1;
-			sd->bssid = net->bssid;
-			net->source_map[sd->source_uuid] = sd;
-		}
-
-		if ((sdi = cli->source_map.find(capsource->ref_source->FetchUUID())) !=
-			cli->source_map.end()) {
-			sdi->second->last_seen = globalreg->timestamp.tv_sec;
-			sdi->second->num_packets++;
-		} else {
-			source_data *sd = new source_data;
-			sd->source_uuid = capsource->ref_source->FetchUUID();
-			sd->last_seen = globalreg->timestamp.tv_sec;
-			sd->num_packets = 1;
-			sd->bssid = net->bssid;
-			sd->mac = cli->mac;
-			cli->source_map[sd->source_uuid] = sd;
-		}
-	}
-
 	// Link it to the packet for future chain elements
 	kis_netracker_netinfo *netpackinfo = new kis_netracker_netinfo;
 	netpackinfo->netref = net;
@@ -2461,10 +2513,53 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 
 	// Make an info pair and add it to our signaling layer
 	if (l1info != NULL) {
-		Packinfo_Sig_Combo sc(l1info, gpsinfo);
-		net->snrdata += sc;
-		cli->snrdata += sc;
+		sc = new Packinfo_Sig_Combo(l1info, gpsinfo);
+		net->snrdata += *sc;
+		cli->snrdata += *sc;
 	}
+
+	// Add the source to the network record of who has seen us and when
+	kis_ref_capsource *capsource = (kis_ref_capsource *)
+		in_pack->fetch(_PCM(PACK_COMP_KISCAPSRC));
+	if (capsource != NULL && capsource->ref_source != NULL) {
+		map<uuid, source_data *>::iterator sdi;
+
+		if ((sdi = net->source_map.find(capsource->ref_source->FetchUUID())) !=
+			net->source_map.end()) {
+			sdi->second->last_seen = globalreg->timestamp.tv_sec;
+			sdi->second->num_packets++;
+			if (sc != NULL)
+				sdi->second->snrdata += *sc;
+		} else {
+			source_data *sd = new source_data;
+			sd->source_uuid = capsource->ref_source->FetchUUID();
+			sd->last_seen = globalreg->timestamp.tv_sec;
+			sd->num_packets = 1;
+			sd->bssid = net->bssid;
+			if (sc != NULL)
+				sd->snrdata += *sc;
+			net->source_map[sd->source_uuid] = sd;
+		}
+
+		if ((sdi = cli->source_map.find(capsource->ref_source->FetchUUID())) !=
+			cli->source_map.end()) {
+			sdi->second->last_seen = globalreg->timestamp.tv_sec;
+			sdi->second->num_packets++;
+			if (sc != NULL)
+				sdi->second->snrdata += *sc;
+		} else {
+			source_data *sd = new source_data;
+			sd->source_uuid = capsource->ref_source->FetchUUID();
+			sd->last_seen = globalreg->timestamp.tv_sec;
+			sd->num_packets = 1;
+			sd->bssid = net->bssid;
+			sd->mac = cli->mac;
+			if (sc != NULL)
+				sd->snrdata += *sc;
+			cli->source_map[sd->source_uuid] = sd;
+		}
+	}
+
 
 	// Add to the LLC count
 	if (packinfo->type == packet_management) {

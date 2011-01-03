@@ -111,11 +111,23 @@ enum CLIENT_fields {
 
 enum BSSIDSRC_fields {
 	BSSIDSRC_bssid, BSSIDSRC_uuid, BSSIDSRC_lasttime, BSSIDSRC_numpackets,
+    BSSIDSRC_signal_dbm, BSSIDSRC_noise_dbm, 
+	BSSIDSRC_minsignal_dbm, BSSIDSRC_minnoise_dbm,
+    BSSIDSRC_maxsignal_dbm, BSSIDSRC_maxnoise_dbm,
+    BSSIDSRC_signal_rssi, BSSIDSRC_noise_rssi, 
+	BSSIDSRC_minsignal_rssi, BSSIDSRC_minnoise_rssi,
+    BSSIDSRC_maxsignal_rssi, BSSIDSRC_maxnoise_rssi,
 	BSSIDSRC_maxfield
 };
 
 enum CLISRC_fields {
 	CLISRC_bssid, CLISRC_mac, CLISRC_uuid, CLISRC_lasttime, CLISRC_numpackets,
+    CLISRC_signal_dbm, CLISRC_noise_dbm, 
+	CLISRC_minsignal_dbm, CLISRC_minnoise_dbm,
+    CLISRC_maxsignal_dbm, CLISRC_maxnoise_dbm,
+    CLISRC_signal_rssi, CLISRC_noise_rssi, 
+	CLISRC_minsignal_rssi, CLISRC_minnoise_rssi,
+    CLISRC_maxsignal_rssi, CLISRC_maxnoise_rssi,
 	CLISRC_maxfield
 };
 
@@ -187,19 +199,6 @@ public:
 	// Forward defs
 	class tracked_network;
 	class tracked_client;
-
-	struct source_data {
-		source_data() {
-			last_seen = 0;
-			num_packets = 0;
-		}
-
-		uuid source_uuid;
-		time_t last_seen;
-		uint32_t num_packets;
-		mac_addr bssid;
-		mac_addr mac;
-	};
 
 	struct ip_data {
 		ip_data() {
@@ -400,6 +399,21 @@ public:
 			return *this;
 		}
 
+	};
+
+	struct source_data {
+		source_data() {
+			last_seen = 0;
+			num_packets = 0;
+		}
+
+		uuid source_uuid;
+		time_t last_seen;
+		uint32_t num_packets;
+		mac_addr bssid;
+		mac_addr mac;
+
+		Netracker::signal_data snrdata;
 	};
 
 	// Advertised SSID data for multi-ssid networks
