@@ -37,7 +37,9 @@
 class PacketSource_Broken : public KisPacketSource {
 public:
 	PacketSource_Broken() { }
-	PacketSource_Broken(GlobalRegistry *in_globalreg) : KisPacketSource(in_globalreg) { }
+	PacketSource_Broken(GlobalRegistry *in_globalreg) : KisPacketSource(in_globalreg) { 
+		error = 1;
+	}
 
 	virtual KisPacketSource *CreateSource(GlobalRegistry *in_globalreg,
 										  string in_interface,
