@@ -36,7 +36,7 @@ int Ifconfig_Set_Flags(const char *in_dev, char *errstr, int flags) {
     if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
         snprintf(errstr, STATUS_MAX, "SetIFFlags: Failed to create AF_INET "
                  "DGRAM socket. %d:%s", errno, strerror(errno));
-        return -1;
+        return errno; 
     }
 
     // Fetch interface flags
@@ -52,7 +52,7 @@ int Ifconfig_Set_Flags(const char *in_dev, char *errstr, int flags) {
         snprintf(errstr, STATUS_MAX, "SetIFFlags: interface %s: %s", 
                  in_dev, strerror(errno));
         close(skfd);
-        return -1;
+        return errno;
     }
 
     close(skfd);
@@ -204,7 +204,7 @@ int Ifconfig_Set_Hwaddr(const char *in_dev, char *errstr, uint8_t *in_hwaddr) {
     if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
         snprintf(errstr, STATUS_MAX, "Setting HWAddr: failed to create AF_INET "
                  "DGRAM socket. %s", strerror(errno));
-        return -1;
+        return errno; 
     }
 
     strncpy(ifr.ifr_name, in_dev, IFNAMSIZ);
@@ -217,7 +217,7 @@ int Ifconfig_Set_Hwaddr(const char *in_dev, char *errstr, uint8_t *in_hwaddr) {
         snprintf(errstr, STATUS_MAX, "Setting HWAddr: interface %s: %s", 
                  in_dev, strerror(errno));
         close(skfd);
-        return -1;
+        return errno;
     }
 
     close(skfd);

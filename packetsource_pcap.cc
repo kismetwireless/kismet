@@ -101,8 +101,6 @@ int PacketSource_Pcap::OpenSource() {
 	last_channel = 0;
 	char *unconst = strdup(interface.c_str());
 
-	error = 0;
-	
 	pd = pcap_open_live(unconst, MAX_PACKET_LEN, 1, 1000, errstr);
 
 	free(unconst);
@@ -112,6 +110,8 @@ int PacketSource_Pcap::OpenSource() {
 		return 0;
 	}
 
+	error = 0;
+	
 	paused = 0;
 	errstr[0] = '\0';
 	num_packets = 0;

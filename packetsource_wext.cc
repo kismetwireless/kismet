@@ -425,6 +425,7 @@ int PacketSource_Wext::ScanWpaSupplicant() {
 
 int PacketSource_Wext::EnableMonitor() {
 	char errstr[STATUS_MAX];
+	int ret;
 
 #ifdef HAVE_LINUX_NETLINK
 	if (Linux_GetSysDrvAttr(interface.c_str(), "phy80211")) {
@@ -485,13 +486,22 @@ int PacketSource_Wext::EnableMonitor() {
 			 "this and create a new monitor mode vap no matter what, use the "
 			 "forcevap=true source option", MSGFLAG_PRINTERROR);
 	} else if (vap != "" && use_mac80211) {
-		if (Ifconfig_Delta_Flags(parent.c_str(), errstr, 
-								 IFF_UP | IFF_RUNNING | IFF_PROMISC) < 0) {
+		if ((ret = Ifconfig_Delta_Flags(parent.c_str(), errstr, 
+										IFF_UP | IFF_RUNNING | IFF_PROMISC)) < 0) {
 			_MSG(errstr, MSGFLAG_PRINTERROR);
-			_MSG("Failed to bring up interface '" + parent + "', this "
-				 "often means there is a problem with the driver (such as "
-				 "missing firmware), check the output of `dmesg'.",
-				 MSGFLAG_PRINTERROR);
+			if (ret == ENODEV) {
+				warning = "Failed to find interface '" + parent + "', it may not be "
+					"present at this time, it may not exist at all, or there may "
+					"be a problem with the driver (such as missing firmware)";
+
+			} else {
+				warning = "Failed to bring up interface '" + parent + "', this "
+					"often means there is a problem with the driver (such as "
+					"missing firmware), check the output of `dmesg'.";
+			}
+
+			_MSG(warning, MSGFLAG_PRINTERROR);
+
 			return -1;
 		}
 
