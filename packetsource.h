@@ -283,6 +283,10 @@ public:
     // Fetch number of packets we've processed
     virtual int FetchNumPackets() { return num_packets; } 
 
+	// Add a packet to the count (for packetsourcetracker to increment us for IPC
+	// packets)
+	virtual void AddPacketCount() { num_packets++; }
+
 	// Pause/resume listening to this source (what this means depends on 
 	// the implementation of polling)
     void Pause() { paused = 1; };

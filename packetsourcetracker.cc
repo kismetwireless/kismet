@@ -1715,6 +1715,9 @@ int Packetsourcetracker::IpcPacket(ipc_source_packet *in_ipc) {
 
 	pstsource = packetsource_map[in_ipc->source_id];
 
+	if (pstsource->strong_source != NULL)
+		pstsource->strong_source->AddPacketCount();
+
 	newpack = globalreg->packetchain->GeneratePacket();
 
 	newpack->ts.tv_sec = in_ipc->tv_sec;
