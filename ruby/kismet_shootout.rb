@@ -32,6 +32,9 @@ $card_records = {}
 $lines_per_header = 10
 $num_printed = 10
 
+# output type (std, pretty, csv)
+$output_type = "std"
+
 def sourcecb(proto, fields)
 	if fields["error"] != "0"
 		puts "ERROR: Source #{fields['interface']} went into error state"
@@ -74,6 +77,10 @@ def sourcecb(proto, fields)
 					lasttotal = 0
 					best = 0
 
+					if $output_type == "pretty"
+						str = "\x1b[2K\x1b[1F"
+					end
+
 					$card_records.each { |cr|
 						total = total + cr[1]["packets"]
 						lasttotal = lasttotal + cr[1]["last_packets"]
@@ -88,7 +95,7 @@ def sourcecb(proto, fields)
 
 					str = sprintf("%s %6.6s", str, total - lasttotal)
 
-					if $num_printed == $lines_per_header
+					if $num_printed == $lines_per_header 
 						puts
 						hstr = ""
 
@@ -100,7 +107,16 @@ def sourcecb(proto, fields)
 
 						puts hstr
 
-						$num_printed = 0
+						# Stupid kluge for pretty output
+						if $output_type == "pretty"
+							puts
+						end
+
+
+						# Only reset for std, meaning don't print headers for pretty
+						if $output_type == "std"
+							$num_printed = 0
+						end
 					end
 
 					puts str
@@ -175,8 +191,21 @@ opt = Long.getopts(
 	["--host", "", REQUIRED],
 	["--port", "", REQUIRED],
 	["--source", "-s", REQUIRED],
-	["--channel", "-c", REQUIRED]
+	["--channel", "-c", REQUIRED],
+	["--output", "", REQUIRED],
+	["--help", "-h", OPTIONAL]
 	)
+
+if opt.include?("help")
+	puts "Usage:"
+	puts "  --host <host>               Connect to Kismet server on host"
+	puts "  --port <port>               Connect to Kismet server on port"
+	puts "  --source/-s <sourcename>    Measure source named <sourcename>"
+	puts "  --channel/-c <channelnum>   Measure sources on channel <channelnum>"
+	puts "  --output <std|pretty>       Change output types"
+	exit
+
+end
 
 if opt["host"]
 	host = opt["host"]
@@ -207,6 +236,15 @@ if opt["source"]
 		$cards = opt["source"]
 	end
 end
+
+if opt["output"]
+	if opt["output"] == "std" or opt["output"] == "pretty" 
+		$output_type = opt["output"]
+	else
+		puts "ERROR: Invalid opt type, expected std, or pretty"
+	end
+end
+		
 
 puts "INFO: Kismet NIC Shootout"
 puts "      Compare capture performance of multiple NICs"
