@@ -164,6 +164,17 @@ class Kismet
 		sendraw("!0 REMOVE #{p}")
 	end
 
+	def command(command, ackback = nil)
+		if ackback != nil 
+			@ackbacks[@cmd] = ackback
+		end
+
+		sendraw("!#{@cmd} #{command}\n")
+
+		@cmd = @cmd + 1
+		
+	end
+
 end
 
 def genericcb(proto, fields)
