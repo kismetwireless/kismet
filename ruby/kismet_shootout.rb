@@ -295,7 +295,7 @@ if $cards.length == 0
 	exit
 end
 
-puts "INFO: Testing sources #{$cards.join(", ")} on channel #{channel}"
+puts "INFO: Testing sources #{$cards.join(", ")} on channel #{$channel}"
 
 # Print a header line
 $num_printed = $lines_per_header
