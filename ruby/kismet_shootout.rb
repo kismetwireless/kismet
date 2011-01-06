@@ -38,7 +38,7 @@ $output_type = "std"
 def sourcecb(proto, fields)
 	if fields["error"] != "0"
 		puts "ERROR: Source #{fields['interface']} went into error state"
-		$k.die
+		$k.kill
 	end
 
 	if $cards_found == 0
@@ -53,7 +53,7 @@ def sourcecb(proto, fields)
 		# Once we've seen all the sources we expect to see twice, we start outputting
 		# tracking data
 		if $channel_locked > $cards.length * 2
-			if $card_records.include?(fields["uuid"])
+			if $card_records.include?(fields["uuid"]) and $cards.include?(fields["interface"])
 				# If we've seen this before, start the scan and print cycle
 				r = $card_records[fields["uuid"]]
 
@@ -77,38 +77,26 @@ def sourcecb(proto, fields)
 					lasttotal = 0
 					best = 0
 
-					if $output_type == "pretty"
-						str = "\x1b[2K\x1b[1F"
-					end
-
-					$card_records.each { |cr|
-						total = total + cr[1]["packets"]
-						lasttotal = lasttotal + cr[1]["last_packets"]
-						best = cr[1]["packets"] if cr[1]["packets"] > best
-					}
-
-					$card_records.each { |cr|
-						cr[1]["printed"] = 1
-
-						str = sprintf("%s  %6.6s %5.5s %8.8s %3d%%", str, "", cr[1]["packets"] - cr[1]["last_packets"], cr[1]["packets"], (cr[1]["packets"].to_f / best.to_f) * 100)
-					}
-
-					str = sprintf("%s %6.6s", str, total - lasttotal)
-
 					if $num_printed == $lines_per_header 
 						puts
 						hstr = ""
 
-						$cards.each { |c|
-							hstr = sprintf("%s  %6.6s %5.5s %8.8s %4.4s", hstr, c, "PPS", "Total", "Pcnt")
-						}
+						if $output_type == "pretty"
+							hstr = sprintf("%s  %6.6s %5.5s %8.8s %4.4s", hstr, "", "PPS", "Total", "Pcnt")
 
-						hstr = sprintf("%s %6.6s", hstr, "Combo")
+						else
+							$cards.each { |c|
+								hstr = sprintf("%s  %6.6s %5.5s %8.8s %4.4s", hstr, c, "PPS", "Total", "Pcnt")
+							}
+						end
+
+						hstr = sprintf("%s %6.6s", hstr, "Total")
 
 						puts hstr
 
 						# Stupid kluge for pretty output
 						if $output_type == "pretty"
+							$cards.each { puts }
 							puts
 						end
 
@@ -119,14 +107,46 @@ def sourcecb(proto, fields)
 						end
 					end
 
-					puts str
+
+					$card_records.each { |cr|
+						total = total + cr[1]["packets"]
+						lasttotal = lasttotal + cr[1]["last_packets"]
+						best = cr[1]["packets"] if cr[1]["packets"] > best
+					}
+
+					if $output_type == "pretty"
+						# Go back up N cards
+						print "\x1b[1F\x1b[2K" * ($card_records.length + 1)
+
+						$card_records.each { |cr|
+							cr[1]["printed"] = 1
+
+							printf("  %6.6s %5.5s %8.8s %3d%%\n", cr[1]["interface"], cr[1]["packets"] - cr[1]["last_packets"], cr[1]["packets"], (cr[1]["packets"].to_f / best.to_f) * 100)
+						}
+
+						printf("  %6.6s %5.5s %8.8s %4.4s %6.6s\n", "", "", "", "", total - lasttotal)
+					else
+						$card_records.each { |cr|
+							cr[1]["printed"] = 1
+
+							cname = ""
+							cname = cr[1]["interface"] if $output_type == "pretty"
+
+							str = sprintf("%s  %6.6s %5.5s %8.8s %3d%%", str, cname, cr[1]["packets"] - cr[1]["last_packets"], cr[1]["packets"], (cr[1]["packets"].to_f / best.to_f) * 100)
+						}
+
+						str = sprintf("%s %6.6s", str, total - lasttotal)
+
+						puts str
+					end
 
 					$num_printed = $num_printed + 1
 
 				end
 
-			else
+			elsif $cards.include?(fields["interface"])
 				r = {}
+				r["interface"] = fields["interface"]
 				r["printed"] = 0
 				r["last_packets"] = 0
 				r["orig_packets"] = fields["packets"].to_i
@@ -143,7 +163,7 @@ end
 def lockcback(text)
 	if text != "OK"
 		puts "ERROR: Failed to lock source to channel: #{text}"
-		$k.die
+		$k.kill
 		exit
 	end
 end
@@ -183,20 +203,28 @@ end
 
 # As soon as we get the ack for this command, kill the connection, because
 # we're in no-sources-specified mode
-def nosourceack()
+def nosourceack(text)
 	$k.kill
 end
 
-opt = Long.getopts(
-	["--host", "", REQUIRED],
-	["--port", "", REQUIRED],
-	["--source", "-s", REQUIRED],
-	["--channel", "-c", REQUIRED],
-	["--output", "", REQUIRED],
-	["--help", "-h", OPTIONAL]
-	)
+opt = {}
+
+begin
+	opt = Long.getopts(
+		["--host", "", REQUIRED],
+		["--port", "", REQUIRED],
+		["--source", "-s", REQUIRED],
+		["--channel", "-c", REQUIRED],
+		["--output", "", REQUIRED],
+		["--help", "-h", OPTIONAL]
+		)
+rescue Long::Error
+end
 
 if opt.include?("help")
+	puts "Kismet NIC Shootout"
+	puts "      Compare capture performance of multiple NICs"
+	puts
 	puts "Usage:"
 	puts "  --host <host>               Connect to Kismet server on host"
 	puts "  --port <port>               Connect to Kismet server on port"

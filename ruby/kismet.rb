@@ -2,6 +2,7 @@
 
 require 'socket'
 require 'time'
+require 'pp'
 
 class Kismet
 	def initialize(host = "localhost", port = 2501)
@@ -11,13 +12,15 @@ class Kismet
 		@cmd = 0
 		@callbacks = { }
 		@ackbacks = { }
+		@thr = nil
 	end
 
 	def connect()
 		@die = 0
 		begin 
 			@conn = TCPSocket.new(@host, @port)
-		rescue
+		rescue Exception => e
+			pp e
 			puts "error: #{$!}"
 		end
 	end
@@ -28,10 +31,11 @@ class Kismet
 				begin
 					#print @conn.gets() + "\n"
 					parseline @conn.gets()
-				rescue
-					break if @die
+				rescue Exception => e
+					pp e
 
-					puts "read error: #{$!}"
+					raise e
+
 					break
 				end
 			end
@@ -41,7 +45,9 @@ class Kismet
 	def sendraw(txd)
 		begin
 			@conn.puts(txd)
-		rescue
+		rescue Exception => e
+			pp e
+
 			break if @die
 
 			puts "write error: #{$!}"
@@ -51,7 +57,8 @@ class Kismet
 	def kill()
 		@die = 1
 		@conn.close
-		@thr.join
+		@thr.kill
+		@thr.join if not @thr == nil
 	end
 
 	def wait()

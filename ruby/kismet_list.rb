@@ -15,6 +15,7 @@ def bssiddiecb(text)
 end
 
 $k = Kismet.new()
+
 $k.connect()
 
 $k.run()
