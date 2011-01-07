@@ -8,9 +8,7 @@ require 'socket'
 require 'time'
 require 'kismet'
 require 'pp'
-require "getopt/long"
-
-include Getopt
+require 'optparse'
 
 host = "localhost"
 port = 2501
@@ -207,72 +205,57 @@ def nosourceack(text)
 	$k.kill
 end
 
-opt = {}
+options = {}
 
-begin
-	opt = Long.getopts(
-		["--host", "", REQUIRED],
-		["--port", "", REQUIRED],
-		["--source", "-s", REQUIRED],
-		["--channel", "-c", REQUIRED],
-		["--output", "", REQUIRED],
-		["--help", "-h", OPTIONAL]
-		)
-rescue Long::Error
+OptionParser.new do |opts|
+	opts.banner = "Usage: shootout.rb [options] source1 ... sourceN"
+
+	opts.on("--host HOST", "Connect to server on host") do |h|
+		options[:host] = h
+	end
+
+	opts.on("--port PORT", "Connect to server on PORT") do |p|
+		options[:port] = p
+	end
+
+	opts.on("--channel CHANNEL", "Test on CHANNEL (default 6)") do |c|
+		options[:channel] = c
+	end
+
+	opts.on("--pretty", "Format output with pretty ANSI codes") do 
+		options[:pretty] = true
+	end
+
+end.parse!
+
+if options[:host]
+	host = options[:host]
 end
 
-if opt.include?("help")
-	puts "Kismet NIC Shootout"
-	puts "      Compare capture performance of multiple NICs"
-	puts
-	puts "Usage:"
-	puts "  --host <host>               Connect to Kismet server on host"
-	puts "  --port <port>               Connect to Kismet server on port"
-	puts "  --source/-s <sourcename>    Measure source named <sourcename>"
-	puts "  --channel/-c <channelnum>   Measure sources on channel <channelnum>"
-	puts "  --output <std|pretty>       Change output types"
-	exit
-
-end
-
-if opt["host"]
-	host = opt["host"]
-end
-
-if opt["port"]
-	if opt["port"].match(/[^0-9]+/) != nil
+if options[:port]
+	if options[:port].match(/[^0-9]+/) != nil
 		puts "ERROR:  Invalid port, expected number"
 		exit
 	end
 
-	port = opt["port"].to_i
+	port = options[:port].to_i
 end
 
-if opt["channel"]
-	if opt["channel"].match(/[^0-9]+/) != nil
+if options[:channel]
+	if options[:channel].match(/[^0-9]+/) != nil
 		puts "ERROR:  Invalid channel, expected number"
 		exit
 	end
 
-	channel = opt["channel"].to_i
+	channel = options[:channel].to_i
 end
 
-if opt["source"]
-	if opt["source"].class != Array
-		$cards = [opt["source"]]
-	else
-		$cards = opt["source"]
-	end
+
+if options[:pretty]
+	$output_type = "pretty"
 end
 
-if opt["output"]
-	if opt["output"] == "std" or opt["output"] == "pretty" 
-		$output_type = opt["output"]
-	else
-		puts "ERROR: Invalid opt type, expected std, or pretty"
-	end
-end
-		
+$cards = ARGV
 
 puts "INFO: Kismet NIC Shootout"
 puts "      Compare capture performance of multiple NICs"
@@ -281,7 +264,15 @@ puts
 puts "INFO: Connecting to Kismet server on #{host}:#{port}"
 
 $k = Kismet.new(host, port)
-$k.connect()
+
+begin
+	$k.connect()
+rescue Errno::ECONNREFUSED
+	puts "ERROR:  Kismet server not running (connection refused)"
+	puts "ERROR:  Will retry connecting in 5 seconds"
+	sleep(5)
+	retry
+end
 
 $k.run()
 

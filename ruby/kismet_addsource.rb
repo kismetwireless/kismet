@@ -40,9 +40,6 @@ OptionParser.new do |opts|
 
 end.parse!
 
-p options
-p ARGV
-
 if options[:host]
 	host = options[:host]
 end

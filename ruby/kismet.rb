@@ -17,12 +17,7 @@ class Kismet
 
 	def connect()
 		@die = 0
-		begin 
-			@conn = TCPSocket.new(@host, @port)
-		rescue Exception => e
-			pp e
-			puts "error: #{$!}"
-		end
+		@conn = TCPSocket.new(@host, @port)
 	end
 
 	def run()
