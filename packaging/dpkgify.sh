@@ -1,5 +1,14 @@
 #!/bin/bash
 
+if [ "$1" == 'amd64' ]; then
+	ARCH=amd64
+elif [ "$1" == 'i386' ]; then
+	ARCH=i386
+else
+	echo "No arch, expected amd64 or i386, fail"
+	exit
+fi
+
 rm -rf dpkg
 
 mkdir dpkg
@@ -45,10 +54,11 @@ Package: Kismet
 Version: $VERSION
 Section: net
 Priority: optional
-Architecture: all
+Architecture: $ARCH
 Homepage: http://www.kismetwireless.net
 Installed-Size: `du -ks dpkg/data/|cut -f 1`
 Maintainer: Mike Kershaw/Dragorn <dragorn@kismetwireless.net>
+Depends: libc6 (>= 2.4), libcap2 (>= 2.10), libpcap0.8 (>= 1.0.0), debconf (>= 0.5) | debconf-2.0, debconf, libcap2-bin, libpcre3, libncurses5, libstdc++6
 Description: Kismet wireless sniffer and IDS
  Kismet is an 802.11 and other wireless sniffer, logger, and IDS.
  .
@@ -83,6 +93,6 @@ echo '2.0' > dpkg/debian-binary
 
 ar -r kismet-$VERSION.deb dpkg/debian-binary dpkg/control.tar.gz dpkg/data.tar.gz
 
-
+echo "Build dpkg $VERSION for $ARCH"
 
 
