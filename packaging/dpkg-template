@@ -20,3 +20,10 @@ Description: Should Kismet be installed to run with setuid privs?
  Kismet if you have untrusted users on your system.
  .
  Most users running Kismet on personal laptops should install it as setuid.
+
+Template: kismet/install-users
+Type: string
+Default:
+Description: Users to add to the kismet group
+ Only users in the kismet group are able to use kismet under the setuid model.
+ List users, comma-separated, to be added to the group.

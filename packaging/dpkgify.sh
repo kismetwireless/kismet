@@ -66,16 +66,7 @@ Description: Kismet wireless sniffer and IDS
  code branch.
 END
 
-cat > dpkg/control/config << END
-#! /bin/sh -e
-
-. /usr/share/debconf/confmodule
-
-db_input medium kismet/install-setuid || true
-db_go
-
-exit 0
-END
+cp dpkg-config dpkg/control/config
 chmod +x dpkg/control/config
 
 cp dpkg-template dpkg/control/templates
@@ -85,6 +76,9 @@ chmod +x dpkg/control/postinst
 
 cp dpkg-postrm dpkg/control/postrm
 chmod +x dpkg/control/postrm
+
+echo "/usr/etc/kismet.conf" > dpkg/control/conffiles
+echo "/usr/etc/kismet_drone.conf" > dpkg/control/conffiles
 
 ( cd dpkg/data; tar czvf ../data.tar.gz . )
 ( cd dpkg/control; tar zcvf ../control.tar.gz . )

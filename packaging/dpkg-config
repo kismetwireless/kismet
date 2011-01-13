@@ -1,0 +1,13 @@
+#! /bin/sh -e
+
+. /usr/share/debconf/confmodule
+
+db_input critical kismet/install-setuid || true
+db_go
+
+db_get kismet/install-setuid
+if [ "$RET" != "false" ]; then
+	db_input critical kismet/install-users || true
+	db_go
+fi
+
