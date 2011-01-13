@@ -19,8 +19,8 @@
 #ifndef __KISVERSION_H__
 #define __KISVERSION_H__
 
-#define VERSION_MAJOR	"2010"
-#define VERSION_MINOR	"07"
+#define VERSION_MAJOR	"2011"
+#define VERSION_MINOR	"01"
 #define VERSION_TINY	"R1"
 
 #define REVISION		"$Rev$"
