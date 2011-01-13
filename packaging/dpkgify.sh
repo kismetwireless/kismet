@@ -26,6 +26,7 @@ cp ../kismet_capture dpkg/data/usr/bin/
 cp ../kismet_server dpkg/data/usr/bin/
 cp ../kismet_client dpkg/data/usr/bin/
 cp ../scripts/kismet dpkg/data/usr/bin/
+chmod +x dpkg/data/usr/bin/kismet
 cp ../kismet_drone dpkg/data/usr/bin/
 
 strip dpkg/data/usr/bin/kismet_*
@@ -41,11 +42,14 @@ cp ../conf/kismet_drone.conf dpkg/data/usr/etc/
 
 cp ../README dpkg/data/usr/share/doc/
 
+cp ../wav/* dpkg/data/usr/share/kismet/wav/
+
 md5sum dpkg/data/usr/bin/* | sed -e 's/dpkg\/data\///' > dpkg/control/md5sums
 md5sum dpkg/data/usr/man/man1/* | sed -e 's/dpkg\/data\///' >> dpkg/control/md5sums
 md5sum dpkg/data/usr/man/man5/* | sed -e 's/dpkg\/data\///' >> dpkg/control/md5sums
 md5sum dpkg/data/usr/etc/* | sed -e 's/dpkg\/data\///' >> dpkg/control/md5sums
 md5sum dpkg/data/usr/share/doc/* | sed -e 's/dpkg\/data\///' >> dpkg/control/md5sums
+md5sum dpkg/data/usr/share/kismet/wav/* | sed -e 's/dpkg\/data\///' >> dpkg/control/md5sums
 
 VERSION=`../kismet_server --version | sed -e 's/Kismet \([0-9]*\)-\([0-9]*\)-R\([0-9]*\)/\1.\2.\3/'`
 

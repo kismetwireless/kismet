@@ -26,4 +26,8 @@ Type: string
 Default:
 Description: Users to add to the kismet group
  Only users in the kismet group are able to use kismet under the setuid model.
- List users, comma-separated, to be added to the group.
+ .
+ List users, separated by spaces, to be added to the group.
+ .
+ NOTE: After adding users to a group, typically they must log out and log in
+ again before the group is recognized.
