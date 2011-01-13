@@ -18,6 +18,16 @@ if [ -e "$PROGRAM" ]; then
         if [ -x /usr/sbin/dpkg-statoverride ] && \
             ! /usr/sbin/dpkg-statoverride --list $PROGRAM >/dev/null; then
             addgroup --quiet --system $GROUP
+
+			db_get kismet/install-users
+
+			declare -a USERS
+			USERS=(`echo $ret | tr "," " "`)
+
+			for x in ${USERS[@]}; do
+				usermod -a -G $GROUP $x
+			done
+
             chown root:$GROUP $PROGRAM
             if which setcap > /dev/null ; then
                 chmod u=rwx,g=rx,o=r $PROGRAM
