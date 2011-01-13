@@ -20,8 +20,6 @@ if [ -e "$PROGRAM" ]; then
 
             addgroup --quiet --system $GROUP
 
-			declare -a USERS
-
 			db_get kismet/install-users
 
 			for x in ${RET}; do
