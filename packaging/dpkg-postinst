@@ -22,9 +22,11 @@ if [ -e "$PROGRAM" ]; then
 
 			db_get kismet/install-users
 
-			for x in ${RET}; do
-				usermod -a -G $GROUP $x
-			done
+			if [ "$RET" != "" ]; then
+				for x in ${RET}; do
+					usermod -a -G $GROUP $x
+				done
+			fi
 
             chown root:$GROUP $PROGRAM
 
