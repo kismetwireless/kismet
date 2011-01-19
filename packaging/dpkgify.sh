@@ -84,12 +84,14 @@ chmod +x dpkg/control/postrm
 echo "/usr/etc/kismet.conf" > dpkg/control/conffiles
 echo "/usr/etc/kismet_drone.conf" > dpkg/control/conffiles
 
+chown root.root dpkg/ -Rv
+
 ( cd dpkg/data; tar czvf ../data.tar.gz . )
 ( cd dpkg/control; tar zcvf ../control.tar.gz . )
 
 echo '2.0' > dpkg/debian-binary
 
-ar -r kismet-$VERSION.deb dpkg/debian-binary dpkg/control.tar.gz dpkg/data.tar.gz
+ar -r kismet-$VERSION.$ARCH.deb dpkg/debian-binary dpkg/control.tar.gz dpkg/data.tar.gz
 
 echo "Build dpkg $VERSION for $ARCH"
 
