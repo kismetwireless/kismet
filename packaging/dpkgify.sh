@@ -16,11 +16,12 @@ mkdir dpkg/control
 mkdir dpkg/data
 mkdir -p dpkg/data/usr/bin
 mkdir -p dpkg/data/usr/etc
-mkdir -p dpkg/data/usr/lib/kismet
 mkdir -p dpkg/data/usr/man/man1
 mkdir -p dpkg/data/usr/man/man5
 mkdir -p dpkg/data/usr/share/kismet/wav
 mkdir -p dpkg/data/usr/share/doc
+mkdir -p dpkg/data/usr/lib/kismet
+mkdir -p dpkg/data/usr/lib/kismet_client
 
 cp ../kismet_capture dpkg/data/usr/bin/
 cp ../kismet_server dpkg/data/usr/bin/
@@ -30,6 +31,9 @@ chmod +x dpkg/data/usr/bin/kismet
 cp ../kismet_drone dpkg/data/usr/bin/
 
 strip dpkg/data/usr/bin/kismet_*
+
+strip dpkg/data/usr/lib/kismet/*.so
+strip dpkg/data/usr/lib/kismet_client/*.so
 
 cp ../man/kismet.1 dpkg/data/usr/man/man1/
 cp ../man/kismet_drone.1 dpkg/data/usr/man/man1/
@@ -44,10 +48,18 @@ cp ../README dpkg/data/usr/share/doc/
 
 cp ../wav/* dpkg/data/usr/share/kismet/wav/
 
+cp ../plugin-btscan/btscan.so dpkg/data/usr/lib/kismet/
+cp ../plugin-btscan/btscan_ui.so dpkg/data/usr/lib/kismet_client/
+
+cp ../plugin-spectools/spectool_net.so dpkg/data/usr/lib/kismet/
+cp ../plugin-spectools/spectools_ui.so dpkg/data/usr/lib/kismet_client/
+
 md5sum dpkg/data/usr/bin/* | sed -e 's/dpkg\/data\///' > dpkg/control/md5sums
 md5sum dpkg/data/usr/man/man1/* | sed -e 's/dpkg\/data\///' >> dpkg/control/md5sums
 md5sum dpkg/data/usr/man/man5/* | sed -e 's/dpkg\/data\///' >> dpkg/control/md5sums
 md5sum dpkg/data/usr/etc/* | sed -e 's/dpkg\/data\///' >> dpkg/control/md5sums
+md5sum dpkg/data/usr/lib/kismet/* | sed -e 's/dpkg\/data\///' >> dpkg/control/md5sums
+md5sum dpkg/data/usr/lib/kismet_client/* | sed -e 's/dpkg\/data\///' >> dpkg/control/md5sums
 md5sum dpkg/data/usr/share/doc/* | sed -e 's/dpkg\/data\///' >> dpkg/control/md5sums
 md5sum dpkg/data/usr/share/kismet/wav/* | sed -e 's/dpkg\/data\///' >> dpkg/control/md5sums
 
