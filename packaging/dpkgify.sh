@@ -66,7 +66,7 @@ md5sum dpkg/data/usr/share/kismet/wav/* | sed -e 's/dpkg\/data\///' >> dpkg/cont
 VERSION=`../kismet_server --version | sed -e 's/Kismet \([0-9]*\)-\([0-9]*\)-R\([0-9]*\)/\1.\2.\3/'`
 
 cat > dpkg/control/control <<END
-Package: Kismet
+Package: kismet
 Version: $VERSION
 Section: net
 Priority: optional

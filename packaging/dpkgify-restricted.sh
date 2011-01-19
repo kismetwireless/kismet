@@ -26,7 +26,7 @@ md5sum dpkg/data/usr/lib/kismet_client/* | sed -e 's/dpkg\/data\///' >> dpkg/con
 VERSION=`../kismet_server --version | sed -e 's/Kismet \([0-9]*\)-\([0-9]*\)-R\([0-9]*\)/\1.\2.\3/'`
 
 cat > dpkg/control/control <<END
-Package: Kismet Restricted Plugins
+Package: kismet-plugins-restricted
 Version: $VERSION
 Section: net
 Priority: optional
