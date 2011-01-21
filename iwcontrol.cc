@@ -32,8 +32,6 @@
 #include <linux/if.h>
 #include <linux/wireless.h>
 
-#endif // wireless
-
 #ifndef rintf
 #define rintf(x) (float) rint((double) (x))
 #endif
@@ -799,4 +797,6 @@ int Iwconfig_Get_Chanlist(const char *interface, char *errstr,
 }
 
 #endif
+
+#endif // wireless
 
