@@ -45,7 +45,10 @@
 #define MAC_LEN 6
 #define MAC_STR_LEN ((MAC_LEN * 2) + 6)
 
-// A packet MAC address
+// Mac address transformed into 64bit int for fast sorting
+// Optional PHY encoding for multi-phy MAC collisions
+// Phy set assumes phy numbering starts at 1 (0 implies no phy set)
+// Setting a new mac clears the phy
 struct mac_addr {
     uint64_t longmac;
     uint64_t longmask;
@@ -176,6 +179,11 @@ struct mac_addr {
 		string2long(in.c_str());
 	}
 
+	inline mac_addr(const string in, uint8_t in_phy) {
+		string2long(in.c_str());
+		SetPhy(in_phy);
+	}
+
     inline mac_addr(int in) {
 		in = in; // Silence gcc
         longmac = 0;
@@ -245,6 +253,16 @@ struct mac_addr {
 
         return index64(longmac, mdex);
     }
+
+	inline void SetPhy(uint8_t in_phy) {
+		longmac |= (uint64_t) in_phy << (6 * 8);
+		// Force enable checking of the phy once one is set
+		longmask |= (uint64_t) 0xFF << (6 * 6);
+	}
+
+	inline uint8_t GetPhy() {
+		return index64(longmac, 5);
+	}
 
 	inline uint32_t OUI() const {
 		return (longmac >> 24);
