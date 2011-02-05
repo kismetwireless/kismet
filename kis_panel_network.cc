@@ -872,7 +872,7 @@ void Kis_Netlist::Proto_BSSID(CLIPROTO_CB_PARMS) {
 		delete net;
 		return;
 	}
-	net->guess_ipdata.ip_type = (ipdata_type) tint;
+	net->guess_ipdata.ip_type = (kis_ipdata_type) tint;
 
 	// Rangeip
 	if (inet_aton((*proto_parsed)[fnum++].word.c_str(), 
@@ -1615,7 +1615,7 @@ void Kis_Netlist::Proto_CLIENT(CLIPROTO_CB_PARMS) {
 		delete cli;
 		return;
 	}
-	cli->guess_ipdata.ip_type = (ipdata_type) tint;
+	cli->guess_ipdata.ip_type = (kis_ipdata_type) tint;
 
 	// Rangeip
 	if (inet_aton((*proto_parsed)[fnum++].word.c_str(), 

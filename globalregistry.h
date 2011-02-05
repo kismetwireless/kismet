@@ -29,7 +29,12 @@
 // Pre-defs for all the things we point to
 class MessageBus;
 class Packetsourcetracker;
+
+// Old network tracking core due to be removed
 class Netracker;
+// new multiphy tracking core
+class Devicetracker;
+
 class Packetchain;
 class Alertracker;
 class Timetracker;
@@ -155,7 +160,12 @@ public:
     MessageBus *messagebus;
 	Plugintracker *plugintracker;
     Packetsourcetracker *sourcetracker;
+	
+	// Old network tracker due to be removed
     Netracker *netracker;
+	// New multiphy tracker
+	Devicetracker *devicetracker;
+
     Packetchain *packetchain;
     Alertracker *alertracker;
     Timetracker *timetracker;

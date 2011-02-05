@@ -41,6 +41,7 @@
 #include "packet.h"
 #include "uuid.h"
 #include "configfile.h"
+#include "devicetracker.h"
 
 // Cache file versioning
 #define NETRACKER_SSIDCACHE_VERSION 	2
@@ -166,31 +167,11 @@ enum client_type {
 	client_remove = 6
 };
 
-enum ipdata_type {
-	ipdata_unknown = 0,
-	ipdata_factoryguess = 1,
-	ipdata_udptcp = 2,
-	ipdata_arp = 3,
-	ipdata_dhcp = 4,
-	ipdata_group = 5
-};
-
 enum ssid_type {
 	ssid_beacon = 0,
 	ssid_proberesp = 1,
 	ssid_probereq = 2,
 	ssid_file = 3,
-};
-
-class Packinfo_Sig_Combo {
-public:
-	Packinfo_Sig_Combo(kis_layer1_packinfo *l1, kis_gps_packinfo *gp) {
-		lay1 = l1;
-		gps = gp;
-	}
-
-	kis_layer1_packinfo *lay1;
-	kis_gps_packinfo *gps;
 };
 
 // Netracker itself
@@ -199,207 +180,6 @@ public:
 	// Forward defs
 	class tracked_network;
 	class tracked_client;
-
-	struct ip_data {
-		ip_data() {
-			ip_type = ipdata_unknown;
-			ip_addr_block.s_addr = 0;
-			ip_netmask.s_addr = 0;
-			ip_gateway.s_addr = 0;
-		}
-
-		ipdata_type ip_type;
-
-		in_addr ip_addr_block;
-		in_addr ip_netmask;
-		in_addr ip_gateway;
-
-		inline ip_data& operator= (const ip_data& in) {
-			ip_addr_block.s_addr = in.ip_addr_block.s_addr;
-			ip_netmask.s_addr = in.ip_netmask.s_addr;
-			ip_gateway.s_addr = in.ip_gateway.s_addr;
-			ip_type = in.ip_type;
-
-			return *this;
-		}
-	};
-
-	// SNR info
-	struct signal_data {
-		signal_data() {
-			// These all go to 0 since we don't know if it'll be positive or
-			// negative
-			last_signal_dbm = last_noise_dbm = 0;
-			min_signal_dbm = min_noise_dbm = 0;
-			max_signal_dbm = max_noise_dbm = -256;
-
-			last_signal_rssi = last_noise_rssi = 0;
-			min_signal_rssi = min_noise_rssi = 1024;
-			max_signal_rssi = max_noise_rssi = 0;
-
-			peak_lat = peak_lon = peak_alt = 0;
-
-			maxseenrate = 0;
-			encodingset = 0;
-			carrierset = 0;
-		}
-
-		int last_signal_dbm, last_noise_dbm;
-		int min_signal_dbm, min_noise_dbm;
-		int max_signal_dbm, max_noise_dbm;
-
-		int last_signal_rssi, last_noise_rssi;
-		int min_signal_rssi, min_noise_rssi;
-		int max_signal_rssi, max_noise_rssi;
-		// Peak locations
-		double peak_lat, peak_lon, peak_alt;
-
-		// Max rate
-		int maxseenrate;
-
-		// Seen encodings
-		uint32_t encodingset;
-		uint32_t carrierset;
-
-		inline signal_data& operator= (const signal_data& in) {
-			last_signal_dbm = in.last_signal_dbm;
-			last_noise_dbm = in.last_noise_dbm;
-
-			min_signal_dbm = in.min_signal_dbm;
-			max_signal_dbm = in.max_signal_dbm;
-
-			min_noise_dbm = in.min_noise_dbm;
-			max_noise_dbm = in.max_noise_dbm;
-
-			last_signal_rssi = in.last_signal_rssi;
-			last_noise_rssi = in.last_noise_rssi;
-
-			min_signal_rssi = in.min_signal_rssi;
-			max_signal_rssi = in.max_signal_rssi;
-
-			min_noise_rssi = in.min_noise_rssi;
-			max_noise_rssi = in.max_noise_rssi;
-
-			peak_lat = in.peak_lat;
-			peak_lon = in.peak_lon;
-			peak_alt = in.peak_alt;
-
-			maxseenrate = in.maxseenrate;
-
-			encodingset = in.encodingset;
-			carrierset = in.carrierset;
-
-			return *this;
-		}
-
-		inline signal_data& operator+= (const Packinfo_Sig_Combo& in) {
-			if (in.lay1 != NULL) {
-				int gpscopy = 0;
-
-				if (in.lay1->signal_dbm < min_signal_dbm &&
-					in.lay1->signal_dbm != 0)
-					min_signal_dbm = in.lay1->signal_dbm;
-
-				if (in.lay1->signal_rssi < min_signal_rssi &&
-					in.lay1->signal_rssi != 0)
-					min_signal_rssi = in.lay1->signal_rssi;
-
-				if (in.lay1->signal_dbm > max_signal_dbm &&
-					in.lay1->signal_dbm != 0) {
-					max_signal_dbm = in.lay1->signal_dbm;
-					gpscopy = 1;
-				}
-
-				if (in.lay1->signal_rssi > max_signal_rssi &&
-					in.lay1->signal_rssi != 0) {
-					max_signal_rssi = in.lay1->signal_rssi;
-					gpscopy = 1;
-				}
-
-				if (in.lay1->noise_dbm < min_noise_dbm &&
-					in.lay1->noise_dbm != 0)
-					min_noise_dbm = in.lay1->noise_dbm;
-
-				if (in.lay1->noise_rssi < min_noise_rssi &&
-					in.lay1->noise_rssi != 0)
-					min_noise_rssi = in.lay1->noise_rssi;
-
-				if (in.lay1->noise_dbm > max_noise_dbm &&
-					in.lay1->noise_dbm != 0)
-					max_noise_dbm = in.lay1->noise_dbm;
-
-				if (in.lay1->noise_rssi > max_noise_rssi &&
-					in.lay1->noise_rssi != 0) 
-					max_noise_rssi = in.lay1->noise_rssi;
-
-				if (in.lay1->signal_rssi != 0)
-					last_signal_rssi = in.lay1->signal_rssi;
-				if (in.lay1->signal_dbm != 0)
-					last_signal_dbm = in.lay1->signal_dbm;
-				if (in.lay1->noise_rssi != 0)
-					last_noise_rssi = in.lay1->noise_rssi;
-				if (in.lay1->noise_dbm != 0)
-					last_noise_dbm = in.lay1->noise_dbm;
-
-				carrierset |= in.lay1->carrier;
-				encodingset |= in.lay1->encoding;
-
-				if (in.lay1->datarate > maxseenrate)
-					maxseenrate = in.lay1->datarate;
-
-				if (gpscopy && in.gps != NULL) {
-					peak_lat = in.gps->lat;
-					peak_lon = in.gps->lon;
-					peak_alt = in.gps->alt;
-				}
-			}
-
-			return *this;
-		}
-
-		inline signal_data& operator+= (const signal_data& in) {
-			if (in.min_signal_dbm < min_signal_dbm)
-				min_signal_dbm = in.min_signal_dbm;
-
-			if (in.min_signal_rssi < min_signal_rssi)
-				min_signal_rssi = in.min_signal_rssi;
-
-			if (in.max_signal_dbm > max_signal_dbm) {
-				max_signal_dbm = in.max_signal_dbm;
-				peak_lat = in.peak_lat;
-				peak_lon = in.peak_lon;
-				peak_alt = in.peak_alt;
-			}
-
-			if (in.max_signal_rssi > max_signal_rssi) {
-				max_signal_rssi = in.max_signal_rssi;
-				peak_lat = in.peak_lat;
-				peak_lon = in.peak_lon;
-				peak_alt = in.peak_alt;
-			}
-
-			if (in.min_noise_dbm < min_noise_dbm)
-				min_noise_dbm = in.min_noise_dbm;
-
-			if (in.min_noise_rssi < min_noise_rssi)
-				min_noise_rssi = in.min_noise_rssi;
-
-			if (in.max_noise_dbm > max_noise_dbm)
-				max_noise_dbm = in.max_noise_dbm;
-
-			if (in.max_noise_rssi > max_noise_rssi)
-				max_noise_rssi = in.max_noise_rssi;
-
-			encodingset |= in.encodingset;
-			carrierset |= in.carrierset;
-
-			if (maxseenrate < in.maxseenrate)
-				maxseenrate = in.maxseenrate;
-
-			return *this;
-		}
-
-	};
 
 	struct source_data {
 		source_data() {
@@ -413,7 +193,7 @@ public:
 		mac_addr bssid;
 		mac_addr mac;
 
-		Netracker::signal_data snrdata;
+		kis_signal_data snrdata;
 	};
 
 	// Advertised SSID data for multi-ssid networks
@@ -585,10 +365,10 @@ public:
 		kis_gps_data gpsdata;
 
 		// SNR info
-		Netracker::signal_data snrdata;
+		kis_signal_data snrdata;
 
 		// Guesstimated IP data
-		Netracker::ip_data guess_ipdata;
+		kis_ip_data guess_ipdata;
 
 		// state tracking elements
 		// Number of client disconnects (decayed per second)
@@ -692,7 +472,7 @@ public:
 		map<unsigned int, unsigned int> freq_mhz_map;
 
 		kis_gps_data gpsdata;
-		Netracker::signal_data snrdata;
+		kis_signal_data snrdata;
 
 		// Individual packet counts
 		int llc_packets;
@@ -713,7 +493,7 @@ public:
 		uint64_t datasize;
 
 		// Guesstimated IP data
-		ip_data guess_ipdata;
+		kis_ip_data guess_ipdata;
 
 		// Fragments and retries for packet stats
 		int fragments;
@@ -783,7 +563,7 @@ public:
 
 	typedef map<mac_addr, Netracker::tracked_network *>::iterator track_iter;
 	typedef map<mac_addr, Netracker::tracked_client *>::iterator client_iter;
-	typedef map<mac_addr, Netracker::ip_data>::iterator ipcache_iter;
+	typedef map<mac_addr, kis_ip_data>::iterator ipcache_iter;
 	typedef map<mac_addr, string>::iterator ssidcache_iter;
 	typedef map<mac_addr, Netracker::tracked_mini_client *>::iterator client_mini_iter;
 
@@ -825,7 +605,7 @@ protected:
 	map<mac_addr, Netracker::tracked_network *> probe_assoc_map;
 
 	// Cached data
-	map<mac_addr, Netracker::ip_data> bssid_ip_map;
+	map<mac_addr, kis_ip_data> bssid_ip_map;
 	map<mac_addr, string> bssid_cloak_map;
 
 	// Mini-client map for unique counting

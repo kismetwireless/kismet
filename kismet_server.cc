@@ -68,7 +68,10 @@
 #include "gpswrapper.h"
 
 #include "packetdissectors.h"
+
 #include "netracker.h"
+#include "devicetracker.h"
+
 #include "channeltracker.h"
 
 #include "dumpfile.h"
