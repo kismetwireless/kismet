@@ -127,7 +127,7 @@ protected:
 
 	int mn_sort, mi_sort_auto, mi_sort_type, mi_sort_chan, mi_sort_crypt, mi_sort_first, 
 		mi_sort_first_d, mi_sort_last, mi_sort_last_d, mi_sort_bssid, mi_sort_ssid,
-		mi_sort_packets, mi_sort_packets_d;
+		mi_sort_packets, mi_sort_packets_d, mi_sort_sdbm;
 	int mn_sort_appended;
 
 	int mn_view, mi_shownetworks, mi_showclients, mi_showsummary, mi_showstatus, 
@@ -450,7 +450,7 @@ protected:
 	int mn_preferences, mi_clicolprefs, mi_cliextraprefs;
 	int mn_sort, mi_sort_auto, mi_sort_type, mi_sort_first, mi_sort_first_d, 
 		mi_sort_last, mi_sort_last_d, mi_sort_mac, 
-		mi_sort_packets, mi_sort_packets_d;
+		mi_sort_packets, mi_sort_packets_d, mi_sort_sdbm;
 	int mn_view, mi_addnote, mi_details;
 
 	int grapheventid;

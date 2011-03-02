@@ -399,11 +399,11 @@ int Dumpfile_Netxml::Flush() {
 			fprintf(xmlfile, "      <peak-alt>%f</peak-alt>\n", 
 					net->snrdata.peak_alt);
 			fprintf(xmlfile, "      <avg-lat>%Lf</avg-lat>\n", 
-					net->gpsdata.aggregate_lat / net->gpsdata.aggregate_points);
+					net->gpsdata.aggregate_lat);
 			fprintf(xmlfile, "      <avg-lon>%Lf</avg-lon>\n", 
-					net->gpsdata.aggregate_lon / net->gpsdata.aggregate_points);
+					net->gpsdata.aggregate_lon);
 			fprintf(xmlfile, "      <avg-alt>%Lf</avg-alt>\n", 
-					net->gpsdata.aggregate_alt / net->gpsdata.aggregate_points);
+					net->gpsdata.aggregate_alt);
 			fprintf(xmlfile, "    </gps-info>\n");
 		}
 
@@ -709,11 +709,11 @@ int Dumpfile_Netxml::Flush() {
 				fprintf(xmlfile, "        <peak-alt>%f</peak-alt>\n", 
 						cli->snrdata.peak_alt);
 				fprintf(xmlfile, "        <avg-lat>%Lf</avg-lat>\n", 
-						cli->gpsdata.aggregate_lat / cli->gpsdata.aggregate_points);
+						cli->gpsdata.aggregate_lat);
 				fprintf(xmlfile, "        <avg-lon>%Lf</avg-lon>\n", 
-						cli->gpsdata.aggregate_lon / cli->gpsdata.aggregate_points);
+						cli->gpsdata.aggregate_lon);
 				fprintf(xmlfile, "        <avg-alt>%Lf</avg-alt>\n", 
-						cli->gpsdata.aggregate_alt / cli->gpsdata.aggregate_points);
+						cli->gpsdata.aggregate_alt);
 				fprintf(xmlfile, "      </gps-info>\n");
 			}
 

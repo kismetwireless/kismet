@@ -73,6 +73,8 @@ struct kis_gps_data {
 		min_spd = 100000;
 		max_spd = -100000;
 
+		add_lat = add_lon = add_alt = 0;
+
 		aggregate_lat = aggregate_lon = aggregate_alt = 0;
 		aggregate_points = 0;
 	}
@@ -90,7 +92,11 @@ struct kis_gps_data {
 
 		aggregate_lat = in.aggregate_lat;
 		aggregate_lon = in.aggregate_lon;
+
 		aggregate_points = in.aggregate_points;
+
+		add_lat = in.add_lat;
+		add_lon = in.add_lon;
 
 		return *this;
 	}
@@ -117,10 +123,16 @@ struct kis_gps_data {
 			if (in->spd > max_spd)
 				max_spd = in->spd;
 
-			aggregate_lat += in->lat;
-			aggregate_lon += in->lon;
-			aggregate_alt += in->alt;
+			// Add as fixed to prevent massive precision drift
+			add_lat += double_to_fixed3_7(in->lat);
+			add_lon += double_to_fixed3_7(in->lon);
+			add_alt += double_to_fixed6_4(in->alt);
+
 			aggregate_points++;
+
+			aggregate_lat = fixed3_7_to_double(add_lat / aggregate_points);
+			aggregate_lon = fixed3_7_to_double(add_lon / aggregate_points);
+			aggregate_alt = fixed6_4_to_double(add_alt / aggregate_points);
 		}
 
 		return *this;
@@ -154,9 +166,15 @@ struct kis_gps_data {
 		if (in.max_spd > max_spd)
 			max_spd = in.max_spd;
 
-		aggregate_lat += in.aggregate_lat;
-		aggregate_lon += in.aggregate_lon;
+		add_lat += in.add_lat;
+		add_lon += in.add_lon;
+		add_alt += in.add_alt;
+
 		aggregate_points += in.aggregate_points;
+
+		aggregate_lat = fixed3_7_to_double(add_lat / aggregate_points);
+		aggregate_lon = fixed3_7_to_double(add_lon / aggregate_points);
+		aggregate_alt = fixed6_4_to_double(add_alt / aggregate_points);
 
 		return *this;
 	}
@@ -165,7 +183,8 @@ struct kis_gps_data {
 	double min_lat, min_lon, min_alt, min_spd;
 	double max_lat, max_lon, max_alt, max_spd;
 	// Aggregate/avg center position
-	long double aggregate_lat, aggregate_lon, aggregate_alt;
+	long unsigned int add_lat, add_lon, add_alt;
+	double aggregate_lat, aggregate_lon, aggregate_alt;
 	long aggregate_points;
 };
 

@@ -139,6 +139,26 @@ public:
 	}
 };
 
+class KisNetlist_Sort_Sdbm {
+public:
+	inline bool operator()(Kis_Display_NetGroup *x,
+						   Kis_Display_NetGroup *y) const {
+		Netracker::tracked_network *xm = x->FetchNetwork();
+		Netracker::tracked_network *ym = y->FetchNetwork();
+
+		if (xm == NULL || ym == NULL )
+			return 0;
+		
+		if (time(0) - xm->last_time > 5)
+			return 0;
+
+		if (time(0) - ym->last_time > 5)
+			return 1;
+
+		return xm->snrdata.last_signal_dbm > ym->snrdata.last_signal_dbm;
+	}
+};
+
 class KisNetlist_Sort_Packets {
 public:
 	inline bool operator()(Kis_Display_NetGroup *x, 

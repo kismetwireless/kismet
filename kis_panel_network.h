@@ -161,7 +161,7 @@ enum netsort_opts {
 	netsort_autofit, netsort_recent, netsort_type, netsort_channel, 
 	netsort_first, netsort_first_desc, netsort_last, netsort_last_desc, 
 	netsort_bssid, netsort_ssid, netsort_packets, netsort_packets_desc,
-	netsort_crypt
+	netsort_crypt, netsort_sdbm
 };
 
 /* color array positions */

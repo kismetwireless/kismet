@@ -47,8 +47,8 @@
 // memory and track record creation it starts relatively low
 #define MAX_TRACKER_COMPONENTS	64
 
-#define PHY_UNKNOWN	-1
-#define PHY_ANY -2
+#define KIS_PHY_ANY	-1
+#define KIS_PHY_UNKNOWN -2
 
 // Basic unit being tracked in a tracked device
 class tracker_component {
@@ -280,15 +280,23 @@ struct kis_signal_data {
 	}
 };
 
+// Fwd ktd
+class kis_tracked_device;
+
 // Common values across all PHY types, as the PHY is capable of filling them in
-class tracker_component_common : public tracker_component {
+class kis_device_common : public tracker_component {
 public:
+	kis_tracked_device *device;
+
 	// Tracked PHY type
 	int phy_type;
 
 	// Time values
 	time_t first_time;
 	time_t last_time;
+
+	// Total packets
+	int packets;
 
 	// Link level packets (mgmt frames, etc)
 	int llc_packets;
@@ -307,6 +315,9 @@ public:
 
 	// Logical channel as per PHY type
 	int channel;
+
+	// Frequency
+	int frequency;
 
 	// raw freqs seen mapped to # of times seen
 	map<unsigned int, unsigned int> freq_mhz_map;
@@ -327,16 +338,16 @@ public:
 	// We need to be sent
 	int dirty;
 
-	// Device is classified as a client (such as a dot11 station, or some
-	// other phy non-equal peer)
-	int client;
+	kis_device_common() {
+		device = NULL;
 
-	tracker_component_common() {
-		phy_type = PHY_UNKNOWN;
+		phy_type = KIS_PHY_UNKNOWN;
 
 		first_time = last_time = 0;
 
-		llc_packets = data_packets = crypt_packets = 0;
+		packets = 0;
+
+		llc_packets = data_packets = crypt_packets = error_packets = 0;
 
 		datasize = 0;
 
@@ -344,9 +355,9 @@ public:
 
 		channel = 0;
 
-		alert = 0;
+		frequency = 0;
 
-		client = 0;
+		alert = 0;
 
 		dirty = 0;
 	}
@@ -358,9 +369,12 @@ class kis_tracked_device {
 public:
 	mac_addr key;
 
+	int phy_type;
+
 	vector<tracker_component *> content_vec;
 
 	kis_tracked_device() {
+		phy_type = KIS_PHY_UNKNOWN;
 		content_vec.resize(MAX_TRACKER_COMPONENTS, NULL);
 	}
 
@@ -415,24 +429,57 @@ public:
 class Devicetracker;
 
 // Handler element for a phy
+//  Registered with Devicetracker
+//  Devicetracker feeds packets to phyhandlers, no need to register with packet 
+//   chain on each
+//  Registered phy id is passed from devicetracker
+//
+// 	Subclasses are expected to handle:
+// 	  Packets from a new PHY (via DLT or packet components) and translate them
+// 	   into trackable entries in DeviceTracker
+// 	  Appropriate network sentences to export non-common tracking data for this phy
+// 	  Logging in plaintext and xml
 class Kis_Phy_Handler {
 public:
 	Kis_Phy_Handler() { fprintf(stderr, "fatal oops: kis_phy_handler();\n"); exit(1); }
 
-	Kis_Phy_Handler(GlobalRegistry *in_globalreg, int in_phyid) {
+	// Create a 'weak' handler which provides enough structure to call CreatePhyHandler
+	Kis_Phy_Handler(GlobalRegistry *in_globalreg) {
 		globalreg = in_globalreg;
-		phyid = in_phyid;
+		devicetracker = NULL;
+		phyid = -1;
 		phyname = "NONE";
 	}
 
+	virtual Kis_Phy_Handler *CreatePhyHandler(GlobalRegistry *in_globalreg,
+											  Devicetracker *in_tracker,
+											  int in_phyid) = 0;
+
+	Kis_Phy_Handler(GlobalRegistry *in_globalreg, Devicetracker *in_tracker,
+					int in_phyid) {
+		globalreg = in_globalreg;
+		phyid = in_phyid;
+		devicetracker = in_tracker;
+	}
+
+	virtual string FetchPhyName() { return phyname; }
+	virtual int FetchPhyId() { return phyid; }
+
+	// Packet kick, passed from devicetracker
 	virtual int HandlePacket(kis_packet *in_pack) = 0;
+
+	// Timer event carried from devicetracker, for sending updated 
+	// phy-specific records, etc
+	virtual int TimerKick() = 0;
+
+	// To do: Logging functions
 
 protected:
 	GlobalRegistry *globalreg;
+	Devicetracker *devicetracker;
 
 	string phyname;
 	int phyid;
-
 };
 	
 class Devicetracker {
@@ -441,12 +488,18 @@ public:
 	Devicetracker(GlobalRegistry *in_globalreg);
 	~Devicetracker();
 
+	// Register a phy handler weak class, used to instantiate the strong class
+	// inside devtracker
+	int RegisterPhyHandler(Kis_Phy_Handler *in_weak_handler);
+	// Register a tracked device component
+	int RegisterDeviceComponent(string in_component);
+
 	int FetchNumDevices(int in_phy);
 	int FetchNumPackets(int in_phy);
 	int FetchNumDatapackets(int in_phy);
 	int FetchNumCryptpackets(int in_phy);
 	int FetchNumErrorpackets(int in_phy);
-	int FetchNumFiltered(int in_phy);
+	int FetchNumFilterpackets(int in_phy);
 	int FetchNumLLCpackets(int in_phy);
 	int FetchNumClients(int in_phy);
 	int FetchPacketRate(int in_phy);
@@ -457,7 +510,7 @@ public:
 	void SetDeviceTag(mac_addr in_device, string in_tag, string in_data,
 					  int in_persistent);
 	void ClearDeviceTag(mac_addr in_device, string in_tag);
-	string GetDeviceTag(mac_addr in_device, string in_tag);
+	string FetchDeviceTag(mac_addr in_device, string in_tag);
 
 	// Look for an existing device record
 	kis_tracked_device *FetchDevice(mac_addr in_device);
@@ -472,35 +525,37 @@ public:
 
 	static void Usage(char *argv);
 
+	// Kick the timer event to update the network clients
+	int TimerKick();
+
 protected:
 	GlobalRegistry *globalreg;
 
+	int next_componentid;
+	map<string, int> component_str_map;
+	map<int, string> component_id_map;
+
 	// Total # of packets
 	int num_packets;
-	int num_datapackets;
-	int num_cryptpackets;
 	int num_errorpackets;
 	int num_filterpackets;
 	int num_packetdelta;
-	int num_llcpackets;
 
 	// Per-phy #s of packets
 	map<int, int> phy_packets;
-	map<int, int> phy_datapackets;
-	map<int, int> phy_cryptpackets;
 	map<int, int> phy_errorpackets;
 	map<int, int> phy_filterpackets;
 	map<int, int> phy_packetdelta;
-	map<int, int> phy_llcpackets;
 
-	// Kick the timer event to update the network clients
-	int TimerKick();
+	int devinfo_common;
 
 	// Save the tag map
 	void SaveTags();
 
 	// Tracked devices
 	map<mac_addr, kis_tracked_device *> tracked_map;
+	// Vector of tracked devices so we can iterate them quickly
+	vector<kis_tracked_device *> tracked_vec;
 
 	// Vector of dirty elements for pushing to clients, better than walking
 	// the map every tick, looking for dirty records
@@ -520,7 +575,7 @@ protected:
 
 	// Registered PHY types
 	int next_phy_id;
-	map<int, string> phy_type_map;
+	map<int, Kis_Phy_Handler *> phy_handler_map;
 
 };
 

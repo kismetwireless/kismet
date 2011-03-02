@@ -675,6 +675,8 @@ int Kis_Netlist::UpdateSortPrefs() {
 		sort_mode = netsort_ssid;
 	else if (sort == "packets")
 		sort_mode = netsort_packets;
+	else if (sort == "signal")
+		sort_mode = netsort_sdbm;
 	else if (sort == "packets_desc")
 		sort_mode = netsort_packets_desc;
 	else if (sort == "crypt_type")
@@ -2309,6 +2311,10 @@ void Kis_Netlist::UpdateTrigger(void) {
 		case netsort_ssid:
 			stable_sort(draw_vec->begin(), draw_vec->end(), 
 						KisNetlist_Sort_Ssid());
+			break;
+		case netsort_sdbm:
+			stable_sort(draw_vec->begin(), draw_vec->end(),
+						KisNetlist_Sort_Sdbm());
 			break;
 		case netsort_packets:
 			stable_sort(draw_vec->begin(), draw_vec->end(), 

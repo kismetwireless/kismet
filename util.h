@@ -105,6 +105,7 @@ public:
 #define IntToString(I)			NtoString<int>((I)).Str()
 #define HexIntToString(I)		NtoString<int>((I), 0, 1).Str()
 #define LongIntToString(L)		NtoString<long int>((L)).Str()
+#define FloatToString(F)		NtoString<float>((F)).Str()
 
 void SubtractTimeval(struct timeval *in_tv1, struct timeval *in_tv2,
 					 struct timeval *out_tv);

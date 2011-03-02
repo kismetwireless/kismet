@@ -159,6 +159,7 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	mi_sort_last_d = menu->AddMenuItem("Latest Seen (descending)", mn_sort, 'L');
 	mi_sort_bssid = menu->AddMenuItem("BSSID", mn_sort, 'b');
 	mi_sort_ssid = menu->AddMenuItem("SSID", mn_sort, 's');
+	mi_sort_sdbm = menu->AddMenuItem("Signal", mn_sort, 'S');
 	mi_sort_packets = menu->AddMenuItem("Packets", mn_sort, 'p');
 	mi_sort_packets_d = menu->AddMenuItem("Packets (descending)", mn_sort, 'P');
 
@@ -172,6 +173,7 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	menu->SetMenuItemCheckSymbol(mi_sort_last_d, '*');
 	menu->SetMenuItemCheckSymbol(mi_sort_bssid, '*');
 	menu->SetMenuItemCheckSymbol(mi_sort_ssid, '*');
+	menu->SetMenuItemCheckSymbol(mi_sort_sdbm, '*');
 	menu->SetMenuItemCheckSymbol(mi_sort_packets, '*');
 	menu->SetMenuItemCheckSymbol(mi_sort_packets_d, '*');
 
@@ -1133,6 +1135,8 @@ void Kis_Main_Panel::MenuAction(int opt) {
 		kpinterface->prefs->SetOpt("NETLIST_SORT", "bssid", time(0));
 	} else if (opt == mi_sort_ssid) {
 		kpinterface->prefs->SetOpt("NETLIST_SORT", "ssid", time(0));
+	} else if (opt == mi_sort_sdbm) {
+		kpinterface->prefs->SetOpt("NETLIST_SORT", "signal", time(0));
 	} else if (opt == mi_sort_packets) {
 		kpinterface->prefs->SetOpt("NETLIST_SORT", "packets", time(0));
 	} else if (opt == mi_sort_packets_d) {
@@ -1324,6 +1328,7 @@ void Kis_Main_Panel::UpdateSortMenu() {
 	menu->SetMenuItemChecked(mi_sort_last_d, so == netsort_last_desc);
 	menu->SetMenuItemChecked(mi_sort_bssid, so == netsort_bssid);
 	menu->SetMenuItemChecked(mi_sort_ssid, so == netsort_ssid);
+	menu->SetMenuItemChecked(mi_sort_sdbm, so == netsort_sdbm);
 	menu->SetMenuItemChecked(mi_sort_packets, so == netsort_packets);
 	menu->SetMenuItemChecked(mi_sort_packets_d, so == netsort_packets_desc);
 }
@@ -3118,6 +3123,8 @@ Kis_Clientlist_Panel::Kis_Clientlist_Panel(GlobalRegistry *in_globalreg,
 	menu->SetMenuItemCheckSymbol(mi_sort_last, '*');
 	mi_sort_last_d = menu->AddMenuItem("Latest Seen (descending)", mn_sort, 'L');
 	menu->SetMenuItemCheckSymbol(mi_sort_last_d, '*');
+	mi_sort_sdbm = menu->AddMenuItem("Signal", mn_sort, 'S');
+	menu->SetMenuItemCheckSymbol(mi_sort_sdbm, '*');
 	mi_sort_mac = menu->AddMenuItem("MAC", mn_sort, 's');
 	menu->SetMenuItemCheckSymbol(mi_sort_mac, '*');
 	mi_sort_packets = menu->AddMenuItem("Packets", mn_sort, 'p');
