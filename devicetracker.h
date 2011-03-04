@@ -425,6 +425,17 @@ public:
 	}
 };
 
+// Packinfo references
+class kis_tracked_device_info : public packet_component {
+public:
+	kis_tracked_device_info() {
+		self_destruct = 1;
+		devref = NULL;
+	}
+
+	kis_tracked_device *devref;
+};
+
 // fwd
 class Devicetracker;
 
@@ -500,8 +511,6 @@ public:
 	int FetchNumCryptpackets(int in_phy);
 	int FetchNumErrorpackets(int in_phy);
 	int FetchNumFilterpackets(int in_phy);
-	int FetchNumLLCpackets(int in_phy);
-	int FetchNumClients(int in_phy);
 	int FetchPacketRate(int in_phy);
 
 	int AddFilter(string in_filter);
@@ -528,7 +537,12 @@ public:
 	// Kick the timer event to update the network clients
 	int TimerKick();
 
+	// Send all devices to everyone
+	void BlitDevices(int in_fd);
+
 protected:
+	void SaveTags();
+
 	GlobalRegistry *globalreg;
 
 	int next_componentid;
@@ -547,10 +561,16 @@ protected:
 	map<int, int> phy_filterpackets;
 	map<int, int> phy_packetdelta;
 
-	int devinfo_common;
+	// Common device component
+	int devcomp_ref_common;
 
-	// Save the tag map
-	void SaveTags();
+	// Timer id for main timer kick
+	int timerid;
+
+	// Network protocols
+	int proto_ref_commondevice;
+	int proto_ref_trackinfo;
+	int proto_ref_devtag;
 
 	// Tracked devices
 	map<mac_addr, kis_tracked_device *> tracked_map;
@@ -561,13 +581,8 @@ protected:
 	// the map every tick, looking for dirty records
 	vector<kis_tracked_device *> dirty_device_vec;
 
-	int timerid;
-
 	// Filtering
 	FilterCore *track_filter;
-
-	// Network protocols
-	int proto_ref_trackdevice;
 
 	// Tag records as a config file
 	ConfigFile *tag_conf;

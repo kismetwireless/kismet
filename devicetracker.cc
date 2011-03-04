@@ -79,11 +79,30 @@ const char *KISDEV_common_text[] = {
 };
 
 enum DEVTAG_FIELDS {
-	DEVTAG_macaddr, DEVTAG_tag, DEVTAG_value
+	DEVTAG_macaddr, DEVTAG_tag, DEVTAG_value,
+
+	DEVTAG_maxfield
 };
 
 const char *DEVTAG_fields_text[] = {
-	"macaddr", "tag", "value"
+	"macaddr", "tag", "value",
+	NULL
+};
+
+// Replaces the *INFO sentence
+enum TRACKINFO_FIELDS {
+	TRACKINFO_devices, TRACKINFO_packets, TRACKINFO_datapackets,
+	TRACKINFO_cryptpackets, TRACKINFO_errorpackets, TRACKINFO_filterpackets,
+	TRACKINFO_packetrate,
+
+	TRACKINFO_maxfield
+};
+
+const char *TRACKINFO_fields_text[] = {
+	"devices", "packets", "datapackets",
+	"cryptpackets", "errorpackets", "filterpackets",
+	"packetrate",
+	NULL
 };
 
 int Protocol_KISDEV_COMMON(PROTO_PARMS) {
@@ -246,7 +265,66 @@ int Protocol_KISDEV_COMMON(PROTO_PARMS) {
 
 	return 1;
 }
-	
+
+void Protocol_KISDEV_COMMON_enable(PROTO_ENABLE_PARMS) {
+	((Devicetracker *) data)->BlitDevices(in_fd);
+}
+
+int Protocol_KISDEV_TRACKINFO(PROTO_PARMS) {
+	Devicetracker *tracker = (Devicetracker *) data;
+	string scratch;
+
+	cache->Filled(field_vec->size());
+
+	for (unsigned int x = 0; x < field_vec->size(); x++) {
+		unsigned int fnum = (*field_vec)[x];
+
+		if (fnum > TRACKINFO_maxfield) {
+			out_string = "\001Unknown field\001";
+			return -1;
+		}
+
+		if (cache->Filled(fnum)) {
+			out_string += cache->GetCache(fnum) + " ";
+			continue;
+		}
+
+		scratch = "";
+
+		switch (fnum) {
+			case TRACKINFO_devices:
+				scratch = IntToString(tracker->FetchNumDevices(KIS_PHY_ANY));
+				break;
+			case TRACKINFO_packets:
+				scratch = IntToString(tracker->FetchNumPackets(KIS_PHY_ANY));
+				break;
+			case TRACKINFO_datapackets:
+				scratch = IntToString(tracker->FetchNumDatapackets(KIS_PHY_ANY));
+				break;
+			case TRACKINFO_cryptpackets:
+				scratch = IntToString(tracker->FetchNumCryptpackets(KIS_PHY_ANY));
+				break;
+			case TRACKINFO_errorpackets:
+				scratch = IntToString(tracker->FetchNumErrorpackets(KIS_PHY_ANY));
+				break;
+			case TRACKINFO_filterpackets:
+				scratch = IntToString(tracker->FetchNumFilterpackets(KIS_PHY_ANY));
+				break;
+			case TRACKINFO_packetrate:
+				scratch = IntToString(tracker->FetchPacketRate(KIS_PHY_ANY));
+				break;
+		}
+		
+		cache->Cache(fnum, scratch);
+		out_string += scratch + " ";
+	}
+
+	return 1;
+}
+
+int Devicetracker_Timer(TIMEEVENT_PARMS) {
+	return ((Devicetracker *) parm)->TimerKick();
+}
 
 Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) {
 	globalreg = in_globalreg;
@@ -254,17 +332,65 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) {
 	next_componentid = 0;
 	num_packets = num_errorpackets = num_filterpackets = num_packetdelta = 0;
 
-	timerid = 0;
-
-	proto_ref_trackdevice = RegisterDeviceComponent("COMMON");
-
 	conf_save = 0;
-
 	next_phy_id = 0;
+
+	// Internally register our common reference first
+	devcomp_ref_common = RegisterDeviceComponent("COMMON");
+
+	// Timer kickoff
+	timerid = 
+		globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1,
+											  &Devicetracker_Timer, this);
+
+	// Register the tracked device component of packets
+	_PCM(PACK_COMP_DEVICE) =
+		globalreg->packetchain->RegisterPacketComponent("tracked_device");
+
+	// Register the network protocols
+	proto_ref_commondevice =
+		globalreg->kisnetserver->RegisterProtocol("COMMON", 0, 1,
+												  KISDEV_common_text,
+												  &Protocol_KISDEV_COMMON,
+												  &Protocol_KISDEV_COMMON_enable,
+												  this);
+
+	proto_ref_trackinfo =
+		globalreg->kisnetserver->RegisterProtocol("TRACKINFO", 0, 1,
+												  TRACKINFO_fields_text,
+												  &Protocol_KISDEV_TRACKINFO,
+												  NULL,
+												  this);
+
 }
 
 Devicetracker::~Devicetracker() {
+	if (timerid >= 0)
+		globalreg->timetracker->RemoveTimer(timerid);
 
+}
+
+void Devicetracker::SaveTags() {
+	int ret;
+
+	string dir = 
+		tag_conf->ExpandLogPath(globalreg->kismet_config->FetchOpt("configdir"),
+								"", "", 0, 1);
+
+	ret = mkdir(dir.c_str(), S_IRUSR | S_IWUSR | S_IXUSR);
+
+	if (ret < 0 && errno != EEXIST) {
+		string err = string(strerror(errno));
+		_MSG("Failed to create Kismet settings directory " + dir + ": " + err,
+			 MSGFLAG_ERROR);
+	}
+
+	ret = tag_conf->SaveConfig(tag_conf->ExpandLogPath(globalreg->kismet_config->FetchOpt("configdir") + "/" + "tag.conf", "", "", 0, 1).c_str());
+
+	if (ret < 0)
+		_MSG("Could not save tags, check previous error messages (probably "
+			 "no permission to write to the Kismet config directory: " + dir,
+			 MSGFLAG_ERROR);
 }
 
 int Devicetracker::FetchNumDevices(int in_phy) {
@@ -300,7 +426,7 @@ int Devicetracker::FetchNumDatapackets(int in_phy) {
 	for (unsigned int x = 0; x < tracked_vec.size(); x++) {
 		if (tracked_vec[x]->phy_type == in_phy || in_phy == KIS_PHY_ANY) {
 			if ((common = 
-				 (kis_device_common *) tracked_vec[x]->fetch(devinfo_common)) != NULL)
+				 (kis_device_common *) tracked_vec[x]->fetch(devcomp_ref_common)) != NULL)
 				r += common->data_packets;
 		}
 	}
@@ -316,7 +442,7 @@ int Devicetracker::FetchNumCryptpackets(int in_phy) {
 	for (unsigned int x = 0; x < tracked_vec.size(); x++) {
 		if (tracked_vec[x]->phy_type == in_phy || in_phy == KIS_PHY_ANY) {
 			if ((common = 
-				 (kis_device_common *) tracked_vec[x]->fetch(devinfo_common)) != NULL)
+				 (kis_device_common *) tracked_vec[x]->fetch(devcomp_ref_common)) != NULL)
 				r += common->crypt_packets;
 		}
 	}
@@ -379,5 +505,47 @@ int Devicetracker::RegisterPhyHandler(Kis_Phy_Handler *in_weak_handler) {
 	phy_handler_map[num] = strongphy;
 
 	return num;
+}
+
+// Send all devices to a client
+void Devicetracker::BlitDevices(int in_fd) {
+	for (unsigned int x = 0; x < tracked_vec.size(); x++) {
+		kis_protocol_cache cache;
+
+		// If it has a common field
+		kis_device_common *common;
+
+		if ((common = 
+			 (kis_device_common *) tracked_vec[x]->fetch(devcomp_ref_common)) != NULL) {
+
+			if (in_fd == -1)
+				globalreg->kisnetserver->SendToAll(proto_ref_commondevice, (void *) &common);
+			else
+				globalreg->kisnetserver->SendToClient(in_fd, proto_ref_commondevice,
+													  (void *) &common, &cache);
+		} 
+	}
+}
+
+int Devicetracker::TimerKick() {
+	for (unsigned int x = 0; x < dirty_device_vec.size(); x++) {
+		kis_tracked_device *dev = dirty_device_vec[x];
+
+		// If it has a common field
+		kis_device_common *common;
+
+		if ((common = 
+			 (kis_device_common *) dev->fetch(devcomp_ref_common)) != NULL) {
+			globalreg->kisnetserver->SendToAll(proto_ref_commondevice, 
+											   (void *) &common);
+		}
+	}
+
+	for (map<int, Kis_Phy_Handler *>::iterator x = phy_handler_map.begin(); 
+		 x != phy_handler_map.end(); ++x) {
+		x->second->TimerKick();
+	}
+
+	return 1;
 }
 

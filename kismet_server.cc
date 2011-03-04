@@ -71,6 +71,7 @@
 
 #include "netracker.h"
 #include "devicetracker.h"
+#include "phy_80211.h"
 
 #include "channeltracker.h"
 
@@ -526,6 +527,11 @@ void CatchShutdown(int sig) {
 	if (globalregistry->netracker != NULL) {
 		delete globalregistry->netracker;
 		globalregistry->netracker = NULL;
+	}
+
+	if (globalregistry->devicetracker != NULL) {
+		delete globalregistry->devicetracker;
+		globalregistry->devicetracker = NULL;
 	}
 
     // Dump fatal errors again
@@ -1002,7 +1008,6 @@ int main(int argc, char *argv[], char *envp[]) {
 	dtun->OpenTuntap();
 #endif
 
-
 	// Fire the startup command to IPC, we're done and it can drop privs
 	if (globalregistry->rootipc != NULL) {
 		ipc_packet *ipc = (ipc_packet *) malloc(sizeof(ipc_packet));
@@ -1021,6 +1026,16 @@ int main(int argc, char *argv[], char *envp[]) {
 	// Create the alert tracker
 	globalregistry->alertracker = new Alertracker(globalregistry);
 	if (globalregistry->fatal_condition)
+		CatchShutdown(-1);
+
+	// Create the device tracker
+	_MSG("Creating device tracker...", MSGFLAG_INFO);
+	globalregistry->devicetracker = new Devicetracker(globalregistry);
+	if (globalregistry->fatal_condition)
+		CatchShutdown(-1);
+
+	// Register the base PHYs
+	if (globalregistry->devicetracker->RegisterPhyHandler(new Kis_80211_Phy(globalregistry)) < 0 || globalregistry->fatal_condition) 
 		CatchShutdown(-1);
 
 	// Add the packet sources

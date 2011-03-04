@@ -22,6 +22,7 @@ PSO	= util.o cygwin_utils.o globalregistry.o ringbuf.o \
 	packetchain.o \
 	plugintracker.o alertracker.o timetracker.o \
 	packetdissectors.o devicetracker.o netracker.o channeltracker.o \
+	phy_80211.o \
 	manuf.o \
 	dumpfile.o dumpfile_pcap.o dumpfile_gpsxml.o \
 	dumpfile_tuntap.o dumpfile_netxml.o dumpfile_nettxt.o dumpfile_string.o \

@@ -302,8 +302,9 @@ int Dumpfile_Nettxt::Flush() {
 			fprintf(txtfile, " Peak Pos   : Lat %f Lon %f Alt %f\n", 
 					net->snrdata.peak_lat, net->snrdata.peak_lon,
 					net->snrdata.peak_alt);
-			fprintf(txtfile, " Avg Pos    : AvgLat %Lf AvgLon %Lf AvgAlt %Lf\n",
-					net->gpsdata.aggregate_lat, net->gpsdata.aggregate_lon, net->gpsdata.aggregate_alt);
+			fprintf(txtfile, " Avg Pos    : AvgLat %f AvgLon %f AvgAlt %f\n",
+					net->gpsdata.aggregate_lat, net->gpsdata.aggregate_lon, 
+					net->gpsdata.aggregate_alt);
 		}
 
 		if (net->guess_ipdata.ip_type > ipdata_factoryguess && 
@@ -559,8 +560,9 @@ int Dumpfile_Nettxt::Flush() {
 				fprintf(txtfile, "  Peak Pos   : Lat %f Lon %f Alt %f\n", 
 						cli->snrdata.peak_lat, cli->snrdata.peak_lon,
 						cli->snrdata.peak_alt);
-				fprintf(txtfile, "  Avg Pos    : AvgLat %Lf AvgLon %Lf AvgAlt %Lf\n",
-						cli->gpsdata.aggregate_lat, cli->gpsdata.aggregate_lon, cli->gpsdata.aggregate_alt);
+				fprintf(txtfile, "  Avg Pos    : AvgLat %f AvgLon %f AvgAlt %f\n",
+						cli->gpsdata.aggregate_lat, cli->gpsdata.aggregate_lon, 
+						cli->gpsdata.aggregate_alt);
 			}
 
 			if (cli->guess_ipdata.ip_type > ipdata_factoryguess && 
