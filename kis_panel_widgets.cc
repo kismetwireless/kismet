@@ -3392,7 +3392,7 @@ int Kis_Filepicker::KeyPress(int in_key) {
 Kis_Panel::Kis_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_intf) {
 	globalreg = in_globalreg;
 	kpinterface = in_intf;
-	win = newwin(0, 0, 0, 0);
+	win = newwin(1, 1, 0, 0);
 	pan = new_panel(win);
 	hide_panel(pan);
 	menu = NULL;
