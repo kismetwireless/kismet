@@ -126,10 +126,9 @@ int Dumpfile_Btscantxt::Flush() {
 			fprintf(txtfile, " Max Pos    : Lat %f Lon %f Alt %f Spd %f\n", 
 					btnet->gpsdata.max_lat, btnet->gpsdata.max_lon,
 					btnet->gpsdata.max_alt, btnet->gpsdata.max_spd);
-			fprintf(txtfile, " Avg Pos    : AvgLat %Lf AvgLon %Lf AvgAlt %Lf\n",
-					btnet->gpsdata.aggregate_lat / btnet->gpsdata.aggregate_points,
-					btnet->gpsdata.aggregate_lon / btnet->gpsdata.aggregate_points,
-					btnet->gpsdata.aggregate_alt / btnet->gpsdata.aggregate_points);
+			fprintf(txtfile, " Avg Pos    : AvgLat %f AvgLon %f AvgAlt %f\n",
+					btnet->gpsdata.aggregate_lat, btnet->gpsdata.aggregate_lon,
+					btnet->gpsdata.aggregate_alt);
 		}
 
 		fprintf(txtfile, "\n");
