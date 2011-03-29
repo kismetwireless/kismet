@@ -1,0 +1,54 @@
+#!/bin/sh -e
+
+# Copied from wireshark-common and modified
+
+. /usr/share/debconf/confmodule
+db_get kismet/install-setuid
+PROGRAM=/usr/bin/kismet_capture
+GROUP=kismet
+
+if [ -e "$PROGRAM" ]; then
+    if [ "$RET" = "false" ] ; then
+		 echo "Not installing Kismet with suid-root capture helper.  Kismet "
+		 echo "must be run with 'sudo'.  This is not the preferred nor most secure way "
+		 echo "to install Kismet."
+
+         if [ -x /usr/sbin/dpkg-statoverride ] && \
+             ! /usr/sbin/dpkg-statoverride --list $PROGRAM >/dev/null; then
+             chown root:root $PROGRAM
+             chmod u=rwx,go=rx $PROGRAM
+         fi
+    else
+        if [ -x /usr/sbin/dpkg-statoverride ] && \
+            ! /usr/sbin/dpkg-statoverride --list $PROGRAM >/dev/null; then
+
+            addgroup --quiet --system $GROUP
+
+			db_get kismet/install-users
+
+			if [ "$RET" != "" ]; then
+				for x in ${RET}; do
+					usermod -a -G $GROUP $x
+				done
+			fi
+
+            chown root:$GROUP $PROGRAM
+
+            if which setcap > /dev/null ; then
+				echo "Installing Kismet suid-root capture helper and setting capabilities..."
+
+                chmod u=srwx,g=rx,o=r $PROGRAM
+                if ! setcap cap_net_raw,cap_net_admin=eip $PROGRAM; then
+                    echo "Setting capabilities for kismet_capture using Linux Capabilities failed."
+                    echo "Falling back to setting set-user-id bit."
+                    chmod u=rwxs,g=rx,o=r $PROGRAM
+                fi
+            else
+				echo "Installing Kismet with suid-root capture helper..."
+                chmod u=rwxs,g=rx,o=r $PROGRAM
+            fi
+        fi
+    fi
+fi
+
+
