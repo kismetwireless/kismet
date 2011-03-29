@@ -20,6 +20,10 @@ mkdir -p dpkg/data/usr/lib/kismet_client
 cp ../plugin-autowep/autowep-kismet.so dpkg/data/usr/lib/kismet/
 cp ../plugin-ptw/aircrack-kismet.so dpkg/data/usr/lib/kismet/
 
+strip dpkg/data/usr/bin/kismet_*
+strip dpkg/data/usr/lib/kismet/*.so
+strip dpkg/data/usr/lib/kismet_client/*.so
+
 md5sum dpkg/data/usr/lib/kismet/* | sed -e 's/dpkg\/data\///' >> dpkg/control/md5sums
 md5sum dpkg/data/usr/lib/kismet_client/* | sed -e 's/dpkg\/data\///' >> dpkg/control/md5sums
 

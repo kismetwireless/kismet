@@ -30,11 +30,6 @@ cp ../scripts/kismet dpkg/data/usr/bin/
 chmod +x dpkg/data/usr/bin/kismet
 cp ../kismet_drone dpkg/data/usr/bin/
 
-strip dpkg/data/usr/bin/kismet_*
-
-strip dpkg/data/usr/lib/kismet/*.so
-strip dpkg/data/usr/lib/kismet_client/*.so
-
 cp ../man/kismet.1 dpkg/data/usr/man/man1/
 cp ../man/kismet_drone.1 dpkg/data/usr/man/man1/
 
@@ -53,6 +48,10 @@ cp ../plugin-btscan/btscan_ui.so dpkg/data/usr/lib/kismet_client/
 
 cp ../plugin-spectools/spectool_net.so dpkg/data/usr/lib/kismet/
 cp ../plugin-spectools/spectools_ui.so dpkg/data/usr/lib/kismet_client/
+
+strip dpkg/data/usr/bin/kismet_*
+strip dpkg/data/usr/lib/kismet/*.so
+strip dpkg/data/usr/lib/kismet_client/*.so
 
 md5sum dpkg/data/usr/bin/* | sed -e 's/dpkg\/data\///' > dpkg/control/md5sums
 md5sum dpkg/data/usr/man/man1/* | sed -e 's/dpkg\/data\///' >> dpkg/control/md5sums
