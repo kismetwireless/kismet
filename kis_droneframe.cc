@@ -464,6 +464,9 @@ int KisDroneFramework::SendAllText(string in_text, int flags) {
 }
 
 int KisDroneFramework::SendSource(int in_cl, pst_packetsource *in_int, int invalid) {
+	if (in_int->strong_source == NULL)
+		return 0;
+
 	drone_packet *dpkt = 
 		(drone_packet *) malloc(sizeof(uint8_t) * 
 								(sizeof(drone_packet) + sizeof(drone_source_packet)));
@@ -595,6 +598,9 @@ int KisDroneFramework::SendAllSourceReport(pst_packetsource *in_int) {
 }
 
 int KisDroneFramework::SendChannels(int in_cl, pst_packetsource *in_int) {
+	if (in_int->strong_source == NULL)
+		return 0;
+
 	pst_channellist *channels = 
 		globalreg->sourcetracker->FetchSourceChannelList(in_int);
 
