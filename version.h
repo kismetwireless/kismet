@@ -21,7 +21,7 @@
 
 #define VERSION_MAJOR	"2011"
 #define VERSION_MINOR	"03"
-#define VERSION_TINY	"R1"
+#define VERSION_TINY	"R2"
 
 #define REVISION		"$Rev$"
 #define REVDATE			"$LastChangedDate$"
