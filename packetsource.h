@@ -208,19 +208,22 @@ public:
 			src_uuid.GenerateTimeUUID(unode);
 		}
 
-		if (StrLower(FetchOpt("weakvalidate", in_opts)) == "true") {
+		// if (StrLower(FetchOpt("weakvalidate", in_opts)) == "true") {
+		if (FetchOptBoolean("weakvalidate", in_opts, 0)) {
 			genericparms.weak_dissect = 1;
 			_MSG("Enabling weak frame validation on packet source '" + 
 				 interface + "'", MSGFLAG_INFO);
 		}
 
-		if (StrLower(FetchOpt("validatefcs", in_opts)) == "true") {
+		// if (StrLower(FetchOpt("validatefcs", in_opts)) == "true") {
+		if (FetchOptBoolean("validatefcs", in_opts, 0)) {
 			SetValidateCRC(1);
 			_MSG("Enabling FCS frame validation on packet source '" +
 				 interface + "'", MSGFLAG_INFO);
 		}
 
-		if (FetchOpt("fcs", in_opts) == "true") {
+		// if (FetchOpt("fcs", in_opts) == "true") {
+		if (FetchOptBoolean("fcs", in_opts, 0)) {
 			_MSG("Forcing assumption that source '" + interface + "' contains "
 				 "four trailing bytes of FCS checksum data", MSGFLAG_INFO);
 			SetFCSBytes(4);

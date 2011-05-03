@@ -411,7 +411,8 @@ Kis_AutoConPref_Panel::Kis_AutoConPref_Panel(GlobalRegistry *in_globalreg,
 	hostport->SetText(kpinterface->prefs->FetchOpt("default_port"), -1, -1);
 
 	autoconcheck->SetText("Auto-connect");
-	autoconcheck->SetChecked(kpinterface->prefs->FetchOpt("autoconnect") == "true");
+	// autoconcheck->SetChecked(kpinterface->prefs->FetchOpt("autoconnect") == "true");
+	autoconcheck->SetChecked(kpinterface->prefs->FetchOptBoolean("autoconnect", 0));
 
 	okbutton->SetText("Save");
 	cancelbutton->SetText("Cancel");
@@ -991,36 +992,41 @@ Kis_StartupPref_Panel::Kis_StartupPref_Panel(GlobalRegistry *in_globalreg,
 	startkis_check->Activate(1);
 	active_component = startkis_check;
 
-	if (StrLower(kpinterface->prefs->FetchOpt("STARTUP_SERVER")) == "true" ||
-		kpinterface->prefs->FetchOpt("STARTUP_SERVER") == "") {
+	// if (StrLower(kpinterface->prefs->FetchOpt("STARTUP_SERVER")) == "true" ||
+	//	kpinterface->prefs->FetchOpt("STARTUP_SERVER") == "") {
+	if (kpinterface->prefs->FetchOptBoolean("STARTUP_SERVER", 1)) {
 		startkis_check->SetChecked(1);
 	} else {
 		startkis_check->SetChecked(0);
 	}
 
-	if (StrLower(kpinterface->prefs->FetchOpt("STARTUP_PROMPTSERVER")) == "true" ||
-		kpinterface->prefs->FetchOpt("STARTUP_PROMPTSERVER") == "") {
+	// if (StrLower(kpinterface->prefs->FetchOpt("STARTUP_PROMPTSERVER")) == "true" ||
+	// 	kpinterface->prefs->FetchOpt("STARTUP_PROMPTSERVER") == "") {
+	if (kpinterface->prefs->FetchOptBoolean("STARTUP_PROMPTSERVER", 1)) {
 		startkisprompt_check->SetChecked(1);
 	} else {
 		startkisprompt_check->SetChecked(0);
 	}
 
-	if (StrLower(kpinterface->prefs->FetchOpt("STARTUP_CONSOLE")) == "true" ||
-		kpinterface->prefs->FetchOpt("STARTUP_CONSOLE") == "") {
+	// if (StrLower(kpinterface->prefs->FetchOpt("STARTUP_CONSOLE")) == "true" ||
+	// 	kpinterface->prefs->FetchOpt("STARTUP_CONSOLE") == "") {
+	if (kpinterface->prefs->FetchOptBoolean("STARTUP_CONSOLE", 1)) {
 		startcons_check->SetChecked(1);
 	} else {
 		startcons_check->SetChecked(0);
 	}
 
-	if (StrLower(kpinterface->prefs->FetchOpt("STOP_SERVER")) == "true" ||
-		kpinterface->prefs->FetchOpt("STOP_SERVER") == "") {
+	// if (StrLower(kpinterface->prefs->FetchOpt("STOP_SERVER")) == "true" ||
+	// 	kpinterface->prefs->FetchOpt("STOP_SERVER") == "") {
+	if (kpinterface->prefs->FetchOptBoolean("STOP_SERVER", 1)) {
 		stopkis_check->SetChecked(1);
 	} else {
 		stopkis_check->SetChecked(0);
 	}
 
-	if (StrLower(kpinterface->prefs->FetchOpt("STOP_PROMPTSERVER")) == "true" ||
-		kpinterface->prefs->FetchOpt("STOP_PROMPTSERVER") == "") {
+	// if (StrLower(kpinterface->prefs->FetchOpt("STOP_PROMPTSERVER")) == "true" ||
+	// 	kpinterface->prefs->FetchOpt("STOP_PROMPTSERVER") == "") {
+	if (kpinterface->prefs->FetchOptBoolean("STOP_PROMPTSERVER", 1)) {
 		stopkisprompt_check->SetChecked(1);
 	} else {
 		stopkisprompt_check->SetChecked(0);
@@ -1311,8 +1317,9 @@ Kis_AudioPref_Panel::Kis_AudioPref_Panel(GlobalRegistry *in_globalreg,
 
 	sound_check = new Kis_Checkbox(globalreg, this);
 	sound_check->SetText("Enable Sound");
-	sound_check->SetChecked(StrLower(kpinterface->prefs->FetchOpt("SOUNDENABLE")) == 
-							"true");
+	// sound_check->SetChecked(StrLower(kpinterface->prefs->FetchOpt("SOUNDENABLE")) == 
+	// 						"true");
+	sound_check->SetChecked(kpinterface->prefs->FetchOptBoolean("SOUNDENABLE", 0));
 	sound_check->Show();
 	sound_check->SetCallback(COMPONENT_CBTYPE_ACTIVATED, AudioPrefCB, this);
 	AddComponentVec(sound_check, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
@@ -1320,8 +1327,9 @@ Kis_AudioPref_Panel::Kis_AudioPref_Panel(GlobalRegistry *in_globalreg,
 
 	speech_check = new Kis_Checkbox(globalreg, this);
 	speech_check->SetText("Enable Speech");
-	speech_check->SetChecked(StrLower(kpinterface->prefs->FetchOpt("SPEECHENABLE")) ==
-							 "true");
+	// speech_check->SetChecked(StrLower(kpinterface->prefs->FetchOpt("SPEECHENABLE")) ==
+	// 						 "true");
+	speech_check->SetChecked(kpinterface->prefs->FetchOptBoolean("SPEECHENABLE", 0));
 	speech_check->SetCallback(COMPONENT_CBTYPE_ACTIVATED, AudioPrefCB, this);
 	speech_check->Show();
 	AddComponentVec(speech_check, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
@@ -1770,7 +1778,8 @@ Kis_WarnPref_Panel::Kis_WarnPref_Panel(GlobalRegistry *in_globalreg,
 
 	td[0] = "Source Warnings";
 	td[2] = "WARN_SOURCEWARN";
-	if (kpinterface->prefs->FetchOpt(td[2]) != "false") {
+	// if (kpinterface->prefs->FetchOpt(td[2]) != "false") {
+	if (kpinterface->prefs->FetchOptBoolean(td[2], 1)) {
 		td[1] = "Yes";
 	} else {
 		td[1] = "No";
@@ -1779,7 +1788,8 @@ Kis_WarnPref_Panel::Kis_WarnPref_Panel(GlobalRegistry *in_globalreg,
 
 	td[0] = "All Sources Errored";
 	td[2] = "WARN_ALLERRSOURCE";
-	if (kpinterface->prefs->FetchOpt(td[2]) != "false") {
+	// if (kpinterface->prefs->FetchOpt(td[2]) != "false") {
+	if (kpinterface->prefs->FetchOptBoolean(td[2], 1)) {
 		td[1] = "Yes";
 	} else {
 		td[1] = "No";
@@ -1788,7 +1798,8 @@ Kis_WarnPref_Panel::Kis_WarnPref_Panel(GlobalRegistry *in_globalreg,
 
 	td[0] = "Running As Root";
 	td[2] = "STARTUP_WARNROOT";
-	if (kpinterface->prefs->FetchOpt(td[2]) != "false") {
+	// if (kpinterface->prefs->FetchOpt(td[2]) != "false") {
+	if (kpinterface->prefs->FetchOptBoolean(td[2], 1)) {
 		td[1] = "Yes";
 	} else {
 		td[1] = "No";

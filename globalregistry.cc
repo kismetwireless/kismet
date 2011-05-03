@@ -91,39 +91,58 @@ GlobalRegistry::GlobalRegistry() {
 	pcapdump = NULL;
 
 	nlhandle = NULL;
+
+	checksum_packets = 0;
 }
 
 // External globals -- allow other things to tie structs to us
-int GlobalRegistry::RegisterExternalGlobal(string in_name) {
-	if (ext_name_map.find(StrLower(in_name)) != ext_name_map.end())
-		return -1;
+int GlobalRegistry::RegisterGlobal(string in_name) {
+	map<string, int>::iterator i;
+
+	if ((i = ext_name_map.find(StrLower(in_name))) != ext_name_map.end())
+		return i->second;
 
 	ext_name_map[StrLower(in_name)] = next_ext_ref++;
 
 	return next_ext_ref;
 }
 
-int GlobalRegistry::FetchExternalGlobalRef(string in_name) {
-	if (ext_name_map.find(StrLower(in_name)) != ext_name_map.end())
+int GlobalRegistry::FetchGlobalRef(string in_name) {
+	if (ext_name_map.find(StrLower(in_name)) == ext_name_map.end())
 		return -1;
 
 	return ext_name_map[StrLower(in_name)];
 }
 
-void *GlobalRegistry::FetchExternalGlobal(int in_ref) {
+void *GlobalRegistry::FetchGlobal(int in_ref) {
 	if (ext_data_map.find(in_ref) == ext_data_map.end())
 		return NULL;
 
 	return ext_data_map[in_ref];
 }
 
-int GlobalRegistry::InsertExternalGlobal(int in_ref, void *in_data) {
+void *GlobalRegistry::FetchGlobal(string in_name) {
+	int ref;
+
+	if ((ref = FetchGlobalRef(in_name)) < 0)
+		return NULL;
+
+	return ext_data_map[ref];
+}
+
+int GlobalRegistry::InsertGlobal(int in_ref, void *in_data) {
 	if (ext_data_map.find(in_ref) == ext_data_map.end())
 		return -1;
 
 	ext_data_map[in_ref] = in_data;
 
 	return 1;
+}
+
+int GlobalRegistry::InsertGlobal(string in_name, void *in_data) {
+	int ref = RegisterGlobal(in_name);
+
+	return InsertGlobal(ref, in_data);
 }
 
 int GlobalRegistry::RegisterPollableSubsys(Pollable *in_subcli) {

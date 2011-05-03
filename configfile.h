@@ -45,6 +45,10 @@ public:
     string FetchOpt(string in_key);
     vector<string> FetchOptVec(string in_key);
 
+	// Fetch a true/false t/f value with a default (ie value returned if not
+	// equal to true, or missing.)
+	int FetchOptBoolean(string in_key, int dvalue);
+
 	int FetchOptDirty(string in_key);
 	void SetOptDirty(string in_key, int in_dirty);
 

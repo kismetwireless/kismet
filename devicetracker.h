@@ -568,6 +568,7 @@ protected:
 	int timerid;
 
 	// Network protocols
+	int proto_ref_phymap;
 	int proto_ref_commondevice;
 	int proto_ref_trackinfo;
 	int proto_ref_devtag;

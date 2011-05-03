@@ -925,8 +925,9 @@ PacketSource_Drone::PacketSource_Drone(GlobalRegistry *in_globalreg,
 		FetchOpt("port", in_opts);
 
 	// Look for the reconnect parm
-	if (FetchOpt("reconnect", in_opts) != "" &&
-		StrLower(FetchOpt("reconnect", in_opts)) != "true") {
+	// if (FetchOpt("reconnect", in_opts) != "" &&
+	// 	StrLower(FetchOpt("reconnect", in_opts)) != "true") {
+	if (FetchOptBoolean("reconnect", in_opts, 1)) {
 		reconnect = 0;
 		_MSG("Disabling reconnection on drone source '" + name + "' '" + 
 			 interface + "'.  If the connection fails this source will remain "

@@ -381,6 +381,10 @@ public:
 
     // What data rate?
     int datarate;
+
+	// Checksum, if checksumming is enabled; Only of the non-header 
+	// data
+	uint32_t content_checkum;
 };
 
 #endif

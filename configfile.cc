@@ -128,6 +128,18 @@ vector<string> ConfigFile::FetchOptVec(string in_key) {
     return cmitr->second;
 }
 
+int ConfigFile::FetchOptBoolean(string in_key, int dvalue) {
+	string v = StrLower(FetchOpt(in_key));
+	int r;
+
+	r = StringToBool(v);
+
+	if (r == -1)
+		return dvalue;
+
+	return r;
+}
+
 int ConfigFile::FetchOptDirty(string in_key) {
 	if (config_map_dirty.find(StrLower(in_key)) == config_map_dirty.end())
 		return 0;
