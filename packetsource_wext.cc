@@ -157,13 +157,14 @@ int PacketSource_Wext::ParseOptions(vector<opt_pair> *in_opts) {
 	}
 
 	// Record if the VAP is absolutely forced (no passive blank option)
-	if (StrLower(FetchOpt("forcevap", in_opts)) == "true")
+	// if (StrLower(FetchOpt("forcevap", in_opts)) == "true")
+	if (FetchOptBoolean("forcevap", in_opts, 0))
 		force_vap = 1;
 
 	// Turn on VAP by default
-	if (vap == "" && (FetchOpt("forcevap", in_opts) == "" || 
-					  StrLower(FetchOpt("forcevap", in_opts)) == "true")) {
-
+	// if (vap == "" && (FetchOpt("forcevap", in_opts) == "" || 
+	// 				  StrLower(FetchOpt("forcevap", in_opts)) == "true")) {
+	if (vap == "" && FetchOptBoolean("forcevap", in_opts, 1)) {
 		if (vap == "") {
 			// Only set a vap when we're not targetting a vap
 			if (mac80211_find_parent(string(interface + "mon").c_str()) == "") {
@@ -181,7 +182,8 @@ int PacketSource_Wext::ParseOptions(vector<opt_pair> *in_opts) {
 			 "modify the provided interface.", MSGFLAG_INFO);
 	}
 
-	if (FetchOpt("fcsfail", in_opts) == "true") {
+	// if (FetchOpt("fcsfail", in_opts) == "true") {
+	if (FetchOptBoolean("fcsfail", in_opts, 0)) {
 		if (vap == "") {
 			_MSG("Source '" + interface + "': 'fcsfail' enabled to tell "
 				 "mac80211 to report invalid packets, but not using a VAP. "
@@ -196,7 +198,8 @@ int PacketSource_Wext::ParseOptions(vector<opt_pair> *in_opts) {
 		}
 	}
 
-	if (FetchOpt("plcpfail", in_opts) == "true") {
+	// if (FetchOpt("plcpfail", in_opts) == "true") {
+	if (FetchOptBoolean("plcpfail", in_opts, 0)) {
 		if (vap == "") {
 			_MSG("Source '" + interface + "': 'plcpfail' enabled to tell "
 				 "mac80211 to report invalid packets, but not using a VAP. "
@@ -220,10 +223,12 @@ int PacketSource_Wext::ParseOptions(vector<opt_pair> *in_opts) {
 				 "the defaults, set this path if your wpa_supplicant uses "
 				 "something else for the control socket", MSGFLAG_ERROR);
 
-		if (FetchOpt("hop", in_opts) == "" || FetchOpt("hop", in_opts) == "true") {
+		// if (FetchOpt("hop", in_opts) == "" || FetchOpt("hop", in_opts) == "true") {
+		if (FetchOptBoolean("hop", in_opts, 1)) {
 			_MSG("Source '" + interface + "' - wpa_scan assist from wpa_supplicant "
 				 "requested but hopping not disabled, wpa_scan is meaningless on "
-				 "a hopping interface, so it will not be disabled.", MSGFLAG_ERROR);
+				 "a hopping interface, so it will not be enabled.", MSGFLAG_ERROR);
+			scan_wpa = 0;
 		} else if (sscanf(FetchOpt("wpa_scan", in_opts).c_str(), "%d", &scan_wpa) != 1) {
 			_MSG("Source '" + interface + "' - invalid wpa_scan interval, expected "
 				 "number (of seconds) between each scan", MSGFLAG_ERROR);
@@ -231,6 +236,7 @@ int PacketSource_Wext::ParseOptions(vector<opt_pair> *in_opts) {
 		} else {
 			_MSG("Source '" + interface + "' - using wpa_supplicant to assist with "
 				 "non-disruptive hopping", MSGFLAG_INFO);
+			scan_wpa = 1;
 		}
 
 		if (wpa_path == "")
@@ -824,7 +830,8 @@ PacketSource_Madwifi::PacketSource_Madwifi(GlobalRegistry *in_globalreg,
 	SetFCSBytes(4);
 	vapdestroy = 1;
 
-	if (FetchOpt("vapkill", in_opts) != "" && FetchOpt("vapkill", in_opts) != "true") {
+	// if (FetchOpt("vapkill", in_opts) != "" && FetchOpt("vapkill", in_opts) != "true") {
+	if (FetchOptBoolean("vapkill", in_opts, 1)) {
 		vapdestroy = 0;
 		_MSG("Madwifi-NG source " + name + " " + interface + ": Disabling destruction "
 			 "of non-monitor VAPS because vapkill was not set to true in source "

@@ -63,6 +63,9 @@
 
 // Channel record
 struct pst_channel {
+	// Control options; phy/source dependent, ex. HT20, HT40+/-
+	int control_flags;
+
 	// are we a range
 	int range;
 

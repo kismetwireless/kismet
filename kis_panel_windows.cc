@@ -386,8 +386,9 @@ void kmp_prompt_startserver(KIS_PROMPT_CB_PARMS) {
 	if (ok) {
 		Kis_Spawn_Panel *sp = new Kis_Spawn_Panel(globalreg, globalreg->panel_interface);
 
-		if (globalreg->panel_interface->prefs->FetchOpt("STARTUP_CONSOLE") == "true" ||
-			globalreg->panel_interface->prefs->FetchOpt("STARTUP_CONSOLE") == "") 
+		// if (globalreg->panel_interface->prefs->FetchOpt("STARTUP_CONSOLE") == "true" ||
+		// 	globalreg->panel_interface->prefs->FetchOpt("STARTUP_CONSOLE") == "") 
+		if (globalreg->panel_interface->prefs->FetchOptBoolean("STARTUP_CONSOLE", 1))
 			sp->SpawnConsole(1);
 		else
 			sp->SpawnConsole(0);
@@ -425,7 +426,8 @@ void Kis_Main_Panel::Startup() {
 		kpinterface->prefs->SetOpt("AUTOCONNECT", "true", 1);
 	}
 
-	if (kpinterface->prefs->FetchOpt("autoconnect") == "true" &&
+	// if (kpinterface->prefs->FetchOpt("autoconnect") == "true" &&
+	if (kpinterface->prefs->FetchOptBoolean("autoconnect", 0) &&
 		kpinterface->prefs->FetchOpt("default_host") != "" &&
 		kpinterface->prefs->FetchOpt("default_port") != "") {
 
@@ -464,9 +466,11 @@ void Kis_Main_Panel::Startup() {
 		kpinterface->QueueModalPanel(kpp);
 	}
 
+	// if ((getuid() == 0 || geteuid() == 0) &&
+	// 	(kpinterface->prefs->FetchOpt("STARTUP_WARNROOT") == "" ||
+	// 	 kpinterface->prefs->FetchOpt("STARTUP_WARNROOT") == "true")) {
 	if ((getuid() == 0 || geteuid() == 0) &&
-		(kpinterface->prefs->FetchOpt("STARTUP_WARNROOT") == "" ||
-		 kpinterface->prefs->FetchOpt("STARTUP_WARNROOT") == "true")) {
+		kpinterface->prefs->FetchOptBoolean("STARTUP_WARNROOT", 1)) {
 		vector<string> t;
 		t.push_back("Kismet is running as root");
 		t.push_back("Kismet was started as root.  This isn't the recommended");
@@ -488,8 +492,10 @@ void Kis_Main_Panel::Startup() {
 
 	// If we're supposed to prompt for the server and we haven't successfully
 	// auto-connected to the default...
-	if ((kpinterface->prefs->FetchOpt("STARTUP_PROMPTSERVER") == "" ||
-		 kpinterface->prefs->FetchOpt("STARTUP_PROMPTSERVER") == "true") &&
+	// if ((kpinterface->prefs->FetchOpt("STARTUP_PROMPTSERVER") == "" ||
+	// 	 kpinterface->prefs->FetchOpt("STARTUP_PROMPTSERVER") == "true") &&
+	//	initclient <= 0) {
+	if (kpinterface->prefs->FetchOptBoolean("STARTUP_PROMPTSERVER", 1) &&
 		initclient <= 0) {
 		vector<string> t;
 		t.push_back("Automatically start Kismet server?");
@@ -505,8 +511,10 @@ void Kis_Main_Panel::Startup() {
 		kpp->SetButtonText("Yes", "No");
 		kpp->SetDefaultButton(1);
 		kpinterface->QueueModalPanel(kpp);
-	} else if ((kpinterface->prefs->FetchOpt("STARTUP_SERVER") == "true" ||
-				kpinterface->prefs->FetchOpt("STARTUP_SERVER") == "") &&
+	// } else if ((kpinterface->prefs->FetchOpt("STARTUP_SERVER") == "true" ||
+	// 			kpinterface->prefs->FetchOpt("STARTUP_SERVER") == "") &&
+	// 		   initclient <= 0) {
+	} else if (kpinterface->prefs->FetchOptBoolean("STARTUP_SERVER", 1) &&
 			   initclient <= 0) {
 		// fprintf(stderr, "debug - kmp_prompt_startserver\n");
 		kmp_prompt_startserver(globalreg, 1, -1, this);
@@ -576,13 +584,15 @@ void Kis_Main_Panel::LoadAudioPrefs() {
 		// TODO - call "do you want to enable sound" prompt
 		kpinterface->prefs->SetOpt("SOUNDENABLE", "false", 1);
 	}
-	globalreg->soundctl->SetSoundEnable(StrLower(kpinterface->prefs->FetchOpt("SOUNDENABLE")) == "true");
+	// globalreg->soundctl->SetSoundEnable(StrLower(kpinterface->prefs->FetchOpt("SOUNDENABLE")) == "true");
+	globalreg->soundctl->SetSoundEnable(kpinterface->prefs->FetchOptBoolean("SOUNDENABLE", 0));
 
 	if (kpinterface->prefs->FetchOpt("SPEECHENABLE") == "") {
 		// TOO - call "do you want to enable speech" prompt
 		kpinterface->prefs->SetOpt("SPEECHENABLE", "false", 1);
 	}
-	globalreg->soundctl->SetSpeechEnable(StrLower(kpinterface->prefs->FetchOpt("SPEECHENABLE")) == "true");
+	// globalreg->soundctl->SetSpeechEnable(StrLower(kpinterface->prefs->FetchOpt("SPEECHENABLE")) == "true");
+	globalreg->soundctl->SetSpeechEnable(kpinterface->prefs->FetchOptBoolean("SPEECHENABLE", 0));
 
 	snd_new = snd_packet = snd_gpslock = snd_gpslost = snd_alert = -1;
 
@@ -602,7 +612,8 @@ void Kis_Main_Panel::LoadAudioPrefs() {
 			continue;
 
 		snd = StrLower(sndparse[0]);
-		val = (StrLower(sndparse[1]) == "true");
+		// val = (StrLower(sndparse[1]) == "true");
+		val = StringToBool(sndparse[1], 0);
 
 		if (snd == "newnet")
 			snd_new = val;
@@ -1062,10 +1073,12 @@ void Kis_Main_Panel::MenuAction(int opt) {
 			kmp_prompt_killserver(globalreg, 1, -1, NULL);
 		}
 
-		if ((kpinterface->prefs->FetchOpt("STOP_PROMPTSERVER") == "true" ||
-			 kpinterface->prefs->FetchOpt("STOP_PROMPTSERVER") == "") &&
-			(kpinterface->prefs->FetchOpt("STOP_SERVER") == "true" ||
-			 kpinterface->prefs->FetchOpt("STOP_SERVER") == "")) {
+		// if ((kpinterface->prefs->FetchOpt("STOP_PROMPTSERVER") == "true" ||
+		// 	 kpinterface->prefs->FetchOpt("STOP_PROMPTSERVER") == "") &&
+		// 	(kpinterface->prefs->FetchOpt("STOP_SERVER") == "true" ||
+		// 	 kpinterface->prefs->FetchOpt("STOP_SERVER") == "")) {
+		if (kpinterface->prefs->FetchOptBoolean("STOP_PROMPTSERVER", 1) &&
+			kpinterface->prefs->FetchOptBoolean("STOP_SERVER", 1)) {
 
 			vector<string> t;
 			t.push_back("Stop Kismet server before quitting?");
@@ -1090,8 +1103,9 @@ void Kis_Main_Panel::MenuAction(int opt) {
 			kpp->SetDefaultButton(1);
 			kpinterface->QueueModalPanel(kpp);
 			return;
-		} else if (kpinterface->prefs->FetchOpt("STOP_SERVER") == "true" ||
-				   kpinterface->prefs->FetchOpt("STOP_SERVER") == "") {
+		// } else if (kpinterface->prefs->FetchOpt("STOP_SERVER") == "true" ||
+		// 		   kpinterface->prefs->FetchOpt("STOP_SERVER") == "") {
+		} else if (kpinterface->prefs->FetchOptBoolean("STOP_SERVER", 1)) {
 			// if we're stopping the server without prompt, just call the
 			// prompt handler and tell it OK
 			kmp_prompt_killserver(globalreg, 1, -1, NULL);
@@ -1338,7 +1352,8 @@ void Kis_Main_Panel::UpdateViewMenu(int mi) {
 
 	if (mi == mi_showsummary) {
 		opt = kpinterface->prefs->FetchOpt("MAIN_SHOWSUMMARY");
-		if (opt == "" || opt == "true") {
+		// if (opt == "" || opt == "true") {
+		if (StringToBool(opt, 1)) {
 			kpinterface->prefs->SetOpt("MAIN_SHOWSUMMARY", "false", 1);
 			menu->SetMenuItemChecked(mi_showsummary, 0);
 			optbox->Hide();
@@ -1349,7 +1364,8 @@ void Kis_Main_Panel::UpdateViewMenu(int mi) {
 		}
 	} else if (mi == mi_showstatus) {
 		opt = kpinterface->prefs->FetchOpt("MAIN_SHOWSTATUS");
-		if (opt == "" || opt == "true") {
+		// if (opt == "" || opt == "true") {
+		if (StringToBool(opt, 1)) {
 			kpinterface->prefs->SetOpt("MAIN_SHOWSTATUS", "false", 1);
 			menu->SetMenuItemChecked(mi_showstatus, 0);
 			statustext->Hide();
@@ -1360,7 +1376,8 @@ void Kis_Main_Panel::UpdateViewMenu(int mi) {
 		}
 	} else if (mi == mi_showgps) {
 		opt = kpinterface->prefs->FetchOpt("MAIN_SHOWGPS");
-		if (opt == "" || opt == "true") {
+		// if (opt == "" || opt == "true") {
+		if (StringToBool(opt, 1)) {
 			kpinterface->prefs->SetOpt("MAIN_SHOWGPS", "false", 1);
 			menu->SetMenuItemChecked(mi_showgps, 0);
 			gpsinfo->Hide();
@@ -1371,7 +1388,8 @@ void Kis_Main_Panel::UpdateViewMenu(int mi) {
 		}
 	} else if (mi == mi_showbattery) {
 		opt = kpinterface->prefs->FetchOpt("MAIN_SHOWBAT");
-		if (opt == "" || opt == "true") {
+		// if (opt == "" || opt == "true") {
+		if (StringToBool(opt, 1)) {
 			kpinterface->prefs->SetOpt("MAIN_SHOWBAT", "false", 1);
 			menu->SetMenuItemChecked(mi_showbattery, 0);
 			batteryinfo->Hide();
@@ -1382,7 +1400,8 @@ void Kis_Main_Panel::UpdateViewMenu(int mi) {
 		}
 	} else if (mi == mi_showpps) {
 		opt = kpinterface->prefs->FetchOpt("MAIN_SHOWPPS");
-		if (opt == "" || opt == "true") {
+		// if (opt == "" || opt == "true") {
+		if (StringToBool(opt, 1)) {
 			kpinterface->prefs->SetOpt("MAIN_SHOWPPS", "false", 1);
 			menu->SetMenuItemChecked(mi_showpps, 0);
 			packetrate->Hide();
@@ -1393,7 +1412,8 @@ void Kis_Main_Panel::UpdateViewMenu(int mi) {
 		}
 	} else if (mi == mi_showsources) {
 		opt = kpinterface->prefs->FetchOpt("MAIN_SHOWSOURCE");
-		if (opt == "" || opt == "true") {
+		// if (opt == "" || opt == "true") {
+		if (StringToBool(opt, 1)) {
 			kpinterface->prefs->SetOpt("MAIN_SHOWSOURCE", "false", 1);
 			menu->SetMenuItemChecked(mi_showsources, 0);
 			sourceinfo->Hide();
@@ -1404,7 +1424,8 @@ void Kis_Main_Panel::UpdateViewMenu(int mi) {
 		}
 	} else if (mi == mi_shownetworks) {
 		opt = kpinterface->prefs->FetchOpt("MAIN_SHOWNETLIST");
-		if (opt == "" || opt == "true") {
+		// if (opt == "" || opt == "true") {
+		if (StringToBool(opt, 1)) {
 			kpinterface->prefs->SetOpt("MAIN_SHOWNETLIST", "false", 1);
 			menu->SetMenuItemChecked(mi_shownetworks, 0);
 			netlist->Hide();
@@ -1415,7 +1436,8 @@ void Kis_Main_Panel::UpdateViewMenu(int mi) {
 		}
 	} else if (mi == mi_showclients) {
 		opt = kpinterface->prefs->FetchOpt("MAIN_SHOWCLIENTLIST");
-		if (opt == "true") {
+		// if (opt == "true") {
+		if (StringToBool(opt, 1)) {
 			kpinterface->prefs->SetOpt("MAIN_SHOWCLIENTLIST", "false", 1);
 			menu->SetMenuItemChecked(mi_showclients, 0);
 			clientlist->Hide();
@@ -1428,7 +1450,8 @@ void Kis_Main_Panel::UpdateViewMenu(int mi) {
 
 	if (mi == -1) {
 		opt = kpinterface->prefs->FetchOpt("MAIN_SHOWSUMMARY");
-		if (opt == "" || opt == "true") {
+		// if (opt == "" || opt == "true") {
+		if (StringToBool(opt, 1)) {
 			menu->SetMenuItemChecked(mi_showsummary, 1);
 			optbox->Show();
 		} else {
@@ -1437,7 +1460,8 @@ void Kis_Main_Panel::UpdateViewMenu(int mi) {
 		}
 
 		opt = kpinterface->prefs->FetchOpt("MAIN_SHOWSTATUS");
-		if (opt == "" || opt == "true") {
+		// if (opt == "" || opt == "true") {
+		if (StringToBool(opt, 1)) {
 			menu->SetMenuItemChecked(mi_showstatus, 1);
 			statustext->Show();
 		} else {
@@ -1446,7 +1470,8 @@ void Kis_Main_Panel::UpdateViewMenu(int mi) {
 		}
 
 		opt = kpinterface->prefs->FetchOpt("MAIN_SHOWPPS");
-		if (opt == "" || opt == "true") {
+		// if (opt == "" || opt == "true") {
+		if (StringToBool(opt, 1)) {
 			menu->SetMenuItemChecked(mi_showpps, 1);
 			packetrate->Show();
 		} else {
@@ -1455,7 +1480,8 @@ void Kis_Main_Panel::UpdateViewMenu(int mi) {
 		}
 
 		opt = kpinterface->prefs->FetchOpt("MAIN_SHOWGPS");
-		if (opt == "" || opt == "true") {
+		// if (opt == "" || opt == "true") {
+		if (StringToBool(opt, 1)) {
 			menu->SetMenuItemChecked(mi_showgps, 1);
 			gpsinfo->Show();
 		} else {
@@ -1464,7 +1490,8 @@ void Kis_Main_Panel::UpdateViewMenu(int mi) {
 		}
 
 		opt = kpinterface->prefs->FetchOpt("MAIN_SHOWBAT");
-		if (opt == "" || opt == "true") {
+		// if (opt == "" || opt == "true") {
+		if (StringToBool(opt, 1)) {
 			menu->SetMenuItemChecked(mi_showbattery, 1);
 			batteryinfo->Show();
 		} else {
@@ -1473,7 +1500,8 @@ void Kis_Main_Panel::UpdateViewMenu(int mi) {
 		}
 
 		opt = kpinterface->prefs->FetchOpt("MAIN_SHOWSOURCE");
-		if (opt == "" || opt == "true") {
+		// if (opt == "" || opt == "true") {
+		if (StringToBool(opt, 1)) {
 			menu->SetMenuItemChecked(mi_showsources, 1);
 			sourceinfo->Show();
 		} else {
@@ -1482,7 +1510,8 @@ void Kis_Main_Panel::UpdateViewMenu(int mi) {
 		}
 
 		opt = kpinterface->prefs->FetchOpt("MAIN_SHOWNETLIST");
-		if (opt == "" || opt == "true") {
+		// if (opt == "" || opt == "true") {
+		if (StringToBool(opt, 1)) {
 			menu->SetMenuItemChecked(mi_shownetworks, 1);
 			netlist->Show();
 		} else {
@@ -1491,7 +1520,8 @@ void Kis_Main_Panel::UpdateViewMenu(int mi) {
 		}
 
 		opt = kpinterface->prefs->FetchOpt("MAIN_SHOWCLIENTLIST");
-		if (opt == "true") {
+		// if (opt == "true") {
+		if (StringToBool(opt, 1)) {
 			menu->SetMenuItemChecked(mi_showclients, 1);
 			clientlist->Show();
 		} else {
@@ -1794,8 +1824,9 @@ Kis_Spawn_Panel::Kis_Spawn_Panel(GlobalRegistry *in_globalreg,
 
 	spawn_console = 0;
 
-	if (kpinterface->prefs->FetchOpt("STARTUP_CONSOLE") == "true" ||
-		kpinterface->prefs->FetchOpt("STARTUP_CONSOLE") == "")
+	// if (kpinterface->prefs->FetchOpt("STARTUP_CONSOLE") == "true" ||
+	// 	kpinterface->prefs->FetchOpt("STARTUP_CONSOLE") == "")
+	if (kpinterface->prefs->FetchOptBoolean("STARTUP_CONSOLE", 1)) 
 		spawn_console = 1;
 
 	options = new Kis_Single_Input(globalreg, this);

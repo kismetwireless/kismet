@@ -252,10 +252,14 @@ public:
     GlobalRegistry();
 
     // External globals -- allow other things to tie structs to us
-    int RegisterExternalGlobal(string in_name);
-    int FetchExternalGlobalRef(string in_name);
-    void *FetchExternalGlobal(int in_ref);
-    int InsertExternalGlobal(int in_ref, void *in_data);
+    int RegisterGlobal(string in_name);
+    int FetchGlobalRef(string in_name);
+
+    void *FetchGlobal(int in_ref);
+	void *FetchGlobal(string in_name);
+
+    int InsertGlobal(int in_ref, void *in_data);
+	int InsertGlobal(string in_name, void *in_data);
 
 	// Add something to the poll() main loop
 	int RegisterPollableSubsys(Pollable *in_subcli);
@@ -265,6 +269,10 @@ public:
 	void RegisterDumpFile(Dumpfile *in_dump);
 	int RemoveDumpFile(Dumpfile *in_dump);
 	Dumpfile *FindDumpFileType(string in_type);
+
+	// Are we supposed to start checksumming packets?  (ie multiple sources, 
+	// whatever other conditions we use)
+	int checksum_packets;
 
 protected:
     // Exernal global references, string to intid

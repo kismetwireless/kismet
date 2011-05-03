@@ -363,8 +363,10 @@ KisBuiltinDissector::KisBuiltinDissector(GlobalRegistry *in_globalreg) {
 											  &pbd_blittimer, this);
 
 	// Do we process the whole data packet?
-    if (StrLower(globalreg->kismet_config->FetchOpt("hidedata")) == "true" ||
-		StrLower(globalreg->kismet_config->FetchOpt("dontbeevil")) == "true") {
+    // if (StrLower(globalreg->kismet_config->FetchOpt("hidedata")) == "true" ||
+	// 	StrLower(globalreg->kismet_config->FetchOpt("dontbeevil")) == "true") {
+    if (globalreg->kismet_config->FetchOptBoolean("hidedata", 0) ||
+		globalreg->kismet_config->FetchOptBoolean("dontbeevil", 0)) {
 		_MSG("hidedata= set in Kismet config.  Kismet will ignore the contents "
 			 "of data packets entirely", MSGFLAG_INFO);
 		dissect_data = 0;
@@ -419,7 +421,8 @@ KisBuiltinDissector::KisBuiltinDissector(GlobalRegistry *in_globalreg) {
         _MSG(errstr, MSGFLAG_INFO);
     }
 
-    if (globalreg->kismet_config->FetchOpt("allowkeytransmit") == "true") {
+    // if (globalreg->kismet_config->FetchOpt("allowkeytransmit") == "true") {
+    if (globalreg->kismet_config->FetchOptBoolean("allowkeytransmit", 0)) {
         _MSG("Allowing Kismet frontends to view WEP keys", MSGFLAG_INFO);
         client_wepkey_allowed = 1;
     } else {

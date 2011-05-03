@@ -425,6 +425,12 @@ string FetchOpt(string in_key, vector<opt_pair> *in_vec) {
 	return "";
 }
 
+int FetchOptBoolean(string in_key, vector<opt_pair> *in_vec, int dvalue) {
+	string s = FetchOpt(in_key, in_vec);
+
+	return StringToBool(s, dvalue);
+}
+
 vector<string> FetchOptVec(string in_key, vector<opt_pair> *in_vec) {
 	string lkey = StrLower(in_key);
 	vector<string> ret;
@@ -1169,5 +1175,15 @@ u_int32_t double_to_ns(double in) {
     return ret;
 }
 
+int StringToBool(string s, int dvalue) {
+	string ls = StrLower(s);
 
+	if (ls == "true" || ls == "t") {
+		return 1;
+	} else if (ls == "false" || ls == "f") {
+		return 0;
+	}
+
+	return dvalue;
+}
 

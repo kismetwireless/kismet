@@ -106,7 +106,8 @@ GpsWrapper::GpsWrapper(GlobalRegistry *globalreg) {
 		}
 	}
 
-	if (globalreg->kismet_config->FetchOpt("gps") != "true") {
+	// if (globalreg->kismet_config->FetchOpt("gps") != "true") {
+	if (globalreg->kismet_config->FetchOptBoolean("gps", 0) != 1) {
 		_MSG("GPS support disabled in kismet.conf", MSGFLAG_INFO);
 		GPSNull *gn;
 		gn = new GPSNull(globalreg);

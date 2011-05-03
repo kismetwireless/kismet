@@ -78,7 +78,8 @@ Dumpfile_Tuntap::Dumpfile_Tuntap(GlobalRegistry *in_globalreg) :
 
 	// If we have a config, push it to the other side
 	if (globalreg->kismet_config != NULL) {
-		if (globalreg->kismet_config->FetchOpt("tuntap_export") != "true") {
+		//if (globalreg->kismet_config->FetchOpt("tuntap_export") != "true") {
+		if (globalreg->kismet_config->FetchOptBoolean("tuntap_export", 0) != 1) {
 			return;
 		}
 

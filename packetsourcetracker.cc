@@ -1052,7 +1052,8 @@ int Packetsourcetracker::AddPacketSource(string in_source,
 		}
 	}
 
-	if (FetchOpt("hop", &options) != "true" && FetchOpt("hop", &options) != "") {
+	// if (FetchOpt("hop", &options) != "true" && FetchOpt("hop", &options) != "") {
+	if (FetchOptBoolean("hop", &options, 1) == 0) {
 		_MSG("Disabling channel hopping on source '" + interface + "' because the "
 			 "source options include hop=false", MSGFLAG_INFO);
 		pstsource->channel_hop = 0;
@@ -1156,7 +1157,8 @@ int Packetsourcetracker::AddPacketSource(string in_source,
 		pstsource->channel_rate = default_channel_rate;
 
 	if (FetchOpt("split", &options) != "" && pstsource->channel_hop) {
-		if (FetchOpt("split", &options) != "true") {
+		// if (FetchOpt("split", &options) != "true") {
+		if (FetchOptBoolean("split", &options, 0)) {
 			_MSG("Disabling channel list splitting on interface '" + interface + "' "
 				 "because split=false was in the source options.  This source will "
 				 "not balance channel offsets with other sources using the same "
@@ -1165,7 +1167,8 @@ int Packetsourcetracker::AddPacketSource(string in_source,
 		}
 	}
 
-	if (FetchOpt("retry", &options) == "" || FetchOpt("retry", &options) == "true") {
+	// if (FetchOpt("retry", &options) == "" || FetchOpt("retry", &options) == "true") {
+	if (FetchOptBoolean("retry", &options, 1)) {
 		_MSG("Will attempt to reopen on source '" + interface + "' if there are errors",
 			 MSGFLAG_INFO);
 		pstsource->reopen = 1;
