@@ -155,7 +155,8 @@ void Kis_Panel_Specialtext::Mvwaddnstr(WINDOW *win, int y, int x, string str, in
 }
 
 Kis_Panel_Color::Kis_Panel_Color() {
-	nextindex = COLORS + 1;
+	// nextindex = COLORS + 1;
+	nextindex = 1;
 }
 
 int Kis_Panel_Color::AddColor(string color, string pref) {
@@ -169,7 +170,8 @@ int Kis_Panel_Color::AddColor(string color, string pref) {
 	}
 
 	if (nextindex == COLOR_PAIRS - 1) {
-		return 0;
+		// fprintf(stderr, "debug - too many color pairs\n");
+		return COLOR_PAIR(0);
 	}
 
 	vector<string> colorpair = StrTokenize(color, ",");
@@ -215,6 +217,7 @@ int Kis_Panel_Color::AddColor(string color, string pref) {
 			nums[x] = COLOR_WHITE;
 	}
 
+	// fprintf(stderr, "debug - color init_pair %d vals %d, %d\n", nextindex, nums[0], nums[1]);
 	init_pair(nextindex, nums[0], nums[1]);
 
 	pair = COLOR_PAIR(nextindex);
