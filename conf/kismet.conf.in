@@ -124,6 +124,7 @@ maxbacklog=5000
 ouifile=/etc/manuf
 ouifile=/usr/share/wireshark/wireshark/manuf
 ouifile=/usr/share/wireshark/manuf
+ouifile=/Applications/Wireshark.app/Contents/Resources/share/wireshark/manuf
 
 # Do we have a GPS?
 gps=true
