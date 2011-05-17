@@ -313,6 +313,7 @@ struct drone_capture_sub_data {
 
 #define DRONE_CONTENT_RADIO			0
 #define DRONE_CONTENT_GPS			1
+#define DRONE_CONTENT_FCS			2
 #define DRONE_CONTENT_IEEEPACKET	31
 // Capture packet made of multiple other sub components
 // content[0] format:

@@ -688,6 +688,18 @@ int DroneClientFrame::ParseData() {
 				poffst += sublen;
 			}
 
+			if ((cbm & DRONEBIT(DRONE_CONTENT_FCS))) {
+				kis_fcs_bytes *fcschunk = new kis_fcs_bytes;
+
+				memcpy(fcschunk->fcs, &(dcpkt->content[poffst]), 4);
+				fcschunk->fcsvalid = 1;
+
+				newpack->insert(_PCM(PACK_COMP_FCSBYTES), fcschunk);
+
+				// Jump to the end of this packet
+				poffst += 4;
+			}
+
 			if ((cbm & DRONEBIT(DRONE_CONTENT_IEEEPACKET))) {
 				// Jump to thend of the capframe
 				poffst = kis_ntoh32(dcpkt->cap_packet_offset);
