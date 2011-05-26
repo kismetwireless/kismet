@@ -15,7 +15,7 @@ mkdir dpkg
 mkdir dpkg/control
 mkdir dpkg/data
 mkdir -p dpkg/data/usr/bin
-mkdir -p dpkg/data/usr/etc
+mkdir -p dpkg/data/etc/kismet
 mkdir -p dpkg/data/usr/man/man1
 mkdir -p dpkg/data/usr/man/man5
 mkdir -p dpkg/data/usr/share/kismet/wav
@@ -36,8 +36,8 @@ cp ../man/kismet_drone.1 dpkg/data/usr/man/man1/
 cp ../man/kismet.conf.5 dpkg/data/usr/man/man5/
 cp ../man/kismet_drone.conf.5 dpkg/data/usr/man/man5/
 
-cp ../conf/kismet.conf dpkg/data/usr/etc/
-cp ../conf/kismet_drone.conf dpkg/data/usr/etc/
+cp ../conf/kismet.conf dpkg/data/etc/kismet/
+cp ../conf/kismet_drone.conf dpkg/data/etc/kismet/
 
 cp ../README dpkg/data/usr/share/doc/
 
@@ -92,8 +92,8 @@ chmod +x dpkg/control/postinst
 cp dpkg-postrm dpkg/control/postrm
 chmod +x dpkg/control/postrm
 
-echo "/usr/etc/kismet.conf" > dpkg/control/conffiles
-echo "/usr/etc/kismet_drone.conf" > dpkg/control/conffiles
+echo "/etc/kismet/kismet.conf" > dpkg/control/conffiles
+echo "/etc/kismet/kismet_drone.conf" > dpkg/control/conffiles
 
 chown root.root dpkg/ -Rv
 
