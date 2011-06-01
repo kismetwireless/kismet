@@ -36,7 +36,8 @@ ETC			= ${DESTDIR}@sysconfdir@
 BIN			= ${DESTDIR}@bindir@
 SHARE 		= ${DESTDIR}@datadir@/kismet/
 MAN 		= ${DESTDIR}@mandir@
+LIB			= ${DESTDIR}@libdir@
 WAV 		= ${SHARE}/wav/
 
-PLUGINLDFLAGS = @PLUGINLDFLAGS@
+PLUGINLDFLAGS = @PLUGINLDFLAGS@ @LDFLAGS@
 

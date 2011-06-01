@@ -7,7 +7,6 @@ include $(KIS_SRC_DIR)/Makefile.inc
 BLDHOME	= .
 top_builddir = $(BLDHOME)
 
-PLUGINLDFLAGS ?= $(LDFLAGS)
 PLUGINLDFLAGS += -shared -rdynamic
 LIBS	+= -lstdc++ -lbluetooth -lpthread -lncurses -lpanel
 CFLAGS 	+= -I/usr/include -I$(KIS_INC_DIR) -g -fPIC
@@ -27,10 +26,10 @@ $(SRVOUT):	$(SRVOBJS)
 	$(LD) $(PLUGINLDFLAGS) $(SRVOBJS) -o $(SRVOUT) $(LIBS)
 
 install:	$(SRVOUT) $(CLIOUT)
-	mkdir -p $(DESTDIR)$(prefix)/lib/kismet/
-	install -o $(INSTUSR) -g $(INSTGRP) -m 644 $(SRVOUT) $(DESTDIR)$(prefix)/lib/kismet/$(SRVOUT)
-	mkdir -p $(DESTDIR)$(prefix)/lib/kismet_client/
-	install -o $(INSTUSR) -g $(INSTGRP) -m 644 $(CLIOUT) $(DESTDIR)$(prefix)/lib/kismet_client/$(CLIOUT)
+	mkdir -p $(LIB)/kismet/
+	install -o $(INSTUSR) -g $(INSTGRP) -m 644 $(SRVOUT) $(LIB)/kismet/$(SRVOUT)
+	mkdir -p $(LIB)/kismet_client/
+	install -o $(INSTUSR) -g $(INSTGRP) -m 644 $(CLIOUT) $(LIB)/kismet_client/$(CLIOUT)
 
 userinstall:	$(SRVOUT) $(CLIOUT)
 	mkdir -p ${HOME}/.kismet/plugins/

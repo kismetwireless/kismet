@@ -7,7 +7,6 @@ include $(KIS_SRC_DIR)/Makefile.inc
 BLDHOME	= .
 top_builddir = $(BLDHOME)
 
-PLUGINLDFLAGS ?= $(LDFLAGS)
 PLUGINLDFLAGS += -shared -rdynamic
 LIBS	+= -lstdc++ 
 CFLAGS 	+= -I/usr/include -I$(KIS_INC_DIR) -g -fPIC
@@ -21,8 +20,8 @@ $(PLUGOUT):	$(PLUGOBJS)
 	$(LD) $(PLUGINLDFLAGS) $(PLUGOBJS) -o $(PLUGOUT) $(LIBS)
 
 install:	$(PLUGOUT)
-	mkdir -p $(DESTDIR)$(prefix)/lib/kismet/
-	install -o $(INSTUSR) -g $(INSTGRP) -m 644 $^ $(DESTDIR)$(prefix)/lib/kismet/$^
+	mkdir -p $(LIB)/kismet/
+	install -o $(INSTUSR) -g $(INSTGRP) -m 644 $^ $(LIB)/kismet/$^
 
 userinstall:	$(PLUGOUT)
 	mkdir -p ${HOME}/.kismet/plugins/
