@@ -29,7 +29,7 @@ install:	$(SRVOUT) $(CLIOUT)
 	mkdir -p $(LIB)/kismet/
 	install -o $(INSTUSR) -g $(INSTGRP) -m 644 $(SRVOUT) $(LIB)/kismet/$(SRVOUT)
 	mkdir -p $(LIB)/kismet_client/
-	install -o $(INSTUSR) -g $(INSTGRP) -m 644 $(CLIOUT) $(LIB)kismet_client/$(CLIOUT)
+	install -o $(INSTUSR) -g $(INSTGRP) -m 644 $(CLIOUT) $(LIB)/kismet_client/$(CLIOUT)
 
 userinstall:	$(SRVOUT) $(CLIOUT)
 	mkdir -p ${HOME}/.kismet/plugins/
