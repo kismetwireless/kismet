@@ -2281,6 +2281,9 @@ int Packetsourcetracker::SetSourceHopping(uuid in_uuid, int in_hopping,
 	pst_packetsource *pstsource = NULL;
 
 	for (unsigned int x = 0; x < packetsource_vec.size(); x++) {
+		if (packetsource_vec[x]->strong_source == NULL)
+			continue;
+
 		if (packetsource_vec[x]->strong_source->FetchUUID() == in_uuid) {
 			pstsource = packetsource_vec[x];
 			break;
@@ -2327,6 +2330,9 @@ int Packetsourcetracker::SetSourceNewChannellist(uuid in_uuid, string in_channel
 	pst_packetsource *pstsource = NULL;
 
 	for (unsigned int x = 0; x < packetsource_vec.size(); x++) {
+		if (packetsource_vec[x]->strong_source == NULL)
+			continue;
+
 		if (packetsource_vec[x]->strong_source->FetchUUID() == in_uuid) {
 			pstsource = packetsource_vec[x];
 			break;
@@ -2369,6 +2375,9 @@ int Packetsourcetracker::SetSourceHopDwell(uuid in_uuid, int in_rate, int in_dwe
 	pst_packetsource *pstsource = NULL;
 
 	for (unsigned int x = 0; x < packetsource_vec.size(); x++) {
+		if (packetsource_vec[x]->strong_source == NULL)
+			continue;
+
 		if (packetsource_vec[x]->strong_source->FetchUUID() == in_uuid) {
 			pstsource = packetsource_vec[x];
 			break;
