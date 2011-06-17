@@ -823,8 +823,8 @@ void Kis_Main_Panel::Proto_GPS(CLIPROTO_CB_PARMS) {
 	int eng = StrLower(kpinterface->prefs->FetchOpt("GPSUNIT")) != "metric";
 
 	gpstext = string("GPS ") + 
-		NtoString<float>(lat).Str() + string(" ") + 
-		NtoString<float>(lon).Str() + string(" ");
+		NtoString<float>(lat, 6).Str() + string(" ") + 
+		NtoString<float>(lon, 6).Str() + string(" ");
 
 	// Convert to m/hr
 	spd *= 3600;
@@ -3038,8 +3038,8 @@ void Kis_Gps_Panel::Proto_GPS(CLIPROTO_CB_PARMS) {
 		gpsmoveinfo->SetText("");
 	} else {
 		gpstext = string("Lat ") + 
-			NtoString<float>(lat).Str() + string(" Lon ") + 
-			NtoString<float>(lon).Str();
+			NtoString<float>(lat, 6).Str() + string(" Lon ") + 
+			NtoString<float>(lon, 6).Str();
 		gpslocinfo->SetText(gpstext);
 
 		if (eng) {

@@ -319,6 +319,13 @@ int GPSDClient::ParseData() {
 						in_hed = n;
 						use_hed = 1;
 					}
+
+					// Speed
+					n = JSON_dict_get_number(json, "speed", err);
+					if (err.length() == 0) {
+						in_spd = n;
+						use_spd = 1;
+					} 
 				}
 			} else if (msg_class == "SKY") {
 				GPSCore::sat_pos sp;
