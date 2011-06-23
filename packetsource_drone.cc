@@ -31,6 +31,7 @@
 #include "tcpclient.h"
 #include "packetsourcetracker.h"
 #include "packetsource_drone.h"
+#include "phy_80211.h"
 
 int droneclienttimer_hook(TIMEEVENT_PARMS) {
 	return ((DroneClientFrame *) parm)->time_handler();
@@ -689,7 +690,7 @@ int DroneClientFrame::ParseData() {
 			}
 
 			if ((cbm & DRONEBIT(DRONE_CONTENT_FCS))) {
-				kis_fcs_bytes *fcschunk = new kis_fcs_bytes;
+				dot11_fcs_bytes *fcschunk = new dot11_fcs_bytes;
 
 				memcpy(fcschunk->fcs, &(dcpkt->content[poffst]), 4);
 				fcschunk->fcsvalid = 1;

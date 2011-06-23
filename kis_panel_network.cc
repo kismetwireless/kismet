@@ -28,6 +28,8 @@
 
 #include "soundcontrol.h"
 
+#include "phy_80211.h"
+
 const common_col_pref bssid_column_details[] = {
 	{ "decay", "Recent activity", bcol_decay },
 	{ "name", "Name or SSID", bcol_name },
@@ -1333,7 +1335,7 @@ void Kis_Netlist::Proto_SSID(CLIPROTO_CB_PARMS) {
 		asd->dot11d_country = MungeToPrintable(dot11d[0]);
 
 		for (unsigned int x = 1; x < dot11d.size(); x++) {
-			dot11d_range_info ri;
+			dot11_11d_range_info ri;
 			if (sscanf(dot11d[x].c_str(), "%u-%u-%u", &(ri.startchan), 
 					   &(ri.numchan), &(ri.txpower)) != 3) {
 				delete asd;

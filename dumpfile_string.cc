@@ -19,6 +19,7 @@
 #include "config.h"
 
 #include "dumpfile_string.h"
+#include "phy_80211.h"
 
 int dumpfilestring_chain_hook(CHAINCALL_PARMS) {
 	Dumpfile_String *auxptr = (Dumpfile_String *) auxdata;
@@ -119,9 +120,9 @@ int Dumpfile_String::chain_handler(kis_packet *in_pack) {
 		return 0;
 
 	// Grab the 80211 info, compare, bail
-    kis_ieee80211_packinfo *packinfo;
+    dot11_packinfo *packinfo;
 	if ((packinfo = 
-		 (kis_ieee80211_packinfo *) in_pack->fetch(_PCM(PACK_COMP_80211))) == NULL)
+		 (dot11_packinfo *) in_pack->fetch(_PCM(PACK_COMP_80211))) == NULL)
 		return 0;
 	if (packinfo->corrupt)
 		return 0;

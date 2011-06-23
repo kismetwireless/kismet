@@ -59,6 +59,11 @@ int phydot11_packethook_dot11classify(CHAINCALL_PARMS) {
 	return ((Kis_80211_Phy *) auxdata)->ClassiferDot11(in_pack);
 }
 
+int phydot11_packethook_dot11string(CHAINCALL_PARMS) {
+	return ((Kis_80211_Phy *) auxdata)->PacketDot11stringDissector(in_pack);
+}
+
+
 Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, 
 		Devicetracker *in_tracker, int in_phyid) : 
 	Kis_Phy_Handler(in_globalreg, in_tracker, in_phyid) {
@@ -72,6 +77,8 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
 											CHAINPOS_LLCDISSECT, -100);
 	globalreg->packetchain->RegisterHandler(&phydot11_packethook_dot11data, this,
 											CHAINPOS_DATADISSECT, -100);
+	globalreg->packetchain->RegisterHandler(&phydot11_packethook_dot11string, this,
+											CHAINPOS_DATADISSECT, -99);
 
 	// register packet classifier - network classifier will hand data to the
 	// data classifier, don't register both
@@ -157,8 +164,17 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
 	for (unsigned int wi = 0; wi < 256; wi++)
 		wep_identity[wi] = wi;
 
-	// TODO - strings, input filter
-
+	string_filter = new FilterCore(globalreg);
+	vector<string> filterlines = 
+		globalreg->kismet_config->FetchOptVec("filter_string");
+	for (unsigned int fl = 0; fl < filterlines.size(); fl++) {
+		if (string_filter->AddFilterLine(filterlines[fl]) < 0) {
+			_MSG("Failed to add filter_string config line from the Kismet config "
+				 "file.", MSGFLAG_FATAL);
+			globalreg->fatal_condition = 1;
+			return;
+		}
+	}
 	
 	_MSG("Registered 80211 PHY as id " + IntToString(in_phyid), MSGFLAG_INFO);
 }
@@ -168,6 +184,8 @@ Kis_80211_Phy::~Kis_80211_Phy() {
 	globalreg->packetchain->RemoveHandler(&phydot11_packethook_dot11, 
 										  CHAINPOS_LLCDISSECT);
 	globalreg->packetchain->RemoveHandler(&phydot11_packethook_dot11data, 
+										  CHAINPOS_DATADISSECT);
+	globalreg->packetchain->RemoveHandler(&phydot11_packethook_dot11string,
 										  CHAINPOS_DATADISSECT);
 	globalreg->packetchain->RemoveHandler(&phydot11_packethook_dot11classify,
 										  CHAINPOS_CLASSIFIER);
@@ -230,7 +248,7 @@ int Kis_80211_Phy::TimerKick() {
 }
 
 dot11_ssid *Kis_80211_Phy::BuildSSID(uint32_t ssid_csum, 
-									 kis_ieee80211_packinfo *packinfo,
+									 dot11_packinfo *packinfo,
 									 kis_packet *in_pack) {
 	dot11_ssid *adssid;
 	kis_tracked_device *dev = NULL;

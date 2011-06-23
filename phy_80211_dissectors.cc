@@ -204,7 +204,7 @@ int Kis_80211_Phy::PacketDot11Dissector(kis_packet *in_pack) {
 
     // Extract data, bail if it doesn't exist, make a local copy of what we're
     // inserting into the frame.
-    kis_ieee80211_packinfo *packinfo;
+    dot11_packinfo *packinfo;
 	kis_datachunk *chunk = 
 		(kis_datachunk *) in_pack->fetch(_PCM(PACK_COMP_80211FRAME));
 
@@ -232,7 +232,7 @@ int Kis_80211_Phy::PacketDot11Dissector(kis_packet *in_pack) {
         return 0;
 	}
 
-    packinfo = new kis_ieee80211_packinfo;
+    packinfo = new dot11_packinfo;
 
     frame_control *fc = (frame_control *) chunk->data;
 
@@ -719,7 +719,7 @@ int Kis_80211_Phy::PacketDot11Dissector(kis_packet *in_pack) {
 
 				// We don't have to check taglen since we check that above
 				for (unsigned int p = 3; p + 3 <= taglen; p += 3) {
-					dot11d_range_info ri;
+					dot11_11d_range_info ri;
 
 					ri.startchan = chunk->data[tag_offset + p];
 					ri.numchan = chunk->data[tag_offset + p + 1];
@@ -1017,9 +1017,9 @@ int Kis_80211_Phy::PacketDot11dataDissector(kis_packet *in_pack) {
 		return 0;
 
 	// Grab the 80211 info, compare, bail
-    kis_ieee80211_packinfo *packinfo;
+    dot11_packinfo *packinfo;
 	if ((packinfo = 
-		 (kis_ieee80211_packinfo *) in_pack->fetch(_PCM(PACK_COMP_80211))) == NULL)
+		 (dot11_packinfo *) in_pack->fetch(_PCM(PACK_COMP_80211))) == NULL)
 		return 0;
 	if (packinfo->corrupt)
 		return 0;
@@ -1586,7 +1586,7 @@ int Kis_80211_Phy::PacketDot11dataDissector(kis_packet *in_pack) {
 	return 1;
 }
 
-kis_datachunk *Kis_80211_Phy::DecryptWEP(kis_ieee80211_packinfo *in_packinfo,
+kis_datachunk *Kis_80211_Phy::DecryptWEP(dot11_packinfo *in_packinfo,
 											   kis_datachunk *in_chunk,
 											   unsigned char *in_key, int in_key_len,
 											   unsigned char *in_id) {
@@ -1705,9 +1705,9 @@ int Kis_80211_Phy::PacketWepDecryptor(kis_packet *in_pack) {
 		return 0;
 
 	// Grab the 80211 info, compare, bail
-    kis_ieee80211_packinfo *packinfo;
+    dot11_packinfo *packinfo;
 	if ((packinfo = 
-		 (kis_ieee80211_packinfo *) in_pack->fetch(_PCM(PACK_COMP_80211))) == NULL)
+		 (dot11_packinfo *) in_pack->fetch(_PCM(PACK_COMP_80211))) == NULL)
 		return 0;
 	if (packinfo->corrupt)
 		return 0;
@@ -1753,6 +1753,113 @@ int Kis_80211_Phy::PacketWepDecryptor(kis_packet *in_pack) {
 	packinfo->decrypted = 1;
 
 	in_pack->insert(_PCM(PACK_COMP_MANGLEFRAME), manglechunk);
+	return 1;
+}
+
+int Kis_80211_Phy::PacketDot11stringDissector(kis_packet *in_pack) {
+	if (dissect_strings == 0)
+		return 0;
+
+	kis_string_info *stringinfo = NULL;
+	vector<string> parsed_strings;
+
+	if (in_pack->error)
+		return 0;
+
+	// Grab the 80211 info, compare, bail
+    dot11_packinfo *packinfo;
+	if ((packinfo = 
+		 (dot11_packinfo *) in_pack->fetch(_PCM(PACK_COMP_80211))) == NULL)
+		return 0;
+	if (packinfo->corrupt)
+		return 0;
+	if (packinfo->type != packet_data || 
+		(packinfo->subtype != packet_sub_data &&
+		 packinfo->subtype != packet_sub_data_qos_data))
+		return 0;
+
+	// If it's encrypted and hasn't been decrypted, we can't do anything
+	// smart with it, so toss.
+	if (packinfo->cryptset != 0 && packinfo->decrypted == 0)
+		return 0;
+
+	if (dissect_all_strings == 0 && dissect_strings) {
+		if (string_nets.find(packinfo->bssid_mac) == string_nets.end() &&
+			string_nets.find(packinfo->source_mac) == string_nets.end() &&
+			string_nets.find(packinfo->dest_mac) == string_nets.end()) {
+			return 0;
+		}
+	}
+	
+	// Grab the mangled frame if we have it, then try to grab up the list of
+	// data types and die if we can't get anything
+	kis_datachunk *chunk = 
+		(kis_datachunk *) in_pack->fetch(_PCM(PACK_COMP_MANGLEFRAME));
+
+	if (chunk == NULL) {
+		if ((chunk = 
+			 (kis_datachunk *) in_pack->fetch(_PCM(PACK_COMP_80211FRAME))) == NULL) {
+			if ((chunk = (kis_datachunk *) 
+				 in_pack->fetch(_PCM(PACK_COMP_LINKFRAME))) == NULL) {
+				return 0;
+			}
+		}
+	}
+
+	// If we don't have a dot11 frame, throw it away
+	if (chunk->dlt != KDLT_IEEE802_11)
+		return 0;
+
+	// Blow up on no content
+    if (packinfo->header_offset > chunk->length)
+        return 0;
+
+	string str;
+	int pos = 0;
+	int printable = 0;
+	for (unsigned int x = packinfo->header_offset; x < chunk->length; x++) {
+		if (printable && !isprint(chunk->data[x]) && pos != 0) {
+			if (pos > 4 && 
+				string_filter->RunFilter(packinfo->bssid_mac, packinfo->source_mac,
+										 packinfo->dest_mac) == 0 &&
+				string_filter->RunPcreFilter(str) == 0) {
+				str = MungeToPrintable(str);
+				// Send it to the clients
+				string_proto_info nfo;
+				nfo.text = str;
+				nfo.bssid = packinfo->bssid_mac;
+				nfo.source = packinfo->source_mac;
+				nfo.dest = packinfo->dest_mac;
+				globalreg->kisnetserver->SendToAll(_NPM(PROTO_REF_STRING),
+												   (void *) &nfo);
+
+				// Cache it in the packet
+				parsed_strings.push_back(str);
+			}
+
+			str = "";
+			pos = 0;
+			printable = 0;
+		} else if (isprint(chunk->data[x])) {
+			str += (char) chunk->data[x];
+			pos++;
+			printable = 1;
+		}
+	}
+
+	if (parsed_strings.size() <= 0)
+		return 0;
+
+	stringinfo =
+		(kis_string_info *) in_pack->fetch(_PCM(PACK_COMP_STRINGS));
+
+	if (stringinfo == NULL) {
+		stringinfo = new kis_string_info;
+		in_pack->insert(_PCM(PACK_COMP_STRINGS), stringinfo);
+	}
+
+	stringinfo->extracted_strings = parsed_strings;
+
 	return 1;
 }
 
@@ -1871,113 +1978,6 @@ int KisBuiltinDissector::cmd_delwepkey(CLIENT_PARMS) {
     _MSG(errstr, MSGFLAG_INFO);
 
     return 1;
-}
-
-int KisBuiltinDissector::basicstring_dissector(kis_packet *in_pack) {
-	if (dissect_strings == 0)
-		return 0;
-
-	kis_string_info *stringinfo = NULL;
-	vector<string> parsed_strings;
-
-	if (in_pack->error)
-		return 0;
-
-	// Grab the 80211 info, compare, bail
-    kis_ieee80211_packinfo *packinfo;
-	if ((packinfo = 
-		 (kis_ieee80211_packinfo *) in_pack->fetch(_PCM(PACK_COMP_80211))) == NULL)
-		return 0;
-	if (packinfo->corrupt)
-		return 0;
-	if (packinfo->type != packet_data || 
-		(packinfo->subtype != packet_sub_data &&
-		 packinfo->subtype != packet_sub_data_qos_data))
-		return 0;
-
-	// If it's encrypted and hasn't been decrypted, we can't do anything
-	// smart with it, so toss.
-	if (packinfo->cryptset != 0 && packinfo->decrypted == 0)
-		return 0;
-
-	if (dissect_all_strings == 0 && dissect_strings) {
-		if (string_nets.find(packinfo->bssid_mac) == string_nets.end() &&
-			string_nets.find(packinfo->source_mac) == string_nets.end() &&
-			string_nets.find(packinfo->dest_mac) == string_nets.end()) {
-			return 0;
-		}
-	}
-	
-	// Grab the mangled frame if we have it, then try to grab up the list of
-	// data types and die if we can't get anything
-	kis_datachunk *chunk = 
-		(kis_datachunk *) in_pack->fetch(_PCM(PACK_COMP_MANGLEFRAME));
-
-	if (chunk == NULL) {
-		if ((chunk = 
-			 (kis_datachunk *) in_pack->fetch(_PCM(PACK_COMP_80211FRAME))) == NULL) {
-			if ((chunk = (kis_datachunk *) 
-				 in_pack->fetch(_PCM(PACK_COMP_LINKFRAME))) == NULL) {
-				return 0;
-			}
-		}
-	}
-
-	// If we don't have a dot11 frame, throw it away
-	if (chunk->dlt != KDLT_IEEE802_11)
-		return 0;
-
-	// Blow up on no content
-    if (packinfo->header_offset > chunk->length)
-        return 0;
-
-	string str;
-	int pos = 0;
-	int printable = 0;
-	for (unsigned int x = packinfo->header_offset; x < chunk->length; x++) {
-		if (printable && !isprint(chunk->data[x]) && pos != 0) {
-			if (pos > 4 && 
-				string_filter->RunFilter(packinfo->bssid_mac, packinfo->source_mac,
-										 packinfo->dest_mac) == 0 &&
-				string_filter->RunPcreFilter(str) == 0) {
-				str = MungeToPrintable(str);
-				// Send it to the clients
-				string_proto_info nfo;
-				nfo.text = str;
-				nfo.bssid = packinfo->bssid_mac;
-				nfo.source = packinfo->source_mac;
-				nfo.dest = packinfo->dest_mac;
-				globalreg->kisnetserver->SendToAll(_NPM(PROTO_REF_STRING),
-												   (void *) &nfo);
-
-				// Cache it in the packet
-				parsed_strings.push_back(str);
-			}
-
-			str = "";
-			pos = 0;
-			printable = 0;
-		} else if (isprint(chunk->data[x])) {
-			str += (char) chunk->data[x];
-			pos++;
-			printable = 1;
-		}
-	}
-
-	if (parsed_strings.size() <= 0)
-		return 0;
-
-	stringinfo =
-		(kis_string_info *) in_pack->fetch(_PCM(PACK_COMP_STRINGS));
-
-	if (stringinfo == NULL) {
-		stringinfo = new kis_string_info;
-		in_pack->insert(_PCM(PACK_COMP_STRINGS), stringinfo);
-	}
-
-	stringinfo->extracted_strings = parsed_strings;
-
-	return 1;
 }
 
 int KisBuiltinDissector::cmd_strings(CLIENT_PARMS) {

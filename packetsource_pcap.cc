@@ -27,6 +27,7 @@
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 
+#include "phy_80211.h"
 #include "gpscore.h"
 
 #ifdef HAVE_LINUX_WIRELESS
@@ -345,9 +346,9 @@ int PacketSource_Pcap::Eight2KisPack(kis_packet *packet, kis_datachunk *linkchun
 	eight11chunk->data = new uint8_t[eight11chunk->length];
     memcpy(eight11chunk->data, linkchunk->data, eight11chunk->length);
 
-	kis_fcs_bytes *fcschunk = NULL;
+	dot11_fcs_bytes *fcschunk = NULL;
 	if (fcsbytes && linkchunk->length > 4) {
-		fcschunk = new kis_fcs_bytes;
+		fcschunk = new dot11_fcs_bytes;
 		memcpy(fcschunk->fcs, &(linkchunk->data[linkchunk->length - 4]), 4);
 		// Valid until proven otherwise
 		fcschunk->fcsvalid = 1;
@@ -499,9 +500,9 @@ int PacketSource_Pcap::Prism2KisPack(kis_packet *packet, kis_datachunk *linkchun
 	packet->insert(_PCM(PACK_COMP_RADIODATA), radioheader);
 	packet->insert(_PCM(PACK_COMP_80211FRAME), eight11chunk);
 
-	kis_fcs_bytes *fcschunk = NULL;
+	dot11_fcs_bytes *fcschunk = NULL;
 	if (fcsbytes && linkchunk->length > 4) {
-		fcschunk = new kis_fcs_bytes;
+		fcschunk = new dot11_fcs_bytes;
 		memcpy(fcschunk->fcs, &(linkchunk->data[linkchunk->length - 4]), 4);
 		// Valid until proven otherwise
 		fcschunk->fcsvalid = 1;
@@ -805,9 +806,9 @@ int PacketSource_Pcap::Radiotap2KisPack(kis_packet *packet, kis_datachunk *linkc
 	packet->insert(_PCM(PACK_COMP_RADIODATA), radioheader);
 	packet->insert(_PCM(PACK_COMP_80211FRAME), eight11chunk);
 
-	kis_fcs_bytes *fcschunk = NULL;
+	dot11_fcs_bytes *fcschunk = NULL;
 	if (fcs_cut && linkchunk->length > 4) {
-		fcschunk = new kis_fcs_bytes;
+		fcschunk = new dot11_fcs_bytes;
 		memcpy(fcschunk->fcs, &(linkchunk->data[linkchunk->length - 4]), 4);
 		// Valid until proven otherwise
 		fcschunk->fcsvalid = 1;
@@ -1042,9 +1043,9 @@ int PacketSource_Pcap::PPI2KisPack(kis_packet *packet, kis_datachunk *linkchunk)
 		packet->insert(_PCM(PACK_COMP_RADIODATA), radioheader);
 	packet->insert(_PCM(PACK_COMP_80211FRAME), eight11chunk);
 
-	kis_fcs_bytes *fcschunk = NULL;
+	dot11_fcs_bytes *fcschunk = NULL;
 	if (applyfcs && linkchunk->length > 4) {
-		fcschunk = new kis_fcs_bytes;
+		fcschunk = new dot11_fcs_bytes;
 		memcpy(fcschunk->fcs, &(linkchunk->data[linkchunk->length - 4]), 4);
 	
 		// Listen to the PPI file for known bad, regardless if we have validate

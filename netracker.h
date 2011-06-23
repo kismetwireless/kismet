@@ -42,6 +42,7 @@
 #include "uuid.h"
 #include "configfile.h"
 #include "devicetracker.h"
+#include "phy_80211.h"
 
 // Cache file versioning
 #define NETRACKER_SSIDCACHE_VERSION 	2
@@ -275,7 +276,7 @@ public:
 		int beacons;
 
 		string dot11d_country;
-		vector<dot11d_range_info> dot11d_vec;
+		vector<dot11_11d_range_info> dot11d_vec;
 
 		// SSID is dirty and should be resent
 		int dirty;
@@ -522,7 +523,7 @@ public:
 		map<uuid, source_data *> source_map;
 
 		string dot11d_country;
-		vector<dot11d_range_info> dot11d_vec;
+		vector<dot11_11d_range_info> dot11d_vec;
 
 		// Map of arbitrary tags associated with this network
 		// Tags are case sensitive!
@@ -586,7 +587,7 @@ protected:
 
 	// Build a SSID record
 	Netracker::adv_ssid_data *BuildAdvSSID(uint32_t ssid_csum, 
-										   kis_ieee80211_packinfo *packinfo,
+										   dot11_packinfo *packinfo,
 										   kis_packet *in_pack);
 
 	// Kick the timer event to update all the clients

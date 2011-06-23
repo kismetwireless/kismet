@@ -19,6 +19,7 @@
 #include "config.h"
 #include <sstream>
 #include "statealert.h"
+#include "phy_80211.h"
 
 int bsstsalert_chain_hook(CHAINCALL_PARMS) {
 
@@ -58,8 +59,8 @@ BSSTSStateAlert::~BSSTSStateAlert() {
 
 int BSSTSStateAlert::ProcessPacket(kis_packet *in_pack) {
 	// Get the 802.11 data
-	kis_ieee80211_packinfo *packinfo =
-		(kis_ieee80211_packinfo *) in_pack->fetch(_PCM(PACK_COMP_80211));
+	dot11_packinfo *packinfo =
+		(dot11_packinfo *) in_pack->fetch(_PCM(PACK_COMP_80211));
 
 	if (packinfo == NULL)
 		return 0;

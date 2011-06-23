@@ -23,6 +23,7 @@
 #include "globalregistry.h"
 #include "gpscore.h"
 #include "dumpfile_gpsxml.h"
+#include "phy_80211.h"
 
 #define GPS_VERSION		5
 #define gps_track_bssid	"GP:SD:TR:AC:KL:OG"
@@ -119,7 +120,7 @@ int Dumpfile_Gpsxml::Flush() {
 
 int Dumpfile_Gpsxml::chain_handler(kis_packet *in_pack) {
 	kis_gps_packinfo *gpsinfo = NULL;
-	kis_ieee80211_packinfo *eight11 = NULL;
+	dot11_packinfo *eight11 = NULL;
 	kis_layer1_packinfo *radio = NULL;
 
 	if (in_pack->error)
@@ -137,7 +138,7 @@ int Dumpfile_Gpsxml::chain_handler(kis_packet *in_pack) {
 	}
 
 	// If all we're doing is logging the GPS info...
-	if ((eight11 = (kis_ieee80211_packinfo *)
+	if ((eight11 = (dot11_packinfo *)
 		 in_pack->fetch(_PCM(PACK_COMP_80211))) == NULL) {
 
 		// If we're only logging GPS track data, only do it once a second

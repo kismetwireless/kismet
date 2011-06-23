@@ -61,6 +61,17 @@ enum dot11_ssid_type {
 	dot11_ssid_file = 3,
 };
 
+// Dot11d struct
+struct dot11_11d_range_info {
+	dot11_11d_range_info() {
+		startchan = 0;
+		numchan = 0;
+		txpower = 0;
+	}
+
+	int startchan, numchan, txpower;
+};
+
 struct dot11_ssid {
 	dot11_ssid() {
 		checksum = 0;
@@ -138,7 +149,7 @@ struct dot11_ssid {
 	int beacons;
 
 	string dot11d_country;
-	vector<dot11d_range_info> dot11d_vec;
+	vector<dot11_11d_range_info> dot11d_vec;
 
 	// SSID is dirty and should be resent
 	int dirty;
@@ -256,7 +267,7 @@ public:
 	dot11_network *netptr;
 
 	string dot11d_country;
-	vector<dot11d_range_info> dot11d_vec;
+	vector<dot11_11d_range_info> dot11d_vec;
 
 };
 
@@ -297,6 +308,126 @@ public:
     unsigned int failed;
 };
 
+// dot11 packet components
+class dot11_fcs_bytes : public packet_component {
+public:
+	dot11_fcs_bytes() {
+		self_destruct = 1;
+		fcs[0] = fcs[1] = fcs[2] = fcs[3] = 0;
+		fcsp = (uint32_t *) fcs;
+		fcsvalid = 0;
+	}
+
+	uint8_t fcs[4];
+	uint32_t *fcsp;
+	int fcsvalid;
+};
+
+// Info from the IEEE 802.11 frame headers for kismet
+class dot11_packinfo : public packet_component {
+public:
+    dot11_packinfo() {
+		self_destruct = 1; // Our delete() handles this
+        corrupt = 0;
+        header_offset = 0;
+        type = packet_unknown;
+        subtype = packet_sub_unknown;
+        mgt_reason_code = 0;
+        ssid_len = 0;
+		ssid_blank = 0;
+        source_mac = mac_addr(0);
+        dest_mac = mac_addr(0);
+        bssid_mac = mac_addr(0);
+        other_mac = mac_addr(0);
+        distrib = distrib_unknown;
+		cryptset = 0;
+		decrypted = 0;
+        fuzzywep = 0;
+		fmsweak = 0;
+        ess = 0;
+		ibss = 0;
+		channel = 0;
+        encrypted = 0;
+        beacon_interval = 0;
+        maxrate = 0;
+        timestamp = 0;
+        sequence_number = 0;
+        frag_number = 0;
+		fragmented = 0;
+		retry = 0;
+        duration = 0;
+        datasize = 0;
+		qos = 0;
+		ssid_csum = 0;
+		dot11d_country = "XXX";
+    }
+
+    // Corrupt 802.11 frame
+    int corrupt;
+   
+    // Offset to data components in frame
+    unsigned int header_offset;
+    
+    ieee_80211_type type;
+    ieee_80211_subtype subtype;
+  
+    uint8_t mgt_reason_code;
+    
+    // Raw SSID
+	string ssid;
+	// Length of the SSID header field
+    int ssid_len;
+	// Is the SSID empty spaces?
+	int ssid_blank;
+
+    // Address set
+    mac_addr source_mac;
+    mac_addr dest_mac;
+    mac_addr bssid_mac;
+    mac_addr other_mac;
+    
+    ieee_80211_disttype distrib;
+ 
+	uint64_t cryptset;
+	int decrypted; // Might as well put this in here?
+    int fuzzywep;
+	int fmsweak;
+
+    // Was it flagged as ess? (ap)
+    int ess;
+	int ibss;
+
+	// What channel does it report
+	int channel;
+
+    // Is this encrypted?
+    int encrypted;
+    int beacon_interval;
+
+	uint16_t qos;
+
+    // Some cisco APs seem to fill in this info field
+	string beacon_info;
+
+    double maxrate;
+
+    uint64_t timestamp;
+    int sequence_number;
+    int frag_number;
+	int fragmented;
+	int retry;
+
+    int duration;
+
+    int datasize;
+
+	uint32_t ssid_csum;
+
+	string dot11d_country;
+	vector<dot11_11d_range_info> dot11d_vec;
+};
+
+
 class Kis_80211_Phy : public Kis_Phy_Handler {
 public:
 	// Stub
@@ -331,9 +462,10 @@ public:
 	int PacketWepDecryptor(kis_packet *in_pack);
 	int PacketDot11Dissector(kis_packet *in_pack);
 	int PacketDot11dataDissector(kis_packet *in_pack);
+	int PacketDot11stringDissector(kis_packet *in_pack);
 
 	// static incase some other component wants to use it
-	static kis_datachunk *DecryptWEP(kis_ieee80211_packinfo *in_packinfo,
+	static kis_datachunk *DecryptWEP(dot11_packinfo *in_packinfo,
 									 kis_datachunk *in_chunk, 
 									 unsigned char *in_key, int in_key_len,
 									 unsigned char *in_id);
@@ -360,7 +492,7 @@ protected:
 
 	// Build a SSID record
 	dot11_ssid *BuildSSID(uint32_t ssid_csum,
-						  kis_ieee80211_packinfo *packinfo,
+						  dot11_packinfo *packinfo,
 						  kis_packet *in_pack);
 
 	// Save the SSID cache
@@ -385,6 +517,8 @@ protected:
 	// Do we pull strings?
 	int dissect_strings, dissect_all_strings;
 
+	FilterCore *string_filter;
+	macmap<int> string_nets;
 
 	// Dissector alert references
 	int alert_netstumbler_ref, alert_nullproberesp_ref, alert_lucenttest_ref,

@@ -269,7 +269,7 @@ public:
 	// an advertised country will show up as different regblocks
 	struct reg_block {
 		string dot11d_country;
-		vector<dot11d_range_info> dot11d_vec;
+		vector<dot11_11d_range_info> dot11d_vec;
 		vector<Kis_Display_NetGroup *> netgroup_vec;
 	};
 

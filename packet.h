@@ -132,7 +132,7 @@ public:
     }
 };
 
-// Arbitrary 802.11 data chunk
+// Arbitrary data chunk, decapsulated from the link headers
 class kis_datachunk : public packet_component {
 public:
     uint8_t *data;
@@ -153,31 +153,6 @@ public:
     }
 };
 
-class kis_fcs_bytes : public packet_component {
-public:
-	kis_fcs_bytes() {
-		self_destruct = 1;
-		fcs[0] = fcs[1] = fcs[2] = fcs[3] = 0;
-		fcsp = (uint32_t *) fcs;
-		fcsvalid = 0;
-	}
-
-	uint8_t fcs[4];
-	uint32_t *fcsp;
-	int fcsvalid;
-};
-
-// Dot11d struct
-struct dot11d_range_info {
-	dot11d_range_info() {
-		startchan = 0;
-		numchan = 0;
-		txpower = 0;
-	}
-
-	int startchan, numchan, txpower;
-};
-
 // String reference
 class kis_string_info : public packet_component {
 public:
@@ -188,109 +163,12 @@ public:
 	vector<string> extracted_strings;
 };
 
-// Info from the IEEE 802.11 frame headers for kismet
-class kis_ieee80211_packinfo : public packet_component {
-public:
-    kis_ieee80211_packinfo() {
-		self_destruct = 1; // Our delete() handles this
-        corrupt = 0;
-        header_offset = 0;
-        type = packet_unknown;
-        subtype = packet_sub_unknown;
-        mgt_reason_code = 0;
-        ssid_len = 0;
-		ssid_blank = 0;
-        source_mac = mac_addr(0);
-        dest_mac = mac_addr(0);
-        bssid_mac = mac_addr(0);
-        other_mac = mac_addr(0);
-        distrib = distrib_unknown;
-		cryptset = 0;
-		decrypted = 0;
-        fuzzywep = 0;
-		fmsweak = 0;
-        ess = 0;
-		ibss = 0;
-		channel = 0;
-        encrypted = 0;
-        beacon_interval = 0;
-        maxrate = 0;
-        timestamp = 0;
-        sequence_number = 0;
-        frag_number = 0;
-		fragmented = 0;
-		retry = 0;
-        duration = 0;
-        datasize = 0;
-		qos = 0;
-		ssid_csum = 0;
-		dot11d_country = "XXX";
-    }
-
-    // Corrupt 802.11 frame
-    int corrupt;
-   
-    // Offset to data components in frame
-    unsigned int header_offset;
-    
-    ieee_80211_type type;
-    ieee_80211_subtype subtype;
-  
-    uint8_t mgt_reason_code;
-    
-    // Raw SSID
-	string ssid;
-	// Length of the SSID header field
-    int ssid_len;
-	// Is the SSID empty spaces?
-	int ssid_blank;
-
-    // Address set
-    mac_addr source_mac;
-    mac_addr dest_mac;
-    mac_addr bssid_mac;
-    mac_addr other_mac;
-    
-    ieee_80211_disttype distrib;
- 
-	uint64_t cryptset;
-	int decrypted; // Might as well put this in here?
-    int fuzzywep;
-	int fmsweak;
-
-    // Was it flagged as ess? (ap)
-    int ess;
-	int ibss;
-
-	// What channel does it report
-	int channel;
-
-    // Is this encrypted?
-    int encrypted;
-    int beacon_interval;
-
-	uint16_t qos;
-
-    // Some cisco APs seem to fill in this info field
-	string beacon_info;
-
-    double maxrate;
-
-    uint64_t timestamp;
-    int sequence_number;
-    int frag_number;
-	int fragmented;
-	int retry;
-
-    int duration;
-
-    int datasize;
-
-	uint32_t ssid_csum;
-
-	string dot11d_country;
-	vector<dot11d_range_info> dot11d_vec;
-};
+typedef struct {
+	string text;
+	mac_addr bssid;
+	mac_addr source;
+	mac_addr dest;
+} string_proto_info;
 
 // some protocols we do try to track
 enum kis_protocol_info_type {

@@ -34,6 +34,7 @@
 #include "gpscore.h"
 #include "version.h"
 #include "packetsourcetracker.h"
+#include "phy_80211.h"
 
 void KisDroneframe_MessageClient::ProcessMessage(string in_msg, int in_flags) {
 	string msg;
@@ -758,7 +759,7 @@ int KisDroneFramework::chain_handler(kis_packet *in_pack) {
 	kis_layer1_packinfo *radio = NULL;
 	kis_datachunk *chunk = NULL;
 	kis_ref_capsource *csrc_ref = NULL;
-	kis_fcs_bytes *fcs = NULL;
+	dot11_fcs_bytes *fcs = NULL;
 
 	// Get the capsource info
 	csrc_ref = (kis_ref_capsource *) in_pack->fetch(_PCM(PACK_COMP_KISCAPSRC));
@@ -770,7 +771,7 @@ int KisDroneFramework::chain_handler(kis_packet *in_pack) {
 	radio = (kis_layer1_packinfo *) in_pack->fetch(_PCM(PACK_COMP_RADIODATA));
 
 	// Get any fcs data
-	fcs = (kis_fcs_bytes *) in_pack->fetch(_PCM(PACK_COMP_FCSBYTES));
+	fcs = (dot11_fcs_bytes *) in_pack->fetch(_PCM(PACK_COMP_FCSBYTES));
 
 	// Try to find if we have a data chunk through various means
 	chunk = (kis_datachunk *) in_pack->fetch(_PCM(PACK_COMP_MANGLEFRAME));
@@ -782,7 +783,7 @@ int KisDroneFramework::chain_handler(kis_packet *in_pack) {
 	}
 
 	if (fcs == NULL) {
-		fcs = new kis_fcs_bytes;
+		fcs = new dot11_fcs_bytes;
 		fcs->fcs[0] = 0xDE;
 		fcs->fcs[1] = 0xAD;
 		fcs->fcs[2] = 0xBE;

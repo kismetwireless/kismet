@@ -25,6 +25,7 @@
 #include "endian_magic.h"
 #include "dumpfile_pcap.h"
 #include "packetsource_pcap.h"
+#include "phy_80211.h"
 
 int dumpfilepcap_chain_hook(CHAINCALL_PARMS) {
 	Dumpfile_Pcap *auxptr = (Dumpfile_Pcap *) auxdata;
@@ -185,8 +186,8 @@ void Dumpfile_Pcap::RemovePPICallback(dumpfile_ppi_cb in_cb, void *in_aux) {
 int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 	// Grab the mangled frame if we have it, then try to grab up the list of
 	// data types and die if we can't get anything
-	kis_ieee80211_packinfo *packinfo =
-		(kis_ieee80211_packinfo *) in_pack->fetch(_PCM(PACK_COMP_80211));
+	dot11_packinfo *packinfo =
+		(dot11_packinfo *) in_pack->fetch(_PCM(PACK_COMP_80211));
 
 	// Grab the generic mangled frame
 	kis_datachunk *chunk = 
@@ -198,8 +199,8 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 	kis_gps_packinfo *gpsdata =
 		(kis_gps_packinfo *) in_pack->fetch(_PCM(PACK_COMP_GPS));
 
-	kis_fcs_bytes *fcsdata =
-		(kis_fcs_bytes *) in_pack->fetch(_PCM(PACK_COMP_FCSBYTES));
+	dot11_fcs_bytes *fcsdata =
+		(dot11_fcs_bytes *) in_pack->fetch(_PCM(PACK_COMP_FCSBYTES));
 
 	if (cbfilter != NULL) {
 		// If we have a filter, grab the data using that

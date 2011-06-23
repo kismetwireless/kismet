@@ -2287,7 +2287,7 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 	Packinfo_Sig_Combo *sc = NULL;
 
 	// Fetch the info from the packet chain data
-	kis_ieee80211_packinfo *packinfo = (kis_ieee80211_packinfo *) 
+	dot11_packinfo *packinfo = (dot11_packinfo *) 
 		in_pack->fetch(_PCM(PACK_COMP_80211));
 	kis_gps_packinfo *gpsinfo = (kis_gps_packinfo *) 
 		in_pack->fetch(_PCM(PACK_COMP_GPS));
@@ -2970,7 +2970,7 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 
 int Netracker::datatracker_chain_handler(kis_packet *in_pack) {
 	// Fetch the info from the packet chain data
-	kis_ieee80211_packinfo *packinfo = (kis_ieee80211_packinfo *) 
+	dot11_packinfo *packinfo = (dot11_packinfo *) 
 		in_pack->fetch(_PCM(PACK_COMP_80211));
 
 	// No 802.11 info, we don't handle it.
@@ -3341,7 +3341,7 @@ const map<mac_addr, Netracker::tracked_network *> Netracker::FetchProbeNets() {
 }
 
 Netracker::adv_ssid_data *Netracker::BuildAdvSSID(uint32_t ssid_csum, 
-												  kis_ieee80211_packinfo *packinfo,
+												  dot11_packinfo *packinfo,
 												  kis_packet *in_pack) {
 	Netracker::adv_ssid_data *adssid;
 	Netracker::tracked_network *net = NULL;
