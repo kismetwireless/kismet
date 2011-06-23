@@ -496,6 +496,7 @@ void CatchShutdown(int sig) {
 				break;
 			}
 		}
+
 	}
 
 	if (globalregistry->rootipc != NULL) {
