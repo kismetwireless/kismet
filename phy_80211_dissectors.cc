@@ -30,117 +30,18 @@
 #include <sstream>
 
 #include "endian_magic.h"
-#include "packetdissectors.h"
+#include "phy_80211.h"
 #include "packetsignatures.h"
 #include "packetchain.h"
 #include "alertracker.h"
 #include "configfile.h"
 #include "packetsource.h"
 
-#define PROTO_SSID_LEN		32
-
 // Handly little global so that it only has to do the ascii->mac_addr transform once
 mac_addr broadcast_mac = "FF:FF:FF:FF:FF:FF";
 
-const char *WEPKEY_fields_text[] = {
-    "origin", "bssid", "key", "encrypted", "failed",
-    NULL
-};
-
-void proto_WEPKEY_enable(PROTO_ENABLE_PARMS) {
-	((KisBuiltinDissector *) data)->BlitKeys(in_fd);
-}
-
-int proto_WEPKEY(PROTO_PARMS) {
-	wep_key_info *winfo = (wep_key_info *) data;
-	ostringstream osstr;
-
-	// We don't use the cache
-	
-	for (unsigned int x = 0; x < field_vec->size(); x++) {
-		unsigned int fnum = (*field_vec)[x];
-
-		osstr.str("");
-
-		switch (fnum) {
-			case WEPKEY_origin:
-				if (winfo->fragile == 0)
-					out_string += "0";
-				else
-					out_string += "1";
-				break;
-			case WEPKEY_bssid:
-				out_string += winfo->bssid.Mac2String();
-				break;
-			case WEPKEY_key:
-				/*
-				printf("debug - key len %u\n", winfo->len);
-				printf("debug - key %02hx%02hx%02hx%02hx\n", winfo->key[0], winfo->key[1], winfo->key[2], winfo->key[3]);
-				*/
-
-				for (unsigned int kpos = 0; kpos < WEPKEY_MAX && 
-					 kpos < winfo->len; kpos++) {
-					osstr << hex << setfill('0') << setw(2) << (int) winfo->key[kpos];
-				}
-
-				out_string += osstr.str();
-				break;
-			case WEPKEY_decrypted:
-				out_string += IntToString(winfo->decrypted);
-				break;
-			case WEPKEY_failed:
-				out_string += IntToString(winfo->failed);
-				break;
-			default:
-				out_string = "\001Unknown field requested\001";
-				return -1;
-				break;
-		}
-
-		out_string += " ";
-	}
-
-	return 1;
-}
-
-int clicmd_LISTWEPKEYS_hook(CLIENT_PARMS) {
-	KisBuiltinDissector *di = (KisBuiltinDissector *) auxptr;
-	return di->cmd_listwepkeys(in_clid, framework, globalreg, errstr, cmdline,
-							   parsedcmdline, auxptr);
-}
-
-int clicmd_ADDWEPKEY_hook(CLIENT_PARMS) {
-	KisBuiltinDissector *di = (KisBuiltinDissector *) auxptr;
-	return di->cmd_addwepkey(in_clid, framework, globalreg, errstr, cmdline,
-							   parsedcmdline, auxptr);
-}
-
-int clicmd_DELWEPKEY_hook(CLIENT_PARMS) {
-	KisBuiltinDissector *di = (KisBuiltinDissector *) auxptr;
-	return di->cmd_delwepkey(in_clid, framework, globalreg, errstr, cmdline,
-							   parsedcmdline, auxptr);
-}
-
-int clicmd_STRINGS_hook(CLIENT_PARMS) {
-	KisBuiltinDissector *di = (KisBuiltinDissector *) auxptr;
-	return di->cmd_strings(in_clid, framework, globalreg, errstr, cmdline,
-						   parsedcmdline, auxptr);
-}
-
-int clicmd_STRINGSFILTER_hook(CLIENT_PARMS) {
-	KisBuiltinDissector *di = (KisBuiltinDissector *) auxptr;
-	return di->cmd_stringsfilter(in_clid, framework, globalreg, errstr, cmdline,
-								 parsedcmdline, auxptr);
-}
-
-int pbd_blittimer(TIMEEVENT_PARMS) {
-	((KisBuiltinDissector *) parm)->BlitKeys(-1);
-
-	return 1;
-}
-
 // CRC32 index for verifying WEP - cribbed from ethereal
-static const uint32_t wep_crc32_table[256] = {
+static const uint32_t dot11_wep_crc32_table[256] = {
     0x00000000L, 0x77073096L, 0xee0e612cL, 0x990951baL, 0x076dc419L,
     0x706af48fL, 0xe963a535L, 0x9e6495a3L, 0x0edb8832L, 0x79dcb8a4L,
     0xe0d5e91eL, 0x97d2d988L, 0x09b64c2bL, 0x7eb17cbdL, 0xe7b82d07L,
@@ -195,278 +96,9 @@ static const uint32_t wep_crc32_table[256] = {
     0x2d02ef8dL
 };
 
-// Hooks into the real functions
-int kis_80211_dissector(CHAINCALL_PARMS) {
-	KisBuiltinDissector *auxptr = (KisBuiltinDissector *) auxdata;
-	return auxptr->ieee80211_dissector(in_pack);
-}
-
-int kis_data_dissector(CHAINCALL_PARMS) {
-	KisBuiltinDissector *auxptr = (KisBuiltinDissector *) auxdata;
-	return auxptr->basicdata_dissector(in_pack);
-}
-
-int kis_string_dissector(CHAINCALL_PARMS) {
-	KisBuiltinDissector *auxptr = (KisBuiltinDissector *) auxdata;
-	return auxptr->basicstring_dissector(in_pack);
-}
-
-int kis_wep_decryptor(CHAINCALL_PARMS) {
-	KisBuiltinDissector *auxptr = (KisBuiltinDissector *) auxdata;
-	return auxptr->wep_data_decryptor(in_pack);
-}
-
-const char *STRINGS_fields_text[] = {
-    "bssid", "source", "dest", "string", 
-    NULL
-};
-
-int proto_STRINGS(PROTO_PARMS) {
-	string_proto_info *str = (string_proto_info *) data;
-
-	// We don't use the cache
-	
-	for (unsigned int x = 0; x < field_vec->size(); x++) {
-		unsigned int fnum = (*field_vec)[x];
-
-		switch (fnum) {
-			case STRINGS_string:
-				out_string += string("\001") + (str->text) + string("\001");
-				break;
-			case STRINGS_bssid:
-				out_string += str->bssid.Mac2String();
-				break;
-			case STRINGS_source:
-				out_string += str->source.Mac2String();
-				break;
-			case STRINGS_dest:
-				out_string += str->dest.Mac2String();
-				break;
-			default:
-				out_string = "\001Unknown field requested\001";
-				return -1;
-				break;
-		}
-
-		out_string += " ";
-	}
-
-	return 1;
-}
-
-KisBuiltinDissector::KisBuiltinDissector() {
-	fprintf(stderr, "FATAL OOPS:  KisBuiltinDissector called with no globalreg\n");
-	exit(1);
-}
-
-KisBuiltinDissector::KisBuiltinDissector(GlobalRegistry *in_globalreg) {
-	globalreg = in_globalreg;
-	char errstr[STATUS_MAX];
-
-	string_filter = NULL;
-	dissect_data = 1;
-	dissect_strings = 0;
-	dissect_all_strings = 0;
-
-	if (globalreg->packetchain == NULL) {
-		fprintf(stderr, "FATAL OOPS:  KisBuiltinDissector called before "
-				"packetchain\n");
-		exit(1);
-	}
-
-	if (globalreg->alertracker == NULL) {
-		fprintf(stderr, "FATAL OOPS:  KisBuiltinDissector called before "
-				"alertracker\n");
-		exit(1);
-	}
-
-	if (globalreg->kisnetserver == NULL) {
-		fprintf(stderr, "FATAL OOPS:  KisBuiltinDissector called before "
-				"kisnetserver\n");
-		exit(1);
-	}
-
-	// Register the basic stuff
-	globalreg->packetchain->RegisterHandler(&kis_wep_decryptor, this,
-											CHAINPOS_DECRYPT, -100);
-	globalreg->packetchain->RegisterHandler(&kis_80211_dissector, this,
-											CHAINPOS_LLCDISSECT, -100);
-	globalreg->packetchain->RegisterHandler(&kis_data_dissector, this,
-											CHAINPOS_DATADISSECT, -100);
-	globalreg->packetchain->RegisterHandler(&kis_string_dissector, this,
-											CHAINPOS_DATADISSECT, -99);
-
-	_PCM(PACK_COMP_80211) = 
-		globalreg->packetchain->RegisterPacketComponent("IEEE80211_INFO");
-
-	_PCM(PACK_COMP_BASICDATA) = 
-		globalreg->packetchain->RegisterPacketComponent("BASICDATA_INFO");
-
-	_PCM(PACK_COMP_MANGLEFRAME) =
-		globalreg->packetchain->RegisterPacketComponent("MANGLE_FRAME");
-
-	_PCM(PACK_COMP_STRINGS) =
-		globalreg->packetchain->RegisterPacketComponent("STRINGS");
-
-	netstumbler_aref = 
-		globalreg->alertracker->ActivateConfiguredAlert("NETSTUMBLER");
-	nullproberesp_aref =
-		globalreg->alertracker->ActivateConfiguredAlert("NULLPROBERESP");
-	lucenttest_aref =
-		globalreg->alertracker->ActivateConfiguredAlert("LUCENTTEST");
-	msfbcomssid_aref =
-		globalreg->alertracker->ActivateConfiguredAlert("MSFBCOMSSID");
-	msfdlinkrate_aref =
-		globalreg->alertracker->ActivateConfiguredAlert("MSFDLINKRATE");
-	msfnetgearbeacon_aref =
-		globalreg->alertracker->ActivateConfiguredAlert("MSFNETGEARBEACON");
-	longssid_aref =
-		globalreg->alertracker->ActivateConfiguredAlert("LONGSSID");
-	disconcodeinvalid_aref =
-		globalreg->alertracker->ActivateConfiguredAlert("DISCONCODEINVALID");
-	deauthcodeinvalid_aref =
-		globalreg->alertracker->ActivateConfiguredAlert("DEAUTHCODEINVALID");
-	dhcp_clientid_aref =
-		globalreg->alertracker->ActivateConfiguredAlert("DHCPCLIENTID");
-
-	// Register network protocols for WEP key transfer commands
-	_NPM(PROTO_REF_WEPKEY) =
-		globalreg->kisnetserver->RegisterProtocol("WEPKEY", 0, 0, WEPKEY_fields_text,
-												  &proto_WEPKEY, 
-												  &proto_WEPKEY_enable, this);
-	listwepkey_cmdid =
-		globalreg->kisnetserver->RegisterClientCommand("LISTWEPKEYS", 
-													   clicmd_LISTWEPKEYS_hook,
-													   this);
-	addwepkey_cmdid =
-		globalreg->kisnetserver->RegisterClientCommand("ADDWEPKEY", 
-													   clicmd_ADDWEPKEY_hook,
-													   this);
-	delwepkey_cmdid =
-		globalreg->kisnetserver->RegisterClientCommand("DELWEPKEY", 
-													   clicmd_DELWEPKEY_hook,
-													   this);
-	_NPM(PROTO_REF_STRING) =
-		globalreg->kisnetserver->RegisterProtocol("STRING", 0, 0, STRINGS_fields_text,
-												  &proto_STRINGS, NULL, this);
-	strings_cmdid =
-		globalreg->kisnetserver->RegisterClientCommand("STRINGS", 
-													   clicmd_STRINGS_hook,
-													   this);
-	stringsfilter_cmdid =
-		globalreg->kisnetserver->RegisterClientCommand("ADDSTRINGSFILTER", 
-													   clicmd_STRINGSFILTER_hook,
-													   this);
-
-	blit_time_id =
-		globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1, 
-											  &pbd_blittimer, this);
-
-	// Do we process the whole data packet?
-    // if (StrLower(globalreg->kismet_config->FetchOpt("hidedata")) == "true" ||
-	// 	StrLower(globalreg->kismet_config->FetchOpt("dontbeevil")) == "true") {
-    if (globalreg->kismet_config->FetchOptBoolean("hidedata", 0) ||
-		globalreg->kismet_config->FetchOptBoolean("dontbeevil", 0)) {
-		_MSG("hidedata= set in Kismet config.  Kismet will ignore the contents "
-			 "of data packets entirely", MSGFLAG_INFO);
-		dissect_data = 0;
-	}
-
-    // Convert the WEP mappings to our real map
-    vector<string> raw_wepmap_vec;
-    raw_wepmap_vec = globalreg->kismet_config->FetchOptVec("wepkey");
-    for (size_t rwvi = 0; rwvi < raw_wepmap_vec.size(); rwvi++) {
-        string wepline = raw_wepmap_vec[rwvi];
-
-        size_t rwsplit = wepline.find(",");
-        if (rwsplit == string::npos) {
-            _MSG("Malformed 'wepkey' option in the config file", MSGFLAG_FATAL);
-			globalreg->fatal_condition = 1;
-			return;
-        }
-
-        mac_addr bssid_mac = wepline.substr(0, rwsplit).c_str();
-
-        if (bssid_mac.error == 1) {
-            _MSG("Malformed 'wepkey' option in the config file", MSGFLAG_FATAL);
-			globalreg->fatal_condition = 1;
-			return;
-        }
-
-        string rawkey = wepline.substr(rwsplit + 1, wepline.length() - (rwsplit + 1));
-
-        unsigned char key[WEPKEY_MAX];
-        int len = Hex2UChar((unsigned char *) rawkey.c_str(), key);
-
-        if (len != 5 && len != 13 && len != 16) {
-            snprintf(errstr, STATUS_MAX, "Invalid key '%s' length %d in a wepkey "
-					 "option in the config file.\n", rawkey.c_str(), len);
-			_MSG(errstr, MSGFLAG_FATAL);
-			globalreg->fatal_condition = 1;
-			return;
-        }
-
-        wep_key_info *keyinfo = new wep_key_info;
-        keyinfo->bssid = bssid_mac;
-        keyinfo->fragile = 0;
-        keyinfo->decrypted = 0;
-        keyinfo->failed = 0;
-        keyinfo->len = len;
-        memcpy(keyinfo->key, key, sizeof(unsigned char) * WEPKEY_MAX);
-
-        wepkeys.insert(bssid_mac, keyinfo);
-
-        snprintf(errstr, STATUS_MAX, "Using key %s length %d for BSSID %s",
-                rawkey.c_str(), len, bssid_mac.Mac2String().c_str());
-        _MSG(errstr, MSGFLAG_INFO);
-    }
-
-    // if (globalreg->kismet_config->FetchOpt("allowkeytransmit") == "true") {
-    if (globalreg->kismet_config->FetchOptBoolean("allowkeytransmit", 0)) {
-        _MSG("Allowing Kismet frontends to view WEP keys", MSGFLAG_INFO);
-        client_wepkey_allowed = 1;
-    } else {
-		client_wepkey_allowed = 0;
-	}
-
-	// Build the wep identity
-	for (unsigned int wi = 0; wi < 256; wi++)
-		wep_identity[wi] = wi;
-
-	string_filter = new FilterCore(globalreg);
-	vector<string> filterlines = 
-		globalreg->kismet_config->FetchOptVec("filter_string");
-	for (unsigned int fl = 0; fl < filterlines.size(); fl++) {
-		if (string_filter->AddFilterLine(filterlines[fl]) < 0) {
-			_MSG("Failed to add filter_string config line from the Kismet config "
-				 "file.", MSGFLAG_FATAL);
-			globalreg->fatal_condition = 1;
-			return;
-		}
-	}
-}
-
-void KisBuiltinDissector::BlitKeys(int in_fd) {
-	for (macmap<wep_key_info *>::iterator x = wepkeys.begin(); 
-		 x != wepkeys.end(); ++x) {
-		kis_protocol_cache cache;
-
-		if (in_fd == -1) {
-			if (globalreg->kisnetserver->SendToAll(_NPM(PROTO_REF_WEPKEY),
-												   (void *) *(x->second)) < 0)
-				break;
-		} else {
-			if (globalreg->kisnetserver->SendToClient(in_fd, _NPM(PROTO_REF_WEPKEY),
-													  (void *) *(x->second),
-													  &cache) < 0)
-				break;
-		}
-	}
-}
-
 // Returns a pointer in the data block to the size byte of the desired tag, with the 
 // tag offsets cached
-int KisBuiltinDissector::GetIEEETagOffsets(unsigned int init_offset, 
+int Kis_80211_Phy::GetIEEETagOffsets(unsigned int init_offset, 
 										kis_datachunk *in_chunk,
 										map<int, vector<int> > *tag_cache_map) {
     int cur_tag = 0;
@@ -513,7 +145,7 @@ int KisBuiltinDissector::GetIEEETagOffsets(unsigned int init_offset,
 }
 
 // Convert WPA cipher elements into crypt_set stuff
-int KisBuiltinDissector::WPACipherConv(uint8_t cipher_index) {
+int Kis_80211_Phy::WPACipherConv(uint8_t cipher_index) {
 	int ret = crypt_wpa;
 
 	switch (cipher_index) {
@@ -541,7 +173,7 @@ int KisBuiltinDissector::WPACipherConv(uint8_t cipher_index) {
 }
 
 // Convert WPA key management elements into crypt_set stuff
-int KisBuiltinDissector::WPAKeyMgtConv(uint8_t mgt_index) {
+int Kis_80211_Phy::WPAKeyMgtConv(uint8_t mgt_index) {
 	int ret = crypt_wpa;
 
 	switch (mgt_index) {
@@ -560,7 +192,7 @@ int KisBuiltinDissector::WPAKeyMgtConv(uint8_t mgt_index) {
 }
 
 // This needs to be optimized and it needs to not use casting to do its magic
-int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
+int Kis_80211_Phy::PacketDot11Dissector(kis_packet *in_pack) {
 	static int debugpcknum = 0;
 
 	if (in_pack->error) {
@@ -876,14 +508,14 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
 		if (fc->subtype == packet_sub_beacon &&
 			packinfo->source_mac == msfopcode_mac) {
 
-			_ALERT(msfbcomssid_aref, in_pack, packinfo,
+			_ALERT(alert_msfbcomssid_ref, in_pack, packinfo,
 				   "MSF-style poisoned beacon packet for Broadcom drivers detected");
 		}
 
 		if (fc->subtype == packet_sub_beacon &&
 			chunk->length >= 1184) {
 			if (memcmp(&(chunk->data[1180]), "\x6a\x39\x58\x01", 4) == 0)
-				_ALERT(msfnetgearbeacon_aref, in_pack, packinfo,
+				_ALERT(alert_msfnetgearbeacon_ref, in_pack, packinfo,
 					   "MSF-style poisoned options in over-sized beacon for Netgear "
 					   "driver attack");
 		}
@@ -925,7 +557,7 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
                 // Protect against malicious packets
                 if (taglen == 0) {
                     // do nothing for 0-length ssid's
-                } else if (taglen <= PROTO_SSID_LEN) {
+                } else if (taglen <= DOT11_PROTO_SSID_LEN) {
 					// Test the SSID for cloaked len!=0 data==0 situation,
 					// then munge it to something printable if it makes sense
 					// to do so
@@ -946,7 +578,7 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
 						packinfo->ssid_blank = 1;
 					}
                 } else { 
-					_ALERT(longssid_aref, in_pack, packinfo,
+					_ALERT(alert_longssid_ref, in_pack, packinfo,
 						   "Illegal SSID (greater than 32 bytes) detected, this "
 						   "likely indicates an exploit attempt against a client");
                     // Otherwise we're corrupt, set it and stop processing
@@ -1001,7 +633,7 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
 					if ((chunk->data[moffset] & 0xFF) == 75 &&
 						memcmp(&(chunk->data[moffset + 1]), "\xEB\x49", 2) == 0) {
 
-						_ALERT(msfdlinkrate_aref, in_pack, packinfo,
+						_ALERT(alert_msfdlinkrate_ref, in_pack, packinfo,
 							   "MSF-style poisoned rate field in beacon for network " +
 							   packinfo->bssid_mac.Mac2String() + ", exploit attempt "
 							   "against D-Link drivers");
@@ -1237,7 +869,7 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
 			if ((packinfo->mgt_reason_code >= 25 && packinfo->mgt_reason_code <= 31) ||
 				packinfo->mgt_reason_code > 45) {
 
-				_ALERT(deauthcodeinvalid_aref, in_pack, packinfo,
+				_ALERT(alert_deauthinvalid_ref, in_pack, packinfo,
 					   "Unknown deauthentication code " +
 					   HexIntToString(packinfo->mgt_reason_code) + 
 					   " from network " + packinfo->bssid_mac.Mac2String());
@@ -1246,7 +878,7 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
 			if ((packinfo->mgt_reason_code >= 25 && packinfo->mgt_reason_code <= 31) ||
 				packinfo->mgt_reason_code > 45) {
 
-				_ALERT(disconcodeinvalid_aref, in_pack, packinfo,
+				_ALERT(alert_disconinvalid_ref, in_pack, packinfo,
 					   "Unknown disassociation code " +
 					   HexIntToString(packinfo->mgt_reason_code) + 
 					   " from network " + packinfo->bssid_mac.Mac2String());
@@ -1378,7 +1010,7 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
     return 1;
 }
 
-int KisBuiltinDissector::basicdata_dissector(kis_packet *in_pack) {
+int Kis_80211_Phy::PacketDot11dataDissector(kis_packet *in_pack) {
 	kis_data_packinfo *datainfo = NULL;
 
 	if (in_pack->error)
@@ -1465,7 +1097,7 @@ int KisBuiltinDissector::basicdata_dissector(kis_packet *in_pack) {
 				memcmp(&(chunk->data[header_offset + NETSTUMBLER_OFFSET]),
 					   NETSTUMBLER_322_SIGNATURE, 
 					   sizeof(NETSTUMBLER_322_SIGNATURE)) == 0) {
-				_ALERT(netstumbler_aref, in_pack, packinfo,
+				_ALERT(alert_netstumbler_ref, in_pack, packinfo,
 					   "Detected Netstumbler 3.22 probe");
 				datainfo->proto = proto_netstumbler_probe;
 				datainfo->field1 = 322;
@@ -1478,7 +1110,7 @@ int KisBuiltinDissector::basicdata_dissector(kis_packet *in_pack) {
 				memcmp(&(chunk->data[header_offset + NETSTUMBLER_OFFSET]),
 					   NETSTUMBLER_323_SIGNATURE, 
 					   sizeof(NETSTUMBLER_323_SIGNATURE)) == 0) {
-				_ALERT(netstumbler_aref, in_pack, packinfo,
+				_ALERT(alert_netstumbler_ref, in_pack, packinfo,
 					   "Detected Netstumbler 3.23 probe");
 				datainfo->proto = proto_netstumbler_probe;
 				datainfo->field1 = 323;
@@ -1491,7 +1123,7 @@ int KisBuiltinDissector::basicdata_dissector(kis_packet *in_pack) {
 				memcmp(&(chunk->data[header_offset + NETSTUMBLER_OFFSET]),
 					   NETSTUMBLER_330_SIGNATURE, 
 					   sizeof(NETSTUMBLER_330_SIGNATURE)) == 0) {
-				_ALERT(netstumbler_aref, in_pack, packinfo,
+				_ALERT(alert_netstumbler_ref, in_pack, packinfo,
 					   "Detected Netstumbler 3.30 probe");
 				datainfo->proto = proto_netstumbler_probe;
 				datainfo->field1 = 330;
@@ -1504,14 +1136,14 @@ int KisBuiltinDissector::basicdata_dissector(kis_packet *in_pack) {
 				memcmp(&(chunk->data[header_offset + LUCENT_OFFSET]),
 					   LUCENT_TEST_SIGNATURE, 
 					   sizeof(LUCENT_TEST_SIGNATURE)) == 0) {
-				_ALERT(lucenttest_aref, in_pack, packinfo,
+				_ALERT(alert_lucenttest_ref, in_pack, packinfo,
 					   "Detected Lucent probe/link test");
 				datainfo->proto = proto_lucent_probe;
 				in_pack->insert(_PCM(PACK_COMP_BASICDATA), datainfo);
 				return 1;
 			}
 
-			_ALERT(netstumbler_aref, in_pack, packinfo,
+			_ALERT(alert_netstumbler_ref, in_pack, packinfo,
 				   "Detected what looks like a Netstumber probe but didn't "
 				   "match known version fingerprint");
 			datainfo->proto = proto_netstumbler_probe;
@@ -1900,7 +1532,7 @@ int KisBuiltinDissector::basicdata_dissector(kis_packet *in_pack) {
 					mac_addr clmac = mac_addr(&(chunk->data[dhcp_tag_map[61][0] + 2]));
 
 					if (clmac != packinfo->source_mac) {
-						_ALERT(dhcp_clientid_aref, in_pack, packinfo, 
+						_ALERT(alert_dhcpclient_ref, in_pack, packinfo, 
 							   string("DHCP request on network ") + 
 							   packinfo->bssid_mac.Mac2String() + string(" from ") +
 							   packinfo->source_mac.Mac2String() + 
@@ -1954,7 +1586,7 @@ int KisBuiltinDissector::basicdata_dissector(kis_packet *in_pack) {
 	return 1;
 }
 
-kis_datachunk *KisBuiltinDissector::DecryptWEP(kis_ieee80211_packinfo *in_packinfo,
+kis_datachunk *Kis_80211_Phy::DecryptWEP(kis_ieee80211_packinfo *in_packinfo,
 											   kis_datachunk *in_chunk,
 											   unsigned char *in_key, int in_key_len,
 											   unsigned char *in_id) {
@@ -2027,7 +1659,7 @@ kis_datachunk *KisBuiltinDissector::DecryptWEP(kis_ieee80211_packinfo *in_packin
 		manglechunk->data[dpos - 4] = 
 			in_chunk->data[dpos] ^ keyblock[(keyblock[kba] + keyblock[kbb]) & 0xFF];
 
-		crc = wep_crc32_table[(crc ^ manglechunk->data[dpos - 4]) & 0xFF] ^ (crc >> 8);
+		crc = dot11_wep_crc32_table[(crc ^ manglechunk->data[dpos - 4]) & 0xFF] ^ (crc >> 8);
 	}
 
 	// Check the CRC
@@ -2066,7 +1698,7 @@ kis_datachunk *KisBuiltinDissector::DecryptWEP(kis_ieee80211_packinfo *in_packin
 	return manglechunk;
 }
 
-int KisBuiltinDissector::wep_data_decryptor(kis_packet *in_pack) {
+int Kis_80211_Phy::PacketWepDecryptor(kis_packet *in_pack) {
 	kis_datachunk *manglechunk = NULL;
 
 	if (in_pack->error)
@@ -2104,7 +1736,7 @@ int KisBuiltinDissector::wep_data_decryptor(kis_packet *in_pack) {
 		return 0;
 
 	// Bail if we can't find a key match
-	macmap<wep_key_info *>::iterator bwmitr = wepkeys.find(packinfo->bssid_mac);
+	macmap<dot11_wep_key *>::iterator bwmitr = wepkeys.find(packinfo->bssid_mac);
 	if (bwmitr == wepkeys.end())
 		return 0;
 
@@ -2124,6 +1756,8 @@ int KisBuiltinDissector::wep_data_decryptor(kis_packet *in_pack) {
 	return 1;
 }
 
+
+#if 0
 void KisBuiltinDissector::AddWepKey(mac_addr bssid, uint8_t *key, unsigned int len, 
 									int temp) {
 	if (len > WEPKEY_MAX)
@@ -2346,18 +1980,6 @@ int KisBuiltinDissector::basicstring_dissector(kis_packet *in_pack) {
 	return 1;
 }
 
-void KisBuiltinDissector::SetStringExtract(int in_extr) {
-	if (in_extr == 0 && dissect_strings == 2) {
-		_MSG("SetStringExtract(): String dissection cannot be disabled because "
-			 "it is required by another active component.", MSGFLAG_ERROR);
-		return;
-	}
-
-	// If we're setting the extract here, we have to turn it on for all BSSIDs
-	dissect_strings = in_extr;
-	dissect_all_strings = in_extr;
-}
-
 int KisBuiltinDissector::cmd_strings(CLIENT_PARMS) {
 	// FIXME: write this
     if (parsedcmdline->size() < 1) {
@@ -2430,4 +2052,5 @@ int KisBuiltinDissector::cmd_stringsfilter(CLIENT_PARMS) {
 
 	return 1;
 }
+#endif
 

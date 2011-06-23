@@ -178,6 +178,15 @@ struct dot11d_range_info {
 	int startchan, numchan, txpower;
 };
 
+// String reference
+class kis_string_info : public packet_component {
+public:
+	kis_string_info() {
+		self_destruct = 1;
+	}
+
+	vector<string> extracted_strings;
+};
 
 // Info from the IEEE 802.11 frame headers for kismet
 class kis_ieee80211_packinfo : public packet_component {

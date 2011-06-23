@@ -67,8 +67,6 @@
 
 #include "gpswrapper.h"
 
-#include "packetdissectors.h"
-
 #include "netracker.h"
 #include "devicetracker.h"
 #include "phy_80211.h"
@@ -1109,6 +1107,7 @@ int main(int argc, char *argv[], char *envp[]) {
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
 
+#if 0
 	// Register basic chain elements...  This is just instantiating a util class.
 	// Nothing else talks to it, so we don't have to care about following it
 	globalregistry->messagebus->InjectMessage("Inserting basic packet dissectors...",
@@ -1116,6 +1115,7 @@ int main(int argc, char *argv[], char *envp[]) {
 	globalregistry->builtindissector = new KisBuiltinDissector(globalregistry);
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
+#endif
 
 	// Assign the speech and sound handlers
 	globalregistry->soundctl = new SoundControl(globalregistry);

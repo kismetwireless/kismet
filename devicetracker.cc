@@ -329,6 +329,8 @@ int Devicetracker_Timer(TIMEEVENT_PARMS) {
 Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) {
 	globalreg = in_globalreg;
 
+	globalreg->InsertGlobal("DEVICE_TRACKER", this);
+
 	next_componentid = 0;
 	num_packets = num_errorpackets = num_filterpackets = num_packetdelta = 0;
 
@@ -548,4 +550,14 @@ int Devicetracker::TimerKick() {
 
 	return 1;
 }
+
+kis_tracked_device *Devicetracker::FetchDevice(mac_addr in_device) {
+	device_itr i = tracked_map.find(in_device);
+
+	if (i != tracked_map.end())
+		return i->second;
+
+	return NULL;
+}
+
 

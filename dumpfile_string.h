@@ -28,7 +28,7 @@
 #include "configfile.h"
 #include "messagebus.h"
 #include "packetchain.h"
-#include "packetdissectors.h"
+#include "phy_80211.h"
 #include "dumpfile.h"
 
 // Hook for grabbing packets

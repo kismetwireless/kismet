@@ -14,6 +14,8 @@
     You should have received a copy of the GNU General Public License
     along with Kismet; if not, write to the Free Software
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+	CODE IN BOTH phy_80211.cc AND phy_80211_dissectors.cc
 */
 
 #ifndef __PHY_80211_H__
@@ -59,8 +61,8 @@ enum dot11_ssid_type {
 	dot11_ssid_file = 3,
 };
 
-struct dot11_advertised_ssid {
-	dot11_advertised_ssid() {
+struct dot11_ssid {
+	dot11_ssid() {
 		checksum = 0;
 		type = dot11_ssid_beacon;
 		mac = mac_addr(0);
@@ -78,7 +80,7 @@ struct dot11_advertised_ssid {
 		dot11d_country = "XXX";
 	}
 
-	inline dot11_advertised_ssid& operator= (const dot11_advertised_ssid& in) {
+	inline dot11_ssid& operator= (const dot11_ssid& in) {
 		checksum = in.checksum;
 		type = in.type;
 		mac = in.mac;
@@ -153,9 +155,9 @@ enum dot11_network_type {
 };
 
 // fwd def
-class dot11_tracked_client;
+class dot11_client;
 
-class dot11_tracked_network : public tracker_component {
+class dot11_network : public tracker_component {
 public:
 	dot11_network_type type;
 	mac_addr bssid;
@@ -164,10 +166,10 @@ public:
 
 	// Clients associated w/ the network, they're unique/unmasked so
 	// we don't need a macmap
-	map<mac_addr, dot11_tracked_client *> client_map;
+	map<mac_addr, dot11_client *> client_map;
 
 	// Advertised SSID data, by checksum
-	map<uint32_t, dot11_advertised_ssid *> ssid_map;
+	map<uint32_t, dot11_ssid *> ssid_map;
 
 	// Cryptset from data packets not known to be linked to a SSID
 	uint64_t data_cryptset;
@@ -207,7 +209,7 @@ public:
 
 	// Fields for the client to use
 	void *groupptr;
-	dot11_advertised_ssid *lastssid;
+	dot11_ssid *lastssid;
 
 	// Map of sources which have seen this network
 	// map<uuid, source_data *> source_map;
@@ -223,7 +225,7 @@ enum dot11_client_type {
 	dot11_client_remove = 6
 };
 
-class dot11_tracked_client : public tracker_component {
+class dot11_client : public tracker_component {
 public:
 	dot11_client_type type;
 
@@ -249,19 +251,57 @@ public:
 	string dhcp_host, dhcp_vendor;
 
 	// Probed SSID data
-	map<uint32_t, dot11_advertised_ssid *> ssid_map;
+	map<uint32_t, dot11_ssid *> ssid_map;
 
-	dot11_tracked_network *netptr;
+	dot11_network *netptr;
 
 	string dot11d_country;
 	vector<dot11d_range_info> dot11d_vec;
 
 };
 
+class dot11_ssid_alert {
+public:
+	dot11_ssid_alert() {
+#ifdef HAVE_LIBPCRE
+		ssid_re = NULL;
+		ssid_study = NULL;
+#endif
+	}
+	string name;
+
+#ifdef HAVE_LIBPCRE
+	pcre *ssid_re;
+	pcre_extra *ssid_study;
+	string filter;
+#endif
+	string ssid;
+
+	macmap<int> allow_mac_map;
+};
+
+// Dot11 SSID max len
+#define DOT11_PROTO_SSID_LEN	32
+
+// Wep keys
+#define DOT11_WEPKEY_MAX		32
+#define DOT11_WEPKEY_STRMAX		((DOT11_WEPKEY_MAX * 2) + DOT11_WEPKEY_MAX)
+
+class dot11_wep_key {
+public:
+    int fragile;
+    mac_addr bssid;
+    unsigned char key[DOT11_WEPKEY_MAX];
+    unsigned int len;
+    unsigned int decrypted;
+    unsigned int failed;
+};
+
 class Kis_80211_Phy : public Kis_Phy_Handler {
 public:
 	// Stub
 	Kis_80211_Phy() { }
+	~Kis_80211_Phy();
 
 	// Inherited functionality
 	Kis_80211_Phy(GlobalRegistry *in_globalreg) :
@@ -278,11 +318,113 @@ public:
 	Kis_80211_Phy(GlobalRegistry *in_globalreg, Devicetracker *in_tracker,
 				  int in_phyid);
 
-	// Post-dissection packet classifier kicked from Devicetracker
-	virtual int HandlePacket(kis_packet *in_pack);
+	// 802.11 packet dissectors, defined in phy_80211_dissectors.cc
+	int GetIEEETagOffsets(unsigned int init_offset, kis_datachunk *in_chunk,
+						  map<int, vector<int> > *tag_cache_map);
+
+	int WPACipherConv(uint8_t cipher_index);
+	int WPAKeyMgtConv(uint8_t mgt_index);
+
+	int WepDataDecryptor(kis_packet *in_pack);
+	int WepDataMangler(kis_packet *in_pack);
+
+	int PacketWepDecryptor(kis_packet *in_pack);
+	int PacketDot11Dissector(kis_packet *in_pack);
+	int PacketDot11dataDissector(kis_packet *in_pack);
+
+	// static incase some other component wants to use it
+	static kis_datachunk *DecryptWEP(kis_ieee80211_packinfo *in_packinfo,
+									 kis_datachunk *in_chunk, 
+									 unsigned char *in_key, int in_key_len,
+									 unsigned char *in_id);
+
+	// TODO - what do we do with the strings?  Can we make them phy-neutral?
+	// int packet_dot11string_dissector(kis_packet *in_pack);
+	
+	// 802.11 network classifiers
+	int ClassiferDot11(kis_packet *in_pack);
+	int ClassiferData(kis_packet *in_pack);
 
 	// Timer events passed from Devicetracker
 	virtual int TimerKick();
+
+	int AddFilter(string in_filter);
+	int AddNetcliFilter(string in_filter);
+
+	void SetStringExtract(int in_extr);
+
+protected:
+	int LoadWepkeys();
+
+	int chain_handler(kis_packet *in_pack);
+
+	// Build a SSID record
+	dot11_ssid *BuildSSID(uint32_t ssid_csum,
+						  kis_ieee80211_packinfo *packinfo,
+						  kis_packet *in_pack);
+
+	// Save the SSID cache
+	void SaveSSID();
+
+	map<mac_addr, string> bssid_cloak_map;
+
+	string ssid_cache_path, ip_cache_path;
+	int ssid_cache_track, ip_cache_track;
+
+	// Device components
+	int dev_comp_net, dev_comp_client;
+
+	// Packet components
+	int pack_comp_80211, pack_comp_basicdata, pack_comp_mangleframe,
+		pack_comp_strings;
+
+	// Do we do any data dissection or do we hide it all (legal safety
+	// cutout)
+	int dissect_data;
+
+	// Do we pull strings?
+	int dissect_strings, dissect_all_strings;
+
+
+	// Dissector alert references
+	int alert_netstumbler_ref, alert_nullproberesp_ref, alert_lucenttest_ref,
+		alert_msfbcomssid_ref, alert_msfdlinkrate_ref, alert_msfnetgearbeacon_ref,
+		alert_longssid_ref, alert_disconinvalid_ref, alert_deauthinvalid_ref,
+		alert_dhcpclient_ref;
+
+	// Are we allowed to send wepkeys to the client (server config)
+	int client_wepkey_allowed;
+	// Map of wepkeys to BSSID (or bssid masks)
+	macmap<dot11_wep_key *> wepkeys;
+
+	// Generated WEP identity / base
+	unsigned char wep_identity[256];
+
+	// Tracker alert references
+	int alert_chan_ref, alert_dhcpcon_ref, alert_bcastdcon_ref, alert_airjackssid_ref,
+		alert_wepflap_ref, alert_dhcpname_ref, alert_dhcpos_ref, alert_adhoc_ref,
+		alert_ssidmatch_ref;
+
+	// Command refs
+	int addfiltercmd_ref, addnetclifiltercmd_ref;
+
+	// Filter core for tracker
+	FilterCore *track_filter;
+	// Filter core for network client
+	FilterCore *netcli_filter;
+
+	// Protocol references
+	int proto_ref_bssidsrc, proto_ref_clisrc;
+
+	// SSID cloak file as a config file
+	ConfigFile *ssid_conf;
+	time_t conf_save;
+
+	// probe assoc to owning network
+	map<mac_addr, kis_tracked_device *> probe_assoc_map;
+
+	vector<dot11_ssid_alert *> apspoof_vec;
+
 };
 
 #endif

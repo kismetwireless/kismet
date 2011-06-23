@@ -46,11 +46,13 @@ Dumpfile_String::Dumpfile_String(GlobalRegistry *in_globalreg) :
 		exit(1);
 	}
 
+#if 0
 	if (globalreg->builtindissector == NULL) {
 		fprintf(stderr, "FATAL OOPS:  Sourcetracker missing before "
 				"Dumpfile_String\n");
 		exit(1);
 	}
+#endif
 
 	// Find the file name
 	if ((fname = ProcessConfigOpt("string")) == "" || 
@@ -74,9 +76,15 @@ Dumpfile_String::Dumpfile_String(GlobalRegistry *in_globalreg) :
 
 	globalreg->RegisterDumpFile(this);
 
-	globalreg->builtindissector->SetStringExtract(2);
-	_MSG("Dumpfile_String - forced string extraction from packets at all times", 
-		 MSGFLAG_INFO);
+//	globalreg->builtindissector->SetStringExtract(2);
+
+	Kis_80211_Phy *dot11phy = 
+		(Kis_80211_Phy *) globalreg->FetchGlobal("PHY_80211_TRACKER");
+	if (dot11phy != NULL) {
+		dot11phy->SetStringExtract(2);
+		_MSG("Dumpfile_String - forced string extraction from packets at all times", 
+			 MSGFLAG_INFO);
+	}
 }
 
 Dumpfile_String::~Dumpfile_String() {

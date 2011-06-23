@@ -33,12 +33,12 @@
 #include <arpa/inet.h>
 
 #include "globalregistry.h"
+#include "packet.h"
 #include "packetchain.h"
 #include "kis_netframe.h"
 #include "timetracker.h"
 #include "filtercore.h"
 #include "gpscore.h"
-#include "packet.h"
 #include "uuid.h"
 #include "configfile.h"
 
@@ -445,10 +445,16 @@ class Devicetracker;
 //   chain on each
 //  Registered phy id is passed from devicetracker
 //
-// 	Subclasses are expected to handle:
-// 	  Packets from a new PHY (via DLT or packet components) and translate them
-// 	   into trackable entries in DeviceTracker
-// 	  Appropriate network sentences to export non-common tracking data for this phy
+// 	Subclasses are expected to:
+// 	  Register packet handlers in the packet chain
+// 	  Register packet components in the packet chain
+// 	  Decode trackable data from a packetsource
+// 	  Generate trackable devices in the devicetracker
+// 	  Update tracked device common data via the devicetracker
+// 	  Provide appropriate network sentences to export non-common tracking data
+// 	   for the phy type (ie advertised SSID, etc)
+// 	  Provide per-phy filtering (if reasonable)
+// 	  Provide per-phy commands (as applicable)
 // 	  Logging in plaintext and xml
 class Kis_Phy_Handler {
 public:
@@ -475,9 +481,6 @@ public:
 
 	virtual string FetchPhyName() { return phyname; }
 	virtual int FetchPhyId() { return phyid; }
-
-	// Packet kick, passed from devicetracker
-	virtual int HandlePacket(kis_packet *in_pack) = 0;
 
 	// Timer event carried from devicetracker, for sending updated 
 	// phy-specific records, etc
@@ -532,10 +535,17 @@ public:
 	// like linking in directly for xml/net logging.
 	const map<mac_addr, kis_tracked_device *> FetchTrackedDevices();
 
+	typedef map<mac_addr, kis_tracked_device *>::iterator device_itr;
+	typedef map<mac_addr, kis_tracked_device *>::const_iterator const_device_itr;
+
 	static void Usage(char *argv);
 
 	// Kick the timer event to update the network clients
 	int TimerKick();
+
+	// Classify common layers of a packet into a device we already
+	// know about
+	void ClassifyPacket(kis_packet *in_pack, kis_tracked_device *in_dev);
 
 	// Send all devices to everyone
 	void BlitDevices(int in_fd);
