@@ -228,6 +228,7 @@ void CatchShutdown(int sig) {
 				break;
 			}
 		}
+
 	}
 
 	// This kicks off the curses teardown entirely

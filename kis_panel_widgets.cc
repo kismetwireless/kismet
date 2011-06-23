@@ -314,6 +314,9 @@ PanelInterface::~PanelInterface() {
 }
 
 int PanelInterface::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
+	if (globalreg->spindown)
+		return in_max_fd;
+
 	if (live_panels.size() == 0)
 		return in_max_fd;
 
@@ -3621,6 +3624,9 @@ int kp_escape_timer(TIMEEVENT_PARMS) {
 }
 
 int Kis_Panel::Poll() {
+	if (globalreg->spindown)
+		return 0;
+
 	int get = wgetch(win);
 	MEVENT mevent;
 	int ret;
