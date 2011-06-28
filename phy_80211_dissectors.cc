@@ -463,6 +463,15 @@ int Kis_80211_Phy::PacketDot11Dissector(kis_packet *in_pack) {
             packinfo->subtype = packet_sub_unknown;
         }
 
+		// add management addr packet
+		kis_common_info *common = new kis_common_info;
+		common->source = packinfo->source_mac;
+		common->dest = packinfo->dest_mac;
+		common->device = packinfo->bssid_mac;
+		common->device.SetPhy(phyid);
+		common->type = packet_basic_mgmt;
+		in_pack->insert(pack_comp_common, common);
+
         if (fc->subtype == packet_sub_probe_req || 
 			fc->subtype == packet_sub_disassociation || 
 			fc->subtype == packet_sub_authentication || 
@@ -996,6 +1005,15 @@ int Kis_80211_Phy::PacketDot11Dissector(kis_packet *in_pack) {
             return 0;
             break;
         }
+
+		// add data addr packet
+		kis_common_info *common = new kis_common_info;
+		common->source = packinfo->source_mac;
+		common->dest = packinfo->dest_mac;
+		common->device = packinfo->bssid_mac;
+		common->device.SetPhy(phyid);
+		common->type = packet_basic_data;
+		in_pack->insert(pack_comp_common, common);
 	}
 
     // Do a little sanity checking on the BSSID

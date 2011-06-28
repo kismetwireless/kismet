@@ -335,9 +335,6 @@ public:
 	// Tags are case sensitive
 	map<string, string> arb_tag_map;
 
-	// We need to be sent
-	int dirty;
-
 	kis_device_common() {
 		device = NULL;
 
@@ -358,8 +355,6 @@ public:
 		frequency = 0;
 
 		alert = 0;
-
-		dirty = 0;
 	}
 };
 
@@ -370,12 +365,14 @@ public:
 	mac_addr key;
 
 	int phy_type;
+	int dirty;
 
 	vector<tracker_component *> content_vec;
 
 	kis_tracked_device() {
 		phy_type = KIS_PHY_UNKNOWN;
 		content_vec.resize(MAX_TRACKER_COMPONENTS, NULL);
+		dirty = 0;
 	}
 
 	~kis_tracked_device() {
@@ -527,8 +524,8 @@ public:
 	// Look for an existing device record
 	kis_tracked_device *FetchDevice(mac_addr in_device);
 	
-	// Make a device record
-	kis_tracked_device *GenerateDevice(mac_addr in_device);
+	// Make or find a device record
+	kis_tracked_device *MapToDevice(kis_packet *in_pack);
 
 	// Fetch the internal maps. Touching these is generally Bad.  Should
 	// only be used when the chain API is insufficient for something, 
@@ -543,8 +540,8 @@ public:
 	// Kick the timer event to update the network clients
 	int TimerKick();
 
-	// Classify the common layers into an existing device record
-	int ClassifierDevice(kis_packet *in_packet);
+	// Common classifier for keeping phy counts
+	int CommonClassifier(kis_packet *in_packet);
 
 	// Scrape detected strings and push them out to the client
 	int StringCollector(kis_packet *in_packet);
@@ -583,7 +580,8 @@ protected:
 	int proto_ref_phymap, proto_ref_commondevice, proto_ref_trackinfo,
 		proto_ref_devtag, proto_ref_string;
 
-	int pack_comp_device, pack_comp_addr, pack_comp_string;
+	int pack_comp_device, pack_comp_common, pack_comp_string, pack_comp_basicdata,
+		pack_comp_radiodata;
 
 	// Tracked devices
 	map<mac_addr, kis_tracked_device *> tracked_map;

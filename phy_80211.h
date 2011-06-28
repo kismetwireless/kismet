@@ -498,7 +498,7 @@ protected:
 	// Packet components
 	int pack_comp_80211, pack_comp_basicdata, pack_comp_mangleframe,
 		pack_comp_strings, pack_comp_checksum, pack_comp_linkframe,
-		pack_comp_decap;
+		pack_comp_decap, pack_comp_common;
 
 	// Do we do any data dissection or do we hide it all (legal safety
 	// cutout)

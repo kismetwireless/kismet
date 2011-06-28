@@ -94,20 +94,23 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
 	pack_comp_80211 = _PCM(PACK_COMP_80211) =
 		globalreg->packetchain->RegisterPacketComponent("PHY80211");
 
-	pack_comp_basicdata = _PCM(PACK_COMP_BASICDATA) =
-		globalreg->packetchain->RegisterPacketComponent("PHY80211_DATA");
+	pack_comp_basicdata = 
+		globalreg->packetchain->RegisterPacketComponent("BASICDATA");
 
-	pack_comp_mangleframe = _PCM(PACK_COMP_MANGLEFRAME) =
-		globalreg->packetchain->RegisterPacketComponent("PHY80211_DATA_MANGLE");
+	pack_comp_mangleframe = 
+		globalreg->packetchain->RegisterPacketComponent("MANGLEDATA");
 
 	pack_comp_checksum =
 		globalreg->packetchain->RegisterPacketComponent("CHECKSUM");
 
-	pack_comp_linkframe = _PCM(PACK_COMP_LINKFRAME) =
+	pack_comp_linkframe = 
 		globalreg->packetchain->RegisterPacketComponent("LINKFRAME");
 
 	pack_comp_decap =
 		globalreg->packetchain->RegisterPacketComponent("DECAP");
+
+	pack_comp_common = 
+		globalreg->packetchain->RegisterPacketComponent("COMMON");
 
 	// Register the dissector alerts
 	alert_netstumbler_ref = 

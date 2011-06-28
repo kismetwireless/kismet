@@ -393,6 +393,10 @@ int Devicetracker_packethook_stringcollector(CHAINCALL_PARMS) {
 	return ((Devicetracker *) auxdata)->StringCollector(in_pack);
 }
 
+int Devicetracker_packethook_commonclassifier(CHAINCALL_PARMS) {
+	return ((Devicetracker *) auxdata)->CommonClassifier(in_pack);
+}
+
 Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) {
 	globalreg = in_globalreg;
 
@@ -417,11 +421,22 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) {
 		pack_comp_device = _PCM(PACK_COMP_DEVICE);
 	} else {
 		pack_comp_device = _PCM(PACK_COMP_DEVICE) =
-			globalreg->packetchain->RegisterPacketComponent("device");
+			globalreg->packetchain->RegisterPacketComponent("DEVICE");
 	}
 
-	pack_comp_addr = 
-		globalreg->packetchain->RegisterPacketComponent("address");
+	// Register global packet components used by the device tracker and
+	// subsequent parts
+	pack_comp_common =  _PCM(PACK_COMP_COMMON) =
+		globalreg->packetchain->RegisterPacketComponent("COMMON");
+
+	pack_comp_basicdata = _PCM(PACK_COMP_BASICDATA) = 
+		globalreg->packetchain->RegisterPacketComponent("BASICDATA");
+
+	_PCM(PACK_COMP_MANGLEFRAME) =
+		globalreg->packetchain->RegisterPacketComponent("MANGLEDATA");
+
+	pack_comp_radiodata = 
+		globalreg->packetchain->RegisterPacketComponent("RADIODATA");
 
 	// Register the network protocols
 	proto_ref_commondevice =
@@ -437,6 +452,10 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) {
 												  &Protocol_KISDEV_TRACKINFO,
 												  NULL,
 												  this);
+
+	// Common classifier, late in the classifier chain
+	globalreg->packetchain->RegisterHandler(&Devicetracker_packethook_commonclassifier,
+											this, CHAINPOS_CLASSIFIER, 100);
 
 	// Strings
 	globalreg->packetchain->RegisterHandler(&Devicetracker_packethook_stringcollector,
@@ -467,6 +486,8 @@ Devicetracker::~Devicetracker() {
 
 	globalreg->packetchain->RemoveHandler(&Devicetracker_packethook_stringcollector,
 										  CHAINPOS_LOGGING);
+	globalreg->packetchain->RemoveHandler(&Devicetracker_packethook_commonclassifier,
+										  CHAINPOS_CLASSIFIER);
 
 }
 
@@ -661,20 +682,20 @@ kis_tracked_device *Devicetracker::FetchDevice(mac_addr in_device) {
 int Devicetracker::StringCollector(kis_packet *in_pack) {
 	kis_tracked_device_info *devinfo = 
 		(kis_tracked_device_info *) in_pack->fetch(_PCM(PACK_COMP_DEVICE));
-	kis_addr_info *addr = 
-		(kis_addr_info *) in_pack->fetch(_PCM(PACK_COMP_ADDR));
+	kis_common_info *common = 
+		(kis_common_info *) in_pack->fetch(pack_comp_common);
 	kis_string_info *strings =
 		(kis_string_info *) in_pack->fetch(_PCM(PACK_COMP_STRINGS));
 
-	if (devinfo == NULL || strings == NULL || addr == NULL)
+	if (devinfo == NULL || strings == NULL || common == NULL)
 		return 0;
 
 	kis_proto_string_info si;
 
 	si.device = devinfo->devref->key;
 	si.phy = devinfo->devref->phy_type;
-	si.source = addr->source;
-	si.dest = addr->dest;
+	si.source = common->source;
+	si.dest = common->dest;
 
 	for (unsigned int x = 0; x < strings->extracted_strings.size(); x++) {
 		si.stringdata = strings->extracted_strings[x];
@@ -685,4 +706,44 @@ int Devicetracker::StringCollector(kis_packet *in_pack) {
 	return 1;
 }
 
+int Devicetracker::CommonClassifier(kis_packet *in_pack) {
+	return 0;
+}
+
+kis_tracked_device *Devicetracker::MapToDevice(kis_packet *in_pack) {
+	// Fetch the bits of the packet we tie into a device record
+	kis_common_info *pack_common = 
+		(kis_common_info *) in_pack->fetch(pack_comp_common);
+	kis_data_packinfo *pack_data = 
+		(kis_data_packinfo *) in_pack->fetch(pack_comp_basicdata);
+	kis_layer1_packinfo *pack_l1info = 
+		(kis_layer1_packinfo *) in_pack->fetch(pack_comp_radiodata);
+
+	kis_tracked_device *device = NULL;
+	kis_device_common *common = NULL;
+
+	if (pack_common == NULL)
+		return NULL;
+
+	device_itr di = tracked_map.find(pack_common->device);
+
+	if (di == tracked_map.end()) {
+		device = new kis_tracked_device;
+
+		device->key = pack_common->device;
+
+		tracked_map[device->key] = device;
+		tracked_vec.push_back(device);
+
+		common = new kis_device_common;
+	} else {
+		device = di->second;
+	}
+
+	if (device->dirty == 0) {
+		device->dirty = 1;
+		dirty_device_vec.push_back(device);
+	}
+
+}
 

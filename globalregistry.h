@@ -100,7 +100,7 @@ class Dumpfile_Pcap;
 #define PACK_COMP_STRINGS		12
 #define PACK_COMP_FCSBYTES		13
 #define PACK_COMP_DEVICE		14
-#define PACK_COMP_ADDR			15
+#define PACK_COMP_COMMON		15
 #define PACK_COMP_CHECKSUM		16
 #define PACK_COMP_DECAP			17
 #define PACK_COMP_MAX			18

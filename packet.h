@@ -177,13 +177,22 @@ public:
 	}
 };
 
-class kis_addr_info : public packet_component {
+enum kis_packet_basictype {
+	packet_basic_unknown = 0,
+	packet_basic_mgmt = 1,
+	packet_basic_data = 2,
+	packet_basic_phy = 3
+};
+
+class kis_common_info : public packet_component {
 public:
-	kis_addr_info() {
+	kis_common_info() {
 		self_destruct = 1;
+		type = packet_basic_unknown;
 	}
 
-	mac_addr source, dest;
+	mac_addr source, dest, device;
+	kis_packet_basictype type;
 };
 
 // String reference
