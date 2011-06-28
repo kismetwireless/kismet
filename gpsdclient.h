@@ -75,6 +75,8 @@ protected:
 	time_t last_hed_time;
 
 	time_t last_update;
+
+	time_t last_tpv;
 };
 
 #endif

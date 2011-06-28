@@ -109,7 +109,7 @@ GPSDClient::GPSDClient(GlobalRegistry *in_globalreg) : GPSCore(in_globalreg) {
 
 	last_mode = -1;
 
-	last_update = globalreg->timestamp.tv_sec;
+	last_tpv = last_update = globalreg->timestamp.tv_sec;
 
 	snprintf(errstr, STATUS_MAX, "Using GPSD server on %s:%d", host, port);
 	globalreg->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
@@ -143,6 +143,11 @@ int GPSDClient::Timer() {
 		Reconnect();
     }
 
+	if (globalreg->timestamp.tv_sec - last_tpv > 3) {
+		// Assume we lost link, gpsd doens't properly tell us
+		mode = 0;
+	}
+
 	// Send version probe if we're setting up a new connection
 	// Send the poll command if we're stuck in older polling mode
 	if (netclient->Valid()) {
@@ -150,6 +155,7 @@ int GPSDClient::Timer() {
 			_MSG("No update from GPSD in 15 seconds or more, attempting to "
 				 "reconnect", MSGFLAG_ERROR);
 
+			mode = 0;
 			netclient->KillConnection();
 			last_update = last_disconnect = globalreg->timestamp.tv_sec;
 			GPSCore::Timer();
@@ -267,6 +273,8 @@ int GPSDClient::ParseData() {
 				}
 			} else if (msg_class == "TPV") {
 				float n;
+
+				last_tpv = globalreg->timestamp.tv_sec;
 
 				gps_connected = 1;
 
