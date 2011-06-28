@@ -102,6 +102,7 @@ PacketSource_Wext::PacketSource_Wext(GlobalRegistry *in_globalreg,
 
 	// Don't warn about wpa_supplicant if we're going to use it
 	string processes;
+
 	if (scan_wpa == 0) {
 		if (FindProcess("wpa_action", interface))
 			processes += "wpa_action ";
@@ -109,15 +110,15 @@ PacketSource_Wext::PacketSource_Wext(GlobalRegistry *in_globalreg,
 			processes += "wpa_supplicant ";
 		if (FindProcess("wpa_cli", interface))
 			processes += "wpa_cli ";
+
+		vector<string> look_procs = 
+			StrTokenize("dhclient,ifplugd,dhcpbd,dhcpcd,NetworkManager,knetworkmanager,"
+						"avahi-daemon,wlanassistant,wifibox", ",");
+
+		for (unsigned int x = 0; x < look_procs.size(); x++) 
+			if (FindProcess(look_procs[x], interface))
+				processes += look_procs[x] + string(" ");
 	}
-
-	vector<string> look_procs = 
-		StrTokenize("dhclient,ifplugd,dhcpbd,dhcpcd,NetworkManager,knetworkmanager,"
-					"avahi-daemon,wlanassistant,wifibox", ",");
-
-	for (unsigned int x = 0; x < look_procs.size(); x++) 
-		if (FindProcess(look_procs[x], interface))
-			processes += look_procs[x] + string(" ");
 
 	processes = processes.substr(0, processes.length() - 1);
 

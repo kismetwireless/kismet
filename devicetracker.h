@@ -543,9 +543,11 @@ public:
 	// Kick the timer event to update the network clients
 	int TimerKick();
 
-	// Classify common layers of a packet into a device we already
-	// know about
-	void ClassifyPacket(kis_packet *in_pack, kis_tracked_device *in_dev);
+	// Classify the common layers into an existing device record
+	int ClassifierDevice(kis_packet *in_packet);
+
+	// Scrape detected strings and push them out to the client
+	int StringCollector(kis_packet *in_packet);
 
 	// Send all devices to everyone
 	void BlitDevices(int in_fd);
@@ -578,10 +580,10 @@ protected:
 	int timerid;
 
 	// Network protocols
-	int proto_ref_phymap;
-	int proto_ref_commondevice;
-	int proto_ref_trackinfo;
-	int proto_ref_devtag;
+	int proto_ref_phymap, proto_ref_commondevice, proto_ref_trackinfo,
+		proto_ref_devtag, proto_ref_string;
+
+	int pack_comp_device, pack_comp_addr, pack_comp_string;
 
 	// Tracked devices
 	map<mac_addr, kis_tracked_device *> tracked_map;

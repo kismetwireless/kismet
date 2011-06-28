@@ -278,10 +278,16 @@ int PacketSource_Pcap::Poll() {
 	kis_datachunk *linkchunk = new kis_datachunk;
 	linkchunk->dlt = datalink_type;
 	linkchunk->source_id = source_id;
+
+	linkchunk->set_data(callback_data, kismin(callback_header.caplen, 
+											  (uint32_t) MAX_PACKET_LEN));
+#if 0
 	linkchunk->data = 
 		new uint8_t[kismin(callback_header.caplen, (uint32_t) MAX_PACKET_LEN)];
 	linkchunk->length = kismin(callback_header.caplen, (uint32_t) MAX_PACKET_LEN);
 	memcpy(linkchunk->data, callback_data, linkchunk->length);
+#endif
+
 	newpack->insert(_PCM(PACK_COMP_LINKFRAME), linkchunk);
 
 	// Only decode the DLT if we're asked to
@@ -337,24 +343,32 @@ int PacketSource_Pcap::Eight2KisPack(kis_packet *packet, kis_datachunk *linkchun
 	kis_datachunk *eight11chunk = NULL;
 
 	eight11chunk = new kis_datachunk;
-
 	eight11chunk->dlt = KDLT_IEEE802_11;
+	eight11chunk->set_data(linkchunk->data, kismin(linkchunk->length - fcsbytes,
+												   (uint32_t) MAX_PACKET_LEN));
 
+#if 0
 	eight11chunk->length = kismin((linkchunk->length - fcsbytes), 
 								  (uint32_t) MAX_PACKET_LEN);
 
 	eight11chunk->data = new uint8_t[eight11chunk->length];
     memcpy(eight11chunk->data, linkchunk->data, eight11chunk->length);
+#endif
 
-	dot11_fcs_bytes *fcschunk = NULL;
+	kis_packet_checksum *fcschunk = NULL;
 	if (fcsbytes && linkchunk->length > 4) {
-		fcschunk = new dot11_fcs_bytes;
-		memcpy(fcschunk->fcs, &(linkchunk->data[linkchunk->length - 4]), 4);
-		// Valid until proven otherwise
-		fcschunk->fcsvalid = 1;
+		fcschunk = new kis_packet_checksum;
 
-		packet->insert(_PCM(PACK_COMP_FCSBYTES), fcschunk);
+		// memcpy(fcschunk->fcs, &(linkchunk->data[linkchunk->length - 4]), 4);
+
+		fcschunk->set_data(&(linkchunk->data[linkchunk->length - 4]), 4);
+
+		// Valid until proven otherwise
+		fcschunk->checksum_valid = 1;
+
+		packet->insert(_PCM(PACK_COMP_CHECKSUM), fcschunk);
 	}
+
 
 	// If we're validating the FCS
 	if (validate_fcs && fcschunk != NULL) {
@@ -363,16 +377,16 @@ int PacketSource_Pcap::Eight2KisPack(kis_packet *packet, kis_datachunk *linkchun
 			crc32_le_80211(globalreg->crc32_table, eight11chunk->data, 
 						   eight11chunk->length);
 
-		if (memcmp(fcschunk->fcsp, &calc_crc, 4)) {
+		if (memcmp(fcschunk->checksum_ptr, &calc_crc, 4)) {
 			packet->error = 1;
-			fcschunk->fcsvalid = 0;
+			fcschunk->checksum_valid = 0;
 			//fprintf(stderr, "debug - dot11 to kis, fcs invalid\n");
 		} else {
-			fcschunk->fcsvalid = 1;
+			fcschunk->checksum_valid = 1;
 		}
 	}
 
-	packet->insert(_PCM(PACK_COMP_80211FRAME), eight11chunk);
+	packet->insert(_PCM(PACK_COMP_DECAP), eight11chunk);
 
 	return 1;
 }
@@ -498,16 +512,17 @@ int PacketSource_Pcap::Prism2KisPack(kis_packet *packet, kis_datachunk *linkchun
     memcpy(eight11chunk->data, linkchunk->data + callback_offset, eight11chunk->length);
 
 	packet->insert(_PCM(PACK_COMP_RADIODATA), radioheader);
-	packet->insert(_PCM(PACK_COMP_80211FRAME), eight11chunk);
+	packet->insert(_PCM(PACK_COMP_DECAP), eight11chunk);
 
-	dot11_fcs_bytes *fcschunk = NULL;
+	kis_packet_checksum *fcschunk = NULL;
 	if (fcsbytes && linkchunk->length > 4) {
-		fcschunk = new dot11_fcs_bytes;
-		memcpy(fcschunk->fcs, &(linkchunk->data[linkchunk->length - 4]), 4);
-		// Valid until proven otherwise
-		fcschunk->fcsvalid = 1;
+		fcschunk = new kis_packet_checksum;
 
-		packet->insert(_PCM(PACK_COMP_FCSBYTES), fcschunk);
+		fcschunk->set_data(&(linkchunk->data[linkchunk->length - 4]), 4);
+		// Valid until proven otherwise
+		fcschunk->checksum_valid = 1;
+
+		packet->insert(_PCM(PACK_COMP_CHECKSUM), fcschunk);
 	}
 
 	// If we're validating the FCS
@@ -517,11 +532,11 @@ int PacketSource_Pcap::Prism2KisPack(kis_packet *packet, kis_datachunk *linkchun
 			crc32_le_80211(globalreg->crc32_table, eight11chunk->data, 
 						   eight11chunk->length);
 
-		if (memcmp(fcschunk->fcsp, &calc_crc, 4)) {
+		if (memcmp(fcschunk->checksum_ptr, &calc_crc, 4)) {
 			packet->error = 1;
-			fcschunk->fcsvalid = 0;
+			fcschunk->checksum_valid = 0;
 		} else {
-			fcschunk->fcsvalid = 1;
+			fcschunk->checksum_valid = 1;
 		}
 	}
 
@@ -804,14 +819,16 @@ int PacketSource_Pcap::Radiotap2KisPack(kis_packet *packet, kis_datachunk *linkc
 		   EXTRACT_LE_16BITS(&(hdr->it_len)), eight11chunk->length);
 
 	packet->insert(_PCM(PACK_COMP_RADIODATA), radioheader);
-	packet->insert(_PCM(PACK_COMP_80211FRAME), eight11chunk);
+	packet->insert(_PCM(PACK_COMP_DECAP), eight11chunk);
 
-	dot11_fcs_bytes *fcschunk = NULL;
+	kis_packet_checksum *fcschunk = NULL;
 	if (fcs_cut && linkchunk->length > 4) {
-		fcschunk = new dot11_fcs_bytes;
-		memcpy(fcschunk->fcs, &(linkchunk->data[linkchunk->length - 4]), 4);
+		fcschunk = new kis_packet_checksum;
+
+		fcschunk->set_data(&(linkchunk->data[linkchunk->length - 4]), 4);
+
 		// Valid until proven otherwise
-		fcschunk->fcsvalid = 1;
+		fcschunk->checksum_valid = 1;
 
 		packet->insert(_PCM(PACK_COMP_FCSBYTES), fcschunk);
 	}
@@ -823,12 +840,12 @@ int PacketSource_Pcap::Radiotap2KisPack(kis_packet *packet, kis_datachunk *linkc
 			crc32_le_80211(globalreg->crc32_table, eight11chunk->data, 
 						   eight11chunk->length);
 
-		if (memcmp(fcschunk->fcsp, &calc_crc, 4)) {
+		if (memcmp(fcschunk->checksum_ptr, &calc_crc, 4)) {
 			packet->error = 1;
-			fcschunk->fcsvalid = 0;
+			fcschunk->checksum_valid = 0;
 			// fprintf(stderr, "debug - rtap to kis, fcs invalid\n");
 		} else {
-			fcschunk->fcsvalid = 1;
+			fcschunk->checksum_valid = 1;
 		}
 
 	}
@@ -1041,21 +1058,22 @@ int PacketSource_Pcap::PPI2KisPack(kis_packet *packet, kis_datachunk *linkchunk)
 
 	if (radioheader != NULL)
 		packet->insert(_PCM(PACK_COMP_RADIODATA), radioheader);
-	packet->insert(_PCM(PACK_COMP_80211FRAME), eight11chunk);
+	packet->insert(_PCM(PACK_COMP_DECAP), eight11chunk);
 
-	dot11_fcs_bytes *fcschunk = NULL;
+	kis_packet_checksum *fcschunk = NULL;
 	if (applyfcs && linkchunk->length > 4) {
-		fcschunk = new dot11_fcs_bytes;
-		memcpy(fcschunk->fcs, &(linkchunk->data[linkchunk->length - 4]), 4);
+		fcschunk = new kis_packet_checksum;
+
+		fcschunk->set_data(&(linkchunk->data[linkchunk->length - 4]), 4);
 	
 		// Listen to the PPI file for known bad, regardless if we have validate
 		// turned on or not
 		if (fcsknownbad)
-			fcschunk->fcsvalid = 0;
+			fcschunk->checksum_valid = 0;
 		else
-			fcschunk->fcsvalid = 1;
+			fcschunk->checksum_valid = 1;
 
-		packet->insert(_PCM(PACK_COMP_FCSBYTES), fcschunk);
+		packet->insert(_PCM(PACK_COMP_CHECKSUM), fcschunk);
 	}
 
 	// If we're validating the FCS
@@ -1065,12 +1083,12 @@ int PacketSource_Pcap::PPI2KisPack(kis_packet *packet, kis_datachunk *linkchunk)
 			crc32_le_80211(globalreg->crc32_table, eight11chunk->data, 
 						   eight11chunk->length);
 
-		if (memcmp(fcschunk->fcsp, &calc_crc, 4)) {
+		if (memcmp(fcschunk->checksum_ptr, &calc_crc, 4)) {
 			packet->error = 1;
-			fcschunk->fcsvalid = 0;
+			fcschunk->checksum_valid = 0;
 			fprintf(stderr, "debug - rtap to kis, fcs invalid\n");
 		} else {
-			fcschunk->fcsvalid = 1;
+			fcschunk->checksum_valid = 1;
 		}
 	}
 

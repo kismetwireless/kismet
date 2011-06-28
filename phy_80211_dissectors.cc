@@ -206,11 +206,11 @@ int Kis_80211_Phy::PacketDot11Dissector(kis_packet *in_pack) {
     // inserting into the frame.
     dot11_packinfo *packinfo;
 	kis_datachunk *chunk = 
-		(kis_datachunk *) in_pack->fetch(_PCM(PACK_COMP_80211FRAME));
+		(kis_datachunk *) in_pack->fetch(pack_comp_decap);
 
 	// If we can't grab an 802.11 chunk, grab the raw link frame
 	if (chunk == NULL) {
-		chunk = (kis_datachunk *) in_pack->fetch(_PCM(PACK_COMP_LINKFRAME));
+		chunk = (kis_datachunk *) in_pack->fetch(pack_comp_linkframe);
 		if (chunk == NULL) {
 			return 0;
 		}
@@ -288,7 +288,7 @@ int Kis_80211_Phy::PacketDot11Dissector(kis_packet *in_pack) {
         // Phy stuff is all really small, so we set the limit smaller.
         if (chunk->length > 128) {
             packinfo->corrupt = 1;
-			in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
+			in_pack->insert(pack_comp_80211, packinfo);
             return 0;
         }
 
@@ -317,7 +317,7 @@ int Kis_80211_Phy::PacketDot11Dissector(kis_packet *in_pack) {
         }
 
 		// Nothing more to do if we get a phy
-		in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
+		in_pack->insert(pack_comp_80211, packinfo);
 		return 1;
 	}
 
@@ -326,7 +326,7 @@ int Kis_80211_Phy::PacketDot11Dissector(kis_packet *in_pack) {
 	// Flat-out dump if it's not big enough to be 80211.
     if (chunk->length < 24) {
 		packinfo->corrupt = 1;
-		in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
+		in_pack->insert(pack_comp_80211, packinfo);
         return 0;
 	}
 
@@ -353,7 +353,7 @@ int Kis_80211_Phy::PacketDot11Dissector(kis_packet *in_pack) {
 		// TODO: Make this a driver option
         if (chunk->length > 512) {
             packinfo->corrupt = 1;
-            in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
+            in_pack->insert(pack_comp_80211, packinfo);
             return 0;
         }
 
@@ -476,7 +476,7 @@ int Kis_80211_Phy::PacketDot11Dissector(kis_packet *in_pack) {
 			// mgt header, bail.
 			if (chunk->length < 36) {
 				packinfo->corrupt = 1;
-				in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
+				in_pack->insert(pack_comp_80211, packinfo);
 				return 0;
 			}
             packinfo->header_offset = 36;
@@ -542,7 +542,7 @@ int Kis_80211_Phy::PacketDot11Dissector(kis_packet *in_pack) {
 				if (srcparms.weak_dissect == 0) {
 					// The frame is corrupt, bail
 					packinfo->corrupt = 1;
-					in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
+					in_pack->insert(pack_comp_80211, packinfo);
 					return 0;
 				}
             }
@@ -583,7 +583,7 @@ int Kis_80211_Phy::PacketDot11Dissector(kis_packet *in_pack) {
 						   "likely indicates an exploit attempt against a client");
                     // Otherwise we're corrupt, set it and stop processing
                     packinfo->corrupt = 1;
-                    in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
+                    in_pack->insert(pack_comp_80211, packinfo);
                     return 0;
                 }
             } else {
@@ -594,7 +594,7 @@ int Kis_80211_Phy::PacketDot11Dissector(kis_packet *in_pack) {
 			if (fc->subtype == packet_sub_probe_resp) {
 				if (found_ssid_tag == 0) {
 					packinfo->corrupt = 1;
-					in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
+					in_pack->insert(pack_comp_80211, packinfo);
 					return 0;
 				}
 			}
@@ -623,7 +623,7 @@ int Kis_80211_Phy::PacketDot11Dissector(kis_packet *in_pack) {
 				if (tag_offset + taglen > chunk->length) {
                     // Otherwise we're corrupt, set it and stop processing
                     packinfo->corrupt = 1;
-                    in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
+                    in_pack->insert(pack_comp_80211, packinfo);
                     return 0;
 				}
 
@@ -639,7 +639,7 @@ int Kis_80211_Phy::PacketDot11Dissector(kis_packet *in_pack) {
 							   "against D-Link drivers");
 
 						packinfo->corrupt = 1;
-						in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
+						in_pack->insert(pack_comp_80211, packinfo);
 						return 0;
 					}
 				}
@@ -661,7 +661,7 @@ int Kis_80211_Phy::PacketDot11Dissector(kis_packet *in_pack) {
 				if (tag_offset + taglen > chunk->length) {
                     // Otherwise we're corrupt, set it and stop processing
                     packinfo->corrupt = 1;
-                    in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
+                    in_pack->insert(pack_comp_80211, packinfo);
                     return 0;
 				}
 
@@ -693,7 +693,7 @@ int Kis_80211_Phy::PacketDot11Dissector(kis_packet *in_pack) {
 				if (tag_offset + taglen > chunk->length) {
                     // Otherwise we're corrupt, set it and stop processing
                     packinfo->corrupt = 1;
-                    in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
+                    in_pack->insert(pack_comp_80211, packinfo);
                     return 0;
 				}
 				
@@ -709,7 +709,7 @@ int Kis_80211_Phy::PacketDot11Dissector(kis_packet *in_pack) {
 
 				if (taglen < 6 || tag_offset + taglen > chunk->length) {
 					packinfo->corrupt = 1;
-					in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
+					in_pack->insert(pack_comp_80211, packinfo);
 					return 0;
 				}
 				
@@ -742,7 +742,7 @@ int Kis_80211_Phy::PacketDot11Dissector(kis_packet *in_pack) {
 
 						if (tag_orig + taglen > chunk->length) {
 							packinfo->corrupt = 1;
-							in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
+							in_pack->insert(pack_comp_80211, packinfo);
 							return 0;
 						}
 
@@ -813,7 +813,7 @@ int Kis_80211_Phy::PacketDot11Dissector(kis_packet *in_pack) {
 
 						if (tag_orig + taglen > chunk->length || taglen < 6) {
 							packinfo->corrupt = 1;
-							in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
+							in_pack->insert(pack_comp_80211, packinfo);
 							return 0;
 						}
 
@@ -825,7 +825,7 @@ int Kis_80211_Phy::PacketDot11Dissector(kis_packet *in_pack) {
 							memcmp(&(chunk->data[tag_orig + offt]), RSN_OUI,
 								   sizeof(RSN_OUI))) {
 							packinfo->corrupt = 1;
-							in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
+							in_pack->insert(pack_comp_80211, packinfo);
 							return 0;
 						}
 
@@ -941,7 +941,7 @@ int Kis_80211_Phy::PacketDot11Dissector(kis_packet *in_pack) {
         } else {
             packinfo->corrupt = 1;
             packinfo->subtype = packet_sub_unknown;
-			in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
+			in_pack->insert(pack_comp_80211, packinfo);
             return 0;
         }
 
@@ -977,7 +977,7 @@ int Kis_80211_Phy::PacketDot11Dissector(kis_packet *in_pack) {
             // If we aren't long enough to hold a intra-ds packet, bail
             if (chunk->length < 30) {
                 packinfo->corrupt = 1;
-				in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
+				in_pack->insert(pack_comp_80211, packinfo);
                 return 0;
             }
 
@@ -992,7 +992,7 @@ int Kis_80211_Phy::PacketDot11Dissector(kis_packet *in_pack) {
             break;
         default:
             packinfo->corrupt = 1;
-			in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
+			in_pack->insert(pack_comp_80211, packinfo);
             return 0;
             break;
         }
@@ -1005,7 +1005,7 @@ int Kis_80211_Phy::PacketDot11Dissector(kis_packet *in_pack) {
         packinfo->corrupt = 1;
     }
 
-	in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
+	in_pack->insert(pack_comp_80211, packinfo);
 
     return 1;
 }
@@ -1035,9 +1035,9 @@ int Kis_80211_Phy::PacketDot11dataDissector(kis_packet *in_pack) {
 
 	if (chunk == NULL) {
 		if ((chunk = 
-			 (kis_datachunk *) in_pack->fetch(_PCM(PACK_COMP_80211FRAME))) == NULL) {
+			 (kis_datachunk *) in_pack->fetch(pack_comp_decap)) == NULL) {
 			if ((chunk = (kis_datachunk *) 
-				 in_pack->fetch(_PCM(PACK_COMP_LINKFRAME))) == NULL) {
+				 in_pack->fetch(pack_comp_linkframe)) == NULL) {
 				return 0;
 			}
 		}
@@ -1722,11 +1722,11 @@ int Kis_80211_Phy::PacketWepDecryptor(kis_packet *in_pack) {
 
 	// Grab the 80211 frame, if that doesn't exist, grab the link frame
 	kis_datachunk *chunk = 
-		(kis_datachunk *) in_pack->fetch(_PCM(PACK_COMP_80211FRAME));
+		(kis_datachunk *) in_pack->fetch(pack_comp_decap);
 
 	if (chunk == NULL) {
 		if ((chunk = 
-			 (kis_datachunk *) in_pack->fetch(_PCM(PACK_COMP_LINKFRAME))) == NULL) {
+			 (kis_datachunk *) in_pack->fetch(pack_comp_linkframe)) == NULL) {
 			return 0;
 		}
 	}
@@ -1798,9 +1798,9 @@ int Kis_80211_Phy::PacketDot11stringDissector(kis_packet *in_pack) {
 
 	if (chunk == NULL) {
 		if ((chunk = 
-			 (kis_datachunk *) in_pack->fetch(_PCM(PACK_COMP_80211FRAME))) == NULL) {
+			 (kis_datachunk *) in_pack->fetch(pack_comp_decap)) == NULL) {
 			if ((chunk = (kis_datachunk *) 
-				 in_pack->fetch(_PCM(PACK_COMP_LINKFRAME))) == NULL) {
+				 in_pack->fetch(pack_comp_linkframe)) == NULL) {
 				return 0;
 			}
 		}
@@ -1824,14 +1824,6 @@ int Kis_80211_Phy::PacketDot11stringDissector(kis_packet *in_pack) {
 										 packinfo->dest_mac) == 0 &&
 				string_filter->RunPcreFilter(str) == 0) {
 				str = MungeToPrintable(str);
-				// Send it to the clients
-				string_proto_info nfo;
-				nfo.text = str;
-				nfo.bssid = packinfo->bssid_mac;
-				nfo.source = packinfo->source_mac;
-				nfo.dest = packinfo->dest_mac;
-				globalreg->kisnetserver->SendToAll(_NPM(PROTO_REF_STRING),
-												   (void *) &nfo);
 
 				// Cache it in the packet
 				parsed_strings.push_back(str);

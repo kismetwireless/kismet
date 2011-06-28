@@ -56,7 +56,6 @@
 #include <plugintracker.h>
 #include <globalregistry.h>
 #include <netracker.h>
-#include <packetdissectors.h>
 #include <alertracker.h>
 #include <dumpfile_pcap.h>
 #include <version.h>

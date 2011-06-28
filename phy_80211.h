@@ -309,19 +309,6 @@ public:
 };
 
 // dot11 packet components
-class dot11_fcs_bytes : public packet_component {
-public:
-	dot11_fcs_bytes() {
-		self_destruct = 1;
-		fcs[0] = fcs[1] = fcs[2] = fcs[3] = 0;
-		fcsp = (uint32_t *) fcs;
-		fcsvalid = 0;
-	}
-
-	uint8_t fcs[4];
-	uint32_t *fcsp;
-	int fcsvalid;
-};
 
 // Info from the IEEE 802.11 frame headers for kismet
 class dot11_packinfo : public packet_component {
@@ -485,6 +472,8 @@ public:
 
 	void SetStringExtract(int in_extr);
 
+	void AddWepKey(mac_addr bssid, uint8_t *key, unsigned int len, int temp);
+
 protected:
 	int LoadWepkeys();
 
@@ -508,7 +497,8 @@ protected:
 
 	// Packet components
 	int pack_comp_80211, pack_comp_basicdata, pack_comp_mangleframe,
-		pack_comp_strings;
+		pack_comp_strings, pack_comp_checksum, pack_comp_linkframe,
+		pack_comp_decap;
 
 	// Do we do any data dissection or do we hide it all (legal safety
 	// cutout)

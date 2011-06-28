@@ -37,7 +37,6 @@
 #include <plugintracker.h>
 #include <globalregistry.h>
 #include <netracker.h>
-#include <packetdissectors.h>
 #include <dumpfile_pcap.h>
 #include <kis_ppi.h>
 #include <endian_magic.h>

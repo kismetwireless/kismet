@@ -91,26 +91,23 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
 
 	// If we haven't registered packet components yet, do so.  We have to
 	// co-exist with the old tracker core for some time
-	if (_PCM(PACK_COMP_80211) != -1) {
-		pack_comp_80211 = _PCM(PACK_COMP_80211);
-	} else {
-		pack_comp_80211 = _PCM(PACK_COMP_80211) =
-			globalreg->packetchain->RegisterPacketComponent("PHY80211");
-	}
+	pack_comp_80211 = _PCM(PACK_COMP_80211) =
+		globalreg->packetchain->RegisterPacketComponent("PHY80211");
 
-	if (_PCM(PACK_COMP_BASICDATA) != -1) {
-		pack_comp_basicdata = _PCM(PACK_COMP_BASICDATA);
-	} else {
-		pack_comp_basicdata = _PCM(PACK_COMP_BASICDATA) =
-			globalreg->packetchain->RegisterPacketComponent("PHY80211_DATA");
-	}
+	pack_comp_basicdata = _PCM(PACK_COMP_BASICDATA) =
+		globalreg->packetchain->RegisterPacketComponent("PHY80211_DATA");
 
-	if (_PCM(PACK_COMP_MANGLEFRAME) != -1) {
-		pack_comp_basicdata = _PCM(PACK_COMP_MANGLEFRAME);
-	} else {
-		pack_comp_mangleframe = _PCM(PACK_COMP_MANGLEFRAME) =
-			globalreg->packetchain->RegisterPacketComponent("PHY80211_DATA_MANGLE");
-	}
+	pack_comp_mangleframe = _PCM(PACK_COMP_MANGLEFRAME) =
+		globalreg->packetchain->RegisterPacketComponent("PHY80211_DATA_MANGLE");
+
+	pack_comp_checksum =
+		globalreg->packetchain->RegisterPacketComponent("CHECKSUM");
+
+	pack_comp_linkframe = _PCM(PACK_COMP_LINKFRAME) =
+		globalreg->packetchain->RegisterPacketComponent("LINKFRAME");
+
+	pack_comp_decap =
+		globalreg->packetchain->RegisterPacketComponent("DECAP");
 
 	// Register the dissector alerts
 	alert_netstumbler_ref = 
@@ -381,5 +378,30 @@ void Kis_80211_Phy::SetStringExtract(int in_extr) {
 	// If we're setting the extract here, we have to turn it on for all BSSIDs
 	dissect_strings = in_extr;
 	dissect_all_strings = in_extr;
+}
+
+void Kis_80211_Phy::AddWepKey(mac_addr bssid, uint8_t *key, unsigned int len, 
+							  int temp) {
+	if (len > WEPKEY_MAX)
+		return;
+
+    dot11_wep_key *winfo = new dot11_wep_key;
+
+	winfo->decrypted = 0;
+	winfo->failed = 0;
+    winfo->bssid = bssid;
+	winfo->fragile = temp;
+    winfo->len = len;
+
+    memcpy(winfo->key, key, len);
+
+    // Replace exiting ones
+	if (wepkeys.find(winfo->bssid) != wepkeys.end()) {
+		delete wepkeys[winfo->bssid];
+		wepkeys[winfo->bssid] = winfo;
+		return;
+	}
+
+	wepkeys.insert(winfo->bssid, winfo);
 }
 

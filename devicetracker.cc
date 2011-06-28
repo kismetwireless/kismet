@@ -105,6 +105,16 @@ const char *TRACKINFO_fields_text[] = {
 	NULL
 };
 
+enum STRING_FIELDS {
+	STRING_device, STRING_phy, STRING_source, STRING_dest, STRING_string,
+	STRING_maxfield
+};
+
+const char *STRINGS_fields_text[] = {
+    "device", "phy", "source", "dest", "string", 
+    NULL
+};
+
 int Protocol_KISDEV_COMMON(PROTO_PARMS) {
 	kis_device_common *com = (kis_device_common *) data;
 	kis_tracked_device *dev = com->device;
@@ -322,8 +332,65 @@ int Protocol_KISDEV_TRACKINFO(PROTO_PARMS) {
 	return 1;
 }
 
+// String info shoved into the protocol handler by the string collector
+class kis_proto_string_info {
+public:
+	mac_addr device;
+	int phy;
+	mac_addr source;
+	mac_addr dest;
+	string stringdata;
+};
+
+int Protocol_KISDEV_STRING(PROTO_PARMS) {
+	kis_proto_string_info *info = (kis_proto_string_info *) data;
+
+	string scratch;
+
+	cache->Filled(field_vec->size());
+
+	for (unsigned int x = 0; x < field_vec->size(); x++) {
+		unsigned int fnum = (*field_vec)[x];
+
+		if (fnum > STRING_maxfield) {
+			out_string = "\001Unknown field\001";
+			return -1;
+		} 
+
+		switch (fnum) {
+			case STRING_device:
+				scratch = info->device.Mac2String();
+				break;
+			case STRING_phy:
+				scratch = IntToString(info->phy);
+				break;
+			case STRING_source:
+				scratch = info->source.Mac2String();
+				break;
+			case STRING_dest:
+				scratch = info->dest.Mac2String();
+				break;
+			case STRING_string:
+				scratch = "\001" + info->stringdata + "\001";
+				break;
+			default:
+				scratch = "\001Unknown string field\001";
+				break;
+		}
+
+		cache->Cache(fnum, scratch);
+		out_string += scratch + " ";
+	}
+
+	return 1;
+}
+
 int Devicetracker_Timer(TIMEEVENT_PARMS) {
 	return ((Devicetracker *) parm)->TimerKick();
+}
+
+int Devicetracker_packethook_stringcollector(CHAINCALL_PARMS) {
+	return ((Devicetracker *) auxdata)->StringCollector(in_pack);
 }
 
 Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) {
@@ -346,8 +413,15 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) {
 											  &Devicetracker_Timer, this);
 
 	// Register the tracked device component of packets
-	_PCM(PACK_COMP_DEVICE) =
-		globalreg->packetchain->RegisterPacketComponent("tracked_device");
+	if (_PCM(PACK_COMP_DEVICE) != -1) {
+		pack_comp_device = _PCM(PACK_COMP_DEVICE);
+	} else {
+		pack_comp_device = _PCM(PACK_COMP_DEVICE) =
+			globalreg->packetchain->RegisterPacketComponent("device");
+	}
+
+	pack_comp_addr = 
+		globalreg->packetchain->RegisterPacketComponent("address");
 
 	// Register the network protocols
 	proto_ref_commondevice =
@@ -364,11 +438,35 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) {
 												  NULL,
 												  this);
 
+	// Strings
+	globalreg->packetchain->RegisterHandler(&Devicetracker_packethook_stringcollector,
+											this, CHAINPOS_LOGGING, -100);
+
+	if (_PCM(PACK_COMP_STRINGS) != -1) {
+		pack_comp_string = _PCM(PACK_COMP_STRINGS);
+	} else {
+		pack_comp_string = _PCM(PACK_COMP_STRINGS) =
+			globalreg->packetchain->RegisterPacketComponent("string");
+	}
+
+	if (_NPM(PROTO_REF_STRING) == -1) {
+		proto_ref_string = _NPM(PROTO_REF_STRING);
+	} else {
+		proto_ref_string = _NPM(PROTO_REF_STRING) = 
+			globalreg->kisnetserver->RegisterProtocol("STRING", 0, 0,
+													  STRINGS_fields_text,
+													  &Protocol_KISDEV_STRING,
+													  NULL, this);
+	}
+
 }
 
 Devicetracker::~Devicetracker() {
 	if (timerid >= 0)
 		globalreg->timetracker->RemoveTimer(timerid);
+
+	globalreg->packetchain->RemoveHandler(&Devicetracker_packethook_stringcollector,
+										  CHAINPOS_LOGGING);
 
 }
 
@@ -558,6 +656,33 @@ kis_tracked_device *Devicetracker::FetchDevice(mac_addr in_device) {
 		return i->second;
 
 	return NULL;
+}
+
+int Devicetracker::StringCollector(kis_packet *in_pack) {
+	kis_tracked_device_info *devinfo = 
+		(kis_tracked_device_info *) in_pack->fetch(_PCM(PACK_COMP_DEVICE));
+	kis_addr_info *addr = 
+		(kis_addr_info *) in_pack->fetch(_PCM(PACK_COMP_ADDR));
+	kis_string_info *strings =
+		(kis_string_info *) in_pack->fetch(_PCM(PACK_COMP_STRINGS));
+
+	if (devinfo == NULL || strings == NULL || addr == NULL)
+		return 0;
+
+	kis_proto_string_info si;
+
+	si.device = devinfo->devref->key;
+	si.phy = devinfo->devref->phy_type;
+	si.source = addr->source;
+	si.dest = addr->dest;
+
+	for (unsigned int x = 0; x < strings->extracted_strings.size(); x++) {
+		si.stringdata = strings->extracted_strings[x];
+	
+		globalreg->kisnetserver->SendToAll(_NPM(PROTO_REF_STRING), (void *) &si);
+	}
+
+	return 1;
 }
 
 

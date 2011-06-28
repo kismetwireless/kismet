@@ -151,6 +151,39 @@ public:
         delete[] data;
         length = 0;
     }
+
+	virtual void set_data(uint8_t *in_data, unsigned int in_length) {
+		if (data != NULL)
+			delete[] data;
+
+		data = new uint8_t[in_length];
+		length = in_length;
+		memcpy(data, in_data, length);
+	}
+};
+
+class kis_packet_checksum : public kis_datachunk {
+public:
+	int checksum_valid;
+	uint32_t *checksum_ptr;
+
+	kis_packet_checksum() : kis_datachunk() {
+		checksum_valid = 0;
+	}
+
+	virtual void set_data(uint8_t *in_data, unsigned int in_length) {
+		kis_datachunk::set_data(in_data, in_length);
+		checksum_ptr = (uint32_t *) data;
+	}
+};
+
+class kis_addr_info : public packet_component {
+public:
+	kis_addr_info() {
+		self_destruct = 1;
+	}
+
+	mac_addr source, dest;
 };
 
 // String reference

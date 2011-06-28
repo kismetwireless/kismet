@@ -3021,7 +3021,7 @@ int Netracker::datatracker_chain_handler(kis_packet *in_pack) {
 
 	if (chunk == NULL) {
 		if ((chunk = 
-			 (kis_datachunk *) in_pack->fetch(_PCM(PACK_COMP_80211FRAME))) == NULL) {
+			 (kis_datachunk *) in_pack->fetch(_PCM(PACK_COMP_DECAP))) == NULL) {
 			if ((chunk = (kis_datachunk *) 
 				 in_pack->fetch(_PCM(PACK_COMP_LINKFRAME))) == NULL) {
 				return 0;

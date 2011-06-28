@@ -456,16 +456,23 @@ Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) {
 	// back-refer to the capsource so we can get names and parameters
 	_PCM(PACK_COMP_KISCAPSRC) =
 		globalreg->packetchain->RegisterPacketComponent("KISCAPSRC");
-	// Basic packet chunks everyone needs - while it doesn't necessarily
-	// make sense to do this here, it makes as much sense as anywhere else
+
+	// Raw radio headers
 	_PCM(PACK_COMP_RADIODATA) =
 		globalreg->packetchain->RegisterPacketComponent("RADIODATA");
+
+	// Link data
 	_PCM(PACK_COMP_LINKFRAME) =
 		globalreg->packetchain->RegisterPacketComponent("LINKFRAME");
-	_PCM(PACK_COMP_80211FRAME) =
-		globalreg->packetchain->RegisterPacketComponent("80211FRAME");
-	_PCM(PACK_COMP_FCSBYTES) =
-		globalreg->packetchain->RegisterPacketComponent("FCSBYTES");
+
+	// Checksum data
+	_PCM(PACK_COMP_CHECKSUM) =
+		globalreg->packetchain->RegisterPacketComponent("CHECKSUM");
+
+	// Decapsulated link layer packet (stripped of optional radio headers, if
+	// applicable)
+	_PCM(PACK_COMP_DECAP) =
+		globalreg->packetchain->RegisterPacketComponent("DECAP");
 
 	globalreg->packetchain->RegisterHandler(&pst_chain_hook, this,
 											CHAINPOS_POSTCAP, -100);
@@ -611,6 +618,7 @@ int Packetsourcetracker::Poll(fd_set& in_rset, fd_set& in_wset) {
 
 		if (capd >= 0 && FD_ISSET(capd, &in_rset)) {
 			if (x->second->strong_source->Poll() <= 0) {
+				fprintf(stderr, "debug - pid %u zero poll %d\n", getpid(), x->second->zeropoll);
 				x->second->zeropoll++;
 			} else {
 				x->second->zeropoll = 0;
@@ -618,6 +626,7 @@ int Packetsourcetracker::Poll(fd_set& in_rset, fd_set& in_wset) {
 		}
 
 		if (x->second->zeropoll > 100) {
+			fprintf(stderr, "debug pid %u zero poll fail %d\n", getpid(), x->second->zeropoll);
 			_MSG("Packet source '" + x->second->strong_source->FetchName() + 
 				 "' is no longer returning any data when polled, it has "
 				 "probably been disconnected, and will be closed.", MSGFLAG_ERROR);
@@ -1524,6 +1533,8 @@ int Packetsourcetracker::IpcAddPacketsource(ipc_source_add *in_ipc) {
 	pstsource->dwell_timer = 0;
 
 	pstsource->consec_channel_err = 0;
+
+	pstsource->zeropoll = 0;
 
 	// We assume all our incoming data is valid but we'll check everything again
 	// just to be sure

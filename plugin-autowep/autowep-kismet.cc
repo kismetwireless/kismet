@@ -37,9 +37,9 @@
 #include <plugintracker.h>
 #include <globalregistry.h>
 #include <netracker.h>
-#include <packetdissectors.h>
 #include <alertracker.h>
 #include <version.h>
+#include <phy_80211.h>
 
 GlobalRegistry *globalreg = NULL;
 
@@ -99,7 +99,7 @@ int kisautowep_packet_hook(CHAINCALL_PARMS) {
 	// printf("debug - autoweb packet hook\n");
 
 	// Pull the dot11 decode
-	kis_ieee80211_packinfo *packinfo = (kis_ieee80211_packinfo *)
+	dot11_packinfo *packinfo = (dot11_packinfo *)
 		in_pack->fetch(_PCM(PACK_COMP_80211));
 
 	if (packinfo == NULL) {
@@ -236,7 +236,7 @@ int kisautowep_data_hook(CHAINCALL_PARMS) {
 	char keystr[11];
 
 	// Pull the dot11 decode
-	kis_ieee80211_packinfo *packinfo = (kis_ieee80211_packinfo *)
+	dot11_packinfo *packinfo = (dot11_packinfo *)
 		in_pack->fetch(_PCM(PACK_COMP_80211));
 
 	if (packinfo == NULL) {
@@ -303,9 +303,9 @@ int kisautowep_data_hook(CHAINCALL_PARMS) {
 			 nmi->second->key[4]);
 
 	decrypted = 
-		KisBuiltinDissector::DecryptWEP(packinfo, chunk,
-										nmi->second->key, 5,
-										kstate->wep_identity);
+		Kis_80211_Phy::DecryptWEP(packinfo, chunk,
+								  nmi->second->key, 5,
+								  kstate->wep_identity);
 
 	// If we couldn't decrypt, we failed
 	if (decrypted == NULL) {
@@ -324,9 +324,9 @@ int kisautowep_data_hook(CHAINCALL_PARMS) {
 				modkey[1] = fios_macs[x][2];
 
 				decrypted = 
-					KisBuiltinDissector::DecryptWEP(packinfo, chunk,
-													modkey, 5,
-													kstate->wep_identity);
+					Kis_80211_Phy::DecryptWEP(packinfo, chunk,
+											  modkey, 5,
+											  kstate->wep_identity);
 
 				if (decrypted != NULL) {
 					memcpy(nmi->second->key, modkey, 5);
@@ -400,7 +400,10 @@ autowep_key_ok:
 	globalreg->netracker->SetNetworkTag(nmi->second->bssid, "WEP-AUTO",
 										string(keystr), 1);
 
-	globalreg->builtindissector->AddWepKey(nmi->second->bssid, nmi->second->key, 5, 1);
+	// globalreg->builtindissector->AddWepKey(nmi->second->bssid, nmi->second->key, 5, 1);
+	Kis_80211_Phy *dot11phy = 
+		(Kis_80211_Phy *) globalreg->FetchGlobal("PHY_80211_TRACKER");
+	dot11phy->AddWepKey(nmi->second->bssid, nmi->second->key, 5, 1);
 
 	return 0;
 }

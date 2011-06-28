@@ -56,9 +56,9 @@
 #include <plugintracker.h>
 #include <globalregistry.h>
 #include <netracker.h>
-#include <packetdissectors.h>
 #include <alertracker.h>
 #include <version.h>
+#include <phy_80211.h>
 
 #include "aircrack-crypto.h"
 #include "aircrack-ptw2-lib.h"
@@ -241,9 +241,11 @@ int kisptw_event_timer(TIMEEVENT_PARMS) {
 											   x->second->bssid,
 											   0, al);
 
-			globalreg->builtindissector->AddWepKey(x->second->bssid,
-												   x->second->wepkey,
-												   x->second->len, 1);
+			Kis_80211_Phy *dot11phy = 
+				(Kis_80211_Phy *) globalreg->FetchGlobal("PHY_80211_TRACKER");
+
+			dot11phy->AddWepKey(x->second->bssid, x->second->wepkey,
+								x->second->len, 1);
 
 			_MSG("Cleaned up WEP data on " + x->second->bssid.Mac2String(), 
 				 MSGFLAG_INFO);
@@ -350,7 +352,7 @@ int kisptw_datachain_hook(CHAINCALL_PARMS) {
 	kisptw_net *pnet = NULL;
 
 	// Fetch the info from the packet chain data
-	kis_ieee80211_packinfo *packinfo = (kis_ieee80211_packinfo *) 
+	dot11_packinfo *packinfo = (dot11_packinfo *) 
 		in_pack->fetch(_PCM(PACK_COMP_80211));
 
 	// No 802.11 info, we don't handle it.

@@ -690,12 +690,13 @@ int DroneClientFrame::ParseData() {
 			}
 
 			if ((cbm & DRONEBIT(DRONE_CONTENT_FCS))) {
-				dot11_fcs_bytes *fcschunk = new dot11_fcs_bytes;
+				kis_packet_checksum *fcschunk = new kis_packet_checksum;
 
-				memcpy(fcschunk->fcs, &(dcpkt->content[poffst]), 4);
-				fcschunk->fcsvalid = 1;
+				fcschunk->set_data(&(dcpkt->content[poffst]), 4);
 
-				newpack->insert(_PCM(PACK_COMP_FCSBYTES), fcschunk);
+				fcschunk->checksum_valid = 1;
+
+				newpack->insert(_PCM(PACK_COMP_CHECKSUM), fcschunk);
 
 				// Jump to the end of this packet
 				poffst += 4;
