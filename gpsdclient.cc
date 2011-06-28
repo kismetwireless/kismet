@@ -143,14 +143,14 @@ int GPSDClient::Timer() {
 		Reconnect();
     }
 
-	if (globalreg->timestamp.tv_sec - last_tpv > 3) {
-		// Assume we lost link, gpsd doens't properly tell us
-		mode = 0;
-	}
-
 	// Send version probe if we're setting up a new connection
 	// Send the poll command if we're stuck in older polling mode
 	if (netclient->Valid()) {
+		if (globalreg->timestamp.tv_sec - last_tpv > 3) {
+			// Assume we lost link, gpsd doens't properly tell us
+			mode = 0;
+		}
+
 		if (globalreg->timestamp.tv_sec - last_update > 15) {
 			_MSG("No update from GPSD in 15 seconds or more, attempting to "
 				 "reconnect", MSGFLAG_ERROR);
