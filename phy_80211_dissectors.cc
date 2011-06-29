@@ -232,6 +232,10 @@ int Kis_80211_Phy::PacketDot11Dissector(kis_packet *in_pack) {
         return 0;
 	}
 
+	kis_common_info *common = new kis_common_info;
+	common->phyid = phyid;
+	in_pack->insert(pack_comp_common, common);
+
     packinfo = new dot11_packinfo;
 
     frame_control *fc = (frame_control *) chunk->data;
@@ -283,6 +287,8 @@ int Kis_80211_Phy::PacketDot11Dissector(kis_packet *in_pack) {
 	// Shortcut PHYs here because they're shorter than normal packets
     if (fc->type == packet_phy) {
         packinfo->type = packet_phy;
+
+		common->type = packet_basic_phy;
 
         // Throw away large phy packets just like we throw away large management.
         // Phy stuff is all really small, so we set the limit smaller.
@@ -464,13 +470,10 @@ int Kis_80211_Phy::PacketDot11Dissector(kis_packet *in_pack) {
         }
 
 		// add management addr packet
-		kis_common_info *common = new kis_common_info;
 		common->source = packinfo->source_mac;
 		common->dest = packinfo->dest_mac;
 		common->device = packinfo->bssid_mac;
-		common->device.SetPhy(phyid);
 		common->type = packet_basic_mgmt;
-		in_pack->insert(pack_comp_common, common);
 
         if (fc->subtype == packet_sub_probe_req || 
 			fc->subtype == packet_sub_disassociation || 
@@ -1007,13 +1010,11 @@ int Kis_80211_Phy::PacketDot11Dissector(kis_packet *in_pack) {
         }
 
 		// add data addr packet
-		kis_common_info *common = new kis_common_info;
 		common->source = packinfo->source_mac;
 		common->dest = packinfo->dest_mac;
 		common->device = packinfo->bssid_mac;
-		common->device.SetPhy(phyid);
 		common->type = packet_basic_data;
-		in_pack->insert(pack_comp_common, common);
+
 	}
 
     // Do a little sanity checking on the BSSID

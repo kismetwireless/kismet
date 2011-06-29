@@ -199,6 +199,10 @@ struct mac_addr {
         return ((longmac & op.longmask) == (op.longmac & op.longmask));
     }
 
+	inline bool operator== (const unsigned long int op) const {
+		return longmac == op;
+	}
+
     // MAC compare
     inline bool operator!= (const mac_addr& op) const {
         if (longmask < op.longmask)

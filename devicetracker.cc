@@ -78,42 +78,6 @@ const char *KISDEV_common_text[] = {
 	NULL
 };
 
-enum DEVTAG_FIELDS {
-	DEVTAG_macaddr, DEVTAG_tag, DEVTAG_value,
-
-	DEVTAG_maxfield
-};
-
-const char *DEVTAG_fields_text[] = {
-	"macaddr", "tag", "value",
-	NULL
-};
-
-// Replaces the *INFO sentence
-enum TRACKINFO_FIELDS {
-	TRACKINFO_devices, TRACKINFO_packets, TRACKINFO_datapackets,
-	TRACKINFO_cryptpackets, TRACKINFO_errorpackets, TRACKINFO_filterpackets,
-	TRACKINFO_packetrate,
-
-	TRACKINFO_maxfield
-};
-
-const char *TRACKINFO_fields_text[] = {
-	"devices", "packets", "datapackets",
-	"cryptpackets", "errorpackets", "filterpackets",
-	"packetrate",
-	NULL
-};
-
-enum STRING_FIELDS {
-	STRING_device, STRING_phy, STRING_source, STRING_dest, STRING_string,
-	STRING_maxfield
-};
-
-const char *STRINGS_fields_text[] = {
-    "device", "phy", "source", "dest", "string", 
-    NULL
-};
 
 int Protocol_KISDEV_COMMON(PROTO_PARMS) {
 	kis_device_common *com = (kis_device_common *) data;
@@ -280,6 +244,110 @@ void Protocol_KISDEV_COMMON_enable(PROTO_ENABLE_PARMS) {
 	((Devicetracker *) data)->BlitDevices(in_fd);
 }
 
+enum DEVTAG_FIELDS {
+	DEVTAG_macaddr, DEVTAG_tag, DEVTAG_value,
+
+	DEVTAG_maxfield
+};
+
+const char *DEVTAG_fields_text[] = {
+	"macaddr", "tag", "value",
+	NULL
+};
+
+enum PHYMAP_FIELDS {
+	PHYMAP_phyid, PHYMAP_phyname, PHYMAP_packets, PHYMAP_datapackets, 
+	PHYMAP_errorpackets, PHYMAP_filterpackets, PHYMAP_packetrate,
+
+	PHYMAP_maxfield
+};
+
+const char *KISDEV_phymap_text[] = {
+	"phyid", "phyname", "packets", "datapackets", "errorpackets", 
+	"filterpackets", "packetrate",
+	NULL
+};
+
+// String info shoved into the protocol handler by the string collector
+class kis_proto_phymap_info {
+public:
+	int phyid;
+	string phyname;
+	int packets, datapackets, errorpackets, filterpackets, packetrate;
+};
+
+int Protocol_KISDEV_PHYMAP(PROTO_PARMS) {
+	kis_proto_phymap_info *info = (kis_proto_phymap_info *) data;
+	string scratch;
+
+	cache->Filled(field_vec->size());
+
+	for (unsigned int x = 0; x < field_vec->size(); x++) {
+		unsigned int fnum = (*field_vec)[x];
+
+		if (fnum > PHYMAP_maxfield) {
+			out_string = "\001Unknown field\001";
+			return -1;
+		}
+
+		if (cache->Filled(fnum)) {
+			out_string += cache->GetCache(fnum) + " ";
+			continue;
+		}
+
+		scratch = "";
+
+		switch (fnum) {
+			case PHYMAP_phyid:
+				scratch = IntToString(info->phyid);
+				break;
+			case PHYMAP_phyname:
+				scratch = "\001" + info->phyname + "\001";
+				break;
+			case PHYMAP_packets:
+				scratch = IntToString(info->packets);
+				break;
+			case PHYMAP_datapackets:
+				scratch = IntToString(info->datapackets);
+				break;
+			case PHYMAP_errorpackets:
+				scratch = IntToString(info->errorpackets);
+				break;
+			case PHYMAP_filterpackets:
+				scratch = IntToString(info->filterpackets);
+				break;
+			case PHYMAP_packetrate:
+				scratch = IntToString(info->packetrate);
+				break;
+		}
+		
+		cache->Cache(fnum, scratch);
+		out_string += scratch + " ";
+	}
+
+	return 1;
+}
+
+void Protocol_KISDEV_PHYMAP_enable(PROTO_ENABLE_PARMS) {
+	((Devicetracker *) data)->BlitPhy(in_fd);
+}
+
+// Replaces the *INFO sentence
+enum TRACKINFO_FIELDS {
+	TRACKINFO_devices, TRACKINFO_packets, TRACKINFO_datapackets,
+	TRACKINFO_cryptpackets, TRACKINFO_errorpackets, TRACKINFO_filterpackets,
+	TRACKINFO_packetrate,
+
+	TRACKINFO_maxfield
+};
+
+const char *TRACKINFO_fields_text[] = {
+	"devices", "packets", "datapackets",
+	"cryptpackets", "errorpackets", "filterpackets",
+	"packetrate",
+	NULL
+};
+
 int Protocol_KISDEV_TRACKINFO(PROTO_PARMS) {
 	Devicetracker *tracker = (Devicetracker *) data;
 	string scratch;
@@ -331,6 +399,16 @@ int Protocol_KISDEV_TRACKINFO(PROTO_PARMS) {
 
 	return 1;
 }
+
+enum STRING_FIELDS {
+	STRING_device, STRING_phy, STRING_source, STRING_dest, STRING_string,
+	STRING_maxfield
+};
+
+const char *STRINGS_fields_text[] = {
+    "device", "phy", "source", "dest", "string", 
+    NULL
+};
 
 // String info shoved into the protocol handler by the string collector
 class kis_proto_string_info {
@@ -403,7 +481,8 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) {
 	globalreg->InsertGlobal("DEVICE_TRACKER", this);
 
 	next_componentid = 0;
-	num_packets = num_errorpackets = num_filterpackets = num_packetdelta = 0;
+	num_packets = num_datapackets = num_errorpackets = 
+		num_filterpackets = num_packetdelta = 0;
 
 	conf_save = 0;
 	next_phy_id = 0;
@@ -439,6 +518,13 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) {
 		globalreg->packetchain->RegisterPacketComponent("RADIODATA");
 
 	// Register the network protocols
+	proto_ref_phymap =
+		globalreg->kisnetserver->RegisterProtocol("PHYMAP", 0, 1,
+												  KISDEV_phymap_text,
+												  &Protocol_KISDEV_PHYMAP,
+												  &Protocol_KISDEV_PHYMAP_enable,
+												  this);
+
 	proto_ref_commondevice =
 		globalreg->kisnetserver->RegisterProtocol("COMMON", 0, 1,
 												  KISDEV_common_text,
@@ -540,17 +626,12 @@ int Devicetracker::FetchNumPackets(int in_phy) {
 }
 
 int Devicetracker::FetchNumDatapackets(int in_phy) {
-	int r = 0;
+	if (in_phy == KIS_PHY_ANY)
+		return num_datapackets;
 
-	kis_device_common *common;
-
-	for (unsigned int x = 0; x < tracked_vec.size(); x++) {
-		if (tracked_vec[x]->phy_type == in_phy || in_phy == KIS_PHY_ANY) {
-			if ((common = 
-				 (kis_device_common *) tracked_vec[x]->fetch(devcomp_ref_common)) != NULL)
-				r += common->data_packets;
-		}
-	}
+	map<int, int>::iterator i = phy_datapackets.find(in_phy);
+	if (i != phy_datapackets.end())
+		return i->second;
 
 	return 0;
 }
@@ -625,6 +706,12 @@ int Devicetracker::RegisterPhyHandler(Kis_Phy_Handler *in_weak_handler) {
 
 	phy_handler_map[num] = strongphy;
 
+	phy_packets[num] = 0;
+	phy_datapackets[num] = 0;
+	phy_errorpackets[num] = 0;
+	phy_filterpackets[num] = 0;
+	phy_packetdelta[num] = 0;
+
 	return num;
 }
 
@@ -648,7 +735,39 @@ void Devicetracker::BlitDevices(int in_fd) {
 	}
 }
 
+void Devicetracker::BlitPhy(int in_fd) {
+	for (map<int, Kis_Phy_Handler *>::iterator x = phy_handler_map.begin();
+		 x != phy_handler_map.end(); ++x) {
+
+		kis_protocol_cache cache;
+		kis_proto_phymap_info info;
+
+		info.phyid = x->first;
+		info.phyname = x->second->FetchPhyName();
+
+		info.packets = FetchNumPackets(x->first);
+		info.datapackets = FetchNumDatapackets(x->first);
+		info.errorpackets = FetchNumErrorpackets(x->first);
+		info.filterpackets = FetchNumFilterpackets(x->first);
+		info.packetrate = FetchPacketRate(x->first);
+
+		if (in_fd == -1)
+			globalreg->kisnetserver->SendToAll(proto_ref_phymap, (void *) &info);
+		else
+			globalreg->kisnetserver->SendToClient(in_fd, proto_ref_phymap,
+												  (void *) &info, &cache);
+	}
+}
+
 int Devicetracker::TimerKick() {
+	BlitPhy(-1);
+
+	// Reset the packet rates per phy
+	for (map<int, Kis_Phy_Handler *>::iterator x = phy_handler_map.begin();
+		 x != phy_handler_map.end(); ++x) {
+		phy_packetdelta[x->first] = 0;
+	}
+
 	for (unsigned int x = 0; x < dirty_device_vec.size(); x++) {
 		kis_tracked_device *dev = dirty_device_vec[x];
 
@@ -707,6 +826,52 @@ int Devicetracker::StringCollector(kis_packet *in_pack) {
 }
 
 int Devicetracker::CommonClassifier(kis_packet *in_pack) {
+	kis_common_info *pack_common = 
+		(kis_common_info *) in_pack->fetch(pack_comp_common);
+	kis_data_packinfo *pack_data = 
+		(kis_data_packinfo *) in_pack->fetch(pack_comp_basicdata);
+	kis_layer1_packinfo *pack_l1info = 
+		(kis_layer1_packinfo *) in_pack->fetch(pack_comp_radiodata);
+
+	num_packets++;
+	num_packetdelta++;
+
+	if (in_pack->error || pack_common == NULL ||
+		(pack_common != NULL && pack_common->error)) {
+		// If we couldn't get any common data consider it an error
+		// and bail
+		num_errorpackets++;
+		return 0;
+	}
+
+	if (in_pack->filtered) {
+		num_filterpackets++;
+	}
+
+	// Make sure our PHY is sane
+	if (phy_handler_map.find(pack_common->phyid) == phy_handler_map.end()) {
+		_MSG("Invalid phy id " + IntToString(pack_common->phyid) + " in packet "
+			 "something is wrong.", MSGFLAG_ERROR);
+		return 0;
+	}
+
+	phy_packets[pack_common->phyid]++;
+	phy_packetdelta[pack_common->phyid]++;
+
+	if (in_pack->error || pack_common->error) {
+		phy_errorpackets[pack_common->phyid]++;
+	}
+
+	if (in_pack->filtered) {
+		phy_filterpackets[pack_common->phyid]++;
+		num_filterpackets++;
+	} else {
+		if (pack_common->type == packet_basic_data) {
+			num_datapackets++;
+			phy_datapackets[pack_common->phyid]++;
+		} 
+	}
+
 	return 0;
 }
 
@@ -722,15 +887,20 @@ kis_tracked_device *Devicetracker::MapToDevice(kis_packet *in_pack) {
 	kis_tracked_device *device = NULL;
 	kis_device_common *common = NULL;
 
+	mac_addr devmac;
+
 	if (pack_common == NULL)
 		return NULL;
 
-	device_itr di = tracked_map.find(pack_common->device);
+	devmac = pack_common->device;
+	devmac.SetPhy(pack_common->phyid);
+
+	device_itr di = tracked_map.find(devmac);
 
 	if (di == tracked_map.end()) {
 		device = new kis_tracked_device;
 
-		device->key = pack_common->device;
+		device->key = devmac;
 
 		tracked_map[device->key] = device;
 		tracked_vec.push_back(device);

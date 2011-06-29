@@ -70,6 +70,8 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
 
 	globalreg->InsertGlobal("PHY_80211_TRACKER", this);
 
+	phyname = "IEEE802.11";
+
 	// Register packet dissectors
 	globalreg->packetchain->RegisterHandler(&phydot11_packethook_wep, this,
 											CHAINPOS_DECRYPT, -100);

@@ -66,12 +66,16 @@ public:
     // itself?
     int error;
 
+	// Have we been filtered for some reason?
+	int filtered;
+
 	// Actual vector of bits in the packet
 	vector<packet_component *> content_vec;
    
     // Init stuff
     kis_packet() {
         error = 0;
+		filtered = 0;
 
 		// Stock and init the content vector
 		content_vec.resize(MAX_PACKET_COMPONENTS, NULL);
@@ -189,10 +193,15 @@ public:
 	kis_common_info() {
 		self_destruct = 1;
 		type = packet_basic_unknown;
+		phyid = 0;
+		error = 0;
 	}
 
 	mac_addr source, dest, device;
 	kis_packet_basictype type;
+	int phyid;
+	// Some sort of phy-level error 
+	int error;
 };
 
 // String reference

@@ -549,6 +549,8 @@ public:
 	// Send all devices to everyone
 	void BlitDevices(int in_fd);
 
+	void BlitPhy(int in_fd);
+
 protected:
 	void SaveTags();
 
@@ -560,12 +562,14 @@ protected:
 
 	// Total # of packets
 	int num_packets;
+	int num_datapackets;
 	int num_errorpackets;
 	int num_filterpackets;
 	int num_packetdelta;
 
 	// Per-phy #s of packets
 	map<int, int> phy_packets;
+	map<int, int> phy_datapackets;
 	map<int, int> phy_errorpackets;
 	map<int, int> phy_filterpackets;
 	map<int, int> phy_packetdelta;
