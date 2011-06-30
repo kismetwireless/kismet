@@ -585,7 +585,7 @@ protected:
 		proto_ref_devtag, proto_ref_string;
 
 	int pack_comp_device, pack_comp_common, pack_comp_string, pack_comp_basicdata,
-		pack_comp_radiodata;
+		pack_comp_radiodata, pack_comp_gps;
 
 	// Tracked devices
 	map<mac_addr, kis_tracked_device *> tracked_map;

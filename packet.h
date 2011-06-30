@@ -188,6 +188,9 @@ enum kis_packet_basictype {
 	packet_basic_phy = 3
 };
 
+// Common info
+// Extracted by phy-specific dissectors, used by the common classifier
+// to build phy-neutral devices and tracking records.
 class kis_common_info : public packet_component {
 public:
 	kis_common_info() {
@@ -195,6 +198,7 @@ public:
 		type = packet_basic_unknown;
 		phyid = 0;
 		error = 0;
+		datasize = 0;
 	}
 
 	mac_addr source, dest, device;
@@ -202,6 +206,8 @@ public:
 	int phyid;
 	// Some sort of phy-level error 
 	int error;
+	// Data size if applicable
+	int datasize;
 };
 
 // String reference
@@ -298,6 +304,7 @@ public:
 		datarate = 0;
 		freq_mhz = 0;
 		accuracy = 0;
+		channel = 0;
 	}
 
 	// How "accurate" are we?  Higher == better.  Nothing uses this yet
@@ -306,6 +313,9 @@ public:
 
 	// Frequency seen on
 	int freq_mhz;
+
+	// Logical channel
+	int channel;
 
     // Connection info
     int signal_dbm, signal_rssi;

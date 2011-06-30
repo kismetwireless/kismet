@@ -958,8 +958,10 @@ int Kis_80211_Phy::PacketDot11Dissector(kis_packet *in_pack) {
         }
 
         int datasize = chunk->length - packinfo->header_offset;
-        if (datasize > 0)
+        if (datasize > 0) {
             packinfo->datasize = datasize;
+			common->datasize = datasize;
+		}
 
         // Extract ID's
         switch (packinfo->distrib) {

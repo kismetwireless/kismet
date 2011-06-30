@@ -78,7 +78,6 @@ const char *KISDEV_common_text[] = {
 	NULL
 };
 
-
 int Protocol_KISDEV_COMMON(PROTO_PARMS) {
 	kis_device_common *com = (kis_device_common *) data;
 	kis_tracked_device *dev = com->device;
@@ -142,7 +141,8 @@ int Protocol_KISDEV_COMMON(PROTO_PARMS) {
 				scratch = IntToString(com->frequency);
 				break;
 			case KISDEV_freqmhz:
-				for (map<unsigned int, unsigned int>::const_iterator fmi = com->freq_mhz_map.begin();
+				for (map<unsigned int, unsigned int>::const_iterator fmi = 
+					 com->freq_mhz_map.begin();
 					 fmi != com->freq_mhz_map.end(); ++fmi) {
 					scratch += IntToString(fmi->first) + ":" + IntToString(fmi->second) + "*";
 				}
@@ -517,6 +517,9 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) {
 	pack_comp_radiodata = 
 		globalreg->packetchain->RegisterPacketComponent("RADIODATA");
 
+	pack_comp_gps =
+		globalreg->packetchain->RegisterPacketComponent("GPS");
+
 	// Register the network protocols
 	proto_ref_phymap =
 		globalreg->kisnetserver->RegisterProtocol("PHYMAP", 0, 1,
@@ -727,10 +730,11 @@ void Devicetracker::BlitDevices(int in_fd) {
 			 (kis_device_common *) tracked_vec[x]->fetch(devcomp_ref_common)) != NULL) {
 
 			if (in_fd == -1)
-				globalreg->kisnetserver->SendToAll(proto_ref_commondevice, (void *) &common);
+				globalreg->kisnetserver->SendToAll(proto_ref_commondevice, 
+												   (void *) common);
 			else
 				globalreg->kisnetserver->SendToClient(in_fd, proto_ref_commondevice,
-													  (void *) &common, &cache);
+													  (void *) common, &cache);
 		} 
 	}
 }
@@ -761,6 +765,9 @@ void Devicetracker::BlitPhy(int in_fd) {
 
 int Devicetracker::TimerKick() {
 	BlitPhy(-1);
+	BlitDevices(-1);
+
+	globalreg->kisnetserver->SendToAll(proto_ref_trackinfo, (void *) this);
 
 	// Reset the packet rates per phy
 	for (map<int, Kis_Phy_Handler *>::iterator x = phy_handler_map.begin();
@@ -777,14 +784,25 @@ int Devicetracker::TimerKick() {
 		if ((common = 
 			 (kis_device_common *) dev->fetch(devcomp_ref_common)) != NULL) {
 			globalreg->kisnetserver->SendToAll(proto_ref_commondevice, 
-											   (void *) &common);
+											   (void *) common);
+
+			// Reset packet delta
+			common->new_packets = 0;
 		}
+
+		// No longer dirty
+		dev->dirty = 0;
 	}
+
+	dirty_device_vec.clear();
 
 	for (map<int, Kis_Phy_Handler *>::iterator x = phy_handler_map.begin(); 
 		 x != phy_handler_map.end(); ++x) {
 		x->second->TimerKick();
 	}
+
+	// Reset the packet rate delta
+	num_packetdelta = 0;
 
 	return 1;
 }
@@ -832,15 +850,25 @@ int Devicetracker::CommonClassifier(kis_packet *in_pack) {
 		(kis_data_packinfo *) in_pack->fetch(pack_comp_basicdata);
 	kis_layer1_packinfo *pack_l1info = 
 		(kis_layer1_packinfo *) in_pack->fetch(pack_comp_radiodata);
+	kis_gps_packinfo *pack_gpsinfo =
+		(kis_gps_packinfo *) in_pack->fetch(pack_comp_gps);
 
 	num_packets++;
 	num_packetdelta++;
 
-	if (in_pack->error || pack_common == NULL ||
-		(pack_common != NULL && pack_common->error)) {
+	// If we can't figure it out at all (no common layer) just bail
+	if (pack_common == NULL)
+		return 0;
+
+	if (in_pack->error || pack_common->error) {
 		// If we couldn't get any common data consider it an error
 		// and bail
 		num_errorpackets++;
+
+		if (phy_handler_map.find(pack_common->phyid) != phy_handler_map.end()) {
+			phy_errorpackets[pack_common->phyid]++;
+		}
+
 		return 0;
 	}
 
@@ -870,6 +898,80 @@ int Devicetracker::CommonClassifier(kis_packet *in_pack) {
 			num_datapackets++;
 			phy_datapackets[pack_common->phyid]++;
 		} 
+	}
+
+	// If we dont' have a device mac, don't make a record
+	if (pack_common->device == 0)
+		return 0;
+
+	kis_tracked_device *device = NULL;
+	kis_device_common *common = NULL;
+
+	mac_addr devmac;
+
+	devmac = pack_common->device;
+	devmac.SetPhy(pack_common->phyid);
+
+	device_itr di = tracked_map.find(devmac);
+
+	if (di == tracked_map.end()) {
+		device = new kis_tracked_device;
+
+		device->key = devmac;
+
+		tracked_map[device->key] = device;
+		tracked_vec.push_back(device);
+	} else {
+		device = di->second;
+	}
+
+	if (device->dirty == 0) {
+		device->dirty = 1;
+		dirty_device_vec.push_back(device);
+	}
+
+	common = (kis_device_common *) device->fetch(devcomp_ref_common);
+
+	if (common == NULL) {
+		common = new kis_device_common;
+		common->device = device;
+		device->insert(devcomp_ref_common, common);
+
+		common->phy_type = pack_common->phyid;
+		common->first_time = in_pack->ts.tv_sec;
+	}
+
+	common->packets++;
+
+	common->last_time = in_pack->ts.tv_sec;
+	common->new_packets++;
+
+	if (pack_common->error)
+		common->error_packets++;
+
+	if (pack_common->type == packet_basic_data) {
+		common->data_packets++;
+		common->datasize += pack_common->datasize;
+	} else if (pack_common->type == packet_basic_mgmt ||
+			   pack_common->type == packet_basic_phy) {
+		common->llc_packets++;
+	}
+
+	if (pack_l1info != NULL) {
+		if (pack_l1info->channel != 0)
+			common->channel = pack_l1info->channel;
+		if (pack_l1info->freq_mhz != 0)
+			common->frequency = pack_l1info->freq_mhz;
+
+		Packinfo_Sig_Combo *sc = new Packinfo_Sig_Combo(pack_l1info, pack_gpsinfo);
+		common->snrdata += *sc;
+		common->gpsdata += pack_gpsinfo;
+
+		if (common->freq_mhz_map.find(pack_l1info->freq_mhz) != 
+			common->freq_mhz_map.end())
+			common->freq_mhz_map[pack_l1info->freq_mhz]++;
+		else
+			common->freq_mhz_map[pack_l1info->freq_mhz] = 1;
 	}
 
 	return 0;
@@ -906,6 +1008,7 @@ kis_tracked_device *Devicetracker::MapToDevice(kis_packet *in_pack) {
 		tracked_vec.push_back(device);
 
 		common = new kis_device_common;
+		common->device = device;
 	} else {
 		device = di->second;
 	}

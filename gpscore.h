@@ -102,6 +102,9 @@ struct kis_gps_data {
 	}
 
 	inline kis_gps_data& operator+= (const kis_gps_packinfo *in) {
+		if (in == NULL)
+			return *this;
+
 		if (in->gps_fix >= 2) {
 			gps_valid = 1;
 
