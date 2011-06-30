@@ -52,6 +52,8 @@
 //
 // CLASSIFIER
 //
+// TRACKER
+//
 // LOGGING
 //
 // DESTROY
@@ -63,8 +65,9 @@
 #define CHAINPOS_DECRYPT        4
 #define CHAINPOS_DATADISSECT    5
 #define CHAINPOS_CLASSIFIER     6
-#define CHAINPOS_LOGGING        7
-#define CHAINPOS_DESTROY        8
+#define CHAINPOS_TRACKER		7
+#define CHAINPOS_LOGGING        8
+#define CHAINPOS_DESTROY        9
 
 #define CHAINCALL_PARMS GlobalRegistry *globalreg, void *auxdata, kis_packet *in_pack
 
@@ -114,6 +117,7 @@ protected:
     vector<Packetchain::pc_link *> decrypt_chain;
     vector<Packetchain::pc_link *> datadissect_chain;
     vector<Packetchain::pc_link *> classifier_chain;
+	vector<Packetchain::pc_link *> tracker_chain;
     vector<Packetchain::pc_link *> logging_chain;
 };
 

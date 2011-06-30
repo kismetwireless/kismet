@@ -547,7 +547,7 @@ public:
 	int TimerKick();
 
 	// Common classifier for keeping phy counts
-	int CommonClassifier(kis_packet *in_packet);
+	int CommonTracker(kis_packet *in_packet);
 
 	// Scrape detected strings and push them out to the client
 	int StringCollector(kis_packet *in_packet);

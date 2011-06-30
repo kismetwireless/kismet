@@ -128,6 +128,10 @@ int Packetchain::ProcessPacket(kis_packet *in_pack) {
 		 (pcl = classifier_chain[x]); x++)
         (*(pcl->callback))(globalreg, pcl->auxdata, in_pack);
 
+    for (unsigned int x = 0; x < tracker_chain.size() && 
+		 (pcl = tracker_chain[x]); x++)
+        (*(pcl->callback))(globalreg, pcl->auxdata, in_pack);
+
     for (unsigned int x = 0; x < logging_chain.size() && 
 		 (pcl = logging_chain[x]); x++)
         (*(pcl->callback))(globalreg, pcl->auxdata, in_pack);
@@ -204,6 +208,12 @@ int Packetchain::RegisterHandler(pc_callback in_cb, void *in_aux,
 						SortLinkPriority());
             break;
 
+        case CHAINPOS_TRACKER:
+            tracker_chain.push_back(link);
+            stable_sort(tracker_chain.begin(), tracker_chain.end(), 
+						SortLinkPriority());
+            break;
+
         case CHAINPOS_LOGGING:
             logging_chain.push_back(link);
             stable_sort(logging_chain.begin(), logging_chain.end(), 
@@ -274,6 +284,14 @@ int Packetchain::RemoveHandler(pc_callback in_cb, int in_chain) {
 			for (x = 0; x < classifier_chain.size(); x++) {
 				if (classifier_chain[x]->callback == in_cb) {
 					classifier_chain.erase(classifier_chain.begin() + x);
+				}
+			}
+            break;
+
+        case CHAINPOS_TRACKER:
+			for (x = 0; x < tracker_chain.size(); x++) {
+				if (tracker_chain[x]->callback == in_cb) {
+					tracker_chain.erase(tracker_chain.begin() + x);
 				}
 			}
             break;

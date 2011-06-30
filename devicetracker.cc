@@ -471,8 +471,8 @@ int Devicetracker_packethook_stringcollector(CHAINCALL_PARMS) {
 	return ((Devicetracker *) auxdata)->StringCollector(in_pack);
 }
 
-int Devicetracker_packethook_commonclassifier(CHAINCALL_PARMS) {
-	return ((Devicetracker *) auxdata)->CommonClassifier(in_pack);
+int Devicetracker_packethook_commontracker(CHAINCALL_PARMS) {
+	return ((Devicetracker *) auxdata)->CommonTracker(in_pack);
 }
 
 Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) {
@@ -542,9 +542,9 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) {
 												  NULL,
 												  this);
 
-	// Common classifier, late in the classifier chain
-	globalreg->packetchain->RegisterHandler(&Devicetracker_packethook_commonclassifier,
-											this, CHAINPOS_CLASSIFIER, 100);
+	// Common tracker, very early in the tracker chain
+	globalreg->packetchain->RegisterHandler(&Devicetracker_packethook_commontracker,
+											this, CHAINPOS_TRACKER, -100);
 
 	// Strings
 	globalreg->packetchain->RegisterHandler(&Devicetracker_packethook_stringcollector,
@@ -575,8 +575,8 @@ Devicetracker::~Devicetracker() {
 
 	globalreg->packetchain->RemoveHandler(&Devicetracker_packethook_stringcollector,
 										  CHAINPOS_LOGGING);
-	globalreg->packetchain->RemoveHandler(&Devicetracker_packethook_commonclassifier,
-										  CHAINPOS_CLASSIFIER);
+	globalreg->packetchain->RemoveHandler(&Devicetracker_packethook_commontracker,
+										  CHAINPOS_TRACKER);
 
 }
 
@@ -867,7 +867,7 @@ int Devicetracker::StringCollector(kis_packet *in_pack) {
 	return 1;
 }
 
-int Devicetracker::CommonClassifier(kis_packet *in_pack) {
+int Devicetracker::CommonTracker(kis_packet *in_pack) {
 	kis_common_info *pack_common = 
 		(kis_common_info *) in_pack->fetch(pack_comp_common);
 	kis_data_packinfo *pack_data = 
@@ -999,6 +999,10 @@ int Devicetracker::CommonClassifier(kis_packet *in_pack) {
 		else
 			common->freq_mhz_map[pack_l1info->freq_mhz] = 1;
 	}
+
+	kis_tracked_device_info *devinfo = new kis_tracked_device_info;
+	devinfo->devref = device;
+	in_pack->insert(pack_comp_device, devinfo);
 
 	return 0;
 }
