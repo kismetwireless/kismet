@@ -410,7 +410,7 @@ void Kis_80211_Phy::AddWepKey(mac_addr bssid, uint8_t *key, unsigned int len,
 	wepkeys.insert(winfo->bssid, winfo);
 }
 
-void Kis_80211_Phy::BlitDevices(vector<kis_tracked_device *> *devlist) {
+void Kis_80211_Phy::BlitDevices(int in_fd, vector<kis_tracked_device *> *devlist) {
 	
 }
 

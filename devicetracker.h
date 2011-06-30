@@ -485,7 +485,7 @@ public:
 
 	// Send devices (all, or dirty).  Phy should trigger all protocol sentences
 	// it defines for these devices
-	virtual void BlitDevices(vector<kis_tracked_device *> *devlist) = 0;
+	virtual void BlitDevices(int in_fd, vector<kis_tracked_device *> *devlist) = 0;
 
 	// To do: Logging functions
 

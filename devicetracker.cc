@@ -803,7 +803,7 @@ int Devicetracker::TimerKick() {
 	// Send all the phy-specific dirty stuff
 	for (map<int, vector<kis_tracked_device *> *>::iterator x = phy_dirty_vec.begin();
 		 x != phy_dirty_vec.end(); ++x) {
-		phy_handler_map[x->first]->BlitDevices(x->second);
+		phy_handler_map[x->first]->BlitDevices(-1, x->second);
 		x->second->clear();
 	}
 

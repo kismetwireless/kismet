@@ -474,7 +474,7 @@ public:
 
 	void AddWepKey(mac_addr bssid, uint8_t *key, unsigned int len, int temp);
 
-	virtual void BlitDevices(vector<kis_tracked_device *> *devlist);
+	virtual void BlitDevices(int in_fd, vector<kis_tracked_device *> *devlist);
 
 protected:
 	int LoadWepkeys();
