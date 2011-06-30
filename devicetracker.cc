@@ -603,6 +603,16 @@ void Devicetracker::SaveTags() {
 			 MSGFLAG_ERROR);
 }
 
+vector<kis_tracked_device *> *Devicetracker::FetchDevices(int in_phy) {
+	if (in_phy == KIS_PHY_ANY)
+		return &tracked_vec;
+
+	if (phy_device_vec.find(in_phy) == phy_device_vec.end())
+		return NULL;
+
+	return phy_device_vec[in_phy];
+}
+
 int Devicetracker::FetchNumDevices(int in_phy) {
 	int r = 0;
 
@@ -716,6 +726,7 @@ int Devicetracker::RegisterPhyHandler(Kis_Phy_Handler *in_weak_handler) {
 	phy_packetdelta[num] = 0;
 	
 	phy_dirty_vec[num] = new vector<kis_tracked_device *>;
+	phy_device_vec[num] = new vector<kis_tracked_device *>;
 
 	_MSG("Registered PHY handler '" + strongphy->FetchPhyName() + "' as ID " +
 		 IntToString(num), MSGFLAG_INFO);
@@ -934,6 +945,7 @@ int Devicetracker::CommonClassifier(kis_packet *in_pack) {
 
 		tracked_map[device->key] = device;
 		tracked_vec.push_back(device);
+		phy_device_vec[pack_common->phyid]->push_back(device);
 	} else {
 		device = di->second;
 	}

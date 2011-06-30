@@ -509,6 +509,8 @@ public:
 	// Register a tracked device component
 	int RegisterDeviceComponent(string in_component);
 
+	vector<kis_tracked_device *> *FetchDevices(int in_phy);
+
 	int FetchNumDevices(int in_phy);
 	int FetchNumPackets(int in_phy);
 	int FetchNumDatapackets(int in_phy);
@@ -577,6 +579,9 @@ protected:
 	map<int, int> phy_errorpackets;
 	map<int, int> phy_filterpackets;
 	map<int, int> phy_packetdelta;
+
+	// Per-phy device list
+	map<int, vector<kis_tracked_device *> *> phy_device_vec;
 
 	// Per-phy dirty list
 	map<int, vector<kis_tracked_device *> *> phy_dirty_vec;
