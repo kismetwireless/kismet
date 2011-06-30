@@ -178,7 +178,7 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
 		}
 	}
 	
-	_MSG("Registered 80211 PHY as id " + IntToString(in_phyid), MSGFLAG_INFO);
+	// _MSG("Registered 80211 PHY as id " + IntToString(in_phyid), MSGFLAG_INFO);
 }
 
 Kis_80211_Phy::~Kis_80211_Phy() {
@@ -409,4 +409,9 @@ void Kis_80211_Phy::AddWepKey(mac_addr bssid, uint8_t *key, unsigned int len,
 
 	wepkeys.insert(winfo->bssid, winfo);
 }
+
+void Kis_80211_Phy::BlitDevices(vector<kis_tracked_device *> *devlist) {
+	
+}
+
 

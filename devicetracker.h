@@ -483,6 +483,10 @@ public:
 	// phy-specific records, etc
 	virtual int TimerKick() = 0;
 
+	// Send devices (all, or dirty).  Phy should trigger all protocol sentences
+	// it defines for these devices
+	virtual void BlitDevices(vector<kis_tracked_device *> *devlist) = 0;
+
 	// To do: Logging functions
 
 protected:
@@ -573,6 +577,9 @@ protected:
 	map<int, int> phy_errorpackets;
 	map<int, int> phy_filterpackets;
 	map<int, int> phy_packetdelta;
+
+	// Per-phy dirty list
+	map<int, vector<kis_tracked_device *> *> phy_dirty_vec;
 
 	// Common device component
 	int devcomp_ref_common;

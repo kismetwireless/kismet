@@ -103,7 +103,8 @@ public:
 };
 
 #define IntToString(I)			NtoString<int>((I)).Str()
-#define HexIntToString(I)		NtoString<int>((I), 0, 1).Str()
+#define UIntToString(I)			NtoString<unsigned int>((I)).Str()
+#define HexIntToString(I)		NtoString<unsigned int>((I), 0, 1).Str()
 #define LongIntToString(L)		NtoString<long int>((L)).Str()
 #define FloatToString(F)		NtoString<float>((F)).Str()
 

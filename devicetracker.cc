@@ -714,6 +714,11 @@ int Devicetracker::RegisterPhyHandler(Kis_Phy_Handler *in_weak_handler) {
 	phy_errorpackets[num] = 0;
 	phy_filterpackets[num] = 0;
 	phy_packetdelta[num] = 0;
+	
+	phy_dirty_vec[num] = new vector<kis_tracked_device *>;
+
+	_MSG("Registered PHY handler '" + strongphy->FetchPhyName() + "' as ID " +
+		 IntToString(num), MSGFLAG_INFO);
 
 	return num;
 }
@@ -765,7 +770,7 @@ void Devicetracker::BlitPhy(int in_fd) {
 
 int Devicetracker::TimerKick() {
 	BlitPhy(-1);
-	BlitDevices(-1);
+	// BlitDevices(-1);
 
 	globalreg->kisnetserver->SendToAll(proto_ref_trackinfo, (void *) this);
 
@@ -775,6 +780,7 @@ int Devicetracker::TimerKick() {
 		phy_packetdelta[x->first] = 0;
 	}
 
+	// Send all the dirty common data
 	for (unsigned int x = 0; x < dirty_device_vec.size(); x++) {
 		kis_tracked_device *dev = dirty_device_vec[x];
 
@@ -792,6 +798,13 @@ int Devicetracker::TimerKick() {
 
 		// No longer dirty
 		dev->dirty = 0;
+	}
+
+	// Send all the phy-specific dirty stuff
+	for (map<int, vector<kis_tracked_device *> *>::iterator x = phy_dirty_vec.begin();
+		 x != phy_dirty_vec.end(); ++x) {
+		phy_handler_map[x->first]->BlitDevices(x->second);
+		x->second->clear();
 	}
 
 	dirty_device_vec.clear();
@@ -928,6 +941,7 @@ int Devicetracker::CommonClassifier(kis_packet *in_pack) {
 	if (device->dirty == 0) {
 		device->dirty = 1;
 		dirty_device_vec.push_back(device);
+		phy_dirty_vec[pack_common->phyid]->push_back(device);
 	}
 
 	common = (kis_device_common *) device->fetch(devcomp_ref_common);

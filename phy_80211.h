@@ -474,10 +474,10 @@ public:
 
 	void AddWepKey(mac_addr bssid, uint8_t *key, unsigned int len, int temp);
 
+	virtual void BlitDevices(vector<kis_tracked_device *> *devlist);
+
 protected:
 	int LoadWepkeys();
-
-	int chain_handler(kis_packet *in_pack);
 
 	// Build a SSID record
 	dot11_ssid *BuildSSID(uint32_t ssid_csum,
