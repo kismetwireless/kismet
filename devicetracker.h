@@ -291,6 +291,8 @@ public:
 	// Tracked PHY type
 	int phy_type;
 
+	string name;
+
 	// Time values
 	time_t first_time;
 	time_t last_time;

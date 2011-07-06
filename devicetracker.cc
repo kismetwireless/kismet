@@ -40,7 +40,7 @@
 #include "packetsource.h"
 
 enum KISDEV_COMMON_FIELDS {
-	KISDEV_phytype, KISDEV_macaddr, KISDEV_firsttime, KISDEV_lasttime,
+	KISDEV_phytype, KISDEV_macaddr, KISDEV_name, KISDEV_firsttime, KISDEV_lasttime,
 	KISDEV_packets, KISDEV_llcpackets, KISDEV_errorpackets,
 	KISDEV_datapackets, KISDEV_cryptpackets,
 	KISDEV_datasize, KISDEV_newpackets, KISDEV_channel, KISDEV_frequency,
@@ -60,7 +60,7 @@ enum KISDEV_COMMON_FIELDS {
 };
 
 const char *KISDEV_common_text[] = {
-	"phytype", "macaddr", "firsttime", "lasttime",
+	"phytype", "macaddr", "name", "firsttime", "lasttime",
 	"packets", "llcpackets", "errorpackets",
 	"datapackets", "cryptpackets",
 	"datasize", "newpackets", "channel", "frequency",
@@ -106,6 +106,9 @@ int Protocol_KISDEV_COMMON(PROTO_PARMS) {
 				break;
 			case KISDEV_macaddr:
 				scratch = dev->key.Mac2String();
+				break;
+			case KISDEV_name:
+				scratch = "\001" + com->name + "\001";
 				break;
 			case KISDEV_firsttime:
 				scratch = IntToString(com->first_time);
