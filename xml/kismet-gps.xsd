@@ -2,7 +2,7 @@
 	xmlns:xs="http://www.w3.org/2001/XMLSchema" 
 	xmlns="http://xmlns.myexample.com/version3" 
 	
-	targetNamespace="http://www.kismetwireless.net/xml" 
+	targetNamespace="http://www.kismetwireless.net/xml/kismet-gps" 
 	xmlns:common="http://www.kismetwireless.net/xml/common" 
 	xmlns:gps="http://www.kismetwireless.net/xml/gps"
 

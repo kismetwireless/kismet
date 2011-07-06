@@ -7,10 +7,10 @@
 	 (ie sources are referred to which are not defined, aggregate counts
 	 are not accurate) -->
 
-<k:run xmlns:k="http://www.kismetwireless.net/xml" 
+<k:run xmlns:k="http://www.kismetwireless.net/xml/kismet-gps" 
 	xmlns:xs="http://www.w3.org/2001/XMLSchema"
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://www.kismetwireless.net/xml kismet.xsd"
+	xsi:schemaLocation="http://www.kismetwireless.net/xml kismet-gps.xsd"
 	xmlns:gps="http://www.kismetwireless.net/xml/gps">
 
 <version>2011-07-R1-SVN</version>
