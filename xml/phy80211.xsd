@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+
+<xs:schema 
+	xmlns:xs="http://www.w3.org/2001/XMLSchema"
+	targetNamespace="http://www.kismetwireless.net/xml/phy80211"
+	xmlns="http://www.kismetwireless.net/xml/phy80211"
+	elementFormDefault="unqualified"
+
+	xmlns:common="http://www.kismetwireless.net/xml/common"
+	xmlns:device="http://www.kismetwireless.net/xml/device">
+
+	<xs:import
+		namespace="http://www.kismetwireless.net/xml/common"
+		schemaLocation="./common.xsd"/>
+	<xs:import
+		namespace="http://www.kismetwireless.net/xml/device"
+		schemaLocation="./device.xsd"/>
+
+<!--
+<xs:complexType name="ssid">
+ <xs:sequence>
+  <xs:element name="ssid" type="xs:string"/>
+ </xs:sequence>
+</xs:complexType>
+-->
+
+<xs:complexType name="phy80211device"> 
+    <xs:complexContent> 
+        <xs:extension base="device:device"> 
+            <xs:sequence> 
+                <xs:element name="ssid" type="xs:string"/> 
+            </xs:sequence> 
+        </xs:extension> 
+    </xs:complexContent> 
+</xs:complexType>  
+
+</xs:schema>

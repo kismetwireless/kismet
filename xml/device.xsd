@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+
+<xs:schema 
+	xmlns:xs="http://www.w3.org/2001/XMLSchema"
+	targetNamespace="http://www.kismetwireless.net/xml/device"
+	xmlns="http://www.kismetwireless.net/xml/device"
+	elementFormDefault="unqualified"
+	xmlns:common="http://www.kismetwireless.net/xml/common">
+
+	<xs:import
+		namespace="http://www.kismetwireless.net/xml/common"
+		schemaLocation="./common.xsd"/>
+
+<xs:complexType name="device">
+ <xs:sequence>
+  <xs:element name="deviceMac" type="common:macaddr" minOccurs="1"/>
+ 
+  <xs:element name="gpsAverage" type="common:gps" minOccurs="0"/>
+  <xs:element name="gpsMinimum" type="common:gps" minOccurs="0"/>
+  <xs:element name="gpsMaximum" type="common:gps" minOccurs="0"/>
+ 
+  <xs:element name="frequencySeen" type="common:freqCount" minOccurs="0" maxOccurs="unbounded"/>
+ 
+  <xs:element name="captureSource" type="common:seenBy" minOccurs="0" maxOccurs="unbounded"/> 
+ </xs:sequence>
+</xs:complexType>
+
+</xs:schema>

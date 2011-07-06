@@ -1,0 +1,38 @@
+<xs:schema 
+	xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+	xmlns="http://xmlns.myexample.com/version3" 
+	
+	targetNamespace="http://www.kismetwireless.net/xml" 
+	xmlns:common="http://www.kismetwireless.net/xml/common" 
+	xmlns:device="http://www.kismetwireless.net/xml/device"
+
+	xmlns:phy80211="http://www.kismetwireless.net/xml/phy80211"
+
+	elementFormDefault="unqualified"
+	attributeFormDefault="unqualified">
+
+	<xs:import
+		namespace="http://www.kismetwireless.net/xml/common"
+		schemaLocation="./common.xsd"/>
+
+	<xs:import
+		namespace="http://www.kismetwireless.net/xml/device"
+		schemaLocation="./device.xsd"/>
+
+	<xs:import
+		namespace="http://www.kismetwireless.net/xml/phy80211"
+		schemaLocation="./phy80211.xsd"/>
+
+<xs:element name="run">
+ <xs:complexType>
+  <xs:sequence>
+
+   <xs:element name="captureSource" minOccurs="1" maxOccurs="unbounded" type="common:source"/>
+
+   <xs:element name="device" maxOccurs="unbounded" type="device:device"/>
+
+  </xs:sequence>
+ </xs:complexType>
+</xs:element>
+
+</xs:schema>

@@ -1,0 +1,40 @@
+<?xml version="1.0"?>
+
+<k:run xmlns:k="http://www.kismetwireless.net/xml" 
+	xmlns:xs="http://www.w3.org/2001/XMLSchema"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.kismetwireless.net/xml kismet.xsd"
+	xmlns:phy80211="http://www.kismetwireless.net/xml/phy80211">
+
+<captureSource>
+ <uuid>abcd</uuid>
+ <definition>something</definition>
+ <name>somesource</name>
+ <interface>wlan0</interface>
+ <type>mac80211</type>
+ <packets>1234</packets>
+ <channels>1,2,3,4</channels>
+ <channelhop>true</channelhop>
+</captureSource>
+
+<device>
+ <deviceMac>aa:bb:cc:dd:ee:ff</deviceMac>
+ <gpsAverage>
+	<latitude>10</latitude>
+	<longitude>100</longitude>
+	<altitude>50</altitude>
+ </gpsAverage>
+
+ <frequencySeen frequencyMhz="1234">10</frequencySeen>
+ <frequencySeen frequencyMhz="1235">11</frequencySeen>
+ <frequencySeen frequencyMhz="1236">12</frequencySeen>
+</device>
+
+<device xsi:type="phy80211:phy80211device">
+ <deviceMac>11:22:33:44:55:66</deviceMac>
+ <frequencySeen frequencyMhz="1234">10</frequencySeen>
+ <ssid>some ssid</ssid>
+</device>
+
+</k:run>
+
