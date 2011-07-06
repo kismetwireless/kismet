@@ -102,14 +102,14 @@
   <encryption>WPA+TKIP</encryption>
   <encryption>WPA+PSK</encryption>
   <encryption>WPA+AES-CCM</encryption>
+  <dot11d country="US ">
+   <range start="1" end="11" power="27"/>
+  </dot11d>
  </ssid>
 
  <packetFragments>10</packetFragments>
  <packetRetries>1000</packetRetries>
 
- <dot11d country="US ">
-  <range start="1" end="11" power="27"/>
- </dot11d>
 </device>
 
 </k:run>

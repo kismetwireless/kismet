@@ -28,6 +28,7 @@
   <xs:element name="beaconRate" type="xs:integer" minOccurs="0"/>
   <xs:element name="channel" type="xs:integer" minOccurs="0"/>
   <xs:element name="encryption" type="xs:string" minOccurs="0" maxOccurs="unbounded"/>
+  <xs:element name="dot11d" type="dot11d" minOccurs="0" maxOccurs="unbounded"/>
  </xs:sequence>
 </xs:complexType>
 
@@ -56,8 +57,6 @@
 
 				<xs:element name="packetFragments" type="xs:integer"/>
 				<xs:element name="packetRetries" type="xs:integer"/>
-
-				<xs:element name="dot11d" type="dot11d" minOccurs="0" maxOccurs="unbounded"/>
 
 				<xs:element name="maxSeenRate" type="xs:integer" minOccurs="0"/>
 
