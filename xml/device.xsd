@@ -23,6 +23,7 @@
   <xs:element name="gpsAverage" type="common:gps" minOccurs="0"/>
   <xs:element name="gpsMinimum" type="common:gps" minOccurs="0"/>
   <xs:element name="gpsMaximum" type="common:gps" minOccurs="0"/>
+  <xs:element name="gpsPeaksignal" type="common:gps" minOccurs="0"/>
  
   <xs:element name="frequencySeen" type="common:frequencyMap" minOccurs="0"/>
  

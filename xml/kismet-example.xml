@@ -15,9 +15,11 @@
 
 <version>2011-07-R1-SVN</version>
 
+<!-- timeline - constantly regenerated to be last time logged -->
 <startTime>Tue Jul  5 20:58:09 2011</startTime>
 <endTime>Tue Jul  5 20:58:09 2011</endTime>
 
+<!-- capture sources -->
 <captureSource>
  <uuid>abcd</uuid>
  <definition>something</definition>
@@ -29,8 +31,10 @@
  <channelhop>true</channelhop>
 </captureSource>
 
+<!-- total devices seen -->
 <totalDevices>100</totalDevices>
 
+<!-- multiple phy types possible as registered by plugins, core -->
 <phyType>
  <name>80211</name>
  <devices>1</devices>
@@ -49,17 +53,22 @@
  <packetError>0</packetError>
 </phyType>
 
+<!-- gps device we're using -->
 <gpsDevice>
  <device>/dev/ttyUSB0</device>
  <type>NMEA</type>
 </gpsDevice>
 
+<!-- degnerate/base case phy - we should never actually log
+	 unknown types, but shows the minimal needed for any 
+	 device, phy-specific adds on -->
 <device phy="unknown">
  <deviceMac>aa:bb:cc:dd:ee:ff</deviceMac>
 
  <firstSeen>Tue Jul  5 20:58:09 2011</firstSeen>
  <lastSeen>Tue Jul  5 21:58:09 2011</lastSeen>
 
+ <!-- What sources saw us and how many packets per src -->
  <seenBy>
   <uuid>some-device-uuid</uuid>
   <firstSeen>Tue Jul  5 20:58:09 2011</firstSeen>
@@ -74,6 +83,8 @@
   <packets>123</packets>
  </seenBy>
 
+ <!-- average gps, can also include min, max, and
+	  peak signal gps -->
  <gpsAverage>
 	<latitude>10</latitude>
 	<longitude>100</longitude>
@@ -81,17 +92,20 @@
 	<quality>3</quality>
  </gpsAverage>
 
+ <!-- Frequency map -->
  <frequencySeen>
   <frequency mhz="1234" packets="10"/>
   <frequency mhz="1235" packets="11"/>
   <frequency mhz="1236" packets="1"/>
  </frequencySeen>
 
+ <!-- Signal level, DBM or RSSI -->
  <signalLevel scale="DBM">
   <lastSignal>-10</lastSignal>
   <lastNoise>-40</lastNoise>
  </signalLevel>
 
+ <!-- Packet counts -->
  <packetLink>100</packetLink>
  <packetData>10</packetData>
  <packetFiltered>1000</packetFiltered>
@@ -99,11 +113,14 @@
 
  <dataBytes>0</dataBytes>
 
+ <!-- Arbitrary tags -->
  <tag name="one">1</tag>
  <tag name="wepkey">aabbccdd</tag>
 </device>
 
+<!-- Extended element from phy80211 xsd, uses xsi:type -->
 <device xsi:type="phy80211:phy80211device" phy="phy80211">
+ <!-- standard device element components -->
  <deviceMac>11:22:33:44:55:66</deviceMac>
 
  <firstSeen>Tue Jul  5 20:58:09 2011</firstSeen>
@@ -120,6 +137,7 @@
 
  <dataBytes>100000</dataBytes>
 
+ <!-- 802.11 components, such as dot11 type, SSIDs, etc -->
  <type>Infrastructure</type>
 
  <ssid>
