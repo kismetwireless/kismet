@@ -5,6 +5,7 @@
 	targetNamespace="http://www.kismetwireless.net/xml" 
 	xmlns:common="http://www.kismetwireless.net/xml/common" 
 	xmlns:device="http://www.kismetwireless.net/xml/device"
+	xmlns:gps="http://www.kismetwireless.net/xml/gps"
 
 	xmlns:phy80211="http://www.kismetwireless.net/xml/phy80211"
 
@@ -18,6 +19,10 @@
 	<xs:import
 		namespace="http://www.kismetwireless.net/xml/device"
 		schemaLocation="./device.xsd"/>
+
+	<xs:import
+	    namespace="http://www.kismetwireless.net/xml/gps"
+		schemaLocation="./gps.xsd"/>
 
 	<xs:import
 		namespace="http://www.kismetwireless.net/xml/phy80211"
@@ -48,7 +53,19 @@
 	</xs:complexType>
    </xs:element>
 
-   <xs:element name="device" maxOccurs="unbounded" type="device:device"/>
+   <xs:element name="gpsDevice" minOccurs="0">
+    <xs:complexType>
+	 <xs:sequence>
+	  <xs:element name="device" type="xs:string"/>
+	  <xs:element name="type" type="xs:string"/>
+	 </xs:sequence>
+	</xs:complexType>
+   </xs:element>
+
+   <xs:choice>
+    <xs:element name="device" maxOccurs="unbounded" type="device:device"/>
+	<xs:element name="gpsBulk" maxOccurs="unbounded" type="gps:gpsBlock"/>
+   </xs:choice>
 
   </xs:sequence>
  </xs:complexType>

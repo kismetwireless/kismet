@@ -33,6 +33,9 @@
   <xs:element name="longitude" type="gpslon"/>
   <xs:element name="altitude" type="xs:decimal" minOccurs="0"/>
   <xs:element name="speed" type="xs:decimal" minOccurs="0"/>
+  <xs:element name="quality" type="xs:integer"/>
+  <xs:element name="hdop" type="xs:decimal" minOccurs="0"/>
+  <xs:element name="vdop" type="xs:decimal" minOccurs="0"/>
  </xs:all>
 </xs:complexType>
 

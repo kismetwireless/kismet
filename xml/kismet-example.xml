@@ -49,6 +49,11 @@
  <packetError>0</packetError>
 </phyType>
 
+<gpsDevice>
+ <device>/dev/ttyUSB0</device>
+ <type>NMEA</type>
+</gpsDevice>
+
 <device phy="unknown">
  <deviceMac>aa:bb:cc:dd:ee:ff</deviceMac>
 
@@ -73,6 +78,7 @@
 	<latitude>10</latitude>
 	<longitude>100</longitude>
 	<altitude>50</altitude>
+	<quality>3</quality>
  </gpsAverage>
 
  <frequencySeen>
