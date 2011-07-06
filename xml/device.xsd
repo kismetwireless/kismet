@@ -32,7 +32,6 @@
 
   <xs:element name="packetLink" type="xs:integer"/>
   <xs:element name="packetData" type="xs:integer"/>
-  <xs:element name="packetCrypt" type="xs:integer"/>
   <xs:element name="packetFiltered" type="xs:integer"/>
   <xs:element name="packetError" type="xs:integer"/>
 

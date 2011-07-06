@@ -26,8 +26,27 @@
 <xs:element name="run">
  <xs:complexType>
   <xs:sequence>
+   <xs:element name="version" type="xs:string"/>
 
-   <xs:element name="captureSource" minOccurs="1" maxOccurs="unbounded" type="common:source"/>
+   <xs:element name="startTime" type="xs:string"/>
+   <xs:element name="endTime" type="xs:string"/>
+
+   <xs:element name="captureSource" maxOccurs="unbounded" type="common:source"/>
+
+   <xs:element name="totalDevices" type="xs:integer"/>
+
+   <xs:element name="phyType" maxOccurs="unbounded">
+    <xs:complexType>
+	 <xs:sequence>
+	  <xs:element name="name" type="xs:string"/>
+	  <xs:element name="devices" type="xs:integer"/>
+      <xs:element name="packetLink" type="xs:integer"/>
+      <xs:element name="packetData" type="xs:integer"/>
+      <xs:element name="packetFiltered" type="xs:integer"/>
+      <xs:element name="packetError" type="xs:integer"/>
+	 </xs:sequence>
+	</xs:complexType>
+   </xs:element>
 
    <xs:element name="device" maxOccurs="unbounded" type="device:device"/>
 

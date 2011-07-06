@@ -3,13 +3,20 @@
 <!-- This file is meant as an example of the kismet xml/xsd schema, and 
 	 is used with xmllint for testing.  The values contained in it are
 	 not currently valid nor necessarily representative of the valid
-	 ranges for files.  -->
+	 ranges for data.  It is not designed to be internally consistent
+	 (ie sources are referred to which are not defined, aggregate counts
+	 are not accurate) -->
 
 <k:run xmlns:k="http://www.kismetwireless.net/xml" 
 	xmlns:xs="http://www.w3.org/2001/XMLSchema"
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://www.kismetwireless.net/xml kismet.xsd"
 	xmlns:phy80211="http://www.kismetwireless.net/xml/phy80211">
+
+<version>2011-07-R1-SVN</version>
+
+<startTime>Tue Jul  5 20:58:09 2011</startTime>
+<endTime>Tue Jul  5 20:58:09 2011</endTime>
 
 <captureSource>
  <uuid>abcd</uuid>
@@ -21,6 +28,26 @@
  <channels>1,2,3,4</channels>
  <channelhop>true</channelhop>
 </captureSource>
+
+<totalDevices>100</totalDevices>
+
+<phyType>
+ <name>80211</name>
+ <devices>1</devices>
+ <packetLink>1000</packetLink>
+ <packetData>10</packetData>
+ <packetFiltered>0</packetFiltered>
+ <packetError>0</packetError>
+</phyType>
+
+<phyType>
+ <name>btbb</name>
+ <devices>0</devices>
+ <packetLink>0</packetLink>
+ <packetData>0</packetData>
+ <packetFiltered>0</packetFiltered>
+ <packetError>0</packetError>
+</phyType>
 
 <device phy="unknown">
  <deviceMac>aa:bb:cc:dd:ee:ff</deviceMac>
@@ -61,7 +88,6 @@
 
  <packetLink>100</packetLink>
  <packetData>10</packetData>
- <packetCrypt>0</packetCrypt>
  <packetFiltered>1000</packetFiltered>
  <packetError>1</packetError>
 
@@ -83,7 +109,6 @@
 
  <packetLink>100</packetLink>
  <packetData>10</packetData>
- <packetCrypt>0</packetCrypt>
  <packetFiltered>1000</packetFiltered>
  <packetError>1</packetError>
 
