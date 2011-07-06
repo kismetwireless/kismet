@@ -33,7 +33,18 @@
 <device xsi:type="phy80211:phy80211device">
  <deviceMac>11:22:33:44:55:66</deviceMac>
  <frequencySeen frequencyMhz="1234">10</frequencySeen>
- <ssid>some ssid</ssid>
+ <ssid>
+  <firstSeen>Tue Jul  5 20:55:45 2011</firstSeen>
+  <lastSeen>Tue Jul  5 21:55:45 2011</lastSeen>
+  <type>Beacon</type>
+  <essid>cletus</essid>
+  <maxRate>54</maxRate>
+  <beaconRate>10</beaconRate>
+  <channel>6</channel>
+  <encryption>WPA+TKIP</encryption>
+  <encryption>WPA+PSK</encryption>
+  <encryption>WPA+AES-CCM</encryption>
+ </ssid>
 </device>
 
 </k:run>

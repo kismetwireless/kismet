@@ -16,19 +16,26 @@
 		namespace="http://www.kismetwireless.net/xml/device"
 		schemaLocation="./device.xsd"/>
 
-<!--
 <xs:complexType name="ssid">
  <xs:sequence>
-  <xs:element name="ssid" type="xs:string"/>
+  <xs:element name="firstSeen" type="xs:string" minOccurs="1"/>
+  <xs:element name="lastSeen" type="xs:string" minOccurs="1"/>
+
+  <xs:element name="type" type="xs:string" minOccurs="1"/>
+  <xs:element name="essid" type="xs:string" minOccurs="1"/>
+  <xs:element name="cloaked" type="xs:boolean" minOccurs="0"/>
+  <xs:element name="maxRate" type="xs:integer" minOccurs="0"/>
+  <xs:element name="beaconRate" type="xs:integer" minOccurs="0"/>
+  <xs:element name="channel" type="xs:integer" minOccurs="0"/>
+  <xs:element name="encryption" type="xs:string" minOccurs="0" maxOccurs="unbounded"/>
  </xs:sequence>
 </xs:complexType>
--->
 
 <xs:complexType name="phy80211device"> 
     <xs:complexContent> 
         <xs:extension base="device:device"> 
             <xs:sequence> 
-                <xs:element name="ssid" type="xs:string"/> 
+                <xs:element name="ssid" type="ssid" minOccurs="0" maxOccurs="unbounded"/> 
             </xs:sequence> 
         </xs:extension> 
     </xs:complexContent> 
