@@ -31,11 +31,38 @@
  </xs:sequence>
 </xs:complexType>
 
+<xs:complexType name="dot11d">
+ <xs:sequence>
+  <xs:element name="range" minOccurs="1" maxOccurs="unbounded">
+   <xs:complexType>
+    <xs:attribute name="start" type="xs:positiveInteger" use="required"/>
+    <xs:attribute name="end" type="xs:positiveInteger" use="required"/>
+    <xs:attribute name="power" type="xs:integer" use="required"/>
+   </xs:complexType>
+  </xs:element>
+ </xs:sequence>
+ <xs:attribute name="country" type="xs:string" use="required"/>
+</xs:complexType>
+
 <xs:complexType name="phy80211device"> 
     <xs:complexContent> 
         <xs:extension base="device:device"> 
-            <xs:sequence> 
+            <xs:sequence>
+				<xs:element name="type" type="xs:string" minOccurs="0"/>
                 <xs:element name="ssid" type="ssid" minOccurs="0" maxOccurs="unbounded"/> 
+				<xs:element name="bsstimestamp" type="xs:integer" minOccurs="0"/>
+				<xs:element name="cdpDevice" type="xs:string" minOccurs="0"/>
+				<xs:element name="cdpPort" type="xs:string" minOccurs="0"/>
+
+				<xs:element name="packetFragments" type="xs:integer"/>
+				<xs:element name="packetRetries" type="xs:integer"/>
+
+				<xs:element name="dot11d" type="dot11d" minOccurs="0" maxOccurs="unbounded"/>
+
+				<xs:element name="maxSeenRate" type="xs:integer" minOccurs="0"/>
+
+				<xs:element name="carrier" type="xs:string" minOccurs="0"/>
+				<xs:element name="encoding" type="xs:string" minOccurs="0"/>
             </xs:sequence> 
         </xs:extension> 
     </xs:complexContent> 

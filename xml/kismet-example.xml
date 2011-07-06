@@ -1,5 +1,10 @@
 <?xml version="1.0"?>
 
+<!-- This file is meant as an example of the kismet xml/xsd schema, and 
+	 is used with xmllint for testing.  The values contained in it are
+	 not currently valid nor necessarily representative of the valid
+	 ranges for files.  -->
+
 <k:run xmlns:k="http://www.kismetwireless.net/xml" 
 	xmlns:xs="http://www.w3.org/2001/XMLSchema"
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -17,22 +22,75 @@
  <channelhop>true</channelhop>
 </captureSource>
 
-<device>
+<device phy="unknown">
  <deviceMac>aa:bb:cc:dd:ee:ff</deviceMac>
+
+ <firstSeen>Tue Jul  5 20:58:09 2011</firstSeen>
+ <lastSeen>Tue Jul  5 21:58:09 2011</lastSeen>
+
+ <seenBy>
+  <uuid>some-device-uuid</uuid>
+  <firstSeen>Tue Jul  5 20:58:09 2011</firstSeen>
+  <lastSeen>Tue Jul  5 21:58:09 2011</lastSeen>
+  <packets>123</packets>
+ </seenBy>
+
+ <seenBy>
+  <uuid>some-second-device-uuid</uuid>
+  <firstSeen>Tue Jul  5 20:58:09 2011</firstSeen>
+  <lastSeen>Tue Jul  5 21:58:09 2011</lastSeen>
+  <packets>123</packets>
+ </seenBy>
+
  <gpsAverage>
 	<latitude>10</latitude>
 	<longitude>100</longitude>
 	<altitude>50</altitude>
  </gpsAverage>
 
- <frequencySeen frequencyMhz="1234">10</frequencySeen>
- <frequencySeen frequencyMhz="1235">11</frequencySeen>
- <frequencySeen frequencyMhz="1236">12</frequencySeen>
+ <frequencySeen>
+  <frequency mhz="1234" packets="10"/>
+  <frequency mhz="1235" packets="11"/>
+  <frequency mhz="1236" packets="1"/>
+ </frequencySeen>
+
+ <signalLevel scale="DBM">
+  <lastSignal>-10</lastSignal>
+  <lastNoise>-40</lastNoise>
+ </signalLevel>
+
+ <packetLink>100</packetLink>
+ <packetData>10</packetData>
+ <packetCrypt>0</packetCrypt>
+ <packetFiltered>1000</packetFiltered>
+ <packetError>1</packetError>
+
+ <dataBytes>0</dataBytes>
+
+ <tag name="one">1</tag>
+ <tag name="wepkey">aabbccdd</tag>
 </device>
 
-<device xsi:type="phy80211:phy80211device">
+<device xsi:type="phy80211:phy80211device" phy="phy80211">
  <deviceMac>11:22:33:44:55:66</deviceMac>
- <frequencySeen frequencyMhz="1234">10</frequencySeen>
+
+ <firstSeen>Tue Jul  5 20:58:09 2011</firstSeen>
+ <lastSeen>Tue Jul  5 21:58:09 2011</lastSeen>
+
+ <frequencySeen>
+  <frequency mhz="1236" packets="1"/>
+ </frequencySeen>
+
+ <packetLink>100</packetLink>
+ <packetData>10</packetData>
+ <packetCrypt>0</packetCrypt>
+ <packetFiltered>1000</packetFiltered>
+ <packetError>1</packetError>
+
+ <dataBytes>100000</dataBytes>
+
+ <type>Infrastructure</type>
+
  <ssid>
   <firstSeen>Tue Jul  5 20:55:45 2011</firstSeen>
   <lastSeen>Tue Jul  5 21:55:45 2011</lastSeen>
@@ -45,6 +103,13 @@
   <encryption>WPA+PSK</encryption>
   <encryption>WPA+AES-CCM</encryption>
  </ssid>
+
+ <packetFragments>10</packetFragments>
+ <packetRetries>1000</packetRetries>
+
+ <dot11d country="US ">
+  <range start="1" end="11" power="27"/>
+ </dot11d>
 </device>
 
 </k:run>

@@ -49,36 +49,45 @@
  </xs:sequence>
 </xs:complexType>
 
-<xs:complexType name="freqCount">
- <xs:simpleContent>
-  <xs:extension base="xs:positiveInteger">
-   <xs:attribute name="frequencyMhz" type="xs:positiveInteger" />
-  </xs:extension>
- </xs:simpleContent>
+<xs:complexType name="frequencyMap">
+ <xs:sequence>
+  <xs:element name="frequency" minOccurs="1" maxOccurs="unbounded">
+   <xs:complexType>
+    <xs:attribute name="mhz" type="xs:positiveInteger" use="required"/>
+    <xs:attribute name="packets" type="xs:positiveInteger" use="required"/>
+   </xs:complexType>
+  </xs:element>
+ </xs:sequence>
 </xs:complexType>
 
 <xs:complexType name="seenBy">
  <xs:sequence>
   <xs:element name="uuid" type="xs:string"/>
-  <xs:element name="time" type="xs:string"/>
+  <xs:element name="firstSeen" type="xs:string"/>
+  <xs:element name="lastSeen" type="xs:string"/>
   <xs:element name="packets" type="xs:positiveInteger"/>
  </xs:sequence>
 </xs:complexType>
 
-<!--
 <xs:complexType name="signalData">
  <xs:sequence>
-  <xs:attribute name="signalType" type="xs:string" />
-  <xs:element name="lastSignal" type="xs:integer"/>
-  <xs:element name="lastNoise" type="xs:integer"/>
-  <xs:element name="minSignal" type="xs:integer"/>
-  <xs:element name="minNoise" type="xs:integer"/>
-  <xs:element name="maxSignal" type="xs:integer"/>
-  <xs:element name="maxNoise" type="xs:integer"/>
+  <xs:element name="lastSignal" type="xs:integer" minOccurs="0"/>
+  <xs:element name="lastNoise" type="xs:integer" minOccurs="0"/>
+  <xs:element name="minSignal" type="xs:integer" minOccurs="0"/>
+  <xs:element name="minNoise" type="xs:integer" minOccurs="0"/>
+  <xs:element name="maxSignal" type="xs:integer" minOccurs="0"/>
+  <xs:element name="maxNoise" type="xs:integer" minOccurs="0"/>
  </xs:sequence>
+ <xs:attribute name="scale" type="xs:string" use="required"/>
 </xs:complexType>
 
--->
+<xs:complexType name="tag">
+ <xs:simpleContent>
+  <xs:extension base="xs:string">
+   <xs:attribute name="name" type="xs:string" use="required"/>
+  </xs:extension>
+ </xs:simpleContent>
+</xs:complexType>
 
 </xs:schema>
 
