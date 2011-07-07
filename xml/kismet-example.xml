@@ -65,6 +65,8 @@
 <device phy="unknown">
  <deviceMac>aa:bb:cc:dd:ee:ff</deviceMac>
 
+ <name>aa:bb:cc:dd:ee:ff</name>
+
  <firstSeen>Tue Jul  5 20:58:09 2011</firstSeen>
  <lastSeen>Tue Jul  5 21:58:09 2011</lastSeen>
 
@@ -122,6 +124,9 @@
 <device xsi:type="phy80211:phy80211device" phy="phy80211">
  <!-- standard device element components -->
  <deviceMac>11:22:33:44:55:66</deviceMac>
+
+ <!-- dot11 names derived from ssid -->
+ <name>cletus</name>
 
  <firstSeen>Tue Jul  5 20:58:09 2011</firstSeen>
  <lastSeen>Tue Jul  5 21:58:09 2011</lastSeen>

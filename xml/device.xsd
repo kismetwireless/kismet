@@ -13,10 +13,12 @@
 
 <xs:complexType name="device">
  <xs:sequence>
-  <xs:element name="deviceMac" type="common:macaddr" minOccurs="1"/>
+  <xs:element name="deviceMac" type="common:macaddr"/>
 
-  <xs:element name="firstSeen" type="xs:string" minOccurs="1"/>
-  <xs:element name="lastSeen" type="xs:string" minOccurs="1"/>
+  <xs:element name="name" type="xs:string"/>
+
+  <xs:element name="firstSeen" type="xs:string"/>
+  <xs:element name="lastSeen" type="xs:string"/>
 
   <xs:element name="seenBy" type="common:seenBy" minOccurs="0" maxOccurs="unbounded"/>
  
