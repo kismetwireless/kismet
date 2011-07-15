@@ -151,7 +151,10 @@ int Protocol_SOURCE(PROTO_PARMS) {
 				break;
 
 			case SOURCE_channel:
-				osstr << psrc->channel;
+				if (psrc->strong_source != NULL)
+					osstr << psrc->strong_source->FetchChannel();
+				else
+					osstr << psrc->channel;
 				cache->Cache(fnum, osstr.str());
 				break;
 
