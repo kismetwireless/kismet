@@ -57,10 +57,11 @@ protected:
 	FilterCore *export_filter;
 	string fname;
 	string type;
+	string logclass;
 
 	int dumped_frames;
 
-	virtual string ProcessConfigOpt(string in_type);
+	virtual string ProcessConfigOpt();
 
 	int resume;
 

@@ -39,6 +39,7 @@ Dumpfile_Btscantxt::Dumpfile_Btscantxt(GlobalRegistry *in_globalreg) :
 	tracker = NULL;
 
 	type = "btscantxt";
+	logclass = "text";
 
 	if (globalreg->kismet_config == NULL) {
 		fprintf(stderr, "FATAL OOPS:  Config file missing before Dumpfile_Btscantxt\n");
@@ -46,7 +47,7 @@ Dumpfile_Btscantxt::Dumpfile_Btscantxt(GlobalRegistry *in_globalreg) :
 	}
 
 	// Find the file name
-	if ((fname = ProcessConfigOpt("btscantxt")) == "" || 
+	if ((fname = ProcessConfigOpt()) == "" || 
 		globalreg->fatal_condition) {
 		return;
 	}

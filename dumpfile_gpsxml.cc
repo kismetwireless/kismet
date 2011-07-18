@@ -47,6 +47,7 @@ Dumpfile_Gpsxml::Dumpfile_Gpsxml(GlobalRegistry *in_globalreg) :
 	last_track = 0;
 
 	type = "gpsxml";
+	logclass = "gps";
 
 	if (globalreg->sourcetracker == NULL) {
 		fprintf(stderr, "FATAL OOPS:  Sourcetracker missing before "
@@ -55,7 +56,7 @@ Dumpfile_Gpsxml::Dumpfile_Gpsxml(GlobalRegistry *in_globalreg) :
 	}
 
 	// Find the file name
-	if ((fname = ProcessConfigOpt("gpsxml")) == "" || 
+	if ((fname = ProcessConfigOpt()) == "" ||
 		globalreg->fatal_condition) {
 		return;
 	}

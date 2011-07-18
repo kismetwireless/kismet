@@ -42,6 +42,7 @@ Dumpfile_Pcap::Dumpfile_Pcap(GlobalRegistry *in_globalreg) : Dumpfile(in_globalr
 
 	parent = NULL;
 	type = "pcapdump";
+	logclass = "pcapdump";
 
 	// Default to dot11
 	dlt = DLT_IEEE802_11;
@@ -101,7 +102,8 @@ void Dumpfile_Pcap::Startup_Dumpfile() {
 	}
 
 	// Find the file name
-	if ((fname = ProcessConfigOpt(type)) == "" || globalreg->fatal_condition) {
+	if ((fname = ProcessConfigOpt()) == "" ||
+		globalreg->fatal_condition) {
 		return;
 	}
 

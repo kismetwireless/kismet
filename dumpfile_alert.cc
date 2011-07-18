@@ -39,6 +39,7 @@ Dumpfile_Alert::Dumpfile_Alert(GlobalRegistry *in_globalreg) :
 	alertfile = NULL;
 
 	type = "alert";
+	logclass = "alert";
 
 	if (globalreg->packetchain == NULL) {
 		fprintf(stderr, "FATAL OOPS:  Packetchain missing before "
@@ -53,7 +54,7 @@ Dumpfile_Alert::Dumpfile_Alert(GlobalRegistry *in_globalreg) :
 	}
 
 	// Find the file name
-	if ((fname = ProcessConfigOpt("alert")) == "" || 
+	if ((fname = ProcessConfigOpt()) == "" ||
 		globalreg->fatal_condition) {
 		return;
 	}

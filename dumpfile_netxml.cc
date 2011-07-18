@@ -38,6 +38,7 @@ Dumpfile_Netxml::Dumpfile_Netxml(GlobalRegistry *in_globalreg) :
 	xmlfile = NULL;
 
 	type = "netxml";
+	logclass = "xml";
 
 	if (globalreg->netracker == NULL) {
 		fprintf(stderr, "FATAL OOPS:  Netracker missing before Dumpfile_Netxml\n");
@@ -50,7 +51,7 @@ Dumpfile_Netxml::Dumpfile_Netxml(GlobalRegistry *in_globalreg) :
 	}
 
 	// Find the file name
-	if ((fname = ProcessConfigOpt("netxml")) == "" || 
+	if ((fname = ProcessConfigOpt()) == "" ||
 		globalreg->fatal_condition) {
 		return;
 	}

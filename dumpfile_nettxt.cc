@@ -39,6 +39,7 @@ Dumpfile_Nettxt::Dumpfile_Nettxt(GlobalRegistry *in_globalreg) :
 	txtfile = NULL;
 
 	type = "nettxt";
+	logclass = "text";
 
 	if (globalreg->netracker == NULL) {
 		fprintf(stderr, "FATAL OOPS:  Netracker missing before Dumpfile_Nettxt\n");
@@ -56,7 +57,7 @@ Dumpfile_Nettxt::Dumpfile_Nettxt(GlobalRegistry *in_globalreg) :
 	}
 
 	// Find the file name
-	if ((fname = ProcessConfigOpt("nettxt")) == "" || 
+	if ((fname = ProcessConfigOpt()) == "" ||
 		globalreg->fatal_condition) {
 		return;
 	}
