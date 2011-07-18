@@ -42,7 +42,7 @@ Dumpfile_Pcap::Dumpfile_Pcap(GlobalRegistry *in_globalreg) : Dumpfile(in_globalr
 
 	parent = NULL;
 	type = "pcapdump";
-	logclass = "pcapdump";
+	logclass = "pcap";
 
 	// Default to dot11
 	dlt = DLT_IEEE802_11;
