@@ -132,10 +132,11 @@ string Dumpfile::ProcessConfigOpt() {
 
 	vector<string> typevec = StrTokenize(StrLower(logtypes), ",");
 	logclass = StrLower(logclass);
+	string ltype = StrLower(type);
 
 	int factive = 0;
 	for (unsigned int x = 0; x < typevec.size(); x++) {
-		if (typevec[x] == logclass) {
+		if (typevec[x] == logclass || typevec[x] == ltype ) {
 			factive = 1;
 			break;
 		}
