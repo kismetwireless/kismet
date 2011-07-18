@@ -764,6 +764,20 @@ http://www.kismetwireless.net
     By default Kismet will log the pcap file, gps log, alerts, and network
     log in XML and plaintext.
 
+    Logs are controlled by the --log-types command-line option or the
+    logtypes= config file line.  Logs are enabled by name (nettxt, gpsxml,
+    etc) or by class (text, pcap, etc).  When enabled by class, Kismet will
+    enable all logs of that class.  For example, enabling 'pcap' will turn
+    on pcap logging for plugins which can save packets.
+
+    Supported log classes:
+        alert               IDS alerts
+        gps                 GPS data (xml)
+        text                Text-formatted records (nettxt, etc)
+        xml                 XML-formatted records (netxml)
+        pcap                Pcap-formatted packet logs
+        string              Discovered strings
+
     By default, Kismet will try to log to pcapfiles using the PPI per-packet
     header.  The PPI header is a well-documented header supported by
     Wireshark and other tools, which can contain spectrum data, radio data
@@ -792,7 +806,7 @@ http://www.kismetwireless.net
         %l      Log type (pcapdump, netxml, etc)
         %h      Home directory of the user Kismet was started as
 
-    The default log template with a --log-prefix of /tmp and a --log-title
+    The log template with a --log-prefix of /tmp and a --log-title
     of Kismet would expand from:
       logtemplate=%p%n-%D-%t-%i.%l
     to (for example):
