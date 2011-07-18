@@ -351,7 +351,7 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 				// Header + lat/lon minus PPI overhead. 
 				ppigps->pfh_datalen = gps_tagsize - 4; //subtract ppi fieldheader
 
-				ppigps->version = 1;
+				ppigps->version = 2;
 				ppigps->fields_present = PPI_GPS_FLAG_LAT | PPI_GPS_FLAG_LON | PPI_GPS_FLAG_APPID;
 
                 //GPSLAT
