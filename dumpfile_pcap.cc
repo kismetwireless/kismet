@@ -60,6 +60,7 @@ Dumpfile_Pcap::Dumpfile_Pcap(GlobalRegistry *in_globalreg, string in_type,
 
 	globalreg = in_globalreg;
 	type = in_type;
+	logclass = "pcap";
 	parent = in_parent;
 
 	cbfilter = in_filter;
