@@ -38,9 +38,11 @@
 #include "alertracker.h"
 #include "manuf.h"
 #include "packetsource.h"
+#include "dumpfile_devicetracker.h"
 
 enum KISDEV_COMMON_FIELDS {
-	KISDEV_phytype, KISDEV_macaddr, KISDEV_name, KISDEV_firsttime, KISDEV_lasttime,
+	KISDEV_phytype, KISDEV_macaddr, KISDEV_name, KISDEV_typestring, KISDEV_basictype,
+	KISDEV_firsttime, KISDEV_lasttime,
 	KISDEV_packets, KISDEV_llcpackets, KISDEV_errorpackets,
 	KISDEV_datapackets, KISDEV_cryptpackets,
 	KISDEV_datasize, KISDEV_newpackets, KISDEV_channel, KISDEV_frequency,
@@ -60,7 +62,8 @@ enum KISDEV_COMMON_FIELDS {
 };
 
 const char *KISDEV_common_text[] = {
-	"phytype", "macaddr", "name", "firsttime", "lasttime",
+	"phytype", "macaddr", "name", "typestring", "basictype", 
+	"firsttime", "lasttime",
 	"packets", "llcpackets", "errorpackets",
 	"datapackets", "cryptpackets",
 	"datasize", "newpackets", "channel", "frequency",
@@ -109,6 +112,12 @@ int Protocol_KISDEV_COMMON(PROTO_PARMS) {
 				break;
 			case KISDEV_name:
 				scratch = "\001" + com->name + "\001";
+				break;
+			case KISDEV_typestring:
+				scratch = "\001" + com->type_string + "\001";
+				break;
+			case KISDEV_basictype:
+				scratch = IntToString(com->basic_type);
 				break;
 			case KISDEV_firsttime:
 				scratch = IntToString(com->first_time);
@@ -570,6 +579,11 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) {
 													  NULL, this);
 	}
 
+	// Create the global kistxt and kisxml logfiles
+	Dumpfile_Devicetracker *txtdump = 
+		new Dumpfile_Devicetracker(globalreg, "kistxt", "text");
+	Dumpfile_Devicetracker *xmldump =
+		new Dumpfile_Devicetracker(globalreg, "kisxml", "xml");
 }
 
 Devicetracker::~Devicetracker() {
@@ -1051,5 +1065,10 @@ kis_tracked_device *Devicetracker::MapToDevice(kis_packet *in_pack) {
 		dirty_device_vec.push_back(device);
 	}
 
+	return device;
 }
 
+int Devicetracker::LogDevices(string in_logtype, FILE *in_logfile) {
+
+	return 1;
+}

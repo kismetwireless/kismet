@@ -283,6 +283,23 @@ struct kis_signal_data {
 // Fwd ktd
 class kis_tracked_device;
 
+// Bitfield of basic types a device is classified as.  The device may be multiple
+// of these depending on the phy.
+//
+// Generic device.  Everything is a device.  If the phy has no
+// distinguishing factors for classifying it as anything else, this is 
+// what it gets to be.
+#define KIS_DEVICE_BASICTYPE_DEVICE		0
+// Access point (in wifi terms) or otherwise central coordinating device
+// (if available in other PHYs)
+#define KIS_DEVICE_BASICTYPE_AP			1
+// Wireless client device (up to the implementor if a peer-to-peer phy
+// classifies all as clients, APs, or simply devices)
+#define KIS_DEVICE_BASICTYPE_CLIENT		2
+// Bridged/wired client, something that isn't itself homed on the wireless
+// medium
+#define KIS_DEVICE_BASICTYPE_WIRED		4
+
 // Common values across all PHY types, as the PHY is capable of filling them in
 class kis_device_common : public tracker_component {
 public:
@@ -291,7 +308,15 @@ public:
 	// Tracked PHY type
 	int phy_type;
 
+	// Printable name for the UI summary, etc.  For APs could be the latest SSID,
+	// for bluetooth the UAP guess, etc
 	string name;
+
+	// Printable type as relevant to the phy, ie "Wired", "AP", etc
+	string type_string;
+
+	// Basic phy-neutral type for sorting and classification
+	int basic_type;
 
 	// Time values
 	time_t first_time;
@@ -341,6 +366,8 @@ public:
 		device = NULL;
 
 		phy_type = KIS_PHY_UNKNOWN;
+
+		basic_type = KIS_DEVICE_BASICTYPE_DEVICE;
 
 		first_time = last_time = 0;
 
@@ -489,7 +516,44 @@ public:
 	// it defines for these devices
 	virtual void BlitDevices(int in_fd, vector<kis_tracked_device *> *devlist) = 0;
 
-	// To do: Logging functions
+	// XSD locations - override as necessary if you provide your xsd, which 
+	// you really should
+	virtual string FetchPhyXsd() { return phyname; }
+	virtual string FetchPhyXsdUrl() { 
+		return string("http://www.kismetwireless.net/xml/" + phyname + ".xsd"); 
+	}
+
+	// Export a device to a central devicetracker-common log file
+	//
+	// This is used only by the devicetracker registered components to make
+	// a unified log file of all devices seen.  This is meant to replace 
+	// individual foophy.txt log files, not to supplant a custom dumpfile
+	// format.  Plugins / Phy's may still define custom dumpfiles, and should
+	// continue to do so, for records which make no sense in the common log.
+	//
+	// This can not fail - if a phy can't figure out how to log something,
+	// it should just bail.
+	//
+	// The common logger will have already exported the common device statistics
+	// such as gps, signal, etc - everything found in the device_common record -
+	// and as such a phy logger should export only the data which is not in
+	// the common domain.
+	//
+	// Log type will be the class of log file being written, typically 'xml' 
+	// or 'text' but with the option for others in the future.
+	//
+	// logfile is a standard FILE stream; the location and future handling of it
+	// should be considered opaque.  In the case of large written-once files like
+	// kisxml the renaming and moving will be handled entirely by the dumpfile
+	// class associated.  The logger should only fwrite/fprintf/whatever in
+	// whatever format is considered appropriate for the logtype.
+	//
+	// lineindent is the number of spaces assumed to be used in the display offset
+	// already.  For formats such as xml this is irrelevant, but for text output
+	// this is the level of indentation which should be done for a consistent look.
+	virtual void ExportLogRecord(kis_tracked_device *in_device, string in_logtype, 
+								 FILE *in_logfile, int in_lineindent) = 0;
+
 
 protected:
 	GlobalRegistry *globalreg;
@@ -557,7 +621,11 @@ public:
 	// Send all devices to everyone
 	void BlitDevices(int in_fd);
 
+	// send all phy records to everyone
 	void BlitPhy(int in_fd);
+
+	// Initiate a logging cycle
+	int LogDevices(string in_logtype, FILE *in_logfile);
 
 protected:
 	void SaveTags();

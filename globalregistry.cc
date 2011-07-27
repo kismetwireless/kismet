@@ -102,7 +102,9 @@ int GlobalRegistry::RegisterGlobal(string in_name) {
 	if ((i = ext_name_map.find(StrLower(in_name))) != ext_name_map.end())
 		return i->second;
 
-	ext_name_map[StrLower(in_name)] = next_ext_ref++;
+	next_ext_ref++;
+
+	ext_name_map[StrLower(in_name)] = next_ext_ref;
 
 	return next_ext_ref;
 }
@@ -124,15 +126,20 @@ void *GlobalRegistry::FetchGlobal(int in_ref) {
 void *GlobalRegistry::FetchGlobal(string in_name) {
 	int ref;
 
-	if ((ref = FetchGlobalRef(in_name)) < 0)
+	if ((ref = FetchGlobalRef(in_name)) < 0) {
 		return NULL;
+	}
 
 	return ext_data_map[ref];
 }
 
 int GlobalRegistry::InsertGlobal(int in_ref, void *in_data) {
-	if (ext_data_map.find(in_ref) == ext_data_map.end())
+	/*
+	if (ext_data_map.find(in_ref) == ext_data_map.end()) {
+		fprintf(stderr, "debug - insertglobal no ref %d\n", in_ref);
 		return -1;
+	}
+	*/
 
 	ext_data_map[in_ref] = in_data;
 

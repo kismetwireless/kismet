@@ -414,4 +414,8 @@ void Kis_80211_Phy::BlitDevices(int in_fd, vector<kis_tracked_device *> *devlist
 	
 }
 
+void Kis_80211_Phy::ExportLogRecord(kis_tracked_device *in_device, string in_logtype, 
+								FILE *in_logfile, int in_lineindent) {
+	return;
+}
 

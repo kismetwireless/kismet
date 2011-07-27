@@ -476,6 +476,9 @@ public:
 
 	virtual void BlitDevices(int in_fd, vector<kis_tracked_device *> *devlist);
 
+	virtual void ExportLogRecord(kis_tracked_device *in_device, string in_logtype, 
+								 FILE *in_logfile, int in_lineindent);
+
 protected:
 	int LoadWepkeys();
 
