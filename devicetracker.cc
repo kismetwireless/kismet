@@ -583,7 +583,6 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) {
 	// Create the global kistxt and kisxml logfiles
 	new Dumpfile_Devicetracker(globalreg, "kistxt", "text");
 	new Dumpfile_Devicetracker(globalreg, "kisxml", "xml");
-	new Dumpfile_Devicetracker(globalreg, "xsd", "xml");
 }
 
 Devicetracker::~Devicetracker() {
@@ -1068,7 +1067,34 @@ kis_tracked_device *Devicetracker::MapToDevice(kis_packet *in_pack) {
 	return device;
 }
 
-void Devicetracker::WriteXSD(FILE *in_logfile) {
+void Devicetracker::WriteXML(FILE *in_logfile) {
+	Packetsourcetracker *pst = 
+		(Packetsourcetracker *) globalreg->FetchGlobal("PACKETSOURCE_TRACKER");
+
+	// Punt and die, better than segv
+	if (pst == NULL) {
+		_MSG("Devicetracker XML log - packetsourcetracker vanished!", MSGFLAG_ERROR);
+		return;
+	}
+
+	fprintf(in_logfile, "<?xml version=\"1.0\"?>\n");
+
+	fprintf(in_logfile, 
+			"<k:run xmlns:k=\"http://www.kismetwireless.net/xml\"\n"
+			"xmlns:xs=\"http://www.w3.org/2001/XMLSchema\"\n"
+			"xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n"
+			"xsi:schemaLocation=\"http://www.kismetwireless.net/xml kismet.xsd\"\n");
+
+	for (map<int, Kis_Phy_Handler *>::iterator x = phy_handler_map.begin();
+		 x != phy_handler_map.end(); ++x) {
+		fprintf(in_logfile, 
+				"\nxmlns:%s=\"http://www.kismetwireless.net/xml/%s\"",
+				x->second->FetchPhyXsdNs().c_str(),
+				x->second->FetchPhyXsdNs().c_str());
+	}
+	fprintf(in_logfile, ">\n\n");
+
+	// write the schema into the run element
 	fprintf(in_logfile, "<xs:schema\n" 
 			"xmlns:xs=\"http://www.w3.org/2001/XMLSchema\"\n"
 			"xmlns=\"http://xmlns.myexample.com/version3\"\n"
@@ -1110,34 +1136,6 @@ void Devicetracker::WriteXSD(FILE *in_logfile) {
 	fprintf(in_logfile,
 			"<xs:element name=\"run\"/>\n"
 			"</xs:schema>\n");
-}
-
-void Devicetracker::WriteXML(FILE *in_logfile) {
-	Packetsourcetracker *pst = 
-		(Packetsourcetracker *) globalreg->FetchGlobal("PACKETSOURCE_TRACKER");
-
-	// Punt and die, better than segv
-	if (pst == NULL) {
-		_MSG("Devicetracker XML log - packetsourcetracker vanished!", MSGFLAG_ERROR);
-		return;
-	}
-
-	fprintf(in_logfile, "<?xml version=\"1.0\"?>\n");
-
-	fprintf(in_logfile, 
-			"<k:run xmlns:k=\"http://www.kismetwireless.net/xml\"\n"
-			"xmlns:xs=\"http://www.w3.org/2001/XMLSchema\"\n"
-			"xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n"
-			"xsi:schemaLocation=\"http://www.kismetwireless.net/xml kismet.xsd\"\n");
-
-	for (map<int, Kis_Phy_Handler *>::iterator x = phy_handler_map.begin();
-		 x != phy_handler_map.end(); ++x) {
-		fprintf(in_logfile, 
-				"\nxmlns:%s=\"http://www.kismetwireless.net/xml/%s\"",
-				x->second->FetchPhyXsdNs().c_str(),
-				x->second->FetchPhyXsdNs().c_str());
-	}
-	fprintf(in_logfile, ">\n\n");
 	
 
 	fprintf(in_logfile, 
@@ -1191,11 +1189,7 @@ int Devicetracker::LogDevices(string in_logclass,
 	string logclass = StrLower(in_logclass);
 	string logtype = StrLower(in_logtype);
 
-	// write the XSD, importing all the phytype records
-	if (logclass == "xml" && logtype == "xsd") {
-		WriteXSD(in_logfile);
-		return 1;
-	} else if (logclass == "xml") {
+	if (logclass == "xml") {
 		WriteXML(in_logfile);
 		return 1;
 	} else if (logclass == "text") {

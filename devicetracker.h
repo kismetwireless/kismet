@@ -690,7 +690,6 @@ protected:
 	map<int, Kis_Phy_Handler *> phy_handler_map;
 
 	// Log helpers
-	void WriteXSD(FILE *in_logfile);
 	void WriteXML(FILE *in_logfile);
 	void WriteTXT(FILE *in_logfile);
 };
