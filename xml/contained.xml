@@ -1,0 +1,210 @@
+<?xml version="1.0"?>
+
+<!-- This file is meant as an example of the kismet xml/xsd schema, and 
+	 is used with xmllint for testing.  The values contained in it are
+	 not currently valid nor necessarily representative of the valid
+	 ranges for data.  It is not designed to be internally consistent
+	 (ie sources are referred to which are not defined, aggregate counts
+	 are not accurate) -->
+
+<k:run xmlns:k="http://www.kismetwireless.net/xml" 
+	xmlns:xs="http://www.w3.org/2001/XMLSchema"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.kismetwireless.net/xml kismet.xsd"
+	xmlns:phy80211="http://www.kismetwireless.net/xml/phy80211">
+
+<xs:schema 
+	xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+	xmlns="http://xmlns.myexample.com/version3" 
+	
+	targetNamespace="http://www.kismetwireless.net/xml" 
+	xmlns:common="http://www.kismetwireless.net/xml/common" 
+	xmlns:device="http://www.kismetwireless.net/xml/device"
+	xmlns:gps="http://www.kismetwireless.net/xml/gps"
+	xmlns:run="http://www.kismetwireless.net/xml/run"
+
+	xmlns:phy80211="http://www.kismetwireless.net/xml/phy80211"
+
+	elementFormDefault="unqualified"
+	attributeFormDefault="unqualified">
+
+	<xs:import
+		namespace="http://www.kismetwireless.net/xml/common"
+		schemaLocation="./common.xsd"/>
+
+	<xs:import
+		namespace="http://www.kismetwireless.net/xml/device"
+		schemaLocation="./device.xsd"/>
+
+	<xs:import
+	    namespace="http://www.kismetwireless.net/xml/gps"
+		schemaLocation="./gps.xsd"/>
+
+	<xs:import
+	    namespace="http://www.kismetwireless.net/xml/run"
+		schemaLocation="./run.xsd"/>
+
+	<xs:import
+		namespace="http://www.kismetwireless.net/xml/phy80211"
+		schemaLocation="./phy80211.xsd"/>
+
+<xs:element name="run" type="run:run"/>
+
+</xs:schema>
+
+
+<version>2011-07-R1-SVN</version>
+
+<!-- timeline - constantly regenerated to be last time logged -->
+<startTime>Tue Jul  5 20:58:09 2011</startTime>
+<endTime>Tue Jul  5 20:58:09 2011</endTime>
+
+<!-- capture sources -->
+<captureSource>
+ <uuid>abcd</uuid>
+ <definition>something</definition>
+ <name>somesource</name>
+ <interface>wlan0</interface>
+ <type>mac80211</type>
+ <packets>1234</packets>
+ <channels>1,2,3,4</channels>
+ <channelhop>true</channelhop>
+</captureSource>
+
+<!-- total devices seen -->
+<totalDevices>100</totalDevices>
+
+<!-- multiple phy types possible as registered by plugins, core -->
+<phyType>
+ <name>80211</name>
+ <devices>1</devices>
+ <packetLink>1000</packetLink>
+ <packetData>10</packetData>
+ <packetFiltered>0</packetFiltered>
+ <packetError>0</packetError>
+</phyType>
+
+<phyType>
+ <name>btbb</name>
+ <devices>0</devices>
+ <packetLink>0</packetLink>
+ <packetData>0</packetData>
+ <packetFiltered>0</packetFiltered>
+ <packetError>0</packetError>
+</phyType>
+
+<!-- gps device we're using -->
+<gpsDevice>
+ <device>/dev/ttyUSB0</device>
+ <type>NMEA</type>
+</gpsDevice>
+
+<!-- degnerate/base case phy - we should never actually log
+	 unknown types, but shows the minimal needed for any 
+	 device, phy-specific adds on -->
+<device phy="unknown">
+ <deviceMac>aa:bb:cc:dd:ee:ff</deviceMac>
+
+ <name>aa:bb:cc:dd:ee:ff</name>
+
+ <firstSeen>Tue Jul  5 20:58:09 2011</firstSeen>
+ <lastSeen>Tue Jul  5 21:58:09 2011</lastSeen>
+
+ <!-- What sources saw us and how many packets per src -->
+ <seenBy>
+  <uuid>some-device-uuid</uuid>
+  <firstSeen>Tue Jul  5 20:58:09 2011</firstSeen>
+  <lastSeen>Tue Jul  5 21:58:09 2011</lastSeen>
+  <packets>123</packets>
+ </seenBy>
+
+ <seenBy>
+  <uuid>some-second-device-uuid</uuid>
+  <firstSeen>Tue Jul  5 20:58:09 2011</firstSeen>
+  <lastSeen>Tue Jul  5 21:58:09 2011</lastSeen>
+  <packets>123</packets>
+ </seenBy>
+
+ <!-- average gps, can also include min, max, and
+	  peak signal gps -->
+ <gpsAverage>
+	<latitude>10</latitude>
+	<longitude>100</longitude>
+	<altitude>50</altitude>
+	<quality>3</quality>
+ </gpsAverage>
+
+ <!-- Frequency map -->
+ <frequencySeen>
+  <frequency mhz="1234" packets="10"/>
+  <frequency mhz="1235" packets="11"/>
+  <frequency mhz="1236" packets="1"/>
+ </frequencySeen>
+
+ <!-- Signal level, DBM or RSSI -->
+ <signalLevel scale="DBM">
+  <lastSignal>-10</lastSignal>
+  <lastNoise>-40</lastNoise>
+ </signalLevel>
+
+ <!-- Packet counts -->
+ <packetLink>100</packetLink>
+ <packetData>10</packetData>
+ <packetFiltered>1000</packetFiltered>
+ <packetError>1</packetError>
+
+ <dataBytes>0</dataBytes>
+
+ <!-- Arbitrary tags -->
+ <tag name="one">1</tag>
+ <tag name="wepkey">aabbccdd</tag>
+</device>
+
+<!-- Extended element from phy80211 xsd, uses xsi:type -->
+<device xsi:type="phy80211:phy80211device" phy="phy80211">
+ <!-- standard device element components -->
+ <deviceMac>11:22:33:44:55:66</deviceMac>
+
+ <!-- dot11 names derived from ssid -->
+ <name>cletus</name>
+
+ <firstSeen>Tue Jul  5 20:58:09 2011</firstSeen>
+ <lastSeen>Tue Jul  5 21:58:09 2011</lastSeen>
+
+ <frequencySeen>
+  <frequency mhz="1236" packets="1"/>
+ </frequencySeen>
+
+ <packetLink>100</packetLink>
+ <packetData>10</packetData>
+ <packetFiltered>1000</packetFiltered>
+ <packetError>1</packetError>
+
+ <dataBytes>100000</dataBytes>
+
+ <!-- 802.11 components, such as dot11 type, SSIDs, etc -->
+ <type>Infrastructure</type>
+
+ <ssid>
+  <firstSeen>Tue Jul  5 20:55:45 2011</firstSeen>
+  <lastSeen>Tue Jul  5 21:55:45 2011</lastSeen>
+  <type>Beacon</type>
+  <essid>cletus</essid>
+  <maxRate>54</maxRate>
+  <beaconRate>10</beaconRate>
+  <channel>6</channel>
+  <encryption>WPA+TKIP</encryption>
+  <encryption>WPA+PSK</encryption>
+  <encryption>WPA+AES-CCM</encryption>
+  <dot11d country="US ">
+   <range start="1" end="11" power="27"/>
+  </dot11d>
+ </ssid>
+
+ <packetFragments>10</packetFragments>
+ <packetRetries>1000</packetRetries>
+
+</device>
+
+</k:run>
+
