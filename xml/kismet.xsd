@@ -6,6 +6,7 @@
 	xmlns:common="http://www.kismetwireless.net/xml/common" 
 	xmlns:device="http://www.kismetwireless.net/xml/device"
 	xmlns:gps="http://www.kismetwireless.net/xml/gps"
+	xmlns:run="http://www.kismetwireless.net/xml/run"
 
 	xmlns:phy80211="http://www.kismetwireless.net/xml/phy80211"
 
@@ -25,50 +26,13 @@
 		schemaLocation="./gps.xsd"/>
 
 	<xs:import
+	    namespace="http://www.kismetwireless.net/xml/run"
+		schemaLocation="./run.xsd"/>
+
+	<xs:import
 		namespace="http://www.kismetwireless.net/xml/phy80211"
 		schemaLocation="./phy80211.xsd"/>
 
-<xs:element name="run">
- <xs:complexType>
-  <xs:sequence>
-   <xs:element name="version" type="xs:string"/>
-
-   <xs:element name="startTime" type="xs:string"/>
-   <xs:element name="endTime" type="xs:string"/>
-
-   <xs:element name="captureSource" maxOccurs="unbounded" type="common:source"/>
-
-   <xs:element name="totalDevices" type="xs:integer"/>
-
-   <xs:element name="phyType" maxOccurs="unbounded">
-    <xs:complexType>
-	 <xs:sequence>
-	  <xs:element name="name" type="xs:string"/>
-	  <xs:element name="devices" type="xs:integer"/>
-      <xs:element name="packetLink" type="xs:integer"/>
-      <xs:element name="packetData" type="xs:integer"/>
-      <xs:element name="packetFiltered" type="xs:integer"/>
-      <xs:element name="packetError" type="xs:integer"/>
-	 </xs:sequence>
-	</xs:complexType>
-   </xs:element>
-
-   <xs:element name="gpsDevice" minOccurs="0">
-    <xs:complexType>
-	 <xs:sequence>
-	  <xs:element name="device" type="xs:string"/>
-	  <xs:element name="type" type="xs:string"/>
-	 </xs:sequence>
-	</xs:complexType>
-   </xs:element>
-
-   <xs:choice>
-    <xs:element name="device" maxOccurs="unbounded" type="device:device"/>
-	<xs:element name="gpsBulk" maxOccurs="unbounded" type="gps:gpsBlock"/>
-   </xs:choice>
-
-  </xs:sequence>
- </xs:complexType>
-</xs:element>
+<xs:element name="run" type="run:run"/>
 
 </xs:schema>

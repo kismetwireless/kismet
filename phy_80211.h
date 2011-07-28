@@ -479,6 +479,11 @@ public:
 	virtual void ExportLogRecord(kis_tracked_device *in_device, string in_logtype, 
 								 FILE *in_logfile, int in_lineindent);
 
+	// We need to return something cleaner for xsd namespace
+	virtual string FetchPhyXsdNs() {
+		return "phy80211";
+	}
+
 protected:
 	int LoadWepkeys();
 

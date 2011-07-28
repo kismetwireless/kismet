@@ -455,6 +455,8 @@ Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) {
 		exit(1);
 	}
 
+	globalreg->InsertGlobal("PACKETSOURCE_TRACKER", this);
+
 	// Register our packet components 
 	// back-refer to the capsource so we can get names and parameters
 	_PCM(PACK_COMP_KISCAPSRC) =
@@ -534,6 +536,8 @@ Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) {
 
 Packetsourcetracker::~Packetsourcetracker() {
 	StopSource(0);
+
+	globalreg->InsertGlobal("PACKETSOURCE_TRACKER", NULL);
 
 	globalreg->RemovePollableSubsys(this);
 

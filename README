@@ -1607,6 +1607,21 @@ http://www.kismetwireless.net
        interface for capture, so that it causes less disruption to the
        configuration of the existing interface.
 
+    Q: How do I prevent Kismet from looking at data frames?
+    A: Set 'hidedata' to 'true' in the Kismet config file.  This will cause
+       Kismet to trim data frames as soon as they are identified.
+       Statistics like retransmit rates, data size/bandwidth, and so on will
+       continue, but the data contents will never be examined, even for
+       non-logging purposes (such as DHCP/IP detection, etc).
+
+       NOTICE FOR L.E.O. : Kismet WILL STILL CAPTURE the data into RAM.
+       Because the length of the 802.11 (or other PHY type) headers is
+       unknown until the packet is captured in many cases, it is not
+       possible to set the packet capture length ahead of time to exclude
+       data.  While Kismet will not examine in any way or log in any way the
+       data captured while hidedata=true is set, it will technically exist
+       as a capture in RAM until the next packet overwrites the buffer.
+
     Q: What happens when I ask a question already here?
     A: I'll probably be rude to you (or someone else will).  But that would
        never happen, because everyone reads the docs all the way to the end,

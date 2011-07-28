@@ -518,9 +518,9 @@ public:
 
 	// XSD locations - override as necessary if you provide your xsd, which 
 	// you really should
-	virtual string FetchPhyXsd() { return phyname; }
+	virtual string FetchPhyXsdNs() { return phyname; }
 	virtual string FetchPhyXsdUrl() { 
-		return string("http://www.kismetwireless.net/xml/" + phyname + ".xsd"); 
+		return string("http://www.kismetwireless.net/xml/" + FetchPhyXsdNs() + ".xsd"); 
 	}
 
 	// Export a device to a central devicetracker-common log file
@@ -625,7 +625,7 @@ public:
 	void BlitPhy(int in_fd);
 
 	// Initiate a logging cycle
-	int LogDevices(string in_logtype, FILE *in_logfile);
+	int LogDevices(string in_logclass, string in_logtype, FILE *in_logfile);
 
 protected:
 	void SaveTags();
@@ -689,6 +689,10 @@ protected:
 	int next_phy_id;
 	map<int, Kis_Phy_Handler *> phy_handler_map;
 
+	// Log helpers
+	void WriteXSD(FILE *in_logfile);
+	void WriteXML(FILE *in_logfile);
+	void WriteTXT(FILE *in_logfile);
 };
 
 #endif

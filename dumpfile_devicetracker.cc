@@ -53,6 +53,14 @@ Dumpfile_Devicetracker::Dumpfile_Devicetracker(GlobalRegistry *in_globalreg,
 		return;
 	}
 
+	if ((logfile = fopen(fname.c_str(), "w")) == NULL) {
+		_MSG("Failed to open devicetracker " + type + " log file '" + 
+			 fname + "': " + strerror(errno),
+			 MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return;
+	}
+
 	globalreg->RegisterDumpFile(this);
 
 	_MSG("Opened Devicetracker " + logclass + " log file '" + fname + "'", 
@@ -97,7 +105,7 @@ int Dumpfile_Devicetracker::Flush() {
 	}
 
 	// Kick the device_tracker logger
-	int ret = tracker->LogDevices(logclass, logfile);
+	int ret = tracker->LogDevices(logclass, type, logfile);
 
 	fflush(logfile);
 	fclose(logfile);
