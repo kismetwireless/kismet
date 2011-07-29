@@ -9,24 +9,24 @@
     <xs:element name="run"/>
   </xs:schema>
   <version>2011-03-R2</version>
-  <startTime>Fri Jul 29 13:44:03 2011</startTime>
-  <endTime>Fri Jul 29 13:44:07 2011</endTime>
+  <startTime>Fri Jul 29 13:48:19 2011</startTime>
+  <endTime>Fri Jul 29 13:48:23 2011</endTime>
   <captureSource>
-    <uuid>594e7aaa-ba0a-11e0-94c0-6404941be201</uuid>
+    <uuid>f2364a72-ba0a-11e0-bf5c-6404941be201</uuid>
     <definition>wlan0:vap=wlan0mon,hop=false,wpa_scan=15</definition>
     <name>wlan0</name>
     <interface>wlan0</interface>
     <type>iwlagn</type>
-    <packets>194</packets>
+    <packets>197</packets>
     <channels>1,5,9,13,48,64,5560,5640,2,6,10,36,52,5500,5580,5660,3,7,11,40,56,5520,5600,5680,4,8,12,44,60,5540,5620,5700</channels>
     <channelhop>false</channelhop>
   </captureSource>
-  <totalDevices>8</totalDevices>
+  <totalDevices>6</totalDevices>
   <phyType>
     <name>IEEE802.11</name>
     <devices>0</devices>
-    <packets>194</packets>
-    <packetData>30</packetData>
+    <packets>197</packets>
+    <packetData>42</packetData>
     <packetFiltered>0</packetFiltered>
     <packetError>0</packetError>
   </phyType>
@@ -36,132 +36,77 @@
   </gpsDevice>
   <device phy="unknown">
     <deviceMac>00:1A:1E:6F:83:F0</deviceMac>
-    <name/>
-    <firstSeen>Fri Jul 29 13:44:03 2011</firstSeen>
-    <lastSeen>Fri Jul 29 13:44:07 2011</lastSeen>
+    <firstSeen>Fri Jul 29 13:48:19 2011</firstSeen>
+    <lastSeen>Fri Jul 29 13:48:23 2011</lastSeen>
     <seenBy>
-      <uuid>594e7aaa-ba0a-11e0-94c0-6404941be201</uuid>
-      <firstTime>Fri Jul 29 13:44:03 2011</firstTime>
-      <lastTime>Fri Jul 29 13:44:07 2011</lastTime>
-      <packets>72</packets>
+      <uuid>f2364a72-ba0a-11e0-bf5c-6404941be201</uuid>
+      <firstTime>Fri Jul 29 13:48:19 2011</firstTime>
+      <lastTime>Fri Jul 29 13:48:23 2011</lastTime>
+      <packets>78</packets>
       <frequencySeen>
-        <frequency mhz="0" packets="3"/>
-        <frequency mhz="2412" packets="68"/>
+        <frequency mhz="0" packets="1"/>
+        <frequency mhz="2412" packets="76"/>
         <frequency mhz="2417" packets="1"/>
       </frequencySeen>
     </seenBy>
     <signalLevel type="dbm">
-      <lastSignal>-57</lastSignal>
+      <lastSignal>-55</lastSignal>
       <minSignal>-61</minSignal>
-      <maxSignal>-43</maxSignal>
+      <maxSignal>-39</maxSignal>
     </signalLevel>
-    <packets>72</packets>
-    <packetLink>42</packetLink>
-    <packetData>30</packetData>
+    <packets>78</packets>
+    <packetLink>40</packetLink>
+    <packetData>38</packetData>
     <packetFiltered>0</packetFiltered>
     <packetError>0</packetError>
-    <dataBytes>3259</dataBytes>
+    <dataBytes>7802</dataBytes>
   </device>
   <device phy="unknown">
     <deviceMac>00:1A:1E:6F:83:F1</deviceMac>
-    <name/>
-    <firstSeen>Fri Jul 29 13:44:03 2011</firstSeen>
-    <lastSeen>Fri Jul 29 13:44:07 2011</lastSeen>
+    <firstSeen>Fri Jul 29 13:48:19 2011</firstSeen>
+    <lastSeen>Fri Jul 29 13:48:23 2011</lastSeen>
     <seenBy>
-      <uuid>594e7aaa-ba0a-11e0-94c0-6404941be201</uuid>
-      <firstTime>Fri Jul 29 13:44:03 2011</firstTime>
-      <lastTime>Fri Jul 29 13:44:07 2011</lastTime>
+      <uuid>f2364a72-ba0a-11e0-bf5c-6404941be201</uuid>
+      <firstTime>Fri Jul 29 13:48:19 2011</firstTime>
+      <lastTime>Fri Jul 29 13:48:23 2011</lastTime>
       <packets>42</packets>
       <frequencySeen>
-        <frequency mhz="2412" packets="41"/>
-        <frequency mhz="2417" packets="1"/>
+        <frequency mhz="2412" packets="40"/>
+        <frequency mhz="27648" packets="2"/>
       </frequencySeen>
     </seenBy>
     <signalLevel type="dbm">
-      <lastSignal>-57</lastSignal>
-      <minSignal>-57</minSignal>
-      <maxSignal>-56</maxSignal>
+      <lastSignal>-55</lastSignal>
+      <minSignal>-56</minSignal>
+      <maxSignal>4</maxSignal>
     </signalLevel>
     <packets>42</packets>
-    <packetLink>42</packetLink>
-    <packetData>0</packetData>
+    <packetLink>38</packetLink>
+    <packetData>4</packetData>
     <packetFiltered>0</packetFiltered>
     <packetError>0</packetError>
-    <dataBytes>0</dataBytes>
-  </device>
-  <device phy="unknown">
-    <deviceMac>98:4B:4A:3F:A2:B8</deviceMac>
-    <name/>
-    <firstSeen>Fri Jul 29 13:44:04 2011</firstSeen>
-    <lastSeen>Fri Jul 29 13:44:04 2011</lastSeen>
-    <seenBy>
-      <uuid>594e7aaa-ba0a-11e0-94c0-6404941be201</uuid>
-      <firstTime>Fri Jul 29 13:44:04 2011</firstTime>
-      <lastTime>Fri Jul 29 13:44:04 2011</lastTime>
-      <packets>3</packets>
-      <frequencySeen>
-        <frequency mhz="2412" packets="3"/>
-      </frequencySeen>
-    </seenBy>
-    <signalLevel type="dbm">
-      <lastSignal>-63</lastSignal>
-      <minSignal>-63</minSignal>
-      <maxSignal>-63</maxSignal>
-    </signalLevel>
-    <packets>3</packets>
-    <packetLink>3</packetLink>
-    <packetData>0</packetData>
-    <packetFiltered>0</packetFiltered>
-    <packetError>0</packetError>
-    <dataBytes>0</dataBytes>
-  </device>
-  <device phy="unknown">
-    <deviceMac>00:1A:1E:80:02:A0</deviceMac>
-    <name/>
-    <firstSeen>Fri Jul 29 13:44:04 2011</firstSeen>
-    <lastSeen>Fri Jul 29 13:44:04 2011</lastSeen>
-    <seenBy>
-      <uuid>594e7aaa-ba0a-11e0-94c0-6404941be201</uuid>
-      <firstTime>Fri Jul 29 13:44:04 2011</firstTime>
-      <lastTime>Fri Jul 29 13:44:04 2011</lastTime>
-      <packets>2</packets>
-      <frequencySeen>
-        <frequency mhz="2437" packets="2"/>
-      </frequencySeen>
-    </seenBy>
-    <signalLevel type="dbm">
-      <lastSignal>-74</lastSignal>
-      <minSignal>-74</minSignal>
-      <maxSignal>-73</maxSignal>
-    </signalLevel>
-    <packets>2</packets>
-    <packetLink>2</packetLink>
-    <packetData>0</packetData>
-    <packetFiltered>0</packetFiltered>
-    <packetError>0</packetError>
-    <dataBytes>0</dataBytes>
+    <dataBytes>349</dataBytes>
   </device>
   <device phy="unknown">
     <deviceMac>00:1A:1E:80:02:A1</deviceMac>
-    <name/>
-    <firstSeen>Fri Jul 29 13:44:04 2011</firstSeen>
-    <lastSeen>Fri Jul 29 13:44:04 2011</lastSeen>
+    <firstSeen>Fri Jul 29 13:48:21 2011</firstSeen>
+    <lastSeen>Fri Jul 29 13:48:21 2011</lastSeen>
     <seenBy>
-      <uuid>594e7aaa-ba0a-11e0-94c0-6404941be201</uuid>
-      <firstTime>Fri Jul 29 13:44:04 2011</firstTime>
-      <lastTime>Fri Jul 29 13:44:04 2011</lastTime>
-      <packets>2</packets>
+      <uuid>f2364a72-ba0a-11e0-bf5c-6404941be201</uuid>
+      <firstTime>Fri Jul 29 13:48:21 2011</firstTime>
+      <lastTime>Fri Jul 29 13:48:21 2011</lastTime>
+      <packets>1</packets>
       <frequencySeen>
-        <frequency mhz="2437" packets="2"/>
+        <frequency mhz="2437" packets="1"/>
       </frequencySeen>
     </seenBy>
     <signalLevel type="dbm">
-      <lastSignal>-75</lastSignal>
-      <minSignal>-75</minSignal>
-      <maxSignal>-74</maxSignal>
+      <lastSignal>-76</lastSignal>
+      <minSignal>-76</minSignal>
+      <maxSignal>-76</maxSignal>
     </signalLevel>
-    <packets>2</packets>
-    <packetLink>2</packetLink>
+    <packets>1</packets>
+    <packetLink>1</packetLink>
     <packetData>0</packetData>
     <packetFiltered>0</packetFiltered>
     <packetError>0</packetError>
@@ -169,24 +114,50 @@
   </device>
   <device phy="unknown">
     <deviceMac>00:1A:1E:41:67:B0</deviceMac>
-    <name/>
-    <firstSeen>Fri Jul 29 13:44:04 2011</firstSeen>
-    <lastSeen>Fri Jul 29 13:44:05 2011</lastSeen>
+    <firstSeen>Fri Jul 29 13:48:21 2011</firstSeen>
+    <lastSeen>Fri Jul 29 13:48:21 2011</lastSeen>
     <seenBy>
-      <uuid>594e7aaa-ba0a-11e0-94c0-6404941be201</uuid>
-      <firstTime>Fri Jul 29 13:44:04 2011</firstTime>
-      <lastTime>Fri Jul 29 13:44:05 2011</lastTime>
+      <uuid>f2364a72-ba0a-11e0-bf5c-6404941be201</uuid>
+      <firstTime>Fri Jul 29 13:48:21 2011</firstTime>
+      <lastTime>Fri Jul 29 13:48:21 2011</lastTime>
       <packets>4</packets>
       <frequencySeen>
         <frequency mhz="2457" packets="1"/>
-        <frequency mhz="2462" packets="1"/>
-        <frequency mhz="2467" packets="2"/>
+        <frequency mhz="2462" packets="2"/>
+        <frequency mhz="2472" packets="1"/>
       </frequencySeen>
     </seenBy>
     <signalLevel type="dbm">
-      <lastSignal>-67</lastSignal>
-      <minSignal>-69</minSignal>
-      <maxSignal>-67</maxSignal>
+      <lastSignal>-75</lastSignal>
+      <minSignal>-75</minSignal>
+      <maxSignal>-68</maxSignal>
+    </signalLevel>
+    <packets>4</packets>
+    <packetLink>4</packetLink>
+    <packetData>0</packetData>
+    <packetFiltered>0</packetFiltered>
+    <packetError>0</packetError>
+    <dataBytes>0</dataBytes>
+  </device>
+  <device phy="unknown">
+    <deviceMac>00:1A:1E:41:67:B1</deviceMac>
+    <firstSeen>Fri Jul 29 13:48:21 2011</firstSeen>
+    <lastSeen>Fri Jul 29 13:48:21 2011</lastSeen>
+    <seenBy>
+      <uuid>f2364a72-ba0a-11e0-bf5c-6404941be201</uuid>
+      <firstTime>Fri Jul 29 13:48:21 2011</firstTime>
+      <lastTime>Fri Jul 29 13:48:21 2011</lastTime>
+      <packets>4</packets>
+      <frequencySeen>
+        <frequency mhz="2457" packets="1"/>
+        <frequency mhz="2462" packets="2"/>
+        <frequency mhz="2472" packets="1"/>
+      </frequencySeen>
+    </seenBy>
+    <signalLevel type="dbm">
+      <lastSignal>-75</lastSignal>
+      <minSignal>-75</minSignal>
+      <maxSignal>-70</maxSignal>
     </signalLevel>
     <packets>4</packets>
     <packetLink>4</packetLink>
@@ -197,52 +168,24 @@
   </device>
   <device phy="unknown">
     <deviceMac>00:C0:02:5C:BB:FE</deviceMac>
-    <name/>
-    <firstSeen>Fri Jul 29 13:44:04 2011</firstSeen>
-    <lastSeen>Fri Jul 29 13:44:04 2011</lastSeen>
+    <firstSeen>Fri Jul 29 13:48:21 2011</firstSeen>
+    <lastSeen>Fri Jul 29 13:48:21 2011</lastSeen>
     <seenBy>
-      <uuid>594e7aaa-ba0a-11e0-94c0-6404941be201</uuid>
-      <firstTime>Fri Jul 29 13:44:04 2011</firstTime>
-      <lastTime>Fri Jul 29 13:44:04 2011</lastTime>
+      <uuid>f2364a72-ba0a-11e0-bf5c-6404941be201</uuid>
+      <firstTime>Fri Jul 29 13:48:21 2011</firstTime>
+      <lastTime>Fri Jul 29 13:48:21 2011</lastTime>
       <packets>1</packets>
       <frequencySeen>
         <frequency mhz="2462" packets="1"/>
       </frequencySeen>
     </seenBy>
     <signalLevel type="dbm">
-      <lastSignal>-81</lastSignal>
-      <minSignal>-81</minSignal>
-      <maxSignal>-81</maxSignal>
+      <lastSignal>-80</lastSignal>
+      <minSignal>-80</minSignal>
+      <maxSignal>-80</maxSignal>
     </signalLevel>
     <packets>1</packets>
     <packetLink>1</packetLink>
-    <packetData>0</packetData>
-    <packetFiltered>0</packetFiltered>
-    <packetError>0</packetError>
-    <dataBytes>0</dataBytes>
-  </device>
-  <device phy="unknown">
-    <deviceMac>00:1A:1E:41:67:B1</deviceMac>
-    <name/>
-    <firstSeen>Fri Jul 29 13:44:04 2011</firstSeen>
-    <lastSeen>Fri Jul 29 13:44:05 2011</lastSeen>
-    <seenBy>
-      <uuid>594e7aaa-ba0a-11e0-94c0-6404941be201</uuid>
-      <firstTime>Fri Jul 29 13:44:04 2011</firstTime>
-      <lastTime>Fri Jul 29 13:44:05 2011</lastTime>
-      <packets>3</packets>
-      <frequencySeen>
-        <frequency mhz="2462" packets="1"/>
-        <frequency mhz="2467" packets="2"/>
-      </frequencySeen>
-    </seenBy>
-    <signalLevel type="dbm">
-      <lastSignal>-67</lastSignal>
-      <minSignal>-69</minSignal>
-      <maxSignal>-67</maxSignal>
-    </signalLevel>
-    <packets>3</packets>
-    <packetLink>3</packetLink>
     <packetData>0</packetData>
     <packetFiltered>0</packetFiltered>
     <packetError>0</packetError>

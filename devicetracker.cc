@@ -1300,10 +1300,13 @@ void Devicetracker::WriteXML(FILE *in_logfile) {
 					phy->FetchPhyXsdNs().c_str());
 
 		fprintf(in_logfile, 
-				"<deviceMac>%s</deviceMac>\n"
-				"<name>%s</name>\n",
-				dev->key.Mac2String().c_str(),
-				SanitizeXML(com->name).c_str());
+				"<deviceMac>%s</deviceMac>\n",
+				dev->key.Mac2String().c_str());
+
+		if (com->name != "")
+			fprintf(in_logfile, 
+					"<name>%s</name>\n",
+					SanitizeXML(com->name).c_str());
 
 		if (com->type_string != "")
 			fprintf(in_logfile, "<classifiedType>%s</classifiedType>\n",
