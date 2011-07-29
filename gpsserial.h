@@ -33,6 +33,14 @@ public:
     GPSSerial(GlobalRegistry *in_globalreg);
     virtual ~GPSSerial();
 
+	string FetchType() {
+		return "serial";
+	}
+
+	string FetchDevice() {
+		return device;
+	}
+
 	virtual int Timer();
 
     // Hooks so we can override straight to the TCP core

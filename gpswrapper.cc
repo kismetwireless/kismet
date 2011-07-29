@@ -43,6 +43,8 @@ GpsWrapper::GpsWrapper(GlobalRegistry *in_globalreg) {
 	string gpsopt = "";
 	string gpsparm = "";
 
+	gps = NULL;
+
 	globalreg = in_globalreg;
 
 	int gpsdc = globalreg->getopt_long_num++;
@@ -115,6 +117,7 @@ GpsWrapper::GpsWrapper(GlobalRegistry *in_globalreg) {
 		_MSG("GPS support disabled in kismet.conf", MSGFLAG_INFO);
 		GPSNull *gn;
 		gn = new GPSNull(globalreg);
+		gps = gn;
 		return;
 	}
 
@@ -123,14 +126,11 @@ GpsWrapper::GpsWrapper(GlobalRegistry *in_globalreg) {
 	if (gpsopt == "serial") {
 		GPSSerial *gs;
 		gs = new GPSSerial(globalreg);
+		gps = gs;
 	} else if (gpsopt == "gpsd") {
-#ifdef HAVE_LIBGPS
-		GPSLibGPS *lgps;
-		lgps = new GPSLibGPS(globalreg);
-#else
 		GPSDClient *gc;
 		gc = new GPSDClient(globalreg);
-#endif
+		gps = gc;
 	} else if (gpsopt == "") {
 		_MSG("GPS enabled but gpstype missing from kismet.conf", MSGFLAG_FATAL);
 		globalreg->fatal_condition = 1;

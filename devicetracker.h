@@ -105,19 +105,26 @@ public:
 };
 
 // SNR info
+
+#define KIS_SIGNAL_DBM_BOGUS_MIN	0
+#define KIS_SIGNAL_DBM_BOGUS_MAX	-256
+#define KIS_SIGNAL_RSSI_BOGUS_MIN	1024
+#define KIS_SIGNAL_RSSI_BOGUS_MAX	0
+
 struct kis_signal_data {
 	kis_signal_data() {
 		// These all go to 0 since we don't know if it'll be positive or
 		// negative
-		last_signal_dbm = last_noise_dbm = 0;
-		min_signal_dbm = min_noise_dbm = 0;
-		max_signal_dbm = max_noise_dbm = -256;
+		last_signal_dbm = last_noise_dbm = KIS_SIGNAL_DBM_BOGUS_MIN;
+		min_signal_dbm = min_noise_dbm = KIS_SIGNAL_DBM_BOGUS_MIN;
+		max_signal_dbm = max_noise_dbm = KIS_SIGNAL_DBM_BOGUS_MAX;
 
-		last_signal_rssi = last_noise_rssi = 0;
-		min_signal_rssi = min_noise_rssi = 1024;
-		max_signal_rssi = max_noise_rssi = 0;
+		last_signal_rssi = last_noise_rssi = KIS_SIGNAL_RSSI_BOGUS_MIN;
+		min_signal_rssi = min_noise_rssi = KIS_SIGNAL_RSSI_BOGUS_MIN;
+		max_signal_rssi = max_noise_rssi = KIS_SIGNAL_RSSI_BOGUS_MAX;
 
-		peak_lat = peak_lon = peak_alt = 0;
+		peak_lat = peak_lon = 0;
+		peak_alt = KIS_GPS_ALT_BOGUS_MIN;
 
 		maxseenrate = 0;
 		encodingset = 0;
@@ -280,6 +287,18 @@ struct kis_signal_data {
 	}
 };
 
+// Seenby records for tracking the packet sources which have seen this device
+// and how much of the device they've seen
+class kis_seenby_data {
+public:
+	time_t first_time;
+	time_t last_time;
+	uint32_t num_packets;
+
+	// Map of frequencies seen by this device
+	map<unsigned int, unsigned int> freq_mhz_map;
+};
+
 // Fwd ktd
 class kis_tracked_device;
 
@@ -323,16 +342,19 @@ public:
 	time_t last_time;
 
 	// Total packets
-	int packets;
+	unsigned int packets;
 
 	// Link level packets (mgmt frames, etc)
-	int llc_packets;
+	unsigned int llc_packets;
 	// PHY level failures on errors
-	int error_packets;
+	unsigned int error_packets;
 
 	// Data and encrypted data
-	int data_packets;
-	int crypt_packets;
+	unsigned int data_packets;
+	unsigned int crypt_packets;
+
+	// Filtered packets
+	unsigned int filter_packets;
 
 	// Amount of data seen
 	uint64_t datasize;
@@ -362,6 +384,12 @@ public:
 	// Tags are case sensitive
 	map<string, string> arb_tag_map;
 
+	// Sources which have seen this device
+	map<uuid, kis_seenby_data *> seenby_map;
+
+	// Who makes this device, if we can tell
+	string manuf;
+
 	kis_device_common() {
 		device = NULL;
 
@@ -373,7 +401,7 @@ public:
 
 		packets = 0;
 
-		llc_packets = data_packets = crypt_packets = error_packets = 0;
+		llc_packets = data_packets = crypt_packets = error_packets = filter_packets = 0;
 
 		datasize = 0;
 
@@ -577,6 +605,8 @@ public:
 
 	vector<kis_tracked_device *> *FetchDevices(int in_phy);
 
+	Kis_Phy_Handler *FetchPhyHandler(int in_phy);
+
 	int FetchNumDevices(int in_phy);
 	int FetchNumPackets(int in_phy);
 	int FetchNumDatapackets(int in_phy);
@@ -667,7 +697,7 @@ protected:
 		proto_ref_devtag, proto_ref_string;
 
 	int pack_comp_device, pack_comp_common, pack_comp_string, pack_comp_basicdata,
-		pack_comp_radiodata, pack_comp_gps;
+		pack_comp_radiodata, pack_comp_gps, pack_comp_capsrc;
 
 	// Tracked devices
 	map<mac_addr, kis_tracked_device *> tracked_map;

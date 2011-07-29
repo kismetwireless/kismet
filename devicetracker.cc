@@ -34,7 +34,7 @@
 #include "packetchain.h"
 #include "devicetracker.h"
 #include "packet.h"
-#include "gpsdclient.h"
+#include "gpswrapper.h"
 #include "alertracker.h"
 #include "manuf.h"
 #include "packetsourcetracker.h"
@@ -508,16 +508,11 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) {
 		globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1,
 											  &Devicetracker_Timer, this);
 
-	// Register the tracked device component of packets
-	if (_PCM(PACK_COMP_DEVICE) != -1) {
-		pack_comp_device = _PCM(PACK_COMP_DEVICE);
-	} else {
-		pack_comp_device = _PCM(PACK_COMP_DEVICE) =
-			globalreg->packetchain->RegisterPacketComponent("DEVICE");
-	}
-
 	// Register global packet components used by the device tracker and
 	// subsequent parts
+	pack_comp_device = _PCM(PACK_COMP_DEVICE) =
+		globalreg->packetchain->RegisterPacketComponent("DEVICE");
+
 	pack_comp_common =  _PCM(PACK_COMP_COMMON) =
 		globalreg->packetchain->RegisterPacketComponent("COMMON");
 
@@ -532,6 +527,9 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) {
 
 	pack_comp_gps =
 		globalreg->packetchain->RegisterPacketComponent("GPS");
+
+	pack_comp_capsrc = _PCM(PACK_COMP_KISCAPSRC) = 
+		globalreg->packetchain->RegisterPacketComponent("KISCAPSRC");
 
 	// Register the network protocols
 	proto_ref_phymap =
@@ -627,6 +625,15 @@ vector<kis_tracked_device *> *Devicetracker::FetchDevices(int in_phy) {
 		return NULL;
 
 	return phy_device_vec[in_phy];
+}
+
+Kis_Phy_Handler *Devicetracker::FetchPhyHandler(int in_phy) {
+	map<int, Kis_Phy_Handler *>::iterator i = phy_handler_map.find(in_phy);
+
+	if (i == phy_handler_map.end())
+		return NULL;
+
+	return i->second;
 }
 
 int Devicetracker::FetchNumDevices(int in_phy) {
@@ -892,6 +899,8 @@ int Devicetracker::CommonTracker(kis_packet *in_pack) {
 		(kis_layer1_packinfo *) in_pack->fetch(pack_comp_radiodata);
 	kis_gps_packinfo *pack_gpsinfo =
 		(kis_gps_packinfo *) in_pack->fetch(pack_comp_gps);
+	kis_ref_capsource *pack_capsrc =
+		(kis_ref_capsource *) in_pack->fetch(pack_comp_capsrc);
 
 	num_packets++;
 	num_packetdelta++;
@@ -1016,6 +1025,34 @@ int Devicetracker::CommonTracker(kis_packet *in_pack) {
 			common->freq_mhz_map[pack_l1info->freq_mhz] = 1;
 	}
 
+	// Update seenby records for time, frequency, packets
+	if (pack_capsrc != NULL) {
+		kis_seenby_data *seenby = NULL;
+
+		map<uuid, kis_seenby_data *>::iterator si =
+			common->seenby_map.find(pack_capsrc->ref_source->FetchUUID());
+
+		if (si == common->seenby_map.end()) {
+			seenby = new kis_seenby_data;
+			seenby->first_time = in_pack->ts.tv_sec;
+			seenby->num_packets = 0;
+			common->seenby_map[pack_capsrc->ref_source->FetchUUID()] = seenby;
+		} else {
+			seenby = si->second;
+		}
+
+		seenby->last_time = in_pack->ts.tv_sec;
+		seenby->num_packets++;
+
+		if (pack_l1info != NULL) {
+			if (seenby->freq_mhz_map.find(pack_l1info->freq_mhz) != 
+				seenby->freq_mhz_map.end())
+				seenby->freq_mhz_map[pack_l1info->freq_mhz]++;
+			else
+				seenby->freq_mhz_map[pack_l1info->freq_mhz] = 1;
+		}
+	}
+
 	kis_tracked_device_info *devinfo = new kis_tracked_device_info;
 	devinfo->devref = device;
 	in_pack->insert(pack_comp_device, devinfo);
@@ -1074,6 +1111,14 @@ void Devicetracker::WriteXML(FILE *in_logfile) {
 	// Punt and die, better than segv
 	if (pst == NULL) {
 		_MSG("Devicetracker XML log - packetsourcetracker vanished!", MSGFLAG_ERROR);
+		return;
+	}
+
+	GpsWrapper *gpsw = 
+		(GpsWrapper *) globalreg->FetchGlobal("GPSWRAPPER");
+
+	if (gpsw == NULL) {
+		_MSG("Devicetracker XML log - gpswrapper vanished!", MSGFLAG_ERROR);
 		return;
 	}
 
@@ -1226,6 +1271,215 @@ void Devicetracker::WriteXML(FILE *in_logfile) {
 				FetchNumDatapackets(x->first),
 				FetchNumFilterpackets(x->first),
 				FetchNumErrorpackets(x->first));
+	}
+
+	fprintf(in_logfile, 
+			"<gpsDevice>\n"
+			"<device>%s</device>\n"
+			"<type>%s</type>\n"
+			"</gpsDevice>\n",
+			SanitizeXML(gpsw->FetchDevice()).c_str(),
+			SanitizeXML(gpsw->FetchType()).c_str());
+
+	vector<kis_tracked_device *> *devlist = FetchDevices(KIS_PHY_ANY);
+
+	for (unsigned int x = 0; x < devlist->size(); x++) {
+		kis_tracked_device *dev = (*devlist)[x];
+		kis_device_common *com = (kis_device_common *) dev->fetch(devcomp_ref_common);
+		Kis_Phy_Handler *phy = FetchPhyHandler(dev->phy_type);
+
+		if (com == NULL)
+			continue;
+
+		if (dev->phy_type == KIS_PHY_UNKNOWN || phy == NULL) 
+			fprintf(in_logfile, "<device phy=\"unknown\">\n");
+		else
+			fprintf(in_logfile, 
+					"<device xsi:type=\"%s:%sdevice\" phy=\"%s\">\n",
+					phy->FetchPhyXsdNs().c_str(), phy->FetchPhyXsdNs().c_str(),
+					phy->FetchPhyXsdNs().c_str());
+
+		fprintf(in_logfile, 
+				"<deviceMac>%s</deviceMac>\n"
+				"<name>%s</name>\n",
+				dev->key.Mac2String().c_str(),
+				SanitizeXML(com->name).c_str());
+
+		if (com->type_string != "")
+			fprintf(in_logfile, "<classifiedType>%s</classifiedType>\n",
+					SanitizeXML(com->type_string).c_str());
+
+		if ((com->basic_type & KIS_DEVICE_BASICTYPE_AP))
+			fprintf(in_logfile, "<commonType>ap</commonType>\n");
+		if ((com->basic_type & KIS_DEVICE_BASICTYPE_CLIENT))
+			fprintf(in_logfile, "<commonType>client</commonType>\n");
+		if ((com->basic_type && KIS_DEVICE_BASICTYPE_WIRED))
+			fprintf(in_logfile, "<commonType>wired</commonType>\n");
+
+		fprintf(in_logfile, 
+				"<firstSeen>%.24s</firstSeen>\n",
+				ctime(&(com->first_time)));
+		fprintf(in_logfile,
+				"<lastSeen>%.24s</lastSeen>\n",
+				ctime(&(com->last_time)));
+
+		for (map<uuid, kis_seenby_data *>::iterator si = com->seenby_map.begin();
+			 si != com->seenby_map.end(); ++si) {
+			fprintf(in_logfile, 
+					"<seenBy>\n"
+					"<uuid>%s</uuid>\n",
+					si->first.UUID2String().c_str());
+			fprintf(in_logfile, "<firstTime>%.24s</firstTime>\n",
+					ctime(&(si->second->first_time)));
+			fprintf(in_logfile, "<lastTime>%.24s</lastTime>\n",
+					ctime(&(si->second->last_time)));
+			fprintf(in_logfile, "<packets>%u</packets>\n",
+					si->second->num_packets);
+
+			if (si->second->freq_mhz_map.size() > 0) {
+				fprintf(in_logfile, "<frequencySeen>\n");
+				for (map<unsigned int, unsigned int>::iterator fi = 
+					 si->second->freq_mhz_map.begin(); fi !=
+					 si->second->freq_mhz_map.end(); ++fi) {
+
+					fprintf(in_logfile, "<frequency mhz=\"%u\" packets=\"%u\"/>\n",
+							fi->first, fi->second);
+
+				}
+				fprintf(in_logfile, "</frequencySeen>\n");
+			}
+
+			fprintf(in_logfile, "</seenBy>\n");
+		}
+
+		if (com->gpsdata.gps_valid) {
+			fprintf(in_logfile, 
+					"<gpsAverage>\n"
+					"<latitude>%f</latitude>\n"
+					"<longitude>%f</longitude>\n"
+					"<altitude>%f</altitude>\n"
+					"</gpsAverage>\n",
+					com->gpsdata.aggregate_lat,
+					com->gpsdata.aggregate_lon,
+					com->gpsdata.aggregate_alt);
+
+			fprintf(in_logfile,
+					"<gpsMinimum>\n"
+					"<latitude>%f</latitude>\n"
+					"<longitude>%f</longitude>\n",
+					com->gpsdata.min_lat,
+					com->gpsdata.min_lon);
+			if (com->gpsdata.min_alt != KIS_GPS_ALT_BOGUS_MIN)
+				fprintf(in_logfile, "<altitude>%f</altitude>\n",
+						com->gpsdata.min_alt);
+			fprintf(in_logfile, "</gpsMinimum>\n");
+
+			fprintf(in_logfile,
+					"<gpsMaximum>\n"
+					"<latitude>%f</latitude>\n"
+					"<longitude>%f</longitude>\n",
+					com->gpsdata.max_lat,
+					com->gpsdata.max_lon);
+			if (com->gpsdata.max_alt != KIS_GPS_ALT_BOGUS_MAX)
+				fprintf(in_logfile, "<altitude>%f</altitude>\n",
+						com->gpsdata.max_alt);
+			fprintf(in_logfile, "</gpsMaximum>\n");
+
+			fprintf(in_logfile,
+					"<gpsPeaksignal>\n"
+					"<latitude>%f</latitude>\n"
+					"<longitude>%f</longitude>\n",
+					com->snrdata.peak_lat,
+					com->snrdata.peak_lon);
+			if (com->snrdata.peak_alt != KIS_GPS_ALT_BOGUS_MIN)
+				fprintf(in_logfile, "<altitude>%f</altitude>\n",
+						com->snrdata.peak_alt);
+			fprintf(in_logfile, "</gpsPeaksignal>\n");
+		}
+
+		if (com->snrdata.last_signal_dbm != KIS_SIGNAL_DBM_BOGUS_MIN) {
+			// Smells like DBM signalling
+			fprintf(in_logfile, "<signalLevel type=\"dbm\">\n");
+
+			fprintf(in_logfile, "<lastSignal>%d</lastSignal>\n",
+					com->snrdata.last_signal_dbm);
+
+			if (com->snrdata.last_noise_dbm != KIS_SIGNAL_DBM_BOGUS_MIN)
+				fprintf(in_logfile, "<lastNoise>%d</lastNoise>\n",
+						com->snrdata.last_noise_dbm);
+
+			fprintf(in_logfile, "<minSignal>%d</minSignal>\n",
+					com->snrdata.min_signal_dbm);
+
+			if (com->snrdata.min_noise_dbm != KIS_SIGNAL_DBM_BOGUS_MIN)
+				fprintf(in_logfile, "<minNoise>%d</minNoise>\n",
+						com->snrdata.min_noise_dbm);
+
+			fprintf(in_logfile, "<maxSignal>%d</maxSignal>\n",
+					com->snrdata.max_signal_dbm);
+
+			if (com->snrdata.max_noise_dbm != KIS_SIGNAL_DBM_BOGUS_MAX)
+				fprintf(in_logfile, "<maxNoise>%d</maxNoise>\n",
+						com->snrdata.max_noise_dbm);
+			
+			fprintf(in_logfile, "</signalLevel>\n");
+		} else if (com->snrdata.last_signal_rssi != KIS_SIGNAL_RSSI_BOGUS_MIN) {
+			// Smells like RSSI
+			fprintf(in_logfile, "<signalLevel type=\"rssi\">\n");
+
+			fprintf(in_logfile, "<lastSignal>%d</lastSignal>\n",
+					com->snrdata.last_signal_rssi);
+
+			if (com->snrdata.last_noise_rssi != KIS_SIGNAL_RSSI_BOGUS_MIN)
+				fprintf(in_logfile, "<lastNoise>%d</lastNoise>\n",
+						com->snrdata.last_noise_rssi);
+
+			fprintf(in_logfile, "<minSignal>%d</minSignal>\n",
+					com->snrdata.min_signal_rssi);
+
+			if (com->snrdata.min_noise_rssi != KIS_SIGNAL_RSSI_BOGUS_MIN)
+				fprintf(in_logfile, "<minNoise>%d</minNoise>\n",
+						com->snrdata.min_noise_rssi);
+
+			fprintf(in_logfile, "<maxSignal>%d</maxSignal>\n",
+					com->snrdata.max_signal_rssi);
+
+			if (com->snrdata.max_noise_rssi != KIS_SIGNAL_RSSI_BOGUS_MAX)
+				fprintf(in_logfile, "<maxNoise>%d</maxNoise>\n",
+						com->snrdata.max_noise_rssi);
+			
+			fprintf(in_logfile, "</signalLevel>\n");
+		}
+
+		fprintf(in_logfile, 
+				"<packets>%u</packets>\n"
+				"<packetLink>%u</packetLink>\n"
+				"<packetData>%u</packetData>\n"
+				"<packetFiltered>%u</packetFiltered>\n"
+				"<packetError>%u</packetError>\n"
+				"<dataBytes>%lu</dataBytes>\n",
+				com->packets, com->llc_packets, com->data_packets,
+				com->filter_packets, com->error_packets, com->datasize);
+
+		if (com->manuf != "")
+			fprintf(in_logfile, "<manufacturer>%s</manufacturer>\n",
+					SanitizeXML(com->manuf).c_str());
+
+		for (map<string, string>::iterator ti = com->arb_tag_map.begin();
+			 ti != com->arb_tag_map.end(); ++ti) {
+			fprintf(in_logfile, "<tag name=\"%s\">%s</tag>\n",
+					SanitizeXML(ti->first).c_str(),
+					SanitizeXML(ti->second).c_str());
+		}
+
+		// Call all the phy handlers for logging
+		for (map<int, Kis_Phy_Handler *>::iterator x = phy_handler_map.begin();
+			 x != phy_handler_map.end(); ++x) {
+			x->second->ExportLogRecord(dev, "xml", in_logfile, 0);
+		}
+
+		fprintf(in_logfile, "</device>\n");
+
 	}
 
 	fprintf(in_logfile, "</k:run>\n");

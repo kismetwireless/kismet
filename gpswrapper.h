@@ -40,8 +40,13 @@ public:
 		globalreg->InsertGlobal("GPSWRAPPER", NULL);
 	}
 
+	string FetchType() { return gps->FetchType(); }
+	string FetchDevice() { return gps->FetchDevice(); }
+
 protected:
 	GlobalRegistry *globalreg;
+
+	GPSCore *gps;
 };
 
 // Empty GPS handler which inserts the network protocols but doesn't do anything
@@ -57,6 +62,10 @@ public:
 		// We don't parse our options
 		RegisterComponents();
 	}
+
+	string FetchType() { return "none"; }
+
+	string FetchDevice() { return "none"; }
 
 	virtual int MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
 		return in_max_fd;

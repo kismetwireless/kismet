@@ -109,7 +109,7 @@ public:
 		error = 0;
 	}
 
-	string UUID2String() {
+	string UUID2String() const {
 		char ids[38];
 		snprintf(ids, 38, "%08x-%04hx-%04hx-%04hx-%02hx%02hx%02hx%02hx%02hx%02hx",
 				 (unsigned int) *time_low, *time_mid, *time_hi, *clock_seq,

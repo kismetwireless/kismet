@@ -42,6 +42,14 @@ public:
     GPSDClient(GlobalRegistry *in_globalreg);
     virtual ~GPSDClient();
 
+	string FetchType() {
+		return "gpsd";
+	}
+
+	string FetchDevice() {
+		return "tcp://" + string(host) + ":" + IntToString(port);
+	}
+
 	virtual int Timer();
 
     // Hooks so we can override straight to the TCP core

@@ -66,9 +66,10 @@
 <xs:complexType name="seenBy">
  <xs:sequence>
   <xs:element name="uuid" type="xs:string"/>
-  <xs:element name="firstSeen" type="xs:string"/>
-  <xs:element name="lastSeen" type="xs:string"/>
+  <xs:element name="firstTime" type="xs:string"/>
+  <xs:element name="lastTime" type="xs:string"/>
   <xs:element name="packets" type="xs:positiveInteger"/>
+  <xs:element name="frequencySeen" type="common:frequencyMap" minOccurs="0"/>
  </xs:sequence>
 </xs:complexType>
 
@@ -81,7 +82,7 @@
   <xs:element name="maxSignal" type="xs:integer" minOccurs="0"/>
   <xs:element name="maxNoise" type="xs:integer" minOccurs="0"/>
  </xs:sequence>
- <xs:attribute name="scale" type="xs:string" use="required"/>
+ <xs:attribute name="type" type="xs:string" use="required"/>
 </xs:complexType>
 
 <xs:complexType name="tag">
