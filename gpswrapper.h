@@ -34,7 +34,14 @@ public:
 
 	static void Usage(char *argv);
 
-	GpsWrapper(GlobalRegistry *globalreg);
+	GpsWrapper(GlobalRegistry *in_globalreg);
+
+	~GpsWrapper() {
+		globalreg->InsertGlobal("GPSWRAPPER", NULL);
+	}
+
+protected:
+	GlobalRegistry *globalreg;
 };
 
 // Empty GPS handler which inserts the network protocols but doesn't do anything

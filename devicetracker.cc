@@ -1177,7 +1177,58 @@ void Devicetracker::WriteXML(FILE *in_logfile) {
 				ps->strong_source->FetchInterface().c_str(),
 				ps->strong_source->FetchType().c_str(),
 				ps->strong_source->FetchNumPackets());
+
+		// TODO rewrite this for phy-specific channel handling
+		string channels;
+		if (ps->channel_ptr != NULL) {
+			for (unsigned int c = 0; c < ps->channel_ptr->channel_vec.size(); c++) {
+				if (ps->channel_ptr->channel_vec[c].range == 0) {
+					channels += IntToString(ps->channel_ptr->channel_vec[c].u.chan_t.channel);
+					if (ps->channel_ptr->channel_vec[c].u.chan_t.dwell > 1)
+						channels += string(":") +
+							IntToString(ps->channel_ptr->channel_vec[c].u.chan_t.dwell);
+				} else {
+					channels += string("range-") + IntToString(ps->channel_ptr->channel_vec[c].u.range_t.start) + string("-") + IntToString(ps->channel_ptr->channel_vec[c].u.range_t.end) + string("-") + IntToString(ps->channel_ptr->channel_vec[c].u.range_t.width) + string("-") + IntToString(ps->channel_ptr->channel_vec[c].u.range_t.iter);
+				}
+
+				if (c != ps->channel_ptr->channel_vec.size() - 1)
+					channels += ",";
+			}
+		} else {
+			channels = IntToString(ps->strong_source->FetchChannel());
+		}
+
+		fprintf(in_logfile, "<channels>%s</channels>\n", channels.c_str());
+
+		fprintf(in_logfile, "<channelhop>%s</channelhop>\n",
+				(ps->channel_dwell || ps->channel_hop) ? "true" : "false");
+
+		fprintf(in_logfile, "</captureSource>\n");
 	}
+
+	fprintf(in_logfile, "<totalDevices>%u</totalDevices>\n",
+			FetchNumDevices(KIS_PHY_ANY));
+
+	for (map<int, Kis_Phy_Handler *>::iterator x = phy_handler_map.begin();
+		 x != phy_handler_map.end(); ++x) {
+		fprintf(in_logfile, 
+				"<phyType>\n"
+				"<name>%s</name>\n"
+				"<devices>%u</devices>\n"
+				"<packets>%u</packets>\n"
+				"<packetData>%u</packetData>\n"
+				"<packetFiltered>%u</packetFiltered>\n"
+				"<packetError>%u</packetError>\n"
+				"</phyType>\n",
+				SanitizeXML(x->second->FetchPhyName()).c_str(),
+				FetchNumDevices(x->first),
+				FetchNumPackets(x->first),
+				FetchNumDatapackets(x->first),
+				FetchNumFilterpackets(x->first),
+				FetchNumErrorpackets(x->first));
+	}
+
+	fprintf(in_logfile, "</k:run>\n");
 }
 
 void Devicetracker::WriteTXT(FILE *in_logfile) {

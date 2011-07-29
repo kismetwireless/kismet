@@ -32,7 +32,7 @@
     <xs:sequence>
      <xs:element name="name" type="xs:string"/>
      <xs:element name="devices" type="xs:integer"/>
-     <xs:element name="packetLink" type="xs:integer"/>
+	 <xs:element name="packets" type="xs:integer"/>
      <xs:element name="packetData" type="xs:integer"/>
      <xs:element name="packetFiltered" type="xs:integer"/>
      <xs:element name="packetError" type="xs:integer"/>

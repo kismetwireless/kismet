@@ -39,9 +39,11 @@ void GpsWrapper::Usage(char *name) {
 		   "                              (true/false)\n");
 }
 
-GpsWrapper::GpsWrapper(GlobalRegistry *globalreg) {
+GpsWrapper::GpsWrapper(GlobalRegistry *in_globalreg) {
 	string gpsopt = "";
 	string gpsparm = "";
+
+	globalreg = in_globalreg;
 
 	int gpsdc = globalreg->getopt_long_num++;
 	int nmeac = globalreg->getopt_long_num++;
@@ -52,6 +54,8 @@ GpsWrapper::GpsWrapper(GlobalRegistry *globalreg) {
 		fprintf(stderr, "FATAL OOPS:  GpsWrapper() called before kismet_config\n");
 		exit(1);
 	}
+
+	globalreg->InsertGlobal("GPSWRAPPER", this);
 
 	static struct option gpswrapper_long_options[] = {
 		{ "use-gpsd-gps", optional_argument, 0, gpsdc },
