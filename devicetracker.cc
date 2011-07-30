@@ -106,7 +106,7 @@ int Protocol_KISDEV_COMMON(PROTO_PARMS) {
 
 		switch (fnum) {
 			case KISDEV_phytype:
-				scratch = IntToString(com->phy_type);
+				scratch = IntToString(dev->phy_type);
 				break;
 			case KISDEV_macaddr:
 				scratch = dev->key.Mac2String();
@@ -968,6 +968,8 @@ int Devicetracker::CommonTracker(kis_packet *in_pack) {
 
 		device->key = devmac;
 
+		device->phy_type = pack_common->phyid;
+
 		tracked_map[device->key] = device;
 		tracked_vec.push_back(device);
 		phy_device_vec[pack_common->phyid]->push_back(device);
@@ -988,7 +990,6 @@ int Devicetracker::CommonTracker(kis_packet *in_pack) {
 		common->device = device;
 		device->insert(devcomp_ref_common, common);
 
-		common->phy_type = pack_common->phyid;
 		common->first_time = in_pack->ts.tv_sec;
 	}
 

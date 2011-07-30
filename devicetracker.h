@@ -324,9 +324,6 @@ class kis_device_common : public tracker_component {
 public:
 	kis_tracked_device *device;
 
-	// Tracked PHY type
-	int phy_type;
-
 	// Printable name for the UI summary, etc.  For APs could be the latest SSID,
 	// for bluetooth the UAP guess, etc
 	string name;
@@ -392,8 +389,6 @@ public:
 
 	kis_device_common() {
 		device = NULL;
-
-		phy_type = KIS_PHY_UNKNOWN;
 
 		basic_type = KIS_DEVICE_BASICTYPE_DEVICE;
 

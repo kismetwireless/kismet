@@ -56,13 +56,16 @@ int phydot11_packethook_dot11data(CHAINCALL_PARMS) {
 }
 
 int phydot11_packethook_dot11classify(CHAINCALL_PARMS) {
-	return ((Kis_80211_Phy *) auxdata)->ClassiferDot11(in_pack);
+	return ((Kis_80211_Phy *) auxdata)->ClassifierDot11(in_pack);
 }
 
 int phydot11_packethook_dot11string(CHAINCALL_PARMS) {
 	return ((Kis_80211_Phy *) auxdata)->PacketDot11stringDissector(in_pack);
 }
 
+int phydot11_packethook_dot11tracker(CHAINCALL_PARMS) {
+	return ((Kis_80211_Phy *) auxdata)->TrackerDot11(in_pack);
+}
 
 Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, 
 		Devicetracker *in_tracker, int in_phyid) : 
@@ -72,7 +75,10 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
 
 	phyname = "IEEE802.11";
 
-	// Register packet dissectors
+	// Packet classifier - makes basic records plus dot11 data
+	globalreg->packetchain->RegisterHandler(&phydot11_packethook_dot11classify, this,
+											CHAINPOS_CLASSIFIER, -100);
+
 	globalreg->packetchain->RegisterHandler(&phydot11_packethook_wep, this,
 											CHAINPOS_DECRYPT, -100);
 	globalreg->packetchain->RegisterHandler(&phydot11_packethook_dot11, this,
@@ -82,10 +88,8 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
 	globalreg->packetchain->RegisterHandler(&phydot11_packethook_dot11string, this,
 											CHAINPOS_DATADISSECT, -99);
 
-	// register packet classifier - network classifier will hand data to the
-	// data classifier, don't register both
-	globalreg->packetchain->RegisterHandler(&phydot11_packethook_dot11classify, this,
-											CHAINPOS_CLASSIFIER, -100);
+	globalreg->packetchain->RegisterHandler(&phydot11_packethook_dot11tracker, this,
+											CHAINPOS_TRACKER, 100);
 
 	// dot11 device comp
 	dev_comp_net = devicetracker->RegisterDeviceComponent("DOT11_NET");
@@ -192,6 +196,9 @@ Kis_80211_Phy::~Kis_80211_Phy() {
 	globalreg->packetchain->RemoveHandler(&phydot11_packethook_dot11classify,
 										  CHAINPOS_CLASSIFIER);
 
+	globalreg->packetchain->RemoveHandler(&phydot11_packethook_dot11tracker, 
+										  CHAINPOS_TRACKER);
+
 }
 
 int Kis_80211_Phy::LoadWepkeys() {
@@ -254,7 +261,7 @@ dot11_ssid *Kis_80211_Phy::BuildSSID(uint32_t ssid_csum,
 									 kis_packet *in_pack) {
 	dot11_ssid *adssid;
 	kis_tracked_device *dev = NULL;
-	dot11_network *net = NULL;
+	dot11_ap *net = NULL;
 
 	adssid = new dot11_ssid;
 	adssid->checksum = ssid_csum;
@@ -283,7 +290,7 @@ dot11_ssid *Kis_80211_Phy::BuildSSID(uint32_t ssid_csum,
 		dev = devicetracker->FetchDevice(packinfo->bssid_mac);
 
 		if (dev != NULL) {
-			net = (dot11_network *) dev->fetch(dev_comp_net);
+			net = (dot11_ap *) dev->fetch(dev_comp_net);
 
 			if (net != NULL) {
 
@@ -365,11 +372,35 @@ dot11_ssid *Kis_80211_Phy::BuildSSID(uint32_t ssid_csum,
 	return adssid;
 }
 
-int Kis_80211_Phy::ClassiferDot11(kis_packet *in_pack) {
-	return 1;
-}
+int Kis_80211_Phy::ClassifierDot11(kis_packet *in_pack) {
+	// Get the 802.11 info
+	dot11_packinfo *dot11info = 
+		(dot11_packinfo *) in_pack->fetch(pack_comp_80211);
 
-int Kis_80211_Phy::ClassiferData(kis_packet *in_pack) {
+	if (dot11info == NULL)
+		return 0;
+
+	kis_common_info *ci = new kis_common_info;
+
+	ci->phyid = phyid;
+
+	if (dot11info->type == packet_management)
+		ci->type = packet_basic_mgmt;
+	else if (dot11info->type == packet_phy)
+		ci->type = packet_basic_phy;
+	else if (dot11info->type == packet_data)
+		ci->type = packet_basic_data;
+	else if (dot11info->type == packet_noise)
+		ci->error = 1;
+
+	ci->datasize = dot11info->datasize;
+
+	// We track devices/nets/clients by source mac
+	ci->device = dot11info->source_mac;
+	ci->source = ci->device;
+
+	in_pack->insert(pack_comp_common, ci);
+
 	return 1;
 }
 
@@ -412,6 +443,11 @@ void Kis_80211_Phy::AddWepKey(mac_addr bssid, uint8_t *key, unsigned int len,
 
 void Kis_80211_Phy::BlitDevices(int in_fd, vector<kis_tracked_device *> *devlist) {
 	
+}
+
+int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
+
+	return 1;
 }
 
 void Kis_80211_Phy::ExportLogRecord(kis_tracked_device *in_device, string in_logtype, 

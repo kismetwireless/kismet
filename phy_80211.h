@@ -168,12 +168,10 @@ enum dot11_network_type {
 // fwd def
 class dot11_client;
 
-class dot11_network : public tracker_component {
+class dot11_ap : public tracker_component {
 public:
 	dot11_network_type type;
 	mac_addr bssid;
-
-	string manuf;
 
 	// Clients associated w/ the network, they're unique/unmasked so
 	// we don't need a macmap
@@ -242,9 +240,11 @@ public:
 
 	int decrypted;
 
-	mac_addr bssid;
+	// Who we most recently talked to
+	mac_addr last_bssid;
 
-	string manuf;
+	// Who we've talked to
+	vector<mac_addr> bssid_list;
 
 	int last_sequence;
 
@@ -264,7 +264,10 @@ public:
 	// Probed SSID data
 	map<uint32_t, dot11_ssid *> ssid_map;
 
-	dot11_network *netptr;
+	// Most recent SSID
+	dot11_ssid *last_ssid;
+
+	dot11_ap *netptr;
 
 	string dot11d_country;
 	vector<dot11_11d_range_info> dot11d_vec;
@@ -459,10 +462,12 @@ public:
 
 	// TODO - what do we do with the strings?  Can we make them phy-neutral?
 	// int packet_dot11string_dissector(kis_packet *in_pack);
-	
-	// 802.11 network classifiers
-	int ClassiferDot11(kis_packet *in_pack);
-	int ClassiferData(kis_packet *in_pack);
+
+	// 802.11 packet classifier to common
+	int ClassifierDot11(kis_packet *in_pack);
+
+	// Dot11 tracker
+	int TrackerDot11(kis_packet *in_pack);
 
 	// Timer events passed from Devicetracker
 	virtual int TimerKick();
