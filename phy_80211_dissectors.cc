@@ -192,7 +192,7 @@ int Kis_80211_Phy::WPAKeyMgtConv(uint8_t mgt_index) {
 }
 
 // This needs to be optimized and it needs to not use casting to do its magic
-int Kis_80211_Phy::PacketDot11Dissector(kis_packet *in_pack) {
+int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
 	static int debugpcknum = 0;
 
 	if (in_pack->error) {

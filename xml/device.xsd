@@ -32,8 +32,14 @@
   <xs:element name="gpsPeaksignal" type="common:gps" minOccurs="0"/>
  
   <xs:element name="frequencySeen" type="common:frequencyMap" minOccurs="0"/>
- 
-  <xs:element name="captureSource" type="common:seenBy" minOccurs="0" maxOccurs="unbounded"/> 
+
+  <xs:element name="captureSources" minOccurs="0">
+   <xs:complexType>
+    <xs:sequence>
+     <xs:element name="captureSource" type="common:seenBy" maxOccurs="unbounded"/> 
+    </xs:sequence>
+   </xs:complexType>
+  </xs:element>
 
   <xs:element name="signalLevel" type="common:signalData" minOccurs="0"/>
 
@@ -47,7 +53,14 @@
 
   <xs:element name="manufacturer" type="xs:string" minOccurs="0"/>
 
-  <xs:element name="tag" type="common:tag" minOccurs="0" maxOccurs="unbounded"/>
+  <xs:element name="tags" minOccurs="0">
+   <xs:complexType>
+    <xs:sequence>
+     <xs:element name="tag" type="common:tag" maxOccurs="unbounded"/>
+    </xs:sequence>
+   </xs:complexType>
+  </xs:element>
+
  </xs:sequence>
  <xs:attribute name="phy" type="xs:string" use="required"/>
 </xs:complexType>

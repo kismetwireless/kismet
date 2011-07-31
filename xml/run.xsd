@@ -27,29 +27,47 @@
 
   <xs:element name="totalDevices" type="xs:integer"/>
 
-  <xs:element name="phyType" maxOccurs="unbounded">
+  <xs:element name="phyTypes">
    <xs:complexType>
     <xs:sequence>
-     <xs:element name="name" type="xs:string"/>
-     <xs:element name="devices" type="xs:integer"/>
-	 <xs:element name="packets" type="xs:integer"/>
-     <xs:element name="packetData" type="xs:integer"/>
-     <xs:element name="packetFiltered" type="xs:integer"/>
-     <xs:element name="packetError" type="xs:integer"/>
+     <xs:element name="phyType" maxOccurs="unbounded">
+      <xs:complexType>
+       <xs:sequence>
+        <xs:element name="name" type="xs:string"/>
+        <xs:element name="devices" type="xs:integer"/>
+        <xs:element name="packets" type="xs:integer"/>
+        <xs:element name="packetData" type="xs:integer"/>
+        <xs:element name="packetFiltered" type="xs:integer"/>
+        <xs:element name="packetError" type="xs:integer"/>
+       </xs:sequence>
+      </xs:complexType>
+     </xs:element>
     </xs:sequence>
    </xs:complexType>
   </xs:element>
 
-  <xs:element name="gpsDevice" minOccurs="0">
+  <xs:element name="gpsDevices" minOccurs="0">
    <xs:complexType>
     <xs:sequence>
-     <xs:element name="device" type="xs:string"/>
-     <xs:element name="type" type="xs:string"/>
+      <xs:element name="gpsDevice" maxOccurs="unbounded">
+       <xs:complexType>
+        <xs:sequence>
+         <xs:element name="device" type="xs:string"/>
+         <xs:element name="type" type="xs:string"/>
+        </xs:sequence>
+       </xs:complexType>
+      </xs:element>
     </xs:sequence>
    </xs:complexType>
   </xs:element>
 
- <xs:element name="device" maxOccurs="unbounded" type="device:device"/>
+ <xs:element name="devices" minOccurs="0">
+  <xs:complexType>
+   <xs:sequence>
+    <xs:element name="device" maxOccurs="unbounded" type="device:device"/>
+   </xs:sequence>
+  </xs:complexType>
+ </xs:element>
 
  </xs:sequence>
 </xs:complexType>

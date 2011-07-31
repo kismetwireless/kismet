@@ -1255,6 +1255,8 @@ void Devicetracker::WriteXML(FILE *in_logfile) {
 	fprintf(in_logfile, "<totalDevices>%u</totalDevices>\n",
 			FetchNumDevices(KIS_PHY_ANY));
 
+	fprintf(in_logfile, "<phyTypes>\n");
+
 	for (map<int, Kis_Phy_Handler *>::iterator x = phy_handler_map.begin();
 		 x != phy_handler_map.end(); ++x) {
 		fprintf(in_logfile, 
@@ -1273,16 +1275,22 @@ void Devicetracker::WriteXML(FILE *in_logfile) {
 				FetchNumFilterpackets(x->first),
 				FetchNumErrorpackets(x->first));
 	}
+	fprintf(in_logfile, "</phyTypes>\n");
 
 	fprintf(in_logfile, 
+			"<gpsDevices>\n"
 			"<gpsDevice>\n"
 			"<device>%s</device>\n"
 			"<type>%s</type>\n"
-			"</gpsDevice>\n",
+			"</gpsDevice>\n"
+			"</gpsDevices>\n",
 			SanitizeXML(gpsw->FetchDevice()).c_str(),
 			SanitizeXML(gpsw->FetchType()).c_str());
 
 	vector<kis_tracked_device *> *devlist = FetchDevices(KIS_PHY_ANY);
+
+	if (devlist->size() > 0)
+		fprintf(in_logfile, "<devices>\n");
 
 	for (unsigned int x = 0; x < devlist->size(); x++) {
 		kis_tracked_device *dev = (*devlist)[x];
@@ -1327,6 +1335,9 @@ void Devicetracker::WriteXML(FILE *in_logfile) {
 				"<lastSeen>%.24s</lastSeen>\n",
 				ctime(&(com->last_time)));
 
+		if (com->seenby_map.size() > 0)
+			fprintf(in_logfile, "<captureSources>\n");
+
 		for (map<uuid, kis_seenby_data *>::iterator si = com->seenby_map.begin();
 			 si != com->seenby_map.end(); ++si) {
 			fprintf(in_logfile, 
@@ -1355,6 +1366,9 @@ void Devicetracker::WriteXML(FILE *in_logfile) {
 
 			fprintf(in_logfile, "</seenBy>\n");
 		}
+
+		if (com->seenby_map.size() > 0)
+			fprintf(in_logfile, "</captureSources>\n");
 
 		if (com->gpsdata.gps_valid) {
 			fprintf(in_logfile, 
@@ -1469,12 +1483,18 @@ void Devicetracker::WriteXML(FILE *in_logfile) {
 			fprintf(in_logfile, "<manufacturer>%s</manufacturer>\n",
 					SanitizeXML(com->manuf).c_str());
 
+		if (com->arb_tag_map.size() > 0)
+			fprintf(in_logfile, "<tags>");
+
 		for (map<string, string>::iterator ti = com->arb_tag_map.begin();
 			 ti != com->arb_tag_map.end(); ++ti) {
 			fprintf(in_logfile, "<tag name=\"%s\">%s</tag>\n",
 					SanitizeXML(ti->first).c_str(),
 					SanitizeXML(ti->second).c_str());
 		}
+
+		if (com->arb_tag_map.size() > 0)
+			fprintf(in_logfile, "</tags>");
 
 		// Call all the phy handlers for logging
 		for (map<int, Kis_Phy_Handler *>::iterator x = phy_handler_map.begin();
@@ -1485,6 +1505,9 @@ void Devicetracker::WriteXML(FILE *in_logfile) {
 		fprintf(in_logfile, "</device>\n");
 
 	}
+
+	if (devlist->size() > 0)
+		fprintf(in_logfile, "</devices>\n");
 
 	fprintf(in_logfile, "</k:run>\n");
 }

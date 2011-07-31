@@ -8,8 +8,7 @@
 
 <xs:simpleType name="macaddr">
  <xs:restriction base="xs:string">
-  <xs:pattern value="[a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2}"/>
-  <xs:length value="17"/>
+  <xs:pattern value="([a-fA-F0-9]{2}:)+[a-fA-F0-9]{2}"/>
  </xs:restriction>
 </xs:simpleType>
 

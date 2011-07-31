@@ -1,194 +1,335 @@
 <?xml version="1.0"?>
-<k:run xmlns:k="http://www.kismetwireless.net/xml" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:phy80211="http://www.kismetwireless.net/xml/phy80211" xsi:schemaLocation="http://www.kismetwireless.net/xml kismet.xsd">
-  <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns="http://xmlns.myexample.com/version3" xmlns:common="http://www.kismetwireless.net/xml/common" xmlns:device="http://www.kismetwireless.net/xml/device" xmlns:gps="http://www.kismetwireless.net/xml/gps" xmlns:run="http://www.kismetwireless.net/xml/run" xmlns:phy80211="http://www.kismetwireless.net/xml/phy80211" targetNamespace="http://www.kismetwireless.net/xml" elementFormDefault="unqualified" attributeFromDefault="unqualified">
+<k:run xmlns:k="http://www.kismetwireless.net/xml" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:phy80211="http://www.kismetwireless.net/xml/phy80211" xmlns:BTBB="http://www.kismetwireless.net/xml/BTBB" xsi:schemaLocation="http://www.kismetwireless.net/xml kismet.xsd">
+  <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns="http://xmlns.myexample.com/version3" xmlns:common="http://www.kismetwireless.net/xml/common" xmlns:device="http://www.kismetwireless.net/xml/device" xmlns:gps="http://www.kismetwireless.net/xml/gps" xmlns:run="http://www.kismetwireless.net/xml/run" xmlns:phy80211="http://www.kismetwireless.net/xml/phy80211" xmlns:BTBB="http://www.kismetwireless.net/xml/BTBB" targetNamespace="http://www.kismetwireless.net/xml" elementFormDefault="unqualified" attributeFromDefault="unqualified">
     <xs:import namespace="http://www.kismetwireless.net/xml/common" schemaLocation="http://www.kismetwireless.net/xml/common.xsd"/>
     <xs:import namespace="http://www.kismetwireless.net/xml/device" schemaLocation="http://www.kismetwireless.net/xml/device.xsd"/>
     <xs:import namespace="http://www.kismetwireless.net/xml/gps" schemaLocation="http://www.kismetwireless.net/xml/gps.xsd"/>
     <xs:import namespace="http://www.kismetwireless.net/xml/run" schemaLocation="http://www.kismetwireless.net/xml/run.xsd"/>
     <xs:import namespace="http://www.kismetwireless.net/xml/phy80211" schemaLocation="http://www.kismetwireless.net/xml/phy80211.xsd"/>
+    <xs:import namespace="http://www.kismetwireless.net/xml/BTBB" schemaLocation="http://www.kismetwireless.net/xml/BTBB.xsd"/>
     <xs:element name="run"/>
   </xs:schema>
   <version>2011-03-R2</version>
-  <startTime>Fri Jul 29 13:48:19 2011</startTime>
-  <endTime>Fri Jul 29 13:48:23 2011</endTime>
+  <startTime>Sat Jul 30 23:20:44 2011</startTime>
+  <endTime>Sat Jul 30 23:20:48 2011</endTime>
   <captureSource>
-    <uuid>f2364a72-ba0a-11e0-bf5c-6404941be201</uuid>
+    <uuid>13d1e032-bb24-11e0-95bd-6404941be201</uuid>
     <definition>wlan0:vap=wlan0mon,hop=false,wpa_scan=15</definition>
     <name>wlan0</name>
     <interface>wlan0</interface>
     <type>iwlagn</type>
-    <packets>197</packets>
+    <packets>154</packets>
     <channels>1,5,9,13,48,64,5560,5640,2,6,10,36,52,5500,5580,5660,3,7,11,40,56,5520,5600,5680,4,8,12,44,60,5540,5620,5700</channels>
     <channelhop>false</channelhop>
   </captureSource>
-  <totalDevices>6</totalDevices>
-  <phyType>
-    <name>IEEE802.11</name>
-    <devices>0</devices>
-    <packets>197</packets>
-    <packetData>42</packetData>
-    <packetFiltered>0</packetFiltered>
-    <packetError>0</packetError>
-  </phyType>
-  <gpsDevice>
-    <device>tcp://localhost:2947</device>
-    <type>gpsd</type>
-  </gpsDevice>
-  <device phy="unknown">
-    <deviceMac>00:1A:1E:6F:83:F0</deviceMac>
-    <firstSeen>Fri Jul 29 13:48:19 2011</firstSeen>
-    <lastSeen>Fri Jul 29 13:48:23 2011</lastSeen>
-    <seenBy>
-      <uuid>f2364a72-ba0a-11e0-bf5c-6404941be201</uuid>
-      <firstTime>Fri Jul 29 13:48:19 2011</firstTime>
-      <lastTime>Fri Jul 29 13:48:23 2011</lastTime>
-      <packets>78</packets>
-      <frequencySeen>
-        <frequency mhz="0" packets="1"/>
-        <frequency mhz="2412" packets="76"/>
-        <frequency mhz="2417" packets="1"/>
-      </frequencySeen>
-    </seenBy>
-    <signalLevel type="dbm">
-      <lastSignal>-55</lastSignal>
-      <minSignal>-61</minSignal>
-      <maxSignal>-39</maxSignal>
-    </signalLevel>
-    <packets>78</packets>
-    <packetLink>40</packetLink>
-    <packetData>38</packetData>
-    <packetFiltered>0</packetFiltered>
-    <packetError>0</packetError>
-    <dataBytes>7802</dataBytes>
-  </device>
-  <device phy="unknown">
-    <deviceMac>00:1A:1E:6F:83:F1</deviceMac>
-    <firstSeen>Fri Jul 29 13:48:19 2011</firstSeen>
-    <lastSeen>Fri Jul 29 13:48:23 2011</lastSeen>
-    <seenBy>
-      <uuid>f2364a72-ba0a-11e0-bf5c-6404941be201</uuid>
-      <firstTime>Fri Jul 29 13:48:19 2011</firstTime>
-      <lastTime>Fri Jul 29 13:48:23 2011</lastTime>
-      <packets>42</packets>
-      <frequencySeen>
-        <frequency mhz="2412" packets="40"/>
-        <frequency mhz="27648" packets="2"/>
-      </frequencySeen>
-    </seenBy>
-    <signalLevel type="dbm">
-      <lastSignal>-55</lastSignal>
-      <minSignal>-56</minSignal>
-      <maxSignal>4</maxSignal>
-    </signalLevel>
-    <packets>42</packets>
-    <packetLink>38</packetLink>
-    <packetData>4</packetData>
-    <packetFiltered>0</packetFiltered>
-    <packetError>0</packetError>
-    <dataBytes>349</dataBytes>
-  </device>
-  <device phy="unknown">
-    <deviceMac>00:1A:1E:80:02:A1</deviceMac>
-    <firstSeen>Fri Jul 29 13:48:21 2011</firstSeen>
-    <lastSeen>Fri Jul 29 13:48:21 2011</lastSeen>
-    <seenBy>
-      <uuid>f2364a72-ba0a-11e0-bf5c-6404941be201</uuid>
-      <firstTime>Fri Jul 29 13:48:21 2011</firstTime>
-      <lastTime>Fri Jul 29 13:48:21 2011</lastTime>
-      <packets>1</packets>
-      <frequencySeen>
-        <frequency mhz="2437" packets="1"/>
-      </frequencySeen>
-    </seenBy>
-    <signalLevel type="dbm">
-      <lastSignal>-76</lastSignal>
-      <minSignal>-76</minSignal>
-      <maxSignal>-76</maxSignal>
-    </signalLevel>
-    <packets>1</packets>
-    <packetLink>1</packetLink>
-    <packetData>0</packetData>
-    <packetFiltered>0</packetFiltered>
-    <packetError>0</packetError>
-    <dataBytes>0</dataBytes>
-  </device>
-  <device phy="unknown">
-    <deviceMac>00:1A:1E:41:67:B0</deviceMac>
-    <firstSeen>Fri Jul 29 13:48:21 2011</firstSeen>
-    <lastSeen>Fri Jul 29 13:48:21 2011</lastSeen>
-    <seenBy>
-      <uuid>f2364a72-ba0a-11e0-bf5c-6404941be201</uuid>
-      <firstTime>Fri Jul 29 13:48:21 2011</firstTime>
-      <lastTime>Fri Jul 29 13:48:21 2011</lastTime>
+  <captureSource>
+    <uuid>13d22b1e-bb24-11e0-95bd-b8072e49dc03</uuid>
+    <definition>ubertooth</definition>
+    <name>ubertooth</name>
+    <interface>ubertooth</interface>
+    <type>ubertooth</type>
+    <packets>0</packets>
+    <channels>0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78</channels>
+    <channelhop>true</channelhop>
+  </captureSource>
+  <totalDevices>10</totalDevices>
+  <phyTypes>
+    <phyType>
+      <name>IEEE802.11</name>
+      <devices>10</devices>
+      <packets>154</packets>
+      <packetData>26</packetData>
+      <packetFiltered>0</packetFiltered>
+      <packetError>0</packetError>
+    </phyType>
+    <phyType>
+      <name>BTBB</name>
+      <devices>0</devices>
+      <packets>0</packets>
+      <packetData>0</packetData>
+      <packetFiltered>0</packetFiltered>
+      <packetError>0</packetError>
+    </phyType>
+  </phyTypes>
+  <gpsDevices>
+    <gpsDevice>
+      <device>tcp://localhost:2947</device>
+      <type>gpsd</type>
+    </gpsDevice>
+  </gpsDevices>
+  <devices>
+    <device xsi:type="phy80211:phy80211device" phy="phy80211">
+      <deviceMac>00:0D:B9:14:E0:CD</deviceMac>
+      <firstSeen>Sat Jul 30 23:20:44 2011</firstSeen>
+      <lastSeen>Sat Jul 30 23:20:47 2011</lastSeen>
+      <captureSources>
+        <seenBy>
+          <uuid>13d1e032-bb24-11e0-95bd-6404941be201</uuid>
+          <firstTime>Sat Jul 30 23:20:44 2011</firstTime>
+          <lastTime>Sat Jul 30 23:20:47 2011</lastTime>
+          <packets>19</packets>
+          <frequencySeen>
+            <frequency mhz="2412" packets="19"/>
+          </frequencySeen>
+        </seenBy>
+      </captureSources>
+      <signalLevel type="dbm">
+        <lastSignal>-53</lastSignal>
+        <minSignal>-59</minSignal>
+        <maxSignal>-53</maxSignal>
+      </signalLevel>
+      <packets>19</packets>
+      <packetLink>0</packetLink>
+      <packetData>19</packetData>
+      <packetFiltered>0</packetFiltered>
+      <packetError>0</packetError>
+      <dataBytes>2028</dataBytes>
+    </device>
+    <device xsi:type="phy80211:phy80211device" phy="phy80211">
+      <deviceMac>00:1A:1E:6F:83:F1</deviceMac>
+      <firstSeen>Sat Jul 30 23:20:44 2011</firstSeen>
+      <lastSeen>Sat Jul 30 23:20:48 2011</lastSeen>
+      <captureSources>
+        <seenBy>
+          <uuid>13d1e032-bb24-11e0-95bd-6404941be201</uuid>
+          <firstTime>Sat Jul 30 23:20:44 2011</firstTime>
+          <lastTime>Sat Jul 30 23:20:48 2011</lastTime>
+          <packets>39</packets>
+          <frequencySeen>
+            <frequency mhz="2412" packets="38"/>
+            <frequency mhz="2417" packets="1"/>
+          </frequencySeen>
+        </seenBy>
+      </captureSources>
+      <signalLevel type="dbm">
+        <lastSignal>-53</lastSignal>
+        <minSignal>-55</minSignal>
+        <maxSignal>-53</maxSignal>
+      </signalLevel>
+      <packets>39</packets>
+      <packetLink>39</packetLink>
+      <packetData>0</packetData>
+      <packetFiltered>0</packetFiltered>
+      <packetError>0</packetError>
+      <dataBytes>0</dataBytes>
+    </device>
+    <device xsi:type="phy80211:phy80211device" phy="phy80211">
+      <deviceMac>00:1A:1E:6F:83:F0</deviceMac>
+      <firstSeen>Sat Jul 30 23:20:44 2011</firstSeen>
+      <lastSeen>Sat Jul 30 23:20:48 2011</lastSeen>
+      <captureSources>
+        <seenBy>
+          <uuid>13d1e032-bb24-11e0-95bd-6404941be201</uuid>
+          <firstTime>Sat Jul 30 23:20:44 2011</firstTime>
+          <lastTime>Sat Jul 30 23:20:48 2011</lastTime>
+          <packets>37</packets>
+          <frequencySeen>
+            <frequency mhz="2412" packets="37"/>
+          </frequencySeen>
+        </seenBy>
+      </captureSources>
+      <signalLevel type="dbm">
+        <lastSignal>-53</lastSignal>
+        <minSignal>-55</minSignal>
+        <maxSignal>-53</maxSignal>
+      </signalLevel>
+      <packets>37</packets>
+      <packetLink>37</packetLink>
+      <packetData>0</packetData>
+      <packetFiltered>0</packetFiltered>
+      <packetError>0</packetError>
+      <dataBytes>0</dataBytes>
+    </device>
+    <device xsi:type="phy80211:phy80211device" phy="phy80211">
+      <deviceMac>00:23:14:D4:E7:FC</deviceMac>
+      <firstSeen>Sat Jul 30 23:20:44 2011</firstSeen>
+      <lastSeen>Sat Jul 30 23:20:46 2011</lastSeen>
+      <captureSources>
+        <seenBy>
+          <uuid>13d1e032-bb24-11e0-95bd-6404941be201</uuid>
+          <firstTime>Sat Jul 30 23:20:44 2011</firstTime>
+          <lastTime>Sat Jul 30 23:20:46 2011</lastTime>
+          <packets>6</packets>
+          <frequencySeen>
+            <frequency mhz="0" packets="6"/>
+          </frequencySeen>
+        </seenBy>
+      </captureSources>
+      <packets>6</packets>
+      <packetLink>0</packetLink>
+      <packetData>6</packetData>
+      <packetFiltered>0</packetFiltered>
+      <packetError>0</packetError>
+      <dataBytes>620</dataBytes>
+    </device>
+    <device xsi:type="phy80211:phy80211device" phy="phy80211">
+      <deviceMac>00:1A:1E:80:02:A1</deviceMac>
+      <firstSeen>Sat Jul 30 23:20:45 2011</firstSeen>
+      <lastSeen>Sat Jul 30 23:20:46 2011</lastSeen>
+      <captureSources>
+        <seenBy>
+          <uuid>13d1e032-bb24-11e0-95bd-6404941be201</uuid>
+          <firstTime>Sat Jul 30 23:20:45 2011</firstTime>
+          <lastTime>Sat Jul 30 23:20:46 2011</lastTime>
+          <packets>4</packets>
+          <frequencySeen>
+            <frequency mhz="2422" packets="1"/>
+            <frequency mhz="2437" packets="2"/>
+            <frequency mhz="2442" packets="1"/>
+          </frequencySeen>
+        </seenBy>
+      </captureSources>
+      <signalLevel type="dbm">
+        <lastSignal>-63</lastSignal>
+        <minSignal>-81</minSignal>
+        <maxSignal>-61</maxSignal>
+      </signalLevel>
       <packets>4</packets>
-      <frequencySeen>
-        <frequency mhz="2457" packets="1"/>
-        <frequency mhz="2462" packets="2"/>
-        <frequency mhz="2472" packets="1"/>
-      </frequencySeen>
-    </seenBy>
-    <signalLevel type="dbm">
-      <lastSignal>-75</lastSignal>
-      <minSignal>-75</minSignal>
-      <maxSignal>-68</maxSignal>
-    </signalLevel>
-    <packets>4</packets>
-    <packetLink>4</packetLink>
-    <packetData>0</packetData>
-    <packetFiltered>0</packetFiltered>
-    <packetError>0</packetError>
-    <dataBytes>0</dataBytes>
-  </device>
-  <device phy="unknown">
-    <deviceMac>00:1A:1E:41:67:B1</deviceMac>
-    <firstSeen>Fri Jul 29 13:48:21 2011</firstSeen>
-    <lastSeen>Fri Jul 29 13:48:21 2011</lastSeen>
-    <seenBy>
-      <uuid>f2364a72-ba0a-11e0-bf5c-6404941be201</uuid>
-      <firstTime>Fri Jul 29 13:48:21 2011</firstTime>
-      <lastTime>Fri Jul 29 13:48:21 2011</lastTime>
-      <packets>4</packets>
-      <frequencySeen>
-        <frequency mhz="2457" packets="1"/>
-        <frequency mhz="2462" packets="2"/>
-        <frequency mhz="2472" packets="1"/>
-      </frequencySeen>
-    </seenBy>
-    <signalLevel type="dbm">
-      <lastSignal>-75</lastSignal>
-      <minSignal>-75</minSignal>
-      <maxSignal>-70</maxSignal>
-    </signalLevel>
-    <packets>4</packets>
-    <packetLink>4</packetLink>
-    <packetData>0</packetData>
-    <packetFiltered>0</packetFiltered>
-    <packetError>0</packetError>
-    <dataBytes>0</dataBytes>
-  </device>
-  <device phy="unknown">
-    <deviceMac>00:C0:02:5C:BB:FE</deviceMac>
-    <firstSeen>Fri Jul 29 13:48:21 2011</firstSeen>
-    <lastSeen>Fri Jul 29 13:48:21 2011</lastSeen>
-    <seenBy>
-      <uuid>f2364a72-ba0a-11e0-bf5c-6404941be201</uuid>
-      <firstTime>Fri Jul 29 13:48:21 2011</firstTime>
-      <lastTime>Fri Jul 29 13:48:21 2011</lastTime>
+      <packetLink>4</packetLink>
+      <packetData>0</packetData>
+      <packetFiltered>0</packetFiltered>
+      <packetError>0</packetError>
+      <dataBytes>0</dataBytes>
+    </device>
+    <device xsi:type="phy80211:phy80211device" phy="phy80211">
+      <deviceMac>00:1A:1E:80:02:A0</deviceMac>
+      <firstSeen>Sat Jul 30 23:20:45 2011</firstSeen>
+      <lastSeen>Sat Jul 30 23:20:46 2011</lastSeen>
+      <captureSources>
+        <seenBy>
+          <uuid>13d1e032-bb24-11e0-95bd-6404941be201</uuid>
+          <firstTime>Sat Jul 30 23:20:45 2011</firstTime>
+          <lastTime>Sat Jul 30 23:20:46 2011</lastTime>
+          <packets>3</packets>
+          <frequencySeen>
+            <frequency mhz="2437" packets="2"/>
+            <frequency mhz="2442" packets="1"/>
+          </frequencySeen>
+        </seenBy>
+      </captureSources>
+      <signalLevel type="dbm">
+        <lastSignal>-63</lastSignal>
+        <minSignal>-63</minSignal>
+        <maxSignal>-61</maxSignal>
+      </signalLevel>
+      <packets>3</packets>
+      <packetLink>3</packetLink>
+      <packetData>0</packetData>
+      <packetFiltered>0</packetFiltered>
+      <packetError>0</packetError>
+      <dataBytes>0</dataBytes>
+    </device>
+    <device xsi:type="phy80211:phy80211device" phy="phy80211">
+      <deviceMac>00:C0:02:5C:BB:FE</deviceMac>
+      <firstSeen>Sat Jul 30 23:20:46 2011</firstSeen>
+      <lastSeen>Sat Jul 30 23:20:46 2011</lastSeen>
+      <captureSources>
+        <seenBy>
+          <uuid>13d1e032-bb24-11e0-95bd-6404941be201</uuid>
+          <firstTime>Sat Jul 30 23:20:46 2011</firstTime>
+          <lastTime>Sat Jul 30 23:20:46 2011</lastTime>
+          <packets>3</packets>
+          <frequencySeen>
+            <frequency mhz="2452" packets="1"/>
+            <frequency mhz="2457" packets="1"/>
+            <frequency mhz="2462" packets="1"/>
+          </frequencySeen>
+        </seenBy>
+      </captureSources>
+      <signalLevel type="dbm">
+        <lastSignal>-70</lastSignal>
+        <minSignal>-78</minSignal>
+        <maxSignal>-70</maxSignal>
+      </signalLevel>
+      <packets>3</packets>
+      <packetLink>3</packetLink>
+      <packetData>0</packetData>
+      <packetFiltered>0</packetFiltered>
+      <packetError>0</packetError>
+      <dataBytes>0</dataBytes>
+    </device>
+    <device xsi:type="phy80211:phy80211device" phy="phy80211">
+      <deviceMac>98:4B:4A:3F:A2:B8</deviceMac>
+      <firstSeen>Sat Jul 30 23:20:46 2011</firstSeen>
+      <lastSeen>Sat Jul 30 23:20:46 2011</lastSeen>
+      <captureSources>
+        <seenBy>
+          <uuid>13d1e032-bb24-11e0-95bd-6404941be201</uuid>
+          <firstTime>Sat Jul 30 23:20:46 2011</firstTime>
+          <lastTime>Sat Jul 30 23:20:46 2011</lastTime>
+          <packets>1</packets>
+          <frequencySeen>
+            <frequency mhz="27648" packets="1"/>
+          </frequencySeen>
+        </seenBy>
+      </captureSources>
+      <signalLevel type="dbm">
+        <lastSignal>4</lastSignal>
+        <minSignal>0</minSignal>
+        <maxSignal>4</maxSignal>
+      </signalLevel>
       <packets>1</packets>
-      <frequencySeen>
-        <frequency mhz="2462" packets="1"/>
-      </frequencySeen>
-    </seenBy>
-    <signalLevel type="dbm">
-      <lastSignal>-80</lastSignal>
-      <minSignal>-80</minSignal>
-      <maxSignal>-80</maxSignal>
-    </signalLevel>
-    <packets>1</packets>
-    <packetLink>1</packetLink>
-    <packetData>0</packetData>
-    <packetFiltered>0</packetFiltered>
-    <packetError>0</packetError>
-    <dataBytes>0</dataBytes>
-  </device>
+      <packetLink>0</packetLink>
+      <packetData>1</packetData>
+      <packetFiltered>0</packetFiltered>
+      <packetError>0</packetError>
+      <dataBytes>24</dataBytes>
+    </device>
+    <device xsi:type="phy80211:phy80211device" phy="phy80211">
+      <deviceMac>00:1A:1E:41:67:B0</deviceMac>
+      <firstSeen>Sat Jul 30 23:20:46 2011</firstSeen>
+      <lastSeen>Sat Jul 30 23:20:46 2011</lastSeen>
+      <captureSources>
+        <seenBy>
+          <uuid>13d1e032-bb24-11e0-95bd-6404941be201</uuid>
+          <firstTime>Sat Jul 30 23:20:46 2011</firstTime>
+          <lastTime>Sat Jul 30 23:20:46 2011</lastTime>
+          <packets>4</packets>
+          <frequencySeen>
+            <frequency mhz="2457" packets="1"/>
+            <frequency mhz="2462" packets="1"/>
+            <frequency mhz="2467" packets="2"/>
+          </frequencySeen>
+        </seenBy>
+      </captureSources>
+      <signalLevel type="dbm">
+        <lastSignal>-54</lastSignal>
+        <minSignal>-54</minSignal>
+        <maxSignal>-50</maxSignal>
+      </signalLevel>
+      <packets>4</packets>
+      <packetLink>4</packetLink>
+      <packetData>0</packetData>
+      <packetFiltered>0</packetFiltered>
+      <packetError>0</packetError>
+      <dataBytes>0</dataBytes>
+    </device>
+    <device xsi:type="phy80211:phy80211device" phy="phy80211">
+      <deviceMac>00:1A:1E:41:67:B1</deviceMac>
+      <firstSeen>Sat Jul 30 23:20:46 2011</firstSeen>
+      <lastSeen>Sat Jul 30 23:20:46 2011</lastSeen>
+      <captureSources>
+        <seenBy>
+          <uuid>13d1e032-bb24-11e0-95bd-6404941be201</uuid>
+          <firstTime>Sat Jul 30 23:20:46 2011</firstTime>
+          <lastTime>Sat Jul 30 23:20:46 2011</lastTime>
+          <packets>1</packets>
+          <frequencySeen>
+            <frequency mhz="2462" packets="1"/>
+          </frequencySeen>
+        </seenBy>
+      </captureSources>
+      <signalLevel type="dbm">
+        <lastSignal>-51</lastSignal>
+        <minSignal>-51</minSignal>
+        <maxSignal>-51</maxSignal>
+      </signalLevel>
+      <packets>1</packets>
+      <packetLink>1</packetLink>
+      <packetData>0</packetData>
+      <packetFiltered>0</packetFiltered>
+      <packetError>0</packetError>
+      <dataBytes>0</dataBytes>
+    </device>
+  </devices>
 </k:run>

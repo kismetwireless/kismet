@@ -48,7 +48,7 @@ int phydot11_packethook_wep(CHAINCALL_PARMS) {
 }
 
 int phydot11_packethook_dot11(CHAINCALL_PARMS) {
-	return ((Kis_80211_Phy *) auxdata)->PacketDot11Dissector(in_pack);
+	return ((Kis_80211_Phy *) auxdata)->PacketDot11dissector(in_pack);
 }
 
 int phydot11_packethook_dot11data(CHAINCALL_PARMS) {
@@ -390,7 +390,9 @@ int Kis_80211_Phy::ClassifierDot11(kis_packet *in_pack) {
 		ci->type = packet_basic_phy;
 	else if (dot11info->type == packet_data)
 		ci->type = packet_basic_data;
-	else if (dot11info->type == packet_noise)
+	else if (dot11info->type == packet_noise || dot11info->corrupt ||
+			 in_pack->error || dot11info->type == packet_unknown ||
+			 dot11info->subtype == packet_unknown)
 		ci->error = 1;
 
 	ci->datasize = dot11info->datasize;
@@ -446,6 +448,31 @@ void Kis_80211_Phy::BlitDevices(int in_fd, vector<kis_tracked_device *> *devlist
 }
 
 int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
+	dot11_ap *net = NULL;
+	dot11_client *cli = NULL;
+
+	// Fetch what we already know about the packet.  
+	dot11_packinfo *dot11info =
+		(dot11_packinfo *) in_pack->fetch(pack_comp_80211);
+
+	// Got nothing to do
+	if (dot11info == NULL)
+		return 0;
+
+	// We can't do anything useful
+	if (dot11info->corrupt || dot11info->type == packet_noise ||
+		dot11info->type == packet_unknown || 
+		dot11info->subtype == packet_sub_unknown ||
+		in_pack->error) 
+		return 0;
+
+	// Phy-only packets dont' carry anything we can do something smart
+	// with at the moment though in the future we might want to
+	if (dot11info->type == packet_phy)
+		return 0;
+
+	// clients are now devices, so a probing client is just a client device
+	// sending out probes.  We'll treat it as such.
 
 	return 1;
 }

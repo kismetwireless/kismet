@@ -50,7 +50,15 @@
         <xs:extension base="device:device"> 
             <xs:sequence>
 				<xs:element name="type" type="xs:string" minOccurs="0"/>
-                <xs:element name="ssid" type="ssid" minOccurs="0" maxOccurs="unbounded"/> 
+
+				<xs:element name="ssids" minOccurs="0">
+				 <xs:complexType>
+				  <xs:sequence>
+                   <xs:element name="ssid" type="ssid" maxOccurs="unbounded"/> 
+				  </xs:sequence>
+				 </xs:complexType>
+				</xs:element>
+
 				<xs:element name="bsstimestamp" type="xs:integer" minOccurs="0"/>
 				<xs:element name="cdpDevice" type="xs:string" minOccurs="0"/>
 				<xs:element name="cdpPort" type="xs:string" minOccurs="0"/>
