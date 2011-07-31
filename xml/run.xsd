@@ -23,7 +23,13 @@
   <xs:element name="startTime" type="xs:string"/>
   <xs:element name="endTime" type="xs:string"/>
 
-  <xs:element name="captureSource" maxOccurs="unbounded" type="common:source"/>
+  <xs:element name="captureSources">
+   <xs:complexType>
+    <xs:sequence>
+     <xs:element name="captureSource" maxOccurs="unbounded" type="common:source"/>
+    </xs:sequence>
+   </xs:complexType>
+  </xs:element>
 
   <xs:element name="totalDevices" type="xs:integer"/>
 

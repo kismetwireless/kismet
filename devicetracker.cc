@@ -1199,6 +1199,7 @@ void Devicetracker::WriteXML(FILE *in_logfile) {
 
 	vector<pst_packetsource *> *pstv = pst->FetchSourceVec();
 
+	fprintf(in_logfile, "<captureSources>\n");
 	for (unsigned int x = 0; x < pstv->size(); x++) {
 		pst_packetsource *ps = (*pstv)[x];
 
@@ -1251,6 +1252,7 @@ void Devicetracker::WriteXML(FILE *in_logfile) {
 
 		fprintf(in_logfile, "</captureSource>\n");
 	}
+	fprintf(in_logfile, "</captureSources>\n");
 
 	fprintf(in_logfile, "<totalDevices>%u</totalDevices>\n",
 			FetchNumDevices(KIS_PHY_ANY));
@@ -1336,12 +1338,12 @@ void Devicetracker::WriteXML(FILE *in_logfile) {
 				ctime(&(com->last_time)));
 
 		if (com->seenby_map.size() > 0)
-			fprintf(in_logfile, "<captureSources>\n");
+			fprintf(in_logfile, "<seenBySources>\n");
 
 		for (map<uuid, kis_seenby_data *>::iterator si = com->seenby_map.begin();
 			 si != com->seenby_map.end(); ++si) {
 			fprintf(in_logfile, 
-					"<seenBy>\n"
+					"<seenBySource>\n"
 					"<uuid>%s</uuid>\n",
 					si->first.UUID2String().c_str());
 			fprintf(in_logfile, "<firstTime>%.24s</firstTime>\n",
@@ -1364,11 +1366,11 @@ void Devicetracker::WriteXML(FILE *in_logfile) {
 				fprintf(in_logfile, "</frequencySeen>\n");
 			}
 
-			fprintf(in_logfile, "</seenBy>\n");
+			fprintf(in_logfile, "</seenBySource>\n");
 		}
 
 		if (com->seenby_map.size() > 0)
-			fprintf(in_logfile, "</captureSources>\n");
+			fprintf(in_logfile, "</seenBySources>\n");
 
 		if (com->gpsdata.gps_valid) {
 			fprintf(in_logfile, 

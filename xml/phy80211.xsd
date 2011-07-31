@@ -11,10 +11,10 @@
 
 	<xs:import
 		namespace="http://www.kismetwireless.net/xml/common"
-		schemaLocation="./common.xsd"/>
+		schemaLocation="http://www.kismetwireless.net/xml/common.xsd"/>
 	<xs:import
 		namespace="http://www.kismetwireless.net/xml/device"
-		schemaLocation="./device.xsd"/>
+		schemaLocation="http://www.kismetwireless.net/xml/device.xsd"/>
 
 <xs:complexType name="ssid">
  <xs:sequence>

@@ -9,7 +9,7 @@
 
 	<xs:import
 		namespace="http://www.kismetwireless.net/xml/common"
-		schemaLocation="./common.xsd"/>
+		schemaLocation="http://www.kismetwireless.net/xml/common.xsd"/>
 
 <xs:complexType name="device">
  <xs:sequence>
@@ -24,7 +24,13 @@
   <xs:element name="firstSeen" type="xs:string"/>
   <xs:element name="lastSeen" type="xs:string"/>
 
-  <xs:element name="seenBy" type="common:seenBy" minOccurs="0" maxOccurs="unbounded"/>
+  <xs:element name="seenBySources" minOccurs="0">
+   <xs:complexType>
+    <xs:sequence>
+     <xs:element name="seenBySource" type="common:seenBy" maxOccurs="unbounded"/> 
+    </xs:sequence>
+   </xs:complexType>
+  </xs:element>
  
   <xs:element name="gpsAverage" type="common:gps" minOccurs="0"/>
   <xs:element name="gpsMinimum" type="common:gps" minOccurs="0"/>
@@ -32,14 +38,6 @@
   <xs:element name="gpsPeaksignal" type="common:gps" minOccurs="0"/>
  
   <xs:element name="frequencySeen" type="common:frequencyMap" minOccurs="0"/>
-
-  <xs:element name="captureSources" minOccurs="0">
-   <xs:complexType>
-    <xs:sequence>
-     <xs:element name="captureSource" type="common:seenBy" maxOccurs="unbounded"/> 
-    </xs:sequence>
-   </xs:complexType>
-  </xs:element>
 
   <xs:element name="signalLevel" type="common:signalData" minOccurs="0"/>
 
