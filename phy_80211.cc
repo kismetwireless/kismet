@@ -392,13 +392,14 @@ int Kis_80211_Phy::ClassifierDot11(kis_packet *in_pack) {
 		ci->type = packet_basic_data;
 	else if (dot11info->type == packet_noise || dot11info->corrupt ||
 			 in_pack->error || dot11info->type == packet_unknown ||
-			 dot11info->subtype == packet_unknown)
+			 dot11info->subtype == packet_sub_unknown)
 		ci->error = 1;
 
 	ci->datasize = dot11info->datasize;
 
 	// We track devices/nets/clients by source mac
 	ci->device = dot11info->source_mac;
+	ci->device.SetPhy(phyid);
 	ci->source = ci->device;
 
 	in_pack->insert(pack_comp_common, ci);
@@ -451,6 +452,10 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 	dot11_ap *net = NULL;
 	dot11_client *cli = NULL;
 
+	// We can't do anything w/ it from the packet layer
+	if (in_pack->error || in_pack->filtered)
+		return 0;
+
 	// Fetch what we already know about the packet.  
 	dot11_packinfo *dot11info =
 		(dot11_packinfo *) in_pack->fetch(pack_comp_80211);
@@ -459,11 +464,16 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 	if (dot11info == NULL)
 		return 0;
 
+	kis_common_info *commoninfo =
+		(kis_common_info *) in_pack->fetch(pack_comp_common);
+
+	if (commoninfo == NULL)
+		return 0;
+
 	// We can't do anything useful
 	if (dot11info->corrupt || dot11info->type == packet_noise ||
 		dot11info->type == packet_unknown || 
-		dot11info->subtype == packet_sub_unknown ||
-		in_pack->error) 
+		dot11info->subtype == packet_sub_unknown)
 		return 0;
 
 	// Phy-only packets dont' carry anything we can do something smart
@@ -471,8 +481,23 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 	if (dot11info->type == packet_phy)
 		return 0;
 
-	// clients are now devices, so a probing client is just a client device
-	// sending out probes.  We'll treat it as such.
+	// Do we have a net record?
+	kis_tracked_device *dev = devicetracker->FetchDevice(commoninfo->device);
+
+	// buh?  something hinky is going on
+	if (dev == NULL) {
+		fprintf(stderr, "debug - phydot11 got to tracking stage with no devtracker->dev?\n");
+		return 0;
+	}
+
+	// Types of phydot11 devices:
+	// Client	- no net record, data is stored in client pointer
+	// AP		- both net and client record, data is stored in both.
+	//            net record tracks data universal to the AP, client record tracks
+	//            data from the AP itself?
+
+	net = (dot11_ap *) dev->fetch(dev_comp_net);
+	cli = (dot11_client *) dev->fetch(dev_comp_client);
 
 	return 1;
 }

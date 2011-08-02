@@ -970,6 +970,8 @@ int Devicetracker::CommonTracker(kis_packet *in_pack) {
 
 		device->phy_type = pack_common->phyid;
 
+		// TODO load tags
+
 		tracked_map[device->key] = device;
 		tracked_vec.push_back(device);
 		phy_device_vec[pack_common->phyid]->push_back(device);

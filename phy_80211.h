@@ -54,6 +54,8 @@
  * Ultimately all 802.11 related code will live here, such as alerts, etc.
  */
 
+#define PHY80211_MAC_LEN	6
+
 enum dot11_ssid_type {
 	dot11_ssid_beacon = 0,
 	dot11_ssid_proberesp = 1,
@@ -171,7 +173,6 @@ class dot11_client;
 class dot11_ap : public tracker_component {
 public:
 	dot11_network_type type;
-	mac_addr bssid;
 
 	// Clients associated w/ the network, they're unique/unmasked so
 	// we don't need a macmap

@@ -41,14 +41,35 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <sstream>
+#include <iomanip>
 
-#define MAC_LEN 6
-#define MAC_STR_LEN ((MAC_LEN * 2) + 6)
+// Maximum of 7 octets in a "mac" we handle
+#define MAC_LEN_MAX		7
+// Phy is the 8 highest bits
+#define MAC_PHY_POS		7
+
+// Maximum/Default phy
+#define MAC_PHY_MAX		31
 
 // Mac address transformed into 64bit int for fast sorting
-// Optional PHY encoding for multi-phy MAC collisions
-// Phy set assumes phy numbering starts at 1 (0 implies no phy set)
-// Setting a new mac clears the phy
+//
+// Supports mac addresses up to 7 octets, with optional
+// masking, IP-subnet style.
+//
+// Supports distinguishing addresses by PHY type, with up to 30
+// distinct phy types.  Phy ID is RUNTIME ONLY and should not be
+// encoded into storage, as the phy id number is determined during
+// load and may change as plugin orders change, etc.
+// As phy id is runtime only, should we ever get so many independent
+// phy handlers that we need to expand this, it will only need a 
+// change here and a recompile of plugins.
+//
+// MACs with unassigned PHYs are encoded as type PHY_MAX
+//
+// The PHY type and # of octets is encoded in the highest-order
+// byte of the uint64, with the high 5 bits used for the phy type
+// and the lower 3 bits used for # of octets 
 struct mac_addr {
     uint64_t longmac;
     uint64_t longmask;
@@ -57,118 +78,64 @@ struct mac_addr {
     // Convert a string mac address to the long-int storage format, with 
 	// mask conversion if present.
     void string2long(const char *in) {
-        short unsigned int *bs_in = new short unsigned int[MAC_LEN];
-
         error = 0;
+
         longmac = 0;
+		SetPhy(MAC_PHY_MAX);
+
         longmask = (uint64_t) -1;
 
-        // Get the MAC
-        if (sscanf(in, "%hX:%hX:%hX:%hX:%hX:%hX",
-                   &bs_in[0], &bs_in[1], &bs_in[2], 
-                   &bs_in[3], &bs_in[4], &bs_in[5]) == 6) {
+		short unsigned int byte;
 
-			longmac |= (uint64_t) bs_in[0] << ((MAC_LEN - 0 - 1) * 8);
-			longmac |= (uint64_t) bs_in[1] << ((MAC_LEN - 1 - 1) * 8);
-			longmac |= (uint64_t) bs_in[2] << ((MAC_LEN - 2 - 1) * 8);
-			longmac |= (uint64_t) bs_in[3] << ((MAC_LEN - 3 - 1) * 8);
-			longmac |= (uint64_t) bs_in[4] << ((MAC_LEN - 4 - 1) * 8);
-			longmac |= (uint64_t) bs_in[5] << ((MAC_LEN - 5 - 1) * 8);
+		int nbyte = 0;
+		int mode = 0;
 
-            // If it has a mask component, get that
-            const char *in_mask = strchr(in, '/');
-            if (in_mask != NULL) {
-                longmask = 0;
+		while (in[0]) {
+			if (in[0] == ':') {
+				in++;
+				continue;
+			}
 
-                // See if it's numerical or expanded
-                if (strchr(in_mask + 1, ':') != NULL) {
-                    // expanded, sscanf hex octets
-                    if (sscanf(in_mask + 1, "%hX:%hX:%hX:%hX:%hX:%hX",
-                               &bs_in[0], &bs_in[1], &bs_in[2],
-                               &bs_in[3], &bs_in[4], &bs_in[5]) == 6) {
+			if (in[0] == '/') {
+				mode = 1;
+				nbyte = 0;
+				longmask = (uint64_t) 0xFF << (MAC_PHY_POS * 8);
+				in++;
+				continue;
+			}
 
-						longmask |= (uint64_t) bs_in[0] << ((MAC_LEN - 0 - 1) * 8);
-						longmask |= (uint64_t) bs_in[1] << ((MAC_LEN - 1 - 1) * 8);
-						longmask |= (uint64_t) bs_in[2] << ((MAC_LEN - 2 - 1) * 8);
-						longmask |= (uint64_t) bs_in[3] << ((MAC_LEN - 3 - 1) * 8);
-						longmask |= (uint64_t) bs_in[4] << ((MAC_LEN - 4 - 1) * 8);
-						longmask |= (uint64_t) bs_in[5] << ((MAC_LEN - 5 - 1) * 8);
+			if (sscanf(in, "%hX", &byte) != 1) {
+				error = 1;
+				break;
+			}
 
-                    } else {
-                        error = 1;
-                    }
-                } else {
-                    // numerical, scan and shift
-                    int nummask;
-                    if (sscanf(in_mask + 1, "%d", &nummask) == 1) {
-                        if (nummask == 48)
-                            nummask = 0;
+			if (strlen(in) >= 2)
+				in += 2;
+			else
+				in++;
 
-                        longmask = ((uint64_t) -1 << (48 - nummask));
+			if (nbyte >= MAC_LEN_MAX) {
+				error = 1;
+				break;
+			}
 
-                    } else {
-                        error = 1;
-                    }
-                }
-            }
+			if (mode == 0) {
+				longmac |= (uint64_t) byte << ((MAC_LEN_MAX - nbyte - 1) * 8);
+				SetMacLen(nbyte + 1);
+			} else {
+				longmask |= (uint64_t) byte << ((MAC_LEN_MAX - nbyte - 1) * 8);
+			}
 
-        } else {
-            error = 1;
-        }
-
-        delete[] bs_in;
+			nbyte++;
+		}
     }
 
     inline mac_addr() {
         longmac = 0;
+		SetPhy(MAC_PHY_MAX);
+
         longmask = (uint64_t) -1;
         error = 0;
-    }
-
-    inline mac_addr(const uint8_t *in) {
-        longmac = 0;
-        longmask = (uint64_t) -1;
-        error = 0;
-
-		longmac |= (uint64_t) in[0] << ((MAC_LEN - 0 - 1) * 8);
-		longmac |= (uint64_t) in[1] << ((MAC_LEN - 1 - 1) * 8);
-		longmac |= (uint64_t) in[2] << ((MAC_LEN - 2 - 1) * 8);
-		longmac |= (uint64_t) in[3] << ((MAC_LEN - 3 - 1) * 8);
-		longmac |= (uint64_t) in[4] << ((MAC_LEN - 4 - 1) * 8);
-		longmac |= (uint64_t) in[5] << ((MAC_LEN - 5 - 1) * 8);
-    }
-
-    inline mac_addr(const uint8_t *in, const uint8_t *maskin) {
-        longmac = 0;
-        longmask = 0;
-        error = 0;
-
-		longmac |= (uint64_t) in[0] << ((MAC_LEN - 0 - 1) * 8);
-		longmac |= (uint64_t) in[1] << ((MAC_LEN - 1 - 1) * 8);
-		longmac |= (uint64_t) in[2] << ((MAC_LEN - 2 - 1) * 8);
-		longmac |= (uint64_t) in[3] << ((MAC_LEN - 3 - 1) * 8);
-		longmac |= (uint64_t) in[4] << ((MAC_LEN - 4 - 1) * 8);
-		longmac |= (uint64_t) in[5] << ((MAC_LEN - 5 - 1) * 8);
-
-		longmask |= (uint64_t) maskin[0] << ((MAC_LEN - 0 - 1) * 8);
-		longmask |= (uint64_t) maskin[1] << ((MAC_LEN - 1 - 1) * 8);
-		longmask |= (uint64_t) maskin[2] << ((MAC_LEN - 2 - 1) * 8);
-		longmask |= (uint64_t) maskin[3] << ((MAC_LEN - 3 - 1) * 8);
-		longmask |= (uint64_t) maskin[4] << ((MAC_LEN - 4 - 1) * 8);
-		longmask |= (uint64_t) maskin[5] << ((MAC_LEN - 5 - 1) * 8);
-    }
-
-    inline mac_addr(const unsigned short int *in) {
-        longmac = 0;
-        longmask = (uint64_t) -1;
-        error = 0;
-
-		longmac |= (uint64_t) in[0] << ((MAC_LEN - 0 - 1) * 8);
-		longmac |= (uint64_t) in[1] << ((MAC_LEN - 1 - 1) * 8);
-		longmac |= (uint64_t) in[2] << ((MAC_LEN - 2 - 1) * 8);
-		longmac |= (uint64_t) in[3] << ((MAC_LEN - 3 - 1) * 8);
-		longmac |= (uint64_t) in[4] << ((MAC_LEN - 4 - 1) * 8);
-		longmac |= (uint64_t) in[5] << ((MAC_LEN - 5 - 1) * 8);
     }
 
     inline mac_addr(const char *in) {
@@ -184,12 +151,45 @@ struct mac_addr {
 		SetPhy(in_phy);
 	}
 
+	inline mac_addr(uint8_t *in, unsigned int len) {
+		longmac = 0;
+		SetPhy(MAC_PHY_MAX);
+
+		longmask = (uint64_t) -1;
+
+		for (unsigned int x = 0; x < len; x++) {
+			longmac |= (uint64_t) in[x] << ((MAC_LEN_MAX - x - 1) * 8);
+		}
+
+		SetMacLen(len);
+	}
+
     inline mac_addr(int in) {
 		in = in; // Silence gcc
         longmac = 0;
+		SetPhy(MAC_PHY_MAX);
+
         longmask = 0;
         error = 0;
     } 
+
+	inline void SetMacLen(unsigned int nbytes) {
+		longmac &= (uint64_t) ~((uint64_t) 0x07 << (MAC_PHY_POS * 8));
+		longmac |= (uint64_t) ((nbytes) & 0x07) << (MAC_PHY_POS * 8);
+	}
+
+	inline unsigned int GetMacLen() const {
+		return (longmac >> (MAC_PHY_POS * 8)) & 0x07;
+	}
+
+	inline void SetPhy(uint8_t in_phy) {
+		longmac |= (uint64_t) ((in_phy & 0x1F) << 3) << (MAC_PHY_POS * 8);
+	}
+
+	inline uint8_t GetPhy() const {
+		return (longmac >> (MAC_PHY_POS * 8)) >> 3;
+		// return index64(longmac, 5);
+	}
 
     // Masked MAC compare
     inline bool operator== (const mac_addr& op) const {
@@ -245,54 +245,48 @@ struct mac_addr {
         return tmp;
     }
 
-    inline uint8_t index64(uint64_t val, int index) const {
+    inline unsigned int index64(uint64_t val, int index) const {
         // Bitshift kung-foo
-        return (uint8_t) (val >> ((MAC_LEN - index - 1) * 8));
+        return (uint8_t) (val >> ((MAC_LEN_MAX - index - 1) * 8));
     }
 
-    inline const uint8_t operator[] (int index) const {
+    inline const unsigned int operator[] (int index) const {
         int mdex = index;
-        if (index < 0 || index >= MAC_LEN)
+        if (index < 0 || index >= MAC_LEN_MAX)
             mdex = 0;
 
         return index64(longmac, mdex);
     }
 
-	inline void SetPhy(uint8_t in_phy) {
-		longmac |= (uint64_t) in_phy << (6 * 8);
-		// Force enable checking of the phy once one is set
-		longmask |= (uint64_t) 0xFF << (6 * 6);
-	}
-
-	inline uint8_t GetPhy() {
-		return index64(longmac, 5);
-	}
-
+	// Return the top 3 of the mac. 
 	inline uint32_t OUI() const {
-		return (longmac >> 24);
+		return (longmac >> (4 * 8)) & 0x00FFFFFF;
 	}
 
     inline string Mac2String() const {
-        char tempstr[MAC_STR_LEN];
+		ostringstream osstr;
+		unsigned int nbytes = GetMacLen();
 
-        snprintf(tempstr, MAC_STR_LEN, "%02X:%02X:%02X:%02X:%02X:%02X",
-				 index64(longmac, 0), index64(longmac, 1), index64(longmac, 2),
-				 index64(longmac, 3), index64(longmac, 4), index64(longmac, 5));
-        return string(tempstr);
+		for (unsigned int x = 0; x < nbytes; x++) {
+			osstr << hex << setw(2) << setfill('0') << uppercase << index64(longmac, x);
+			if (x != nbytes - 1)
+				osstr << ':';
+		}
+
+		return osstr.str();
     }
 
     inline string MacMask2String() const {
-        uint64_t maskedmac = longmac & longmask;
+		ostringstream osstr;
+		unsigned int nbytes = GetMacLen();
 
-        char tempstr[(MAC_STR_LEN * 2) + 1];
+		for (unsigned int x = 0; x < nbytes; x++) {
+			osstr << hex << index64(longmask, x);
+			if (x != nbytes - 1)
+				osstr << ':';
+		}
 
-        snprintf(tempstr, (MAC_STR_LEN * 2) + 1, 
-				 "%02X:%02X:%02X:%02X:%02X:%02X/%02X:%02X:%02X:%02X:%02X:%02X",
-                 index64(maskedmac, 0), index64(maskedmac, 1), index64(maskedmac, 2),
-                 index64(maskedmac, 3), index64(maskedmac, 4), index64(maskedmac, 5),
-                 index64(longmask, 0), index64(longmask, 1), index64(longmask, 2),
-                 index64(longmask, 3), index64(longmask, 4), index64(longmask, 5));
-        return tempstr;
+		return osstr.str();
     }
 
 };

@@ -152,7 +152,7 @@ void *linuxbt_cap_thread(void *arg) {
 			}
 
 			rpkt->bd_name = string(hci_name);
-			rpkt->bd_addr = mac_addr(swapmac);
+			rpkt->bd_addr = mac_addr(swapmac, 6);
 			snprintf(classbuf, 6, "%2.2x%2.2x%2.2x",
 					 (hci_inq + x)->dev_class[2],
 					 (hci_inq + x)->dev_class[1],

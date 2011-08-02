@@ -310,7 +310,7 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
         } else if (fc->subtype == 13) {
             packinfo->subtype = packet_sub_ack;
 
-            packinfo->dest_mac = addr0;
+            packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
 
         } else if (fc->subtype == 14) {
             packinfo->subtype = packet_sub_cf_end;
@@ -368,52 +368,51 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
         if (fc->subtype == 0) {
             packinfo->subtype = packet_sub_association_req;
 
-            packinfo->dest_mac = addr0;
-            packinfo->source_mac = addr1;
-            packinfo->bssid_mac = addr2;
+            packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
+            packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
+            packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
 
         } else if (fc->subtype == 1) {
             packinfo->subtype = packet_sub_association_resp;
 
-            packinfo->dest_mac = addr0;
-            packinfo->source_mac = addr1;
-            packinfo->bssid_mac = addr2;
+            packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
+            packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
+            packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
 
         } else if (fc->subtype == 2) {
             packinfo->subtype = packet_sub_reassociation_req;
 
-            packinfo->dest_mac = addr0;
-            packinfo->source_mac = addr1;
-            packinfo->bssid_mac = addr2;
+            packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
+            packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
+            packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
 
         } else if (fc->subtype == 3) {
             packinfo->subtype = packet_sub_reassociation_resp;
 
-            packinfo->dest_mac = addr0;
-            packinfo->source_mac = addr1;
-            packinfo->bssid_mac = addr2;
+            packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
+            packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
+            packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
 
         } else if (fc->subtype == 4) {
             packinfo->subtype = packet_sub_probe_req;
 
             packinfo->distrib = distrib_to;
+
+            packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
+            packinfo->bssid_mac = mac_addr(addr1, PHY80211_MAC_LEN);
             
-            packinfo->source_mac = addr1;
-            packinfo->bssid_mac = addr1;
-           
         } else if (fc->subtype == 5) {
             packinfo->subtype = packet_sub_probe_resp;
 
-            packinfo->dest_mac = addr0;
-            packinfo->source_mac = addr1;
-            packinfo->bssid_mac = addr2;
-
+            packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
+            packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
+            packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
         } else if (fc->subtype == 8) {
             packinfo->subtype = packet_sub_beacon;
 
-            packinfo->dest_mac = addr0;
-            packinfo->source_mac = addr1;
-            packinfo->bssid_mac = addr2;
+            packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
+            packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
+            packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
 
             // If beacons aren't do a broadcast destination, consider them corrupt.
             if (packinfo->dest_mac != broadcast_mac) 
@@ -424,18 +423,18 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
 			// Do something smarter in the future
             packinfo->subtype = packet_sub_atim;
 
-            packinfo->dest_mac = addr0;
-            packinfo->source_mac = addr1;
-            packinfo->bssid_mac = addr2;
+            packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
+            packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
+            packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
 
             packinfo->distrib = distrib_unknown;
 
         } else if (fc->subtype == 10) {
             packinfo->subtype = packet_sub_disassociation;
 
-            packinfo->dest_mac = addr0;
-            packinfo->source_mac = addr1;
-            packinfo->bssid_mac = addr2;
+            packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
+            packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
+            packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
 
             uint16_t rcode;
             memcpy(&rcode, (const char *) &(chunk->data[24]), 2);
@@ -445,9 +444,9 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
         } else if (fc->subtype == 11) {
             packinfo->subtype = packet_sub_authentication;
 
-            packinfo->dest_mac = addr0;
-            packinfo->source_mac = addr1;
-            packinfo->bssid_mac = addr2;
+            packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
+            packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
+            packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
 
             uint16_t rcode;
             memcpy(&rcode, (const char *) &(chunk->data[24]), 2);
@@ -457,9 +456,9 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
         } else if (fc->subtype == 12) {
             packinfo->subtype = packet_sub_deauthentication;
 
-            packinfo->dest_mac = addr0;
-            packinfo->source_mac = addr1;
-            packinfo->bssid_mac = addr2;
+            packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
+            packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
+            packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
 
             uint16_t rcode;
             memcpy(&rcode, (const char *) &(chunk->data[24]), 2);
@@ -966,9 +965,10 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
         // Extract ID's
         switch (packinfo->distrib) {
         case distrib_adhoc:
-            packinfo->dest_mac = addr0;
-            packinfo->source_mac = addr1;
-            packinfo->bssid_mac = addr2;
+
+            packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
+            packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
+            packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
 
             if (packinfo->bssid_mac.longmac == 0)
                 packinfo->bssid_mac = packinfo->source_mac;
@@ -976,15 +976,17 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
             packinfo->header_offset += 24;
             break;
         case distrib_from:
-            packinfo->dest_mac = addr0;
-            packinfo->bssid_mac = addr1;
-            packinfo->source_mac = addr2;
+            packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
+            packinfo->bssid_mac = mac_addr(addr1, PHY80211_MAC_LEN);
+            packinfo->source_mac = mac_addr(addr2, PHY80211_MAC_LEN);
+
             packinfo->header_offset += 24;
             break;
         case distrib_to:
-            packinfo->bssid_mac = addr0;
-            packinfo->source_mac = addr1;
-            packinfo->dest_mac = addr2;
+            packinfo->bssid_mac = mac_addr(addr0, PHY80211_MAC_LEN);
+            packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
+            packinfo->dest_mac = mac_addr(addr2, PHY80211_MAC_LEN);
+
             packinfo->header_offset += 24;
             break;
         case distrib_unknown:
@@ -995,9 +997,9 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
                 return 0;
             }
 
-            packinfo->bssid_mac = addr1;
-            packinfo->source_mac = addr3;
-            packinfo->dest_mac = addr0;
+            packinfo->bssid_mac = mac_addr(addr0, PHY80211_MAC_LEN);
+            packinfo->source_mac = mac_addr(addr3, PHY80211_MAC_LEN);
+            packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
 
             packinfo->distrib = distrib_inter;
 
@@ -1402,10 +1404,10 @@ int Kis_80211_Phy::PacketDot11dataDissector(kis_packet *in_pack) {
 							MungeToPrintable((char *) &(pdu[3]), pdu_len, 0);
 						break;
 					case iapp_pdu_bssid:
-						if (pdu_len != MAC_LEN)
+						if (pdu_len != PHY80211_MAC_LEN)
 							break;
 
-						packinfo->bssid_mac = mac_addr(&(pdu[3]));
+						packinfo->bssid_mac = mac_addr(&(pdu[3]), PHY80211_MAC_LEN);
 						break;
 					case iapp_pdu_capability:
 						if (pdu_len != 1)
@@ -1550,7 +1552,8 @@ int Kis_80211_Phy::PacketDot11dataDissector(kis_packet *in_pack) {
 
 				if (dhcp_tag_map.find(61) != dhcp_tag_map.end() &&
 					dhcp_tag_map[61].size() == 7) {
-					mac_addr clmac = mac_addr(&(chunk->data[dhcp_tag_map[61][0] + 2]));
+					mac_addr clmac = mac_addr(&(chunk->data[dhcp_tag_map[61][0] + 2]),
+											  PHY80211_MAC_LEN);
 
 					if (clmac != packinfo->source_mac) {
 						_ALERT(alert_dhcpclient_ref, in_pack, packinfo, 
