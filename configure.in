@@ -860,6 +860,11 @@ havenetlink=yes
 #	AC_MSG_WARN(Missing libnl or libnl too old support will not be able to control mac80211 vaps)
 #fi
 
+AC_CHECK_PROG(havepkgconfig, [pkg-config], yes, no)
+if test "$havepkgconfig" = "no"; then
+  AC_MSG_WARN(Missing pkg-config will lead to multiple other checks failing)
+fi
+
 if test "$havenetlink" = "yes"; then
 	PKG_CHECK_MODULES(libnl20, [libnl-2.0], libnl20=yes, libnl20=no)
 	PKG_CHECK_MODULES(libnl1, [libnl-1], libnl1=yes, libnl1=no)
@@ -1092,6 +1097,13 @@ else
 
 	if test "$verminor" = "4" -a "$vertiny" -lt 16 ; then
 		AC_MSG_WARN(There have been a number of major improvements in the linux-wireless extentions and in the aironet drivers in recent versions.  It is recomended that you run at least kernel version 2.4.16, otherwise you may experience difficulties.)
+	fi
+
+	if test "$havepkgconfig" = "no"; then
+		echo
+		echo "pkg-config was missing.  Without it, configure cannot detect "
+		echo "several libraries Kismet needs.  Install pkg-config and re-run"
+		echo "configure."
 	fi
 
 	echo

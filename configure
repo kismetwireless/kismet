@@ -604,6 +604,7 @@ libnl20_CFLAGS
 PKG_CONFIG_LIBDIR
 PKG_CONFIG_PATH
 PKG_CONFIG
+havepkgconfig
 pcap
 pcaplnk
 wantpcap
@@ -6639,6 +6640,49 @@ done
 #	AC_MSG_WARN(Missing libnl or libnl too old support will not be able to control mac80211 vaps)
 #fi
 
+# Extract the first word of "pkg-config", so it can be a program name with args.
+set dummy pkg-config; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if test "${ac_cv_prog_havepkgconfig+set}" = set; then :
+  $as_echo_n "(cached) " >&6
+else
+  if test -n "$havepkgconfig"; then
+  ac_cv_prog_havepkgconfig="$havepkgconfig" # Let the user override the test.
+else
+as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if { test -f "$as_dir/$ac_word$ac_exec_ext" && $as_test_x "$as_dir/$ac_word$ac_exec_ext"; }; then
+    ac_cv_prog_havepkgconfig="yes"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+  test -z "$ac_cv_prog_havepkgconfig" && ac_cv_prog_havepkgconfig="no"
+fi
+fi
+havepkgconfig=$ac_cv_prog_havepkgconfig
+if test -n "$havepkgconfig"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $havepkgconfig" >&5
+$as_echo "$havepkgconfig" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+if test "$havepkgconfig" = "no"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Missing pkg-config will lead to multiple other checks failing" >&5
+$as_echo "$as_me: WARNING: Missing pkg-config will lead to multiple other checks failing" >&2;}
+fi
+
 if test "$havenetlink" = "yes"; then
 
 
@@ -8428,6 +8472,13 @@ else
 	if test "$verminor" = "4" -a "$vertiny" -lt 16 ; then
 		{ $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: There have been a number of major improvements in the linux-wireless extentions and in the aironet drivers in recent versions.  It is recomended that you run at least kernel version 2.4.16" >&5
 $as_echo "$as_me: WARNING: There have been a number of major improvements in the linux-wireless extentions and in the aironet drivers in recent versions.  It is recomended that you run at least kernel version 2.4.16" >&2;}
+	fi
+
+	if test "$havepkgconfig" = "no"; then
+		echo
+		echo "pkg-config was missing.  Without it, configure cannot detect "
+		echo "several libraries Kismet needs.  Install pkg-config and re-run"
+		echo "configure."
 	fi
 
 	echo
