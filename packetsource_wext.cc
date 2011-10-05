@@ -433,8 +433,8 @@ int PacketSource_Wext::EnableMonitor() {
 	char errstr[STATUS_MAX];
 	int ret;
 
-#ifdef HAVE_LINUX_NETLINK
 	if (Linux_GetSysDrvAttr(interface.c_str(), "phy80211")) {
+#ifdef HAVE_LINUX_NETLINK
 		use_mac80211 = 1;
 		if (mac80211_connect(interface.c_str(), &(globalreg->nlhandle), &nlcache, 
 							 &nlfamily, errstr) < 0) {
@@ -442,10 +442,18 @@ int PacketSource_Wext::EnableMonitor() {
 				 MSGFLAG_PRINTERROR);
 			return -1;
 		}
-	}
 #else
-	use_mac80211 = 0;
+		warning =
+			"Source '" + interface + "' uses phy80211/mac80211 drivers, but "
+			 "Kismet was not compiled with LibNL.  This will almost definitely not "
+			 "work right, but continuing for now.  Expect bad behavior.";
+		_MSG(warning, MSGFLAG_PRINTERROR);
+
+		use_mac80211 = 0;
 #endif
+	} else {
+		use_mac80211 = 0;
+	}
 
 	if (type == "ipw2200" || type == "ipw2100") {
 		warning =
