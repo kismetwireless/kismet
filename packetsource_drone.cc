@@ -756,6 +756,8 @@ int DroneClientFrame::ParseData() {
 					(rofft + 4 <= sublen)) {
 					chunk->dlt = kis_ntoh32(ds11->dlt);
 					rofft += 4;
+				} else {
+					chunk->dlt = KDLT_IEEE802_11;
 				}
 
 				// Fill in the rest of the chunk if it makes sense to
