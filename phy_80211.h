@@ -170,7 +170,15 @@ enum dot11_network_type {
 // fwd def
 class dot11_client;
 
-class dot11_ap : public tracker_component {
+// Dot11 AP / Network
+//
+// The network record tracks everything that happens on a BSSID.  It is generally
+// correlated to the behavior of the AP; it will only be created to track AP
+// behavior.
+//
+// An AP will have both a network and a client record, as the AP itself is also
+// a client on the network.
+class dot11_network : public tracker_component {
 public:
 	dot11_network_type type;
 
@@ -268,7 +276,7 @@ public:
 	// Most recent SSID
 	dot11_ssid *last_ssid;
 
-	dot11_ap *netptr;
+	dot11_network *netptr;
 
 	string dot11d_country;
 	vector<dot11_11d_range_info> dot11d_vec;

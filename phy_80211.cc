@@ -261,7 +261,7 @@ dot11_ssid *Kis_80211_Phy::BuildSSID(uint32_t ssid_csum,
 									 kis_packet *in_pack) {
 	dot11_ssid *adssid;
 	kis_tracked_device *dev = NULL;
-	dot11_ap *net = NULL;
+	dot11_network *net = NULL;
 
 	adssid = new dot11_ssid;
 	adssid->checksum = ssid_csum;
@@ -290,10 +290,9 @@ dot11_ssid *Kis_80211_Phy::BuildSSID(uint32_t ssid_csum,
 		dev = devicetracker->FetchDevice(packinfo->bssid_mac);
 
 		if (dev != NULL) {
-			net = (dot11_ap *) dev->fetch(dev_comp_net);
+			net = (dot11_network *) dev->fetch(dev_comp_net);
 
 			if (net != NULL) {
-
 				for (map<uint32_t, dot11_ssid *>::iterator asi = 
 					 net->ssid_map.begin(); asi != net->ssid_map.end(); ++asi) {
 
@@ -449,7 +448,7 @@ void Kis_80211_Phy::BlitDevices(int in_fd, vector<kis_tracked_device *> *devlist
 }
 
 int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
-	dot11_ap *net = NULL;
+	dot11_network *net = NULL;
 	dot11_client *cli = NULL;
 
 	// We can't do anything w/ it from the packet layer
@@ -469,6 +468,9 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 
 	if (commoninfo == NULL)
 		return 0;
+
+	kis_data_packinfo *datainfo =
+		(kis_data_packinfo *) in_pack->fetch(pack_comp_basicdata);
 
 	// We can't do anything useful
 	if (dot11info->corrupt || dot11info->type == packet_noise ||
@@ -491,13 +493,131 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 	}
 
 	// Types of phydot11 devices:
-	// Client	- no net record, data is stored in client pointer
-	// AP		- both net and client record, data is stored in both.
-	//            net record tracks data universal to the AP, client record tracks
-	//            data from the AP itself?
+	// Client   - A client device, which may be wired or wireless.  Stored under
+	// 			  dev_comp_client.  May also represent the direct-from-ap 
+	// 			  communications an AP/router combo device, where the AP is its
+	// 			  own client.
+	//
+	// AP		- A device which operates as an AP in some fashion, ie the BSSID
+	// 			  target of a packet.  Packet counts reflect all traffic on the
+	// 			  BSSID from all clients and traffic from the BSSID itself, so
+	// 			  are effectively a double-count of some packets.  Don't add them.
+	
+	// Actions:
+	// - Identify AP
+	//   - Create device_tracker ap device if missing
+	//   - Create dev_comp_net component on apdev if missing
+	// - Learn BSSID, increment AP records
+	// - Identify client
+	//   - Create device_tracker client device if missing
+	//   - Create dev_comp_client on clidev if missing
+	// - Increment client counts
 
-	net = (dot11_ap *) dev->fetch(dev_comp_net);
-	cli = (dot11_client *) dev->fetch(dev_comp_client);
+	// Find or create a device record for the ap device
+	kis_tracked_device *apdev =
+		devicetracker->MapToDevice(dot11info->bssid_mac, in_pack);
+
+	net = (dot11_network *) apdev->fetch(dev_comp_net);
+
+	if (net == NULL) {
+		net = new dot11_network();
+
+		if (dot11info->type == packet_management &&
+			dot11info->subtype == packet_sub_probe_req) {
+			net->type = dot11_network_probe;
+		} else if (dot11info->distrib == distrib_adhoc) {
+			net->type = dot11_network_adhoc;
+		} else if (dot11info->type == packet_data) {
+			net->type = dot11_network_data;
+		} else {
+			net->type = dot11_network_ap;
+		}
+
+		apdev->insert(dev_comp_net, net);
+	}
+
+	if (dot11info->distrib == distrib_adhoc && net->type == dot11_network_ap) {
+		string al = "Network BSSID " + dot11info->bssid_mac.Mac2String() + 
+			" previously advertised as AP network, now advertising as "
+			"Ad-Hoc which may indicate AP spoofing/impersonation";
+
+		globalreg->alertracker->RaiseAlert(alert_adhoc_ref, in_pack,
+										   dot11info->bssid_mac,
+										   dot11info->source_mac,
+										   dot11info->dest_mac,
+										   dot11info->other_mac,
+										   dot11info->channel, al);
+
+	} else if (dot11info->type == packet_management && dot11info->ess &&
+		net->type == dot11_network_data) {
+		// Turn data-only networks into ap networks if we see management
+		// frames
+		net->type = dot11_network_ap;
+	} else if (dot11info->distrib == distrib_adhoc) {
+		// Haven't seen network as managed, now seeing it as adhoc 
+		net->type = dot11_network_adhoc;
+	}
+
+	net->bss_timestamp = dot11info->timestamp;
+
+	if (dot11info->decrypted)
+		net->decrypted = 1;
+
+	if (dot11info->type == packet_management &&
+		(dot11info->subtype == packet_sub_deauthentication ||
+		 dot11info->subtype == packet_sub_disassociation))
+		net->client_disconnects++;
+
+	net->last_sequence = dot11info->sequence_number;
+
+	// If we've figured out we have data...
+	if (datainfo != NULL) {
+		if (datainfo->cdp_dev_id != "") {
+			if (dot11info->bssid_mac == dot11info->source_mac) {
+				net->cdp_dev_id = datainfo->cdp_dev_id;
+			}
+
+			cli->cdp_dev_id = datainfo->cdp_dev_id;
+		}
+
+		if (datainfo->cdp_port_id != "") {
+			if (dot11info->bssid_mac == dot11info->source_mac) {
+				net->cdp_port_id = datainfo->cdp_port_id;
+			}
+
+			cli->cdp_port_id = datainfo->cdp_port_id;
+		}
+	}
+
+	// Find the tracked client device
+	kis_tracked_device *clidev =
+		devicetracker->MapToDevice(dot11info->source_mac, in_pack);
+
+	cli = (dot11_client *) apdev->fetch(dev_comp_client);
+
+	if (cli == NULL) {
+		cli = new dot11_client();
+
+		if (dot11info->distrib == distrib_from ||
+			(dot11info->type == packet_management &&
+			 (dot11info->subtype == packet_sub_beacon ||
+			  dot11info->subtype == packet_sub_probe_resp))) {
+			cli->type = dot11_client_fromds;
+		} else if (dot11info->distrib == distrib_to ||
+				   (dot11info->type == packet_management &&
+					dot11info->subtype == packet_sub_probe_req)) {
+			cli->type = dot11_client_tods;
+		} else if (dot11info->distrib == distrib_inter) {
+			cli->type = dot11_client_interds;
+		} else if (dot11info->distrib == distrib_adhoc) {
+			cli->type = dot11_client_adhoc;
+		} else {
+			cli->type = dot11_client_unknown;
+		}
+
+		clidev->insert(dev_comp_client, cli);
+	}
+
 
 	return 1;
 }

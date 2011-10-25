@@ -274,11 +274,13 @@ logdefault=Kismet
 # have to touch it so don't complain too much.
 #
 # %p is replaced by the logging prefix + '/'
-# %n is replaced by the logging instance name
-# %d is replaced by the starting date as Mon-DD-YYYY
+# %n is replaced by the logging title (-t cmdline)
+# %d is replaced by the starting date as Mmm-DD-YYYY
 # %D is replaced by the current date as YYYYMMDD
 # %t is replaced by the starting time as HH-MM-SS
+# %T is replaced by the starting time as HHMMSS
 # %i is replaced by the increment log in the case of multiple logs
+# %I is replaced by the increment log, padded with zeroes
 # %l is replaced by the log type (pcapdump, strings, etc)
 # %h is replaced by the home directory
 

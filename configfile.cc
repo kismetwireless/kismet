@@ -173,6 +173,7 @@ string ConfigFile::ExpandLogPath(string path, string logname, string type,
                                  int start, int overwrite) {
     string logtemplate;
     int inc = 0;
+	int incpad = 0;
 
     logtemplate = path;
 
@@ -206,8 +207,7 @@ string ConfigFile::ExpandLogPath(string path, string logname, string type,
             strftime(datestr, 24, "%Y%m%d", now);
 
             logtemplate.insert(nl, datestr);
-        }
-        else if (op == 't') {
+        } else if (op == 't') {
             time_t tnow;
             struct tm *now;
 
@@ -218,12 +218,25 @@ string ConfigFile::ExpandLogPath(string path, string logname, string type,
             strftime(timestr, 12, "%H-%M-%S", now);
 
             logtemplate.insert(nl, timestr);
-        }
-        else if (op == 'l')
+        } else if (op == 'T') {
+            time_t tnow;
+            struct tm *now;
+
+            tnow = time(0);
+            now = localtime(&tnow);
+
+            char timestr[12];
+            strftime(timestr, 12, "%H%M%S", now);
+
+            logtemplate.insert(nl, timestr);
+        } else if (op == 'l') {
             logtemplate.insert(nl, type.c_str());
-        else if (op == 'i')
+		} else if (op == 'i') {
             inc = nl;
-        else if (op == 'h') {
+		} else if (op == 'I') {
+			inc = nl;
+			incpad = 1;
+		} else if (op == 'h') { 
             struct passwd *pw;
 
             pw = getpwuid(getuid());
@@ -254,13 +267,15 @@ string ConfigFile::ExpandLogPath(string path, string logname, string type,
 
         if (start == 0) {
             // If we don't have a number we want to use, find the next free
-            for (int num = 1; num < 100; num++) {
+            for (int num = 1; num < 10000; num++) {
 				string copied;
                 struct stat filstat;
 
-                // This is annoying
-                char numstr[5];
-                snprintf(numstr, 5, "%d", num);
+                char numstr[6];
+				if (incpad)
+					snprintf(numstr, 6, "%05d", num);
+				else
+					snprintf(numstr, 6, "%d", num);
 
                 copied = logtemplate;
                 copied.insert(inc, numstr);

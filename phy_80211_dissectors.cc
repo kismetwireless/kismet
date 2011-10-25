@@ -1094,7 +1094,7 @@ int Kis_80211_Phy::PacketDot11dataDissector(kis_packet *in_pack) {
 
 		memcpy(datainfo->ivset, &(chunk->data[header_offset]), 3);
 
-		in_pack->insert(_PCM(PACK_COMP_BASICDATA), datainfo);
+		in_pack->insert(pack_comp_basicdata, datainfo);
 		return 1;
 	}
 

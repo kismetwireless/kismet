@@ -340,6 +340,9 @@ public:
 
 	// Total packets
 	unsigned int packets;
+	// TX/RX packet breakdown
+	unsigned int tx_packets;
+	unsigned int rx_packets;
 
 	// Link level packets (mgmt frames, etc)
 	unsigned int llc_packets;
@@ -394,7 +397,7 @@ public:
 
 		first_time = last_time = 0;
 
-		packets = 0;
+		packets = tx_packets = rx_packets = 0;
 
 		llc_packets = data_packets = crypt_packets = error_packets = filter_packets = 0;
 
@@ -620,9 +623,10 @@ public:
 
 	// Look for an existing device record
 	kis_tracked_device *FetchDevice(mac_addr in_device);
+	kis_tracked_device *FetchDevice(mac_addr in_device, unsigned int in_phy);
 	
-	// Make or find a device record
-	kis_tracked_device *MapToDevice(kis_packet *in_pack);
+	// Make or find a device record for a mac
+	kis_tracked_device *MapToDevice(mac_addr in_device, kis_packet *in_pack);
 
 	// Fetch the internal maps. Touching these is generally Bad.  Should
 	// only be used when the chain API is insufficient for something, 
@@ -717,6 +721,11 @@ protected:
 	// Log helpers
 	void WriteXML(FILE *in_logfile);
 	void WriteTXT(FILE *in_logfile);
+
+	// Build a device record
+	kis_tracked_device *BuildDevice(mac_addr in_device, kis_packet *in_pack);
+	// Populate the common components of a device
+	int PopulateCommon(kis_tracked_device *device, kis_packet *in_pack);
 };
 
 #endif

@@ -863,6 +863,12 @@ kis_tracked_device *Devicetracker::FetchDevice(mac_addr in_device) {
 	return NULL;
 }
 
+kis_tracked_device *Devicetracker::FetchDevice(mac_addr in_device, 
+											   unsigned int in_phy) {
+	in_device.SetPhy(in_phy);
+	return FetchDevice(in_device);
+}
+
 int Devicetracker::StringCollector(kis_packet *in_pack) {
 	kis_tracked_device_info *devinfo = 
 		(kis_tracked_device_info *) in_pack->fetch(_PCM(PACK_COMP_DEVICE));
@@ -893,14 +899,6 @@ int Devicetracker::StringCollector(kis_packet *in_pack) {
 int Devicetracker::CommonTracker(kis_packet *in_pack) {
 	kis_common_info *pack_common = 
 		(kis_common_info *) in_pack->fetch(pack_comp_common);
-	kis_data_packinfo *pack_data = 
-		(kis_data_packinfo *) in_pack->fetch(pack_comp_basicdata);
-	kis_layer1_packinfo *pack_l1info = 
-		(kis_layer1_packinfo *) in_pack->fetch(pack_comp_radiodata);
-	kis_gps_packinfo *pack_gpsinfo =
-		(kis_gps_packinfo *) in_pack->fetch(pack_comp_gps);
-	kis_ref_capsource *pack_capsrc =
-		(kis_ref_capsource *) in_pack->fetch(pack_comp_capsrc);
 
 	num_packets++;
 	num_packetdelta++;
@@ -953,17 +951,82 @@ int Devicetracker::CommonTracker(kis_packet *in_pack) {
 	if (pack_common->device == 0)
 		return 0;
 
-	kis_tracked_device *device = NULL;
-	kis_device_common *common = NULL;
-
-	mac_addr devmac;
-
-	devmac = pack_common->device;
+	mac_addr devmac = pack_common->device;
 	devmac.SetPhy(pack_common->phyid);
 
-	device_itr di = tracked_map.find(devmac);
+	kis_tracked_device *device = NULL;
 
-	if (di == tracked_map.end()) {
+	// Make a new device or fetch an existing one
+	device = BuildDevice(devmac, in_pack);
+
+	if (device == NULL)
+		return 0;
+
+	// Push our common data into it
+	PopulateCommon(device, in_pack);
+
+	return 1;
+}
+
+// Find a device, creating the device as needed and populating common data
+kis_tracked_device *Devicetracker::MapToDevice(mac_addr in_device, 
+											   kis_packet *in_pack) {
+	kis_tracked_device *device = NULL;
+	kis_common_info *pack_common = 
+		(kis_common_info *) in_pack->fetch(pack_comp_common);
+
+	// If we can't figure it out at all (no common layer) just bail
+	if (pack_common == NULL)
+		return NULL;
+
+	mac_addr devmac = in_device;
+	devmac.SetPhy(pack_common->phyid);
+
+	if ((device = FetchDevice(devmac)) == NULL) {
+		device = BuildDevice(devmac, in_pack);
+		
+		if (device == NULL)
+			return NULL;
+
+		PopulateCommon(device, in_pack);
+	} 
+
+	// fprintf(stderr, "debug - devicetracker mapped %s to device %p\n", devmac.Mac2String().c_str(), device);
+
+	return device;
+}
+
+// Find a device, creating the device as needed and populating common data
+kis_tracked_device *Devicetracker::BuildDevice(mac_addr in_device, 
+											   kis_packet *in_pack) {
+	kis_common_info *pack_common = 
+		(kis_common_info *) in_pack->fetch(pack_comp_common);
+
+	// If we can't figure it out at all (no common layer) just bail
+	if (pack_common == NULL)
+		return NULL;
+
+	if (in_pack->error || pack_common->error) {
+		return NULL;
+	}
+
+	// If we dont' have a device mac, don't make a record
+	if (pack_common->device == 0)
+		return NULL;
+
+	kis_tracked_device *device = NULL;
+
+	mac_addr devmac = in_device;
+	devmac.SetPhy(pack_common->phyid);
+
+	device = FetchDevice(devmac);
+
+	if (device == NULL) {
+		// fprintf(stderr, "debug - devicetracker building device for %s\n", devmac.Mac2String().c_str());
+
+		// we don't have this device tracked.  Make one based on the
+		// input data (for example, this could be a bssid which has never
+		// talked, but which we see a client communicating with)
 		device = new kis_tracked_device;
 
 		device->key = devmac;
@@ -975,16 +1038,43 @@ int Devicetracker::CommonTracker(kis_packet *in_pack) {
 		tracked_map[device->key] = device;
 		tracked_vec.push_back(device);
 		phy_device_vec[pack_common->phyid]->push_back(device);
-	} else {
-		device = di->second;
+
+		// mark it dirty
+		if (device->dirty == 0) {
+			device->dirty = 1;
+			dirty_device_vec.push_back(device);
+			phy_dirty_vec[pack_common->phyid]->push_back(device);
+		}
 	}
 
+	return device;
+}
+
+int Devicetracker::PopulateCommon(kis_tracked_device *device, kis_packet *in_pack) {
+	kis_common_info *pack_common = 
+		(kis_common_info *) in_pack->fetch(pack_comp_common);
+	kis_data_packinfo *pack_data = 
+		(kis_data_packinfo *) in_pack->fetch(pack_comp_basicdata);
+	kis_layer1_packinfo *pack_l1info = 
+		(kis_layer1_packinfo *) in_pack->fetch(pack_comp_radiodata);
+	kis_gps_packinfo *pack_gpsinfo =
+		(kis_gps_packinfo *) in_pack->fetch(pack_comp_gps);
+	kis_ref_capsource *pack_capsrc =
+		(kis_ref_capsource *) in_pack->fetch(pack_comp_capsrc);
+
+	// If we can't figure it out at all (no common layer) just bail
+	if (pack_common == NULL)
+		return 0;
+
+	// Mark it dirty
 	if (device->dirty == 0) {
 		device->dirty = 1;
 		dirty_device_vec.push_back(device);
 		phy_dirty_vec[pack_common->phyid]->push_back(device);
 	}
 
+	// Make a common record
+	kis_device_common *common = NULL;
 	common = (kis_device_common *) device->fetch(devcomp_ref_common);
 
 	if (common == NULL) {
@@ -1060,51 +1150,7 @@ int Devicetracker::CommonTracker(kis_packet *in_pack) {
 	devinfo->devref = device;
 	in_pack->insert(pack_comp_device, devinfo);
 
-	return 0;
-}
-
-kis_tracked_device *Devicetracker::MapToDevice(kis_packet *in_pack) {
-	// Fetch the bits of the packet we tie into a device record
-	kis_common_info *pack_common = 
-		(kis_common_info *) in_pack->fetch(pack_comp_common);
-	kis_data_packinfo *pack_data = 
-		(kis_data_packinfo *) in_pack->fetch(pack_comp_basicdata);
-	kis_layer1_packinfo *pack_l1info = 
-		(kis_layer1_packinfo *) in_pack->fetch(pack_comp_radiodata);
-
-	kis_tracked_device *device = NULL;
-	kis_device_common *common = NULL;
-
-	mac_addr devmac;
-
-	if (pack_common == NULL)
-		return NULL;
-
-	devmac = pack_common->device;
-	devmac.SetPhy(pack_common->phyid);
-
-	device_itr di = tracked_map.find(devmac);
-
-	if (di == tracked_map.end()) {
-		device = new kis_tracked_device;
-
-		device->key = devmac;
-
-		tracked_map[device->key] = device;
-		tracked_vec.push_back(device);
-
-		common = new kis_device_common;
-		common->device = device;
-	} else {
-		device = di->second;
-	}
-
-	if (device->dirty == 0) {
-		device->dirty = 1;
-		dirty_device_vec.push_back(device);
-	}
-
-	return device;
+	return 1;
 }
 
 void Devicetracker::WriteXML(FILE *in_logfile) {

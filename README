@@ -802,7 +802,9 @@ http://www.kismetwireless.net
         %d      Starting date, Mmm-DD-YYYY
         %D      Starting date, YYYYMMDD
         %t      Starting time, HH-MM-SS
+        %T      Starting time, HHMMSS
         %i      Incremental, in the case of multiple logs of the same name
+        %I      Incremental, padded with zeroes (00001)
         %l      Log type (pcapdump, netxml, etc)
         %h      Home directory of the user Kismet was started as
 
