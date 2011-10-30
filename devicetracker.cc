@@ -991,8 +991,6 @@ kis_tracked_device *Devicetracker::MapToDevice(mac_addr in_device,
 		PopulateCommon(device, in_pack);
 	} 
 
-	// fprintf(stderr, "debug - devicetracker mapped %s to device %p\n", devmac.Mac2String().c_str(), device);
-
 	return device;
 }
 
@@ -1083,6 +1081,9 @@ int Devicetracker::PopulateCommon(kis_tracked_device *device, kis_packet *in_pac
 		device->insert(devcomp_ref_common, common);
 
 		common->first_time = in_pack->ts.tv_sec;
+
+		if (globalreg->manufdb != NULL) 
+			common->manuf = globalreg->manufdb->LookupOUI(device->key);
 	}
 
 	common->packets++;

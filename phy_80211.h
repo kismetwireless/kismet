@@ -189,8 +189,10 @@ public:
 	// Advertised SSID data, by checksum
 	map<uint32_t, dot11_ssid *> ssid_map;
 
-	// Cryptset from data packets not known to be linked to a SSID
-	uint64_t data_cryptset;
+	// Packets sent from this BSSID
+	uint64_t tx_cryptset;
+	// Packets sent to this bssid
+	uint64_t rx_cryptset;
 
 	// One of the SSIDs decrypted?
 	int decrypted;
@@ -222,6 +224,8 @@ public:
 	unsigned int fragments;
 	unsigned int retries;
 
+	int new_packets;
+
 	// Record is dirty
 	int dirty;
 
@@ -229,8 +233,34 @@ public:
 	void *groupptr;
 	dot11_ssid *lastssid;
 
+	// Data sizes of network traffic
+	uint64_t tx_datasize;
+	uint64_t rx_datasize;
+
 	// Map of sources which have seen this network
 	// map<uuid, source_data *> source_map;
+	
+	dot11_network() {
+		type = dot11_network_ap;
+
+		tx_cryptset = 0L;
+		rx_cryptset = 0L;
+		decrypted = 0;
+
+		client_disconnects = 0;
+		last_sequence = 0;
+		bss_timestamp = 0;
+
+		tx_datasize = 0L;
+		rx_datasize = 0L;
+
+		groupptr = NULL;
+		lastssid = NULL;
+
+		new_packets = 0;
+
+		dirty = 0;
+	}
 };
 
 enum dot11_client_type {
@@ -257,7 +287,8 @@ public:
 
 	int last_sequence;
 
-	uint64_t data_cryptset;
+	uint64_t tx_cryptset;
+	uint64_t rx_cryptset;
 
 	kis_ip_data guess_ipdata;
 
@@ -276,11 +307,34 @@ public:
 	// Most recent SSID
 	dot11_ssid *last_ssid;
 
-	dot11_network *netptr;
-
 	string dot11d_country;
 	vector<dot11_11d_range_info> dot11d_vec;
 
+	uint64_t tx_datasize;
+	uint64_t rx_datasize;
+
+	int new_packets;
+
+	int dirty;
+
+	dot11_client() {
+		type = dot11_client_unknown;
+		decrypted = 0;
+		last_bssid = mac_addr("00:00:00:00:00:00");
+		last_sequence = 0;
+		tx_cryptset = 0L;
+		rx_cryptset = 0L;
+		fragments = 0;
+		retries = 0;
+		last_ssid = NULL;
+
+		tx_datasize = 0L;
+		rx_datasize = 0L;
+
+		new_packets = 0;
+
+		dirty = 0;
+	}
 };
 
 class dot11_ssid_alert {

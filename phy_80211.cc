@@ -512,6 +512,14 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 	//   - Create device_tracker client device if missing
 	//   - Create dev_comp_client on clidev if missing
 	// - Increment client counts
+	
+	// Things we no longer have to worry about because they're handled by
+	// the devicetracker layer:
+	//  - l1 signal info tracking
+	//  - GPS tracking
+	//  - Capture source tracking
+	//  - Tagging
+	//
 
 	// Find or create a device record for the ap device
 	kis_tracked_device *apdev =
@@ -559,9 +567,6 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 	}
 
 	net->bss_timestamp = dot11info->timestamp;
-
-	if (dot11info->decrypted)
-		net->decrypted = 1;
 
 	if (dot11info->type == packet_management &&
 		(dot11info->subtype == packet_sub_deauthentication ||
@@ -618,6 +623,49 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 		clidev->insert(dev_comp_client, cli);
 	}
 
+	// Interdistrib and adhoc get attached to both tx and rx, for 
+	// crypt and data
+	if (dot11info->distrib == distrib_from || 
+		dot11info->distrib == distrib_adhoc ||
+		dot11info->distrib == distrib_inter) {
+
+		net->tx_cryptset |= dot11info->cryptset;
+		cli->tx_cryptset |= dot11info->cryptset;
+
+		net->tx_datasize += dot11info->datasize;
+		cli->tx_datasize += dot11info->datasize;
+	}
+	
+	if (dot11info->distrib == distrib_to ||
+		dot11info->distrib == distrib_adhoc ||
+		dot11info->distrib == distrib_inter) {
+
+		net->rx_cryptset |= dot11info->cryptset;
+		cli->rx_cryptset |= dot11info->cryptset;
+
+		net->rx_datasize += dot11info->datasize;
+		cli->rx_datasize += dot11info->datasize;
+	}
+
+	if (dot11info->decrypted) {
+		net->decrypted = 1;
+		cli->decrypted = 1;
+	}
+
+	// fragments, retries, ssid, bssid
+	cli->last_bssid = dot11info->bssid_mac;
+
+	cli->fragments += dot11info->fragmented;
+	cli->retries += dot11info->retry;
+
+	net->new_packets++;
+	cli->new_packets++;
+
+	// We don't have to maintain a dirty vec because the devicetracker does
+	// does that for us; anything that managed to be a device here is going
+	// to have flagged dirty in the devicetracker
+	cli->dirty = 1;
+	net->dirty = 1;
 
 	return 1;
 }
