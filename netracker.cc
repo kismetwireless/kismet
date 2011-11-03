@@ -2907,6 +2907,7 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 			ssid = packinfo->ssid;
 		}
 
+		/*
 		snprintf(status, STATUS_MAX, "Detected new %s network \"%s\", BSSID %s, "
 				 "encryption %s, channel %d, %2.2f mbit",
 				 nettype.c_str(),
@@ -2915,6 +2916,7 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 				 packinfo->cryptset ? "yes" : "no",
 				 net->channel, packinfo->maxrate);
 		_MSG(status, MSGFLAG_INFO);
+		*/
 
 		// Check filtering and send BSSID
 		int filtered = 0;

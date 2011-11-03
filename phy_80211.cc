@@ -140,6 +140,25 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
 	alert_dhcpclient_ref =
 		globalreg->alertracker->ActivateConfiguredAlert("DHCPCLIENTID");
 
+	alert_chan_ref =
+		globalreg->alertracker->ActivateConfiguredAlert("CHANCHANGE");
+	alert_dhcpcon_ref =
+		globalreg->alertracker->ActivateConfiguredAlert("DHCPCONFLICT");
+	alert_bcastdcon_ref =
+		globalreg->alertracker->ActivateConfiguredAlert("BCASTDISCON");
+	alert_airjackssid_ref = 
+		globalreg->alertracker->ActivateConfiguredAlert("AIRJACKSSID");
+	alert_wepflap_ref =
+		globalreg->alertracker->ActivateConfiguredAlert("CRYPTODROP");
+	alert_dhcpname_ref =
+		globalreg->alertracker->ActivateConfiguredAlert("DHCPNAMECHANGE");
+	alert_dhcpos_ref =
+		globalreg->alertracker->ActivateConfiguredAlert("DHCPOSCHANGE");
+	alert_adhoc_ref =
+		globalreg->alertracker->ActivateConfiguredAlert("ADHOCCONFLICT");
+	alert_ssidmatch_ref =
+		globalreg->alertracker->ActivateConfiguredAlert("APSPOOF");
+
 	// Do we process the whole data packet?
     if (globalreg->kismet_config->FetchOptBoolean("hidedata", 0) ||
 		globalreg->kismet_config->FetchOptBoolean("dontbeevil", 0)) {
@@ -265,11 +284,13 @@ dot11_ssid *Kis_80211_Phy::BuildSSID(uint32_t ssid_csum,
 
 	adssid = new dot11_ssid;
 	adssid->checksum = ssid_csum;
+	adssid->ietag_csum = packinfo->ietag_csum;
 	adssid->mac = packinfo->bssid_mac;
 	adssid->ssid = string(packinfo->ssid);
 	if (packinfo->ssid_len == 0 || packinfo->ssid_blank) {
 		adssid->ssid_cloaked = 1;
 	}
+	adssid->ssid_len = packinfo->ssid_len;
 
 	adssid->beacon_info = string(packinfo->beacon_info);
 	adssid->cryptset = packinfo->cryptset;
@@ -277,7 +298,12 @@ dot11_ssid *Kis_80211_Phy::BuildSSID(uint32_t ssid_csum,
 	adssid->maxrate = packinfo->maxrate;
 	adssid->beaconrate = Ieee80211Interval2NSecs(packinfo->beacon_interval);
 	adssid->packets = 0;
+	adssid->beacons = 0;
 
+	adssid->dot11d_country = packinfo->dot11d_country;
+	adssid->dot11d_vec = packinfo->dot11d_vec;
+
+#if 0
 	// If it's a probe response record it in the SSID cache, we only record
 	// one per BSSID for now and only if we have a cloaked SSID on this record.
 	// While we're at it, also figure out if we're responding for SSIDs we've never
@@ -367,6 +393,7 @@ dot11_ssid *Kis_80211_Phy::BuildSSID(uint32_t ssid_csum,
 			}
 		}
 	}
+#endif
 
 	return adssid;
 }
@@ -450,6 +477,10 @@ void Kis_80211_Phy::BlitDevices(int in_fd, vector<kis_tracked_device *> *devlist
 int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 	dot11_network *net = NULL;
 	dot11_client *cli = NULL;
+	dot11_ssid *ssid = NULL;
+
+	bool net_new = false;
+	bool cli_new = false;
 
 	// We can't do anything w/ it from the packet layer
 	if (in_pack->error || in_pack->filtered)
@@ -529,6 +560,8 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 
 	if (net == NULL) {
 		net = new dot11_network();
+
+		net_new = true;
 
 		if (dot11info->type == packet_management &&
 			dot11info->subtype == packet_sub_probe_req) {
@@ -661,6 +694,64 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 	net->new_packets++;
 	cli->new_packets++;
 
+	// Track the SSID data
+	if (dot11info->type == packet_management &&
+		(dot11info->subtype == packet_sub_beacon || 
+		 dot11info->subtype == packet_sub_probe_resp ||
+		 dot11info->subtype == packet_sub_probe_req)) {
+		string ssidkey = dot11info->ssid + IntToString(dot11info->ssid_len) +
+			IntToString(dot11info->cryptset);
+
+		uint32_t ssidhash = Adler32Checksum(ssidkey.c_str(), ssidkey.length());
+
+		// fprintf(stderr, "debug - beacon key %s hash %u\n", ssidkey.c_str(), ssidhash);
+		if (dot11info->subtype == packet_sub_beacon) {
+			map<uint32_t, dot11_ssid *>::iterator si = net->ssid_map.find(ssidhash);
+			if (si == net->ssid_map.end()) {
+				ssid = BuildSSID(ssidhash, dot11info, in_pack);
+
+				string printssid = ssid->ssid;
+				string printssidext = "";
+
+				if (ssid->ssid_len == 0 || ssid->ssid == "") {
+					printssid = "<Hidden SSID>";
+				}
+
+				if (ssid->ssid_cloaked) {
+					printssidext = " (cloaked)";
+				}
+
+				string printcrypt;
+
+				if (ssid->cryptset) {
+					printcrypt = "yes (" + CryptToString(ssid->cryptset) + ")";
+				} else {
+					printcrypt = "no";
+				}
+
+				_MSG("Detected new dot11 AP SSID \"" + printssid + "\"" + 
+					 printssidext + ", BSSID " + dot11info->bssid_mac.Mac2String() + 
+					 ", encryption " + printcrypt + ", channel " + 
+					 IntToString(dot11info->channel),
+					 MSGFLAG_INFO);
+
+				net->ssid_map[ssidhash] = ssid;
+			} else {
+				ssid = si->second;
+
+#if 0
+				// TODO compare checksums of tags, raise alert
+				if (ssid->ietag_csum != dot11info->ietag_csum) {
+					fprintf(stderr, "debug - %s %s SSID IETAG mismatch\n",
+							dot11info->bssid_mac.Mac2String().c_str(),
+							ssid->ssid.c_str());
+				}
+#endif
+			}
+		}
+	}
+
+
 	// We don't have to maintain a dirty vec because the devicetracker does
 	// does that for us; anything that managed to be a device here is going
 	// to have flagged dirty in the devicetracker
@@ -673,5 +764,71 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 void Kis_80211_Phy::ExportLogRecord(kis_tracked_device *in_device, string in_logtype, 
 								FILE *in_logfile, int in_lineindent) {
 	return;
+}
+
+string Kis_80211_Phy::CryptToString(uint64_t cryptset) {
+	string ret;
+
+	if (cryptset == crypt_none)
+		return "none";
+
+	if (cryptset == crypt_unknown)
+		return "unknown";
+
+	if (cryptset == crypt_wep)
+		return "WEP";
+
+	if (cryptset & crypt_wpa) {
+		if (cryptset & crypt_psk)
+			ret += "WPA-PSK ";
+		else if (cryptset & crypt_peap)
+			ret += "WPA-PEAP ";
+		else if (cryptset & crypt_leap)
+			ret += "WPA-LEAP ";
+		else if (cryptset & crypt_ttls)
+			ret += "WPA-TTLS ";
+		else if (cryptset & crypt_tls)
+			ret += "WPA-TLS ";
+		else
+			ret += "WPA ";
+
+		if (cryptset & crypt_wpa_migmode)
+			ret += "WPA-MIGRATION ";
+
+		if (cryptset & crypt_wep40)
+			ret += "WEP40 ";
+		if (cryptset & crypt_wep104)
+			ret += "WEP104 ";
+		if (cryptset & crypt_tkip)
+			ret += "TKIP ";
+		if (cryptset & crypt_aes_ocb)
+			ret += "AES-OCB ";
+		if (cryptset & crypt_aes_ccm)
+			ret += "AES-CCMP ";
+
+		ret.erase(ret.length() - 1);
+
+		return ret;
+	} 
+	
+	if (cryptset & crypt_layer3)
+		return "Layer 3";
+
+	if (cryptset & crypt_isakmp)
+		return "ISA KMP";
+
+	if (cryptset & crypt_pptp)
+		return "PPTP";
+
+	if (cryptset & crypt_fortress)
+		return "Fortress";
+
+	if (cryptset & crypt_keyguard)
+		return "Keyguard";
+
+	if (cryptset & crypt_unknown_nonwep)
+		return "Unknown/Non-WEP";
+
+	return ret;
 }
 

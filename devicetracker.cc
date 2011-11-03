@@ -1239,6 +1239,14 @@ void Devicetracker::WriteXML(FILE *in_logfile) {
 			globalreg->version_minor.c_str(),
 			globalreg->version_tiny.c_str());
 
+	fprintf(in_logfile,
+			"<server>%s</server>\n",
+			SanitizeXML(globalreg->servername).c_str());
+	
+	fprintf(in_logfile,
+			"<logname>%s</logname>\n",
+			SanitizeXML(globalreg->logname).c_str());
+
 	fprintf(in_logfile, 
 			"<startTime>%.24s</startTime>\n",
 			ctime(&(globalreg->start_time)));

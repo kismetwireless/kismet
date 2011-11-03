@@ -116,11 +116,15 @@ string Dumpfile::ProcessConfigOpt() {
 
 	if (logname.length() == 0 &&
 		(logname = globalreg->kismet_config->FetchOpt("logdefault")) == "") {
-		_MSG("No 'logdefault' specified on the command line or config file",
-			 MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
-		return "";
+		if ((logname = globalreg->kismet_config->FetchOpt("logname")) == "") {
+			_MSG("No 'logdefault' specified on the command line or config file",
+				 MSGFLAG_FATAL);
+			globalreg->fatal_condition = 1;
+			return "";
+		}
 	}
+
+	globalreg->logname = logname;
 
 	if (logtypes.length() == 0 &&
 		(logtypes = globalreg->kismet_config->FetchOpt("logtypes")) == "") {

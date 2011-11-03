@@ -529,7 +529,7 @@ vector<string> LineWrap(string in_txt, unsigned int in_hdr_len,
 	for (pos = prev_pos = in_txt.find(' ', in_hdr_len); pos != string::npos; 
 		 pos = in_txt.find(' ', pos + 1)) {
 		if ((hdroffset + pos) - start >= in_maxlen) {
-			if (pos - prev_pos > (in_maxlen / 5)) {
+			if (pos - prev_pos > (in_maxlen / 4)) {
 				pos = prev_pos = start + (in_maxlen - hdroffset);
 			}
 

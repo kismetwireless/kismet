@@ -546,6 +546,10 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
 			if (fc->subtype == packet_sub_beacon)
 				packinfo->beacon_interval = kis_letoh16(fixparm->beacon);
 
+			packinfo->ietag_csum = 
+				Adler32Checksum((const char *) (chunk->data + packinfo->header_offset),
+								chunk->length - packinfo->header_offset);
+
             // This is guaranteed to only give us tags that fit within the packets,
             // so we don't have to do more error checking
             if (GetIEEETagOffsets(packinfo->header_offset, chunk, 

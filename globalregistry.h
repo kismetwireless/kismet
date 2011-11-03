@@ -205,6 +205,8 @@ public:
     string servername;
 	struct timeval timestamp;
 
+	string logname;
+
     unsigned int metric;
 
     // Protocol references we don't want to keep looking up

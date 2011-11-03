@@ -74,7 +74,8 @@ struct dot11_11d_range_info {
 	int startchan, numchan, txpower;
 };
 
-struct dot11_ssid {
+class dot11_ssid {
+public:
 	dot11_ssid() {
 		checksum = 0;
 		type = dot11_ssid_beacon;
@@ -90,6 +91,7 @@ struct dot11_ssid {
 		beaconrate = 0;
 		packets = 0;
 		beacons = 0;
+		ietag_csum = 0;
 		dot11d_country = "XXX";
 	}
 
@@ -114,18 +116,22 @@ struct dot11_ssid {
 
 		dot11d_vec = in.dot11d_vec;
 
+		ietag_csum = in.ietag_csum;
+
 		dirty = in.dirty;
 
 		return *this;
 	}
 
 	uint32_t checksum;
+	uint32_t ietag_csum;
 
 	dot11_ssid_type type;
 
 	mac_addr mac;
 
 	string ssid;
+	int ssid_len;
 	string beacon_info;
 
 	// Cryptset and decrypted
@@ -413,6 +419,7 @@ public:
 		qos = 0;
 		ssid_csum = 0;
 		dot11d_country = "XXX";
+		ietag_csum = 0;
     }
 
     // Corrupt 802.11 frame
@@ -475,6 +482,7 @@ public:
     int datasize;
 
 	uint32_t ssid_csum;
+	uint32_t ietag_csum;
 
 	string dot11d_country;
 	vector<dot11_11d_range_info> dot11d_vec;
@@ -550,6 +558,8 @@ public:
 	virtual string FetchPhyXsdNs() {
 		return "phy80211";
 	}
+
+	static string CryptToString(uint64_t cryptset);
 
 protected:
 	int LoadWepkeys();
