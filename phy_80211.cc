@@ -724,14 +724,14 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 				string printcrypt;
 
 				if (ssid->cryptset) {
-					printcrypt = "yes (" + CryptToString(ssid->cryptset) + ")";
+					printcrypt = "encrypted (" + CryptToString(ssid->cryptset) + ")";
 				} else {
-					printcrypt = "no";
+					printcrypt = "unencrypted";
 				}
 
-				_MSG("Detected new dot11 AP SSID \"" + printssid + "\"" + 
+				_MSG("Detected new 802.11 AP SSID \"" + printssid + "\"" + 
 					 printssidext + ", BSSID " + dot11info->bssid_mac.Mac2String() + 
-					 ", encryption " + printcrypt + ", channel " + 
+					 ", " + printcrypt + ", channel " + 
 					 IntToString(dot11info->channel),
 					 MSGFLAG_INFO);
 

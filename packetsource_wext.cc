@@ -443,6 +443,10 @@ int PacketSource_Wext::EnableMonitor() {
 				 MSGFLAG_PRINTERROR);
 			return -1;
 		}
+
+		// always enable crc on phy80211 since they seem to report bogus
+		// crap fairly often
+		SetValidateCRC(1);
 #else
 		warning =
 			"Source '" + interface + "' uses phy80211/mac80211 drivers, but "
