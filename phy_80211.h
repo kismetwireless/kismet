@@ -92,6 +92,7 @@ public:
 		packets = 0;
 		beacons = 0;
 		ietag_csum = 0;
+		channel = 0;
 		dot11d_country = "XXX";
 	}
 
@@ -109,6 +110,7 @@ public:
 		maxrate = in.maxrate;
 		beaconrate = in.beaconrate;
 		packets = in.packets;
+		channel = in.channel;
 
 		beacons = in.beacons;
 
@@ -139,6 +141,9 @@ public:
 
 	// Is the SSID hidden
 	int ssid_cloaked;
+
+	// Advertised channel
+	int channel;
 
 	// First and last times we saw this SSID
 	time_t first_time;

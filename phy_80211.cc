@@ -287,7 +287,8 @@ dot11_ssid *Kis_80211_Phy::BuildSSID(uint32_t ssid_csum,
 	adssid->ietag_csum = packinfo->ietag_csum;
 	adssid->mac = packinfo->bssid_mac;
 	adssid->ssid = string(packinfo->ssid);
-	if (packinfo->ssid_len == 0 || packinfo->ssid_blank) {
+	if ((packinfo->ssid_len == 0 || packinfo->ssid_blank) &&
+		packinfo->subtype != packet_sub_probe_req) {
 		adssid->ssid_cloaked = 1;
 	}
 	adssid->ssid_len = packinfo->ssid_len;
@@ -300,10 +301,18 @@ dot11_ssid *Kis_80211_Phy::BuildSSID(uint32_t ssid_csum,
 	adssid->packets = 0;
 	adssid->beacons = 0;
 
+	adssid->channel = packinfo->channel;
+
 	adssid->dot11d_country = packinfo->dot11d_country;
 	adssid->dot11d_vec = packinfo->dot11d_vec;
 
-#if 0
+	if (packinfo->subtype == packet_sub_beacon)
+		adssid->type = dot11_ssid_beacon;
+	else if (packinfo->subtype == packet_sub_probe_req)
+		adssid->type = dot11_ssid_probereq;
+	else if (packinfo->subtype == packet_sub_probe_resp)
+		adssid->type = dot11_ssid_proberesp;
+
 	// If it's a probe response record it in the SSID cache, we only record
 	// one per BSSID for now and only if we have a cloaked SSID on this record.
 	// While we're at it, also figure out if we're responding for SSIDs we've never
@@ -393,7 +402,6 @@ dot11_ssid *Kis_80211_Phy::BuildSSID(uint32_t ssid_csum,
 			}
 		}
 	}
-#endif
 
 	return adssid;
 }
@@ -479,8 +487,7 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 	dot11_client *cli = NULL;
 	dot11_ssid *ssid = NULL;
 
-	bool net_new = false;
-	bool cli_new = false;
+	bool net_new = false, cli_new = false, ssid_new = false, build_net = true;
 
 	// We can't do anything w/ it from the packet layer
 	if (in_pack->error || in_pack->filtered)
@@ -556,11 +563,17 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 	kis_tracked_device *apdev =
 		devicetracker->MapToDevice(dot11info->bssid_mac, in_pack);
 
-	net = (dot11_network *) apdev->fetch(dev_comp_net);
+	if (dot11info->type == packet_management &&
+		dot11info->bssid_mac == globalreg->broadcast_mac) {
+		build_net = false;
+	} else {
+		net = (dot11_network *) apdev->fetch(dev_comp_net);
+	}
 
-	if (net == NULL) {
+	if (net == NULL && build_net) {
 		net = new dot11_network();
 
+		// printf("debug - making net for bs %s sr %s dt %s type %u sub %u\n", dot11info->bssid_mac.Mac2String().c_str(), dot11info->source_mac.Mac2String().c_str(), dot11info->dest_mac.Mac2String().c_str(), dot11info->type, dot11info->subtype);
 		net_new = true;
 
 		if (dot11info->type == packet_management &&
@@ -577,61 +590,65 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 		apdev->insert(dev_comp_net, net);
 	}
 
-	if (dot11info->distrib == distrib_adhoc && net->type == dot11_network_ap) {
-		string al = "Network BSSID " + dot11info->bssid_mac.Mac2String() + 
-			" previously advertised as AP network, now advertising as "
-			"Ad-Hoc which may indicate AP spoofing/impersonation";
+	if (net != NULL) {
+		if (dot11info->distrib == distrib_adhoc && net->type == dot11_network_ap) {
+			string al = "Network BSSID " + dot11info->bssid_mac.Mac2String() + 
+				" previously advertised as AP network, now advertising as "
+				"Ad-Hoc which may indicate AP spoofing/impersonation";
 
-		globalreg->alertracker->RaiseAlert(alert_adhoc_ref, in_pack,
-										   dot11info->bssid_mac,
-										   dot11info->source_mac,
-										   dot11info->dest_mac,
-										   dot11info->other_mac,
-										   dot11info->channel, al);
+			globalreg->alertracker->RaiseAlert(alert_adhoc_ref, in_pack,
+											   dot11info->bssid_mac,
+											   dot11info->source_mac,
+											   dot11info->dest_mac,
+											   dot11info->other_mac,
+											   dot11info->channel, al);
 
-	} else if (dot11info->type == packet_management && dot11info->ess &&
-		net->type == dot11_network_data) {
-		// Turn data-only networks into ap networks if we see management
-		// frames
-		net->type = dot11_network_ap;
-	} else if (dot11info->distrib == distrib_adhoc) {
-		// Haven't seen network as managed, now seeing it as adhoc 
-		net->type = dot11_network_adhoc;
-	}
-
-	net->bss_timestamp = dot11info->timestamp;
-
-	if (dot11info->type == packet_management &&
-		(dot11info->subtype == packet_sub_deauthentication ||
-		 dot11info->subtype == packet_sub_disassociation))
-		net->client_disconnects++;
-
-	net->last_sequence = dot11info->sequence_number;
-
-	// If we've figured out we have data...
-	if (datainfo != NULL) {
-		if (datainfo->cdp_dev_id != "") {
-			if (dot11info->bssid_mac == dot11info->source_mac) {
-				net->cdp_dev_id = datainfo->cdp_dev_id;
-			}
-
-			cli->cdp_dev_id = datainfo->cdp_dev_id;
+		} else if (dot11info->type == packet_management && dot11info->ess &&
+				   net->type == dot11_network_data) {
+			// Turn data-only networks into ap networks if we see management
+			// frames
+			net->type = dot11_network_ap;
+		} else if (dot11info->distrib == distrib_adhoc) {
+			// Haven't seen network as managed, now seeing it as adhoc 
+			net->type = dot11_network_adhoc;
 		}
 
-		if (datainfo->cdp_port_id != "") {
-			if (dot11info->bssid_mac == dot11info->source_mac) {
-				net->cdp_port_id = datainfo->cdp_port_id;
+		net->bss_timestamp = dot11info->timestamp;
+
+		if (dot11info->type == packet_management &&
+			(dot11info->subtype == packet_sub_deauthentication ||
+			 dot11info->subtype == packet_sub_disassociation))
+			net->client_disconnects++;
+
+		net->last_sequence = dot11info->sequence_number;
+
+		// If we've figured out we have data...
+		if (datainfo != NULL) {
+			if (datainfo->cdp_dev_id != "") {
+				if (dot11info->bssid_mac == dot11info->source_mac) {
+					net->cdp_dev_id = datainfo->cdp_dev_id;
+				}
+
+				cli->cdp_dev_id = datainfo->cdp_dev_id;
 			}
 
-			cli->cdp_port_id = datainfo->cdp_port_id;
+			if (datainfo->cdp_port_id != "") {
+				if (dot11info->bssid_mac == dot11info->source_mac) {
+					net->cdp_port_id = datainfo->cdp_port_id;
+				}
+
+				cli->cdp_port_id = datainfo->cdp_port_id;
+			}
 		}
+
+
 	}
 
 	// Find the tracked client device
 	kis_tracked_device *clidev =
 		devicetracker->MapToDevice(dot11info->source_mac, in_pack);
 
-	cli = (dot11_client *) apdev->fetch(dev_comp_client);
+	cli = (dot11_client *) clidev->fetch(dev_comp_client);
 
 	if (cli == NULL) {
 		cli = new dot11_client();
@@ -662,26 +679,31 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 		dot11info->distrib == distrib_adhoc ||
 		dot11info->distrib == distrib_inter) {
 
-		net->tx_cryptset |= dot11info->cryptset;
 		cli->tx_cryptset |= dot11info->cryptset;
-
-		net->tx_datasize += dot11info->datasize;
 		cli->tx_datasize += dot11info->datasize;
+
+		if (net != NULL) {
+			net->tx_cryptset |= dot11info->cryptset;
+			net->tx_datasize += dot11info->datasize;
+		}
 	}
 	
 	if (dot11info->distrib == distrib_to ||
 		dot11info->distrib == distrib_adhoc ||
 		dot11info->distrib == distrib_inter) {
 
-		net->rx_cryptset |= dot11info->cryptset;
-		cli->rx_cryptset |= dot11info->cryptset;
+		if (net != NULL) {
+			net->rx_cryptset |= dot11info->cryptset;
+			net->rx_datasize += dot11info->datasize;
+		}
 
-		net->rx_datasize += dot11info->datasize;
+		cli->rx_cryptset |= dot11info->cryptset;
 		cli->rx_datasize += dot11info->datasize;
 	}
 
 	if (dot11info->decrypted) {
-		net->decrypted = 1;
+		if (net != NULL)
+			net->decrypted = 1;
 		cli->decrypted = 1;
 	}
 
@@ -691,7 +713,9 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 	cli->fragments += dot11info->fragmented;
 	cli->retries += dot11info->retry;
 
-	net->new_packets++;
+	if (net != NULL)
+		net->new_packets++;
+
 	cli->new_packets++;
 
 	// Track the SSID data
@@ -699,64 +723,152 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 		(dot11info->subtype == packet_sub_beacon || 
 		 dot11info->subtype == packet_sub_probe_resp ||
 		 dot11info->subtype == packet_sub_probe_req)) {
-		string ssidkey = dot11info->ssid + IntToString(dot11info->ssid_len) +
-			IntToString(dot11info->cryptset);
+
+		string ssidkey = dot11info->ssid + IntToString(dot11info->ssid_len);
 
 		uint32_t ssidhash = Adler32Checksum(ssidkey.c_str(), ssidkey.length());
 
-		// fprintf(stderr, "debug - beacon key %s hash %u\n", ssidkey.c_str(), ssidhash);
-		if (dot11info->subtype == packet_sub_beacon) {
+		// Should never be possible to have a null net at be a beacon/proberesp
+		// but lets not make assumptions
+		if (net != NULL && (dot11info->subtype == packet_sub_beacon ||
+							dot11info->subtype == packet_sub_probe_resp)) {
 			map<uint32_t, dot11_ssid *>::iterator si = net->ssid_map.find(ssidhash);
 			if (si == net->ssid_map.end()) {
 				ssid = BuildSSID(ssidhash, dot11info, in_pack);
-
-				string printssid = ssid->ssid;
-				string printssidext = "";
-
-				if (ssid->ssid_len == 0 || ssid->ssid == "") {
-					printssid = "<Hidden SSID>";
-				}
-
-				if (ssid->ssid_cloaked) {
-					printssidext = " (cloaked)";
-				}
-
-				string printcrypt;
-
-				if (ssid->cryptset) {
-					printcrypt = "encrypted (" + CryptToString(ssid->cryptset) + ")";
-				} else {
-					printcrypt = "unencrypted";
-				}
-
-				_MSG("Detected new 802.11 AP SSID \"" + printssid + "\"" + 
-					 printssidext + ", BSSID " + dot11info->bssid_mac.Mac2String() + 
-					 ", " + printcrypt + ", channel " + 
-					 IntToString(dot11info->channel),
-					 MSGFLAG_INFO);
+				ssid_new = true;
 
 				net->ssid_map[ssidhash] = ssid;
 			} else {
 				ssid = si->second;
+			}
+		}
 
-#if 0
-				// TODO compare checksums of tags, raise alert
-				if (ssid->ietag_csum != dot11info->ietag_csum) {
-					fprintf(stderr, "debug - %s %s SSID IETAG mismatch\n",
-							dot11info->bssid_mac.Mac2String().c_str(),
-							ssid->ssid.c_str());
+		if (cli != NULL && dot11info->subtype == packet_sub_probe_req) {
+			map<uint32_t, dot11_ssid *>::iterator si = cli->ssid_map.find(ssidhash);
+			if (si == cli->ssid_map.end()) {
+				ssid = BuildSSID(ssidhash, dot11info, in_pack);
+				ssid_new = true;
+
+				cli->ssid_map[ssidhash] = ssid;
+			} else {
+				ssid = si->second;
+			}
+		}
+
+		if (ssid != NULL) {
+			if (dot11info->subtype == packet_sub_beacon) {
+				int ieeerate = Ieee80211Interval2NSecs(dot11info->beacon_interval);
+
+				ssid->beacons++;
+
+				// If we're changing from something else to a beacon...
+				if (ssid->type != dot11_ssid_beacon) {
+					// fprintf(stderr, "debug - %s %s changing to beacon\n", dot11info->bssid_mac.Mac2String().c_str(), ssid->ssid.c_str());
+					ssid->type = dot11_ssid_beacon;
+					ssid->cryptset = dot11info->cryptset;
+					ssid->beaconrate = ieeerate;
 				}
-#endif
+
+				if (ssid->cryptset != dot11info->cryptset) {
+					// TODO: alert on cryptset change
+					fprintf(stderr, "debug - %s %s cryptset change\n", dot11info->bssid_mac.Mac2String().c_str(), ssid->ssid.c_str());
+				}
+
+				ssid->cryptset = dot11info->cryptset;
+
+				if (ssid->beaconrate != ieeerate) {
+					// TODO: alert on beaconrate change
+					fprintf(stderr, "debug - %s %s beaconrate change %u %u\n", dot11info->bssid_mac.Mac2String().c_str(), ssid->ssid.c_str(), ssid->beaconrate, dot11info->beacon_interval);
+				}
+
+				ssid->beaconrate = ieeerate;
 			}
 		}
 	}
 
+	if (ssid_new) {
+		string printssid;
+		string printssidext;
+		string printcrypt;
+		string printtype;
+		string printdev;
+		string printchan;
+
+		printssid = ssid->ssid;
+
+		if (ssid->ssid_len == 0 || ssid->ssid == "") {
+			if (ssid->type == dot11_ssid_probereq)  {
+				printssid = "<Broadcast>";
+				printssidext = " (probing for any SSID)";
+			} else {
+				printssid = "<Hidden SSID>";
+			}
+		}
+
+		if (ssid->ssid_cloaked) {
+			printssidext = " (cloaked)";
+		}
+
+		if (ssid->type == dot11_ssid_beacon) {
+			printtype = "AP";
+
+			if (ssid->cryptset) {
+				printcrypt = "encrypted (" + CryptToString(ssid->cryptset) + ")";
+			} else {
+				printcrypt = "unencrypted";
+			}
+
+			printdev = "BSSID " + dot11info->bssid_mac.Mac2String();
+
+			printchan = ", channel " + IntToString(ssid->channel);
+		} else if (ssid->type == dot11_ssid_probereq) {
+			printtype = "probing client";
+			
+			if (ssid->cryptset)
+				printcrypt = "encrypted";
+			else
+				printcrypt = "unencrypted";
+
+			printdev = "client " + dot11info->source_mac.Mac2String();
+		} else if (ssid->type == dot11_ssid_proberesp) {
+			printtype = "responding AP";
+
+			if (ssid->cryptset)
+				printcrypt = "encrypted";
+			else
+				printcrypt = "unencrypted";
+
+			printdev = "BSSID " + dot11info->bssid_mac.Mac2String();
+		} else {
+			printtype = "unknown " + IntToString(ssid->type);
+			printdev = "BSSID " + dot11info->bssid_mac.Mac2String();
+		}
+
+		_MSG("Detected new 802.11 " + printtype + " SSID \"" + printssid + "\"" + 
+			 printssidext + ", " + printdev + ", " + printcrypt + 
+			 printchan,
+			 MSGFLAG_INFO);
+
+	} else if (net_new) {
+		// If we didn't find a new SSID, and we found a network, talk about that
+		string printcrypt;
+
+		if (dot11info->cryptset)
+			printcrypt = "encrypted";
+		else
+			printcrypt = "unencrypted";
+
+		_MSG("Detected new 802.11 network BSSID " + dot11info->bssid_mac.Mac2String() +
+			 ", " + printcrypt + ", no beacons seen yet", MSGFLAG_INFO);
+	}
 
 	// We don't have to maintain a dirty vec because the devicetracker does
 	// does that for us; anything that managed to be a device here is going
 	// to have flagged dirty in the devicetracker
 	cli->dirty = 1;
-	net->dirty = 1;
+
+	if (net != NULL)
+		net->dirty = 1;
 
 	return 1;
 }

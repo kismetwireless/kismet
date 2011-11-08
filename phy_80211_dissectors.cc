@@ -398,8 +398,9 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
 
             packinfo->distrib = distrib_to;
 
+            packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
             packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
-            packinfo->bssid_mac = mac_addr(addr1, PHY80211_MAC_LEN);
+            packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
             
         } else if (fc->subtype == 5) {
             packinfo->subtype = packet_sub_probe_resp;
