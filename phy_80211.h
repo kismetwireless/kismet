@@ -169,13 +169,24 @@ public:
 };
 
 enum dot11_network_type {
-	dot11_network_ap = 0,
-	dot11_network_adhoc = 1,
-	dot11_network_probe = 2,
-	dot11_network_turbocell = 3,
-	dot11_network_data = 4,
-	dot11_network_mixed = 255,
-	dot11_network_remove = 256
+	dot11_network_none = 0,
+	// ess = 1
+	dot11_network_ap = 1,
+	// adhoc
+	dot11_network_adhoc = 2,
+	// wireless client
+	dot11_network_client = 4,
+	// Wired fromds client
+	dot11_network_wired = 8,
+	// WDS/interdistrib
+	dot11_network_wds = 16,
+	// Turbocell (though it's mostly gone and we don't dissect it right now)
+	dot11_network_turbocell = 32,
+	// Inferred flag, we've seen traffic to this device, but never from it
+	dot11_network_inferred = 64,
+	// legacy, slated to die?
+	dot11_network_mixed = 256,
+	dot11_network_remove = 512
 };
 
 // fwd def
@@ -189,15 +200,15 @@ class dot11_client;
 //
 // An AP will have both a network and a client record, as the AP itself is also
 // a client on the network.
-class dot11_network : public tracker_component {
+class dot11_device : public tracker_component {
 public:
-	dot11_network_type type;
+	// Set of types we've seen
+	int type_set;
 
-	// Clients associated w/ the network, they're unique/unmasked so
-	// we don't need a macmap
+	// Client records seen
 	map<mac_addr, dot11_client *> client_map;
 
-	// Advertised SSID data, by checksum
+	// Advertised and probed SSID data, by checksum
 	map<uint32_t, dot11_ssid *> ssid_map;
 
 	// Packets sent from this BSSID
@@ -219,14 +230,6 @@ public:
 	// Last BSS
 	uint64_t bss_timestamp;
 
-	// Map of IVs seen, potentially a really bad idea for RAM, should
-	// only be enabled for selected networks
-	map<uint32_t, int> iv_map;
-	// Number of duplicate IVs
-	unsigned int dupeiv_packets;
-	// Do we track IVs on this network?
-	int track_ivs;
-
 	// CDP data
 	string cdp_dev_id;
 	string cdp_port_id;
@@ -234,8 +237,6 @@ public:
 	// Fragments and retries
 	unsigned int fragments;
 	unsigned int retries;
-
-	int new_packets;
 
 	// Record is dirty
 	int dirty;
@@ -248,11 +249,16 @@ public:
 	uint64_t tx_datasize;
 	uint64_t rx_datasize;
 
-	// Map of sources which have seen this network
-	// map<uuid, source_data *> source_map;
+	// Who we most recently talked to if we're not an AP
+	mac_addr last_bssid;
+
+	// Who we've ever talked to
+	vector<mac_addr> bssid_list;
+
+	string dhcp_host, dhcp_vendor;
 	
-	dot11_network() {
-		type = dot11_network_ap;
+	dot11_device() {
+		type_set = dot11_network_none;
 
 		tx_cryptset = 0L;
 		rx_cryptset = 0L;
@@ -268,7 +274,7 @@ public:
 		groupptr = NULL;
 		lastssid = NULL;
 
-		new_packets = 0;
+		last_bssid = mac_addr(0);
 
 		dirty = 0;
 	}
@@ -284,65 +290,53 @@ enum dot11_client_type {
 	dot11_client_remove = 6
 };
 
+// Per-BSSID client record, tracked by the AP tracked_device/dot11_device record
 class dot11_client : public tracker_component {
 public:
 	dot11_client_type type;
 
+	time_t first_time;
+	time_t last_time;
+
 	int decrypted;
 
-	// Who we most recently talked to
-	mac_addr last_bssid;
-
-	// Who we've talked to
-	vector<mac_addr> bssid_list;
-
+	// Per BSSID
 	int last_sequence;
 
+	// Per BSSID
 	uint64_t tx_cryptset;
 	uint64_t rx_cryptset;
 
-	kis_ip_data guess_ipdata;
-
-	int fragments;
-	int retries;
-
-	// CDP info
-	string cdp_dev_id, cdp_port_id;
-
-	// DHCP info
-	string dhcp_host, dhcp_vendor;
-
-	// Probed SSID data
-	map<uint32_t, dot11_ssid *> ssid_map;
-
-	// Most recent SSID
+	// Last SSID we saw a probe resp for on this bssid
 	dot11_ssid *last_ssid;
 
-	string dot11d_country;
-	vector<dot11_11d_range_info> dot11d_vec;
+	// Per BSSID
+	kis_ip_data guess_ipdata;
 
+	// CDP info, per bssid
+	string cdp_dev_id, cdp_port_id;
+
+	// DHCP info, per bssid
+	string dhcp_host, dhcp_vendor;
+
+	// Per BSSID
 	uint64_t tx_datasize;
 	uint64_t rx_datasize;
-
-	int new_packets;
 
 	int dirty;
 
 	dot11_client() {
 		type = dot11_client_unknown;
 		decrypted = 0;
-		last_bssid = mac_addr("00:00:00:00:00:00");
 		last_sequence = 0;
 		tx_cryptset = 0L;
 		rx_cryptset = 0L;
-		fragments = 0;
-		retries = 0;
 		last_ssid = NULL;
 
 		tx_datasize = 0L;
 		rx_datasize = 0L;
 
-		new_packets = 0;
+		first_time = last_time = 0;
 
 		dirty = 0;
 	}
@@ -583,7 +577,7 @@ protected:
 	int ssid_cache_track, ip_cache_track;
 
 	// Device components
-	int dev_comp_net, dev_comp_client;
+	int dev_comp_dot11;
 
 	// Packet components
 	int pack_comp_80211, pack_comp_basicdata, pack_comp_mangleframe,
