@@ -295,6 +295,8 @@ class dot11_client : public tracker_component {
 public:
 	dot11_client_type type;
 
+	mac_addr mac;
+
 	time_t first_time;
 	time_t last_time;
 

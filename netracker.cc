@@ -2397,6 +2397,7 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 		// outside of the new network code, obviously
 	} else {
 		if (packinfo->distrib == distrib_adhoc && net->type == network_ap) {
+#if 0
 			if (globalreg->alertracker->PotentialAlert(alert_adhoc_ref)) {
 
 				string al = "Network BSSID " + net->bssid.Mac2String() + 
@@ -2411,6 +2412,7 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 												   packinfo->channel, al);
 
 			}
+#endif
 		} else if (packinfo->type == packet_management && packinfo->ess &&
 				   net->type == network_data) {
 			// Management frames from an AP on a data-only network turn it into
@@ -3054,6 +3056,7 @@ int Netracker::datatracker_chain_handler(kis_packet *in_pack) {
 
 	// Apply the DHCP discovery on the client
 	if (datainfo->proto  == proto_dhcp_discover) {
+#if 0
 		if (cli->dhcp_host != datainfo->discover_host &&
 			cli->dhcp_host != "" && 
 			globalreg->alertracker->PotentialAlert(alert_dhcpname_ref)) {
@@ -3087,6 +3090,7 @@ int Netracker::datatracker_chain_handler(kis_packet *in_pack) {
 											   packinfo->other_mac, 
 											   packinfo->channel, al);
 		}
+#endif
 
 		cli->dhcp_host = datainfo->discover_host;
 		cli->dhcp_vendor = datainfo->discover_vendor;
@@ -3395,6 +3399,7 @@ Netracker::adv_ssid_data *Netracker::BuildAdvSSID(uint32_t ssid_csum,
 		(packinfo->subtype == packet_sub_probe_resp || 
 		 packinfo->subtype == packet_sub_beacon)) {
 
+#if 0
 		// Run it through the AP spoof protection system
 		for (unsigned int x = 0; x < apspoof_vec.size(); x++) {
 			// Shortcut to checking the mac address first, if it's one we 
@@ -3447,6 +3452,7 @@ Netracker::adv_ssid_data *Netracker::BuildAdvSSID(uint32_t ssid_csum,
 				break;
 			}
 		}
+#endif
 	}
 
 	return adssid;

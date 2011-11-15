@@ -385,7 +385,7 @@ dot11_ssid *Kis_80211_Phy::BuildSSID(uint32_t ssid_csum,
 					packinfo->subtype == packet_sub_beacon ? string("advertising") :
 					string("responding for");
 
-				string al = "Unauthorized device (" + 
+				string al = "IEEE80211 Unauthorized device (" + 
 					packinfo->source_mac.Mac2String() + string(") ") + ntype + 
 					" for SSID '" + packinfo->ssid + "', matching APSPOOF "
 					"rule " + apspoof_vec[x]->name + string(" with ") + match_type + 
@@ -731,6 +731,8 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 
 				cli->first_time = globalreg->timestamp.tv_sec;
 
+				cli->mac = dot11info->source_mac;
+
 				net->client_map.insert(pair<mac_addr, 
 									   dot11_client *>(dot11info->source_mac, cli));
 
@@ -756,10 +758,50 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 				}
 
 				if (datainfo->discover_vendor != "") {
+					if (cli->dhcp_vendor != "" &&
+						cli->dhcp_vendor != datainfo->discover_vendor &&
+						globalreg->alertracker->PotentialAlert(alert_dhcpos_ref)) {
+						string al = "IEEE80211 network BSSID " + 
+							apdev->key.Mac2String() +
+							" client " + 
+							cli->mac.Mac2String() + 
+							"changed advertised DHCP vendor from '" +
+							dot11dev->dhcp_vendor + "' to '" +
+							datainfo->discover_vendor + "' which may indicate "
+							"client spoofing or impersonation";
+
+						globalreg->alertracker->RaiseAlert(alert_dhcpos_ref, in_pack,
+														   dot11info->bssid_mac,
+														   dot11info->source_mac,
+														   dot11info->dest_mac,
+														   dot11info->other_mac,
+														   dot11info->channel, al);
+					}
+
 					cli->dhcp_vendor = datainfo->discover_vendor;
 				}
 
 				if (datainfo->discover_host != "") {
+					if (cli->dhcp_host != "" &&
+						cli->dhcp_host != datainfo->discover_host &&
+						globalreg->alertracker->PotentialAlert(alert_dhcpname_ref)) {
+						string al = "IEEE80211 network BSSID " + 
+							apdev->key.Mac2String() +
+							" client " + 
+							cli->mac.Mac2String() + 
+							"changed advertised DHCP hostname from '" +
+							dot11dev->dhcp_host + "' to '" +
+							datainfo->discover_host + "' which may indicate "
+							"client spoofing or impersonation";
+
+						globalreg->alertracker->RaiseAlert(alert_dhcpname_ref, in_pack,
+														   dot11info->bssid_mac,
+														   dot11info->source_mac,
+														   dot11info->dest_mac,
+														   dot11info->other_mac,
+														   dot11info->channel, al);
+					}
+
 					cli->dhcp_host = datainfo->discover_host;
 				}
 			}
