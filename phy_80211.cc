@@ -573,7 +573,8 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 		if (!(dot11dev->type_set & dot11_network_adhoc)) {
 			if (dot11info->distrib == distrib_adhoc && 
 				(dot11dev->type_set & dot11_network_ap)) {
-				string al = "Network BSSID " + dot11info->bssid_mac.Mac2String() + 
+				string al = "IEEE80211 Network BSSID " + 
+					dot11info->bssid_mac.Mac2String() + 
 					" previously advertised as AP network, now advertising as "
 					"Ad-Hoc which may indicate AP spoofing/impersonation";
 
@@ -1240,12 +1241,102 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 void Kis_80211_Phy::ExportLogRecord(kis_tracked_device *in_device, string in_logtype, 
 								FILE *in_logfile, int in_lineindent) {
 
+	dot11_device *dot11dev = 
+		(dot11_device *) in_device->fetch(dev_comp_dot11);
+
+	if (dot11dev == NULL)
+		return;
 
 	// XML logging...
 	if (in_logtype == "xml") {
 		string typestr;
 
+		fprintf(in_logfile, "<types>\n");
+		if (dot11dev->type_set == dot11_network_none)
+			fprintf(in_logfile, "<type>Unknown</type>\n");
+		if (dot11dev->type_set & dot11_network_ap)
+			fprintf(in_logfile, "<type>Access Point</type>\n");
+		if (dot11dev->type_set & dot11_network_adhoc)
+			fprintf(in_logfile, "<type>Ad-Hoc</type>\n");
+		if (dot11dev->type_set & dot11_network_client)
+			fprintf(in_logfile, "<type>Wireless Client</type>\n");
+		if (dot11dev->type_set & dot11_network_wired)
+			fprintf(in_logfile, "<type>Wired Client</type>\n");
+		if (dot11dev->type_set & dot11_network_wds)
+			fprintf(in_logfile, "<type>WDS</type>\n");
+		if (dot11dev->type_set & dot11_network_turbocell)
+			fprintf(in_logfile, "<type>Turbocell</type>\n");
+		if (dot11dev->type_set & dot11_network_inferred)
+			fprintf(in_logfile, "<type>Inferred Device</type>\n");
+		fprintf(in_logfile, "</types>\n");
 
+		if (dot11dev->ssid_map.size() > 0) {
+			fprintf(in_logfile, "<ssids>\n");
+			for (map<uint32_t, dot11_ssid *>::iterator x = dot11dev->ssid_map.begin();
+				 x != dot11dev->ssid_map.end(); ++x) {
+
+				fprintf(in_logfile, "<ssid>\n");
+				fprintf(in_logfile, "<firstSeen>%.24s</firstSeen>\n",
+						ctime(&(x->second->first_time)));
+				fprintf(in_logfile, "<lastSeen>%.24s</lastSeen>\n",
+						ctime(&(x->second->last_time)));
+
+				if (x->second->type == dot11_ssid_beacon)
+					fprintf(in_logfile, "<type>Access Point</type>\n");
+				else if (x->second->type == dot11_ssid_proberesp)
+					fprintf(in_logfile, "<type>AP Probe Response</type>\n");
+				else if (x->second->type == dot11_ssid_probereq)
+					fprintf(in_logfile, "<type>Client Probe Request</type>\n");
+
+				fprintf(in_logfile, "<essid>%s</essid>\n", 
+						SanitizeXML(x->second->ssid).c_str());
+
+				if (x->second->ssid_cloaked)
+					fprintf(in_logfile, "<cloaked>true</cloaked>\n");
+
+				if (x->second->type == dot11_ssid_beacon) {
+					fprintf(in_logfile, "<beaconRate>%u</beaconRate>\n", 
+							x->second->beaconrate);
+					fprintf(in_logfile, "<channel>%u</channel>\n",
+							x->second->channel);
+				}
+
+				fprintf(in_logfile, "<encryption>%s</encryption>",
+						CryptToString(x->second->cryptset).c_str());
+
+				fprintf(in_logfile, "</ssid>\n");
+			}
+
+			fprintf(in_logfile, "</ssids>\n");
+		}
+		
+		if (dot11dev->type_set & dot11_network_ap)
+			fprintf(in_logfile, "<bssTimestamp>%lu</bssTimestamp>\n", 
+					dot11dev->bss_timestamp);
+
+		if (dot11dev->cdp_dev_id != "")
+			fprintf(in_logfile, "<cdpDevice>%s</cdpDevice>\n", 
+					SanitizeXML(dot11dev->cdp_dev_id).c_str());
+		if (dot11dev->cdp_port_id != "")
+			fprintf(in_logfile, "<cdpPort>%s</cdpPort>\n", 
+					SanitizeXML(dot11dev->cdp_port_id).c_str());
+
+		if (dot11dev->dhcp_host != "")
+			fprintf(in_logfile, "<dhcpHost>%s</dhcpHost>\n",
+					SanitizeXML(dot11dev->dhcp_host).c_str());
+		if (dot11dev->dhcp_vendor != "")
+			fprintf(in_logfile, "<dhcpVendor>%s</dhcpVendor>\n",
+					SanitizeXML(dot11dev->dhcp_vendor).c_str());
+
+		fprintf(in_logfile, "<packetFragments>%u</packetFragments>\n",
+				dot11dev->fragments);
+		fprintf(in_logfile, "<packetRetries>%u</packetRetries>\n",
+				dot11dev->retries);
+
+		// printf("debug - log last bssid %s macaddr0 %s\n", dot11dev->last_bssid.Mac2String().c_str(), mac_addr(0).Mac2String().c_str());
+		if (dot11dev->last_bssid != mac_addr(0))
+			fprintf(in_logfile, "<lastBssid>%s</lastBssid>\n",
+					dot11dev->last_bssid.Mac2String().c_str());
 
 	} 
 

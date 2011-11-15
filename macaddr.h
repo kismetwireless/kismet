@@ -165,11 +165,11 @@ struct mac_addr {
 	}
 
     inline mac_addr(int in) {
-		in = in; // Silence gcc
+		in = in;
         longmac = 0;
 		SetPhy(MAC_PHY_MAX);
 
-        longmask = 0;
+        longmask = (uint64_t) -1;
         error = 0;
     } 
 

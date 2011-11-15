@@ -24,7 +24,6 @@
   <xs:element name="type" type="xs:string" minOccurs="1"/>
   <xs:element name="essid" type="xs:string" minOccurs="1"/>
   <xs:element name="cloaked" type="xs:boolean" minOccurs="0"/>
-  <xs:element name="maxRate" type="xs:integer" minOccurs="0"/>
   <xs:element name="beaconRate" type="xs:integer" minOccurs="0"/>
   <xs:element name="channel" type="xs:integer" minOccurs="0"/>
   <xs:element name="encryption" type="xs:string" minOccurs="0" maxOccurs="unbounded"/>
@@ -49,7 +48,13 @@
     <xs:complexContent> 
         <xs:extension base="device:device"> 
             <xs:sequence>
-				<xs:element name="type" type="xs:string" minOccurs="0"/>
+				<xs:element name="types">
+				 <xs:complexType>
+				  <xs:sequence>
+				   <xs:element name="type" type="xs:string" maxOccurs="unbounded"/>
+				  </xs:sequence>
+				 </xs:complexType>
+				</xs:element>
 
 				<xs:element name="ssids" minOccurs="0">
 				 <xs:complexType>
@@ -59,17 +64,22 @@
 				 </xs:complexType>
 				</xs:element>
 
-				<xs:element name="bsstimestamp" type="xs:integer" minOccurs="0"/>
+				<!-- Optional, if non-ap record -->
+				<xs:element name="bssTimestamp" type="xs:integer" minOccurs="0"/>
+
 				<xs:element name="cdpDevice" type="xs:string" minOccurs="0"/>
 				<xs:element name="cdpPort" type="xs:string" minOccurs="0"/>
+
+				<xs:element name="dhcpHost" type="xs:string" minOccurs="0"/>
+				<xs:element name="dhcpVendor" type="xs:string" minOccurs="0"/>
 
 				<xs:element name="packetFragments" type="xs:integer"/>
 				<xs:element name="packetRetries" type="xs:integer"/>
 
-				<xs:element name="maxSeenRate" type="xs:integer" minOccurs="0"/>
-
 				<xs:element name="carrier" type="xs:string" minOccurs="0"/>
 				<xs:element name="encoding" type="xs:string" minOccurs="0"/>
+
+				<xs:element name="lastBssid" type="common:macaddr" minOccurs="0"/>
             </xs:sequence> 
         </xs:extension> 
     </xs:complexContent> 
