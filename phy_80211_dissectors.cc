@@ -904,6 +904,10 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
     } else if (fc->type == 2) {
         packinfo->type = packet_data;
 
+		// WEP/Protected on data frames means encrypted, not WEP
+		if (fc->wep)
+			packinfo->cryptset |= crypt_unknown_protected;
+
         // Collect the subtypes - we probably want to do something better with thse
         // in the future
         if (fc->subtype == 0) {

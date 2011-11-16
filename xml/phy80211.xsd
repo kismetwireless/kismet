@@ -16,32 +16,61 @@
 		namespace="http://www.kismetwireless.net/xml/device"
 		schemaLocation="http://www.kismetwireless.net/xml/device.xsd"/>
 
-<xs:complexType name="ssid">
- <xs:sequence>
-  <xs:element name="firstSeen" type="xs:string" minOccurs="1"/>
-  <xs:element name="lastSeen" type="xs:string" minOccurs="1"/>
-
-  <xs:element name="type" type="xs:string" minOccurs="1"/>
-  <xs:element name="essid" type="xs:string" minOccurs="1"/>
-  <xs:element name="cloaked" type="xs:boolean" minOccurs="0"/>
-  <xs:element name="beaconRate" type="xs:integer" minOccurs="0"/>
-  <xs:element name="channel" type="xs:integer" minOccurs="0"/>
-  <xs:element name="encryption" type="xs:string" minOccurs="0" maxOccurs="unbounded"/>
-  <xs:element name="dot11d" type="dot11d" minOccurs="0" maxOccurs="unbounded"/>
- </xs:sequence>
-</xs:complexType>
-
 <xs:complexType name="dot11d">
  <xs:sequence>
-  <xs:element name="range" minOccurs="1" maxOccurs="unbounded">
+  <xs:element name="ranges">
    <xs:complexType>
-    <xs:attribute name="start" type="xs:positiveInteger" use="required"/>
-    <xs:attribute name="end" type="xs:positiveInteger" use="required"/>
-    <xs:attribute name="power" type="xs:integer" use="required"/>
+    <xs:sequence>
+     <xs:element name="range" minOccurs="1" maxOccurs="unbounded">
+      <xs:complexType>
+       <xs:attribute name="start" type="xs:positiveInteger" use="required"/>
+       <xs:attribute name="end" type="xs:positiveInteger" use="required"/>
+       <xs:attribute name="power" type="xs:integer" use="required"/>
+      </xs:complexType>
+    </xs:sequence>
    </xs:complexType>
   </xs:element>
  </xs:sequence>
  <xs:attribute name="country" type="xs:string" use="required"/>
+</xs:complexType>
+
+<xs:complexType name="ssid">
+ <xs:sequence>
+  <xs:element name="firstSeen" type="xs:string"/>
+  <xs:element name="lastSeen" type="xs:string"/>
+
+  <xs:element name="type" type="xs:string"/>
+  <xs:element name="essid" type="xs:string"/>
+  <xs:element name="cloaked" type="xs:boolean" minOccurs="0"/>
+  <xs:element name="beaconRate" type="xs:integer" minOccurs="0"/>
+  <xs:element name="channel" type="xs:integer" minOccurs="0"/>
+  <xs:element name="encryption" type="xs:string" minOccurs="0"/>
+
+  <xs:element name="dot11d" type="dot11d" minOccurs="0"/>
+ </xs:sequence>
+</xs:complexType>
+
+<xs:complexType name="client">
+ <xs:sequence>
+  <xs:element name="mac" type="common:macaddr"/>
+  <xs:element name="firstSeen" type="xs:string"/>
+  <xs:element name="lastSeen" type="xs:string"/>
+  <xs:element name="type" type="xs:string"/>
+  <xs:element name="decrypted" type="xs:string" minOccurs="0"/>
+  <xs:element name="txEncryption" type="xs:string"/>
+  <xs:element name="rxEncryption" type="xs:string"/>
+  <xs:element name="lastSsid" type="xs:string" minOccurs="0"/>
+
+  <xs:element name="cdpDevice" type="xs:string" minOccurs="0"/>
+  <xs:element name="cdpPort" type="xs:string" minOccurs="0"/>
+  
+  <xs:element name="dhcpHost" type="xs:string" minOccurs="0"/>
+  <xs:element name="dhcpVendor" type="xs:string" minOccurs="0"/>
+  
+  <xs:element name="txDatabytes" type="xs:integer"/>
+  <xs:element name="rxDatabytes" type="xs:integer"/>
+
+ </xs:sequence>
 </xs:complexType>
 
 <xs:complexType name="phy80211device"> 
@@ -65,8 +94,6 @@
 				</xs:element>
 
 				<!-- Optional, if non-ap record -->
-				<xs:element name="bssTimestamp" type="xs:integer" minOccurs="0"/>
-
 				<xs:element name="cdpDevice" type="xs:string" minOccurs="0"/>
 				<xs:element name="cdpPort" type="xs:string" minOccurs="0"/>
 
@@ -80,6 +107,14 @@
 				<xs:element name="encoding" type="xs:string" minOccurs="0"/>
 
 				<xs:element name="lastBssid" type="common:macaddr" minOccurs="0"/>
+
+				<xs:element name="clients" minOccurs="0">
+				 <xs:complexType>
+				  <xs:sequence>
+                   <xs:element name="client" type="client" maxOccurs="unbounded"/> 
+				  </xs:sequence>
+				 </xs:complexType>
+				</xs:element>
             </xs:sequence> 
         </xs:extension> 
     </xs:complexContent> 

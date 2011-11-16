@@ -93,7 +93,7 @@ public:
 		beacons = 0;
 		ietag_csum = 0;
 		channel = 0;
-		dot11d_country = "XXX";
+		dot11d_country = "";
 	}
 
 	inline dot11_ssid& operator= (const dot11_ssid& in) {
@@ -419,7 +419,7 @@ public:
         datasize = 0;
 		qos = 0;
 		ssid_csum = 0;
-		dot11d_country = "XXX";
+		dot11d_country = "";
 		ietag_csum = 0;
     }
 

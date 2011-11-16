@@ -226,7 +226,8 @@ enum crypt_type {
     crypt_pptp = (1 << 15),
 	crypt_fortress = (1 << 16),
 	crypt_keyguard = (1 << 17),
-	crypt_unknown_nonwep = (1 << 18),
+	crypt_unknown_protected = (1 << 18),
+	crypt_unknown_nonwep = (1 << 19),
 };
 
 // Deciphering by casting.  This is bad, and non portable, and we need to not

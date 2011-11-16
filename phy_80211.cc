@@ -294,7 +294,7 @@ dot11_ssid *Kis_80211_Phy::BuildSSID(uint32_t ssid_csum,
 
 	adssid->beacon_info = string(packinfo->beacon_info);
 	adssid->cryptset = packinfo->cryptset;
-	adssid->first_time = globalreg->timestamp.tv_sec;
+	adssid->first_time = in_pack->ts.tv_sec;
 	adssid->maxrate = packinfo->maxrate;
 	adssid->beaconrate = Ieee80211Interval2NSecs(packinfo->beacon_interval);
 	adssid->packets = 0;
@@ -336,7 +336,7 @@ dot11_ssid *Kis_80211_Phy::BuildSSID(uint32_t ssid_csum,
 						// Remember the revealed SSID
 						ssid_conf->SetOpt(packinfo->bssid_mac.Mac2String(), 
 										  packinfo->ssid, 
-										  globalreg->timestamp.tv_sec);
+										  in_pack->ts.tv_sec);
 					}
 
 				}
@@ -730,7 +730,7 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 
 				cli_new = true;
 
-				cli->first_time = globalreg->timestamp.tv_sec;
+				cli->first_time = in_pack->ts.tv_sec;
 
 				cli->mac = dot11info->source_mac;
 
@@ -742,7 +742,7 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 				cli = ci->second;
 			}
 
-			cli->last_time = globalreg->timestamp.tv_sec;
+			cli->last_time = in_pack->ts.tv_sec;
 
 			if (dot11info->decrypted)
 				cli->decrypted = 1;
@@ -898,7 +898,49 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 				}
 
 				ssid->beaconrate = ieeerate;
+
+				if (ssid->dot11d_country != dot11info->dot11d_country &&
+					ssid->dot11d_country != "") {
+					// TODO: alert on dot11d change
+					fprintf(stderr, "debug - %s %s dot11d change %s %s\n", dot11info->bssid_mac.Mac2String().c_str(), ssid->ssid.c_str(), ssid->dot11d_country.c_str(), dot11info->dot11d_country.c_str());
+				}
+
+				if (ssid->dot11d_vec.size() > 0) {
+					bool dot11dfail = false;
+
+					for (unsigned int x = 0; x < ssid->dot11d_vec.size() && 
+						 x < dot11info->dot11d_vec.size(); x++) {
+						if (ssid->dot11d_vec[x].startchan !=
+							dot11info->dot11d_vec[x].startchan)
+							dot11dfail = true;
+						if (ssid->dot11d_vec[x].numchan !=
+							dot11info->dot11d_vec[x].numchan)
+							dot11dfail = true;
+						if (ssid->dot11d_vec[x].txpower !=
+							dot11info->dot11d_vec[x].txpower)
+							dot11dfail = true;
+
+						if (dot11dfail)
+							break;
+					}
+
+					if (!dot11dfail)
+						if (ssid->dot11d_vec.size() !=
+							dot11info->dot11d_vec.size())
+							dot11dfail = true;
+
+					if (dot11dfail) {
+						// TODO: alert on dot11d change
+						fprintf(stderr, "debug - %s %s dot11d change %s %s\n", dot11info->bssid_mac.Mac2String().c_str(), ssid->ssid.c_str(), ssid->dot11d_country.c_str(), dot11info->dot11d_country.c_str());
+					}
+
+					ssid->dot11d_country = dot11info->dot11d_country;
+					ssid->dot11d_vec = dot11info->dot11d_vec;
+
+				}
 			}
+
+			ssid->last_time = in_pack->ts.tv_sec;
 		}
 	}
 
@@ -977,263 +1019,6 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 		_MSG("Detected new 802.11 network BSSID " + dot11info->bssid_mac.Mac2String() +
 			 ", " + printcrypt + ", no beacons seen yet", MSGFLAG_INFO);
 	}
-
-#if 0
-		if (dot11info->type == packet_management &&
-			(dot11info->subtype == packet_sub_deauthentication ||
-			 dot11info->subtype == packet_sub_disassociation))
-			net->client_disconnects++;
-
-		net->last_sequence = dot11info->sequence_number;
-
-		// If we've figured out we have data...
-		if (datainfo != NULL) {
-			if (datainfo->cdp_dev_id != "") {
-				if (dot11info->bssid_mac == dot11info->source_mac) {
-					net->cdp_dev_id = datainfo->cdp_dev_id;
-				}
-
-				cli->cdp_dev_id = datainfo->cdp_dev_id;
-			}
-
-			if (datainfo->cdp_port_id != "") {
-				if (dot11info->bssid_mac == dot11info->source_mac) {
-					net->cdp_port_id = datainfo->cdp_port_id;
-				}
-
-				cli->cdp_port_id = datainfo->cdp_port_id;
-			}
-		}
-
-
-	}
-
-	// Find the tracked client device
-	kis_tracked_device *clidev =
-		devicetracker->MapToDevice(dot11info->source_mac, in_pack);
-
-	cli = (dot11_client *) clidev->fetch(dev_comp_client);
-
-	if (cli == NULL) {
-		cli = new dot11_client();
-
-		if (dot11info->distrib == distrib_from ||
-			(dot11info->type == packet_management &&
-			 (dot11info->subtype == packet_sub_beacon ||
-			  dot11info->subtype == packet_sub_probe_resp))) {
-			cli->type = dot11_client_fromds;
-		} else if (dot11info->distrib == distrib_to ||
-				   (dot11info->type == packet_management &&
-					dot11info->subtype == packet_sub_probe_req)) {
-			cli->type = dot11_client_tods;
-		} else if (dot11info->distrib == distrib_inter) {
-			cli->type = dot11_client_interds;
-		} else if (dot11info->distrib == distrib_adhoc) {
-			cli->type = dot11_client_adhoc;
-		} else {
-			cli->type = dot11_client_unknown;
-		}
-
-		clidev->insert(dev_comp_client, cli);
-	}
-
-	// Interdistrib and adhoc get attached to both tx and rx, for 
-	// crypt and data
-	if (dot11info->distrib == distrib_from || 
-		dot11info->distrib == distrib_adhoc ||
-		dot11info->distrib == distrib_inter) {
-
-		cli->tx_cryptset |= dot11info->cryptset;
-		cli->tx_datasize += dot11info->datasize;
-
-		if (net != NULL) {
-			net->tx_cryptset |= dot11info->cryptset;
-			net->tx_datasize += dot11info->datasize;
-		}
-	}
-	
-	if (dot11info->distrib == distrib_to ||
-		dot11info->distrib == distrib_adhoc ||
-		dot11info->distrib == distrib_inter) {
-
-		if (net != NULL) {
-			net->rx_cryptset |= dot11info->cryptset;
-			net->rx_datasize += dot11info->datasize;
-		}
-
-		cli->rx_cryptset |= dot11info->cryptset;
-		cli->rx_datasize += dot11info->datasize;
-	}
-
-	if (dot11info->decrypted) {
-		if (net != NULL)
-			net->decrypted = 1;
-		cli->decrypted = 1;
-	}
-
-	// fragments, retries, ssid, bssid
-	cli->last_bssid = dot11info->bssid_mac;
-
-	cli->fragments += dot11info->fragmented;
-	cli->retries += dot11info->retry;
-
-	if (net != NULL)
-		net->new_packets++;
-
-	cli->new_packets++;
-
-	// Track the SSID data
-	if (dot11info->type == packet_management &&
-		(dot11info->subtype == packet_sub_beacon || 
-		 dot11info->subtype == packet_sub_probe_resp ||
-		 dot11info->subtype == packet_sub_probe_req)) {
-
-		string ssidkey = dot11info->ssid + IntToString(dot11info->ssid_len);
-
-		uint32_t ssidhash = Adler32Checksum(ssidkey.c_str(), ssidkey.length());
-
-		// Should never be possible to have a null net at be a beacon/proberesp
-		// but lets not make assumptions
-		if (net != NULL && (dot11info->subtype == packet_sub_beacon ||
-							dot11info->subtype == packet_sub_probe_resp)) {
-			map<uint32_t, dot11_ssid *>::iterator si = net->ssid_map.find(ssidhash);
-			if (si == net->ssid_map.end()) {
-				ssid = BuildSSID(ssidhash, dot11info, in_pack);
-				ssid_new = true;
-
-				net->ssid_map[ssidhash] = ssid;
-			} else {
-				ssid = si->second;
-			}
-		}
-
-		if (cli != NULL && dot11info->subtype == packet_sub_probe_req) {
-			map<uint32_t, dot11_ssid *>::iterator si = cli->ssid_map.find(ssidhash);
-			if (si == cli->ssid_map.end()) {
-				ssid = BuildSSID(ssidhash, dot11info, in_pack);
-				ssid_new = true;
-
-				cli->ssid_map[ssidhash] = ssid;
-			} else {
-				ssid = si->second;
-			}
-		}
-
-		if (ssid != NULL) {
-			if (dot11info->subtype == packet_sub_beacon) {
-				int ieeerate = Ieee80211Interval2NSecs(dot11info->beacon_interval);
-
-				ssid->beacons++;
-
-				// If we're changing from something else to a beacon...
-				if (ssid->type != dot11_ssid_beacon) {
-					// fprintf(stderr, "debug - %s %s changing to beacon\n", dot11info->bssid_mac.Mac2String().c_str(), ssid->ssid.c_str());
-					ssid->type = dot11_ssid_beacon;
-					ssid->cryptset = dot11info->cryptset;
-					ssid->beaconrate = ieeerate;
-				}
-
-				if (ssid->cryptset != dot11info->cryptset) {
-					// TODO: alert on cryptset change
-					fprintf(stderr, "debug - %s %s cryptset change\n", dot11info->bssid_mac.Mac2String().c_str(), ssid->ssid.c_str());
-				}
-
-				ssid->cryptset = dot11info->cryptset;
-
-				if (ssid->beaconrate != ieeerate) {
-					// TODO: alert on beaconrate change
-					fprintf(stderr, "debug - %s %s beaconrate change %u %u\n", dot11info->bssid_mac.Mac2String().c_str(), ssid->ssid.c_str(), ssid->beaconrate, dot11info->beacon_interval);
-				}
-
-				ssid->beaconrate = ieeerate;
-			}
-		}
-	}
-
-	if (ssid_new) {
-		string printssid;
-		string printssidext;
-		string printcrypt;
-		string printtype;
-		string printdev;
-		string printchan;
-
-		printssid = ssid->ssid;
-
-		if (ssid->ssid_len == 0 || ssid->ssid == "") {
-			if (ssid->type == dot11_ssid_probereq)  {
-				printssid = "<Broadcast>";
-				printssidext = " (probing for any SSID)";
-			} else {
-				printssid = "<Hidden SSID>";
-			}
-		}
-
-		if (ssid->ssid_cloaked) {
-			printssidext = " (cloaked)";
-		}
-
-		if (ssid->type == dot11_ssid_beacon) {
-			printtype = "AP";
-
-			if (ssid->cryptset) {
-				printcrypt = "encrypted (" + CryptToString(ssid->cryptset) + ")";
-			} else {
-				printcrypt = "unencrypted";
-			}
-
-			printdev = "BSSID " + dot11info->bssid_mac.Mac2String();
-
-			printchan = ", channel " + IntToString(ssid->channel);
-		} else if (ssid->type == dot11_ssid_probereq) {
-			printtype = "probing client";
-			
-			if (ssid->cryptset)
-				printcrypt = "encrypted";
-			else
-				printcrypt = "unencrypted";
-
-			printdev = "client " + dot11info->source_mac.Mac2String();
-		} else if (ssid->type == dot11_ssid_proberesp) {
-			printtype = "responding AP";
-
-			if (ssid->cryptset)
-				printcrypt = "encrypted";
-			else
-				printcrypt = "unencrypted";
-
-			printdev = "BSSID " + dot11info->bssid_mac.Mac2String();
-		} else {
-			printtype = "unknown " + IntToString(ssid->type);
-			printdev = "BSSID " + dot11info->bssid_mac.Mac2String();
-		}
-
-		_MSG("Detected new 802.11 " + printtype + " SSID \"" + printssid + "\"" + 
-			 printssidext + ", " + printdev + ", " + printcrypt + 
-			 printchan,
-			 MSGFLAG_INFO);
-
-	} else if (net_new) {
-		// If we didn't find a new SSID, and we found a network, talk about that
-		string printcrypt;
-
-		if (dot11info->cryptset)
-			printcrypt = "encrypted";
-		else
-			printcrypt = "unencrypted";
-
-		_MSG("Detected new 802.11 network BSSID " + dot11info->bssid_mac.Mac2String() +
-			 ", " + printcrypt + ", no beacons seen yet", MSGFLAG_INFO);
-	}
-
-	// We don't have to maintain a dirty vec because the devicetracker does
-	// does that for us; anything that managed to be a device here is going
-	// to have flagged dirty in the devicetracker
-	cli->dirty = 1;
-
-	if (net != NULL)
-		net->dirty = 1;
-#endif
 
 	return 1;
 }
@@ -1304,16 +1089,40 @@ void Kis_80211_Phy::ExportLogRecord(kis_tracked_device *in_device, string in_log
 				fprintf(in_logfile, "<encryption>%s</encryption>",
 						CryptToString(x->second->cryptset).c_str());
 
+				if (x->second->dot11d_country != "") {
+					fprintf(in_logfile, "<dot11d>\n");
+
+					if (x->second->dot11d_vec.size() > 0) {
+						fprintf(in_logfile, "<ranges>\n");
+
+						for (unsigned int i = 0; i < x->second->dot11d_vec.size(); i++) {
+							fprintf(in_logfile, "<range>\n");
+
+							fprintf(in_logfile, "<start>%u</start>\n",
+									x->second->dot11d_vec[i].startchan);
+							fprintf(in_logfile, "<end>%u</end>\n",
+									x->second->dot11d_vec[i].startchan +
+									x->second->dot11d_vec[i].numchan - 1);
+							fprintf(in_logfile, "<power>%d</power>\n",
+									x->second->dot11d_vec[i].txpower);
+
+							fprintf(in_logfile, "</range>\n");
+						}
+
+						fprintf(in_logfile, "</ranges>\n");
+					}
+
+					fprintf(in_logfile, "<country>%s</country>\n", 
+							SanitizeXML(x->second->dot11d_country).c_str());
+					fprintf(in_logfile, "</dot11d>\n");
+				}
+
 				fprintf(in_logfile, "</ssid>\n");
 			}
 
 			fprintf(in_logfile, "</ssids>\n");
 		}
 		
-		if (dot11dev->type_set & dot11_network_ap)
-			fprintf(in_logfile, "<bssTimestamp>%lu</bssTimestamp>\n", 
-					dot11dev->bss_timestamp);
-
 		if (dot11dev->cdp_dev_id != "")
 			fprintf(in_logfile, "<cdpDevice>%s</cdpDevice>\n", 
 					SanitizeXML(dot11dev->cdp_dev_id).c_str());
@@ -1337,6 +1146,59 @@ void Kis_80211_Phy::ExportLogRecord(kis_tracked_device *in_device, string in_log
 		if (dot11dev->last_bssid != mac_addr(0))
 			fprintf(in_logfile, "<lastBssid>%s</lastBssid>\n",
 					dot11dev->last_bssid.Mac2String().c_str());
+
+		if (dot11dev->client_map.size() > 0) {
+			fprintf(in_logfile, "<clients>\n");
+			for (map<mac_addr, dot11_client *>::iterator x = dot11dev->client_map.begin();
+				 x != dot11dev->client_map.end(); ++x) {
+				fprintf(in_logfile, "<client>\n");
+				fprintf(in_logfile, "<mac>%s</mac>\n", x->second->mac.Mac2String().c_str());
+				fprintf(in_logfile, "<firstSeen>%.24s</firstSeen>\n",
+						ctime(&(x->second->first_time)));
+				fprintf(in_logfile, "<lastSeen>%.24s</lastSeen>\n",
+						ctime(&(x->second->last_time)));
+				if (x->second->type == dot11_client_fromds) 
+					fprintf(in_logfile, "<type>Wired / Bridged</type>\n");
+				else if (x->second->type == dot11_client_tods)
+					fprintf(in_logfile, "<type>Wireless</type>\n");
+				else if (x->second->type == dot11_client_interds)
+					fprintf(in_logfile, "<type>WDS</type>\n");
+				else if (x->second->type == dot11_client_adhoc)
+					fprintf(in_logfile, "<type>Ad-Hoc</type>\n");
+				else
+					fprintf(in_logfile, "<type>Unknown</type>\n");
+
+				if (x->second->decrypted)
+					fprintf(in_logfile, "<decrypted>true</decrypted>\n");
+
+				fprintf(in_logfile, "<txEncryption>%s</txEncryption>\n",
+						CryptToString(x->second->tx_cryptset).c_str());
+				fprintf(in_logfile, "<rxEncryption>%s</rxEncryption>\n",
+						CryptToString(x->second->rx_cryptset).c_str());
+
+				if (x->second->cdp_dev_id != "")
+					fprintf(in_logfile, "<cdpDevice>%s</cdpDevice>\n", 
+							SanitizeXML(x->second->cdp_dev_id).c_str());
+				if (x->second->cdp_port_id != "")
+					fprintf(in_logfile, "<cdpPort>%s</cdpPort>\n", 
+							SanitizeXML(x->second->cdp_port_id).c_str());
+
+				if (x->second->dhcp_host != "")
+					fprintf(in_logfile, "<dhcpHost>%s</dhcpHost>\n",
+							SanitizeXML(x->second->dhcp_host).c_str());
+				if (x->second->dhcp_vendor != "")
+					fprintf(in_logfile, "<dhcpVendor>%s</dhcpVendor>\n",
+							SanitizeXML(x->second->dhcp_vendor).c_str());
+
+				fprintf(in_logfile, "<txDatabytes>%lu</txDatabytes>\n",
+						x->second->tx_datasize);
+				fprintf(in_logfile, "<rxDatabytes>%lu</rxDatabytes>\n",
+						x->second->rx_datasize);
+				fprintf(in_logfile, "</client>\n");
+
+			}
+			fprintf(in_logfile, "</clients>\n");
+		}
 
 	} 
 
@@ -1402,6 +1264,9 @@ string Kis_80211_Phy::CryptToString(uint64_t cryptset) {
 
 	if (cryptset & crypt_keyguard)
 		return "Keyguard";
+
+	if (cryptset & crypt_unknown_protected)
+		return "Encrypted Data / Unknown";
 
 	if (cryptset & crypt_unknown_nonwep)
 		return "Unknown/Non-WEP";
