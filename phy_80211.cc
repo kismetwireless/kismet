@@ -900,6 +900,8 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 		}
 
 		if (ssid != NULL) {
+			// TODO alert for degraded crypto on probe_resp
+
 			if (dot11info->subtype == packet_sub_beacon) {
 				int ieeerate = Ieee80211Interval2NSecs(dot11info->beacon_interval);
 
@@ -907,13 +909,62 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 
 				// If we're changing from something else to a beacon...
 				if (ssid->type != dot11_ssid_beacon) {
-					// fprintf(stderr, "debug - %s %s changing to beacon\n", dot11info->bssid_mac.Mac2String().c_str(), ssid->ssid.c_str());
 					ssid->type = dot11_ssid_beacon;
 					ssid->cryptset = dot11info->cryptset;
 					ssid->beaconrate = ieeerate;
+					ssid->channel = dot11info->channel;
 				}
 
-				if (ssid->cryptset != dot11info->cryptset &&
+				if (ssid->channel != dot11info->channel &&
+					globalreg->alertracker->PotentialAlert(alert_chan_ref)) {
+
+					string al = "IEEE80211 Access Point BSSID " +
+						apdev->key.Mac2String() + " SSID \"" +
+						ssid->ssid + "\" changed advertised channel from " +
+						IntToString(ssid->channel) + " to " + 
+						IntToString(dot11info->channel) + " which may "
+						"indicate AP spoofing/impersonation";
+
+					globalreg->alertracker->RaiseAlert(alert_chan_ref, in_pack, 
+													   dot11info->bssid_mac, 
+													   dot11info->source_mac, 
+													   dot11info->dest_mac, 
+													   dot11info->other_mac, 
+													   dot11info->channel, al);
+				}
+
+				if (ssid->ssid == "AirJack" &&
+					globalreg->alertracker->PotentialAlert(alert_airjackssid_ref)) {
+
+					string al = "IEEE80211 Access Point BSSID " +
+						apdev->key.Mac2String() + " broadcasting SSID "
+						"\"AirJack\" which implies an attempt to disrupt "
+						"networks.";
+
+					globalreg->alertracker->RaiseAlert(alert_airjackssid_ref, in_pack, 
+													   dot11info->bssid_mac, 
+													   dot11info->source_mac, 
+													   dot11info->dest_mac, 
+													   dot11info->other_mac, 
+													   dot11info->channel, al);
+				}
+
+				if (ssid->cryptset && dot11info->cryptset == crypt_none &&
+					globalreg->alertracker->PotentialAlert(alert_wepflap_ref)) {
+
+					string al = "IEEE80211 Access Point BSSID " +
+						apdev->key.Mac2String() + " SSID \"" +
+						ssid->ssid + "\" changed advertised encryption from " +
+						CryptToString(ssid->cryptset) + " to Open which may "
+						"indicate AP spoofing/impersonation";
+
+					globalreg->alertracker->RaiseAlert(alert_wepflap_ref, in_pack, 
+													   dot11info->bssid_mac, 
+													   dot11info->source_mac, 
+													   dot11info->dest_mac, 
+													   dot11info->other_mac, 
+													   dot11info->channel, al);
+				} else if (ssid->cryptset != dot11info->cryptset &&
 					globalreg->alertracker->PotentialAlert(alert_cryptchange_ref)) {
 
 					string al = "IEEE80211 Access Point BSSID " +
@@ -1092,6 +1143,24 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 
 		_MSG("Detected new 802.11 network BSSID " + dot11info->bssid_mac.Mac2String() +
 			 ", " + printcrypt + ", no beacons seen yet", MSGFLAG_INFO);
+	}
+
+	if (dot11info->type == packet_management &&
+		(dot11info->type == packet_sub_disassociation ||
+		 dot11info->type == packet_sub_deauthentication) &&
+		dot11info->dest_mac == globalreg->broadcast_mac &&
+		globalreg->alertracker->PotentialAlert(alert_bcastdcon_ref)) {
+
+		string al = "IEEE80211 Access Point BSSID " +
+			apdev->key.Mac2String() + " broadcast deauthentication or "
+			"disassociation of all clients, probable denial of service";
+			
+		globalreg->alertracker->RaiseAlert(alert_bcastdcon_ref, in_pack, 
+										   dot11info->bssid_mac, 
+										   dot11info->source_mac, 
+										   dot11info->dest_mac, 
+										   dot11info->other_mac, 
+										   dot11info->channel, al);
 	}
 
 	return 1;

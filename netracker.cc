@@ -2607,6 +2607,7 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 			adssid = ssidi->second;
 		}
 
+#if 0
 		// Alert on crypto change
 		if (adssid->cryptset != packinfo->cryptset && adssid->cryptset != 0 &&
 			globalreg->alertracker->PotentialAlert(alert_wepflap_ref)) {
@@ -2632,6 +2633,7 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 											   packinfo->other_mac, 
 											   packinfo->channel, outs.str());
 		}
+#endif
 
 		adssid->cryptset = packinfo->cryptset;
 
@@ -2698,6 +2700,7 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 
 		adssid->dirty = 1;
 
+#if 0
 		if (alert_airjackssid_ref >= 0 && packinfo->ssid == "AirJack" &&
 			globalreg->alertracker->PotentialAlert(alert_airjackssid_ref)) {
 			ostringstream outs;
@@ -2732,11 +2735,13 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 												   outs.str());
 			}
 		}
+#endif
 
 		// Copy the crypto data
 		adssid->cryptset = packinfo->cryptset;
 
 		// Fire off an alert if the channel changes
+#if 0
 		if (alert_chan_ref >= 0 && newnetwork == 0 && net->channel != 0 &&
 			packinfo->channel != 0 && net->channel != packinfo->channel &&
 			globalreg->alertracker->PotentialAlert(alert_chan_ref)) {
@@ -2752,6 +2757,7 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 											   packinfo->other_mac, 
 											   packinfo->channel, outs.str());
 		}
+#endif
 
 		if (packinfo->channel != 0) {
 			// Inherit the channel from the beacon
@@ -2823,6 +2829,7 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 		adssid->dirty = 1;
 	}
 
+#if 0
 	// Fire an alert on a disconnect/deauth broadcast
 	if (alert_bcastdcon_ref >= 0 && packinfo->type == packet_management &&
 		(packinfo->subtype == packet_sub_disassociation ||
@@ -2841,6 +2848,7 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 										   packinfo->other_mac, 
 										   packinfo->channel, outs.str());
 	}
+#endif
 
 	if (packinfo->type == packet_management ||
 		packinfo->type == packet_phy) {

@@ -251,7 +251,7 @@ int Alertracker::PotentialAlert(int in_ref) {
 	map<int, alert_rec *>::iterator aritr = alert_ref_map.find(in_ref);
 
 	if (aritr == alert_ref_map.end())
-		return -1;
+		return 0;
 
 	alert_rec *arec = aritr->second;
 
