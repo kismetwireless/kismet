@@ -120,50 +120,50 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
 
 	// Register the dissector alerts
 	alert_netstumbler_ref = 
-		globalreg->alertracker->ActivateConfiguredAlert("NETSTUMBLER");
+		globalreg->alertracker->ActivateConfiguredAlert("NETSTUMBLER", phyid);
 	alert_nullproberesp_ref =
-		globalreg->alertracker->ActivateConfiguredAlert("NULLPROBERESP");
+		globalreg->alertracker->ActivateConfiguredAlert("NULLPROBERESP", phyid);
 	alert_lucenttest_ref =
-		globalreg->alertracker->ActivateConfiguredAlert("LUCENTTEST");
+		globalreg->alertracker->ActivateConfiguredAlert("LUCENTTEST", phyid);
 	alert_msfbcomssid_ref =
-		globalreg->alertracker->ActivateConfiguredAlert("MSFBCOMSSID");
+		globalreg->alertracker->ActivateConfiguredAlert("MSFBCOMSSID", phyid);
 	alert_msfdlinkrate_ref =
-		globalreg->alertracker->ActivateConfiguredAlert("MSFDLINKRATE");
+		globalreg->alertracker->ActivateConfiguredAlert("MSFDLINKRATE", phyid);
 	alert_msfnetgearbeacon_ref =
-		globalreg->alertracker->ActivateConfiguredAlert("MSFNETGEARBEACON");
+		globalreg->alertracker->ActivateConfiguredAlert("MSFNETGEARBEACON", phyid);
 	alert_longssid_ref =
-		globalreg->alertracker->ActivateConfiguredAlert("LONGSSID");
+		globalreg->alertracker->ActivateConfiguredAlert("LONGSSID", phyid);
 	alert_disconinvalid_ref =
-		globalreg->alertracker->ActivateConfiguredAlert("DISCONCODEINVALID");
+		globalreg->alertracker->ActivateConfiguredAlert("DISCONCODEINVALID", phyid);
 	alert_deauthinvalid_ref =
-		globalreg->alertracker->ActivateConfiguredAlert("DEAUTHCODEINVALID");
+		globalreg->alertracker->ActivateConfiguredAlert("DEAUTHCODEINVALID", phyid);
 	alert_dhcpclient_ref =
-		globalreg->alertracker->ActivateConfiguredAlert("DHCPCLIENTID");
+		globalreg->alertracker->ActivateConfiguredAlert("DHCPCLIENTID", phyid);
 
 	alert_chan_ref =
-		globalreg->alertracker->ActivateConfiguredAlert("CHANCHANGE");
+		globalreg->alertracker->ActivateConfiguredAlert("CHANCHANGE", phyid);
 	alert_dhcpcon_ref =
-		globalreg->alertracker->ActivateConfiguredAlert("DHCPCONFLICT");
+		globalreg->alertracker->ActivateConfiguredAlert("DHCPCONFLICT", phyid);
 	alert_bcastdcon_ref =
-		globalreg->alertracker->ActivateConfiguredAlert("BCASTDISCON");
+		globalreg->alertracker->ActivateConfiguredAlert("BCASTDISCON", phyid);
 	alert_airjackssid_ref = 
-		globalreg->alertracker->ActivateConfiguredAlert("AIRJACKSSID");
+		globalreg->alertracker->ActivateConfiguredAlert("AIRJACKSSID", phyid);
 	alert_wepflap_ref =
-		globalreg->alertracker->ActivateConfiguredAlert("CRYPTODROP");
+		globalreg->alertracker->ActivateConfiguredAlert("CRYPTODROP", phyid);
 	alert_dhcpname_ref =
-		globalreg->alertracker->ActivateConfiguredAlert("DHCPNAMECHANGE");
+		globalreg->alertracker->ActivateConfiguredAlert("DHCPNAMECHANGE", phyid);
 	alert_dhcpos_ref =
-		globalreg->alertracker->ActivateConfiguredAlert("DHCPOSCHANGE");
+		globalreg->alertracker->ActivateConfiguredAlert("DHCPOSCHANGE", phyid);
 	alert_adhoc_ref =
-		globalreg->alertracker->ActivateConfiguredAlert("ADHOCCONFLICT");
+		globalreg->alertracker->ActivateConfiguredAlert("ADHOCCONFLICT", phyid);
 	alert_ssidmatch_ref =
-		globalreg->alertracker->ActivateConfiguredAlert("APSPOOF");
+		globalreg->alertracker->ActivateConfiguredAlert("APSPOOF", phyid);
 	alert_dot11d_ref =
-		globalreg->alertracker->ActivateConfiguredAlert("DOT11D");
+		globalreg->alertracker->ActivateConfiguredAlert("DOT11D", phyid);
 	alert_beaconrate_ref =
-		globalreg->alertracker->ActivateConfiguredAlert("BEACONRATE");
+		globalreg->alertracker->ActivateConfiguredAlert("BEACONRATE", phyid);
 	alert_cryptchange_ref =
-		globalreg->alertracker->ActivateConfiguredAlert("ADVCRYPTCHANGE");
+		globalreg->alertracker->ActivateConfiguredAlert("ADVCRYPTCHANGE", phyid);
 
 	// Do we process the whole data packet?
     if (globalreg->kismet_config->FetchOptBoolean("hidedata", 0) ||
