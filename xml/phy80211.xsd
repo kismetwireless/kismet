@@ -61,6 +61,8 @@
   <xs:element name="rxEncryption" type="xs:string"/>
   <xs:element name="lastSsid" type="xs:string" minOccurs="0"/>
 
+  <xs:element name="manufacturer" type="xs:string" minoccurs="0"/>
+
   <xs:element name="cdpDevice" type="xs:string" minOccurs="0"/>
   <xs:element name="cdpPort" type="xs:string" minOccurs="0"/>
   

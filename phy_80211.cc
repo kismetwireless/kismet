@@ -38,6 +38,7 @@
 #include "packet.h"
 #include "uuid.h"
 #include "alertracker.h"
+#include "manuf.h"
 #include "configfile.h"
 
 #include "devicetracker.h"
@@ -718,7 +719,8 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 			}
 		}
 
-		dot11dev->last_bssid = dot11info->bssid_mac;
+		if (dot11info->bssid_mac != globalreg->broadcast_mac)
+			dot11dev->last_bssid = dot11info->bssid_mac;
 
 		if (net != NULL) {
 			// we're a client; find a client record, if we know what the network is
@@ -734,6 +736,9 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 
 				cli->mac = dot11info->source_mac;
 
+				if (globalreg->manufdb != NULL)
+					cli->manuf = globalreg->manufdb->LookupOUI(cli->mac);
+
 				net->client_map.insert(pair<mac_addr, 
 									   dot11_client *>(dot11info->source_mac, cli));
 
@@ -743,6 +748,23 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 			}
 
 			cli->last_time = in_pack->ts.tv_sec;
+
+			if (dot11info->ess) {
+				cli->type = dot11_network_ap;
+			} else if (dot11info->distrib == distrib_from &&
+					   dot11info->type == packet_data) {
+				cli->type = dot11_network_wired;
+			} else if (dot11info->distrib == distrib_to &&
+					   dot11info->type == packet_data) {
+				cli->type = dot11_network_client;
+			} else if (dot11info->distrib == distrib_inter) {
+				cli->type = dot11_network_wds;
+			} else if (dot11info->type == packet_management &&
+					   dot11info->subtype == packet_sub_probe_req) {
+				cli->type = dot11_network_client;
+			} else if (dot11info->distrib == distrib_adhoc) {
+				cli->type = dot11_network_adhoc;
+			}
 
 			if (dot11info->decrypted)
 				cli->decrypted = 1;
@@ -1157,13 +1179,13 @@ void Kis_80211_Phy::ExportLogRecord(kis_tracked_device *in_device, string in_log
 						ctime(&(x->second->first_time)));
 				fprintf(in_logfile, "<lastSeen>%.24s</lastSeen>\n",
 						ctime(&(x->second->last_time)));
-				if (x->second->type == dot11_client_fromds) 
+				if (x->second->type == dot11_network_wired) 
 					fprintf(in_logfile, "<type>Wired / Bridged</type>\n");
-				else if (x->second->type == dot11_client_tods)
+				else if (x->second->type == dot11_network_client)
 					fprintf(in_logfile, "<type>Wireless</type>\n");
-				else if (x->second->type == dot11_client_interds)
+				else if (x->second->type == dot11_network_wds)
 					fprintf(in_logfile, "<type>WDS</type>\n");
-				else if (x->second->type == dot11_client_adhoc)
+				else if (x->second->type == dot11_network_adhoc)
 					fprintf(in_logfile, "<type>Ad-Hoc</type>\n");
 				else
 					fprintf(in_logfile, "<type>Unknown</type>\n");
@@ -1175,6 +1197,10 @@ void Kis_80211_Phy::ExportLogRecord(kis_tracked_device *in_device, string in_log
 						CryptToString(x->second->tx_cryptset).c_str());
 				fprintf(in_logfile, "<rxEncryption>%s</rxEncryption>\n",
 						CryptToString(x->second->rx_cryptset).c_str());
+
+				if (x->second->manuf != "")
+					fprintf(in_logfile, "<manufacturer>%s</manufacturer>\n",
+							SanitizeXML(x->second->manuf).c_str());
 
 				if (x->second->cdp_dev_id != "")
 					fprintf(in_logfile, "<cdpDevice>%s</cdpDevice>\n", 

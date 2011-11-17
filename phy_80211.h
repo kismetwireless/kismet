@@ -173,20 +173,23 @@ enum dot11_network_type {
 	// ess = 1
 	dot11_network_ap = 1,
 	// adhoc
-	dot11_network_adhoc = 2,
+	dot11_network_adhoc = (1 << 1),
 	// wireless client
-	dot11_network_client = 4,
+	dot11_network_client = (1 << 2),
 	// Wired fromds client
-	dot11_network_wired = 8,
+	dot11_network_wired = (1 << 3),
 	// WDS/interdistrib
-	dot11_network_wds = 16,
+	dot11_network_wds = (1 << 4),
 	// Turbocell (though it's mostly gone and we don't dissect it right now)
-	dot11_network_turbocell = 32,
+	dot11_network_turbocell = (1 << 5),
 	// Inferred flag, we've seen traffic to this device, but never from it
-	dot11_network_inferred = 64,
+	dot11_network_inferred = (1 << 6),
+	// Inferred wireless/wired
+	dot11_network_inferred_wireless = (1 << 7),
+	dot11_network_inferred_wired = (1 << 8),
 	// legacy, slated to die?
-	dot11_network_mixed = 256,
-	dot11_network_remove = 512
+	dot11_network_mixed = (1 << 9),
+	dot11_network_remove = (1 << 10)
 };
 
 // fwd def
@@ -280,20 +283,10 @@ public:
 	}
 };
 
-enum dot11_client_type {
-	dot11_client_unknown = 0,
-	dot11_client_fromds = 1,
-	dot11_client_tods = 2,
-	dot11_client_interds = 3,
-	dot11_client_established = 4,
-	dot11_client_adhoc = 5,
-	dot11_client_remove = 6
-};
-
 // Per-BSSID client record, tracked by the AP tracked_device/dot11_device record
 class dot11_client : public tracker_component {
 public:
-	dot11_client_type type;
+	dot11_network_type type;
 
 	mac_addr mac;
 
@@ -325,10 +318,12 @@ public:
 	uint64_t tx_datasize;
 	uint64_t rx_datasize;
 
+	string manuf;
+
 	int dirty;
 
 	dot11_client() {
-		type = dot11_client_unknown;
+		type = dot11_network_none;
 		decrypted = 0;
 		last_sequence = 0;
 		tx_cryptset = 0L;
