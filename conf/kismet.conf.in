@@ -198,6 +198,9 @@ alert=MSFBCOMSSID,5/min,1/sec
 alert=MSFDLINKRATE,5/min,1/sec
 alert=MSFNETGEARBEACON,5/min,1/sec
 alert=NULLPROBERESP,5/min,1/sec
+alert=DOT11D,5/min,1/sec
+alert=BEACONRATE,5/min,1/sec
+alert=ADVCRYPTCHANGE,5/min,1/sec
 #alert=PROBENOJOIN,5/min,1/sec
 
 # Controls behavior of the APSPOOF alert.  SSID may be a literal match (ssid=) or

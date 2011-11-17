@@ -158,6 +158,12 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
 		globalreg->alertracker->ActivateConfiguredAlert("ADHOCCONFLICT");
 	alert_ssidmatch_ref =
 		globalreg->alertracker->ActivateConfiguredAlert("APSPOOF");
+	alert_dot11d_ref =
+		globalreg->alertracker->ActivateConfiguredAlert("DOT11D");
+	alert_beaconrate_ref =
+		globalreg->alertracker->ActivateConfiguredAlert("BEACONRATE");
+	alert_cryptchange_ref =
+		globalreg->alertracker->ActivateConfiguredAlert("ADVCRYPTCHANGE");
 
 	// Do we process the whole data packet?
     if (globalreg->kismet_config->FetchOptBoolean("hidedata", 0) ||
@@ -907,29 +913,58 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 					ssid->beaconrate = ieeerate;
 				}
 
-				if (ssid->cryptset != dot11info->cryptset) {
-					// TODO: alert on cryptset change
-					fprintf(stderr, "debug - %s %s cryptset change\n", dot11info->bssid_mac.Mac2String().c_str(), ssid->ssid.c_str());
+				if (ssid->cryptset != dot11info->cryptset &&
+					globalreg->alertracker->PotentialAlert(alert_cryptchange_ref)) {
+
+					string al = "IEEE80211 Access Point BSSID " +
+						apdev->key.Mac2String() + " SSID \"" +
+						ssid->ssid + "\" changed advertised encryption from " +
+						CryptToString(ssid->cryptset) + " to " + 
+						CryptToString(dot11info->cryptset) + " which may indicate "
+						"AP spoofing/impersonation";
+
+					globalreg->alertracker->RaiseAlert(alert_cryptchange_ref, in_pack, 
+													   dot11info->bssid_mac, 
+													   dot11info->source_mac, 
+													   dot11info->dest_mac, 
+													   dot11info->other_mac, 
+													   dot11info->channel, al);
 				}
 
 				ssid->cryptset = dot11info->cryptset;
 
-				if (ssid->beaconrate != ieeerate) {
-					// TODO: alert on beaconrate change
-					fprintf(stderr, "debug - %s %s beaconrate change %u %u\n", dot11info->bssid_mac.Mac2String().c_str(), ssid->ssid.c_str(), ssid->beaconrate, dot11info->beacon_interval);
+				if (ssid->beaconrate != ieeerate &&
+					globalreg->alertracker->PotentialAlert(alert_beaconrate_ref)) {
+
+					string al = "IEEE80211 Access Point BSSID " +
+						apdev->key.Mac2String() + " SSID \"" +
+						ssid->ssid + "\" changed beacon rate from " +
+						IntToString(ssid->beaconrate) + " to " + 
+						IntToString(ieeerate) + " which may indicate "
+						"AP spoofing/impersonation";
+
+					globalreg->alertracker->RaiseAlert(alert_beaconrate_ref, in_pack, 
+													   dot11info->bssid_mac, 
+													   dot11info->source_mac, 
+													   dot11info->dest_mac, 
+													   dot11info->other_mac, 
+													   dot11info->channel, al);
 				}
 
 				ssid->beaconrate = ieeerate;
 
+				bool dot11dfail = false;
+				string dot11dfailreason;
+
 				if (ssid->dot11d_country != dot11info->dot11d_country &&
 					ssid->dot11d_country != "") {
-					// TODO: alert on dot11d change
-					fprintf(stderr, "debug - %s %s dot11d change %s %s\n", dot11info->bssid_mac.Mac2String().c_str(), ssid->ssid.c_str(), ssid->dot11d_country.c_str(), dot11info->dot11d_country.c_str());
+					dot11dfail = true;
+					dot11dfailreason = "changed 802.11d country from \"" + 
+						ssid->dot11d_country + "\" to \"" +
+						dot11info->dot11d_country + "\"";
 				}
 
 				if (ssid->dot11d_vec.size() > 0) {
-					bool dot11dfail = false;
-
 					for (unsigned int x = 0; x < ssid->dot11d_vec.size() && 
 						 x < dot11info->dot11d_vec.size(); x++) {
 						if (ssid->dot11d_vec[x].startchan !=
@@ -942,18 +977,35 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 							dot11info->dot11d_vec[x].txpower)
 							dot11dfail = true;
 
-						if (dot11dfail)
+						if (dot11dfail) {
+							dot11dfailreason = "changed 802.11d channel restrictions";
 							break;
+						}
 					}
 
 					if (!dot11dfail)
 						if (ssid->dot11d_vec.size() !=
-							dot11info->dot11d_vec.size())
+							dot11info->dot11d_vec.size()) {
 							dot11dfail = true;
+							dot11dfailreason = "changed 802.11d channel restrictions";
+						}
 
-					if (dot11dfail) {
-						// TODO: alert on dot11d change
-						fprintf(stderr, "debug - %s %s dot11d change %s %s\n", dot11info->bssid_mac.Mac2String().c_str(), ssid->ssid.c_str(), ssid->dot11d_country.c_str(), dot11info->dot11d_country.c_str());
+					if (dot11dfail &&
+						globalreg->alertracker->PotentialAlert(alert_dot11d_ref)) {
+
+					string al = "IEEE80211 Access Point BSSID " +
+						apdev->key.Mac2String() + " SSID \"" +
+						ssid->ssid + "\" " + dot11dfailreason +
+						IntToString(ieeerate) + " which may indicate "
+						"AP spoofing/impersonation";
+
+					globalreg->alertracker->RaiseAlert(alert_dot11d_ref, in_pack, 
+													   dot11info->bssid_mac, 
+													   dot11info->source_mac, 
+													   dot11info->dest_mac, 
+													   dot11info->other_mac, 
+													   dot11info->channel, al);
+
 					}
 
 					ssid->dot11d_country = dot11info->dot11d_country;

@@ -608,7 +608,8 @@ protected:
 	// Tracker alert references
 	int alert_chan_ref, alert_dhcpcon_ref, alert_bcastdcon_ref, alert_airjackssid_ref,
 		alert_wepflap_ref, alert_dhcpname_ref, alert_dhcpos_ref, alert_adhoc_ref,
-		alert_ssidmatch_ref;
+		alert_ssidmatch_ref, alert_dot11d_ref, alert_beaconrate_ref,
+		alert_cryptchange_ref;
 
 	// Command refs
 	int addfiltercmd_ref, addnetclifiltercmd_ref;
