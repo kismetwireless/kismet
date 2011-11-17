@@ -44,6 +44,56 @@
 #include "devicetracker.h"
 #include "phy_80211.h"
 
+enum PHYDOT11_SSID_FIELDS {
+	PD11_SSID_bssidmac, PD11_SSID_type, PD11_SSID_ssid, PD11_SSID_beaconinfo,
+	PD11_SSID_cryptset, PD11_SSID_cloaked, PD11_SSID_firsttime, PD11_SSID_lasttime,
+	PD11_SSID_beaconrate, PD11_SSID_beacons, PD11_SSID_channel, PD11_SSID_dot11d,
+	PD11_SSID_MAX
+};
+
+const char *PHYDOT11_SSID_text[] = {
+	"bssidmac", "type", "ssid", "beaconinfo",
+	"cryptset", "firsttime", "lasttime",
+	"beaconrate", "beacons", "channel", "dot11d",
+	NULL
+};
+
+enum PHYDOT11_DEVICE_FIELDS {
+	PD11_DEVICE_mac, PD11_DEVICE_txcrypt, PD11_DEVICE_rxcrypt, PD11_DEVICE_decrypted,
+	PD11_DEVICE_disconnects, PD11_DEVICE_cdpdev, PDP11_DEVICE_cdpport,
+	PD11_DEVICE_fragments, PD11_DEVICE_retries, PD11_DEVICE_lastssid,
+	PD11_DEVICE_lastssidcsum, PD11_DEVICE_txdatasize, PD11_DEVICE_rxdatasize, 
+	PD11_DEVICE_lastbssid, PD11_DEVICE_dhcphost, PD11_DEVICE_dhcpvendor,
+	PD11_DEVICE_MAX
+};
+
+const char *PHYDOT11_DEVICE_text[] = {
+	"mac", "txcrypt", "rxcrypt", "decrypted",
+	"disconnects", "cdpdev", "cdpport",
+	"fragments", "retries", "lastssid",
+	"lastssidcsum", "txdatasize", "rxdatasize", 
+	"lastbssid", "dhcphost", "dhcpvendor",
+	NULL
+};
+
+enum PHYDOT11_CLIENT_FIELDS {
+	PD11_CLIENT_mac, PD11_CLIENT_firsttime, PD11_CLIENT_lasttime,
+	PD11_CLIENT_decrypted, PD11_CLIENT_txcrypt, PD11_CLIENT_rxcrypt,
+	PD11_CLIENT_lastssid, PD11_CLIENT_lastssidcsum, PD11_CLIENT_cdpdev,
+	PD11_CLIENT_cdpport, PD11_CLIENT_dhcphost, PD11_CLIENT_dhcpvendor,
+	PD11_CLIENT_txdatasize, PD11_CLIENT_rxdatasize, PD11_CLIENT_manuf,
+	PD11_CLIENT_MAX
+};
+
+const char *PHYDOT11_CLIENT_text[] = {
+	"mac", "firsttime", "lasttime", 
+	"decrypted", "txcrypt", "rxcrypt",
+	"lastssid", "lastssidcsum", "cdpdev",
+	"cdpport", "dhcphost", "dhcpvendor",
+	"txdatasize", "rxdatasize", "manuf", 
+	NULL
+};
+
 int phydot11_packethook_wep(CHAINCALL_PARMS) {
 	return ((Kis_80211_Phy *) auxdata)->PacketWepDecryptor(in_pack);
 }
@@ -1146,8 +1196,8 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 	}
 
 	if (dot11info->type == packet_management &&
-		(dot11info->type == packet_sub_disassociation ||
-		 dot11info->type == packet_sub_deauthentication) &&
+		(dot11info->subtype == packet_sub_disassociation ||
+		 dot11info->subtype == packet_sub_deauthentication) &&
 		dot11info->dest_mac == globalreg->broadcast_mac &&
 		globalreg->alertracker->PotentialAlert(alert_bcastdcon_ref)) {
 
