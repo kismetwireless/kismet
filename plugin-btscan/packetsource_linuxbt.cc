@@ -297,6 +297,10 @@ int PacketSource_LinuxBT::Poll() {
 
 		num_packets++;
 
+		kis_ref_capsource *csrc_ref = new kis_ref_capsource;
+		csrc_ref->ref_source = this;
+		newpack->insert(_PCM(PACK_COMP_KISCAPSRC), csrc_ref);
+
 		globalreg->packetchain->ProcessPacket(newpack);
 
 		// Delete the packet queue
