@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+
+<xs:schema 
+	xmlns:xs="http://www.w3.org/2001/XMLSchema"
+	targetNamespace="http://www.kismetwireless.net/xml/phybtscan"
+	xmlns="http://www.kismetwireless.net/xml/phybtscan"
+	elementFormDefault="unqualified"
+
+	xmlns:common="http://www.kismetwireless.net/xml/common"
+	xmlns:device="http://www.kismetwireless.net/xml/device">
+
+	<xs:import
+		namespace="http://www.kismetwireless.net/xml/common"
+		schemaLocation="http://www.kismetwireless.net/xml/common.xsd"/>
+	<xs:import
+		namespace="http://www.kismetwireless.net/xml/device"
+		schemaLocation="http://www.kismetwireless.net/xml/device.xsd"/>
+
+<xs:complexType name="phy80211device"> 
+ <xs:complexContent> 
+  <xs:extension base="device:device"> 
+   <xs:sequence>
+    <xs:element name="bdAddr" type="common:mac"/>
+    <xs:element name="bdName" type="xs:string"/>
+    <xs:element name="bdClass" type="xs:string"/>
+   </xs:sequence>
+  </xs:extension>
+ </xs:complexContent>
+</xs:complexType>
+
+</xs:schema>
