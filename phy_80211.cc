@@ -60,7 +60,7 @@ const char *PHYDOT11_SSID_text[] = {
 };
 
 enum PHYDOT11_DEVICE_FIELDS {
-	PD11_DEVICE_mac, PD11_DEVICE_txcrypt, PD11_DEVICE_rxcrypt, PD11_DEVICE_decrypted,
+	PD11_DEVICE_mac, PD11_typeset, PD11_DEVICE_txcrypt, PD11_DEVICE_rxcrypt, PD11_DEVICE_decrypted,
 	PD11_DEVICE_disconnects, PD11_DEVICE_cdpdev, PDP11_DEVICE_cdpport,
 	PD11_DEVICE_fragments, PD11_DEVICE_retries, PD11_DEVICE_lastssid,
 	PD11_DEVICE_lastssidcsum, PD11_DEVICE_txdatasize, PD11_DEVICE_rxdatasize, 
@@ -69,7 +69,7 @@ enum PHYDOT11_DEVICE_FIELDS {
 };
 
 const char *PHYDOT11_DEVICE_text[] = {
-	"mac", "txcrypt", "rxcrypt", "decrypted",
+	"mac", "typeset", "txcrypt", "rxcrypt", "decrypted",
 	"disconnects", "cdpdev", "cdpport",
 	"fragments", "retries", "lastssid",
 	"lastssidcsum", "txdatasize", "rxdatasize", 
@@ -216,22 +216,62 @@ int Protocol_PD11_DEVICE(PROTO_PARMS) {
 
 		switch (fnum) {
 			case PD11_DEVICE_mac:
+				scratch = dot11dev->mac.Mac2String();
+				break;
+			case PD11_typeset:
+				scratch = IntToString(dot11dev->type_set);
+				break;
 			case PD11_DEVICE_txcrypt:
+				scratch = ULongToString(dot11dev->tx_cryptset);
+				break;
 			case PD11_DEVICE_rxcrypt:
+				scratch = ULongToString(dot11dev->rx_cryptset);
+				break;
 			case PD11_DEVICE_decrypted:
+				scratch = UIntToString(dot11dev->decrypted);
+				break;
 			case PD11_DEVICE_disconnects:
+				scratch = UIntToString(dot11dev->client_disconnects);
+				break;
 			case PD11_DEVICE_cdpdev:
+				scratch = "\001" + dot11dev->cdp_dev_id + "\001";
+				break;
 			case PDP11_DEVICE_cdpport:
+				scratch = "\001" + dot11dev->cdp_port_id + "\001";
+				break;
 			case PD11_DEVICE_fragments:
+				scratch = UIntToString(dot11dev->fragments);
+				break;
 			case PD11_DEVICE_retries:
+				scratch = UIntToString(dot11dev->retries);
+				break;
 			case PD11_DEVICE_lastssid:
+				if (dot11dev->lastssid != NULL)
+					scratch = "\001" + dot11dev->lastssid->ssid + "\001";
+				else
+					scratch = "\001\001";
+				break;
 			case PD11_DEVICE_lastssidcsum:
+				if (dot11dev->lastssid != NULL)
+					scratch = UIntToString(dot11dev->lastssid->checksum);
+				else
+					scratch = "0";
+				break;
 			case PD11_DEVICE_txdatasize:
+				scratch = ULongToString(dot11dev->tx_datasize);
+				break;
 			case PD11_DEVICE_rxdatasize:
+				scratch = ULongToString(dot11dev->rx_datasize);
+				break;
 			case PD11_DEVICE_lastbssid:
+				scratch = dot11dev->last_bssid.Mac2String();
+				break;
 			case PD11_DEVICE_dhcphost:
+				scratch = "\001" + dot11dev->dhcp_host + "\001";
+				break;
 			case PD11_DEVICE_dhcpvendor:
-				;
+				scratch = "\001" + dot11dev->dhcp_vendor + "\001";
+				break;
 		}
 
 		cache->Cache(fnum, scratch);
@@ -457,8 +497,13 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
 												  &Protocol_PD11_CLIENT,
 												  &Protocol_PD11_CLIENT_enable,
 												  this);
-	
-	// _MSG("Registered 80211 PHY as id " + IntToString(in_phyid), MSGFLAG_INFO);
+
+	conf_save = globalreg->timestamp.tv_sec;
+
+	ssid_conf = new ConfigFile(globalreg);
+	ssid_conf->ParseConfig(ssid_conf->ExpandLogPath(globalreg->kismet_config->FetchOpt("configdir") + "/" + "ssid_map.conf", "", "", 0, 1).c_str());
+	globalreg->InsertGlobal("SSID_CONF_FILE", ssid_conf);
+
 }
 
 Kis_80211_Phy::~Kis_80211_Phy() {
@@ -538,6 +583,8 @@ dot11_ssid *Kis_80211_Phy::BuildSSID(uint32_t ssid_csum,
 	dot11_ssid *adssid;
 	kis_tracked_device *dev = NULL;
 	dot11_device *net = NULL;
+
+	// printf("debug - bssid %s source %s dest %s type %d sub %d\n", packinfo->bssid_mac.Mac2String().c_str(), packinfo->source_mac.Mac2String().c_str(), packinfo->dest_mac.Mac2String().c_str(), packinfo->type, packinfo->subtype);
 
 	adssid = new dot11_ssid;
 	adssid->checksum = ssid_csum;
@@ -824,6 +871,8 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 		dot11dev = new dot11_device();
 
 		dev_new = true;
+
+		dot11dev->mac = dot11info->source_mac;
 
 		dev->insert(dev_comp_dot11, dot11dev);
 

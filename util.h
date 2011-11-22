@@ -106,6 +106,7 @@ public:
 #define UIntToString(I)			NtoString<unsigned int>((I)).Str()
 #define HexIntToString(I)		NtoString<unsigned int>((I), 0, 1).Str()
 #define LongIntToString(L)		NtoString<long int>((L)).Str()
+#define ULongToString(L)		NtoString<unsigned long int>((L)).Str()
 #define FloatToString(F)		NtoString<float>((F)).Str()
 
 void SubtractTimeval(struct timeval *in_tv1, struct timeval *in_tv2,

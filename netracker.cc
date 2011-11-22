@@ -1853,8 +1853,7 @@ Netracker::Netracker(GlobalRegistry *in_globalreg) {
 
 	// Build the config file
 	conf_save = globalreg->timestamp.tv_sec;
-	ssid_conf = new ConfigFile(globalreg);
-	ssid_conf->ParseConfig(ssid_conf->ExpandLogPath(globalreg->kismet_config->FetchOpt("configdir") + "/" + "ssid_map.conf", "", "", 0, 1).c_str());
+	ssid_conf = (ConfigFile *) globalreg->FetchGlobal("SSID_CONF_FILE");
 
 	tag_conf = new ConfigFile(globalreg);
 	tag_conf->ParseConfig(tag_conf->ExpandLogPath(globalreg->kismet_config->FetchOpt("configdir") + "/" + "tag.conf", "", "", 0, 1).c_str());

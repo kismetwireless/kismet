@@ -205,6 +205,8 @@ class dot11_client;
 // a client on the network.
 class dot11_device : public tracker_component {
 public:
+	mac_addr mac;
+
 	// Set of types we've seen
 	int type_set;
 
@@ -220,16 +222,16 @@ public:
 	uint64_t rx_cryptset;
 
 	// One of the SSIDs decrypted?
-	int decrypted;
+	unsigned int decrypted;
 
 	// Best-guess IP
 	kis_ip_data guess_ipdata;
 
 	// State tracking elements
 	// Number of client disconnects (decayed per second)
-	int client_disconnects;
+	unsigned int client_disconnects;
 	// Last sequence
-	int last_sequence;
+	unsigned int last_sequence;
 	// Last BSS
 	uint64_t bss_timestamp;
 
