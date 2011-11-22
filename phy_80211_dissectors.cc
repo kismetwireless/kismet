@@ -933,6 +933,7 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
 		} else if (fc->subtype == 8) {
 			// Ugly hack, do this better
 			packinfo->subtype = packet_sub_data_qos_data;
+			// printf("debug - qos data, offset +2, %u to %u\n", packinfo->header_offset, packinfo->header_offset + 2);
 			packinfo->header_offset += 2;
 		} else if (fc->subtype == 9) {
 			// Ugly hack, do this better
@@ -1625,18 +1626,24 @@ kis_datachunk *Kis_80211_Phy::DecryptWEP(dot11_packinfo *in_packinfo,
 											   unsigned char *in_id) {
 	kis_datachunk *manglechunk = NULL;
 
+	// printf("debug - decryptwep\n");
 	if (in_packinfo->corrupt)
 		return NULL;
 
+	// printf("debug - decryptwep dlt %u want %u\n", in_chunk->dlt, KDLT_IEEE802_11);
 	// If we don't have a dot11 frame, throw it away
 	if (in_chunk->dlt != KDLT_IEEE802_11)
 		return NULL;
 
+	// printf("debug - decryptwep size len %u offt %u\n", in_chunk->length, in_packinfo->header_offset);
 	// Bail on size check
 	if (in_chunk->length < in_packinfo->header_offset ||
 		in_chunk->length - in_packinfo->header_offset <= 8)
 		return NULL;
 
+	// printf("debug - decryptwep data header offt %u test head %02x %02x %02x %02x offt %02x %02x %02x %02x\n", in_packinfo->header_offset, in_chunk->data[0], in_chunk->data[1], in_chunk->data[2], in_chunk->data[3], in_chunk->data[in_packinfo->header_offset], in_chunk->data[in_packinfo->header_offset+1], in_chunk->data[in_packinfo->header_offset+2], in_chunk->data[in_packinfo->header_offset+3]);
+
+	// printf("debug - password\n");
 	// Password field
 	char pwd[WEPKEY_MAX + 3];
 	memset(pwd, 0, WEPKEY_MAX + 3);
@@ -1649,6 +1656,8 @@ kis_datachunk *Kis_80211_Phy::DecryptWEP(dot11_packinfo *in_packinfo,
 	// Add the supplied password to the key
 	memcpy(pwd + 3, in_key, WEPKEY_MAX);
 	int pwdlen = 3 + in_key_len;
+
+	// printf("debug - wep stuff\n");
 
 	// Prepare the keyblock for the rc4 cipher
 	unsigned char keyblock[256];
@@ -1663,7 +1672,7 @@ kis_datachunk *Kis_80211_Phy::DecryptWEP(dot11_packinfo *in_packinfo,
 
 	// Allocate the mangled chunk -- 4 byte IV/Key# gone, 4 byte ICV gone
 	manglechunk = new kis_datachunk;
-	manglechunk->dlt = in_chunk->dlt;
+	manglechunk->dlt = KDLT_IEEE802_11;
 	manglechunk->length = in_chunk->length - 8;
 	manglechunk->data = new uint8_t[manglechunk->length];
 
@@ -1678,6 +1687,7 @@ kis_datachunk *Kis_80211_Phy::DecryptWEP(dot11_packinfo *in_packinfo,
 
 	// Copy the ICV into the CRC buffer for checking
 	memcpy(icv, &(in_chunk->data[in_chunk->length - 4]), 4);
+	// printf("debug - icv %02x %02x %02x %02x\n", icv[0], icv[1], icv[2], icv[3]);
 
 	for (unsigned int dpos = in_packinfo->header_offset + 4; 
 		 dpos < in_chunk->length - 4; dpos++) {

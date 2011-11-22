@@ -540,7 +540,7 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) {
 												  this);
 
 	proto_ref_commondevice =
-		globalreg->kisnetserver->RegisterProtocol("COMMON", 0, 1,
+		globalreg->kisnetserver->RegisterProtocol("DEVICE", 0, 1,
 												  KISDEV_common_text,
 												  &Protocol_KISDEV_COMMON,
 												  &Protocol_KISDEV_COMMON_enable,
@@ -900,14 +900,26 @@ int Devicetracker::CommonTracker(kis_packet *in_pack) {
 	kis_common_info *pack_common = 
 		(kis_common_info *) in_pack->fetch(pack_comp_common);
 
+	kis_ref_capsource *pack_capsrc =
+		(kis_ref_capsource *) in_pack->fetch(pack_comp_capsrc);
+
 	num_packets++;
 	num_packetdelta++;
+
+	if (in_pack->error && pack_capsrc != NULL)  {
+		pack_capsrc->ref_source->AddErrorPacketCount();
+		return 0;
+	}
 
 	// If we can't figure it out at all (no common layer) just bail
 	if (pack_common == NULL)
 		return 0;
 
-	if (in_pack->error || pack_common->error) {
+	if (pack_common->error) {
+		if (pack_capsrc != NULL)  {
+			pack_capsrc->ref_source->AddErrorPacketCount();
+		}
+
 		// If we couldn't get any common data consider it an error
 		// and bail
 		num_errorpackets++;
@@ -1273,14 +1285,16 @@ void Devicetracker::WriteXML(FILE *in_logfile) {
 				"<name>%s</name>\n"
 				"<interface>%s</interface>\n"
 				"<type>%s</type>\n"
-				"<packets>%u</packets>\n",
+				"<packets>%u</packets>\n"
+				"<errorPackets>%u</errorPackets>\n",
 
 				ps->strong_source->FetchUUID().UUID2String().c_str(),
 				ps->sourceline.c_str(),
 				ps->strong_source->FetchName().c_str(),
 				ps->strong_source->FetchInterface().c_str(),
 				ps->strong_source->FetchType().c_str(),
-				ps->strong_source->FetchNumPackets());
+				ps->strong_source->FetchNumPackets(),
+				ps->strong_source->FetchNumErrorPackets());
 
 		// TODO rewrite this for phy-specific channel handling
 		string channels;
@@ -1590,3 +1604,16 @@ int Devicetracker::LogDevices(string in_logclass,
 
 	return 0;
 }
+
+void Devicetracker::SetDeviceTag(mac_addr in_device, string in_tag, string in_data,
+								 int in_persistent) {
+}
+
+void Devicetracker::ClearDeviceTag(mac_addr in_device, string in_tag) {
+
+}
+
+string Devicetracker::FetchDeviceTag(mac_addr in_device, string in_tag) {
+
+}
+

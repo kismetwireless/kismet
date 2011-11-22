@@ -40,6 +40,7 @@
 #include "alertracker.h"
 #include "manuf.h"
 #include "configfile.h"
+#include "packetsource.h"
 
 #include "devicetracker.h"
 #include "phy_80211.h"
@@ -48,7 +49,7 @@ enum PHYDOT11_SSID_FIELDS {
 	PD11_SSID_bssidmac, PD11_SSID_type, PD11_SSID_ssid, PD11_SSID_beaconinfo,
 	PD11_SSID_cryptset, PD11_SSID_cloaked, PD11_SSID_firsttime, PD11_SSID_lasttime,
 	PD11_SSID_beaconrate, PD11_SSID_beacons, PD11_SSID_channel, PD11_SSID_dot11d,
-	PD11_SSID_MAX
+	PD11_SSID_maxfield
 };
 
 const char *PHYDOT11_SSID_text[] = {
@@ -64,7 +65,7 @@ enum PHYDOT11_DEVICE_FIELDS {
 	PD11_DEVICE_fragments, PD11_DEVICE_retries, PD11_DEVICE_lastssid,
 	PD11_DEVICE_lastssidcsum, PD11_DEVICE_txdatasize, PD11_DEVICE_rxdatasize, 
 	PD11_DEVICE_lastbssid, PD11_DEVICE_dhcphost, PD11_DEVICE_dhcpvendor,
-	PD11_DEVICE_MAX
+	PD11_DEVICE_maxfield
 };
 
 const char *PHYDOT11_DEVICE_text[] = {
@@ -82,7 +83,7 @@ enum PHYDOT11_CLIENT_FIELDS {
 	PD11_CLIENT_lastssid, PD11_CLIENT_lastssidcsum, PD11_CLIENT_cdpdev,
 	PD11_CLIENT_cdpport, PD11_CLIENT_dhcphost, PD11_CLIENT_dhcpvendor,
 	PD11_CLIENT_txdatasize, PD11_CLIENT_rxdatasize, PD11_CLIENT_manuf,
-	PD11_CLIENT_MAX
+	PD11_CLIENT_maxfield
 };
 
 const char *PHYDOT11_CLIENT_text[] = {
@@ -118,11 +119,187 @@ int phydot11_packethook_dot11tracker(CHAINCALL_PARMS) {
 	return ((Kis_80211_Phy *) auxdata)->TrackerDot11(in_pack);
 }
 
+// Protocols are kicked by the local timerkick
+int Protocol_PD11_SSID(PROTO_PARMS) {
+	dot11_ssid *ssid = (dot11_ssid *) data;
+	string scratch;
+
+	cache->Filled(field_vec->size());
+
+	for (unsigned int x = 0; x < field_vec->size(); x++) {
+		unsigned int fnum = (*field_vec)[x];
+
+		if (fnum > PD11_SSID_maxfield) {
+			out_string = "\001Unknown field\001";
+			return -1;
+		}
+
+		if (cache->Filled(fnum)) {
+			out_string += cache->GetCache(fnum) + " ";
+			continue;
+		}
+
+		switch (fnum) {
+			case PD11_SSID_bssidmac:
+				scratch = ssid->mac.Mac2String();
+				break;
+			case PD11_SSID_type:
+				scratch = IntToString(ssid->type);
+				break;
+			case PD11_SSID_ssid:
+				scratch = "\001" + ssid->ssid + "\001";
+				break;
+			case PD11_SSID_beaconinfo:
+				scratch = "\001" + ssid->beacon_info + "\001";
+				break;
+			case PD11_SSID_cryptset:
+				scratch = IntToString(ssid->cryptset);
+				break;
+			case PD11_SSID_cloaked:
+				scratch = IntToString(ssid->ssid_cloaked);
+				break;
+			case PD11_SSID_firsttime:
+				scratch = IntToString(ssid->first_time);
+				break;
+			case PD11_SSID_lasttime:
+				scratch = IntToString(ssid->last_time);
+				break;
+			case PD11_SSID_beaconrate:
+				scratch = IntToString(ssid->beaconrate);
+				break;
+			case PD11_SSID_beacons:
+				scratch = IntToString(ssid->beacons);
+				break;
+			case PD11_SSID_channel:
+				scratch = IntToString(ssid->channel);
+				break;
+			case PD11_SSID_dot11d:
+				scratch = "\001" + ssid->dot11d_country + ":";
+				for (unsigned int z = 0; z < ssid->dot11d_vec.size(); z++) {
+					scratch += IntToString(ssid->dot11d_vec[z].startchan) + "-" +
+						IntToString(ssid->dot11d_vec[z].numchan) + "-" +
+						IntToString(ssid->dot11d_vec[z].txpower) + ":";
+				}
+				scratch += "\001";
+				break;
+		}
+
+		cache->Cache(fnum, scratch);
+		out_string += scratch + " ";
+	}
+
+	return 1;
+}
+
+void Protocol_PD11_SSID_enable(PROTO_ENABLE_PARMS) {
+	((Kis_80211_Phy *) data)->EnableDot11Ssid(in_fd);
+}
+
+int Protocol_PD11_DEVICE(PROTO_PARMS) {
+	dot11_device *dot11dev = (dot11_device *) data;
+	string scratch;
+
+	cache->Filled(field_vec->size());
+
+	for (unsigned int x = 0; x < field_vec->size(); x++) {
+		unsigned int fnum = (*field_vec)[x];
+
+		if (fnum > PD11_DEVICE_maxfield) {
+			out_string = "\001Unknown field\001";
+			return -1;
+		}
+
+		if (cache->Filled(fnum)) {
+			out_string += cache->GetCache(fnum) + " ";
+			continue;
+		}
+
+		switch (fnum) {
+			case PD11_DEVICE_mac:
+			case PD11_DEVICE_txcrypt:
+			case PD11_DEVICE_rxcrypt:
+			case PD11_DEVICE_decrypted:
+			case PD11_DEVICE_disconnects:
+			case PD11_DEVICE_cdpdev:
+			case PDP11_DEVICE_cdpport:
+			case PD11_DEVICE_fragments:
+			case PD11_DEVICE_retries:
+			case PD11_DEVICE_lastssid:
+			case PD11_DEVICE_lastssidcsum:
+			case PD11_DEVICE_txdatasize:
+			case PD11_DEVICE_rxdatasize:
+			case PD11_DEVICE_lastbssid:
+			case PD11_DEVICE_dhcphost:
+			case PD11_DEVICE_dhcpvendor:
+				;
+		}
+
+		cache->Cache(fnum, scratch);
+		out_string += scratch + " ";
+	}
+
+	return 1;
+}
+
+void Protocol_PD11_DEVICE_enable(PROTO_ENABLE_PARMS) {
+	((Kis_80211_Phy *) data)->EnableDot11Dev(in_fd);
+}
+
+int Protocol_PD11_CLIENT(PROTO_PARMS) {
+	dot11_client *client = (dot11_client *) data;
+	string scratch;
+
+	cache->Filled(field_vec->size());
+
+	for (unsigned int x = 0; x < field_vec->size(); x++) {
+		unsigned int fnum = (*field_vec)[x];
+
+		if (fnum > PD11_CLIENT_maxfield) {
+			out_string = "\001Unknown field\001";
+			return -1;
+		}
+
+		if (cache->Filled(fnum)) {
+			out_string += cache->GetCache(fnum) + " ";
+			continue;
+		}
+
+		switch (fnum) {
+			case PD11_CLIENT_mac:
+			case PD11_CLIENT_firsttime:
+			case PD11_CLIENT_lasttime:
+			case PD11_CLIENT_decrypted:
+			case PD11_CLIENT_txcrypt:
+			case PD11_CLIENT_rxcrypt:
+			case PD11_CLIENT_lastssid:
+			case PD11_CLIENT_lastssidcsum:
+			case PD11_CLIENT_cdpdev:
+			case PD11_CLIENT_cdpport:
+			case PD11_CLIENT_dhcphost:
+			case PD11_CLIENT_dhcpvendor:
+			case PD11_CLIENT_txdatasize:
+			case PD11_CLIENT_rxdatasize:
+			case PD11_CLIENT_manuf:
+				;
+		}
+
+		cache->Cache(fnum, scratch);
+		out_string += scratch + " ";
+	}
+
+	return 1;
+
+}
+
+void Protocol_PD11_CLIENT_enable(PROTO_ENABLE_PARMS) {
+	((Kis_80211_Phy *) data)->EnableDot11Client(in_fd);
+}
+
 Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, 
 		Devicetracker *in_tracker, int in_phyid) : 
 	Kis_Phy_Handler(in_globalreg, in_tracker, in_phyid) {
 
-	globalreg->InsertGlobal("PHY_80211_TRACKER", this);
+	globalreg->InsertGlobal("PHY_80211", this);
 
 	phyname = "IEEE802.11";
 
@@ -190,6 +367,7 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
 	alert_dhcpclient_ref =
 		globalreg->alertracker->ActivateConfiguredAlert("DHCPCLIENTID", phyid);
 
+	// Register the tracker alerts
 	alert_chan_ref =
 		globalreg->alertracker->ActivateConfiguredAlert("CHANCHANGE", phyid);
 	alert_dhcpcon_ref =
@@ -214,6 +392,8 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
 		globalreg->alertracker->ActivateConfiguredAlert("BEACONRATE", phyid);
 	alert_cryptchange_ref =
 		globalreg->alertracker->ActivateConfiguredAlert("ADVCRYPTCHANGE", phyid);
+	alert_malformmgmt_ref =
+		globalreg->alertracker->ActivateConfiguredAlert("MALFORMMGMT", phyid);
 
 	// Do we process the whole data packet?
     if (globalreg->kismet_config->FetchOptBoolean("hidedata", 0) ||
@@ -256,6 +436,27 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
 			return;
 		}
 	}
+
+	proto_ref_ssid =
+		globalreg->kisnetserver->RegisterProtocol("DOT11SSID", 0, 1,
+												  PHYDOT11_SSID_text,
+												  &Protocol_PD11_SSID,
+												  &Protocol_PD11_SSID_enable,
+												  this);
+
+	proto_ref_device =
+		globalreg->kisnetserver->RegisterProtocol("DOT11DEVICE", 0, 1,
+												  PHYDOT11_DEVICE_text,
+												  &Protocol_PD11_DEVICE,
+												  &Protocol_PD11_DEVICE_enable,
+												  this);
+
+	proto_ref_client =
+		globalreg->kisnetserver->RegisterProtocol("DOT11CLIENT", 0, 1,
+												  PHYDOT11_CLIENT_text,
+												  &Protocol_PD11_CLIENT,
+												  &Protocol_PD11_CLIENT_enable,
+												  this);
 	
 	// _MSG("Registered 80211 PHY as id " + IntToString(in_phyid), MSGFLAG_INFO);
 }
@@ -534,8 +735,21 @@ void Kis_80211_Phy::AddWepKey(mac_addr bssid, uint8_t *key, unsigned int len,
 	wepkeys.insert(winfo->bssid, winfo);
 }
 
+// This gets called to send all the phy-specific dirty devices
 void Kis_80211_Phy::BlitDevices(int in_fd, vector<kis_tracked_device *> *devlist) {
 	
+}
+
+void Kis_80211_Phy::EnableDot11Dev(int in_fd) {
+
+}
+
+void Kis_80211_Phy::EnableDot11Ssid(int in_fd) {
+
+}
+
+void Kis_80211_Phy::EnableDot11Client(int in_fd) {
+
 }
 
 int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
@@ -548,8 +762,9 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 		 dev_new = false;
 
 	// We can't do anything w/ it from the packet layer
-	if (in_pack->error || in_pack->filtered)
+	if (in_pack->error || in_pack->filtered) {
 		return 0;
+	}
 
 	// Fetch what we already know about the packet.  
 	dot11_packinfo *dot11info =
@@ -563,6 +778,9 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 		(kis_common_info *) in_pack->fetch(pack_comp_common);
 
 	if (commoninfo == NULL)
+		return 0;
+
+	if (commoninfo->error)
 		return 0;
 
 	kis_data_packinfo *datainfo =

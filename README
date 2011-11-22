@@ -1019,6 +1019,11 @@ http://www.kismetwireless.net
             Old Lucent Orinoco cards in certain scanning test modes generate
             identifiable packets.
 
+        MALFORMMGMT         Fingerprint         802.11
+            Malformed management frames may indicate errors in the capture
+            source (such as not discarding corrupted packets), but may also
+            be indicative of an attack.
+
         MSFBCOMSSID         Fingerprint         802.11
             Some versions of the Windows Broadcom wireless drivers do not
             properly handle SSID fields longer than the 802.11

@@ -910,15 +910,6 @@ int main(int argc, char *argv[], char *envp[]) {
 														&cmd_SHUTDOWN,
 														NULL);
 
-	// Start the plugin handler
-	if (plugins) {
-		globalregistry->plugintracker = new Plugintracker(globalregistry);
-	} else {
-		globalregistry->messagebus->InjectMessage(
-			"Plugins disabled on the command line, plugins will NOT be loaded...",
-			MSGFLAG_INFO);
-	}
-
 	// Create the packet chain
 	globalregistry->packetchain = new Packetchain(globalregistry);
 	if (globalregistry->fatal_condition)
@@ -1082,6 +1073,16 @@ int main(int argc, char *argv[], char *envp[]) {
 	if (globalregistry->sourcetracker->RegisterPacketSource(new PacketSource_MacUSB(globalregistry)) < 0 || globalregistry->fatal_condition) 
 		CatchShutdown(-1);
 #endif
+
+	// Start the plugin handler
+	if (plugins) {
+		globalregistry->plugintracker = new Plugintracker(globalregistry);
+	} else {
+		globalregistry->messagebus->InjectMessage(
+			"Plugins disabled on the command line, plugins will NOT be loaded...",
+			MSGFLAG_INFO);
+	}
+
 
 	// Process userspace plugins
 	if (globalregistry->plugintracker != NULL) {

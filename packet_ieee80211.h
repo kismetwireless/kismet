@@ -63,6 +63,10 @@ enum ieee_80211_subtype {
     packet_sub_disassociation = 10,
     packet_sub_authentication = 11,
     packet_sub_deauthentication = 12,
+	packet_sub_action = 13,
+	packet_sub_action_noack = 14,
+	packet_sub_aruba = 15,
+
     // Phy subtypes
 	packet_sub_pspoll = 10,
     packet_sub_rts = 11,

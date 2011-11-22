@@ -112,7 +112,7 @@ int phybtscan_packethook_tracker(CHAINCALL_PARMS) {
 Btscan_Phy::Btscan_Phy(GlobalRegistry *in_globalreg, Devicetracker *in_tracker,
 					   int in_phyid) : Kis_Phy_Handler(in_globalreg, in_tracker,
 													   in_phyid) {
-	globalreg->InsertGlobal("PHY_BTSCAN_TRACKER", this);
+	globalreg->InsertGlobal("PHY_BTSCAN", this);
 	phyname = "BTscan";
 
 	// No need for a dissector here because the packet component is 

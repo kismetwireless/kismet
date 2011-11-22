@@ -46,6 +46,7 @@
   <xs:element name="interface" type="xs:string"/>
   <xs:element name="type" type="xs:string"/>
   <xs:element name="packets" type="xs:positiveInteger"/>
+  <xs:element name="errorPackets" type="xs:positiveInteger"/>
   <xs:element name="channels" type="xs:string"/>
   <xs:element name="channelhop" type="xs:boolean"/>
  </xs:sequence>

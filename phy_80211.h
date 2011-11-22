@@ -547,6 +547,10 @@ public:
 
 	virtual void BlitDevices(int in_fd, vector<kis_tracked_device *> *devlist);
 
+	void EnableDot11Dev(int in_fd);
+	void EnableDot11Ssid(int in_fd);
+	void EnableDot11Client(int in_fd);
+
 	virtual void ExportLogRecord(kis_tracked_device *in_device, string in_logtype, 
 								 FILE *in_logfile, int in_lineindent);
 
@@ -609,7 +613,7 @@ protected:
 	int alert_chan_ref, alert_dhcpcon_ref, alert_bcastdcon_ref, alert_airjackssid_ref,
 		alert_wepflap_ref, alert_dhcpname_ref, alert_dhcpos_ref, alert_adhoc_ref,
 		alert_ssidmatch_ref, alert_dot11d_ref, alert_beaconrate_ref,
-		alert_cryptchange_ref;
+		alert_cryptchange_ref, alert_malformmgmt_ref;
 
 	// Command refs
 	int addfiltercmd_ref, addnetclifiltercmd_ref;
@@ -619,8 +623,7 @@ protected:
 	// Filter core for network client
 	FilterCore *netcli_filter;
 
-	// Protocol references
-	int proto_ref_bssidsrc, proto_ref_clisrc;
+	int proto_ref_ssid, proto_ref_device, proto_ref_client;
 
 	// SSID cloak file as a config file
 	ConfigFile *ssid_conf;

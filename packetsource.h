@@ -164,6 +164,7 @@ public:
 		consec_error = 0;
 
 		num_packets = 0;
+		num_error_packets = 0;
 
 		error = 0;
 
@@ -285,10 +286,12 @@ public:
 
     // Fetch number of packets we've processed
     virtual int FetchNumPackets() { return num_packets; } 
+	virtual int FetchNumErrorPackets() { return num_error_packets; }
 
 	// Add a packet to the count (for packetsourcetracker to increment us for IPC
 	// packets)
 	virtual void AddPacketCount() { num_packets++; }
+	virtual void AddErrorPacketCount() { num_error_packets++; }
 
 	// Pause/resume listening to this source (what this means depends on 
 	// the implementation of polling)
@@ -360,6 +363,7 @@ protected:
 
     // Total packets
     unsigned int num_packets;
+	unsigned int num_error_packets;
 
 	// Last channel & mod we set
 	int last_channel;
