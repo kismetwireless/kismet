@@ -79,7 +79,7 @@ const char *PHYDOT11_DEVICE_text[] = {
 };
 
 enum PHYDOT11_CLIENT_FIELDS {
-	PD11_CLIENT_mac, PD11_CLIENT_firsttime, PD11_CLIENT_lasttime,
+	PD11_CLIENT_mac, PD11_CLIENT_bssidmac, PD11_CLIENT_firsttime, PD11_CLIENT_lasttime,
 	PD11_CLIENT_decrypted, PD11_CLIENT_txcrypt, PD11_CLIENT_rxcrypt,
 	PD11_CLIENT_lastssid, PD11_CLIENT_lastssidcsum, PD11_CLIENT_cdpdev,
 	PD11_CLIENT_cdpport, PD11_CLIENT_dhcphost, PD11_CLIENT_dhcpvendor,
@@ -88,7 +88,7 @@ enum PHYDOT11_CLIENT_FIELDS {
 };
 
 const char *PHYDOT11_CLIENT_text[] = {
-	"mac", "firsttime", "lasttime", 
+	"mac", "bssidmac", "firsttime", "lasttime", 
 	"decrypted", "txcrypt", "rxcrypt",
 	"lastssid", "lastssidcsum", "cdpdev",
 	"cdpport", "dhcphost", "dhcpvendor",
@@ -308,6 +308,9 @@ int Protocol_PD11_CLIENT(PROTO_PARMS) {
 		switch (fnum) {
 			case PD11_CLIENT_mac:
 				scratch = cli->mac.Mac2String();
+				break;
+			case PD11_CLIENT_bssidmac:
+				scratch = cli->bssid.Mac2String();
 				break;
 			case PD11_CLIENT_firsttime:
 				scratch = IntToString(cli->first_time);
@@ -821,19 +824,118 @@ void Kis_80211_Phy::AddWepKey(mac_addr bssid, uint8_t *key, unsigned int len,
 
 // This gets called to send all the phy-specific dirty devices
 void Kis_80211_Phy::BlitDevices(int in_fd, vector<kis_tracked_device *> *devlist) {
-	
+	dot11_device *dot11dev = NULL;
+
+	for (unsigned int x = 0; x < devlist->size(); x++) {
+		kis_protocol_cache cache;
+
+		dot11dev = (dot11_device *) (*devlist)[x]->fetch(dev_comp_dot11);
+
+		if (dot11dev == NULL)
+			continue;
+
+		if (in_fd == -1)
+			globalreg->kisnetserver->SendToAll(proto_ref_device, (void *) dot11dev);
+		else
+			globalreg->kisnetserver->SendToClient(in_fd, proto_ref_device,
+												  (void *) dot11dev, &cache);
+
+		for (map<uint32_t, dot11_ssid *>::iterator i = 
+			 dot11dev->ssid_map.begin(); i != dot11dev->ssid_map.end();
+			 ++i) {
+			kis_protocol_cache cache;
+
+			if (i->second->dirty == 0)
+				continue;
+
+			i->second->dirty = 0;
+
+			if (in_fd == -1)
+				globalreg->kisnetserver->SendToAll(proto_ref_ssid, 
+												   (void *) i->second);
+			else
+				globalreg->kisnetserver->SendToClient(in_fd, proto_ref_ssid,
+													  (void *) i->second, &cache);
+		}
+
+		for (map<mac_addr, dot11_client *>::iterator i =
+			 dot11dev->client_map.begin(); i != dot11dev->client_map.end();
+			 ++i) {
+			kis_protocol_cache cache;
+
+			if (i->second->dirty == 0)
+				continue;
+
+			i->second->dirty = 0;
+
+			if (in_fd == -1)
+				globalreg->kisnetserver->SendToAll(proto_ref_client, 
+												   (void *) i->second);
+			else
+				globalreg->kisnetserver->SendToClient(in_fd, proto_ref_client,
+													  (void *) i->second, &cache);
+		}
+
+	}
 }
 
 void Kis_80211_Phy::EnableDot11Dev(int in_fd) {
+	dot11_device *dot11dev = NULL;
+	vector<kis_tracked_device *> *devlist = devicetracker->FetchDevices(phyid);
 
+	for (unsigned int x = 0; x < devlist->size(); x++) {
+		kis_protocol_cache cache;
+
+		dot11dev = (dot11_device *) (*devlist)[x]->fetch(dev_comp_dot11);
+
+		if (dot11dev == NULL)
+			continue;
+
+		globalreg->kisnetserver->SendToClient(in_fd, proto_ref_device,
+											  (void *) dot11dev, &cache);
+	}
 }
 
 void Kis_80211_Phy::EnableDot11Ssid(int in_fd) {
+	dot11_device *dot11dev = NULL;
+	vector<kis_tracked_device *> *devlist = devicetracker->FetchDevices(phyid);
 
+	for (unsigned int x = 0; x < devlist->size(); x++) {
+		dot11dev = (dot11_device *) (*devlist)[x]->fetch(dev_comp_dot11);
+
+		if (dot11dev == NULL)
+			continue;
+
+		for (map<uint32_t, dot11_ssid *>::iterator i = 
+			 dot11dev->ssid_map.begin(); i != dot11dev->ssid_map.end();
+			 ++i) {
+			kis_protocol_cache cache;
+
+			globalreg->kisnetserver->SendToClient(in_fd, proto_ref_ssid,
+												  (void *) i->second, &cache);
+		}
+	}
 }
 
 void Kis_80211_Phy::EnableDot11Client(int in_fd) {
+	dot11_device *dot11dev = NULL;
+	vector<kis_tracked_device *> *devlist = devicetracker->FetchDevices(phyid);
 
+	for (unsigned int x = 0; x < devlist->size(); x++) {
+		dot11dev = (dot11_device *) (*devlist)[x]->fetch(dev_comp_dot11);
+
+		if (dot11dev == NULL)
+			continue;
+
+		for (map<mac_addr, dot11_client *>::iterator i =
+			 dot11dev->client_map.begin(); i != dot11dev->client_map.end();
+			 ++i) {
+			kis_protocol_cache cache;
+
+			globalreg->kisnetserver->SendToClient(in_fd, proto_ref_client,
+												  (void *) i->second, &cache);
+		}
+	}
 }
 
 int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
@@ -1101,6 +1203,7 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 				cli->first_time = in_pack->ts.tv_sec;
 
 				cli->mac = dot11info->source_mac;
+				cli->bssid = dot11dev->mac;
 
 				if (globalreg->manufdb != NULL)
 					cli->manuf = globalreg->manufdb->LookupOUI(cli->mac);
@@ -1112,6 +1215,8 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 			} else {
 				cli = ci->second;
 			}
+
+			cli->dirty = 1;
 
 			cli->last_time = in_pack->ts.tv_sec;
 
@@ -1261,6 +1366,8 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 
 		if (ssid != NULL) {
 			// TODO alert for degraded crypto on probe_resp
+
+			ssid->dirty = 1;
 
 			if (dot11info->subtype == packet_sub_beacon) {
 				int ieeerate = Ieee80211Interval2NSecs(dot11info->beacon_interval);

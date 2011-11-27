@@ -291,6 +291,7 @@ public:
 	dot11_network_type type;
 
 	mac_addr mac;
+	mac_addr bssid;
 
 	time_t first_time;
 	time_t last_time;

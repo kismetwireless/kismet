@@ -97,6 +97,12 @@ struct kisptw_state {
 	map<mac_addr, kisptw_net *> netmap;
 	int timer_ref;
 	int alert_ref;
+
+	int dev_comp_dot11;
+	int pack_comp_80211, pack_comp_decap, pack_comp_device;
+
+	Kis_80211_Phy *phy80211;
+	Devicetracker *devicetracker;
 };
 
 kisptw_state *state = NULL;
@@ -569,6 +575,28 @@ int kisptw_register(GlobalRegistry *in_globalreg) {
 
 	state = new kisptw_state;
 
+	state->phy80211 = 
+		(Kis_80211_Phy *) globalreg->FetchGlobal("PHY_80211");
+
+	if (state->phy80211 == NULL) {
+		_MSG("Missing PHY_80211 dot11 packet handler, something is wrong.  "
+			 "Trying to use this plugin on an older Kismet?",
+			 MSGFLAG_ERROR);
+		delete state;
+		return -1;
+	}
+
+	state->devicetracker = 
+		(Devicetracker *) globalreg->FetchGlobal("DEVICE_TRACKER");
+
+	if (state->devicetracker == NULL) {
+		_MSG("Missing phy-neutral devicetracker, something is wrong.  "
+			 "Trying to use this plugin on an older Kismet?",
+			 MSGFLAG_ERROR);
+		delete state;
+		return -1;
+	}
+
 	globalreg->packetchain->RegisterHandler(&kisptw_datachain_hook, state,
 											CHAINPOS_CLASSIFIER, 100);
 
@@ -578,7 +606,8 @@ int kisptw_register(GlobalRegistry *in_globalreg) {
 
 	state->alert_ref =
 		globalreg->alertracker->RegisterAlert("WEPCRACK", sat_minute, 20,
-											  sat_second, 5);
+											  sat_second, 5,
+											  state->phy80211->FetchPhyId());
 
 	return 1;
 }
