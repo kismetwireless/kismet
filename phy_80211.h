@@ -580,7 +580,7 @@ protected:
 	int ssid_cache_track, ip_cache_track;
 
 	// Device components
-	int dev_comp_dot11;
+	int dev_comp_dot11, dev_comp_common;
 
 	// Packet components
 	int pack_comp_80211, pack_comp_basicdata, pack_comp_mangleframe,

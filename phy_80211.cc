@@ -60,11 +60,12 @@ const char *PHYDOT11_SSID_text[] = {
 };
 
 enum PHYDOT11_DEVICE_FIELDS {
-	PD11_DEVICE_mac, PD11_typeset, PD11_DEVICE_txcrypt, PD11_DEVICE_rxcrypt, PD11_DEVICE_decrypted,
-	PD11_DEVICE_disconnects, PD11_DEVICE_cdpdev, PDP11_DEVICE_cdpport,
-	PD11_DEVICE_fragments, PD11_DEVICE_retries, PD11_DEVICE_lastssid,
-	PD11_DEVICE_lastssidcsum, PD11_DEVICE_txdatasize, PD11_DEVICE_rxdatasize, 
-	PD11_DEVICE_lastbssid, PD11_DEVICE_dhcphost, PD11_DEVICE_dhcpvendor,
+	PD11_DEVICE_mac, PD11_typeset, PD11_DEVICE_txcrypt, PD11_DEVICE_rxcrypt, 
+	PD11_DEVICE_decrypted, PD11_DEVICE_disconnects, PD11_DEVICE_cdpdev, 
+	PDP11_DEVICE_cdpport, PD11_DEVICE_fragments, PD11_DEVICE_retries, 
+	PD11_DEVICE_lastssid, PD11_DEVICE_lastssidcsum, PD11_DEVICE_txdatasize, 
+	PD11_DEVICE_rxdatasize, PD11_DEVICE_lastbssid, PD11_DEVICE_dhcphost,
+	PD11_DEVICE_dhcpvendor,
 	PD11_DEVICE_maxfield
 };
 
@@ -286,7 +287,7 @@ void Protocol_PD11_DEVICE_enable(PROTO_ENABLE_PARMS) {
 }
 
 int Protocol_PD11_CLIENT(PROTO_PARMS) {
-	dot11_client *client = (dot11_client *) data;
+	dot11_client *cli = (dot11_client *) data;
 	string scratch;
 
 	cache->Filled(field_vec->size());
@@ -306,21 +307,56 @@ int Protocol_PD11_CLIENT(PROTO_PARMS) {
 
 		switch (fnum) {
 			case PD11_CLIENT_mac:
+				scratch = cli->mac.Mac2String();
+				break;
 			case PD11_CLIENT_firsttime:
+				scratch = IntToString(cli->first_time);
+				break;
 			case PD11_CLIENT_lasttime:
+				scratch = IntToString(cli->last_time);
+				break;
 			case PD11_CLIENT_decrypted:
+				scratch = UIntToString(cli->decrypted);
+				break;
 			case PD11_CLIENT_txcrypt:
+				scratch = ULongToString(cli->tx_cryptset);
+				break;
 			case PD11_CLIENT_rxcrypt:
+				scratch = ULongToString(cli->rx_cryptset);
+				break;
 			case PD11_CLIENT_lastssid:
+				if (cli->last_ssid != NULL)
+					scratch = "\001" + cli->last_ssid->ssid + "\001";
+				else
+					scratch = "\001\001";
+				break;
 			case PD11_CLIENT_lastssidcsum:
+				if (cli->last_ssid != NULL)
+					scratch = UIntToString(cli->last_ssid->checksum);
+				else
+					scratch = "0";
+				break;
 			case PD11_CLIENT_cdpdev:
+				scratch = "\001" + cli->cdp_dev_id + "\001";
+				break;
 			case PD11_CLIENT_cdpport:
+				scratch = "\001" + cli->cdp_port_id + "\001";
+				break;
 			case PD11_CLIENT_dhcphost:
+				scratch = "\001" + cli->dhcp_host + "\001";
+				break;
 			case PD11_CLIENT_dhcpvendor:
+				scratch = "\001" + cli->dhcp_vendor + "\001";
+				break;
 			case PD11_CLIENT_txdatasize:
+				scratch = ULongToString(cli->tx_datasize);
+				break;
 			case PD11_CLIENT_rxdatasize:
+				scratch = ULongToString(cli->rx_datasize);
+				break;
 			case PD11_CLIENT_manuf:
-				;
+				scratch = "\001" + cli->manuf + "\001";
+				break;
 		}
 
 		cache->Cache(fnum, scratch);
@@ -361,6 +397,7 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
 
 	// dot11 device comp
 	dev_comp_dot11 = devicetracker->RegisterDeviceComponent("DOT11_DEVICE");
+	dev_comp_common = devicetracker->RegisterDeviceComponent("COMMON");
 
 	// If we haven't registered packet components yet, do so.  We have to
 	// co-exist with the old tracker core for some time
@@ -804,6 +841,7 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 	dot11_device *dot11dev = NULL;
 	dot11_client *cli = NULL;
 	dot11_ssid *ssid = NULL;
+	kis_device_common *commondev = NULL;
 
 	bool net_new = false, cli_new = false, ssid_new = false, build_net = true,
 		 dev_new = false;
@@ -863,6 +901,11 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 	//
 	// APs contain records of clients known to be communicating with them,
 	// which contain additional chunks of data
+
+	commondev = (kis_device_common *) dev->fetch(dev_comp_common);
+
+	if (commondev == NULL)
+		return 0;
 
 	// Find/Make a dot11 device for this
 	dot11dev = (dot11_device *) dev->fetch(dev_comp_dot11);
@@ -1393,6 +1436,7 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 		string printtype;
 		string printdev;
 		string printchan;
+		string printmanuf;
 
 		printssid = ssid->ssid;
 
@@ -1444,8 +1488,11 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 			printdev = "BSSID " + dot11info->bssid_mac.Mac2String();
 		}
 
+		if (commondev->manuf != "")
+			printmanuf = " (" + commondev->manuf + ")";
+
 		_MSG("Detected new 802.11 " + printtype + " SSID \"" + printssid + "\"" + 
-			 printssidext + ", " + printdev + ", " + printcrypt + 
+			 printssidext + ", " + printdev + printmanuf + ", " + printcrypt + 
 			 printchan,
 			 MSGFLAG_INFO);
 
