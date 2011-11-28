@@ -150,8 +150,8 @@ int PacketSource_Wext::ParseOptions(vector<opt_pair> *in_opts) {
 
 	if (FetchOpt("vap", in_opts) != "") {
 		vap = FetchOpt("vap", in_opts);
-		_MSG("Source '" + interface + "' will attempt to create a monitor-only "
-			 "VAP '" + vap + "' instead of reconfiguring the main interface", 
+		_MSG("Source '" + interface + "' create a monitor-only "
+			 "VAP '" + vap + "' instead of changing " + interface, 
 			 MSGFLAG_INFO);
 		// Opportunistic VAP off when specified
 		opp_vap = 0;
@@ -524,8 +524,10 @@ int PacketSource_Wext::EnableMonitor() {
 			return -1;
 		}
 
+		/*
 		_MSG("Source '" + parent + "' attempting to create mac80211 VAP '" + 
 			 vap + "'", MSGFLAG_INFO);
+		*/
 		if (mac80211_createvap(parent.c_str(), vap.c_str(), errstr) < 0) {
 			_MSG("Source '" + parent + "' failed to create mac80211 VAP: " +
 				 string(errstr), MSGFLAG_PRINTERROR);
@@ -805,8 +807,8 @@ int PacketSource_Wext::FetchHardwareChannel() {
 	// and if we blow up badly enough that we can't get channels, we'll
 	// blow up definitively on something else soon enough
     if ((chan = Iwconfig_Get_Channel(interface.c_str(), errstr)) < 0) {
-        globalreg->messagebus->InjectMessage("Source '" + name + "': " + errstr, 
-											 MSGFLAG_PRINTERROR);
+        // globalreg->messagebus->InjectMessage("Source '" + name + "': " + errstr, 
+		//									 MSGFLAG_PRINTERROR);
         return -1;
     }
 

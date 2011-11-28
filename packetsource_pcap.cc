@@ -627,6 +627,8 @@ int PacketSource_Pcap::Radiotap2KisPack(kis_packet *packet, kis_datachunk *linkc
 		u_int64_t	u64;
 	} u2;
 
+	u2.u64 = 0;
+
 	struct ieee80211_radiotap_header *hdr;
 	u_int32_t present, next_present;
 	u_int32_t *presentp, *last_presentp;

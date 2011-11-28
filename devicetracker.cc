@@ -1607,6 +1607,51 @@ int Devicetracker::LogDevices(string in_logclass,
 
 void Devicetracker::SetDeviceTag(mac_addr in_device, string in_tag, string in_data,
 								 int in_persistent) {
+	kis_tracked_device *dev = FetchDevice(in_device);
+	kis_device_common *com = NULL;
+	Kis_Phy_Handler *handler = FetchPhyHandler(in_device.GetPhy());
+
+	if (handler == NULL)
+		return;
+
+	if (dev == NULL)
+		return;
+
+	if ((com = (kis_device_common *) dev->fetch(devcomp_ref_common)) == NULL)
+		return;
+
+	com->arb_tag_map[in_tag] = in_data;
+
+	string tag = handler->FetchPhyName() + in_device.Mac2String();
+
+	if (in_persistent) {
+		vector<string> tfl = tag_conf->FetchOptVec(tag);
+
+		vector<smart_word_token> tflp;
+		int repl = 0;
+		for (unsigned int x = 0; x < tfl.size(); x++) {
+			tflp = NetStrTokenize(tfl[x], ",");
+
+			if (tflp.size() != 2)
+				continue;
+
+			if (tflp[0].word == in_tag) {
+				repl = 1;
+				tfl[x] = "\001" + in_tag + "\001,\001" + in_data + "\001";
+				break;
+			}
+		}
+
+		if (repl == 0) 
+			tfl.push_back("\001" + in_tag + "\001,\001" + in_data + "\001");
+
+		tag_conf->SetOptVec(tag, tfl, globalreg->timestamp.tv_sec);
+	}
+
+	if (dev->dirty == 0) {
+		dev->dirty = 1;
+		dirty_device_vec.push_back(dev);
+	}
 }
 
 void Devicetracker::ClearDeviceTag(mac_addr in_device, string in_tag) {

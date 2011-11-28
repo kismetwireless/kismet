@@ -1138,11 +1138,16 @@ int main(int argc, char *argv[], char *envp[]) {
 		CatchShutdown(-1);
 
 	// Create the network tracker
-	globalregistry->messagebus->InjectMessage("Creating network tracker...",
-											  MSGFLAG_INFO);
-	globalregistry->netracker = new Netracker(globalregistry);
-	if (globalregistry->fatal_condition)
-		CatchShutdown(-1);
+	if (conf->FetchOptBoolean("disablenettracker", 0)) {
+		globalregistry->messagebus->InjectMessage("Creating network tracker...",
+												  MSGFLAG_INFO);
+		globalregistry->netracker = new Netracker(globalregistry);
+		if (globalregistry->fatal_condition)
+			CatchShutdown(-1);
+	} else {
+		_MSG("Disabling deprecated nettracker core; this will disable some "
+			 "protocols and log files.", MSGFLAG_INFO);
+	}
 
 	// Create the channel tracker
 	globalregistry->messagebus->InjectMessage("Creating channel tracker...",
@@ -1217,10 +1222,15 @@ int main(int argc, char *argv[], char *envp[]) {
 	crc32_init_table_80211(globalregistry->crc32_table);
 
 	/* Register the info protocol */
-	_NPM(PROTO_REF_INFO) =
-		globalregistry->kisnetserver->RegisterProtocol("INFO", 0, 1,
-												  INFO_fields_text, 
-												  &Protocol_INFO, NULL, NULL);
+	if (globalreg->netracker != NULL) {
+		_NPM(PROTO_REF_INFO) =
+			globalregistry->kisnetserver->RegisterProtocol("INFO", 0, 1,
+														   INFO_fields_text, 
+														   &Protocol_INFO, NULL, NULL);
+	} else {
+		_MSG("Old nettracker core disabled, disabling deprecated *INFO sentence",
+			 MSGFLAG_INFO);
+	}
 
 	battery_proto_ref =
 		globalregistry->kisnetserver->RegisterProtocol("BATTERY", 0, 1,

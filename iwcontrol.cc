@@ -197,6 +197,7 @@ int Iwconfig_Set_IntPriv(const char *in_dev, const char *privcmd,
     int skfd;
     struct iw_priv_args priv[IW_MAX_PRIV_DEF];
     u_char buffer[4096];
+	__s32 *sbuffer = (__s32 *) buffer;
     int subcmd = 0;
     int offset = 0;
 
@@ -283,9 +284,9 @@ int Iwconfig_Set_IntPriv(const char *in_dev, const char *privcmd,
 
     // Assign the arguments
     wrq.u.data.length = nargs;     
-    ((__s32 *) buffer)[0] = (__s32) val1;
+    sbuffer[0] = (__s32) val1;
     if (nargs > 1) {
-        ((__s32 *) buffer)[1] = (__s32) val2;
+        sbuffer[1] = (__s32) val2;
     }
        
     // This is terrible!
@@ -319,6 +320,7 @@ int Iwconfig_Get_IntPriv(const char *in_dev, const char *privcmd,
     int skfd;
     struct iw_priv_args priv[IW_MAX_PRIV_DEF];
     u_char buffer[4096];
+	__s32 *sbuffer = (__s32 *) buffer;
     int subcmd = 0;
     int offset = 0;
 
@@ -433,7 +435,7 @@ int Iwconfig_Get_IntPriv(const char *in_dev, const char *privcmd,
         memcpy(buffer, wrq.u.name, IFNAMSIZ);
 
     // Return the value of the ioctl
-    (*val) = ((__s32 *) buffer)[0];
+    (*val) = sbuffer[0];
 
     close(skfd);
     return 0;
