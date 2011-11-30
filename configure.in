@@ -865,24 +865,43 @@ if test "$havepkgconfig" = "no"; then
   AC_MSG_WARN(Missing pkg-config will lead to multiple other checks failing)
 fi
 
+NLLIBS=""
+NLCFLAGS=""
+nlname=""
+
 if test "$havenetlink" = "yes"; then
+	PKG_CHECK_MODULES(libnl30, [libnl-3.0], libnl30=yes, libnl30=no)
+	PKG_CHECK_MODULES(libnlgenl30, [libnl-genl-3.0], libnlgenl30=yes, libnlgenl30=no)
 	PKG_CHECK_MODULES(libnl20, [libnl-2.0], libnl20=yes, libnl20=no)
 	PKG_CHECK_MODULES(libnl1, [libnl-1], libnl1=yes, libnl1=no)
-	if test "$libnl20" = "yes"; then
+
+	if test "$libnl30" = "yes" -a "$libnlgenl30" = "yes"; then
+		AC_DEFINE(HAVE_LIBNL, 1, libnl netlink library)
+		AC_DEFINE(HAVE_LIBNL30, 1, libnl-3.0 netlink library)
+		nlname="libnl-3.0 libnl-genl-3.0"
+	elif test "$libnl20" = "yes"; then
 		AC_DEFINE(HAVE_LIBNL, 1, libnl netlink library)
 		AC_DEFINE(HAVE_LIBNL20, 1, libnl-2.0 netlink library)
-		NLLIBS="-lnl-genl -lnl"
+		nlname="libnl-2.0"
 	elif test "$libnl1" = "yes"; then
 		AC_DEFINE(HAVE_LIBNL, 1, libnl netlink library)
-		NLLIBS="-lnl"
+		nlname="libnl-1"
 	else
 		havenetlink="no"
+	fi
+
+	if test "$nlname" != ""; then
+		NLLIBS=`pkg-config --libs $nlname`
+		NLCFLAGS=`pkg-config --cflags $nlname`
 	fi
 fi
 
 if test "$havenetlink" = "yes"; then
 	OLIBS="$LIBS"
 	LIBS="$LIBS $NLLIBS"
+	OCFL="$CPPFLAGS"
+	CPPFLAGS="$CPPFLAGS $NLCFLAGS"
+
 	AC_MSG_CHECKING(For mac80211 support in netlink library)
 	AC_LINK_IFELSE([AC_LANG_PROGRAM([[
 			#include <stdio.h>
@@ -899,7 +918,9 @@ if test "$havenetlink" = "yes"; then
 			NL80211_IFTYPE_MONITOR;
 			NL80211_CMD_NEW_INTERFACE;
 			return 0;
-			]])],[havenetlink=yes],[havenetlink=no LIBS="$OLIBS"])
+			]])],[havenetlink=yes KSLIBS="$KSLIBS $NLLIBS"],[havenetlink=no])
+	
+	LIBS="$OLIBS"
 else
 	AC_MSG_WARN(Missing libnl netlink library will not be able to control mac80211 vaps)
 	havenetlink=no
@@ -1039,7 +1060,7 @@ fi
 
 printf "         Linux Netlink: "
 if test "$havenetlink" = "yes"; then
-	echo "yes (mac80211 VAP creation)";
+	echo "yes (mac80211 VAP creation) - $nlname";
 elif test "$linux" != "yes"; then
 	echo "n/a (only Linux)"
 else
