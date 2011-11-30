@@ -18,6 +18,10 @@
 
 #include "config.h"
 
+#if defined(HAVE_LIBNL20) || defined(HAVE_LIBNL30)
+#define HAVE_LIBNL_NG
+#endif
+
 #ifdef SYS_LINUX
 
 #ifdef HAVE_LINUX_NETLINK
@@ -29,6 +33,7 @@
 #include <netlink/msg.h>
 #include <netlink/attr.h>
 #include <netlink/netlink.h>
+#include <netlink/socket.h>
 #include "nl80211.h"
 #include <net/if.h>
 #endif
@@ -44,7 +49,7 @@
 #include "nl80211_control.h"
 
 // Libnl1->Libnl2 compatability mode since the API changed, cribbed from 'iw'
-#if !defined(HAVE_LIBNL20) && defined(HAVE_LINUX_NETLINK)
+#if !defined(HAVE_LIBNL_NG)
 #define nl_sock nl_handle
 
 static inline struct nl_handle *nl_socket_alloc(void) {

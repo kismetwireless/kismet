@@ -609,6 +609,10 @@ libnl1_LIBS
 libnl1_CFLAGS
 libnl20_LIBS
 libnl20_CFLAGS
+libnlgenl30_LIBS
+libnlgenl30_CFLAGS
+libnl30_LIBS
+libnl30_CFLAGS
 PKG_CONFIG_LIBDIR
 PKG_CONFIG_PATH
 PKG_CONFIG
@@ -721,6 +725,10 @@ CPP
 PKG_CONFIG
 PKG_CONFIG_PATH
 PKG_CONFIG_LIBDIR
+libnl30_CFLAGS
+libnl30_LIBS
+libnlgenl30_CFLAGS
+libnlgenl30_LIBS
 libnl20_CFLAGS
 libnl20_LIBS
 libnl1_CFLAGS
@@ -1371,6 +1379,14 @@ Some influential environment variables:
               directories to add to pkg-config's search path
   PKG_CONFIG_LIBDIR
               path overriding pkg-config's built-in search path
+  libnl30_CFLAGS
+              C compiler flags for libnl30, overriding pkg-config
+  libnl30_LIBS
+              linker flags for libnl30, overriding pkg-config
+  libnlgenl30_CFLAGS
+              C compiler flags for libnlgenl30, overriding pkg-config
+  libnlgenl30_LIBS
+              linker flags for libnlgenl30, overriding pkg-config
   libnl20_CFLAGS
               C compiler flags for libnl20, overriding pkg-config
   libnl20_LIBS
@@ -6689,6 +6705,10 @@ if test "$havepkgconfig" = "no"; then
 $as_echo "$as_me: WARNING: Missing pkg-config will lead to multiple other checks failing" >&2;}
 fi
 
+NLLIBS=""
+NLCFLAGS=""
+nlname=""
+
 if test "$havenetlink" = "yes"; then
 
 
@@ -6808,6 +6828,144 @@ $as_echo "yes" >&6; }
 $as_echo "no" >&6; }
 		PKG_CONFIG=""
 	fi
+fi
+
+pkg_failed=no
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for libnl30" >&5
+$as_echo_n "checking for libnl30... " >&6; }
+
+if test -n "$libnl30_CFLAGS"; then
+    pkg_cv_libnl30_CFLAGS="$libnl30_CFLAGS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"libnl-3.0\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "libnl-3.0") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_libnl30_CFLAGS=`$PKG_CONFIG --cflags "libnl-3.0" 2>/dev/null`
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+if test -n "$libnl30_LIBS"; then
+    pkg_cv_libnl30_LIBS="$libnl30_LIBS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"libnl-3.0\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "libnl-3.0") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_libnl30_LIBS=`$PKG_CONFIG --libs "libnl-3.0" 2>/dev/null`
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+
+
+
+if test $pkg_failed = yes; then
+   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
+        _pkg_short_errors_supported=yes
+else
+        _pkg_short_errors_supported=no
+fi
+        if test $_pkg_short_errors_supported = yes; then
+	        libnl30_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors "libnl-3.0" 2>&1`
+        else
+	        libnl30_PKG_ERRORS=`$PKG_CONFIG --print-errors "libnl-3.0" 2>&1`
+        fi
+	# Put the nasty error message in config.log where it belongs
+	echo "$libnl30_PKG_ERRORS" >&5
+
+	libnl30=no
+elif test $pkg_failed = untried; then
+     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+	libnl30=no
+else
+	libnl30_CFLAGS=$pkg_cv_libnl30_CFLAGS
+	libnl30_LIBS=$pkg_cv_libnl30_LIBS
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+	libnl30=yes
+fi
+
+pkg_failed=no
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for libnlgenl30" >&5
+$as_echo_n "checking for libnlgenl30... " >&6; }
+
+if test -n "$libnlgenl30_CFLAGS"; then
+    pkg_cv_libnlgenl30_CFLAGS="$libnlgenl30_CFLAGS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"libnl-genl-3.0\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "libnl-genl-3.0") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_libnlgenl30_CFLAGS=`$PKG_CONFIG --cflags "libnl-genl-3.0" 2>/dev/null`
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+if test -n "$libnlgenl30_LIBS"; then
+    pkg_cv_libnlgenl30_LIBS="$libnlgenl30_LIBS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"libnl-genl-3.0\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "libnl-genl-3.0") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_libnlgenl30_LIBS=`$PKG_CONFIG --libs "libnl-genl-3.0" 2>/dev/null`
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+
+
+
+if test $pkg_failed = yes; then
+   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
+        _pkg_short_errors_supported=yes
+else
+        _pkg_short_errors_supported=no
+fi
+        if test $_pkg_short_errors_supported = yes; then
+	        libnlgenl30_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors "libnl-genl-3.0" 2>&1`
+        else
+	        libnlgenl30_PKG_ERRORS=`$PKG_CONFIG --print-errors "libnl-genl-3.0" 2>&1`
+        fi
+	# Put the nasty error message in config.log where it belongs
+	echo "$libnlgenl30_PKG_ERRORS" >&5
+
+	libnlgenl30=no
+elif test $pkg_failed = untried; then
+     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+	libnlgenl30=no
+else
+	libnlgenl30_CFLAGS=$pkg_cv_libnlgenl30_CFLAGS
+	libnlgenl30_LIBS=$pkg_cv_libnlgenl30_LIBS
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+	libnlgenl30=yes
 fi
 
 pkg_failed=no
@@ -6947,27 +7105,44 @@ else
 $as_echo "yes" >&6; }
 	libnl1=yes
 fi
-	if test "$libnl20" = "yes"; then
+
+	if test "$libnl30" = "yes" -a "$libnlgenl30" = "yes"; then
+
+$as_echo "#define HAVE_LIBNL 1" >>confdefs.h
+
+
+$as_echo "#define HAVE_LIBNL30 1" >>confdefs.h
+
+		nlname="libnl-3.0 libnl-genl-3.0"
+	elif test "$libnl20" = "yes"; then
 
 $as_echo "#define HAVE_LIBNL 1" >>confdefs.h
 
 
 $as_echo "#define HAVE_LIBNL20 1" >>confdefs.h
 
-		NLLIBS="-lnl-genl -lnl"
+		nlname="libnl-2.0"
 	elif test "$libnl1" = "yes"; then
 
 $as_echo "#define HAVE_LIBNL 1" >>confdefs.h
 
-		NLLIBS="-lnl"
+		nlname="libnl-1"
 	else
 		havenetlink="no"
+	fi
+
+	if test "$nlname" != ""; then
+		NLLIBS=`pkg-config --libs $nlname`
+		NLCFLAGS=`pkg-config --cflags $nlname`
 	fi
 fi
 
 if test "$havenetlink" = "yes"; then
 	OLIBS="$LIBS"
 	LIBS="$LIBS $NLLIBS"
+	OCFL="$CPPFLAGS"
+	CPPFLAGS="$CPPFLAGS $NLCFLAGS"
+
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking For mac80211 support in netlink library" >&5
 $as_echo_n "checking For mac80211 support in netlink library... " >&6; }
 	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
@@ -6997,12 +7172,14 @@ main ()
 }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
-  havenetlink=yes
+  havenetlink=yes KSLIBS="$KSLIBS $NLLIBS"
 else
-  havenetlink=no LIBS="$OLIBS"
+  havenetlink=no
 fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
+
+	LIBS="$OLIBS"
 else
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Missing libnl netlink library will not be able to control mac80211 vaps" >&5
 $as_echo "$as_me: WARNING: Missing libnl netlink library will not be able to control mac80211 vaps" >&2;}
@@ -8449,7 +8626,7 @@ fi
 
 printf "         Linux Netlink: "
 if test "$havenetlink" = "yes"; then
-	echo "yes (mac80211 VAP creation)";
+	echo "yes (mac80211 VAP creation) - $nlname";
 elif test "$linux" != "yes"; then
 	echo "n/a (only Linux)"
 else
