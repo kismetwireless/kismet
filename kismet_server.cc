@@ -1138,7 +1138,7 @@ int main(int argc, char *argv[], char *envp[]) {
 		CatchShutdown(-1);
 
 	// Create the network tracker
-	if (conf->FetchOptBoolean("disablenettracker", 0)) {
+	if (conf->FetchOptBoolean("disablenettracker", 0) == 0) {
 		globalregistry->messagebus->InjectMessage("Creating network tracker...",
 												  MSGFLAG_INFO);
 		globalregistry->netracker = new Netracker(globalregistry);
