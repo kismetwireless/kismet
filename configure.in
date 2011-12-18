@@ -930,7 +930,7 @@ if test "$havenetlink" = "yes"; then
 	AC_MSG_RESULT(yes)
 	AC_DEFINE(HAVE_LINUX_NETLINK, 1, Netlink works) 
 else
-	AC_MSG_RESULT(libnl detected but no support for mac80211 your kernel is probably too old for mac80211 or nl80211 upgrade your kernel then reinstall the latest netlink to get mac80211 support.)
+	AC_MSG_RESULT(libnl was not found)
 fi
 
 fi
