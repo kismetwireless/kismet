@@ -929,8 +929,6 @@ fi
 if test "$havenetlink" = "yes"; then
 	AC_MSG_RESULT(yes)
 	AC_DEFINE(HAVE_LINUX_NETLINK, 1, Netlink works) 
-else
-	AC_MSG_RESULT(libnl was not found)
 fi
 
 fi
