@@ -377,8 +377,40 @@ struct JSON_value *JSON_parse(string in_json, string& error) {
 				cur_val = v;
 
 				continue;
-			}
+			} else if (tok_vec[x].tok_type == JSON_arrend ||
+					   tok_vec[x].tok_type == JSON_end) {
+				// If we're ending an array or dictionary, we pop off the current 
+				// value from the stack and reset, unless we're at the end of the
+				// stack!
 
+				if (cur_val == ret) {
+					// printf("debug - end of starting block\n");
+
+					if (x != (tok_vec.size() - 1)) {
+						// printf("debug - end of starting block before end of stream\n");
+
+						error = "JSON parser found end of JSON block before the "
+							"end of the token stream at " +
+							IntToString(tok_vec[x].tok_position);
+					}
+
+					// printf("debug - returning successfully!\n");
+					return ret;
+				} else {
+					// printf("DEBUG - end of array/dictionary, popping back\n");
+					// Pop back one in the stack
+					cur_val = value_stack[value_stack.size() - 1];
+					value_stack.erase(value_stack.begin() + value_stack.size() - 1);
+					sym_tok = symbol_stack[symbol_stack.size() - 1];
+					symbol_stack.erase(symbol_stack.begin() + symbol_stack.size() - 1);
+					// printf("debug - popped bck to cur_val %p\n", cur_val);
+				}
+
+				// We retain the expectation of a separator...
+				// printf("debug - ended block, expected %d\n", expected);
+				expected = JSON_sep;
+				continue;
+			}
 		} else if (expected == JSON_sep) {
 			if (tok_vec[x].tok_type == JSON_comma) {
 				if (cur_val->value.tok_type == JSON_start) {
