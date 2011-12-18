@@ -7193,8 +7193,8 @@ $as_echo "yes" >&6; }
 $as_echo "#define HAVE_LINUX_NETLINK 1" >>confdefs.h
 
 else
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: libnl detected but no support for mac80211 your kernel is probably too old for mac80211 or nl80211 upgrade your kernel then reinstall the latest netlink to get mac80211 support." >&5
-$as_echo "libnl detected but no support for mac80211 your kernel is probably too old for mac80211 or nl80211 upgrade your kernel then reinstall the latest netlink to get mac80211 support." >&6; }
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: libnl was not found" >&5
+$as_echo "libnl was not found" >&6; }
 fi
 
 fi
