@@ -1095,6 +1095,13 @@ if test "$pcap" != "yes" -a "$linux" = "yes"; then
 	echo "libpcap-dev or libpcap-devel by most distributions)."
 fi
 
+if test "$havepkgconfig" = "no"; then
+	echo
+	echo "pkg-config was missing.  Without it, configure cannot detect "
+	echo "several libraries Kismet needs.  Install pkg-config and re-run"
+	echo "configure."
+fi
+
 if test "$havenetlink" != "yes" -a "$linux" = "yes"; then
 	echo "*** WARNING ***"
 	echo "LibNL/nl80211 support was not found.  Kismet uses libnl to control "
@@ -1103,6 +1110,12 @@ if test "$havenetlink" != "yes" -a "$linux" = "yes"; then
 	echo "older drivers, you need libnl."
 	echo "You need both the libnl libraries and development headers (called "
 	echo "libnl-dev or libnl-devel by most distributions)."
+
+	if test "$havepkgconfig" = "no"; then
+		echo "You do not have the pkg-config utility installed.  Kismet needs "
+		echo "this to find the options libnl uses.  If libnl is installed but "
+		echo "pkg-config is not, Kismet will not detect libnl!"
+	fi
 fi
 
 if test "`echo $host_os | grep linux`" = ""; then
@@ -1118,13 +1131,6 @@ else
 
 	if test "$verminor" = "4" -a "$vertiny" -lt 16 ; then
 		AC_MSG_WARN(There have been a number of major improvements in the linux-wireless extentions and in the aironet drivers in recent versions.  It is recomended that you run at least kernel version 2.4.16, otherwise you may experience difficulties.)
-	fi
-
-	if test "$havepkgconfig" = "no"; then
-		echo
-		echo "pkg-config was missing.  Without it, configure cannot detect "
-		echo "several libraries Kismet needs.  Install pkg-config and re-run"
-		echo "configure."
 	fi
 
 	echo
