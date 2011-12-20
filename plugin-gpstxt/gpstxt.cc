@@ -61,6 +61,7 @@ protected:
 	FILE *txtfile;
 	time_t last_track;
 	int pack_comp_common;
+	Devicetracker *devicetracker;
 };
 	
 int dumpfilegpstxt_chain_hook(CHAINCALL_PARMS) {
@@ -70,6 +71,16 @@ int dumpfilegpstxt_chain_hook(CHAINCALL_PARMS) {
 Dumpfile_Gpstxt::Dumpfile_Gpstxt(GlobalRegistry *in_globalreg) : 
 	Dumpfile(in_globalreg) {
 	globalreg = in_globalreg;
+
+	devicetracker = 
+		(Devicetracker *) globalreg->FetchGlobal("DEVICE_TRACKER");
+
+	if (devicetracker == NULL) {
+		_MSG("Missing phy-neutral devicetracker, something is wrong.  "
+			 "Trying to use this plugin on an older Kismet?",
+			 MSGFLAG_ERROR);
+		return;
+	}
 
 	pack_comp_common = 
 		globalreg->packetchain->RegisterPacketComponent("COMMON");
@@ -94,7 +105,8 @@ Dumpfile_Gpstxt::Dumpfile_Gpstxt(GlobalRegistry *in_globalreg) :
 		return;
 	}
 
-	fprintf(txtfile, "#device,dest,ts,ts_usec,lat,lon,spd,heading,alt,hdop,vdop,fix,sigtype,signal,noise\n");
+	fprintf(txtfile, "#device,dest,ts,ts_usec,lat,lon,spd,heading,alt,hdop,vdop,"
+			"fix,sigtype,signal,noise,phy,packtype\n");
 
 	_MSG("Opened gpstxt log file '" + fname + "'", MSGFLAG_INFO);
 
@@ -130,6 +142,7 @@ int Dumpfile_Gpstxt::chain_handler(kis_packet *in_pack) {
 	kis_gps_packinfo *gpsinfo = NULL;
 	kis_common_info *common = NULL;
 	kis_layer1_packinfo *radio = NULL;
+	Kis_Phy_Handler *phyh = NULL;
 
 	if (in_pack->error)
 		return 0;
@@ -158,7 +171,7 @@ int Dumpfile_Gpstxt::chain_handler(kis_packet *in_pack) {
 		last_track = globalreg->timestamp.tv_sec;
 
 		fprintf(txtfile, "00:00:00:00:00:00,00:00:00:00:00:00,"
-				"%ld,%ld,%f,%f,%f,%f,%f,%f,%f,%d,0,0,0\n",
+				"%ld,%ld,%f,%f,%f,%f,%f,%f,%f,%d,0,0,0,GPS,GPS\n",
 				(long int) in_pack->ts.tv_sec, (long int) in_pack->ts.tv_usec,
 				gpsinfo->lat, gpsinfo->lon, gpsinfo->spd, gpsinfo->heading,
 				gpsinfo->alt, gpsinfo->hdop, gpsinfo->vdop,
@@ -189,14 +202,24 @@ int Dumpfile_Gpstxt::chain_handler(kis_packet *in_pack) {
 		}
 	}
 
+	string phyname;
 
-	fprintf(txtfile, "%s,%s,%ld,%ld,%f,%f,%f,%f,%f,%f,%f,%d,%d,%d,%d\n",
+	phyh = devicetracker->FetchPhyHandler(common->phyid);
+
+	if (phyh == NULL) {
+		phyname = "UNKNOWN";
+	} else {
+		phyname = phyh->FetchPhyName();
+	}
+
+	fprintf(txtfile, "%s,%s,%ld,%ld,%f,%f,%f,%f,%f,%f,%f,%d,%d,%d,%d,%s,%d\n",
 			common->device.Mac2String().c_str(),
 			common->dest.Mac2String().c_str(),
 			(long int) in_pack->ts.tv_sec, (long int) in_pack->ts.tv_usec,
 			gpsinfo->lat, gpsinfo->lon, gpsinfo->spd, gpsinfo->heading,
 			gpsinfo->alt, gpsinfo->hdop, gpsinfo->vdop,
-			gpsinfo->gps_fix, rtype, sig, noise);
+			gpsinfo->gps_fix, rtype, sig, noise, phyname.c_str(),
+			common->type);
 
 	dumped_frames++;
 
