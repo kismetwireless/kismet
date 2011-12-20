@@ -267,6 +267,9 @@ struct mac_addr {
 		ostringstream osstr;
 		unsigned int nbytes = GetMacLen();
 
+		if (nbytes == 0)
+			return "00:00:00:00:00:00";
+
 		for (unsigned int x = 0; x < nbytes; x++) {
 			osstr << hex << setw(2) << setfill('0') << uppercase << index64(longmac, x);
 			if (x != nbytes - 1)

@@ -762,23 +762,38 @@ int Kis_80211_Phy::ClassifierDot11(kis_packet *in_pack) {
 
 	ci->phyid = phyid;
 
-	if (dot11info->type == packet_management)
+	if (dot11info->type == packet_management) {
 		ci->type = packet_basic_mgmt;
-	else if (dot11info->type == packet_phy)
+		// We track devices/nets/clients by source mac
+		ci->device = dot11info->source_mac;
+		ci->device.SetPhy(phyid);
+
+		ci->source = dot11info->source_mac;
+		ci->source.SetPhy(phyid);
+
+		ci->dest = dot11info->dest_mac;
+		ci->dest.SetPhy(phyid);
+	} else if (dot11info->type == packet_phy) {
 		ci->type = packet_basic_phy;
-	else if (dot11info->type == packet_data)
+		ci->dest = dot11info->dest_mac;
+		ci->dest.SetPhy(phyid);
+	} else if (dot11info->type == packet_data) {
 		ci->type = packet_basic_data;
-	else if (dot11info->type == packet_noise || dot11info->corrupt ||
-			 in_pack->error || dot11info->type == packet_unknown ||
-			 dot11info->subtype == packet_sub_unknown)
+		ci->device = dot11info->source_mac;
+		ci->device.SetPhy(phyid);
+
+		ci->source = dot11info->source_mac;
+		ci->source.SetPhy(phyid);
+
+		ci->dest = dot11info->dest_mac;
+		ci->dest.SetPhy(phyid);
+	} else if (dot11info->type == packet_noise || dot11info->corrupt ||
+			   in_pack->error || dot11info->type == packet_unknown ||
+			   dot11info->subtype == packet_sub_unknown) {
 		ci->error = 1;
+	}
 
 	ci->datasize = dot11info->datasize;
-
-	// We track devices/nets/clients by source mac
-	ci->device = dot11info->source_mac;
-	ci->device.SetPhy(phyid);
-	ci->source = ci->device;
 
 	in_pack->insert(pack_comp_common, ci);
 
