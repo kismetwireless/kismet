@@ -39,6 +39,8 @@ Kis_DLT_PPI::Kis_DLT_PPI(GlobalRegistry *in_globalreg) :
 	dlt_name = "PPI";
 	dlt = DLT_PPI;
 
+	globalreg->InsertGlobal("DLT_PPI", this);
+
 	_MSG("Registering support for DLT_PPI packet header decoding", MSGFLAG_INFO);
 }
 
@@ -47,7 +49,7 @@ int Kis_DLT_PPI::HandlePacket(kis_packet *in_pack) {
 		(kis_datachunk *) in_pack->fetch(pack_comp_decap);
 
 	if (decapchunk != NULL) {
-		printf("debug - dltppi frame already decapped\n");
+		// printf("debug - dltppi frame already decapped\n");
 		return 1;
 	}
 
@@ -55,7 +57,7 @@ int Kis_DLT_PPI::HandlePacket(kis_packet *in_pack) {
 		(kis_datachunk *) in_pack->fetch(pack_comp_linkframe);
 
 	if (linkchunk == NULL) {
-		printf("debug - dltppi no link\n");
+		// printf("debug - dltppi no link\n");
 		return 1;
 	}
 
@@ -63,7 +65,7 @@ int Kis_DLT_PPI::HandlePacket(kis_packet *in_pack) {
 		(kis_ref_capsource *) in_pack->fetch(pack_comp_capsrc);
 
 	if (capsrc == NULL) {
-		printf("debug - no capsrc?\n");
+		// printf("debug - no capsrc?\n");
 		return 1;
 	}
 
@@ -71,6 +73,7 @@ int Kis_DLT_PPI::HandlePacket(kis_packet *in_pack) {
 	ppi_field_header *ppi_fh;
 	unsigned int ppi_fh_offt = sizeof(ppi_packet_header);
 	unsigned int tuint, ph_len;
+	unsigned int ppi_dlt = -1;
 	int applyfcs = 0, fcsknownbad = 0;
 
 	// Make a datachunk for the reformatted frame
@@ -84,6 +87,7 @@ int Kis_DLT_PPI::HandlePacket(kis_packet *in_pack) {
 
 	ppi_ph = (ppi_packet_header *) linkchunk->data;
 	ph_len = kis_letoh16(ppi_ph->pph_len);
+	ppi_dlt = kis_letoh32(ppi_ph->pph_dlt);
 	if (ph_len > linkchunk->length) {
 		_MSG("pcap PPI converter got invalid/runt PPI frame header", MSGFLAG_ERROR);
 		return 0;
@@ -98,7 +102,6 @@ int Kis_DLT_PPI::HandlePacket(kis_packet *in_pack) {
 			ph_len = 32;
 	}
 
-	// Ignore the DLT and treat it all as 802.11... for now
 	while (ppi_fh_offt < linkchunk->length &&
 		   ppi_fh_offt < ph_len) {
 		ppi_fh = (ppi_field_header *) &(linkchunk->data[ppi_fh_offt]);
@@ -251,7 +254,7 @@ int Kis_DLT_PPI::HandlePacket(kis_packet *in_pack) {
 
 	decapchunk = new kis_datachunk;
 
-	decapchunk->dlt = KDLT_IEEE802_11;
+	decapchunk->dlt = ppi_dlt;
 
 	// Subtract the packet FCS since kismet doesn't do anything terribly bright
 	// with it right now, also subtract the avs header.  We have to obey the
