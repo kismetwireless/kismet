@@ -44,6 +44,7 @@
 #include "plugintracker.h"
 
 #include "kis_dlt_ppi.h"
+#include "kis_dlt_radiotap.h"
 
 #include "packetsource.h"
 
@@ -1028,6 +1029,7 @@ int main(int argc, char *argv[], char *envp[]) {
 
 	// Register the DLT handlers
 	new Kis_DLT_PPI(globalregistry);
+	new Kis_DLT_Radiotap(globalregistry);
 
 	// Register the base PHYs
 	if (globalregistry->devicetracker->RegisterPhyHandler(new Kis_80211_Phy(globalregistry)) < 0 || globalregistry->fatal_condition) 

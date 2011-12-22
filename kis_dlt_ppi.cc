@@ -44,6 +44,10 @@ Kis_DLT_PPI::Kis_DLT_PPI(GlobalRegistry *in_globalreg) :
 	_MSG("Registering support for DLT_PPI packet header decoding", MSGFLAG_INFO);
 }
 
+Kis_DLT_PPI::~Kis_DLT_PPI() {
+	globalreg->InsertGlobal("DLT_PPI", NULL);
+}
+
 int Kis_DLT_PPI::HandlePacket(kis_packet *in_pack) {
 	kis_datachunk *decapchunk = 
 		(kis_datachunk *) in_pack->fetch(pack_comp_decap);
@@ -58,6 +62,10 @@ int Kis_DLT_PPI::HandlePacket(kis_packet *in_pack) {
 
 	if (linkchunk == NULL) {
 		// printf("debug - dltppi no link\n");
+		return 1;
+	}
+
+	if (linkchunk->dlt != dlt) {
 		return 1;
 	}
 

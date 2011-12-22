@@ -75,17 +75,6 @@ extern "C" {
 
 #endif // BSD radiotap
 
-// Include the linux system radiotap headers
-#ifdef HAVE_LINUX_SYS_RADIOTAP
-#include <net/ieee80211_radiotap.h>
-#endif
-
-// If we couldn't make any sense of system rt headers (OSX perhaps, or
-// win32, or an older linux) then pull in the local radiotap copy
-#ifdef HAVE_LOCAL_RADIOTAP
-#include "local_ieee80211_radiotap.h"
-#endif
-
 // We provide the pcap packet sources
 #define USE_PACKETSOURCE_PCAPFILE
 
@@ -115,11 +104,6 @@ extern "C" {
 
 // Define kluged local linktype for BSD lame-mode
 #define KDLT_BSD802_11		-100
-
-// Extension to radiotap header not yet included in all BSD's
-#ifndef IEEE80211_RADIOTAP_F_FCS
-#define IEEE80211_RADIOTAP_F_FCS        0x10    /* frame includes FCS */
-#endif
 
 #ifndef IEEE80211_IOC_CHANNEL
 #define IEEE80211_IOC_CHANNEL 0
@@ -227,8 +211,6 @@ protected:
 
 	// Mangle Prism2 and AVS frames
 	int Prism2KisPack(kis_packet *packet, kis_datachunk *linkchunk);
-	// If we have radiotap headers, mangle those into kis packets
-	int Radiotap2KisPack(kis_packet *packet, kis_datachunk *linkchunk);
 	// If we're just a straight up frame
 	int Eight2KisPack(kis_packet *packet, kis_datachunk *linkchunk);
 
