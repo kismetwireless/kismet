@@ -231,8 +231,6 @@ protected:
 	int Radiotap2KisPack(kis_packet *packet, kis_datachunk *linkchunk);
 	// If we're just a straight up frame
 	int Eight2KisPack(kis_packet *packet, kis_datachunk *linkchunk);
-	// Cace PPI
-	int PPI2KisPack(kis_packet *packet, kis_datachunk *linkchunk);
 
 	pcap_t *pd;
 	int datalink_type;

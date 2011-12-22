@@ -43,6 +43,8 @@
 
 #include "plugintracker.h"
 
+#include "kis_dlt_ppi.h"
+
 #include "packetsource.h"
 
 #include "packetsource_bsdrt.h"
@@ -1023,6 +1025,9 @@ int main(int argc, char *argv[], char *envp[]) {
 	globalregistry->devicetracker = new Devicetracker(globalregistry);
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
+
+	// Register the DLT handlers
+	new Kis_DLT_PPI(globalregistry);
 
 	// Register the base PHYs
 	if (globalregistry->devicetracker->RegisterPhyHandler(new Kis_80211_Phy(globalregistry)) < 0 || globalregistry->fatal_condition) 

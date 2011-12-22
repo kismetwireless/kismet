@@ -92,16 +92,18 @@ public:
         int priority;
 		Packetchain::pc_callback callback;
         void *auxdata;
+		int id;
     } pc_link;
 
     // Register a callback, aux data, a chain to put it in, and the priority 
     int RegisterHandler(pc_callback in_cb, void *in_aux, int in_chain, int in_prio);
     int RemoveHandler(pc_callback in_cb, int in_chain);
+	int RemoveHandler(int in_id, int in_chain);
 
 protected:
     GlobalRegistry *globalreg;
 
-    int next_componentid;
+    int next_componentid, next_handlerid;
 
     map<string, int> component_str_map;
     map<int, string> component_id_map;

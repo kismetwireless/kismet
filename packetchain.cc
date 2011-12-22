@@ -48,6 +48,7 @@ Packetchain::Packetchain() {
 Packetchain::Packetchain(GlobalRegistry *in_globalreg) {
     globalreg = in_globalreg;
     next_componentid = 1;
+	next_handlerid = 1;
 }
 
 int Packetchain::RegisterPacketComponent(string in_component) {
@@ -170,6 +171,7 @@ int Packetchain::RegisterHandler(pc_callback in_cb, void *in_aux,
     link->priority = in_prio;
     link->callback = in_cb;
     link->auxdata = in_aux;
+	link->id = next_handlerid++;
             
     switch (in_chain) {
         case CHAINPOS_GENESIS:
@@ -229,6 +231,91 @@ int Packetchain::RegisterHandler(pc_callback in_cb, void *in_aux,
         default:
             delete link;
             _MSG("Packetchain::RegisterHandler requested unknown chain", 
+				 MSGFLAG_ERROR);
+            return -1;
+    }
+
+    return link->id;
+}
+
+int Packetchain::RemoveHandler(int in_id, int in_chain) {
+	unsigned int x;
+
+    switch (in_chain) {
+        case CHAINPOS_GENESIS:
+			for (x = 0; x < genesis_chain.size(); x++) {
+				if (genesis_chain[x]->id == in_id) {
+					genesis_chain.erase(genesis_chain.begin() + x);
+				}
+			}
+            break;
+
+        case CHAINPOS_POSTCAP:
+			for (x = 0; x < postcap_chain.size(); x++) {
+				if (postcap_chain[x]->id == in_id) {
+					postcap_chain.erase(postcap_chain.begin() + x);
+				}
+			}
+            break;
+
+        case CHAINPOS_LLCDISSECT:
+			for (x = 0; x < llcdissect_chain.size(); x++) {
+				if (llcdissect_chain[x]->id == in_id) {
+					llcdissect_chain.erase(llcdissect_chain.begin() + x);
+				}
+			}
+            break;
+
+        case CHAINPOS_DECRYPT:
+			for (x = 0; x < decrypt_chain.size(); x++) {
+				if (decrypt_chain[x]->id == in_id) {
+					decrypt_chain.erase(decrypt_chain.begin() + x);
+				}
+			}
+            break;
+            
+        case CHAINPOS_DATADISSECT:
+			for (x = 0; x < datadissect_chain.size(); x++) {
+				if (datadissect_chain[x]->id == in_id) {
+					datadissect_chain.erase(datadissect_chain.begin() + x);
+				}
+			}
+            break;
+
+        case CHAINPOS_CLASSIFIER:
+			for (x = 0; x < classifier_chain.size(); x++) {
+				if (classifier_chain[x]->id == in_id) {
+					classifier_chain.erase(classifier_chain.begin() + x);
+				}
+			}
+            break;
+
+        case CHAINPOS_TRACKER:
+			for (x = 0; x < tracker_chain.size(); x++) {
+				if (tracker_chain[x]->id == in_id) {
+					tracker_chain.erase(tracker_chain.begin() + x);
+				}
+			}
+            break;
+
+        case CHAINPOS_LOGGING:
+			for (x = 0; x < logging_chain.size(); x++) {
+				if (logging_chain[x]->id == in_id) {
+					logging_chain.erase(logging_chain.begin() + x);
+				}
+			}
+            break;
+
+        case CHAINPOS_DESTROY:
+			for (x = 0; x < destruction_chain.size(); x++) {
+				if (destruction_chain[x]->id == in_id) {
+					destruction_chain.erase(destruction_chain.begin() + x);
+				}
+			}
+            break;
+
+        default:
+            _MSG("Packetchain::RemoveHandler requested unknown chain", 
 				 MSGFLAG_ERROR);
             return -1;
     }
