@@ -252,7 +252,7 @@ int Kis_DLT_PPI::HandlePacket(kis_packet *in_pack) {
 					data_offt += 4;
 				}
 
-				in_pack->insert(_PCM(PACK_COMP_GPS), gpsinfo);
+				in_pack->insert(pack_comp_gps, gpsinfo);
 			}
 		}
 	}
@@ -274,8 +274,8 @@ int Kis_DLT_PPI::HandlePacket(kis_packet *in_pack) {
     memcpy(decapchunk->data, linkchunk->data + ph_len, decapchunk->length);
 
 	if (radioheader != NULL)
-		in_pack->insert(_PCM(PACK_COMP_RADIODATA), radioheader);
-	in_pack->insert(_PCM(PACK_COMP_DECAP), decapchunk);
+		in_pack->insert(pack_comp_radiodata, radioheader);
+	in_pack->insert(pack_comp_decap, decapchunk);
 
 	kis_packet_checksum *fcschunk = NULL;
 	if (applyfcs && linkchunk->length > 4) {
@@ -290,7 +290,7 @@ int Kis_DLT_PPI::HandlePacket(kis_packet *in_pack) {
 		else
 			fcschunk->checksum_valid = 1;
 
-		in_pack->insert(_PCM(PACK_COMP_CHECKSUM), fcschunk);
+		in_pack->insert(pack_comp_checksum, fcschunk);
 	}
 
 	// If we're validating the FCS
@@ -303,7 +303,6 @@ int Kis_DLT_PPI::HandlePacket(kis_packet *in_pack) {
 		if (memcmp(fcschunk->checksum_ptr, &calc_crc, 4)) {
 			in_pack->error = 1;
 			fcschunk->checksum_valid = 0;
-			fprintf(stderr, "debug - rtap to kis, fcs invalid\n");
 		} else {
 			fcschunk->checksum_valid = 1;
 		}

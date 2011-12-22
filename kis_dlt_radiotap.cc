@@ -351,8 +351,8 @@ int Kis_DLT_Radiotap::HandlePacket(kis_packet *in_pack) {
 	memcpy(decapchunk->data, linkchunk->data + 
 		   EXTRACT_LE_16BITS(&(hdr->it_len)), decapchunk->length);
 
-	in_pack->insert(_PCM(PACK_COMP_RADIODATA), radioheader);
-	in_pack->insert(_PCM(PACK_COMP_DECAP), decapchunk);
+	in_pack->insert(pack_comp_radiodata, radioheader);
+	in_pack->insert(pack_comp_decap, decapchunk);
 
 	kis_packet_checksum *fcschunk = NULL;
 	if (fcs_cut && linkchunk->length > 4) {
@@ -363,7 +363,7 @@ int Kis_DLT_Radiotap::HandlePacket(kis_packet *in_pack) {
 		// Valid until proven otherwise
 		fcschunk->checksum_valid = 1;
 
-		in_pack->insert(_PCM(PACK_COMP_FCSBYTES), fcschunk);
+		in_pack->insert(pack_comp_checksum, fcschunk);
 	}
 
 	// If we're validating the FCS

@@ -81,25 +81,8 @@ extern "C" {
 // Maximum SSID length for storing
 #define MAX_STORED_SSID		32
 
-// for DLT_PRISM_HEADER
-#define WLAN_DEVNAMELEN_MAX	16
-
-// Define linktype headers if we don't have them in our includes for some
-// reason
-#ifndef DLT_PRISM_HEADER
-#define DLT_PRISM_HEADER	119
-#endif
-
 #ifndef DLT_IEEE802_11
 #define DLT_IEEE802_11		105
-#endif
-
-#ifndef DLT_IEEE802_11_RADIO	
-#define DLT_IEEE802_11_RADIO 127
-#endif
-
-#ifndef DLT_IEEE802_11_RADIO_AVS
-#define DLT_IEEE802_11_RADIO_AVS 163
 #endif
 
 // Define kluged local linktype for BSD lame-mode
@@ -108,50 +91,6 @@ extern "C" {
 #ifndef IEEE80211_IOC_CHANNEL
 #define IEEE80211_IOC_CHANNEL 0
 #endif
-
-// Prism 802.11 headers from wlan-ng tacked on to the beginning of a
-// pcap packet... Snagged from the wlan-ng source
-typedef struct {
-	uint32_t did;
-	uint16_t status;
-	uint16_t len;
-	uint32_t data;
-} __attribute__((__packed__)) p80211item_uint32_t;
-
-typedef struct {
-	uint32_t msgcode;
-	uint32_t msglen;
-	uint8_t devname[WLAN_DEVNAMELEN_MAX];
-	p80211item_uint32_t hosttime;
-	p80211item_uint32_t mactime;
-	p80211item_uint32_t channel;
-	p80211item_uint32_t rssi;
-	p80211item_uint32_t sq;
-	p80211item_uint32_t signal;
-	p80211item_uint32_t noise;
-	p80211item_uint32_t rate;
-	p80211item_uint32_t istx;
-	p80211item_uint32_t frmlen;
-} __attribute__((__packed__)) wlan_ng_prism2_header;
-
-// wlan-ng (and hopefully others) AVS header, version one.  Fields in
-// network byte order.
-typedef struct {
-	uint32_t version;
-	uint32_t length;
-	uint64_t mactime;
-	uint64_t hosttime;
-	uint32_t phytype;
-	uint32_t channel;
-	uint32_t datarate;
-	uint32_t antenna;
-	uint32_t priority;
-	uint32_t ssi_type;
-	int32_t ssi_signal;
-	int32_t ssi_noise;
-	uint32_t preamble;
-	uint32_t encoding;
-} avs_80211_1_header;
 
 class PacketSource_Pcap : public KisPacketSource {
 public:
@@ -209,8 +148,6 @@ protected:
 	// Parse the data link type
     virtual int DatalinkType();
 
-	// Mangle Prism2 and AVS frames
-	int Prism2KisPack(kis_packet *packet, kis_datachunk *linkchunk);
 	// If we're just a straight up frame
 	int Eight2KisPack(kis_packet *packet, kis_datachunk *linkchunk);
 

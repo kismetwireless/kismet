@@ -45,6 +45,13 @@ Kis_DLT_Handler::Kis_DLT_Handler(GlobalRegistry *in_globalreg) {
 		globalreg->packetchain->RegisterPacketComponent("DECAP");
 	pack_comp_capsrc =
 		globalreg->packetchain->RegisterPacketComponent("KISCAPSRC");
+	pack_comp_radiodata = 
+		globalreg->packetchain->RegisterPacketComponent("RADIODATA");
+	pack_comp_gps =
+		globalreg->packetchain->RegisterPacketComponent("GPS");
+	pack_comp_checksum =
+		globalreg->packetchain->RegisterPacketComponent("CHECKSUM");
+
 }
 
 Kis_DLT_Handler::~Kis_DLT_Handler() {

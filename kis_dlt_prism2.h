@@ -18,34 +18,34 @@
 
 /* DLT handler framework */
 
-#ifndef __KIS_DLT_H__
-#define __KIS_DLT_H__
+#ifndef __KIS_DLT_PRISM2_H__
+#define __KIS_DLT_PRISM2_H__
 
 #include "config.h"
 
 #include "globalregistry.h"
 #include "packet.h"
 #include "packetchain.h"
+#include "kis_dlt.h"
 
-class Kis_DLT_Handler {
+// Define linktype headers if we don't have them in our includes for some
+// reason
+#ifndef DLT_PRISM_HEADER
+#define DLT_PRISM_HEADER	119
+#endif
+
+#ifndef DLT_IEEE802_11_RADIO_AVS
+#define DLT_IEEE802_11_RADIO_AVS 163
+#endif
+
+class Kis_DLT_Prism2 : public Kis_DLT_Handler {
 public:
-	Kis_DLT_Handler() { fprintf(stderr, "FATAL OOPS: Kis_DLT_Handler()\n"); exit(1); }
-	Kis_DLT_Handler(GlobalRegistry *in_globalreg);
+	Kis_DLT_Prism2() { fprintf(stderr, "FATAL OOPS: Kis_DLT_Prism2()\n"); exit(1); }
+	Kis_DLT_Prism2(GlobalRegistry *in_globalreg);
 
-	virtual int HandlePacket(kis_packet *in_pack) = 0;
+	virtual int HandlePacket(kis_packet *in_pack);
 
-	~Kis_DLT_Handler();
-
-	virtual int FetchDLT() { return dlt; }
-	virtual string FetchDLTName() { return dlt_name; }
-
-protected:
-	GlobalRegistry *globalreg;
-	string dlt_name;
-	int dlt;
-	int chainid;
-	int pack_comp_linkframe, pack_comp_decap, pack_comp_capsrc,
-		pack_comp_radiodata, pack_comp_gps, pack_comp_checksum;
+	~Kis_DLT_Prism2();
 };
 
 #endif
