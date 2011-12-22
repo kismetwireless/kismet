@@ -80,6 +80,8 @@ public:
 	virtual int AutotypeProbe(string in_device);
 	virtual int RegisterSources(Packetsourcetracker *tracker);
 
+	virtual int OpenSource();
+
 	PacketSource_Wext(GlobalRegistry *in_globalreg, string in_interface,
 					  vector<opt_pair> *in_opts); 
 	virtual ~PacketSource_Wext();
@@ -154,6 +156,8 @@ public:
 
 	virtual int AutotypeProbe(string in_device);
 	virtual int RegisterSources(Packetsourcetracker *tracker);
+
+	virtual int OpenSource();
 
 	PacketSource_Madwifi(GlobalRegistry *in_globalreg, string in_interface,
 						 vector<opt_pair> *in_opts);

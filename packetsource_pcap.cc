@@ -117,6 +117,7 @@ int PacketSource_Pcap::OpenSource() {
 	errstr[0] = '\0';
 	num_packets = 0;
 
+#if 0
 	// Anything but windows and linux
     #if defined (SYS_OPENBSD) || defined(SYS_NETBSD) || defined(SYS_FREEBSD) \
 		|| defined(SYS_DARWIN)
@@ -138,6 +139,7 @@ int PacketSource_Pcap::OpenSource() {
 		pcap_close(pd);
 		return -1;
 	}
+#endif
 
 #ifdef HAVE_PCAP_NONBLOCK
     pcap_setnonblock(pd, 1, errstr);

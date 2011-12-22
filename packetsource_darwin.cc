@@ -75,7 +75,30 @@ int darwin_cardcheck(const char *service) {
 }
 
 int PacketSource_Darwin::OpenSource() {
-	return PacketSource_Pcap::OpenSource();
+	int r = PacketSource_Pcap::OpenSource();
+
+	if (r < 0)
+		return r;
+
+	// Set the DLT in the order of what we want least, since the last one we
+	// set will stick
+	pcap_set_datalink(pd, DLT_IEEE802_11);
+	pcap_set_datalink(pd, DLT_IEEE802_11_RADIO_AVS);
+	pcap_set_datalink(pd, DLT_IEEE802_11_RADIO);
+	// Hack to re-enable promisc mode since changing the DLT seems to make it
+	// drop it on some bsd pcap implementations
+	ioctl(pcap_get_selectable_fd(pd), BIOCPROMISC, NULL);
+	// Hack to set the fd to IOIMMEDIATE, to solve problems with select() on bpf
+	// devices on BSD
+	int v = 1;
+	ioctl(pcap_get_selectable_fd(pd), BIOCIMMEDIATE, &v);
+
+	if (DatalinkType() < 0) {
+		pcap_close(pd);
+		return -1;
+	}
+
+	return 1;
 }
 
 int PacketSource_Darwin::AutotypeProbe(string in_device) {

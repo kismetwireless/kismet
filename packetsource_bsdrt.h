@@ -105,6 +105,8 @@ public:
 	virtual int AutotypeProbe(string in_device);
 	virtual int RegisterSources(Packetsourcetracker *tracker);
 
+	virtual int OpenSource();
+
 	PacketSource_BSDRT(GlobalRegistry *in_globalreg, string in_interface,
 					   vector<opt_pair> *in_opts) :
 		PacketSource_Pcap(in_globalreg, in_interface, in_opts) {

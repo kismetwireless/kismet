@@ -338,6 +338,37 @@ int PacketSource_BSDRT::AutotypeProbe(string in_device) {
 	return 0;
 }
 
+int PacketSource_BSDRT::OpenSource() {
+	int r = PacketSource_Pcap::OpenSource();
+
+	if (r < 0)
+		return r;
+
+	// Anything but windows and linux
+    #if defined (SYS_OPENBSD) || defined(SYS_NETBSD) || defined(SYS_FREEBSD) \
+		|| defined(SYS_DARWIN)
+	// Set the DLT in the order of what we want least, since the last one we
+	// set will stick
+	pcap_set_datalink(pd, DLT_IEEE802_11);
+	pcap_set_datalink(pd, DLT_IEEE802_11_RADIO_AVS);
+	pcap_set_datalink(pd, DLT_IEEE802_11_RADIO);
+	// Hack to re-enable promisc mode since changing the DLT seems to make it
+	// drop it on some bsd pcap implementations
+	ioctl(pcap_get_selectable_fd(pd), BIOCPROMISC, NULL);
+	// Hack to set the fd to IOIMMEDIATE, to solve problems with select() on bpf
+	// devices on BSD
+	int v = 1;
+	ioctl(pcap_get_selectable_fd(pd), BIOCIMMEDIATE, &v);
+	#endif
+
+	if (DatalinkType() < 0) {
+		pcap_close(pd);
+		return -1;
+	}
+
+	return 1;
+}
+
 int PacketSource_BSDRT::RegisterSources(Packetsourcetracker *tracker) {
 	tracker->RegisterPacketProto("radiotap_bsd_ag", this, "IEEE80211ab", 1);
 	tracker->RegisterPacketProto("radiotap_bsd_a", this, "IEEE80211a", 1);
