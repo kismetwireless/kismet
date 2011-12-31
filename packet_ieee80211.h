@@ -205,35 +205,38 @@ typedef struct {
     unsigned pdu_len : 16;
 } __attribute__ ((packed)) iapp_pdu_header;
 
-// Crypt bitfield
-enum crypt_type {
-	crypt_none = 0,
-	crypt_unknown = 1,
-	crypt_wep = (1 << 1),
-	crypt_layer3 = (1 << 2),
-	// Derived from WPA headers
-	crypt_wep40 = (1 << 3),
-	crypt_wep104 = (1 << 4),
-	crypt_tkip = (1 << 5),
-	crypt_wpa = (1 << 6),
-	crypt_psk = (1 << 7),
-	crypt_aes_ocb = (1 << 8),
-	crypt_aes_ccm = (1 << 9),
-	//WPA Migration Mode
-	crypt_wpa_migmode = (1 << 10),
-	// Derived from data traffic
-	crypt_leap = (1 << 11),
-	crypt_ttls = (1 << 12),
-	crypt_tls = (1 << 13),
-	crypt_peap = (1 << 14),
-	crypt_isakmp = (1 << 15),
-    crypt_pptp = (1 << 16),
-	crypt_fortress = (1 << 17),
-	crypt_keyguard = (1 << 18),
-	crypt_unknown_protected = (1 << 19),
-	crypt_unknown_nonwep = (1 << 20),
-	crypt_wps = (1 << 21),
-};
+// Crypt bitfield ... broken out of enum thanks to c++ < 0x11 not understanding
+// enum widths
+// Basic types
+#define crypt_none 			0
+#define crypt_unknown		1
+#define crypt_wep			(1 << 1)
+#define crypt_layer3		(1 << 2)
+// Derived from WPA IEs
+#define crypt_wep40			(1 << 3)
+#define crypt_wep104		(1 << 4)
+#define crypt_tkip			(1 << 5)
+#define crypt_wpa			(1 << 6)
+#define crypt_psk			(1 << 7)
+#define crypt_aes_ocb		(1 << 8)
+#define crypt_aes_ccm		(1 << 9)
+//WPA Migration Mode
+#define crypt_wpa_migmode	(1 << 10)
+// Derived from data traffic
+#define crypt_leap			(1 << 11)
+#define crypt_ttls			(1 << 12)
+#define crypt_tls			(1 << 13)
+#define crypt_peap			(1 << 14)
+// Lower byte mask - cryptset & protectmask yields basic setting, ie cannot be
+// WEP+PEAP, but COULD be WEP+ISAKMP or WEP+WPS
+#define crypt_protectmask 	0xFF
+#define crypt_isakmp		(1 << 16)
+#define crypt_pptp			(1 << 17)
+#define crypt_fortress		(1 << 18)
+#define crypt_keyguard		(1 << 19)
+#define crypt_unknown_protected 	(1 << 20)
+#define crypt_unknown_nonwep		(1 << 21)
+#define crypt_wps 					(1 << 22)
 
 // Deciphering by casting.  This is bad, and non portable, and we need to not
 // do it in the future but for now it'll work until we redo it with bitmanip

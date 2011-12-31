@@ -1841,71 +1841,67 @@ void Kis_80211_Phy::ExportLogRecord(kis_tracked_device *in_device, string in_log
 string Kis_80211_Phy::CryptToString(uint64_t cryptset) {
 	string ret;
 
-	if (cryptset & crypt_wps)
-		ret = "WPS ";
-
 	if (cryptset == crypt_none)
-		return ret + "none";
+		return "none";
 
 	if (cryptset == crypt_unknown)
-		return ret + "unknown";
+		return "unknown";
 
-	if (cryptset == crypt_wep)
-		return ret + "WEP";
+	if (cryptset & crypt_wps)
+		ret = "WPS";
+
+	if ((cryptset & crypt_protectmask) == crypt_wep)
+		return StringAppend(ret, "WEP");
 
 	if (cryptset & crypt_wpa) {
 		if (cryptset & crypt_psk)
-			ret += "WPA-PSK ";
+			ret = StringAppend(ret, "WPA-PSK");
 		else if (cryptset & crypt_peap)
-			ret += "WPA-PEAP ";
+			ret = StringAppend(ret, "WPA-PEAP");
 		else if (cryptset & crypt_leap)
-			ret += "WPA-LEAP ";
+			ret = StringAppend(ret, "WPA-LEAP");
 		else if (cryptset & crypt_ttls)
-			ret += "WPA-TTLS ";
+			ret = StringAppend(ret, "WPA-TTLS");
 		else if (cryptset & crypt_tls)
-			ret += "WPA-TLS ";
+			ret = StringAppend(ret, "WPA-TLS");
 		else
-			ret += "WPA ";
+			ret = StringAppend(ret, "WPA");
 
 		if (cryptset & crypt_wpa_migmode)
-			ret += "WPA-MIGRATION ";
+			ret = StringAppend(ret, "WPA-MIGRATION");
 
 		if (cryptset & crypt_wep40)
-			ret += "WEP40 ";
+			ret = StringAppend(ret, "WEP40");
 		if (cryptset & crypt_wep104)
-			ret += "WEP104 ";
+			ret = StringAppend(ret, "WEP104");
 		if (cryptset & crypt_tkip)
-			ret += "TKIP ";
+			ret = StringAppend(ret, "TKIP");
 		if (cryptset & crypt_aes_ocb)
-			ret += "AES-OCB ";
+			ret = StringAppend(ret, "AES-OCB");
 		if (cryptset & crypt_aes_ccm)
-			ret += "AES-CCMP ";
-
-		ret.erase(ret.length() - 1);
-
-		return ret;
+			ret = StringAppend(ret, "AES-CCMP");
 	} 
-	
+
 	if (cryptset & crypt_layer3)
-		return "Layer 3";
+		ret = StringAppend(ret, "Layer 3");
 
 	if (cryptset & crypt_isakmp)
-		return "ISA KMP";
+		ret = StringAppend(ret, "ISA KMP");
 
 	if (cryptset & crypt_pptp)
-		return "PPTP";
+		ret = StringAppend(ret, "PPTP");
 
 	if (cryptset & crypt_fortress)
-		return "Fortress";
+		ret = StringAppend(ret, "Fortress");
 
 	if (cryptset & crypt_keyguard)
-		return "Keyguard";
+		ret = StringAppend(ret, "Keyguard");
 
 	if (cryptset & crypt_unknown_protected)
-		return "Encrypted Data / Unknown";
+		ret = StringAppend(ret, "L3/Unknown");
 
 	if (cryptset & crypt_unknown_nonwep)
-		return "Unknown/Non-WEP";
+		ret = StringAppend(ret, "Non-WEP/Unknown");
 
 	return ret;
 }

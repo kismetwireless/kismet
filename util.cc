@@ -1187,3 +1187,14 @@ int StringToBool(string s, int dvalue) {
 	return dvalue;
 }
 
+string StringAppend(string s, string a, string d) {
+	if (s.length() == 0)
+		return a;
+
+	if (s.length() > d.length() &&
+		s.substr(s.length() - d.length(), d.length()) == d)
+		return s + a;
+
+	return s + d + a;
+}
+
