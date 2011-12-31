@@ -628,11 +628,6 @@ public:
 	// Make or find a device record for a mac
 	kis_tracked_device *MapToDevice(mac_addr in_device, kis_packet *in_pack);
 
-	// Fetch the internal maps. Touching these is generally Bad.  Should
-	// only be used when the chain API is insufficient for something, 
-	// like linking in directly for xml/net logging.
-	const map<mac_addr, kis_tracked_device *> FetchTrackedDevices();
-
 	typedef map<mac_addr, kis_tracked_device *>::iterator device_itr;
 	typedef map<mac_addr, kis_tracked_device *>::const_iterator const_device_itr;
 

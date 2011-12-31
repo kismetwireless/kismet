@@ -66,6 +66,7 @@ NCO	= util.o ringbuf.o globalregistry.o messagebus.o configfile.o getopt.o \
 	  kis_panel_windows.o kis_panel_details.o \
 	  kis_panel_preferences.o \
 	  kis_panel_frontend.o \
+	  kis_client_devicetracker.o \
 	  kismet_client.o
 NC	= kismet_client
 

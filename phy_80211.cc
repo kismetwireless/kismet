@@ -1841,14 +1841,17 @@ void Kis_80211_Phy::ExportLogRecord(kis_tracked_device *in_device, string in_log
 string Kis_80211_Phy::CryptToString(uint64_t cryptset) {
 	string ret;
 
+	if (cryptset & crypt_wps)
+		ret = "WPS ";
+
 	if (cryptset == crypt_none)
-		return "none";
+		return ret + "none";
 
 	if (cryptset == crypt_unknown)
-		return "unknown";
+		return ret + "unknown";
 
 	if (cryptset == crypt_wep)
-		return "WEP";
+		return ret + "WEP";
 
 	if (cryptset & crypt_wpa) {
 		if (cryptset & crypt_psk)

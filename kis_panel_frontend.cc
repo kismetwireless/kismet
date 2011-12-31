@@ -337,6 +337,8 @@ KisPanelInterface::KisPanelInterface(GlobalRegistry *in_globalreg) :
 	PanelInterface(in_globalreg) {
 	globalreg = in_globalreg;
 
+	globalreg->InsertGlobal("KIS_PANEL_INTERFACE", this);
+
 	network_client = NULL;
 
 	prefs = new ConfigFile(globalreg);
@@ -380,6 +382,8 @@ KisPanelInterface::KisPanelInterface(GlobalRegistry *in_globalreg) :
 
 KisPanelInterface::~KisPanelInterface() {
 	Shutdown();
+
+	globalreg->InsertGlobal("KIS_PANEL_INTERFACE", NULL);
 
 	delete network_client;
 }

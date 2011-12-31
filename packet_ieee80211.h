@@ -220,18 +220,19 @@ enum crypt_type {
 	crypt_aes_ocb = (1 << 8),
 	crypt_aes_ccm = (1 << 9),
 	//WPA Migration Mode
-	crypt_wpa_migmode = (1 << 19),
+	crypt_wpa_migmode = (1 << 10),
 	// Derived from data traffic
-	crypt_leap = (1 << 10),
-	crypt_ttls = (1 << 11),
-	crypt_tls = (1 << 12),
-	crypt_peap = (1 << 13),
-	crypt_isakmp = (1 << 14),
-    crypt_pptp = (1 << 15),
-	crypt_fortress = (1 << 16),
-	crypt_keyguard = (1 << 17),
-	crypt_unknown_protected = (1 << 18),
-	crypt_unknown_nonwep = (1 << 19),
+	crypt_leap = (1 << 11),
+	crypt_ttls = (1 << 12),
+	crypt_tls = (1 << 13),
+	crypt_peap = (1 << 14),
+	crypt_isakmp = (1 << 15),
+    crypt_pptp = (1 << 16),
+	crypt_fortress = (1 << 17),
+	crypt_keyguard = (1 << 18),
+	crypt_unknown_protected = (1 << 19),
+	crypt_unknown_nonwep = (1 << 20),
+	crypt_wps = (1 << 21),
 };
 
 // Deciphering by casting.  This is bad, and non portable, and we need to not

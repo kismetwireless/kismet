@@ -878,8 +878,57 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
 						}
 					}
 				} /* 48 */
-			}
+			} /* protected frame */
 
+			/* Look for WPS */
+			if ((tcitr = tag_cache_map.find(221)) != tag_cache_map.end()) {
+				for (unsigned int tagct = 0; tagct < tcitr->second.size(); 
+					 tagct++) {
+
+					tag_offset = tcitr->second[tagct];
+					unsigned int tag_orig = tag_offset + 1;
+					unsigned int taglen = (chunk->data[tag_offset] & 0xFF);
+					unsigned int offt = 0;
+
+					// Corrupt tag
+					if (tag_orig + taglen > chunk->length) {
+						packinfo->corrupt = 1;
+						in_pack->insert(pack_comp_80211, packinfo);
+						return 0;
+					}
+
+					if (offt + sizeof(MSF_OUI) > taglen)
+						continue;
+
+					// WPS is always under MSF
+					if (memcmp(&(chunk->data[tag_orig + offt]), 
+							   MSF_OUI, sizeof(MSF_OUI)))
+						continue;
+
+					// OUI + 1 - random byte after OUI in tags
+					offt += sizeof(MSF_OUI) + 1;
+
+					if (offt + sizeof(WPS_VERSION) > taglen)
+						continue;
+
+					if (memcmp(&(chunk->data[tag_orig + offt]),
+							   WPS_VERSION, sizeof(WPS_VERSION)))
+						continue;
+
+					offt += sizeof(WPS_VERSION);
+
+					if (offt + sizeof(WPS_CONFIGURED) > taglen)
+						continue;
+
+					if (memcmp(&(chunk->data[tag_orig + offt]),
+							   WPS_CONFIGURED, sizeof(WPS_CONFIGURED)))
+						continue;
+
+					// printf("debug - got WPS network!\n");
+					packinfo->cryptset |= crypt_wps;
+
+				} /* tagfor */
+			} /* 221/WPS */
 
         } else if (fc->subtype == packet_sub_deauthentication) {
 			if ((packinfo->mgt_reason_code >= 25 && packinfo->mgt_reason_code <= 31) ||
