@@ -53,18 +53,13 @@ public:
 	}
 
 	virtual Client_Phy_Handler *CreatePhyHandler(GlobalRegistry *in_globalreg,
-												 Client_Devicetracker *in_tracker) = 0;
+												 Client_Devicetracker *in_tracker,
+												 int in_phyid) = 0;
 
 	virtual string FetchPhyName() { return phyname; }
 	virtual int FetchPhyId() { return phyid; }
 
-	// We have to be able to set the phyid after creation time since we need a phymap
-	// sentence to tell us how to map them
-	virtual void SetPhyId(int in_phyid) {
-		phyid = in_phyid;
-	}
-
-	// Called when netclient triggers, passed by the clientdevicetracker layer
+	// Called when netclient triggers, must be registered by the strong constructor
 	virtual void NetClientConfigure(KisNetClient *in_cli, int in_recon) = 0;
 	virtual void NetClientAdd(KisNetClient *in_cli, int add) = 0;
 
@@ -89,7 +84,7 @@ public:
 
 	~Client_Devicetracker();
 
-	int RegisterPhyHandler(Client_Phy_Handler *in_weak_handler);
+	void RegisterPhyHandler(Client_Phy_Handler *in_weak_handler);
 	int RegisterDeviceComponent(string in_component);
 
 	Client_Phy_Handler *FetchPhyHandler(int in_phy);
@@ -117,6 +112,19 @@ public:
 	void Proto_PHYMAP(CLIPROTO_CB_PARMS);
 
 protected:
+	class observed_phy {
+	public:
+		int phy_id;
+		string phy_name;
+		Client_Phy_Handler *handler;
+
+		observed_phy() {
+			phy_id = KIS_PHY_UNKNOWN;
+			phy_name = "NONE";
+			handler = NULL;
+		}
+	};
+
 	GlobalRegistry *globalreg;
 
 	int next_componentid;
@@ -155,13 +163,17 @@ protected:
 	vector<kis_tracked_device *> dirty_device_vec;
 
 	// Registered & Identified PHY types
-	map<int, Client_Phy_Handler *> phy_handler_map;
+	map<int, observed_phy *> phy_handler_map;
 
 	vector<Client_Phy_Handler *> unassigned_phy_vec;
 
 	// KPI and network client references
 	KisPanelInterface *kpi;
 	int cli_addref;
+
+	// Proto fields
+	string proto_phymap_fields;
+	int proto_phymap_fields_num;
 };
 
 #endif

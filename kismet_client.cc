@@ -54,6 +54,9 @@
 #include "kis_panel_windows.h"
 #include "kis_panel_frontend.h"
 
+#include "kis_client_devicetracker.h"
+#include "kis_client_phy80211.h"
+
 #ifndef exec_name
 char *exec_name;
 #endif
@@ -337,6 +340,10 @@ int main(int argc, char *argv[], char *envp[]) {
 	globalregistry->panel_interface = new KisPanelInterface(globalregistry);
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
+
+	// Create the client-side devicetracker
+	Client_Devicetracker *cdt = new Client_Devicetracker(globalregistry);
+	cdt->RegisterPhyHandler(new Client_Phy80211(globalregistry));
 
 	// Make the main panel and assign it to the interface
 	Kis_Main_Panel *mainp = new Kis_Main_Panel(globalregistry, 
