@@ -72,6 +72,8 @@ char *exec_name;
 // Daemonize?
 int daemonize = 0;
 
+int plugins = 1;
+
 // One of our few globals in this file
 int glob_linewrap = 1;
 int glob_silent = 0;
@@ -300,6 +302,8 @@ int main(int argc, char *argv[], char *envp[]) {
 	globalregistry->revision = REVISION;
 	globalregistry->revdate = REVDATE;
 
+	globalregistry->kismet_instance = KISMET_INSTANCE_DRONE;
+
 	// Copy for modules
 	globalregistry->argc = argc;
 	globalregistry->argv = argv;
@@ -313,6 +317,7 @@ int main(int argc, char *argv[], char *envp[]) {
 
 	const int nlwc = globalregistry->getopt_long_num++;
 	const int dwc = globalregistry->getopt_long_num++;
+	const int npwc = globalregistry->getopt_long_num++;
 
 	// Standard getopt parse run
 	static struct option main_longopt[] = {
@@ -321,6 +326,7 @@ int main(int argc, char *argv[], char *envp[]) {
 		{ "silent", no_argument, 0, 's' },
 		{ "help", no_argument, 0, 'h' },
 		{ "daemonize", no_argument, 0, dwc },
+		{ "no-plugins", no_argument, 0, npwc },
 		{ 0, 0, 0, 0 }
 	};
 
@@ -338,6 +344,8 @@ int main(int argc, char *argv[], char *envp[]) {
 			glob_linewrap = 0;
 		} else if (r == 's') {
 			local_silent = 1;
+		} else if (r == npwc) {
+			plugins = 0;
 		} else if (r == dwc) {
 			daemonize = 1;
 			local_silent = 1;
@@ -492,12 +500,6 @@ int main(int argc, char *argv[], char *envp[]) {
 	// Create the stubbed network/protocol server
 	globalregistry->kisnetserver = new KisNetFramework(globalregistry);	
 
-	// Start the plugin handler
-	globalregistry->plugintracker = new Plugintracker(globalregistry);
-
-	// Build the plugin list for root plugins
-	globalregistry->plugintracker->ScanRootPlugins();
-
 	// Create the packet chain
 	globalregistry->packetchain = new Packetchain(globalregistry);
 	if (globalregistry->fatal_condition)
@@ -574,6 +576,28 @@ int main(int argc, char *argv[], char *envp[]) {
 	if (globalregistry->sourcetracker->RegisterPacketSource(new PacketSource_MacUSB(globalregistry)) < 0 || globalregistry->fatal_condition) 
 		CatchShutdown(-1);
 #endif
+
+	// Start the plugin handler
+	if (plugins) {
+		globalregistry->plugintracker = new Plugintracker(globalregistry);
+	} else {
+		globalregistry->messagebus->InjectMessage(
+			"Plugins disabled on the command line, plugins will NOT be loaded...",
+			MSGFLAG_INFO);
+	}
+
+
+	// Process userspace plugins
+	if (globalregistry->plugintracker != NULL) {
+		globalregistry->plugintracker->ScanUserPlugins();
+		globalregistry->plugintracker->ActivatePlugins();
+		if (globalregistry->fatal_condition) {
+			globalregistry->messagebus->InjectMessage(
+						"Failure during activating plugins", MSGFLAG_FATAL);
+			CatchShutdown(-1);
+		}
+	}
+
 
 	// Enable cards from config/cmdline
 	if (globalregistry->sourcetracker->LoadConfiguration() < 0)

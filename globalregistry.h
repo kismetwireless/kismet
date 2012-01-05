@@ -58,6 +58,10 @@ class Manuf;
 // Pcap dump (only built-in dumpfile which supports plugin hooks currently)
 class Dumpfile_Pcap;
 
+#define KISMET_INSTANCE_SERVER	0
+#define KISMET_INSTANCE_DRONE	1
+#define KISMET_INSTANCE_CLIENT	2
+
 // These are the offsets into the array of protocol references, not
 // the reference itself.
 // tcpserver protocol numbers for all the builtin protocols kismet
@@ -146,6 +150,9 @@ public:
 	int argc;
 	char **argv;
 	char **envp;
+
+	// What are we? server, drone, client
+	int kismet_instance;
 
 	// getopt-long number for arguments that don't take a short letter
 	// Anything using a getopt long should grab this and increment it

@@ -573,6 +573,12 @@ int kisptw_unregister(GlobalRegistry *in_globalreg) {
 int kisptw_register(GlobalRegistry *in_globalreg) {
 	globalreg = in_globalreg;
 
+	if (globalreg->kismet_instance != KISMET_INSTANCE_SERVER) {
+		_MSG("Not initializing PTW plugin, not running on a server",
+			 MSGFLAG_INFO);
+		return 1;
+	}
+
 	state = new kisptw_state;
 
 	state->phy80211 = 

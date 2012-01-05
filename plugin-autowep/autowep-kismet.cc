@@ -403,6 +403,12 @@ int kisautowep_unregister(GlobalRegistry *in_globalreg) {
 int kisautowep_register(GlobalRegistry *in_globalreg) {
 	globalreg = in_globalreg;
 
+	if (globalreg->kismet_instance != KISMET_INSTANCE_SERVER) {
+		_MSG("Not registering autowep, not running on a kismet server instance.",
+			 MSGFLAG_INFO);
+		return 1;
+	}
+
 	state = new kisautowep_state;
 
 	state->phy80211 = 

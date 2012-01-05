@@ -233,6 +233,12 @@ int gpstxt_unregister(GlobalRegistry *in_globalreg) {
 int gpstxt_register(GlobalRegistry *in_globalreg) {
 	globalreg = in_globalreg;
 
+	if (globalreg->kismet_instance != KISMET_INSTANCE_SERVER) {
+		_MSG("Not initializing gpstxt, not running on a server.",
+			 MSGFLAG_INFO);
+		return 1;
+	}
+
 	new Dumpfile_Gpstxt(globalreg);
 
 	return 1;

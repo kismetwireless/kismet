@@ -29,6 +29,8 @@ GlobalRegistry::GlobalRegistry() {
 	fatal_condition = 0;
 	spindown = 0;
 
+	kismet_instance = KISMET_INSTANCE_SERVER;
+
 	winch = false;
 
 	argc = 0;

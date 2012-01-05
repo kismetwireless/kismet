@@ -89,6 +89,12 @@ int dot15d4_register(GlobalRegistry *in_globalreg) {
 		return -1;
 #endif
 
+	if (globalreg->kismet_instance != KISMET_INSTANCE_SERVER) {
+		_MSG("Not initializing tracker components of DOT15D4, not running as a server",
+			 MSGFLAG_INFO);
+		return 1;
+	} 
+
 	globalreg->packetchain->RegisterHandler(&kis_dot15d4_dissector, NULL,
 											CHAINPOS_LLCDISSECT, 1);
 

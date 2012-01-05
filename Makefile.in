@@ -42,7 +42,8 @@ DRONEO = util.o cygwin_utils.o globalregistry.o ringbuf.o \
 		 gpswrapper.o gpscore.o gpsdclient.o gpsserial.o gpsdlibgps.o \
 		 packetchain.o \
 		 $(CAPSOURCES) \
-		 plugintracker.o packetsourcetracker.o timetracker.o \
+		 plugintracker.o packetsourcetracker.o timetracker.o devicetracker_drone.o \
+		 dumpfile_drone.o \
 		 kismet_drone.o
 
 CSO = util.o cygwin_utils.o globalregistry.o ringbuf.o \

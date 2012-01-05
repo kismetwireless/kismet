@@ -82,6 +82,12 @@ int btscan_register(GlobalRegistry *in_globalreg) {
 		return -1;
 #endif
 
+	if (globalreg->kismet_instance != KISMET_INSTANCE_SERVER) {
+		_MSG("Not registering BTSCAN packet handlers, not running on a server.",
+			 MSGFLAG_INFO);
+		return 1;
+	}
+
 	pack_comp_btscan = globalreg->packetchain->RegisterPacketComponent("BTSCAN");
 
 	if (globalreg->devicetracker->RegisterPhyHandler(new Btscan_Phy(globalreg)) < 0) {
