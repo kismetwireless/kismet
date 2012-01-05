@@ -24,9 +24,10 @@
 #include "kis_client_devicetracker.h"
 #include "kis_client_phy80211.h"
 
-Client_Phy80211::Client_Phy80211(GlobalRegistry *in_globalreg, Client_Devicetracker *in_tracker,
-								 int in_phyid) : Client_Phy_Handler(in_globalreg, in_tracker, in_phyid) {
-	_MSG("Making strong Phy80211 client\n", MSGFLAG_INFO);
+Client_Phy80211::Client_Phy80211(GlobalRegistry *in_globalreg, 
+								 Client_Devicetracker *in_tracker,
+								 int in_phyid) : Client_Phy_Handler(in_globalreg, 
+													in_tracker, in_phyid) {
 	phyname = "IEEE802.11";
 }
 

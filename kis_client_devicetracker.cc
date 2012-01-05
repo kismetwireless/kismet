@@ -50,6 +50,26 @@ const char *CDT_phymap_fields[] = {
 	NULL
 };
 
+const char *CDT_device_fields[] = {
+	"phytype", "macaddr", "name", "typestring", "basictype", 
+	"firsttime", "lasttime",
+	"packets", "llcpackets", "errorpackets",
+	"datapackets", "cryptpackets", "filterpackets",
+	"datasize", "newpackets", "channel", "frequency",
+	"freqmhz",
+
+	"gpsfixed",
+	"minlat", "minlon", "minalt", "minspd",
+	"maxlat", "maxlon", "maxalt", "maxspd",
+	"signaldbm", "noisedbm", "minsignaldbm", "minnoisedbm",
+	"signalrssi", "noiserssi", "minsignalrssi", "minnoiserssi",
+	"maxsignalrssi", "maxnoiserssi",
+	"bestlat", "bestlon", "bestalt",
+	"agglat", "agglon", "aggalt", "aggpoints",
+
+	NULL
+};
+
 Client_Devicetracker::Client_Devicetracker(GlobalRegistry *in_globalreg) {
 	globalreg = in_globalreg;
 
@@ -69,6 +89,7 @@ Client_Devicetracker::Client_Devicetracker(GlobalRegistry *in_globalreg) {
 	}
 
 	proto_phymap_fields_num = TokenNullJoin(&proto_phymap_fields, CDT_phymap_fields);
+	proto_device_fields_num = TokenNullJoin(&proto_device_fields, CDT_device_fields);
 
 	cli_addref = kpi->Add_NetCli_AddCli_CB(CDT_AddCli, (void *) this);
 }
@@ -229,19 +250,30 @@ void Client_Devicetracker::NetClientAdd(KisNetClient *in_cli, int add) {
 }
 
 void Client_Devicetracker::NetClientConfigure(KisNetClient *in_cli, int in_recon) {
-	_MSG("CDT connected", MSGFLAG_INFO);
+	// _MSG("CDT connected", MSGFLAG_INFO);
 
 	if (in_cli->RegisterProtoHandler("PHYMAP", proto_phymap_fields,
 									 CDT_PHYMAP, this) < 0) {
-		_MSG("Could not register PHYMAP protocol; is this an old version of Kismet you're "
-			 "trying to connect to?  Connection will be terminated.", MSGFLAG_ERROR);
+		_MSG("Could not register *PHYMAP sentence; is this an old version of "
+			 "Kismet you're trying to connect to?  Connection will be terminated.", 
+			 MSGFLAG_ERROR);
+		in_cli->KillConnection();
+		return;
+	}
+
+	if (in_cli->RegisterProtoHandler("DEVICE", proto_device_fields,
+									 CDT_DEVICE, this) < 0) {
+		_MSG("Could not register *DEVICE sentence; is this an old version of "
+			 "Kismet you're trying to connect to?  Connection will be terminated.", 
+			 MSGFLAG_ERROR);
 		in_cli->KillConnection();
 		return;
 	}
 }
 
 void Client_Devicetracker::Proto_PHYMAP(CLIPROTO_CB_PARMS) {
-	_MSG("CDT proto_phymap", MSGFLAG_INFO);
+	// _MSG("CDT proto_phymap", MSGFLAG_INFO);
+	
 	if (proto_parsed->size() < (unsigned int) proto_phymap_fields_num)
 		return;
 
@@ -262,11 +294,14 @@ void Client_Devicetracker::Proto_PHYMAP(CLIPROTO_CB_PARMS) {
 		op->phy_id = phy_id;
 		op->phy_name = (*proto_parsed)[fnum++].word;
 
-		_MSG("New PHY: " + IntToString(op->phy_id) + " " + op->phy_name, MSGFLAG_INFO);
+		_MSG("Mapped new PHY: " + IntToString(op->phy_id) + " " + op->phy_name, MSGFLAG_INFO);
 
 		for (unsigned int x = 0; x < unassigned_phy_vec.size(); x++) {
 			if (unassigned_phy_vec[x]->FetchPhyName() == op->phy_name) {
-				op->handler = unassigned_phy_vec[x]->CreatePhyHandler(globalreg, this, phy_id);
+				op->handler = 
+					unassigned_phy_vec[x]->CreatePhyHandler(globalreg, this, phy_id);
+				unassigned_phy_vec.erase(unassigned_phy_vec.begin() + x);
+				break;
 			}
 		}
 
@@ -276,6 +311,7 @@ void Client_Devicetracker::Proto_PHYMAP(CLIPROTO_CB_PARMS) {
 		fnum++;
 	}
 
+	// Local phy counts are directly reflected from the server phy data
 	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tint) != 1)
 		return;
 	phy_packets[phy_id] = tint;
@@ -298,7 +334,158 @@ void Client_Devicetracker::Proto_PHYMAP(CLIPROTO_CB_PARMS) {
 }
 
 void Client_Devicetracker::Proto_DEVICE(CLIPROTO_CB_PARMS) {
-	_MSG("CDT proto_device", MSGFLAG_INFO);
+	// _MSG("CDT proto_device", MSGFLAG_INFO);
+	
+	if (proto_parsed->size() < (unsigned int) proto_device_fields_num)
+		return;
+
+	int fnum = 0;
+
+	int phy_id;
+	int tint;
+	unsigned int tuint;
+	long unsigned int tluint;
+	long int tlint;
+	float tfloat;
+	long double tlfloat;
+	mac_addr tmac;
+
+	bool dev_new = false, common_new = false;
+
+	vector<string> freqtoks;
+
+	kis_tracked_device *device = NULL;
+	kis_device_common *common = NULL;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &phy_id) != 1)
+		return;
+
+	// Check the PHY and bail early
+	if (phy_handler_map.find(phy_id) == phy_handler_map.end()) {
+		_MSG("CDT never saw mapped phy type " + IntToString(phy_id) + " throwing out *DEVICE sentence", MSGFLAG_INFO);
+		return;
+	}
+
+	// Get the device ref and look it up
+	tmac = mac_addr((*proto_parsed)[fnum++].word.c_str());
+	if (tmac.error) {
+		return;
+	}
+	tmac.SetPhy(phy_id);
+
+	map<mac_addr, kis_tracked_device *>::iterator ktdi = 
+		tracked_map.find(tmac);
+
+	if (ktdi == tracked_map.end()) {
+		// Make a new device, but do NOT insert it into tracked/dirty
+		// until we get to the end and know we got a valid sentence!
+		device = new kis_tracked_device();
+
+		device->key = tmac;
+		device->phy_type = phy_id;
+
+		dev_new = true;
+	} else {
+		device = ktdi->second;
+	}
+
+	common = (kis_device_common *) device->fetch(devcomp_ref_common);
+
+	// Don't insert the common record until we know we've got it all
+	if (common == NULL) {
+		common = new kis_device_common;
+		common->device = device;
+		
+		common_new = true;
+	}
+
+	common->name = (*proto_parsed)[fnum++].word;
+	common->type_string = (*proto_parsed)[fnum++].word;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tint) != 1) 
+		goto proto_fail;
+	common->basic_type = tint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%u", &tuint) != 1) 
+		goto proto_fail;
+	common->first_time = tuint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tuint) != 1) 
+		goto proto_fail;
+	common->last_time = tuint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%u", &tuint) != 1) 
+		goto proto_fail;
+	common->packets = tuint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%u", &tuint) != 1) 
+		goto proto_fail;
+	common->llc_packets = tuint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%u", &tuint) != 1) 
+		goto proto_fail;
+	common->error_packets = tuint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%u", &tuint) != 1) 
+		goto proto_fail;
+	common->data_packets = tuint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%u", &tuint) != 1) 
+		goto proto_fail;
+	common->crypt_packets = tuint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%u", &tuint) != 1) 
+		goto proto_fail;
+	common->filter_packets = tuint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%lu", &tluint) != 1) 
+		goto proto_fail;
+	common->datasize = tluint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%u", &tuint) != 1) 
+		goto proto_fail;
+	common->new_packets = tuint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tint) != 1) 
+		goto proto_fail;
+	common->channel = tint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%u", &tuint) != 1) 
+		goto proto_fail;
+	common->frequency = tuint;
+
+	// Frequency packed field
+	common->freq_mhz_map.clear();
+	freqtoks = StrTokenize((*proto_parsed)[fnum++].word, "*");
+	for (unsigned int fi = 0; fi < freqtoks.size(); fi++) {
+		unsigned int freq, count;
+
+		// Just ignore parse errors
+		if (sscanf(freqtoks[fi].c_str(), "%u:%u", &freq, &count) != 2)
+			continue;
+
+		common->freq_mhz_map[freq] = count;
+	}
+
+	if (common_new) {
+		device->insert(devcomp_ref_common, common);
+	} 
+	
+	if (dev_new) {
+		tracked_map[device->key] = device;
+		// _MSG("CDT local tracking new device " + device->key.Mac2String(), MSGFLAG_INFO);
+	}
+
+	return;
+
+proto_fail:
+	_MSG("CDT failed to process *DEVICE", MSGFLAG_INFO);
+	if (common_new)
+		delete common;
+	if (dev_new)
+		delete device;
+
+	return;
 }
 
 

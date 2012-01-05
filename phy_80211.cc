@@ -1072,6 +1072,10 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 		}
 
 		dot11dev->type_set |= dot11_network_adhoc;
+	} else if (dot11info->type == packet_management) {
+		if (dot11info->subtype == packet_sub_disassociation ||
+			dot11info->subtype == packet_sub_deauthentication)
+			dot11dev->type_set |= dot11_network_ap;
 	}
 
 	if (dot11dev->type_set == dot11_network_none)

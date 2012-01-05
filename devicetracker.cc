@@ -45,7 +45,7 @@ enum KISDEV_COMMON_FIELDS {
 	KISDEV_phytype, KISDEV_macaddr, KISDEV_name, KISDEV_typestring, KISDEV_basictype,
 	KISDEV_firsttime, KISDEV_lasttime,
 	KISDEV_packets, KISDEV_llcpackets, KISDEV_errorpackets,
-	KISDEV_datapackets, KISDEV_cryptpackets,
+	KISDEV_datapackets, KISDEV_cryptpackets, KISDEV_filterpackets,
 	KISDEV_datasize, KISDEV_newpackets, KISDEV_channel, KISDEV_frequency,
 	KISDEV_freqmhz,
 	
@@ -66,7 +66,7 @@ const char *KISDEV_common_text[] = {
 	"phytype", "macaddr", "name", "typestring", "basictype", 
 	"firsttime", "lasttime",
 	"packets", "llcpackets", "errorpackets",
-	"datapackets", "cryptpackets",
+	"datapackets", "cryptpackets", "filterpackets",
 	"datasize", "newpackets", "channel", "frequency",
 	"freqmhz",
 
@@ -121,37 +121,40 @@ int Protocol_KISDEV_COMMON(PROTO_PARMS) {
 				scratch = IntToString(com->basic_type);
 				break;
 			case KISDEV_firsttime:
-				scratch = IntToString(com->first_time);
+				scratch = UIntToString(com->first_time);
 				break;
 			case KISDEV_lasttime:
-				scratch = IntToString(com->last_time);
+				scratch = UIntToString(com->last_time);
 				break;
 			case KISDEV_packets:
-				scratch = IntToString(com->packets);
+				scratch = UIntToString(com->packets);
 				break;
 			case KISDEV_llcpackets:
-				scratch = IntToString(com->llc_packets);
+				scratch = UIntToString(com->llc_packets);
 				break;
 			case KISDEV_errorpackets:
-				scratch = IntToString(com->error_packets);
+				scratch = UIntToString(com->error_packets);
 				break;
 			case KISDEV_datapackets:
-				scratch = IntToString(com->data_packets);
+				scratch = UIntToString(com->data_packets);
 				break;
 			case KISDEV_cryptpackets:
-				scratch = IntToString(com->crypt_packets);
+				scratch = UIntToString(com->crypt_packets);
+				break;
+			case KISDEV_filterpackets:
+				scratch = UIntToString(com->filter_packets);
 				break;
 			case KISDEV_datasize:
-				scratch = LongIntToString(com->datasize);
+				scratch = ULongToString(com->datasize);
 				break;
 			case KISDEV_newpackets:
-				scratch = IntToString(com->new_packets);
+				scratch = UIntToString(com->new_packets);
 				break;
 			case KISDEV_channel:
 				scratch = IntToString(com->channel);
 				break;
 			case KISDEV_frequency:
-				scratch = IntToString(com->frequency);
+				scratch = UIntToString(com->frequency);
 				break;
 			case KISDEV_freqmhz:
 				for (map<unsigned int, unsigned int>::const_iterator fmi = 

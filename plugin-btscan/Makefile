@@ -17,7 +17,7 @@ SRVOUT	= btscan.so
 CLIOBJS	= btscan_ui.o
 CLIOUT 	= btscan_ui.so
 
-all:	$(SRVOUT) $(CLIOUT)
+all:	$(SRVOUT) 
 
 $(CLIOUT):	$(CLIOBJS)
 	$(LD) $(PLUGINLDFLAGS) $(CLIOBJS) -o $(CLIOUT) $(LIBS)
@@ -25,13 +25,13 @@ $(CLIOUT):	$(CLIOBJS)
 $(SRVOUT):	$(SRVOBJS)
 	$(LD) $(PLUGINLDFLAGS) $(SRVOBJS) -o $(SRVOUT) $(LIBS)
 
-install:	$(SRVOUT) $(CLIOUT)
+install:	$(SRVOUT) 
 	mkdir -p $(LIB)/kismet/
 	install -o $(INSTUSR) -g $(INSTGRP) -m 644 $(SRVOUT) $(LIB)/kismet/$(SRVOUT)
 	mkdir -p $(LIB)/kismet_client/
 	install -o $(INSTUSR) -g $(INSTGRP) -m 644 $(CLIOUT) $(LIB)/kismet_client/$(CLIOUT)
 
-userinstall:	$(SRVOUT) $(CLIOUT)
+userinstall:	$(SRVOUT) 
 	mkdir -p ${HOME}/.kismet/plugins/
 	install -v $(SRVOUT) ${HOME}/.kismet/plugins/$(SRVOUT)
 	mkdir -p ${HOME}/.kismet/client_plugins/

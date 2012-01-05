@@ -172,8 +172,8 @@ protected:
 	int cli_addref;
 
 	// Proto fields
-	string proto_phymap_fields;
-	int proto_phymap_fields_num;
+	string proto_phymap_fields, proto_device_fields;
+	int proto_phymap_fields_num, proto_device_fields_num;
 };
 
 #endif

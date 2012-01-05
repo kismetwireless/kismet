@@ -360,13 +360,13 @@ public:
 	uint64_t datasize;
 
 	// # of packets since last tick
-	int new_packets;
+	unsigned int new_packets;
 
 	// Logical channel as per PHY type
 	int channel;
 
 	// Frequency
-	int frequency;
+	unsigned int frequency;
 
 	// raw freqs seen mapped to # of times seen
 	map<unsigned int, unsigned int> freq_mhz_map;
