@@ -120,9 +120,6 @@ void DroneClientFrame::ConnectCB(int status) {
 				cli_port << " failed (" << strerror(errno) << ") and reconnection "
 				"not enabled";
 			_MSG(osstr.str(), MSGFLAG_PRINTERROR);
-			delete tcpcli;
-			tcpcli = NULL;
-			netclient = NULL;
 			return;
 		} else {
 			osstr << "Could not create connection to the Kismet drone "
