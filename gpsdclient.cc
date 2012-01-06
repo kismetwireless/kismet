@@ -54,9 +54,11 @@ void GPSDClient::ConnectCB(int status) {
 			return;
 		} 
 
+		/*
 		snprintf(errstr, STATUS_MAX, "Could not connect to the GPSD server, will "
 				 "reconnect in %d seconds", kismin(reconnect_attempt + 1, 6) * 5);
 		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
+		*/
 		reconnect_attempt++;
 		last_disconnect = globalreg->timestamp.tv_sec;
 
