@@ -347,7 +347,6 @@ void Client_Devicetracker::Proto_DEVICE(CLIPROTO_CB_PARMS) {
 	long unsigned int tluint;
 	long int tlint;
 	float tfloat;
-	long double tlfloat;
 	mac_addr tmac;
 
 	bool dev_new = false, common_new = false;
@@ -466,6 +465,106 @@ void Client_Devicetracker::Proto_DEVICE(CLIPROTO_CB_PARMS) {
 
 		common->freq_mhz_map[freq] = count;
 	}
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tint) != 1) 
+		goto proto_fail;
+	common->gpsdata.gps_valid = tint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%f", &tfloat) != 1) 
+		goto proto_fail;
+	common->gpsdata.min_lat = tfloat;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%f", &tfloat) != 1) 
+		goto proto_fail;
+	common->gpsdata.min_lon = tfloat;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%f", &tfloat) != 1) 
+		goto proto_fail;
+	common->gpsdata.min_alt = tfloat;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%f", &tfloat) != 1) 
+		goto proto_fail;
+	common->gpsdata.min_spd = tfloat;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%f", &tfloat) != 1) 
+		goto proto_fail;
+	common->gpsdata.max_lat = tfloat;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%f", &tfloat) != 1) 
+		goto proto_fail;
+	common->gpsdata.max_lon = tfloat;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%f", &tfloat) != 1) 
+		goto proto_fail;
+	common->gpsdata.max_alt = tfloat;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%f", &tfloat) != 1) 
+		goto proto_fail;
+	common->gpsdata.max_spd = tfloat;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tint) != 1) 
+		goto proto_fail;
+	common->snrdata.last_signal_dbm = tint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tint) != 1) 
+		goto proto_fail;
+	common->snrdata.last_noise_dbm = tint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tint) != 1) 
+		goto proto_fail;
+	common->snrdata.min_signal_dbm = tint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tint) != 1) 
+		goto proto_fail;
+	common->snrdata.min_noise_dbm = tint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tint) != 1) 
+		goto proto_fail;
+	common->snrdata.min_noise_dbm = tint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tint) != 1) 
+		goto proto_fail;
+	common->snrdata.last_signal_rssi = tint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tint) != 1) 
+		goto proto_fail;
+	common->snrdata.last_noise_rssi = tint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tint) != 1) 
+		goto proto_fail;
+	common->snrdata.min_signal_rssi = tint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tint) != 1) 
+		goto proto_fail;
+	common->snrdata.min_noise_rssi = tint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%f", &tfloat) != 1) 
+		goto proto_fail;
+	common->snrdata.peak_lat = tfloat;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%f", &tfloat) != 1) 
+		goto proto_fail;
+	common->snrdata.peak_lon = tfloat;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%f", &tfloat) != 1) 
+		goto proto_fail;
+	common->snrdata.peak_alt = tfloat;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%f", &tfloat) != 1) 
+		goto proto_fail;
+	common->gpsdata.aggregate_lat = tfloat;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%f", &tfloat) != 1) 
+		goto proto_fail;
+	common->gpsdata.aggregate_lon = tfloat;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%f", &tfloat) != 1) 
+		goto proto_fail;
+	common->gpsdata.aggregate_alt = tfloat;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%lu", &tluint) != 1) 
+		goto proto_fail;
+	common->gpsdata.aggregate_points = tluint;
 
 	if (common_new) {
 		device->insert(devcomp_ref_common, common);

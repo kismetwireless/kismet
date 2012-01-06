@@ -284,6 +284,7 @@ int PacketSource_Wext::AutotypeProbe(string in_device) {
 		sysdriver == "rt2400pci" || sysdriver == "rt61pci" ||
 		sysdriver == "rtl8180"  || sysdriver == "zd1201" ||
 		sysdriver == "rtl8187" || sysdriver == "zd1211rw" ||
+		sysdriver == "iwlwifi" || 
 		// These don't seem to work but i'll autodet anyhow
 		sysdriver == "rt2870sta" ||
 		//  These drivers don't behave sanely but throw errors when we open them
@@ -330,6 +331,7 @@ int PacketSource_Wext::RegisterSources(Packetsourcetracker *tracker) {
 	tracker->RegisterPacketProto("iwl3945", this, "IEEE80211ab", 1);
 	tracker->RegisterPacketProto("iwl4965", this, "IEEE80211ab", 1);
 	tracker->RegisterPacketProto("iwlagn", this, "IEEE80211ab", 1);
+	tracker->RegisterPacketProto("iwlwifi", this, "IEEE80211ab", 1);
 	tracker->RegisterPacketProto("libertas", this, "IEEE80211b", 1);
 	tracker->RegisterPacketProto("libertas_usb", this, "IEEE80211b", 1);
 	tracker->RegisterPacketProto("libertas_tf", this, "IEEE80211b", 1);

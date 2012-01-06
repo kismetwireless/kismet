@@ -193,7 +193,7 @@ struct kis_gps_data {
 	// Aggregate/avg center position
 	long unsigned int add_lat, add_lon, add_alt;
 	double aggregate_lat, aggregate_lon, aggregate_alt;
-	long aggregate_points;
+	unsigned long aggregate_points;
 };
 
 // Some nasty hacks for GPS automation in plugins w/out having to rewrite
