@@ -345,7 +345,6 @@ void Client_Devicetracker::Proto_DEVICE(CLIPROTO_CB_PARMS) {
 	int tint;
 	unsigned int tuint;
 	long unsigned int tluint;
-	long int tlint;
 	float tfloat;
 	mac_addr tmac;
 

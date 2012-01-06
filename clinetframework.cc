@@ -73,11 +73,11 @@ int NetworkClient::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
 int NetworkClient::Poll(fd_set& in_rset, fd_set& in_wset) {
     int ret = 0;
 
+	// fprintf(stderr, "debug - %d connect complete %d\n", cli_fd, connect_complete);
+	
 	if (cli_fd < 0)
 		return 0;
 
-	// fprintf(stderr, "debug - %d connect complete %d\n", cli_fd, connect_complete);
-	
 	if (connect_complete == 0) {
 		// printf("debug - poll query %d\n", cli_fd);
 		if (FD_ISSET(cli_fd, &in_wset)) {
@@ -96,6 +96,7 @@ int NetworkClient::Poll(fd_set& in_rset, fd_set& in_wset) {
 				if (connect_cb != NULL)
 					(*connect_cb)(globalreg, e, connect_aux);
 
+				// fprintf(stderr, "debug - calling killconnection\n");
 				KillConnection();
 
 			} else {
@@ -194,8 +195,11 @@ int NetworkClient::FlushRings() {
 }
 
 void NetworkClient::KillConnection() {
+	// fprintf(stderr, "debug - nc killcon\n");
+
 	connect_complete = -1;
 
+	// fprintf(stderr, "debug - clearing buffers %p %p\n", read_buf, write_buf);
 	if (read_buf != NULL)
 		delete read_buf;
 	if (write_buf != NULL)
@@ -203,12 +207,15 @@ void NetworkClient::KillConnection() {
 	read_buf = NULL;
 	write_buf = NULL;
 
+	// fprintf(stderr, "debug - closing fd %d\n", cli_fd);
     if (cli_fd >= 0)
         close(cli_fd);
 
 	cli_fd = -1;
 
     cl_valid = 0;
+
+	// fprintf(stderr, "debug - clienetframework kill %p\n", cliframework);
 
 	if (cliframework != NULL)
 		cliframework->KillConnection();
