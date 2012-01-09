@@ -430,6 +430,7 @@ int DroneClientFrame::ParseData() {
 			if ((sbm & DRONEBIT(DRONE_SRC_INVALID)) &&
 				(rofft + 2 <= sourcelen)) {
 				src_invalidated = kis_ntoh16(spkt->invalidate);
+				comp_counter++;
 				rofft += 2;
 			}
 
@@ -476,6 +477,9 @@ int DroneClientFrame::ParseData() {
 			}
 
 			if (comp_counter >= 8 && src_invalidated == 0 && new_uuid.error == 0) {
+				_MSG("Live-adding pseudo capsources from drones temporarily disabled until "
+					 "rewrite.", MSGFLAG_INFO);
+#if 0
 				// Make sure the source doesn't exist in the real tracker
 				pst_packetsource *rsrc = 
 					globalreg->sourcetracker->FindLivePacketSourceUUID(new_uuid);
@@ -486,6 +490,8 @@ int DroneClientFrame::ParseData() {
 					osstr << interfacestr << ":uuid=" << new_uuid.UUID2String();
 					if (namestr != "")
 						osstr << ",name=" << namestr;
+
+					osstr << ",channellist=n/a";
 
 					// Derive the rest of the source options
 					if (channel_hop == 0)
@@ -539,6 +545,7 @@ int DroneClientFrame::ParseData() {
 					globalreg->sourcetracker->RemovePacketSource(rsrc);
 					virtual_src_map.erase(new_uuid);
 				}
+#endif
 			}
 		} else if (dcid == DRONE_CMDNUM_CAPPACKET) {
 			drone_capture_packet *dcpkt = (drone_capture_packet *) dpkt->data;
