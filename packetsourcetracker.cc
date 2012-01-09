@@ -959,23 +959,30 @@ int Packetsourcetracker::AddPacketSource(string in_source,
 	// Resolve the channel list
 	chanlistname = FetchOpt("channellist", &options);
 
-	if (chanlistname == "")  {
-		vector<unsigned int> chvec = 
-			pstsource->proto_source->weak_source->FetchSupportedChannels(interface);
+	if (chanlistname == "" && in_strong == NULL)  {
+		vector<unsigned int> chvec;
+	
+		if (pstsource->proto_source != NULL)
+			chvec = 
+				pstsource->proto_source->weak_source->FetchSupportedChannels(interface);
+		else if (pstsource->strong_source != NULL)
+			chvec = 
+				pstsource->strong_source->FetchSupportedChannels(interface);
+
 		uint16_t chid = 0;
 		string chlist;
 
 		if (chvec.size() > 0) 
 			chid = GenChannelList(chvec);
 
-		if (chid <= 0) {
+		if (chid <= 0 && pstsource->proto_source != NULL) {
 			chanlistname = pstsource->proto_source->default_channelset;
 			_MSG("Using default channel list '" + chanlistname + "' on source '" +
-				 interface + "'", MSGFLAG_INFO);
+				 name + "'", MSGFLAG_INFO);
 		} else {
 			string dmod = "";
 
-			for (unsigned int z = 0; z < chvec.size() - 1; z++) {
+			for (unsigned int z = 0; chvec.size() > 0 && z < chvec.size() - 1; z++) {
 				// Another stupidly inefficient method but it happens very rarely
 				for (unsigned int y = 0; y < preferred_channels.size(); y++) {
 					if (preferred_channels[y] == chvec[z]) {
@@ -989,21 +996,23 @@ int Packetsourcetracker::AddPacketSource(string in_source,
 			}
 
 			for (unsigned int y = 0; y < preferred_channels.size(); y++) {
-				if (preferred_channels[y] == chvec[chvec.size() - 1]) {
+				if (chvec.size() > 0 && 
+					preferred_channels[y] == chvec[chvec.size() - 1]) {
 					dmod = ":3";
 					break;
 				}
 			}
-			chlist += (IntToString(chvec[chvec.size() - 1]) + dmod);
+			if (chvec.size() > 0)
+				chlist += (IntToString(chvec[chvec.size() - 1]) + dmod);
 
 			chanlistname = channellist_map[chid]->name;
 			_MSG("Using hardware channel list " + chlist + ", " +
-				 IntToString(chvec.size()) + " channels on source " + interface, 
+				 IntToString(chvec.size()) + " channels on source " + name, 
 				 MSGFLAG_INFO);
 		}
 	} else {
 		_MSG("Using channel list '" + chanlistname + "' on source '" + 
-			 interface + "' instead of the default", MSGFLAG_INFO);
+			 name + "' instead of the default", MSGFLAG_INFO);
 	}
 
 	found = 0;
@@ -1025,9 +1034,10 @@ int Packetsourcetracker::AddPacketSource(string in_source,
 	}
 
 	// Do the initial build of a strong source now that we know the type
-	pstsource->strong_source = 
-		pstsource->proto_source->weak_source->CreateSource(globalreg, interface, 
-														   &options);
+	if (pstsource->strong_source == NULL)
+		pstsource->strong_source = 
+			pstsource->proto_source->weak_source->CreateSource(globalreg, interface, 
+															   &options);
 
 	_MSG("Created source " + interface + " with UUID " +
 		 pstsource->strong_source->FetchUUID().UUID2String(), MSGFLAG_INFO);
@@ -1037,7 +1047,7 @@ int Packetsourcetracker::AddPacketSource(string in_source,
 	// on the common failures
 	
 	if (pstsource->strong_source->FetchChannelCapable() == 0) {
-		_MSG("Disabling channel hopping on source '" + interface + "' because "
+		_MSG("Disabling channel hopping on source '" + name + "' because "
 			 "it is not capable of setting the channel.", MSGFLAG_INFO);
 		pstsource->channel_hop = 0;
 
@@ -1046,7 +1056,7 @@ int Packetsourcetracker::AddPacketSource(string in_source,
 		pstsource->channel_dwell = default_channel_dwell;
 
 		if (FetchOpt("channel", &options) != "") {
-			_MSG("Source '" + interface + "' ignoring channel= in the source "
+			_MSG("Source '" + name + "' ignoring channel= in the source "
 				 "options because it is set to hop, specify hop=false to lock "
 				 "to a specific channel.", MSGFLAG_INFO);
 		}
@@ -1054,7 +1064,7 @@ int Packetsourcetracker::AddPacketSource(string in_source,
 
 	// if (FetchOpt("hop", &options) != "true" && FetchOpt("hop", &options) != "") {
 	if (FetchOptBoolean("hop", &options, 1) == 0) {
-		_MSG("Disabling channel hopping on source '" + interface + "' because the "
+		_MSG("Disabling channel hopping on source '" + name + "' because the "
 			 "source options include hop=false", MSGFLAG_INFO);
 		pstsource->channel_hop = 0;
 
@@ -1169,7 +1179,7 @@ int Packetsourcetracker::AddPacketSource(string in_source,
 
 	// if (FetchOpt("retry", &options) == "" || FetchOpt("retry", &options) == "true") {
 	if (FetchOptBoolean("retry", &options, 1)) {
-		_MSG("Will attempt to reopen on source '" + interface + "' if there are errors",
+		_MSG("Will attempt to reopen on source '" + name + "' if there are errors",
 			 MSGFLAG_INFO);
 		pstsource->reopen = 1;
 	} else {
@@ -1185,7 +1195,7 @@ int Packetsourcetracker::AddPacketSource(string in_source,
 
 	next_source_id++;
 
-	if (pstsource->proto_source->require_root)
+	if (pstsource->proto_source != NULL && pstsource->proto_source->require_root)
 		SendIPCSourceAdd(pstsource);
 
 	// Send a notify to all the registered callbacks
@@ -1624,7 +1634,7 @@ int Packetsourcetracker::IpcChannelSet(ipc_source_chanset *in_ipc) {
 		pstsource->channel = in_ipc->channel;
 		if (pstsource->strong_source->SetChannel(pstsource->channel) < 0) 
 			_MSG("Packet source failed to set channel on source '" + 
-				 pstsource->interface + "'", MSGFLAG_ERROR);
+				 pstsource->strong_source->FetchName() + "'", MSGFLAG_ERROR);
 	}
 
 	// Update other info
@@ -1635,7 +1645,7 @@ int Packetsourcetracker::IpcChannelSet(ipc_source_chanset *in_ipc) {
 		pstsource->channel_ptr = channellist_map[in_ipc->chanset_id];
 	} else {
 		_MSG("Packet source failed to set channel set id on source '" +
-			 pstsource->interface + "' couldn't match chanset ID",
+			 pstsource->strong_source->FetchName() + "' couldn't match chanset ID",
 			 MSGFLAG_ERROR);
 	}
 
@@ -1793,7 +1803,8 @@ int Packetsourcetracker::StartSource(uint16_t in_source_id) {
 		return 0;
 	}
 
-	if (euid != 0 && pstsource->proto_source->require_root && running_as_ipc) {
+	if (pstsource->proto_source != NULL &&
+		euid != 0 && pstsource->proto_source->require_root && running_as_ipc) {
 		_MSG("IPC child Source '" + pstsource->strong_source->FetchInterface() + 
 			 "' requires root permissions to open, but we're not running "
 			 "as root.  Something is wrong.", MSGFLAG_ERROR);
@@ -1802,7 +1813,8 @@ int Packetsourcetracker::StartSource(uint16_t in_source_id) {
 			"install.";
 		// printf("debug - %d - not running as root in ipc\n", getpid());
 		return -1;
-	} else if (euid != 0 && pstsource->proto_source->require_root) {
+	} else if (pstsource->proto_source != NULL &&
+			   euid != 0 && pstsource->proto_source->require_root) {
 		if (rootipc == NULL || ((RootIPCRemote *) rootipc)->FetchRootIPCSynced() <= 0) {
 			_MSG("Packet source '" + pstsource->strong_source->FetchInterface() + "' "
 				 "requires root to start, but the root control process is not "
@@ -1899,12 +1911,14 @@ int Packetsourcetracker::StopSource(uint16_t in_source_id) {
 	if (pstsource->strong_source == NULL)
 		return 0;
 
-	if (euid != 0 && pstsource->proto_source->require_root && running_as_ipc) {
+	if (pstsource->proto_source != NULL &&
+		euid != 0 && pstsource->proto_source->require_root && running_as_ipc) {
 		_MSG("IPC child Source '" + pstsource->strong_source->FetchInterface() + 
 			 "' requires root permissions to shut down, but we're not running "
 			 "as root.  Something is wrong.", MSGFLAG_ERROR);
 		return -1;
-	} else if (euid != 0 && pstsource->proto_source->require_root) {
+	} else if (pstsource->proto_source != NULL &&
+			   euid != 0 && pstsource->proto_source->require_root) {
 		_MSG("Deferring shutdown of packet source '" + 
 			 pstsource->strong_source->FetchInterface() + "' to IPC child",
 			 MSGFLAG_INFO);
@@ -2144,6 +2158,8 @@ void Packetsourcetracker::SendIPCChanset(pst_packetsource *in_source) {
 		return;
 	}
 
+	if (in_source->proto_source == NULL)
+		return;
 	if (in_source->proto_source->require_root == 0)
 		return;
 
@@ -2313,11 +2329,13 @@ int Packetsourcetracker::SetSourceHopping(uuid in_uuid, int in_hopping,
 		opt = SOURCEACT_HOPDISABLE;
 
 		// Set it locally if we need to
-		if ((rootipc == NULL || pstsource->proto_source->require_root == 0) &&
+		if ((rootipc == NULL || 
+			 (pstsource->proto_source != NULL && 
+			  pstsource->proto_source->require_root == 0)) &&
 			in_hopping == 0) {
 			if (pstsource->strong_source->SetChannel(pstsource->channel) < 0) 
 				_MSG("Packet source failed to set channel on source '" + 
-					 pstsource->interface + "'", MSGFLAG_ERROR);
+					 pstsource->strong_source->FetchName() + "'", MSGFLAG_ERROR);
 		}
 	}
 
