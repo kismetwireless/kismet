@@ -571,8 +571,18 @@ void Client_Devicetracker::Proto_DEVICE(CLIPROTO_CB_PARMS) {
 	
 	if (dev_new) {
 		tracked_map[device->key] = device;
+		tracked_vec.push_back(device);
+		phy_device_vec[phy_id]->push_back(device);
 		// _MSG("CDT local tracking new device " + device->key.Mac2String(), MSGFLAG_INFO);
 	}
+
+	if (device->dirty == 0) {
+		phy_dirty_vec[phy_id]->push_back(device);
+		dirty_device_vec.push_back(device);
+	}
+
+	device->dirty = 1;
+
 
 	return;
 
