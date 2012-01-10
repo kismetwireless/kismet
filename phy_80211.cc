@@ -1561,12 +1561,14 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 		dot11info->source_mac == dot11info->bssid_mac) {
 		int wps = 0;
 		int ssidchan = 0;
+		string ssidtxt="<Unknown>";
 
 		for (map<uint32_t, dot11_ssid *>::iterator si = net->ssid_map.begin();
 			 si != net->ssid_map.end(); ++si) {
 			if (si->second->cryptset & crypt_wps) {
 				wps = 1;
 				ssidchan = si->second->channel;
+				ssidtxt = si->second->ssid;
 				break;
 			}
 		}
@@ -1585,9 +1587,9 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 
 				if (net->wps_m3_count > 5) {
 					if (globalreg->alertracker->PotentialAlert(alert_wpsbrute_ref)) {
-						string al = "IEEE80211 AP " + 
+						string al = "IEEE80211 AP '" + ssidtxt + "' (" + 
 							dot11info->bssid_mac.Mac2String() +
-							" sending excessive number of WPS messages which may "
+							") sending excessive number of WPS messages which may "
 							"indicate a WPS brute force attack such as Reaver";
 
 						globalreg->alertracker->RaiseAlert(alert_wpsbrute_ref, 
