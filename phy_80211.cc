@@ -1560,11 +1560,13 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 	if (dot11info->type == packet_data &&
 		dot11info->source_mac == dot11info->bssid_mac) {
 		int wps = 0;
+		int ssidchan = 0;
 
 		for (map<uint32_t, dot11_ssid *>::iterator si = net->ssid_map.begin();
 			 si != net->ssid_map.end(); ++si) {
 			if (si->second->cryptset & crypt_wps) {
 				wps = 1;
+				ssidchan = si->second->channel;
 				break;
 			}
 		}
@@ -1594,8 +1596,9 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 														   dot11info->source_mac, 
 														   dot11info->dest_mac, 
 														   dot11info->other_mac, 
-														   dot11info->channel, al);
+														   ssidchan, al);
 					}
+
 					net->wps_m3_count = 1;
 				}
 			}
