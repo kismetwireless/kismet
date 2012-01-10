@@ -306,6 +306,9 @@ void Client_Devicetracker::Proto_PHYMAP(CLIPROTO_CB_PARMS) {
 		}
 
 		phy_handler_map[phy_id] = op;
+
+		phy_device_vec[phy_id] = new vector<kis_tracked_device *>;
+		phy_dirty_vec[phy_id] = new vector<kis_tracked_device *>;
 	} else {
 		op = phmi->second;
 		fnum++;
@@ -331,6 +334,7 @@ void Client_Devicetracker::Proto_PHYMAP(CLIPROTO_CB_PARMS) {
 	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tint) != 1)
 		return;
 	phy_packetdelta[phy_id] = tint;
+
 }
 
 void Client_Devicetracker::Proto_DEVICE(CLIPROTO_CB_PARMS) {

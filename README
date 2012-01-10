@@ -1060,12 +1060,6 @@ http://www.kismetwireless.net
             References:
                 WVE-2005-0019
 
-        PROBENOJOIN         Trend/Stateful      802.11
-            Active scanning tools such as Netstumbler constantly send
-            network discovery probes but never join any of the networks
-            which respond.  This alert can cause excessive false positives
-            while channel hopping, and is disabled by default.
-
 13. Other Configuration
 
     Kismet is divided into two main processes:  kismet_server and

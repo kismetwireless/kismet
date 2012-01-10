@@ -419,6 +419,9 @@ public:
 		ssid_csum = 0;
 		dot11d_country = "";
 		ietag_csum = 0;
+
+		wps_resets = 0;
+		last_wps_reset = 0;
     }
 
     // Corrupt 802.11 frame
@@ -485,6 +488,10 @@ public:
 
 	string dot11d_country;
 	vector<dot11_11d_range_info> dot11d_vec;
+
+	// # of wps resets coming from this device
+	int wps_resets;
+	time_t last_wps_reset;
 };
 
 
