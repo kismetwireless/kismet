@@ -72,6 +72,11 @@ protected:
 	string phyname;
 };
 
+// Callback when a *DEVICE sentence is received and a device updated
+#define DEVICERX_PARMS kis_tracked_device *device, void *aux, \
+	GlobalRegistry *globalreg
+typedef void (*DeviceRXEnableCB)(DEVICERX_PARMS);
+
 // This seems like a lot of duplication but I'm not sure how to better handle it
 class Client_Devicetracker {
 public:
@@ -111,6 +116,9 @@ public:
 	void Proto_DEVICE(CLIPROTO_CB_PARMS);
 	void Proto_PHYMAP(CLIPROTO_CB_PARMS);
 
+	int RegisterDevicerxCallback(DeviceRXEnableCB in_callback, void *in_aux);
+	void RemoveDevicerxCallback(int in_id);
+
 protected:
 	class observed_phy {
 	public:
@@ -123,6 +131,13 @@ protected:
 			phy_name = "NONE";
 			handler = NULL;
 		}
+	};
+
+	class devicerx_cb_rec {
+	public:
+		int id;
+		DeviceRXEnableCB callback;
+		void *aux;
 	};
 
 	GlobalRegistry *globalreg;
@@ -147,9 +162,6 @@ protected:
 	// Per-phy device list
 	map<int, vector<kis_tracked_device *> *> phy_device_vec;
 
-	// Per-phy dirty list
-	map<int, vector<kis_tracked_device *> *> phy_dirty_vec;
-
 	// Common device component
 	int devcomp_ref_common;
 
@@ -157,10 +169,6 @@ protected:
 	map<mac_addr, kis_tracked_device *> tracked_map;
 	// Vector of tracked devices so we can iterate them quickly
 	vector<kis_tracked_device *> tracked_vec;
-
-	// Vector of dirty elements for pushing to clients, better than walking
-	// the map every tick, looking for dirty records
-	vector<kis_tracked_device *> dirty_device_vec;
 
 	// Registered & Identified PHY types
 	map<int, observed_phy *> phy_handler_map;
@@ -174,6 +182,9 @@ protected:
 	// Proto fields
 	string proto_phymap_fields, proto_device_fields;
 	int proto_phymap_fields_num, proto_device_fields_num;
+
+	vector<devicerx_cb_rec *> devicerx_cb_vec;
+	int next_devicerx_id;
 };
 
 #endif

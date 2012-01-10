@@ -92,6 +92,8 @@ Client_Devicetracker::Client_Devicetracker(GlobalRegistry *in_globalreg) {
 	proto_device_fields_num = TokenNullJoin(&proto_device_fields, CDT_device_fields);
 
 	cli_addref = kpi->Add_NetCli_AddCli_CB(CDT_AddCli, (void *) this);
+
+	next_devicerx_id = 1;
 }
 
 Client_Devicetracker::~Client_Devicetracker() {
@@ -271,6 +273,28 @@ void Client_Devicetracker::NetClientConfigure(KisNetClient *in_cli, int in_recon
 	}
 }
 
+int Client_Devicetracker::RegisterDevicerxCallback(DeviceRXEnableCB in_callback, void *in_aux) {
+	devicerx_cb_rec *cbr = new devicerx_cb_rec;
+
+	cbr->id = next_devicerx_id++;
+	cbr->callback = in_callback;
+	cbr->aux = in_aux;
+
+	devicerx_cb_vec.push_back(cbr);
+
+	return cbr->id;
+}
+
+void Client_Devicetracker::RemoveDevicerxCallback(int in_id) {
+	for (unsigned int x = 0; x < devicerx_cb_vec.size(); x++) {
+		if (devicerx_cb_vec[x]->id == in_id) {
+			delete(devicerx_cb_vec[x]);
+			devicerx_cb_vec.erase(devicerx_cb_vec.begin() + x);
+			break;
+		}
+	}
+}
+
 void Client_Devicetracker::Proto_PHYMAP(CLIPROTO_CB_PARMS) {
 	// _MSG("CDT proto_phymap", MSGFLAG_INFO);
 	
@@ -308,7 +332,6 @@ void Client_Devicetracker::Proto_PHYMAP(CLIPROTO_CB_PARMS) {
 		phy_handler_map[phy_id] = op;
 
 		phy_device_vec[phy_id] = new vector<kis_tracked_device *>;
-		phy_dirty_vec[phy_id] = new vector<kis_tracked_device *>;
 	} else {
 		op = phmi->second;
 		fnum++;
@@ -580,12 +603,9 @@ void Client_Devicetracker::Proto_DEVICE(CLIPROTO_CB_PARMS) {
 		// _MSG("CDT local tracking new device " + device->key.Mac2String(), MSGFLAG_INFO);
 	}
 
-	if (device->dirty == 0) {
-		phy_dirty_vec[phy_id]->push_back(device);
-		dirty_device_vec.push_back(device);
+	for (unsigned int x = 0; x < devicerx_cb_vec.size(); x++) {
+		(*(devicerx_cb_vec[x]->callback))(device, devicerx_cb_vec[x]->aux, globalreg);
 	}
-
-	device->dirty = 1;
 
 
 	return;
