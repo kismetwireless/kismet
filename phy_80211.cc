@@ -474,6 +474,8 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
 		globalreg->alertracker->ActivateConfiguredAlert("ADVCRYPTCHANGE", phyid);
 	alert_malformmgmt_ref =
 		globalreg->alertracker->ActivateConfiguredAlert("MALFORMMGMT", phyid);
+	alert_wpsbrute_ref =
+		globalreg->alertracker->ActivateConfiguredAlert("WPSBRUTE", phyid);
 
 	// Do we process the whole data packet?
     if (globalreg->kismet_config->FetchOptBoolean("hidedata", 0) ||
@@ -1552,6 +1554,52 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 			}
 
 			ssid->last_time = in_pack->ts.tv_sec;
+		}
+	}
+
+	if (dot11info->type == packet_data &&
+		dot11info->source_mac == dot11info->bssid_mac) {
+		int wps = 0;
+
+		for (map<uint32_t, dot11_ssid *>::iterator si = net->ssid_map.begin();
+			 si != net->ssid_map.end(); ++si) {
+			if (si->second->cryptset & crypt_wps) {
+				wps = 1;
+				break;
+			}
+		}
+
+		if (wps) {
+			wps = PacketDot11WPSM3(in_pack);
+
+			if (wps) {
+				// if we're w/in time of the last one, update, otherwise clear
+				if (globalreg->timestamp.tv_sec - net->last_wps_m3 > 15)
+					net->wps_m3_count = 1;
+				else
+					net->wps_m3_count++;
+
+				net->last_wps_m3 = globalreg->timestamp.tv_sec;
+
+				if (net->wps_m3_count > 5) {
+					if (globalreg->alertracker->PotentialAlert(alert_wpsbrute_ref)) {
+						string al = "IEEE80211 AP " + 
+							dot11info->bssid_mac.Mac2String() +
+							" sending excessive number of WPS messages which may "
+							"indicate a WPS brute force attack such as Reaver";
+
+						globalreg->alertracker->RaiseAlert(alert_wpsbrute_ref, 
+														   in_pack, 
+														   dot11info->bssid_mac, 
+														   dot11info->source_mac, 
+														   dot11info->dest_mac, 
+														   dot11info->other_mac, 
+														   dot11info->channel, al);
+					}
+					net->wps_m3_count = 1;
+				}
+			}
+
 		}
 	}
 

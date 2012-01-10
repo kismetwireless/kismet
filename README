@@ -1060,6 +1060,16 @@ http://www.kismetwireless.net
             References:
                 WVE-2005-0019
 
+        WPSBRUTE            Trend/Stateful      802.11
+            WPS is vulnerable to a brute-force attack which can reveal the
+            WPS key in a matter of hours.  An AP under attack will send an
+            unusual number of WPS responses.  This vulnerability is 
+            documented in the paper by Stefan Viehbock and implemented
+            in his tool and the Reaver attack tool.
+
+            References:
+                http://sviehb.files.wordpress.com/2011/12/viehboeck_wps.pdf
+
 13. Other Configuration
 
     Kismet is divided into two main processes:  kismet_server and

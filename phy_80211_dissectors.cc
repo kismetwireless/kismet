@@ -1947,6 +1947,145 @@ int Kis_80211_Phy::PacketDot11stringDissector(kis_packet *in_pack) {
 	return 1;
 }
 
+int Kis_80211_Phy::PacketDot11WPSM3(kis_packet *in_pack) {
+	if (in_pack->error)
+		return 0;
+
+	// Grab the 80211 info, compare, bail
+    dot11_packinfo *packinfo;
+	if ((packinfo = 
+		 (dot11_packinfo *) in_pack->fetch(_PCM(PACK_COMP_80211))) == NULL)
+		return 0;
+	if (packinfo->corrupt)
+		return 0;
+	if (packinfo->type != packet_data || 
+		(packinfo->subtype != packet_sub_data &&
+		 packinfo->subtype != packet_sub_data_qos_data))
+		return 0;
+
+	// If it's encrypted it's not eapol
+	if (packinfo->cryptset)
+		return 0;
+
+	// Grab the 80211 frame, if that doesn't exist, grab the link frame
+	kis_datachunk *chunk = 
+		(kis_datachunk *) in_pack->fetch(pack_comp_decap);
+
+	if (chunk == NULL) {
+		if ((chunk = 
+			 (kis_datachunk *) in_pack->fetch(pack_comp_linkframe)) == NULL) {
+			return 0;
+		}
+	}
+
+	// If we don't have a dot11 frame, throw it away
+	if (chunk->dlt != KDLT_IEEE802_11)
+		return 0;
+
+    if (packinfo->header_offset >= chunk->length)
+        return 0;
+
+	unsigned int pos = packinfo->header_offset;
+
+	uint8_t eapol_llc[] = { 0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00, 0x88, 0x8e };
+	uint8_t dot1x_v1_hdr[] = { 0x01, 0x00 };
+	uint8_t eapreq = 0x01;
+	uint8_t eaptype_et = 0xfe;
+	uint8_t wfawps[] = { 0x00, 0x37, 0x2a, 0x00, 0x00, 0x00, 0x01, 0x04 };
+	uint8_t wfa_msg[] = { 0x10, 0x22 };
+	uint8_t wfa_m3 = 0x07;
+
+	if (pos + sizeof(eapol_llc) >= chunk->length)
+		return 0;
+
+	if (memcmp(&(chunk->data[pos]), eapol_llc, sizeof(eapol_llc)))
+		return 0;
+
+	// printf("debug - potential eapol frame, matched llc\n");
+
+	pos += sizeof(eapol_llc);
+
+	if (pos + sizeof(dot1x_v1_hdr) >= chunk->length)
+		return 0;
+
+	if (memcmp(&(chunk->data[pos]), dot1x_v1_hdr, sizeof(dot1x_v1_hdr)))
+		return 0;
+
+	pos += sizeof(dot1x_v1_hdr);
+
+	// 2 bytes of length, ignore, check before next compare
+	pos += 2;
+
+	// Check that it's a request
+	if (pos + 1 >= chunk->length)
+		return 0;
+
+	// printf("debug - eapreq inspecting %x %x %x\n", chunk->data[pos - 1], chunk->data[pos], chunk->data[pos + 1]);
+
+	if (chunk->data[pos] != eapreq)
+		return 0;
+
+	// printf("debug - eap request\n");
+
+	// don't care for id or length
+	pos += 4;
+
+	if (pos + 1 >= chunk->length)
+		return 0;
+
+	// printf("debug - et %x\n", chunk->data[pos]);
+
+	// Compare expanded type
+	if (chunk->data[pos] != eaptype_et)
+		return 0;
+
+	pos += 1;
+
+	// printf("debug - got past eaptype hdr\n");
+
+	if (pos + sizeof(wfawps) >= chunk->length)
+		return 0;
+
+	if (memcmp(&(chunk->data[pos]), wfawps, sizeof(wfawps)))
+		return 0;
+
+	pos += sizeof(wfawps);
+
+	// printf("debug - got wfawps eapol content\n");
+
+	// Don't care about flags
+	pos += 1;
+
+	while (pos + 5 < chunk->length) {
+		uint16_t tlen;
+		memcpy(&tlen, &(chunk->data[pos + 2]), 2);
+		tlen = kis_betoh16(tlen);
+
+		if (memcmp(&(chunk->data[pos]), wfa_msg, sizeof(wfa_msg))) {
+			// printf("debug - skipping tag %x%x %u long\n", chunk->data[pos], chunk->data[pos + 1], tlen);
+			pos += 4 + tlen;
+			continue;
+		}
+
+		if (tlen != 1) {
+			// printf("debug - weird eapol wfa len?\n");
+			pos += 4 + tlen;
+		}
+
+		pos += 4;
+
+		if (chunk->data[pos] == wfa_m3) {
+			// printf("debug - saw WPA M3 frame\n");
+			return 1;
+		}
+
+		pos += tlen;
+	}
+
+
+	return 0;
+}
+
 
 #if 0
 void KisBuiltinDissector::AddWepKey(mac_addr bssid, uint8_t *key, unsigned int len, 

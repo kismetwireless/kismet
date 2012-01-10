@@ -202,6 +202,7 @@ alert=DOT11D,5/min,1/sec
 alert=BEACONRATE,5/min,1/sec
 alert=ADVCRYPTCHANGE,5/min,1/sec
 alert=MALFORMMGMT,5/min,1/sec
+alert=WPSBRUTE,5/min,1/sec
 
 # Controls behavior of the APSPOOF alert.  SSID may be a literal match (ssid=) or
 # a regex (ssidregex=) if PCRE was available when kismet was built.  The allowed 

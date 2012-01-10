@@ -261,6 +261,10 @@ public:
 	vector<mac_addr> bssid_list;
 
 	string dhcp_host, dhcp_vendor;
+
+	// Count WPS M3 exchanges
+	int wps_m3_count;
+	time_t last_wps_m3;
 	
 	dot11_device() {
 		type_set = dot11_network_none;
@@ -280,6 +284,9 @@ public:
 		lastssid = NULL;
 
 		last_bssid = mac_addr(0);
+
+		wps_m3_count = 0;
+		last_wps_m3 = 0;
 
 		dirty = 0;
 	}
@@ -419,9 +426,6 @@ public:
 		ssid_csum = 0;
 		dot11d_country = "";
 		ietag_csum = 0;
-
-		wps_resets = 0;
-		last_wps_reset = 0;
     }
 
     // Corrupt 802.11 frame
@@ -488,10 +492,6 @@ public:
 
 	string dot11d_country;
 	vector<dot11_11d_range_info> dot11d_vec;
-
-	// # of wps resets coming from this device
-	int wps_resets;
-	time_t last_wps_reset;
 };
 
 
@@ -529,6 +529,11 @@ public:
 	int PacketDot11dissector(kis_packet *in_pack);
 	int PacketDot11dataDissector(kis_packet *in_pack);
 	int PacketDot11stringDissector(kis_packet *in_pack);
+
+	// Special decoders, not called as part of a chain
+	
+	// Is packet a WPS M3 message?  Used to detect Reaver, etc
+	int PacketDot11WPSM3(kis_packet *in_pack);
 
 	// static incase some other component wants to use it
 	static kis_datachunk *DecryptWEP(dot11_packinfo *in_packinfo,
@@ -623,7 +628,7 @@ protected:
 	int alert_chan_ref, alert_dhcpcon_ref, alert_bcastdcon_ref, alert_airjackssid_ref,
 		alert_wepflap_ref, alert_dhcpname_ref, alert_dhcpos_ref, alert_adhoc_ref,
 		alert_ssidmatch_ref, alert_dot11d_ref, alert_beaconrate_ref,
-		alert_cryptchange_ref, alert_malformmgmt_ref;
+		alert_cryptchange_ref, alert_malformmgmt_ref, alert_wpsbrute_ref;
 
 	// Command refs
 	int addfiltercmd_ref, addnetclifiltercmd_ref;
