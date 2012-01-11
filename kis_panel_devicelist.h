@@ -49,8 +49,28 @@ public:
 
 	virtual void SetPosition(int isx, int isy, int iex, int iey);
 
-protected:
+	void DeviceRX(kis_tracked_device *device);
 
+protected:
+	class display_device {
+	public:
+		kis_tracked_device *device;
+		string display_line;
+		string display_aux;
+		bool dirty;
+	};
+
+	vector<display_device *> display_dev_vec;
+	map<mac_addr, display_device *> display_dev_map;
+
+	vector<display_device *> draw_vec;
+
+	bool draw_dirty;
+
+	int newdevref;
+
+	KisPanelInterface *kpinterface;
+	Client_Devicetracker *devicetracker;
 };
 
 

@@ -28,12 +28,74 @@
 
 #include "soundcontrol.h"
 
+void kdl_devicerx_hook(kis_tracked_device *device, void *aux, 
+					   GlobalRegistry *globalreg) {
+	((Kis_Devicelist *) aux)->DeviceRX(device);
+}
+
 Kis_Devicelist::Kis_Devicelist(GlobalRegistry *in_globalreg, Kis_Panel *in_panel) :
 	Kis_Panel_Component(in_globalreg, in_panel) {
 
 	kpinterface = in_panel->FetchPanelInterface();
 
+	devicetracker = (Client_Devicetracker *) globalreg->FetchGlobal("CLIENT_DEVICE_TRACKER");
+
+	if (devicetracker == NULL) {
+		fprintf(stderr, "FATAL OOPS: Missing devicetracker in devicelist\n");
+		exit(1);
+	}
+
+	draw_dirty = false;
+
+	newdevref = devicetracker->RegisterDevicerxCallback(kdl_devicerx_hook, this);
 }
+
+Kis_Devicelist::~Kis_Devicelist() {
+	devicetracker->RemoveDevicerxCallback(newdevref);
+}
+
+void Kis_Devicelist::DeviceRX(kis_tracked_device *device) {
+	map<mac_addr, display_device *>::iterator ddmi =
+		display_dev_map.find(device->key);
+
+	if (ddmi == display_dev_map.end()) {
+		display_device *dd = new display_device;
+		dd->device = device;
+		dd->dirty = true;
+
+		display_dev_map[device->key] = dd;
+		display_dev_vec.push_back(dd);
+	} else {
+		ddmi->second->dirty = 1;
+	}
+}
+
+void Kis_Devicelist::DrawComponent() {
+
+}
+
+void Kis_Devicelist::Activate(int subcomponent) {
+
+}
+
+void Kis_Devicelist::Deactivate() {
+
+}
+
+int Kis_Devicelist::KeyPress(int in_key) {
+
+	return 0;
+}
+
+int Kis_Devicelist::MouseEvent(MEVENT *mevent) {
+	return 0;
+}
+
+void Kis_Devicelist::SetPosition(int isx, int isy, int iex, int iey) {
+
+}
+
+
 
 #endif // ncurses
 

@@ -1578,7 +1578,7 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 
 			if (wps) {
 				// if we're w/in time of the last one, update, otherwise clear
-				if (globalreg->timestamp.tv_sec - net->last_wps_m3 > 30)
+				if (globalreg->timestamp.tv_sec - net->last_wps_m3 > (60 * 5))
 					net->wps_m3_count = 1;
 				else
 					net->wps_m3_count++;
