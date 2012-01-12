@@ -44,6 +44,12 @@ void CDT_DEVICE(CLIPROTO_CB_PARMS) {
 													auxptr);
 }
 
+void CDT_DEVICEDONE(CLIPROTO_CB_PARMS) {
+	((Client_Devicetracker *) auxptr)->Proto_DEVICEDONE(globalreg, proto_string,
+													proto_parsed, srccli,
+													auxptr);
+}
+
 const char *CDT_phymap_fields[] = {
 	"phyid", "phyname", "packets", "datapackets", "errorpackets", 
 	"filterpackets", "packetrate",
@@ -70,6 +76,11 @@ const char *CDT_device_fields[] = {
 	NULL
 };
 
+const char *CDT_devicedone_fields[] = {
+	"phytype", "macaddr",
+	NULL
+};
+
 Client_Devicetracker::Client_Devicetracker(GlobalRegistry *in_globalreg) {
 	globalreg = in_globalreg;
 
@@ -90,6 +101,7 @@ Client_Devicetracker::Client_Devicetracker(GlobalRegistry *in_globalreg) {
 
 	proto_phymap_fields_num = TokenNullJoin(&proto_phymap_fields, CDT_phymap_fields);
 	proto_device_fields_num = TokenNullJoin(&proto_device_fields, CDT_device_fields);
+	proto_devicedone_fields_num = TokenNullJoin(&proto_devicedone_fields, CDT_devicedone_fields);
 
 	cli_addref = kpi->Add_NetCli_AddCli_CB(CDT_AddCli, (void *) this);
 
@@ -107,7 +119,8 @@ Client_Devicetracker::~Client_Devicetracker() {
 	kpi->Remove_Netcli_AddCli_CB(cli_addref);
 	kpi->Remove_All_Netcli_Conf_CB(CDT_ConfigureCli);
 	kpi->Remove_All_Netcli_ProtoHandler("PHYMAP", CDT_PHYMAP, this);
-	kpi->Remove_All_Netcli_ProtoHandler("DEVICE", CDT_PHYMAP, this);
+	kpi->Remove_All_Netcli_ProtoHandler("DEVICE", CDT_DEVICE, this);
+	kpi->Remove_All_Netcli_ProtoHandler("DEVICEDONE", CDT_DEVICEDONE, this);
 }
 
 int Client_Devicetracker::RegisterDeviceComponent(string in_component) {
@@ -266,6 +279,15 @@ void Client_Devicetracker::NetClientConfigure(KisNetClient *in_cli, int in_recon
 	if (in_cli->RegisterProtoHandler("DEVICE", proto_device_fields,
 									 CDT_DEVICE, this) < 0) {
 		_MSG("Could not register *DEVICE sentence; is this an old version of "
+			 "Kismet you're trying to connect to?  Connection will be terminated.", 
+			 MSGFLAG_ERROR);
+		in_cli->KillConnection();
+		return;
+	}
+
+	if (in_cli->RegisterProtoHandler("DEVICEDONE", proto_devicedone_fields,
+									 CDT_DEVICEDONE, this) < 0) {
+		_MSG("Could not register *DEVICEDONE sentence; is this an old version of "
 			 "Kismet you're trying to connect to?  Connection will be terminated.", 
 			 MSGFLAG_ERROR);
 		in_cli->KillConnection();
@@ -603,11 +625,6 @@ void Client_Devicetracker::Proto_DEVICE(CLIPROTO_CB_PARMS) {
 		// _MSG("CDT local tracking new device " + device->key.Mac2String(), MSGFLAG_INFO);
 	}
 
-	for (unsigned int x = 0; x < devicerx_cb_vec.size(); x++) {
-		(*(devicerx_cb_vec[x]->callback))(device, devicerx_cb_vec[x]->aux, globalreg);
-	}
-
-
 	return;
 
 proto_fail:
@@ -620,4 +637,43 @@ proto_fail:
 	return;
 }
 
+void Client_Devicetracker::Proto_DEVICEDONE(CLIPROTO_CB_PARMS) {
+	if (proto_parsed->size() < (unsigned int) proto_devicedone_fields_num)
+		return;
+
+	int fnum = 0;
+
+	int phy_id;
+	mac_addr tmac;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &phy_id) != 1)
+		return;
+
+	// Check the PHY and bail early
+	if (phy_handler_map.find(phy_id) == phy_handler_map.end()) {
+		_MSG("CDT never saw mapped phy type " + IntToString(phy_id) + 
+			 " throwing out *DEVICEDONE sentence", MSGFLAG_ERROR);
+		return;
+	}
+
+	// Get the device ref and look it up
+	tmac = mac_addr((*proto_parsed)[fnum++].word.c_str());
+	if (tmac.error) {
+		return;
+	}
+	tmac.SetPhy(phy_id);
+
+	map<mac_addr, kis_tracked_device *>::iterator ktdi = 
+		tracked_map.find(tmac);
+
+	if (ktdi == tracked_map.end()) {
+		_MSG("CDT never saw device " + tmac.Mac2String() + " but got devicedone?",
+			 MSGFLAG_ERROR);
+		return;
+	}
+
+	for (unsigned int x = 0; x < devicerx_cb_vec.size(); x++) {
+		(*(devicerx_cb_vec[x]->callback))(ktdi->second, devicerx_cb_vec[x]->aux, globalreg);
+	}
+}
 

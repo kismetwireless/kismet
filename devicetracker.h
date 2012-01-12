@@ -688,7 +688,7 @@ protected:
 
 	// Network protocols
 	int proto_ref_phymap, proto_ref_commondevice, proto_ref_trackinfo,
-		proto_ref_devtag, proto_ref_string;
+		proto_ref_devtag, proto_ref_string, proto_ref_devicedone;
 
 	int pack_comp_device, pack_comp_common, pack_comp_string, pack_comp_basicdata,
 		pack_comp_radiodata, pack_comp_gps, pack_comp_capsrc;

@@ -58,6 +58,7 @@ void Kis_Devicelist::DeviceRX(kis_tracked_device *device) {
 	map<mac_addr, display_device *>::iterator ddmi =
 		display_dev_map.find(device->key);
 
+	// TODO - intelligent add to display list, etc
 	if (ddmi == display_dev_map.end()) {
 		display_device *dd = new display_device;
 		dd->device = device;

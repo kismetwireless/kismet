@@ -260,6 +260,53 @@ void Protocol_KISDEV_COMMON_enable(PROTO_ENABLE_PARMS) {
 	((Devicetracker *) data)->BlitDevices(in_fd);
 }
 
+enum DEVICEDONE_FIELDS {
+	DEVICEDONE_phytype, DEVICEDONE_macaddr,
+	DEVICEDONE_maxfield
+};
+
+const char *DEVICEDONE_text[] = {
+	"phytype", "macaddr",
+	NULL
+};
+
+int Protocol_DEVICEDONE(PROTO_PARMS) {
+	kis_tracked_device *dev = (kis_tracked_device *) data;
+	string scratch;
+
+	cache->Filled(field_vec->size());
+
+	for (unsigned int x = 0; x < field_vec->size(); x++) {
+		unsigned int fnum = (*field_vec)[x];
+
+		if (fnum > DEVICEDONE_maxfield) {
+			out_string = "\001Unknown field\001";
+			return -1;
+		}
+
+		if (cache->Filled(fnum)) {
+			out_string += cache->GetCache(fnum) + " ";
+			continue;
+		}
+
+		scratch = "";
+
+		switch (fnum) {
+			case KISDEV_phytype:
+				scratch = IntToString(dev->phy_type);
+				break;
+			case DEVICEDONE_macaddr:
+				scratch = dev->key.Mac2String();
+				break;
+		}
+		
+		cache->Cache(fnum, scratch);
+		out_string += scratch + " ";
+	}
+
+	return 1;
+}
+
 enum DEVTAG_FIELDS {
 	DEVTAG_macaddr, DEVTAG_tag, DEVTAG_value,
 
@@ -549,6 +596,13 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) {
 												  &Protocol_KISDEV_COMMON_enable,
 												  this);
 
+	proto_ref_devicedone =
+		globalreg->kisnetserver->RegisterProtocol("DEVICEDONE", 0, 1,
+												  DEVICEDONE_text,
+												  &Protocol_DEVICEDONE,
+												  NULL,
+												  this);
+
 	proto_ref_trackinfo =
 		globalreg->kisnetserver->RegisterProtocol("TRACKINFO", 0, 1,
 												  TRACKINFO_fields_text,
@@ -764,6 +818,7 @@ int Devicetracker::RegisterPhyHandler(Kis_Phy_Handler *in_weak_handler) {
 void Devicetracker::BlitDevices(int in_fd) {
 	for (unsigned int x = 0; x < tracked_vec.size(); x++) {
 		kis_protocol_cache cache;
+		kis_protocol_cache donecache;
 
 		// If it has a common field
 		kis_device_common *common;
@@ -771,12 +826,17 @@ void Devicetracker::BlitDevices(int in_fd) {
 		if ((common = 
 			 (kis_device_common *) tracked_vec[x]->fetch(devcomp_ref_common)) != NULL) {
 
-			if (in_fd == -1)
+			if (in_fd == -1) {
 				globalreg->kisnetserver->SendToAll(proto_ref_commondevice, 
 												   (void *) common);
-			else
+				globalreg->kisnetserver->SendToAll(proto_ref_devicedone, 
+												   (void *) tracked_vec[x]);
+			} else {
 				globalreg->kisnetserver->SendToClient(in_fd, proto_ref_commondevice,
 													  (void *) common, &cache);
+				globalreg->kisnetserver->SendToClient(in_fd, proto_ref_devicedone,
+													  (void *) tracked_vec[x], &donecache);
+			}
 		} 
 	}
 }
@@ -844,12 +904,17 @@ int Devicetracker::TimerKick() {
 		x->second->clear();
 	}
 
-	dirty_device_vec.clear();
-
 	for (map<int, Kis_Phy_Handler *>::iterator x = phy_handler_map.begin(); 
 		 x != phy_handler_map.end(); ++x) {
 		x->second->TimerKick();
 	}
+
+	for (unsigned int x = 0; x < dirty_device_vec.size(); x++) {
+		globalreg->kisnetserver->SendToAll(proto_ref_devicedone, 
+										   (void *) dirty_device_vec[x]);
+	}
+
+	dirty_device_vec.clear();
 
 	// Reset the packet rate delta
 	num_packetdelta = 0;
