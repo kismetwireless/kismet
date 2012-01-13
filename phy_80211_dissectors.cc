@@ -1401,7 +1401,7 @@ int Kis_80211_Phy::PacketDot11dataDissector(kis_packet *in_pack) {
 					memcpy(rawid, &(chunk->data[offset + 5]), rawlen);
 					rawid[rawlen] = 0;
 
-					datainfo->auxstring = MungeToPrintable(rawid);
+					datainfo->auxstring = MungeToPrintable(rawid, rawlen, 1);
 					delete[] rawid;
 				}
 
