@@ -239,14 +239,10 @@ enum kis_protocol_info_type {
     proto_turbocell,
 	proto_netstumbler_probe,
 	proto_lucent_probe,
-    proto_iapp,
-    proto_leap,
-    proto_ttls,
-    proto_tls,
-    proto_peap,
-	proto_eap_unknown,
-    proto_isakmp,
-    proto_pptp,
+	proto_iapp,
+	proto_isakmp,
+	proto_pptp,
+	proto_eap
 };
 
 class kis_data_packinfo : public packet_component {
@@ -289,6 +285,9 @@ public:
 
 	// An extra field that can be filled in
 	int field1;
+
+	// A string field that can be filled in
+	string auxstring;
 
 };
 

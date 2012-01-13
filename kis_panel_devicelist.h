@@ -49,6 +49,11 @@ public:
 
 	virtual void SetPosition(int isx, int isy, int iex, int iey);
 
+	// We sync to the *TIME sentence to know when we should draw the list
+	void NetClientConfigure(KisNetClient *in_cli, int in_recon);
+	void NetClientAdd(KisNetClient *in_cli, int add);
+	void Proto_TIME();
+
 	void DeviceRX(kis_tracked_device *device);
 
 protected:
@@ -71,6 +76,12 @@ protected:
 
 	KisPanelInterface *kpinterface;
 	Client_Devicetracker *devicetracker;
+
+	unsigned int viewable_lines, viewable_cols;
+
+	int devcomp_ref_common;
+
+	int cli_addref;
 };
 
 

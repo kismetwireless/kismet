@@ -83,6 +83,7 @@ const uint8_t EAP_CODE_REQUEST = 1;
 const uint8_t EAP_CODE_RESPONSE = 2;
 const uint8_t EAP_CODE_SUCCESS = 3;
 const uint8_t EAP_CODE_FAILURE = 4;
+const uint8_t EAP_TYPE_IDENTITY = 1;
 const uint8_t EAP_TYPE_TLS  = 13;
 const uint8_t EAP_TYPE_LEAP = 17;
 const uint8_t EAP_TYPE_TTLS = 21;

@@ -265,6 +265,9 @@ public:
 	// Count WPS M3 exchanges
 	int wps_m3_count;
 	time_t last_wps_m3;
+
+	// Did we see an eap id?
+	string eap_id;
 	
 	dot11_device() {
 		type_set = dot11_network_none;
@@ -331,6 +334,9 @@ public:
 	string manuf;
 
 	int dirty;
+
+	// Did we see an eap exchange?  Did we capture an ID?
+	string eap_id;
 
 	dot11_client() {
 		type = dot11_network_none;

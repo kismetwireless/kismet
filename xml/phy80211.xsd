@@ -65,6 +65,8 @@
 
   <xs:element name="cdpDevice" type="xs:string" minOccurs="0"/>
   <xs:element name="cdpPort" type="xs:string" minOccurs="0"/>
+
+  <xs:element name="eapIdentity" type="xs:string" minOccurs="0"/>
   
   <xs:element name="dhcpHost" type="xs:string" minOccurs="0"/>
   <xs:element name="dhcpVendor" type="xs:string" minOccurs="0"/>
@@ -86,7 +88,7 @@
 				  </xs:sequence>
 				 </xs:complexType>
 				</xs:element>
-
+  
 				<xs:element name="ssids" minOccurs="0">
 				 <xs:complexType>
 				  <xs:sequence>
@@ -95,9 +97,15 @@
 				 </xs:complexType>
 				</xs:element>
 
+				<!-- Data encryption seen, includes EAP types observed -->
+               <xs:element name="txEncryption" type="xs:string" minOccurs="0"/>
+               <xs:element name="rxEncryption" type="xs:string" minOccurs="0"/>
+
 				<!-- Optional, if non-ap record -->
 				<xs:element name="cdpDevice" type="xs:string" minOccurs="0"/>
 				<xs:element name="cdpPort" type="xs:string" minOccurs="0"/>
+
+  				<xs:element name="eapIdentity" type="xs:string" minOccurs="0"/>
 
 				<xs:element name="dhcpHost" type="xs:string" minOccurs="0"/>
 				<xs:element name="dhcpVendor" type="xs:string" minOccurs="0"/>

@@ -953,10 +953,6 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
     } else if (fc->type == 2) {
         packinfo->type = packet_data;
 
-		// WEP/Protected on data frames means encrypted, not WEP
-		if (fc->wep)
-			packinfo->cryptset |= crypt_unknown_protected;
-
         // Collect the subtypes - we probably want to do something better with thse
         // in the future
         if (fc->subtype == 0) {
@@ -1014,6 +1010,25 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
 			in_pack->insert(pack_comp_80211, packinfo);
             return 0;
         }
+
+		// WEP/Protected on data frames means encrypted, not WEP, sometimes
+		if (fc->wep) {
+			bool alt_crypt = false;
+			// Either way to be useful it has to be 2+ bytes, so check tkip
+			// and ccmp at the same time
+			if (packinfo->header_offset + 2 < chunk->length) {
+				if (chunk->data[packinfo->header_offset + 2] == 0) {
+					packinfo->cryptset |= crypt_aes_ccm;
+					alt_crypt = true;
+				}  else if (chunk->data[packinfo->header_offset + 1] & 0x20) {
+					packinfo->cryptset |= crypt_tkip;
+					alt_crypt = true;
+				}
+			}  
+		
+			if (!alt_crypt)
+				packinfo->cryptset |= crypt_wep;
+		}
 
         int datasize = chunk->length - packinfo->header_offset;
         if (datasize > 0) {
@@ -1323,6 +1338,10 @@ int Kis_80211_Phy::PacketDot11dataDissector(kis_packet *in_pack) {
 		 sizeof(DOT1X_PROTO)) < chunk->length && 
 		memcmp(&(chunk->data[header_offset + LLC_UI_OFFSET + 3]),
 			   DOT1X_PROTO, sizeof(DOT1X_PROTO)) == 0) {
+
+		datainfo->proto = proto_eap;
+
+		// printf("debug - dot1x frame?\n");
 		// It's dot1x, is it LEAP?
 		//
 		// Make sure its an EAP socket
@@ -1336,7 +1355,7 @@ int Kis_80211_Phy::PacketDot11dataDissector(kis_packet *in_pack) {
 		offset += EAP_OFFSET;
 
 		if (dot1x_version != 1 || dot1x_type != 0 || 
-			offset + EAP_PACKET_SIZE >= chunk->length) {
+			offset + EAP_PACKET_SIZE > chunk->length) {
 			delete datainfo;
 			return 0;
 		}
@@ -1344,32 +1363,50 @@ int Kis_80211_Phy::PacketDot11dataDissector(kis_packet *in_pack) {
 		// Eap bits
 		uint8_t eap_code = chunk->data[offset];
 		// uint8_t eap_id = chunk->data[offset + 1];
-		// uint16_t eap_length = kis_extract16(&(chunk->data[offset + 2]));
+		uint16_t eap_length = kis_extractBE16(&(chunk->data[offset + 2]));
 		uint8_t eap_type = chunk->data[offset + 4];
 
+		unsigned int rawlen;
+		char *rawid;
+
+		if (offset + eap_length > chunk->length) {
+			delete datainfo;
+			return 0;
+		}
+
+		packinfo->cryptset |= crypt_eap;
 		switch (eap_type) {
 			case EAP_TYPE_LEAP:
-				datainfo->proto = proto_leap;
 				datainfo->field1 = eap_code;
 				packinfo->cryptset |= crypt_leap;
 				break;
 			case EAP_TYPE_TLS:
-				datainfo->proto = proto_tls;
 				datainfo->field1 = eap_code;
 				packinfo->cryptset |= crypt_tls;
 				break;
 			case EAP_TYPE_TTLS:
-				datainfo->proto = proto_ttls;
 				datainfo->field1 = eap_code;
 				packinfo->cryptset |= crypt_ttls;
 				break;
 			case EAP_TYPE_PEAP:
-				datainfo->proto = proto_peap;
+				// printf("debug - peap!\n");
 				datainfo->field1 = eap_code;
 				packinfo->cryptset |= crypt_peap;
 				break;
+			case EAP_TYPE_IDENTITY:
+				if (eap_code == EAP_CODE_RESPONSE) {
+					
+					rawlen = eap_length - 5;
+					rawid = new char[rawlen + 1];
+					memcpy(rawid, &(chunk->data[offset + 5]), rawlen);
+					rawid[rawlen] = 0;
+
+					datainfo->auxstring = MungeToPrintable(rawid);
+					delete[] rawid;
+				}
+
+				break;
 			default:
-				datainfo->proto = proto_eap_unknown;
 				break;
 		}
 

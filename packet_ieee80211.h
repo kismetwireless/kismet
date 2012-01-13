@@ -223,20 +223,21 @@ typedef struct {
 //WPA Migration Mode
 #define crypt_wpa_migmode	(1 << 10)
 // Derived from data traffic
-#define crypt_leap			(1 << 11)
-#define crypt_ttls			(1 << 12)
-#define crypt_tls			(1 << 13)
-#define crypt_peap			(1 << 14)
+#define crypt_eap			(1 << 11)
+#define crypt_leap			(1 << 12)
+#define crypt_ttls			(1 << 13)
+#define crypt_tls			(1 << 14)
+#define crypt_peap			(1 << 15)
 // Lower byte mask - cryptset & protectmask yields basic setting, ie cannot be
 // WEP+PEAP, but COULD be WEP+ISAKMP or WEP+WPS
-#define crypt_protectmask 	0xFF
-#define crypt_isakmp		(1 << 16)
-#define crypt_pptp			(1 << 17)
-#define crypt_fortress		(1 << 18)
-#define crypt_keyguard		(1 << 19)
-#define crypt_unknown_protected 	(1 << 20)
-#define crypt_unknown_nonwep		(1 << 21)
-#define crypt_wps 					(1 << 22)
+#define crypt_protectmask 	0xFFFFF
+#define crypt_isakmp		(1 << 20)
+#define crypt_pptp			(1 << 21)
+#define crypt_fortress		(1 << 22)
+#define crypt_keyguard		(1 << 23)
+#define crypt_unknown_protected 	(1 << 24)
+#define crypt_unknown_nonwep		(1 << 25)
+#define crypt_wps 					(1 << 26)
 
 // Deciphering by casting.  This is bad, and non portable, and we need to not
 // do it in the future but for now it'll work until we redo it with bitmanip

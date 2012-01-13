@@ -62,10 +62,10 @@ const char *PHYDOT11_SSID_text[] = {
 enum PHYDOT11_DEVICE_FIELDS {
 	PD11_DEVICE_mac, PD11_typeset, PD11_DEVICE_txcrypt, PD11_DEVICE_rxcrypt, 
 	PD11_DEVICE_decrypted, PD11_DEVICE_disconnects, PD11_DEVICE_cdpdev, 
-	PDP11_DEVICE_cdpport, PD11_DEVICE_fragments, PD11_DEVICE_retries, 
+	PD11_DEVICE_cdpport, PD11_DEVICE_fragments, PD11_DEVICE_retries, 
 	PD11_DEVICE_lastssid, PD11_DEVICE_lastssidcsum, PD11_DEVICE_txdatasize, 
 	PD11_DEVICE_rxdatasize, PD11_DEVICE_lastbssid, PD11_DEVICE_dhcphost,
-	PD11_DEVICE_dhcpvendor,
+	PD11_DEVICE_dhcpvendor, PD11_DEVICE_eapid,
 	PD11_DEVICE_maxfield
 };
 
@@ -75,6 +75,7 @@ const char *PHYDOT11_DEVICE_text[] = {
 	"fragments", "retries", "lastssid",
 	"lastssidcsum", "txdatasize", "rxdatasize", 
 	"lastbssid", "dhcphost", "dhcpvendor",
+	"eapid",
 	NULL
 };
 
@@ -84,6 +85,7 @@ enum PHYDOT11_CLIENT_FIELDS {
 	PD11_CLIENT_lastssid, PD11_CLIENT_lastssidcsum, PD11_CLIENT_cdpdev,
 	PD11_CLIENT_cdpport, PD11_CLIENT_dhcphost, PD11_CLIENT_dhcpvendor,
 	PD11_CLIENT_txdatasize, PD11_CLIENT_rxdatasize, PD11_CLIENT_manuf,
+	PD11_CLIENT_eapid,
 	PD11_CLIENT_maxfield
 };
 
@@ -93,6 +95,7 @@ const char *PHYDOT11_CLIENT_text[] = {
 	"lastssid", "lastssidcsum", "cdpdev",
 	"cdpport", "dhcphost", "dhcpvendor",
 	"txdatasize", "rxdatasize", "manuf", 
+	"eapid",
 	NULL
 };
 
@@ -237,7 +240,7 @@ int Protocol_PD11_DEVICE(PROTO_PARMS) {
 			case PD11_DEVICE_cdpdev:
 				scratch = "\001" + dot11dev->cdp_dev_id + "\001";
 				break;
-			case PDP11_DEVICE_cdpport:
+			case PD11_DEVICE_cdpport:
 				scratch = "\001" + dot11dev->cdp_port_id + "\001";
 				break;
 			case PD11_DEVICE_fragments:
@@ -272,6 +275,9 @@ int Protocol_PD11_DEVICE(PROTO_PARMS) {
 				break;
 			case PD11_DEVICE_dhcpvendor:
 				scratch = "\001" + dot11dev->dhcp_vendor + "\001";
+				break;
+			case PD11_DEVICE_eapid:
+				scratch = "\001" + dot11dev->eap_id + "\001";
 				break;
 		}
 
@@ -359,6 +365,9 @@ int Protocol_PD11_CLIENT(PROTO_PARMS) {
 				break;
 			case PD11_CLIENT_manuf:
 				scratch = "\001" + cli->manuf + "\001";
+				break;
+			case PD11_CLIENT_eapid:
+				scratch = "\001" + cli->eap_id + "\001";
 				break;
 		}
 
@@ -1078,6 +1087,12 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 		if (dot11info->subtype == packet_sub_disassociation ||
 			dot11info->subtype == packet_sub_deauthentication)
 			dot11dev->type_set |= dot11_network_ap;
+
+		if (dot11info->subtype == packet_sub_authentication &&
+			dot11info->source_mac == dot11info->bssid_mac)
+			dot11dev->type_set |= dot11_network_ap;
+		else
+			dot11dev->type_set |= dot11_network_client;
 	}
 
 	if (dot11dev->type_set == dot11_network_none)
@@ -1133,7 +1148,8 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 		// It may be the only record (packet came from AP), we'll
 		// test that later to make sure we aren't double counting
 
-		// printf("debug - ap record %p\n", net);
+		// Cryptset changes
+		uint64_t cryptset_old = net->tx_cryptset;
 
 		// Flag distribution
 		if (dot11info->type == packet_data) {
@@ -1152,8 +1168,11 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 			}
 		}
 
-		if (dot11info->decrypted)
+		bool new_decrypted = false;
+		if (dot11info->decrypted) {
+			new_decrypted = true;
 			net->decrypted = 1;
+		}
 
 		if (dot11info->fragmented)
 			net->fragments++;
@@ -1165,6 +1184,24 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 			(dot11info->subtype == packet_sub_disassociation ||
 			 dot11info->subtype == packet_sub_deauthentication))
 			net->client_disconnects++;
+
+		string crypt_update;
+
+		if (cryptset_old != net->tx_cryptset) {
+			crypt_update = StringAppend(crypt_update, 
+										"updated observed data ecryption to " + 
+										CryptToString(net->tx_cryptset));
+		}
+
+		if (new_decrypted) {
+			crypt_update = StringAppend(crypt_update,
+										"began decrypting data",
+										"and");
+		}
+
+		if (crypt_update != "")
+			_MSG("IEEE80211 BSSID " + dot11info->bssid_mac.Mac2String() + " " +
+				 crypt_update, MSGFLAG_INFO);
 
 		net->dirty = 1;
 	} 
@@ -1191,6 +1228,13 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 	} else if (dot11dev != net) {
 		// We're a client packet
 		if (datainfo != NULL) {
+			if (datainfo->proto == proto_eap) {
+				if (datainfo->auxstring != "") {
+					// printf("debug - %s got EAP ID %s\n", dot11info->source_mac.Mac2String().c_str(), datainfo->auxstring.c_str());
+					dot11dev->eap_id = datainfo->auxstring;
+				}
+			}
+
 			if (datainfo->cdp_dev_id != "") {
 				dot11dev->cdp_dev_id = datainfo->cdp_dev_id;
 			}
@@ -1264,6 +1308,13 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 			cli->last_sequence = dot11info->sequence_number;
 
 			if (datainfo != NULL) {
+				if (datainfo->proto == proto_eap) {
+					if (datainfo->auxstring != "") {
+						// printf("debug - client %s on %s got EAP ID %s\n", dot11info->source_mac.Mac2String().c_str(), dot11info->bssid_mac.Mac2String().c_str(), datainfo->auxstring.c_str());
+						cli->eap_id = datainfo->auxstring;
+					}
+				}
+
 				if (datainfo->cdp_dev_id != "") {
 					cli->cdp_dev_id = datainfo->cdp_dev_id;
 				}
@@ -1808,6 +1859,11 @@ void Kis_80211_Phy::ExportLogRecord(kis_tracked_device *in_device, string in_log
 
 			fprintf(in_logfile, "</ssids>\n");
 		}
+
+		fprintf(in_logfile, "<txEncryption>%s</txEncryption>\n",
+				CryptToString(dot11dev->tx_cryptset).c_str());
+		fprintf(in_logfile, "<rxEncryption>%s</rxEncryption>\n",
+				CryptToString(dot11dev->rx_cryptset).c_str());
 		
 		if (dot11dev->cdp_dev_id != "")
 			fprintf(in_logfile, "<cdpDevice>%s</cdpDevice>\n", 
@@ -1815,6 +1871,10 @@ void Kis_80211_Phy::ExportLogRecord(kis_tracked_device *in_device, string in_log
 		if (dot11dev->cdp_port_id != "")
 			fprintf(in_logfile, "<cdpPort>%s</cdpPort>\n", 
 					SanitizeXML(dot11dev->cdp_port_id).c_str());
+
+		if (dot11dev->eap_id != "")
+			fprintf(in_logfile, "<eapIdentity>%s</eapIdentity>\n",
+					SanitizeXML(dot11dev->eap_id).c_str());
 
 		if (dot11dev->dhcp_host != "")
 			fprintf(in_logfile, "<dhcpHost>%s</dhcpHost>\n",
@@ -1873,6 +1933,10 @@ void Kis_80211_Phy::ExportLogRecord(kis_tracked_device *in_device, string in_log
 					fprintf(in_logfile, "<cdpPort>%s</cdpPort>\n", 
 							SanitizeXML(x->second->cdp_port_id).c_str());
 
+				if (x->second->eap_id != "")
+					fprintf(in_logfile, "<eapIdentity>%s</eapIdentity>\n",
+							SanitizeXML(x->second->eap_id).c_str());
+
 				if (x->second->dhcp_host != "")
 					fprintf(in_logfile, "<dhcpHost>%s</dhcpHost>\n",
 							SanitizeXML(x->second->dhcp_host).c_str());
@@ -1910,34 +1974,37 @@ string Kis_80211_Phy::CryptToString(uint64_t cryptset) {
 	if ((cryptset & crypt_protectmask) == crypt_wep)
 		return StringAppend(ret, "WEP");
 
-	if (cryptset & crypt_wpa) {
-		if (cryptset & crypt_psk)
-			ret = StringAppend(ret, "WPA-PSK");
-		else if (cryptset & crypt_peap)
-			ret = StringAppend(ret, "WPA-PEAP");
-		else if (cryptset & crypt_leap)
-			ret = StringAppend(ret, "WPA-LEAP");
-		else if (cryptset & crypt_ttls)
-			ret = StringAppend(ret, "WPA-TTLS");
-		else if (cryptset & crypt_tls)
-			ret = StringAppend(ret, "WPA-TLS");
-		else
-			ret = StringAppend(ret, "WPA");
+	if (cryptset & crypt_wpa)
+		ret = StringAppend(ret, "WPA");
 
-		if (cryptset & crypt_wpa_migmode)
-			ret = StringAppend(ret, "WPA-MIGRATION");
+	if (cryptset & crypt_psk)
+		ret = StringAppend(ret, "WPA-PSK");
 
-		if (cryptset & crypt_wep40)
-			ret = StringAppend(ret, "WEP40");
-		if (cryptset & crypt_wep104)
-			ret = StringAppend(ret, "WEP104");
-		if (cryptset & crypt_tkip)
-			ret = StringAppend(ret, "TKIP");
-		if (cryptset & crypt_aes_ocb)
-			ret = StringAppend(ret, "AES-OCB");
-		if (cryptset & crypt_aes_ccm)
-			ret = StringAppend(ret, "AES-CCMP");
-	} 
+	if (cryptset & crypt_eap)
+		ret = StringAppend(ret, "EAP");
+
+	if (cryptset & crypt_peap)
+		ret = StringAppend(ret, "WPA-PEAP");
+	if (cryptset & crypt_leap)
+		ret = StringAppend(ret, "WPA-LEAP");
+	if (cryptset & crypt_ttls)
+		ret = StringAppend(ret, "WPA-TTLS");
+	if (cryptset & crypt_tls)
+		ret = StringAppend(ret, "WPA-TLS");
+
+	if (cryptset & crypt_wpa_migmode)
+		ret = StringAppend(ret, "WPA-MIGRATION");
+
+	if (cryptset & crypt_wep40)
+		ret = StringAppend(ret, "WEP40");
+	if (cryptset & crypt_wep104)
+		ret = StringAppend(ret, "WEP104");
+	if (cryptset & crypt_tkip)
+		ret = StringAppend(ret, "TKIP");
+	if (cryptset & crypt_aes_ocb)
+		ret = StringAppend(ret, "AES-OCB");
+	if (cryptset & crypt_aes_ccm)
+		ret = StringAppend(ret, "AES-CCMP");
 
 	if (cryptset & crypt_layer3)
 		ret = StringAppend(ret, "Layer 3");
