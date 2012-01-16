@@ -1485,9 +1485,9 @@ void Devicetracker::WriteXML(FILE *in_logfile) {
 					"<seenBySource>\n"
 					"<uuid>%s</uuid>\n",
 					si->first.UUID2String().c_str());
-			fprintf(in_logfile, "<firstTime>%.24s</firstTime>\n",
+			fprintf(in_logfile, "<firstSeen>%.24s</firstSeen>\n",
 					ctime(&(si->second->first_time)));
-			fprintf(in_logfile, "<lastTime>%.24s</lastTime>\n",
+			fprintf(in_logfile, "<lastSeen>%.24s</lastSeen>\n",
 					ctime(&(si->second->last_time)));
 			fprintf(in_logfile, "<packets>%u</packets>\n",
 					si->second->num_packets);
