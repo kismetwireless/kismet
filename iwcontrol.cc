@@ -560,8 +560,7 @@ int Iwconfig_Set_Channel(const char *in_dev, int in_ch, char *in_err) {
 				ret = -1;
 			}
 
-            snprintf(in_err, STATUS_MAX, "Failed to set channel %d: %s", in_ch,
-                     strerror(errno));
+            snprintf(in_err, STATUS_MAX, "%s", strerror(errno));
             close(skfd);
             return ret;
         }
@@ -692,7 +691,7 @@ int Iwconfig_Get_Chanlist(const char *interface, char *errstr,
 	struct iw_range range;
 
 	if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-		snprintf(errstr, STATUS_MAX, "%s: Failed to create ioctl socket on %s: %s",
+		snprintf(errstr, STATUS_MAX, "%s: failed to create ioctl socket on %s: %s",
 				 __FUNCTION__, interface, strerror(errno));
 		return -1;
 	}

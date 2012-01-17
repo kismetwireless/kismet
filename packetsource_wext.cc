@@ -757,10 +757,11 @@ int PacketSource_Wext::SetChannel(unsigned int in_ch) {
 		}
 	}
 
-	_MSG(errstr, MSGFLAG_PRINTERROR);
+	_MSG("Packet source '" + name + "' failed to set channel " + IntToString(in_ch) + 
+		 ": " + errstr, MSGFLAG_PRINTERROR);
 
 	if (err == -22 && use_mac80211) {
-		_MSG("Failed to change channel on interface '" + interface +"' and it looks "
+		_MSG("Failed to change channel on source '" + name +"' and it looks "
 			 "like the device is mac80211 based but does not accept channel control "
 			 "over nl80211.  Kismet will fall back to using the IW* channel "
 			 "methods.", MSGFLAG_PRINTERROR);
@@ -769,7 +770,7 @@ int PacketSource_Wext::SetChannel(unsigned int in_ch) {
 	}
 
 	if (err == -2) {
-		_MSG("Failed to change channel on interface '" + interface +"' and it looks "
+		_MSG("Failed to change channel on source '" + name +"' and it looks "
 			 "like the device has been removed (or the drivers have lost track of "
 			 "it somehow)", MSGFLAG_ERROR);
 		error = 1;
@@ -779,7 +780,7 @@ int PacketSource_Wext::SetChannel(unsigned int in_ch) {
 	int curmode;
 	if (Iwconfig_Get_Mode(interface.c_str(), errstr, &curmode) < 0) {
 		_MSG(errstr, MSGFLAG_PRINTERROR);
-		_MSG("Failed to change channel on interface '" + interface + "' and "
+		_MSG("Failed to change channel on source '" + name + "' and "
 			 "failed to fetch current interface state when determining the "
 			 "cause of the error.  It is likely that the drivers are in a "
 			 "broken or unavailable state.", MSGFLAG_PRINTERROR);
@@ -788,7 +789,7 @@ int PacketSource_Wext::SetChannel(unsigned int in_ch) {
 	}
 
 	if (curmode != LINUX_WLEXT_MONITOR) {
-		_MSG("Failed to change channel on interface '" + interface + "'. " 
+		_MSG("Failed to change channel on source '" + name + "'. " 
 			 "It appears to no longer be in monitor mode.  This can happen if "
 			 "the drivers enter an unknown or broken state, but usually indicate "
 			 "that an external program has changed the device mode.  Make sure no "
