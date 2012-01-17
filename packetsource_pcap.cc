@@ -170,6 +170,10 @@ int PacketSource_Pcap::CloseSource() {
 
 int PacketSource_Pcap::DatalinkType() {
     char errstr[STATUS_MAX] = "";
+
+	if (pd == NULL)
+		return -1;
+
     datalink_type = pcap_datalink(pd);
 
 	// Known good pcap generic header types
