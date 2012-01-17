@@ -152,7 +152,8 @@ int PacketSource_Wext::OpenSource() {
 		return r;
 
 	if (DatalinkType() < 0) {
-		pcap_close(pd);
+		if (pd != NULL)
+			pcap_close(pd);
 		return -1;
 	}
 
@@ -878,7 +879,8 @@ int PacketSource_Madwifi::OpenSource() {
 		return r;
 
 	if (DatalinkType() < 0) {
-		pcap_close(pd);
+		if (pd != NULL)
+			pcap_close(pd);
 		return -1;
 	}
 
@@ -1155,7 +1157,8 @@ int PacketSource_Wrt54Prism::OpenSource() {
 	#endif
 
 	if (DatalinkType() < 0) {
-		pcap_close(pd);
+		if (pd != NULL)
+			pcap_close(pd);
 		return -1;
 	}
 
