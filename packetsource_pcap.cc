@@ -105,7 +105,7 @@ int PacketSource_Pcap::OpenSource() {
 
 	free(unconst);
 
-	if (strlen(errstr) > 0) {
+	if (strlen(errstr) > 0 || pd == NULL) {
 		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
 		return 0;
 	}
@@ -151,7 +151,10 @@ int PacketSource_Pcap::OpenSource() {
 
 	if (strlen(errstr) > 0) {
 		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
-		pcap_close(pd);
+
+		if (pd != NULL)
+			pcap_close(pd);
+
 		return 0;
 	}
 
