@@ -930,7 +930,7 @@ int main(int argc, char *argv[], char *envp[]) {
 
 	}
 
-#ifndef SYS_CYGWIN
+#if !defined(SYS_CYGWIN) && !defined(SYS_ANDROID)
 	// Prep the tuntap device
 	Dumpfile_Tuntap *dtun = new Dumpfile_Tuntap(globalregistry);
 	if (globalregistry->fatal_condition)
@@ -997,7 +997,7 @@ int main(int argc, char *argv[], char *envp[]) {
 #endif
 	}
 
-#ifndef SYS_CYGWIN
+#if !defined(SYS_CYGWIN) && !defined(SYS_ANDROID)
 	// Fire the tuntap device setup now that we've sync'd the IPC system
 	dtun->OpenTuntap();
 #endif
