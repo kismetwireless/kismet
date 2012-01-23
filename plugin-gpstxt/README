@@ -1,0 +1,47 @@
+Kismet-Gpstxt
+
+1.  What is Kismet-Gpstxt
+2.  Compiling
+3.  Installing
+4.  Using
+
+1.  What is Kismet-Gpstxt
+
+    Kismet-Gpstxt is a Kismet plugin which logs GPS data to a simple CSV
+    text file.
+
+2.  Compiling
+
+	Compiling the Kismet-Gpstxt plugin requires the Kismet source be installed
+	and configured.
+
+	By default, Kismet-Gpstxt expects the Kismet source to be in
+	/usr/src/kismet; this can be overridden by setting the
+	KIS_SRC_DIR environment variable:
+
+		cd plugin-gpstxt/
+		KIS_SRC_DIR=/home/foo/src/kismet make
+
+3.  Installing
+
+	Kismet plugins may be installed system-wide in the plugins directory (by
+	default, /usr/local/lib/kismet/) or in the users home directory
+	(~/.kismet/plugins)
+
+    The default installation path can be overridden with the KIS_DEST_DIR
+    variable if you have not installed Kismet in the default location and
+    wish to install the plugin in the system-wide plugins directory:
+        cd plugin-ptw
+        KIS_DEST_DIR=/usr make install
+
+    Plugins can be installed in the current users home directory with:
+        cd plugin-ptw
+        make userinstall
+
+4.  Using
+
+    Once the plugin is loaded and the gpstxt logfile is enabled in the
+    logtypes= stanza (as either the specific name 'gpstxt' or the log class
+    'text'), Kismet will automatically log the GPS coordinates to the
+    'gpstxt' file in the current log path.
+
