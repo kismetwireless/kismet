@@ -27,6 +27,11 @@
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 
+#include "kis_dlt.h"
+#include "kis_dlt_ppi.h"
+#include "kis_dlt_prism2.h"
+#include "kis_dlt_radiotap.h"
+
 #include "phy_80211.h"
 #include "gpscore.h"
 
