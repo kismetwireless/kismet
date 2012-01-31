@@ -420,7 +420,8 @@ int kisptw_datachain_hook(CHAINCALL_PARMS) {
 	}
 
 	// Handle WEP + PTW
-	if (packinfo->cryptset == crypt_wep &&
+	// printf("debug - cryptset %lx modified %lx\n", packinfo->cryptset, packinfo->cryptset & crypt_protectmask);
+	if ((packinfo->cryptset & crypt_protectmask) == crypt_wep &&
 		chunk != NULL && packinfo->header_offset < chunk->length &&
 		chunk->length - packinfo->header_offset > 7) {
 
