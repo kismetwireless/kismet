@@ -440,6 +440,11 @@ GlobalRegistry *globalregistry = NULL;
 
 // Catch our interrupt
 void CatchShutdown(int sig) {
+	if (sig == 0) {
+		kill(getpid(), SIGTERM);
+		return;
+	}
+
     string termstr = "Kismet server terminating.";
 
 	// Eat the child signal handler
