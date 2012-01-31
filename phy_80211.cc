@@ -775,8 +775,21 @@ int Kis_80211_Phy::ClassifierDot11(kis_packet *in_pack) {
 
 	if (dot11info->type == packet_management) {
 		ci->type = packet_basic_mgmt;
-		// We track devices/nets/clients by source mac
-		ci->device = dot11info->source_mac;
+
+		// We track devices/nets/clients by source mac, bssid if source
+		// is impossible
+		if (dot11info->source_mac == globalreg->empty_mac) {
+			if (dot11info->bssid_mac == globalreg->empty_mac) {
+				printf("debug - error\n");
+				ci->error = 1;
+			}
+
+			printf("debug - using bssid");
+			ci->device = dot11info->bssid_mac;
+		} else {
+			ci->device = dot11info->source_mac;
+		}
+
 		ci->device.SetPhy(phyid);
 
 		ci->source = dot11info->source_mac;
@@ -786,8 +799,18 @@ int Kis_80211_Phy::ClassifierDot11(kis_packet *in_pack) {
 		ci->dest.SetPhy(phyid);
 	} else if (dot11info->type == packet_phy) {
 		ci->type = packet_basic_phy;
-		ci->dest = dot11info->dest_mac;
-		ci->dest.SetPhy(phyid);
+		
+		if (dot11info->dest_mac == globalreg->empty_mac) {
+			if (dot11info->source_mac == globalreg->empty_mac) {
+				ci->error = 1;
+			}
+
+			ci->device = dot11info->source_mac;
+		} else {
+			ci->device = dot11info->dest_mac;
+		}
+
+		ci->device.SetPhy(phyid);
 	} else if (dot11info->type == packet_data) {
 		ci->type = packet_basic_data;
 		ci->device = dot11info->source_mac;
@@ -798,13 +821,21 @@ int Kis_80211_Phy::ClassifierDot11(kis_packet *in_pack) {
 
 		ci->dest = dot11info->dest_mac;
 		ci->dest.SetPhy(phyid);
-	} else if (dot11info->type == packet_noise || dot11info->corrupt ||
+	} 
+	
+	if (dot11info->type == packet_noise || dot11info->corrupt ||
 			   in_pack->error || dot11info->type == packet_unknown ||
 			   dot11info->subtype == packet_sub_unknown) {
 		ci->error = 1;
 	}
 
 	ci->datasize = dot11info->datasize;
+
+#if 0
+	if (ci->device == mac_addr(0)) {
+		printf("debug - bad device - %s %s %s %d %d\n", dot11info->source_mac.Mac2String().c_str(), dot11info->dest_mac.Mac2String().c_str(), dot11info->bssid_mac.Mac2String().c_str(), dot11info->type, dot11info->subtype);
+	}
+#endif
 
 	in_pack->insert(pack_comp_common, ci);
 
@@ -1047,22 +1078,29 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 
 		dev->insert(dev_comp_dot11, dot11dev);
 
+		commondev->name = dot11info->source_mac.Mac2String();
+
 		// printf("debug - new dot11dev record for %s\n", dev->key.Mac2String().c_str());
 	}
 
 	if (dot11info->ess) {
 		dot11dev->type_set |= dot11_network_ap;
+		commondev->type_string = "AP";
 	} else if (dot11info->distrib == distrib_from &&
 			   dot11info->type == packet_data) {
 		dot11dev->type_set |= dot11_network_wired;
+		commondev->type_string = "Wired";
 	} else if (dot11info->distrib == distrib_to &&
 			   dot11info->type == packet_data) {
 		dot11dev->type_set |= dot11_network_client;
+		commondev->type_string = "Client";
 	} else if (dot11info->distrib == distrib_inter) {
 		dot11dev->type_set |= dot11_network_wds;
+		commondev->type_string = "WDS";
 	} else if (dot11info->type == packet_management &&
 			   dot11info->subtype == packet_sub_probe_req) {
 		dot11dev->type_set |= dot11_network_client;
+		commondev->type_string = "Client";
 	} else if (dot11info->distrib == distrib_adhoc) {
 		// Throw alert if device changes to adhoc
 		if (!(dot11dev->type_set & dot11_network_adhoc)) {
@@ -1087,16 +1125,22 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 		if (dot11info->subtype == packet_sub_disassociation ||
 			dot11info->subtype == packet_sub_deauthentication)
 			dot11dev->type_set |= dot11_network_ap;
+		commondev->type_string = "AP";
 
 		if (dot11info->subtype == packet_sub_authentication &&
-			dot11info->source_mac == dot11info->bssid_mac)
+			dot11info->source_mac == dot11info->bssid_mac) {
 			dot11dev->type_set |= dot11_network_ap;
-		else
+			commondev->type_string = "AP";
+		} else {
 			dot11dev->type_set |= dot11_network_client;
+			commondev->type_string = "Client";
+		}
 	}
 
-	if (dot11dev->type_set == dot11_network_none)
+	if (dot11dev->type_set == dot11_network_none) {
 		printf("debug - unknown net typeset for bs %s sr %s dt %s type %u sub %u\n", dot11info->bssid_mac.Mac2String().c_str(), dot11info->source_mac.Mac2String().c_str(), dot11info->dest_mac.Mac2String().c_str(), dot11info->type, dot11info->subtype);
+		commondev->type_string = "Unknown";
+	}
 
 	if (dot11dev->type_set & dot11_network_inferred) {
 		// printf("debug - net %s no longer inferred, saw a packet from it\n", dev->key.Mac2String().c_str());
@@ -1189,7 +1233,7 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 
 		if (cryptset_old != net->tx_cryptset) {
 			crypt_update = StringAppend(crypt_update, 
-										"updated observed data ecryption to " + 
+										"updated observed data encryption to " + 
 										CryptToString(net->tx_cryptset));
 		}
 
@@ -1230,7 +1274,6 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 		if (datainfo != NULL) {
 			if (datainfo->proto == proto_eap) {
 				if (datainfo->auxstring != "") {
-					// printf("debug - %s got EAP ID %s\n", dot11info->source_mac.Mac2String().c_str(), datainfo->auxstring.c_str());
 					dot11dev->eap_id = datainfo->auxstring;
 				}
 			}
@@ -1422,6 +1465,7 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 			} else {
 				ssid = si->second;
 			}
+
 		} else if (dot11info->subtype == packet_sub_probe_req) {
 			// If we're a probe, make a probe record
 			map<uint32_t, dot11_ssid *>::iterator si = 
@@ -1679,6 +1723,8 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 			}
 		}
 
+		commondev->name = ssid->ssid;
+
 		if (ssid->ssid_cloaked) {
 			printssidext = " (cloaked)";
 		}
@@ -1798,9 +1844,9 @@ void Kis_80211_Phy::ExportLogRecord(kis_tracked_device *in_device, string in_log
 				 x != dot11dev->ssid_map.end(); ++x) {
 
 				fprintf(in_logfile, "<ssid>\n");
-				fprintf(in_logfile, "<firstSeen>%.24s</firstSeen>\n",
+				fprintf(in_logfile, "<firstTime>%.24s</firstTime>\n",
 						ctime(&(x->second->first_time)));
-				fprintf(in_logfile, "<lastSeen>%.24s</lastSeen>\n",
+				fprintf(in_logfile, "<lastTime>%.24s</lastTime>\n",
 						ctime(&(x->second->last_time)));
 
 				if (x->second->type == dot11_ssid_beacon)
@@ -1899,9 +1945,9 @@ void Kis_80211_Phy::ExportLogRecord(kis_tracked_device *in_device, string in_log
 				 x != dot11dev->client_map.end(); ++x) {
 				fprintf(in_logfile, "<client>\n");
 				fprintf(in_logfile, "<mac>%s</mac>\n", x->second->mac.Mac2String().c_str());
-				fprintf(in_logfile, "<firstSeen>%.24s</firstSeen>\n",
+				fprintf(in_logfile, "<firstTime>%.24s</firstTime>\n",
 						ctime(&(x->second->first_time)));
-				fprintf(in_logfile, "<lastSeen>%.24s</lastSeen>\n",
+				fprintf(in_logfile, "<lastTime>%.24s</lastTime>\n",
 						ctime(&(x->second->last_time)));
 				if (x->second->type == dot11_network_wired) 
 					fprintf(in_logfile, "<type>Wired / Bridged</type>\n");

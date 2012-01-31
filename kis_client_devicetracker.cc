@@ -172,6 +172,17 @@ Client_Phy_Handler *Client_Devicetracker::FetchPhyHandler(int in_phy) {
 	return i->second->handler;
 }
 
+string Client_Devicetracker::FetchPhyName(int in_phy) {
+	map<int, observed_phy *>::iterator i = phy_handler_map.find(in_phy);
+
+	if (i == phy_handler_map.end())
+		return "Unknown";
+
+	// Return name, not handler resolution, incase we don't have a 
+	// client-side plugin enabled for this phy
+	return i->second->phy_name;
+}
+
 int Client_Devicetracker::FetchNumDevices(int in_phy) {
 	int r = 0;
 
@@ -276,6 +287,15 @@ void Client_Devicetracker::NetClientConfigure(KisNetClient *in_cli, int in_recon
 		return;
 	}
 
+	if (in_cli->RegisterProtoHandler("DEVICEDONE", proto_devicedone_fields,
+									 CDT_DEVICEDONE, this) < 0) {
+		_MSG("Could not register *DEVICEDONE sentence; is this an old version of "
+			 "Kismet you're trying to connect to?  Connection will be terminated.", 
+			 MSGFLAG_ERROR);
+		in_cli->KillConnection();
+		return;
+	}
+
 	if (in_cli->RegisterProtoHandler("DEVICE", proto_device_fields,
 									 CDT_DEVICE, this) < 0) {
 		_MSG("Could not register *DEVICE sentence; is this an old version of "
@@ -285,14 +305,6 @@ void Client_Devicetracker::NetClientConfigure(KisNetClient *in_cli, int in_recon
 		return;
 	}
 
-	if (in_cli->RegisterProtoHandler("DEVICEDONE", proto_devicedone_fields,
-									 CDT_DEVICEDONE, this) < 0) {
-		_MSG("Could not register *DEVICEDONE sentence; is this an old version of "
-			 "Kismet you're trying to connect to?  Connection will be terminated.", 
-			 MSGFLAG_ERROR);
-		in_cli->KillConnection();
-		return;
-	}
 }
 
 int Client_Devicetracker::RegisterDevicerxCallback(DeviceRXEnableCB in_callback, void *in_aux) {
@@ -345,15 +357,15 @@ void Client_Devicetracker::Proto_PHYMAP(CLIPROTO_CB_PARMS) {
 		for (unsigned int x = 0; x < unassigned_phy_vec.size(); x++) {
 			if (unassigned_phy_vec[x]->FetchPhyName() == op->phy_name) {
 				op->handler = 
-					unassigned_phy_vec[x]->CreatePhyHandler(globalreg, this, phy_id);
+					unassigned_phy_vec[x]->CreatePhyHandler(globalreg, this, op->phy_id);
 				unassigned_phy_vec.erase(unassigned_phy_vec.begin() + x);
 				break;
 			}
 		}
 
-		phy_handler_map[phy_id] = op;
+		phy_handler_map[op->phy_id] = op;
 
-		phy_device_vec[phy_id] = new vector<kis_tracked_device *>;
+		phy_device_vec[op->phy_id] = new vector<kis_tracked_device *>;
 	} else {
 		op = phmi->second;
 		fnum++;

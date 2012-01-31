@@ -28,6 +28,7 @@
 #include "kis_clinetframe.h"
 #include "kis_panel_widgets.h"
 #include "kis_panel_network.h"
+#include "kis_panel_devicelist.h"
 
 #include "kis_panel_plugin.h"
 
@@ -144,6 +145,7 @@ protected:
 	KisStatusText_Messageclient *statuscli;
 	Kis_Status_Text *statustext;
 	Kis_Netlist *netlist;
+	Kis_Devicelist *devicelist;
 	Kis_Clientlist *clientlist;
 	Kis_Info_Bits *infobits;
 	Kis_Free_Text *sourceinfo, *gpsinfo, *batteryinfo;

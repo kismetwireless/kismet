@@ -253,8 +253,12 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 
 	netlist = new Kis_Netlist(globalreg, this);
 	netlist->SetName("KIS_MAIN_NETLIST");
-	netlist->Show();
+	//netlist->Show();
 	netlist->SetCallback(COMPONENT_CBTYPE_ACTIVATED, NetlistActivateCB, this);
+
+	devicelist = new Kis_Devicelist(globalreg, this);
+	devicelist->SetName("KIS_MAIN_DEVICELIST");
+	devicelist->Show();
 
 	clientlist = new Kis_Clientlist(globalreg, this);
 	clientlist->SetName("KIS_MAIN_CLIENTLIST");
@@ -310,7 +314,8 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	hbox->Pack_End(netbox, 1, 0);
 	hbox->Pack_End(optbox, 0, 0);
 
-	netbox->Pack_End(netlist, 1, 0);
+	//netbox->Pack_End(netlist, 1, 0);
+	netbox->Pack_End(devicelist, 1, 0);
 	netbox->Pack_End(clientlist, 1, 0);
 	netbox->Pack_End(linebox, 0, 0);
 	netbox->Pack_End(packetrate, 0, 0);
@@ -318,7 +323,8 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 
 	vbox->Pack_End(hbox, 1, 0);
 
-	AddComponentVec(netlist, KIS_PANEL_COMP_TAB | KIS_PANEL_COMP_EVT);
+	// AddComponentVec(netlist, KIS_PANEL_COMP_TAB | KIS_PANEL_COMP_EVT);
+	AddComponentVec(devicelist, KIS_PANEL_COMP_TAB | KIS_PANEL_COMP_EVT);
 	AddComponentVec(clientlist, KIS_PANEL_COMP_TAB | KIS_PANEL_COMP_EVT);
 
 	AddComponentVec(vbox, KIS_PANEL_COMP_DRAW);
@@ -365,7 +371,8 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	addref = 
 		kpinterface->Add_NetCli_AddCli_CB(KisMainPanel_AddCli, (void *) this);
 
-	SetActiveComponent(netlist);
+	// SetActiveComponent(netlist);
+	SetActiveComponent(devicelist);
 }
 
 Kis_Main_Panel::~Kis_Main_Panel() {

@@ -30,6 +30,36 @@
 #include "kis_panel_preferences.h"
 #include "kis_client_devicetracker.h"
 
+class kdl_display_device;
+
+#define KDL_COLUMN_PARMS	kdl_display_device *device, void *aux, \
+	GlobalRegistry *globalreg, int columnid, bool header
+typedef string (*KDL_Column_Callback)(KDL_COLUMN_PARMS);
+
+class kdl_display_device {
+public:
+	kis_tracked_device *device;
+	bool dirty;
+};
+
+class kdl_column {
+public:
+	string name;
+	string description;
+
+	// Subcolumns appear in the highlighted details; they're so similar that we
+	// let them use the same storage
+	bool subcolumn;
+
+	int width;
+	KisWidget_LabelPos alignment;
+
+	unsigned int id;
+
+	KDL_Column_Callback callback;
+	void *cb_aux;
+};
+
 class Kis_Devicelist : public Kis_Panel_Component {
 public:
 	Kis_Devicelist() {
@@ -56,19 +86,18 @@ public:
 
 	void DeviceRX(kis_tracked_device *device);
 
+	int RegisterColumn(string in_name, string in_desc, int in_width,
+					   KisWidget_LabelPos in_align, KDL_Column_Callback in_cb,
+					   void *in_aux, bool in_sub);
+	void RemoveColumn(int in_id);
+
+	string CommonColumn(kdl_display_device *in_dev, int columnid, bool header);
+
+	void ParseColumnConfig();
+
 protected:
-	class display_device {
-	public:
-		kis_tracked_device *device;
-		string display_line;
-		string display_aux;
-		bool dirty;
-	};
-
-	vector<display_device *> display_dev_vec;
-	map<mac_addr, display_device *> display_dev_map;
-
-	vector<display_device *> draw_vec;
+	vector<kdl_display_device *> display_dev_vec;
+	map<mac_addr, kdl_display_device *> display_dev_map;
 
 	bool draw_dirty;
 
@@ -77,11 +106,29 @@ protected:
 	KisPanelInterface *kpinterface;
 	Client_Devicetracker *devicetracker;
 
+	// Viewable region for simplification
 	unsigned int viewable_lines, viewable_cols;
+	// Positional 
+	unsigned int first_line, last_line, selected_line;
+	unsigned int hpos;
 
 	int devcomp_ref_common;
 
 	int cli_addref;
+
+	// Possible columns
+	int next_column_id;
+	map<int, kdl_column *> registered_column_map;
+	// Enabled columns
+	vector<kdl_column *> configured_column_vec;
+	vector<kdl_column *> configured_subcolumn_vec;
+	// Vector of devices we're actually eligible for displaying
+	// (post-filter, etc)
+	vector<kdl_display_device *> draw_vec;
+
+	int col_active, col_addr, col_name, col_type, col_basictype, col_packets, col_llc, 
+		col_error, col_data, col_crypt, col_datasize, col_newpackets, col_channel,
+		col_freq, col_alerts, col_manuf, col_phy, col_signal;
 };
 
 

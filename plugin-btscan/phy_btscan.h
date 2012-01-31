@@ -73,7 +73,7 @@ protected:
 	int proto_ref_btscandev;
 
 	// tracked device component
-	int dev_comp_btscan;
+	int dev_comp_btscan, dev_comp_common;
 
 	// Packet components
 	int pack_comp_btscan, pack_comp_common, pack_comp_device;

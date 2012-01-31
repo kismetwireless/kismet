@@ -247,11 +247,11 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
     uint16_t duration = 0;
 
     // 18 bytes of normal address ranges
-    uint8_t *addr0;
-    uint8_t *addr1;
-    uint8_t *addr2;
+    uint8_t *addr0 = NULL;
+    uint8_t *addr1 = NULL;
+    uint8_t *addr2 = NULL;
     // And an optional 6 bytes of address range for ds=0x03 packets
-    uint8_t *addr3;
+    uint8_t *addr3 = NULL;
 
     // We'll fill these in as we go
     packinfo->type = packet_unknown;
@@ -267,6 +267,9 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
 
 	// We always have addr0 even on phy
     addr0 = &(chunk->data[4]);
+	// We may have addr2
+	if (chunk->length >= 16)
+		addr1 = &(chunk->data[10]);
 
 	if (fc->more_fragments)
 		packinfo->fragmented = 1;
@@ -301,8 +304,14 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
 		if (fc->subtype == 10) {
 			packinfo->subtype = packet_sub_pspoll;
 
+            packinfo->source_mac = mac_addr(addr0, PHY80211_MAC_LEN);
+            packinfo->bssid_mac = mac_addr(addr0, PHY80211_MAC_LEN);
+
 		} else if (fc->subtype == 11) {
             packinfo->subtype = packet_sub_rts;
+
+            packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
+            packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
 
         } else if (fc->subtype == 12) {
             packinfo->subtype = packet_sub_cts;

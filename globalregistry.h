@@ -241,7 +241,7 @@ public:
     int filter_export_bssid_invert, filter_export_source_invert,
         filter_export_dest_invert;
    
-    mac_addr broadcast_mac;
+    mac_addr broadcast_mac, empty_mac;
 
     int alert_backlog;
 

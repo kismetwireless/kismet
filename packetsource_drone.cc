@@ -477,8 +477,11 @@ int DroneClientFrame::ParseData() {
 			}
 
 			if (comp_counter >= 8 && src_invalidated == 0 && new_uuid.error == 0) {
-				_MSG("Live-adding pseudo capsources from drones temporarily disabled until "
-					 "rewrite.", MSGFLAG_INFO);
+				_MSG("Saw drone tunneled source " + new_uuid.UUID2String() + " name:" + 
+					namestr + " intf:" + interfacestr, MSGFLAG_INFO);
+
+				_MSG("Live-adding pseudo capsources from drones temporarily disabled "
+					 "until rewrite.", MSGFLAG_INFO);
 #if 0
 				// Make sure the source doesn't exist in the real tracker
 				pst_packetsource *rsrc = 
@@ -548,6 +551,7 @@ int DroneClientFrame::ParseData() {
 #endif
 			}
 		} else if (dcid == DRONE_CMDNUM_CAPPACKET) {
+			// printf("debug - looks like cap packet\n");
 			drone_capture_packet *dcpkt = (drone_capture_packet *) dpkt->data;
 			uint32_t poffst = 0;
 
@@ -556,6 +560,7 @@ int DroneClientFrame::ParseData() {
 			uint32_t cbm = kis_ntoh32(dcpkt->cap_content_bitmap);
 
 			if ((cbm & DRONEBIT(DRONE_CONTENT_RADIO))) {
+				// printf("debug - cbm radio\n");
 				drone_capture_sub_radio *dsr = 
 					(drone_capture_sub_radio *) &(dcpkt->content[poffst]);
 
@@ -635,6 +640,7 @@ int DroneClientFrame::ParseData() {
 			}
 
 			if ((cbm & DRONEBIT(DRONE_CONTENT_GPS))) {
+				// printf("debug - cbm gps\n");
 				drone_capture_sub_gps *dsg = 
 					(drone_capture_sub_gps *) &(dcpkt->content[poffst]);
 
@@ -694,6 +700,7 @@ int DroneClientFrame::ParseData() {
 			}
 
 			if ((cbm & DRONEBIT(DRONE_CONTENT_FCS))) {
+				// printf("debug - cbm fcs\n");
 				kis_packet_checksum *fcschunk = new kis_packet_checksum;
 
 				fcschunk->set_data(&(dcpkt->content[poffst]), 4);
@@ -710,10 +717,13 @@ int DroneClientFrame::ParseData() {
 				// Jump to thend of the capframe
 				poffst = kis_ntoh32(dcpkt->cap_packet_offset);
 
+				// printf("debug - pofft %u\n", poffst);
+
 				drone_capture_sub_data *ds11 = 
 					(drone_capture_sub_data *) &(dcpkt->content[poffst]);
 
 				uint16_t sublen = kis_ntoh16(ds11->data_hdr_len);
+				// printf("debug - data hdr len %u\n", sublen);
 
 				// Make sure our subframe is contained within the larger frame
 				if (poffst + sublen > dplen) {
@@ -738,27 +748,39 @@ int DroneClientFrame::ParseData() {
 				if ((ecbm & DRONEBIT(DRONE_DATA_UUID)) &&
 					(rofft + sizeof(drone_trans_uuid) <= sublen)) {
 					UUID_CONV_DRONE(&(ds11->uuid), new_uuid);
+					// printf("debug - data uuid %s\n", new_uuid.UUID2String().c_str());
 					rofft += sizeof(drone_trans_uuid);
 				}
 				if ((ecbm & DRONEBIT(DRONE_DATA_PACKLEN)) &&
 					(rofft + 2 <= sublen)) {
 					chunk->length = kismin(kis_ntoh16(ds11->packet_len),
 										   (uint32_t) MAX_PACKET_LEN);
+					// printf("debug - data packlen %u offt %u\n", chunk->length, rofft);
 					rofft += 2;
 				}
+
 				if ((ecbm & DRONEBIT(DRONE_DATA_TVSEC)) &&
 					(rofft + 8 <= sublen)) {
+					// printf("debug - data tvsec\n");
 					newpack->ts.tv_sec = kis_ntoh64(ds11->tv_sec);
 					rofft += 8;
+				} else {
+					newpack->ts.tv_sec = globalreg->timestamp.tv_sec;
 				}
+
 				if ((ecbm & DRONEBIT(DRONE_DATA_TVUSEC)) &&
 					(rofft + 8 <= sublen)) {
+					// printf("debug - data usec\n");
 					newpack->ts.tv_usec = kis_ntoh64(ds11->tv_usec);
 					rofft += 8;
+				} else {
+					newpack->ts.tv_usec = globalreg->timestamp.tv_usec;
 				}
+
 				if ((ecbm & DRONEBIT(DRONE_DATA_DLT)) &&
 					(rofft + 4 <= sublen)) {
 					chunk->dlt = kis_ntoh32(ds11->dlt);
+					// printf("debug - dlt offt %u %u\n", rofft, chunk->dlt);
 					rofft += 4;
 				} else {
 					chunk->dlt = KDLT_IEEE802_11;

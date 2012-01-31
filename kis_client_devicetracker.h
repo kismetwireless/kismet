@@ -93,6 +93,7 @@ public:
 	int RegisterDeviceComponent(string in_component);
 
 	Client_Phy_Handler *FetchPhyHandler(int in_phy);
+	string FetchPhyName(int in_phy);
 
 	vector<kis_tracked_device *> *FetchDevices(int in_phy);
 

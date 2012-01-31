@@ -123,6 +123,7 @@ Btscan_Phy::Btscan_Phy(GlobalRegistry *in_globalreg, Devicetracker *in_tracker,
 											CHAINPOS_TRACKER, 100);
 
 	dev_comp_btscan = devicetracker->RegisterDeviceComponent("BTSCAN_DEV");
+	dev_comp_common = devicetracker->RegisterDeviceComponent("COMMON");
 
 	pack_comp_btscan = globalreg->packetchain->RegisterPacketComponent("BTSCAN");
 	pack_comp_common = globalreg->packetchain->RegisterPacketComponent("COMMON");
@@ -175,6 +176,10 @@ int Btscan_Phy::TrackerBtscan(kis_packet *in_pack) {
 	dev = devinfo->devref;
 
 	btscandev = (btscan_dev_component *) dev->fetch(dev_comp_btscan);
+	kis_device_common *commondev = (kis_device_common *) dev->fetch(dev_comp_common);
+
+	if (commondev == NULL)
+		return 0;
 
 	bool newdev = false;
 
@@ -187,6 +192,9 @@ int Btscan_Phy::TrackerBtscan(kis_packet *in_pack) {
 
 	btscandev->bd_name = MungeToPrintable(bti->bd_name);
 	btscandev->bd_class = MungeToPrintable(bti->bd_class);
+
+	commondev->name = btscandev->bd_name;
+	commondev->type_string = "Bluetooth";
 	
 	if (newdev) 
 		_MSG("Detected new discoverable Bluetooth device \"" + 
