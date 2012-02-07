@@ -1974,7 +1974,7 @@ Kis_Console_Panel::Kis_Console_Panel(GlobalRegistry *in_globalreg,
 
 	// Import the existing console
 	constext->SetFollowTail(1);
-	constext->SetMaxText(50);
+	constext->SetMaxText(150);
 	if (kpinterface->FetchServerFramework() == NULL)  {
 		constext->SetText("Kismet server not started (or not started via this client)");
 		textcb = -1;
