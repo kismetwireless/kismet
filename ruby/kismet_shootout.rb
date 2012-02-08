@@ -87,7 +87,7 @@ def sourcecb(proto, fields)
 						hstr = ""
 
 						if $output_type == "pretty"
-							hstr = sprintf("%s  %6.6s %5.5s %8.8s %4.4s", hstr, "", "PPS", "Total", "Pcnt")
+							hstr = sprintf("%s  %6.6s %5.5s %8.8s %4.4s", hstr, "", "PPS", "Packets", "Pcnt")
 
 						else
 							$cards.each { |c|
