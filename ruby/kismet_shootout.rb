@@ -15,6 +15,8 @@ port = 2501
 $cards = []
 $channel = 6
 
+$start_time = 0
+
 # Have not locked cards to a channel yet
 $channel_locked = 0
 # Have not found all the cards we wanted, yet
@@ -51,6 +53,11 @@ def sourcecb(proto, fields)
 		# Once we've seen all the sources we expect to see twice, we start outputting
 		# tracking data
 		if $channel_locked > $cards.length * 2
+			if $start_time == 0
+				$start_time = Time.now.to_i
+				puts "INFO: Started at " + Time.now.inspect
+			end
+
 			if $card_records.include?(fields["uuid"]) and $cards.include?(fields["interface"])
 				# If we've seen this before, start the scan and print cycle
 				r = $card_records[fields["uuid"]]
@@ -88,7 +95,7 @@ def sourcecb(proto, fields)
 							}
 						end
 
-						hstr = sprintf("%s %6.6s", hstr, "Total")
+						hstr = sprintf("%s %6.6s %6.6s", hstr, "Total", "Elpsd")
 
 						puts hstr
 
@@ -133,7 +140,24 @@ def sourcecb(proto, fields)
 							str = sprintf("%s  %6.6s %5.5s %8.8s %3d%%", str, cname, cr[1]["packets"] - cr[1]["last_packets"], cr[1]["packets"], (cr[1]["packets"].to_f / best.to_f) * 100)
 						}
 
-						str = sprintf("%s %6.6s", str, total - lasttotal)
+						t = Time.now.to_i - $start_time
+						tu = ""
+
+						if t > 60*60
+							th = t/60/60
+							tu = "#{th}h"
+							t = t - (th * 3600)
+						end
+						
+						if t > 60
+							tm = t / 60
+							tu += "#{tm}m"
+							t = t - (tm * 60)
+						end
+						
+						tu += "#{t}s"
+
+						str = sprintf("%s %6.6s %6.6s", str, total - lasttotal, tu)
 
 						puts str
 					end
