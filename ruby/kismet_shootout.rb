@@ -247,7 +247,7 @@ if options[:channel]
 		exit
 	end
 
-	channel = options[:channel].to_i
+	$channel = options[:channel].to_i
 end
 
 
