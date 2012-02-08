@@ -129,7 +129,26 @@ def sourcecb(proto, fields)
 							printf("  %6.6s %5.5s %8.8s %3d%%\n", cr[1]["interface"], cr[1]["packets"] - cr[1]["last_packets"], cr[1]["packets"], (cr[1]["packets"].to_f / best.to_f) * 100)
 						}
 
-						printf("  %6.6s %5.5s %8.8s %4.4s %6.6s\n", "", "", "", "", total - lasttotal)
+						t = Time.now.to_i - $start_time
+						tu = ""
+
+						if t > 60*60
+							th = t/60/60
+							tu = "#{th}h"
+							t = t - (th * 3600)
+						end
+						
+						if t > 60
+							tm = t / 60
+							tu += "#{tm}m"
+							t = t - (tm * 60)
+						end
+					
+						if t
+							tu += "#{t}s"
+						end
+
+						printf("  %6.6s %5.5s %8.8s %4.4s %6.6s %6.6s\n", "", "", "", "", total - lasttotal, tu)
 					else
 						$card_records.each { |cr|
 							cr[1]["printed"] = 1
@@ -154,8 +173,10 @@ def sourcecb(proto, fields)
 							tu += "#{tm}m"
 							t = t - (tm * 60)
 						end
-						
-						tu += "#{t}s"
+					
+						if t
+							tu += "#{t}s"
+						end
 
 						str = sprintf("%s %6.6s %6.6s", str, total - lasttotal, tu)
 
