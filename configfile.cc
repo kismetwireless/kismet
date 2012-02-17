@@ -237,17 +237,21 @@ string ConfigFile::ExpandLogPath(string path, string logname, string type,
 			inc = nl;
 			incpad = 1;
 		} else if (op == 'h') { 
-            struct passwd *pw;
+			if (globalreg->homepath == "") {
+				struct passwd *pw;
 
-            pw = getpwuid(getuid());
+				pw = getpwuid(getuid());
 
-            if (pw == NULL) {
-                fprintf(stderr, "ERROR:  Could not explode home directory path, "
-						"getpwuid() failed.\n");
-                exit(1);
-            }
+				if (pw == NULL) {
+					fprintf(stderr, "ERROR:  Could not explode home directory path, "
+							"getpwuid() failed.\n");
+					exit(1);
+				}
 
-            logtemplate.insert(nl, pw->pw_dir);
+				logtemplate.insert(nl, pw->pw_dir);
+			} else {
+				logtemplate.insert(nl, globalreg->homepath);
+			}
         } else if (op == 'p') {
 			string pfx = globalreg->log_prefix;
 

@@ -605,6 +605,8 @@ int Usage(char *argv) {
 		   "     --no-root				  Do not start the kismet_capture binary \n"
 		   "                               when not running as root.  For no-priv \n"
 		   "                               remote capture ONLY.\n"
+		   "     --homedir <path>         Use an alternate path as the home \n"
+		   "                               directory instead of the user entry\n"
 		   );
 
 	printf("\n");
@@ -712,6 +714,7 @@ int main(int argc, char *argv[], char *envp[]) {
 	const int dwc = globalregistry->getopt_long_num++;
 	const int npwc = globalregistry->getopt_long_num++;
 	const int nrwc = globalregistry->getopt_long_num++;
+	const int hdwc = globalregistry->getopt_long_num++;
 
 	// Standard getopt parse run
 	static struct option main_longopt[] = {
@@ -723,6 +726,7 @@ int main(int argc, char *argv[], char *envp[]) {
 		{ "daemonize", no_argument, 0, dwc },
 		{ "no-plugins", no_argument, 0, npwc },
 		{ "no-root", no_argument, 0, nrwc },
+		{ "homedir", required_argument, 0, hdwc },
 		{ 0, 0, 0, 0 }
 	};
 
@@ -755,6 +759,8 @@ int main(int argc, char *argv[], char *envp[]) {
 			plugins = 0;
 		} else if (r == nrwc) {
 			startroot = 0;
+		} else if (r == hdwc) {
+			globalregistry->homepath = string(optarg);
 		}
 	}
 

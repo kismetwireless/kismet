@@ -115,6 +115,10 @@ class Dumpfile_Pcap;
 
 // Define some macros (ew) to shortcut into the vectors we had to build for
 // fast access.  Kids, don't try this at home.
+
+// DEPRECATED... Trying to switch to each component registering by name
+// and finding related component by name.  Try to avoid using _PCM etc
+// in future code
 #define _PCM(x)		globalreg->packetcomp_map[(x)]
 #define _NPM(x)		globalreg->netproto_map[(x)]
 #define _ARM(x)		globalreg->alertref_map[(x)]
@@ -211,6 +215,8 @@ public:
     time_t start_time;
     string servername;
 	struct timeval timestamp;
+
+	string homepath;
 
 	string logname;
 
