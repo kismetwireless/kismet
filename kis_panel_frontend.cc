@@ -664,7 +664,7 @@ void PluginClientSignalHandler(int sig) {
 			"Plugin loading: %s\n\n"
 			"This is either a bug in the plugin, or the plugin needs to be recompiled\n"
 			"to match the version of Kismet you are using (especially if you are using\n"
-			"development versions of Kismet or have recently upgraded.\n\n"
+			"development versions of Kismet or have recently upgraded.)\n\n"
 			"Remove the plugin from the plugins directory to keep it from loading,\n"
 			"or manually edit ~/.kismet/kismet_ui.conf and remove the plugin_autoload\n"
 			"line to stop Kismet from trying to start it.\n\n",
