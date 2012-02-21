@@ -74,6 +74,9 @@ Kis_DLT_Radiotap::~Kis_DLT_Radiotap() {
 	globalreg->InsertGlobal("DLT_RADIOTAP", NULL);
 }
 
+#define ALIGN_OFFSET(offset, width) \
+	    ( (((offset) + ((width) - 1)) & (~((width) - 1))) - offset )
+
 /*
  * Useful combinations of channel characteristics.
  */
@@ -167,6 +170,8 @@ int Kis_DLT_Radiotap::HandlePacket(kis_packet *in_pack) {
 	enum ieee80211_radiotap_type bit;
 	int bit0;
 	const u_char *iter;
+	const u_char *iter_start;
+	unsigned int iter_align;
 	int fcs_cut = 0; // Is the FCS bit set?
 	char errstr[STATUS_MAX];
 
@@ -207,7 +212,7 @@ int Kis_DLT_Radiotap::HandlePacket(kis_packet *in_pack) {
 
 	decapchunk->dlt = KDLT_IEEE802_11;
 	
-    iter = (u_char*)(last_presentp + 1);
+    iter_start = iter = (u_char*)(last_presentp + 1);
 
     for (bit0 = 0, presentp = &hdr->it_present; presentp <= last_presentp;
          presentp++, bit0 += 32) {
@@ -235,6 +240,9 @@ int Kis_DLT_Radiotap::HandlePacket(kis_packet *in_pack) {
                     u.i8 = *iter++;
                     break;
                 case IEEE80211_RADIOTAP_CHANNEL:
+					iter_align = ALIGN_OFFSET((unsigned int) (iter - iter_start), 2);
+					iter += iter_align;
+
                     u.u16 = EXTRACT_LE_16BITS(iter);
                     iter += sizeof(u.u16);
                     u2.u16 = EXTRACT_LE_16BITS(iter);
@@ -244,10 +252,16 @@ int Kis_DLT_Radiotap::HandlePacket(kis_packet *in_pack) {
                 case IEEE80211_RADIOTAP_LOCK_QUALITY:
                 case IEEE80211_RADIOTAP_TX_ATTENUATION:
                 case IEEE80211_RADIOTAP_DB_TX_ATTENUATION:
+					iter_align = ALIGN_OFFSET((unsigned int) (iter - iter_start), 2);
+					iter += iter_align;
+
                     u.u16 = EXTRACT_LE_16BITS(iter);
                     iter += sizeof(u.u16);
                     break;
                 case IEEE80211_RADIOTAP_TSFT:
+					iter_align = ALIGN_OFFSET((unsigned int) (iter - iter_start), 8);
+					iter += iter_align;
+
                     u.u64 = EXTRACT_LE_64BITS(iter);
                     iter += sizeof(u.u64);
                     break;
@@ -268,10 +282,12 @@ int Kis_DLT_Radiotap::HandlePacket(kis_packet *in_pack) {
                     continue;
             }
 
+			// static int pnum = 0;
             switch (bit) {
                 case IEEE80211_RADIOTAP_CHANNEL:
                     // radioheader->channel = ieee80211_mhz2ieee(u.u16, u2.u16);
                     radioheader->freq_mhz = u.u16;
+					// printf("debug - %d freq %u\n", pnum++, radioheader->freq_mhz);
                     if (IEEE80211_IS_CHAN_FHSS(u2.u16))
                         radioheader->carrier = carrier_80211fhss;
                     else if (IEEE80211_IS_CHAN_A(u2.u16))
