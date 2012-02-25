@@ -303,7 +303,8 @@ public:
 class kis_tracked_device;
 
 // Bitfield of basic types a device is classified as.  The device may be multiple
-// of these depending on the phy.
+// of these depending on the phy.  The UI will display them based on the type
+// in the display filter.
 //
 // Generic device.  Everything is a device.  If the phy has no
 // distinguishing factors for classifying it as anything else, this is 
@@ -332,7 +333,7 @@ public:
 	string type_string;
 
 	// Basic phy-neutral type for sorting and classification
-	int basic_type;
+	uint32_t basic_type_set;
 
 	// Time values
 	time_t first_time;
@@ -393,7 +394,7 @@ public:
 	kis_device_common() {
 		device = NULL;
 
-		basic_type = KIS_DEVICE_BASICTYPE_DEVICE;
+		basic_type_set = KIS_DEVICE_BASICTYPE_DEVICE;
 
 		first_time = last_time = 0;
 

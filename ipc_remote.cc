@@ -671,6 +671,9 @@ int IPCRemote::Poll(fd_set& in_rset, fd_set& in_wset) {
 
 	// Process packets out
 	if (FD_ISSET(sock, &in_wset)) {
+		if (CheckPidVec() < 0)
+			return -1;
+
 		// printf("debug - %d %p poll wset\n", getpid(), this);
 		// Send as many frames as we have room for if we're not waiting for an ack
 		while (cmd_buf.size() > 0 && ipc_spawned > 0) {

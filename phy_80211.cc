@@ -780,11 +780,9 @@ int Kis_80211_Phy::ClassifierDot11(kis_packet *in_pack) {
 		// is impossible
 		if (dot11info->source_mac == globalreg->empty_mac) {
 			if (dot11info->bssid_mac == globalreg->empty_mac) {
-				printf("debug - error\n");
 				ci->error = 1;
 			}
 
-			printf("debug - using bssid");
 			ci->device = dot11info->bssid_mac;
 		} else {
 			ci->device = dot11info->source_mac;
@@ -800,16 +798,7 @@ int Kis_80211_Phy::ClassifierDot11(kis_packet *in_pack) {
 	} else if (dot11info->type == packet_phy) {
 		ci->type = packet_basic_phy;
 		
-		if (dot11info->dest_mac == globalreg->empty_mac) {
-			if (dot11info->source_mac == globalreg->empty_mac) {
-				ci->error = 1;
-			}
-
-			ci->device = dot11info->source_mac;
-		} else {
-			ci->device = dot11info->dest_mac;
-		}
-
+		ci->device = dot11info->source_mac;
 		ci->device.SetPhy(phyid);
 	} else if (dot11info->type == packet_data) {
 		ci->type = packet_basic_data;
@@ -1213,7 +1202,7 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 		}
 
 		bool new_decrypted = false;
-		if (dot11info->decrypted) {
+		if (dot11info->decrypted && !net->decrypted) {
 			new_decrypted = true;
 			net->decrypted = 1;
 		}
@@ -1723,7 +1712,7 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 			}
 		}
 
-		commondev->name = ssid->ssid;
+		commondev->name = printssid;
 
 		if (ssid->ssid_cloaked) {
 			printssidext = " (cloaked)";

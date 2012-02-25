@@ -453,13 +453,13 @@ string Kis_Devicelist::CommonColumn(kdl_display_device *in_dev, int in_columnid,
 		if (header) {
 			snprintf(buf, 64, hdr, "Basic");
 		} else {
-			if (common->basic_type == KIS_DEVICE_BASICTYPE_DEVICE)
+			if (common->basic_type_set == KIS_DEVICE_BASICTYPE_DEVICE)
 				snprintf(buf, 64, hdr, "Device");
-			else if (common->basic_type == KIS_DEVICE_BASICTYPE_AP)
+			else if (common->basic_type_set == KIS_DEVICE_BASICTYPE_AP)
 				snprintf(buf, 64, hdr, "AP");
-			else if (common->basic_type == KIS_DEVICE_BASICTYPE_WIRED)
+			else if (common->basic_type_set == KIS_DEVICE_BASICTYPE_WIRED)
 				snprintf(buf, 64, hdr, "Wired");
-			else if (common->basic_type == KIS_DEVICE_BASICTYPE_CLIENT)
+			else if (common->basic_type_set == KIS_DEVICE_BASICTYPE_CLIENT)
 				snprintf(buf, 64, hdr, "Client");
 		}
 	} else if (in_columnid == col_packets) {

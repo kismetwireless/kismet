@@ -584,6 +584,8 @@ KisNetFramework::KisNetFramework(GlobalRegistry *in_globalreg) {
 	// We only know how to set up a tcp server right now
 	if (strncasecmp(srv_proto, "tcp", 10) == 0) {
 		tcpsrv = new TcpServer(globalreg);
+		// Expand the ring buffer size
+		tcpsrv->SetRingSize(100000);
 		tcpsrv->SetupServer(port, maxcli, srv_bindhost, 
 							globalreg->kismet_config->FetchOpt("allowedhosts"));
 		netserver = tcpsrv;

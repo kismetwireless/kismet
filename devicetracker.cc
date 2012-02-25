@@ -118,7 +118,7 @@ int Protocol_KISDEV_COMMON(PROTO_PARMS) {
 				scratch = "\001" + com->type_string + "\001";
 				break;
 			case KISDEV_basictype:
-				scratch = IntToString(com->basic_type);
+				scratch = IntToString(com->basic_type_set);
 				break;
 			case KISDEV_firsttime:
 				scratch = UIntToString(com->first_time);
@@ -1032,6 +1032,12 @@ int Devicetracker::CommonTracker(kis_packet *in_pack) {
 		return 0;
 
 	mac_addr devmac = pack_common->device;
+
+	// If we don't have a usable mac, bail.
+	// TODO maybe change this in the future?  It's kind of phy dependent
+	if (devmac == globalreg->empty_mac)
+		return 0;
+
 	devmac.SetPhy(pack_common->phyid);
 
 	kis_tracked_device *device = NULL;
@@ -1462,11 +1468,11 @@ void Devicetracker::WriteXML(FILE *in_logfile) {
 			fprintf(in_logfile, "<classifiedType>%s</classifiedType>\n",
 					SanitizeXML(com->type_string).c_str());
 
-		if ((com->basic_type & KIS_DEVICE_BASICTYPE_AP))
+		if ((com->basic_type_set & KIS_DEVICE_BASICTYPE_AP))
 			fprintf(in_logfile, "<commonType>ap</commonType>\n");
-		if ((com->basic_type & KIS_DEVICE_BASICTYPE_CLIENT))
+		if ((com->basic_type_set & KIS_DEVICE_BASICTYPE_CLIENT))
 			fprintf(in_logfile, "<commonType>client</commonType>\n");
-		if ((com->basic_type && KIS_DEVICE_BASICTYPE_WIRED))
+		if ((com->basic_type_set && KIS_DEVICE_BASICTYPE_WIRED))
 			fprintf(in_logfile, "<commonType>wired</commonType>\n");
 
 		fprintf(in_logfile, 

@@ -151,9 +151,11 @@ int Protocol_SOURCE(PROTO_PARMS) {
 				break;
 
 			case SOURCE_channel:
+				/*
 				if (psrc->strong_source != NULL)
-					osstr << psrc->strong_source->FetchChannel();
+					osstr << psrc->strong_source->FetchHardwareChannel();
 				else
+				*/
 					osstr << psrc->channel;
 				cache->Cache(fnum, osstr.str());
 				break;
@@ -2094,7 +2096,14 @@ void Packetsourcetracker::SendIPCReport(pst_packetsource *in_source) {
 	report->hop_tm_sec = (uint32_t) in_source->tm_hop_time.tv_sec;
 	report->hop_tm_usec = (uint32_t) in_source->tm_hop_time.tv_usec;
 
-	report->last_channel = in_source->channel;
+	if (in_source->strong_source != NULL) {
+		// printf("debug - drone strong source\n");
+		report->last_channel = in_source->strong_source->FetchChannel();
+	} else {
+		// printf("debug - drone pst\n");
+		report->last_channel = in_source->channel;
+	}
+	// printf("debug - drone report channel %u\n", report->last_channel);
 
 	rootipc->SendIPC(ipc);
 }

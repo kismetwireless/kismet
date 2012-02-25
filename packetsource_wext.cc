@@ -743,15 +743,19 @@ int PacketSource_Wext::SetChannel(unsigned int in_ch) {
 	char errstr[STATUS_MAX];
 	int err = 0;
 
+	// printf("debug - wext - setting channel - %u\n", in_ch);
+
 	// Set and exit if we're ok
 	if (use_mac80211) {
 		if ((err = mac80211_setchannel_cache(interface.c_str(), globalreg->nlhandle, 
 											 nlfamily, in_ch, 0, errstr)) >= 0) {
+			last_channel = in_ch;
 			consec_error = 0;
 			return 1;
 		}
 	} else {
 		if ((err = Iwconfig_Set_Channel(interface.c_str(), in_ch, errstr)) >= 0) {
+			last_channel = in_ch;
 			consec_error = 0;
 			return 1;
 		}

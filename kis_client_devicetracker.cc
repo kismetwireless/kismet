@@ -463,7 +463,7 @@ void Client_Devicetracker::Proto_DEVICE(CLIPROTO_CB_PARMS) {
 
 	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tint) != 1) 
 		goto proto_fail;
-	common->basic_type = tint;
+	common->basic_type_set = tint;
 
 	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%u", &tuint) != 1) 
 		goto proto_fail;

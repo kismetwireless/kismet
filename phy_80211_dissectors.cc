@@ -809,7 +809,9 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
 						}
 
 						// WPA Migration Mode
-						if ((packinfo->cryptset & crypt_tkip) && ((packinfo->cryptset & crypt_wep40) || (packinfo->cryptset & crypt_wep104)) )
+						if ((packinfo->cryptset & crypt_tkip) && 
+							((packinfo->cryptset & crypt_wep40) || 
+							 (packinfo->cryptset & crypt_wep104)) )
 							packinfo->cryptset |= crypt_wpa_migmode;
 
 						// Match auth key components
@@ -1020,31 +1022,6 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
             return 0;
         }
 
-		// WEP/Protected on data frames means encrypted, not WEP, sometimes
-		if (fc->wep) {
-			bool alt_crypt = false;
-			// Either way to be useful it has to be 2+ bytes, so check tkip
-			// and ccmp at the same time
-			if (packinfo->header_offset + 2 < chunk->length) {
-				if (chunk->data[packinfo->header_offset + 2] == 0) {
-					packinfo->cryptset |= crypt_aes_ccm;
-					alt_crypt = true;
-				}  else if (chunk->data[packinfo->header_offset + 1] & 0x20) {
-					packinfo->cryptset |= crypt_tkip;
-					alt_crypt = true;
-				}
-			}  
-		
-			if (!alt_crypt)
-				packinfo->cryptset |= crypt_wep;
-		}
-
-        int datasize = chunk->length - packinfo->header_offset;
-        if (datasize > 0) {
-            packinfo->datasize = datasize;
-			common->datasize = datasize;
-		}
-
         // Extract ID's
         switch (packinfo->distrib) {
         case distrib_adhoc:
@@ -1101,6 +1078,32 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
 		common->dest = packinfo->dest_mac;
 		common->device = packinfo->bssid_mac;
 		common->type = packet_basic_data;
+
+
+		// WEP/Protected on data frames means encrypted, not WEP, sometimes
+		if (fc->wep) {
+			bool alt_crypt = false;
+			// Either way to be useful it has to be 2+ bytes, so check tkip
+			// and ccmp at the same time
+			if (packinfo->header_offset + 2 < chunk->length) {
+				if (chunk->data[packinfo->header_offset + 2] == 0) {
+					packinfo->cryptset |= crypt_aes_ccm;
+					alt_crypt = true;
+				}  else if (chunk->data[packinfo->header_offset + 1] & 0x20) {
+					packinfo->cryptset |= crypt_tkip;
+					alt_crypt = true;
+				}
+			}  
+		
+			if (!alt_crypt)
+				packinfo->cryptset |= crypt_wep;
+		}
+
+        int datasize = chunk->length - packinfo->header_offset;
+        if (datasize > 0) {
+            packinfo->datasize = datasize;
+			common->datasize = datasize;
+		}
 
 	}
 
