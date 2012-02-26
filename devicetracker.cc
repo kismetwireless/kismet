@@ -1196,7 +1196,6 @@ int Devicetracker::PopulateCommon(kis_tracked_device *device, kis_packet *in_pac
 
 		Packinfo_Sig_Combo *sc = new Packinfo_Sig_Combo(pack_l1info, pack_gpsinfo);
 		common->snrdata += *sc;
-		common->gpsdata += pack_gpsinfo;
 
 		if (common->freq_mhz_map.find(pack_l1info->freq_mhz) != 
 			common->freq_mhz_map.end())
@@ -1204,6 +1203,8 @@ int Devicetracker::PopulateCommon(kis_tracked_device *device, kis_packet *in_pac
 		else
 			common->freq_mhz_map[pack_l1info->freq_mhz] = 1;
 	}
+
+	common->gpsdata += pack_gpsinfo;
 
 	// Update seenby records for time, frequency, packets
 	if (pack_capsrc != NULL) {
