@@ -935,7 +935,7 @@ void Kis_Menu::SetMenuVis(int in_menu, int in_vis) {
 	menubar[in_menu]->visible = in_vis;
 }
 
-int Kis_Menu::AddMenuItem(string in_text, int menuid, char extra) {
+int Kis_Menu::AddMenuItem(string in_text, int menuid, char extra, int after) {
 	if (menuid < 0 || menuid > (int) menubar.size() - 1)
 		return -1;
 
@@ -960,7 +960,22 @@ int Kis_Menu::AddMenuItem(string in_text, int menuid, char extra) {
 
 	item->submenu = -1;
 
-	menubar[menuid]->items.push_back(item);
+	if (after >= 0) {
+		bool found = false;
+
+		for (vector<Kis_Menu::_menuitem *>::iterator p = menubar[menuid]->items.begin(); 
+			 p != menubar[menuid]->items.end(); p++) {
+			if ((*p)->id == after) {
+				found = true;
+				menubar[menuid]->items.insert(p, item);
+			}
+		}
+
+		if (!found)
+			menubar[menuid]->items.push_back(item);
+	} else {
+		menubar[menuid]->items.push_back(item);
+	}
 
 	if ((int) in_text.length() > menubar[menuid]->width)
 		menubar[menuid]->width = in_text.length();
@@ -986,6 +1001,22 @@ void Kis_Menu::SetMenuItemChecked(int in_item, int in_checked) {
 		if (menubar[mid]->items[x]->checked > menubar[mid]->checked)
 			menubar[mid]->checked = menubar[mid]->items[x]->checked;
 	}
+}
+
+int Kis_Menu::GetMenuItemChecked(int in_item) {
+	int mid = in_item / 100;
+	int iid = (in_item % 100) - 1;
+
+	if (mid < 0 || mid >= (int) menubar.size())
+		return 0;
+
+	if (iid < 0 || iid > (int) menubar[mid]->items.size())
+		return 0;
+
+	if (menubar[mid]->items[iid]->checked <= 0)
+		return 0;
+
+	return 1;
 }
 
 void Kis_Menu::SetMenuItemColor(int in_item, string in_color) {

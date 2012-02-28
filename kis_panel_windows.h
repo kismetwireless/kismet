@@ -57,6 +57,8 @@ public:
 	virtual int KeyPress(int in_key);
 	virtual int MouseEvent(MEVENT *mevent);
 
+	/* !!! Deprecated - hopefully in the future sub-components will drill down to
+	 * the devicelist via the globalreg MAIN_DEVICELIST */
 	// Passthrough to the display group
 	virtual Kis_Display_NetGroup *FetchSelectedNetgroup();
 	virtual vector<Kis_Display_NetGroup *> *FetchDisplayNetgroupVector();
@@ -131,7 +133,13 @@ protected:
 		mi_sort_packets, mi_sort_packets_d, mi_sort_sdbm;
 	int mn_sort_appended;
 
-	int mn_view, mi_shownetworks, mi_showclients, mi_showsummary, mi_showstatus, 
+	int mn_view, 
+		// It'd be nice if these came from the devicelist module directly but that's a real pain
+		// so we just have direct links
+		mi_viewnetworks, mi_viewdevices, 
+		// Filter submenu
+		mn_filter,
+		mi_shownetworks, mi_showsummary, mi_showstatus, 
 		mi_showgps, mi_showbattery, mi_showpps, mi_showsources;
 	int mn_view_appended;
 
@@ -146,7 +154,6 @@ protected:
 	Kis_Status_Text *statustext;
 	Kis_Netlist *netlist;
 	Kis_Devicelist *devicelist;
-	Kis_Clientlist *clientlist;
 	Kis_Info_Bits *infobits;
 	Kis_Free_Text *sourceinfo, *gpsinfo, *batteryinfo;
 

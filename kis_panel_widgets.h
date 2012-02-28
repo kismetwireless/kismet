@@ -375,12 +375,13 @@ public:
 	virtual void SetMenuVis(int in_menu, int in_vis);
 
 	// Add an item to a menu ID
-	virtual int AddMenuItem(string in_text, int menuid, char extra);
+	virtual int AddMenuItem(string in_text, int menuid, char extra, int after = -1);
 	// Add a submenu item to a menu ID, returns a menu we can add things
 	// to for them to show up in the submenu
 	virtual int AddSubMenuItem(string in_text, int menuid, char extra);
 	// Set an item checkable
 	virtual void SetMenuItemChecked(int in_item, int in_checked);
+	virtual int GetMenuItemChecked(int in_item);
 	// We can't delete, again, but we can hide
 	virtual void SetMenuItemVis(int in_item, int in_vis);
 

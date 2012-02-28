@@ -178,8 +178,14 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	menu->SetMenuItemCheckSymbol(mi_sort_packets_d, '*');
 
 	mn_view = menu->AddMenu("View", 0);
-	mi_shownetworks = menu->AddMenuItem("Network List", mn_view, 'n');
-	mi_showclients = menu->AddMenuItem("Client List", mn_view, 'c');
+	mi_viewnetworks =  menu->AddMenuItem("Display as Networks", mn_view, 0);
+	mi_viewdevices = menu->AddMenuItem("Display as Devices", mn_view, 0);
+	menu->AddMenuItem("-", mn_view, 0);
+
+	menu->SetMenuItemCheckSymbol(mi_viewnetworks, '*');
+	menu->SetMenuItemCheckSymbol(mi_viewdevices, '*');
+
+	mi_shownetworks = menu->AddMenuItem("Device List", mn_view, 'n');
 	mi_showgps = menu->AddMenuItem("GPS Data", mn_view, 'g');
 	mi_showbattery = menu->AddMenuItem("Battery", mn_view, 'b');
 	mi_showsummary = menu->AddMenuItem("General Info", mn_view, 'S');
@@ -260,12 +266,6 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	devicelist->SetName("KIS_MAIN_DEVICELIST");
 	devicelist->Show();
 
-	clientlist = new Kis_Clientlist(globalreg, this);
-	clientlist->SetName("KIS_MAIN_CLIENTLIST");
-	clientlist->FollowDNG(1);
-	clientlist->Show();
-	clientlist->SetCallback(COMPONENT_CBTYPE_ACTIVATED, ClilistActivateCB, this);
-
 	// Set up the packet rate graph as over/under linked to the
 	// packets per second
 	packetrate = new Kis_IntGraph(globalreg, this);
@@ -316,7 +316,6 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 
 	//netbox->Pack_End(netlist, 1, 0);
 	netbox->Pack_End(devicelist, 1, 0);
-	netbox->Pack_End(clientlist, 1, 0);
 	netbox->Pack_End(linebox, 0, 0);
 	netbox->Pack_End(packetrate, 0, 0);
 	netbox->Pack_End(statustext, 0, 0);
@@ -325,7 +324,6 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 
 	// AddComponentVec(netlist, KIS_PANEL_COMP_TAB | KIS_PANEL_COMP_EVT);
 	AddComponentVec(devicelist, KIS_PANEL_COMP_TAB | KIS_PANEL_COMP_EVT);
-	AddComponentVec(clientlist, KIS_PANEL_COMP_TAB | KIS_PANEL_COMP_EVT);
 
 	AddComponentVec(vbox, KIS_PANEL_COMP_DRAW);
 
@@ -1187,7 +1185,8 @@ void Kis_Main_Panel::MenuAction(int opt) {
 			   opt == mi_showbattery ||
 			   opt == mi_showsources ||
 			   opt == mi_shownetworks ||
-			   opt == mi_showclients) {
+			   opt == mi_viewnetworks ||
+			   opt == mi_viewdevices) {
 		UpdateViewMenu(opt);
 	} else if (opt == mi_addcard) {
 		Kis_AddCard_Panel *acp = new Kis_AddCard_Panel(globalreg, kpinterface);
@@ -1357,7 +1356,15 @@ void Kis_Main_Panel::UpdateSortMenu() {
 void Kis_Main_Panel::UpdateViewMenu(int mi) {
 	string opt;
 
-	if (mi == mi_showsummary) {
+	if (mi == mi_viewnetworks && !menu->GetMenuItemChecked(mi_viewnetworks)) {
+		kpinterface->prefs->SetOpt("MAIN_VIEWSTYLE", "network", 1);
+		menu->SetMenuItemChecked(mi_viewnetworks, 1);
+		menu->SetMenuItemChecked(mi_viewdevices, 0);
+	} else if (mi == mi_viewdevices && !menu->GetMenuItemChecked(mi_viewdevices)) {
+		kpinterface->prefs->SetOpt("MAIN_VIEWSTYLE", "device", 1);
+		menu->SetMenuItemChecked(mi_viewnetworks, 0);
+		menu->SetMenuItemChecked(mi_viewdevices, 1);
+	} else if (mi == mi_showsummary) {
 		opt = kpinterface->prefs->FetchOpt("MAIN_SHOWSUMMARY");
 		// if (opt == "" || opt == "true") {
 		if (StringToBool(opt, 1)) {
@@ -1441,21 +1448,21 @@ void Kis_Main_Panel::UpdateViewMenu(int mi) {
 			menu->SetMenuItemChecked(mi_shownetworks, 1);
 			netlist->Show();
 		}
-	} else if (mi == mi_showclients) {
-		opt = kpinterface->prefs->FetchOpt("MAIN_SHOWCLIENTLIST");
-		// if (opt == "true") {
-		if (StringToBool(opt, 1)) {
-			kpinterface->prefs->SetOpt("MAIN_SHOWCLIENTLIST", "false", 1);
-			menu->SetMenuItemChecked(mi_showclients, 0);
-			clientlist->Hide();
-		} else {
-			kpinterface->prefs->SetOpt("MAIN_SHOWCLIENTLIST", "true", 1);
-			menu->SetMenuItemChecked(mi_showclients, 1);
-			clientlist->Show();
-		}
 	}
 
 	if (mi == -1) {
+		opt = kpinterface->prefs->FetchOpt("MAIN_VIEWSTYLE");
+		if (opt == "network") {
+			menu->SetMenuItemChecked(mi_viewnetworks, 1);
+			menu->SetMenuItemChecked(mi_viewdevices, 0);
+		} else if (opt == "device") {
+			menu->SetMenuItemChecked(mi_viewnetworks, 1);
+			menu->SetMenuItemChecked(mi_viewdevices, 0);
+		} else {
+			menu->SetMenuItemChecked(mi_viewnetworks, 1);
+			menu->SetMenuItemChecked(mi_viewdevices, 0);
+		}
+
 		opt = kpinterface->prefs->FetchOpt("MAIN_SHOWSUMMARY");
 		// if (opt == "" || opt == "true") {
 		if (StringToBool(opt, 1)) {
@@ -1524,16 +1531,6 @@ void Kis_Main_Panel::UpdateViewMenu(int mi) {
 		} else {
 			menu->SetMenuItemChecked(mi_shownetworks, 0);
 			netlist->Hide();
-		}
-
-		opt = kpinterface->prefs->FetchOpt("MAIN_SHOWCLIENTLIST");
-		// if (opt == "true") {
-		if (StringToBool(opt, 1)) {
-			menu->SetMenuItemChecked(mi_showclients, 1);
-			clientlist->Show();
-		} else {
-			menu->SetMenuItemChecked(mi_showclients, 0);
-			clientlist->Hide();
 		}
 	}
 }
