@@ -60,6 +60,10 @@ public:
 	void *cb_aux;
 };
 
+// Display mode, filter by networks, or devices, or whatever
+#define KDL_DISPLAY_NETWORKS		0
+#define KDL_DISPLAY_DEVICES			1
+
 class Kis_Devicelist : public Kis_Panel_Component {
 public:
 	Kis_Devicelist() {
@@ -95,6 +99,10 @@ public:
 
 	void ParseColumnConfig();
 
+	void SetViewMode(int in_mode);
+
+	void RefreshDisplayList();
+
 protected:
 	vector<kdl_display_device *> display_dev_vec;
 	map<mac_addr, kdl_display_device *> display_dev_map;
@@ -116,6 +124,10 @@ protected:
 
 	int cli_addref;
 
+	// Filtered display by phy...  phy not present in map implies not filtered,
+	// map indicates positive-filtering (true = not displayed / is filtered)
+	map<int, bool> filter_phy_map;
+
 	// Possible columns
 	int next_column_id;
 	map<int, kdl_column *> registered_column_map;
@@ -129,6 +141,8 @@ protected:
 	int col_active, col_addr, col_name, col_type, col_basictype, col_packets, col_llc, 
 		col_error, col_data, col_crypt, col_datasize, col_newpackets, col_channel,
 		col_freq, col_alerts, col_manuf, col_phy, col_signal;
+
+	int display_mode;
 };
 
 

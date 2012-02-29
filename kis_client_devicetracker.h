@@ -77,6 +77,10 @@ protected:
 	GlobalRegistry *globalreg
 typedef void (*DeviceRXEnableCB)(DEVICERX_PARMS);
 
+// Callback when a *PHYMAP sentence is received and the phy list changes
+#define PHYRX_PARMS int phy_id, void *aux, GlobalRegistry *globalreg
+typedef void (*PhyRXEnableCB)(PHYRX_PARMS);
+
 // This seems like a lot of duplication but I'm not sure how to better handle it
 class Client_Devicetracker {
 public:
@@ -118,8 +122,13 @@ public:
 	void Proto_PHYMAP(CLIPROTO_CB_PARMS);
 	void Proto_DEVICEDONE(CLIPROTO_CB_PARMS);
 
+	// Register a callback to trigger on device updates
 	int RegisterDevicerxCallback(DeviceRXEnableCB in_callback, void *in_aux);
 	void RemoveDevicerxCallback(int in_id);
+
+	// Register a new callback, on new phys only or on any update
+	int RegisterPhyrxCallback(PhyRXEnableCB in_callback, void *in_aux, bool on_any);
+	void RemovePhyrxCallback(int in_id);
 
 protected:
 	class observed_phy {
@@ -140,6 +149,14 @@ protected:
 		int id;
 		DeviceRXEnableCB callback;
 		void *aux;
+	};
+
+	class phyrx_cb_rec {
+	public:
+		int id;
+		PhyRXEnableCB callback;
+		void *aux;
+		bool on_any;
 	};
 
 	GlobalRegistry *globalreg;
@@ -187,6 +204,9 @@ protected:
 
 	vector<devicerx_cb_rec *> devicerx_cb_vec;
 	int next_devicerx_id;
+
+	vector<phyrx_cb_rec *> phyrx_cb_vec;
+	int next_phyrx_id;
 };
 
 #endif

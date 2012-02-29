@@ -106,6 +106,7 @@ Client_Devicetracker::Client_Devicetracker(GlobalRegistry *in_globalreg) {
 	cli_addref = kpi->Add_NetCli_AddCli_CB(CDT_AddCli, (void *) this);
 
 	next_devicerx_id = 1;
+	next_phyrx_id = 1;
 }
 
 Client_Devicetracker::~Client_Devicetracker() {
@@ -324,6 +325,29 @@ void Client_Devicetracker::RemoveDevicerxCallback(int in_id) {
 		if (devicerx_cb_vec[x]->id == in_id) {
 			delete(devicerx_cb_vec[x]);
 			devicerx_cb_vec.erase(devicerx_cb_vec.begin() + x);
+			break;
+		}
+	}
+}
+
+int Client_Devicetracker::RegisterPhyrxCallback(PhyRXEnableCB in_callback, void *in_aux, bool on_any) {
+	phyrx_cb_rec *cbr = new phyrx_cb_rec;
+
+	cbr->id = next_phyrx_id++;
+	cbr->callback = in_callback;
+	cbr->aux = in_aux;
+	cbr->on_any = on_any;
+
+	phyrx_cb_vec.push_back(cbr);
+
+	return cbr->id;
+}
+
+void Client_Devicetracker::RemovePhyrxCallback(int in_id) {
+	for (unsigned int x = 0; x < phyrx_cb_vec.size(); x++) {
+		if (phyrx_cb_vec[x]->id == in_id) {
+			delete(phyrx_cb_vec[x]);
+			phyrx_cb_vec.erase(phyrx_cb_vec.begin() + x);
 			break;
 		}
 	}

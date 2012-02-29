@@ -963,9 +963,18 @@ int Kis_Menu::AddMenuItem(string in_text, int menuid, char extra, int after) {
 	if (after >= 0) {
 		bool found = false;
 
+		int amid = after / 100;
+		int aiid = (after % 100) - 1;
+
+		if (amid < 0 || amid >= (int) menubar.size() || amid != menuid)
+			aiid = -1;
+
+		if (aiid < 0 || aiid > (int) menubar[amid]->items.size())
+			aiid = -1;
+
 		for (vector<Kis_Menu::_menuitem *>::iterator p = menubar[menuid]->items.begin(); 
 			 p != menubar[menuid]->items.end(); p++) {
-			if ((*p)->id == after) {
+			if ((*p)->id == aiid) {
 				found = true;
 				menubar[menuid]->items.insert(p, item);
 			}

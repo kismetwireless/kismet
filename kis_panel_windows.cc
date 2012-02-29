@@ -180,6 +180,7 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	mn_view = menu->AddMenu("View", 0);
 	mi_viewnetworks =  menu->AddMenuItem("Display as Networks", mn_view, 0);
 	mi_viewdevices = menu->AddMenuItem("Display as Devices", mn_view, 0);
+	mn_filter = menu->AddSubMenuItem("Filter", mn_view, 'F');
 	menu->AddMenuItem("-", mn_view, 0);
 
 	menu->SetMenuItemCheckSymbol(mi_viewnetworks, '*');
@@ -1356,14 +1357,28 @@ void Kis_Main_Panel::UpdateSortMenu() {
 void Kis_Main_Panel::UpdateViewMenu(int mi) {
 	string opt;
 
+	// this gets called pretty rarely so we can resolve the devicelist
+	// directly here
+
 	if (mi == mi_viewnetworks && !menu->GetMenuItemChecked(mi_viewnetworks)) {
 		kpinterface->prefs->SetOpt("MAIN_VIEWSTYLE", "network", 1);
 		menu->SetMenuItemChecked(mi_viewnetworks, 1);
 		menu->SetMenuItemChecked(mi_viewdevices, 0);
+
+		Kis_Devicelist *devlist = 
+			(Kis_Devicelist *) globalreg->FetchGlobal("MAIN_DEVICELIST");
+		if (devlist != NULL)
+			devlist->SetViewMode(KDL_DISPLAY_NETWORKS);
+
 	} else if (mi == mi_viewdevices && !menu->GetMenuItemChecked(mi_viewdevices)) {
 		kpinterface->prefs->SetOpt("MAIN_VIEWSTYLE", "device", 1);
 		menu->SetMenuItemChecked(mi_viewnetworks, 0);
 		menu->SetMenuItemChecked(mi_viewdevices, 1);
+
+		Kis_Devicelist *devlist = 
+			(Kis_Devicelist *) globalreg->FetchGlobal("MAIN_DEVICELIST");
+		if (devlist != NULL)
+			devlist->SetViewMode(KDL_DISPLAY_DEVICES);
 	} else if (mi == mi_showsummary) {
 		opt = kpinterface->prefs->FetchOpt("MAIN_SHOWSUMMARY");
 		// if (opt == "" || opt == "true") {

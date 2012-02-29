@@ -116,6 +116,15 @@ Kis_Devicelist::Kis_Devicelist(GlobalRegistry *in_globalreg, Kis_Panel *in_panel
 							   LABEL_POS_LEFT, KDL_Common_Column_Cb, this, false);
 
 	ParseColumnConfig();
+
+	string viewmode = kpinterface->prefs->FetchOpt("MAIN_VIEWSTYLE");
+
+	if (viewmode == "network")
+		display_mode = KDL_DISPLAY_NETWORKS;
+	else if (viewmode == "device")
+		display_mode = KDL_DISPLAY_DEVICES;
+	else
+		display_mode = KDL_DISPLAY_NETWORKS;
 }
 
 void Kis_Devicelist::ParseColumnConfig() {
@@ -153,6 +162,14 @@ Kis_Devicelist::~Kis_Devicelist() {
 	kpinterface->Remove_All_Netcli_Conf_CB(KDL_ConfigureCli);
 }
 
+void Kis_Devicelist::SetViewMode(int in_mode) {
+	if (in_mode != display_mode) {
+		display_mode = in_mode;
+		draw_dirty = 1;
+		RefreshDisplayList();
+	}
+}
+
 void Kis_Devicelist::NetClientAdd(KisNetClient *in_cli, int add) {
 	// TODO figure out how to resolve PHY#s on reconnect
 	if (add == 0)
@@ -183,6 +200,24 @@ void Kis_Devicelist::DeviceRX(kis_tracked_device *device) {
 
 		display_dev_map[device->key] = dd;
 		display_dev_vec.push_back(dd);
+
+		// Determine if we put it in our draw vec
+		kis_device_common *common =
+			(kis_device_common *) device->fetch(devcomp_ref_common);
+
+		// No common?  Fail
+		if (common == NULL) {
+			// fprintf(stderr, "debug - DeviceRX no common\n");
+			return;
+		}
+
+		// Don't add it to our device list if it's not a network
+		// If we're in device mode we get everything so don't filter
+		if (display_mode == KDL_DISPLAY_NETWORKS &&
+			!(common->basic_type_set & KIS_DEVICE_BASICTYPE_AP)) {
+			// fprintf(stderr, "debug - Devicerx display network, type not network\n");
+			return;
+		}
 
 		draw_vec.push_back(dd);
 	} else {
@@ -307,7 +342,6 @@ void Kis_Devicelist::DrawComponent() {
 		last_line = x;
 
 	}
-
 }
 
 void Kis_Devicelist::Activate(int subcomponent) {
@@ -545,6 +579,36 @@ string Kis_Devicelist::CommonColumn(kdl_display_device *in_dev, int in_columnid,
 	}
 
 	return buf;
+}
+
+void Kis_Devicelist::RefreshDisplayList() {
+	draw_vec.clear();
+
+	fprintf(stderr, "debug - refreshing display list for view mode %d\n",
+			display_mode);
+
+	for (unsigned int x = 0; x < display_dev_vec.size(); x++) {
+		// Determine if we put it in our draw vec
+		kis_device_common *common =
+			(kis_device_common *) display_dev_vec[x]->device->fetch(devcomp_ref_common);
+
+		// No common?  Fail
+		if (common == NULL) {
+			fprintf(stderr, "debug - refresh, no common, skipping\n");
+			continue;
+		}
+
+		// Don't add it to our device list if it's not a network
+		// Devices get everything
+		if (display_mode == KDL_DISPLAY_NETWORKS &&
+			!(common->basic_type_set & KIS_DEVICE_BASICTYPE_AP)) {
+			fprintf(stderr, "debug - network refresh, not an AP, skipping\n");
+			continue;
+		}
+
+		draw_vec.push_back(display_dev_vec[x]);
+		display_dev_vec[x]->dirty = 1;
+	}
 }
 
 

@@ -1153,6 +1153,15 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 		build_net = false;
 	}
 
+	// Flag the AP as an AP
+	if (apdev != NULL) {
+		kis_device_common *apcommon = 
+			(kis_device_common *) apdev->fetch(dev_comp_common);
+
+		if (apcommon != NULL)
+			apcommon->basic_type_set |= KIS_DEVICE_BASICTYPE_AP;
+	}
+
 	// If we need to make a network, it's because we're talking to a bssid
 	// that isn't visible/hasn't yet been seen.  We make it as an inferred
 	// device.
@@ -1172,8 +1181,9 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 		else
 			net->type_set |= dot11_network_ap;
 
-		if (apdev != NULL)
+		if (apdev != NULL) {
 			apdev->insert(dev_comp_dot11, net);
+		}
 	}
 
 	if (net != NULL) {
