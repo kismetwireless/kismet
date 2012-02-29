@@ -584,8 +584,7 @@ string Kis_Devicelist::CommonColumn(kdl_display_device *in_dev, int in_columnid,
 void Kis_Devicelist::RefreshDisplayList() {
 	draw_vec.clear();
 
-	fprintf(stderr, "debug - refreshing display list for view mode %d\n",
-			display_mode);
+	// fprintf(stderr, "debug - refreshing display list for view mode %d\n", display_mode);
 
 	for (unsigned int x = 0; x < display_dev_vec.size(); x++) {
 		// Determine if we put it in our draw vec
@@ -594,7 +593,7 @@ void Kis_Devicelist::RefreshDisplayList() {
 
 		// No common?  Fail
 		if (common == NULL) {
-			fprintf(stderr, "debug - refresh, no common, skipping\n");
+			// fprintf(stderr, "debug - refresh, no common, skipping\n");
 			continue;
 		}
 
@@ -602,7 +601,7 @@ void Kis_Devicelist::RefreshDisplayList() {
 		// Devices get everything
 		if (display_mode == KDL_DISPLAY_NETWORKS &&
 			!(common->basic_type_set & KIS_DEVICE_BASICTYPE_AP)) {
-			fprintf(stderr, "debug - network refresh, not an AP, skipping\n");
+			// fprintf(stderr, "debug - network refresh, not an AP, skipping\n");
 			continue;
 		}
 
