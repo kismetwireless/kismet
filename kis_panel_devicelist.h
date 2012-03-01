@@ -89,6 +89,7 @@ public:
 	void Proto_TIME();
 
 	void DeviceRX(kis_tracked_device *device);
+	void PhyRX(int phy_id);
 
 	int RegisterColumn(string in_name, string in_desc, int in_width,
 					   KisWidget_LabelPos in_align, KDL_Column_Callback in_cb,
@@ -103,13 +104,15 @@ public:
 
 	void RefreshDisplayList();
 
+	void FilterMenuAction(int menuitem);
+
 protected:
 	vector<kdl_display_device *> display_dev_vec;
 	map<mac_addr, kdl_display_device *> display_dev_map;
 
 	bool draw_dirty;
 
-	int newdevref;
+	int newdevref, newphyref;
 
 	KisPanelInterface *kpinterface;
 	Client_Devicetracker *devicetracker;
@@ -126,7 +129,11 @@ protected:
 
 	// Filtered display by phy...  phy not present in map implies not filtered,
 	// map indicates positive-filtering (true = not displayed / is filtered)
+	// When there is only one entry in the filter map, we do not filter.  This
+	// prevents the user from seeing the only visible data in weird situatons
 	map<int, bool> filter_phy_map;
+	// Map of menu IDs to phy IDs
+	map<int, int> menu_phy_map;
 
 	// Possible columns
 	int next_column_id;
@@ -143,6 +150,9 @@ protected:
 		col_freq, col_alerts, col_manuf, col_phy, col_signal;
 
 	int display_mode;
+
+	Kis_Menu *menu;
+	int mn_filter;
 };
 
 

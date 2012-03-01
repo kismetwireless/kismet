@@ -364,6 +364,8 @@ void Client_Devicetracker::Proto_PHYMAP(CLIPROTO_CB_PARMS) {
 	int phy_id;
 	int tint;
 
+	bool new_phy = false;
+
 	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &phy_id) != 1)
 		return;
 
@@ -371,6 +373,8 @@ void Client_Devicetracker::Proto_PHYMAP(CLIPROTO_CB_PARMS) {
 	observed_phy *op = NULL;
 
 	if ((phmi = phy_handler_map.find(phy_id)) == phy_handler_map.end()) {
+		new_phy = true;
+
 		op = new observed_phy();
 
 		op->phy_id = phy_id;
@@ -416,6 +420,12 @@ void Client_Devicetracker::Proto_PHYMAP(CLIPROTO_CB_PARMS) {
 		return;
 	phy_packetdelta[phy_id] = tint;
 
+	for (unsigned int x = 0; x < phyrx_cb_vec.size(); x++) {
+		if (!phyrx_cb_vec[x]->on_any && !new_phy)
+			continue;
+
+		(*(phyrx_cb_vec[x]->callback))(phy_id, phyrx_cb_vec[x]->aux, globalreg);
+	}
 }
 
 void Client_Devicetracker::Proto_DEVICE(CLIPROTO_CB_PARMS) {

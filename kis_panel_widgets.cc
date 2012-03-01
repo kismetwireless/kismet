@@ -1215,16 +1215,20 @@ void Kis_Menu::DrawMenu(_menu *menu, WINDOW *win, int hpos, int vpos) {
 	// Resize the menu window, taking invisible items into account, also
 	// figure out the offset for any checked or disabled items
 	for (unsigned int y = 0; y < menu->items.size(); y++) {
-		if (menu->items[y]->visible) {
-			dsz++;
-
-			if (menu->items[y]->checked > -1)
-				width_add_check = 3;
-
-			if (menu->items[y]->enabled < 1)
-				width_add_en = 2;
-
+		if (menu->items[y]->visible == 0 ||
+			(menu->items[y]->submenu > 0 &&
+			 menubar[menu->items[y]->submenu]->visible == 0)) {
+			continue;
 		}
+
+		dsz++;
+
+		if (menu->items[y]->checked > -1)
+			width_add_check = 3;
+
+		if (menu->items[y]->enabled < 1)
+			width_add_en = 2;
+
 	}
 
 	mod_width = menu->width + 5 + width_add_check + width_add_en;
@@ -1243,8 +1247,11 @@ void Kis_Menu::DrawMenu(_menu *menu, WINDOW *win, int hpos, int vpos) {
 	for (unsigned int y = 0; y < menu->items.size(); y++) {
 		string menuline;
 
-		if (menu->items[y]->visible == 0)
+		if (menu->items[y]->visible == 0 ||
+			(menu->items[y]->submenu > 0 &&
+			 menubar[menu->items[y]->submenu]->visible == 0)) {
 			continue;
+		}
 
 		// Shortcut out a spacer
 		if (menu->items[y]->text[0] == '-') {
@@ -1383,7 +1390,10 @@ void Kis_Menu::FindNextEnabledItem() {
 	int looped = 0;
 
 	// Handle disabled and spacer items
-	if (menubar[cur_menu]->items[cur_item]->enabled == 0) {
+	if (menubar[cur_menu]->items[cur_item]->enabled == 0 ||
+		menubar[cur_menu]->items[cur_item]->visible == 0 ||
+		(menubar[cur_menu]->items[cur_item]->submenu > 0 &&
+		 menubar[menubar[cur_menu]->items[cur_item]->submenu]->visible == 0)) {
 		// find the next enabled item
 		for (int i = cur_item; i <= (int) menubar[cur_menu]->items.size(); i++) {
 			// Loop
@@ -1397,8 +1407,11 @@ void Kis_Menu::FindNextEnabledItem() {
 				break;
 			}
 
-			if (menubar[cur_menu]->items[i]->visible == 0)
+			if (menubar[cur_menu]->items[i]->visible == 0 ||
+				(menubar[cur_menu]->items[i]->submenu > 0 &&
+				 menubar[menubar[cur_menu]->items[i]->submenu]->visible == 0)) {
 				continue;
+			}
 
 			if (menubar[cur_menu]->items[i]->enabled) {
 				cur_item = i;
@@ -1412,8 +1425,11 @@ void Kis_Menu::FindPrevEnabledItem() {
 	int looped = 0;
 
 	// Handle disabled and spacer items
-	if (menubar[cur_menu]->items[cur_item]->enabled == 0) {
-		// find the next enabled item
+	if (menubar[cur_menu]->items[cur_item]->enabled == 0 ||
+		menubar[cur_menu]->items[cur_item]->visible == 0 ||
+		(menubar[cur_menu]->items[cur_item]->submenu > 0 &&
+		 menubar[menubar[cur_menu]->items[cur_item]->submenu]->visible == 0)) {
+		// find the prev enabled item
 		for (int i = cur_item; i >= -1; i--) {
 			// Loop
 			if (i < 0) {
@@ -1426,8 +1442,11 @@ void Kis_Menu::FindPrevEnabledItem() {
 				break;
 			}
 
-			if (menubar[cur_menu]->items[i]->visible == 0)
+			if (menubar[cur_menu]->items[i]->visible == 0 ||
+				(menubar[cur_menu]->items[i]->submenu > 0 &&
+				 menubar[menubar[cur_menu]->items[i]->submenu]->visible == 0)) {
 				continue;
+			}
 
 			if (menubar[cur_menu]->items[i]->enabled) {
 				cur_item = i;
@@ -1788,49 +1807,6 @@ int Kis_Menu::MouseEvent(MEVENT *mevent) {
 			Deactivate();
 			return -1;
 		}
-
-#if 0
-		int hpos = 3;
-		int ypos = sy + 2;
-		for (unsigned int x = 0; x < (unsigned int) (cur_menu + 1); x++) {
-			if (menubar[x]->submenu || menubar[x]->visible == 0)
-				continue;
-
-			if (mevent->x < hpos)
-				break;
-
-			hpos += menubar[x]->text.length() + 1;
-
-			if (mevent->x <= hpos + (int) menubar[x]->text.length()) {
-				for (unsigned int y = 0; y < menubar[x]->items.size(); y++) {
-					if (menubar[x]->items[y]->visible == 0)
-						continue;
-					 
-					if (menubar[x]->items[y]->text[0] == '-') {
-						ypos++;
-						continue;
-					}
-
-					if (ypos == mevent->y) {
-						if (menubar[x]->items[y]->enabled == 0)
-							return -1;
-
-						// Trigger the item
-						if (cb_activate != NULL)
-							(*cb_activate)(this, (cur_menu * 100) + y + 1,
-										   cb_activate_aux, globalreg);
-
-						Deactivate();
-
-						return (cur_menu * 100) + y + 1;
-					}
-
-					ypos++;
-				}
-			}
-		}
-
-#endif
 
 	}
 

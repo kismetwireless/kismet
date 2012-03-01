@@ -41,9 +41,16 @@ void KDL_ConfigureCli(CLICONF_CB_PARMS) {
 	((Kis_Devicelist *) auxptr)->NetClientConfigure(kcli, recon);
 }
 
-void kdl_devicerx_hook(kis_tracked_device *device, void *aux, 
-					   GlobalRegistry *globalreg) {
+void KDL_DeviceRX(DEVICERX_PARMS) {
 	((Kis_Devicelist *) aux)->DeviceRX(device);
+}
+
+void KDL_PhyRX(PHYRX_PARMS) {
+	((Kis_Devicelist *) aux)->PhyRX(phy_id);
+}
+
+void KDL_FilterMenuCB(MENUITEM_CB_PARMS) {
+	((Kis_Devicelist *) auxptr)->FilterMenuAction(menuitem);
 }
 
 string KDL_Common_Column_Cb(KDL_COLUMN_PARMS) {
@@ -70,7 +77,10 @@ Kis_Devicelist::Kis_Devicelist(GlobalRegistry *in_globalreg, Kis_Panel *in_panel
 
 	draw_dirty = false;
 
-	newdevref = devicetracker->RegisterDevicerxCallback(kdl_devicerx_hook, this);
+	// Get new devices
+	newdevref = devicetracker->RegisterDevicerxCallback(KDL_DeviceRX, this);
+	// Get new phys but not phy updates
+	newphyref = devicetracker->RegisterPhyrxCallback(KDL_PhyRX, this, false);
 
 	viewable_lines = 0;
 	viewable_cols = 0;
@@ -117,7 +127,7 @@ Kis_Devicelist::Kis_Devicelist(GlobalRegistry *in_globalreg, Kis_Panel *in_panel
 
 	ParseColumnConfig();
 
-	string viewmode = kpinterface->prefs->FetchOpt("MAIN_VIEWSTYLE");
+	string viewmode = StrLower(kpinterface->prefs->FetchOpt("MAIN_VIEWSTYLE"));
 
 	if (viewmode == "network")
 		display_mode = KDL_DISPLAY_NETWORKS;
@@ -125,6 +135,13 @@ Kis_Devicelist::Kis_Devicelist(GlobalRegistry *in_globalreg, Kis_Panel *in_panel
 		display_mode = KDL_DISPLAY_DEVICES;
 	else
 		display_mode = KDL_DISPLAY_NETWORKS;
+
+	// We now resolve via the globalreg name-resolution
+	menu = (Kis_Menu *) globalreg->FetchGlobal("KISUI_MAIN_MENU");
+	mn_filter = menu->FindMenu("Filter");
+
+	// Don't show the filter menu until we have multiple phy types
+	menu->SetMenuVis(mn_filter, 0);
 }
 
 void Kis_Devicelist::ParseColumnConfig() {
@@ -158,6 +175,7 @@ void Kis_Devicelist::ParseColumnConfig() {
 Kis_Devicelist::~Kis_Devicelist() {
 	globalreg->InsertGlobal("MAIN_DEVICELIST", NULL);
 	devicetracker->RemoveDevicerxCallback(newdevref);
+	devicetracker->RemovePhyrxCallback(newphyref);
 	kpinterface->Remove_Netcli_AddCli_CB(cli_addref);
 	kpinterface->Remove_All_Netcli_Conf_CB(KDL_ConfigureCli);
 }
@@ -214,15 +232,43 @@ void Kis_Devicelist::DeviceRX(kis_tracked_device *device) {
 		// Don't add it to our device list if it's not a network
 		// If we're in device mode we get everything so don't filter
 		if (display_mode == KDL_DISPLAY_NETWORKS &&
-			!(common->basic_type_set & KIS_DEVICE_BASICTYPE_AP)) {
+			(common->basic_type_set & KIS_DEVICE_BASICTYPE_AP) == 0) {
 			// fprintf(stderr, "debug - Devicerx display network, type not network\n");
 			return;
 		}
 
+		// Add it to the list of networks we consider for display
 		draw_vec.push_back(dd);
 	} else {
 		ddmi->second->dirty = 1;
 	}
+}
+
+void Kis_Devicelist::PhyRX(int phy_id) {
+	string phyname = devicetracker->FetchPhyName(phy_id);
+
+	if (phyname == "") {
+		_MSG("KDL got new phy but empty phyname", MSGFLAG_ERROR);
+		return;
+	}
+
+	// If we've never seen this phyname or we want to show it, set the
+	// filter map to 0 to allow it
+	if (kpinterface->prefs->FetchOptBoolean("DEVICEFILTER_" + phyname, 1)) {
+		filter_phy_map[phy_id] = false;
+	} else {
+		filter_phy_map[phy_id] = true;
+	}
+
+	if (filter_phy_map.size() > 1)
+		menu->SetMenuVis(mn_filter, 1);
+
+	int mi_filteritem = 
+		menu->AddMenuItem(phyname, mn_filter, 0);
+
+	menu->SetMenuItemChecked(mi_filteritem, !(filter_phy_map[phy_id]));
+	
+	menu->SetMenuItemCallback(mi_filteritem, KDL_FilterMenuCB, this);
 }
 
 int Kis_Devicelist::RegisterColumn(string in_name, string in_desc, 
@@ -610,6 +656,9 @@ void Kis_Devicelist::RefreshDisplayList() {
 	}
 }
 
+void Kis_Devicelist::FilterMenuAction(int menuitem) {
+	_MSG("Filter menu item", MSGFLAG_INFO);
+}
 
 #endif // ncurses
 

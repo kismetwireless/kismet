@@ -101,7 +101,10 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 							   KisPanelInterface *in_intf) : 
 	Kis_Panel(in_globalreg, in_intf) {
 
+	globalreg->InsertGlobal("KISUI_MAIN_PANEL", this);
+
 	menu = new Kis_Menu(globalreg, this);
+	globalreg->InsertGlobal("KISUI_MAIN_MENU", menu);
 
 	menu->SetCallback(COMPONENT_CBTYPE_ACTIVATED, MenuActivateCB, this);
 
@@ -1466,13 +1469,13 @@ void Kis_Main_Panel::UpdateViewMenu(int mi) {
 	}
 
 	if (mi == -1) {
-		opt = kpinterface->prefs->FetchOpt("MAIN_VIEWSTYLE");
+		opt = StrLower(kpinterface->prefs->FetchOpt("MAIN_VIEWSTYLE"));
 		if (opt == "network") {
 			menu->SetMenuItemChecked(mi_viewnetworks, 1);
 			menu->SetMenuItemChecked(mi_viewdevices, 0);
 		} else if (opt == "device") {
-			menu->SetMenuItemChecked(mi_viewnetworks, 1);
-			menu->SetMenuItemChecked(mi_viewdevices, 0);
+			menu->SetMenuItemChecked(mi_viewnetworks, 0);
+			menu->SetMenuItemChecked(mi_viewdevices, 1);
 		} else {
 			menu->SetMenuItemChecked(mi_viewnetworks, 1);
 			menu->SetMenuItemChecked(mi_viewdevices, 0);
