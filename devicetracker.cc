@@ -638,6 +638,14 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) {
 	// Create the global kistxt and kisxml logfiles
 	new Dumpfile_Devicetracker(globalreg, "kistxt", "text");
 	new Dumpfile_Devicetracker(globalreg, "kisxml", "xml");
+
+	// Set up the persistent tag conf file
+	// Build the config file
+	conf_save = globalreg->timestamp.tv_sec;
+
+	tag_conf = new ConfigFile(globalreg);
+	tag_conf->ParseConfig(tag_conf->ExpandLogPath(globalreg->kismet_config->FetchOpt("configdir") + "/" + "tag.conf", "", "", 0, 1).c_str());
+	
 }
 
 Devicetracker::~Devicetracker() {
@@ -1117,7 +1125,7 @@ kis_tracked_device *Devicetracker::BuildDevice(mac_addr in_device,
 
 		device->phy_type = pack_common->phyid;
 
-		// TODO load tags
+		// Defer tag loading to when we populate the common record
 
 		tracked_map[device->key] = device;
 		tracked_vec.push_back(device);
@@ -1150,6 +1158,15 @@ int Devicetracker::PopulateCommon(kis_tracked_device *device, kis_packet *in_pac
 	if (pack_common == NULL)
 		return 0;
 
+	// We shouldn't have ever been able to get this far w/out having a phy
+	// handler since we wouldn't know the phy id
+	Kis_Phy_Handler *handler = FetchPhyHandler(pack_common->phyid);
+	if (handler == NULL) {
+		_MSG("DeviceTracker failed to populate common because we couldn't find "
+			 "a matching phy handler", MSGFLAG_ERROR);
+		return 0;
+	}
+
 	// Mark it dirty
 	if (device->dirty == 0) {
 		device->dirty = 1;
@@ -1170,6 +1187,22 @@ int Devicetracker::PopulateCommon(kis_tracked_device *device, kis_packet *in_pac
 
 		if (globalreg->manufdb != NULL) 
 			common->manuf = globalreg->manufdb->LookupOUI(device->key);
+
+		// Load persistent tags
+		string tag = handler->FetchPhyName() + device->key.Mac2String();
+
+		vector<string> tfl = tag_conf->FetchOptVec(tag);
+
+		vector<smart_word_token> tflp;
+		for (unsigned int x = 0; x < tfl.size(); x++) {
+			tflp = NetStrTokenize(tfl[x], ",");
+
+			if (tflp.size() != 2)
+				continue;
+
+			common->arb_tag_map[tflp[0].word] = tflp[1].word;
+		}
+
 	}
 
 	common->packets++;
@@ -1730,10 +1763,65 @@ void Devicetracker::SetDeviceTag(mac_addr in_device, string in_tag, string in_da
 }
 
 void Devicetracker::ClearDeviceTag(mac_addr in_device, string in_tag) {
+	kis_tracked_device *dev = FetchDevice(in_device);
+	kis_device_common *com = NULL;
+	Kis_Phy_Handler *handler = FetchPhyHandler(in_device.GetPhy());
 
+	if (handler == NULL)
+		return;
+
+	if (dev == NULL)
+		return;
+
+	if ((com = (kis_device_common *) dev->fetch(devcomp_ref_common)) == NULL)
+		return;
+
+	map<string, string>::iterator si;
+
+	if ((si = com->arb_tag_map.find(in_tag)) != com->arb_tag_map.end()) {
+		// Set the content to "" so the client gets an update
+		si->second = "";
+
+		if (dev->dirty == 0) {
+			dev->dirty = 1;
+			dirty_device_vec.push_back(dev);
+		}
+
+		string tag = handler->FetchPhyName() + in_device.Mac2String();
+
+		vector<string> tfl = tag_conf->FetchOptVec(tag);
+		vector<smart_word_token> tflp;
+
+		for (unsigned int x = 0; x < tfl.size(); x++) {
+			tflp = NetStrTokenize(tfl[x], ",");
+
+			if (tflp.size() != 2)
+				continue;
+
+			if (tflp[0].word == in_tag) {
+				tfl.erase(tfl.begin() + x);
+				tag_conf->SetOptVec(tag, tfl, globalreg->timestamp.tv_sec);
+				break;
+			}
+		}
+	}
 }
 
 string Devicetracker::FetchDeviceTag(mac_addr in_device, string in_tag) {
+	kis_tracked_device *dev = FetchDevice(in_device);
+	kis_device_common *com = NULL;
 
+	if (dev == NULL)
+		return "";
+
+	if ((com = (kis_device_common *) dev->fetch(devcomp_ref_common)) == NULL)
+		return "";
+
+	map<string, string>::iterator si;
+
+	if ((si = com->arb_tag_map.find(in_tag)) != com->arb_tag_map.end())
+		return si->second;
+
+	return "";
 }
 

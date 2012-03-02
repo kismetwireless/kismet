@@ -269,6 +269,10 @@ void Kis_Devicelist::PhyRX(int phy_id) {
 	menu->SetMenuItemChecked(mi_filteritem, !(filter_phy_map[phy_id]));
 	
 	menu->SetMenuItemCallback(mi_filteritem, KDL_FilterMenuCB, this);
+
+	// Link menu ID to phy ID
+	menu_phy_map[mi_filteritem] = phy_id;
+
 }
 
 int Kis_Devicelist::RegisterColumn(string in_name, string in_desc, 
@@ -657,7 +661,11 @@ void Kis_Devicelist::RefreshDisplayList() {
 }
 
 void Kis_Devicelist::FilterMenuAction(int menuitem) {
-	_MSG("Filter menu item", MSGFLAG_INFO);
+	map<int, int>::iterator mpmi =
+		menu_phy_map.find(menuitem);
+
+	if (mpmi != menu_phy_map.end())
+		_MSG("Filter menu Phy# " + IntToString(mpmi->second), MSGFLAG_INFO);
 }
 
 #endif // ncurses
