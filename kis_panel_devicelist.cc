@@ -664,8 +664,25 @@ void Kis_Devicelist::FilterMenuAction(int menuitem) {
 	map<int, int>::iterator mpmi =
 		menu_phy_map.find(menuitem);
 
-	if (mpmi != menu_phy_map.end())
+	menu->SetMenuItemChecked(menuitem, !(menu->GetMenuItemChecked(menuitem)));
+
+	if (mpmi != menu_phy_map.end()) {
 		_MSG("Filter menu Phy# " + IntToString(mpmi->second), MSGFLAG_INFO);
+		int set;
+		
+		set = filter_phy_map[mpmi->second] = !(menu->GetMenuItemChecked(menuitem));
+
+		string phyname = devicetracker->FetchPhyName(mpmi->second);
+
+		if (phyname == "") {
+			_MSG("KDL filter menu empty phyname", MSGFLAG_ERROR);
+			return;
+		}
+
+		// Set the preference
+		kpinterface->prefs->SetOpt("DEVICEFILTER_" + phyname, 
+								   set ? "false" : "true", 1);
+	}
 }
 
 #endif // ncurses
