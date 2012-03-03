@@ -237,12 +237,14 @@ void Kis_Devicelist::DeviceRX(kis_tracked_device *device) {
 			return;
 		}
 
-		// See if we're filtered
-		map<int, bool>::iterator fpmi =
-			filter_phy_map.find(device->phy_type);
-		if (fpmi != filter_phy_map.end() &&
-			fpmi->second)
-			return;
+		// See if we're filtered, but only if we have more than one phy
+		if (filter_phy_map.size() > 1) {
+			map<int, bool>::iterator fpmi =
+				filter_phy_map.find(device->phy_type);
+			if (fpmi != filter_phy_map.end() &&
+				fpmi->second)
+				return;
+		}
 
 		// Add it to the list of networks we consider for display
 		draw_vec.push_back(dd);
@@ -680,12 +682,15 @@ void Kis_Devicelist::RefreshDisplayList() {
 			continue;
 		}
 
-		// See if we're filtered
-		map<int, bool>::iterator fpmi =
-			filter_phy_map.find(display_dev_vec[x]->device->phy_type);
-		if (fpmi != filter_phy_map.end() &&
-			fpmi->second)
-			continue;
+		// See if we're filtered, but only if we have more than one phy
+		// so we can't filter the only phy the server has
+		if (filter_phy_map.size() > 1) {
+			map<int, bool>::iterator fpmi =
+				filter_phy_map.find(display_dev_vec[x]->device->phy_type);
+			if (fpmi != filter_phy_map.end() &&
+				fpmi->second)
+				continue;
+		}
 
 		draw_vec.push_back(display_dev_vec[x]);
 		display_dev_vec[x]->dirty = 1;
