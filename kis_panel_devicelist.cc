@@ -237,6 +237,13 @@ void Kis_Devicelist::DeviceRX(kis_tracked_device *device) {
 			return;
 		}
 
+		// See if we're filtered
+		map<int, bool>::iterator fpmi =
+			filter_phy_map.find(device->phy_type);
+		if (fpmi != filter_phy_map.end() &&
+			fpmi->second)
+			return;
+
 		// Add it to the list of networks we consider for display
 		draw_vec.push_back(dd);
 	} else {
@@ -354,6 +361,24 @@ void Kis_Devicelist::DrawComponent() {
 
 	Kis_Panel_Specialtext::Mvwaddnstr(window, sy, sx, hdr.c_str(), 
 									  lx - 1, parent_panel);
+
+	if (kpinterface->FetchNetClient() == NULL) {
+		mvwaddnstr(window, sy + 2, sx + 1, 
+				   "[ --- Not connected to a Kismet server --- ]", lx);
+		return;
+	} else if (display_dev_vec.size() == 0) {
+		mvwaddnstr(window, sy + 2, sx + 1, 
+				   "[ --- No devices seen by Kismet --- ]", 
+				   ex - sx);
+		return;
+	}
+
+	if (draw_vec.size() == 0 && display_dev_vec.size() != 0) {
+		Kis_Panel_Specialtext::Mvwaddnstr(window, sy + 2, sx + 1, 
+			"[ --- All devices filtered, change filtering with View->Filter --- ]", 
+										  lx - 1, parent_panel);
+		return;
+	}
 
 	unsigned int dy = 0;
 	string display_line;
@@ -655,6 +680,13 @@ void Kis_Devicelist::RefreshDisplayList() {
 			continue;
 		}
 
+		// See if we're filtered
+		map<int, bool>::iterator fpmi =
+			filter_phy_map.find(display_dev_vec[x]->device->phy_type);
+		if (fpmi != filter_phy_map.end() &&
+			fpmi->second)
+			continue;
+
 		draw_vec.push_back(display_dev_vec[x]);
 		display_dev_vec[x]->dirty = 1;
 	}
@@ -682,6 +714,8 @@ void Kis_Devicelist::FilterMenuAction(int menuitem) {
 		// Set the preference
 		kpinterface->prefs->SetOpt("DEVICEFILTER_" + phyname, 
 								   set ? "false" : "true", 1);
+
+		RefreshDisplayList();
 	}
 }
 
