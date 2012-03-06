@@ -188,7 +188,8 @@ string ConfigFile::ExpandLogPath(string path, string logname, string type,
             time_t tnow;
             struct tm *now;
 
-            tnow = time(0);
+            // tnow = time(0);
+			tnow = globalreg->start_time;
             now = localtime(&tnow);
 
             char datestr[24];
@@ -200,7 +201,8 @@ string ConfigFile::ExpandLogPath(string path, string logname, string type,
             time_t tnow;
             struct tm *now;
 
-            tnow = time(0);
+            // tnow = time(0);
+			tnow = globalreg->start_time;
             now = localtime(&tnow);
 
             char datestr[24];
@@ -211,7 +213,8 @@ string ConfigFile::ExpandLogPath(string path, string logname, string type,
             time_t tnow;
             struct tm *now;
 
-            tnow = time(0);
+            // tnow = time(0);
+			tnow = globalreg->start_time;
             now = localtime(&tnow);
 
             char timestr[12];
@@ -222,7 +225,8 @@ string ConfigFile::ExpandLogPath(string path, string logname, string type,
             time_t tnow;
             struct tm *now;
 
-            tnow = time(0);
+            // tnow = time(0);
+			tnow = globalreg->start_time;
             now = localtime(&tnow);
 
             char timestr[12];
