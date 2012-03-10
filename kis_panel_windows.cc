@@ -607,7 +607,7 @@ void Kis_Main_Panel::LoadAudioPrefs() {
 
 	if (kpinterface->prefs->FetchOpt("SOUNDPREFIX") == "") 
 		kpinterface->prefs->SetOpt("SOUNDPREFIX", 
-								   string(DATA_LOC) + "/kismet/wav", 1);
+								   string(DATA_LOC) + "/sounds/kismet/", 1);
 	sound_prefix = kpinterface->prefs->FetchOpt("SOUNDPREFIX");
 
 	vector<string> sndpref = kpinterface->prefs->FetchOptVec("SOUND");

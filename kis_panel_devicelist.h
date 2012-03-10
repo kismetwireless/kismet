@@ -118,9 +118,9 @@ protected:
 	Client_Devicetracker *devicetracker;
 
 	// Viewable region for simplification
-	unsigned int viewable_lines, viewable_cols;
+	int viewable_lines, viewable_cols;
 	// Positional 
-	unsigned int first_line, last_line, selected_line;
+	int first_line, last_line, selected_line;
 	unsigned int hpos;
 
 	int devcomp_ref_common;
@@ -153,6 +153,10 @@ protected:
 
 	Kis_Menu *menu;
 	int mn_filter;
+
+	int sort_mode;
+
+	time_t last_mouse_click;
 };
 
 

@@ -382,7 +382,7 @@ void Kis_Devicelist::DrawComponent() {
 		return;
 	}
 
-	unsigned int dy = 0;
+	int dy = 0;
 	string display_line;
 	for (unsigned int x = first_line; dy < viewable_lines && 
 		 x < draw_vec.size(); x++) {
@@ -390,8 +390,8 @@ void Kis_Devicelist::DrawComponent() {
 		display_line = " ";
 
 		for (unsigned int c = hpos; c < configured_column_vec.size(); c++) {
-			if (display_line.length() + 
-				configured_column_vec[c]->width > viewable_cols)
+			if ((int) (display_line.length() + 
+					   configured_column_vec[c]->width) > viewable_cols)
 				break;
 
 			display_line += 
@@ -406,14 +406,14 @@ void Kis_Devicelist::DrawComponent() {
 
 		dy++;
 
-		if (selected_line == x && active)
+		if (selected_line == (int) x && active)
 			wattron(window, WA_REVERSE);
 
 		Kis_Panel_Specialtext::Mvwaddnstr(window, sy + dy, sx, 
 										  display_line, 
 										  lx - 1, parent_panel);
 
-		if (selected_line == x && active)
+		if (selected_line == (int) x && active)
 			wattroff(window, WA_REVERSE);
 
 		last_line = x;
@@ -453,7 +453,7 @@ int Kis_Devicelist::KeyPress(int in_key) {
 		// If we're at the bottom and can go further, slide the selection
 		// and the first line down
 		if (selected_line == last_line &&
-			last_line < draw_vec.size() - 1) {
+			last_line < (int) draw_vec.size() - 1) {
 			selected_line++;
 			first_line++;
 		} else if (selected_line != last_line) {
@@ -475,13 +475,78 @@ int Kis_Devicelist::KeyPress(int in_key) {
 			// just move the selected line up
 			selected_line--;
 		}
+	} else if (in_key == KEY_PPAGE) {
+		if (selected_line < 0 || selected_line > last_line) {
+			selected_line = first_line;
+			_MSG("OOB, selected=first, " + IntToString(selected_line), MSGFLAG_INFO);
+			return 0;
+		}
+	
+		_MSG("setting first,  " + IntToString( kismax(0, first_line - viewable_lines)) + " first: " + IntToString(first_line) + " viewable: " + IntToString(viewable_lines), MSGFLAG_INFO);
+		first_line = kismax(0, first_line - viewable_lines);
+		selected_line = first_line;
+	} else if (in_key == KEY_NPAGE) {
+		if (selected_line < 0 || selected_line > last_line) {
+			selected_line = first_line;
+			return 0;
+		}
+
+		first_line = kismin((int) draw_vec.size() - 1, 
+							first_line + viewable_lines);
+		selected_line = first_line;
 	}
 
 	return 0;
 }
 
 int Kis_Devicelist::MouseEvent(MEVENT *mevent) {
-	return 0;
+	int mwx, mwy;
+	getbegyx(window, mwy, mwx);
+
+	mwx = mevent->x - mwx;
+	mwy = mevent->y - mwy;
+
+	// Not in our bounds at all
+	if ((mevent->bstate != 4 && mevent->bstate != 8) || 
+		mwy < sy || mwy > ey || mwx < sx || mwx > ex)
+		return 0;
+
+	// Not in a selectable mode, we consume it but do nothing
+//	if (sort_mode == netsort_autofit)
+//		return 1;
+//
+	// Modify coordinates to be inside the widget
+	mwy -= sy;
+
+	int vpos = first_line + mwy - 1; 
+
+	if ((int) selected_line < vpos)
+		vpos--;
+
+	if (vpos < 0 || vpos > (int) draw_vec.size())
+		return 1;
+
+	// Double-click, trigger the activation callback
+	/*
+	if ((last_mouse_click - globalreg->timestamp.tv_sec < 1 &&
+		 selected_line == vpos) || mevent->bstate == 8) {
+		if (cb_activate != NULL) 
+			(*cb_activate)(this, 1, cb_activate_aux, globalreg);
+		return 1;
+	}
+	*/
+
+	last_mouse_click = globalreg->timestamp.tv_sec;
+
+	// Otherwise select it and center the network list on it
+	selected_line = vpos;
+
+	first_line = selected_line - (ly / 2);
+
+	if (first_line < 0)
+		first_line = 0;
+
+	return 1;
 }
 
 void Kis_Devicelist::SetPosition(int isx, int isy, int iex, int iey) {
@@ -662,6 +727,8 @@ void Kis_Devicelist::RefreshDisplayList() {
 	draw_vec.clear();
 
 	// fprintf(stderr, "debug - refreshing display list for view mode %d\n", display_mode);
+	
+	first_line = selected_line = 0;
 
 	for (unsigned int x = 0; x < display_dev_vec.size(); x++) {
 		// Determine if we put it in our draw vec

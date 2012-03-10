@@ -26,10 +26,10 @@ $(SRVOUT):	$(SRVOBJS)
 	$(LD) $(PLUGINLDFLAGS) $(SRVOBJS) -o $(SRVOUT) $(LIBS)
 
 install:	$(SRVOUT) 
-	mkdir -p $(LIB)/kismet/
-	install -o $(INSTUSR) -g $(INSTGRP) -m 644 $(SRVOUT) $(LIB)/kismet/$(SRVOUT)
-	mkdir -p $(LIB)/kismet_client/
-	install -o $(INSTUSR) -g $(INSTGRP) -m 644 $(CLIOUT) $(LIB)/kismet_client/$(CLIOUT)
+	mkdir -p $(DESTDIR)/$(plugindir)
+	install -o $(INSTUSR) -g $(INSTGRP) -m 644 $^ $(DESTDIR)/$(plugindir)/$(SRVOUT)
+	mkdir -p $(DESTDIR)/$(plugindir)_client
+	install -o $(INSTUSR) -g $(INSTGRP) -m 644 $^ $(DESTDIR)/$(plugindir)_client/$(CLIOUT)
 
 userinstall:	$(SRVOUT) 
 	mkdir -p ${HOME}/.kismet/plugins/
