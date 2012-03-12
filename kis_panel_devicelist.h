@@ -64,6 +64,14 @@ public:
 #define KDL_DISPLAY_NETWORKS		0
 #define KDL_DISPLAY_DEVICES			1
 
+// Color slots in the array
+#define KDL_COLOR_NORMAL			0
+#define KDL_COLOR_CRYPT				1
+#define KDL_COLOR_DECRYPT			2
+#define KDL_COLOR_HEADER			3
+#define KDL_COLOR_INSECURE			4
+#define KDL_COLOR_MAX				5
+
 class Kis_Devicelist : public Kis_Panel_Component {
 public:
 	Kis_Devicelist() {
@@ -105,6 +113,8 @@ public:
 	void RefreshDisplayList();
 
 	void FilterMenuAction(int menuitem);
+
+	void SpawnColorPrefWindow();
 
 protected:
 	vector<kdl_display_device *> display_dev_vec;
@@ -152,11 +162,16 @@ protected:
 	int display_mode;
 
 	Kis_Menu *menu;
-	int mn_filter;
+	int mn_filter, mn_preferences;
+	int mi_colorpref;
 
 	int sort_mode;
 
 	time_t last_mouse_click;
+
+	// Allocated arrays
+	int color_map[KDL_COLOR_MAX];
+	int color_inactive;
 };
 
 

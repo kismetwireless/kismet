@@ -53,6 +53,10 @@ void KDL_FilterMenuCB(MENUITEM_CB_PARMS) {
 	((Kis_Devicelist *) auxptr)->FilterMenuAction(menuitem);
 }
 
+void KDL_ColorMenuCB(MENUITEM_CB_PARMS) {
+	((Kis_Devicelist *) auxptr)->SpawnColorPrefWindow();
+}
+
 string KDL_Common_Column_Cb(KDL_COLUMN_PARMS) {
 	return ((Kis_Devicelist *) aux)->CommonColumn(device, columnid, header);
 }
@@ -142,6 +146,18 @@ Kis_Devicelist::Kis_Devicelist(GlobalRegistry *in_globalreg, Kis_Panel *in_panel
 
 	// Don't show the filter menu until we have multiple phy types
 	menu->SetMenuVis(mn_filter, 0);
+
+	mn_preferences = menu->FindMenu("Preferences");
+
+	mi_colorpref = 
+		menu->AddMenuItem("Device Colors", mn_preferences, 0);
+
+	menu->SetMenuItemCallback(mi_colorpref, KDL_ColorMenuCB, this);
+
+	for (int x = 0; x < KDL_COLOR_MAX; x++)
+		color_map[x] = 0;
+	color_inactive = 0;
+
 }
 
 void Kis_Devicelist::ParseColumnConfig() {
@@ -338,10 +354,27 @@ void Kis_Devicelist::DrawComponent() {
 	if (visible == 0)
 		return;
 
-	/*
-	Kis_Panel_Specialtext::Mvwaddnstr(window, sy, sx, "\004uDevice list\004U", 
-									  lx - 1, parent_panel);
-									  */
+	parent_panel->ColorFromPref(color_inactive, "panel_textdis_color");
+
+	parent_panel->InitColorPref("devlist_normal_color", "green,black");
+	parent_panel->ColorFromPref(color_map[KDL_COLOR_NORMAL],
+								"devlist_normal_color");
+
+	parent_panel->InitColorPref("devlist_crypt_color", "yellow,black");
+	parent_panel->ColorFromPref(color_map[KDL_COLOR_CRYPT],
+								"devlist_crypt_color");
+
+	parent_panel->InitColorPref("devlist_decrypt_color", "hi-magenta,black");
+	parent_panel->ColorFromPref(color_map[KDL_COLOR_DECRYPT],
+								"devlist_decrypt_color");
+
+	parent_panel->InitColorPref("devlist_header_color", "blue,black");
+	parent_panel->ColorFromPref(color_map[KDL_COLOR_HEADER],
+								"devlist_header_color");
+
+	parent_panel->InitColorPref("devlist_insecure_color", "red,black");
+	parent_panel->ColorFromPref(color_map[KDL_COLOR_INSECURE],
+								"devlist_insecure_color");
 
 	string hdr = " ";
 
@@ -361,8 +394,14 @@ void Kis_Devicelist::DrawComponent() {
 			"\004U ";
 	}
 
+	if (active)
+		wattrset(window, color_map[KDL_COLOR_HEADER]);
+
 	Kis_Panel_Specialtext::Mvwaddnstr(window, sy, sx, hdr.c_str(), 
 									  lx - 1, parent_panel);
+
+	if (active)
+		wattrset(window, color_map[KDL_COLOR_NORMAL]);
 
 	if (kpinterface->FetchNetClient() == NULL) {
 		mvwaddnstr(window, sy + 2, sx + 1, 
@@ -789,6 +828,18 @@ void Kis_Devicelist::FilterMenuAction(int menuitem) {
 
 		RefreshDisplayList();
 	}
+}
+
+void Kis_Devicelist::SpawnColorPrefWindow() {
+	Kis_ColorPref_Panel *cpp = new Kis_ColorPref_Panel(globalreg, kpinterface);
+
+	cpp->AddColorPref("devlist_normal_color", "Normal device");
+	cpp->AddColorPref("devlist_crypt_color", "Encrypted device");
+	cpp->AddColorPref("devlist_decrypt_color", "Decrypted device");
+	cpp->AddColorPref("devlist_header_color", "Column titles");
+	cpp->AddColorPref("devlist_insecure_color", "Insecure device");
+
+	kpinterface->AddPanel(cpp);
 }
 
 #endif // ncurses
