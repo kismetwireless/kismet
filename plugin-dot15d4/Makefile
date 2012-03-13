@@ -26,7 +26,7 @@ $(SRVOUT):	$(SRVOBJS)
 
 install:	$(SRVOUT) $(CLIOUT)
 	mkdir -p $(DESTDIR)/$(plugindir)
-	install -o $(INSTUSR) -g $(INSTGRP) -m 644 $^ $(DESTDIR)/$(plugindir)/$(SRVOUT)
+	install -o $(INSTUSR) -g $(INSTGRP) -m 644 $(SRVOUT) $(DESTDIR)/$(plugindir)/$(SRVOUT)
 
 userinstall:	$(SRVOUT) $(CLIOUT)
 	mkdir -p ${HOME}/.kismet/plugins/
