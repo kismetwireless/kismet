@@ -42,7 +42,8 @@
 #include "dumpfile_devicetracker.h"
 
 enum KISDEV_COMMON_FIELDS {
-	KISDEV_phytype, KISDEV_macaddr, KISDEV_name, KISDEV_typestring, KISDEV_basictype,
+	KISDEV_phytype, KISDEV_macaddr, KISDEV_name, KISDEV_typestring, 
+	KISDEV_basictype, KISDEV_basiccrypt,
 	KISDEV_firsttime, KISDEV_lasttime,
 	KISDEV_packets, KISDEV_llcpackets, KISDEV_errorpackets,
 	KISDEV_datapackets, KISDEV_cryptpackets, KISDEV_filterpackets,
@@ -63,7 +64,8 @@ enum KISDEV_COMMON_FIELDS {
 };
 
 const char *KISDEV_common_text[] = {
-	"phytype", "macaddr", "name", "typestring", "basictype", 
+	"phytype", "macaddr", "name", "typestring", 
+	"basictype", "basiccrypt",
 	"firsttime", "lasttime",
 	"packets", "llcpackets", "errorpackets",
 	"datapackets", "cryptpackets", "filterpackets",
@@ -119,6 +121,9 @@ int Protocol_KISDEV_COMMON(PROTO_PARMS) {
 				break;
 			case KISDEV_basictype:
 				scratch = IntToString(com->basic_type_set);
+				break;
+			case KISDEV_basiccrypt:
+				scratch = IntToString(com->basic_crypt_set);
 				break;
 			case KISDEV_firsttime:
 				scratch = UIntToString(com->first_time);
@@ -527,7 +532,7 @@ int Protocol_KISDEV_STRING(PROTO_PARMS) {
 }
 
 int Devicetracker_Timer(TIMEEVENT_PARMS) {
-	return ((Devicetracker *) parm)->TimerKick();
+	return ((Devicetracker *) auxptr)->TimerKick();
 }
 
 int Devicetracker_packethook_stringcollector(CHAINCALL_PARMS) {
@@ -1267,6 +1272,8 @@ int Devicetracker::PopulateCommon(kis_tracked_device *device, kis_packet *in_pac
 		}
 	}
 
+	common->basic_crypt_set |= pack_common->basic_crypt_set;
+
 	kis_tracked_device_info *devinfo = new kis_tracked_device_info;
 	devinfo->devref = device;
 	in_pack->insert(pack_comp_device, devinfo);
@@ -1502,12 +1509,27 @@ void Devicetracker::WriteXML(FILE *in_logfile) {
 			fprintf(in_logfile, "<classifiedType>%s</classifiedType>\n",
 					SanitizeXML(com->type_string).c_str());
 
+		fprintf(in_logfile, "<commonTypes>\n");
 		if ((com->basic_type_set & KIS_DEVICE_BASICTYPE_AP))
 			fprintf(in_logfile, "<commonType>ap</commonType>\n");
 		if ((com->basic_type_set & KIS_DEVICE_BASICTYPE_CLIENT))
 			fprintf(in_logfile, "<commonType>client</commonType>\n");
 		if ((com->basic_type_set && KIS_DEVICE_BASICTYPE_WIRED))
 			fprintf(in_logfile, "<commonType>wired</commonType>\n");
+		fprintf(in_logfile, "</commonTypes>\n");
+
+		fprintf(in_logfile, "<commonCryptTypes>\n");
+		// Empty or only generic encryption known
+		if (com->basic_crypt_set == KIS_DEVICE_BASICCRYPT_NONE)
+			fprintf(in_logfile, "<commonCrypt>none</commonCrypt>\n");
+		if ((com->basic_crypt_set == KIS_DEVICE_BASICCRYPT_ENCRYPTED))
+			fprintf(in_logfile, "<commonCrypt>encrypted</commonCrypt>\n");
+		// Deeper detection of l2/l3
+		if ((com->basic_crypt_set & KIS_DEVICE_BASICCRYPT_L2))
+			fprintf(in_logfile, "<commonCrypt>L2 encrypted</commonCrypt>\n");
+		if ((com->basic_crypt_set & KIS_DEVICE_BASICCRYPT_L2))
+			fprintf(in_logfile, "<commonCrypt>L3 encrypted</commonCrypt>\n");
+		fprintf(in_logfile, "</commonCryptTypes>\n");
 
 		fprintf(in_logfile, 
 				"<firstSeen>%.24s</firstSeen>\n",

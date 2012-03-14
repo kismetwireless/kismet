@@ -820,6 +820,22 @@ int Kis_80211_Phy::ClassifierDot11(kis_packet *in_pack) {
 
 	ci->datasize = dot11info->datasize;
 
+	if (dot11info->cryptset == crypt_none) {
+		// printf("debug - crypt none\n");
+		ci->basic_crypt_set = KIS_DEVICE_BASICCRYPT_NONE;
+	} else {
+		// printf("debug - basic encryption\n");
+		ci->basic_crypt_set = KIS_DEVICE_BASICCRYPT_ENCRYPTED;
+	}
+
+	if (dot11info->cryptset & crypt_l2_mask) {
+		ci->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_L2;
+		// printf("debug - basic l2\n");
+	} if (dot11info->cryptset & crypt_l3_mask) {
+		ci->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_L3;
+		// printf("debug - basic l3\n");
+	}
+
 #if 0
 	if (ci->device == mac_addr(0)) {
 		printf("debug - bad device - %s %s %s %d %d\n", dot11info->source_mac.Mac2String().c_str(), dot11info->dest_mac.Mac2String().c_str(), dot11info->bssid_mac.Mac2String().c_str(), dot11info->type, dot11info->subtype);

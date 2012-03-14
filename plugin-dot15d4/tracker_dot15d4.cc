@@ -116,7 +116,7 @@ void Protocol_D15D4DEV_enable(PROTO_ENABLE_PARMS) {
 }
 
 int d15tracktimer(TIMEEVENT_PARMS) {
-	((Tracker_Dot15d4 *) parm)->BlitDevices(-1);
+	((Tracker_Dot15d4 *) auxptr)->BlitDevices(-1);
 	return 1;
 }
 

@@ -374,19 +374,19 @@ int pst_ipc_chanreport(IPC_CMD_PARMS) {
 }
 
 int pst_channeltimer(TIMEEVENT_PARMS) {
-	((Packetsourcetracker *) parm)->ChannelTimer();
+	((Packetsourcetracker *) auxptr)->ChannelTimer();
 
 	return 1;
 }
 
 int pst_opentimer(TIMEEVENT_PARMS) {
-	((Packetsourcetracker *) parm)->OpenTimer();
+	((Packetsourcetracker *) auxptr)->OpenTimer();
 
 	return 1;
 }
 
 int pst_sourceprototimer(TIMEEVENT_PARMS) {
-	((Packetsourcetracker *) parm)->BlitSources(-1);
+	((Packetsourcetracker *) auxptr)->BlitSources(-1);
 
 	return 1;
 }

@@ -718,9 +718,11 @@ void Kis_ColumnPref_Panel::ButtonAction(Kis_Panel_Component *in_button) {
 									  orderlist->GetStringOrderList(), time(0));
 		}
 
+		rc = 1;
 		globalreg->panel_interface->KillPanel(this);
 	} else if (in_button == cancelbutton) {
 		// Cancel and close
+		rc = 0;
 		globalreg->panel_interface->KillPanel(this);
 	}
 

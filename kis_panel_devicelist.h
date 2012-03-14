@@ -115,6 +115,7 @@ public:
 	void FilterMenuAction(int menuitem);
 
 	void SpawnColorPrefWindow();
+	void SpawnColumnPrefWindow();
 
 protected:
 	vector<kdl_display_device *> display_dev_vec;
@@ -155,15 +156,16 @@ protected:
 	// (post-filter, etc)
 	vector<kdl_display_device *> draw_vec;
 
-	int col_active, col_addr, col_name, col_type, col_basictype, col_packets, col_llc, 
-		col_error, col_data, col_crypt, col_datasize, col_newpackets, col_channel,
-		col_freq, col_alerts, col_manuf, col_phy, col_signal;
+	int col_active, col_addr, col_name, col_type, col_basictype, col_basiccrypt,
+		col_packets, col_llc, col_error, col_data, col_crypt, col_datasize, 
+		col_newpackets, col_channel, col_freq, col_alerts, col_manuf, col_phy, 
+		col_signal;
 
 	int display_mode;
 
 	Kis_Menu *menu;
 	int mn_filter, mn_preferences;
-	int mi_colorpref;
+	int mi_colorpref, mi_columnpref;
 
 	int sort_mode;
 

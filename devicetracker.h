@@ -322,6 +322,15 @@ class kis_tracked_device;
 // Common mask of client types
 #define KIS_DEVICE_BASICTYPE_CLIENTMASK	6
 
+// Basic encryption types
+#define KIS_DEVICE_BASICCRYPT_NONE		0
+#define KIS_DEVICE_BASICCRYPT_ENCRYPTED	(1 << 1)
+// More detailed encryption data if available
+#define KIS_DEVICE_BASICCRYPT_L2		(1 << 2)
+#define KIS_DEVICE_BASICCRYPT_L3		(1 << 3)
+#define KIS_DEVICE_BASICCRYPT_WEAKCRYPT	(1 << 4)
+#define KIS_DEVICE_BASICCRYPT_DECRYPTED	(1 << 5)
+
 // Common values across all PHY types, as the PHY is capable of filling them in
 class kis_device_common : public tracker_component {
 public:
@@ -336,6 +345,9 @@ public:
 
 	// Basic phy-neutral type for sorting and classification
 	uint32_t basic_type_set;
+
+	// Basic encryption data
+	uint32_t basic_crypt_set;
 
 	// Time values
 	time_t first_time;
@@ -397,6 +409,8 @@ public:
 		device = NULL;
 
 		basic_type_set = KIS_DEVICE_BASICTYPE_DEVICE;
+
+		basic_crypt_set = KIS_DEVICE_BASICCRYPT_NONE;
 
 		first_time = last_time = 0;
 

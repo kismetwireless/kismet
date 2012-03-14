@@ -48,7 +48,7 @@ int NetDetailsMenuCB(COMPONENT_CALLBACK_PARMS) {
 }
 
 int NetDetailsGraphEvent(TIMEEVENT_PARMS) {
-	return ((Kis_NetDetails_Panel *) parm)->GraphTimer();
+	return ((Kis_NetDetails_Panel *) auxptr)->GraphTimer();
 }
 
 Kis_NetDetails_Panel::Kis_NetDetails_Panel(GlobalRegistry *in_globalreg, 
@@ -878,7 +878,7 @@ int ChanDetailsMenuCB(COMPONENT_CALLBACK_PARMS) {
 }
 
 int ChanDetailsGraphEvent(TIMEEVENT_PARMS) {
-	((Kis_ChanDetails_Panel *) parm)->GraphTimer();
+	((Kis_ChanDetails_Panel *) auxptr)->GraphTimer();
 
 	return 1;
 }
@@ -1380,7 +1380,7 @@ int CliDetailsMenuCB(COMPONENT_CALLBACK_PARMS) {
 }
 
 int CliDetailsGraphEvent(TIMEEVENT_PARMS) {
-	return ((Kis_ClientDetails_Panel *) parm)->GraphTimer();
+	return ((Kis_ClientDetails_Panel *) auxptr)->GraphTimer();
 }
 
 Kis_ClientDetails_Panel::Kis_ClientDetails_Panel(GlobalRegistry *in_globalreg, 

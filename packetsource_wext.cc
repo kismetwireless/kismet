@@ -373,7 +373,7 @@ int PacketSource_Wext::RegisterSources(Packetsourcetracker *tracker) {
 }
 
 int wext_ping_wpasup_event(TIMEEVENT_PARMS) {
-	return ((PacketSource_Wext *) parm)->ScanWpaSupplicant();
+	return ((PacketSource_Wext *) auxptr)->ScanWpaSupplicant();
 }
 
 void PacketSource_Wext::OpenWpaSupplicant() {

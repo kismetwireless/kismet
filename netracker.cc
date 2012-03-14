@@ -1523,9 +1523,7 @@ int kis_80211_datatracker_hook(CHAINCALL_PARMS) {
 }
 
 int NetrackerUpdateTimer(TIMEEVENT_PARMS) {
-	Netracker *ntr = (Netracker *) parm;
-
-	return ntr->TimerKick();
+	((Netracker *) auxptr)->TimerKick();
 }
 
 Netracker::Netracker() {

@@ -26,12 +26,12 @@
 #include "getopt.h"
 
 int KisNetClientReconEvent(TIMEEVENT_PARMS) {
-	((KisNetClient *) parm)->Reconnect();
+	((KisNetClient *) auxptr)->Reconnect();
 	return 1;
 }
 
 int KisNetClientTimeoutEvent(TIMEEVENT_PARMS) {
-	((KisNetClient *) parm)->Timer();
+	((KisNetClient *) auxptr)->Timer();
 	return 1;
 }
 

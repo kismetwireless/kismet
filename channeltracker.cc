@@ -52,7 +52,7 @@ int ct_chan_hook(CHAINCALL_PARMS) {
 }
 
 int ct_channeltimer(TIMEEVENT_PARMS) {
-	((Channeltracker *) parm)->ChanTimer();
+	((Channeltracker *) auxptr)->ChanTimer();
 	return 1;
 }
 

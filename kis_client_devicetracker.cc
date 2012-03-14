@@ -57,7 +57,7 @@ const char *CDT_phymap_fields[] = {
 };
 
 const char *CDT_device_fields[] = {
-	"phytype", "macaddr", "name", "typestring", "basictype", 
+	"phytype", "macaddr", "name", "typestring", "basictype", "basiccrypt",
 	"firsttime", "lasttime",
 	"packets", "llcpackets", "errorpackets",
 	"datapackets", "cryptpackets", "filterpackets",
@@ -498,6 +498,11 @@ void Client_Devicetracker::Proto_DEVICE(CLIPROTO_CB_PARMS) {
 	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tint) != 1) 
 		goto proto_fail;
 	common->basic_type_set = tint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tint) != 1) 
+		goto proto_fail;
+	common->basic_crypt_set = tint;
+	// fprintf(stderr, "%s cryptset %d\n", tmac.Mac2String().c_str(), tint);
 
 	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%u", &tuint) != 1) 
 		goto proto_fail;

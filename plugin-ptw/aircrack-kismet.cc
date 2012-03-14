@@ -166,7 +166,7 @@ void *kisptw_crack(void *arg) {
 }
 
 int kisptw_event_timer(TIMEEVENT_PARMS) {
-	kisptw_state *kst = (kisptw_state *) parm;
+	kisptw_state *kst = (kisptw_state *) auxptr;
 
 	for (map<mac_addr, kisptw_net *>::iterator x = kst->netmap.begin();
 		  x != kst->netmap.end(); ++x) {

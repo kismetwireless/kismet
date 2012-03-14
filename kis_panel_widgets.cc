@@ -266,7 +266,7 @@ void Kis_Panel_Color::RemapAllColors(string oldcolor, string newcolor,
 }
 
 int panelint_draw_timer(TIMEEVENT_PARMS) {
-	return ((PanelInterface *) parm)->DrawInterface();
+	return ((PanelInterface *) auxptr)->DrawInterface();
 }
 
 // Pollable panel interface driver
@@ -410,6 +410,7 @@ void PanelInterface::KillPanel(Kis_Panel *in_panel) {
 	for (unsigned int x = 0; x < live_panels.size(); x++) {
 		if (live_panels[x] == in_panel) {
 			dead_panels.push_back(in_panel);
+			in_panel->KillPanel();
 			live_panels.erase(live_panels.begin() + x);
 		}
 	}
@@ -3435,6 +3436,10 @@ Kis_Panel::Kis_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_intf) {
 	last_key_time.tv_sec = 0;
 
 	escape_timer = -1;
+
+	rc = -1;
+	rcallback = NULL;
+	raux = NULL;
 }
 
 Kis_Panel::~Kis_Panel() {
@@ -3634,7 +3639,7 @@ void Kis_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {
 int kp_escape_timer(TIMEEVENT_PARMS) {
 	// fprintf(stderr, "trigger escape timer %u %u\n", globalreg->timestamp.tv_sec, globalreg->timestamp.tv_usec);
 	ungetch(0x00);
-	((Kis_Panel *) parm)->Poll();
+	((Kis_Panel *) auxptr)->Poll();
 
 	return 0;
 }
@@ -3760,6 +3765,16 @@ void Kis_Panel::DrawComponentVec() {
 
 	if (menu != NULL)
 		menu->DrawComponent();
+}
+
+void Kis_Panel::SetCompleteCallback(KispanelCompleteRx in_callback, void *in_aux) {
+	rcallback = in_callback;
+	raux = in_aux;
+}
+
+void Kis_Panel::KillPanel() {
+	if (rcallback != NULL) 
+		(*rcallback)(rc, raux, globalreg);
 }
 
 #endif

@@ -57,6 +57,15 @@ void KDL_ColorMenuCB(MENUITEM_CB_PARMS) {
 	((Kis_Devicelist *) auxptr)->SpawnColorPrefWindow();
 }
 
+void KDL_ColumnMenuCB(MENUITEM_CB_PARMS) {
+	((Kis_Devicelist *) auxptr)->SpawnColumnPrefWindow();
+}
+
+void KDL_ColumnRefresh(KISPANEL_COMPLETECB_PARMS) {
+	if (rc)
+		((Kis_Devicelist *) auxptr)->ParseColumnConfig();
+}
+
 string KDL_Common_Column_Cb(KDL_COLUMN_PARMS) {
 	return ((Kis_Devicelist *) aux)->CommonColumn(device, columnid, header);
 }
@@ -106,6 +115,8 @@ Kis_Devicelist::Kis_Devicelist(GlobalRegistry *in_globalreg, Kis_Panel *in_panel
 							  LABEL_POS_LEFT, KDL_Common_Column_Cb, this, false);
 	col_basictype = RegisterColumn("BasicType", "Basic type", 10,
 								   LABEL_POS_LEFT, KDL_Common_Column_Cb, this, false);
+	col_basiccrypt = RegisterColumn("BasicCrypt", "Basic encryption", 1,
+								   LABEL_POS_LEFT, KDL_Common_Column_Cb, this, false);
 	col_packets = RegisterColumn("Packets", "Packets", 5,
 								 LABEL_POS_RIGHT, KDL_Common_Column_Cb, this, false);
 	col_llc = RegisterColumn("LinkPackets", "Link packets", 5,
@@ -151,8 +162,11 @@ Kis_Devicelist::Kis_Devicelist(GlobalRegistry *in_globalreg, Kis_Panel *in_panel
 
 	mi_colorpref = 
 		menu->AddMenuItem("Device Colors", mn_preferences, 0);
+	mi_columnpref =
+		menu->AddMenuItem("Device Columns", mn_preferences, 0);
 
 	menu->SetMenuItemCallback(mi_colorpref, KDL_ColorMenuCB, this);
+	menu->SetMenuItemCallback(mi_columnpref, KDL_ColumnMenuCB, this);
 
 	for (int x = 0; x < KDL_COLOR_MAX; x++)
 		color_map[x] = 0;
@@ -161,7 +175,13 @@ Kis_Devicelist::Kis_Devicelist(GlobalRegistry *in_globalreg, Kis_Panel *in_panel
 }
 
 void Kis_Devicelist::ParseColumnConfig() {
-	string cols = "active,phy,name,type,address,packets,datasize,channel,alerts";
+	string cols = 
+		kpinterface->prefs->FetchOpt("devlist_columns");
+
+	if (cols == "") {
+		cols = "active,phy,name,type,basiccrypt,address,packets,datasize,channel,alerts";
+		kpinterface->prefs->SetOpt("devlist_columns", cols, 1);
+	}
 
 	vector<string> toks = StrTokenize(cols, ",");
 	string t;
@@ -445,6 +465,23 @@ void Kis_Devicelist::DrawComponent() {
 
 		dy++;
 
+		// We have to look at the device status for coloring here, external
+		// of columns.  Only color if active.
+		if (active) {
+			wattrset(window, color_map[KDL_COLOR_NORMAL]);
+
+			kis_device_common *common = NULL;
+			common = 
+				(kis_device_common *) draw_vec[x]->device->fetch(devcomp_ref_common);
+
+			if (common != NULL) {
+				if (common->basic_crypt_set) {
+					// fprintf(stderr, "draw %s cryptset %d\n", draw_vec[x]->device->key.Mac2String().c_str(), common->basic_crypt_set);
+					wattrset(window, color_map[KDL_COLOR_CRYPT]);
+				}
+			}
+		}
+
 		if (selected_line == (int) x && active)
 			wattron(window, WA_REVERSE);
 
@@ -670,12 +707,28 @@ string Kis_Devicelist::CommonColumn(kdl_display_device *in_dev, int in_columnid,
 		} else {
 			if (common->basic_type_set == KIS_DEVICE_BASICTYPE_DEVICE)
 				snprintf(buf, 64, hdr, "Device");
-			else if (common->basic_type_set == KIS_DEVICE_BASICTYPE_AP)
+		
+			// Degrading priority
+			if (common->basic_type_set & KIS_DEVICE_BASICTYPE_AP)
 				snprintf(buf, 64, hdr, "AP");
-			else if (common->basic_type_set == KIS_DEVICE_BASICTYPE_WIRED)
+			else if (common->basic_type_set & KIS_DEVICE_BASICTYPE_WIRED)
 				snprintf(buf, 64, hdr, "Wired");
-			else if (common->basic_type_set == KIS_DEVICE_BASICTYPE_CLIENT)
+			else if (common->basic_type_set & KIS_DEVICE_BASICTYPE_CLIENT)
 				snprintf(buf, 64, hdr, "Client");
+		} 
+	} else if (in_columnid == col_basiccrypt) {
+		if (header) {
+			snprintf(buf, 64, hdr, "C");
+		} else {
+			// Default to yes for less interesting l2/l3/etc
+			if (common->basic_crypt_set == KIS_DEVICE_BASICCRYPT_NONE)
+				snprintf(buf, 64, hdr, "N");
+			else if (common->basic_crypt_set & KIS_DEVICE_BASICCRYPT_DECRYPTED)
+				snprintf(buf, 64, hdr, "D");
+			else if (common->basic_crypt_set & KIS_DEVICE_BASICCRYPT_WEAKCRYPT)
+				snprintf(buf, 64, hdr, "!");
+			else if (common->basic_crypt_set & KIS_DEVICE_BASICCRYPT_ENCRYPTED)
+				snprintf(buf, 64, hdr, "Y");
 		}
 	} else if (in_columnid == col_packets) {
 		if (header) {
@@ -838,6 +891,21 @@ void Kis_Devicelist::SpawnColorPrefWindow() {
 	cpp->AddColorPref("devlist_decrypt_color", "Decrypted device");
 	cpp->AddColorPref("devlist_header_color", "Column titles");
 	cpp->AddColorPref("devlist_insecure_color", "Insecure device");
+
+	kpinterface->AddPanel(cpp);
+}
+
+void Kis_Devicelist::SpawnColumnPrefWindow() {
+	Kis_ColumnPref_Panel *cpp = new Kis_ColumnPref_Panel(globalreg, kpinterface);
+
+	for (map<int, kdl_column *>::iterator x = registered_column_map.begin();
+		 x != registered_column_map.end(); ++x) {
+		cpp->AddColumn(x->second->name, x->second->description);
+	}
+
+	cpp->ColumnPref("devlist_columns", "Device List");
+
+	cpp->SetCompleteCallback(KDL_ColumnRefresh, this);
 
 	kpinterface->AddPanel(cpp);
 }

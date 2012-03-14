@@ -976,6 +976,10 @@ protected:
 
 #endif
 
+// Callbacks for a panel exiting, if any
+#define KISPANEL_COMPLETECB_PARMS int rc, void *auxptr, GlobalRegistry *globalreg
+typedef void (*KispanelCompleteRx)(KISPANEL_COMPLETECB_PARMS);
+
 class Kis_Panel {
 public:
 	Kis_Panel() {
@@ -1032,6 +1036,10 @@ public:
 
 	void SetActiveComponent(Kis_Panel_Component *in_comp);
 
+	void SetCompleteCallback(KispanelCompleteRx in_callback, void *in_aux);
+
+	void KillPanel();
+
 protected:
 	// Bit values of what components expect to happen
 	// COMP_DRAW - issue a draw command to this component during panel draw
@@ -1086,6 +1094,11 @@ protected:
 	struct timeval last_key_time;
 
 	int escape_timer;
+
+	// Return value and callback, if any
+	int rc;
+	KispanelCompleteRx rcallback;
+	void *raux;
 };
 
 // Pollable supersystem for handling panels and input

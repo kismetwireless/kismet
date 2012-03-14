@@ -50,7 +50,7 @@ int kisdrone_chain_hook(CHAINCALL_PARMS) {
 }
 
 int kisdrone_time_hook(TIMEEVENT_PARMS) {
-	return ((KisDroneFramework *) parm)->time_handler();
+	return ((KisDroneFramework *) auxptr)->time_handler();
 }
 
 int dronecmd_channelset_hook(DRONE_CMD_PARMS) {

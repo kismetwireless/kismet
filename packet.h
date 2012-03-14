@@ -208,6 +208,8 @@ public:
 	int error;
 	// Data size if applicable
 	int datasize;
+	// Encryption if applicable
+	uint32_t basic_crypt_set;
 };
 
 // String reference

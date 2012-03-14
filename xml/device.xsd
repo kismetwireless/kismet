@@ -19,7 +19,21 @@
 
   <xs:element name="classifiedType" type="xs:string" minOccurs="0"/>
 
-  <xs:element name="commonType" type="xs:string" minOccurs="0" maxOccurs="unbounded"/>
+  <xs:element name="commonTypes">
+   <xs:complexType>
+    <xs:sequence>
+     <xs:element name="commonType" type="xs:string" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+   </xs:complexType>
+  </xs:element>
+
+  <xs:element name="commonCryptTypes">
+   <xs:complexType>
+    <xs:sequence>
+     <xs:element name="commonCrypt" type="xs:string" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+   </xs:complexType>
+  </xs:element>
 
   <xs:element name="firstSeen" type="xs:string"/>
   <xs:element name="lastSeen" type="xs:string"/>

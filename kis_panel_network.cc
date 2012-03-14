@@ -482,7 +482,7 @@ void KisNetlist_CLISRC(CLIPROTO_CB_PARMS) {
 
 // Event callbacks
 int Event_Netlist_Update(TIMEEVENT_PARMS) {
-	((Kis_Netlist *) parm)->UpdateTrigger();
+	((Kis_Netlist *) auxptr)->UpdateTrigger();
 	return 1;
 }
 
@@ -3589,7 +3589,7 @@ const common_col_pref client_extras_details[] = {
 };
 
 int Event_Clientlist_Update(TIMEEVENT_PARMS) {
-	((Kis_Clientlist *) parm)->UpdateTrigger();
+	((Kis_Clientlist *) auxptr)->UpdateTrigger();
 	return 1;
 }
 

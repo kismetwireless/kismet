@@ -117,7 +117,7 @@ int Protocol_SPECTRUM(PROTO_PARMS) {
 }
 
 int stc_recontimer(TIMEEVENT_PARMS) {
-	((SpectoolsClient *) parm)->Reconnect();
+	((SpectoolsClient *) auxptr)->Reconnect();
 
 	return 1;
 }

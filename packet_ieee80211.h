@@ -238,6 +238,10 @@ typedef struct {
 #define crypt_unknown_protected 	(1 << 24)
 #define crypt_unknown_nonwep		(1 << 25)
 #define crypt_wps 					(1 << 26)
+// L3 encryption mask
+#define crypt_l3_mask		0x300004
+// L2 encryption mask
+#define crypt_l2_mask		0xFBFA
 
 // Deciphering by casting.  This is bad, and non portable, and we need to not
 // do it in the future but for now it'll work until we redo it with bitmanip

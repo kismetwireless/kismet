@@ -31,7 +31,7 @@
 
 #include "globalregistry.h"
 
-#define TIMEEVENT_PARMS Timetracker::timer_event *evt, void *parm, \
+#define TIMEEVENT_PARMS Timetracker::timer_event *evt, void *auxptr, \
 	GlobalRegistry *globalreg
 
 class Timetracker {

@@ -34,7 +34,7 @@
 #include "phy_80211.h"
 
 int droneclienttimer_hook(TIMEEVENT_PARMS) {
-	return ((DroneClientFrame *) parm)->time_handler();
+	return ((DroneClientFrame *) auxptr)->time_handler();
 }
 
 void droneclient_pst_sourceact_hook(SOURCEACT_PARMS) {
