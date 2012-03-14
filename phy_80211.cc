@@ -818,6 +818,8 @@ int Kis_80211_Phy::ClassifierDot11(kis_packet *in_pack) {
 		ci->error = 1;
 	}
 
+	ci->channel = dot11info->channel;
+
 	ci->datasize = dot11info->datasize;
 
 	if (dot11info->cryptset == crypt_none) {

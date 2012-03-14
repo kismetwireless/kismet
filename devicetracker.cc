@@ -1274,6 +1274,9 @@ int Devicetracker::PopulateCommon(kis_tracked_device *device, kis_packet *in_pac
 
 	common->basic_crypt_set |= pack_common->basic_crypt_set;
 
+	if (pack_common->channel)
+		common->channel = pack_common->channel;
+
 	kis_tracked_device_info *devinfo = new kis_tracked_device_info;
 	devinfo->devref = device;
 	in_pack->insert(pack_comp_device, devinfo);

@@ -199,6 +199,8 @@ public:
 		phyid = 0;
 		error = 0;
 		datasize = 0;
+		channel = 0;
+		basic_crypt_set = 0;
 	}
 
 	mac_addr source, dest, device;
@@ -210,6 +212,8 @@ public:
 	int datasize;
 	// Encryption if applicable
 	uint32_t basic_crypt_set;
+	// Phy-specific numeric channel, freq is held in l1info
+	int channel;
 };
 
 // String reference
