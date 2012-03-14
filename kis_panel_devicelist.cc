@@ -161,9 +161,9 @@ Kis_Devicelist::Kis_Devicelist(GlobalRegistry *in_globalreg, Kis_Panel *in_panel
 	mn_preferences = menu->FindMenu("Preferences");
 
 	mi_colorpref = 
-		menu->AddMenuItem("Device Colors", mn_preferences, 0);
+		menu->AddMenuItem("Device Colors", mn_preferences, 'c');
 	mi_columnpref =
-		menu->AddMenuItem("Device Columns", mn_preferences, 0);
+		menu->AddMenuItem("Device Columns", mn_preferences, 'd');
 
 	menu->SetMenuItemCallback(mi_colorpref, KDL_ColorMenuCB, this);
 	menu->SetMenuItemCallback(mi_columnpref, KDL_ColumnMenuCB, this);

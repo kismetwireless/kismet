@@ -132,12 +132,12 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	mn_preferences = menu->AddSubMenuItem("Preferences", mn_file, 'P');
 	mi_audioprefs = menu->AddMenuItem("Audio...", mn_preferences, 'A');
 	mi_colorprefs = menu->AddMenuItem("Colors...", mn_preferences, 'C');
-	mi_clicolprefs = menu->AddMenuItem("Client Columns...", mn_preferences, 'c');
-	mi_cliextraprefs = menu->AddMenuItem("Client Extras...", mn_preferences, 'E');
+	// mi_clicolprefs = menu->AddMenuItem("Client Columns...", mn_preferences, 'c');
+	// mi_cliextraprefs = menu->AddMenuItem("Client Extras...", mn_preferences, 'E');
 	mi_gpsprefs = menu->AddMenuItem("GPS...", mn_preferences, 'G');
 	mi_infoprefs = menu->AddMenuItem("Info Pane...", mn_preferences, 'I');
-	mi_netcolprefs = menu->AddMenuItem("Network Columns...", mn_preferences, 'n');
-	mi_netextraprefs = menu->AddMenuItem("Network Extras...", mn_preferences, 'e');
+	// mi_netcolprefs = menu->AddMenuItem("Network Columns...", mn_preferences, 'n');
+	// mi_netextraprefs = menu->AddMenuItem("Network Extras...", mn_preferences, 'e');
 	mi_serverprefs = menu->AddMenuItem("Servers...", mn_preferences, 'S');
 	mi_startprefs = menu->AddMenuItem("Startup & Shutdown...", mn_preferences, 's');
 	mi_warnprefs = menu->AddMenuItem("Warnings...", mn_preferences, 'W');

@@ -953,6 +953,18 @@ int Kis_Menu::AddMenuItem(string in_text, int menuid, char extra, int after) {
 	item->auxptr = NULL;
 	item->checksymbol = 'X';
 
+	if (extra != 0) {
+		for (vector<Kis_Menu::_menuitem *>::iterator p = 
+			 menubar[menuid]->items.begin(); p != menubar[menuid]->items.end(); p++) {
+			if ((*p)->extrachar == extra) {
+				_MSG("New menu item '" + in_text + "' shortcut '" + extra + "' "
+					 "conflicts with existing item '" + (*p)->text + "'",
+					 MSGFLAG_ERROR);
+				item->extrachar = 0;
+			}
+		}
+	}
+
 	// Auto-disable spacers
 	if (item->text[0] != '-')
 		item->enabled = 1;
@@ -1631,9 +1643,10 @@ int Kis_Menu::KeyPress(int in_key) {
 					int ret = (cur_menu * 100) + x + 1;
 
 					// Per-menu callbacks
-					if (menubar[cur_menu]->items[cur_item]->callback != NULL) 
-						(*(menubar[cur_menu]->items[cur_item]->callback))
-							(globalreg, ret, menubar[cur_menu]->items[cur_item]->auxptr);
+					if (menubar[cur_menu]->items[x]->callback != NULL) {
+						(*(menubar[cur_menu]->items[x]->callback))
+							(globalreg, ret, menubar[cur_menu]->items[x]->auxptr);
+					}
 	
 					// Widget-wide callbacks
 					if (cb_activate != NULL) 
