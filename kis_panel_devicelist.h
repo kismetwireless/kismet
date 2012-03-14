@@ -39,6 +39,10 @@ typedef string (*KDL_Column_Callback)(KDL_COLUMN_PARMS);
 class kdl_display_device {
 public:
 	kis_tracked_device *device;
+
+	string columncache;
+	string extcache;
+
 	bool dirty;
 };
 
@@ -174,6 +178,9 @@ protected:
 	// Allocated arrays
 	int color_map[KDL_COLOR_MAX];
 	int color_inactive;
+
+	// Column header cache
+	string colheadercache;
 };
 
 

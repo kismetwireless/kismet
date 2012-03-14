@@ -396,22 +396,30 @@ void Kis_Devicelist::DrawComponent() {
 	parent_panel->ColorFromPref(color_map[KDL_COLOR_INSECURE],
 								"devlist_insecure_color");
 
-	string hdr = " ";
+	string hdr = colheadercache;
 
-	for (unsigned int x = hpos; x < configured_column_vec.size(); x++) {
-		/*
-		if (hdr.length() + configured_column_vec[x]->width > viewable_cols)
-			break;
-			*/
+	if (hdr == "") {
+		hdr = " ";
 
-		hdr += "\004u" +
-			(*(configured_column_vec[x]->callback))(
-				NULL,
-				configured_column_vec[x]->cb_aux,
-				globalreg,
-				configured_column_vec[x]->id,
-				true) + 
-			"\004U ";
+		for (unsigned int x = hpos; x < configured_column_vec.size(); x++) {
+			/*
+			   if (hdr.length() + configured_column_vec[x]->width > viewable_cols)
+			   break;
+			   */
+
+			hdr += "\004u" +
+				(*(configured_column_vec[x]->callback))(
+									NULL,
+									configured_column_vec[x]->cb_aux,
+									globalreg,
+									configured_column_vec[x]->id,
+									true) + 
+								"\004U ";
+		}
+
+		colheadercache = hdr;
+	} else {
+		// hdr[0] = 'C';
 	}
 
 	if (active)
@@ -443,24 +451,42 @@ void Kis_Devicelist::DrawComponent() {
 
 	int dy = 0;
 	string display_line;
+
 	for (unsigned int x = first_line; dy < viewable_lines && 
 		 x < draw_vec.size(); x++) {
 
-		display_line = " ";
+		kis_device_common *common = NULL;
+		common = 
+			(kis_device_common *) draw_vec[x]->device->fetch(devcomp_ref_common);
 
-		for (unsigned int c = hpos; c < configured_column_vec.size(); c++) {
-			if ((int) (display_line.length() + 
-					   configured_column_vec[c]->width) > viewable_cols)
-				break;
+		if (common == NULL)
+			continue;
 
-			display_line += 
-				(*(configured_column_vec[c]->callback))(
-						draw_vec[x],
-						configured_column_vec[c]->cb_aux,
-						globalreg,
-						configured_column_vec[c]->id,
-						false) + 
-				" ";
+		int oft = globalreg->timestamp.tv_sec - common->last_time;
+
+		if (!draw_vec[x]->dirty && draw_vec[x]->columncache != "" && oft > 6) {
+			display_line = draw_vec[x]->columncache;
+			// display_line[0] = 'C';
+		} else {
+			display_line = " ";
+
+			for (unsigned int c = hpos; c < configured_column_vec.size(); c++) {
+				if ((int) (display_line.length() + 
+						   configured_column_vec[c]->width) > viewable_cols)
+					break;
+
+				display_line += 
+					(*(configured_column_vec[c]->callback))(
+											draw_vec[x],
+											configured_column_vec[c]->cb_aux,
+											globalreg,
+											configured_column_vec[c]->id,
+											false) + 
+									" ";
+			}
+
+			draw_vec[x]->dirty = false;
+			draw_vec[x]->columncache = display_line;
 		}
 
 		dy++;
@@ -469,10 +495,6 @@ void Kis_Devicelist::DrawComponent() {
 		// of columns.  Only color if active.
 		if (active) {
 			wattrset(window, color_map[KDL_COLOR_NORMAL]);
-
-			kis_device_common *common = NULL;
-			common = 
-				(kis_device_common *) draw_vec[x]->device->fetch(devcomp_ref_common);
 
 			if (common != NULL) {
 				if (common->basic_crypt_set) {
@@ -630,6 +652,9 @@ void Kis_Devicelist::SetPosition(int isx, int isy, int iex, int iey) {
 
 	viewable_lines = ly - 1;
 	viewable_cols = ex;
+
+	colheadercache = "";
+	RefreshDisplayList();
 }
 
 string Kis_Devicelist::CommonColumn(kdl_display_device *in_dev, int in_columnid, 
