@@ -76,6 +76,7 @@ const char *KISDEV_common_text[] = {
 	"minlat", "minlon", "minalt", "minspd",
 	"maxlat", "maxlon", "maxalt", "maxspd",
 	"signaldbm", "noisedbm", "minsignaldbm", "minnoisedbm",
+	"maxsignaldbm", "maxnoisedbm",
 	"signalrssi", "noiserssi", "minsignalrssi", "minnoiserssi",
 	"maxsignalrssi", "maxnoiserssi",
 	"bestlat", "bestlon", "bestalt",
@@ -313,13 +314,13 @@ int Protocol_DEVICEDONE(PROTO_PARMS) {
 }
 
 enum DEVTAG_FIELDS {
-	DEVTAG_macaddr, DEVTAG_tag, DEVTAG_value,
+	DEVTAG_phytype, DEVTAG_macaddr, DEVTAG_tag, DEVTAG_value,
 
 	DEVTAG_maxfield
 };
 
 const char *DEVTAG_fields_text[] = {
-	"macaddr", "tag", "value",
+	"phytype", "macaddr", "tag", "value",
 	NULL
 };
 
@@ -469,12 +470,12 @@ int Protocol_KISDEV_TRACKINFO(PROTO_PARMS) {
 }
 
 enum STRING_FIELDS {
-	STRING_device, STRING_phy, STRING_source, STRING_dest, STRING_string,
+	STRING_phytype, STRING_macaddr, STRING_source, STRING_dest, STRING_string,
 	STRING_maxfield
 };
 
 const char *STRINGS_fields_text[] = {
-    "device", "phy", "source", "dest", "string", 
+    "phytype", "macaddr", "source", "dest", "string", 
     NULL
 };
 
@@ -504,10 +505,10 @@ int Protocol_KISDEV_STRING(PROTO_PARMS) {
 		} 
 
 		switch (fnum) {
-			case STRING_device:
+			case STRING_macaddr:
 				scratch = info->device.Mac2String();
 				break;
-			case STRING_phy:
+			case STRING_phytype:
 				scratch = IntToString(info->phy);
 				break;
 			case STRING_source:
