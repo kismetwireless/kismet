@@ -40,7 +40,7 @@ public:
 	KDL_Sort_Abstract &f;
 };
 
-class KDL_Sort_Type : KDL_Sort_Abstract {
+class KDL_Sort_Type : public KDL_Sort_Abstract {
 public:
 	int devcomp_ref_common;
 
@@ -56,7 +56,7 @@ public:
 		kis_device_common *xc =
 			(kis_device_common *) x->device->fetch(devcomp_ref_common);
 		kis_device_common *yc =
-			(kis_device_common *) x->device->fetch(devcomp_ref_common);
+			(kis_device_common *) y->device->fetch(devcomp_ref_common);
 
 		if (xc == NULL || yc == NULL)
 			return 0;
@@ -65,7 +65,7 @@ public:
 	}
 };
 
-class KDL_Sort_Channel : KDL_Sort_Abstract {
+class KDL_Sort_Channel : public KDL_Sort_Abstract {
 public:
 	int devcomp_ref_common;
 
@@ -81,7 +81,7 @@ public:
 		kis_device_common *xc =
 			(kis_device_common *) x->device->fetch(devcomp_ref_common);
 		kis_device_common *yc =
-			(kis_device_common *) x->device->fetch(devcomp_ref_common);
+			(kis_device_common *) y->device->fetch(devcomp_ref_common);
 
 		if (xc == NULL || yc == NULL)
 			return 0;
@@ -90,7 +90,7 @@ public:
 	}
 };
 
-class KDL_Sort_First : KDL_Sort_Abstract {
+class KDL_Sort_First : public KDL_Sort_Abstract {
 public:
 	int devcomp_ref_common;
 
@@ -106,16 +106,16 @@ public:
 		kis_device_common *xc =
 			(kis_device_common *) x->device->fetch(devcomp_ref_common);
 		kis_device_common *yc =
-			(kis_device_common *) x->device->fetch(devcomp_ref_common);
+			(kis_device_common *) y->device->fetch(devcomp_ref_common);
 
 		if (xc == NULL || yc == NULL)
 			return 0;
 
-		return xc->first_time < yc->first_time;
+		return xc->first_time > yc->first_time;
 	}
 };
 
-class KDL_Sort_FirstDesc : KDL_Sort_Abstract {
+class KDL_Sort_FirstDesc : public KDL_Sort_Abstract {
 public:
 	int devcomp_ref_common;
 
@@ -131,7 +131,7 @@ public:
 		kis_device_common *xc =
 			(kis_device_common *) x->device->fetch(devcomp_ref_common);
 		kis_device_common *yc =
-			(kis_device_common *) x->device->fetch(devcomp_ref_common);
+			(kis_device_common *) y->device->fetch(devcomp_ref_common);
 
 		if (xc == NULL || yc == NULL)
 			return 0;
@@ -140,7 +140,7 @@ public:
 	}
 };
 
-class KDL_Sort_Last : KDL_Sort_Abstract {
+class KDL_Sort_Last : public KDL_Sort_Abstract {
 public:
 	int devcomp_ref_common;
 
@@ -156,16 +156,16 @@ public:
 		kis_device_common *xc =
 			(kis_device_common *) x->device->fetch(devcomp_ref_common);
 		kis_device_common *yc =
-			(kis_device_common *) x->device->fetch(devcomp_ref_common);
+			(kis_device_common *) y->device->fetch(devcomp_ref_common);
 
 		if (xc == NULL || yc == NULL)
 			return 0;
 
-		return xc->last_time < yc->last_time;
+		return xc->last_time > yc->last_time;
 	}
 };
 
-class KDL_Sort_LastDesc : KDL_Sort_Abstract {
+class KDL_Sort_LastDesc : public KDL_Sort_Abstract {
 public:
 	int devcomp_ref_common;
 
@@ -181,7 +181,7 @@ public:
 		kis_device_common *xc =
 			(kis_device_common *) x->device->fetch(devcomp_ref_common);
 		kis_device_common *yc =
-			(kis_device_common *) x->device->fetch(devcomp_ref_common);
+			(kis_device_common *) y->device->fetch(devcomp_ref_common);
 
 		if (xc == NULL || yc == NULL)
 			return 0;
@@ -190,7 +190,7 @@ public:
 	}
 };
 
-class KDL_Sort_Packets : KDL_Sort_Abstract {
+class KDL_Sort_Packets : public KDL_Sort_Abstract {
 public:
 	int devcomp_ref_common;
 
@@ -200,22 +200,24 @@ public:
 
 	inline bool operator()(kdl_display_device *x, 
 						   kdl_display_device *y) const {
-		if (x->device == NULL || y->device == NULL)
+		if (x->device == NULL || y->device == NULL) {
 			return 0;
+		}
 
 		kis_device_common *xc =
 			(kis_device_common *) x->device->fetch(devcomp_ref_common);
 		kis_device_common *yc =
-			(kis_device_common *) x->device->fetch(devcomp_ref_common);
+			(kis_device_common *) y->device->fetch(devcomp_ref_common);
 
-		if (xc == NULL || yc == NULL)
+		if (xc == NULL || yc == NULL) {
 			return 0;
+		}
 
-		return xc->packets < yc->packets;
+		return xc->packets > yc->packets;
 	}
 };
 
-class KDL_Sort_PacketsDesc : KDL_Sort_Abstract {
+class KDL_Sort_PacketsDesc : public KDL_Sort_Abstract {
 public:
 	int devcomp_ref_common;
 
@@ -231,7 +233,7 @@ public:
 		kis_device_common *xc =
 			(kis_device_common *) x->device->fetch(devcomp_ref_common);
 		kis_device_common *yc =
-			(kis_device_common *) x->device->fetch(devcomp_ref_common);
+			(kis_device_common *) y->device->fetch(devcomp_ref_common);
 
 		if (xc == NULL || yc == NULL)
 			return 0;
@@ -240,7 +242,7 @@ public:
 	}
 };
 
-class KDL_Sort_Crypt : KDL_Sort_Abstract {
+class KDL_Sort_Crypt : public KDL_Sort_Abstract {
 public:
 	int devcomp_ref_common;
 
@@ -256,7 +258,7 @@ public:
 		kis_device_common *xc =
 			(kis_device_common *) x->device->fetch(devcomp_ref_common);
 		kis_device_common *yc =
-			(kis_device_common *) x->device->fetch(devcomp_ref_common);
+			(kis_device_common *) y->device->fetch(devcomp_ref_common);
 
 		if (xc == NULL || yc == NULL)
 			return 0;
@@ -265,7 +267,7 @@ public:
 	}
 };
 
-class KDL_Sort_Phy : KDL_Sort_Abstract {
+class KDL_Sort_Phy : public KDL_Sort_Abstract {
 public:
 	int devcomp_ref_common;
 

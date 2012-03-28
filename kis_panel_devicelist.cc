@@ -185,6 +185,24 @@ Kis_Devicelist::Kis_Devicelist(GlobalRegistry *in_globalreg, Kis_Panel *in_panel
 
 	mn_sort = menu->FindMenu("Sort");
 
+	RegisterSort("First time", "Sort by first time seen",
+				 KDL_Common_Sort, new KDL_Sort_First(devcomp_ref_common));
+	RegisterSort("First time (desc)", "Sort by first time (descending)",
+				 KDL_Common_Sort, new KDL_Sort_FirstDesc(devcomp_ref_common));
+	RegisterSort("Last time", "Sort by last time seen",
+				 KDL_Common_Sort, new KDL_Sort_Last(devcomp_ref_common));
+	RegisterSort("Last time (desc)", "Sort by last time (descending)",
+				 KDL_Common_Sort, new KDL_Sort_LastDesc(devcomp_ref_common));
+	RegisterSort("Basic crypt", "Sort by basic encryption",
+				 KDL_Common_Sort, new KDL_Sort_Crypt(devcomp_ref_common));
+	RegisterSort("Basic Type", "Sort by type",
+				 KDL_Common_Sort, new KDL_Sort_Type(devcomp_ref_common));
+	RegisterSort("Channel", "Sort by channel",
+				 KDL_Common_Sort, new KDL_Sort_Channel(devcomp_ref_common));
+	RegisterSort("Packets", "Sort by number of packets",
+				 KDL_Common_Sort, new KDL_Sort_Packets(devcomp_ref_common));
+	RegisterSort("Packets (desc)", "Sort by number of packets (descending)",
+				 KDL_Common_Sort, new KDL_Sort_PacketsDesc(devcomp_ref_common));
 	RegisterSort("Phy type", "Sort by Phy layer type",
 				 KDL_Common_Sort, new KDL_Sort_Phy(devcomp_ref_common));
 
@@ -235,7 +253,7 @@ Kis_Devicelist::~Kis_Devicelist() {
 void Kis_Devicelist::SetViewMode(int in_mode) {
 	if (in_mode != display_mode) {
 		display_mode = in_mode;
-		draw_dirty = 1;
+		draw_dirty = true;
 		RefreshDisplayList();
 	}
 }
@@ -261,6 +279,9 @@ void Kis_Devicelist::NetClientConfigure(KisNetClient *in_cli, int in_recon) {
 void Kis_Devicelist::DeviceRX(kis_tracked_device *device) {
 	map<mac_addr, kdl_display_device *>::iterator ddmi =
 		display_dev_map.find(device->key);
+
+	// Updated devices force us to re-sort
+	draw_dirty = true;
 
 	// TODO - intelligent add to display list, etc
 	if (ddmi == display_dev_map.end()) {
@@ -509,6 +530,12 @@ void Kis_Devicelist::DrawComponent() {
 			"[ --- All devices filtered, change filtering with View->Filter --- ]", 
 										  lx - 1, parent_panel);
 		return;
+	}
+
+	if (draw_dirty && current_sort != NULL) {
+		(*(current_sort->callback))(&draw_vec, current_sort->cb_aux, 
+									current_sort, globalreg);
+		draw_dirty = false;
 	}
 
 	int dy = 0;
@@ -903,7 +930,11 @@ string Kis_Devicelist::CommonColumn(kdl_display_device *in_dev, int in_columnid,
 }
 
 void Kis_Devicelist::RefreshDisplayList() {
+	// _MSG("refresh display\n", MSGFLAG_INFO);
+
 	draw_vec.clear();
+
+	draw_dirty = 1;
 
 	// fprintf(stderr, "debug - refreshing display list for view mode %d\n", display_mode);
 	
@@ -943,10 +974,6 @@ void Kis_Devicelist::RefreshDisplayList() {
 		display_dev_vec[x]->dirty = 1;
 	}
 
-	// Sort
-	if (current_sort != NULL) 
-		(*(current_sort->callback))(&display_dev_vec, current_sort->cb_aux, 
-									current_sort, globalreg);
 }
 
 void Kis_Devicelist::FilterMenuAction(int menuitem) {
@@ -979,14 +1006,23 @@ void Kis_Devicelist::FilterMenuAction(int menuitem) {
 void Kis_Devicelist::SortMenuAction(int menuitem) {
 	map<int, kdl_sort *>::iterator i;
 
+	if (current_sort != NULL && current_sort->menu_id == menuitem)
+		return;
+
+	// This is dumb but happens rarely
 	for (i = sort_map.begin(); i != sort_map.end(); ++i) {
 		if ((int) i->second->menu_id == menuitem) {
+			// _MSG("Found sort option", MSGFLAG_INFO);
 			// Uncheck the old menu
 			if (current_sort != NULL) 
 				menu->SetMenuItemChecked(current_sort->menu_id, 0);
 
+			menu->SetMenuItemChecked(menuitem, 1);
+
 			// Check the new
 			current_sort = i->second;
+
+			kpinterface->prefs->SetOpt("MAIN_SORT", StrLower(i->second->name), 1); 
 
 			break;
 		}

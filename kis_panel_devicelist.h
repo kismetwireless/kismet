@@ -76,7 +76,7 @@ public:
 
 	unsigned int id;
 
-	unsigned int menu_id;
+	int menu_id;
 
 	KDL_Sort_Callback callback;
 	void *cb_aux;
