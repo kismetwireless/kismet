@@ -31,10 +31,15 @@
 #include "kis_client_devicetracker.h"
 
 class kdl_display_device;
+class kdl_sort;
 
 #define KDL_COLUMN_PARMS	kdl_display_device *device, void *aux, \
 	GlobalRegistry *globalreg, int columnid, bool header
 typedef string (*KDL_Column_Callback)(KDL_COLUMN_PARMS);
+
+#define KDL_SORT_PARMS		vector<kdl_display_device *> *dev_vec, void *aux, \
+	kdl_sort *sort_opt, GlobalRegistry *globalreg
+typedef void (*KDL_Sort_Callback)(KDL_SORT_PARMS);
 
 class kdl_display_device {
 public:
@@ -61,6 +66,19 @@ public:
 	unsigned int id;
 
 	KDL_Column_Callback callback;
+	void *cb_aux;
+};
+
+class kdl_sort {
+public:
+	string name;
+	string description;
+
+	unsigned int id;
+
+	unsigned int menu_id;
+
+	KDL_Sort_Callback callback;
 	void *cb_aux;
 };
 
@@ -103,6 +121,10 @@ public:
 	void DeviceRX(kis_tracked_device *device);
 	void PhyRX(int phy_id);
 
+	int RegisterSort(string in_name, string in_desc, KDL_Sort_Callback in_cb,
+					 void *in_aux);
+	void RemoveSort(int in_id);
+
 	int RegisterColumn(string in_name, string in_desc, int in_width,
 					   KisWidget_LabelPos in_align, KDL_Column_Callback in_cb,
 					   void *in_aux, bool in_sub);
@@ -115,6 +137,8 @@ public:
 	void SetViewMode(int in_mode);
 
 	void RefreshDisplayList();
+
+	void SortMenuAction(int menuitem);
 
 	void FilterMenuAction(int menuitem);
 
@@ -150,6 +174,11 @@ protected:
 	// Map of menu IDs to phy IDs
 	map<int, int> menu_phy_map;
 
+	// Sort options
+	int next_sort_id;
+	map<int, kdl_sort *> sort_map;
+	kdl_sort *current_sort;
+
 	// Possible columns
 	int next_column_id;
 	map<int, kdl_column *> registered_column_map;
@@ -168,7 +197,7 @@ protected:
 	int display_mode;
 
 	Kis_Menu *menu;
-	int mn_filter, mn_preferences;
+	int mn_filter, mn_preferences, mn_sort;
 	int mi_colorpref, mi_columnpref;
 
 	int sort_mode;

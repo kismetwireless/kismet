@@ -151,6 +151,7 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	connect_enable = 1;
 
 	mn_sort = menu->AddMenu("Sort", 0);
+	/*
 	mi_sort_auto = menu->AddMenuItem("Auto-fit", mn_sort, 'a');
 	menu->AddMenuItem("-", mn_sort, 0);
 	mi_sort_type = menu->AddMenuItem("Type", mn_sort, 't');
@@ -165,7 +166,9 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	mi_sort_sdbm = menu->AddMenuItem("Signal", mn_sort, 'S');
 	mi_sort_packets = menu->AddMenuItem("Packets", mn_sort, 'p');
 	mi_sort_packets_d = menu->AddMenuItem("Packets (descending)", mn_sort, 'P');
+	*/
 
+	/*
 	menu->SetMenuItemCheckSymbol(mi_sort_auto, '*');
 	menu->SetMenuItemCheckSymbol(mi_sort_type, '*');
 	menu->SetMenuItemCheckSymbol(mi_sort_chan, '*');
@@ -179,6 +182,7 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	menu->SetMenuItemCheckSymbol(mi_sort_sdbm, '*');
 	menu->SetMenuItemCheckSymbol(mi_sort_packets, '*');
 	menu->SetMenuItemCheckSymbol(mi_sort_packets_d, '*');
+	*/
 
 	mn_view = menu->AddMenu("View", 0);
 	mi_viewnetworks =  menu->AddMenuItem("Display as Networks", mn_view, 0);

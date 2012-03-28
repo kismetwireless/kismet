@@ -26,6 +26,7 @@
 #include "kis_panel_frontend.h"
 #include "kis_panel_sort.h"
 #include "kis_panel_widgets.h"
+#include "kis_devicelist_sort.h"
 
 #include "soundcontrol.h"
 
@@ -61,6 +62,10 @@ void KDL_ColumnMenuCB(MENUITEM_CB_PARMS) {
 	((Kis_Devicelist *) auxptr)->SpawnColumnPrefWindow();
 }
 
+void KDL_SortMenuCB(MENUITEM_CB_PARMS) {
+	((Kis_Devicelist *) auxptr)->SortMenuAction(menuitem);
+}
+
 void KDL_ColumnRefresh(KISPANEL_COMPLETECB_PARMS) {
 	if (rc)
 		((Kis_Devicelist *) auxptr)->ParseColumnConfig();
@@ -68,6 +73,11 @@ void KDL_ColumnRefresh(KISPANEL_COMPLETECB_PARMS) {
 
 string KDL_Common_Column_Cb(KDL_COLUMN_PARMS) {
 	return ((Kis_Devicelist *) aux)->CommonColumn(device, columnid, header);
+}
+
+void KDL_Common_Sort(KDL_SORT_PARMS) {
+	stable_sort(dev_vec->begin(), dev_vec->end(), 
+				KDL_Sort_Proxy(*((KDL_Sort_Abstract *) aux)));
 }
 
 Kis_Devicelist::Kis_Devicelist(GlobalRegistry *in_globalreg, Kis_Panel *in_panel) :
@@ -101,6 +111,7 @@ Kis_Devicelist::Kis_Devicelist(GlobalRegistry *in_globalreg, Kis_Panel *in_panel
 	first_line = last_line = selected_line = hpos = 0;
 
 	next_column_id = 1;
+	next_sort_id = 1;
 
 	// Register all our local columns
 	col_active = RegisterColumn("Active", "Recently active", 1,
@@ -171,6 +182,11 @@ Kis_Devicelist::Kis_Devicelist(GlobalRegistry *in_globalreg, Kis_Panel *in_panel
 	for (int x = 0; x < KDL_COLOR_MAX; x++)
 		color_map[x] = 0;
 	color_inactive = 0;
+
+	mn_sort = menu->FindMenu("Sort");
+
+	RegisterSort("Phy type", "Sort by Phy layer type",
+				 KDL_Common_Sort, new KDL_Sort_Phy(devcomp_ref_common));
 
 }
 
@@ -318,6 +334,52 @@ void Kis_Devicelist::PhyRX(int phy_id) {
 	// Link menu ID to phy ID
 	menu_phy_map[mi_filteritem] = phy_id;
 
+}
+
+int Kis_Devicelist::RegisterSort(string in_name, string in_desc, 
+								   KDL_Sort_Callback in_cb, void *in_aux) {
+	for (map<int, kdl_sort *>::iterator x = sort_map.begin();
+		 x != sort_map.end(); ++x) {
+		if (StrLower(x->second->name) == StrLower(in_name))
+			return x->first;
+	}
+
+	next_sort_id++;
+
+	kdl_sort *news = new kdl_sort;
+	news->name = in_name;
+	news->description = in_desc;
+	news->id = next_sort_id;
+	news->callback = in_cb;
+	news->cb_aux = in_aux;
+
+	news->menu_id =
+		menu->AddMenuItem(news->name, mn_sort, 0);
+
+	menu->SetMenuItemCallback(news->menu_id, KDL_SortMenuCB, this);
+
+	menu->SetMenuItemCheckSymbol(news->menu_id, '*');
+
+	if (StrLower(kpinterface->prefs->FetchOpt("MAIN_SORT")) == StrLower(in_name)) {
+		current_sort = news;
+		menu->SetMenuItemChecked(news->menu_id, 1);
+	}
+
+	sort_map[news->id] = news;
+
+	return news->id;
+}
+
+void Kis_Devicelist::RemoveSort(int in_id) {
+	if (sort_map.find(in_id) != sort_map.end()) {
+		kdl_sort *s = sort_map[in_id];
+
+		// Make the menu item invisible
+		menu->SetMenuItemVis(s->menu_id, 0);
+
+		delete(s);
+		sort_map.erase(in_id);
+	}
 }
 
 int Kis_Devicelist::RegisterColumn(string in_name, string in_desc, 
@@ -847,6 +909,7 @@ void Kis_Devicelist::RefreshDisplayList() {
 	
 	first_line = selected_line = 0;
 
+
 	for (unsigned int x = 0; x < display_dev_vec.size(); x++) {
 		// Determine if we put it in our draw vec
 		kis_device_common *common =
@@ -879,6 +942,11 @@ void Kis_Devicelist::RefreshDisplayList() {
 		draw_vec.push_back(display_dev_vec[x]);
 		display_dev_vec[x]->dirty = 1;
 	}
+
+	// Sort
+	if (current_sort != NULL) 
+		(*(current_sort->callback))(&display_dev_vec, current_sort->cb_aux, 
+									current_sort, globalreg);
 }
 
 void Kis_Devicelist::FilterMenuAction(int menuitem) {
@@ -906,6 +974,26 @@ void Kis_Devicelist::FilterMenuAction(int menuitem) {
 
 		RefreshDisplayList();
 	}
+}
+
+void Kis_Devicelist::SortMenuAction(int menuitem) {
+	map<int, kdl_sort *>::iterator i;
+
+	for (i = sort_map.begin(); i != sort_map.end(); ++i) {
+		if ((int) i->second->menu_id == menuitem) {
+			// Uncheck the old menu
+			if (current_sort != NULL) 
+				menu->SetMenuItemChecked(current_sort->menu_id, 0);
+
+			// Check the new
+			current_sort = i->second;
+
+			break;
+		}
+	}
+
+	RefreshDisplayList();
+	
 }
 
 void Kis_Devicelist::SpawnColorPrefWindow() {
