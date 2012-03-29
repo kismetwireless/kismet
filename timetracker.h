@@ -31,6 +31,9 @@
 
 #include "globalregistry.h"
 
+// For ubertooth and a few older plugins that compile against both svn and old
+#define KIS_NEW_TIMER_PARM	1
+
 #define TIMEEVENT_PARMS Timetracker::timer_event *evt, void *auxptr, \
 	GlobalRegistry *globalreg
 
