@@ -59,7 +59,11 @@ void KDL_ColorMenuCB(MENUITEM_CB_PARMS) {
 }
 
 void KDL_ColumnMenuCB(MENUITEM_CB_PARMS) {
-	((Kis_Devicelist *) auxptr)->SpawnColumnPrefWindow();
+	((Kis_Devicelist *) auxptr)->SpawnColumnPrefWindow(false);
+}
+
+void KDL_ExtraMenuCB(MENUITEM_CB_PARMS) {
+	((Kis_Devicelist *) auxptr)->SpawnColumnPrefWindow(true);
 }
 
 void KDL_SortMenuCB(MENUITEM_CB_PARMS) {
@@ -73,6 +77,10 @@ void KDL_ColumnRefresh(KISPANEL_COMPLETECB_PARMS) {
 
 string KDL_Common_Column_Cb(KDL_COLUMN_PARMS) {
 	return ((Kis_Devicelist *) aux)->CommonColumn(device, columnid, header);
+}
+
+string KDL_Common_Subcolumn_Cb(KDL_COLUMN_PARMS) {
+	return ((Kis_Devicelist *) aux)->CommonSubColumn(device, columnid, header);
 }
 
 void KDL_Common_Sort(KDL_SORT_PARMS) {
@@ -151,6 +159,25 @@ Kis_Devicelist::Kis_Devicelist(GlobalRegistry *in_globalreg, Kis_Panel *in_panel
 	col_manuf = RegisterColumn("Manuf", "Manufacturer", 12,
 							   LABEL_POS_LEFT, KDL_Common_Column_Cb, this, false);
 
+	// Subcolumns take as much room as they want, it's not fixed
+	col_sub_lastseen = RegisterColumn("LastSeen", "Last seen time", 0, 
+									  LABEL_POS_LEFT, KDL_Common_Subcolumn_Cb, 
+									  this, true);
+	col_sub_addr = RegisterColumn("Address", "MAC or identifier", 0, 
+								  LABEL_POS_LEFT, KDL_Common_Subcolumn_Cb, this, true);
+	col_sub_basiccrypt = RegisterColumn("BasicCrypt", "Basic encryption info", 0, 
+										LABEL_POS_LEFT, KDL_Common_Subcolumn_Cb, 
+										this, true);
+	col_sub_ip = RegisterColumn("IP", "IP data", 0, 
+								LABEL_POS_LEFT, KDL_Common_Subcolumn_Cb, this, true);
+	col_sub_manuf = RegisterColumn("Manuf", "Manufacturer type", 0, 
+								   LABEL_POS_LEFT, KDL_Common_Subcolumn_Cb, this, true);
+	col_sub_seenby = RegisterColumn("Seenby", "Capture sources list", 0, 
+								   LABEL_POS_LEFT, KDL_Common_Subcolumn_Cb, this, true);
+	col_sub_phy = RegisterColumn("Phyname", "Phy layer name", 0,
+								 LABEL_POS_LEFT, KDL_Common_Subcolumn_Cb, this, true);
+	
+
 	ParseColumnConfig();
 
 	string viewmode = StrLower(kpinterface->prefs->FetchOpt("MAIN_VIEWSTYLE"));
@@ -175,9 +202,12 @@ Kis_Devicelist::Kis_Devicelist(GlobalRegistry *in_globalreg, Kis_Panel *in_panel
 		menu->AddMenuItem("Device Colors", mn_preferences, 'c');
 	mi_columnpref =
 		menu->AddMenuItem("Device Columns", mn_preferences, 'd');
+	mi_extrapref =
+		menu->AddMenuItem("Device Extras", mn_preferences, 'e');
 
 	menu->SetMenuItemCallback(mi_colorpref, KDL_ColorMenuCB, this);
 	menu->SetMenuItemCallback(mi_columnpref, KDL_ColumnMenuCB, this);
+	menu->SetMenuItemCallback(mi_extrapref,KDL_ExtraMenuCB, this);
 
 	for (int x = 0; x < KDL_COLOR_MAX; x++)
 		color_map[x] = 0;
@@ -212,9 +242,18 @@ void Kis_Devicelist::ParseColumnConfig() {
 	string cols = 
 		kpinterface->prefs->FetchOpt("devlist_columns");
 
+	string extcols =
+		kpinterface->prefs->FetchOpt("devlist_extline");
+
 	if (cols == "") {
-		cols = "active,phy,name,type,basiccrypt,address,packets,datasize,channel,alerts";
+		cols = "active,phy,name,type,basiccrypt,address,"
+			"packets,datasize,channel,alerts";
 		kpinterface->prefs->SetOpt("devlist_columns", cols, 1);
+	}
+
+	if (extcols == "") {
+		extcols = "lastseen,basiccrypt,manuf,seenby,phyname";
+		kpinterface->prefs->SetOpt("devlist_extline", extcols, 1);
 	}
 
 	vector<string> toks = StrTokenize(cols, ",");
@@ -240,6 +279,36 @@ void Kis_Devicelist::ParseColumnConfig() {
 			_MSG("Unknown column '" + t + "'", MSGFLAG_INFO);
 		}
 	}
+
+	toks = StrTokenize(extcols, ",");
+
+	configured_subcolumn_vec.clear();
+
+	for (unsigned int x = 0; x < toks.size(); x++) {
+		t = StrLower(toks[x]);
+		bool set = 0;
+
+		// Sucks but only happens rarely
+		for (map<int, kdl_column *>::iterator i = registered_column_map.begin();
+			 i != registered_column_map.end(); ++i) {
+			if (StrLower(i->second->name) == t && i->second->subcolumn) {
+				set = true;
+				configured_subcolumn_vec.push_back(i->second);
+				break;
+			}
+		}
+
+		if (!set) {
+			_MSG("Unknown extraline option '" + t + "'", MSGFLAG_INFO);
+		}
+	}
+
+	for (unsigned int x = 0; x < draw_vec.size(); x++)
+		draw_vec[x]->dirty = true;
+
+	draw_dirty = true;
+
+	colheadercache = "";
 }
 
 Kis_Devicelist::~Kis_Devicelist() {
@@ -540,6 +609,7 @@ void Kis_Devicelist::DrawComponent() {
 
 	int dy = 0;
 	string display_line;
+	string extra_line;
 
 	for (unsigned int x = first_line; dy < viewable_lines && 
 		 x < draw_vec.size(); x++) {
@@ -555,6 +625,7 @@ void Kis_Devicelist::DrawComponent() {
 
 		if (!draw_vec[x]->dirty && draw_vec[x]->columncache != "" && oft > 6) {
 			display_line = draw_vec[x]->columncache;
+			extra_line = draw_vec[x]->extcache;
 			// display_line[0] = 'C';
 		} else {
 			display_line = " ";
@@ -573,6 +644,12 @@ void Kis_Devicelist::DrawComponent() {
 											false) + 
 									" ";
 			}
+		
+			if ((int) display_line.length() < viewable_cols)
+				display_line += string(viewable_cols - display_line.length(), ' ');
+
+			// Clear the extra cache if we knew we were dirtied
+			extra_line = "";
 
 			draw_vec[x]->dirty = false;
 			draw_vec[x]->columncache = display_line;
@@ -593,15 +670,48 @@ void Kis_Devicelist::DrawComponent() {
 			}
 		}
 
-		if (selected_line == (int) x && active)
+		if (selected_line == (int) x && active) {
 			wattron(window, WA_REVERSE);
+
+			// Recompute the extra line
+			if (extra_line == "") {
+				extra_line = " ";
+
+				for (unsigned int c = 0; c < configured_subcolumn_vec.size(); c++) {
+					if ((int) extra_line.length() > viewable_cols)
+						break;
+
+					string f =  
+						(*(configured_subcolumn_vec[c]->callback))(
+										draw_vec[x],
+										configured_subcolumn_vec[c]->cb_aux,
+										globalreg,
+										configured_subcolumn_vec[c]->id,
+										false);
+
+					if (f != "")
+						extra_line += f + " ";
+				}
+
+				if ((int) extra_line.length() < viewable_cols)
+					extra_line +=  string(viewable_cols - extra_line.length(), ' ');
+
+				draw_vec[x]->extcache = extra_line;
+			}
+		}
 
 		Kis_Panel_Specialtext::Mvwaddnstr(window, sy + dy, sx, 
 										  display_line, 
 										  lx - 1, parent_panel);
 
-		if (selected_line == (int) x && active)
+		if (selected_line == (int) x && active) {
+			dy++;
+			Kis_Panel_Specialtext::Mvwaddnstr(window, sy + dy, sx, 
+											  extra_line, 
+											  lx - 1, parent_panel);
+			
 			wattroff(window, WA_REVERSE);
+		}
 
 		last_line = x;
 
@@ -755,7 +865,7 @@ string Kis_Devicelist::CommonColumn(kdl_display_device *in_dev, int in_columnid,
 	map<int, kdl_column *>::iterator ci = registered_column_map.find(in_columnid);
 
 	if (ci == registered_column_map.end())
-		return "INVALID";
+		return "[INVALID]";
 
 	kis_device_common *common = NULL;
 
@@ -929,6 +1039,89 @@ string Kis_Devicelist::CommonColumn(kdl_display_device *in_dev, int in_columnid,
 	return buf;
 }
 
+string Kis_Devicelist::CommonSubColumn(kdl_display_device *in_dev, int in_columnid,
+									   bool header) {
+	char buf[64];
+	int offt = 0;
+
+	if (header)
+		return "";
+
+	map<int, kdl_column *>::iterator ci = registered_column_map.find(in_columnid);
+
+	if (ci == registered_column_map.end())
+		return "[INVALID]";
+
+	kis_device_common *common = NULL;
+
+	buf[0] = '\0';
+
+	if (in_dev != NULL && in_dev->device != NULL)
+		common = (kis_device_common *) in_dev->device->fetch(devcomp_ref_common);
+
+	if (common == NULL) {
+		return "NULL";
+	}
+
+	if (in_columnid == col_sub_lastseen) {
+		snprintf(buf, 64, "Last seen: %.15s",
+				 ctime((const time_t *) &(common->last_time)) + 4);
+	} else if (in_columnid == col_sub_addr) {
+		snprintf(buf, 64, "%s", in_dev->device->key.Mac2String().c_str());
+	} else if (in_columnid == col_sub_basiccrypt) {
+		snprintf(buf, 64, "Crypt:");
+		offt = 6;
+
+		if (common->basic_crypt_set == KIS_DEVICE_BASICCRYPT_NONE) {
+			snprintf(buf + offt, 64-offt, " None");
+		} else {
+			if (common->basic_crypt_set & KIS_DEVICE_BASICCRYPT_L2) {
+				snprintf(buf + offt, 64 - offt, " L2");
+				offt += 3;
+			} 
+
+			if (common->basic_crypt_set & KIS_DEVICE_BASICCRYPT_L3) {
+				snprintf(buf + offt, 64 - offt, " L3");
+				offt += 3;
+			}
+
+			if (common->basic_crypt_set & KIS_DEVICE_BASICCRYPT_WEAKCRYPT) {
+				snprintf(buf + offt, 64 - offt, " Weak");
+				offt += 5;
+			} 
+
+			if (common->basic_crypt_set & KIS_DEVICE_BASICCRYPT_DECRYPTED) {
+				snprintf(buf + offt, 64 - offt, " Decrypted");
+				offt += 10;
+			}
+		}
+	} else if (in_columnid == col_sub_manuf) {
+		snprintf(buf, 64, "%s", common->manuf.c_str());
+	} else if (in_columnid == col_sub_seenby) {
+		map<uuid, KisPanelInterface::knc_card *> *cardmap = 
+			kpinterface->FetchNetCardMap();
+		map<uuid, KisPanelInterface::knc_card *>::iterator kci;
+
+		offt = 0;
+
+		for (map<uuid, kis_seenby_data *>::iterator smi = common->seenby_map.begin();
+			 smi != common->seenby_map.end(); ++smi) {
+			if ((kci = cardmap->find(smi->first)) != cardmap->end()) {
+				snprintf(buf + offt, 64 - offt, "%s ",
+						 kci->second->name.c_str());
+				offt += kci->second->name.length() + 1;
+			}
+		}
+
+		buf[offt] = '\0';
+	} else if (in_columnid == col_sub_phy) {
+		snprintf(buf, 64, "%s", 
+				 devicetracker->FetchPhyName(in_dev->device->phy_type).c_str());
+	}
+
+	return buf;
+}
+
 void Kis_Devicelist::RefreshDisplayList() {
 	// _MSG("refresh display\n", MSGFLAG_INFO);
 
@@ -939,7 +1132,6 @@ void Kis_Devicelist::RefreshDisplayList() {
 	// fprintf(stderr, "debug - refreshing display list for view mode %d\n", display_mode);
 	
 	first_line = selected_line = 0;
-
 
 	for (unsigned int x = 0; x < display_dev_vec.size(); x++) {
 		// Determine if we put it in our draw vec
@@ -1044,15 +1236,19 @@ void Kis_Devicelist::SpawnColorPrefWindow() {
 	kpinterface->AddPanel(cpp);
 }
 
-void Kis_Devicelist::SpawnColumnPrefWindow() {
+void Kis_Devicelist::SpawnColumnPrefWindow(bool extracols) {
 	Kis_ColumnPref_Panel *cpp = new Kis_ColumnPref_Panel(globalreg, kpinterface);
 
 	for (map<int, kdl_column *>::iterator x = registered_column_map.begin();
 		 x != registered_column_map.end(); ++x) {
-		cpp->AddColumn(x->second->name, x->second->description);
+		if (x->second->subcolumn == extracols)
+			cpp->AddColumn(x->second->name, x->second->description);
 	}
 
-	cpp->ColumnPref("devlist_columns", "Device List");
+	if (!extracols)
+		cpp->ColumnPref("devlist_columns", "Device List Columns");
+	else
+		cpp->ColumnPref("devlist_extline", "Device List Extras");
 
 	cpp->SetCompleteCallback(KDL_ColumnRefresh, this);
 

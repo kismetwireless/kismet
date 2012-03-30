@@ -131,6 +131,7 @@ public:
 	void RemoveColumn(int in_id);
 
 	string CommonColumn(kdl_display_device *in_dev, int columnid, bool header);
+	string CommonSubColumn(kdl_display_device *in_dev, int columnid, bool header);
 
 	void ParseColumnConfig();
 
@@ -143,7 +144,7 @@ public:
 	void FilterMenuAction(int menuitem);
 
 	void SpawnColorPrefWindow();
-	void SpawnColumnPrefWindow();
+	void SpawnColumnPrefWindow(bool extracols);
 
 protected:
 	vector<kdl_display_device *> display_dev_vec;
@@ -194,11 +195,14 @@ protected:
 		col_newpackets, col_channel, col_freq, col_alerts, col_manuf, col_phy, 
 		col_signal;
 
+	int col_sub_lastseen, col_sub_addr, col_sub_basiccrypt, col_sub_ip,
+		col_sub_manuf, col_sub_seenby, col_sub_phy;
+
 	int display_mode;
 
 	Kis_Menu *menu;
 	int mn_filter, mn_preferences, mn_sort;
-	int mi_colorpref, mi_columnpref;
+	int mi_colorpref, mi_columnpref, mi_extrapref;
 
 	int sort_mode;
 
