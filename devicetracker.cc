@@ -48,7 +48,7 @@ enum KISDEV_COMMON_FIELDS {
 	KISDEV_packets, KISDEV_llcpackets, KISDEV_errorpackets,
 	KISDEV_datapackets, KISDEV_cryptpackets, KISDEV_filterpackets,
 	KISDEV_datasize, KISDEV_newpackets, KISDEV_channel, KISDEV_frequency,
-	KISDEV_freqmhz,
+	KISDEV_freqmhz, KISDEV_manuf,
 	
 	KISDEV_gpsfixed,
     KISDEV_minlat, KISDEV_minlon, KISDEV_minalt, KISDEV_minspd,
@@ -70,7 +70,7 @@ const char *KISDEV_common_text[] = {
 	"packets", "llcpackets", "errorpackets",
 	"datapackets", "cryptpackets", "filterpackets",
 	"datasize", "newpackets", "channel", "frequency",
-	"freqmhz",
+	"freqmhz", "manuf",
 
 	"gpsfixed",
 	"minlat", "minlon", "minalt", "minspd",
@@ -168,6 +168,9 @@ int Protocol_KISDEV_COMMON(PROTO_PARMS) {
 					 fmi != com->freq_mhz_map.end(); ++fmi) {
 					scratch += IntToString(fmi->first) + ":" + IntToString(fmi->second) + "*";
 				}
+				break;
+			case KISDEV_manuf:
+				scratch = "\001" + com->manuf + "\001";
 				break;
 			case KISDEV_gpsfixed:
 				scratch = IntToString(com->gpsdata.gps_valid);

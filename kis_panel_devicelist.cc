@@ -690,7 +690,7 @@ void Kis_Devicelist::DrawComponent() {
 										false);
 
 					if (f != "")
-						extra_line += f + " ";
+						extra_line += " [" + f + "]";
 				}
 
 				if ((int) extra_line.length() < viewable_cols)

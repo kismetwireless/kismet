@@ -62,7 +62,7 @@ const char *CDT_device_fields[] = {
 	"packets", "llcpackets", "errorpackets",
 	"datapackets", "cryptpackets", "filterpackets",
 	"datasize", "newpackets", "channel", "frequency",
-	"freqmhz",
+	"freqmhz", "manuf", 
 
 	"gpsfixed",
 	"minlat", "minlon", "minalt", "minspd",
@@ -564,6 +564,8 @@ void Client_Devicetracker::Proto_DEVICE(CLIPROTO_CB_PARMS) {
 
 		common->freq_mhz_map[freq] = count;
 	}
+
+	common->manuf = (*proto_parsed)[fnum++].word;
 
 	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tint) != 1) 
 		goto proto_fail;
