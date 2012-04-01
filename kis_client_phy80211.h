@@ -46,7 +46,17 @@ public:
 	}
 
 	virtual void NetClientConfigure(KisNetClient *in_cli, int in_recon);
-	virtual void NetClientAdd(KisNetClient *in_cli, int add);
+
+	void Proto_DOT11SSID(CLIPROTO_CB_PARMS);
+	void Proto_DOT11DEVICE(CLIPROTO_CB_PARMS);
+	void Proto_DOT11CLIENT(CLIPROTO_CB_PARMS);
+
+protected:
+	int devcomp_ref_dot11, devcomp_ref_common;
+
+	string proto_dot11ssid_fields, proto_dot11device_fields, proto_dot11client_fields;
+	int proto_dot11ssid_fields_num, proto_dot11device_fields_num, 
+		proto_dot11client_fields_num;
 };
 
 

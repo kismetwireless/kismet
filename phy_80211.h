@@ -153,13 +153,13 @@ public:
 	double maxrate;
 
 	// Beacon rate in # of beacons per second
-	int beaconrate;
+	unsigned int beaconrate;
 
 	// Number of packets seen advertising this ssid
-	int packets;
+	unsigned int packets;
 
 	// Number of beacons seen in the last second (for calculating loss)
-	int beacons;
+	unsigned int beacons;
 
 	string dot11d_country;
 	vector<dot11_11d_range_info> dot11d_vec;

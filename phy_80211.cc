@@ -46,14 +46,15 @@
 #include "phy_80211.h"
 
 enum PHYDOT11_SSID_FIELDS {
-	PD11_SSID_bssidmac, PD11_SSID_type, PD11_SSID_ssid, PD11_SSID_beaconinfo,
+	PD11_SSID_bssidmac, PD11_SSID_checksum, PD11_SSID_type, PD11_SSID_ssid, 
+	PD11_SSID_beaconinfo,
 	PD11_SSID_cryptset, PD11_SSID_cloaked, PD11_SSID_firsttime, PD11_SSID_lasttime,
 	PD11_SSID_beaconrate, PD11_SSID_beacons, PD11_SSID_channel, PD11_SSID_dot11d,
 	PD11_SSID_maxfield
 };
 
 const char *PHYDOT11_SSID_text[] = {
-	"bssidmac", "type", "ssid", "beaconinfo",
+	"bssidmac", "checksum", "type", "ssid", "beaconinfo",
 	"cryptset", "firsttime", "lasttime",
 	"beaconrate", "beacons", "channel", "dot11d",
 	NULL
@@ -147,6 +148,9 @@ int Protocol_PD11_SSID(PROTO_PARMS) {
 			case PD11_SSID_bssidmac:
 				scratch = ssid->mac.Mac2String();
 				break;
+			case PD11_SSID_checksum:
+				scratch = UIntToString(ssid->checksum);
+				break;
 			case PD11_SSID_type:
 				scratch = IntToString(ssid->type);
 				break;
@@ -163,16 +167,16 @@ int Protocol_PD11_SSID(PROTO_PARMS) {
 				scratch = IntToString(ssid->ssid_cloaked);
 				break;
 			case PD11_SSID_firsttime:
-				scratch = IntToString(ssid->first_time);
+				scratch = UIntToString(ssid->first_time);
 				break;
 			case PD11_SSID_lasttime:
-				scratch = IntToString(ssid->last_time);
+				scratch = UIntToString(ssid->last_time);
 				break;
 			case PD11_SSID_beaconrate:
-				scratch = IntToString(ssid->beaconrate);
+				scratch = UIntToString(ssid->beaconrate);
 				break;
 			case PD11_SSID_beacons:
-				scratch = IntToString(ssid->beacons);
+				scratch = UIntToString(ssid->beacons);
 				break;
 			case PD11_SSID_channel:
 				scratch = IntToString(ssid->channel);

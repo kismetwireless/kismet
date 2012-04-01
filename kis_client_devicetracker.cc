@@ -147,6 +147,16 @@ vector<kis_tracked_device *> *Client_Devicetracker::FetchDevices(int in_phy) {
 	return phy_device_vec[in_phy];
 }
 
+kis_tracked_device *Client_Devicetracker::FetchDevice(mac_addr in_mac) {
+	map<mac_addr, kis_tracked_device *>::iterator tmi =
+		tracked_map.find(in_mac);
+
+	if (tmi == tracked_map.end())
+		return NULL;
+
+	return tmi->second;
+}
+
 void Client_Devicetracker::RegisterPhyHandler(Client_Phy_Handler *in_weak_handler) {
 	// Look for an observed phy which hasn't got a handler record
 	for (map<int, observed_phy *>::iterator x = phy_handler_map.begin();
@@ -269,7 +279,6 @@ void Client_Devicetracker::ClearDeviceTag(mac_addr in_device, string in_tag) {
 }
 
 void Client_Devicetracker::NetClientAdd(KisNetClient *in_cli, int add) {
-	// TODO figure out how to resolve PHY#s
 	if (add == 0)
 		return;
 
@@ -277,7 +286,7 @@ void Client_Devicetracker::NetClientAdd(KisNetClient *in_cli, int add) {
 }
 
 void Client_Devicetracker::NetClientConfigure(KisNetClient *in_cli, int in_recon) {
-	// _MSG("CDT connected", MSGFLAG_INFO);
+	_MSG("CDT connected", MSGFLAG_INFO);
 
 	if (in_cli->RegisterProtoHandler("PHYMAP", proto_phymap_fields,
 									 CDT_PHYMAP, this) < 0) {
@@ -304,6 +313,15 @@ void Client_Devicetracker::NetClientConfigure(KisNetClient *in_cli, int in_recon
 			 MSGFLAG_ERROR);
 		in_cli->KillConnection();
 		return;
+	}
+
+	_MSG("CDT looking at phy handlers", MSGFLAG_INFO);
+	for (map<int, observed_phy *>::iterator x = phy_handler_map.begin();
+		 x != phy_handler_map.end(); ++x) {
+		if (x->second->handler != NULL) {
+			_MSG("Registering phyhandler network ", MSGFLAG_INFO);
+			x->second->handler->NetClientConfigure(in_cli, in_recon);
+		}
 	}
 
 }
@@ -391,11 +409,35 @@ void Client_Devicetracker::Proto_PHYMAP(CLIPROTO_CB_PARMS) {
 			}
 		}
 
+		// Subscribe it by sending it a network config event
+		if (op->handler != NULL)
+			op->handler->NetClientConfigure(srccli, 0);
+		else
+			_MSG("Server reports PHY type '" + op->phy_name + "', but there is no "
+				 "support for it in this client.", MSGFLAG_INFO);
+
 		phy_handler_map[op->phy_id] = op;
 
 		phy_device_vec[op->phy_id] = new vector<kis_tracked_device *>;
 	} else {
 		op = phmi->second;
+
+		// Look again for a handler, maybe a plugin got loaded
+		if (op->handler == NULL) {
+			for (unsigned int x = 0; x < unassigned_phy_vec.size(); x++) {
+				if (unassigned_phy_vec[x]->FetchPhyName() == op->phy_name) {
+					op->handler = 
+						unassigned_phy_vec[x]->CreatePhyHandler(globalreg, this, op->phy_id);
+					unassigned_phy_vec.erase(unassigned_phy_vec.begin() + x);
+					break;
+				}
+			}
+
+			// Subscribe it by sending it a network config event
+			if (op->handler != NULL)
+				op->handler->NetClientConfigure(srccli, 0);
+		}
+
 		fnum++;
 	}
 
@@ -431,7 +473,7 @@ void Client_Devicetracker::Proto_PHYMAP(CLIPROTO_CB_PARMS) {
 void Client_Devicetracker::Proto_DEVICE(CLIPROTO_CB_PARMS) {
 	// _MSG("CDT proto_device", MSGFLAG_INFO);
 	
-	if (proto_parsed->size() < (unsigned int) proto_device_fields_num)
+	if ((int) proto_parsed->size() < proto_device_fields_num)
 		return;
 
 	int fnum = 0;
@@ -681,7 +723,7 @@ void Client_Devicetracker::Proto_DEVICE(CLIPROTO_CB_PARMS) {
 	return;
 
 proto_fail:
-	_MSG("CDT failed to process *DEVICE", MSGFLAG_INFO);
+	_MSG("CDT failed to process *DEVICE", MSGFLAG_ERROR);
 	if (common_new)
 		delete common;
 	if (dev_new)

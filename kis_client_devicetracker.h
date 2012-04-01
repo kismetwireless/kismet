@@ -59,9 +59,10 @@ public:
 	virtual string FetchPhyName() { return phyname; }
 	virtual int FetchPhyId() { return phyid; }
 
-	// Called when netclient triggers, must be registered by the strong constructor
+	// Called by client_devicetracker when configuring the network server,
+	// should not be registered by the phy handler itself.  Because adding is
+	// brokered by the devicetracker, there is no netclientadd callback
 	virtual void NetClientConfigure(KisNetClient *in_cli, int in_recon) = 0;
-	virtual void NetClientAdd(KisNetClient *in_cli, int add) = 0;
 
 protected:
 	GlobalRegistry *globalreg;
@@ -100,6 +101,7 @@ public:
 	string FetchPhyName(int in_phy);
 
 	vector<kis_tracked_device *> *FetchDevices(int in_phy);
+	kis_tracked_device *FetchDevice(mac_addr in_mac);
 
 	int FetchNumDevices(int in_phy);
 	int FetchNumPackets(int in_phy);
