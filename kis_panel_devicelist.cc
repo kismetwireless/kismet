@@ -178,8 +178,6 @@ Kis_Devicelist::Kis_Devicelist(GlobalRegistry *in_globalreg, Kis_Panel *in_panel
 								 LABEL_POS_LEFT, KDL_Common_Subcolumn_Cb, this, true);
 	
 
-	ParseColumnConfig();
-
 	string viewmode = StrLower(kpinterface->prefs->FetchOpt("MAIN_VIEWSTYLE"));
 
 	if (viewmode == "network")
@@ -236,6 +234,9 @@ Kis_Devicelist::Kis_Devicelist(GlobalRegistry *in_globalreg, Kis_Panel *in_panel
 	RegisterSort("Phy type", "Sort by Phy layer type",
 				 KDL_Common_Sort, new KDL_Sort_Phy(devcomp_ref_common));
 
+	devicetracker->PanelInitialized();
+
+	ParseColumnConfig();
 }
 
 void Kis_Devicelist::ParseColumnConfig() {
@@ -520,6 +521,15 @@ void Kis_Devicelist::RemoveColumn(int in_id) {
 		delete registered_column_map[in_id];
 		registered_column_map.erase(in_id);
 	}
+}
+
+kdl_column *Kis_Devicelist::FetchColumn(int in_id) {
+	map<int, kdl_column *>::iterator ci = registered_column_map.find(in_id);
+
+	if (ci == registered_column_map.end())
+		return NULL;
+
+	return ci->second;
 }
 
 void Kis_Devicelist::DrawComponent() {

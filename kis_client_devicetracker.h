@@ -64,6 +64,9 @@ public:
 	// brokered by the devicetracker, there is no netclientadd callback
 	virtual void NetClientConfigure(KisNetClient *in_cli, int in_recon) = 0;
 
+	// Panel UI is initialized; do anything reasonable
+	virtual void PanelInitialized() = 0;
+
 protected:
 	GlobalRegistry *globalreg;
 
@@ -131,6 +134,10 @@ public:
 	// Register a new callback, on new phys only or on any update
 	int RegisterPhyrxCallback(PhyRXEnableCB in_callback, void *in_aux, bool on_any);
 	void RemovePhyrxCallback(int in_id);
+
+	// Callback to ping phy handlers that the panel interface is
+	// initialized to resolve load order issues
+	void PanelInitialized();
 
 protected:
 	class observed_phy {

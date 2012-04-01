@@ -338,14 +338,14 @@ int Protocol_PD11_CLIENT(PROTO_PARMS) {
 				scratch = ULongToString(cli->rx_cryptset);
 				break;
 			case PD11_CLIENT_lastssid:
-				if (cli->last_ssid != NULL)
-					scratch = "\001" + cli->last_ssid->ssid + "\001";
+				if (cli->lastssid != NULL)
+					scratch = "\001" + cli->lastssid->ssid + "\001";
 				else
 					scratch = "\001\001";
 				break;
 			case PD11_CLIENT_lastssidcsum:
-				if (cli->last_ssid != NULL)
-					scratch = UIntToString(cli->last_ssid->checksum);
+				if (cli->lastssid != NULL)
+					scratch = UIntToString(cli->lastssid->checksum);
 				else
 					scratch = "0";
 				break;
@@ -1503,6 +1503,12 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 
 		if (ssid != NULL) {
 			// TODO alert for degraded crypto on probe_resp
+
+			if (net != NULL)
+				net->lastssid = ssid;
+
+			if (cli != NULL)
+				cli->lastssid = ssid;
 
 			ssid->dirty = 1;
 

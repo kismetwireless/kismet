@@ -772,3 +772,13 @@ void Client_Devicetracker::Proto_DEVICEDONE(CLIPROTO_CB_PARMS) {
 	}
 }
 
+void Client_Devicetracker::PanelInitialized() {
+	for (map<int, observed_phy *>::iterator x = phy_handler_map.begin();
+		 x != phy_handler_map.end(); ++x) {
+		if (x->second->handler != NULL) {
+			x->second->handler->PanelInitialized();
+		}
+	}
+
+}
+

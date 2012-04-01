@@ -26,6 +26,9 @@
 #include "kis_panel_network.h"
 #include "kis_client_devicetracker.h"
 
+class Kis_Devicelist;
+class kdl_display_device;
+
 class Client_Phy80211 : public Client_Phy_Handler {
 public:
 	Client_Phy80211() {
@@ -51,12 +54,20 @@ public:
 	void Proto_DOT11DEVICE(CLIPROTO_CB_PARMS);
 	void Proto_DOT11CLIENT(CLIPROTO_CB_PARMS);
 
+	virtual void PanelInitialized();
+
+	string Dot11Column(kdl_display_device *in_dev, int columnid, bool header);
+
 protected:
+	Kis_Devicelist *devicelist;
+
 	int devcomp_ref_dot11, devcomp_ref_common;
 
 	string proto_dot11ssid_fields, proto_dot11device_fields, proto_dot11client_fields;
 	int proto_dot11ssid_fields_num, proto_dot11device_fields_num, 
 		proto_dot11client_fields_num;
+
+	int col_dot11d;
 };
 
 

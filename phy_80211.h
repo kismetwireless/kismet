@@ -288,7 +288,6 @@ public:
 
 		groupptr = NULL;
 		lastssid = NULL;
-
 		lastssid_csum = 0;
 
 		last_bssid = mac_addr(0);
@@ -321,9 +320,10 @@ public:
 	uint64_t rx_cryptset;
 
 	// Last SSID we saw a probe resp for on this bssid
-	dot11_ssid *last_ssid;
+	dot11_ssid *lastssid;
 
-	string last_ssid_str;
+	string lastssid_str;
+	uint32_t lastssid_csum;
 
 	// Per BSSID
 	kis_ip_data guess_ipdata;
@@ -351,7 +351,8 @@ public:
 		last_sequence = 0;
 		tx_cryptset = 0L;
 		rx_cryptset = 0L;
-		last_ssid = NULL;
+		lastssid = NULL;
+		lastssid_csum = 0;
 
 		tx_datasize = 0L;
 		rx_datasize = 0L;

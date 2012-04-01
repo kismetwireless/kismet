@@ -20,9 +20,9 @@
 
 #include "globalregistry.h"
 #include "devicetracker.h"
-#include "kis_panel_network.h"
 #include "kis_client_devicetracker.h"
 #include "kis_client_phy80211.h"
+#include "kis_panel_devicelist.h"
 
 void CPD11_DOT11SSID(CLIPROTO_CB_PARMS) {
 	((Client_Phy80211 *) auxptr)->Proto_DOT11SSID(globalreg, proto_string, 
@@ -40,6 +40,10 @@ void CPD11_DOT11CLIENT(CLIPROTO_CB_PARMS) {
 	((Client_Phy80211 *) auxptr)->Proto_DOT11CLIENT(globalreg, proto_string, 
 													proto_parsed, srccli, 
 													auxptr);
+}
+
+string CPD11_Dot11Column_Cb(KDL_COLUMN_PARMS) {
+	return ((Client_Phy80211 *) aux)->Dot11Column(device, columnid, header);
 }
 
 Client_Phy80211::Client_Phy80211(GlobalRegistry *in_globalreg, 
@@ -115,6 +119,27 @@ void Client_Phy80211::NetClientConfigure(KisNetClient *in_cli, int in_recon) {
 	}
 
 	_MSG("Registered 802.11 client phy components", MSGFLAG_INFO);
+
+	devicelist = NULL;
+
+	PanelInitialized();
+}
+
+void Client_Phy80211::PanelInitialized() {
+	devicelist = 
+		(Kis_Devicelist *) globalreg->FetchGlobal("MAIN_DEVICELIST");
+
+	if (devicelist == NULL)
+		return;
+
+	col_dot11d = devicelist->RegisterColumn("Dot11d", "802.11d country", 3,
+											LABEL_POS_LEFT, CPD11_Dot11Column_Cb,
+											this, false);
+
+	devicelist->ParseColumnConfig();
+
+	_MSG("Phy80211 panel initialized", MSGFLAG_INFO);
+
 }
 
 void Client_Phy80211::Proto_DOT11SSID(CLIPROTO_CB_PARMS) {
@@ -220,8 +245,15 @@ void Client_Phy80211::Proto_DOT11SSID(CLIPROTO_CB_PARMS) {
 		}
 	}
 
+	// _MSG("phydot11ssid got ssid " + ssid->ssid + " csum " + UIntToString(ssid->checksum), MSGFLAG_INFO);
+
 	if (ssid_new) {
 		dot11dev->ssid_map[ssid->checksum] = ssid;
+	}
+
+	if (ssid->checksum == dot11dev->lastssid_csum) {
+		// _MSG("dot11ssid matched lastssid checksum", MSGFLAG_INFO);
+		dot11dev->lastssid = ssid;
 	}
 
 	return;
@@ -241,7 +273,6 @@ void Client_Phy80211::Proto_DOT11DEVICE(CLIPROTO_CB_PARMS) {
 
 	int fnum = 0;
 
-	int tint;
 	unsigned int tuint;
 	unsigned long tulong;
 	mac_addr tmac;
@@ -327,6 +358,7 @@ void Client_Phy80211::Proto_DOT11DEVICE(CLIPROTO_CB_PARMS) {
 	dot11dev->eap_id = (*proto_parsed)[fnum++].word;
 
 	if (dot11dev_new) {
+		_MSG("Got new dot11 device for " + device->key.Mac2String(), MSGFLAG_INFO);
 		device->insert(devcomp_ref_dot11, dot11dev);
 	}
 
@@ -344,5 +376,52 @@ proto_fail:
 
 void Client_Phy80211::Proto_DOT11CLIENT(CLIPROTO_CB_PARMS) {
 
+}
+
+string Client_Phy80211::Dot11Column(kdl_display_device *in_dev, int columnid,
+									bool header) {
+	char hdr[16];
+	char buf[64];
+	kdl_column *col = NULL;
+
+	dot11_device *dot11dev = NULL;
+
+	col = devicelist->FetchColumn(columnid);
+
+	if (col == NULL) 
+		return "[INVALID]";
+
+	if (col->alignment == LABEL_POS_LEFT)
+		snprintf(hdr, 16, "%%%ds", col->width);
+	else
+		snprintf(hdr, 16, "%%-%d.%ds", col->width, col->width);
+
+	snprintf(buf, 64, hdr, "Unk");
+
+	if (!header) {
+		if (in_dev != NULL && in_dev->device != NULL)
+			dot11dev =
+				(dot11_device *) in_dev->device->fetch(devcomp_ref_dot11);
+
+		if (dot11dev == NULL) {
+			snprintf(buf, 64, hdr, "---");
+			return buf;
+		}
+	}
+
+	if (columnid == col_dot11d) {
+		if (header) {
+			snprintf(buf, 64, hdr, "11d");
+		} else {
+			if (dot11dev->lastssid == NULL)
+				snprintf(buf, 64, hdr, "---");
+			else if (dot11dev->lastssid->dot11d_country == "") 
+				snprintf(buf, 64, hdr, "---");
+			else 
+				snprintf(buf, 64, hdr, dot11dev->lastssid->dot11d_country.c_str());
+		}
+	}
+
+	return buf;
 }
 

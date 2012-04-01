@@ -129,6 +129,7 @@ public:
 					   KisWidget_LabelPos in_align, KDL_Column_Callback in_cb,
 					   void *in_aux, bool in_sub);
 	void RemoveColumn(int in_id);
+	kdl_column *FetchColumn(int in_id);
 
 	string CommonColumn(kdl_display_device *in_dev, int columnid, bool header);
 	string CommonSubColumn(kdl_display_device *in_dev, int columnid, bool header);
