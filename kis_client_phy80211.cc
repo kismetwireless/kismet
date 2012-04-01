@@ -50,7 +50,7 @@ Client_Phy80211::Client_Phy80211(GlobalRegistry *in_globalreg,
 
 	const char *CPD11_ssid_fields[] = {
 		"bssidmac", "checksum", "type", "ssid", "beaconinfo",
-		"cryptset", "firsttime", "lasttime",
+		"cryptset", "cloaked", "firsttime", "lasttime",
 		"beaconrate", "beacons", "channel", "dot11d",
 		NULL
 	};
@@ -58,7 +58,7 @@ Client_Phy80211::Client_Phy80211(GlobalRegistry *in_globalreg,
 	const char *CPD11_dot11device_fields[] = {
 		"mac", "typeset", "txcrypt", "rxcrypt", "decrypted",
 		"disconnects", "cdpdev", "cdpport",
-		"fragments", "retries", "lastssid",
+		"fragments", "retries", "lastssid", 
 		"lastssidcsum", "txdatasize", "rxdatasize", 
 		"lastbssid", "dhcphost", "dhcpvendor",
 		"eapid",
@@ -154,7 +154,7 @@ void Client_Phy80211::Proto_DOT11SSID(CLIPROTO_CB_PARMS) {
 
 	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%u", &tuint) != 1)
 		goto proto_fail;
-
+	
 	dsi = dot11dev->ssid_map.find(tuint);
 
 	if (dsi == dot11dev->ssid_map.end()) {
@@ -236,6 +236,109 @@ proto_fail:
 }
 
 void Client_Phy80211::Proto_DOT11DEVICE(CLIPROTO_CB_PARMS) {
+	if ((int) proto_parsed->size() < proto_dot11ssid_fields_num)
+		return;
+
+	int fnum = 0;
+
+	int tint;
+	unsigned int tuint;
+	unsigned long tulong;
+	mac_addr tmac;
+
+	tmac = mac_addr((*proto_parsed)[fnum++].word.c_str());
+	if (tmac.error) {
+		return;
+	}
+	tmac.SetPhy(phyid);
+
+	kis_tracked_device *device =
+		devicetracker->FetchDevice(tmac);
+
+	if (device == NULL)
+		return;
+
+	bool dot11dev_new = false;
+
+	dot11_device *dot11dev =
+		(dot11_device *) device->fetch(devcomp_ref_dot11);
+
+	if (dot11dev == NULL) {
+		dot11dev_new = true;
+		dot11dev = new dot11_device();
+	}
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%u", &tuint) != 1)
+		goto proto_fail;
+	dot11dev->type_set = tuint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%lu", &tulong) != 1)
+		goto proto_fail;
+	dot11dev->tx_cryptset = tuint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%lu", &tulong) != 1)
+		goto proto_fail;
+	dot11dev->rx_cryptset = tuint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%u", &tuint) != 1)
+		goto proto_fail;
+	dot11dev->decrypted = tuint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%u", &tuint) != 1)
+		goto proto_fail;
+	dot11dev->client_disconnects = tuint;
+
+	dot11dev->cdp_dev_id = (*proto_parsed)[fnum++].word;
+
+	dot11dev->cdp_port_id = (*proto_parsed)[fnum++].word;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%u", &tuint) != 1)
+		goto proto_fail;
+	dot11dev->fragments = tuint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%u", &tuint) != 1)
+		goto proto_fail;
+	dot11dev->retries = tuint;
+
+	dot11dev->lastssid_str = (*proto_parsed)[fnum++].word;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%u", &tuint) != 1)
+		goto proto_fail;
+	dot11dev->lastssid_csum = tuint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%lu", &tulong) != 1)
+		goto proto_fail;
+	dot11dev->tx_datasize = tuint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%lu", &tulong) != 1)
+		goto proto_fail;
+	dot11dev->rx_datasize = tuint;
+
+	tmac = mac_addr((*proto_parsed)[fnum++].word.c_str());
+	if (tmac.error) 
+		goto proto_fail;
+	tmac.SetPhy(phyid);
+	dot11dev->last_bssid = tmac;
+
+	dot11dev->dhcp_host = (*proto_parsed)[fnum++].word;
+
+	dot11dev->dhcp_vendor = (*proto_parsed)[fnum++].word;
+
+	dot11dev->eap_id = (*proto_parsed)[fnum++].word;
+
+	if (dot11dev_new) {
+		device->insert(devcomp_ref_dot11, dot11dev);
+	}
+
+	return;
+
+proto_fail:
+	_MSG("PHYDOT11 failed to process *DOT11DEVICE", MSGFLAG_ERROR);
+	if (dot11dev_new) {
+		delete(dot11dev);
+	}
+
+	return;
 
 }
 

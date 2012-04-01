@@ -250,6 +250,9 @@ public:
 	void *groupptr;
 	dot11_ssid *lastssid;
 
+	string lastssid_str;
+	uint32_t lastssid_csum;
+
 	// Data sizes of network traffic
 	uint64_t tx_datasize;
 	uint64_t rx_datasize;
@@ -286,6 +289,8 @@ public:
 		groupptr = NULL;
 		lastssid = NULL;
 
+		lastssid_csum = 0;
+
 		last_bssid = mac_addr(0);
 
 		wps_m3_count = 0;
@@ -317,6 +322,8 @@ public:
 
 	// Last SSID we saw a probe resp for on this bssid
 	dot11_ssid *last_ssid;
+
+	string last_ssid_str;
 
 	// Per BSSID
 	kis_ip_data guess_ipdata;

@@ -55,7 +55,7 @@ enum PHYDOT11_SSID_FIELDS {
 
 const char *PHYDOT11_SSID_text[] = {
 	"bssidmac", "checksum", "type", "ssid", "beaconinfo",
-	"cryptset", "firsttime", "lasttime",
+	"cryptset", "cloaked", "firsttime", "lasttime",
 	"beaconrate", "beacons", "channel", "dot11d",
 	NULL
 };
