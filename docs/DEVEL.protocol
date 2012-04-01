@@ -84,3 +84,19 @@
 	source			MAC			MAC of source
 	dest			MAC			MAC of destination
 	string			String		Extracted string
+
+*DOT11SSID - 802.11 phy SSID record, many contained per device
+	bssidmac		MAC			MAC of device, phy assumed to be
+								 whatever phy# is assigned to the dot11 handler
+	checksum		Integer		Checksum of SSID, used as key
+	type			Integer		Type set, phy80211.h
+	ssid			String		Advertised or probed SSID
+	beaconinfo		String		Proprietary vendor extended info
+	cryptset		Integer		dot11 advertised crypt set (phy80211.h)
+	firsttime		Integer		Timestamp, first time seen
+	lasttime		Integer		Timestamp, last time seen
+	beaconrate		Integer		Advertised beacons per second
+	beacons			Integer		Observed beacons in last second
+	channel			Integer		Advertised channel
+	dot11d			String		Complex dot11d info, 
+	                             country:[start-numchan-txpower]:+
