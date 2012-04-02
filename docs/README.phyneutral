@@ -1,0 +1,124 @@
+How to use the Kismet Phy-Neutral architecture
+----------------------------------------------
+
+Phy-Neutral is a re-write of the Kismet tracking system to be phy-layer
+neutral and agnostic.  Instead of each phy layer having to implement a
+full tracker layer, with the code duplication that implies, a common
+device tracker layer is now implemented, which tracks generic device
+records with arbitrary tagged data.
+
+The best reference for usage details is the code; even the monolithic
+Kismet code which is built at compile time uses the API which plugins
+use.  The existing Kismet plugins are also good references, as is
+the Ubertooth plugin.
+
+This document will evolve over time and is meant to provide an 
+explanation of the methodology, if not the exact code needed.
+
+0.  The device tracker
+
+The device tracker handles tracking all devices seen on all phy layers.
+A device must have a unique MAC within that PHY type.  Preferably this
+is a real record derived from the traffic seen.  A MAC record can
+be between 3 and 7 bytes long.
+
+The common device record tracks gps location, signal, first and last times
+seen, basic encryption and type, an arbitrary name, packet counts, channel
+and frequency, packet sources which have seen the device, alerts, and 
+arbitrary tagged string data.
+
+Additional device records are created by registering them with 
+Devicetracker::RegisterDeviceComponent.  An integer reference is returned
+which is to be used for all set/get operations on this component.
+Registering the same name for a component multiple times will return the
+same id and can be used by multiple sections of code to retrieve the
+id.
+
+The devicetracker maintains a phy type to integer mapping.  This phyid is
+used as the identifier in MAC addresses to prevent collisions across PHY
+layers, and is used elsewhere.  It should never be counted on to remain the
+same across multiple executions of Kismet; log files should associate the
+DLT type or the full name of the phy layer.  The phyid is incremented when
+a phy handler is added - any changes to this order (such as other plugins)
+will lead to a different ID being assigned on future executions.
+
+1.  Packet sources
+
+Kismet packet sources should be implemented as before - subclassed from
+KisPacketSource.  Packet sources should place packet data in a
+LINKFRAME packet component with the appropriate DLT set.
+
+This is different from previous implementations where LINKFRAME was 
+reserved for 802.11 data.  For proper transparent functionality with
+Kismet drones and pcap files, the DLT should be set on a linkframe.
+
+2.  PHY handlers
+
+The PHY handler is responsible for 3 main tasks with packets:
+
+ * Decode the DLT linkframe into intelligent data (Decode)
+ * Create a common record early in the packet decode process which provides
+   the devicetracker with enough data to create a tracking record.
+   (Classification)
+ * Create and manage any complex device records which contain phy-specific
+   tracking data. (Tracking)
+
+For example, the 802.11 phy layer is responsible for extracting the source
+MAC of a packet for the device record and setting the basic common attributes
+like type (network or client), and encryption (none, l2, etc).  The tracker
+portion of the phy80211 handler is responsible for associating SSIDs with
+devices, tracking retry rates, etc.
+
+Additionally a phy handler is expected to implement hooks for XML and text
+logging, communicating phy-specific data to the client, etc.
+
+3.  Logging to PCAP
+
+Kismet now implements log enabling as classes.  All logs in an enabled class
+will be enabled.  This allows plugins to create custom logs, such as pcap,
+without requiring the user to specifically enable that plugin logfile.
+
+Pcap logging can be implemented simply by instantiating a Dumpfile_Pcap object
+with the DLT set.  Linkframes matching that DLT will be logged.
+
+Setting a PCAP file to be Volatile will prevent empty pcap files being left
+if no packets are seen.
+
+4.  Logging to XML
+
+A phy handler is expected to implement an ExportLogRecord(...) which outputs
+text for either XML or plaintext logging.
+
+Phy-neutral Kismet logs to KisXML files.  These are XSD-validated XML files
+which can be dynamically expanded.
+
+A new PHY which contains XML log data is expected to provide an XSD in a 
+publicly accessible location.  This XSD should expand the device:device
+record as well as set the new phy type.
+
+A phy handler ExportLogRecord will be called after the common layer of the
+device has been written, and should write valid XML for the phy-specific
+components of the device record.
+
+5.  Logging to Text
+
+ExportLogRecord(..) is called with a log type of "text".  The phy handler
+is expected to write out text data of the phy-specifc information in the
+device record.  The lineindent field indicates how many spaces the data
+should be indented to maintain clean formatting.
+
+6.  Communicating to the client
+
+Phy layers communicate extra data to the client by registering additional
+protocols.  It is assumed there will be a client layer which will know
+to activate and process these additional sentences.
+
+Instead of requiring a timer to trigger sending dirty device records, a 
+phy handler will have the BlitDevices(...) method called with a vector
+of devices which should be re-sent.  A phy handler may keep independent 
+flags for dirtying of phy-specific components and not send unnecessary 
+records.
+
+Phy-specific commands may be directly created as per usual.
+
+
