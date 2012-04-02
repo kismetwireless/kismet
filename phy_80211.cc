@@ -1513,7 +1513,8 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 			ssid->dirty = 1;
 
 			if (dot11info->subtype == packet_sub_beacon) {
-				int ieeerate = Ieee80211Interval2NSecs(dot11info->beacon_interval);
+				unsigned int ieeerate = 
+					Ieee80211Interval2NSecs(dot11info->beacon_interval);
 
 				ssid->beacons++;
 
@@ -1750,13 +1751,15 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 			}
 		}
 
-		commondev->name = printssid;
+		// commondev->name = printssid;
 
 		if (ssid->ssid_cloaked) {
 			printssidext = " (cloaked)";
 		}
 
 		if (ssid->type == dot11_ssid_beacon) {
+			commondev->name = printssid;
+
 			printtype = "AP";
 
 			if (ssid->cryptset) {

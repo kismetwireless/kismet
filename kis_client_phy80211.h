@@ -68,6 +68,7 @@ protected:
 		proto_dot11client_fields_num;
 
 	int col_dot11d;
+	int col_sub_lastssid;
 };
 
 

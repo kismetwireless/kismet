@@ -135,6 +135,10 @@ void Client_Phy80211::PanelInitialized() {
 	col_dot11d = devicelist->RegisterColumn("Dot11d", "802.11d country", 3,
 											LABEL_POS_LEFT, CPD11_Dot11Column_Cb,
 											this, false);
+	col_sub_lastssid = 
+		devicelist->RegisterColumn("LastSSID", "Most recent 802.11 SSID", 0,
+								   LABEL_POS_LEFT, CPD11_Dot11Column_Cb,
+								   this, true);
 
 	devicelist->ParseColumnConfig();
 
@@ -419,6 +423,18 @@ string Client_Phy80211::Dot11Column(kdl_display_device *in_dev, int columnid,
 				snprintf(buf, 64, hdr, "---");
 			else 
 				snprintf(buf, 64, hdr, dot11dev->lastssid->dot11d_country.c_str());
+		}
+	} else if (columnid == col_sub_lastssid) {
+		if (dot11dev->lastssid == NULL)
+			return "";
+		if (dot11dev->lastssid->ssid == "") {
+			if (dot11dev->lastssid->type == dot11_ssid_probereq) {
+				snprintf(buf, 64, "{Broadcast probe}");
+			} else {
+				snprintf(buf, 64, "{Unknown, cloaked}");
+			}
+		} else {
+			snprintf(buf, 64, "%s", dot11dev->lastssid->ssid.c_str());
 		}
 	}
 
