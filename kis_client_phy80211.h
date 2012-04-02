@@ -23,7 +23,8 @@
 
 #include "globalregistry.h"
 #include "devicetracker.h"
-#include "kis_panel_network.h"
+#include "kis_clinetframe.h"
+#include "kis_panel_widgets.h"
 #include "kis_client_devicetracker.h"
 
 class Kis_Devicelist;

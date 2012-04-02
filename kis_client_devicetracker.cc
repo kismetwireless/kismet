@@ -20,6 +20,7 @@
 
 #include "globalregistry.h"
 #include "devicetracker.h"
+#include "kis_clinetframe.h"
 #include "kis_panel_frontend.h"
 #include "kis_panel_windows.h"
 #include "kis_client_devicetracker.h"
