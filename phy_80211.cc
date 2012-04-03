@@ -1063,7 +1063,7 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 
 	// buh?  something hinky is going on
 	if (dev == NULL) {
-		fprintf(stderr, "debug - phydot11 got to tracking stage with no devtracker->dev?\n");
+		// fprintf(stderr, "debug - phydot11 got to tracking stage with no devtracker->dev?\n");
 		return 0;
 	}
 
@@ -1521,9 +1521,6 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 
 		if (ssid != NULL) {
 			// TODO alert for degraded crypto on probe_resp
-
-			if (ssid_new) 
-				printf("debug - new ssid '%s'\n", ssid->ssid.c_str());
 
 			if (net != NULL)
 				net->lastssid = ssid;
