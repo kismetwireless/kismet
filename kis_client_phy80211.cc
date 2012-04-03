@@ -362,7 +362,7 @@ void Client_Phy80211::Proto_DOT11DEVICE(CLIPROTO_CB_PARMS) {
 	dot11dev->eap_id = (*proto_parsed)[fnum++].word;
 
 	if (dot11dev_new) {
-		_MSG("Got new dot11 device for " + device->key.Mac2String(), MSGFLAG_INFO);
+		// _MSG("Got new dot11 device for " + device->key.Mac2String(), MSGFLAG_INFO);
 		device->insert(devcomp_ref_dot11, dot11dev);
 	}
 

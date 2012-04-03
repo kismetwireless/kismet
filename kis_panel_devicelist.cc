@@ -477,16 +477,26 @@ int Kis_Devicelist::RegisterColumn(string in_name, string in_desc,
 								   int in_width, KisWidget_LabelPos in_align,
 								   KDL_Column_Callback in_cb, void *in_aux,
 								   bool in_sub) {
+	kdl_column *newc = NULL;
+
 	for (map<int, kdl_column *>::iterator x = registered_column_map.begin();
 		 x != registered_column_map.end(); ++x) {
 		if (StrLower(x->second->name) == StrLower(in_name) &&
-			x->second->subcolumn == in_sub)
-			return x->first;
+			x->second->subcolumn == in_sub) {
+			// If we don't match auxptr we need to overwrite this column
+			if (x->second->cb_aux != in_aux)
+				newc = x->second;
+			else
+				return x->first;
+		}
 	}
 
-	next_column_id++;
+	// Otherwise we're replacing a column
+	if (newc == NULL) {
+		newc = new kdl_column;
+		next_column_id++;
+	}
 
-	kdl_column *newc = new kdl_column;
 	newc->name = in_name;
 	newc->description = in_desc;
 	newc->width = in_width;
@@ -571,12 +581,12 @@ void Kis_Devicelist::DrawComponent() {
 
 			hdr += "\004u" +
 				(*(configured_column_vec[x]->callback))(
-									NULL,
-									configured_column_vec[x]->cb_aux,
-									globalreg,
-									configured_column_vec[x]->id,
-									true) + 
-								"\004U ";
+							NULL,
+							configured_column_vec[x]->cb_aux,
+							globalreg,
+							configured_column_vec[x]->id,
+							true) + 
+				"\004U ";
 		}
 
 		colheadercache = hdr;
@@ -593,7 +603,8 @@ void Kis_Devicelist::DrawComponent() {
 	if (active)
 		wattrset(window, color_map[KDL_COLOR_NORMAL]);
 
-	if (kpinterface->FetchNetClient() == NULL) {
+	if (kpinterface->FetchNetClient() == NULL ||
+		(kpinterface->FetchNetClient() != NULL && !kpinterface->FetchNetClient()->Valid())) {
 		mvwaddnstr(window, sy + 2, sx + 1, 
 				   "[ --- Not connected to a Kismet server --- ]", lx);
 		return;

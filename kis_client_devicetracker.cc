@@ -781,5 +781,10 @@ void Client_Devicetracker::PanelInitialized() {
 		}
 	}
 
+	// They'll replace the columns when they're observed
+	for (unsigned int x = 0; x < unassigned_phy_vec.size(); x++) {
+		unassigned_phy_vec[x]->PanelInitialized();
+	}
+
 }
 

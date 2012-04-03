@@ -1174,9 +1174,11 @@ void Kis_Main_Panel::MenuAction(int opt) {
 	} else if (opt == mi_addnote) {
 		Kis_AddNetNote_Panel *dp = new Kis_AddNetNote_Panel(globalreg, kpinterface);
 		kpinterface->AddPanel(dp);
+#if 0
 	} else if (opt == mi_clientlist) {
 		Kis_Clientlist_Panel *cl = new Kis_Clientlist_Panel(globalreg, kpinterface);
 		kpinterface->AddPanel(cl);
+#endif
 	} else if (opt == mi_chandetails) {
 		Kis_ChanDetails_Panel *dp = new Kis_ChanDetails_Panel(globalreg, kpinterface);
 		kpinterface->AddPanel(dp);
@@ -3147,6 +3149,7 @@ int ClientListMenuCB(COMPONENT_CALLBACK_PARMS) {
 	return 1;
 }
 
+#if 0
 Kis_Clientlist_Panel::Kis_Clientlist_Panel(GlobalRegistry *in_globalreg,
 										   KisPanelInterface *in_kpf) :
 	Kis_Panel(in_globalreg, in_kpf) {
@@ -3430,6 +3433,8 @@ void Kis_Clientlist_Panel::UpdateViewMenu(int mi) {
 int Kis_Clientlist_Panel::GraphTimer() {
 	return 0;
 }
+
+#endif
 
 int AddNetNoteCB(COMPONENT_CALLBACK_PARMS) {
 	((Kis_AddNetNote_Panel *) aux)->Action(component, status);

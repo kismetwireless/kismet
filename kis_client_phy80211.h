@@ -39,6 +39,9 @@ public:
 
 	Client_Phy80211(GlobalRegistry *in_globalreg) : Client_Phy_Handler(in_globalreg) {
 		phyname = "IEEE802.11";
+		devcomp_ref_common = MAX_TRACKER_COMPONENTS;
+		devcomp_ref_dot11 = MAX_TRACKER_COMPONENTS;
+		PanelInitialized();
 	}
 
 	Client_Phy80211(GlobalRegistry *in_globalreg, Client_Devicetracker *in_tracker,

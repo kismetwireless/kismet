@@ -772,9 +772,11 @@ void Kis_NetDetails_Panel::MenuAction(int opt) {
 		kpinterface->FetchMainPanel()->FetchDisplayNetlist()->KeyPress(KEY_UP);
 		dng = NULL;
 		return;
+#if 0
 	} else if (opt == mi_clients) {
 		Kis_Clientlist_Panel *cl = new Kis_Clientlist_Panel(globalreg, kpinterface);
 		kpinterface->AddPanel(cl);
+#endif
 	} else if (opt == mi_net || opt == mi_graphsig || opt == mi_graphpacket ||
 			   opt == mi_graphretry) {
 		UpdateViewMenu(opt);
