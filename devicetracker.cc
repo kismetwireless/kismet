@@ -1197,6 +1197,9 @@ int Devicetracker::PopulateCommon(kis_tracked_device *device, kis_packet *in_pac
 		if (globalreg->manufdb != NULL) 
 			common->manuf = globalreg->manufdb->LookupOUI(device->key);
 
+		// Set name
+		common->name = device->key.Mac2String();
+
 		// Load persistent tags
 		string tag = handler->FetchPhyName() + device->key.Mac2String();
 

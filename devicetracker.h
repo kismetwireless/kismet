@@ -319,6 +319,8 @@ class kis_tracked_device;
 // Bridged/wired client, something that isn't itself homed on the wireless
 // medium
 #define KIS_DEVICE_BASICTYPE_WIRED		4
+// Adhoc/peer network
+#define KIS_DEVICE_BASICTYPE_PEER		8
 // Common mask of client types
 #define KIS_DEVICE_BASICTYPE_CLIENTMASK	6
 

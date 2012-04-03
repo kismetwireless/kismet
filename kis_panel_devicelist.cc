@@ -941,9 +941,11 @@ string Kis_Devicelist::CommonColumn(kdl_display_device *in_dev, int in_columnid,
 		} else {
 			if (common->basic_type_set == KIS_DEVICE_BASICTYPE_DEVICE)
 				snprintf(buf, 64, hdr, "Device");
-		
-			// Degrading priority
-			if (common->basic_type_set & KIS_DEVICE_BASICTYPE_AP)
+	
+			// Order important for display
+			if (common->basic_type_set & KIS_DEVICE_BASICTYPE_PEER)
+				snprintf(buf, 64, hdr, "Peer");
+			else if (common->basic_type_set & KIS_DEVICE_BASICTYPE_AP)
 				snprintf(buf, 64, hdr, "AP");
 			else if (common->basic_type_set & KIS_DEVICE_BASICTYPE_WIRED)
 				snprintf(buf, 64, hdr, "Wired");

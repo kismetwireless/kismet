@@ -800,8 +800,14 @@ int Kis_80211_Phy::ClassifierDot11(kis_packet *in_pack) {
 		ci->dest = dot11info->dest_mac;
 		ci->dest.SetPhy(phyid);
 	} else if (dot11info->type == packet_phy) {
+		// Ignore phy packets with no source for now
+		if (dot11info->source_mac == globalreg->empty_mac) {
+			delete ci;
+			return 0;
+		}
+
 		ci->type = packet_basic_phy;
-		
+	
 		ci->device = dot11info->source_mac;
 		ci->device.SetPhy(phyid);
 	} else if (dot11info->type == packet_data) {
@@ -1132,6 +1138,11 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 		}
 
 		dot11dev->type_set |= dot11_network_adhoc;
+
+		commondev->type_string = "Ad-Hoc";
+		commondev->basic_type_set |= KIS_DEVICE_BASICTYPE_PEER |
+			KIS_DEVICE_BASICTYPE_CLIENT;
+
 	} else if (dot11info->type == packet_management) {
 		if (dot11info->subtype == packet_sub_disassociation ||
 			dot11info->subtype == packet_sub_deauthentication)
@@ -1180,8 +1191,14 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 		kis_device_common *apcommon = 
 			(kis_device_common *) apdev->fetch(dev_comp_common);
 
-		if (apcommon != NULL)
+		if (apcommon != NULL) {
 			apcommon->basic_type_set |= KIS_DEVICE_BASICTYPE_AP;
+
+			if (dot11info->distrib == distrib_adhoc) {
+				apcommon->basic_type_set |= KIS_DEVICE_BASICTYPE_PEER;
+				apcommon->type_string = "Ad-Hoc";
+			}
+		}
 	}
 
 	// If we need to make a network, it's because we're talking to a bssid
@@ -1475,7 +1492,7 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 
 		if (net != NULL && (dot11info->subtype == packet_sub_beacon ||
 							dot11info->subtype == packet_sub_probe_resp)) {
-			// Should never be possible to have a null net at be a beacon/proberesp
+			// Should never be possible to have a null net and be a beacon/proberesp
 			// but lets not make assumptions
 			map<uint32_t, dot11_ssid *>::iterator si = net->ssid_map.find(ssidhash);
 			if (si == net->ssid_map.end()) {
@@ -1483,6 +1500,7 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 				ssid_new = true;
 
 				net->ssid_map[ssidhash] = ssid;
+
 			} else {
 				ssid = si->second;
 			}
@@ -1504,11 +1522,29 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 		if (ssid != NULL) {
 			// TODO alert for degraded crypto on probe_resp
 
+			if (ssid_new) 
+				printf("debug - new ssid '%s'\n", ssid->ssid.c_str());
+
 			if (net != NULL)
 				net->lastssid = ssid;
 
 			if (cli != NULL)
 				cli->lastssid = ssid;
+
+			if (dot11info->subtype == packet_sub_beacon ||
+				dot11info->subtype == packet_sub_probe_resp) {
+				commondev->name = ssid->ssid;
+
+				// Update the network record if it's a beacon
+				// or probe resp
+				if (net != NULL) {
+					kis_device_common *apcommon = 
+						(kis_device_common *) apdev->fetch(dev_comp_common);
+					if (apcommon != NULL)
+						apcommon->name = ssid->ssid;
+					net->lastssid = ssid;
+				}
+			}
 
 			ssid->dirty = 1;
 
@@ -1674,7 +1710,7 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 					ssid->dot11d_vec = dot11info->dot11d_vec;
 
 				}
-			}
+			} 
 
 			ssid->last_time = in_pack->ts.tv_sec;
 		}
@@ -1758,7 +1794,7 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 		}
 
 		if (ssid->type == dot11_ssid_beacon) {
-			commondev->name = printssid;
+			// commondev->name = printssid;
 
 			printtype = "AP";
 

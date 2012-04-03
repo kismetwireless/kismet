@@ -316,6 +316,8 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
         } else if (fc->subtype == 12) {
             packinfo->subtype = packet_sub_cts;
 
+			packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
+
         } else if (fc->subtype == 13) {
             packinfo->subtype = packet_sub_ack;
 
