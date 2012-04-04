@@ -1095,7 +1095,7 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 
 		dev->insert(dev_comp_dot11, dot11dev);
 
-		commondev->name = dot11info->source_mac.Mac2String();
+		commondev->name = dev->key.Mac2String();
 
 		// printf("debug - new dot11dev record for %s\n", dev->key.Mac2String().c_str());
 	}
@@ -1531,15 +1531,26 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 
 			if (dot11info->subtype == packet_sub_beacon ||
 				dot11info->subtype == packet_sub_probe_resp) {
-				commondev->name = ssid->ssid;
+				if (ssid->ssid == "") 
+					commondev->name = "<Hidden SSID>";
+				else if (ssid->ssid_cloaked)
+					commondev->name = "<" + ssid->ssid + ">";
+				else
+					commondev->name = ssid->ssid;
 
 				// Update the network record if it's a beacon
 				// or probe resp
 				if (net != NULL) {
 					kis_device_common *apcommon = 
 						(kis_device_common *) apdev->fetch(dev_comp_common);
-					if (apcommon != NULL)
-						apcommon->name = ssid->ssid;
+					if (apcommon != NULL) {
+						if (ssid->ssid == "") 
+							apcommon->name = "<Hidden SSID>";
+						else if (ssid->ssid_cloaked)
+							apcommon->name = "<" + ssid->ssid + ">";
+						else
+							apcommon->name = ssid->ssid;
+					}
 					net->lastssid = ssid;
 				}
 			}

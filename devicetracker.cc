@@ -1526,6 +1526,8 @@ void Devicetracker::WriteXML(FILE *in_logfile) {
 			fprintf(in_logfile, "<commonType>client</commonType>\n");
 		if ((com->basic_type_set && KIS_DEVICE_BASICTYPE_WIRED))
 			fprintf(in_logfile, "<commonType>wired</commonType>\n");
+		if ((com->basic_type_set && KIS_DEVICE_BASICTYPE_PEER))
+			fprintf(in_logfile, "<commonType>peer</commonType>\n");
 		fprintf(in_logfile, "</commonTypes>\n");
 
 		fprintf(in_logfile, "<commonCryptTypes>\n");
