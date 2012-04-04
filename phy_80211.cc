@@ -323,10 +323,10 @@ int Protocol_PD11_CLIENT(PROTO_PARMS) {
 				scratch = cli->bssid.Mac2String();
 				break;
 			case PD11_CLIENT_firsttime:
-				scratch = IntToString(cli->first_time);
+				scratch = UIntToString(cli->first_time);
 				break;
 			case PD11_CLIENT_lasttime:
-				scratch = IntToString(cli->last_time);
+				scratch = UIntToString(cli->last_time);
 				break;
 			case PD11_CLIENT_decrypted:
 				scratch = UIntToString(cli->decrypted);

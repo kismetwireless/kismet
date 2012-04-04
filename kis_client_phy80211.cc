@@ -379,7 +379,104 @@ proto_fail:
 }
 
 void Client_Phy80211::Proto_DOT11CLIENT(CLIPROTO_CB_PARMS) {
+	if ((int) proto_parsed->size() < proto_dot11client_fields_num)
+		return;
 
+	int fnum = 0;
+
+	unsigned int tuint;
+	unsigned long tulong;
+	mac_addr cmac, dmac;
+
+	cmac = mac_addr((*proto_parsed)[fnum++].word.c_str());
+	if (cmac.error) {
+		return;
+	}
+	cmac.SetPhy(phyid);
+
+	dmac = mac_addr((*proto_parsed)[fnum++].word.c_str());
+	if (dmac.error) {
+		return;
+	}
+	dmac.SetPhy(phyid);
+
+	kis_tracked_device *device =
+		devicetracker->FetchDevice(dmac);
+
+	if (device == NULL)
+		return;
+
+	dot11_device *dot11dev =
+		(dot11_device *) device->fetch(devcomp_ref_dot11);
+
+	if (dot11dev == NULL) {
+		return;
+	}
+
+	bool dot11cli_new = false;
+	dot11_client *dot11cli = NULL;
+
+	map<mac_addr, dot11_client *>::iterator cmi =
+		dot11dev->client_map.find(cmac);
+
+	if (cmi == dot11dev->client_map.end())
+		dot11cli = new dot11_client();
+	else
+		dot11cli = cmi->second;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%u", &tuint) != 1)
+		goto proto_fail;
+	dot11cli->first_time = tuint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%u", &tuint) != 1)
+		goto proto_fail;
+	dot11cli->last_time = tuint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%u", &tuint) != 1)
+		goto proto_fail;
+	dot11cli->decrypted = tuint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%lu", &tulong) != 1)
+		goto proto_fail;
+	dot11cli->tx_cryptset = tuint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%lu", &tulong) != 1)
+		goto proto_fail;
+	dot11cli->rx_cryptset = tuint;
+
+	dot11cli->lastssid_str = (*proto_parsed)[fnum++].word;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%u", &tuint) != 1)
+		goto proto_fail;
+	dot11cli->lastssid_csum = tuint;
+
+	dot11cli->cdp_dev_id = (*proto_parsed)[fnum++].word;
+	dot11cli->cdp_port_id = (*proto_parsed)[fnum++].word;
+
+	dot11cli->dhcp_host = (*proto_parsed)[fnum++].word;
+	dot11cli->dhcp_vendor = (*proto_parsed)[fnum++].word;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%lu", &tulong) != 1)
+		goto proto_fail;
+	dot11cli->tx_datasize = tuint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%lu", &tulong) != 1)
+		goto proto_fail;
+	dot11cli->rx_datasize = tuint;
+
+	dot11cli->manuf = (*proto_parsed)[fnum++].word;
+	dot11cli->eap_id = (*proto_parsed)[fnum++].word;
+
+	if (dot11cli_new) {
+		dot11dev->client_map[cmac] = dot11cli;
+	}
+
+	return;
+
+proto_fail:
+	_MSG("PHYDOT11 failed to process *DOT11CLIENT", MSGFLAG_ERROR);
+	if (dot11cli_new)
+		delete dot11cli;
 }
 
 string Client_Phy80211::Dot11Column(kdl_display_device *in_dev, int columnid,
