@@ -83,8 +83,9 @@ public:
 };
 
 // Display mode, filter by networks, or devices, or whatever
-#define KDL_DISPLAY_NETWORKS		0
-#define KDL_DISPLAY_DEVICES			1
+#define KDL_DISPLAY_NETWORKS			0
+#define KDL_DISPLAY_DEVICES				1
+#define KDL_DISPLAY_WIRELESSDEVICES		2
 
 // Color slots in the array
 #define KDL_COLOR_NORMAL			0
@@ -143,6 +144,7 @@ public:
 	void SortMenuAction(int menuitem);
 
 	void FilterMenuAction(int menuitem);
+	void ViewMenuAction(int menuitem);
 
 	void SpawnColorPrefWindow();
 	void SpawnColumnPrefWindow(bool extracols);
@@ -202,8 +204,9 @@ protected:
 	int display_mode;
 
 	Kis_Menu *menu;
-	int mn_filter, mn_preferences, mn_sort;
+	int mn_filter, mn_preferences, mn_sort, mn_view;
 	int mi_colorpref, mi_columnpref, mi_extrapref;
+	int mi_view_network, mi_view_devices, mi_view_wireless, mi_lastview;
 
 	int sort_mode;
 

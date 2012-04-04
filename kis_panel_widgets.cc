@@ -979,17 +979,16 @@ int Kis_Menu::AddMenuItem(string in_text, int menuid, char extra, int after) {
 		int amid = after / 100;
 		int aiid = (after % 100) - 1;
 
-		if (amid < 0 || amid >= (int) menubar.size() || amid != menuid)
+		if (amid < 0 || amid >= (int) menubar.size() || amid != menuid) {
 			aiid = -1;
+		}
 
-		if (aiid < 0 || aiid > (int) menubar[amid]->items.size())
-			aiid = -1;
-
-		for (vector<Kis_Menu::_menuitem *>::iterator p = menubar[menuid]->items.begin(); 
-			 p != menubar[menuid]->items.end(); p++) {
+		vector<Kis_Menu::_menuitem *>::iterator p;
+		for (p = menubar[amid]->items.begin(); p != menubar[amid]->items.end(); p++) {
 			if ((*p)->id == aiid) {
 				found = true;
-				menubar[menuid]->items.insert(p, item);
+				menubar[amid]->items.insert(p, item);
+				break;
 			}
 		}
 
@@ -1015,7 +1014,13 @@ void Kis_Menu::SetMenuItemChecked(int in_item, int in_checked) {
 	if (iid < 0 || iid > (int) menubar[mid]->items.size())
 		return;
 
-	menubar[mid]->items[iid]->checked = in_checked;
+	vector<Kis_Menu::_menuitem *>::iterator p;
+	for (p = menubar[mid]->items.begin(); p != menubar[mid]->items.end(); p++) {
+		if ((*p)->id == iid) {
+			(*p)->checked = in_checked;
+			break;
+		}
+	}
 	menubar[mid]->checked = -1;
 
 	// Update the checked menu status
@@ -1035,8 +1040,14 @@ int Kis_Menu::GetMenuItemChecked(int in_item) {
 	if (iid < 0 || iid > (int) menubar[mid]->items.size())
 		return 0;
 
-	if (menubar[mid]->items[iid]->checked <= 0)
-		return 0;
+	vector<Kis_Menu::_menuitem *>::iterator p;
+	for (p = menubar[mid]->items.begin(); p != menubar[mid]->items.end(); p++) {
+		if ((*p)->id == iid) {
+			if ((*p)->checked <= 0)
+				return 0;
+			return 1;
+		}
+	}
 
 	return 1;
 }
@@ -1051,7 +1062,13 @@ void Kis_Menu::SetMenuItemColor(int in_item, string in_color) {
 	if (iid < 0 || iid > (int) menubar[mid]->items.size())
 		return;
 
-	menubar[mid]->items[iid]->colorpair = parent_panel->AddColor(in_color);
+	vector<Kis_Menu::_menuitem *>::iterator p;
+	for (p = menubar[mid]->items.begin(); p != menubar[mid]->items.end(); p++) {
+		if ((*p)->id == iid) {
+			(*p)->colorpair = parent_panel->AddColor(in_color);
+			break;
+		}
+	}
 }
 
 int Kis_Menu::AddSubMenuItem(string in_text, int menuid, char extra) {
@@ -1069,7 +1086,13 @@ int Kis_Menu::AddSubMenuItem(string in_text, int menuid, char extra) {
 	// pointing to our menuid so we can find it during drawing
 	int sitem = AddMenuItem(in_text, menuid, extra);
 
-	menubar[menuid]->items[(sitem % 100) - 1]->submenu = smenuid;
+	vector<Kis_Menu::_menuitem *>::iterator p;
+	for (p = menubar[menuid]->items.begin(); p != menubar[menuid]->items.end(); p++) {
+		if ((*p)->id == (sitem % 100) - 1) {
+			(*p)->submenu = smenuid;
+			break;
+		}
+	}
 
 	// Return the id of the menu we made so we can add things to it
 	return smenuid;
@@ -1085,7 +1108,13 @@ void Kis_Menu::DisableMenuItem(int in_item) {
 	if (iid < 0 || iid > (int) menubar[mid]->items.size())
 		return;
 
-	menubar[mid]->items[iid]->enabled = 0;
+	vector<Kis_Menu::_menuitem *>::iterator p;
+	for (p = menubar[mid]->items.begin(); p != menubar[mid]->items.end(); p++) {
+		if ((*p)->id == iid) {
+			(*p)->enabled = 0;
+			break;
+		}
+	}
 }
 
 void Kis_Menu::SetMenuItemCallback(int in_item, kis_menuitem_cb in_cb, void *in_aux) {
@@ -1098,8 +1127,14 @@ void Kis_Menu::SetMenuItemCallback(int in_item, kis_menuitem_cb in_cb, void *in_
 	if (iid < 0 || iid > (int) menubar[mid]->items.size())
 		return;
 
-	menubar[mid]->items[iid]->callback = in_cb;
-	menubar[mid]->items[iid]->auxptr = in_aux;
+	vector<Kis_Menu::_menuitem *>::iterator p;
+	for (p = menubar[mid]->items.begin(); p != menubar[mid]->items.end(); p++) {
+		if ((*p)->id == iid) {
+			(*p)->callback = in_cb;
+			(*p)->auxptr = in_aux;
+			break;
+		}
+	}
 }
 
 void Kis_Menu::ClearMenuItemCallback(int in_item) {
@@ -1112,8 +1147,14 @@ void Kis_Menu::ClearMenuItemCallback(int in_item) {
 	if (iid < 0 || iid > (int) menubar[mid]->items.size())
 		return;
 
-	menubar[mid]->items[iid]->callback = NULL;
-	menubar[mid]->items[iid]->auxptr = NULL;
+	vector<Kis_Menu::_menuitem *>::iterator p;
+	for (p = menubar[mid]->items.begin(); p != menubar[mid]->items.end(); p++) {
+		if ((*p)->id == iid) {
+			(*p)->callback = NULL;
+			(*p)->auxptr = NULL;
+			break;
+		}
+	}
 }
 
 void Kis_Menu::SetMenuItemCheckSymbol(int in_item, char in_sym) {
@@ -1126,7 +1167,14 @@ void Kis_Menu::SetMenuItemCheckSymbol(int in_item, char in_sym) {
 	if (iid < 0 || iid > (int) menubar[mid]->items.size())
 		return;
 
-	menubar[mid]->items[iid]->checksymbol = in_sym;
+	vector<Kis_Menu::_menuitem *>::iterator p;
+	for (p = menubar[mid]->items.begin(); p != menubar[mid]->items.end(); p++) {
+		if ((*p)->id == iid) {
+			(*p)->checksymbol = in_sym;
+			break;
+		}
+	}
+	// menubar[mid]->items[iid]->checksymbol = in_sym;
 }
 
 void Kis_Menu::EnableMenuItem(int in_item) {
@@ -1139,7 +1187,14 @@ void Kis_Menu::EnableMenuItem(int in_item) {
 	if (iid < 0 || iid > (int) menubar[mid]->items.size())
 		return;
 
-	menubar[mid]->items[iid]->enabled = 1;
+	vector<Kis_Menu::_menuitem *>::iterator p;
+	for (p = menubar[mid]->items.begin(); p != menubar[mid]->items.end(); p++) {
+		if ((*p)->id == iid) {
+			(*p)->enabled = 1;
+			break;
+		}
+	}
+	// menubar[mid]->items[iid]->enabled = 1;
 }
 
 void Kis_Menu::EnableAllItems(int in_menu) {
@@ -1168,7 +1223,14 @@ void Kis_Menu::SetMenuItemVis(int in_item, int in_vis) {
 	if (iid < 0 || iid > (int) menubar[mid]->items.size())
 		return;
 
-	menubar[mid]->items[iid]->visible = in_vis;
+	vector<Kis_Menu::_menuitem *>::iterator p;
+	for (p = menubar[mid]->items.begin(); p != menubar[mid]->items.end(); p++) {
+		if ((*p)->id == iid) {
+			(*p)->visible = in_vis;
+			break;
+		}
+	}
+	// menubar[mid]->items[iid]->visible = in_vis;
 }
 
 void Kis_Menu::ClearMenus() {
@@ -1596,7 +1658,9 @@ int Kis_Menu::KeyPress(int in_key) {
 			return -1;
 		}
 
-		int ret = (cur_menu * 100) + cur_item + 1;
+		// int ret = (cur_menu * 100) + cur_item + 1;
+		int ret = (cur_menu * 100) +
+			menubar[cur_menu]->items[cur_item]->id + 1;
 
 		// Per-menu callbacks
 		if (menubar[cur_menu]->items[cur_item]->callback != NULL) 
@@ -1640,7 +1704,10 @@ int Kis_Menu::KeyPress(int in_key) {
 			for (unsigned int x = 0; x < menubar[cur_menu]->items.size(); x++) {
 				if (in_key == menubar[cur_menu]->items[x]->extrachar &&
 					menubar[cur_menu]->items[x]->enabled == 1) {
-					int ret = (cur_menu * 100) + x + 1;
+
+					int ret = (cur_menu * 100) +
+						menubar[cur_menu]->items[x]->id + 1;
+					// int ret = (cur_menu * 100) + x + 1;
 
 					// Per-menu callbacks
 					if (menubar[cur_menu]->items[x]->callback != NULL) {
@@ -1729,7 +1796,9 @@ int Kis_Menu::MouseEvent(MEVENT *mevent) {
 				if (mitem >= 0 && mitem < (int) menubar[cur_menu]->items.size()) {
 					if (menubar[cur_menu]->items[mitem]->enabled == 1) {
 
-						int ret = (cur_menu * 100) + mitem + 1;
+						int ret = (cur_menu * 100) +
+							menubar[cur_menu]->items[cur_item]->id + 1;
+						// int ret = (cur_menu * 100) + mitem + 1;
 
 						// Per-menu callbacks
 						if (menubar[cur_menu]->items[mitem]->callback != NULL) 
@@ -1796,7 +1865,8 @@ int Kis_Menu::MouseEvent(MEVENT *mevent) {
 						}
 
 						// Otherwise, trigger the menu item
-						int ret = (cur_menu * 100) + mitem + 1;
+						int ret = (cur_menu * 100) +
+							menubar[cur_menu]->items[cur_item]->id + 1;
 
 						// Per-menu callbacks
 						if (menubar[cur_menu]->items[mitem]->callback != NULL) 

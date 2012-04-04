@@ -78,6 +78,10 @@ public:
 	virtual void AddViewSeparator();
 	// Similarly add a divider to the Sort menu to add plugin view options
 	virtual void AddSortSeparator();
+	
+	// Get the last added sort view option
+	virtual int FetchLastViewMenuItem() { return mi_lastview; }
+	virtual void SetLastViewMenuItem(int in_last) { mi_lastview = in_last; }
 
 	// Passthroughs to the plugin-relevant packing boxes used to build the UI
 	// Network box (contains network and gps-line)
@@ -134,9 +138,7 @@ protected:
 	int mn_sort_appended;
 
 	int mn_view, 
-		// It'd be nice if these came from the devicelist module directly but that's a real pain
-		// so we just have direct links
-		mi_viewnetworks, mi_viewdevices, 
+		mi_viewplaceholder, mi_lastview,
 		// Filter submenu
 		mn_filter,
 		mi_shownetworks, mi_showsummary, mi_showstatus, 

@@ -1105,6 +1105,7 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 		commondev->type_string = "AP";
 	} else if (dot11info->distrib == distrib_from &&
 			   dot11info->type == packet_data) {
+		commondev->basic_type_set |= KIS_DEVICE_BASICTYPE_WIRED;
 		dot11dev->type_set |= dot11_network_wired;
 		commondev->type_string = "Wired";
 	} else if (dot11info->distrib == distrib_to &&

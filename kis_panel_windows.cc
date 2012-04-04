@@ -185,13 +185,22 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	*/
 
 	mn_view = menu->AddMenu("View", 0);
+
+	// Make an invisible menu placeholder
+	mi_lastview = mi_viewplaceholder = menu->AddMenuItem("placeholder", mn_view, 0);
+	menu->SetMenuItemVis(mi_viewplaceholder, 0);
+
+	/*
 	mi_viewnetworks =  menu->AddMenuItem("Display as Networks", mn_view, 0);
 	mi_viewdevices = menu->AddMenuItem("Display as Devices", mn_view, 0);
+	*/
 	mn_filter = menu->AddSubMenuItem("Filter", mn_view, 'F');
 	menu->AddMenuItem("-", mn_view, 0);
 
+	/*
 	menu->SetMenuItemCheckSymbol(mi_viewnetworks, '*');
 	menu->SetMenuItemCheckSymbol(mi_viewdevices, '*');
+	*/
 
 	mi_shownetworks = menu->AddMenuItem("Device List", mn_view, 'n');
 	mi_showgps = menu->AddMenuItem("GPS Data", mn_view, 'g');
@@ -1194,9 +1203,7 @@ void Kis_Main_Panel::MenuAction(int opt) {
 			   opt == mi_showgps ||
 			   opt == mi_showbattery ||
 			   opt == mi_showsources ||
-			   opt == mi_shownetworks ||
-			   opt == mi_viewnetworks ||
-			   opt == mi_viewdevices) {
+			   opt == mi_shownetworks) {
 		UpdateViewMenu(opt);
 	} else if (opt == mi_addcard) {
 		Kis_AddCard_Panel *acp = new Kis_AddCard_Panel(globalreg, kpinterface);
@@ -1369,6 +1376,7 @@ void Kis_Main_Panel::UpdateViewMenu(int mi) {
 	// this gets called pretty rarely so we can resolve the devicelist
 	// directly here
 
+#if 0
 	if (mi == mi_viewnetworks && !menu->GetMenuItemChecked(mi_viewnetworks)) {
 		kpinterface->prefs->SetOpt("MAIN_VIEWSTYLE", "network", 1);
 		menu->SetMenuItemChecked(mi_viewnetworks, 1);
@@ -1388,7 +1396,8 @@ void Kis_Main_Panel::UpdateViewMenu(int mi) {
 			(Kis_Devicelist *) globalreg->FetchGlobal("MAIN_DEVICELIST");
 		if (devlist != NULL)
 			devlist->SetViewMode(KDL_DISPLAY_DEVICES);
-	} else if (mi == mi_showsummary) {
+#endif
+	if (mi == mi_showsummary) {
 		opt = kpinterface->prefs->FetchOpt("MAIN_SHOWSUMMARY");
 		// if (opt == "" || opt == "true") {
 		if (StringToBool(opt, 1)) {
@@ -1475,6 +1484,7 @@ void Kis_Main_Panel::UpdateViewMenu(int mi) {
 	}
 
 	if (mi == -1) {
+#if 0
 		opt = StrLower(kpinterface->prefs->FetchOpt("MAIN_VIEWSTYLE"));
 		if (opt == "network") {
 			menu->SetMenuItemChecked(mi_viewnetworks, 1);
@@ -1486,6 +1496,7 @@ void Kis_Main_Panel::UpdateViewMenu(int mi) {
 			menu->SetMenuItemChecked(mi_viewnetworks, 1);
 			menu->SetMenuItemChecked(mi_viewdevices, 0);
 		}
+#endif
 
 		opt = kpinterface->prefs->FetchOpt("MAIN_SHOWSUMMARY");
 		// if (opt == "" || opt == "true") {

@@ -58,6 +58,10 @@ void KDL_ColorMenuCB(MENUITEM_CB_PARMS) {
 	((Kis_Devicelist *) auxptr)->SpawnColorPrefWindow();
 }
 
+void KDL_ViewMenuCB(MENUITEM_CB_PARMS) {
+	((Kis_Devicelist *) auxptr)->ViewMenuAction(menuitem);
+}
+
 void KDL_ColumnMenuCB(MENUITEM_CB_PARMS) {
 	((Kis_Devicelist *) auxptr)->SpawnColumnPrefWindow(false);
 }
@@ -178,15 +182,6 @@ Kis_Devicelist::Kis_Devicelist(GlobalRegistry *in_globalreg, Kis_Panel *in_panel
 								 LABEL_POS_LEFT, KDL_Common_Subcolumn_Cb, this, true);
 	
 
-	string viewmode = StrLower(kpinterface->prefs->FetchOpt("MAIN_VIEWSTYLE"));
-
-	if (viewmode == "network")
-		display_mode = KDL_DISPLAY_NETWORKS;
-	else if (viewmode == "device")
-		display_mode = KDL_DISPLAY_DEVICES;
-	else
-		display_mode = KDL_DISPLAY_NETWORKS;
-
 	// We now resolve via the globalreg name-resolution
 	menu = (Kis_Menu *) globalreg->FetchGlobal("KISUI_MAIN_MENU");
 	mn_filter = menu->FindMenu("Filter");
@@ -233,6 +228,48 @@ Kis_Devicelist::Kis_Devicelist(GlobalRegistry *in_globalreg, Kis_Panel *in_panel
 				 KDL_Common_Sort, new KDL_Sort_PacketsDesc(devcomp_ref_common));
 	RegisterSort("Phy type", "Sort by Phy layer type",
 				 KDL_Common_Sort, new KDL_Sort_Phy(devcomp_ref_common));
+
+	Kis_Main_Panel *mainp = (Kis_Main_Panel *) globalreg->FetchGlobal("KISUI_MAIN_PANEL");
+
+	int mi_next = mainp->FetchLastViewMenuItem();
+
+	mn_view = menu->FindMenu("View");
+	mi_next = mi_view_network =
+		menu->AddMenuItem("Display Networks", mn_view, 'e', mi_next);
+	mi_next = mi_view_wireless = 
+		menu->AddMenuItem("Display Wireless", mn_view, 'w', mi_next);
+	mi_next = mi_view_devices =
+		menu->AddMenuItem("Display Devices", mn_view, 'd', mi_next);
+
+	menu->SetMenuItemCheckSymbol(mi_view_network, '*');
+	menu->SetMenuItemCheckSymbol(mi_view_wireless, '*');
+	menu->SetMenuItemCheckSymbol(mi_view_devices, '*');
+
+	menu->SetMenuItemCallback(mi_view_network, KDL_ViewMenuCB, this);
+	menu->SetMenuItemCallback(mi_view_wireless, KDL_ViewMenuCB, this);
+	menu->SetMenuItemCallback(mi_view_devices, KDL_ViewMenuCB, this);
+
+	mainp->SetLastViewMenuItem(mi_next);
+
+	string viewmode = StrLower(kpinterface->prefs->FetchOpt("MAIN_VIEWSTYLE"));
+
+	if (viewmode == "network") {
+		mi_lastview = mi_view_network;
+		menu->SetMenuItemChecked(mi_view_network, 1);
+		display_mode = KDL_DISPLAY_NETWORKS;
+	} else if (viewmode == "device") {
+		mi_lastview = mi_view_devices;
+		menu->SetMenuItemChecked(mi_view_devices, 1);
+		display_mode = KDL_DISPLAY_DEVICES;
+	} else if (viewmode == "wirelessdevice") {
+		mi_lastview = mi_view_wireless;
+		menu->SetMenuItemChecked(mi_view_wireless, 1);
+		display_mode = KDL_DISPLAY_WIRELESSDEVICES;
+	} else {
+		mi_lastview = mi_view_network;
+		menu->SetMenuItemChecked(mi_view_network, 1);
+		display_mode = KDL_DISPLAY_NETWORKS;
+	}
 
 	devicetracker->PanelInitialized();
 
@@ -321,7 +358,17 @@ Kis_Devicelist::~Kis_Devicelist() {
 }
 
 void Kis_Devicelist::SetViewMode(int in_mode) {
+	string mode = "network";
 	if (in_mode != display_mode) {
+		if (in_mode == KDL_DISPLAY_NETWORKS)
+			mode = "network";
+		else if (in_mode == KDL_DISPLAY_WIRELESSDEVICES)
+			mode = "wirelessdevice";
+		else if (in_mode == KDL_DISPLAY_DEVICES)
+			mode = "device";
+
+		kpinterface->prefs->SetOpt("MAIN_VIEWSTYLE", mode, 1);
+
 		display_mode = in_mode;
 		draw_dirty = true;
 		RefreshDisplayList();
@@ -379,6 +426,12 @@ void Kis_Devicelist::DeviceRX(kis_tracked_device *device) {
 			// fprintf(stderr, "debug - Devicerx display network, type not network\n");
 			return;
 		}
+
+		// Don't add it to our device list if it's flagged as wired
+		if (display_mode == KDL_DISPLAY_WIRELESSDEVICES &&
+			(common->basic_type_set & (KIS_DEVICE_BASICTYPE_WIRED)) != 0)
+			return;
+
 
 		// See if we're filtered, but only if we have more than one phy
 		if (filter_phy_map.size() > 1) {
@@ -1175,6 +1228,12 @@ void Kis_Devicelist::RefreshDisplayList() {
 			continue;
 		}
 
+		// Don't add it to our device list if it's flagged as wired
+		if (display_mode == KDL_DISPLAY_WIRELESSDEVICES &&
+			(common->basic_type_set & (KIS_DEVICE_BASICTYPE_WIRED)) != 0) {
+			continue;
+		}
+
 		// See if we're filtered, but only if we have more than one phy
 		// so we can't filter the only phy the server has
 		if (filter_phy_map.size() > 1) {
@@ -1244,7 +1303,30 @@ void Kis_Devicelist::SortMenuAction(int menuitem) {
 	}
 
 	RefreshDisplayList();
-	
+}
+
+void Kis_Devicelist::ViewMenuAction(int menuitem) {
+	_MSG("In item " + IntToString(menuitem) + " last " + IntToString(mi_lastview), MSGFLAG_INFO);
+
+	if (menuitem == mi_lastview) 
+		return;
+
+	menu->SetMenuItemChecked(mi_lastview, 0);
+	menu->SetMenuItemChecked(menuitem, 1);
+	mi_lastview = menuitem;
+
+	_MSG("trigger " + IntToString(menuitem) + " network item " + IntToString(mi_view_network), MSGFLAG_INFO);
+
+	if (menuitem == mi_view_network) {
+		_MSG("View network", MSGFLAG_INFO);
+		SetViewMode(KDL_DISPLAY_NETWORKS);
+	} else if (menuitem == mi_view_wireless) {
+		_MSG("View wireless", MSGFLAG_INFO);
+		SetViewMode(KDL_DISPLAY_WIRELESSDEVICES);
+	} else if (menuitem == mi_view_devices) {
+		_MSG("View devices", MSGFLAG_INFO);
+		SetViewMode(KDL_DISPLAY_DEVICES);
+	}
 }
 
 void Kis_Devicelist::SpawnColorPrefWindow() {
