@@ -375,7 +375,6 @@ proto_fail:
 	}
 
 	return;
-
 }
 
 void Client_Phy80211::Proto_DOT11CLIENT(CLIPROTO_CB_PARMS) {

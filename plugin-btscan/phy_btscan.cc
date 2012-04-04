@@ -195,6 +195,11 @@ int Btscan_Phy::TrackerBtscan(kis_packet *in_pack) {
 
 	commondev->name = btscandev->bd_name;
 	commondev->type_string = "Bluetooth";
+	// Bluetooth has no central AP so any device is an AP and a
+	// client
+	commondev->basic_type_set =
+		(KIS_DEVICE_BASICTYPE_AP | KIS_DEVICE_BASICTYPE_CLIENT |
+		 KIS_DEVICE_BASICTYPE_PEER);
 	
 	if (newdev) 
 		_MSG("Detected new discoverable Bluetooth device \"" + 
