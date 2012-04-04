@@ -987,7 +987,7 @@ int Kis_Menu::AddMenuItem(string in_text, int menuid, char extra, int after) {
 		for (p = menubar[amid]->items.begin(); p != menubar[amid]->items.end(); p++) {
 			if ((*p)->id == aiid) {
 				found = true;
-				menubar[amid]->items.insert(p, item);
+				menubar[amid]->items.insert(p + 1, item);
 				break;
 			}
 		}
