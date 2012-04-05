@@ -23,7 +23,7 @@
 #include "gpscore.h"
 #include "gpsserial.h"
 #include "gpsdclient.h"
-#include "gpsdlibgps.h"
+#include "gpsfixed.h"
 #include "gpswrapper.h"
 #include "configfile.h"
 
@@ -33,6 +33,8 @@ void GpsWrapper::Usage(char *name) {
 		   "                              (default: localhost:2947)\n"
 		   "     --use-nmea-gps (dev)     Use local NMEA serial GPS on device\n"
 		   "                              (default: /dev/ttyUSB0)\n"
+		   "     --use-virtual-gps\n"
+		   "                (lat,lon,alt) Use a virtual fixed-position gps record\n"
 		   "     --gps-modelock <t:f>     Force broken GPS units to act as if they\n"
 		   "                              have a valid signal (true/false)\n"
 		   "     --gps-reconnect <t:f>    Reconnect if a GPS device fails\n"
@@ -51,6 +53,7 @@ GpsWrapper::GpsWrapper(GlobalRegistry *in_globalreg) {
 	int nmeac = globalreg->getopt_long_num++;
 	int modec = globalreg->getopt_long_num++;
 	int recoc = globalreg->getopt_long_num++;
+	int fixec = globalreg->getopt_long_num++;
 
 	if (globalreg->kismet_config == NULL) {
 		fprintf(stderr, "FATAL OOPS:  GpsWrapper() called before kismet_config\n");
@@ -62,6 +65,7 @@ GpsWrapper::GpsWrapper(GlobalRegistry *in_globalreg) {
 	static struct option gpswrapper_long_options[] = {
 		{ "use-gpsd-gps", optional_argument, 0, gpsdc },
 		{ "use-nmea-gps", optional_argument, 0, nmeac },
+		{ "use-virtual-gps", required_argument, 0, fixec },
 		{ "gps-modelock", required_argument, 0, modec },
 		{ "gps-reconnect", required_argument, 0, recoc },
 		{ 0, 0, 0, 0 }
@@ -103,6 +107,25 @@ GpsWrapper::GpsWrapper(GlobalRegistry *in_globalreg) {
 			globalreg->kismet_config->SetOpt("gpsdevice", gpsparm, 1);
 		}
 
+		if (r == fixec) {
+			float tlat, tlon, talt;
+			int fnum;
+
+			if ((fnum = sscanf(optarg, "%f,%f,%f", &tlat, &tlon, &talt)) < 2) {
+				_MSG("Invalid use-virtual-gps, expected lat,lon,alt", MSGFLAG_ERROR);
+				globalreg->kismet_config->SetOpt("gpsposition", "", 1);
+			} else {
+				globalreg->kismet_config->SetOpt("gps", "true", 1);
+				globalreg->kismet_config->SetOpt("gpstype", "virtual", 1);
+				globalreg->kismet_config->SetOpt("gpsposition", 
+												 FloatToString(tlat) + "," + FloatToString(tlon), 1);
+				if (fnum > 2)
+					globalreg->kismet_config->SetOpt("gpsaltitude", FloatToString(talt), 1);
+				else
+					globalreg->kismet_config->SetOpt("gpsaltitude", "", 1);
+			}
+		}
+
 		if (r == modec) {
 			globalreg->kismet_config->SetOpt("gpsmodelock", optarg, 1);
 		} 
@@ -131,6 +154,9 @@ GpsWrapper::GpsWrapper(GlobalRegistry *in_globalreg) {
 		GPSDClient *gc;
 		gc = new GPSDClient(globalreg);
 		gps = gc;
+	} else if (gpsopt == "virtual") {
+		GPSFixed *gf = new GPSFixed(globalreg);
+		gps = gf;
 	} else if (gpsopt == "") {
 		_MSG("GPS enabled but gpstype missing from kismet.conf", MSGFLAG_FATAL);
 		globalreg->fatal_condition = 1;

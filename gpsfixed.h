@@ -16,48 +16,51 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#ifndef __GPSDLIBGPS_H__
-#define __GPSDLIBGPS_H__
+#ifndef __GPSFIXED_H__
+#define __GPSFIXED_H__
 
 #include "config.h"
 
-#ifdef HAVE_LIBGPS
-
-#include <gps.h>
+#ifndef HAVE_LIBGPS
 
 #include "clinetframework.h"
-#include "serialclient.h"
+#include "tcpclient.h"
 #include "kis_netframe.h"
 #include "packetchain.h"
 #include "gpscore.h"
 
-class GPSLibGPS : public GPSCore {
+class GPSFixed : public GPSCore {
 public:
-    GPSLibGPS();
-    GPSLibGPS(GlobalRegistry *in_globalreg);
-    virtual ~GPSLibGPS();
+    GPSFixed();
+    GPSFixed(GlobalRegistry *in_globalreg);
+    virtual ~GPSFixed();
+
+	string FetchType() {
+		return "fixed";
+	}
+
+	string FetchDevice() {
+		return "virtual";
+	}
 
 	virtual int Timer();
 
-    virtual int MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset);
-    virtual int Poll(fd_set& in_rset, fd_set& in_wset);
+    // Hooks so we can override straight to the TCP core
+    virtual int MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
+		return in_max_fd;
+    }
+
+    virtual int Poll(fd_set& in_rset, fd_set& in_wset) {
+		return 0;
+    }
     
     virtual int ParseData();
     
     virtual int Shutdown();
 
     virtual int Reconnect();
-protected:
-	struct gps_data_t *lgpst;
-	int lgpst_started;
 
-	string host, port;
-
-	int gpseventid;
-
-	int last_mode;
-
-	time_t last_hed_time;
+	virtual void ConnectCB(int status);
 };
 
 #endif
