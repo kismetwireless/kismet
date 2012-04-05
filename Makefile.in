@@ -18,7 +18,7 @@ PSO	= util.o cygwin_utils.o globalregistry.o ringbuf.o \
 	netframework.o clinetframework.o tcpserver.o tcpclient.o \
 	unixdomainserver.o serialclient.o packetsourcetracker.o $(CAPSOURCES) \
 	kis_netframe.o kis_droneframe.o \
-	gpswrapper.o gpscore.o gpsdclient.o gpsserial.o gpsdlibgps.o \
+	gpswrapper.o gpscore.o gpsdclient.o gpsserial.o gpsfixed.o \
 	packetchain.o \
 	plugintracker.o alertracker.o timetracker.o \
 	packetdissectors.o devicetracker.o netracker.o channeltracker.o \
@@ -37,7 +37,7 @@ DRONEO = util.o cygwin_utils.o globalregistry.o ringbuf.o \
 		 psutils.o ipc_remote.o soundcontrol.o kismet_json.o \
 		 netframework.o clinetframework.o tcpserver.o tcpclient.o serialclient.o \
 		 drone_kisnetframe.o kis_droneframe.o \
-		 gpswrapper.o gpscore.o gpsdclient.o gpsserial.o gpsdlibgps.o \
+		 gpswrapper.o gpscore.o gpsdclient.o gpsserial.o gpsfixed.o \
 		 packetchain.o \
 		 $(CAPSOURCES) \
 		 plugintracker.o packetsourcetracker.o timetracker.o \
