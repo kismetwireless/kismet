@@ -220,6 +220,54 @@ protected:
 	string colheadercache;
 };
 
+#if 0
+class Kis_NetDetails_Panel : public Kis_Panel {
+public:
+	Kis_NetDetails_Panel() {
+		fprintf(stderr, "FATAL OOPS: Kis_NetDetails_Panel called w/out globalreg\n");
+		exit(1);
+	}
+
+	Kis_NetDetails_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_kpf);
+	virtual ~Kis_NetDetails_Panel();
+
+	virtual void DrawPanel();
+	virtual void ButtonAction(Kis_Panel_Component *in_button);
+	virtual void MenuAction(int opt);
+
+	virtual int GraphTimer();
+
+protected:
+	int AppendNetworkInfo(vector<string> *td, Kis_Display_NetGroup *tng, 
+						  Netracker::tracked_network *net);
+	int AppendSSIDInfo(vector<string> *td, Netracker::tracked_network *net, 
+					   Netracker::adv_ssid_data *ssid);
+
+	virtual void UpdateViewMenu(int mi);
+	void ClearGraphVectors();
+	void UpdateGraphVectors(int signal, int pps, int retry);
+	
+	int DeriveDisplayUpdate();
+
+	Kis_Panel_Packbox *vbox, *bbox;
+	// Kis_Scrollable_Table *netdetails;
+	Kis_Free_Text *netdetailt;
+
+	Kis_IntGraph *siggraph, *packetgraph, *retrygraph;
+	vector<int> sigpoints, packetpps, retrypps;
+	int lastpackets;
+
+	time_t last_dirty;
+	mac_addr last_mac;
+	Kis_Display_NetGroup *dng;
+	Kis_Button *closebutton, *prevbutton, *nextbutton;
+
+	int mn_network, mi_addnote, mi_nextnet, mi_prevnet, mi_close;
+	int mn_view, mi_net, mi_clients, mi_graphsig, mi_graphpacket, mi_graphretry;
+
+	int grapheventid;
+};
+#endif
 
 #endif // ncurses
 
