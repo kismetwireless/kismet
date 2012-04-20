@@ -62,6 +62,16 @@ Kis_Dissector_IPdata::~Kis_Dissector_IPdata() {
 	globalreg->packetchain->RemoveHandler(&ipdata_packethook, CHAINPOS_DATADISSECT);
 }
 
+string MDNS_Fetchname(kis_datachunk *chunk, unsigned int baseofft, 
+					  unsigned int nameofft, map<unsigned int, string> *name_cache) {
+	map<unsigned int, string>::iterator nci = name_cache->find(nameofft);
+
+	if (nci != name_cache->end())
+		return nci->second;
+	
+
+}
+
 int Kis_Dissector_IPdata::HandlePacket(kis_packet *in_pack) {
 	kis_data_packinfo *datainfo = NULL;
 

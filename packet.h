@@ -166,7 +166,7 @@ public:
 
 		if (copy) {
 			data = new uint8_t[in_length];
-			memcpy(data, in_data, length);
+			memcpy(data, in_data, in_length);
 			self_data = true;
 		} else {
 			data = in_data;
