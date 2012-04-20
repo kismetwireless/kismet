@@ -264,14 +264,11 @@ int Kis_DLT_PPI::HandlePacket(kis_packet *in_pack) {
 
 	decapchunk->dlt = ppi_dlt;
 
-	// Subtract the packet FCS since kismet doesn't do anything terribly bright
-	// with it right now, also subtract the avs header.  We have to obey the
-	// header length here since avs could change
-	decapchunk->length = kismin((linkchunk->length - ph_len - applyfcs), 
-								  (uint32_t) MAX_PACKET_LEN);
-
-	decapchunk->data = new uint8_t[decapchunk->length];
-    memcpy(decapchunk->data, linkchunk->data + ph_len, decapchunk->length);
+	// Alias the decapsulated data
+	decapchunk->set_data(linkchunk->data + ph_len, 
+						 kismin((linkchunk->length - ph_len - applyfcs), 
+								(uint32_t) MAX_PACKET_LEN),
+						 false);
 
 	if (radioheader != NULL)
 		in_pack->insert(pack_comp_radiodata, radioheader);

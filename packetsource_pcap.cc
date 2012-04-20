@@ -294,7 +294,7 @@ int PacketSource_Pcap::Poll() {
 	linkchunk->source_id = source_id;
 
 	linkchunk->set_data(callback_data, kismin(callback_header.caplen, 
-											  (uint32_t) MAX_PACKET_LEN));
+											  (uint32_t) MAX_PACKET_LEN), true);
 #if 0
 	linkchunk->data = 
 		new uint8_t[kismin(callback_header.caplen, (uint32_t) MAX_PACKET_LEN)];
@@ -352,7 +352,7 @@ int PacketSource_Pcap::Eight2KisPack(kis_packet *packet, kis_datachunk *linkchun
 	eight11chunk = new kis_datachunk;
 	eight11chunk->dlt = KDLT_IEEE802_11;
 	eight11chunk->set_data(linkchunk->data, kismin(linkchunk->length - fcsbytes,
-												   (uint32_t) MAX_PACKET_LEN));
+												   (uint32_t) MAX_PACKET_LEN), false);
 
 #if 0
 	eight11chunk->length = kismin((linkchunk->length - fcsbytes), 

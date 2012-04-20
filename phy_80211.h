@@ -530,19 +530,12 @@ public:
 	Kis_80211_Phy(GlobalRegistry *in_globalreg, Devicetracker *in_tracker,
 				  int in_phyid);
 
-	// 802.11 packet dissectors, defined in phy_80211_dissectors.cc
-	// Helper functions for decoding ieee tagparms, etc
-	int GetIEEETagOffsets(unsigned int init_offset, kis_datachunk *in_chunk,
-						  map<int, vector<int> > *tag_cache_map);
-
 	int WPACipherConv(uint8_t cipher_index);
 	int WPAKeyMgtConv(uint8_t mgt_index);
 
 	// Dot11 decoders, wep decryptors, etc
 	int PacketWepDecryptor(kis_packet *in_pack);
 	int PacketDot11dissector(kis_packet *in_pack);
-	int PacketDot11dataDissector(kis_packet *in_pack);
-	int PacketDot11stringDissector(kis_packet *in_pack);
 
 	// Special decoders, not called as part of a chain
 	
@@ -612,7 +605,7 @@ protected:
 	// Packet components
 	int pack_comp_80211, pack_comp_basicdata, pack_comp_mangleframe,
 		pack_comp_strings, pack_comp_checksum, pack_comp_linkframe,
-		pack_comp_decap, pack_comp_common;
+		pack_comp_decap, pack_comp_common, pack_comp_datapayload;
 
 	// Do we do any data dissection or do we hide it all (legal safety
 	// cutout)

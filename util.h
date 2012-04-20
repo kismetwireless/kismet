@@ -67,9 +67,9 @@ typedef struct {
 } ieee_long_double_t;
 
 // Munge a string to characters safe for calling in a shell
-void MungeToShell(char *in_data, int max);
+void MungeToShell(char *in_data, unsigned int max);
 string MungeToShell(string in_data);
-string MungeToPrintable(const char *in_data, int max, int nullterm);
+string MungeToPrintable(const char *in_data, unsigned int max, int nullterm);
 string MungeToPrintable(string in_str);
 
 string StrLower(string in_str);
@@ -253,6 +253,10 @@ u_int32_t double_to_fixed6_4(double in);
 double    ns_to_double(u_int32_t in);
 u_int32_t double_to_ns(double in);
 
+class kis_datachunk;
+int GetLengthTagOffsets(unsigned int init_offset, 
+						kis_datachunk *in_chunk,
+						map<int, vector<int> > *tag_cache_map);
 
 #endif
 

@@ -52,6 +52,8 @@
 // Maximum/Default phy
 #define MAC_PHY_MAX		31
 
+#define MAC_STD_LEN		6
+
 // Mac address transformed into 64bit int for fast sorting
 //
 // Supports mac addresses up to 7 octets, with optional

@@ -62,9 +62,11 @@
 #include <sstream>
 #include <iomanip>
 
+#include "packet.h"
+
 // Munge input to shell-safe
-void MungeToShell(char *in_data, int max) {
-    int i, j;
+void MungeToShell(char *in_data, unsigned int max) {
+    unsigned int i, j;
 
     for (i = 0, j = 0; i < max && j < max; i++) {
         if (in_data[i] == '\0')
@@ -102,9 +104,9 @@ string MungeToShell(string in_data) {
 
 // Munge text down to printable characters only.  Simpler, cleaner munger than
 // before (and more blatant when munging)
-string MungeToPrintable(const char *in_data, int max, int nullterm) {
+string MungeToPrintable(const char *in_data, unsigned int max, int nullterm) {
 	string ret;
-	int i;
+	unsigned int i;
 
 	for (i = 0; i < max; i++) {
 		if ((unsigned char) in_data[i] == 0 && nullterm == 1)
@@ -1196,5 +1198,51 @@ string StringAppend(string s, string a, string d) {
 		return s + a;
 
 	return s + d + a;
+}
+
+int GetLengthTagOffsets(unsigned int init_offset, 
+						kis_datachunk *in_chunk,
+						map<int, vector<int> > *tag_cache_map) {
+    int cur_tag = 0;
+    // Initial offset is 36, that's the first tag
+    unsigned int cur_offset = (unsigned int) init_offset;
+    uint8_t len;
+
+    // Bail on invalid incoming offsets
+    if (init_offset >= in_chunk->length) {
+        return -1;
+	}
+    
+    // If we haven't parsed the tags for this frame before, parse them all now.
+    // Return an error code if one of them is malformed.
+    if (tag_cache_map->size() == 0) {
+        while (1) {
+            // Are we over the packet length?
+            if (cur_offset + 2 >= in_chunk->length) {
+                break;
+            }
+
+            // Read the tag we're on and bail out if we're done
+            cur_tag = (int) in_chunk->data[cur_offset];
+
+            // Move ahead one byte and read the length.
+            len = (in_chunk->data[cur_offset+1] & 0xFF);
+
+            // If this is longer than we have...
+            if ((cur_offset + len + 2) > in_chunk->length) {
+                return -1;
+            }
+
+            // (*tag_cache_map)[cur_tag] = cur_offset + 1;
+			
+            (*tag_cache_map)[cur_tag].push_back(cur_offset + 1);
+
+            // Jump the length+length byte, this should put us at the next tag
+            // number.
+            cur_offset += len+2;
+        }
+    }
+    
+    return 0;
 }
 

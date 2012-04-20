@@ -47,6 +47,8 @@
 #include "kis_dlt_radiotap.h"
 #include "kis_dlt_prism2.h"
 
+#include "kis_dissector_ipdata.h"
+
 #include "packetsource.h"
 
 #include "packetsource_bsdrt.h"
@@ -1043,6 +1045,8 @@ int main(int argc, char *argv[], char *envp[]) {
 	new Kis_DLT_PPI(globalregistry);
 	new Kis_DLT_Radiotap(globalregistry);
 	new Kis_DLT_Prism2(globalregistry);
+
+	new Kis_Dissector_IPdata(globalregistry);
 
 	// Register the base PHYs
 	if (globalregistry->devicetracker->RegisterPhyHandler(new Kis_80211_Phy(globalregistry)) < 0 || globalregistry->fatal_condition) 

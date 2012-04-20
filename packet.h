@@ -143,26 +143,37 @@ public:
     unsigned int length;
 	int dlt;
 	uint16_t source_id;
+	bool self_data;
    
     kis_datachunk() {
 		self_destruct = 1; // Our delete() handles everything
+		self_data = true; // We assume for now we have our own data alloc
         data = NULL;
         length = 0;
 		source_id = 0;
     }
 
     virtual ~kis_datachunk() {
-        delete[] data;
+		if (data != NULL && self_data)
+			delete[] data;
         length = 0;
     }
 
-	virtual void set_data(uint8_t *in_data, unsigned int in_length) {
-		if (data != NULL)
+	// Default to copy=true; it's always safe to copy, it's not always safe not to
+	virtual void set_data(uint8_t *in_data, unsigned int in_length, bool copy = true) {
+		if (data != NULL && self_data)
 			delete[] data;
 
-		data = new uint8_t[in_length];
+		if (copy) {
+			data = new uint8_t[in_length];
+			memcpy(data, in_data, length);
+			self_data = true;
+		} else {
+			data = in_data;
+			self_data = false;
+		}
+
 		length = in_length;
-		memcpy(data, in_data, length);
 	}
 };
 
@@ -176,7 +187,7 @@ public:
 	}
 
 	virtual void set_data(uint8_t *in_data, unsigned int in_length) {
-		kis_datachunk::set_data(in_data, in_length);
+		kis_datachunk::set_data(in_data, in_length, true);
 		checksum_ptr = (uint32_t *) data;
 	}
 };

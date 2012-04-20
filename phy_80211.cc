@@ -108,16 +108,8 @@ int phydot11_packethook_dot11(CHAINCALL_PARMS) {
 	return ((Kis_80211_Phy *) auxdata)->PacketDot11dissector(in_pack);
 }
 
-int phydot11_packethook_dot11data(CHAINCALL_PARMS) {
-	return ((Kis_80211_Phy *) auxdata)->PacketDot11dataDissector(in_pack);
-}
-
 int phydot11_packethook_dot11classify(CHAINCALL_PARMS) {
 	return ((Kis_80211_Phy *) auxdata)->ClassifierDot11(in_pack);
-}
-
-int phydot11_packethook_dot11string(CHAINCALL_PARMS) {
-	return ((Kis_80211_Phy *) auxdata)->PacketDot11stringDissector(in_pack);
 }
 
 int phydot11_packethook_dot11tracker(CHAINCALL_PARMS) {
@@ -403,10 +395,12 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
 											CHAINPOS_DECRYPT, -100);
 	globalreg->packetchain->RegisterHandler(&phydot11_packethook_dot11, this,
 											CHAINPOS_LLCDISSECT, -100);
+#if 0
 	globalreg->packetchain->RegisterHandler(&phydot11_packethook_dot11data, this,
 											CHAINPOS_DATADISSECT, -100);
 	globalreg->packetchain->RegisterHandler(&phydot11_packethook_dot11string, this,
 											CHAINPOS_DATADISSECT, -99);
+#endif
 
 	globalreg->packetchain->RegisterHandler(&phydot11_packethook_dot11tracker, this,
 											CHAINPOS_TRACKER, 100);
@@ -438,6 +432,9 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
 	pack_comp_common = 
 		globalreg->packetchain->RegisterPacketComponent("COMMON");
 
+	pack_comp_datapayload =
+		globalreg->packetchain->RegisterPacketComponent("DATAPAYLOAD");
+
 	// Register the dissector alerts
 	alert_netstumbler_ref = 
 		globalreg->alertracker->ActivateConfiguredAlert("NETSTUMBLER", phyid);
@@ -457,8 +454,10 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
 		globalreg->alertracker->ActivateConfiguredAlert("DISCONCODEINVALID", phyid);
 	alert_deauthinvalid_ref =
 		globalreg->alertracker->ActivateConfiguredAlert("DEAUTHCODEINVALID", phyid);
+#if 0
 	alert_dhcpclient_ref =
 		globalreg->alertracker->ActivateConfiguredAlert("DHCPCLIENTID", phyid);
+#endif
 
 	// Register the tracker alerts
 	alert_chan_ref =
@@ -565,10 +564,12 @@ Kis_80211_Phy::~Kis_80211_Phy() {
 	globalreg->packetchain->RemoveHandler(&phydot11_packethook_wep, CHAINPOS_DECRYPT);
 	globalreg->packetchain->RemoveHandler(&phydot11_packethook_dot11, 
 										  CHAINPOS_LLCDISSECT);
+	/*
 	globalreg->packetchain->RemoveHandler(&phydot11_packethook_dot11data, 
 										  CHAINPOS_DATADISSECT);
 	globalreg->packetchain->RemoveHandler(&phydot11_packethook_dot11string,
 										  CHAINPOS_DATADISSECT);
+										  */
 	globalreg->packetchain->RemoveHandler(&phydot11_packethook_dot11classify,
 										  CHAINPOS_CLASSIFIER);
 

@@ -361,11 +361,16 @@ int Kis_DLT_Radiotap::HandlePacket(kis_packet *in_pack) {
         return 0;
 	}
 
+#if 0
 	decapchunk->length = linkchunk->length - 
 		EXTRACT_LE_16BITS(&(hdr->it_len)) - fcs_cut;
 	decapchunk->data = new uint8_t[decapchunk->length];
 	memcpy(decapchunk->data, linkchunk->data + 
 		   EXTRACT_LE_16BITS(&(hdr->it_len)), decapchunk->length);
+#endif
+	decapchunk->set_data(linkchunk->data + EXTRACT_LE_16BITS(&(hdr->it_len)),
+						 (linkchunk->length - EXTRACT_LE_16BITS(&(hdr->it_len)) - 
+						  fcs_cut), false);
 
 	in_pack->insert(pack_comp_radiodata, radioheader);
 	in_pack->insert(pack_comp_decap, decapchunk);
