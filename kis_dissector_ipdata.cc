@@ -62,14 +62,104 @@ Kis_Dissector_IPdata::~Kis_Dissector_IPdata() {
 	globalreg->packetchain->RemoveHandler(&ipdata_packethook, CHAINPOS_DATADISSECT);
 }
 
+#define MDNS_PTR_MASK		0xC0
+#define MDNS_PTR_ADDRESS	0x3FFF
+
+// Fetch a name; if it's a pointer, follow that reference and get the value
+// Cache offsets we've looked at in the map so we don't follow them repeatedly
+// Bytelen indicates how many bytes to advance the stream; negative indicates
+// error
 string MDNS_Fetchname(kis_datachunk *chunk, unsigned int baseofft, 
-					  unsigned int nameofft, map<unsigned int, string> *name_cache) {
-	map<unsigned int, string>::iterator nci = name_cache->find(nameofft);
+					  unsigned int startofft, map<unsigned int, string> *name_cache,
+					  int *bytelen) {
+	// If we're fed a bad offset just throw it back
+	if (startofft > chunk->length) {
+		*bytelen = -1;
+		return "";
+	}
 
-	if (nci != name_cache->end())
-		return nci->second;
-	
+	string dns_str;
 
+	unsigned int offt = startofft;
+
+	while (offt < chunk->length) {
+		// Find a starting at this position
+		uint8_t len = chunk->data[offt];
+
+		// If we hit a 0x00 we're at the end of the string
+		if (len == 0) {
+			offt += 1;
+			break;
+		}
+
+		// Pointer to another value
+		if ((len & MDNS_PTR_MASK) == MDNS_PTR_MASK) {
+			// Catch wonky records
+			if (offt + 1 >= chunk->length) {
+				*bytelen = -1;
+				return dns_str;
+			}
+
+			// Derive the new start address
+			uint16_t ptr = 
+				kis_ntoh16(kis_extract16(&(chunk->data[offt])));
+
+			ptr &= MDNS_PTR_ADDRESS;
+
+			// Get the cached value if we can, instead of following the pointer
+			map<unsigned int, string>::iterator nci = name_cache->find(ptr);
+			if (nci != name_cache->end()) {
+				if (dns_str == "")
+					dns_str = nci->second;
+				else
+					dns_str += "." + nci->second;
+			} else {
+				// Set our current location in the map to empty so we won't loop 
+				// on a malicious packet with self-referencing compression
+				// pointers
+				(*name_cache)[offt - baseofft] = "";
+
+				int junklen;
+				string ret = MDNS_Fetchname(chunk, baseofft, baseofft + ptr, name_cache, 
+											&junklen);
+
+				(*name_cache)[offt - baseofft] = ret;
+
+				if (dns_str == "")
+					dns_str = ret;
+				else
+					dns_str += "." + ret;
+
+				// All address pointers are len2 in the buffer
+				offt += 2;
+			}
+
+			// Pointer record indicates end of string
+			break;
+		}
+
+		// Skip the length byte
+		offt += 1;
+
+		if (offt + len >= chunk->length) {
+			*bytelen = -1;
+			return dns_str;
+		}
+
+		string ret = 
+			MungeToPrintable((char *) &(chunk->data[offt]), len, 0);
+
+		offt += len;
+
+		if (dns_str == "")
+			dns_str = ret;
+		else
+			dns_str += "." + ret;
+	}
+
+	*bytelen = (offt - startofft);
+
+	return dns_str;
 }
 
 int Kis_Dissector_IPdata::HandlePacket(kis_packet *in_pack) {
@@ -417,7 +507,10 @@ int Kis_Dissector_IPdata::HandlePacket(kis_packet *in_pack) {
 			string mdns_ptr;
 
 			// Skip UDP headers
+			unsigned int mdns_start = UDP_OFFSET + 8;
 			unsigned int offt = UDP_OFFSET + 8;
+
+			map<unsigned int, string> mdns_cache;
 
 			// Skip transaction ID, we don't care
 			offt += 2;
@@ -458,54 +551,33 @@ int Kis_Dissector_IPdata::HandlePacket(kis_packet *in_pack) {
 
 			// printf("debug - mdns - looking at %u answers\n", answer_rr + auth_rr + additional_rr);
 			for (unsigned int a = 0; a < (answer_rr + auth_rr + additional_rr); a++) {
-				// printf("debug - mdns - looking at answer %u\n", a);
+				int retbytes;
 
-				for (unsigned int s = offt; s < chunk->length; ) {
-					uint8_t len = chunk->data[s];
+				mdns_name = MDNS_Fetchname(chunk, mdns_start, offt, &mdns_cache, &retbytes);
 
-					if (len == 0) {
-						offt = s + 1;
-						break;
-					}
-
-					// Skip pointers to other names
-					if (len == 0xC0) {
-						offt = s + 2;
-						break;
-					}
-
-					// printf("debug - mdns string fragment %u\n", len);
-
-					// Length byte
-					s += 1;
-
-					if (s + len >= chunk->length)
-						goto mdns_end;
-
-					// printf("debug - mdns string %s\n", MungeToPrintable((char *) &(chunk->data[s]), len, 0).c_str());
-
-					mdns_name += MungeToPrintable((char *) &(chunk->data[s]), len, 0) + ".";
-
-					s += len;
-
-				}
-
-				// printf("debug - mdns name: %s\n", mdns_name.c_str());
-
-				if (offt + 2 >= chunk->length)
+				if (retbytes <= 0)
 					goto mdns_end;
 
-				// printf("debug - mdns debug %02x %02x %02x %02x\n", chunk->data[offt], chunk->data[offt+1], chunk->data[offt+2], chunk->data[offt+3]);
+				offt += retbytes;
+
+				// printf("debug - mdns record name: %s\n", mdns_name.c_str());
+
+				if (offt + 2 >= chunk->length) {
+					goto mdns_end;
+				}
 
 				uint16_t rec_type;
 
 				rec_type = 
 					kis_ntoh16(kis_extract16(&(chunk->data[offt])));
 
+				// printf("debug - rectype %x\n", rec_type);
+
 				offt += 8;
 
-				if (offt + 2 >= chunk->length)
+				if (offt + 2 >= chunk->length) {
 					goto mdns_end;
+				}
 
 				uint16_t rec_len;
 
@@ -519,50 +591,25 @@ int Kis_Dissector_IPdata::HandlePacket(kis_packet *in_pack) {
 				if (offt + rec_len >= chunk->length)
 					goto mdns_end;
 
+				// printf("debug - mdns - rectype %x reclen %u\n", rec_type, rec_len);
+
 				// Only care about PTR records for now
 				if (rec_type != 0xC) {
-					// printf("debug - mdns - not a PTR record, skipping\n");
+					// printf("debug - mdns - not a PTR record, type %x, skipping\n", rec_type);
 					offt += rec_len;
 					continue;
 				}
-
-				// Skip non-explicit records
-				if (rec_len <= 2) {
-					offt += rec_len;
-					continue;
-				}
-
 
 				string mdns_rec;
 
-				for (unsigned int s = offt; s < chunk->length; ) {
-					uint8_t len = chunk->data[s];
+				mdns_rec = MDNS_Fetchname(chunk, mdns_start, offt, &mdns_cache, &retbytes);
 
-					if (len == 0) {
-						break;
-					}
+				if (retbytes <= 0)
+					goto mdns_end;
 
-					if (len == 0xC0) {
-						s += 2;
-						continue;
-					}
-
-					// Length byte
-					s += 1;
-
-					if (s + len >= chunk->length) {
-						// printf("debug - mdns - bogus record length %u\n", len);
-						goto mdns_end;
-					}
-
-					mdns_rec += MungeToPrintable((char *) &(chunk->data[s]), len, 0) + ".";
-
-					s += len;
-				}
+				offt += retbytes;
 
 				// printf("debug - mdns ptr %s\n", mdns_rec.c_str());
-
-				offt += rec_len;
 			}
 
 mdns_end:

@@ -901,7 +901,7 @@ int RootIPCRemote::OpenFDPassSock() {
 
 	// Child creates it, since child probably has more privs
 	if (ipc_pid != 0) {
-		printf("debug - %d - child creating ipc fdfd\n", getpid());
+		// printf("debug - %d - child creating ipc fdfd\n", getpid());
 
 		snprintf(sockpath, 32, "/tmp/kisfdsock_%d", ipc_pid);
 

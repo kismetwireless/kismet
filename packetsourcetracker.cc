@@ -627,7 +627,7 @@ int Packetsourcetracker::Poll(fd_set& in_rset, fd_set& in_wset) {
 
 		if (capd >= 0 && FD_ISSET(capd, &in_rset)) {
 			if (x->second->strong_source->Poll() <= 0) {
-				fprintf(stderr, "debug - pid %u zero poll %d\n", getpid(), x->second->zeropoll);
+				// fprintf(stderr, "debug - pid %u zero poll %d\n", getpid(), x->second->zeropoll);
 				x->second->zeropoll++;
 			} else {
 				x->second->zeropoll = 0;
@@ -635,7 +635,7 @@ int Packetsourcetracker::Poll(fd_set& in_rset, fd_set& in_wset) {
 		}
 
 		if (x->second->zeropoll > 100) {
-			fprintf(stderr, "debug pid %u zero poll fail %d\n", getpid(), x->second->zeropoll);
+			// fprintf(stderr, "debug pid %u zero poll fail %d\n", getpid(), x->second->zeropoll);
 			_MSG("Packet source '" + x->second->strong_source->FetchName() + 
 				 "' is no longer returning any data when polled, it has "
 				 "probably been disconnected, and will be closed.", MSGFLAG_ERROR);
