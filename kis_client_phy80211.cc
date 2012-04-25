@@ -22,7 +22,7 @@
 #include "devicetracker.h"
 #include "kis_client_devicetracker.h"
 #include "kis_client_phy80211.h"
-#include "kis_panel_devicelist.h"
+#include "kis_panel_device.h"
 
 void CPD11_DOT11SSID(CLIPROTO_CB_PARMS) {
 	((Client_Phy80211 *) auxptr)->Proto_DOT11SSID(globalreg, proto_string, 

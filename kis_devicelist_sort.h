@@ -21,7 +21,7 @@
 
 #include "config.h"
 
-#include "kis_panel_devicelist.h"
+#include "kis_panel_device.h"
 #include "kis_panel_frontend.h"
 
 class KDL_Sort_Abstract {

@@ -342,11 +342,16 @@ public:
 	// for bluetooth the UAP guess, etc
 	string name;
 
-	// Printable type as relevant to the phy, ie "Wired", "AP", etc
+	// Printable type as relevant to the phy, ie "Wired", "AP", etc... This 
+	// can be set by the phy and is usually the best printable interpretation
 	string type_string;
 
 	// Basic phy-neutral type for sorting and classification
 	uint32_t basic_type_set;
+
+	// Printable crypt string, which can be set by the phy and is usually
+	// the best printable interpretation
+	string crypt_string;
 
 	// Basic encryption data
 	uint32_t basic_crypt_set;

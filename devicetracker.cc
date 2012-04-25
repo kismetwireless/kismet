@@ -43,7 +43,7 @@
 
 enum KISDEV_COMMON_FIELDS {
 	KISDEV_phytype, KISDEV_macaddr, KISDEV_name, KISDEV_typestring, 
-	KISDEV_basictype, KISDEV_basiccrypt,
+	KISDEV_basictype, KISDEV_cryptstring, KISDEV_basiccrypt,
 	KISDEV_firsttime, KISDEV_lasttime,
 	KISDEV_packets, KISDEV_llcpackets, KISDEV_errorpackets,
 	KISDEV_datapackets, KISDEV_cryptpackets, KISDEV_filterpackets,
@@ -65,7 +65,7 @@ enum KISDEV_COMMON_FIELDS {
 
 const char *KISDEV_common_text[] = {
 	"phytype", "macaddr", "name", "typestring", 
-	"basictype", "basiccrypt",
+	"basictype", "cryptstring", "basiccrypt",
 	"firsttime", "lasttime",
 	"packets", "llcpackets", "errorpackets",
 	"datapackets", "cryptpackets", "filterpackets",
@@ -122,6 +122,9 @@ int Protocol_KISDEV_COMMON(PROTO_PARMS) {
 				break;
 			case KISDEV_basictype:
 				scratch = IntToString(com->basic_type_set);
+				break;
+			case KISDEV_cryptstring:
+				scratch = "\001" + com->crypt_string + "\001";
 				break;
 			case KISDEV_basiccrypt:
 				scratch = IntToString(com->basic_crypt_set);

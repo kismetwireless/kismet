@@ -16,8 +16,8 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#ifndef __KIS_PANEL_DEVICELIST_H__
-#define __KIS_PANEL_DEVICELIST_H__
+#ifndef __KIS_PANEL_DEVICE_H__
+#define __KIS_PANEL_DEVICE_H__
 
 #include "config.h"
 
@@ -221,15 +221,15 @@ protected:
 };
 
 #if 0
-class Kis_NetDetails_Panel : public Kis_Panel {
+class Kis_DevDetails_Panel : public Kis_Panel {
 public:
-	Kis_NetDetails_Panel() {
-		fprintf(stderr, "FATAL OOPS: Kis_NetDetails_Panel called w/out globalreg\n");
+	Kis_DevDetails_Panel() {
+		fprintf(stderr, "FATAL OOPS: Kis_DevDetails_Panel()\n");
 		exit(1);
 	}
 
-	Kis_NetDetails_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_kpf);
-	virtual ~Kis_NetDetails_Panel();
+	Kis_DevDetails_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_kpf);
+	virtual ~Kis_DevDetails_Panel();
 
 	virtual void DrawPanel();
 	virtual void ButtonAction(Kis_Panel_Component *in_button);
@@ -238,6 +238,7 @@ public:
 	virtual int GraphTimer();
 
 protected:
+
 	int AppendNetworkInfo(vector<string> *td, Kis_Display_NetGroup *tng, 
 						  Netracker::tracked_network *net);
 	int AppendSSIDInfo(vector<string> *td, Netracker::tracked_network *net, 

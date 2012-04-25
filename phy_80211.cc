@@ -1103,23 +1103,30 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 
 	if (dot11info->ess) {
 		dot11dev->type_set |= dot11_network_ap;
+		commondev->basic_type_set |= KIS_DEVICE_BASICTYPE_AP;
 		commondev->type_string = "AP";
 	} else if (dot11info->distrib == distrib_from &&
 			   dot11info->type == packet_data) {
 		commondev->basic_type_set |= KIS_DEVICE_BASICTYPE_WIRED;
 		dot11dev->type_set |= dot11_network_wired;
-		commondev->type_string = "Wired";
+
+		if (!(commondev->basic_type_set & KIS_DEVICE_BASICTYPE_AP)) 
+			commondev->type_string = "Wired";
 	} else if (dot11info->distrib == distrib_to &&
 			   dot11info->type == packet_data) {
 		dot11dev->type_set |= dot11_network_client;
-		commondev->type_string = "Client";
+
+		if (!(commondev->basic_type_set & KIS_DEVICE_BASICTYPE_AP)) 
+			commondev->type_string = "Client";
 	} else if (dot11info->distrib == distrib_inter) {
 		dot11dev->type_set |= dot11_network_wds;
 		commondev->type_string = "WDS";
 	} else if (dot11info->type == packet_management &&
 			   dot11info->subtype == packet_sub_probe_req) {
 		dot11dev->type_set |= dot11_network_client;
-		commondev->type_string = "Client";
+
+		if (!(commondev->basic_type_set & KIS_DEVICE_BASICTYPE_AP)) 
+			commondev->type_string = "Client";
 	} else if (dot11info->distrib == distrib_adhoc) {
 		// Throw alert if device changes to adhoc
 		if (!(dot11dev->type_set & dot11_network_adhoc)) {
@@ -1141,21 +1148,28 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 
 		dot11dev->type_set |= dot11_network_adhoc;
 
-		commondev->type_string = "Ad-Hoc";
 		commondev->basic_type_set |= KIS_DEVICE_BASICTYPE_PEER |
 			KIS_DEVICE_BASICTYPE_CLIENT;
+
+		if (!(commondev->basic_type_set & KIS_DEVICE_BASICTYPE_AP)) 
+			commondev->type_string = "Ad-Hoc";
 
 	} else if (dot11info->type == packet_management) {
 		if (dot11info->subtype == packet_sub_disassociation ||
 			dot11info->subtype == packet_sub_deauthentication)
 			dot11dev->type_set |= dot11_network_ap;
+
 		commondev->type_string = "AP";
 
 		if (dot11info->subtype == packet_sub_authentication &&
 			dot11info->source_mac == dot11info->bssid_mac) {
+
+			commondev->basic_type_set |= KIS_DEVICE_BASICTYPE_AP;
 			dot11dev->type_set |= dot11_network_ap;
 			commondev->type_string = "AP";
+
 		} else {
+			commondev->basic_type_set |= KIS_DEVICE_BASICTYPE_CLIENT;
 			dot11dev->type_set |= dot11_network_client;
 			commondev->type_string = "Client";
 		}
@@ -1163,7 +1177,8 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 
 	if (dot11dev->type_set == dot11_network_none) {
 		printf("debug - unknown net typeset for bs %s sr %s dt %s type %u sub %u\n", dot11info->bssid_mac.Mac2String().c_str(), dot11info->source_mac.Mac2String().c_str(), dot11info->dest_mac.Mac2String().c_str(), dot11info->type, dot11info->subtype);
-		commondev->type_string = "Unknown";
+		if (commondev->type_string == "")
+			commondev->type_string = "Unknown";
 	}
 
 	if (dot11dev->type_set & dot11_network_inferred) {

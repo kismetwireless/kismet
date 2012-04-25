@@ -21,7 +21,7 @@
 // Panel has to be here to pass configure, so just test these
 #if (defined(HAVE_LIBNCURSES) || defined (HAVE_LIBCURSES))
 
-#include "kis_panel_devicelist.h"
+#include "kis_panel_device.h"
 #include "kis_panel_windows.h"
 #include "kis_panel_frontend.h"
 #include "kis_panel_sort.h"

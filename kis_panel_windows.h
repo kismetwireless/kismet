@@ -28,7 +28,7 @@
 #include "kis_clinetframe.h"
 #include "kis_panel_widgets.h"
 #include "kis_panel_network.h"
-#include "kis_panel_devicelist.h"
+#include "kis_panel_device.h"
 
 #include "kis_panel_plugin.h"
 
