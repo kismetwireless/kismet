@@ -849,12 +849,6 @@ int Kis_80211_Phy::ClassifierDot11(kis_packet *in_pack) {
 		// printf("debug - basic l3\n");
 	}
 
-#if 0
-	if (ci->device == mac_addr(0)) {
-		printf("debug - bad device - %s %s %s %d %d\n", dot11info->source_mac.Mac2String().c_str(), dot11info->dest_mac.Mac2String().c_str(), dot11info->bssid_mac.Mac2String().c_str(), dot11info->type, dot11info->subtype);
-	}
-#endif
-
 	in_pack->insert(pack_comp_common, ci);
 
 	return 1;
@@ -1018,7 +1012,7 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 	dot11_device *dot11dev = NULL;
 	dot11_client *cli = NULL;
 	dot11_ssid *ssid = NULL;
-	kis_device_common *commondev = NULL;
+	kis_device_common *commondev = NULL, *apcommon = NULL;
 
 	bool net_new = false, cli_new = false, ssid_new = false, build_net = true,
 		 dev_new = false;
@@ -1205,7 +1199,7 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 
 	// Flag the AP as an AP
 	if (apdev != NULL) {
-		kis_device_common *apcommon = 
+		apcommon = 
 			(kis_device_common *) apdev->fetch(dev_comp_common);
 
 		if (apcommon != NULL) {
@@ -1290,6 +1284,13 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 			crypt_update = StringAppend(crypt_update, 
 										"updated observed data encryption to " + 
 										CryptToString(net->tx_cryptset));
+
+			if (net->tx_cryptset & crypt_wps)
+				apcommon->crypt_string = "WPS";
+			else if (net->tx_cryptset & crypt_wpa) 
+				apcommon->crypt_string = "WPA";
+			else if (net->tx_cryptset & crypt_wep)
+				apcommon->crypt_string = "WEP";
 		}
 
 		if (new_decrypted) {
@@ -1574,6 +1575,15 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 			ssid->dirty = 1;
 
 			if (dot11info->subtype == packet_sub_beacon) {
+				if (net->ssid_map.size() == 1) {
+					if (ssid->cryptset & crypt_wps)
+						commondev->crypt_string = "WPS";
+					else if (ssid->cryptset & crypt_wpa) 
+						commondev->crypt_string = "WPA";
+					else if (ssid->cryptset & crypt_wep)
+						commondev->crypt_string = "WEP";
+				}
+
 				unsigned int ieeerate = 
 					Ieee80211Interval2NSecs(dot11info->beacon_interval);
 

@@ -196,7 +196,7 @@ protected:
 	int col_active, col_addr, col_name, col_type, col_basictype, col_basiccrypt,
 		col_packets, col_llc, col_error, col_data, col_crypt, col_datasize, 
 		col_newpackets, col_channel, col_freq, col_alerts, col_manuf, col_phy, 
-		col_signal;
+		col_signal, col_cryptstr;
 
 	int col_sub_lastseen, col_sub_addr, col_sub_basiccrypt, col_sub_ip,
 		col_sub_manuf, col_sub_seenby, col_sub_phy;

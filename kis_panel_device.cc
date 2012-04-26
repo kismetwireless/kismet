@@ -134,10 +134,12 @@ Kis_Devicelist::Kis_Devicelist(GlobalRegistry *in_globalreg, Kis_Panel *in_panel
 							 LABEL_POS_LEFT, KDL_Common_Column_Cb, this, false);
 	col_addr = RegisterColumn("Address", "MAC or Identifier", 17,
 							  LABEL_POS_LEFT, KDL_Common_Column_Cb, this, false);
-	col_type = RegisterColumn("Type", "Device type", 10,
+	col_type = RegisterColumn("Typestring", "Device type", 10,
 							  LABEL_POS_LEFT, KDL_Common_Column_Cb, this, false);
 	col_basictype = RegisterColumn("BasicType", "Basic type", 10,
 								   LABEL_POS_LEFT, KDL_Common_Column_Cb, this, false);
+	col_cryptstr = RegisterColumn("Cryptstring", "Device encryption", 4,
+								  LABEL_POS_LEFT, KDL_Common_Column_Cb, this, false);
 	col_basiccrypt = RegisterColumn("BasicCrypt", "Basic encryption", 1,
 								   LABEL_POS_LEFT, KDL_Common_Column_Cb, this, false);
 	col_packets = RegisterColumn("Packets", "Packets", 5,
@@ -997,7 +999,18 @@ string Kis_Devicelist::CommonColumn(kdl_display_device *in_dev, int in_columnid,
 		if (header) {
 			snprintf(buf, 64, hdr, "Type");
 		} else {
-			snprintf(buf, 64, hdr, common->type_string.c_str());
+			if (common->type_string != "") {
+				snprintf(buf, 64, hdr, common->type_string.c_str());
+			} else {
+				if (common->basic_type_set & KIS_DEVICE_BASICTYPE_PEER)
+					snprintf(buf, 64, hdr, "Peer");
+				else if (common->basic_type_set & KIS_DEVICE_BASICTYPE_AP)
+					snprintf(buf, 64, hdr, "AP");
+				else if (common->basic_type_set & KIS_DEVICE_BASICTYPE_WIRED)
+					snprintf(buf, 64, hdr, "Wired");
+				else if (common->basic_type_set & KIS_DEVICE_BASICTYPE_CLIENT)
+					snprintf(buf, 64, hdr, "Client");
+			}
 		}
 	} else if (in_columnid == col_basictype) {
 		if (header) {
@@ -1016,6 +1029,21 @@ string Kis_Devicelist::CommonColumn(kdl_display_device *in_dev, int in_columnid,
 			else if (common->basic_type_set & KIS_DEVICE_BASICTYPE_CLIENT)
 				snprintf(buf, 64, hdr, "Client");
 		} 
+	} else if (in_columnid == col_cryptstr) {
+		if (header) {
+			snprintf(buf, 64, hdr, "Crpt");
+		} else {
+			if (common->crypt_string != "") {
+				snprintf(buf, 64, hdr, common->crypt_string.c_str());
+			} else {
+				if (common->basic_crypt_set & KIS_DEVICE_BASICCRYPT_L2)
+					snprintf(buf, 64, hdr, "L2");
+				else if (common->basic_crypt_set & KIS_DEVICE_BASICCRYPT_L3)
+					snprintf(buf, 64, hdr, "L3");
+				else if (common->basic_crypt_set == 0)
+					snprintf(buf, 64, hdr, "None");
+			}
+		}
 	} else if (in_columnid == col_basiccrypt) {
 		if (header) {
 			snprintf(buf, 64, hdr, "C");

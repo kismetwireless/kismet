@@ -344,6 +344,7 @@ public:
 
 	// Printable type as relevant to the phy, ie "Wired", "AP", etc... This 
 	// can be set by the phy and is usually the best printable interpretation
+	// this should be empty if the phy layer hasn't added something intelligent
 	string type_string;
 
 	// Basic phy-neutral type for sorting and classification
@@ -351,6 +352,8 @@ public:
 
 	// Printable crypt string, which can be set by the phy and is usually
 	// the best printable interpretation
+	// This should be empty, if the phy layer hasn't added something
+	// intelligent
 	string crypt_string;
 
 	// Basic encryption data
