@@ -122,6 +122,8 @@ void Client_Phy80211::NetClientConfigure(KisNetClient *in_cli, int in_recon) {
 
 	devicelist = NULL;
 
+	col_dot11d = col_sub_lastssid = -1;
+
 	PanelInitialized();
 }
 
@@ -132,13 +134,16 @@ void Client_Phy80211::PanelInitialized() {
 	if (devicelist == NULL)
 		return;
 
-	col_dot11d = devicelist->RegisterColumn("Dot11d", "802.11d country", 3,
-											LABEL_POS_LEFT, CPD11_Dot11Column_Cb,
-											this, false);
-	col_sub_lastssid = 
-		devicelist->RegisterColumn("LastSSID", "Most recent 802.11 SSID", 0,
-								   LABEL_POS_LEFT, CPD11_Dot11Column_Cb,
-								   this, true);
+	if (col_dot11d == -1)
+		col_dot11d = devicelist->RegisterColumn("Dot11d", "802.11d country", 3,
+												LABEL_POS_LEFT, CPD11_Dot11Column_Cb,
+												this, false);
+	
+	if (col_sub_lastssid == -1)
+		col_sub_lastssid = 
+			devicelist->RegisterColumn("LastSSID", "Most recent 802.11 SSID", 0,
+									   LABEL_POS_LEFT, CPD11_Dot11Column_Cb,
+									   this, true);
 
 	devicelist->ParseColumnConfig();
 
