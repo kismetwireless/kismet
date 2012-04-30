@@ -8,8 +8,8 @@ BLDHOME	= .
 top_builddir = $(BLDHOME)
 
 PLUGINLDFLAGS += -shared -rdynamic
-LIBS	+= -lstdc++ -lbluetooth -lpthread -lncurses -lpanel
-CFLAGS 	+= -I/usr/include -I$(KIS_INC_DIR) -g -fPIC
+LIBS	+= -lstdc++ -lbluetooth -lpthread
+CFLAGS 	+= -I$(KIS_INC_DIR) -g -fPIC
 
 SRVOBJS = packetsource_linuxbt.o phy_btscan.o kismet_btscan.o
 SRVOUT	= btscan.so
@@ -27,15 +27,15 @@ $(SRVOUT):	$(SRVOBJS)
 
 install:	$(SRVOUT) 
 	mkdir -p $(DESTDIR)/$(plugindir)
-	install -o $(INSTUSR) -g $(INSTGRP) -m 644 $(SRVOUT) $(DESTDIR)/$(plugindir)/$(SRVOUT)
+	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 $(SRVOUT) $(DESTDIR)/$(plugindir)/$(SRVOUT)
 	#mkdir -p $(DESTDIR)/$(plugindir)_client
 	#install -o $(INSTUSR) -g $(INSTGRP) -m 644 $(CLIOUT) $(DESTDIR)/$(plugindir)_client/$(CLIOUT)
 
 userinstall:	$(SRVOUT) 
 	mkdir -p ${HOME}/.kismet/plugins/
-	install -v $(SRVOUT) ${HOME}/.kismet/plugins/$(SRVOUT)
-	mkdir -p ${HOME}/.kismet/client_plugins/
-	install -v $(CLIOUT) ${HOME}/.kismet/client_plugins/$(CLIOUT)
+	$(INSTALL) -v $(SRVOUT) ${HOME}/.kismet/plugins/$(SRVOUT)
+	#mkdir -p ${HOME}/.kismet/client_plugins/
+	#install -v $(CLIOUT) ${HOME}/.kismet/client_plugins/$(CLIOUT)
 
 clean:
 	@-rm -f *.o

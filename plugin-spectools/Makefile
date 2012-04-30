@@ -9,7 +9,7 @@ top_builddir = $(BLDHOME)
 
 PLUGINLDFLAGS += -shared -rdynamic
 LIBS	+= -lstdc++ 
-CFLAGS 	+= -I/usr/include -I$(KIS_INC_DIR) -g -fPIC
+CFLAGS 	+= -I$(KIS_INC_DIR) -g -fPIC
 
 CLIOBJS = spectools_ui.o
 CLIOUT	= spectools_ui.so
@@ -27,15 +27,15 @@ $(SRVOUT):	$(SRVOBJS)
 
 install:	$(SRVOUT) $(CLIOUT)
 	mkdir -p $(DESTDIR)/$(plugindir)
-	install -o $(INSTUSR) -g $(INSTGRP) -m 644 $(SRVOUT) $(DESTDIR)/$(plugindir)/$(SRVOUT)
+	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 $(SRVOUT) $(DESTDIR)/$(plugindir)/$(SRVOUT)
 	mkdir -p $(DESTDIR)/$(plugindir)_client
-	install -o $(INSTUSR) -g $(INSTGRP) -m 644 $(CLIOUT) $(DESTDIR)/$(plugindir)_client/$(CLIOUT)
+	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 $(CLIOUT) $(DESTDIR)/$(plugindir)_client/$(CLIOUT)
 
 userinstall:	$(SRVOUT) $(CLIOUT)
 	mkdir -p ${HOME}/.kismet/plugins/
-	install -v $(SRVOUT) ${HOME}/.kismet/plugins/$(SRVOUT)
+	$(INSTALL) -v $(SRVOUT) ${HOME}/.kismet/plugins/$(SRVOUT)
 	mkdir -p ${HOME}/.kismet/client_plugins/
-	install -v $(CLIOUT) ${HOME}/.kismet/client_plugins/$(CLIOUT)
+	$(INSTALL) -v $(CLIOUT) ${HOME}/.kismet/client_plugins/$(CLIOUT)
 
 clean:
 	@-rm -f *.o
