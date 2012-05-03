@@ -27,8 +27,8 @@
 #include "globalregistry.h"
 #include "kis_clinetframe.h"
 #include "kis_panel_widgets.h"
-#include "kis_panel_network.h"
 #include "kis_panel_device.h"
+#include "kis_panel_info.h"
 
 #include "kis_panel_plugin.h"
 
@@ -57,13 +57,6 @@ public:
 	virtual int KeyPress(int in_key);
 	virtual int MouseEvent(MEVENT *mevent);
 
-	/* !!! Deprecated - hopefully in the future sub-components will drill down to
-	 * the devicelist via the globalreg MAIN_DEVICELIST */
-	// Passthrough to the display group
-	virtual Kis_Display_NetGroup *FetchSelectedNetgroup();
-	virtual vector<Kis_Display_NetGroup *> *FetchDisplayNetgroupVector();
-	virtual Kis_Netlist *FetchDisplayNetlist() { return netlist; }
-
 	// Add a plugin to the plugin menu
 	virtual int AddPluginMenuItem(string in_name, int (*callback)(void *),
 								   void *auxptr);
@@ -76,8 +69,6 @@ public:
 	// Add a divider to the View menu to add plugin view options (should be
 	// called by every plugin, will only add the separator once)
 	virtual void AddViewSeparator();
-	// Similarly add a divider to the Sort menu to add plugin view options
-	virtual void AddSortSeparator();
 	
 	// Get the last added sort view option
 	virtual int FetchLastViewMenuItem() { return mi_lastview; }
@@ -131,17 +122,14 @@ protected:
 	int mn_preferences, mi_startprefs, mi_serverprefs, mi_colorprefs, mi_netcolprefs,
 		mi_netextraprefs, mi_clicolprefs, mi_cliextraprefs, mi_infoprefs, mi_gpsprefs,
 		mi_audioprefs, mi_warnprefs;
-
-	int mn_sort, mi_sort_auto, mi_sort_type, mi_sort_chan, mi_sort_crypt, mi_sort_first, 
-		mi_sort_first_d, mi_sort_last, mi_sort_last_d, mi_sort_bssid, mi_sort_ssid,
-		mi_sort_packets, mi_sort_packets_d, mi_sort_sdbm;
-	int mn_sort_appended;
+	
+	int mn_sort;
 
 	int mn_view, 
 		mi_viewplaceholder, mi_lastview,
 		// Filter submenu
 		mn_filter,
-		mi_shownetworks, mi_showsummary, mi_showstatus, 
+		mi_showdevice, mi_showsummary, mi_showstatus, 
 		mi_showgps, mi_showbattery, mi_showpps, mi_showsources;
 	int mn_view_appended;
 
@@ -154,7 +142,6 @@ protected:
 
 	KisStatusText_Messageclient *statuscli;
 	Kis_Status_Text *statustext;
-	Kis_Netlist *netlist;
 	Kis_Devicelist *devicelist;
 	Kis_Info_Bits *infobits;
 	Kis_Free_Text *sourceinfo, *gpsinfo, *batteryinfo;
@@ -163,7 +150,6 @@ protected:
 
 	vector<Kis_Main_Panel::plugin_menu_opt> plugin_menu_vec;
 
-	virtual void UpdateSortMenu();
 	virtual void UpdateViewMenu(int mi);
 
 	virtual void SpawnColorPrefs();
@@ -432,41 +418,6 @@ protected:
 	int addref;
 };
 
-class Kis_Clientlist_Panel : public Kis_Panel {
-public:
-	Kis_Clientlist_Panel() {
-		fprintf(stderr, "FATAL OOPS: Kis_Clientlist_Panel called w/out globalreg\n");
-		exit(1);
-	}
-
-	Kis_Clientlist_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_kpf);
-	virtual ~Kis_Clientlist_Panel();
-
-	virtual void ButtonAction(Kis_Panel_Component *in_button);
-	virtual void MenuAction(int opt);
-
-	virtual int GraphTimer();
-
-	virtual void DrawPanel();
-
-protected:
-	virtual void UpdateViewMenu(int mi);
-	virtual void UpdateSortMenu();
-	
-	Kis_Panel_Packbox *vbox;
-	Kis_Clientlist *clientlist;
-	Kis_Free_Text *nettitle;
-
-	int mn_clients, mi_nextnet, mi_prevnet, mi_close;
-	int mn_preferences, mi_clicolprefs, mi_cliextraprefs;
-	int mn_sort, mi_sort_auto, mi_sort_type, mi_sort_first, mi_sort_first_d, 
-		mi_sort_last, mi_sort_last_d, mi_sort_mac, 
-		mi_sort_packets, mi_sort_packets_d, mi_sort_sdbm;
-	int mn_view, mi_addnote, mi_details;
-
-	int grapheventid;
-};
-
 class Kis_AddNetNote_Panel : public Kis_Panel {
 public:
 	Kis_AddNetNote_Panel() {
@@ -486,7 +437,6 @@ protected:
 	Kis_Checkbox *permanent;
 	Kis_Button *cancelbutton, *okbutton, *delbutton;
 
-	Kis_Display_NetGroup *dng;
 	mac_addr bssid;
 };
 

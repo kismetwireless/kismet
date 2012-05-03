@@ -520,6 +520,8 @@ public:
 		return text_vec;
 	}
 	virtual void AppendText(string in_text);
+	virtual void AppendText(vector<string> in_text);
+
 	virtual void SetMaxText(int in_max) { max_text = in_max; }
 
 	// Follow the end of the text unless we're scrolled differently

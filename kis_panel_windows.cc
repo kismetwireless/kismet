@@ -72,27 +72,6 @@ void KisMainPanel_ALERT(CLIPROTO_CB_PARMS) {
 											 proto_parsed, srccli, auxptr);
 }
 
-int NetlistActivateCB(COMPONENT_CALLBACK_PARMS) {
-	Kis_NetDetails_Panel *dp = 
-		new Kis_NetDetails_Panel(globalreg, 
-								 ((Kis_Main_Panel *) aux)->FetchPanelInterface());
-	dp->Position(WIN_CENTER(LINES, COLS));
-	((Kis_Main_Panel *) aux)->FetchPanelInterface()->AddPanel(dp);
-
-	return 1;
-}
-
-int ClilistActivateCB(COMPONENT_CALLBACK_PARMS) {
-	Kis_ClientDetails_Panel *dp = 
-		new Kis_ClientDetails_Panel(globalreg, 
-									((Kis_Main_Panel *) aux)->FetchPanelInterface());
-	dp->SetClientlist((Kis_Clientlist *) component);
-	dp->Position(WIN_CENTER(LINES, COLS));
-	((Kis_Main_Panel *) aux)->FetchPanelInterface()->AddPanel(dp);
-
-	return 1;
-}
-
 const char *gps_fields[] = {
 	"connected", "fix", "lat", "lon", "alt", "spd", "heading", NULL
 };
@@ -151,38 +130,6 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	connect_enable = 1;
 
 	mn_sort = menu->AddMenu("Sort", 0);
-	/*
-	mi_sort_auto = menu->AddMenuItem("Auto-fit", mn_sort, 'a');
-	menu->AddMenuItem("-", mn_sort, 0);
-	mi_sort_type = menu->AddMenuItem("Type", mn_sort, 't');
-	mi_sort_chan = menu->AddMenuItem("Channel", mn_sort, 'c');
-	mi_sort_crypt = menu->AddMenuItem("Encryption", mn_sort, 'e');
-	mi_sort_first = menu->AddMenuItem("First Seen", mn_sort, 'f');
-	mi_sort_first_d = menu->AddMenuItem("First Seen (descending)", mn_sort, 'F');
-	mi_sort_last = menu->AddMenuItem("Latest Seen", mn_sort, 'l');
-	mi_sort_last_d = menu->AddMenuItem("Latest Seen (descending)", mn_sort, 'L');
-	mi_sort_bssid = menu->AddMenuItem("BSSID", mn_sort, 'b');
-	mi_sort_ssid = menu->AddMenuItem("SSID", mn_sort, 's');
-	mi_sort_sdbm = menu->AddMenuItem("Signal", mn_sort, 'S');
-	mi_sort_packets = menu->AddMenuItem("Packets", mn_sort, 'p');
-	mi_sort_packets_d = menu->AddMenuItem("Packets (descending)", mn_sort, 'P');
-	*/
-
-	/*
-	menu->SetMenuItemCheckSymbol(mi_sort_auto, '*');
-	menu->SetMenuItemCheckSymbol(mi_sort_type, '*');
-	menu->SetMenuItemCheckSymbol(mi_sort_chan, '*');
-	menu->SetMenuItemCheckSymbol(mi_sort_crypt, '*');
-	menu->SetMenuItemCheckSymbol(mi_sort_first, '*');
-	menu->SetMenuItemCheckSymbol(mi_sort_first_d, '*');
-	menu->SetMenuItemCheckSymbol(mi_sort_last, '*');
-	menu->SetMenuItemCheckSymbol(mi_sort_last_d, '*');
-	menu->SetMenuItemCheckSymbol(mi_sort_bssid, '*');
-	menu->SetMenuItemCheckSymbol(mi_sort_ssid, '*');
-	menu->SetMenuItemCheckSymbol(mi_sort_sdbm, '*');
-	menu->SetMenuItemCheckSymbol(mi_sort_packets, '*');
-	menu->SetMenuItemCheckSymbol(mi_sort_packets_d, '*');
-	*/
 
 	mn_view = menu->AddMenu("View", 0);
 
@@ -202,7 +149,7 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	menu->SetMenuItemCheckSymbol(mi_viewdevices, '*');
 	*/
 
-	mi_shownetworks = menu->AddMenuItem("Device List", mn_view, 'n');
+	mi_showdevice = menu->AddMenuItem("Device List", mn_view, 'n');
 	mi_showgps = menu->AddMenuItem("GPS Data", mn_view, 'g');
 	mi_showbattery = menu->AddMenuItem("Battery", mn_view, 'b');
 	mi_showsummary = menu->AddMenuItem("General Info", mn_view, 'S');
@@ -211,8 +158,7 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	mi_showsources = menu->AddMenuItem("Source Info", mn_view, 'C');
 
 	mn_windows = menu->AddMenu("Windows", 0);
-	mi_netdetails = menu->AddMenuItem("Network Details...", mn_windows, 'd');
-	mi_clientlist = menu->AddMenuItem("Client List...", mn_windows, 'l');
+	mi_netdetails = menu->AddMenuItem("Device Details...", mn_windows, 'd');
 	mi_addnote = menu->AddMenuItem("Network Note...", mn_windows, 'N');
 	mi_chandetails = menu->AddMenuItem("Channel Details...", mn_windows, 'c');
 	mi_gps = menu->AddMenuItem("GPS Details...", mn_windows, 'g');
@@ -221,7 +167,7 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	menu->Show();
 	AddComponentVec(menu, KIS_PANEL_COMP_EVT);
 
-	mn_sort_appended = mn_view_appended = 0;
+	mn_view_appended = 0;
 
 	// Make a hbox to hold the network list and additional info widgets,
 	// and the vertical stack of optional widgets
@@ -273,11 +219,6 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	statustext->SetPreferredSize(0, 5);
 	statustext->SetName("KIS_MAIN_STATUS");
 	statustext->Show();
-
-	netlist = new Kis_Netlist(globalreg, this);
-	netlist->SetName("KIS_MAIN_NETLIST");
-	//netlist->Show();
-	netlist->SetCallback(COMPONENT_CBTYPE_ACTIVATED, NetlistActivateCB, this);
 
 	devicelist = new Kis_Devicelist(globalreg, this);
 	devicelist->SetName("KIS_MAIN_DEVICELIST");
@@ -364,11 +305,6 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	AddColorPref("netlist_crypt_color", "Netlist Encrypted");
 	AddColorPref("netlist_group_color", "Netlist Group");
 	AddColorPref("netlist_decrypt_color", "Netlist Decrypted");
-	AddColorPref("clientlist_header_color", "Clientlist Header");
-	AddColorPref("clientlist_normal_color", "Clientlist Unknown");
-	AddColorPref("clientlist_ap_color", "Clientlist AP");
-	AddColorPref("clientlist_wireless_color", "Clientlist Wireless");
-	AddColorPref("clientlist_adhoc_color", "Clientlist Ad-Hoc");
 	AddColorPref("status_normal_color", "Status Text");
 	AddColorPref("info_normal_color", "Info Pane");
 
@@ -937,11 +873,6 @@ void Kis_Main_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {
 
 	// All we have to do is position the main box now
 	vbox->SetPosition(1, 1, in_x - 1, in_y - 2);
-
-	/*
-	netlist->SetPosition(in_sx + 2, in_sy + 1, in_x - 15, in_y - 8);
-	statustext->SetPosition(in_sx + 1, in_y - 7, in_x - 2, 5);
-	*/
 }
 
 void Kis_Main_Panel::DrawPanel() {
@@ -962,18 +893,6 @@ void Kis_Main_Panel::DrawPanel() {
 	}
 
 	sourceinfo->SetText(sourceinfotxt);
-
-	UpdateSortMenu();
-
-	if (netlist->FetchSelectedNetgroup() != NULL) {
-		menu->EnableMenuItem(mi_addnote);
-		menu->EnableMenuItem(mi_netdetails);
-		menu->EnableMenuItem(mi_clientlist);
-	} else {
-		menu->DisableMenuItem(mi_addnote);
-		menu->DisableMenuItem(mi_netdetails);
-		menu->DisableMenuItem(mi_clientlist);
-	}
 
 	Kis_Panel::DrawPanel();
 }
@@ -1024,14 +943,6 @@ void Kis_Main_Panel::AddViewSeparator() {
 
 	mn_view_appended = 1;
 	menu->AddMenuItem("-", mn_view, 0);
-}
-
-void Kis_Main_Panel::AddSortSeparator() {
-	if (mn_sort_appended)
-		return;
-
-	mn_sort_appended = 1;
-	menu->AddMenuItem("-", mn_sort, 0);
 }
 
 // Dump text to stderr
@@ -1151,43 +1062,9 @@ void Kis_Main_Panel::MenuAction(int opt) {
 		if (con) {
 			kpinterface->RemoveNetClient();
 		}
-	} else if (opt == mi_sort_auto) {
-		kpinterface->prefs->SetOpt("NETLIST_SORT", "auto", time(0));
-	} else if (opt == mi_sort_type) {
-		kpinterface->prefs->SetOpt("NETLIST_SORT", "type", time(0));
-	} else if (opt == mi_sort_chan) {
-		kpinterface->prefs->SetOpt("NETLIST_SORT", "channel", time(0));
-	} else if (opt == mi_sort_crypt) {
-		kpinterface->prefs->SetOpt("NETLIST_SORT", "crypt_type", time(0));
-	} else if (opt == mi_sort_first) {
-		kpinterface->prefs->SetOpt("NETLIST_SORT", "first", time(0));
-	} else if (opt == mi_sort_first_d) {
-		kpinterface->prefs->SetOpt("NETLIST_SORT", "first_desc", time(0));
-	} else if (opt == mi_sort_last) {
-		kpinterface->prefs->SetOpt("NETLIST_SORT", "last", time(0));
-	} else if (opt == mi_sort_last_d) {
-		kpinterface->prefs->SetOpt("NETLIST_SORT", "last_desc", time(0));
-	} else if (opt == mi_sort_bssid) {
-		kpinterface->prefs->SetOpt("NETLIST_SORT", "bssid", time(0));
-	} else if (opt == mi_sort_ssid) {
-		kpinterface->prefs->SetOpt("NETLIST_SORT", "ssid", time(0));
-	} else if (opt == mi_sort_sdbm) {
-		kpinterface->prefs->SetOpt("NETLIST_SORT", "signal", time(0));
-	} else if (opt == mi_sort_packets) {
-		kpinterface->prefs->SetOpt("NETLIST_SORT", "packets", time(0));
-	} else if (opt == mi_sort_packets_d) {
-		kpinterface->prefs->SetOpt("NETLIST_SORT", "packets_desc", time(0));
-	} else if (opt == mi_netdetails) {
-		Kis_NetDetails_Panel *dp = new Kis_NetDetails_Panel(globalreg, kpinterface);
-		kpinterface->AddPanel(dp);
 	} else if (opt == mi_addnote) {
 		Kis_AddNetNote_Panel *dp = new Kis_AddNetNote_Panel(globalreg, kpinterface);
 		kpinterface->AddPanel(dp);
-#if 0
-	} else if (opt == mi_clientlist) {
-		Kis_Clientlist_Panel *cl = new Kis_Clientlist_Panel(globalreg, kpinterface);
-		kpinterface->AddPanel(cl);
-#endif
 	} else if (opt == mi_chandetails) {
 		Kis_ChanDetails_Panel *dp = new Kis_ChanDetails_Panel(globalreg, kpinterface);
 		kpinterface->AddPanel(dp);
@@ -1203,7 +1080,7 @@ void Kis_Main_Panel::MenuAction(int opt) {
 			   opt == mi_showgps ||
 			   opt == mi_showbattery ||
 			   opt == mi_showsources ||
-			   opt == mi_shownetworks) {
+			   opt == mi_showdevice) {
 		UpdateViewMenu(opt);
 	} else if (opt == mi_addcard) {
 		Kis_AddCard_Panel *acp = new Kis_AddCard_Panel(globalreg, kpinterface);
@@ -1221,46 +1098,6 @@ void Kis_Main_Panel::MenuAction(int opt) {
 		kpinterface->AddPanel(sp);
 	} else if (opt == mi_serverprefs) {
 		SpawnServerPrefs();
-	} else if (opt == mi_netcolprefs) {
-		Kis_ColumnPref_Panel *cpp = new Kis_ColumnPref_Panel(globalreg, kpinterface);
-
-		for (unsigned int x = 0; bssid_column_details[x].pref != NULL; x++) {
-			cpp->AddColumn(bssid_column_details[x].pref,
-						   bssid_column_details[x].name);
-		}
-
-		cpp->ColumnPref("netlist_columns", "Network List");
-		kpinterface->AddPanel(cpp);
-	} else if (opt == mi_netextraprefs) {
-		Kis_ColumnPref_Panel *cpp = new Kis_ColumnPref_Panel(globalreg, kpinterface);
-
-		for (unsigned int x = 0; bssid_extras_details[x].pref != NULL; x++) {
-			cpp->AddColumn(bssid_extras_details[x].pref,
-						   bssid_extras_details[x].name);
-		}
-
-		cpp->ColumnPref("netlist_extras", "Network Extras");
-		kpinterface->AddPanel(cpp);
-	} else if (opt == mi_clicolprefs) {
-		Kis_ColumnPref_Panel *cpp = new Kis_ColumnPref_Panel(globalreg, kpinterface);
-
-		for (unsigned int x = 0; client_column_details[x].pref != NULL; x++) {
-			cpp->AddColumn(client_column_details[x].pref,
-						   client_column_details[x].name);
-		}
-
-		cpp->ColumnPref("clientlist_columns", "Client List");
-		kpinterface->AddPanel(cpp);
-	} else if (opt == mi_cliextraprefs) {
-		Kis_ColumnPref_Panel *cpp = new Kis_ColumnPref_Panel(globalreg, kpinterface);
-
-		for (unsigned int x = 0; client_extras_details[x].pref != NULL; x++) {
-			cpp->AddColumn(client_extras_details[x].pref,
-						   client_extras_details[x].name);
-		}
-
-		cpp->ColumnPref("clientlist_extras", "Client Extras");
-		kpinterface->AddPanel(cpp);
 	} else if (opt == mi_infoprefs) {
 		SpawnInfoPrefs();
 	} else if (opt == mi_gpsprefs) {
@@ -1336,38 +1173,6 @@ void Kis_Main_Panel::SpawnInfoPrefs() {
 void Kis_Main_Panel::SpawnServerPrefs() {
 	Kis_AutoConPref_Panel *cpp = new Kis_AutoConPref_Panel(globalreg, kpinterface);
 	kpinterface->AddPanel(cpp);
-}
-
-Kis_Display_NetGroup *Kis_Main_Panel::FetchSelectedNetgroup() {
-	if (netlist == NULL)
-		return NULL;
-
-	return netlist->FetchSelectedNetgroup();
-}
-
-vector<Kis_Display_NetGroup *> *Kis_Main_Panel::FetchDisplayNetgroupVector() {
-	if (netlist == NULL)
-		return NULL;
-
-	return netlist->FetchDisplayVector();
-}
-
-void Kis_Main_Panel::UpdateSortMenu() {
-	netsort_opts so = netlist->FetchSortMode();
-
-	menu->SetMenuItemChecked(mi_sort_auto, so == netsort_autofit);
-	menu->SetMenuItemChecked(mi_sort_type, so == netsort_type);
-	menu->SetMenuItemChecked(mi_sort_chan, so == netsort_channel);
-	menu->SetMenuItemChecked(mi_sort_crypt, so == netsort_crypt);
-	menu->SetMenuItemChecked(mi_sort_first, so == netsort_first);
-	menu->SetMenuItemChecked(mi_sort_first_d, so == netsort_first_desc);
-	menu->SetMenuItemChecked(mi_sort_last, so == netsort_last);
-	menu->SetMenuItemChecked(mi_sort_last_d, so == netsort_last_desc);
-	menu->SetMenuItemChecked(mi_sort_bssid, so == netsort_bssid);
-	menu->SetMenuItemChecked(mi_sort_ssid, so == netsort_ssid);
-	menu->SetMenuItemChecked(mi_sort_sdbm, so == netsort_sdbm);
-	menu->SetMenuItemChecked(mi_sort_packets, so == netsort_packets);
-	menu->SetMenuItemChecked(mi_sort_packets_d, so == netsort_packets_desc);
 }
 
 void Kis_Main_Panel::UpdateViewMenu(int mi) {
@@ -1469,18 +1274,6 @@ void Kis_Main_Panel::UpdateViewMenu(int mi) {
 			menu->SetMenuItemChecked(mi_showsources, 1);
 			sourceinfo->Show();
 		}
-	} else if (mi == mi_shownetworks) {
-		opt = kpinterface->prefs->FetchOpt("MAIN_SHOWNETLIST");
-		// if (opt == "" || opt == "true") {
-		if (StringToBool(opt, 1)) {
-			kpinterface->prefs->SetOpt("MAIN_SHOWNETLIST", "false", 1);
-			menu->SetMenuItemChecked(mi_shownetworks, 0);
-			netlist->Hide();
-		} else {
-			kpinterface->prefs->SetOpt("MAIN_SHOWNETLIST", "true", 1);
-			menu->SetMenuItemChecked(mi_shownetworks, 1);
-			netlist->Show();
-		}
 	}
 
 	if (mi == -1) {
@@ -1558,14 +1351,14 @@ void Kis_Main_Panel::UpdateViewMenu(int mi) {
 			sourceinfo->Hide();
 		}
 
-		opt = kpinterface->prefs->FetchOpt("MAIN_SHOWNETLIST");
+		opt = kpinterface->prefs->FetchOpt("MAIN_SHOWDEVLIST");
 		// if (opt == "" || opt == "true") {
 		if (StringToBool(opt, 1)) {
-			menu->SetMenuItemChecked(mi_shownetworks, 1);
-			netlist->Show();
+			menu->SetMenuItemChecked(mi_showdevice, 1);
+			devicelist->Show();
 		} else {
-			menu->SetMenuItemChecked(mi_shownetworks, 0);
-			netlist->Hide();
+			menu->SetMenuItemChecked(mi_showdevice, 0);
+			devicelist->Hide();
 		}
 	}
 }
@@ -2776,10 +2569,15 @@ void Kis_Chanconf_Panel::DrawPanel() {
 				if (card->hopping == 0 && card->dwell == 0) {
 					inpchannel->SetText(IntToString(card->channel), -1, -1);
 				} else {
+					// TODO get channel of selected device
+					inpchannel->SetText("6", -1, -1);
+
+					/*
 					if (kpinterface->FetchMainPanel()->FetchDisplayNetlist()->FetchSelectedNetgroup() != NULL)
 						inpchannel->SetText(IntToString(kpinterface->FetchMainPanel()->FetchDisplayNetlist()->FetchSelectedNetgroup()->FetchNetwork()->channel), -1, -1);
 					else
 						inpchannel->SetText("6", -1, -1);
+						*/
 				}
 
 				inprate->Hide();
@@ -3150,303 +2948,6 @@ void Kis_Gps_Panel::Proto_GPS(CLIPROTO_CB_PARMS) {
 	gpssiggraph->SetXLabels(sat_label_vec, "PRN SNR");
 }
 
-int ClientListButtonCB(COMPONENT_CALLBACK_PARMS) {
-	((Kis_Clientlist_Panel *) aux)->ButtonAction(component);
-	return 1;
-}
-
-int ClientListMenuCB(COMPONENT_CALLBACK_PARMS) {
-	((Kis_Clientlist_Panel *) aux)->MenuAction(status);
-	return 1;
-}
-
-#if 0
-Kis_Clientlist_Panel::Kis_Clientlist_Panel(GlobalRegistry *in_globalreg,
-										   KisPanelInterface *in_kpf) :
-	Kis_Panel(in_globalreg, in_kpf) {
-
-	menu = new Kis_Menu(globalreg, this);
-	menu->SetCallback(COMPONENT_CBTYPE_ACTIVATED, ClientListMenuCB, this);
-
-	mn_clients = menu->AddMenu("Clients", 0);
-	mi_nextnet = menu->AddMenuItem("Next network", mn_clients, 'n');
-	mi_prevnet = menu->AddMenuItem("Prev network", mn_clients, 'p');
-	menu->AddMenuItem("-", mn_clients, 0);
-
-	mn_preferences = menu->AddSubMenuItem("Preferences", mn_clients, 'P');
-	mi_clicolprefs = menu->AddMenuItem("Client Columns...", mn_preferences, 'N');
-	mi_cliextraprefs = menu->AddMenuItem("Client Extras...", mn_preferences, 'E');
-
-	menu->AddMenuItem("-", mn_clients, 0);
-	mi_close = menu->AddMenuItem("Close window", mn_clients, 'w');
-
-	mn_sort = menu->AddMenu("Sort", 0);
-	mi_sort_auto = menu->AddMenuItem("Auto-fit", mn_sort, 'a');
-	menu->SetMenuItemCheckSymbol(mi_sort_auto, '*');
-	menu->AddMenuItem("-", mn_sort, 0);
-	mi_sort_type = menu->AddMenuItem("Client Type", mn_sort, 't');
-	menu->SetMenuItemCheckSymbol(mi_sort_type, '*');
-	mi_sort_first = menu->AddMenuItem("First Seen", mn_sort, 'f');
-	menu->SetMenuItemCheckSymbol(mi_sort_first, '*');
-	mi_sort_first_d = menu->AddMenuItem("First Seen (descending)", mn_sort, 'F');
-	menu->SetMenuItemCheckSymbol(mi_sort_first_d, '*');
-	mi_sort_last = menu->AddMenuItem("Latest Seen", mn_sort, 'l');
-	menu->SetMenuItemCheckSymbol(mi_sort_last, '*');
-	mi_sort_last_d = menu->AddMenuItem("Latest Seen (descending)", mn_sort, 'L');
-	menu->SetMenuItemCheckSymbol(mi_sort_last_d, '*');
-	mi_sort_sdbm = menu->AddMenuItem("Signal", mn_sort, 'S');
-	menu->SetMenuItemCheckSymbol(mi_sort_sdbm, '*');
-	mi_sort_mac = menu->AddMenuItem("MAC", mn_sort, 's');
-	menu->SetMenuItemCheckSymbol(mi_sort_mac, '*');
-	mi_sort_packets = menu->AddMenuItem("Packets", mn_sort, 'p');
-	menu->SetMenuItemCheckSymbol(mi_sort_packets, '*');
-	mi_sort_packets_d = menu->AddMenuItem("Packets (descending)", mn_sort, 'P');
-	menu->SetMenuItemCheckSymbol(mi_sort_packets_d, '*');
-
-	mn_view = menu->AddMenu("Windows", 0);
-	mi_addnote = menu->AddMenuItem("Add Note...", mn_view, 'N');
-	mi_details = menu->AddMenuItem("Client details...", mn_view, 'c');
-
-	menu->Show();
-	AddComponentVec(menu, KIS_PANEL_COMP_EVT);
-
-	clientlist = new Kis_Clientlist(globalreg, this);
-
-	clientlist->Show();
-	AddComponentVec(clientlist, KIS_PANEL_COMP_EVT);
-	clientlist->SetCallback(COMPONENT_CBTYPE_ACTIVATED, ClientListButtonCB, this);
-
-	nettitle = new Kis_Free_Text(globalreg, this);
-
-	Kis_Display_NetGroup *cdng = NULL;
-	Netracker::tracked_network *cnet = NULL;
-	if ((cdng = clientlist->FetchSelectedNetgroup()) != NULL) {
-		cnet = cdng->FetchNetwork();
-
-		if (cnet != NULL) {
-			string ttext = "Selected network: ";
-			ttext += cnet->bssid.Mac2String() + " ";
-			if (cnet->lastssid != NULL) {
-				ttext += string("(") + cnet->lastssid->ssid + string(")");
-			}
-			nettitle->SetText(ttext);
-		}
-	} else {
-		nettitle->SetText("No network selected");
-	}
-	nettitle->Show();
-	AddComponentVec(nettitle, KIS_PANEL_COMP_DRAW);
-
-	vbox = new Kis_Panel_Packbox(globalreg, this);
-	vbox->SetPackV();
-	vbox->SetHomogenous(0);
-	vbox->SetSpacing(0);
-	vbox->Show();
-
-	vbox->Pack_End(nettitle, 0, 0);
-	vbox->Pack_End(clientlist, 1, 0);
-
-	AddComponentVec(vbox, KIS_PANEL_COMP_DRAW);
-	main_component = vbox;
-
-	grapheventid = -1;
-
-	UpdateSortMenu();
-
-	SetActiveComponent(clientlist);
-
-	Position(WIN_CENTER(LINES, COLS));
-}
-
-Kis_Clientlist_Panel::~Kis_Clientlist_Panel() {
-	if (grapheventid >= 0 && globalreg != NULL)
-		globalreg->timetracker->RemoveTimer(grapheventid);
-}
-
-void Kis_Clientlist_Panel::DrawPanel() {
-	if (clientlist->FetchSelectedClient() != NULL) {
-		menu->EnableMenuItem(mi_addnote);
-		menu->EnableMenuItem(mi_details);
-	} else {
-		menu->DisableMenuItem(mi_addnote);
-		menu->DisableMenuItem(mi_details);
-	}
-
-	Kis_Panel::DrawPanel();
-}
-
-void Kis_Clientlist_Panel::ButtonAction(Kis_Panel_Component *in_button) {
-	if (in_button == clientlist && clientlist->FetchSelectedClient() != NULL) {
-		Kis_ClientDetails_Panel *cp = 
-			new Kis_ClientDetails_Panel(globalreg, kpinterface);
-		cp->SetClientlist(clientlist);
-		kpinterface->AddPanel(cp);
-	}
-
-	return;
-}
-
-void Kis_Clientlist_Panel::MenuAction(int opt) {
-	if (opt == mi_close) {
-		globalreg->panel_interface->KillPanel(this);
-		return;
-	} else if (opt == mi_nextnet) {
-		kpinterface->FetchMainPanel()->FetchDisplayNetlist()->KeyPress(KEY_DOWN);
-		clientlist->UpdateDNG();
-
-		Kis_Display_NetGroup *cdng = NULL;
-		Netracker::tracked_network *cnet = NULL;
-		if ((cdng = clientlist->FetchSelectedNetgroup()) != NULL) {
-			cnet = cdng->FetchNetwork();
-
-			if (cnet != NULL) {
-				string ttext = "Selected network: ";
-				ttext += cnet->bssid.Mac2String() + " ";
-				if (cnet->lastssid != NULL) {
-					ttext += string("(") + cnet->lastssid->ssid + string(")");
-				}
-				nettitle->SetText(ttext);
-			}
-		} else {
-			nettitle->SetText("No network selected");
-		}
-
-		return;
-	} else if (opt == mi_prevnet) {
-		kpinterface->FetchMainPanel()->FetchDisplayNetlist()->KeyPress(KEY_UP);
-		clientlist->UpdateDNG();
-
-		Kis_Display_NetGroup *cdng = NULL;
-		Netracker::tracked_network *cnet = NULL;
-		if ((cdng = clientlist->FetchSelectedNetgroup()) != NULL) {
-			cnet = cdng->FetchNetwork();
-
-			if (cnet != NULL) {
-				string ttext = "Selected network: ";
-				ttext += cnet->bssid.Mac2String() + " ";
-				if (cnet->lastssid != NULL) {
-					ttext += string("(") + cnet->lastssid->ssid + string(")");
-				}
-				nettitle->SetText(ttext);
-			}
-		} else {
-			nettitle->SetText("No network selected");
-		}
-
-		return;
-	} else if (opt == mi_clicolprefs) {
-		Kis_ColumnPref_Panel *cpp = new Kis_ColumnPref_Panel(globalreg, kpinterface);
-
-		for (unsigned int x = 0; client_column_details[x].pref != NULL; x++) {
-			cpp->AddColumn(client_column_details[x].pref,
-						   client_column_details[x].name);
-		}
-
-		cpp->ColumnPref("clientlist_columns", "Client List");
-		kpinterface->AddPanel(cpp);
-	} else if (opt == mi_cliextraprefs) {
-		Kis_ColumnPref_Panel *cpp = new Kis_ColumnPref_Panel(globalreg, kpinterface);
-
-		for (unsigned int x = 0; client_extras_details[x].pref != NULL; x++) {
-			cpp->AddColumn(client_extras_details[x].pref,
-						   client_extras_details[x].name);
-		}
-
-		cpp->ColumnPref("clientlist_extras", "Client Extras");
-		kpinterface->AddPanel(cpp);
-	} else if (opt == mi_addnote) {
-		Kis_AddCliNote_Panel *dp = new Kis_AddCliNote_Panel(globalreg, kpinterface);
-		dp->SetClient(clientlist->FetchSelectedClient());
-		kpinterface->AddPanel(dp);
-	} else if (opt == mi_details) {
-		Kis_ClientDetails_Panel *cp = 
-			new Kis_ClientDetails_Panel(globalreg, kpinterface);
-		cp->SetClientlist(clientlist);
-		kpinterface->AddPanel(cp);
-		return;
-	} else if (opt == mi_sort_auto) {
-		kpinterface->prefs->SetOpt("CLIENTLIST_SORT", "auto", time(0));
-	} else if (opt == mi_sort_type) {
-		kpinterface->prefs->SetOpt("CLIENTLIST_SORT", "type", time(0));
-	} else if (opt == mi_sort_first) {
-		kpinterface->prefs->SetOpt("CLIENTLIST_SORT", "first", time(0));
-	} else if (opt == mi_sort_first_d) {
-		kpinterface->prefs->SetOpt("CLIENTLIST_SORT", "first_desc", time(0));
-	} else if (opt == mi_sort_last) {
-		kpinterface->prefs->SetOpt("CLIENTLIST_SORT", "last", time(0));
-	} else if (opt == mi_sort_last_d) {
-		kpinterface->prefs->SetOpt("CLIENTLIST_SORT", "last_desc", time(0));
-	} else if (opt == mi_sort_mac) {
-		kpinterface->prefs->SetOpt("CLIENTLIST_SORT", "mac", time(0));
-	} else if (opt == mi_sort_packets) {
-		kpinterface->prefs->SetOpt("CLIENTLIST_SORT", "packets", time(0));
-	} else if (opt == mi_sort_packets_d) {
-		kpinterface->prefs->SetOpt("CLIENTLIST_SORT", "packets_desc", time(0));
-	}
-
-	clientlist->UpdateSortPrefs();
-	UpdateSortMenu();
-}
-
-void Kis_Clientlist_Panel::UpdateSortMenu() {
-	clientsort_opts so = clientlist->FetchSortMode();
-
-	if (so == clientsort_autofit)
-		menu->SetMenuItemChecked(mi_sort_auto, 1);
-	else
-		menu->SetMenuItemChecked(mi_sort_auto, 0);
-
-	if (so == clientsort_type) 
-		menu->SetMenuItemChecked(mi_sort_type, 1);
-	else
-		menu->SetMenuItemChecked(mi_sort_type, 0);
-
-	if (so == clientsort_first)
-		menu->SetMenuItemChecked(mi_sort_first, 1);
-	else
-		menu->SetMenuItemChecked(mi_sort_first, 0);
-
-	if (so == clientsort_first_desc)
-		menu->SetMenuItemChecked(mi_sort_first_d, 1);
-	else
-		menu->SetMenuItemChecked(mi_sort_first_d, 0);
-
-	if (so == clientsort_last)
-		menu->SetMenuItemChecked(mi_sort_last, 1);
-	else
-		menu->SetMenuItemChecked(mi_sort_last, 0);
-
-	if (so == clientsort_last_desc)
-		menu->SetMenuItemChecked(mi_sort_last_d, 1);
-	else
-		menu->SetMenuItemChecked(mi_sort_last_d, 0);
-
-	if (so == clientsort_mac)
-		menu->SetMenuItemChecked(mi_sort_mac, 1);
-	else
-		menu->SetMenuItemChecked(mi_sort_mac, 0);
-
-	if (so == clientsort_packets)
-		menu->SetMenuItemChecked(mi_sort_packets, 1);
-	else
-		menu->SetMenuItemChecked(mi_sort_packets, 0);
-
-	if (so == clientsort_packets_desc)
-		menu->SetMenuItemChecked(mi_sort_packets_d, 1);
-	else
-		menu->SetMenuItemChecked(mi_sort_packets_d, 0);
-}
-
-void Kis_Clientlist_Panel::UpdateViewMenu(int mi) {
-	return;
-}
-
-int Kis_Clientlist_Panel::GraphTimer() {
-	return 0;
-}
-
-#endif
-
 int AddNetNoteCB(COMPONENT_CALLBACK_PARMS) {
 	((Kis_AddNetNote_Panel *) aux)->Action(component, status);
 	return 1;
@@ -3455,8 +2956,6 @@ int AddNetNoteCB(COMPONENT_CALLBACK_PARMS) {
 Kis_AddNetNote_Panel::Kis_AddNetNote_Panel(GlobalRegistry *in_globalreg, 
 										   KisPanelInterface *in_intf) :
 	Kis_Panel(in_globalreg, in_intf) {
-
-	dng = NULL;
 
 	notetxt = new Kis_Single_Input(globalreg, this);
 	notetxt->SetLabel("Note", LABEL_POS_LEFT);
@@ -3529,6 +3028,8 @@ Kis_AddNetNote_Panel::~Kis_AddNetNote_Panel() {
 }
 
 void Kis_AddNetNote_Panel::DrawPanel() {
+	// TODO - Fix
+#if 0
 	if (dng == NULL) {
 		if ((dng = kpinterface->FetchMainPanel()->FetchSelectedNetgroup()) == NULL) {
 			kpinterface->RaiseAlert("No network",
@@ -3563,6 +3064,8 @@ void Kis_AddNetNote_Panel::DrawPanel() {
 
 		notetxt->SetText(oldnote, -1, -1);
 	}
+
+#endif
 
 	Kis_Panel::DrawPanel();
 }

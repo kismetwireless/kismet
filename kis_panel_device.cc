@@ -24,7 +24,6 @@
 #include "kis_panel_device.h"
 #include "kis_panel_windows.h"
 #include "kis_panel_frontend.h"
-#include "kis_panel_sort.h"
 #include "kis_panel_widgets.h"
 #include "kis_devicelist_sort.h"
 
@@ -867,6 +866,27 @@ int Kis_Devicelist::KeyPress(int in_key) {
 		first_line = kismin((int) draw_vec.size() - 1, 
 							first_line + viewable_lines);
 		selected_line = first_line;
+	} else if (in_key == KEY_ENTER || in_key == '\n') {
+		Kis_DevDetails_Panel *dp =
+			new Kis_DevDetails_Panel(globalreg, kpinterface);
+		dp->Position(WIN_CENTER(LINES, COLS));
+
+		if (selected_line >= 0 && selected_line < (int) display_dev_vec.size()) {
+			kdl_display_device *dd = draw_vec[selected_line];
+			kis_tracked_device *sd = dd->device;
+
+			dp->SetTargetDevice(dd);
+
+			if (sd != NULL) {
+				Client_Phy_Handler *cliphy =
+					devicetracker->FetchPhyHandler(sd->phy_type);
+
+				if (cliphy != NULL)
+					cliphy->PanelDetails(dp, sd);
+			}
+		}
+
+		kpinterface->AddPanel(dp);
 	}
 
 	return 0;
@@ -1386,6 +1406,344 @@ void Kis_Devicelist::SpawnColumnPrefWindow(bool extracols) {
 	cpp->SetCompleteCallback(KDL_ColumnRefresh, this);
 
 	kpinterface->AddPanel(cpp);
+}
+
+int KDLD_MenuCB(COMPONENT_CALLBACK_PARMS) {
+	((Kis_DevDetails_Panel *) aux)->MenuAction(status);
+	return 1;
+}
+
+int KDLD_GraphTimer(TIMEEVENT_PARMS) {
+	return ((Kis_DevDetails_Panel *) auxptr)->GraphTimer();
+}
+
+Kis_DevDetails_Panel::Kis_DevDetails_Panel(GlobalRegistry *in_globalreg,
+										   KisPanelInterface *in_intf) :
+	Kis_Panel(in_globalreg, in_intf) {
+
+	devicetracker = 
+		(Client_Devicetracker *) globalreg->FetchGlobal("CLIENT_DEVICE_TRACKER");
+	devcomp_ref_common = devicetracker->RegisterDeviceComponent("COMMON");
+
+	grapheventid =
+		globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1,
+											  KDLD_GraphTimer, (void *) this);
+
+	// Make the menu, default cb us
+	menu = new Kis_Menu(globalreg, this);
+	menu->SetCallback(COMPONENT_CBTYPE_ACTIVATED, KDLD_MenuCB, (void *) this);
+
+	mn_device = menu->AddMenu("Device", 0);
+	mi_addnote = menu->AddMenuItem("Device Note...", mn_device, 'N');
+	menu->AddMenuItem("-", mn_device, 0);
+	mi_close = menu->AddMenuItem("Close window", mn_device, 'w');
+
+	mn_view = menu->AddMenu("View", 0);
+	mi_dev = menu->AddMenuItem("Device details", mn_view, 'd');
+	menu->AddMenuItem("-", mn_view, 0);
+
+	mi_graphsig = menu->AddMenuItem("Signal Level", mn_view, 's');
+	mi_graphpacket = menu->AddMenuItem("Packet Rate", mn_view, 'p');
+
+	menu->Show();
+	AddComponentVec(menu, KIS_PANEL_COMP_EVT);
+
+	netdetailt = new Kis_Free_Text(globalreg, this);
+	AddComponentVec(netdetailt, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+								 KIS_PANEL_COMP_TAB));
+
+	siggraph = new Kis_IntGraph(globalreg, this);
+	siggraph->SetName("DETAIL_SIG");
+	siggraph->SetPreferredSize(0, 8);
+	siggraph->SetScale(-110, -40);
+	siggraph->SetInterpolation(1);
+	siggraph->SetMode(0);
+	siggraph->Show();
+	siggraph->AddExtDataVec("Signal", 4, "graph_detail_sig", "yellow,yellow", 
+		 					  ' ', ' ', 1, &sigpoints);
+	AddComponentVec(siggraph, KIS_PANEL_COMP_EVT);
+
+	packetgraph = new Kis_IntGraph(globalreg, this);
+	packetgraph->SetName("DETAIL_PPS");
+	packetgraph->SetPreferredSize(0, 8);
+	packetgraph->SetScale(0, 0);
+	packetgraph->SetInterpolation(1);
+	packetgraph->SetMode(0);
+	packetgraph->Show();
+	packetgraph->AddExtDataVec("Packet Rate", 4, "graph_detail_pps", "green,green", 
+							  ' ', ' ', 1, &packetpps);
+	AddComponentVec(packetgraph, KIS_PANEL_COMP_EVT);
+
+	ClearGraphVectors();
+
+	SetTitle("");
+
+	vbox = new Kis_Panel_Packbox(globalreg, this);
+	vbox->SetPackV();
+	vbox->SetHomogenous(0);
+	vbox->SetSpacing(0);
+	vbox->Show();
+
+	vbox->Pack_End(siggraph, 0, 0);
+	vbox->Pack_End(packetgraph, 0, 0);
+
+	vbox->Pack_End(netdetailt, 1, 0);
+
+	AddComponentVec(vbox, KIS_PANEL_COMP_DRAW);
+
+	last_dirty = 0;
+	last_mac = mac_addr(0);
+	displaydev = NULL;
+	displaycommon = NULL;
+
+	vector<string> td;
+	td.push_back("");
+	td.push_back("No device selected");
+	td.push_back("Change sort order to anything other than \"Auto Fit\"");
+	td.push_back("and highlight a device.");
+
+	netdetailt->SetText(td);
+
+	UpdateViewMenu(-1);
+
+	SetActiveComponent(netdetailt);
+
+	main_component = vbox;
+
+	Position(WIN_CENTER(LINES, COLS));
+}
+
+Kis_DevDetails_Panel::~Kis_DevDetails_Panel() {
+	if (grapheventid >= 0 && globalreg != NULL)
+		globalreg->timetracker->RemoveTimer(grapheventid);
+}
+
+void Kis_DevDetails_Panel::SetTargetDevice(kdl_display_device *in_device) {
+	displaydev = in_device;
+
+	if (displaydev == NULL) {
+		displaycommon = NULL;
+		return;
+	}
+
+	if (displaydev->device != NULL) {
+		displaycommon = 
+			(kis_device_common *) displaydev->device->fetch(devcomp_ref_common);
+	} else {
+		displaycommon = NULL;
+	}
+}
+
+void Kis_DevDetails_Panel::ClearGraphVectors() {
+	lastpackets = 0;
+	sigpoints.clear();
+	packetpps.clear();
+	for (unsigned int x = 0; x < 120; x++) {
+		sigpoints.push_back(-256);
+		packetpps.push_back(0);
+	}
+}
+
+void Kis_DevDetails_Panel::UpdateGraphVectors(int signal, int pps) {
+	sigpoints.push_back(signal);
+	if (sigpoints.size() > 120)
+		sigpoints.erase(sigpoints.begin(), sigpoints.begin() + sigpoints.size() - 120);
+
+	if (lastpackets == 0)
+		lastpackets = pps;
+	packetpps.push_back(pps - lastpackets);
+	lastpackets = pps;
+	if (packetpps.size() > 120)
+		packetpps.erase(packetpps.begin(), packetpps.begin() + packetpps.size() - 120);
+
+}
+
+
+void Kis_DevDetails_Panel::UpdateViewMenu(int mi) {
+	if (mi == mi_dev) {
+		if (kpinterface->prefs->FetchOptBoolean("DETAILS_SHOWDEV", 1)) {
+			kpinterface->prefs->SetOpt("DETAILS_SHOWDEV", "false", 1);
+			menu->SetMenuItemChecked(mi_dev, 0);
+			netdetailt->Hide();
+		} else {
+			kpinterface->prefs->SetOpt("DETAILS_SHOWDEV", "true", 1);
+			menu->SetMenuItemChecked(mi_dev, 1);
+			netdetailt->Show();
+		}
+	} else if (mi == mi_graphsig) {
+		if (kpinterface->prefs->FetchOptBoolean("DETAILS_SHOWGRAPHSIG", 0)) {
+			kpinterface->prefs->SetOpt("DETAILS_SHOWGRAPHSIG", "false", 1);
+			menu->SetMenuItemChecked(mi_graphsig, 0);
+			siggraph->Hide();
+		} else {
+			kpinterface->prefs->SetOpt("DETAILS_SHOWGRAPHSIG", "true", 1);
+			menu->SetMenuItemChecked(mi_graphsig, 1);
+			siggraph->Show();
+		}
+	} else if (mi == mi_graphpacket) {
+		if (kpinterface->prefs->FetchOptBoolean("DETAILS_SHOWGRAPHPACKET", 1)) {
+			kpinterface->prefs->SetOpt("DETAILS_SHOWGRAPHPACKET", "false", 1);
+			menu->SetMenuItemChecked(mi_graphpacket, 0);
+			packetgraph->Hide();
+		} else {
+			kpinterface->prefs->SetOpt("DETAILS_SHOWGRAPHPACKET", "true", 1);
+			menu->SetMenuItemChecked(mi_graphpacket, 1);
+			packetgraph->Show();
+		}
+	} else if (mi == -1) {
+		if (kpinterface->prefs->FetchOptBoolean("DETAILS_SHOWDEV", 1)) {
+			menu->SetMenuItemChecked(mi_dev, 1);
+			netdetailt->Show();
+		} else {
+			menu->SetMenuItemChecked(mi_dev, 0);
+			netdetailt->Hide();
+		}
+
+		if (kpinterface->prefs->FetchOptBoolean("DETAILS_SHOWGRAPHSIG", 0)) {
+			menu->SetMenuItemChecked(mi_graphsig, 1);
+			siggraph->Show();
+		} else {
+			menu->SetMenuItemChecked(mi_graphsig, 0);
+			siggraph->Hide();
+		}
+
+		if (kpinterface->prefs->FetchOptBoolean("DETAILS_SHOWGRAPHPACKET", 0)) {
+			menu->SetMenuItemChecked(mi_graphpacket, 1);
+			packetgraph->Show();
+		} else {
+			menu->SetMenuItemChecked(mi_graphpacket, 0);
+			packetgraph->Hide();
+		}
+	}
+}
+
+void Kis_DevDetails_Panel::MenuAction(int opt) {
+	if (opt == mi_close) {
+		globalreg->panel_interface->KillPanel(this);
+		return;
+	}
+
+	if (opt == mi_addnote) {
+		// TODO fix adding notes
+		return;
+	}
+
+	if (opt == mi_dev || opt == mi_graphsig || opt == mi_graphpacket) {
+		UpdateViewMenu(opt);
+		return;
+	}
+}
+
+int Kis_DevDetails_Panel::GraphTimer() {
+	if (displaycommon != NULL) {
+		if (displaycommon->last_time != last_dirty) {
+			last_dirty = displaycommon->last_time;
+
+			UpdateGraphVectors(displaycommon->snrdata.last_signal_dbm == -256 ?
+							   displaycommon->snrdata.last_signal_rssi :
+							   displaycommon->snrdata.last_signal_dbm,
+							   displaycommon->packets);
+		}
+	}
+
+	return 1;
+}
+
+void Kis_DevDetails_Panel::DrawPanel() {
+	ColorFromPref(text_color, "panel_text_color");
+	ColorFromPref(border_color, "panel_border_color");
+
+	wbkgdset(win, text_color);
+	werase(win);
+
+	DrawTitleBorder();
+
+	vector<string> td;
+	
+	if (displaycommon == NULL) {
+		td.push_back("No common tracking data for selected device");
+	} else {
+		td.push_back(AlignString("Name: ", ' ', 2, 16) + displaycommon->name);
+		td.push_back("");
+		td.push_back(AlignString("First time: ", ' ', 2, 16) + 
+					 string(ctime((const time_t *) &(displaycommon->first_time)) + 4).substr(0, 15));
+		td.push_back(AlignString("Last time: ", ' ', 2, 16) + 
+					 string(ctime((const time_t *) &(displaycommon->last_time)) + 4).substr(0, 15));
+		td.push_back("");
+		td.push_back(AlignString("MAC: ", ' ', 2, 16) + 
+					 displaycommon->device->key.Mac2String());
+		td.push_back(AlignString("Phy: ", ' ', 2, 16) +
+					 devicetracker->FetchPhyName(displaycommon->device->phy_type));
+
+		td.push_back("");
+		if (displaycommon->type_string != "")
+			td.push_back(AlignString("Type: ", ' ', 2, 16) +
+						 displaycommon->type_string);
+		else
+			td.push_back(AlignString("Type: ", ' ', 2, 16) + "Device");
+
+		if (displaycommon->basic_type_set & KIS_DEVICE_BASICTYPE_AP)
+			td.push_back(AlignString("", ' ', 2, 16) + "AP/Coordinator");
+		if (displaycommon->basic_type_set & KIS_DEVICE_BASICTYPE_CLIENT)
+			td.push_back(AlignString("", ' ', 2, 16) + "Wireless client");
+		if (displaycommon->basic_type_set & KIS_DEVICE_BASICTYPE_WIRED)
+			td.push_back(AlignString("", ' ', 2, 16) + "Wired bridge");
+		if (displaycommon->basic_type_set & KIS_DEVICE_BASICTYPE_PEER)
+			td.push_back(AlignString("", ' ', 2, 16) + "Ad-Hoc/Peer");
+
+		td.push_back("");
+		if (displaycommon->crypt_string != "")
+			td.push_back(AlignString("Encryption: ", ' ', 2, 16) +
+						 displaycommon->crypt_string);
+		else
+			td.push_back(AlignString("Encryption: ", ' ', 2, 16) + "None");
+		if (displaycommon->basic_crypt_set & KIS_DEVICE_BASICCRYPT_L2)
+			td.push_back(AlignString("", ' ', 2, 16) + "L2 / Phy link encryption");
+		if (displaycommon->basic_crypt_set & KIS_DEVICE_BASICCRYPT_L3)
+			td.push_back(AlignString("", ' ', 2, 16) + "L3 / Data link encryption");
+		if (displaycommon->basic_crypt_set & KIS_DEVICE_BASICCRYPT_WEAKCRYPT)
+			td.push_back(AlignString("", ' ', 2, 16) + "Known weak encryption");
+		if (displaycommon->basic_crypt_set & KIS_DEVICE_BASICCRYPT_DECRYPTED)
+			td.push_back(AlignString("", ' ', 2, 16) + "Decrypted");
+
+		td.push_back("");
+		td.push_back(AlignString("Packets: ", ' ', 2, 16) +
+					 IntToString(displaycommon->packets));
+		if (displaycommon->tx_packets != 0 || displaycommon->rx_packets != 0) {
+			td.push_back(AlignString("Packets (tx): ", ' ', 2, 18) +
+						 IntToString(displaycommon->tx_packets));
+			td.push_back(AlignString("Packets (rx): ", ' ', 2, 18) +
+						 IntToString(displaycommon->tx_packets));
+		}
+		td.push_back(AlignString("Phy/LLC: ", ' ', 2, 18) +
+					 IntToString(displaycommon->llc_packets));
+		td.push_back(AlignString("Error: ", ' ', 2, 18) +
+					 IntToString(displaycommon->error_packets));
+		td.push_back(AlignString("Data: ", ' ', 2, 18) +
+					 IntToString(displaycommon->data_packets));
+		td.push_back(AlignString("Encrypted: ", ' ', 2, 18) +
+					 IntToString(displaycommon->crypt_packets));
+		td.push_back(AlignString("Filtered: ", ' ', 2, 18) +
+					 IntToString(displaycommon->filter_packets));
+
+
+		td.push_back("");
+		td.push_back("more to come");
+	}
+
+	netdetailt->SetText(td);
+
+	if (displaydev != NULL && displaydev->device != NULL) {
+		Client_Phy_Handler *cliphy =
+			devicetracker->FetchPhyHandler(displaydev->device->phy_type);
+
+		if (cliphy != NULL)
+			cliphy->PanelDetailsText(netdetailt, displaydev->device);
+	}
+
+	DrawComponentVec();
+
+	wmove(win, 0, 0);
 }
 
 #endif // ncurses

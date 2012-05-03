@@ -1613,7 +1613,9 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 													   dot11info->dest_mac, 
 													   dot11info->other_mac, 
 													   dot11info->channel, al);
+
 				}
+				dot11info->channel = ssid->channel;
 
 				if (ssid->ssid == "AirJack" &&
 					globalreg->alertracker->PotentialAlert(alert_airjackssid_ref)) {

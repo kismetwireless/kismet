@@ -274,6 +274,7 @@ int PacketSource_Wext::AutotypeProbe(string in_device) {
 		sysdriver == "adm8211" || sysdriver == "ath5k" ||
 		sysdriver == "ath9k" || sysdriver == "b43" ||
 		sysdriver == "ath5k_pci" || sysdriver == "ath9k_pci" ||
+		sysdriver == "ath9k_htc" || 
 		sysdriver == "b43legacy" || sysdriver == "hostap" ||
 		sysdriver == "libertas" || sysdriver == "p54" ||
 		sysdriver == "libertas_usb" || sysdriver == "libertas_tf" ||
@@ -321,6 +322,7 @@ int PacketSource_Wext::RegisterSources(Packetsourcetracker *tracker) {
 	tracker->RegisterPacketProto("ath5k_pci", this, "IEEE80211b", 1);
 	tracker->RegisterPacketProto("ath9k", this, "IEEE80211ab", 1);
 	tracker->RegisterPacketProto("ath9k_pci", this, "IEEE80211b", 1);
+	tracker->RegisterPacketProto("ath9k_htc", this, "IEEE80211b", 1);
 	tracker->RegisterPacketProto("bcm43xx", this, "IEEE80211b", 1);
 	tracker->RegisterPacketProto("b43", this, "IEEE80211b", 1);
 	tracker->RegisterPacketProto("b43legacy", this, "IEEE80211b", 1);

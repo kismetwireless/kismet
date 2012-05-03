@@ -542,3 +542,13 @@ string Client_Phy80211::Dot11Column(kdl_display_device *in_dev, int columnid,
 	return buf;
 }
 
+void Client_Phy80211::PanelDetails(Kis_DevDetails_Panel *in_panel, 
+								   kis_tracked_device *in_dev) {
+
+}
+
+void Client_Phy80211::PanelDetailsText(Kis_Free_Text *in_textbox, 
+									   kis_tracked_device *in_dev) {
+
+}
+

@@ -47,7 +47,8 @@ public:
 	Client_Phy80211(GlobalRegistry *in_globalreg, Client_Devicetracker *in_tracker,
 					int in_phyid);
 
-	virtual Client_Phy80211 *CreatePhyHandler(GlobalRegistry *in_globalreg, Client_Devicetracker *in_tracker,
+	virtual Client_Phy80211 *CreatePhyHandler(GlobalRegistry *in_globalreg, 
+											  Client_Devicetracker *in_tracker,
 											  int in_phyid) {
 		return new Client_Phy80211(in_globalreg, in_tracker, in_phyid);
 	}
@@ -61,6 +62,11 @@ public:
 	virtual void PanelInitialized();
 
 	string Dot11Column(kdl_display_device *in_dev, int columnid, bool header);
+
+	virtual void PanelDetails(Kis_DevDetails_Panel *in_panel,
+							  kis_tracked_device *in_dev);
+	virtual void PanelDetailsText(Kis_Free_Text *in_textbox, 
+								  kis_tracked_device *in_dev);
 
 protected:
 	Kis_Devicelist *devicelist;

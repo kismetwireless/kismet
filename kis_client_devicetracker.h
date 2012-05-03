@@ -27,6 +27,9 @@
 
 class Client_Devicetracker;
 
+class Kis_DevDetails_Panel;
+class Kis_Free_Text;
+
 // client PHY handlers are registered with the client devicetracker
 // creation is deferred until a phymap is seen which defines a phy of the
 // requested name
@@ -64,8 +67,19 @@ public:
 	// brokered by the devicetracker, there is no netclientadd callback
 	virtual void NetClientConfigure(KisNetClient *in_cli, int in_recon) = 0;
 
-	// Panel UI is initialized; do anything reasonable
+	// Panel UI is initialized; do anything reasonable, like adding sort and
+	// columns, etc
 	virtual void PanelInitialized() = 0;
+
+	// Initialized a details panel; do anything reasonable, like adding
+	// custom menu items or widgets pertaining to this type of device
+	virtual void PanelDetails(Kis_DevDetails_Panel *in_panel,
+							  kis_tracked_device *in_dev) = 0;
+
+	// Details panel is drawing a device we own; do something reasonable, like
+	// add our phy-specific component text to the details list
+	virtual void PanelDetailsText(Kis_Free_Text *in_textbox, 
+								  kis_tracked_device *in_dev) = 0;
 
 protected:
 	GlobalRegistry *globalreg;

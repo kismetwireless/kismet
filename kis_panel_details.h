@@ -28,58 +28,10 @@
 #include "globalregistry.h"
 #include "kis_clinetframe.h"
 #include "kis_panel_widgets.h"
-#include "kis_panel_network.h"
 
 #include "kis_panel_plugin.h"
 
 class KisPanelInterface;
-
-class Kis_NetDetails_Panel : public Kis_Panel {
-public:
-	Kis_NetDetails_Panel() {
-		fprintf(stderr, "FATAL OOPS: Kis_NetDetails_Panel called w/out globalreg\n");
-		exit(1);
-	}
-
-	Kis_NetDetails_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_kpf);
-	virtual ~Kis_NetDetails_Panel();
-
-	virtual void DrawPanel();
-	virtual void ButtonAction(Kis_Panel_Component *in_button);
-	virtual void MenuAction(int opt);
-
-	virtual int GraphTimer();
-
-protected:
-	int AppendNetworkInfo(vector<string> *td, Kis_Display_NetGroup *tng, 
-						  Netracker::tracked_network *net);
-	int AppendSSIDInfo(vector<string> *td, Netracker::tracked_network *net, 
-					   Netracker::adv_ssid_data *ssid);
-
-	virtual void UpdateViewMenu(int mi);
-	void ClearGraphVectors();
-	void UpdateGraphVectors(int signal, int pps, int retry);
-	
-	int DeriveDisplayUpdate();
-
-	Kis_Panel_Packbox *vbox, *bbox;
-	// Kis_Scrollable_Table *netdetails;
-	Kis_Free_Text *netdetailt;
-
-	Kis_IntGraph *siggraph, *packetgraph, *retrygraph;
-	vector<int> sigpoints, packetpps, retrypps;
-	int lastpackets;
-
-	time_t last_dirty;
-	mac_addr last_mac;
-	Kis_Display_NetGroup *dng;
-	Kis_Button *closebutton, *prevbutton, *nextbutton;
-
-	int mn_network, mi_addnote, mi_nextnet, mi_prevnet, mi_close;
-	int mn_view, mi_net, mi_clients, mi_graphsig, mi_graphpacket, mi_graphretry;
-
-	int grapheventid;
-};
 
 #define KCLI_CHANDETAILS_CHANNEL_FIELDS		"channel,time_on,packets,packetsdelta," \
 	"usecused,bytes,bytesdelta,networks,activenetworks,maxsignal_dbm,maxsignal_rssi," \
@@ -167,54 +119,6 @@ protected:
 	int addref;
 };
 
-class Kis_ClientDetails_Panel : public Kis_Panel {
-public:
-	Kis_ClientDetails_Panel() {
-		fprintf(stderr, "FATAL OOPS: Kis_ClientDetails_Panel called w/out globalreg\n");
-		exit(1);
-	}
-
-	Kis_ClientDetails_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_kpf);
-	virtual ~Kis_ClientDetails_Panel();
-
-	virtual void DrawPanel();
-	virtual void ButtonAction(Kis_Panel_Component *in_button);
-	virtual void MenuAction(int opt);
-
-	virtual int GraphTimer();
-
-	virtual void SetClientlist(Kis_Clientlist *in_list) {
-		clientlist = in_list;
-	}
-
-protected:
-	virtual void UpdateViewMenu(int mi);
-	void ClearGraphVectors();
-	void UpdateGraphVectors(int signal, int pps, int retry);
-	
-	int DeriveDisplayUpdate();
-
-	Kis_Panel_Packbox *vbox, *bbox;
-	Kis_Free_Text *clientdetailt;
-
-	Kis_IntGraph *siggraph, *packetgraph, *retrygraph;
-	vector<int> sigpoints, packetpps, retrypps;
-	int lastpackets;
-
-	time_t last_dirty;
-	mac_addr last_mac;
-	Kis_Display_NetGroup *dng;
-	Netracker::tracked_client *dcli;
-
-	int mn_client, mi_addnote, mi_nextcli, mi_prevcli, mi_close;
-
-	int mn_view, mi_cli, mi_graphsig, mi_graphpacket, mi_graphretry;
-
-	int grapheventid;
-
-	Kis_Clientlist *clientlist;
-};
-
 enum alertsort_opts {
 	alertsort_time, alertsort_latest, alertsort_type, alertsort_bssid
 };
@@ -249,39 +153,6 @@ protected:
 	vector<KisPanelInterface::knc_alert *> sorted_alerts;
 
 	KisPanelInterface::knc_alert *last_alert, *last_selected;
-};
-
-class Kis_RegDetails_Panel : public Kis_Panel {
-public:
-	Kis_RegDetails_Panel() {
-		fprintf(stderr, "FATAL OOPS: Kis_RegDetails_Panel called w/out globalreg\n");
-		exit(1);
-	}
-
-	Kis_RegDetails_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_kpf);
-	virtual ~Kis_RegDetails_Panel();
-
-	virtual void DrawPanel();
-	virtual void MenuAction(int opt);
-
-	// Map country settings to a range of networks, one of these per
-	// country + channel range we've seen.  Divergent power ranges inside
-	// an advertised country will show up as different regblocks
-	struct reg_block {
-		string dot11d_country;
-		vector<dot11_11d_range_info> dot11d_vec;
-		vector<Kis_Display_NetGroup *> netgroup_vec;
-	};
-
-protected:
-	Kis_Panel_Packbox *vbox;
-	Kis_Scrollable_Table *reglist;
-	Kis_Netlist *netlist, *main_netlist;
-	Kis_Free_Text *text;
-
-	int mn_regd, mi_close;
-
-	vector<reg_block *> regblock_vec;
 };
 
 #endif

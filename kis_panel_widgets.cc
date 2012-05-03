@@ -2026,6 +2026,25 @@ void Kis_Free_Text::AppendText(string in_text) {
 		scroll_pos = text_vec.size() - ly;
 }
 
+void Kis_Free_Text::AppendText(vector<string> in_text) {
+	text_vec.insert(text_vec.end(), in_text.begin(), in_text.end());
+
+	// Trim for max
+	if (max_text > 0 && (int) text_vec.size() > max_text) {
+		text_vec.erase(text_vec.begin(), text_vec.begin() + text_vec.size() - max_text);
+	}
+
+	// Update the preferred width
+	for (unsigned int x = 0; x < in_text.size(); x++) {
+		if (lx < (int) Kis_Panel_Specialtext::Strlen(in_text[x]))
+			SetPreferredSize(Kis_Panel_Specialtext::Strlen(in_text[x]), text_vec.size());
+	}
+
+	// If we're following the tail then jump to the bottom when we add text
+	if (ly < (int) text_vec.size() && follow_tail)
+		scroll_pos = text_vec.size() - ly;
+}
+
 void KisStatusText_Messageclient::ProcessMessage(string in_msg, int in_flags) {
 	if ((in_flags & MSGFLAG_INFO)) {
 		((Kis_Status_Text *) auxptr)->AddLine("\004bINFO\004B: " + in_msg, 6);

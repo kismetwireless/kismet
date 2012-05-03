@@ -220,7 +220,6 @@ protected:
 	string colheadercache;
 };
 
-#if 0
 class Kis_DevDetails_Panel : public Kis_Panel {
 public:
 	Kis_DevDetails_Panel() {
@@ -232,43 +231,40 @@ public:
 	virtual ~Kis_DevDetails_Panel();
 
 	virtual void DrawPanel();
-	virtual void ButtonAction(Kis_Panel_Component *in_button);
 	virtual void MenuAction(int opt);
 
 	virtual int GraphTimer();
 
-protected:
+	void SetTargetDevice(kdl_display_device *in_device);
 
-	int AppendNetworkInfo(vector<string> *td, Kis_Display_NetGroup *tng, 
-						  Netracker::tracked_network *net);
-	int AppendSSIDInfo(vector<string> *td, Netracker::tracked_network *net, 
-					   Netracker::adv_ssid_data *ssid);
+protected:
+	Client_Devicetracker *devicetracker;
 
 	virtual void UpdateViewMenu(int mi);
 	void ClearGraphVectors();
-	void UpdateGraphVectors(int signal, int pps, int retry);
+	void UpdateGraphVectors(int signal, int pps);
 	
 	int DeriveDisplayUpdate();
 
 	Kis_Panel_Packbox *vbox, *bbox;
-	// Kis_Scrollable_Table *netdetails;
 	Kis_Free_Text *netdetailt;
 
-	Kis_IntGraph *siggraph, *packetgraph, *retrygraph;
-	vector<int> sigpoints, packetpps, retrypps;
+	Kis_IntGraph *siggraph, *packetgraph;
+	vector<int> sigpoints, packetpps;
 	int lastpackets;
 
 	time_t last_dirty;
 	mac_addr last_mac;
-	Kis_Display_NetGroup *dng;
-	Kis_Button *closebutton, *prevbutton, *nextbutton;
 
-	int mn_network, mi_addnote, mi_nextnet, mi_prevnet, mi_close;
-	int mn_view, mi_net, mi_clients, mi_graphsig, mi_graphpacket, mi_graphretry;
+	int devcomp_ref_common;
+	kdl_display_device *displaydev;
+	kis_device_common *displaycommon;
+
+	int mn_device, mi_addnote, mi_close;
+	int mn_view, mi_dev, mi_graphsig, mi_graphpacket;
 
 	int grapheventid;
 };
-#endif
 
 #endif // ncurses
 
