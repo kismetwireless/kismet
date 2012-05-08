@@ -777,8 +777,10 @@ int Kis_80211_Phy::ClassifierDot11(kis_packet *in_pack) {
 	kis_common_info *ci = 
 		(kis_common_info *) in_pack->fetch(pack_comp_common);
 
-	if (ci == NULL)
+	if (ci == NULL) {
 		ci = new kis_common_info;
+		in_pack->insert(pack_comp_common, ci);
+	}
 
 	ci->phyid = phyid;
 
@@ -807,7 +809,7 @@ int Kis_80211_Phy::ClassifierDot11(kis_packet *in_pack) {
 	} else if (dot11info->type == packet_phy) {
 		// Ignore phy packets with no source for now
 		if (dot11info->source_mac == globalreg->empty_mac) {
-			delete ci;
+			// delete ci;
 			return 0;
 		}
 
@@ -852,8 +854,6 @@ int Kis_80211_Phy::ClassifierDot11(kis_packet *in_pack) {
 		ci->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_L3;
 		// printf("debug - basic l3\n");
 	}
-
-	in_pack->insert(pack_comp_common, ci);
 
 	return 1;
 }
