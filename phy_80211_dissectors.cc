@@ -184,9 +184,15 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
         return 0;
 	}
 
-	kis_common_info *common = new kis_common_info;
+	kis_common_info *common = 
+		(kis_common_info *) in_pack->fetch(pack_comp_common);
+
+	if (common == NULL) {
+		common = new kis_common_info;
+		in_pack->insert(pack_comp_common, common);
+	}
+
 	common->phyid = phyid;
-	in_pack->insert(pack_comp_common, common);
 
     packinfo = new dot11_packinfo;
 

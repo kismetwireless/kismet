@@ -774,7 +774,11 @@ int Kis_80211_Phy::ClassifierDot11(kis_packet *in_pack) {
 	if (dot11info == NULL)
 		return 0;
 
-	kis_common_info *ci = new kis_common_info;
+	kis_common_info *ci = 
+		(kis_common_info *) in_pack->fetch(pack_comp_common);
+
+	if (ci == NULL)
+		ci = new kis_common_info;
 
 	ci->phyid = phyid;
 

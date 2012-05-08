@@ -154,8 +154,9 @@ public:
     }
 
     virtual ~kis_datachunk() {
-		if (data != NULL && self_data)
+		if (data != NULL && self_data) {
 			delete[] data;
+		}
         length = 0;
     }
 
