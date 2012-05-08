@@ -2516,6 +2516,7 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 		sc = new Packinfo_Sig_Combo(l1info, gpsinfo);
 		net->snrdata += *sc;
 		cli->snrdata += *sc;
+		delete sc;
 	}
 
 	// Add the source to the network record of who has seen us and when
