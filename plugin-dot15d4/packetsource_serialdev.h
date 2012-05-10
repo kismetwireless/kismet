@@ -32,12 +32,19 @@
 // All commands are 3 bytes
 #define SERIALDEV_CMD_OPEN		((uint8_t *) "zb\x01")
 #define SERIALDEV_CMD_CLOSE		((uint8_t *) "zb\x02")
+// u8 setchan u8 channel, base 1
 #define SERIALDEV_CMD_SETCHAN	((uint8_t *) "zb\x04")
 #define SERIALDEV_CMD_ED		((uint8_t *) "zb\x05")
 #define SERIALDEV_CMD_CCA		((uint8_t *) "zb\x06")
+// u8 setstate u8 state
 #define SERIALDEV_CMD_SETSTATE	((uint8_t *) "zb\x07")
 #define SERIALDEV_CMD_XMITDATA	((uint8_t *) "zb\x09")
 #define SERIALDEV_CMD_RECV		((uint8_t *) "zb\x0b")
+
+#define SERIALDEV_CMD_LEDTEST	((uint8_t *) "zb\xF0")
+#define SERIALDEV_CMD_GETNAME	((uint8_t *) "zb\xF1");
+// u8 sethwchan u8 lowerchannels u8 upperchannels u8 rate-per-sec u8 trafficdelay
+#define SERIALDEV_CMD_SETHWCHAN	((uint8_t *) "zb\xF2")
 
 #define SERIALDEV_STATUS_SUCCESS	0
 #define SERIALDEV_STATUS_RX_ON		1
@@ -68,9 +75,17 @@
 // u8 id u8 c
 #define SERIALDEV_RESP_RECVSTREAM	0x8c
 
+// u8 id u8 len u8 data[]
+#define SERIALDEV_RESP_GETNAME		0xd1
+#define SERIALDEV_RESP_SETHWCHAN	0xd2
+// u8 id u8 lq u8 chan u8 len u8 data[]
+#define SERIALDEV_RESP_RECVBLOCKHW	0xc2
+
 #define SERIALDEV_MODE_IDLE			0x00
 #define SERIALDEV_MODE_RX			0x02
 #define SERIALDEV_MODE_TX			0x03
+// HW channel-control assisted rx
+#define SERIALDEV_MODE_HWRX			0xF0
 
 #define D15D4_MAX_MTU			127
 

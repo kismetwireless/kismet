@@ -113,6 +113,7 @@ public:
 
 	void RegisterPhyHandler(Client_Phy_Handler *in_weak_handler);
 	int RegisterDeviceComponent(string in_component);
+	string FetchDeviceComponentName(int in_id);
 
 	Client_Phy_Handler *FetchPhyHandler(int in_phy);
 	string FetchPhyName(int in_phy);

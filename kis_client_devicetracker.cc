@@ -196,6 +196,13 @@ string Client_Devicetracker::FetchPhyName(int in_phy) {
 	return i->second->phy_name;
 }
 
+string Client_Devicetracker::FetchDeviceComponentName(int in_id) {
+	if (component_id_map.find(in_id) == component_id_map.end())
+		return "<UNKNOWN>";
+
+	return component_id_map[in_id];
+}
+
 int Client_Devicetracker::FetchNumDevices(int in_phy) {
 	int r = 0;
 

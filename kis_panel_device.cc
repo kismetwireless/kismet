@@ -1705,6 +1705,9 @@ void Kis_DevDetails_Panel::DrawPanel() {
 			td.push_back(AlignString("", ' ', 2, 16) + "Known weak encryption");
 		if (displaycommon->basic_crypt_set & KIS_DEVICE_BASICCRYPT_DECRYPTED)
 			td.push_back(AlignString("", ' ', 2, 16) + "Decrypted");
+		
+		td.push_back(AlignString("Channel: ", ' ', 2, 16) + 
+					 IntToString(displaycommon->channel));
 
 		td.push_back("");
 		td.push_back(AlignString("Packets: ", ' ', 2, 16) +
@@ -1726,6 +1729,18 @@ void Kis_DevDetails_Panel::DrawPanel() {
 		td.push_back(AlignString("Filtered: ", ' ', 2, 18) +
 					 IntToString(displaycommon->filter_packets));
 
+		td.push_back("");
+
+		if (displaycommon->datasize < 1024)
+			td.push_back(AlignString("Data: ", ' ', 2, 16) +
+						 LongIntToString(displaycommon->datasize) + "B");
+		else if (displaycommon->datasize < (1024 * 1024))
+			td.push_back(AlignString("Data: ", ' ', 2, 16) +
+						 LongIntToString(displaycommon->datasize / 1024) + "KB");
+		else if (displaycommon->datasize < (1024 * 1024 * 1024))
+			td.push_back(AlignString("Data: ", ' ', 2, 16) +
+						 LongIntToString(displaycommon->datasize / 1024 / 1024) + "MB");
+		
 
 		td.push_back("");
 		td.push_back("more to come");

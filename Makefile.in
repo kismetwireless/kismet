@@ -11,7 +11,7 @@ CAPSOURCES = \
 	packetsource_darwin.o packetsource_macusb.o
 
 PSO	= util.o cygwin_utils.o globalregistry.o ringbuf.o \
-	messagebus.o configfile.o getopt.o \
+	packet.o messagebus.o configfile.o getopt.o \
 	filtercore.o ifcontrol.o iwcontrol.o madwifing_control.o nl80211_control.o \
 	$(OBJC_LINK) \
 	psutils.o ipc_remote.o soundcontrol.o battery.o kismet_json.o \
@@ -35,7 +35,7 @@ PSO	= util.o cygwin_utils.o globalregistry.o ringbuf.o \
 PS	= kismet_server
 
 DRONEO = util.o cygwin_utils.o globalregistry.o ringbuf.o \
-		 messagebus.o configfile.o getopt.o \
+		 packet.o messagebus.o configfile.o getopt.o \
 		 ifcontrol.o iwcontrol.o madwifing_control.o nl80211_control.o $(OBJC_LINK) \
 		 psutils.o ipc_remote.o soundcontrol.o kismet_json.o \
 		 netframework.o clinetframework.o tcpserver.o tcpclient.o serialclient.o \
@@ -48,7 +48,7 @@ DRONEO = util.o cygwin_utils.o globalregistry.o ringbuf.o \
 		 kismet_drone.o
 
 CSO = util.o cygwin_utils.o globalregistry.o ringbuf.o \
-	messagebus.o configfile.o getopt.o \
+	packet.o messagebus.o configfile.o getopt.o \
 	filtercore.o ifcontrol.o iwcontrol.o madwifing_control.o nl80211_control.o \
 	$(OBJC_LINK) \
 	psutils.o ipc_remote.o netframework.o clinetframework.o tcpserver.o tcpclient.o \

@@ -811,6 +811,13 @@ int Devicetracker::RegisterDeviceComponent(string in_component) {
 	return num;
 }
 
+string Devicetracker::FetchDeviceComponentName(int in_id) {
+	if (component_id_map.find(in_id) == component_id_map.end())
+		return "<UNKNOWN>";
+
+	return component_id_map[in_id];
+}
+
 int Devicetracker::RegisterPhyHandler(Kis_Phy_Handler *in_weak_handler) {
 	int num = next_phy_id++;
 
@@ -1131,7 +1138,7 @@ kis_tracked_device *Devicetracker::BuildDevice(mac_addr in_device,
 		// we don't have this device tracked.  Make one based on the
 		// input data (for example, this could be a bssid which has never
 		// talked, but which we see a client communicating with)
-		device = new kis_tracked_device;
+		device = new kis_tracked_device(globalreg);
 
 		device->key = devmac;
 
@@ -1287,9 +1294,14 @@ int Devicetracker::PopulateCommon(kis_tracked_device *device, kis_packet *in_pac
 	if (pack_common->channel)
 		common->channel = pack_common->channel;
 
-	kis_tracked_device_info *devinfo = new kis_tracked_device_info;
-	devinfo->devref = device;
-	in_pack->insert(pack_comp_device, devinfo);
+	kis_tracked_device_info *devinfo = 
+		(kis_tracked_device_info *) in_pack->fetch(pack_comp_device);
+
+	if (devinfo == NULL) {
+		devinfo = new kis_tracked_device_info;
+		devinfo->devref = device;
+		in_pack->insert(pack_comp_device, devinfo);
+	}
 
 	return 1;
 }

@@ -33,6 +33,7 @@
 #include <vector>
 #include <map>
 
+#include "globalregistry.h"
 #include "macaddr.h"
 #include "packet_ieee80211.h"
 
@@ -74,66 +75,25 @@ public:
    
     // Init stuff
     kis_packet() {
-        error = 0;
-		filtered = 0;
+		fprintf(stderr, "FATAL: kis_packet()\n"); exit(1);
+	}
 
-		// Stock and init the content vector
-		content_vec.resize(MAX_PACKET_COMPONENTS, NULL);
-		/*
-		for (unsigned int y = 0; y < MAX_PACKET_COMPONENTS; y++)
-			content_vec[y] = NULL;
-		*/
-    }
-
-    ~kis_packet() {
-        // Delete everything we contain when we die.  I hope whomever put
-        // it there expected this.
-		for (unsigned int y = 0; y < MAX_PACKET_COMPONENTS; y++) {
-			packet_component *pcm = content_vec[y];
-
-			if (pcm == NULL)
-				continue;
-
-			// If it's marked for self-destruction, delete it.  Otherwise, 
-			// someone else is responsible for removing it.
-			if (pcm->self_destruct)
-				delete pcm;
-
-			content_vec[y] = NULL;
-        }
-    }
+	kis_packet(GlobalRegistry *in_globalreg);
+    ~kis_packet();
    
-    inline void insert(const unsigned int index, packet_component *data) {
-		if (index >= MAX_PACKET_COMPONENTS)
-			return;
-        content_vec[index] = data;
-    }
-    inline void *fetch(const unsigned int index) {
-		if (index >= MAX_PACKET_COMPONENTS)
-			return NULL;
+    void insert(const unsigned int index, packet_component *data);
+    void *fetch(const unsigned int index);
+    void erase(const unsigned int index);
 
-		return content_vec[index];
-    }
-    inline void erase(const unsigned int index) {
-		if (index >= MAX_PACKET_COMPONENTS)
-			return;
-
-        // Delete it if we can - both from our array and from 
-        // memory.  Whatever inserted it had better expect this
-        // to happen or it will be very unhappy
-		if (content_vec[index] != NULL) {
-			if (content_vec[index]->self_destruct)
-				delete content_vec[index];
-
-			content_vec[index] = NULL;
-        }
-    }
     inline packet_component *operator[] (const unsigned int& index) const {
 		if (index >= MAX_PACKET_COMPONENTS)
 			return NULL;
 
 		return content_vec[index];
     }
+
+protected:
+	GlobalRegistry *globalreg;
 };
 
 // Arbitrary data chunk, decapsulated from the link headers

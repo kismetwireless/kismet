@@ -75,7 +75,7 @@ int Packetchain::RegisterPacketComponent(string in_component) {
 int Packetchain::RemovePacketComponent(int in_id) {
     string str;
 
-    if (component_id_map.find(in_id) != component_id_map.end()) {
+    if (component_id_map.find(in_id) == component_id_map.end()) {
         return -1;
     }
 
@@ -86,8 +86,16 @@ int Packetchain::RemovePacketComponent(int in_id) {
     return 1;
 }
 
+string Packetchain::FetchPacketComponentName(int in_id) {
+    if (component_id_map.find(in_id) == component_id_map.end()) {
+		return "<UNKNOWN>";
+    }
+
+	return component_id_map[in_id];
+}
+
 kis_packet *Packetchain::GeneratePacket() {
-    kis_packet *newpack = new kis_packet;
+    kis_packet *newpack = new kis_packet(globalreg);
     pc_link *pcl;
 
     // Run the frame through the genesis chain incase anything

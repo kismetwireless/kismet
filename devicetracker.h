@@ -50,6 +50,9 @@
 #define KIS_PHY_ANY	-1
 #define KIS_PHY_UNKNOWN -2
 
+// fwd
+class Devicetracker;
+
 // Basic unit being tracked in a tracked device
 class tracker_component {
 public:
@@ -440,70 +443,6 @@ public:
 	}
 };
 
-// Container that holds tracked information & a unique key.  Key should be unique
-// across all PHY types & must be generated in consistent way
-class kis_tracked_device {
-public:
-	mac_addr key;
-
-	int phy_type;
-	int dirty;
-
-	vector<tracker_component *> content_vec;
-
-	kis_tracked_device() {
-		phy_type = KIS_PHY_UNKNOWN;
-		content_vec.resize(MAX_TRACKER_COMPONENTS, NULL);
-		dirty = 0;
-	}
-
-	~kis_tracked_device() {
-		for (unsigned int y = 0; y < MAX_TRACKER_COMPONENTS; y++) {
-			tracker_component *tcm = content_vec[y];
-
-			if (tcm == NULL)
-				continue;
-
-			if (tcm->self_destruct)
-				delete tcm;
-
-			content_vec[y] = NULL;
-		}
-	}
-
-	inline void insert(const unsigned int index, tracker_component *data) {
-		if (index >= MAX_TRACKER_COMPONENTS)
-			return;
-		content_vec[index] = data;
-	}
-
-	inline void *fetch(const unsigned int index) {
-		if (index >= MAX_TRACKER_COMPONENTS)
-			return NULL;
-
-		return content_vec[index];
-	}
-
-	inline void erase(const unsigned int index) {
-		if (index >= MAX_TRACKER_COMPONENTS)
-			return;
-
-		if (content_vec[index] != NULL) {
-			if (content_vec[index]->self_destruct)
-				delete content_vec[index];
-
-			content_vec[index] = NULL;
-		}
-	}
-
-	inline tracker_component *operator[] (const unsigned int& index) const {
-		if (index >= MAX_TRACKER_COMPONENTS)
-			return NULL;
-
-		return content_vec[index];
-	}
-};
-
 // Packinfo references
 class kis_tracked_device_info : public packet_component {
 public:
@@ -514,9 +453,6 @@ public:
 
 	kis_tracked_device *devref;
 };
-
-// fwd
-class Devicetracker;
 
 // Handler element for a phy
 //  Registered with Devicetracker
@@ -627,6 +563,8 @@ public:
 	int RegisterPhyHandler(Kis_Phy_Handler *in_weak_handler);
 	// Register a tracked device component
 	int RegisterDeviceComponent(string in_component);
+	// Get a device component name
+	string FetchDeviceComponentName(int in_id);
 
 	vector<kis_tracked_device *> *FetchDevices(int in_phy);
 
@@ -749,6 +687,86 @@ protected:
 	// Populate the common components of a device
 	int PopulateCommon(kis_tracked_device *device, kis_packet *in_pack);
 };
+
+// Container that holds tracked information & a unique key.  Key should be unique
+// across all PHY types & must be generated in consistent way
+class kis_tracked_device {
+public:
+	mac_addr key;
+
+	int phy_type;
+	int dirty;
+
+	vector<tracker_component *> content_vec;
+
+	kis_tracked_device() {
+		fprintf(stderr, "FATAL: kis_tracked_device()\n");
+		exit(1);
+	}
+
+	kis_tracked_device(GlobalRegistry *in_globalreg) {
+		globalreg = in_globalreg;
+
+		phy_type = KIS_PHY_UNKNOWN;
+		content_vec.resize(MAX_TRACKER_COMPONENTS, NULL);
+		dirty = 0;
+	}
+
+	~kis_tracked_device() {
+		for (unsigned int y = 0; y < MAX_TRACKER_COMPONENTS; y++) {
+			tracker_component *tcm = content_vec[y];
+
+			if (tcm == NULL)
+				continue;
+
+			if (tcm->self_destruct)
+				delete tcm;
+
+			content_vec[y] = NULL;
+		}
+	}
+
+	inline void insert(const unsigned int index, tracker_component *data) {
+		if (index >= MAX_TRACKER_COMPONENTS)
+			return;
+
+		if (content_vec[index] != NULL) 
+			fprintf(stderr, "DEBUG/ALERT - Leaking memory for device component %u, "
+					"double insert", index);
+
+		content_vec[index] = data;
+	}
+
+	inline void *fetch(const unsigned int index) {
+		if (index >= MAX_TRACKER_COMPONENTS)
+			return NULL;
+
+		return content_vec[index];
+	}
+
+	inline void erase(const unsigned int index) {
+		if (index >= MAX_TRACKER_COMPONENTS)
+			return;
+
+		if (content_vec[index] != NULL) {
+			if (content_vec[index]->self_destruct)
+				delete content_vec[index];
+
+			content_vec[index] = NULL;
+		}
+	}
+
+	inline tracker_component *operator[] (const unsigned int& index) const {
+		if (index >= MAX_TRACKER_COMPONENTS)
+			return NULL;
+
+		return content_vec[index];
+	}
+
+protected:
+	GlobalRegistry *globalreg;
+};
+
 
 #endif
 

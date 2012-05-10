@@ -71,6 +71,8 @@
 
 #define CHAINCALL_PARMS GlobalRegistry *globalreg, void *auxdata, kis_packet *in_pack
 
+class kis_packet;
+
 class Packetchain {
 public:
     Packetchain();
@@ -78,6 +80,7 @@ public:
 
     int RegisterPacketComponent(string in_component);
     int RemovePacketComponent(int in_id);
+	string FetchPacketComponentName(int in_id);
 
     // Generate a packet and hand it back
     kis_packet *GeneratePacket();
