@@ -523,7 +523,7 @@ void Client_Devicetracker::Proto_DEVICE(CLIPROTO_CB_PARMS) {
 	if (ktdi == tracked_map.end()) {
 		// Make a new device, but do NOT insert it into tracked/dirty
 		// until we get to the end and know we got a valid sentence!
-		device = new kis_tracked_device();
+		device = new kis_tracked_device(globalreg);
 
 		device->key = tmac;
 		device->phy_type = phy_id;
