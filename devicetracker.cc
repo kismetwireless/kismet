@@ -1251,6 +1251,7 @@ int Devicetracker::PopulateCommon(kis_tracked_device *device, kis_packet *in_pac
 
 		Packinfo_Sig_Combo *sc = new Packinfo_Sig_Combo(pack_l1info, pack_gpsinfo);
 		common->snrdata += *sc;
+		delete(sc);
 
 		if (common->freq_mhz_map.find(pack_l1info->freq_mhz) != 
 			common->freq_mhz_map.end())
