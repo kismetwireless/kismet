@@ -192,8 +192,70 @@ enum dot11_network_type {
 	dot11_network_remove = (1 << 10)
 };
 
-// fwd def
-class dot11_client;
+// Per-BSSID client record, tracked by the AP tracked_device/dot11_device record
+class dot11_client : public tracker_component {
+public:
+	dot11_network_type type;
+
+	mac_addr mac;
+	mac_addr bssid;
+
+	time_t first_time;
+	time_t last_time;
+
+	int decrypted;
+
+	// Per BSSID
+	int last_sequence;
+
+	// Per BSSID
+	uint64_t tx_cryptset;
+	uint64_t rx_cryptset;
+
+	// Last SSID we saw a probe resp for on this bssid
+	dot11_ssid *lastssid;
+
+	string lastssid_str;
+	uint32_t lastssid_csum;
+
+	// Per BSSID
+	kis_ip_data guess_ipdata;
+
+	// CDP info, per bssid
+	string cdp_dev_id, cdp_port_id;
+
+	// DHCP info, per bssid
+	string dhcp_host, dhcp_vendor;
+
+	// Per BSSID
+	uint64_t tx_datasize;
+	uint64_t rx_datasize;
+
+	string manuf;
+
+	int dirty;
+
+	// Did we see an eap exchange?  Did we capture an ID?
+	string eap_id;
+
+	dot11_client() {
+		type = dot11_network_none;
+		decrypted = 0;
+		last_sequence = 0;
+		tx_cryptset = 0L;
+		rx_cryptset = 0L;
+		lastssid = NULL;
+		lastssid_csum = 0;
+
+		tx_datasize = 0L;
+		rx_datasize = 0L;
+
+		first_time = last_time = 0;
+
+		dirty = 0;
+	}
+};
+
 
 // Dot11 AP / Network
 //
@@ -205,6 +267,18 @@ class dot11_client;
 // a client on the network.
 class dot11_device : public tracker_component {
 public:
+	~dot11_device() {
+		for (map<mac_addr, dot11_client *>::iterator c = client_map.begin();
+			 c != client_map.end(); ++c) {
+			delete c->second;
+		}
+
+		for (map<uint32_t, dot11_ssid *>::iterator s = ssid_map.begin();
+			 s != ssid_map.end(); ++s) {
+			delete s->second;
+		}
+	}
+
 	mac_addr mac;
 
 	// Set of types we've seen
@@ -294,70 +368,6 @@ public:
 
 		wps_m3_count = 0;
 		last_wps_m3 = 0;
-
-		dirty = 0;
-	}
-};
-
-// Per-BSSID client record, tracked by the AP tracked_device/dot11_device record
-class dot11_client : public tracker_component {
-public:
-	dot11_network_type type;
-
-	mac_addr mac;
-	mac_addr bssid;
-
-	time_t first_time;
-	time_t last_time;
-
-	int decrypted;
-
-	// Per BSSID
-	int last_sequence;
-
-	// Per BSSID
-	uint64_t tx_cryptset;
-	uint64_t rx_cryptset;
-
-	// Last SSID we saw a probe resp for on this bssid
-	dot11_ssid *lastssid;
-
-	string lastssid_str;
-	uint32_t lastssid_csum;
-
-	// Per BSSID
-	kis_ip_data guess_ipdata;
-
-	// CDP info, per bssid
-	string cdp_dev_id, cdp_port_id;
-
-	// DHCP info, per bssid
-	string dhcp_host, dhcp_vendor;
-
-	// Per BSSID
-	uint64_t tx_datasize;
-	uint64_t rx_datasize;
-
-	string manuf;
-
-	int dirty;
-
-	// Did we see an eap exchange?  Did we capture an ID?
-	string eap_id;
-
-	dot11_client() {
-		type = dot11_network_none;
-		decrypted = 0;
-		last_sequence = 0;
-		tx_cryptset = 0L;
-		rx_cryptset = 0L;
-		lastssid = NULL;
-		lastssid_csum = 0;
-
-		tx_datasize = 0L;
-		rx_datasize = 0L;
-
-		first_time = last_time = 0;
 
 		dirty = 0;
 	}

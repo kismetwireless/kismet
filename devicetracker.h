@@ -339,6 +339,13 @@ class kis_tracked_device;
 // Common values across all PHY types, as the PHY is capable of filling them in
 class kis_device_common : public tracker_component {
 public:
+	~kis_device_common() {
+		for (map<uuid, kis_seenby_data *>::iterator s = seenby_map.begin();
+			 s != seenby_map.end(); ++s) {
+			delete s->second;
+		}
+	}
+
 	kis_tracked_device *device;
 
 	// Printable name for the UI summary, etc.  For APs could be the latest SSID,

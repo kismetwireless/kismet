@@ -669,6 +669,17 @@ Devicetracker::~Devicetracker() {
 	globalreg->packetchain->RemoveHandler(&Devicetracker_packethook_commontracker,
 										  CHAINPOS_TRACKER);
 
+	if (track_filter != NULL)
+		delete track_filter;
+
+	for (map<int, Kis_Phy_Handler *>::iterator p = phy_handler_map.begin();
+		 p != phy_handler_map.end(); ++p) {
+		delete p->second;
+	}
+
+	for (unsigned int d = 0; d < tracked_vec.size(); d++) {
+		delete tracked_vec[d];
+	}
 }
 
 void Devicetracker::SaveTags() {

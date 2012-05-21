@@ -1524,6 +1524,7 @@ int kis_80211_datatracker_hook(CHAINCALL_PARMS) {
 
 int NetrackerUpdateTimer(TIMEEVENT_PARMS) {
 	((Netracker *) auxptr)->TimerKick();
+	return 1;
 }
 
 Netracker::Netracker() {
@@ -1870,6 +1871,38 @@ Netracker::~Netracker() {
 	if (netcli_filter != NULL)
 		delete netcli_filter;
 
+	for (map<mac_addr, Netracker::tracked_network *>::iterator n = tracked_map.begin();
+		 n != tracked_map.end(); ++n) {
+		for (map<uint32_t, Netracker::adv_ssid_data *>::iterator s =
+			 n->second->ssid_map.begin(); s != n->second->ssid_map.end(); ++s) {
+			delete s->second;
+		}
+
+		for (map<uuid, source_data *>::iterator sd = 
+			 n->second->source_map.begin(); sd != n->second->source_map.end();
+			 ++sd) {
+			delete sd->second;
+		}
+
+		for (map<mac_addr, Netracker::tracked_client *>::iterator c = 
+			 n->second->client_map.begin(); c != n->second->client_map.end(); ++c) {
+
+			for (map<uint32_t, Netracker::adv_ssid_data *>::iterator s =
+				 c->second->ssid_map.begin(); s != c->second->ssid_map.end(); ++s) {
+				delete s->second;
+			}
+
+			for (map<uuid, source_data *>::iterator sd = 
+				 c->second->source_map.begin(); sd != c->second->source_map.end();
+				 ++sd) {
+				delete sd->second;
+			}
+
+			delete c->second;
+		}
+
+		delete n->second;
+	}
 }
 
 void Netracker::SaveSSID() {
@@ -2559,6 +2592,10 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 		}
 	}
 
+	if (sc != NULL) {
+		delete sc;
+		sc = NULL;
+	}
 
 	// Add to the LLC count
 	if (packinfo->type == packet_management) {

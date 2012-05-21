@@ -1666,14 +1666,44 @@ void Kis_DevDetails_Panel::DrawPanel() {
 		td.push_back(AlignString("Name: ", ' ', 2, 16) + displaycommon->name);
 		td.push_back("");
 		td.push_back(AlignString("First time: ", ' ', 2, 16) + 
-					 string(ctime((const time_t *) &(displaycommon->first_time)) + 4).substr(0, 15));
+					 string(ctime((const time_t *) 
+								  &(displaycommon->first_time)) + 4).substr(0, 15));
 		td.push_back(AlignString("Last time: ", ' ', 2, 16) + 
-					 string(ctime((const time_t *) &(displaycommon->last_time)) + 4).substr(0, 15));
+					 string(ctime((const time_t *) 
+								  &(displaycommon->last_time)) + 4).substr(0, 15));
 		td.push_back("");
 		td.push_back(AlignString("MAC: ", ' ', 2, 16) + 
 					 displaycommon->device->key.Mac2String());
 		td.push_back(AlignString("Phy: ", ' ', 2, 16) +
 					 devicetracker->FetchPhyName(displaycommon->device->phy_type));
+
+		td.push_back("");
+		if (displaycommon->snrdata.last_signal_dbm == KIS_SIGNAL_DBM_BOGUS_MIN &&
+			displaycommon->snrdata.last_signal_rssi == KIS_SIGNAL_RSSI_BOGUS_MIN) {
+			td.push_back(AlignString("Signal: ", ' ', 2, 16) +
+						 "No signal data reported");
+		} 
+
+		if (displaycommon->snrdata.last_signal_dbm != KIS_SIGNAL_DBM_BOGUS_MIN) 
+			td.push_back(AlignString("Signal: ", ' ', 2, 16) +
+						 IntToString(displaycommon->snrdata.last_signal_dbm) + "dBm");
+		
+		if (displaycommon->snrdata.last_signal_rssi != KIS_SIGNAL_RSSI_BOGUS_MIN) 
+			td.push_back(AlignString("Signal: ", ' ', 2, 16) +
+						 IntToString(displaycommon->snrdata.last_signal_dbm) + "RSSI");
+
+		if (displaycommon->snrdata.last_noise_dbm == KIS_SIGNAL_DBM_BOGUS_MIN &&
+			displaycommon->snrdata.last_noise_rssi == KIS_SIGNAL_RSSI_BOGUS_MIN)
+			td.push_back(AlignString("Noise: ", ' ', 2, 16) +
+						 "No noise data reported");
+
+		if (displaycommon->snrdata.last_noise_dbm != KIS_SIGNAL_DBM_BOGUS_MIN)
+			td.push_back(AlignString("Noise: ", ' ', 2, 16) + 
+						 IntToString(displaycommon->snrdata.last_noise_dbm) + "dBm");
+
+		if (displaycommon->snrdata.last_noise_rssi != KIS_SIGNAL_RSSI_BOGUS_MIN)
+			td.push_back(AlignString("Noise: ", ' ', 2, 16) +
+						 IntToString(displaycommon->snrdata.last_noise_rssi) + "RSSI");
 
 		td.push_back("");
 		if (displaycommon->type_string != "")
