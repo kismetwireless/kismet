@@ -484,7 +484,11 @@ int main(int argc, char *argv[], char *envp[]) {
 	}
  
 	if (conf->FetchOpt("servername") == "") {
-		globalregistry->servername = "Unnamed Drone";
+		char hostname[64];
+		if (gethostname(hostname, 64) < 0)
+			globalregistry->servername = "Kismet Drone";
+		else
+			globalregistry->servername = string(hostname);
 	} else {
 		globalregistry->servername = MungeToPrintable(conf->FetchOpt("servername"));
 	}
