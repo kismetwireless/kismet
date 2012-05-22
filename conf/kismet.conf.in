@@ -7,7 +7,8 @@
 version=2009-newcore
 
 # Name of server (Purely for organizational purposes)
-servername=Kismet_2009
+# If commented out, defaults to host name of system
+# servername=Kismet Server
 
 # Prefix of where we log (as used in the logtemplate later)
 # logprefix=/some/path/to/logs
