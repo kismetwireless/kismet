@@ -544,11 +544,194 @@ string Client_Phy80211::Dot11Column(kdl_display_device *in_dev, int columnid,
 
 void Client_Phy80211::PanelDetails(Kis_DevDetails_Panel *in_panel, 
 								   kis_tracked_device *in_dev) {
+	// Nothing special to set up for dot11 networks in the panel
+}
 
+string Dot11CryptToString(uint64_t cryptset) {
+	string ret;
+
+	if (cryptset == crypt_none)
+		return "none";
+
+	if (cryptset == crypt_unknown)
+		return "unknown";
+
+	if (cryptset & crypt_wps)
+		ret = "WPS";
+
+	if ((cryptset & crypt_protectmask) == crypt_wep)
+		return StringAppend(ret, "WEP");
+
+	if (cryptset & crypt_wpa)
+		ret = StringAppend(ret, "WPA");
+
+	if (cryptset & crypt_psk)
+		ret = StringAppend(ret, "WPA-PSK");
+
+	if (cryptset & crypt_eap)
+		ret = StringAppend(ret, "EAP");
+
+	if (cryptset & crypt_peap)
+		ret = StringAppend(ret, "WPA-PEAP");
+	if (cryptset & crypt_leap)
+		ret = StringAppend(ret, "WPA-LEAP");
+	if (cryptset & crypt_ttls)
+		ret = StringAppend(ret, "WPA-TTLS");
+	if (cryptset & crypt_tls)
+		ret = StringAppend(ret, "WPA-TLS");
+
+	if (cryptset & crypt_wpa_migmode)
+		ret = StringAppend(ret, "WPA-MIGRATION");
+
+	if (cryptset & crypt_wep40)
+		ret = StringAppend(ret, "WEP40");
+	if (cryptset & crypt_wep104)
+		ret = StringAppend(ret, "WEP104");
+	if (cryptset & crypt_tkip)
+		ret = StringAppend(ret, "TKIP");
+	if (cryptset & crypt_aes_ocb)
+		ret = StringAppend(ret, "AES-OCB");
+	if (cryptset & crypt_aes_ccm)
+		ret = StringAppend(ret, "AES-CCMP");
+
+	if (cryptset & crypt_layer3)
+		ret = StringAppend(ret, "Layer 3");
+
+	if (cryptset & crypt_isakmp)
+		ret = StringAppend(ret, "ISA KMP");
+
+	if (cryptset & crypt_pptp)
+		ret = StringAppend(ret, "PPTP");
+
+	if (cryptset & crypt_fortress)
+		ret = StringAppend(ret, "Fortress");
+
+	if (cryptset & crypt_keyguard)
+		ret = StringAppend(ret, "Keyguard");
+
+	if (cryptset & crypt_unknown_protected)
+		ret = StringAppend(ret, "L3/Unknown");
+
+	if (cryptset & crypt_unknown_nonwep)
+		ret = StringAppend(ret, "Non-WEP/Unknown");
+
+	return ret;
 }
 
 void Client_Phy80211::PanelDetailsText(Kis_Free_Text *in_textbox, 
 									   kis_tracked_device *in_dev) {
+	dot11_device *dot11device = 
+		(dot11_device *) in_dev->fetch(devcomp_ref_dot11);
 
+	if (dot11device == NULL)
+		return;
+
+	vector<string> td;
+
+	td.push_back("");
+
+	string typehdr = "802.11 Type: ";
+	if (dot11device->type_set & dot11_network_ap) {
+		td.push_back(AlignString(typehdr, ' ', 2, 16) + "Access Point");
+		typehdr = "";
+	}
+	if (dot11device->type_set & dot11_network_adhoc) {
+		td.push_back(AlignString(typehdr, ' ', 2, 16) + "Ad-Hoc");
+		typehdr = "";
+	}
+	if (dot11device->type_set & dot11_network_client) {
+		td.push_back(AlignString(typehdr, ' ', 2, 16) + "Client");
+		typehdr = "";
+	}
+	if (dot11device->type_set & dot11_network_wired) {
+		td.push_back(AlignString(typehdr, ' ', 2, 16) + "Wired");
+		typehdr = "";
+	}
+	if (dot11device->type_set & dot11_network_wds) {
+		td.push_back(AlignString(typehdr, ' ', 2, 16) + "WDS");
+		typehdr = "";
+	}
+	if (dot11device->type_set & dot11_network_turbocell) {
+		td.push_back(AlignString(typehdr, ' ', 2, 16) + "Turbocell");
+		typehdr = "";
+	}
+	if (dot11device->type_set & dot11_network_inferred) {
+		td.push_back(AlignString(typehdr, ' ', 2, 16) + "Inferred");
+		typehdr = "";
+	}
+
+	if (dot11device->ssid_map.size() > 0) {
+		td.push_back("");
+		td.push_back(AlignString("", ' ', 2, 16) + 
+					 IntToString(dot11device->ssid_map.size()) + 
+					 " advertised SSIDs");
+		td.push_back("");
+
+		for (map<uint32_t, dot11_ssid *>::iterator s = dot11device->ssid_map.begin();
+			 s != dot11device->ssid_map.end(); ++s) {
+			if (s->second->ssid == "") {
+				if (s->second->type == dot11_ssid_probereq) 
+					td.push_back(AlignString("SSID: ", ' ', 2, 16) +
+								 "Broadcast/Any");
+				else
+					td.push_back(AlignString("SSID: ", ' ', 2, 16) +
+								 "Cloaked/Hidden");
+			} else {
+				td.push_back(AlignString("SSID: ", ' ', 2, 16) + 
+							 s->second->ssid);
+			}
+
+			if (s->second->ssid_cloaked) {
+				td.push_back(AlignString("", ' ', 2, 16) + "[SSID is cloaked]");
+			}
+
+			td.push_back(AlignString("First time: ", ' ', 2, 16) + 
+						 string(ctime((const time_t *) 
+									  &(s->second->first_time)) + 4).substr(0, 15));
+			td.push_back(AlignString("Last time: ", ' ', 2, 16) + 
+						 string(ctime((const time_t *) 
+									  &(s->second->last_time)) + 4).substr(0, 15));
+
+			if (s->second->type == dot11_ssid_beacon) {
+				td.push_back(AlignString("SSID type: ", ' ', 2, 16) + 
+							 "Beaconing/Advertised");
+			} else if (s->second->type == dot11_ssid_proberesp) {
+				td.push_back(AlignString("SSID type: ", ' ', 2, 16) +
+							 "Response");
+			} else if (s->second->type == dot11_ssid_probereq) {
+				td.push_back(AlignString("SSID type: ", ' ', 2, 16) + 
+							 "Probe/Query");
+			}
+
+			if (s->second->beacon_info != "") {
+				td.push_back(AlignString("Extended info: ", ' ', 2, 16) +
+							 s->second->beacon_info);
+			}
+
+			td.push_back(AlignString("Encryption: ", ' ', 2, 16) +
+						 Dot11CryptToString(s->second->cryptset));
+
+			if (s->second->beaconrate) {
+				td.push_back(AlignString("Beacon rate: ", ' ', 2, 16) +
+							 IntToString(s->second->beaconrate));
+			}
+
+			if (s->second->channel) {
+				td.push_back(AlignString("Channel: ", ' ', 2, 16) +
+							 IntToString(s->second->channel));
+			}
+
+			if (s->second->dot11d_country != "") {
+				td.push_back(AlignString("Country: ", ' ', 2, 16) +
+							 s->second->dot11d_country);
+			}
+
+			td.push_back("");
+		}
+
+	}
+
+
+	in_textbox->AppendText(td);
 }
 

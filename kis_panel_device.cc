@@ -1771,9 +1771,6 @@ void Kis_DevDetails_Panel::DrawPanel() {
 			td.push_back(AlignString("Data: ", ' ', 2, 16) +
 						 LongIntToString(displaycommon->datasize / 1024 / 1024) + "MB");
 		
-
-		td.push_back("");
-		td.push_back("more to come");
 	}
 
 	netdetailt->SetText(td);
