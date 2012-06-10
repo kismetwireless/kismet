@@ -728,9 +728,54 @@ void Client_Phy80211::PanelDetailsText(Kis_Free_Text *in_textbox,
 
 			td.push_back("");
 		}
-
 	}
 
+	td.push_back("");
+
+	bool cdp = false;
+	if (dot11device->cdp_dev_id != "") {
+		td.push_back(AlignString("CDP device: ", ' ', 2, 16) +
+					 dot11device->cdp_dev_id);
+		cdp = true;
+	}
+
+	if (dot11device->cdp_port_id != "") {
+		td.push_back(AlignString("CDP port: ", ' ', 2, 16) +
+					 dot11device->cdp_port_id);
+		cdp = true;
+	}
+
+	if (cdp)
+		td.push_back("");
+
+	td.push_back(AlignString("Fragments: ", ' ', 2, 16) +
+				 UIntToString(dot11device->fragments));
+	td.push_back(AlignString("Retries: ", ' ', 2, 16) + 
+				 UIntToString(dot11device->retries));
+
+	td.push_back("");
+
+	bool dhcp = false;
+	if (dot11device->dhcp_host != "") {
+		td.push_back(AlignString("DHCP host: ", ' ', 2, 16) +
+					 dot11device->dhcp_host);
+		dhcp = true;
+	} 
+
+	if (dot11device->dhcp_vendor != "") {
+		td.push_back(AlignString("DHCP vendor: ", ' ' , 2, 16) +
+					 dot11device->dhcp_vendor);
+		dhcp = true;
+	}
+
+	if (dhcp) 
+		td.push_back("");
+
+	if (dot11device->eap_id != "") {
+		td.push_back(AlignString("EAP ID: ", ' ', 2, 16) +
+					 dot11device->eap_id);
+		td.push_back("");
+	}
 
 	in_textbox->AppendText(td);
 }
