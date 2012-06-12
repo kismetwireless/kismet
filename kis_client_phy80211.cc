@@ -630,7 +630,7 @@ void Client_Phy80211::PanelDetailsText(Kis_Free_Text *in_textbox,
 
 	td.push_back("");
 
-	string typehdr = "802.11 Type: ";
+	string typehdr = "802.11 type: ";
 	if (dot11device->type_set & dot11_network_ap) {
 		td.push_back(AlignString(typehdr, ' ', 2, 16) + "Access Point");
 		typehdr = "";
@@ -775,6 +775,71 @@ void Client_Phy80211::PanelDetailsText(Kis_Free_Text *in_textbox,
 		td.push_back(AlignString("EAP ID: ", ' ', 2, 16) +
 					 dot11device->eap_id);
 		td.push_back("");
+	}
+
+	for (map<mac_addr, dot11_client *>::iterator c = dot11device->client_map.begin();
+		 c != dot11device->client_map.end(); ++c) {
+		td.push_back("");
+
+		typehdr = "Client type: ";
+		if (c->second->type & dot11_network_ap) {
+			td.push_back(AlignString(typehdr, ' ', 2, 16) + "Access Point");
+			typehdr = "";
+		}
+		if (c->second->type & dot11_network_adhoc) {
+			td.push_back(AlignString(typehdr, ' ', 2, 16) + "Ad-Hoc");
+			typehdr = "";
+		}
+		if (c->second->type & dot11_network_client) {
+			td.push_back(AlignString(typehdr, ' ', 2, 16) + "Client");
+			typehdr = "";
+		}
+		if (c->second->type & dot11_network_wired) {
+			td.push_back(AlignString(typehdr, ' ', 2, 16) + "Wired");
+			typehdr = "";
+		}
+		if (c->second->type & dot11_network_wds) {
+			td.push_back(AlignString(typehdr, ' ', 2, 16) + "WDS");
+			typehdr = "";
+		}
+		if (c->second->type & dot11_network_turbocell) {
+			td.push_back(AlignString(typehdr, ' ', 2, 16) + "Turbocell");
+			typehdr = "";
+		}
+		if (c->second->type & dot11_network_inferred) {
+			td.push_back(AlignString(typehdr, ' ', 2, 16) + "Inferred");
+			typehdr = "";
+		}
+
+		td.push_back(AlignString("Client MAC: ", ' ', 2, 16) + 
+					 c->second->mac.Mac2String());
+
+		td.push_back(AlignString("First time: ", ' ', 2, 16) + 
+					 string(ctime((const time_t *) 
+								  &(c->second->first_time)) + 4).substr(0, 15));
+		td.push_back(AlignString("Last time: ", ' ', 2, 16) + 
+					 string(ctime((const time_t *) 
+								  &(c->second->last_time)) + 4).substr(0, 15));
+
+		if (c->second->cdp_dev_id != "") 
+			td.push_back(AlignString("CDP device: ", ' ', 2, 16) +
+						 c->second->cdp_dev_id);
+
+		if (c->second->cdp_port_id != "")
+			td.push_back(AlignString("CDP port: ", ' ', 2, 16) +
+						 c->second->cdp_port_id);
+
+		if (c->second->dhcp_host != "")
+			td.push_back(AlignString("DHCP host: ", ' ', 2, 16) +
+						 c->second->dhcp_host);
+
+		if (c->second->dhcp_vendor != "")
+			td.push_back(AlignString("DHCP vendor: ", ' ', 2, 16) +
+						 c->second->dhcp_vendor);
+
+		td.push_back(AlignString("Manuf: ", ' ', 2, 16) +
+					 c->second->manuf);
+
 	}
 
 	in_textbox->AppendText(td);
