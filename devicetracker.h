@@ -302,6 +302,12 @@ public:
 	map<unsigned int, unsigned int> freq_mhz_map;
 };
 
+class kis_tag_data {
+public:
+	string value;
+	bool dirty;
+};
+
 // Fwd ktd
 class kis_tracked_device;
 
@@ -417,7 +423,7 @@ public:
 
 	// Arbitrary tags associated with this device
 	// Tags are case sensitive
-	map<string, string> arb_tag_map;
+	map<string, kis_tag_data *> arb_tag_map;
 
 	// Sources which have seen this device
 	map<uuid, kis_seenby_data *> seenby_map;
