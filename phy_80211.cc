@@ -2113,6 +2113,243 @@ void Kis_80211_Phy::ExportLogRecord(kis_tracked_device *in_device, string in_log
 			fprintf(in_logfile, "</clients>\n");
 		}
 
+	} else if (in_logtype == "text") {
+		string oft = string(in_lineindent, ' ');
+
+		string typestr;
+
+		fprintf(in_logfile, "%s802.11 type:\n", oft.c_str());
+
+		if (dot11dev->type_set == dot11_network_none)
+			fprintf(in_logfile, "%s Unknown\n", oft.c_str());
+		if (dot11dev->type_set & dot11_network_ap)
+			fprintf(in_logfile, "%s Access point\n", oft.c_str());
+		if (dot11dev->type_set & dot11_network_adhoc)
+			fprintf(in_logfile, "%s Ad-hoc peer\n", oft.c_str());
+		if (dot11dev->type_set & dot11_network_client)
+			fprintf(in_logfile, "%s Wireless client\n", oft.c_str());
+		if (dot11dev->type_set & dot11_network_wired)
+			fprintf(in_logfile, "%s Bridged wired client\n", oft.c_str());
+		if (dot11dev->type_set & dot11_network_wds)
+			fprintf(in_logfile, "%s WDS distribution peer\n", oft.c_str());
+		if (dot11dev->type_set & dot11_network_turbocell)
+			fprintf(in_logfile, "%s Turbocell\n", oft.c_str());
+		if (dot11dev->type_set & dot11_network_inferred)
+			fprintf(in_logfile, "%s Inferred (destination with no traffic)\n", 
+					oft.c_str());
+		fprintf(in_logfile, "\n");
+
+		if (dot11dev->ssid_map.size() > 0) {
+			fprintf(in_logfile, "%sSSIDs\n", oft.c_str());
+			for (map<uint32_t, dot11_ssid *>::iterator x = dot11dev->ssid_map.begin();
+				 x != dot11dev->ssid_map.end(); ++x) {
+
+				fprintf(in_logfile, "%s ESSID: %s\n", 
+						oft.c_str(),
+						x->second->ssid.c_str());
+
+				fprintf(in_logfile, "%s First seen: %.24s\n",
+						oft.c_str(),
+						ctime(&(x->second->first_time)));
+				fprintf(in_logfile, "%s %.24s\n",
+						oft.c_str(),
+						ctime(&(x->second->last_time)));
+
+				if (x->second->type == dot11_ssid_beacon)
+					fprintf(in_logfile, "%s SSID type: Access Point\n",
+							oft.c_str());
+				else if (x->second->type == dot11_ssid_proberesp)
+					fprintf(in_logfile, "%s SSID type: AP Probe Response\n",
+							oft.c_str());
+				else if (x->second->type == dot11_ssid_probereq)
+					fprintf(in_logfile, "%s SSID type: Client Probe Request\n",
+							oft.c_str());
+
+				if (x->second->ssid_cloaked)
+					fprintf(in_logfile, "%s SSID cloaked\n", oft.c_str());
+
+				if (x->second->type == dot11_ssid_beacon) {
+					fprintf(in_logfile, "%s Beacon rate: %u\n", 
+							oft.c_str(),
+							x->second->beaconrate);
+					fprintf(in_logfile, "%s Advertised channel: %u\n",
+							oft.c_str(),
+							x->second->channel);
+				}
+
+				fprintf(in_logfile, "%s Encryption: %s",
+						oft.c_str(),
+						CryptToString(x->second->cryptset).c_str());
+
+				if (x->second->dot11d_country != "") {
+					fprintf(in_logfile, "%s 802.11d ranges\n", oft.c_str());
+
+					if (x->second->dot11d_vec.size() > 0) {
+						for (unsigned int i = 0; 
+							 i < x->second->dot11d_vec.size(); i++) {
+
+							fprintf(in_logfile, "%s  Range: %u - %u\n",
+									oft.c_str(),
+									x->second->dot11d_vec[i].startchan,
+									x->second->dot11d_vec[i].startchan +
+									x->second->dot11d_vec[i].numchan - 1);
+
+							fprintf(in_logfile, "%s  Power limit: %d\n",
+									oft.c_str(),
+									x->second->dot11d_vec[i].txpower);
+
+							fprintf(in_logfile, "\n");
+						}
+					}
+
+					fprintf(in_logfile, "%s 802.11d country: %s\n", 
+							oft.c_str(),
+							x->second->dot11d_country.c_str());
+				}
+
+				fprintf(in_logfile, "\n");
+			}
+
+			fprintf(in_logfile, "\n");
+		}
+
+		fprintf(in_logfile, "%sObserved TX encryption: %s\n",
+				oft.c_str(),
+				CryptToString(dot11dev->tx_cryptset).c_str());
+		fprintf(in_logfile, "%sObserved RX encryption: %s\n",
+				oft.c_str(),
+				CryptToString(dot11dev->rx_cryptset).c_str());
+		fprintf(in_logfile, "\n");
+		
+		if (dot11dev->cdp_dev_id != "")
+			fprintf(in_logfile, "%sCDP device: %s\n", 
+					oft.c_str(),
+					dot11dev->cdp_dev_id.c_str());
+		if (dot11dev->cdp_port_id != "")
+			fprintf(in_logfile, "%sCDP port: %s\n", 
+					oft.c_str(),
+					dot11dev->cdp_port_id.c_str());
+
+		if (dot11dev->cdp_dev_id != "" || dot11dev->cdp_port_id != "")
+			fprintf(in_logfile, "\n");
+
+		if (dot11dev->eap_id != "")
+			fprintf(in_logfile, "%sEAP identity: %s\n\n",
+					oft.c_str(),
+					dot11dev->eap_id.c_str());
+
+		if (dot11dev->dhcp_host != "")
+			fprintf(in_logfile, "%sDHCP host: %s\n",
+					oft.c_str(),
+					dot11dev->dhcp_host.c_str());
+		if (dot11dev->dhcp_vendor != "")
+			fprintf(in_logfile, "%sDHCP vendor: %s\n",
+					oft.c_str(),
+					dot11dev->dhcp_vendor.c_str());
+		if (dot11dev->dhcp_host != "" || dot11dev->dhcp_vendor != "")
+			fprintf(in_logfile, "\n");
+
+		fprintf(in_logfile, "%sPacket fragments: %u\n",
+				oft.c_str(),
+				dot11dev->fragments);
+		fprintf(in_logfile, "%sPacket retries: %u\n",
+				oft.c_str(),
+				dot11dev->retries);
+		fprintf(in_logfile, "\n");
+
+		if (dot11dev->last_bssid != mac_addr(0))
+			fprintf(in_logfile, "%sLast BSSID: %s\n\n",
+					oft.c_str(),
+					dot11dev->last_bssid.Mac2String().c_str());
+
+		if (dot11dev->client_map.size() > 0) {
+			fprintf(in_logfile, "%sClients: \n", oft.c_str());
+
+			for (map<mac_addr, dot11_client *>::iterator x = 
+				 dot11dev->client_map.begin();
+				 x != dot11dev->client_map.end(); ++x) {
+				fprintf(in_logfile, "%s Client MAC: %s\n", 
+						oft.c_str(), x->second->mac.Mac2String().c_str());
+				fprintf(in_logfile, "%s First seen: %.24s\n",
+						oft.c_str(),
+						ctime(&(x->second->first_time)));
+				fprintf(in_logfile, "%s Last seen: %.24s\n",
+						oft.c_str(),
+						ctime(&(x->second->last_time)));
+
+				fprintf(in_logfile, "%s Client type: ",
+						oft.c_str());
+
+				if (x->second->type == dot11_network_wired) 
+					fprintf(in_logfile, "Wired (Bridged device)\n");
+				else if (x->second->type == dot11_network_client)
+					fprintf(in_logfile, "Wireless\n");
+				else if (x->second->type == dot11_network_wds)
+					fprintf(in_logfile, "WDS peer\n");
+				else if (x->second->type == dot11_network_adhoc)
+					fprintf(in_logfile, "Ad-Hoc peer\n");
+				else
+					fprintf(in_logfile, "Unknown\n");
+
+				if (x->second->decrypted)
+					fprintf(in_logfile, "%s Traffic decrypted: True\n",
+							oft.c_str());
+
+				fprintf(in_logfile, "%s Observed TX encryption: %s\n",
+						oft.c_str(),
+						CryptToString(x->second->tx_cryptset).c_str());
+				fprintf(in_logfile, "%s Observed RX encryption: %s\n",
+						oft.c_str(),
+						CryptToString(x->second->rx_cryptset).c_str());
+				fprintf(in_logfile, "\n");
+
+				if (x->second->manuf != "")
+					fprintf(in_logfile, "%s Manufacturer: %s\n\n",
+							oft.c_str(),
+							x->second->manuf.c_str());
+
+				if (x->second->cdp_dev_id != "")
+					fprintf(in_logfile, "%s CDP device: %s>\n", 
+							oft.c_str(),
+							x->second->cdp_dev_id.c_str());
+				if (x->second->cdp_port_id != "")
+					fprintf(in_logfile, "%s CDP port: %s\n", 
+							oft.c_str(),
+							x->second->cdp_port_id.c_str());
+
+				if (x->second->cdp_dev_id != "" ||
+					x->second->cdp_port_id != "")
+					fprintf(in_logfile, "\n");
+
+				if (x->second->eap_id != "")
+					fprintf(in_logfile, "%s EAP identity: %s\n\n",
+							oft.c_str(),
+							x->second->eap_id.c_str());
+
+				if (x->second->dhcp_host != "")
+					fprintf(in_logfile, "%s DHCP host: %s\n",
+							oft.c_str(),
+							x->second->dhcp_host.c_str());
+				if (x->second->dhcp_vendor != "")
+					fprintf(in_logfile, "%s DHCP vendor: %s\n",
+							oft.c_str(),
+							x->second->dhcp_vendor.c_str());
+				if (x->second->dhcp_host != "" ||
+					x->second->dhcp_vendor != "")
+					fprintf(in_logfile, "\n");
+
+				fprintf(in_logfile, "%s TX data (in bytes): %lu\n",
+						oft.c_str(),
+						x->second->tx_datasize);
+				fprintf(in_logfile, "%s TX data (in bytes): %lu\n",
+						oft.c_str(),
+						x->second->rx_datasize);
+				fprintf(in_logfile, "\n");
+
+			}
+			fprintf(in_logfile, "\n");
+		}
+
 	} 
 
 	return;

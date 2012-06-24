@@ -369,6 +369,8 @@ public:
 		wps_m3_count = 0;
 		last_wps_m3 = 0;
 
+		fragments = retries = 0;
+
 		dirty = 0;
 	}
 };
