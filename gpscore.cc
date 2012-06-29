@@ -272,8 +272,8 @@ int GPSCore::Timer() {
 	// Always send info
 	GPS_data gdata;
 
-	gdata.lat = NtoString<double>(lat).Str();
-	gdata.lon = NtoString<double>(lon).Str();
+	gdata.lat = NtoString<double>(lat, 6).Str();
+	gdata.lon = NtoString<double>(lon, 6).Str();
 	gdata.alt = NtoString<double>(alt).Str();
 	gdata.spd = NtoString<double>(spd).Str();
 	gdata.heading = NtoString<double>(hed).Str();
