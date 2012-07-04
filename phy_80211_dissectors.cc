@@ -692,25 +692,30 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
 
 				tag_offset++;
 
-				if (taglen < 6 || tag_offset + taglen > chunk->length) {
+				if (tag_offset + taglen > chunk->length) {
 					packinfo->corrupt = 1;
 					in_pack->insert(pack_comp_80211, packinfo);
 					return 0;
 				}
-				
-				packinfo->dot11d_country =
-					MungeToPrintable(string((const char *) &(chunk->data[tag_offset]), 
-											0, 3));
+			
+				// country tags only valid if 6 bytes or more, ubnt throws
+				// broken ones on some APs
+				if (taglen > 6) {
+					packinfo->dot11d_country =
+						MungeToPrintable(string((const char *) 
+												&(chunk->data[tag_offset]), 
+												0, 3));
 
-				// We don't have to check taglen since we check that above
-				for (unsigned int p = 3; p + 3 <= taglen; p += 3) {
-					dot11_11d_range_info ri;
+					// We don't have to check taglen since we check that above
+					for (unsigned int p = 3; p + 3 <= taglen; p += 3) {
+						dot11_11d_range_info ri;
 
-					ri.startchan = chunk->data[tag_offset + p];
-					ri.numchan = chunk->data[tag_offset + p + 1];
-					ri.txpower = chunk->data[tag_offset + p + 2];
+						ri.startchan = chunk->data[tag_offset + p];
+						ri.numchan = chunk->data[tag_offset + p + 1];
+						ri.txpower = chunk->data[tag_offset + p + 2];
 
-					packinfo->dot11d_vec.push_back(ri);
+						packinfo->dot11d_vec.push_back(ri);
+					}
 				}
 			}
 
