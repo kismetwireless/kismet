@@ -150,12 +150,13 @@ int Devicetracker::LogDevices(string in_logclass,
 	return 0;
 }
 
-void Devicetracker::SetDeviceTag(mac_addr in_device, string in_tag, string in_data,
+int Devicetracker::SetDeviceTag(mac_addr in_device, string in_tag, string in_data,
 								 int in_persistent) {
+	return -1;
 }
 
-void Devicetracker::ClearDeviceTag(mac_addr in_device, string in_tag) {
-
+int Devicetracker::ClearDeviceTag(mac_addr in_device, string in_tag) {
+	return -1;
 }
 
 string Devicetracker::FetchDeviceTag(mac_addr in_device, string in_tag) {

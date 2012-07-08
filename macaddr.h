@@ -185,6 +185,7 @@ struct mac_addr {
 	}
 
 	inline void SetPhy(uint8_t in_phy) {
+		longmac &= ~((uint64_t) ((0xFF & 0x1F) << 3) << (MAC_PHY_POS * 8));
 		longmac |= (uint64_t) ((in_phy & 0x1F) << 3) << (MAC_PHY_POS * 8);
 	}
 

@@ -594,9 +594,9 @@ public:
 	int AddFilter(string in_filter);
 	int AddNetCliFilter(string in_filter);
 
-	void SetDeviceTag(mac_addr in_device, string in_tag, string in_data,
-					  int in_persistent);
-	void ClearDeviceTag(mac_addr in_device, string in_tag);
+	int SetDeviceTag(mac_addr in_device, string in_tag, string in_data,
+					 int in_persistent);
+	int ClearDeviceTag(mac_addr in_device, string in_tag);
 	string FetchDeviceTag(mac_addr in_device, string in_tag);
 
 	// Look for an existing device record
@@ -670,6 +670,8 @@ protected:
 
 	int pack_comp_device, pack_comp_common, pack_comp_string, pack_comp_basicdata,
 		pack_comp_radiodata, pack_comp_gps, pack_comp_capsrc;
+
+	int cmd_adddevtag, cmd_deldevtag;
 
 	// Tracked devices
 	map<mac_addr, kis_tracked_device *> tracked_map;

@@ -338,7 +338,7 @@ public:
 	int phyid;
 };
 
-int Protocol_DEVTAG(PROTO_PARMS) {
+int Protocol_KISDEV_DEVTAG(PROTO_PARMS) {
 	devtag_tx *s = (devtag_tx *) data;
 	string scratch;
 
@@ -611,32 +611,47 @@ int Devicetracker_packethook_commontracker(CHAINCALL_PARMS) {
 
 int Devicetracker_CMD_ADDDEVTAG(CLIENT_PARMS) {
 	int persist = 0;
+	int pos = 0;
 
-	if (parsedcmdline->size() < 4) {
-		snprintf(errstr, 1024, "Illegal ADDDEVTAG request, expected DEVMAC "
+	if (parsedcmdline->size() < 5) {
+		snprintf(errstr, 1024, "Illegal ADDDEVTAG request, expected DEVMAC PHYID "
 				 "PERSIST TAG VALUE");
 		return -1;
 	}
 
-	mac_addr dev = mac_addr((*parsedcmdline)[0].word.c_str());
+	mac_addr dev = mac_addr((*parsedcmdline)[pos++].word.c_str());
 
 	if (dev.error) {
 		snprintf(errstr, 1024, "Illegal device in ADDDEVTAG");
 		return -1;
 	}
 
-	if ((*parsedcmdline)[1].word != "0")
+	int phyid;
+	if (sscanf((*parsedcmdline)[pos++].word.c_str(), "%d", &phyid) != 1) {
+		snprintf(errstr, 1024, "Illegal phy id");
+		return -1;
+	}
+
+	dev.SetPhy(phyid);
+
+	if ((*parsedcmdline)[pos++].word != "0")
 		persist = 1;
 
+	string tag = (*parsedcmdline)[pos++].word;
+
 	string content;
-	for (unsigned int x = 3; x < parsedcmdline->size(); x++) {
+	for (unsigned int x = pos; x < parsedcmdline->size(); x++) {
 		content += (*parsedcmdline)[x].word;
 		if (x < parsedcmdline->size() - 1)
 			content += " ";
 	}
 
-	((Devicetracker *) auxptr)->SetDeviceTag(dev, (*parsedcmdline)[2].word,
-											 content, persist);
+	int r = ((Devicetracker *) auxptr)->SetDeviceTag(dev, tag, content, persist);
+
+	if (r < 0) {
+		snprintf(errstr, 1024, "Failed to set tag");
+		return -1;
+	}
 
 	return 1;
 }
@@ -712,6 +727,18 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) {
 												  &Protocol_KISDEV_TRACKINFO,
 												  NULL,
 												  this);
+
+	proto_ref_devtag =
+		globalreg->kisnetserver->RegisterProtocol("DEVTAG", 0, 1,
+												  DEVTAG_fields_text,
+												  &Protocol_KISDEV_DEVTAG,
+												  NULL,
+												  this);
+
+	cmd_adddevtag =
+		globalreg->kisnetserver->RegisterClientCommand("ADDDEVTAG", 
+													   &Devicetracker_CMD_ADDDEVTAG,
+													   this);
 
 	// Common tracker, very early in the tracker chain
 	globalreg->packetchain->RegisterHandler(&Devicetracker_packethook_commontracker,
@@ -964,6 +991,7 @@ void Devicetracker::BlitDevices(int in_fd) {
 
 				for (ti = common->arb_tag_map.begin(); 
 					 ti != common->arb_tag_map.end(); ++ti) {
+
 					if (ti->second == NULL)
 						continue;
 
@@ -973,8 +1001,7 @@ void Devicetracker::BlitDevices(int in_fd) {
 					dtx.macaddr = common->device->key;
 					dtx.phyid = common->device->phy_type;
 
-					globalreg->kisnetserver->SendToAll(proto_ref_devtag, 
-													   (void *) &dtx);
+					globalreg->kisnetserver->SendToAll(proto_ref_devtag, (void *) &dtx);
 				}
 
 				globalreg->kisnetserver->SendToAll(proto_ref_devicedone, 
@@ -2302,20 +2329,23 @@ int Devicetracker::LogDevices(string in_logclass,
 	return 0;
 }
 
-void Devicetracker::SetDeviceTag(mac_addr in_device, string in_tag, string in_data,
-								 int in_persistent) {
+int Devicetracker::SetDeviceTag(mac_addr in_device, string in_tag, string in_data,
+								int in_persistent) {
 	kis_tracked_device *dev = FetchDevice(in_device);
 	kis_device_common *com = NULL;
 	Kis_Phy_Handler *handler = FetchPhyHandler(in_device.GetPhy());
 
-	if (handler == NULL)
-		return;
+	if (handler == NULL) {
+		return -1;
+	}
 
-	if (dev == NULL)
-		return;
+	if (dev == NULL) {
+		return -1;
+	}
 
-	if ((com = (kis_device_common *) dev->fetch(devcomp_ref_common)) == NULL)
-		return;
+	if ((com = (kis_device_common *) dev->fetch(devcomp_ref_common)) == NULL) {
+		return -1;
+	}
 
 	kis_tag_data *d = new kis_tag_data;;
 	d->dirty = true;
@@ -2355,27 +2385,32 @@ void Devicetracker::SetDeviceTag(mac_addr in_device, string in_tag, string in_da
 			tfl.push_back("\001" + in_tag + "\001,\001" + in_data + "\001");
 
 		tag_conf->SetOptVec(tag, tfl, globalreg->timestamp.tv_sec);
+
+		tag_conf->SaveConfig(tag_conf->ExpandLogPath(globalreg->kismet_config->FetchOpt("configdir") + "/" + "tag.conf", "", "", 0, 1).c_str());
+
 	}
 
 	if (dev->dirty == 0) {
 		dev->dirty = 1;
 		dirty_device_vec.push_back(dev);
 	}
+
+	return 0;
 }
 
-void Devicetracker::ClearDeviceTag(mac_addr in_device, string in_tag) {
+int Devicetracker::ClearDeviceTag(mac_addr in_device, string in_tag) {
 	kis_tracked_device *dev = FetchDevice(in_device);
 	kis_device_common *com = NULL;
 	Kis_Phy_Handler *handler = FetchPhyHandler(in_device.GetPhy());
 
 	if (handler == NULL)
-		return;
+		return -1;
 
 	if (dev == NULL)
-		return;
+		return -1;
 
 	if ((com = (kis_device_common *) dev->fetch(devcomp_ref_common)) == NULL)
-		return;
+		return -1;
 
 	map<string, kis_tag_data *>::iterator si;
 
@@ -2407,6 +2442,8 @@ void Devicetracker::ClearDeviceTag(mac_addr in_device, string in_tag) {
 			}
 		}
 	}
+
+	return 0;
 }
 
 string Devicetracker::FetchDeviceTag(mac_addr in_device, string in_tag) {
