@@ -1150,7 +1150,7 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 
 		dot11dev->type_set |= dot11_network_adhoc;
 
-		printf("debug - setting type peer on network because we saw an explicit adhoc packet\n");
+		// printf("debug - setting type peer on network because we saw an explicit adhoc packet\n");
 		commondev->basic_type_set |= KIS_DEVICE_BASICTYPE_PEER |
 			KIS_DEVICE_BASICTYPE_CLIENT;
 
@@ -1215,7 +1215,7 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 			apcommon->basic_type_set |= KIS_DEVICE_BASICTYPE_AP;
 
 			if (dot11info->distrib == distrib_adhoc) {
-				printf("debug - apdev null, distrib is distrib adhoc\n");
+				// printf("debug - apdev null, distrib is distrib adhoc\n");
 				apcommon->basic_type_set |= KIS_DEVICE_BASICTYPE_PEER;
 				apcommon->type_string = "Ad-Hoc";
 			}

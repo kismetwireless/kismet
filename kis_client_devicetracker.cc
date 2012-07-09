@@ -45,6 +45,12 @@ void CDT_DEVICE(CLIPROTO_CB_PARMS) {
 													auxptr);
 }
 
+void CDT_DEVTAG(CLIPROTO_CB_PARMS) {
+	((Client_Devicetracker *) auxptr)->Proto_DEVTAG(globalreg, proto_string,
+													proto_parsed, srccli,
+													auxptr);
+}
+
 void CDT_DEVICEDONE(CLIPROTO_CB_PARMS) {
 	((Client_Devicetracker *) auxptr)->Proto_DEVICEDONE(globalreg, proto_string,
 													proto_parsed, srccli,
@@ -78,6 +84,11 @@ const char *CDT_device_fields[] = {
 	NULL
 };
 
+const char *CDT_devtag_fields[] = { 
+	"phytype", "macaddr", "tag", "value",
+	NULL
+};
+
 const char *CDT_devicedone_fields[] = {
 	"phytype", "macaddr",
 	NULL
@@ -103,7 +114,10 @@ Client_Devicetracker::Client_Devicetracker(GlobalRegistry *in_globalreg) {
 
 	proto_phymap_fields_num = TokenNullJoin(&proto_phymap_fields, CDT_phymap_fields);
 	proto_device_fields_num = TokenNullJoin(&proto_device_fields, CDT_device_fields);
-	proto_devicedone_fields_num = TokenNullJoin(&proto_devicedone_fields, CDT_devicedone_fields);
+	proto_devtag_fields_num = TokenNullJoin(&proto_devtag_fields,
+											CDT_devtag_fields);
+	proto_devicedone_fields_num = 
+		TokenNullJoin(&proto_devicedone_fields, CDT_devicedone_fields);
 
 	cli_addref = kpi->Add_NetCli_AddCli_CB(CDT_AddCli, (void *) this);
 
@@ -123,6 +137,7 @@ Client_Devicetracker::~Client_Devicetracker() {
 	kpi->Remove_All_Netcli_Conf_CB(CDT_ConfigureCli);
 	kpi->Remove_All_Netcli_ProtoHandler("PHYMAP", CDT_PHYMAP, this);
 	kpi->Remove_All_Netcli_ProtoHandler("DEVICE", CDT_DEVICE, this);
+	kpi->Remove_All_Netcli_ProtoHandler("DEVTAG", CDT_DEVTAG, this);
 	kpi->Remove_All_Netcli_ProtoHandler("DEVICEDONE", CDT_DEVICEDONE, this);
 }
 
@@ -324,6 +339,15 @@ void Client_Devicetracker::NetClientConfigure(KisNetClient *in_cli, int in_recon
 		return;
 	}
 
+	if (in_cli->RegisterProtoHandler("DEVTAG", proto_devtag_fields,
+									 CDT_DEVTAG, this) < 0) {
+		_MSG("Could not register *DEVTAG sentence; is this an old version of "
+			 "Kismet you're trying to connect to?  Connection will be terminated.", 
+			 MSGFLAG_ERROR);
+		in_cli->KillConnection();
+		return;
+	}
+
 	_MSG("CDT looking at phy handlers", MSGFLAG_INFO);
 	for (map<int, observed_phy *>::iterator x = phy_handler_map.begin();
 		 x != phy_handler_map.end(); ++x) {
@@ -476,6 +500,78 @@ void Client_Devicetracker::Proto_PHYMAP(CLIPROTO_CB_PARMS) {
 			continue;
 
 		(*(phyrx_cb_vec[x]->callback))(phy_id, phyrx_cb_vec[x]->aux, globalreg);
+	}
+}
+
+void Client_Devicetracker::Proto_DEVTAG(CLIPROTO_CB_PARMS) {
+	if (proto_parsed->size() < (unsigned int) proto_devtag_fields_num)
+		return;
+
+	int fnum = 0;
+
+	int phy_id;
+
+	mac_addr tmac;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &phy_id) != 1)
+		return;
+
+	kis_tracked_device *device = NULL;
+	kis_device_common *common = NULL;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &phy_id) != 1)
+		return;
+
+	// Check the PHY and bail early
+	if (phy_handler_map.find(phy_id) == phy_handler_map.end()) {
+		_MSG("CDT never saw mapped phy type " + IntToString(phy_id) + " throwing out *DEVTAG sentence", MSGFLAG_INFO);
+		return;
+	}
+
+	// Get the device ref and look it up
+	tmac = mac_addr((*proto_parsed)[fnum++].word.c_str());
+	if (tmac.error) {
+		return;
+	}
+	tmac.SetPhy(phy_id);
+
+	map<mac_addr, kis_tracked_device *>::iterator ktdi = 
+		tracked_map.find(tmac);
+
+	if (ktdi == tracked_map.end()) {
+		_MSG("Couldn't find device for tag", MSGFLAG_ERROR);
+		return;
+	} else {
+		device = ktdi->second;
+	}
+
+	common = (kis_device_common *) device->fetch(devcomp_ref_common);
+
+	// Don't insert the common record until we know we've got it all
+	if (common == NULL) 
+		return;
+
+	string tag = StrLower((*proto_parsed)[fnum++].word);
+	string value = (*proto_parsed)[fnum++].word;
+
+	map<string, kis_tag_data *>::iterator ti = 
+		common->arb_tag_map.find(tag);
+
+	if (ti == common->arb_tag_map.end() && value != "") {
+		kis_tag_data *data = new kis_tag_data();
+
+		data->dirty = false;
+		data->value = value;
+
+		common->arb_tag_map[tag] = data;
+	} else {
+		if (value == "") {
+			delete ti->second;
+			common->arb_tag_map.erase(ti);
+		} else {
+			ti->second->value = value;
+			ti->second->dirty = false;
+		}
 	}
 }
 

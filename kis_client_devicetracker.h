@@ -140,6 +140,7 @@ public:
 
 	void Proto_DEVICE(CLIPROTO_CB_PARMS);
 	void Proto_PHYMAP(CLIPROTO_CB_PARMS);
+	void Proto_DEVTAG(CLIPROTO_CB_PARMS);
 	void Proto_DEVICEDONE(CLIPROTO_CB_PARMS);
 
 	// Register a callback to trigger on device updates
@@ -223,8 +224,10 @@ protected:
 	int cli_addref;
 
 	// Proto fields
-	string proto_phymap_fields, proto_device_fields, proto_devicedone_fields;
-	int proto_phymap_fields_num, proto_device_fields_num, proto_devicedone_fields_num;
+	string proto_phymap_fields, proto_device_fields, 
+		   proto_devtag_fields, proto_devicedone_fields;
+	int proto_phymap_fields_num, proto_device_fields_num, 
+		proto_devtag_fields_num, proto_devicedone_fields_num;
 
 	vector<devicerx_cb_rec *> devicerx_cb_vec;
 	int next_devicerx_id;
