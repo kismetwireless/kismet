@@ -8636,7 +8636,7 @@ fi
 if test "$linux_wireless" != "yes" -a "$linux" = "yes"; then
     echo "*** WARNING ***"
 	echo "Linux Wireless Extensions were disabled.  Compiling without wext on a "
-	echo "Linux system is certianly possible, however nearly all of the packet "
+	echo "Linux system is certainly possible, however nearly all of the packet "
 	echo "sources will be disabled (including capture sources for Cisco, Madwifi, "
 	echo "Orinoco, Prism, and just about every other live capture method).  Make "
 	echo "sure this is what you want to do."
@@ -8686,11 +8686,6 @@ else
 	verminor=`uname -r | cut -d '.' -f 2`
 	# Stupid redhat
 	vertiny=`uname -r | cut -d '.' -f 3 | cut -f 1 -d-`
-
-	if test "$verminor" = "4" -a "$vertiny" -lt 16 ; then
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: There have been a number of major improvements in the linux-wireless extentions and in the aironet drivers in recent versions.  It is recomended that you run at least kernel version 2.4.16" >&5
-$as_echo "$as_me: WARNING: There have been a number of major improvements in the linux-wireless extentions and in the aironet drivers in recent versions.  It is recomended that you run at least kernel version 2.4.16" >&2;}
-	fi
 
 	echo
 	echo "Configuration complete.  Run 'make dep' to generate dependencies"

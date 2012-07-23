@@ -10,6 +10,7 @@ top_builddir = $(BLDHOME)
 PLUGINLDFLAGS += -shared -rdynamic
 LIBS	+= -lstdc++ 
 CFLAGS 	+= -I/usr/include -I$(KIS_INC_DIR) -g -fPIC
+CXXFLAGS 	+= -I/usr/include -I$(KIS_INC_DIR) -g -fPIC
 
 PLUGOBJS = alertsyslog.o
 PLUGOUT = alertsyslog.so
@@ -32,9 +33,9 @@ clean:
 	@-rm -f *.so
 
 .c.o:
-	$(CC) $(CFLAGS) -c $*.c -o $@ 
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $*.c -o $@ 
 
 .cc.o:
-	$(CXX) $(CFLAGS) -c $*.cc -o $@ 
+	$(CXX) $(CXXFLAGS) $(CXXFLAGS) -c $*.cc -o $@ 
 
 .SUFFIXES: .c .cc .o

@@ -10,6 +10,7 @@ top_builddir = $(BLDHOME)
 PLUGINLDFLAGS += -shared -rdynamic
 LIBS	+= -lstdc++ -lusb -lpthread
 CFLAGS 	+= -I$(KIS_INC_DIR) -g -fPIC
+CXXFLAGS 	+= -I$(KIS_INC_DIR) -g -fPIC
 
 SRVOBJS = packetsource_raven.o packetsource_serialdev.o \
 			packet_dot15d4.o packet_dot15d4_types.o \
@@ -37,9 +38,9 @@ clean:
 	@-rm -f *.so
 
 .c.o:
-	$(CC) $(CFLAGS) -c $*.c -o $@ 
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $*.c -o $@ 
 
 .cc.o:
-	$(CXX) $(CFLAGS) -c $*.cc -o $@ 
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $*.cc -o $@ 
 
 .SUFFIXES: .c .cc .o

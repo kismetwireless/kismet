@@ -10,6 +10,7 @@ top_builddir = $(BLDHOME)
 PLUGINLDFLAGS += -shared -rdynamic
 LIBS	+= -lstdc++ 
 CFLAGS 	+= -I$(KIS_INC_DIR) -g -fPIC
+CXXFLAGS 	+= -I$(KIS_INC_DIR) -g -fPIC
 
 CLIOBJS = spectools_ui.o
 CLIOUT	= spectools_ui.so
@@ -42,9 +43,9 @@ clean:
 	@-rm -f *.so
 
 .c.o:
-	$(CC) $(CFLAGS) -c $*.c -o $@ 
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $*.c -o $@ 
 
 .cc.o:
-	$(CXX) $(CFLAGS) -c $*.cc -o $@ 
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $*.cc -o $@ 
 
 .SUFFIXES: .c .cc .o
