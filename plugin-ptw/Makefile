@@ -10,6 +10,7 @@ top_builddir = $(BLDHOME)
 PLUGINLDFLAGS += -shared -rdynamic
 LIBS	+= -lstdc++ -lssl -lpthread -lcrypto
 CFLAGS 	+= -I$(KIS_INC_DIR) -g -fPIC
+CXXFLAGS 	+= -I$(KIS_INC_DIR) -g -fPIC
 
 PLUGOBJS = aircrack-crypto.o aircrack-ptw2-lib.o aircrack-kismet.o
 PLUGOUT = aircrack-kismet.so
@@ -32,9 +33,9 @@ clean:
 	@-rm -f *.so
 
 .c.o:
-	$(CC) $(CFLAGS) -c $*.c -o $@ 
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $*.c -o $@ 
 
 .cc.o:
-	$(CXX) $(CFLAGS) -c $*.cc -o $@ 
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $*.cc -o $@ 
 
 .SUFFIXES: .c .cc .o
