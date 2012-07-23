@@ -43,7 +43,7 @@ clean:
 	@-rm -f *.so
 
 .c.o:
-	$(CXX) $(CPPFLAGS) $(CFLAGS) -c $*.c -o $@ 
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $*.c -o $@ 
 
 .cc.o:
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $*.cc -o $@ 
