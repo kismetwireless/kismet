@@ -1211,6 +1211,9 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 		apcommon = 
 			(kis_device_common *) apdev->fetch(dev_comp_common);
 
+		// Add to the counters for the AP record
+		devicetracker->PopulateCommon(apdev, in_pack);
+
 		if (apcommon != NULL) {
 			apcommon->basic_type_set |= KIS_DEVICE_BASICTYPE_AP;
 

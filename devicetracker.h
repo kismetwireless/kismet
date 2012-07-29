@@ -629,6 +629,8 @@ public:
 	// Initiate a logging cycle
 	int LogDevices(string in_logclass, string in_logtype, FILE *in_logfile);
 
+	// Populate the common components of a device
+	int PopulateCommon(kis_tracked_device *device, kis_packet *in_pack);
 protected:
 	void SaveTags();
 
@@ -699,8 +701,6 @@ protected:
 
 	// Build a device record
 	kis_tracked_device *BuildDevice(mac_addr in_device, kis_packet *in_pack);
-	// Populate the common components of a device
-	int PopulateCommon(kis_tracked_device *device, kis_packet *in_pack);
 };
 
 // Container that holds tracked information & a unique key.  Key should be unique
