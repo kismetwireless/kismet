@@ -190,7 +190,7 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 	// Grab the mangled frame if we have it, then try to grab up the list of
 	// data types and die if we can't get anything
 	dot11_packinfo *packinfo =
-		(dot11_packinfo *) in_pack->fetch(_PCM(PACK_COMP_DECAP));
+		(dot11_packinfo *) in_pack->fetch(_PCM(PACK_COMP_80211));
 
 	// Grab the generic mangled frame
 	kis_datachunk *chunk = 
