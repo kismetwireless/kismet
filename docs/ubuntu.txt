@@ -10,4 +10,5 @@ libcap-dev
 subversion
 
 libbluetooth-dev
+libusb-dev
 libssl-dev

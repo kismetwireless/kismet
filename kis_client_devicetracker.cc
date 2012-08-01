@@ -552,7 +552,7 @@ void Client_Devicetracker::Proto_DEVTAG(CLIPROTO_CB_PARMS) {
 		return;
 
 	string tag = StrLower((*proto_parsed)[fnum++].word);
-	string value = (*proto_parsed)[fnum++].word;
+	string value = MungeToPrintable((*proto_parsed)[fnum++].word);
 
 	map<string, kis_tag_data *>::iterator ti = 
 		common->arb_tag_map.find(tag);

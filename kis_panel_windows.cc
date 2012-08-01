@@ -1063,7 +1063,7 @@ void Kis_Main_Panel::MenuAction(int opt) {
 			kpinterface->RemoveNetClient();
 		}
 	} else if (opt == mi_addnote) {
-		Kis_AddNetNote_Panel *dp = new Kis_AddNetNote_Panel(globalreg, kpinterface);
+		Kis_AddDevNote_Panel *dp = new Kis_AddDevNote_Panel(globalreg, kpinterface);
 		kpinterface->AddPanel(dp);
 	} else if (opt == mi_chandetails) {
 		Kis_ChanDetails_Panel *dp = new Kis_ChanDetails_Panel(globalreg, kpinterface);
@@ -2948,12 +2948,12 @@ void Kis_Gps_Panel::Proto_GPS(CLIPROTO_CB_PARMS) {
 	gpssiggraph->SetXLabels(sat_label_vec, "PRN SNR");
 }
 
-int AddNetNoteCB(COMPONENT_CALLBACK_PARMS) {
-	((Kis_AddNetNote_Panel *) aux)->Action(component, status);
+int AddDevNoteCB(COMPONENT_CALLBACK_PARMS) {
+	((Kis_AddDevNote_Panel *) aux)->Action(component, status);
 	return 1;
 }
 
-Kis_AddNetNote_Panel::Kis_AddNetNote_Panel(GlobalRegistry *in_globalreg, 
+Kis_AddDevNote_Panel::Kis_AddDevNote_Panel(GlobalRegistry *in_globalreg, 
 										   KisPanelInterface *in_intf) :
 	Kis_Panel(in_globalreg, in_intf) {
 
@@ -2975,7 +2975,7 @@ Kis_AddNetNote_Panel::Kis_AddNetNote_Panel(GlobalRegistry *in_globalreg,
 	okbutton = new Kis_Button(globalreg, this);
 	okbutton->SetLabel("Add Note");
 	okbutton->Show();
-	okbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, AddNetNoteCB, this);
+	okbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, AddDevNoteCB, this);
 	AddComponentVec(okbutton, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
 							   KIS_PANEL_COMP_TAB));
 	okbutton->Show();
@@ -2983,14 +2983,14 @@ Kis_AddNetNote_Panel::Kis_AddNetNote_Panel(GlobalRegistry *in_globalreg,
 	cancelbutton = new Kis_Button(globalreg, this);
 	cancelbutton->SetLabel("Cancel");
 	cancelbutton->Show();
-	cancelbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, AddNetNoteCB, this);
+	cancelbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, AddDevNoteCB, this);
 	AddComponentVec(cancelbutton, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
 								   KIS_PANEL_COMP_TAB));
 
 	delbutton = new Kis_Button(globalreg, this);
 	delbutton->SetLabel("Delete Note");
 	delbutton->Show();
-	delbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, AddNetNoteCB, this);
+	delbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, AddDevNoteCB, this);
 	AddComponentVec(delbutton, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
 								KIS_PANEL_COMP_TAB));
 
@@ -3023,11 +3023,11 @@ Kis_AddNetNote_Panel::Kis_AddNetNote_Panel(GlobalRegistry *in_globalreg,
 	Position(WIN_CENTER(7, 60));
 }
 
-Kis_AddNetNote_Panel::~Kis_AddNetNote_Panel() {
+Kis_AddDevNote_Panel::~Kis_AddDevNote_Panel() {
 
 }
 
-void Kis_AddNetNote_Panel::DrawPanel() {
+void Kis_AddDevNote_Panel::DrawPanel() {
 	// TODO - Fix
 #if 0
 	if (dng == NULL) {
@@ -3070,7 +3070,7 @@ void Kis_AddNetNote_Panel::DrawPanel() {
 	Kis_Panel::DrawPanel();
 }
 
-void Kis_AddNetNote_Panel::Action(Kis_Panel_Component *in_button, int in_state) {
+void Kis_AddDevNote_Panel::Action(Kis_Panel_Component *in_button, int in_state) {
 	if (in_button == cancelbutton) {
 		kpinterface->KillPanel(this);
 	} else if (in_button == delbutton) {
@@ -3100,8 +3100,10 @@ void Kis_AddNetNote_Panel::Action(Kis_Panel_Component *in_button, int in_state) 
 		if (permanent->GetChecked())
 			perm = "1";
 
-		kpinterface->FetchNetClient()->InjectCommand("ADDNETTAG " +
-							bssid.Mac2String() + " " + perm + " \001User Note\001 "
+		kpinterface->FetchNetClient()->InjectCommand("ADDDEVTAG " +
+							bssid.Mac2String() + " " + 
+							IntToString(bssid.GetPhy()) + " " + 
+							perm + " \001User Note\001 " +
 							"\001" + notetxt->GetText() + "\001");
 
 		kpinterface->KillPanel(this);
@@ -3109,159 +3111,6 @@ void Kis_AddNetNote_Panel::Action(Kis_Panel_Component *in_button, int in_state) 
 	}
 }
 
-int AddCliNoteCB(COMPONENT_CALLBACK_PARMS) {
-	((Kis_AddCliNote_Panel *) aux)->Action(component, status);
-	return 1;
-}
-
-Kis_AddCliNote_Panel::Kis_AddCliNote_Panel(GlobalRegistry *in_globalreg, 
-										   KisPanelInterface *in_intf) :
-	Kis_Panel(in_globalreg, in_intf) {
-
-	cli = NULL;
-
-	notetxt = new Kis_Single_Input(globalreg, this);
-	notetxt->SetLabel("Note", LABEL_POS_LEFT);
-	notetxt->SetCharFilter(FILTER_ALPHANUMSYM);
-	notetxt->SetTextLen(256);
-	AddComponentVec(notetxt, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
-							  KIS_PANEL_COMP_TAB));
-	notetxt->Show();
-
-	permanent = new Kis_Checkbox(globalreg, this);
-	permanent->SetLabel("Remember note after restarting Kismet");
-	permanent->SetChecked(1);
-	AddComponentVec(permanent, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
-								KIS_PANEL_COMP_TAB));
-	permanent->Show();
-
-	okbutton = new Kis_Button(globalreg, this);
-	okbutton->SetLabel("Add Note");
-	okbutton->Show();
-	okbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, AddCliNoteCB, this);
-	AddComponentVec(okbutton, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
-							   KIS_PANEL_COMP_TAB));
-	okbutton->Show();
-
-	cancelbutton = new Kis_Button(globalreg, this);
-	cancelbutton->SetLabel("Cancel");
-	cancelbutton->Show();
-	cancelbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, AddCliNoteCB, this);
-	AddComponentVec(cancelbutton, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
-								   KIS_PANEL_COMP_TAB));
-
-	delbutton = new Kis_Button(globalreg, this);
-	delbutton->SetLabel("Delete Note");
-	delbutton->Show();
-	delbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, AddCliNoteCB, this);
-	AddComponentVec(delbutton, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
-								KIS_PANEL_COMP_TAB));
-
-	bbox = new Kis_Panel_Packbox(globalreg, this);
-	bbox->SetPackH();
-	bbox->SetHomogenous(1);
-	bbox->SetSpacing(0);
-	bbox->SetCenter(1);
-	bbox->Show();
-	AddComponentVec(bbox, KIS_PANEL_COMP_DRAW);
-
-	bbox->Pack_End(delbutton, 0, 0);
-	bbox->Pack_End(cancelbutton, 0, 0);
-	bbox->Pack_End(okbutton, 0, 0);
-
-	vbox = new Kis_Panel_Packbox(globalreg, this);
-	vbox->SetPackV();
-	vbox->SetHomogenous(0);
-	vbox->SetSpacing(1);
-	AddComponentVec(vbox, KIS_PANEL_COMP_DRAW);
-	vbox->Show();
-
-	vbox->Pack_End(notetxt, 0, 0);
-	vbox->Pack_End(permanent, 0, 0);
-	vbox->Pack_End(bbox, 0, 0);
-
-	main_component = vbox;
-	SetActiveComponent(notetxt);
-
-	Position(WIN_CENTER(7, 60));
-}
-
-Kis_AddCliNote_Panel::~Kis_AddCliNote_Panel() {
-
-}
-
-void Kis_AddCliNote_Panel::SetClient(Netracker::tracked_client *in_cli) {
-	cli = in_cli;
-
-	string oldnote = "";
-	for (map<string, string>::const_iterator si = cli->arb_tag_map.begin();
-		 si != cli->arb_tag_map.end(); ++si) {
-		if (si->first == "User Note") {
-			oldnote = si->second;
-			break;
-		}
-	}
-
-	notetxt->SetText(oldnote, -1, -1);
-}
-
-void Kis_AddCliNote_Panel::DrawPanel() {
-	if (cli == NULL) {
-		kpinterface->RaiseAlert("No client",
-								"Cannot add a note, no client was selected.\n"
-								"Set the Sort type to anything besides Auto-Fit\n"
-								"and highlight a client, then add a note.\n");
-		kpinterface->KillPanel(this);
-		return;
-	}
-
-	Kis_Panel::DrawPanel();
-}
-
-void Kis_AddCliNote_Panel::Action(Kis_Panel_Component *in_button, int in_state) {
-	if (in_button == cancelbutton) {
-		kpinterface->KillPanel(this);
-	} else if (in_button == delbutton) {
-		if (kpinterface->FetchNetClient() == NULL) {
-			kpinterface->RaiseAlert("No connection",
-									"No longer connected to a Kismet server, cannot\n"
-									"remove a note from a client.\n");
-			kpinterface->KillPanel(this);
-			return;
-		}
-
-		kpinterface->FetchNetClient()->InjectCommand("DELCLITAG " +
-							cli->bssid.Mac2String() + " " + cli->mac.Mac2String() + 
-							" \001User Note\001");
-
-		kpinterface->KillPanel(this);
-	} else if (in_button == okbutton) {
-		if (kpinterface->FetchNetClient() == NULL) {
-			kpinterface->RaiseAlert("No connection",
-									"No longer connected to a Kismet server, cannot\n"
-									"add a note to a client.\n");
-			kpinterface->KillPanel(this);
-			return;
-		}
-
-		if (cli == NULL) {
-			kpinterface->KillPanel(this);
-			return;
-		}
-
-		string perm = "0";
-		if (permanent->GetChecked())
-			perm = "1";
-
-		kpinterface->FetchNetClient()->InjectCommand("ADDCLITAG " +
-							cli->bssid.Mac2String() + " " + cli->mac.Mac2String() +
-							" " + perm + " \001User Note\001 \001" + 
-							notetxt->GetText() + "\001");
-
-		kpinterface->KillPanel(this);
-		return;
-	}
-}
 
 #endif
 

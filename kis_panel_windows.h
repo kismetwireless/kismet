@@ -418,15 +418,19 @@ protected:
 	int addref;
 };
 
-class Kis_AddNetNote_Panel : public Kis_Panel {
+class Kis_AddDevNote_Panel : public Kis_Panel {
 public:
-	Kis_AddNetNote_Panel() {
+	Kis_AddDevNote_Panel() {
 		fprintf(stderr, "FATAL OOPS: Kis_AddNetNote_Panel()\n");
 		exit(1);
 	}
 
-	Kis_AddNetNote_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_kpf);
-	virtual ~Kis_AddNetNote_Panel();
+	Kis_AddDevNote_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_kpf);
+	virtual ~Kis_AddDevNote_Panel();
+
+	virtual void SetTarget(mac_addr in_target) {
+		bssid = in_target;
+	}
 
 	virtual void DrawPanel();
 	virtual void Action(Kis_Panel_Component *in_button, int in_state);
@@ -438,30 +442,6 @@ protected:
 	Kis_Button *cancelbutton, *okbutton, *delbutton;
 
 	mac_addr bssid;
-};
-
-class Kis_AddCliNote_Panel : public Kis_Panel {
-public:
-	Kis_AddCliNote_Panel() {
-		fprintf(stderr, "FATAL OOPS: Kis_AddCliNote_Panel()\n");
-		exit(1);
-	}
-
-	Kis_AddCliNote_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_kpf);
-	virtual ~Kis_AddCliNote_Panel();
-
-	virtual void SetClient(Netracker::tracked_client *in_cli);
-
-	virtual void DrawPanel();
-	virtual void Action(Kis_Panel_Component *in_button, int in_state);
-
-protected:
-	Kis_Panel_Packbox *vbox, *bbox;
-	Kis_Single_Input *notetxt;
-	Kis_Checkbox *permanent;
-	Kis_Button *cancelbutton, *okbutton, *delbutton;
-
-	Netracker::tracked_client *cli;
 };
 
 #endif
