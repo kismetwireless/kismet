@@ -2637,39 +2637,12 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 			adssid = BuildAdvSSID(packinfo->ssid_csum, packinfo, in_pack);
 			adssid->type = ssid_probereq;
 			cli->ssid_map[packinfo->ssid_csum] = adssid;
+
+			// Don't change established SSID crypt records from a probe
+			adssid->cryptset = packinfo->cryptset;
 		} else {
 			adssid = ssidi->second;
 		}
-
-#if 0
-		// Alert on crypto change
-		if (adssid->cryptset != packinfo->cryptset && adssid->cryptset != 0 &&
-			globalreg->alertracker->PotentialAlert(alert_wepflap_ref)) {
-			ostringstream outs;
-
-			outs << "Network BSSID " << net->bssid.Mac2String() << 
-				" changed advertised SSID '" + packinfo->ssid + 
-				"' encryption ";
-
-			if (packinfo->cryptset == 0)
-				outs << "to no encryption when it was previous advertised, an "
-					"impersonation attack may be underway";
-			else if (packinfo->cryptset < adssid->cryptset)
-				outs << "to a weaker encryption set than previously "
-					"advertised, which may indicate an attack";
-			else
-				outs << "a different encryption set than previous advertised";
-
-			globalreg->alertracker->RaiseAlert(alert_wepflap_ref, in_pack, 
-											   packinfo->bssid_mac, 
-											   packinfo->source_mac, 
-											   packinfo->dest_mac, 
-											   packinfo->other_mac, 
-											   packinfo->channel, outs.str());
-		}
-#endif
-
-		adssid->cryptset = packinfo->cryptset;
 
 		adssid->last_time = globalreg->timestamp.tv_sec;
 		adssid->packets++;
