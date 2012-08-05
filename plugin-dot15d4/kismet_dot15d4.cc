@@ -60,14 +60,10 @@
 #include <dumpfile_pcap.h>
 #include <version.h>
 
-#include "packetsource_raven.h"
 #include "packetsource_serialdev.h"
-#include "packet_dot15d4.h"
-#include "tracker_dot15d4.h"
+#include "phy_dot15d4.h"
 
 GlobalRegistry *globalreg = NULL;
-
-int pack_comp_dot15d4;
 
 int dot15d4_unregister(GlobalRegistry *in_globalreg) {
 	return 0;
@@ -78,11 +74,6 @@ int dot15d4_register(GlobalRegistry *in_globalreg) {
 
 	globalreg->sourcetracker->AddChannelList("IEEE802154:11,12,13,14,15,16,"
 											 "17,18,19,20,21,22,23,24,25,26");
-
-#ifdef USE_PACKETSOURCE_RAVEN
-	if (globalreg->sourcetracker->RegisterPacketSource(new PacketSource_Raven(globalreg)) < 0 || globalreg->fatal_condition)
-		return -1;
-#endif
 
 #ifdef USE_PACKETSOURCE_SERIALDEV
 	if (globalreg->sourcetracker->RegisterPacketSource(new PacketSource_Serialdev(globalreg)) < 0 || globalreg->fatal_condition)
@@ -95,12 +86,6 @@ int dot15d4_register(GlobalRegistry *in_globalreg) {
 		return 1;
 	} 
 
-	globalreg->packetchain->RegisterHandler(&kis_dot15d4_dissector, NULL,
-											CHAINPOS_LLCDISSECT, 1);
-
-	pack_comp_dot15d4 =
-		globalreg->packetchain->RegisterPacketComponent("DOT15D4FRAME");
-
 	// dumpfile that inherits from the global one
 	Dumpfile_Pcap *dot15d4dump;
 	dot15d4dump = 
@@ -108,8 +93,10 @@ int dot15d4_register(GlobalRegistry *in_globalreg) {
 						  globalreg->pcapdump, NULL, NULL);
 	dot15d4dump->SetVolatile(1);
 
-	// Tracker
-	Tracker_Dot15d4 *track15d4 = new Tracker_Dot15d4(globalreg);
+	if (globalreg->devicetracker->RegisterPhyHandler(new Dot15d4_Phy(globalreg)) < 0) {
+		_MSG("Failed to load Dot15d4 PHY handler", MSGFLAG_ERROR);
+		return -1;
+	}
 
 	return 1;
 }

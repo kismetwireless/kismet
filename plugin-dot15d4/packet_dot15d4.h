@@ -110,9 +110,6 @@ public:
 		intrapan = 0;
 		crypt = 0;
 		channel = 0;
-
-		uint8_t *data;
-		int data_len;
 	};
 
 	uint16_t frame_header;
@@ -134,7 +131,6 @@ public:
 	unsigned int crypt;
 
 	int channel;
-
 };
 
 #endif
