@@ -1198,6 +1198,9 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 		net = dot11dev;
 		apdev = dev;
 		build_net = false;
+	} else if (dot11info->bssid_mac == globalreg->broadcast_mac) {
+		apdev = devicetracker->MapToDevice(dot11info->source_mac, in_pack);
+		build_net = false;
 	} else if (dot11info->bssid_mac != globalreg->broadcast_mac) {
 		apdev = devicetracker->MapToDevice(dot11info->bssid_mac, in_pack);
 		if (apdev != NULL)
@@ -1205,6 +1208,11 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 	} else {
 		build_net = false;
 	}
+
+#if 0
+	if (apdev == NULL)
+		printf("debug - apdev null bssid %s source %s dest %s type %d sub %d\n", dot11info->bssid_mac.Mac2String().c_str(), dot11info->source_mac.Mac2String().c_str(), dot11info->dest_mac.Mac2String().c_str(), dot11info->type, dot11info->subtype);
+#endif
 
 	// Flag the AP as an AP
 	if (apdev != NULL) {
@@ -1906,7 +1914,8 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 		(dot11info->subtype == packet_sub_disassociation ||
 		 dot11info->subtype == packet_sub_deauthentication) &&
 		dot11info->dest_mac == globalreg->broadcast_mac &&
-		globalreg->alertracker->PotentialAlert(alert_bcastdcon_ref)) {
+		globalreg->alertracker->PotentialAlert(alert_bcastdcon_ref) &&
+		apdev != NULL) {
 
 		string al = "IEEE80211 Access Point BSSID " +
 			apdev->key.Mac2String() + " broadcast deauthentication or "

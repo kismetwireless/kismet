@@ -747,7 +747,7 @@ public:
 
 		if (content_vec[index] != NULL) 
 			fprintf(stderr, "DEBUG/ALERT - Leaking memory for device component %u, "
-					"double insert", index);
+					"double insert\n", index);
 
 		content_vec[index] = data;
 	}
