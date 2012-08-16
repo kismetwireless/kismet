@@ -262,11 +262,25 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
 		if (fc->subtype == 10) {
 			packinfo->subtype = packet_sub_pspoll;
 
+			if (addr0 == NULL) {
+				packinfo->corrupt = 1;
+				packinfo->corrupt = 1;
+				in_pack->insert(pack_comp_80211, packinfo);
+				return 0;
+			}
+
             packinfo->source_mac = mac_addr(addr0, PHY80211_MAC_LEN);
             packinfo->bssid_mac = mac_addr(addr0, PHY80211_MAC_LEN);
 
 		} else if (fc->subtype == 11) {
             packinfo->subtype = packet_sub_rts;
+
+			if (addr0 == NULL || addr1 == NULL) {
+				packinfo->corrupt = 1;
+				packinfo->corrupt = 1;
+				in_pack->insert(pack_comp_80211, packinfo);
+				return 0;
+			}
 
             packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
             packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
@@ -274,10 +288,24 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
         } else if (fc->subtype == 12) {
             packinfo->subtype = packet_sub_cts;
 
+			if (addr0 == NULL) {
+				packinfo->corrupt = 1;
+				packinfo->corrupt = 1;
+				in_pack->insert(pack_comp_80211, packinfo);
+				return 0;
+			}
+
 			packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
 
         } else if (fc->subtype == 13) {
             packinfo->subtype = packet_sub_ack;
+
+			if (addr0 == NULL) {
+				packinfo->corrupt = 1;
+				packinfo->corrupt = 1;
+				in_pack->insert(pack_comp_80211, packinfo);
+				return 0;
+			}
 
             packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
 
