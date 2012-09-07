@@ -91,6 +91,9 @@
  </device>
 </gpsBulk>
 
+<!-- Single packet mode, gps record per packet.  Expensive but
+	 high resolution, probably not needed by most situations however
+	 since gps updates at 1hz -->
 <gpsPacket>
  <unixTimestamp>1309985399</unixTimestamp>
  <gpsPosition>
