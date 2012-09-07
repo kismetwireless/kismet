@@ -91,5 +91,19 @@
  </device>
 </gpsBulk>
 
+<gpsPacket>
+ <unixTimestamp>1309985399</unixTimestamp>
+ <gpsPosition>
+	<latitude>10</latitude>
+	<longitude>100</longitude>
+	<altitude>50</altitude>
+	<speed>10</speed>
+	<quality>3</quality>
+	<hdop>10.1</hdop>
+ </gpsPosition>
+ <deviceMac>11:22:33:44:55:66</deviceMac>
+ <devicePhy>phy80211</devicePhy>
+</gpsPacket>
+
 </k:run>
 

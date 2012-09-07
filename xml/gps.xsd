@@ -30,4 +30,14 @@
  </xs:sequence>
 </xs:complexType>
 
+<xs:complexType name="gpsPacket">
+ <xs:sequence>
+  <xs:element name="unixTimeStamp" type="xs:positiveInteger"/>
+  <xs:element name="gpsPosition" type="common:gps"/>
+  <xs:element name="deviceMac" type="common:macaddr"/>
+  <xs:element name="signalLevel" type="common:signalData" minOccurs="0"/>
+  <xs:element name="devicePhy" type="xs:string" use="required"/>
+ </xs:sequence>
+</xs:complexType>
+
 </xs:schema>

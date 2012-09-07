@@ -34,7 +34,14 @@
 	</xs:complexType>
    </xs:element>
 
-   <xs:element name="gpsBulk" maxOccurs="unbounded" type="gps:gpsBlock"/>
+   <xs:element name="gpsRecords">
+    <xs:complexType>
+	 <xs:choice maxOccurs="unbounded">
+	  <xs:element name="gpsBulk" type="gps:gpsBlock">
+	  <xs:element name="gpsPacket" type="gps:gpsPacket">
+	 </xs:choice>
+	</xs:complexType>
+   </xs:element>
 
   </xs:sequence>
  </xs:complexType>
