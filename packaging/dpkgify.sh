@@ -19,7 +19,7 @@ mkdir -p dpkg/data/etc/kismet
 mkdir -p dpkg/data/usr/man/man1
 mkdir -p dpkg/data/usr/man/man5
 mkdir -p dpkg/data/usr/share/kismet/wav
-mkdir -p dpkg/data/usr/share/doc
+mkdir -p dpkg/data/usr/share/doc/kismet
 mkdir -p dpkg/data/usr/lib/kismet
 mkdir -p dpkg/data/usr/lib/kismet_client
 
@@ -39,7 +39,7 @@ cp ../man/kismet_drone.conf.5 dpkg/data/usr/man/man5/
 cp ../conf/kismet.conf dpkg/data/etc/kismet/
 cp ../conf/kismet_drone.conf dpkg/data/etc/kismet/
 
-cp ../README dpkg/data/usr/share/doc/
+cp ../README dpkg/data/usr/share/doc/kismet/
 
 cp ../wav/* dpkg/data/usr/share/kismet/wav/
 
@@ -59,7 +59,7 @@ md5sum dpkg/data/usr/man/man5/* | sed -e 's/dpkg\/data\///' >> dpkg/control/md5s
 md5sum dpkg/data/usr/etc/* | sed -e 's/dpkg\/data\///' >> dpkg/control/md5sums
 md5sum dpkg/data/usr/lib/kismet/* | sed -e 's/dpkg\/data\///' >> dpkg/control/md5sums
 md5sum dpkg/data/usr/lib/kismet_client/* | sed -e 's/dpkg\/data\///' >> dpkg/control/md5sums
-md5sum dpkg/data/usr/share/doc/* | sed -e 's/dpkg\/data\///' >> dpkg/control/md5sums
+md5sum dpkg/data/usr/share/doc/kismet/* | sed -e 's/dpkg\/data\///' >> dpkg/control/md5sums
 md5sum dpkg/data/usr/share/kismet/wav/* | sed -e 's/dpkg\/data\///' >> dpkg/control/md5sums
 
 VERSION=`../kismet_server --version | sed -e 's/Kismet \([0-9]*\)-\([0-9]*\)-R\([0-9]*\)/\1.\2.\3/'`
