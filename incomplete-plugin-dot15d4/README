@@ -1,0 +1,120 @@
+Kismet-Dot15d4
+
+0.  NOT COMPLETE
+
+1.  What is Kismet-Dot15d4
+2.  Caveats
+3.  Compiling
+4.  Installing
+5.  Using
+
+0.  NOT COMPLETE
+
+*** THIS CODE IS CURRENTLY NOT COMPLETE ***
+
+Unless you're in contact with me and are helping develop it, it's not likely
+to do what you want.  What it CAN do, currently:
+
+* Drive the AVR RAVEN
+* Drive a Linux-Serialdev device via userspace (should work on any platform)
+* Read pcap files
+* Print debug info about packets
+* Log to PCAP file
+* Do VERY basic 802.15.4 decoding
+
+1.  What is Kismet-Dot15d4
+
+    Kismet-Dot15d4 is a Kismet plugin which provides 802.15.4 support in
+    Kismet.  802.15.4 is a low-power network protocol for sensors, control,
+    and other "mote" applications, and is the underpinning of Zigbee, 6pan,
+    etc.
+
+    (Some) Driver support is included for the AVR USB RAVEN board, 
+    available here:
+    http://search.digikey.com/scripts/DkSearch/dksus.dll?Detail&name=ATAVRRZUSBSTICK-ND
+
+    This driver works only under Linux.
+
+    Much more complete (and multiplatform) support is included for devices 
+    based on the Linux-Serialdev firmware.  This is a firmware which allows
+    an 802.15.4 device to be connected via a serial port.
+
+    Notable devices which support this firmware include the Redbee devices
+    (available from http://redwirellc.com/), and devices based on them,
+    such as the Quahogcon 2010 conference badge and likely the Ninja
+    Networks 2010 Defcon badge.  These devices MUST BE FLASHED to use the
+    Linux-Serialdev firmware, firmware and information available at:
+    http://mc1322x.devl.org/
+
+    It CAN NOT BE USED with 802.11 wi-fi cards, it is a completely different
+    protocol.
+
+    Kismet-Dot15d4 defines the decoders, loggers, and UI controls for
+    802.15.4 networks in a common fashion, and supports reading and writing
+    IEEE802.15.4 pcap files.
+
+2.  Caveats
+
+    This code is currently only partially developed and may not provide full
+    functionality.
+
+    The Raven code implements a user-space driver using Libusb.  Sometimes
+    things go stupid and the card or the server fall down during a sync
+    problem.
+
+3.  Compiling
+
+	Compiling the Kismet-Dot15d4 plugin requires the Kismet source be installed
+	and configured.
+
+	By default, Kismet-Dot15d4 expects the Kismet source to be in
+	/usr/src/kismet; this can be overridden by setting the
+	KIS_SRC_DIR environment variable:
+
+		cd plugin-dot15d4/
+		KIS_SRC_DIR=/home/foo/src/kismet make
+
+    For Raven support, the LibUSB library (and development headers, most
+    likely called libusb-devel by your distribution) is required.
+
+4.  Installing
+
+	Kismet plugins may be installed system-wide in the plugins directory (by
+	default, /usr/local/lib/kismet/) or in the users home directory
+	(~/.kismet/plugins)
+
+    The default installation path can be overridden with the KIS_DEST_DIR
+    variable if you have not installed Kismet in the default location and
+    wish to install the plugin in the system-wide plugins directory:
+        cd plugin-ptw
+        KIS_DEST_DIR=/usr make install
+
+    Plugins can be installed in the current users home directory with:
+        cd plugin-ptw
+        make userinstall
+
+5.  Using
+
+    Once the plugin is loaded, Kismet will automatically understand and
+    decode pcap files with the IEEE802.15.4 link data.
+
+    To capture from an AVR RAVEN, plug in the USB device, and define a
+    capture source in Kismet using the interface 'raven'.  The device will
+    be automatically detected:
+        ncsource=raven
+
+    To monitor with multiple Raven devices at once, each raven must have a
+    USB device ID specified with the 'usbdev' source option.  The definition
+    of the usb device ID depends on the operating system, in Linux it is a
+    number incremented for each device and shown in 'lsusb' and 'dmesg'
+        ncsource=raven:usbdev=...
+
+    To capture with a Linux-Serialdev device, plug in the usb device, and
+    define a capture source for d15d4serial with a device= option pointing
+    to the USB serial interface.  For redbee-based devices, this will be the
+    SECOND serial device registered:
+        ncsource=d15d4serial:device=/dev/ttyUSB1
+
+    To enable pcap logging, the logfile must be turned on by adding
+    'pcap15d4' to the logtypes= line of the kismet.conf.
+
