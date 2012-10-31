@@ -922,6 +922,11 @@ int main(int argc, char *argv[], char *envp[]) {
 		globalregistry->servername = MungeToPrintable(conf->FetchOpt("servername"));
 	}
 
+	// Create the packet chain
+	globalregistry->packetchain = new Packetchain(globalregistry);
+	if (globalregistry->fatal_condition)
+		CatchShutdown(-1);
+
 	// Create the basic network/protocol server
 	globalregistry->kisnetserver = new KisNetFramework(globalregistry);
 	if (globalregistry->fatal_condition)
@@ -930,11 +935,6 @@ int main(int argc, char *argv[], char *envp[]) {
 	globalregistry->kisnetserver->RegisterClientCommand("SHUTDOWN",
 														&cmd_SHUTDOWN,
 														NULL);
-
-	// Create the packet chain
-	globalregistry->packetchain = new Packetchain(globalregistry);
-	if (globalregistry->fatal_condition)
-		CatchShutdown(-1);
 
 	// Create the packetsourcetracker
 	globalregistry->sourcetracker = new Packetsourcetracker(globalregistry);
@@ -1332,3 +1332,5 @@ int main(int argc, char *argv[], char *envp[]) {
 
 	CatchShutdown(-1);
 }
+
+// vim: ts=4:sw=4

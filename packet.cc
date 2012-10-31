@@ -77,7 +77,7 @@ void kis_packet::insert(const unsigned int index, packet_component *data) {
 	content_vec[index] = data;
 }
 
-void *kis_packet::fetch(const unsigned int index) {
+void *kis_packet::fetch(const unsigned int index) const {
 	if (index >= MAX_PACKET_COMPONENTS)
 		return NULL;
 
