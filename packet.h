@@ -82,7 +82,7 @@ public:
     ~kis_packet();
    
     void insert(const unsigned int index, packet_component *data);
-    void *fetch(const unsigned int index);
+    void *fetch(const unsigned int index) const;
     void erase(const unsigned int index);
 
     inline packet_component *operator[] (const unsigned int& index) const {

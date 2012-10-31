@@ -3473,3 +3473,4 @@ Netracker::adv_ssid_data *Netracker::BuildAdvSSID(uint32_t ssid_csum,
 	return adssid;
 }
 
+// vim: ts=4:sw=4
