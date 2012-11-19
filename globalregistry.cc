@@ -198,14 +198,14 @@ Dumpfile *GlobalRegistry::FindDumpFileType(string in_type) {
 void GlobalRegistry::AddNamedFd(string in_name, int fd) {
 	string un = StrUpper(in_name);
 
-	namefd_map[un] = fd;
+	namedfd_map[un] = fd;
 }
 
 int GlobalRegistry::GetNamedFd(string in_name) {
 	string un = StrUpper(in_name);
 
-	if (namedfd_map.find(un) != namefd_map.end()) {
-		return namefd_map.find(un)->second;
+	if (namedfd_map.find(un) != namedfd_map.end()) {
+		return namedfd_map.find(un)->second;
 	}
 
 	return -1;
