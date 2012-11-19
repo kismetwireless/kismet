@@ -204,6 +204,9 @@ public:
 	string revision;
 	string revdate;
 
+	// Map of named file pipes that sub-components should use
+	map<string, int> namedfd_map;
+
 	// Vector of pollable subservices for main()...  You should use the util 
 	// functions for this, but main needs to be able to see it directly
 	vector<Pollable *> subsys_pollable_vec;
@@ -293,6 +296,10 @@ public:
 	// Are we supposed to start checksumming packets?  (ie multiple sources, 
 	// whatever other conditions we use)
 	int checksum_packets;
+
+	// Add & retreive a named FD
+	void AddNamedFd(string name, int fd);
+	int GetNamedFd(string name);
 
 protected:
     // Exernal global references, string to intid
