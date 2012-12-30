@@ -38,7 +38,7 @@ Architecture: $ARCH
 Homepage: http://www.kismetwireless.net
 Installed-Size: `du -ks dpkg/data/|cut -f 1`
 Maintainer: Mike Kershaw/Dragorn <dragorn@kismetwireless.net>
-Depends: libc6 (>= 2.4), libcap2 (>= 2.10), libpcap0.8 (>= 1.0.0), debconf (>= 0.5) | debconf-2.0, debconf, libcap2-bin, libpcre3, libncurses5, libstdc++6, libnl2, kismet (=$VERSION)
+Depends: libc6 (>= 2.4), libcap2 (>= 2.10), libpcap0.8 (>= 1.0.0), debconf (>= 0.5) | debconf-2.0, debconf, libcap2-bin, libpcre3, libncurses5, libstdc++6, libnl2, libssl0.9.8, kismet (=$VERSION)
 Description: Kismet wireless sniffer and IDS, restricted plugins
  Kismet is an 802.11 and other wireless sniffer, logger, and IDS.
  .
