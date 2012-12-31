@@ -1,0 +1,12 @@
+/usr/bin/kismet
+/usr/bin/kismet_client
+/usr/bin/kismet_drone
+/usr/bin/kismet_server
+
+/usr/lib/kismet/btscan.so
+/usr/lib/kismet/spectool_net.so
+/usr/lib/kismet_client/spectools_ui.so
+
+/etc/kismet/kismet*.conf
+
+/usr/share/kismet/wav/*.wav

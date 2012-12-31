@@ -1,3 +1,18 @@
+Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: kismet
+Source: <url://example.com>
+
+Files: *
+Copyright: <years> <put author's name and email here>
+           <years> <likewise for another author>
+License: GPL-2.0+
+
+Files: debian/*
+Copyright: 2012 Mike Kershaw/Dragorn <dragorn@kismetwireless.net>
+License: GPL-2.0+
+
+License: GPL-2.0+
+
 		    GNU GENERAL PUBLIC LICENSE
 		       Version 2, June 1991
 
