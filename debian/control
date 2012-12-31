@@ -1,0 +1,26 @@
+Source: kismet
+Section: net
+Priority: optional
+Maintainer: Mike Kershaw/Dragorn <dragorn@kismetwireless.net>
+Build-Depends: debhelper (>= 8.0.0), autotools-dev, libncurses5-dev, libpcap0.8-dev (>= 1.0.0), libpcre3-dev, libcap-dev (>= 2.10), libssl-dev, libbluetooth-dev, libnl2-dev, pkg-config
+Standards-Version: 3.9.3
+Homepage: http://www.kismetwireless.net
+Vcs-Git: https://www.kismetwireless.net/kismet.git
+
+Package: kismet
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, libcap2-bin
+Description: Kismet wireless sniffer and IDS
+ Kismet is an 802.11 and other wireless sniffer, logger, and IDS.
+ .
+ This package provides the most recent version, based on the 'newcore'
+ code branch.
+
+Package: kismet-plugins-restricted
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Kismet wireless sniffer and IDS, restricted plugins
+ Kismet is an 802.11 and other wireless sniffer, logger, and IDS.
+ .
+ This package contains the 'restricted' plugins, which primarily deal with
+ breaking WEP and other 'aggressive' actions.

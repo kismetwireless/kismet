@@ -1,1 +1,0 @@
-./configure --prefix=/usr --sysconfdir=/etc/kismet/
