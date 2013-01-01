@@ -20,7 +20,7 @@
 #define __KISVERSION_H__
 
 #define VERSION_MAJOR	"2012"
-#define VERSION_MINOR	"SVN"
+#define VERSION_MINOR	"GIT"
 #define VERSION_TINY	"R0"
 
 #define REVISION		"$Rev$"
