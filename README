@@ -341,6 +341,10 @@ http://www.kismetwireless.net
                          interface).  The same warnings and conditions as
                          'fcsfail' apply.  This option is for specific,
                          expert use only, when in doubt, leave it alone.
+      ignoreprimary=t   Ignore the state of the primary interface on
+                         mac80211.  Normally, Kismet will shut down the
+                         main interface (ie wlan0, wlan1) to prevent wpasupp
+                         or NetworkManager from changing the channel, etc.
 
     Example sources (these are given as config file parameters, however they
     will work equally well as command-line options, ie "-c wlan0"):
