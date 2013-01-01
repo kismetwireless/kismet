@@ -66,6 +66,7 @@ PacketSource_Wext::PacketSource_Wext(GlobalRegistry *in_globalreg,
 	opp_vap = 0;
 	force_vap = 0;
 	nlcache = nlfamily = NULL;
+	ignore_primary_state = false;
 
 	stored_channel = stored_mode = stored_privmode = stored_flags = -1;
 
@@ -161,6 +162,14 @@ int PacketSource_Wext::OpenSource() {
 
 int PacketSource_Wext::ParseOptions(vector<opt_pair> *in_opts) {
 	PacketSource_Pcap::ParseOptions(in_opts);
+
+	// Force us to keep the primary interface still running
+	if (FetchOptBoolean("ignoreprimary", in_opts, false)) {
+		ignore_primary_state = true;
+		_MSG("Source '" + interface + "' will ignore the primary interface "
+			 "up.  This may cause conflicts with wpasupplicant / networkmanager",
+			 MSGFLAG_INFO);
+	}
 
 	if (FetchOpt("vap", in_opts) != "") {
 		vap = FetchOpt("vap", in_opts);
@@ -519,27 +528,39 @@ int PacketSource_Wext::EnableMonitor() {
 			 "this and create a new monitor mode vap no matter what, use the "
 			 "forcevap=true source option", MSGFLAG_PRINTERROR);
 	} else if (vap != "" && use_mac80211) {
-		if ((ret = Ifconfig_Delta_Flags(parent.c_str(), errstr, 
-										IFF_UP | IFF_RUNNING | IFF_PROMISC)) < 0) {
-			_MSG(errstr, MSGFLAG_PRINTERROR);
-			if (ret == ENODEV) {
-				warning = "Failed to find interface '" + parent + "', it may not be "
-					"present at this time, it may not exist at all, or there may "
-					"be a problem with the driver (such as missing firmware)";
+		// If we're ignoring the primary state do nothing, otherwise shut it down
+		if (!ignore_primary_state) {
+			int fl;
 
-			} else {
-				warning = "Failed to bring up interface '" + parent + "', this "
-					"often means there is a problem with the driver (such as "
-					"missing firmware), check the output of `dmesg'.";
+			_MSG("Bringing down primary interface '" + parent + "' to prevent "
+				 "wpa_supplicant and NetworkManager from trying to configure it",
+				 MSGFLAG_INFO);
+
+			if ((ret = Ifconfig_Get_Flags(parent.c_str(), errstr, &fl)) == 0) {
+				fl &= ~IFF_UP;
+			
+				ret = Ifconfig_Set_Flags(parent.c_str(), errstr, fl);
 			}
 
-			_MSG(warning, MSGFLAG_PRINTERROR);
+			if (ret < 0) {
+				_MSG(errstr, MSGFLAG_PRINTERROR);
+				if (ret == ENODEV) {
+					warning = "Failed to find interface '" + parent + "', it may not be "
+						"present at this time, it may not exist at all, or there may "
+						"be a problem with the driver (such as missing firmware)";
 
-			return -1;
+				} else {
+					warning = "Failed to bring up interface '" + parent + "', this "
+						"often means there is a problem with the driver (such as "
+						"missing firmware), check the output of `dmesg'.";
+				}
+
+				_MSG(warning, MSGFLAG_PRINTERROR);
+
+				return -1;
+			}
 		}
 
-		_MSG("Source '" + parent + "' attempting to create mac80211 VAP '" + 
-			 vap + "'", MSGFLAG_INFO);
 		if (mac80211_createvap(parent.c_str(), vap.c_str(), errstr) < 0) {
 			_MSG("Source '" + parent + "' failed to create mac80211 VAP: " +
 				 string(errstr), MSGFLAG_PRINTERROR);
