@@ -18,7 +18,7 @@ export DH_OPTIONS
 
 
 %:
-	dh $@ --with autotools-dev
+	dh $@ --with autotools-dev --parallel
 
 override_dh_auto_build:
 	dh_auto_build
