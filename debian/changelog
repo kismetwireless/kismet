@@ -1,5 +1,5 @@
-kismet (2011.03.2) unstable; urgency=low
+kismet (2013.0.0) unstable; urgency=low
 
-  * Initial Release.
+  * Git build.
 
- -- Mike Kershaw/Dragorn <dragorn@kismetwireless.net>  Mon, 31 Dec 2012 19:29:12 +0100
+ -- Kismet Release <kismet-release@kismetwireless.net>  Mon, 31 Dec 2012 19:29:12 +0100
