@@ -29,4 +29,4 @@ override_dh_auto_install:
 	DESTDIR=$(CURDIR)/debian/tmp $(MAKE) plugins-install
 
 override_dh_auto_configure:
-	dh_auto_configure -- --prefix=/usr --sysconfdir=/etc
+	dh_auto_configure -- --prefix=/usr --sysconfdir=/etc/kismet
