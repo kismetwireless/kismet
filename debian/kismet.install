@@ -1,4 +1,5 @@
 /usr/bin/kismet
+/usr/bin/kismet_capture
 /usr/bin/kismet_client
 /usr/bin/kismet_drone
 /usr/bin/kismet_server
