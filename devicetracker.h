@@ -507,6 +507,10 @@ public:
 		devicetracker = in_tracker;
 	}
 
+	virtual ~Kis_Phy_Handler() {
+		// none
+	}
+
 	virtual string FetchPhyName() { return phyname; }
 	virtual int FetchPhyId() { return phyid; }
 
