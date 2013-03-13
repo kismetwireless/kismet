@@ -35,6 +35,8 @@ GlobalRegistry::GlobalRegistry() {
 	argv = NULL;
 	envp = NULL;
 
+	kismet_instance = KISMET_INSTANCE_SERVER;
+
 	getopt_long_num = 127;
 
 	next_ext_ref = 0;
