@@ -20,8 +20,8 @@ $(PLUGOUT):	$(PLUGOBJS)
 	$(LD) $(PLUGINLDFLAGS) $(PLUGOBJS) -o $(PLUGOUT) $(LIBS)
 
 install:	$(PLUGOUT)
-	mkdir -p $(LIB)/kismet/
-	install -o $(INSTUSR) -g $(INSTGRP) -m 644 $^ $(LIB)/kismet/$^
+	mkdir -p $(DESTDIR)/$(plugindir)
+	install -o $(INSTUSR) -g $(INSTGRP) -m 644 $^ $(DESTDIR)/$(plugindir)/$^
 
 userinstall:	$(PLUGOUT)
 	mkdir -p ${HOME}/.kismet/plugins/

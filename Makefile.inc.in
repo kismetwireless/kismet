@@ -32,12 +32,13 @@ SUIDGROUP 	= @suidgroup@
 
 prefix 		= @prefix@
 exec_prefix = @exec_prefix@
+plugindir	= @libdir@/kismet
 ETC			= ${DESTDIR}@sysconfdir@
 BIN			= ${DESTDIR}@bindir@
 SHARE 		= ${DESTDIR}@datadir@/kismet/
 MAN 		= ${DESTDIR}@mandir@
 LIB			= ${DESTDIR}@libdir@
-WAV 		= ${SHARE}/wav/
+WAV 		= ${DESTDIR}@datadir@/sounds/kismet/
 
 PLUGINLDFLAGS = @PLUGINLDFLAGS@ @LDFLAGS@
 
