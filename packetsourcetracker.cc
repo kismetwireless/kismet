@@ -1525,6 +1525,8 @@ int Packetsourcetracker::IpcAddPacketsource(ipc_source_add *in_ipc) {
 
 	pstsource->consec_channel_err = 0;
 
+	pstsource->zeropoll = 0;
+
 	// We assume all our incoming data is valid but we'll check everything again
 	// just to be sure
 	if (pos == string::npos) {
