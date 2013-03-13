@@ -35,6 +35,8 @@ public:
 	static void Usage(char *argv);
 
 	GpsWrapper(GlobalRegistry *globalreg);
+
+	GPSCore *gps;
 };
 
 // Empty GPS handler which inserts the network protocols but doesn't do anything

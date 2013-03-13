@@ -68,6 +68,8 @@ GpsWrapper::GpsWrapper(GlobalRegistry *globalreg) {
 
 	optind = 0;
 
+	gps = NULL;
+
 	while (1) {
 		int r = getopt_long(globalreg->argc, globalreg->argv, 
 							"-",
@@ -142,6 +144,7 @@ GpsWrapper::GpsWrapper(GlobalRegistry *globalreg) {
 	if (gpsopt == "serial") {
 		GPSSerial *gs;
 		gs = new GPSSerial(globalreg);
+		gps = gs;
 	} else if (gpsopt == "gpsd") {
 		GPSDClient *gc;
 		gc = new GPSDClient(globalreg);
