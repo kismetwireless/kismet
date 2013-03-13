@@ -1076,24 +1076,25 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
 				tag_offset++;
 
 				if (tag_offset + taglen > chunk->length) {
-			
-				// country tags only valid if 6 bytes or more, ubnt throws
-				// broken ones on some APs
-				if (taglen > 6) {
-					packinfo->dot11d_country =
-						MungeToPrintable(string((const char *) 
-												&(chunk->data[tag_offset]), 
-												0, 3));
 
-					// We don't have to check taglen since we check that above
-					for (unsigned int p = 3; p + 3 <= taglen; p += 3) {
-						dot11_11d_range_info ri;
+					// country tags only valid if 6 bytes or more, ubnt throws
+					// broken ones on some APs
+					if (taglen > 6) {
+						packinfo->dot11d_country =
+							MungeToPrintable(string((const char *) 
+													&(chunk->data[tag_offset]), 
+													0, 3));
 
-						ri.startchan = chunk->data[tag_offset + p];
-						ri.numchan = chunk->data[tag_offset + p + 1];
-						ri.txpower = chunk->data[tag_offset + p + 2];
+						// We don't have to check taglen since we check that above
+						for (unsigned int p = 3; p + 3 <= taglen; p += 3) {
+							dot11d_range_info ri;
 
-						packinfo->dot11d_vec.push_back(ri);
+							ri.startchan = chunk->data[tag_offset + p];
+							ri.numchan = chunk->data[tag_offset + p + 1];
+							ri.txpower = chunk->data[tag_offset + p + 2];
+
+							packinfo->dot11d_vec.push_back(ri);
+						}
 					}
 				}
 			}
