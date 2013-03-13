@@ -128,6 +128,9 @@ void ReplaceAllOpts(string opt, string val, vector<opt_pair> *in_vec);
 // String compare, 1 true 0 false -1 unknown, or default value as provided
 int StringToBool(string s, int dvalue = -1);
 
+// Append to a string, with a delimiter if applicable
+string StringAppend(string s, string a, string d = " ");
+
 int XtoI(char x);
 int Hex2UChar(unsigned char *in_hex, unsigned char *in_chr);
 
