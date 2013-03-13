@@ -671,7 +671,7 @@ int PacketSource_Pcap::Radiotap2KisPack(kis_packet *packet, kis_datachunk *linkc
 	eight11chunk->dlt = KDLT_IEEE802_11;
 	
     // iter = (u_char*)(last_presentp + 1);
-	iter_start = iter = (u_char*)(last_presetp + 1);
+	iter_start = iter = (u_char*)(last_presentp + 1);
 
     for (bit0 = 0, presentp = &hdr->it_present; presentp <= last_presentp;
          presentp++, bit0 += 32) {
