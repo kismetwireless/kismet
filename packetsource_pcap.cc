@@ -560,6 +560,9 @@ static u_int ieee80211_mhz2ieee(u_int freq, u_int flags) {
 }
 #endif
 
+#define ALIGN_OFFSET(offset, width) \
+	    ( (((offset) + ((width) - 1)) & (~((width) - 1))) - offset )
+
 /*
  * Useful combinations of channel characteristics.
  */
@@ -622,6 +625,8 @@ int PacketSource_Pcap::Radiotap2KisPack(kis_packet *packet, kis_datachunk *linkc
 	u_int32_t present, next_present;
 	u_int32_t *presentp, *last_presentp;
 	enum ieee80211_radiotap_type bit;
+	const u_char *iter_start;
+	unsigned int iter_align;
 	int bit0;
 	const u_char *iter;
 	int fcs_cut = 0; // Is the FCS bit set?
@@ -665,7 +670,8 @@ int PacketSource_Pcap::Radiotap2KisPack(kis_packet *packet, kis_datachunk *linkc
 
 	eight11chunk->dlt = KDLT_IEEE802_11;
 	
-    iter = (u_char*)(last_presentp + 1);
+    // iter = (u_char*)(last_presentp + 1);
+	iter_start = iter = (u_char*)(last_presetp + 1);
 
     for (bit0 = 0, presentp = &hdr->it_present; presentp <= last_presentp;
          presentp++, bit0 += 32) {
@@ -693,6 +699,8 @@ int PacketSource_Pcap::Radiotap2KisPack(kis_packet *packet, kis_datachunk *linkc
                     u.i8 = *iter++;
                     break;
                 case IEEE80211_RADIOTAP_CHANNEL:
+					iter_align = ALIGN_OFFSET((unsigned int) (iter - iter_start), 2);
+					iter += iter_align;
                     u.u16 = EXTRACT_LE_16BITS(iter);
                     iter += sizeof(u.u16);
                     u2.u16 = EXTRACT_LE_16BITS(iter);
@@ -702,10 +710,14 @@ int PacketSource_Pcap::Radiotap2KisPack(kis_packet *packet, kis_datachunk *linkc
                 case IEEE80211_RADIOTAP_LOCK_QUALITY:
                 case IEEE80211_RADIOTAP_TX_ATTENUATION:
                 case IEEE80211_RADIOTAP_DB_TX_ATTENUATION:
+					iter_align = ALIGN_OFFSET((unsigned int) (iter - iter_start), 2);
+					iter += iter_align;
                     u.u16 = EXTRACT_LE_16BITS(iter);
                     iter += sizeof(u.u16);
                     break;
                 case IEEE80211_RADIOTAP_TSFT:
+					iter_align = ALIGN_OFFSET((unsigned int) (iter - iter_start), 8);
+					iter += iter_align;
                     u.u64 = EXTRACT_LE_64BITS(iter);
                     iter += sizeof(u.u64);
                     break;
