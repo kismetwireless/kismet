@@ -9,7 +9,7 @@ top_builddir = $(BLDHOME)
 
 PLUGINLDFLAGS += -shared -rdynamic
 LIBS	+= -lstdc++ 
-CFLAGS 	+= -I/usr/include -I$(KIS_INC_DIR) -g -fPIC
+CFLAGS 	+= -I$(KIS_INC_DIR) -g -fPIC
 
 PLUGOBJS = gpstxt.o
 PLUGOUT = gpstxt.so
@@ -21,11 +21,11 @@ $(PLUGOUT):	$(PLUGOBJS)
 
 install:	$(PLUGOUT)
 	mkdir -p $(DESTDIR)/$(plugindir)
-	install -o $(INSTUSR) -g $(INSTGRP) -m 644 $^ $(DESTDIR)/$(plugindir)/$^
+	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 $^ $(DESTDIR)/$(plugindir)/$^
 
 userinstall:	$(PLUGOUT)
 	mkdir -p ${HOME}/.kismet/plugins/
-	install $(PLUGOUT) ${HOME}/.kismet/plugins/$(PLUGOUT)
+	$(INSTALL) $(PLUGOUT) ${HOME}/.kismet/plugins/$(PLUGOUT)
 
 clean:
 	@-rm -f *.o

@@ -9,7 +9,7 @@ top_builddir = $(BLDHOME)
 
 PLUGINLDFLAGS += -shared -rdynamic
 LIBS	+= -lstdc++ -lusb -lpthread
-CFLAGS 	+= -I/usr/include -I$(KIS_INC_DIR) -g -fPIC
+CFLAGS 	+= -I$(KIS_INC_DIR) -g -fPIC
 
 SRVOBJS = packetsource_raven.o packetsource_serialdev.o \
 			packet_dot15d4.o packet_dot15d4_types.o \
@@ -26,11 +26,11 @@ $(SRVOUT):	$(SRVOBJS)
 
 install:	$(SRVOUT) $(CLIOUT)
 	mkdir -p $(DESTDIR)/$(plugindir)
-	install -o $(INSTUSR) -g $(INSTGRP) -m 644 $^ $(DESTDIR)/$(plugindir)/$(SRVOUT)
+	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 $^ $(DESTDIR)/$(plugindir)/$(SRVOUT)
 
 userinstall:	$(SRVOUT) $(CLIOUT)
 	mkdir -p ${HOME}/.kismet/plugins/
-	install -v $(SRVOUT) ${HOME}/.kismet/plugins/$(SRVOUT)
+	$(INSTALL) -v $(SRVOUT) ${HOME}/.kismet/plugins/$(SRVOUT)
 
 clean:
 	@-rm -f *.o
