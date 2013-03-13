@@ -89,6 +89,8 @@ public:
 	// Should be, something can override if it needs
 	virtual int FetchChannelCapable() { return 1; }
 
+    virtual int OpenSource();
+
 	// Generic-level functions
 	virtual int EnableMonitor();
 	virtual int DisableMonitor();
@@ -152,6 +154,8 @@ public:
 										  vector<opt_pair> *in_opts) {
 		return new PacketSource_Madwifi(in_globalreg, in_interface, in_opts);
 	}
+
+    virtual int OpenSource();
 
 	virtual int AutotypeProbe(string in_device);
 	virtual int RegisterSources(Packetsourcetracker *tracker);
