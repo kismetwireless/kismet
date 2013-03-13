@@ -6632,28 +6632,14 @@ $as_echo "#define HAVE_BSD_SYS_RADIOTAP 1" >>confdefs.h
 	radiotaploc="system (BSD)"
 fi
 
-havenetlink=no
+# havenetlink=no
 if test "$linux" = "yes"; then
+# havenetlink=yes
+# 	AC_CHECK_HEADERS([asm/types.h netlink/genl/genl.h netlink/genl/family.h netlink/genl/ctrl.h netlink/msg.h netlink/attr.h linux/nl80211.h linux/if_arp.h linux/wireless.h],
+# 	AC_DEFINE(HAVE_NETLINKHEADERS, 1, Netlink headers are there),
+# 	havenetlink=no,
+# 	[#include <sys/socket.h>])
 havenetlink=yes
-	for ac_header in asm/types.h netlink/genl/genl.h netlink/genl/family.h netlink/genl/ctrl.h netlink/msg.h netlink/attr.h linux/nl80211.h linux/if_arp.h linux/wireless.h
-do :
-  as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
-ac_fn_c_check_header_compile "$LINENO" "$ac_header" "$as_ac_Header" "#include <sys/socket.h>
-"
-if eval test \"x\$"$as_ac_Header"\" = x"yes"; then :
-  cat >>confdefs.h <<_ACEOF
-#define `$as_echo "HAVE_$ac_header" | $as_tr_cpp` 1
-_ACEOF
-
-$as_echo "#define HAVE_NETLINKHEADERS 1" >>confdefs.h
-
-else
-  havenetlink=no
-fi
-
-done
-
-
 
 #if test "$havenetlink" = "yes"; then
 #	AC_CHECK_LIB([nl], [nl_handle_alloc],
@@ -6710,6 +6696,7 @@ NLCFLAGS=""
 nlname=""
 
 if test "$havenetlink" = "yes"; then
+
 
 
 
@@ -6844,6 +6831,7 @@ if test -n "$libnl30_CFLAGS"; then
   $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
   test $ac_status = 0; }; then
   pkg_cv_libnl30_CFLAGS=`$PKG_CONFIG --cflags "libnl-3.0" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
 else
   pkg_failed=yes
 fi
@@ -6860,6 +6848,7 @@ if test -n "$libnl30_LIBS"; then
   $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
   test $ac_status = 0; }; then
   pkg_cv_libnl30_LIBS=`$PKG_CONFIG --libs "libnl-3.0" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
 else
   pkg_failed=yes
 fi
@@ -6879,9 +6868,9 @@ else
         _pkg_short_errors_supported=no
 fi
         if test $_pkg_short_errors_supported = yes; then
-	        libnl30_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors "libnl-3.0" 2>&1`
+	        libnl30_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "libnl-3.0" 2>&1`
         else
-	        libnl30_PKG_ERRORS=`$PKG_CONFIG --print-errors "libnl-3.0" 2>&1`
+	        libnl30_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "libnl-3.0" 2>&1`
         fi
 	# Put the nasty error message in config.log where it belongs
 	echo "$libnl30_PKG_ERRORS" >&5
@@ -6913,6 +6902,7 @@ if test -n "$libnlgenl30_CFLAGS"; then
   $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
   test $ac_status = 0; }; then
   pkg_cv_libnlgenl30_CFLAGS=`$PKG_CONFIG --cflags "libnl-genl-3.0" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
 else
   pkg_failed=yes
 fi
@@ -6929,6 +6919,7 @@ if test -n "$libnlgenl30_LIBS"; then
   $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
   test $ac_status = 0; }; then
   pkg_cv_libnlgenl30_LIBS=`$PKG_CONFIG --libs "libnl-genl-3.0" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
 else
   pkg_failed=yes
 fi
@@ -6948,9 +6939,9 @@ else
         _pkg_short_errors_supported=no
 fi
         if test $_pkg_short_errors_supported = yes; then
-	        libnlgenl30_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors "libnl-genl-3.0" 2>&1`
+	        libnlgenl30_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "libnl-genl-3.0" 2>&1`
         else
-	        libnlgenl30_PKG_ERRORS=`$PKG_CONFIG --print-errors "libnl-genl-3.0" 2>&1`
+	        libnlgenl30_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "libnl-genl-3.0" 2>&1`
         fi
 	# Put the nasty error message in config.log where it belongs
 	echo "$libnlgenl30_PKG_ERRORS" >&5
@@ -6982,6 +6973,7 @@ if test -n "$libnl20_CFLAGS"; then
   $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
   test $ac_status = 0; }; then
   pkg_cv_libnl20_CFLAGS=`$PKG_CONFIG --cflags "libnl-2.0" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
 else
   pkg_failed=yes
 fi
@@ -6998,6 +6990,7 @@ if test -n "$libnl20_LIBS"; then
   $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
   test $ac_status = 0; }; then
   pkg_cv_libnl20_LIBS=`$PKG_CONFIG --libs "libnl-2.0" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
 else
   pkg_failed=yes
 fi
@@ -7017,9 +7010,9 @@ else
         _pkg_short_errors_supported=no
 fi
         if test $_pkg_short_errors_supported = yes; then
-	        libnl20_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors "libnl-2.0" 2>&1`
+	        libnl20_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "libnl-2.0" 2>&1`
         else
-	        libnl20_PKG_ERRORS=`$PKG_CONFIG --print-errors "libnl-2.0" 2>&1`
+	        libnl20_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "libnl-2.0" 2>&1`
         fi
 	# Put the nasty error message in config.log where it belongs
 	echo "$libnl20_PKG_ERRORS" >&5
@@ -7051,6 +7044,7 @@ if test -n "$libnl1_CFLAGS"; then
   $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
   test $ac_status = 0; }; then
   pkg_cv_libnl1_CFLAGS=`$PKG_CONFIG --cflags "libnl-1" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
 else
   pkg_failed=yes
 fi
@@ -7067,6 +7061,7 @@ if test -n "$libnl1_LIBS"; then
   $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
   test $ac_status = 0; }; then
   pkg_cv_libnl1_LIBS=`$PKG_CONFIG --libs "libnl-1" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
 else
   pkg_failed=yes
 fi
@@ -7086,9 +7081,9 @@ else
         _pkg_short_errors_supported=no
 fi
         if test $_pkg_short_errors_supported = yes; then
-	        libnl1_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors "libnl-1" 2>&1`
+	        libnl1_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "libnl-1" 2>&1`
         else
-	        libnl1_PKG_ERRORS=`$PKG_CONFIG --print-errors "libnl-1" 2>&1`
+	        libnl1_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "libnl-1" 2>&1`
         fi
 	# Put the nasty error message in config.log where it belongs
 	echo "$libnl1_PKG_ERRORS" >&5
@@ -7192,9 +7187,6 @@ $as_echo "yes" >&6; }
 
 $as_echo "#define HAVE_LINUX_NETLINK 1" >>confdefs.h
 
-else
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: libnl was not found" >&5
-$as_echo "libnl was not found" >&6; }
 fi
 
 fi

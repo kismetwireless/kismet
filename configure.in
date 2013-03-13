@@ -844,14 +844,14 @@ if test "$bsdradiotap" = "yes"; then
 	radiotaploc="system (BSD)"
 fi
 
-havenetlink=no
+# havenetlink=no
 if test "$linux" = "yes"; then
+# havenetlink=yes
+# 	AC_CHECK_HEADERS([asm/types.h netlink/genl/genl.h netlink/genl/family.h netlink/genl/ctrl.h netlink/msg.h netlink/attr.h linux/nl80211.h linux/if_arp.h linux/wireless.h], 
+# 	AC_DEFINE(HAVE_NETLINKHEADERS, 1, Netlink headers are there), 
+# 	havenetlink=no,
+# 	[#include <sys/socket.h>])
 havenetlink=yes
-	AC_CHECK_HEADERS([asm/types.h netlink/genl/genl.h netlink/genl/family.h netlink/genl/ctrl.h netlink/msg.h netlink/attr.h linux/nl80211.h linux/if_arp.h linux/wireless.h], 
-	AC_DEFINE(HAVE_NETLINKHEADERS, 1, Netlink headers are there), 
-	havenetlink=no,
-	[#include <sys/socket.h>])
-
 
 #if test "$havenetlink" = "yes"; then
 #	AC_CHECK_LIB([nl], [nl_handle_alloc],
