@@ -143,10 +143,6 @@ GpsWrapper::GpsWrapper(GlobalRegistry *globalreg) {
 		GPSSerial *gs;
 		gs = new GPSSerial(globalreg);
 	} else if (gpsopt == "gpsd") {
-#ifdef HAVE_LIBGPS
-		GPSLibGPS *lgps;
-		lgps = new GPSLibGPS(globalreg);
-#else
 		GPSDClient *gc;
 		gc = new GPSDClient(globalreg);
 		gps = gc;
