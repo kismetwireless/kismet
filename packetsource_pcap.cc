@@ -632,6 +632,8 @@ int PacketSource_Pcap::Radiotap2KisPack(kis_packet *packet, kis_datachunk *linkc
 	int fcs_cut = 0; // Is the FCS bit set?
 	char errstr[STATUS_MAX];
 
+	u.u64 = u2.u64 = 0;
+
 	kis_datachunk *eight11chunk = NULL;
 	kis_layer1_packinfo *radioheader = NULL;
 
