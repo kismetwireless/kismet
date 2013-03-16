@@ -334,6 +334,7 @@ int KisDroneFramework::ParseData(int in_fd) {
 	uint8_t *buf;
 	ostringstream osstr;
 	int pos = 0;
+	int ret = 1;
 
 	len = netserver->FetchReadLen(in_fd);
 
@@ -404,8 +405,8 @@ int KisDroneFramework::ParseData(int in_fd) {
 	}
 
 	delete[] buf;
-	
-	return 1;
+
+	return ret;
 }
 
 int KisDroneFramework::KillConnection(int in_fd) {
