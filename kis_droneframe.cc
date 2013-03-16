@@ -380,8 +380,6 @@ int KisDroneFramework::ParseData(int in_fd) {
 
 		unsigned int dcid = kis_ntoh32(dpkt->drone_cmdnum);
 
-		int ret = 1;
-
 		// Do something with the command
 		map<unsigned int, drone_cmd_rec *>::iterator dcritr = 
 			drone_cmd_map.find(dcid);
