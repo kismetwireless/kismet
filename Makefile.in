@@ -278,14 +278,38 @@ $(DEPEND): Makefile
 plugins: Makefile
 	@( export KIS_SRC_DIR=`pwd`; for x in plugin-*/; do echo "PLUGIN: $$x"; ( cd "$$x"; make; ); done )
 
+restricted-plugins: Makefile
+	@( export KIS_SRC_DIR=`pwd`; for x in restricted-plugin-*/; do echo "PLUGIN: $$x"; ( cd "$$x"; make; ); done )
+
 plugins-clean: Makefile
 	@( export KIS_SRC_DIR=`pwd`; for x in plugin-*/; do echo "PLUGIN-CLEAN: $$x"; ( cd "$$x"; make clean; ); done )
+
+restricted-plugins-clean: Makefile
+	@( export KIS_SRC_DIR=`pwd`; for x in restricted-plugin-*/; do echo "PLUGIN-CLEAN: $$x"; ( cd "$$x"; make clean; ); done )
 
 plugins-install: Makefile
 	@( export KIS_SRC_DIR=`pwd`; for x in plugin-*/; do echo "PLUGIN-INSTALL: $$x"; ( cd "$$x"; make install; ); done )
 
+restricted-plugins-install: Makefile
+	@( export KIS_SRC_DIR=`pwd`; for x in restricted-plugin-*/; do echo "PLUGIN-INSTALL: $$x"; ( cd "$$x"; make install; ); done )
+
 plugins-userinstall: Makefile
 	@( export KIS_SRC_DIR=`pwd`; for x in plugin-*/; do echo "PLUGIN-USERINSTALL: $$x"; ( cd "$$x"; make userinstall; ); done )
+
+restricted-plugins-userinstall: Makefile
+	@( export KIS_SRC_DIR=`pwd`; for x in restricted-plugin-*/; do echo "PLUGIN-USERINSTALL: $$x"; ( cd "$$x"; make userinstall; ); done )
+
+all-plugins: Makefile
+	@$(MAKE) plugins
+	@$(MAKE) restricted-plugins
+
+all-plugins-install: Makefile
+	@$(MAKE) plugins-install
+	@$(MAKE) restricted-plugins-install
+
+all-plugins-userinstall: Makefile
+	@$(MAKE) plugins-userinstall
+	@$(MAKE) restricted-plugins-userinstall
 
 include $(DEPEND)
 
