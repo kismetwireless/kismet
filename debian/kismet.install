@@ -7,6 +7,7 @@
 /usr/lib/kismet/btscan.so
 /usr/lib/kismet/spectool_net.so
 /usr/lib/kismet_client/spectools_ui.so
+/usr/lib/kismet_client/btscan_ui.so
 
 /etc/kismet/kismet*.conf
 
