@@ -22,12 +22,12 @@ export DH_OPTIONS
 
 override_dh_auto_build:
 	dh_auto_build
-	$(MAKE) plugins
+	$(MAKE) all-plugins
 
 override_dh_auto_install:
 	dh_auto_install
 	DESTDIR=$(CURDIR)/debian/tmp $(MAKE) binsuidinstall SUIDGROUP=root
-	DESTDIR=$(CURDIR)/debian/tmp $(MAKE) plugins-install
+	DESTDIR=$(CURDIR)/debian/tmp $(MAKE) all-plugins-install
 
 override_dh_auto_configure:
 	dh_auto_configure -- --prefix=/usr --sysconfdir=/etc/kismet
