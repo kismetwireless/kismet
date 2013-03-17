@@ -958,7 +958,7 @@ int calc_tkip_mic(uchar* packet, int length, uchar ptk[80], uchar value[8])
     return 0;
 }
 
-const short TkipSbox[2][256]=
+const int TkipSbox[2][256]=
 {
     {
         0xC6A5, 0xF884, 0xEE99, 0xF68D, 0xFF0D, 0xD6BD, 0xDEB1, 0x9154,
