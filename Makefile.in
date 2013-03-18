@@ -234,11 +234,7 @@ distclean:
 	@-rm -rf packaging/pak
 	@-rm -rf *.ipk
 	@-rm -f scripts/kismet
-	@-( cd extra/; $(MAKE) distclean )
 	@-rm -f Makefile
-
-arm: $(PS) $(NC) $(ZBUILD)
-	@echo "ARM toolset built."
 
 ipkg: $(PS) $(NC) 
 	@if test "`whoami`" != "root"; then echo "Warning:  You are not root.  The ipkg will probably not be what you want."; fi
@@ -283,10 +279,10 @@ plugins: Makefile
 restricted-plugins: Makefile
 	@( export KIS_SRC_DIR=`pwd`; for x in restricted-plugin-*/; do echo "PLUGIN: $$x"; ( cd "$$x"; make; ); done )
 
-plugins-clean: Makefile
+plugins-clean:
 	@( export KIS_SRC_DIR=`pwd`; for x in plugin-*/; do echo "PLUGIN-CLEAN: $$x"; ( cd "$$x"; make clean; ); done )
 
-restricted-plugins-clean: Makefile
+restricted-plugins-clean:
 	@( export KIS_SRC_DIR=`pwd`; for x in restricted-plugin-*/; do echo "PLUGIN-CLEAN: $$x"; ( cd "$$x"; make clean; ); done )
 
 plugins-install: Makefile
