@@ -216,6 +216,7 @@ rpm:
 
 clean:
 	@-rm -f *.o *.mo
+	@-$(MAKE) all-plugins-clean
 	@-rm -f $(PS)
 	@-rm -f $(CS)
 	@-rm -f $(DRONE)
@@ -223,6 +224,7 @@ clean:
 
 distclean:
 	@-$(MAKE) clean
+	@-$(MAKE) all-plugins-clean
 	@-rm -f *~
 	@-rm -f $(DEPEND)
 	@-rm -f config.status
@@ -310,6 +312,10 @@ all-plugins-install: Makefile
 all-plugins-userinstall: Makefile
 	@$(MAKE) plugins-userinstall
 	@$(MAKE) restricted-plugins-userinstall
+
+all-plugins-clean: Makefile
+	@$(MAKE) plugins-clean
+	@$(MAKE) restricted-plugins-clean
 
 include $(DEPEND)
 
