@@ -319,5 +319,11 @@ include $(DEPEND)
 .m.mo:	$(DEPEND)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $*.m -o $@ 
 	
+check-libpcap-nl:
+	@$(LD) -lpcap -o check-libpcap-nl.so 2>/dev/null
+	@ldd check-libpcap-nl.so | grep libnl.so | awk '{ print $$1 }' > $@
+	@rm check-libpcap-nl.so
+	@test "`cat $@`" = "" || \
+		(echo "It looks like your libpcap links libnl"; rm $@; exit 1)
 
 .SUFFIXES: .c .cc .o .m .mo
