@@ -860,6 +860,14 @@ havenetlink=yes
 #	AC_MSG_WARN(Missing libnl or libnl too old support will not be able to control mac80211 vaps)
 #fi
 
+netlink_force=no
+
+AC_ARG_WITH(netlink-version,
+	[  --with-netlink-version[=1|2|3]     Force using libnl1, libnl2, or libnl-3 ],
+	[
+	netlink_force=$withval
+	])
+
 AC_CHECK_PROG(havepkgconfig, [pkg-config], yes, no)
 if test "$havepkgconfig" = "no"; then
   AC_MSG_WARN(Missing pkg-config will lead to multiple other checks failing)
@@ -875,18 +883,34 @@ if test "$havenetlink" = "yes"; then
 	PKG_CHECK_MODULES(libnl20, [libnl-2.0], libnl20=yes, libnl20=no)
 	PKG_CHECK_MODULES(libnl1, [libnl-1], libnl1=yes, libnl1=no)
 
-	if test "$libnl30" = "yes" -a "$libnlgenl30" = "yes"; then
-		AC_DEFINE(HAVE_LIBNL, 1, libnl netlink library)
-		AC_DEFINE(HAVE_LIBNL30, 1, libnl-3.0 netlink library)
-		nlname="libnl-3.0 libnl-genl-3.0"
-	elif test "$libnl20" = "yes"; then
-		AC_DEFINE(HAVE_LIBNL, 1, libnl netlink library)
-		AC_DEFINE(HAVE_LIBNL20, 1, libnl-2.0 netlink library)
-		nlname="libnl-2.0"
-	elif test "$libnl1" = "yes"; then
-		AC_DEFINE(HAVE_LIBNL, 1, libnl netlink library)
-		nlname="libnl-1"
-	else
+	picked_nl=no
+	if test $picked_nl = "no" -a "$libnl30" = "yes" -a "$libnlgenl30" = "yes"; then
+		if test $netlink_force = "no" -o $netlink_force = "3"; then
+			picked_nl=3
+			AC_DEFINE(HAVE_LIBNL, 1, libnl netlink library)
+			AC_DEFINE(HAVE_LIBNL30, 1, libnl-3.0 netlink library)
+			nlname="libnl-3.0 libnl-genl-3.0"
+		fi
+	fi
+
+	if test $picked_nl = "no" -a "$libnl20" = "yes"; then
+		if test $netlink_force = "no" -o $netlink_force = "3"; then
+			picked_nl=2
+			AC_DEFINE(HAVE_LIBNL, 1, libnl netlink library)
+			AC_DEFINE(HAVE_LIBNL20, 1, libnl-2.0 netlink library)
+			nlname="libnl-2.0"
+		fi
+	fi
+
+	if test $picked_nl = "no" -a "$libnl1" = "yes"; then
+		if test $link_force = "no" -o $netlink_force = "3"; then
+			picked_nl=1
+			AC_DEFINE(HAVE_LIBNL, 1, libnl netlink library)
+			nlname="libnl-1"
+		fi
+	fi
+
+	if test $picked_nl = "no"; then
 		havenetlink="no"
 	fi
 
@@ -1073,47 +1097,11 @@ fi
 # 	echo "no (Using Kismet GPSD interface for GPSD <= 2.90)";
 # fi
 
-if test "$linux_wireless" != "yes" -a "$linux" = "yes"; then
-    echo "*** WARNING ***"
-	echo "Linux Wireless Extensions were disabled.  Compiling without wext on a "
-	echo "Linux system is certainly possible, however nearly all of the packet "
-	echo "sources will be disabled (including capture sources for Cisco, Madwifi, "
-	echo "Orinoco, Prism, and just about every other live capture method).  Make "
-	echo "sure this is what you want to do."
-    echo "*** WARNING ***"
-fi
-
-if test "$pcap" != "yes" -a "$linux" = "yes"; then
-	echo "*** WARNING ***"
-	echo "LibPCAP was not found.  Kismet previously included a local copy of this"
-	echo "library, however it now expects libpcap to be provided by the system."
-	echo "Kismet on Linux without LibPcap cannot capture data locally and will "
-	echo "almost certainly NOT BE WHAT YOU WANT."
-	echo "You need both the libpcap libraries and development headers (called "
-	echo "libpcap-dev or libpcap-devel by most distributions)."
-fi
-
 if test "$havepkgconfig" = "no"; then
 	echo
 	echo "pkg-config was missing.  Without it, configure cannot detect "
 	echo "several libraries Kismet needs.  Install pkg-config and re-run"
 	echo "configure."
-fi
-
-if test "$havenetlink" != "yes" -a "$linux" = "yes"; then
-	echo "*** WARNING ***"
-	echo "LibNL/nl80211 support was not found.  Kismet uses libnl to control "
-	echo "mac80211 based wireless interfaces, which comprise the vast majority of"
-	echo "interfaces on modern Linux systems.  Unless you plan to use only "
-	echo "older drivers, you need libnl."
-	echo "You need both the libnl libraries and development headers (called "
-	echo "libnl-dev or libnl-devel by most distributions)."
-
-	if test "$havepkgconfig" = "no"; then
-		echo "You do not have the pkg-config utility installed.  Kismet needs "
-		echo "this to find the options libnl uses.  If libnl is installed but "
-		echo "pkg-config is not, Kismet will not detect libnl!"
-	fi
 fi
 
 if test "`echo $host_os | grep linux`" = ""; then
@@ -1130,5 +1118,43 @@ else
 	echo
 	echo "Configuration complete.  Run 'make dep' to generate dependencies"
 	echo "and 'make' followed by 'make install' to compile and install."
+fi
+
+if test "$linux_wireless" != "yes" -a "$linux" = "yes"; then
+	echo
+    echo "*** WARNING ***"
+	echo "Linux Wireless Extensions were disabled.  Compiling without wext on a "
+	echo "Linux system is certainly possible, however nearly all of the packet "
+	echo "sources will be disabled (including capture sources for Cisco, Madwifi, "
+	echo "Orinoco, Prism, and just about every other live capture method).  Make "
+	echo "sure this is what you want to do."
+    echo "*** WARNING ***"
+fi
+
+if test "$pcap" != "yes" -a "$linux" = "yes"; then
+	echo
+	echo "*** WARNING ***"
+	echo "LibPCAP was not found."
+	echo "Kismet on Linux without LibPcap cannot capture data locally and will "
+	echo "almost certainly NOT BE WHAT YOU WANT."
+	echo "You need both the libpcap libraries and development headers (called "
+	echo "libpcap-dev or libpcap-devel by most distributions)."
+fi
+
+if test "$havenetlink" != "yes" -a "$linux" = "yes"; then
+	echo
+	echo "*** WARNING ***"
+	echo "LibNL/nl80211 support was not found.  Kismet uses libnl to control "
+	echo "mac80211 based wireless interfaces, which comprise the vast majority of"
+	echo "interfaces on modern Linux systems.  Unless you plan to use only "
+	echo "older drivers, you need libnl."
+	echo "You need both the libnl libraries and development headers (called "
+	echo "libnl-dev or libnl-devel by most distributions)."
+
+	if test "$havepkgconfig" = "no"; then
+		echo "You do not have the pkg-config utility installed.  Kismet needs "
+		echo "this to find the options libnl uses.  If libnl is installed but "
+		echo "pkg-config is not, Kismet will not detect libnl!"
+	fi
 fi
 
