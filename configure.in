@@ -1158,3 +1158,19 @@ if test "$havenetlink" != "yes" -a "$linux" = "yes"; then
 	fi
 fi
 
+if test "$havenetlink" = "yes" -a "$pcap" = "yes"; then
+	echo
+	echo "*** WARNING ***"
+	echo "In some situations, libpcap links to libnl.  If Kismet finds a newer "
+	echo "libbl, it can cause an immediate segfault when starting Kismet. "
+	echo
+	echo "It is very hard to test at compile time (and run-time changes can "
+	echo "cause it to break).  If you experience immediate segfaults when "
+	echo "trying to start kismet_server, check your libpcap.so with 'ldd'"
+	echo "and either install a libpcap which does not link libnl1, or "
+	echo "force Kismet to compile with a degraded libnl via "
+	echo "./configure --with-netlink-version=1"
+	echo
+fi
+
+
