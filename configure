@@ -7149,7 +7149,7 @@ $as_echo "#define HAVE_LIBNL30 1" >>confdefs.h
 	fi
 
 	if test $picked_nl = "no" -a "$libnl20" = "yes"; then
-		if test $netlink_force = "no" -o $netlink_force = "3"; then
+		if test $netlink_force = "no" -o $netlink_force = "2"; then
 			picked_nl=2
 
 $as_echo "#define HAVE_LIBNL 1" >>confdefs.h
@@ -7162,7 +7162,7 @@ $as_echo "#define HAVE_LIBNL20 1" >>confdefs.h
 	fi
 
 	if test $picked_nl = "no" -a "$libnl1" = "yes"; then
-		if test $link_force = "no" -o $netlink_force = "3"; then
+		if test $netlink_force = "no" -o $netlink_force = "1"; then
 			picked_nl=1
 
 $as_echo "#define HAVE_LIBNL 1" >>confdefs.h
