@@ -725,6 +725,7 @@ void KisPanelInterface::LoadPlugin(string in_fname, string in_objname) {
 
 				RaiseAlert("Loading Plugin Failed", InLineWrap(msg, 0, 50));
 
+		    dlclose(dlfile);
 				signal(SIGSEGV, old_segv);
 				return;
 			}
