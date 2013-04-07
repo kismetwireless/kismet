@@ -34,7 +34,7 @@
 #define WIN_CENTER(h, w)   (LINES / 2) - ((h) / 2), (COLS / 2) - ((w) / 2), (h), (w)
 
 unsigned int Kis_Panel_Specialtext::Strlen(string str) {
-	int npos = 0;
+	unsigned int npos = 0;
 	int escape = 0;
 
 	for (unsigned int pos = 0; pos < str.size(); pos++) {
