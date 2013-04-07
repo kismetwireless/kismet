@@ -444,7 +444,7 @@ int PacketSource_Wext::ScanWpaSupplicant() {
 		return 1;
 	}
 
-	const char *scan = "SCAN";
+	const char scan[] = "SCAN";
 
 	if (write(wpa_sock, scan, sizeof(scan)) != sizeof(scan)) {
 		_MSG("Source '" + parent + "' error writing to wpa_supplicant socket, "

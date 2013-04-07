@@ -118,7 +118,7 @@ int PacketSource_Ipwlive::EnableMonitor() {
 	fclose(sysf);
 
 	// If it's -1 we aren't turned on, so we'll initialize
-	if (strncmp(dynif, "-1", 32) == 0) {
+	if (strncmp(dynif, "-1", 3) == 0) {
 		if ((sysf = fopen(path, "w")) == NULL) {
 			_MSG("Failed to open the ipw rtap control file for writing "
 				 "(" + string(strerror(errno)) + ").  Check that Kismet has "
@@ -158,8 +158,8 @@ int PacketSource_Ipwlive::EnableMonitor() {
 
 	// Sanity check the interface we were told to use.  A 0, 1, -1 probably
 	// means a bad driver version or something
-	if (strncmp(dynif, "-1", 32) == 0 || strncmp(dynif, "0", 32) == 0 ||
-		strncmp(dynif, "1", 32) == 0) {
+	if (strncmp(dynif, "-1", 3) == 0 || strncmp(dynif, "0", 2) == 0 ||
+		strncmp(dynif, "1", 2) == 0) {
 		_MSG("Got a nonsense interface from the ipw rtap control file.  This "
 			 "probably means there is something unexpected happening with the "
 			 "ipw drivers.  Check your system messages (dmesg)", MSGFLAG_ERROR);

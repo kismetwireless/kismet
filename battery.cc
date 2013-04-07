@@ -104,7 +104,7 @@ int Fetch_Battery_Info(kis_battery_info *out) {
 		else
 			out->remaining_sec = apm_time;
 
-		if (!strncmp(units, "min", 32))
+		if (!strncmp(units, "min", 4))
 			out->remaining_sec *= 60;
 
 		fclose(bfile);

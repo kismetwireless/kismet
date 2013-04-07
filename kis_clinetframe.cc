@@ -507,7 +507,7 @@ int KisNetClient::ParseData() {
 		if (net_toks.size() == 0)
 			continue;
 
-		if (!strncmp(header, "KISMET", 64)) {
+		if (!strncmp(header, "KISMET", 7)) {
 			// Decrement our configure counter
 			configured--;
 
@@ -526,13 +526,13 @@ int KisNetClient::ParseData() {
 					 MSGFLAG_INFO);
 			}
 
-		} else if (!strncmp(header, "TERMINATE", 64)) {
+		} else if (!strncmp(header, "TERMINATE", 10)) {
 			osstr << "Kismet server '" << host << ":" << port << "' has "
 				"terminated";
 			_MSG(osstr.str(), MSGFLAG_ERROR);
             netclient->KillConnection();
             continue;
-		} else if (!strncmp(header, "PROTOCOLS", 64)) {
+		} else if (!strncmp(header, "PROTOCOLS", 10)) {
 			// Vectorize the protocol list
 			vector<string> protovec = StrTokenize(net_toks[0].word, ",");
 
@@ -559,7 +559,7 @@ int KisNetClient::ParseData() {
 				// Increment our configure counter
 				configured++;
 			}
-		} else if (!strncmp(header, "CAPABILITY", 64)) {
+		} else if (!strncmp(header, "CAPABILITY", 11)) {
 			if (net_toks.size() != 2) {
 				osstr << "Kismet server '" << host << ":" << port << "' "
 					"sent a capability report without the proper fields";
@@ -603,7 +603,7 @@ int KisNetClient::ParseData() {
 			// Decrement our configure count
 			configured--;
 
-		} else if (!strncmp(header, "ERROR", 64) && net_toks.size() >= 2) {
+		} else if (!strncmp(header, "ERROR", 6) && net_toks.size() >= 2) {
 			int cmdnum;
 			if (sscanf(net_toks[0].word.c_str(), "%d", &cmdnum) != 0) {
 				map<int, kcli_cmdcb_rec>::iterator cbi;
@@ -614,7 +614,7 @@ int KisNetClient::ParseData() {
 					command_cb_map.erase(cbi);
 				}
 			}
-		} else if (!strncmp(header, "ACK", 64)) {
+		} else if (!strncmp(header, "ACK", 4)) {
 			int cmdnum;
 			if (sscanf(net_toks[0].word.c_str(), "%d", &cmdnum) != 0) {
 				map<int, kcli_cmdcb_rec>::iterator cbi;
@@ -625,7 +625,7 @@ int KisNetClient::ParseData() {
 					command_cb_map.erase(cbi);
 				}
 			}
-		} else if (!strncmp(header, "TIME", 64)) {
+		} else if (!strncmp(header, "TIME", 5)) {
 			// Graceful handling of junk time proto, set us to 0.
 			int tint;
 			if (sscanf(net_toks[0].word.c_str(), "%d", &tint) != 0)

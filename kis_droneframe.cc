@@ -168,7 +168,7 @@ KisDroneFramework::KisDroneFramework(GlobalRegistry *in_globalreg) {
 	}
 
 	// We only know how to set up a tcp server
-	if (strncasecmp(srv_proto, "tcp", 10) == 0) {
+	if (strncasecmp(srv_proto, "tcp", 4) == 0) {
 		tcpsrv = new TcpServer(globalreg);
 		tcpsrv->SetupServer(port, maxcli, srv_bindhost,
 							globalreg->kismet_config->FetchOpt("droneallowedhosts"));

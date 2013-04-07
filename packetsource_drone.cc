@@ -154,7 +154,7 @@ int DroneClientFrame::OpenConnection(string in_conparm, int in_recon) {
 		return -1;
 	}
 
-	if (strncasecmp(cli_proto, "tcp", 10) == 0) {
+	if (strncasecmp(cli_proto, "tcp", 4) == 0) {
 		tcpcli = new TcpClient(globalreg);
 		netclient = tcpcli;
 
