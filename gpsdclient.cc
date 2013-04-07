@@ -351,7 +351,7 @@ int GPSDClient::ParseData() {
 
 					if (v->value.tok_type == JSON_arrstart) {
 						for (unsigned int z = 0; z < v->value_array.size(); z++) {
-							float prn = 0, ele = 0, az = 0, snr = 0;
+							float prn, ele, az, snr;
 							int valid = 1;
 
 							s = v->value_array[z];

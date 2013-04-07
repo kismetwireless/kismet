@@ -3182,7 +3182,7 @@ void Kis_IntGraph::DrawComponent() {
 
 			// If we're negative, do the math differently
 			// Adapt the group max to our scale
-			float adapted = 0;
+			float adapted;
 
 			if (max < 0) {
 				adapted = 
