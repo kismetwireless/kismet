@@ -696,7 +696,7 @@ int Iwconfig_Get_Chanlist(const char *interface, char *errstr,
 		return -1;
 	}
 
-	bzero(buffer, sizeof(buffer));
+	memset(buffer, 0, sizeof(buffer));
 
 	memset(&wrq, 0, sizeof(struct iwreq));
 
@@ -731,7 +731,7 @@ int Iwconfig_Get_Chanlist(const char *interface, char *errstr,
 		memcpy((char *) &range, buffer, sizeof(iw_range));
 	} else {
 		/* Zero unknown fields */
-		bzero((char *) &range, sizeof(struct iw_range));
+		memset((char *) &range, 0, sizeof(struct iw_range));
 
 		/* Initial part unmoved */
 		memcpy((char *) &range, buffer, iwr15_off(num_channels));
