@@ -69,8 +69,10 @@ int ConfigFile::ParseConfig(const char *in_fname) {
             if (directive == "include") {
                 printf("Including sub-config file: %s\n", value.c_str());
 
-                if (ParseConfig(value.c_str()) < 0)
+                if (ParseConfig(value.c_str()) < 0) {
+                    fclose(configf);
                     return -1;
+                }
             } else {
                 config_map[StrLower(directive)].push_back(value);
                 config_map_dirty[StrLower(directive)] = 1;
@@ -458,6 +460,7 @@ int GroupConfigFile::ParseConfig(const char *in_fname) {
 			if (parsestr[0] == '}') {
 				if (sub == root) {
 					fprintf(stderr, "ERROR:  Unexpected closing '}'\n");
+          fclose(configf);
 					return -1;
 				}
 
@@ -479,12 +482,15 @@ int GroupConfigFile::ParseConfig(const char *in_fname) {
 
 			if (directive == "include") {
 				fprintf(stderr, "ERROR:  Can't include sub-files right now\n");
+        fclose(configf);
 				return -1;
 			}
 
 			sub->value_map[StrLower(directive)].push_back(value);
 		}
 	}
+
+  fclose(configf);
 
 	return 1;
 }
