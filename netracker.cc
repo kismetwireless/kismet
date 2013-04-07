@@ -1743,7 +1743,7 @@ Netracker::Netracker(GlobalRegistry *in_globalreg) {
 			if (study)
 				pcre_free(study);
 #endif
-			free(ssid_alert);
+			delete ssid_alert;
 			continue;
 		}
 

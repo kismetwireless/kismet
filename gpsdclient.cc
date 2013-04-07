@@ -207,6 +207,7 @@ int GPSDClient::ParseData() {
         globalreg->messagebus->InjectMessage("GPSDClient::ParseData failed to "
 											 "fetch data from the tcp connection.", 
 											 MSGFLAG_ERROR);
+        delete[] buf;
         return -1;
     }
 

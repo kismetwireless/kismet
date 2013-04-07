@@ -458,6 +458,8 @@ int IPCRemote::ShutdownIPC(ipc_packet *pack) {
 	// Send it immediately
 	send(sock, dpack, sizeof(ipc_packet) + dpack->data_len, 0);
 
+  free (dpack);
+
 	// Die fully
 	IPCDie();
 

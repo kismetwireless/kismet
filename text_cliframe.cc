@@ -70,6 +70,7 @@ int TextCliFrame::ParseData() {
 
 	if (netclient->ReadData(buf, len, &rlen) < 0) {
 		_MSG("Textclient::Parsedata failed to fetch data", MSGFLAG_ERROR);
+    delete[] buf;
 		return -1;
 	}
 

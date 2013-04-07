@@ -423,10 +423,12 @@ void Client_Phy80211::Proto_DOT11CLIENT(CLIPROTO_CB_PARMS) {
 	map<mac_addr, dot11_client *>::iterator cmi =
 		dot11dev->client_map.find(cmac);
 
-	if (cmi == dot11dev->client_map.end())
+	if (cmi == dot11dev->client_map.end()) {
 		dot11cli = new dot11_client();
-	else
+    dot11cli_new = true;
+  } else {
 		dot11cli = cmi->second;
+  }
 
 	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%u", &tuint) != 1)
 		goto proto_fail;

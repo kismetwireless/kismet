@@ -787,6 +787,7 @@ int KisNetFramework::ParseData(int in_fd) {
         globalreg->messagebus->InjectMessage("KisNetFramework::ParseData failed to "
                                              "fetch data from the client.", 
                                              MSGFLAG_ERROR);
+        delete[] buf;
         return -1;
     }
     buf[len] = '\0';

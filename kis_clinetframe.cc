@@ -463,6 +463,7 @@ int KisNetClient::ParseData() {
     if (netclient->ReadData(buf, len, &rlen) < 0) {
 		_MSG("Kismet protocol parser failed to get data from the TCP connection",
 			 MSGFLAG_ERROR);
+        delete[] buf;
         return -1;
     }
     buf[len] = '\0';

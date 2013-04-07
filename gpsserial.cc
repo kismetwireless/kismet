@@ -146,6 +146,7 @@ int GPSSerial::ParseData() {
 	if (netclient->ReadData(buf, len, &rlen) < 0) {
 		_MSG("GPSSerial parser failed to get data from the serial port",
 			 MSGFLAG_ERROR);
+    delete[] buf;
 		return -1;
 	}
 
