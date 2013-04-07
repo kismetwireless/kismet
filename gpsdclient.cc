@@ -288,7 +288,7 @@ int GPSDClient::ParseData() {
 				}
 
 				// If we have a valid alt, use it
-				if (in_mode > 2) {
+				if (use_mode && in_mode > 2) {
 					n = JSON_dict_get_number(json, "alt", err);
 					if (err.length() == 0) {
 						in_alt = n;
@@ -296,7 +296,7 @@ int GPSDClient::ParseData() {
 					}
 				} 
 
-				if (in_mode >= 2) {
+				if (use_mode && in_mode >= 2) {
 					// If we have LAT and LON, use them
 					n = JSON_dict_get_number(json, "lat", err);
 					if (err.length() == 0) {
