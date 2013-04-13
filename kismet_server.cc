@@ -53,6 +53,7 @@
 #include "packetsource_airpcap.h"
 #include "packetsource_darwin.h"
 #include "packetsource_macusb.h"
+#include "packetsource_bcmon.h"
 #include "packetsourcetracker.h"
 
 #include "timetracker.h"
@@ -1091,6 +1092,10 @@ int main(int argc, char *argv[], char *envp[]) {
 #endif
 #ifdef USE_PACKETSOURCE_MACUSB
 	if (globalregistry->sourcetracker->RegisterPacketSource(new PacketSource_MacUSB(globalregistry)) < 0 || globalregistry->fatal_condition) 
+		CatchShutdown(-1);
+#endif
+#ifdef USE_PACKETSOURCE_BCMON
+	if (globalregistry->sourcetracker->RegisterPacketSource(new PacketSource_Bcmon(globalregistry)) < 0 || globalregistry->fatal_condition) 
 		CatchShutdown(-1);
 #endif
 
