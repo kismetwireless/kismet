@@ -47,8 +47,6 @@ public:
 		return new PacketSource_Bcmon(in_globalreg, in_interface, in_opts);
 	}
 
-    virtual int OpenSource();
-
 	virtual int AutotypeProbe(string in_device);
 	virtual int RegisterSources(Packetsourcetracker *tracker);
 

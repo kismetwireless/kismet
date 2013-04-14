@@ -50,14 +50,15 @@ typedef unsigned long u64;
 #include "packetsource_bcmon.h"
 
 PacketSource_Bcmon::PacketSource_Bcmon(GlobalRegistry *in_globalreg, 
-									   string in_interface,
-									   vector<opt_pair> *in_opts) :
+										   string in_interface,
+										   vector<opt_pair> *in_opts) :
 	PacketSource_Wext(in_globalreg, in_interface, in_opts) {
 
 	SetFCSBytes(4);
 }
 
 int PacketSource_Bcmon::DatalinkType() {
+	datalink_type = DLT_IEEE802_11_RADIO;
 	return DLT_IEEE802_11_RADIO;
 }
 
@@ -76,6 +77,10 @@ int PacketSource_Bcmon::DisableMonitor() {
 
 int PacketSource_Bcmon::AutotypeProbe(string in_device) {
 	return 0;
+}
+
+int PacketSource_Bcmon::OpenSource() {
+	return PacketSource_Pcap::OpenSource();
 }
 
 
