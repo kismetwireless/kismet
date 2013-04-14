@@ -51,4 +51,5 @@ if [ -e "$PROGRAM" ]; then
     fi
 fi
 
+exit 0
 
