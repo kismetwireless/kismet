@@ -531,9 +531,6 @@ void CatchShutdown(int sig) {
 
 	globalregistry->pcapdump = NULL;
 
-	if (globalregistry->plugintracker != NULL)
-		globalregistry->plugintracker->ShutdownPlugins();
-    
 	if (globalregistry->netracker != NULL) {
 		delete globalregistry->netracker;
 		globalregistry->netracker = NULL;
@@ -543,6 +540,9 @@ void CatchShutdown(int sig) {
 		delete globalregistry->devicetracker;
 		globalregistry->devicetracker = NULL;
 	}
+
+	if (globalregistry->plugintracker != NULL)
+		globalregistry->plugintracker->ShutdownPlugins();
 
     // Dump fatal errors again
     if (fqmescli != NULL) //  && globalregistry->fatal_condition) 
