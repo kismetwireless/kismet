@@ -1984,6 +1984,7 @@ void Packetsourcetracker::SendIPCSourceAdd(pst_packetsource *in_source) {
 	ipc_packet *ipc =
 		(ipc_packet *) malloc(sizeof(ipc_packet) +
 							  sizeof(ipc_source_add));
+	memset(ipc, 0, sizeof(ipc_packet) + sizeof(ipc_source_add));
 	ipc_source_add *add = (ipc_source_add *) ipc->data;
 
 	ipc->data_len = sizeof(ipc_source_add);
@@ -2022,6 +2023,7 @@ void Packetsourcetracker::SendIPCChannellist(pst_channellist *in_list) {
 	ipc_packet *ipc =
 		(ipc_packet *) malloc(sizeof(ipc_packet) +
 							  sizeof(ipc_source_add_chanlist));
+	memset(ipc, 0, sizeof(ipc_packet) + sizeof(ipc_source_add_chanlist));
 	ipc_source_add_chanlist *addch = (ipc_source_add_chanlist *) ipc->data;
 
 	ipc->data_len = sizeof(ipc_source_add_chanlist);
@@ -2156,6 +2158,7 @@ void Packetsourcetracker::SendIPCStop(pst_packetsource *in_source) {
 	ipc_packet *ipc =
 		(ipc_packet *) malloc(sizeof(ipc_packet) +
 							  sizeof(ipc_source_run));
+	memset(ipc, 0, sizeof(ipc_packet) + sizeof(ipc_source_run));
 	ipc_source_run *run = (ipc_source_run *) ipc->data;
 
 	ipc->data_len = sizeof(ipc_source_run);

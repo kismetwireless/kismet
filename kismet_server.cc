@@ -1022,6 +1022,7 @@ int main(int argc, char *argv[], char *envp[]) {
 	// Fire the startup command to IPC, we're done and it can drop privs
 	if (globalregistry->rootipc != NULL) {
 		ipc_packet *ipc = (ipc_packet *) malloc(sizeof(ipc_packet));
+		memset(ipc, 0, sizeof(ipc_packet));
 		ipc->data_len = 0;
 		ipc->ipc_ack = 0;
 		ipc->ipc_cmdnum = startup_ipc_id;

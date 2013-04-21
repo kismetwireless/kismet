@@ -268,6 +268,7 @@ public:
 	virtual int SyncRoot() {
 		ipc_packet *pack =
 			(ipc_packet *) malloc(sizeof(ipc_packet));
+		memset(pack, 0, sizeof(ipc_packet));
 		pack->data_len = 0;
 		pack->ipc_cmdnum = rootipcsync_cmd;
 		pack->ipc_ack = 0;
