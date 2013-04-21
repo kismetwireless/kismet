@@ -111,6 +111,12 @@
 /* Define to 1 if you have the `pstat' function. */
 #undef HAVE_PSTAT
 
+/* Define if you have POSIX threads libraries and header files. */
+#undef HAVE_PTHREAD
+
+/* Have PTHREAD_PRIO_INHERIT. */
+#undef HAVE_PTHREAD_PRIO_INHERIT
+
 /* Define to 1 if you have the `select' function. */
 #undef HAVE_SELECT
 
@@ -211,6 +217,10 @@
 
 /* writeable argv type */
 #undef PF_ARGV_TYPE
+
+/* Define to necessary symbol if this constant uses a non-standard name on
+   your system. */
+#undef PTHREAD_CREATE_JOINABLE
 
 /* Define as the return type of signal handlers (`int' or `void'). */
 #undef RETSIGTYPE

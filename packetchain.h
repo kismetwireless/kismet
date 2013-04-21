@@ -33,6 +33,8 @@
 #include <vector>
 #include <map>
 
+#include <pthread.h>
+
 #include "globalregistry.h"
 #include "packet.h"
 
@@ -124,6 +126,8 @@ protected:
     vector<Packetchain::pc_link *> classifier_chain;
 	vector<Packetchain::pc_link *> tracker_chain;
     vector<Packetchain::pc_link *> logging_chain;
+
+	pthread_mutex_t packetchain_mutex;
 };
 
 #endif

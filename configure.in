@@ -1,5 +1,8 @@
 # Process this file with autoconf to produce a configure script.
 AC_INIT
+
+m4_include([m4/ax_pthread.m4])
+
 AC_CONFIG_SRCDIR([kismet.h])
 
 AC_PREREQ(2.57)
@@ -314,6 +317,12 @@ usedl=0
 AC_CHECK_LIB([dl], [dlopen], 
 			usedl=1,
 			 AC_MSG_WARN([libdl doesn't seem to be needed on this system]))
+
+# We need threads
+AX_PTHREAD(pthread=1,
+		   AC_MSG_ERROR([pthreads are needed and are not available]))
+KSLIBS="$KSLIBS $PTHREAD_LIBS"
+CPPFLAGS="$CPPFLAGS $PTHREAD_CFLAGS"
 
 if test "$usedl" -eq 1; then
 	LIBS="$LIBS -ldl"
