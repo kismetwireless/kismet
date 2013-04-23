@@ -61,8 +61,6 @@ class Kismet
 		rescue Exception => e
 			pp e
 
-			break if @die
-
 			puts "write error: #{$!}"
 		end
 	end

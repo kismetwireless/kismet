@@ -22,7 +22,7 @@
 
 require 'socket'
 require 'time'
-require 'kismet'
+require_relative 'kismet'
 require 'pp'
 require "getopt/long"
 require "sqlite3"

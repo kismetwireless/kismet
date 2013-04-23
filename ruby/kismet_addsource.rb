@@ -20,7 +20,7 @@
 
 require 'socket'
 require 'time'
-require 'kismet'
+require_relative 'kismet'
 require 'pp'
 require 'optparse'
 

@@ -20,7 +20,7 @@
 
 require 'socket'
 require 'time'
-require 'kismet'
+require_relative 'kismet'
 
 def bssidcb(proto, fields)
 	puts "Kismet saw network #{fields['bssid']} manuf #{fields['manuf']} on channel #{fields['channel']}"
