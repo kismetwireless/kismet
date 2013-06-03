@@ -33,6 +33,8 @@ NetworkServer::NetworkServer(GlobalRegistry *in_reg) {
     max_fd = 0;
 
     srvframework = NULL;
+
+	pthread_mutex_init(&write_mutex, NULL);
 }
 
 int NetworkServer::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
@@ -213,19 +215,19 @@ int NetworkServer::WriteData(int in_clid, void *in_data, int in_len) {
         globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
         return -1;
     }
+
+	pthread_mutex_lock(&write_mutex);
     
     RingBuffer *write_buf = write_buf_map[in_clid];
 
     if (write_buf->InsertDummy(in_len) == 0) {
-		/*
-        snprintf(errstr, STATUS_MAX, "NetworkServer::WriteData no room in ring "
-                 "buffer to insert %d bytes for client id %d", in_len, in_clid);
-        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
-		*/
+		pthread_mutex_unlock(&write_mutex);
         return -2;
     }
 
     write_buf->InsertData((uint8_t *) in_data, in_len);
+
+	pthread_mutex_unlock(&write_mutex);
     
     return 1;
 }

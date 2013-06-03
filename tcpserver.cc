@@ -333,9 +333,13 @@ int TcpServer::WriteBytes(int in_fd) {
 
     // This can't get called on invalid fds, so save some time and
     // don't check
+	pthread_mutex_lock(&write_mutex);
+
     write_buf_map[in_fd]->FetchPtr(dptr, 1024, &dlen);
 
     if ((ret = write(in_fd, dptr, dlen)) <= 0) {
+		pthread_mutex_unlock(&write_mutex);
+
 		if (errno == EINTR || errno == EAGAIN)
 			return 0;
 
@@ -349,6 +353,8 @@ int TcpServer::WriteBytes(int in_fd) {
     write_buf_map[in_fd]->MarkRead(ret);
 
 	if (srvframework->BufferDrained(in_fd) < 0) {
+		pthread_mutex_unlock(&write_mutex);
+
 		snprintf(errstr, STATUS_MAX, "TCP server: Error occured calling framework "
 				 "buffer drain notification on client %s", 
 				 GetRemoteAddr(in_fd).c_str());
@@ -356,6 +362,8 @@ int TcpServer::WriteBytes(int in_fd) {
 		KillConnection(in_fd);
 		return -1;
 	}
+
+	pthread_mutex_unlock(&write_mutex);
 
     return ret;
 }

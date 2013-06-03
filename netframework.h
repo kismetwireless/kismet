@@ -163,6 +163,8 @@ protected:
     map<int, RingBuffer *> write_buf_map;
 
     int max_fd;
+
+	pthread_mutex_t write_mutex;
 };
 
 // Skeleton to a protocol interface
