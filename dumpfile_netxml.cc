@@ -505,7 +505,7 @@ int Dumpfile_Netxml::Flush() {
 			fprintf(xmlfile, "    <wireless-client number=\"%d\" type=\"%s\" "
 					"first-time=\"%.24s\" ",
 					clinum, ctype.c_str(),
-					ctime(&(cli->last_time)));
+					ctime(&(cli->first_time)));
 			fprintf(xmlfile, "last-time=\"%.24s\">\n",
 					ctime(&(cli->last_time)));
 
