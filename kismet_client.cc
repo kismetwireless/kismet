@@ -395,6 +395,8 @@ int main(int argc, char *argv[], char *envp[]) {
 						 strerror(errno));
 				CatchShutdown(-1);
 			}
+
+			continue;
 		}
 
 		if (globalregistry->winch) {

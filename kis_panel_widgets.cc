@@ -353,6 +353,7 @@ void PanelInterface::ResizeInterface() {
 
 	endwin();
 	refresh();
+	clear();
 
 	getmaxyx(stdscr, nh, nv);
 
@@ -3771,6 +3772,10 @@ int Kis_Panel::Poll() {
 	last_key_time.tv_sec = globalreg->timestamp.tv_sec;
 	last_key_time.tv_usec = globalreg->timestamp.tv_usec;
 	*/
+
+	if (get == KEY_RESIZE) {
+		globalreg->winch = 1;
+	}
 
 	if (escape_timer > 0) {
 		globalreg->timetracker->RemoveTimer(escape_timer);
