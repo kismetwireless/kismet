@@ -183,7 +183,7 @@ struct kis_gps_data {
 	double min_lat, min_lon, min_alt, min_spd;
 	double max_lat, max_lon, max_alt, max_spd;
 	// Aggregate/avg center position
-	long unsigned int add_lat, add_lon, add_alt;
+	uint64_t add_lat, add_lon, add_alt;
 	double aggregate_lat, aggregate_lon, aggregate_alt;
 	long aggregate_points;
 };
