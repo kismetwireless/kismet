@@ -842,8 +842,8 @@ int PacketSource_Wext::FetchHardwareChannel() {
 	// blow up definitively on something else soon enough
     if ((chan = Iwconfig_Get_Channel(interface.c_str(), errstr)) < 0) {
         globalreg->messagebus->InjectMessage("Source '" + name + "': " + errstr, 
-											 MSGFLAG_PRINTERROR);
-        return -1;
+											 MSGFLAG_INFO);
+		chan = 0;
     }
 
 	last_channel = chan;
