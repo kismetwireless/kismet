@@ -288,6 +288,8 @@ int KisDroneFramework::Accept(int in_fd) {
 	// Send them all the sources
 	vector<pst_packetsource *> *srcv = globalreg->sourcetracker->FetchSourceVec();
 	for (unsigned int x = 0; x < srcv->size(); x++) {
+		if ((*srcv)[x] == NULL)
+			continue;
 		SendSource(in_fd, (*srcv)[x], 0);
 		SendChannels(in_fd, (*srcv)[x]);
 	}
@@ -597,11 +599,17 @@ int KisDroneFramework::SendAllSourceReport(pst_packetsource *in_int) {
 }
 
 int KisDroneFramework::SendChannels(int in_cl, pst_packetsource *in_int) {
+	if (in_int == NULL)
+		return 0;
+
 	if (in_int->strong_source == NULL)
 		return 0;
 
 	pst_channellist *channels = 
 		globalreg->sourcetracker->FetchSourceChannelList(in_int);
+
+	if (channels == NULL)
+		return 0;
 
 	drone_packet *dpkt = 
 		(drone_packet *) malloc(sizeof(uint8_t) * 
