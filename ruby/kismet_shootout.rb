@@ -48,7 +48,7 @@ $lines_per_header = 10
 $num_printed = 10
 
 # output type (std, pretty, csv)
-$output_type = "std"
+$output_type = "pretty"
 
 def sourcecb(proto, fields)
 	if fields["error"] != "0"
@@ -102,11 +102,11 @@ def sourcecb(proto, fields)
 						hstr = ""
 
 						if $output_type == "pretty"
-							hstr = sprintf("%s  %6.6s %5.5s %8.8s %4.4s", hstr, "", "PPS", "Packets", "Pcnt")
+							hstr = sprintf("%s  %8.8s %5.5s %8.8s %7.7s", hstr, "Name", "PPS", "Packets", "Percent")
 
 						else
 							$cards.each { |c|
-								hstr = sprintf("%s  %6.6s %5.5s %8.8s %4.4s", hstr, c, "PPS", "Total", "Pcnt")
+								hstr = sprintf("%s  %8.8s %5.5s %8.8s %7.7s", hstr, c, "PPS", "Total", "Percent")
 							}
 						end
 
@@ -141,7 +141,7 @@ def sourcecb(proto, fields)
 						$card_records.each { |cr|
 							cr[1]["printed"] = 1
 
-							printf("  %6.6s %5.5s %8.8s %3d%%\n", cr[1]["interface"], cr[1]["packets"] - cr[1]["last_packets"], cr[1]["packets"], (cr[1]["packets"].to_f / best.to_f) * 100)
+							printf("  %8.8s %5.5s %8.8s %6.2f%%\n", cr[1]["interface"], cr[1]["packets"] - cr[1]["last_packets"], cr[1]["packets"], (cr[1]["packets"].to_f / best.to_f) * 100)
 						}
 
 						t = Time.now.to_i - $start_time
@@ -163,7 +163,7 @@ def sourcecb(proto, fields)
 							tu += "#{t}s"
 						end
 
-						printf("  %6.6s %5.5s %8.8s %4.4s %6.6s %6.6s\n", "", "", "", "", total - lasttotal, tu)
+						printf("  %8.8s %5.5s %8.8s %7.7s %6.6s %6.6s\n", "", "", "", "", total - lasttotal, tu)
 					else
 						$card_records.each { |cr|
 							cr[1]["printed"] = 1
@@ -171,7 +171,7 @@ def sourcecb(proto, fields)
 							cname = ""
 							cname = cr[1]["interface"] if $output_type == "pretty"
 
-							str = sprintf("%s  %6.6s %5.5s %8.8s %3d%%", str, cname, cr[1]["packets"] - cr[1]["last_packets"], cr[1]["packets"], (cr[1]["packets"].to_f / best.to_f) * 100)
+							str = sprintf("%s  %8.8s %5.5s %8.8s %6.2f%%", str, cname, cr[1]["packets"] - cr[1]["last_packets"], cr[1]["packets"], (cr[1]["packets"].to_f / best.to_f) * 100)
 						}
 
 						t = Time.now.to_i - $start_time
@@ -282,9 +282,17 @@ OptionParser.new do |opts|
 		options[:channel] = c
 	end
 
-	opts.on("--pretty", "Format output with pretty ANSI codes") do 
+	opts.on("--pretty", "Format output with pretty ANSI codes (default)") do
 		options[:pretty] = true
 	end
+
+	opts.on("--std", "Do not format output with pretty ANSI codes") do
+		options[:std] = true
+	end
+
+	#opts.on("--csv", "Format output as comma separated values") do
+	#	options[:csv] = true
+	#end
 
 end.parse!
 
@@ -313,6 +321,14 @@ end
 
 if options[:pretty]
 	$output_type = "pretty"
+end
+
+if options[:std]
+	$output_type = "std"
+end
+
+if options[:csv]
+	$output_type = "csv"
 end
 
 $cards = ARGV
