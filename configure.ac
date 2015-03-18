@@ -218,8 +218,8 @@ AC_DEFINE_UNQUOTED(DATA_LOC, "$DATA_DIR", system data directory)
 AC_C_BIGENDIAN
 
 # Checks for header files.
-AC_CHECK_HEADERS([errno.h stdlib.h string.h sys/socket.h sys/time.h sys/wait.h unistd.h sys/types.h netdb.h], 
-	AC_DEFINE(HAVE_SYSHEADERS, 1, System headers are there), 
+AC_CHECK_HEADERS([errno.h stdlib.h string.h sys/socket.h sys/time.h sys/wait.h unistd.h sys/types.h netdb.h],
+	AC_DEFINE(HAVE_SYSHEADERS, 1, System headers are there),
 	AC_MSG_ERROR(Missing required system header))
 
 AC_CHECK_HEADERS([getopt.h])
@@ -273,7 +273,7 @@ AC_CHECK_HEADER([stdint.h],
 if test "$stdint" = "no"; then
     inttypes=no
 	AC_CHECK_HEADER([inttypes.h],
-		AC_DEFINE(HAVE_INTTYPES_H, 1, inttypes.h is present) inttypes=yes, 
+		AC_DEFINE(HAVE_INTTYPES_H, 1, inttypes.h is present) inttypes=yes,
 		inttypes=no)
 fi
 
@@ -314,7 +314,7 @@ AC_SYS_LARGEFILE
 
 # Do we need to use -ldl?
 usedl=0
-AC_CHECK_LIB([dl], [dlopen], 
+AC_CHECK_LIB([dl], [dlopen],
 			usedl=1,
 			 AC_MSG_WARN([libdl doesn't seem to be needed on this system]))
 
@@ -333,12 +333,12 @@ fi
 # AC_CHECK_HEADER([sqlite3.h],
 # 	AC_DEFINE(HAVE_SQLITE_H, 1, sqlite3.h is present) sqlite3=yes,
 # 	sqlite3=no)
-# 
+#
 # if test "$sqlite3" = yes; then
-# AC_CHECK_LIB([sqlite3], [sqlite3_open], 
+# AC_CHECK_LIB([sqlite3], [sqlite3_open],
 # 			 KSLIBS="$KSLIBS -lsqlite3", sqlite3=no)
 # fi
-# 
+#
 # if test "$sqlite3" != yes; then
 # 	AC_MSG_WARN(Failed to find sqlite3 runtime resuming will be disabled)
 # fi
@@ -359,7 +359,7 @@ CFLAGS="$OCFL"
 if test "$needlibm" = "yes"; then
 	AC_MSG_RESULT([no])
 # Do we need to use -lm?
-	AC_CHECK_LIB([m], [pow], 
+	AC_CHECK_LIB([m], [pow],
 				 LIBS="$LIBS -lm",
 				 AC_MSG_ERROR([libm is needed and is not available]))
 else
@@ -370,12 +370,12 @@ fi
 # We need to swap to the g++ compiler here
 oCC="$CC"
 CC="$CXX"
-AC_CHECK_LIB([uClibc++], [main], 
+AC_CHECK_LIB([uClibc++], [main],
 			 foundcxxl="uclibc" CXXLIBS="$CXXLIBS -luClibc++")
 
 # Do we use uclibc++?
 if test "$foundcxxl"x == "x"; then
-	AC_CHECK_LIB([stdc++], [main], 
+	AC_CHECK_LIB([stdc++], [main],
 				 foundcxxl="stdc++" CXXLIBS="$CXXLIBS -lstdc++")
 fi
 
@@ -422,7 +422,7 @@ termcontrol="none";
 
 if test "$wantclient" = "yes"; then
     OLIBS="$LIBS"
-	AC_CHECK_LIB([ncurses], [initscr], 
+	AC_CHECK_LIB([ncurses], [initscr],
 		AC_DEFINE(HAVE_LIBNCURSES, 1, NCurses terminal lib) \
 			foundlcurses=yes curseaux="-lncurses" termcontrol="ncurses" )
 
@@ -448,7 +448,7 @@ if test "$wantclient" = "yes"; then
 
 	LIBS="$LIBS $curseaux"
 	AC_CHECK_LIB([panel], [new_panel],
-				 AC_DEFINE(HAVE_LIBPANEL, 1, Panel terminal lib) 
+				 AC_DEFINE(HAVE_LIBPANEL, 1, Panel terminal lib)
 				 curseaux="$curseaux -lpanel",
 				 AC_MSG_ERROR(Failed to find libpanel extension to curses/ncurses.  Install it, or disable building the Kismet client with --disable-client.  Disabling the client is probably not something you want to do normally.))
 
@@ -483,7 +483,7 @@ else
   AC_CHECK_HEADERS(sys/pstat.h,have_pstat_h="yes",have_pstat_h="no")
   if test "$have_pstat_h" = "yes"; then
     AC_CHECK_FUNCS(pstat)
-    
+
     if test "$ac_cv_func_pstat" = "yes"; then
 	AC_DEFINE(PF_ARGV_TYPE, PF_ARGV_PSTAT, pstat argv type)
     else
@@ -539,7 +539,7 @@ AC_ARG_WITH(linuxheaders,
 	[  --with-linuxheaders[=DIR]     Custom location of the Linux kernel headers if the glibc copies are insufficient ],
 	[
    	 if test "$withval" != no -a "$withval" != "yes"; then
-        CPPFLAGS="$CPPFLAGS -I$withval"   
+        CPPFLAGS="$CPPFLAGS -I$withval"
     fi
 	])
 
@@ -608,7 +608,7 @@ if test "$wantwext" = "yes"; then
 			struct iwreq wrq;
 			wrq.u.freq.flags = IW_FREQ_FIXED;
 		]])],[iwfreqflag=yes],[iwfreqflag=no])
-	
+
 		if test "$iwfreqflag" = "no"; then
 			AC_MSG_RESULT(no)
 		else
@@ -619,13 +619,13 @@ if test "$wantwext" = "yes"; then
 
 fi # want headers
 
-fi # linux 
+fi # linux
 
 # Look for libgps
 # havelgps="yes"
 # AC_CHECK_LIB([gps], [gps_open],,havelgps=no)
 # AC_CHECK_HEADER([gps.h],,havelgps=no)
-# 
+#
 # if test "$havelgps" = "yes"; then
 # AC_DEFINE(HAVE_LIBGPS, 1, gpsd libgps client support)
 # KSLIBS="$KSLIBS -lgps"
@@ -641,7 +641,7 @@ if test "$havecap" = "yes"; then
 AC_DEFINE(HAVE_CAPABILITY, 1, kernel capability support)
 caplibs="-lcap"
 AC_SUBST(caplibs)
-fi 
+fi
 
 AC_ARG_WITH(pcreheaders,
 	[  --with-pcreheaders[=DIR]      Custom location of the PCRE library headers ],
@@ -701,8 +701,8 @@ AC_ARG_ENABLE(airpcap,
 
 if test "$want_airpcap" = "yes"; then
 airpcap_devpack="Airpcap_Devpack"
-AC_ARG_WITH(airpcap-devpack, 
-[  --with-airpcap[=DIR]     Location of the CACE AirPcap device pack NOTE cygwin appears to have link errors if the path is not within the current directory], 
+AC_ARG_WITH(airpcap-devpack,
+[  --with-airpcap[=DIR]     Location of the CACE AirPcap device pack NOTE cygwin appears to have link errors if the path is not within the current directory],
 [ airpcap_devpack="$withval" ])
 
 # Set the libs and includes
@@ -711,8 +711,8 @@ CPPFLAGS="$CPPFLAGS -I$airpcap_devpack/Include"
 fi # want_airpcap
 
 winpcap_devpack="Winpcap_Devpack"
-AC_ARG_WITH(winpcap-devpack, 
-[  --with-winpcap[=DIR]     Location of the WinPcap device pack NOTE cygwin appears to have link errors if the path is not within the current directory], 
+AC_ARG_WITH(winpcap-devpack,
+[  --with-winpcap[=DIR]     Location of the WinPcap device pack NOTE cygwin appears to have link errors if the path is not within the current directory],
 [ winpcap_devpack="$withval" ])
 
 # Set the libs and includes
@@ -748,8 +748,8 @@ if test "$wantpcap" = yes; then
 	## if we don't have a pcap.h, do a search for pcap/pcap.h
 	AC_CHECK_HEADER([pcap.h],
 		AC_DEFINE(HAVE_PCAP_H, 1, libpcap header) foundsyspcaph=yes)
-	    if test "$foundsyspcaph" != yes; then 
-			AC_CHECK_HEADER([pcap/pcap.h], 
+	    if test "$foundsyspcaph" != yes; then
+			AC_CHECK_HEADER([pcap/pcap.h],
 			AC_DEFINE(HAVE_PCAP_H, 1, libpcap header) AC_DEFINE(HAVE_PCAPPCAP_H, 1, pcap/pcap.h),
 			AC_MSG_ERROR([found libpcap but unable to find pcap.h]))
 	    fi
@@ -836,7 +836,7 @@ if test "$bsd" = yes; then
 	    #include <net/if_media.h>
 	    #include <net80211/ieee80211_radiotap.h>
 	]], [[
-	
+
 	]])],radiotap=yes bsdradiotap=yes, bsdradiotap=no radiotap=no)
 	AC_MSG_RESULT($bsdradiotap)
 else
@@ -856,8 +856,8 @@ fi
 # havenetlink=no
 if test "$linux" = "yes"; then
 # havenetlink=yes
-# 	AC_CHECK_HEADERS([asm/types.h netlink/genl/genl.h netlink/genl/family.h netlink/genl/ctrl.h netlink/msg.h netlink/attr.h linux/nl80211.h linux/if_arp.h linux/wireless.h], 
-# 	AC_DEFINE(HAVE_NETLINKHEADERS, 1, Netlink headers are there), 
+# 	AC_CHECK_HEADERS([asm/types.h netlink/genl/genl.h netlink/genl/family.h netlink/genl/ctrl.h netlink/msg.h netlink/attr.h linux/nl80211.h linux/if_arp.h linux/wireless.h],
+# 	AC_DEFINE(HAVE_NETLINKHEADERS, 1, Netlink headers are there),
 # 	havenetlink=no,
 # 	[#include <sys/socket.h>])
 havenetlink=yes
@@ -952,7 +952,7 @@ if test "$havenetlink" = "yes"; then
 			NL80211_CMD_NEW_INTERFACE;
 			return 0;
 			]])],[havenetlink=yes KSLIBS="$KSLIBS $NLLIBS"],[havenetlink=no])
-	
+
 	LIBS="$OLIBS"
 else
 	AC_MSG_WARN(Missing libnl netlink library will not be able to control mac80211 vaps)
@@ -961,7 +961,7 @@ fi
 
 if test "$havenetlink" = "yes"; then
 	AC_MSG_RESULT(yes)
-	AC_DEFINE(HAVE_LINUX_NETLINK, 1, Netlink works) 
+	AC_DEFINE(HAVE_LINUX_NETLINK, 1, Netlink works)
 fi
 
 fi
@@ -985,7 +985,7 @@ if test "$cygwin" = "yes"; then
 	suid="no"
 fi
 
-    
+
 # gpsmap checks
 
 # We include GPS handling code regardless, for now.
@@ -1181,5 +1181,3 @@ if test "$havenetlink" = "yes" -a "$pcap" = "yes"; then
 	echo "./configure --with-netlink-version=1"
 	echo
 fi
-
-
