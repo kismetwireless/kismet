@@ -9260,7 +9260,7 @@ if test "$havenetlink" = "yes" -a "$pcap" = "yes"; then
 	echo
 	echo "*** WARNING ***"
 	echo "In some situations, libpcap links to libnl.  If Kismet finds a newer "
-	echo "libbl, it can cause an immediate segfault when starting Kismet. "
+	echo "libnl, it can cause an immediate segfault when starting Kismet. "
 	echo
 	echo "It is very hard to test at compile time (and run-time changes can "
 	echo "cause it to break).  If you experience immediate segfaults when "
