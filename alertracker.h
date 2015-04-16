@@ -42,10 +42,30 @@ public:
 		tm.tv_usec = 0;
 		channel = 0;
 
-		// We do NOT self-destruct because we get cached in the alertracker
-		// for playbacks.  It's responsible for discarding us
-		self_destruct = 0;
+		// We DO self destruct, because now we're a copy of the info - otherwise the 
+		// alertracker caching us (or not) would create problems.  This is a change 
+		// from previous behavior.
+		self_destruct = 1;
 	}
+
+	kis_alert_info(kis_alert_info *ai) {
+		this->header = ai->header;
+
+		this->tm.tv_sec = ai->tm.tv_sec;
+		this->tm.tv_usec = ai->tm.tv_usec;
+
+		this->bssid = ai->bssid;
+		this->source = ai->source;
+		this->dest = ai->dest;
+		this->other = ai->other;
+
+		this->channel = ai->channel;
+
+		this->text = ai->text;
+
+		this->self_destruct = ai->self_destruct;
+	}
+
 
 	string header;
 	struct timeval tm;

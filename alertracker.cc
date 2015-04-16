@@ -124,6 +124,9 @@ Alertracker::Alertracker(GlobalRegistry *in_globalreg) {
 		exit(1);
 	}
 
+	// A reasonable starting number if none is specified
+	num_backlog = 5;
+
 	if (globalreg->kismet_config->FetchOpt("alertbacklog") != "") {
 		int scantmp;
 		if (sscanf(globalreg->kismet_config->FetchOpt("alertbacklog").c_str(), 
@@ -284,11 +287,12 @@ int Alertracker::RaiseAlert(int in_ref, kis_packet *in_pack,
 	arec->total_sent++;
 	arec->time_last = time(0);
 
-	alert_backlog.push_back(info);
-	if ((int) alert_backlog.size() > num_backlog) {
-		delete alert_backlog[0];
-		alert_backlog.erase(alert_backlog.begin());
-	}
+	// Send it to the network as an alert
+	globalreg->kisnetserver->SendToAll(_NPM(PROTO_REF_ALERT), (void *) info);
+
+	// Send the text info
+	globalreg->messagebus->InjectMessage((info->header + " " + info->text), 
+										 MSGFLAG_ALERT);
 
 	// Try to get the existing alert info
 	if (in_pack != NULL)  {
@@ -302,15 +306,19 @@ int Alertracker::RaiseAlert(int in_ref, kis_packet *in_pack,
 		}
 
 		// Attach it to the packet
-		acomp->alert_vec.push_back(info);
+		acomp->alert_vec.push_back(new kis_alert_info(info));
 	}
 
-	// Send it to the network as an alert
-	globalreg->kisnetserver->SendToAll(_NPM(PROTO_REF_ALERT), (void *) info);
-
-	// Send the text info
-	globalreg->messagebus->InjectMessage((info->header + " " + info->text), 
-										 MSGFLAG_ALERT);
+	// Queue us into the alert tree (or not)
+	if (num_backlog == 0) {
+		delete info;
+	} else {
+		alert_backlog.push_back(info);
+		if ((int) alert_backlog.size() > num_backlog) {
+			delete alert_backlog[0];
+			alert_backlog.erase(alert_backlog.begin());
+		}
+	}
 
 	return 1;
 }
