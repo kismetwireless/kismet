@@ -16,8 +16,8 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#ifndef __OBJECTTRACKER_H__
-#define __OBJECTTRACKER_H__
+#ifndef __TRACKEDENTRY_H__
+#define __TRACKEDENTRY_H__
 
 #include "config.h"
 
@@ -39,7 +39,7 @@ enum TrackerType {
 
     TrackerCustom
 };
-
+ipad
 class TrackerElement {
 public:
     TrackerElement(TrackerType type) {
@@ -400,8 +400,6 @@ public:
 
         return *this;
     }
-
-
 
     string type_to_string(TrackerType t) {
         switch (t) {
