@@ -29,6 +29,8 @@
 
 #include "trackedentry.h"
 
+#define __EntryLocation     EntryTracker::GenerateLocationString(__FILE__, __LINE__, __func__)
+
 // Allocate and track named fields and give each one a custom int
 class EntryTracker {
 public:
@@ -45,6 +47,8 @@ public:
     // Get a field instance
     // Return: NULL if unknown
     TrackerElement *GetTrackedInstance(string in_name);
+
+    static string GenerateLocationString(const char *in_file, const char *in_line, const char *in_func);
 
 protected:
     int next_field_num;

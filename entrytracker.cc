@@ -16,6 +16,9 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
+#include <string>
+#include <sstream>
+
 #include "util.h"
 
 #include "entrytracker.h"
@@ -55,6 +58,14 @@ int EntryTracker::GetFieldId(string in_name) {
         return -1;
     }
 
+    return itr->second->field_id;
+}
+
+string EntryTracker::GenerateLocationString(const char *in_file, const char *in_line, 
+                                            const char *in_func) {
+    std::stringstream ss;
+    ss << in_file << ":" << in_line << " " << in_func;
+    return ss.str();
 }
 
 TrackerElement *EntryTracker::GetTrackedInstance(EntryTracker::string in_name) {
