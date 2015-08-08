@@ -44,9 +44,9 @@ int EntryTracker::RegisterField(string in_name, TrackerType in_type,
     definition->field_description = in_desc;
     definition->field_location = in_location;
 
-    field_name_map.insert(mod_name, definition);
+    field_name_map[mod_name] = definition;
 
-    return defintion->field_id;
+    return definition->field_id;
 }
 
 int EntryTracker::GetFieldId(string in_name) {
@@ -68,7 +68,7 @@ string EntryTracker::GenerateLocationString(const char *in_file, const char *in_
     return ss.str();
 }
 
-TrackerElement *EntryTracker::GetTrackedInstance(EntryTracker::string in_name) {
+TrackerElement *EntryTracker::GetTrackedInstance(string in_name) {
     string mod_name = StrLower(in_name);
 
     map<string, reserved_field *>::iterator itr = field_name_map.find(mod_name);

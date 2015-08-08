@@ -16,8 +16,8 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#ifndef __TRACKEDENTRY_H__
-#define __TRACKEDENTRY_H__
+#ifndef __TRACKEDELEMENT_H__
+#define __TRACKEDELEMENT_H__
 
 #include "config.h"
 
@@ -26,6 +26,8 @@
 
 #include <string>
 #include <stdexcept>
+
+#include "macaddr.h"
 
 // Types of fields we can track and automatically resolve
 enum TrackerType {
@@ -37,9 +39,11 @@ enum TrackerType {
     TrackerInt64, TrackerUInt64,
     TrackerFloat, TrackerDouble,
 
+    TrackerMac,
+
     TrackerCustom
 };
-ipad
+
 class TrackerElement {
 public:
     TrackerElement(TrackerType type) {
@@ -55,6 +59,7 @@ public:
         uint64_value = 0;
         float_value = 0.0f;
         double_value = 0.0f;
+        mac_value = mac_addr(0);
     }
 
     TrackerType get_type() { return type; }
@@ -116,6 +121,10 @@ public:
         return double_value;
     }
 
+    mac_addr get_mac() {
+        except_type_mismatch(TrackerMac);
+        return mac_value;
+    }
 
     // Overloaded set
     void set(string v) {
@@ -173,6 +182,11 @@ public:
         double_value = v;
     }
 
+    void set(mac_addr v) {
+        except_type_mismatch(TrackerMac);
+        mac_value = v;
+    }
+
     // Do our best to increment a value
     TrackerElement& operator++(int) {
         switch (type) {
@@ -208,6 +222,8 @@ public:
             case TrackerDouble:
                 double_value++;
                 break;
+            case TrackerMac:
+                throw std::runtime_error("can't increment a mac");
             case TrackerCustom:
                 throw std::runtime_error("can't increment a custom");
             default:
@@ -252,6 +268,8 @@ public:
             case TrackerDouble:
                 double_value--;
                 break;
+            case TrackerMac:
+                throw std::runtime_error("can't increment a mac");
             case TrackerCustom:
                 throw std::runtime_error("can't increment a custom");
             default:
@@ -272,6 +290,7 @@ public:
             case TrackerUInt32:
             case TrackerInt64:
             case TrackerUInt64:
+            case TrackerMac:
             case TrackerCustom:
                 throw std::runtime_error(string("can't += float to " + type_to_string(type)));
             case TrackerFloat:
@@ -322,6 +341,8 @@ public:
             case TrackerDouble:
                 double_value+= v;
                 break;
+            case TrackerMac:
+                throw std::runtime_error("can't += a mac");
             case TrackerCustom:
                 throw std::runtime_error("can't += a custom");
             default:
@@ -366,6 +387,8 @@ public:
             case TrackerDouble:
                 double_value-= v;
                 break;
+            case TrackerMac:
+                throw std::runtime_error("can't += a mac");
             case TrackerCustom:
                 throw std::runtime_error("can't -= a custom");
             default:
@@ -386,6 +409,7 @@ public:
             case TrackerUInt32:
             case TrackerInt64:
             case TrackerUInt64:
+            case TrackerMac:
             case TrackerCustom:
                 throw std::runtime_error(string("can't -= float to " + type_to_string(type)));
             case TrackerFloat:
@@ -425,6 +449,8 @@ public:
                 return "float";
             case TrackerDouble:
                 return "double";
+            case TrackerMac:
+                return "mac_addr";
             case TrackerCustom:
                 return "custom";
             default:
@@ -462,6 +488,8 @@ protected:
 
     float float_value;
     double double_value;
+
+    mac_addr mac_value;
 
     void *custom_value;
 };
@@ -513,6 +541,10 @@ template<> float GetTrackerValue(TrackerElement *e) {
 
 template<> double GetTrackerValue(TrackerElement *e) {
     return e->get_double();
+}
+
+template<> mac_addr GetTrackerValue(TrackerElement *e) {
+    return e->get_mac();
 }
 
 #endif

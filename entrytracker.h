@@ -27,7 +27,7 @@
 #include <string>
 #include <map>
 
-#include "trackedentry.h"
+#include "trackedelement.h"
 
 #define __EntryLocation     EntryTracker::GenerateLocationString(__FILE__, __LINE__, __func__)
 
@@ -53,7 +53,7 @@ public:
 protected:
     int next_field_num;
 
-    struct {
+    struct reserved_field {
         // ID we assigned
         int field_id;
 
@@ -64,7 +64,7 @@ protected:
         // Might as well track this for auto-doc
         string field_description;
         string field_location;
-    } reserved_field;
+    };
 
     map<string, reserved_field *> field_name_map;
 
