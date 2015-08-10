@@ -187,6 +187,59 @@ public:
         mac_value = v;
     }
 
+    // Access as string
+    string get_as_string() {
+        ostringstream ostream;
+
+        ostream << this;
+
+        return ostream.str();
+    }
+
+    // Stream output
+    std::ostream& operator<< (std::ostream& stream) {
+        switch (type) {
+            case TrackerString:
+                stream << string_value;
+            case TrackerInt8:
+                stream << int8_value;
+                break;
+            case TrackerUInt8:
+                stream << uint8_value;
+                break;
+            case TrackerInt16:
+                stream << int16_value;
+                break;
+            case TrackerUInt16:
+                stream << uint16_value;
+                break;
+            case TrackerInt32:
+                stream << int32_value;
+                break;
+            case TrackerUInt32:
+                stream << uint32_value;
+                break;
+            case TrackerInt64:
+                stream << int64_value;
+                break;
+            case TrackerUInt64:
+                stream << uint64_value;
+                break;
+            case TrackerFloat:
+                stream << float_value;
+                break;
+            case TrackerDouble:
+                stream << double_value;
+                break;
+            case TrackerMac:
+                stream << mac_value.Mac2String();
+            case TrackerCustom:
+                throw std::runtime_error("can't stream a custom");
+            default:
+                throw std::runtime_error("can't stream unknown");
+        }
+    }
+
     // Do our best to increment a value
     TrackerElement& operator++(int) {
         switch (type) {
