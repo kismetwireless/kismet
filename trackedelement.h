@@ -27,6 +27,9 @@
 #include <string>
 #include <stdexcept>
 
+#include <vector>
+#include <map>
+
 #include "macaddr.h"
 
 // Types of fields we can track and automatically resolve
@@ -40,6 +43,8 @@ enum TrackerType {
     TrackerFloat, TrackerDouble,
 
     TrackerMac,
+
+    TrackerVector, TrackerMap,
 
     TrackerCustom
 };
@@ -126,6 +131,16 @@ public:
         return mac_value;
     }
 
+    vector<TrackerElement *> *get_vector() {
+        except_type_mismatch(TrackerVector);
+        return &subvector_value;
+    }
+
+    map<int, TrackerElement *> *get_map() {
+        except_type_mismatch(TrackerMap);
+        return &submap_value;
+    }
+
     // Overloaded set
     void set(string v) {
         except_type_mismatch(TrackerString);
@@ -187,17 +202,15 @@ public:
         mac_value = v;
     }
 
-    // Access as string
-    string get_as_string() {
-        ostringstream ostream;
-
-        ostream << this;
-
-        return ostream.str();
+    void add_map(int f, TrackerElement *s) {
+        except_type_mismatch(TrackerMap);
+        submap_value[f] = s;
     }
 
-    // Stream output
-    std::ostream& operator<< (std::ostream& stream) {
+    // Access as string
+    string get_as_string() {
+        ostringstream stream;
+
         switch (type) {
             case TrackerString:
                 stream << string_value;
@@ -233,11 +246,20 @@ public:
                 break;
             case TrackerMac:
                 stream << mac_value.Mac2String();
+                break;
+            case TrackerVector:
+                stream << vector_to_stream();
+                break;
+            case TrackerMap:
+                stream << map_to_stream();
+                break;
             case TrackerCustom:
                 throw std::runtime_error("can't stream a custom");
             default:
                 throw std::runtime_error("can't stream unknown");
         }
+
+        return stream.str();
     }
 
     // Do our best to increment a value
@@ -322,11 +344,11 @@ public:
                 double_value--;
                 break;
             case TrackerMac:
-                throw std::runtime_error("can't increment a mac");
+            case TrackerVector:
+            case TrackerMap:
             case TrackerCustom:
-                throw std::runtime_error("can't increment a custom");
             default:
-                throw std::runtime_error("can't increment unknown");
+                throw std::runtime_error(string("can't decrement " + type_to_string(type)));
         }
 
         return *this;
@@ -344,6 +366,8 @@ public:
             case TrackerInt64:
             case TrackerUInt64:
             case TrackerMac:
+            case TrackerVector:
+            case TrackerMap:
             case TrackerCustom:
                 throw std::runtime_error(string("can't += float to " + type_to_string(type)));
             case TrackerFloat:
@@ -395,12 +419,23 @@ public:
                 double_value+= v;
                 break;
             case TrackerMac:
-                throw std::runtime_error("can't += a mac");
+            case TrackerMap:
+            case TrackerVector:
             case TrackerCustom:
-                throw std::runtime_error("can't += a custom");
+                throw std::runtime_error(string("can't += to " + type_to_string(type)));
             default:
                 throw std::runtime_error("can't += unknown");
         }
+
+        return *this;
+    }
+
+    // We can append to vectors
+    TrackerElement& operator+=(TrackerElement* v) {
+        if (type == TrackerVector) 
+            subvector_value.push_back(v); 
+        else
+            throw std::runtime_error("Can't append an element to a non-vector");
 
         return *this;
     }
@@ -441,15 +476,17 @@ public:
                 double_value-= v;
                 break;
             case TrackerMac:
-                throw std::runtime_error("can't += a mac");
+            case TrackerVector:
+            case TrackerMap:
             case TrackerCustom:
-                throw std::runtime_error("can't -= a custom");
+                throw std::runtime_error(string("can't -= to " + type_to_string(type)));
             default:
                 throw std::runtime_error("can't -= unknown");
         }
 
         return *this;
     }
+
 
     TrackerElement& operator-=(const float& v) {
         switch (type) {
@@ -463,6 +500,8 @@ public:
             case TrackerInt64:
             case TrackerUInt64:
             case TrackerMac:
+            case TrackerVector:
+            case TrackerMap:
             case TrackerCustom:
                 throw std::runtime_error(string("can't -= float to " + type_to_string(type)));
             case TrackerFloat:
@@ -506,6 +545,10 @@ public:
                 return "mac_addr";
             case TrackerCustom:
                 return "custom";
+            case TrackerVector:
+                return "vector<>";
+            case TrackerMap:
+                return "map<>";
             default:
                 return "unknown";
         }
@@ -519,6 +562,40 @@ protected:
 
             throw std::runtime_error(w);
         }
+    }
+
+    string vector_to_stream() {
+        std::ostringstream ret;
+        unsigned int x;
+
+        except_type_mismatch(TrackerVector);
+
+        ret << "vector[";
+
+        for (x = 0; x < subvector_value.size(); x++) {
+            ret << subvector_value[x]->get_as_string() << ",";
+        }
+
+        ret << "]";
+
+        return ret.str();
+    }
+
+    string map_to_stream() {
+        std::ostringstream ret;
+        map<int, TrackerElement *>::iterator i;
+
+        except_type_mismatch(TrackerMap);
+
+        ret << "map{";
+
+        for (i = submap_value.begin(); i != submap_value.end(); ++i) {
+            ret << "[" << i->first << "," << i->second->get_as_string() << "],";
+        }
+
+        ret << "}";
+
+        return ret.str();
     }
 
     TrackerType type;
@@ -543,6 +620,9 @@ protected:
     double double_value;
 
     mac_addr mac_value;
+
+    map<int, TrackerElement *> submap_value;
+    vector<TrackerElement *> subvector_value;
 
     void *custom_value;
 };
@@ -598,6 +678,14 @@ template<> double GetTrackerValue(TrackerElement *e) {
 
 template<> mac_addr GetTrackerValue(TrackerElement *e) {
     return e->get_mac();
+}
+
+template<> map<int, TrackerElement *> *GetTrackerValue(TrackerElement *e) {
+    return e->get_map();
+}
+
+template<> vector<TrackerElement *> *GetTrackerValue(TrackerElement *e) {
+    return e->get_vector();
 }
 
 #endif
