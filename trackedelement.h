@@ -50,6 +50,8 @@ enum TrackerType {
 };
 
 class TrackerElement {
+    friend class TrackerElementFormatter;
+
 public:
     TrackerElement(TrackerType type) {
         this->type = type;
@@ -205,61 +207,6 @@ public:
     void add_map(int f, TrackerElement *s) {
         except_type_mismatch(TrackerMap);
         submap_value[f] = s;
-    }
-
-    // Access as string
-    string get_as_string() {
-        ostringstream stream;
-
-        switch (type) {
-            case TrackerString:
-                stream << string_value;
-            case TrackerInt8:
-                stream << int8_value;
-                break;
-            case TrackerUInt8:
-                stream << uint8_value;
-                break;
-            case TrackerInt16:
-                stream << int16_value;
-                break;
-            case TrackerUInt16:
-                stream << uint16_value;
-                break;
-            case TrackerInt32:
-                stream << int32_value;
-                break;
-            case TrackerUInt32:
-                stream << uint32_value;
-                break;
-            case TrackerInt64:
-                stream << int64_value;
-                break;
-            case TrackerUInt64:
-                stream << uint64_value;
-                break;
-            case TrackerFloat:
-                stream << float_value;
-                break;
-            case TrackerDouble:
-                stream << double_value;
-                break;
-            case TrackerMac:
-                stream << mac_value.Mac2String();
-                break;
-            case TrackerVector:
-                stream << vector_to_stream();
-                break;
-            case TrackerMap:
-                stream << map_to_stream();
-                break;
-            case TrackerCustom:
-                throw std::runtime_error("can't stream a custom");
-            default:
-                throw std::runtime_error("can't stream unknown");
-        }
-
-        return stream.str();
     }
 
     // Do our best to increment a value
@@ -558,44 +505,11 @@ protected:
     // Generic coercion exception
     void except_type_mismatch(TrackerType t) {
         if (type != t) {
-            string w = "element type mismatch, is " + type_to_string(this->type) + " tried to use as " + type_to_string(t);
+            string w = "element type mismatch, is " + type_to_string(this->type) + 
+                " tried to use as " + type_to_string(t);
 
             throw std::runtime_error(w);
         }
-    }
-
-    string vector_to_stream() {
-        std::ostringstream ret;
-        unsigned int x;
-
-        except_type_mismatch(TrackerVector);
-
-        ret << "vector[";
-
-        for (x = 0; x < subvector_value.size(); x++) {
-            ret << subvector_value[x]->get_as_string() << ",";
-        }
-
-        ret << "]";
-
-        return ret.str();
-    }
-
-    string map_to_stream() {
-        std::ostringstream ret;
-        map<int, TrackerElement *>::iterator i;
-
-        except_type_mismatch(TrackerMap);
-
-        ret << "map{";
-
-        for (i = submap_value.begin(); i != submap_value.end(); ++i) {
-            ret << "[" << i->first << "," << i->second->get_as_string() << "],";
-        }
-
-        ret << "}";
-
-        return ret.str();
     }
 
     TrackerType type;
@@ -626,6 +540,8 @@ protected:
 
     void *custom_value;
 };
+
+
 
 // Templated access functions
 
@@ -687,5 +603,99 @@ template<> map<int, TrackerElement *> *GetTrackerValue(TrackerElement *e) {
 template<> vector<TrackerElement *> *GetTrackerValue(TrackerElement *e) {
     return e->get_vector();
 }
+
+class TrackerElementFormatter {
+public:
+    virtual void get_as_stream(TrackerElement *e, ostream& stream) = 0;
+    virtual void vector_to_stream(TrackerElement *e, ostream& stream) = 0;
+    virtual void map_to_stream(TrackerElement *e, ostream& stream) = 0;
+};
+
+class TrackerElementFormatterBasic : public TrackerElementFormatter {
+public:
+    virtual void get_as_stream(TrackerElement *e, ostream& stream) {
+        switch (e->get_type()) {
+            case TrackerString:
+                stream << GetTrackerValue<string>(e);
+            case TrackerInt8:
+                stream << GetTrackerValue<int8_t>(e);
+                break;
+            case TrackerUInt8:
+                stream << GetTrackerValue<uint8_t>(e);
+                break;
+            case TrackerInt16:
+                stream << GetTrackerValue<int16_t>(e);
+                break;
+            case TrackerUInt16:
+                stream << GetTrackerValue<uint16_t>(e);
+                break;
+            case TrackerInt32:
+                stream << GetTrackerValue<int32_t>(e);
+                break;
+            case TrackerUInt32:
+                stream << GetTrackerValue<uint32_t>(e);
+                break;
+            case TrackerInt64:
+                stream << GetTrackerValue<int64_t>(e);
+                break;
+            case TrackerUInt64:
+                stream << GetTrackerValue<uint16_t>(e);
+                break;
+            case TrackerFloat:
+                stream << GetTrackerValue<float>(e);
+                break;
+            case TrackerDouble:
+                stream << GetTrackerValue<double>(e);
+                break;
+            case TrackerMac:
+                stream << GetTrackerValue<mac_addr>(e).Mac2String();
+                break;
+            case TrackerVector:
+                vector_to_stream(e, stream);
+                break;
+            case TrackerMap:
+                map_to_stream(e, stream);
+                break;
+            case TrackerCustom:
+                throw std::runtime_error("can't stream a custom");
+            default:
+                throw std::runtime_error("can't stream unknown");
+        }
+
+    }
+
+    virtual void vector_to_stream(TrackerElement *e, ostream& stream) {
+        unsigned int x;
+
+        stream << "vector[";
+
+        vector<TrackerElement *> *vec = GetTrackerValue<vector<TrackerElement *>*>(e);
+
+        for (x = 0; x < vec->size(); x++) {
+            get_as_stream((*vec)[x], stream);
+            stream << ",";
+        }
+
+        stream << "]";
+    }
+
+    virtual void map_to_stream(TrackerElement *e, ostream& stream) {
+        map<int, TrackerElement *>::iterator i;
+
+        stream << "map{";
+
+        map<int, TrackerElement *> *smap = GetTrackerValue<map<int, TrackerElement *>*>(e);
+
+        for (i = smap->begin(); i != smap->end(); ++i) {
+            stream << "[" << i->first << ",";
+            get_as_stream(i->second, stream);
+            stream << "],";
+        }
+
+        stream << "}";
+    }
+
+
+};
 
 #endif
