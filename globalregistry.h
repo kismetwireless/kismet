@@ -57,6 +57,8 @@ class KisPanelInterface;
 class Manuf;
 // Pcap dump (only built-in dumpfile which supports plugin hooks currently)
 class Dumpfile_Pcap;
+// Field name resolver
+class EntryTracker;
 
 #define KISMET_INSTANCE_SERVER	0
 #define KISMET_INSTANCE_DRONE	1
@@ -271,6 +273,9 @@ public:
 
 	// Critical failure elements
 	vector<critical_fail> critfail_vec;
+
+    // Field name tracking
+    EntryTracker *entrytracker;
     
     GlobalRegistry();
 

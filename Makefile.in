@@ -20,7 +20,7 @@ PSO	= util.o cygwin_utils.o globalregistry.o ringbuf.o \
 	kis_netframe.o kis_droneframe.o \
 	gpswrapper.o gpscore.o gpsdclient.o gpsserial.o gpsfixed.o \
 	packetchain.o \
-	entrytracker.o \
+	trackedelement.o entrytracker.o \
 	plugintracker.o alertracker.o timetracker.o \
 	devicetracker.o netracker.o channeltracker.o \
 	kis_dlt.o kis_dlt_ppi.o kis_dlt_radiotap.o kis_dlt_prism2.o \

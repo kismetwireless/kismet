@@ -96,6 +96,8 @@
 
 #include "battery.h"
 
+#include "entrytracker.h"
+
 #ifndef exec_name
 char *exec_name;
 #endif
@@ -882,6 +884,8 @@ int main(int argc, char *argv[], char *envp[]) {
 #endif
 
 	// Allocate some other critical stuff
+    globalregistry->entrytracker = new EntryTracker();
+
 	globalregistry->timetracker = new Timetracker(globalregistry);
 
 	// Open, initial parse, and assign the config file
