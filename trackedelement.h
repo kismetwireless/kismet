@@ -31,6 +31,7 @@
 #include <map>
 
 #include "macaddr.h"
+#include "uuid.h"
 
 // Types of fields we can track and automatically resolve
 enum TrackerType {
@@ -45,6 +46,8 @@ enum TrackerType {
     TrackerMac,
 
     TrackerVector, TrackerMap,
+
+    TrackerUuid,
 
     TrackerCustom
 };
@@ -126,6 +129,11 @@ public:
         return &submap_value;
     }
 
+    uuid get_uuid() {
+        except_type_mismatch(TrackerUuid);
+        return uuid_value;
+    }
+
     // Overloaded set
     void set(string v) {
         except_type_mismatch(TrackerString);
@@ -187,9 +195,19 @@ public:
         mac_value = v;
     }
 
+    void set(uuid v) {
+        except_type_mismatch(TrackerUuid);
+        uuid_value = v;
+    }
+
     void add_map(int f, TrackerElement *s) {
         except_type_mismatch(TrackerMap);
         submap_value[f] = s;
+    }
+
+    void add_vector(TrackerElement *s) {
+        except_type_mismatch(TrackerVector);
+        subvector_value.push_back(s);
     }
 
     // Do our best to increment a value
@@ -247,6 +265,8 @@ protected:
 
     map<int, TrackerElement *> submap_value;
     vector<TrackerElement *> subvector_value;
+
+    uuid uuid_value;
 
     void *custom_value;
 };

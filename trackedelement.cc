@@ -72,6 +72,8 @@ TrackerElement& TrackerElement::operator++(int) {
             break;
         case TrackerMac:
             throw std::runtime_error("can't increment a mac");
+        case TrackerUuid:
+            throw std::runtime_error("can't increment a uuid");
         case TrackerCustom:
             throw std::runtime_error("can't increment a custom");
         default:
@@ -127,33 +129,34 @@ TrackerElement& TrackerElement::operator--(int) {
 }
 
 TrackerElement& TrackerElement::operator+=(const float& v) {
-        switch (type) {
-            case TrackerString:
-            case TrackerInt8:
-            case TrackerUInt8:
-            case TrackerInt16:
-            case TrackerUInt16:
-            case TrackerInt32:
-            case TrackerUInt32:
-            case TrackerInt64:
-            case TrackerUInt64:
-            case TrackerMac:
-            case TrackerVector:
-            case TrackerMap:
-            case TrackerCustom:
-                throw std::runtime_error(string("can't += float to " + type_to_string(type)));
-            case TrackerFloat:
-                float_value+= v;
-                break;
-            case TrackerDouble:
-                double_value+= v;
-                break;
-            default:
-                throw std::runtime_error("can't += unknown");
-        }
-
-        return *this;
+    switch (type) {
+        case TrackerString:
+        case TrackerInt8:
+        case TrackerUInt8:
+        case TrackerInt16:
+        case TrackerUInt16:
+        case TrackerInt32:
+        case TrackerUInt32:
+        case TrackerInt64:
+        case TrackerUInt64:
+        case TrackerMac:
+        case TrackerVector:
+        case TrackerMap:
+        case TrackerUuid:
+        case TrackerCustom:
+            throw std::runtime_error(string("can't += float to " + type_to_string(type)));
+        case TrackerFloat:
+            float_value+= v;
+            break;
+        case TrackerDouble:
+            double_value+= v;
+            break;
+        default:
+            throw std::runtime_error("can't += unknown");
     }
+
+    return *this;
+}
 
 TrackerElement& TrackerElement::operator+=(const int& v) {
     switch (type) {
@@ -192,6 +195,7 @@ TrackerElement& TrackerElement::operator+=(const int& v) {
         case TrackerMac:
         case TrackerMap:
         case TrackerVector:
+        case TrackerUuid:
         case TrackerCustom:
             throw std::runtime_error(string("can't += to " + type_to_string(type)));
         default:
@@ -247,6 +251,7 @@ TrackerElement& TrackerElement::operator-=(const int& v) {
         case TrackerMac:
         case TrackerVector:
         case TrackerMap:
+        case TrackerUuid:
         case TrackerCustom:
             throw std::runtime_error(string("can't -= to " + type_to_string(type)));
         default:
@@ -270,6 +275,7 @@ TrackerElement& TrackerElement::operator-=(const float& v) {
         case TrackerMac:
         case TrackerVector:
         case TrackerMap:
+        case TrackerUuid:
         case TrackerCustom:
             throw std::runtime_error(string("can't -= float to " + type_to_string(type)));
         case TrackerFloat:
@@ -317,6 +323,8 @@ string TrackerElement::type_to_string(TrackerType t) {
             return "vector<>";
         case TrackerMap:
             return "map<>";
+        case TrackerUuid:
+            return "uuid";
         default:
             return "unknown";
     }
@@ -377,4 +385,8 @@ template<> map<int, TrackerElement *> *GetTrackerValue(TrackerElement *e) {
 
 template<> vector<TrackerElement *> *GetTrackerValue(TrackerElement *e) {
     return e->get_vector();
+}
+
+template<> uuid GetTrackerValue(TrackerElement *e) {
+    return e->get_uuid();
 }
