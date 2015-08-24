@@ -174,16 +174,26 @@ int PacketSource_Wext::ParseOptions(vector<opt_pair> *in_opts) {
 	if (FetchOpt("vap", in_opts) != "") {
 		vap = FetchOpt("vap", in_opts);
 		_MSG("Source '" + interface + "' will attempt to create a monitor-only "
-			 "VAP '" + vap + "' instead of reconfiguring the main interface", 
+			 "VIF '" + vap + "' instead of reconfiguring the main interface", 
 			 MSGFLAG_INFO);
 		// Opportunistic VAP off when specified
 		opp_vap = 0;
-	}
+	} else if (FetchOpt("vif", in_opts) != "") {
+        vap = FetchOpt("vif", in_opts);
+		_MSG("Source '" + interface + "' will attempt to create a monitor-only "
+			 "VIF '" + vap + "' instead of reconfiguring the main interface", 
+			 MSGFLAG_INFO);
+        opp_vap = 0;
+    }
+
 
 	// Record if the VAP is absolutely forced (no passive blank option)
 	// if (StrLower(FetchOpt("forcevap", in_opts)) == "true")
 	if (FetchOptBoolean("forcevap", in_opts, 0))
 		force_vap = 1;
+
+    if (FetchOptBoolean("forcevif", in_opts, 0))
+        force_vap = 1;
 
 	// Turn on VAP by default
 	// if (vap == "" && (FetchOpt("forcevap", in_opts) == "" || 
@@ -193,7 +203,7 @@ int PacketSource_Wext::ParseOptions(vector<opt_pair> *in_opts) {
 			// Only set a vap when we're not targetting a vap
 			if (mac80211_find_parent(string(interface + "mon").c_str()) == "") {
 				_MSG("Source '" + interface + "' will attempt to create and use a "
-					 "monitor-only VAP instead of reconfiguring the main interface",
+					 "monitor-only VIF instead of reconfiguring the main interface",
 					 MSGFLAG_INFO);
 				vap = interface + "mon";
 			}
@@ -202,7 +212,7 @@ int PacketSource_Wext::ParseOptions(vector<opt_pair> *in_opts) {
 			opp_vap = 1;
 		}
 	} else if (vap == "") {
-		_MSG("Source '" + interface + "' forced into non-vap mode, this will "
+		_MSG("Source '" + interface + "' forced into non-vif mode, this will "
 			 "modify the provided interface.", MSGFLAG_INFO);
 	}
 
@@ -210,9 +220,8 @@ int PacketSource_Wext::ParseOptions(vector<opt_pair> *in_opts) {
 	if (FetchOptBoolean("fcsfail", in_opts, 0)) {
 		if (vap == "") {
 			_MSG("Source '" + interface + "': 'fcsfail' enabled to tell "
-				 "mac80211 to report invalid packets, but not using a VAP. "
-				 "A vap must be specified with 'vap=' BEFORE the 'fcsfail' "
-				 "option.", MSGFLAG_PRINTERROR);
+				 "mac80211 to report invalid packets, but not using a VIF. "
+				 "A vif must be specified with 'vif=' in the source.", MSGFLAG_PRINTERROR);
 		} else {
 			_MSG("Source '" + interface + "::" + vap + "': Telling mac80211 to report "
 				 "invalid packets which fail the FCS check.  Forcing FCS "
@@ -226,9 +235,8 @@ int PacketSource_Wext::ParseOptions(vector<opt_pair> *in_opts) {
 	if (FetchOptBoolean("plcpfail", in_opts, 0)) {
 		if (vap == "") {
 			_MSG("Source '" + interface + "': 'plcpfail' enabled to tell "
-				 "mac80211 to report invalid packets, but not using a VAP. "
-				 "A vap must be specified with 'vap=' BEFORE the 'plcpfail' "
-				 "option.", MSGFLAG_PRINTERROR);
+				 "mac80211 to report invalid packets, but not using a VIF. "
+				 "A vif must be specified with 'vif=' in the source", MSGFLAG_PRINTERROR);
 		} else {
 			_MSG("Source '" + interface + "::" + vap + "': Telling mac80211 to report "
 				 "invalid packets which fail the PLCP check.  Forcing FCS "
@@ -494,11 +502,11 @@ int PacketSource_Wext::EnableMonitor() {
 
 	if (vap != "" && opp_vap == 1 && use_mac80211 == 0) {
 		_MSG("Source '" + interface + "' doesn't have mac80211 support, disabling "
-			 "VAP creation of default monitor mode VAP", MSGFLAG_PRINTERROR);
+			 "VIF creation of default monitor mode VIF", MSGFLAG_PRINTERROR);
 		vap = "";
 	} else if (vap != "" && opp_vap == 0 && use_mac80211 == 0) {
 		_MSG("Source '" + interface + "' doesn't have mac80211 support, unable to "
-			 "create a VAP for capturing, specify the main device instead.",
+			 "create a VIF for capturing, specify the main device instead.",
 			 MSGFLAG_PRINTERROR);
 		return -1;
 	}
@@ -522,11 +530,11 @@ int PacketSource_Wext::EnableMonitor() {
 
 	// Defer the vap creation to here so we're sure we're root
 	if (vap != "" && use_mac80211 && stored_mode == IW_MODE_MONITOR && force_vap == 0) {
-		_MSG("Not creating a VAP for " + interface + " even though one was "
+		_MSG("Not creating a VIF for " + interface + " even though one was "
 			 "requested, since the interface is already in monitor mode.  "
-			 "Perhaps an existing monitor mode VAP was specified.  To override "
-			 "this and create a new monitor mode vap no matter what, use the "
-			 "forcevap=true source option", MSGFLAG_PRINTERROR);
+			 "Perhaps an existing monitor mode VIF was specified.  To override "
+			 "this and create a new monitor mode VIF no matter what, use the "
+			 "forcevif=true source option", MSGFLAG_PRINTERROR);
 	} else if (vap != "" && use_mac80211) {
 		// If we're ignoring the primary state do nothing, otherwise shut it down
 		if (!ignore_primary_state) {
@@ -562,7 +570,7 @@ int PacketSource_Wext::EnableMonitor() {
 		}
 
 		if (mac80211_createvap(parent.c_str(), vap.c_str(), errstr) < 0) {
-			_MSG("Source '" + parent + "' failed to create mac80211 VAP: " +
+			_MSG("Source '" + parent + "' failed to create mac80211 VIF: " +
 				 string(errstr), MSGFLAG_PRINTERROR);
 
 			if (opp_vap)
@@ -585,7 +593,7 @@ int PacketSource_Wext::EnableMonitor() {
 			}
 
 			if (mac80211_setvapflag(interface.c_str(), mac80211_flag_vec, errstr) < 0) {
-				_MSG("Source '" + parent + "' failed to set flags on VAP '" +
+				_MSG("Source '" + parent + "' failed to set flags on VIF '" +
 					 interface + "': " + string(errstr), MSGFLAG_PRINTERROR);
 			}
 		}
@@ -618,7 +626,7 @@ end_vap:
 		mac80211_flag_vec.push_back(nl80211_mntr_flag_otherbss);
 
 		if (mac80211_setvapflag(interface.c_str(), mac80211_flag_vec, errstr) < 0) {
-			_MSG("Source '" + parent + "' failed to set flags on VAP '" +
+			_MSG("Source '" + parent + "' failed to set flags on VIF '" +
 				 interface + "': " + string(errstr), MSGFLAG_PRINTERROR);
 		}
 
@@ -880,13 +888,13 @@ PacketSource_Madwifi::PacketSource_Madwifi(GlobalRegistry *in_globalreg,
 	vapdestroy = 1;
 
 	// if (FetchOpt("vapkill", in_opts) != "" && FetchOpt("vapkill", in_opts) != "true") {
-	if (FetchOptBoolean("vapkill", in_opts, 1)) {
+	if (!FetchOptBoolean("vapkill", in_opts, 1) && !FetchOptBoolean("vifkill", in_opts, 1)) {
 		vapdestroy = 0;
 		_MSG("Madwifi-NG source " + name + " " + interface + ": Disabling destruction "
-			 "of non-monitor VAPS because vapkill was not set to true in source "
-			 "options.  This may cause capture problems with some driver versions.",
-			 MSGFLAG_INFO);
+			 "of non-monitor VIFs.  This may cause problems with some driver versions, "
+             "if you have problems set vifkill=true in source options.", MSGFLAG_INFO);
 	}
+
 }
 
 int PacketSource_Madwifi::OpenSource() {
@@ -937,38 +945,37 @@ int PacketSource_Madwifi::EnableMonitor() {
 			continue;
 
 		if (Iwconfig_Get_Mode(vaplist[x].c_str(), errstr, &iwmode) < 0) {
-			_MSG("Madwifi source " + name + ": Could not get mode of VAP " + 
+			_MSG("Madwifi source " + name + ": Could not get mode of VIF " + 
 				 interface + "::" +
 				 vaplist[x] + ".  Madwifi has historically had problems with "
-				 "normal mode and monitor mode VAPs operating at the same time. "
+				 "normal mode and monitor mode VIFs operating at the same time. "
 				 "You may need to manually remove them.", MSGFLAG_PRINTERROR);
 			sleep(1);
 			continue;
 		}
 
 		if (iwmode == LINUX_WLEXT_MASTER) {
-			_MSG("Madwifi source " + name + ": Found master-mode VAP " + 
+			_MSG("Madwifi source " + name + ": Found master-mode VIF " + 
 				 interface + "::" + vaplist[x] + 
 				 ".  While Madwifi has historically had problems with normal "
-				 "and master mode VAPs operating at the same time, it will not "
+				 "and master mode VIFs operating at the same time, it will not "
 				 "be removed on the assumption you really want this.  High packet "
-				 "loss may occur however, so you may want to remove this VAP "
+				 "loss may occur however, so you may want to remove this VIF "
 				 "manually.", MSGFLAG_PRINTERROR);
 			sleep(1);
 			continue;
 		}
 
 		if (iwmode != LINUX_WLEXT_MONITOR && vapdestroy) {
-			_MSG("Madwifi source " + name + ": Found non-monitor-mode VAP " + 
+			_MSG("Madwifi source " + name + ": Found non-monitor-mode VIF " + 
 				 interface + "::" + vaplist[x] +
 				 ".  Because madwifi-ng has problems with normal and monitor "
-				 "vaps operating on the same device, this will be removed.  If "
-				 "you want Kismet to ignore non-monitor-mode VAPs and not "
-				 "remove them, edit your config file to set the \"novapkill\" "
-				 "option: 'sourceopts=" + name + ":novapkill'",
+				 "VIFs operating on the same device, this will be removed.  If "
+				 "you want Kismet to ignore non-monitor-mode VIFs and not "
+				 "remove them, set the source option vifkill=false.",
 				 MSGFLAG_PRINTERROR);
 			if (madwifing_destroy_vap(vaplist[x].c_str(), errstr) < 0) {
-				_MSG("Madwifi source " + name + ": Failed to destroy vap " +
+				_MSG("Madwifi source " + name + ": Failed to destroy VIF " +
 					 interface + "::" + vaplist[x] + ": " +
 					 string(errstr), MSGFLAG_PRINTERROR);
 				return -1;
@@ -978,15 +985,15 @@ int PacketSource_Madwifi::EnableMonitor() {
 			sleep(1);
 			continue;
 		} else if (iwmode != LINUX_WLEXT_MONITOR && vapdestroy == 0) {
-			_MSG("Madwifi source " + name + ": Found non-monitor-mode VAP " + 
+			_MSG("Madwifi source " + name + ": Found non-monitor-mode VIF " + 
 				 interface + "::" + vaplist[x] +
-				 ".  Because the sourceopt \"novapkill\" is set for this "
+				 ".  Because the sourceopt \"vifkill=false\" is set for this "
 				 "source, it will not be removed.  THIS MAY CAUSE PROBLEMS.  "
-				 "Do not enable novapkill unless you know you want it.",
+				 "Do not disable vifkill unless you know you want it.",
 				 MSGFLAG_PRINTERROR);
 			continue;
 		} else if (iwmode == LINUX_WLEXT_MONITOR) {
-			_MSG("Madwifi source " + name + ": Found monitor-mode VAP " + 
+			_MSG("Madwifi source " + name + ": Found monitor-mode VIF " + 
 				 interface + "::" + vaplist[x] + 
 				 ".  We'll use that instead of making a new one.",
 				 MSGFLAG_INFO);
@@ -1015,7 +1022,7 @@ int PacketSource_Madwifi::EnableMonitor() {
 
 		if (madwifing_build_vap(parent.c_str(), errstr, "kis", newdev,
 								IEEE80211_M_MONITOR, IEEE80211_CLONE_BSSID) >= 0) {
-			_MSG("Madwifi source " + name + " created monitor-mode VAP " +
+			_MSG("Madwifi source " + name + " created monitor-mode VIF " +
 				 parent + "::" + newdev + ".", MSGFLAG_INFO);
 
 			FILE *controlf;
@@ -1034,7 +1041,7 @@ int PacketSource_Madwifi::EnableMonitor() {
 			interface = newdev;
 			driver_ng = 1;
 		} else {
-			_MSG("Madwifi source " + name + ": Failed to create monitor VAP: " +
+			_MSG("Madwifi source " + name + ": Failed to create monitor VIF: " +
 				 string(errstr), MSGFLAG_PRINTERROR);
 		}
 	} else if (monvap != "") {
@@ -1044,12 +1051,12 @@ int PacketSource_Madwifi::EnableMonitor() {
 	}
 
 	if (driver_ng && nvaps < 0) {
-		_MSG("Madwifi source " + name + ": Able to build rfmon VAP, but unable "
-			 "to get a list of existing VAPs.  This means something strange is "
+		_MSG("Madwifi source " + name + ": Able to build rfmon VIF, but unable "
+			 "to get a list of existing VIFs.  This means something strange is "
 			 "happening with your system, or that you're running on an old "
-			 "kernel (2.4.x) which does not provide Controller to VAP mapping.  "
+			 "kernel (2.4.x) which does not provide Controller to VIF mapping.  "
 			 "Performance will likely be VERY poor if you do not remove non-rfmon "
-			 "vaps manually (if any exist) using wlanconfig.", MSGFLAG_PRINTERROR);
+			 "VIFs manually (if any exist) using wlanconfig.", MSGFLAG_PRINTERROR);
 		sleep(1);
 	}
 
@@ -1060,9 +1067,9 @@ int PacketSource_Madwifi::EnableMonitor() {
 	if (driver_ng)
 		return 1;
 
-	_MSG("Madwifi source " + name + ": Could not get a VAP list from madwifi-ng, "
+	_MSG("Madwifi source " + name + ": Could not get a VIF list from madwifi-ng, "
 		 "assuming this is a madwifi-old source.  If you are running madwifi-ng "
-		 "you MUST pass the wifiX control interface, NOT an athX VAP.",
+		 "you MUST pass the wifiX control interface, NOT an athX VIF.",
 		 MSGFLAG_INFO);
 	sleep(1);
 
@@ -1091,7 +1098,7 @@ int PacketSource_Madwifi::DisableMonitor() {
 
 	if (driver_ng && shutdowndestroy) {
 		if (madwifing_destroy_vap(interface.c_str(), errstr) < 0) {
-			_MSG("Madwifi source " + name + ": Failed to destroy vap " +
+			_MSG("Madwifi source " + name + ": Failed to destroy VIF " +
 				 interface + " on shutdown: " +
 				 string(errstr), MSGFLAG_PRINTERROR);
 			return -1;

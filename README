@@ -38,11 +38,11 @@ http://www.kismetwireless.net
 
 2a. Upgrading from recent versions
 
-    2009-06-R1 has changed some basic behavior when using multi-vap capable
+    2009-06-R1 has changed some basic behavior when using multi-vif capable
     devices (ie, modern in-kernel Linux drivers).  Whenever possible, it
-    will create a new VAP and reconfigure it, instead of modifying the
+    will create a new VIF and reconfigure it, instead of modifying the
     existing interface.  To preserve the old behavior, specify
-    'forcevap=false' on the source line.
+    'forcevif=false' on the source line.
 
 2b. Upgrading from Kismet-old versions
 
@@ -286,24 +286,24 @@ http://www.kismetwireless.net
                          which has encountered an error.  This behavior can
                          be disabled if the user wants the source to remain
                          closed.
-      vap=interface     Create a secondary named interface for capture
+      vif=interface     Create a secondary named interface for capture
                          instead of trying to change the mode of the
                          existing interface.  This is primarily only for use
                          by drivers using the mac80211 interface under
                          Linux.  Users wishing to do Kismet+Managed or
-                         Kismet+Injection should create a vap.
-      forcevap=t|f      True/False.  Force creation of a monitor-mode VAP
+                         Kismet+Injection should create a VIF.
+      forcevif=t|f      True/False.  Force creation of a monitor-mode VIF
                          when possible (all Linux mac80211 based drivers
-                         support this).  Default is "true", a VAP will be
+                         support this).  Default is "true", a VIF will be
                          made of the name '<interface>mon', ie 'wlan0mon',
-                         'wlan1mon' and capture will be done with this VAP.
+                         'wlan1mon' and capture will be done with this VIF.
                          This behavior can be forced OFF with
-                         'forcevap=false'.
-      wpa_scan=time     When using a mac80211 VAP, Kismet can use
+                         'forcevif=false'.
+      wpa_scan=time     When using a mac80211 VIF, Kismet can use
                          wpa_supplicant on a managed interface to trigger
                          hardware assisted scans, enabling some view of the
                          rest of the spectrum without significantly
-                         disrupting operation of the managed VAP.  Suggested
+                         disrupting operation of the managed VIF.  Suggested
                          time for scan intervals is 15 seconds.
       validatefcs=t|f   True/False.  Kismet normally will not bother trying
                          to validate the FCS checksum of incoming packets
@@ -322,10 +322,10 @@ http://www.kismetwireless.net
                          sources such as pcapfile, reading raw 802.11 pcap
                          files with no headers, may need this turned on for
                          proper behavior.
-      fcsfail=true      Force a mac80211 VAP to report packets with a known
+      fcsfail=true      Force a mac80211 VIF to report packets with a known
                          bad FCS (packet checksum).  This is only available
                          on Linux and only when using mac80211 drivers.
-                         This MUST come after a 'vap=' option or it will be
+                         This MUST come after a 'vif=' option or it will be
                          ignored.  Enabling 'fcsfail' will enable
                          'validatefcs' automatically.  The 'fcsfail' option 
                          should only be enabled when logging to PPI; Logging
@@ -336,7 +336,7 @@ http://www.kismetwireless.net
                          interface will become unresponsive if capture is
                          stopped and resume.  This option is for specific
                          expert use only, when in doubt, leave it alone.
-      plcpfail=true     Force a mac80211 VAP to report packets which do not
+      plcpfail=true     Force a mac80211 VIF to report packets which do not
                          pass the PLCP check (if possible on that
                          interface).  The same warnings and conditions as
                          'fcsfail' apply.  This option is for specific,
@@ -354,10 +354,10 @@ http://www.kismetwireless.net
       Capture on wlan0, 802.11b channels only even if it supports 5GHz
        ncsource=wlan0:channellist=IEEE80211b
 
-      Create a VAP on wlan0 named wlan0mon and use wpa_supplicant to
+      Create a VIF on wlan0 named wlan0mon and use wpa_supplicant to
       give us some view of other channels, while remaining associated to a
       network:
-       ncsource=wlan0:vap=wlan0mon,hop=false,wpa_scan=15
+       ncsource=wlan0:vif=wlan0mon,hop=false,wpa_scan=15
 
       Read from a pre-recorded pcap file:
        ncsource=/home/foo/old.pcap
@@ -438,22 +438,22 @@ http://www.kismetwireless.net
     Madwifi (Linux):
 
       Madwifi-ng has been largely deprecated by ath5k/ath9k for normal
-      usage.  These drivers support multi-vap more cleanly via the mac80211
+      usage.  These drivers support multi-VIF more cleanly via the mac80211
       layer and do not, typically, have the same problems historically
       present in madwifi.  
       
-      Madwifi-ng sources can be specified as either the VAP (ath0, mon0,
+      Madwifi-ng sources can be specified as either the VIF (ath0, mon0,
       etc) or as the control interface (wifi0, wifi1).  However, IF THE
       CONTROL INTERFACE IS SPECIFIED, Kismet cannot extract the list of
       supported channels, and will default to IEEE80211b channels.
 
-      Madwifi-ng continues to have problems with multi-vap and initial vap
-      creation.  It is recommended that the initial VAP creation be turned off
+      Madwifi-ng continues to have problems with multi-VIF and initial VIF
+      creation.  It is recommended that the initial VIF creation be turned off
       by the module parameter "autocreate=none" when loading ath_pci.  If the
-      madwifi monitor vap stops reporting packets soon after being created,
+      madwifi monitor VIF stops reporting packets soon after being created,
       this is often the cause.
 
-      Combining managed and monitor VAPs appears to still not work well.
+      Combining managed and monitor VIFs appears to still not work well.
 
     RT28xx (Linux)
 
@@ -1423,25 +1423,25 @@ http://www.kismetwireless.net
               stopping the networking services for your interface ('ifdown
               wlan0' for example).  In some specific configurations, these
               alerts may be spurious (dhcp and wpa_supplicant alerts on a
-              multi-vap mac80211 interface doing sta+rfmon with a
+              multi-VIF mac80211 interface doing sta+rfmon with a
               wpa_supplicant scanning option, for example).
 
-    PROBLEM:  Kismet complains about multiple VAPs under madwifi-ng
-    FIX:      Destroy the other VAPs, or ignore this warning if there are no
+    PROBLEM:  Kismet complains about multiple VIFs under madwifi-ng
+    FIX:      Destroy the other VIFs, or ignore this warning if there are no
               run-time failures.  Madwifi-ng has historically had
-              significant problems with multi-vap and rfmon (for example, a
-              STA VAP and a RFMON VAP).
+              significant problems with multi-VIF and rfmon (for example, a
+              STA VIF and a RFMON VIF).
 
     PROBLEM:  Shortly after starting on madwifi-ng, Kismet stops reporting
               packets.
     FIX:      There appears to be a race condition in madwifi-ng startup
-              where an autocreated VAP causes errors in future VAPs.  A
+              where an autocreated VIF causes errors in future VIFs.  A
               temporary fix is to reload the madwifi-ng driver before
               starting Kismet, with the 'autocreate=none' modparm ('rmmod
               ath_pci; modprobe ath_pci autocreate=none'), a more permanent
               fix is to put this in the default module parameters for
               ath_pci and make the necessary changes to your startup scripts
-              to create a managed VAP on startup.
+              to create a managed VIF on startup.
 
     PROBLEM:  './configure' is unable to find libpcap, wext, ncurses, pcre,
               or some other library when building from source.
