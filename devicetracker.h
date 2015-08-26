@@ -33,6 +33,8 @@
 #include <arpa/inet.h>
 
 #include "globalregistry.h"
+#include "trackedelement.h"
+#include "entrytracker.h"
 #include "packet.h"
 #include "packetchain.h"
 #include "kis_netframe.h"
@@ -41,6 +43,8 @@
 #include "gpscore.h"
 #include "uuid.h"
 #include "configfile.h"
+
+#define __RegisterField(F, N, T, D)    tracker->RegisterAndGetField(N, T, D, __EntryLocation()); add_map(F)
 
 // How big the main vector of components is, if we ever get more than this
 // many tracked components we'll need to expand this but since it ties to 
@@ -54,10 +58,37 @@
 class Devicetracker;
 
 // Basic unit being tracked in a tracked device
-class tracker_component {
+class tracker_component : public TrackerElement {
 public:
-	tracker_component() { self_destruct = 1; }
+    // Legacy
+    tracker_component() {
+        fprintf(stderr, "debug - legacy tracker_component() called\n");
+        set_type(TrackerMap);
+        self_destruct = 1; 
+    }
+
+	tracker_component(GlobalRegistry *in_globalreg) { 
+        set_type(TrackerMap);
+        tracker = in_globalreg->entrytracker;
+
+        self_destruct = 1; 
+    }
+
+    tracker_component(EntryTracker *in_tracker, int in_id) {
+        set_type(TrackerMap);
+        set_id(in_id);
+        tracker = in_tracker;
+
+        self_destruct = 1;
+    }
+
 	virtual ~tracker_component() { }
+
+    virtual TrackerElement *clone() {
+        return new tracker_component(tracker, get_id());
+    }
+
+    EntryTracker *tracker;
 
 	int self_destruct;
 };
@@ -69,6 +100,28 @@ enum kis_ipdata_type {
 	ipdata_arp = 3,
 	ipdata_dhcp = 4,
 	ipdata_group = 5
+};
+
+// New component-based ip data
+class kis_tracked_ip_data : public tracker_component {
+public:
+    kis_tracked_ip_data(GlobalRegistry *in_globalreg) : tracker_component(in_globalreg) {
+        __RegisterField(ip_type, "kismet.common.ipdata.type", TrackerInt32, 
+                        "ipdata type enum");
+        __RegisterField(ip_addr_block, "kismet.common.ipdata.address", TrackerUInt64,
+                        "ip address");
+        __RegisterField(ip_netmask, "kismet.common.ipdata.netmask", TrackerUInt64,
+                        "ip netmask");
+        __RegisterField(ip_gateway, "kismet.common.ipdata.gateway", TrackerUInt64,
+                        "ip gateway");
+    }
+
+protected:
+    TrackerElement *ip_type;
+    TrackerElement *ip_addr_block;
+    TrackerElement *ip_netmask;
+    TrackerElement *ip_gateway;
+    
 };
 
 class kis_ip_data {
@@ -107,12 +160,86 @@ public:
 	kis_gps_packinfo *gps;
 };
 
+// Component-tracker common GPS element
+class kis_tracked_location_triplet : public tracker_component {
+public:
+    kis_tracked_location_triplet(GlobalRegistry *in_globalreg) : tracker_component(in_globalreg) {
+        __RegisterField(lat, "kismet.common.location.lat", TrackerDouble, "basic lat");
+        __RegisterField(lon, "kismet.common.location.lon", TrackerDouble, "basic lon");
+        __RegisterField(alt, "kismet.common.location.alt", TrackerDouble, "basic alt");
+    }
+
+    kis_tracked_location_triplet(EntryTracker *in_tracker, int in_id) : 
+        tracker_component(in_tracker, in_id) { } 
+
+    virtual TrackerElement *clone() {
+        return new kis_tracked_location_triplet(tracker, get_id());
+    }
+
+protected:
+    TrackerElement *lat, *lon, *alt;
+};
+
 // SNR info
 
 #define KIS_SIGNAL_DBM_BOGUS_MIN	0
 #define KIS_SIGNAL_DBM_BOGUS_MAX	-256
 #define KIS_SIGNAL_RSSI_BOGUS_MIN	1024
 #define KIS_SIGNAL_RSSI_BOGUS_MAX	0
+
+enum {
+    kis_signal_dbm = 0,
+    kis_signal_rssi = 1
+};
+
+// Component-tracker based signal data
+// TODO operator overloading once rssi/dbm fixed upstream
+class kis_tracked_signal_data : public tracker_component {
+public:
+    kis_tracked_signal_data(GlobalRegistry *in_globalreg) : tracker_component(in_globalreg) {
+        __RegisterField(signal_type, "kismet.common.signal.type", TrackerUInt32,
+                        "signal type enum");
+        __RegisterField(last_signal, "kismet.common.signal.last_signal", TrackerInt32,
+                        "most recent signal");
+        __RegisterField(last_noise, "kismet.common.signal.last_noise", TrackerInt32,
+                        "most recent noise");
+
+        __RegisterField(min_signal, "kismet.common.signal.min_signal", TrackerInt32,
+                        "minimum signal");
+        __RegisterField(min_noise, "kismet.common.signal.min_noise", TrackerInt32,
+                        "minimum noise");
+
+
+        __RegisterField(max_signal, "kismet.common.signal.max_signal", TrackerInt32,
+                        "maximum signal");
+        __RegisterField(max_noise, "kismet.common.signal.max_noise", TrackerInt32,
+                        "maximum noise");
+
+        kis_tracked_location_triplet *loc_builder = new kis_tracked_location_triplet(in_globalreg);
+        __RegisterField(peak_loc, "kismet.common.signal.peak_loc", loc_builder,
+                        "location of strongest signal");
+
+        __RegisterField(maxseenrate, "kismet.common.signal.maxseenrate", TrackerDouble,
+                        "maximum observed data rate");
+
+        __RegisterField(encodingset, "kismet.common.signal.encodingset", TrackerUInt64,
+                        "bitset of observed encodings");
+
+        __RegisterField(carrierset, "kismet.common.signal.carrierset", TrackerUInt64,
+                        "bitset of observed carrier types");
+    }
+
+protected:
+    TrackerElement *signal_type;
+
+    TrackerElement *last_signal, *last_noise;
+    TrackerElement *min_signal, *min_noise;
+    TrackerElement *max_signal, *max_noise;
+
+    kis_tracked_location_triplet *peak_loc;
+
+    TrackerElement *maxseenrate, *encodingset, *carrierset;
+};
 
 struct kis_signal_data {
 	kis_signal_data() {
@@ -341,6 +468,104 @@ class kis_tracked_device;
 #define KIS_DEVICE_BASICCRYPT_L3		(1 << 3)
 #define KIS_DEVICE_BASICCRYPT_WEAKCRYPT	(1 << 4)
 #define KIS_DEVICE_BASICCRYPT_DECRYPTED	(1 << 5)
+
+class kis_tracked_device_common : public tracker_component {
+public:
+    kis_tracked_device_common(GlobalRegistry *in_globalreg) : tracker_component(in_globalreg) {
+        name = tracker->RegisterAndGetField("kismet.common.device.name",
+                                            TrackerString,
+                                            "device name",
+                                            __EntryLocation());
+
+        type_string = tracker->RegisterAndGetField("kismet.common.device.typestring",
+                                                   TrackerString,
+                                                   "printable device type",
+                                                   __EntryLocation());
+
+        basic_type_set = tracker->RegisterAndGetField("kismet.common.device.basic_type_set",
+                                                      TrackerUInt64,
+                                                      "basictype bitset",
+                                                      __EntryLocation());
+
+        crypt_string = tracker->RegisterAndGetField("kismet.common.device.crypt_string",
+                                                    TrackerString,
+                                                    "printable encryption type",
+                                                    __EntryLocation());
+
+        basic_crypt_set = tracker->RegisterAndGetField("kismet.common.device.basic_crypt_set",
+                                                       TrackerUInt64,
+                                                       "basiccrypt bitset",
+                                                       __EntryLocation());
+
+        first_time = tracker->RegisterAndGetField("kismet.common.device.first_time",
+                                                  TrackerUInt64,
+                                                  "first time seen time_t",
+                                                  __EntryLocation());
+        last_time = tracker->RegisterAndGetField("kismet.common.device.last_time",
+                                                 TrackerUInt64,
+                                                 "last time seen time_t",
+                                                 __EntryLocation());
+
+        packets = tracker->RegisterAndGetField("kismet.common.device.packets",
+                                               TrackerUInt64,
+                                               "total packets",
+                                               __EntryLocation());
+        rx_packets = tracker->RegisterAndGetField("kismet.common.device.rx_packets",
+                                                  TrackerUInt64,
+                                                  "received packets",
+                                                  __EntryLocation());
+        tx_packets = tracker->RegisterAndGetField("kismet.common.device.tx_packets",
+                                                  TrackerUInt64,
+                                                  "transmitted packets",
+                                                  __EntryLocation());
+
+
+    }
+
+protected:
+    // Printable name for UI summary.  For APs could be latest SSID, for BT the UAP
+    // guess, etc.
+    TrackerElement *name;
+
+    // Printable basic type relevant to the phy, ie "Wired", "AP", "Bluetooth", etc.
+    // This can be set per-phy and is treated as a printable interpretation.  This should
+    // be empty if the phy layer is unable to add something intelligent
+    TrackerElement *type_string;
+
+    // Basic phy-neutral type for sorting and classification
+    TrackerElement *basic_type_set;
+
+    // Printable crypt string, which is set by the phy and is the best printable
+    // representation of the phy crypt options.  This should be empty if the phy
+    // layer hasn't added something intelligent.
+    TrackerElement *crypt_string;
+
+    // Bitset of basic phy-neutral crypt options
+    TrackerElement *basic_crypt_set;
+
+    // First and last seen
+    TrackerElement *first_time, *last_time;
+
+    // Packet counts
+    TrackerElement *packets, *tx_packets, *rx_packets,
+                   // link-level packets
+                   *llc_packets, 
+                   // known-bad packets
+                   *error_packets,
+                   // data packets
+                   *data_packets, 
+                   // Encrypted data packets (double-counted with data)
+                   *crypt_packets,
+                   // Excluded / filtered packets
+                   *filter_packets;
+
+    // Data seen in bytes
+    TrackerElement *datasize;
+
+    // New # of packets and amount of data bytes since last tick
+    TrackerElement *new_packets, new_data;
+
+};
 
 // Common values across all PHY types, as the PHY is capable of filling them in
 class kis_device_common : public tracker_component {
