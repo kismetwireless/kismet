@@ -54,7 +54,36 @@ enum TrackerType {
 
 class TrackerElement {
 public:
+    TrackerElement() {
+        this->type = TrackerCustom;
+    }
+
     TrackerElement(TrackerType type);
+    TrackerElement(TrackerType type, int id);
+
+    // Factory-style for easily making more of the same if we're subclassed
+    virtual TrackerElement *clone() {
+        return new TrackerElement(get_type(), get_id());
+    }
+
+    virtual TrackerElement *clone(int in_id) {
+        TrackerElement *dupl = clone();
+        dupl->set_id(in_id);
+
+        return dupl;
+    }
+
+    int get_id() {
+        return tracked_id;
+    }
+
+    void set_id(int id) {
+        tracked_id = id;
+    }
+
+    void set_type(TrackerType type) {
+        this->type = type;
+    }
 
     TrackerType get_type() { return type; }
 
@@ -127,6 +156,18 @@ public:
     map<int, TrackerElement *> *get_map() {
         except_type_mismatch(TrackerMap);
         return &submap_value;
+    }
+
+    TrackerElement *get_map_value(int fn) {
+        except_type_mismatch(TrackerMap);
+
+        map<int, TrackerElement *>::iterator i = submap_value.find(fn);
+
+        if (i == submap_value.end()) {
+            return NULL;
+        }
+
+        return i->second;
     }
 
     uuid get_uuid() {
@@ -205,6 +246,11 @@ public:
         submap_value[f] = s;
     }
 
+    void add_map(TrackerElement *s) {
+        except_type_mismatch(TrackerMap);
+        submap_value[s->get_id()] = s;
+    }
+
     void add_vector(TrackerElement *s) {
         except_type_mismatch(TrackerVector);
         subvector_value.push_back(s);
@@ -241,6 +287,7 @@ protected:
     }
 
     TrackerType type;
+    int tracked_id;
 
     string string_value;
 

@@ -36,6 +36,10 @@ TrackerElement::TrackerElement(TrackerType type) {
     mac_value = mac_addr(0);
 }
 
+TrackerElement::TrackerElement(TrackerType type, int id) : TrackerElement(type) {
+    set_id(id);
+}
+
 TrackerElement& TrackerElement::operator++(int) {
     switch (type) {
         case TrackerString:
