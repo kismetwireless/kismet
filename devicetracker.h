@@ -116,6 +116,13 @@ public:
                         "ip gateway");
     }
 
+    kis_tracked_ip_data(EntryTracker *in_tracker, int in_id) : 
+        tracker_component(in_tracker, in_id) { } 
+
+    virtual TrackerElement *clone() {
+        return new kis_tracked_ip_data(tracker, get_id());
+    }
+
 protected:
     TrackerElement *ip_type;
     TrackerElement *ip_addr_block;
