@@ -38,10 +38,12 @@ public:
 
     // Reserve a field name.  Field names are plain strings, which can
     // be used to derive namespaces later.
-    // Return: Registered field number, or negative on error
+    // Return: Registered field number, or negative on error such as field exists
     int RegisterField(string in_name, TrackerType in_type,
                       string in_desc, string in_location);
 
+    // Reserve a field name, and return an instance.  If the field ALREADY EXISTS, return
+    // an instance.
     TrackerElement *RegisterAndGetField(string in_name, TrackerType in_type,
                                         string in_desc, string in_location);
 
@@ -49,6 +51,8 @@ public:
     int RegisterField(string in_name, TrackerElement *in_builder, 
                       string in_desc, string in_location);
     
+    // Reserve a field name, and return an instance.  If the field ALREADY EXISTS, return
+    // an instance.
     TrackerElement *RegisterAndGetField(string in_name, TrackerElement *in_builder,
                                         string in_desc, string in_location);
 
