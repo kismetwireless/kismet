@@ -29,7 +29,7 @@
 
 #include "trackedelement.h"
 
-#define __EntryLocation     EntryTracker::GenerateLocationString(__FILE__, __LINE__, __func__)
+#define __EntryLocation()     EntryTracker::GenerateLocationString(__FILE__, __LINE__, __func__)
 
 // Allocate and track named fields and give each one a custom int
 class EntryTracker {
@@ -42,13 +42,24 @@ public:
     int RegisterField(string in_name, TrackerType in_type,
                       string in_desc, string in_location);
 
+    TrackerElement *RegisterAndGetField(string in_name, TrackerType in_type,
+                                        string in_desc, string in_location);
+
+    // Reserve a field name, include a builder instance of the field
+    int RegisterField(string in_name, TrackerElement *in_builder, 
+                      string in_desc, string in_location);
+    
+    TrackerElement *RegisterAndGetField(string in_name, TrackerElement *in_builder,
+                                        string in_desc, string in_location);
+
     int GetFieldId(string in_name);
 
     // Get a field instance
     // Return: NULL if unknown
     TrackerElement *GetTrackedInstance(string in_name);
+    TrackerElement *GetTrackedInstance(int in_id);
 
-    static string GenerateLocationString(const char *in_file, const char *in_line, const char *in_func);
+    static string GenerateLocationString(const char *in_file, const int in_line, const char *in_func);
 
 protected:
     int next_field_num;
@@ -61,12 +72,16 @@ protected:
         string field_name;
         TrackerType track_type;
 
+        // Or a builder instance
+        TrackerElement *builder;
+
         // Might as well track this for auto-doc
         string field_description;
         string field_location;
     };
 
     map<string, reserved_field *> field_name_map;
+    map<int, reserved_field *> field_id_map;
 
 };
 
