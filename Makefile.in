@@ -63,6 +63,7 @@ DRONE = kismet_drone
 
 NCO	= util.o ringbuf.o globalregistry.o messagebus.o configfile.o getopt.o \
 	  soundcontrol.o timetracker.o ipc_remote.o \
+	  trackedelement.o entrytracker.o \
 	  clinetframework.o tcpclient.o popenclient.o kis_clinetframe.o \
 	  text_cliframe.o \
 	  kis_panel_widgets.o kis_panel_windows.o kis_panel_details.o \
