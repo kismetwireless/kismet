@@ -18,10 +18,17 @@
 
 #include "config.h"
 
+#include <vector>
+
+#include "util.h"
+
 #include "trackedelement.h"
 
 TrackerElement::TrackerElement(TrackerType type) {
     this->type = type;
+    reference_count = 0;
+
+    set_id(-1);
 
     int8_value = 0;
     uint8_value = 0;
@@ -36,8 +43,46 @@ TrackerElement::TrackerElement(TrackerType type) {
     mac_value = mac_addr(0);
 }
 
-TrackerElement::TrackerElement(TrackerType type, int id) : TrackerElement(type) {
+TrackerElement::TrackerElement(TrackerType type, int id) {
+    this->type = type;
     set_id(id);
+
+    reference_count = 0;
+
+    int8_value = 0;
+    uint8_value = 0;
+    int16_value = 0;
+    uint16_value = 0;
+    int32_value = 0;
+    uint32_value = 0;
+    int64_value = 0;
+    uint64_value = 0;
+    float_value = 0.0f;
+    double_value = 0.0f;
+    mac_value = mac_addr(0);
+}
+
+TrackerElement::~TrackerElement() {
+    // Blow up if we're still in use and someone free'd us
+    if (reference_count != 0) {
+        string w = "destroying element with non-zero reference count (" + 
+            IntToString(reference_count) + ")";
+        throw std::runtime_error(w);
+    }
+
+    // If we contain references to other things, unlink them.  This may cause them to
+    // auto-delete themselves.
+    if (type == TrackerVector) {
+        for (unsigned int i = 0; i < subvector_value.size(); i++) {
+            subvector_value[i]->unlink();
+        }
+    } else if (type == TrackerMap) {
+        map<int, TrackerElement *>::iterator i;
+
+        for (i = submap_value.begin(); i != submap_value.end(); ++i) {
+            i->second->unlink();
+        }
+    }
 }
 
 TrackerElement& TrackerElement::operator++(int) {
@@ -334,6 +379,50 @@ string TrackerElement::type_to_string(TrackerType t) {
     }
 }
 
+void TrackerElement::add_map(int f, TrackerElement *s) {
+    except_type_mismatch(TrackerMap);
+    submap_value[f] = s;
+    s->link();
+}
+
+void TrackerElement::add_map(TrackerElement *s) {
+    except_type_mismatch(TrackerMap);
+    submap_value[s->get_id()] = s;
+    s->link();
+}
+
+void TrackerElement::add_vector(TrackerElement *s) {
+    except_type_mismatch(TrackerVector);
+    subvector_value.push_back(s);
+    s->link();
+}
+
+void TrackerElement::del_map(int f) {
+    map<int, TrackerElement *>::iterator i = submap_value.find(f);
+
+    if (i != submap_value.end()) {
+        submap_value.erase(i);
+        i->second->unlink();
+    }
+}
+
+void TrackerElement::del_vector(unsigned int p) {
+    if (p > submap_value.size()) {
+        string w = "del_vector out of range (" + IntToString(p) + ", vector " + 
+            IntToString(submap_value.size()) + ")";
+        throw std::runtime_error(w);
+    }
+
+    TrackerElement *e = submap_value[p];
+    submap_value.erase(p);
+
+    e->unlink();
+}
+
+void TrackerElement::del_map(TrackerElement *e) {
+    del_map(e->get_id());
+}
+
 template<> string GetTrackerValue(TrackerElement *e) {
 
     return e->get_string();
@@ -394,3 +483,5 @@ template<> vector<TrackerElement *> *GetTrackerValue(TrackerElement *e) {
 template<> uuid GetTrackerValue(TrackerElement *e) {
     return e->get_uuid();
 }
+
+

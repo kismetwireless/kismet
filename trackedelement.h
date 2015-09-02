@@ -56,10 +56,13 @@ class TrackerElement {
 public:
     TrackerElement() {
         this->type = TrackerCustom;
+        reference_count = 0;
     }
 
     TrackerElement(TrackerType type);
     TrackerElement(TrackerType type, int id);
+
+    virtual ~TrackerElement();
 
     // Factory-style for easily making more of the same if we're subclassed
     virtual TrackerElement *clone() {
@@ -79,6 +82,31 @@ public:
 
     void set_id(int id) {
         tracked_id = id;
+    }
+
+    void link() {
+        reference_count++;
+    }
+
+    void unlink() {
+        reference_count--;
+
+        // what?
+        if (reference_count < 0) {
+            throw std::runtime_error("tracker element link count < 0");
+        }
+
+        // Time to go
+        if (reference_count == 0) {
+            delete(this);
+#if 1
+            fprintf(stderr, "debug - element %p id %u hit reference count 0, deleting\n", this, get_id());
+#endif
+        }
+    }
+
+    int get_links() {
+        return reference_count;
     }
 
     void set_type(TrackerType type) {
@@ -241,20 +269,12 @@ public:
         uuid_value = v;
     }
 
-    void add_map(int f, TrackerElement *s) {
-        except_type_mismatch(TrackerMap);
-        submap_value[f] = s;
-    }
-
-    void add_map(TrackerElement *s) {
-        except_type_mismatch(TrackerMap);
-        submap_value[s->get_id()] = s;
-    }
-
-    void add_vector(TrackerElement *s) {
-        except_type_mismatch(TrackerVector);
-        subvector_value.push_back(s);
-    }
+    void add_map(int f, TrackerElement *s);
+    void add_map(TrackerElement *s); 
+    void add_vector(TrackerElement *s);
+    void del_map(int f);
+    void del_map(TrackerElement *s);
+    void del_vector(unsigned int p);
 
     // Do our best to increment a value
     TrackerElement& operator++(int);
@@ -273,7 +293,7 @@ public:
     TrackerElement& operator-=(const int& v);
     TrackerElement& operator-=(const float& v);
 
-    string type_to_string(TrackerType t);
+    static string type_to_string(TrackerType t);
 
 protected:
     // Generic coercion exception
@@ -285,6 +305,9 @@ protected:
             throw std::runtime_error(w);
         }
     }
+
+    // Garbage collection?  Say it ain't so...
+    int reference_count;
 
     TrackerType type;
     int tracked_id;
