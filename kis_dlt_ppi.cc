@@ -166,6 +166,7 @@ int Kis_DLT_PPI::HandlePacket(kis_packet *in_pack) {
 			if (tuint & PPI_80211_CHFLAG_5GHZ)
 				radioheader->carrier = carrier_80211a;
 
+            radioheader->signal_type = kis_l1_signal_type_dbm;
 			radioheader->signal_dbm = ppic->signal_dbm;
 			radioheader->noise_dbm = ppic->noise_dbm;
 

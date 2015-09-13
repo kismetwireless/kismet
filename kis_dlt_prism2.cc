@@ -156,6 +156,7 @@ int Kis_DLT_Prism2::HandlePacket(kis_packet *in_pack) {
 
         // We REALLY need to do something smarter about this and handle the RSSI
         // type instead of just copying
+        radioheader->signal_type = kis_l1_signal_type_rssi;
 		radioheader->signal_rssi = ntohl(v1hdr->ssi_signal);
 		radioheader->noise_rssi = ntohl(v1hdr->ssi_noise);
 

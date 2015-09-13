@@ -273,10 +273,17 @@ public:
 };
 
 // Layer 1 radio info record for kismet
+enum kis_layer1_packinfo_signal_type {
+    kis_l1_signal_type_none,
+    kis_l1_signal_type_dbm,
+    kis_l1_signal_type_rssi
+};
+
 class kis_layer1_packinfo : public packet_component {
 public:
 	kis_layer1_packinfo() {
 		self_destruct = 1;  // Safe to delete us
+        signal_type = kis_l1_signal_type_none;
 		signal_dbm = noise_dbm = 0;
 		signal_rssi = noise_rssi = 0;
 		carrier = carrier_unknown;
@@ -298,6 +305,7 @@ public:
 	int channel;
 
     // Connection info
+    kis_layer1_packinfo_signal_type signal_type;
     int signal_dbm, signal_rssi;
     int noise_dbm, noise_rssi;
 

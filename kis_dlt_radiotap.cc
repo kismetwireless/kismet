@@ -328,9 +328,11 @@ int Kis_DLT_Radiotap::HandlePacket(kis_packet *in_pack) {
                     break;
 				*/
 				case IEEE80211_RADIOTAP_DBM_ANTSIGNAL:
+                    radioheader->signal_type = kis_l1_signal_type_dbm;
 					radioheader->signal_dbm = u.i8;
 					break;
 				case IEEE80211_RADIOTAP_DBM_ANTNOISE:
+                    radioheader->signal_type = kis_l1_signal_type_dbm;
 					radioheader->noise_dbm = u.i8;
 					break;
                 case IEEE80211_RADIOTAP_FLAGS:
@@ -342,6 +344,7 @@ int Kis_DLT_Radiotap::HandlePacket(kis_packet *in_pack) {
                 case IEEE80211_RADIOTAP_RSSI:
                     /* Convert to Kismet units...  No reason to use RSSI units
 					 * here since we know the conversion factor */
+                    radioheader->signal_type = kis_l1_signal_type_dbm;
                     radioheader->signal_dbm = int((float(u.u8) / float(u2.u8) * 255));
                     break;
 #endif
