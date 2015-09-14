@@ -305,6 +305,8 @@ public:
     friend bool operator==(TrackerElement &te1, uint16_t i);
     friend bool operator==(TrackerElement &te1, int32_t i);
     friend bool operator==(TrackerElement &te1, uint32_t i);
+    friend bool operator==(TrackerElement &te1, int64_t i);
+    friend bool operator==(TrackerElement &te1, uint64_t i);
     friend bool operator==(TrackerElement &te1, float f);
     friend bool operator==(TrackerElement &te1, double d);
     friend bool operator==(TrackerElement &te1, mac_addr m);
@@ -316,6 +318,8 @@ public:
     friend bool operator<(TrackerElement &te1, uint16_t i);
     friend bool operator<(TrackerElement &te1, int32_t i);
     friend bool operator<(TrackerElement &te1, uint32_t i);
+    friend bool operator<(TrackerElement &te1, int64_t i);
+    friend bool operator<(TrackerElement &te1, uint64_t i);
     friend bool operator<(TrackerElement &te1, float f);
     friend bool operator<(TrackerElement &te1, double d);
     friend bool operator<(TrackerElement &te1, mac_addr m);
@@ -327,9 +331,39 @@ public:
     friend bool operator>(TrackerElement &te1, uint16_t i);
     friend bool operator>(TrackerElement &te1, int32_t i);
     friend bool operator>(TrackerElement &te1, uint32_t i);
+    friend bool operator>(TrackerElement &te1, int64_t i);
+    friend bool operator>(TrackerElement &te1, uint64_t i);
     friend bool operator>(TrackerElement &te1, float f);
     friend bool operator>(TrackerElement &te1, double d);
     // We don't have > operators on mac or uuid
+   
+    // Bitwise
+    TrackerElement& operator|=(const int8_t i);
+    TrackerElement& operator|=(const uint8_t i);
+    TrackerElement& operator|=(const int16_t i);
+    TrackerElement& operator|=(const uint16_t i);
+    TrackerElement& operator|=(const int32_t i);
+    TrackerElement& operator|=(const uint32_t i);
+    TrackerElement& operator|=(const int64_t i);
+    TrackerElement& operator|=(const uint64_t i);
+
+    TrackerElement& operator&=(const int8_t i);
+    TrackerElement& operator&=(const uint8_t i);
+    TrackerElement& operator&=(const int16_t i);
+    TrackerElement& operator&=(const uint16_t i);
+    TrackerElement& operator&=(const int32_t i);
+    TrackerElement& operator&=(const uint32_t i);
+    TrackerElement& operator&=(const int64_t i);
+    TrackerElement& operator&=(const uint64_t i);
+
+    TrackerElement& operator^=(const int8_t i);
+    TrackerElement& operator^=(const uint8_t i);
+    TrackerElement& operator^=(const int16_t i);
+    TrackerElement& operator^=(const uint16_t i);
+    TrackerElement& operator^=(const int32_t i);
+    TrackerElement& operator^=(const uint32_t i);
+    TrackerElement& operator^=(const int64_t i);
+    TrackerElement& operator^=(const uint64_t i);
 
     static string type_to_string(TrackerType t);
 
