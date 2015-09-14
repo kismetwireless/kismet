@@ -94,8 +94,6 @@ TrackerElement::~TrackerElement() {
 
 TrackerElement& TrackerElement::operator++(int) {
     switch (type) {
-        case TrackerString:
-            throw std::runtime_error("can't increment a string");
         case TrackerInt8:
             int8_value++;
             break;
@@ -126,14 +124,12 @@ TrackerElement& TrackerElement::operator++(int) {
         case TrackerDouble:
             double_value++;
             break;
+        case TrackerString:
         case TrackerMac:
-            throw std::runtime_error("can't increment a mac");
         case TrackerUuid:
-            throw std::runtime_error("can't increment a uuid");
         case TrackerCustom:
-            throw std::runtime_error("can't increment a custom");
         default:
-            throw std::runtime_error("can't increment unknown");
+            throw std::runtime_error(string("can't increment " + type_to_string(type)));
     }
 
     return *this;
