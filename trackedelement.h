@@ -309,6 +309,10 @@ public:
     // Do our best to do compound addition
     TrackerElement& operator+=(const int& v);
     TrackerElement& operator+=(const float& v);
+    TrackerElement& operator+=(const double& v);
+
+    TrackerElement& operator+=(const int64_t& v);
+    TrackerElement& operator+=(const uint64_t& v);
 
     // We can append to vectors
     TrackerElement& operator+=(TrackerElement* v);
@@ -316,6 +320,10 @@ public:
     // Do our best to do compound subtraction
     TrackerElement& operator-=(const int& v);
     TrackerElement& operator-=(const float& v);
+    TrackerElement& operator-=(const double& v);
+
+    TrackerElement& operator-=(const int64_t& v);
+    TrackerElement& operator-=(const uint64_t& v);
 
     // Do our best for equals comparison
     
