@@ -293,6 +293,44 @@ public:
     TrackerElement& operator-=(const int& v);
     TrackerElement& operator-=(const float& v);
 
+    // Do our best for equals comparison
+    
+    // Comparing tracked elements themselves presents weird problems - how do we deal with 
+    // conflicting ids but equal data?  Lets see if we actually need it.  /D
+    // friend bool operator==(TrackerElement &te1, TrackerElement &te2);
+
+    friend bool operator==(TrackerElement &te1, int8_t i);
+    friend bool operator==(TrackerElement &te1, uint8_t i);
+    friend bool operator==(TrackerElement &te1, int16_t i);
+    friend bool operator==(TrackerElement &te1, uint16_t i);
+    friend bool operator==(TrackerElement &te1, int32_t i);
+    friend bool operator==(TrackerElement &te1, uint32_t i);
+    friend bool operator==(TrackerElement &te1, float f);
+    friend bool operator==(TrackerElement &te1, double d);
+    friend bool operator==(TrackerElement &te1, mac_addr m);
+    friend bool operator==(TrackerElement &te1, uuid u);
+
+    friend bool operator<(TrackerElement &te1, int8_t i);
+    friend bool operator<(TrackerElement &te1, uint8_t i);
+    friend bool operator<(TrackerElement &te1, int16_t i);
+    friend bool operator<(TrackerElement &te1, uint16_t i);
+    friend bool operator<(TrackerElement &te1, int32_t i);
+    friend bool operator<(TrackerElement &te1, uint32_t i);
+    friend bool operator<(TrackerElement &te1, float f);
+    friend bool operator<(TrackerElement &te1, double d);
+    friend bool operator<(TrackerElement &te1, mac_addr m);
+    friend bool operator<(TrackerElement &te1, uuid u);
+
+    friend bool operator>(TrackerElement &te1, int8_t i);
+    friend bool operator>(TrackerElement &te1, uint8_t i);
+    friend bool operator>(TrackerElement &te1, int16_t i);
+    friend bool operator>(TrackerElement &te1, uint16_t i);
+    friend bool operator>(TrackerElement &te1, int32_t i);
+    friend bool operator>(TrackerElement &te1, uint32_t i);
+    friend bool operator>(TrackerElement &te1, float f);
+    friend bool operator>(TrackerElement &te1, double d);
+    // We don't have > operators on mac or uuid
+
     static string type_to_string(TrackerType t);
 
 protected:

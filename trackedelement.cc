@@ -485,3 +485,119 @@ template<> uuid GetTrackerValue(TrackerElement *e) {
 }
 
 
+bool operator==(TrackerElement &te1, int8_t i) {
+    return te1.get_int8() == i;
+}
+
+bool operator==(TrackerElement &te1, uint8_t i) {
+    return te1.get_uint8() == i;
+}
+
+bool operator==(TrackerElement &te1, int16_t i) {
+    return te1.get_int16() == i;
+}
+
+bool operator==(TrackerElement &te1, uint16_t i) {
+    return te1.get_uint16() == i;
+}
+
+bool operator==(TrackerElement &te1, int32_t i) {
+    return te1.get_int32() == i;
+}
+
+bool operator==(TrackerElement &te1, uint32_t i) {
+    return te1.get_uint32() == i;
+}
+
+bool operator==(TrackerElement &te1, float f) {
+    return te1.get_float() == f;
+}
+
+bool operator==(TrackerElement &te1, double d) {
+    return te1.get_double() == d;
+}
+
+bool operator==(TrackerElement &te1, mac_addr m) {
+    return te1.get_mac() == m;
+}
+
+bool operator==(TrackerElement &te1, uuid u) {
+    return te1.get_uuid() == u;
+}
+
+
+bool operator<(TrackerElement &te1, int8_t i) {
+    return te1.get_int8() < i;
+}
+
+bool operator<(TrackerElement &te1, uint8_t i) {
+    return te1.get_uint8() < i;
+}
+
+bool operator<(TrackerElement &te1, int16_t i) {
+    return te1.get_int16() < i;
+}
+
+bool operator<(TrackerElement &te1, uint16_t i) {
+    return te1.get_uint16() < i;
+}
+
+bool operator<(TrackerElement &te1, int32_t i) {
+    return te1.get_int32() < i;
+}
+
+bool operator<(TrackerElement &te1, uint32_t i) {
+    return te1.get_uint32() < i;
+}
+
+bool operator<(TrackerElement &te1, float f) {
+    return te1.get_float() < f;
+}
+
+bool operator<(TrackerElement &te1, double d) {
+    return te1.get_double() < d;
+}
+
+bool operator<(TrackerElement &te1, mac_addr m) {
+    return te1.get_mac() < m;
+}
+
+bool operator<(TrackerElement &te1, uuid u) {
+    return te1.get_uuid() < u;
+}
+
+
+bool operator>(TrackerElement &te1, int8_t i) {
+    return te1.get_int8() > i;
+}
+
+bool operator>(TrackerElement &te1, uint8_t i) {
+    return te1.get_uint8() > i;
+}
+
+bool operator>(TrackerElement &te1, int16_t i) {
+    return te1.get_int16() > i;
+}
+
+bool operator>(TrackerElement &te1, uint16_t i) {
+    return te1.get_uint16() > i;
+}
+
+bool operator>(TrackerElement &te1, int32_t i) {
+    return te1.get_int32() > i;
+}
+
+bool operator>(TrackerElement &te1, uint32_t i) {
+    return te1.get_uint32() > i;
+}
+
+bool operator>(TrackerElement &te1, float f) {
+    return te1.get_float() > f;
+}
+
+bool operator>(TrackerElement &te1, double d) {
+    return te1.get_double() > d;
+}
+
+
+
