@@ -115,7 +115,7 @@ protected:
     // may contain a generic version of our data.
     // When populating from an existing structure, bind each field to this instance so
     // that we can track usage and delete() appropriately
-    virtual void register_fields(TrackerElement *e) { }
+    virtual void register_fields(TrackerElement *) { }
 
     // Inherit from an existing element or assign a new one.
     // Add imported or new field to our map for use tracking.
@@ -261,13 +261,8 @@ public:
         register_fields(e);
     }
 
-
     virtual TrackerElement *clone() {
         return new kis_tracked_location_triplet(globalreg, get_id());
-    }
-
-    double get_lat() {
-        return GetTrackerValue<double>(lat);
     }
 
     void set_lat(double in_lat) {
@@ -282,18 +277,33 @@ public:
         alt->set(in_alt);
     }
 
-    double get_lon() {
+    double get_lat() const {
+        return GetTrackerValue<double>(lat);
+    }
+
+    double get_lon() const {
         return GetTrackerValue<double>(lon);
     }
 
-    double get_alt() {
+    double get_alt() const {
         return GetTrackerValue<double>(alt);
     }
 
-    void set_loc(double in_lat, double in_lon, double in_alt) {
+    void set(double in_lat, double in_lon, double in_alt) {
         lat->set(in_lat);
         lon->set(in_lon);
         alt->set(in_alt);
+    }
+
+    void set(double in_lat, double in_lon) {
+        lat->set(in_lat);
+        lon->set(in_lon);
+    }
+
+	inline kis_tracked_location_triplet& operator= (const kis_tracked_location_triplet& in) {
+        this->set(in.get_lat(), in.get_lon(), in.get_alt());
+
+        return *this;
     }
 
 protected:
@@ -417,8 +427,9 @@ protected:
 #define KIS_SIGNAL_RSSI_BOGUS_MAX	0
 
 enum {
-    kis_signal_dbm = 0,
-    kis_signal_rssi = 1
+    kis_signal_unknown = 0,
+    kis_signal_dbm = 1,
+    kis_signal_rssi = 2
 };
 
 // Component-tracker based signal data
@@ -441,33 +452,136 @@ public:
         register_fields(e);
     }
 
+	kis_tracked_signal_data& operator+= (const Packinfo_Sig_Combo& in) {
+        if (in.lay1 != NULL) {
+            if (in.lay1->signal_type == kis_l1_signal_type_dbm) {
+                if (in.lay1->signal_dbm != 0) {
+
+                    last_signal_dbm->set((int32_t) in.lay1->signal_dbm);
+
+                    if ((*min_signal_dbm) == (int32_t) 0 ||
+                            (*min_signal_dbm) > (int32_t) in.lay1->signal_dbm) {
+                        min_signal_dbm->set((int32_t) in.lay1->signal_dbm);
+                    }
+
+                    if ((*max_signal_dbm) == (int32_t) 0 ||
+                            (*max_signal_dbm) < (int32_t) in.lay1->signal_dbm) {
+                        max_signal_dbm->set((int32_t) in.lay1->signal_dbm);
+
+                        if (in.gps != NULL) {
+                            if (in.gps->gps_fix > 2)
+                                peak_loc->set(in.gps->lat, in.gps->lon, in.gps->alt);
+                            else
+                                peak_loc->set(in.gps->lat, in.gps->lon);
+                        }
+                    }
+                }
+
+                if (in.lay1->noise_dbm != 0) {
+                    last_noise_dbm->set((int32_t) in.lay1->noise_dbm);
+
+                    if ((*min_noise_dbm) == (int32_t) 0 ||
+                            (*min_noise_dbm) > (int32_t) in.lay1->noise_dbm) {
+                        min_noise_dbm->set((int32_t) in.lay1->noise_dbm);
+                    }
+
+                    if ((*max_noise_dbm) == (int32_t) 0 ||
+                            (*max_noise_dbm) < (int32_t) in.lay1->noise_dbm) {
+                        max_noise_dbm->set((int32_t) in.lay1->noise_dbm);
+                    }
+                }
+            } else if (in.lay1->signal_type == kis_l1_signal_type_rssi) {
+                if (in.lay1->signal_rssi != 0) {
+                    last_signal_rssi->set((int32_t) in.lay1->signal_rssi);
+
+                    if ((*min_signal_rssi) == (int32_t) 0 ||
+                            (*min_signal_rssi) > (int32_t) in.lay1->signal_rssi) {
+                        min_signal_dbm->set((int32_t) in.lay1->signal_rssi);
+                    }
+
+                    if ((*max_signal_rssi) == (int32_t) 0 ||
+                            (*max_signal_rssi) < (int32_t) in.lay1->signal_rssi) {
+                        max_signal_rssi->set((int32_t) in.lay1->signal_rssi);
+
+                        if (in.gps != NULL) {
+                            if (in.gps->gps_fix > 2)
+                                peak_loc->set(in.gps->lat, in.gps->lon, in.gps->alt);
+                            else
+                                peak_loc->set(in.gps->lat, in.gps->lon);
+                        }
+                    }
+                }
+
+                if (in.lay1->noise_rssi != 0) {
+                    last_noise_rssi->set((int32_t) in.lay1->noise_rssi);
+
+                    if ((*min_noise_rssi) == (int32_t) 0 ||
+                            (*min_noise_rssi) > (int32_t) in.lay1->noise_rssi) {
+                        min_noise_rssi->set((int32_t) in.lay1->noise_rssi);
+                    }
+
+                    if ((*max_noise_rssi) == (int32_t) 0 ||
+                            (*max_noise_rssi) < (int32_t) in.lay1->noise_rssi) {
+                        max_noise_rssi->set((int32_t) in.lay1->noise_rssi);
+                    }
+                }
+
+            }
+
+            (*carrierset) |= (uint64_t) in.lay1->carrier;
+            (*encodingset) |= (uint64_t) in.lay1->encoding;
+
+            if ((*maxseenrate) < (double) in.lay1->datarate) {
+                maxseenrate->set((double) in.lay1->datarate);
+            }
+		}
+
+		return *this;
+	}
+
 protected:
     virtual void reserve_fields() {
-        signal_type_id =
-            tracker->RegisterField("kismet.common.signal.type", TrackerUInt32,
-                    "signal type enum");
+        last_signal_dbm_id =
+            tracker->RegisterField("kismet.common.signal.last_signal_dbm", TrackerInt32,
+                    "most recent signal (dBm)");
+        last_noise_dbm_id =
+            tracker->RegisterField("kismet.common.signal.last_noise_dbm", TrackerInt32,
+                    "most recent noise (dBm)");
 
-        last_signal_id =
-            tracker->RegisterField("kismet.common.signal.last_signal", TrackerInt32,
-                    "most recent signal");
-        last_noise_id =
-            tracker->RegisterField("kismet.common.signal.last_noise", TrackerInt32,
-                    "most recent noise");
+        min_signal_dbm_id =
+            tracker->RegisterField("kismet.common.signal.min_signal_dbm", TrackerInt32,
+                    "minimum signal (dBm)");
+        min_noise_dbm_id =
+            tracker->RegisterField("kismet.common.signal.min_noise_dbm", TrackerInt32,
+                    "minimum noise (dBm)");
 
-        min_signal_id =
-            tracker->RegisterField("kismet.common.signal.min_signal", TrackerInt32,
-                    "minimum signal");
-        min_noise_id =
-            tracker->RegisterField("kismet.common.signal.min_noise", TrackerInt32,
-                    "minimum noise");
+        max_signal_dbm_id =
+            tracker->RegisterField("kismet.common.signal.max_signal_dbm", TrackerInt32,
+                    "maximum signal (dBm)");
+        max_noise_dbm_id =
+            tracker->RegisterField("kismet.common.signal.max_noise_dbm", TrackerInt32,
+                    "maximum noise (dBm)");
 
+        last_signal_rssi_id =
+            tracker->RegisterField("kismet.common.signal.last_signal_rssi", TrackerInt32,
+                    "most recent signal (RSSI)");
+        last_noise_rssi_id =
+            tracker->RegisterField("kismet.common.signal.last_noise_rssi", TrackerInt32,
+                    "most recent noise (RSSI)");
 
-        max_signal_id =
-            tracker->RegisterField("kismet.common.signal.max_signal", TrackerInt32,
-                    "maximum signal");
-        max_noise_id =
-            tracker->RegisterField("kismet.common.signal.max_noise", TrackerInt32,
-                    "maximum noise");
+        min_signal_rssi_id =
+            tracker->RegisterField("kismet.common.signal.min_signal_rssi", TrackerInt32,
+                    "minimum signal (rssi)");
+        min_noise_rssi_id =
+            tracker->RegisterField("kismet.common.signal.min_noise_rssi", TrackerInt32,
+                    "minimum noise (RSSI)");
+
+        max_signal_rssi_id =
+            tracker->RegisterField("kismet.common.signal.max_signal_rssi", TrackerInt32,
+                    "maximum signal (RSSI)");
+        max_noise_rssi_id =
+            tracker->RegisterField("kismet.common.signal.max_noise_rssi", TrackerInt32,
+                    "maximum noise (RSSI)");
 
 
         kis_tracked_location_triplet *loc_builder = new kis_tracked_location_triplet(globalreg, 0);
@@ -487,14 +601,19 @@ protected:
     }
 
     virtual void register_fields(TrackerElement *e) {
-        signal_type = import_or_new(e, signal_type_id);
+        last_signal_dbm = import_or_new(e, last_signal_dbm_id);
+        last_noise_dbm = import_or_new(e, last_noise_dbm_id);
+        min_signal_dbm = import_or_new(e, min_signal_dbm_id);
+        min_noise_dbm = import_or_new(e, min_noise_dbm_id);
+        max_signal_dbm = import_or_new(e, max_signal_dbm_id);
+        max_noise_dbm = import_or_new(e, max_noise_dbm_id);
 
-        last_signal = import_or_new(e, last_signal_id);
-        last_noise = import_or_new(e, last_noise_id);
-        min_signal = import_or_new(e, min_signal_id);
-        min_noise = import_or_new(e, min_noise_id);
-        max_signal = import_or_new(e, max_signal_id);
-        max_noise = import_or_new(e, max_noise_id);
+        last_signal_rssi = import_or_new(e, last_signal_rssi_id);
+        last_noise_rssi = import_or_new(e, last_noise_rssi_id);
+        min_signal_rssi = import_or_new(e, min_signal_rssi_id);
+        min_noise_rssi = import_or_new(e, min_noise_rssi_id);
+        max_signal_rssi = import_or_new(e, max_signal_rssi_id);
+        max_noise_rssi = import_or_new(e, max_noise_rssi_id);
 
         peak_loc = new kis_tracked_location_triplet(globalreg, e->get_map_value(peak_loc_id));
 
@@ -503,18 +622,26 @@ protected:
         encodingset = import_or_new(e, encodingset_id);
     }
 
-    int signal_type_id,
-        last_signal_id, last_noise_id,
-        min_signal_id, min_noise_id,
-        max_signal_id, max_noise_id,
+    int last_signal_dbm_id, last_noise_dbm_id,
+        min_signal_dbm_id, min_noise_dbm_id,
+        max_signal_dbm_id, max_noise_dbm_id,
+
+        last_signal_rssi_id, last_noise_rssi_id,
+        min_signal_rssi_id, min_noise_rssi_id,
+        max_signal_rssi_id, max_noise_rssi_id,
+
         peak_loc_id,
         maxseenrate_id, encodingset_id, carrierset_id;
 
     TrackerElement *signal_type;
 
-    TrackerElement *last_signal, *last_noise;
-    TrackerElement *min_signal, *min_noise;
-    TrackerElement *max_signal, *max_noise;
+    TrackerElement *last_signal_dbm, *last_noise_dbm;
+    TrackerElement *min_signal_dbm, *min_noise_dbm;
+    TrackerElement *max_signal_dbm, *max_noise_dbm;
+
+    TrackerElement *last_signal_rssi, *last_noise_rssi;
+    TrackerElement *min_signal_rssi, *min_noise_rssi;
+    TrackerElement *max_signal_rssi, *max_noise_rssi;
 
     kis_tracked_location_triplet *peak_loc;
 
@@ -756,6 +883,10 @@ public:
 
     }
 
+    // Unique key
+    TrackerElement *key;
+    int key_id;
+
     // Printable name for UI summary.  For APs could be latest SSID, for BT the UAP
     // guess, etc.
     TrackerElement *name;
@@ -834,6 +965,8 @@ public:
 
 protected:
     virtual void register_fields(TrackerElement *e) {
+        key = import_or_new(e, key_id);
+
         name = import_or_new(e, name_id);
 
         type_string = import_or_new(e, type_string_id);
@@ -870,6 +1003,10 @@ protected:
     }
 
     virtual void reserve_fields() {
+        key_id =
+            tracker->RegisterField("kismet.device.base.key", TrackerUInt64,
+                    "unique integer key");
+
         name_id = 
             tracker->RegisterField("kismet.device.base.name", TrackerString,
                     "printable device name");
