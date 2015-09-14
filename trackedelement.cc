@@ -275,8 +275,6 @@ TrackerElement& TrackerElement::operator+=(TrackerElement* v) {
 
 TrackerElement& TrackerElement::operator-=(const int& v) {
     switch (type) {
-        case TrackerString:
-            throw std::runtime_error("can't -= int to string");
         case TrackerInt8:
             int8_value -= v;
             break;
@@ -307,15 +305,15 @@ TrackerElement& TrackerElement::operator-=(const int& v) {
         case TrackerDouble:
             double_value-= v;
             break;
+        case TrackerString:
         case TrackerMac:
         case TrackerVector:
         case TrackerMap:
         case TrackerIntMap:
         case TrackerUuid:
         case TrackerCustom:
-            throw std::runtime_error(string("can't -= to " + type_to_string(type)));
         default:
-            throw std::runtime_error("can't -= unknown");
+            throw std::runtime_error(string("can't -= to " + type_to_string(type)));
     }
 
     return *this;
@@ -323,6 +321,12 @@ TrackerElement& TrackerElement::operator-=(const int& v) {
 
 TrackerElement& TrackerElement::operator-=(const float& v) {
     switch (type) {
+        case TrackerFloat:
+            float_value-= v;
+            break;
+        case TrackerDouble:
+            double_value-= v;
+            break;
         case TrackerString:
         case TrackerInt8:
         case TrackerUInt8:
@@ -338,15 +342,8 @@ TrackerElement& TrackerElement::operator-=(const float& v) {
         case TrackerIntMap:
         case TrackerUuid:
         case TrackerCustom:
-            throw std::runtime_error(string("can't -= float to " + type_to_string(type)));
-        case TrackerFloat:
-            float_value-= v;
-            break;
-        case TrackerDouble:
-            double_value-= v;
-            break;
         default:
-            throw std::runtime_error("can't -= unknown");
+            throw std::runtime_error(string("can't -= float to " + type_to_string(type)));
     }
 
     return *this;
@@ -495,6 +492,33 @@ TrackerElement& TrackerElement::operator^=(const uint64_t i) {
     except_type_mismatch(TrackerUInt64);
     uint64_value ^= i;
     return *this;
+}
+
+TrackerElement *TrackerElement::operator[](const int i) {
+    string w;
+    map<int, TrackerElement *>::iterator itr;
+
+    switch (type) {
+        case TrackerVector:
+            if (i >= 0 && (unsigned int) i < subvector_value.size()) {
+                return subvector_value[i];
+            }
+            break;
+        case TrackerMap:
+            itr = submap_value.find(i);
+            if (itr != submap_value.end())
+                return itr->second;
+            return NULL;
+        case TrackerIntMap:
+            itr = subintmap_value.find(i);
+            if (itr != subintmap_value.end())
+                return itr->second;
+            return NULL;
+        default:
+            throw std::runtime_error(string("can't -= float to " + type_to_string(type)));
+    }
+
+    return NULL;
 }
 
 string TrackerElement::type_to_string(TrackerType t) {

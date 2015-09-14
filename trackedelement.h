@@ -389,6 +389,8 @@ public:
     TrackerElement& operator^=(const int64_t i);
     TrackerElement& operator^=(const uint64_t i);
 
+    TrackerElement *operator[](const int i);
+
     static string type_to_string(TrackerType t);
 
 protected:
