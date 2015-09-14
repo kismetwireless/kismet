@@ -43,11 +43,14 @@ enum TrackerType {
     TrackerInt64, TrackerUInt64,
     TrackerFloat, TrackerDouble,
 
-    TrackerMac,
+    // Less basic types
+    TrackerMac, TrackerUuid,
 
+    // Vector and named map
     TrackerVector, TrackerMap,
 
-    TrackerUuid,
+    // unsigned integer map (int-keyed data not field-keyed)
+    TrackerIntMap,
 
     TrackerCustom
 };
@@ -198,6 +201,23 @@ public:
         return i->second;
     }
 
+    map<int, TrackerElement *> *get_intmap() {
+        except_type_mismatch(TrackerIntMap);
+        return &subintmap_value;
+    }
+
+    TrackerElement *get_intmap_value(int idx) {
+        except_type_mismatch(TrackerIntMap);
+
+        map<int, TrackerElement *>::iterator i = subintmap_value.find(idx);
+
+        if (i == submap_value.end()) {
+            return NULL;
+        }
+
+        return i->second;
+    }
+
     uuid get_uuid() {
         except_type_mismatch(TrackerUuid);
         return uuid_value;
@@ -271,9 +291,13 @@ public:
 
     void add_map(int f, TrackerElement *s);
     void add_map(TrackerElement *s); 
-    void add_vector(TrackerElement *s);
     void del_map(int f);
     void del_map(TrackerElement *s);
+
+    void add_intmap(int i, TrackerElement *s);
+    void del_intmap(int i);
+
+    void add_vector(TrackerElement *s);
     void del_vector(unsigned int p);
 
     // Do our best to increment a value
@@ -405,7 +429,10 @@ protected:
 
     mac_addr mac_value;
 
+    // Field ID,Element keyed map
     map<int, TrackerElement *> submap_value;
+    // Index int,Element keyed map
+    map<int, TrackerElement *> subintmap_value;
     vector<TrackerElement *> subvector_value;
 
     uuid uuid_value;
