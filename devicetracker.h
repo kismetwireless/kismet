@@ -333,6 +333,8 @@ protected:
 // min/max/avg location
 class kis_tracked_location : public tracker_component {
 public:
+    const static int precision_multiplier = 10000;
+
     kis_tracked_location(GlobalRegistry *in_globalreg) : tracker_component(in_globalreg) { }
 
     kis_tracked_location(GlobalRegistry *in_globalreg, int in_id) :
@@ -374,7 +376,20 @@ public:
             max_loc->set_alt(in_alt);
         }
 
-        // TODO averages
+        (*avg_lat) += (int64_t) (in_lat * precision_multiplier);
+        (*avg_lon) += (int64_t) (in_lon * precision_multiplier);
+        (*avg_alt) += (int64_t) (in_alt * precision_multiplier);
+        (*num_avg)++;
+
+        double calc_lat, calc_lon, calc_alt;
+
+        calc_lat = (double) (GetTrackerValue<int64_t>(avg_lat) / 
+                GetTrackerValue<uint64_t>(num_avg)) / precision_multiplier;
+        calc_lon = (double) (GetTrackerValue<int64_t>(avg_lon) / 
+                GetTrackerValue<uint64_t>(num_avg)) / precision_multiplier;
+        calc_alt = (double) (GetTrackerValue<int64_t>(avg_alt) / 
+                GetTrackerValue<uint64_t>(num_avg)) / precision_multiplier;
+        avg_loc->set(calc_lat, calc_lon, calc_alt);
 
     }
 
@@ -395,7 +410,7 @@ protected:
                 "run-time average longitude");
         avg_alt_id = tracker->RegisterField("kismet.common.location.avg_alt", TrackerInt64,
                 "run-time average altitude");
-        num_avg_id = tracker->RegisterField("kismet.common.location.avg_num", TrackerInt64,
+        num_avg_id = tracker->RegisterField("kismet.common.location.avg_num", TrackerUInt64,
                 "number of run-time average samples");
 
     }
