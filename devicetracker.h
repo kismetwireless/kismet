@@ -44,9 +44,6 @@
 #include "uuid.h"
 #include "configfile.h"
 
-// Ugly macro to register a field and add it to the map
-#define __RegisterField(F, N, T, D)    tracker->RegisterAndGetField(N, T, D); add_map(F)
-
 // How big the main vector of components is, if we ever get more than this
 // many tracked components we'll need to expand this but since it ties to 
 // memory and track record creation it starts relatively low
@@ -60,6 +57,26 @@ class Devicetracker;
 
 // Basic unit being tracked in a tracked device
 class tracker_component : public TrackerElement {
+
+// Ugly trackercomponent macro for proxying trackerelement values
+// Defines get_<name> function, for a TrackerElement of type <ptype>, returning type <rtype>,
+//  referencing class variable <cvar>
+// Defines set_<name> funciton, for a TrackerElement of type <ptype>, taking type <itype>, which
+//  must be castable to the TrackerElement type (itype), referencing class variable <cvar>
+#define __Proxy(name, ptype, itype, rtype, cvar) \
+    rtype get_##name() const { \
+        return (rtype) GetTrackerValue<ptype>(cvar); \
+    } \
+    void set_##name(itype in) { \
+        cvar->set((ptype) in); \
+    }
+
+// Only proxy a Get function
+#define __ProxyGet(name, ptype, rtype, cvar) \
+    rtype get_##name() { \
+        return (rtype) GetTrackerValue<ptype>(cvar); \
+    } 
+
 public:
     // Legacy
     tracker_component() {
@@ -173,10 +190,11 @@ public:
         return new kis_tracked_ip_data(globalreg, get_id());
     }
 
-    void set_ip_type(kis_ipdata_type in_type) {
-        ip_type->set((uint32_t) in_type);
-    }
 
+    __Proxy(ip_type, int32_t, kis_ipdata_type, kis_ipdata_type, ip_type);
+    __Proxy(ip_addr, uint64_t, uint64_t, uint64_t, ip_addr_block);
+    __Proxy(ip_netmask, uint64_t, uint64_t, uint64_t, ip_netmask);
+    __Proxy(ip_gateway, uint64_t, uint64_t, uint64_t, ip_gateway);
 
 protected:
     virtual void reserve_fields() {
@@ -265,29 +283,10 @@ public:
         return new kis_tracked_location_triplet(globalreg, get_id());
     }
 
-    void set_lat(double in_lat) {
-        lat->set(in_lat);
-    }
-
-    void set_lon(double in_lon) {
-        lat->set(in_lon);
-    }
-
-    void set_alt(double in_alt) {
-        alt->set(in_alt);
-    }
-
-    double get_lat() const {
-        return GetTrackerValue<double>(lat);
-    }
-
-    double get_lon() const {
-        return GetTrackerValue<double>(lon);
-    }
-
-    double get_alt() const {
-        return GetTrackerValue<double>(alt);
-    }
+    // Use proxy macro to define get/set
+    __Proxy(lat, double, double, double, lat);
+    __Proxy(lon, double, double, double, lon);
+    __Proxy(alt, double, double, double, alt);
 
     void set(double in_lat, double in_lon, double in_alt) {
         lat->set(in_lat);
@@ -301,7 +300,7 @@ public:
     }
 
 	inline kis_tracked_location_triplet& operator= (const kis_tracked_location_triplet& in) {
-        this->set(in.get_lat(), in.get_lon(), in.get_alt());
+        set(in.get_lat(), in.get_lon(), in.get_alt());
 
         return *this;
     }
@@ -376,6 +375,8 @@ public:
             max_loc->set_alt(in_alt);
         }
 
+
+        // Append to averaged location
         (*avg_lat) += (int64_t) (in_lat * precision_multiplier);
         (*avg_lon) += (int64_t) (in_lon * precision_multiplier);
         (*avg_alt) += (int64_t) (in_alt * precision_multiplier);
@@ -390,8 +391,11 @@ public:
         calc_alt = (double) (GetTrackerValue<int64_t>(avg_alt) / 
                 GetTrackerValue<uint64_t>(num_avg)) / precision_multiplier;
         avg_loc->set(calc_lat, calc_lon, calc_alt);
-
     }
+
+    kis_tracked_location_triplet *get_min_loc() { return min_loc; }
+    kis_tracked_location_triplet *get_max_loc() { return max_loc; }
+    kis_tracked_location_triplet *get_avg_loc() { return avg_loc; }
 
 protected:
     virtual void reserve_fields() {
@@ -554,6 +558,28 @@ public:
 		return *this;
 	}
 
+    __ProxyGet(last_signal_dbm, int32_t, int, last_signal_dbm);
+    __ProxyGet(min_signal_dbm, int32_t, int, min_signal_dbm);
+    __ProxyGet(max_signal_dbm, int32_t, int, max_signal_dbm);
+
+    __ProxyGet(last_noise_dbm, int32_t, int, last_noise_dbm);
+    __ProxyGet(min_noise_dbm, int32_t, int, min_noise_dbm);
+    __ProxyGet(max_noise_dbm, int32_t, int, max_noise_dbm);
+
+    __ProxyGet(last_signal_rssi, int32_t, int, last_signal_rssi);
+    __ProxyGet(min_signal_rssi, int32_t, int, min_signal_rssi);
+    __ProxyGet(max_signal_rssi, int32_t, int, max_signal_rssi);
+
+    __ProxyGet(last_noise_rssi, int32_t, int, last_noise_rssi);
+    __ProxyGet(min_noise_rssi, int32_t, int, min_noise_rssi);
+    __ProxyGet(max_noise_rssi, int32_t, int, max_noise_rssi);
+
+    __ProxyGet(maxseenrate, double, double, maxseenrate);
+    __ProxyGet(encodingset, uint64_t, uint64_t, encodingset);
+    __ProxyGet(carrierset, uint64_t, uint64_t, carrierset);
+
+    kis_tracked_location_triplet *get_peak_loc() { return peak_loc; }
+
 protected:
     virtual void reserve_fields() {
         last_signal_dbm_id =
@@ -647,8 +673,6 @@ protected:
 
         peak_loc_id,
         maxseenrate_id, encodingset_id, carrierset_id;
-
-    TrackerElement *signal_type;
 
     TrackerElement *last_signal_dbm, *last_noise_dbm;
     TrackerElement *min_signal_dbm, *min_noise_dbm;
