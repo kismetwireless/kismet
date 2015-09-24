@@ -79,9 +79,12 @@ protected:
 // and the parsed ID of the command, the server framework, the globals, and the
 // remainder of the command line (after cmdid and command itself).  For extra
 // fun we pass the cmdline we split apart
-#define CLIENT_PARMS int in_clid, KisNetFramework *framework, \
-                     GlobalRegistry *globalreg, char *errstr, string cmdline, \
-                     vector<smart_word_token> *parsedcmdline, void *auxptr
+#define CLIENT_PARMS int in_clid __attribute__ ((unused)), \
+    KisNetFramework *framework __attribute__ ((unused)), \
+    GlobalRegistry *globalreg __attribute__ ((unused)), char *errstr __attribute__ ((unused)), \
+    string cmdline __attribute__ ((unused)), \
+    vector<smart_word_token> *parsedcmdline __attribute__ ((unused)), \
+    void *auxptr __attribute__ ((unused))
 typedef int (*ClientCommand)(CLIENT_PARMS);
 
 // Protocol parameters
