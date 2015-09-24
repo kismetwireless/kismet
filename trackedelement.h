@@ -34,25 +34,38 @@
 #include "uuid.h"
 
 // Types of fields we can track and automatically resolve
+// Statically assigned type numbers which MUST NOT CHANGE as things go forwards for binary/fast
+// serialization, new types must be added to the end of the list
 enum TrackerType {
-    TrackerString,
+    TrackerString = 0,
 
-    TrackerInt8, TrackerUInt8,
-    TrackerInt16, TrackerUInt16,
-    TrackerInt32, TrackerUInt32,
-    TrackerInt64, TrackerUInt64,
-    TrackerFloat, TrackerDouble,
+    TrackerInt8 = 1, 
+    TrackerUInt8 = 2,
+
+    TrackerInt16 = 3, 
+    TrackerUInt16 = 4,
+
+    TrackerInt32 = 5, 
+    TrackerUInt32 = 6,
+
+    TrackerInt64 = 7,
+    TrackerUInt64 = 8,
+
+    TrackerFloat = 9,
+    TrackerDouble = 10,
 
     // Less basic types
-    TrackerMac, TrackerUuid,
+    TrackerMac = 11, 
+    TrackerUuid = 12,
 
     // Vector and named map
-    TrackerVector, TrackerMap,
+    TrackerVector = 13, 
+    TrackerMap = 14,
 
     // unsigned integer map (int-keyed data not field-keyed)
-    TrackerIntMap,
+    TrackerIntMap = 15,
 
-    TrackerCustom
+    TrackerCustom = 16,
 };
 
 class TrackerElement {
@@ -300,6 +313,8 @@ public:
     void add_vector(TrackerElement *s);
     void del_vector(unsigned int p);
 
+    size_t size();
+
     // Do our best to increment a value
     TrackerElement& operator++(int);
 
@@ -399,6 +414,9 @@ public:
 
     TrackerElement *operator[](const int i);
 
+    map<int, TrackerElement *>::const_iterator begin();
+    map<int, TrackerElement *>::const_iterator end();
+
     static string type_to_string(TrackerType t);
 
 protected:
@@ -449,8 +467,6 @@ protected:
 
     void *custom_value;
 };
-
-
 
 // Templated access functions
 

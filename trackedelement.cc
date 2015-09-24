@@ -600,6 +600,28 @@ TrackerElement *TrackerElement::operator[](const int i) {
     return NULL;
 }
 
+map<int, TrackerElement *>::const_iterator TrackerElement::begin() {
+    switch (type) {
+        case TrackerMap:
+            return submap_value.begin();
+        case TrackerIntMap:
+            return subintmap_value.begin();
+        default:
+            throw std::runtime_error(string("can't address " + type_to_string(type) + " to a map"));
+    }
+}
+
+map<int, TrackerElement *>::const_iterator TrackerElement::end() {
+    switch (type) {
+        case TrackerMap:
+            return submap_value.end();
+        case TrackerIntMap:
+            return subintmap_value.end();
+        default:
+            throw std::runtime_error(string("can't address " + type_to_string(type) + " to a map"));
+    }
+}
+
 string TrackerElement::type_to_string(TrackerType t) {
     switch (t) {
         case TrackerString:
@@ -690,7 +712,9 @@ void TrackerElement::add_vector(TrackerElement *s) {
 }
 
 void TrackerElement::del_vector(unsigned int p) {
-    if (p > submap_value.size()) {
+    except_type_mismatch(TrackerVector);
+
+    if (p > subvector_value.size()) {
         string w = "del_vector out of range (" + IntToString(p) + ", vector " + 
             IntToString(submap_value.size()) + ")";
         throw std::runtime_error(w);
@@ -700,6 +724,19 @@ void TrackerElement::del_vector(unsigned int p) {
     submap_value.erase(p);
 
     e->unlink();
+}
+
+size_t TrackerElement::size() {
+    switch (type) {
+        case TrackerVector:
+            return subvector_value.size();
+        case TrackerMap:
+            return submap_value.size();
+        case TrackerIntMap:
+            return subintmap_value.size();
+        default:
+            throw std::runtime_error(string("can't get size of a " + type_to_string(type)));
+    }
 }
 
 template<> string GetTrackerValue(TrackerElement *e) {
