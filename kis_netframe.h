@@ -86,11 +86,11 @@ typedef int (*ClientCommand)(CLIENT_PARMS);
 
 // Protocol parameters
 #define PROTO_PARMS string& out_string, const vector<int> *field_vec, \
-        const void *data, const void *auxptr, kis_protocol_cache *cache, \
-		GlobalRegistry *globalreg
+        const void *data, const void *auxptr __attribute__ ((unused)), kis_protocol_cache *cache, \
+		GlobalRegistry *globalreg __attribute__ ((unused))
 typedef int (*ProtoCallback)(PROTO_PARMS);
 
-#define PROTO_ENABLE_PARMS int in_fd, GlobalRegistry *globalreg, \
+#define PROTO_ENABLE_PARMS int in_fd, GlobalRegistry *globalreg __attribute__ ((unused)), \
 		const void *data
 typedef void (*ProtoEnableCallback)(PROTO_ENABLE_PARMS);
 
