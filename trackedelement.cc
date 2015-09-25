@@ -607,7 +607,7 @@ map<int, TrackerElement *>::const_iterator TrackerElement::begin() {
         case TrackerIntMap:
             return subintmap_value.begin();
         default:
-            throw std::runtime_error(string("can't address " + type_to_string(type) + " to a map"));
+            throw std::runtime_error(string("can't address " + type_to_string(type) + " as a map"));
     }
 }
 
@@ -618,7 +618,18 @@ map<int, TrackerElement *>::const_iterator TrackerElement::end() {
         case TrackerIntMap:
             return subintmap_value.end();
         default:
-            throw std::runtime_error(string("can't address " + type_to_string(type) + " to a map"));
+            throw std::runtime_error(string("can't address " + type_to_string(type) + " as a map"));
+    }
+}
+
+map<int, TrackerElement *>::iterator TrackerElement::find(int k) {
+    switch (type) {
+        case TrackerMap:
+            return submap_value.find(k);
+        case TrackerIntMap:
+            return subintmap_value.find(k);
+        default:
+            throw std::runtime_error(string("can't address " + type_to_string(type) + " as a map"));
     }
 }
 

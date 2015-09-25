@@ -416,6 +416,7 @@ public:
 
     map<int, TrackerElement *>::const_iterator begin();
     map<int, TrackerElement *>::const_iterator end();
+    map<int, TrackerElement *>::iterator find(int k);
 
     static string type_to_string(TrackerType t);
 
