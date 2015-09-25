@@ -600,7 +600,7 @@ TrackerElement *TrackerElement::operator[](const int i) {
     return NULL;
 }
 
-map<int, TrackerElement *>::const_iterator TrackerElement::begin() {
+TrackerElement::map_const_iterator TrackerElement::begin() {
     switch (type) {
         case TrackerMap:
             return submap_value.begin();
@@ -611,7 +611,7 @@ map<int, TrackerElement *>::const_iterator TrackerElement::begin() {
     }
 }
 
-map<int, TrackerElement *>::const_iterator TrackerElement::end() {
+TrackerElement::map_const_iterator TrackerElement::end() {
     switch (type) {
         case TrackerMap:
             return submap_value.end();
@@ -622,7 +622,7 @@ map<int, TrackerElement *>::const_iterator TrackerElement::end() {
     }
 }
 
-map<int, TrackerElement *>::iterator TrackerElement::find(int k) {
+TrackerElement::map_iterator TrackerElement::find(int k) {
     switch (type) {
         case TrackerMap:
             return submap_value.find(k);

@@ -414,9 +414,12 @@ public:
 
     TrackerElement *operator[](const int i);
 
-    map<int, TrackerElement *>::const_iterator begin();
-    map<int, TrackerElement *>::const_iterator end();
-    map<int, TrackerElement *>::iterator find(int k);
+    typedef map<int, TrackerElement *>::iterator map_iterator;
+    typedef map<int, TrackerElement *>::const_iterator map_const_iterator;
+
+    map_const_iterator begin();
+    map_const_iterator end();
+    map_iterator find(int k);
 
     static string type_to_string(TrackerType t);
 
