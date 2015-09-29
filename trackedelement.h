@@ -323,6 +323,7 @@ public:
 
     // Do our best to do compound addition
     TrackerElement& operator+=(const int& v);
+    TrackerElement& operator+=(const unsigned int& v);
     TrackerElement& operator+=(const float& v);
     TrackerElement& operator+=(const double& v);
 
@@ -334,6 +335,7 @@ public:
 
     // Do our best to do compound subtraction
     TrackerElement& operator-=(const int& v);
+    TrackerElement& operator-=(const unsigned int& v);
     TrackerElement& operator-=(const float& v);
     TrackerElement& operator-=(const double& v);
 
