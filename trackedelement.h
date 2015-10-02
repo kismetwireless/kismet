@@ -312,6 +312,7 @@ public:
 
     void add_vector(TrackerElement *s);
     void del_vector(unsigned int p);
+    void clear_vector();
 
     size_t size();
 

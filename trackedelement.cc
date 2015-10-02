@@ -821,10 +821,21 @@ void TrackerElement::del_vector(unsigned int p) {
         throw std::runtime_error(w);
     }
 
-    TrackerElement *e = submap_value[p];
-    submap_value.erase(p);
+    TrackerElement *e = subvector_value[p];
+    vector<TrackerElement *>::iterator i = subvector_value.begin() + p;
+    subvector_value.erase(i);
 
     e->unlink();
+}
+
+void TrackerElement::clear_vector() {
+    except_type_mismatch(TrackerVector);
+
+    for (unsigned int i = 0; i < subvector_value.size(); i++) {
+        subvector_value[i]->unlink();
+    }
+
+    subvector_value.clear();
 }
 
 size_t TrackerElement::size() {
