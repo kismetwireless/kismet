@@ -71,6 +71,36 @@ class tracker_component : public TrackerElement {
         return (rtype) GetTrackerValue<ptype>(cvar); \
     } 
 
+// Only proxy a Set function for overload
+#define __ProxySet(name, ptype, stype, cvar) \
+    void set_##name(stype in) { \
+        cvar->set((stype) in); \
+    } 
+
+// Proxy increment and decrement functions
+#define __ProxyIncDec(name, ptype, rtype, cvar) \
+    void inc_##name() { \
+        (*cvar)++; \
+    } \
+    void inc_##name(rtype i) { \
+        (*cvar) += (ptype) i; \
+    } \
+    void dec_##name() { \
+        (*cvar)--; \
+    } \
+    void dec_##name(rtype i) { \
+        (*cvar) -= (ptype) i; \
+    }
+
+// Proxy add/subtract
+#define __ProxyAddSub(name, ptype, itype, cvar) \
+    void add_##name(itype i) { \
+        (*cvar) += (ptype) i; \
+    } \
+    void sub_##name(itype i) { \
+        (*cvar) -= (ptype) i; \
+    }
+
 public:
     // Legacy
     tracker_component() {
@@ -310,6 +340,7 @@ public:
     __Proxy(lat, double, double, double, lat);
     __Proxy(lon, double, double, double, lon);
     __Proxy(alt, double, double, double, alt);
+    __Proxy(speed, double, double, double, spd);
 
     void set(double in_lat, double in_lon, double in_alt) {
         lat->set(in_lat);
@@ -339,11 +370,15 @@ protected:
         alt_id =
             RegisterField("kismet.common.location.alt", TrackerDouble,
                     "altitude", (void **) &alt);
+
+        spd_id =
+            RegisterField("kismet.common.location.speed", TrackerDouble,
+                    "speed", (void **) &spd);
     }
 
-    int lat_id, lon_id, alt_id;
+    int lat_id, lon_id, alt_id, spd_id;
 
-    TrackerElement *lat, *lon, *alt;
+    TrackerElement *lat, *lon, *alt, *spd;
 };
 
 // min/max/avg location
@@ -367,7 +402,13 @@ public:
         reserve_fields(e);
     }
 
-    void add_loc(double in_lat, double in_lon, double in_alt) {
+    void add_loc(double in_lat, double in_lon, double in_alt, unsigned int fix) {
+        set_valid(1);
+
+        if (fix > get_fix()) {
+            set_fix(fix);
+        }
+
         if (in_lat < min_loc->get_lat() || min_loc->get_lat() == 0) {
             min_loc->set_lat(in_lat);
         }
@@ -384,20 +425,25 @@ public:
             max_loc->set_lon(in_lon);
         }
 
-        if (in_alt < min_loc->get_alt() || min_loc->get_alt() == 0) {
-            min_loc->set_alt(in_alt);
-        }
+        if (fix > 2) {
+            if (in_alt < min_loc->get_alt() || min_loc->get_alt() == 0) {
+                min_loc->set_alt(in_alt);
+            }
 
-        if (in_alt > max_loc->get_alt() || max_loc->get_alt() == 0) {
-            max_loc->set_alt(in_alt);
+            if (in_alt > max_loc->get_alt() || max_loc->get_alt() == 0) {
+                max_loc->set_alt(in_alt);
+            }
         }
 
 
         // Append to averaged location
         (*avg_lat) += (int64_t) (in_lat * precision_multiplier);
         (*avg_lon) += (int64_t) (in_lon * precision_multiplier);
-        (*avg_alt) += (int64_t) (in_alt * precision_multiplier);
-        (*num_avg)++;
+
+        if (fix > 2) {
+            (*avg_alt) += (int64_t) (in_alt * precision_multiplier);
+            (*num_alt_avg)++;
+        }
 
         double calc_lat, calc_lon, calc_alt;
 
@@ -406,17 +452,32 @@ public:
         calc_lon = (double) (GetTrackerValue<int64_t>(avg_lon) / 
                 GetTrackerValue<uint64_t>(num_avg)) / precision_multiplier;
         calc_alt = (double) (GetTrackerValue<int64_t>(avg_alt) / 
-                GetTrackerValue<uint64_t>(num_avg)) / precision_multiplier;
+                GetTrackerValue<uint64_t>(num_alt_avg)) / precision_multiplier;
         avg_loc->set(calc_lat, calc_lon, calc_alt);
     }
+
+    __Proxy(valid, uint8_t, bool, bool, loc_valid);
+    __Proxy(fix, uint8_t, unsigned int, unsigned int, loc_fix);
 
     kis_tracked_location_triplet *get_min_loc() { return min_loc; }
     kis_tracked_location_triplet *get_max_loc() { return max_loc; }
     kis_tracked_location_triplet *get_avg_loc() { return avg_loc; }
 
+    __Proxy(agg_lat, uint64_t, uint64_t, uint64_t, avg_lat);
+    __Proxy(agg_lon, uint64_t, uint64_t, uint64_t, avg_lon);
+    __Proxy(agg_alt, uint64_t, uint64_t, uint64_t, avg_alt);
+    __Proxy(num_agg, uint64_t, uint64_t, uint64_t, num_avg);
+    __Proxy(num_alt_agg, uint64_t, uint64_t, uint64_t, num_alt_avg);
+
 protected:
     virtual void register_fields() {
         kis_tracked_location_triplet *loc_builder = new kis_tracked_location_triplet(globalreg, 0);
+
+        loc_valid_id = RegisterField("kismet.common.location.loc_valid", TrackerUInt8,
+                "location data valid", (void **) &loc_valid);
+
+        loc_fix_id = RegisterField("kismet.common.location.loc_fix", TrackerUInt8,
+                "location fix precision (2d/3d)", (void **) &loc_fix);
 
         min_loc_id = RegisterComplexField("kismet.common.location.min_loc", loc_builder, 
                 "minimum corner of bounding rectangle");
@@ -433,6 +494,8 @@ protected:
                 "run-time average altitude", (void **) &avg_alt);
         num_avg_id = RegisterField("kismet.common.location.avg_num", TrackerUInt64,
                 "number of run-time average samples", (void **) &num_avg);
+        num_alt_avg_id = RegisterField("kismet.common.location.avg_alt_num", TrackerUInt64,
+                "number of run-time average samples (altitude)", (void **) &num_alt_avg);
 
     }
 
@@ -446,12 +509,17 @@ protected:
         avg_loc = new kis_tracked_location_triplet(globalreg, e->get_map_value(avg_loc_id));
     }
 
-    int min_loc_id, max_loc_id, avg_loc_id;
-    int avg_lat_id, avg_lon_id, avg_alt_id, num_avg_id;
-
     kis_tracked_location_triplet *min_loc, *max_loc, *avg_loc;
+    int min_loc_id, max_loc_id, avg_loc_id;
 
-    TrackerElement *avg_lat, *avg_lon, *avg_alt, *num_avg;
+    TrackerElement *avg_lat, *avg_lon, *avg_alt, *num_avg, *num_alt_avg;
+    int avg_lat_id, avg_lon_id, avg_alt_id, num_avg_id, num_alt_avg_id;
+
+    TrackerElement *loc_valid;
+    int loc_valid_id;
+
+    TrackerElement *loc_fix;
+    int loc_fix_id;
 };
 
 // Component-tracker based signal data
@@ -683,6 +751,7 @@ public:
         tracker_component(in_globalreg, in_id) { } 
 
     virtual TrackerElement *clone() {
+
         return new kis_tracked_signal_data(globalreg, get_id());
     }
 
@@ -693,12 +762,32 @@ public:
         reserve_fields(e);
     }
 
+    __Proxy(uuid, uuid, uuid, uuid, src_uuid);
     __Proxy(first_time, uint64_t, time_t, time_t, first_time);
     __Proxy(last_time, uint64_t, time_t, time_t, last_time);
     __Proxy(num_packets, uint64_t, uint64_t, uint64_t, num_packets);
+    __ProxyIncDec(num_packets, uint64_t, uint64_t, num_packets);
+
+    // Intmaps need special care by the caller
+    TrackerElement *get_freq_mhz_map() { return freq_mhz_map; }
+
+    void inc_frequency_count(int frequency) {
+        TrackerElement::map_iterator i = freq_mhz_map->find(frequency);
+
+        if (i == freq_mhz_map->end()) {
+            TrackerElement *e = globalreg->entrytracker->GetTrackedInstance(frequency_val_id);
+            e->set((uint64_t) 1);
+            freq_mhz_map->add_intmap(frequency, e);
+        } else {
+            (*(i->second))++;
+        }
+    }
 
 protected:
     virtual void register_fields() {
+        src_uuid_id =
+            RegisterField("kismet.common.seenby.uuid", TrackerUuid,
+                    "UUID of source", (void **) &src_uuid);
         first_time_id =
             RegisterField("kismet.common.seenby.first_time", TrackerUInt64,
                     "first time seen time_t", (void **) &first_time);
@@ -711,13 +800,28 @@ protected:
         freq_mhz_map_id =
             RegisterField("kismet.common.seenby.freq_mhz_map", TrackerIntMap,
                     "packets seen per frequency (mhz)", (void **) &freq_mhz_map);
+
+        frequency_val_id =
+            globalreg->entrytracker->RegisterField("kismet.common.seenby.frequency.count",
+                    TrackerUInt64, "frequency packet count");
     }
 
-    int first_time_id, last_time_id, num_packets_id, freq_mhz_map_id;
+    TrackerElement *src_uuid;
+    int src_uuid_id;
 
-    TrackerElement *first_time, *last_time;
+    TrackerElement *first_time; 
+    int first_time_id;
+
+    TrackerElement *last_time;
+    int last_time_id;
+
     TrackerElement *num_packets;
+    int num_packets_id;
+
     TrackerElement *freq_mhz_map;
+    int freq_mhz_map_id;
+
+    int frequency_val_id;
 };
 
 // Arbitrary tag data added to network

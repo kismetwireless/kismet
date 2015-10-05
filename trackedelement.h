@@ -65,13 +65,14 @@ enum TrackerType {
     // unsigned integer map (int-keyed data not field-keyed)
     TrackerIntMap = 15,
 
-    TrackerCustom = 16,
+    // Mac map (mac-keyed tracker data)
+    TrackerMacMap = 16,
 };
 
 class TrackerElement {
 public:
     TrackerElement() {
-        this->type = TrackerCustom;
+        this->type = TrackerString;
         reference_count = 0;
     }
 
@@ -217,6 +218,11 @@ public:
     map<int, TrackerElement *> *get_intmap() {
         except_type_mismatch(TrackerIntMap);
         return &subintmap_value;
+    }
+
+    map<mac_addr, TrackerElement *> *get_macmap() {
+        except_type_mismatch(TrackerMacMap);
+        return &submacmap_value;
     }
 
     TrackerElement *get_intmap_value(int idx) {
@@ -416,13 +422,21 @@ public:
     TrackerElement& operator^=(const uint64_t i);
 
     TrackerElement *operator[](const int i);
+    TrackerElement *operator[](const mac_addr i);
 
     typedef map<int, TrackerElement *>::iterator map_iterator;
     typedef map<int, TrackerElement *>::const_iterator map_const_iterator;
 
+    typedef map<mac_addr, TrackerElement *>::iterator mac_map_iterator;
+    typedef map<mac_addr, TrackerElement *>::const_iterator mac_map_const_iterator;
+
     map_const_iterator begin();
     map_const_iterator end();
     map_iterator find(int k);
+
+    mac_map_const_iterator mac_begin();
+    mac_map_const_iterator mac_end();
+    mac_map_iterator mac_find(mac_addr k);
 
     static string type_to_string(TrackerType t);
 
@@ -466,8 +480,13 @@ protected:
 
     // Field ID,Element keyed map
     map<int, TrackerElement *> submap_value;
+    
     // Index int,Element keyed map
     map<int, TrackerElement *> subintmap_value;
+
+    // Index mac,element keyed map
+    map<mac_addr, TrackerElement *> submacmap_value;
+
     vector<TrackerElement *> subvector_value;
 
     uuid uuid_value;
@@ -546,8 +565,6 @@ public:
             case TrackerMap:
                 map_to_stream(e, stream);
                 break;
-            case TrackerCustom:
-                throw std::runtime_error("can't stream a custom");
             default:
                 throw std::runtime_error("can't stream unknown");
         }

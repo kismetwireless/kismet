@@ -45,7 +45,7 @@
 #include "configfile.h"
 #include "devicetracker.h"
 #include "phyhandler.h"
-#include "trackercomponent.h"
+#include "devicetracker_component.h"
 
 class Packinfo_Sig_Combo {
     public:

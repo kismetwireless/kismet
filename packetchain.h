@@ -71,7 +71,8 @@
 #define CHAINPOS_LOGGING        8
 #define CHAINPOS_DESTROY        9
 
-#define CHAINCALL_PARMS GlobalRegistry *globalreg, void *auxdata, kis_packet *in_pack
+#define CHAINCALL_PARMS GlobalRegistry *globalreg __attribute__ ((unused)), void *auxdata, \
+    kis_packet *in_pack
 
 class kis_packet;
 

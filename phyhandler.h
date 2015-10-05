@@ -27,7 +27,8 @@
 #include "devicetracker.h"
 
 class Devicetracker;
-class kis_tracked_device;
+
+class kis_tracked_device_base;
 
 /*
    Handler element for a phy
@@ -85,7 +86,7 @@ public:
 
 	// Send devices (all, or dirty).  Phy should trigger all protocol sentences
 	// it defines for these devices
-	virtual void BlitDevices(int in_fd, vector<kis_tracked_device *> *devlist) = 0;
+	virtual void BlitDevices(int in_fd, vector<kis_tracked_device_base *> *devlist) = 0;
 
 	// XSD locations - override as necessary if you provide your xsd, which 
 	// you really should
@@ -122,7 +123,7 @@ public:
 	// lineindent is the number of spaces assumed to be used in the display offset
 	// already.  For formats such as xml this is irrelevant, but for text output
 	// this is the level of indentation which should be done for a consistent look.
-	virtual void ExportLogRecord(kis_tracked_device *in_device, string in_logtype, 
+	virtual void ExportLogRecord(kis_tracked_device_base *in_device, string in_logtype, 
 								 FILE *in_logfile, int in_lineindent) = 0;
 
 
