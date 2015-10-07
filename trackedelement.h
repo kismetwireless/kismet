@@ -316,11 +316,28 @@ public:
     void add_intmap(int i, TrackerElement *s);
     void del_intmap(int i);
 
+    void add_macmap(mac_addr i, TrackerElement *s);
+    void del_macmap(mac_addr i);
+
     void add_vector(TrackerElement *s);
     void del_vector(unsigned int p);
     void clear_vector();
 
     size_t size();
+
+    typedef map<int, TrackerElement *>::iterator map_iterator;
+    typedef map<int, TrackerElement *>::const_iterator map_const_iterator;
+
+    typedef map<mac_addr, TrackerElement *>::iterator mac_map_iterator;
+    typedef map<mac_addr, TrackerElement *>::const_iterator mac_map_const_iterator;
+
+    map_const_iterator begin();
+    map_const_iterator end();
+    map_iterator find(int k);
+
+    mac_map_const_iterator mac_begin();
+    mac_map_const_iterator mac_end();
+    mac_map_iterator mac_find(mac_addr k);
 
     // Do our best to increment a value
     TrackerElement& operator++(int);
@@ -423,20 +440,6 @@ public:
 
     TrackerElement *operator[](const int i);
     TrackerElement *operator[](const mac_addr i);
-
-    typedef map<int, TrackerElement *>::iterator map_iterator;
-    typedef map<int, TrackerElement *>::const_iterator map_const_iterator;
-
-    typedef map<mac_addr, TrackerElement *>::iterator mac_map_iterator;
-    typedef map<mac_addr, TrackerElement *>::const_iterator mac_map_const_iterator;
-
-    map_const_iterator begin();
-    map_const_iterator end();
-    map_iterator find(int k);
-
-    mac_map_const_iterator mac_begin();
-    mac_map_const_iterator mac_end();
-    mac_map_iterator mac_find(mac_addr k);
 
     static string type_to_string(TrackerType t);
 

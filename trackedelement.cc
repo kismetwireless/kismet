@@ -658,6 +658,27 @@ TrackerElement::mac_map_iterator TrackerElement::mac_find(mac_addr k) {
     return submacmap_value.find(k);
 }
 
+void TrackerElement::add_macmap(mac_addr i, TrackerElement *s) {
+    except_type_mismatch(TrackerMacMap);
+
+    mac_map_iterator mi = submacmap_value.find(i);
+    if (mi != submacmap_value.end())
+        mi->second->unlink();
+
+    submacmap_value[i] = s;
+    s->link();
+}
+
+void TrackerElement::del_macmap(mac_addr f) {
+    except_type_mismatch(TrackerMap);
+
+    mac_map_iterator mi = submacmap_value.find(f);
+    if (mi != submacmap_value.end()) {
+        submacmap_value.erase(mi);
+        mi->second->unlink();
+    }
+}
+
 string TrackerElement::type_to_string(TrackerType t) {
     switch (t) {
         case TrackerString:
@@ -701,12 +722,22 @@ string TrackerElement::type_to_string(TrackerType t) {
 
 void TrackerElement::add_map(int f, TrackerElement *s) {
     except_type_mismatch(TrackerMap);
+
+    map_iterator mi = submap_value.find(f);
+    if (mi != submap_value.end()) 
+        mi->second->unlink();
+
     submap_value[f] = s;
     s->link();
 }
 
 void TrackerElement::add_map(TrackerElement *s) {
     except_type_mismatch(TrackerMap);
+
+    map_iterator mi = submap_value.find(s->get_id());
+    if (mi != submap_value.end())
+        mi->second->unlink();
+
     submap_value[s->get_id()] = s;
     s->link();
 }
@@ -727,6 +758,11 @@ void TrackerElement::del_map(TrackerElement *e) {
 
 void TrackerElement::add_intmap(int i, TrackerElement *s) {
     except_type_mismatch(TrackerIntMap);
+
+    map_iterator mi = subintmap_value.find(i);
+    if (mi != subintmap_value.end())
+        mi->second->unlink();
+
     subintmap_value[i] = s;
     s->link();
 }
@@ -789,7 +825,6 @@ size_t TrackerElement::size() {
 }
 
 template<> string GetTrackerValue(TrackerElement *e) {
-
     return e->get_string();
 }
 
