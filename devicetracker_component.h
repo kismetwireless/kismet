@@ -341,20 +341,31 @@ public:
     __Proxy(lon, double, double, double, lon);
     __Proxy(alt, double, double, double, alt);
     __Proxy(speed, double, double, double, spd);
+    __Proxy(fix, uint8_t, uint8_t, uint8_t, fix);
+    __Proxy(valid, uint8_t, bool, bool, valid);
 
-    void set(double in_lat, double in_lon, double in_alt) {
-        lat->set(in_lat);
-        lon->set(in_lon);
-        alt->set(in_alt);
+    void set(double in_lat, double in_lon, double in_alt, unsigned int in_fix) {
+        set_lat(in_lat);
+        set_lon(in_lon);
+        set_alt(in_alt);
+        set_fix(in_fix);
+        set_valid(1);
     }
 
     void set(double in_lat, double in_lon) {
-        lat->set(in_lat);
-        lon->set(in_lon);
+        set_lat(in_lat);
+        set_lon(in_lon);
+        set_fix(2);
+        set_valid(1);
     }
 
 	inline kis_tracked_location_triplet& operator= (const kis_tracked_location_triplet& in) {
-        set(in.get_lat(), in.get_lon(), in.get_alt());
+        set_lat(in.get_lat());
+        set_lon(in.get_lon());
+        set_alt(in.get_alt());
+        set_speed(in.get_speed());
+        set_fix(in.get_fix());
+        set_valid(in.get_valid());
 
         return *this;
     }
@@ -370,15 +381,20 @@ protected:
         alt_id =
             RegisterField("kismet.common.location.alt", TrackerDouble,
                     "altitude", (void **) &alt);
-
         spd_id =
             RegisterField("kismet.common.location.speed", TrackerDouble,
                     "speed", (void **) &spd);
+        fix_id =
+            RegisterField("kismet.common.location.fix", TrackerUInt8,
+                    "gps fix", (void **) &fix);
+        valid_id =
+            RegisterField("kismet.common.location.valid", TrackerUInt8,
+                    "valid location", (void **) &valid);
     }
 
-    int lat_id, lon_id, alt_id, spd_id;
+    int lat_id, lon_id, alt_id, spd_id, fix_id, valid_id;
 
-    TrackerElement *lat, *lon, *alt, *spd;
+    TrackerElement *lat, *lon, *alt, *spd, *fix, *valid;
 };
 
 // min/max/avg location
@@ -453,7 +469,7 @@ public:
                 GetTrackerValue<uint64_t>(num_avg)) / precision_multiplier;
         calc_alt = (double) (GetTrackerValue<int64_t>(avg_alt) / 
                 GetTrackerValue<uint64_t>(num_alt_avg)) / precision_multiplier;
-        avg_loc->set(calc_lat, calc_lon, calc_alt);
+        avg_loc->set(calc_lat, calc_lon, calc_alt, 3);
     }
 
     __Proxy(valid, uint8_t, bool, bool, loc_valid);
@@ -561,10 +577,7 @@ public:
                         max_signal_dbm->set((int32_t) in.lay1->signal_dbm);
 
                         if (in.gps != NULL) {
-                            if (in.gps->gps_fix > 2)
-                                peak_loc->set(in.gps->lat, in.gps->lon, in.gps->alt);
-                            else
-                                peak_loc->set(in.gps->lat, in.gps->lon);
+                            peak_loc->set(in.gps->lat, in.gps->lon, in.gps->alt, in.gps->gps_fix);
                         }
                     }
                 }
@@ -596,10 +609,7 @@ public:
                         max_signal_rssi->set((int32_t) in.lay1->signal_rssi);
 
                         if (in.gps != NULL) {
-                            if (in.gps->gps_fix > 2)
-                                peak_loc->set(in.gps->lat, in.gps->lon, in.gps->alt);
-                            else
-                                peak_loc->set(in.gps->lat, in.gps->lon);
+                            peak_loc->set(in.gps->lat, in.gps->lon, in.gps->alt, in.gps->gps_fix);
                         }
                     }
                 }

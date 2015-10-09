@@ -202,6 +202,8 @@ public:
         }
     }
 
+    kis_tracked_seenby_data *get_seenby_map() { return (kis_tracked_seenby_data *) seenby_map; }
+
     void inc_seenby_count(KisPacketSource *source, time_t tv_sec, int frequency) {
         TrackerElement::map_iterator seenby_iter;
         kis_tracked_seenby_data *seenby;
