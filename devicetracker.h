@@ -516,10 +516,9 @@ public:
 	int AddFilter(string in_filter);
 	int AddNetCliFilter(string in_filter);
 
-	int SetDeviceTag(mac_addr in_device, string in_tag, string in_data,
-					 int in_persistent);
-	int ClearDeviceTag(mac_addr in_device, string in_tag);
-	string FetchDeviceTag(mac_addr in_device, string in_tag);
+	int SetDeviceTag(mac_addr in_device, string in_data);
+	int ClearDeviceTag(mac_addr in_device);
+	string FetchDeviceTag(mac_addr in_device);
 
 	// Look for an existing device record
 	kis_tracked_device_base *FetchDevice(mac_addr in_device);

@@ -93,7 +93,7 @@ typedef int (*ClientCommand)(CLIENT_PARMS);
 		GlobalRegistry *globalreg __attribute__ ((unused))
 typedef int (*ProtoCallback)(PROTO_PARMS);
 
-#define PROTO_ENABLE_PARMS int in_fd, GlobalRegistry *globalreg __attribute__ ((unused)), \
+#define PROTO_ENABLE_PARMS int in_fd __attribute__ ((unused)), GlobalRegistry *globalreg __attribute__ ((unused)), \
 		const void *data
 typedef void (*ProtoEnableCallback)(PROTO_ENABLE_PARMS);
 
