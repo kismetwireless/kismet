@@ -157,7 +157,7 @@ public:
 		dlt_mangle = 0;
 
         fcsbytes = 0;
-		validate_fcs = 0;
+		validate_fcs = 1;
 		crc32_table = NULL;
 		carrier_set = 0;
 

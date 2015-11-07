@@ -1146,6 +1146,22 @@ int PacketSource_Pcapfile::OpenSource() {
 	return 1;
 }
 
+int PacketSource_Pcap::ParseOptions(vector<opt_pair> *in_opts) {
+	KisPacketSource::ParseOptions(in_opts);
+
+	// Force us to keep the primary interface still running
+	if (!FetchOptBoolean("validatefcs", in_opts, true)) {
+        validate_fcs = 0;
+
+		_MSG("Source '" + interface + "' will not validate frame checksums. "
+			 "If you notice large numbers of corrupted packets, remove "
+             "validatefcs=false from this source.",
+			 MSGFLAG_INFO);
+	}
+
+    return 1;
+}
+
 int PacketSource_Pcapfile::Poll() {
 	int ret;
 

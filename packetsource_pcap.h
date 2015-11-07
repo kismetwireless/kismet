@@ -196,6 +196,8 @@ public:
 		}
 	virtual ~PacketSource_Pcap() { }
 
+	virtual int ParseOptions(vector<opt_pair> *in_opts);
+
 	// No management functions at this level
 	virtual int EnableMonitor() = 0;
 	virtual int DisableMonitor() = 0;

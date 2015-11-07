@@ -305,15 +305,11 @@ http://www.kismetwireless.net
                          rest of the spectrum without significantly
                          disrupting operation of the managed VIF.  Suggested
                          time for scan intervals is 15 seconds.
-      validatefcs=t|f   True/False.  Kismet normally will not bother trying
-                         to validate the FCS checksum of incoming packets
-                         because most drivers only report valid frames in
-                         the first place.  Packet sources which report
-                         invalid frames by default will enable this option
-                         automatically.  If the drivers have been manually
-                         configured to report invalid packets, this should
-                         be specified to prevent Kismet from processing
-                         broken packets.
+      validatefcs=t|f   True/False.  Kismet will normally attempt to validate
+                         checksums to ensure the frames received are valid.
+                         Many drivers return bogus frames in monitor mode.
+                         If you want to process all packets regardless of
+                         apparent validity, set validatefcs=false.
       fcs=true|false    Force handling of FCS bytes on a packet source.
                          Default is "false", which implies "native FCS
                          handling".  Packet sources which include per-packet
