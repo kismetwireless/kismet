@@ -672,8 +672,10 @@ int PacketSource_Pcap::Radiotap2KisPack(kis_packet *packet, kis_datachunk *linkc
 
 	eight11chunk->dlt = KDLT_IEEE802_11;
 	
-    // iter = (u_char*)(last_presentp + 1);
-	iter_start = iter = (u_char*)(last_presentp + 1);
+   iter = (u_char*)(last_presentp + 1); 
+   // Alignment in Radiotap must be done from the beginning of the header, 
+   // not from the byte following the last bitmap. 
+   iter_start = (u_char*)(linkchunk->data); 
 
     for (bit0 = 0, presentp = &hdr->it_present; presentp <= last_presentp;
          presentp++, bit0 += 32) {
