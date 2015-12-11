@@ -231,6 +231,26 @@ int Dumpfile_Netxml::Flush() {
 				fprintf(xmlfile, "        <beaconrate>%d</beaconrate>\n",
 						m->second->beaconrate);
 
+			if (m->second->wps & wps_locked)
+                            fprintf(xmlfile, "        <wps>Locked</wps>\n");
+                        else {
+                            if (m->second->wps & wps_configured)
+                                fprintf(xmlfile, "        <wps>Configured</wps>\n");
+                            else if (m->second->wps & wps_not_configured)
+                                fprintf(xmlfile, "        <wps>Not Configured</wps>\n");
+                            else
+                                fprintf(xmlfile, "        <wps>No</wps>\n");
+                        }
+                        if (m->second->wps_manuf != "")
+                            fprintf(xmlfile, "        <wps-manuf>%s</wps-manuf>\n", m->second->wps_manuf.c_str());
+                        if (m->second->wps_device_name != "")
+                            fprintf(xmlfile, "        <dev-name>%s</dev-name>\n", m->second->wps_device_name.c_str());
+                        if (m->second->wps_model_name != "")
+                            fprintf(xmlfile, "        <model-name>%s</model-name>\n", m->second->wps_model_name.c_str());
+                        if (m->second->wps_model_number != "")
+                            fprintf(xmlfile, "        <model-num>%s</model-num>\n", m->second->wps_model_number.c_str());
+                                
+                        
 			if (m->second->cryptset == 0)
 				fprintf(xmlfile, "        <encryption>None</encryption>\n");
 			if (m->second->cryptset == crypt_wep)

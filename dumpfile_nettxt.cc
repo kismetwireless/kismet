@@ -201,6 +201,25 @@ int Dumpfile_Nettxt::Flush() {
 				}
 			}
 
+			if (m->second->wps & wps_locked)
+                            fprintf(txtfile, "    WPS        : Locked\n");
+                        else {
+                            if (m->second->wps & wps_configured)
+                                fprintf(txtfile, "    WPS        : Configured\n");
+                            else if (m->second->wps & wps_not_configured)
+                                fprintf(txtfile, "    WPS        : Not Configured\n");
+                            else
+                                fprintf(txtfile, "    WPS        : No\n");
+                        }
+                        if (m->second->wps_manuf != "")
+                            fprintf(txtfile, "    WPS Manuf  : %s\n", m->second->wps_manuf.c_str());
+                        if (m->second->wps_device_name != "")
+                            fprintf(txtfile, "    Dev Name   : %s\n", m->second->wps_device_name.c_str());
+                        if (m->second->wps_model_name != "")
+                            fprintf(txtfile, "    Model Name : %s\n", m->second->wps_model_name.c_str());
+                        if (m->second->wps_model_number != "")
+                            fprintf(txtfile, "    Model Num  : %s\n", m->second->wps_model_number.c_str());
+                        
 			if (m->second->cryptset == 0)
 				fprintf(txtfile, "    Encryption : None\n");
 			if (m->second->cryptset == crypt_wep)

@@ -216,6 +216,11 @@ public:
 		qos = 0;
 		ssid_csum = 0;
 		dot11d_country = "XXX";
+        wps = no_wps;
+        wps_manuf = "";
+        wps_device_name = "";
+        wps_model_name = "";
+        wps_model_number = "";
     }
 
     // Corrupt 802.11 frame
@@ -281,6 +286,19 @@ public:
 
 	string dot11d_country;
 	vector<dot11d_range_info> dot11d_vec;
+    
+    // WPS information
+    uint8_t wps;
+    // The field below is useful because some APs use
+    // a MAC address with 'Unknown' OUI but will
+    // tell their manufacturer in this field:
+    string wps_manuf;
+    // Some APs give out bogus information on these fields
+    string wps_device_name;
+    string wps_model_name;
+    string wps_model_number;
+    // There's also the serial number field but we don't care
+    // about it because it's almost always bogus.
 };
 
 // some protocols we do try to track

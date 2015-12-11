@@ -229,6 +229,14 @@ enum crypt_type {
 	crypt_unknown_nonwep = (1 << 18),
 };
 
+// WPS State bitfield
+enum wps_state {
+    no_wps = 0,
+    wps_configured = 1,
+    wps_not_configured = (1 << 1),
+    wps_locked = (1 << 2)
+};
+
 // Deciphering by casting.  This is bad, and non portable, and we need to not
 // do it in the future but for now it'll work until we redo it with bitmanip
 #ifdef WORDS_BIGENDIAN

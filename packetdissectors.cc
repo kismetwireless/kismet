@@ -1177,6 +1177,122 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
                 packinfo->channel = (int) (chunk->data[tag_offset+1]);
             }
 
+            
+            
+            // Match WPS tag
+            if ((tcitr = tag_cache_map.find(221)) != tag_cache_map.end()) {
+                for (unsigned int tagct = 0; tagct < tcitr->second.size(); tagct++) {
+                    tag_offset = tcitr->second[tagct];
+                    unsigned int tag_orig = tag_offset + 1;
+                    unsigned int taglen = (chunk->data[tag_offset] & 0xFF);
+                    unsigned int offt = 0;
+
+                    if (tag_orig + taglen > chunk->length) {
+                        packinfo->corrupt = 1;
+                        in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
+                        return 0;
+                    }
+                    
+                    // Match 221 tag header for WPS
+                    if (taglen < sizeof(WPS_SIG))
+                        continue;
+                    
+                    if (memcmp(&(chunk->data[tag_orig + offt]), WPS_SIG, sizeof(WPS_SIG)))
+                        continue;
+                    
+                    offt += sizeof(WPS_SIG); // Go to the beginning of the first data element
+                    
+                    // Iterate through the data elements
+                    for (;;) {
+                        // Check if we have the type and length (2 bytes each)
+                        if (offt + 4 > taglen) {
+                            packinfo->corrupt = 1;
+                            in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
+                            return 0;
+                        }
+                        uint16_t type = kis_ntoh16(kis_extract16(&(chunk->data[tag_orig + offt])));
+                        uint16_t length = kis_ntoh16(kis_extract16(&(chunk->data[tag_orig + offt + 2])));
+                        if (offt + 4 + length > taglen) {
+                            packinfo->corrupt = 1;
+                            in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
+                            return 0;
+                        }
+                        switch (type) {
+                            case 0x1044: { // State
+                                // Assume length == 1
+                                uint8_t state = chunk->data[tag_orig + offt + 4];
+                                switch (state) {
+                                    case 0x01:
+                                        packinfo->wps |= wps_not_configured;
+                                        break;
+                                    case 0x02:
+                                        packinfo->wps |= wps_configured;
+                                        break;
+                                }
+                                break;
+                            }
+                            case 0x1057: // AP Setup Locked
+                                // Assume length == 1
+                                if (chunk->data[tag_orig + offt + 4] == 0x01)
+                                    packinfo->wps |= wps_locked;
+                                break;
+                            case 0x1011: { // Device name
+                                char *cstr = new char[length + 1];
+                                for (int i = 0; i < length; i++)
+                                    cstr[i] = chunk->data[tag_orig + offt + 4 + i];
+                                cstr[length] = 0x00;
+                                packinfo->wps_device_name = cstr;
+                                break;
+                            }
+                            case 0x1021: { // Manufacturer
+                                char *cstr = new char[length + 1];
+                                for (int i = 0; i < length; i++)
+                                    cstr[i] = chunk->data[tag_orig + offt + 4 + i];
+                                cstr[length] = 0x00;
+                                packinfo->wps_manuf = cstr;
+                                break;
+                            }
+                            case 0x1023: { // Model name
+                                char *cstr = new char[length + 1];
+                                for (int i = 0; i < length; i++)
+                                    cstr[i] = chunk->data[tag_orig + offt + 4 + i];
+                                cstr[length] = 0x00;
+                                packinfo->wps_model_name = cstr;
+                                break;
+                            }
+                            case 0x1024: { // Model number
+                                char *cstr = new char[length + 1];
+                                for (int i = 0; i < length; i++)
+                                    cstr[i] = chunk->data[tag_orig + offt + 4 + i];
+                                cstr[length] = 0x00;
+                                packinfo->wps_model_number = cstr;
+                                break;
+                            }
+                            // We ignore these fields for now
+                            case 0x1008: // Configuration methods
+                            case 0x1012: // Device password ID
+                            case 0x103B: // Response type
+                            case 0x103C: // RF bands
+                            case 0x1041: // Selected registrar
+                            case 0x1042: // Serial number
+                            case 0x1047: // UUID enrollee
+                            case 0x1049: // Vendor extension
+                            case 0x104A: // Version
+                            case 0x1053: // Selected registrar configuration methods
+                            case 0x1054: // Primary device type
+                            default:
+                                break;
+                        }
+                        if (offt + 4 + length >= taglen)
+                            break; // No more data elements
+                        offt += 4 + length;
+                    }
+                    
+                }
+            } // WPS
+            
+            
+            
             if ((tcitr = tag_cache_map.find(7)) != tag_cache_map.end()) {
                 tag_offset = tcitr->second[0];
 
