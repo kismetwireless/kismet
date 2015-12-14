@@ -227,6 +227,9 @@ enum crypt_type {
 	crypt_fortress = (1 << 16),
 	crypt_keyguard = (1 << 17),
 	crypt_unknown_nonwep = (1 << 18),
+	// WPA version flags
+	crypt_version_wpa = (1 << 20),
+	crypt_version_wpa2 = (1 << 21),
 };
 
 // WPS State bitfield

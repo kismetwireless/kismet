@@ -291,6 +291,15 @@ int Dumpfile_Netxml::Flush() {
 				fprintf(xmlfile, "        <encryption>Fortress</encryption>\n");
 			if (m->second->cryptset & crypt_keyguard)
 				fprintf(xmlfile, "        <encryption>Keyguard</encryption>\n");
+			// WPA version
+			if (m->second->cryptset & crypt_version_wpa) {
+				if (m->second->cryptset & crypt_version_wpa2)
+					fprintf(xmlfile, "        <wpa-version>WPA+WPA2</wpa-version>\n");
+				else
+					fprintf(xmlfile, "        <wpa-version>WPA</wpa-version>\n");
+			}
+			else if (m->second->cryptset & crypt_version_wpa2)
+				fprintf(xmlfile, "        <wpa-version>WPA2</wpa-version>\n");
 
 			if (m->second->dot11d_vec.size() > 0) {
 				fprintf(xmlfile, "        <dot11d country=\"%s\">\n",

@@ -260,6 +260,15 @@ int Dumpfile_Nettxt::Flush() {
 				fprintf(txtfile, "    Encryption : Fortress\n");
 			if (m->second->cryptset & crypt_keyguard)
 				fprintf(txtfile, "    Encryption : Keyguard\n");
+			// WPA version
+			if (m->second->cryptset & crypt_version_wpa) {
+				if (m->second->cryptset & crypt_version_wpa2)
+					fprintf(txtfile, "    WPA Version: WPA+WPA2\n");
+				else
+					fprintf(txtfile, "    WPA Version: WPA\n");
+			}
+			else if (m->second->cryptset & crypt_version_wpa2)
+				fprintf(txtfile, "    WPA Version: WPA2\n");
 
 			ssidnum++;
 		}

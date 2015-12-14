@@ -1242,6 +1242,7 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
                                     cstr[i] = chunk->data[tag_orig + offt + 4 + i];
                                 cstr[length] = 0x00;
                                 packinfo->wps_device_name = cstr;
+                                delete[] cstr;
                                 break;
                             }
                             case 0x1021: { // Manufacturer
@@ -1250,6 +1251,7 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
                                     cstr[i] = chunk->data[tag_orig + offt + 4 + i];
                                 cstr[length] = 0x00;
                                 packinfo->wps_manuf = cstr;
+                                delete[] cstr;
                                 break;
                             }
                             case 0x1023: { // Model name
@@ -1258,6 +1260,7 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
                                     cstr[i] = chunk->data[tag_orig + offt + 4 + i];
                                 cstr[length] = 0x00;
                                 packinfo->wps_model_name = cstr;
+                                delete[] cstr;
                                 break;
                             }
                             case 0x1024: { // Model number
@@ -1266,6 +1269,7 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
                                     cstr[i] = chunk->data[tag_orig + offt + 4 + i];
                                 cstr[length] = 0x00;
                                 packinfo->wps_model_number = cstr;
+                                delete[] cstr;
                                 break;
                             }
                             // We ignore these fields for now
@@ -1394,6 +1398,9 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
 								break;
 							}
 						}
+						
+						// Set version flag
+						packinfo->cryptset |= crypt_version_wpa;
 					}
 				} /* 221 */
 
@@ -1455,6 +1462,9 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
 								break;
 							}
 						}
+						
+						// Set version flag
+						packinfo->cryptset |= crypt_version_wpa2;
 					}
 				} /* 48 */
 			}
