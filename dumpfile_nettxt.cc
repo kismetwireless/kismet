@@ -361,9 +361,12 @@ int Dumpfile_Nettxt::Flush() {
 			fprintf(txtfile, " IP Gateway : %s\n", 
 					inet_ntoa(net->guess_ipdata.ip_gateway));
 		}
-
-		fprintf(txtfile, " Last BSSTS : %llu\n", 
-				(long long unsigned int) net->bss_timestamp);
+                
+                uint64_t secs = (uint64_t)(net->bss_timestamp / 1000000);
+                time_t t_secs = (time_t)secs;
+                time_t t_upsince = net->last_time - t_secs;
+                string s_upsince = string(ctime((const time_t *) &(t_upsince)) + 4).substr(0, 15);
+		fprintf(txtfile, " Last BSSTS : %s\n", s_upsince.c_str());
 
 		for (map<uuid, Netracker::source_data *>::iterator sdi = net->source_map.begin();
 			 sdi != net->source_map.end(); ++sdi) {

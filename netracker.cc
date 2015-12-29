@@ -2716,6 +2716,10 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 		}
 
 		adssid->last_time = globalreg->timestamp.tv_sec;
+                
+                // Not sure if we can do this
+                net->bss_timestamp = packinfo->timestamp;
+                
 		adssid->packets++;
 
 		adssid->beacons++;
@@ -2870,6 +2874,10 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 		adssid->cryptset |= packinfo->cryptset;
 
 		adssid->last_time = globalreg->timestamp.tv_sec;
+                
+                // Not sure if we can do this
+                net->bss_timestamp = packinfo->timestamp;
+                
 		adssid->packets++;
 		adssid->dirty = 1;
 	}

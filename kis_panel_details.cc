@@ -396,6 +396,14 @@ int Kis_NetDetails_Panel::AppendNetworkInfo(vector<string> *td,
 		(string(ctime((const time_t *) &(net->last_time)) + 4).substr(0, 15));
 	td->push_back(AlignString("Last Seen: ", ' ', 2, 16) + osstr.str());
 
+	uint64_t secs = (uint64_t)(net->bss_timestamp / 1000000);
+	time_t t_secs = (time_t)secs;
+	time_t t_upsince = net->last_time - t_secs;
+	osstr.str("");
+	osstr << setw(14) << left << 
+		(string(ctime((const time_t *) &(t_upsince)) + 4).substr(0, 15));
+	td->push_back(AlignString("Up Since: ", ' ', 2, 16) + osstr.str());
+
 	osstr.str("");
 	if (net->type == network_ap)
 		osstr << "Access Point (Managed/Infrastructure)";

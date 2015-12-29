@@ -473,8 +473,13 @@ int Dumpfile_Netxml::Flush() {
 			fprintf(xmlfile, "    </ip-address>\n");
 		}
 
-		fprintf(xmlfile, "    <bsstimestamp>%llu</bsstimestamp>\n", 
-				(long long unsigned int) net->bss_timestamp);
+                uint64_t secs = (uint64_t)(net->bss_timestamp / 1000000);
+                time_t t_secs = (time_t)secs;
+                time_t t_upsince = net->last_time - t_secs;
+                string s_upsince = string(ctime((const time_t *) &(t_upsince)) + 4).substr(0, 15);
+
+		fprintf(xmlfile, "    <bsstimestamp>%s</bsstimestamp>\n", 
+				s_upsince.c_str());
 		fprintf(xmlfile, "    <cdp-device>%s</cdp-device>\n",
 				SanitizeXML(net->cdp_dev_id).c_str());
 		fprintf(xmlfile, "    <cdp-portid>%s</cdp-portid>\n",
