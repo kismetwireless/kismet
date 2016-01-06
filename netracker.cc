@@ -71,6 +71,7 @@ const char *SSID_fields_text[] = {
 	"beaconrate", "packets", "beacons",
 	"dot11d", "wps", "wps_manuf", "wps_device_name",
         "wps_model_name", "wps_model_number",
+	"shown_msg_probe_nearby_ap",
 	NULL
 };
 
@@ -591,6 +592,11 @@ int Protocol_SSID(PROTO_PARMS) {
 				break;
 			case SSID_wps_model_number:
 				osstr << ssid->wps_model_number;
+				out_string += osstr.str();
+				cache->Cache(fnum, osstr.str());
+				break;
+			case SSID_shown_msg_probe_nearby_ap:
+				osstr << ssid->shown_msg_probe_nearby_ap;
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
@@ -2631,38 +2637,58 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 			adssid = ssidi->second;
 		}
 
+		bool update_cryptset_and_maxrate = true;
 		// Alert on crypto change
-		if (adssid->cryptset != packinfo->cryptset && adssid->cryptset != 0 &&
-			globalreg->alertracker->PotentialAlert(alert_wepflap_ref)) {
-			ostringstream outs;
-
-			outs << "Network BSSID " << net->bssid.Mac2String() << 
+		if (adssid->cryptset != packinfo->cryptset && adssid->cryptset != 0) {
+			// Some APs look for nearby APs with the same SSID by broadcasting
+			// probe requests for their own SSID. This will cause a flood of false
+			// CRYPTODROP alerts if the AP advertises encryption in its beacons
+			// but sends these probe requests with no encryption information.
+			// So we present an appropriate message only once.
+			if (adssid->mac == packinfo->bssid_mac) {
+				if (adssid->shown_msg_probe_nearby_ap == 0) {
+					snprintf(status, STATUS_MAX, "The BSSID %s (network \"%s\") appears to "
+							"probe for nearby APs with the same SSID",
+							adssid->mac.Mac2String().c_str(),
+							adssid->ssid.c_str());
+					_MSG(status, MSGFLAG_INFO);
+					adssid->shown_msg_probe_nearby_ap = 1;
+				}
+				update_cryptset_and_maxrate = false;
+			}
+			else if(globalreg->alertracker->PotentialAlert(alert_wepflap_ref)) {
+				ostringstream outs;
+				
+				outs << "Network BSSID " << net->bssid.Mac2String() << 
 				" changed advertised SSID '" + packinfo->ssid + 
 				"' encryption ";
-
-			if (packinfo->cryptset == 0)
-				outs << "to no encryption when it was previous advertised, an "
+				
+				if (packinfo->cryptset == 0)
+					outs << "to no encryption when it was previous advertised, an "
 					"impersonation attack may be underway";
-			else if (packinfo->cryptset < adssid->cryptset)
-				outs << "to a weaker encryption set than previously "
+				else if (packinfo->cryptset < adssid->cryptset)
+					outs << "to a weaker encryption set than previously "
 					"advertised, which may indicate an attack";
-			else
-				outs << "a different encryption set than previous advertised";
-
-			globalreg->alertracker->RaiseAlert(alert_wepflap_ref, in_pack, 
-											   packinfo->bssid_mac, 
-											   packinfo->source_mac, 
-											   packinfo->dest_mac, 
-											   packinfo->other_mac, 
-											   packinfo->channel, outs.str());
+				else
+					outs << "a different encryption set than previous advertised";
+				
+				globalreg->alertracker->RaiseAlert(alert_wepflap_ref, in_pack, 
+												   packinfo->bssid_mac, 
+												   packinfo->source_mac, 
+												   packinfo->dest_mac, 
+												   packinfo->other_mac, 
+												   packinfo->channel, outs.str());
+			}
 		}
-
-		adssid->cryptset = packinfo->cryptset;
+		
+		if (update_cryptset_and_maxrate)
+			adssid->cryptset = packinfo->cryptset;
 
 		adssid->last_time = globalreg->timestamp.tv_sec;
 		adssid->packets++;
 
-		adssid->maxrate = packinfo->maxrate;
+		if (update_cryptset_and_maxrate)
+			adssid->maxrate = packinfo->maxrate;
 
 		adssid->dirty = 1;
 	}
