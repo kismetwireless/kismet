@@ -120,6 +120,8 @@ int kisspec_unregister(GlobalRegistry *in_globalreg) {
 		delete stc;
 	if (globalreg->pcapdump != NULL)
 		globalreg->pcapdump->RemovePPICallback(kisspec_dump, NULL);
+
+    return 1;
 }
 
 extern "C" {

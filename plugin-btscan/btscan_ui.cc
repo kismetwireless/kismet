@@ -654,6 +654,7 @@ int BtscanDevlistCB(COMPONENT_CALLBACK_PARMS) {
 
 int Btscan_Details_ButtonCB(COMPONENT_CALLBACK_PARMS) {
 	((Btscan_Details_Panel *) aux)->ButtonAction(component);
+    return 0;
 }
 
 Btscan_Details_Panel::Btscan_Details_Panel(GlobalRegistry *in_globalreg,
