@@ -175,7 +175,7 @@ TrackerElement& TrackerElement::operator--(int) {
     return *this;
 }
 
-TrackerElement& TrackerElement::operator+=(float& v) {
+TrackerElement& TrackerElement::operator+=(const float& v) {
     switch (type) {
         case TrackerFloat:
             float_value+= v;
@@ -190,7 +190,7 @@ TrackerElement& TrackerElement::operator+=(float& v) {
     return *this;
 }
 
-TrackerElement& TrackerElement::operator+=(double& v) {
+TrackerElement& TrackerElement::operator+=(const double& v) {
     switch (type) {
         case TrackerFloat:
             float_value+= v;
@@ -205,7 +205,7 @@ TrackerElement& TrackerElement::operator+=(double& v) {
     return *this;
 }
 
-TrackerElement& TrackerElement::operator+=(int& v) {
+TrackerElement& TrackerElement::operator+=(const int& v) {
     switch (type) {
         case TrackerInt8:
             int8_value += v;
@@ -244,7 +244,7 @@ TrackerElement& TrackerElement::operator+=(int& v) {
     return *this;
 }
 
-TrackerElement& TrackerElement::operator+=(unsigned int& v) {
+TrackerElement& TrackerElement::operator+=(const unsigned int& v) {
     switch (type) {
         case TrackerInt8:
             int8_value += v;
@@ -283,7 +283,7 @@ TrackerElement& TrackerElement::operator+=(unsigned int& v) {
     return *this;
 }
 
-TrackerElement& TrackerElement::operator+=(TrackerElement* v) {
+TrackerElement& TrackerElement::operator+=(const TrackerElement* v) {
     if (type == TrackerVector) 
         subvector_value.push_back(v); 
     else
@@ -292,19 +292,19 @@ TrackerElement& TrackerElement::operator+=(TrackerElement* v) {
     return *this;
 }
 
-TrackerElement& TrackerElement::operator+=(int64_t& i) {
+TrackerElement& TrackerElement::operator+=(const int64_t& i) {
     except_type_mismatch(TrackerInt64);
     int64_value += i;
     return *this;
 }
 
-TrackerElement& TrackerElement::operator+=(uint64_t& i) {
+TrackerElement& TrackerElement::operator+=(const uint64_t& i) {
     except_type_mismatch(TrackerUInt64);
     uint64_value += i;
     return *this;
 }
 
-TrackerElement& TrackerElement::operator-=(int& v) {
+TrackerElement& TrackerElement::operator-=(const int& v) {
     switch (type) {
         case TrackerInt8:
             int8_value -= v;
@@ -343,7 +343,7 @@ TrackerElement& TrackerElement::operator-=(int& v) {
     return *this;
 }
 
-TrackerElement& TrackerElement::operator-=(unsigned int& v) {
+TrackerElement& TrackerElement::operator-=(const unsigned int& v) {
     switch (type) {
         case TrackerInt8:
             int8_value -= v;
@@ -382,7 +382,7 @@ TrackerElement& TrackerElement::operator-=(unsigned int& v) {
     return *this;
 }
 
-TrackerElement& TrackerElement::operator-=(float& v) {
+TrackerElement& TrackerElement::operator-=(const float& v) {
     switch (type) {
         case TrackerFloat:
             float_value-= v;
@@ -397,7 +397,7 @@ TrackerElement& TrackerElement::operator-=(float& v) {
     return *this;
 }
 
-TrackerElement& TrackerElement::operator-=(double& v) {
+TrackerElement& TrackerElement::operator-=(const double& v) {
     switch (type) {
         case TrackerFloat:
             float_value-= v;
@@ -412,13 +412,13 @@ TrackerElement& TrackerElement::operator-=(double& v) {
     return *this;
 }
 
-TrackerElement& TrackerElement::operator-=(int64_t& i) {
+TrackerElement& TrackerElement::operator-=(const int64_t& i) {
     except_type_mismatch(TrackerInt64);
     int64_value -= i;
     return *this;
 }
 
-TrackerElement& TrackerElement::operator-=(uint64_t& i) {
+TrackerElement& TrackerElement::operator-=(const uint64_t& i) {
     except_type_mismatch(TrackerUInt64);
     uint64_value -= i;
     return *this;

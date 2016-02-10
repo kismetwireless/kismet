@@ -342,31 +342,31 @@ public:
     mac_map_iterator mac_find(mac_addr k);
 
     // Do our best to increment a value
-    TrackerElement& operator++(int);
+    TrackerElement& operator++(const int);
 
     // Do our best to decrement a value
-    TrackerElement& operator--(int);
+    TrackerElement& operator--(const int);
 
     // Do our best to do compound addition
-    TrackerElement& operator+=(int& v);
-    TrackerElement& operator+=(unsigned int& v);
-    TrackerElement& operator+=(float& v);
-    TrackerElement& operator+=(double& v);
+    TrackerElement& operator+=(const int& v);
+    TrackerElement& operator+=(const unsigned int& v);
+    TrackerElement& operator+=(const float& v);
+    TrackerElement& operator+=(const double& v);
 
-    TrackerElement& operator+=(int64_t& v);
-    TrackerElement& operator+=(uint64_t& v);
+    TrackerElement& operator+=(const int64_t& v);
+    TrackerElement& operator+=(const uint64_t& v);
 
     // We can append to vectors
-    TrackerElement& operator+=(TrackerElement* v);
+    TrackerElement& operator+=(const TrackerElement* v);
 
     // Do our best to do compound subtraction
-    TrackerElement& operator-=(int& v);
-    TrackerElement& operator-=(unsigned int& v);
-    TrackerElement& operator-=(float& v);
-    TrackerElement& operator-=(double& v);
+    TrackerElement& operator-=(const int& v);
+    TrackerElement& operator-=(const unsigned int& v);
+    TrackerElement& operator-=(const float& v);
+    TrackerElement& operator-=(const double& v);
 
-    TrackerElement& operator-=(int64_t& v);
-    TrackerElement& operator-=(uint64_t& v);
+    TrackerElement& operator-=(const int64_t& v);
+    TrackerElement& operator-=(const uint64_t& v);
 
     // Do our best for equals comparison
     

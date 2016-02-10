@@ -53,10 +53,11 @@ class Packinfo_Sig_Combo;
 class tracker_component : public TrackerElement {
 
 // Ugly trackercomponent macro for proxying trackerelement values
-// Defines get_<name> function, for a TrackerElement of type <ptype>, returning type <rtype>,
-//  referencing class variable <cvar>
-// Defines set_<name> funciton, for a TrackerElement of type <ptype>, taking type <itype>, which
-//  must be castable to the TrackerElement type (itype), referencing class variable <cvar>
+// Defines get_<name> function, for a TrackerElement of type <ptype>, returning type 
+// <rtype>, referencing class variable <cvar>
+// Defines set_<name> funciton, for a TrackerElement of type <ptype>, taking type 
+// <itype>, which must be castable to the TrackerElement type (itype), referencing 
+// class variable <cvar>
 #define __Proxy(name, ptype, itype, rtype, cvar) \
     rtype get_##name() const { \
         return (rtype) GetTrackerValue<ptype>(cvar); \
@@ -402,7 +403,8 @@ class kis_tracked_location : public tracker_component {
 public:
     const static int precision_multiplier = 10000;
 
-    kis_tracked_location(GlobalRegistry *in_globalreg) : tracker_component(in_globalreg) { }
+    kis_tracked_location(GlobalRegistry *in_globalreg) : 
+        tracker_component(in_globalreg) { }
 
     kis_tracked_location(GlobalRegistry *in_globalreg, int in_id) :
         tracker_component(in_globalreg, in_id) { }
