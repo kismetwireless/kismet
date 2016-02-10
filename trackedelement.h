@@ -325,9 +325,11 @@ public:
 
     size_t size();
 
+    typedef map<int, TrackerElement *> tracked_map;
     typedef map<int, TrackerElement *>::iterator map_iterator;
     typedef map<int, TrackerElement *>::const_iterator map_const_iterator;
 
+    typedef map<mac_addr, TrackerElement *> tracked_mac_map;
     typedef map<mac_addr, TrackerElement *>::iterator mac_map_iterator;
     typedef map<mac_addr, TrackerElement *>::const_iterator mac_map_const_iterator;
 
@@ -346,25 +348,25 @@ public:
     TrackerElement& operator--(int);
 
     // Do our best to do compound addition
-    TrackerElement& operator+=(const int& v);
-    TrackerElement& operator+=(const unsigned int& v);
-    TrackerElement& operator+=(const float& v);
-    TrackerElement& operator+=(const double& v);
+    TrackerElement& operator+=(int& v);
+    TrackerElement& operator+=(unsigned int& v);
+    TrackerElement& operator+=(float& v);
+    TrackerElement& operator+=(double& v);
 
-    TrackerElement& operator+=(const int64_t& v);
-    TrackerElement& operator+=(const uint64_t& v);
+    TrackerElement& operator+=(int64_t& v);
+    TrackerElement& operator+=(uint64_t& v);
 
     // We can append to vectors
     TrackerElement& operator+=(TrackerElement* v);
 
     // Do our best to do compound subtraction
-    TrackerElement& operator-=(const int& v);
-    TrackerElement& operator-=(const unsigned int& v);
-    TrackerElement& operator-=(const float& v);
-    TrackerElement& operator-=(const double& v);
+    TrackerElement& operator-=(int& v);
+    TrackerElement& operator-=(unsigned int& v);
+    TrackerElement& operator-=(float& v);
+    TrackerElement& operator-=(double& v);
 
-    TrackerElement& operator-=(const int64_t& v);
-    TrackerElement& operator-=(const uint64_t& v);
+    TrackerElement& operator-=(int64_t& v);
+    TrackerElement& operator-=(uint64_t& v);
 
     // Do our best for equals comparison
     
@@ -411,35 +413,35 @@ public:
     // We don't have > operators on mac or uuid
    
     // Bitwise
-    TrackerElement& operator|=(const int8_t i);
-    TrackerElement& operator|=(const uint8_t i);
-    TrackerElement& operator|=(const int16_t i);
-    TrackerElement& operator|=(const uint16_t i);
-    TrackerElement& operator|=(const int32_t i);
-    TrackerElement& operator|=(const uint32_t i);
-    TrackerElement& operator|=(const int64_t i);
-    TrackerElement& operator|=(const uint64_t i);
+    TrackerElement& operator|=(int8_t i);
+    TrackerElement& operator|=(uint8_t i);
+    TrackerElement& operator|=(int16_t i);
+    TrackerElement& operator|=(uint16_t i);
+    TrackerElement& operator|=(int32_t i);
+    TrackerElement& operator|=(uint32_t i);
+    TrackerElement& operator|=(int64_t i);
+    TrackerElement& operator|=(uint64_t i);
 
-    TrackerElement& operator&=(const int8_t i);
-    TrackerElement& operator&=(const uint8_t i);
-    TrackerElement& operator&=(const int16_t i);
-    TrackerElement& operator&=(const uint16_t i);
-    TrackerElement& operator&=(const int32_t i);
-    TrackerElement& operator&=(const uint32_t i);
-    TrackerElement& operator&=(const int64_t i);
-    TrackerElement& operator&=(const uint64_t i);
+    TrackerElement& operator&=(int8_t i);
+    TrackerElement& operator&=(uint8_t i);
+    TrackerElement& operator&=(int16_t i);
+    TrackerElement& operator&=(uint16_t i);
+    TrackerElement& operator&=(int32_t i);
+    TrackerElement& operator&=(uint32_t i);
+    TrackerElement& operator&=(int64_t i);
+    TrackerElement& operator&=(uint64_t i);
 
-    TrackerElement& operator^=(const int8_t i);
-    TrackerElement& operator^=(const uint8_t i);
-    TrackerElement& operator^=(const int16_t i);
-    TrackerElement& operator^=(const uint16_t i);
-    TrackerElement& operator^=(const int32_t i);
-    TrackerElement& operator^=(const uint32_t i);
-    TrackerElement& operator^=(const int64_t i);
-    TrackerElement& operator^=(const uint64_t i);
+    TrackerElement& operator^=(int8_t i);
+    TrackerElement& operator^=(uint8_t i);
+    TrackerElement& operator^=(int16_t i);
+    TrackerElement& operator^=(uint16_t i);
+    TrackerElement& operator^=(int32_t i);
+    TrackerElement& operator^=(uint32_t i);
+    TrackerElement& operator^=(int64_t i);
+    TrackerElement& operator^=(uint64_t i);
 
-    TrackerElement *operator[](const int i);
-    TrackerElement *operator[](const mac_addr i);
+    TrackerElement *operator[](int i);
+    TrackerElement *operator[](mac_addr i);
 
     static string type_to_string(TrackerType t);
 

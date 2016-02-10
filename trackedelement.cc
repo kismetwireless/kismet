@@ -175,7 +175,7 @@ TrackerElement& TrackerElement::operator--(int) {
     return *this;
 }
 
-TrackerElement& TrackerElement::operator+=(const float& v) {
+TrackerElement& TrackerElement::operator+=(float& v) {
     switch (type) {
         case TrackerFloat:
             float_value+= v;
@@ -190,7 +190,7 @@ TrackerElement& TrackerElement::operator+=(const float& v) {
     return *this;
 }
 
-TrackerElement& TrackerElement::operator+=(const double& v) {
+TrackerElement& TrackerElement::operator+=(double& v) {
     switch (type) {
         case TrackerFloat:
             float_value+= v;
@@ -205,7 +205,7 @@ TrackerElement& TrackerElement::operator+=(const double& v) {
     return *this;
 }
 
-TrackerElement& TrackerElement::operator+=(const int& v) {
+TrackerElement& TrackerElement::operator+=(int& v) {
     switch (type) {
         case TrackerInt8:
             int8_value += v;
@@ -244,7 +244,7 @@ TrackerElement& TrackerElement::operator+=(const int& v) {
     return *this;
 }
 
-TrackerElement& TrackerElement::operator+=(const unsigned int& v) {
+TrackerElement& TrackerElement::operator+=(unsigned int& v) {
     switch (type) {
         case TrackerInt8:
             int8_value += v;
@@ -292,19 +292,19 @@ TrackerElement& TrackerElement::operator+=(TrackerElement* v) {
     return *this;
 }
 
-TrackerElement& TrackerElement::operator+=(const int64_t& i) {
+TrackerElement& TrackerElement::operator+=(int64_t& i) {
     except_type_mismatch(TrackerInt64);
     int64_value += i;
     return *this;
 }
 
-TrackerElement& TrackerElement::operator+=(const uint64_t& i) {
+TrackerElement& TrackerElement::operator+=(uint64_t& i) {
     except_type_mismatch(TrackerUInt64);
     uint64_value += i;
     return *this;
 }
 
-TrackerElement& TrackerElement::operator-=(const int& v) {
+TrackerElement& TrackerElement::operator-=(int& v) {
     switch (type) {
         case TrackerInt8:
             int8_value -= v;
@@ -343,7 +343,7 @@ TrackerElement& TrackerElement::operator-=(const int& v) {
     return *this;
 }
 
-TrackerElement& TrackerElement::operator-=(const unsigned int& v) {
+TrackerElement& TrackerElement::operator-=(unsigned int& v) {
     switch (type) {
         case TrackerInt8:
             int8_value -= v;
@@ -382,7 +382,7 @@ TrackerElement& TrackerElement::operator-=(const unsigned int& v) {
     return *this;
 }
 
-TrackerElement& TrackerElement::operator-=(const float& v) {
+TrackerElement& TrackerElement::operator-=(float& v) {
     switch (type) {
         case TrackerFloat:
             float_value-= v;
@@ -397,7 +397,7 @@ TrackerElement& TrackerElement::operator-=(const float& v) {
     return *this;
 }
 
-TrackerElement& TrackerElement::operator-=(const double& v) {
+TrackerElement& TrackerElement::operator-=(double& v) {
     switch (type) {
         case TrackerFloat:
             float_value-= v;
@@ -412,164 +412,164 @@ TrackerElement& TrackerElement::operator-=(const double& v) {
     return *this;
 }
 
-TrackerElement& TrackerElement::operator-=(const int64_t& i) {
+TrackerElement& TrackerElement::operator-=(int64_t& i) {
     except_type_mismatch(TrackerInt64);
     int64_value -= i;
     return *this;
 }
 
-TrackerElement& TrackerElement::operator-=(const uint64_t& i) {
+TrackerElement& TrackerElement::operator-=(uint64_t& i) {
     except_type_mismatch(TrackerUInt64);
     uint64_value -= i;
     return *this;
 }
 
 
-TrackerElement& TrackerElement::operator|=(const int8_t i) {
+TrackerElement& TrackerElement::operator|=(int8_t i) {
     except_type_mismatch(TrackerInt8);
     int8_value |= i;
     return *this;
 }
 
-TrackerElement& TrackerElement::operator|=(const uint8_t i) {
+TrackerElement& TrackerElement::operator|=(uint8_t i) {
     except_type_mismatch(TrackerUInt8);
     uint8_value |= i;
     return *this;
 }
 
-TrackerElement& TrackerElement::operator|=(const int16_t i) {
+TrackerElement& TrackerElement::operator|=(int16_t i) {
     except_type_mismatch(TrackerInt16);
     int16_value |= i;
     return *this;
 }
 
-TrackerElement& TrackerElement::operator|=(const uint16_t i) {
+TrackerElement& TrackerElement::operator|=(uint16_t i) {
     except_type_mismatch(TrackerUInt16);
     uint16_value |= i;
     return *this;
 }
 
-TrackerElement& TrackerElement::operator|=(const int32_t i) {
+TrackerElement& TrackerElement::operator|=(int32_t i) {
     except_type_mismatch(TrackerInt32);
     int32_value |= i;
     return *this;
 }
 
-TrackerElement& TrackerElement::operator|=(const uint32_t i) {
+TrackerElement& TrackerElement::operator|=(uint32_t i) {
     except_type_mismatch(TrackerUInt32);
     uint32_value |= i;
     return *this;
 }
 
-TrackerElement& TrackerElement::operator|=(const int64_t i) {
+TrackerElement& TrackerElement::operator|=(int64_t i) {
     except_type_mismatch(TrackerInt64);
     int64_value |= i;
     return *this;
 }
 
-TrackerElement& TrackerElement::operator|=(const uint64_t i) {
+TrackerElement& TrackerElement::operator|=(uint64_t i) {
     except_type_mismatch(TrackerUInt64);
     uint64_value |= i;
     return *this;
 }
 
-TrackerElement& TrackerElement::operator&=(const int8_t i) {
+TrackerElement& TrackerElement::operator&=(int8_t i) {
     except_type_mismatch(TrackerInt8);
     int8_value &= i;
     return *this;
 }
 
-TrackerElement& TrackerElement::operator&=(const uint8_t i) {
+TrackerElement& TrackerElement::operator&=(uint8_t i) {
     except_type_mismatch(TrackerUInt8);
     uint8_value &= i;
     return *this;
 }
 
-TrackerElement& TrackerElement::operator&=(const int16_t i) {
+TrackerElement& TrackerElement::operator&=(int16_t i) {
     except_type_mismatch(TrackerInt16);
     int16_value &= i;
     return *this;
 }
 
-TrackerElement& TrackerElement::operator&=(const uint16_t i) {
+TrackerElement& TrackerElement::operator&=(uint16_t i) {
     except_type_mismatch(TrackerUInt16);
     uint16_value &= i;
     return *this;
 }
 
-TrackerElement& TrackerElement::operator&=(const int32_t i) {
+TrackerElement& TrackerElement::operator&=(int32_t i) {
     except_type_mismatch(TrackerInt32);
     int32_value &= i;
     return *this;
 }
 
-TrackerElement& TrackerElement::operator&=(const uint32_t i) {
+TrackerElement& TrackerElement::operator&=(uint32_t i) {
     except_type_mismatch(TrackerUInt32);
     uint32_value &= i;
     return *this;
 }
 
-TrackerElement& TrackerElement::operator&=(const int64_t i) {
+TrackerElement& TrackerElement::operator&=(int64_t i) {
     except_type_mismatch(TrackerInt64);
     int64_value &= i;
     return *this;
 }
 
-TrackerElement& TrackerElement::operator&=(const uint64_t i) {
+TrackerElement& TrackerElement::operator&=(uint64_t i) {
     except_type_mismatch(TrackerUInt64);
     uint64_value &= i;
     return *this;
 }
 
-TrackerElement& TrackerElement::operator^=(const int8_t i) {
+TrackerElement& TrackerElement::operator^=(int8_t i) {
     except_type_mismatch(TrackerInt8);
     int8_value ^= i;
     return *this;
 }
 
-TrackerElement& TrackerElement::operator^=(const uint8_t i) {
+TrackerElement& TrackerElement::operator^=(uint8_t i) {
     except_type_mismatch(TrackerUInt8);
     uint8_value ^= i;
     return *this;
 }
 
-TrackerElement& TrackerElement::operator^=(const int16_t i) {
+TrackerElement& TrackerElement::operator^=(int16_t i) {
     except_type_mismatch(TrackerInt16);
     int16_value ^= i;
     return *this;
 }
 
-TrackerElement& TrackerElement::operator^=(const uint16_t i) {
+TrackerElement& TrackerElement::operator^=(uint16_t i) {
     except_type_mismatch(TrackerUInt16);
     uint16_value ^= i;
     return *this;
 }
 
-TrackerElement& TrackerElement::operator^=(const int32_t i) {
+TrackerElement& TrackerElement::operator^=(int32_t i) {
     except_type_mismatch(TrackerInt32);
     int32_value ^= i;
     return *this;
 }
 
-TrackerElement& TrackerElement::operator^=(const uint32_t i) {
+TrackerElement& TrackerElement::operator^=(uint32_t i) {
     except_type_mismatch(TrackerUInt32);
     uint32_value ^= i;
     return *this;
 }
 
-TrackerElement& TrackerElement::operator^=(const int64_t i) {
+TrackerElement& TrackerElement::operator^=(int64_t i) {
     except_type_mismatch(TrackerInt64);
     int64_value ^= i;
     return *this;
 }
 
-TrackerElement& TrackerElement::operator^=(const uint64_t i) {
+TrackerElement& TrackerElement::operator^=(uint64_t i) {
     except_type_mismatch(TrackerUInt64);
     uint64_value ^= i;
     return *this;
 }
 
-TrackerElement *TrackerElement::operator[](const int i) {
+TrackerElement *TrackerElement::operator[](int i) {
     string w;
     map<int, TrackerElement *>::iterator itr;
 
@@ -596,7 +596,7 @@ TrackerElement *TrackerElement::operator[](const int i) {
     return NULL;
 }
 
-TrackerElement *TrackerElement::operator[](const mac_addr i) {
+TrackerElement *TrackerElement::operator[](mac_addr i) {
     except_type_mismatch(TrackerMacMap);
 
     mac_map_const_iterator itr = submacmap_value.find(i);
