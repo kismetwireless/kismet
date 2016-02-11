@@ -912,7 +912,16 @@ public:
 
 // dot11 packet components
 
-// Info from the IEEE 802.11 frame headers for kismet
+class dot11_packinfo_dot11d_entry {
+public:
+    uint32_t start_channel;
+    uint32_t num_channels;
+    uint32_t tx_power;
+};
+
+// Packet info decoded by the dot11 phy decoder
+// 
+// Injected into the packet chain and processed later into the device records
 class dot11_packinfo : public packet_component {
 public:
     dot11_packinfo() {
@@ -1015,11 +1024,11 @@ public:
 	uint32_t ietag_csum;
 
 	string dot11d_country;
-	vector<dot11_11d_range_info> dot11d_vec;
+	vector<dot11_packinfo_dot11d_entry> dot11d_vec;
 };
 
 
-class Kis_80211_Phy : public Kis_Phy_Handler {
+class Kis_80211_Phy : public Kis_Phy_Handler, public TimetrackerEvent {
 public:
 	// Stub
 	Kis_80211_Phy() { }
@@ -1067,9 +1076,6 @@ public:
 	// Dot11 tracker for building phy-specific elements
 	int TrackerDot11(kis_packet *in_pack);
 
-	// Timer events passed from Devicetracker
-	virtual int TimerKick();
-
 	int AddFilter(string in_filter);
 	int AddNetcliFilter(string in_filter);
 
@@ -1094,16 +1100,10 @@ public:
 
 	static string CryptToString(uint64_t cryptset);
 
+    virtual int TimerKick() { return 1; }
+
 protected:
 	int LoadWepkeys();
-
-	// Build a SSID record
-	dot11_tracked_ssid *BuildSSID(uint32_t ssid_csum,
-						  dot11_packinfo *packinfo,
-						  kis_packet *in_pack);
-
-	// Save the SSID cache
-	void SaveSSID();
 
 	map<mac_addr, string> bssid_cloak_map;
 
