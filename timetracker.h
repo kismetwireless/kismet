@@ -37,6 +37,8 @@
 #define TIMEEVENT_PARMS Timetracker::timer_event *evt __attribute__ ((unused)), \
     void *auxptr __attribute__ ((unused)), GlobalRegistry *globalreg __attribute__ ((unused))
 
+class TimetrackerEvent;
+
 class Timetracker {
 public:
     struct timer_event {
@@ -52,6 +54,10 @@ public:
         // Event is rescheduled again once it expires, if it's a timesliced event
         int recurring;
 
+        // Event, if we were passed a class
+        TimetrackerEvent *event;
+
+        // C function, if we weren't
         int (*callback)(timer_event *, void *, GlobalRegistry *);
         void *callback_parm;
     };
@@ -84,6 +90,9 @@ public:
                       int (*in_callback)(timer_event *, void *, GlobalRegistry *),
                       void *in_parm);
 
+    int RegisterTimer(int timeslices, struct timeval *in_trigger,
+            int in_recurring, TimetrackerEvent *event);
+
     // Remove a timer that's going to execute
     int RemoveTimer(int timer_id);
 
@@ -93,6 +102,16 @@ protected:
     int next_timer_id;
     map<int, timer_event *> timer_map;
     vector<timer_event *> sorted_timers;
+};
+
+class TimetrackerEvent {
+public:
+    // Called when event triggers
+    int timetracker_event(int event_id __attribute__ ((unused))) { return 0; };
+
+protected:
+    int timer_id;
+
 };
 
 #endif

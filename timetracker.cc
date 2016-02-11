@@ -55,13 +55,16 @@ int Timetracker::Tick() {
         if ((cur_tm.tv_sec < evt->trigger_tm.tv_sec) ||
             ((cur_tm.tv_sec == evt->trigger_tm.tv_sec) && 
 			 (cur_tm.tv_usec < evt->trigger_tm.tv_usec))) {
-			// fprintf(stderr, "debug - tick at %u %u - queue is all older\n", cur_tm.tv_sec, cur_tm.tv_usec);
             return 1;
 		}
 
         // Call the function with the given parameters
         int ret;
-        ret = (*evt->callback)(evt, evt->callback_parm, globalreg);
+        if (evt->callback != NULL) {
+            ret = (*evt->callback)(evt, evt->callback_parm, globalreg);
+        } else {
+            ret = evt->event->timetracker_event(evt->timer_id);
+        }
 
         if (ret > 0 && evt->timeslices != -1 && evt->recurring) {
             evt->schedule_tm.tv_sec = cur_tm.tv_sec;
@@ -109,6 +112,38 @@ int Timetracker::RegisterTimer(int in_timeslices, struct timeval *in_trigger,
     evt->recurring = in_recurring;
     evt->callback = in_callback;
     evt->callback_parm = in_parm;
+    evt->event = NULL;
+
+    timer_map[evt->timer_id] = evt;
+    sorted_timers.push_back(evt);
+
+    // Resort the list
+    stable_sort(sorted_timers.begin(), sorted_timers.end(), SortTimerEventsTrigger());
+
+    return evt->timer_id;
+}
+
+int Timetracker::RegisterTimer(int in_timeslices, struct timeval *in_trigger,
+        int in_recurring, TimetrackerEvent *in_event) {
+    timer_event *evt = new timer_event;
+
+    evt->timer_id = next_timer_id++;
+    gettimeofday(&(evt->schedule_tm), NULL);
+
+    if (in_trigger != NULL) {
+        evt->trigger_tm.tv_sec = in_trigger->tv_sec;
+        evt->trigger_tm.tv_usec = in_trigger->tv_usec;
+        evt->timeslices = -1;
+    } else {
+        evt->trigger_tm.tv_sec = evt->schedule_tm.tv_sec + (in_timeslices / 10);
+        evt->trigger_tm.tv_usec = evt->schedule_tm.tv_usec + (in_timeslices % 10);
+        evt->timeslices = in_timeslices;
+    }
+
+    evt->recurring = in_recurring;
+    evt->callback = NULL;
+    evt->callback_parm = NULL;
+    evt->event = in_event;
 
     timer_map[evt->timer_id] = evt;
     sorted_timers.push_back(evt);
