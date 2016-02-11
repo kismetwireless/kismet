@@ -36,7 +36,6 @@
 #include "packetchain.h"
 #include "kis_netframe.h"
 #include "timetracker.h"
-#include "netracker.h"
 #include "packet.h"
 
 class Channeltracker {

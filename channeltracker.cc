@@ -29,6 +29,7 @@
 #include "configfile.h"
 #include "channeltracker.h"
 #include "packetsourcetracker.h"
+#include "phy_80211.h"
 
 enum CHANNEL_fields {
 	CHANNEL_channel, CHANNEL_time_on, CHANNEL_packets, CHANNEL_packets_delta,
