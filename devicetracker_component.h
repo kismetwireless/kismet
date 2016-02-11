@@ -102,6 +102,17 @@ class tracker_component : public TrackerElement {
         (*cvar) -= (ptype) i; \
     }
 
+// Proxy sub-trackable (name, trackable type, class variable)
+#define __ProxyTrackable(name, ttype, cvar) \
+    ttype *get_##name() { return cvar; } \
+    void set_##name(ttype *in) { \
+        if (cvar != NULL) \
+            cvar->unlink(); \
+        cvar = in; \
+        cvar->link(); \
+    } 
+
+
 public:
     // Legacy
     tracker_component() {
@@ -167,7 +178,8 @@ public:
 
 protected:
     // Reserve a field via the entrytracker, using standard entrytracker build methods.
-    // This field will be automatically assigned or created during the reservefields stage.
+    // This field will be automatically assigned or created during the reservefields 
+    // stage.
     int RegisterField(string in_name, TrackerType in_type, string in_desc, 
             void **in_dest) {
         int id = tracker->RegisterField(in_name, in_type, in_desc);
@@ -179,10 +191,20 @@ protected:
         return id;
     }
 
+    // Reserve a field via the entrytracker, using standard entrytracker build methods,
+    // but do not assign or create during the reservefields stage.
+    // This can be used for registering sub-components of maps which are not directly
+    // instantiated as top-level fields.
+    int RegisterField(string in_name, TrackerType in_type, string in_desc) {
+        int id = tracker->RegisterField(in_name, in_type, in_desc);
+        return id;
+    }
+
     // Reserve a field via the entrytracker, using standard entrytracker build methods.
-    // This field will be automatically assigned or created during the reservefields stage.
-    // You will nearly always want to use registercomplex below since fields with specific 
-    //  builders typically want to inherit from a subtype
+    // This field will be automatically assigned or created during the reservefields 
+    // stage.
+    // You will nearly always want to use registercomplex below since fields with 
+    // specific builders typically want to inherit from a subtype
     int RegisterField(string in_name, TrackerElement *in_builder, string in_desc, 
             void **in_dest) {
         int id = tracker->RegisterField(in_name, in_builder, in_desc);
@@ -195,8 +217,8 @@ protected:
     }
 
     // Reserve a complex via the entrytracker, using standard entrytracker build methods.
-    // This field will NOT be automatically assigned or built during the reservefields stage,
-    //  callers should manually create these fields, importing from the parent
+    // This field will NOT be automatically assigned or built during the reservefields 
+    // stage, callers should manually create these fields, importing from the parent
     int RegisterComplexField(string in_name, TrackerElement *in_builder, string in_desc) {
         int id = tracker->RegisterField(in_name, in_builder, in_desc);
         return id;
@@ -210,8 +232,8 @@ protected:
     //  may contain a generic version of our data.
     // When populating from an existing structure, bind each field to this instance so
     //  that we can track usage and delete() appropriately.
-    // Populate automatically based on the fields we have reserved, subclasses can override
-    //  if they really need to do something special
+    // Populate automatically based on the fields we have reserved, subclasses can 
+    // override if they really need to do something special
     virtual void reserve_fields(TrackerElement *e) {
         for (unsigned int i = 0; i < registered_fields.size(); i++) {
             registered_field *rf = registered_fields[i];
