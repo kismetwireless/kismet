@@ -28,7 +28,6 @@
 #include "configfile.h"
 #include "messagebus.h"
 #include "dumpfile.h"
-#include "netracker.h"
 
 // Netxml bulk logger
 class Dumpfile_Netxml : public Dumpfile {

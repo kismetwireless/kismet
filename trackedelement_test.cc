@@ -160,7 +160,7 @@ int main(void) {
         TrackerElement *f = new TrackerElement(TrackerInt32);
         f->set(i);
 
-        *vec += f;
+        vec->add_vector(f);
     }
 
     TrackerElement *submap = new TrackerElement(TrackerMap);
@@ -197,6 +197,10 @@ int main(void) {
         printf("\\x%02x", str[x] & 0xFF);
     }
     printf("\n");
+
+    FILE *serbin = fopen("serialized.bin", "w+");
+    fwrite(buffer.str().c_str(), buffer.str().length(), 1, serbin);
+    fclose(serbin);
 
     msgpack::unpacked result;
 

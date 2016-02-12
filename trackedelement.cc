@@ -283,15 +283,6 @@ TrackerElement& TrackerElement::operator+=(const unsigned int& v) {
     return *this;
 }
 
-TrackerElement& TrackerElement::operator+=(const TrackerElement* v) {
-    if (type == TrackerVector) 
-        subvector_value.push_back(v); 
-    else
-        throw std::runtime_error("Can't append an element to " + type_to_string(type));
-
-    return *this;
-}
-
 TrackerElement& TrackerElement::operator+=(const int64_t& i) {
     except_type_mismatch(TrackerInt64);
     int64_value += i;

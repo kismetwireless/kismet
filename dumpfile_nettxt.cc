@@ -25,7 +25,6 @@
 #include "dumpfile_nettxt.h"
 #include "packetsource.h"
 #include "packetsourcetracker.h"
-#include "netracker.h"
 
 Dumpfile_Nettxt::Dumpfile_Nettxt() {
 	fprintf(stderr, "FATAL OOPS: Dumpfile_Nettxt called with no globalreg\n");
@@ -91,6 +90,7 @@ Dumpfile_Nettxt::~Dumpfile_Nettxt() {
 }
 
 int Dumpfile_Nettxt::Flush() {
+#if 0
 	if (txtfile != NULL)
 		fclose(txtfile);
 
@@ -657,6 +657,7 @@ int Dumpfile_Nettxt::Flush() {
 
 	dumped_frames = netnum;
 
+#endif
 	return 1;
 }
 

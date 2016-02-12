@@ -85,6 +85,7 @@ Dumpfile_Netxml::~Dumpfile_Netxml() {
 }
 
 int Dumpfile_Netxml::Flush() {
+#if 0
 	if (xmlfile != NULL)
 		fclose(xmlfile);
 
@@ -809,6 +810,8 @@ int Dumpfile_Netxml::Flush() {
 	}
 
 	dumped_frames = netnum;
+
+#endif
 
 	return 1;
 }

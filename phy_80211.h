@@ -914,9 +914,9 @@ public:
 
 class dot11_packinfo_dot11d_entry {
 public:
-    uint32_t start_channel;
-    uint32_t num_channels;
-    uint32_t tx_power;
+    uint32_t startchan;
+    uint32_t numchan;
+    uint32_t txpower;
 };
 
 // Packet info decoded by the dot11 phy decoder
@@ -1082,13 +1082,6 @@ public:
 	void SetStringExtract(int in_extr);
 
 	void AddWepKey(mac_addr bssid, uint8_t *key, unsigned int len, int temp);
-
-    // Legacy code for exporting specific sentences
-	virtual void BlitDevices(int in_fd, vector<kis_tracked_device_base *> *devlist);
-
-	void EnableDot11Dev(int in_fd);
-	void EnableDot11Ssid(int in_fd);
-	void EnableDot11Client(int in_fd);
 
 	virtual void ExportLogRecord(kis_tracked_device_base *in_device, string in_logtype, 
 								 FILE *in_logfile, int in_lineindent);

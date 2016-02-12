@@ -356,9 +356,6 @@ public:
     TrackerElement& operator+=(const int64_t& v);
     TrackerElement& operator+=(const uint64_t& v);
 
-    // We can append to vectors
-    TrackerElement& operator+=(const TrackerElement* v);
-
     // Do our best to do compound subtraction
     TrackerElement& operator-=(const int& v);
     TrackerElement& operator-=(const unsigned int& v);

@@ -736,7 +736,7 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
 
 					// We don't have to check taglen since we check that above
 					for (unsigned int p = 3; p + 3 <= taglen; p += 3) {
-						dot11_11d_range_info ri;
+                        dot11_packinfo_dot11d_entry ri;
 
 						ri.startchan = chunk->data[tag_offset + p];
 						ri.numchan = chunk->data[tag_offset + p + 1];

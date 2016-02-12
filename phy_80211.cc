@@ -290,6 +290,7 @@ int Kis_80211_Phy::LoadWepkeys() {
 	return 1;
 }
 
+#if 0
 dot11_ssid *Kis_80211_Phy::BuildSSID(uint32_t ssid_csum, 
 									 dot11_packinfo *packinfo,
 									 kis_packet *in_pack) {
@@ -422,6 +423,7 @@ dot11_ssid *Kis_80211_Phy::BuildSSID(uint32_t ssid_csum,
 
 	return adssid;
 }
+#endif
 
 int Kis_80211_Phy::ClassifierDot11(kis_packet *in_pack) {
 	// Get the 802.11 info
@@ -553,6 +555,7 @@ void Kis_80211_Phy::AddWepKey(mac_addr bssid, uint8_t *key, unsigned int len,
 }
 
 // This gets called to send all the phy-specific dirty devices
+#if 0
 void Kis_80211_Phy::BlitDevices(int in_fd, vector<kis_tracked_device *> *devlist) {
 	dot11_device *dot11dev = NULL;
 
@@ -608,67 +611,10 @@ void Kis_80211_Phy::BlitDevices(int in_fd, vector<kis_tracked_device *> *devlist
 
 	}
 }
-
-void Kis_80211_Phy::EnableDot11Dev(int in_fd) {
-	dot11_device *dot11dev = NULL;
-	vector<kis_tracked_device *> *devlist = devicetracker->FetchDevices(phyid);
-
-	for (unsigned int x = 0; x < devlist->size(); x++) {
-		kis_protocol_cache cache;
-
-		dot11dev = (dot11_device *) (*devlist)[x]->fetch(dev_comp_dot11);
-
-		if (dot11dev == NULL)
-			continue;
-
-		globalreg->kisnetserver->SendToClient(in_fd, proto_ref_device,
-											  (void *) dot11dev, &cache);
-	}
-}
-
-void Kis_80211_Phy::EnableDot11Ssid(int in_fd) {
-	dot11_device *dot11dev = NULL;
-	vector<kis_tracked_device *> *devlist = devicetracker->FetchDevices(phyid);
-
-	for (unsigned int x = 0; x < devlist->size(); x++) {
-		dot11dev = (dot11_device *) (*devlist)[x]->fetch(dev_comp_dot11);
-
-		if (dot11dev == NULL)
-			continue;
-
-		for (map<uint32_t, dot11_ssid *>::iterator i = 
-			 dot11dev->ssid_map.begin(); i != dot11dev->ssid_map.end();
-			 ++i) {
-			kis_protocol_cache cache;
-
-			globalreg->kisnetserver->SendToClient(in_fd, proto_ref_ssid,
-												  (void *) i->second, &cache);
-		}
-	}
-}
-
-void Kis_80211_Phy::EnableDot11Client(int in_fd) {
-	dot11_device *dot11dev = NULL;
-	vector<kis_tracked_device *> *devlist = devicetracker->FetchDevices(phyid);
-
-	for (unsigned int x = 0; x < devlist->size(); x++) {
-		dot11dev = (dot11_device *) (*devlist)[x]->fetch(dev_comp_dot11);
-
-		if (dot11dev == NULL)
-			continue;
-
-		for (map<mac_addr, dot11_client *>::iterator i =
-			 dot11dev->client_map.begin(); i != dot11dev->client_map.end();
-			 ++i) {
-			kis_protocol_cache cache;
-
-			globalreg->kisnetserver->SendToClient(in_fd, proto_ref_client,
-												  (void *) i->second, &cache);
-		}
-	}
-}
+#endif
 
 int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
+#if 0
 	dot11_device *net = NULL;
 	dot11_device *dot11dev = NULL;
 	dot11_client *cli = NULL;
@@ -1585,13 +1531,14 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 										   dot11info->other_mac, 
 										   dot11info->channel, al);
 	}
+#endif
 
 	return 1;
 }
 
-void Kis_80211_Phy::ExportLogRecord(kis_tracked_device *in_device, string in_logtype, 
-								FILE *in_logfile, int in_lineindent) {
-
+void Kis_80211_Phy::ExportLogRecord(kis_tracked_device_base *in_device, 
+        string in_logtype, FILE *in_logfile, int in_lineindent) {
+#if 0
 	dot11_device *dot11dev = 
 		(dot11_device *) in_device->fetch(dev_comp_dot11);
 
@@ -2021,6 +1968,7 @@ void Kis_80211_Phy::ExportLogRecord(kis_tracked_device *in_device, string in_log
 		}
 
 	} 
+#endif
 
 	return;
 }

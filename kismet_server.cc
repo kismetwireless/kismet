@@ -73,7 +73,7 @@
 
 #include "gpswrapper.h"
 
-#include "netracker.h"
+// #include "netracker.h"
 #include "devicetracker.h"
 #include "phy_80211.h"
 
@@ -149,6 +149,7 @@ const char *CRITFAIL_fields_text[] = {
 	"id", "time", "message", NULL
 };
 
+#if 0
 int Protocol_INFO(PROTO_PARMS) {
 	ostringstream osstr;
 	int num_error;
@@ -236,6 +237,7 @@ int Protocol_INFO(PROTO_PARMS) {
 
     return 1;
 }
+#endif
 
 int Protocol_BATTERY(PROTO_PARMS) {
 	kis_battery_info *b = (kis_battery_info *) data;
@@ -533,10 +535,12 @@ void CatchShutdown(int sig) {
 
 	globalregistry->pcapdump = NULL;
 
+    /*
 	if (globalregistry->netracker != NULL) {
 		delete globalregistry->netracker;
 		globalregistry->netracker = NULL;
 	}
+    */
 
 	if (globalregistry->devicetracker != NULL) {
 		delete globalregistry->devicetracker;
@@ -622,8 +626,8 @@ int Usage(char *argv) {
 	printf("\n");
 	Packetsourcetracker::Usage(argv);
 	printf("\n");
-	Netracker::Usage(argv);
-	printf("\n");
+	//Netracker::Usage(argv);
+	// printf("\n");
 	GpsWrapper::Usage(argv);
 
 	exit(1);
@@ -1171,6 +1175,7 @@ int main(int argc, char *argv[], char *envp[]) {
 		CatchShutdown(-1);
 
 	// Create the network tracker
+    /*
 	if (conf->FetchOptBoolean("disablenettracker", 0) == 0) {
 		globalregistry->messagebus->InjectMessage("Creating network tracker...",
 												  MSGFLAG_INFO);
@@ -1181,6 +1186,7 @@ int main(int argc, char *argv[], char *envp[]) {
 		_MSG("Disabling deprecated nettracker core; this will disable some "
 			 "protocols and log files.", MSGFLAG_INFO);
 	}
+    */
 
 	// Create the channel tracker
 	globalregistry->messagebus->InjectMessage("Creating channel tracker...",
@@ -1255,6 +1261,7 @@ int main(int argc, char *argv[], char *envp[]) {
 	crc32_init_table_80211(globalregistry->crc32_table);
 
 	/* Register the info protocol */
+    /*
 	if (globalreg->netracker != NULL) {
 		_NPM(PROTO_REF_INFO) =
 			globalregistry->kisnetserver->RegisterProtocol("INFO", 0, 1,
@@ -1264,6 +1271,7 @@ int main(int argc, char *argv[], char *envp[]) {
 		_MSG("Old nettracker core disabled, disabling deprecated *INFO sentence",
 			 MSGFLAG_INFO);
 	}
+    */
 
 	battery_proto_ref =
 		globalregistry->kisnetserver->RegisterProtocol("BATTERY", 0, 1,
