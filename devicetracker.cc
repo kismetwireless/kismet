@@ -1157,7 +1157,7 @@ template<>
                         o.pack_map(tmap->size());
                         for (map_iter = tmap->begin(); map_iter != tmap->end(); 
                                 ++map_iter) {
-                            o.pack(entrytracker->GetFieldName(map_iter->first));
+                            o.pack(map_iter->first);
                             o.pack(map_iter->second);
 
                         }
