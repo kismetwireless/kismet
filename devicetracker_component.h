@@ -49,7 +49,18 @@
 
 class Packinfo_Sig_Combo;
 
-// Basic unit being tracked in a tracked device
+// Basic unit being tracked in a tracked device.
+//
+// All basic units are build from maps.
+//
+// Sub-classes must initialize sub-fields by calling register_fields() in their
+// constructors.  The register_fields() function is responsible for defining the
+// types and builders, and recording the field_ids for all sub-fields and nested 
+// components.
+//
+// Fields are allocated via the reserve_fields function, which must be called before
+// use of the component.  By passing an existing trackermap object, a parsed tree
+// can be annealed into the c++ representation without copying/re-parsing the data.
 class tracker_component : public TrackerElement {
 
 // Ugly trackercomponent macro for proxying trackerelement values
@@ -114,54 +125,37 @@ class tracker_component : public TrackerElement {
 
 
 public:
-    // Legacy
+    // Legacy, won't populate tracker or gloablreg so something is wrong
+    // if we end up here
     tracker_component() {
-        fprintf(stderr, "debug - legacy tracker_component() called\n");
+        // fprintf(stderr, "debug - legacy tracker_component() called\n");
         set_type(TrackerMap);
-        self_destruct = 1; 
-
-        register_fields();
-        reserve_fields(NULL);
 
         tracker = NULL;
         globalreg = NULL;
     }
 
-	tracker_component(GlobalRegistry *in_globalreg) { 
-        globalreg = in_globalreg;
-        tracker = in_globalreg->entrytracker;
-
-        set_type(TrackerMap);
-
-        register_fields();
-        reserve_fields(NULL);
-
-        self_destruct = 1; 
-    }
-
+    // Build a basic component.  All basic components are maps.
+    // Set the field id automatically.
     tracker_component(GlobalRegistry *in_globalreg, int in_id) {
+        // printf("debug - tracker_component(globalreg, id=%d)\n", in_id);
+
         globalreg = in_globalreg;
         tracker = in_globalreg->entrytracker;
 
         set_type(TrackerMap);
         set_id(in_id);
-
-        register_fields();
-        reserve_fields(NULL);
-
-        self_destruct = 1;
     }
 
-    tracker_component(GlobalRegistry *in_globalreg, TrackerElement *e) {
+    // Build a component with existing map
+    tracker_component(GlobalRegistry *in_globalreg, int in_id, TrackerElement *e) {
+        // printf("debug - tracker_component(globalreg, id=%d, te=%p\n", in_id, e);
+
         globalreg = in_globalreg;
         tracker = in_globalreg->entrytracker;
 
         set_type(TrackerMap);
-
-        register_fields();
-        reserve_fields(e);
-
-        self_destruct = 1;
+        set_id(in_id);
     }
 
 	virtual ~tracker_component() { 
@@ -170,11 +164,23 @@ public:
         }
     }
 
-    virtual TrackerElement *clone() {
+    // Clones the type and preserves that we're a tracker component.  
+    // Complex subclasses will replace this to function as builders of
+    // their own complex types.
+    virtual TrackerElement *clone_type() {
+        // printf("debug - clone()ing trackerelement id %d\n", get_id());
         return new tracker_component(globalreg, get_id());
     }
 
-	int self_destruct;
+    // Return the name via the entrytracker
+    virtual string get_name() {
+        return globalreg->entrytracker->GetFieldName(get_id());
+    }
+
+    // Proxy getting any name via entry tracker
+    virtual string get_name(int in_id) {
+        return globalreg->entrytracker->GetFieldName(in_id);
+    }
 
 protected:
     // Reserve a field via the entrytracker, using standard entrytracker build methods.
@@ -188,6 +194,8 @@ protected:
 
         registered_fields.push_back(rf);
 
+        // printf("debug - tracker_component registered field '%s' id %u\n", in_name.c_str(), id);
+
         return id;
     }
 
@@ -197,6 +205,9 @@ protected:
     // instantiated as top-level fields.
     int RegisterField(string in_name, TrackerType in_type, string in_desc) {
         int id = tracker->RegisterField(in_name, in_type, in_desc);
+
+        // printf("debug - tracker_component registered field w/out adding to builder, '%s' id %d\n", in_name.c_str(), id);
+
         return id;
     }
 
@@ -213,6 +224,8 @@ protected:
 
         registered_fields.push_back(rf);
 
+        // printf("debug - registered field '%s' id %u\n", in_name.c_str(), id);
+
         return id;
     }
 
@@ -221,12 +234,15 @@ protected:
     // stage, callers should manually create these fields, importing from the parent
     int RegisterComplexField(string in_name, TrackerElement *in_builder, string in_desc) {
         int id = tracker->RegisterField(in_name, in_builder, in_desc);
+        // printf("debug - registered complex field '%s' id %u\n", in_name.c_str(), id);
         return id;
     }
 
     // Register field types and get a field ID.  Called during record creation, prior to 
     // assigning an existing trackerelement tree or creating a new one
-    virtual void register_fields() { }
+    virtual void register_fields() { 
+        // printf("debug - tracker_component register_fields()\n");
+    }
 
     // Populate fields - either new (e == NULL) or from an existing structure which
     //  may contain a generic version of our data.
@@ -235,9 +251,16 @@ protected:
     // Populate automatically based on the fields we have reserved, subclasses can 
     // override if they really need to do something special
     virtual void reserve_fields(TrackerElement *e) {
+        // printf("debug - tracker_component reserve_fields()\n");
+
         for (unsigned int i = 0; i < registered_fields.size(); i++) {
             registered_field *rf = registered_fields[i];
-            *(rf->assign) = import_or_new(e, rf->id);
+
+            if (rf->assign != NULL) {
+                *(rf->assign) = import_or_new(e, rf->id);
+            } else {
+                // printf("debug - tracker_component reserve_fields id %d has no assignment, skipping\n", rf->id);
+            }
         }
     }
 
@@ -251,11 +274,15 @@ protected:
             r = e->get_map_value(i);
 
             if (r != NULL) {
+                // printf("debug - found id %d, importing\n", i);
+                // Added directly as a trackedelement of the right type and id
                 add_map(r);
+                // Return existing item
                 return r;
             }
         }
 
+        // printf("debug - didn't find id %d in %p, creating new\n", i, e);
         r = tracker->GetTrackedInstance(i);
         add_map(r);
 
@@ -292,22 +319,21 @@ enum kis_ipdata_type {
 // New component-based ip data
 class kis_tracked_ip_data : public tracker_component {
 public:
-    kis_tracked_ip_data(GlobalRegistry *in_globalreg) : 
-        tracker_component(in_globalreg) { }
-
+    // Since we're a subclass we're responsible for initializing our fields
     kis_tracked_ip_data(GlobalRegistry *in_globalreg, int in_id) : 
-        tracker_component(in_globalreg, in_id) { } 
+        tracker_component(in_globalreg, in_id) {
+        register_fields();
+        reserve_fields(NULL);
+    } 
 
-    // Inherit from an existing non-specific tracked set of records - point at the parent node
-    // of a common ipdata record
-    kis_tracked_ip_data(GlobalRegistry *in_globalreg, TrackerElement *e) : 
-        tracker_component(in_globalreg) {
-
+    // Since we're a subclass, we're responsible for initializing our fields
+    kis_tracked_ip_data(GlobalRegistry *in_globalreg, int in_id, TrackerElement *e) : 
+        tracker_component(in_globalreg, in_id) {
         register_fields();
         reserve_fields(e);
     }
 
-    virtual TrackerElement *clone() {
+    virtual TrackerElement *clone_type() {
         return new kis_tracked_ip_data(globalreg, get_id());
     }
 
@@ -343,19 +369,21 @@ protected:
 // Component-tracker common GPS element
 class kis_tracked_location_triplet : public tracker_component {
 public:
-    kis_tracked_location_triplet(GlobalRegistry *in_globalreg) : tracker_component(in_globalreg) { }
-
     kis_tracked_location_triplet(GlobalRegistry *in_globalreg, int in_id) : 
-        tracker_component(in_globalreg, in_id) { } 
+        tracker_component(in_globalreg, in_id) {
+        register_fields();
+        reserve_fields(NULL);
+    } 
 
-    kis_tracked_location_triplet(GlobalRegistry *in_globalreg, TrackerElement *e) : 
-        tracker_component(in_globalreg) {
+    kis_tracked_location_triplet(GlobalRegistry *in_globalreg, int in_id,
+            TrackerElement *e) : 
+        tracker_component(in_globalreg, in_id) {
 
         register_fields();
         reserve_fields(e);
     }
 
-    virtual TrackerElement *clone() {
+    virtual TrackerElement *clone_type() {
         return new kis_tracked_location_triplet(globalreg, get_id());
     }
 
@@ -425,22 +453,23 @@ class kis_tracked_location : public tracker_component {
 public:
     const static int precision_multiplier = 10000;
 
-    kis_tracked_location(GlobalRegistry *in_globalreg) : 
-        tracker_component(in_globalreg) { }
-
     kis_tracked_location(GlobalRegistry *in_globalreg, int in_id) :
-        tracker_component(in_globalreg, in_id) { }
-
-    virtual TrackerElement *clone() {
-        return new kis_tracked_location(globalreg, get_id());
+        tracker_component(in_globalreg, in_id) { 
+        register_fields();
+        reserve_fields(NULL);
     }
 
-    kis_tracked_location(GlobalRegistry *in_globalreg, TrackerElement *e) : 
-        tracker_component(in_globalreg) {
+    kis_tracked_location(GlobalRegistry *in_globalreg, int in_id, TrackerElement *e) : 
+        tracker_component(in_globalreg, in_id) {
 
         register_fields();
         reserve_fields(e);
     }
+
+    virtual TrackerElement *clone_type() {
+        return new kis_tracked_location(globalreg, get_id());
+    }
+
 
     void add_loc(double in_lat, double in_lon, double in_alt, unsigned int fix) {
         set_valid(1);
@@ -511,7 +540,8 @@ public:
 
 protected:
     virtual void register_fields() {
-        kis_tracked_location_triplet *loc_builder = new kis_tracked_location_triplet(globalreg, 0);
+        kis_tracked_location_triplet *loc_builder = 
+            new kis_tracked_location_triplet(globalreg, 0);
 
         loc_valid_id = RegisterField("kismet.common.location.loc_valid", TrackerUInt8,
                 "location data valid", (void **) &loc_valid);
@@ -534,19 +564,30 @@ protected:
                 "run-time average altitude", (void **) &avg_alt);
         num_avg_id = RegisterField("kismet.common.location.avg_num", TrackerUInt64,
                 "number of run-time average samples", (void **) &num_avg);
-        num_alt_avg_id = RegisterField("kismet.common.location.avg_alt_num", TrackerUInt64,
+        num_alt_avg_id = RegisterField("kismet.common.location.avg_alt_num", 
+                TrackerUInt64,
                 "number of run-time average samples (altitude)", (void **) &num_alt_avg);
 
     }
 
-    // We have to override this because we need to build our complex types on top of the 
-    // automatic types we get from tracker_component
+    // We override this to nest our complex structures on top; we can be created
+    // over a standard trackerelement map and inherit its sub-maps directly
+    // into locations
     virtual void reserve_fields(TrackerElement *e) {
         tracker_component::reserve_fields(e);
 
-        min_loc = new kis_tracked_location_triplet(globalreg, e->get_map_value(min_loc_id));
-        max_loc = new kis_tracked_location_triplet(globalreg, e->get_map_value(max_loc_id));
-        avg_loc = new kis_tracked_location_triplet(globalreg, e->get_map_value(avg_loc_id));
+        if (e != NULL) {
+            min_loc = new kis_tracked_location_triplet(globalreg, min_loc_id,
+                    e->get_map_value(min_loc_id));
+            max_loc = new kis_tracked_location_triplet(globalreg, max_loc_id,
+                    e->get_map_value(max_loc_id));
+            avg_loc = new kis_tracked_location_triplet(globalreg, avg_loc_id,
+                    e->get_map_value(avg_loc_id));
+        } else {
+            min_loc = new kis_tracked_location_triplet(globalreg, min_loc_id);
+            max_loc = new kis_tracked_location_triplet(globalreg, max_loc_id);
+            avg_loc = new kis_tracked_location_triplet(globalreg, avg_loc_id);
+        }
     }
 
     kis_tracked_location_triplet *min_loc, *max_loc, *avg_loc;
@@ -566,21 +607,20 @@ protected:
 // TODO operator overloading once rssi/dbm fixed upstream
 class kis_tracked_signal_data : public tracker_component {
 public:
-    kis_tracked_signal_data(GlobalRegistry *in_globalreg) : tracker_component(in_globalreg) { }
-
     kis_tracked_signal_data(GlobalRegistry *in_globalreg, int in_id) : 
-        tracker_component(in_globalreg, in_id) { } 
+        tracker_component(in_globalreg, in_id) {
+        register_fields();
+        reserve_fields(NULL);      
+    } 
 
-    // Inherit from an existing non-specific tracked set of records - point at the parent node
-    // of a common ipdata record
-    kis_tracked_signal_data(GlobalRegistry *in_globalreg, TrackerElement *e) : 
-        tracker_component(in_globalreg) {
+    kis_tracked_signal_data(GlobalRegistry *in_globalreg, int in_id, TrackerElement *e) : 
+        tracker_component(in_globalreg, in_id) {
 
         register_fields();
         reserve_fields(e);
     }
 
-    virtual TrackerElement *clone() {
+    virtual TrackerElement *clone_type() {
         return new kis_tracked_signal_data(globalreg, get_id());
     }
 
@@ -601,7 +641,8 @@ public:
                         max_signal_dbm->set((int32_t) in.lay1->signal_dbm);
 
                         if (in.gps != NULL) {
-                            peak_loc->set(in.gps->lat, in.gps->lon, in.gps->alt, in.gps->gps_fix);
+                            peak_loc->set(in.gps->lat, in.gps->lon, in.gps->alt, 
+                                    in.gps->gps_fix);
                         }
                     }
                 }
@@ -633,7 +674,8 @@ public:
                         max_signal_rssi->set((int32_t) in.lay1->signal_rssi);
 
                         if (in.gps != NULL) {
-                            peak_loc->set(in.gps->lat, in.gps->lon, in.gps->alt, in.gps->gps_fix);
+                            peak_loc->set(in.gps->lat, in.gps->lon, in.gps->alt, 
+                                    in.gps->gps_fix);
                         }
                     }
                 }
@@ -701,7 +743,7 @@ protected:
                     "minimum signal (dBm)", (void **) &min_signal_dbm);
         min_noise_dbm_id =
             RegisterField("kismet.common.signal.min_noise_dbm", TrackerInt32,
-                    "minimum noise (dBm)", (void **) min_noise_dbm);
+                    "minimum noise (dBm)", (void **) &min_noise_dbm);
 
         max_signal_dbm_id =
             RegisterField("kismet.common.signal.max_signal_dbm", TrackerInt32,
@@ -732,7 +774,8 @@ protected:
                     "maximum noise (RSSI)", (void **) &max_noise_rssi);
 
 
-        kis_tracked_location_triplet *loc_builder = new kis_tracked_location_triplet(globalreg, 0);
+        kis_tracked_location_triplet *loc_builder = 
+            new kis_tracked_location_triplet(globalreg, 0);
         peak_loc_id = 
             RegisterComplexField("kismet.common.signal.peak_loc", loc_builder,
                     "location of strongest signal");
@@ -750,7 +793,13 @@ protected:
 
     virtual void reserve_fields(TrackerElement *e) {
         tracker_component::reserve_fields(e);
-        peak_loc = new kis_tracked_location_triplet(globalreg, e->get_map_value(peak_loc_id));
+
+        if (e != NULL) {
+            peak_loc = new kis_tracked_location_triplet(globalreg, peak_loc_id,
+                    e->get_map_value(peak_loc_id)); 
+        } else {
+            peak_loc = new kis_tracked_location_triplet(globalreg, peak_loc_id);
+        }
     }
 
     int last_signal_dbm_id, last_noise_dbm_id,
@@ -779,24 +828,24 @@ protected:
 
 class kis_tracked_seenby_data : public tracker_component {
 public:
-    kis_tracked_seenby_data(GlobalRegistry *in_globalreg) : tracker_component(in_globalreg) { }
-
     kis_tracked_seenby_data(GlobalRegistry *in_globalreg, int in_id) : 
-        tracker_component(in_globalreg, in_id) { } 
+        tracker_component(in_globalreg, in_id) { 
+        register_fields();
+        reserve_fields(NULL);
+    } 
 
-    virtual TrackerElement *clone() {
-
-        return new kis_tracked_signal_data(globalreg, get_id());
-    }
-
-    kis_tracked_seenby_data(GlobalRegistry *in_globalreg, TrackerElement *e) : 
-        tracker_component(in_globalreg) {
+    kis_tracked_seenby_data(GlobalRegistry *in_globalreg, int in_id, TrackerElement *e) : 
+        tracker_component(in_globalreg, in_id) {
 
         register_fields();
         reserve_fields(e);
     }
 
-    __Proxy(uuid, uuid, uuid, uuid, src_uuid);
+    virtual TrackerElement *clone_type() {
+        return new kis_tracked_signal_data(globalreg, get_id());
+    }
+
+    __Proxy(src_uuid, uuid, uuid, uuid, src_uuid);
     __Proxy(first_time, uint64_t, time_t, time_t, first_time);
     __Proxy(last_time, uint64_t, time_t, time_t, last_time);
     __Proxy(num_packets, uint64_t, uint64_t, uint64_t, num_packets);
@@ -809,7 +858,8 @@ public:
         TrackerElement::map_iterator i = freq_mhz_map->find(frequency);
 
         if (i == freq_mhz_map->end()) {
-            TrackerElement *e = globalreg->entrytracker->GetTrackedInstance(frequency_val_id);
+            TrackerElement *e = 
+                globalreg->entrytracker->GetTrackedInstance(frequency_val_id);
             e->set((uint64_t) 1);
             freq_mhz_map->add_intmap(frequency, e);
         } else {
@@ -861,21 +911,23 @@ protected:
 // Arbitrary tag data added to network
 class kis_tracked_tag : public tracker_component {
 public:
-    kis_tracked_tag(GlobalRegistry *in_globalreg) : tracker_component(in_globalreg) { }
-
     kis_tracked_tag(GlobalRegistry *in_globalreg, int in_id) :
-        tracker_component(in_globalreg, in_id) { }
-
-    virtual TrackerElement *clone() {
-        return new kis_tracked_tag(globalreg, get_id());
+        tracker_component(in_globalreg, in_id) { 
+        register_fields();
+        reserve_fields(NULL);
     }
 
-    kis_tracked_tag(GlobalRegistry *in_globalreg, TrackerElement *e) : 
-        tracker_component(in_globalreg) {
+    kis_tracked_tag(GlobalRegistry *in_globalreg, int in_id, TrackerElement *e) : 
+        tracker_component(in_globalreg, in_id) {
 
         register_fields();
         reserve_fields(e);
     }
+
+    virtual TrackerElement *clone_type() {
+        return new kis_tracked_tag(globalreg, get_id());
+    }
+
 
     __Proxy(value, string, string, string, value);
     __Proxy(dirty, uint8_t, bool, bool, dirty);

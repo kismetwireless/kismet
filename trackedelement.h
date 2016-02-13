@@ -82,12 +82,12 @@ public:
     virtual ~TrackerElement();
 
     // Factory-style for easily making more of the same if we're subclassed
-    virtual TrackerElement *clone() {
+    virtual TrackerElement *clone_type() {
         return new TrackerElement(get_type(), get_id());
     }
 
-    virtual TrackerElement *clone(int in_id) {
-        TrackerElement *dupl = clone();
+    virtual TrackerElement *clone_type(int in_id) {
+        TrackerElement *dupl = clone_type();
         dupl->set_id(in_id);
 
         return dupl;

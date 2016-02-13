@@ -94,21 +94,32 @@ class Devicetracker;
 // Base of all device tracking under the new trackerentry system
 class kis_tracked_device_base : public tracker_component {
 public:
-    kis_tracked_device_base(GlobalRegistry *in_globalreg) : tracker_component(in_globalreg) {
+    kis_tracked_device_base(GlobalRegistry *in_globalreg, int in_id) :
+        tracker_component(in_globalreg, in_id) { 
+
         dirty = false;
+
+        // printf("debug - kis_tracked_device_base(globalreg, id=%d)\n", in_id);
+        register_fields();
+        reserve_fields(NULL);
     }
 
-    kis_tracked_device_base(GlobalRegistry *in_globalreg, TrackerElement *e) : 
-        tracker_component(in_globalreg) {
+    kis_tracked_device_base(GlobalRegistry *in_globalreg, int in_id, 
+            TrackerElement *e) : tracker_component(in_globalreg, in_id) {
 
         dirty = false;
 
+        // printf("debug - kis_tracked_device_base(globalreg, id=%d, element=%p)\n", in_id, e);
         register_fields();
         reserve_fields(e);
     }
 
-    __Proxy(key, uint64_t, uint64_t, uint64_t, key);
-    __ProxySet(key, uint64_t, mac_addr, key);
+    virtual TrackerElement *clone_type() {
+        // printf("debug - clone()ing a kis_tracked_device_base\n");
+        return new kis_tracked_device_base(globalreg, get_id());
+    }
+
+    __Proxy(key, mac_addr, mac_addr, mac_addr, key);
 
     __Proxy(macaddr, mac_addr, mac_addr, mac_addr, macaddr);
     
@@ -194,7 +205,8 @@ public:
         TrackerElement::map_iterator i = freq_mhz_map->find(frequency);
 
         if (i == freq_mhz_map->end()) {
-            TrackerElement *e = globalreg->entrytracker->GetTrackedInstance(frequency_val_id);
+            TrackerElement *e = 
+                globalreg->entrytracker->GetTrackedInstance(frequency_val_id);
             e->set((uint64_t) 1);
             freq_mhz_map->add_intmap(frequency, e);
         } else {
@@ -202,7 +214,9 @@ public:
         }
     }
 
-    kis_tracked_seenby_data *get_seenby_map() { return (kis_tracked_seenby_data *) seenby_map; }
+    kis_tracked_seenby_data *get_seenby_map() { 
+        return (kis_tracked_seenby_data *) seenby_map; 
+    }
 
     void inc_seenby_count(KisPacketSource *source, time_t tv_sec, int frequency) {
         TrackerElement::map_iterator seenby_iter;
@@ -212,10 +226,10 @@ public:
 
         // Make a new seenby record
         if (seenby_iter == seenby_map->end()) {
-            seenby = 
-                (kis_tracked_seenby_data *) globalreg->entrytracker->GetTrackedInstance(seenby_val_id);
+            seenby = new kis_tracked_seenby_data(globalreg, seenby_val_id);
+                // (kis_tracked_seenby_data *) entrytracker->GetTrackedInstance(seenby_val_id);
 
-            seenby->set_uuid(source->FetchUUID());
+            seenby->set_src_uuid(source->FetchUUID());
             seenby->set_first_time(tv_sec);
             seenby->set_last_time(tv_sec);
             seenby->set_num_packets(1);
@@ -236,8 +250,12 @@ public:
 
 protected:
     virtual void register_fields() {
+        tracker_component::register_fields();
+
+        // printf("debug - kis_tracked_device_base register_fields\n");
+
         key_id =
-            RegisterField("kismet.device.base.key", TrackerUInt64,
+            RegisterField("kismet.device.base.key", TrackerMac,
                     "unique integer key", (void **) &key);
 
         macaddr_id =
@@ -363,9 +381,20 @@ protected:
     virtual void reserve_fields(TrackerElement *e) {
         tracker_component::reserve_fields(e);
 
-        signal_data = new kis_tracked_signal_data(globalreg, e->get_map_value(signal_data_id));
-        tag = new kis_tracked_tag(globalreg, e->get_map_value(tag_id));
-        location = new kis_tracked_location(globalreg, e->get_map_value(location_id));
+        // printf("debug - kis_tracked_device_base reservefields seed %p\n", e);
+
+        if (e != NULL) {
+            signal_data = new kis_tracked_signal_data(globalreg, signal_data_id,
+                    e->get_map_value(signal_data_id));
+            tag = new kis_tracked_tag(globalreg, tag_id,
+                    e->get_map_value(tag_id));
+            location = new kis_tracked_location(globalreg, location_id,
+                    e->get_map_value(location_id));
+        } else {
+            signal_data = new kis_tracked_signal_data(globalreg, signal_data_id);
+            tag = new kis_tracked_tag(globalreg, tag_id);
+            location = new kis_tracked_location(globalreg, location_id);
+        }
     }
 
 

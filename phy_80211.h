@@ -75,21 +75,22 @@ enum dot11_ssid_type {
 
 class dot11_11d_tracked_range_info : public tracker_component {
 public:
-    dot11_11d_tracked_range_info(GlobalRegistry *in_globalreg) : 
-        tracker_component(in_globalreg) { }
-
     dot11_11d_tracked_range_info(GlobalRegistry *in_globalreg, int in_id) :
-        tracker_component(in_globalreg, in_id) { }
+        tracker_component(in_globalreg, in_id) {
+        register_fields();
+        reserve_fields(NULL);
+    }
+
+    dot11_11d_tracked_range_info(GlobalRegistry *in_globalreg, int in_id, 
+            TrackerElement *e) : tracker_component(in_globalreg, in_id) {
+        register_fields();
+        reserve_fields(e);
+    }
 
     virtual TrackerElement *clone() {
         return new dot11_11d_tracked_range_info(globalreg, get_id());
     }
 
-    dot11_11d_tracked_range_info(GlobalRegistry *in_globalreg, TrackerElement *e) :
-        tracker_component(in_globalreg) {
-            register_fields();
-            reserve_fields(e);
-        }
 
     __Proxy(startchan, int32_t, int, int, startchan);
     __Proxy(numchan, uint32_t, unsigned int, unsigned int, numchan);
@@ -121,14 +122,14 @@ protected:
 
 class dot11_probed_ssid : public tracker_component {
 public:
-    dot11_probed_ssid(GlobalRegistry *in_globalreg) : 
-        tracker_component(in_globalreg) { }
-
     dot11_probed_ssid(GlobalRegistry *in_globalreg, int in_id) : 
-        tracker_component(in_globalreg, in_id) { } 
+        tracker_component(in_globalreg, in_id) { 
+        register_fields();
+        reserve_fields(NULL);
+    } 
 
-    dot11_probed_ssid(GlobalRegistry *in_globalreg, TrackerElement *e) : 
-        tracker_component(in_globalreg) {
+    dot11_probed_ssid(GlobalRegistry *in_globalreg, int in_id, TrackerElement *e) : 
+        tracker_component(in_globalreg, in_id) {
 
         register_fields();
         reserve_fields(e);
@@ -172,7 +173,12 @@ protected:
     virtual void reserve_fields(TrackerElement *e) {
         tracker_component::reserve_fields(e);
 
-        location = new kis_tracked_location(globalreg, e->get_map_value(location_id));
+        if (e != NULL) {
+            location = new kis_tracked_location(globalreg, location_id, 
+                    e->get_map_value(location_id));
+        } else {
+            location = new kis_tracked_location(globalreg, location_id);
+        }
     }
 
     int ssid_id;
@@ -200,14 +206,14 @@ protected:
  */
 class dot11_advertised_ssid : public tracker_component {
 public:
-    dot11_advertised_ssid(GlobalRegistry *in_globalreg) : 
-        tracker_component(in_globalreg) { }
-
     dot11_advertised_ssid(GlobalRegistry *in_globalreg, int in_id) : 
-        tracker_component(in_globalreg, in_id) { } 
+        tracker_component(in_globalreg, in_id) { 
+        register_fields();
+        reserve_fields(NULL);
+    } 
 
-    dot11_advertised_ssid(GlobalRegistry *in_globalreg, TrackerElement *e) : 
-        tracker_component(in_globalreg) {
+    dot11_advertised_ssid(GlobalRegistry *in_globalreg, int in_id, TrackerElement *e) : 
+        tracker_component(in_globalreg, in_id) {
 
         register_fields();
         reserve_fields(e);
@@ -343,7 +349,12 @@ protected:
     virtual void reserve_fields(TrackerElement *e) {
         tracker_component::reserve_fields(e);
 
-        location = new kis_tracked_location(globalreg, e->get_map_value(location_id));
+        if (e != NULL) {
+            location = new kis_tracked_location(globalreg, location_id, 
+                    e->get_map_value(location_id));
+        } else {
+            location = new kis_tracked_location(globalreg, location_id);
+        }
     }
 
     int ssid_id;
@@ -425,21 +436,22 @@ protected:
  */
 class dot11_client : public tracker_component {
 public:
-    dot11_client(GlobalRegistry *in_globalreg) : 
-        tracker_component(in_globalreg) { }
-
     dot11_client(GlobalRegistry *in_globalreg, int in_id) :
-        tracker_component(in_globalreg, in_id) { }
+        tracker_component(in_globalreg, in_id) {
+        register_fields();
+        reserve_fields(NULL);
+    }
+
+    dot11_client(GlobalRegistry *in_globalreg, int in_id, TrackerElement *e) :
+        tracker_component(in_globalreg, in_id) {
+        register_fields();
+        reserve_fields(e);
+    }
 
     virtual TrackerElement *clone() {
         return new dot11_client(globalreg, get_id());
     }
 
-    dot11_client(GlobalRegistry *in_globalreg, TrackerElement *e) :
-        tracker_component(in_globalreg) {
-            register_fields();
-            reserve_fields(e);
-    }
 
     __Proxy(bssid, mac_addr, mac_addr, mac_addr, bssid);
     __Proxy(client_type, uint32_t, uint32_t, uint32_t, client_type);
@@ -568,8 +580,15 @@ protected:
     virtual void reserve_fields(TrackerElement *e) {
         tracker_component::reserve_fields(e);
 
-        ipdata = new kis_tracked_ip_data(globalreg, e->get_map_value(ipdata_id));
-        location = new kis_tracked_location(globalreg, e->get_map_value(location_id));
+        if (e != NULL) {
+            ipdata = new kis_tracked_ip_data(globalreg, ipdata_id, 
+                    e->get_map_value(ipdata_id));
+            location = new kis_tracked_location(globalreg, location_id, 
+                    e->get_map_value(location_id));
+        } else {
+            ipdata = new kis_tracked_ip_data(globalreg, ipdata_id);
+            location = new kis_tracked_location(globalreg, location_id);
+        }
     }
 
         
@@ -670,21 +689,21 @@ enum dot11_network_type {
 // Device-level data, additional data stored in the client and ssid arrays
 class dot11_tracked_device : public tracker_component {
 public:
-    dot11_tracked_device(GlobalRegistry *in_globalreg) :
-        tracker_component(in_globalreg) { }
-
     dot11_tracked_device(GlobalRegistry *in_globalreg, int in_id) :
-        tracker_component(in_globalreg, in_id) { }
+        tracker_component(in_globalreg, in_id) { 
+        register_fields();
+        reserve_fields(NULL);
+    }
 
     virtual TrackerElement *clone() {
         return new dot11_tracked_device(globalreg, get_id());
     }
 
-    dot11_tracked_device(GlobalRegistry *in_globalreg, TrackerElement *e) :
-        tracker_component(in_globalreg) {
-            register_fields();
-            reserve_fields(e);
-        }
+    dot11_tracked_device(GlobalRegistry *in_globalreg, int in_id, TrackerElement *e) :
+        tracker_component(in_globalreg, in_id) {
+        register_fields();
+        reserve_fields(e);
+    }
 
     __Proxy(macaddr, mac_addr, mac_addr, mac_addr, macaddr);
     __Proxy(type_set, uint64_t, uint64_t, uint64_t, type_set);

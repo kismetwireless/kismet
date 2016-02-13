@@ -67,15 +67,17 @@ int EntryTracker::RegisterField(string in_name, TrackerType in_type, string in_d
     return definition->field_id;
 }
 
-int EntryTracker::RegisterField(string in_name, TrackerElement *in_builder, string in_desc) {
+int EntryTracker::RegisterField(string in_name, TrackerElement *in_builder, 
+        string in_desc) {
     string mod_name = StrLower(in_name);
 
     map<string, reserved_field *>::iterator iter = field_name_map.find(mod_name);
 
     if (iter != field_name_map.end()) {
-        if (iter->second->builder != NULL) {
+        if (iter->second->builder == NULL) {
             fprintf(stderr, "debug - %s:%s %u tried to register field %s with builder "
-                    "but already registered with type %s.\n", __FILE__, __func__, __LINE__,
+                    "but already registered with type %s.\n", __FILE__, 
+                    __func__, __LINE__,
                     mod_name.c_str(), 
                     TrackerElement::type_to_string(iter->second->track_type).c_str());
             return -1;
@@ -96,6 +98,9 @@ int EntryTracker::RegisterField(string in_name, TrackerElement *in_builder, stri
     field_name_map[mod_name] = definition;
     field_id_map[definition->field_id] = definition;
 
+    // Set the builders ID now that we know it
+    definition->builder->set_id(definition->field_id);
+
     return definition->field_id;
 }
 
@@ -109,6 +114,16 @@ int EntryTracker::GetFieldId(string in_name) {
     }
 
     return itr->second->field_id;
+}
+
+string EntryTracker::GetFieldName(int in_id) {
+    map<int, reserved_field *>::iterator itr = field_id_map.find(in_id);
+
+    if (itr == field_id_map.end()) {
+        return "field.unknown.not.registered";
+    }
+
+    return itr->second->field_name;
 }
 
 TrackerElement *EntryTracker::RegisterAndGetField(string in_name, TrackerType in_type, 
@@ -125,8 +140,8 @@ TrackerElement *EntryTracker::RegisterAndGetField(string in_name, TrackerType in
     return new TrackerElement(in_type, fn);
 }
 
-TrackerElement *EntryTracker::RegisterAndGetField(string in_name, TrackerElement *in_builder,
-                                                  string in_desc) {
+TrackerElement *EntryTracker::RegisterAndGetField(string in_name, 
+        TrackerElement *in_builder, string in_desc) {
     int fn = GetFieldId(in_name);
 
     if (fn >= 0) {
@@ -135,7 +150,7 @@ TrackerElement *EntryTracker::RegisterAndGetField(string in_name, TrackerElement
 
     fn = RegisterField(in_name, in_builder, in_desc);
 
-    TrackerElement *clone = in_builder->clone(fn);
+    TrackerElement *clone = in_builder->clone_type(fn);
 
     return clone;
 }
@@ -156,7 +171,7 @@ TrackerElement *EntryTracker::GetTrackedInstance(int in_id) {
     if (definition->builder == NULL)
         ret = new TrackerElement(definition->track_type, definition->field_id);
     else
-        ret = definition->builder->clone(definition->field_id);
+        ret = definition->builder->clone_type(definition->field_id);
 
     return ret;
 
@@ -180,7 +195,7 @@ TrackerElement *EntryTracker::GetTrackedInstance(string in_name) {
     if (definition->builder == NULL)
         ret = new TrackerElement(definition->track_type, definition->field_id);
     else
-        ret = definition->builder->clone(definition->field_id);
+        ret = definition->builder->clone_type(definition->field_id);
 
     return ret;
 }

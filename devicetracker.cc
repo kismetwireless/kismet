@@ -40,6 +40,9 @@
 #include "packetsourcetracker.h"
 #include "packetsource.h"
 #include "dumpfile_devicetracker.h"
+#include "entrytracker.h"
+
+#include <msgpack.hpp>
 
 enum KISDEV_COMMON_FIELDS {
 	KISDEV_phytype, KISDEV_macaddr, KISDEV_name, KISDEV_typestring, 
@@ -1062,6 +1065,125 @@ void Devicetracker::BlitPhy(int in_fd) {
 	}
 }
 
+namespace msgpack {
+MSGPACK_API_VERSION_NAMESPACE(MSGPACK_DEFAULT_API_NS) {
+namespace adaptor {
+
+EntryTracker *entrytracker;
+
+template<>
+    struct pack<mac_addr> {
+        template <typename Stream>
+            packer<Stream>& operator()(msgpack::packer<Stream>& o, 
+                    mac_addr const& v) const {
+                o.pack_array(2);
+                o.pack(v.longmac);
+                o.pack(v.longmask);
+                return o;
+            }
+    };
+
+template<>
+    struct pack<TrackerElement *> {
+        template <typename Stream>
+            packer<Stream>& operator()(msgpack::packer<Stream>& o, 
+                    TrackerElement * const& v) const {
+
+                o.pack_array(2);
+
+                o.pack((int) v->get_type());
+
+                TrackerElement::tracked_map *tmap;
+                TrackerElement::map_iterator map_iter;
+
+                TrackerElement::tracked_mac_map *tmacmap;
+                TrackerElement::mac_map_iterator mac_map_iter;
+
+                switch (v->get_type()) {
+                    case TrackerString:
+                        o.pack(GetTrackerValue<string>(v));
+                        break;
+                    case TrackerInt8:
+                        o.pack(GetTrackerValue<int8_t>(v));
+                        break;
+                    case TrackerUInt8:
+                        o.pack(GetTrackerValue<uint8_t>(v));
+                        break;
+                    case TrackerInt16:
+                        o.pack(GetTrackerValue<int16_t>(v));
+                        break;
+                    case TrackerUInt16:
+                        o.pack(GetTrackerValue<uint16_t>(v));
+                        break;
+                    case TrackerInt32:
+                        o.pack(GetTrackerValue<int32_t>(v));
+                        break;
+                    case TrackerUInt32:
+                        o.pack(GetTrackerValue<uint32_t>(v));
+                        break;
+                    case TrackerInt64:
+                        o.pack(GetTrackerValue<int64_t>(v));
+                        break;
+                    case TrackerUInt64:
+                        o.pack(GetTrackerValue<uint64_t>(v));
+                        break;
+                    case TrackerFloat:
+                        o.pack(GetTrackerValue<float>(v));
+                        break;
+                    case TrackerDouble:
+                        o.pack(GetTrackerValue<double>(v));
+                        break;
+                    case TrackerMac:
+                        o.pack(GetTrackerValue<mac_addr>(v));
+                        break;
+                    case TrackerUuid:
+                        o.pack(GetTrackerValue<uuid>(v).UUID2String());
+                        break;
+                    case TrackerVector:
+                        o.pack(*(v->get_vector()));
+                        break;
+                    case TrackerMap:
+                        tmap = v->get_map();
+                        o.pack_map(tmap->size());
+                        for (map_iter = tmap->begin(); map_iter != tmap->end(); 
+                                ++map_iter) {
+                            o.pack(entrytracker->GetFieldName(map_iter->first));
+                            o.pack(map_iter->second);
+
+                        }
+                        break;
+                    case TrackerIntMap:
+                        tmap = v->get_intmap();
+                        o.pack_map(tmap->size());
+                        for (map_iter = tmap->begin(); map_iter != tmap->end(); 
+                                ++map_iter) {
+                            o.pack(entrytracker->GetFieldName(map_iter->first));
+                            o.pack(map_iter->second);
+
+                        }
+                        break;
+                    case TrackerMacMap:
+                        tmacmap = v->get_macmap();
+                        o.pack_map(tmacmap->size());
+                        for (mac_map_iter = tmacmap->begin(); 
+                                mac_map_iter != tmacmap->end();
+                                ++mac_map_iter) {
+                            o.pack(mac_map_iter->first);
+                            o.pack(mac_map_iter->second);
+                        }
+
+                    default:
+                        break;
+                }
+
+                return o;
+            }
+    };
+
+}
+}
+}
+
 int Devicetracker::TimerKick() {
 	BlitPhy(-1);
 	// BlitDevices(-1);
@@ -1099,12 +1221,31 @@ int Devicetracker::TimerKick() {
 		x->second->TimerKick();
 	}
 
+    // Set the msgpack entry tracker manually for now
+    msgpack::adaptor::entrytracker = globalreg->entrytracker;
+
 	for (unsigned int x = 0; x < dirty_device_vec.size(); x++) {
 		globalreg->kisnetserver->SendToAll(proto_ref_devicedone, 
 										   (void *) dirty_device_vec[x]);
+
+        string fname = "/tmp/kismet/" + dirty_device_vec[x]->get_key().Mac2String();
+
+        printf("debug - attempting to serialize to %s\n", fname.c_str());
+
+        std::stringstream buffer;
+        msgpack::pack(buffer, (TrackerElement *) dirty_device_vec[x]);
+
+        FILE *f = fopen(fname.c_str(), "wb");
+
+        fwrite(buffer.str().c_str(), buffer.str().length(), 1, f);
+        fflush(f);
+        fclose(f);
 	}
 
 	dirty_device_vec.clear();
+
+    for (unsigned int x = 0; x < tracked_vec.size(); x++) {
+    }
 
 	// Reset the packet rate delta
 	num_packetdelta = 0;
@@ -1298,7 +1439,7 @@ kis_tracked_device_base *Devicetracker::BuildDevice(mac_addr in_device,
 	device = FetchDevice(devmac);
 
 	if (device == NULL) {
-		// fprintf(stderr, "debug - devicetracker building device for %s\n", devmac.Mac2String().c_str());
+		fprintf(stderr, "debug - devicetracker building device for %s\n", devmac.Mac2String().c_str());
 
 		// we don't have this device tracked.  Make one based on the
 		// input data (for example, this could be a bssid which has never
@@ -1314,6 +1455,7 @@ kis_tracked_device_base *Devicetracker::BuildDevice(mac_addr in_device,
 
 		// Defer tag loading to when we populate the common record
 
+        printf("debug - inserting device %s into map\n", device->get_key().Mac2String().c_str());
 		tracked_map[device->get_key()] = device;
 		tracked_vec.push_back(device);
 		phy_device_vec[pack_common->phyid]->push_back(device);
