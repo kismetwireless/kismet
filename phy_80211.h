@@ -65,6 +65,141 @@
  */
 
 #define PHY80211_MAC_LEN	6
+// Dot11 SSID max len
+#define DOT11_PROTO_SSID_LEN	32
+
+// Wep keys
+#define DOT11_WEPKEY_MAX		32
+#define DOT11_WEPKEY_STRMAX		((DOT11_WEPKEY_MAX * 2) + DOT11_WEPKEY_MAX)
+
+class dot11_wep_key {
+public:
+    int fragile;
+    mac_addr bssid;
+    unsigned char key[DOT11_WEPKEY_MAX];
+    unsigned int len;
+    unsigned int decrypted;
+    unsigned int failed;
+};
+
+// dot11 packet components
+
+class dot11_packinfo_dot11d_entry {
+public:
+    uint32_t startchan;
+    uint32_t numchan;
+    uint32_t txpower;
+};
+
+// Packet info decoded by the dot11 phy decoder
+// 
+// Injected into the packet chain and processed later into the device records
+class dot11_packinfo : public packet_component {
+public:
+    dot11_packinfo() {
+		self_destruct = 1; // Our delete() handles this
+        corrupt = 0;
+        header_offset = 0;
+        type = packet_unknown;
+        subtype = packet_sub_unknown;
+        mgt_reason_code = 0;
+        ssid_len = 0;
+		ssid_blank = 0;
+        source_mac = mac_addr(0);
+        dest_mac = mac_addr(0);
+        bssid_mac = mac_addr(0);
+        other_mac = mac_addr(0);
+        distrib = distrib_unknown;
+		cryptset = 0;
+		decrypted = 0;
+        fuzzywep = 0;
+		fmsweak = 0;
+        ess = 0;
+		ibss = 0;
+		channel = 0;
+        encrypted = 0;
+        beacon_interval = 0;
+        maxrate = 0;
+        timestamp = 0;
+        sequence_number = 0;
+        frag_number = 0;
+		fragmented = 0;
+		retry = 0;
+        duration = 0;
+        datasize = 0;
+		qos = 0;
+		ssid_csum = 0;
+		dot11d_country = "";
+		ietag_csum = 0;
+    }
+
+    // Corrupt 802.11 frame
+    int corrupt;
+   
+    // Offset to data components in frame
+    unsigned int header_offset;
+    
+    ieee_80211_type type;
+    ieee_80211_subtype subtype;
+  
+    uint8_t mgt_reason_code;
+    
+    // Raw SSID
+	string ssid;
+	// Length of the SSID header field
+    int ssid_len;
+	// Is the SSID empty spaces?
+	int ssid_blank;
+
+    // Address set
+    mac_addr source_mac;
+    mac_addr dest_mac;
+    mac_addr bssid_mac;
+    mac_addr other_mac;
+    
+    ieee_80211_disttype distrib;
+ 
+	uint64_t cryptset;
+	int decrypted; // Might as well put this in here?
+    int fuzzywep;
+	int fmsweak;
+
+    // Was it flagged as ess? (ap)
+    int ess;
+	int ibss;
+
+	// What channel does it report
+	int channel;
+
+    // Is this encrypted?
+    int encrypted;
+    int beacon_interval;
+
+	uint16_t qos;
+
+    // Some cisco APs seem to fill in this info field
+	string beacon_info;
+
+    double maxrate;
+
+    uint64_t timestamp;
+    int sequence_number;
+    int frag_number;
+	int fragmented;
+	int retry;
+
+    int duration;
+
+    int datasize;
+
+	uint32_t ssid_csum;
+	uint32_t ietag_csum;
+
+	string dot11d_country;
+	vector<dot11_packinfo_dot11d_entry> dot11d_vec;
+};
+
+
 
 enum dot11_ssid_type {
 	dot11_ssid_beacon = 0,
@@ -239,7 +374,7 @@ public:
 
     __Proxy(ssid_cloaked, uint8_t, bool, bool, ssid_cloaked);
 
-    __Proxy(crypt_set, uint32_t, uint32_t, uint32_t, crypt_set);
+    __Proxy(crypt_set, uint64_t, uint64_t, uint64_t, crypt_set);
 
     __Proxy(maxrate, uint64_t, uint64_t, uint64_t, maxrate);
     
@@ -261,6 +396,20 @@ public:
 
     TrackerElement *get_dot11d_vec() {
         return dot11d_vec;
+    }
+
+    void set_dot11d_vec(vector<dot11_packinfo_dot11d_entry> vec) {
+        dot11d_vec->clear_vector();
+        
+        for (unsigned int x = 0; x < vec.size(); x++) {
+            dot11_11d_tracked_range_info *ri =
+                new dot11_11d_tracked_range_info(globalreg, dot11d_country_entry_id);
+            ri->set_startchan(vec[x].startchan);
+            ri->set_numchan(vec[x].numchan);
+            ri->set_txpower(vec[x].txpower);
+
+            dot11d_vec->add_vector(ri);
+        }
     }
 
     __Proxy(wps_state, uint32_t, uint32_t, uint32_t, wps_state);
@@ -302,7 +451,7 @@ protected:
             RegisterField("dot11.advertisedssid.cloaked", TrackerUInt8,
                     "SSID is hidden / cloaked", (void **) &ssid_cloaked);
         crypt_set_id = 
-            RegisterField("dot11.advertisedssid.crypt_set", TrackerUInt32,
+            RegisterField("dot11.advertisedssid.crypt_set", TrackerUInt64,
                     "bitfield of encryption options", (void **) &crypt_set);
         maxrate_id = 
             RegisterField("dot11.advertisedssid.maxrate", TrackerUInt64,
@@ -320,6 +469,9 @@ protected:
             RegisterField("dot11.advertisedssid.dot11d_country", TrackerString,
                     "802.11d country", (void **) &dot11d_country);
 
+        dot11d_vec_id =
+            RegisterField("dot11.advertisedssid.dot11d_list", TrackerVector,
+                    "802.11d channel list", (void **) &dot11d_vec);
         dot11_11d_tracked_range_info *dot11d_builder = 
             new dot11_11d_tracked_range_info(globalreg, 0);
         dot11d_country_entry_id =
@@ -926,141 +1078,6 @@ public:
 	macmap<int> allow_mac_map;
 };
 
-// Dot11 SSID max len
-#define DOT11_PROTO_SSID_LEN	32
-
-// Wep keys
-#define DOT11_WEPKEY_MAX		32
-#define DOT11_WEPKEY_STRMAX		((DOT11_WEPKEY_MAX * 2) + DOT11_WEPKEY_MAX)
-
-class dot11_wep_key {
-public:
-    int fragile;
-    mac_addr bssid;
-    unsigned char key[DOT11_WEPKEY_MAX];
-    unsigned int len;
-    unsigned int decrypted;
-    unsigned int failed;
-};
-
-// dot11 packet components
-
-class dot11_packinfo_dot11d_entry {
-public:
-    uint32_t startchan;
-    uint32_t numchan;
-    uint32_t txpower;
-};
-
-// Packet info decoded by the dot11 phy decoder
-// 
-// Injected into the packet chain and processed later into the device records
-class dot11_packinfo : public packet_component {
-public:
-    dot11_packinfo() {
-		self_destruct = 1; // Our delete() handles this
-        corrupt = 0;
-        header_offset = 0;
-        type = packet_unknown;
-        subtype = packet_sub_unknown;
-        mgt_reason_code = 0;
-        ssid_len = 0;
-		ssid_blank = 0;
-        source_mac = mac_addr(0);
-        dest_mac = mac_addr(0);
-        bssid_mac = mac_addr(0);
-        other_mac = mac_addr(0);
-        distrib = distrib_unknown;
-		cryptset = 0;
-		decrypted = 0;
-        fuzzywep = 0;
-		fmsweak = 0;
-        ess = 0;
-		ibss = 0;
-		channel = 0;
-        encrypted = 0;
-        beacon_interval = 0;
-        maxrate = 0;
-        timestamp = 0;
-        sequence_number = 0;
-        frag_number = 0;
-		fragmented = 0;
-		retry = 0;
-        duration = 0;
-        datasize = 0;
-		qos = 0;
-		ssid_csum = 0;
-		dot11d_country = "";
-		ietag_csum = 0;
-    }
-
-    // Corrupt 802.11 frame
-    int corrupt;
-   
-    // Offset to data components in frame
-    unsigned int header_offset;
-    
-    ieee_80211_type type;
-    ieee_80211_subtype subtype;
-  
-    uint8_t mgt_reason_code;
-    
-    // Raw SSID
-	string ssid;
-	// Length of the SSID header field
-    int ssid_len;
-	// Is the SSID empty spaces?
-	int ssid_blank;
-
-    // Address set
-    mac_addr source_mac;
-    mac_addr dest_mac;
-    mac_addr bssid_mac;
-    mac_addr other_mac;
-    
-    ieee_80211_disttype distrib;
- 
-	uint64_t cryptset;
-	int decrypted; // Might as well put this in here?
-    int fuzzywep;
-	int fmsweak;
-
-    // Was it flagged as ess? (ap)
-    int ess;
-	int ibss;
-
-	// What channel does it report
-	int channel;
-
-    // Is this encrypted?
-    int encrypted;
-    int beacon_interval;
-
-	uint16_t qos;
-
-    // Some cisco APs seem to fill in this info field
-	string beacon_info;
-
-    double maxrate;
-
-    uint64_t timestamp;
-    int sequence_number;
-    int frag_number;
-	int fragmented;
-	int retry;
-
-    int duration;
-
-    int datasize;
-
-	uint32_t ssid_csum;
-	uint32_t ietag_csum;
-
-	string dot11d_country;
-	vector<dot11_packinfo_dot11d_entry> dot11d_vec;
-};
-
-
 class Kis_80211_Phy : public Kis_Phy_Handler, public TimetrackerEvent {
 public:
 	// Stub
@@ -1131,6 +1148,7 @@ public:
 protected:
     void HandleSSID(kis_tracked_device_base *basedev, 
             dot11_tracked_device *dot11dev,
+            kis_packet *in_pack,
             dot11_packinfo *dot11info,
             kis_gps_packinfo *pack_gpsinfo);
 

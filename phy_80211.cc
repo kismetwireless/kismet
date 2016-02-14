@@ -571,6 +571,7 @@ void Kis_80211_Phy::AddWepKey(mac_addr bssid, uint8_t *key, unsigned int len,
 
 void Kis_80211_Phy::HandleSSID(kis_tracked_device_base *basedev,
         dot11_tracked_device *dot11dev,
+        kis_packet *in_pack,
         dot11_packinfo *dot11info,
         kis_gps_packinfo *pack_gpsinfo) {
 
@@ -595,12 +596,18 @@ void Kis_80211_Phy::HandleSSID(kis_tracked_device_base *basedev,
         } else {
             ssid = (dot11_advertised_ssid *) ssid_itr->second;
 
-            // TODO alert on change on SSID IE tags?
-            if (ssid->get_ietag_checksum() != dot11info->ietag_csum) {
-                fprintf(stderr, "debug - dot11phy:HandleSSID ietag checksum changed\n");
-            }
+            ssid->set_crypt_set(dot11info->cryptset);
+            ssid->set_first_time(in_pack->ts.tv_sec);
+            ssid->set_ietag_checksum(dot11info->ietag_csum);
         }
 
+        ssid->set_last_time(in_pack->ts.tv_sec);
+
+        // TODO alert on change on SSID IE tags?
+        if (ssid->get_ietag_checksum() != dot11info->ietag_csum) {
+            fprintf(stderr, "debug - dot11phy:HandleSSID ietag checksum changed\n");
+        }
+        
         ssid->set_ietag_checksum(dot11info->ietag_csum);
 
         ssid->set_ssid(dot11info->ssid);
@@ -608,6 +615,22 @@ void Kis_80211_Phy::HandleSSID(kis_tracked_device_base *basedev,
             ssid->set_ssid_cloaked(true);
         }
         ssid->set_ssid_len(dot11info->ssid_len);
+
+        ssid->set_beacon_info(dot11info->beacon_info);
+
+        // TODO alert on cryptset degrade/change?
+        if (ssid->get_crypt_set() != dot11info->cryptset) {
+            fprintf(stderr, "debug - dot11phy:HandleSSID cryptset changed\n");
+        }
+
+        ssid->set_crypt_set(dot11info->cryptset);
+
+        ssid->set_maxrate(dot11info->maxrate);
+        ssid->set_beaconrate(Ieee80211Interval2NSecs(dot11info->beacon_interval));
+
+        // TODO alert on dot11d changes?
+        ssid->set_dot11d_country(dot11info->dot11d_country);
+        ssid->set_dot11d_vec(dot11info->dot11d_vec);
     }
 
 }
@@ -675,7 +698,7 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
     if (dot11info->type == packet_management && 
             (dot11info->subtype == packet_sub_beacon ||
              dot11info->subtype == packet_sub_probe_resp)) {
-        HandleSSID(basedev, dot11dev, dot11info, pack_gpsinfo);
+        HandleSSID(basedev, dot11dev, in_pack, dot11info, pack_gpsinfo);
     }
 
     if (dot11info->ess) {
