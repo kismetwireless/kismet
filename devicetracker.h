@@ -179,7 +179,7 @@ public:
     
     __Proxy(num_alerts, uint32_t, unsigned int, unsigned int, alert);
 
-    kis_tracked_signal_data *get_signal_data() { return signal_data; }
+    __ProxyTrackable(signal_data, kis_tracked_signal_data, signal_data);
 
     // Intmaps need special care by the caller
     TrackerElement *get_freq_mhz_map() { return freq_mhz_map; }
@@ -331,7 +331,8 @@ protected:
             RegisterField("kismet.device.base.packets.new", TrackerUInt64,
                         "new packets since last report", (void **) &new_packets);
 
-        kis_tracked_signal_data *sig_builder = new kis_tracked_signal_data(globalreg, 0);
+        kis_tracked_signal_data *sig_builder = 
+            new kis_tracked_signal_data(globalreg, 0);
         signal_data_id =
             RegisterComplexField("kismet.device.base.signal", sig_builder,
                     "signal data");
@@ -395,8 +396,13 @@ protected:
                     e->get_map_value(location_id));
         } else {
             signal_data = new kis_tracked_signal_data(globalreg, signal_data_id);
+            add_map(signal_data);
+
             tag = new kis_tracked_tag(globalreg, tag_id);
+            add_map(tag);
+
             location = new kis_tracked_location(globalreg, location_id);
+            add_map(location);
         }
     }
 
@@ -419,8 +425,8 @@ protected:
     int name_id;
 
     // Printable basic type relevant to the phy, ie "Wired", "AP", "Bluetooth", etc.
-    // This can be set per-phy and is treated as a printable interpretation.  This should
-    // be empty if the phy layer is unable to add something intelligent
+    // This can be set per-phy and is treated as a printable interpretation.  
+    // This should be empty if the phy layer is unable to add something intelligent
     TrackerElement *type_string;
     int type_string_id;
 

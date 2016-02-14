@@ -824,7 +824,7 @@ template<> int8_t GetTrackerValue(TrackerElement *e) {
 }
 
 template<> uint8_t GetTrackerValue(TrackerElement *e) {
-    return e->get_int8();
+    return e->get_uint8();
 }
 
 template<> int16_t GetTrackerValue(TrackerElement *e) {

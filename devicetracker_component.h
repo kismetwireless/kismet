@@ -585,8 +585,13 @@ protected:
                     e->get_map_value(avg_loc_id));
         } else {
             min_loc = new kis_tracked_location_triplet(globalreg, min_loc_id);
+            add_map(min_loc);
+
             max_loc = new kis_tracked_location_triplet(globalreg, max_loc_id);
+            add_map(max_loc);
+
             avg_loc = new kis_tracked_location_triplet(globalreg, avg_loc_id);
+            add_map(avg_loc);
         }
     }
 
@@ -799,6 +804,7 @@ protected:
                     e->get_map_value(peak_loc_id)); 
         } else {
             peak_loc = new kis_tracked_location_triplet(globalreg, peak_loc_id);
+            add_map(peak_loc);
         }
     }
 
@@ -884,7 +890,6 @@ protected:
         freq_mhz_map_id =
             RegisterField("kismet.common.seenby.freq_mhz_map", TrackerIntMap,
                     "packets seen per frequency (mhz)", (void **) &freq_mhz_map);
-
         frequency_val_id =
             globalreg->entrytracker->RegisterField("kismet.common.seenby.frequency.count",
                     TrackerUInt64, "frequency packet count");
