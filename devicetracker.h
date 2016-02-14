@@ -227,7 +227,6 @@ public:
         // Make a new seenby record
         if (seenby_iter == seenby_map->end()) {
             seenby = new kis_tracked_seenby_data(globalreg, seenby_val_id);
-                // (kis_tracked_seenby_data *) entrytracker->GetTrackedInstance(seenby_val_id);
 
             seenby->set_src_uuid(source->FetchUUID());
             seenby->set_first_time(tv_sec);
@@ -236,6 +235,9 @@ public:
 
             if (frequency > 0)
                 seenby->inc_frequency_count(frequency);
+
+            seenby_map->add_intmap(source->FetchSourceID(), seenby);
+
         } else {
             seenby = (kis_tracked_seenby_data *) seenby_iter->second;
 
@@ -371,7 +373,8 @@ protected:
             globalreg->entrytracker->RegisterField("kismet.device.base.frequency.count",
                     TrackerUInt64, "frequency packet count");
 
-        kis_tracked_seenby_data *seenby_builder = new kis_tracked_seenby_data(globalreg, 0);
+        kis_tracked_seenby_data *seenby_builder = 
+            new kis_tracked_seenby_data(globalreg, 0);
         seenby_val_id =
             globalreg->entrytracker->RegisterField("kismet.device.base.seenby.data", 
                     seenby_builder, "seen-by data");
