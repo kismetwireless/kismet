@@ -126,10 +126,11 @@ public:
     __Proxy(phytype, int64_t, int64_t, int64_t, phytype);
 
     __Proxy(name, string, string, string, name);
+
     __Proxy(type_string, string, string, string, type_string);
 
     __Proxy(basic_type_set, uint64_t, uint64_t, uint64_t, basic_type_set);
-    void add_basic_type(uint64_t in) { (*basic_type_set) |= in; }
+    __ProxyBitset(basic_type_set, uint64_t, basic_type_set);
 
     __Proxy(crypt_string, string, string, string, crypt_string);
 

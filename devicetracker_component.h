@@ -123,6 +123,14 @@ class tracker_component : public TrackerElement {
         cvar->link(); \
     } 
 
+// Proxy bitset functions (name, data type, class var)
+#define __ProxyBitset(name, dtype, cvar) \
+    void bitset_##name(dtype bs) { \
+        (*cvar) |= bs; \
+    } \
+    void bitclear_##name(dtype bs) { \
+        (*cvar) &= ~(bs); \
+    }
 
 public:
     // Legacy, won't populate tracker or gloablreg so something is wrong

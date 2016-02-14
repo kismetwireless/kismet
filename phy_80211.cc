@@ -69,6 +69,12 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
 
 	phyname = "IEEE802.11";
 
+    dot11_tracked_device *dot11_builder = 
+        new dot11_tracked_device(globalreg, 0);
+    dot11_device_entry_id =
+        globalreg->entrytracker->RegisterField("dot11.device", dot11_builder, 
+                "IEEE802.11 device");
+
 	// Packet classifier - makes basic records plus dot11 data
 	globalreg->packetchain->RegisterHandler(&phydot11_packethook_dot11classify, this,
 											CHAINPOS_CLASSIFIER, -100);
@@ -116,6 +122,9 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
 
 	pack_comp_datapayload =
 		globalreg->packetchain->RegisterPacketComponent("DATAPAYLOAD");
+
+	pack_comp_gps =
+		globalreg->packetchain->RegisterPacketComponent("GPS");
 
 	// Register the dissector alerts
 	alert_netstumbler_ref = 
@@ -425,6 +434,8 @@ dot11_ssid *Kis_80211_Phy::BuildSSID(uint32_t ssid_csum,
 }
 #endif
 
+// Classifier is responsible for processing a dot11 packet and filling in enough
+// of the common info for the system to make a device out of it.
 int Kis_80211_Phy::ClassifierDot11(kis_packet *in_pack) {
 	// Get the 802.11 info
 	dot11_packinfo *dot11info = 
@@ -466,15 +477,19 @@ int Kis_80211_Phy::ClassifierDot11(kis_packet *in_pack) {
 		ci->dest = dot11info->dest_mac;
 		ci->dest.SetPhy(phyid);
 	} else if (dot11info->type == packet_phy) {
-		// Ignore phy packets with no source for now
-		if (dot11info->source_mac == globalreg->empty_mac) {
+        if (dot11info->subtype == packet_sub_ack ||
+                dot11info->subtype == packet_sub_cts) {
+            // map some phys as a device since we know they're being talked to
+            ci->device = dot11info->dest_mac;
+        } else if (dot11info->source_mac == globalreg->empty_mac) {
 			// delete ci;
 			return 0;
-		}
+		} else {
+            ci->device = dot11info->source_mac;
+        }
 
 		ci->type = packet_basic_phy;
 	
-		ci->device = dot11info->source_mac;
 		ci->device.SetPhy(phyid);
 	} else if (dot11info->type == packet_data) {
 		ci->type = packet_basic_data;
@@ -487,7 +502,7 @@ int Kis_80211_Phy::ClassifierDot11(kis_packet *in_pack) {
 		ci->dest = dot11info->dest_mac;
 		ci->dest.SetPhy(phyid);
 	} 
-	
+
 	if (dot11info->type == packet_noise || dot11info->corrupt ||
 			   in_pack->error || dot11info->type == packet_unknown ||
 			   dot11info->subtype == packet_sub_unknown) {
@@ -554,76 +569,50 @@ void Kis_80211_Phy::AddWepKey(mac_addr bssid, uint8_t *key, unsigned int len,
 	wepkeys.insert(winfo->bssid, winfo);
 }
 
-// This gets called to send all the phy-specific dirty devices
-#if 0
-void Kis_80211_Phy::BlitDevices(int in_fd, vector<kis_tracked_device *> *devlist) {
-	dot11_device *dot11dev = NULL;
+void Kis_80211_Phy::HandleSSID(kis_tracked_device_base *basedev,
+        dot11_tracked_device *dot11dev,
+        dot11_packinfo *dot11info,
+        kis_gps_packinfo *pack_gpsinfo) {
 
-	for (unsigned int x = 0; x < devlist->size(); x++) {
-		kis_protocol_cache cache;
+    TrackerElement *adv_ssid_map = dot11dev->get_advertised_ssid_map();
+    TrackerElement *probe_ssid_map = dot11dev->get_probed_ssid_map();
 
-		dot11dev = (dot11_device *) (*devlist)[x]->fetch(dev_comp_dot11);
+    dot11_advertised_ssid *ssid;
 
-		if (dot11dev == NULL)
-			continue;
+    TrackerElement::map_iterator ssid_itr;
 
-		if (in_fd == -1)
-			globalreg->kisnetserver->SendToAll(proto_ref_device, (void *) dot11dev);
-		else
-			globalreg->kisnetserver->SendToClient(in_fd, proto_ref_device,
-												  (void *) dot11dev, &cache);
+    if (adv_ssid_map == NULL || probe_ssid_map == NULL) {
+        fprintf(stderr, "debug - dot11phy::HandleSSID can't find the adv_ssid_map or probe_ssid_map struct, something is wrong\n");
+        return;
+    }
 
-		for (map<uint32_t, dot11_ssid *>::iterator i = 
-			 dot11dev->ssid_map.begin(); i != dot11dev->ssid_map.end();
-			 ++i) {
-			kis_protocol_cache cache;
+    if (dot11info->subtype == packet_sub_beacon) {
+        ssid_itr = adv_ssid_map->find((int32_t) dot11info->ssid_csum);
 
-			if (i->second->dirty == 0)
-				continue;
+        if (ssid_itr == adv_ssid_map->end()) {
+            ssid = dot11dev->new_advertised_ssid();
+            adv_ssid_map->add_intmap((int32_t) dot11info->ssid_csum, ssid);
+        } else {
+            ssid = (dot11_advertised_ssid *) ssid_itr->second;
 
-			i->second->dirty = 0;
+            // TODO alert on change on SSID IE tags?
+            if (ssid->get_ietag_checksum() != dot11info->ietag_csum) {
+                fprintf(stderr, "debug - dot11phy:HandleSSID ietag checksum changed\n");
+            }
+        }
 
-			if (in_fd == -1)
-				globalreg->kisnetserver->SendToAll(proto_ref_ssid, 
-												   (void *) i->second);
-			else
-				globalreg->kisnetserver->SendToClient(in_fd, proto_ref_ssid,
-													  (void *) i->second, &cache);
-		}
+        ssid->set_ietag_checksum(dot11info->ietag_csum);
 
-		for (map<mac_addr, dot11_client *>::iterator i =
-			 dot11dev->client_map.begin(); i != dot11dev->client_map.end();
-			 ++i) {
-			kis_protocol_cache cache;
+        ssid->set_ssid(dot11info->ssid);
+        if (dot11info->ssid_len == 0 || dot11info->ssid_blank) {
+            ssid->set_ssid_cloaked(true);
+        }
+        ssid->set_ssid_len(dot11info->ssid_len);
+    }
 
-			if (i->second->dirty == 0)
-				continue;
-
-			i->second->dirty = 0;
-
-			if (in_fd == -1)
-				globalreg->kisnetserver->SendToAll(proto_ref_client, 
-												   (void *) i->second);
-			else
-				globalreg->kisnetserver->SendToClient(in_fd, proto_ref_client,
-													  (void *) i->second, &cache);
-		}
-
-	}
 }
-#endif
 
 int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
-#if 0
-	dot11_device *net = NULL;
-	dot11_device *dot11dev = NULL;
-	dot11_client *cli = NULL;
-	dot11_ssid *ssid = NULL;
-	kis_device_common *commondev = NULL, *apcommon = NULL;
-
-	bool net_new = false, cli_new = false, ssid_new = false, build_net = true,
-		 dev_new = false;
-
 	// We can't do anything w/ it from the packet layer
 	if (in_pack->error || in_pack->filtered) {
 		return 0;
@@ -655,52 +644,68 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 		dot11info->subtype == packet_sub_unknown)
 		return 0;
 
-	// Phy-only packets dont' carry anything we can do something smart
-	// with at the moment though in the future we might want to
-	if (dot11info->type == packet_phy)
-		return 0;
+	kis_gps_packinfo *pack_gpsinfo =
+		(kis_gps_packinfo *) in_pack->fetch(pack_comp_gps);
 
-	// Do we have a net record?
-	kis_tracked_device *dev = devicetracker->FetchDevice(commoninfo->device);
+    // Find our base record
+    kis_tracked_device_base *basedev = 
+        devicetracker->FetchDevice(commoninfo->device);
 
-	// buh?  something hinky is going on
-	if (dev == NULL) {
-		// fprintf(stderr, "debug - phydot11 got to tracking stage with no devtracker->dev?\n");
-		return 0;
-	}
+    // Something bad has happened if we can't find our device
+    if (basedev == NULL) {
+        fprintf(stderr, "debug - phydot11 got to tracking stage with no devicetracker device for %s.  Something is wrong?\n", commoninfo->device.Mac2String().c_str());
 
-	// Phydot11 has one type of device
-	//
-	// Can be an AP, Client, adhoc, or combination if it somehow acts in 
-	// different ways, based on fromds/tods and ess flags.
-	//
-	// APs contain records of advertised SSIDs
-	// Clients contain probed SSIDs
-	//
-	// APs contain records of clients known to be communicating with them,
-	// which contain additional chunks of data
+        printf("debug - device empty.  type %d sub %d source %s dest %s bssid%s\n", dot11info->type, dot11info->subtype, dot11info->source_mac.Mac2String().c_str(), dot11info->dest_mac.Mac2String().c_str(), dot11info->bssid_mac.Mac2String().c_str());
+	
+        return 0;
+    }
 
-	commondev = (kis_device_common *) dev->fetch(dev_comp_common);
+    dot11_tracked_device *dot11dev =
+        (dot11_tracked_device *) basedev->get_map_value(dot11_device_entry_id);
 
-	if (commondev == NULL)
-		return 0;
+    if (dot11dev == NULL) {
+        printf("debug - phydot11 making new 802.11 device record for '%s'\n",
+                commoninfo->device.Mac2String().c_str());
 
-	// Find/Make a dot11 device for this
-	dot11dev = (dot11_device *) dev->fetch(dev_comp_dot11);
+        dot11dev = new dot11_tracked_device(globalreg, dot11_device_entry_id);
+        basedev->add_map(dot11dev);
+    }
 
-	if (dot11dev == NULL) {
-		dot11dev = new dot11_device();
+    // Handle beacons and SSID responses from the AP
+    if (dot11info->type == packet_management && 
+            (dot11info->subtype == packet_sub_beacon ||
+             dot11info->subtype == packet_sub_probe_resp)) {
+        HandleSSID(basedev, dot11dev, dot11info, pack_gpsinfo);
+    }
 
-		dev_new = true;
+    if (dot11info->ess) {
+        basedev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_AP);
 
-		dot11dev->mac = dot11info->source_mac;
+        // Set the name if we're only an AP
+        if (basedev->get_basic_type_set() == KIS_DEVICE_BASICTYPE_AP) 
+            basedev->set_type_string("Wi-Fi AP");
 
-		dev->insert(dev_comp_dot11, dot11dev);
+        dot11dev->bitset_type_set(DOT11_DEVICE_TYPE_BEACON_AP);
+    } else if (dot11info->distrib == distrib_from &&
+            dot11info->type == packet_data) {
+        basedev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_WIRED);
 
-		commondev->name = dev->key.Mac2String();
+        // Set the name if we've only been seen as wired
+        if (basedev->get_basic_type_set() == KIS_DEVICE_BASICTYPE_WIRED)
+            basedev->set_type_string("Wi-Fi Bridged Device");
 
-		// printf("debug - new dot11dev record for %s\n", dev->key.Mac2String().c_str());
-	}
+        dot11dev->bitset_type_set(DOT11_DEVICE_TYPE_WIRED);
+    } else if (dot11info->distrib == distrib_inter) {
+        basedev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_PEER);
+
+        if (basedev->get_basic_type_set() == KIS_DEVICE_BASICTYPE_PEER)
+            basedev->set_type_string("Wi-Fi Ad-hoc Device");
+
+        dot11dev->bitset_type_set(DOT11_DEVICE_TYPE_ADHOC);
+    }
+
+
+#if 0
 
 	if (dot11info->ess) {
 		dot11dev->type_set |= dot11_network_ap;

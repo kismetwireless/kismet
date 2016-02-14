@@ -178,6 +178,7 @@ protected:
                     e->get_map_value(location_id));
         } else {
             location = new kis_tracked_location(globalreg, location_id);
+            add_map(location);
         }
     }
 
@@ -322,7 +323,7 @@ protected:
         dot11_11d_tracked_range_info *dot11d_builder = 
             new dot11_11d_tracked_range_info(globalreg, 0);
         dot11d_country_entry_id =
-            RegisterComplexField("dot11.ssid.dot11d_entry", 
+            RegisterComplexField("dot11.advertisedssid.dot11d_entry", 
                     dot11d_builder, "dot11d entry");
 
         wps_state_id =
@@ -343,7 +344,8 @@ protected:
 
         kis_tracked_location *loc_builder = new kis_tracked_location(globalreg, 0);
         location_id =
-            RegisterComplexField("client.location", loc_builder, "location");
+            RegisterComplexField("dot11.advertisedssid.location", loc_builder, 
+                    "location");
     }
 
     virtual void reserve_fields(TrackerElement *e) {
@@ -354,6 +356,7 @@ protected:
                     e->get_map_value(location_id));
         } else {
             location = new kis_tracked_location(globalreg, location_id);
+            add_map(location);
         }
     }
 
@@ -587,7 +590,10 @@ protected:
                     e->get_map_value(location_id));
         } else {
             ipdata = new kis_tracked_ip_data(globalreg, ipdata_id);
+            add_map(ipdata);
+
             location = new kis_tracked_location(globalreg, location_id);
+            add_map(location);
         }
     }
 
@@ -660,29 +666,25 @@ protected:
 
 };
 
-enum dot11_network_type {
-	dot11_network_none = 0,
-	// ess = 1
-	dot11_network_ap = 1,
-	// adhoc
-	dot11_network_adhoc = (1 << 1),
-	// wireless client
-	dot11_network_client = (1 << 2),
-	// Wired fromds client
-	dot11_network_wired = (1 << 3),
-	// WDS/interdistrib
-	dot11_network_wds = (1 << 4),
-	// Turbocell (though it's mostly gone and we don't dissect it right now)
-	dot11_network_turbocell = (1 << 5),
-	// Inferred flag, we've seen traffic to this device, but never from it
-	dot11_network_inferred = (1 << 6),
-	// Inferred wireless/wired
-	dot11_network_inferred_wireless = (1 << 7),
-	dot11_network_inferred_wired = (1 << 8),
-	// legacy, slated to die?
-	dot11_network_mixed = (1 << 9),
-	dot11_network_remove = (1 << 10)
-};
+// Bitset of top-level device types for easy sorting/browsing
+#define DOT11_DEVICE_TYPE_UNKNOWN       0
+// This device has beaconed
+#define DOT11_DEVICE_TYPE_BEACON_AP     1
+// This device has acted like an adhoc device
+#define DOT11_DEVICE_TYPE_ADHOC         (1 << 1)
+// This device has acted like a client
+#define DOT11_DEVICE_TYPE_CLIENT        (1 << 2)
+// This device appears to be a wired device bridged to wifi
+#define DOT11_DEVICE_TYPE_WIRED         (1 << 3)
+// WDS distribution network
+#define DOT11_DEVICE_TYPE_WDS           (1 << 4)
+// Old-school turbocell
+#define DOT11_DEVICE_TYPE_TURBOCELL     (1 << 5)
+// We haven't seen this device directly but we're guessing it's there
+// because something has talked to it over wireless (ie, cts or ack to it)
+#define DOT11_DEVICE_TYPE_INFERRED_WIRELESS (1 << 6)
+// We haven't seen this device directly but we've seen something talking to it
+#define DOT11_DEVICE_TYPE_INFERRED_WIRED    (1 << 7)
 
 // Dot11 device
 //
@@ -705,12 +707,21 @@ public:
         reserve_fields(e);
     }
 
-    __Proxy(macaddr, mac_addr, mac_addr, mac_addr, macaddr);
     __Proxy(type_set, uint64_t, uint64_t, uint64_t, type_set);
+    __ProxyBitset(type_set, uint64_t, type_set);
 
     __ProxyTrackable(client_map, TrackerElement, client_map);
+
     __ProxyTrackable(advertised_ssid_map, TrackerElement, advertised_ssid_map);
+    dot11_advertised_ssid *new_advertised_ssid() {
+        return new dot11_advertised_ssid(globalreg, advertised_ssid_map_entry_id);
+    }
+
     __ProxyTrackable(probed_ssid_map, TrackerElement, probed_ssid_map);
+    dot11_probed_ssid *new_probed_ssid() {
+        return new dot11_probed_ssid(globalreg, probed_ssid_map_entry_id);
+    }
+
     __ProxyTrackable(associated_client_map, TrackerElement, associated_client_map);
 
     __Proxy(client_disconnects, uint64_t, uint64_t, uint64_t, client_disconnects);
@@ -733,7 +744,9 @@ public:
 
     __Proxy(last_bssid, mac_addr, mac_addr, mac_addr, last_bssid);
 
-    __Proxy(lasy_probed_ssid, string, string, string, last_probed_ssid);
+    __Proxy(last_probed_ssid, string, string, string, last_probed_ssid);
+
+    __Proxy(last_beaconed_ssid, string, string, string, last_beaconed_ssid);
 
     /*
        void clear_bssid_list() { bssid_vec->clear_vector(); }
@@ -760,9 +773,6 @@ public:
 
 protected:
     virtual void register_fields() {
-        macaddr_id = 
-            RegisterField("dot11.device.macaddr", TrackerMac,
-                    "dot11 mac address", (void **) &macaddr);
         type_set_id =
             RegisterField("dot11.device.typeset", TrackerUInt64,
                     "bitset of device type", (void **) &type_set);
@@ -831,13 +841,14 @@ protected:
             RegisterField("dot11.device.last_probed_ssid", TrackerString,
                     "last probed ssid", (void **) &last_probed_ssid);
 
+        last_beaconed_ssid_id =
+            RegisterField("dot11.device.last_beaconed_ssid", TrackerString,
+                    "last beaconed ssid", (void **) &last_beaconed_ssid);
+
         last_bssid_id =
             RegisterField("dot11.device.last_bssid", TrackerMac,
                     "last BSSID", (void **) &last_bssid);
     }
-
-    int macaddr_id;
-    TrackerElement *macaddr;
 
     int type_set_id;
     TrackerElement *type_set;
@@ -885,6 +896,9 @@ protected:
 
     int last_probed_ssid_id;
     TrackerElement *last_probed_ssid;
+
+    int last_beaconed_ssid_id;
+    TrackerElement *last_beaconed_ssid;
 
     int last_bssid_id;
     TrackerElement *last_bssid;
@@ -1115,6 +1129,13 @@ public:
     virtual int TimerKick() { return 1; }
 
 protected:
+    void HandleSSID(kis_tracked_device_base *basedev, 
+            dot11_tracked_device *dot11dev,
+            dot11_packinfo *dot11info,
+            kis_gps_packinfo *pack_gpsinfo);
+
+    int dot11_device_entry_id;
+
 	int LoadWepkeys();
 
 	map<mac_addr, string> bssid_cloak_map;
@@ -1128,7 +1149,8 @@ protected:
 	// Packet components
 	int pack_comp_80211, pack_comp_basicdata, pack_comp_mangleframe,
 		pack_comp_strings, pack_comp_checksum, pack_comp_linkframe,
-		pack_comp_decap, pack_comp_common, pack_comp_datapayload;
+		pack_comp_decap, pack_comp_common, pack_comp_datapayload,
+        pack_comp_gps;
 
 	// Do we do any data dissection or do we hide it all (legal safety
 	// cutout)
