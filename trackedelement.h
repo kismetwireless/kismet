@@ -116,9 +116,6 @@ public:
         // Time to go
         if (reference_count == 0) {
             delete(this);
-#if 1
-            fprintf(stderr, "debug - element %p id %u hit reference count 0, deleting\n", this, get_id());
-#endif
         }
     }
 
