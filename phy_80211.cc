@@ -578,7 +578,7 @@ void Kis_80211_Phy::HandleSSID(kis_tracked_device_base *basedev,
     TrackerElement *adv_ssid_map = dot11dev->get_advertised_ssid_map();
     TrackerElement *probe_ssid_map = dot11dev->get_probed_ssid_map();
 
-    dot11_advertised_ssid *ssid;
+    dot11_advertised_ssid *ssid = NULL;
 
     TrackerElement::map_iterator ssid_itr;
 
@@ -587,130 +587,236 @@ void Kis_80211_Phy::HandleSSID(kis_tracked_device_base *basedev,
         return;
     }
 
-    if (dot11info->subtype == packet_sub_beacon) {
+    bool ssid_new = false;
+
+    if (dot11info->subtype == packet_sub_beacon ||
+            dot11info->subtype == packet_sub_probe_resp) {
         ssid_itr = adv_ssid_map->find((int32_t) dot11info->ssid_csum);
 
         if (ssid_itr == adv_ssid_map->end()) {
             ssid = dot11dev->new_advertised_ssid();
             adv_ssid_map->add_intmap((int32_t) dot11info->ssid_csum, ssid);
 
-            ssid->set_crypt_set(dot11info->cryptset);
-            ssid->set_first_time(in_pack->ts.tv_sec);
-            ssid->set_ietag_checksum(dot11info->ietag_csum);
-            ssid->set_channel(dot11info->channel);
-
-            ssid->set_dot11d_country(dot11info->dot11d_country);
-            ssid->set_dot11d_vec(dot11info->dot11d_vec);
-
-            // TODO handle loading SSID from the stored file
-            ssid->set_ssid(dot11info->ssid);
-            if (dot11info->ssid_len == 0 || dot11info->ssid_blank) {
-                ssid->set_ssid_cloaked(true);
-            }
-            ssid->set_ssid_len(dot11info->ssid_len);
-
-            ssid->set_beacon_info(dot11info->beacon_info);
-
-            if (dot11info->wps != 0) 
-                printf("debug - setting wps info on %s\n", basedev->get_macaddr().Mac2String().c_str());
-
-            ssid->set_wps_state(dot11info->wps);
-            ssid->set_wps_manuf(dot11info->wps_manuf);
-            ssid->set_wps_model_name(dot11info->wps_model_name);
-            ssid->set_wps_model_number(dot11info->wps_model_number);
-
-            // Do we not know the basedev manuf?
-            if (basedev->get_manuf() == "" && dot11info->wps_manuf != "")
-                basedev->set_manuf(dot11info->wps_manuf);
+            ssid_new = true;
         } else {
             ssid = (dot11_advertised_ssid *) ssid_itr->second;
 
         }
 
+        if (dot11info->subtype == packet_sub_beacon) {
+            // Update the base device records
+            dot11dev->set_last_beaconed_ssid(ssid->get_ssid());
+            dot11dev->set_last_beaconed_ssid_csum(dot11info->ssid_csum);
+
+            // Set the type
+            ssid->set_ssid_beacon(true);
+        } else if (dot11info->subtype == packet_sub_probe_resp) {
+            ssid->set_ssid_probe_response(true);
+        }
+    }
+
+    if (ssid_new) {
+        ssid->set_crypt_set(dot11info->cryptset);
+        ssid->set_first_time(in_pack->ts.tv_sec);
+        ssid->set_ietag_checksum(dot11info->ietag_csum);
+        ssid->set_channel(dot11info->channel);
+
+        ssid->set_dot11d_country(dot11info->dot11d_country);
+        ssid->set_dot11d_vec(dot11info->dot11d_vec);
+
+        // TODO handle loading SSID from the stored file
+        ssid->set_ssid(dot11info->ssid);
+        if (dot11info->ssid_len == 0 || dot11info->ssid_blank) {
+            ssid->set_ssid_cloaked(true);
+        }
+        ssid->set_ssid_len(dot11info->ssid_len);
+
+        ssid->set_beacon_info(dot11info->beacon_info);
+
+        ssid->set_wps_state(dot11info->wps);
+        ssid->set_wps_manuf(dot11info->wps_manuf);
+        ssid->set_wps_model_name(dot11info->wps_model_name);
+        ssid->set_wps_model_number(dot11info->wps_model_number);
+
+        // Do we not know the basedev manuf?
+        if (basedev->get_manuf() == "" && dot11info->wps_manuf != "")
+            basedev->set_manuf(dot11info->wps_manuf);
+
         ssid->set_last_time(in_pack->ts.tv_sec);
         ssid->inc_beacons_sec();
+    }
 
-        // TODO alert on change on SSID IE tags?
-        if (ssid->get_ietag_checksum() != dot11info->ietag_csum) {
-            fprintf(stderr, "debug - dot11phy:HandleSSID %s ietag checksum changed\n", basedev->get_macaddr().Mac2String().c_str());
+    // TODO alert on change on SSID IE tags?
+    if (ssid->get_ietag_checksum() != dot11info->ietag_csum) {
+        fprintf(stderr, "debug - dot11phy:HandleSSID %s ietag checksum changed\n", basedev->get_macaddr().Mac2String().c_str());
 
-            // Things to check:
-            // dot11d values
-            // channel
-            // WPS
+        // Things to check:
+        // dot11d values
+        // channel
+        // WPS
 
-            if (ssid->get_channel() != dot11info->channel) {
-                fprintf(stderr, "debug - dot11phy:HandleSSID %s channel changed\n", basedev->get_macaddr().Mac2String().c_str());
+        if (ssid->get_channel() != dot11info->channel) {
+            fprintf(stderr, "debug - dot11phy:HandleSSID %s channel changed\n", basedev->get_macaddr().Mac2String().c_str());
 
-                ssid->set_channel(dot11info->channel); 
+            ssid->set_channel(dot11info->channel); 
 
-                // TODO raise alert
-            }
+            // TODO raise alert
+        }
 
-            if (ssid->get_dot11d_country() != dot11info->dot11d_country) {
-                fprintf(stderr, "debug - dot11phy:HandleSSID %s dot11d country changed\n", basedev->get_macaddr().Mac2String().c_str());
+        if (ssid->get_dot11d_country() != dot11info->dot11d_country) {
+            fprintf(stderr, "debug - dot11phy:HandleSSID %s dot11d country changed\n", basedev->get_macaddr().Mac2String().c_str());
 
-                ssid->set_dot11d_country(dot11info->dot11d_country);
+            ssid->set_dot11d_country(dot11info->dot11d_country);
 
-                // TODO raise alert
-            }
+            // TODO raise alert
+        }
 
-            vector<TrackerElement *> *dot11dvec =
-                ssid->get_dot11d_vec()->get_vector();
-            bool dot11dmismatch = false;
-            for (unsigned int vc = 0; 
-                    vc < dot11dvec->size() && vc < dot11info->dot11d_vec.size(); 
-                    vc++) {
-                dot11_11d_tracked_range_info *ri = 
-                    (dot11_11d_tracked_range_info *)(*dot11dvec)[vc];
+        vector<TrackerElement *> *dot11dvec =
+            ssid->get_dot11d_vec()->get_vector();
+        bool dot11dmismatch = false;
+        for (unsigned int vc = 0; 
+                vc < dot11dvec->size() && vc < dot11info->dot11d_vec.size(); 
+                vc++) {
+            dot11_11d_tracked_range_info *ri = 
+                (dot11_11d_tracked_range_info *)(*dot11dvec)[vc];
 
-                if (ri->get_startchan() != dot11info->dot11d_vec[vc].startchan ||
+            if (ri->get_startchan() != dot11info->dot11d_vec[vc].startchan ||
                     ri->get_numchan() != dot11info->dot11d_vec[vc].numchan ||
                     ri->get_txpower() != dot11info->dot11d_vec[vc].txpower) {
-                    dot11dmismatch = true;
-                    break;
-                }
+                dot11dmismatch = true;
+                break;
             }
-
-            if (dot11dmismatch) {
-                fprintf(stderr, "debug - dot11phy:HandleSSID %s dot11d channels changed\n", basedev->get_macaddr().Mac2String().c_str());
-
-                ssid->set_dot11d_vec(dot11info->dot11d_vec);
-
-                // TODO raise alert
-            }
-
-            if (ssid->get_wps_state() != dot11info->wps) {
-                fprintf(stderr, "debug - dot11phy:HandleSSID %s wps state changed %u to %u\n", basedev->get_macaddr().Mac2String().c_str(), ssid->get_wps_state(), dot11info->wps);
-                ssid->set_wps_state(dot11info->wps);
-
-                // TODO raise alert?
-            }
-            
-            ssid->set_ietag_checksum(dot11info->ietag_csum);
-        }
-        
-        // TODO alert on cryptset degrade/change?
-        if (ssid->get_crypt_set() != dot11info->cryptset) {
-            fprintf(stderr, "debug - dot11phy:HandleSSID cryptset changed\n");
         }
 
-        ssid->set_crypt_set(dot11info->cryptset);
+        if (dot11dmismatch) {
+            fprintf(stderr, "debug - dot11phy:HandleSSID %s dot11d channels changed\n", basedev->get_macaddr().Mac2String().c_str());
 
-        ssid->set_maxrate(dot11info->maxrate);
-        ssid->set_beaconrate(Ieee80211Interval2NSecs(dot11info->beacon_interval));
+            ssid->set_dot11d_vec(dot11info->dot11d_vec);
 
-        // Add the location data, if any
-        if (pack_gpsinfo != NULL && pack_gpsinfo->gps_fix > 1) {
-            ssid->get_location()->add_loc(pack_gpsinfo->lat, pack_gpsinfo->lon,
-                    pack_gpsinfo->alt, pack_gpsinfo->gps_fix);
-
+            // TODO raise alert
         }
 
-        // Update the base device records
-        dot11dev->set_last_beaconed_ssid(ssid->get_ssid());
-        dot11dev->set_last_beaconed_ssid_csum(dot11info->ssid_csum);
+        if (ssid->get_wps_state() != dot11info->wps) {
+            fprintf(stderr, "debug - dot11phy:HandleSSID %s wps state changed %u to %u\n", basedev->get_macaddr().Mac2String().c_str(), ssid->get_wps_state(), dot11info->wps);
+            ssid->set_wps_state(dot11info->wps);
+
+            // TODO raise alert?
+        }
+
+        ssid->set_ietag_checksum(dot11info->ietag_csum);
     }
+
+    // TODO alert on cryptset degrade/change?
+    if (ssid->get_crypt_set() != dot11info->cryptset) {
+        fprintf(stderr, "debug - dot11phy:HandleSSID cryptset changed\n");
+    }
+
+    ssid->set_crypt_set(dot11info->cryptset);
+
+    ssid->set_maxrate(dot11info->maxrate);
+    ssid->set_beaconrate(Ieee80211Interval2NSecs(dot11info->beacon_interval));
+
+    // Add the location data, if any
+    if (pack_gpsinfo != NULL && pack_gpsinfo->gps_fix > 1) {
+        ssid->get_location()->add_loc(pack_gpsinfo->lat, pack_gpsinfo->lon,
+                pack_gpsinfo->alt, pack_gpsinfo->gps_fix);
+
+    }
+
+
+    // TODO restore AP spoof protection
+#if 0
+	// If it's a probe response record it in the SSID cache, we only record
+	// one per BSSID for now and only if we have a cloaked SSID on this record.
+	// While we're at it, also figure out if we're responding for SSIDs we've never
+	// been advertising (in a non-cloaked way), that's probably not a good
+	// thing.
+	if (packinfo->type == packet_management &&
+		packinfo->subtype == packet_sub_probe_resp &&
+		(packinfo->ssid_len || packinfo->ssid_blank == 0)) {
+
+		dev = devicetracker->FetchDevice(packinfo->bssid_mac);
+
+		if (dev != NULL) {
+			net = (dot11_device *) dev->fetch(dev_comp_dot11);
+
+			if (net != NULL) {
+				for (map<uint32_t, dot11_ssid *>::iterator asi = 
+					 net->ssid_map.begin(); asi != net->ssid_map.end(); ++asi) {
+
+					// Catch beacon, cloaked situation
+					if (asi->second->type == dot11_ssid_beacon &&
+						asi->second->ssid_cloaked) {
+						// Remember the revealed SSID
+						ssid_conf->SetOpt(packinfo->bssid_mac.Mac2String(), 
+										  packinfo->ssid, 
+										  in_pack->ts.tv_sec);
+					}
+
+				}
+			}
+		}
+	}
+
+	if (packinfo->type == packet_management &&
+		(packinfo->subtype == packet_sub_probe_resp || 
+		 packinfo->subtype == packet_sub_beacon)) {
+
+		// Run it through the AP spoof protection system
+		for (unsigned int x = 0; x < apspoof_vec.size(); x++) {
+			// Shortcut to checking the mac address first, if it's one we 
+			// have then we don't have to do the expensive operation of pcre or
+			// string matching
+			if (apspoof_vec[x]->allow_mac_map.find(packinfo->source_mac) !=
+				apspoof_vec[x]->allow_mac_map.end()) {
+				continue;
+			}
+
+			int match = 0, matched = 0;
+			string match_type;
+
+#ifdef HAVE_LIBPCRE
+			if (apspoof_vec[x]->ssid_re != NULL) {
+				int ovector[128];
+
+				match = (pcre_exec(apspoof_vec[x]->ssid_re, apspoof_vec[x]->ssid_study,
+								   packinfo->ssid.c_str(), packinfo->ssid.length(),
+								   0, 0, ovector, 128) >= 0);
+
+				match_type = "regular expression";
+				matched = 1;
+			}
+#endif
+
+			if (matched == 0) {
+				match = (apspoof_vec[x]->ssid == packinfo->ssid);
+				match_type = "SSID";
+				matched = 1;
+			}
+
+			if (match && globalreg->alertracker->PotentialAlert(alert_adhoc_ref)) {
+				string ntype = 
+					packinfo->subtype == packet_sub_beacon ? string("advertising") :
+					string("responding for");
+
+				string al = "IEEE80211 Unauthorized device (" + 
+					packinfo->source_mac.Mac2String() + string(") ") + ntype + 
+					" for SSID '" + packinfo->ssid + "', matching APSPOOF "
+					"rule " + apspoof_vec[x]->name + string(" with ") + match_type + 
+					string(" which may indicate spoofing or impersonation.");
+
+				globalreg->alertracker->RaiseAlert(alert_ssidmatch_ref, in_pack, 
+												   packinfo->bssid_mac, 
+												   packinfo->source_mac, 
+												   packinfo->dest_mac, 
+												   packinfo->other_mac, 
+												   packinfo->channel, al);
+				break;
+			}
+		}
+	}
+
+#endif
 
 }
 
