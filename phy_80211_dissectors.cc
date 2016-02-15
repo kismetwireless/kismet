@@ -37,8 +37,48 @@
 #include "configfile.h"
 #include "packetsource.h"
 
-// Handly little global so that it only has to do the ascii->mac_addr transform once
+// Handy little global so that it only has to do the ascii->mac_addr transform once
 mac_addr broadcast_mac = "FF:FF:FF:FF:FF:FF";
+
+// For 802.11n MCS calculations
+const int CH20GI800 = 0;
+const int CH20GI400 = 1;
+const int CH40GI800 = 2;
+const int CH40GI400 = 3;
+
+const double mcs_table[][4] = {{6.5,7.2,13.5,15},
+       {13,14.4,27,30},
+       {19.5,21.7,40.5,45},
+       {26,28.9,54,60},
+       {39,43.3,81,90},
+       {52,57.8,108,120},
+       {58.5,65,121.5,135},
+       {65,72.2,135,150},
+       {13,14.4,27,30},
+       {26,28.9,54,60},
+       {39,43.3,81,90},
+       {52,57.8,108,120},
+       {78,86.7,162,180},
+       {104,115.6,216,240},
+       {117,130,243,270},
+       {130,144.4,270,300},
+       {19.5,21.7,40.5,45},
+       {39,43.3,81,90},
+       {58.5,65,121.5,135},
+       {78,86.7,162,180},
+       {117,130,243,270},
+       {156,173.3,324,360},
+       {175.5,195,364.5,405},
+       {195,216.7,405,450},
+       {26,28.8,54,60},
+       {52,57.6,108,120},
+       {78,86.8,162,180},
+       {104,115.6,216,240},
+       {156,173.2,324,360},
+       {208,231.2,432,480},
+       {234,260,486,540},
+       {260,288.8,540,600}};
+
 
 // CRC32 index for verifying WEP - cribbed from ethereal
 static const uint32_t dot11_wep_crc32_table[256] = {
@@ -698,6 +738,95 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
                 packinfo->corrupt = 1;
 			}
 
+            // Match HT 802.11n tag
+            if ((tcitr = tag_cache_map.find(45)) != tag_cache_map.end()) {
+                tag_offset = tcitr->second[0];
+                // GetTagOffset returns us on the size byte
+                taglen = (chunk->data[tag_offset] & 0xFF);
+                if (tag_offset + taglen > chunk->length || taglen < 7) {
+                    // We're corrupt, set it and stop processing
+                    packinfo->corrupt = 1;
+                    in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
+                    return 0;
+                }
+                // No need to check tag length from now on.
+                // Extract the capabilities from the next 2 bytes.
+                // Find out if 40 MHz channel width is supported
+                // and "40 MHz intolerant" bit is not set.
+                bool ch40;
+                if (((chunk->data[tag_offset + 1] & 0xFF) & 2) != 0 &&
+                    ((chunk->data[tag_offset + 2] & 0xFF) & 64) == 0)
+                    ch40 = true;
+                else
+                    ch40 = false;
+                // Find out if short GI is supported, taking into account only
+                // the wider channel width supported
+                bool gi400;
+                if (ch40) {
+                    if (((chunk->data[tag_offset + 1] & 0xFF) & 64) != 0)
+                        gi400 = true;
+                    else
+                        gi400 = false;
+                }
+                else { // Supports only 20 MHz
+                    if (((chunk->data[tag_offset + 1] & 0xFF) & 32) != 0)
+                        gi400 = true;
+                    else
+                        gi400 = false;
+                }
+                // Find out the MCS Index
+                // Iterate the 4 bytes of the MCS
+                int mcsindex = -1;
+                for (int i = 4; i < 8; i++) {
+                    int byte = chunk->data[tag_offset + i] & 0xFF;
+                    int pw = 1;
+                    // Iterate each bit of the current byte
+                    while ((byte & pw) != 0 && pw <= 128) {
+                        mcsindex += 1;
+                        pw *= 2;
+                    }
+                    if (pw <= 128) // Found the first unset bit
+                        break;
+                }
+                // Find out the maximum rate
+                double maxrate;
+                if (ch40) {
+                    if (gi400)
+                        maxrate = mcs_table[mcsindex][CH40GI400];
+                    else
+                        maxrate = mcs_table[mcsindex][CH40GI800];
+                }
+                else {
+                    if (gi400)
+                        maxrate = mcs_table[mcsindex][CH20GI400];
+                    else
+                        maxrate = mcs_table[mcsindex][CH20GI800];
+                }
+                if (packinfo->maxrate < maxrate)
+                    packinfo->maxrate = maxrate;
+            }
+            
+            // Find the offset of flag 3 and get the channel.   802.11a doesn't have 
+            // this tag so we use the hardware channel, assigned at the beginning of 
+            // GetPacketInfo
+            if ((tcitr = tag_cache_map.find(3)) != tag_cache_map.end()) {
+                tag_offset = tcitr->second[0];
+                found_channel_tag = 1;
+                // Extract the channel from the next byte (GetTagOffset returns
+                // us on the size byte)
+                taglen = (chunk->data[tag_offset] & 0xFF);
+
+				if (tag_offset + taglen > chunk->length) {
+                    // Otherwise we're corrupt, set it and stop processing
+                    packinfo->corrupt = 1;
+                    in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
+                    return 0;
+				}
+				
+                packinfo->channel = (int) (chunk->data[tag_offset+1]);
+            }
+
+
             // Find the offset of flag 3 and get the channel.   802.11a doesn't have 
             // this tag so we use the hardware channel, assigned at the beginning of 
             // GetPacketInfo
@@ -946,6 +1075,9 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
 								break;
 							}
 						}
+
+                        // Set WPA version flag
+                        packinfo->cryptset |= crypt_version_wpa;
 					}
 				} /* 221 */
 
@@ -1007,6 +1139,9 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
 								break;
 							}
 						}
+
+                        // Set version flag
+                        packinfo->cryptset |= crypt_version_wpa2;
 					}
 				} /* 48 */
 			} /* protected frame */

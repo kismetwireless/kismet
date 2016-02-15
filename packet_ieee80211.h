@@ -238,6 +238,8 @@ typedef struct {
 #define crypt_unknown_protected 	(1 << 24)
 #define crypt_unknown_nonwep		(1 << 25)
 #define crypt_wps 					(1 << 26)
+#define crypt_version_wpa   (1 << 27)
+#define crypt_version_wpa2  (1 << 28)
 // L3 encryption mask
 #define crypt_l3_mask		0x300004
 // L2 encryption mask

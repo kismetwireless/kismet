@@ -706,6 +706,10 @@ void Kis_80211_Phy::HandleSSID(kis_tracked_device_base *basedev,
                     pack_gpsinfo->alt, pack_gpsinfo->gps_fix);
 
         }
+
+        // Update the base device records
+        dot11dev->set_last_beaconed_ssid(ssid->get_ssid());
+        dot11dev->set_last_beaconed_ssid_csum(dot11info->ssid_csum);
     }
 
 }
