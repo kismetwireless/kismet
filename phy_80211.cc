@@ -640,7 +640,51 @@ void Kis_80211_Phy::HandleSSID(kis_tracked_device_base *basedev,
             // WPS
 
             if (ssid->get_channel() != dot11info->channel) {
-                
+                fprintf(stderr, "debug - dot11phy:HandleSSID %s channel changed\n", basedev->get_macaddr().Mac2String().c_str());
+
+                ssid->set_channel(dot11info->channel); 
+
+                // TODO raise alert
+            }
+
+            if (ssid->get_dot11d_country() != dot11info->dot11d_country) {
+                fprintf(stderr, "debug - dot11phy:HandleSSID %s dot11d country changed\n", basedev->get_macaddr().Mac2String().c_str());
+
+                ssid->set_dot11d_country(dot11info->dot11d_country);
+
+                // TODO raise alert
+            }
+
+            vector<TrackerElement *> *dot11dvec =
+                ssid->get_dot11d_vec()->get_vector();
+            bool dot11dmismatch = false;
+            for (unsigned int vc = 0; 
+                    vc < dot11dvec->size() && vc < dot11info->dot11d_vec.size(); 
+                    vc++) {
+                dot11_11d_tracked_range_info *ri = 
+                    (dot11_11d_tracked_range_info *)(*dot11dvec)[vc];
+
+                if (ri->get_startchan() != dot11info->dot11d_vec[vc].startchan ||
+                    ri->get_numchan() != dot11info->dot11d_vec[vc].numchan ||
+                    ri->get_txpower() != dot11info->dot11d_vec[vc].txpower) {
+                    dot11dmismatch = true;
+                    break;
+                }
+            }
+
+            if (dot11dmismatch) {
+                fprintf(stderr, "debug - dot11phy:HandleSSID %s dot11d channels changed\n", basedev->get_macaddr().Mac2String().c_str());
+
+                ssid->set_dot11d_vec(dot11info->dot11d_vec);
+
+                // TODO raise alert
+            }
+
+            if (ssid->get_wps_state() != dot11info->wps) {
+                fprintf(stderr, "debug - dot11phy:HandleSSID %s wps state changed %u to %u\n", basedev->get_macaddr().Mac2String().c_str(), ssid->get_wps_state(), dot11info->wps);
+                ssid->set_wps_state(dot11info->wps);
+
+                // TODO raise alert?
             }
             
             ssid->set_ietag_checksum(dot11info->ietag_csum);

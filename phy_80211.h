@@ -88,7 +88,7 @@ class dot11_packinfo_dot11d_entry {
 public:
     uint32_t startchan;
     uint32_t numchan;
-    uint32_t txpower;
+    int32_t txpower;
 };
 
 // WPS state bitfield
@@ -249,14 +249,14 @@ public:
     }
 
 
-    __Proxy(startchan, int32_t, int, int, startchan);
+    __Proxy(startchan, uint32_t, uint32_t, uint32_t, startchan);
     __Proxy(numchan, uint32_t, unsigned int, unsigned int, numchan);
     __Proxy(txpower, int32_t, int, int, txpower);
 
 protected:
     virtual void register_fields() {
         startchan_id =
-            RegisterField("dot11.11d.start_channel", TrackerInt32,
+            RegisterField("dot11.11d.start_channel", TrackerUInt32,
                     "Starting channel of 11d range", (void **) &startchan);
         numchan_id =
             RegisterField("dot11.11d.num_channels", TrackerUInt32,
