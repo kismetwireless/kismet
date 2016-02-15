@@ -26,6 +26,7 @@
 #include <algorithm>
 #include <string>
 #include <sstream>
+#include <pthread.h>
 
 #include "globalregistry.h"
 #include "util.h"
@@ -660,6 +661,8 @@ int Devicetracker_CMD_ADDDEVTAG(CLIENT_PARMS) {
 }
 
 Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) {
+    pthread_mutex_init(&devicelist_mutex, NULL);
+
 	globalreg = in_globalreg;
 
 	globalreg->InsertGlobal("DEVICE_TRACKER", this);
@@ -786,10 +789,15 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) {
 
 	tag_conf = new ConfigFile(globalreg);
 	tag_conf->ParseConfig(tag_conf->ExpandLogPath(globalreg->kismet_config->FetchOpt("configdir") + "/" + "tag.conf", "", "", 0, 1).c_str());
-	
+
+
+    // Register ourselves with the HTTP server
+    globalreg->httpd_server->RegisterHandler(this);
 }
 
 Devicetracker::~Devicetracker() {
+    globalreg->httpd_server->RemoveHandler(this);
+
 	if (timerid >= 0)
 		globalreg->timetracker->RemoveTimer(timerid);
 
@@ -804,6 +812,7 @@ Devicetracker::~Devicetracker() {
 		delete track_filter;
     */
 
+    pthread_mutex_lock(&devicelist_mutex);
 	for (map<int, Kis_Phy_Handler *>::iterator p = phy_handler_map.begin();
 		 p != phy_handler_map.end(); ++p) {
 		delete p->second;
@@ -812,6 +821,9 @@ Devicetracker::~Devicetracker() {
 	for (unsigned int d = 0; d < tracked_vec.size(); d++) {
 		delete tracked_vec[d];
 	}
+    pthread_mutex_unlock(&devicelist_mutex);
+
+    pthread_mutex_destroy(&devicelist_mutex);
 }
 
 void Devicetracker::SaveTags() {
@@ -838,6 +850,8 @@ void Devicetracker::SaveTags() {
 }
 
 vector<kis_tracked_device_base *> *Devicetracker::FetchDevices(int in_phy) {
+    devicelist_mutex_locker(this);
+
 	if (in_phy == KIS_PHY_ANY)
 		return &tracked_vec;
 
@@ -857,6 +871,8 @@ Kis_Phy_Handler *Devicetracker::FetchPhyHandler(int in_phy) {
 }
 
 int Devicetracker::FetchNumDevices(int in_phy) {
+    devicelist_mutex_locker(this);
+
 	int r = 0;
 
 	if (in_phy == KIS_PHY_ANY)
@@ -1257,6 +1273,8 @@ int Devicetracker::TimerKick() {
 }
 
 kis_tracked_device_base *Devicetracker::FetchDevice(mac_addr in_device) {
+    devicelist_mutex_locker(this);
+
 	device_itr i = tracked_map.find(in_device);
 
 	if (i != tracked_map.end())
@@ -1462,6 +1480,8 @@ kis_tracked_device_base *Devicetracker::BuildDevice(mac_addr in_device,
 		// Defer tag loading to when we populate the common record
 
         printf("debug - inserting device %s into map\n", device->get_key().Mac2String().c_str());
+
+        devicelist_mutex_locker(this);
 
 		tracked_map[device->get_key()] = device;
 		tracked_vec.push_back(device);
@@ -2460,4 +2480,76 @@ string Devicetracker::FetchDeviceTag(mac_addr in_device) {
 
     return dev->get_tag();
 }
+
+// HTTP interfaces
+bool Devicetracker::VerifyPath(const char *path, const char *method) {
+    if (strcmp(method, "GET") != 0) {
+        return false;
+    }
+
+    if (strcmp(path, "/devices/list.html") == 0)
+        return true;
+
+    vector<string> tokenurl = StrTokenize(path, "/");
+
+    if (tokenurl.size() < 4)
+        return false;
+
+    if (tokenurl[1] == "devices") {
+        if (tokenurl[2] == "msgpack") {
+            devicelist_mutex_locker(this);
+            
+            if (tracked_map.find(mac_addr(tokenurl[3])) != tracked_map.end()) {
+                return true;
+            } else {
+                fprintf(stderr, "debug - couldn't find entry for mac %s / %s\n", tokenurl[3].c_str(), mac_addr(tokenurl[3]).Mac2String().c_str());
+                return false;
+            }
+        }
+    }
+
+
+    return false;
+}
+
+void Devicetracker::CreateStreamResponse(struct MHD_Connection *connection,
+        const char *url, const char *method, const char *upload_data,
+        size_t *upload_data_size, std::stringstream &stream) {
+
+    if (strcmp(method, "GET") != 0) {
+        return;
+    }
+
+    if (strcmp(url, "/devices/list.html") == 0) {
+        devicelist_mutex_locker(this);
+
+        for (unsigned int x = 0; x < tracked_vec.size(); x++) {
+            stream << tracked_vec[x]->get_macaddr().MacPhy2String() << "\n";
+        }
+    }
+
+    vector<string> tokenurl = StrTokenize(url, "/");
+
+    if (tokenurl.size() < 4)
+        return;
+
+    if (tokenurl[1] == "devices") {
+        if (tokenurl[2] == "msgpack") {
+            devicelist_mutex_locker(this);
+           
+            map<mac_addr, kis_tracked_device_base *>::iterator itr;
+
+            if ((itr = tracked_map.find(mac_addr(tokenurl[3]))) != tracked_map.end()) {
+
+                msgpack::pack(stream, (TrackerElement *) itr->second);
+
+                return;
+            } else {
+                return;
+            }
+        }
+    }
+
+}
+
 

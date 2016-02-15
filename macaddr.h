@@ -106,6 +106,12 @@ struct mac_addr {
 				continue;
 			}
 
+            if (in[0] == '!') {
+                mode = 2;
+                in++;
+                continue;
+            }
+
 			if (sscanf(in, "%hX", &byte) != 1) {
 				error = 1;
 				break;
@@ -124,9 +130,11 @@ struct mac_addr {
 			if (mode == 0) {
 				longmac |= (uint64_t) byte << ((MAC_LEN_MAX - nbyte - 1) * 8);
 				SetMacLen(nbyte + 1);
-			} else {
+			} else if (mode == 1) {
 				longmask |= (uint64_t) byte << ((MAC_LEN_MAX - nbyte - 1) * 8);
-			}
+			} else if (mode == 2) {
+                SetPhy(byte);
+            }
 
 			nbyte++;
 		}
@@ -265,6 +273,15 @@ struct mac_addr {
 	inline uint32_t OUI() const {
 		return (longmac >> (4 * 8)) & 0x00FFFFFF;
 	}
+
+    inline string MacPhy2String() const {
+        ostringstream osstr;
+
+        osstr << Mac2String() << "!" 
+            << hex << setw(2) << setfill('0') << uppercase << GetPhy();
+
+        return osstr.str();
+    }
 
     inline string Mac2String() const {
 		ostringstream osstr;

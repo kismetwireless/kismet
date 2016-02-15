@@ -31,6 +31,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <pthread.h>
 
 #include "globalregistry.h"
 #include "trackedelement.h"
@@ -48,6 +49,7 @@
 #include "devicetracker_component.h"
 #include "trackercomponent_legacy.h"
 #include "packinfo_signal.h"
+#include "kis_net_microhttpd.h"
 
 // How big the main vector of components is, if we ever get more than this
 // many tracked components we'll need to expand this but since it ties to 
@@ -526,7 +528,7 @@ public:
     kis_tracked_device_base *devref;
 };
 
-class Devicetracker {
+class Devicetracker : public Kis_Net_Httpd_Stream_Handler {
 public:
 	Devicetracker() { fprintf(stderr, "FATAL OOPS: Kis_Tracker()\n"); exit(0); }
 	Devicetracker(GlobalRegistry *in_globalreg);
@@ -591,6 +593,15 @@ public:
 
 	// Populate the common components of a device
 	int PopulateCommon(kis_tracked_device_base *device, kis_packet *in_pack);
+
+    // HTTP handlers
+    virtual bool VerifyPath(const char *path, const char *method);
+
+    virtual void CreateStreamResponse(struct MHD_Connection *connection,
+            const char *url, const char *method, const char *upload_data,
+            size_t *upload_data_size, std::stringstream &stream);
+    
+
 protected:
 	void SaveTags();
 
@@ -664,6 +675,24 @@ protected:
 
 	// Build a device record
 	kis_tracked_device_base *BuildDevice(mac_addr in_device, kis_packet *in_pack);
+
+    pthread_mutex_t devicelist_mutex;
+
+    class devicelist_mutex_locker {
+    public:
+        devicelist_mutex_locker(Devicetracker *dt) {
+            devicetracker = dt;
+            pthread_mutex_lock(&(dt->devicelist_mutex));
+        }
+
+        ~devicelist_mutex_locker() {
+            pthread_mutex_unlock(&(devicetracker->devicelist_mutex));
+        }
+
+    protected:
+        Devicetracker *devicetracker;
+    };
+
 };
 
 #endif

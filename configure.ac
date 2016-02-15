@@ -318,16 +318,22 @@ AC_CHECK_LIB([dl], [dlopen],
 			usedl=1,
 			 AC_MSG_WARN([libdl doesn't seem to be needed on this system]))
 
+if test "$usedl" -eq 1; then
+	LIBS="$LIBS -ldl"
+	CLIENTCLIBS="$CLIENTCLIBS -ldl"
+fi
+
+
 # We need threads
 AX_PTHREAD(pthread=1,
 		   AC_MSG_ERROR([pthreads are needed and are not available]))
 KSLIBS="$KSLIBS $PTHREAD_LIBS"
 CPPFLAGS="$CPPFLAGS $PTHREAD_CFLAGS"
 
-if test "$usedl" -eq 1; then
-	LIBS="$LIBS -ldl"
-	CLIENTCLIBS="$CLIENTCLIBS -ldl"
-fi
+# We need microhttpd
+AC_CHECK_LIB([microhttpd], [MHD_start_daemon],
+             KSLIBS="$KSLIBS -lmicrohttpd",
+             AC_MSG_ERROR([libmicrohttpd is needed and is not available]))
 
 # sqlite3=yes
 # AC_CHECK_HEADER([sqlite3.h],

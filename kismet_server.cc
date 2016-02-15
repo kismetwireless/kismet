@@ -69,6 +69,8 @@
 #include "kis_netframe.h"
 #include "kis_droneframe.h"
 
+#include "kis_net_microhttpd.h"
+
 #include "soundcontrol.h"
 
 #include "gpswrapper.h"
@@ -672,6 +674,34 @@ int cmd_SHUTDOWN(CLIENT_PARMS) {
 	return 1;
 }
 
+class Kis_Net_Httpd_KismetHtml : public Kis_Net_Httpd_Stream_Handler {
+public:
+    virtual bool VerifyPath(const char *path, const char *method) {
+        if (strcmp(path, "/kismet.html") == 0 &&
+                strcmp(method, "GET") == 0) {
+            return true;
+        }
+
+        return false;
+    }
+
+    virtual void CreateStreamResponse(struct MHD_Connection *connection,
+            const char *url, const char *method, const char *upload_data,
+            size_t *upload_data_size, std::stringstream &stream) {
+
+        time_t time_cur;
+        time(&time_cur);
+        struct tm* time_now = localtime(&time_cur);
+
+        stream << "<html><head>"
+            << "<title>Kismet HTTPD</title>"
+            << "</head><body>Kismet HTTPD listening<br> "
+            << time_now->tm_hour << ":" << time_now->tm_min << ":" 
+            << time_now->tm_sec << "</body></html>";
+    }
+
+};
+
 int main(int argc, char *argv[], char *envp[]) {
 	exec_name = argv[0];
 	char errstr[STATUS_MAX];
@@ -934,6 +964,14 @@ int main(int argc, char *argv[], char *envp[]) {
 	globalregistry->packetchain = new Packetchain(globalregistry);
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
+
+    // Create the HTTPD server
+    globalregistry->httpd_server = new Kis_Net_Httpd(globalregistry, 8080);
+    // And start it
+    globalregistry->httpd_server->StartHttpd();
+    // Add a basic page handler
+    Kis_Net_Httpd_KismetHtml *kishtmlhandler = new Kis_Net_Httpd_KismetHtml();
+    globalregistry->httpd_server->RegisterHandler(kishtmlhandler);
 
 	// Create the basic network/protocol server
 	globalregistry->kisnetserver = new KisNetFramework(globalregistry);

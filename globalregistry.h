@@ -59,6 +59,8 @@ class Manuf;
 class Dumpfile_Pcap;
 // Field name resolver
 class EntryTracker;
+// HTTP server
+class Kis_Net_Httpd;
 
 #define KISMET_INSTANCE_SERVER	0
 #define KISMET_INSTANCE_DRONE	1
@@ -197,6 +199,8 @@ public:
 	RootIPCRemote *rootipc;
 	KisPanelInterface *panel_interface;
 	Manuf *manufdb;
+
+    Kis_Net_Httpd *httpd_server;
 
 	string log_prefix;
 

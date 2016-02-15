@@ -5346,6 +5346,12 @@ $as_echo "$as_me: WARNING: libdl doesn't seem to be needed on this system" >&2;}
 fi
 
 
+if test "$usedl" -eq 1; then
+	LIBS="$LIBS -ldl"
+	CLIENTCLIBS="$CLIENTCLIBS -ldl"
+fi
+
+
 # We need threads
 
 
@@ -5759,10 +5765,49 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
 KSLIBS="$KSLIBS $PTHREAD_LIBS"
 CPPFLAGS="$CPPFLAGS $PTHREAD_CFLAGS"
 
-if test "$usedl" -eq 1; then
-	LIBS="$LIBS -ldl"
-	CLIENTCLIBS="$CLIENTCLIBS -ldl"
+# We need microhttpd
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for MHD_start_daemon in -lmicrohttpd" >&5
+$as_echo_n "checking for MHD_start_daemon in -lmicrohttpd... " >&6; }
+if ${ac_cv_lib_microhttpd_MHD_start_daemon+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lmicrohttpd  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char MHD_start_daemon ();
+int
+main ()
+{
+return MHD_start_daemon ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_microhttpd_MHD_start_daemon=yes
+else
+  ac_cv_lib_microhttpd_MHD_start_daemon=no
 fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_microhttpd_MHD_start_daemon" >&5
+$as_echo "$ac_cv_lib_microhttpd_MHD_start_daemon" >&6; }
+if test "x$ac_cv_lib_microhttpd_MHD_start_daemon" = xyes; then :
+  KSLIBS="$KSLIBS -lmicrohttpd"
+else
+  as_fn_error $? "libmicrohttpd is needed and is not available" "$LINENO" 5
+fi
+
 
 # sqlite3=yes
 # AC_CHECK_HEADER([sqlite3.h],

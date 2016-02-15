@@ -428,6 +428,8 @@ int PacketSource_Pcapfile::OpenSource() {
 	last_channel = 0;
 	char errstr[STATUS_MAX] = "";
 
+    fprintf(stderr, "debug - opened source at %lu\n", globalreg->timestamp.tv_sec);
+
 	// Open the file offline and bounce out the error
 	pd = pcap_open_offline(interface.c_str(), errstr);
 	if (strlen(errstr) > 0) {
@@ -459,6 +461,7 @@ int PacketSource_Pcapfile::Poll() {
 	} else if (ret == 0) {
 		globalreg->messagebus->InjectMessage("Pcap file reached end of capture",
 											 MSGFLAG_ERROR);
+        fprintf(stderr, "debug - closed source at %lu\n", globalreg->timestamp.tv_sec);
 		CloseSource();
 		return 0;
 	}
