@@ -868,6 +868,9 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
         return 0;
     }
 
+    // Lock the basedev
+    tracker_component_locker base_locker(basedev);
+
     dot11_tracked_device *dot11dev =
         (dot11_tracked_device *) basedev->get_map_value(dot11_device_entry_id);
 

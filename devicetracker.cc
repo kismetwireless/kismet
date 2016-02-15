@@ -1456,19 +1456,20 @@ kis_tracked_device_base *Devicetracker::BuildDevice(mac_addr in_device,
 
 		device->set_phytype(pack_common->phyid);
 
+        // New devices always marked dirty
+        device->set_dirty(true);
+
 		// Defer tag loading to when we populate the common record
 
         printf("debug - inserting device %s into map\n", device->get_key().Mac2String().c_str());
+
 		tracked_map[device->get_key()] = device;
 		tracked_vec.push_back(device);
 		phy_device_vec[pack_common->phyid]->push_back(device);
 
 		// mark it dirty
-		if (!device->get_dirty()) {
-			device->set_dirty(true);
-			dirty_device_vec.push_back(device);
-			phy_dirty_vec[pack_common->phyid]->push_back(device);
-		}
+        dirty_device_vec.push_back(device);
+        phy_dirty_vec[pack_common->phyid]->push_back(device);
 	}
 
 	return device;
@@ -1483,6 +1484,8 @@ int Devicetracker::PopulateCommon(kis_tracked_device_base *device, kis_packet *i
 		(kis_gps_packinfo *) in_pack->fetch(pack_comp_gps);
 	kis_ref_capsource *pack_capsrc =
 		(kis_ref_capsource *) in_pack->fetch(pack_comp_capsrc);
+
+    tracker_component_locker((tracker_component *) device);
 
 	// If we can't figure it out at all (no common layer) just bail
 	if (pack_common == NULL)

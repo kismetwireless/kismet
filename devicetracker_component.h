@@ -31,6 +31,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <pthread.h>
 
 #include "globalregistry.h"
 #include "trackedelement.h"
@@ -153,6 +154,8 @@ public:
 
         set_type(TrackerMap);
         set_id(in_id);
+
+        pthread_mutex_init(&pthread_lock, NULL);
     }
 
     // Build a component with existing map
@@ -164,12 +167,24 @@ public:
 
         set_type(TrackerMap);
         set_id(in_id);
+
+        pthread_mutex_init(&pthread_lock, NULL);
     }
 
 	virtual ~tracker_component() { 
         for (unsigned int i = 0; i < registered_fields.size(); i++) {
             delete registered_fields[i];
         }
+
+        pthread_mutex_destroy(&pthread_lock);
+    }
+
+    virtual void mutex_lock() {
+        pthread_mutex_lock(&pthread_lock);
+    }
+
+    virtual void mutex_unlock() {
+        pthread_mutex_unlock(&pthread_lock);
     }
 
     // Clones the type and preserves that we're a tracker component.  
@@ -202,8 +217,6 @@ protected:
 
         registered_fields.push_back(rf);
 
-        // printf("debug - tracker_component registered field '%s' id %u\n", in_name.c_str(), id);
-
         return id;
     }
 
@@ -213,8 +226,6 @@ protected:
     // instantiated as top-level fields.
     int RegisterField(string in_name, TrackerType in_type, string in_desc) {
         int id = tracker->RegisterField(in_name, in_type, in_desc);
-
-        // printf("debug - tracker_component registered field w/out adding to builder, '%s' id %d\n", in_name.c_str(), id);
 
         return id;
     }
@@ -232,8 +243,6 @@ protected:
 
         registered_fields.push_back(rf);
 
-        // printf("debug - registered field '%s' id %u\n", in_name.c_str(), id);
-
         return id;
     }
 
@@ -242,7 +251,6 @@ protected:
     // stage, callers should manually create these fields, importing from the parent
     int RegisterComplexField(string in_name, TrackerElement *in_builder, string in_desc) {
         int id = tracker->RegisterField(in_name, in_builder, in_desc);
-        // printf("debug - registered complex field '%s' id %u\n", in_name.c_str(), id);
         return id;
     }
 
@@ -259,15 +267,12 @@ protected:
     // Populate automatically based on the fields we have reserved, subclasses can 
     // override if they really need to do something special
     virtual void reserve_fields(TrackerElement *e) {
-        // printf("debug - tracker_component reserve_fields()\n");
-
         for (unsigned int i = 0; i < registered_fields.size(); i++) {
             registered_field *rf = registered_fields[i];
 
             if (rf->assign != NULL) {
                 *(rf->assign) = import_or_new(e, rf->id);
             } else {
-                // printf("debug - tracker_component reserve_fields id %d has no assignment, skipping\n", rf->id);
             }
         }
     }
@@ -290,7 +295,6 @@ protected:
             }
         }
 
-        // printf("debug - didn't find id %d in %p, creating new\n", i, e);
         r = tracker->GetTrackedInstance(i);
         add_map(r);
 
@@ -313,6 +317,22 @@ protected:
 
     vector<registered_field *> registered_fields;
 
+    pthread_mutex_t pthread_lock;
+};
+
+class tracker_component_locker {
+public:
+    tracker_component_locker(tracker_component *c) {
+        component = c;
+        component->mutex_lock();
+    }
+
+    ~tracker_component_locker() {
+        component->mutex_unlock();
+    }
+
+protected:
+    tracker_component *component;
 };
 
 enum kis_ipdata_type {
