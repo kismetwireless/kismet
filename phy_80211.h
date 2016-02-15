@@ -91,6 +91,19 @@ public:
     uint32_t txpower;
 };
 
+// WPS state bitfield
+#define DOT11_WPS_NO_WPS            0
+#define DOT11_WPS_CONFIGURED        1
+#define DOT11_WPS_NOT_CONFIGURED    (1 << 1)
+#define DOT11_WPS_LOCKED            (1 << 2)
+
+// SSID type bitfield
+#define DOT11_SSID_NONE             0
+#define DOT11_SSID_BEACON           1
+#define DOT11_SSID_PROBERESP        (1 << 1)
+#define DOT11_SSID_PROBEREQ         (1 << 2)
+#define DOT11_SSID_FILE             (1 << 3)
+
 // Packet info decoded by the dot11 phy decoder
 // 
 // Injected into the packet chain and processed later into the device records
@@ -131,6 +144,11 @@ public:
 		ssid_csum = 0;
 		dot11d_country = "";
 		ietag_csum = 0;
+        wps = DOT11_WPS_NO_WPS;
+        wps_manuf = "";
+        wps_device_name = "";
+        wps_model_name = "";
+        wps_model_number = "";
     }
 
     // Corrupt 802.11 frame
@@ -169,7 +187,7 @@ public:
 	int ibss;
 
 	// What channel does it report
-	int channel;
+	unsigned int channel;
 
     // Is this encrypted?
     int encrypted;
@@ -197,15 +215,19 @@ public:
 
 	string dot11d_country;
 	vector<dot11_packinfo_dot11d_entry> dot11d_vec;
-};
 
-
-
-enum dot11_ssid_type {
-	dot11_ssid_beacon = 0,
-	dot11_ssid_proberesp = 1,
-	dot11_ssid_probereq = 2,
-	dot11_ssid_file = 3,
+    // WPS information
+    uint8_t wps;
+    // The field below is useful because some APs use
+    // a MAC address with 'Unknown' OUI but will
+    // tell their manufacturer in this field:
+    string wps_manuf;
+    // Some APs give out bogus information on these fields
+    string wps_device_name;
+    string wps_model_name;
+    string wps_model_number;
+    // There's also the serial number field but we don't care
+    // about it because it's almost always bogus.
 };
 
 class dot11_11d_tracked_range_info : public tracker_component {
@@ -899,6 +921,8 @@ public:
     __Proxy(last_probed_ssid, string, string, string, last_probed_ssid);
 
     __Proxy(last_beaconed_ssid, string, string, string, last_beaconed_ssid);
+    __Proxy(last_beaconed_ssid_csum, int32_t, uint32_t, 
+            uint32_t, last_beaconed_ssid_csum);
 
     /*
        void clear_bssid_list() { bssid_vec->clear_vector(); }
@@ -997,6 +1021,10 @@ protected:
             RegisterField("dot11.device.last_beaconed_ssid", TrackerString,
                     "last beaconed ssid", (void **) &last_beaconed_ssid);
 
+        last_beaconed_ssid_csum_id =
+            RegisterField("dot11.device.last_beaconed_ssid_checksum", TrackerInt32,
+                    "last beaconed ssid checksum", (void **) &last_beaconed_ssid_csum);
+
         last_bssid_id =
             RegisterField("dot11.device.last_bssid", TrackerMac,
                     "last BSSID", (void **) &last_bssid);
@@ -1051,6 +1079,9 @@ protected:
 
     int last_beaconed_ssid_id;
     TrackerElement *last_beaconed_ssid;
+
+    int last_beaconed_ssid_csum_id;
+    TrackerElement *last_beaconed_ssid_csum;
 
     int last_bssid_id;
     TrackerElement *last_bssid;

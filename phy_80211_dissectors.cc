@@ -31,7 +31,7 @@
 
 #include "endian_magic.h"
 #include "phy_80211.h"
-#include "packetsignatures.h"
+#include "phy_80211_packetsignatures.h"
 #include "packetchain.h"
 #include "alertracker.h"
 #include "configfile.h"
@@ -716,8 +716,130 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
 				}
 				
                 packinfo->channel = (int) (chunk->data[tag_offset+1]);
-            }
+            } // channel
 
+            // Match WPS tag
+            if ((tcitr = tag_cache_map.find(221)) != tag_cache_map.end()) {
+                for (unsigned int tagct = 0; tagct < tcitr->second.size(); tagct++) {
+                    tag_offset = tcitr->second[tagct];
+                    unsigned int tag_orig = tag_offset + 1;
+                    unsigned int taglen = (chunk->data[tag_offset] & 0xFF);
+                    unsigned int offt = 0;
+
+                    if (tag_orig + taglen > chunk->length) {
+                        packinfo->corrupt = 1;
+                        in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
+                        return 0;
+                    }
+                    
+                    // Match 221 tag header for WPS
+                    if (taglen < sizeof(WPS_SIG))
+                        continue;
+                    
+                    if (memcmp(&(chunk->data[tag_orig + offt]), WPS_SIG, 
+                                sizeof(WPS_SIG)))
+                        continue;
+                    
+                    // Go to the beginning of the first data element
+                    offt += sizeof(WPS_SIG); 
+                    
+                    // Iterate through the data elements
+                    for (;;) {
+                        // Check if we have the type and length (2 bytes each)
+                        if (offt + 4 > taglen) {
+                            packinfo->corrupt = 1;
+                            in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
+                            return 0;
+                        }
+                        uint16_t type = 
+                            kis_ntoh16(kis_extract16(&(chunk->data[tag_orig + offt])));
+                        uint16_t length = 
+                            kis_ntoh16(kis_extract16(&(chunk->data[tag_orig + offt + 2])));
+                        if (offt + 4 + length > taglen) {
+                            packinfo->corrupt = 1;
+                            in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
+                            return 0;
+                        }
+
+                        switch (type) {
+                            case 0x1044: { // State
+                                // Assume length == 1
+                                uint8_t state = chunk->data[tag_orig + offt + 4];
+                                switch (state) {
+                                    case 0x01:
+                                        packinfo->wps |= DOT11_WPS_NOT_CONFIGURED;
+                                        break;
+                                    case 0x02:
+                                        packinfo->wps |= DOT11_WPS_CONFIGURED;
+                                        break;
+                                }
+                                break;
+                            }
+                            case 0x1057: // AP Setup Locked
+                                // Assume length == 1
+                                if (chunk->data[tag_orig + offt + 4] == 0x01)
+                                    packinfo->wps |= DOT11_WPS_LOCKED;
+                                break;
+                            case 0x1011: { // Device name
+                                char *cstr = new char[length + 1];
+                                for (int i = 0; i < length; i++)
+                                    cstr[i] = chunk->data[tag_orig + offt + 4 + i];
+                                cstr[length] = 0x00;
+                                packinfo->wps_device_name = cstr;
+                                delete[] cstr;
+                                break;
+                            }
+                            case 0x1021: { // Manufacturer
+                                char *cstr = new char[length + 1];
+                                for (int i = 0; i < length; i++)
+                                    cstr[i] = chunk->data[tag_orig + offt + 4 + i];
+                                cstr[length] = 0x00;
+                                packinfo->wps_manuf = cstr;
+                                delete[] cstr;
+                                break;
+                            }
+                            case 0x1023: { // Model name
+                                char *cstr = new char[length + 1];
+                                for (int i = 0; i < length; i++)
+                                    cstr[i] = chunk->data[tag_orig + offt + 4 + i];
+                                cstr[length] = 0x00;
+                                packinfo->wps_model_name = cstr;
+                                delete[] cstr;
+                                break;
+                            }
+                            case 0x1024: { // Model number
+                                char *cstr = new char[length + 1];
+                                for (int i = 0; i < length; i++)
+                                    cstr[i] = chunk->data[tag_orig + offt + 4 + i];
+                                cstr[length] = 0x00;
+                                packinfo->wps_model_number = cstr;
+                                delete[] cstr;
+                                break;
+                            }
+                            // We ignore these fields for now
+                            case 0x1008: // Configuration methods
+                            case 0x1012: // Device password ID
+                            case 0x103B: // Response type
+                            case 0x103C: // RF bands
+                            case 0x1041: // Selected registrar
+                            case 0x1042: // Serial number
+                            case 0x1047: // UUID enrollee
+                            case 0x1049: // Vendor extension
+                            case 0x104A: // Version
+                            case 0x1053: // Selected registrar configuration methods
+                            case 0x1054: // Primary device type
+                            default:
+                                break;
+                        }
+                        if (offt + 4 + length >= taglen)
+                            break; // No more data elements
+                        offt += 4 + length;
+                    }
+                }
+            } // WPS
+
+
+            // Parse 802.11d tags
             if ((tcitr = tag_cache_map.find(7)) != tag_cache_map.end()) {
                 tag_offset = tcitr->second[0];
 
@@ -888,56 +1010,6 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
 					}
 				} /* 48 */
 			} /* protected frame */
-
-			/* Look for WPS */
-			if ((tcitr = tag_cache_map.find(221)) != tag_cache_map.end()) {
-				for (unsigned int tagct = 0; tagct < tcitr->second.size(); 
-					 tagct++) {
-
-					tag_offset = tcitr->second[tagct];
-					unsigned int tag_orig = tag_offset + 1;
-					unsigned int taglen = (chunk->data[tag_offset] & 0xFF);
-					unsigned int offt = 0;
-
-					// Corrupt tag
-					if (tag_orig + taglen > chunk->length) {
-						packinfo->corrupt = 1;
-						in_pack->insert(pack_comp_80211, packinfo);
-						return 0;
-					}
-
-					if (offt + sizeof(MSF_OUI) > taglen)
-						continue;
-
-					// WPS is always under MSF
-					if (memcmp(&(chunk->data[tag_orig + offt]), 
-							   MSF_OUI, sizeof(MSF_OUI)))
-						continue;
-
-					// OUI + 1 - random byte after OUI in tags
-					offt += sizeof(MSF_OUI) + 1;
-
-					if (offt + sizeof(WPS_VERSION) > taglen)
-						continue;
-
-					if (memcmp(&(chunk->data[tag_orig + offt]),
-							   WPS_VERSION, sizeof(WPS_VERSION)))
-						continue;
-
-					offt += sizeof(WPS_VERSION);
-
-					if (offt + sizeof(WPS_CONFIGURED) > taglen)
-						continue;
-
-					if (memcmp(&(chunk->data[tag_orig + offt]),
-							   WPS_CONFIGURED, sizeof(WPS_CONFIGURED)))
-						continue;
-
-					// printf("debug - got WPS network!\n");
-					packinfo->cryptset |= crypt_wps;
-
-				} /* tagfor */
-			} /* 221/WPS */
 
         } else if (fc->subtype == packet_sub_deauthentication) {
 			if ((packinfo->mgt_reason_code >= 25 && packinfo->mgt_reason_code <= 31) ||

@@ -593,31 +593,59 @@ void Kis_80211_Phy::HandleSSID(kis_tracked_device_base *basedev,
         if (ssid_itr == adv_ssid_map->end()) {
             ssid = dot11dev->new_advertised_ssid();
             adv_ssid_map->add_intmap((int32_t) dot11info->ssid_csum, ssid);
-        } else {
-            ssid = (dot11_advertised_ssid *) ssid_itr->second;
 
             ssid->set_crypt_set(dot11info->cryptset);
             ssid->set_first_time(in_pack->ts.tv_sec);
             ssid->set_ietag_checksum(dot11info->ietag_csum);
+            ssid->set_channel(dot11info->channel);
+
+            ssid->set_dot11d_country(dot11info->dot11d_country);
+            ssid->set_dot11d_vec(dot11info->dot11d_vec);
+
+            // TODO handle loading SSID from the stored file
+            ssid->set_ssid(dot11info->ssid);
+            if (dot11info->ssid_len == 0 || dot11info->ssid_blank) {
+                ssid->set_ssid_cloaked(true);
+            }
+            ssid->set_ssid_len(dot11info->ssid_len);
+
+            ssid->set_beacon_info(dot11info->beacon_info);
+
+            if (dot11info->wps != 0) 
+                printf("debug - setting wps info on %s\n", basedev->get_macaddr().Mac2String().c_str());
+
+            ssid->set_wps_state(dot11info->wps);
+            ssid->set_wps_manuf(dot11info->wps_manuf);
+            ssid->set_wps_model_name(dot11info->wps_model_name);
+            ssid->set_wps_model_number(dot11info->wps_model_number);
+
+            // Do we not know the basedev manuf?
+            if (basedev->get_manuf() == "" && dot11info->wps_manuf != "")
+                basedev->set_manuf(dot11info->wps_manuf);
+        } else {
+            ssid = (dot11_advertised_ssid *) ssid_itr->second;
+
         }
 
         ssid->set_last_time(in_pack->ts.tv_sec);
+        ssid->inc_beacons_sec();
 
         // TODO alert on change on SSID IE tags?
         if (ssid->get_ietag_checksum() != dot11info->ietag_csum) {
-            fprintf(stderr, "debug - dot11phy:HandleSSID ietag checksum changed\n");
+            fprintf(stderr, "debug - dot11phy:HandleSSID %s ietag checksum changed\n", basedev->get_macaddr().Mac2String().c_str());
+
+            // Things to check:
+            // dot11d values
+            // channel
+            // WPS
+
+            if (ssid->get_channel() != dot11info->channel) {
+                
+            }
+            
+            ssid->set_ietag_checksum(dot11info->ietag_csum);
         }
         
-        ssid->set_ietag_checksum(dot11info->ietag_csum);
-
-        ssid->set_ssid(dot11info->ssid);
-        if (dot11info->ssid_len == 0 || dot11info->ssid_blank) {
-            ssid->set_ssid_cloaked(true);
-        }
-        ssid->set_ssid_len(dot11info->ssid_len);
-
-        ssid->set_beacon_info(dot11info->beacon_info);
-
         // TODO alert on cryptset degrade/change?
         if (ssid->get_crypt_set() != dot11info->cryptset) {
             fprintf(stderr, "debug - dot11phy:HandleSSID cryptset changed\n");
@@ -628,9 +656,12 @@ void Kis_80211_Phy::HandleSSID(kis_tracked_device_base *basedev,
         ssid->set_maxrate(dot11info->maxrate);
         ssid->set_beaconrate(Ieee80211Interval2NSecs(dot11info->beacon_interval));
 
-        // TODO alert on dot11d changes?
-        ssid->set_dot11d_country(dot11info->dot11d_country);
-        ssid->set_dot11d_vec(dot11info->dot11d_vec);
+        // Add the location data, if any
+        if (pack_gpsinfo != NULL && pack_gpsinfo->gps_fix > 1) {
+            ssid->get_location()->add_loc(pack_gpsinfo->lat, pack_gpsinfo->lon,
+                    pack_gpsinfo->alt, pack_gpsinfo->gps_fix);
+
+        }
     }
 
 }

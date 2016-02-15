@@ -28,7 +28,7 @@
 #include "alertracker.h"
 
 #include "kis_dissector_ipdata.h"
-#include "packetsignatures.h"
+#include "phy_80211_packetsignatures.h"
 
 int ipdata_packethook(CHAINCALL_PARMS) {
 	return ((Kis_Dissector_IPdata *) auxdata)->HandlePacket(in_pack);
