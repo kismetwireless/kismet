@@ -567,6 +567,11 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
                 taglen = (chunk->data[tag_offset] & 0xFF);
                 packinfo->ssid_len = taglen;
 
+                // Checksum includes the length tag
+                packinfo->ssid_csum =
+                    Adler32Checksum((const char *) (chunk->data + tag_offset), 
+                            taglen + 1);
+
                 // Protect against malicious packets
                 if (taglen == 0) {
                     // do nothing for 0-length ssid's
