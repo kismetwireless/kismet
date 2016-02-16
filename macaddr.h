@@ -278,7 +278,7 @@ struct mac_addr {
         ostringstream osstr;
 
         osstr << Mac2String() << "!" 
-            << hex << setw(2) << setfill('0') << uppercase << GetPhy();
+            << hex << setw(2) << setfill('0') << uppercase << (unsigned int) GetPhy();
 
         return osstr.str();
     }
