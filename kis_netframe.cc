@@ -322,6 +322,8 @@ int Protocol_PACKET_hook(CHAINCALL_PARMS) {
 
     globalreg->kisnetserver->SendToAll(_NPM(PROTO_REF_PACKET), (void*) data);
 
+    delete data;
+
     return 0;
 }
 
