@@ -107,7 +107,7 @@ protected:
 class TimetrackerEvent {
 public:
     // Called when event triggers
-    int timetracker_event(int event_id __attribute__ ((unused))) { return 0; };
+    virtual int timetracker_event(int event_id __attribute__ ((unused))) { return 0; };
 
 protected:
     int timer_id;

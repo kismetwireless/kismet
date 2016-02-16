@@ -46,9 +46,10 @@
 #include "uuid.h"
 #include "configfile.h"
 #include "phyhandler.h"
-#include "devicetracker_component.h"
 #include "trackercomponent_legacy.h"
 #include "packinfo_signal.h"
+#include "devicetracker_component.h"
+#include "timetracker.h"
 #include "kis_net_microhttpd.h"
 
 // How big the main vector of components is, if we ever get more than this
@@ -528,7 +529,7 @@ public:
     kis_tracked_device_base *devref;
 };
 
-class Devicetracker : public Kis_Net_Httpd_Stream_Handler {
+class Devicetracker : public Kis_Net_Httpd_Stream_Handler, public TimetrackerEvent {
 public:
 	Devicetracker() { fprintf(stderr, "FATAL OOPS: Kis_Tracker()\n"); exit(0); }
 	Devicetracker(GlobalRegistry *in_globalreg);
@@ -545,6 +546,8 @@ public:
 	vector<kis_tracked_device_base *> *FetchDevices(int in_phy);
 
 	Kis_Phy_Handler *FetchPhyHandler(int in_phy);
+
+    string FetchPhyName(int in_phy);
 
 	int FetchNumDevices(int in_phy);
 	int FetchNumPackets(int in_phy);
@@ -573,20 +576,11 @@ public:
 
 	static void Usage(char *argv);
 
-	// Kick the timer event to update the network clients
-	int TimerKick();
-
 	// Common classifier for keeping phy counts
 	int CommonTracker(kis_packet *in_packet);
 
 	// Scrape detected strings and push them out to the client
 	int StringCollector(kis_packet *in_packet);
-
-	// Send all devices to everyone
-	void BlitDevices(int in_fd);
-
-	// send all phy records to everyone
-	void BlitPhy(int in_fd);
 
 	// Initiate a logging cycle
 	int LogDevices(string in_logclass, string in_logtype, FILE *in_logfile);
@@ -600,15 +594,16 @@ public:
     virtual void CreateStreamResponse(struct MHD_Connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size, std::stringstream &stream);
-    
+
+    virtual int timetracker_event(int event_id);
 
 protected:
 	void SaveTags();
 
 	GlobalRegistry *globalreg;
 
-    // Device base field id
-    int device_base_id;
+    // Base IDs for tracker components
+    int device_base_id, phy_base_id, phy_entry_id;
 
 	int next_componentid;
 	map<string, int> component_str_map;
@@ -640,14 +635,9 @@ protected:
 	// Timer id for main timer kick
 	int timerid;
 
-	// Network protocols
-	int proto_ref_phymap, proto_ref_commondevice, proto_ref_trackinfo,
-		proto_ref_devtag, proto_ref_string, proto_ref_devicedone;
-
+    // Packet components we add or interact with
 	int pack_comp_device, pack_comp_common, pack_comp_string, pack_comp_basicdata,
 		pack_comp_radiodata, pack_comp_gps, pack_comp_capsrc;
-
-	int cmd_adddevtag, cmd_deldevtag;
 
 	// Tracked devices
 	map<mac_addr, kis_tracked_device_base *> tracked_map;
@@ -693,6 +683,103 @@ protected:
         Devicetracker *devicetracker;
     };
 
+    void httpd_msgpack_all_phys(std::stringstream &stream);
+};
+
+class kis_tracked_phy : public tracker_component {
+public:
+    kis_tracked_phy(GlobalRegistry *in_globalreg, int in_id) : 
+        tracker_component(in_globalreg, in_id) {
+        register_fields();
+        reserve_fields(NULL);
+    } 
+
+    kis_tracked_phy(GlobalRegistry *in_globalreg, int in_id,
+            TrackerElement *e) : 
+        tracker_component(in_globalreg, in_id) {
+
+        register_fields();
+        reserve_fields(e);
+    }
+
+    virtual TrackerElement *clone_type() {
+        return new kis_tracked_phy(globalreg, get_id());
+    }
+
+    __Proxy(phy_id, int32_t, int32_t, int32_t, phy_id);
+    __Proxy(phy_name, string, string, string, phy_name);
+    __Proxy(num_devices, uint64_t, uint64_t, uint64_t, num_devices);
+    __Proxy(num_packets, uint64_t, uint64_t, uint64_t, num_packets);
+    __Proxy(num_data_packets, uint64_t, uint64_t, uint64_t, num_data_packets);
+    __Proxy(num_crypt_packets, uint64_t, uint64_t, uint64_t, num_crypt_packets);
+    __Proxy(num_error_packets, uint64_t, uint64_t, uint64_t, num_error_packets);
+    __Proxy(num_filter_packets, uint64_t, uint64_t, uint64_t, num_filter_packets);
+    __Proxy(packet_rate, uint64_t, uint64_t, uint64_t, packet_rate);
+
+    void set_from_phy(Devicetracker *devicetracker, int phy) {
+        set_phy_id(phy);
+        set_phy_name(devicetracker->FetchPhyName(phy));
+        set_num_devices(devicetracker->FetchNumDevices(phy));
+        set_num_packets(devicetracker->FetchNumPackets(phy));
+        set_num_data_packets(devicetracker->FetchNumDatapackets(phy));
+        set_num_crypt_packets(devicetracker->FetchNumCryptpackets(phy));
+        set_num_error_packets(devicetracker->FetchNumErrorpackets(phy));
+        set_num_filter_packets(devicetracker->FetchNumFilterpackets(phy));
+        set_packet_rate(devicetracker->FetchPacketRate(phy));
+    }
+
+protected:
+    virtual void register_fields() {
+        phy_id_id = RegisterField("kismet.phy.id", TrackerInt32,
+                "phy id", (void **) &phy_id);
+        phy_name_id = RegisterField("kismet.phy.name", TrackerString,
+                "phy name", (void **) &phy_name);
+        num_devices_id = RegisterField("kismet.phy.devices", TrackerUInt64,
+                "number of devices", (void **) &num_devices);
+        num_packets_id = RegisterField("kismet.phy.packets", TrackerUInt64,
+                "number of packets", (void **) &num_packets);
+        num_data_packets_id = RegisterField("kismet.phy.packets.data", TrackerUInt64,
+                "number of data packets", (void **) &num_data_packets);
+        num_crypt_packets_id =
+            RegisterField("kismet.phy.packets.crypt", TrackerUInt64,
+                    "number of encrypted packets", (void **) &num_crypt_packets);
+        num_error_packets_id =
+            RegisterField("kismet.phy.packets.error", TrackerUInt64,
+                    "number of error packets", (void **) &num_error_packets);
+        num_filter_packets_id =
+            RegisterField("kismet.phy.packets.filtered", TrackerUInt64,
+                    "number of filtered packets", (void **) &num_filter_packets);
+        packet_rate_id =
+            RegisterField("kismet.phy.packets.rate", TrackerUInt64,
+                    "packets per second", (void **) &packet_rate);
+    } 
+
+    int phy_id_id;
+    TrackerElement *phy_id;
+
+    int phy_name_id;
+    TrackerElement *phy_name;
+
+    int num_devices_id;
+    TrackerElement *num_devices;
+
+    int num_packets_id;
+    TrackerElement *num_packets;
+   
+    int num_data_packets_id;
+    TrackerElement *num_data_packets;
+
+    int num_crypt_packets_id;
+    TrackerElement *num_crypt_packets;
+
+    int num_error_packets_id;
+    TrackerElement *num_error_packets;
+
+    int num_filter_packets_id;
+    TrackerElement *num_filter_packets;
+
+    int packet_rate_id;
+    TrackerElement *packet_rate;
 };
 
 #endif

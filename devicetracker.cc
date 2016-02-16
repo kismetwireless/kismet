@@ -42,568 +42,8 @@
 #include "packetsource.h"
 #include "dumpfile_devicetracker.h"
 #include "entrytracker.h"
-
-#include <msgpack.hpp>
-
-enum KISDEV_COMMON_FIELDS {
-	KISDEV_phytype, KISDEV_macaddr, KISDEV_name, KISDEV_typestring, 
-	KISDEV_basictype, KISDEV_cryptstring, KISDEV_basiccrypt,
-	KISDEV_firsttime, KISDEV_lasttime,
-	KISDEV_packets, KISDEV_llcpackets, KISDEV_errorpackets,
-	KISDEV_datapackets, KISDEV_cryptpackets, KISDEV_filterpackets,
-	KISDEV_datasize, KISDEV_newpackets, KISDEV_channel, KISDEV_frequency,
-	KISDEV_freqmhz, KISDEV_manuf,
-	
-	KISDEV_gpsfixed,
-    KISDEV_minlat, KISDEV_minlon, KISDEV_minalt, KISDEV_minspd,
-    KISDEV_maxlat, KISDEV_maxlon, KISDEV_maxalt, KISDEV_maxspd,
-    KISDEV_signaldbm, KISDEV_noisedbm, 
-	KISDEV_minsignaldbm, KISDEV_minnoisedbm, KISDEV_maxsignaldbm, KISDEV_maxnoisedbm,
-    KISDEV_signalrssi, KISDEV_noiserssi, KISDEV_minsignalrssi, KISDEV_minnoiserssi,
-    KISDEV_maxsignalrssi, KISDEV_maxnoiserssi,
-    KISDEV_bestlat, KISDEV_bestlon, KISDEV_bestalt,
-    KISDEV_agglat, KISDEV_agglon, KISDEV_aggalt, KISDEV_aggpoints,
-
-	KISDEV_maxfield
-};
-
-const char *KISDEV_common_text[] = {
-	"phytype", "macaddr", "name", "typestring", 
-	"basictype", "cryptstring", "basiccrypt",
-	"firsttime", "lasttime",
-	"packets", "llcpackets", "errorpackets",
-	"datapackets", "cryptpackets", "filterpackets",
-	"datasize", "newpackets", "channel", "frequency",
-	"freqmhz", "manuf",
-
-	"gpsfixed",
-	"minlat", "minlon", "minalt", "minspd",
-	"maxlat", "maxlon", "maxalt", "maxspd",
-	"signaldbm", "noisedbm", "minsignaldbm", "minnoisedbm",
-	"maxsignaldbm", "maxnoisedbm",
-	"signalrssi", "noiserssi", "minsignalrssi", "minnoiserssi",
-	"maxsignalrssi", "maxnoiserssi",
-	"bestlat", "bestlon", "bestalt",
-	"agglat", "agglon", "aggalt", "aggpoints",
-
-	NULL
-};
-
-int Protocol_KISDEV_COMMON(PROTO_PARMS) {
-	kis_tracked_device_base *dev = (kis_tracked_device_base *) data;
-	string scratch;
-
-	cache->Filled(field_vec->size());
-
-	for (unsigned int x = 0; x < field_vec->size(); x++) {
-		unsigned int fnum = (*field_vec)[x];
-
-		if (fnum > KISDEV_maxfield) {
-			out_string = "\001Unknown field\001";
-			return -1;
-		}
-
-		if (cache->Filled(fnum)) {
-			out_string += cache->GetCache(fnum) + " ";
-			continue;
-		}
-
-		scratch = "";
-
-		switch (fnum) {
-			case KISDEV_phytype:
-				scratch = UIntToString(dev->get_phytype());
-				break;
-			case KISDEV_macaddr:
-                scratch = dev->get_mac().Mac2String();
-				break;
-			case KISDEV_name:
-				scratch = "\001" + dev->get_name() + "\001";
-				break;
-			case KISDEV_typestring:
-				scratch = "\001" + dev->get_type_string() + "\001";
-				break;
-			case KISDEV_basictype:
-				scratch = IntToString(dev->get_basic_type_set());
-				break;
-			case KISDEV_cryptstring:
-				scratch = "\001" + dev->get_crypt_string() + "\001";
-				break;
-			case KISDEV_basiccrypt:
-				scratch = IntToString(dev->get_basic_crypt_set());
-				break;
-			case KISDEV_firsttime:
-				scratch = UIntToString(dev->get_first_time());
-				break;
-			case KISDEV_lasttime:
-				scratch = UIntToString(dev->get_last_time());
-				break;
-			case KISDEV_packets:
-				scratch = UIntToString(dev->get_packets());
-				break;
-			case KISDEV_llcpackets:
-				scratch = UIntToString(dev->get_llc_packets());
-				break;
-			case KISDEV_errorpackets:
-				scratch = UIntToString(dev->get_error_packets());
-				break;
-			case KISDEV_datapackets:
-				scratch = UIntToString(dev->get_data_packets());
-				break;
-			case KISDEV_cryptpackets:
-				scratch = UIntToString(dev->get_crypt_packets());
-				break;
-			case KISDEV_filterpackets:
-				scratch = UIntToString(dev->get_filter_packets());
-				break;
-			case KISDEV_datasize:
-				scratch = ULongToString(dev->get_datasize_tx() + dev->get_datasize_rx());
-				break;
-			case KISDEV_newpackets:
-				scratch = UIntToString(dev->get_new_packets());
-				break;
-			case KISDEV_channel:
-				scratch = IntToString(dev->get_channel());
-				break;
-			case KISDEV_frequency:
-				scratch = UIntToString(dev->get_frequency());
-				break;
-			case KISDEV_freqmhz:
-				for (map<int, TrackerElement *>::const_iterator fmi = 
-					 dev->get_freq_mhz_map()->begin();
-					 fmi != dev->get_freq_mhz_map()->end(); ++fmi) {
-					scratch += IntToString(fmi->first) + ":" + 
-                        UIntToString(GetTrackerValue<uint64_t>(fmi->second)) + "*";
-				}
-				break;
-			case KISDEV_manuf:
-				scratch = "\001" + dev->get_manuf() + "\001";
-				break;
-			case KISDEV_gpsfixed:
-                scratch = UIntToString(dev->get_location()->get_valid());
-				break;
-			case KISDEV_minlat:
-                scratch = FloatToString(dev->get_location()->get_min_loc()->get_lat());
-				break;
-			case KISDEV_minlon:
-                scratch = FloatToString(dev->get_location()->get_min_loc()->get_lon());
-				break;
-			case KISDEV_minalt:
-                scratch = FloatToString(dev->get_location()->get_min_loc()->get_alt());
-				break;
-			case KISDEV_minspd:
-                scratch = FloatToString(dev->get_location()->get_min_loc()->get_speed());
-				break;
-			case KISDEV_maxlat:
-                scratch = FloatToString(dev->get_location()->get_max_loc()->get_lat());
-				break;
-			case KISDEV_maxlon:
-                scratch = FloatToString(dev->get_location()->get_max_loc()->get_lon());
-				break;
-			case KISDEV_maxalt:
-                scratch = FloatToString(dev->get_location()->get_max_loc()->get_alt());
-				break;
-			case KISDEV_maxspd:
-                scratch = FloatToString(dev->get_location()->get_max_loc()->get_speed());
-				break;
-			case KISDEV_signaldbm:
-                scratch = IntToString(dev->get_signal_data()->get_last_signal_dbm());
-				break;
-			case KISDEV_noisedbm:
-                scratch = IntToString(dev->get_signal_data()->get_last_noise_dbm());
-				break;
-			case KISDEV_minsignaldbm:
-                scratch = IntToString(dev->get_signal_data()->get_min_signal_dbm());
-				break;
-			case KISDEV_maxsignaldbm:
-                scratch = IntToString(dev->get_signal_data()->get_max_signal_dbm());
-				break;
-			case KISDEV_minnoisedbm:
-                scratch = IntToString(dev->get_signal_data()->get_min_noise_dbm());
-				break;
-			case KISDEV_maxnoisedbm:
-                scratch = IntToString(dev->get_signal_data()->get_max_noise_dbm());
-				break;
-			case KISDEV_signalrssi:
-                scratch = IntToString(dev->get_signal_data()->get_last_signal_rssi());
-				break;
-			case KISDEV_noiserssi:
-                scratch = IntToString(dev->get_signal_data()->get_last_noise_rssi());
-				break;
-			case KISDEV_minsignalrssi:
-                scratch = IntToString(dev->get_signal_data()->get_min_signal_rssi());
-				break;
-			case KISDEV_maxsignalrssi:
-                scratch = IntToString(dev->get_signal_data()->get_max_signal_rssi());
-				break;
-			case KISDEV_minnoiserssi:
-                scratch = IntToString(dev->get_signal_data()->get_min_noise_rssi());
-				break;
-			case KISDEV_maxnoiserssi:
-                scratch = IntToString(dev->get_signal_data()->get_max_noise_rssi());
-				break;
-			case KISDEV_bestlat:
-                scratch = FloatToString(dev->get_signal_data()->get_peak_loc()->get_lat());
-				break;
-			case KISDEV_bestlon:
-                scratch = FloatToString(dev->get_signal_data()->get_peak_loc()->get_lon());
-				break;
-			case KISDEV_bestalt:
-                scratch = FloatToString(dev->get_signal_data()->get_peak_loc()->get_alt());
-				break;
-			case KISDEV_agglat:
-                scratch = LongIntToString(dev->get_location()->get_agg_lat());
-				break;
-			case KISDEV_agglon:
-                scratch = LongIntToString(dev->get_location()->get_agg_lon());
-				break;
-			case KISDEV_aggalt:
-                scratch = LongIntToString(dev->get_location()->get_agg_alt());
-				break;
-			case KISDEV_aggpoints:
-                scratch = LongIntToString(dev->get_location()->get_num_agg());
-				break;
-		}
-		
-		cache->Cache(fnum, scratch);
-		out_string += scratch + " ";
-	}
-
-	return 1;
-}
-
-void Protocol_KISDEV_COMMON_enable(PROTO_ENABLE_PARMS) {
-	((Devicetracker *) data)->BlitDevices(in_fd);
-}
-
-enum DEVICEDONE_FIELDS {
-	DEVICEDONE_phytype, DEVICEDONE_macaddr,
-	DEVICEDONE_maxfield
-};
-
-const char *DEVICEDONE_text[] = {
-	"phytype", "macaddr",
-	NULL
-};
-
-int Protocol_DEVICEDONE(PROTO_PARMS) {
-	kis_tracked_device_base *dev = (kis_tracked_device_base *) data;
-	string scratch;
-
-	cache->Filled(field_vec->size());
-
-	for (unsigned int x = 0; x < field_vec->size(); x++) {
-		unsigned int fnum = (*field_vec)[x];
-
-		if (fnum > DEVICEDONE_maxfield) {
-			out_string = "\001Unknown field\001";
-			return -1;
-		}
-
-		if (cache->Filled(fnum)) {
-			out_string += cache->GetCache(fnum) + " ";
-			continue;
-		}
-
-		scratch = "";
-
-		switch (fnum) {
-			case KISDEV_phytype:
-				scratch = IntToString(dev->get_phytype());
-				break;
-			case DEVICEDONE_macaddr:
-				scratch = dev->get_macaddr().Mac2String();
-				break;
-		}
-		
-		cache->Cache(fnum, scratch);
-		out_string += scratch + " ";
-	}
-
-	return 1;
-}
-
-enum DEVTAG_FIELDS {
-	DEVTAG_phytype, DEVTAG_macaddr, DEVTAG_tag, DEVTAG_value,
-
-	DEVTAG_maxfield
-};
-
-const char *DEVTAG_fields_text[] = {
-	"phytype", "macaddr", "tag", "value",
-	NULL
-};
-
-class devtag_tx {
-public:
-	string tag;
-	kis_tag_data *data;
-	mac_addr macaddr;
-	int phyid;
-};
-
-int Protocol_KISDEV_DEVTAG(PROTO_PARMS) {
-	devtag_tx *s = (devtag_tx *) data;
-	string scratch;
-
-	cache->Filled(field_vec->size());
-
-	for (unsigned int x = 0; x < field_vec->size(); x++) {
-		unsigned int fnum = (*field_vec)[x];
-		
-		if (fnum > DEVTAG_maxfield) {
-			out_string = "\001Unknown field\001";
-			return -1;
-		}
-
-		if (cache->Filled(fnum)) {
-			out_string += cache->GetCache(fnum) + " ";
-			continue;
-		}
-
-		scratch = "";
-
-		switch (fnum) {
-			case DEVTAG_phytype:
-				scratch = IntToString(s->phyid);
-				break;
-
-			case DEVTAG_macaddr:
-				scratch = s->macaddr.Mac2String();
-				break;
-
-			case DEVTAG_tag:
-				scratch = "\001" + s->tag + "\001";
-				break;
-
-			case DEVTAG_value:
-				scratch = "\001" + s->data->value + "\001";
-				break;
-		}
-		
-		cache->Cache(fnum, scratch);
-		out_string += scratch + " ";
-	}
-
-	return 1;
-	
-}
-
-void Protocol_DEVTAG_enable(PROTO_ENABLE_PARMS) {
-
-}
-
-enum PHYMAP_FIELDS {
-	PHYMAP_phyid, PHYMAP_phyname, PHYMAP_packets, PHYMAP_datapackets, 
-	PHYMAP_errorpackets, PHYMAP_filterpackets, PHYMAP_packetrate,
-
-	PHYMAP_maxfield
-};
-
-const char *KISDEV_phymap_text[] = {
-	"phyid", "phyname", "packets", "datapackets", "errorpackets", 
-	"filterpackets", "packetrate",
-	NULL
-};
-
-// String info shoved into the protocol handler by the string collector
-class kis_proto_phymap_info {
-public:
-	int phyid;
-	string phyname;
-	int packets, datapackets, errorpackets, filterpackets, packetrate;
-};
-
-int Protocol_KISDEV_PHYMAP(PROTO_PARMS) {
-	kis_proto_phymap_info *info = (kis_proto_phymap_info *) data;
-	string scratch;
-
-	cache->Filled(field_vec->size());
-
-	for (unsigned int x = 0; x < field_vec->size(); x++) {
-		unsigned int fnum = (*field_vec)[x];
-
-		if (fnum > PHYMAP_maxfield) {
-			out_string = "\001Unknown field\001";
-			return -1;
-		}
-
-		if (cache->Filled(fnum)) {
-			out_string += cache->GetCache(fnum) + " ";
-			continue;
-		}
-
-		scratch = "";
-
-		switch (fnum) {
-			case PHYMAP_phyid:
-				scratch = IntToString(info->phyid);
-				break;
-			case PHYMAP_phyname:
-				scratch = "\001" + info->phyname + "\001";
-				break;
-			case PHYMAP_packets:
-				scratch = IntToString(info->packets);
-				break;
-			case PHYMAP_datapackets:
-				scratch = IntToString(info->datapackets);
-				break;
-			case PHYMAP_errorpackets:
-				scratch = IntToString(info->errorpackets);
-				break;
-			case PHYMAP_filterpackets:
-				scratch = IntToString(info->filterpackets);
-				break;
-			case PHYMAP_packetrate:
-				scratch = IntToString(info->packetrate);
-				break;
-		}
-		
-		cache->Cache(fnum, scratch);
-		out_string += scratch + " ";
-	}
-
-	return 1;
-}
-
-void Protocol_KISDEV_PHYMAP_enable(PROTO_ENABLE_PARMS) {
-	((Devicetracker *) data)->BlitPhy(in_fd);
-}
-
-// Replaces the *INFO sentence
-enum TRACKINFO_FIELDS {
-	TRACKINFO_devices, TRACKINFO_packets, TRACKINFO_datapackets,
-	TRACKINFO_cryptpackets, TRACKINFO_errorpackets, TRACKINFO_filterpackets,
-	TRACKINFO_packetrate,
-
-	TRACKINFO_maxfield
-};
-
-const char *TRACKINFO_fields_text[] = {
-	"devices", "packets", "datapackets",
-	"cryptpackets", "errorpackets", "filterpackets",
-	"packetrate",
-	NULL
-};
-
-int Protocol_KISDEV_TRACKINFO(PROTO_PARMS) {
-	Devicetracker *tracker = (Devicetracker *) data;
-	string scratch;
-
-	cache->Filled(field_vec->size());
-
-	for (unsigned int x = 0; x < field_vec->size(); x++) {
-		unsigned int fnum = (*field_vec)[x];
-
-		if (fnum > TRACKINFO_maxfield) {
-			out_string = "\001Unknown field\001";
-			return -1;
-		}
-
-		if (cache->Filled(fnum)) {
-			out_string += cache->GetCache(fnum) + " ";
-			continue;
-		}
-
-		scratch = "";
-
-		switch (fnum) {
-			case TRACKINFO_devices:
-				scratch = IntToString(tracker->FetchNumDevices(KIS_PHY_ANY));
-				break;
-			case TRACKINFO_packets:
-				scratch = IntToString(tracker->FetchNumPackets(KIS_PHY_ANY));
-				break;
-			case TRACKINFO_datapackets:
-				scratch = IntToString(tracker->FetchNumDatapackets(KIS_PHY_ANY));
-				break;
-			case TRACKINFO_cryptpackets:
-				scratch = IntToString(tracker->FetchNumCryptpackets(KIS_PHY_ANY));
-				break;
-			case TRACKINFO_errorpackets:
-				scratch = IntToString(tracker->FetchNumErrorpackets(KIS_PHY_ANY));
-				break;
-			case TRACKINFO_filterpackets:
-				scratch = IntToString(tracker->FetchNumFilterpackets(KIS_PHY_ANY));
-				break;
-			case TRACKINFO_packetrate:
-				scratch = IntToString(tracker->FetchPacketRate(KIS_PHY_ANY));
-				break;
-		}
-		
-		cache->Cache(fnum, scratch);
-		out_string += scratch + " ";
-	}
-
-	return 1;
-}
-
-enum STRING_FIELDS {
-	STRING_phytype, STRING_macaddr, STRING_source, STRING_dest, STRING_string,
-	STRING_maxfield
-};
-
-const char *STRINGS_fields_text[] = {
-    "phytype", "macaddr", "source", "dest", "string", 
-    NULL
-};
-
-// String info shoved into the protocol handler by the string collector
-class kis_proto_string_info {
-public:
-	mac_addr device;
-	int phy;
-	mac_addr source;
-	mac_addr dest;
-	string stringdata;
-};
-
-int Protocol_KISDEV_STRING(PROTO_PARMS) {
-	kis_proto_string_info *info = (kis_proto_string_info *) data;
-
-	string scratch;
-
-	cache->Filled(field_vec->size());
-
-	for (unsigned int x = 0; x < field_vec->size(); x++) {
-		unsigned int fnum = (*field_vec)[x];
-
-		if (fnum > STRING_maxfield) {
-			out_string = "\001Unknown field\001";
-			return -1;
-		} 
-
-		switch (fnum) {
-			case STRING_macaddr:
-				scratch = info->device.Mac2String();
-				break;
-			case STRING_phytype:
-				scratch = IntToString(info->phy);
-				break;
-			case STRING_source:
-				scratch = info->source.Mac2String();
-				break;
-			case STRING_dest:
-				scratch = info->dest.Mac2String();
-				break;
-			case STRING_string:
-				scratch = "\001" + info->stringdata + "\001";
-				break;
-			default:
-				scratch = "\001Unknown string field\001";
-				break;
-		}
-
-		cache->Cache(fnum, scratch);
-		out_string += scratch + " ";
-	}
-
-	return 1;
-}
-
-int Devicetracker_Timer(TIMEEVENT_PARMS) {
-	return ((Devicetracker *) auxptr)->TimerKick();
-}
+#include "devicetracker_component.h"
+#include "msgpack_adapter.h"
 
 int Devicetracker_packethook_stringcollector(CHAINCALL_PARMS) {
 	return ((Devicetracker *) auxdata)->StringCollector(in_pack);
@@ -611,53 +51,6 @@ int Devicetracker_packethook_stringcollector(CHAINCALL_PARMS) {
 
 int Devicetracker_packethook_commontracker(CHAINCALL_PARMS) {
 	return ((Devicetracker *) auxdata)->CommonTracker(in_pack);
-}
-
-int Devicetracker_CMD_ADDDEVTAG(CLIENT_PARMS) {
-	int persist = 0;
-	int pos = 0;
-
-	if (parsedcmdline->size() < 5) {
-		snprintf(errstr, 1024, "Illegal ADDDEVTAG request, expected DEVMAC PHYID "
-				 "PERSIST TAG VALUE");
-		return -1;
-	}
-
-	mac_addr dev = mac_addr((*parsedcmdline)[pos++].word.c_str());
-
-	if (dev.error) {
-		snprintf(errstr, 1024, "Illegal device in ADDDEVTAG");
-		return -1;
-	}
-
-	int phyid;
-	if (sscanf((*parsedcmdline)[pos++].word.c_str(), "%d", &phyid) != 1) {
-		snprintf(errstr, 1024, "Illegal phy id");
-		return -1;
-	}
-
-	dev.SetPhy(phyid);
-
-	if ((*parsedcmdline)[pos++].word != "0")
-		persist = 1;
-
-	string tag = (*parsedcmdline)[pos++].word;
-
-	string content;
-	for (unsigned int x = pos; x < parsedcmdline->size(); x++) {
-		content += (*parsedcmdline)[x].word;
-		if (x < parsedcmdline->size() - 1)
-			content += " ";
-	}
-
-	int r = ((Devicetracker *) auxptr)->SetDeviceTag(dev, content);
-
-	if (r < 0) {
-		snprintf(errstr, 1024, "Failed to set tag");
-		return -1;
-	}
-
-	return 1;
 }
 
 Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) {
@@ -668,10 +61,18 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) {
 	globalreg->InsertGlobal("DEVICE_TRACKER", this);
 
     kis_tracked_device_base *base_builder = new kis_tracked_device_base(globalreg, 0);
-
     device_base_id = 
         globalreg->entrytracker->RegisterField("kismet.device.base", base_builder,
                 "core device record");
+
+    phy_base_id =
+        globalreg->entrytracker->RegisterField("kismet.phy.base", TrackerVector,
+                "list of phys");
+
+    kis_tracked_phy *phy_builder = new kis_tracked_phy(globalreg, 0);
+    phy_entry_id =
+        globalreg->entrytracker->RegisterField("kismet.phy.entry", phy_builder,
+                "phy entry");
 
 	next_componentid = 0;
 	num_packets = num_datapackets = num_errorpackets = 
@@ -680,15 +81,8 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) {
 	conf_save = 0;
 	next_phy_id = 0;
 
-    // TODO kill this
-    
-	// Internally register our common reference first
-	devcomp_ref_common = RegisterDeviceComponent("COMMON");
-
-	// Timer kickoff
-	timerid = 
-		globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1,
-											  &Devicetracker_Timer, this);
+    timerid =
+        globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1, this); 
 
 	// Register global packet components used by the device tracker and
 	// subsequent parts
@@ -713,47 +107,6 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) {
 	pack_comp_capsrc = _PCM(PACK_COMP_KISCAPSRC) = 
 		globalreg->packetchain->RegisterPacketComponent("KISCAPSRC");
 
-	// Register the network protocols
-	proto_ref_phymap =
-		globalreg->kisnetserver->RegisterProtocol("PHYMAP", 0, 1,
-												  KISDEV_phymap_text,
-												  &Protocol_KISDEV_PHYMAP,
-												  &Protocol_KISDEV_PHYMAP_enable,
-												  this);
-
-	proto_ref_commondevice =
-		globalreg->kisnetserver->RegisterProtocol("DEVICE", 0, 1,
-												  KISDEV_common_text,
-												  &Protocol_KISDEV_COMMON,
-												  &Protocol_KISDEV_COMMON_enable,
-												  this);
-
-	proto_ref_devicedone =
-		globalreg->kisnetserver->RegisterProtocol("DEVICEDONE", 0, 1,
-												  DEVICEDONE_text,
-												  &Protocol_DEVICEDONE,
-												  NULL,
-												  this);
-
-	proto_ref_trackinfo =
-		globalreg->kisnetserver->RegisterProtocol("TRACKINFO", 0, 1,
-												  TRACKINFO_fields_text,
-												  &Protocol_KISDEV_TRACKINFO,
-												  NULL,
-												  this);
-
-	proto_ref_devtag =
-		globalreg->kisnetserver->RegisterProtocol("DEVTAG", 0, 1,
-												  DEVTAG_fields_text,
-												  &Protocol_KISDEV_DEVTAG,
-												  NULL,
-												  this);
-
-	cmd_adddevtag =
-		globalreg->kisnetserver->RegisterClientCommand("ADDDEVTAG", 
-													   &Devicetracker_CMD_ADDDEVTAG,
-													   this);
-
 	// Common tracker, very early in the tracker chain
 	globalreg->packetchain->RegisterHandler(&Devicetracker_packethook_commontracker,
 											this, CHAINPOS_TRACKER, -100);
@@ -769,16 +122,6 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) {
 			globalreg->packetchain->RegisterPacketComponent("string");
 	}
 
-	if (_NPM(PROTO_REF_STRING) == -1) {
-		proto_ref_string = _NPM(PROTO_REF_STRING);
-	} else {
-		proto_ref_string = _NPM(PROTO_REF_STRING) = 
-			globalreg->kisnetserver->RegisterProtocol("STRING", 0, 0,
-													  STRINGS_fields_text,
-													  &Protocol_KISDEV_STRING,
-													  NULL, this);
-	}
-
 	// Create the global kistxt and kisxml logfiles
 	new Dumpfile_Devicetracker(globalreg, "kistxt", "text");
 	new Dumpfile_Devicetracker(globalreg, "kisxml", "xml");
@@ -788,7 +131,9 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) {
 	conf_save = globalreg->timestamp.tv_sec;
 
 	tag_conf = new ConfigFile(globalreg);
-	tag_conf->ParseConfig(tag_conf->ExpandLogPath(globalreg->kismet_config->FetchOpt("configdir") + "/" + "tag.conf", "", "", 0, 1).c_str());
+	tag_conf->ParseConfig(
+            tag_conf->ExpandLogPath(globalreg->kismet_config->FetchOpt("configdir") + 
+                "/" + "tag.conf", "", "", 0, 1).c_str());
 
 
     // Register ourselves with the HTTP server
@@ -868,6 +213,20 @@ Kis_Phy_Handler *Devicetracker::FetchPhyHandler(int in_phy) {
 		return NULL;
 
 	return i->second;
+}
+
+string Devicetracker::FetchPhyName(int in_phy) {
+    if (in_phy == KIS_PHY_ANY) {
+        return "ANY";
+    }
+
+    Kis_Phy_Handler *phyh = FetchPhyHandler(in_phy);
+
+    if (phyh == NULL) {
+        return "UNKNOWN";
+    }
+
+    return phyh->FetchPhyName();
 }
 
 int Devicetracker::FetchNumDevices(int in_phy) {
@@ -996,219 +355,7 @@ int Devicetracker::RegisterPhyHandler(Kis_Phy_Handler *in_weak_handler) {
 	return num;
 }
 
-// Send all devices to a client
-void Devicetracker::BlitDevices(int in_fd) {
-    for (unsigned int x = 0; x < tracked_vec.size(); x++) {
-        kis_protocol_cache cache;
-        kis_protocol_cache devcache;
-        kis_protocol_cache donecache;
-
-        kis_tracked_device_base *dev = tracked_vec[x];
-
-        if (in_fd == -1) {
-            globalreg->kisnetserver->SendToAll(proto_ref_commondevice, 
-                    (void *) dev);
-
-            /* Remove the arbtagmap for now, it will become a sub-class attachment
-               map<string, kis_tag_data *>::iterator ti;
-
-               for (ti = common->arb_tag_map.begin(); 
-               ti != common->arb_tag_map.end(); ++ti) {
-
-               if (ti->second == NULL)
-               continue;
-
-               devtag_tx dtx;
-               dtx.data = ti->second;
-               dtx.tag = ti->first;
-               dtx.macaddr = common->device->key;
-               dtx.phyid = common->device->phy_type;
-
-               globalreg->kisnetserver->SendToAll(proto_ref_devtag, (void *) &dtx);
-               }
-               */
-
-            globalreg->kisnetserver->SendToAll(proto_ref_devicedone, 
-                    (void *) tracked_vec[x]);
-        } else {
-            globalreg->kisnetserver->SendToClient(in_fd, proto_ref_commondevice,
-                    (void *) dev, &cache);
-
-            /*
-               map<string, kis_tag_data *>::iterator ti;
-
-               for (ti = common->arb_tag_map.begin(); 
-               ti != common->arb_tag_map.end(); ++ti) {
-               if (ti->second == NULL)
-               continue;
-
-               devtag_tx dtx;
-               dtx.data = ti->second;
-               dtx.tag = ti->first;
-               dtx.macaddr = common->device->key;
-               dtx.phyid = common->device->phy_type;
-
-               globalreg->kisnetserver->SendToClient(in_fd, proto_ref_devtag, 
-               (void *) &dtx, &devcache);
-               }
-               */
-
-            globalreg->kisnetserver->SendToClient(in_fd, proto_ref_devicedone,
-                    (void *) tracked_vec[x], 
-                    &donecache);
-        }
-    } 
-}
-
-void Devicetracker::BlitPhy(int in_fd) {
-	for (map<int, Kis_Phy_Handler *>::iterator x = phy_handler_map.begin();
-		 x != phy_handler_map.end(); ++x) {
-
-		kis_protocol_cache cache;
-		kis_proto_phymap_info info;
-
-		info.phyid = x->first;
-		info.phyname = x->second->FetchPhyName();
-
-		info.packets = FetchNumPackets(x->first);
-		info.datapackets = FetchNumDatapackets(x->first);
-		info.errorpackets = FetchNumErrorpackets(x->first);
-		info.filterpackets = FetchNumFilterpackets(x->first);
-		info.packetrate = FetchPacketRate(x->first);
-
-		if (in_fd == -1)
-			globalreg->kisnetserver->SendToAll(proto_ref_phymap, (void *) &info);
-		else
-			globalreg->kisnetserver->SendToClient(in_fd, proto_ref_phymap,
-												  (void *) &info, &cache);
-	}
-}
-
-namespace msgpack {
-MSGPACK_API_VERSION_NAMESPACE(MSGPACK_DEFAULT_API_NS) {
-namespace adaptor {
-
-EntryTracker *entrytracker;
-
-template<>
-    struct pack<mac_addr> {
-        template <typename Stream>
-            packer<Stream>& operator()(msgpack::packer<Stream>& o, 
-                    mac_addr const& v) const {
-                o.pack_array(2);
-                o.pack(v.longmac);
-                o.pack(v.longmask);
-                return o;
-            }
-    };
-
-template<>
-    struct pack<TrackerElement *> {
-        template <typename Stream>
-            packer<Stream>& operator()(msgpack::packer<Stream>& o, 
-                    TrackerElement * const& v) const {
-
-                o.pack_array(2);
-
-                o.pack((int) v->get_type());
-
-                TrackerElement::tracked_map *tmap;
-                TrackerElement::map_iterator map_iter;
-
-                TrackerElement::tracked_mac_map *tmacmap;
-                TrackerElement::mac_map_iterator mac_map_iter;
-
-                switch (v->get_type()) {
-                    case TrackerString:
-                        o.pack(GetTrackerValue<string>(v));
-                        break;
-                    case TrackerInt8:
-                        o.pack(GetTrackerValue<int8_t>(v));
-                        break;
-                    case TrackerUInt8:
-                        o.pack(GetTrackerValue<uint8_t>(v));
-                        break;
-                    case TrackerInt16:
-                        o.pack(GetTrackerValue<int16_t>(v));
-                        break;
-                    case TrackerUInt16:
-                        o.pack(GetTrackerValue<uint16_t>(v));
-                        break;
-                    case TrackerInt32:
-                        o.pack(GetTrackerValue<int32_t>(v));
-                        break;
-                    case TrackerUInt32:
-                        o.pack(GetTrackerValue<uint32_t>(v));
-                        break;
-                    case TrackerInt64:
-                        o.pack(GetTrackerValue<int64_t>(v));
-                        break;
-                    case TrackerUInt64:
-                        o.pack(GetTrackerValue<uint64_t>(v));
-                        break;
-                    case TrackerFloat:
-                        o.pack(GetTrackerValue<float>(v));
-                        break;
-                    case TrackerDouble:
-                        o.pack(GetTrackerValue<double>(v));
-                        break;
-                    case TrackerMac:
-                        o.pack(GetTrackerValue<mac_addr>(v));
-                        break;
-                    case TrackerUuid:
-                        o.pack(GetTrackerValue<uuid>(v).UUID2String());
-                        break;
-                    case TrackerVector:
-                        o.pack(*(v->get_vector()));
-                        break;
-                    case TrackerMap:
-                        tmap = v->get_map();
-                        o.pack_map(tmap->size());
-                        for (map_iter = tmap->begin(); map_iter != tmap->end(); 
-                                ++map_iter) {
-                            o.pack(entrytracker->GetFieldName(map_iter->first));
-                            o.pack(map_iter->second);
-
-                        }
-                        break;
-                    case TrackerIntMap:
-                        tmap = v->get_intmap();
-                        o.pack_map(tmap->size());
-                        for (map_iter = tmap->begin(); map_iter != tmap->end(); 
-                                ++map_iter) {
-                            o.pack(map_iter->first);
-                            o.pack(map_iter->second);
-
-                        }
-                        break;
-                    case TrackerMacMap:
-                        tmacmap = v->get_macmap();
-                        o.pack_map(tmacmap->size());
-                        for (mac_map_iter = tmacmap->begin(); 
-                                mac_map_iter != tmacmap->end();
-                                ++mac_map_iter) {
-                            o.pack(mac_map_iter->first);
-                            o.pack(mac_map_iter->second);
-                        }
-
-                    default:
-                        break;
-                }
-
-                return o;
-            }
-    };
-
-}
-}
-}
-
-int Devicetracker::TimerKick() {
-	BlitPhy(-1);
-	// BlitDevices(-1);
-
-	globalreg->kisnetserver->SendToAll(proto_ref_trackinfo, (void *) this);
-
+int Devicetracker::timetracker_event(int event_id __attribute__((unused))) {
 	// Reset the packet rates per phy
 	for (map<int, Kis_Phy_Handler *>::iterator x = phy_handler_map.begin();
 		 x != phy_handler_map.end(); ++x) {
@@ -1229,30 +376,20 @@ int Devicetracker::TimerKick() {
     }
 
 	// Send all the phy-specific dirty stuff
-	for (map<int, vector<kis_tracked_device_base *> *>::iterator x = phy_dirty_vec.begin();
+	for (map<int, vector<kis_tracked_device_base *> *>::iterator x = 
+            phy_dirty_vec.begin();
 		 x != phy_dirty_vec.end(); ++x) {
-		// phy_handler_map[x->first]->BlitDevices(-1, x->second);
 		x->second->clear();
 	}
 
-	for (map<int, Kis_Phy_Handler *>::iterator x = phy_handler_map.begin(); 
-		 x != phy_handler_map.end(); ++x) {
-		x->second->TimerKick();
-	}
-
-    // Set the msgpack entry tracker manually for now
-    msgpack::adaptor::entrytracker = globalreg->entrytracker;
-
 	for (unsigned int x = 0; x < dirty_device_vec.size(); x++) {
-		globalreg->kisnetserver->SendToAll(proto_ref_devicedone, 
-										   (void *) dirty_device_vec[x]);
-
         string fname = "/tmp/kismet/" + dirty_device_vec[x]->get_key().Mac2String();
 
         printf("debug - attempting to serialize to %s\n", fname.c_str());
 
         std::stringstream buffer;
-        msgpack::pack(buffer, (TrackerElement *) dirty_device_vec[x]);
+        MsgpackAdapter::Pack(globalreg, buffer, 
+                (TrackerElement *) dirty_device_vec[x]);
 
         FILE *f = fopen(fname.c_str(), "wb");
 
@@ -1300,6 +437,8 @@ int Devicetracker::StringCollector(kis_packet *in_pack) {
 	if (devinfo == NULL || strings == NULL || common == NULL)
 		return 0;
 
+    // TODO aggregate to local string buffer instead for querying
+#if 0
 	kis_proto_string_info si;
 
 	si.device = devinfo->devref->get_key();
@@ -1312,6 +451,7 @@ int Devicetracker::StringCollector(kis_packet *in_pack) {
 	
 		globalreg->kisnetserver->SendToAll(_NPM(PROTO_REF_STRING), (void *) &si);
 	}
+#endif
 
 	return 1;
 }
@@ -2487,40 +1627,65 @@ bool Devicetracker::VerifyPath(const char *path, const char *method) {
         return false;
     }
 
+    // Simple fixed URLS
+    
     if (strcmp(path, "/devices/msgpack/all_devices") == 0)
         return true;
 
-    vector<string> tokenurl = StrTokenize(path, "/");
+    if (strcmp(path, "/phy/msgpack/all_phys") == 0)
+        return true;
 
-    if (tokenurl.size() < 4)
+    // Split URL and process
+    vector<string> tokenurl = StrTokenize(path, "/");
+    if (tokenurl.size() < 2)
         return false;
 
     if (tokenurl[1] == "devices") {
+        if (tokenurl.size() < 4)
+            return false;
         if (tokenurl[2] == "msgpack") {
             devicelist_mutex_locker(this);
             
             if (tracked_map.find(mac_addr(tokenurl[3])) != tracked_map.end()) {
                 return true;
             } else {
-                fprintf(stderr, "debug - couldn't find entry for mac %s / %s\n", tokenurl[3].c_str(), mac_addr(tokenurl[3]).Mac2String().c_str());
                 return false;
             }
         }
     }
 
-
     return false;
 }
 
+void Devicetracker::httpd_msgpack_all_phys(std::stringstream &stream) {
+    TrackerElement *phyvec =
+        globalreg->entrytracker->GetTrackedInstance(phy_base_id);
+
+    kis_tracked_phy *anyphy = new kis_tracked_phy(globalreg, phy_base_id);
+    anyphy->set_from_phy(this, KIS_PHY_ANY);
+    phyvec->add_vector(anyphy);
+
+    map<int, Kis_Phy_Handler *>::iterator mi;
+    for (mi = phy_handler_map.begin(); mi != phy_handler_map.end(); ++mi) {
+        kis_tracked_phy *p = new kis_tracked_phy(globalreg, phy_base_id);
+        p->set_from_phy(this, mi->first);
+        phyvec->add_vector(p);
+    }
+
+    MsgpackAdapter::Pack(globalreg, stream, phyvec);
+
+    delete(phyvec);
+}
+
 void Devicetracker::CreateStreamResponse(struct MHD_Connection *connection,
-        const char *url, const char *method, const char *upload_data,
+        const char *path, const char *method, const char *upload_data,
         size_t *upload_data_size, std::stringstream &stream) {
 
     if (strcmp(method, "GET") != 0) {
         return;
     }
 
-    if (strcmp(url, "/devices/msgpack/all_devices") == 0) {
+    if (strcmp(path, "/devices/msgpack/all_devices") == 0) {
         devicelist_mutex_locker(this);
 
         vector<string> macvec;
@@ -2528,16 +1693,24 @@ void Devicetracker::CreateStreamResponse(struct MHD_Connection *connection,
             macvec.push_back(tracked_vec[x]->get_macaddr().MacPhy2String());
             // stream << tracked_vec[x]->get_macaddr().MacPhy2String() << "\n";
         }
-        
-        msgpack::pack(stream, macvec);
+       
+        // MsgpackAdapter::Pack(globalreg, stream, macvec);
+        return;
     }
 
-    vector<string> tokenurl = StrTokenize(url, "/");
+    if (strcmp(path, "/phy/msgpack/all_phys") == 0) {
+        httpd_msgpack_all_phys(stream);
+        return;
+    }
 
-    if (tokenurl.size() < 4)
+    vector<string> tokenurl = StrTokenize(path, "/");
+
+    if (tokenurl.size() < 2)
         return;
 
     if (tokenurl[1] == "devices") {
+        if (tokenurl.size() < 4)
+            return;
         if (tokenurl[2] == "msgpack") {
             devicelist_mutex_locker(this);
            
@@ -2545,7 +1718,7 @@ void Devicetracker::CreateStreamResponse(struct MHD_Connection *connection,
 
             if ((itr = tracked_map.find(mac_addr(tokenurl[3]))) != tracked_map.end()) {
 
-                msgpack::pack(stream, (TrackerElement *) itr->second);
+                MsgpackAdapter::Pack(globalreg, stream, (TrackerElement *) itr->second);
 
                 return;
             } else {

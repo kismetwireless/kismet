@@ -16,8 +16,8 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#ifndef __PACKINFO_SIGNAL_H__
-#define __PACKINFO_SIGNAL_H__
+#ifndef __MSGPACK_ADAPTER_H__
+#define __MSGPACK_ADAPTER_H__
 
 #include "config.h"
 
@@ -28,23 +28,19 @@
 #include <vector>
 #include <algorithm>
 #include <string>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
+#include <msgpack.hpp>
 
 #include "globalregistry.h"
-#include "packet.h"
-#include "gpscore.h"
+#include "trackedelement.h"
+#include "entrytracker.h"
+#include "devicetracker_component.h"
 
-class Packinfo_Sig_Combo {
-    public:
-        Packinfo_Sig_Combo(kis_layer1_packinfo *l1, kis_gps_packinfo *gp) {
-            lay1 = l1;
-            gps = gp;
-        }
-
-        kis_layer1_packinfo *lay1;
-        kis_gps_packinfo *gps;
+class MsgpackAdapter {
+public:
+    static void Pack(GlobalRegistry *globalreg, std::stringstream &stream, 
+            tracker_component *c);
+    static void Pack(GlobalRegistry *globalreg, std::stringstream &stream, 
+            TrackerElement *e);
 };
 
 #endif

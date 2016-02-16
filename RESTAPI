@@ -6,3 +6,6 @@ REST endpoints
 /devices/msgpack/DEVICE
     packed trackercomponent of DEVICE (where DEVICE is macaddr+phy, ie
     00:11:22:33:44:55!00 for phy 0
+
+/phy/msgpack/all_phys
+    packed trackercomponent of phy descriptors and counts

@@ -32,23 +32,14 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <pthread.h>
+#include <msgpack.hpp>
 
 #include "globalregistry.h"
 #include "trackedelement.h"
 #include "entrytracker.h"
 #include "packet.h"
-#include "packetchain.h"
-#include "kis_netframe.h"
-#include "timetracker.h"
-#include "filtercore.h"
-#include "gpscore.h"
 #include "uuid.h"
-#include "configfile.h"
-#include "phyhandler.h"
-#include "devicetracker.h"
 #include "packinfo_signal.h"
-
-class Packinfo_Sig_Combo;
 
 // Basic unit being tracked in a tracked device.
 //
@@ -159,8 +150,8 @@ public:
     }
 
     // Build a component with existing map
-    tracker_component(GlobalRegistry *in_globalreg, int in_id, TrackerElement *e) {
-        // printf("debug - tracker_component(globalreg, id=%d, te=%p\n", in_id, e);
+    tracker_component(GlobalRegistry *in_globalreg, int in_id, 
+            TrackerElement *e __attribute__((unused))) {
 
         globalreg = in_globalreg;
         tracker = in_globalreg->entrytracker;
@@ -372,6 +363,8 @@ public:
 
 protected:
     virtual void register_fields() {
+        tracker_component::register_fields();
+
         ip_type_id = 
             RegisterField("kismet.common.ipdata.type", TrackerInt32, 
                     "ipdata type enum", (void**) &ip_type);
@@ -451,6 +444,8 @@ public:
 
 protected:
     virtual void register_fields() {
+        tracker_component::register_fields();
+
         lat_id = 
             RegisterField("kismet.common.location.lat", TrackerDouble,
                     "latitude", (void **) &lat);
@@ -532,7 +527,6 @@ public:
             }
         }
 
-
         // Append to averaged location
         (*avg_lat) += (int64_t) (in_lat * precision_multiplier);
         (*avg_lon) += (int64_t) (in_lon * precision_multiplier);
@@ -568,6 +562,8 @@ public:
 
 protected:
     virtual void register_fields() {
+        tracker_component::register_fields();
+
         kis_tracked_location_triplet *loc_builder = 
             new kis_tracked_location_triplet(globalreg, 0);
 
@@ -764,6 +760,8 @@ public:
 
 protected:
     virtual void register_fields() {
+        tracker_component::register_fields();
+
         last_signal_dbm_id =
             RegisterField("kismet.common.signal.last_signal_dbm", TrackerInt32,
                     "most recent signal (dBm)", (void **) &last_signal_dbm);
@@ -903,6 +901,8 @@ public:
 
 protected:
     virtual void register_fields() {
+        tracker_component::register_fields();
+
         src_uuid_id =
             RegisterField("kismet.common.seenby.uuid", TrackerUuid,
                     "UUID of source", (void **) &src_uuid);
@@ -967,6 +967,8 @@ public:
 
 protected:
     virtual void register_fields() {
+        tracker_component::register_fields();
+
         value_id =
             RegisterField("kismet.common.tag.value", TrackerString,
                     "arbitrary tag", (void **) &value);
