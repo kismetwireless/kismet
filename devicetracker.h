@@ -604,6 +604,7 @@ protected:
 
     // Base IDs for tracker components
     int device_base_id, phy_base_id, phy_entry_id;
+    int device_summary_base_id, device_summary_entry_id;
 
 	int next_componentid;
 	map<string, int> component_str_map;
@@ -684,6 +685,50 @@ protected:
     };
 
     void httpd_msgpack_all_phys(std::stringstream &stream);
+    void httpd_msgpack_device_summary(std::stringstream &stream);
+};
+
+class kis_tracked_device_summary : public tracker_component {
+public:
+    kis_tracked_device_summary(GlobalRegistry *in_globalreg, int in_id) : 
+        tracker_component(in_globalreg, in_id) {
+        register_fields();
+        reserve_fields(NULL);
+    } 
+
+    kis_tracked_device_summary(GlobalRegistry *in_globalreg, int in_id,
+            TrackerElement *e) : 
+        tracker_component(in_globalreg, in_id) {
+
+        register_fields();
+        reserve_fields(e);
+    }
+
+    // Build a summary by grabbing values out of a base device
+    kis_tracked_device_summary(GlobalRegistry *in_globalreg, int in_id,
+            kis_tracked_device_base *base) {
+        tracker_component(in_globalreg, in_id);
+
+        // We don't register or reserve fields because we grab them directly out of
+        // an existing component
+        add_map(base->get_tracker_key());
+        add_map(base->get_tracker_macaddr());
+        add_map(base->get_tracker_phytype());
+        add_map(base->get_tracker_name());
+        add_map(base->get_tracker_type_string());
+        add_map(base->get_tracker_crypt_string());
+        add_map(base->get_tracker_first_time());
+        add_map(base->get_tracker_last_time());
+        add_map(base->get_tracker_packets());
+        add_map(base->get_tracker_signal_data());
+        add_map(base->get_tracker_channel());
+        add_map(base->get_tracker_frequency());
+        add_map(base->get_tracker_manuf());
+    }
+
+    virtual TrackerElement *clone_type() {
+        return new kis_tracked_device_summary(globalreg, get_id());
+    }
 };
 
 class kis_tracked_phy : public tracker_component {

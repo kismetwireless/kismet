@@ -1,5 +1,7 @@
 REST endpoints
 
+For packing format / msgpack use, see SERIALIZATION
+
 /devices/msgpack/all_devices
     vector<string> of macaddr+phy keys for devices
 
@@ -8,4 +10,4 @@ REST endpoints
     00:11:22:33:44:55!00 for phy 0
 
 /phy/msgpack/all_phys
-    packed trackercomponent of phy descriptors and counts
+    packed trackercomponent vector of phy descriptors and counts

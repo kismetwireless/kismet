@@ -60,19 +60,24 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) {
 
 	globalreg->InsertGlobal("DEVICE_TRACKER", this);
 
-    kis_tracked_device_base *base_builder = new kis_tracked_device_base(globalreg, 0);
     device_base_id = 
-        globalreg->entrytracker->RegisterField("kismet.device.base", base_builder,
+        globalreg->entrytracker->RegisterField("kismet.device.base", TrackerMac,
                 "core device record");
 
     phy_base_id =
-        globalreg->entrytracker->RegisterField("kismet.phy.base", TrackerVector,
+        globalreg->entrytracker->RegisterField("kismet.phy.list", TrackerVector,
                 "list of phys");
 
-    kis_tracked_phy *phy_builder = new kis_tracked_phy(globalreg, 0);
     phy_entry_id =
-        globalreg->entrytracker->RegisterField("kismet.phy.entry", phy_builder,
+        globalreg->entrytracker->RegisterField("kismet.phy.entry", TrackerMac,
                 "phy entry");
+
+    device_summary_base_id =
+        globalreg->entrytracker->RegisterField("kismet.device.list", TrackerVector,
+                "list of devices");
+    device_summary_entry_id =
+        globalreg->entrytracker->RegisterField("kismet.device.summary", TrackerMac,
+                "device summary");
 
 	next_componentid = 0;
 	num_packets = num_datapackets = num_errorpackets = 
@@ -605,8 +610,7 @@ kis_tracked_device_base *Devicetracker::BuildDevice(mac_addr in_device,
 		// we don't have this device tracked.  Make one based on the
 		// input data (for example, this could be a bssid which has never
 		// talked, but which we see a client communicating with)
-        device = 
-            (kis_tracked_device_base *) globalreg->entrytracker->GetTrackedInstance(device_base_id);
+        device = new kis_tracked_device_base(globalreg, device_base_id);
 
 		device->set_key(devmac);
 
@@ -1677,6 +1681,22 @@ void Devicetracker::httpd_msgpack_all_phys(std::stringstream &stream) {
     delete(phyvec);
 }
 
+void Devicetracker::httpd_msgpack_device_summary(std::stringstream &stream) {
+    devicelist_mutex_locker(this);
+
+    TrackerElement *devvec =
+        globalreg->entrytracker->GetTrackedInstance(device_summary_base_id);
+
+    for (unsigned int x = 0; x < tracked_vec.size(); x++) {
+        kis_tracked_device_summary *summary =
+            new kis_tracked_device_summary(globalreg, device_summary_entry_id,
+                    tracked_vec[x]);
+        devvec->add_vector(summary);
+    }
+
+    MsgpackAdapter::Pack(globalreg, stream, devvec);
+}
+
 void Devicetracker::CreateStreamResponse(struct MHD_Connection *connection,
         const char *path, const char *method, const char *upload_data,
         size_t *upload_data_size, std::stringstream &stream) {
@@ -1686,15 +1706,7 @@ void Devicetracker::CreateStreamResponse(struct MHD_Connection *connection,
     }
 
     if (strcmp(path, "/devices/msgpack/all_devices") == 0) {
-        devicelist_mutex_locker(this);
-
-        vector<string> macvec;
-        for (unsigned int x = 0; x < tracked_vec.size(); x++) {
-            macvec.push_back(tracked_vec[x]->get_macaddr().MacPhy2String());
-            // stream << tracked_vec[x]->get_macaddr().MacPhy2String() << "\n";
-        }
-       
-        // MsgpackAdapter::Pack(globalreg, stream, macvec);
+        httpd_msgpack_device_summary(stream);
         return;
     }
 

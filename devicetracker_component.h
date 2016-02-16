@@ -62,6 +62,9 @@ class tracker_component : public TrackerElement {
 // <itype>, which must be castable to the TrackerElement type (itype), referencing 
 // class variable <cvar>
 #define __Proxy(name, ptype, itype, rtype, cvar) \
+    TrackerElement *get_tracker_##name() { \
+        return (TrackerElement *) cvar; \
+    } \
     rtype get_##name() const { \
         return (rtype) GetTrackerValue<ptype>(cvar); \
     } \
@@ -113,7 +116,10 @@ class tracker_component : public TrackerElement {
             cvar->unlink(); \
         cvar = in; \
         cvar->link(); \
-    } 
+    }  \
+    TrackerElement *get_tracker_##name() { \
+        return (TrackerElement *) cvar; \
+    } \
 
 // Proxy bitset functions (name, data type, class var)
 #define __ProxyBitset(name, dtype, cvar) \
