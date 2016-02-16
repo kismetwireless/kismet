@@ -1,0 +1,26 @@
+Kismet uses msgpack (via msgpack-c / libmsgpack) to handle inter-process
+and inter-device serialization.
+
+Elements packed for exchange are wrapped in packed arrays reflecting their
+internal type (as an integer based on the trackedelement.h list of fields):
+
+    [ <type>, <value> ]
+
+Thus a map could be represented as:
+
+    [ 14, {'field.name': value} ]
+
+Nested values also include the type, thus:
+
+    [ 14, {'field.name': [ 5, 5.0 ] } ]
+
+would represent a map (type 14) where the key 'field.name' resolves to a float
+(type 5), value 5.0f
+
+* NOTE - Absolute type values may change, consult trackedelement.h *
+
+
+Some special types require additional encoding:
+    mac_addr        Mac addresses are encoded as array pairs containing the uint64 
+                    representation of the mac address and the mac address mask.
+
