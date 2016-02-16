@@ -330,10 +330,6 @@ AX_PTHREAD(pthread=1,
 KSLIBS="$KSLIBS $PTHREAD_LIBS"
 CPPFLAGS="$CPPFLAGS $PTHREAD_CFLAGS"
 
-# We need microhttpd
-AC_CHECK_LIB([microhttpd], [MHD_start_daemon],
-             KSLIBS="$KSLIBS -lmicrohttpd",
-             AC_MSG_ERROR([libmicrohttpd is needed and is not available]))
 
 # sqlite3=yes
 # AC_CHECK_HEADER([sqlite3.h],
@@ -409,6 +405,24 @@ else
 	mangrp="man"
 fi
 AC_SUBST(mangrp)
+
+# We need microhttpd
+AC_CHECK_LIB([microhttpd], [MHD_start_daemon],
+             KSLIBS="$KSLIBS -lmicrohttpd",
+             AC_MSG_ERROR([libmicrohttpd is needed and is not available]))
+AC_CHECK_HEADER([microhttpd.h], 
+	AC_DEFINE(HAVE_MICROHTTPD_H, 1, microhttpd is present),
+    AC_MSG_ERROR([microhttpd.h is not available check that libmicrohttpd-dev is installed]))
+
+# we need libmsgpack-c
+AC_MSG_CHECKING([for libmsgpack / msgpack-c library])
+AC_LANG(C++)
+AC_LINK_IFELSE(
+    [AC_LANG_PROGRAM([#include <msgpack.hpp>], 
+                     [;])],
+    [HAVE_CPP_MSGPACK=1], 
+    [AC_MSG_ERROR([libmsgpack / msgpack-c / libmsgpack-dev is not installed])])
+AC_MSG_RESULT([found])
 
 # Check for libcurses or libncurses.  Fatal error if we didn't use disable.
 AC_ARG_ENABLE(client,
