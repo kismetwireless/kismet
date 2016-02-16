@@ -2487,7 +2487,7 @@ bool Devicetracker::VerifyPath(const char *path, const char *method) {
         return false;
     }
 
-    if (strcmp(path, "/devices/list.html") == 0)
+    if (strcmp(path, "/devices/msgpack/all_devices") == 0)
         return true;
 
     vector<string> tokenurl = StrTokenize(path, "/");
@@ -2520,12 +2520,16 @@ void Devicetracker::CreateStreamResponse(struct MHD_Connection *connection,
         return;
     }
 
-    if (strcmp(url, "/devices/list.html") == 0) {
+    if (strcmp(url, "/devices/msgpack/all_devices") == 0) {
         devicelist_mutex_locker(this);
 
+        vector<string> macvec;
         for (unsigned int x = 0; x < tracked_vec.size(); x++) {
-            stream << tracked_vec[x]->get_macaddr().MacPhy2String() << "\n";
+            macvec.push_back(tracked_vec[x]->get_macaddr().MacPhy2String());
+            // stream << tracked_vec[x]->get_macaddr().MacPhy2String() << "\n";
         }
+        
+        msgpack::pack(stream, macvec);
     }
 
     vector<string> tokenurl = StrTokenize(url, "/");
