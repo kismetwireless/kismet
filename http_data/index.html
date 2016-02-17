@@ -1,0 +1,88 @@
+<html>
+<head>
+    <title>Kismet static content</title>
+        <script src="/js/msgpack.js"></script>
+        <script src="/js/jquery-2.2.0.min.js"></script>
+        <script src="/js/jquery.ajax.binary.js"></script>
+        <script>
+
+function ua2hex(ua) {
+    var h = '';
+    for (var i = 0; i < ua.length; i++) {
+        h += "\\0x" + ua[i].toString(16);
+    }
+    return h;
+}
+
+$(document).ready(function() {
+    $("#live").append("jquery append<br>");
+
+    /*
+    var oReq = new XMLHttpRequest();
+    oReq.open("GET", "/devices/msgpack/all_devices", true);
+    oReq.responseType = "arraybuffer";
+
+    oReq.onload = function (oEvent) {
+        var arrayBuffer = oReq.response; // Note: not oReq.responseText
+        if (arrayBuffer) {
+            var byteArray = new Uint8Array(arrayBuffer);
+
+            console.log(ua2hex(byteArray))
+
+            try {
+                var msg = msgpack.decode(arrayBuffer);
+            } catch (e) {
+                $("#live").append("exception: " + e);
+            }
+
+            $("#live").append(msg.length);
+        }
+    };
+
+    oReq.send(null);
+    */
+
+    $.ajax({
+        url: "/devices/msgpack/all_devices",
+        type: "GET",
+        dataType: "binary",
+        processData: false,
+        responseType: 'arraybuffer',
+        success: function(arbuf) {
+            $("#live").append("ajax success<br>")
+
+            try {
+                msg = msgpack.decode(arbuf);
+            } catch (e) {
+                $("#live").append("exception: " + e);
+            }
+
+            content = msg[1];
+
+            for (x = 0; x < content.length; x++) {
+                console.log(content[x][1]);
+
+                device = content[x][1];
+                console.log(device);
+
+                console.log(device["kismet.device.base.name"]);
+
+                name = device["kismet.device.base.name"][1]
+
+                $("#live").append(name + "<BR>");
+            }
+
+        }
+    });
+});
+
+        </script>
+
+</head>
+<body>
+Static content served from kismet directory
+
+<br>Ajax query of kismet:<br>
+<p id="live">
+</body>
+</html>

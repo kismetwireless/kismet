@@ -204,6 +204,9 @@ int Kis_Net_Httpd::handle_static_file(void *cls, struct MHD_Connection *connecti
 
     string fullfile = kishttpd->http_data_dir + "/" + url;
 
+    if (fullfile[fullfile.size() - 1] == '/')
+        fullfile += "index.html";
+
     char *realpath_path;
     const char *datadir_path;
 

@@ -1695,6 +1695,8 @@ void Devicetracker::httpd_msgpack_device_summary(std::stringstream &stream) {
     }
 
     MsgpackAdapter::Pack(globalreg, stream, devvec);
+
+    delete(devvec);
 }
 
 void Devicetracker::CreateStreamResponse(struct MHD_Connection *connection,
