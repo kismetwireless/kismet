@@ -80,7 +80,7 @@ NC	= kismet_client
 
 BUILDCLIENT=@wantclient@
 
-ALL	= Makefile $(DEPEND) $(PS) $(CS) $(DRONE)
+ALL	= Makefile $(DEPEND) $(PS) #$(CS) $(DRONE)
 INSTBINS = $(PS) $(CS) $(DRONE)
 ifeq ($(BUILDCLIENT), yes)
 ALL += $(NC)
