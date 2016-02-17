@@ -388,6 +388,7 @@ int Devicetracker::timetracker_event(int event_id __attribute__((unused))) {
 	}
 
 	for (unsigned int x = 0; x < dirty_device_vec.size(); x++) {
+#if 0
         string fname = "/tmp/kismet/" + dirty_device_vec[x]->get_key().Mac2String();
 
         printf("debug - attempting to serialize to %s\n", fname.c_str());
@@ -401,6 +402,7 @@ int Devicetracker::timetracker_event(int event_id __attribute__((unused))) {
         fwrite(buffer.str().c_str(), buffer.str().length(), 1, f);
         fflush(f);
         fclose(f);
+#endif
 	}
 
 	dirty_device_vec.clear();
