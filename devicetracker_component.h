@@ -131,16 +131,6 @@ class tracker_component : public TrackerElement {
     }
 
 public:
-    // Legacy, won't populate tracker or gloablreg so something is wrong
-    // if we end up here
-    tracker_component() {
-        // fprintf(stderr, "debug - legacy tracker_component() called\n");
-        set_type(TrackerMap);
-
-        tracker = NULL;
-        globalreg = NULL;
-    }
-
     // Build a basic component.  All basic components are maps.
     // Set the field id automatically.
     tracker_component(GlobalRegistry *in_globalreg, int in_id) {

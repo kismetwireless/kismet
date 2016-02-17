@@ -136,7 +136,7 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
     const char *upload_data, size_t *upload_data_size, 
     void **ptr __attribute__ ((unused))) {
 
-    fprintf(stderr, "HTTP request: '%s' method '%s'\n", url, method); 
+    // fprintf(stderr, "HTTP request: '%s' method '%s'\n", url, method); 
     
     Kis_Net_Httpd *kishttpd = (Kis_Net_Httpd *) cls;
 
@@ -157,7 +157,7 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
 
         // Try to check a static url
         if (handle_static_file(cls, connection, url, method) < 0) {
-            fprintf(stderr, "   404 no handler for request\n");
+            // fprintf(stderr, "   404 no handler for request\n");
 
             string fourohfour = "404";
 

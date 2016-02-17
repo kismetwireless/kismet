@@ -25,5 +25,5 @@ for di in summary_data:
     print d['kismet.device.base.type'][1],
     print d['kismet.device.base.channel'][1]
 
-    pprint.pprint(d)
+    #pprint.pprint(d)
 

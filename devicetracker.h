@@ -706,8 +706,7 @@ public:
 
     // Build a summary by grabbing values out of a base device
     kis_tracked_device_summary(GlobalRegistry *in_globalreg, int in_id,
-            kis_tracked_device_base *base) {
-        tracker_component(in_globalreg, in_id);
+            kis_tracked_device_base *base) : tracker_component(in_globalreg, in_id) {
 
         // We don't register or reserve fields because we grab them directly out of
         // an existing component
