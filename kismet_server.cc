@@ -966,7 +966,7 @@ int main(int argc, char *argv[], char *envp[]) {
 		CatchShutdown(-1);
 
     // Create the HTTPD server
-    globalregistry->httpd_server = new Kis_Net_Httpd(globalregistry, 8080);
+    globalregistry->httpd_server = new Kis_Net_Httpd(globalregistry);
     // And start it
     globalregistry->httpd_server->StartHttpd();
     // Add a basic page handler

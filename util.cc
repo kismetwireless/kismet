@@ -1189,6 +1189,24 @@ int StringToBool(string s, int dvalue) {
 	return dvalue;
 }
 
+int StringToInt(string s) {
+    int r;
+
+    if (sscanf(s.c_str(), "%d", &r) != 1)
+        throw(std::runtime_error("not an integer"));
+
+    return r;
+}
+
+unsigned int StringToUInt(string s) {
+    unsigned int r;
+
+    if (sscanf(s.c_str(), "%u", &r) != 1)
+        throw(std::runtime_error("not an unsigned integer"));
+
+    return r;
+}
+
 string StringAppend(string s, string a, string d) {
 	if (s.length() == 0)
 		return a;

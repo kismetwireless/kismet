@@ -130,6 +130,10 @@ void ReplaceAllOpts(string opt, string val, vector<opt_pair> *in_vec);
 // String compare, 1 true 0 false -1 unknown, or default value as provided
 int StringToBool(string s, int dvalue = -1);
 
+// String to integer.  Throws exception if not an integer!
+int StringToInt(string s);
+unsigned int StringToUInt(string s);
+
 // Append to a string, with a delimiter if applicable
 string StringAppend(string s, string a, string d = " ");
 

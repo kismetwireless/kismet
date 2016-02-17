@@ -79,7 +79,7 @@ public:
 
 class Kis_Net_Httpd {
 public:
-    Kis_Net_Httpd(GlobalRegistry *in_globalreg, int in_port);
+    Kis_Net_Httpd(GlobalRegistry *in_globalreg);
     ~Kis_Net_Httpd();
 
     int StartHttpd();
@@ -94,6 +94,9 @@ protected:
     GlobalRegistry *globalreg;
 
     unsigned int http_port;
+    string http_data_dir, http_aux_data_dir;
+
+    bool http_serve_files, http_serve_user_files;
 
     struct MHD_Daemon *microhttpd;
     std::vector<Kis_Net_Httpd_Handler *> handler_vec;
@@ -106,6 +109,9 @@ protected:
     static int http_request_handler(void *cls, struct MHD_Connection *connection,
             const char *url, const char *method, const char *version,
             const char *upload_data, size_t *upload_data_size, void **ptr);
+
+    static int handle_static_file(void *cls, struct MHD_Connection *connection,
+            const char *url, const char *method);
 
 };
 

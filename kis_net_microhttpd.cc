@@ -27,17 +27,55 @@
 #include <string>
 #include <sstream>
 #include <pthread.h>
+#include <limits.h>
+#include <stdlib.h>
 #include <microhttpd.h>
 
 #include "globalregistry.h"
+#include "messagebus.h"
+#include "configfile.h"
 #include "kis_net_microhttpd.h"
 
-Kis_Net_Httpd::Kis_Net_Httpd(GlobalRegistry *in_globalreg, int in_port) {
+Kis_Net_Httpd::Kis_Net_Httpd(GlobalRegistry *in_globalreg) {
     globalreg = in_globalreg;
-    http_port = in_port;
     running = false;
 
     pthread_mutex_init(&controller_mutex, NULL);
+
+    if (globalreg->kismet_config == NULL) {
+        fprintf(stderr, "FATAL OOPS: Kis_Net_Httpd called without kismet_config\n");
+        exit(1);
+    }
+
+    http_port = globalreg->kismet_config->FetchOptUInt("httpdport", 8080);
+
+    http_data_dir = globalreg->kismet_config->FetchOpt("httpdhome");
+    http_aux_data_dir = globalreg->kismet_config->FetchOpt("httpduserhome");
+
+    if (http_data_dir == "") {
+        _MSG("No httpdhome defined in kismet.conf, disabling static file serving",
+                MSGFLAG_ERROR);
+        http_serve_files = false;
+    } else {
+        http_data_dir = 
+            globalreg->kismet_config->ExpandLogPath(http_data_dir, "", "", 0, 1);
+        _MSG("Serving static content from '" + http_data_dir + "'",
+                MSGFLAG_INFO);
+        http_serve_files = true;
+    }
+
+    if (http_aux_data_dir == "") {
+        _MSG("No httpduserhome defined in kismet.conf, disabling static file serving "
+                "from user directory", MSGFLAG_ERROR);
+        http_serve_user_files = false;
+    } else {
+        http_aux_data_dir = 
+            globalreg->kismet_config->ExpandLogPath(http_aux_data_dir, "", "", 0, 1);
+        _MSG("Serving static userdir content from '" + http_aux_data_dir + "'",
+                MSGFLAG_INFO);
+        http_serve_user_files = true;
+    }
+
 }
 
 Kis_Net_Httpd::~Kis_Net_Httpd() {
@@ -69,13 +107,17 @@ void Kis_Net_Httpd::RemoveHandler(Kis_Net_Httpd_Handler *in_handler) {
 }
 
 int Kis_Net_Httpd::StartHttpd() {
-    fprintf(stderr, "debug - starting kismet httpd server on port %u\n", http_port);
-
     microhttpd = MHD_start_daemon(MHD_USE_THREAD_PER_CONNECTION,
             http_port, NULL, NULL, &http_request_handler, this, MHD_OPTION_END); 
 
-    if (microhttpd == NULL)
+    if (microhttpd == NULL) {
+        _MSG("Failed to start http server on port " + UIntToString(http_port),
+                MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
+    }
+
+    _MSG("Started http server on port " + UIntToString(http_port), MSGFLAG_INFO);
 
     return 1;
 }
@@ -113,12 +155,20 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
     if (handler == NULL) {
         pthread_mutex_unlock(&(kishttpd->controller_mutex));
 
-        fprintf(stderr, "   404 no handler for request\n");
+        // Try to check a static url
+        if (handle_static_file(cls, connection, url, method) < 0) {
+            fprintf(stderr, "   404 no handler for request\n");
 
-        struct MHD_Response *response = 
-            MHD_create_response_from_buffer(0, 0, MHD_RESPMEM_PERSISTENT);
+            string fourohfour = "404";
 
-        return MHD_queue_response(connection, MHD_HTTP_NOT_FOUND, response);
+            struct MHD_Response *response = 
+                MHD_create_response_from_buffer(fourohfour.length(), 
+                        (void *) fourohfour.c_str(), MHD_RESPMEM_MUST_COPY);
+
+            return MHD_queue_response(connection, MHD_HTTP_NOT_FOUND, response);
+        }
+
+        return MHD_YES;
     }
 
     int ret = 
@@ -129,4 +179,76 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
     return ret;
 }
 
+static ssize_t file_reader(void *cls, uint64_t pos, char *buf, size_t max) {
+    FILE *file = (FILE *) cls;
+
+    fseek(file, pos, SEEK_SET);
+    return fread(buf, 1, max, file);
+}
+
+
+static void free_callback(void *cls) {
+    FILE *file = (FILE *) cls;
+    fclose(file);
+}
+
+int Kis_Net_Httpd::handle_static_file(void *cls, struct MHD_Connection *connection,
+        const char *url, const char *method) {
+    Kis_Net_Httpd *kishttpd = (Kis_Net_Httpd *) cls;
+
+    if (!kishttpd->http_serve_files)
+        return -1;
+
+    if (strcmp(method, "GET") != 0)
+        return -1;
+
+    string fullfile = kishttpd->http_data_dir + "/" + url;
+
+    char *realpath_path;
+    const char *datadir_path;
+
+    datadir_path = kishttpd->http_data_dir.c_str();
+    realpath_path = realpath(fullfile.c_str(), NULL);
+
+    if (realpath_path == NULL) {
+        return -1;
+    } else {
+        if (strstr(realpath_path, datadir_path) == realpath_path) {
+
+            struct MHD_Response *response;
+            struct stat buf;
+
+            FILE *f = fopen(realpath_path, "rb");
+            int fd;
+            free(realpath_path);
+            
+            if (f != NULL) {
+                fd = fileno(f);
+                if (fstat(fd, &buf) != 0 || (!S_ISREG(buf.st_mode))) {
+                    fclose(f);
+                    return -1;
+                }
+
+                response = MHD_create_response_from_callback(buf.st_size, 32 * 1024,
+                        &file_reader, f, &free_callback);
+
+                if (response == NULL) {
+                    fclose(f);
+                    return -1;
+                }
+
+                MHD_queue_response(connection, MHD_HTTP_OK, response);
+                MHD_destroy_response(response);
+
+                return 1;
+            }
+
+            return -1;
+        } else {
+            return -1;
+        }
+    }
+
+    return -1;
+}
 

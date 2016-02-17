@@ -142,6 +142,32 @@ int ConfigFile::FetchOptBoolean(string in_key, int dvalue) {
 	return r;
 }
 
+int ConfigFile::FetchOptInt(string in_key, int dvalue) {
+	string v = StrLower(FetchOpt(in_key));
+	int r;
+
+    try {
+        r = StringToInt(v);
+    } catch (const std::runtime_error e) {
+        return dvalue;
+    }
+
+	return r;
+}
+
+unsigned int ConfigFile::FetchOptUInt(string in_key, unsigned int dvalue) {
+	string v = StrLower(FetchOpt(in_key));
+	unsigned int r;
+
+    try {
+        r = StringToUInt(v);
+    } catch (const std::runtime_error e) {
+        return dvalue;
+    }
+
+	return r;
+}
+
 int ConfigFile::FetchOptDirty(string in_key) {
 	if (config_map_dirty.find(StrLower(in_key)) == config_map_dirty.end())
 		return 0;

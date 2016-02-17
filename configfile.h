@@ -49,6 +49,10 @@ public:
 	// equal to true, or missing.)
 	int FetchOptBoolean(string in_key, int dvalue);
 
+    // Fetch an integer option
+    int FetchOptInt(string in_key, int dvalue);
+    unsigned int FetchOptUInt(string in_key, unsigned int dvalue);
+
 	int FetchOptDirty(string in_key);
 	void SetOptDirty(string in_key, int in_dirty);
 

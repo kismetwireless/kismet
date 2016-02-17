@@ -22,5 +22,8 @@ for di in summary_data:
     d = di[1]
 
     print d['kismet.device.base.name'][1],
-    print d['kismet.device.base.type'][1]
+    print d['kismet.device.base.type'][1],
+    print d['kismet.device.base.channel'][1]
+
+    #pprint.pprint(d)
 
