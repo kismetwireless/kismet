@@ -47,8 +47,8 @@ template<>
             packer<Stream>& operator()(msgpack::packer<Stream>& o, 
                     mac_addr const& v) const {
                 o.pack_array(2);
-                o.pack(v.longmac);
-                o.pack(v.longmask);
+                o.pack(v.Mac2String());
+                o.pack(v.MacMask2String());
                 return o;
             }
     };

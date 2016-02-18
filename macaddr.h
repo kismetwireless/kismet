@@ -44,34 +44,14 @@
 #include <sstream>
 #include <iomanip>
 
-// Maximum of 7 octets in a "mac" we handle
-#define MAC_LEN_MAX		7
-// Phy is the 8 highest bits
-#define MAC_PHY_POS		7
-
-// Maximum/Default phy
-#define MAC_PHY_MAX		31
-
-#define MAC_STD_LEN		6
+// Maximum of 6 octets in a "mac" we handle
+#define MAC_LEN_MAX		6
 
 // Mac address transformed into 64bit int for fast sorting
 //
 // Supports mac addresses up to 7 octets, with optional
 // masking, IP-subnet style.
 //
-// Supports distinguishing addresses by PHY type, with up to 30
-// distinct phy types.  Phy ID is RUNTIME ONLY and should not be
-// encoded into storage, as the phy id number is determined during
-// load and may change as plugin orders change, etc.
-// As phy id is runtime only, should we ever get so many independent
-// phy handlers that we need to expand this, it will only need a 
-// change here and a recompile of plugins.
-//
-// MACs with unassigned PHYs are encoded as type PHY_MAX
-//
-// The PHY type and # of octets is encoded in the highest-order
-// byte of the uint64, with the high 5 bits used for the phy type
-// and the lower 3 bits used for # of octets 
 struct mac_addr {
     uint64_t longmac;
     uint64_t longmask;
@@ -83,11 +63,11 @@ struct mac_addr {
         error = 0;
 
         longmac = 0;
-		SetPhy(MAC_PHY_MAX);
 
         longmask = (uint64_t) -1;
 
 		short unsigned int byte;
+        unsigned int nmask;
 
 		int nbyte = 0;
 		int mode = 0;
@@ -101,15 +81,17 @@ struct mac_addr {
 			if (in[0] == '/') {
 				mode = 1;
 				nbyte = 0;
-				longmask = (uint64_t) 0xFF << (MAC_PHY_POS * 8);
 				in++;
 				continue;
 			}
 
-            if (in[0] == '!') {
-                mode = 2;
-                in++;
-                continue;
+            // If we're parsing the mask and it's a numerical, use that
+            // (ie /48 for FFFFFFFFFF or /18 for /24 for FFFFFF000000
+            if (mode == 1 && sscanf(in, "%u", &nmask) == 1) {
+                if (nmask == 48)
+                    nmask = 0;
+                longmask = ((uint64_t) -1 << (48 - nmask));
+                break;
             }
 
 			if (sscanf(in, "%hX", &byte) != 1) {
@@ -129,11 +111,8 @@ struct mac_addr {
 
 			if (mode == 0) {
 				longmac |= (uint64_t) byte << ((MAC_LEN_MAX - nbyte - 1) * 8);
-				SetMacLen(nbyte + 1);
 			} else if (mode == 1) {
 				longmask |= (uint64_t) byte << ((MAC_LEN_MAX - nbyte - 1) * 8);
-			} else if (mode == 2) {
-                SetPhy(byte);
             }
 
 			nbyte++;
@@ -142,8 +121,6 @@ struct mac_addr {
 
     inline mac_addr() {
         longmac = 0;
-		SetPhy(MAC_PHY_MAX);
-
         longmask = (uint64_t) -1;
         error = 0;
     }
@@ -156,51 +133,21 @@ struct mac_addr {
 		string2long(in.c_str());
 	}
 
-	inline mac_addr(const string in, uint8_t in_phy) {
-		string2long(in.c_str());
-		SetPhy(in_phy);
-	}
-
-	inline mac_addr(uint8_t *in, unsigned int len) {
-		longmac = 0;
-		SetPhy(MAC_PHY_MAX);
-
-		longmask = (uint64_t) -1;
-
-		for (unsigned int x = 0; x < len; x++) {
-			longmac |= (uint64_t) in[x] << ((MAC_LEN_MAX - x - 1) * 8);
-		}
-
-		SetMacLen(len);
-	}
-
-    inline mac_addr(int in) {
-		in = in;
+    inline mac_addr(int in __attribute__((unused))) {
         longmac = 0;
-		SetPhy(MAC_PHY_MAX);
-
         longmask = (uint64_t) -1;
         error = 0;
     } 
 
-	inline void SetMacLen(unsigned int nbytes) {
-		longmac &= (uint64_t) ~((uint64_t) 0x07 << (MAC_PHY_POS * 8));
-		longmac |= (uint64_t) ((nbytes) & 0x07) << (MAC_PHY_POS * 8);
-	}
+    inline mac_addr(uint8_t *in, unsigned int len) {
+        longmac = 0;
+        longmask = (uint64_t) -1;
 
-	inline unsigned int GetMacLen() const {
-		return (longmac >> (MAC_PHY_POS * 8)) & 0x07;
-	}
+        for (unsigned int x = 0; x < len && x < MAC_LEN_MAX; x++) {
+            longmac |= (uint64_t) in[x] << ((MAC_LEN_MAX - x - 1) * 8);
+        }
+    }
 
-	inline void SetPhy(uint8_t in_phy) {
-		longmac &= ~((uint64_t) ((0xFF & 0x1F) << 3) << (MAC_PHY_POS * 8));
-		longmac |= (uint64_t) ((in_phy & 0x1F) << 3) << (MAC_PHY_POS * 8);
-	}
-
-	inline uint8_t GetPhy() const {
-		return (longmac >> (MAC_PHY_POS * 8)) >> 3;
-		// return index64(longmac, 5);
-	}
 
     // Masked MAC compare
     inline bool operator== (const mac_addr& op) const {
@@ -261,7 +208,7 @@ struct mac_addr {
         return (uint8_t) (val >> ((MAC_LEN_MAX - index - 1) * 8));
     }
 
-    inline const unsigned int operator[] (int index) const {
+    inline unsigned int operator[] (int index) const {
         int mdex = index;
         if (index < 0 || index >= MAC_LEN_MAX)
             mdex = 0;
@@ -274,25 +221,12 @@ struct mac_addr {
 		return (longmac >> (4 * 8)) & 0x00FFFFFF;
 	}
 
-    inline string MacPhy2String() const {
-        ostringstream osstr;
-
-        osstr << Mac2String() << "!" 
-            << hex << setw(2) << setfill('0') << uppercase << (unsigned int) GetPhy();
-
-        return osstr.str();
-    }
-
     inline string Mac2String() const {
 		ostringstream osstr;
-		unsigned int nbytes = GetMacLen();
 
-		if (nbytes == 0)
-			return "00:00:00:00:00:00";
-
-		for (unsigned int x = 0; x < nbytes; x++) {
+		for (unsigned int x = 0; x < MAC_LEN_MAX; x++) {
 			osstr << hex << setw(2) << setfill('0') << uppercase << index64(longmac, x);
-			if (x != nbytes - 1)
+			if (x != MAC_LEN_MAX - 1)
 				osstr << ':';
 		}
 
@@ -301,15 +235,18 @@ struct mac_addr {
 
     inline string MacMask2String() const {
 		ostringstream osstr;
-		unsigned int nbytes = GetMacLen();
 
-		for (unsigned int x = 0; x < nbytes; x++) {
+		for (unsigned int x = 0; x < MAC_LEN_MAX; x++) {
 			osstr << hex << index64(longmask, x);
-			if (x != nbytes - 1)
+			if (x != MAC_LEN_MAX - 1)
 				osstr << ':';
 		}
 
 		return osstr.str();
+    }
+
+    inline uint64_t GetAsLong() const {
+        return longmac;
     }
 
 };

@@ -220,6 +220,10 @@ Kis_Phy_Handler *Devicetracker::FetchPhyHandler(int in_phy) {
 	return i->second;
 }
 
+Kis_Phy_Handler *Devicetracker::FetchPhyHandler(uint64_t in_key) {
+    return FetchPhyHandler(DevicetrackerKey::GetPhy(in_key));
+}
+
 string Devicetracker::FetchPhyName(int in_phy) {
     if (in_phy == KIS_PHY_ANY) {
         return "ANY";
@@ -243,7 +247,7 @@ int Devicetracker::FetchNumDevices(int in_phy) {
 		return tracked_map.size();
 
 	for (unsigned int x = 0; x < tracked_vec.size(); x++) {
-		if (tracked_vec[x]->get_phytype() == in_phy)
+		if (DevicetrackerKey::GetPhy(tracked_vec[x]->get_key()) == in_phy)
 			r++;
 	}
 
@@ -276,7 +280,8 @@ int Devicetracker::FetchNumCryptpackets(int in_phy) {
 	int r = 0;
 
 	for (unsigned int x = 0; x < tracked_vec.size(); x++) {
-		if (tracked_vec[x]->get_phytype() == in_phy || in_phy == KIS_PHY_ANY) {
+        int phytype = DevicetrackerKey::GetPhy(tracked_vec[x]->get_key());
+		if (phytype == in_phy || in_phy == KIS_PHY_ANY) {
             r += tracked_vec[x]->get_crypt_packets();
 		}
 	}
@@ -416,10 +421,10 @@ int Devicetracker::timetracker_event(int event_id __attribute__((unused))) {
 	return 1;
 }
 
-kis_tracked_device_base *Devicetracker::FetchDevice(mac_addr in_device) {
+kis_tracked_device_base *Devicetracker::FetchDevice(uint64_t in_key) {
     devicelist_mutex_locker(this);
 
-	device_itr i = tracked_map.find(in_device);
+	device_itr i = tracked_map.find(in_key);
 
 	if (i != tracked_map.end())
 		return i->second;
@@ -429,8 +434,7 @@ kis_tracked_device_base *Devicetracker::FetchDevice(mac_addr in_device) {
 
 kis_tracked_device_base *Devicetracker::FetchDevice(mac_addr in_device, 
         unsigned int in_phy) {
-	in_device.SetPhy(in_phy);
-	return FetchDevice(in_device);
+	return FetchDevice(DevicetrackerKey::MakeKey(in_device, in_phy));
 }
 
 int Devicetracker::StringCollector(kis_packet *in_pack) {
@@ -537,8 +541,6 @@ int Devicetracker::CommonTracker(kis_packet *in_pack) {
 	if (devmac == globalreg->empty_mac)
 		return 0;
 
-	devmac.SetPhy(pack_common->phyid);
-
 	kis_tracked_device_base *device = NULL;
 
 	// Make a new device or fetch an existing one
@@ -566,9 +568,8 @@ kis_tracked_device_base *Devicetracker::MapToDevice(mac_addr in_device,
 		return NULL;
 
 	mac_addr devmac = in_device;
-	devmac.SetPhy(pack_common->phyid);
 
-	if ((device = FetchDevice(devmac)) == NULL) {
+	if ((device = FetchDevice(devmac, pack_common->phyid)) == NULL) {
 		device = BuildDevice(devmac, in_pack);
 		
 		if (device == NULL)
@@ -602,30 +603,25 @@ kis_tracked_device_base *Devicetracker::BuildDevice(mac_addr in_device,
 	kis_tracked_device_base *device = NULL;
 
 	mac_addr devmac = in_device;
-	devmac.SetPhy(pack_common->phyid);
 
-	device = FetchDevice(devmac);
+	device = FetchDevice(devmac, pack_common->phyid);
 
 	if (device == NULL) {
-		fprintf(stderr, "debug - devicetracker building device for %s\n", devmac.Mac2String().c_str());
-
 		// we don't have this device tracked.  Make one based on the
 		// input data (for example, this could be a bssid which has never
 		// talked, but which we see a client communicating with)
         device = new kis_tracked_device_base(globalreg, device_base_id);
 
-		device->set_key(devmac);
+		device->set_key(DevicetrackerKey::MakeKey(devmac, pack_common->phyid));
 
         device->set_macaddr(devmac);
 
-		device->set_phytype(pack_common->phyid);
+		device->set_phyname(FetchPhyName(pack_common->phyid));
 
         // New devices always marked dirty
         device->set_dirty(true);
 
 		// Defer tag loading to when we populate the common record
-
-        printf("debug - inserting device %s into map\n", device->get_key().Mac2String().c_str());
 
         devicelist_mutex_locker(this);
 
@@ -679,7 +675,7 @@ int Devicetracker::PopulateCommon(kis_tracked_device_base *device, kis_packet *i
         device->set_manuf(globalreg->manufdb->LookupOUI(device->get_macaddr()));
 
     // Set name
-    device->set_name(device->get_macaddr().Mac2String());
+    device->set_devicename(device->get_macaddr().Mac2String());
 
     /* Persistent tag loading removed, will be handled by serializing network in the future */
 
@@ -947,9 +943,9 @@ void Devicetracker::WriteXML(FILE *in_logfile) {
 
 	for (unsigned int x = 0; x < devlist->size(); x++) {
 		kis_tracked_device_base *dev = (*devlist)[x];
-		Kis_Phy_Handler *phy = FetchPhyHandler(dev->get_phytype());
+		Kis_Phy_Handler *phy = FetchPhyHandler(dev->get_key());
 
-		if (dev->get_phytype() == KIS_PHY_UNKNOWN || phy == NULL) 
+		if (phy == NULL) 
 			fprintf(in_logfile, "<device phy=\"unknown\">\n");
 		else
 			fprintf(in_logfile, 
@@ -1323,13 +1319,13 @@ void Devicetracker::WriteTXT(FILE *in_logfile) {
 
 	for (unsigned int x = 0; x < devlist->size(); x++) {
 		kis_tracked_device_base *dev = (*devlist)[x];
-		Kis_Phy_Handler *phy = FetchPhyHandler(dev->get_phytype());
+		Kis_Phy_Handler *phy = FetchPhyHandler(dev->get_key());
 
 		fprintf(in_logfile, 
 				" Device MAC: %s\n",
                 dev->get_mac().Mac2String().c_str());
 
-		if (dev->get_phytype() == KIS_PHY_UNKNOWN || phy == NULL) 
+		if (phy == NULL) 
 			fprintf(in_logfile, " Device phy: Unknown\n");
 		else
 			fprintf(in_logfile, " Device phy: %s\n",
@@ -1567,8 +1563,8 @@ int Devicetracker::LogDevices(string in_logclass,
 	return 0;
 }
 
+#if 0
 int Devicetracker::SetDeviceTag(mac_addr in_device, string in_data) {
-
 	kis_tracked_device_base *dev = FetchDevice(in_device);
 	Kis_Phy_Handler *handler = FetchPhyHandler(in_device.GetPhy());
 
@@ -1596,7 +1592,7 @@ int Devicetracker::SetDeviceTag(mac_addr in_device, string in_data) {
 
 int Devicetracker::ClearDeviceTag(mac_addr in_device) {
 	kis_tracked_device_base *dev = FetchDevice(in_device);
-	Kis_Phy_Handler *handler = FetchPhyHandler(in_device.GetPhy());
+	// Kis_Phy_Handler *handler = FetchPhyHandler(in_device.GetPhy());
 
 	if (handler == NULL)
 		return -1;
@@ -1626,6 +1622,7 @@ string Devicetracker::FetchDeviceTag(mac_addr in_device) {
 
     return dev->get_tag();
 }
+#endif
 
 // HTTP interfaces
 bool Devicetracker::VerifyPath(const char *path, const char *method) {
@@ -1635,10 +1632,10 @@ bool Devicetracker::VerifyPath(const char *path, const char *method) {
 
     // Simple fixed URLS
     
-    if (strcmp(path, "/devices/msgpack/all_devices") == 0)
+    if (strcmp(path, "/devices/all_devices.msgpack") == 0)
         return true;
 
-    if (strcmp(path, "/phy/msgpack/all_phys") == 0)
+    if (strcmp(path, "/phy/all_phys.msgpack") == 0)
         return true;
 
     // Split URL and process
@@ -1647,16 +1644,19 @@ bool Devicetracker::VerifyPath(const char *path, const char *method) {
         return false;
 
     if (tokenurl[1] == "devices") {
-        if (tokenurl.size() < 4)
+        if (tokenurl.size() < 3)
             return false;
-        if (tokenurl[2] == "msgpack") {
-            devicelist_mutex_locker(this);
-            
-            if (tracked_map.find(mac_addr(tokenurl[3])) != tracked_map.end()) {
-                return true;
-            } else {
-                return false;
-            }
+        devicelist_mutex_locker(this);
+
+        uint64_t key;
+        if (sscanf(tokenurl[2].c_str(), "%lu.msgpack", &key) != 1) {
+            return false;
+        }
+
+        if (tracked_map.find(key) != tracked_map.end()) {
+            return true;
+        } else {
+            return false;
         }
     }
 
@@ -1686,7 +1686,7 @@ void Devicetracker::httpd_msgpack_all_phys(std::stringstream &stream) {
 void Devicetracker::httpd_msgpack_device_summary(std::stringstream &stream) {
     devicelist_mutex_locker(this);
 
-    TrackerElement *devvec =
+    TrackerElement *devvec = 
         globalreg->entrytracker->GetTrackedInstance(device_summary_base_id);
 
     for (unsigned int x = 0; x < tracked_vec.size(); x++) {
@@ -1709,12 +1709,12 @@ void Devicetracker::CreateStreamResponse(struct MHD_Connection *connection,
         return;
     }
 
-    if (strcmp(path, "/devices/msgpack/all_devices") == 0) {
+    if (strcmp(path, "/devices/all_devices.msgpack") == 0) {
         httpd_msgpack_device_summary(stream);
         return;
     }
 
-    if (strcmp(path, "/phy/msgpack/all_phys") == 0) {
+    if (strcmp(path, "/phy/all_phys.msgpack") == 0) {
         httpd_msgpack_all_phys(stream);
         return;
     }
@@ -1725,21 +1725,25 @@ void Devicetracker::CreateStreamResponse(struct MHD_Connection *connection,
         return;
 
     if (tokenurl[1] == "devices") {
-        if (tokenurl.size() < 4)
+        if (tokenurl.size() < 3)
             return;
-        if (tokenurl[2] == "msgpack") {
-            devicelist_mutex_locker(this);
-           
-            map<mac_addr, kis_tracked_device_base *>::iterator itr;
 
-            if ((itr = tracked_map.find(mac_addr(tokenurl[3]))) != tracked_map.end()) {
+        devicelist_mutex_locker(this);
 
-                MsgpackAdapter::Pack(globalreg, stream, (TrackerElement *) itr->second);
+        uint64_t key;
+        if (sscanf(tokenurl[2].c_str(), "%lu.msgpack", &key) != 1) {
+            return;
+        }
 
-                return;
-            } else {
-                return;
-            }
+        device_itr itr;
+
+        if ((itr = tracked_map.find(key)) != tracked_map.end()) {
+
+            MsgpackAdapter::Pack(globalreg, stream, (TrackerElement *) itr->second);
+
+            return;
+        } else {
+            return;
         }
     }
 

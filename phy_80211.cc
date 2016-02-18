@@ -469,13 +469,9 @@ int Kis_80211_Phy::ClassifierDot11(kis_packet *in_pack) {
 			ci->device = dot11info->source_mac;
 		}
 
-		ci->device.SetPhy(phyid);
-
 		ci->source = dot11info->source_mac;
-		ci->source.SetPhy(phyid);
 
 		ci->dest = dot11info->dest_mac;
-		ci->dest.SetPhy(phyid);
 	} else if (dot11info->type == packet_phy) {
         if (dot11info->subtype == packet_sub_ack ||
                 dot11info->subtype == packet_sub_cts) {
@@ -490,17 +486,13 @@ int Kis_80211_Phy::ClassifierDot11(kis_packet *in_pack) {
 
 		ci->type = packet_basic_phy;
 	
-		ci->device.SetPhy(phyid);
 	} else if (dot11info->type == packet_data) {
 		ci->type = packet_basic_data;
 		ci->device = dot11info->source_mac;
-		ci->device.SetPhy(phyid);
 
 		ci->source = dot11info->source_mac;
-		ci->source.SetPhy(phyid);
 
 		ci->dest = dot11info->dest_mac;
-		ci->dest.SetPhy(phyid);
 	} 
 
 	if (dot11info->type == packet_noise || dot11info->corrupt ||
@@ -857,7 +849,7 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 
     // Find our base record
     kis_tracked_device_base *basedev = 
-        devicetracker->FetchDevice(commoninfo->device);
+        devicetracker->FetchDevice(commoninfo->device, commoninfo->phyid);
 
     // Something bad has happened if we can't find our device
     if (basedev == NULL) {

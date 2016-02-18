@@ -480,7 +480,7 @@ int Kis_Dissector_IPdata::HandlePacket(kis_packet *in_pack) {
 				if (dhcp_tag_map.find(61) != dhcp_tag_map.end() &&
 					dhcp_tag_map[61].size() == 7) {
 					mac_addr clmac = mac_addr(&(chunk->data[dhcp_tag_map[61][0] + 2]),
-											  MAC_STD_LEN);
+											  6);
 
 					if (clmac != common->source) {
 						_COMMONALERT(alert_dhcpclient_ref, in_pack, common, 

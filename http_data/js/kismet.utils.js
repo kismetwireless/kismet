@@ -23,6 +23,13 @@ var KIS_TRACKERTYPE_MAP     = 14;
 var KIS_TRACKERTYPE_INTMAP  = 15;
 var KIS_TRACKERTYPE_MACMAP  = 16;
 
+function kismetConvertMacaddr(trackermac) {
+    var ret = {};
+    ret.macaddr = trackermac[0];
+    ret.mask = trackermac[1];
+    return ret;
+}
+
 function kismetConvertTrackerPack(unpacked) {
     if (unpacked[0] == KIS_TRACKERTYPE_VECTOR) {
         console.log("converting a vector");
@@ -34,7 +41,8 @@ function kismetConvertTrackerPack(unpacked) {
         }
 
         return retarr;
-    } else if (unpacked[0] == KIS_TRACKERTYPE_MAP) {
+    } else if (unpacked[0] == KIS_TRACKERTYPE_MAP ||
+            unpacked[0] == KIS_TRACKERTYPE_INTMAP) {
         console.log("converting a map");
 
         var retdict = {};
@@ -44,7 +52,10 @@ function kismetConvertTrackerPack(unpacked) {
         }
 
         return retdict;
+    } else if (unpacked[0] == KIS_TRACKERTYPE_MAC) {
+        console.log("converting a mac");
 
+        return kismetConvertMacaddr(unpacked[1]);
     } else {
         console.log("converting someting else, stripping type off");
         return unpacked[1];
@@ -53,7 +64,7 @@ function kismetConvertTrackerPack(unpacked) {
 
 function kismetGetDeviceSummary(callback) {
     $.ajax({
-        url: "/devices/msgpack/all_devices",
+        url: "/devices/all_devices.msgpack",
         type: "GET",
         dataType: "binary",
         processData: false,
@@ -64,7 +75,7 @@ function kismetGetDeviceSummary(callback) {
                 msg = msgpack.decode(arbuf);
                 callback(kismetConvertTrackerPack(msg));
             } catch (e) {
-                callback(nil)
+                callback(0);
             }
         }
     });

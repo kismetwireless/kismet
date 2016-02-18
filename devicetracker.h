@@ -60,6 +60,45 @@
 #define KIS_PHY_ANY	-1
 #define KIS_PHY_UNKNOWN -2
 
+// Helper for making keys
+//
+// Device keys are phy and runtime specific.  
+//
+// A device key should not be exported to file with the phy component.
+// A device key may be exported to a client with the phy component intact,
+// with the understanding that the phy component is valid for the current
+// session only.
+//
+class DevicetrackerKey {
+public:
+    static void SetPhy(uint64_t &key, int16_t phy) {
+        key &= ~(0xFFFFL << 48);
+        key |= ((phy & 0xFFFFL) << 48);
+    }
+
+    static void SetDevice(uint64_t &key, uint64_t device) {
+        key &= ~(0xFFFFFFFFFFFF);
+        key |= (device & 0xFFFFFFFFFFFF);
+    }
+
+    static uint16_t GetPhy(uint64_t key) {
+        return ((key >> 48) & 0xFFFFL);
+    }
+
+    static uint64_t GetDevice(uint64_t key) {
+        return (key & 0xFFFFFFFFFFFF);
+    }
+
+    static uint64_t MakeKey(mac_addr in_mac, int16_t in_phy) {
+        uint64_t r = 0L;
+
+        SetPhy(r, in_phy);
+        SetDevice(r, in_mac.GetAsLong());
+
+        return r;
+    }
+};
+
 // fwd
 class Devicetracker;
 
@@ -122,13 +161,13 @@ public:
         return new kis_tracked_device_base(globalreg, get_id());
     }
 
-    __Proxy(key, mac_addr, mac_addr, mac_addr, key);
+    __Proxy(key, uint64_t, uint64_t, uint64_t, key);
 
     __Proxy(macaddr, mac_addr, mac_addr, mac_addr, macaddr);
     
-    __Proxy(phytype, int64_t, int64_t, int64_t, phytype);
+    __Proxy(phyname, string, string, string, phyname);
 
-    __Proxy(name, string, string, string, name);
+    __Proxy(devicename, string, string, string, devicename);
 
     __Proxy(type_string, string, string, string, type_string);
 
@@ -261,20 +300,20 @@ protected:
         // printf("debug - kis_tracked_device_base register_fields\n");
 
         key_id =
-            RegisterField("kismet.device.base.key", TrackerMac,
+            RegisterField("kismet.device.base.key", TrackerUInt64,
                     "unique integer key", (void **) &key);
 
         macaddr_id =
             RegisterField("kismet.device.base.macaddr", TrackerMac,
                     "mac address", (void **) &macaddr);
 
-        phytype_id =
-            RegisterField("kismet.device.base.phytype", TrackerInt64,
-                    "phy type index", (void **) &phytype);
+        phyname_id =
+            RegisterField("kismet.device.base.phyname", TrackerString,
+                    "phy name", (void **) &phyname);
 
-        name_id = 
+        devicename_id = 
             RegisterField("kismet.device.base.name", TrackerString,
-                    "printable device name", (void **) &name);
+                    "printable device name", (void **) &devicename);
 
         type_string_id = 
             RegisterField("kismet.device.base.type", TrackerString,
@@ -420,13 +459,13 @@ protected:
     int macaddr_id;
 
     // Phy type (integer index)
-    TrackerElement *phytype;
-    int phytype_id;
+    TrackerElement *phyname;
+    int phyname_id;
 
     // Printable name for UI summary.  For APs could be latest SSID, for BT the UAP
     // guess, etc.
-    TrackerElement *name;
-    int name_id;
+    TrackerElement *devicename;
+    int devicename_id;
 
     // Printable basic type relevant to the phy, ie "Wired", "AP", "Bluetooth", etc.
     // This can be set per-phy and is treated as a printable interpretation.  
@@ -546,6 +585,7 @@ public:
 	vector<kis_tracked_device_base *> *FetchDevices(int in_phy);
 
 	Kis_Phy_Handler *FetchPhyHandler(int in_phy);
+	Kis_Phy_Handler *FetchPhyHandler(uint64_t in_key);
 
     string FetchPhyName(int in_phy);
 
@@ -560,19 +600,21 @@ public:
 	int AddFilter(string in_filter);
 	int AddNetCliFilter(string in_filter);
 
+#if 0
 	int SetDeviceTag(mac_addr in_device, string in_data);
 	int ClearDeviceTag(mac_addr in_device);
 	string FetchDeviceTag(mac_addr in_device);
+#endif
 
 	// Look for an existing device record
-	kis_tracked_device_base *FetchDevice(mac_addr in_device);
+	kis_tracked_device_base *FetchDevice(uint64_t in_key);
 	kis_tracked_device_base *FetchDevice(mac_addr in_device, unsigned int in_phy);
 	
 	// Make or find a device record for a mac
 	kis_tracked_device_base *MapToDevice(mac_addr in_device, kis_packet *in_pack);
 
-	typedef map<mac_addr, kis_tracked_device_base *>::iterator device_itr;
-	typedef map<mac_addr, kis_tracked_device_base *>::const_iterator const_device_itr;
+	typedef map<uint64_t, kis_tracked_device_base *>::iterator device_itr;
+	typedef map<uint64_t, kis_tracked_device_base *>::const_iterator const_device_itr;
 
 	static void Usage(char *argv);
 
@@ -641,12 +683,13 @@ protected:
 		pack_comp_radiodata, pack_comp_gps, pack_comp_capsrc;
 
 	// Tracked devices
-	map<mac_addr, kis_tracked_device_base *> tracked_map;
+	map<uint64_t, kis_tracked_device_base *> tracked_map;
 	// Vector of tracked devices so we can iterate them quickly
 	vector<kis_tracked_device_base *> tracked_vec;
 
 	// Vector of dirty elements for pushing to clients, better than walking
 	// the map every tick, looking for dirty records
+    // TODO determine if we still need this; I don't think we do
 	vector<kis_tracked_device_base *> dirty_device_vec;
 
 	// Filtering
@@ -712,8 +755,8 @@ public:
         // an existing component
         add_map(base->get_tracker_key());
         add_map(base->get_tracker_macaddr());
-        add_map(base->get_tracker_phytype());
-        add_map(base->get_tracker_name());
+        add_map(base->get_tracker_phyname());
+        add_map(base->get_tracker_devicename());
         add_map(base->get_tracker_type_string());
         add_map(base->get_tracker_crypt_string());
         add_map(base->get_tracker_first_time());
