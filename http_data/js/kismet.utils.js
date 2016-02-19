@@ -81,3 +81,22 @@ function kismetGetDeviceSummary(callback) {
     });
 };
 
+function kismetGetSystemStatus(callback) {
+    $.ajax({
+        url: "/system/status.msgpack",
+        type: "GET",
+        dataType: "binary",
+        processData: false,
+        responseType: 'arraybuffer',
+        success: function(arbuf) {
+            var msg;
+            try {
+                msg = msgpack.decode(arbuf);
+                callback(kismetConvertTrackerPack(msg));
+            } catch (e) {
+                callback(0);
+            }
+        }
+    });
+};
+
