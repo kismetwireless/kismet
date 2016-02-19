@@ -90,6 +90,8 @@ public:
     void RegisterHandler(Kis_Net_Httpd_Handler *in_handler);
     void RemoveHandler(Kis_Net_Httpd_Handler *in_handler);
 
+    void RegisterMimeType(string suffix, string mimetype);
+
 protected:
     GlobalRegistry *globalreg;
 
@@ -102,6 +104,8 @@ protected:
     std::vector<Kis_Net_Httpd_Handler *> handler_vec;
 
     bool running;
+
+    std::map<string, string> mime_type_map;
 
     pthread_mutex_t controller_mutex;
 

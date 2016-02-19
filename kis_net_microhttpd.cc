@@ -76,6 +76,9 @@ Kis_Net_Httpd::Kis_Net_Httpd(GlobalRegistry *in_globalreg) {
         http_serve_user_files = true;
     }
 
+    RegisterMimeType("html", "text/html");
+    RegisterMimeType("svg", "image/svg+xml");
+    RegisterMimeType("css", "text/css");
 }
 
 Kis_Net_Httpd::~Kis_Net_Httpd() {
@@ -83,6 +86,10 @@ Kis_Net_Httpd::~Kis_Net_Httpd() {
         StopHttpd();
 
     pthread_mutex_destroy(&controller_mutex);
+}
+
+void Kis_Net_Httpd::RegisterMimeType(string suffix, string mimetype) {
+    mime_type_map[StrLower(suffix)] = mimetype;
 }
 
 void Kis_Net_Httpd::RegisterHandler(Kis_Net_Httpd_Handler *in_handler) {
@@ -240,6 +247,20 @@ int Kis_Net_Httpd::handle_static_file(void *cls, struct MHD_Connection *connecti
                     fclose(f);
                     return -1;
                 }
+
+                // Smarter way to do this in the future?  Probably.
+                vector<string> ext_comps = StrTokenize(url, ".");
+                if (ext_comps.size() >= 1) {
+                    string ext = StrLower(ext_comps[ext_comps.size() - 1]);
+
+                    std::map<string, string>::iterator mi = 
+                        kishttpd->mime_type_map.find(ext);
+                    if (mi != kishttpd->mime_type_map.end()) {
+                        MHD_add_response_header(response, "Content-Type", 
+                                mi->second.c_str());
+                    }
+                }
+
 
                 MHD_queue_response(connection, MHD_HTTP_OK, response);
                 MHD_destroy_response(response);

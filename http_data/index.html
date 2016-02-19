@@ -11,6 +11,43 @@
 
 <script>
 
+var batteryTid;
+function updateBatteryUi() {
+    $("#batspinner").show();
+    kismetGetSystemStatus(function(status) {
+        if (status['kismet.system.battery.charging'] == "charging") {
+            $("#batpower").attr("src", "/img/icon_battery_full_charge.svg");
+            $("#battime").text("Charging");
+        } else {
+            if (status['kismet.system.battery.percentage'] < 25)
+                $("#batpower").attr("src", "/img/icon_battery_0.svg");
+            else if (status['kismet.system.battery.percentage'] < 50)
+                $("#batpower").attr("src", "/img/icon_battery_25.svg");
+            else if (status['kismet.system.battery.percentage'] < 75)
+                $("#batpower").attr("src", "/img/icon_battery_50.svg");
+            else if (status['kismet.system.battery.percentage'] < 90)
+                $("#batpower").attr("src", "/img/icon_battery_75.svg");
+            else 
+                $("#batpower").attr("src", "/img/icon_battery_100.svg");
+
+            var s = status['kismet.system.battery.remaining'];
+            if (s > 0) {
+                var h = Math.floor(s / 3600);
+                s -= 3600 * h;
+                var m = Math.floor(s / 60);
+                s -= 60 * m;
+
+                
+                $("#battime").text(h+":"+m+":"+s);
+            }
+        }
+
+    });
+    $("#batspinner").hide();
+
+    batteryTid = setTimeout(updateBatteryUi, 5000); // repeat myself
+}
+
 $(document).ready(function() {
     $("#live").append("jquery append<br>");
 
@@ -22,15 +59,18 @@ $(document).ready(function() {
         }
     });
 
+    updateBatteryUi();
+
 });
 
 </script>
 
 </head>
 <body>
-Static content served from kismet directory
-
-<i class="fa fa-refresh fa-spin"></i>
+<div align="right">
+    <div style="text-align: right;"><span id="battime">00:11:22</span> <a href="#"><img id="batpower" src="/img/icon_battery_0.svg" style="width: 2em; height: auto; align: right;"></a></div>
+    <i id="batspinner" class="fa fa-refresh fa-spin"></i>
+</div>
 
 <br>Ajax query of kismet:<br>
 <p id="live">
