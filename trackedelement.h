@@ -33,6 +33,9 @@
 #include "macaddr.h"
 #include "uuid.h"
 
+class GlobalRegistry;
+class EntryTracker;
+
 // Types of fields we can track and automatically resolve
 // Statically assigned type numbers which MUST NOT CHANGE as things go forwards for binary/fast
 // serialization, new types must be added to the end of the list
@@ -602,6 +605,205 @@ public:
     }
 
 
+};
+
+// Complex trackable unit based on trackertype primitives.
+//
+// All tracker_components are built from maps.
+//
+// Tracker components are stored via integer references, but the names are
+// mapped via the entrytracker system.
+//
+// Sub-classes must initialize sub-fields by calling register_fields() in their
+// constructors.  The register_fields() function is responsible for defining the
+// types and builders, and recording the field_ids for all sub-fields and nested 
+// components.
+//
+// Fields are allocated via the reserve_fields function, which must be called before
+// use of the component.  By passing an existing trackermap object, a parsed tree
+// can be annealed into the c++ representation without copying/re-parsing the data.
+class tracker_component : public TrackerElement {
+
+// Ugly trackercomponent macro for proxying trackerelement values
+// Defines get_<name> function, for a TrackerElement of type <ptype>, returning type 
+// <rtype>, referencing class variable <cvar>
+// Defines set_<name> funciton, for a TrackerElement of type <ptype>, taking type 
+// <itype>, which must be castable to the TrackerElement type (itype), referencing 
+// class variable <cvar>
+#define __Proxy(name, ptype, itype, rtype, cvar) \
+    TrackerElement *get_tracker_##name() { \
+        return (TrackerElement *) cvar; \
+    } \
+    rtype get_##name() const { \
+        return (rtype) GetTrackerValue<ptype>(cvar); \
+    } \
+    void set_##name(itype in) { \
+        cvar->set((ptype) in); \
+    }
+
+// Only proxy a Get function
+#define __ProxyGet(name, ptype, rtype, cvar) \
+    rtype get_##name() { \
+        return (rtype) GetTrackerValue<ptype>(cvar); \
+    } 
+
+// Only proxy a Set function for overload
+#define __ProxySet(name, ptype, stype, cvar) \
+    void set_##name(stype in) { \
+        cvar->set((stype) in); \
+    } 
+
+// Proxy increment and decrement functions
+#define __ProxyIncDec(name, ptype, rtype, cvar) \
+    void inc_##name() { \
+        (*cvar)++; \
+    } \
+    void inc_##name(rtype i) { \
+        (*cvar) += (ptype) i; \
+    } \
+    void dec_##name() { \
+        (*cvar)--; \
+    } \
+    void dec_##name(rtype i) { \
+        (*cvar) -= (ptype) i; \
+    }
+
+// Proxy add/subtract
+#define __ProxyAddSub(name, ptype, itype, cvar) \
+    void add_##name(itype i) { \
+        (*cvar) += (ptype) i; \
+    } \
+    void sub_##name(itype i) { \
+        (*cvar) -= (ptype) i; \
+    }
+
+// Proxy sub-trackable (name, trackable type, class variable)
+#define __ProxyTrackable(name, ttype, cvar) \
+    ttype *get_##name() { return cvar; } \
+    void set_##name(ttype *in) { \
+        if (cvar != NULL) \
+            cvar->unlink(); \
+        cvar = in; \
+        cvar->link(); \
+    }  \
+    TrackerElement *get_tracker_##name() { \
+        return (TrackerElement *) cvar; \
+    } \
+
+// Proxy bitset functions (name, data type, class var)
+#define __ProxyBitset(name, dtype, cvar) \
+    void bitset_##name(dtype bs) { \
+        (*cvar) |= bs; \
+    } \
+    void bitclear_##name(dtype bs) { \
+        (*cvar) &= ~(bs); \
+    }
+
+public:
+    // Build a basic component.  All basic components are maps.
+    // Set the field id automatically.
+    tracker_component(GlobalRegistry *in_globalreg, int in_id);
+
+    // Build a component with existing map
+    tracker_component(GlobalRegistry *in_globalreg, int in_id, 
+            TrackerElement *e __attribute__((unused)));
+
+	virtual ~tracker_component();
+
+    virtual void mutex_lock() {
+        pthread_mutex_lock(&pthread_lock);
+    }
+
+    virtual void mutex_unlock() {
+        pthread_mutex_unlock(&pthread_lock);
+    }
+
+    // Clones the type and preserves that we're a tracker component.  
+    // Complex subclasses will replace this to function as builders of
+    // their own complex types.
+    virtual TrackerElement *clone_type();
+
+    // Return the name via the entrytracker
+    virtual string get_name();
+
+    // Proxy getting any name via entry tracker
+    virtual string get_name(int in_id);
+
+protected:
+    // Reserve a field via the entrytracker, using standard entrytracker build methods.
+    // This field will be automatically assigned or created during the reservefields 
+    // stage.
+    int RegisterField(string in_name, TrackerType in_type, string in_desc, 
+            void **in_dest);
+
+    // Reserve a field via the entrytracker, using standard entrytracker build methods,
+    // but do not assign or create during the reservefields stage.
+    // This can be used for registering sub-components of maps which are not directly
+    // instantiated as top-level fields.
+    int RegisterField(string in_name, TrackerType in_type, string in_desc);
+
+    // Reserve a field via the entrytracker, using standard entrytracker build methods.
+    // This field will be automatically assigned or created during the reservefields 
+    // stage.
+    // You will nearly always want to use registercomplex below since fields with 
+    // specific builders typically want to inherit from a subtype
+    int RegisterField(string in_name, TrackerElement *in_builder, string in_desc, 
+            void **in_dest);
+
+    // Reserve a complex via the entrytracker, using standard entrytracker build methods.
+    // This field will NOT be automatically assigned or built during the reservefields 
+    // stage, callers should manually create these fields, importing from the parent
+    int RegisterComplexField(string in_name, TrackerElement *in_builder, 
+            string in_desc);
+
+    // Register field types and get a field ID.  Called during record creation, prior to 
+    // assigning an existing trackerelement tree or creating a new one
+    virtual void register_fields() { }
+
+    // Populate fields - either new (e == NULL) or from an existing structure which
+    //  may contain a generic version of our data.
+    // When populating from an existing structure, bind each field to this instance so
+    //  that we can track usage and delete() appropriately.
+    // Populate automatically based on the fields we have reserved, subclasses can 
+    // override if they really need to do something special
+    virtual void reserve_fields(TrackerElement *e);
+
+    // Inherit from an existing element or assign a new one.
+    // Add imported or new field to our map for use tracking.
+    virtual TrackerElement *import_or_new(TrackerElement *e, int i);
+
+    class registered_field {
+        public:
+            registered_field(int id, void **assign) { 
+                this->id = id; 
+                this->assign = (TrackerElement **) assign;
+            }
+
+            int id;
+            TrackerElement** assign;
+    };
+
+    GlobalRegistry *globalreg;
+    EntryTracker *tracker;
+
+    vector<registered_field *> registered_fields;
+
+    pthread_mutex_t pthread_lock;
+};
+
+class tracker_component_locker {
+public:
+    tracker_component_locker(tracker_component *c) {
+        component = c;
+        component->mutex_lock();
+    }
+
+    ~tracker_component_locker() {
+        component->mutex_unlock();
+    }
+
+protected:
+    tracker_component *component;
 };
 
 #endif

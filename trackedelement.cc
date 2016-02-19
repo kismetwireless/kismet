@@ -23,6 +23,8 @@
 #include "util.h"
 
 #include "trackedelement.h"
+#include "globalregistry.h"
+#include "entrytracker.h"
 
 TrackerElement::TrackerElement(TrackerType type) {
     this->type = type;
@@ -1012,6 +1014,116 @@ bool operator>(TrackerElement &te1, float f) {
 
 bool operator>(TrackerElement &te1, double d) {
     return te1.get_double() > d;
+}
+
+tracker_component::tracker_component(GlobalRegistry *in_globalreg, int in_id) {
+    globalreg = in_globalreg;
+    tracker = in_globalreg->entrytracker;
+
+    set_type(TrackerMap);
+    set_id(in_id);
+
+    pthread_mutex_init(&pthread_lock, NULL);
+}
+
+tracker_component::tracker_component(GlobalRegistry *in_globalreg, int in_id, 
+        TrackerElement *e __attribute__((unused))) {
+
+    globalreg = in_globalreg;
+    tracker = in_globalreg->entrytracker;
+
+    set_type(TrackerMap);
+    set_id(in_id);
+
+    pthread_mutex_init(&pthread_lock, NULL);
+}
+
+tracker_component::~tracker_component() { 
+    for (unsigned int i = 0; i < registered_fields.size(); i++) {
+        delete registered_fields[i];
+    }
+
+    pthread_mutex_destroy(&pthread_lock);
+}
+
+TrackerElement * tracker_component::clone_type() {
+    return new tracker_component(globalreg, get_id());
+}
+
+string tracker_component::get_name() {
+    return globalreg->entrytracker->GetFieldName(get_id());
+}
+
+string tracker_component::get_name(int in_id) {
+    return globalreg->entrytracker->GetFieldName(in_id);
+}
+
+int tracker_component::RegisterField(string in_name, TrackerType in_type, 
+        string in_desc, void **in_dest) {
+    int id = tracker->RegisterField(in_name, in_type, in_desc);
+
+    registered_field *rf = new registered_field(id, in_dest);
+
+    registered_fields.push_back(rf);
+
+    return id;
+}
+
+int tracker_component::RegisterField(string in_name, TrackerType in_type, 
+        string in_desc) {
+    int id = tracker->RegisterField(in_name, in_type, in_desc);
+
+    return id;
+}
+
+int tracker_component::RegisterField(string in_name, TrackerElement *in_builder, 
+        string in_desc, void **in_dest) {
+    int id = tracker->RegisterField(in_name, in_builder, in_desc);
+
+    registered_field *rf = new registered_field(id, in_dest);
+
+    registered_fields.push_back(rf);
+
+    return id;
+} 
+
+int tracker_component::RegisterComplexField(string in_name, TrackerElement *in_builder, 
+        string in_desc) {
+    int id = tracker->RegisterField(in_name, in_builder, in_desc);
+    return id;
+}
+
+void tracker_component::reserve_fields(TrackerElement *e) {
+    for (unsigned int i = 0; i < registered_fields.size(); i++) {
+        registered_field *rf = registered_fields[i];
+
+        if (rf->assign != NULL) {
+            *(rf->assign) = import_or_new(e, rf->id);
+        } else {
+        }
+    }
+}
+
+TrackerElement *tracker_component::import_or_new(TrackerElement *e, int i) {
+    TrackerElement *r;
+
+    // Find the value in the importer element
+    if (e != NULL) {
+        r = e->get_map_value(i);
+
+        if (r != NULL) {
+            // printf("debug - found id %d, importing\n", i);
+            // Added directly as a trackedelement of the right type and id
+            add_map(r);
+            // Return existing item
+            return r;
+        }
+    }
+
+    r = tracker->GetTrackedInstance(i);
+    add_map(r);
+
+    return r;
 }
 
 
