@@ -37,7 +37,7 @@ public:
             size_t *upload_data_size, std::stringstream &stream);
 
     __Proxy(battery_perc, int32_t, int32_t, int32_t, battery_perc);
-    __Proxy(battery_charging, uint8_t, bool, bool, battery_charging);
+    __Proxy(battery_charging, string, string, string, battery_charging);
     __Proxy(battery_ac, uint8_t, bool, bool, battery_ac);
     __Proxy(battery_remaining, uint32_t, uint32_t, uint32_t, battery_remaining);
 

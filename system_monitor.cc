@@ -46,8 +46,8 @@ void Systemmonitor::register_fields() {
         RegisterField("kismet.system.battery.percentage", TrackerInt32,
                 "remaining battery percentage", (void **) &battery_perc);
     battery_charging_id =
-        RegisterField("kismet.system.battery.charging", TrackerUInt8,
-                "battery charging", (void **) &battery_charging);
+        RegisterField("kismet.system.battery.charging", TrackerString,
+                "battery charging state", (void **) &battery_charging);
     battery_ac_id =
         RegisterField("kismet.system.battery.ac", TrackerUInt8,
                 "on AC power", (void **) &battery_ac);
@@ -83,7 +83,14 @@ void Systemmonitor::Httpd_CreateStreamResponse(
         Fetch_Battery_Info(&batinfo);
 
         set_battery_perc(batinfo.percentage);
-        set_battery_charging(batinfo.charging);
+        if (batinfo.ac && batinfo.charging) {
+            set_battery_charging("charging");
+        } else if (batinfo.ac && !batinfo.charging) {
+            set_battery_charging("charged");
+        } else if (!batinfo.ac) {
+            set_battery_charging("discharging");
+        }
+
         set_battery_ac(batinfo.ac);
         set_battery_remaining(batinfo.remaining_sec);
 
