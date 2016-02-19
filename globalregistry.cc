@@ -149,10 +149,21 @@ int GlobalRegistry::InsertGlobal(int in_ref, void *in_data) {
 	return 1;
 }
 
+void GlobalRegistry::RemoveGlobal(int in_ref) {
+    if (ext_data_map.find(in_ref) != ext_data_map.end()) {
+        ext_data_map.erase(ext_data_map.find(in_ref));
+    }
+}
+
 int GlobalRegistry::InsertGlobal(string in_name, void *in_data) {
 	int ref = RegisterGlobal(in_name);
 
 	return InsertGlobal(ref, in_data);
+}
+
+void GlobalRegistry::RemoveGlobal(string in_name) {
+    int ref = FetchGlobalRef(in_name);
+    RemoveGlobal(ref);
 }
 
 int GlobalRegistry::RegisterPollableSubsys(Pollable *in_subcli) {

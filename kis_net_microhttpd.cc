@@ -146,7 +146,7 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
     for (unsigned int i = 0; i < kishttpd->handler_vec.size(); i++) {
         Kis_Net_Httpd_Handler *h = kishttpd->handler_vec[i];
 
-        if (h->VerifyPath(url, method)) {
+        if (h->Httpd_VerifyPath(url, method)) {
             handler = h;
             break;
         }
@@ -172,7 +172,8 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
     }
 
     int ret = 
-        handler->HandleRequest(connection, url, method, upload_data, upload_data_size);
+        handler->Httpd_HandleRequest(connection, url, method, upload_data, 
+                upload_data_size);
 
     pthread_mutex_unlock(&(kishttpd->controller_mutex));
 

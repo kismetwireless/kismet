@@ -631,9 +631,9 @@ public:
 	int PopulateCommon(kis_tracked_device_base *device, kis_packet *in_pack);
 
     // HTTP handlers
-    virtual bool VerifyPath(const char *path, const char *method);
+    virtual bool Httpd_VerifyPath(const char *path, const char *method);
 
-    virtual void CreateStreamResponse(struct MHD_Connection *connection,
+    virtual void Httpd_CreateStreamResponse(struct MHD_Connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size, std::stringstream &stream);
 

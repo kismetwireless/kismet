@@ -292,6 +292,8 @@ public:
 
     int InsertGlobal(int in_ref, void *in_data);
 	int InsertGlobal(string in_name, void *in_data);
+    void RemoveGlobal(int in_ref);
+    void RemoveGlobal(string in_name);
 
 	// Add something to the poll() main loop
 	int RegisterPollableSubsys(Pollable *in_subcli);

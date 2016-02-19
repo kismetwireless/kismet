@@ -1625,7 +1625,7 @@ string Devicetracker::FetchDeviceTag(mac_addr in_device) {
 #endif
 
 // HTTP interfaces
-bool Devicetracker::VerifyPath(const char *path, const char *method) {
+bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
     if (strcmp(method, "GET") != 0) {
         return false;
     }
@@ -1701,7 +1701,7 @@ void Devicetracker::httpd_msgpack_device_summary(std::stringstream &stream) {
     delete(devvec);
 }
 
-void Devicetracker::CreateStreamResponse(struct MHD_Connection *connection,
+void Devicetracker::Httpd_CreateStreamResponse(struct MHD_Connection *connection,
         const char *path, const char *method, const char *upload_data,
         size_t *upload_data_size, std::stringstream &stream) {
 

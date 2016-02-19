@@ -38,31 +38,31 @@
 class Kis_Net_Httpd_Handler {
 public:
     // Handle a request
-    virtual int HandleRequest(struct MHD_Connection *connection,
+    virtual int Httpd_HandleRequest(struct MHD_Connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size) = 0;
 
 
     // Can this handler process this request?
-    virtual bool VerifyPath(const char *path, const char *method) = 0;
+    virtual bool Httpd_VerifyPath(const char *path, const char *method) = 0;
 };
 
 // Take a C++ stringstream and use it as a response
 class Kis_Net_Httpd_Stream_Handler : public Kis_Net_Httpd_Handler {
 public:
-    virtual bool VerifyPath(const char *path, const char *method) = 0;
+    virtual bool Httpd_VerifyPath(const char *path, const char *method) = 0;
 
-    virtual void CreateStreamResponse(struct MHD_Connection *connection,
+    virtual void Httpd_CreateStreamResponse(struct MHD_Connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size, std::stringstream &stream) = 0;
 
-    virtual int HandleRequest(struct MHD_Connection *connection,
+    virtual int Httpd_HandleRequest(struct MHD_Connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size) {
 
         std::stringstream stream;
 
-        CreateStreamResponse(connection, url, method, upload_data,
+        Httpd_CreateStreamResponse(connection, url, method, upload_data,
                 upload_data_size, stream);
 
         struct MHD_Response *response = 

@@ -2,12 +2,16 @@ REST endpoints
 
 For packing format / msgpack use, see SERIALIZATION
 
-/devices/msgpack/all_devices
-    vector<string> of macaddr+phy keys for devices
+/system/status.msgpack
+    packed record of system status (battery, etc)
 
-/devices/msgpack/DEVICE
-    packed trackercomponent of DEVICE (where DEVICE is macaddr+phy, ie
-    00:11:22:33:44:55!00 for phy 0
+/devices/all_devices.msgpack
+    packed vector of device summary records
 
-/phy/msgpack/all_phys
-    packed trackercomponent vector of phy descriptors and counts
+/devices/DEVICE_KEY.msgpack
+    packed trackercomponent of DEVICE (where DEVICE_KEY is the device key from
+            the summary)
+
+/phy/all_phys.msgpack
+    packed vector of phy descriptors and counts
+

@@ -18,7 +18,7 @@ PSO	= util.o cygwin_utils.o globalregistry.o ringbuf.o \
 	netframework.o clinetframework.o tcpserver.o tcpclient.o \
 	unixdomainserver.o serialclient.o packetsourcetracker.o $(CAPSOURCES) \
 	kis_netframe.o kis_droneframe.o \
-	kis_net_microhttpd.o \
+	kis_net_microhttpd.o system_monitor.o \
 	gpswrapper.o gpscore.o gpsdclient.o gpsserial.o gpsfixed.o \
 	packetchain.o \
 	trackedelement.o entrytracker.o msgpack_adapter.o \
