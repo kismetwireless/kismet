@@ -29,11 +29,6 @@ Systemmonitor::Systemmonitor(GlobalRegistry *in_globalreg) :
 
     globalreg->InsertGlobal("SYSTEM_MONITOR", this);
 
-    self_id = 
-        globalreg->entrytracker->RegisterField("kismet.system", TrackerMap, 
-                "system monitoring info");
-    set_id(self_id);
-
     register_fields();
     reserve_fields(NULL);
 

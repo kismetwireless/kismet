@@ -44,8 +44,6 @@ public:
 protected:
     virtual void register_fields();
 
-    int self_id;
-
     int battery_perc_id;
     TrackerElement *battery_perc;
 
