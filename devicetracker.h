@@ -572,7 +572,7 @@ class Devicetracker : public Kis_Net_Httpd_Stream_Handler, public TimetrackerEve
 public:
 	Devicetracker() { fprintf(stderr, "FATAL OOPS: Kis_Tracker()\n"); exit(0); }
 	Devicetracker(GlobalRegistry *in_globalreg);
-	~Devicetracker();
+	virtual ~Devicetracker();
 
 	// Register a phy handler weak class, used to instantiate the strong class
 	// inside devtracker

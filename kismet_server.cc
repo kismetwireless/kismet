@@ -76,7 +76,6 @@
 
 #include "gpswrapper.h"
 
-// #include "netracker.h"
 #include "devicetracker.h"
 #include "phy_80211.h"
 
@@ -112,188 +111,6 @@ int plugins = 1;
 // One of our few globals in this file
 int glob_linewrap = 1;
 int glob_silent = 0;
-
-int critfail_proto_ref = -1;
-
-// The info protocol lives in here for lack of anywhere better to live
-enum INFO_fields {
-	INFO_networks, INFO_packets, INFO_cryptpackets,
-	INFO_noisepackets, INFO_droppedpackets, INFO_packetrate, 
-	INFO_filteredpackets, INFO_clients, INFO_llcpackets, INFO_datapackets,
-	INFO_numsources, INFO_numerrorsources,
-	INFO_maxfield
-};
-
-const char *INFO_fields_text[] = {
-	"networks", "packets", "crypt", "noise", "dropped", "rate", 
-	"filtered", "clients", "llcpackets", "datapackets", "numsources",
-	"numerrorsources",
-	NULL
-};
-
-enum CRITFAIL_fields {
-	CRITFAIL_id, CRITFAIL_time, CRITFAIL_message, 
-	CRITFAIL_maxfield
-};
-
-const char *CRITFAIL_fields_text[] = {
-	"id", "time", "message", NULL
-};
-
-#if 0
-int Protocol_INFO(PROTO_PARMS) {
-	ostringstream osstr;
-	int num_error;
-	vector<pst_packetsource *> *sourcevec = globalreg->sourcetracker->FetchSourceVec();
-
-	// Alloc the cache quickly
-	cache->Filled(field_vec->size());
-
-    for (unsigned int x = 0; x < field_vec->size(); x++) {
-        unsigned int fnum = (*field_vec)[x];
-        if (fnum >= INFO_maxfield) {
-            out_string = "Unknown field requested.";
-            return -1;
-		}
-
-		osstr.str("");
-
-		// Shortcut test the cache once and print/bail immediately
-		if (cache->Filled(fnum)) {
-			out_string += cache->GetCache(fnum) + " ";
-			continue;
-		}
-
-		// Fill in the cached element
-		switch(fnum) {
-			case INFO_networks:
-				osstr << globalreg->netracker->FetchNumNetworks();
-				cache->Cache(fnum, osstr.str());
-				break;
-			case INFO_clients:
-				osstr << globalreg->netracker->FetchNumClients();
-				cache->Cache(fnum, osstr.str());
-				break;
-			case INFO_packets:
-				osstr << globalreg->netracker->FetchNumPackets();
-				cache->Cache(fnum, osstr.str());
-				break;
-			case INFO_cryptpackets:
-				osstr << globalreg->netracker->FetchNumCryptpackets();
-				cache->Cache(fnum, osstr.str());
-				break;
-			case INFO_llcpackets:
-				osstr << globalreg->netracker->FetchNumLLCpackets();
-				cache->Cache(fnum, osstr.str());
-				break;
-			case INFO_datapackets:
-				osstr << globalreg->netracker->FetchNumDatapackets();
-				cache->Cache(fnum, osstr.str());
-				break;
-			case INFO_noisepackets:
-				osstr << globalreg->netracker->FetchNumErrorpackets();
-				cache->Cache(fnum, osstr.str());
-				break;
-			case INFO_droppedpackets:
-				osstr << (globalreg->netracker->FetchNumErrorpackets() +
-						  globalreg->netracker->FetchNumFiltered());
-				cache->Cache(fnum, osstr.str());
-				break;
-			case INFO_packetrate:
-				osstr << globalreg->netracker->FetchPacketRate();
-				cache->Cache(fnum, osstr.str());
-				break;
-			case INFO_filteredpackets:
-				osstr << globalreg->netracker->FetchNumFiltered();
-				cache->Cache(fnum, osstr.str());
-				break;
-			case INFO_numsources:
-				osstr << sourcevec->size();
-				cache->Cache(fnum, osstr.str());
-				break;
-			case INFO_numerrorsources:
-				num_error = 0;
-				for (unsigned int e = 0; e < sourcevec->size(); e++) {
-					if ((*sourcevec)[e]->error)
-						num_error++;
-				}
-				osstr << num_error;
-				cache->Cache(fnum, osstr.str());
-				break;
-		}
-
-		// print the newly filled in cache
-		out_string += cache->GetCache(fnum) + " ";
-    }
-
-    return 1;
-}
-#endif
-
-void Protocol_CRITFAIL_enable(PROTO_ENABLE_PARMS) {
-	for (unsigned int x = 0; x < globalreg->critfail_vec.size(); x++) {
-		kis_protocol_cache cache;
-
-		if (in_fd == -1) {
-			if (globalreg->kisnetserver->SendToAll(critfail_proto_ref, (void *) x) < 0)
-				break;
-		} else {
-			if (globalreg->kisnetserver->SendToClient(in_fd, critfail_proto_ref,
-													  (void *) x, &cache) < 0)
-				break;
-		}
-
-		// Often enough to be really obvious
-		if (time(0) % 5 == 0) 
-			_MSG("!!! CRITICAL ERROR !!! - " + globalreg->critfail_vec[x].fail_msg + 
-				 " - Kismet will not operate correctly.", MSGFLAG_FATAL);
-	}
-}
-
-int Protocol_CRITFAIL(PROTO_PARMS) {
-	// This is stupid but it makes gcc shut up.  Maybe.
-	unsigned long int cf_lnum = (unsigned long int) data;
-	unsigned int cf_num = (unsigned int) cf_lnum;
-
-	if (cf_num >= globalreg->critfail_vec.size())
-		cf_num = 0;
-
-	string scratch;
-
-	cache->Filled(field_vec->size());
-
-	for (unsigned int x = 0; x < field_vec->size(); x++) {
-		unsigned int fnum = (*field_vec)[x];
-		if (fnum >= CRITFAIL_maxfield) {
-			out_string += "Unknown field requested.";
-			return -1;
-		}
-
-		if (cache->Filled(fnum)) {
-			out_string += cache->GetCache(fnum) + " ";
-			continue;
-		}
-
-		switch (fnum) {
-			case CRITFAIL_id:
-				scratch = IntToString(cf_num);
-				break;
-			case CRITFAIL_time:
-				scratch = IntToString(globalreg->critfail_vec[cf_num].fail_time);
-				break;
-			case CRITFAIL_message:
-				scratch = "\001" + globalreg->critfail_vec[cf_num].fail_msg + "\001";
-				break;
-		}
-
-		out_string += scratch;
-		cache->Cache(fnum, scratch);
-
-		out_string += " ";
-	}
-
-	return 1;
-}
 
 // Message clients that are attached at the master level
 // Smart standard out client that understands the silence options
@@ -483,13 +300,6 @@ void CatchShutdown(int sig) {
 
 	globalregistry->pcapdump = NULL;
 
-    /*
-	if (globalregistry->netracker != NULL) {
-		delete globalregistry->netracker;
-		globalregistry->netracker = NULL;
-	}
-    */
-
 	if (globalregistry->devicetracker != NULL) {
 		delete globalregistry->devicetracker;
 		globalregistry->devicetracker = NULL;
@@ -601,16 +411,6 @@ int FlushDatafilesEvent(TIMEEVENT_PARMS) {
 int BaseTimerEvent(TIMEEVENT_PARMS) {
 	// Send the info frame to everyone
 	globalreg->kisnetserver->SendToAll(_NPM(PROTO_REF_INFO), NULL);
-
-	// Send critfails to everyone and print out as messages
-	Protocol_CRITFAIL_enable(-1, globalreg, NULL);
-
-	return 1;
-}
-
-int cmd_SHUTDOWN(CLIENT_PARMS) {
-	_MSG("Received SHUTDOWN command", MSGFLAG_FATAL);
-	CatchShutdown(0);
 
 	return 1;
 }
@@ -925,10 +725,6 @@ int main(int argc, char *argv[], char *envp[]) {
 	globalregistry->kisnetserver = new KisNetFramework(globalregistry);
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
-
-	globalregistry->kisnetserver->RegisterClientCommand("SHUTDOWN",
-														&cmd_SHUTDOWN,
-														NULL);
 
 	// Create the packetsourcetracker
 	globalregistry->sourcetracker = new Packetsourcetracker(globalregistry);
@@ -1245,26 +1041,6 @@ int main(int argc, char *argv[], char *envp[]) {
 
 	// Initialize the crc tables
 	crc32_init_table_80211(globalregistry->crc32_table);
-
-	/* Register the info protocol */
-    /*
-	if (globalreg->netracker != NULL) {
-		_NPM(PROTO_REF_INFO) =
-			globalregistry->kisnetserver->RegisterProtocol("INFO", 0, 1,
-														   INFO_fields_text, 
-														   &Protocol_INFO, NULL, NULL);
-	} else {
-		_MSG("Old nettracker core disabled, disabling deprecated *INFO sentence",
-			 MSGFLAG_INFO);
-	}
-    */
-
-	critfail_proto_ref =
-		globalregistry->kisnetserver->RegisterProtocol("CRITFAIL", 0, 1,
-													   CRITFAIL_fields_text,
-													   &Protocol_CRITFAIL,
-													   &Protocol_CRITFAIL_enable,
-													   NULL);
 
 	globalregistry->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC,
 											   NULL, 1, 

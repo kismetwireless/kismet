@@ -18,7 +18,7 @@ function updateBatteryUi() {
         if (status['kismet.system.battery.charging'] == "charging") {
             $("#batpower").attr("src", "/img/icon_battery_full_charge.svg");
             $("#battime").text("Charging");
-        } else if (status['kismet.system.battery.charging'] = "charged") {
+        } else if (status['kismet.system.battery.charging'] == "charged") {
             $("#batpower").attr("src", "/img/icon_battery_full_charge.svg");
             $("#battime").text("Charged");
         } else {
@@ -40,11 +40,20 @@ function updateBatteryUi() {
                 var m = Math.floor(s / 60);
                 s -= 60 * m;
 
+                if (h < 10)
+                    h = '0' + h
+                if (m < 10)
+                    m = '0' + m
+                if (s < 10)
+                    s = '0' + s
                 
                 $("#battime").text(h+":"+m+":"+s);
             }
         }
 
+    }, function() {
+        $("#batpower").attr("src", "/img/icon/battery_no_battery_power.svg");
+        $("#battime").text("ERROR");
     });
     $("#batspinner").hide();
 
@@ -60,6 +69,8 @@ $(document).ready(function() {
 
             $("#live").append(d["kismet.device.base.name"] + "<br>");
         }
+    }, function() {
+        $("#live").append("Couldn't fetch list");    
     });
 
     updateBatteryUi();

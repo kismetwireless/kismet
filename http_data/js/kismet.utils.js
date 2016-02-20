@@ -55,7 +55,7 @@ function kismetConvertTrackerPack(unpacked) {
     }
 }
 
-function kismetGetDeviceSummary(callback) {
+function kismetGetDeviceSummary(callback, failback) {
     $.ajax({
         url: "/devices/all_devices.msgpack",
         type: "GET",
@@ -68,13 +68,13 @@ function kismetGetDeviceSummary(callback) {
                 msg = msgpack.decode(arbuf);
                 callback(kismetConvertTrackerPack(msg));
             } catch (e) {
-                callback(0);
+                failback();
             }
         }
     });
 };
 
-function kismetGetSystemStatus(callback) {
+function kismetGetSystemStatus(callback, failback) {
     $.ajax({
         url: "/system/status.msgpack",
         type: "GET",
@@ -87,7 +87,7 @@ function kismetGetSystemStatus(callback) {
                 msg = msgpack.decode(arbuf);
                 callback(kismetConvertTrackerPack(msg));
             } catch (e) {
-                callback(0);
+                failback();
             }
         }
     });

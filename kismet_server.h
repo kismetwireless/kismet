@@ -25,7 +25,6 @@
 #include <string>
 
 #include "tcpserver.h"
-#include "netracker.h"
 
 void WriteDatafiles(int in_shutdown);
 void CatchShutdown(int sig);
