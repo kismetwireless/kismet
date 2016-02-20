@@ -1039,9 +1039,6 @@ int main(int argc, char *argv[], char *envp[]) {
 			CatchShutdown(-1);
 	}
 
-	// Initialize the crc tables
-	crc32_init_table_80211(globalregistry->crc32_table);
-
 	globalregistry->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC,
 											   NULL, 1, 
 											   &BaseTimerEvent, NULL);
