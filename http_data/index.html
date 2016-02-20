@@ -18,6 +18,9 @@ function updateBatteryUi() {
         if (status['kismet.system.battery.charging'] == "charging") {
             $("#batpower").attr("src", "/img/icon_battery_full_charge.svg");
             $("#battime").text("Charging");
+        } else if (status['kismet.system.battery.charging'] = "charged") {
+            $("#batpower").attr("src", "/img/icon_battery_full_charge.svg");
+            $("#battime").text("Charged");
         } else {
             if (status['kismet.system.battery.percentage'] < 25)
                 $("#batpower").attr("src", "/img/icon_battery_0.svg");

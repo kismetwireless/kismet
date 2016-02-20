@@ -32,8 +32,6 @@ function kismetConvertMacaddr(trackermac) {
 
 function kismetConvertTrackerPack(unpacked) {
     if (unpacked[0] == KIS_TRACKERTYPE_VECTOR) {
-        console.log("converting a vector");
-
         var retarr = [];
 
         for (var x = 0; x < unpacked[1].length; x++) {
@@ -43,8 +41,6 @@ function kismetConvertTrackerPack(unpacked) {
         return retarr;
     } else if (unpacked[0] == KIS_TRACKERTYPE_MAP ||
             unpacked[0] == KIS_TRACKERTYPE_INTMAP) {
-        console.log("converting a map");
-
         var retdict = {};
 
         for (var k in unpacked[1]) {
@@ -53,11 +49,8 @@ function kismetConvertTrackerPack(unpacked) {
 
         return retdict;
     } else if (unpacked[0] == KIS_TRACKERTYPE_MAC) {
-        console.log("converting a mac");
-
         return kismetConvertMacaddr(unpacked[1]);
     } else {
-        console.log("converting someting else, stripping type off");
         return unpacked[1];
     }
 }
