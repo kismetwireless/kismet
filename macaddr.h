@@ -249,6 +249,10 @@ struct mac_addr {
         return longmac;
     }
 
+    inline string MacFull2String() const {
+        return Mac2String() + "/" + MacMask2String();
+    }
+
 };
 
 

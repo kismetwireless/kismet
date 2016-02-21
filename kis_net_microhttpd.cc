@@ -79,6 +79,10 @@ Kis_Net_Httpd::Kis_Net_Httpd(GlobalRegistry *in_globalreg) {
     RegisterMimeType("html", "text/html");
     RegisterMimeType("svg", "image/svg+xml");
     RegisterMimeType("css", "text/css");
+    RegisterMimeType("jpeg", "image/jpeg");
+    RegisterMimeType("gif", "image/gif");
+    RegisterMimeType("ico", "image/x-icon");
+
 }
 
 Kis_Net_Httpd::~Kis_Net_Httpd() {

@@ -137,7 +137,9 @@ template<>
                         for (mac_map_iter = tmacmap->begin(); 
                                 mac_map_iter != tmacmap->end();
                                 ++mac_map_iter) {
-                            o.pack(mac_map_iter->first);
+                            // Macmaps need to go out as just the mac string,
+                            // not a vector of mac+mask
+                            o.pack(mac_map_iter->first.MacFull2String());
                             o.pack(mac_map_iter->second);
                         }
 

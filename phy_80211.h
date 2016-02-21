@@ -656,17 +656,11 @@ public:
 
     __ProxyTrackable(ipdata, kis_tracked_ip_data, ipdata);
 
-    __Proxy(txdata_bytes, uint64_t, uint64_t, uint64_t, txdata_bytes);
-    __ProxyIncDec(txdata_bytes, uint64_t, uint64_t, txdata_bytes);
+    __Proxy(datasize, uint64_t, uint64_t, uint64_t, datasize);
+    __ProxyIncDec(datasize, uint64_t, uint64_t, datasize);
 
-    __Proxy(rxdata_bytes, uint64_t, uint64_t, uint64_t, rxdata_bytes);
-    __ProxyIncDec(rxdata_bytes, uint64_t, uint64_t, rxdata_bytes);
-
-    __Proxy(txdata_retry_bytes, uint64_t, uint64_t, uint64_t, txdata_retry_bytes);
-    __ProxyIncDec(txdata_retry_bytes, uint64_t, uint64_t, txdata_retry_bytes);
-
-    __Proxy(rxdata_retry_bytes, uint64_t, uint64_t, uint64_t, rxdata_retry_bytes);
-    __ProxyIncDec(rxdata_retry_bytes, uint64_t, uint64_t, rxdata_retry_bytes);
+    __Proxy(datasize_retry, uint64_t, uint64_t, uint64_t, datasize_retry);
+    __ProxyIncDec(datasize_retry, uint64_t, uint64_t, datasize_retry);
 
     __Proxy(num_fragments, uint64_t, uint64_t, uint64_t, num_fragments);
     __ProxyIncDec(num_fragments, uint64_t, uint64_t, num_fragments);
@@ -729,19 +723,12 @@ protected:
             RegisterComplexField("dot11.client.ipdata", ip_builder,
                     "IP data");
 
-        txdata_bytes_id =
-            RegisterField("dot11.client.txdata_bytes", TrackerUInt64,
-                    "transmitted data in bytes", (void **) &txdata_bytes);
-        rxdata_bytes_id =
-            RegisterField("dot11.client.rxdata_bytes", TrackerUInt64,
-                    "received data in bytes", (void **) &rxdata_bytes);
-        txdata_retry_bytes_id =
-            RegisterField("dot11.client.txdata_retry_bytes", TrackerUInt64,
-                    "retransmitted data in bytes", (void **) &txdata_retry_bytes);
-        rxdata_retry_bytes_id =
-            RegisterField("dot11.client.rxdata_retry_bytes", TrackerUInt64,
-                    "retransmitted received data in bytes",
-                    (void **) &rxdata_retry_bytes);
+        datasize_id =
+            RegisterField("dot11.client.datasize", TrackerUInt64,
+                    "data in bytes", (void **) &datasize);
+        datasize_retry_id =
+            RegisterField("dot11.client.datasize_retry", TrackerUInt64,
+                    "retry data in bytes", (void **) &datasize_retry);
         num_fragments_id =
             RegisterField("dot11.client.num_fragments", TrackerUInt64,
                     "number of fragmented packets", (void **) &num_fragments);
@@ -817,17 +804,11 @@ protected:
     int ipdata_id;
     kis_tracked_ip_data *ipdata;
 
-    int txdata_bytes_id;
-    TrackerElement *txdata_bytes;
+    int datasize_id;
+    TrackerElement *datasize;
 
-    int rxdata_bytes_id;
-    TrackerElement *rxdata_bytes;
-
-    int rxdata_retry_bytes_id;
-    TrackerElement *rxdata_retry_bytes;
-
-    int txdata_retry_bytes_id;
-    TrackerElement *txdata_retry_bytes;
+    int datasize_retry_id;
+    TrackerElement *datasize_retry;
 
     int num_fragments_id;
     TrackerElement *num_fragments;
@@ -885,6 +866,9 @@ public:
     __ProxyBitset(type_set, uint64_t, type_set);
 
     __ProxyTrackable(client_map, TrackerElement, client_map);
+    dot11_client *new_client() {
+        return new dot11_client(globalreg, client_map_entry_id);
+    }
 
     __ProxyTrackable(advertised_ssid_map, TrackerElement, advertised_ssid_map);
     dot11_advertised_ssid *new_advertised_ssid() {
@@ -910,11 +894,11 @@ public:
     __Proxy(num_retries, uint64_t, uint64_t, uint64_t, num_retries);
     __ProxyIncDec(num_retries, uint64_t, uint64_t, num_retries);
 
-    __Proxy(rx_datasize, uint64_t, uint64_t, uint64_t, rx_datasize);
-    __ProxyIncDec(rx_datasize, uint64_t, uint64_t, rx_datasize);
+    __Proxy(datasize, uint64_t, uint64_t, uint64_t, datasize);
+    __ProxyIncDec(datasize, uint64_t, uint64_t, datasize);
 
-    __Proxy(tx_datasize, uint64_t, uint64_t, uint64_t, tx_datasize);
-    __ProxyIncDec(tx_datasize, uint64_t, uint64_t, tx_datasize);
+    __Proxy(datasize_retry, uint64_t, uint64_t, uint64_t, datasize_retry);
+    __ProxyIncDec(datasize_retry, uint64_t, uint64_t, datasize_retry);
 
     __Proxy(last_bssid, mac_addr, mac_addr, mac_addr, last_bssid);
 
@@ -923,26 +907,6 @@ public:
     __Proxy(last_beaconed_ssid, string, string, string, last_beaconed_ssid);
     __Proxy(last_beaconed_ssid_csum, int32_t, uint32_t, 
             uint32_t, last_beaconed_ssid_csum);
-
-    /*
-       void clear_bssid_list() { bssid_vec->clear_vector(); }
-    // Only add seen bssids if they're new
-    void add_seen_bssid(mac_addr m) {
-    for (unsigned int i = 0; i < bssid_vec->size(); i++) {
-    TrackerElement *e = (*bssid_vec)[i];
-
-    if ((*e) == m)
-    return;
-    }
-
-    TrackerElement *ne = 
-    globalreg->entrytracker->GetTrackedInstance(bssid_vec_entry_id);
-
-    ne->set(m);
-    bssid_vec->add_vector(ne);
-    }
-    */
-
 
     bool get_dirty() { return dirty; }
     void set_dirty(bool d) { dirty = d; }
@@ -1006,16 +970,21 @@ protected:
             RegisterField("dot11.device.num_retries", TrackerUInt64,
                     "number of retried packets", (void **) &num_retries);
 
-        tx_datasize_id =
-            RegisterField("dot11.device.tx_datasize", TrackerUInt64,
-                    "transmitted data in bytes", (void **) &tx_datasize);
-        rx_datasize_id =
-            RegisterField("dot11.device.rx_datasize", TrackerUInt64,
-                    "received data in bytes", (void **) &rx_datasize);
+        datasize_id =
+            RegisterField("dot11.device.datasize", TrackerUInt64,
+                    "data in bytes", (void **) &datasize);
+
+        datasize_retry_id =
+            RegisterField("dot11.device.datasize_retry", TrackerUInt64,
+                    "retried data in bytes", (void **) &datasize_retry);
 
         last_probed_ssid_id =
             RegisterField("dot11.device.last_probed_ssid", TrackerString,
                     "last probed ssid", (void **) &last_probed_ssid);
+
+        last_probed_ssid_csum_id =
+            RegisterField("dot11.device.last_probed_ssid_csum", TrackerInt32,
+                    "last probed ssid checksum", (void **) &last_probed_ssid_csum);
 
         last_beaconed_ssid_id =
             RegisterField("dot11.device.last_beaconed_ssid", TrackerString,
@@ -1068,14 +1037,17 @@ protected:
     int num_retries_id;
     TrackerElement *num_retries;
 
-    int tx_datasize_id;
-    TrackerElement *tx_datasize;
+    int datasize_id;
+    TrackerElement *datasize;
 
-    int rx_datasize_id;
-    TrackerElement *rx_datasize;
+    int datasize_retry_id;
+    TrackerElement *datasize_retry;
 
     int last_probed_ssid_id;
     TrackerElement *last_probed_ssid;
+
+    int last_probed_ssid_csum_id;
+    TrackerElement *last_probed_ssid_csum;
 
     int last_beaconed_ssid_id;
     TrackerElement *last_beaconed_ssid;
@@ -1182,6 +1154,19 @@ protected:
             kis_packet *in_pack,
             dot11_packinfo *dot11info,
             kis_gps_packinfo *pack_gpsinfo);
+
+    void HandleProbedSSID(kis_tracked_device_base *basedev, 
+            dot11_tracked_device *dot11dev,
+            kis_packet *in_pack,
+            dot11_packinfo *dot11info,
+            kis_gps_packinfo *pack_gpsinfo);
+
+    void HandleClient(kis_tracked_device_base *basedev, 
+            dot11_tracked_device *dot11dev,
+            kis_packet *in_pack,
+            dot11_packinfo *dot11info,
+            kis_gps_packinfo *pack_gpsinfo,
+            kis_data_packinfo *pack_datainfo);
 
     int dot11_device_entry_id;
 

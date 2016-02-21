@@ -82,10 +82,10 @@ BUILDCLIENT=@wantclient@
 
 ALL	= Makefile $(DEPEND) $(PS) #$(CS) $(DRONE)
 INSTBINS = $(PS) $(CS) $(DRONE)
-ifeq ($(BUILDCLIENT), yes)
-ALL += $(NC)
-INSTBINS += $(NC)
-endif
+#ifeq ($(BUILDCLIENT), yes)
+#ALL += $(NC)
+#INSTBINS += $(NC)
+#endif
 
 all:	$(ALL)
 
@@ -273,7 +273,7 @@ $(DEPEND): Makefile
 	@echo "Generating dependencies... "
 	@echo > $(DEPEND)
 	@$(CXX) $(CFLAGS) -MM \
-		`echo $(PSO) $(DRONEO) $(NCO) | \
+		`echo $(PSO) $(DRONEO) | \
 		sed -e "s/\.o/\.cc/g" | sed -e "s/\.mo/\.m/g"` >> $(DEPEND)
 
 plugins: Makefile

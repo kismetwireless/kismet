@@ -67,6 +67,9 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
 
 	globalreg->InsertGlobal("PHY_80211", this);
 
+	// Initialize the crc tables
+	crc32_init_table_80211(globalreg->crc32_table);
+
 	phyname = "IEEE802.11";
 
     dot11_tracked_device *dot11_builder = 
@@ -199,6 +202,7 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
 		return;
 	}
 
+    // TODO turn into REST endpoint
     if (globalreg->kismet_config->FetchOptBoolean("allowkeytransmit", 0)) {
         _MSG("Allowing Kismet clients to view WEP keys", MSGFLAG_INFO);
         client_wepkey_allowed = 1;
@@ -299,141 +303,6 @@ int Kis_80211_Phy::LoadWepkeys() {
 	return 1;
 }
 
-#if 0
-dot11_ssid *Kis_80211_Phy::BuildSSID(uint32_t ssid_csum, 
-									 dot11_packinfo *packinfo,
-									 kis_packet *in_pack) {
-	dot11_ssid *adssid;
-	kis_tracked_device *dev = NULL;
-	dot11_device *net = NULL;
-
-	// printf("debug - bssid %s source %s dest %s type %d sub %d\n", packinfo->bssid_mac.Mac2String().c_str(), packinfo->source_mac.Mac2String().c_str(), packinfo->dest_mac.Mac2String().c_str(), packinfo->type, packinfo->subtype);
-
-	adssid = new dot11_ssid;
-	adssid->checksum = ssid_csum;
-	adssid->ietag_csum = packinfo->ietag_csum;
-	adssid->mac = packinfo->bssid_mac;
-	adssid->ssid = string(packinfo->ssid);
-	if ((packinfo->ssid_len == 0 || packinfo->ssid_blank) &&
-		packinfo->subtype != packet_sub_probe_req) {
-		adssid->ssid_cloaked = 1;
-	}
-	adssid->ssid_len = packinfo->ssid_len;
-
-	adssid->beacon_info = string(packinfo->beacon_info);
-	adssid->cryptset = packinfo->cryptset;
-	adssid->first_time = in_pack->ts.tv_sec;
-	adssid->maxrate = packinfo->maxrate;
-	adssid->beaconrate = Ieee80211Interval2NSecs(packinfo->beacon_interval);
-	adssid->packets = 0;
-	adssid->beacons = 0;
-
-	adssid->channel = packinfo->channel;
-
-	adssid->dot11d_country = packinfo->dot11d_country;
-	adssid->dot11d_vec = packinfo->dot11d_vec;
-
-	if (packinfo->subtype == packet_sub_beacon)
-		adssid->type = dot11_ssid_beacon;
-	else if (packinfo->subtype == packet_sub_probe_req)
-		adssid->type = dot11_ssid_probereq;
-	else if (packinfo->subtype == packet_sub_probe_resp)
-		adssid->type = dot11_ssid_proberesp;
-
-	// If it's a probe response record it in the SSID cache, we only record
-	// one per BSSID for now and only if we have a cloaked SSID on this record.
-	// While we're at it, also figure out if we're responding for SSIDs we've never
-	// been advertising (in a non-cloaked way), that's probably not a good
-	// thing.
-	if (packinfo->type == packet_management &&
-		packinfo->subtype == packet_sub_probe_resp &&
-		(packinfo->ssid_len || packinfo->ssid_blank == 0)) {
-
-		dev = devicetracker->FetchDevice(packinfo->bssid_mac);
-
-		if (dev != NULL) {
-			net = (dot11_device *) dev->fetch(dev_comp_dot11);
-
-			if (net != NULL) {
-				for (map<uint32_t, dot11_ssid *>::iterator asi = 
-					 net->ssid_map.begin(); asi != net->ssid_map.end(); ++asi) {
-
-					// Catch beacon, cloaked situation
-					if (asi->second->type == dot11_ssid_beacon &&
-						asi->second->ssid_cloaked) {
-						// Remember the revealed SSID
-						ssid_conf->SetOpt(packinfo->bssid_mac.Mac2String(), 
-										  packinfo->ssid, 
-										  in_pack->ts.tv_sec);
-					}
-
-				}
-			}
-		}
-	}
-
-	if (packinfo->type == packet_management &&
-		(packinfo->subtype == packet_sub_probe_resp || 
-		 packinfo->subtype == packet_sub_beacon)) {
-
-		// Run it through the AP spoof protection system
-		for (unsigned int x = 0; x < apspoof_vec.size(); x++) {
-			// Shortcut to checking the mac address first, if it's one we 
-			// have then we don't have to do the expensive operation of pcre or
-			// string matching
-			if (apspoof_vec[x]->allow_mac_map.find(packinfo->source_mac) !=
-				apspoof_vec[x]->allow_mac_map.end()) {
-				continue;
-			}
-
-			int match = 0, matched = 0;
-			string match_type;
-
-#ifdef HAVE_LIBPCRE
-			if (apspoof_vec[x]->ssid_re != NULL) {
-				int ovector[128];
-
-				match = (pcre_exec(apspoof_vec[x]->ssid_re, apspoof_vec[x]->ssid_study,
-								   packinfo->ssid.c_str(), packinfo->ssid.length(),
-								   0, 0, ovector, 128) >= 0);
-
-				match_type = "regular expression";
-				matched = 1;
-			}
-#endif
-
-			if (matched == 0) {
-				match = (apspoof_vec[x]->ssid == packinfo->ssid);
-				match_type = "SSID";
-				matched = 1;
-			}
-
-			if (match && globalreg->alertracker->PotentialAlert(alert_adhoc_ref)) {
-				string ntype = 
-					packinfo->subtype == packet_sub_beacon ? string("advertising") :
-					string("responding for");
-
-				string al = "IEEE80211 Unauthorized device (" + 
-					packinfo->source_mac.Mac2String() + string(") ") + ntype + 
-					" for SSID '" + packinfo->ssid + "', matching APSPOOF "
-					"rule " + apspoof_vec[x]->name + string(" with ") + match_type + 
-					string(" which may indicate spoofing or impersonation.");
-
-				globalreg->alertracker->RaiseAlert(alert_ssidmatch_ref, in_pack, 
-												   packinfo->bssid_mac, 
-												   packinfo->source_mac, 
-												   packinfo->dest_mac, 
-												   packinfo->other_mac, 
-												   packinfo->channel, al);
-				break;
-			}
-		}
-	}
-
-	return adssid;
-}
-#endif
-
 // Classifier is responsible for processing a dot11 packet and filling in enough
 // of the common info for the system to make a device out of it.
 int Kis_80211_Phy::ClassifierDot11(kis_packet *in_pack) {
@@ -487,6 +356,9 @@ int Kis_80211_Phy::ClassifierDot11(kis_packet *in_pack) {
 		ci->type = packet_basic_phy;
 	
 	} else if (dot11info->type == packet_data) {
+        // Data packets come from the source address.  Wired devices bridged
+        // from an AP are considered wired clients of that AP and classified as
+        // clients normally
 		ci->type = packet_basic_data;
 		ci->device = dot11info->source_mac;
 
@@ -506,19 +378,16 @@ int Kis_80211_Phy::ClassifierDot11(kis_packet *in_pack) {
 	ci->datasize = dot11info->datasize;
 
 	if (dot11info->cryptset == crypt_none) {
-		// printf("debug - crypt none\n");
 		ci->basic_crypt_set = KIS_DEVICE_BASICCRYPT_NONE;
 	} else {
-		// printf("debug - basic encryption\n");
 		ci->basic_crypt_set = KIS_DEVICE_BASICCRYPT_ENCRYPTED;
 	}
 
+    // Fill in basic l2 and l3 encryption
 	if (dot11info->cryptset & crypt_l2_mask) {
 		ci->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_L2;
-		// printf("debug - basic l2\n");
 	} if (dot11info->cryptset & crypt_l3_mask) {
 		ci->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_L3;
-		// printf("debug - basic l3\n");
 	}
 
 	return 1;
@@ -568,13 +437,12 @@ void Kis_80211_Phy::HandleSSID(kis_tracked_device_base *basedev,
         kis_gps_packinfo *pack_gpsinfo) {
 
     TrackerElement *adv_ssid_map = dot11dev->get_advertised_ssid_map();
-    TrackerElement *probe_ssid_map = dot11dev->get_probed_ssid_map();
 
     dot11_advertised_ssid *ssid = NULL;
 
     TrackerElement::map_iterator ssid_itr;
 
-    if (adv_ssid_map == NULL || probe_ssid_map == NULL) {
+    if (adv_ssid_map == NULL) {
         fprintf(stderr, "debug - dot11phy::HandleSSID can't find the adv_ssid_map or probe_ssid_map struct, something is wrong\n");
         return;
     }
@@ -812,6 +680,102 @@ void Kis_80211_Phy::HandleSSID(kis_tracked_device_base *basedev,
 
 }
 
+void Kis_80211_Phy::HandleProbedSSID(kis_tracked_device_base *basedev,
+        dot11_tracked_device *dot11dev,
+        kis_packet *in_pack,
+        dot11_packinfo *dot11info,
+        kis_gps_packinfo *pack_gpsinfo) {
+
+    TrackerElement *adv_ssid_map = dot11dev->get_advertised_ssid_map();
+
+}
+
+void Kis_80211_Phy::HandleClient(kis_tracked_device_base *basedev,
+        dot11_tracked_device *dot11dev,
+        kis_packet *in_pack,
+        dot11_packinfo *dot11info,
+        kis_gps_packinfo *pack_gpsinfo,
+        kis_data_packinfo *pack_datainfo) {
+
+    // If we can't map to a bssid then we can't do something clever w/ this as a client
+    if (dot11info->bssid_mac == globalreg->empty_mac)
+        return;
+
+    TrackerElement *client_map = dot11dev->get_client_map();
+
+    dot11_client *client = NULL;
+
+    TrackerElement::mac_map_iterator client_itr;
+
+    if (client_map == NULL) {
+        fprintf(stderr, "debug - dot11phy::HandleClient can't find the client_map struct, something is wrong\n");
+        return;
+    }
+    
+    client_itr = client_map->mac_find(dot11info->bssid_mac);
+
+    bool new_client = false;
+    if (client_itr == client_map->mac_end()) {
+        client = dot11dev->new_client();
+        fprintf(stderr, "debug - associating client %s with %s\n", basedev->get_macaddr().Mac2String().c_str(), dot11info->bssid_mac.Mac2String().c_str());
+        client_map->add_macmap(dot11info->bssid_mac, client);
+        new_client = true;
+    } else {
+        client = (dot11_client *) client_itr->second;
+    }
+
+    if (new_client) {
+        client->set_bssid(dot11info->bssid_mac);
+        client->set_first_time(in_pack->ts.tv_sec);
+    }
+
+    client->set_last_time(in_pack->ts.tv_sec);
+
+    if (dot11info->type == packet_data) {
+        client->inc_datasize(dot11info->datasize);
+
+        if (dot11info->fragmented) {
+            client->inc_num_fragments(1);
+        }
+
+        if (dot11info->retry) {
+            client->inc_num_retries(1);
+            client->inc_datasize_retry(dot11info->datasize);
+        }
+
+        if (pack_datainfo != NULL) {
+            if (pack_datainfo->proto == proto_eap) {
+                if (pack_datainfo->auxstring != "") {
+                    client->set_eap_identity(pack_datainfo->auxstring);
+                }
+            }
+
+            if (pack_datainfo->discover_vendor != "") {
+                client->set_dhcp_vendor(pack_datainfo->discover_vendor);
+            }
+
+            if (pack_datainfo->discover_host != "") {
+                client->set_dhcp_host(pack_datainfo->discover_host);
+            }
+
+            if (pack_datainfo->cdp_dev_id != "") {
+                client->set_cdp_device(pack_datainfo->cdp_dev_id);
+            }
+
+            if (pack_datainfo->cdp_port_id != "") {
+                client->set_cdp_port(pack_datainfo->cdp_port_id);
+            }
+        }
+    }
+
+    if (pack_gpsinfo != NULL && pack_gpsinfo->gps_fix > 1) {
+        client->get_location()->add_loc(pack_gpsinfo->lat, pack_gpsinfo->lon,
+                pack_gpsinfo->alt, pack_gpsinfo->gps_fix);
+
+    }
+
+}
+
 int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 	// We can't do anything w/ it from the packet layer
 	if (in_pack->error || in_pack->filtered) {
@@ -835,7 +799,7 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 	if (commoninfo->error)
 		return 0;
 
-	kis_data_packinfo *datainfo =
+	kis_data_packinfo *pack_datainfo =
 		(kis_data_packinfo *) in_pack->fetch(pack_comp_basicdata);
 
 	// We can't do anything useful
@@ -854,9 +818,6 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
     // Something bad has happened if we can't find our device
     if (basedev == NULL) {
         fprintf(stderr, "debug - phydot11 got to tracking stage with no devicetracker device for %s.  Something is wrong?\n", commoninfo->device.Mac2String().c_str());
-
-        printf("debug - device empty.  type %d sub %d source %s dest %s bssid%s\n", dot11info->type, dot11info->subtype, dot11info->source_mac.Mac2String().c_str(), dot11info->dest_mac.Mac2String().c_str(), dot11info->bssid_mac.Mac2String().c_str());
-	
         return 0;
     }
 
@@ -880,6 +841,32 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
              dot11info->subtype == packet_sub_probe_resp)) {
         HandleSSID(basedev, dot11dev, in_pack, dot11info, pack_gpsinfo);
     }
+
+    if (dot11info->type == packet_data) {
+        dot11dev->inc_datasize(dot11info->datasize);
+
+        if (dot11info->fragmented) {
+            dot11dev->inc_num_fragments(1);
+        }
+
+        if (dot11info->retry) {
+            dot11dev->inc_num_retries(1);
+            dot11dev->inc_datasize_retry(dot11info->datasize);
+        }
+    }
+
+    // If we're not an AP talking *for ourselves*, we need to track the
+    // behavior as related to that bssid
+    if (dot11info->bssid_mac != basedev->get_macaddr()) {
+        dot11dev->set_last_bssid(dot11info->bssid_mac);
+
+        HandleClient(basedev, dot11dev, in_pack, dot11info,
+                pack_gpsinfo, pack_datainfo);
+
+    }
+
+
+
 
     if (dot11info->ess) {
         basedev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_AP);

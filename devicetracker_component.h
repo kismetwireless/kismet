@@ -696,5 +696,110 @@ protected:
     TrackerElement *value, *dirty;
 };
 
+// Currently borked
+class kis_tracked_rrd : public tracker_component {
+public:
+    kis_tracked_rrd(GlobalRegistry *in_globalreg, int in_id) :
+        tracker_component(in_globalreg, in_id) {
+        register_fields();
+        reserve_fields(NULL);
+    }
+
+    kis_tracked_rrd(GlobalRegistry *in_globalreg, int in_id, TrackerElement *e) :
+        tracker_component(in_globalreg, in_id) {
+
+        register_fields();
+        reserve_fields(e);
+    }
+
+    virtual TrackerElement *clone_type() {
+        return new kis_tracked_rrd(globalreg, get_id());
+    }
+
+    void add_sample(uint64_t in_s, uint64_t in_time) {
+        // Find the second bucket
+        int sec_bucket = in_time % 60;
+
+        TrackerElement *se = *(second_vec->get_vector()->begin() + sec_bucket);
+        (*se) += in_s;
+
+    }
+
+protected:
+    virtual void register_fields() {
+        tracker_component::register_fields();
+
+        second_vec_id = 
+            RegisterField("kismet.common.rrd.second_vec", TrackerVector,
+                    "second values", (void **) &second_vec);
+        minute_vec_id = 
+            RegisterField("kismet.common.rrd.minute_vec", TrackerVector,
+                    "minute values", (void **) &second_vec);
+        hour_vec_id = 
+            RegisterField("kismet.common.rrd.hour_vec", TrackerVector,
+                    "hour values", (void **) &second_vec);
+
+        second_entry_id = 
+            RegisterField("kismet.common.rrd.second", TrackerUInt64, 
+                    "second value", NULL);
+        minute_entry_id = 
+            RegisterField("kismet.common.rrd.minute", TrackerUInt64, 
+                    "minute value", NULL);
+        hour_entry_id = 
+            RegisterField("kismet.common.rrd.hour", TrackerUInt64, 
+                    "hour value", NULL);
+
+    } 
+
+    virtual void reserve_fields(TrackerElement *e) {
+        tracker_component::reserve_fields(e);
+
+        last_min = 0;
+        last_hour = 0;
+
+        // Build slots for all the times
+        int x;
+        if ((x = second_vec->get_vector()->size()) != 60) {
+            for ( ; x < 60; x++) {
+                TrackerElement *se =
+                    new TrackerElement(TrackerUInt64, second_entry_id);
+                second_vec->add_vector(se);
+            }
+        }
+
+        if ((x = minute_vec->get_vector()->size()) != 60) {
+            for ( ; x < 60; x++) {
+                TrackerElement *me =
+                    new TrackerElement(TrackerUInt64, minute_entry_id);
+                second_vec->add_vector(me);
+            }
+        }
+
+        if ((x = hour_vec->get_vector()->size()) != 24) {
+            for ( ; x < 24; x++) {
+                TrackerElement *he =
+                    new TrackerElement(TrackerUInt64, hour_entry_id);
+                second_vec->add_vector(he);
+            }
+        }
+    }
+
+    int second_vec_id;
+    TrackerElement *second_vec;
+    int second_entry_id;
+
+    int minute_vec_id;
+    TrackerElement *minute_vec;
+    int minute_entry_id;
+    uint64_t last_min;
+
+    int hour_vec_id;
+    TrackerElement *hour_vec;
+    int hour_entry_id;
+    uint64_t last_hour;
+
+
+};
+
 #endif
 

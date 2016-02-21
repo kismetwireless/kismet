@@ -138,6 +138,7 @@ public:
 };
 
 int main(void) {
+    printf("sizeof element: %ul\n", sizeof(TrackerElement));
     TrackerElement *core = new TrackerElement(TrackerMap);
     TrackerElement *vec = new TrackerElement(TrackerVector);
 
