@@ -715,24 +715,31 @@ string TrackerElement::type_to_string(TrackerType t) {
 
 void TrackerElement::add_map(int f, TrackerElement *s) {
     except_type_mismatch(TrackerMap);
+    bool addlink = true;
 
+    // Don't link twice into the same map
     map_iterator mi = submap_value.find(f);
     if (mi != submap_value.end()) 
-        mi->second->unlink();
+        addlink = false;
 
     submap_value[f] = s;
-    s->link();
+
+    if (addlink)
+        s->link();
 }
 
 void TrackerElement::add_map(TrackerElement *s) {
     except_type_mismatch(TrackerMap);
+    bool addlink = true;
 
     map_iterator mi = submap_value.find(s->get_id());
     if (mi != submap_value.end())
-        mi->second->unlink();
+        addlink = false;
 
     submap_value[s->get_id()] = s;
-    s->link();
+
+    if (addlink)
+        s->link();
 }
 
 void TrackerElement::del_map(int f) {
@@ -751,13 +758,16 @@ void TrackerElement::del_map(TrackerElement *e) {
 
 void TrackerElement::add_intmap(int i, TrackerElement *s) {
     except_type_mismatch(TrackerIntMap);
+    bool addlink = true;
 
     map_iterator mi = subintmap_value.find(i);
     if (mi != subintmap_value.end())
-        mi->second->unlink();
+        addlink = false;
 
     subintmap_value[i] = s;
-    s->link();
+
+    if (addlink)
+        s->link();
 }
 
 void TrackerElement::del_intmap(int i) {
