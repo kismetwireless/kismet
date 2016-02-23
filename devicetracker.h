@@ -206,14 +206,13 @@ public:
     __Proxy(filter_packets, uint64_t, uint64_t, uint64_t, filter_packets);
     __ProxyIncDec(filter_packets, uint64_t, uint64_t, filter_packets);
 
-    __Proxy(datasize_tx, uint64_t, uint64_t, uint64_t, datasize_tx);
-    __ProxyAddSub(datasize_tx, uint64_t, uint64_t, datasize_tx);
+    __Proxy(datasize, uint64_t, uint64_t, uint64_t, datasize);
+    __ProxyIncDec(datasize, uint64_t, uint64_t, datasize);
 
-    __Proxy(datasize_rx, uint64_t, uint64_t, uint64_t, datasize_rx);
-    __ProxyAddSub(datasize_rx, uint64_t, uint64_t, datasize_rx);
+    typedef kis_tracked_rrd<uint64_t, TrackerUInt64> uint64_rrd;
+    __ProxyTrackable(packets_rrd, uint64_rrd, packets_rrd);
 
-    __Proxy(new_packets, uint64_t, uint64_t, uint64_t, new_packets);
-    __ProxyIncDec(new_packets, uint64_t, uint64_t, new_packets);
+    __ProxyTrackable(data_rrd, uint64_rrd, data_rrd);
 
     __Proxy(channel, uint64_t, uint64_t, uint64_t, channel);
     __Proxy(frequency, uint64_t, uint64_t, uint64_t, frequency);
@@ -363,16 +362,21 @@ protected:
             RegisterField("kismet.device.base.packets.filtered", TrackerUInt64,
                         "packets dropped by filter", (void **) &filter_packets);
 
-        datasize_tx_id =
-            RegisterField("kismet.device.base.datasize.tx", TrackerUInt64,
-                        "transmitted data in bytes", (void **) &datasize_tx);
-        datasize_rx_id =
-            RegisterField("kismet.device.base.datasize.rx", TrackerUInt64,
-                        "received data in bytes", (void **) &datasize_rx);
+        datasize_id =
+            RegisterField("kismet.device.base.datasize", TrackerUInt64,
+                        "transmitted data in bytes", (void **) &datasize);
 
-        new_packets_id =
-            RegisterField("kismet.device.base.packets.new", TrackerUInt64,
-                        "new packets since last report", (void **) &new_packets);
+        kis_tracked_rrd<uint64_t, TrackerUInt64> *packets_rrd_builder =
+            new kis_tracked_rrd<uint64_t, TrackerUInt64>(globalreg, 0);
+        packets_rrd_id =
+            globalreg->entrytracker->RegisterField("kismet.device.base.packets.rrd",
+                    packets_rrd_builder, "packet rate rrd");
+
+        kis_tracked_rrd<uint64_t, TrackerUInt64> *data_rrd_builder =
+            new kis_tracked_rrd<uint64_t, TrackerUInt64>(globalreg, 0);
+        data_rrd_id =
+            globalreg->entrytracker->RegisterField("kismet.device.base.datasize.rrd",
+                    data_rrd_builder, "packet size rrd");
 
         kis_tracked_signal_data *sig_builder = 
             new kis_tracked_signal_data(globalreg, 0);
@@ -437,6 +441,11 @@ protected:
                     e->get_map_value(tag_id));
             location = new kis_tracked_location(globalreg, location_id,
                     e->get_map_value(location_id));
+
+            packets_rrd = new kis_tracked_rrd<uint64_t, TrackerUInt64>(globalreg,
+                    packets_rrd_id, e->get_map_value(packets_rrd_id));
+            data_rrd = new kis_tracked_rrd<uint64_t, TrackerUInt64>(globalreg,
+                    data_rrd_id, e->get_map_value(data_rrd_id));
         } else {
             signal_data = new kis_tracked_signal_data(globalreg, signal_data_id);
             add_map(signal_data);
@@ -446,6 +455,13 @@ protected:
 
             location = new kis_tracked_location(globalreg, location_id);
             add_map(location);
+
+            packets_rrd = new kis_tracked_rrd<uint64_t, TrackerUInt64>(globalreg,
+                    packets_rrd_id);
+            add_map(packets_rrd);
+            data_rrd = new kis_tracked_rrd<uint64_t, TrackerUInt64>(globalreg,
+                   data_rrd_id);
+            add_map(data_rrd);
         }
     }
 
@@ -508,12 +524,15 @@ protected:
         crypt_packets_id, filter_packets_id;
 
     // Data seen in bytes
-    TrackerElement *datasize_tx, *datasize_rx;
-    int datasize_tx_id, datasize_rx_id;
+    TrackerElement *datasize;
+    int datasize_id;
 
-    // New # of packets and amount of data bytes since last tick
-    TrackerElement *new_packets;
-    int new_packets_id;
+    // Packets and data RRDs
+    int packets_rrd_id;
+    kis_tracked_rrd<uint64_t, TrackerUInt64> *packets_rrd;
+
+    int data_rrd_id;
+    kis_tracked_rrd<uint64_t, TrackerUInt64> *data_rrd;
 
 	// Channel and frequency as per PHY type
     TrackerElement *channel, *frequency;
@@ -665,6 +684,10 @@ protected:
 	map<int, int> phy_errorpackets;
 	map<int, int> phy_filterpackets;
 	map<int, int> phy_packetdelta;
+
+    // Total packet history
+    int packets_rrd_id;
+    kis_tracked_rrd<uint64_t, TrackerUInt64> *packets_rrd;
 
 	// Per-phy device list
 	map<int, vector<kis_tracked_device_base *> *> phy_device_vec;

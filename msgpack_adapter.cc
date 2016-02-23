@@ -58,11 +58,11 @@ template<>
         template <typename Stream>
             packer<Stream>& operator()(msgpack::packer<Stream>& o, 
                     TrackerElement * const& v) const {
-                o.pack_array(2);
-
-                o.pack((int) v->get_type());
 
                 v->pre_serialize();
+
+                o.pack_array(2);
+                o.pack((int) v->get_type());
 
                 TrackerElement::tracked_map *tmap;
                 TrackerElement::map_iterator map_iter;

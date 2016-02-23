@@ -729,12 +729,17 @@ public:
         // The hour of the day the last known data would go in
         int last_hour_bucket = (last_time / 3600) % 24;
 
+        if (in_time < last_time) {
+            // printf("debug - rrd - timewarp to the past?  discard\n");
+            return;
+        }
         
         TrackerElement *e;
 
         // If we haven't seen data in a day, we reset everything because
         // none of it is valid.  This is the simplest case.
         if (in_time - last_time > (60 * 60 * 24)) {
+            // printf("debug - rrd - beed a day since last value\n");
             // Directly fill in this second, clear rest of the minute
             for (int x = 0; x < 60; x++) {
                 e = minute_vec->get_vector_value(x);
@@ -764,12 +769,13 @@ public:
                 if (x == hour_bucket)
                     e->set((IC) in_s / (60) / (60));
                 else
-                    e->set(0);
+                    e->set((IC) 0);
             }
             last_time = in_time;
 
             return;
         } else if (in_time - last_time > (60*60)) {
+            // printf("debug - rrd - been an hour since last value\n");
             // If we haven't seen data in an hour but we're still w/in the day:
             //   - Average the seconds we know about & set the minute record
             //   - Clear seconds data & set our current value
@@ -815,13 +821,56 @@ public:
 
             // Fill the hours between the last time we saw data and now with
             // zeroes; fastforward time
-            for (int h = 0; h < hours_different(last_hour_bucket, hour_bucket); h++) {
-                e = hour_vec->get_vector_value((last_hour_bucket + h) % 24);
+            for (int h = 0; h < hours_different(last_hour_bucket + 1, hour_bucket); h++) {
+                e = hour_vec->get_vector_value((last_hour_bucket + 1 + h) % 24);
                 e->set((IC) 0);
             }
 
         } else if (in_time - last_time > 60) {
-            // We've seen data in the last minute - great.
+            // - Calculate the average seconds
+            // - Wipe the seconds
+            // - Set the new second value
+            // - Update minutes
+            // - Update hours
+            // printf("debug - rrd - been over a minute since last value\n");
+
+            IC sec_avg = 0, min_avg = 0;
+
+            for (int s = 0; s < 60; s++) {
+                e = minute_vec->get_vector_value(s);
+                sec_avg += GetTrackerValue<IC>(e);
+
+                if (s == sec_bucket)
+                    e->set((IC) in_s);
+                else 
+                    e->set((IC) 0);
+            }
+
+            sec_avg /= 60;
+
+            for (int m = 0; 
+                    m < minutes_different(last_min_bucket + 1, min_bucket); m++) {
+                e = hour_vec->get_vector_value((last_min_bucket + 1 + m) % 60);
+                e->set((IC) 0);
+            }
+
+            e = hour_vec->get_vector_value(min_bucket);
+            e->set((IC) sec_avg);
+
+            // Average the minutes into an hour
+            for (unsigned int m = 0; m < 60; m++) {
+                e = hour_vec->get_vector_value(m);
+                min_avg += GetTrackerValue<IC>(e);
+            }
+
+            min_avg /= 60;
+
+            // Set the hour
+            e = day_vec->get_vector_value(hour_bucket);
+            e->set(min_avg);
+
+        } else {
+            // printf("debug - rrd - w/in the last minute %d seconds\n", in_time - last_time);
             // If in_time == last_time then we're updating an existing record, so
             // add that in.
             // Otherwise, fast-forward seconds with zero data, average the seconds,
@@ -829,13 +878,30 @@ public:
             if (in_time == last_time) {
                 e = minute_vec->get_vector_value(sec_bucket);
                 (*e) += in_s;
+
+                // printf("setting second %d to %d\n",  sec_bucket, GetTrackerValue<IC>(e));
             } else {
+                // printf("seconds different: %d zeroing from %d to %d... ", minutes_different(last_sec_bucket, sec_bucket), last_sec_bucket, sec_bucket);
                 for (int s = 0; 
-                        s < minutes_different(last_sec_bucket, sec_bucket); s++) {
-                    e = minute_vec->get_vector_value((last_sec_bucket + s) % 60);
-                    e->set((IC) in_s);
+                        s < minutes_different(last_sec_bucket + 1, sec_bucket); s++) {
+                    e = minute_vec->get_vector_value((last_sec_bucket + 1 + s) % 60);
+                    e->set((IC) 0);
+                    // printf("%d ", s);
                 }
+                // printf("\n");
+
+                e = minute_vec->get_vector_value(sec_bucket);
+                e->set((IC) in_s);
             }
+
+#if 0
+            printf("last minute: ");
+            for (int s = 0; s < 60; s++) {
+                e = minute_vec->get_vector_value(s);
+                printf("%u ", GetTrackerValue<IC>(e));
+            }
+            printf("\n");
+#endif
                
             // Update all the averages
             IC sec_avg = 0, min_avg = 0;
@@ -865,17 +931,23 @@ public:
             e->set(min_avg);
         }
 
+
         last_time = in_time;
     }
 
     virtual void pre_serialize() {
+        tracker_component::pre_serialize();
+
+        // printf("debug - rrd - preserialize\n");
         // Update the averages
         add_sample(0, globalreg->timestamp.tv_sec);
     }
 
 protected:
     inline int minutes_different(int m1, int m2) const {
-        if (m1 < m2) {
+        if (m1 == m2) {
+            return 0;
+        } else if (m1 < m2) {
             return m2 - m1;
         } else {
             return 60 - m1 + m2;
@@ -883,7 +955,9 @@ protected:
     }
 
     inline int hours_different(int h1, int h2) const {
-        if (h1 < h2) {
+        if (h1 == h2) {
+            return 0;
+        } else if (h1 < h2) {
             return h2 - h1;
         } else {
             return 24 - h1 + h2;
@@ -891,7 +965,9 @@ protected:
     }
 
     inline int days_different(int d1, int d2) const {
-        if (d1 < d2) {
+        if (d1 == d2) {
+            return 0;
+        } else if (d1 < d2) {
             return d2 - d1;
         } else {
             return 7 - d1 + d2;
@@ -908,7 +984,7 @@ protected:
             RegisterField("kismet.common.rrd.hour_vec", TrackerVector,
                     "past hour values per minute", (void **) &hour_vec);
         day_vec_id = 
-            RegisterField("kismet.common.rrd.hour_vec", TrackerVector,
+            RegisterField("kismet.common.rrd.day_vec", TrackerVector,
                     "past day values per hour", (void **) &day_vec);
 
         second_entry_id = 

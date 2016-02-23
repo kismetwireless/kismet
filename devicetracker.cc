@@ -79,6 +79,11 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) {
         globalreg->entrytracker->RegisterField("kismet.device.summary", TrackerMac,
                 "device summary");
 
+    packets_rrd = new kis_tracked_rrd<uint64_t, TrackerUInt64>(globalreg, 0);
+    packets_rrd_id =
+        globalreg->entrytracker->RegisterField("kismet.device.packets_rrd",
+                packets_rrd, "RRD of total packets seen");
+
 	next_componentid = 0;
 	num_packets = num_datapackets = num_errorpackets = 
 		num_filterpackets = num_packetdelta = 0;
@@ -376,9 +381,6 @@ int Devicetracker::timetracker_event(int event_id __attribute__((unused))) {
 	for (unsigned int x = 0; x < dirty_device_vec.size(); x++) {
 		kis_tracked_device_base *dev = dirty_device_vec[x];
 
-        // Reset packet delta
-        dev->set_new_packets(0);
-
         map<string, kis_tag_data *>::iterator ti;
 
         // No longer dirty
@@ -473,6 +475,8 @@ int Devicetracker::CommonTracker(kis_packet *in_pack) {
 
 	kis_ref_capsource *pack_capsrc =
 		(kis_ref_capsource *) in_pack->fetch(pack_comp_capsrc);
+
+    packets_rrd->add_sample(1, globalreg->timestamp.tv_sec);
 
 	num_packets++;
 	num_packetdelta++;
@@ -680,7 +684,8 @@ int Devicetracker::PopulateCommon(kis_tracked_device_base *device, kis_packet *i
     /* Persistent tag loading removed, will be handled by serializing network in the future */
 
     device->inc_packets();
-    device->inc_new_packets();
+
+    device->get_packets_rrd()->add_sample(1, globalreg->timestamp.tv_sec);
 
     device->set_last_time(in_pack->ts.tv_sec);
 
@@ -690,7 +695,9 @@ int Devicetracker::PopulateCommon(kis_tracked_device_base *device, kis_packet *i
 	if (pack_common->type == packet_basic_data) {
         // TODO fix directional data
         device->inc_data_packets();
-        device->add_datasize_rx(pack_common->datasize);
+        device->inc_datasize(pack_common->datasize);
+        device->get_data_rrd()->add_sample(pack_common->datasize,
+                globalreg->timestamp.tv_sec);
 	} else if (pack_common->type == packet_basic_mgmt ||
 			   pack_common->type == packet_basic_phy) {
         device->inc_llc_packets();
@@ -1158,7 +1165,7 @@ void Devicetracker::WriteXML(FILE *in_logfile) {
 				"<dataBytes>%lu</dataBytes>\n",
                 dev->get_packets(), dev->get_llc_packets(), dev->get_data_packets(),
                 dev->get_filter_packets(), dev->get_error_packets(), 
-                dev->get_datasize_rx() + dev->get_datasize_tx());
+                dev->get_datasize());
 
 		if (dev->get_manuf() != "")
 			fprintf(in_logfile, "<manufacturer>%s</manufacturer>\n",
@@ -1521,7 +1528,7 @@ void Devicetracker::WriteTXT(FILE *in_logfile) {
 				" Data (in bytes): %lu\n\n",
                 dev->get_packets(), dev->get_llc_packets(), dev->get_data_packets(),
                 dev->get_filter_packets(), dev->get_error_packets(),
-                dev->get_datasize_rx() + dev->get_datasize_tx());
+                dev->get_datasize());
 
         if (dev->get_manuf() != "") 
 			fprintf(in_logfile, " Manufacturer: %s\n\n",
