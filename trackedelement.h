@@ -96,6 +96,9 @@ public:
         return dupl;
     }
 
+    // Called prior to serialization output
+    virtual void pre_serialize() { }
+
     int get_id() {
         return tracked_id;
     }
@@ -196,6 +199,11 @@ public:
     vector<TrackerElement *> *get_vector() {
         except_type_mismatch(TrackerVector);
         return &subvector_value;
+    }
+
+    TrackerElement *get_vector_value(unsigned int offt) {
+        except_type_mismatch(TrackerVector);
+        return subvector_value[offt];
     }
 
     map<int, TrackerElement *> *get_map() {

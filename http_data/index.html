@@ -35,6 +35,7 @@ function updateBatteryUi() {
                 $("#batpower").attr("src", "/img/icon_battery_100.svg");
 
             var s = status['kismet.system.battery.remaining'];
+
             if (s > 0) {
                 var h = Math.floor(s / 3600);
                 s -= 3600 * h;
@@ -45,6 +46,8 @@ function updateBatteryUi() {
                     m = '0' + m
                 
                 $("#battime").text(status['kismet.system.battery.percentage'] + "% " + h+"h "+m+"m");
+            } else {
+                $("#battime").text(status['kismet.system.battery.percentage'] + "%")
             }
         }
 

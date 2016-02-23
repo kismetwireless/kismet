@@ -491,6 +491,8 @@ void Kis_80211_Phy::HandleSSID(kis_tracked_device_base *basedev,
         }
         ssid->set_ssid_len(dot11info->ssid_len);
 
+        ssid->set_crypt_set(dot11info->cryptset);
+
         ssid->set_beacon_info(dot11info->beacon_info);
 
         ssid->set_wps_state(dot11info->wps);
@@ -514,6 +516,14 @@ void Kis_80211_Phy::HandleSSID(kis_tracked_device_base *basedev,
         // dot11d values
         // channel
         // WPS
+        // Cryptset
+        
+
+        if (ssid->get_crypt_set() != dot11info->cryptset) {
+            fprintf(stderr, "debug - dot11phy::HandleSSID %s cryptset changed\n", basedev->get_macaddr().Mac2String().c_str());
+
+            ssid->set_crypt_set(dot11info->cryptset);
+        }
 
         if (ssid->get_channel() != dot11info->channel) {
             fprintf(stderr, "debug - dot11phy:HandleSSID %s channel changed\n", basedev->get_macaddr().Mac2String().c_str());
@@ -751,10 +761,20 @@ void Kis_80211_Phy::HandleClient(kis_tracked_device_base *basedev,
             }
 
             if (pack_datainfo->discover_vendor != "") {
+                if (client->get_dhcp_vendor() != "" &&
+                        client->get_dhcp_vendor() != pack_datainfo->discover_vendor) {
+                    // TODO alert, DHCP vendor changed
+                }
+
                 client->set_dhcp_vendor(pack_datainfo->discover_vendor);
             }
 
             if (pack_datainfo->discover_host != "") {
+                if (client->get_dhcp_host() != "" &&
+                        client->get_dhcp_host() != pack_datainfo->discover_host) {
+                    // TODO alert, DHCP host changed
+                }
+
                 client->set_dhcp_host(pack_datainfo->discover_host);
             }
 

@@ -697,6 +697,7 @@ protected:
 };
 
 // Currently borked
+template <class IC, int ET>
 class kis_tracked_rrd : public tracker_component {
 public:
     kis_tracked_rrd(GlobalRegistry *in_globalreg, int in_id) :
@@ -713,40 +714,211 @@ public:
     }
 
     virtual TrackerElement *clone_type() {
-        return new kis_tracked_rrd(globalreg, get_id());
+        return new kis_tracked_rrd<IC, ET>(globalreg, get_id());
     }
 
-    void add_sample(uint64_t in_s, uint64_t in_time) {
-        // Find the second bucket
+    void add_sample(IC in_s, uint64_t in_time) {
         int sec_bucket = in_time % 60;
+        int min_bucket = (in_time / 60) % 60;
+        int hour_bucket = (in_time / 3600) % 24;
 
-        TrackerElement *se = *(second_vec->get_vector()->begin() + sec_bucket);
-        (*se) += in_s;
+        // The second slot for the last time
+        int last_sec_bucket = last_time % 60;
+        // The minute of the hour the last known data would go in
+        int last_min_bucket = (last_time / 60) % 60;
+        // The hour of the day the last known data would go in
+        int last_hour_bucket = (last_time / 3600) % 24;
 
+        
+        TrackerElement *e;
+
+        // If we haven't seen data in a day, we reset everything because
+        // none of it is valid.  This is the simplest case.
+        if (in_time - last_time > (60 * 60 * 24)) {
+            // Directly fill in this second, clear rest of the minute
+            for (int x = 0; x < 60; x++) {
+                e = minute_vec->get_vector_value(x);
+
+                if (x == sec_bucket)
+                    e->set((IC) in_s);
+                else
+                    e->set((IC) 0);
+            }
+
+            // We know we haven't seen it in the last hour, so we can just put
+            // the average of one sample in the last minute into the hour record
+            for (int x = 0; x < 60; x++) {
+                e = hour_vec->get_vector_value(x);
+
+                if (x == min_bucket)
+                    e->set((IC) in_s / sec_bucket + 1);
+                else
+                    e->set((IC) 0);
+            }
+
+            // We know we haven't seen it in the last day, so we can put the
+            // average of seeing it once directly into the day
+            for (int x = 0; x < 24; x++) {
+                e = day_vec->get_vector_value(x);
+
+                if (x == hour_bucket)
+                    e->set((IC) in_s / (60) / (60));
+                else
+                    e->set(0);
+            }
+            last_time = in_time;
+
+            return;
+        } else if (in_time - last_time > (60*60)) {
+            // If we haven't seen data in an hour but we're still w/in the day:
+            //   - Average the seconds we know about & set the minute record
+            //   - Clear seconds data & set our current value
+            //   - Average the minutes we know about & set the hour record
+            //
+           
+            IC sec_avg = 0, min_avg = 0;
+
+            // Clear the past minutes worth of second data and build the average,
+            // set the new second entry for the otherwise empty minute
+            for (int x = 0; x < 60; x++) {
+                e = minute_vec->get_vector_value(x);
+
+                sec_avg += GetTrackerValue<IC>(e);
+
+                if (x == sec_bucket)
+                    e->set((IC) in_s);
+                else
+                    e->set((IC) 0);
+            }
+
+            // Compute the average from the minute we knew about
+            sec_avg /= 60;
+
+            for (int x = 0; x < 60; x++) {
+                e = minute_vec->get_vector_value(x);
+
+                // Get the average of the minute value we had
+                min_avg += GetTrackerValue<IC>(e);
+
+                // Put the old minute data in place, put the new value in,
+                // or zero out
+                if (x == last_min_bucket) {
+                    e->set((IC) sec_avg);
+                } else if (x == min_bucket)
+                    e->set((IC) in_s / 60);
+                else
+                    e->set((IC) 0);
+            }
+
+            // Set the last hour aggregation
+            min_avg /= 60;
+
+            // Fill the hours between the last time we saw data and now with
+            // zeroes; fastforward time
+            for (int h = 0; h < hours_different(last_hour_bucket, hour_bucket); h++) {
+                e = hour_vec->get_vector_value((last_hour_bucket + h) % 24);
+                e->set((IC) 0);
+            }
+
+        } else if (in_time - last_time > 60) {
+            // We've seen data in the last minute - great.
+            // If in_time == last_time then we're updating an existing record, so
+            // add that in.
+            // Otherwise, fast-forward seconds with zero data, average the seconds,
+            // and propagate the averages up
+            if (in_time == last_time) {
+                e = minute_vec->get_vector_value(sec_bucket);
+                (*e) += in_s;
+            } else {
+                for (int s = 0; 
+                        s < minutes_different(last_sec_bucket, sec_bucket); s++) {
+                    e = minute_vec->get_vector_value((last_sec_bucket + s) % 60);
+                    e->set((IC) in_s);
+                }
+            }
+               
+            // Update all the averages
+            IC sec_avg = 0, min_avg = 0;
+
+            // Average the seconds into a minute
+            for (unsigned int s = 0; s < 60; s++) {
+                e = minute_vec->get_vector_value(s);
+                sec_avg += GetTrackerValue<IC>(e);
+            }
+
+            sec_avg /= 60;
+
+            // Set the minute
+            e = hour_vec->get_vector_value(min_bucket);
+            e->set(sec_avg);
+
+            // Average the minutes into an hour
+            for (unsigned int m = 0; m < 60; m++) {
+                e = hour_vec->get_vector_value(m);
+                min_avg += GetTrackerValue<IC>(e);
+            }
+
+            min_avg /= 60;
+
+            // Set the hour
+            e = day_vec->get_vector_value(hour_bucket);
+            e->set(min_avg);
+        }
+
+        last_time = in_time;
+    }
+
+    virtual void pre_serialize() {
+        // Update the averages
+        add_sample(0, globalreg->timestamp.tv_sec);
     }
 
 protected:
+    inline int minutes_different(int m1, int m2) const {
+        if (m1 < m2) {
+            return m2 - m1;
+        } else {
+            return 60 - m1 + m2;
+        }
+    }
+
+    inline int hours_different(int h1, int h2) const {
+        if (h1 < h2) {
+            return h2 - h1;
+        } else {
+            return 24 - h1 + h2;
+        }
+    }
+
+    inline int days_different(int d1, int d2) const {
+        if (d1 < d2) {
+            return d2 - d1;
+        } else {
+            return 7 - d1 + d2;
+        }
+    }
+
     virtual void register_fields() {
         tracker_component::register_fields();
 
-        second_vec_id = 
-            RegisterField("kismet.common.rrd.second_vec", TrackerVector,
-                    "second values", (void **) &second_vec);
         minute_vec_id = 
             RegisterField("kismet.common.rrd.minute_vec", TrackerVector,
-                    "minute values", (void **) &second_vec);
+                    "past minute values per second", (void **) &minute_vec);
         hour_vec_id = 
             RegisterField("kismet.common.rrd.hour_vec", TrackerVector,
-                    "hour values", (void **) &second_vec);
+                    "past hour values per minute", (void **) &hour_vec);
+        day_vec_id = 
+            RegisterField("kismet.common.rrd.hour_vec", TrackerVector,
+                    "past day values per hour", (void **) &day_vec);
 
         second_entry_id = 
-            RegisterField("kismet.common.rrd.second", TrackerUInt64, 
+            RegisterField("kismet.common.rrd.second", (TrackerType) ET, 
                     "second value", NULL);
         minute_entry_id = 
-            RegisterField("kismet.common.rrd.minute", TrackerUInt64, 
+            RegisterField("kismet.common.rrd.minute", (TrackerType) ET, 
                     "minute value", NULL);
         hour_entry_id = 
-            RegisterField("kismet.common.rrd.hour", TrackerUInt64, 
+            RegisterField("kismet.common.rrd.hour", (TrackerType) ET, 
                     "hour value", NULL);
 
     } 
@@ -754,51 +926,49 @@ protected:
     virtual void reserve_fields(TrackerElement *e) {
         tracker_component::reserve_fields(e);
 
-        last_min = 0;
-        last_hour = 0;
+        last_time = 0;
 
         // Build slots for all the times
         int x;
-        if ((x = second_vec->get_vector()->size()) != 60) {
-            for ( ; x < 60; x++) {
-                TrackerElement *se =
-                    new TrackerElement(TrackerUInt64, second_entry_id);
-                second_vec->add_vector(se);
-            }
-        }
-
         if ((x = minute_vec->get_vector()->size()) != 60) {
             for ( ; x < 60; x++) {
                 TrackerElement *me =
-                    new TrackerElement(TrackerUInt64, minute_entry_id);
-                second_vec->add_vector(me);
+                    new TrackerElement((TrackerType) ET, second_entry_id);
+                minute_vec->add_vector(me);
             }
         }
 
-        if ((x = hour_vec->get_vector()->size()) != 24) {
+        if ((x = hour_vec->get_vector()->size()) != 60) {
+            for ( ; x < 60; x++) {
+                TrackerElement *he =
+                    new TrackerElement((TrackerType) ET, minute_entry_id);
+                hour_vec->add_vector(he);
+            }
+        }
+
+        if ((x = day_vec->get_vector()->size()) != 24) {
             for ( ; x < 24; x++) {
                 TrackerElement *he =
-                    new TrackerElement(TrackerUInt64, hour_entry_id);
-                second_vec->add_vector(he);
+                    new TrackerElement((TrackerType) ET, hour_entry_id);
+                day_vec->add_vector(he);
             }
         }
     }
 
-    int second_vec_id;
-    TrackerElement *second_vec;
-    int second_entry_id;
-
     int minute_vec_id;
     TrackerElement *minute_vec;
-    int minute_entry_id;
-    uint64_t last_min;
 
     int hour_vec_id;
     TrackerElement *hour_vec;
+
+    int day_vec_id;
+    TrackerElement *day_vec;
+
+    int second_entry_id;
+    int minute_entry_id;
     int hour_entry_id;
-    uint64_t last_hour;
 
-
+    uint64_t last_time;
 };
 
 #endif

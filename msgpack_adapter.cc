@@ -62,6 +62,8 @@ template<>
 
                 o.pack((int) v->get_type());
 
+                v->pre_serialize();
+
                 TrackerElement::tracked_map *tmap;
                 TrackerElement::map_iterator map_iter;
 
