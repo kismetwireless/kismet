@@ -68,7 +68,26 @@ function kismetGetDeviceSummary(callback, failback) {
                 msg = msgpack.decode(arbuf);
                 callback(kismetConvertTrackerPack(msg));
             } catch (e) {
-                failback();
+                failback(e);
+            }
+        }
+    });
+};
+
+function kismetGetDevice(key, callback, failback) {
+    $.ajax({
+        url: "/devices/" + key + ".msgpack",
+        type: "GET",
+        dataType: "binary",
+        processData: false,
+        responseType: 'arraybuffer',
+        success: function(arbuf) {
+            var msg;
+            try {
+                msg = msgpack.decode(arbuf);
+                callback(kismetConvertTrackerPack(msg));
+            } catch (e) {
+                failback(e);
             }
         }
     });
@@ -87,7 +106,7 @@ function kismetGetSystemStatus(callback, failback) {
                 msg = msgpack.decode(arbuf);
                 callback(kismetConvertTrackerPack(msg));
             } catch (e) {
-                failback();
+                failback(e);
             }
         }
     });

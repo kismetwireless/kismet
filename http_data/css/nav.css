@@ -1,0 +1,167 @@
+/*
+-----------------------------------------------
+Navigation
+----------------------------------------------- */
+
+/* navigation (horizontal subnavigation)
+----------------------------------------------- */
+ul.nav,
+ul.nav * { margin:0;padding:0;}
+ul.nav {
+  position:relative;
+  background:#666;
+  max-width:100%;
+  height:2.5em;
+  }
+ul.nav li {
+	cursor:pointer;
+	float:left;
+	text-align:center;
+	list-style-type:none;
+	font-weight:normal;
+}
+ul.nav li ul {
+	cursor:default;
+	width:100%;
+	max-width:100%;
+	position:absolute;
+	height:auto;
+	top:2.5em;
+	background-position:0 0 !important;
+	left:-9000px;
+}
+ul.nav li ul li {
+	padding:0;
+	border:none;
+	width:auto;
+	max-width:none;
+}
+ul.nav li a {
+	color:#fff;
+	background:#666;
+	font-weight:bold;
+	text-decoration:none;
+	display:block;
+	float:left;
+	padding:0 1em;
+	height:2.4em;
+	line-height:2.5em;
+}
+ul.nav li ul li a {
+	position:relative !important; /* ie Mac */
+	cursor:pointer !important;
+	white-space:nowrap;
+	line-height:2em;
+	height:2em;
+	font-weight:normal;
+	color:#666;
+	background-position:0 50% !important;
+}
+
+ul.nav li:hover a,
+ul.nav li a:hover,
+ul.nav li a:focus {color:#000; background:#ccc;}
+ul.nav li a:active {color:#666; background:#fff;}
+ul.nav li:hover ul {left:0;z-index:10}
+ul.nav li ul,
+ul.nav li {background:#ccc !important}
+ul.nav li:hover ul li a {color:#444;}
+ul.nav li:hover ul li a:hover {color:#000; background:#fff;}
+ul.nav li:hover ul li a:active {color:#666; background:#fff;}
+
+ul.nav li.current a {color:#666; background:#fff; cursor:default; font-weight:bold;}
+ul.nav li.current ul {left:0;z-index:5}
+ul.nav li.current ul,
+ul.nav li.current {background:#ccc !important}
+ul.nav li.current ul li a {color:#444; background:#ccc; font-weight:normal;}
+ul.nav li.current ul li a:hover {color:#000; background:#fff;}
+ul.nav li ul li.current a,
+ul.nav li ul li.current a:hover,
+ul.nav li.current:hover ul li a:active {color:#666; background:#fff;}
+
+
+/* navigation (vertical subnavigation)
+----------------------------------------------- */
+ul.nav {
+  background:#666;
+}
+ul.main li {
+  position:relative;
+  top:0;
+  left:0;
+}
+ul.main li ul {
+  border-top:0;
+}
+ul.main li ul li {
+  float:left;
+}
+ul.main li a {
+	height:2.5em;
+	line-height:2.5em;
+	border:0;
+	color:#fff;
+	background:#666;
+}
+ul.main li ul li a {
+  width:12em;
+  line-height:2em;
+  height:2em;
+  text-align:left;
+  color:#fff;
+  border-top:1px solid #444;
+  background:#444;
+}
+ul.main li a:focus {color:#fff; background:#666;}
+ul.main li ul li a:hover {
+  color:#fff;
+  background:#555;
+}
+ul.main li:hover a {
+  color:#fff;
+  background:#555;
+}
+ul.main li:hover ul li a {color:#fff;}
+ul.main li:hover ul li a:hover {color:#fff; background:#444;}
+ul.main li:hover a:active {background:#444;}
+ul.main li:hover ul li a:active {color:#fff; background:#222;}
+
+
+/* secondary list
+----------------------------------------------- */
+ul.nav li.secondary {
+	float:right;
+	color:#cde;
+	background:transparent !important;
+}
+ul.nav li.secondary span.status {
+	float:left;
+	padding:0 1em;
+	line-height:2.77em;
+	height:2.77em;
+  font-size:0.9em;
+}
+ul.nav li.secondary span.status a {
+	float:none;
+	display:inline;
+	padding:0;
+	height:auto;
+	line-height:auto;
+	color:#cde;
+	background:transparent;
+}
+ul.nav li.secondary span.status a:hover {
+	color:#fff;
+	background:transparent;
+}
+ul.nav li.secondary span.status span {
+	text-transform:capitalize;
+}
+ul.nav li.secondary:hover a {
+	color:#fff;
+	background:#666;
+}
+ul.nav li.secondary:hover a:hover {
+	background:#555;
+}
+ul.nav li.secondary:hover a:active {background:#444;}

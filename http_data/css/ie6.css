@@ -1,0 +1,31 @@
+/*
+	Fluid 960 Grid System - IE6 Fixes
+	Learn more ~ http://www.designinfluences.com/
+
+	Licensed under GPL and MIT.
+*/
+
+/* =Grid >> Global
+--------------------------------------------------------------------------------*/
+
+.grid_1,
+.grid_2,
+.grid_3,
+.grid_4,
+.grid_5,
+.grid_6,
+.grid_7,
+.grid_8,
+.grid_9,
+.grid_10,
+.grid_11,
+.grid_12,
+.grid_13,
+.grid_14,
+.grid_15,
+.grid_16
+{
+	margin-left: .8%;
+	margin-right: .8%;
+}
+

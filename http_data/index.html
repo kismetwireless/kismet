@@ -6,12 +6,23 @@
 <script src="/js/jquery-2.2.0.min.js"></script>
 <script src="/js/jquery.ajax.binary.js"></script>
 <script src="/js/kismet.utils.js"></script>
+<script src="http://d3js.org/d3.v3.min.js" charset="utf-8"></script>
 
 <link rel="stylesheet" href="/css/font-awesome.min.css">
+<link rel="stylesheet" type="text/css" href="css/reset.css" media="screen" />
+<link rel="stylesheet" type="text/css" href="css/text.css" media="screen" />
+<link rel="stylesheet" type="text/css" href="css/grid.css" media="screen" />
+<link rel="stylesheet" type="text/css" href="css/layout.css" media="screen" />
+<link rel="stylesheet" type="text/css" href="css/nav.css" media="screen" />
+<!--[if IE 6]><link rel="stylesheet" type="text/css" href="css/ie6.css" media="screen" /><![endif]-->
+<!--[if IE 7]><link rel="stylesheet" type="text/css" href="css/ie.css" media="screen" /><![endif]-->
 
 <script>
 
 var batteryTid;
+var graphTid = 0;
+var graphId;
+
 function updateBatteryUi() {
     $("#batspinner").show();
     kismetGetSystemStatus(function(status) {
@@ -60,20 +71,124 @@ function updateBatteryUi() {
     batteryTid = setTimeout(updateBatteryUi, 5000); // repeat myself
 }
 
-$(document).ready(function() {
-    $("#live").append("jquery append<br>");
+function populateDeviceGraph(key) {
+    kismetGetDevice(key, function(d) {
+        console.log(d["kismet.device.base.name"]);
 
+        var packets = d["kismet.device.base.packets.rrd"]["kismet.common.rrd.minute_vec"];
+        var lineData = [];
+
+        for (var i = 0; i < packets.length; i++) {
+            var pdata = {x: i, y: packets[i]}
+            lineData.push(pdata);
+        }
+
+        $("#visualization").attr("key", key);
+        $("#visualization").click(function() {
+            populateDeviceGraph($(this).attr("key"));
+        });
+
+var vis = d3.select("#visualisation"),
+    WIDTH = 500,
+    HEIGHT = 100,
+    MARGINS = {
+      top: 20,
+      right: 20,
+      bottom: 20,
+      left: 50
+    },
+    xRange = d3.scale.linear().range([MARGINS.left, WIDTH - MARGINS.right]).domain([d3.min(lineData, function (d) {
+        return d.x;
+      }),
+      d3.max(lineData, function (d) {
+        return d.x;
+      })
+    ]),
+
+    yRange = d3.scale.linear().range([HEIGHT - MARGINS.top, MARGINS.bottom]).domain([d3.min(lineData, function (d) {
+        return d.y;
+      }),
+      d3.max(lineData, function (d) {
+        return d.y;
+      })
+    ]),
+
+    xAxis = d3.svg.axis()
+      .scale(xRange)
+      .tickSize(5)
+      .tickSubdivide(true),
+
+    yAxis = d3.svg.axis()
+      .scale(yRange)
+      .tickSize(5)
+      .orient("left")
+      .tickSubdivide(true);
+
+
+  vis.append("svg:g")
+    .attr("class", "x axis")
+    .attr("transform", "translate(0," + (HEIGHT - MARGINS.bottom) + ")")
+    .call(xAxis);
+
+  vis.append("svg:g")
+    .attr("class", "y axis")
+    .attr("transform", "translate(" + (MARGINS.left) + ",0)")
+    .call(yAxis);
+
+  var lineFunc = d3.svg.line()
+  .x(function (d) {
+    return xRange(d.x);
+  })
+  .y(function (d) {
+    return yRange(d.y);
+  })
+  .interpolate('linear');
+
+vis.selectAll("svg > *").remove();
+vis.append("svg:path")
+  .attr("d", lineFunc(lineData))
+  .attr("stroke", "blue")
+  .attr("stroke-width", 2)
+  .attr("fill", "none");
+
+    graphId = key;
+    if (graphTid -= 0)
+        graphTid = setTimeout(function() { populateDeviceGraph(graphId)}, 1000); 
+
+    }, function(e) {
+        alert("fetch failed for " + key + " " + e);
+    });
+}
+
+function populateDeviceSummary() {
+    $("#live").empty();
     kismetGetDeviceSummary(function(devices) {
         for (var x = 0; x < devices.length; x++ ) {
             var d = devices[x];
 
-            $("#live").append(d["kismet.device.base.name"] + "<br>");
+            var newDiv = document.createElement("div");
+            $(newDiv).append(d["kismet.device.base.name"]);
+            $(newDiv).append("<b>[ Graph packets ]</b>");
+            $(newDiv).attr("key", d["kismet.device.base.key"]);
+            $(newDiv).click(function () { populateDeviceGraph($(this).attr("key")); });
+
+            $("#live").append(newDiv);
         }
-    }, function() {
-        $("#live").append("Couldn't fetch list");    
+    }, function(e) {
+        $("#live").append("Couldn't fetch list " + e);    
     });
 
+}
+
+$(document).ready(function() {
+    $("#live").append("jquery append<br>");
+
     updateBatteryUi();
+
+
+    $("#loaddevs").click(function() {
+        populateDeviceSummary();
+    });
 
 });
 
@@ -81,12 +196,29 @@ $(document).ready(function() {
 
 </head>
 <body>
-<div align="right" style="background-color: eeeeee;">
-    <div style="text-align: right;"><span id="battime">00:11:22</span> <a href="#"><img id="batpower" src="/img/icon_battery_0.svg" style="width: 2em; height: auto; align: right; vertical-align: middle;"></a></div>
-    <i id="batspinner" class="fa fa-refresh fa-spin"></i>
-</div>
+
+    <div class="container_16">
+        <div class="box">
+            <h2>Kismet</h2>
+            <div style="text-align: right;"><span id="battime">00:11:22</span> <a href="#"><img id="batpower" src="/img/icon_battery_0.svg" style="width: 2em; height: auto; align: right; vertical-align: middle;"></a></div>
+            <i id="batspinner" class="fa fa-refresh fa-spin"></i>
+        </div>
+    </div>
+
+    <div class="clear"></div>
+
+    <div class="grid_16">
+        <div class="box">
+            <h2>Devices</h2>
+
+<div id="loaddevs"><a href="#">[Load devices]</a></div>
+
+<svg id="visualisation" width="500" height="100"></svg>
 
 <br>Ajax query of kismet:<br>
-<p id="live">
+<div id="live"></div>
+
+        </div>
+    </div>
 </body>
 </html>
