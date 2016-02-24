@@ -67,32 +67,23 @@ struct mac_addr {
         longmask = (uint64_t) -1;
 
 		short unsigned int byte;
-        unsigned int nmask;
 
 		int nbyte = 0;
 		int mode = 0;
 
-		while (in[0]) {
+		while (in) {
 			if (in[0] == ':') {
 				in++;
 				continue;
 			}
 
 			if (in[0] == '/') {
+                longmask = 0L;
 				mode = 1;
 				nbyte = 0;
 				in++;
 				continue;
 			}
-
-            // If we're parsing the mask and it's a numerical, use that
-            // (ie /48 for FFFFFFFFFF or /18 for /24 for FFFFFF000000
-            if (mode == 1 && sscanf(in, "%u", &nmask) == 1) {
-                if (nmask == 48)
-                    nmask = 0;
-                longmask = ((uint64_t) -1 << (48 - nmask));
-                break;
-            }
 
 			if (sscanf(in, "%hX", &byte) != 1) {
 				error = 1;
@@ -237,7 +228,7 @@ struct mac_addr {
 		ostringstream osstr;
 
 		for (unsigned int x = 0; x < MAC_LEN_MAX; x++) {
-			osstr << hex << index64(longmask, x);
+			osstr << hex << setw(2) << setfill('0') << uppercase << index64(longmask, x);
 			if (x != MAC_LEN_MAX - 1)
 				osstr << ':';
 		}
