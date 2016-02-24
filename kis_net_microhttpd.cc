@@ -228,6 +228,7 @@ int Kis_Net_Httpd::handle_static_file(void *cls, struct MHD_Connection *connecti
     if (realpath_path == NULL) {
         return -1;
     } else {
+        // Make sure we're hosted inside the data dir
         if (strstr(realpath_path, datadir_path) == realpath_path) {
 
             struct MHD_Response *response;
