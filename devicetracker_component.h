@@ -756,7 +756,7 @@ public:
                 e = hour_vec->get_vector_value(x);
 
                 if (x == min_bucket)
-                    e->set((IC) in_s / sec_bucket + 1);
+                    e->set((IC) in_s / 60);
                 else
                     e->set((IC) 0);
             }

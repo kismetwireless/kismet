@@ -510,7 +510,7 @@ void Kis_80211_Phy::HandleSSID(kis_tracked_device_base *basedev,
 
     // TODO alert on change on SSID IE tags?
     if (ssid->get_ietag_checksum() != dot11info->ietag_csum) {
-        fprintf(stderr, "debug - dot11phy:HandleSSID %s ietag checksum changed\n", basedev->get_macaddr().Mac2String().c_str());
+        // fprintf(stderr, "debug - dot11phy:HandleSSID %s ietag checksum changed\n", basedev->get_macaddr().Mac2String().c_str());
 
         // Things to check:
         // dot11d values

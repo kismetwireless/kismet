@@ -789,6 +789,7 @@ public:
         add_map(base->get_tracker_channel());
         add_map(base->get_tracker_frequency());
         add_map(base->get_tracker_manuf());
+        add_map(base->get_tracker_packets_rrd());
     }
 
     virtual TrackerElement *clone_type() {
