@@ -6,6 +6,7 @@
 <script src="/js/jquery-2.2.0.min.js"></script>
 <script src="/js/jquery.ajax.binary.js"></script>
 <script src="/js/kismet.utils.js"></script>
+<script src="/js/jquery.dataTables.min.js"</script>
 <script src="http://d3js.org/d3.v3.min.js" charset="utf-8"></script>
 
 <link rel="stylesheet" href="/css/font-awesome.min.css">
@@ -20,8 +21,7 @@
 <script>
 
 var batteryTid;
-var graphTid = 0;
-var graphId;
+var deviceTid;
 
 function updateBatteryUi() {
     $("#batspinner").show();
@@ -180,16 +180,64 @@ function populateDeviceSummary() {
 
 }
 
-$(document).ready(function() {
-    $("#live").append("jquery append<br>");
+var global_device_summary = { }
+function handleDeviceSummary() {
+    kismetGetDeviceSummary(function(devices) {
+        var conv = [];
 
-    updateBatteryUi();
+        for (var x = 0; x < devices.length; x++) {
+            var d = devices[x];
+            var t = new Date(d["kismet.device.base.last_time"]*1000);
+            var cd = [
+                d["kismet.device.base.name"],
+                d["kismet.device.base.type"],
+                d["kismet.device.base.phyname"],
+                d["kismet.device.base.signal"]["kismet.common.signal.last_signal_dbm"],
+                t
+            ];
+
+            global_device_summary[d["kismet.device.base.key"]] = cd;
+        }
+
+        for (var k in global_device_summary) {
+            conv.push(global_device_summary[k]);
+        }
 
 
-    $("#loaddevs").click(function() {
-        populateDeviceSummary();
+        var dt = $('#devices').dataTable().api();
+
+        var scrollPos = $(".dataTables_scrollBody").scrollTop();
+
+        dt.clear();
+        dt.rows.add(conv);
+        dt.draw();
+
+        $(".dataTables_scrollBody").scrollTop(scrollPos);
+
+    }, function(e) {
+        alert(e);
     });
 
+    deviceTid = setTimeout(handleDeviceSummary, 2000); 
+}
+
+$(document).ready(function() {
+    updateBatteryUi();
+
+    $('#devices').DataTable( {
+        "scrollY":        "45em",
+        "scrollCollapse": true,
+        "paging":         false,
+        columns: [
+        { title: "Name" },
+        { title: "Type" },
+        { title: "Phy" },
+        { title: "Signal" },
+        { title: "Last Time" },
+        ]
+    });
+
+    handleDeviceSummary();
 });
 
 </script>
@@ -207,16 +255,12 @@ $(document).ready(function() {
 
     <div class="clear"></div>
 
-    <div class="grid_16">
+    <div class="container_16">
         <div class="box">
             <h2>Devices</h2>
 
-<div id="loaddevs"><a href="#">[Load devices]</a></div>
-
-<svg id="visualisation" width="500" height="100"></svg>
-
-<br>Ajax query of kismet:<br>
-<div id="live"></div>
+            <table id="devices" class="display" cellspacing="0" width="100%">
+            </table>
 
         </div>
     </div>
