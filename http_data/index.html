@@ -180,7 +180,6 @@ function populateDeviceSummary() {
 
 }
 
-var global_device_summary = { }
 function handleDeviceSummary() {
     kismetGetDeviceSummary(function(devices) {
         var conv = [];
@@ -196,11 +195,7 @@ function handleDeviceSummary() {
                 t
             ];
 
-            global_device_summary[d["kismet.device.base.key"]] = cd;
-        }
-
-        for (var k in global_device_summary) {
-            conv.push(global_device_summary[k]);
+            conv.push(cd);
         }
 
 
