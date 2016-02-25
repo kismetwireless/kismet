@@ -6,8 +6,8 @@
 <script src="/js/jquery-2.2.0.min.js"></script>
 <script src="/js/jquery.ajax.binary.js"></script>
 <script src="/js/kismet.utils.js"></script>
-<script src="/js/jquery.dataTables.min.js"</script>
-<script src="http://d3js.org/d3.v3.min.js" charset="utf-8"></script>
+<script src="/js/jquery.dataTables.min.js"></script>
+<script src="/js/d3.v3.min.js" charset="utf-8"></script>
 
 <link rel="stylesheet" href="/css/font-awesome.min.css">
 <link rel="stylesheet" type="text/css" href="css/reset.css" media="screen" />
@@ -17,7 +17,7 @@
 <link rel="stylesheet" type="text/css" href="css/nav.css" media="screen" />
 <!--[if IE 6]><link rel="stylesheet" type="text/css" href="css/ie6.css" media="screen" /><![endif]-->
 <!--[if IE 7]><link rel="stylesheet" type="text/css" href="css/ie.css" media="screen" /><![endif]-->
-<link rel="stylesheet" href="/css/jquery.dataTables.min.css">
+<link rel="stylesheet" href="/css/jquery.dataTables.min.css"/>
 
 <script>
 
@@ -72,95 +72,6 @@ function updateBatteryUi() {
     batteryTid = setTimeout(updateBatteryUi, 5000); // repeat myself
 }
 
-function populateDeviceGraph(key) {
-    kismetGetDevice(key, function(d) {
-        console.log(d["kismet.device.base.name"]);
-
-        var packets = d["kismet.device.base.packets.rrd"]["kismet.common.rrd.minute_vec"];
-        var lineData = [];
-
-        for (var i = 0; i < packets.length; i++) {
-            var pdata = {x: i, y: packets[i]}
-            lineData.push(pdata);
-        }
-
-        $("#visualization").attr("key", key);
-        $("#visualization").click(function() {
-            populateDeviceGraph($(this).attr("key"));
-        });
-
-var vis = d3.select("#visualisation"),
-    WIDTH = 500,
-    HEIGHT = 100,
-    MARGINS = {
-      top: 20,
-      right: 20,
-      bottom: 20,
-      left: 50
-    },
-    xRange = d3.scale.linear().range([MARGINS.left, WIDTH - MARGINS.right]).domain([d3.min(lineData, function (d) {
-        return d.x;
-      }),
-      d3.max(lineData, function (d) {
-        return d.x;
-      })
-    ]),
-
-    yRange = d3.scale.linear().range([HEIGHT - MARGINS.top, MARGINS.bottom]).domain([d3.min(lineData, function (d) {
-        return d.y;
-      }),
-      d3.max(lineData, function (d) {
-        return d.y;
-      })
-    ]),
-
-    xAxis = d3.svg.axis()
-      .scale(xRange)
-      .tickSize(5)
-      .tickSubdivide(true),
-
-    yAxis = d3.svg.axis()
-      .scale(yRange)
-      .tickSize(5)
-      .orient("left")
-      .tickSubdivide(true);
-
-
-  vis.append("svg:g")
-    .attr("class", "x axis")
-    .attr("transform", "translate(0," + (HEIGHT - MARGINS.bottom) + ")")
-    .call(xAxis);
-
-  vis.append("svg:g")
-    .attr("class", "y axis")
-    .attr("transform", "translate(" + (MARGINS.left) + ",0)")
-    .call(yAxis);
-
-  var lineFunc = d3.svg.line()
-  .x(function (d) {
-    return xRange(d.x);
-  })
-  .y(function (d) {
-    return yRange(d.y);
-  })
-  .interpolate('linear');
-
-vis.selectAll("svg > *").remove();
-vis.append("svg:path")
-  .attr("d", lineFunc(lineData))
-  .attr("stroke", "blue")
-  .attr("stroke-width", 2)
-  .attr("fill", "none");
-
-    graphId = key;
-    if (graphTid -= 0)
-        graphTid = setTimeout(function() { populateDeviceGraph(graphId)}, 1000); 
-
-    }, function(e) {
-        alert("fetch failed for " + key + " " + e);
-    });
-}
-
 function populateDeviceSummary() {
     $("#live").empty();
     kismetGetDeviceSummary(function(devices) {
@@ -188,13 +99,17 @@ function handleDeviceSummary() {
         for (var x = 0; x < devices.length; x++) {
             var d = devices[x];
             var t = new Date(d["kismet.device.base.last_time"]*1000);
-            var cd = [
-                d["kismet.device.base.name"],
-                d["kismet.device.base.type"],
-                d["kismet.device.base.phyname"],
-                d["kismet.device.base.signal"]["kismet.common.signal.last_signal_dbm"],
-                t
-            ];
+
+            var cd = {
+                key: d["kismet.device.base.key"],
+                name: d["kismet.device.base.name"],
+                type: d["kismet.device.base.type"],
+                phyname: d["kismet.device.base.phyname"],
+                signal: d["kismet.device.base.signal"]["kismet.common.signal.last_signal_dbm"],
+                time: t,
+                rrdsecond: d["kismet.device.base.packets.rrd"]["kismet.common.rrd.last_time"],
+                rrddata: d["kismet.device.base.packets.rrd"]["kismet.common.rrd.minute_vec"],
+            };
 
             conv.push(cd);
         }
@@ -209,27 +124,72 @@ function handleDeviceSummary() {
 
         $(".dataTables_scrollBody").scrollTop(scrollPos);
 
+        var w = 120;
+        var h = 20;
+        var barPadding = 0;
+
+        for (var i = 0; i < conv.length; i++) {
+            var rrd = [ ];
+            var starts = conv[i]['rrdsecond'] % 60;
+            var rrdlen = conv[i]['rrddata'].length
+
+            for (var r = 0; r < rrdlen; r++) {
+                rrd.push(conv[i]['rrddata'][(starts + r) % rrdlen])
+            }
+
+            var svg = d3.select("#graphContainer" + conv[i]['key'])
+                .append("svg")
+                .attr("width", w)
+                .attr("height", h);
+
+            svg.selectAll("rect")
+                .data(rrd)
+                .enter()
+                .append("rect")
+                .attr("x", function(d, i) {
+                    return i * (w / rrd.length);
+                })
+                .attr("y", function(d) {
+                    return h - (d * 4);
+                })
+                .attr("width", w / rrd.length - barPadding)
+                .attr("height", function(d) {
+                    return d * 4;
+                });
+
+        }
+
     }, function(e) {
-        alert(e);
+        throw(e);
     });
 
     deviceTid = setTimeout(handleDeviceSummary, 2000); 
 }
 
+var svg = d3.select("#foobar");
+
 $(document).ready(function() {
     updateBatteryUi();
 
     $('#devices').DataTable( {
-        "scrollY":        "45em",
+        "scrollY":        "60vh",
         "scrollCollapse": true,
         "paging":         false,
         columns: [
-        { title: "Name" },
-        { title: "Type" },
-        { title: "Phy" },
-        { title: "Signal" },
-        { title: "Last Time" },
-        ]
+        { title: "Name", data: "name" },
+        { title: "Type", data: "type" },
+        { title: "Phy", data: "phyname" },
+        { title: "Signal", data: "signal" },
+        { title: "Last Time", data: "time" },
+        { title: "Packets", data: null, defaultContent: "" },
+        ],
+        "order":
+            [ [ 0, "desc" ] ],
+        "fnRowCallback": function(nRow, aData, iDisplayIndex, iDisplayIndexFull) {
+            // Set an ID on the row for us to go in after and set the graph with D3
+            var row = $('td:eq(5)', nRow).attr("id", "graphContainer" + aData['key']);
+            return nRow;
+        }
     });
 
     handleDeviceSummary();
@@ -241,23 +201,36 @@ $(document).ready(function() {
 <body>
 
     <div class="container_16">
-        <div class="box">
-            <h2>Kismet</h2>
-            <div style="text-align: right;"><span id="battime">00:11:22</span> <a href="#"><img id="batpower" src="/img/icon_battery_0.svg" style="width: 2em; height: auto; align: right; vertical-align: middle;"></a></div>
-            <i id="batspinner" class="fa fa-refresh fa-spin"></i>
+        <div class="grid_16">
+            <div class="box">
+                <h2>Kismet</h2>
+                <div style="text-align: right;"><span id="battime">00:11:22</span> <a href="#"><img id="batpower" src="/img/icon_battery_0.svg" style="width: 2em; height: auto; align: right; vertical-align: middle;"></a></div>
+                <i id="batspinner" class="fa fa-refresh fa-spin"></i>
+            </div>
+        </div>
+
+        <div class="clear"></div>
+
+        <div class="grid_16">
+            <div class="box">
+                <h2>Devices</h2>
+
+                <div id="devtable" class="fill">
+                    <table id="devices" class="hover" cellspacing="0" width="100%">
+                    </table>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="clear"></div>
+
+        <div class="grid_16" id="site_info">
+            <div class="box">
+                <p>Powered by many open source JS components, look at the <a href="/credit.html">credits page</a>
+            </div>
         </div>
     </div>
 
-    <div class="clear"></div>
-
-    <div class="container_16">
-        <div class="box">
-            <h2>Devices</h2>
-
-            <table id="devices" class="hover" cellspacing="0" width="100%">
-            </table>
-
-        </div>
-    </div>
 </body>
 </html>

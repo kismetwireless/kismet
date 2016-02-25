@@ -168,6 +168,7 @@ public:
     __Proxy(phyname, string, string, string, phyname);
 
     __Proxy(devicename, string, string, string, devicename);
+    __Proxy(username, string, string, string, username);
 
     __Proxy(type_string, string, string, string, type_string);
 
@@ -313,6 +314,10 @@ protected:
         devicename_id = 
             RegisterField("kismet.device.base.name", TrackerString,
                     "printable device name", (void **) &devicename);
+
+        username_id =
+            RegisterField("kismet.device.base.username", TrackerString,
+                    "user name", (void **) &username);
 
         type_string_id = 
             RegisterField("kismet.device.base.type", TrackerString,
@@ -482,6 +487,10 @@ protected:
     // guess, etc.
     TrackerElement *devicename;
     int devicename_id;
+
+    // User name for arbitrary naming
+    TrackerElement *username;
+    int username_id;
 
     // Printable basic type relevant to the phy, ie "Wired", "AP", "Bluetooth", etc.
     // This can be set per-phy and is treated as a printable interpretation.  

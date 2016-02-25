@@ -468,10 +468,14 @@ void Kis_80211_Phy::HandleSSID(kis_tracked_device_base *basedev,
             dot11dev->set_last_beaconed_ssid(ssid->get_ssid());
             dot11dev->set_last_beaconed_ssid_csum(dot11info->ssid_csum);
 
+            basedev->set_devicename(ssid->get_ssid());
+
             // Set the type
             ssid->set_ssid_beacon(true);
         } else if (dot11info->subtype == packet_sub_probe_resp) {
             ssid->set_ssid_probe_response(true);
+            dot11dev->set_last_probed_ssid(ssid->get_ssid());
+            dot11dev->set_last_probed_ssid_csum(dot11info->ssid_csum);
         }
     }
 

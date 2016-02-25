@@ -556,7 +556,6 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
 		// Look for MSF opcode beacons before tag decode
 		if (fc->subtype == packet_sub_beacon &&
 			packinfo->source_mac == msfopcode_mac) {
-
 			_ALERT(alert_msfbcomssid_ref, in_pack, packinfo,
 				   "MSF-style poisoned beacon packet for Broadcom drivers detected");
 		}

@@ -903,9 +903,11 @@ public:
     __Proxy(last_bssid, mac_addr, mac_addr, mac_addr, last_bssid);
 
     __Proxy(last_probed_ssid, string, string, string, last_probed_ssid);
+    __Proxy(last_probed_ssid_csum, uint32_t, uint32_t, 
+            uint32_t, last_probed_ssid_csum);
 
     __Proxy(last_beaconed_ssid, string, string, string, last_beaconed_ssid);
-    __Proxy(last_beaconed_ssid_csum, int32_t, uint32_t, 
+    __Proxy(last_beaconed_ssid_csum, uint32_t, uint32_t, 
             uint32_t, last_beaconed_ssid_csum);
 
     bool get_dirty() { return dirty; }
@@ -983,7 +985,7 @@ protected:
                     "last probed ssid", (void **) &last_probed_ssid);
 
         last_probed_ssid_csum_id =
-            RegisterField("dot11.device.last_probed_ssid_csum", TrackerInt32,
+            RegisterField("dot11.device.last_probed_ssid_csum", TrackerUInt32,
                     "last probed ssid checksum", (void **) &last_probed_ssid_csum);
 
         last_beaconed_ssid_id =
@@ -991,7 +993,7 @@ protected:
                     "last beaconed ssid", (void **) &last_beaconed_ssid);
 
         last_beaconed_ssid_csum_id =
-            RegisterField("dot11.device.last_beaconed_ssid_checksum", TrackerInt32,
+            RegisterField("dot11.device.last_beaconed_ssid_checksum", TrackerUInt32,
                     "last beaconed ssid checksum", (void **) &last_beaconed_ssid_csum);
 
         last_bssid_id =
