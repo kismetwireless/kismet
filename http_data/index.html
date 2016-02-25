@@ -131,10 +131,21 @@ function handleDeviceSummary() {
         for (var i = 0; i < conv.length; i++) {
             var rrd = [ ];
             var starts = conv[i]['rrdsecond'] % 60;
-            var rrdlen = conv[i]['rrddata'].length
+            var rrdlen = conv[i]['rrddata'].length;
 
+            // start at the current second in the rrd, and average them
+            // to thicker bars.
+            var avg = 0;
+            var secs_avg = 3;
             for (var r = 0; r < rrdlen; r++) {
-                rrd.push(conv[i]['rrddata'][(starts + r) % rrdlen])
+                avg += conv[i]['rrddata'][(starts + r) % rrdlen];
+
+                if ((r % secs_avg) == (secs_avg - 1)) {
+                    rrd.push(avg / secs_avg);
+                    avg = 0;
+                }
+
+                // rrd.push(conv[i]['rrddata'][(starts + r) % rrdlen])
             }
 
             var svg = d3.select("#graphContainer" + conv[i]['key'])
