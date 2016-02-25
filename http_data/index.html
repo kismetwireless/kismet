@@ -17,6 +17,7 @@
 <link rel="stylesheet" type="text/css" href="css/nav.css" media="screen" />
 <!--[if IE 6]><link rel="stylesheet" type="text/css" href="css/ie6.css" media="screen" /><![endif]-->
 <!--[if IE 7]><link rel="stylesheet" type="text/css" href="css/ie.css" media="screen" /><![endif]-->
+<link rel="stylesheet" href="/css/jquery.dataTables.min.css">
 
 <script>
 
@@ -198,7 +199,6 @@ function handleDeviceSummary() {
             conv.push(cd);
         }
 
-
         var dt = $('#devices').dataTable().api();
 
         var scrollPos = $(".dataTables_scrollBody").scrollTop();
@@ -254,7 +254,7 @@ $(document).ready(function() {
         <div class="box">
             <h2>Devices</h2>
 
-            <table id="devices" class="display" cellspacing="0" width="100%">
+            <table id="devices" class="hover" cellspacing="0" width="100%">
             </table>
 
         </div>
