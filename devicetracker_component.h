@@ -717,19 +717,23 @@ public:
         return new kis_tracked_rrd<IC, ET>(globalreg, get_id());
     }
 
-    void add_sample(IC in_s, uint64_t in_time) {
+    __Proxy(last_time, uint64_t, time_t, time_t, last_time);
+
+    void add_sample(IC in_s, time_t in_time) {
         int sec_bucket = in_time % 60;
         int min_bucket = (in_time / 60) % 60;
         int hour_bucket = (in_time / 3600) % 24;
 
-        // The second slot for the last time
-        int last_sec_bucket = last_time % 60;
-        // The minute of the hour the last known data would go in
-        int last_min_bucket = (last_time / 60) % 60;
-        // The hour of the day the last known data would go in
-        int last_hour_bucket = (last_time / 3600) % 24;
+        time_t ltime = get_last_time();
 
-        if (in_time < last_time) {
+        // The second slot for the last time
+        int last_sec_bucket = ltime % 60;
+        // The minute of the hour the last known data would go in
+        int last_min_bucket = (ltime / 60) % 60;
+        // The hour of the day the last known data would go in
+        int last_hour_bucket = (ltime / 3600) % 24;
+
+        if (in_time < ltime) {
             // printf("debug - rrd - timewarp to the past?  discard\n");
             return;
         }
@@ -738,7 +742,7 @@ public:
 
         // If we haven't seen data in a day, we reset everything because
         // none of it is valid.  This is the simplest case.
-        if (in_time - last_time > (60 * 60 * 24)) {
+        if (in_time - ltime > (60 * 60 * 24)) {
             // printf("debug - rrd - beed a day since last value\n");
             // Directly fill in this second, clear rest of the minute
             for (int x = 0; x < 60; x++) {
@@ -771,10 +775,10 @@ public:
                 else
                     e->set((IC) 0);
             }
-            last_time = in_time;
+            set_last_time(in_time);
 
             return;
-        } else if (in_time - last_time > (60*60)) {
+        } else if (in_time - ltime > (60*60)) {
             // printf("debug - rrd - been an hour since last value\n");
             // If we haven't seen data in an hour but we're still w/in the day:
             //   - Average the seconds we know about & set the minute record
@@ -826,7 +830,7 @@ public:
                 e->set((IC) 0);
             }
 
-        } else if (in_time - last_time > 60) {
+        } else if (in_time - ltime > 60) {
             // - Calculate the average seconds
             // - Wipe the seconds
             // - Set the new second value
@@ -875,7 +879,7 @@ public:
             // add that in.
             // Otherwise, fast-forward seconds with zero data, average the seconds,
             // and propagate the averages up
-            if (in_time == last_time) {
+            if (in_time == ltime) {
                 e = minute_vec->get_vector_value(sec_bucket);
                 (*e) += in_s;
 
@@ -932,7 +936,7 @@ public:
         }
 
 
-        last_time = in_time;
+        set_last_time(in_time);
     }
 
     virtual void pre_serialize() {
@@ -977,6 +981,10 @@ protected:
     virtual void register_fields() {
         tracker_component::register_fields();
 
+        last_time_id =
+            RegisterField("kismet.common.rrd.last_time", TrackerUInt64,
+                    "last time udpated", (void **) &last_time);
+
         minute_vec_id = 
             RegisterField("kismet.common.rrd.minute_vec", TrackerVector,
                     "past minute values per second", (void **) &minute_vec);
@@ -1002,7 +1010,7 @@ protected:
     virtual void reserve_fields(TrackerElement *e) {
         tracker_component::reserve_fields(e);
 
-        last_time = 0;
+        set_last_time(0);
 
         // Build slots for all the times
         int x;
@@ -1031,6 +1039,9 @@ protected:
         }
     }
 
+    int last_time_id;
+    TrackerElement *last_time;
+
     int minute_vec_id;
     TrackerElement *minute_vec;
 
@@ -1043,8 +1054,6 @@ protected:
     int second_entry_id;
     int minute_entry_id;
     int hour_entry_id;
-
-    uint64_t last_time;
 };
 
 #endif
