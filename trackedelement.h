@@ -737,6 +737,9 @@ public:
     // Proxy getting any name via entry tracker
     virtual string get_name(int in_id);
 
+    TrackerElement *get_child_path(string in_path);
+    TrackerElement *get_child_path(std::vector<string> in_path);
+
 protected:
     // Reserve a field via the entrytracker, using standard entrytracker build methods.
     // This field will be automatically assigned or created during the reservefields 

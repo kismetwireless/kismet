@@ -1136,5 +1136,40 @@ TrackerElement *tracker_component::import_or_new(TrackerElement *e, int i) {
     return r;
 }
 
+TrackerElement *tracker_component::get_child_path(string in_path) {
+    vector<string> tok = StrTokenize(in_path, "/");
+    return get_child_path(tok);
+}
+
+TrackerElement *tracker_component::get_child_path(std::vector<string> in_path) {
+    if (in_path.size() < 1)
+        return NULL;
+
+    TrackerElement *cur_elem = (TrackerElement *) this;
+    TrackerElement *next_elem = NULL;
+
+    for (unsigned int x = 0; x < in_path.size(); x++) {
+        // Skip empty path element
+        if (in_path[x].length() == 0)
+            continue;
+
+        int id = globalreg->entrytracker->GetFieldId(in_path[x]);
+
+        if (id < 0) {
+            return NULL;
+        }
+
+        next_elem = 
+            cur_elem->get_map_value(id);
+
+        if (next_elem == NULL) {
+            return NULL;
+        }
+
+        cur_elem = next_elem;
+    }
+
+    return cur_elem;
+}
 
 
