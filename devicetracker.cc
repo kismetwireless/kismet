@@ -44,6 +44,7 @@
 #include "entrytracker.h"
 #include "devicetracker_component.h"
 #include "msgpack_adapter.h"
+#include "xmlserialize_adapter.h"
 
 int Devicetracker_packethook_stringcollector(CHAINCALL_PARMS) {
 	return ((Devicetracker *) auxdata)->StringCollector(in_pack);
@@ -1642,6 +1643,9 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
     if (strcmp(path, "/devices/all_devices.msgpack") == 0)
         return true;
 
+    if (strcmp(path, "/devices/all_devices.xml") == 0)
+        return true;
+
     if (strcmp(path, "/phy/all_phys.msgpack") == 0)
         return true;
 
@@ -1708,6 +1712,35 @@ void Devicetracker::httpd_msgpack_device_summary(std::stringstream &stream) {
     delete(devvec);
 }
 
+void Devicetracker::httpd_xml_device_summary(std::stringstream &stream) {
+    devicelist_mutex_locker(this);
+
+    TrackerElement *devvec = 
+        globalreg->entrytracker->GetTrackedInstance(device_summary_base_id);
+
+    for (unsigned int x = 0; x < tracked_vec.size(); x++) {
+        kis_tracked_device_summary *summary =
+            new kis_tracked_device_summary(globalreg, device_summary_entry_id,
+                    tracked_vec[x]);
+        devvec->add_vector(summary);
+    }
+
+    XmlserializeAdapter *xml = new XmlserializeAdapter(globalreg);
+
+    xml->RegisterField("kismet.device.list", "SummaryDevices");
+    xml->RegisterField("kismet.device.summary", "Summary");
+    xml->RegisterField("kismet.device.base.name", "Name");
+    xml->RegisterField("kismet.device.base.phyname", "Phyname");
+    xml->RegisterField("kismet.device.base.signal", "Signal");
+    xml->RegisterField("kismet.common.signal.last_signal_dbm", "LastSignalDbm");
+
+    xml->XmlSerialize(devvec, stream);
+
+    delete(xml);
+    delete(devvec);
+
+}
+
 void Devicetracker::Httpd_CreateStreamResponse(struct MHD_Connection *connection,
         const char *path, const char *method, const char *upload_data,
         size_t *upload_data_size, std::stringstream &stream) {
@@ -1718,6 +1751,11 @@ void Devicetracker::Httpd_CreateStreamResponse(struct MHD_Connection *connection
 
     if (strcmp(path, "/devices/all_devices.msgpack") == 0) {
         httpd_msgpack_device_summary(stream);
+        return;
+    }
+
+    if (strcmp(path, "/devices/all_devices.xml") == 0) {
+        httpd_xml_device_summary(stream);
         return;
     }
 

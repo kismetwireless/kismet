@@ -761,6 +761,7 @@ protected:
 
     void httpd_msgpack_all_phys(std::stringstream &stream);
     void httpd_msgpack_device_summary(std::stringstream &stream);
+    void httpd_xml_device_summary(std::stringstream &stream);
 };
 
 class kis_tracked_device_summary : public tracker_component {
