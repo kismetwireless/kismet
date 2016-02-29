@@ -262,6 +262,12 @@ int Kis_Net_Httpd::handle_static_file(void *cls, struct MHD_Connection *connecti
                     return -1;
                 }
 
+                char lastmod[31];
+                struct tm tmstruct;
+                localtime_r(&(buf.st_ctime), &tmstruct);
+                strftime(lastmod, 31, "%a, %d %b %Y %H:%M:%S %Z", &tmstruct);
+                MHD_add_response_header(response, "Last-Modified", lastmod);
+
                 // Smarter way to do this in the future?  Probably.
                 vector<string> ext_comps = StrTokenize(url, ".");
                 if (ext_comps.size() >= 1) {
@@ -302,6 +308,14 @@ int Kis_Net_Httpd_Stream_Handler::Httpd_HandleRequest(Kis_Net_Httpd *httpd,
     struct MHD_Response *response = 
         MHD_create_response_from_buffer(stream.str().length(),
                 (void *) stream.str().c_str(), MHD_RESPMEM_MUST_COPY);
+
+    char lastmod[31];
+    struct tm tmstruct;
+    time_t now;
+    time(&now);
+    localtime_r(&now, &tmstruct);
+    strftime(lastmod, 31, "%a, %d %b %Y %H:%M:%S %Z", &tmstruct);
+    MHD_add_response_header(response, "Last-Modified", lastmod);
 
     // Smarter way to do this in the future?  Probably.
     vector<string> ext_comps = StrTokenize(url, ".");
