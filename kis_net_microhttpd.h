@@ -34,11 +34,14 @@
 #ifndef __KIS_NET_MICROHTTPD__
 #define __KIS_NET_MICROHTTPD__
 
+class Kis_Net_Httpd;
+
 // Basic request handler from MHD
 class Kis_Net_Httpd_Handler {
 public:
     // Handle a request
-    virtual int Httpd_HandleRequest(struct MHD_Connection *connection,
+    virtual int Httpd_HandleRequest(Kis_Net_Httpd *httpd,
+            struct MHD_Connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size) = 0;
 
@@ -52,29 +55,15 @@ class Kis_Net_Httpd_Stream_Handler : public Kis_Net_Httpd_Handler {
 public:
     virtual bool Httpd_VerifyPath(const char *path, const char *method) = 0;
 
-    virtual void Httpd_CreateStreamResponse(struct MHD_Connection *connection,
+    virtual void Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
+            struct MHD_Connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size, std::stringstream &stream) = 0;
 
-    virtual int Httpd_HandleRequest(struct MHD_Connection *connection,
+    virtual int Httpd_HandleRequest(Kis_Net_Httpd *httpd, 
+            struct MHD_Connection *connection,
             const char *url, const char *method, const char *upload_data,
-            size_t *upload_data_size) {
-
-        std::stringstream stream;
-
-        Httpd_CreateStreamResponse(connection, url, method, upload_data,
-                upload_data_size, stream);
-
-        struct MHD_Response *response = 
-            MHD_create_response_from_buffer(stream.str().length(),
-            (void *) stream.str().c_str(), MHD_RESPMEM_MUST_COPY);
-
-        int ret = MHD_queue_response(connection, MHD_HTTP_OK, response);
-
-        MHD_destroy_response(response);
-
-        return ret;
-    }
+            size_t *upload_data_size);
 };
 
 class Kis_Net_Httpd {
@@ -91,6 +80,7 @@ public:
     void RemoveHandler(Kis_Net_Httpd_Handler *in_handler);
 
     void RegisterMimeType(string suffix, string mimetype);
+    string GetMimeType(string suffix);
 
 protected:
     GlobalRegistry *globalreg;

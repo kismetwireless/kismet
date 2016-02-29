@@ -183,7 +183,7 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
     }
 
     int ret = 
-        handler->Httpd_HandleRequest(connection, url, method, upload_data, 
+        handler->Httpd_HandleRequest(kishttpd, connection, url, method, upload_data, 
                 upload_data_size);
 
     pthread_mutex_unlock(&(kishttpd->controller_mutex));
@@ -202,6 +202,15 @@ static ssize_t file_reader(void *cls, uint64_t pos, char *buf, size_t max) {
 static void free_callback(void *cls) {
     FILE *file = (FILE *) cls;
     fclose(file);
+}
+
+string Kis_Net_Httpd::GetMimeType(string ext) {
+    std::map<string, string>::iterator mi = mime_type_map.find(ext);
+    if (mi != mime_type_map.end()) {
+        return mi->second;
+    }
+
+    return "";
 }
 
 int Kis_Net_Httpd::handle_static_file(void *cls, struct MHD_Connection *connection,
@@ -257,12 +266,10 @@ int Kis_Net_Httpd::handle_static_file(void *cls, struct MHD_Connection *connecti
                 vector<string> ext_comps = StrTokenize(url, ".");
                 if (ext_comps.size() >= 1) {
                     string ext = StrLower(ext_comps[ext_comps.size() - 1]);
+                    string mime = kishttpd->GetMimeType(ext);
 
-                    std::map<string, string>::iterator mi = 
-                        kishttpd->mime_type_map.find(ext);
-                    if (mi != kishttpd->mime_type_map.end()) {
-                        MHD_add_response_header(response, "Content-Type", 
-                                mi->second.c_str());
+                    if (mime != "") {
+                        MHD_add_response_header(response, "Content-Type", mime.c_str());
                     }
                 }
 
@@ -281,4 +288,37 @@ int Kis_Net_Httpd::handle_static_file(void *cls, struct MHD_Connection *connecti
 
     return -1;
 }
+
+int Kis_Net_Httpd_Stream_Handler::Httpd_HandleRequest(Kis_Net_Httpd *httpd, 
+        struct MHD_Connection *connection,
+        const char *url, const char *method, const char *upload_data,
+        size_t *upload_data_size) {
+
+    std::stringstream stream;
+
+    Httpd_CreateStreamResponse(httpd, connection, url, method, upload_data,
+            upload_data_size, stream);
+
+    struct MHD_Response *response = 
+        MHD_create_response_from_buffer(stream.str().length(),
+                (void *) stream.str().c_str(), MHD_RESPMEM_MUST_COPY);
+
+    // Smarter way to do this in the future?  Probably.
+    vector<string> ext_comps = StrTokenize(url, ".");
+    if (ext_comps.size() >= 1) {
+        string ext = StrLower(ext_comps[ext_comps.size() - 1]);
+
+        string mime = httpd->GetMimeType(ext);
+        if (mime != "") {
+            MHD_add_response_header(response, "Content-Type", mime.c_str());
+        }
+    }
+
+    int ret = MHD_queue_response(connection, MHD_HTTP_OK, response);
+
+    MHD_destroy_response(response);
+
+    return ret;
+}
+
 

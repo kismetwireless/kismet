@@ -661,7 +661,8 @@ public:
     // HTTP handlers
     virtual bool Httpd_VerifyPath(const char *path, const char *method);
 
-    virtual void Httpd_CreateStreamResponse(struct MHD_Connection *connection,
+    virtual void Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
+            struct MHD_Connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size, std::stringstream &stream);
 

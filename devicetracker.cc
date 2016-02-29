@@ -1728,11 +1728,29 @@ void Devicetracker::httpd_xml_device_summary(std::stringstream &stream) {
     XmlserializeAdapter *xml = new XmlserializeAdapter(globalreg);
 
     xml->RegisterField("kismet.device.list", "SummaryDevices");
+    xml->RegisterFieldNamespace("kismet.device.list", 
+            "k",
+            "http://www.kismetwireless.net/xml/summary",
+            "http://www.kismetwireless.net/xml/summary.xsd");
+    xml->RegisterFieldSchema("kismet.device.list",
+            "common",
+            "http://www.kismetwireless.net/xml/common",
+            "http://www.kismetwireless.net/xml/common.xsd");
+    xml->RegisterFieldSchema("kismet.device.list",
+            "gps",
+            "http://www.kismetwireless.net/xml/gps",
+            "http://www.kismetwireless.net/xml/gps.xsd");
+
+
     xml->RegisterField("kismet.device.summary", "Summary");
     xml->RegisterField("kismet.device.base.name", "Name");
     xml->RegisterField("kismet.device.base.phyname", "Phyname");
     xml->RegisterField("kismet.device.base.signal", "Signal");
     xml->RegisterField("kismet.common.signal.last_signal_dbm", "LastSignalDbm");
+    xml->RegisterField("kismet.common.signal.min_signal_dbm", "MinSignalDbm");
+    xml->RegisterField("kismet.common.signal.max_signal_dbm", "MaxsignalDbm");
+
+    stream << "<?xml version=\"1.0\"?>";
 
     xml->XmlSerialize(devvec, stream);
 
@@ -1741,7 +1759,9 @@ void Devicetracker::httpd_xml_device_summary(std::stringstream &stream) {
 
 }
 
-void Devicetracker::Httpd_CreateStreamResponse(struct MHD_Connection *connection,
+void Devicetracker::Httpd_CreateStreamResponse(
+        Kis_Net_Httpd *httpd,
+        struct MHD_Connection *connection,
         const char *path, const char *method, const char *upload_data,
         size_t *upload_data_size, std::stringstream &stream) {
 

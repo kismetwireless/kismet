@@ -130,7 +130,6 @@ template<>
                                 ++map_iter) {
                             o.pack(map_iter->first);
                             o.pack(map_iter->second);
-
                         }
                         break;
                     case TrackerMacMap:

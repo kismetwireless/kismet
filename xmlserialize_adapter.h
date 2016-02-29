@@ -73,15 +73,39 @@ public:
             string in_map_entity, string in_map_key_attr, 
             string in_map_value_attr);
 
+    void RegisterFieldNamespace(string in_field, string in_ns,
+            string in_nsloc, string in_url);
+    void RegisterFieldSchema(string in_field, string in_ns, 
+            string in_nslocation, string in_url);
+
 protected:
     GlobalRegistry *globalreg;
+
+    class Schemaimportlocation {
+    public:
+        string ns;
+        string nslocation;
+        string url;
+    };
+
     class Xmladapter {
     public:
+        ~Xmladapter() {
+            for (unsigned int i = 0; i < schema_import_vector.size(); i++) {
+                delete schema_import_vector[i];
+            }
+        }
+
         // Map a kismet record to a XML tag
         string kis_field;
         string xml_entity;
 
-        string xml_xsi;
+        // Local namespace for this tag
+        string local_namespace;
+        string namespace_location;
+        string xsi_schema_location;
+
+        string xml_xsi_type;
 
         // Map child elements to attributes
         map<string, string> kis_path_xml_element_map;
@@ -93,6 +117,10 @@ protected:
         string map_entry_element;
         string map_key_attribute;
         string map_value_attribute;
+
+       
+        // List of items to be included in the xs:schema tag
+        vector<Schemaimportlocation *> schema_import_vector;
     };
 
     bool StreamSimpleValue(TrackerElement *v, std::stringstream &stream);
