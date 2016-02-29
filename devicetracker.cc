@@ -1742,13 +1742,41 @@ void Devicetracker::httpd_xml_device_summary(std::stringstream &stream) {
             "http://www.kismetwireless.net/xml/gps.xsd");
 
 
-    xml->RegisterField("kismet.device.summary", "Summary");
-    xml->RegisterField("kismet.device.base.name", "Name");
-    xml->RegisterField("kismet.device.base.phyname", "Phyname");
-    xml->RegisterField("kismet.device.base.signal", "Signal");
-    xml->RegisterField("kismet.common.signal.last_signal_dbm", "LastSignalDbm");
-    xml->RegisterField("kismet.common.signal.min_signal_dbm", "MinSignalDbm");
-    xml->RegisterField("kismet.common.signal.max_signal_dbm", "MaxsignalDbm");
+    xml->RegisterField("kismet.device.summary", "summary");
+
+    xml->RegisterField("kismet.device.base.name", "name");
+    xml->RegisterField("kismet.device.base.phyname", "phyname");
+    xml->RegisterField("kismet.device.base.signal", "signal");
+    xml->RegisterField("kismet.device.base.channel", "channel");
+    xml->RegisterField("kismet.device.base.frequency", "frequency");
+    xml->RegisterField("kismet.device.base.manuf", "manufacturer");
+    xml->RegisterField("kismet.device.base.key", "key");
+    xml->RegisterField("kismet.device.base.macaddr", "macaddress");
+    xml->RegisterField("kismet.device.base.type", "type");
+    xml->RegisterField("kismet.device.base.first_time", "firstseen");
+    xml->RegisterField("kismet.device.base.last_time", "lastseen");
+    xml->RegisterField("kismet.device.base.packets.total", "packetstotal");
+
+    xml->RegisterField("kismet.common.signal.last_signal_dbm", "lastsignaldbm");
+    xml->RegisterField("kismet.common.signal.min_signal_dbm", "minsignaldbm");
+    xml->RegisterField("kismet.common.signal.max_signal_dbm", "maxsignaldbm");
+    xml->RegisterField("kismet.common.signal.last_noise_dbm", "lastnoisedbm");
+    xml->RegisterField("kismet.common.signal.min_noise_dbm", "minnoisedbm");
+    xml->RegisterField("kismet.common.signal.max_noise_dbm", "maxnoisedbm");
+    xml->RegisterField("kismet.common.signal.last_signal_rssi", "lastsignalrssi");
+    xml->RegisterField("kismet.common.signal.min_signal_rssi", "minsignalrssi");
+    xml->RegisterField("kismet.common.signal.max_signal_rssi", "maxsignalrssi");
+    xml->RegisterField("kismet.common.signal.last_noise_rssi", "lastnoiserssi");
+    xml->RegisterField("kismet.common.signal.min_noise_rssi", "minnoiserssi");
+    xml->RegisterField("kismet.common.signal.max_noise_rssi", "maxnoiserssi");
+
+    xml->RegisterField("kismet.common.signal.peak_loc", "peaklocation");
+    xml->RegisterFieldXsitype("kismet.common.signal.peak_loc", "kismet:location");
+    
+    xml->RegisterField("kismet.common.location.lat", "lat");
+    xml->RegisterField("kismet.common.location.lon", "lon");
+    xml->RegisterField("kismet.common.location.alt", "alt");
+    xml->RegisterField("kismet.common.location.speed", "speed");
 
     stream << "<?xml version=\"1.0\"?>";
 
