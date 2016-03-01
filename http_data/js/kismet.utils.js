@@ -55,6 +55,20 @@ function kismetConvertTrackerPack(unpacked) {
     }
 }
 
+function kismetPostGpsLocation(gps, callback, failback) {
+    $.ajax({
+        url: "/gps/update_location.msgpack",
+        type: "POST",
+        dataType: "binary",
+        processData: false,
+        responseType: 'arraybuffer',
+        data: msgpack.encode(gps),
+        success: function(arbuf) {
+            callback();
+        }
+    });
+};
+
 function kismetGetDeviceSummary(callback, failback) {
     $.ajax({
         url: "/devices/all_devices.msgpack",

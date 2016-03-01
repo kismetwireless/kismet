@@ -66,6 +66,8 @@ public:
             size_t *upload_data_size);
 };
 
+#define KIS_SESSION_COOKIE      "KISMET"
+
 class Kis_Net_Httpd {
 public:
     Kis_Net_Httpd(GlobalRegistry *in_globalreg);
@@ -81,6 +83,9 @@ public:
 
     void RegisterMimeType(string suffix, string mimetype);
     string GetMimeType(string suffix);
+
+    bool HasValidSession(struct MHD_Connection *connection);
+    void CreateSession(struct MHD_Response *response, time_t in_lifetime);
 
 protected:
     GlobalRegistry *globalreg;
@@ -107,6 +112,22 @@ protected:
     static int handle_static_file(void *cls, struct MHD_Connection *connection,
             const char *url, const char *method);
 
+    class session {
+    public:
+        // Session ID
+        string sessionid;
+
+        // Time session was created
+        time_t session_created;
+
+        // Last time the session was seen active
+        time_t session_seen;
+
+        // Amount of time session is valid for after last active
+        time_t session_lifetime;
+    };
+
+    map<string, session *> session_map;
 };
 
 #endif

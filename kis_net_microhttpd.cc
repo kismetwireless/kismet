@@ -26,6 +26,7 @@
 #include <algorithm>
 #include <string>
 #include <sstream>
+#include <iomanip>
 #include <pthread.h>
 #include <limits.h>
 #include <stdlib.h>
@@ -148,9 +149,36 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
     void **ptr __attribute__ ((unused))) {
 
     // fprintf(stderr, "HTTP request: '%s' method '%s'\n", url, method); 
-    
+    //
     Kis_Net_Httpd *kishttpd = (Kis_Net_Httpd *) cls;
+    
+    // Update the session records if one exists
+    session *s;
+    const char *cookieval;
 
+    cookieval = MHD_lookup_connection_value (connection,
+            MHD_COOKIE_KIND, KIS_SESSION_COOKIE);
+
+    if (cookieval != NULL) {
+        map<string, session *>::iterator si = kishttpd->session_map.find(cookieval);
+
+        if (si != kishttpd->session_map.end()) {
+            s = si->second;
+
+            if (s->session_lifetime != 0) {
+                // Delete if the session has expired
+                if (s->session_seen + s->session_lifetime < 
+                        kishttpd->globalreg->timestamp.tv_sec) {
+                    kishttpd->session_map.erase(si);
+                    delete(s);
+                }
+            }
+
+            // Update the last seen
+            s->session_seen = kishttpd->globalreg->timestamp.tv_sec;
+        }
+    }
+    
     Kis_Net_Httpd_Handler *handler = NULL;
     pthread_mutex_lock(&(kishttpd->controller_mutex));
 
@@ -335,4 +363,85 @@ int Kis_Net_Httpd_Stream_Handler::Httpd_HandleRequest(Kis_Net_Httpd *httpd,
     return ret;
 }
 
+bool Kis_Net_Httpd::HasValidSession(struct MHD_Connection *connection) {
+    session *s;
+    const char *cookieval;
+
+    cookieval = MHD_lookup_connection_value (connection,
+            MHD_COOKIE_KIND, KIS_SESSION_COOKIE);
+
+    if (cookieval == NULL)
+        return false;
+
+    map<string, session *>::iterator si = session_map.find(cookieval);
+
+    if (si == session_map.end())
+        return false;
+
+    s = si->second;
+
+    // Does the session never expire?
+    if (s->session_lifetime == 0)
+        return true;
+
+    // Has the session expired?
+    if (s->session_seen + s->session_lifetime < globalreg->timestamp.tv_sec) {
+        session_map.erase(si);
+        delete(s);
+        return false;
+    }
+
+    // We're good
+    return true;
+}
+
+void Kis_Net_Httpd::CreateSession(struct MHD_Response *response, time_t in_lifetime) {
+    session *s;
+
+    // Use 128 bits of entropy to make a session key
+
+    char rdata[16];
+    FILE *urandom;
+
+    if ((urandom = fopen("/dev/urandom", "rb")) == NULL) {
+        _MSG("Failed to open /dev/urandom to create a HTTPD session, unable to "
+                "assign a sessionid, not creating session", MSGFLAG_ERROR);
+        return;
+    }
+
+    if (fread(rdata, 16, 1, urandom) != 1) {
+        _MSG("Failed to read entropy from /dev/urandom to create a HTTPD session, "
+                "unable to assign a sessionid, not creating session", MSGFLAG_ERROR);
+        fclose(urandom);
+        return;
+    }
+    fclose(urandom);
+
+    std::stringstream cookiestr;
+    std::stringstream cookie;
+    
+    cookiestr << KIS_SESSION_COOKIE << "=";
+
+    for (unsigned int x = 0; x < 16; x++) {
+        cookie << std::uppercase << std::setfill('0') << std::setw(2) 
+            << std::hex << (int) (rdata[x] & 0xFF);
+    }
+
+    cookiestr << cookie.str();
+
+    if (MHD_add_response_header(response, MHD_HTTP_HEADER_SET_COOKIE, 
+                cookiestr.str().c_str()) == MHD_NO) {
+        _MSG("Failed to add session cookie to response header, unable to create "
+                "a session", MSGFLAG_ERROR);
+        return;
+    }
+
+    s = new session();
+    s->sessionid = cookie.str();
+    s->session_created = globalreg->timestamp.tv_sec;
+    s->session_seen = s->session_created;
+    s->session_lifetime = in_lifetime;
+
+    session_map[cookie.str()] = s;
+}
 
