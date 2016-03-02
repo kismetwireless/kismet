@@ -245,6 +245,7 @@ public:
         // Append to averaged location
         (*avg_lat) += (int64_t) (in_lat * precision_multiplier);
         (*avg_lon) += (int64_t) (in_lon * precision_multiplier);
+        (*num_avg)++;
 
         if (fix > 2) {
             (*avg_alt) += (int64_t) (in_alt * precision_multiplier);
