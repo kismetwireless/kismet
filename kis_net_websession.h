@@ -43,6 +43,9 @@ public:
 protected:
     GlobalRegistry *globalreg;
 
+    string conf_username;
+    string conf_password;
+
 };
 
 #endif

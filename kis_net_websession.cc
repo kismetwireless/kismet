@@ -17,13 +17,28 @@
 */
 
 #include "config.h"
+#include "configfile.h"
+#include "messagebus.h"
 #include "kis_net_websession.h"
-
 
 Kis_Net_Websession::Kis_Net_Websession(GlobalRegistry *in_globalreg) {
     globalreg = in_globalreg;
 
     globalreg->httpd_server->RegisterHandler(this);
+
+    string userpair = globalreg->kismet_config->FetchOpt("httpd_user");
+    vector<string> up = StrTokenize(userpair, ":");
+
+    if (up.size() != 2) {
+        _MSG("Expected user:password in httpd_user config variable.  Without a "
+                "valid user, it is not possible to configure Kismet via the web.",
+                MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
+    }
+
+    conf_username = up[0];
+    conf_password = up[1];
+    
 }
 
 Kis_Net_Websession::~Kis_Net_Websession() {
@@ -67,23 +82,34 @@ int Kis_Net_Websession::Httpd_HandleRequest(Kis_Net_Httpd *httpd,
             make_session = true;
         }
 
+        int ret;
+
+        char *user;
+        char *pass = NULL;
+
         struct MHD_Response *response = 
             MHD_create_response_from_buffer(stream.str().length(),
                     (void *) stream.str().c_str(), MHD_RESPMEM_MUST_COPY);
 
-        char lastmod[31];
-        struct tm tmstruct;
-        time_t now;
-        time(&now);
-        localtime_r(&now, &tmstruct);
-        strftime(lastmod, 31, "%a, %d %b %Y %H:%M:%S %Z", &tmstruct);
-        MHD_add_response_header(response, "Last-Modified", lastmod);
-
         if (make_session) {
+            user = MHD_basic_auth_get_username_password(connection, &pass);
+            if (user == NULL || conf_username != user || conf_password != pass) {
+                stream.str("");
+                stream << "Login required";
+
+                ret = MHD_queue_basic_auth_fail_response(connection,
+                        "Kismet Admin", response);
+
+                MHD_destroy_response(response);
+
+                return ret;
+            }
+
             httpd->CreateSession(response, 0);
+
         }
 
-        int ret = MHD_queue_response(connection, MHD_HTTP_OK, response);
+        ret = MHD_queue_response(connection, MHD_HTTP_OK, response);
 
         MHD_destroy_response(response);
 
