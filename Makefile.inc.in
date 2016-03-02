@@ -39,6 +39,7 @@ SHARE 		= ${DESTDIR}@datadir@/kismet/
 MAN 		= ${DESTDIR}@mandir@
 LIB			= ${DESTDIR}@libdir@
 WAV 		= ${DESTDIR}@datadir@/kismet/wav/
+HTTPD		= ${DESTDIR}@datadir@/kismet/httpd/
 
 PLUGINLDFLAGS = @PLUGINLDFLAGS@ @LDFLAGS@
 

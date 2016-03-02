@@ -80,8 +80,8 @@ NC	= kismet_client
 
 BUILDCLIENT=@wantclient@
 
-ALL	= Makefile $(DEPEND) $(PS) #$(CS) $(DRONE)
-INSTBINS = $(PS) $(CS) $(DRONE)
+ALL	= Makefile $(DEPEND) $(PS) $(CS) #$(DRONE)
+INSTBINS = $(PS) $(CS) #$(DRONE)
 #ifeq ($(BUILDCLIENT), yes)
 #ALL += $(NC)
 #INSTBINS += $(NC)
@@ -114,26 +114,29 @@ Makefile: Makefile.in configure
 
 binsuidinstall: $(CS)
 	$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CS) $(BIN)/$(CS); 
-	
+
+droneinstall: $(INSTBINS)
+	mkdir -p $(ETC)
+	mkdir -p $(BIN)
+
+	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(DRONE) $(BIN)/$(DRONE);
+
+	mkdir -p $(MAN)/man1
+	$(INSTALL) -o $(INSTUSR) -g $(MANGRP) -m 644 man/kismet_drone.1 $(MAN)/man1/kismet_drone.1
+	mkdir -p $(MAN)/man5
+	$(INSTALL) -o $(INSTUSR) -g $(MANGRP) -m 644 man/kismet_drone.conf.5 $(MAN)/man5/kismet_drone.conf.5
+
 commoninstall: $(INSTBINS)
 	mkdir -p $(ETC)
 	mkdir -p $(BIN)
 
-	if test -e $(NC); then \
-		echo "Installing client"; \
-		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 scripts/kismet $(BIN)/kismet; \
-		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(NC) $(BIN)/$(NC); \
-	fi;
 	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(PS) $(BIN)/$(PS); 
-	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(DRONE) $(BIN)/$(DRONE);
 
 	mkdir -p $(MAN)/man1
 	$(INSTALL) -o $(INSTUSR) -g $(MANGRP) -m 644 man/kismet.1 $(MAN)/man1/kismet.1
-	$(INSTALL) -o $(INSTUSR) -g $(MANGRP) -m 644 man/kismet_drone.1 $(MAN)/man1/kismet_drone.1
 
 	mkdir -p $(MAN)/man5
 	$(INSTALL) -o $(INSTUSR) -g $(MANGRP) -m 644 man/kismet.conf.5 $(MAN)/man5/kismet.conf.5
-	$(INSTALL) -o $(INSTUSR) -g $(MANGRP) -m 644 man/kismet_drone.conf.5 $(MAN)/man5/kismet_drone.conf.5
 
 	mkdir -p $(WAV)
 	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 wav/new.wav $(WAV)/new.wav
@@ -141,6 +144,9 @@ commoninstall: $(INSTBINS)
 	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 wav/alert.wav $(WAV)/alert.wav
 	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 wav/gpslost.wav $(WAV)/gpslost.wav
 	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 wav/gpslock.wav $(WAV)/gpslock.wav
+
+	mkdir -p $(HTTPD)
+	cp -r http_data/* $(HTTPD)
 
 suidinstall: $(CS)
 	-groupadd -f $(SUIDGROUP)
@@ -155,14 +161,14 @@ suidinstall: $(CS)
 		echo install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet.conf $(ETC)/kismet.conf;  \
 		echo "Installed config into $(ETC)/kismet.conf."; \
 	fi
-	@if test -f $(ETC)/kismet_drone.conf; then \
-		echo "$(ETC)/kismet_drone.conf already installed, not replacing it.  HOWEVER"; \
+	@if test -f $(ETC)/kismet_httpd.conf; then \
+		echo "$(ETC)/kismet_http.conf already installed, not replacing it.  HOWEVER"; \
 		echo "if there have been any changes to the base config you will need"; \
 		echo "to add them to your config file."; \
     else \
-		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet_drone.conf $(ETC)/kismet_drone.conf;  \
-		echo install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet_drone.conf $(ETC)/kismet_drone.conf;  \
-		echo "Installed drone config into $(ETC)/kismet_drone.conf."; \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet_httpd.conf $(ETC)/kismet_httpd.conf;  \
+		echo install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet_httpd.conf $(ETC)/kismet_httpd.conf;  \
+		echo "Installed config into $(ETC)/kismet.conf."; \
 	fi
 
 	@echo "Installed kismet into $(BIN)/."
@@ -238,29 +244,6 @@ distclean:
 	@-rm -rf *.ipk
 	@-rm -f scripts/kismet
 	@-rm -f Makefile
-
-ipkg: $(PS) $(NC) 
-	@if test "`whoami`" != "root"; then echo "Warning:  You are not root.  The ipkg will probably not be what you want."; fi
-	@mkdir -p packaging/ipkg/$(ETC)
-	@mkdir -p packaging/ipkg/$(BIN)
-	@arm-linux-strip $(PS)
-	@arm-linux-strip $(NC)
-	# @arm-linux-strip $(HOPPER)
-	@cp $(PS) packaging/ipkg/$(BIN)/$(PS)
-	@cp $(NC) packaging/ipkg/$(BIN)/$(NC)
-	# @cp $(HOPPER) packaging/ipkg/$(BIN)/$(HOPPER)
-	@cp scripts/kismet packaging/ipkg/$(BIN)/kismet
-	@cp conf/kismet.conf packaging/ipkg/$(ETC)/kismet.conf
-	@chmod a+x packaging/ipkg/$(BIN)/*
-	@chown root.root packaging/ipkg -R
-	@echo "Making ipkg..."
-	@rm -rf packaging/pak
-	@mkdir -p packaging/pak
-	@( cd packaging/ipkg/CONTROL; tar cf ../../pak/control.tar ./control; )
-	@( cd packaging/ipkg/; tar cf ../pak/data.tar ./usr; )
-	@( cd packaging/pak; gzip control.tar; gzip data.tar; tar cf ../../kismet_arm.tar ./control.tar.gz ./data.tar.gz; )
-	@( gzip -c kismet_arm.tar > kismet_$(VERSION_MAJOR).$(VERSION_MINOR).$(VERSION_TINY)_arm.ipk; rm kismet_arm.tar; )
-
 
 dep:
 	@$(MAKE) depend

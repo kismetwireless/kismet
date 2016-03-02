@@ -67,6 +67,8 @@ int ConfigFile::ParseConfig(const char *in_fname) {
 
             // Handling including files
             if (directive == "include") {
+                value = ExpandLogPath(value, "", "", 0, 1);
+
                 printf("Including sub-config file: %s\n", value.c_str());
 
                 if (ParseConfig(value.c_str()) < 0) {
@@ -294,7 +296,11 @@ string ConfigFile::ExpandLogPath(string path, string logname, string type,
 				pfx += "/";
 
 			logtemplate.insert(nl, pfx);
-		}
+		} else if (op == 'S') {
+            logtemplate.insert(nl, DATA_LOC);
+        } else if (op == 'E') {
+            logtemplate.insert(nl, SYSCONF_LOC);
+        }
     }
 
     // If we've got an incremental, go back and find it and start testing

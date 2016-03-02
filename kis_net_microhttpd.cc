@@ -48,13 +48,13 @@ Kis_Net_Httpd::Kis_Net_Httpd(GlobalRegistry *in_globalreg) {
         exit(1);
     }
 
-    http_port = globalreg->kismet_config->FetchOptUInt("httpdport", 8080);
+    http_port = globalreg->kismet_config->FetchOptUInt("httpd_port", 2501);
 
-    http_data_dir = globalreg->kismet_config->FetchOpt("httpdhome");
-    http_aux_data_dir = globalreg->kismet_config->FetchOpt("httpduserhome");
+    http_data_dir = globalreg->kismet_config->FetchOpt("httpd_home");
+    http_aux_data_dir = globalreg->kismet_config->FetchOpt("httpd_user_home");
 
     if (http_data_dir == "") {
-        _MSG("No httpdhome defined in kismet.conf, disabling static file serving",
+        _MSG("No httpd_home defined in kismet.conf, disabling static file serving",
                 MSGFLAG_ERROR);
         http_serve_files = false;
     } else {
@@ -66,7 +66,7 @@ Kis_Net_Httpd::Kis_Net_Httpd(GlobalRegistry *in_globalreg) {
     }
 
     if (http_aux_data_dir == "") {
-        _MSG("No httpduserhome defined in kismet.conf, disabling static file serving "
+        _MSG("No httpd_user_home defined in kismet.conf, disabling static file serving "
                 "from user directory", MSGFLAG_ERROR);
         http_serve_user_files = false;
     } else {

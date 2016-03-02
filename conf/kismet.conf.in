@@ -4,11 +4,11 @@
 # not continually reading --help!
 
 # Version of Kismet config
-version=2009-newcore
+version=2016
 
-# Name of server (Purely for organizational purposes)
-# If commented out, defaults to host name of system
-# servername=Kismet Server
+# Include the httpd config options
+# %E is expanded to the system etc path configured at install
+include=%E/kismet_httpd.conf
 
 # Prefix of where we log (as used in the logtemplate later)
 # logprefix=/some/path/to/logs
@@ -100,8 +100,10 @@ channellist=IEEE80211b:1:3,6:3,11:3,2,7,3,8,4,9,5,10
 channellist=IEEE80211a:36,40,44,48,52,56,60,64,149,153,157,161,165
 channellist=IEEE80211ab:1:3,6:3,11:3,2,7,3,8,4,9,5,10,36,40,44,48,52,56,60,64,149,153,157,161,165
 
+# DEPRECATED
+#
 # Client/server listen config
-listen=tcp://127.0.0.1:2501
+listen=tcp://127.0.0.1:2505
 # People allowed to connect, comma seperated IP addresses or network/mask
 # blocks.  Netmasks can be expressed as dotted quad (/255.255.255.0) or as
 # numbers (/24)
@@ -111,13 +113,6 @@ maxclients=5
 # Maximum backlog before we start throwing out or killing clients.  The
 # bigger this number, the more memory and the more power it will use.
 maxbacklog=5000
-
-# Server + Drone config options.  To have a Kismet server export live packets
-# as if it were a drone, uncomment these.
-# dronelisten=tcp://127.0.0.1:3501
-# droneallowedhosts=127.0.0.1
-# dronemaxclients=5
-# droneringlen=65535
 
 # OUI file, expected format 00:11:22<tab>manufname
 # IEEE OUI file used to look up manufacturer info.  We default to the
