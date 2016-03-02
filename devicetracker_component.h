@@ -255,12 +255,28 @@ public:
         double calc_lat, calc_lon, calc_alt;
 
         calc_lat = (double) (GetTrackerValue<int64_t>(avg_lat) / 
-                GetTrackerValue<uint64_t>(num_avg)) / precision_multiplier;
+                GetTrackerValue<int64_t>(num_avg)) / precision_multiplier;
         calc_lon = (double) (GetTrackerValue<int64_t>(avg_lon) / 
-                GetTrackerValue<uint64_t>(num_avg)) / precision_multiplier;
+                GetTrackerValue<int64_t>(num_avg)) / precision_multiplier;
         calc_alt = (double) (GetTrackerValue<int64_t>(avg_alt) / 
-                GetTrackerValue<uint64_t>(num_alt_avg)) / precision_multiplier;
+                GetTrackerValue<int64_t>(num_alt_avg)) / precision_multiplier;
         avg_loc->set(calc_lat, calc_lon, calc_alt, 3);
+
+        // Are we getting too close to the maximum size of any of our counters?
+        // This would take a really long time but we might as well be safe.  We're
+        // throwing away some of the highest ranges but it's a cheap compare.
+        uint64_t max_size_mask = 0xF000000000000000LL;
+        if ((GetTrackerValue<int64_t>(avg_lat) & max_size_mask) ||
+                (GetTrackerValue<int64_t>(avg_lon) & max_size_mask) ||
+                (GetTrackerValue<int64_t>(avg_alt) & max_size_mask) ||
+                (GetTrackerValue<int64_t>(num_avg) & max_size_mask) ||
+                (GetTrackerValue<int64_t>(num_alt_avg) & max_size_mask)) {
+            avg_lat->set((int64_t) (calc_lat * precision_multiplier));
+            avg_lon->set((int64_t) (calc_lon * precision_multiplier));
+            avg_alt->set((int64_t) (calc_alt * precision_multiplier));
+            num_avg->set((int64_t) 1);
+            num_alt_avg->set((int64_t) 1);
+        }
     }
 
     __Proxy(valid, uint8_t, bool, bool, loc_valid);
@@ -273,8 +289,8 @@ public:
     __Proxy(agg_lat, uint64_t, uint64_t, uint64_t, avg_lat);
     __Proxy(agg_lon, uint64_t, uint64_t, uint64_t, avg_lon);
     __Proxy(agg_alt, uint64_t, uint64_t, uint64_t, avg_alt);
-    __Proxy(num_agg, uint64_t, uint64_t, uint64_t, num_avg);
-    __Proxy(num_alt_agg, uint64_t, uint64_t, uint64_t, num_alt_avg);
+    __Proxy(num_agg, int64_t, int64_t, int64_t, num_avg);
+    __Proxy(num_alt_agg, int64_t, int64_t, int64_t, num_alt_avg);
 
 protected:
     virtual void register_fields() {
@@ -302,10 +318,10 @@ protected:
                 "run-time average longitude", (void **) &avg_lon);
         avg_alt_id = RegisterField("kismet.common.location.avg_alt", TrackerInt64,
                 "run-time average altitude", (void **) &avg_alt);
-        num_avg_id = RegisterField("kismet.common.location.avg_num", TrackerUInt64,
+        num_avg_id = RegisterField("kismet.common.location.avg_num", TrackerInt64,
                 "number of run-time average samples", (void **) &num_avg);
         num_alt_avg_id = RegisterField("kismet.common.location.avg_alt_num", 
-                TrackerUInt64,
+                TrackerInt64,
                 "number of run-time average samples (altitude)", (void **) &num_alt_avg);
 
     }
