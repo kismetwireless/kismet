@@ -26,7 +26,7 @@ var deviceTid;
 
 function updateBatteryUi() {
     $("#batspinner").show();
-    kismetGetSystemStatus(function(status) {
+    kismet.GetSystemStatus(function(status) {
         if (status['kismet.system.battery.charging'] == "charging") {
             $("#batpower").attr("src", "/img/icon_battery_full_charge.svg");
             $("#battime").text("Charging " + 
@@ -74,7 +74,7 @@ function updateBatteryUi() {
 
 function populateDeviceSummary() {
     $("#live").empty();
-    kismetGetDeviceSummary(function(devices) {
+    kismet.GetDeviceSummary(function(devices) {
         for (var x = 0; x < devices.length; x++ ) {
             var d = devices[x];
 
@@ -93,7 +93,7 @@ function populateDeviceSummary() {
 }
 
 function handleDeviceSummary() {
-    kismetGetDeviceSummary(function(devices) {
+    kismet.GetDeviceSummary(function(devices) {
         var conv = [];
 
         for (var x = 0; x < devices.length; x++) {
