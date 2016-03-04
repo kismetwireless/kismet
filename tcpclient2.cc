@@ -215,7 +215,7 @@ int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
             if (errno != EINTR && errno != EAGAIN) {
                 // Push the error upstream if we failed to read here
                 errstr = strerror_r(errno, strerrbuf, 1024);
-                msg << "error reading from " << host << ":" << port << 
+                msg << "TCP client error reading from " << host << ":" << port << 
                     " - " << errstr;
                 handler->BufferError(msg.str());
                 delete[] buf;
@@ -249,7 +249,7 @@ int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
             if (errno != EINTR && errno != EAGAIN) {
                 // Push the error upstream
                 errstr = strerror_r(errno, strerrbuf, 1024);
-                msg << "error writing to " << host << ":" << port << 
+                msg << "TCP client error writing to " << host << ":" << port << 
                     " - " << errstr;
                 handler->BufferError(msg.str());
                 delete[] buf;
