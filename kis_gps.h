@@ -38,7 +38,6 @@ public:
 
     // Descriptors for device and type
     virtual string FetchGpsDevice() = 0;
-    virtual string FetchGpsType() = 0;
 
     // Fetch if we have a valid location anymore; per-gps-driver logic 
     // will determine if we consider a value to still be valid
