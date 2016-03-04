@@ -39,6 +39,9 @@
 
 Kis_Net_Httpd::Kis_Net_Httpd(GlobalRegistry *in_globalreg) {
     globalreg = in_globalreg;
+
+    globalreg->InsertGlobal("HTTPD_SERVER", this);
+
     running = false;
 
     pthread_mutex_init(&controller_mutex, NULL);
@@ -89,6 +92,8 @@ Kis_Net_Httpd::Kis_Net_Httpd(GlobalRegistry *in_globalreg) {
 Kis_Net_Httpd::~Kis_Net_Httpd() {
     if (running)
         StopHttpd();
+
+    globalreg->RemoveGlobal("HTTPD_SERVER");
 
     pthread_mutex_destroy(&controller_mutex);
 }
