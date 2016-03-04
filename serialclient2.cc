@@ -83,6 +83,8 @@ int SerialClientV2::OpenDevice(string in_device, unsigned int in_baud) {
     device = in_device;
     baud = in_baud;
 
+    globalreg->RegisterPollableSubsys(this);
+
     return 0;
 }
 
@@ -182,5 +184,7 @@ void SerialClientV2::Close() {
     }
 
     device_fd = -1;
+
+    globalreg->RemovePollableSubsys(this);
 }
 

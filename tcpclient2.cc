@@ -130,6 +130,8 @@ int TcpClientV2::Connect(string in_host, unsigned int in_port) {
     host = in_host;
     port = in_port;
 
+    globalreg->RegisterPollableSubsys(this);
+
     return 0;
 }
 
@@ -275,5 +277,7 @@ void TcpClientV2::Disconnect() {
     cli_fd = -1;
     pending_connect = false;
     connected = false;
+
+    globalreg->RemovePollableSubsys(this);
 }
 
