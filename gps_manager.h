@@ -32,12 +32,25 @@
 class kis_gps_packinfo : public packet_component {
 public:
 	kis_gps_packinfo() {
-		self_destruct = 0; // We pass references to the GPS entity so don't delete us
+		self_destruct = 1;
         lat = lon = alt = speed = heading = 0;
         precision = 0;
 		fix = 0;
         time = 0;
 	}
+
+    kis_gps_packinfo(kis_gps_packinfo *src) {
+        self_destruct = src->self_destruct;
+        lat = src->lat;
+        lon = src->lon;
+        alt = src->alt;
+        speed = src->speed;
+        heading = src->heading;
+        precision = src->precision;
+        fix = src->fix;
+        time = src->time;
+        gpsname = src->gpsname;
+    }
 
     double lat;
     double lon;
@@ -77,7 +90,10 @@ public:
     void RemoveGpsPrototype(string in_name);
 
     // Create a GPS instance
-    int CreateGps(string in_name, string in_type, string in_opts);
+    unsigned int CreateGps(string in_name, string in_type, string in_opts);
+
+    // Remove a GPS instance
+    void RemoveGps(unsigned int in_id);
 
     // Get the best location if we have multiple GPS devices
     kis_gps_packinfo *GetBestLocation();
@@ -102,12 +118,15 @@ protected:
 
     // Basic priority-monitored list of GPS
     class gps_instance {
+    public:
         Kis_Gps *gps;
         string name;
         string type_name;
         int priority;
+        unsigned int id;
     };
     vector<gps_instance *> instance_vec;
+    unsigned int next_gps_id;
 
 };
 

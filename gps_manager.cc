@@ -33,6 +33,8 @@ GpsManager::GpsManager(GlobalRegistry *in_globalreg) {
 
     pthread_mutex_init(&manager_locker, NULL);
 
+    next_gps_id = 1;
+
     // Register the gps component
     _PCM(PACK_COMP_GPS) =
         globalreg->packetchain->RegisterPacketComponent("gps");
@@ -101,6 +103,94 @@ void GpsManager::RemoveGpsPrototype(string in_name) {
     prototype_map.erase(i);
 }
 
+unsigned int GpsManager::CreateGps(string in_name, string in_type, string in_opts) {
+    local_locker lock(&manager_locker);
+
+    string ltname = StrLower(in_type);
+
+    map<string, gps_prototype *>::iterator i = prototype_map.find(ltname);
+
+    if (i == prototype_map.end()) {
+        _MSG("GpsManager tried to create a GPS of type " + in_type + 
+                "but that type doesn't exist", MSGFLAG_ERROR);
+        return 0;
+    }
+
+    Kis_Gps *gps = i->second->builder->BuildGps(in_opts);
+    if (gps == NULL) {
+        _MSG("GpsManager failed to create a GPS of type " + in_type + 
+                "(" + in_opts + ")", MSGFLAG_ERROR);
+        return 0;
+    }
+
+    gps_instance *instance = new gps_instance;
+    instance->gps = gps;
+    instance->name = in_name;
+    instance->type_name = in_type;
+    instance->priority = i->second->priority;
+    instance->id = next_gps_id++;
+
+    if (instance_vec.size() == 0) {
+        instance_vec.push_back(instance);
+    } else {
+        // Insert at priority
+        bool inserted = false;
+        for (unsigned int i = 0; i < instance_vec.size(); i++) {
+            // Higher priority goes earlier)
+            if (instance->priority > instance_vec[i]->priority) {
+                instance_vec.insert(instance_vec.begin() + i, instance);
+                inserted = true;
+                break;
+            }
+        }
+
+        if (!inserted) 
+            instance_vec.push_back(instance);
+    }
+
+    return instance->id;
+}
+
+void GpsManager::RemoveGps(unsigned int in_id) {
+    local_locker lock(&manager_locker);
+
+    gps_instance *instance = NULL;
+    unsigned int pos = 0;
+    for (unsigned int x = 0; x < instance_vec.size(); x++) {
+        if (instance_vec[x]->id == in_id) {
+            instance = instance_vec[x];
+            pos = x;
+            break;
+        }
+    }
+
+    if (instance == NULL) {
+        _MSG("GpsManager can't remove a GPS (id: " + UIntToString(in_id) + 
+                ") as it doesn't exist.", MSGFLAG_ERROR);
+        return;
+    }
+
+    delete instance->gps;
+    delete instance;
+
+    instance_vec.erase(instance_vec.begin() + pos);
+}
+
+kis_gps_packinfo *GpsManager::GetBestLocation() {
+    local_locker lock(&manager_locker);
+
+    kis_gps_packinfo *location = NULL;
+
+    for (unsigned int i = 0; i < instance_vec.size(); i++) {
+        if (instance_vec[i]->gps->FetchLocationValid()) {
+            location = instance_vec[i]->gps->FetchLocation();
+            break;
+        }
+    }
+
+    return location;
+}
+
 int GpsManager::kis_gpspack_hook(CHAINCALL_PARMS) {
     // We're an 'external user' of gpsmanager despite being inside it,
     // so don't do thread locking - that's up to gpsmanager internals
@@ -117,7 +207,8 @@ int GpsManager::kis_gpspack_hook(CHAINCALL_PARMS) {
     if (gpsloc == NULL)
         return 0;
 
-    in_pack->insert(_PCM(PACK_COMP_GPS), gpsloc);
+    // Insert a new gps location so the chain isn't tied to our gps instance
+    in_pack->insert(_PCM(PACK_COMP_GPS), new kis_gps_packinfo(gpsloc));
 
     return 1;
 }
