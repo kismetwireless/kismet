@@ -69,6 +69,10 @@ int SerialClientV2::OpenDevice(string in_device, unsigned int in_baud) {
     options.c_oflag = 0;
     options.c_iflag = 0;
 
+	options.c_iflag &= (IXON | IXOFF | IXANY);
+	options.c_cflag |= CLOCAL | CREAD;
+	options.c_cflag &= ~HUPCL;
+
     cfsetispeed(&options, in_baud);
     cfsetospeed(&options, in_baud);
 
