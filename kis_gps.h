@@ -31,37 +31,37 @@ public:
     Kis_Gps(GlobalRegistry *in_globalreg);
     virtual ~Kis_Gps() { };
 
-    // Create an GPS instance of the proper type
+    // Create an GPS instance of the proper type & open it
     virtual Kis_Gps *BuildGps(string in_opts) = 0;
 
-    virtual int Open(string in_opts) = 0;
+    virtual int OpenGps(string in_opts) = 0;
 
     // Descriptors for device and type
-    virtual string FetchDevice() = 0;
-    virtual string FetchType() = 0;
+    virtual string FetchGpsDevice() = 0;
+    virtual string FetchGpsType() = 0;
 
     // Fetch if we have a valid location anymore; per-gps-driver logic 
     // will determine if we consider a value to still be valid
-    virtual bool FetchLocationValid() = 0;
+    virtual bool FetchGpsLocationValid() = 0;
 
     // Are we connected to our device?
     virtual bool FetchGpsConnected() = 0;
 
     // Fetch the last known location, and the time we knew it
-    kis_gps_packinfo *FetchLocation() { return location; };
+    kis_gps_packinfo *FetchGpsLocation() { return gps_location; };
 
     // Various GPS transformation utility functions
-    static double CalcHeading(double in_lat, double in_lon, 
-							  double in_lat2, double in_lon2);
-    static double CalcRad(double lat);
-    static double Rad2Deg(double x);
-    static double Deg2Rad(double x);
-    static double EarthDistance(double in_lat, double in_lon, 
-								double in_lat2, double in_lon2);
+    static double GpsCalcHeading(double in_lat, double in_lon, 
+            double in_lat2, double in_lon2);
+    static double GpsCalcRad(double lat);
+    static double GpsRad2Deg(double x);
+    static double GpsDeg2Rad(double x);
+    static double GpsEarthDistance(double in_lat, double in_lon, 
+            double in_lat2, double in_lon2);
 
 protected:
-    kis_gps_packinfo *location;
-    kis_gps_packinfo *last_location;
+    kis_gps_packinfo *gps_location;
+    kis_gps_packinfo *gps_last_location;
 
 };
 

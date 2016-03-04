@@ -182,8 +182,8 @@ kis_gps_packinfo *GpsManager::GetBestLocation() {
     kis_gps_packinfo *location = NULL;
 
     for (unsigned int i = 0; i < instance_vec.size(); i++) {
-        if (instance_vec[i]->gps->FetchLocationValid()) {
-            location = instance_vec[i]->gps->FetchLocation();
+        if (instance_vec[i]->gps->FetchGpsLocationValid()) {
+            location = instance_vec[i]->gps->FetchGpsLocation();
             break;
         }
     }

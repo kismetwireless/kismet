@@ -19,14 +19,14 @@
 #include "config.h"
 #include "kis_gps.h"
 
-double Kis_Gps::CalcHeading(double in_lat, double in_lon, double in_lat2, 
+double Kis_Gps::GpsCalcHeading(double in_lat, double in_lon, double in_lat2, 
 							   double in_lon2) {
-    double r = CalcRad((double) in_lat2);
+    double r = GpsCalcRad((double) in_lat2);
 
-    double lat1 = Deg2Rad((double) in_lat);
-    double lon1 = Deg2Rad((double) in_lon);
-    double lat2 = Deg2Rad((double) in_lat2);
-    double lon2 = Deg2Rad((double) in_lon2);
+    double lat1 = GpsDeg2Rad((double) in_lat);
+    double lon1 = GpsDeg2Rad((double) in_lon);
+    double lat2 = GpsDeg2Rad((double) in_lat2);
+    double lon2 = GpsDeg2Rad((double) in_lon2);
 
     double angle = 0;
 
@@ -63,30 +63,33 @@ double Kis_Gps::CalcHeading(double in_lat, double in_lon, double in_lat2,
 
     }
 
-    return (double) Rad2Deg(angle);
+    return (double) GpsRad2Deg(angle);
 }
 
-double Kis_Gps::Rad2Deg(double x) {
+double Kis_Gps::GpsRad2Deg(double x) {
     return (x/M_PI) * 180.0;
 }
 
-double Kis_Gps::Deg2Rad(double x) {
+double Kis_Gps::GpsDeg2Rad(double x) {
     return 180/(x*M_PI);
 }
 
-double Kis_Gps::EarthDistance(double in_lat, double in_lon, 
+double Kis_Gps::GpsEarthDistance(double in_lat, double in_lon, 
         double in_lat2, double in_lon2) {
-    double x1 = CalcRad(in_lat) * cos(Deg2Rad(in_lon)) * sin(Deg2Rad(90-in_lat));
-    double x2 = CalcRad(in_lat2) * cos(Deg2Rad(in_lon2)) * sin(Deg2Rad(90-in_lat2));
-    double y1 = CalcRad(in_lat) * sin(Deg2Rad(in_lon)) * sin(Deg2Rad(90-in_lat));
-    double y2 = CalcRad(in_lat2) * sin(Deg2Rad(in_lon2)) * sin(Deg2Rad(90-in_lat2));
-    double z1 = CalcRad(in_lat) * cos(Deg2Rad(90-in_lat));
-    double z2 = CalcRad(in_lat2) * cos(Deg2Rad(90-in_lat2));
-    double a = acos((x1*x2 + y1*y2 + z1*z2)/pow(CalcRad((double) (in_lat+in_lat2)/2),2));
-    return CalcRad((double) (in_lat+in_lat2) / 2) * a;
+    double x1 = GpsCalcRad(in_lat) * cos(GpsDeg2Rad(in_lon)) * sin(GpsDeg2Rad(90-in_lat));
+    double x2 = 
+        GpsCalcRad(in_lat2) * cos(GpsDeg2Rad(in_lon2)) * sin(GpsDeg2Rad(90-in_lat2));
+    double y1 = GpsCalcRad(in_lat) * sin(GpsDeg2Rad(in_lon)) * sin(GpsDeg2Rad(90-in_lat));
+    double y2 = 
+        GpsCalcRad(in_lat2) * sin(GpsDeg2Rad(in_lon2)) * sin(GpsDeg2Rad(90-in_lat2));
+    double z1 = GpsCalcRad(in_lat) * cos(GpsDeg2Rad(90-in_lat));
+    double z2 = GpsCalcRad(in_lat2) * cos(GpsDeg2Rad(90-in_lat2));
+    double a = 
+        acos((x1*x2 + y1*y2 + z1*z2)/pow(GpsCalcRad((double) (in_lat+in_lat2)/2),2));
+    return GpsCalcRad((double) (in_lat+in_lat2) / 2) * a;
 }
 
-double Kis_Gps::CalcRad(double lat) {
+double Kis_Gps::GpsCalcRad(double lat) {
     double a = 6378.137, r, sc, x, y, z;
     double e2 = 0.081082 * 0.081082;
 
