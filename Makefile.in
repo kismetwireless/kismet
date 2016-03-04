@@ -19,7 +19,7 @@ PSO	= util.o cygwin_utils.o globalregistry.o \
 	psutils.o ipc_remote.o soundcontrol.o battery.o kismet_json.o \
 	netframework.o clinetframework.o tcpserver.o tcpclient.o \
 	unixdomainserver.o serialclient.o \
-	tcpclient2.o \
+	tcpclient2.o serialclient2.o \
 	packetsourcetracker.o $(CAPSOURCES) \
 	kis_netframe.o kis_droneframe.o \
 	kis_net_microhttpd.o system_monitor.o kis_net_websession.o \
