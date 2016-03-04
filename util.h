@@ -44,6 +44,8 @@
 #include <sstream>
 #include <iomanip>
 
+#include <pthread.h>
+
 // ieee float struct for a 64bit float for serialization
 typedef struct {
 	uint64_t mantissa:52 __attribute__ ((packed));
@@ -261,6 +263,20 @@ class kis_datachunk;
 int GetLengthTagOffsets(unsigned int init_offset, 
 						kis_datachunk *in_chunk,
 						map<int, vector<int> > *tag_cache_map);
+
+class local_locker {
+public:
+    local_locker(pthread_mutex_t *in) {
+        pthread_mutex_lock(in);
+        lock = in;
+    }
+
+    ~local_locker() {
+        pthread_mutex_unlock(lock);
+    }
+protected:
+    pthread_mutex_t *lock;
+};
 
 #endif
 
