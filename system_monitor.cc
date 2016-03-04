@@ -32,13 +32,14 @@ Systemmonitor::Systemmonitor(GlobalRegistry *in_globalreg) :
     register_fields();
     reserve_fields(NULL);
 
-    globalreg->httpd_server->RegisterHandler(this);
+    httpd = (Kis_Net_Httpd *) globalreg->FetchGlobal("HTTPD_SERVER");
+    httpd->RegisterHandler(this);
 }
 
 Systemmonitor::~Systemmonitor() {
     globalreg->RemoveGlobal("SYSTEM_MONITOR");
 
-    globalreg->httpd_server->RemoveHandler(this);
+    httpd->RemoveHandler(this);
 }
 
 void Systemmonitor::register_fields() {

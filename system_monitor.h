@@ -43,6 +43,8 @@ public:
     __Proxy(battery_remaining, uint32_t, uint32_t, uint32_t, battery_remaining);
 
 protected:
+    Kis_Net_Httpd *httpd;
+
     virtual void register_fields();
 
     int battery_perc_id;
