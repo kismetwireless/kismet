@@ -22,7 +22,7 @@
 
 #include "util.h"
 #include "ringbuf2.h"
-#include "ringbuffer_handler.h"
+#include "ringbuf_handler.h"
 
 RingbufferHandler::RingbufferHandler(size_t r_buffer_sz, size_t w_buffer_sz) {
     if (r_buffer_sz != 0)
@@ -162,8 +162,11 @@ size_t RingbufferHandler::PutReadBufferData(void *in_ptr, size_t in_sz) {
         // needs to interact with us
         local_locker lock(&callback_locker);
 
+        if (ret != in_sz)
+            rbuf_notify->BufferError("insufficient space in buffer");
+
         if (rbuf_notify)
-            rbuf_notify->ReadBufferFilled(ret);
+            rbuf_notify->BufferAvailable(ret);
     }
 
     return ret;
@@ -187,8 +190,11 @@ size_t RingbufferHandler::PutWriteBufferData(void *in_ptr, size_t in_sz) {
         // needs to interact with us
         local_locker lock(&callback_locker);
 
+        if (ret != in_sz)
+            wbuf_notify->BufferError("insufficient space in buffer");
+
         if (wbuf_notify)
-            wbuf_notify->WriteBufferFilled(ret);
+            wbuf_notify->BufferAvailable(ret);
     }
 
     return ret;
@@ -217,5 +223,52 @@ void RingbufferHandler::RemoveWriteBufferInterface() {
 
     wbuf_notify = NULL;
 }
-    
+
+void RingbufferHandler::BufferError(string in_error) {
+    ReadBufferError(in_error);
+    WriteBufferError(in_error);
+}
+
+void RingbufferHandler::ReadBufferError(string in_error) {
+    local_locker lock(&callback_locker);
+
+    if (rbuf_notify)
+        rbuf_notify->BufferError(in_error);
+}
+
+void RingbufferHandler::WriteBufferError(string in_error) {
+    local_locker lock(&callback_locker);
+
+    if (wbuf_notify)
+        wbuf_notify->BufferError(in_error);
+}
+
+RingbufferInterface::RingbufferInterface() {
+    handler = NULL;
+    read_handler = false;
+    write_handler = false;
+}
+
+RingbufferInterface::~RingbufferInterface() {
+    if (handler != NULL) {
+        if (read_handler)
+            handler->RemoveReadBufferInterface();
+        if (write_handler)
+            handler->RemoveWriteBufferInterface();
+    }
+}
+
+void RingbufferInterface::HandleReadBuffer(RingbufferHandler *in_handler) {
+    handler = in_handler;
+    read_handler = true;
+
+    in_handler->SetReadBufferInterface(this);
+}
+
+void RingbufferInterface::HandleWriteBuffer(RingbufferHandler *in_handler) {
+    handler = in_handler;
+    write_handler = true;
+
+    in_handler->SetWriteBufferInterface(this);
+}
 

@@ -22,6 +22,7 @@
 #include "config.h"
 
 #include <stdlib.h>
+#include <string>
 #include "ringbuf2.h"
 
 class RingbufferInterface;
@@ -61,6 +62,10 @@ public:
     size_t PeekReadBufferData(void *in_ptr, size_t in_sz);
     size_t PeekWriteBufferData(void *in_ptr, size_t in_sz);
 
+    // Consume data w/out copying it (used to flag data we previously peeked)
+    size_t ConsumeReadBufferData(size_t in_sz);
+    size_t ConsumeWriteBufferData(size_t in_sz);
+
     // Place data in read or write buffer
     // Automatically triggers callbacks
     // Returns amount of data actually written
@@ -73,6 +78,12 @@ public:
 
     void RemoveReadBufferInterface();
     void RemoveWriteBufferInterface();
+
+    // Propagate a buffer error to any listeners
+    void BufferError(string in_error);
+    // Propagate an error to a specific listener
+    void ReadBufferError(string in_error);
+    void WriteBufferError(string in_error);
 
 protected:
     RingbufV2 *read_buffer;
@@ -90,23 +101,22 @@ protected:
 class RingbufferInterface {
 public:
     RingbufferInterface();
-    ~RingbufferInterface();
+    virtual ~RingbufferInterface();
 
     // Define which buffer we handle (register it with the interface automatically)
     virtual void HandleReadBuffer(RingbufferHandler *in_handler);
     virtual void HandleWriteBuffer(RingbufferHandler *in_handler);
 
     // Called when a buffer grows
-    virtual void ReadBufferFilled(size_t in_amt) = 0;
-    virtual void WriteBufferFilled(size_t in_amt) = 0;
+    virtual void BufferAvailable(size_t in_amt) = 0;
 
     // Called when a buffer encounters an error
-    virtual void ReadBufferError() { }
-    virtual void WriteBufferError() { }
+    virtual void BufferError(string in_error __attribute__((unused))) { }
 
 protected:
     RingbufferHandler *handler;
-
+    bool read_handler;
+    bool write_handler;
 };
 
 
