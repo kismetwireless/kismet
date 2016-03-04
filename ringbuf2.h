@@ -45,6 +45,7 @@ public:
 
     // Read data from a buffer up to sz
     // Read data is consumed
+    // If the in_data pointer is NULL, data is consumed but no copy is performed.
     // Return the amount of data actually read
     size_t read(void *in_data, size_t in_sz);
 

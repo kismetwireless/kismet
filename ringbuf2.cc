@@ -110,7 +110,9 @@ size_t RingbufV2::read(void *ptr, size_t in_sz) {
 
     // Can we read contiguously?
     if (start_pos + opsize < buffer_sz) {
-        memcpy(ptr, buffer + start_pos, opsize);
+        if (ptr != NULL)
+            memcpy(ptr, buffer + start_pos, opsize);
+
         start_pos += opsize;
         length -= opsize;
 
@@ -120,8 +122,10 @@ size_t RingbufV2::read(void *ptr, size_t in_sz) {
         size_t chunk_a = buffer_sz - start_pos;
         size_t chunk_b = opsize - chunk_a;
 
-        memcpy(ptr, buffer + start_pos, chunk_a);
-        memcpy((uint8_t *) ptr + chunk_a, buffer, chunk_b);
+        if (ptr != NULL) {
+            memcpy(ptr, buffer + start_pos, chunk_a);
+            memcpy((uint8_t *) ptr + chunk_a, buffer, chunk_b);
+        }
 
         // Loop the ring buffer and mark read
         start_pos = chunk_b;
