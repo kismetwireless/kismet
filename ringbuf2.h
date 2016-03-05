@@ -58,6 +58,11 @@ protected:
     // Mutex for all operations on the buffer
     pthread_mutex_t buffer_locker;
 
+    // Non-locking internal versions
+    size_t size_nl();
+    size_t available_nl();
+    size_t used_nl();
+
     uint8_t *buffer;
     // Total size
     size_t buffer_sz;

@@ -34,9 +34,10 @@ RingbufV2::RingbufV2(size_t in_sz) {
 }
 
 RingbufV2::~RingbufV2() {
-    pthread_mutex_lock(&buffer_locker);
-    delete[] buffer;
-    pthread_mutex_unlock(&buffer_locker);
+    {
+        local_locker lock(&buffer_locker);
+        delete[] buffer;
+    }
 
     pthread_mutex_destroy(&buffer_locker);
 }
@@ -49,16 +50,28 @@ void RingbufV2::clear() {
 
 size_t RingbufV2::size() {
     local_locker lock(&buffer_locker);
-    return buffer_sz;
+    return size_nl();
 }
 
 size_t RingbufV2::used() {
     local_locker lock(&buffer_locker);
-    return length;
+    return used_nl();
 }
 
 size_t RingbufV2::available() {
     local_locker lock(&buffer_locker);
+    return available_nl();
+}
+
+size_t RingbufV2::size_nl() {
+    return buffer_sz;
+}
+
+size_t RingbufV2::used_nl() {
+    return length;
+}
+
+size_t RingbufV2::available_nl() {
     return buffer_sz - length;
 }
 
@@ -67,7 +80,7 @@ size_t RingbufV2::write(void *data, size_t in_sz) {
 
     size_t copy_start;
 
-    if (available() < in_sz)
+    if (available_nl() < in_sz)
         return 0;
 
     // Figure out if we can write a contiguous block
@@ -100,7 +113,7 @@ size_t RingbufV2::read(void *ptr, size_t in_sz) {
     local_locker lock(&buffer_locker);
 
     // No matter what is requested we can't read more than we have
-    size_t opsize = used();
+    size_t opsize = used_nl();
 
     if (opsize == 0)
         return 0;
@@ -141,7 +154,7 @@ size_t RingbufV2::peek(void *ptr, size_t in_sz) {
     local_locker lock(&buffer_locker);
 
     // No matter what is requested we can't read more than we have
-    size_t opsize = used();
+    size_t opsize = used_nl();
 
     if (opsize == 0)
         return 0;
