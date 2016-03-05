@@ -35,23 +35,28 @@ RingbufferHandler::RingbufferHandler(size_t r_buffer_sz, size_t w_buffer_sz) {
     else
         write_buffer = NULL;
 
+    rbuf_notify = NULL;
+    wbuf_notify = NULL;
+
     pthread_mutex_init(&handler_locker, NULL);
-    pthread_mutex_init(&callback_locker, NULL);
+    pthread_mutex_init(&r_callback_locker, NULL);
+    pthread_mutex_init(&w_callback_locker, NULL);
 }
 
 RingbufferHandler::~RingbufferHandler() {
-    pthread_mutex_lock(&handler_locker);
+    {
+        local_locker lock(&handler_locker);
+        if (read_buffer)
+            delete read_buffer;
 
-    if (read_buffer)
-        delete read_buffer;
+        if (write_buffer)
+            delete write_buffer;
+    }
 
-    if (write_buffer)
-        delete write_buffer;
-
-    pthread_mutex_unlock(&handler_locker);
 
     pthread_mutex_destroy(&handler_locker);
-    pthread_mutex_destroy(&callback_locker);
+    pthread_mutex_destroy(&r_callback_locker);
+    pthread_mutex_destroy(&w_callback_locker);
 }
 
 size_t RingbufferHandler::GetReadBufferSize() {
@@ -160,7 +165,7 @@ size_t RingbufferHandler::PutReadBufferData(void *in_ptr, size_t in_sz) {
     {
         // Lock just the callback handler because the callback
         // needs to interact with us
-        local_locker lock(&callback_locker);
+        local_locker lock(&r_callback_locker);
 
         if (ret != in_sz)
             rbuf_notify->BufferError("insufficient space in buffer");
@@ -179,6 +184,7 @@ size_t RingbufferHandler::PutWriteBufferData(void *in_ptr, size_t in_sz) {
         // Sub-context for locking so we don't lock read-op out
         local_locker lock(&handler_locker);
 
+        fprintf(stderr, "rbhandler wp %p size %lu\n", write_buffer, in_sz);
         if (!write_buffer)
             return 0;
 
@@ -188,7 +194,7 @@ size_t RingbufferHandler::PutWriteBufferData(void *in_ptr, size_t in_sz) {
     {
         // Lock just the callback handler because the callback
         // needs to interact with us
-        local_locker lock(&callback_locker);
+        local_locker lock(&w_callback_locker);
 
         if (ret != in_sz)
             wbuf_notify->BufferError("insufficient space in buffer");
@@ -201,25 +207,25 @@ size_t RingbufferHandler::PutWriteBufferData(void *in_ptr, size_t in_sz) {
 }
 
 void RingbufferHandler::SetReadBufferInterface(RingbufferInterface *in_interface) {
-    local_locker lock(&callback_locker);
+    local_locker lock(&r_callback_locker);
 
     rbuf_notify = in_interface;
 }
 
 void RingbufferHandler::SetWriteBufferInterface(RingbufferInterface *in_interface) {
-    local_locker lock(&callback_locker);
+    local_locker lock(&w_callback_locker);
 
     wbuf_notify = in_interface;
 }
 
 void RingbufferHandler::RemoveReadBufferInterface() {
-    local_locker lock(&callback_locker);
+    local_locker lock(&r_callback_locker);
 
     rbuf_notify = NULL;
 }
 
 void RingbufferHandler::RemoveWriteBufferInterface() {
-    local_locker lock(&callback_locker);
+    local_locker lock(&w_callback_locker);
 
     wbuf_notify = NULL;
 }
@@ -230,14 +236,14 @@ void RingbufferHandler::BufferError(string in_error) {
 }
 
 void RingbufferHandler::ReadBufferError(string in_error) {
-    local_locker lock(&callback_locker);
+    local_locker lock(&r_callback_locker);
 
     if (rbuf_notify)
         rbuf_notify->BufferError(in_error);
 }
 
 void RingbufferHandler::WriteBufferError(string in_error) {
-    local_locker lock(&callback_locker);
+    local_locker lock(&w_callback_locker);
 
     if (wbuf_notify)
         wbuf_notify->BufferError(in_error);

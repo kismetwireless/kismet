@@ -94,7 +94,8 @@ protected:
     RingbufferInterface *rbuf_notify;
 
     pthread_mutex_t handler_locker;
-    pthread_mutex_t callback_locker;
+    pthread_mutex_t r_callback_locker;
+    pthread_mutex_t w_callback_locker;
 };
 
 // Ringbuffer interface, interacts with a ringbuffer handler 
