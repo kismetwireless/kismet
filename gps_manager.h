@@ -25,8 +25,9 @@
 
 #include "packetchain.h"
 #include "globalregistry.h"
-#include "kis_gps.h"
 #include "kis_net_microhttpd.h"
+
+class Kis_Gps;
 
 // Packet info attached to each packet, if there isn't already GPS info present
 class kis_gps_packinfo : public packet_component {
@@ -90,7 +91,7 @@ public:
     void RemoveGpsPrototype(string in_name);
 
     // Create a GPS instance
-    unsigned int CreateGps(string in_name, string in_type, string in_opts);
+    unsigned int CreateGps(string in_gpsconfig);
 
     // Remove a GPS instance
     void RemoveGps(unsigned int in_id);
@@ -120,7 +121,6 @@ protected:
     class gps_instance {
     public:
         Kis_Gps *gps;
-        string name;
         string type_name;
         int priority;
         unsigned int id;

@@ -35,7 +35,7 @@
 #include "packetchain.h"
 #include "devicetracker.h"
 #include "packet.h"
-#include "gpswrapper.h"
+#include "gps_manager.h"
 #include "alertracker.h"
 #include "manuf.h"
 #include "packetsourcetracker.h"
@@ -720,7 +720,7 @@ int Devicetracker::PopulateCommon(kis_tracked_device_base *device, kis_packet *i
 
     if (pack_gpsinfo != NULL) {
         device->get_location()->add_loc(pack_gpsinfo->lat, pack_gpsinfo->lon,
-                pack_gpsinfo->alt, pack_gpsinfo->gps_fix);
+                pack_gpsinfo->alt, pack_gpsinfo->fix);
     }
 
 	// Update seenby records for time, frequency, packets
@@ -760,6 +760,7 @@ void Devicetracker::WriteXML(FILE *in_logfile) {
 		return;
 	}
 
+#if 0
 	GpsWrapper *gpsw = 
 		(GpsWrapper *) globalreg->FetchGlobal("GPSWRAPPER");
 
@@ -767,6 +768,7 @@ void Devicetracker::WriteXML(FILE *in_logfile) {
 		_MSG("Devicetracker XML log - gpswrapper vanished!", MSGFLAG_ERROR);
 		return;
 	}
+#endif
 
 	fprintf(in_logfile, "<?xml version=\"1.0\"?>\n");
 
@@ -934,6 +936,7 @@ void Devicetracker::WriteXML(FILE *in_logfile) {
 	}
 	fprintf(in_logfile, "</phyTypes>\n");
 
+#if 0
 	fprintf(in_logfile, 
 			"<gpsDevices>\n"
 			"<gpsDevice>\n"
@@ -943,6 +946,7 @@ void Devicetracker::WriteXML(FILE *in_logfile) {
 			"</gpsDevices>\n",
 			SanitizeXML(gpsw->FetchDevice()).c_str(),
 			SanitizeXML(gpsw->FetchType()).c_str());
+#endif
 
 	vector<kis_tracked_device_base *> *devlist = FetchDevices(KIS_PHY_ANY);
 
@@ -1203,6 +1207,7 @@ void Devicetracker::WriteTXT(FILE *in_logfile) {
 		return;
 	}
 
+#if 0
 	GpsWrapper *gpsw = 
 		(GpsWrapper *) globalreg->FetchGlobal("GPSWRAPPER");
 
@@ -1210,6 +1215,7 @@ void Devicetracker::WriteTXT(FILE *in_logfile) {
 		_MSG("Devicetracker TXT log - gpswrapper vanished!", MSGFLAG_ERROR);
 		return;
 	}
+#endif
 
 	fprintf(in_logfile, "Version: %s-%s-%s\n",
 			globalreg->version_major.c_str(),
@@ -1310,6 +1316,7 @@ void Devicetracker::WriteTXT(FILE *in_logfile) {
 				FetchNumErrorpackets(x->first));
 	}
 
+#if 0
 	if (gpsw != NULL) {
 		fprintf(in_logfile, "GPS device: %s\n",
 				gpsw->FetchDevice().c_str());
@@ -1319,6 +1326,7 @@ void Devicetracker::WriteTXT(FILE *in_logfile) {
 		fprintf(in_logfile, "GPS device: None\n");
 	}
 	fprintf(in_logfile, "\n");
+#endif
 	
 	vector<kis_tracked_device_base *> *devlist = FetchDevices(KIS_PHY_ANY);
 

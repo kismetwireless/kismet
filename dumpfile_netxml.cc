@@ -21,7 +21,6 @@
 #include <errno.h>
 
 #include "globalregistry.h"
-#include "gpsdclient.h"
 #include "dumpfile_netxml.h"
 #include "packetsource.h"
 #include "packetsourcetracker.h"

@@ -33,7 +33,7 @@
 #include "kis_dlt_radiotap.h"
 
 #include "phy_80211.h"
-#include "gpscore.h"
+#include "gps_manager.h"
 
 #ifdef HAVE_LINUX_WIRELESS
 // Because some kernels include ethtool which breaks horribly...

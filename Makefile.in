@@ -23,8 +23,7 @@ PSO	= util.o cygwin_utils.o globalregistry.o \
 	packetsourcetracker.o $(CAPSOURCES) \
 	kis_netframe.o kis_droneframe.o \
 	kis_net_microhttpd.o system_monitor.o kis_net_websession.o \
-	gpswrapper.o gpscore.o gpsdclient.o gpsserial.o gpsfixed.o \
-	gps_manager.o kis_gps.o \
+	gps_manager.o kis_gps.o gpsserial2.o \
 	packetchain.o \
 	trackedelement.o entrytracker.o msgpack_adapter.o xmlserialize_adapter.o \
 	plugintracker.o alertracker.o timetracker.o \
@@ -41,18 +40,19 @@ PSO	= util.o cygwin_utils.o globalregistry.o \
 
 PS	= kismet_server
 
-DRONEO = util.o cygwin_utils.o globalregistry.o ringbuf.o \
-		 packet.o messagebus.o configfile.o getopt.o \
-		 ifcontrol.o iwcontrol.o madwifing_control.o nl80211_control.o $(OBJC_LINK) \
-		 psutils.o ipc_remote.o soundcontrol.o kismet_json.o \
-		 netframework.o clinetframework.o tcpserver.o tcpclient.o serialclient.o \
-		 drone_kisnetframe.o kis_droneframe.o \
-		 gpswrapper.o gpscore.o gpsdclient.o gpsserial.o gpsfixed.o \
-		 packetchain.o \
-		 $(CAPSOURCES) \
-		 plugintracker.o packetsourcetracker.o timetracker.o devicetracker_drone.o \
-		 dumpfile_drone.o \
-		 kismet_drone.o
+DRONEO = 
+# DRONEO = util.o cygwin_utils.o globalregistry.o ringbuf.o \
+# 		 packet.o messagebus.o configfile.o getopt.o \
+# 		 ifcontrol.o iwcontrol.o madwifing_control.o nl80211_control.o $(OBJC_LINK) \
+# 		 psutils.o ipc_remote.o soundcontrol.o kismet_json.o \
+# 		 netframework.o clinetframework.o tcpserver.o tcpclient.o serialclient.o \
+# 		 drone_kisnetframe.o kis_droneframe.o \
+# 		 gpswrapper.o gpscore.o gpsdclient.o gpsserial.o gpsfixed.o \
+# 		 packetchain.o \
+# 		 $(CAPSOURCES) \
+# 		 plugintracker.o packetsourcetracker.o timetracker.o devicetracker_drone.o \
+# 		 dumpfile_drone.o \
+# 		 kismet_drone.o
 
 CSO = util.o cygwin_utils.o globalregistry.o ringbuf.o \
 	packet.o messagebus.o configfile.o getopt.o \
@@ -67,17 +67,18 @@ CS	= kismet_capture
 
 DRONE = kismet_drone
 
-NCO	= util.o ringbuf.o globalregistry.o messagebus.o configfile.o getopt.o \
-	  soundcontrol.o timetracker.o ipc_remote.o \
-	  trackedelement.o entrytracker.o \
-	  clinetframework.o tcpclient.o popenclient.o kis_clinetframe.o \
-	  text_cliframe.o \
-	  kis_panel_widgets.o kis_panel_windows.o kis_panel_details.o \
-	  kis_panel_info.o kis_panel_preferences.o \
-	  kis_panel_frontend.o \
-	  kis_client_devicetracker.o kis_client_phy80211.o \
-	  kis_panel_device.o \
-	  kismet_client.o
+NCO = 
+# NCO	= util.o ringbuf.o globalregistry.o messagebus.o configfile.o getopt.o \
+# 	  soundcontrol.o timetracker.o ipc_remote.o \
+# 	  trackedelement.o entrytracker.o \
+# 	  clinetframework.o tcpclient.o popenclient.o kis_clinetframe.o \
+# 	  text_cliframe.o \
+# 	  kis_panel_widgets.o kis_panel_windows.o kis_panel_details.o \
+# 	  kis_panel_info.o kis_panel_preferences.o \
+# 	  kis_panel_frontend.o \
+# 	  kis_client_devicetracker.o kis_client_phy80211.o \
+# 	  kis_panel_device.o \
+# 	  kismet_client.o
 NC	= kismet_client
 
 # HOPPERO = util.o configfile.o getopt.o kismet_hopper.o

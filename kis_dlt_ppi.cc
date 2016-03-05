@@ -31,7 +31,7 @@
 #include "kis_dlt_ppi.h"
 #include "kis_ppi.h"
 
-#include "gpscore.h"
+#include "gps_manager.h"
 
 Kis_DLT_PPI::Kis_DLT_PPI(GlobalRegistry *in_globalreg) :
 	Kis_DLT_Handler(in_globalreg) {
@@ -230,8 +230,10 @@ int Kis_DLT_PPI::HandlePacket(kis_packet *in_pack) {
 					gpsinfo->lon = fixed3_7_to_double(kis_letoh32(u->u32));
 					data_offt += 4;
 
-					gpsinfo->gps_fix = 2;
+					gpsinfo->fix = 2;
 					gpsinfo->alt = 0;
+
+                    gpsinfo->gpsname = "PPI";
 				}
 
                 //Speed is stored as a velocity in VECTOR tags..
@@ -246,7 +248,7 @@ int Kis_DLT_PPI::HandlePacket(kis_packet *in_pack) {
                 */
 
 				if ((fields_present & PPI_GPS_FLAG_ALT) && gps_len - data_offt >= 4) {
-					gpsinfo->gps_fix = 3;
+					gpsinfo->fix = 3;
 
 					u = (block *) &(ppigps->field_data[data_offt]);
 					gpsinfo->alt = fixed6_4_to_double(kis_letoh32(u->u32));

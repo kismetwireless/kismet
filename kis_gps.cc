@@ -19,6 +19,10 @@
 #include "config.h"
 #include "kis_gps.h"
 
+Kis_Gps::Kis_Gps(GlobalRegistry *in_globalreg) {
+    globalreg = in_globalreg;
+}
+
 double Kis_Gps::GpsCalcHeading(double in_lat, double in_lon, double in_lat2, 
 							   double in_lon2) {
     double r = GpsCalcRad((double) in_lat2);

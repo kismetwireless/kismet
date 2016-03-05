@@ -25,7 +25,13 @@
 class Kis_Gps_Location;
 class kis_gps_packinfo;
 
-/* Superclass for GPS support */
+// New-style superclass for GPS, all GPS devices are subclassed from this.
+//
+// GPS drivers are registered with the gps manager.  GPS instances are initiated
+// with either a gps= config line or a runtime command.
+//
+// GPS options are passed as name=value,name2=value2 strings which are parsed by
+// each driver, allowing for maximum flexibility in parsing parameters.
 class Kis_Gps {
 public:
     Kis_Gps(GlobalRegistry *in_globalreg);
@@ -36,8 +42,8 @@ public:
 
     virtual int OpenGps(string in_opts) = 0;
 
-    // Descriptors for device and type
-    virtual string FetchGpsDevice() = 0;
+    // Human-readable description of device
+    virtual string FetchGpsDescription() = 0;
 
     // Fetch if we have a valid location anymore; per-gps-driver logic 
     // will determine if we consider a value to still be valid
@@ -45,6 +51,8 @@ public:
 
     // Are we connected to our device?
     virtual bool FetchGpsConnected() = 0;
+
+    virtual string FetchName() { return name; }
 
     // Fetch the last known location, and the time we knew it
     kis_gps_packinfo *FetchGpsLocation() { return gps_location; };
@@ -59,8 +67,12 @@ public:
             double in_lat2, double in_lon2);
 
 protected:
+    GlobalRegistry *globalreg;
+
     kis_gps_packinfo *gps_location;
     kis_gps_packinfo *gps_last_location;
+
+    string name;
 
 };
 

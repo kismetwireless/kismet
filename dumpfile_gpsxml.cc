@@ -21,7 +21,7 @@
 #include <errno.h>
 
 #include "globalregistry.h"
-#include "gpscore.h"
+#include "gps_manager.h"
 #include "dumpfile_gpsxml.h"
 #include "phy_80211.h"
 
@@ -134,7 +134,7 @@ int Dumpfile_Gpsxml::chain_handler(kis_packet *in_pack) {
 	}
 
 	// Obviously no point in logging when theres no valid lock
-	if (gpsinfo->gps_fix < 2) {
+	if (gpsinfo->fix < 2) {
 		return 0;
 	}
 
@@ -155,13 +155,15 @@ int Dumpfile_Gpsxml::chain_handler(kis_packet *in_pack) {
 				"fix=\"%d\"",
 				gps_track_bssid,
 				(long int) in_pack->ts.tv_sec, (long int) in_pack->ts.tv_usec,
-				gpsinfo->lat, gpsinfo->lon, gpsinfo->spd, gpsinfo->heading,
-				gpsinfo->gps_fix);
-		if (gpsinfo->gps_fix >= 3)
+				gpsinfo->lat, gpsinfo->lon, gpsinfo->speed, gpsinfo->heading,
+				gpsinfo->fix);
+		if (gpsinfo->fix >= 3)
 			fprintf(xmlfile, " alt=\"%f\"", gpsinfo->alt);
+#if 0
 		if (gpsinfo->hdop != 0 || gpsinfo->vdop != 0)
 			fprintf(xmlfile, " hdop=\"%f\" vdop=\"%f\"",
 					gpsinfo->hdop, gpsinfo->vdop);
+#endif
 		fprintf(xmlfile, "/>\n");
 
 		dumped_frames++;
@@ -181,13 +183,15 @@ int Dumpfile_Gpsxml::chain_handler(kis_packet *in_pack) {
 			eight11->bssid_mac.Mac2String().c_str(),
 			eight11->source_mac.Mac2String().c_str(),
 			(long int) in_pack->ts.tv_sec, (long int) in_pack->ts.tv_usec,
-			gpsinfo->lat, gpsinfo->lon, gpsinfo->spd, gpsinfo->heading,
-			gpsinfo->gps_fix);
-	if (gpsinfo->gps_fix >= 3)
+			gpsinfo->lat, gpsinfo->lon, gpsinfo->speed, gpsinfo->heading,
+			gpsinfo->fix);
+	if (gpsinfo->fix >= 3)
 		fprintf(xmlfile, " alt=\"%f\"", gpsinfo->alt);
+    /*
 	if (gpsinfo->hdop != 0 || gpsinfo->vdop != 0)
 		fprintf(xmlfile, " hdop=\"%f\" vdop=\"%f\"",
 				gpsinfo->hdop, gpsinfo->vdop);
+    */
 	if (radio != NULL) {
 		if (radio->signal_rssi != 0) {
 			fprintf(xmlfile, " signal_rssi=\"%d\" noise_rssi=\"%d\"",

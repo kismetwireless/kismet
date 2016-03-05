@@ -73,8 +73,30 @@ int SerialClientV2::OpenDevice(string in_device, unsigned int in_baud) {
 	options.c_cflag |= CLOCAL | CREAD;
 	options.c_cflag &= ~HUPCL;
 
-    cfsetispeed(&options, in_baud);
-    cfsetospeed(&options, in_baud);
+    int setbaud = 0;
+
+    // Set the proper baud values
+    switch (in_baud) {
+        case 0: setbaud = B0; break;
+        case 50: setbaud = B50; break;
+        case 75: setbaud = B75; break;
+        case 110: setbaud = B110; break;
+        case 134: setbaud = B134; break;
+        case 150: setbaud = B150; break;
+        case 200: setbaud = B200; break;
+        case 300: setbaud = B300; break;
+        case 600: setbaud = B600; break;
+        case 1200: setbaud = B1200; break;
+        case 1800: setbaud = B1800; break;
+        case 2400: setbaud = B2400; break;
+        case 4800: setbaud = B4800; break;
+        case 9600: setbaud = B9600; break;
+        case 19200: setbaud = B19200; break;
+        case 38400: setbaud = B38400; break;
+    }
+
+    cfsetispeed(&options, setbaud);
+    cfsetospeed(&options, setbaud);
 
     if (tcsetattr(device_fd, TCSANOW, &options) < 0) {
         errstr = strerror_r(errno, strerrbuf, 1024);
@@ -90,6 +112,10 @@ int SerialClientV2::OpenDevice(string in_device, unsigned int in_baud) {
     globalreg->RegisterPollableSubsys(this);
 
     return 0;
+}
+
+bool SerialClientV2::FetchConnected() {
+    return device_fd > -1;
 }
 
 int SerialClientV2::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {

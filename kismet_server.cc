@@ -73,9 +73,9 @@
 #include "system_monitor.h"
 #include "kis_net_websession.h"
 
-#include "soundcontrol.h"
+#include "gps_manager.h"
 
-#include "gpswrapper.h"
+#include "soundcontrol.h"
 
 #include "devicetracker.h"
 #include "phy_80211.h"
@@ -385,9 +385,6 @@ int Usage(char *argv) {
 	printf("\n");
 	Packetsourcetracker::Usage(argv);
 	printf("\n");
-	//Netracker::Usage(argv);
-	// printf("\n");
-	GpsWrapper::Usage(argv);
 
 	exit(1);
 }
@@ -916,31 +913,12 @@ int main(int argc, char *argv[], char *envp[]) {
 		CatchShutdown(-1);
 
 	// Create the GPS components
-	GpsWrapper *gpswrapper;
-	globalregistry->messagebus->InjectMessage("Starting GPS components...",
-											  MSGFLAG_INFO);
-	gpswrapper = new GpsWrapper(globalregistry);
-	if (globalregistry->fatal_condition)
-		CatchShutdown(-1);
+    new GpsManager(globalregistry);
 
 	// Create the manuf db
 	globalregistry->manufdb = new Manuf(globalregistry);
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
-
-	// Create the network tracker
-    /*
-	if (conf->FetchOptBoolean("disablenettracker", 0) == 0) {
-		globalregistry->messagebus->InjectMessage("Creating network tracker...",
-												  MSGFLAG_INFO);
-		globalregistry->netracker = new Netracker(globalregistry);
-		if (globalregistry->fatal_condition)
-			CatchShutdown(-1);
-	} else {
-		_MSG("Disabling deprecated nettracker core; this will disable some "
-			 "protocols and log files.", MSGFLAG_INFO);
-	}
-    */
 
 	// Create the channel tracker
 	globalregistry->messagebus->InjectMessage("Creating channel tracker...",

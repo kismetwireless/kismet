@@ -31,7 +31,7 @@
 #include "kis_droneframe.h"
 #include "tcpserver.h"
 #include "getopt.h"
-#include "gpscore.h"
+#include "gps_manager.h"
 #include "version.h"
 #include "packetsourcetracker.h"
 #include "phy_80211.h"
@@ -790,7 +790,7 @@ int KisDroneFramework::chain_handler(kis_packet *in_pack) {
 
 	// Add up the size of the packet for the data[0] component 
 	uint32_t packet_len = sizeof(drone_capture_packet);
-	if (gpsinfo != NULL && gpsinfo->gps_fix >= 2) 
+	if (gpsinfo != NULL && gpsinfo->fix >= 2) 
 		packet_len += sizeof(drone_capture_sub_gps);
 	if (radio != NULL)
 		packet_len += sizeof(drone_capture_sub_radio);
@@ -852,7 +852,7 @@ int KisDroneFramework::chain_handler(kis_packet *in_pack) {
 		rcpkt->radio_noise_rssi = kis_hton16((int16_t) radio->noise_rssi);
 	}
 
-	if (gpsinfo != NULL && gpsinfo->gps_fix >= 2) {
+	if (gpsinfo != NULL && gpsinfo->fix >= 2) {
 		dcpkt->cap_content_bitmap |= DRONEBIT(DRONE_CONTENT_GPS);
 
 		drone_capture_sub_gps *gppkt = 
@@ -870,11 +870,11 @@ int KisDroneFramework::chain_handler(kis_packet *in_pack) {
 					   DRONEBIT(DRONE_GPS_SPD) |
 					   DRONEBIT(DRONE_GPS_HEADING));
 
-		gppkt->gps_fix = kis_hton16(gpsinfo->gps_fix);
+		gppkt->gps_fix = kis_hton16(gpsinfo->fix);
 		DRONE_CONV_DOUBLE(gpsinfo->lat, &(gppkt->gps_lat));
 		DRONE_CONV_DOUBLE(gpsinfo->lon, &(gppkt->gps_lon));
 		DRONE_CONV_DOUBLE(gpsinfo->alt, &(gppkt->gps_alt));
-		DRONE_CONV_DOUBLE(gpsinfo->spd, &(gppkt->gps_spd));
+		DRONE_CONV_DOUBLE(gpsinfo->speed, &(gppkt->gps_spd));
 		DRONE_CONV_DOUBLE(gpsinfo->heading, &(gppkt->gps_heading));
 	}
 

@@ -34,7 +34,7 @@
 #include "kis_netframe.h"
 #include "timetracker.h"
 #include "filtercore.h"
-#include "gpscore.h"
+#include "gps_manager.h"
 #include "packet.h"
 #include "uuid.h"
 #include "alertracker.h"
@@ -591,9 +591,9 @@ void Kis_80211_Phy::HandleSSID(kis_tracked_device_base *basedev,
     ssid->set_beaconrate(Ieee80211Interval2NSecs(dot11info->beacon_interval));
 
     // Add the location data, if any
-    if (pack_gpsinfo != NULL && pack_gpsinfo->gps_fix > 1) {
+    if (pack_gpsinfo != NULL && pack_gpsinfo->fix > 1) {
         ssid->get_location()->add_loc(pack_gpsinfo->lat, pack_gpsinfo->lon,
-                pack_gpsinfo->alt, pack_gpsinfo->gps_fix);
+                pack_gpsinfo->alt, pack_gpsinfo->fix);
 
     }
 
@@ -792,9 +792,9 @@ void Kis_80211_Phy::HandleClient(kis_tracked_device_base *basedev,
         }
     }
 
-    if (pack_gpsinfo != NULL && pack_gpsinfo->gps_fix > 1) {
+    if (pack_gpsinfo != NULL && pack_gpsinfo->fix > 1) {
         client->get_location()->add_loc(pack_gpsinfo->lat, pack_gpsinfo->lon,
-                pack_gpsinfo->alt, pack_gpsinfo->gps_fix);
+                pack_gpsinfo->alt, pack_gpsinfo->fix);
 
     }
 

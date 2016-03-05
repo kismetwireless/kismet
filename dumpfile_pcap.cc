@@ -278,11 +278,11 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
          */
 		if (gpsdata != NULL) {
             gps_tagsize = sizeof(ppi_gps_hdr); //12
-			if (gpsdata->gps_fix <= 1) //no fix
+			if (gpsdata->fix <= 1) //no fix
 				gps_tagsize = 0; //dont bother storing anything
-			if (gpsdata->gps_fix >= 2) 
+			if (gpsdata->fix >= 2) 
 				gps_tagsize += 12; // lon, lat, appid, 
-			if (gpsdata->gps_fix >= 3)
+			if (gpsdata->fix >= 3)
 				gps_tagsize +=4; // altitude
             //Could eventually include hdop, vdop using simillar scheme here
 		}

@@ -45,7 +45,7 @@ public:
 
     virtual int OpenGps(string in_opts);
 
-    virtual string FetchGpsDevice();
+    virtual string FetchGpsDescription();
 
     virtual bool FetchGpsLocationValid();
 
@@ -56,6 +56,10 @@ protected:
     
     SerialClientV2 *serialclient;
     RingbufferHandler *serialhandler;
+
+    // Device
+    string serial_device;
+    unsigned int baud;
 
     // Decaying reconnection algorithm
     int reconnect_tid;

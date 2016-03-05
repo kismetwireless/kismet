@@ -39,8 +39,8 @@
 #include "kis_netframe.h"
 #include "timetracker.h"
 #include "filtercore.h"
-#include "gpscore.h"
 #include "packet.h"
+#include "gps_manager.h"
 #include "uuid.h"
 #include "configfile.h"
 

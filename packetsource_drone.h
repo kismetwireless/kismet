@@ -34,7 +34,7 @@
 #include "packet.h"
 #include "packetsource.h"
 #include "packetchain.h"
-#include "gpscore.h"
+#include "gps_manager.h"
 #include "kis_droneframe.h"
 #include "clinetframework.h"
 #include "tcpclient.h"

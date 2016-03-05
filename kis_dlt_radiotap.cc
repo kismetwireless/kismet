@@ -27,7 +27,6 @@
 #include "packet.h"
 #include "packetchain.h"
 #include "packetsource.h"
-#include "gpscore.h"
 
 #if defined(SYS_OPENBSD) || defined(SYS_NETBSD)
 #include <net80211/ieee80211.h>

@@ -27,7 +27,6 @@
 #include "packet.h"
 #include "packetchain.h"
 #include "packetsource.h"
-#include "gpscore.h"
 
 #include "kis_dlt_prism2.h"
 

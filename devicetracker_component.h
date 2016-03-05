@@ -37,6 +37,7 @@
 #include "globalregistry.h"
 #include "trackedelement.h"
 #include "entrytracker.h"
+#include "gps_manager.h"
 #include "packet.h"
 #include "uuid.h"
 #include "packinfo_signal.h"
@@ -403,7 +404,7 @@ public:
 
                         if (in.gps != NULL) {
                             peak_loc->set(in.gps->lat, in.gps->lon, in.gps->alt, 
-                                    in.gps->gps_fix);
+                                    in.gps->fix);
                         }
                     }
                 }
@@ -436,7 +437,7 @@ public:
 
                         if (in.gps != NULL) {
                             peak_loc->set(in.gps->lat, in.gps->lon, in.gps->alt, 
-                                    in.gps->gps_fix);
+                                    in.gps->fix);
                         }
                     }
                 }

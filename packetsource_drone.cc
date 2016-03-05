@@ -25,7 +25,7 @@
 #include "packet.h"
 #include "packetsource.h"
 #include "packetchain.h"
-#include "gpscore.h"
+#include "gps_manager.h"
 #include "kis_droneframe.h"
 #include "clinetframework.h"
 #include "tcpclient.h"
@@ -664,7 +664,7 @@ int DroneClientFrame::ParseData() {
 				uint32_t gcbm = kis_ntoh32(dsg->gps_content_bitmap);
 				if ((gcbm & DRONEBIT(DRONE_GPS_FIX)) &&
 					(rofft + 2 <= sublen)) {
-					gpsinfo->gps_fix = kis_ntoh16(dsg->gps_fix);
+					gpsinfo->fix = kis_ntoh16(dsg->gps_fix);
 					rofft += 2;
 				}
 				if ((gcbm & DRONEBIT(DRONE_GPS_LAT)) &&
@@ -684,7 +684,7 @@ int DroneClientFrame::ParseData() {
 				}
 				if ((gcbm & DRONEBIT(DRONE_GPS_SPD)) &&
 					(rofft + sizeof(drone_trans_double) <= sublen)) {
-					DOUBLE_CONV_DRONE(gpsinfo->spd, &(dsg->gps_spd));
+					DOUBLE_CONV_DRONE(gpsinfo->speed, &(dsg->gps_spd));
 					rofft += sizeof(drone_trans_double);
 				}
 				if ((gcbm & DRONEBIT(DRONE_GPS_HEADING)) &&

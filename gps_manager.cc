@@ -22,6 +22,10 @@
 #include "kis_net_microhttpd.h"
 #include "messagebus.h"
 #include "gps_manager.h"
+#include "kis_gps.h"
+#include "configfile.h"
+
+#include "gpsserial2.h"
 
 GpsManager::GpsManager(GlobalRegistry *in_globalreg) {
     globalreg = in_globalreg;
@@ -42,6 +46,17 @@ GpsManager::GpsManager(GlobalRegistry *in_globalreg) {
     // Register the packet chain hook
     globalreg->packetchain->RegisterHandler(&kis_gpspack_hook, this,
             CHAINPOS_POSTCAP, -100);
+
+    // Register the built-in GPS drivers
+    RegisterGpsPrototype("serial", "serial attached", 
+            new GPSSerialV2(globalreg), 100);
+
+    // Process any gps options in the config file
+    vector<string> gpsvec = 
+        globalreg->kismet_config->FetchOptVec("gps");
+    for (unsigned int x = 0; x < gpsvec.size(); x++) {
+        CreateGps(gpsvec[x]);
+    }
 }
 
 GpsManager::~GpsManager() {
@@ -103,30 +118,38 @@ void GpsManager::RemoveGpsPrototype(string in_name) {
     prototype_map.erase(i);
 }
 
-unsigned int GpsManager::CreateGps(string in_name, string in_type, string in_opts) {
+unsigned int GpsManager::CreateGps(string in_gpsconfig) {
     local_locker lock(&manager_locker);
 
-    string ltname = StrLower(in_type);
+    vector<string> optvec = StrTokenize(in_gpsconfig, ":");
+
+    if (optvec.size() != 2) {
+        _MSG("GpsManager expected type:option1=value,option2=value style "
+                "options.", MSGFLAG_ERROR);
+        return 0;
+    }
+
+    string ltname = StrLower(optvec[0]);
+    string in_opts = optvec[1];
 
     map<string, gps_prototype *>::iterator i = prototype_map.find(ltname);
 
     if (i == prototype_map.end()) {
-        _MSG("GpsManager tried to create a GPS of type " + in_type + 
+        _MSG("GpsManager tried to create a GPS of type " + ltname + 
                 "but that type doesn't exist", MSGFLAG_ERROR);
         return 0;
     }
 
     Kis_Gps *gps = i->second->builder->BuildGps(in_opts);
     if (gps == NULL) {
-        _MSG("GpsManager failed to create a GPS of type " + in_type + 
+        _MSG("GpsManager failed to create a GPS of type " + ltname + 
                 "(" + in_opts + ")", MSGFLAG_ERROR);
         return 0;
     }
 
     gps_instance *instance = new gps_instance;
     instance->gps = gps;
-    instance->name = in_name;
-    instance->type_name = in_type;
+    instance->type_name = ltname;
     instance->priority = i->second->priority;
     instance->id = next_gps_id++;
 

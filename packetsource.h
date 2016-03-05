@@ -30,7 +30,6 @@
 #include "messagebus.h"
 #include "packet.h"
 #include "timetracker.h"
-#include "gpsdclient.h"
 #include "configfile.h"
 #include "packetchain.h"
 #include "getopt.h"
