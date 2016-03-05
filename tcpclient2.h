@@ -39,6 +39,7 @@
 // write buffer during the poll() sequence.  The consumer will use the ringbuffer
 // interface for reading data coming in from the client.
 class TcpClientV2 : public Pollable {
+public:
     TcpClientV2(GlobalRegistry *in_globalreg, RingbufferHandler *in_rbhandler);
     virtual ~TcpClientV2();
 
