@@ -184,7 +184,6 @@ size_t RingbufferHandler::PutWriteBufferData(void *in_ptr, size_t in_sz) {
         // Sub-context for locking so we don't lock read-op out
         local_locker lock(&handler_locker);
 
-        fprintf(stderr, "rbhandler wp %p size %lu\n", write_buffer, in_sz);
         if (!write_buffer)
             return 0;
 
