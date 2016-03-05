@@ -104,7 +104,6 @@ int TcpClientV2::Connect(string in_host, unsigned int in_port) {
                     sizeof(client_sock))) < 0) {
         if (errno == EINPROGRESS) {
             pending_connect = true;
-            return 0;
         } else {
             close(cli_fd);
             cli_fd = -1;
@@ -149,8 +148,9 @@ int TcpClientV2::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
         return in_max_fd;
 
     // If we have data waiting to be written, fill it in
-    if (handler->GetWriteBufferUsed())
+    if (handler->GetWriteBufferUsed()) {
         FD_SET(cli_fd, out_wset);
+    }
 
     // We always want to read data
     FD_SET(cli_fd, out_rset);
