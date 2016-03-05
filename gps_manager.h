@@ -41,16 +41,20 @@ public:
 	}
 
     kis_gps_packinfo(kis_gps_packinfo *src) {
-        self_destruct = src->self_destruct;
-        lat = src->lat;
-        lon = src->lon;
-        alt = src->alt;
-        speed = src->speed;
-        heading = src->heading;
-        precision = src->precision;
-        fix = src->fix;
-        time = src->time;
-        gpsname = src->gpsname;
+        if (src == NULL) {
+
+        } else {
+            self_destruct = src->self_destruct;
+            lat = src->lat;
+            lon = src->lon;
+            alt = src->alt;
+            speed = src->speed;
+            heading = src->heading;
+            precision = src->precision;
+            fix = src->fix;
+            time = src->time;
+            gpsname = src->gpsname;
+        }
     }
 
     double lat;

@@ -21,6 +21,9 @@
 
 Kis_Gps::Kis_Gps(GlobalRegistry *in_globalreg) {
     globalreg = in_globalreg;
+
+    gps_location = NULL;
+    gps_last_location = NULL;
 }
 
 double Kis_Gps::GpsCalcHeading(double in_lat, double in_lon, double in_lat2, 

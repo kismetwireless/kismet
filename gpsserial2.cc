@@ -20,6 +20,7 @@
 
 #include "gpsserial2.h"
 #include "util.h"
+#include "gps_manager.h"
 
 GPSSerialV2::GPSSerialV2(GlobalRegistry *in_globalreg) : Kis_Gps(in_globalreg) {
     globalreg = in_globalreg;
@@ -29,6 +30,10 @@ GPSSerialV2::GPSSerialV2(GlobalRegistry *in_globalreg) : Kis_Gps(in_globalreg) {
     
     serialclient = NULL;
     serialhandler = NULL;
+
+    ever_seen_gps = false;
+
+    last_heading_time = globalreg->timestamp.tv_sec;
 }
 
 GPSSerialV2::~GPSSerialV2() {
@@ -114,7 +119,20 @@ string GPSSerialV2::FetchGpsDescription() {
 }
 
 bool GPSSerialV2::FetchGpsLocationValid() {
-    return false;
+    if (gps_location == NULL) {
+        return false;
+    }
+
+    if (gps_location->fix < 2) {
+        return false;
+    }
+
+    // If a location is older than 10 seconds, it's no good anymore
+    if (globalreg->timestamp.tv_sec - gps_location->time > 10) {
+        return false;
+    }
+
+    return true;
 }
 
 bool GPSSerialV2::FetchGpsConnected() {
@@ -133,10 +151,14 @@ void GPSSerialV2::BufferAvailable(size_t in_amt) {
     // Force a null termination
     buf[in_amt] = 0;
 
-	double in_lat = 0, in_lon = 0, in_spd = 0, in_alt = 0;
-	int in_mode = 0, set_data = 0, set_spd = 0, set_mode = 0;
-    int last_mode;
-    bool gps_connected = false;
+    // Aggregate into a new location; then copy into the main location
+    // depending on what we found.  Locations can come in multiple sentences
+    // so if we're within a second of the previous one we can aggregate them
+    kis_gps_packinfo *new_location = new kis_gps_packinfo;
+    bool set_lat_lon;
+    bool set_alt;
+    bool set_speed;
+    bool set_fix;
 
 	vector<string> inptok = StrTokenize(buf, "\n", 0);
 	delete[] buf;
@@ -145,12 +167,13 @@ void GPSSerialV2::BufferAvailable(size_t in_amt) {
         return;
 	}
 
-	set_data = 0;
-	set_spd = 0;
-	set_mode = 0;
+    set_lat_lon = false;
+    set_alt = false;
+    set_speed = false;
+    set_fix = false;
 
 	for (unsigned int it = 0; it < inptok.size(); it++) {
-        // Consume the data
+        // Consume the data from the ringbuffer
         serialhandler->GetReadBufferData(NULL, inptok[it].length() + 1);
 
 		if (inptok[it].length() < 4)
@@ -167,8 +190,6 @@ void GPSSerialV2::BufferAvailable(size_t in_amt) {
 			int tint;
 			float tfloat;
 
-			gps_connected = true;
-
 			if (gpstoks.size() < 15)
 				continue;
 
@@ -178,22 +199,30 @@ void GPSSerialV2::BufferAvailable(size_t in_amt) {
 
 			if (sscanf(gpstoks[2].c_str(), "%2d%f", &tint, &tfloat) != 2)
 				continue;
-			in_lat = (float) tint + (tfloat / 60);
+            new_location->lat = (float) tint + (tfloat / 60);
 			if (gpstoks[3] == "S")
-				in_lat = in_lat * -1;
+				new_location->lat *= -1;
 
 			if (sscanf(gpstoks[4].c_str(), "%3d%f", &tint, &tfloat) != 2)
 				continue;
-			in_lon = (float) tint + (tfloat / 60);
+			new_location->lon = (float) tint + (tfloat / 60);
 			if (gpstoks[5] == "W")
-				in_lon = in_lon * -1;
+				new_location->lon *= -1;
+
+            set_lat_lon = true;
+            if (new_location->fix < 2)
+                new_location->fix = 2;
 
 			if (sscanf(gpstoks[9].c_str(), "%f", &tfloat) != 1)
 				continue;
-			in_alt = tfloat;
+
+			new_location->alt = tfloat;
+            set_alt = true;
+            if (new_location->fix < 3)
+                new_location->fix = 3;
+            set_fix = true;
 
 			// printf("debug - %f, %f alt %f\n", in_lat, in_lon, in_alt);
-			set_data = 1;
 
 			continue;
 		}
@@ -204,8 +233,6 @@ void GPSSerialV2::BufferAvailable(size_t in_amt) {
 			int tint;
 			float tfloat;
 			
-			gps_connected = 1;
-
 			if (gpstoks.size() < 12)
 				continue;
 
@@ -213,43 +240,43 @@ void GPSSerialV2::BufferAvailable(size_t in_amt) {
 				// Kluge - if we have a 3d fix, we're getting another sentence
 				// which contains better information, so we don't override it. 
 				// If we < a 2d fix, we up it to 2d.
-				if (last_mode < 3) {
-					in_mode = 2;
-					set_mode = 1;
-				} 
+                if (new_location->fix < 2)
+                    new_location->fix = 2;
+                set_fix = true;
 			} else {
 				continue;
 			}
 
 			if (sscanf(gpstoks[3].c_str(), "%2d%f", &tint, &tfloat) != 2)
 				continue;
-			in_lat = (float) tint + (tfloat / 60);
+			new_location->lat = (float) tint + (tfloat / 60);
 			if (gpstoks[4] == "S")
-				in_lat = in_lat * -1;
+				new_location->lat *= -1;
 
 			if (sscanf(gpstoks[5].c_str(), "%3d%f", &tint, &tfloat) != 2)
 				continue;
-			in_lon = (float) tint + (tfloat / 60);
+			new_location->lon = (float) tint + (tfloat / 60);
 			if (gpstoks[6] == "W")
-				in_lon = in_lon * -1;
+				new_location->lon *= -1;
+
+            if (new_location->fix < 2)
+                new_location->fix = 2;
+            set_fix = true;
 
 			if (sscanf(gpstoks[7].c_str(), "%f", &tfloat) != 1) 
 				continue;
-			in_spd = tfloat;
-			set_spd = 1;
+            new_location->speed = tfloat;
+            set_speed = true;
 
-			// Inherit the altitude we had before since this sentence doesn't
-			// have any alt records
-            // TODO alt
-			in_alt = 0;
-
-			// printf("debug - %f, %f spd %f\n", in_lat, in_lon, in_spd);
-			set_data = 1;
+            // This sentence doesn't have altitude, so don't set it.  If another
+            // sentence in this same block sets it we'll use that.
 
 			continue;
 		}
 
 		// GPS DOP and active sats
+        // TODO do something smart with these?
+#if 0
 		if (gpstoks[0] == "$GPGSA") {
 			/*
 			http://www.gpsinformation.org/dale/nmea.htm#GSA
@@ -287,8 +314,9 @@ void GPSSerialV2::BufferAvailable(size_t in_amt) {
 				last_mode = tint;
 			}
 		}
+#endif
 
-		// Travel made good
+		// Travel made good, also a source of speed
 		if (gpstoks[0] == "$GPVTG") {
 			// $GPVTG,,T,,M,0.00,N,0.0,K,A*13
 			float tfloat;
@@ -297,15 +325,21 @@ void GPSSerialV2::BufferAvailable(size_t in_amt) {
 				continue;
 			}
 
-			if (set_spd == 0) {
+            // Only use VTG if we didn't get our speed from another sentence
+            // in this series
+			if (set_speed == 0) {
 				if (sscanf(gpstoks[7].c_str(), "%f", &tfloat) != 1) 
 					continue;
-				in_spd = tfloat;
-				set_spd = 1;
+                new_location->speed = tfloat;
+                set_speed = 1;
 			}
 
 			continue;
-		} else if (inptok[it].substr(0, 6) == "$GPGSV") {
+		} 
+       
+        // Satellites in view
+        // TODO figure out if we can use this data and so something smarter with it
+        if (inptok[it].substr(0, 6) == "$GPGSV") {
 			// $GPGSV,3,1,09,22,80,170,40,14,58,305,19,01,46,291,,18,44,140,33*7B
 			// $GPGSV,3,2,09,05,39,105,31,12,34,088,32,30,31,137,31,09,26,047,34*72
 			// $GPGSV,3,3,09,31,26,222,31*46
@@ -355,56 +389,46 @@ void GPSSerialV2::BufferAvailable(size_t in_amt) {
 
 	}
 
-    if (set_data) {
-        printf("lat %f lon %f alt %f speed %f\n", in_lat, in_lon, in_alt, in_spd);
-    }
+    if (set_alt || set_speed || set_lat_lon || set_fix) {
+        ever_seen_gps = true;
 
-#if 0
-	if (set_data) {
-		last_lat = lat;
-		lat = in_lat;
-		last_lon = lon;
-		lon = in_lon;
-
-		alt = in_alt;
-
-		last_hed = hed;
-		hed = CalcHeading(lat, lon, last_lat, last_lon);
-	}
-
-	if (set_mode) {
-        if (mode < 2 && (gps_options & GPSD_OPT_FORCEMODE)) {
-            mode = 2;
+        if (gps_location != NULL) {
+            // Copy the current location to the last one
+            if (gps_last_location != NULL)
+                delete gps_last_location;
+            gps_last_location = new kis_gps_packinfo(gps_location);
         } else {
-            if (mode < 2 && in_mode >= 2) {
-                    globalreg->soundctl->SayText("Got G P S position fix");
-                    globalreg->soundctl->PlaySound("gpslock");
-            } else if (mode >= 2 && in_mode < 2) {
-                    globalreg->soundctl->SayText("Lost G P S position fix");
-                    globalreg->soundctl->PlaySound("gpslost");
-            }
-            mode = in_mode;
+            gps_location = new kis_gps_packinfo();
         }
-	}
 
-	// This is always in knots from nmea, convert to meters/sec like gpsd uses */
-	if (set_spd)
-		spd = in_spd * 0.514;
+        // Copy whatever we know about the new location into the current
+        if (set_lat_lon) {
+            gps_location->lat = new_location->lat;
+            gps_location->lon = new_location->lon;
+        }
 
-	if (set_data) {
-		if (last_hed_time == 0) {
-			last_hed_time = globalreg->timestamp.tv_sec;
-		} else if (globalreg->timestamp.tv_sec - last_hed_time > 1) {
-			// It's been more than a second since we updated the heading, so we
-			// can back up the lat/lon and do hed calcs
-			last_lat = lat;
-			last_lon = lon;
-			last_hed = hed;
+        if (set_alt)
+            gps_location->alt = new_location->alt;
 
-			hed = CalcHeading(in_lat, in_lon, last_lat, last_lon);
-			last_hed_time = globalreg->timestamp.tv_sec;
+        if (set_speed) {
+            gps_location->speed = new_location->speed;
+            // NMEA reports speed in knots, convert
+            gps_location->speed *= 0.514;
+        }
+
+        if (set_fix) {
+            gps_location->fix = new_location->fix;
+        }
+
+        gps_location->time = globalreg->timestamp.tv_sec;
+
+		if (globalreg->timestamp.tv_sec - last_heading_time > 5 &&
+                gps_last_location->fix >= 2) {
+			gps_location->heading = 
+                GpsCalcHeading(gps_location->lat, gps_location->lon, 
+                        gps_last_location->lat, gps_last_location->lon);
+            last_heading_time = gps_location->time;
 		}
-	}
-#endif
+    }
 }
 

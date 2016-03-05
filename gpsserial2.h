@@ -61,6 +61,13 @@ protected:
     string serial_device;
     unsigned int baud;
 
+    // Have we ever seen data from the device?
+    bool ever_seen_gps;
+
+    // Last time we calculated the heading, don't do it more than once every 
+    // few seconds or we get nasty noise
+    time_t last_heading_time;
+
     // Decaying reconnection algorithm
     int reconnect_tid;
     int num_reconnects;
