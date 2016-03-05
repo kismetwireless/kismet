@@ -281,3 +281,7 @@ void TcpClientV2::Disconnect() {
     globalreg->RemovePollableSubsys(this);
 }
 
+bool TcpClientV2::FetchConnected() {
+    return cli_fd > -1;
+}
+
