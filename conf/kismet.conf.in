@@ -13,6 +13,11 @@ include=%E/kismet_httpd.conf
 # Prefix of where we log (as used in the logtemplate later)
 # logprefix=/some/path/to/logs
 
+# New GPS configuration
+# gps=type:options
+#
+# gps=serial:device=/dev/ttyACM0,name=laptop,reconnect=true
+
 # Do we process the contents of data frames?  If this is enabled, data
 # frames will be truncated to the headers only immediately after frame type
 # detection.  This will disable IP detection, etc, however it is likely
@@ -121,32 +126,6 @@ ouifile=/etc/manuf
 ouifile=/usr/share/wireshark/wireshark/manuf
 ouifile=/usr/share/wireshark/manuf
 ouifile=/Applications/Wireshark.app/Contents/Resources/share/wireshark/manuf
-
-# Do we have a GPS?
-gps=true
-# Do we use a locally serial attached GPS, or use a gpsd server, or
-# use a fixed virtual gps?
-# (Pick only one)
-gpstype=gpsd
-# Host:port that GPSD is running on.  This can be localhost OR remote!
-gpshost=localhost:2947
-
-
-# gpstype=serial
-# What serial device do we look for the GPS on?
-# gpsdevice=/dev/rfcomm0
-
-# gpstype=virtual
-# gpsposition=100,-50
-# gpsaltitude=1234
-
-# Do we lock the mode?  This overrides coordinates of lock "0", which will
-# generate some bad information until you get a GPS lock, but it will 
-# fix problems with GPS units with broken NMEA that report lock 0
-gpsmodelock=false
-# Do we try to reconnect if we lose our link to the GPS, or do we just
-# let it die and be disabled?
-gpsreconnect=true
 
 # Do we export packets over tun/tap virtual interfaces?
 tuntap_export=false
