@@ -26,6 +26,7 @@
 #include "configfile.h"
 
 #include "gpsserial2.h"
+#include "gpsgpsd2.h"
 
 GpsManager::GpsManager(GlobalRegistry *in_globalreg) {
     globalreg = in_globalreg;
@@ -50,6 +51,8 @@ GpsManager::GpsManager(GlobalRegistry *in_globalreg) {
     // Register the built-in GPS drivers
     RegisterGpsPrototype("serial", "serial attached", 
             new GPSSerialV2(globalreg), 100);
+    RegisterGpsPrototype("gpsd", "gpsd network-attached", 
+            new GPSGpsdV2(globalreg), 99);
 
     // Process any gps options in the config file
     vector<string> gpsvec = 
