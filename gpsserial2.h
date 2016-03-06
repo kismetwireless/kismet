@@ -72,7 +72,6 @@ protected:
     int reconnect_tid;
     int num_reconnects;
     static int time_event_reconnect(TIMEEVENT_PARMS);
-
 };
 
 #endif

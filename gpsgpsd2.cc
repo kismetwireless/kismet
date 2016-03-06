@@ -40,11 +40,17 @@ GPSGpsdV2::GPSGpsdV2(GlobalRegistry *in_globalreg) : Kis_Gps(in_globalreg) {
 }
 
 GPSGpsdV2::~GPSGpsdV2() {
-    delete(tcpclient);
-    delete(tcphandler);
+    {
+        local_locker lock(&gps_locker);
+
+        delete(tcpclient);
+        delete(tcphandler);
+    }
 }
 
 Kis_Gps *GPSGpsdV2::BuildGps(string in_opts) {
+    local_locker lock(&gps_locker);
+
     GPSGpsdV2 *new_gps = new GPSGpsdV2(globalreg);
 
     if (new_gps->OpenGps(in_opts) < 0) {
@@ -56,6 +62,8 @@ Kis_Gps *GPSGpsdV2::BuildGps(string in_opts) {
 }
 
 int GPSGpsdV2::OpenGps(string in_opts) {
+    local_locker lock(&gps_locker);
+
     // Delete any existing serial interface before we parse options
     if (tcphandler != NULL) {
         delete tcphandler;
@@ -114,6 +122,8 @@ int GPSGpsdV2::OpenGps(string in_opts) {
 }
 
 string GPSGpsdV2::FetchGpsDescription() {
+    local_locker lock(&gps_locker);
+
     stringstream str;
 
     str << "GPSD " << host << ":" << port;
@@ -122,6 +132,8 @@ string GPSGpsdV2::FetchGpsDescription() {
 }
 
 bool GPSGpsdV2::FetchGpsLocationValid() {
+    local_locker lock(&gps_locker);
+
     if (gps_location == NULL) {
         return false;
     }
@@ -139,6 +151,8 @@ bool GPSGpsdV2::FetchGpsLocationValid() {
 }
 
 bool GPSGpsdV2::FetchGpsConnected() {
+    local_locker lock(&gps_locker);
+
     if (tcpclient == NULL)
         return false;
 
@@ -146,6 +160,8 @@ bool GPSGpsdV2::FetchGpsConnected() {
 }
 
 void GPSGpsdV2::BufferAvailable(size_t in_amt) {
+    local_locker lock(&gps_locker);
+
     char *buf = new char[in_amt + 1];
 
     // Peek at the data

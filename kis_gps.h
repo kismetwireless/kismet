@@ -20,6 +20,11 @@
 #define __KIS_GPS_H__
 
 #include "config.h"
+
+#include "util.h"
+
+#include <pthread.h>
+
 #include "globalregistry.h"
 
 class Kis_Gps_Location;
@@ -35,7 +40,7 @@ class kis_gps_packinfo;
 class Kis_Gps {
 public:
     Kis_Gps(GlobalRegistry *in_globalreg);
-    virtual ~Kis_Gps() { };
+    virtual ~Kis_Gps();
 
     // Create an GPS instance of the proper type & open it
     virtual Kis_Gps *BuildGps(string in_opts) = 0;
@@ -52,10 +57,16 @@ public:
     // Are we connected to our device?
     virtual bool FetchGpsConnected() = 0;
 
-    virtual string FetchName() { return name; }
+    virtual string FetchName() { 
+        local_locker lock(&gps_locker);
+        return name; 
+    }
 
     // Fetch the last known location, and the time we knew it
-    virtual kis_gps_packinfo *FetchGpsLocation() { return gps_location; };
+    virtual kis_gps_packinfo *FetchGpsLocation() { 
+        local_locker lock(&gps_locker);
+        return gps_location; 
+    };
 
     // Various GPS transformation utility functions
     static double GpsCalcHeading(double in_lat, double in_lon, 
@@ -75,6 +86,7 @@ protected:
     string name;
     bool reconnect;
 
+    pthread_mutex_t gps_locker;
 };
 
 #endif

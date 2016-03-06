@@ -37,11 +37,16 @@ GPSSerialV2::GPSSerialV2(GlobalRegistry *in_globalreg) : Kis_Gps(in_globalreg) {
 }
 
 GPSSerialV2::~GPSSerialV2() {
-    delete(serialclient);
-    delete(serialhandler);
+    {
+        local_locker lock(&gps_locker);
+        delete(serialclient);
+        delete(serialhandler);
+    }
 }
 
 Kis_Gps *GPSSerialV2::BuildGps(string in_opts) {
+    local_locker lock(&gps_locker);
+
     GPSSerialV2 *new_gps = new GPSSerialV2(globalreg);
 
     if (new_gps->OpenGps(in_opts) < 0) {
@@ -53,6 +58,8 @@ Kis_Gps *GPSSerialV2::BuildGps(string in_opts) {
 }
 
 int GPSSerialV2::OpenGps(string in_opts) {
+    local_locker lock(&gps_locker);
+
     // Delete any existing serial interface before we parse options
     if (serialhandler != NULL) {
         delete serialhandler;
@@ -111,6 +118,8 @@ int GPSSerialV2::OpenGps(string in_opts) {
 }
 
 string GPSSerialV2::FetchGpsDescription() {
+    local_locker lock(&gps_locker);
+
     stringstream str;
 
     str << "Serial " << serial_device << "@" << baud;
@@ -119,6 +128,8 @@ string GPSSerialV2::FetchGpsDescription() {
 }
 
 bool GPSSerialV2::FetchGpsLocationValid() {
+    local_locker lock(&gps_locker);
+
     if (gps_location == NULL) {
         return false;
     }
@@ -136,6 +147,8 @@ bool GPSSerialV2::FetchGpsLocationValid() {
 }
 
 bool GPSSerialV2::FetchGpsConnected() {
+    local_locker lock(&gps_locker);
+
     if (serialclient == NULL)
         return false;
 
@@ -143,6 +156,8 @@ bool GPSSerialV2::FetchGpsConnected() {
 }
 
 void GPSSerialV2::BufferAvailable(size_t in_amt) {
+    local_locker lock(&gps_locker);
+
     char *buf = new char[in_amt + 1];
 
     // Peek at the data

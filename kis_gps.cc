@@ -24,6 +24,12 @@ Kis_Gps::Kis_Gps(GlobalRegistry *in_globalreg) {
 
     gps_location = NULL;
     gps_last_location = NULL;
+
+    pthread_mutex_init(&gps_locker, NULL);
+}
+
+Kis_Gps::~Kis_Gps() {
+    pthread_mutex_destroy(&gps_locker);
 }
 
 int Kis_Gps::OpenGps(string in_opts) {
