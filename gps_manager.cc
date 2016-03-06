@@ -27,6 +27,7 @@
 
 #include "gpsserial2.h"
 #include "gpsgpsd2.h"
+#include "gpsfake.h"
 
 GpsManager::GpsManager(GlobalRegistry *in_globalreg) {
     globalreg = in_globalreg;
@@ -53,6 +54,8 @@ GpsManager::GpsManager(GlobalRegistry *in_globalreg) {
             new GPSSerialV2(globalreg), 100);
     RegisterGpsPrototype("gpsd", "gpsd network-attached", 
             new GPSGpsdV2(globalreg), 99);
+    RegisterGpsPrototype("virtual", "virtual gps with fixed location",
+            new GPSFake(globalreg), 0);
 
     // Process any gps options in the config file
     vector<string> gpsvec = 

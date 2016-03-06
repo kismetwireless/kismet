@@ -40,7 +40,7 @@ public:
     // Create an GPS instance of the proper type & open it
     virtual Kis_Gps *BuildGps(string in_opts) = 0;
 
-    virtual int OpenGps(string in_opts) = 0;
+    virtual int OpenGps(string in_opts);
 
     // Human-readable description of device
     virtual string FetchGpsDescription() = 0;
@@ -55,7 +55,7 @@ public:
     virtual string FetchName() { return name; }
 
     // Fetch the last known location, and the time we knew it
-    kis_gps_packinfo *FetchGpsLocation() { return gps_location; };
+    virtual kis_gps_packinfo *FetchGpsLocation() { return gps_location; };
 
     // Various GPS transformation utility functions
     static double GpsCalcHeading(double in_lat, double in_lon, 
@@ -73,6 +73,7 @@ protected:
     kis_gps_packinfo *gps_last_location;
 
     string name;
+    bool reconnect;
 
 };
 

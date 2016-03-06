@@ -73,12 +73,10 @@ int GPSGpsdV2::OpenGps(string in_opts) {
 
     string proto_host;
     string proto_port_s;
-    string proto_name;
     unsigned int proto_port;
 
     proto_host = FetchOpt("host", &optvec);
     proto_port_s = FetchOpt("port", &optvec);
-    proto_name = FetchOpt("name", &optvec);
 
     if (proto_host == "") {
         _MSG("GPSGpsdV2 expected host= option, none found.", MSGFLAG_ERROR);
@@ -95,9 +93,6 @@ int GPSGpsdV2::OpenGps(string in_opts) {
         _MSG("GPSGpsdV2 defaulting to port 2947, set the port= option if "
                 "your gpsd is on a different port", MSGFLAG_INFO);
     }
-
-    if (proto_name != "")
-        name = proto_name;
 
     // GPSD network connection writes data as well as reading, but most of it is
     // inbound data

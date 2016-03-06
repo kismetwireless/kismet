@@ -26,6 +26,17 @@ Kis_Gps::Kis_Gps(GlobalRegistry *in_globalreg) {
     gps_last_location = NULL;
 }
 
+int Kis_Gps::OpenGps(string in_opts) {
+    // Now figure out if our options make sense... 
+    vector<opt_pair> optvec;
+    StringToOpts(in_opts, ",", &optvec);
+
+    name = FetchOpt("name", &optvec);
+    reconnect = FetchOptBoolean("reconnect", &optvec, true);
+
+    return 0;
+}
+
 double Kis_Gps::GpsCalcHeading(double in_lat, double in_lon, double in_lat2, 
 							   double in_lon2) {
     double r = GpsCalcRad((double) in_lat2);
