@@ -223,9 +223,10 @@ int Fetch_Battery_Linux_Sys(kis_battery_info *out __attribute__((unused))) {
         return -1;
     } 
 
+    ssize_t glsz __attribute__((unused));
     line = NULL;
     linesz = 0;
-    getline(&line, &linesz, f);
+    glsz = getline(&line, &linesz, f);
     fclose(f);
 
     if (strcasestr(line, "discharging") == line) {
