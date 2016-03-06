@@ -259,8 +259,12 @@ public:
                 GetTrackerValue<int64_t>(num_avg)) / precision_multiplier;
         calc_lon = (double) (GetTrackerValue<int64_t>(avg_lon) / 
                 GetTrackerValue<int64_t>(num_avg)) / precision_multiplier;
-        calc_alt = (double) (GetTrackerValue<int64_t>(avg_alt) / 
-                GetTrackerValue<int64_t>(num_alt_avg)) / precision_multiplier;
+        if (GetTrackerValue<int64_t>(num_alt_avg) != 0) {
+            calc_alt = (double) (GetTrackerValue<int64_t>(avg_alt) / 
+                    GetTrackerValue<int64_t>(num_alt_avg)) / precision_multiplier;
+        } else {
+            calc_alt = 0;
+        }
         avg_loc->set(calc_lat, calc_lon, calc_alt, 3);
 
         // Are we getting too close to the maximum size of any of our counters?
