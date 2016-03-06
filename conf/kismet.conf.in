@@ -16,7 +16,9 @@ include=%E/kismet_httpd.conf
 # New GPS configuration
 # gps=type:options
 #
-# gps=serial:device=/dev/ttyACM0,name=laptop,reconnect=true
+# gps=serial:device=/dev/ttyACM0,name=laptop
+# gps=gpsd:host=localhost,port=2947
+# gps=virtual:lat=123.45,lon=45.678,alt=1234
 
 # Do we process the contents of data frames?  If this is enabled, data
 # frames will be truncated to the headers only immediately after frame type
