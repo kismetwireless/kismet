@@ -107,6 +107,7 @@ function handleDeviceSummary() {
                 phyname: d["kismet.device.base.phyname"],
                 signal: d["kismet.device.base.signal"]["kismet.common.signal.last_signal_dbm"],
                 time: t,
+                channel: d["kismet.device.base.channel"],
                 rrdsecond: d["kismet.device.base.packets.rrd"]["kismet.common.rrd.last_time"],
                 rrddata: d["kismet.device.base.packets.rrd"]["kismet.common.rrd.minute_vec"],
             };
@@ -191,6 +192,7 @@ $(document).ready(function() {
         { title: "Type", data: "type" },
         { title: "Phy", data: "phyname" },
         { title: "Signal", data: "signal" },
+        { title: "Channel", data: "channel" },
         { title: "Last Time", data: "time" },
         { title: "Packets", data: null, defaultContent: "" },
         ],
@@ -198,7 +200,7 @@ $(document).ready(function() {
             [ [ 0, "desc" ] ],
         "fnRowCallback": function(nRow, aData, iDisplayIndex, iDisplayIndexFull) {
             // Set an ID on the row for us to go in after and set the graph with D3
-            var row = $('td:eq(5)', nRow).attr("id", "graphContainer" + aData['key']);
+            var row = $('td:eq(6)', nRow).attr("id", "graphContainer" + aData['key']);
             return nRow;
         }
     });
