@@ -42,6 +42,8 @@ GPSSerialV2::~GPSSerialV2() {
         delete(serialclient);
         delete(serialhandler);
     }
+
+    pthread_mutex_destroy(&gps_locker);
 }
 
 Kis_Gps *GPSSerialV2::BuildGps(string in_opts) {
