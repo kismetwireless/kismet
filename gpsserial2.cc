@@ -39,8 +39,10 @@ GPSSerialV2::GPSSerialV2(GlobalRegistry *in_globalreg) : Kis_Gps(in_globalreg) {
 GPSSerialV2::~GPSSerialV2() {
     {
         local_locker lock(&gps_locker);
-        delete(serialclient);
-        delete(serialhandler);
+        if (serialclient != NULL)
+            delete(serialclient);
+        if (serialhandler != NULL)
+            delete(serialhandler);
     }
 
     pthread_mutex_destroy(&gps_locker);
