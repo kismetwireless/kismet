@@ -53,7 +53,7 @@ int SerialClientV2::OpenDevice(string in_device, unsigned int in_baud) {
     }
 
 
-    device_fd = open(in_device.c_str(), O_RDWR | O_NONBLOCK | O_NOCTTY);
+    device_fd = open(in_device.c_str(), O_RDWR | O_NONBLOCK | O_NOCTTY | O_CLOEXEC);
 
     if (device_fd < 0) {
         errstr = strerror_r(errno, strerrbuf, 1024);

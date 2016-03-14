@@ -96,7 +96,7 @@ int TcpClientV2::Connect(string in_host, unsigned int in_port) {
     }
 
     // Set the connection to nonblocking
-    fcntl(cli_fd, F_SETFL, fcntl(cli_fd, F_GETFL, 0) | O_NONBLOCK);
+    fcntl(cli_fd, F_SETFL, fcntl(cli_fd, F_GETFL, 0) | O_NONBLOCK | FD_CLOEXEC);
 
     int ret;
 
