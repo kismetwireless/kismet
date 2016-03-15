@@ -87,6 +87,21 @@ Kis_Net_Httpd::Kis_Net_Httpd(GlobalRegistry *in_globalreg) {
     RegisterMimeType("gif", "image/gif");
     RegisterMimeType("ico", "image/x-icon");
 
+    vector<string> mimeopts = globalreg->kismet_config->FetchOptVec("httpd_mime");
+    for (unsigned int i = 0; i < mimeopts.size(); i++) {
+        vector<string> mime_comps = StrTokenize(mimeopts[i], ":");
+
+        if (mime_comps.size() != 2) {
+            _MSG("Expected httpd_mime=extension:type", MSGFLAG_ERROR);
+            continue;
+        }
+
+        _MSG("Adding user-defined MIME type " + mime_comps[1] + " for " + mime_comps[0],
+                MSGFLAG_INFO);
+        RegisterMimeType(mime_comps[0], mime_comps[1]);
+        
+    }
+
 }
 
 Kis_Net_Httpd::~Kis_Net_Httpd() {
