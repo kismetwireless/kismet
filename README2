@@ -1,0 +1,222 @@
+Kismet 2016-??-??
+Mike Kershaw <dragorn@kismetwireless.net>
+https://www.kismetwireless.net
+
+[ New kismet readme, in progress ]
+
+xx. Kismet Webserver
+
+    Kismet now integrates a webserver which serves the web-based UI and data
+    to external clients.
+
+    The webserver is configured via the kismet_httpd.conf file.  These options
+    may be included in the base kismet.conf file, but are broken out for
+    clarity.
+
+    HTTP configuration options:
+
+    httpd_user=user:password
+
+        Set the username and password.  This is required for any actions which
+        can change the configuration (adding / removing sources, changing
+        configuration variables, acting as a web-based GPS, etc).
+
+        If you do NOT change this setting, anyone with access to the IP and
+        port Kismet is running on will be able to change your configuration
+        using the default!
+
+    httpd_port=port
+
+        Sets the port for the webserver to listen to.  By default, this is
+        port 2501, the port traditionally used by the Kismet client/server
+        protocol.
+
+    httpd_ssl=true|false
+
+        Turn on SSL.  If this is turned on, you must provide a SSL certificate
+        and key in PEM format with the httpd_ssl_cert and httpd_ssl_key 
+        configuration options.
+
+    httpd_ssl_cert=/path/to/cert.pem
+
+        Path to a PEM-format SSL certificate.  
+        
+        This option is ignored if Kismet is not running in SSL mode.
+
+    httpd_ssl_key=/path/to/key.pem
+
+        Path to a PEM-format SSL key file.  This file should not have a
+        password set.  
+        
+        This option is ignored if Kismet is not running in SSL mode.
+   
+    httpd_home=/path/to/httpd/data
+
+        Path to static content web data to be served by Kismet.  This is
+        typically set automatically to the directory installed by Kismet 
+        in the installation prefix.
+
+        Logformat escapes can be used in this.  Specifically, "%S" will 
+        automatically expand to the system install data directory.  By
+        default this should be:
+            httpd_home=%S/kismet/httpd/
+
+        Typically the only reason to change this directory is to replace
+        the Kismet web UI with alternate code.
+
+    httpd_user_home=/path/to/user/httpd/data
+
+        Path to static content stored in the home directory of the 
+        user running Kismet.  This is typically set to the httpd directory
+        inside the users .kismet directory.
+
+        This allows plugins installed to the user directory to install
+        web UI components.
+
+        Logformat escapes can be used in this.  Specifically, "%h" will
+        expand to the current users home directory.  By default this should
+        be:
+            httpd_user_home=%h/.kismet/httpd/
+
+        Typically there is no reason to change this directory.
+
+        If you wish to disable serving content from the user directory 
+        entirely, comment this configuration option out.
+
+    httpd_mime=extension:mimetype
+
+        Kismet supports MIME types for most standard file formats, however if
+        you are serving custom content with a MIME type not correctly set,
+        additional MIME types can be defined here.
+
+        Multiple httpd_mime lines may be used to add multiple mime types.
+
+        Example:
+            httpd_mime=html:text/html
+            httpd_mime=svg:image/svg+xml
+
+        Typically, MIME types do not need to be added.
+
+xx. GPS
+
+    Kismet can integrate with a GPS device to provide geolocation coordinates
+    for devices.
+
+    GPS data is included in the log files, in PPI pcap files, and exported
+    over the REST interface.
+
+    Kismet can not use GPS to determine the absolute location of the device;
+    it can only use it to determine the location of the receiver.  The 
+    location estimate of a device can be improved by circling the suspected
+    location.
+
+    In addition to logging GPS data on a per-packet basis, Kismet maintains a
+    running average of device locations which are exported as the average
+    location in the Kismet UI and in device summaries.  Because the running
+    average can be heavily influenced by the sensors position, this running
+    average may not be very accurate.
+
+
+    Multiple GPS devices can be defined at once, however only the most 
+    accurate active device is used.
+
+    GPS is configured via the 'gps=' configuration option.  GPS options are
+    passed on the configuration line:
+        gps=type:option1=val1,option2=val2
+
+    Supported GPS types are:
+
+    serial (High priority)
+        Locally-connected serial NMEA GPS device.  This supports most
+        USB and Bluetooth (rfcomm/spp) connected GPS devices.  This does
+        not support the few GPS devices which output proprietary binary
+
+        Options:
+
+        name=foo
+            Arbitrary name to identify this GPS device.
+
+        device=/path/to/device
+            Path to the serial device.  The user Kismet is running as must
+            have access to this device.
+
+        reconnect=true|false
+            Automatically re-open the serial port if there is a problem with
+            the GPS or if it is disconnected.
+
+        Example:
+
+        gps=serial:device=/dev/ttyACM0,reconnect=true,name=LaptopSerial
+
+    gpsd (High priority)
+        A GPSD server.  GPSD (http://www.catb.org/gpsd/) parses GPS
+        data from multiple GPS vendors (including proprietary binary)
+        and makes it available over a standard TCP/IP connection.
+
+        There are multiple GPSD versions with various levels of support
+        and incompatible protocols.  Kismet supports the older-style GPSD
+        text protocol as well as the new GPSD3 JSON protocol.
+
+        Options:
+
+        name=foo
+            Arbitrary name to identify this GPS device.
+
+        host=hostname-or-ip
+            Hostname or IP of GPSD host.
+
+        port=port
+            GPSD port.  GPSD listens on port 2947 by default.
+
+        reconnect=true|false
+            Automatically reconnect to the GPSD server if the connection
+            is lost.
+
+        Example:
+
+        gps=gpsd:host=localhost,port=2947,reconnect=true
+
+    web (Medium priority)
+        A web-based client with a modern web browser and location hardware 
+        (such as a phone) can supply their GPS location.  This is only 
+        available to logged-in users on the Kismet web UI, but can turn a
+        generic phone and web browser into a location source.
+
+        Typically browsers cannot supply speed or other options, and the
+        precision of this GPS source will be reduced because it may not
+        be updated as frequently as a locally connected GPS.
+
+        Options:
+
+        name=foo
+            Arbitrary name to identify this GPS device.
+
+        Example:
+
+        gps=web:name=web
+        -or-
+        gps=web
+
+    virtual (lowest priority)
+        A virtual GPS always reports a static location.  The virtual gps
+        injects location information on stationary sensor or drone.
+
+        Options:
+
+        name=foo
+            Arbitrary name to identify this GPS device.
+
+        lat=coordinate
+            Latitude coordinate.
+
+        lon=coordinate
+            Longitude coordinate.
+
+        alt=altitude
+            Altitude, in meters.
+
+        Example:
+
+        gps=virtual:lat=123.4566,lon=40.002,alt=23.45
+
+
