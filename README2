@@ -117,8 +117,8 @@ xx. GPS
     average may not be very accurate.
 
 
-    Multiple GPS devices can be defined at once, however only the most 
-    accurate active device is used.
+    Multiple GPS devices can be defined at once, however only the highest 
+    priority active device is used.
 
     GPS is configured via the 'gps=' configuration option.  GPS options are
     passed on the configuration line:
