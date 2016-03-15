@@ -432,6 +432,8 @@ if test "$wantclient" = "yes"; then
 				 foundlcurses=yes curseaux="-lcurses" termcontrol="curses" )
 	fi
 
+    AC_SEARCH_LIBS([stdscr], tinfo ncurses,curseaux="$curseaux $ac_res")
+
 	if test "$foundlcurses" != "yes"; then
 		AC_MSG_ERROR(Failed to find libcurses or libncurses.  Install them or disable building the Kismet client with --disable-client.  Disabling the client is probably not something you want to do normally.)
 	fi
