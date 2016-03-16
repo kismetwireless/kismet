@@ -328,10 +328,15 @@ IPCRemoteHandler::IPCRemoteHandler(GlobalRegistry *in_globalreg) {
     globalreg->InsertGlobal("IPCHANDLER", this);
 
     pthread_mutex_init(&ipc_locker, NULL);
+
+    timer_id = 
+        globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1, this);
 }
 
 IPCRemoteHandler::~IPCRemoteHandler() {
     globalreg->RemoveGlobal("IPCHANDLER");
+
+    globalreg->timetracker->RemoveTimer(timer_id);
 
     pthread_mutex_destroy(&ipc_locker);
 }
@@ -411,7 +416,8 @@ int IPCRemoteHandler::EnsureAllKilled(int in_soft_delay, int in_max_delay) {
             killed_remote = RemoveIPC(caught_pid);
 
             // TODO decide if we're going to delete the IPC handler too
-            killed_remote->Close();
+            if (killed_remote != NULL)
+                killed_remote->Close();
         } else {
             // Sleep if we haven't caught anything, otherwise spin to catch all
             // pending processes
@@ -454,7 +460,8 @@ int IPCRemoteHandler::EnsureAllKilled(int in_soft_delay, int in_max_delay) {
                 killed_remote = RemoveIPC(caught_pid);
 
                 // TODO decide if we're going to delete the IPC handler too
-                killed_remote->Close();
+                if (killed_remote != NULL)
+                    killed_remote->Close();
             } else {
                 // Sleep if we haven't caught anything, otherwise spin to catch all
                 // pending processes
@@ -478,7 +485,29 @@ int IPCRemoteHandler::EnsureAllKilled(int in_soft_delay, int in_max_delay) {
     return -1;
 }
 
-int IPCRemoteHandler::timetracker_event(int event_id) {
-    return 0;
+int IPCRemoteHandler::timetracker_event(int event_id __attribute__((unused))) {
+    while (1) {
+        int pid_status;
+        pid_t caught_pid;
+        IPCRemoteV2 *dead_remote = NULL;
+        stringstream str;
+
+        caught_pid = waitpid(-1, &pid_status, WNOHANG);
+
+        if (caught_pid > 0) {
+            dead_remote = RemoveIPC(caught_pid);
+
+            if (dead_remote != NULL) {
+                str << "IPC child pid " << dead_remote->GetPid() << " exited with " <<
+                    "status " << WEXITSTATUS(pid_status);
+                _MSG(str.str(), MSGFLAG_ERROR);
+                dead_remote->Close();
+            }
+        } else {
+            break;
+        }
+    }
+
+    return 1;
 }
 
