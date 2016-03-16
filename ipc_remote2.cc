@@ -34,6 +34,8 @@ IPCRemoteV2::IPCRemoteV2(GlobalRegistry *in_globalreg) {
 
     pipeclient = NULL;
     ipchandler = NULL;
+
+    child_pid = -1;
 }
 
 IPCRemoteV2::~IPCRemoteV2() {
@@ -70,6 +72,18 @@ string IPCRemoteV2::FindBinaryPath(string in_cmd) {
     }
 
     return "";
+}
+
+void IPCRemoteV2::Close() {
+    if (pipeclient != NULL) {
+        delete(pipeclient);
+        pipeclient = NULL;
+    }
+
+    if (ipchandler != NULL) {
+        delete(ipchandler);
+        ipchandler = NULL;
+    }
 }
 
 int IPCRemoteV2::LaunchKisBinary(string cmd, vector<string> args) {
@@ -292,5 +306,179 @@ int IPCRemoteV2::LaunchStdExplicitBinary(string cmdpath, vector<string> args) {
 pid_t IPCRemoteV2::GetPid() {
     local_locker lock(&ipc_locker);
     return child_pid;
+}
+
+int IPCRemoteV2::Kill() {
+    if (child_pid <= 0)
+        return -1;
+
+    return kill(child_pid, SIGTERM);
+}
+
+int IPCRemoteV2::HardKill() {
+    if (child_pid <= 0)
+        return -1;
+
+    return kill(child_pid, SIGKILL);
+}
+
+IPCRemoteHandler::IPCRemoteHandler(GlobalRegistry *in_globalreg) {
+    globalreg = in_globalreg;
+
+    globalreg->InsertGlobal("IPCHANDLER", this);
+
+    pthread_mutex_init(&ipc_locker, NULL);
+}
+
+IPCRemoteHandler::~IPCRemoteHandler() {
+    globalreg->RemoveGlobal("IPCHANDLER");
+
+    pthread_mutex_destroy(&ipc_locker);
+}
+
+void IPCRemoteHandler::AddIPC(IPCRemoteV2 *in_remote) {
+    local_locker lock(&ipc_locker);
+
+    process_vec.push_back(in_remote);
+}
+
+IPCRemoteV2 *IPCRemoteHandler::RemoveIPC(IPCRemoteV2 *in_remote) {
+    local_locker lock(&ipc_locker);
+
+    IPCRemoteV2 *ret = NULL;
+
+    for (unsigned int x = 0; x < process_vec.size(); x++) {
+        if (process_vec[x] == in_remote) {
+            ret = process_vec[x];
+            process_vec.erase(process_vec.begin() + x);
+            break;
+        }
+    }
+
+    return ret;
+}
+
+IPCRemoteV2 *IPCRemoteHandler::RemoveIPC(pid_t in_pid) {
+    local_locker lock(&ipc_locker);
+
+    IPCRemoteV2 *ret = NULL;
+
+    for (unsigned int x = 0; x < process_vec.size(); x++) {
+        if (process_vec[x]->GetPid() == in_pid) {
+            ret = process_vec[x];
+            process_vec.erase(process_vec.begin() + x);
+            break;
+        }
+    }
+
+    return ret;
+}
+
+void IPCRemoteHandler::KillAllIPC(bool in_hardkill) {
+    local_locker lock(&ipc_locker);
+
+    // Leave everything in the vec until we properly reap it, we might
+    // need to go back and kill it again
+    for (unsigned int x = 0; x < process_vec.size(); x++) {
+        if (in_hardkill)
+            process_vec[x]->HardKill();
+        else
+            process_vec[x]->Kill();
+    }
+}
+
+int IPCRemoteHandler::EnsureAllKilled(int in_soft_delay, int in_max_delay) {
+    // We can't immediately lock since killall will need to
+
+    // Soft-kill every process
+    KillAllIPC(false);
+
+    time_t start_time = time(0);
+
+    // It would be more efficient to hijack the signal handler here and
+    // use our own timer, but that's a hassle and this only happens during
+    // shutdown.  We do a spin on waitpid instead.
+    while (1) {
+        int pid_status;
+        pid_t caught_pid;
+        IPCRemoteV2 *killed_remote = NULL;
+
+        caught_pid = waitpid(-1, &pid_status, WNOHANG);
+
+        // If we caught a pid, blindly remove it from the vec, we don't
+        // care if we caught a pid we don't know about I suppose
+        if (caught_pid > 0) {
+            killed_remote = RemoveIPC(caught_pid);
+
+            // TODO decide if we're going to delete the IPC handler too
+            killed_remote->Close();
+        } else {
+            // Sleep if we haven't caught anything, otherwise spin to catch all
+            // pending processes
+            usleep(1000);
+        }
+
+        if (time(0) - start_time > in_soft_delay)
+            break;
+    }
+
+    bool vector_empty = true;
+
+    {
+        local_locker lock(&ipc_locker);
+        if (process_vec.size() > 0)
+            vector_empty = false;
+    }
+
+    // If we've run out of time, stop
+    if (time(0) - start_time > in_max_delay) {
+        if (vector_empty)
+            return 0;
+        return -1;
+    }
+
+    // If we need to kill things the hard way
+    if (!vector_empty) {
+        KillAllIPC(true);
+
+        while (1) {
+            int pid_status;
+            pid_t caught_pid;
+            IPCRemoteV2 *killed_remote = NULL;
+
+            caught_pid = waitpid(-1, &pid_status, WNOHANG);
+
+            // If we caught a pid, blindly remove it from the vec, we don't
+            // care if we caught a pid we don't know about I suppose
+            if (caught_pid > 0) {
+                killed_remote = RemoveIPC(caught_pid);
+
+                // TODO decide if we're going to delete the IPC handler too
+                killed_remote->Close();
+            } else {
+                // Sleep if we haven't caught anything, otherwise spin to catch all
+                // pending processes
+                usleep(1000);
+            }
+
+            if (in_max_delay != 0 && time(0) - start_time > in_max_delay)
+                break;
+        }
+    }
+
+    {
+        local_locker lock(&ipc_locker);
+        if (process_vec.size() > 0)
+            vector_empty = false;
+    }
+
+    if (vector_empty)
+        return 0;
+
+    return -1;
+}
+
+int IPCRemoteHandler::timetracker_event(int event_id) {
+    return 0;
 }
 

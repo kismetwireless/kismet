@@ -47,6 +47,9 @@ public:
     // they are added
     void AddPath(string in_path);
 
+    // Close down IPC (but don't issue a kill)
+    void Close();
+
     // Launch a binary with specified arguments.
     //
     // When launching kismet compatible binaries, IPCRemote will make a 
@@ -60,10 +63,10 @@ public:
     int LaunchStdExplicitBinary(string cmdpath, vector<string> args);
 
     // Soft-kill a binary (send a sigterm)
-    int KillBinary();
+    int Kill();
 
     //  Hard-kill a binary (send a kill -9 )
-    int HardKillBinary();
+    int HardKill();
 
     pid_t GetPid();
 
@@ -94,19 +97,31 @@ protected:
 class IPCRemoteHandler : public TimetrackerEvent {
 public:
     IPCRemoteHandler(GlobalRegistry *in_globalreg);
+    ~IPCRemoteHandler();
 
+    // Add an IPC handler to tracking
     void AddIPC(IPCRemoteV2 *in_remote);
-    void RemoveIPC(IPCRemoteV2 *in_remote);
+    // Remove an IPC handler from tracking.  Does NOT destroy or close the IPC
+    // handler.  Return the handler which was removed.
+    IPCRemoteV2 *RemoveIPC(IPCRemoteV2 *in_remote);
+    // Remove an IPC handler from tracking by PID.  Does NOT destroy or close
+    // the IPC handler.  Return the handler which was removed.
+    IPCRemoteV2 *RemoveIPC(pid_t in_pid);
 
-    // Kill a specific process
-    void KillIPC(IPCRemoteV2 *in_remote, bool in_hardkill);
     // Kill all spawned processes
     void KillAllIPC(bool in_hardkill);
+
+    // Ensure all processes are down.  Give processes a maximum of in_soft_delay
+    // seconds to terminate cleanly before sending a SIGKILL.  Do not delay 
+    // more than in_max_delay.
+    int EnsureAllKilled(int in_soft_delay, int in_max_delay);
 
     // Timetracker API
     virtual int timetracker_event(int event_id);
 
 protected:
+    pthread_mutex_t ipc_locker;
+
     GlobalRegistry *globalreg;
 
     vector<IPCRemoteV2 *> process_vec;
