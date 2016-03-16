@@ -41,7 +41,6 @@ class Timetracker;
 class KisNetFramework;
 class KisDroneFramework;
 class ConfigFile;
-class GroupConfigFile;
 class SoundControl;
 class Plugintracker;
 class KisBuiltinDissector;

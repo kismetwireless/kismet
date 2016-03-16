@@ -24,10 +24,25 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
+#include <pthread.h>
+
 #include "configfile.h"
 #include "util.h"
 
+ConfigFile::ConfigFile(GlobalRegistry *in_globalreg) {
+    globalreg = in_globalreg;
+    checksum = 0;
+
+    pthread_mutex_init(&config_locker, NULL);
+}
+
+ConfigFile::~ConfigFile() {
+    pthread_mutex_destroy(&config_locker);
+}
+
 int ConfigFile::ParseConfig(const char *in_fname) {
+    local_locker lock(&config_locker);
+
     FILE *configf;
     char confline[8192];
 
@@ -88,6 +103,8 @@ int ConfigFile::ParseConfig(const char *in_fname) {
 }
 
 int ConfigFile::SaveConfig(const char *in_fname) {
+    local_locker lock(&config_locker);
+
 	FILE *wf = NULL;
 
 	if ((wf = fopen(in_fname, "w")) == NULL) {
@@ -106,6 +123,8 @@ int ConfigFile::SaveConfig(const char *in_fname) {
 }
 
 string ConfigFile::FetchOpt(string in_key) {
+    local_locker lock(&config_locker);
+
     map<string, vector<string> >::iterator cmitr = config_map.find(StrLower(in_key));
     // No such key
     if (cmitr == config_map.end())
@@ -121,6 +140,8 @@ string ConfigFile::FetchOpt(string in_key) {
 }
 
 vector<string> ConfigFile::FetchOptVec(string in_key) {
+    local_locker lock(&config_locker);
+
     // Empty vec to return
     vector<string> eretvec;
 
@@ -133,6 +154,8 @@ vector<string> ConfigFile::FetchOptVec(string in_key) {
 }
 
 int ConfigFile::FetchOptBoolean(string in_key, int dvalue) {
+    local_locker lock(&config_locker);
+
 	string v = StrLower(FetchOpt(in_key));
 	int r;
 
@@ -145,6 +168,8 @@ int ConfigFile::FetchOptBoolean(string in_key, int dvalue) {
 }
 
 int ConfigFile::FetchOptInt(string in_key, int dvalue) {
+    local_locker lock(&config_locker);
+
 	string v = StrLower(FetchOpt(in_key));
 	int r;
 
@@ -158,6 +183,8 @@ int ConfigFile::FetchOptInt(string in_key, int dvalue) {
 }
 
 unsigned int ConfigFile::FetchOptUInt(string in_key, unsigned int dvalue) {
+    local_locker lock(&config_locker);
+
 	string v = StrLower(FetchOpt(in_key));
 	unsigned int r;
 
@@ -171,6 +198,8 @@ unsigned int ConfigFile::FetchOptUInt(string in_key, unsigned int dvalue) {
 }
 
 int ConfigFile::FetchOptDirty(string in_key) {
+    local_locker lock(&config_locker);
+
 	if (config_map_dirty.find(StrLower(in_key)) == config_map_dirty.end())
 		return 0;
 
@@ -178,10 +207,14 @@ int ConfigFile::FetchOptDirty(string in_key) {
 }
 
 void ConfigFile::SetOptDirty(string in_key, int in_dirty) {
+    local_locker lock(&config_locker);
+
 	config_map_dirty[StrLower(in_key)] = in_dirty;
 }
 
 void ConfigFile::SetOpt(string in_key, string in_val, int in_dirty) {
+    local_locker lock(&config_locker);
+
 	vector<string> v;
 	v.push_back(in_val);
 	config_map[StrLower(in_key)] = v;
@@ -189,6 +222,8 @@ void ConfigFile::SetOpt(string in_key, string in_val, int in_dirty) {
 }
 
 void ConfigFile::SetOptVec(string in_key, vector<string> in_val, int in_dirty) {
+    local_locker lock(&config_locker);
+
 	config_map[StrLower(in_key)] = in_val;
 	SetOptDirty(in_key, in_dirty);
 }
@@ -201,6 +236,8 @@ void ConfigFile::SetOptVec(string in_key, vector<string> in_val, int in_dirty) {
 // Starting number or desired number
 string ConfigFile::ExpandLogPath(string path, string logname, string type,
                                  int start, int overwrite) {
+    local_locker lock(&config_locker);
+
     string logtemplate;
     int inc = 0;
 	int incpad = 0;
@@ -414,6 +451,8 @@ string ConfigFile::ExpandLogPath(string path, string logname, string type,
 }
 
 uint32_t ConfigFile::FetchFileChecksum() {
+    local_locker lock(&config_locker);
+
 	if (checksum == 0)
 		CalculateChecksum();
 
@@ -421,6 +460,8 @@ uint32_t ConfigFile::FetchFileChecksum() {
 }
 
 void ConfigFile::CalculateChecksum() {
+    local_locker lock(&config_locker);
+
 	string cks;
 
 	for (map<string, vector<string> >::iterator x = config_map.begin();
@@ -433,176 +474,4 @@ void ConfigFile::CalculateChecksum() {
 
 	checksum = Adler32Checksum(cks.c_str(), cks.length());
 }
-
-int GroupConfigFile::ParseConfig(const char *in_fname) {
-	FILE *configf;
-	char confline[8192];
-
-	if ((configf = fopen(in_fname, "r")) == NULL) {
-		fprintf(stderr, "ERROR:  Reading grouped config file '%s': %s\n", in_fname,
-				strerror(errno));
-		return -1;
-	}
-
-	root = new GroupEntity;
-	root->name = ":root:";
-
-	vector<GroupEntity *> group_stack;
-	group_stack.push_back(root);
-
-	vector<GroupEntity *> primervec;
-
-	parsed_group_map[root] = primervec;
-
-	GroupEntity *sub = root;
-
-	while (!feof(configf)) {
-		if (fgets(confline, 8192, configf) == NULL)
-			break;
-
-		if (feof(configf)) break;
-
-		string parsestr = StrStrip(confline);
-		string directive, value;
-
-		if (parsestr.length() == 0)
-			continue;
-		if (parsestr[0] == '#')
-			continue;
-
-		size_t eq;
-		if ((eq = parsestr.find("=")) == string::npos) {
-			// Look for a "foo {".  { must be the end
-			if (parsestr[parsestr.length() - 1] == '{') {
-				directive = StrStrip(parsestr.substr(0, parsestr.length() - 1));
-
-				GroupEntity *newent = new GroupEntity;
-				parsed_group_map[sub].push_back(newent);
-
-				sub = newent;
-				sub->name = directive;
-				parsed_group_map[sub] = primervec;
-				group_stack.push_back(sub);
-
-				continue;
-			}
-
-			// Look for an ending }.  Must be the first character, everything after
-			// it is ignored
-			if (parsestr[0] == '}') {
-				if (sub == root) {
-					fprintf(stderr, "ERROR:  Unexpected closing '}'\n");
-          fclose(configf);
-					return -1;
-				}
-
-				group_stack.pop_back();
-				sub = group_stack.back();
-
-				continue;
-			}
-		} else {
-			// Process a directive
-			directive = StrStrip(parsestr.substr(0, eq));
-			value = StrStrip(parsestr.substr(eq + 1, parsestr.length()));
-
-			if (value == "") {
-				fprintf(stderr, "ERROR:  Illegal config option: '%s'\n",
-						parsestr.c_str());
-				continue;
-			}
-
-			if (directive == "include") {
-				fprintf(stderr, "ERROR:  Can't include sub-files right now\n");
-        fclose(configf);
-				return -1;
-			}
-
-			sub->value_map[StrLower(directive)].push_back(value);
-		}
-	}
-
-  fclose(configf);
-
-	return 1;
-}
-
-string GroupConfigFile::FetchOpt(string in_key, GroupEntity *in_parent) {
-	if (in_parent == NULL)
-		in_parent = root;
-
-    map<string, vector<string> >::iterator cmitr = 
-		in_parent->value_map.find(StrLower(in_key));
-    // No such key
-    if (cmitr == in_parent->value_map.end())
-        return "";
-
-    // Get a single key if we can
-    if (cmitr->second.size() == 0)
-        return "";
-
-    string val = cmitr->second[0];
-
-    return val;
-}
-
-vector<string> GroupConfigFile::FetchOptVec(string in_key, GroupEntity *in_parent) {
-    // Empty vec to return
-    vector<string> eretvec;
-
-	if (in_parent == NULL)
-		in_parent = root;
-
-    map<string, vector<string> >::iterator cmitr = 
-		in_parent->value_map.find(StrLower(in_key));
-    // No such key
-    if (cmitr == in_parent->value_map.end())
-        return eretvec;
-
-    return cmitr->second;
-}
-
-vector<GroupConfigFile::GroupEntity *> GroupConfigFile::FetchEntityGroup(GroupEntity *in_parent) {
-	map<GroupEntity *, vector<GroupEntity *> >::iterator itr;
-	if (in_parent == NULL)
-		itr = parsed_group_map.find(root);
-	else
-		itr = parsed_group_map.find(in_parent);
-
-	if (itr == parsed_group_map.end()) {
-		vector<GroupEntity *> ret;
-		return ret;
-	}
-
-	return itr->second;
-}
-
-uint32_t GroupConfigFile::FetchFileChecksum() {
-	if (checksum == 0)
-		CalculateChecksum();
-
-	return checksum;
-}
-
-void GroupConfigFile::CalculateChecksum() {
-	string cks;
-
-	map<GroupEntity *, vector<GroupEntity *> >::iterator x;
-	for (x = parsed_group_map.begin(); x != parsed_group_map.end(); ++x) {
-		for (unsigned int y = 0; y < x->second.size(); y++) {
-			cks += x->second[y]->name;
-			for (map<string, vector<string> >::iterator z = 
-				 x->second[y]->value_map.begin(); z != x->second[y]->value_map.end();
-				 ++z) {
-				cks += z->first;
-				for (unsigned int zz = 0; zz < z->second.size(); zz++) {
-					cks += z->second[zz];
-				}
-			}
-		}
-	}
-
-	checksum = Adler32Checksum(cks.c_str(), cks.length());
-}
-
 

@@ -37,7 +37,8 @@
 
 class ConfigFile {
 public:
-	ConfigFile(GlobalRegistry *in_globalreg) { globalreg = in_globalreg; checksum = 0; }
+	ConfigFile(GlobalRegistry *in_globalreg);
+    ~ConfigFile();
 
     int ParseConfig(const char *in_fname);
 	int SaveConfig(const char *in_fname);
@@ -60,7 +61,7 @@ public:
 	void SetOptVec(string in_key, vector<string> in_val, int in_dirty);
 
     string ExpandLogPath(string path, string logname, string type, 
-						 int start, int overwrite = 0);
+            int start, int overwrite = 0);
 
 	// Fetches the load-time checksum of the config values.
 	uint32_t FetchFileChecksum();
@@ -73,40 +74,8 @@ protected:
 	map<string, int> config_map_dirty;
 	uint32_t checksum;
 	string ckstring;
-};
 
-// Config file with grouping.  Only used at the moment for runtime log file
-// parsing.  Doesn't currently support the 'include = ' statement, either
-class GroupConfigFile {
-public:
-	class GroupEntity {
-	public:
-		string name;
-		map<string, vector<string> > value_map;
-	};
-
-	GroupConfigFile() { 
-		checksum = 0; 
-		root = NULL;
-	}
-	int ParseConfig(const char *in_fname);
-
-	// Return the vector of entities in this group, or the top groups if NULL
-	vector<GroupEntity *> FetchEntityGroup(GroupEntity *in_parent);
-
-    string FetchOpt(string in_key, GroupEntity *in_parent);
-    vector<string> FetchOptVec(string in_key, GroupEntity *in_parent);
-
-	uint32_t FetchFileChecksum();
-
-protected:
-	void CalculateChecksum();
-
-	map<GroupEntity *, vector<GroupEntity *> > parsed_group_map;
-
-	uint32_t checksum;
-
-	GroupEntity *root;
+    pthread_mutex_t config_locker;
 };
 
 #endif
