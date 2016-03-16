@@ -32,7 +32,10 @@
 
 // Pipe client code for communicating with another process
 //
-// Pipes should be created with pipe[] and the child process spawned
+// Handles r/w against two pipe(2) pairs which should be provided by 
+// the IPC spawning system.
+//
+// Populates the read buffer of a rbhandler and drains the write buffer
 class PipeClient : public Pollable {
 public:
     PipeClient(GlobalRegistry *in_globalreg, RingbufferHandler *in_rbhandler);
