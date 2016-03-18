@@ -78,7 +78,18 @@ protected:
 
     string filename;
 
-    map<string, vector<string> > config_map;
+    class config_entity {
+    public:
+        config_entity(string v, string sf) {
+            value = v;
+            sourcefile = sf;
+        }
+
+        string value;
+        string sourcefile;
+    };
+
+    map<string, vector<config_entity> > config_map;
 	map<string, int> config_map_dirty;
 	uint32_t checksum;
 	string ckstring;

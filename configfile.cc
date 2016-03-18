@@ -98,7 +98,8 @@ int ConfigFile::ParseConfig_nl(const char *in_fname) {
                     return -1;
                 }
             } else {
-                config_map[StrLower(directive)].push_back(value);
+                config_entity e(value, in_fname);
+                config_map[StrLower(directive)].push_back(e);
                 config_map_dirty[StrLower(directive)] = 1;
             }
         }
@@ -118,10 +119,10 @@ int ConfigFile::SaveConfig(const char *in_fname) {
 		return -1;
 	}
 
-	for (map<string, vector<string> >::iterator x = config_map.begin();
+	for (map<string, vector<config_entity> >::iterator x = config_map.begin();
 		 x != config_map.end(); ++x) {
 		for (unsigned int y = 0; y < x->second.size(); y++) {
-			fprintf(wf, "%s=%s\n", x->first.c_str(), x->second[y].c_str());
+			fprintf(wf, "%s=%s\n", x->first.c_str(), x->second[y].value.c_str());
 		}
 	}
 
@@ -132,7 +133,8 @@ int ConfigFile::SaveConfig(const char *in_fname) {
 string ConfigFile::FetchOpt(string in_key) {
     local_locker lock(&config_locker);
 
-    map<string, vector<string> >::iterator cmitr = config_map.find(StrLower(in_key));
+    map<string, vector<config_entity> >::iterator cmitr = 
+        config_map.find(StrLower(in_key));
     // No such key
     if (cmitr == config_map.end())
         return "";
@@ -141,7 +143,7 @@ string ConfigFile::FetchOpt(string in_key) {
     if (cmitr->second.size() == 0)
         return "";
 
-    string val = cmitr->second[0];
+    string val = cmitr->second[0].value;
 
     return val;
 }
@@ -152,12 +154,17 @@ vector<string> ConfigFile::FetchOptVec(string in_key) {
     // Empty vec to return
     vector<string> eretvec;
 
-    map<string, vector<string> >::iterator cmitr = config_map.find(StrLower(in_key));
+    map<string, vector<config_entity> >::iterator cmitr = 
+        config_map.find(StrLower(in_key));
     // No such key
     if (cmitr == config_map.end())
         return eretvec;
 
-    return cmitr->second;
+    for (unsigned int i = 0; i < cmitr->second.size(); i++) {
+        eretvec.push_back(cmitr->second[i].value);
+    }
+
+    return eretvec;
 }
 
 int ConfigFile::FetchOptBoolean(string in_key, int dvalue) {
@@ -225,8 +232,8 @@ void ConfigFile::SetOptDirty(string in_key, int in_dirty) {
 void ConfigFile::SetOpt(string in_key, string in_val, int in_dirty) {
     local_locker lock(&config_locker);
 
-	vector<string> v;
-	v.push_back(in_val);
+    vector<config_entity> v;
+    config_entity e(in_val, "::dynamic::");
 	config_map[StrLower(in_key)] = v;
 	SetOptDirty(in_key, in_dirty);
 }
@@ -234,7 +241,13 @@ void ConfigFile::SetOpt(string in_key, string in_val, int in_dirty) {
 void ConfigFile::SetOptVec(string in_key, vector<string> in_val, int in_dirty) {
     local_locker lock(&config_locker);
 
-	config_map[StrLower(in_key)] = in_val;
+    vector<config_entity> cev;
+    for (unsigned int x = 0; x < in_val.size(); x++) {
+        config_entity ce(in_val[x], "::dynamic::");
+        cev.push_back(ce);
+    }
+
+	config_map[StrLower(in_key)] = cev;
 	SetOptDirty(in_key, in_dirty);
 }
 
@@ -481,11 +494,11 @@ void ConfigFile::CalculateChecksum() {
 
 	string cks;
 
-	for (map<string, vector<string> >::iterator x = config_map.begin();
+	for (map<string, vector<config_entity> >::iterator x = config_map.begin();
 		 x != config_map.end(); ++x) {
 		cks += x->first;
 		for (unsigned int y = 0; y < x->second.size(); y++) {
-			cks += x->second[y];
+			cks += x->second[y].value;
 		}
 	}
 
