@@ -68,7 +68,15 @@ public:
 
 protected:
 	GlobalRegistry *globalreg;
+
 	void CalculateChecksum();
+
+    // Internal non-locking versions for use when parsing configs ourselves
+    int ParseConfig_nl(const char *in_fname);
+    string ExpandLogPath_nl(string path, string logname, string type, 
+            int start, int overwrite = 0);
+
+    string filename;
 
     map<string, vector<string> > config_map;
 	map<string, int> config_map_dirty;

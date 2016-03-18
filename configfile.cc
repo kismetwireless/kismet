@@ -42,7 +42,12 @@ ConfigFile::~ConfigFile() {
 
 int ConfigFile::ParseConfig(const char *in_fname) {
     local_locker lock(&config_locker);
+    return ParseConfig_nl(in_fname);
+}
 
+int ConfigFile::ParseConfig_nl(const char *in_fname) {
+    // We don't lock
+    
     FILE *configf;
     char confline[8192];
 
@@ -51,6 +56,8 @@ int ConfigFile::ParseConfig(const char *in_fname) {
                 errno, strerror(errno));
         return -1;
     }
+
+    filename = in_fname;
 
     while (!feof(configf)) {
         if (fgets(confline, 8192, configf) == NULL || feof(configf)) 
@@ -82,11 +89,11 @@ int ConfigFile::ParseConfig(const char *in_fname) {
 
             // Handling including files
             if (directive == "include") {
-                value = ExpandLogPath(value, "", "", 0, 1);
+                value = ExpandLogPath_nl(value, "", "", 0, 1);
 
                 printf("Including sub-config file: %s\n", value.c_str());
 
-                if (ParseConfig(value.c_str()) < 0) {
+                if (ParseConfig_nl(value.c_str()) < 0) {
                     fclose(configf);
                     return -1;
                 }
@@ -154,7 +161,8 @@ vector<string> ConfigFile::FetchOptVec(string in_key) {
 }
 
 int ConfigFile::FetchOptBoolean(string in_key, int dvalue) {
-    local_locker lock(&config_locker);
+    // Don't lock, we're locked in fetchopt
+    // local_locker lock(&config_locker);
 
 	string v = StrLower(FetchOpt(in_key));
 	int r;
@@ -168,7 +176,8 @@ int ConfigFile::FetchOptBoolean(string in_key, int dvalue) {
 }
 
 int ConfigFile::FetchOptInt(string in_key, int dvalue) {
-    local_locker lock(&config_locker);
+    // Don't lock, we're locked in fetchopt
+    // local_locker lock(&config_locker);
 
 	string v = StrLower(FetchOpt(in_key));
 	int r;
@@ -183,7 +192,8 @@ int ConfigFile::FetchOptInt(string in_key, int dvalue) {
 }
 
 unsigned int ConfigFile::FetchOptUInt(string in_key, unsigned int dvalue) {
-    local_locker lock(&config_locker);
+    // Don't lock, we're locked in fetchopt
+    // local_locker lock(&config_locker);
 
 	string v = StrLower(FetchOpt(in_key));
 	unsigned int r;
@@ -235,8 +245,15 @@ void ConfigFile::SetOptVec(string in_key, vector<string> in_val, int in_dirty) {
 // Logfile type to use
 // Starting number or desired number
 string ConfigFile::ExpandLogPath(string path, string logname, string type,
-                                 int start, int overwrite) {
+        int start, int overwrite) {
     local_locker lock(&config_locker);
+
+    return ExpandLogPath_nl(path, logname, type, start, overwrite);
+}
+
+string ConfigFile::ExpandLogPath_nl(string path, string logname, string type,
+        int start, int overwrite) {
+    // We don't lock
 
     string logtemplate;
     int inc = 0;

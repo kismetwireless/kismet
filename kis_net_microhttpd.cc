@@ -27,9 +27,12 @@
 #include <string>
 #include <sstream>
 #include <iomanip>
+#include <stdio.h>
 #include <pthread.h>
 #include <limits.h>
 #include <stdlib.h>
+#include <string.h>
+#include <errno.h>
 #include <microhttpd.h>
 
 #include "globalregistry.h"
@@ -44,6 +47,10 @@ Kis_Net_Httpd::Kis_Net_Httpd(GlobalRegistry *in_globalreg) {
 
     running = false;
 
+    use_ssl = false;
+    cert_pem = NULL;
+    cert_key = NULL;
+
     pthread_mutex_init(&controller_mutex, NULL);
 
     if (globalreg->kismet_config == NULL) {
@@ -56,9 +63,11 @@ Kis_Net_Httpd::Kis_Net_Httpd(GlobalRegistry *in_globalreg) {
     http_data_dir = globalreg->kismet_config->FetchOpt("httpd_home");
     http_aux_data_dir = globalreg->kismet_config->FetchOpt("httpd_user_home");
 
+    // TODO register a /index.html handler catch-all
     if (http_data_dir == "") {
-        _MSG("No httpd_home defined in kismet.conf, disabling static file serving",
-                MSGFLAG_ERROR);
+        _MSG("No httpd_home defined in kismet.conf, disabling static file serving. "
+                "This will disable the web UI, but the REST interface will still "
+                "function.", MSGFLAG_ERROR);
         http_serve_files = false;
     } else {
         http_data_dir = 
@@ -79,6 +88,10 @@ Kis_Net_Httpd::Kis_Net_Httpd(GlobalRegistry *in_globalreg) {
                 MSGFLAG_INFO);
         http_serve_user_files = true;
     }
+
+    use_ssl = globalreg->kismet_config->FetchOptBoolean("httpd_ssl", false);
+    pem_path = globalreg->kismet_config->FetchOpt("httpd_ssl_cert");
+    key_path = globalreg->kismet_config->FetchOpt("httpd_ssl_key");
 
     RegisterMimeType("html", "text/html");
     RegisterMimeType("svg", "image/svg+xml");
@@ -113,6 +126,44 @@ Kis_Net_Httpd::~Kis_Net_Httpd() {
     pthread_mutex_destroy(&controller_mutex);
 }
 
+char *Kis_Net_Httpd::read_ssl_file(string in_fname) {
+    FILE *f;
+    char strerrbuf[1024];
+    char *errstr;
+    stringstream str;
+    char *buf = NULL;
+    long sz;
+
+    // Read errors are considered fatal
+    if ((f = fopen(in_fname.c_str(), "rb")) == NULL) {
+        errstr = strerror_r(errno, strerrbuf, 1024);
+        str << "Unable to open SSL file " << in_fname << ": " << errstr;
+        _MSG(str.str(), MSGFLAG_FATAL);
+        return NULL;
+    }
+
+    fseek(f, 0, SEEK_END);
+    sz = ftell(f);
+    rewind(f);
+
+    if (sz <= 0) {
+       str << "Unable to load SSL file " << in_fname << ": File is empty";
+       _MSG(str.str(), MSGFLAG_FATAL);
+       return NULL;
+    }
+
+    buf = new char[sz];
+    if (fread(buf, sz, 1, f) <= 0) {
+        errstr = strerror_r(errno, strerrbuf, 1024);
+        str << "Unable to read SSL file " << in_fname << ": " << errstr;
+        _MSG(str.str(), MSGFLAG_FATAL);
+        return NULL;
+    }
+    fclose(f);
+
+    return buf;
+}
+
 void Kis_Net_Httpd::RegisterMimeType(string suffix, string mimetype) {
     mime_type_map[StrLower(suffix)] = mimetype;
 }
@@ -139,8 +190,51 @@ void Kis_Net_Httpd::RemoveHandler(Kis_Net_Httpd_Handler *in_handler) {
 }
 
 int Kis_Net_Httpd::StartHttpd() {
-    microhttpd = MHD_start_daemon(MHD_USE_THREAD_PER_CONNECTION,
-            http_port, NULL, NULL, &http_request_handler, this, MHD_OPTION_END); 
+    if (use_ssl) {
+        // If we can't load the SSL key files, crash and burn.  We can't safely
+        // degrade to non-ssl when the user is expecting encryption.
+        if (pem_path == "") {
+            _MSG("SSL requested but missing httpd_ssl_cert= configuration option.",
+                    MSGFLAG_FATAL);
+            globalreg->fatal_condition = 1;
+            return -1;
+        }
+
+        if (key_path == "") {
+            _MSG("SSL requested but missing httpd_ssl_key= configuration option.",
+                    MSGFLAG_FATAL);
+            globalreg->fatal_condition = 1;
+            return -1;
+        }
+
+        pem_path =
+            globalreg->kismet_config->ExpandLogPath(pem_path, "", "", 0, 1);
+        key_path =
+            globalreg->kismet_config->ExpandLogPath(key_path, "", "", 0, 1);
+
+        cert_pem = read_ssl_file(pem_path);
+        cert_key = read_ssl_file(key_path);
+
+        if (cert_pem == NULL || cert_key == NULL) {
+            _MSG("SSL requested but unable to load cert and key files, check your "
+                    "configuration!", MSGFLAG_FATAL);
+            globalreg->fatal_condition = 1;
+            return -1;
+        }
+    }
+
+
+    if (!use_ssl) {
+        microhttpd = MHD_start_daemon(MHD_USE_THREAD_PER_CONNECTION,
+                http_port, NULL, NULL, &http_request_handler, this, MHD_OPTION_END); 
+    } else {
+        microhttpd = MHD_start_daemon(MHD_USE_THREAD_PER_CONNECTION | MHD_USE_SSL,
+                http_port, NULL, NULL, &http_request_handler, this, 
+                MHD_OPTION_HTTPS_MEM_KEY, cert_key,
+                MHD_OPTION_HTTPS_MEM_CERT, cert_pem,
+                MHD_OPTION_END); 
+    }
+
 
     if (microhttpd == NULL) {
         _MSG("Failed to start http server on port " + UIntToString(http_port),

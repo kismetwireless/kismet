@@ -13,6 +13,11 @@ xx. Kismet Webserver
     may be included in the base kismet.conf file, but are broken out for
     clarity.
 
+    By default, Kismet does not run in SSL mode.  If you provide a certificate
+    and key file in PEM format, Kismet supports standard SSL / HTTPS.  For more
+    information on creating a SSL certificate, look at:
+        README.SSL
+
     HTTP configuration options:
 
     httpd_user=user:password
@@ -43,12 +48,28 @@ xx. Kismet Webserver
         
         This option is ignored if Kismet is not running in SSL mode.
 
+        Logformat escapes can be used in this.  Specifically, "%S" 
+        will automatically expand to the system install data directory,
+        and "%h" will expand to the home directory of the user running
+        Kismet.
+
+        Example:
+            httpd_ssl_cert=%h/.kismet/kismet.pem
+
     httpd_ssl_key=/path/to/key.pem
 
         Path to a PEM-format SSL key file.  This file should not have a
         password set.  
         
         This option is ignored if Kismet is not running in SSL mode.
+
+        Logformat escapes can be used in this.  Specifically, "%S" 
+        will automatically expand to the system install data directory,
+        and "%h" will expand to the home directory of the user running
+        Kismet.
+
+        Example:
+            httpd_ssl_key=%h/.kismet/kismet.key
    
     httpd_home=/path/to/httpd/data
 

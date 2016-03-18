@@ -98,6 +98,10 @@ protected:
     struct MHD_Daemon *microhttpd;
     std::vector<Kis_Net_Httpd_Handler *> handler_vec;
 
+    bool use_ssl;
+    char *cert_pem, *cert_key;
+    string pem_path, key_path;
+
     bool running;
 
     std::map<string, string> mime_type_map;
@@ -111,6 +115,8 @@ protected:
 
     static int handle_static_file(void *cls, struct MHD_Connection *connection,
             const char *url, const char *method);
+
+    char *read_ssl_file(string in_fname);
 
     class session {
     public:
