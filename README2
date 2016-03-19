@@ -167,6 +167,11 @@ xx. GPS
             Automatically re-open the serial port if there is a problem with
             the GPS or if it is disconnected.
 
+        baud=rate
+            Specify a baud rate for the serial port.  Most serial GPS devices
+            operate at 4800, which Kismet uses by default.  If your device
+            is special, set the baud rate here.
+
         Example:
 
         gps=serial:device=/dev/ttyACM0,reconnect=true,name=LaptopSerial
