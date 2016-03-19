@@ -19,9 +19,9 @@
 #include "config.h"
 #include "configfile.h"
 #include "messagebus.h"
-#include "kis_net_websession.h"
+#include "kis_httpd_websession.h"
 
-Kis_Net_Websession::Kis_Net_Websession(GlobalRegistry *in_globalreg) {
+Kis_Httpd_Websession::Kis_Httpd_Websession(GlobalRegistry *in_globalreg) {
     globalreg = in_globalreg;
 
     globalreg->httpd_server->RegisterHandler(this);
@@ -41,12 +41,12 @@ Kis_Net_Websession::Kis_Net_Websession(GlobalRegistry *in_globalreg) {
     
 }
 
-Kis_Net_Websession::~Kis_Net_Websession() {
+Kis_Httpd_Websession::~Kis_Httpd_Websession() {
     globalreg->httpd_server->RemoveHandler(this);
 }
 
 
-bool Kis_Net_Websession::Httpd_VerifyPath(const char *path, const char *method) {
+bool Kis_Httpd_Websession::Httpd_VerifyPath(const char *path, const char *method) {
     if (strcmp(method, "GET") != 0)
         return false;
 
@@ -61,7 +61,7 @@ bool Kis_Net_Websession::Httpd_VerifyPath(const char *path, const char *method) 
 
 
 
-int Kis_Net_Websession::Httpd_HandleRequest(Kis_Net_Httpd *httpd, 
+int Kis_Httpd_Websession::Httpd_HandleRequest(Kis_Net_Httpd *httpd, 
             struct MHD_Connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size) {

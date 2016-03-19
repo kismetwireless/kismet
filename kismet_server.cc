@@ -71,7 +71,7 @@
 
 #include "kis_net_microhttpd.h"
 #include "system_monitor.h"
-#include "kis_net_websession.h"
+#include "kis_httpd_websession.h"
 
 #include "gps_manager.h"
 
@@ -688,7 +688,7 @@ int main(int argc, char *argv[], char *envp[]) {
     new Systemmonitor(globalregistry);
 
     // Add login session
-    new Kis_Net_Websession(globalregistry);
+    new Kis_Httpd_Websession(globalregistry);
 
 	// Create the basic network/protocol server
 	globalregistry->kisnetserver = new KisNetFramework(globalregistry);

@@ -16,8 +16,8 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#ifndef __KIS_NET_WEBSESSION_H__
-#define __KIS_NET_WEBSESSION_H__
+#ifndef __KIS_HTTPD_WEBSESSION_H__
+#define __KIS_HTTPD_WEBSESSION_H__
 
 #include "config.h"
 
@@ -28,10 +28,10 @@
 // We need to subclass the HTTPD handler directly because even though we can
 // generally act like a stream, we need to be able to directly manipulate the
 // response header
-class Kis_Net_Websession : public Kis_Net_Httpd_Handler {
+class Kis_Httpd_Websession : public Kis_Net_Httpd_Handler {
 public:
-    Kis_Net_Websession(GlobalRegistry *in_globalreg);
-    ~Kis_Net_Websession();
+    Kis_Httpd_Websession(GlobalRegistry *in_globalreg);
+    ~Kis_Httpd_Websession();
 
     virtual bool Httpd_VerifyPath(const char *path, const char *method);
 
