@@ -48,6 +48,27 @@ xx. Getting a certificate
     Kismet server MUST PROVIDE A METHOD FOR THE USER TO VALIDATE AND PIN THE
     CERTIFICATE.  Accepting all SSL certificates is NOT valid.
 
+xx. Using LetsEncrypt certificates
+
+    LetsEncrypt (https://letsencrypt.org) provides free, signed SSL 
+    certificates which are accepted by most browsers.  These certificates
+    can be used with Kismet and may offer a simpler and more secure option
+    than self-signed certificates.
+
+    LetsEncrypt currently uses a set of python (or third-party) clients
+    to automatically generate certificates.  In order to verify that you
+    control the domain the certificate is issued for, you must run these
+    scripts on the webserver with that domain.
+
+    Once the certificates are generated, they can be provided to Kismet.
+    You must provide the key file and the full chain certificate (by 
+    default named "full-chain.cer").  These files are already in PEM format.
+
+    To use a letsencrypt certificate without errors, Kismet must be running
+    on the server with that public domain name, or the connection to Kismet
+    must be forwarded, such as port forwarding over SSH.  (See the 
+    'SSH Forwarding' section for an example)
+
 xx. Generating a self-signed certificate
 
     When using a self-signed certificate, keep in mind the warnings above in
@@ -142,4 +163,21 @@ xx. Intermediary certificates
     The order of certificate files is important:  Your server certificate 
     must come before the intermediary certificate.
 
+xx. SSH forwarding
+
+    To take advantage of a SSL certificate which has a valid domain name
+    and is signed by an accepted authority, Kismet must be accessible via
+    the dns name the certificate is generated for.
+
+    Often a preferable option to running Kismet on the server itself is to
+    set up port forwarding via SSH.
+
+    To enable public port forwarding, first the GatewayPorts option must
+    be enabled on the server in sshd_config:
+    
+        GatewayPorts yes
+
+    Then a SSH session with remote port forwarding should be established:
+
+        $ ssh -R *:2501:localhost:2501 user@host
 
