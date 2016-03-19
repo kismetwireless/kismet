@@ -87,9 +87,9 @@ public:
     int StartHttpd();
     int StopHttpd();
 
-    unsigned int GetPort() { return http_port; };
-
     bool HttpdRunning() { return running; }
+    unsigned int FetchPort() { return http_port; };
+    bool FetchUsingSSL() { return use_ssl; };
 
     void RegisterHandler(Kis_Net_Httpd_Handler *in_handler);
     void RemoveHandler(Kis_Net_Httpd_Handler *in_handler);
