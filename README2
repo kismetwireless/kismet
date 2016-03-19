@@ -42,6 +42,8 @@ xx. Kismet Webserver
         and key in PEM format with the httpd_ssl_cert and httpd_ssl_key 
         configuration options.
 
+        See README.SSL for more information about SSL certificates.
+
     httpd_ssl_cert=/path/to/cert.pem
 
         Path to a PEM-format SSL certificate.  

@@ -105,4 +105,41 @@ xx. Generating a self-signed certificate
         httpd_ssl_cert=%h/.kismet/ssl/kismet.pem
         httpd_ssl_key=$h/.kismet/ssl/kismet.key
 
+xx. Converting certificates
+
+    Kismet requires that the certificate be in PEM format.  If you are using
+    a certificate signed by a certificate authority, you may receive the
+    certificate in DER format.
+
+    If you are unsure what format a certificate file is in, open it in a 
+    standard editor or use the 'cat' command.  A PEM format certificate
+    will include '-----BEGIN CERTIFICATE----', while a DER format certificate
+    will be pure binary.
+
+    To convert a DER to PEM certificate:
+
+    $ openssl x509 -inform der -in certificate.cer -out certificate.pem
+
+xx. Intermediary certificates
+
+    Many certificate authorities use an intermediary signing certificate.
+
+    This certificate must be included in the chain presented by the server
+    to be valid in all browsers (Typically, Chrome works without intermediary
+    certificates, but command-line tools like 'curl' and other OpenSSL based
+    code, such as embedded https clients in Python, Ruby, etc, does not.
+
+    If you are using an official certificate, and need to include the 
+    intermediary certificate from your provider, simply concatenate it with
+    your server certificate:
+
+        $ cat kismet.pem intermediate.pem > combo.pem
+
+    And use the combined certificate in your kismet_httpd.conf:
+
+        httpd_ssl_cert=%h/.kismet/ssl/combo.pem
+
+    The order of certificate files is important:  Your server certificate 
+    must come before the intermediary certificate.
+
 
