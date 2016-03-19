@@ -20,20 +20,20 @@
 
 #include <stdio.h>
 #include <time.h>
-#include <list>
-#include <map>
 #include <vector>
-#include <algorithm>
 #include <string>
 #include <sstream>
 #include <iomanip>
 #include <stdio.h>
 #include <pthread.h>
-#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
 #include <microhttpd.h>
+
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 #include "globalregistry.h"
 #include "messagebus.h"
@@ -118,6 +118,59 @@ Kis_Net_Httpd::Kis_Net_Httpd(GlobalRegistry *in_globalreg) {
         
     }
 
+    // Do we store sessions?
+    store_sessions = false;
+    session_db = NULL;
+
+    sessiondb_file = globalreg->kismet_config->FetchOpt("httpd_session_db");
+
+    if (sessiondb_file != "") {
+        sessiondb_file = 
+            globalreg->kismet_config->ExpandLogPath(sessiondb_file, "", "", 0, 1);
+
+        session_db = new ConfigFile(globalreg);
+
+        store_sessions = true;
+
+        struct stat buf;
+        if (stat(sessiondb_file.c_str(), &buf) == 0) {
+            session_db->ParseConfig(sessiondb_file.c_str());
+
+            vector<string> oldsessions = session_db->FetchOptVec("session");
+
+            if (oldsessions.size() > 0) 
+                _MSG("Loading saved HTTP sessions", MSGFLAG_INFO);
+
+            for (unsigned int s = 0; s < oldsessions.size(); s++) {
+                vector<string> sestok = StrTokenize(oldsessions[s], ",");
+
+                if (sestok.size() != 4)
+                    continue;
+
+                session *sess = new session();
+
+                sess->sessionid = sestok[0];
+
+                if (sscanf(sestok[1].c_str(), "%lu", &(sess->session_created)) != 1) {
+                    delete sess;
+                    continue;
+                }
+
+                if (sscanf(sestok[2].c_str(), "%lu", &(sess->session_seen)) != 1) {
+                    delete sess;
+                    continue;
+                }
+
+                if (sscanf(sestok[3].c_str(), "%lu", &(sess->session_lifetime)) != 1) {
+                    delete sess;
+                    continue;
+                }
+
+                session_map[sess->sessionid] = sess;
+
+            }
+        }
+    }
 }
 
 Kis_Net_Httpd::~Kis_Net_Httpd() {
@@ -260,6 +313,49 @@ int Kis_Net_Httpd::StopHttpd() {
     return 0;
 }
 
+void Kis_Net_Httpd::AddSession(session *in_session) {
+    session_map[in_session->sessionid] = in_session;
+    WriteSessions();
+}
+
+void Kis_Net_Httpd::DelSession(string in_key) {
+    map<string, session *>::iterator i = session_map.find(in_key);
+
+    DelSession(i);
+}
+
+void Kis_Net_Httpd::DelSession(map<string, session *>::iterator in_itr) {
+    if (in_itr != session_map.end()) {
+        delete in_itr->second;
+        session_map.erase(in_itr);
+        WriteSessions();
+    }
+}
+
+void Kis_Net_Httpd::WriteSessions() {
+    if (!store_sessions)
+        return;
+
+    vector<string> sessions;
+    stringstream str;
+
+    for (map<string, session *>::iterator i = session_map.begin();
+            i != session_map.end(); ++i) {
+        str.str("");
+
+        str << i->second->sessionid << "," << i->second->session_created << "," <<
+            i->second->session_seen << "," << i->second->session_lifetime;
+
+        sessions.push_back(str.str());
+    }
+
+    session_db->SetOptVec("session", sessions, true);
+
+    // Ignore failures here I guess?
+    session_db->SaveConfig(sessiondb_file.c_str());
+
+}
+
 int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connection,
     const char *url, const char *method, const char *version __attribute__ ((unused)),
     const char *upload_data, size_t *upload_data_size, 
@@ -286,8 +382,7 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
                 // Delete if the session has expired
                 if (s->session_seen + s->session_lifetime < 
                         kishttpd->globalreg->timestamp.tv_sec) {
-                    kishttpd->session_map.erase(si);
-                    delete(s);
+                    kishttpd->DelSession(si);
                 }
             }
 
@@ -503,8 +598,7 @@ bool Kis_Net_Httpd::HasValidSession(struct MHD_Connection *connection) {
 
     // Has the session expired?
     if (s->session_seen + s->session_lifetime < globalreg->timestamp.tv_sec) {
-        session_map.erase(si);
-        delete(s);
+        DelSession(si);
         return false;
     }
 
@@ -559,7 +653,7 @@ void Kis_Net_Httpd::CreateSession(struct MHD_Response *response, time_t in_lifet
     s->session_seen = s->session_created;
     s->session_lifetime = in_lifetime;
 
-    session_map[cookie.str()] = s;
+    AddSession(s);
 }
 
 bool Kis_Net_Httpd_No_Files_Handler::Httpd_VerifyPath(const char *path, 

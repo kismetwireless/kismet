@@ -146,7 +146,17 @@ protected:
         time_t session_lifetime;
     };
 
+    void AddSession(session *in_session);
+    void DelSession(string in_key);
+    void DelSession(map<string, session *>::iterator in_itr);
+    void WriteSessions();
+
     map<string, session *> session_map;
+
+    bool store_sessions;
+    string sessiondb_file;
+    ConfigFile *session_db;
+
 };
 
 #endif

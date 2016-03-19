@@ -106,6 +106,21 @@ xx. Kismet Webserver
         If you wish to disable serving content from the user directory 
         entirely, comment this configuration option out.
 
+    httpd_session_db=/path/to/session/db
+
+        Path to save HTTP sessions to.  This allows Kismet to remember valid
+        browser login sessions over restarts of kismet_server. 
+
+        If you want to refresh the logins (and require browsers to log in 
+        again after each restart), comment this option.
+
+        Typically there is no reason to change this option.
+
+        Logformat escapes can be used in this.  Specifically, "%h" will 
+        expand to the current users home directory.  By default this
+        should be:
+            httpd_session_db=%h/.kismet/session.db
+
     httpd_mime=extension:mimetype
 
         Kismet supports MIME types for most standard file formats, however if
