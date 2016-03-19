@@ -60,7 +60,7 @@ xx. Using LetsEncrypt certificates
     control the domain the certificate is issued for, you must run these
     scripts on the webserver with that domain.
 
-    Once the certificates are generated, they can be provided to Kismet.
+    Once the certificates are generated, they must be provided to Kismet.
     You must provide the key file and the full chain certificate (by 
     default named "full-chain.cer").  These files are already in PEM format.
 
