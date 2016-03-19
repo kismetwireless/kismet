@@ -89,6 +89,10 @@ Kis_Net_Httpd::Kis_Net_Httpd(GlobalRegistry *in_globalreg) {
         http_serve_user_files = true;
     }
 
+    if (http_serve_files == false && http_serve_user_files == false) {
+        RegisterHandler(new Kis_Net_Httpd_No_Files_Handler());
+    }
+
     use_ssl = globalreg->kismet_config->FetchOptBoolean("httpd_ssl", false);
     pem_path = globalreg->kismet_config->FetchOpt("httpd_ssl_cert");
     key_path = globalreg->kismet_config->FetchOpt("httpd_ssl_key");
@@ -557,5 +561,43 @@ void Kis_Net_Httpd::CreateSession(struct MHD_Response *response, time_t in_lifet
     s->session_lifetime = in_lifetime;
 
     session_map[cookie.str()] = s;
+}
+
+bool Kis_Net_Httpd_No_Files_Handler::Httpd_VerifyPath(const char *path, 
+        const char *method) {
+
+    if (strcmp(method, "GET") != 0)
+        return false;
+
+    if (strcmp(path, "/index.html") == 0 ||
+            strcmp(path, "/") == 0)
+        return true;
+
+    return false;
+}
+
+
+void Kis_Net_Httpd_No_Files_Handler::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd __attribute__((unused)),
+        struct MHD_Connection *connection __attribute__((unused)),
+        const char *url __attribute__((unused)), 
+        const char *method __attribute__((unused)), 
+        const char *upload_data __attribute__((unused)),
+        size_t *upload_data_size __attribute__((unused)), 
+        std::stringstream &stream) {
+
+    stream << "<html>";
+    stream << "<head><title>Web UI Disabled</title></head>";
+    stream << "<body>";
+    stream << "<h2>Sorry</h2>";
+    stream << "<p>The Web UI in Kismet is disabled because Kismet cannot serve ";
+    stream << "static web pages.";
+    stream << "<p>Check the output of kismet_server and make sure your ";
+    stream << "<blockquote><pre>httpd_home=...</pre>";
+    stream << "and/or<br>";
+    stream << "<pre>httpd_user_home=...</pre></blockquote>";
+    stream << "configuration values are set in kismet.conf or kismet_httpd.conf ";
+    stream << "and restart Kismet";
+    stream << "</body>";
+    stream << "</html>";
 }
 

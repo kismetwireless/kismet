@@ -66,6 +66,17 @@ public:
             size_t *upload_data_size);
 };
 
+// Fallback handler to report that we can't serve static files
+class Kis_Net_Httpd_No_Files_Handler : public Kis_Net_Httpd_Stream_Handler {
+public:
+    virtual bool Httpd_VerifyPath(const char *path, const char *method);
+
+    virtual void Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
+            struct MHD_Connection *connection,
+            const char *url, const char *method, const char *upload_data,
+            size_t *upload_data_size, std::stringstream &stream);
+};
+
 #define KIS_SESSION_COOKIE      "KISMET"
 
 class Kis_Net_Httpd {
