@@ -40,6 +40,8 @@ public:
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size);
 
+    virtual void SetLogin(string in_username, string in_password);
+
 protected:
     GlobalRegistry *globalreg;
 

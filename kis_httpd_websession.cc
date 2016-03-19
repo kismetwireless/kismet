@@ -17,6 +17,9 @@
 */
 
 #include "config.h"
+
+#include <sstream>
+
 #include "configfile.h"
 #include "messagebus.h"
 #include "kis_httpd_websession.h"
@@ -45,6 +48,17 @@ Kis_Httpd_Websession::~Kis_Httpd_Websession() {
     globalreg->httpd_server->RemoveHandler(this);
 }
 
+void Kis_Httpd_Websession::SetLogin(string in_username, string in_password) {
+    stringstream str;
+
+    conf_username = in_username;
+    conf_password = in_password;
+
+    str << in_username << ":" << in_password;
+
+    globalreg->kismet_config->SetOpt("httpd_user", str.str(), true);
+
+}
 
 bool Kis_Httpd_Websession::Httpd_VerifyPath(const char *path, const char *method) {
     if (strcmp(method, "GET") != 0)
@@ -59,12 +73,11 @@ bool Kis_Httpd_Websession::Httpd_VerifyPath(const char *path, const char *method
     return false;
 }
 
-
-
 int Kis_Httpd_Websession::Httpd_HandleRequest(Kis_Net_Httpd *httpd, 
             struct MHD_Connection *connection,
-            const char *url, const char *method, const char *upload_data,
-            size_t *upload_data_size) {
+            const char *url, const char *method, 
+            const char *upload_data __attribute__((unused)),
+            size_t *upload_data_size __attribute__((unused))) {
 
     if (strcmp(method, "GET") != 0) {
         return 0;
