@@ -63,7 +63,6 @@ Kis_Net_Httpd::Kis_Net_Httpd(GlobalRegistry *in_globalreg) {
     http_data_dir = globalreg->kismet_config->FetchOpt("httpd_home");
     http_aux_data_dir = globalreg->kismet_config->FetchOpt("httpd_user_home");
 
-    // TODO register a /index.html handler catch-all
     if (http_data_dir == "") {
         _MSG("No httpd_home defined in kismet.conf, disabling static file serving. "
                 "This will disable the web UI, but the REST interface will still "
