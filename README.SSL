@@ -124,7 +124,7 @@ xx. Generating a self-signed certificate
 
         httpd_ssl=true
         httpd_ssl_cert=%h/.kismet/ssl/kismet.pem
-        httpd_ssl_key=$h/.kismet/ssl/kismet.key
+        httpd_ssl_key=%h/.kismet/ssl/kismet.key
 
 xx. Converting certificates
 
