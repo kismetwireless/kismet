@@ -26,8 +26,10 @@
 #include <errno.h>
 #include <pthread.h>
 
-#include "configfile.h"
 #include "util.h"
+
+#include "configfile.h"
+#include "messagebus.h"
 
 ConfigFile::ConfigFile(GlobalRegistry *in_globalreg) {
     globalreg = in_globalreg;
@@ -51,17 +53,25 @@ int ConfigFile::ParseConfig_nl(const char *in_fname) {
     FILE *configf;
     char confline[8192];
 
+    char errbuf[1024];
+    char *errstr;
+    stringstream sstream;
+
     if ((configf = fopen(in_fname, "r")) == NULL) {
-        fprintf(stderr, "ERROR: Reading config file '%s': %d (%s)\n", in_fname,
-                errno, strerror(errno));
+        errstr = strerror_r(errno, errbuf, 1024);
+        sstream << "Error reading config file '" << in_fname << "': " << errstr;
+        _MSG(sstream.str(), MSGFLAG_ERROR);
         return -1;
     }
 
     filename = in_fname;
 
+    int lineno = 0;
     while (!feof(configf)) {
         if (fgets(confline, 8192, configf) == NULL || feof(configf)) 
 			break;
+
+        lineno++;
 
         // It's easier to parse this using C++ functions
         string parsestr = StrStrip(confline);
@@ -82,8 +92,10 @@ int ConfigFile::ParseConfig_nl(const char *in_fname) {
             value = StrStrip(parsestr.substr(eq+1, parsestr.length()));
 
             if (value == "") {
-                fprintf(stderr, "ERROR: Illegal config option: %s\n", 
-						parsestr.c_str());
+                sstream << "Illegal config option in '" << in_fname << "' line " <<
+                    lineno << ": " << parsestr;
+                _MSG(sstream.str(), MSGFLAG_ERROR);
+                sstream.str("");
                 continue;
             }
 
@@ -91,7 +103,9 @@ int ConfigFile::ParseConfig_nl(const char *in_fname) {
             if (directive == "include") {
                 value = ExpandLogPath_nl(value, "", "", 0, 1);
 
-                printf("Including sub-config file: %s\n", value.c_str());
+                sstream << "Including sub-config file: " << value;
+                _MSG(sstream.str(), MSGFLAG_INFO);
+                sstream.str("");
 
                 if (ParseConfig_nl(value.c_str()) < 0) {
                     fclose(configf);
@@ -113,9 +127,16 @@ int ConfigFile::ParseConfig_nl(const char *in_fname) {
 int ConfigFile::SaveConfig(const char *in_fname) {
     local_locker lock(&config_locker);
 
+    char errbuf[1024];
+    char *errstr;
+    stringstream sstream;
+
 	FILE *wf = NULL;
 
 	if ((wf = fopen(in_fname, "w")) == NULL) {
+        errstr = strerror_r(errno, errbuf, 1024);
+        sstream << "Error writing config file '" << in_fname << "': " << errstr;
+        _MSG(sstream.str(), MSGFLAG_ERROR);
 		return -1;
 	}
 
