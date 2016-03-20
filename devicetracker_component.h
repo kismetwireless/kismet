@@ -32,7 +32,6 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <pthread.h>
-#include <msgpack.hpp>
 
 #include "globalregistry.h"
 #include "trackedelement.h"
