@@ -15,23 +15,24 @@ var exports = {};
  */
 
 /* Kismet tracker types used in exported tuples */
-var KIS_TRACKERTYPE_STRING  = 0;
-var KIS_TRACKERTYPE_INT8    = 1;
-var KIS_TRACKERTYPE_UINT8   = 2;
-var KIS_TRACKERTYPE_INT16   = 3;
-var KIS_TRACKERTYPE_UINT16  = 4;
-var KIS_TRACKERTYPE_INT32   = 5;
-var KIS_TRACKERTYPE_UINT32  = 6;
-var KIS_TRACKERTYPE_INT64   = 7;
-var KIS_TRACKERTYPE_UINT64  = 8;
-var KIS_TRACKERTYPE_FLOAT   = 9;
-var KIS_TRACKERTYPE_DOUBLE  = 10;
-var KIS_TRACKERTYPE_MAC     = 11;
-var KIS_TRACKERTYPE_UUID    = 12;
-var KIS_TRACKERTYPE_VECTOR  = 13;
-var KIS_TRACKERTYPE_MAP     = 14;
-var KIS_TRACKERTYPE_INTMAP  = 15;
-var KIS_TRACKERTYPE_MACMAP  = 16;
+var KIS_TRACKERTYPE_STRING    = 0;
+var KIS_TRACKERTYPE_INT8      = 1;
+var KIS_TRACKERTYPE_UINT8     = 2;
+var KIS_TRACKERTYPE_INT16     = 3;
+var KIS_TRACKERTYPE_UINT16    = 4;
+var KIS_TRACKERTYPE_INT32     = 5;
+var KIS_TRACKERTYPE_UINT32    = 6;
+var KIS_TRACKERTYPE_INT64     = 7;
+var KIS_TRACKERTYPE_UINT64    = 8;
+var KIS_TRACKERTYPE_FLOAT     = 9;
+var KIS_TRACKERTYPE_DOUBLE    = 10;
+var KIS_TRACKERTYPE_MAC       = 11;
+var KIS_TRACKERTYPE_UUID      = 12;
+var KIS_TRACKERTYPE_VECTOR    = 13;
+var KIS_TRACKERTYPE_MAP       = 14;
+var KIS_TRACKERTYPE_INTMAP    = 15;
+var KIS_TRACKERTYPE_MACMAP    = 16;
+var KIS_TRACKERTYPE_STRINGMAP = 17;
 
 exports.ConvertMacaddr = ConvertMacaddr;
 function ConvertMacaddr(trackermac) {
@@ -52,7 +53,9 @@ function ConvertTrackerPack(unpacked) {
 
         return retarr;
     } else if (unpacked[0] == KIS_TRACKERTYPE_MAP ||
-            unpacked[0] == KIS_TRACKERTYPE_INTMAP) {
+            unpacked[0] == KIS_TRACKERTYPE_INTMAP ||
+            unpacked[0] == KIS_TRACKERTYPE_MACMAP ||
+            unpacked[0] == KIS_TRACKERTYPE_STRINGMAP) {
         var retdict = {};
 
         for (var k in unpacked[1]) {

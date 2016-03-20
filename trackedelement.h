@@ -70,6 +70,9 @@ enum TrackerType {
 
     // Mac map (mac-keyed tracker data)
     TrackerMacMap = 16,
+
+    // String-keyed map
+    TrackerStringMap = 17,
 };
 
 class TrackerElement {
@@ -233,12 +236,41 @@ public:
         return &submacmap_value;
     }
 
+    map<string, TrackerElement *> *get_stringmap() {
+        except_type_mismatch(TrackerStringMap);
+        return &substringmap_value;
+    }
+
     TrackerElement *get_intmap_value(int idx) {
         except_type_mismatch(TrackerIntMap);
 
         map<int, TrackerElement *>::iterator i = subintmap_value.find(idx);
 
         if (i == submap_value.end()) {
+            return NULL;
+        }
+
+        return i->second;
+    }
+
+    TrackerElement *get_macmap_value(int idx) {
+        except_type_mismatch(TrackerMacMap);
+
+        map<mac_addr, TrackerElement *>::iterator i = submacmap_value.find(idx);
+
+        if (i == submacmap_value.end()) {
+            return NULL;
+        }
+
+        return i->second;
+    }
+
+    TrackerElement *get_stringmap_value(string idx) {
+        except_type_mismatch(TrackerStringMap);
+
+        map<string, TrackerElement *>::iterator i = substringmap_value.find(idx);
+
+        if (i == substringmap_value.end()) {
             return NULL;
         }
 
@@ -327,6 +359,9 @@ public:
     void add_macmap(mac_addr i, TrackerElement *s);
     void del_macmap(mac_addr i);
 
+    void add_stringmap(string i, TrackerElement *s);
+    void del_stringmap(string i);
+
     void add_vector(TrackerElement *s);
     void del_vector(unsigned int p);
     void clear_vector();
@@ -341,6 +376,10 @@ public:
     typedef map<mac_addr, TrackerElement *>::iterator mac_map_iterator;
     typedef map<mac_addr, TrackerElement *>::const_iterator mac_map_const_iterator;
 
+    typedef map<string, TrackerElement *> tracked_string_map;
+    typedef map<string, TrackerElement *>::iterator string_map_iterator;
+    typedef map<string, TrackerElement *>::const_iterator string_map_const_iterator;
+
     map_const_iterator begin();
     map_const_iterator end();
     map_iterator find(int k);
@@ -348,6 +387,10 @@ public:
     mac_map_const_iterator mac_begin();
     mac_map_const_iterator mac_end();
     mac_map_iterator mac_find(mac_addr k);
+
+    string_map_const_iterator string_begin();
+    string_map_const_iterator string_end();
+    string_map_iterator string_find(string k);
 
     // Do our best to increment a value
     TrackerElement& operator++(const int);
@@ -496,6 +539,9 @@ protected:
 
     // Index mac,element keyed map
     map<mac_addr, TrackerElement *> submacmap_value;
+
+    // Index string,element keyed map
+    map<string, TrackerElement *> substringmap_value;
 
     vector<TrackerElement *> subvector_value;
 

@@ -70,6 +70,9 @@ template<>
                 TrackerElement::tracked_mac_map *tmacmap;
                 TrackerElement::mac_map_iterator mac_map_iter;
 
+                TrackerElement::tracked_string_map *tstringmap;
+                TrackerElement::string_map_iterator string_map_iter;
+
                 switch (v->get_type()) {
                     case TrackerString:
                         o.pack(GetTrackerValue<string>(v));
@@ -143,6 +146,17 @@ template<>
                             o.pack(mac_map_iter->first.MacFull2String());
                             o.pack(mac_map_iter->second);
                         }
+                        break;
+                    case TrackerStringMap:
+                        tstringmap = v->get_stringmap();
+                        o.pack_map(tstringmap->size());
+                        for (string_map_iter = tstringmap->begin();
+                                string_map_iter != tstringmap->end();
+                                ++string_map_iter) {
+                            o.pack(string_map_iter->first);
+                            o.pack(string_map_iter->second);
+                        }
+                        break;
 
                     default:
                         break;
