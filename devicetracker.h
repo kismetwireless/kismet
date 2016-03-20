@@ -214,7 +214,7 @@ public:
 
     __ProxyTrackable(data_rrd, uint64_rrd, data_rrd);
 
-    __Proxy(channel, uint64_t, uint64_t, uint64_t, channel);
+    __Proxy(channel, string, string, string, channel);
     __Proxy(frequency, uint64_t, uint64_t, uint64_t, frequency);
 
     __Proxy(manuf, string, string, string, manuf);
@@ -393,7 +393,7 @@ protected:
                     "packets seen per frequency (mhz)", (void **) &freq_mhz_map);
 
         channel_id =
-            RegisterField("kismet.device.base.channel", TrackerUInt64,
+            RegisterField("kismet.device.base.channel", TrackerString,
                         "channel (phy specific)", (void **) &channel);
         frequency_id =
             RegisterField("kismet.device.base.frequency", TrackerUInt64,

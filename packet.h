@@ -147,8 +147,8 @@ public:
 		checksum_valid = 0;
 	}
 
-	virtual void set_data(uint8_t *in_data, unsigned int in_length) {
-		kis_datachunk::set_data(in_data, in_length, true);
+	virtual void set_data(uint8_t *in_data, unsigned int in_length, bool copy = true) {
+		kis_datachunk::set_data(in_data, in_length, copy);
 		checksum_ptr = (uint32_t *) data;
 	}
 };
@@ -171,7 +171,7 @@ public:
 		phyid = 0;
 		error = 0;
 		datasize = 0;
-		channel = 0;
+		channel = "0";
 		basic_crypt_set = 0;
 		source = mac_addr(0);
 		dest = mac_addr(0);
@@ -187,8 +187,10 @@ public:
 	int datasize;
 	// Encryption if applicable
 	uint32_t basic_crypt_set;
-	// Phy-specific numeric channel, freq is held in l1info
-	int channel;
+	// Phy-specific numeric channel, freq is held in l1info.  Channel is
+    // represented as a string to carry whatever special attributes, ie
+    // 6HT20 or 6HT40+ for wifi
+	string channel;
 };
 
 // String reference
@@ -291,7 +293,7 @@ public:
 		datarate = 0;
 		freq_mhz = 0;
 		accuracy = 0;
-		channel = 0;
+		channel = "0";
 	}
 
 	// How "accurate" are we?  Higher == better.  Nothing uses this yet
@@ -302,7 +304,7 @@ public:
 	int freq_mhz;
 
 	// Logical channel
-	int channel;
+	string channel;
 
     // Connection info
     kis_layer1_packinfo_signal_type signal_type;

@@ -129,7 +129,7 @@ public:
 		fmsweak = 0;
         ess = 0;
 		ibss = 0;
-		channel = 0;
+		channel = "0";
         encrypted = 0;
         beacon_interval = 0;
         maxrate = 0;
@@ -187,7 +187,7 @@ public:
 	int ibss;
 
 	// What channel does it report
-	unsigned int channel;
+	string channel;
 
     // Is this encrypted?
     int encrypted;
@@ -387,7 +387,7 @@ public:
     __Proxy(ssid_beacon, uint8_t, bool, bool, ssid_beacon);
     __Proxy(ssid_probe_response, uint8_t, bool, bool, ssid_probe_response);
 
-    __Proxy(channel, uint32_t, unsigned int, unsigned int, channel);
+    __Proxy(channel, string, string, string, channel);
 
     __Proxy(first_time, uint64_t, time_t, time_t, first_time);
     __Proxy(last_time, uint64_t, time_t, time_t, last_time);
@@ -458,7 +458,7 @@ protected:
                     "ssid advertised via probe response", 
                     (void **) &ssid_probe_response);
         channel_id = 
-            RegisterField("dot11.advertisedssid.channel", TrackerUInt32,
+            RegisterField("dot11.advertisedssid.channel", TrackerString,
                     "channel", (void **) &channel);
         first_time_id = 
             RegisterField("dot11.advertisedssid.first_time", TrackerUInt64,

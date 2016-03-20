@@ -705,7 +705,7 @@ int Devicetracker::PopulateCommon(kis_tracked_device_base *device, kis_packet *i
 	}
 
 	if (pack_l1info != NULL) {
-		if (pack_l1info->channel != 0)
+		if (!(pack_l1info->channel == "0"))
             device->set_channel(pack_l1info->channel);
 		if (pack_l1info->freq_mhz != 0)
             device->set_frequency(pack_l1info->freq_mhz);
@@ -735,7 +735,7 @@ int Devicetracker::PopulateCommon(kis_tracked_device_base *device, kis_packet *i
 
     device->add_basic_crypt(pack_common->basic_crypt_set);
 
-	if (pack_common->channel)
+	if (!(pack_common->channel == "0"))
         device->set_channel(pack_common->channel);
 
 	kis_tracked_device_info *devinfo = 

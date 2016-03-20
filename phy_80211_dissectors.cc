@@ -574,7 +574,6 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
         // Extract various tags from the packet
         int found_ssid_tag = 0;
         int found_rate_tag = 0;
-        int found_channel_tag = 0;
 
         if (fc->subtype == packet_sub_beacon || 
 			fc->subtype == packet_sub_probe_req || 
@@ -810,7 +809,6 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
             // GetPacketInfo
             if ((tcitr = tag_cache_map.find(3)) != tag_cache_map.end()) {
                 tag_offset = tcitr->second[0];
-                found_channel_tag = 1;
                 // Extract the channel from the next byte (GetTagOffset returns
                 // us on the size byte)
                 taglen = (chunk->data[tag_offset] & 0xFF);
@@ -822,7 +820,7 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
                     return 0;
 				}
 				
-                packinfo->channel = (int) (chunk->data[tag_offset+1]);
+                packinfo->channel = IntToString((int) (chunk->data[tag_offset+1]));
             }
 
 
@@ -831,7 +829,6 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
             // GetPacketInfo
             if ((tcitr = tag_cache_map.find(3)) != tag_cache_map.end()) {
                 tag_offset = tcitr->second[0];
-                found_channel_tag = 1;
                 // Extract the channel from the next byte (GetTagOffset returns
                 // us on the size byte)
                 taglen = (chunk->data[tag_offset] & 0xFF);
@@ -843,7 +840,7 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
                     return 0;
 				}
 				
-                packinfo->channel = (int) (chunk->data[tag_offset+1]);
+                packinfo->channel = IntToString((int) (chunk->data[tag_offset+1]));
             } // channel
 
             // Match WPS tag

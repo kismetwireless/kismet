@@ -26,86 +26,6 @@
 #include "devicetracker.h"
 #include "configfile.h"
 
-const char *ALERT_fields_text[] = {
-	"sec", "usec", "header", "bssid", "source", "dest", "other", 
-	"channel", "text", "phytype",
-	NULL
-};
-
-// alert.  data = ALERT_data
-int Protocol_ALERT(PROTO_PARMS) {
-	kis_alert_info *info = (kis_alert_info *) data;
-	ostringstream osstr;
-
-	cache->Filled(field_vec->size());
-
-	for (unsigned int x = 0; x < field_vec->size(); x++) {
-		unsigned int fnum = (*field_vec)[x];
-
-		if (fnum >= ALERT_maxfield) {
-			out_string = "Unknown field requested.";
-			return -1;
-		}
-
-		osstr.str("");
-
-		// Shortcut test the cache once and print/bail immediately
-		if (cache->Filled(fnum)) {
-			out_string += cache->GetCache(fnum) + " ";
-			continue;
-		}
-
-		switch(fnum) {
-			case ALERT_header:
-				cache->Cache(fnum, info->header);
-				break;
-			case ALERT_sec:
-				osstr << (int) info->tm.tv_sec;
-				cache->Cache(fnum, osstr.str());
-				break;
-			case ALERT_usec:
-				osstr << (int) info->tm.tv_usec;
-				cache->Cache(fnum, osstr.str());
-				break;
-			case ALERT_bssid:
-				cache->Cache(fnum, info->bssid.Mac2String());
-				break;
-			case ALERT_source:
-				cache->Cache(fnum, info->source.Mac2String());
-				break;
-			case ALERT_dest:
-				cache->Cache(fnum, info->dest.Mac2String());
-				break;
-			case ALERT_other:
-				cache->Cache(fnum, info->other.Mac2String());
-				break;
-			case ALERT_channel:
-				osstr << info->channel;
-				cache->Cache(fnum, osstr.str());
-				break;
-			case ALERT_text:
-				cache->Cache(fnum, "\001" + info->text + "\001");
-				break;
-			case ALERT_phytype:
-				cache->Cache(fnum, IntToString(info->phy));
-				break;
-			default:
-				out_string = "Unknown field requested.";
-				return -1;
-				break;
-		}
-
-		// print the newly filled in cache
-		out_string += cache->GetCache(fnum) + " ";
-	}
-
-	return 1;
-}
-
-void Protocol_ALERT_enable(PROTO_ENABLE_PARMS) {
-	globalreg->alertracker->BlitBacklogged(in_fd);
-}
-
 Alertracker::Alertracker() {
 	fprintf(stderr, "*** Alertracker::Alertracker() called with no global registry.  Bad.\n");
 }
@@ -144,12 +64,6 @@ Alertracker::Alertracker(GlobalRegistry *in_globalreg) {
 	// Register the alert component
 	_PCM(PACK_COMP_ALERT) =
 		globalreg->packetchain->RegisterPacketComponent("alert");
-
-	// Register the alert protocol
-	_NPM(PROTO_REF_ALERT) =
-		globalreg->kisnetserver->RegisterProtocol("ALERT", 0, 1, ALERT_fields_text, 
-												  &Protocol_ALERT, 
-												  &Protocol_ALERT_enable, this);
 
 	// Register a KISMET alert type with no rate restrictions
 	_ARM(ALERT_REF_KISMET) =
@@ -260,7 +174,7 @@ int Alertracker::PotentialAlert(int in_ref) {
 
 int Alertracker::RaiseAlert(int in_ref, kis_packet *in_pack,
 							mac_addr bssid, mac_addr source, mac_addr dest, 
-							mac_addr other, int in_channel, string in_text) {
+							mac_addr other, string in_channel, string in_text) {
 	map<int, alert_rec *>::iterator aritr = alert_ref_map.find(in_ref);
 
 	if (aritr == alert_ref_map.end())
