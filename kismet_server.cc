@@ -75,12 +75,8 @@
 
 #include "gps_manager.h"
 
-#include "soundcontrol.h"
-
 #include "devicetracker.h"
 #include "phy_80211.h"
-
-#include "channeltracker.h"
 
 #include "dumpfile.h"
 #include "dumpfile_pcap.h"
@@ -907,24 +903,11 @@ int main(int argc, char *argv[], char *envp[]) {
 		CatchShutdown(-1);
 #endif
 
-	// Assign the speech and sound handlers
-	globalregistry->soundctl = new SoundControl(globalregistry);
-	if (globalregistry->fatal_condition)
-		CatchShutdown(-1);
-
 	// Create the GPS components
     new GpsManager(globalregistry);
 
 	// Create the manuf db
 	globalregistry->manufdb = new Manuf(globalregistry);
-	if (globalregistry->fatal_condition)
-		CatchShutdown(-1);
-
-	// Create the channel tracker
-	globalregistry->messagebus->InjectMessage("Creating channel tracker...",
-											  MSGFLAG_INFO);
-	Channeltracker *chantracker;
-	chantracker = new Channeltracker(globalregistry);
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
 

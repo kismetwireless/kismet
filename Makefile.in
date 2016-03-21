@@ -16,7 +16,7 @@ PSO	= util.o cygwin_utils.o globalregistry.o \
 	packet.o messagebus.o configfile.o getopt.o \
 	filtercore.o ifcontrol.o iwcontrol.o madwifing_control.o nl80211_control.o \
 	$(OBJC_LINK) \
-	psutils.o ipc_remote.o soundcontrol.o battery.o kismet_json.o \
+	psutils.o ipc_remote.o battery.o kismet_json.o \
 	netframework.o clinetframework.o tcpserver.o tcpclient.o \
 	tcpclient2.o serialclient2.o pipeclient.o ipc_remote2.o \
 	packetsourcetracker.o $(CAPSOURCES) \
@@ -26,7 +26,7 @@ PSO	= util.o cygwin_utils.o globalregistry.o \
 	packetchain.o \
 	trackedelement.o entrytracker.o msgpack_adapter.o xmlserialize_adapter.o \
 	plugintracker.o alertracker.o timetracker.o \
-	devicetracker.o channeltracker.o \
+	devicetracker.o \
 	kis_dlt.o kis_dlt_ppi.o kis_dlt_radiotap.o kis_dlt_prism2.o \
 	phy_80211.o phy_80211_dissectors.o \
 	kis_dissector_ipdata.o \
