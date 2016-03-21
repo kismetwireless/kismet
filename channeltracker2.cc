@@ -19,6 +19,144 @@
 #include "util.h"
 
 #include "channeltracker2.h"
+#include "msgpack_adapter.h"
+#include "devicetracker.h"
+#include "devicetracker_component.h"
+#include "packinfo_signal.h"
 
+Channeltracker_V2::Channeltracker_V2(GlobalRegistry *in_globalreg) :
+    tracker_component(in_globalreg, 0) {
 
+    globalreg = in_globalreg;
+
+    globalreg->InsertGlobal("CHANNEL_TRACKER", this);
+
+    register_fields();
+    reserve_fields(NULL);
+
+    httpd = (Kis_Net_Httpd *) globalreg->FetchGlobal("HTTPD_SERVER");
+    httpd->RegisterHandler(this);
+
+    globalreg->packetchain->RegisterHandler(&PacketChainHandler, this, 
+            CHAINPOS_LOGGING, 0);
+
+	pack_comp_device = _PCM(PACK_COMP_DEVICE) =
+		globalreg->packetchain->RegisterPacketComponent("DEVICE");
+
+	pack_comp_common =  _PCM(PACK_COMP_COMMON) =
+		globalreg->packetchain->RegisterPacketComponent("COMMON");
+
+	pack_comp_l1data = 
+		globalreg->packetchain->RegisterPacketComponent("RADIODATA");
+
+}
+
+Channeltracker_V2::~Channeltracker_V2() {
+    globalreg->RemoveGlobal("CHANNEL_TRACKER");
+    httpd->RemoveHandler(this);
+    globalreg->packetchain->RemoveHandler(&PacketChainHandler, CHAINPOS_LOGGING);
+}
+
+void Channeltracker_V2::register_fields() {
+    tracker_component::register_fields();
+
+    freq_map_id =
+        RegisterField("kismet.channeltracker.frequency_map", TrackerIntMap,
+                "Frequency use", (void **) &frequency_map);
+
+    channel_map_id =
+        RegisterField("kismet.channeltracker.channel_map", TrackerStringMap,
+                "Channel use", (void **) &channel_map);
+
+    Channeltracker_V2_Channel *chan_builder = 
+        new Channeltracker_V2_Channel(globalreg, 0);
+    channel_entry_id = RegisterComplexField("kismet.channeltracker.channel",
+            chan_builder, "channel/frequency entry");
+}
+
+bool Channeltracker_V2::Httpd_VerifyPath(const char *path, const char *method) {
+    if (strcmp(method, "GET") != 0)
+        return false;
+
+    if (strcmp(path, "/channels/channels.msgpack") == 0)
+        return true;
+
+    return false;
+}
+
+void Channeltracker_V2::Httpd_CreateStreamResponse(
+        Kis_Net_Httpd *httpd __attribute__((unused)),
+        struct MHD_Connection *connection __attribute__((unused)),
+        const char *path, const char *method, 
+        const char *upload_data __attribute__((unused)),
+        size_t *upload_data_size __attribute__((unused)), 
+        std::stringstream &stream) {
+
+    if (strcmp(method, "GET") != 0) {
+        return;
+    }
+
+    if (strcmp(path, "/channels/channels.msgpack") == 0) {
+        MsgpackAdapter::Pack(globalreg, stream, this);
+        return;
+    }
+
+}
+
+int Channeltracker_V2::PacketChainHandler(CHAINCALL_PARMS) {
+    Channeltracker_V2 *cv2 = (Channeltracker_V2 *) auxdata;
+
+    kis_layer1_packinfo *l1info =
+        (kis_layer1_packinfo *) in_pack->fetch(cv2->pack_comp_l1data);
+	kis_tracked_device_info *devinfo = 
+		(kis_tracked_device_info *) in_pack->fetch(cv2->pack_comp_device);
+	kis_common_info *common = 
+		(kis_common_info *) in_pack->fetch(cv2->pack_comp_common);
+
+    // Nothing to do with no l1info
+    if (l1info == NULL)
+        return 1;
+
+    Channeltracker_V2_Channel *freq_channel = NULL;
+    Channeltracker_V2_Channel *chan_channel = NULL;
+
+    // Find or make a frequency record if we know our frequency
+    if (l1info->freq_mhz != 0) {
+        TrackerElement::int_map_iterator imi =
+            cv2->frequency_map->int_find(l1info->freq_mhz);
+
+        if (imi == cv2->frequency_map->int_end()) {
+            freq_channel = 
+                new Channeltracker_V2_Channel(cv2->globalreg, cv2->channel_entry_id);
+            freq_channel->set_frequency(l1info->freq_mhz);
+            cv2->frequency_map->add_intmap(l1info->freq_mhz, freq_channel);
+        } else {
+            freq_channel = (Channeltracker_V2_Channel *) imi->second;
+        }
+    }
+
+    if (!(l1info->channel == "0") && !(l1info->channel == "")) {
+        TrackerElement::string_map_iterator smi =
+            cv2->channel_map->string_find(l1info->channel);
+
+        if (smi == cv2->channel_map->string_end()) {
+            chan_channel =
+                new Channeltracker_V2_Channel(cv2->globalreg, cv2->channel_entry_id);
+            chan_channel->set_channel(l1info->channel);
+            cv2->channel_map->add_stringmap(l1info->channel, chan_channel);
+        } else {
+            chan_channel = (Channeltracker_V2_Channel *) smi->second;
+        }
+    }
+
+    // didn't find anything
+    if (freq_channel == NULL && chan_channel == NULL)
+        return 1;
+
+    if (freq_channel) {
+        (*(freq_channel->get_signal_data())) += *(l1info);
+    }
+
+    return 1;
+}
 

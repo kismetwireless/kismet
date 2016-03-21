@@ -389,6 +389,76 @@ public:
         return new kis_tracked_signal_data(globalreg, get_id());
     }
 
+    kis_tracked_signal_data& operator+= (const kis_layer1_packinfo& lay1) {
+        if (lay1.signal_type == kis_l1_signal_type_dbm) {
+            if (lay1.signal_dbm != 0) {
+
+                last_signal_dbm->set((int32_t) lay1.signal_dbm);
+
+                if ((*min_signal_dbm) == (int32_t) 0 ||
+                        (*min_signal_dbm) > (int32_t) lay1.signal_dbm) {
+                    min_signal_dbm->set((int32_t) lay1.signal_dbm);
+                }
+
+                if ((*max_signal_dbm) == (int32_t) 0 ||
+                        (*max_signal_dbm) < (int32_t) lay1.signal_dbm) {
+                    max_signal_dbm->set((int32_t) lay1.signal_dbm);
+                }
+            }
+
+            if (lay1.noise_dbm != 0) {
+                last_noise_dbm->set((int32_t) lay1.noise_dbm);
+
+                if ((*min_noise_dbm) == (int32_t) 0 ||
+                        (*min_noise_dbm) > (int32_t) lay1.noise_dbm) {
+                    min_noise_dbm->set((int32_t) lay1.noise_dbm);
+                }
+
+                if ((*max_noise_dbm) == (int32_t) 0 ||
+                        (*max_noise_dbm) < (int32_t) lay1.noise_dbm) {
+                    max_noise_dbm->set((int32_t) lay1.noise_dbm);
+                }
+            }
+        } else if (lay1.signal_type == kis_l1_signal_type_rssi) {
+            if (lay1.signal_rssi != 0) {
+                last_signal_rssi->set((int32_t) lay1.signal_rssi);
+
+                if ((*min_signal_rssi) == (int32_t) 0 ||
+                        (*min_signal_rssi) > (int32_t) lay1.signal_rssi) {
+                    min_signal_dbm->set((int32_t) lay1.signal_rssi);
+                }
+
+                if ((*max_signal_rssi) == (int32_t) 0 ||
+                        (*max_signal_rssi) < (int32_t) lay1.signal_rssi) {
+                    max_signal_rssi->set((int32_t) lay1.signal_rssi);
+                }
+            }
+
+            if (lay1.noise_rssi != 0) {
+                last_noise_rssi->set((int32_t) lay1.noise_rssi);
+
+                if ((*min_noise_rssi) == (int32_t) 0 ||
+                        (*min_noise_rssi) > (int32_t) lay1.noise_rssi) {
+                    min_noise_rssi->set((int32_t) lay1.noise_rssi);
+                }
+
+                if ((*max_noise_rssi) == (int32_t) 0 ||
+                        (*max_noise_rssi) < (int32_t) lay1.noise_rssi) {
+                    max_noise_rssi->set((int32_t) lay1.noise_rssi);
+                }
+            }
+
+            (*carrierset) |= (uint64_t) lay1.carrier;
+            (*encodingset) |= (uint64_t) lay1.encoding;
+
+            if ((*maxseenrate) < (double) lay1.datarate) {
+                maxseenrate->set((double) lay1.datarate);
+            }
+        }
+
+        return *this;
+    }
+
 	kis_tracked_signal_data& operator+= (const Packinfo_Sig_Combo& in) {
         if (in.lay1 != NULL) {
             if (in.lay1->signal_type == kis_l1_signal_type_dbm) {

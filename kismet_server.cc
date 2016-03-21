@@ -71,6 +71,7 @@
 
 #include "kis_net_microhttpd.h"
 #include "system_monitor.h"
+#include "channeltracker2.h"
 #include "kis_httpd_websession.h"
 
 #include "gps_manager.h"
@@ -685,6 +686,9 @@ int main(int argc, char *argv[], char *envp[]) {
 
     // Add login session
     new Kis_Httpd_Websession(globalregistry);
+
+    // Add channel tracking
+    new Channeltracker_V2(globalregistry);
 
 	// Create the basic network/protocol server
 	globalregistry->kisnetserver = new KisNetFramework(globalregistry);

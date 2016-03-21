@@ -52,6 +52,17 @@ public:
         return new Channeltracker_V2_Channel(globalreg, get_id());
     }
 
+    __Proxy(channel, string, string, string, channel);
+    __Proxy(frequency, uint64_t, uint64_t, uint64_t, frequency);
+
+    typedef kis_tracked_rrd<uint64_t, TrackerUInt64> uint64_rrd;
+
+    __ProxyTrackable(packets_rrd, uint64_rrd, packets_rrd);
+    __ProxyTrackable(data_rrd, uint64_rrd, data_rrd);
+    __ProxyTrackable(device_rrd,uint64_rrd, device_rrd);
+
+    __ProxyTrackable(signal_data, kis_tracked_signal_data, signal_data);
+
 protected:
 
     virtual void register_fields() {
@@ -102,6 +113,10 @@ protected:
             device_rrd = 
                 new kis_tracked_rrd<uint64_t, TrackerUInt64>(globalreg, 
                         device_rrd_id, e->get_map_value(device_rrd_id));
+
+            signal_data =
+                new kis_tracked_signal_data(globalreg, signal_data_id,
+                        e->get_map_value(signal_data_id));
         } else {
             packets_rrd =
                 new kis_tracked_rrd<uint64_t, TrackerUInt64>(globalreg, packets_rrd_id);
@@ -114,6 +129,10 @@ protected:
             device_rrd =
                 new kis_tracked_rrd<uint64_t, TrackerUInt64>(globalreg, device_rrd_id);
             add_map(device_rrd);
+
+            signal_data =
+                new kis_tracked_signal_data(globalreg, signal_data_id);
+            add_map(signal_data);
         }
 
     }
@@ -167,7 +186,7 @@ protected:
     Kis_Net_Httpd *httpd;
 
     // Packetchain callback
-    static void PacketChainHandler(kis_packet *in_pack);
+    static int PacketChainHandler(CHAINCALL_PARMS);
 
     // Tracker component
     virtual void register_fields();
@@ -182,7 +201,9 @@ protected:
     TrackerElement *frequency_map;
 
     // Channel/freq content
-    int map_content_id;
+    int channel_entry_id;
+
+    int pack_comp_l1data, pack_comp_devinfo, pack_comp_common, pack_comp_device;
 
 };
 
