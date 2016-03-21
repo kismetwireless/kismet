@@ -110,9 +110,11 @@ protected:
             data_rrd = 
                 new kis_tracked_rrd<uint64_t, TrackerUInt64>(globalreg, 
                         data_rrd_id, e->get_map_value(data_rrd_id));
+            /*
             device_rrd = 
                 new kis_tracked_rrd<uint64_t, TrackerUInt64>(globalreg, 
                         device_rrd_id, e->get_map_value(device_rrd_id));
+                        */
 
             signal_data =
                 new kis_tracked_signal_data(globalreg, signal_data_id,
@@ -126,9 +128,11 @@ protected:
                 new kis_tracked_rrd<uint64_t, TrackerUInt64>(globalreg, data_rrd_id);
             add_map(data_rrd);
 
+            /*
             device_rrd =
                 new kis_tracked_rrd<uint64_t, TrackerUInt64>(globalreg, device_rrd_id);
             add_map(device_rrd);
+            */
 
             signal_data =
                 new kis_tracked_signal_data(globalreg, signal_data_id);

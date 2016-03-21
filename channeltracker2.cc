@@ -155,6 +155,24 @@ int Channeltracker_V2::PacketChainHandler(CHAINCALL_PARMS) {
 
     if (freq_channel) {
         (*(freq_channel->get_signal_data())) += *(l1info);
+        freq_channel->get_packets_rrd()->add_sample(1, 
+                cv2->globalreg->timestamp.tv_sec);
+
+        if (common != NULL) {
+            freq_channel->get_data_rrd()->add_sample(common->datasize,
+                    cv2->globalreg->timestamp.tv_sec);
+        }
+    }
+
+    if (chan_channel) {
+        (*(chan_channel->get_signal_data())) += *(l1info);
+        chan_channel->get_packets_rrd()->add_sample(1, 
+                cv2->globalreg->timestamp.tv_sec);
+
+        if (common != NULL) {
+            chan_channel->get_data_rrd()->add_sample(common->datasize,
+                    cv2->globalreg->timestamp.tv_sec);
+        }
     }
 
     return 1;
