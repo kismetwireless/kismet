@@ -108,8 +108,10 @@ int Channeltracker_V2::PacketChainHandler(CHAINCALL_PARMS) {
 
     kis_layer1_packinfo *l1info =
         (kis_layer1_packinfo *) in_pack->fetch(cv2->pack_comp_l1data);
+    /*
 	kis_tracked_device_info *devinfo = 
 		(kis_tracked_device_info *) in_pack->fetch(cv2->pack_comp_device);
+    */
 	kis_common_info *common = 
 		(kis_common_info *) in_pack->fetch(cv2->pack_comp_common);
 
@@ -162,6 +164,19 @@ int Channeltracker_V2::PacketChainHandler(CHAINCALL_PARMS) {
             freq_channel->get_data_rrd()->add_sample(common->datasize,
                     cv2->globalreg->timestamp.tv_sec);
         }
+
+        // Track unique devices
+        if (globalreg->timestamp.tv_sec != freq_channel->last_device_sec) {
+            freq_channel->last_device_sec = globalreg->timestamp.tv_sec;
+            freq_channel->seen_device_map.clear();
+        }
+
+        freq_channel->seen_device_map[common->device] = true;
+
+        freq_channel->get_device_rrd()->add_sample(
+                freq_channel->seen_device_map.size(),
+                globalreg->timestamp.tv_sec);
+
     }
 
     if (chan_channel) {
@@ -173,6 +188,18 @@ int Channeltracker_V2::PacketChainHandler(CHAINCALL_PARMS) {
             chan_channel->get_data_rrd()->add_sample(common->datasize,
                     cv2->globalreg->timestamp.tv_sec);
         }
+
+        // Track unique devices
+        if (globalreg->timestamp.tv_sec != chan_channel->last_device_sec) {
+            chan_channel->last_device_sec = globalreg->timestamp.tv_sec;
+            chan_channel->seen_device_map.clear();
+        }
+
+        chan_channel->seen_device_map[common->device] = true;
+
+        chan_channel->get_device_rrd()->add_sample(
+                chan_channel->seen_device_map.size(),
+                globalreg->timestamp.tv_sec);
     }
 
     return 1;

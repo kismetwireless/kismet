@@ -38,6 +38,8 @@ public:
         tracker_component(in_globalreg, in_id) { 
         register_fields();
         reserve_fields(NULL);
+
+        last_device_sec = 0;
     }
 
     Channeltracker_V2_Channel(GlobalRegistry *in_globalreg, 
@@ -46,6 +48,8 @@ public:
 
         register_fields();
         reserve_fields(e);
+
+        last_device_sec = 0;
     }
 
     virtual TrackerElement *clone_type() {
@@ -62,6 +66,12 @@ public:
     __ProxyTrackable(device_rrd,uint64_rrd, device_rrd);
 
     __ProxyTrackable(signal_data, kis_tracked_signal_data, signal_data);
+
+    // C++-domain map of devices we've seen in the last second for computing if we
+    // increase the RRD record
+    map<mac_addr, bool> seen_device_map;
+    time_t last_device_sec;
+
 
 protected:
 
@@ -96,7 +106,8 @@ protected:
 
         kis_tracked_signal_data *sig_builder =
             new kis_tracked_signal_data(globalreg, 0);
-        RegisterComplexField("kismet.channelrec.signal", sig_builder,
+        signal_data_id =
+            RegisterComplexField("kismet.channelrec.signal", sig_builder,
                 "overall signal records");
     }
 
@@ -110,11 +121,9 @@ protected:
             data_rrd = 
                 new kis_tracked_rrd<uint64_t, TrackerUInt64>(globalreg, 
                         data_rrd_id, e->get_map_value(data_rrd_id));
-            /*
             device_rrd = 
                 new kis_tracked_rrd<uint64_t, TrackerUInt64>(globalreg, 
                         device_rrd_id, e->get_map_value(device_rrd_id));
-                        */
 
             signal_data =
                 new kis_tracked_signal_data(globalreg, signal_data_id,
@@ -128,11 +137,9 @@ protected:
                 new kis_tracked_rrd<uint64_t, TrackerUInt64>(globalreg, data_rrd_id);
             add_map(data_rrd);
 
-            /*
             device_rrd =
                 new kis_tracked_rrd<uint64_t, TrackerUInt64>(globalreg, device_rrd_id);
             add_map(device_rrd);
-            */
 
             signal_data =
                 new kis_tracked_signal_data(globalreg, signal_data_id);
@@ -165,11 +172,6 @@ protected:
     // analyzers in the future as well.
     int signal_data_id;
     kis_tracked_signal_data *signal_data;
-
-    // C++-domain map of devices we've seen in the last second for computing if we
-    // increase the RRD record
-    map<mac_addr, bool> seen_device_map;
-    time_t last_device_sec;
 
 };
 
