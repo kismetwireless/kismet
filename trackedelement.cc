@@ -795,6 +795,24 @@ void TrackerElement::del_map(TrackerElement *e) {
     del_map(e->get_id());
 }
 
+TrackerElement::int_map_const_iterator TrackerElement::int_begin() {
+    except_type_mismatch(TrackerIntMap);
+
+    return subintmap_value.begin();
+}
+
+TrackerElement::int_map_const_iterator TrackerElement::int_end() {
+    except_type_mismatch(TrackerIntMap);
+
+    return subintmap_value.end();
+}
+
+TrackerElement::int_map_iterator TrackerElement::int_find(int k) {
+    except_type_mismatch(TrackerIntMap);
+
+    return subintmap_value.find(k);
+}
+
 void TrackerElement::add_intmap(int i, TrackerElement *s) {
     except_type_mismatch(TrackerIntMap);
     bool addlink = true;

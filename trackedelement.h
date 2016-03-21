@@ -372,6 +372,10 @@ public:
     typedef map<int, TrackerElement *>::iterator map_iterator;
     typedef map<int, TrackerElement *>::const_iterator map_const_iterator;
 
+    typedef map<int, TrackerElement *> tracked_int_map;
+    typedef map<int, TrackerElement *>::iterator int_map_iterator;
+    typedef map<int, TrackerElement *>::const_iterator int_map_const_iterator;
+
     typedef map<mac_addr, TrackerElement *> tracked_mac_map;
     typedef map<mac_addr, TrackerElement *>::iterator mac_map_iterator;
     typedef map<mac_addr, TrackerElement *>::const_iterator mac_map_const_iterator;
@@ -383,6 +387,10 @@ public:
     map_const_iterator begin();
     map_const_iterator end();
     map_iterator find(int k);
+
+    int_map_const_iterator int_begin();
+    int_map_const_iterator int_end();
+    int_map_iterator int_find(int k);
 
     mac_map_const_iterator mac_begin();
     mac_map_const_iterator mac_end();
