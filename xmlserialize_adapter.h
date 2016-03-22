@@ -90,6 +90,10 @@ protected:
 
     class Xmladapter {
     public:
+        Xmladapter() {
+            map_entries = false;
+        }
+
         ~Xmladapter() {
             for (unsigned int i = 0; i < schema_import_vector.size(); i++) {
                 delete schema_import_vector[i];
@@ -113,7 +117,7 @@ protected:
         // If we represent an int or mac map, the element and attribute
         // values.  Nested values must be simple types - a nested map cannot
         // be summarized as an attribute
-        bool map_entries = false;
+        bool map_entries;
         string map_entry_element;
         string map_key_attribute;
         string map_value_attribute;

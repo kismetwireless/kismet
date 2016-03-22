@@ -46,6 +46,12 @@ void XmlserializeAdapter::XmlSerialize(TrackerElement *v, std::stringstream &str
     TrackerElement::tracked_mac_map *tmacmap;
     TrackerElement::mac_map_iterator mac_map_iter;
 
+    TrackerElement::tracked_string_map *tstringmap;
+    TrackerElement::string_map_iterator string_map_iter;
+
+    TrackerElement::tracked_double_map *tdoublemap;
+    TrackerElement::double_map_iterator double_map_iter;
+
     vector<TrackerElement *> *tvec;
     unsigned int tvi;
 
@@ -171,6 +177,42 @@ void XmlserializeAdapter::XmlSerialize(TrackerElement *v, std::stringstream &str
                     stream << "\" />";
                 }
             }
+            break;
+        case TrackerStringMap:
+            tstringmap = v->get_stringmap();
+            if (adapter->map_entries) {
+                // Assumes our children are simple types
+                // TODO be smarter
+                for (string_map_iter = tstringmap->begin(); 
+                        string_map_iter != tstringmap->end(); 
+                        ++string_map_iter) {
+                    stream << "<" << adapter->map_entry_element <<
+                        " " << adapter->map_key_attribute << "=\"" <<
+                        string_map_iter->first << "\" " <<
+                        adapter->map_value_attribute << "=\"";
+                    StreamSimpleValue(string_map_iter->second, stream);
+                    stream << "\" />";
+                }
+            }
+            break;
+        case TrackerDoubleMap:
+            tdoublemap = v->get_doublemap();
+            if (adapter->map_entries) {
+                // Assumes our children are simple types
+                // TODO be smarter
+                for (double_map_iter = tdoublemap->begin(); 
+                        double_map_iter != tdoublemap->end(); 
+                        ++double_map_iter) {
+                    stream << "<" << adapter->map_entry_element <<
+                        " " << adapter->map_key_attribute << "=\"" <<
+                        double_map_iter->first << "\" " <<
+                        adapter->map_value_attribute << "=\"";
+                    StreamSimpleValue(double_map_iter->second, stream);
+                    stream << "\" />";
+                }
+            }
+            break;
+
         default:
             break;
     }
