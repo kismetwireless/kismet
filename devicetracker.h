@@ -215,7 +215,7 @@ public:
     __ProxyTrackable(data_rrd, uint64_rrd, data_rrd);
 
     __Proxy(channel, string, string, string, channel);
-    __Proxy(frequency, uint64_t, uint64_t, uint64_t, frequency);
+    __Proxy(frequency, double, double, double, frequency);
 
     __Proxy(manuf, string, string, string, manuf);
     
@@ -240,17 +240,17 @@ public:
     bool get_dirty() { return dirty; }
     void set_dirty(bool d) { dirty = d; }
 
-    void inc_frequency_count(int frequency) {
+    void inc_frequency_count(double frequency) {
         if (frequency <= 0)
             return;
 
-        TrackerElement::map_iterator i = freq_mhz_map->find(frequency);
+        TrackerElement::double_map_iterator i = freq_mhz_map->double_find(frequency);
 
-        if (i == freq_mhz_map->end()) {
+        if (i == freq_mhz_map->double_end()) {
             TrackerElement *e = 
                 globalreg->entrytracker->GetTrackedInstance(frequency_val_id);
             e->set((uint64_t) 1);
-            freq_mhz_map->add_intmap(frequency, e);
+            freq_mhz_map->add_doublemap(frequency, e);
         } else {
             (*(i->second))++;
         }
@@ -389,14 +389,14 @@ protected:
                     "signal data");
 
         freq_mhz_map_id =
-            RegisterField("kismet.device.base.freq_mhz_map", TrackerIntMap,
+            RegisterField("kismet.device.base.freq_mhz_map", TrackerDoubleMap,
                     "packets seen per frequency (mhz)", (void **) &freq_mhz_map);
 
         channel_id =
             RegisterField("kismet.device.base.channel", TrackerString,
                         "channel (phy specific)", (void **) &channel);
         frequency_id =
-            RegisterField("kismet.device.base.frequency", TrackerUInt64,
+            RegisterField("kismet.device.base.frequency", TrackerDouble,
                         "frequency", (void **) &frequency);
 
         manuf_id =
@@ -421,6 +421,7 @@ protected:
             RegisterField("kismet.device.base.seenby", TrackerIntMap,
                     "sources that have seen this device", (void **) &seenby_map);
 
+        // Packet count, not actual frequency, so uint64 not double
         frequency_val_id =
             globalreg->entrytracker->RegisterField("kismet.device.base.frequency.count",
                     TrackerUInt64, "frequency packet count");

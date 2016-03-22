@@ -57,7 +57,7 @@ public:
     }
 
     __Proxy(channel, string, string, string, channel);
-    __Proxy(frequency, uint64_t, uint64_t, uint64_t, frequency);
+    __Proxy(frequency, double, double, double, frequency);
 
     typedef kis_tracked_rrd<uint64_t, TrackerUInt64> uint64_rrd;
 
@@ -83,7 +83,7 @@ protected:
                     "logical channel", (void **) &channel);
 
         frequency_id =
-            RegisterField("kismet.channelrec.frequency", TrackerUInt64,
+            RegisterField("kismet.channelrec.frequency", TrackerDouble,
                     "physical frequency", (void **) &frequency);
 
         kis_tracked_rrd<uint64_t, TrackerUInt64> *packets_rrd_builder =

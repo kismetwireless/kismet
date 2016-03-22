@@ -61,7 +61,7 @@ void Channeltracker_V2::register_fields() {
     tracker_component::register_fields();
 
     freq_map_id =
-        RegisterField("kismet.channeltracker.frequency_map", TrackerIntMap,
+        RegisterField("kismet.channeltracker.frequency_map", TrackerDoubleMap,
                 "Frequency use", (void **) &frequency_map);
 
     channel_map_id =
@@ -124,14 +124,14 @@ int Channeltracker_V2::PacketChainHandler(CHAINCALL_PARMS) {
 
     // Find or make a frequency record if we know our frequency
     if (l1info->freq_mhz != 0) {
-        TrackerElement::int_map_iterator imi =
-            cv2->frequency_map->int_find(l1info->freq_mhz);
+        TrackerElement::double_map_iterator imi =
+            cv2->frequency_map->double_find(l1info->freq_mhz);
 
-        if (imi == cv2->frequency_map->int_end()) {
+        if (imi == cv2->frequency_map->double_end()) {
             freq_channel = 
                 new Channeltracker_V2_Channel(cv2->globalreg, cv2->channel_entry_id);
             freq_channel->set_frequency(l1info->freq_mhz);
-            cv2->frequency_map->add_intmap(l1info->freq_mhz, freq_channel);
+            cv2->frequency_map->add_doublemap(l1info->freq_mhz, freq_channel);
         } else {
             freq_channel = (Channeltracker_V2_Channel *) imi->second;
         }
