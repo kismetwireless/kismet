@@ -73,6 +73,9 @@ enum TrackerType {
 
     // String-keyed map
     TrackerStringMap = 17,
+    
+    // Double-keyed map
+    TrackerDoubleMap = 18,
 };
 
 class TrackerElement {
@@ -241,40 +244,9 @@ public:
         return &substringmap_value;
     }
 
-    TrackerElement *get_intmap_value(int idx) {
-        except_type_mismatch(TrackerIntMap);
-
-        map<int, TrackerElement *>::iterator i = subintmap_value.find(idx);
-
-        if (i == submap_value.end()) {
-            return NULL;
-        }
-
-        return i->second;
-    }
-
-    TrackerElement *get_macmap_value(int idx) {
-        except_type_mismatch(TrackerMacMap);
-
-        map<mac_addr, TrackerElement *>::iterator i = submacmap_value.find(idx);
-
-        if (i == submacmap_value.end()) {
-            return NULL;
-        }
-
-        return i->second;
-    }
-
-    TrackerElement *get_stringmap_value(string idx) {
-        except_type_mismatch(TrackerStringMap);
-
-        map<string, TrackerElement *>::iterator i = substringmap_value.find(idx);
-
-        if (i == substringmap_value.end()) {
-            return NULL;
-        }
-
-        return i->second;
+    map<double, TrackerElement *> *get_doublemap() {
+        except_type_mismatch(TrackerDoubleMap);
+        return &subdoublemap_value;
     }
 
     uuid get_uuid() {
@@ -353,19 +325,6 @@ public:
     void del_map(int f);
     void del_map(TrackerElement *s);
 
-    void add_intmap(int i, TrackerElement *s);
-    void del_intmap(int i);
-
-    void add_macmap(mac_addr i, TrackerElement *s);
-    void del_macmap(mac_addr i);
-
-    void add_stringmap(string i, TrackerElement *s);
-    void del_stringmap(string i);
-
-    void add_vector(TrackerElement *s);
-    void del_vector(unsigned int p);
-    void clear_vector();
-
     size_t size();
 
     typedef map<int, TrackerElement *> tracked_map;
@@ -384,21 +343,54 @@ public:
     typedef map<string, TrackerElement *>::iterator string_map_iterator;
     typedef map<string, TrackerElement *>::const_iterator string_map_const_iterator;
 
+    typedef map<double, TrackerElement *> tracked_double_map;
+    typedef map<double, TrackerElement *>::iterator double_map_iterator;
+    typedef map<double, TrackerElement *>::const_iterator double_map_const_iterator;
+
     map_const_iterator begin();
     map_const_iterator end();
     map_iterator find(int k);
 
+    void add_intmap(int i, TrackerElement *s);
+    void del_intmap(int i);
+    void clear_intmap();
+
+    TrackerElement *get_intmap_value(int idx);
     int_map_const_iterator int_begin();
     int_map_const_iterator int_end();
     int_map_iterator int_find(int k);
 
+    void add_macmap(mac_addr i, TrackerElement *s);
+    void del_macmap(mac_addr i);
+    void clear_macmap();
+
+    TrackerElement *get_macmap_value(int idx);
     mac_map_const_iterator mac_begin();
     mac_map_const_iterator mac_end();
     mac_map_iterator mac_find(mac_addr k);
 
+    void add_stringmap(string i, TrackerElement *s);
+    void del_stringmap(string i);
+    void clear_stringmap();
+
+    TrackerElement *get_stringmap_value(string idx);
     string_map_const_iterator string_begin();
     string_map_const_iterator string_end();
     string_map_iterator string_find(string k);
+
+    void add_doublemap(double i, TrackerElement *s);
+    void del_doublemap(double i);
+    void clear_doublemap();
+
+    TrackerElement *get_doublemap_value(double idx);
+    double_map_const_iterator double_begin();
+    double_map_const_iterator double_end();
+    double_map_iterator double_find(double k);
+
+    void add_vector(TrackerElement *s);
+    void del_vector(unsigned int p);
+    void clear_vector();
+
 
     // Do our best to increment a value
     TrackerElement& operator++(const int);
@@ -551,6 +543,9 @@ protected:
     // Index string,element keyed map
     map<string, TrackerElement *> substringmap_value;
 
+    // Index double,element keyed map
+    map<double, TrackerElement *> subdoublemap_value;
+
     vector<TrackerElement *> subvector_value;
 
     uuid uuid_value;
@@ -576,98 +571,6 @@ template<> double GetTrackerValue(TrackerElement *e);
 template<> mac_addr GetTrackerValue(TrackerElement *e);
 template<> map<int, TrackerElement *> *GetTrackerValue(TrackerElement *e);
 template<> vector<TrackerElement *> *GetTrackerValue(TrackerElement *e);
-
-class TrackerElementFormatter {
-public:
-    virtual void get_as_stream(TrackerElement *e, ostream& stream) = 0;
-    virtual void vector_to_stream(TrackerElement *e, ostream& stream) = 0;
-    virtual void map_to_stream(TrackerElement *e, ostream& stream) = 0;
-};
-
-class TrackerElementFormatterBasic : public TrackerElementFormatter {
-public:
-    virtual void get_as_stream(TrackerElement *e, ostream& stream) {
-        switch (e->get_type()) {
-            case TrackerString:
-                stream << GetTrackerValue<string>(e);
-            case TrackerInt8:
-                stream << GetTrackerValue<int8_t>(e);
-                break;
-            case TrackerUInt8:
-                stream << GetTrackerValue<uint8_t>(e);
-                break;
-            case TrackerInt16:
-                stream << GetTrackerValue<int16_t>(e);
-                break;
-            case TrackerUInt16:
-                stream << GetTrackerValue<uint16_t>(e);
-                break;
-            case TrackerInt32:
-                stream << GetTrackerValue<int32_t>(e);
-                break;
-            case TrackerUInt32:
-                stream << GetTrackerValue<uint32_t>(e);
-                break;
-            case TrackerInt64:
-                stream << GetTrackerValue<int64_t>(e);
-                break;
-            case TrackerUInt64:
-                stream << GetTrackerValue<uint16_t>(e);
-                break;
-            case TrackerFloat:
-                stream << GetTrackerValue<float>(e);
-                break;
-            case TrackerDouble:
-                stream << GetTrackerValue<double>(e);
-                break;
-            case TrackerMac:
-                stream << GetTrackerValue<mac_addr>(e).Mac2String();
-                break;
-            case TrackerVector:
-                vector_to_stream(e, stream);
-                break;
-            case TrackerMap:
-                map_to_stream(e, stream);
-                break;
-            default:
-                throw std::runtime_error("can't stream unknown");
-        }
-
-    }
-
-    virtual void vector_to_stream(TrackerElement *e, ostream& stream) {
-        unsigned int x;
-
-        stream << "vector[";
-
-        vector<TrackerElement *> *vec = GetTrackerValue<vector<TrackerElement *>*>(e);
-
-        for (x = 0; x < vec->size(); x++) {
-            get_as_stream((*vec)[x], stream);
-            stream << ",";
-        }
-
-        stream << "]";
-    }
-
-    virtual void map_to_stream(TrackerElement *e, ostream& stream) {
-        map<int, TrackerElement *>::iterator i;
-
-        stream << "map{";
-
-        map<int, TrackerElement *> *smap = GetTrackerValue<map<int, TrackerElement *>*>(e);
-
-        for (i = smap->begin(); i != smap->end(); ++i) {
-            stream << "[" << i->first << ",";
-            get_as_stream(i->second, stream);
-            stream << "],";
-        }
-
-        stream << "}";
-    }
-
-
-};
 
 // Complex trackable unit based on trackertype primitives.
 //

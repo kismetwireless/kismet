@@ -633,6 +633,19 @@ TrackerElement::map_iterator TrackerElement::find(int k) {
     }
 }
 
+TrackerElement *TrackerElement::get_macmap_value(int idx) {
+    except_type_mismatch(TrackerMacMap);
+
+    map<mac_addr, TrackerElement *>::iterator i = submacmap_value.find(idx);
+
+    if (i == submacmap_value.end()) {
+        return NULL;
+    }
+
+    return i->second;
+}
+
+
 TrackerElement::mac_map_const_iterator TrackerElement::mac_begin() {
     except_type_mismatch(TrackerMacMap);
 
@@ -670,6 +683,24 @@ void TrackerElement::del_macmap(mac_addr f) {
         submacmap_value.erase(mi);
         mi->second->unlink();
     }
+}
+
+void TrackerElement::clear_macmap() {
+    except_type_mismatch(TrackerMacMap);
+
+    submacmap_value.clear();
+}
+
+TrackerElement *TrackerElement::get_stringmap_value(string idx) {
+    except_type_mismatch(TrackerStringMap);
+
+    map<string, TrackerElement *>::iterator i = substringmap_value.find(idx);
+
+    if (i == substringmap_value.end()) {
+        return NULL;
+    }
+
+    return i->second;
 }
 
 TrackerElement::string_map_const_iterator TrackerElement::string_begin() {
@@ -710,6 +741,70 @@ void TrackerElement::del_stringmap(string f) {
         mi->second->unlink();
     }
 }
+
+void TrackerElement::clear_stringmap() {
+    except_type_mismatch(TrackerStringMap);
+
+    substringmap_value.clear();
+}
+
+TrackerElement *TrackerElement::get_doublemap_value(double idx) {
+    except_type_mismatch(TrackerDoubleMap);
+
+    map<double, TrackerElement *>::iterator i = subdoublemap_value.find(idx);
+
+    if (i == subdoublemap_value.end()) {
+        return NULL;
+    }
+
+    return i->second;
+}
+
+TrackerElement::double_map_const_iterator TrackerElement::double_begin() {
+    except_type_mismatch(TrackerDoubleMap);
+
+    return subdoublemap_value.begin();
+}
+
+TrackerElement::double_map_const_iterator TrackerElement::double_end() {
+    except_type_mismatch(TrackerDoubleMap);
+
+    return subdoublemap_value.end();
+}
+
+TrackerElement::double_map_iterator TrackerElement::double_find(double k) {
+    except_type_mismatch(TrackerDoubleMap);
+
+    return subdoublemap_value.find(k);
+}
+
+void TrackerElement::add_doublemap(double i, TrackerElement *s) {
+    except_type_mismatch(TrackerDoubleMap);
+
+    double_map_iterator mi = subdoublemap_value.find(i);
+    if (mi != subdoublemap_value.end())
+        mi->second->unlink();
+
+    subdoublemap_value[i] = s;
+    s->link();
+}
+
+void TrackerElement::del_doublemap(double f) {
+    except_type_mismatch(TrackerDoubleMap);
+
+    double_map_iterator mi = subdoublemap_value.find(f);
+    if (mi != subdoublemap_value.end()) {
+        subdoublemap_value.erase(mi);
+        mi->second->unlink();
+    }
+}
+
+void TrackerElement::clear_doublemap() {
+    except_type_mismatch(TrackerDoubleMap);
+
+    subdoublemap_value.clear();
+}
+
 
 string TrackerElement::type_to_string(TrackerType t) {
     switch (t) {
@@ -795,6 +890,18 @@ void TrackerElement::del_map(TrackerElement *e) {
     del_map(e->get_id());
 }
 
+TrackerElement *TrackerElement::get_intmap_value(int idx) {
+    except_type_mismatch(TrackerIntMap);
+
+    map<int, TrackerElement *>::iterator i = subintmap_value.find(idx);
+
+    if (i == submap_value.end()) {
+        return NULL;
+    }
+
+    return i->second;
+}
+
 TrackerElement::int_map_const_iterator TrackerElement::int_begin() {
     except_type_mismatch(TrackerIntMap);
 
@@ -811,6 +918,12 @@ TrackerElement::int_map_iterator TrackerElement::int_find(int k) {
     except_type_mismatch(TrackerIntMap);
 
     return subintmap_value.find(k);
+}
+
+void TrackerElement::clear_intmap() {
+    except_type_mismatch(TrackerIntMap);
+
+    subintmap_value.clear();
 }
 
 void TrackerElement::add_intmap(int i, TrackerElement *s) {

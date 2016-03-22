@@ -33,6 +33,7 @@ var KIS_TRACKERTYPE_MAP       = 14;
 var KIS_TRACKERTYPE_INTMAP    = 15;
 var KIS_TRACKERTYPE_MACMAP    = 16;
 var KIS_TRACKERTYPE_STRINGMAP = 17;
+var KIS_TRACKERTYPE_DOUBLEMAP = 18;
 
 exports.ConvertMacaddr = ConvertMacaddr;
 function ConvertMacaddr(trackermac) {
@@ -55,7 +56,8 @@ function ConvertTrackerPack(unpacked) {
     } else if (unpacked[0] == KIS_TRACKERTYPE_MAP ||
             unpacked[0] == KIS_TRACKERTYPE_INTMAP ||
             unpacked[0] == KIS_TRACKERTYPE_MACMAP ||
-            unpacked[0] == KIS_TRACKERTYPE_STRINGMAP) {
+            unpacked[0] == KIS_TRACKERTYPE_STRINGMAP ||
+            unpacked[0] == KIS_TRACKERTYPE_DOUBLEMAP) {
         var retdict = {};
 
         for (var k in unpacked[1]) {
