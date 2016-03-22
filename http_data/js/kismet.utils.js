@@ -80,6 +80,9 @@ exports.PostGpsLocation = function(gps, callback, failback) {
         data: msgpack.encode(gps),
         success: function(arbuf) {
             callback();
+        },
+        error: function(jqx, textStatus, errorThrown) {
+            failback("Fetch failed: " + textStatus + " " + errorThrown);
         }
     });
 };
@@ -99,6 +102,9 @@ exports.GetDeviceSummary = function(callback, failback) {
             } catch (e) {
                 failback(e);
             }
+        },
+        error: function(jqx, textStatus, errorThrown) {
+            failback("Fetch failed: " + textStatus + " " + errorThrown);
         }
     });
 };
@@ -118,6 +124,9 @@ exports.GetDevice = function(key, callback, failback) {
             } catch (e) {
                 failback(e);
             }
+        },
+        error: function(jqx, textStatus, errorThrown) {
+            failback("Fetch failed: " + textStatus + " " + errorThrown);
         }
     });
 };
@@ -137,6 +146,31 @@ exports.GetSystemStatus = function(callback, failback) {
             } catch (e) {
                 failback(e);
             }
+        },
+        error: function(jqx, textStatus, errorThrown) {
+            failback("Fetch failed: " + textStatus + " " + errorThrown);
+        }
+    });
+};
+
+exports.GetChannelData = function(callback, failback) {
+    $.ajax({
+        url: "/channels/channels.msgpack",
+        type: "GET",
+        dataType: "binary",
+        processData: false,
+        responseType: 'arraybuffer',
+        success: function(arbuf) {
+            var msg;
+            try {
+                msg = msgpack.decode(arbuf);
+                callback(ConvertTrackerPack(msg));
+            } catch (e) {
+                failback(e);
+            }
+        },
+        error: function(jqx, textStatus, errorThrown) {
+            failback("Fetch failed: " + textStatus + " " + errorThrown);
         }
     });
 };
