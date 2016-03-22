@@ -73,6 +73,9 @@ template<>
                 TrackerElement::tracked_string_map *tstringmap;
                 TrackerElement::string_map_iterator string_map_iter;
 
+                TrackerElement::tracked_double_map *tdoublemap;
+                TrackerElement::double_map_iterator double_map_iter;
+
                 switch (v->get_type()) {
                     case TrackerString:
                         o.pack(GetTrackerValue<string>(v));
@@ -155,6 +158,16 @@ template<>
                                 ++string_map_iter) {
                             o.pack(string_map_iter->first);
                             o.pack(string_map_iter->second);
+                        }
+                        break;
+                    case TrackerDoubleMap:
+                        tdoublemap = v->get_doublemap();
+                        o.pack_map(tdoublemap->size());
+                        for (double_map_iter = tdoublemap->begin();
+                                double_map_iter != tdoublemap->end();
+                                ++double_map_iter) {
+                            o.pack(double_map_iter->first);
+                            o.pack(double_map_iter->second);
                         }
                         break;
 
