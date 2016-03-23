@@ -6,6 +6,7 @@
 <script src="/js/jquery-2.2.0.min.js"></script>
 <script src="/js/jquery.ajax.binary.js"></script>
 <script src="/js/kismet.utils.js"></script>
+<script src="/js/kismet.ui.js"></script>
 <script src="/js/jquery.dataTables.min.js"></script>
 <script src="/js/d3.v3.min.js" charset="utf-8"></script>
 
@@ -21,56 +22,7 @@
 
 <script>
 
-var batteryTid;
 var deviceTid;
-
-function updateBatteryUi() {
-    $("#batspinner").show();
-    kismet.GetSystemStatus(function(status) {
-        if (status['kismet.system.battery.charging'] == "charging") {
-            $("#batpower").attr("src", "/img/icon_battery_full_charge.svg");
-            $("#battime").text("Charging " + 
-                    status['kismet.system.battery.percentage'] + "% ");
-        } else if (status['kismet.system.battery.charging'] == "charged") {
-            $("#batpower").attr("src", "/img/icon_battery_full_charge.svg");
-            $("#battime").text("Charged");
-        } else {
-            if (status['kismet.system.battery.percentage'] < 25)
-                $("#batpower").attr("src", "/img/icon_battery_0.svg");
-            else if (status['kismet.system.battery.percentage'] < 50)
-                $("#batpower").attr("src", "/img/icon_battery_25.svg");
-            else if (status['kismet.system.battery.percentage'] < 75)
-                $("#batpower").attr("src", "/img/icon_battery_50.svg");
-            else if (status['kismet.system.battery.percentage'] < 90)
-                $("#batpower").attr("src", "/img/icon_battery_75.svg");
-            else 
-                $("#batpower").attr("src", "/img/icon_battery_100.svg");
-
-            var s = status['kismet.system.battery.remaining'];
-
-            if (s > 0) {
-                var h = Math.floor(s / 3600);
-                s -= 3600 * h;
-                var m = Math.floor(s / 60);
-                s -= 60 * m;
-
-                if (m < 10)
-                    m = '0' + m
-                
-                $("#battime").text(status['kismet.system.battery.percentage'] + "% " + h+"h "+m+"m");
-            } else {
-                $("#battime").text(status['kismet.system.battery.percentage'] + "%")
-            }
-        }
-
-    }, function() {
-        $("#batpower").attr("src", "/img/icon/battery_no_battery_power.svg");
-        $("#battime").text("ERROR");
-    });
-    $("#batspinner").hide();
-
-    batteryTid = setTimeout(updateBatteryUi, 5000); // repeat myself
-}
 
 function populateDeviceSummary() {
     $("#live").empty();
@@ -181,7 +133,7 @@ function handleDeviceSummary() {
 var svg = d3.select("#foobar");
 
 $(document).ready(function() {
-    updateBatteryUi();
+    kismet_ui.BatteryUi($("#batspinner"), $("#batpower"), $("#battime"));
 
     $('#devices').DataTable( {
         "scrollY":        "60vh",
