@@ -137,17 +137,19 @@ int Channeltracker_V2::PacketChainHandler(CHAINCALL_PARMS) {
         }
     }
 
-    if (!(l1info->channel == "0") && !(l1info->channel == "")) {
-        TrackerElement::string_map_iterator smi =
-            cv2->channel_map->string_find(l1info->channel);
+    if (common != NULL) {
+        if (!(common->channel == "0") && !(common->channel == "")) {
+            TrackerElement::string_map_iterator smi =
+                cv2->channel_map->string_find(common->channel);
 
-        if (smi == cv2->channel_map->string_end()) {
-            chan_channel =
-                new Channeltracker_V2_Channel(cv2->globalreg, cv2->channel_entry_id);
-            chan_channel->set_channel(l1info->channel);
-            cv2->channel_map->add_stringmap(l1info->channel, chan_channel);
-        } else {
-            chan_channel = (Channeltracker_V2_Channel *) smi->second;
+            if (smi == cv2->channel_map->string_end()) {
+                chan_channel =
+                    new Channeltracker_V2_Channel(cv2->globalreg, cv2->channel_entry_id);
+                chan_channel->set_channel(common->channel);
+                cv2->channel_map->add_stringmap(common->channel, chan_channel);
+            } else {
+                chan_channel = (Channeltracker_V2_Channel *) smi->second;
+            }
         }
     }
 

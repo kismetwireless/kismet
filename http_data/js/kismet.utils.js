@@ -58,6 +58,8 @@ function ConvertTrackerPack(unpacked) {
             unpacked[0] == KIS_TRACKERTYPE_MACMAP ||
             unpacked[0] == KIS_TRACKERTYPE_STRINGMAP ||
             unpacked[0] == KIS_TRACKERTYPE_DOUBLEMAP) {
+        
+
         var retdict = {};
 
         for (var k in unpacked[1]) {
@@ -98,12 +100,15 @@ exports.GetDeviceSummary = function(callback, failback) {
         responseType: 'arraybuffer',
         success: function(arbuf) {
             var msg;
+            var conv;
             try {
                 msg = msgpack.decode(arbuf);
-                callback(ConvertTrackerPack(msg));
+                conv = ConvertTrackerPack(msg);
             } catch (e) {
                 failback(e);
             }
+
+            callback(conv);
         },
         error: function(jqx, textStatus, errorThrown) {
             failback("Fetch failed: " + textStatus + " " + errorThrown);
@@ -120,12 +125,15 @@ exports.GetDevice = function(key, callback, failback) {
         responseType: 'arraybuffer',
         success: function(arbuf) {
             var msg;
+            var conv;
             try {
                 msg = msgpack.decode(arbuf);
-                callback(ConvertTrackerPack(msg));
+                conv = ConvertTrackerPack(msg);
             } catch (e) {
                 failback(e);
             }
+
+            callback(conv);
         },
         error: function(jqx, textStatus, errorThrown) {
             failback("Fetch failed: " + textStatus + " " + errorThrown);
@@ -142,12 +150,15 @@ exports.GetSystemStatus = function(callback, failback) {
         responseType: 'arraybuffer',
         success: function(arbuf) {
             var msg;
+            var conv;
             try {
                 msg = msgpack.decode(arbuf);
-                callback(ConvertTrackerPack(msg));
+                conv = ConvertTrackerPack(msg);
             } catch (e) {
                 failback(e);
             }
+
+            callback(conv);
         },
         error: function(jqx, textStatus, errorThrown) {
             failback("Fetch failed: " + textStatus + " " + errorThrown);
@@ -164,12 +175,15 @@ exports.GetChannelData = function(callback, failback) {
         responseType: 'arraybuffer',
         success: function(arbuf) {
             var msg;
+            var conv;
             try {
                 msg = msgpack.decode(arbuf);
-                callback(ConvertTrackerPack(msg));
+                conv = ConvertTrackerPack(msg);
             } catch (e) {
                 failback(e);
             }
+
+            callback(conv);
         },
         error: function(jqx, textStatus, errorThrown) {
             failback("Fetch failed: " + textStatus + " " + errorThrown);

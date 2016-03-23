@@ -56,7 +56,7 @@ exports.BatteryUi = function(spinner, power, time) {
     });
     spinner.hide();
 
-    batteryTid = setTimeout(updateBatteryUi, 5000); // repeat myself
+    batteryTid = setTimeout(exports.BatteryUi, 5000, spinner, power, time);
 }
 
 return exports;

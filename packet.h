@@ -172,6 +172,7 @@ public:
 		error = 0;
 		datasize = 0;
 		channel = "0";
+        freq_khz = 0;
 		basic_crypt_set = 0;
 		source = mac_addr(0);
 		dest = mac_addr(0);
@@ -191,6 +192,8 @@ public:
     // represented as a string to carry whatever special attributes, ie
     // 6HT20 or 6HT40+ for wifi
 	string channel;
+    // Frequency in khz
+    double freq_khz;
 };
 
 // String reference

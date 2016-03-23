@@ -1,0 +1,85 @@
+<html>
+<head>
+<title>Kismet</title>
+
+<script src="/js/msgpack.js"></script>
+<script src="/js/jquery-2.2.0.min.js"></script>
+<script src="/js/jquery.ajax.binary.js"></script>
+<script src="/js/kismet.utils.js"></script>
+<script src="/js/kismet.ui.js"></script>
+<script src="/js/kismet.ui.channelgraph.js"></script>
+<script src="/js/jquery.dataTables.min.js"></script>
+<script src="/js/d3.v3.min.js" charset="utf-8"></script>
+
+<link rel="stylesheet" href="/css/font-awesome.min.css">
+<link rel="stylesheet" type="text/css" href="css/reset.css" media="screen" />
+<link rel="stylesheet" type="text/css" href="css/text.css" media="screen" />
+<link rel="stylesheet" type="text/css" href="css/grid.css" media="screen" />
+<link rel="stylesheet" type="text/css" href="css/layout.css" media="screen" />
+<link rel="stylesheet" type="text/css" href="css/nav.css" media="screen" />
+<!--[if IE 6]><link rel="stylesheet" type="text/css" href="css/ie6.css" media="screen" /><![endif]-->
+<!--[if IE 7]><link rel="stylesheet" type="text/css" href="css/ie.css" media="screen" /><![endif]-->
+<link rel="stylesheet" href="/css/jquery.dataTables.min.css"/>
+
+<script>
+
+$(document).ready(function() {
+    kismet_ui.BatteryUi($("#batspinner"), $("#batpower"), $("#battime"));
+
+    kismet_ui_channelgraph.ChannelSignalGraph("#channel_container", 600, 200);
+
+});
+
+</script>
+
+<style type="text/css">
+rect {
+    -moz-transition: all 0.3s;
+    -o-transition: all 0.3s;
+    -webkit-transition: all 0.3s;
+    transition: all 0.3s;
+}
+
+rect:hover {
+    fill: orange;
+}
+
+
+</style>
+
+</head>
+<body>
+
+    <div class="container_16">
+        <div class="grid_16">
+            <div class="box">
+                <h2>Kismet</h2>
+                <div style="text-align: right;"><span id="battime">00:11:22</span> <a href="#"><img id="batpower" src="/img/icon_battery_0.svg" style="width: 2em; height: auto; align: right; vertical-align: middle;"></a></div>
+                <i id="batspinner" class="fa fa-refresh fa-spin"></i>
+            </div>
+        </div>
+
+        <div class="clear"></div>
+
+        <div class="grid_16">
+            <div class="box">
+                <h2>Channels (dBm per channel)</h2>
+
+                <div id="channel_container" class="fill">
+
+                </div>
+
+            </div>
+        </div>
+
+        <div class="clear"></div>
+
+        <div class="grid_16" id="site_info">
+            <div class="box">
+                <p>Powered by many open source JS components, look at the <a href="/credit.html">credits page</a>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
