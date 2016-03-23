@@ -2,16 +2,35 @@ REST endpoints
 
 For packing format / msgpack use, see SERIALIZATION
 
-/system/status.msgpack
-    packed record of system status (battery, etc)
+System status:
 
-/devices/all_devices.msgpack
-    packed vector of device summary records
+    /system/status.msgpack
+        packed record of system status (battery, etc)
 
-/devices/DEVICE_KEY.msgpack
-    packed trackercomponent of DEVICE (where DEVICE_KEY is the device key from
+Devices:
+
+    /devices/all_devices.msgpack
+        packed vector of device summary records
+
+    /devices/DEVICE_KEY.msgpack
+        packed trackercomponent of DEVICE (where DEVICE_KEY is the device key from
             the summary)
 
-/phy/all_phys.msgpack
-    packed vector of phy descriptors and counts
+Phy handling:
+
+    /phy/all_phys.msgpack
+        packed vector of phy descriptors and counts
+
+Sessions/Logins:
+
+    /session/create_session
+        Prompt for basic auth & login
+
+    /session/check-session
+        See if a session is valid
+
+Channel usage:
+
+    /channels/channels.msgpack
+        Channel and frequency usage
 
