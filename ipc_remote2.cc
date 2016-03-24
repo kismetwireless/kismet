@@ -28,12 +28,13 @@
 #include "messagebus.h"
 #include "ipc_remote2.h"
 
-IPCRemoteV2::IPCRemoteV2(GlobalRegistry *in_globalreg) {
+IPCRemoteV2::IPCRemoteV2(GlobalRegistry *in_globalreg, 
+        RingbufferHandler *in_rbhandler) {
     globalreg = in_globalreg;
     pthread_mutex_init(&ipc_locker, NULL);
 
+    ipchandler = in_rbhandler;
     pipeclient = NULL;
-    ipchandler = NULL;
 
     child_pid = -1;
 }
@@ -43,8 +44,6 @@ IPCRemoteV2::~IPCRemoteV2() {
         local_locker lock(&ipc_locker);
         if (pipeclient != NULL)
             delete(pipeclient);
-        if (ipchandler != NULL)
-            delete(ipchandler);
     }
 
     pthread_mutex_destroy(&ipc_locker);
@@ -80,10 +79,6 @@ void IPCRemoteV2::Close() {
         pipeclient = NULL;
     }
 
-    if (ipchandler != NULL) {
-        delete(ipchandler);
-        ipchandler = NULL;
-    }
 }
 
 int IPCRemoteV2::LaunchKisBinary(string cmd, vector<string> args) {
@@ -180,10 +175,6 @@ int IPCRemoteV2::LaunchKisExplicitBinary(string cmdpath, vector<string> args) {
     close(inpipepair[1]);
     close(outpipepair[0]);
 
-    // Build the handler with generous default buffers.  A raw packet can be
-    // at least 1500 bytes, plus framing, plus metadata, and so on.  For extra
-    // safety, just make the buffer 64k
-    ipchandler = new RingbufferHandler(65536UL, 65536UL);
     pipeclient = new PipeClient(globalreg, ipchandler);
 
     // We read from the read end of the out pair, and write to the write end of the in
@@ -287,8 +278,6 @@ int IPCRemoteV2::LaunchStdExplicitBinary(string cmdpath, vector<string> args) {
     close(inpipepair[1]);
     close(outpipepair[0]);
 
-    // Might as well leave them as a generous 64k buffer
-    ipchandler = new RingbufferHandler(65536UL, 65536UL);
     pipeclient = new PipeClient(globalreg, ipchandler);
 
     // We read from the read end of the out pair, and write to the write end of the in

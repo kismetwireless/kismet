@@ -40,7 +40,7 @@
  */
 class IPCRemoteV2 {
 public:
-    IPCRemoteV2(GlobalRegistry *in_globalreg);
+    IPCRemoteV2(GlobalRegistry *in_globalreg, RingbufferHandler *in_rbhandler);
     virtual ~IPCRemoteV2();
 
     // Add paths to look for binary in.  Paths are searched in the order
