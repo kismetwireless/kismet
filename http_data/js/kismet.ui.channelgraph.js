@@ -26,7 +26,8 @@ function updateChannelSignalGraph(svg, width, height, dataset, nameset) {
         .rangeRoundBands([0, w], 0.05);
 
     var yScale = d3.scale.linear()
-        .domain([0, d3.max(mod_dataset) + 10])
+        //.domain([0, d3.max(mod_dataset) + 10])
+        .domain([20, 120])
         .range([padding, h - padding]);
 
     var cScale = d3.scale.linear()
