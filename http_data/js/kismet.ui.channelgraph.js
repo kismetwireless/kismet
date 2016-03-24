@@ -27,11 +27,11 @@ function updateChannelSignalGraph(svg, width, height, dataset, nameset) {
 
     var yScale = d3.scale.linear()
         //.domain([0, d3.max(mod_dataset) + 10])
-        .domain([20, 120])
+        .domain([20, 100])
         .range([padding, h - padding]);
 
     var cScale = d3.scale.linear()
-        .domain([80, 60, 40])
+        .domain([75, 50, 35])
         .range(['green', 'blue', 'red'])
 
     var bars = svg.selectAll("rect")
@@ -107,9 +107,17 @@ function updateChannelSignalGraph(svg, width, height, dataset, nameset) {
         });
 
     svg.append("g")
-        .attr("class", "x axis")
+        .attr("class", "xaxis")
         .attr("transform", "translate(0," + (h - padding) + ")")
         .call(xAxis);
+
+    var xaxistext = svg.selectAll(".xaxis text")
+        .data(mod_dataset);
+    xaxistext.transition()
+        .delay(500)
+        .attr("transform", "translate(0," + (h - padding) + ")")
+        .call(xAxis);
+
 }
 
 function timerChannelSignalGraph(svg, width, height) {
