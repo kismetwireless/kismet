@@ -649,9 +649,6 @@ public:
 	// Common classifier for keeping phy counts
 	int CommonTracker(kis_packet *in_packet);
 
-	// Scrape detected strings and push them out to the client
-	int StringCollector(kis_packet *in_packet);
-
 	// Initiate a logging cycle
 	int LogDevices(string in_logclass, string in_logtype, FILE *in_logfile);
 
@@ -712,7 +709,7 @@ protected:
 	int timerid;
 
     // Packet components we add or interact with
-	int pack_comp_device, pack_comp_common, pack_comp_string, pack_comp_basicdata,
+	int pack_comp_device, pack_comp_common, pack_comp_basicdata,
 		pack_comp_radiodata, pack_comp_gps, pack_comp_capsrc;
 
 	// Tracked devices

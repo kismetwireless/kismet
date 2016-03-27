@@ -46,10 +46,6 @@
 #include "msgpack_adapter.h"
 #include "xmlserialize_adapter.h"
 
-int Devicetracker_packethook_stringcollector(CHAINCALL_PARMS) {
-	return ((Devicetracker *) auxdata)->StringCollector(in_pack);
-}
-
 int Devicetracker_packethook_commontracker(CHAINCALL_PARMS) {
 	return ((Devicetracker *) auxdata)->CommonTracker(in_pack);
 }
@@ -122,17 +118,6 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) {
 	globalreg->packetchain->RegisterHandler(&Devicetracker_packethook_commontracker,
 											this, CHAINPOS_TRACKER, -100);
 
-	// Strings
-	globalreg->packetchain->RegisterHandler(&Devicetracker_packethook_stringcollector,
-											this, CHAINPOS_LOGGING, -100);
-
-	if (_PCM(PACK_COMP_STRINGS) != -1) {
-		pack_comp_string = _PCM(PACK_COMP_STRINGS);
-	} else {
-		pack_comp_string = _PCM(PACK_COMP_STRINGS) =
-			globalreg->packetchain->RegisterPacketComponent("string");
-	}
-
 	// Create the global kistxt and kisxml logfiles
 	new Dumpfile_Devicetracker(globalreg, "kistxt", "text");
 	new Dumpfile_Devicetracker(globalreg, "kisxml", "xml");
@@ -157,8 +142,6 @@ Devicetracker::~Devicetracker() {
 	if (timerid >= 0)
 		globalreg->timetracker->RemoveTimer(timerid);
 
-	globalreg->packetchain->RemoveHandler(&Devicetracker_packethook_stringcollector,
-										  CHAINPOS_LOGGING);
 	globalreg->packetchain->RemoveHandler(&Devicetracker_packethook_commontracker,
 										  CHAINPOS_TRACKER);
 
@@ -438,36 +421,6 @@ kis_tracked_device_base *Devicetracker::FetchDevice(uint64_t in_key) {
 kis_tracked_device_base *Devicetracker::FetchDevice(mac_addr in_device, 
         unsigned int in_phy) {
 	return FetchDevice(DevicetrackerKey::MakeKey(in_device, in_phy));
-}
-
-int Devicetracker::StringCollector(kis_packet *in_pack) {
-	kis_tracked_device_info *devinfo = 
-		(kis_tracked_device_info *) in_pack->fetch(_PCM(PACK_COMP_DEVICE));
-	kis_common_info *common = 
-		(kis_common_info *) in_pack->fetch(pack_comp_common);
-	kis_string_info *strings =
-		(kis_string_info *) in_pack->fetch(_PCM(PACK_COMP_STRINGS));
-
-	if (devinfo == NULL || strings == NULL || common == NULL)
-		return 0;
-
-    // TODO aggregate to local string buffer instead for querying
-#if 0
-	kis_proto_string_info si;
-
-	si.device = devinfo->devref->get_key();
-	si.phy = devinfo->devref->get_phytype();
-	si.source = common->source;
-	si.dest = common->dest;
-
-	for (unsigned int x = 0; x < strings->extracted_strings.size(); x++) {
-		si.stringdata = strings->extracted_strings[x];
-	
-		globalreg->kisnetserver->SendToAll(_NPM(PROTO_REF_STRING), (void *) &si);
-	}
-#endif
-
-	return 1;
 }
 
 int Devicetracker::CommonTracker(kis_packet *in_pack) {
