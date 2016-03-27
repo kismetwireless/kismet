@@ -596,7 +596,7 @@ public:
     kis_tracked_device_base *devref;
 };
 
-class Devicetracker : public Kis_Net_Httpd_Stream_Handler, public TimetrackerEvent {
+class Devicetracker : public Kis_Net_Httpd_Stream_Handler {
 public:
 	Devicetracker() { fprintf(stderr, "FATAL OOPS: Kis_Tracker()\n"); exit(0); }
 	Devicetracker(GlobalRegistry *in_globalreg);
@@ -623,7 +623,6 @@ public:
 	int FetchNumCryptpackets(int in_phy);
 	int FetchNumErrorpackets(int in_phy);
 	int FetchNumFilterpackets(int in_phy);
-	int FetchPacketRate(int in_phy);
 
 	int AddFilter(string in_filter);
 	int AddNetCliFilter(string in_filter);
@@ -663,8 +662,6 @@ public:
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size, std::stringstream &stream);
 
-    virtual int timetracker_event(int event_id);
-
 protected:
 	void SaveTags();
 
@@ -683,14 +680,12 @@ protected:
 	int num_datapackets;
 	int num_errorpackets;
 	int num_filterpackets;
-	int num_packetdelta;
 
 	// Per-phy #s of packets
 	map<int, int> phy_packets;
 	map<int, int> phy_datapackets;
 	map<int, int> phy_errorpackets;
 	map<int, int> phy_filterpackets;
-	map<int, int> phy_packetdelta;
 
     // Total packet history
     int packets_rrd_id;
@@ -699,14 +694,8 @@ protected:
 	// Per-phy device list
 	map<int, vector<kis_tracked_device_base *> *> phy_device_vec;
 
-	// Per-phy dirty list
-	map<int, vector<kis_tracked_device_base *> *> phy_dirty_vec;
-
 	// Common device component
 	int devcomp_ref_common;
-
-	// Timer id for main timer kick
-	int timerid;
 
     // Packet components we add or interact with
 	int pack_comp_device, pack_comp_common, pack_comp_basicdata,
@@ -716,11 +705,6 @@ protected:
 	map<uint64_t, kis_tracked_device_base *> tracked_map;
 	// Vector of tracked devices so we can iterate them quickly
 	vector<kis_tracked_device_base *> tracked_vec;
-
-	// Vector of dirty elements for pushing to clients, better than walking
-	// the map every tick, looking for dirty records
-    // TODO determine if we still need this; I don't think we do
-	vector<kis_tracked_device_base *> dirty_device_vec;
 
 	// Filtering
 	FilterCore *track_filter;
@@ -833,7 +817,6 @@ public:
     __Proxy(num_crypt_packets, uint64_t, uint64_t, uint64_t, num_crypt_packets);
     __Proxy(num_error_packets, uint64_t, uint64_t, uint64_t, num_error_packets);
     __Proxy(num_filter_packets, uint64_t, uint64_t, uint64_t, num_filter_packets);
-    __Proxy(packet_rate, uint64_t, uint64_t, uint64_t, packet_rate);
 
     void set_from_phy(Devicetracker *devicetracker, int phy) {
         set_phy_id(phy);
@@ -844,7 +827,6 @@ public:
         set_num_crypt_packets(devicetracker->FetchNumCryptpackets(phy));
         set_num_error_packets(devicetracker->FetchNumErrorpackets(phy));
         set_num_filter_packets(devicetracker->FetchNumFilterpackets(phy));
-        set_packet_rate(devicetracker->FetchPacketRate(phy));
     }
 
 protected:
@@ -868,9 +850,6 @@ protected:
         num_filter_packets_id =
             RegisterField("kismet.phy.packets.filtered", TrackerUInt64,
                     "number of filtered packets", (void **) &num_filter_packets);
-        packet_rate_id =
-            RegisterField("kismet.phy.packets.rate", TrackerUInt64,
-                    "packets per second", (void **) &packet_rate);
     } 
 
     int phy_id_id;
@@ -897,8 +876,6 @@ protected:
     int num_filter_packets_id;
     TrackerElement *num_filter_packets;
 
-    int packet_rate_id;
-    TrackerElement *packet_rate;
 };
 
 #endif

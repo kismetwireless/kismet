@@ -83,13 +83,10 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) {
 
 	next_componentid = 0;
 	num_packets = num_datapackets = num_errorpackets = 
-		num_filterpackets = num_packetdelta = 0;
+		num_filterpackets = 0;
 
 	conf_save = 0;
 	next_phy_id = 0;
-
-    timerid =
-        globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1, this); 
 
 	// Register global packet components used by the device tracker and
 	// subsequent parts
@@ -138,9 +135,6 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) {
 
 Devicetracker::~Devicetracker() {
     globalreg->httpd_server->RemoveHandler(this);
-
-	if (timerid >= 0)
-		globalreg->timetracker->RemoveTimer(timerid);
 
 	globalreg->packetchain->RemoveHandler(&Devicetracker_packethook_commontracker,
 										  CHAINPOS_TRACKER);
@@ -300,17 +294,6 @@ int Devicetracker::FetchNumFilterpackets(int in_phy) {
 	return 0;
 }
 
-int Devicetracker::FetchPacketRate(int in_phy) {
-	if (in_phy == KIS_PHY_ANY)
-		return num_packetdelta;
-
-	map<int, int>::iterator i = phy_packetdelta.find(in_phy);
-	if (i != phy_packetdelta.end())
-		return i->second;
-
-	return 0;
-}
-
 int Devicetracker::RegisterDeviceComponent(string in_component) {
 	if (component_str_map.find(StrLower(in_component)) != component_str_map.end()) {
 		return component_str_map[StrLower(in_component)];
@@ -343,68 +326,13 @@ int Devicetracker::RegisterPhyHandler(Kis_Phy_Handler *in_weak_handler) {
 	phy_datapackets[num] = 0;
 	phy_errorpackets[num] = 0;
 	phy_filterpackets[num] = 0;
-	phy_packetdelta[num] = 0;
 	
-	phy_dirty_vec[num] = new vector<kis_tracked_device_base *>;
 	phy_device_vec[num] = new vector<kis_tracked_device_base *>;
 
 	_MSG("Registered PHY handler '" + strongphy->FetchPhyName() + "' as ID " +
 		 IntToString(num), MSGFLAG_INFO);
 
 	return num;
-}
-
-int Devicetracker::timetracker_event(int event_id __attribute__((unused))) {
-	// Reset the packet rates per phy
-	for (map<int, Kis_Phy_Handler *>::iterator x = phy_handler_map.begin();
-		 x != phy_handler_map.end(); ++x) {
-		phy_packetdelta[x->first] = 0;
-	}
-
-	// Send all the dirty common data
-	for (unsigned int x = 0; x < dirty_device_vec.size(); x++) {
-		kis_tracked_device_base *dev = dirty_device_vec[x];
-
-        map<string, kis_tag_data *>::iterator ti;
-
-        // No longer dirty
-        dev->set_dirty(false);
-    }
-
-	// Send all the phy-specific dirty stuff
-	for (map<int, vector<kis_tracked_device_base *> *>::iterator x = 
-            phy_dirty_vec.begin();
-		 x != phy_dirty_vec.end(); ++x) {
-		x->second->clear();
-	}
-
-	for (unsigned int x = 0; x < dirty_device_vec.size(); x++) {
-#if 0
-        string fname = "/tmp/kismet/" + dirty_device_vec[x]->get_key().Mac2String();
-
-        printf("debug - attempting to serialize to %s\n", fname.c_str());
-
-        std::stringstream buffer;
-        MsgpackAdapter::Pack(globalreg, buffer, 
-                (TrackerElement *) dirty_device_vec[x]);
-
-        FILE *f = fopen(fname.c_str(), "wb");
-
-        fwrite(buffer.str().c_str(), buffer.str().length(), 1, f);
-        fflush(f);
-        fclose(f);
-#endif
-	}
-
-	dirty_device_vec.clear();
-
-    for (unsigned int x = 0; x < tracked_vec.size(); x++) {
-    }
-
-	// Reset the packet rate delta
-	num_packetdelta = 0;
-
-	return 1;
 }
 
 kis_tracked_device_base *Devicetracker::FetchDevice(uint64_t in_key) {
@@ -433,7 +361,6 @@ int Devicetracker::CommonTracker(kis_packet *in_pack) {
     packets_rrd->add_sample(1, globalreg->timestamp.tv_sec);
 
 	num_packets++;
-	num_packetdelta++;
 
 	if (in_pack->error && pack_capsrc != NULL)  {
 		pack_capsrc->ref_source->AddErrorPacketCount();
@@ -472,7 +399,6 @@ int Devicetracker::CommonTracker(kis_packet *in_pack) {
 	}
 
 	phy_packets[pack_common->phyid]++;
-	phy_packetdelta[pack_common->phyid]++;
 
 	if (in_pack->error || pack_common->error) {
 		phy_errorpackets[pack_common->phyid]++;
@@ -586,10 +512,6 @@ kis_tracked_device_base *Devicetracker::BuildDevice(mac_addr in_device,
 		tracked_map[device->get_key()] = device;
 		tracked_vec.push_back(device);
 		phy_device_vec[pack_common->phyid]->push_back(device);
-
-		// mark it dirty
-        dirty_device_vec.push_back(device);
-        phy_dirty_vec[pack_common->phyid]->push_back(device);
 	}
 
 	return device;
@@ -618,13 +540,6 @@ int Devicetracker::PopulateCommon(kis_tracked_device_base *device, kis_packet *i
 		_MSG("DeviceTracker failed to populate common because we couldn't find "
 			 "a matching phy handler", MSGFLAG_ERROR);
 		return 0;
-	}
-
-	// Mark it dirty
-	if (!device->get_dirty()) {
-		device->set_dirty(true);
-		dirty_device_vec.push_back(device);
-		phy_dirty_vec[pack_common->phyid]->push_back(device);
 	}
 
     device->set_first_time(in_pack->ts.tv_sec);
@@ -1749,7 +1664,7 @@ void Devicetracker::httpd_xml_device_summary(std::stringstream &stream) {
 }
 
 void Devicetracker::Httpd_CreateStreamResponse(
-        Kis_Net_Httpd *httpd,
+        Kis_Net_Httpd *httpd __attribute__((unused)),
         struct MHD_Connection *connection,
         const char *path, const char *method, const char *upload_data,
         size_t *upload_data_size, std::stringstream &stream) {
