@@ -123,15 +123,15 @@ int Channeltracker_V2::PacketChainHandler(CHAINCALL_PARMS) {
     Channeltracker_V2_Channel *chan_channel = NULL;
 
     // Find or make a frequency record if we know our frequency
-    if (l1info->freq_mhz != 0) {
+    if (l1info->freq_khz != 0) {
         TrackerElement::double_map_iterator imi =
-            cv2->frequency_map->double_find(l1info->freq_mhz);
+            cv2->frequency_map->double_find(l1info->freq_khz);
 
         if (imi == cv2->frequency_map->double_end()) {
             freq_channel = 
                 new Channeltracker_V2_Channel(cv2->globalreg, cv2->channel_entry_id);
-            freq_channel->set_frequency(l1info->freq_mhz);
-            cv2->frequency_map->add_doublemap(l1info->freq_mhz, freq_channel);
+            freq_channel->set_frequency(l1info->freq_khz);
+            cv2->frequency_map->add_doublemap(l1info->freq_khz, freq_channel);
         } else {
             freq_channel = (Channeltracker_V2_Channel *) imi->second;
         }

@@ -159,7 +159,7 @@ int Kis_DLT_Prism2::HandlePacket(kis_packet *in_pack) {
 		radioheader->signal_rssi = ntohl(v1hdr->ssi_signal);
 		radioheader->noise_rssi = ntohl(v1hdr->ssi_noise);
 
-		radioheader->freq_mhz = ChanToFreq(ntohl(v1hdr->channel));
+		radioheader->freq_khz = 1000 * ChanToFreq(ntohl(v1hdr->channel));
 
         switch (ntohl(v1hdr->phytype)) {
             case 1:
@@ -227,7 +227,7 @@ int Kis_DLT_Prism2::HandlePacket(kis_packet *in_pack) {
         radioheader->signal_rssi = p2head->signal.data;
         radioheader->noise_rssi = p2head->noise.data;
 
-        radioheader->freq_mhz = ChanToFreq(p2head->channel.data);
+        radioheader->freq_khz = 1000 * ChanToFreq(p2head->channel.data);
     }
 
     if (radioheader == NULL) {

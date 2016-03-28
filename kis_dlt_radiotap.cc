@@ -288,7 +288,7 @@ int Kis_DLT_Radiotap::HandlePacket(kis_packet *in_pack) {
             switch (bit) {
                 case IEEE80211_RADIOTAP_CHANNEL:
                     // radioheader->channel = ieee80211_mhz2ieee(u.u16, u2.u16);
-                    radioheader->freq_mhz = u.u16;
+                    radioheader->freq_khz = (double) u.u16 * 1000;
 					// printf("debug - %d freq %u\n", pnum++, radioheader->freq_mhz);
                     if (IEEE80211_IS_CHAN_FHSS(u2.u16))
                         radioheader->carrier = carrier_80211fhss;

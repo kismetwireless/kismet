@@ -690,16 +690,16 @@ public:
     __ProxyIncDec(num_packets, uint64_t, uint64_t, num_packets);
 
     // Intmaps need special care by the caller
-    TrackerElement *get_freq_mhz_map() { return freq_mhz_map; }
+    TrackerElement *get_freq_khz_map() { return freq_khz_map; }
 
     void inc_frequency_count(int frequency) {
-        TrackerElement::map_iterator i = freq_mhz_map->find(frequency);
+        TrackerElement::map_iterator i = freq_khz_map->find(frequency);
 
-        if (i == freq_mhz_map->end()) {
+        if (i == freq_khz_map->end()) {
             TrackerElement *e = 
                 globalreg->entrytracker->GetTrackedInstance(frequency_val_id);
             e->set((uint64_t) 1);
-            freq_mhz_map->add_intmap(frequency, e);
+            freq_khz_map->add_intmap(frequency, e);
         } else {
             (*(i->second))++;
         }
@@ -721,9 +721,9 @@ protected:
         num_packets_id =
             RegisterField("kismet.common.seenby.num_packets", TrackerUInt64,
                     "number of packets seen by this device", (void **) &num_packets);
-        freq_mhz_map_id =
-            RegisterField("kismet.common.seenby.freq_mhz_map", TrackerIntMap,
-                    "packets seen per frequency (mhz)", (void **) &freq_mhz_map);
+        freq_khz_map_id =
+            RegisterField("kismet.common.seenby.freq_khz_map", TrackerIntMap,
+                    "packets seen per frequency (khz)", (void **) &freq_khz_map);
         frequency_val_id =
             globalreg->entrytracker->RegisterField("kismet.common.seenby.frequency.count",
                     TrackerUInt64, "frequency packet count");
@@ -741,8 +741,8 @@ protected:
     TrackerElement *num_packets;
     int num_packets_id;
 
-    TrackerElement *freq_mhz_map;
-    int freq_mhz_map_id;
+    TrackerElement *freq_khz_map;
+    int freq_khz_map_id;
 
     int frequency_val_id;
 };

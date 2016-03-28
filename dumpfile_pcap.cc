@@ -425,7 +425,7 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 			ppi_common->flags = kis_htole16(ppi_common->flags);
 
 			ppi_common->rate = kis_htole16(radioinfo->datarate / 5);
-			ppi_common->freq_mhz = kis_htole16(radioinfo->freq_mhz);
+			ppi_common->freq_mhz = kis_htole16((uint16_t) (radioinfo->freq_khz / 1000));
 
 			// Assemble the channel flags then endian swap them
 			ppi_common->chan_flags = 0;

@@ -182,18 +182,6 @@ void Devicetracker::SaveTags() {
 			 MSGFLAG_ERROR);
 }
 
-vector<kis_tracked_device_base *> *Devicetracker::FetchDevices(int in_phy) {
-    devicelist_mutex_locker(this);
-
-	if (in_phy == KIS_PHY_ANY)
-		return &tracked_vec;
-
-	if (phy_device_vec.find(in_phy) == phy_device_vec.end())
-		return NULL;
-
-	return phy_device_vec[in_phy];
-}
-
 Kis_Phy_Handler *Devicetracker::FetchPhyHandler(int in_phy) {
 	map<int, Kis_Phy_Handler *>::iterator i = phy_handler_map.find(in_phy);
 
@@ -414,6 +402,8 @@ int Devicetracker::CommonTracker(kis_packet *in_pack) {
 		} 
 	}
 
+    // This is all moved to phys doing smart things
+#if 0
 	// If we dont' have a device mac, don't make a record
 	if (pack_common->device == 0)
 		return 0;
@@ -435,13 +425,14 @@ int Devicetracker::CommonTracker(kis_packet *in_pack) {
 
 	// Push our common data into it
 	PopulateCommon(device, in_pack);
-
+#endif
 	return 1;
 }
 
 // Find a device, creating the device as needed and populating common data
 kis_tracked_device_base *Devicetracker::MapToDevice(mac_addr in_device, 
         kis_packet *in_pack) {
+#if 0
 
 	kis_tracked_device_base *device = NULL;
 	kis_common_info *pack_common = 
@@ -463,11 +454,13 @@ kis_tracked_device_base *Devicetracker::MapToDevice(mac_addr in_device,
 	} 
 
 	return device;
+#endif
 }
 
 // Find a device, creating the device as needed and populating common data
 kis_tracked_device_base *Devicetracker::BuildDevice(mac_addr in_device, 
         kis_packet *in_pack) {
+#if 0
 
 	kis_common_info *pack_common = 
 		(kis_common_info *) in_pack->fetch(pack_comp_common);
@@ -515,6 +508,118 @@ kis_tracked_device_base *Devicetracker::BuildDevice(mac_addr in_device,
 	}
 
 	return device;
+#endif
+    return NULL;
+}
+
+// This function handles populating the base common info about a device.
+// Specific info should be populated by the phy handler.
+kis_tracked_device_base *Devicetracker::UpdateCommonDevice(mac_addr in_mac, 
+        int in_phy, kis_packet *in_pack, unsigned int in_flags) {
+
+    stringstream sstr;
+
+	kis_layer1_packinfo *pack_l1info = 
+		(kis_layer1_packinfo *) in_pack->fetch(pack_comp_radiodata);
+	kis_gps_packinfo *pack_gpsinfo =
+		(kis_gps_packinfo *) in_pack->fetch(pack_comp_gps);
+	kis_ref_capsource *pack_capsrc =
+		(kis_ref_capsource *) in_pack->fetch(pack_comp_capsrc);
+	kis_common_info *pack_common = 
+		(kis_common_info *) in_pack->fetch(pack_comp_common);
+
+	kis_tracked_device_base *device = NULL;
+    Kis_Phy_Handler *phy = NULL;
+    uint64_t key = 0;
+
+    if ((phy = FetchPhyHandler(in_phy)) == NULL) {
+        sstr << "Got packet for phy id " << in_phy << " but no handler " <<
+            "found for this phy.";
+        _MSG(sstr.str(), MSGFLAG_ERROR);
+    }
+
+    key = DevicetrackerKey::MakeKey(in_mac, in_phy);
+
+	if ((device = FetchDevice(key)) == NULL) {
+        device = new kis_tracked_device_base(globalreg, device_base_id);
+
+        device->set_key(key);
+        device->set_macaddr(in_mac);
+        device->set_phyname(phy->FetchPhyName());
+
+        {
+            local_locker lock(&devicelist_mutex);
+            tracked_map[device->get_key()] = device;
+            tracked_vec.push_back(device);
+            phy_device_vec[pack_common->phyid]->push_back(device);
+        }
+    
+        device->set_first_time(in_pack->ts.tv_sec);
+
+        if (globalreg->manufdb != NULL) 
+            device->set_manuf(globalreg->manufdb->LookupOUI(device->get_macaddr()));
+    } 
+
+    device->set_last_time(in_pack->ts.tv_usec);
+
+
+    if (in_flags & UCD_UPDATE_PACKETS) {
+        device->inc_packets();
+
+        device->get_packets_rrd()->add_sample(1, globalreg->timestamp.tv_sec);
+
+        if (pack_common != NULL) {
+            if (pack_common->error)
+                device->inc_error_packets();
+
+            if (pack_common->type == packet_basic_data) {
+                // TODO fix directional data
+                device->inc_data_packets();
+                device->inc_datasize(pack_common->datasize);
+                device->get_data_rrd()->add_sample(pack_common->datasize,
+                        globalreg->timestamp.tv_sec);
+            } else if (pack_common->type == packet_basic_mgmt ||
+                    pack_common->type == packet_basic_phy) {
+                device->inc_llc_packets();
+            }
+        }
+    }
+
+	if ((in_flags & UCD_UPDATE_FREQUENCIES) && pack_l1info != NULL) {
+		if (!(pack_l1info->channel == "0"))
+            device->set_channel(pack_l1info->channel);
+		if (pack_l1info->freq_khz != 0)
+            device->set_frequency(pack_l1info->freq_khz);
+
+		Packinfo_Sig_Combo *sc = new Packinfo_Sig_Combo(pack_l1info, pack_gpsinfo);
+        (*(device->get_signal_data())) += *sc;
+
+		delete(sc);
+
+        device->inc_frequency_count((int) pack_l1info->freq_khz);
+	}
+
+	if ((in_flags & UCD_UPDATE_FREQUENCIES) && pack_common != NULL) {
+        if (!(pack_common->channel == "0"))
+            device->set_channel(pack_common->channel);
+    }
+
+    if ((in_flags & UCD_UPDATE_LOCATION) && pack_gpsinfo != NULL) {
+        device->get_location()->add_loc(pack_gpsinfo->lat, pack_gpsinfo->lon,
+                pack_gpsinfo->alt, pack_gpsinfo->fix);
+    }
+
+	// Update seenby records for time, frequency, packets
+	if ((in_flags & UCD_UPDATE_SEENBY) && pack_capsrc != NULL) {
+        double f = -1;
+
+        if (pack_l1info != NULL)
+            f = pack_l1info->freq_khz;
+
+        device->inc_seenby_count(pack_capsrc->ref_source, in_pack->ts.tv_sec, f);
+	}
+
+    return device;
 }
 
 int Devicetracker::PopulateCommon(kis_tracked_device_base *device, kis_packet *in_pack) {
@@ -542,7 +647,7 @@ int Devicetracker::PopulateCommon(kis_tracked_device_base *device, kis_packet *i
 		return 0;
 	}
 
-    device->set_first_time(in_pack->ts.tv_sec);
+    // device->set_first_time(in_pack->ts.tv_sec);
 
     if (globalreg->manufdb != NULL) 
         device->set_manuf(globalreg->manufdb->LookupOUI(device->get_macaddr()));
@@ -575,15 +680,15 @@ int Devicetracker::PopulateCommon(kis_tracked_device_base *device, kis_packet *i
 	if (pack_l1info != NULL) {
 		if (!(pack_l1info->channel == "0"))
             device->set_channel(pack_l1info->channel);
-		if (pack_l1info->freq_mhz != 0)
-            device->set_frequency(pack_l1info->freq_mhz);
+		if (pack_l1info->freq_khz != 0)
+            device->set_frequency(pack_l1info->freq_khz);
 
 		Packinfo_Sig_Combo *sc = new Packinfo_Sig_Combo(pack_l1info, pack_gpsinfo);
         (*(device->get_signal_data())) += *sc;
 
 		delete(sc);
 
-        device->inc_frequency_count((int) pack_l1info->freq_mhz);
+        device->inc_frequency_count((int) pack_l1info->freq_khz);
 	}
 
     if (pack_gpsinfo != NULL) {
@@ -596,7 +701,7 @@ int Devicetracker::PopulateCommon(kis_tracked_device_base *device, kis_packet *i
         int f = -1;
 
         if (pack_l1info != NULL)
-            f = pack_l1info->freq_mhz;
+            f = pack_l1info->freq_khz;
 
         device->inc_seenby_count(pack_capsrc->ref_source, in_pack->ts.tv_sec, f);
 	}
@@ -816,7 +921,7 @@ void Devicetracker::WriteXML(FILE *in_logfile) {
 			SanitizeXML(gpsw->FetchType()).c_str());
 #endif
 
-	vector<kis_tracked_device_base *> *devlist = FetchDevices(KIS_PHY_ANY);
+	vector<kis_tracked_device_base *> *devlist;// = FetchDevices(KIS_PHY_ANY);
 
 	if (devlist->size() > 0)
 		fprintf(in_logfile, "<devices>\n");
@@ -906,6 +1011,7 @@ void Devicetracker::WriteXML(FILE *in_logfile) {
 			fprintf(in_logfile, "<packets>%lu</packets>\n",
                     sbd->get_num_packets());
 
+#if 0
             TrackerElement *fe = sbd->get_freq_mhz_map();
 
             if (fe->size() > 0) {
@@ -919,6 +1025,7 @@ void Devicetracker::WriteXML(FILE *in_logfile) {
 
 				fprintf(in_logfile, "</frequencySeen>\n");
 			}
+#endif
 
 			fprintf(in_logfile, "</seenBySource>\n");
 		}
@@ -1196,7 +1303,7 @@ void Devicetracker::WriteTXT(FILE *in_logfile) {
 	fprintf(in_logfile, "\n");
 #endif
 	
-	vector<kis_tracked_device_base *> *devlist = FetchDevices(KIS_PHY_ANY);
+	vector<kis_tracked_device_base *> *devlist; // = FetchDevices(KIS_PHY_ANY);
 
 	if (devlist->size() > 0)
 		fprintf(in_logfile, "Devices:\n");
@@ -1288,6 +1395,7 @@ void Devicetracker::WriteTXT(FILE *in_logfile) {
 			fprintf(in_logfile, "  Packets: %lu\n",
                     sbd->get_num_packets());
 
+#if 0
             TrackerElement *fe = sbd->get_freq_mhz_map();
 
             if (fe->size() > 0) {
@@ -1300,6 +1408,7 @@ void Devicetracker::WriteTXT(FILE *in_logfile) {
 							fi->first, GetTrackerValue<uint64_t>(fi->second));
                 }
             }
+#endif
 
 			fprintf(in_logfile, "\n");
 		}

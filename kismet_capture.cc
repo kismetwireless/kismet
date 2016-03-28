@@ -41,7 +41,6 @@
 #include "packetsource_bsdrt.h"
 #include "packetsource_pcap.h"
 #include "packetsource_wext.h"
-#include "packetsource_drone.h"
 #include "packetsource_ipwlive.h"
 #include "packetsource_airpcap.h"
 #include "packetsource_darwin.h"
@@ -56,7 +55,6 @@
 #include "tcpserver.h"
 // Include the stubbed empty netframe code
 #include "kis_netframe.h"
-#include "kis_droneframe.h"
 
 #include "ipc_remote.h"
 
@@ -227,10 +225,6 @@ int main(int argc, char *argv[], char *envp[]) {
 #endif
 #ifdef USE_PACKETSOURCE_WRT54PRISM
 	if (globalreg->sourcetracker->RegisterPacketSource(new PacketSource_Wrt54Prism(globalreg)) < 0 || globalreg->fatal_condition) 
-		CatchShutdown(-1);
-#endif
-#ifdef USE_PACKETSOURCE_DRONE
-	if (globalreg->sourcetracker->RegisterPacketSource(new PacketSource_Drone(globalreg)) < 0 || globalreg->fatal_condition) 
 		CatchShutdown(-1);
 #endif
 #ifdef USE_PACKETSOURCE_BSDRT

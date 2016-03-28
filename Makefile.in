@@ -7,7 +7,7 @@ OBJC_LINK = @objc_link@
 
 CAPSOURCES = \
 	packetsource_pcap.o packetsource_wext.o packetsource_bsdrt.o \
-	packetsource_drone.o packetsource_ipwlive.o packetsource_airpcap.o \
+	packetsource_ipwlive.o packetsource_airpcap.o \
 	packetsource_darwin.o packetsource_macusb.o
 
 PSO	= util.o cygwin_utils.o globalregistry.o \
@@ -20,7 +20,7 @@ PSO	= util.o cygwin_utils.o globalregistry.o \
 	netframework.o clinetframework.o tcpserver.o tcpclient.o \
 	tcpclient2.o serialclient2.o pipeclient.o ipc_remote2.o \
 	packetsourcetracker.o $(CAPSOURCES) \
-	kis_netframe.o kis_droneframe.o \
+	kis_netframe.o \
 	kis_net_microhttpd.o system_monitor.o kis_httpd_websession.o \
 	gps_manager.o kis_gps.o gpsserial2.o gpsgpsd2.o gpsfake.o \
 	packetchain.o \

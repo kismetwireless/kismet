@@ -172,7 +172,7 @@ int Kis_DLT_PPI::HandlePacket(kis_packet *in_pack) {
 
 			radioheader->datarate = kis_letoh16(ppic->rate) * 5;
 
-			radioheader->freq_mhz = kis_letoh16(ppic->freq_mhz);
+			radioheader->freq_khz = kis_letoh16(ppic->freq_mhz) * 1000;
 		} else if (fh_type == PPI_FIELD_11NMAC) {
 			ppi_11n_mac *ppin = (ppi_11n_mac *) ppi_fh;
 

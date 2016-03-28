@@ -54,7 +54,6 @@
 #include "packetsource_bsdrt.h"
 #include "packetsource_pcap.h"
 #include "packetsource_wext.h"
-#include "packetsource_drone.h"
 #include "packetsource_ipwlive.h"
 #include "packetsource_airpcap.h"
 #include "packetsource_darwin.h"
@@ -67,7 +66,6 @@
 #include "netframework.h"
 #include "tcpserver.h"
 #include "kis_netframe.h"
-#include "kis_droneframe.h"
 
 #include "kis_net_microhttpd.h"
 #include "system_monitor.h"
@@ -375,8 +373,6 @@ int Usage(char *argv) {
 
 	printf("\n");
 	KisNetFramework::Usage(argv);
-	printf("\n");
-	KisDroneFramework::Usage(argv);
 	printf("\n");
 	Dumpfile::Usage(argv);
 	printf("\n");
@@ -789,10 +785,12 @@ int main(int argc, char *argv[], char *envp[]) {
 		globalreg->rootipc->SendIPC(ipc);
 	}
 
+#if 0
 	// Create the basic drone server
 	globalregistry->kisdroneserver = new KisDroneFramework(globalregistry);
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
+#endif
 
 	// Create the alert tracker
 	globalregistry->alertracker = new Alertracker(globalregistry);
@@ -835,10 +833,6 @@ int main(int argc, char *argv[], char *envp[]) {
 #endif
 #ifdef USE_PACKETSOURCE_WRT54PRISM
 	if (globalregistry->sourcetracker->RegisterPacketSource(new PacketSource_Wrt54Prism(globalregistry)) < 0 || globalregistry->fatal_condition) 
-		CatchShutdown(-1);
-#endif
-#ifdef USE_PACKETSOURCE_DRONE
-	if (globalregistry->sourcetracker->RegisterPacketSource(new PacketSource_Drone(globalregistry)) < 0 || globalregistry->fatal_condition) 
 		CatchShutdown(-1);
 #endif
 #ifdef USE_PACKETSOURCE_BSDRT
@@ -892,10 +886,12 @@ int main(int argc, char *argv[], char *envp[]) {
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
 
+#if 0
 	// Create the basic drone server
 	globalregistry->kisdroneserver->Activate();
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
+#endif
 
 #if 0
 	// Register basic chain elements...  This is just instantiating a util class.

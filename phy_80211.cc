@@ -53,10 +53,6 @@ int phydot11_packethook_dot11(CHAINCALL_PARMS) {
 	return ((Kis_80211_Phy *) auxdata)->PacketDot11dissector(in_pack);
 }
 
-int phydot11_packethook_dot11classify(CHAINCALL_PARMS) {
-	return ((Kis_80211_Phy *) auxdata)->ClassifierDot11(in_pack);
-}
-
 int phydot11_packethook_dot11tracker(CHAINCALL_PARMS) {
 	return ((Kis_80211_Phy *) auxdata)->TrackerDot11(in_pack);
 }
@@ -79,7 +75,7 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
                 "IEEE802.11 device");
 
 	// Packet classifier - makes basic records plus dot11 data
-	globalreg->packetchain->RegisterHandler(&phydot11_packethook_dot11classify, this,
+	globalreg->packetchain->RegisterHandler(&CommonClassifierDot11, this,
 											CHAINPOS_CLASSIFIER, -100);
 
 	globalreg->packetchain->RegisterHandler(&phydot11_packethook_wep, this,
@@ -244,7 +240,7 @@ Kis_80211_Phy::~Kis_80211_Phy() {
 	globalreg->packetchain->RemoveHandler(&phydot11_packethook_dot11string,
 										  CHAINPOS_DATADISSECT);
 										  */
-	globalreg->packetchain->RemoveHandler(&phydot11_packethook_dot11classify,
+	globalreg->packetchain->RemoveHandler(&CommonClassifierDot11,
 										  CHAINPOS_CLASSIFIER);
 
 	globalreg->packetchain->RemoveHandler(&phydot11_packethook_dot11tracker, 
@@ -305,23 +301,25 @@ int Kis_80211_Phy::LoadWepkeys() {
 
 // Classifier is responsible for processing a dot11 packet and filling in enough
 // of the common info for the system to make a device out of it.
-int Kis_80211_Phy::ClassifierDot11(kis_packet *in_pack) {
+int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
+	Kis_80211_Phy *d11phy = (Kis_80211_Phy *) auxdata;
+
 	// Get the 802.11 info
 	dot11_packinfo *dot11info = 
-		(dot11_packinfo *) in_pack->fetch(pack_comp_80211);
+		(dot11_packinfo *) in_pack->fetch(d11phy->pack_comp_80211);
 
 	if (dot11info == NULL)
 		return 0;
 
 	kis_common_info *ci = 
-		(kis_common_info *) in_pack->fetch(pack_comp_common);
+		(kis_common_info *) in_pack->fetch(d11phy->pack_comp_common);
 
 	if (ci == NULL) {
 		ci = new kis_common_info;
-		in_pack->insert(pack_comp_common, ci);
+		in_pack->insert(d11phy->pack_comp_common, ci);
 	}
 
-	ci->phyid = phyid;
+	ci->phyid = d11phy->phyid;
 
 	if (dot11info->type == packet_management) {
 		ci->type = packet_basic_mgmt;
@@ -711,10 +709,11 @@ void Kis_80211_Phy::HandleClient(kis_tracked_device_base *basedev,
         kis_gps_packinfo *pack_gpsinfo,
         kis_data_packinfo *pack_datainfo) {
 
-    // If we can't map to a bssid then we can't do something clever w/ this as a client
+    // If we can't map to a bssid then we can't associate this as a client
     if (dot11info->bssid_mac == globalreg->empty_mac)
         return;
 
+    // Get a client record for us behaving AS a client
     TrackerElement *client_map = dot11dev->get_client_map();
 
     dot11_client *client = NULL;
@@ -823,6 +822,24 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 	if (commoninfo->error)
 		return 0;
 
+    // There's nothing we can sensibly do with completely corrupt packets, 
+    // so we just get rid of them.
+    // TODO make sure phy corrupt packets are handled for statistics
+    if (dot11info->corrupt) 
+        return 0;
+
+    // Find & update the common attributes of our base record.
+    // We want to update signal, frequency, location, packet counts, devices,
+    // and encryption, because this is the core record for everything we do.
+    // We do this early on because we want to track things even if they're unknown
+    // or broken.
+    kis_tracked_device_base *basedev =
+        devicetracker->UpdateCommonDevice(commoninfo->device, commoninfo->phyid,
+                in_pack, 
+                (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
+                 UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
+                 UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION));
+
 	kis_data_packinfo *pack_datainfo =
 		(kis_data_packinfo *) in_pack->fetch(pack_comp_basicdata);
 
@@ -834,10 +851,6 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 
 	kis_gps_packinfo *pack_gpsinfo =
 		(kis_gps_packinfo *) in_pack->fetch(pack_comp_gps);
-
-    // Find our base record
-    kis_tracked_device_base *basedev = 
-        devicetracker->FetchDevice(commoninfo->device, commoninfo->phyid);
 
     // Something bad has happened if we can't find our device
     if (basedev == NULL) {
@@ -859,13 +872,15 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
         basedev->add_map(dot11dev);
     }
 
-    // Handle beacons and SSID responses from the AP
+    // Handle beacons and SSID responses from the AP.  This is still all the same
+    // basic device
     if (dot11info->type == packet_management && 
             (dot11info->subtype == packet_sub_beacon ||
              dot11info->subtype == packet_sub_probe_resp)) {
         HandleSSID(basedev, dot11dev, in_pack, dot11info, pack_gpsinfo);
     }
 
+    // Increase data size for ourselves, if we're a data packet
     if (dot11info->type == packet_data) {
         dot11dev->inc_datasize(dot11info->datasize);
 
@@ -879,17 +894,17 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
         }
     }
 
-    // If we're not an AP talking *for ourselves*, we need to track the
-    // behavior as related to that bssid
+    // If the BSSID isn't the same then we're a client of some sort, so we need
+    // to handle that behavior
     if (dot11info->bssid_mac != basedev->get_macaddr()) {
         dot11dev->set_last_bssid(dot11info->bssid_mac);
 
+        basedev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_CLIENT);
+        basedev->set_type_string("Wi-Fi Client");
+
         HandleClient(basedev, dot11dev, in_pack, dot11info,
                 pack_gpsinfo, pack_datainfo);
-
     }
-
-
 
 
     if (dot11info->ess) {

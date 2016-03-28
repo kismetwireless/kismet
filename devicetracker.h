@@ -224,7 +224,7 @@ public:
     __ProxyTrackable(signal_data, kis_tracked_signal_data, signal_data);
 
     // Intmaps need special care by the caller
-    TrackerElement *get_freq_mhz_map() { return freq_mhz_map; }
+    TrackerElement *get_freq_khz_map() { return freq_khz_map; }
 
     string get_tag() { return tag->get_value(); }
     void set_tag(string in_tag) {
@@ -244,13 +244,13 @@ public:
         if (frequency <= 0)
             return;
 
-        TrackerElement::double_map_iterator i = freq_mhz_map->double_find(frequency);
+        TrackerElement::double_map_iterator i = freq_khz_map->double_find(frequency);
 
-        if (i == freq_mhz_map->double_end()) {
+        if (i == freq_khz_map->double_end()) {
             TrackerElement *e = 
                 globalreg->entrytracker->GetTrackedInstance(frequency_val_id);
             e->set((uint64_t) 1);
-            freq_mhz_map->add_doublemap(frequency, e);
+            freq_khz_map->add_doublemap(frequency, e);
         } else {
             (*(i->second))++;
         }
@@ -388,9 +388,9 @@ protected:
             RegisterComplexField("kismet.device.base.signal", sig_builder,
                     "signal data");
 
-        freq_mhz_map_id =
-            RegisterField("kismet.device.base.freq_mhz_map", TrackerDoubleMap,
-                    "packets seen per frequency (mhz)", (void **) &freq_mhz_map);
+        freq_khz_map_id =
+            RegisterField("kismet.device.base.freq_khz_map", TrackerDoubleMap,
+                    "packets seen per frequency (khz)", (void **) &freq_khz_map);
 
         channel_id =
             RegisterField("kismet.device.base.channel", TrackerString,
@@ -552,8 +552,8 @@ protected:
     int signal_data_id;
 
     // Global frequency distribution
-    TrackerElement *freq_mhz_map;
-    int freq_mhz_map_id;
+    TrackerElement *freq_khz_map;
+    int freq_khz_map_id;
 
     // Manufacturer, if we're able to derive, either from OUI or from other data (phy-dependent)
     TrackerElement *manuf;
@@ -610,8 +610,6 @@ public:
 	// Get a device component name
 	string FetchDeviceComponentName(int in_id);
 
-	vector<kis_tracked_device_base *> *FetchDevices(int in_phy);
-
 	Kis_Phy_Handler *FetchPhyHandler(int in_phy);
 	Kis_Phy_Handler *FetchPhyHandler(uint64_t in_key);
 
@@ -651,8 +649,39 @@ public:
 	// Initiate a logging cycle
 	int LogDevices(string in_logclass, string in_logtype, FILE *in_logfile);
 
-	// Populate the common components of a device
-	int PopulateCommon(kis_tracked_device_base *device, kis_packet *in_pack);
+    // Add common into to a device.  If necessary, create the new device.
+    //
+    // This will update location, signal, manufacturer, and seenby values.
+    // It will NOT update packet count, data size, or encryption options:  The 
+    // Phy handler should update those values itself.
+    //
+    // Phy handlers should call this to populate associated devices when a phy
+    // packet is encountered.
+    //
+    // It is recommended that plugin developers look at the UpdateCommonDevice
+    // implementation in devicetracker.cc as well as the reference implementations
+    // in phy80211 and other native code, as this is one of the most complex 
+    // functions a phy handler will interact with when building trackable devices.
+    //
+    // Accepts a bitset of flags for what attributes of the device should be
+    // automatically updated based on the known packet data.
+    //
+    // Returns the device.
+// Update signal levels in common device
+#define UCD_UPDATE_SIGNAL       1
+// Update frequency/channel and the seenby maps in common device
+#define UCD_UPDATE_FREQUENCIES  (1 << 1)
+// Update packet counts in common device
+#define UCD_UPDATE_PACKETS      (1 << 2)
+// Update GPS data in common device
+#define UCD_UPDATE_LOCATION     (1 << 3)
+// Update device seenby records
+#define UCD_UPDATE_SEENBY       (1 << 4)
+// Update encryption options
+#define UCD_UPDATE_ENCRYPTION   (1 << 5)
+    kis_tracked_device_base *UpdateCommonDevice(mac_addr in_mac, int in_phy, 
+            kis_packet *in_pack, unsigned int in_flags);
+
 
     // HTTP handlers
     virtual bool Httpd_VerifyPath(const char *path, const char *method);
@@ -723,6 +752,9 @@ protected:
 
 	// Build a device record
 	kis_tracked_device_base *BuildDevice(mac_addr in_device, kis_packet *in_pack);
+
+	// Populate the common components of a device
+	int PopulateCommon(kis_tracked_device_base *device, kis_packet *in_pack);
 
     pthread_mutex_t devicelist_mutex;
 

@@ -294,7 +294,7 @@ public:
 		carrier = carrier_unknown;
 		encoding = encoding_unknown;
 		datarate = 0;
-		freq_mhz = 0;
+		freq_khz = 0;
 		accuracy = 0;
 		channel = "0";
 	}
@@ -304,7 +304,7 @@ public:
 	int accuracy;
 
 	// Frequency seen on
-	int freq_mhz;
+	double freq_khz;
 
 	// Logical channel
 	string channel;

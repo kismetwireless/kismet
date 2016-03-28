@@ -1126,7 +1126,7 @@ public:
 	// int packet_dot11string_dissector(kis_packet *in_pack);
 
 	// 802.11 packet classifier to common for the devicetracker layer
-	int ClassifierDot11(kis_packet *in_pack);
+	static int CommonClassifierDot11(CHAINCALL_PARMS);
 
 	// Dot11 tracker for building phy-specific elements
 	int TrackerDot11(kis_packet *in_pack);
