@@ -116,8 +116,8 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) {
 											this, CHAINPOS_TRACKER, -100);
 
 	// Create the global kistxt and kisxml logfiles
-	new Dumpfile_Devicetracker(globalreg, "kistxt", "text");
-	new Dumpfile_Devicetracker(globalreg, "kisxml", "xml");
+	// new Dumpfile_Devicetracker(globalreg, "kistxt", "text");
+	// new Dumpfile_Devicetracker(globalreg, "kisxml", "xml");
 
 	// Set up the persistent tag conf file
 	// Build the config file
@@ -560,8 +560,7 @@ kis_tracked_device_base *Devicetracker::UpdateCommonDevice(mac_addr in_mac,
             device->set_manuf(globalreg->manufdb->LookupOUI(device->get_macaddr()));
     } 
 
-    device->set_last_time(in_pack->ts.tv_usec);
-
+    device->set_last_time(in_pack->ts.tv_sec);
 
     if (in_flags & UCD_UPDATE_PACKETS) {
         device->inc_packets();

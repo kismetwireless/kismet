@@ -44,6 +44,7 @@ public:
 	int SaveConfig(const char *in_fname);
 
     string FetchOpt(string in_key);
+    string FetchOpt_nl(string in_key);
     vector<string> FetchOptVec(string in_key);
 
 	// Fetch a true/false t/f value with a default (ie value returned if not

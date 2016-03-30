@@ -894,20 +894,8 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
         }
     }
 
-    // If the BSSID isn't the same then we're a client of some sort, so we need
-    // to handle that behavior
-    if (dot11info->bssid_mac != basedev->get_macaddr()) {
-        dot11dev->set_last_bssid(dot11info->bssid_mac);
-
-        basedev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_CLIENT);
-        basedev->set_type_string("Wi-Fi Client");
-
-        HandleClient(basedev, dot11dev, in_pack, dot11info,
-                pack_gpsinfo, pack_datainfo);
-    }
-
-
     if (dot11info->ess) {
+        // ESS from-ap packets mean we must be an AP
         basedev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_AP);
 
         // Set the name if we're only an AP
@@ -915,7 +903,19 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
             basedev->set_type_string("Wi-Fi AP");
 
         dot11dev->bitset_type_set(DOT11_DEVICE_TYPE_BEACON_AP);
-    } else if (dot11info->distrib == distrib_from &&
+    } else if (dot11info->distrib == distrib_inter) {
+        // Adhoc
+        basedev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_PEER);
+
+        if (basedev->get_basic_type_set() == KIS_DEVICE_BASICTYPE_PEER)
+            basedev->set_type_string("Wi-Fi Ad-hoc Device");
+
+        dot11dev->bitset_type_set(DOT11_DEVICE_TYPE_ADHOC);
+    } 
+   
+    // Sent by ap, data, not from AP, means it's bridged from somewhere else
+    if (dot11info->distrib == distrib_from &&
+            dot11info->bssid_mac != basedev->get_macaddr() &&
             dot11info->type == packet_data) {
         basedev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_WIRED);
 
@@ -924,13 +924,19 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
             basedev->set_type_string("Wi-Fi Bridged Device");
 
         dot11dev->bitset_type_set(DOT11_DEVICE_TYPE_WIRED);
-    } else if (dot11info->distrib == distrib_inter) {
-        basedev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_PEER);
+    } else if (dot11info->bssid_mac != basedev->get_macaddr() &&
+            dot11info->distrib == distrib_to) {
 
-        if (basedev->get_basic_type_set() == KIS_DEVICE_BASICTYPE_PEER)
-            basedev->set_type_string("Wi-Fi Ad-hoc Device");
+        dot11dev->set_last_bssid(dot11info->bssid_mac);
 
-        dot11dev->bitset_type_set(DOT11_DEVICE_TYPE_ADHOC);
+        basedev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_CLIENT);
+        basedev->set_type_string("Wi-Fi Client");
+
+        basedev->set_devicename(basedev->get_macaddr().Mac2String());
+
+
+        HandleClient(basedev, dot11dev, in_pack, dot11info,
+                pack_gpsinfo, pack_datainfo);
     }
 
 

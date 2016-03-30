@@ -154,6 +154,10 @@ int ConfigFile::SaveConfig(const char *in_fname) {
 string ConfigFile::FetchOpt(string in_key) {
     local_locker lock(&config_locker);
 
+    return FetchOpt_nl(in_key);
+}
+
+string ConfigFile::FetchOpt_nl(string in_key) {
     map<string, vector<config_entity> >::iterator cmitr = 
         config_map.find(StrLower(in_key));
     // No such key
@@ -378,7 +382,7 @@ string ConfigFile::ExpandLogPath_nl(string path, string logname, string type,
 			string pfx = globalreg->log_prefix;
 
 			if (pfx == "") 
-				pfx = FetchOpt("logprefix");
+				pfx = FetchOpt_nl("logprefix");
 
 			if (pfx != "")
 				pfx += "/";
