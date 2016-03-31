@@ -833,19 +833,19 @@ string TrackerElement::type_to_string(TrackerType t) {
         case TrackerMac:
             return "mac_addr";
         case TrackerVector:
-            return "vector<x>";
+            return "vector[x]";
         case TrackerMap:
-            return "map<field, x>";
+            return "map[field, x]";
         case TrackerIntMap:
-            return "map<int, x>";
+            return "map[int, x]";
         case TrackerUuid:
             return "uuid";
         case TrackerMacMap:
-            return "map<macaddr, x>";
+            return "map[macaddr, x]";
         case TrackerStringMap:
-            return "map<string, x>";
+            return "map[string, x]";
         case TrackerDoubleMap:
-            return "map<double, x>";
+            return "map[double, x]";
         default:
             return "unknown";
     }

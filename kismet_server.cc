@@ -621,11 +621,6 @@ int main(int argc, char *argv[], char *envp[]) {
 	}
 #endif
 
-	// Allocate some other critical stuff
-    globalregistry->entrytracker = new EntryTracker();
-
-	globalregistry->timetracker = new Timetracker(globalregistry);
-
 	// Open, initial parse, and assign the config file
 	if (configfilename == NULL) {
 		configfilename = new char[1024];
@@ -642,6 +637,16 @@ int main(int argc, char *argv[], char *envp[]) {
 		exit(1);
 	}
 	globalregistry->kismet_config = conf;
+
+
+    // HTTP BLOCK
+    // Create the HTTPD server, it needs to exist before most things
+    globalregistry->httpd_server = new Kis_Net_Httpd(globalregistry);
+
+	// Allocate some other critical stuff
+    globalregistry->entrytracker = new EntryTracker(globalregistry);
+
+	globalregistry->timetracker = new Timetracker(globalregistry);
 
 	if (daemonize) {
 		if (fork() != 0) {
@@ -669,12 +674,7 @@ int main(int argc, char *argv[], char *envp[]) {
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
 
-
-    // HTTP BLOCK
-
-    // Create the HTTPD server
-    globalregistry->httpd_server = new Kis_Net_Httpd(globalregistry);
-    // And start it
+    // Start the http server
     globalregistry->httpd_server->StartHttpd();
 
     // Add system monitor

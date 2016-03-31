@@ -7,14 +7,18 @@ System status:
     /system/status.msgpack
         packed record of system status (battery, etc)
 
+    /system/tracked_fields.html
+        Human-readable table of all registered field names, types, and
+        descriptions
+
 Devices:
 
     /devices/all_devices.msgpack
         packed vector of device summary records
 
     /devices/DEVICE_KEY.msgpack
-        packed trackercomponent of DEVICE (where DEVICE_KEY is the device key from
-            the summary)
+        packed trackercomponent of DEVICE (where DEVICE_KEY is the device 
+        key from the summary)
 
 Phy handling:
 

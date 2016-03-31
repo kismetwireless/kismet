@@ -27,12 +27,15 @@
 #include <string>
 #include <map>
 
+#include "globalregistry.h"
 #include "trackedelement.h"
+#include "kis_net_microhttpd.h"
 
 // Allocate and track named fields and give each one a custom int
-class EntryTracker {
+class EntryTracker : public Kis_Net_Httpd_Stream_Handler {
 public:
-    EntryTracker();
+    EntryTracker(GlobalRegistry *in_globalreg);
+    ~EntryTracker();
 
     // Reserve a field name.  Field names are plain strings, which can
     // be used to derive namespaces later.
@@ -42,7 +45,8 @@ public:
 
     // Reserve a field name, and return an instance.  If the field ALREADY EXISTS, return
     // an instance.
-    TrackerElement *RegisterAndGetField(string in_name, TrackerType in_type, string in_desc);
+    TrackerElement *RegisterAndGetField(string in_name, TrackerType in_type, 
+            string in_desc);
 
     // Reserve a field name, include a builder instance of the field instead of a 
     // fixed type.  Used for building complex types w/ storage backed by trackable 
@@ -65,7 +69,18 @@ public:
     TrackerElement *GetTrackedInstance(string in_name);
     TrackerElement *GetTrackedInstance(int in_id);
 
+    // HTTP api
+    virtual bool Httpd_VerifyPath(const char *path, const char *method);
+
+    virtual void Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
+            struct MHD_Connection *connection,
+            const char *url, const char *method, const char *upload_data,
+            size_t *upload_data_size, std::stringstream &stream);
+
 protected:
+    GlobalRegistry *globalreg;
+    Kis_Net_Httpd *httpd;
+
     int next_field_num;
 
     struct reserved_field {

@@ -23,8 +23,21 @@
 
 #include "entrytracker.h"
 
-EntryTracker::EntryTracker() {
+EntryTracker::EntryTracker(GlobalRegistry *in_globalreg) {
+    globalreg = in_globalreg;
+
+    globalreg->InsertGlobal("ENTRY_TRACKER", this);
+
     next_field_num = 1;
+
+    httpd = (Kis_Net_Httpd *) globalreg->FetchGlobal("HTTPD_SERVER");
+    httpd->RegisterHandler(this);
+}
+
+EntryTracker::~EntryTracker() {
+    globalreg->RemoveGlobal("ENTRY_TRACKER");
+
+    httpd->RemoveHandler(this);
 }
 
 int EntryTracker::RegisterField(string in_name, TrackerType in_type, string in_desc) {
@@ -198,5 +211,61 @@ TrackerElement *EntryTracker::GetTrackedInstance(string in_name) {
         ret = definition->builder->clone_type(definition->field_id);
 
     return ret;
+}
+
+bool EntryTracker::Httpd_VerifyPath(const char *path, const char *method) {
+    if (strcmp(method, "GET") != 0)
+        return false;
+
+    if (strcmp(path, "/system/tracked_fields.html") == 0)
+        return true;
+
+    return false;
+}
+
+void EntryTracker::Httpd_CreateStreamResponse(
+        Kis_Net_Httpd *httpd __attribute__((unused)),
+        struct MHD_Connection *connection __attribute__((unused)),
+        const char *path, const char *method, 
+        const char *upload_data __attribute__((unused)),
+        size_t *upload_data_size __attribute__((unused)), 
+        std::stringstream &stream) {
+
+    if (strcmp(method, "GET") != 0) {
+        return;
+    }
+
+    if (strcmp(path, "/system/tracked_fields.html") == 0) {
+        stream << "<html><head><title>Kismet Server - Tracked Fields</title></head>";
+        stream << "<body>";
+        stream << "<h2>Kismet field descriptions</h2>";
+        stream << "<table padding=\"5\">";
+        stream << "<tr><td><b>Name</b></td><td><b>Type</b></td><td><b>Description</b></td></tr>";
+
+        for (map<int, reserved_field *>::iterator i = field_id_map.begin();
+                i != field_id_map.end(); ++i) {
+
+            stream << "<tr>";
+
+            stream << "<td>" << i->second->field_name << "</td>";
+            if (i->second->builder == NULL) {
+                stream << "<td>" << 
+                    TrackerElement::type_to_string(i->second->track_type) << "</td>";
+            } else {
+                stream << "<td>Complex</td>";
+            }
+
+            stream << "<td>" << i->second->field_description << "</td>";
+
+            stream << "</tr>";
+
+        }
+
+        stream << "</table>";
+        stream << "</body></html>";
+
+        return;
+    }
+
 }
 
