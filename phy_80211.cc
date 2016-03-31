@@ -339,30 +339,42 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
 		ci->source = dot11info->source_mac;
 
 		ci->dest = dot11info->dest_mac;
+
+        ci->transmitter = dot11info->bssid_mac;
 	} else if (dot11info->type == packet_phy) {
         if (dot11info->subtype == packet_sub_ack ||
                 dot11info->subtype == packet_sub_cts) {
             // map some phys as a device since we know they're being talked to
             ci->device = dot11info->dest_mac;
         } else if (dot11info->source_mac == globalreg->empty_mac) {
-			// delete ci;
-			return 0;
+            ci->error = 1;
 		} else {
             ci->device = dot11info->source_mac;
         }
 
 		ci->type = packet_basic_phy;
+
+        ci->transmitter = ci->device;
 	
 	} else if (dot11info->type == packet_data) {
         // Data packets come from the source address.  Wired devices bridged
         // from an AP are considered wired clients of that AP and classified as
         // clients normally
 		ci->type = packet_basic_data;
-		ci->device = dot11info->source_mac;
 
+		ci->device = dot11info->source_mac;
 		ci->source = dot11info->source_mac;
 
 		ci->dest = dot11info->dest_mac;
+
+        ci->transmitter = dot11info->bssid_mac;
+
+        // Something is broken with the data frame
+        if (dot11info->bssid_mac == globalreg->empty_mac ||
+                dot11info->source_mac == globalreg->empty_mac ||
+                dot11info->dest_mac == globalreg->empty_mac) {
+            ci->error = 1;
+        }
 	} 
 
 	if (dot11info->type == packet_noise || dot11info->corrupt ||
@@ -713,6 +725,10 @@ void Kis_80211_Phy::HandleClient(kis_tracked_device_base *basedev,
     if (dot11info->bssid_mac == globalreg->empty_mac)
         return;
 
+    // We don't link broadcasts
+    if (dot11info->bssid_mac == globalreg->broadcast_mac)
+        return;
+
     // Get a client record for us behaving AS a client
     TrackerElement *client_map = dot11dev->get_client_map();
 
@@ -724,7 +740,7 @@ void Kis_80211_Phy::HandleClient(kis_tracked_device_base *basedev,
         fprintf(stderr, "debug - dot11phy::HandleClient can't find the client_map struct, something is wrong\n");
         return;
     }
-    
+
     client_itr = client_map->mac_find(dot11info->bssid_mac);
 
     bool new_client = false;
@@ -799,7 +815,11 @@ void Kis_80211_Phy::HandleClient(kis_tracked_device_base *basedev,
 
 }
 
+static int packetnum = 0;
+
 int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
+    packetnum++;
+
 	// We can't do anything w/ it from the packet layer
 	if (in_pack->error || in_pack->filtered) {
 		return 0;
@@ -894,13 +914,22 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
         }
     }
 
-    if (dot11info->ess) {
+	if (dot11info->type == packet_phy) {
+        // Phy to a known device mac, we know it's a wifi device
+        basedev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_CLIENT);
+
+        // If we're only a client, set the type name and device name
+        if (basedev->get_basic_type_set() == KIS_DEVICE_BASICTYPE_CLIENT) {
+            basedev->set_type_string("Wi-Fi Client");
+            basedev->set_devicename(basedev->get_macaddr().Mac2String());
+        }
+    } else if (dot11info->ess) {
         // ESS from-ap packets mean we must be an AP
         basedev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_AP);
 
-        // Set the name if we're only an AP
-        if (basedev->get_basic_type_set() == KIS_DEVICE_BASICTYPE_AP) 
-            basedev->set_type_string("Wi-Fi AP");
+        // If we're an AP always set the type and name because that's the
+        // "most important" thing we can be
+        basedev->set_type_string("Wi-Fi AP");
 
         dot11dev->bitset_type_set(DOT11_DEVICE_TYPE_BEACON_AP);
     } else if (dot11info->distrib == distrib_inter) {
@@ -919,9 +948,11 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
             dot11info->type == packet_data) {
         basedev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_WIRED);
 
-        // Set the name if we've only been seen as wired
-        if (basedev->get_basic_type_set() == KIS_DEVICE_BASICTYPE_WIRED)
+        // Set the typename and device name if we've only been seen as wired
+        if (basedev->get_basic_type_set() == KIS_DEVICE_BASICTYPE_WIRED) {
             basedev->set_type_string("Wi-Fi Bridged Device");
+            basedev->set_devicename(basedev->get_macaddr().Mac2String());
+        }
 
         dot11dev->bitset_type_set(DOT11_DEVICE_TYPE_WIRED);
 
@@ -932,12 +963,19 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
         dot11dev->set_last_bssid(dot11info->bssid_mac);
 
         basedev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_CLIENT);
-        basedev->set_type_string("Wi-Fi Client");
 
-        basedev->set_devicename(basedev->get_macaddr().Mac2String());
+        // If we're only a client, set the type name and device name
+        if (basedev->get_basic_type_set() == KIS_DEVICE_BASICTYPE_CLIENT) {
+            basedev->set_type_string("Wi-Fi Client");
+            basedev->set_devicename(basedev->get_macaddr().Mac2String());
+        }
 
         HandleClient(basedev, dot11dev, in_pack, dot11info,
                 pack_gpsinfo, pack_datainfo);
+    }
+
+    if (basedev->get_type_string() == "") {
+        printf("unclassed device as of packet %d\n", packetnum);
     }
 
 

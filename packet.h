@@ -177,9 +177,10 @@ public:
 		source = mac_addr(0);
 		dest = mac_addr(0);
 		device = mac_addr(0);
+        transmitter = mac_addr(0);
 	}
 
-	mac_addr source, dest, device;
+	mac_addr source, dest, device, transmitter;
 	kis_packet_basictype type;
 	int phyid;
 	// Some sort of phy-level error 

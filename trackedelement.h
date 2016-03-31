@@ -655,13 +655,16 @@ class tracker_component : public TrackerElement {
         return (TrackerElement *) cvar; \
     } \
 
-// Proxy bitset functions (name, data type, class var)
+// Proxy bitset functions (name, trackable type, data type, class var)
 #define __ProxyBitset(name, dtype, cvar) \
     void bitset_##name(dtype bs) { \
         (*cvar) |= bs; \
     } \
     void bitclear_##name(dtype bs) { \
         (*cvar) &= ~(bs); \
+    } \
+    dtype bitcheck_##name(dtype bs) { \
+        return (dtype) (GetTrackerValue<dtype>(cvar) & bs); \
     }
 
 public:
