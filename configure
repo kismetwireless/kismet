@@ -656,7 +656,6 @@ ax_pthread_config
 LIBOBJS
 EGREP
 GREP
-objc_link
 PLUGINLDFLAGS
 CPP
 SET_MAKE
@@ -4057,7 +4056,6 @@ $as_echo "HP ANSI C compiler - added -Ae +O2" >&6; }
         CFLAGS="-no-cpp-precomp $CFLAGS"
 		LDFLAGS="$LDFLAGS -framework Foundation -framework CoreFoundation -F/System/Library/PrivateFrameworks -framework Apple80211 -framework IOKit"
 		PLUGINLDFLAGS="-flat_namespace -undefined suppress"
-		objc_link='$(OBJC_CONTROL_O)'
         { $as_echo "$as_me:${as_lineno-$LINENO}: result: Apple OSX Snow Leopard or newer" >&5
 $as_echo "Apple OSX Snow Leopard or newer" >&6; }
 
@@ -4076,7 +4074,6 @@ $as_echo "#define SYS_DARWIN 1" >>confdefs.h
         CFLAGS="-no-cpp-precomp $CFLAGS"
 		LDFLAGS="$LDFLAGS -framework Foundation -framework CoreFoundation -F/System/Library/PrivateFrameworks -framework Apple80211 -framework IOKit"
 		PLUGINLDFLAGS="-bundle -flat_namespace -undefined suppress"
-		objc_link='$(OBJC_CONTROL_O)'
         { $as_echo "$as_me:${as_lineno-$LINENO}: result: Apple GCC - added Apple80211 frameworks and no-precomp" >&5
 $as_echo "Apple GCC - added Apple80211 frameworks and no-precomp" >&6; }
 
@@ -4145,7 +4142,6 @@ $as_echo "GCC on Solaris - added -Wno-return-type -DFUNCPROTO=15" >&6; }
         CFLAGS="-no-cpp-precomp $CFLAGS"
 		LDFLAGS="$LDFLAGS -framework Foundation -framework CoreFoundation -F/System/Library/PrivateFrameworks -framework Apple80211 -framework IOKit"
 		PLUGINLDFLAGS="-flat_namespace -undefined suppress"
-		objc_link='$(OBJC_CONTROL_O)'
         { $as_echo "$as_me:${as_lineno-$LINENO}: result: Apple OSX Snow Leopard or newer" >&5
 $as_echo "Apple OSX Snow Leopard or newer" >&6; }
 
@@ -4159,7 +4155,6 @@ $as_echo "#define SYS_DARWIN 1" >>confdefs.h
         #
         CFLAGS="-no-cpp-precomp $CFLAGS"
 		LDFLAGS="$LDFLAGS -framework Foundation -framework CoreFoundation -F/System/Library/PrivateFrameworks -framework Apple80211 -framework IOKit"
-		objc_link='$(OBJC_CONTROL_O)'
 		PLUGINLDFLAGS="-bundle -flat_namespace -undefined suppress"
         { $as_echo "$as_me:${as_lineno-$LINENO}: result: Apple GCC - added Apple80211 frameworks and no-precomp" >&5
 $as_echo "Apple GCC - added Apple80211 frameworks and no-precomp" >&6; }
@@ -4216,8 +4211,6 @@ $as_echo "none needed" >&6; }
         ;;
     esac
 fi
-
-# Substitute in the objc linkages if we need them
 
 
 
@@ -6435,6 +6428,63 @@ $as_echo "#define HAVE_LIBCURSES 1" >>confdefs.h
 fi
 
 	fi
+
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing stdscr" >&5
+$as_echo_n "checking for library containing stdscr... " >&6; }
+if ${ac_cv_search_stdscr+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_func_search_save_LIBS=$LIBS
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char stdscr ();
+int
+main ()
+{
+return stdscr ();
+  ;
+  return 0;
+}
+_ACEOF
+for ac_lib in '' tinfo ncurses; do
+  if test -z "$ac_lib"; then
+    ac_res="none required"
+  else
+    ac_res=-l$ac_lib
+    LIBS="-l$ac_lib  $ac_func_search_save_LIBS"
+  fi
+  if ac_fn_cxx_try_link "$LINENO"; then :
+  ac_cv_search_stdscr=$ac_res
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext
+  if ${ac_cv_search_stdscr+:} false; then :
+  break
+fi
+done
+if ${ac_cv_search_stdscr+:} false; then :
+
+else
+  ac_cv_search_stdscr=no
+fi
+rm conftest.$ac_ext
+LIBS=$ac_func_search_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_search_stdscr" >&5
+$as_echo "$ac_cv_search_stdscr" >&6; }
+ac_res=$ac_cv_search_stdscr
+if test "$ac_res" != no; then :
+  test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
+  curseaux="$curseaux $ac_res"
+fi
+
 
 	if test "$foundlcurses" != "yes"; then
 		as_fn_error $? "Failed to find libcurses or libncurses.  Install them or disable building the Kismet client with --disable-client.  Disabling the client is probably not something you want to do normally." "$LINENO" 5

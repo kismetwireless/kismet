@@ -56,8 +56,6 @@
 #include "packetsource_wext.h"
 #include "packetsource_ipwlive.h"
 #include "packetsource_airpcap.h"
-#include "packetsource_darwin.h"
-#include "packetsource_macusb.h"
 #include "packetsourcetracker.h"
 
 #include "timetracker.h"
@@ -845,14 +843,6 @@ int main(int argc, char *argv[], char *envp[]) {
 #endif
 #ifdef USE_PACKETSOURCE_AIRPCAP
 	if (globalregistry->sourcetracker->RegisterPacketSource(new PacketSource_AirPcap(globalregistry)) < 0 || globalregistry->fatal_condition) 
-		CatchShutdown(-1);
-#endif
-#ifdef USE_PACKETSOURCE_DARWIN
-	if (globalregistry->sourcetracker->RegisterPacketSource(new PacketSource_Darwin(globalregistry)) < 0 || globalregistry->fatal_condition) 
-		CatchShutdown(-1);
-#endif
-#ifdef USE_PACKETSOURCE_MACUSB
-	if (globalregistry->sourcetracker->RegisterPacketSource(new PacketSource_MacUSB(globalregistry)) < 0 || globalregistry->fatal_condition) 
 		CatchShutdown(-1);
 #endif
 

@@ -42,7 +42,6 @@ then
         CFLAGS="-no-cpp-precomp $CFLAGS"
 		LDFLAGS="$LDFLAGS -framework Foundation -framework CoreFoundation -F/System/Library/PrivateFrameworks -framework Apple80211 -framework IOKit"
 		PLUGINLDFLAGS="-flat_namespace -undefined suppress"
-		objc_link='$(OBJC_CONTROL_O)'
         AC_MSG_RESULT(Apple OSX Snow Leopard or newer)
 		AC_DEFINE(SYS_DARWIN, 1, Compiling for OSX/Darwin)
 		darwin="yes"
@@ -58,7 +57,6 @@ then
         CFLAGS="-no-cpp-precomp $CFLAGS"
 		LDFLAGS="$LDFLAGS -framework Foundation -framework CoreFoundation -F/System/Library/PrivateFrameworks -framework Apple80211 -framework IOKit"
 		PLUGINLDFLAGS="-bundle -flat_namespace -undefined suppress"
-		objc_link='$(OBJC_CONTROL_O)'
         AC_MSG_RESULT(Apple GCC - added Apple80211 frameworks and no-precomp)
 		AC_DEFINE(SYS_DARWIN, 1, Compiling for OSX/Darwin)
 		darwin="yes"
@@ -107,7 +105,6 @@ else
         CFLAGS="-no-cpp-precomp $CFLAGS"
 		LDFLAGS="$LDFLAGS -framework Foundation -framework CoreFoundation -F/System/Library/PrivateFrameworks -framework Apple80211 -framework IOKit"
 		PLUGINLDFLAGS="-flat_namespace -undefined suppress"
-		objc_link='$(OBJC_CONTROL_O)'
         AC_MSG_RESULT(Apple OSX Snow Leopard or newer)
 		AC_DEFINE(SYS_DARWIN, 1, Compiling for OSX/Darwin)
 		darwin="yes"
@@ -118,7 +115,6 @@ else
         #
         CFLAGS="-no-cpp-precomp $CFLAGS"
 		LDFLAGS="$LDFLAGS -framework Foundation -framework CoreFoundation -F/System/Library/PrivateFrameworks -framework Apple80211 -framework IOKit"
-		objc_link='$(OBJC_CONTROL_O)'
 		PLUGINLDFLAGS="-bundle -flat_namespace -undefined suppress"
         AC_MSG_RESULT(Apple GCC - added Apple80211 frameworks and no-precomp)
 		AC_DEFINE(SYS_DARWIN, 1, Compiling for OSX/Darwin)
@@ -157,9 +153,7 @@ else
     esac
 fi
 
-# Substitute in the objc linkages if we need them
 AC_SUBST(PLUGINLDFLAGS)
-AC_SUBST(objc_link)
 
 if test "$cygwin" = "yes"; then
 	AC_MSG_CHECKING(cygwin compile flags)

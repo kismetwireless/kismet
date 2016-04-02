@@ -43,7 +43,6 @@
 #include "packetsource_wext.h"
 #include "packetsource_ipwlive.h"
 #include "packetsource_airpcap.h"
-#include "packetsource_darwin.h"
 #include "packetsourcetracker.h"
 
 #include "dumpfile.h"
@@ -237,10 +236,6 @@ int main(int argc, char *argv[], char *envp[]) {
 #endif
 #ifdef USE_PACKETSOURCE_AIRPCAP
 	if (globalreg->sourcetracker->RegisterPacketSource(new PacketSource_AirPcap(globalreg)) < 0 || globalreg->fatal_condition) 
-		CatchShutdown(-1);
-#endif
-#ifdef USE_PACKETSOURCE_DARWIN
-	if (globalreg->sourcetracker->RegisterPacketSource(new PacketSource_Darwin(globalreg)) < 0 || globalreg->fatal_condition) 
 		CatchShutdown(-1);
 #endif
 
