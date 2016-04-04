@@ -208,7 +208,7 @@ char *Kis_Net_Httpd::read_ssl_file(string in_fname) {
        return NULL;
     }
 
-    buf = new char[sz];
+    buf = new char[sz + 1];
     if (fread(buf, sz, 1, f) <= 0) {
         errstr = strerror_r(errno, strerrbuf, 1024);
         str << "Unable to read SSL file " << in_fname << ": " << errstr;
@@ -216,6 +216,9 @@ char *Kis_Net_Httpd::read_ssl_file(string in_fname) {
         return NULL;
     }
     fclose(f);
+
+    // Null terminate the buffer
+    buf[sz] = 0;
 
     return buf;
 }
