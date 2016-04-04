@@ -596,74 +596,74 @@ class tracker_component : public TrackerElement {
 // <itype>, which must be castable to the TrackerElement type (itype), referencing 
 // class variable <cvar>
 #define __Proxy(name, ptype, itype, rtype, cvar) \
-    TrackerElement *get_tracker_##name() { \
+    virtual TrackerElement *get_tracker_##name() { \
         return (TrackerElement *) cvar; \
     } \
-    rtype get_##name() const { \
+    virtual rtype get_##name() const { \
         return (rtype) GetTrackerValue<ptype>(cvar); \
     } \
-    void set_##name(itype in) { \
+    virtual void set_##name(itype in) { \
         cvar->set((ptype) in); \
     }
 
 // Only proxy a Get function
 #define __ProxyGet(name, ptype, rtype, cvar) \
-    rtype get_##name() { \
+    virtual rtype get_##name() { \
         return (rtype) GetTrackerValue<ptype>(cvar); \
     } 
 
 // Only proxy a Set function for overload
 #define __ProxySet(name, ptype, stype, cvar) \
-    void set_##name(stype in) { \
+    virtual void set_##name(stype in) { \
         cvar->set((stype) in); \
     } 
 
 // Proxy increment and decrement functions
 #define __ProxyIncDec(name, ptype, rtype, cvar) \
-    void inc_##name() { \
+    virtual void inc_##name() { \
         (*cvar)++; \
     } \
-    void inc_##name(rtype i) { \
+    virtual void inc_##name(rtype i) { \
         (*cvar) += (ptype) i; \
     } \
-    void dec_##name() { \
+    virtual void dec_##name() { \
         (*cvar)--; \
     } \
-    void dec_##name(rtype i) { \
+    virtual void dec_##name(rtype i) { \
         (*cvar) -= (ptype) i; \
     }
 
 // Proxy add/subtract
 #define __ProxyAddSub(name, ptype, itype, cvar) \
-    void add_##name(itype i) { \
+    virtual void add_##name(itype i) { \
         (*cvar) += (ptype) i; \
     } \
-    void sub_##name(itype i) { \
+    virtual void sub_##name(itype i) { \
         (*cvar) -= (ptype) i; \
     }
 
 // Proxy sub-trackable (name, trackable type, class variable)
 #define __ProxyTrackable(name, ttype, cvar) \
-    ttype *get_##name() { return cvar; } \
-    void set_##name(ttype *in) { \
+    virtual ttype *get_##name() { return cvar; } \
+    virtual void set_##name(ttype *in) { \
         if (cvar != NULL) \
             cvar->unlink(); \
         cvar = in; \
         cvar->link(); \
     }  \
-    TrackerElement *get_tracker_##name() { \
+    virtual TrackerElement *get_tracker_##name() { \
         return (TrackerElement *) cvar; \
     } \
 
 // Proxy bitset functions (name, trackable type, data type, class var)
 #define __ProxyBitset(name, dtype, cvar) \
-    void bitset_##name(dtype bs) { \
+    virtual void bitset_##name(dtype bs) { \
         (*cvar) |= bs; \
     } \
-    void bitclear_##name(dtype bs) { \
+    virtual void bitclear_##name(dtype bs) { \
         (*cvar) &= ~(bs); \
     } \
-    dtype bitcheck_##name(dtype bs) { \
+    virtual dtype bitcheck_##name(dtype bs) { \
         return (dtype) (GetTrackerValue<dtype>(cvar) & bs); \
     }
 
