@@ -22,7 +22,7 @@
 #include <string.h>
 #include <msgpack.h>
 
-#include "simple_cap_proto.h"
+#include "simple_datasource_proto.h"
 #include "endian_magic.h"
 
 simple_cap_proto_kv_t *encode_simple_cap_proto_kv(char *in_key, uint8_t *in_obj,
