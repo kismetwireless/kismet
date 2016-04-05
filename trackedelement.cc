@@ -19,6 +19,7 @@
 #include "config.h"
 
 #include <vector>
+#include <stdexcept>
 
 #include "util.h"
 
