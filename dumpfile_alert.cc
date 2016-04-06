@@ -114,10 +114,10 @@ int Dumpfile_Alert::chain_handler(kis_packet *in_pack) {
 		return 0;
 
 	for (unsigned int x = 0; x < alrtinfo->alert_vec.size(); x++) {
-		fprintf(alertfile, "%.24s %s %d %s %s %s %s %s\n", 
+		fprintf(alertfile, "%.24s %s %s %s %s %s %s %s\n", 
 				ctime((const time_t *) &(alrtinfo->alert_vec[x]->tm.tv_sec)),
 				alrtinfo->alert_vec[x]->header.c_str(),
-				alrtinfo->alert_vec[x]->channel,
+				alrtinfo->alert_vec[x]->channel.c_str(),
 				alrtinfo->alert_vec[x]->bssid.Mac2String().c_str(),
 				alrtinfo->alert_vec[x]->source.Mac2String().c_str(),
 				alrtinfo->alert_vec[x]->dest.Mac2String().c_str(),
