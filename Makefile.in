@@ -167,7 +167,7 @@ suidinstall: $(CS)
     else \
 		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet_httpd.conf $(ETC)/kismet_httpd.conf;  \
 		echo install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet_httpd.conf $(ETC)/kismet_httpd.conf;  \
-		echo "Installed config into $(ETC)/kismet.conf."; \
+		echo "Installed httpd config into $(ETC)/kismet_httpd.conf."; \
 	fi
 
 	@echo "Installed kismet into $(BIN)/."
@@ -192,15 +192,16 @@ install: $(INSTBINS)
 		echo install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet.conf $(ETC)/kismet.conf;  \
 		echo "Installed config into $(ETC)/kismet.conf."; \
 	fi
-	@if test -f $(ETC)/kismet_drone.conf; then \
-		echo "$(ETC)/kismet_drone.conf already installed, not replacing it.  HOWEVER"; \
+	@if test -f $(ETC)/kismet_httpd.conf; then \
+		echo "$(ETC)/kismet_http.conf already installed, not replacing it.  HOWEVER"; \
 		echo "if there have been any changes to the base config you will need"; \
 		echo "to add them to your config file."; \
     else \
-		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet_drone.conf $(ETC)/kismet_drone.conf;  \
-		echo install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet_drone.conf $(ETC)/kismet_drone.conf;  \
-		echo "Installed drone config into $(ETC)/kismet_drone.conf."; \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet_httpd.conf $(ETC)/kismet_httpd.conf;  \
+		echo install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet_httpd.conf $(ETC)/kismet_httpd.conf;  \
+		echo "Installed config into $(ETC)/kismet_httpd.conf."; \
 	fi
+
 	@echo "Installed kismet into $(BIN)/."
 	@echo "If you have not done so already, read the README file and the FAQ file.  Additional"
 	@echo "documentation is in the docs/ directory.  You MUST edit $(ETC)/kismet.conf "
