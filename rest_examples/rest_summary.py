@@ -3,9 +3,9 @@
 import msgpack, urllib, sys, pprint
 
 try:
-    packbin = urllib.urlopen('http://localhost:8080/devices/all_devices.msgpack').read()
+    packbin = urllib.urlopen("%s/devices/all_devices.msgpack" % sys.argv[1]).read()
 except IOError:
-    print "Could not connect to Kismet server at localhost:8080"
+    print "Could not connect to Kismet server at %s" % sys.argv[1]
     print "Sorry."
     sys.exit()
 
