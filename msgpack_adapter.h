@@ -37,6 +37,9 @@
 
 class MsgpackAdapter {
 public:
+    static void Packer(GlobalRegistry *globalreg, TrackerElement *v, 
+            msgpack::packer<std::stringstream> &packer);
+
     static void Pack(GlobalRegistry *globalreg, std::stringstream &stream, 
             tracker_component *c);
     static void Pack(GlobalRegistry *globalreg, std::stringstream &stream, 
