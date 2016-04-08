@@ -1648,7 +1648,19 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
             return false;
         }
 
-        if (tracked_map.find(key) != tracked_map.end()) {
+        map<uint64_t, kis_tracked_device_base *>::iterator tmi =
+            tracked_map.find(key);
+        if (tmi != tracked_map.end()) {
+            // Try to find the exact field
+            if (tokenurl.size() > 3) {
+                vector<string>::const_iterator first = tokenurl.begin() + 3;
+                vector<string>::const_iterator last = tokenurl.end();
+                vector<string> fpath(first, last);
+
+                if (tmi->second->get_child_path(fpath) == NULL)
+                    return false;
+            }
+
             return true;
         } else {
             return false;
@@ -1812,6 +1824,31 @@ void Devicetracker::Httpd_CreateStreamResponse(
             return;
         }
 
+        map<uint64_t, kis_tracked_device_base *>::iterator tmi =
+            tracked_map.find(key);
+        if (tmi != tracked_map.end()) {
+            // Try to find the exact field
+            if (tokenurl.size() > 3) {
+                vector<string>::const_iterator first = tokenurl.begin() + 3;
+                vector<string>::const_iterator last = tokenurl.end();
+                vector<string> fpath(first, last);
+
+                TrackerElement *sub = tmi->second->get_child_path(fpath);
+
+                if (sub == NULL) {
+                    return;
+                } else {
+                    MsgpackAdapter::Pack(globalreg, stream, sub);
+                    return;
+                }
+            }
+
+            MsgpackAdapter::Pack(globalreg, stream, (TrackerElement *) tmi->second);
+        } else {
+            return;
+        }
+
+        /*
         device_itr itr;
 
         if ((itr = tracked_map.find(key)) != tracked_map.end()) {
@@ -1822,6 +1859,7 @@ void Devicetracker::Httpd_CreateStreamResponse(
         } else {
             return;
         }
+        */
     }
 
 }
