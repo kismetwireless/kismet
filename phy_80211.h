@@ -1083,7 +1083,7 @@ public:
 	macmap<int> allow_mac_map;
 };
 
-class Kis_80211_Phy : public Kis_Phy_Handler, public TimetrackerEvent {
+class Kis_80211_Phy : public Kis_Phy_Handler {
 public:
 	// Stub
 	Kis_80211_Phy() { }
@@ -1147,8 +1147,6 @@ public:
 	}
 
 	static string CryptToString(uint64_t cryptset);
-
-    virtual int TimerKick() { return 1; }
 
 protected:
     void HandleSSID(kis_tracked_device_base *basedev, 

@@ -80,14 +80,6 @@ public:
 	virtual string FetchPhyName() { return phyname; }
 	virtual int FetchPhyId() { return phyid; }
 
-	// Timer event carried from devicetracker, for sending updated 
-	// phy-specific records, etc
-	virtual int TimerKick() = 0;
-
-	// Send devices (all, or dirty).  Phy should trigger all protocol sentences
-	// it defines for these devices
-	// virtual void BlitDevices(int in_fd, vector<kis_tracked_device_base *> *devlist) = 0;
-
 	// XSD locations - override as necessary if you provide your xsd, which 
 	// you really should
 	virtual string FetchPhyXsdNs() { return phyname; }
