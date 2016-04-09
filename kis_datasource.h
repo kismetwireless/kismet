@@ -27,6 +27,7 @@
 #include "ringbuf_handler.h"
 #include "uuid.h"
 #include "devicetracker_component.h"
+#include "simple_datasource_proto.h"
 
 /*
  * Kismet Data Source
@@ -56,6 +57,9 @@
  *
  */
 
+/* Keypair object from cap proto */
+class KisDataSource_CapKeyedObject;
+
 class KisDataSource : public RingbufferInterface, public tracker_component {
 public:
     // Create a builder instance which only knows enough to be able to
@@ -64,10 +68,10 @@ public:
     ~KisDataSource();
 
     // Build a strong instance
-    virtual KisDataSource *BuildDataSource(string in_definition);
+    virtual KisDataSource *BuildDataSource(string in_definition) = 0;
 
     // Register the source and any sub-sources
-    virtual int RegisterSources();
+    virtual int RegisterSources() = 0;
 
     __Proxy(source_name, string, string, string, source_name);
     __Proxy(source_interface, string, string, string, source_interface);
@@ -79,6 +83,10 @@ public:
 
     // Ringbuffer API
     virtual void BufferAvailable(size_t in_amt);
+
+    // Top-level packet handler
+    virtual void HandlePacket(string in_type, 
+            vector<KisDataSource_CapKeyedObject *> in_kvpairs);
 
 protected:
     GlobalRegistry *in_globalreg;
@@ -116,6 +124,16 @@ protected:
     IPCRemoteV2 *source_ipc;
     RingbufferHandler *ipchandler;
 
+};
+
+class KisDataSource_CapKeyedObject {
+public:
+    KisDataSource_CapKeyedObject(simple_cap_proto_kv *in_kp);
+    ~KisDataSource_CapKeyedObject();
+
+    string key;
+    uint32_t size;
+    uint8_t *object;
 };
 
 #endif

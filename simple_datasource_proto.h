@@ -47,14 +47,21 @@
 #define KIS_CAP_SIMPLE_PROTO_SIG    0xDECAFBAD
 
 /* Multiple key-value pairs can be nested inside a kismet proto packet. */
-struct simple_cap_proto_kv {
+
+/* Object field header */
+struct simple_cap_proto_kv_h {
     /* Named key for this kv pair */
     char key[16];
     /* Length of value object */
     uint32_t obj_sz;
+} __attribute__((packed));
+typedef struct simple_cap_proto_kv_h simple_cap_proto_kv_h_t;
+
+struct simple_cap_proto_kv {
+    simple_cap_proto_kv_h_t header;
     /* Packed binary representation of value */
     uint8_t *object;
-};
+} __attribute__((packed));
 typedef struct simple_cap_proto_kv simple_cap_proto_kv_t;
 
 /* Basic proto header/wrapper */
@@ -71,7 +78,7 @@ struct simple_cap_proto {
     uint32_t num_kv_pairs;
     /* List of kv pairs */
     uint8_t *data;
-};
+} __attribute__((packed));
 typedef struct simple_cap_proto simple_cap_proto_t;
 
 /* Encodde a KV list */

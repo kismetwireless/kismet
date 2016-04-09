@@ -74,7 +74,7 @@ void KisDataSource::BufferAvailable(size_t in_amt) {
     frame_header = (simple_cap_proto_t *) buf;
 
     if (kis_ntoh32(frame_header->signature) != KIS_CAP_SIMPLE_PROTO_SIG) {
-        // TODO kill connection
+        // TODO kill connection or seek for valid
         delete[] buf;
         return;
     }
@@ -82,13 +82,11 @@ void KisDataSource::BufferAvailable(size_t in_amt) {
     frame_sz = kis_ntoh32(frame_header->packet_sz);
 
     if (frame_sz > in_amt) {
-        // Nothing we can do right now, not enough data
+        // Nothing we can do right now, not enough data to make up a
+        // complete packet.
         delete[] buf;
         return;
     }
-
-    // Consume the packet in the buffer
-    ipchandler->GetReadBufferData(NULL, frame_sz);
 
     // Get the checksum
     frame_checksum = kis_ntoh32(frame_header->checksum);
@@ -100,11 +98,59 @@ void KisDataSource::BufferAvailable(size_t in_amt) {
     calc_checksum = Adler32Checksum((const char *) buf, frame_sz);
 
     if (calc_checksum != frame_checksum) {
-        // TODO report invalid checksum
+        // TODO report invalid checksum and disconnect
         delete[] buf;
         return;
     }
-    
+
+    // Consume the packet in the ringbuf 
+    ipchandler->GetReadBufferData(NULL, frame_sz);
+
+    // Extract the kv pairs
+    vector<KisDataSource_CapKeyedObject *> kv_vec;
+
+    ssize_t data_offt = 0;
+    for (unsigned int kvn = 0; kvn < kis_ntoh32(frame_header->num_kv_pairs); kvn++) {
+        simple_cap_proto_kv *pkv =
+            (simple_cap_proto_kv *) &((frame_header->data)[data_offt]);
+
+        data_offt = 
+            sizeof(simple_cap_proto_kv_h_t) +
+            kis_ntoh32(pkv->header.obj_sz);
+
+        KisDataSource_CapKeyedObject *kv =
+            new KisDataSource_CapKeyedObject(pkv);
+
+        kv_vec.push_back(kv);
+    }
+
+    char ctype[17];
+    snprintf(ctype, 17, "%s", frame_header->type);
+    HandlePacket(ctype, kv_vec);
+
+    for (unsigned int x = 0; x < kv_vec.size(); x++) {
+        delete(kv_vec[x]);
+    }
+
 }
 
+void KisDataSource::HandlePacket(string in_type,
+        vector<KisDataSource_CapKeyedObject *> in_kvpairs) {
+
+}
+
+KisDataSource_CapKeyedObject::KisDataSource_CapKeyedObject(simple_cap_proto_kv *in_kp) {
+    char ckey[17];
+
+    snprintf(ckey, 17, "%s", in_kp->header.key);
+    key = string(ckey);
+
+    size = kis_ntoh32(in_kp->header.obj_sz);
+    object = new uint8_t[size];
+    memcpy(object, in_kp->object, size);
+}
+
+KisDataSource_CapKeyedObject::~KisDataSource_CapKeyedObject() {
+    delete[] object;
+}
 
