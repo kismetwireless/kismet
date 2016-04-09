@@ -635,9 +635,6 @@ public:
 	kis_tracked_device_base *FetchDevice(uint64_t in_key);
 	kis_tracked_device_base *FetchDevice(mac_addr in_device, unsigned int in_phy);
 	
-	// Make or find a device record for a mac
-	kis_tracked_device_base *MapToDevice(mac_addr in_device, kis_packet *in_pack);
-
 	typedef map<uint64_t, kis_tracked_device_base *>::iterator device_itr;
 	typedef map<uint64_t, kis_tracked_device_base *>::const_iterator const_device_itr;
 
@@ -749,9 +746,6 @@ protected:
 	// Log helpers
 	void WriteXML(FILE *in_logfile);
 	void WriteTXT(FILE *in_logfile);
-
-	// Build a device record
-	kis_tracked_device_base *BuildDevice(mac_addr in_device, kis_packet *in_pack);
 
 	// Populate the common components of a device
 	int PopulateCommon(kis_tracked_device_base *device, kis_packet *in_pack);
