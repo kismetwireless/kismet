@@ -74,7 +74,7 @@ class Kismet(object):
             return retdict
 
         if unpacked[0] == self.TRACKER_MAC:
-            return unpacked[1][1]
+            return unpacked[1][0]
 
         return unpacked[1]
 
@@ -123,4 +123,30 @@ class Kismet(object):
         """
         return self.UnpackSimpleUrl("system/status.msgpack")
 
+    def DeviceSummary(self):
+        """
+        DeviceSummary() -> Device summary list
+
+        Return summary of all devices
+        """
+        return self.UnpackSimpleUrl("devices/all_devices.msgpack")
+
+    def Device(self, key):
+        """
+        Device(key) -> Device object
+
+        Return complete device object of device referenced by key
+        """
+        return self.UnpackSimpleUrl("devices/%s.msgpack" % key)
+
+    def DeviceField(self, key, field):
+        """
+        DeviceField(key, path) -> Field object
+
+        Return specific field of a device referenced by key.
+
+        field: Kismet tracked field path, ex:
+            dot11.device/dot11.device.last_beaconed_ssid
+        """
+        return self.UnpackSimpleUrl("devices/%s.msgpack/%s" % (key, field))
 
