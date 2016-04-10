@@ -78,18 +78,49 @@ class Kismet(object):
 
         return unpacked[1]
 
-    def SystemStatus(self):
+    def UnpackUrl(self, url):
+        """
+        UnpackUrl(url) -> Unpacked Object
+
+        Unpacks a msgpack object at a given URL, inside the provided host URI
+        """
         try:
-            statusbin = urllib.urlopen("%s/system/status.msgpack" % self.hosturi).read()
+            url = urllib.urlopen("%s/%s" % (self.hosturi, url))
+            if not url.getcode() == 200:
+                print "Did not get 200 OK"
+                return None
+            urlbin = url.read()
         except Exception as e:
             print "Failed to get status object: ", e
             return None
 
         try:
-            statusobj = msgpack.unpackb(statusbin)
+            obj = msgpack.unpackb(urlbin)
         except Exception as e:
             print "Failed to unpack status object: ", e
             return None
 
-        return self.Simplify(statusobj)
+        return obj
+
+    def UnpackSimpleUrl(self, url):
+        """
+        UnpackSimpleUrl(url) -> Python Object
+
+        Unpacks a msgpack object and returns the simplified python object
+        """
+        cobj = self.UnpackUrl(url)
+
+        if cobj == None:
+            return None
+
+        return self.Simplify(cobj)
+
+    def SystemStatus(self):
+        """
+        SystemStatus() -> Status object
+
+        Return fetch the system status
+        """
+        return self.UnpackSimpleUrl("system/status.msgpack")
+
 
