@@ -45,6 +45,10 @@
 #include "devicetracker.h"
 #include "phy_80211.h"
 
+#ifdef HAVE_LIBPCRE
+#include <pcre.h>
+#endif
+
 int phydot11_packethook_wep(CHAINCALL_PARMS) {
 	return ((Kis_80211_Phy *) auxdata)->PacketWepDecryptor(in_pack);
 }
@@ -1889,5 +1893,24 @@ string Kis_80211_Phy::CryptToString(uint64_t cryptset) {
 		ret = StringAppend(ret, "Non-WEP/Unknown");
 
 	return ret;
+}
+
+
+bool Kis_80211_Phy::Httpd_VerifyPath(const char *path, const char *method) {
+
+    return false;
+}
+
+void Kis_80211_Phy::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
+        struct MHD_Connection *connection,
+        const char *url, const char *method, const char *upload_data,
+        size_t *upload_data_size, std::stringstream &stream) {
+
+#ifdef HAVE_LIBPCRE
+    pcre *re;
+    pcre_extra *study;
+#endif
+
+    return;
 }
 

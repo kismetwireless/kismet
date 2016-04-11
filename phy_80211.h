@@ -38,14 +38,13 @@
 #include "packetchain.h"
 #include "kis_netframe.h"
 #include "timetracker.h"
-#include "filtercore.h"
 #include "packet.h"
 #include "gps_manager.h"
 #include "uuid.h"
-#include "configfile.h"
 
 #include "devicetracker.h"
 #include "devicetracker_component.h"
+#include "kis_net_microhttpd.h"
 
 /*
  * 802.11 PHY handlers
@@ -1083,7 +1082,7 @@ public:
 	macmap<int> allow_mac_map;
 };
 
-class Kis_80211_Phy : public Kis_Phy_Handler {
+class Kis_80211_Phy : public Kis_Phy_Handler, public Kis_Net_Httpd_Stream_Handler {
 public:
 	// Stub
 	Kis_80211_Phy() { }
@@ -1147,6 +1146,14 @@ public:
 	}
 
 	static string CryptToString(uint64_t cryptset);
+
+    // HTTPD API
+    virtual bool Httpd_VerifyPath(const char *path, const char *method);
+
+    virtual void Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
+            struct MHD_Connection *connection,
+            const char *url, const char *method, const char *upload_data,
+            size_t *upload_data_size, std::stringstream &stream);
 
 protected:
     void HandleSSID(kis_tracked_device_base *basedev, 
