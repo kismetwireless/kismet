@@ -16,9 +16,15 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
+#include "config.h"
+
 #include "kis_datasource.h"
 #include "simple_datasource_proto.h"
 #include "endian_magic.h"
+
+#ifdef HAVE_LIBPCRE
+#include <pcre.h>
+#endif
 
 KisDataSource::KisDataSource(GlobalRegistry *in_globalreg) :
     tracker_component(in_globalreg, 0) {
@@ -131,6 +137,8 @@ void KisDataSource::BufferAvailable(size_t in_amt) {
     for (unsigned int x = 0; x < kv_vec.size(); x++) {
         delete(kv_vec[x]);
     }
+
+    delete[] buf;
 
 }
 

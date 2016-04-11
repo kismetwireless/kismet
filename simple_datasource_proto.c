@@ -33,8 +33,8 @@ simple_cap_proto_kv_t *encode_simple_cap_proto_kv(char *in_key, uint8_t *in_obj,
     if (kv == NULL)
         return NULL;
 
-    snprintf(kv->key, 16, "%16s", in_key);
-    kv->obj_sz = kis_hton32(in_obj_len);
+    snprintf(kv->header.key, 16, "%16s", in_key);
+    kv->header.obj_sz = kis_hton32(in_obj_len);
 
     memcpy(kv->object, in_obj, in_obj_len);
 
@@ -52,7 +52,7 @@ simple_cap_proto_t *encode_simple_cap_proto(char *in_type,
 
     for (x = 0; x < in_kv_len; x++) {
         kv = in_kv_list[x];
-        sz += sizeof(simple_cap_proto_t) + kv->obj_sz;
+        sz += sizeof(simple_cap_proto_t) + kv->header.obj_sz;
     }
 
     cp = (simple_cap_proto_t *) malloc(sz);
@@ -68,8 +68,8 @@ simple_cap_proto_t *encode_simple_cap_proto(char *in_type,
 
     for (x = 0; x < in_kv_len; x++) {
         kv = in_kv_list[x];
-        memcpy(cp->data + offt, kv, sizeof(simple_cap_proto_kv_t) + kv->obj_sz);
-        offt += sizeof(simple_cap_proto_kv_t) + kv->obj_sz;
+        memcpy(cp->data + offt, kv, sizeof(simple_cap_proto_kv_t) + kv->header.obj_sz);
+        offt += sizeof(simple_cap_proto_kv_t) + kv->header.obj_sz;
     }
 
     csum = Adler32Checksum((const char *) cp, sz);
@@ -78,6 +78,9 @@ simple_cap_proto_t *encode_simple_cap_proto(char *in_type,
     return cp;
 }
 
+#if 0
+// Doesn't work with ubuntu msgpack 0.57 b/c it lacks strings, floats, etc.
+// Left for reference
 int pack_packet_capdata(uint8_t **ret_buffer, uint32_t *ret_sz,
         struct timeval in_ts, int in_dlt, uint32_t in_pack_sz, uint8_t *in_pack) {
     char key[16];
@@ -209,4 +212,5 @@ int pack_packet_gps(uint8_t **ret_buffer, uint32_t *ret_sz,
 
     return 1;
 }
+#endif
 
