@@ -109,6 +109,9 @@ Data sources replace the PacketSource class in Kismet.
 
 4.  Standard KV Pairs
 
+    Kismet will automatically handle standard KV pairs.  Arbitrary additional
+    KV pairs can be defined, but must be handled by your glue code.
+
     CHANNELS
         Conveys the list of channels supported by this device, if there is a
         user presentable list.  Channels are free-form strings which may be
@@ -117,6 +120,9 @@ Data sources replace the PacketSource class in Kismet.
         Content: Msgpack packed vector of strings defining channels.  Complex
                  channel definitions, which are phy-unique, are permitted.
         Example: ["1","6","11","6HT20","11HT40-"]
+
+        The CHANNELS pair is used to populate the available channels in
+        a data source.
 
     GPS
         If a driver contains its own location information (or is running on 
@@ -136,6 +142,9 @@ Data sources replace the PacketSource class in Kismet.
                  "time":uint64        Time, in seconds, of coordinate
                  "type":string        GPS type, free-form string
                  "name":string        GPS name, free-form string
+
+        The GPS pair is inserted into a kismet packetchain packet as a
+        location record.
 
     MESSAGE
         MESSAGE KV pairs function as a direct link to the messagebus of the Kismet
@@ -157,6 +166,9 @@ Data sources replace the PacketSource class in Kismet.
                  "size":uint64      Size of packet
                  "packet":binary    Binary content of packet
 
+        The PACKET pair is inserted into a Kismet packetchain packet as
+        a datachunk record as a PACK_COMP_LINKFRAME.
+
     SIGNAL
         SIGNAL KV pairs can be added to data frames when the signal values are 
         not included in the existing data.  For example, a driver reporting 
@@ -168,6 +180,9 @@ Data sources replace the PacketSource class in Kismet.
                  "noise_dbm":int32     Noise value in DBM (optional)
                  "signal_rssi":int32   Signal value in RSSI (optional)
                  "noise_rssi":int32    Noise value in RSSI (optional)
+
+        The SIGNAL pair is inserted into a Kismet packetchain packet as
+        a PACK_COMP_RADIODATA kis_layer1_radioinfo record.
 
     SUCCESS
         Simple boolean indicating success or failure
