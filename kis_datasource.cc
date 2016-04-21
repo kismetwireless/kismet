@@ -142,8 +142,14 @@ void KisDataSource::BufferAvailable(size_t in_amt) {
 
 }
 
+int KisDataSource::OpenSource(string in_definition) {
+
+    return 0;
+}
+
 void KisDataSource::HandlePacket(string in_type,
         vector<KisDataSource_CapKeyedObject *> in_kvpairs) {
+
 
 }
 

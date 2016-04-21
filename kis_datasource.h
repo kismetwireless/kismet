@@ -22,6 +22,7 @@
 #include "config.h"
 
 #include "globalregistry.h"
+#include "datasourcetracker.h"
 #include "ipc_remote2.h"
 #include "ringbuf_handler.h"
 #include "uuid.h"
@@ -72,6 +73,8 @@ public:
     // Register the source and any sub-sources
     virtual int RegisterSources() = 0;
 
+    // Launch and try to open a source
+    virtual int OpenSource(string in_definition);
 
     __Proxy(source_name, string, string, string, source_name);
     __Proxy(source_interface, string, string, string, source_interface);

@@ -56,6 +56,7 @@ CSO = util.o cygwin_utils.o globalregistry.o ringbuf.o \
 	timetracker.o drone_kisnetframe.o \
 	packetsourcetracker.o packetchain.o $(CAPSOURCES) \
 	dumpfile.o dumpfile_tuntap.o \
+	kis_net_microhttpd.o \
 	kismet_capture.o
 CS	= kismet_capture
 

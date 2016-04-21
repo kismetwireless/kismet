@@ -285,7 +285,10 @@ int Kis_Net_Httpd::StartHttpd() {
 
     if (!use_ssl) {
         microhttpd = MHD_start_daemon(MHD_USE_THREAD_PER_CONNECTION,
-                http_port, NULL, NULL, &http_request_handler, this, MHD_OPTION_END); 
+                http_port, NULL, NULL, 
+                &http_request_handler, this, 
+                MHD_OPTION_NOTIFY_COMPLETED, &http_request_completed, NULL,
+                MHD_OPTION_END); 
     } else {
         microhttpd = MHD_start_daemon(MHD_USE_THREAD_PER_CONNECTION | MHD_USE_SSL,
                 http_port, NULL, NULL, &http_request_handler, this, 
@@ -432,6 +435,23 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
     pthread_mutex_unlock(&(kishttpd->controller_mutex));
 
     return ret;
+}
+
+void Kis_Net_Httpd::http_request_completed(void *cls __attribute__((unused)), 
+        struct MHD_Connection *connection __attribute__((unused)),
+        void **con_cls, 
+        enum MHD_RequestTerminationCode toe __attribute__((unused))) {
+    Kis_Net_Httpd_Connection *con_info = (Kis_Net_Httpd_Connection *) *con_cls;
+
+    if (con_info == NULL)
+        return;
+
+    if (con_info->connection_type == Kis_Net_Httpd_Connection::CONNECTION_POST) {
+        MHD_destroy_post_processor(con_info->postprocessor);
+    }
+
+    delete(con_info);
+    *con_cls = NULL;
 }
 
 static ssize_t file_reader(void *cls, uint64_t pos, char *buf, size_t max) {

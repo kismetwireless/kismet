@@ -2995,3 +2995,25 @@ int Packetsourcetracker::cmd_RESTARTSOURCE(int in_clid, KisNetFramework *framewo
 	return 1;
 }
 
+bool Packetsourcetracker::Httpd_VerifyPath(const char *path, const char *method) {
+    /*
+    if (strcmp(method, "GET") != 0)
+        return false;
+
+    if (strcmp(path, "/system/status.msgpack") == 0)
+        return true;
+    */
+
+    return false;
+}
+
+void Packetsourcetracker::Httpd_CreateStreamResponse(
+        Kis_Net_Httpd *httpd __attribute__((unused)),
+        struct MHD_Connection *connection __attribute__((unused)),
+        const char *path, const char *method, 
+        const char *upload_data __attribute__((unused)),
+        size_t *upload_data_size __attribute__((unused)), 
+        std::stringstream &stream) {
+
+}
+
