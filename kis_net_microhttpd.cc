@@ -401,6 +401,7 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
     Kis_Net_Httpd_Handler *handler = NULL;
     local_locker(&(kishttpd->controller_mutex));
 
+    /* Find a handler that can handle this path & method */
     for (unsigned int i = 0; i < kishttpd->handler_vec.size(); i++) {
         Kis_Net_Httpd_Handler *h = kishttpd->handler_vec[i];
 
@@ -437,6 +438,7 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
         concls->httpdhandler = handler;
         concls->session = s;
         concls->httpcode = MHD_HTTP_OK;
+        concls->url = string(url);
 
         /* If we're doing a post, set up a post handler */
         if (strcmp(method, "POST") == 0) {
@@ -466,7 +468,7 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
 
         if (*upload_data_size != 0) {
             MHD_post_process(concls->postprocessor, upload_data, *upload_data_size);
-
+            *upload_data_size = 0;
             return MHD_YES;
         } else if (concls->response_stream.str().length() != 0) {
             // Send the content

@@ -115,6 +115,9 @@ public:
     // HTTP code of response
     int httpcode;
 
+    // URL
+    string url;
+
     // Post processor struct
     struct MHD_PostProcessor *postprocessor;
     // Type of request/connection

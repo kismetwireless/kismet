@@ -534,6 +534,10 @@ Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) {
 	proto_source_time_id =
 		globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1,
 											  &pst_sourceprototimer, this);
+
+    httpd = (Kis_Net_Httpd *) globalreg->FetchGlobal("HTTPD_SERVER");
+    if (httpd != NULL)
+        httpd->RegisterHandler(this);
 }
 
 Packetsourcetracker::~Packetsourcetracker() {
@@ -550,6 +554,9 @@ Packetsourcetracker::~Packetsourcetracker() {
 
 	// We could delete the card stuff but we're only ever called during
 	// shutdown and fail, so who cares.
+
+    if (httpd != NULL)
+        httpd->RemoveHandler(this);
 }
 
 void Packetsourcetracker::RegisterIPC(IPCRemote *in_ipc, int in_as_ipc) {
@@ -3004,6 +3011,11 @@ bool Packetsourcetracker::Httpd_VerifyPath(const char *path, const char *method)
         return true;
     */
 
+    if (strcmp(path, "/packetsource/config_source.cmd") == 0 &&
+            strcmp(method, "POST") == 0) {
+        return true;
+    }
+
     return false;
 }
 
@@ -3015,5 +3027,30 @@ void Packetsourcetracker::Httpd_CreateStreamResponse(
         size_t *upload_data_size __attribute__((unused)), 
         std::stringstream &stream) {
 
+}
+
+int Packetsourcetracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind, 
+        const char *key, const char *filename, const char *content_type,
+        const char *transfer_encoding, const char *data, 
+        uint64_t off, size_t size) {
+
+    Kis_Net_Httpd_Connection *concls = (Kis_Net_Httpd_Connection *) coninfo_cls;
+
+    // Anything involving POST here requires a login
+    /*
+    if (concls->session == NULL) {
+        concls->response_stream << "Login required";
+        concls->httpcode = 403;
+
+        return 1;
+    }
+    */
+
+    if (concls->url == "/packetsource/config_source.cmd") {
+        printf("Post key %s data %s\n", key, data);
+        concls->response_stream << "OK, posted";
+    }
+
+    return 1;
 }
 
