@@ -147,7 +147,7 @@ Kis_Net_Httpd::Kis_Net_Httpd(GlobalRegistry *in_globalreg) {
                 if (sestok.size() != 4)
                     continue;
 
-                session *sess = new session();
+                Kis_Net_Httpd_Session *sess = new Kis_Net_Httpd_Session();
 
                 sess->sessionid = sestok[0];
 
@@ -319,18 +319,18 @@ int Kis_Net_Httpd::StopHttpd() {
     return 0;
 }
 
-void Kis_Net_Httpd::AddSession(session *in_session) {
+void Kis_Net_Httpd::AddSession(Kis_Net_Httpd_Session *in_session) {
     session_map[in_session->sessionid] = in_session;
     WriteSessions();
 }
 
 void Kis_Net_Httpd::DelSession(string in_key) {
-    map<string, session *>::iterator i = session_map.find(in_key);
+    map<string, Kis_Net_Httpd_Session *>::iterator i = session_map.find(in_key);
 
     DelSession(i);
 }
 
-void Kis_Net_Httpd::DelSession(map<string, session *>::iterator in_itr) {
+void Kis_Net_Httpd::DelSession(map<string, Kis_Net_Httpd_Session *>::iterator in_itr) {
     if (in_itr != session_map.end()) {
         delete in_itr->second;
         session_map.erase(in_itr);
@@ -345,7 +345,7 @@ void Kis_Net_Httpd::WriteSessions() {
     vector<string> sessions;
     stringstream str;
 
-    for (map<string, session *>::iterator i = session_map.begin();
+    for (map<string, Kis_Net_Httpd_Session *>::iterator i = session_map.begin();
             i != session_map.end(); ++i) {
         str.str("");
 
@@ -364,22 +364,23 @@ void Kis_Net_Httpd::WriteSessions() {
 
 int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connection,
     const char *url, const char *method, const char *version __attribute__ ((unused)),
-    const char *upload_data, size_t *upload_data_size, 
-    void **ptr __attribute__ ((unused))) {
+    const char *upload_data, size_t *upload_data_size, void **ptr) {
 
     // fprintf(stderr, "HTTP request: '%s' method '%s'\n", url, method); 
     //
     Kis_Net_Httpd *kishttpd = (Kis_Net_Httpd *) cls;
     
     // Update the session records if one exists
-    session *s;
+    Kis_Net_Httpd_Session *s = NULL;
     const char *cookieval;
+    int ret = MHD_NO;
 
     cookieval = MHD_lookup_connection_value (connection,
             MHD_COOKIE_KIND, KIS_SESSION_COOKIE);
 
     if (cookieval != NULL) {
-        map<string, session *>::iterator si = kishttpd->session_map.find(cookieval);
+        map<string, Kis_Net_Httpd_Session *>::iterator si = 
+            kishttpd->session_map.find(cookieval);
 
         if (si != kishttpd->session_map.end()) {
             s = si->second;
@@ -398,7 +399,7 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
     }
     
     Kis_Net_Httpd_Handler *handler = NULL;
-    pthread_mutex_lock(&(kishttpd->controller_mutex));
+    local_locker(&(kishttpd->controller_mutex));
 
     for (unsigned int i = 0; i < kishttpd->handler_vec.size(); i++) {
         Kis_Net_Httpd_Handler *h = kishttpd->handler_vec[i];
@@ -428,13 +429,70 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
         return MHD_YES;
     }
 
-    int ret = 
-        handler->Httpd_HandleRequest(kishttpd, connection, url, method, upload_data, 
-                upload_data_size);
+    // If we don't have a connection state, make one
+    if (*ptr == NULL) {
+        Kis_Net_Httpd_Connection *concls = new Kis_Net_Httpd_Connection();
 
-    pthread_mutex_unlock(&(kishttpd->controller_mutex));
+        concls->httpd = kishttpd;
+        concls->httpdhandler = handler;
+        concls->session = s;
+        concls->httpcode = MHD_HTTP_OK;
+
+        /* If we're doing a post, set up a post handler */
+        if (strcmp(method, "POST") == 0) {
+            concls->connection_type = Kis_Net_Httpd_Connection::CONNECTION_POST;
+
+            concls->postprocessor =
+                MHD_create_post_processor(connection, KIS_HTTPD_POSTBUFFERSZ,
+                        kishttpd->http_post_handler, (void *) concls);
+
+            if (concls->postprocessor == NULL) {
+                delete(concls);
+                return MHD_NO;
+            }
+
+        } else {
+            concls->connection_type = Kis_Net_Httpd_Connection::CONNECTION_POST;
+        }
+
+        *ptr = (void *) concls;
+
+        return MHD_YES;
+    }
+
+    // Handle post
+    if (strcmp(method, "POST") == 0) {
+        Kis_Net_Httpd_Connection *concls = (Kis_Net_Httpd_Connection *) *ptr;
+
+        if (*upload_data_size != 0) {
+            MHD_post_process(concls->postprocessor, upload_data, *upload_data_size);
+
+            return MHD_YES;
+        } else if (concls->response_stream.str().length() != 0) {
+            // Send the content
+            ret = kishttpd->SendHttpResponse(kishttpd, connection, 
+                    url, concls->httpcode, concls->response_stream.str());
+    
+            return ret;
+        }
+    } else {
+        ret = 
+            handler->Httpd_HandleRequest(kishttpd, connection, url, method, 
+                    upload_data, upload_data_size);
+    }
 
     return ret;
+}
+
+int Kis_Net_Httpd::http_post_handler(void *coninfo_cls, enum MHD_ValueKind kind, 
+        const char *key, const char *filename, const char *content_type,
+        const char *transfer_encoding, const char *data, 
+        uint64_t off, size_t size) {
+
+    Kis_Net_Httpd_Connection *concls = (Kis_Net_Httpd_Connection *) coninfo_cls;
+
+    return (concls->httpdhandler)->Httpd_PostIterator(coninfo_cls, kind,
+            key, filename, content_type, transfer_encoding, data, off, size);
 }
 
 void Kis_Net_Httpd::http_request_completed(void *cls __attribute__((unused)), 
@@ -558,19 +616,13 @@ int Kis_Net_Httpd::handle_static_file(void *cls, struct MHD_Connection *connecti
     return -1;
 }
 
-int Kis_Net_Httpd_Stream_Handler::Httpd_HandleRequest(Kis_Net_Httpd *httpd, 
-        struct MHD_Connection *connection,
-        const char *url, const char *method, const char *upload_data,
-        size_t *upload_data_size) {
-
-    std::stringstream stream;
-
-    Httpd_CreateStreamResponse(httpd, connection, url, method, upload_data,
-            upload_data_size, stream);
+int Kis_Net_Httpd::SendHttpResponse(Kis_Net_Httpd *httpd,
+        struct MHD_Connection *connection, 
+        const char *url, int httpcode, string responsestr) {
 
     struct MHD_Response *response = 
-        MHD_create_response_from_buffer(stream.str().length(),
-                (void *) stream.str().c_str(), MHD_RESPMEM_MUST_COPY);
+        MHD_create_response_from_buffer(responsestr.length(),
+                (void *) responsestr.c_str(), MHD_RESPMEM_MUST_COPY);
 
     char lastmod[31];
     struct tm tmstruct;
@@ -591,15 +643,31 @@ int Kis_Net_Httpd_Stream_Handler::Httpd_HandleRequest(Kis_Net_Httpd *httpd,
         }
     }
 
-    int ret = MHD_queue_response(connection, MHD_HTTP_OK, response);
+    int ret = MHD_queue_response(connection, httpcode, response);
 
     MHD_destroy_response(response);
 
     return ret;
 }
 
+int Kis_Net_Httpd_Stream_Handler::Httpd_HandleRequest(Kis_Net_Httpd *httpd, 
+        struct MHD_Connection *connection,
+        const char *url, const char *method, const char *upload_data,
+        size_t *upload_data_size) {
+
+    std::stringstream stream;
+    int ret;
+
+    Httpd_CreateStreamResponse(httpd, connection, url, method, upload_data,
+            upload_data_size, stream);
+
+    ret = httpd->SendHttpResponse(httpd, connection, url, MHD_HTTP_OK, stream.str());
+    
+    return ret;
+}
+
 bool Kis_Net_Httpd::HasValidSession(struct MHD_Connection *connection) {
-    session *s;
+    Kis_Net_Httpd_Session *s;
     const char *cookieval;
 
     cookieval = MHD_lookup_connection_value (connection,
@@ -608,7 +676,7 @@ bool Kis_Net_Httpd::HasValidSession(struct MHD_Connection *connection) {
     if (cookieval == NULL)
         return false;
 
-    map<string, session *>::iterator si = session_map.find(cookieval);
+    map<string, Kis_Net_Httpd_Session *>::iterator si = session_map.find(cookieval);
 
     if (si == session_map.end())
         return false;
@@ -630,7 +698,7 @@ bool Kis_Net_Httpd::HasValidSession(struct MHD_Connection *connection) {
 }
 
 void Kis_Net_Httpd::CreateSession(struct MHD_Response *response, time_t in_lifetime) {
-    session *s;
+    Kis_Net_Httpd_Session *s;
 
     // Use 128 bits of entropy to make a session key
 
@@ -670,7 +738,7 @@ void Kis_Net_Httpd::CreateSession(struct MHD_Response *response, time_t in_lifet
         return;
     }
 
-    s = new session();
+    s = new Kis_Net_Httpd_Session();
     s->sessionid = cookie.str();
     s->session_created = globalreg->timestamp.tv_sec;
     s->session_seen = s->session_created;
