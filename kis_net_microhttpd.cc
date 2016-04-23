@@ -399,21 +399,21 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
     }
     
     Kis_Net_Httpd_Handler *handler = NULL;
-    local_locker(&(kishttpd->controller_mutex));
 
-    /* Find a handler that can handle this path & method */
-    for (unsigned int i = 0; i < kishttpd->handler_vec.size(); i++) {
-        Kis_Net_Httpd_Handler *h = kishttpd->handler_vec[i];
+    {
+        local_locker(&(kishttpd->controller_mutex));
+        /* Find a handler that can handle this path & method */
+        for (unsigned int i = 0; i < kishttpd->handler_vec.size(); i++) {
+            Kis_Net_Httpd_Handler *h = kishttpd->handler_vec[i];
 
-        if (h->Httpd_VerifyPath(url, method)) {
-            handler = h;
-            break;
+            if (h->Httpd_VerifyPath(url, method)) {
+                handler = h;
+                break;
+            }
         }
     }
 
     if (handler == NULL) {
-        pthread_mutex_unlock(&(kishttpd->controller_mutex));
-
         // Try to check a static url
         if (handle_static_file(cls, connection, url, method) < 0) {
             // fprintf(stderr, "   404 no handler for request\n");
