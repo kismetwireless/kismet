@@ -77,6 +77,9 @@ protected:
     string ExpandLogPath_nl(string path, string logname, string type, 
             int start, int overwrite = 0);
 
+	int FetchOptDirty_nl(string in_key);
+	void SetOptDirty_nl(string in_key, int in_dirty);
+
     string filename;
 
     class config_entity {

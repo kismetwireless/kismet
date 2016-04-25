@@ -243,15 +243,23 @@ unsigned int ConfigFile::FetchOptUInt(string in_key, unsigned int dvalue) {
 int ConfigFile::FetchOptDirty(string in_key) {
     local_locker lock(&config_locker);
 
+    return FetchOptDirty_nl(in_key);
+}
+
+void ConfigFile::SetOptDirty(string in_key, int in_dirty) {
+    local_locker lock(&config_locker);
+
+    return SetOptDirty_nl(in_key, in_dirty);
+}
+
+int ConfigFile::FetchOptDirty_nl(string in_key) {
 	if (config_map_dirty.find(StrLower(in_key)) == config_map_dirty.end())
 		return 0;
 
 	return config_map_dirty[StrLower(in_key)];
 }
 
-void ConfigFile::SetOptDirty(string in_key, int in_dirty) {
-    local_locker lock(&config_locker);
-
+void ConfigFile::SetOptDirty_nl(string in_key, int in_dirty) {
 	config_map_dirty[StrLower(in_key)] = in_dirty;
 }
 
@@ -261,7 +269,7 @@ void ConfigFile::SetOpt(string in_key, string in_val, int in_dirty) {
     vector<config_entity> v;
     config_entity e(in_val, "::dynamic::");
 	config_map[StrLower(in_key)] = v;
-	SetOptDirty(in_key, in_dirty);
+	SetOptDirty_nl(in_key, in_dirty);
 }
 
 void ConfigFile::SetOptVec(string in_key, vector<string> in_val, int in_dirty) {
@@ -274,7 +282,7 @@ void ConfigFile::SetOptVec(string in_key, vector<string> in_val, int in_dirty) {
     }
 
 	config_map[StrLower(in_key)] = cev;
-	SetOptDirty(in_key, in_dirty);
+	SetOptDirty_nl(in_key, in_dirty);
 }
 
 
