@@ -41,8 +41,7 @@ Kis_Httpd_Websession::Kis_Httpd_Websession(GlobalRegistry *in_globalreg) {
 
     conf_username = up[0];
     conf_password = up[1];
-    
-}
+    }
 
 Kis_Httpd_Websession::~Kis_Httpd_Websession() {
     globalreg->httpd_server->RemoveHandler(this);
@@ -127,6 +126,20 @@ int Kis_Httpd_Websession::Httpd_HandleRequest(Kis_Net_Httpd *httpd,
         MHD_destroy_response(response);
 
         return ret;
+    }
+
+    if (strcmp(url, "/session/check_session") == 0) {
+        if (httpd->HasValidSession(connection)) {
+            stream << "Valid session";
+        } else {
+            stream << "No session";
+        }
+
+        struct MHD_Response *response = 
+            MHD_create_response_from_buffer(stream.str().length(),
+                    (void *) stream.str().c_str(), MHD_RESPMEM_MUST_COPY);
+        MHD_queue_response(connection, MHD_HTTP_OK, response);
+        MHD_destroy_response(response);
     }
 
     return 1;
