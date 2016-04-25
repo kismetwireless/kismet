@@ -167,6 +167,7 @@ public:
     string GetMimeType(string suffix);
 
     bool HasValidSession(struct MHD_Connection *connection);
+    bool HasValidSession(Kis_Net_Httpd_Connection *connection);
     void CreateSession(struct MHD_Response *response, time_t in_lifetime);
 
     // Generic response sender

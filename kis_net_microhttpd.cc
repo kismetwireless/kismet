@@ -375,7 +375,7 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
     const char *cookieval;
     int ret = MHD_NO;
 
-    cookieval = MHD_lookup_connection_value (connection,
+    cookieval = MHD_lookup_connection_value(connection, 
             MHD_COOKIE_KIND, KIS_SESSION_COOKIE);
 
     if (cookieval != NULL) {
@@ -396,7 +396,7 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
             // Update the last seen
             s->session_seen = kishttpd->globalreg->timestamp.tv_sec;
         }
-    }
+    } 
     
     Kis_Net_Httpd_Handler *handler = NULL;
 
@@ -436,6 +436,7 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
 
         concls->httpd = kishttpd;
         concls->httpdhandler = handler;
+        // printf("%s %s session = %p\n", method, url, s);
         concls->session = s;
         concls->httpcode = MHD_HTTP_OK;
         concls->url = string(url);
@@ -699,6 +700,10 @@ bool Kis_Net_Httpd::HasValidSession(struct MHD_Connection *connection) {
     return true;
 }
 
+bool Kis_Net_Httpd::HasValidSession(Kis_Net_Httpd_Connection *connection) {
+    return (connection->session != NULL);
+}
+
 void Kis_Net_Httpd::CreateSession(struct MHD_Response *response, time_t in_lifetime) {
     Kis_Net_Httpd_Session *s;
 
@@ -732,6 +737,8 @@ void Kis_Net_Httpd::CreateSession(struct MHD_Response *response, time_t in_lifet
     }
 
     cookiestr << cookie.str();
+
+    cookiestr << "; Path=/";
 
     if (MHD_add_response_header(response, MHD_HTTP_HEADER_SET_COOKIE, 
                 cookiestr.str().c_str()) == MHD_NO) {
