@@ -1,6 +1,9 @@
 #/usr/bin/env python
 
-import msgpack, urllib
+import msgpack
+import urllib
+import requests
+import base64
 
 """
 Kismet-handling python class
@@ -42,6 +45,11 @@ class Kismet(object):
         self.TRACKER_MACMAP = 16
         self.TRACKER_STRINGMAP = 17
         self.TRACKER_DOUBLEMAP = 18
+
+        self.username = "unknown"
+        self.password = "nopass"
+
+        self.session = requests.Session()
 
 
     def Simplify(self, unpacked):
@@ -85,11 +93,11 @@ class Kismet(object):
         Unpacks a msgpack object at a given URL, inside the provided host URI
         """
         try:
-            url = urllib.urlopen("%s/%s" % (self.hosturi, url))
-            if not url.getcode() == 200:
+            r = self.session.get("%s/%s" % (self.hosturi, url))
+            if not r.status_code == 200:
                 print "Did not get 200 OK"
                 return None
-            urlbin = url.read()
+            urlbin = r.content
         except Exception as e:
             print "Failed to get status object: ", e
             return None
@@ -114,6 +122,36 @@ class Kismet(object):
             return None
 
         return self.Simplify(cobj)
+
+    def Login(self, user, passwd):
+        """
+        Login(user, passwd) -> Boolean
+
+        Logs in (and caches login credentials).  Required for administrative
+        behavior.
+        """
+        self.session.auth = (user, passwd)
+
+        r = self.session.get("%s/session/create_session" % host)
+
+        if not r.status_code == 200:
+            return False
+
+        return True
+
+    def CheckSession(self):
+        """
+        CheckSession() -> Boolean
+
+        Checks if a session is valid / session is logged in
+        """
+
+        r = self.session.get("%s/session/check_session" % host)
+
+        if not r.status_code == 200:
+            return False
+
+        return True
 
     def SystemStatus(self):
         """

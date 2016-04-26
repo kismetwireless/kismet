@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
-import KismetRest, pprint
+import KismetRest
+import pprint
+import sys
 
 kr = KismetRest.Kismet('http://localhost:2501')
 
@@ -9,6 +11,10 @@ status = kr.SystemStatus()
 
 # Get summary of devices
 devices = kr.DeviceSummary()
+
+if len(devices) == 0:
+    print "No devices - is a source configured in Kismet?"
+    sys.exit(1)
 
 # Fetch the first complete device record
 key = devices[0]['kismet.device.base.key']
