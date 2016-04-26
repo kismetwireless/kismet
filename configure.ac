@@ -1033,6 +1033,8 @@ sharedatadir=`(
 sharedatadir=${sharedatadir}
 AC_SUBST(sharedatadir)
 
+CPPFLAGS="-I./ $CPPFLAGS"
+
 AC_CONFIG_FILES([Makefile Makefile.inc scripts/kismet conf/kismet.conf])
 AC_OUTPUT
 

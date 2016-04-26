@@ -8366,6 +8366,8 @@ sharedatadir=`(
 sharedatadir=${sharedatadir}
 
 
+CPPFLAGS="-I./ $CPPFLAGS"
+
 ac_config_files="$ac_config_files Makefile Makefile.inc scripts/kismet conf/kismet.conf"
 
 cat >confcache <<\_ACEOF

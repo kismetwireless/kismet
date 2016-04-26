@@ -31,6 +31,11 @@
 #include "configfile.h"
 #include "getopt.h"
 
+#include "base64.h"
+
+#include <msgpack.hpp>
+#include <iostream>
+
 // Broken source assigned to sources which utterly fail to parse during startup, 
 // with the goal of setting the warning so that it'll pop in the UI properly.
 // Should only ever be used as a protosource
@@ -3037,17 +3042,32 @@ int Packetsourcetracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKin
     Kis_Net_Httpd_Connection *concls = (Kis_Net_Httpd_Connection *) coninfo_cls;
 
     // Anything involving POST here requires a login
-    /*
-    if (concls->session == NULL) {
+    if (!httpd->HasValidSession(concls)) {
         concls->response_stream << "Login required";
         concls->httpcode = 403;
 
         return 1;
     }
-    */
 
     if (concls->url == "/packetsource/config_source.cmd") {
         printf("Post key %s data %s\n", key, data);
+
+        if (strcmp(key, "msgpack") == 0) {
+            string decode = Base64::decode(string(data));
+
+            msgpack::unpacked result;
+
+            try {
+                msgpack::unpack(result, decode.c_str(), decode.length());
+ 
+                msgpack::object deserialized = result.get();
+                std::cout << deserialized << std::endl;
+            } catch(const std::exception& e) {
+                ;
+            }
+
+        }
+
         concls->response_stream << "OK, posted";
     }
 
