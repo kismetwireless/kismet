@@ -28,6 +28,7 @@
 #include <sstream>
 #include <pthread.h>
 #include <microhttpd.h>
+#include <msgpack.hpp>
 
 #include "globalregistry.h"
 
@@ -71,6 +72,12 @@ public:
 #endif
         return MHD_NO;
     }
+
+    // Extract a base64 encoded msgpack map out of the POST request.  This is 
+    // the standard message format for most rest POST endpoints
+    typedef std::map<std::string, msgpack::object> MsgpackStrMap;
+    virtual MsgpackStrMap Httpd_Post_Get_Msgpack(const char *data, size_t size); 
+
 };
 
 // Take a C++ stringstream and use it as a response

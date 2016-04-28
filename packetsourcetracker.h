@@ -29,6 +29,7 @@
 #include <algorithm>
 #include <string>
 #include <errno.h>
+#include <pthread.h>
 
 #include "globalregistry.h"
 #include "timetracker.h"
@@ -38,6 +39,8 @@
 #include "kis_pktproto.h"
 
 #include "kis_net_microhttpd.h"
+
+#include "entrytracker.h"
 
 /*
  * Core of the packet tracking subsystem
@@ -387,7 +390,20 @@ protected:
 	// Preferred channels
 	vector<unsigned int> preferred_channels;
 
+    // Webserver reference
     Kis_Net_Httpd *httpd;
+
+    // Entrytracker reference
+    EntryTracker *entrytracker;
+
+    // Tracked vector and elements
+    int tracked_oldsource_vec_id;
+    int tracked_oldsource_entry_id;
+
+    // Build a msg of all the sources
+    void httpd_pack_all_sources(std::stringstream &stream);
+
+    pthread_mutex_t pst_lock;
 };
 
 #endif

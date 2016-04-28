@@ -30,6 +30,7 @@
 #include <string.h>
 #include <errno.h>
 #include <microhttpd.h>
+#include <msgpack.hpp>
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -39,6 +40,7 @@
 #include "messagebus.h"
 #include "configfile.h"
 #include "kis_net_microhttpd.h"
+#include "base64.h"
 
 Kis_Net_Httpd::Kis_Net_Httpd(GlobalRegistry *in_globalreg) {
     globalreg = in_globalreg;
@@ -792,5 +794,26 @@ void Kis_Net_Httpd_No_Files_Handler::Httpd_CreateStreamResponse(Kis_Net_Httpd *h
     stream << "and restart Kismet";
     stream << "</body>";
     stream << "</html>";
+}
+
+Kis_Net_Httpd_Handler::MsgpackStrMap 
+Kis_Net_Httpd_Handler::Httpd_Post_Get_Msgpack(const char *data, size_t size) {
+
+    MsgpackStrMap strdict;
+
+    // Treat it like a base64
+    string decode = Base64::decode(string(data));
+
+    msgpack::unpacked result;
+
+    try {
+        msgpack::unpack(result, decode.c_str(), decode.length());
+        msgpack::object deserialized = result.get();
+        strdict = deserialized.as<MsgpackStrMap>();
+    } catch(const std::exception& e) {
+        ;
+    }
+
+    return strdict;
 }
 

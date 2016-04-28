@@ -24,6 +24,8 @@
 #include <unistd.h>
 #include <sys/types.h>
 
+#include <iostream>
+
 #include "util.h"
 #include "kis_netframe.h"
 #include "packetsourcetracker.h"
@@ -33,8 +35,108 @@
 
 #include "base64.h"
 
-#include <msgpack.hpp>
-#include <iostream>
+#include "trackedelement.h"
+#include "entrytracker.h"
+#include "msgpack_adapter.h"
+
+// Kluged in tracker_component for reporting sources and states
+class kis_tracked_oldsource : public tracker_component {
+public:
+    kis_tracked_oldsource(GlobalRegistry *in_globalreg, int in_id) :
+        tracker_component(in_globalreg, in_id) {
+        register_fields();
+        reserve_fields(NULL);
+    }
+
+    kis_tracked_oldsource(GlobalRegistry *in_globalreg, int in_id,
+            TrackerElement *e) :
+        tracker_component(in_globalreg, in_id) {
+
+        register_fields();
+        reserve_fields(e);
+    }
+
+    virtual TrackerElement *clone_type() {
+        return new kis_tracked_oldsource(globalreg, get_id());
+    }
+
+    void set_from_source(Packetsourcetracker *pst, pst_packetsource *src) {
+        if (src->strong_source == NULL) {
+            set_src_name("WEAK SRC");
+            set_interface("WEAK SRC");
+            set_src_type("WEAK");
+            set_error(true);
+            set_sourceline(src->sourceline);
+            return;
+        }
+
+        set_src_name(src->strong_source->FetchName());
+        set_interface(src->strong_source->FetchInterface());
+        set_src_type(src->strong_source->FetchType());
+        set_src_uuid(src->strong_source->FetchUUID());
+        set_error(src->strong_source->FetchError());
+        set_sourceline(src->sourceline);
+
+        // TODO add hopping?  For now we don't fill them in because the old
+        // packet source tracker code doesn't have that easily exposed
+    }
+
+    __Proxy(src_name, string, string, string, src_name);
+    __Proxy(interface, string, string, string, interface);
+    __Proxy(src_type, string, string, string, src_type);
+    __Proxy(src_uuid, uuid, uuid, uuid, src_uuid);
+    __Proxy(error, uint8_t, bool, bool, error);
+    __Proxy(hopping, uint8_t, bool, bool, hopping);
+    __Proxy(channel, string, string, string, channel);
+    __Proxy(sourceline, string, string, string, sourceline);
+
+protected:
+    virtual void register_fields() {
+        tracker_component::register_fields();
+
+        src_name_id = RegisterField("kismet.oldsource.name", TrackerString,
+                "source name", (void **) &src_name);
+        interface_id = RegisterField("kismet.oldsource.interface", TrackerString,
+                "interface", (void **) &interface);
+        src_type_id = RegisterField("kismet.oldsource.type", TrackerString,
+                "type", (void **) &src_type);
+        src_uuid_id = RegisterField("kismet.oldsource.uuid", TrackerUuid,
+                "uuid", (void **) &src_uuid);
+        error_id = RegisterField("kismet.oldsource.error", TrackerUInt8,
+                "in error state (bool)", (void **) &error);
+        hopping_id = RegisterField("kismet.oldsource.hopping", TrackerUInt8,
+                "source is hopping (bool)", (void **) &hopping);
+        channel_id = RegisterField("kismet.oldsource.channel", TrackerString,
+                "channel", (void **) &channel);
+        sourceline_id = RegisterField("kismet.oldsource.sourceline", TrackerString,
+                "source definition", (void **) &sourceline);
+    }
+
+    int src_name_id;
+    TrackerElement *src_name;
+
+    int interface_id;
+    TrackerElement *interface;
+
+    int src_type_id;
+    TrackerElement *src_type;
+
+    int src_uuid_id;
+    TrackerElement *src_uuid;
+
+    int error_id;
+    TrackerElement *error;
+
+    int hopping_id;
+    TrackerElement *hopping;
+
+    int channel_id;
+    TrackerElement *channel;
+
+    int sourceline_id;
+    TrackerElement *sourceline;
+
+};
 
 // Broken source assigned to sources which utterly fail to parse during startup, 
 // with the goal of setting the warning so that it'll pop in the UI properly.
@@ -540,9 +642,23 @@ Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) {
 		globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1,
 											  &pst_sourceprototimer, this);
 
+    pthread_mutex_init(&pst_lock, NULL);
+
     httpd = (Kis_Net_Httpd *) globalreg->FetchGlobal("HTTPD_SERVER");
     if (httpd != NULL)
         httpd->RegisterHandler(this);
+
+    entrytracker = (EntryTracker *) globalreg->FetchGlobal("ENTRY_TRACKER");
+    if (entrytracker != NULL) {
+        tracked_oldsource_vec_id =
+            entrytracker->RegisterField("kis.oldsource.sources", TrackerVector,
+                    "List of available sources (old packetsources)");
+        kis_tracked_oldsource *old_builder =
+            new kis_tracked_oldsource(globalreg, 0);
+        tracked_oldsource_entry_id =
+            entrytracker->RegisterField("kis.oldsource.source", old_builder,
+                    "Old packetsource");
+    }
 }
 
 Packetsourcetracker::~Packetsourcetracker() {
@@ -3021,7 +3137,35 @@ bool Packetsourcetracker::Httpd_VerifyPath(const char *path, const char *method)
         return true;
     }
 
+    if (strcmp(path, "/packetsource/all_sources.msgpack") == 0 &&
+            strcmp(method, "GET") == 0) {
+        return true;
+    }
+
     return false;
+}
+
+void Packetsourcetracker::httpd_pack_all_sources(std::stringstream &stream) {
+    if (entrytracker == NULL)
+        return;
+
+    TrackerElement *sourcevec =
+        entrytracker->GetTrackedInstance(tracked_oldsource_vec_id);
+
+    {
+        local_locker lock(&pst_lock);
+        for (unsigned int i = 0; i < packetsource_vec.size(); i++) {
+            kis_tracked_oldsource *old = 
+                new kis_tracked_oldsource(globalreg, tracked_oldsource_entry_id);
+            old->set_from_source(this, packetsource_vec[i]);
+            sourcevec->add_vector(old);
+        }
+    }
+
+    MsgpackAdapter::Pack(globalreg, stream, sourcevec);
+
+    delete(sourcevec);
+        
 }
 
 void Packetsourcetracker::Httpd_CreateStreamResponse(
@@ -3031,6 +3175,11 @@ void Packetsourcetracker::Httpd_CreateStreamResponse(
         const char *upload_data __attribute__((unused)),
         size_t *upload_data_size __attribute__((unused)), 
         std::stringstream &stream) {
+
+    if (strcmp(path, "/packetsource/all_sources.msgpack") == 0 &&
+            strcmp(method, "GET") == 0) {
+        httpd_pack_all_sources(stream);
+    }
 
 }
 
@@ -3050,22 +3199,15 @@ int Packetsourcetracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKin
     }
 
     if (concls->url == "/packetsource/config_source.cmd") {
-        printf("Post key %s data %s\n", key, data);
+        if (strcmp(key, "msgpack") == 0 && size > 0) {
+            printf("Post key %s size %lu data %s\n", key, size, data);
 
-        if (strcmp(key, "msgpack") == 0) {
-            string decode = Base64::decode(string(data));
+            MsgpackStrMap params = Httpd_Post_Get_Msgpack(data, size);
 
-            msgpack::unpacked result;
-
-            try {
-                msgpack::unpack(result, decode.c_str(), decode.length());
- 
-                msgpack::object deserialized = result.get();
-                std::cout << deserialized << std::endl;
-            } catch(const std::exception& e) {
-                ;
+            for (MsgpackStrMap::iterator i = params.begin(); i != params.end(); ++i) {
+                cout << i->first << "," << i->second << "\n";
+                cout << i->second.type << "\n";
             }
-
         }
 
         concls->response_stream << "OK, posted";

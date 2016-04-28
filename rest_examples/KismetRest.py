@@ -188,3 +188,12 @@ class Kismet(object):
         """
         return self.UnpackSimpleUrl("devices/%s.msgpack/%s" % (key, field))
 
+    def OldSources(self):
+        """
+        OldSources() -> Packetsource list
+
+        Return list of all configured devices, using the soon-to-be-deprecated
+        PacketSource mechanism
+        """
+        return self.UnpackSimpleUrl("packetsource/all_sources.msgpack")
+

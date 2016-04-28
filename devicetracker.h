@@ -857,6 +857,8 @@ public:
 
 protected:
     virtual void register_fields() {
+        tracker_component::register_fields();
+
         phy_id_id = RegisterField("kismet.phy.id", TrackerInt32,
                 "phy id", (void **) &phy_id);
         phy_name_id = RegisterField("kismet.phy.name", TrackerString,
