@@ -3202,9 +3202,10 @@ int Packetsourcetracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKin
         if (strcmp(key, "msgpack") == 0 && size > 0) {
             printf("Post key %s size %lu data %s\n", key, size, data);
 
-            MsgpackStrMap params = Httpd_Post_Get_Msgpack(data, size);
+            MsgpackAdapter::MsgpackStrMap params = Httpd_Post_Get_Msgpack(data, size);
 
-            for (MsgpackStrMap::iterator i = params.begin(); i != params.end(); ++i) {
+            for (MsgpackAdapter::MsgpackStrMap::iterator i = params.begin(); 
+                    i != params.end(); ++i) {
                 cout << i->first << "," << i->second << "\n";
                 cout << i->second.type << "\n";
             }

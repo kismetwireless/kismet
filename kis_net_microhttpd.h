@@ -28,9 +28,9 @@
 #include <sstream>
 #include <pthread.h>
 #include <microhttpd.h>
-#include <msgpack.hpp>
 
 #include "globalregistry.h"
+#include "msgpack_adapter.h"
 
 #ifndef __KIS_NET_MICROHTTPD__
 #define __KIS_NET_MICROHTTPD__
@@ -75,8 +75,8 @@ public:
 
     // Extract a base64 encoded msgpack map out of the POST request.  This is 
     // the standard message format for most rest POST endpoints
-    typedef std::map<std::string, msgpack::object> MsgpackStrMap;
-    virtual MsgpackStrMap Httpd_Post_Get_Msgpack(const char *data, size_t size); 
+    virtual MsgpackAdapter::MsgpackStrMap Httpd_Post_Get_Msgpack(const char *data, 
+            size_t size); 
 
 };
 

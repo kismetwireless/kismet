@@ -796,10 +796,10 @@ void Kis_Net_Httpd_No_Files_Handler::Httpd_CreateStreamResponse(Kis_Net_Httpd *h
     stream << "</html>";
 }
 
-Kis_Net_Httpd_Handler::MsgpackStrMap 
-Kis_Net_Httpd_Handler::Httpd_Post_Get_Msgpack(const char *data, size_t size) {
+MsgpackAdapter::MsgpackStrMap 
+    Kis_Net_Httpd_Handler::Httpd_Post_Get_Msgpack(const char *data, size_t size) {
 
-    MsgpackStrMap strdict;
+    MsgpackAdapter::MsgpackStrMap strdict;
 
     // Treat it like a base64
     string decode = Base64::decode(string(data));
@@ -809,8 +809,9 @@ Kis_Net_Httpd_Handler::Httpd_Post_Get_Msgpack(const char *data, size_t size) {
     try {
         msgpack::unpack(result, decode.c_str(), decode.length());
         msgpack::object deserialized = result.get();
-        strdict = deserialized.as<MsgpackStrMap>();
+        strdict = deserialized.as<MsgpackAdapter::MsgpackStrMap>();
     } catch(const std::exception& e) {
+        // Just return the empty dictionary if this failed
         ;
     }
 

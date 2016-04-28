@@ -28,23 +28,24 @@
 #include <vector>
 #include <algorithm>
 #include <string>
-#include "msgpack.hpp"
+#include <msgpack.hpp>
 
 #include "globalregistry.h"
 #include "trackedelement.h"
-#include "entrytracker.h"
-#include "devicetracker_component.h"
 
-class MsgpackAdapter {
-public:
-    static void Packer(GlobalRegistry *globalreg, TrackerElement *v, 
-            msgpack::packer<std::stringstream> &packer);
+namespace MsgpackAdapter {
 
-    static void Pack(GlobalRegistry *globalreg, std::stringstream &stream, 
-            tracker_component *c);
-    static void Pack(GlobalRegistry *globalreg, std::stringstream &stream, 
-            TrackerElement *e);
-};
+typedef std::map<std::string, msgpack::object> MsgpackStrMap;
+
+void Packer(GlobalRegistry *globalreg, TrackerElement *v, 
+        msgpack::packer<std::stringstream> &packer);
+
+void Pack(GlobalRegistry *globalreg, std::stringstream &stream, 
+        tracker_component *c);
+void Pack(GlobalRegistry *globalreg, std::stringstream &stream, 
+        TrackerElement *e);
+
+}
 
 #endif
 
