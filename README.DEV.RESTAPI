@@ -1,50 +1,136 @@
+REST / HTTP protocol
+
+    Kismet uses a REST-like protocol for returning internal data structures and 
+    accepting commands.  Data is fetched via HTTP GET, and commands are sent via
+    HTTP POST.
+
+Logins and Sessions
+
+    Kismet uses session cookies to maintain a login session.  Typically GET
+    requests which do not reveal sensitive configuration data do not require
+    a login, while POST commands which change configuration and GET commands
+    which return sensitive configuration values do.
+
+    Sessions are created via HTTP Basic Auth to the 
+        /session/create_session
+    endpoint and are stored in the KISMET session cookie.
+
+    Endpoints which require authentication but do not have a valid session
+    should return HTTP 401 "Unauthorized".
+
+Commands
+
+    Commands are sent via HTTP POST.  A command should be a base64-encoded
+    msgpack string dictionary of values, send under the 'msgpack' field.  
+    For instance a command created in python might look like:
+
+    # Build the dictionary
+    cmd = {
+            "cmd": "lock",
+            "channel": "6",
+            "uuid": "aaa:bbb:cc:dd:ee:ff:gg"
+            }
+    # Encode msgpack binary
+    cmdbin = msgpack.packb(cmd)
+
+    # Encode as base64
+    cmdencoded = base64.b64encode(cmdbin)
+
+    # Set up the POST dictionary
+    post = {
+            "msgpack": cmdencoded
+            }
+
+    Commands are encoded as dictionaries to allow flexibility across calling
+    platforms, as well as future compatibility between client and server code.
+    Adding additional values to a command dictionary should not cause an older
+    server to malfunction.
+
+    Dictionary key values are case sensitive.
+
 REST endpoints
 
-For packing format / msgpack use, see SERIALIZATION
+    For packing format / msgpack use, see SERIALIZATION
+    
+    System status:
+    
+        /system/status.msgpack
+            packed record of system status (battery, etc)
+    
+        /system/tracked_fields.html
+            Human-readable table of all registered field names, types, and
+            descriptions
+    
+    Devices:
+    
+        /devices/all_devices.msgpack
+            packed vector of device summary records
+    
+        /devices/DEVICE_KEY.msgpack
+            packed trackercomponent of DEVICE (where DEVICE_KEY is the device 
+            key from the summary)
+    
+        /devices/DEVICE_KEY.msgpack/device/record/path
+            packed trackercomponent of DEVICE, selected by supplied path.
+            
+            Example:
+            /devices/KEY.msgpack/dot11.device/dot11.device.last_beaconed_ssid
+    
+            would yield the last_beaconed_ssid record ONLY, using normal msgpack
+            serialization, or:
+                [0, "some string"]
+    
+    Phy handling:
+    
+        /phy/all_phys.msgpack
+            packed vector of phy descriptors and counts
+    
+    Sessions/Logins:
+    
+        /session/create_session
+            Prompt for basic auth & login
+    
+        /session/check-session
+            See if a session is valid
+    
+    Channel usage:
+    
+        /channels/channels.msgpack
+            Channel and frequency usage
+    
+    Sources:
+    
+        /packetsource/all_sources.msgpack
+            Return all sources under the (soon to be deprecated) PacketSource API.
+            A similar API will be provided for the new datasource code.
+    
+        /packetsource/config/channel.cmd
+            LOGIN REQUIRED.  Processes channel commands.
 
-System status:
+            The packetsource channel command set is currently limited to basic
+            functions, as it will be replaced by a more featureful and generic
+            datasource API.
+            
+            Expects a command dictionary including:
 
-    /system/status.msgpack
-        packed record of system status (battery, etc)
+            cmd         lock|hop        string  Lock to a channel or hop
+            uuid        device uuid     string  Packetsource UUID 
+            channel     channel#        string  Channel to lock to (optional)
 
-    /system/tracked_fields.html
-        Human-readable table of all registered field names, types, and
-        descriptions
+            Examples:
 
-Devices:
+            To lock a source to channel 6 only:
+            {
+                "cmd": "lock",
+                "uuid": "e92e066a-0d50-11e6-a771-08076944c403",
+                "channel": "6"
+            }
 
-    /devices/all_devices.msgpack
-        packed vector of device summary records
+            To return a source to standard hopping:
+            {
+                "cmd": "hop",
+                "uuid": "e92e066a-0d50-11e6-a771-08076944c403"
+            }
 
-    /devices/DEVICE_KEY.msgpack
-        packed trackercomponent of DEVICE (where DEVICE_KEY is the device 
-        key from the summary)
 
-    /devices/DEVICE_KEY.msgpack/device/record/path
-        packed trackercomponent of DEVICE, selected by supplied path.
-        
-        Example:
-        /devices/KEY.msgpack/dot11.device/dot11.device.last_beaconed_ssid
-
-        would yield the last_beaconed_ssid record ONLY, using normal msgpack
-        serialization, or:
-            [0, "some string"]
-
-Phy handling:
-
-    /phy/all_phys.msgpack
-        packed vector of phy descriptors and counts
-
-Sessions/Logins:
-
-    /session/create_session
-        Prompt for basic auth & login
-
-    /session/check-session
-        See if a session is valid
-
-Channel usage:
-
-    /channels/channels.msgpack
-        Channel and frequency usage
 

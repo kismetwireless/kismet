@@ -6,10 +6,10 @@ username = 'kismet'
 password = 'kismet'
 
 cmd = {
-        "cmd": "lock",
-        "channel": "6HT20",
-        "time": 10,
-        "source": "aaa:bbb:cc:dd:ee:ff:gg"
+        "cmd": "hop",
+        "channel": "1",
+        "uuid": "ef9ac4da-0db8-11e6-b824-6205fb28e301",
+        #"foo": "bar",
         }
 
 invalid = [1, 4, 5, 6, 7]
@@ -27,7 +27,7 @@ session = requests.Session()
 
 session.auth = (username, password)
 print session.get("%s/session/create_session" % host).content
-print session.get("%s/session/check_session" % host).content
-print session.post("%s/packetsource/config_source.cmd" % host, data=rawdata).content
-print session.post("%s/packetsource/config_source.cmd" % host, data=invaliddata).content
+#print session.get("%s/session/check_session" % host).content
+print session.post("%s/packetsource/config/channel.cmd" % host, data=rawdata).content
+#print session.post("%s/packetsource/config/channel.cmd" % host, data=invaliddata).content
 

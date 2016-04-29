@@ -3132,7 +3132,7 @@ bool Packetsourcetracker::Httpd_VerifyPath(const char *path, const char *method)
         return true;
     */
 
-    if (strcmp(path, "/packetsource/config_source.cmd") == 0 &&
+    if (strcmp(path, "/packetsource/config/channel.cmd") == 0 &&
             strcmp(method, "POST") == 0) {
         return true;
     }
@@ -3190,28 +3190,101 @@ int Packetsourcetracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKin
 
     Kis_Net_Httpd_Connection *concls = (Kis_Net_Httpd_Connection *) coninfo_cls;
 
+    bool handled = false;
+
     // Anything involving POST here requires a login
     if (!httpd->HasValidSession(concls)) {
         concls->response_stream << "Login required";
-        concls->httpcode = 403;
-
+        concls->httpcode = 401;
         return 1;
     }
 
-    if (concls->url == "/packetsource/config_source.cmd") {
+    if (concls->url == "/packetsource/config/channel.cmd") {
         if (strcmp(key, "msgpack") == 0 && size > 0) {
-            printf("Post key %s size %lu data %s\n", key, size, data);
-
+            // Get the dictionary
             MsgpackAdapter::MsgpackStrMap params = Httpd_Post_Get_Msgpack(data, size);
 
-            for (MsgpackAdapter::MsgpackStrMap::iterator i = params.begin(); 
-                    i != params.end(); ++i) {
-                cout << i->first << "," << i->second << "\n";
-                cout << i->second.type << "\n";
+            // Extracted values
+            string raw_cmd, raw_uuid, raw_channel;
+
+            uuid src_uuid;
+            unsigned int channel;
+
+            MsgpackAdapter::MsgpackStrMap::iterator obj_iter;
+
+            /*
+            for (obj_iter = params.begin(); obj_iter != params.end(); ++obj_iter) {
+                cout << "\"" << obj_iter->first << "\": " << obj_iter->second << endl;
+            }
+            */
+
+            int ret = 0;
+
+            // We don't use exceptions a lot, but we have to use them here, so we
+            // might as well use them for dropping out of the processing list, too
+            try {
+                // Extract the command string
+                obj_iter = params.find("cmd");
+                if (obj_iter == params.end()) 
+                    throw std::runtime_error("expected 'cmd' entry");
+                raw_cmd = obj_iter->second.as<string>();
+
+                // Extract the UUID string
+                obj_iter = params.find("uuid");
+                if (obj_iter == params.end())
+                    throw std::runtime_error("expected 'uuid' entry");
+                raw_uuid = obj_iter->second.as<string>();
+
+                // Parse the UUID
+                src_uuid = uuid(raw_uuid);
+                
+                if (src_uuid.error)
+                    throw std::runtime_error("invalid UUID");
+
+                if (StrLower(raw_cmd) == "hop") {
+                    // Hop only needs UUID and command
+                    ret = SetSourceHopping(src_uuid, 1, 0);
+                } else if (StrLower(raw_cmd) == "lock") {
+                    // Lock needs a channel, get that
+                    obj_iter = params.find("channel");
+                    if (obj_iter == params.end())
+                        throw std::runtime_error("expected 'channel' entry");
+                    raw_channel = obj_iter->second.as<string>();
+
+                    // Packetsources talk integer channels, because they're
+                    // broken.  Parse it into an int.
+                    if (sscanf(raw_channel.c_str(), "%u", &channel) != 1)
+                        throw std::runtime_error("expected channel number");
+
+                    ret = SetSourceHopping(src_uuid, 0, channel);
+                } else {
+                    throw std::runtime_error("unknown channel command");
+                }
+
+                // Did the set command fail, because of something like an
+                // invalid UUID?  Bounce an error out
+                if (ret < 0)
+                    throw std::runtime_error("unable to configure source");
+
+                handled = true;
+            } catch(const std::exception& e) {
+                // Exceptions can be caused by missing fields, or fields which
+                // aren't the format we expected.  Throw it all out with an
+                // error.
+                concls->response_stream << "Invalid request " << e.what();
+                concls->httpcode = 400;
+                return 1;
             }
         }
+    }
 
-        concls->response_stream << "OK, posted";
+    // If we didn't handle it and got here, we don't know what it is, throw an
+    // error.
+    if (!handled) {
+        concls->response_stream << "Invalid request";
+        concls->httpcode = 400;
+    } else {
+        concls->response_stream << "OK";
     }
 
     return 1;

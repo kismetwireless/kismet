@@ -49,7 +49,8 @@ string Base64::decode(string in_str) {
 
         if (c == '=') {
             decodeblock(ibuf, obuf);
-            out.append((char *) obuf);
+            out.append((char *) obuf, phase);
+            return out;
         }
 
         // Find the binary # this digit corresponds to
@@ -68,7 +69,7 @@ string Base64::decode(string in_str) {
         // 4 characters read?
         if (phase == 0) {
             decodeblock(ibuf, obuf);
-            out.append((char *) obuf);
+            out.append((char *) obuf, 3);
             memset(ibuf, 0, 4);
         }
     }

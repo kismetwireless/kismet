@@ -30,7 +30,7 @@
 
 class Base64 {
 public:
-    /* Decode a string; return true if it was valid */
+    /* Decode a string; return raw data if it was valid */
     static string decode(string in_str);
 
     // Convert 4 6-bit b64 characters into 3 8-bit standard bytes.

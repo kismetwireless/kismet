@@ -35,7 +35,7 @@
 
 namespace MsgpackAdapter {
 
-typedef std::map<std::string, msgpack::object> MsgpackStrMap;
+typedef map<string, msgpack::object> MsgpackStrMap;
 
 void Packer(GlobalRegistry *globalreg, TrackerElement *v, 
         msgpack::packer<std::stringstream> &packer);

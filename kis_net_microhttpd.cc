@@ -802,15 +802,17 @@ MsgpackAdapter::MsgpackStrMap
     MsgpackAdapter::MsgpackStrMap strdict;
 
     // Treat it like a base64
+    unsigned int decodelen;
     string decode = Base64::decode(string(data));
 
     msgpack::unpacked result;
 
     try {
-        msgpack::unpack(result, decode.c_str(), decode.length());
+        msgpack::unpack(result, decode.data(), decode.size());
         msgpack::object deserialized = result.get();
         strdict = deserialized.as<MsgpackAdapter::MsgpackStrMap>();
     } catch(const std::exception& e) {
+        printf("Decode failed: %s\n", e.what());
         // Just return the empty dictionary if this failed
         ;
     }
