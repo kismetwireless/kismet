@@ -42,6 +42,10 @@ class Kis_Net_Httpd_Connection;
 // Basic request handler from MHD
 class Kis_Net_Httpd_Handler {
 public:
+    Kis_Net_Httpd_Handler() { }
+    Kis_Net_Httpd_Handler(GlobalRegistry *in_globalreg);
+    virtual ~Kis_Net_Httpd_Handler();
+
     // Handle a request
     virtual int Httpd_HandleRequest(Kis_Net_Httpd *httpd,
             struct MHD_Connection *connection,
@@ -78,11 +82,19 @@ public:
     virtual MsgpackAdapter::MsgpackStrMap Httpd_Post_Get_Msgpack(const char *data, 
             size_t size); 
 
+protected:
+    Kis_Net_Httpd *httpd;
+
 };
 
 // Take a C++ stringstream and use it as a response
 class Kis_Net_Httpd_Stream_Handler : public Kis_Net_Httpd_Handler {
 public:
+    Kis_Net_Httpd_Stream_Handler() { }
+    Kis_Net_Httpd_Stream_Handler(GlobalRegistry *in_globalreg) :
+        Kis_Net_Httpd_Handler(in_globalreg) { };
+    virtual ~Kis_Net_Httpd_Stream_Handler() { };
+
     virtual bool Httpd_VerifyPath(const char *path, const char *method) = 0;
 
     virtual void Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,

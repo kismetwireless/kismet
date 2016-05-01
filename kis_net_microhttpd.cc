@@ -655,6 +655,19 @@ int Kis_Net_Httpd::SendHttpResponse(Kis_Net_Httpd *httpd,
     return ret;
 }
 
+Kis_Net_Httpd_Handler::Kis_Net_Httpd_Handler(GlobalRegistry *in_globalreg) {
+    if (in_globalreg != NULL) {
+        httpd = (Kis_Net_Httpd *) in_globalreg->FetchGlobal("HTTPD_SERVER");
+        if (httpd != NULL)
+            httpd->RegisterHandler(this);
+    }
+}
+
+Kis_Net_Httpd_Handler::~Kis_Net_Httpd_Handler() {
+    if (httpd != NULL)
+        httpd->RemoveHandler(this);
+}
+
 int Kis_Net_Httpd_Stream_Handler::Httpd_HandleRequest(Kis_Net_Httpd *httpd, 
         struct MHD_Connection *connection,
         const char *url, const char *method, const char *upload_data,

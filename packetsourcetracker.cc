@@ -543,7 +543,9 @@ void Packetsourcetracker::Usage(char *name) {
 		   "                              list of names or interfaces)\n");
 }
 
-Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) {
+Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) :
+    Kis_Net_Httpd_Stream_Handler(in_globalreg) {
+
     globalreg = in_globalreg;
 
 	timer_counter = 0;
@@ -644,9 +646,11 @@ Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) {
 
     pthread_mutex_init(&pst_lock, NULL);
 
+    /*
     httpd = (Kis_Net_Httpd *) globalreg->FetchGlobal("HTTPD_SERVER");
     if (httpd != NULL)
         httpd->RegisterHandler(this);
+        */
 
     entrytracker = (EntryTracker *) globalreg->FetchGlobal("ENTRY_TRACKER");
     if (entrytracker != NULL) {
@@ -676,8 +680,10 @@ Packetsourcetracker::~Packetsourcetracker() {
 	// We could delete the card stuff but we're only ever called during
 	// shutdown and fail, so who cares.
 
+    /*
     if (httpd != NULL)
         httpd->RemoveHandler(this);
+        */
 }
 
 void Packetsourcetracker::RegisterIPC(IPCRemote *in_ipc, int in_as_ipc) {
