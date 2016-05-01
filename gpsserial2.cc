@@ -442,6 +442,7 @@ void GPSSerialV2::BufferAvailable(size_t in_amt) {
         gps_location->time = globalreg->timestamp.tv_sec;
 
 		if (globalreg->timestamp.tv_sec - last_heading_time > 5 &&
+                gps_last_location != NULL &&
                 gps_last_location->fix >= 2) {
 			gps_location->heading = 
                 GpsCalcHeading(gps_location->lat, gps_location->lon, 

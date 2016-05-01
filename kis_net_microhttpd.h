@@ -46,6 +46,9 @@ public:
     Kis_Net_Httpd_Handler(GlobalRegistry *in_globalreg);
     virtual ~Kis_Net_Httpd_Handler();
 
+    // Bind a http server if we need to do that later in the instantiation
+    void Bind_Httpd_Server(GlobalRegistry *in_globalreg);
+
     // Handle a request
     virtual int Httpd_HandleRequest(Kis_Net_Httpd *httpd,
             struct MHD_Connection *connection,

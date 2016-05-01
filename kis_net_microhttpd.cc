@@ -368,7 +368,7 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
     const char *url, const char *method, const char *version __attribute__ ((unused)),
     const char *upload_data, size_t *upload_data_size, void **ptr) {
 
-    // fprintf(stderr, "HTTP request: '%s' method '%s'\n", url, method); 
+    //fprintf(stderr, "debug - HTTP request: '%s' method '%s'\n", url, method); 
     //
     Kis_Net_Httpd *kishttpd = (Kis_Net_Httpd *) cls;
     
@@ -656,16 +656,20 @@ int Kis_Net_Httpd::SendHttpResponse(Kis_Net_Httpd *httpd,
 }
 
 Kis_Net_Httpd_Handler::Kis_Net_Httpd_Handler(GlobalRegistry *in_globalreg) {
-    if (in_globalreg != NULL) {
-        httpd = (Kis_Net_Httpd *) in_globalreg->FetchGlobal("HTTPD_SERVER");
-        if (httpd != NULL)
-            httpd->RegisterHandler(this);
-    }
+    Bind_Httpd_Server(in_globalreg);
 }
 
 Kis_Net_Httpd_Handler::~Kis_Net_Httpd_Handler() {
     if (httpd != NULL)
         httpd->RemoveHandler(this);
+}
+
+void Kis_Net_Httpd_Handler::Bind_Httpd_Server(GlobalRegistry *in_globalreg) {
+    if (in_globalreg != NULL) {
+        httpd = (Kis_Net_Httpd *) in_globalreg->FetchGlobal("HTTPD_SERVER");
+        if (httpd != NULL)
+            httpd->RegisterHandler(this);
+    }
 }
 
 int Kis_Net_Httpd_Stream_Handler::Httpd_HandleRequest(Kis_Net_Httpd *httpd, 

@@ -28,6 +28,7 @@
 #include "gpsserial2.h"
 #include "gpsgpsd2.h"
 #include "gpsfake.h"
+#include "gpsweb.h"
 
 GpsManager::GpsManager(GlobalRegistry *in_globalreg) {
     globalreg = in_globalreg;
@@ -56,6 +57,8 @@ GpsManager::GpsManager(GlobalRegistry *in_globalreg) {
             new GPSGpsdV2(globalreg), 99);
     RegisterGpsPrototype("virtual", "virtual gps with fixed location",
             new GPSFake(globalreg), 0);
+    RegisterGpsPrototype("web", "browser-based location",
+            new GPSWeb(globalreg), 50);
 
     // Process any gps options in the config file
     vector<string> gpsvec = 

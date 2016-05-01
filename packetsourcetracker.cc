@@ -3200,6 +3200,7 @@ int Packetsourcetracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKin
 
     // Anything involving POST here requires a login
     if (!httpd->HasValidSession(concls)) {
+        printf("debug - pst - no valid login in post\n");
         concls->response_stream << "Login required";
         concls->httpcode = 401;
         return 1;

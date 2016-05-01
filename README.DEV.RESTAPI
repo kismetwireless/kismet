@@ -132,5 +132,23 @@ REST endpoints
                 "uuid": "e92e066a-0d50-11e6-a771-08076944c403"
             }
 
+    GPS:
+
+        /gps/web/update.cmd
+            LOGIN REQUIRED.  Set GPS location from the browser.
+
+            This API allows browser clients, and browser-like clients, to set
+            GPS over POST.
+
+            Requires the user enabled the 'web' gps driver via kismet.conf,
+                gps=web:name=webgps
+
+            Expects a command dictionary including:
+
+            lat         latitude        double  Latitude
+            lon         longitude       double  Longitude
+            alt         altitude (m)    double  Altitude in meters (optional)
+            spd         speed (kph)     double  Speed in kilometers per hour
+                                                (optional)
 
 

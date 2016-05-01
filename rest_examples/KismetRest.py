@@ -25,6 +25,8 @@ class Kismet(object):
         rest = KismetRest('https://localhost:2501/')
 
         """
+        self.debug = False
+
         self.hosturi = hosturi
 
         self.TRACKER_STRING = 0
@@ -54,6 +56,14 @@ class Kismet(object):
 
         # Set the default path for storing sessions
         self.SetSessionCache("~/.kismet/pykismet_session")
+
+    def SetDebug(self, debug):
+        """
+        SetDebug(debug) -> None
+
+        Set debug mode (more verbose output)
+        """
+        self.debug = debug
 
     def SetLogin(self, user, passwd):
         """
@@ -160,6 +170,38 @@ class Kismet(object):
 
         return self.Simplify(cobj)
 
+    def PostUrl(self, url, postdata):
+        """
+        PostUrl(url, postdata) -> Boolean
+
+        Post an encoded command to a URL.  Automatically attempt to log in
+        if we are not current logged in.
+        """
+
+        if self.debug:
+            print "Posting to URL %s/%s" % (self.hosturi, url)
+
+        r = self.session.post("%s/%s" % (self.hosturi, url), data=postdata)
+
+        # Login required
+        if r.status_code == 401:
+            # Can we log in?
+            if not self.Login():
+                print "Cannot log in"
+                return False
+
+            print "Logged in, retrying post"
+            # Try again after we log in
+            r = self.session.post("%s/%s" % (self.hosturi, url), data=postdata)
+
+        # Did we succeed?
+        if not r.status_code == 200:
+            if self.debug:
+                print "Post failed:", r.content
+            return False
+
+        return True
+
     def Login(self):
         """
         Login() -> Boolean
@@ -179,21 +221,11 @@ class Kismet(object):
             cookie = cd["KISMET"]
             lcachef.write(cookie)
             lcachef.close()
-            print "Saved session"
         except Exception as e:
             print "Failed to save session:", e
             x = 1
 
         return True
-
-    def Logout(self):
-        """
-        Logout() -> Boolean
-
-        Clears the local session values
-        """
-        requests.utils.add_dict_to_cookiejar(self.session.cookies, 
-                {"KISMET":"INVALID"})
 
     def CheckSession(self):
         """
@@ -253,9 +285,9 @@ class Kismet(object):
         """
         return self.UnpackSimpleUrl("packetsource/all_sources.msgpack")
 
-    def LockOldSource(self, uuid, channel):
+    def LockOldSource(self, uuid, hop, channel):
         """
-        LockOldSource(uuid, channel) -> Boolean
+        LockOldSource(uuid, hop, channel) -> Boolean
 
         Locks an old-style PacketSource to an 802.11 channel or frequency.
         Channel should be integer (ie 6, 11, 53).
@@ -264,10 +296,18 @@ class Kismet(object):
 
         Returns success or failure.
         """
+
+        if hop:
+            hopcmd = "hop"
+        else:
+            hopcmd = "lock"
+
+        chancmd = "%d" % channel
+
         cmd = {
-                "cmd": "lock",
+                "cmd": hopcmd,
                 "uuid": uuid,
-                "channel": channel
+                "channel": chancmd
                 }
 
         try:
@@ -278,25 +318,45 @@ class Kismet(object):
             print "Failed to encode post data:", e
             return False
 
-        r = self.session.post("%s/packetsource/config/channel.cmd" % self.hosturi, 
-                data=postdata)
-
-        # Login required
-        if r.status_code == 401:
-            # Can we log in?
-            if not self.Login():
-                print "Cannot log in"
-                return False
-
-            # Try again after we log in
-            r = self.session.post("%s/packetsource/config/channel.cmd" % self.hosturi, 
-                data=postdata)
+        r = self.PostUrl("packetsource/config/channel.cmd", postdata)
 
         # Did we succeed?
-        if not r.status_code == 200:
-            print "Channel lock failed:", r.content
+        if not r:
             return False
 
         return True
+
+    def SendGps(self, lat, lon, alt, speed):
+        """
+        SendGPS(lat, lon, alt, speed) -> Boolean
+
+        Sends a GPS position over the HTTP POST interface.
+
+        Requires valid login.
+
+        Returns success or failure.
+        """
+
+        cmd = {
+                "lat": lat,
+                "lon": lon,
+                "alt": alt,
+                "spd": speed
+                }
+
+        try:
+            postdata = {
+                    "msgpack": base64.b64encode(msgpack.packb(cmd))
+                    }
+        except Exception as e:
+            print "Failed to encode post data:", e
+            return False
+
+        r = self.PostUrl("gps/web/update.cmd", postdata)
+
+        # Did we succeed?
+        if not r:
+            print "GPS update failed"
+            return False
 
 
