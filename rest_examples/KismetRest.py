@@ -4,6 +4,7 @@ import msgpack
 import urllib
 import requests
 import base64
+import os
 
 """
 Kismet-handling python class
@@ -51,6 +52,42 @@ class Kismet(object):
 
         self.session = requests.Session()
 
+        # Set the default path for storing sessions
+        self.SetSessionCache("~/.kismet/pykismet_session")
+
+    def SetLogin(self, user, passwd):
+        """
+        SetLogin(user, passwd) -> None
+
+        Logs in (and caches login credentials).  Required for administrative
+        behavior.
+        """
+        self.session.auth = (user, passwd)
+
+        return 
+
+    def SetSessionCache(self, path):
+        """
+        SetSessionCache(self, path) -> None
+
+        Set a cache file for HTTP sessions
+        """
+        self.sessioncache_path = os.path.expanduser(path)
+
+        # If we already have a session cache file here, load it
+        if os.path.isfile(self.sessioncache_path):
+            try:
+                lcachef = open(self.sessioncache_path, "r")
+                cookie = lcachef.read()
+
+                # Add the session cookie
+                requests.utils.add_dict_to_cookiejar(self.session.cookies, 
+                        {"KISMET": cookie})
+
+                lcachef.close()
+            except Exception as e:
+                print "Failed to read session cache:", e
+                x = 1
 
     def Simplify(self, unpacked):
         """
@@ -123,21 +160,40 @@ class Kismet(object):
 
         return self.Simplify(cobj)
 
-    def Login(self, user, passwd):
+    def Login(self):
         """
-        Login(user, passwd) -> Boolean
+        Login() -> Boolean
 
         Logs in (and caches login credentials).  Required for administrative
         behavior.
         """
-        self.session.auth = (user, passwd)
-
-        r = self.session.get("%s/session/create_session" % host)
+        r = self.session.get("%s/session/create_session" % self.hosturi)
 
         if not r.status_code == 200:
             return False
 
+        # Save the session
+        try:
+            lcachef = open(self.sessioncache_path, "w")
+            cd = requests.utils.dict_from_cookiejar(self.session.cookies)
+            cookie = cd["KISMET"]
+            lcachef.write(cookie)
+            lcachef.close()
+            print "Saved session"
+        except Exception as e:
+            print "Failed to save session:", e
+            x = 1
+
         return True
+
+    def Logout(self):
+        """
+        Logout() -> Boolean
+
+        Clears the local session values
+        """
+        requests.utils.add_dict_to_cookiejar(self.session.cookies, 
+                {"KISMET":"INVALID"})
 
     def CheckSession(self):
         """
@@ -146,7 +202,7 @@ class Kismet(object):
         Checks if a session is valid / session is logged in
         """
 
-        r = self.session.get("%s/session/check_session" % host)
+        r = self.session.get("%s/session/check_session" % self.hosturi)
 
         if not r.status_code == 200:
             return False
@@ -196,4 +252,51 @@ class Kismet(object):
         PacketSource mechanism
         """
         return self.UnpackSimpleUrl("packetsource/all_sources.msgpack")
+
+    def LockOldSource(self, uuid, channel):
+        """
+        LockOldSource(uuid, channel) -> Boolean
+
+        Locks an old-style PacketSource to an 802.11 channel or frequency.
+        Channel should be integer (ie 6, 11, 53).
+
+        Requires valid login.
+
+        Returns success or failure.
+        """
+        cmd = {
+                "cmd": "lock",
+                "uuid": uuid,
+                "channel": channel
+                }
+
+        try:
+            postdata = {
+                    "msgpack": base64.b64encode(msgpack.packb(cmd))
+                    }
+        except Exception as e:
+            print "Failed to encode post data:", e
+            return False
+
+        r = self.session.post("%s/packetsource/config/channel.cmd" % self.hosturi, 
+                data=postdata)
+
+        # Login required
+        if r.status_code == 401:
+            # Can we log in?
+            if not self.Login():
+                print "Cannot log in"
+                return False
+
+            # Try again after we log in
+            r = self.session.post("%s/packetsource/config/channel.cmd" % self.hosturi, 
+                data=postdata)
+
+        # Did we succeed?
+        if not r.status_code == 200:
+            print "Channel lock failed:", r.content
+            return False
+
+        return True
+
 

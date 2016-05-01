@@ -26,8 +26,15 @@ invaliddata = {
 session = requests.Session()
 
 session.auth = (username, password)
-print session.get("%s/session/create_session" % host).content
-#print session.get("%s/session/check_session" % host).content
+#print session.get("%s/session/create_session" % host).content
+
+requests.utils.add_dict_to_cookiejar(session.cookies, {
+    'KISMET': '87DEADAD9860A03B08C90CEAB0D6A861'
+    })
+
+print requests.utils.dict_from_cookiejar(session.cookies)
+
+print session.get("%s/session/check_session" % host).content
 print session.post("%s/packetsource/config/channel.cmd" % host, data=rawdata).content
 #print session.post("%s/packetsource/config/channel.cmd" % host, data=invaliddata).content
 

@@ -6,6 +6,15 @@ import sys
 
 kr = KismetRest.Kismet('http://localhost:2501')
 
+kr.SetLogin("kismet", "kismet")
+
+print "Stored session valid (prior to login):", kr.CheckSession()
+
+print "Logging out"
+kr.Logout()
+
+print "Generating new session:", kr.Login()
+
 # Get system status
 status = kr.SystemStatus()
 
