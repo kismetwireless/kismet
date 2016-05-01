@@ -23,7 +23,8 @@
 #include "msgpack_adapter.h"
 
 Systemmonitor::Systemmonitor(GlobalRegistry *in_globalreg) :
-    tracker_component(in_globalreg, 0) {
+    tracker_component(in_globalreg, 0),
+    Kis_Net_Httpd_Stream_Handler(in_globalreg) {
 
     globalreg = in_globalreg;
 
@@ -31,15 +32,10 @@ Systemmonitor::Systemmonitor(GlobalRegistry *in_globalreg) :
 
     register_fields();
     reserve_fields(NULL);
-
-    httpd = (Kis_Net_Httpd *) globalreg->FetchGlobal("HTTPD_SERVER");
-    httpd->RegisterHandler(this);
 }
 
 Systemmonitor::~Systemmonitor() {
     globalreg->RemoveGlobal("SYSTEM_MONITOR");
-
-    httpd->RemoveHandler(this);
 }
 
 void Systemmonitor::register_fields() {

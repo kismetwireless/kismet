@@ -23,21 +23,17 @@
 
 #include "entrytracker.h"
 
-EntryTracker::EntryTracker(GlobalRegistry *in_globalreg) {
+EntryTracker::EntryTracker(GlobalRegistry *in_globalreg) :
+    Kis_Net_Httpd_Stream_Handler(in_globalreg) {
     globalreg = in_globalreg;
 
     globalreg->InsertGlobal("ENTRY_TRACKER", this);
 
     next_field_num = 1;
-
-    httpd = (Kis_Net_Httpd *) globalreg->FetchGlobal("HTTPD_SERVER");
-    httpd->RegisterHandler(this);
 }
 
 EntryTracker::~EntryTracker() {
     globalreg->RemoveGlobal("ENTRY_TRACKER");
-
-    httpd->RemoveHandler(this);
 }
 
 int EntryTracker::RegisterField(string in_name, TrackerType in_type, string in_desc) {

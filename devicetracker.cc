@@ -50,7 +50,8 @@ int Devicetracker_packethook_commontracker(CHAINCALL_PARMS) {
 	return ((Devicetracker *) auxdata)->CommonTracker(in_pack);
 }
 
-Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) {
+Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
+    Kis_Net_Httpd_Stream_Handler(in_globalreg) {
     pthread_mutex_init(&devicelist_mutex, NULL);
 
 	globalreg = in_globalreg;
@@ -129,12 +130,14 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) {
                 "/" + "tag.conf", "", "", 0, 1).c_str());
 
 
+    /*
     // Register ourselves with the HTTP server
     globalreg->httpd_server->RegisterHandler(this);
+    */
 }
 
 Devicetracker::~Devicetracker() {
-    globalreg->httpd_server->RemoveHandler(this);
+    // globalreg->httpd_server->RemoveHandler(this);
 
 	globalreg->packetchain->RemoveHandler(&Devicetracker_packethook_commontracker,
 										  CHAINPOS_TRACKER);

@@ -79,7 +79,6 @@ public:
 
 protected:
     GlobalRegistry *globalreg;
-    Kis_Net_Httpd *httpd;
 
     int next_field_num;
 

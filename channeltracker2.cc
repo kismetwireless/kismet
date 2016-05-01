@@ -25,7 +25,7 @@
 #include "packinfo_signal.h"
 
 Channeltracker_V2::Channeltracker_V2(GlobalRegistry *in_globalreg) :
-    tracker_component(in_globalreg, 0) {
+    tracker_component(in_globalreg, 0), Kis_Net_Httpd_Stream_Handler(in_globalreg) {
 
     globalreg = in_globalreg;
 
@@ -33,9 +33,6 @@ Channeltracker_V2::Channeltracker_V2(GlobalRegistry *in_globalreg) :
 
     register_fields();
     reserve_fields(NULL);
-
-    httpd = (Kis_Net_Httpd *) globalreg->FetchGlobal("HTTPD_SERVER");
-    httpd->RegisterHandler(this);
 
     globalreg->packetchain->RegisterHandler(&PacketChainHandler, this, 
             CHAINPOS_LOGGING, 0);
@@ -53,7 +50,6 @@ Channeltracker_V2::Channeltracker_V2(GlobalRegistry *in_globalreg) :
 
 Channeltracker_V2::~Channeltracker_V2() {
     globalreg->RemoveGlobal("CHANNEL_TRACKER");
-    httpd->RemoveHandler(this);
     globalreg->packetchain->RemoveHandler(&PacketChainHandler, CHAINPOS_LOGGING);
 }
 

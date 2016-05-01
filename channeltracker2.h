@@ -189,8 +189,6 @@ public:
             size_t *upload_data_size, std::stringstream &stream);
 
 protected:
-    Kis_Net_Httpd *httpd;
-
     // Packetchain callback
     static int PacketChainHandler(CHAINCALL_PARMS);
 
