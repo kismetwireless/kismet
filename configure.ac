@@ -1,9 +1,13 @@
 # Process this file with autoconf to produce a configure script.
 AC_INIT
 
+BUNDLE_MSGPACK=msgpack-1.4.1
+
 m4_include([m4/ax_pthread.m4])
 
 AC_CONFIG_SRCDIR([kismet.h])
+
+AC_CONFIG_SUBDIRS([$BUNDLE_MSGPACK])
 
 AC_PREREQ(2.57)
 
@@ -409,14 +413,15 @@ AC_CHECK_HEADER([microhttpd.h],
     AC_MSG_ERROR([microhttpd.h is not available check that libmicrohttpd-dev is installed]))
 
 # we need libmsgpack-c
-AC_MSG_CHECKING([for libmsgpack / msgpack-c library])
-AC_LANG(C++)
-AC_LINK_IFELSE(
-    [AC_LANG_PROGRAM([#include <msgpack.hpp>], 
-                     [;])],
-    [HAVE_CPP_MSGPACK=1], 
-    [AC_MSG_ERROR([libmsgpack / msgpack-c / libmsgpack-dev is not installed])])
-AC_MSG_RESULT([found])
+# Not any more, we package our own copy
+#AC_MSG_CHECKING([for libmsgpack / msgpack-c library])
+#AC_LANG(C++)
+#AC_LINK_IFELSE(
+#    [AC_LANG_PROGRAM([#include <msgpack.hpp>], 
+#                     [;])],
+#    [HAVE_CPP_MSGPACK=1], 
+#    [AC_MSG_ERROR([libmsgpack / msgpack-c / libmsgpack-dev is not installed])])
+#AC_MSG_RESULT([found])
 
 # Check for libcurses or libncurses.  Fatal error if we didn't use disable.
 AC_ARG_ENABLE(client,
@@ -1033,7 +1038,7 @@ sharedatadir=`(
 sharedatadir=${sharedatadir}
 AC_SUBST(sharedatadir)
 
-CPPFLAGS="-I./ $CPPFLAGS"
+CPPFLAGS="-I$BUNDLE_MSGPACK/include $CPPFLAGS"
 
 AC_CONFIG_FILES([Makefile Makefile.inc scripts/kismet conf/kismet.conf])
 AC_OUTPUT
