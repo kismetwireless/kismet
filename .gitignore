@@ -7,7 +7,6 @@
 .depend
 Makefile
 Makefile.inc
-config.*
 conf/kismet.conf
 scripts/kismet
 aclocal.m4

@@ -760,7 +760,7 @@ libnl20_CFLAGS
 libnl20_LIBS
 libnl1_CFLAGS
 libnl1_LIBS'
-ac_subdirs_all='$BUNDLE_MSGPACK'
+ac_subdirs_all='${BUNDLE_MSGPACK}'
 
 # Initialize some variables set by options.
 ac_init_help=
@@ -2250,7 +2250,7 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
 
 
 
-BUNDLE_MSGPACK=msgpack-1.4.1
+BUNDLE_MSGPACK=./msgpack-1.4.1
 
 # ===========================================================================
 #        http://www.gnu.org/software/autoconf-archive/ax_pthread.html
@@ -2392,7 +2392,7 @@ ac_configure="$SHELL $ac_aux_dir/configure"  # Please don't use this var.
 
 
 
-subdirs="$subdirs $BUNDLE_MSGPACK"
+subdirs="$subdirs ${BUNDLE_MSGPACK}"
 
 
 

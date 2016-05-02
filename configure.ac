@@ -1,13 +1,13 @@
 # Process this file with autoconf to produce a configure script.
 AC_INIT
 
-BUNDLE_MSGPACK=msgpack-1.4.1
+BUNDLE_MSGPACK=./msgpack-1.4.1
 
 m4_include([m4/ax_pthread.m4])
 
 AC_CONFIG_SRCDIR([kismet.h])
 
-AC_CONFIG_SUBDIRS([$BUNDLE_MSGPACK])
+AC_CONFIG_SUBDIRS([${BUNDLE_MSGPACK}])
 
 AC_PREREQ(2.57)
 
