@@ -161,6 +161,7 @@ int Channeltracker_V2::PacketChainHandler(CHAINCALL_PARMS) {
         if (common != NULL) {
             freq_channel->get_data_rrd()->add_sample(common->datasize,
                     cv2->globalreg->timestamp.tv_sec);
+            freq_channel->seen_device_map[common->device] = true;
         }
 
         // Track unique devices
@@ -168,8 +169,6 @@ int Channeltracker_V2::PacketChainHandler(CHAINCALL_PARMS) {
             freq_channel->last_device_sec = globalreg->timestamp.tv_sec;
             freq_channel->seen_device_map.clear();
         }
-
-        freq_channel->seen_device_map[common->device] = true;
 
         freq_channel->get_device_rrd()->add_sample(
                 freq_channel->seen_device_map.size(),
