@@ -45,6 +45,9 @@ void Pack(GlobalRegistry *globalreg, std::stringstream &stream,
 void Pack(GlobalRegistry *globalreg, std::stringstream &stream, 
         TrackerElement *e);
 
+// Convert to std::vector<std::string>.  MAY THROW EXCEPTIONS.
+void AsStringVector(msgpack::object &obj, std::vector<std::string> &vec);
+
 }
 
 #endif

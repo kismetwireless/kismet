@@ -197,4 +197,13 @@ void MsgpackAdapter::Pack(GlobalRegistry *globalreg, std::stringstream &stream,
     Packer(globalreg, e, packer);
 }
 
+void MsgpackAdapter::AsStringVector(msgpack::object &obj, 
+        std::vector<std::string> &vec) {
+    if (obj.type != msgpack::type::ARRAY)
+        throw msgpack::type_error();
+
+    for (unsigned int i = 0; i < obj.via.array.size; i++)
+        vec.push_back(obj.via.array.ptr[i].as<string>());
+}
+
 
