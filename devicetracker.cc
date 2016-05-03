@@ -42,7 +42,8 @@
 #include "packetsource.h"
 #include "dumpfile_devicetracker.h"
 #include "entrytracker.h"
-#include "devicetracker_component.h" #include "msgpack_adapter.h"
+#include "devicetracker_component.h" 
+#include "msgpack_adapter.h"
 #include "xmlserialize_adapter.h"
 
 int Devicetracker_packethook_commontracker(CHAINCALL_PARMS) {
@@ -1609,20 +1610,33 @@ void Devicetracker::httpd_msgpack_all_phys(std::stringstream &stream) {
     delete(phyvec);
 }
 
-void Devicetracker::httpd_msgpack_device_summary(std::stringstream &stream) {
-    local_locker lock(&devicelist_mutex);
+void Devicetracker::httpd_msgpack_device_summary(std::stringstream &stream,
+        vector<kis_tracked_device_base *> *subvec) {
 
     TrackerElement *devvec = 
         globalreg->entrytracker->GetTrackedInstance(device_summary_base_id);
 
-    for (unsigned int x = 0; x < tracked_vec.size(); x++) {
-        kis_tracked_device_summary *summary =
-            new kis_tracked_device_summary(globalreg, device_summary_entry_id,
-                    tracked_vec[x]);
-        devvec->add_vector(summary);
-    }
+    if (subvec == NULL) {
+        local_locker lock(&devicelist_mutex);
 
-    MsgpackAdapter::Pack(globalreg, stream, devvec);
+        for (unsigned int x = 0; x < tracked_vec.size(); x++) {
+            kis_tracked_device_summary *summary =
+                new kis_tracked_device_summary(globalreg, device_summary_entry_id,
+                        tracked_vec[x]);
+            devvec->add_vector(summary);
+        }
+
+        MsgpackAdapter::Pack(globalreg, stream, devvec);
+    } else {
+        for (unsigned int x = 0; x < subvec->size(); x++) {
+            kis_tracked_device_summary *summary =
+                new kis_tracked_device_summary(globalreg, device_summary_entry_id,
+                        (*subvec)[x]);
+            devvec->add_vector(summary);
+        }
+
+        MsgpackAdapter::Pack(globalreg, stream, devvec);
+    }
 
     delete(devvec);
 }
@@ -1791,6 +1805,8 @@ void Devicetracker::MatchOnDevices(DevicetrackerFilterWorker *worker) {
     for (tmi = tracked_map.begin(); tmi != tracked_map.end(); ++tmi) {
         worker->MatchDevice(this, tmi->second);
     }
+
+    worker->Finalize(this);
 }
 
 

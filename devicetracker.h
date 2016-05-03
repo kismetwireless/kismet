@@ -605,6 +605,9 @@ public:
     // Perform a match on a device
     virtual void MatchDevice(Devicetracker *devicetracker, 
             kis_tracked_device_base *base) = 0;
+
+    // Finalize operations
+    virtual void Finalize(Devicetracker *devicetracker) { }
 };
 
 class Devicetracker : public Kis_Net_Httpd_Stream_Handler {
@@ -704,6 +707,11 @@ public:
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size, std::stringstream &stream);
 
+    void httpd_msgpack_all_phys(std::stringstream &stream);
+    void httpd_msgpack_device_summary(std::stringstream &stream, 
+            vector<kis_tracked_device_base *> *subvec = NULL);
+    void httpd_xml_device_summary(std::stringstream &stream);
+
 protected:
 	void SaveTags();
 
@@ -767,10 +775,6 @@ protected:
 	int PopulateCommon(kis_tracked_device_base *device, kis_packet *in_pack);
 
     pthread_mutex_t devicelist_mutex;
-
-    void httpd_msgpack_all_phys(std::stringstream &stream);
-    void httpd_msgpack_device_summary(std::stringstream &stream);
-    void httpd_xml_device_summary(std::stringstream &stream);
 };
 
 class kis_tracked_device_summary : public tracker_component {
