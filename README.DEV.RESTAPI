@@ -151,4 +151,31 @@ REST endpoints
             spd         speed (kph)     double  Speed in kilometers per hour
                                                 (optional)
 
+    Phy-Specific:
+
+        /phy/phy80211/ssid_regex.cmd
+            LOGIN *NOT* REQUIRED.  Retrieve a packed vector of device summaries
+            based on supplied PCRE-compatible regex terms.
+
+            This API expects PCRE matches to be delivered over POST.
+
+            Multiple PCRE terms may be provided.  The response will include
+            devices which match ANY of the supplied search terms.
+
+            Expects a dictionary including:
+
+            essid       [1, 2, 3]       list    List of PCRE terms
+
+            The essid PCRE search must always be a list, even if a single
+            search term is defined.
+
+            For example:
+            {
+                "essid": ["^linksys$"]
+            }
+
+            To match on multiple PCRE terms:
+            {
+                "essid": ["^linksys$", ".*foo$"]
+            }
 

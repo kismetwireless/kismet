@@ -181,26 +181,35 @@ class Kismet(object):
         if self.debug:
             print "Posting to URL %s/%s" % (self.hosturi, url)
 
-        r = self.session.post("%s/%s" % (self.hosturi, url), data=postdata)
+        try:
+            finaldata = {
+                    "msgpack": base64.b64encode(msgpack.packb(postdata))
+                    }
+        except Exception as e:
+            if self.debug:
+                print "Failed to encode post data:", e
+            return (False, None)
+
+        r = self.session.post("%s/%s" % (self.hosturi, url), data=finaldata)
 
         # Login required
         if r.status_code == 401:
             # Can we log in?
             if not self.Login():
                 print "Cannot log in"
-                return False
+                return (False, None)
 
             print "Logged in, retrying post"
             # Try again after we log in
-            r = self.session.post("%s/%s" % (self.hosturi, url), data=postdata)
+            r = self.session.post("%s/%s" % (self.hosturi, url), data=finaldata)
 
         # Did we succeed?
         if not r.status_code == 200:
             if self.debug:
                 print "Post failed:", r.content
-            return False
+            return (False, None)
 
-        return True
+        return (True, r.content)
 
     def Login(self):
         """
@@ -310,15 +319,7 @@ class Kismet(object):
                 "channel": chancmd
                 }
 
-        try:
-            postdata = {
-                    "msgpack": base64.b64encode(msgpack.packb(cmd))
-                    }
-        except Exception as e:
-            print "Failed to encode post data:", e
-            return False
-
-        r = self.PostUrl("packetsource/config/channel.cmd", postdata)
+        (r, v) = self.PostUrl("packetsource/config/channel.cmd", cmd)
 
         # Did we succeed?
         if not r:
@@ -344,19 +345,37 @@ class Kismet(object):
                 "spd": speed
                 }
 
-        try:
-            postdata = {
-                    "msgpack": base64.b64encode(msgpack.packb(cmd))
-                    }
-        except Exception as e:
-            print "Failed to encode post data:", e
-            return False
-
-        r = self.PostUrl("gps/web/update.cmd", postdata)
+        (r, v) = self.PostUrl("gps/web/update.cmd", cmd)
 
         # Did we succeed?
         if not r:
             print "GPS update failed"
             return False
 
+    def DeviceFilteredDot11Summary(self, pcre):
+        """
+        DeviceFilteredDot11Summary() -> Device summary list, filtered by 
+        dot11 ssid
+
+        Return summary of all devices that match filter terms
+        """
+
+        cmd = {
+                "essid": pcre
+                }
+
+        (r, v) = self.PostUrl("phy/phy80211/ssid_regex.cmd", cmd);
+
+        if not r:
+            print "Could not fetch summary"
+            return []
+
+        try:
+            obj = msgpack.unpackb(v)
+        except Exception as e:
+            if self.debug:
+                print "Failed to unpack object: ", e
+            return []
+
+        return self.Simplify(obj)
 
