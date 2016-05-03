@@ -364,7 +364,7 @@ int FilterCore::AddFilterLine(string filter_str) {
 			}
 
 			filt->study = pcre_study(filt->re, 0, &study_err);
-			if (filt->study != NULL) {
+			if (filt->study == NULL) {
 				osstr << "Couldn't parse filter line '" << filter_str << "', PCRE "
 					"study/optimization failure '" << study_err << "'";
 				_MSG(osstr.str(), MSGFLAG_ERROR);
