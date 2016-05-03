@@ -596,6 +596,17 @@ public:
     kis_tracked_device_base *devref;
 };
 
+// Filter-handler class.  Subclassed by a filter supplicant to be passed to the
+// device filter functions.
+class DevicetrackerFilterWorker {
+public:
+    DevicetrackerFilterWorker() { };
+
+    // Perform a match on a device
+    virtual void MatchDevice(Devicetracker *devicetracker, 
+            kis_tracked_device_base *base) = 0;
+};
+
 class Devicetracker : public Kis_Net_Httpd_Stream_Handler {
 public:
 	Devicetracker() { fprintf(stderr, "FATAL OOPS: Kis_Tracker()\n"); exit(0); }
@@ -634,6 +645,11 @@ public:
 	// Look for an existing device record
 	kis_tracked_device_base *FetchDevice(uint64_t in_key);
 	kis_tracked_device_base *FetchDevice(mac_addr in_device, unsigned int in_phy);
+
+    // Perform a device filter.  Pass a subclassed filter instance.  It is not
+    // thread safe to retain a vector/copy of devices, so all work should be 
+    // done inside the worker
+    void MatchOnDevices(DevicetrackerFilterWorker *worker);
 	
 	typedef map<uint64_t, kis_tracked_device_base *>::iterator device_itr;
 	typedef map<uint64_t, kis_tracked_device_base *>::const_iterator const_device_itr;
@@ -751,21 +767,6 @@ protected:
 	int PopulateCommon(kis_tracked_device_base *device, kis_packet *in_pack);
 
     pthread_mutex_t devicelist_mutex;
-
-    class devicelist_mutex_locker {
-    public:
-        devicelist_mutex_locker(Devicetracker *dt) {
-            devicetracker = dt;
-            pthread_mutex_lock(&(dt->devicelist_mutex));
-        }
-
-        ~devicelist_mutex_locker() {
-            pthread_mutex_unlock(&(devicetracker->devicelist_mutex));
-        }
-
-    protected:
-        Devicetracker *devicetracker;
-    };
 
     void httpd_msgpack_all_phys(std::stringstream &stream);
     void httpd_msgpack_device_summary(std::stringstream &stream);

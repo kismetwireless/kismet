@@ -42,8 +42,7 @@
 #include "packetsource.h"
 #include "dumpfile_devicetracker.h"
 #include "entrytracker.h"
-#include "devicetracker_component.h"
-#include "msgpack_adapter.h"
+#include "devicetracker_component.h" #include "msgpack_adapter.h"
 #include "xmlserialize_adapter.h"
 
 int Devicetracker_packethook_commontracker(CHAINCALL_PARMS) {
@@ -213,7 +212,7 @@ string Devicetracker::FetchPhyName(int in_phy) {
 }
 
 int Devicetracker::FetchNumDevices(int in_phy) {
-    devicelist_mutex_locker(this);
+    local_locker lock(&devicelist_mutex);
 
 	int r = 0;
 
@@ -327,7 +326,7 @@ int Devicetracker::RegisterPhyHandler(Kis_Phy_Handler *in_weak_handler) {
 }
 
 kis_tracked_device_base *Devicetracker::FetchDevice(uint64_t in_key) {
-    devicelist_mutex_locker(this);
+    local_locker lock(&devicelist_mutex);
 
 	device_itr i = tracked_map.find(in_key);
 
@@ -1561,7 +1560,7 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
     if (tokenurl[1] == "devices") {
         if (tokenurl.size() < 3)
             return false;
-        devicelist_mutex_locker(this);
+        local_locker lock(&devicelist_mutex);
 
         uint64_t key;
         if (sscanf(tokenurl[2].c_str(), "%lu.msgpack", &key) != 1) {
@@ -1611,7 +1610,7 @@ void Devicetracker::httpd_msgpack_all_phys(std::stringstream &stream) {
 }
 
 void Devicetracker::httpd_msgpack_device_summary(std::stringstream &stream) {
-    devicelist_mutex_locker(this);
+    local_locker lock(&devicelist_mutex);
 
     TrackerElement *devvec = 
         globalreg->entrytracker->GetTrackedInstance(device_summary_base_id);
@@ -1629,7 +1628,7 @@ void Devicetracker::httpd_msgpack_device_summary(std::stringstream &stream) {
 }
 
 void Devicetracker::httpd_xml_device_summary(std::stringstream &stream) {
-    devicelist_mutex_locker(this);
+    local_locker lock(&devicelist_mutex);
 
     TrackerElement *devvec = 
         globalreg->entrytracker->GetTrackedInstance(device_summary_base_id);
@@ -1737,7 +1736,7 @@ void Devicetracker::Httpd_CreateStreamResponse(
         if (tokenurl.size() < 3)
             return;
 
-        devicelist_mutex_locker(this);
+        local_locker lock(&devicelist_mutex);
 
         uint64_t key;
         if (sscanf(tokenurl[2].c_str(), "%lu.msgpack", &key) != 1) {
@@ -1782,6 +1781,16 @@ void Devicetracker::Httpd_CreateStreamResponse(
         */
     }
 
+}
+
+void Devicetracker::MatchOnDevices(DevicetrackerFilterWorker *worker) {
+    local_locker lock(&devicelist_mutex);
+
+    map<uint64_t, kis_tracked_device_base *>::iterator tmi;
+    
+    for (tmi = tracked_map.begin(); tmi != tracked_map.end(); ++tmi) {
+        worker->MatchDevice(this, tmi->second);
+    }
 }
 
 
