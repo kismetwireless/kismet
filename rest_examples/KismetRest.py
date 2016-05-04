@@ -1,21 +1,23 @@
-#/usr/bin/env python
+#!/usr/bin/env python
 
 import msgpack
-import urllib
 import requests
 import base64
 import os
 
-"""
-Kismet-handling python class
 
-Uses msgpack and urllib
-"""
-class Kismet(object):
+class KismetConnectorException(Exception):
+    """
+    Custom exception handler
+    """
+    pass
+
+
+class KismetConnector:
     """
     Kismet rest API
     """
-    def __init__(self, hosturi):
+    def __init__(self, host_uri='http://127.0.0.1:2501'):
         """ 
         KismetRest(hosturi) -> KismetRest
 
@@ -27,7 +29,7 @@ class Kismet(object):
         """
         self.debug = False
 
-        self.hosturi = hosturi
+        self.host_uri = host_uri
 
         self.TRACKER_STRING = 0
         self.TRACKER_INT8 = 1
@@ -55,9 +57,10 @@ class Kismet(object):
         self.session = requests.Session()
 
         # Set the default path for storing sessions
-        self.SetSessionCache("~/.kismet/pykismet_session")
+        self.set_session_cache("~/.kismet/pykismet_session")
+        self.sessioncache_path = None
 
-    def SetDebug(self, debug):
+    def set_debug(self, debug):
         """
         SetDebug(debug) -> None
 
@@ -65,7 +68,7 @@ class Kismet(object):
         """
         self.debug = debug
 
-    def SetLogin(self, user, passwd):
+    def set_login(self, user, passwd):
         """
         SetLogin(user, passwd) -> None
 
@@ -76,7 +79,7 @@ class Kismet(object):
 
         return 
 
-    def SetSessionCache(self, path):
+    def set_session_cache(self, path):
         """
         SetSessionCache(self, path) -> None
 
@@ -91,17 +94,16 @@ class Kismet(object):
                 cookie = lcachef.read()
 
                 # Add the session cookie
-                requests.utils.add_dict_to_cookiejar(self.session.cookies, 
-                        {"KISMET": cookie})
+                requests.utils.add_dict_to_cookiejar(
+                    self.session.cookies, {"KISMET": cookie})
 
                 lcachef.close()
             except Exception as e:
                 print "Failed to read session cache:", e
-                x = 1
 
-    def Simplify(self, unpacked):
+    def __simplify(self, unpacked):
         """
-        Simplify(unpacked_object) -> Python object
+        __simplify(unpacked_object) -> Python object
         Strip out Kismet type data and return a simplified Python
         object
 
@@ -112,7 +114,7 @@ class Kismet(object):
             retarr = []
 
             for x in range(0, len(unpacked[1])):
-                retarr.append(self.Simplify(unpacked[1][x]))
+                retarr.append(self.__simplify(unpacked[1][x]))
 
             return retarr
 
@@ -124,7 +126,7 @@ class Kismet(object):
             retdict = {}
 
             for k in unpacked[1].keys():
-                retdict[k] = self.Simplify(unpacked[1][k])
+                retdict[k] = self.__simplify(unpacked[1][k])
 
             return retdict
 
@@ -133,14 +135,14 @@ class Kismet(object):
 
         return unpacked[1]
 
-    def UnpackUrl(self, url):
+    def __unpack_url(self, url):
         """
-        UnpackUrl(url) -> Unpacked Object
+        __unpack_url(url) -> Unpacked Object
 
         Unpacks a msgpack object at a given URL, inside the provided host URI
         """
         try:
-            r = self.session.get("%s/%s" % (self.hosturi, url))
+            r = self.session.get("%s/%s" % (self.host_uri, url))
             if not r.status_code == 200:
                 print "Did not get 200 OK"
                 return None
@@ -157,29 +159,29 @@ class Kismet(object):
 
         return obj
 
-    def UnpackSimpleUrl(self, url):
+    def __unpack_simple_url(self, url):
         """
-        UnpackSimpleUrl(url) -> Python Object
+        __unpack_simple_url(url) -> Python Object
 
         Unpacks a msgpack object and returns the simplified python object
         """
-        cobj = self.UnpackUrl(url)
+        cobj = self.__unpack_url(url)
 
         if cobj == None:
             return None
 
-        return self.Simplify(cobj)
+        return self.__simplify(cobj)
 
-    def PostUrl(self, url, postdata):
+    def post_url(self, url, postdata):
         """
-        PostUrl(url, postdata) -> Boolean
+        post_url(url, postdata) -> Boolean
 
         Post an encoded command to a URL.  Automatically attempt to log in
         if we are not current logged in.
         """
 
         if self.debug:
-            print "Posting to URL %s/%s" % (self.hosturi, url)
+            print "Posting to URL %s/%s" % (self.host_uri, url)
 
         try:
             finaldata = {
@@ -190,18 +192,18 @@ class Kismet(object):
                 print "Failed to encode post data:", e
             return (False, None)
 
-        r = self.session.post("%s/%s" % (self.hosturi, url), data=finaldata)
+        r = self.session.post("%s/%s" % (self.host_uri, url), data=finaldata)
 
-        # Login required
+        # login required
         if r.status_code == 401:
             # Can we log in?
-            if not self.Login():
+            if not self.login():
                 print "Cannot log in"
                 return (False, None)
 
             print "Logged in, retrying post"
             # Try again after we log in
-            r = self.session.post("%s/%s" % (self.hosturi, url), data=finaldata)
+            r = self.session.post("%s/%s" % (self.host_uri, url), data=finaldata)
 
         # Did we succeed?
         if not r.status_code == 200:
@@ -211,14 +213,14 @@ class Kismet(object):
 
         return (True, r.content)
 
-    def Login(self):
+    def login(self):
         """
-        Login() -> Boolean
+        login() -> Boolean
 
         Logs in (and caches login credentials).  Required for administrative
         behavior.
         """
-        r = self.session.get("%s/session/create_session" % self.hosturi)
+        r = self.session.get("%s/session/create_session" % self.host_uri)
 
         if not r.status_code == 200:
             return False
@@ -236,67 +238,67 @@ class Kismet(object):
 
         return True
 
-    def CheckSession(self):
+    def check_session(self):
         """
-        CheckSession() -> Boolean
+        check_session() -> Boolean
 
         Checks if a session is valid / session is logged in
         """
 
-        r = self.session.get("%s/session/check_session" % self.hosturi)
+        r = self.session.get("%s/session/check_session" % self.host_uri)
 
         if not r.status_code == 200:
             return False
 
         return True
 
-    def SystemStatus(self):
+    def system_status(self):
         """
-        SystemStatus() -> Status object
+        system_status() -> Status object
 
         Return fetch the system status
         """
-        return self.UnpackSimpleUrl("system/status.msgpack")
+        return self.__unpack_simple_url("system/status.msgpack")
 
-    def DeviceSummary(self):
+    def device_summary(self):
         """
-        DeviceSummary() -> Device summary list
+        device_summary() -> device summary list
 
         Return summary of all devices
         """
-        return self.UnpackSimpleUrl("devices/all_devices.msgpack")
+        return self.__unpack_simple_url("devices/all_devices.msgpack")
 
-    def Device(self, key):
+    def device(self, key):
         """
-        Device(key) -> Device object
+        device(key) -> device object
 
         Return complete device object of device referenced by key
         """
-        return self.UnpackSimpleUrl("devices/%s.msgpack" % key)
+        return self.__unpack_simple_url("devices/{}.msgpack".format(key))
 
-    def DeviceField(self, key, field):
+    def device_field(self, key, field):
         """
-        DeviceField(key, path) -> Field object
+        device_field(key, path) -> Field object
 
         Return specific field of a device referenced by key.
 
         field: Kismet tracked field path, ex:
             dot11.device/dot11.device.last_beaconed_ssid
         """
-        return self.UnpackSimpleUrl("devices/%s.msgpack/%s" % (key, field))
+        return self.__unpack_simple_url("devices/{}.msgpack/{}".format(key, field))
 
-    def OldSources(self):
+    def old_sources(self):
         """
-        OldSources() -> Packetsource list
+        old_sources() -> Packetsource list
 
         Return list of all configured devices, using the soon-to-be-deprecated
         PacketSource mechanism
         """
-        return self.UnpackSimpleUrl("packetsource/all_sources.msgpack")
+        return self.__unpack_simple_url("packetsource/all_sources.msgpack")
 
-    def LockOldSource(self, uuid, hop, channel):
+    def lock_old_source(self, uuid, hop, channel):
         """
-        LockOldSource(uuid, hop, channel) -> Boolean
+        lock_old_source(uuid, hop, channel) -> Boolean
 
         Locks an old-style PacketSource to an 802.11 channel or frequency.
         Channel should be integer (ie 6, 11, 53).
@@ -319,7 +321,7 @@ class Kismet(object):
                 "channel": chancmd
                 }
 
-        (r, v) = self.PostUrl("packetsource/config/channel.cmd", cmd)
+        (r, v) = self.post_url("packetsource/config/channel.cmd", cmd)
 
         # Did we succeed?
         if not r:
@@ -327,7 +329,7 @@ class Kismet(object):
 
         return True
 
-    def SendGps(self, lat, lon, alt, speed):
+    def send_gps(self, lat, lon, alt, speed):
         """
         SendGPS(lat, lon, alt, speed) -> Boolean
 
@@ -345,16 +347,16 @@ class Kismet(object):
                 "spd": speed
                 }
 
-        (r, v) = self.PostUrl("gps/web/update.cmd", cmd)
+        (r, v) = self.post_url("gps/web/update.cmd", cmd)
 
         # Did we succeed?
         if not r:
             print "GPS update failed"
             return False
 
-    def DeviceFilteredDot11Summary(self, pcre):
+    def device_filtered_dot11_summary(self, pcre):
         """
-        DeviceFilteredDot11Summary() -> Device summary list, filtered by 
+        device_filtered_dot11_summary() -> device summary list, filtered by
         dot11 ssid
 
         Return summary of all devices that match filter terms
@@ -364,18 +366,25 @@ class Kismet(object):
                 "essid": pcre
                 }
 
-        (r, v) = self.PostUrl("phy/phy80211/ssid_regex.cmd", cmd);
-
+        (r, v) = self.post_url("phy/phy80211/ssid_regex.cmd", cmd)
         if not r:
             print "Could not fetch summary"
-            return []
+            return list()
 
         try:
             obj = msgpack.unpackb(v)
         except Exception as e:
             if self.debug:
                 print "Failed to unpack object: ", e
-            return []
+            return list()
 
-        return self.Simplify(obj)
+        return self.__simplify(obj)
 
+if __name__ == "__main__":
+    x = KismetConnector()
+    print x.system_status()
+    print x.device_summary()
+    y = 'Example'
+    t = 'Example 2'
+    print x.device_filtered_dot11_summary([y, t])
+    #print x.old_sources()
