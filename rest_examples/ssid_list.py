@@ -6,10 +6,13 @@ if len(sys.argv) < 2:
     print "Expected server URI"
     sys.exit(1)
 
-kr = KismetRest.Kismet(sys.argv[1])
+kr = KismetRest.KismetConnector(sys.argv[1])
 
 # Get summary of devices
-devices = kr.DeviceSummary()
+devices = kr.device_summary()
+
+if len(devices) == 0:
+    print "No devices"
 
 # Print the SSID for every device we can.  Stupid print; no comparison
 # of the phy type, no handling empty ssid, etc.
@@ -18,7 +21,7 @@ for d in devices:
         continue
 
     k = d['kismet.device.base.key']
-    ssid = kr.DeviceField(k, "dot11.device/dot11.device.last_beaconed_ssid")
+    ssid = kr.device_field(k, "dot11.device/dot11.device.last_beaconed_ssid")
 
     if ssid == "":
         continue
