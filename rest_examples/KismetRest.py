@@ -168,7 +168,7 @@ class KismetConnector:
         cobj = self.__unpack_url(url)
 
         if cobj == None:
-            return None
+            return {}
 
         return self.__simplify(cobj)
 
