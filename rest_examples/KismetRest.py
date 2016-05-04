@@ -354,6 +354,8 @@ class KismetConnector:
             print "GPS update failed"
             return False
 
+        return True
+
     def device_filtered_dot11_summary(self, pcre):
         """
         device_filtered_dot11_summary() -> device summary list, filtered by
