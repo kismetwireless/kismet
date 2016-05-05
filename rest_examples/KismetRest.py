@@ -296,9 +296,9 @@ class KismetConnector:
         """
         return self.__unpack_simple_url("packetsource/all_sources.msgpack")
 
-    def lock_old_source(self, uuid, hop, channel):
+    def config_old_source_channel(self, uuid, hop, channel):
         """
-        lock_old_source(uuid, hop, channel) -> Boolean
+        config_old_source_channel(uuid, hop, channel) -> Boolean
 
         Locks an old-style PacketSource to an 802.11 channel or frequency.
         Channel should be integer (ie 6, 11, 53).
@@ -325,6 +325,32 @@ class KismetConnector:
 
         # Did we succeed?
         if not r:
+            return False
+
+        return True
+
+    def add_old_source(self, source):
+        """
+        add_old_source(sourceline) -> Boolean
+
+        Add a new source (of the old packetsource style) to kismet.  sourceline
+        is a standard source definition.
+
+        Requires valid login.
+
+        Returns success
+        """
+
+        cmd = {
+                "source": source
+                }
+
+        (r, v) = self.post_url("packetsource/config/add_source.cmd", cmd)
+
+        if not r:
+            if self.debug:
+                print "Could not add source", v
+
             return False
 
         return True

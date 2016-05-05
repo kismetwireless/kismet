@@ -132,6 +132,22 @@ REST endpoints
                 "uuid": "e92e066a-0d50-11e6-a771-08076944c403"
             }
 
+        /packetsource/config/add_source.cmd
+            LOGIN REQUIRED.  Add a new source.
+
+            Adds and starts a new (old-style) packetsource.  Takes a standard
+            packetsource definition.
+
+            Expects a command dictionary including:
+
+            source      source def      string  Source definition
+
+            Examples:
+
+            {
+                "source": "wlan0:validatefcs=true"
+            }
+
     GPS:
 
         /gps/web/update.cmd
