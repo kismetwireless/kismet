@@ -397,6 +397,10 @@ class KismetConnector:
         (r, v) = self.post_url("phy/phy80211/ssid_regex.cmd", cmd)
         if not r:
             print "Could not fetch summary"
+
+            if self.debug:
+                print "Error: ", v
+
             return list()
 
         try:
