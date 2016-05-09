@@ -30,11 +30,17 @@ KisDataSource::KisDataSource(GlobalRegistry *in_globalreg) :
     tracker_component(in_globalreg, 0) {
     globalreg = in_globalreg;
 
+    pthread_mutex_init(&source_lock, NULL);
+
+    probe_callback = NULL;
+    probe_aux = NULL;
+
     register_fields();
     reserve_fields(NULL);
 }
 
 KisDataSource::~KisDataSource() {
+    pthread_mutex_destroy(&source_lock);
 
 }
 
@@ -61,6 +67,9 @@ void KisDataSource::register_fields() {
     source_definition_id =
         RegisterField("kismet.datasource.definition", TrackerString,
                 "original source definition", (void **) &source_definition);
+    source_description_id =
+        RegisterField("kismet.datasource.description", TrackerString,
+                "human-readable description", (void **) &source_description);
 }
 
 void KisDataSource::BufferAvailable(size_t in_amt) {
@@ -143,13 +152,49 @@ void KisDataSource::BufferAvailable(size_t in_amt) {
 }
 
 int KisDataSource::OpenSource(string in_definition) {
+    set_source_definition(in_definition);
 
     return 0;
 }
 
+bool KisDataSource::SetChannel(string in_channel) {
+
+    return false;
+}
+
 void KisDataSource::HandlePacket(string in_type,
         vector<KisDataSource_CapKeyedObject *> in_kvpairs) {
+    string ltype = StrLower(in_type);
 
+}
+
+void 
+KisDataSource::HandlePacketHello(vector<KisDataSource_CapKeyedObject *> in_kvpairs) {
+
+}
+
+void 
+KisDataSource::HandlePacketProbeResp(vector<KisDataSource_CapKeyedObject *> in_kvpairs) {
+
+}
+
+void 
+KisDataSource::HandlePacketOpenResp(vector<KisDataSource_CapKeyedObject *> in_kvpairs) {
+
+}
+
+void 
+KisDataSource::HandlePacketError(vector<KisDataSource_CapKeyedObject *> in_kvpairs) {
+
+}
+
+
+void 
+KisDataSource::HandlePacketMessage(vector<KisDataSource_CapKeyedObject *> in_kvpairs) {
+
+}
+
+void KisDataSource::HandleSubMessage(KisDataSource_CapKeyedObject *in_obj) {
 
 }
 

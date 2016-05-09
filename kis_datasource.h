@@ -44,7 +44,7 @@
  * Data sources consume from the read buffer and send commands to the
  * write buffer of the ringbuf handler
  *
- * Data frames are defined in simple_cap_proto.h.  A frame consists of an
+ * Data frames are defined in simple_datasource_proto.h.  A frame consists of an
  * overall type and multiple objects indexed by name.  Each object may
  * contain additional data.
  *
@@ -67,14 +67,23 @@ public:
     KisDataSource(GlobalRegistry *in_globalreg);
     ~KisDataSource();
 
-    // Build a strong instance
+    // Register the source and any sub-sources (builder)
+    virtual int RegisterSources() = 0;
+
+    // Build a source
     virtual KisDataSource *BuildDataSource(string in_definition) = 0;
 
-    // Register the source and any sub-sources
-    virtual int RegisterSources() = 0;
+    // Can we handle this source?  May require launching the external binary
+    // to probe.  Since this may be an async operation, provide a callback
+    typedef void (*probe_handler)(KisDataSource *, void *, bool);
+    virtual bool ProbeSource(string in_source, probe_handler in_cb) = 0;
 
     // Launch and try to open a source
     virtual int OpenSource(string in_definition);
+
+    // Set channel or frequency, string-based definition.  Specifics of channel
+    // and frequency definition are determined by the source phy
+    virtual bool SetChannel(string in_channel);
 
     __Proxy(source_name, string, string, string, source_name);
     __Proxy(source_interface, string, string, string, source_interface);
@@ -83,16 +92,18 @@ public:
     __Proxy(source_channel_capable, uint8_t, bool, bool, source_channel_capable);
     __Proxy(source_definition, string, string, string, source_definition);
     __Proxy(child_pid, int64_t, pid_t, pid_t, child_pid);
+    __Proxy(source_description, string, string, string, source_description);
 
     // Ringbuffer API
     virtual void BufferAvailable(size_t in_amt);
 
-    // Top-level packet handler
-    virtual void HandlePacket(string in_type, 
-            vector<KisDataSource_CapKeyedObject *> in_kvpairs);
-
 protected:
     GlobalRegistry *in_globalreg;
+
+    pthread_mutex_t source_lock;
+
+    probe_handler *probe_callback;
+    void *probe_aux;
 
     virtual void register_fields();
 
@@ -120,12 +131,28 @@ protected:
     int source_channel_capable_id;
     TrackerElement *source_channel_capable;
 
+    // Description of the source
+    int source_description_id;
+    TrackerElement *source_description;
+
     // PID
     int child_pid_id;
     TrackerElement *child_pid;
 
     IPCRemoteV2 *source_ipc;
     RingbufferHandler *ipchandler;
+
+    // Top-level packet handler
+    virtual void HandlePacket(string in_type, 
+            vector<KisDataSource_CapKeyedObject *> in_kvpairs);
+
+    virtual void HandlePacketHello(vector<KisDataSource_CapKeyedObject *> in_kvpairs);
+    virtual void HandlePacketProbeResp(vector<KisDataSource_CapKeyedObject *> in_kvpairs);
+    virtual void HandlePacketOpenResp(vector<KisDataSource_CapKeyedObject *> in_kvpairs);
+    virtual void HandlePacketError(vector<KisDataSource_CapKeyedObject *> in_kvpairs);
+    virtual void HandlePacketMessage(vector<KisDataSource_CapKeyedObject *> in_kvpairs);
+
+    virtual void HandleSubMessage(KisDataSource_CapKeyedObject *in_obj);
 
 };
 
