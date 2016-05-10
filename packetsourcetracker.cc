@@ -3205,6 +3205,7 @@ int Packetsourcetracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKin
 
     MsgpackAdapter::MsgpackStrMap::iterator obj_iter;
     MsgpackAdapter::MsgpackStrMap params;
+    msgpack::unpacked result;
 
     // Anything involving POST here requires a login
     if (!httpd->HasValidSession(concls)) {
@@ -3230,9 +3231,6 @@ int Packetsourcetracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKin
         unsigned int channel;
 
         int ret = 0;
-
-        MsgpackAdapter::MsgpackStrMap params;
-        msgpack::unpacked result;
 
         // We don't use exceptions a lot, but we have to use them here, so we
         // might as well use them for dropping out of the processing list, too
@@ -3295,9 +3293,6 @@ int Packetsourcetracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKin
         }
     } else if (concls->url == "/packetsource/config/add_source.cmd") {
         string decode = Base64::decode(string(data));
-
-        MsgpackAdapter::MsgpackStrMap params;
-        msgpack::unpacked result;
 
         string source_line;
 
