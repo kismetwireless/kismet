@@ -16,6 +16,7 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
+#include "base64.h"
 #include "gpsweb.h"
 #include "gps_manager.h"
 #include "messagebus.h"
@@ -132,11 +133,18 @@ int GPSWeb::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind,
 
     if (concls->url == "/gps/web/update.cmd") {
         if (strcmp(key, "msgpack") == 0 && size > 0) {
+            string decode = Base64::decode(string(data));
+
             // Get the dictionary
-            MsgpackAdapter::MsgpackStrMap params = Httpd_Post_Get_Msgpack(data, size);
+            MsgpackAdapter::MsgpackStrMap params;
             MsgpackAdapter::MsgpackStrMap::iterator obj_iter;
+            msgpack::unpacked result;
 
             try {
+                msgpack::unpack(result, decode.data(), decode.size());
+                msgpack::object deserialized = result.get();
+                params = deserialized.as<MsgpackAdapter::MsgpackStrMap>();
+
                 // Lat and lon are required
                 obj_iter = params.find("lat");
                 if (obj_iter == params.end())

@@ -43,6 +43,8 @@
 #include "configfile.h"
 #include "packetsource.h"
 
+#include "base64.h"
+
 #include "devicetracker.h"
 #include "phy_80211.h"
 
@@ -2023,13 +2025,20 @@ int Kis_80211_Phy::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind
 #ifdef HAVE_LIBPCRE
         MsgpackAdapter::MsgpackStrMap::iterator obj_iter;
 
+        string decode = Base64::decode(string(data));
+
         vector<phy80211_pcre_filter *> filter_vec;
         std::vector<std::string> regex_vec;
 
         // Get the dictionary
-        MsgpackAdapter::MsgpackStrMap params = Httpd_Post_Get_Msgpack(data, size);
+        MsgpackAdapter::MsgpackStrMap params;
+        msgpack::unpacked result;
 
         try {
+            msgpack::unpack(result, decode.data(), decode.size());
+            msgpack::object deserialized = result.get();
+            params = deserialized.as<MsgpackAdapter::MsgpackStrMap>();
+
             obj_iter = params.find("essid");
             if (obj_iter == params.end())
                 throw std::runtime_error("expected 'essid' list");

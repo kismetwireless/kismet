@@ -80,11 +80,6 @@ public:
         return MHD_NO;
     }
 
-    // Extract a base64 encoded msgpack map out of the POST request.  This is 
-    // the standard message format for most rest POST endpoints
-    virtual MsgpackAdapter::MsgpackStrMap Httpd_Post_Get_Msgpack(const char *data, 
-            size_t size); 
-
 protected:
     Kis_Net_Httpd *httpd;
 

@@ -3221,8 +3221,7 @@ int Packetsourcetracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKin
     }
 
     if (concls->url == "/packetsource/config/channel.cmd") {
-        // Get the dictionary
-        params = Httpd_Post_Get_Msgpack(data, size);
+        string decode = Base64::decode(string(data));
 
         // Extracted values
         string raw_cmd, raw_uuid, raw_channel;
@@ -3232,9 +3231,16 @@ int Packetsourcetracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKin
 
         int ret = 0;
 
+        MsgpackAdapter::MsgpackStrMap params;
+        msgpack::unpacked result;
+
         // We don't use exceptions a lot, but we have to use them here, so we
         // might as well use them for dropping out of the processing list, too
         try {
+            msgpack::unpack(result, decode.data(), decode.size());
+            msgpack::object deserialized = result.get();
+            params = deserialized.as<MsgpackAdapter::MsgpackStrMap>();
+
             // Extract the command string
             obj_iter = params.find("cmd");
             if (obj_iter == params.end()) 
@@ -3288,8 +3294,10 @@ int Packetsourcetracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKin
             return 1;
         }
     } else if (concls->url == "/packetsource/config/add_source.cmd") {
-        // Get the dictionary
-        params = Httpd_Post_Get_Msgpack(data, size);
+        string decode = Base64::decode(string(data));
+
+        MsgpackAdapter::MsgpackStrMap params;
+        msgpack::unpacked result;
 
         string source_line;
 
@@ -3298,6 +3306,10 @@ int Packetsourcetracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKin
         // We don't use exceptions a lot, but we have to use them here, so we
         // might as well use them for dropping out of the processing list, too
         try {
+            msgpack::unpack(result, decode.data(), decode.size());
+            msgpack::object deserialized = result.get();
+            params = deserialized.as<MsgpackAdapter::MsgpackStrMap>();
+
             // Extract the command string
             obj_iter = params.find("source");
             if (obj_iter == params.end()) 
