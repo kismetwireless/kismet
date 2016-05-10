@@ -40,8 +40,9 @@ KisDataSource::KisDataSource(GlobalRegistry *in_globalreg) :
 }
 
 KisDataSource::~KisDataSource() {
-    pthread_mutex_destroy(&source_lock);
+    local_locker lock(&source_lock);
 
+    pthread_mutex_destroy(&source_lock);
 }
 
 void KisDataSource::register_fields() {
@@ -70,6 +71,13 @@ void KisDataSource::register_fields() {
     source_description_id =
         RegisterField("kismet.datasource.description", TrackerString,
                 "human-readable description", (void **) &source_description);
+
+    source_channel_entry_id =
+        globalreg->entrytracker->RegisterField("kismet.device.base.channel", 
+                TrackerString, "channel (phy specific)");
+    source_channels_vec_id =
+        RegisterField("kismet.datasource.channels", TrackerVector,
+                "valid channels for this device", (void **) &source_channels_vec);
 }
 
 void KisDataSource::BufferAvailable(size_t in_amt) {
@@ -122,7 +130,7 @@ void KisDataSource::BufferAvailable(size_t in_amt) {
     ipchandler->GetReadBufferData(NULL, frame_sz);
 
     // Extract the kv pairs
-    vector<KisDataSource_CapKeyedObject *> kv_vec;
+    KVmap kv_map;
 
     ssize_t data_offt = 0;
     for (unsigned int kvn = 0; kvn < kis_ntoh32(frame_header->num_kv_pairs); kvn++) {
@@ -136,15 +144,15 @@ void KisDataSource::BufferAvailable(size_t in_amt) {
         KisDataSource_CapKeyedObject *kv =
             new KisDataSource_CapKeyedObject(pkv);
 
-        kv_vec.push_back(kv);
+        kv_map[StrLower(kv->key)] = kv;
     }
 
     char ctype[17];
     snprintf(ctype, 17, "%s", frame_header->type);
-    HandlePacket(ctype, kv_vec);
+    HandlePacket(ctype, kv_map);
 
-    for (unsigned int x = 0; x < kv_vec.size(); x++) {
-        delete(kv_vec[x]);
+    for (KVmap::iterator i = kv_map.begin(); i != kv_map.end(); ++i) {
+        delete i->second;
     }
 
     delete[] buf;
@@ -152,9 +160,18 @@ void KisDataSource::BufferAvailable(size_t in_amt) {
 }
 
 int KisDataSource::OpenSource(string in_definition) {
+    local_locker lock(&source_lock);
+
     set_source_definition(in_definition);
 
     return 0;
+}
+
+void KisDataSource::CancelProbeSource() {
+    local_locker lock(&source_lock);
+
+    probe_callback = NULL;
+    probe_aux = NULL;
 }
 
 bool KisDataSource::SetChannel(string in_channel) {
@@ -162,39 +179,117 @@ bool KisDataSource::SetChannel(string in_channel) {
     return false;
 }
 
-void KisDataSource::HandlePacket(string in_type,
-        vector<KisDataSource_CapKeyedObject *> in_kvpairs) {
+void KisDataSource::HandlePacket(string in_type, KVmap in_kvmap) {
     string ltype = StrLower(in_type);
 
+    if (ltype == "hello")
+        HandlePacketHello(in_kvmap);
+    else if (ltype == "proberesp")
+        HandlePacketProbeResp(in_kvmap);
+    else if (ltype == "openresp")
+        HandlePacketOpenResp(in_kvmap);
+    else if (ltype == "error")
+        HandlePacketError(in_kvmap);
+    else if (ltype == "message")
+        HandlePacketMessage(in_kvmap);
+    else if (ltype == "data")
+        HandlePacketData(in_kvmap);
 }
 
-void 
-KisDataSource::HandlePacketHello(vector<KisDataSource_CapKeyedObject *> in_kvpairs) {
-
-}
-
-void 
-KisDataSource::HandlePacketProbeResp(vector<KisDataSource_CapKeyedObject *> in_kvpairs) {
-
-}
-
-void 
-KisDataSource::HandlePacketOpenResp(vector<KisDataSource_CapKeyedObject *> in_kvpairs) {
-
-}
-
-void 
-KisDataSource::HandlePacketError(vector<KisDataSource_CapKeyedObject *> in_kvpairs) {
-
-}
-
-
-void 
-KisDataSource::HandlePacketMessage(vector<KisDataSource_CapKeyedObject *> in_kvpairs) {
+// Not much to do in HELLO
+void KisDataSource::HandlePacketHello(KVmap in_kvpairs) {
+    KVmap::iterator i;
+    
+    if ((i = in_kvpairs.find("message")) != in_kvpairs.end()) {
+        HandleKVMessage(i->second);
+    }
 
 }
 
-void KisDataSource::HandleSubMessage(KisDataSource_CapKeyedObject *in_obj) {
+void KisDataSource::HandlePacketProbeResp(KVmap in_kvpairs) {
+    KVmap::iterator i;
+
+    if ((i = in_kvpairs.find("message")) != in_kvpairs.end()) {
+        HandleKVMessage(i->second);
+    }
+
+    if ((i = in_kvpairs.find("success")) != in_kvpairs.end()) {
+        local_locker lock(&source_lock);
+
+        if (probe_callback != NULL) {
+            (*probe_callback)(this, probe_aux, HandleKVSuccess(i->second));
+        }
+    } else {
+        // ProbeResp with no success value?  ehh.
+        return;
+    }
+
+    if ((i = in_kvpairs.find("channels")) != in_kvpairs.end()) {
+        // Unpack the dictionary
+        MsgpackAdapter::MsgpackStrMap dict;
+        msgpack::unpacked result;
+        MsgpackAdapter::MsgpackStrMap::iterator obj_iter;
+        vector<string> channel_vec;
+
+        try {
+            msgpack::unpack(result, i->second->object, i->second->size);
+            msgpack::object deserialized = result.get();
+            dict = deserialized.as<MsgpackAdapter::MsgpackStrMap>();
+
+            if ((obj_iter = dict.find("channels")) != dict.end()) {
+                MsgpackAdapter::AsStringVector(obj_iter->second, channel_vec);
+
+                // We now have a string vector of channels, dupe it into our 
+                // tracked channels vec
+                local_locker lock(&source_lock);
+
+                source_channels_vec->clear_vector();
+                for (unsigned int x = 0; x < channel_vec.size(); x++) {
+                    TrackerElement *chanstr =
+                        globalreg->entrytracker->GetTrackedInstance(source_channel_entry_id);
+                    chanstr->set(channel_vec[x]);
+                    source_channels_vec->add_vector(chanstr);
+                }
+            }
+        } catch (const std::exception& e) {
+            // Something went wrong with msgpack unpacking
+            stringstream ss;
+            ss << "Source " << get_source_name() << " failed to unpack proberesp " <<
+                "channels bundle: " << e.what();
+            _MSG(ss.str(), MSGFLAG_ERROR);
+            return;
+        }
+
+    }
+
+}
+
+void KisDataSource::HandlePacketOpenResp(KVmap in_kvpairs) {
+
+}
+
+void KisDataSource::HandlePacketError(KVmap in_kvpairs) {
+
+}
+
+
+void KisDataSource::HandlePacketMessage(KVmap in_kvpairs) {
+
+}
+
+void KisDataSource::HandlePacketData(KVmap in_kvpairs) {
+
+}
+
+bool KisDataSource::HandleKVSuccess(KisDataSource_CapKeyedObject *in_obj) {
+    // Not a msgpacked object, just a single byte
+    if (in_obj->size != 1)
+        return false;
+
+    return in_obj->object[0];
+}
+
+void KisDataSource::HandleKVMessage(KisDataSource_CapKeyedObject *in_obj) {
 
 }
 
@@ -205,7 +300,7 @@ KisDataSource_CapKeyedObject::KisDataSource_CapKeyedObject(simple_cap_proto_kv *
     key = string(ckey);
 
     size = kis_ntoh32(in_kp->header.obj_sz);
-    object = new uint8_t[size];
+    object = new char[size];
     memcpy(object, in_kp->object, size);
 }
 

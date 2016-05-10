@@ -81,7 +81,7 @@ struct simple_cap_proto {
 } __attribute__((packed));
 typedef struct simple_cap_proto simple_cap_proto_t;
 
-/* Encodde a KV list */
+/* Encode a KV list */
 simple_cap_proto_t *encode_simple_cap_proto(char *in_type, 
         simple_cap_proto_kv_t **in_kv_list, unsigned int in_kv_len);
 

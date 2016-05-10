@@ -77,6 +77,8 @@ public:
     // to probe.  Since this may be an async operation, provide a callback
     typedef void (*probe_handler)(KisDataSource *, void *, bool);
     virtual bool ProbeSource(string in_source, probe_handler in_cb) = 0;
+    // Cancel the callbacks
+    virtual void CancelProbeSource();
 
     // Launch and try to open a source
     virtual int OpenSource(string in_definition);
@@ -139,20 +141,30 @@ protected:
     int child_pid_id;
     TrackerElement *child_pid;
 
+    // Channels
+    int source_channels_vec_id;
+    TrackerElement *source_channels_vec;
+    int source_channel_entry_id;
+
     IPCRemoteV2 *source_ipc;
     RingbufferHandler *ipchandler;
 
+    typedef map<string, KisDataSource_CapKeyedObject *> KVmap;
+
     // Top-level packet handler
-    virtual void HandlePacket(string in_type, 
-            vector<KisDataSource_CapKeyedObject *> in_kvpairs);
+    virtual void HandlePacket(string in_type, KVmap in_kvmap);
 
-    virtual void HandlePacketHello(vector<KisDataSource_CapKeyedObject *> in_kvpairs);
-    virtual void HandlePacketProbeResp(vector<KisDataSource_CapKeyedObject *> in_kvpairs);
-    virtual void HandlePacketOpenResp(vector<KisDataSource_CapKeyedObject *> in_kvpairs);
-    virtual void HandlePacketError(vector<KisDataSource_CapKeyedObject *> in_kvpairs);
-    virtual void HandlePacketMessage(vector<KisDataSource_CapKeyedObject *> in_kvpairs);
+    // Standard packet types
+    virtual void HandlePacketHello(KVmap in_kvpairs);
+    virtual void HandlePacketProbeResp(KVmap in_kvpairs);
+    virtual void HandlePacketOpenResp(KVmap in_kvpairs);
+    virtual void HandlePacketError(KVmap in_kvpairs);
+    virtual void HandlePacketMessage(KVmap in_kvpairs);
+    virtual void HandlePacketData(KVmap in_kvpairs);
 
-    virtual void HandleSubMessage(KisDataSource_CapKeyedObject *in_obj);
+    // Common message kv pair
+    virtual bool HandleKVSuccess(KisDataSource_CapKeyedObject *in_obj);
+    virtual void HandleKVMessage(KisDataSource_CapKeyedObject *in_obj);
 
 };
 
@@ -163,7 +175,7 @@ public:
 
     string key;
     uint32_t size;
-    uint8_t *object;
+    char *object;
 };
 
 #endif

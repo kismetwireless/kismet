@@ -117,9 +117,15 @@ Data sources replace the PacketSource class in Kismet.
         user presentable list.  Channels are free-form strings which may be
         unique to a phy, but should be human understandable.
 
-        Content: Msgpack packed vector of strings defining channels.  Complex
-                 channel definitions, which are phy-unique, are permitted.
-        Example: ["1","6","11","6HT20","11HT40-"]
+        Content: Msgpack packed dictionary of parameters containing the 
+                 following:
+
+                 "channels":stringvec   Vector of strings defining channels.
+                                        Complex channel definitions, which are
+                                        phy-unique, are permitted.
+
+        Example: 
+            "channels": ["1","6","11","6HT20","11HT40-"]
 
         The CHANNELS pair is used to populate the available channels in
         a data source.
