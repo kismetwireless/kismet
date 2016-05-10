@@ -22,6 +22,8 @@ print "Valid session:", kr.check_session()
 # Get system status
 status = kr.system_status()
 
+print status
+
 # Get summary of devices
 devices = kr.device_summary()
 
