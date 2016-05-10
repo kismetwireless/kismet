@@ -675,9 +675,6 @@ int main(int argc, char *argv[], char *envp[]) {
     // Start the http server
     globalregistry->httpd_server->StartHttpd();
 
-    // Add system monitor
-    new Systemmonitor(globalregistry);
-
     // Add login session
     new Kis_Httpd_Websession(globalregistry);
 
@@ -965,6 +962,9 @@ int main(int argc, char *argv[], char *envp[]) {
 	globalregistry->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC,
 											   NULL, 1, 
 											   &BaseTimerEvent, NULL);
+    
+    // Add system monitor as the last thing before we start sources
+    new Systemmonitor(globalregistry);
 
 	// Blab about starting
 	globalregistry->messagebus->InjectMessage("Kismet starting to gather packets",
