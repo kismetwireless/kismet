@@ -37,6 +37,8 @@ KisDataSource::KisDataSource(GlobalRegistry *in_globalreg) :
 
     register_fields();
     reserve_fields(NULL);
+
+    set_source_running(false);
 }
 
 KisDataSource::~KisDataSource() {
@@ -78,6 +80,13 @@ void KisDataSource::register_fields() {
     source_channels_vec_id =
         RegisterField("kismet.datasource.channels", TrackerVector,
                 "valid channels for this device", (void **) &source_channels_vec);
+
+    ipc_errors_id =
+        RegisterField("kismet.datasource.ipc_errors", TrackerUInt64,
+                "number of errors in IPC protocol", (void **) &ipc_errors);
+    source_running_id =
+        RegisterField("kismet.datasource.running", TrackerUInt8,
+                "source is currently operational", (void **) &source_running);
 }
 
 void KisDataSource::BufferAvailable(size_t in_amt) {
@@ -149,7 +158,7 @@ void KisDataSource::BufferAvailable(size_t in_amt) {
 
     char ctype[17];
     snprintf(ctype, 17, "%s", frame_header->type);
-    HandlePacket(ctype, kv_map);
+    handle_packet(ctype, kv_map);
 
     for (KVmap::iterator i = kv_map.begin(); i != kv_map.end(); ++i) {
         delete i->second;
@@ -159,138 +168,249 @@ void KisDataSource::BufferAvailable(size_t in_amt) {
 
 }
 
-int KisDataSource::OpenSource(string in_definition) {
+bool KisDataSource::open_source(string in_definition, open_handler in_cb, void *in_aux) {
     local_locker lock(&source_lock);
+
+    open_callback = in_cb;
+    open_aux = in_aux;
 
     set_source_definition(in_definition);
 
     return 0;
 }
 
-void KisDataSource::CancelProbeSource() {
+void KisDataSource::cancel_probe_source() {
     local_locker lock(&source_lock);
 
     probe_callback = NULL;
     probe_aux = NULL;
 }
 
-bool KisDataSource::SetChannel(string in_channel) {
+void KisDataSource::cancel_open_source() {
+    local_locker lock(&source_lock);
+
+    open_callback = NULL;
+    open_aux = NULL;
+}
+
+bool KisDataSource::set_channel(string in_channel) {
 
     return false;
 }
 
-void KisDataSource::HandlePacket(string in_type, KVmap in_kvmap) {
+void KisDataSource::handle_packet(string in_type, KVmap in_kvmap) {
     string ltype = StrLower(in_type);
 
     if (ltype == "hello")
-        HandlePacketHello(in_kvmap);
+        handle_packet_hello(in_kvmap);
     else if (ltype == "proberesp")
-        HandlePacketProbeResp(in_kvmap);
+        handle_packet_probe_resp(in_kvmap);
     else if (ltype == "openresp")
-        HandlePacketOpenResp(in_kvmap);
+        handle_packet_open_resp(in_kvmap);
     else if (ltype == "error")
-        HandlePacketError(in_kvmap);
+        handle_packet_error(in_kvmap);
     else if (ltype == "message")
-        HandlePacketMessage(in_kvmap);
+        handle_packet_message(in_kvmap);
     else if (ltype == "data")
-        HandlePacketData(in_kvmap);
+        handle_packet_data(in_kvmap);
 }
 
 // Not much to do in HELLO
-void KisDataSource::HandlePacketHello(KVmap in_kvpairs) {
+void KisDataSource::handle_packet_hello(KVmap in_kvpairs) {
     KVmap::iterator i;
     
     if ((i = in_kvpairs.find("message")) != in_kvpairs.end()) {
-        HandleKVMessage(i->second);
+        handle_kv_message(i->second);
     }
 
 }
 
-void KisDataSource::HandlePacketProbeResp(KVmap in_kvpairs) {
+void KisDataSource::handle_packet_probe_resp(KVmap in_kvpairs) {
     KVmap::iterator i;
 
+    // Process any messages
     if ((i = in_kvpairs.find("message")) != in_kvpairs.end()) {
-        HandleKVMessage(i->second);
+        handle_kv_message(i->second);
     }
 
+    // Process success value and callback
     if ((i = in_kvpairs.find("success")) != in_kvpairs.end()) {
         local_locker lock(&source_lock);
 
         if (probe_callback != NULL) {
-            (*probe_callback)(this, probe_aux, HandleKVSuccess(i->second));
+            (*probe_callback)(this, probe_aux, handle_kv_success(i->second));
         }
     } else {
         // ProbeResp with no success value?  ehh.
         return;
     }
 
+    // Process channels list if we got one
     if ((i = in_kvpairs.find("channels")) != in_kvpairs.end()) {
-        // Unpack the dictionary
-        MsgpackAdapter::MsgpackStrMap dict;
-        msgpack::unpacked result;
-        MsgpackAdapter::MsgpackStrMap::iterator obj_iter;
-        vector<string> channel_vec;
-
-        try {
-            msgpack::unpack(result, i->second->object, i->second->size);
-            msgpack::object deserialized = result.get();
-            dict = deserialized.as<MsgpackAdapter::MsgpackStrMap>();
-
-            if ((obj_iter = dict.find("channels")) != dict.end()) {
-                MsgpackAdapter::AsStringVector(obj_iter->second, channel_vec);
-
-                // We now have a string vector of channels, dupe it into our 
-                // tracked channels vec
-                local_locker lock(&source_lock);
-
-                source_channels_vec->clear_vector();
-                for (unsigned int x = 0; x < channel_vec.size(); x++) {
-                    TrackerElement *chanstr =
-                        globalreg->entrytracker->GetTrackedInstance(source_channel_entry_id);
-                    chanstr->set(channel_vec[x]);
-                    source_channels_vec->add_vector(chanstr);
-                }
-            }
-        } catch (const std::exception& e) {
-            // Something went wrong with msgpack unpacking
-            stringstream ss;
-            ss << "Source " << get_source_name() << " failed to unpack proberesp " <<
-                "channels bundle: " << e.what();
-            _MSG(ss.str(), MSGFLAG_ERROR);
+        if (!handle_kv_channels(i->second))
             return;
-        }
-
     }
 
 }
 
-void KisDataSource::HandlePacketOpenResp(KVmap in_kvpairs) {
+void KisDataSource::handle_packet_open_resp(KVmap in_kvpairs) {
+    KVmap::iterator i;
+
+    // Process any messages
+    if ((i = in_kvpairs.find("message")) != in_kvpairs.end()) {
+        handle_kv_message(i->second);
+    }
+
+    // Process success value and callback
+    if ((i = in_kvpairs.find("success")) != in_kvpairs.end()) {
+        local_locker lock(&source_lock);
+
+        if (open_callback != NULL) {
+            (*open_callback)(this, open_aux, handle_kv_success(i->second));
+        }
+    } else {
+        // OpenResp with no success value?  ehh.
+        local_locker lock(&source_lock);
+        inc_ipc_errors(1);
+        return;
+    }
+
+    // Process channels list if we got one
+    if ((i = in_kvpairs.find("channels")) != in_kvpairs.end()) {
+        if (!handle_kv_channels(i->second))
+            return;
+    }
+}
+
+void KisDataSource::handle_packet_error(KVmap in_kvpairs) {
+    KVmap::iterator i;
+
+    // Process any messages
+    if ((i = in_kvpairs.find("message")) != in_kvpairs.end()) {
+        handle_kv_message(i->second);
+    }
+
+    // Lock only after handling messages
+    {
+        local_locker lock(&source_lock);
+
+        // Kill the IPC
+        source_ipc->Kill();
+    }
+}
+
+
+void KisDataSource::handle_packet_message(KVmap in_kvpairs) {
+    KVmap::iterator i;
+
+    // Process any messages
+    if ((i = in_kvpairs.find("message")) != in_kvpairs.end()) {
+        handle_kv_message(i->second);
+    }
+}
+
+void KisDataSource::handle_packet_data(KVmap in_kvpairs) {
 
 }
 
-void KisDataSource::HandlePacketError(KVmap in_kvpairs) {
-
-}
-
-
-void KisDataSource::HandlePacketMessage(KVmap in_kvpairs) {
-
-}
-
-void KisDataSource::HandlePacketData(KVmap in_kvpairs) {
-
-}
-
-bool KisDataSource::HandleKVSuccess(KisDataSource_CapKeyedObject *in_obj) {
+bool KisDataSource::handle_kv_success(KisDataSource_CapKeyedObject *in_obj) {
     // Not a msgpacked object, just a single byte
-    if (in_obj->size != 1)
+    if (in_obj->size != 1) {
+        local_locker lock(&source_lock);
+        inc_ipc_errors(1);
         return false;
+    }
 
     return in_obj->object[0];
 }
 
-void KisDataSource::HandleKVMessage(KisDataSource_CapKeyedObject *in_obj) {
+bool KisDataSource::handle_kv_message(KisDataSource_CapKeyedObject *in_obj) {
+    // Unpack the dictionary
+    MsgpackAdapter::MsgpackStrMap dict;
+    msgpack::unpacked result;
+    MsgpackAdapter::MsgpackStrMap::iterator obj_iter;
+    vector<string> channel_vec;
 
+    try {
+        msgpack::unpack(result, in_obj->object, in_obj->size);
+        msgpack::object deserialized = result.get();
+        dict = deserialized.as<MsgpackAdapter::MsgpackStrMap>();
+
+        string msg;
+        unsigned int flags;
+
+        if ((obj_iter = dict.find("msg")) != dict.end()) {
+            msg = obj_iter->second.as<string>();
+        } else {
+            throw std::runtime_error("missing 'msg' entry");
+        }
+
+        if ((obj_iter = dict.find("flags")) != dict.end()) {
+            flags = obj_iter->second.as<unsigned int>();
+        } else {
+            throw std::runtime_error("missing 'flags' entry");
+        }
+
+        _MSG(msg, flags);
+
+    } catch (const std::exception& e) {
+        // Something went wrong with msgpack unpacking
+        stringstream ss;
+        ss << "Source " << get_source_name() << " failed to unpack message " <<
+            "bundle: " << e.what();
+        _MSG(ss.str(), MSGFLAG_ERROR);
+
+        local_locker lock(&source_lock);
+        inc_ipc_errors(1);
+
+        return false;
+    }
+
+    return true;
+
+}
+
+bool KisDataSource::handle_kv_channels(KisDataSource_CapKeyedObject *in_obj) {
+    // Unpack the dictionary
+    MsgpackAdapter::MsgpackStrMap dict;
+    msgpack::unpacked result;
+    MsgpackAdapter::MsgpackStrMap::iterator obj_iter;
+    vector<string> channel_vec;
+
+    try {
+        msgpack::unpack(result, in_obj->object, in_obj->size);
+        msgpack::object deserialized = result.get();
+        dict = deserialized.as<MsgpackAdapter::MsgpackStrMap>();
+
+        if ((obj_iter = dict.find("channels")) != dict.end()) {
+            MsgpackAdapter::AsStringVector(obj_iter->second, channel_vec);
+
+            // We now have a string vector of channels, dupe it into our 
+            // tracked channels vec
+            local_locker lock(&source_lock);
+
+            source_channels_vec->clear_vector();
+            for (unsigned int x = 0; x < channel_vec.size(); x++) {
+                TrackerElement *chanstr =
+                    globalreg->entrytracker->GetTrackedInstance(source_channel_entry_id);
+                chanstr->set(channel_vec[x]);
+                source_channels_vec->add_vector(chanstr);
+            }
+        }
+    } catch (const std::exception& e) {
+        // Something went wrong with msgpack unpacking
+        stringstream ss;
+        ss << "Source " << get_source_name() << " failed to unpack proberesp " <<
+            "channels bundle: " << e.what();
+        _MSG(ss.str(), MSGFLAG_ERROR);
+
+        local_locker lock(&source_lock);
+        inc_ipc_errors(1);
+
+        return false;
+    }
+
+    return true;
 }
 
 KisDataSource_CapKeyedObject::KisDataSource_CapKeyedObject(simple_cap_proto_kv *in_kp) {

@@ -86,7 +86,8 @@ Data sources replace the PacketSource class in Kismet.
         Close the current device
 
     ERROR (Any)
-        Error occurred somewhere.  Device is assumed closed.
+        Error occurred somewhere.  Device is assumed closed.  IPC will be shut
+        down.
 
         KV Pairs:
             MESSAGE

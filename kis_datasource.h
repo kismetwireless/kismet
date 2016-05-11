@@ -68,33 +68,42 @@ public:
     ~KisDataSource();
 
     // Register the source and any sub-sources (builder)
-    virtual int RegisterSources() = 0;
+    virtual int register_sources() = 0;
 
     // Build a source
-    virtual KisDataSource *BuildDataSource(string in_definition) = 0;
+    virtual KisDataSource *build_data_source(string in_definition) = 0;
 
     // Can we handle this source?  May require launching the external binary
     // to probe.  Since this may be an async operation, provide a callback
     typedef void (*probe_handler)(KisDataSource *, void *, bool);
-    virtual bool ProbeSource(string in_source, probe_handler in_cb) = 0;
+    virtual bool probe_source(string in_source, probe_handler in_cb, void *in_aux) = 0;
     // Cancel the callbacks
-    virtual void CancelProbeSource();
+    virtual void cancel_probe_source();
 
-    // Launch and try to open a source
-    virtual int OpenSource(string in_definition);
+    // Launch IPC and open source
+    typedef void (*open_handler)(KisDataSource *, void *, bool);
+    virtual bool open_source(string in_source, open_handler in_cb, void *in_aux);
+    // Cancel the callbacks
+    virtual void cancel_open_source();
 
     // Set channel or frequency, string-based definition.  Specifics of channel
     // and frequency definition are determined by the source phy
-    virtual bool SetChannel(string in_channel);
+    virtual bool set_channel(string in_channel);
 
     __Proxy(source_name, string, string, string, source_name);
     __Proxy(source_interface, string, string, string, source_interface);
     __Proxy(source_uuid, uuid, uuid, uuid, source_uuid);
-    __Proxy(source_id, int, int, int, source_id);
+    __Proxy(source_id, int32_t, int, int, source_id);
     __Proxy(source_channel_capable, uint8_t, bool, bool, source_channel_capable);
     __Proxy(source_definition, string, string, string, source_definition);
     __Proxy(child_pid, int64_t, pid_t, pid_t, child_pid);
     __Proxy(source_description, string, string, string, source_description);
+    __ProxyTrackable(source_channels_vec, TrackerElement, source_channels_vec);
+
+    __Proxy(ipc_errors, uint64_t, uint64_t, uint64_t, ipc_errors);
+    __ProxyIncDec(ipc_errors, uint64_t, uint64_t, ipc_errors);
+
+    __Proxy(source_running, uint8_t, bool, bool, source_running);
 
     // Ringbuffer API
     virtual void BufferAvailable(size_t in_amt);
@@ -104,8 +113,11 @@ protected:
 
     pthread_mutex_t source_lock;
 
-    probe_handler *probe_callback;
+    probe_handler probe_callback;
     void *probe_aux;
+
+    open_handler open_callback;
+    void *open_aux;
 
     virtual void register_fields();
 
@@ -146,25 +158,34 @@ protected:
     TrackerElement *source_channels_vec;
     int source_channel_entry_id;
 
+    // IPC errors
+    int ipc_errors_id;
+    TrackerElement *ipc_errors;
+
+    // Currently running to the best of our knowledge
+    int source_running_id;
+    TrackerElement *source_running;
+
     IPCRemoteV2 *source_ipc;
     RingbufferHandler *ipchandler;
 
     typedef map<string, KisDataSource_CapKeyedObject *> KVmap;
 
     // Top-level packet handler
-    virtual void HandlePacket(string in_type, KVmap in_kvmap);
+    virtual void handle_packet(string in_type, KVmap in_kvmap);
 
     // Standard packet types
-    virtual void HandlePacketHello(KVmap in_kvpairs);
-    virtual void HandlePacketProbeResp(KVmap in_kvpairs);
-    virtual void HandlePacketOpenResp(KVmap in_kvpairs);
-    virtual void HandlePacketError(KVmap in_kvpairs);
-    virtual void HandlePacketMessage(KVmap in_kvpairs);
-    virtual void HandlePacketData(KVmap in_kvpairs);
+    virtual void handle_packet_hello(KVmap in_kvpairs);
+    virtual void handle_packet_probe_resp(KVmap in_kvpairs);
+    virtual void handle_packet_open_resp(KVmap in_kvpairs);
+    virtual void handle_packet_error(KVmap in_kvpairs);
+    virtual void handle_packet_message(KVmap in_kvpairs);
+    virtual void handle_packet_data(KVmap in_kvpairs);
 
     // Common message kv pair
-    virtual bool HandleKVSuccess(KisDataSource_CapKeyedObject *in_obj);
-    virtual void HandleKVMessage(KisDataSource_CapKeyedObject *in_obj);
+    virtual bool handle_kv_success(KisDataSource_CapKeyedObject *in_obj);
+    virtual bool handle_kv_message(KisDataSource_CapKeyedObject *in_obj);
+    virtual bool handle_kv_channels(KisDataSource_CapKeyedObject *in_obj);
 
 };
 
