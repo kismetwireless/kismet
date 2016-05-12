@@ -234,7 +234,7 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
                 string json_msg = "?WATCH={\"json\":true};\n";
 
                 if (tcphandler->PutWriteBufferData((void *) json_msg.c_str(), 
-                            json_msg.length()) < json_msg.length()) {
+                            json_msg.length(), true) < json_msg.length()) {
                     _MSG("GPSGpsdV2 could not not write JSON enable command",
                             MSGFLAG_ERROR);
                 }
@@ -366,7 +366,7 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
 
             string init_cmd = "L\n";
             if (tcphandler->PutWriteBufferData((void *) init_cmd.c_str(), 
-                        init_cmd.length()) < init_cmd.length()) {
+                        init_cmd.length(), true) < init_cmd.length()) {
                 _MSG("GPSGpsdV2 could not not write NMEA enable command",
                         MSGFLAG_ERROR);
             }
@@ -379,7 +379,7 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
 			// and do NMEA ourselves.
             string cmd = "R=1\n";
             if (tcphandler->PutWriteBufferData((void *) cmd.c_str(), 
-                        cmd.length()) < cmd.length()) {
+                        cmd.length(), true) < cmd.length()) {
                 _MSG("GPSGpsdV2 could not not write NMEA enable command",
                         MSGFLAG_ERROR);
             }
@@ -413,7 +413,7 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
 			// silently drops the second command sent too quickly
             string watch_cmd = "J=1,W=1,R=1\n";
             if (tcphandler->PutWriteBufferData((void *) watch_cmd.c_str(), 
-                        watch_cmd.length()) < watch_cmd.length()) {
+                        watch_cmd.length(), true) < watch_cmd.length()) {
                 _MSG("GPSGpsdV2 could not not write GPSD watch command",
                         MSGFLAG_ERROR);
             }
@@ -421,7 +421,7 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
             // Go into poll mode
             string poll_cmd = "PAVM\n";
             if (tcphandler->PutWriteBufferData((void *) poll_cmd.c_str(), 
-                        poll_cmd.length()) < poll_cmd.length()) {
+                        poll_cmd.length(), true) < poll_cmd.length()) {
                 _MSG("GPSGpsdV2 could not not write GPSD watch command",
                         MSGFLAG_ERROR);
             }

@@ -149,7 +149,8 @@ size_t RingbufferHandler::PeekWriteBufferData(void *in_ptr, size_t in_sz) {
     return 0;
 }
 
-size_t RingbufferHandler::PutReadBufferData(void *in_ptr, size_t in_sz) {
+size_t RingbufferHandler::PutReadBufferData(void *in_ptr, size_t in_sz, 
+        bool in_atomic) {
     size_t ret;
 
     {
@@ -157,6 +158,10 @@ size_t RingbufferHandler::PutReadBufferData(void *in_ptr, size_t in_sz) {
         local_locker lock(&handler_locker);
 
         if (!read_buffer)
+            return 0;
+
+        // Don't write any if we're an atomic complete write
+        if (in_atomic && read_buffer->available() < in_sz)
             return 0;
 
         ret = read_buffer->write(in_ptr, in_sz);
@@ -177,7 +182,8 @@ size_t RingbufferHandler::PutReadBufferData(void *in_ptr, size_t in_sz) {
     return ret;
 }
     
-size_t RingbufferHandler::PutWriteBufferData(void *in_ptr, size_t in_sz) {
+size_t RingbufferHandler::PutWriteBufferData(void *in_ptr, size_t in_sz,
+        bool in_atomic) {
     size_t ret;
 
     {
@@ -185,6 +191,10 @@ size_t RingbufferHandler::PutWriteBufferData(void *in_ptr, size_t in_sz) {
         local_locker lock(&handler_locker);
 
         if (!write_buffer)
+            return 0;
+
+        // Don't write any if we're an atomic complete write
+        if (in_atomic && write_buffer->available() < in_sz)
             return 0;
 
         ret = write_buffer->write(in_ptr, in_sz);

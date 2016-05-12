@@ -165,7 +165,7 @@ int SerialClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
             }
         } else {
             // Insert into buffer
-            iret = handler->PutReadBufferData(buf, ret);
+            iret = handler->PutReadBufferData(buf, ret, true);
 
             if (iret != ret) {
                 // Die if we couldn't insert all our data, the error is already going

@@ -69,8 +69,8 @@ public:
     // Place data in read or write buffer
     // Automatically triggers callbacks
     // Returns amount of data actually written
-    size_t PutReadBufferData(void *in_ptr, size_t in_sz);
-    size_t PutWriteBufferData(void *in_ptr, size_t in_sz);
+    size_t PutReadBufferData(void *in_ptr, size_t in_sz, bool in_atomic);
+    size_t PutWriteBufferData(void *in_ptr, size_t in_sz, bool in_atomic);
 
     // Set interface callbacks to be called when we have data in the buffers
     void SetReadBufferInterface(RingbufferInterface *in_interface);
