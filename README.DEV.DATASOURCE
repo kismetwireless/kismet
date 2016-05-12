@@ -47,23 +47,44 @@ Data sources replace the PacketSource class in Kismet.
 
     Drivers and the glue code may of course define any other types they wish.
 
-    HELLO
-        Wake-up packet from either side of the communication.  May contain
-        additional information.
+    CLOSEDEVICE (Server->Driver)
+        Close the current device
 
-    PROBEDEVICE (Server->Driver)
-        Probe if the driver is able to handle a device.  This should generate
-        a PROBERESP packet.
+    CONFIGURE
+        Configure an interface.
 
         KV Pairs:
-            DEFINITION
+            CHANSET
+            CHANHOP
 
-    PROBERESP (Driver->Server)
-        Response to probing a device.  
+    DATA (Driver->Server)
+        Actual capture data.  May be a packet, a decoded trackable entity, or
+        other information.
 
         KV Pairs:
+            MESSAGE
+            SIGNAL
+            PACKET
+            GPS
+
+    ERROR (Any)
+        Error occurred somewhere.  Device is assumed closed.  IPC will be shut
+        down.
+
+        KV Pairs:
+            MESSAGE
+
+    STATUS 
+        Generic status.  May contain additional information.
+
+        KV Pairs:
+            MESSAGE
             SUCCESS
-            CHANNELS
+
+    MESSAGE (Driver->Server)
+        Message (info, warning, non-critical error)
+
+        KV Pairs:
             MESSAGE
 
     OPENDEVICE (Server->Driver)
@@ -82,31 +103,20 @@ Data sources replace the PacketSource class in Kismet.
             CHANNELS
             MESSAGE
 
-    CLOSEDEVICE (Server->Driver)
-        Close the current device
-
-    ERROR (Any)
-        Error occurred somewhere.  Device is assumed closed.  IPC will be shut
-        down.
+    PROBEDEVICE (Server->Driver)
+        Probe if the driver is able to handle a device.  This should generate
+        a PROBERESP packet.
 
         KV Pairs:
-            MESSAGE
+            DEFINITION
 
-    MESSAGE (Driver->Server)
-        Message (info, warning, non-critical error)
-
-        KV Pairs:
-            MESSAGE
-
-    DATA (Driver->Server)
-        Actual capture data.  May be a packet, a decoded trackable entity, or
-        other information.
+    PROBERESP (Driver->Server)
+        Response to probing a device.  
 
         KV Pairs:
+            SUCCESS
+            CHANNELS
             MESSAGE
-            SIGNAL
-            PACKET
-            GPS
 
 4.  Standard KV Pairs
 

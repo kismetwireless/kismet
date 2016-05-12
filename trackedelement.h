@@ -653,7 +653,7 @@ class tracker_component : public TrackerElement {
     }  \
     virtual TrackerElement *get_tracker_##name() { \
         return (TrackerElement *) cvar; \
-    } \
+    } 
 
 // Proxy bitset functions (name, trackable type, data type, class var)
 #define __ProxyBitset(name, dtype, cvar) \

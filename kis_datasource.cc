@@ -87,6 +87,16 @@ void KisDataSource::register_fields() {
     source_running_id =
         RegisterField("kismet.datasource.running", TrackerUInt8,
                 "source is currently operational", (void **) &source_running);
+    source_hopping_id = 
+        RegisterField("kismet.datasource.hopping", TrackerUInt8,
+                "source is channel hopping (bool)", (void **) &source_hopping);
+    source_hop_rate_id =
+        RegisterField("kismet.datasource.hop_rate", TrackerDouble,
+                "channel hopping rate", (void **) &source_hop_rate);
+    source_hop_vec_id =
+        RegisterField("kismet.datasource.hop_channels", TrackerVector,
+                "hopping channels", (void **) &source_hop_vec);
+
 }
 
 void KisDataSource::BufferAvailable(size_t in_amt) {
@@ -129,6 +139,7 @@ void KisDataSource::BufferAvailable(size_t in_amt) {
     // Calc the checksum of the rest
     calc_checksum = Adler32Checksum((const char *) buf, frame_sz);
 
+    // Compare to the saved checksum
     if (calc_checksum != frame_checksum) {
         // TODO report invalid checksum and disconnect
         delete[] buf;
@@ -168,6 +179,81 @@ void KisDataSource::BufferAvailable(size_t in_amt) {
 
 }
 
+bool KisDataSource::write_ipc_packet(string in_type, KVmap *in_kvpairs) {
+    simple_cap_proto_t *ret = NULL;
+    vector<simple_cap_proto_kv_t *> proto_kvpairs;
+    size_t kvpair_len = 0;
+    size_t kvpair_offt = 0;
+    size_t pack_len;
+
+    for (KVmap::iterator i = in_kvpairs->begin(); i != in_kvpairs->end(); ++i) {
+        // Size of header + size of object
+        simple_cap_proto_kv_t *kvt = (simple_cap_proto_kv_t *) 
+            new char[sizeof(simple_cap_proto_kv_h_t) + i->second->size];
+
+        // Set up the header, network endian
+        snprintf(kvt->header.key, 16, "%s", i->second->key.c_str());
+        kvt->header.obj_sz = kis_hton32(i->second->size);
+
+        // Copy the content
+        memcpy(kvt->object, i->second->object, i->second->size);
+
+        // Add the total size
+        kvpair_len += sizeof(simple_cap_proto_kv_h_t) + i->second->size;
+    }
+
+    // Make the container packet
+    pack_len = sizeof(simple_cap_proto_t) + kvpair_len;
+
+    ret = (simple_cap_proto_t *) new char[pack_len];
+
+    ret->signature = kis_hton32(KIS_CAP_SIMPLE_PROTO_SIG);
+   
+    // Prep the checksum with 0
+    ret->checksum = 0;
+
+    ret->packet_sz = kis_hton32(pack_len);
+
+    snprintf(ret->type, 16, "%s", in_type.c_str());
+
+    ret->num_kv_pairs = kis_hton32(proto_kvpairs.size());
+
+    // Progress through the kv pairs and pack them 
+    for (unsigned int i = 0; i < proto_kvpairs.size(); i++) {
+        // Annoying to have to do it this way
+        size_t len = kis_ntoh32(proto_kvpairs[i]->header.obj_sz) +
+            sizeof(simple_cap_proto_kv_h_t);
+
+        memcpy(&(ret->data[kvpair_offt]), proto_kvpairs[i], len);
+
+        kvpair_offt += len;
+
+        // Delete it as we go
+        delete(proto_kvpairs[i]);
+    }
+
+    // Calculate the checksum with it pre-populated as 0x0
+    uint32_t calc_checksum;
+    calc_checksum = Adler32Checksum((const char *) ret, pack_len);
+
+    ret->checksum = kis_hton32(calc_checksum);
+
+    size_t ret_sz;
+
+    {
+        // Lock & send to the IPC ringbuffer
+        local_locker lock(&source_lock);
+        ret_sz = ipchandler->PutWriteBufferData(ret, pack_len);
+
+        delete ret;
+    }
+
+    if (ret_sz != pack_len)
+        return false;
+
+    return true;
+}
+
 bool KisDataSource::open_source(string in_definition, open_handler in_cb, void *in_aux) {
     local_locker lock(&source_lock);
 
@@ -193,16 +279,20 @@ void KisDataSource::cancel_open_source() {
     open_aux = NULL;
 }
 
-bool KisDataSource::set_channel(string in_channel) {
+void KisDataSource::set_channel(string in_channel) {
 
-    return false;
+}
+
+void KisDataSource::set_channel_hop(vector<string> in_channel_list, 
+        double in_rate) {
+
 }
 
 void KisDataSource::handle_packet(string in_type, KVmap in_kvmap) {
     string ltype = StrLower(in_type);
 
-    if (ltype == "hello")
-        handle_packet_hello(in_kvmap);
+    if (ltype == "status")
+        handle_packet_status(in_kvmap);
     else if (ltype == "proberesp")
         handle_packet_probe_resp(in_kvmap);
     else if (ltype == "openresp")
@@ -215,8 +305,7 @@ void KisDataSource::handle_packet(string in_type, KVmap in_kvmap) {
         handle_packet_data(in_kvmap);
 }
 
-// Not much to do in HELLO
-void KisDataSource::handle_packet_hello(KVmap in_kvpairs) {
+void KisDataSource::handle_packet_status(KVmap in_kvpairs) {
     KVmap::iterator i;
     
     if ((i = in_kvpairs.find("message")) != in_kvpairs.end()) {
@@ -242,6 +331,8 @@ void KisDataSource::handle_packet_probe_resp(KVmap in_kvpairs) {
         }
     } else {
         // ProbeResp with no success value?  ehh.
+        local_locker lock(&source_lock);
+        inc_ipc_errors(1);
         return;
     }
 
@@ -310,6 +401,12 @@ void KisDataSource::handle_packet_message(KVmap in_kvpairs) {
 }
 
 void KisDataSource::handle_packet_data(KVmap in_kvpairs) {
+    KVmap::iterator i;
+
+    // Process any messages
+    if ((i = in_kvpairs.find("message")) != in_kvpairs.end()) {
+        handle_kv_message(i->second);
+    }
 
 }
 
@@ -422,6 +519,14 @@ KisDataSource_CapKeyedObject::KisDataSource_CapKeyedObject(simple_cap_proto_kv *
     size = kis_ntoh32(in_kp->header.obj_sz);
     object = new char[size];
     memcpy(object, in_kp->object, size);
+}
+
+KisDataSource_CapKeyedObject::KisDataSource_CapKeyedObject(string in_key,
+        char *in_object, ssize_t in_len) {
+
+    key = in_key.substr(0, 16);
+    object = new char[in_len];
+    memcpy(object, in_object, in_len);
 }
 
 KisDataSource_CapKeyedObject::~KisDataSource_CapKeyedObject() {

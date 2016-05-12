@@ -87,8 +87,14 @@ public:
     virtual void cancel_open_source();
 
     // Set channel or frequency, string-based definition.  Specifics of channel
-    // and frequency definition are determined by the source phy
-    virtual bool set_channel(string in_channel);
+    // and frequency definition are determined by the source phy.  Does not return,
+    // source will go into error state instead because of async
+    virtual void set_channel(string in_channel);
+
+    // Set a channel and hopping rate.  Hopping rate is units per second, and now
+    // processed as a double.  Values less than 1.0 result in multiple seconds 
+    // per channel
+    virtual void set_channel_hop(vector<string> in_channel_list, double in_rate);
 
     __Proxy(source_name, string, string, string, source_name);
     __Proxy(source_interface, string, string, string, source_interface);
@@ -98,12 +104,19 @@ public:
     __Proxy(source_definition, string, string, string, source_definition);
     __Proxy(child_pid, int64_t, pid_t, pid_t, child_pid);
     __Proxy(source_description, string, string, string, source_description);
+
     __ProxyTrackable(source_channels_vec, TrackerElement, source_channels_vec);
 
     __Proxy(ipc_errors, uint64_t, uint64_t, uint64_t, ipc_errors);
     __ProxyIncDec(ipc_errors, uint64_t, uint64_t, ipc_errors);
 
     __Proxy(source_running, uint8_t, bool, bool, source_running);
+
+    // Only proxy get, because setting these is a complex operation
+    __ProxyGet(source_hopping, uint8_t, bool, source_hopping);
+    __ProxyGet(source_hop_rate, double, double, source_hop_rate);
+
+    __ProxyTrackable(source_hop_vec, TrackerElement, source_hop_vec);
 
     // Ringbuffer API
     virtual void BufferAvailable(size_t in_amt);
@@ -166,16 +179,29 @@ protected:
     int source_running_id;
     TrackerElement *source_running;
 
+    // Hopping and hop rate
+    int source_hopping_id;
+    TrackerElement *source_hopping;
+
+    int source_hop_rate_id;
+    TrackerElement *source_hop_rate;
+
+    int source_hop_vec_id;
+    TrackerElement *source_hop_vec;
+
     IPCRemoteV2 *source_ipc;
     RingbufferHandler *ipchandler;
 
     typedef map<string, KisDataSource_CapKeyedObject *> KVmap;
 
+    // IPC protocol assembly & send to driver
+    virtual bool write_ipc_packet(string in_type, KVmap *in_kvpairs);
+
     // Top-level packet handler
     virtual void handle_packet(string in_type, KVmap in_kvmap);
 
     // Standard packet types
-    virtual void handle_packet_hello(KVmap in_kvpairs);
+    virtual void handle_packet_status(KVmap in_kvpairs);
     virtual void handle_packet_probe_resp(KVmap in_kvpairs);
     virtual void handle_packet_open_resp(KVmap in_kvpairs);
     virtual void handle_packet_error(KVmap in_kvpairs);
@@ -192,6 +218,7 @@ protected:
 class KisDataSource_CapKeyedObject {
 public:
     KisDataSource_CapKeyedObject(simple_cap_proto_kv *in_kp);
+    KisDataSource_CapKeyedObject(string in_key, char *in_object, ssize_t in_len);
     ~KisDataSource_CapKeyedObject();
 
     string key;
