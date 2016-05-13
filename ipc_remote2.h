@@ -37,6 +37,12 @@
  * The most common use of this is the capturesource engine which needs
  * to communicate with external capture binaries.
  *
+ * Automatically creates a pipeclient to interface the IPC binary with the
+ * ringbuffer handler.
+ *
+ * Automatically registers the IPC process with the IPC handler for process
+ * lifecycle maintenance.
+ *
  */
 class IPCRemoteV2 {
 public:
@@ -57,6 +63,8 @@ public:
     //
     // When launching standard binaries, IPCRemote will map stdin and stdout
     // to the binary.
+    //
+    // returns negative on failure
     int LaunchKisBinary(string cmd, vector<string> args);
     int LaunchKisExplicitBinary(string cmdpath, vector<string> args);
     int LaunchStdBinary(string cmd, vector<string> args);

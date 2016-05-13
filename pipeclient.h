@@ -36,6 +36,9 @@
 // the IPC spawning system.
 //
 // Populates the read buffer of a rbhandler and drains the write buffer
+//
+// Like other backend clients of a ringbuf handler, does not register as a read
+// or write directly but consumes out of the handler
 class PipeClient : public Pollable {
 public:
     PipeClient(GlobalRegistry *in_globalreg, RingbufferHandler *in_rbhandler);
