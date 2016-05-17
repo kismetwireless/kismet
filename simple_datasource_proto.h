@@ -89,18 +89,5 @@ simple_cap_proto_t *encode_simple_cap_proto(char *in_type,
 simple_cap_proto_kv_t *encode_simple_cap_proto_kv(char *in_key, uint8_t *in_obj,
         unsigned int in_obj_len);
 
-/* The following simple pack structures are a bit unwieldy to call but are meant
- * to be extremely simple to allow C-based tools to use them
- */
-
-/* Pack a msgpack object of standard data */
-int pack_packet_capdata(uint8_t **ret_buffer, uint32_t *ret_sz,
-        struct timeval in_ts, int in_dlt, uint32_t in_pack_sz, uint8_t *in_pack);
-/* Pack a msgpack object of standard GPS data */
-int pack_packet_gps(uint8_t **ret_buffer, uint32_t *ret_sz,
-        double in_lat, double in_lon, double in_alt, double in_speed, double in_heading,
-        double in_precision, int in_fix, time_t in_time, 
-        const char *gps_type, const char *gps_name);
-
 #endif
 
