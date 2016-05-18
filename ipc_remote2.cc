@@ -30,11 +30,19 @@
 
 IPCRemoteV2::IPCRemoteV2(GlobalRegistry *in_globalreg, 
         RingbufferHandler *in_rbhandler) {
+
     globalreg = in_globalreg;
     pthread_mutex_init(&ipc_locker, NULL);
 
     ipchandler = in_rbhandler;
     pipeclient = NULL;
+
+    remotehandler = (IPCRemoteHandler *) globalreg->FetchGlobal("IPCHANDLER");
+
+    if (remotehandler == NULL) {
+        _MSG("IPCRemoteV2 called before IPCRemoteHandler instantiated, cannot track "
+                "IPC binaries.", MSGFLAG_ERROR);
+    }
 
     child_pid = -1;
 }
@@ -78,7 +86,6 @@ void IPCRemoteV2::Close() {
         delete(pipeclient);
         pipeclient = NULL;
     }
-
 }
 
 int IPCRemoteV2::LaunchKisBinary(string cmd, vector<string> args) {
@@ -184,6 +191,10 @@ int IPCRemoteV2::LaunchKisExplicitBinary(string cmdpath, vector<string> args) {
     binary_path = cmdpath;
     binary_args = args;
 
+    if (remotehandler != NULL) {
+        remotehandler->AddIPC(this);
+    }
+
     pthread_mutex_unlock(&ipc_locker);
 
     return 1;
@@ -286,6 +297,10 @@ int IPCRemoteV2::LaunchStdExplicitBinary(string cmdpath, vector<string> args) {
 
     binary_path = cmdpath;
     binary_args = args;
+
+    if (remotehandler != NULL) {
+        remotehandler->AddIPC(this);
+    }
 
     pthread_mutex_unlock(&ipc_locker);
 

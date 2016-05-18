@@ -44,6 +44,9 @@
  * lifecycle maintenance.
  *
  */
+
+class IPCRemoteHandler;
+
 class IPCRemoteV2 {
 public:
     IPCRemoteV2(GlobalRegistry *in_globalreg, RingbufferHandler *in_rbhandler);
@@ -84,6 +87,7 @@ protected:
     GlobalRegistry *globalreg;
     RingbufferHandler *ipchandler;
     PipeClient *pipeclient;
+    IPCRemoteHandler *remotehandler;
 
     vector<string> path_vec;
 
