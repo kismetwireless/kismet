@@ -85,6 +85,7 @@
 #include "dumpfile_alert.h"
 
 #include "ipc_remote.h"
+#include "ipc_remote2.h"
 
 #include "statealert.h"
 

@@ -60,6 +60,9 @@
 /* Keypair object from cap proto */
 class KisDataSource_CapKeyedObject;
 
+/* Queued command when IPC is open proto */
+class KisDataSource_QueuedCommand;
+
 class KisDataSource : public RingbufferInterface, public tracker_component {
 public:
     // Create a builder instance which only knows enough to be able to
@@ -73,6 +76,12 @@ public:
     // Build a source
     virtual KisDataSource *build_data_source(string in_definition) = 0;
 
+    // Error handler callback, called when something goes wrong in the source
+    // and it has to close
+    typedef void (*error_handler)(KisDataSource *, void *);
+    virtual void set_error_handler(error_handler in_cb, void *in_aux);
+    virtual void cancel_error_handler();
+
     // Can we handle this source?  May require launching the external binary
     // to probe.  Since this may be an async operation, provide a callback
     typedef void (*probe_handler)(KisDataSource *, void *, bool);
@@ -85,6 +94,7 @@ public:
     virtual bool open_source(string in_source, open_handler in_cb, void *in_aux);
     // Cancel the callbacks
     virtual void cancel_open_source();
+
 
     // Set channel or frequency, string-based definition.  Specifics of channel
     // and frequency definition are determined by the source phy.  Does not return,
@@ -112,6 +122,8 @@ public:
 
     __Proxy(source_running, uint8_t, bool, bool, source_running);
 
+    __Proxy(source_ipc_bin, string, string, string, source_ipc_bin);
+
     // Only proxy get, because setting these is a complex operation
     __ProxyGet(source_hopping, uint8_t, bool, source_hopping);
     __ProxyGet(source_hop_rate, double, double, source_hop_rate);
@@ -121,10 +133,16 @@ public:
     // Ringbuffer API
     virtual void BufferAvailable(size_t in_amt);
 
+    // KV pair map
+    typedef map<string, KisDataSource_CapKeyedObject *> KVmap;
+
 protected:
     GlobalRegistry *in_globalreg;
 
     pthread_mutex_t source_lock;
+
+    error_handler error_callback;
+    void *error_aux;
 
     probe_handler probe_callback;
     void *probe_aux;
@@ -189,10 +207,18 @@ protected:
     int source_hop_vec_id;
     TrackerElement *source_hop_vec;
 
+    int source_ipc_bin_id;
+    TrackerElement *source_ipc_bin;
+
     IPCRemoteV2 *source_ipc;
     RingbufferHandler *ipchandler;
 
-    typedef map<string, KisDataSource_CapKeyedObject *> KVmap;
+    // Commands waiting to be sent
+    vector<KisDataSource_QueuedCommand *> pending_commands;
+
+    // Queue a command to be sent when the IPC is up and running.  The queue
+    // system will be responsible for freeing kvpairs, etc
+    virtual bool queue_ipc_command(string in_cmd, KVmap *in_kvpairs);
 
     // IPC protocol assembly & send to driver
     virtual bool write_ipc_packet(string in_type, KVmap *in_kvpairs);
@@ -213,6 +239,20 @@ protected:
     virtual bool handle_kv_message(KisDataSource_CapKeyedObject *in_obj);
     virtual bool handle_kv_channels(KisDataSource_CapKeyedObject *in_obj);
 
+    // Spawn an IPC process, using the source_ipc_bin.  If the IPC system is running
+    // already, issue a kill
+    virtual bool spawn_ipc();
+
+};
+
+class KisDataSource_QueuedCommand {
+public:
+    KisDataSource_QueuedCommand(string in_cmd, KisDataSource::KVmap *in_kv, 
+            time_t in_time);
+
+    string command;
+    KisDataSource::KVmap *kv;
+    time_t insert_time;
 };
 
 class KisDataSource_CapKeyedObject {
@@ -222,7 +262,7 @@ public:
     ~KisDataSource_CapKeyedObject();
 
     string key;
-    uint32_t size;
+    size_t size;
     char *object;
 };
 

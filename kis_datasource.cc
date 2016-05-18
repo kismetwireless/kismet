@@ -39,6 +39,9 @@ KisDataSource::KisDataSource(GlobalRegistry *in_globalreg) :
     reserve_fields(NULL);
 
     set_source_running(false);
+
+    ipchandler = NULL;
+    source_ipc = NULL;
 }
 
 KisDataSource::~KisDataSource() {
@@ -96,6 +99,9 @@ void KisDataSource::register_fields() {
     source_hop_vec_id =
         RegisterField("kismet.datasource.hop_channels", TrackerVector,
                 "hopping channels", (void **) &source_hop_vec);
+    source_ipc_bin_id =
+        RegisterField("kismet.datasource.ipc_bin", TrackerString,
+                "driver binary", (void **) &source_ipc_bin);
 
 }
 
@@ -179,6 +185,39 @@ void KisDataSource::BufferAvailable(size_t in_amt) {
 
 }
 
+bool KisDataSource::queue_ipc_command(string in_cmd, KVmap *in_kvpairs) {
+
+    // If IPC is running just write it straight out
+    if (source_ipc != NULL && source_ipc->GetPid() > 0) {
+        bool ret = false;
+
+        ret = write_ipc_packet(in_cmd, in_kvpairs);
+
+        if (ret) {
+            for (KVmap::iterator i = in_kvpairs->begin(); i != in_kvpairs->end(); ++i) {
+                delete i->second;
+            }
+            delete in_kvpairs;
+
+            return ret;
+        }
+    }
+
+    // If we didn't succeed in writing the packet for some reason
+
+    // Queue the command
+    KisDataSource_QueuedCommand *cmd = 
+        new KisDataSource_QueuedCommand(in_cmd, in_kvpairs, 
+                globalreg->timestamp.tv_sec);
+
+    {
+        local_locker lock(&source_lock);
+        pending_commands.push_back(cmd);
+    }
+
+    return true;
+}
+
 bool KisDataSource::write_ipc_packet(string in_type, KVmap *in_kvpairs) {
     simple_cap_proto_t *ret = NULL;
     vector<simple_cap_proto_kv_t *> proto_kvpairs;
@@ -243,7 +282,7 @@ bool KisDataSource::write_ipc_packet(string in_type, KVmap *in_kvpairs) {
     {
         // Lock & send to the IPC ringbuffer
         local_locker lock(&source_lock);
-        ret_sz = ipchandler->PutWriteBufferData(ret, pack_len);
+        ret_sz = ipchandler->PutWriteBufferData(ret, pack_len, true);
 
         delete ret;
     }
@@ -252,6 +291,20 @@ bool KisDataSource::write_ipc_packet(string in_type, KVmap *in_kvpairs) {
         return false;
 
     return true;
+}
+
+void KisDataSource::set_error_handler(error_handler in_cb, void *in_aux) {
+    local_locker lock(&source_lock);
+
+    error_callback = in_cb;
+    error_aux = in_aux;
+}
+
+void KisDataSource::cancel_error_handler() {
+    local_locker lock(&source_lock);
+
+    error_callback = NULL;
+    error_aux = NULL;
 }
 
 bool KisDataSource::open_source(string in_definition, open_handler in_cb, void *in_aux) {
@@ -311,6 +364,9 @@ void KisDataSource::handle_packet_status(KVmap in_kvpairs) {
     if ((i = in_kvpairs.find("message")) != in_kvpairs.end()) {
         handle_kv_message(i->second);
     }
+
+    // If we just launched, this lets us know we're awake and can 
+    // send any queued commands
 
 }
 
@@ -429,7 +485,7 @@ bool KisDataSource::handle_kv_message(KisDataSource_CapKeyedObject *in_obj) {
     vector<string> channel_vec;
 
     try {
-        msgpack::unpack(result, in_obj->object, in_obj->size);
+        msgpack::unpack(result, in_obj->object, in_obj->size); 
         msgpack::object deserialized = result.get();
         dict = deserialized.as<MsgpackAdapter::MsgpackStrMap>();
 
@@ -508,6 +564,74 @@ bool KisDataSource::handle_kv_channels(KisDataSource_CapKeyedObject *in_obj) {
     }
 
     return true;
+}
+
+bool KisDataSource::spawn_ipc() {
+    stringstream ss;
+
+    local_locker lock(&source_lock);
+
+    if (get_source_ipc_bin() == "") {
+        ss << "Datasource '" << get_source_name() << "' missing IPC binary, cannot "
+            "launch binary";
+        _MSG(ss.str(), MSGFLAG_ERROR);
+
+        // Call the handler if we have one
+        if (error_callback != NULL)
+            (*error_callback)(this, error_aux);
+
+        return false;
+    }
+
+    // Deregister from the handler if we have one
+    if (ipchandler != NULL) {
+        ipchandler->RemoveReadBufferInterface();
+    }
+
+    // Kill the running process if we have one
+    if (source_ipc != NULL) {
+        ss.str("");
+        ss << "Datasource '" << get_source_name() << "' launching IPC with a running "
+            "process, killing existing process pid " << get_child_pid();
+        _MSG(ss.str(), MSGFLAG_INFO);
+
+        source_ipc->Kill();
+    }
+
+    // Make a new handler and new ipc.  Give a generous buffer.
+    ipchandler = new RingbufferHandler((32 * 1024), (32 * 1024));
+    ipchandler->SetReadBufferInterface(this);
+
+    source_ipc = new IPCRemoteV2(globalreg, ipchandler);
+    
+    // TODO set binary paths from config
+
+    vector<string> args;
+
+    int ret = source_ipc->LaunchKisBinary(get_source_ipc_bin(), args);
+
+    if (ret < 0) {
+        ss.str("");
+        ss << "Datasource '" << get_source_name() << 
+            "' failed to launch IPC binary '" <<
+            get_source_ipc_bin() << "'";
+        _MSG(ss.str(), MSGFLAG_ERROR);
+
+        // Call the handler if we have one
+        if (error_callback != NULL)
+            (*error_callback)(this, error_aux);
+
+        return false;
+    }
+
+    return true;
+}
+
+KisDataSource_QueuedCommand::KisDataSource_QueuedCommand(string in_cmd,
+        KisDataSource::KVmap *in_kv, time_t in_time) {
+    command = in_cmd;
+    kv = in_kv;
+    insert_time = in_time;
 }
 
 KisDataSource_CapKeyedObject::KisDataSource_CapKeyedObject(simple_cap_proto_kv *in_kp) {
