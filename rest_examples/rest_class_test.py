@@ -45,9 +45,9 @@ for d in devices:
 
 
 # Try to set a channel source (invalid, then valid)
-print "Trying to set invalid source UUID:", kr.lock_old_source("invalid", False, 0)
+print "Trying to set invalid source UUID:", kr.config_old_source_channel("invalid", False, 0)
 
-print "Trying to set valid (but likely not present) source channel: ", kr.lock_old_source("ef9ac4da-0db8-11e6-b824-6205fb28e301", True, 6)
+print "Trying to set valid (but likely not present) source channel: ", kr.config_old_source_channel("ef9ac4da-0db8-11e6-b824-6205fb28e301", True, 6)
 
 print "Trying to set web GPS:", kr.send_gps(123.456, 78.910, 123, 3)
 
