@@ -327,6 +327,8 @@ public:
 
     size_t size();
 
+    typedef vector<TrackerElement *> tracked_vector;
+
     typedef map<int, TrackerElement *> tracked_map;
     typedef map<int, TrackerElement *>::iterator map_iterator;
     typedef map<int, TrackerElement *>::const_iterator map_const_iterator;
