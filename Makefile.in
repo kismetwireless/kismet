@@ -15,7 +15,7 @@ PSO	= util.o cygwin_utils.o globalregistry.o \
 	netframework.o clinetframework.o tcpserver.o tcpclient.o \
 	tcpclient2.o serialclient2.o pipeclient.o ipc_remote2.o \
 	packetsourcetracker.o $(CAPSOURCES) \
-	kis_datasource.o \
+	datasourcetracker.o kis_datasource.o \
 	kis_netframe.o \
 	kis_net_microhttpd.o system_monitor.o kis_httpd_websession.o base64.o \
 	gps_manager.o kis_gps.o gpsserial2.o gpsgpsd2.o gpsfake.o gpsweb.o \

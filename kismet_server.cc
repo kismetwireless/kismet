@@ -668,6 +668,9 @@ int main(int argc, char *argv[], char *envp[]) {
 		globalregistry->servername = MungeToPrintable(conf->FetchOpt("servername"));
 	}
 
+    // Create the IPC handler
+    new IPCRemoteHandler(globalregistry);
+
 	// Create the packet chain
 	globalregistry->packetchain = new Packetchain(globalregistry);
 	if (globalregistry->fatal_condition)
