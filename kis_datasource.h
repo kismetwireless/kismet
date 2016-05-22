@@ -68,13 +68,13 @@ public:
     // Create a builder instance which only knows enough to be able to
     // build a complete version of itself
     KisDataSource(GlobalRegistry *in_globalreg);
-    ~KisDataSource();
+    virtual ~KisDataSource();
 
     // Register the source and any sub-sources (builder)
-    virtual int register_sources() = 0;
+    virtual int register_sources() { return -1; }
 
     // Build a source
-    virtual KisDataSource *build_data_source(string in_definition) = 0;
+    virtual KisDataSource *build_data_source(string in_definition) { return NULL; }
 
     // Error handler callback, called when something goes wrong in the source
     // and it has to close
@@ -85,7 +85,10 @@ public:
     // Can we handle this source?  May require launching the external binary
     // to probe.  Since this may be an async operation, provide a callback
     typedef void (*probe_handler)(KisDataSource *, void *, bool);
-    virtual bool probe_source(string in_source, probe_handler in_cb, void *in_aux) = 0;
+    virtual bool probe_source(string in_source, probe_handler in_cb, void *in_aux) {
+        return false;
+    }
+
     // Cancel the callbacks
     virtual void cancel_probe_source();
 

@@ -35,6 +35,12 @@ KisDataSource::KisDataSource(GlobalRegistry *in_globalreg) :
     probe_callback = NULL;
     probe_aux = NULL;
 
+    error_callback = NULL;
+    error_aux = NULL;
+
+    open_callback = NULL;
+    open_aux = NULL;
+
     register_fields();
     reserve_fields(NULL);
 
