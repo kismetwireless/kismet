@@ -142,12 +142,12 @@ void DataSourceTracker::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
        const char *url, const char *method, const char *upload_data,
        size_t *upload_data_size, std::stringstream &stream) {
 
-    if (strcmp(url, "/datasources/all_sources.msgpack") == 0) {
+    if (strcmp(url, "/datasource/all_sources.msgpack") == 0) {
         MsgpackAdapter::Pack(globalreg, stream, datasource_vec);
         return;
     }
 
-    if (strcmp(url, "/datasources/supported_sources.msgpack") == 0) {
+    if (strcmp(url, "/datasource/supported_sources.msgpack") == 0) {
         MsgpackAdapter::Pack(globalreg, stream, proto_vec);
         return;
     }

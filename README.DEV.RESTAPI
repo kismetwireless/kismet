@@ -97,8 +97,16 @@ REST endpoints
     
         /channels/channels.msgpack
             Channel and frequency usage
+
+    Data Sources (new):
+        /datasource/all_sources.msgpack
+            Return a msgpack vector of all data sources.  Data sources are the new
+            packet/device/catpure source mechanism.
+
+        /datasource/supported_sources.msgpack
+            Return a msgpack vector of all possible datasource types
     
-    Sources:
+    Packet Sources (old):
     
         /packetsource/all_sources.msgpack
             Return all sources under the (soon to be deprecated) PacketSource API.
