@@ -54,12 +54,19 @@ KisDataSource::~KisDataSource() {
     local_locker lock(&source_lock);
 
     pthread_mutex_destroy(&source_lock);
+
+    if (source_ipc != NULL) {
+        source_ipc->HardKill();
+    }
 }
 
 void KisDataSource::register_fields() {
     source_name_id =
         RegisterField("kismet.datasource.source_name", TrackerString,
                 "Human name of data source", (void **) &source_name);
+    source_type_id =
+        RegisterField("kismet.datasource.source_type", TrackerString,
+                "Type of data source", (void **) &source_type);
     source_interface_id =
         RegisterField("kismet.datasource.source_interface", TrackerString,
                 "Primary capture interface", (void **) &source_interface);

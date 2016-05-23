@@ -46,6 +46,21 @@ void DST_DataSourcePrototype::set_proto_builder(KisDataSource *in_builder) {
     proto_builder = in_builder;
 }
 
+DST_DataSourceProbe::DST_DataSourceProbe(time_t in_time, string in_definition,
+    KisDataSource *in_proto) {
+
+    protosrc = in_proto;
+    start_time = in_time;
+    definition = in_definition;
+
+    srctype = "UNKNOWN";
+    complete = false;
+}
+
+DST_DataSourceProbe::~DST_DataSourceProbe() {
+
+}
+
 DataSourceTracker::DataSourceTracker(GlobalRegistry *in_globalreg) {
     globalreg = in_globalreg;
 
@@ -96,7 +111,7 @@ void DataSourceTracker::iterate_datasources(DST_Worker *in_worker) {
     in_worker->finalize(this);
 }
 
-int DataSourceTracker::register_datasource_builder(string in_type, 
+int DataSourceTracker::register_datasource_builder(string in_type,
         string in_description, KisDataSource *in_builder) {
     local_locker lock(&dst_lock);
 
@@ -160,4 +175,5 @@ int DataSourceTracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind 
 
     return 0;
 }
+
 

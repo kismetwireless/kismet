@@ -50,15 +50,17 @@ class DataSourceTracker;
 class KisDataSource;
 
 // Worker class used to perform work on the list of packet-sources in a thread
-// safe / continuity safe context
+// safe / continuity safe context.
 class DST_Worker {
 public:
     DST_Worker() { };
 
+    // Handle a data source when working on iterate_datasources
     virtual void handle_datasource(DataSourceTracker *in_tracker, 
-            KisDataSource *in_src) = 0;
+            KisDataSource *in_src) { };
 
-    virtual void finalize(DataSourceTracker *in_tracker) = 0;
+    // All data sources have been processed in iterate_datasources
+    virtual void finalize(DataSourceTracker *in_tracker) { };
 };
 
 // Datasource prototype for easy tracking and exporting
@@ -84,7 +86,31 @@ protected:
     int proto_description_id;
     TrackerElement *proto_description;
 
+    // Builder used for probe and building the valid source
     KisDataSource *proto_builder;
+};
+
+// Probing record
+class DST_DataSourceProbe {
+public:
+    DST_DataSourceProbe(time_t in_time, string in_definition, KisDataSource *in_proto);
+    virtual ~DST_DataSourceProbe();
+
+    string get_type() { return srctype; }
+    string get_time() { return start_time; }
+
+    bool get_complete() { return complete; }
+
+    void cancel();
+
+protected:
+    KisDataSource *protosrc;
+
+    time_t start_time;
+    string definition;
+    bool complete;
+
+    string srctype;
 };
 
 class DataSourceTracker : public Kis_Net_Httpd_Stream_Handler {
@@ -94,12 +120,21 @@ public:
 
     // Add a datasource builder, with type and description.  Returns 0 or positive on
     // success, negative on failure
-    int register_datasource_builder(string in_type, string in_description, 
+    int register_datasource_builder(string in_type, string in_description,
             KisDataSource *in_builder);
 
     // Operate on all data sources currently defined.  The datasource tracker is locked
     // during this operation, making it thread safe.
     void iterate_datasources(DST_Worker *in_worker);
+
+    // Launch a source.  If there is no type defined or the type is 'auto', attempt to
+    // find the source.  When the source is opened or there is a failure, in_open_handler
+    // will be called
+    int open_datasource(string in_source, KisDataSource::open_handler in_open_handler,
+            void *in_aux);
+
+    // Close a source which has been created
+    int close_datasource(uuid in_src_uuid);
 
     // HTTP api
     virtual bool Httpd_VerifyPath(const char *path, const char *method);
@@ -126,6 +161,14 @@ protected:
     // Lists of proto and active sources
     TrackerElement *proto_vec;
     TrackerElement *datasource_vec;
+
+    // Currently probing
+    vector<KisDataSource *> probing_vec;
+
+    // Callbacks for source async operations
+    static void probe_handler(KisDataSource *in_src, void *in_aux, bool in_success);
+    static void open_handler(KisDataSource *in_src, void *in_aux, bool in_success);
+    static void error_handler(KisDataSource *in_src, void *in_aux);
 
 };
 

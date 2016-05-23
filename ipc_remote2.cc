@@ -45,6 +45,7 @@ IPCRemoteV2::IPCRemoteV2(GlobalRegistry *in_globalreg,
     }
 
     child_pid = -1;
+    tracker_free = false;
 }
 
 IPCRemoteV2::~IPCRemoteV2() {
@@ -312,6 +313,11 @@ pid_t IPCRemoteV2::GetPid() {
     return child_pid;
 }
 
+void IPCRemoteV2::SetTrackerFree(bool in_free) {
+    local_locker lock(&ipc_locker);
+    tracker_free = in_free;
+}
+
 int IPCRemoteV2::Kill() {
     if (child_pid <= 0)
         return -1;
@@ -506,6 +512,9 @@ int IPCRemoteHandler::timetracker_event(int event_id __attribute__((unused))) {
                     "status " << WEXITSTATUS(pid_status);
                 _MSG(str.str(), MSGFLAG_ERROR);
                 dead_remote->Close();
+
+                if (dead_remote->GetTrackerFree())
+                    delete(dead_remote);
             }
         } else {
             break;

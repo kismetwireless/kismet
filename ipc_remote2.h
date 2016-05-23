@@ -81,6 +81,10 @@ public:
 
     pid_t GetPid();
 
+    // Does the ipc tracker free us when we die?
+    bool GetTrackerFree() { return tracker_free; }
+    void SetTrackerFree(bool in_free);
+
 protected:
     pthread_mutex_t ipc_locker;
 
@@ -88,6 +92,8 @@ protected:
     RingbufferHandler *ipchandler;
     PipeClient *pipeclient;
     IPCRemoteHandler *remotehandler;
+
+    bool tracker_free;
 
     vector<string> path_vec;
 

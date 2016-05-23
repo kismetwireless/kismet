@@ -73,8 +73,8 @@ public:
     // Register the source and any sub-sources (builder)
     virtual int register_sources() { return -1; }
 
-    // Build a source
-    virtual KisDataSource *build_data_source(string in_definition) { return NULL; }
+    // Build a new instance of the class, used for opening and probing
+    virtual KisDataSource *build_data_source() { return NULL; }
 
     // Error handler callback, called when something goes wrong in the source
     // and it has to close
@@ -110,6 +110,7 @@ public:
     virtual void set_channel_hop(vector<string> in_channel_list, double in_rate);
 
     __Proxy(source_name, string, string, string, source_name);
+    __Proxy(source_type, string, string, string, source_type);
     __Proxy(source_interface, string, string, string, source_interface);
     __Proxy(source_uuid, uuid, uuid, uuid, source_uuid);
     __Proxy(source_id, int32_t, int, int, source_id);
@@ -158,6 +159,10 @@ protected:
     // Human name
     int source_name_id;
     TrackerElement *source_name;
+
+    // Type
+    int source_type_id;
+    TrackerElement *source_type;
 
     // Definition used to create interface
     int source_definition_id;
