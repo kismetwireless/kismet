@@ -37,10 +37,10 @@ IPCRemoteV2::IPCRemoteV2(GlobalRegistry *in_globalreg,
     ipchandler = in_rbhandler;
     pipeclient = NULL;
 
-    remotehandler = (IPCRemoteHandler *) globalreg->FetchGlobal("IPCHANDLER");
+    remotehandler = (IPCRemoteV2Tracker *) globalreg->FetchGlobal("IPCHANDLER");
 
     if (remotehandler == NULL) {
-        _MSG("IPCRemoteV2 called before IPCRemoteHandler instantiated, cannot track "
+        _MSG("IPCRemoteV2 called before IPCRemoteV2Tracker instantiated, cannot track "
                 "IPC binaries.", MSGFLAG_ERROR);
     }
 
@@ -58,7 +58,7 @@ IPCRemoteV2::~IPCRemoteV2() {
     pthread_mutex_destroy(&ipc_locker);
 }
 
-void IPCRemoteV2::AddPath(string in_path) {
+void IPCRemoteV2::add_path(string in_path) {
     local_locker lock(&ipc_locker);
     path_vec.push_back(in_path);
 }
@@ -82,14 +82,14 @@ string IPCRemoteV2::FindBinaryPath(string in_cmd) {
     return "";
 }
 
-void IPCRemoteV2::Close() {
+void IPCRemoteV2::close_ipc() {
     if (pipeclient != NULL) {
         delete(pipeclient);
         pipeclient = NULL;
     }
 }
 
-int IPCRemoteV2::LaunchKisBinary(string cmd, vector<string> args) {
+int IPCRemoteV2::launch_kis_binary(string cmd, vector<string> args) {
     string fullcmd = FindBinaryPath(cmd);
 
     if (fullcmd == "") {
@@ -97,10 +97,10 @@ int IPCRemoteV2::LaunchKisBinary(string cmd, vector<string> args) {
         return -1;
     }
 
-    return LaunchKisExplicitBinary(fullcmd, args);
+    return launch_kis_explicit_binary(fullcmd, args);
 }
 
-int IPCRemoteV2::LaunchKisExplicitBinary(string cmdpath, vector<string> args) {
+int IPCRemoteV2::launch_kis_explicit_binary(string cmdpath, vector<string> args) {
     struct stat buf;
     char **cmdarg;
     stringstream arg;
@@ -193,7 +193,7 @@ int IPCRemoteV2::LaunchKisExplicitBinary(string cmdpath, vector<string> args) {
     binary_args = args;
 
     if (remotehandler != NULL) {
-        remotehandler->AddIPC(this);
+        remotehandler->add_ipc(this);
     }
 
     pthread_mutex_unlock(&ipc_locker);
@@ -201,7 +201,7 @@ int IPCRemoteV2::LaunchKisExplicitBinary(string cmdpath, vector<string> args) {
     return 1;
 }
 
-int IPCRemoteV2::LaunchStdBinary(string cmd, vector<string> args) {
+int IPCRemoteV2::launch_standard_binary(string cmd, vector<string> args) {
     string fullcmd = FindBinaryPath(cmd);
 
     if (fullcmd == "") {
@@ -209,10 +209,10 @@ int IPCRemoteV2::LaunchStdBinary(string cmd, vector<string> args) {
         return -1;
     }
 
-    return LaunchStdExplicitBinary(fullcmd, args);
+    return launch_standard_explicit_binary(fullcmd, args);
 }
 
-int IPCRemoteV2::LaunchStdExplicitBinary(string cmdpath, vector<string> args) {
+int IPCRemoteV2::launch_standard_explicit_binary(string cmdpath, vector<string> args) {
     struct stat buf;
     char **cmdarg;
     stringstream arg;
@@ -300,7 +300,7 @@ int IPCRemoteV2::LaunchStdExplicitBinary(string cmdpath, vector<string> args) {
     binary_args = args;
 
     if (remotehandler != NULL) {
-        remotehandler->AddIPC(this);
+        remotehandler->add_ipc(this);
     }
 
     pthread_mutex_unlock(&ipc_locker);
@@ -308,31 +308,31 @@ int IPCRemoteV2::LaunchStdExplicitBinary(string cmdpath, vector<string> args) {
     return 1;
 }
 
-pid_t IPCRemoteV2::GetPid() {
+pid_t IPCRemoteV2::get_pid() {
     local_locker lock(&ipc_locker);
     return child_pid;
 }
 
-void IPCRemoteV2::SetTrackerFree(bool in_free) {
+void IPCRemoteV2::set_tracker_free(bool in_free) {
     local_locker lock(&ipc_locker);
     tracker_free = in_free;
 }
 
-int IPCRemoteV2::Kill() {
+int IPCRemoteV2::soft_kill() {
     if (child_pid <= 0)
         return -1;
 
     return kill(child_pid, SIGTERM);
 }
 
-int IPCRemoteV2::HardKill() {
+int IPCRemoteV2::hard_kill() {
     if (child_pid <= 0)
         return -1;
 
     return kill(child_pid, SIGKILL);
 }
 
-IPCRemoteHandler::IPCRemoteHandler(GlobalRegistry *in_globalreg) {
+IPCRemoteV2Tracker::IPCRemoteV2Tracker(GlobalRegistry *in_globalreg) {
     globalreg = in_globalreg;
 
     globalreg->InsertGlobal("IPCHANDLER", this);
@@ -343,7 +343,7 @@ IPCRemoteHandler::IPCRemoteHandler(GlobalRegistry *in_globalreg) {
         globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1, this);
 }
 
-IPCRemoteHandler::~IPCRemoteHandler() {
+IPCRemoteV2Tracker::~IPCRemoteV2Tracker() {
     globalreg->RemoveGlobal("IPCHANDLER");
 
     globalreg->timetracker->RemoveTimer(timer_id);
@@ -351,13 +351,13 @@ IPCRemoteHandler::~IPCRemoteHandler() {
     pthread_mutex_destroy(&ipc_locker);
 }
 
-void IPCRemoteHandler::AddIPC(IPCRemoteV2 *in_remote) {
+void IPCRemoteV2Tracker::add_ipc(IPCRemoteV2 *in_remote) {
     local_locker lock(&ipc_locker);
 
     process_vec.push_back(in_remote);
 }
 
-IPCRemoteV2 *IPCRemoteHandler::RemoveIPC(IPCRemoteV2 *in_remote) {
+IPCRemoteV2 *IPCRemoteV2Tracker::remove_ipc(IPCRemoteV2 *in_remote) {
     local_locker lock(&ipc_locker);
 
     IPCRemoteV2 *ret = NULL;
@@ -373,13 +373,13 @@ IPCRemoteV2 *IPCRemoteHandler::RemoveIPC(IPCRemoteV2 *in_remote) {
     return ret;
 }
 
-IPCRemoteV2 *IPCRemoteHandler::RemoveIPC(pid_t in_pid) {
+IPCRemoteV2 *IPCRemoteV2Tracker::remove_ipc(pid_t in_pid) {
     local_locker lock(&ipc_locker);
 
     IPCRemoteV2 *ret = NULL;
 
     for (unsigned int x = 0; x < process_vec.size(); x++) {
-        if (process_vec[x]->GetPid() == in_pid) {
+        if (process_vec[x]->get_pid() == in_pid) {
             ret = process_vec[x];
             process_vec.erase(process_vec.begin() + x);
             break;
@@ -389,24 +389,24 @@ IPCRemoteV2 *IPCRemoteHandler::RemoveIPC(pid_t in_pid) {
     return ret;
 }
 
-void IPCRemoteHandler::KillAllIPC(bool in_hardkill) {
+void IPCRemoteV2Tracker::kill_all_ipc(bool in_hardkill) {
     local_locker lock(&ipc_locker);
 
     // Leave everything in the vec until we properly reap it, we might
     // need to go back and kill it again
     for (unsigned int x = 0; x < process_vec.size(); x++) {
         if (in_hardkill)
-            process_vec[x]->HardKill();
+            process_vec[x]->hard_kill();
         else
-            process_vec[x]->Kill();
+            process_vec[x]->soft_kill();
     }
 }
 
-int IPCRemoteHandler::EnsureAllKilled(int in_soft_delay, int in_max_delay) {
+int IPCRemoteV2Tracker::ensure_all_ipc_killed(int in_soft_delay, int in_max_delay) {
     // We can't immediately lock since killall will need to
 
     // Soft-kill every process
-    KillAllIPC(false);
+    kill_all_ipc(false);
 
     time_t start_time = time(0);
 
@@ -423,11 +423,11 @@ int IPCRemoteHandler::EnsureAllKilled(int in_soft_delay, int in_max_delay) {
         // If we caught a pid, blindly remove it from the vec, we don't
         // care if we caught a pid we don't know about I suppose
         if (caught_pid > 0) {
-            killed_remote = RemoveIPC(caught_pid);
+            killed_remote = remove_ipc(caught_pid);
 
             // TODO decide if we're going to delete the IPC handler too
             if (killed_remote != NULL)
-                killed_remote->Close();
+                killed_remote->close_ipc();
         } else {
             // Sleep if we haven't caught anything, otherwise spin to catch all
             // pending processes
@@ -455,7 +455,7 @@ int IPCRemoteHandler::EnsureAllKilled(int in_soft_delay, int in_max_delay) {
 
     // If we need to kill things the hard way
     if (!vector_empty) {
-        KillAllIPC(true);
+        kill_all_ipc(true);
 
         while (1) {
             int pid_status;
@@ -467,11 +467,11 @@ int IPCRemoteHandler::EnsureAllKilled(int in_soft_delay, int in_max_delay) {
             // If we caught a pid, blindly remove it from the vec, we don't
             // care if we caught a pid we don't know about I suppose
             if (caught_pid > 0) {
-                killed_remote = RemoveIPC(caught_pid);
+                killed_remote = remove_ipc(caught_pid);
 
                 // TODO decide if we're going to delete the IPC handler too
                 if (killed_remote != NULL)
-                    killed_remote->Close();
+                    killed_remote->close_ipc();
             } else {
                 // Sleep if we haven't caught anything, otherwise spin to catch all
                 // pending processes
@@ -495,7 +495,7 @@ int IPCRemoteHandler::EnsureAllKilled(int in_soft_delay, int in_max_delay) {
     return -1;
 }
 
-int IPCRemoteHandler::timetracker_event(int event_id __attribute__((unused))) {
+int IPCRemoteV2Tracker::timetracker_event(int event_id __attribute__((unused))) {
     while (1) {
         int pid_status;
         pid_t caught_pid;
@@ -505,15 +505,15 @@ int IPCRemoteHandler::timetracker_event(int event_id __attribute__((unused))) {
         caught_pid = waitpid(-1, &pid_status, WNOHANG);
 
         if (caught_pid > 0) {
-            dead_remote = RemoveIPC(caught_pid);
+            dead_remote = remove_ipc(caught_pid);
 
             if (dead_remote != NULL) {
-                str << "IPC child pid " << dead_remote->GetPid() << " exited with " <<
+                str << "IPC child pid " << dead_remote->get_pid() << " exited with " <<
                     "status " << WEXITSTATUS(pid_status);
                 _MSG(str.str(), MSGFLAG_ERROR);
-                dead_remote->Close();
+                dead_remote->close_ipc();
 
-                if (dead_remote->GetTrackerFree())
+                if (dead_remote->get_tracker_free())
                     delete(dead_remote);
             }
         } else {

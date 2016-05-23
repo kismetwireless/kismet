@@ -56,7 +56,7 @@ KisDataSource::~KisDataSource() {
     pthread_mutex_destroy(&source_lock);
 
     if (source_ipc != NULL) {
-        source_ipc->HardKill();
+        source_ipc->hard_kill();
     }
 }
 
@@ -201,7 +201,7 @@ void KisDataSource::BufferAvailable(size_t in_amt) {
 bool KisDataSource::queue_ipc_command(string in_cmd, KVmap *in_kvpairs) {
 
     // If IPC is running just write it straight out
-    if (source_ipc != NULL && source_ipc->GetPid() > 0) {
+    if (source_ipc != NULL && source_ipc->get_pid() > 0) {
         bool ret = false;
 
         ret = write_ipc_packet(in_cmd, in_kvpairs);
@@ -455,7 +455,7 @@ void KisDataSource::handle_packet_error(KVmap in_kvpairs) {
         local_locker lock(&source_lock);
 
         // Kill the IPC
-        source_ipc->Kill();
+        source_ipc->soft_kill();
     }
 }
 
@@ -608,7 +608,7 @@ bool KisDataSource::spawn_ipc() {
             "process, killing existing process pid " << get_child_pid();
         _MSG(ss.str(), MSGFLAG_INFO);
 
-        source_ipc->Kill();
+        source_ipc->soft_kill();
     }
 
     // Make a new handler and new ipc.  Give a generous buffer.
@@ -621,7 +621,7 @@ bool KisDataSource::spawn_ipc() {
 
     vector<string> args;
 
-    int ret = source_ipc->LaunchKisBinary(get_source_ipc_bin(), args);
+    int ret = source_ipc->launch_kis_binary(get_source_ipc_bin(), args);
 
     if (ret < 0) {
         ss.str("");

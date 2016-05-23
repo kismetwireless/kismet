@@ -669,7 +669,7 @@ int main(int argc, char *argv[], char *envp[]) {
 	}
 
     // Create the IPC handler
-    new IPCRemoteHandler(globalregistry);
+    new IPCRemoteV2Tracker(globalregistry);
 
 	// Create the packet chain
 	globalregistry->packetchain = new Packetchain(globalregistry);

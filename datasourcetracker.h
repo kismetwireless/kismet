@@ -97,7 +97,7 @@ public:
     virtual ~DST_DataSourceProbe();
 
     string get_type() { return srctype; }
-    string get_time() { return start_time; }
+    time_t get_time() { return start_time; }
 
     bool get_complete() { return complete; }
 
@@ -130,8 +130,7 @@ public:
     // Launch a source.  If there is no type defined or the type is 'auto', attempt to
     // find the source.  When the source is opened or there is a failure, in_open_handler
     // will be called
-    int open_datasource(string in_source, KisDataSource::open_handler in_open_handler,
-            void *in_aux);
+    int open_datasource(string in_source);
 
     // Close a source which has been created
     int close_datasource(uuid in_src_uuid);
