@@ -83,6 +83,8 @@ string IPCRemoteV2::FindBinaryPath(string in_cmd) {
 }
 
 void IPCRemoteV2::close_ipc() {
+    soft_kill();
+
     if (pipeclient != NULL) {
         delete(pipeclient);
         pipeclient = NULL;
