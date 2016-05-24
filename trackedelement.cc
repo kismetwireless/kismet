@@ -646,6 +646,17 @@ TrackerElement *TrackerElement::get_macmap_value(int idx) {
     return i->second;
 }
 
+TrackerElement::vector_const_iterator TrackerElement::vec_begin() {
+    except_type_mismatch(TrackerVector);
+
+    return subvector_value.begin();
+}
+
+TrackerElement::vector_const_iterator TrackerElement::vec_end() {
+    except_type_mismatch(TrackerVector);
+
+    return subvector_value.end();
+}
 
 TrackerElement::mac_map_const_iterator TrackerElement::mac_begin() {
     except_type_mismatch(TrackerMacMap);

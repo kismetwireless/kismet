@@ -328,6 +328,8 @@ public:
     size_t size();
 
     typedef vector<TrackerElement *> tracked_vector;
+    typedef vector<TrackerElement *>::iterator vector_iterator;
+    typedef vector<TrackerElement *>::const_iterator vector_const_iterator;
 
     typedef map<int, TrackerElement *> tracked_map;
     typedef map<int, TrackerElement *>::iterator map_iterator;
@@ -348,6 +350,9 @@ public:
     typedef map<double, TrackerElement *> tracked_double_map;
     typedef map<double, TrackerElement *>::iterator double_map_iterator;
     typedef map<double, TrackerElement *>::const_iterator double_map_const_iterator;
+
+    vector_const_iterator vec_begin();
+    vector_const_iterator vec_end();
 
     map_const_iterator begin();
     map_const_iterator end();
