@@ -391,6 +391,12 @@ void KisDataSource::handle_packet_probe_resp(KVmap in_kvpairs) {
         handle_kv_message(i->second);
     }
 
+    // Process channels list if we got one
+    if ((i = in_kvpairs.find("channels")) != in_kvpairs.end()) {
+        if (!handle_kv_channels(i->second))
+            return;
+    }
+
     // Process success value and callback
     if ((i = in_kvpairs.find("success")) != in_kvpairs.end()) {
         local_locker lock(&source_lock);
@@ -405,12 +411,8 @@ void KisDataSource::handle_packet_probe_resp(KVmap in_kvpairs) {
         return;
     }
 
-    // Process channels list if we got one
-    if ((i = in_kvpairs.find("channels")) != in_kvpairs.end()) {
-        if (!handle_kv_channels(i->second))
-            return;
-    }
-
+    // Close the source since probe is done
+    source_ipc->close_ipc();
 }
 
 void KisDataSource::handle_packet_open_resp(KVmap in_kvpairs) {
@@ -419,6 +421,12 @@ void KisDataSource::handle_packet_open_resp(KVmap in_kvpairs) {
     // Process any messages
     if ((i = in_kvpairs.find("message")) != in_kvpairs.end()) {
         handle_kv_message(i->second);
+    }
+
+    // Process channels list if we got one
+    if ((i = in_kvpairs.find("channels")) != in_kvpairs.end()) {
+        if (!handle_kv_channels(i->second))
+            return;
     }
 
     // Process success value and callback
@@ -435,11 +443,6 @@ void KisDataSource::handle_packet_open_resp(KVmap in_kvpairs) {
         return;
     }
 
-    // Process channels list if we got one
-    if ((i = in_kvpairs.find("channels")) != in_kvpairs.end()) {
-        if (!handle_kv_channels(i->second))
-            return;
-    }
 }
 
 void KisDataSource::handle_packet_error(KVmap in_kvpairs) {
