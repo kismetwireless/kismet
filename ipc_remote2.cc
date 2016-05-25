@@ -512,11 +512,19 @@ int IPCRemoteV2Tracker::timetracker_event(int event_id __attribute__((unused))) 
             if (dead_remote != NULL) {
                 str << "IPC child pid " << dead_remote->get_pid() << " exited with " <<
                     "status " << WEXITSTATUS(pid_status);
-                _MSG(str.str(), MSGFLAG_ERROR);
+                _MSG(str.str(), MSGFLAG_INFO);
                 dead_remote->close_ipc();
 
-                if (dead_remote->get_tracker_free())
-                    delete(dead_remote);
+                if (dead_remote->get_tracker_free()) {
+                    str.str("");
+                    str << "Deleting tracked IPC for " << dead_remote->get_pid();
+                    _MSG(str.str(), MSGFLAG_INFO);
+                    delete (dead_remote);
+                }
+            } else {
+                str << "IPC child pid " << caught_pid << " exited with status " <<
+                     WEXITSTATUS(pid_status) << " but was not tracked";
+                _MSG(str.str(), MSGFLAG_INFO);
             }
         } else {
             break;
