@@ -51,7 +51,10 @@ KisDataSource::KisDataSource(GlobalRegistry *in_globalreg) :
 }
 
 KisDataSource::~KisDataSource() {
-    local_locker lock(&source_lock);
+    {
+        // Make sure no-one is holding a reference to us
+        local_locker lock(&source_lock);
+    }
 
     pthread_mutex_destroy(&source_lock);
 
