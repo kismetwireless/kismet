@@ -331,6 +331,11 @@ bool KisDataSource::open_source(string in_definition, open_handler in_cb, void *
 
     set_source_definition(in_definition);
 
+    // Launch the IPC, fail immediately if we can't
+    if (!spawn_ipc()) {
+        return false;
+    }
+
     return 0;
 }
 
@@ -588,7 +593,9 @@ bool KisDataSource::handle_kv_channels(KisDataSource_CapKeyedObject *in_obj) {
 bool KisDataSource::spawn_ipc() {
     stringstream ss;
 
-    local_locker lock(&source_lock);
+    // Do not lock thread, we can only be called when we're inside a locked
+    // context.
+    // local_locker lock(&source_lock);
 
     if (get_source_ipc_bin() == "") {
         ss << "Datasource '" << get_source_name() << "' missing IPC binary, cannot "
@@ -622,8 +629,13 @@ bool KisDataSource::spawn_ipc() {
     ipchandler->SetReadBufferInterface(this);
 
     source_ipc = new IPCRemoteV2(globalreg, ipchandler);
-    
-    // TODO set binary paths from config
+
+    // Get allowed paths for binaries
+    vector<string> bin_paths = globalreg->kismet_config->FetchOptVec("bin_paths");
+
+    for (vector<string>::iterator i = bin_paths.begin(); i != bin_paths.end(); ++i) {
+        source_ipc->add_path(*i);
+    }
 
     vector<string> args;
 
