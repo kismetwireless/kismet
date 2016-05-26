@@ -48,9 +48,12 @@
 
 class DataSourceTracker;
 class KisDataSource;
+class DST_Worker;
 
 // Worker class used to perform work on the list of packet-sources in a thread
 // safe / continuity safe context.
+//
+// DST workers may also be used to handle results from opening data sources
 class DST_Worker {
 public:
     DST_Worker() { };
@@ -61,6 +64,10 @@ public:
 
     // All data sources have been processed in iterate_datasources
     virtual void finalize(DataSourceTracker *in_tracker) { };
+
+    // Handle a source open result
+    virtual void handle_datasource_open(DataSourceTracker *in_tracker,
+            KisDataSource *in_src, bool in_success) { };
 };
 
 // Datasource prototype for easy tracking and exporting
@@ -90,27 +97,53 @@ protected:
     KisDataSource *proto_builder;
 };
 
-// Probing record
+// Probing record, generated to keep track of source responses during type probe.
+// Used as the auxptr for the probe callback.
+//
+// * Source added with 'auto' type
+// * All current sources instantiated in probe mode
+// * Probe called on each source with DST probe handler as the callback
+// * As probe responses come in, delete the probe instance of the source
+// * If a positive probe response comes in, remove handlers from all other probes and
+//   cancel the probes for the rest
 class DST_DataSourceProbe {
 public:
-    DST_DataSourceProbe(time_t in_time, string in_definition, KisDataSource *in_proto);
+    DST_DataSourceProbe(time_t in_time, string in_definition, 
+            DataSourceTracker *in_tracker, vector<KisDataSource *> in_protovec, 
+            DST_Worker *in_completion_worker);
     virtual ~DST_DataSourceProbe();
 
-    string get_type() { return srctype; }
     time_t get_time() { return start_time; }
+    DataSourceTracker *get_tracker() { return tracker; }
+    DST_Worker *get_completion_worker();
 
-    bool get_complete() { return complete; }
+    KisDataSource *get_proto();
+    void set_proto(KisDataSource *in_proto);
+
+    // Clear a source from the list, returns number of sources left in the list.  Used
+    // to purge failures out of the probe list and know when we've finished
+    size_t remove_failed_proto(KisDataSource *in_src);
+
+    bool get_complete();
 
     void cancel();
 
 protected:
+    pthread_mutex_t probe_lock;
+
+    DataSourceTracker *tracker;
+
+    DST_Worker *completion_worker;
+
+    // Vector of sources we're still waiting to return from probing
+    vector<KisDataSource *> protosrc_vec;
+
+    // Source we've found
     KisDataSource *protosrc;
 
     time_t start_time;
     string definition;
     bool complete;
-
-    string srctype;
 };
 
 class DataSourceTracker : public Kis_Net_Httpd_Stream_Handler {
@@ -129,8 +162,16 @@ public:
 
     // Launch a source.  If there is no type defined or the type is 'auto', attempt to
     // find the source.  When the source is opened or there is a failure, in_open_handler
-    // will be called
-    int open_datasource(string in_source);
+    // will be called.
+    //
+    // Opening a data source is an asynchronous operation - the worker will be called
+    // at some point in the future.  Callers requiring a blocking operation should call
+    // this in a dedicated thread and wait for the thread to re-join.
+    //
+    // Malformed source definitions will result in an immediate error & failure callback
+    // of the worker.  All other sources will result in an immediate success and async
+    // callback of the worker for final success.
+    int open_datasource(string in_source, DST_Worker *in_worker);
 
     // Close a source which has been created
     int close_datasource(uuid in_src_uuid);
@@ -162,7 +203,10 @@ protected:
     TrackerElement *datasource_vec;
 
     // Currently probing
-    vector<KisDataSource *> probing_vec;
+    vector<DST_DataSourceProbe *> probing_vec;
+
+    // Start a probe for finding a source to handle the auto type
+    void start_source_probe(string in_source);
 
     // Callbacks for source async operations
     static void probe_handler(KisDataSource *in_src, void *in_aux, bool in_success);
