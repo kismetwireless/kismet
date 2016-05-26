@@ -93,7 +93,6 @@ Data sources replace the PacketSource class in Kismet.
 
         KV Pairs:
             DEFINITION
-            MESSAGE
 
     OPENRESP (Driver->Server)
         Response to opening a device
