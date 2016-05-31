@@ -98,7 +98,6 @@ public:
     // Cancel the callbacks
     virtual void cancel_open_source();
 
-
     // Set channel or frequency, string-based definition.  Specifics of channel
     // and frequency definition are determined by the source phy.  Does not return,
     // source will go into error state instead because of async
@@ -139,6 +138,7 @@ public:
 
     // KV pair map
     typedef map<string, KisDataSource_CapKeyedObject *> KVmap;
+    typedef pair<string, KisDataSource_CapKeyedObject *> KVpair;
 
 protected:
     GlobalRegistry *in_globalreg;
@@ -266,7 +266,7 @@ public:
 class KisDataSource_CapKeyedObject {
 public:
     KisDataSource_CapKeyedObject(simple_cap_proto_kv *in_kp);
-    KisDataSource_CapKeyedObject(string in_key, char *in_object, ssize_t in_len);
+    KisDataSource_CapKeyedObject(string in_key, const char *in_object, ssize_t in_len);
     ~KisDataSource_CapKeyedObject();
 
     string key;

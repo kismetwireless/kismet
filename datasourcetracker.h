@@ -44,6 +44,17 @@
  *
  * Data sources communicate via the protocol defined in simple_cap_proto.h 
  * and may communicate packets or complete device objects.
+ *
+ * 'Auto' type sources (sources with type=auto or no type given) are 
+ * probed automatically via all the registered datasource drivers.  
+ * Datasource drivers may require starting a process in order to perform the
+ * probe, or they may be able to perform the probe in C++ native code.
+ *
+ * Once a source driver is found, it is instantiated as an active source and
+ * put in the list of sources.  Opening the source may result in an error, 
+ * but as the source is actually assigned, it will remain in the source list.
+ * This is to allow defining sources that may not be plugged in yet, etc.
+ *
  */
 
 class DataSourceTracker;
@@ -212,6 +223,8 @@ protected:
     static void probe_handler(KisDataSource *in_src, void *in_aux, bool in_success);
     static void open_handler(KisDataSource *in_src, void *in_aux, bool in_success);
     static void error_handler(KisDataSource *in_src, void *in_aux);
+
+    void launch_source(KisDataSource *in_src, DST_Worker *in_worker);
 
 };
 

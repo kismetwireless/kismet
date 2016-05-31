@@ -21,6 +21,7 @@
 #include "kis_datasource.h"
 #include "simple_datasource_proto.h"
 #include "endian_magic.h"
+#include "configfile.h"
 
 #ifdef HAVE_LIBPCRE
 #include <pcre.h>
@@ -323,9 +324,11 @@ void KisDataSource::cancel_error_handler() {
     error_aux = NULL;
 }
 
-bool KisDataSource::open_source(string in_definition, open_handler in_cb, void *in_aux) {
+bool KisDataSource::open_source(string in_definition, open_handler in_cb, 
+        void *in_aux) {
     local_locker lock(&source_lock);
 
+    // Set the callback to get run when we get the openresp
     open_callback = in_cb;
     open_aux = in_aux;
 
@@ -333,8 +336,20 @@ bool KisDataSource::open_source(string in_definition, open_handler in_cb, void *
 
     // Launch the IPC, fail immediately if we can't
     if (!spawn_ipc()) {
+        if (in_cb != NULL) {
+            (*in_cb)(this, in_aux, false);
+        }
         return false;
     }
+
+    KisDataSource_CapKeyedObject *definition =
+        new KisDataSource_CapKeyedObject("DEFINITION", in_definition.data(),
+                in_definition.length());
+    KVmap *kvmap = new KVmap();
+
+    kvmap->insert(KVpair("DEFINITION", definition));
+
+    queue_ipc_command("OPENDEVICE", kvmap);
 
     return 0;
 }
@@ -354,12 +369,66 @@ void KisDataSource::cancel_open_source() {
 }
 
 void KisDataSource::set_channel(string in_channel) {
+    if (source_ipc == NULL) {
+        _MSG("Attempt to set channel on source which is closed", MSGFLAG_ERROR);
+        return;
+    }
 
+    if (source_ipc->get_pid() <= 0) {
+        _MSG("Attempt to set channel on source with closed IPC", MSGFLAG_ERROR);
+        return;
+    }
+
+    KisDataSource_CapKeyedObject *chanset =
+        new KisDataSource_CapKeyedObject("CHANSET", in_channel.data(),
+                in_channel.length());
+    KVmap *kvmap = new KVmap();
+
+    kvmap->insert(KVpair("CHANSET", chanset));
+
+    queue_ipc_command("CONFIGURE", kvmap);
 }
 
 void KisDataSource::set_channel_hop(vector<string> in_channel_list, 
         double in_rate) {
 
+    if (source_ipc == NULL) {
+        _MSG("Attempt to set channel hop on source which is closed", MSGFLAG_ERROR);
+        return;
+    }
+
+    if (source_ipc->get_pid() <= 0) {
+        _MSG("Attempt to set channel hop on source with closed IPC", MSGFLAG_ERROR);
+        return;
+    }
+
+    stringstream stream;
+    msgpack::packer<std::stringstream> packer(&stream);
+
+    // 2-element dictionary
+    packer.pack_map(2);
+
+    // Pack the rate dictionary entry
+    packer.pack(string("rate"));
+    packer.pack(in_rate);
+
+    // Pack the vector of channels
+    packer.pack(string("channels"));
+    packer.pack_array(in_channel_list.size());
+
+    for (vector<string>::iterator i = in_channel_list.begin();
+            i != in_channel_list.end(); ++i) {
+        packer.pack(*i);
+    }
+
+    KisDataSource_CapKeyedObject *chanhop =
+        new KisDataSource_CapKeyedObject("CHANHOP", stream.str().data(),
+                stream.str().length());
+    KVmap *kvmap = new KVmap();
+
+    kvmap->insert(KVpair("CHANHOP", chanhop));
+
+    queue_ipc_command("CONFIGURE", kvmap);
 }
 
 void KisDataSource::handle_packet(string in_type, KVmap in_kvmap) {
@@ -643,9 +712,8 @@ bool KisDataSource::spawn_ipc() {
 
     if (ret < 0) {
         ss.str("");
-        ss << "Datasource '" << get_source_name() << 
-            "' failed to launch IPC binary '" <<
-            get_source_ipc_bin() << "'";
+        ss << "Datasource '" << get_source_name() << "' failed to launch IPC " <<
+            "binary '" << get_source_ipc_bin() << "'";
         _MSG(ss.str(), MSGFLAG_ERROR);
 
         // Call the handler if we have one
@@ -677,7 +745,7 @@ KisDataSource_CapKeyedObject::KisDataSource_CapKeyedObject(simple_cap_proto_kv *
 }
 
 KisDataSource_CapKeyedObject::KisDataSource_CapKeyedObject(string in_key,
-        char *in_object, ssize_t in_len) {
+        const char *in_object, ssize_t in_len) {
 
     key = in_key.substr(0, 16);
     object = new char[in_len];

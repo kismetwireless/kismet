@@ -125,7 +125,9 @@ Data sources replace the PacketSource class in Kismet.
     CHANNELS
         Conveys the list of channels supported by this device, if there is a
         user presentable list.  Channels are free-form strings which may be
-        unique to a phy, but should be human understandable.
+        unique to a phy, but should be human understandable.  Channel 
+        definitions may also represent frequencies in a form relevant to 
+        the phy such as "2412MHz", but are phy-specific
 
         Content: Msgpack packed dictionary of parameters containing the 
                  following:
@@ -139,6 +141,40 @@ Data sources replace the PacketSource class in Kismet.
 
         The CHANNELS pair is used to populate the available channels in
         a data source.
+
+    CHANSET
+        Set a specific channel (non-hopping).  Channels are free-form strings
+        which are human-readable and are phy-specific.  Channels may also 
+        represent frequencies if the source allows it.
+
+        Content: String containing the source definition.
+
+        Example:
+            "11HT20"
+            "2412MHz"
+
+    CHANHOP
+        Set hopping over a list of channels or frequencies.  Hop rate is
+        sent as a double containing the number of hops per second.  Hop rates
+        less than one are interpreted as multiple seconds per channel.
+
+        Content: Msgpack packed dictionary of channel parameters containing
+                 the following:
+
+                 "channels":stringvec   Vector of strings defining channels.
+                                        Complex channel definitions and
+                                        frequencies, which are phy-unique,
+                                        are permitted.
+                 "rate":double          Hop rate (channels per second).
+
+
+    DEFINITION
+        Standard source definition as a string.
+
+        Content: Basic string for defining the source.
+
+        Example:
+            wlan0:hop=true,name=foo
 
     GPS
         If a driver contains its own location information (or is running on 

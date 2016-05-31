@@ -73,8 +73,19 @@ DST_DataSourceProbe::~DST_DataSourceProbe() {
     // Cancel any probing sources and delete them
     for (vector<KisDataSource *>::iterator i = protosrc_vec.begin();
             i != protosrc_vec.end(); ++i) {
+
+        // Protosrc is special if it's in there for some reason still
+        if ((*i) == protosrc)
+            continue;
+
         (*i)->cancel_probe_source();
         delete(*i);
+    }
+
+    // Kill the protosrc if it's still around
+    if (protosrc != NULL) {
+        protosrc->cancel_open_source();
+        delete(protosrc);
     }
 }
 
@@ -84,13 +95,19 @@ void DST_DataSourceProbe::cancel() {
     // Cancel any probing sources and delete them
     for (vector<KisDataSource *>::iterator i = protosrc_vec.begin();
          i != protosrc_vec.end(); ++i) {
+
+        // Don't delete the successful source!
+        if ((*i) == protosrc)
+            continue;
+
         (*i)->cancel_probe_source();
         delete(*i);
     }
 
     protosrc_vec.clear();
 
-    // We're done, whatever the state is
+    // We're done, whatever the state is; if protosrc is filled in
+    // we found a driver & type and can use it to build our final instance
     complete = true;
 }
 
@@ -321,14 +338,15 @@ void DataSourceTracker::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
 
 }
 
-int DataSourceTracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind, const char *key,
-      const char *filename, const char *content_type, const char *transfer_encoding,
-      const char *data, uint64_t off, size_t size) {
+int DataSourceTracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind, 
+        const char *key, const char *filename, const char *content_type, 
+        const char *transfer_encoding, const char *data, uint64_t off, size_t size) {
 
     return 0;
 }
 
-void DataSourceTracker::probe_handler(KisDataSource *in_src, void *in_aux, bool in_success) {
+void DataSourceTracker::probe_handler(KisDataSource *in_src, void *in_aux, 
+        bool in_success) {
     DST_DataSourceProbe *dstproto = (DST_DataSourceProbe *) in_aux;
     DataSourceTracker *tracker = dstproto->get_tracker();
 
@@ -348,7 +366,8 @@ void DataSourceTracker::probe_handler(KisDataSource *in_src, void *in_aux, bool 
     // Otherwise nothing to do
 }
 
-void DataSourceTracker::open_handler(KisDataSource *in_src, void *in_aux, bool in_success) {
+void DataSourceTracker::open_handler(KisDataSource *in_src, void *in_aux, 
+        bool in_success) {
 
 }
 
