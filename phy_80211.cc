@@ -841,7 +841,7 @@ void Kis_80211_Phy::HandleClient(kis_tracked_device_base *basedev,
 
                 fprintf(stderr, "debug - back-associating %s as a client of %s\n", basedev->get_macaddr().Mac2String().c_str(), dot11info->bssid_mac.Mac2String().c_str());
 
-                backdot11->get_associated_client_map()->add_macmap(basedev->get_macaddr(), backdev->get_tracker_key());
+                backdot11->get_associated_client_map()->add_macmap(basedev->get_macaddr(), basedev->get_tracker_key());
             }
         }
     }
