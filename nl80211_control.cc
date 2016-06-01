@@ -489,6 +489,7 @@ int mac80211_get_chanlist(const char *interface, vector<unsigned int> *chan_list
 
 	mac80211_disconnect(handle);
 	(*chan_list) = cblock.channel_list;
+
 	return cblock.channel_list.size();
 #endif
 }
@@ -504,7 +505,7 @@ string mac80211_find_parent(const char *interface) {
 		return "";
 
 	while ((devfile = readdir(devdir)) != NULL) {
-		if (strlen(devfile->d_name) < 13)
+		if (strlen(devfile->d_name) < 9)
 			continue;
 
 		if (strncmp("ieee80211:phy", devfile->d_name, 13) == 0) {
@@ -513,6 +514,27 @@ string mac80211_find_parent(const char *interface) {
 			closedir(devdir);
 			return dev;
 		}
+
+        if (strncmp("ieee80211", devfile->d_name, 9) == 0) {
+            DIR *ieeedir;
+            struct dirent *ieeefile;
+            string ieeedirpath = dirpath + "/ieee80211";
+
+            if ((ieeedir = opendir(ieeedirpath.c_str())) != NULL) {
+                while ((ieeefile = readdir(ieeedir)) != NULL) {
+                    if (strncmp("phy", ieeefile->d_name, 3) == 0) {
+                        string dev = string(ieeefile->d_name);
+
+                        closedir(ieeedir);
+                        closedir(devdir);
+
+                        return dev;
+                    }
+                }
+            }
+
+            closedir(ieeedir);
+        }
 	}
 
 	closedir(devdir);
