@@ -713,83 +713,37 @@ uint32_t Adler32Checksum(const char *buf1, int len) {
 	return (s1 & 0xffff) + (s2 << 16);
 }
 
-int IEEE80211Freq[][2] = {
-	{1, 2412},
-	{2, 2417},
-	{3, 2422},
-	{4, 2427},
-	{5, 2432},
-	{6, 2437},
-	{7, 2442},
-	{8, 2447},
-	{9, 2452},
-	{10, 2457},
-	{11, 2462},
-	{12, 2467},
-	{13, 2472},
-	{14, 2484},
-	// We could do the math here, but what about 4ghz nonsense?
-	// We'll do table lookups for now.
-	{36, 5180},
-	{37, 5185},
-	{38, 5190},
-	{39, 5195},
-	{40, 5200},
-	{41, 5205},
-	{42, 5210},
-	{43, 5215},
-	{44, 5220},
-	{45, 5225},
-	{46, 5230},
-	{47, 5235},
-	{48, 5240},
-	{52, 5260},
-	{53, 5265},
-	{54, 5270},
-	{55, 5275},
-	{56, 5280},
-	{57, 5285},
-	{58, 5290},
-	{59, 5295},
-	{60, 5300},
-	{64, 5320},
-	{149, 5745},
-	{150, 5750},
-	{152, 5760},
-	{153, 5765},
-	{157, 5785},
-	{160, 5800},
-	{161, 5805},
-	{165, 5825},
-	{0, 0}
-};
-
 int ChanToFreq(int in_chan) {
-    int x = 0;
-    // 80211b frequencies to channels
+	// 80211 frequencies to channels
+	// Stolen from Linux net/wireless/util.c
+	if (in_chan == 14)
+		return 2484;
+	else if (in_chan < 14)
+		return 2407 + in_chan * 5;
+	if (in_chan >= 182 && in_chan <= 196)
+		return 4000 + in_chan * 5;
+	else
+		return 5000 + in_chan * 5;
 
-    while (IEEE80211Freq[x][0] != 0) {
-        if (IEEE80211Freq[x][0] == in_chan) {
-            return IEEE80211Freq[x][1];
-        }
-        x++;
-    }
-
-    return in_chan;
+	return in_chan;
 }
 
 int FreqToChan(int in_freq) {
-    int x = 0;
-    // 80211b frequencies to channels
-
-    while (IEEE80211Freq[x][1] != 0) {
-        if (IEEE80211Freq[x][1] == in_freq) {
-            return IEEE80211Freq[x][0];
-        }
-        x++;
-    }
-
-    return in_freq;
+	// 80211 frequencies to channels
+	// Stolen from Linux net/wireless/util.c
+	/* see 802.11 17.3.8.3.2 and Annex J */
+	if (in_freq == 2484)
+		return 14;
+	else if (in_freq < 2484)
+		return (in_freq - 2407) / 5;
+	else if (in_freq >= 4910 && in_freq <= 4980)
+		return (in_freq - 4000) / 5;
+	else if (in_freq <= 45000) /* DMG band lower limit */
+		return (in_freq - 5000) / 5;
+	else if (in_freq >= 58320 && in_freq <= 64800)
+		return (in_freq - 56160) / 2160;
+        else
+		return in_freq;
 }
 
 // Multiplatform method of setting a process title.  Lifted from proftpd main.c
