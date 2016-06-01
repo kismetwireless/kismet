@@ -679,12 +679,20 @@ TrackerElement::mac_map_iterator TrackerElement::mac_find(mac_addr k) {
 void TrackerElement::add_macmap(mac_addr i, TrackerElement *s) {
     except_type_mismatch(TrackerMacMap);
 
+    TrackerElement *old = NULL;
+
     mac_map_iterator mi = submacmap_value.find(i);
-    if (mi != submacmap_value.end())
-        mi->second->unlink();
+
+    if (mi != submacmap_value.end()) {
+        old = mi->second;
+    }
 
     submacmap_value[i] = s;
+
     s->link();
+
+    if (old != NULL)
+        old->unlink();
 }
 
 void TrackerElement::del_macmap(mac_addr f) {
@@ -697,10 +705,32 @@ void TrackerElement::del_macmap(mac_addr f) {
     }
 }
 
+void TrackerElement::del_macmap(mac_map_iterator i) {
+    except_type_mismatch(TrackerMacMap);
+
+    i->second->unlink();
+    submacmap_value.erase(i);
+}
+
 void TrackerElement::clear_macmap() {
     except_type_mismatch(TrackerMacMap);
 
+    for (mac_map_iterator i = submacmap_value.begin();
+            i != submacmap_value.end(); ++i) {
+        i->second->unlink();
+    }
+
     submacmap_value.clear();
+}
+
+void TrackerElement::insert_macmap(mac_map_pair p) {
+    except_type_mismatch(TrackerMacMap);
+
+    std::pair<mac_map_iterator, bool> ret = submacmap_value.insert(p);
+
+    if (ret.second) {
+        ret.first->second->link();
+    }
 }
 
 TrackerElement *TrackerElement::get_stringmap_value(string idx) {
@@ -736,12 +766,20 @@ TrackerElement::string_map_iterator TrackerElement::string_find(string k) {
 void TrackerElement::add_stringmap(string i, TrackerElement *s) {
     except_type_mismatch(TrackerStringMap);
 
+    TrackerElement *old = NULL;
+
     string_map_iterator mi = substringmap_value.find(i);
-    if (mi != substringmap_value.end())
-        mi->second->unlink();
+
+    if (mi != substringmap_value.end()) {
+        old = mi->second;
+    }
 
     substringmap_value[i] = s;
+
     s->link();
+
+    if (old != NULL)
+        old->unlink();
 }
 
 void TrackerElement::del_stringmap(string f) {
@@ -754,10 +792,33 @@ void TrackerElement::del_stringmap(string f) {
     }
 }
 
+void TrackerElement::del_stringmap(string_map_iterator i) {
+    except_type_mismatch(TrackerStringMap);
+
+    i->second->unlink();
+
+    substringmap_value.erase(i);
+}
+
 void TrackerElement::clear_stringmap() {
     except_type_mismatch(TrackerStringMap);
 
+    for (string_map_iterator i = substringmap_value.begin();
+            i != substringmap_value.end(); ++i) {
+        i->second->unlink();
+    }
+
     substringmap_value.clear();
+}
+
+void TrackerElement::insert_stringmap(string_map_pair p) {
+    except_type_mismatch(TrackerStringMap);
+
+    std::pair<string_map_iterator, bool> ret = substringmap_value.insert(p);
+
+    if (ret.second) {
+        ret.first->second->link();
+    }
 }
 
 TrackerElement *TrackerElement::get_doublemap_value(double idx) {
@@ -793,12 +854,20 @@ TrackerElement::double_map_iterator TrackerElement::double_find(double k) {
 void TrackerElement::add_doublemap(double i, TrackerElement *s) {
     except_type_mismatch(TrackerDoubleMap);
 
+    TrackerElement *old = NULL;
+
     double_map_iterator mi = subdoublemap_value.find(i);
-    if (mi != subdoublemap_value.end())
-        mi->second->unlink();
+
+    if (mi != subdoublemap_value.end()) {
+        old = mi->second;
+    }
 
     subdoublemap_value[i] = s;
+
     s->link();
+
+    if (old != NULL)
+        old->unlink();
 }
 
 void TrackerElement::del_doublemap(double f) {
@@ -811,12 +880,33 @@ void TrackerElement::del_doublemap(double f) {
     }
 }
 
+void TrackerElement::del_doublemap(double_map_iterator i) {
+    except_type_mismatch(TrackerDoubleMap);
+
+    i->second->unlink();
+    subdoublemap_value.erase(i);
+}
+
 void TrackerElement::clear_doublemap() {
     except_type_mismatch(TrackerDoubleMap);
+
+    for (double_map_iterator i = subdoublemap_value.begin();
+            i != subdoublemap_value.end(); ++i) {
+        i->second->unlink();
+    }
 
     subdoublemap_value.clear();
 }
 
+void TrackerElement::insert_doublemap(double_map_pair p) {
+    except_type_mismatch(TrackerDoubleMap);
+
+    std::pair<double_map_iterator, bool> ret = subdoublemap_value.insert(p);
+
+    if (ret.second) {
+        ret.first->second->link();
+    }
+}
 
 string TrackerElement::type_to_string(TrackerType t) {
     switch (t) {
@@ -865,31 +955,41 @@ string TrackerElement::type_to_string(TrackerType t) {
 
 void TrackerElement::add_map(int f, TrackerElement *s) {
     except_type_mismatch(TrackerMap);
-    bool addlink = true;
 
-    // Don't link twice into the same map
+    TrackerElement *old = NULL;
+
     map_iterator mi = submap_value.find(f);
-    if (mi != submap_value.end()) 
-        addlink = false;
+
+    if (mi != submap_value.end()) {
+        old = mi->second;
+    }
 
     submap_value[f] = s;
 
-    if (addlink)
-        s->link();
+    s->link();
+
+    if (old != NULL)
+        old->unlink();
 }
 
 void TrackerElement::add_map(TrackerElement *s) {
     except_type_mismatch(TrackerMap);
-    bool addlink = true;
+
+
+    TrackerElement *old = NULL;
 
     map_iterator mi = submap_value.find(s->get_id());
-    if (mi != submap_value.end())
-        addlink = false;
+
+    if (mi != submap_value.end()) {
+        old = mi->second;
+    }
 
     submap_value[s->get_id()] = s;
 
-    if (addlink)
-        s->link();
+    s->link();
+
+    if (old != NULL)
+        old->unlink();
 }
 
 void TrackerElement::del_map(int f) {
@@ -904,6 +1004,33 @@ void TrackerElement::del_map(int f) {
 
 void TrackerElement::del_map(TrackerElement *e) {
     del_map(e->get_id());
+}
+
+void TrackerElement::del_map(map_iterator i) {
+    except_type_mismatch(TrackerMap);
+    i->second->unlink();
+    submap_value.erase(i);
+}
+
+void TrackerElement::insert_map(tracked_pair p) {
+    except_type_mismatch(TrackerMap);
+
+    std::pair<map_iterator, bool> ret = submap_value.insert(p);
+
+    if (ret.second) {
+        ret.first->second->link();
+    }
+}
+
+void TrackerElement::clear_map() {
+    except_type_mismatch(TrackerMap);
+    
+    for (map_iterator i = submap_value.begin();
+            i != submap_value.end(); ++i) {
+        i->second->unlink();
+    }
+
+    submap_value.clear();
 }
 
 TrackerElement *TrackerElement::get_intmap_value(int idx) {
@@ -939,21 +1066,41 @@ TrackerElement::int_map_iterator TrackerElement::int_find(int k) {
 void TrackerElement::clear_intmap() {
     except_type_mismatch(TrackerIntMap);
 
+    for (int_map_iterator i = subintmap_value.begin(); 
+            i != subintmap_value.end(); ++i) {
+        i->second->unlink();
+    }
+
     subintmap_value.clear();
+}
+
+void TrackerElement::insert_intmap(int_map_pair p) {
+    except_type_mismatch(TrackerIntMap);
+
+    std::pair<int_map_iterator, bool> ret = subintmap_value.insert(p);
+
+    if (ret.second) {
+        ret.first->second->link();
+    }
 }
 
 void TrackerElement::add_intmap(int i, TrackerElement *s) {
     except_type_mismatch(TrackerIntMap);
-    bool addlink = true;
 
-    map_iterator mi = subintmap_value.find(i);
-    if (mi != subintmap_value.end())
-        addlink = false;
+    TrackerElement *old = NULL;
+
+    int_map_iterator mi = subintmap_value.find(i);
+
+    if (mi != subintmap_value.end()) {
+        old = mi->second;
+    }
 
     subintmap_value[i] = s;
 
-    if (addlink)
-        s->link();
+    s->link();
+
+    if (old != NULL)
+        old->unlink();
 }
 
 void TrackerElement::del_intmap(int i) {
@@ -961,9 +1108,16 @@ void TrackerElement::del_intmap(int i) {
 
     map<int, TrackerElement *>::iterator itr = subintmap_value.find(i);
     if (itr != subintmap_value.end()) {
-        submap_value.erase(i);
+        subintmap_value.erase(i);
         itr->second->unlink();
     }
+}
+
+void TrackerElement::del_intmap(int_map_iterator i) {
+    except_type_mismatch(TrackerIntMap);
+
+    i->second->unlink();
+    subintmap_value.erase(i);
 }
 
 void TrackerElement::add_vector(TrackerElement *s) {
@@ -986,6 +1140,14 @@ void TrackerElement::del_vector(unsigned int p) {
     subvector_value.erase(i);
 
     e->unlink();
+}
+
+void TrackerElement::del_vector(vector_iterator i) {
+    except_type_mismatch(TrackerVector);
+
+    (*i)->unlink();
+
+    subvector_value.erase(i);
 }
 
 void TrackerElement::clear_vector() {

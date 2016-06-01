@@ -320,11 +320,6 @@ public:
         uuid_value = v;
     }
 
-    void add_map(int f, TrackerElement *s);
-    void add_map(TrackerElement *s); 
-    void del_map(int f);
-    void del_map(TrackerElement *s);
-
     size_t size();
 
     typedef vector<TrackerElement *> tracked_vector;
@@ -334,22 +329,27 @@ public:
     typedef map<int, TrackerElement *> tracked_map;
     typedef map<int, TrackerElement *>::iterator map_iterator;
     typedef map<int, TrackerElement *>::const_iterator map_const_iterator;
+    typedef pair<int, TrackerElement *> tracked_pair;
 
     typedef map<int, TrackerElement *> tracked_int_map;
     typedef map<int, TrackerElement *>::iterator int_map_iterator;
     typedef map<int, TrackerElement *>::const_iterator int_map_const_iterator;
+    typedef pair<int, TrackerElement *> int_map_pair;
 
     typedef map<mac_addr, TrackerElement *> tracked_mac_map;
     typedef map<mac_addr, TrackerElement *>::iterator mac_map_iterator;
     typedef map<mac_addr, TrackerElement *>::const_iterator mac_map_const_iterator;
+    typedef pair<mac_addr, TrackerElement *> mac_map_pair;
 
     typedef map<string, TrackerElement *> tracked_string_map;
     typedef map<string, TrackerElement *>::iterator string_map_iterator;
     typedef map<string, TrackerElement *>::const_iterator string_map_const_iterator;
+    typedef pair<string, TrackerElement *> string_map_pair;
 
     typedef map<double, TrackerElement *> tracked_double_map;
     typedef map<double, TrackerElement *>::iterator double_map_iterator;
     typedef map<double, TrackerElement *>::const_iterator double_map_const_iterator;
+    typedef pair<double, TrackerElement *> double_map_pair;
 
     vector_const_iterator vec_begin();
     vector_const_iterator vec_end();
@@ -357,10 +357,20 @@ public:
     map_const_iterator begin();
     map_const_iterator end();
     map_iterator find(int k);
+    void clear_map();
+
+    void add_map(int f, TrackerElement *s);
+    void add_map(TrackerElement *s); 
+    void del_map(int f);
+    void del_map(TrackerElement *s);
+    void del_map(map_iterator i);
+    void insert_map(tracked_pair p);
 
     void add_intmap(int i, TrackerElement *s);
     void del_intmap(int i);
+    void del_intmap(int_map_iterator i);
     void clear_intmap();
+    void insert_intmap(int_map_pair p);
 
     TrackerElement *get_intmap_value(int idx);
     int_map_const_iterator int_begin();
@@ -369,7 +379,9 @@ public:
 
     void add_macmap(mac_addr i, TrackerElement *s);
     void del_macmap(mac_addr i);
+    void del_macmap(mac_map_iterator i);
     void clear_macmap();
+    void insert_macmap(mac_map_pair p);
 
     TrackerElement *get_macmap_value(int idx);
     mac_map_const_iterator mac_begin();
@@ -378,7 +390,9 @@ public:
 
     void add_stringmap(string i, TrackerElement *s);
     void del_stringmap(string i);
+    void del_stringmap(string_map_iterator i);
     void clear_stringmap();
+    void insert_stringmap(string_map_pair p);
 
     TrackerElement *get_stringmap_value(string idx);
     string_map_const_iterator string_begin();
@@ -387,7 +401,9 @@ public:
 
     void add_doublemap(double i, TrackerElement *s);
     void del_doublemap(double i);
+    void del_doublemap(double_map_iterator i);
     void clear_doublemap();
+    void insert_doublemap(double_map_pair p);
 
     TrackerElement *get_doublemap_value(double idx);
     double_map_const_iterator double_begin();
@@ -396,8 +412,8 @@ public:
 
     void add_vector(TrackerElement *s);
     void del_vector(unsigned int p);
+    void del_vector(vector_iterator i);
     void clear_vector();
-
 
     // Do our best to increment a value
     TrackerElement& operator++(const int);
@@ -558,6 +574,247 @@ protected:
     uuid uuid_value;
 
     void *custom_value;
+};
+
+// Helper child classes
+class TrackerElementVector {
+protected:
+    TrackerElement *val;
+
+public:
+    TrackerElementVector(TrackerElement *t) {
+        val = t;
+        val->link();
+    }
+
+    virtual ~TrackerElementVector() {
+        val->unlink();
+    }
+
+    virtual TrackerElement::vector_const_iterator begin() {
+        return val->vec_begin();
+    }
+
+    virtual TrackerElement::vector_const_iterator end() {
+        return val->vec_end();
+    }
+
+    virtual void clear() {
+        return val->clear_vector();
+    }
+
+    virtual void push_back(TrackerElement *i) {
+        return val->add_vector(i);
+    }
+
+    virtual void erase(unsigned int p) {
+        return val->del_vector(p);
+    }
+
+    virtual void erase(TrackerElement::vector_iterator i) {
+        return val->del_vector(i);
+    }
+
+};
+
+class TrackerElementMap {
+protected:
+    TrackerElement *val;
+
+public:
+    TrackerElementMap(TrackerElement *t) {
+        val = t;
+        val->link();
+    }
+
+    virtual ~TrackerElementMap() {
+        val->unlink();
+    }
+
+public:
+    virtual TrackerElement::map_const_iterator begin() {
+        return val->begin();
+    }
+
+    virtual TrackerElement::map_const_iterator end() {
+        return val->end();
+    }
+
+    virtual TrackerElement::map_iterator find(int k) {
+        return val->find(k);
+    }
+
+    virtual void insert(TrackerElement::tracked_pair p) {
+        return val->insert_map(p);
+    }
+
+    virtual void erase(TrackerElement::map_iterator i) {
+        return val->del_map(i);
+    }
+
+    virtual void clear() {
+        return val->clear_map();
+    }
+};
+
+class TrackerElementIntMap {
+protected:
+    TrackerElement *val;
+
+public:
+    TrackerElementIntMap(TrackerElement *t) {
+        val = t;
+        val->link();
+    }
+
+    virtual ~TrackerElementIntMap() {
+        val->unlink();
+    }
+
+public:
+    virtual TrackerElement::int_map_const_iterator begin() {
+        return val->int_begin();
+    }
+
+    virtual TrackerElement::int_map_const_iterator end() {
+        return val->int_end();
+    }
+
+    virtual TrackerElement::int_map_iterator find(int k) {
+        return val->int_find(k);
+    }
+
+    virtual void insert(TrackerElement::int_map_pair p) {
+        return val->insert_intmap(p);
+    }
+
+    virtual void erase(TrackerElement::int_map_iterator i) {
+        return val->del_intmap(i);
+    }
+
+    virtual void clear() {
+        return val->clear_intmap();
+    }
+};
+
+class TrackerElementStringMap {
+protected:
+    TrackerElement *val;
+
+public:
+    TrackerElementStringMap(TrackerElement *t) {
+        val = t;
+        val->link();
+    }
+
+    virtual ~TrackerElementStringMap() {
+        val->unlink();
+    }
+
+public:
+    virtual TrackerElement::string_map_const_iterator begin() {
+        return val->string_begin();
+    }
+
+    virtual TrackerElement::string_map_const_iterator end() {
+        return val->string_end();
+    }
+
+    virtual TrackerElement::string_map_iterator find(string k) {
+        return val->string_find(k);
+    }
+
+    virtual void insert(TrackerElement::string_map_pair p) {
+        return val->insert_stringmap(p);
+    }
+
+    virtual void erase(TrackerElement::string_map_iterator i) {
+        return val->del_stringmap(i);
+    }
+
+    virtual void clear() {
+        return val->clear_stringmap();
+    }
+};
+
+class TrackerElementMacMap {
+protected:
+    TrackerElement *val;
+
+public:
+    TrackerElementMacMap(TrackerElement *t) {
+        val = t;
+        val->link();
+    }
+
+    virtual ~TrackerElementMacMap() {
+        val->unlink();
+    }
+
+public:
+    virtual TrackerElement::mac_map_const_iterator begin() {
+        return val->mac_begin();
+    }
+
+    virtual TrackerElement::mac_map_const_iterator end() {
+        return val->mac_end();
+    }
+
+    virtual TrackerElement::mac_map_iterator find(mac_addr k) {
+        return val->mac_find(k);
+    }
+
+    virtual void insert(TrackerElement::mac_map_pair p) {
+        return val->insert_macmap(p);
+    }
+
+    virtual void erase(TrackerElement::mac_map_iterator i) {
+        return val->del_macmap(i);
+    }
+
+    virtual void clear() {
+        return val->clear_macmap();
+    }
+};
+
+class TrackerElementDoubleMap {
+protected:
+    TrackerElement *val;
+
+public:
+    TrackerElementDoubleMap(TrackerElement *t) {
+        val = t;
+        val->link();
+    }
+
+    virtual ~TrackerElementDoubleMap() {
+        val->unlink();
+    }
+
+public:
+    virtual TrackerElement::double_map_const_iterator begin() {
+        return val->double_begin();
+    }
+
+    virtual TrackerElement::double_map_const_iterator end() {
+        return val->double_end();
+    }
+
+    virtual TrackerElement::double_map_iterator find(double k) {
+        return val->double_find(k);
+    }
+
+    virtual void insert(TrackerElement::double_map_pair p) {
+        return val->insert_doublemap(p);
+    }
+
+    virtual void erase(TrackerElement::double_map_iterator i) {
+        return val->del_doublemap(i);
+    }
+
+    virtual void clear() {
+        return val->clear_doublemap();
+    }
 };
 
 // Templated access functions
