@@ -948,8 +948,9 @@ protected:
         associated_client_map_id =
             RegisterField("dot11.device.associated_client_map", TrackerMacMap,
                     "associated clients", (void **) &associated_client_map);
+        // Key of associated device, indexed by mac address
         associated_client_map_entry_id =
-            RegisterField("dot11.device.associated_client", TrackerMac,
+            RegisterField("dot11.device.associated_client", TrackerUInt64,
                     "associated client");
 
         client_disconnects_id =

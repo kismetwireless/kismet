@@ -754,7 +754,7 @@ void Kis_80211_Phy::HandleClient(kis_tracked_device_base *basedev,
     bool new_client = false;
     if (client_itr == client_map->mac_end()) {
         client = dot11dev->new_client();
-        fprintf(stderr, "debug - associating client %s with %s\n", basedev->get_macaddr().Mac2String().c_str(), dot11info->bssid_mac.Mac2String().c_str());
+        fprintf(stderr, "debug - associating as client %s with %s\n", basedev->get_macaddr().Mac2String().c_str(), dot11info->bssid_mac.Mac2String().c_str());
         client_map->add_macmap(dot11info->bssid_mac, client);
         new_client = true;
     } else {
@@ -818,9 +818,29 @@ void Kis_80211_Phy::HandleClient(kis_tracked_device_base *basedev,
     if (pack_gpsinfo != NULL && pack_gpsinfo->fix > 1) {
         client->get_location()->add_loc(pack_gpsinfo->lat, pack_gpsinfo->lon,
                 pack_gpsinfo->alt, pack_gpsinfo->fix);
-
     }
 
+    // Try to make the back-record of us in the device we're a client OF
+    kis_tracked_device_base *backdev =
+        devicetracker->FetchDevice(dot11info->bssid_mac, phyid);
+    if (backdev == NULL) {
+        fprintf(stderr, "debug - tried to back-associate device %s as a client of %s but couldn't find the parent record\n", basedev->get_macaddr().Mac2String().c_str(), dot11info->bssid_mac.Mac2String().c_str());
+    } else {
+        dot11_tracked_device *backdot11 = 
+            (dot11_tracked_device *) backdev->get_map_value(dot11_device_entry_id);
+
+        if (backdot11 == NULL) {
+            fprintf(stderr, "debug - tried to back-associate device %s as a client of %s with a parent record, but not dot11 record\n", basedev->get_macaddr().Mac2String().c_str(), dot11info->bssid_mac.Mac2String().c_str());
+        } else {
+            if (backdot11->get_associated_client_map()->mac_find(dot11info->bssid_mac) ==
+                    backdot11->get_associated_client_map()->mac_end()) {
+
+                fprintf(stderr, "debug - back-associating %s as a client of %s\n", basedev->get_macaddr().Mac2String().c_str(), dot11info->bssid_mac.Mac2String().c_str());
+
+                backdot11->get_associated_client_map()->add_macmap(dot11info->bssid_mac, backdev->get_tracker_key());
+            }
+        }
+    }
 }
 
 static int packetnum = 0;
