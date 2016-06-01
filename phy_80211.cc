@@ -754,7 +754,7 @@ void Kis_80211_Phy::HandleClient(kis_tracked_device_base *basedev,
     bool new_client = false;
     if (client_itr == client_map->mac_end()) {
         client = dot11dev->new_client();
-        fprintf(stderr, "debug - associating as client %s with %s\n", basedev->get_macaddr().Mac2String().c_str(), dot11info->bssid_mac.Mac2String().c_str());
+        fprintf(stderr, "debug - %s is a client of %s making client behavior record\n", basedev->get_macaddr().Mac2String().c_str(), dot11info->bssid_mac.Mac2String().c_str());
         client_map->add_macmap(dot11info->bssid_mac, client);
         new_client = true;
     } else {
@@ -826,18 +826,22 @@ void Kis_80211_Phy::HandleClient(kis_tracked_device_base *basedev,
     if (backdev == NULL) {
         fprintf(stderr, "debug - tried to back-associate device %s as a client of %s but couldn't find the parent record\n", basedev->get_macaddr().Mac2String().c_str(), dot11info->bssid_mac.Mac2String().c_str());
     } else {
+        // fprintf(stderr, "debug - found device record %p for %s\n", backdev, dot11info->bssid_mac.Mac2String().c_str());
+
         dot11_tracked_device *backdot11 = 
             (dot11_tracked_device *) backdev->get_map_value(dot11_device_entry_id);
 
         if (backdot11 == NULL) {
             fprintf(stderr, "debug - tried to back-associate device %s as a client of %s with a parent record, but not dot11 record\n", basedev->get_macaddr().Mac2String().c_str(), dot11info->bssid_mac.Mac2String().c_str());
         } else {
+            // fprintf(stderr, "debug - found dot11 record %p for %s\n", backdot11, dot11info->bssid_mac.Mac2String().c_str());
+
             if (backdot11->get_associated_client_map()->mac_find(dot11info->bssid_mac) ==
                     backdot11->get_associated_client_map()->mac_end()) {
 
                 fprintf(stderr, "debug - back-associating %s as a client of %s\n", basedev->get_macaddr().Mac2String().c_str(), dot11info->bssid_mac.Mac2String().c_str());
 
-                backdot11->get_associated_client_map()->add_macmap(dot11info->bssid_mac, backdev->get_tracker_key());
+                backdot11->get_associated_client_map()->add_macmap(basedev->get_macaddr(), backdev->get_tracker_key());
             }
         }
     }
@@ -913,7 +917,7 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
         (dot11_tracked_device *) basedev->get_map_value(dot11_device_entry_id);
 
     if (dot11dev == NULL) {
-        printf("debug - phydot11 making new 802.11 device record for '%s'\n",
+        fprintf(stderr, "debug - phydot11 making new 802.11 device record for '%s'\n",
                 commoninfo->device.Mac2String().c_str());
 
         dot11dev = new dot11_tracked_device(globalreg, dot11_device_entry_id);
