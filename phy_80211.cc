@@ -718,7 +718,8 @@ void Kis_80211_Phy::HandleProbedSSID(kis_tracked_device_base *basedev,
         dot11_packinfo *dot11info,
         kis_gps_packinfo *pack_gpsinfo) {
 
-    TrackerElement *adv_ssid_map = dot11dev->get_advertised_ssid_map();
+    //TrackerElement *adv_ssid_map = dot11dev->get_advertised_ssid_map();
+    TrackerElementMap probemap(dot11dev->get_probed_ssid_map());
 
 }
 
@@ -737,25 +738,20 @@ void Kis_80211_Phy::HandleClient(kis_tracked_device_base *basedev,
     if (dot11info->bssid_mac == globalreg->broadcast_mac)
         return;
 
-    // Get a client record for us behaving AS a client
-    TrackerElement *client_map = dot11dev->get_client_map();
+    TrackerElementMacMap client_map(dot11dev->get_client_map());
 
     dot11_client *client = NULL;
 
     TrackerElement::mac_map_iterator client_itr;
 
-    if (client_map == NULL) {
-        fprintf(stderr, "debug - dot11phy::HandleClient can't find the client_map struct, something is wrong\n");
-        return;
-    }
-
-    client_itr = client_map->mac_find(dot11info->bssid_mac);
+    client_itr = client_map.find(dot11info->bssid_mac);
 
     bool new_client = false;
-    if (client_itr == client_map->mac_end()) {
+    if (client_itr == client_map.end()) {
         client = dot11dev->new_client();
         fprintf(stderr, "debug - %s is a client of %s making client behavior record\n", basedev->get_macaddr().Mac2String().c_str(), dot11info->bssid_mac.Mac2String().c_str());
-        client_map->add_macmap(dot11info->bssid_mac, client);
+        TrackerElement::mac_map_pair cp(dot11info->bssid_mac, client);
+        client_map.insert(cp);
         new_client = true;
     } else {
         client = (dot11_client *) client_itr->second;
