@@ -465,8 +465,6 @@ void Kis_80211_Phy::HandleSSID(kis_tracked_device_base *basedev,
         return;
     }
 
-    bool ssid_new = false;
-
     if (dot11info->subtype == packet_sub_beacon ||
             dot11info->subtype == packet_sub_probe_resp) {
         ssid_itr = adv_ssid_map->find((int32_t) dot11info->ssid_csum);
@@ -475,7 +473,36 @@ void Kis_80211_Phy::HandleSSID(kis_tracked_device_base *basedev,
             ssid = dot11dev->new_advertised_ssid();
             adv_ssid_map->add_intmap((int32_t) dot11info->ssid_csum, ssid);
 
-            ssid_new = true;
+            ssid->set_crypt_set(dot11info->cryptset);
+            ssid->set_first_time(in_pack->ts.tv_sec);
+            ssid->set_ietag_checksum(dot11info->ietag_csum);
+            ssid->set_channel(dot11info->channel);
+
+            ssid->set_dot11d_country(dot11info->dot11d_country);
+            ssid->set_dot11d_vec(dot11info->dot11d_vec);
+
+            // TODO handle loading SSID from the stored file
+            ssid->set_ssid(dot11info->ssid);
+            if (dot11info->ssid_len == 0 || dot11info->ssid_blank) {
+                ssid->set_ssid_cloaked(true);
+            }
+            ssid->set_ssid_len(dot11info->ssid_len);
+
+            ssid->set_crypt_set(dot11info->cryptset);
+
+            ssid->set_beacon_info(dot11info->beacon_info);
+
+            ssid->set_wps_state(dot11info->wps);
+            ssid->set_wps_manuf(dot11info->wps_manuf);
+            ssid->set_wps_model_name(dot11info->wps_model_name);
+            ssid->set_wps_model_number(dot11info->wps_model_number);
+
+            // Do we not know the basedev manuf?
+            if (basedev->get_manuf() == "" && dot11info->wps_manuf != "")
+                basedev->set_manuf(dot11info->wps_manuf);
+
+            ssid->set_last_time(in_pack->ts.tv_sec);
+            ssid->inc_beacons_sec();
         } else {
             ssid = (dot11_advertised_ssid *) ssid_itr->second;
 
@@ -495,39 +522,6 @@ void Kis_80211_Phy::HandleSSID(kis_tracked_device_base *basedev,
             dot11dev->set_last_probed_ssid(ssid->get_ssid());
             dot11dev->set_last_probed_ssid_csum(dot11info->ssid_csum);
         }
-    }
-
-    if (ssid_new) {
-        ssid->set_crypt_set(dot11info->cryptset);
-        ssid->set_first_time(in_pack->ts.tv_sec);
-        ssid->set_ietag_checksum(dot11info->ietag_csum);
-        ssid->set_channel(dot11info->channel);
-
-        ssid->set_dot11d_country(dot11info->dot11d_country);
-        ssid->set_dot11d_vec(dot11info->dot11d_vec);
-
-        // TODO handle loading SSID from the stored file
-        ssid->set_ssid(dot11info->ssid);
-        if (dot11info->ssid_len == 0 || dot11info->ssid_blank) {
-            ssid->set_ssid_cloaked(true);
-        }
-        ssid->set_ssid_len(dot11info->ssid_len);
-
-        ssid->set_crypt_set(dot11info->cryptset);
-
-        ssid->set_beacon_info(dot11info->beacon_info);
-
-        ssid->set_wps_state(dot11info->wps);
-        ssid->set_wps_manuf(dot11info->wps_manuf);
-        ssid->set_wps_model_name(dot11info->wps_model_name);
-        ssid->set_wps_model_number(dot11info->wps_model_number);
-
-        // Do we not know the basedev manuf?
-        if (basedev->get_manuf() == "" && dot11info->wps_manuf != "")
-            basedev->set_manuf(dot11info->wps_manuf);
-
-        ssid->set_last_time(in_pack->ts.tv_sec);
-        ssid->inc_beacons_sec();
     }
 
     // TODO alert on change on SSID IE tags?
@@ -718,8 +712,35 @@ void Kis_80211_Phy::HandleProbedSSID(kis_tracked_device_base *basedev,
         dot11_packinfo *dot11info,
         kis_gps_packinfo *pack_gpsinfo) {
 
-    //TrackerElement *adv_ssid_map = dot11dev->get_advertised_ssid_map();
     TrackerElementMap probemap(dot11dev->get_probed_ssid_map());
+
+    dot11_probed_ssid *probessid = NULL;
+    TrackerElement::int_map_iterator ssid_itr;
+
+    if (dot11info->subtype == packet_sub_probe_req) {
+        ssid_itr = probemap.find(dot11info->ssid_csum);
+
+        if (ssid_itr == probemap.end()) {
+            probessid = dot11dev->new_probed_ssid();
+            TrackerElement::int_map_pair p(dot11info->ssid_csum, probessid);
+            probemap.insert(p);
+
+            probessid->set_ssid(dot11info->ssid);
+            probessid->set_ssid_len(dot11info->ssid_len);
+            probessid->set_first_time(in_pack->ts.tv_sec);
+        }
+
+        if (probessid != NULL) {
+            probessid->set_last_time(in_pack->ts.tv_sec);
+
+            // Add the location data, if any
+            if (pack_gpsinfo != NULL && pack_gpsinfo->fix > 1) {
+                probessid->get_location()->add_loc(pack_gpsinfo->lat, pack_gpsinfo->lon,
+                        pack_gpsinfo->alt, pack_gpsinfo->fix);
+
+            }
+        }
+    }
 
 }
 
@@ -926,6 +947,12 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
             (dot11info->subtype == packet_sub_beacon ||
              dot11info->subtype == packet_sub_probe_resp)) {
         HandleSSID(basedev, dot11dev, in_pack, dot11info, pack_gpsinfo);
+    }
+
+    // Handle probe reqs
+    if (dot11info->type == packet_management &&
+            dot11info->subtype == packet_sub_probe_req) {
+        HandleProbedSSID(basedev, dot11dev, in_pack, dot11info, pack_gpsinfo);
     }
 
     // Increase data size for ourselves, if we're a data packet
