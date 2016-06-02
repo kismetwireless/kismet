@@ -412,6 +412,41 @@ class KismetConnector:
 
         return self.__simplify(obj)
 
+    def device_dot11_clients(self, device):
+        """
+        device_dot11_clients() -> device list of clients associated to a 
+        given dot11 device
+
+        Returns full device records of all client devices
+        """
+
+        devices = list()
+
+        if not "dot11.device" in device:
+            if self.debug:
+                print "Not a dot11 device"
+
+            return list()
+
+        d11device = device["dot11.device"]
+
+        if not "dot11.device.associated_client_map" in d11device:
+            if self.debug:
+                print "Missing associated client map"
+
+            return list()
+
+        for m in d11device["dot11.device.associated_client_map"]:
+            if self.debug:
+                print "Client {}".format(m)
+
+            d = self.device(d11device["dot11.device.associated_client_map"][m])
+
+            if d != None:
+                devices.append(d)
+
+        return devices
+
 if __name__ == "__main__":
     x = KismetConnector()
     print x.system_status()
