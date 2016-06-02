@@ -712,7 +712,7 @@ void Kis_80211_Phy::HandleProbedSSID(kis_tracked_device_base *basedev,
         dot11_packinfo *dot11info,
         kis_gps_packinfo *pack_gpsinfo) {
 
-    TrackerElementMap probemap(dot11dev->get_probed_ssid_map());
+    TrackerElementIntMap probemap(dot11dev->get_probed_ssid_map());
 
     dot11_probed_ssid *probessid = NULL;
     TrackerElement::int_map_iterator ssid_itr;
