@@ -427,6 +427,9 @@ int KisDroneFramework::SendText(int in_cl, string in_text, int flags) {
 		(drone_packet *) malloc(sizeof(uint8_t) * 
 								(sizeof(drone_packet) + sizeof(drone_string_packet) +
 								 in_text.length()));
+    memset(dpkt, 0, sizeof(uint8_t) * (sizeof(drone_packet) + 
+                sizeof(drone_string_packet) +
+                in_text.length()));
 
 	dpkt->sentinel = kis_hton32(DroneSentinel);
 	dpkt->drone_cmdnum = kis_hton32(DRONE_CMDNUM_STRING);
@@ -752,6 +755,7 @@ void KisDroneFramework::sourceact_handler(pst_packetsource *src, int action,
 // based on its presence in the chain packet.  Same with signal level data.
 int KisDroneFramework::chain_handler(kis_packet *in_pack) {
 	vector<int> clvec;
+    int new_fcs = 0;
 
 	if (netserver == NULL)
 		return 0;
@@ -790,6 +794,7 @@ int KisDroneFramework::chain_handler(kis_packet *in_pack) {
 
 	if (fcs == NULL) {
 		fcs = new kis_fcs_bytes;
+        new_fcs = 1;
 		fcs->fcs[0] = 0xDE;
 		fcs->fcs[1] = 0xAD;
 		fcs->fcs[2] = 0xBE;
@@ -930,6 +935,9 @@ int KisDroneFramework::chain_handler(kis_packet *in_pack) {
 	dcpkt->cap_content_bitmap = kis_hton32(dcpkt->cap_content_bitmap);
 	SendAllPacket(dpkt);
 
+    if (new_fcs && fcs != NULL)
+        delete(fcs);
+
 	free(dpkt);
 
 	return 1;
@@ -948,6 +956,8 @@ int KisDroneFramework::time_handler() {
 	dpkt->data_len = kis_hton32(0);
 
 	SendAllPacket(dpkt);
+
+    free(dpkt);
 
 	return 1;
 }
