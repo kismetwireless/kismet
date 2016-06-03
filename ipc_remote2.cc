@@ -334,6 +334,20 @@ int IPCRemoteV2::hard_kill() {
     return kill(child_pid, SIGKILL);
 }
 
+void IPCRemoteV2::notify_killed(int in_exit) {
+    stringstream ss;
+
+    if (ipchandler != NULL) {
+        ss << "IPC process '" << binary_path << "' " << child_pid << " exited, " <<
+            in_exit;
+
+        ipchandler->BufferError(ss.str());
+    }
+
+    child_pid = 0;
+    close_ipc();
+}
+
 IPCRemoteV2Tracker::IPCRemoteV2Tracker(GlobalRegistry *in_globalreg) {
     globalreg = in_globalreg;
 
@@ -428,8 +442,9 @@ int IPCRemoteV2Tracker::ensure_all_ipc_killed(int in_soft_delay, int in_max_dela
             killed_remote = remove_ipc(caught_pid);
 
             // TODO decide if we're going to delete the IPC handler too
-            if (killed_remote != NULL)
-                killed_remote->close_ipc();
+            if (killed_remote != NULL) {
+                killed_remote->notify_killed(WEXITSTATUS(pid_status)); 
+            }
         } else {
             // Sleep if we haven't caught anything, otherwise spin to catch all
             // pending processes
@@ -473,7 +488,7 @@ int IPCRemoteV2Tracker::ensure_all_ipc_killed(int in_soft_delay, int in_max_dela
 
                 // TODO decide if we're going to delete the IPC handler too
                 if (killed_remote != NULL)
-                    killed_remote->close_ipc();
+                    killed_remote->notify_killed(WEXITSTATUS(pid_status));
             } else {
                 // Sleep if we haven't caught anything, otherwise spin to catch all
                 // pending processes
@@ -510,9 +525,12 @@ int IPCRemoteV2Tracker::timetracker_event(int event_id __attribute__((unused))) 
             dead_remote = remove_ipc(caught_pid);
 
             if (dead_remote != NULL) {
+                /*
                 str << "IPC child pid " << dead_remote->get_pid() << " exited with " <<
                     "status " << WEXITSTATUS(pid_status);
                 _MSG(str.str(), MSGFLAG_INFO);
+                */
+                dead_remote->notify_killed(WEXITSTATUS(pid_status));
                 dead_remote->close_ipc();
 
                 if (dead_remote->get_tracker_free()) {

@@ -292,7 +292,7 @@ int DataSourceTracker::open_datasource(string in_source, DST_Worker *in_worker) 
             new DST_DataSourceProbe(globalreg->timestamp.tv_sec,
                     in_source, this, probe_vec, in_worker);
 
-        // record it
+        // Save it in the vec
         probing_vec.push_back(dst_probe);
 
         // Now initiate a probe on every source

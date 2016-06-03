@@ -79,6 +79,9 @@ public:
     //  Hard-kill a binary (send a kill -9 )
     int hard_kill();
 
+    // Notify the IPC handler that it has been killed
+    void notify_killed(int in_exit);
+
     pid_t get_pid();
 
     // Does the ipc tracker free us when we die?  This should be set to true when

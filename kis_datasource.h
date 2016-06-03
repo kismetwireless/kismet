@@ -135,6 +135,7 @@ public:
 
     // Ringbuffer API
     virtual void BufferAvailable(size_t in_amt);
+    virtual void BufferError(string in_error);
 
     // KV pair map
     typedef map<string, KisDataSource_CapKeyedObject *> KVmap;

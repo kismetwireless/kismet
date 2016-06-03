@@ -202,6 +202,34 @@ void KisDataSource::BufferAvailable(size_t in_amt) {
 
 }
 
+void KisDataSource::BufferError(string in_error) {
+    _MSG(in_error, MSGFLAG_ERROR);
+    
+    {
+        local_locker lock(&source_lock);
+
+        // Trip all the callbacks
+        if (probe_callback != NULL) {
+            (*probe_callback)(this, probe_aux, false);
+        }
+
+        if (open_callback != NULL) {
+            (*probe_callback)(this, probe_aux, false);
+        }
+
+        if (error_callback != NULL) {
+            (*error_callback)(this, error_aux);
+        }
+
+        // Kill the IPC
+        source_ipc->soft_kill();
+
+        set_source_running(false);
+        set_child_pid(0);
+
+    }
+}
+
 bool KisDataSource::queue_ipc_command(string in_cmd, KVmap *in_kvpairs) {
 
     // If IPC is running just write it straight out
@@ -536,6 +564,9 @@ void KisDataSource::handle_packet_error(KVmap in_kvpairs) {
 
         // Kill the IPC
         source_ipc->soft_kill();
+
+        set_source_running(false);
+        set_child_pid(0);
     }
 }
 
@@ -665,6 +696,9 @@ bool KisDataSource::spawn_ipc() {
     // Do not lock thread, we can only be called when we're inside a locked
     // context.
     // local_locker lock(&source_lock);
+    
+    set_source_running(false);
+    set_child_pid(0);
 
     if (get_source_ipc_bin() == "") {
         ss << "Datasource '" << get_source_name() << "' missing IPC binary, cannot "
@@ -722,6 +756,9 @@ bool KisDataSource::spawn_ipc() {
 
         return false;
     }
+
+    set_source_running(true);
+    set_child_pid(source_ipc->get_pid());
 
     return true;
 }
