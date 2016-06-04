@@ -567,6 +567,9 @@ void KisDataSource::handle_packet_error(KVmap in_kvpairs) {
 
         set_source_running(false);
         set_child_pid(0);
+
+        if (error_callback != NULL)
+            (*error_callback)(this, error_aux);
     }
 }
 
