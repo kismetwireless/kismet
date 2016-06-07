@@ -853,7 +853,7 @@ void Kis_80211_Phy::HandleClient(kis_tracked_device_base *basedev,
         } else {
             // fprintf(stderr, "debug - found dot11 record %p for %s\n", backdot11, dot11info->bssid_mac.Mac2String().c_str());
 
-            if (backdot11->get_associated_client_map()->mac_find(dot11info->bssid_mac) ==
+            if (backdot11->get_associated_client_map()->mac_find(basedev->get_macaddr()) ==
                     backdot11->get_associated_client_map()->mac_end()) {
 
                 fprintf(stderr, "debug - back-associating %s as a client of %s\n", basedev->get_macaddr().Mac2String().c_str(), dot11info->bssid_mac.Mac2String().c_str());
