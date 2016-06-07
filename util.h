@@ -264,10 +264,23 @@ int GetLengthTagOffsets(unsigned int init_offset,
 						kis_datachunk *in_chunk,
 						map<int, vector<int> > *tag_cache_map);
 
+// Act as a scoped locker on a mutex
+// If possible, use a timed lock and throw a system exception if we can't
+// acquire the mutex within 5 seconds, so that we crash instead of hanging
 class local_locker {
 public:
     local_locker(pthread_mutex_t *in) {
+#ifdef HAVE_PTHREAD_TIMELOCK
+        struct timespec t;
+        t.tv_sec = 5;
+        t.tv_nsec = 0;
+
+        if (pthread_mutex_timedlock(in, &t) != 0) {
+            throw(std::runtime_error("mutex not available w/in 5 seconds"));
+        }
+#else
         pthread_mutex_lock(in);
+#endif
         lock = in;
     }
 
