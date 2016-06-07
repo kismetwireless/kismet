@@ -3,7 +3,7 @@ AC_INIT
 
 BUNDLE_MSGPACK=./msgpack-1.4.1
 
-m4_include([m4/ax_pthread.m4])
+m4_include([m4/acx_pthread.m4])
 
 AC_CONFIG_SRCDIR([kismet.h])
 
@@ -323,8 +323,9 @@ fi
 
 
 # We need threads
-AX_PTHREAD(pthread=1,
-		   AC_MSG_ERROR([pthreads are needed and are not available]))
+dnl ACX_PTHREAD(pthread=1,
+dnl		   AC_MSG_ERROR([pthreads are needed and are not available]))
+ACX_PTHREAD
 KSLIBS="$KSLIBS $PTHREAD_LIBS"
 CPPFLAGS="$CPPFLAGS $PTHREAD_CFLAGS"
 
