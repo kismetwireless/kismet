@@ -36,6 +36,7 @@
 #include <pwd.h>
 #include <ctype.h>
 #include <math.h>
+#include <string.h>
 
 #include <string>
 #include <map>
@@ -272,8 +273,9 @@ public:
     local_locker(pthread_mutex_t *in) {
 #ifdef HAVE_PTHREAD_TIMELOCK
         struct timespec t;
-        t.tv_sec = 5;
-        t.tv_nsec = 0;
+
+        clock_gettime(CLOCK_REALTIME , &t); 
+        t.tv_sec += 5; \
 
         if (pthread_mutex_timedlock(in, &t) != 0) {
             throw(std::runtime_error("mutex not available w/in 5 seconds"));
