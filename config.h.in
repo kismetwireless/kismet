@@ -120,6 +120,9 @@
 /* Have PTHREAD_PRIO_INHERIT. */
 #undef HAVE_PTHREAD_PRIO_INHERIT
 
+/* have pthread timelock */
+#undef HAVE_PTHREAD_TIMELOCK
+
 /* Define to 1 if you have the `select' function. */
 #undef HAVE_SELECT
 

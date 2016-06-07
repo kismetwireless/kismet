@@ -5779,6 +5779,42 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
 KSLIBS="$KSLIBS $PTHREAD_LIBS"
 CPPFLAGS="$CPPFLAGS $PTHREAD_CFLAGS"
 
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for pthread_mutex_timedlock" >&5
+$as_echo_n "checking for pthread_mutex_timedlock... " >&6; }
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+                #include <stdio.h>
+                #include <pthread.h>
+
+int
+main ()
+{
+
+                     pthread_mutex_timedlock(NULL, NULL);
+                     return 0;
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  have_timedlock=yes
+else
+  have_timedlock=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+if test "$have_timedlock" = "yes"; then
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+$as_echo "#define HAVE_PTHREAD_TIMELOCK 1" >>confdefs.h
+
+else
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
 
 # sqlite3=yes
 # AC_CHECK_HEADER([sqlite3.h],

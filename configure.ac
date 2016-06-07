@@ -328,6 +328,21 @@ AX_PTHREAD(pthread=1,
 KSLIBS="$KSLIBS $PTHREAD_LIBS"
 CPPFLAGS="$CPPFLAGS $PTHREAD_CFLAGS"
 
+AC_MSG_CHECKING([for pthread_mutex_timedlock])
+AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+                #include <stdio.h>
+                #include <pthread.h>
+                ]], [[
+                     pthread_mutex_timedlock(NULL, NULL);
+                     return 0;
+                     ]])], [have_timedlock=yes], 
+                     [have_timedlock=no])
+if test "$have_timedlock" = "yes"; then
+    AC_MSG_RESULT([yes])
+    AC_DEFINE(HAVE_PTHREAD_TIMELOCK, [1], [have pthread timelock])
+else
+    AC_MSG_RESULT([no])
+fi
 
 # sqlite3=yes
 # AC_CHECK_HEADER([sqlite3.h],
