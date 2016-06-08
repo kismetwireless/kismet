@@ -142,7 +142,7 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
         _MSG(ss.str(), MSGFLAG_INFO);
 
         device_idle_timer =
-            globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 
+            globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 60, NULL, 
                 1, this);
     }
 
@@ -1654,6 +1654,7 @@ void Devicetracker::httpd_msgpack_device_summary(std::stringstream &stream,
 
         MsgpackAdapter::Pack(globalreg, stream, devvec);
     } else {
+        local_locker lock(&devicelist_mutex);
         for (unsigned int x = 0; x < subvec->size(); x++) {
             kis_tracked_device_summary *summary =
                 new kis_tracked_device_summary(globalreg, device_summary_entry_id,
