@@ -44,6 +44,7 @@
 #include <list>
 #include <sstream>
 #include <iomanip>
+#include <stdexcept>
 
 #include <pthread.h>
 
