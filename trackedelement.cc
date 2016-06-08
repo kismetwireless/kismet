@@ -28,41 +28,64 @@
 #include "entrytracker.h"
 
 TrackerElement::TrackerElement(TrackerType type) {
-    this->type = type;
+    this->type = TrackerString;
     reference_count = 0;
 
     set_id(-1);
 
-    int8_value = 0;
-    uint8_value = 0;
-    int16_value = 0;
-    uint16_value = 0;
-    int32_value = 0;
-    uint32_value = 0;
-    int64_value = 0;
-    uint64_value = 0;
-    float_value = 0.0f;
-    double_value = 0.0f;
+    // Redundant I guess
+    primitives.int8_value = 0;
+    primitives.uint8_value = 0;
+    primitives.int16_value = 0;
+    primitives.uint16_value = 0;
+    primitives.int32_value = 0;
+    primitives.uint32_value = 0;
+    primitives.int64_value = 0;
+    primitives.uint64_value = 0;
+    primitives.float_value = 0.0f;
+    primitives.double_value = 0.0f;
+
     mac_value = mac_addr(0);
+
+    submap_value = NULL;
+    subintmap_value = NULL;
+    submacmap_value = NULL;
+    substringmap_value = NULL;
+    subdoublemap_value = NULL;
+    subvector_value = NULL;
+    custom_value = NULL;
+
+    set_type(type);
 }
 
 TrackerElement::TrackerElement(TrackerType type, int id) {
-    this->type = type;
+    this->type = TrackerString;
     set_id(id);
 
     reference_count = 0;
 
-    int8_value = 0;
-    uint8_value = 0;
-    int16_value = 0;
-    uint16_value = 0;
-    int32_value = 0;
-    uint32_value = 0;
-    int64_value = 0;
-    uint64_value = 0;
-    float_value = 0.0f;
-    double_value = 0.0f;
+    primitives.int8_value = 0;
+    primitives.uint8_value = 0;
+    primitives.int16_value = 0;
+    primitives.uint16_value = 0;
+    primitives.int32_value = 0;
+    primitives.uint32_value = 0;
+    primitives.int64_value = 0;
+    primitives.uint64_value = 0;
+    primitives.float_value = 0.0f;
+    primitives.double_value = 0.0f;
+
     mac_value = mac_addr(0);
+
+    submap_value = NULL;
+    subintmap_value = NULL;
+    submacmap_value = NULL;
+    substringmap_value = NULL;
+    subdoublemap_value = NULL;
+    subvector_value = NULL;
+    custom_value = NULL;
+
+    set_type(type);
 }
 
 TrackerElement::~TrackerElement() {
@@ -76,61 +99,159 @@ TrackerElement::~TrackerElement() {
     // If we contain references to other things, unlink them.  This may cause them to
     // auto-delete themselves.
     if (type == TrackerVector) {
-        for (unsigned int i = 0; i < subvector_value.size(); i++) {
-            subvector_value[i]->unlink();
+        for (unsigned int i = 0; i < subvector_value->size(); i++) {
+            (*subvector_value)[i]->unlink();
         }
+
+        delete(subvector_value);
     } else if (type == TrackerMap) {
         map<int, TrackerElement *>::iterator i;
 
-        for (i = submap_value.begin(); i != submap_value.end(); ++i) {
+        for (i = submap_value->begin(); i != submap_value->end(); ++i) {
             i->second->unlink();
         }
+
+        delete(submap_value);
     } else if (type == TrackerIntMap) {
         map<int, TrackerElement *>::iterator i;
 
-        for (i = subintmap_value.begin(); i != subintmap_value.end(); ++i) {
+        for (i = subintmap_value->begin(); i != subintmap_value->end(); ++i) {
             i->second->unlink();
         }
+
+        delete(subintmap_value);
     } else if (type == TrackerMacMap) {
         map<mac_addr, TrackerElement *>::iterator i;
 
-        for (i = submacmap_value.begin(); i != submacmap_value.end(); ++i) {
+        for (i = submacmap_value->begin(); i != submacmap_value->end(); ++i) {
             i->second->unlink();
         }
+
+        delete(submacmap_value);
+    } else if (type == TrackerStringMap) {
+        for (string_map_iterator i = substringmap_value->begin(); 
+                i != substringmap_value->end(); ++i) {
+            i->second->unlink();
+        }
+
+        delete(substringmap_value);
+    } else if (type == TrackerDoubleMap) {
+        for (double_map_iterator i = subdoublemap_value->begin();
+                i != subdoublemap_value->end(); ++i) {
+            i->second->unlink();
+        }
+
+        delete(subdoublemap_value);
     }
+}
+
+void TrackerElement::set_type(TrackerType in_type) {
+    if (type == in_type)
+        return;
+
+    /* Purge old types if we change type */
+    if (type == TrackerVector) {
+        for (unsigned int i = 0; i < subvector_value->size(); i++) {
+            (*subvector_value)[i]->unlink();
+        }
+
+        delete(subvector_value);
+        subvector_value = NULL;
+    } else if (type == TrackerMap) {
+        map<int, TrackerElement *>::iterator i;
+
+        for (i = submap_value->begin(); i != submap_value->end(); ++i) {
+            i->second->unlink();
+        }
+
+        delete(submap_value);
+        submap_value = NULL;
+    } else if (type == TrackerIntMap) {
+        map<int, TrackerElement *>::iterator i;
+
+        for (i = subintmap_value->begin(); i != subintmap_value->end(); ++i) {
+            i->second->unlink();
+        }
+
+        delete(subintmap_value);
+        subintmap_value = NULL;
+    } else if (type == TrackerMacMap) {
+        map<mac_addr, TrackerElement *>::iterator i;
+
+        for (i = submacmap_value->begin(); i != submacmap_value->end(); ++i) {
+            i->second->unlink();
+        }
+
+        delete(submacmap_value);
+        submacmap_value = NULL;
+    } else if (type == TrackerStringMap) {
+        for (string_map_iterator i = substringmap_value->begin(); 
+                i != substringmap_value->end(); ++i) {
+            i->second->unlink();
+        }
+
+        delete(substringmap_value);
+        substringmap_value = NULL;
+    } else if (type == TrackerDoubleMap) {
+        for (double_map_iterator i = subdoublemap_value->begin();
+                i != subdoublemap_value->end(); ++i) {
+            i->second->unlink();
+        }
+
+        delete(subdoublemap_value);
+        subdoublemap_value = NULL;
+    }
+    
+
+    this->type = in_type;
+
+    if (type == TrackerVector) {
+        subvector_value = new vector<TrackerElement *>();
+    } else if (type == TrackerMap) {
+        submap_value = new map<int, TrackerElement *>();
+    } else if (type == TrackerIntMap) {
+        subintmap_value = new map<int, TrackerElement *>();
+    } else if (type == TrackerMacMap) {
+        submacmap_value = new map<mac_addr, TrackerElement *>();
+    } else if (type == TrackerStringMap) {
+        substringmap_value = new map<string, TrackerElement *>();
+    } else if (type == TrackerDoubleMap) {
+        subdoublemap_value = new map<double, TrackerElement *>();
+    }
+
 }
 
 TrackerElement& TrackerElement::operator++(int) {
     switch (type) {
         case TrackerInt8:
-            int8_value++;
+            primitives.int8_value++;
             break;
         case TrackerUInt8:
-            uint8_value++;
+            primitives.uint8_value++;
             break;
         case TrackerInt16:
-            int16_value++;
+            primitives.int16_value++;
             break;
         case TrackerUInt16:
-            uint16_value++;
+            primitives.uint16_value++;
             break;
         case TrackerInt32:
-            int32_value++;
+            primitives.int32_value++;
             break;
         case TrackerUInt32:
-            uint32_value++;
+            primitives.uint32_value++;
             break;
         case TrackerInt64:
-            int64_value++;
+            primitives.int64_value++;
             break;
         case TrackerUInt64:
-            uint64_value++;
+            primitives.uint64_value++;
             break;
         case TrackerFloat:
-            float_value++;
+            primitives.float_value++;
             break;
         case TrackerDouble:
-            double_value++;
+            primitives.double_value++;
             break;
         default:
             throw std::runtime_error(string("can't increment " + type_to_string(type)));
@@ -142,34 +263,34 @@ TrackerElement& TrackerElement::operator++(int) {
 TrackerElement& TrackerElement::operator--(int) {
     switch (type) {
         case TrackerInt8:
-            int8_value--;
+            primitives.int8_value--;
             break;
         case TrackerUInt8:
-            uint8_value--;
+            primitives.uint8_value--;
             break;
         case TrackerInt16:
-            int16_value--;
+            primitives.int16_value--;
             break;
         case TrackerUInt16:
-            uint16_value--;
+            primitives.uint16_value--;
             break;
         case TrackerInt32:
-            int32_value--;
+            primitives.int32_value--;
             break;
         case TrackerUInt32:
-            uint32_value--;
+            primitives.uint32_value--;
             break;
         case TrackerInt64:
-            int64_value--;
+            primitives.int64_value--;
             break;
         case TrackerUInt64:
-            uint64_value--;
+            primitives.uint64_value--;
             break;
         case TrackerFloat:
-            float_value--;
+            primitives.float_value--;
             break;
         case TrackerDouble:
-            double_value--;
+            primitives.double_value--;
             break;
         default:
             throw std::runtime_error(string("can't decrement " + type_to_string(type)));
@@ -181,10 +302,10 @@ TrackerElement& TrackerElement::operator--(int) {
 TrackerElement& TrackerElement::operator+=(const float& v) {
     switch (type) {
         case TrackerFloat:
-            float_value+= v;
+            primitives.float_value+= v;
             break;
         case TrackerDouble:
-            double_value+= v;
+            primitives.double_value+= v;
             break;
         default:
             throw std::runtime_error(string("can't += float to " + type_to_string(type)));
@@ -196,10 +317,10 @@ TrackerElement& TrackerElement::operator+=(const float& v) {
 TrackerElement& TrackerElement::operator+=(const double& v) {
     switch (type) {
         case TrackerFloat:
-            float_value+= v;
+            primitives.float_value+= v;
             break;
         case TrackerDouble:
-            double_value+= v;
+            primitives.double_value+= v;
             break;
         default:
             throw std::runtime_error(string("can't += float to " + type_to_string(type)));
@@ -211,34 +332,34 @@ TrackerElement& TrackerElement::operator+=(const double& v) {
 TrackerElement& TrackerElement::operator+=(const int& v) {
     switch (type) {
         case TrackerInt8:
-            int8_value += v;
+            primitives.int8_value += v;
             break;
         case TrackerUInt8:
-            uint8_value += v;
+            primitives.uint8_value += v;
             break;
         case TrackerInt16:
-            int16_value+= v;
+            primitives.int16_value+= v;
             break;
         case TrackerUInt16:
-            uint16_value+= v;
+            primitives.uint16_value+= v;
             break;
         case TrackerInt32:
-            int32_value+= v;
+            primitives.int32_value+= v;
             break;
         case TrackerUInt32:
-            uint32_value+= v;
+            primitives.uint32_value+= v;
             break;
         case TrackerInt64:
-            int64_value+= v;
+            primitives.int64_value+= v;
             break;
         case TrackerUInt64:
-            uint64_value+= v;
+            primitives.uint64_value+= v;
             break;
         case TrackerFloat:
-            float_value+= v;
+            primitives.float_value+= v;
             break;
         case TrackerDouble:
-            double_value+= v;
+            primitives.double_value+= v;
             break;
         default:
             throw std::runtime_error(string("can't += to " + type_to_string(type)));
@@ -250,34 +371,34 @@ TrackerElement& TrackerElement::operator+=(const int& v) {
 TrackerElement& TrackerElement::operator+=(const unsigned int& v) {
     switch (type) {
         case TrackerInt8:
-            int8_value += v;
+            primitives.int8_value += v;
             break;
         case TrackerUInt8:
-            uint8_value += v;
+            primitives.uint8_value += v;
             break;
         case TrackerInt16:
-            int16_value+= v;
+            primitives.int16_value+= v;
             break;
         case TrackerUInt16:
-            uint16_value+= v;
+            primitives.uint16_value+= v;
             break;
         case TrackerInt32:
-            int32_value+= v;
+            primitives.int32_value+= v;
             break;
         case TrackerUInt32:
-            uint32_value+= v;
+            primitives.uint32_value+= v;
             break;
         case TrackerInt64:
-            int64_value+= v;
+            primitives.int64_value+= v;
             break;
         case TrackerUInt64:
-            uint64_value+= v;
+            primitives.uint64_value+= v;
             break;
         case TrackerFloat:
-            float_value+= v;
+            primitives.float_value+= v;
             break;
         case TrackerDouble:
-            double_value+= v;
+            primitives.double_value+= v;
             break;
         default:
             throw std::runtime_error(string("can't += to " + type_to_string(type)));
@@ -288,47 +409,47 @@ TrackerElement& TrackerElement::operator+=(const unsigned int& v) {
 
 TrackerElement& TrackerElement::operator+=(const int64_t& i) {
     except_type_mismatch(TrackerInt64);
-    int64_value += i;
+    primitives.int64_value += i;
     return *this;
 }
 
 TrackerElement& TrackerElement::operator+=(const uint64_t& i) {
     except_type_mismatch(TrackerUInt64);
-    uint64_value += i;
+    primitives.uint64_value += i;
     return *this;
 }
 
 TrackerElement& TrackerElement::operator-=(const int& v) {
     switch (type) {
         case TrackerInt8:
-            int8_value -= v;
+            primitives.int8_value -= v;
             break;
         case TrackerUInt8:
-            uint8_value -= v;
+            primitives.uint8_value -= v;
             break;
         case TrackerInt16:
-            int16_value-= v;
+            primitives.int16_value-= v;
             break;
         case TrackerUInt16:
-            uint16_value-= v;
+            primitives.uint16_value-= v;
             break;
         case TrackerInt32:
-            int32_value-= v;
+            primitives.int32_value-= v;
             break;
         case TrackerUInt32:
-            uint32_value-= v;
+            primitives.uint32_value-= v;
             break;
         case TrackerInt64:
-            int64_value-= v;
+            primitives.int64_value-= v;
             break;
         case TrackerUInt64:
-            uint64_value-= v;
+            primitives.uint64_value-= v;
             break;
         case TrackerFloat:
-            float_value-= v;
+            primitives.float_value-= v;
             break;
         case TrackerDouble:
-            double_value-= v;
+            primitives.double_value-= v;
             break;
         default:
             throw std::runtime_error(string("can't -= to " + type_to_string(type)));
@@ -340,34 +461,34 @@ TrackerElement& TrackerElement::operator-=(const int& v) {
 TrackerElement& TrackerElement::operator-=(const unsigned int& v) {
     switch (type) {
         case TrackerInt8:
-            int8_value -= v;
+            primitives.int8_value -= v;
             break;
         case TrackerUInt8:
-            uint8_value -= v;
+            primitives.uint8_value -= v;
             break;
         case TrackerInt16:
-            int16_value-= v;
+            primitives.int16_value-= v;
             break;
         case TrackerUInt16:
-            uint16_value-= v;
+            primitives.uint16_value-= v;
             break;
         case TrackerInt32:
-            int32_value-= v;
+            primitives.int32_value-= v;
             break;
         case TrackerUInt32:
-            uint32_value-= v;
+            primitives.uint32_value-= v;
             break;
         case TrackerInt64:
-            int64_value-= v;
+            primitives.int64_value-= v;
             break;
         case TrackerUInt64:
-            uint64_value-= v;
+            primitives.uint64_value-= v;
             break;
         case TrackerFloat:
-            float_value-= v;
+            primitives.float_value-= v;
             break;
         case TrackerDouble:
-            double_value-= v;
+            primitives.double_value-= v;
             break;
         default:
             throw std::runtime_error(string("can't -= to " + type_to_string(type)));
@@ -379,10 +500,10 @@ TrackerElement& TrackerElement::operator-=(const unsigned int& v) {
 TrackerElement& TrackerElement::operator-=(const float& v) {
     switch (type) {
         case TrackerFloat:
-            float_value-= v;
+            primitives.float_value-= v;
             break;
         case TrackerDouble:
-            double_value-= v;
+            primitives.double_value-= v;
             break;
         default:
             throw std::runtime_error(string("can't -= float to " + type_to_string(type)));
@@ -394,10 +515,10 @@ TrackerElement& TrackerElement::operator-=(const float& v) {
 TrackerElement& TrackerElement::operator-=(const double& v) {
     switch (type) {
         case TrackerFloat:
-            float_value-= v;
+            primitives.float_value-= v;
             break;
         case TrackerDouble:
-            double_value-= v;
+            primitives.double_value-= v;
             break;
         default:
             throw std::runtime_error(string("can't -= float to " + type_to_string(type)));
@@ -408,158 +529,158 @@ TrackerElement& TrackerElement::operator-=(const double& v) {
 
 TrackerElement& TrackerElement::operator-=(const int64_t& i) {
     except_type_mismatch(TrackerInt64);
-    int64_value -= i;
+    primitives.int64_value -= i;
     return *this;
 }
 
 TrackerElement& TrackerElement::operator-=(const uint64_t& i) {
     except_type_mismatch(TrackerUInt64);
-    uint64_value -= i;
+    primitives.uint64_value -= i;
     return *this;
 }
 
 
 TrackerElement& TrackerElement::operator|=(int8_t i) {
     except_type_mismatch(TrackerInt8);
-    int8_value |= i;
+    primitives.int8_value |= i;
     return *this;
 }
 
 TrackerElement& TrackerElement::operator|=(uint8_t i) {
     except_type_mismatch(TrackerUInt8);
-    uint8_value |= i;
+    primitives.uint8_value |= i;
     return *this;
 }
 
 TrackerElement& TrackerElement::operator|=(int16_t i) {
     except_type_mismatch(TrackerInt16);
-    int16_value |= i;
+    primitives.int16_value |= i;
     return *this;
 }
 
 TrackerElement& TrackerElement::operator|=(uint16_t i) {
     except_type_mismatch(TrackerUInt16);
-    uint16_value |= i;
+    primitives.uint16_value |= i;
     return *this;
 }
 
 TrackerElement& TrackerElement::operator|=(int32_t i) {
     except_type_mismatch(TrackerInt32);
-    int32_value |= i;
+    primitives.int32_value |= i;
     return *this;
 }
 
 TrackerElement& TrackerElement::operator|=(uint32_t i) {
     except_type_mismatch(TrackerUInt32);
-    uint32_value |= i;
+    primitives.uint32_value |= i;
     return *this;
 }
 
 TrackerElement& TrackerElement::operator|=(int64_t i) {
     except_type_mismatch(TrackerInt64);
-    int64_value |= i;
+    primitives.int64_value |= i;
     return *this;
 }
 
 TrackerElement& TrackerElement::operator|=(uint64_t i) {
     except_type_mismatch(TrackerUInt64);
-    uint64_value |= i;
+    primitives.uint64_value |= i;
     return *this;
 }
 
 TrackerElement& TrackerElement::operator&=(int8_t i) {
     except_type_mismatch(TrackerInt8);
-    int8_value &= i;
+    primitives.int8_value &= i;
     return *this;
 }
 
 TrackerElement& TrackerElement::operator&=(uint8_t i) {
     except_type_mismatch(TrackerUInt8);
-    uint8_value &= i;
+    primitives.uint8_value &= i;
     return *this;
 }
 
 TrackerElement& TrackerElement::operator&=(int16_t i) {
     except_type_mismatch(TrackerInt16);
-    int16_value &= i;
+    primitives.int16_value &= i;
     return *this;
 }
 
 TrackerElement& TrackerElement::operator&=(uint16_t i) {
     except_type_mismatch(TrackerUInt16);
-    uint16_value &= i;
+    primitives.uint16_value &= i;
     return *this;
 }
 
 TrackerElement& TrackerElement::operator&=(int32_t i) {
     except_type_mismatch(TrackerInt32);
-    int32_value &= i;
+    primitives.int32_value &= i;
     return *this;
 }
 
 TrackerElement& TrackerElement::operator&=(uint32_t i) {
     except_type_mismatch(TrackerUInt32);
-    uint32_value &= i;
+    primitives.uint32_value &= i;
     return *this;
 }
 
 TrackerElement& TrackerElement::operator&=(int64_t i) {
     except_type_mismatch(TrackerInt64);
-    int64_value &= i;
+    primitives.int64_value &= i;
     return *this;
 }
 
 TrackerElement& TrackerElement::operator&=(uint64_t i) {
     except_type_mismatch(TrackerUInt64);
-    uint64_value &= i;
+    primitives.uint64_value &= i;
     return *this;
 }
 
 TrackerElement& TrackerElement::operator^=(int8_t i) {
     except_type_mismatch(TrackerInt8);
-    int8_value ^= i;
+    primitives.int8_value ^= i;
     return *this;
 }
 
 TrackerElement& TrackerElement::operator^=(uint8_t i) {
     except_type_mismatch(TrackerUInt8);
-    uint8_value ^= i;
+    primitives.uint8_value ^= i;
     return *this;
 }
 
 TrackerElement& TrackerElement::operator^=(int16_t i) {
     except_type_mismatch(TrackerInt16);
-    int16_value ^= i;
+    primitives.int16_value ^= i;
     return *this;
 }
 
 TrackerElement& TrackerElement::operator^=(uint16_t i) {
     except_type_mismatch(TrackerUInt16);
-    uint16_value ^= i;
+    primitives.uint16_value ^= i;
     return *this;
 }
 
 TrackerElement& TrackerElement::operator^=(int32_t i) {
     except_type_mismatch(TrackerInt32);
-    int32_value ^= i;
+    primitives.int32_value ^= i;
     return *this;
 }
 
 TrackerElement& TrackerElement::operator^=(uint32_t i) {
     except_type_mismatch(TrackerUInt32);
-    uint32_value ^= i;
+    primitives.uint32_value ^= i;
     return *this;
 }
 
 TrackerElement& TrackerElement::operator^=(int64_t i) {
     except_type_mismatch(TrackerInt64);
-    int64_value ^= i;
+    primitives.int64_value ^= i;
     return *this;
 }
 
 TrackerElement& TrackerElement::operator^=(uint64_t i) {
     except_type_mismatch(TrackerUInt64);
-    uint64_value ^= i;
+    primitives.uint64_value ^= i;
     return *this;
 }
 
@@ -569,22 +690,23 @@ TrackerElement *TrackerElement::operator[](int i) {
 
     switch (type) {
         case TrackerVector:
-            if (i >= 0 && (unsigned int) i < subvector_value.size()) {
-                return subvector_value[i];
+            if (i >= 0 && (unsigned int) i < subvector_value->size()) {
+                return (*subvector_value)[i];
             }
             break;
         case TrackerMap:
-            itr = submap_value.find(i);
-            if (itr != submap_value.end())
+            itr = submap_value->find(i);
+            if (itr != submap_value->end())
                 return itr->second;
             return NULL;
         case TrackerIntMap:
-            itr = subintmap_value.find(i);
-            if (itr != subintmap_value.end())
+            itr = subintmap_value->find(i);
+            if (itr != subintmap_value->end())
                 return itr->second;
             return NULL;
         default:
-            throw std::runtime_error(string("can't -= float to " + type_to_string(type)));
+            throw std::runtime_error(string("can't -= float to " + 
+                        type_to_string(type)));
     }
 
     return NULL;
@@ -593,9 +715,9 @@ TrackerElement *TrackerElement::operator[](int i) {
 TrackerElement *TrackerElement::operator[](mac_addr i) {
     except_type_mismatch(TrackerMacMap);
 
-    mac_map_const_iterator itr = submacmap_value.find(i);
+    mac_map_const_iterator itr = submacmap_value->find(i);
 
-    if (itr != submacmap_value.end())
+    if (itr != submacmap_value->end())
         return itr->second;
 
     return NULL;
@@ -604,42 +726,45 @@ TrackerElement *TrackerElement::operator[](mac_addr i) {
 TrackerElement::map_const_iterator TrackerElement::begin() {
     switch (type) {
         case TrackerMap:
-            return submap_value.begin();
+            return submap_value->begin();
         case TrackerIntMap:
-            return subintmap_value.begin();
+            return subintmap_value->begin();
         default:
-            throw std::runtime_error(string("can't address " + type_to_string(type) + " as a map"));
+            throw std::runtime_error(string("can't address " + 
+                        type_to_string(type) + " as a map"));
     }
 }
 
 TrackerElement::map_const_iterator TrackerElement::end() {
     switch (type) {
         case TrackerMap:
-            return submap_value.end();
+            return submap_value->end();
         case TrackerIntMap:
-            return subintmap_value.end();
+            return subintmap_value->end();
         default:
-            throw std::runtime_error(string("can't address " + type_to_string(type) + " as a map"));
+            throw std::runtime_error(string("can't address " + 
+                        type_to_string(type) + " as a map"));
     }
 }
 
 TrackerElement::map_iterator TrackerElement::find(int k) {
     switch (type) {
         case TrackerMap:
-            return submap_value.find(k);
+            return submap_value->find(k);
         case TrackerIntMap:
-            return subintmap_value.find(k);
+            return subintmap_value->find(k);
         default:
-            throw std::runtime_error(string("can't address " + type_to_string(type) + " as a map"));
+            throw std::runtime_error(string("can't address " + 
+                        type_to_string(type) + " as a map"));
     }
 }
 
 TrackerElement *TrackerElement::get_macmap_value(int idx) {
     except_type_mismatch(TrackerMacMap);
 
-    map<mac_addr, TrackerElement *>::iterator i = submacmap_value.find(idx);
+    map<mac_addr, TrackerElement *>::iterator i = submacmap_value->find(idx);
 
-    if (i == submacmap_value.end()) {
+    if (i == submacmap_value->end()) {
         return NULL;
     }
 
@@ -649,31 +774,31 @@ TrackerElement *TrackerElement::get_macmap_value(int idx) {
 TrackerElement::vector_const_iterator TrackerElement::vec_begin() {
     except_type_mismatch(TrackerVector);
 
-    return subvector_value.begin();
+    return subvector_value->begin();
 }
 
 TrackerElement::vector_const_iterator TrackerElement::vec_end() {
     except_type_mismatch(TrackerVector);
 
-    return subvector_value.end();
+    return subvector_value->end();
 }
 
 TrackerElement::mac_map_const_iterator TrackerElement::mac_begin() {
     except_type_mismatch(TrackerMacMap);
 
-    return submacmap_value.begin();
+    return submacmap_value->begin();
 }
 
 TrackerElement::mac_map_const_iterator TrackerElement::mac_end() {
     except_type_mismatch(TrackerMacMap);
 
-    return submacmap_value.end();
+    return submacmap_value->end();
 }
 
 TrackerElement::mac_map_iterator TrackerElement::mac_find(mac_addr k) {
     except_type_mismatch(TrackerMacMap);
 
-    return submacmap_value.find(k);
+    return submacmap_value->find(k);
 }
 
 void TrackerElement::add_macmap(mac_addr i, TrackerElement *s) {
@@ -681,13 +806,13 @@ void TrackerElement::add_macmap(mac_addr i, TrackerElement *s) {
 
     TrackerElement *old = NULL;
 
-    mac_map_iterator mi = submacmap_value.find(i);
+    mac_map_iterator mi = submacmap_value->find(i);
 
-    if (mi != submacmap_value.end()) {
+    if (mi != submacmap_value->end()) {
         old = mi->second;
     }
 
-    submacmap_value[i] = s;
+    (*submacmap_value)[i] = s;
 
     s->link();
 
@@ -698,9 +823,9 @@ void TrackerElement::add_macmap(mac_addr i, TrackerElement *s) {
 void TrackerElement::del_macmap(mac_addr f) {
     except_type_mismatch(TrackerMacMap);
 
-    mac_map_iterator mi = submacmap_value.find(f);
-    if (mi != submacmap_value.end()) {
-        submacmap_value.erase(mi);
+    mac_map_iterator mi = submacmap_value->find(f);
+    if (mi != submacmap_value->end()) {
+        submacmap_value->erase(mi);
         mi->second->unlink();
     }
 }
@@ -709,24 +834,24 @@ void TrackerElement::del_macmap(mac_map_iterator i) {
     except_type_mismatch(TrackerMacMap);
 
     i->second->unlink();
-    submacmap_value.erase(i);
+    submacmap_value->erase(i);
 }
 
 void TrackerElement::clear_macmap() {
     except_type_mismatch(TrackerMacMap);
 
-    for (mac_map_iterator i = submacmap_value.begin();
-            i != submacmap_value.end(); ++i) {
+    for (mac_map_iterator i = submacmap_value->begin();
+            i != submacmap_value->end(); ++i) {
         i->second->unlink();
     }
 
-    submacmap_value.clear();
+    submacmap_value->clear();
 }
 
 void TrackerElement::insert_macmap(mac_map_pair p) {
     except_type_mismatch(TrackerMacMap);
 
-    std::pair<mac_map_iterator, bool> ret = submacmap_value.insert(p);
+    std::pair<mac_map_iterator, bool> ret = submacmap_value->insert(p);
 
     if (ret.second) {
         ret.first->second->link();
@@ -736,9 +861,9 @@ void TrackerElement::insert_macmap(mac_map_pair p) {
 TrackerElement *TrackerElement::get_stringmap_value(string idx) {
     except_type_mismatch(TrackerStringMap);
 
-    map<string, TrackerElement *>::iterator i = substringmap_value.find(idx);
+    map<string, TrackerElement *>::iterator i = substringmap_value->find(idx);
 
-    if (i == substringmap_value.end()) {
+    if (i == substringmap_value->end()) {
         return NULL;
     }
 
@@ -748,19 +873,19 @@ TrackerElement *TrackerElement::get_stringmap_value(string idx) {
 TrackerElement::string_map_const_iterator TrackerElement::string_begin() {
     except_type_mismatch(TrackerStringMap);
 
-    return substringmap_value.begin();
+    return substringmap_value->begin();
 }
 
 TrackerElement::string_map_const_iterator TrackerElement::string_end() {
     except_type_mismatch(TrackerStringMap);
 
-    return substringmap_value.end();
+    return substringmap_value->end();
 }
 
 TrackerElement::string_map_iterator TrackerElement::string_find(string k) {
     except_type_mismatch(TrackerStringMap);
 
-    return substringmap_value.find(k);
+    return substringmap_value->find(k);
 }
 
 void TrackerElement::add_stringmap(string i, TrackerElement *s) {
@@ -768,13 +893,13 @@ void TrackerElement::add_stringmap(string i, TrackerElement *s) {
 
     TrackerElement *old = NULL;
 
-    string_map_iterator mi = substringmap_value.find(i);
+    string_map_iterator mi = substringmap_value->find(i);
 
-    if (mi != substringmap_value.end()) {
+    if (mi != substringmap_value->end()) {
         old = mi->second;
     }
 
-    substringmap_value[i] = s;
+    (*substringmap_value)[i] = s;
 
     s->link();
 
@@ -785,9 +910,9 @@ void TrackerElement::add_stringmap(string i, TrackerElement *s) {
 void TrackerElement::del_stringmap(string f) {
     except_type_mismatch(TrackerStringMap);
 
-    string_map_iterator mi = substringmap_value.find(f);
-    if (mi != substringmap_value.end()) {
-        substringmap_value.erase(mi);
+    string_map_iterator mi = substringmap_value->find(f);
+    if (mi != substringmap_value->end()) {
+        substringmap_value->erase(mi);
         mi->second->unlink();
     }
 }
@@ -797,24 +922,24 @@ void TrackerElement::del_stringmap(string_map_iterator i) {
 
     i->second->unlink();
 
-    substringmap_value.erase(i);
+    substringmap_value->erase(i);
 }
 
 void TrackerElement::clear_stringmap() {
     except_type_mismatch(TrackerStringMap);
 
-    for (string_map_iterator i = substringmap_value.begin();
-            i != substringmap_value.end(); ++i) {
+    for (string_map_iterator i = substringmap_value->begin();
+            i != substringmap_value->end(); ++i) {
         i->second->unlink();
     }
 
-    substringmap_value.clear();
+    substringmap_value->clear();
 }
 
 void TrackerElement::insert_stringmap(string_map_pair p) {
     except_type_mismatch(TrackerStringMap);
 
-    std::pair<string_map_iterator, bool> ret = substringmap_value.insert(p);
+    std::pair<string_map_iterator, bool> ret = substringmap_value->insert(p);
 
     if (ret.second) {
         ret.first->second->link();
@@ -824,9 +949,9 @@ void TrackerElement::insert_stringmap(string_map_pair p) {
 TrackerElement *TrackerElement::get_doublemap_value(double idx) {
     except_type_mismatch(TrackerDoubleMap);
 
-    map<double, TrackerElement *>::iterator i = subdoublemap_value.find(idx);
+    map<double, TrackerElement *>::iterator i = subdoublemap_value->find(idx);
 
-    if (i == subdoublemap_value.end()) {
+    if (i == subdoublemap_value->end()) {
         return NULL;
     }
 
@@ -836,19 +961,19 @@ TrackerElement *TrackerElement::get_doublemap_value(double idx) {
 TrackerElement::double_map_const_iterator TrackerElement::double_begin() {
     except_type_mismatch(TrackerDoubleMap);
 
-    return subdoublemap_value.begin();
+    return subdoublemap_value->begin();
 }
 
 TrackerElement::double_map_const_iterator TrackerElement::double_end() {
     except_type_mismatch(TrackerDoubleMap);
 
-    return subdoublemap_value.end();
+    return subdoublemap_value->end();
 }
 
 TrackerElement::double_map_iterator TrackerElement::double_find(double k) {
     except_type_mismatch(TrackerDoubleMap);
 
-    return subdoublemap_value.find(k);
+    return subdoublemap_value->find(k);
 }
 
 void TrackerElement::add_doublemap(double i, TrackerElement *s) {
@@ -856,13 +981,13 @@ void TrackerElement::add_doublemap(double i, TrackerElement *s) {
 
     TrackerElement *old = NULL;
 
-    double_map_iterator mi = subdoublemap_value.find(i);
+    double_map_iterator mi = subdoublemap_value->find(i);
 
-    if (mi != subdoublemap_value.end()) {
+    if (mi != subdoublemap_value->end()) {
         old = mi->second;
     }
 
-    subdoublemap_value[i] = s;
+    (*subdoublemap_value)[i] = s;
 
     s->link();
 
@@ -873,9 +998,9 @@ void TrackerElement::add_doublemap(double i, TrackerElement *s) {
 void TrackerElement::del_doublemap(double f) {
     except_type_mismatch(TrackerDoubleMap);
 
-    double_map_iterator mi = subdoublemap_value.find(f);
-    if (mi != subdoublemap_value.end()) {
-        subdoublemap_value.erase(mi);
+    double_map_iterator mi = subdoublemap_value->find(f);
+    if (mi != subdoublemap_value->end()) {
+        subdoublemap_value->erase(mi);
         mi->second->unlink();
     }
 }
@@ -884,24 +1009,24 @@ void TrackerElement::del_doublemap(double_map_iterator i) {
     except_type_mismatch(TrackerDoubleMap);
 
     i->second->unlink();
-    subdoublemap_value.erase(i);
+    subdoublemap_value->erase(i);
 }
 
 void TrackerElement::clear_doublemap() {
     except_type_mismatch(TrackerDoubleMap);
 
-    for (double_map_iterator i = subdoublemap_value.begin();
-            i != subdoublemap_value.end(); ++i) {
+    for (double_map_iterator i = subdoublemap_value->begin();
+            i != subdoublemap_value->end(); ++i) {
         i->second->unlink();
     }
 
-    subdoublemap_value.clear();
+    subdoublemap_value->clear();
 }
 
 void TrackerElement::insert_doublemap(double_map_pair p) {
     except_type_mismatch(TrackerDoubleMap);
 
-    std::pair<double_map_iterator, bool> ret = subdoublemap_value.insert(p);
+    std::pair<double_map_iterator, bool> ret = subdoublemap_value->insert(p);
 
     if (ret.second) {
         ret.first->second->link();
@@ -958,13 +1083,13 @@ void TrackerElement::add_map(int f, TrackerElement *s) {
 
     TrackerElement *old = NULL;
 
-    map_iterator mi = submap_value.find(f);
+    map_iterator mi = submap_value->find(f);
 
-    if (mi != submap_value.end()) {
+    if (mi != submap_value->end()) {
         old = mi->second;
     }
 
-    submap_value[f] = s;
+    (*submap_value)[f] = s;
 
     s->link();
 
@@ -978,13 +1103,13 @@ void TrackerElement::add_map(TrackerElement *s) {
 
     TrackerElement *old = NULL;
 
-    map_iterator mi = submap_value.find(s->get_id());
+    map_iterator mi = submap_value->find(s->get_id());
 
-    if (mi != submap_value.end()) {
+    if (mi != submap_value->end()) {
         old = mi->second;
     }
 
-    submap_value[s->get_id()] = s;
+    (*submap_value)[s->get_id()] = s;
 
     s->link();
 
@@ -995,9 +1120,9 @@ void TrackerElement::add_map(TrackerElement *s) {
 void TrackerElement::del_map(int f) {
     except_type_mismatch(TrackerMap);
 
-    map<int, TrackerElement *>::iterator i = submap_value.find(f);
-    if (i != submap_value.end()) {
-        submap_value.erase(i);
+    map<int, TrackerElement *>::iterator i = submap_value->find(f);
+    if (i != submap_value->end()) {
+        submap_value->erase(i);
         i->second->unlink();
     }
 }
@@ -1009,13 +1134,13 @@ void TrackerElement::del_map(TrackerElement *e) {
 void TrackerElement::del_map(map_iterator i) {
     except_type_mismatch(TrackerMap);
     i->second->unlink();
-    submap_value.erase(i);
+    submap_value->erase(i);
 }
 
 void TrackerElement::insert_map(tracked_pair p) {
     except_type_mismatch(TrackerMap);
 
-    std::pair<map_iterator, bool> ret = submap_value.insert(p);
+    std::pair<map_iterator, bool> ret = submap_value->insert(p);
 
     if (ret.second) {
         ret.first->second->link();
@@ -1025,20 +1150,20 @@ void TrackerElement::insert_map(tracked_pair p) {
 void TrackerElement::clear_map() {
     except_type_mismatch(TrackerMap);
     
-    for (map_iterator i = submap_value.begin();
-            i != submap_value.end(); ++i) {
+    for (map_iterator i = submap_value->begin();
+            i != submap_value->end(); ++i) {
         i->second->unlink();
     }
 
-    submap_value.clear();
+    submap_value->clear();
 }
 
 TrackerElement *TrackerElement::get_intmap_value(int idx) {
     except_type_mismatch(TrackerIntMap);
 
-    map<int, TrackerElement *>::iterator i = subintmap_value.find(idx);
+    map<int, TrackerElement *>::iterator i = subintmap_value->find(idx);
 
-    if (i == submap_value.end()) {
+    if (i == submap_value->end()) {
         return NULL;
     }
 
@@ -1048,36 +1173,36 @@ TrackerElement *TrackerElement::get_intmap_value(int idx) {
 TrackerElement::int_map_const_iterator TrackerElement::int_begin() {
     except_type_mismatch(TrackerIntMap);
 
-    return subintmap_value.begin();
+    return subintmap_value->begin();
 }
 
 TrackerElement::int_map_const_iterator TrackerElement::int_end() {
     except_type_mismatch(TrackerIntMap);
 
-    return subintmap_value.end();
+    return subintmap_value->end();
 }
 
 TrackerElement::int_map_iterator TrackerElement::int_find(int k) {
     except_type_mismatch(TrackerIntMap);
 
-    return subintmap_value.find(k);
+    return subintmap_value->find(k);
 }
 
 void TrackerElement::clear_intmap() {
     except_type_mismatch(TrackerIntMap);
 
-    for (int_map_iterator i = subintmap_value.begin(); 
-            i != subintmap_value.end(); ++i) {
+    for (int_map_iterator i = subintmap_value->begin(); 
+            i != subintmap_value->end(); ++i) {
         i->second->unlink();
     }
 
-    subintmap_value.clear();
+    subintmap_value->clear();
 }
 
 void TrackerElement::insert_intmap(int_map_pair p) {
     except_type_mismatch(TrackerIntMap);
 
-    std::pair<int_map_iterator, bool> ret = subintmap_value.insert(p);
+    std::pair<int_map_iterator, bool> ret = subintmap_value->insert(p);
 
     if (ret.second) {
         ret.first->second->link();
@@ -1089,13 +1214,13 @@ void TrackerElement::add_intmap(int i, TrackerElement *s) {
 
     TrackerElement *old = NULL;
 
-    int_map_iterator mi = subintmap_value.find(i);
+    int_map_iterator mi = subintmap_value->find(i);
 
-    if (mi != subintmap_value.end()) {
+    if (mi != subintmap_value->end()) {
         old = mi->second;
     }
 
-    subintmap_value[i] = s;
+    (*subintmap_value)[i] = s;
 
     s->link();
 
@@ -1106,9 +1231,9 @@ void TrackerElement::add_intmap(int i, TrackerElement *s) {
 void TrackerElement::del_intmap(int i) {
     except_type_mismatch(TrackerIntMap);
 
-    map<int, TrackerElement *>::iterator itr = subintmap_value.find(i);
-    if (itr != subintmap_value.end()) {
-        subintmap_value.erase(i);
+    map<int, TrackerElement *>::iterator itr = subintmap_value->find(i);
+    if (itr != subintmap_value->end()) {
+        subintmap_value->erase(i);
         itr->second->unlink();
     }
 }
@@ -1117,27 +1242,27 @@ void TrackerElement::del_intmap(int_map_iterator i) {
     except_type_mismatch(TrackerIntMap);
 
     i->second->unlink();
-    subintmap_value.erase(i);
+    subintmap_value->erase(i);
 }
 
 void TrackerElement::add_vector(TrackerElement *s) {
     except_type_mismatch(TrackerVector);
-    subvector_value.push_back(s);
+    subvector_value->push_back(s);
     s->link();
 }
 
 void TrackerElement::del_vector(unsigned int p) {
     except_type_mismatch(TrackerVector);
 
-    if (p > subvector_value.size()) {
+    if (p > subvector_value->size()) {
         string w = "del_vector out of range (" + IntToString(p) + ", vector " + 
-            IntToString(submap_value.size()) + ")";
+            IntToString(submap_value->size()) + ")";
         throw std::runtime_error(w);
     }
 
-    TrackerElement *e = subvector_value[p];
-    vector<TrackerElement *>::iterator i = subvector_value.begin() + p;
-    subvector_value.erase(i);
+    TrackerElement *e = (*subvector_value)[p];
+    vector<TrackerElement *>::iterator i = subvector_value->begin() + p;
+    subvector_value->erase(i);
 
     e->unlink();
 }
@@ -1147,29 +1272,29 @@ void TrackerElement::del_vector(vector_iterator i) {
 
     (*i)->unlink();
 
-    subvector_value.erase(i);
+    subvector_value->erase(i);
 }
 
 void TrackerElement::clear_vector() {
     except_type_mismatch(TrackerVector);
 
-    for (unsigned int i = 0; i < subvector_value.size(); i++) {
-        subvector_value[i]->unlink();
+    for (unsigned int i = 0; i < subvector_value->size(); i++) {
+        (*subvector_value)[i]->unlink();
     }
 
-    subvector_value.clear();
+    subvector_value->clear();
 }
 
 size_t TrackerElement::size() {
     switch (type) {
         case TrackerVector:
-            return subvector_value.size();
+            return subvector_value->size();
         case TrackerMap:
-            return submap_value.size();
+            return submap_value->size();
         case TrackerIntMap:
-            return subintmap_value.size();
+            return subintmap_value->size();
         case TrackerMacMap:
-            return submacmap_value.size();
+            return submacmap_value->size();
         default:
             throw std::runtime_error(string("can't get size of a " + type_to_string(type)));
     }
