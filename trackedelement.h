@@ -40,6 +40,8 @@ class EntryTracker;
 // Statically assigned type numbers which MUST NOT CHANGE as things go forwards for binary/fast
 // serialization, new types must be added to the end of the list
 enum TrackerType {
+    TrackerUnassigned = -1,
+
     TrackerString = 0,
 
     TrackerInt8 = 1, 
@@ -81,12 +83,13 @@ enum TrackerType {
 class TrackerElement {
 public:
     TrackerElement() {
-        this->type = TrackerString;
+        this->type = TrackerUnassigned;
         reference_count = 0;
 
         set_id(-1);
 
         // Redundant I guess
+        dataunion.string_value = NULL;
         dataunion.int8_value = 0;
         dataunion.uint8_value = 0;
         dataunion.int16_value = 0;
@@ -167,7 +170,7 @@ public:
     // Getter per type, use templated GetTrackerValue() for easy fetch
     string get_string() {
         except_type_mismatch(TrackerString);
-        return string_value;
+        return *(dataunion.string_value);
     }
 
     uint8_t get_uint8() {
@@ -280,7 +283,7 @@ public:
     // Overloaded set
     void set(string v) {
         except_type_mismatch(TrackerString);
-        string_value = v;
+        *(dataunion.string_value) = v;
     }
 
     void set(uint8_t v) {
@@ -558,11 +561,11 @@ protected:
     TrackerType type;
     int tracked_id;
 
-    string string_value;
-
     // We could make these all one type, but then we'd have odd interactions
     // with incrementing and I'm not positive that's safe in all cases
     union {
+        string *string_value;
+
         uint8_t uint8_value;
         int8_t int8_value;
 

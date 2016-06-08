@@ -28,12 +28,14 @@
 #include "entrytracker.h"
 
 TrackerElement::TrackerElement(TrackerType type) {
-    this->type = TrackerString;
+    this->type = TrackerUnassigned;
     reference_count = 0;
 
     set_id(-1);
 
     // Redundant I guess
+    dataunion.string_value = NULL;
+
     dataunion.int8_value = 0;
     dataunion.uint8_value = 0;
     dataunion.int16_value = 0;
@@ -60,10 +62,13 @@ TrackerElement::TrackerElement(TrackerType type) {
 }
 
 TrackerElement::TrackerElement(TrackerType type, int id) {
-    this->type = TrackerString;
+    this->type = TrackerUnassigned;
+
     set_id(id);
 
     reference_count = 0;
+
+    dataunion.string_value = NULL;
 
     dataunion.int8_value = 0;
     dataunion.uint8_value = 0;
@@ -109,7 +114,8 @@ TrackerElement::~TrackerElement() {
     } else if (type == TrackerMap) {
         map<int, TrackerElement *>::iterator i;
 
-        for (i = dataunion.submap_value->begin(); i != dataunion.submap_value->end(); ++i) {
+        for (i = dataunion.submap_value->begin(); 
+                i != dataunion.submap_value->end(); ++i) {
             i->second->unlink();
         }
 
@@ -117,7 +123,8 @@ TrackerElement::~TrackerElement() {
     } else if (type == TrackerIntMap) {
         map<int, TrackerElement *>::iterator i;
 
-        for (i = dataunion.subintmap_value->begin(); i != dataunion.subintmap_value->end(); ++i) {
+        for (i = dataunion.subintmap_value->begin(); 
+                i != dataunion.subintmap_value->end(); ++i) {
             i->second->unlink();
         }
 
@@ -125,7 +132,8 @@ TrackerElement::~TrackerElement() {
     } else if (type == TrackerMacMap) {
         map<mac_addr, TrackerElement *>::iterator i;
 
-        for (i = dataunion.submacmap_value->begin(); i != dataunion.submacmap_value->end(); ++i) {
+        for (i = dataunion.submacmap_value->begin(); 
+                i != dataunion.submacmap_value->end(); ++i) {
             i->second->unlink();
         }
 
@@ -144,6 +152,12 @@ TrackerElement::~TrackerElement() {
         }
 
         delete(dataunion.subdoublemap_value);
+    } else if (type == TrackerString) {
+        delete(dataunion.string_value);
+    } else if (type == TrackerMac) {
+        delete(dataunion.mac_value);
+    } else if (type == TrackerUuid) {
+        delete dataunion.uuid_value;
     }
 }
 
@@ -211,6 +225,9 @@ void TrackerElement::set_type(TrackerType in_type) {
     } else if (type == TrackerUuid && dataunion.uuid_value != NULL) {
         delete(dataunion.uuid_value);
         dataunion.uuid_value = NULL;
+    } else if (type == TrackerString && dataunion.string_value != NULL) {
+        delete(dataunion.string_value);
+        dataunion.string_value = NULL;
     }
     
 
@@ -232,8 +249,9 @@ void TrackerElement::set_type(TrackerType in_type) {
         dataunion.mac_value = new mac_addr(0);
     } else if (type == TrackerUuid) {
         dataunion.uuid_value = new uuid();
+    } else if (type == TrackerString) {
+        dataunion.string_value = new string();
     }
-
 }
 
 TrackerElement& TrackerElement::operator++(int) {
