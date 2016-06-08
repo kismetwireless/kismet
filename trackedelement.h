@@ -87,26 +87,26 @@ public:
         set_id(-1);
 
         // Redundant I guess
-        primitives.int8_value = 0;
-        primitives.uint8_value = 0;
-        primitives.int16_value = 0;
-        primitives.uint16_value = 0;
-        primitives.int32_value = 0;
-        primitives.uint32_value = 0;
-        primitives.int64_value = 0;
-        primitives.uint64_value = 0;
-        primitives.float_value = 0.0f;
-        primitives.double_value = 0.0f;
+        dataunion.int8_value = 0;
+        dataunion.uint8_value = 0;
+        dataunion.int16_value = 0;
+        dataunion.uint16_value = 0;
+        dataunion.int32_value = 0;
+        dataunion.uint32_value = 0;
+        dataunion.int64_value = 0;
+        dataunion.uint64_value = 0;
+        dataunion.float_value = 0.0f;
+        dataunion.double_value = 0.0f;
 
         mac_value = mac_addr(0);
 
-        submap_value = NULL;
-        subintmap_value = NULL;
-        submacmap_value = NULL;
-        substringmap_value = NULL;
-        subdoublemap_value = NULL;
-        subvector_value = NULL;
-        custom_value = NULL;
+        dataunion.submap_value = NULL;
+        dataunion.subintmap_value = NULL;
+        dataunion.submacmap_value = NULL;
+        dataunion.substringmap_value = NULL;
+        dataunion.subdoublemap_value = NULL;
+        dataunion.subvector_value = NULL;
+        dataunion.custom_value = NULL;
     }
 
     TrackerElement(TrackerType type);
@@ -171,52 +171,52 @@ public:
 
     uint8_t get_uint8() {
         except_type_mismatch(TrackerUInt8);
-        return primitives.uint8_value;
+        return dataunion.uint8_value;
     }
 
     int8_t get_int8() {
         except_type_mismatch(TrackerInt8);
-        return primitives.int8_value;
+        return dataunion.int8_value;
     }
 
     uint16_t get_uint16() {
         except_type_mismatch(TrackerUInt16);
-        return primitives.uint16_value;
+        return dataunion.uint16_value;
     }
 
     int16_t get_int16() {
         except_type_mismatch(TrackerInt16);
-        return primitives.int16_value;
+        return dataunion.int16_value;
     }
 
     uint32_t get_uint32() {
         except_type_mismatch(TrackerUInt32);
-        return primitives.uint32_value;
+        return dataunion.uint32_value;
     }
 
     int32_t get_int32() {
         except_type_mismatch(TrackerInt32);
-        return primitives.int32_value;
+        return dataunion.int32_value;
     }
 
     uint64_t get_uint64() {
         except_type_mismatch(TrackerUInt64);
-        return primitives.uint64_value;
+        return dataunion.uint64_value;
     }
 
     int64_t get_int64() {
         except_type_mismatch(TrackerInt64);
-        return primitives.int64_value;
+        return dataunion.int64_value;
     }
 
     float get_float() {
         except_type_mismatch(TrackerFloat);
-        return primitives.float_value;
+        return dataunion.float_value;
     }
 
     double get_double() {
         except_type_mismatch(TrackerDouble);
-        return primitives.double_value;
+        return dataunion.double_value;
     }
 
     mac_addr get_mac() {
@@ -226,25 +226,25 @@ public:
 
     vector<TrackerElement *> *get_vector() {
         except_type_mismatch(TrackerVector);
-        return subvector_value;
+        return dataunion.subvector_value;
     }
 
     TrackerElement *get_vector_value(unsigned int offt) {
         except_type_mismatch(TrackerVector);
-        return (*subvector_value)[offt];
+        return (*dataunion.subvector_value)[offt];
     }
 
     map<int, TrackerElement *> *get_map() {
         except_type_mismatch(TrackerMap);
-        return submap_value;
+        return dataunion.submap_value;
     }
 
     TrackerElement *get_map_value(int fn) {
         except_type_mismatch(TrackerMap);
 
-        map<int, TrackerElement *>::iterator i = submap_value->find(fn);
+        map<int, TrackerElement *>::iterator i = dataunion.submap_value->find(fn);
 
-        if (i == submap_value->end()) {
+        if (i == dataunion.submap_value->end()) {
             return NULL;
         }
 
@@ -253,22 +253,22 @@ public:
 
     map<int, TrackerElement *> *get_intmap() {
         except_type_mismatch(TrackerIntMap);
-        return subintmap_value;
+        return dataunion.subintmap_value;
     }
 
     map<mac_addr, TrackerElement *> *get_macmap() {
         except_type_mismatch(TrackerMacMap);
-        return submacmap_value;
+        return dataunion.submacmap_value;
     }
 
     map<string, TrackerElement *> *get_stringmap() {
         except_type_mismatch(TrackerStringMap);
-        return substringmap_value;
+        return dataunion.substringmap_value;
     }
 
     map<double, TrackerElement *> *get_doublemap() {
         except_type_mismatch(TrackerDoubleMap);
-        return subdoublemap_value;
+        return dataunion.subdoublemap_value;
     }
 
     uuid get_uuid() {
@@ -284,52 +284,52 @@ public:
 
     void set(uint8_t v) {
         except_type_mismatch(TrackerUInt8);
-        primitives.uint8_value = v;
+        dataunion.uint8_value = v;
     }
 
     void set(int8_t v) {
         except_type_mismatch(TrackerInt8);
-        primitives.int8_value = v;
+        dataunion.int8_value = v;
     }
 
     void set(uint16_t v) {
         except_type_mismatch(TrackerUInt16);
-        primitives.uint16_value = v;
+        dataunion.uint16_value = v;
     }
 
     void set(int16_t v) {
         except_type_mismatch(TrackerInt16);
-        primitives.int16_value = v;
+        dataunion.int16_value = v;
     }
 
     void set(uint32_t v) {
         except_type_mismatch(TrackerUInt32);
-        primitives.uint32_value = v;
+        dataunion.uint32_value = v;
     }
 
     void set(int32_t v) {
         except_type_mismatch(TrackerInt32);
-        primitives.int32_value = v;
+        dataunion.int32_value = v;
     }
 
     void set(uint64_t v) {
         except_type_mismatch(TrackerUInt64);
-        primitives.uint64_value = v;
+        dataunion.uint64_value = v;
     }
 
     void set(int64_t v) {
         except_type_mismatch(TrackerInt64);
-        primitives.int64_value = v;
+        dataunion.int64_value = v;
     }
 
     void set(float v) {
         except_type_mismatch(TrackerFloat);
-        primitives.float_value = v;
+        dataunion.float_value = v;
     }
 
     void set(double v) {
         except_type_mismatch(TrackerDouble);
-        primitives.double_value = v;
+        dataunion.double_value = v;
     }
 
     void set(mac_addr v) {
@@ -574,30 +574,31 @@ protected:
 
         float float_value;
         double double_value;
-    } primitives;
+
+        // Field ID,Element keyed map
+        map<int, TrackerElement *> *submap_value;
+
+        // Index int,Element keyed map
+        map<int, TrackerElement *> *subintmap_value;
+
+        // Index mac,element keyed map
+        map<mac_addr, TrackerElement *> *submacmap_value;
+
+        // Index string,element keyed map
+        map<string, TrackerElement *> *substringmap_value;
+
+        // Index double,element keyed map
+        map<double, TrackerElement *> *subdoublemap_value;
+
+        vector<TrackerElement *> *subvector_value;
+
+        void *custom_value;
+    } dataunion;
 
     mac_addr mac_value;
 
-    // Field ID,Element keyed map
-    map<int, TrackerElement *> *submap_value;
-    
-    // Index int,Element keyed map
-    map<int, TrackerElement *> *subintmap_value;
-
-    // Index mac,element keyed map
-    map<mac_addr, TrackerElement *> *submacmap_value;
-
-    // Index string,element keyed map
-    map<string, TrackerElement *> *substringmap_value;
-
-    // Index double,element keyed map
-    map<double, TrackerElement *> *subdoublemap_value;
-
-    vector<TrackerElement *> *subvector_value;
-
     uuid uuid_value;
 
-    void *custom_value;
 };
 
 // Helper child classes
@@ -860,7 +861,7 @@ template<> mac_addr GetTrackerValue(TrackerElement *e);
 template<> map<int, TrackerElement *> *GetTrackerValue(TrackerElement *e);
 template<> vector<TrackerElement *> *GetTrackerValue(TrackerElement *e);
 
-// Complex trackable unit based on trackertype primitives.
+// Complex trackable unit based on trackertype dataunion.
 //
 // All tracker_components are built from maps.
 //
