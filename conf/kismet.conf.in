@@ -31,6 +31,13 @@ include=%E/kismet_httpd.conf
 # plugin locations).
 allowplugins=true
 
+# Time, in seconds, for devices to be tracked when idle.  By default, devices
+# are kept forever, however in RAM constrained environments it may be preferable
+# to stop tracking older devices.
+# Devices which are removed will be detected as new devices without historical
+# data if they are detected a second time.
+# tracker_device_timeout=10
+
 # See the README for full information on the new source format
 # ncsource=interface:options
 # for example:

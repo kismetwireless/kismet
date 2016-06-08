@@ -85,7 +85,6 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
         globalreg->entrytracker->RegisterField("kismet.device.packets_rrd",
                 packets_rrd, "RRD of total packets seen");
 
-	next_componentid = 0;
 	num_packets = num_datapackets = num_errorpackets = 
 		num_filterpackets = 0;
 
@@ -132,11 +131,21 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
             tag_conf->ExpandLogPath(globalreg->kismet_config->FetchOpt("configdir") + 
                 "/" + "tag.conf", "", "", 0, 1).c_str());
 
+    // Set up the device timeout
+    device_idle_expiration =
+        globalreg->kismet_config->FetchOptInt("tracker_device_timeout", 0);
 
-    /*
-    // Register ourselves with the HTTP server
-    globalreg->httpd_server->RegisterHandler(this);
-    */
+    if (device_idle_expiration != 0) {
+        stringstream ss;
+        ss << "Removing tracked devices which have been inactive for more than " <<
+            device_idle_expiration << " seconds.";
+        _MSG(ss.str(), MSGFLAG_INFO);
+
+        device_idle_timer =
+            globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 60, NULL, 
+                1, this);
+    }
+
 }
 
 Devicetracker::~Devicetracker() {
@@ -144,6 +153,8 @@ Devicetracker::~Devicetracker() {
 
 	globalreg->packetchain->RemoveHandler(&Devicetracker_packethook_commontracker,
 										  CHAINPOS_TRACKER);
+
+    globalreg->timetracker->RemoveTimer(device_idle_timer);
 
     // TODO broken for now
     /*
@@ -290,26 +301,6 @@ int Devicetracker::FetchNumFilterpackets(int in_phy) {
 	return 0;
 }
 
-int Devicetracker::RegisterDeviceComponent(string in_component) {
-	if (component_str_map.find(StrLower(in_component)) != component_str_map.end()) {
-		return component_str_map[StrLower(in_component)];
-	}
-
-	int num = next_componentid++;
-
-	component_str_map[StrLower(in_component)] = num;
-	component_id_map[num] = StrLower(in_component);
-
-	return num;
-}
-
-string Devicetracker::FetchDeviceComponentName(int in_id) {
-	if (component_id_map.find(in_id) == component_id_map.end())
-		return "<UNKNOWN>";
-
-	return component_id_map[in_id];
-}
-
 int Devicetracker::RegisterPhyHandler(Kis_Phy_Handler *in_weak_handler) {
 	int num = next_phy_id++;
 
@@ -323,8 +314,6 @@ int Devicetracker::RegisterPhyHandler(Kis_Phy_Handler *in_weak_handler) {
 	phy_errorpackets[num] = 0;
 	phy_filterpackets[num] = 0;
 	
-	phy_device_vec[num] = new vector<kis_tracked_device_base *>;
-
 	_MSG("Registered PHY handler '" + strongphy->FetchPhyName() + "' as ID " +
 		 IntToString(num), MSGFLAG_INFO);
 
@@ -479,7 +468,6 @@ kis_tracked_device_base *Devicetracker::UpdateCommonDevice(mac_addr in_mac,
             local_locker lock(&devicelist_mutex);
             tracked_map[device->get_key()] = device;
             tracked_vec.push_back(device);
-            phy_device_vec[pack_common->phyid]->push_back(device);
         }
     
         device->set_first_time(in_pack->ts.tv_sec);
@@ -1867,6 +1855,44 @@ void Devicetracker::MatchOnDevices(DevicetrackerFilterWorker *worker) {
     }
 
     worker->Finalize(this);
+}
+    
+int Devicetracker::timetracker_event(int eventid) {
+    if (eventid == device_idle_timer) {
+        local_locker lock(&devicelist_mutex);
+
+        vector<kis_tracked_device_base *> target_devs;
+
+        // Find all eligible devices, remove them from the tracked vec
+        for (vector<kis_tracked_device_base *>::iterator i =
+                tracked_vec.begin(); i != tracked_vec.end(); /* */ ) {
+            if (globalreg->timestamp.tv_sec - (*i)->get_last_time() > 
+                    device_idle_timer) {
+                target_devs.push_back(*i);
+                tracked_vec.erase(i);
+            } else {
+                ++i;
+            }
+        }
+
+        // Remove them from the global index, and then unlink to let the
+        // tracked element GC clean them up
+        for (vector<kis_tracked_device_base *>::iterator i =
+                target_devs.begin(); i != target_devs.end(); ++i) {
+            device_itr mi = tracked_map.find((*i)->get_key());
+
+            if (mi != tracked_map.end())
+                tracked_map.erase(mi);
+
+            // fprintf(stderr, "debug - forgetting network %s\n", (*i)->get_macaddr().Mac2String().c_str());
+
+            (*i)->unlink();
+        }
+
+    }
+
+    // Loop
+    return 1;
 }
 
 

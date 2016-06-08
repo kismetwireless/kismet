@@ -610,7 +610,8 @@ public:
     virtual void Finalize(Devicetracker *devicetracker) { }
 };
 
-class Devicetracker : public Kis_Net_Httpd_Stream_Handler {
+class Devicetracker : public Kis_Net_Httpd_Stream_Handler, 
+    public TimetrackerEvent {
 public:
 	Devicetracker() { fprintf(stderr, "FATAL OOPS: Kis_Tracker()\n"); exit(0); }
 	Devicetracker(GlobalRegistry *in_globalreg);
@@ -619,10 +620,6 @@ public:
 	// Register a phy handler weak class, used to instantiate the strong class
 	// inside devtracker
 	int RegisterPhyHandler(Kis_Phy_Handler *in_weak_handler);
-	// Register a tracked device component
-	int RegisterDeviceComponent(string in_component);
-	// Get a device component name
-	string FetchDeviceComponentName(int in_id);
 
 	Kis_Phy_Handler *FetchPhyHandler(int in_phy);
 	Kis_Phy_Handler *FetchPhyHandler(uint64_t in_key);
@@ -712,6 +709,9 @@ public:
             vector<kis_tracked_device_base *> *subvec = NULL);
     void httpd_xml_device_summary(std::stringstream &stream);
 
+    // Timetracker event handler
+    virtual int timetracker_event(int eventid);
+
 protected:
 	void SaveTags();
 
@@ -720,10 +720,6 @@ protected:
     // Base IDs for tracker components
     int device_list_base_id, device_base_id, phy_base_id, phy_entry_id;
     int device_summary_base_id, device_summary_entry_id;
-
-	int next_componentid;
-	map<string, int> component_str_map;
-	map<int, string> component_id_map;
 
 	// Total # of packets
 	int num_packets;
@@ -741,8 +737,9 @@ protected:
     int packets_rrd_id;
     kis_tracked_rrd<uint64_t, TrackerUInt64> *packets_rrd;
 
-	// Per-phy device list
-	map<int, vector<kis_tracked_device_base *> *> phy_device_vec;
+    // Timeout of idle devices
+    int device_idle_expiration;
+    int device_idle_timer;
 
 	// Common device component
 	int devcomp_ref_common;

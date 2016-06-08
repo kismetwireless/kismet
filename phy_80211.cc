@@ -100,10 +100,6 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
 	globalreg->packetchain->RegisterHandler(&phydot11_packethook_dot11tracker, this,
 											CHAINPOS_TRACKER, 100);
 
-	// dot11 device comp
-	dev_comp_dot11 = devicetracker->RegisterDeviceComponent("DOT11_DEVICE");
-	dev_comp_common = devicetracker->RegisterDeviceComponent("COMMON");
-
 	// If we haven't registered packet components yet, do so.  We have to
 	// co-exist with the old tracker core for some time
 	pack_comp_80211 = _PCM(PACK_COMP_80211) =
