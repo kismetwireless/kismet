@@ -98,7 +98,8 @@ public:
         dataunion.float_value = 0.0f;
         dataunion.double_value = 0.0f;
 
-        mac_value = mac_addr(0);
+        dataunion.mac_value = NULL;
+        dataunion.uuid_value = NULL;
 
         dataunion.submap_value = NULL;
         dataunion.subintmap_value = NULL;
@@ -221,7 +222,7 @@ public:
 
     mac_addr get_mac() {
         except_type_mismatch(TrackerMac);
-        return mac_value;
+        return (*(dataunion.mac_value));
     }
 
     vector<TrackerElement *> *get_vector() {
@@ -273,7 +274,7 @@ public:
 
     uuid get_uuid() {
         except_type_mismatch(TrackerUuid);
-        return uuid_value;
+        return *(dataunion.uuid_value);
     }
 
     // Overloaded set
@@ -334,12 +335,14 @@ public:
 
     void set(mac_addr v) {
         except_type_mismatch(TrackerMac);
-        mac_value = v;
+        // mac has overrided =
+        *(dataunion.mac_value) = v;
     }
 
     void set(uuid v) {
         except_type_mismatch(TrackerUuid);
-        uuid_value = v;
+        // uuid has overrided =
+        *(dataunion.uuid_value) = v;
     }
 
     size_t size();
@@ -592,12 +595,12 @@ protected:
 
         vector<TrackerElement *> *subvector_value;
 
+        mac_addr *mac_value;
+
+        uuid *uuid_value;
+
         void *custom_value;
     } dataunion;
-
-    mac_addr mac_value;
-
-    uuid uuid_value;
 
 };
 

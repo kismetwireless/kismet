@@ -45,7 +45,8 @@ TrackerElement::TrackerElement(TrackerType type) {
     dataunion.float_value = 0.0f;
     dataunion.double_value = 0.0f;
 
-    mac_value = mac_addr(0);
+    dataunion.mac_value = NULL;
+    dataunion.uuid_value = NULL;
 
     dataunion.submap_value = NULL;
     dataunion.subintmap_value = NULL;
@@ -75,7 +76,8 @@ TrackerElement::TrackerElement(TrackerType type, int id) {
     dataunion.float_value = 0.0f;
     dataunion.double_value = 0.0f;
 
-    mac_value = mac_addr(0);
+    dataunion.mac_value = NULL;
+    dataunion.uuid_value = NULL;
 
     dataunion.submap_value = NULL;
     dataunion.subintmap_value = NULL;
@@ -160,7 +162,8 @@ void TrackerElement::set_type(TrackerType in_type) {
     } else if (type == TrackerMap && dataunion.submap_value != NULL) {
         map<int, TrackerElement *>::iterator i;
 
-        for (i = dataunion.submap_value->begin(); i != dataunion.submap_value->end(); ++i) {
+        for (i = dataunion.submap_value->begin(); 
+                i != dataunion.submap_value->end(); ++i) {
             i->second->unlink();
         }
 
@@ -169,7 +172,8 @@ void TrackerElement::set_type(TrackerType in_type) {
     } else if (type == TrackerIntMap && dataunion.subintmap_value != NULL) {
         map<int, TrackerElement *>::iterator i;
 
-        for (i = dataunion.subintmap_value->begin(); i != dataunion.subintmap_value->end(); ++i) {
+        for (i = dataunion.subintmap_value->begin(); 
+                i != dataunion.subintmap_value->end(); ++i) {
             i->second->unlink();
         }
 
@@ -178,7 +182,8 @@ void TrackerElement::set_type(TrackerType in_type) {
     } else if (type == TrackerMacMap && dataunion.submacmap_value != NULL) {
         map<mac_addr, TrackerElement *>::iterator i;
 
-        for (i = dataunion.submacmap_value->begin(); i != dataunion.submacmap_value->end(); ++i) {
+        for (i = dataunion.submacmap_value->begin(); 
+                i != dataunion.submacmap_value->end(); ++i) {
             i->second->unlink();
         }
 
@@ -192,7 +197,7 @@ void TrackerElement::set_type(TrackerType in_type) {
 
         delete(dataunion.substringmap_value);
         dataunion.substringmap_value = NULL;
-    } else if (type == TrackerDoubleMap) {
+    } else if (type == TrackerDoubleMap && dataunion.subdoublemap_value != NULL) {
         for (double_map_iterator i = dataunion.subdoublemap_value->begin();
                 i != dataunion.subdoublemap_value->end(); ++i) {
             i->second->unlink();
@@ -200,6 +205,12 @@ void TrackerElement::set_type(TrackerType in_type) {
 
         delete(dataunion.subdoublemap_value);
         dataunion.subdoublemap_value = NULL;
+    } else if (type == TrackerMac && dataunion.mac_value != NULL) {
+        delete(dataunion.mac_value);
+        dataunion.mac_value = NULL;
+    } else if (type == TrackerUuid && dataunion.uuid_value != NULL) {
+        delete(dataunion.uuid_value);
+        dataunion.uuid_value = NULL;
     }
     
 
@@ -217,6 +228,10 @@ void TrackerElement::set_type(TrackerType in_type) {
         dataunion.substringmap_value = new map<string, TrackerElement *>();
     } else if (type == TrackerDoubleMap) {
         dataunion.subdoublemap_value = new map<double, TrackerElement *>();
+    } else if (type == TrackerMac) {
+        dataunion.mac_value = new mac_addr(0);
+    } else if (type == TrackerUuid) {
+        dataunion.uuid_value = new uuid();
     }
 
 }
