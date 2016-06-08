@@ -718,7 +718,7 @@ protected:
 	GlobalRegistry *globalreg;
 
     // Base IDs for tracker components
-    int device_base_id, phy_base_id, phy_entry_id;
+    int device_list_base_id, device_base_id, phy_base_id, phy_entry_id;
     int device_summary_base_id, device_summary_entry_id;
 
 	int next_componentid;

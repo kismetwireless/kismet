@@ -66,11 +66,11 @@ REST endpoints
         /devices/all_devices.msgpack
             packed vector of device summary records
     
-        /devices/DEVICE_KEY.msgpack
+        /devices/by-key/DEVICE_KEY.msgpack
             packed trackercomponent of DEVICE (where DEVICE_KEY is the device 
             key from the summary)
     
-        /devices/DEVICE_KEY.msgpack/device/record/path
+        /devices/by-key/DEVICE_KEY.msgpack/device/record/path
             packed trackercomponent of DEVICE, selected by supplied path.
             
             Example:
@@ -79,6 +79,12 @@ REST endpoints
             would yield the last_beaconed_ssid record ONLY, using normal msgpack
             serialization, or:
                 [0, "some string"]
+
+        /devices/by-mac/DEVICE_MAC.msgpack
+            packed vector of devices matching the MAC address across all PHYs.
+            It is possible that there is an overlap between PHYs, the caller
+            is responsible for comparing the phy types and confirming they
+            receive the expected device.
     
     Phy handling:
     

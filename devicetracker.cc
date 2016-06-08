@@ -61,6 +61,9 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
     device_base_id = 
         globalreg->entrytracker->RegisterField("kismet.device.base", TrackerMac,
                 "core device record");
+    device_list_base_id =
+        globalreg->entrytracker->RegisterField("kismet.device.list", 
+                TrackerVector, "list of devices");
 
     phy_base_id =
         globalreg->entrytracker->RegisterField("kismet.phy.list", TrackerVector,
@@ -71,8 +74,8 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
                 "phy entry");
 
     device_summary_base_id =
-        globalreg->entrytracker->RegisterField("kismet.device.list", TrackerVector,
-                "list of devices");
+        globalreg->entrytracker->RegisterField("kismet.device.summary_list", 
+                TrackerVector, "summary list of devices");
     device_summary_entry_id =
         globalreg->entrytracker->RegisterField("kismet.device.summary", TrackerMac,
                 "device summary");
@@ -148,16 +151,18 @@ Devicetracker::~Devicetracker() {
 		delete track_filter;
     */
 
-    pthread_mutex_lock(&devicelist_mutex);
-	for (map<int, Kis_Phy_Handler *>::iterator p = phy_handler_map.begin();
-		 p != phy_handler_map.end(); ++p) {
-		delete p->second;
-	}
+    {
+        local_locker lock(&devicelist_mutex);
 
-	for (unsigned int d = 0; d < tracked_vec.size(); d++) {
-		delete tracked_vec[d];
-	}
-    pthread_mutex_unlock(&devicelist_mutex);
+        for (map<int, Kis_Phy_Handler *>::iterator p = phy_handler_map.begin();
+                p != phy_handler_map.end(); ++p) {
+            delete p->second;
+        }
+
+        for (unsigned int d = 0; d < tracked_vec.size(); d++) {
+            tracked_vec[d]->unlink();
+        }
+    }
 
     pthread_mutex_destroy(&devicelist_mutex);
 }
@@ -462,6 +467,9 @@ kis_tracked_device_base *Devicetracker::UpdateCommonDevice(mac_addr in_mac,
 
 	if ((device = FetchDevice(key)) == NULL) {
         device = new kis_tracked_device_base(globalreg, device_base_id);
+        
+        // Always hold a linkage to the device for ourselves
+        device->link();
 
         device->set_key(key);
         device->set_macaddr(in_mac);
@@ -1561,29 +1569,59 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
     if (tokenurl[1] == "devices") {
         if (tokenurl.size() < 3)
             return false;
-        local_locker lock(&devicelist_mutex);
 
-        uint64_t key;
-        if (sscanf(tokenurl[2].c_str(), "%lu.msgpack", &key) != 1) {
-            return false;
-        }
+        // Do a by-key lookup and return the device or the device path
+        if (tokenurl[2] == "by-key") {
+            if (tokenurl.size() < 4)
+                return false;
 
-        map<uint64_t, kis_tracked_device_base *>::iterator tmi =
-            tracked_map.find(key);
-        if (tmi != tracked_map.end()) {
-            // Try to find the exact field
-            if (tokenurl.size() > 3) {
-                vector<string>::const_iterator first = tokenurl.begin() + 3;
-                vector<string>::const_iterator last = tokenurl.end();
-                vector<string> fpath(first, last);
+            local_locker lock(&devicelist_mutex);
 
-                if (tmi->second->get_child_path(fpath) == NULL)
-                    return false;
+            uint64_t key;
+            if (sscanf(tokenurl[3].c_str(), "%lu.msgpack", &key) != 1) {
+                return false;
+            }
+
+            map<uint64_t, kis_tracked_device_base *>::iterator tmi =
+                tracked_map.find(key);
+            if (tmi != tracked_map.end()) {
+                // Try to find the exact field
+                if (tokenurl.size() > 4) {
+                    vector<string>::const_iterator first = tokenurl.begin() + 4;
+                    vector<string>::const_iterator last = tokenurl.end();
+                    vector<string> fpath(first, last);
+
+                    if (tmi->second->get_child_path(fpath) == NULL)
+                        return false;
+                }
+
+                return true;
+            } else {
+                return false;
+            }
+        } else if (tokenurl[2] == "by-mac") {
+            if (tokenurl.size() < 4)
+                return false;
+
+            local_locker lock(&devicelist_mutex);
+
+            // Slice .msgpack off it
+            size_t trimpos = tokenurl[3].find(".msgpack");
+            if (trimpos == string::npos) {
+                return false;
+            }
+
+            string macstr = tokenurl[3].substr(0, trimpos);
+
+            // Convert to MAC
+            mac_addr mac = mac_addr(macstr);
+
+            if (mac.error) {
+                printf("mac arror\n");
+                return false;
             }
 
             return true;
-        } else {
-            return false;
         }
     }
 
@@ -1750,51 +1788,73 @@ void Devicetracker::Httpd_CreateStreamResponse(
         if (tokenurl.size() < 3)
             return;
 
-        local_locker lock(&devicelist_mutex);
+        if (tokenurl[2] == "by-key") {
+            local_locker lock(&devicelist_mutex);
 
-        uint64_t key;
-        if (sscanf(tokenurl[2].c_str(), "%lu.msgpack", &key) != 1) {
-            return;
-        }
+            uint64_t key;
+            if (sscanf(tokenurl[3].c_str(), "%lu.msgpack", &key) != 1) {
+                return;
+            }
 
-        map<uint64_t, kis_tracked_device_base *>::iterator tmi =
-            tracked_map.find(key);
-        if (tmi != tracked_map.end()) {
-            // Try to find the exact field
-            if (tokenurl.size() > 3) {
-                vector<string>::const_iterator first = tokenurl.begin() + 3;
-                vector<string>::const_iterator last = tokenurl.end();
-                vector<string> fpath(first, last);
+            map<uint64_t, kis_tracked_device_base *>::iterator tmi =
+                tracked_map.find(key);
+            if (tmi != tracked_map.end()) {
+                // Try to find the exact field
+                if (tokenurl.size() > 4) {
+                    vector<string>::const_iterator first = tokenurl.begin() + 4;
+                    vector<string>::const_iterator last = tokenurl.end();
+                    vector<string> fpath(first, last);
 
-                TrackerElement *sub = tmi->second->get_child_path(fpath);
+                    TrackerElement *sub = tmi->second->get_child_path(fpath);
 
-                if (sub == NULL) {
-                    return;
-                } else {
-                    MsgpackAdapter::Pack(globalreg, stream, sub);
-                    return;
+                    if (sub == NULL) {
+                        return;
+                    } else {
+                        MsgpackAdapter::Pack(globalreg, stream, sub);
+                        return;
+                    }
+                }
+
+                MsgpackAdapter::Pack(globalreg, stream, (TrackerElement *) tmi->second);
+            } else {
+                return;
+            }
+        } else if (tokenurl[2] == "by-mac") {
+            if (tokenurl.size() < 4)
+                return;
+
+            local_locker lock(&devicelist_mutex);
+
+            // Slice .msgpack off it
+            size_t trimpos = tokenurl[3].find(".msgpack");
+            if (trimpos == string::npos) {
+                return;
+            }
+
+            string macstr = tokenurl[3].substr(0, trimpos);
+            mac_addr mac = mac_addr(macstr);
+
+            if (mac.error) {
+                return;
+            }
+
+            TrackerElement *devvec = 
+                globalreg->entrytracker->GetTrackedInstance(device_list_base_id);
+
+            vector<kis_tracked_device_base *>::iterator vi;
+            for (vi = tracked_vec.begin(); vi != tracked_vec.end(); ++vi) {
+                if ((*vi)->get_macaddr() == mac) {
+                    devvec->add_vector((*vi));
                 }
             }
 
-            MsgpackAdapter::Pack(globalreg, stream, (TrackerElement *) tmi->second);
-        } else {
+            MsgpackAdapter::Pack(globalreg, stream, devvec);
+            delete(devvec);
+
             return;
         }
 
-        /*
-        device_itr itr;
-
-        if ((itr = tracked_map.find(key)) != tracked_map.end()) {
-
-            MsgpackAdapter::Pack(globalreg, stream, (TrackerElement *) itr->second);
-
-            return;
-        } else {
-            return;
-        }
-        */
     }
-
 }
 
 void Devicetracker::MatchOnDevices(DevicetrackerFilterWorker *worker) {

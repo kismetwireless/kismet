@@ -150,14 +150,14 @@ void TrackerElement::set_type(TrackerType in_type) {
         return;
 
     /* Purge old types if we change type */
-    if (type == TrackerVector) {
+    if (type == TrackerVector && subvector_value != NULL) {
         for (unsigned int i = 0; i < subvector_value->size(); i++) {
             (*subvector_value)[i]->unlink();
         }
 
         delete(subvector_value);
         subvector_value = NULL;
-    } else if (type == TrackerMap) {
+    } else if (type == TrackerMap && submap_value != NULL) {
         map<int, TrackerElement *>::iterator i;
 
         for (i = submap_value->begin(); i != submap_value->end(); ++i) {
@@ -166,7 +166,7 @@ void TrackerElement::set_type(TrackerType in_type) {
 
         delete(submap_value);
         submap_value = NULL;
-    } else if (type == TrackerIntMap) {
+    } else if (type == TrackerIntMap && subintmap_value != NULL) {
         map<int, TrackerElement *>::iterator i;
 
         for (i = subintmap_value->begin(); i != subintmap_value->end(); ++i) {
@@ -175,7 +175,7 @@ void TrackerElement::set_type(TrackerType in_type) {
 
         delete(subintmap_value);
         subintmap_value = NULL;
-    } else if (type == TrackerMacMap) {
+    } else if (type == TrackerMacMap && submacmap_value != NULL) {
         map<mac_addr, TrackerElement *>::iterator i;
 
         for (i = submacmap_value->begin(); i != submacmap_value->end(); ++i) {
@@ -184,7 +184,7 @@ void TrackerElement::set_type(TrackerType in_type) {
 
         delete(submacmap_value);
         submacmap_value = NULL;
-    } else if (type == TrackerStringMap) {
+    } else if (type == TrackerStringMap && substringmap_value != NULL) {
         for (string_map_iterator i = substringmap_value->begin(); 
                 i != substringmap_value->end(); ++i) {
             i->second->unlink();

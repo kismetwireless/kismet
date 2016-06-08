@@ -274,7 +274,7 @@ class KismetConnector:
 
         Return complete device object of device referenced by key
         """
-        return self.__unpack_simple_url("devices/{}.msgpack".format(key))
+        return self.__unpack_simple_url("devices/by-key/{}.msgpack".format(key))
 
     def device_field(self, key, field):
         """
@@ -285,7 +285,16 @@ class KismetConnector:
         field: Kismet tracked field path, ex:
             dot11.device/dot11.device.last_beaconed_ssid
         """
-        return self.__unpack_simple_url("devices/{}.msgpack/{}".format(key, field))
+        return self.__unpack_simple_url("devices/by-key/{}.msgpack/{}".format(key, field))
+
+    def device_by_mac(self, mac):
+        """
+        device_by_mac(mac) -> vector of device objects
+
+        Return a vector of all devices in all phy types matching the supplied MAC
+        address
+        """
+        return self.__unpack_simple_url("devices/by-mac/{}.msgpack".format(mac))
 
     def old_sources(self):
         """
