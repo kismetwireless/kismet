@@ -71,7 +71,7 @@ struct mac_addr {
 		int nbyte = 0;
 		int mode = 0;
 
-		while (in) {
+		while (*in) {
 			if (in[0] == ':') {
 				in++;
 				continue;
@@ -86,6 +86,7 @@ struct mac_addr {
 			}
 
 			if (sscanf(in, "%hX", &byte) != 1) {
+                // printf("couldn't read byte in pos %d '%s' %x\n", nbyte, in, in[0]);
 				error = 1;
 				break;
 			}
@@ -96,6 +97,7 @@ struct mac_addr {
 				in++;
 
 			if (nbyte >= MAC_LEN_MAX) {
+                // printf("pos > max len\n");
 				error = 1;
 				break;
 			}
