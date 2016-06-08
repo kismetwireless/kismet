@@ -100,7 +100,7 @@ int EntryTracker::RegisterField(string in_name, TrackerElement *in_builder,
     definition->field_id = next_field_num++;
     definition->field_name = in_name;
 
-    definition->builder = in_builder;
+    definition->builder = in_builder->clone_type();
 
     definition->field_description = in_desc;
 

@@ -68,6 +68,7 @@ void Channeltracker_V2::register_fields() {
         new Channeltracker_V2_Channel(globalreg, 0);
     channel_entry_id = RegisterComplexField("kismet.channeltracker.channel",
             chan_builder, "channel/frequency entry");
+    delete(chan_builder);
 }
 
 bool Channeltracker_V2::Httpd_VerifyPath(const char *path, const char *method) {

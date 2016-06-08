@@ -375,18 +375,21 @@ protected:
         packets_rrd_id =
             globalreg->entrytracker->RegisterField("kismet.device.base.packets.rrd",
                     packets_rrd_builder, "packet rate rrd");
+        delete(packets_rrd_builder);
 
         kis_tracked_rrd<uint64_t, TrackerUInt64> *data_rrd_builder =
             new kis_tracked_rrd<uint64_t, TrackerUInt64>(globalreg, 0);
         data_rrd_id =
             globalreg->entrytracker->RegisterField("kismet.device.base.datasize.rrd",
                     data_rrd_builder, "packet size rrd");
+        delete(data_rrd_builder);
 
         kis_tracked_signal_data *sig_builder = 
             new kis_tracked_signal_data(globalreg, 0);
         signal_data_id =
             RegisterComplexField("kismet.device.base.signal", sig_builder,
                     "signal data");
+        delete(sig_builder);
 
         freq_khz_map_id =
             RegisterField("kismet.device.base.freq_khz_map", TrackerDoubleMap,
@@ -411,11 +414,13 @@ protected:
         tag_id =
             RegisterComplexField("kismet.device.base.tag", tag_builder,
                     "arbitrary tag");
+        delete(tag_builder);
 
         kis_tracked_location *loc_builder = new kis_tracked_location(globalreg, 0);
         location_id =
             RegisterComplexField("kismet.device.base.location", loc_builder,
                     "location");
+        delete(loc_builder);
 
         seenby_map_id =
             RegisterField("kismet.device.base.seenby", TrackerIntMap,
@@ -431,6 +436,7 @@ protected:
         seenby_val_id =
             globalreg->entrytracker->RegisterField("kismet.device.base.seenby.data", 
                     seenby_builder, "seen-by data");
+        delete(seenby_builder);
 
     }
 

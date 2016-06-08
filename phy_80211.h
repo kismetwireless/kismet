@@ -243,7 +243,7 @@ public:
         reserve_fields(e);
     }
 
-    virtual TrackerElement *clone() {
+    virtual TrackerElement *clone_type() {
         return new dot11_11d_tracked_range_info(globalreg, get_id());
     }
 
@@ -291,7 +291,7 @@ public:
         reserve_fields(e);
     }
 
-    virtual TrackerElement *clone() {
+    virtual TrackerElement *clone_type() {
         return new dot11_probed_ssid(globalreg, get_id());
     }
 
@@ -324,6 +324,7 @@ protected:
         kis_tracked_location *loc_builder = new kis_tracked_location(globalreg, 0);
         location_id =
             RegisterComplexField("client.location", loc_builder, "location");
+        delete(loc_builder);
     }
 
     virtual void reserve_fields(TrackerElement *e) {
@@ -376,7 +377,7 @@ public:
         reserve_fields(e);
     }
 
-    virtual TrackerElement *clone() {
+    virtual TrackerElement *clone_type() {
         return new dot11_advertised_ssid(globalreg, get_id());
     }
 
@@ -498,6 +499,7 @@ protected:
         dot11d_country_entry_id =
             RegisterComplexField("dot11.advertisedssid.dot11d_entry", 
                     dot11d_builder, "dot11d entry");
+        delete(dot11d_builder);
 
         wps_state_id =
             RegisterField("dot11.advertisedssid.wps_state", TrackerUInt32,
@@ -519,6 +521,7 @@ protected:
         location_id =
             RegisterComplexField("dot11.advertisedssid.location", loc_builder, 
                     "location");
+        delete(loc_builder);
     }
 
     virtual void reserve_fields(TrackerElement *e) {
@@ -624,10 +627,9 @@ public:
         reserve_fields(e);
     }
 
-    virtual TrackerElement *clone() {
+    virtual TrackerElement *clone_type() {
         return new dot11_client(globalreg, get_id());
     }
-
 
     __Proxy(bssid, mac_addr, mac_addr, mac_addr, bssid);
     __Proxy(client_type, uint32_t, uint32_t, uint32_t, client_type);
@@ -721,6 +723,7 @@ protected:
         ipdata_id =
             RegisterComplexField("dot11.client.ipdata", ip_builder,
                     "IP data");
+        delete(ip_builder);
 
         datasize_id =
             RegisterField("dot11.client.datasize", TrackerUInt64,
@@ -738,6 +741,7 @@ protected:
         kis_tracked_location *loc_builder = new kis_tracked_location(globalreg, 0);
         location_id =
             RegisterComplexField("client.location", loc_builder, "location");
+        delete(loc_builder);
     }
 
     virtual void reserve_fields(TrackerElement *e) {
@@ -851,7 +855,7 @@ public:
         reserve_fields(NULL);
     }
 
-    virtual TrackerElement *clone() {
+    virtual TrackerElement *clone_type() {
         return new dot11_tracked_device(globalreg, get_id());
     }
 
@@ -926,6 +930,7 @@ protected:
         client_map_entry_id =
             RegisterComplexField("dot11.device.client", 
                     client_builder, "client record");
+        delete(client_builder);
 
         advertised_ssid_map_id =
             RegisterField("dot11.device.advertised_ssid_map", TrackerIntMap,
@@ -935,6 +940,7 @@ protected:
         advertised_ssid_map_entry_id =
             RegisterComplexField("dot11.device.advertised_ssid",
                     adv_ssid_builder, "advertised ssid");
+        delete(adv_ssid_builder);
 
         probed_ssid_map_id =
             RegisterField("dot11.device.probed_ssid_map", TrackerIntMap,
@@ -944,6 +950,7 @@ protected:
         probed_ssid_map_entry_id =
             RegisterComplexField("dot11.device.probed_ssid",
                     probe_ssid_builder, "probed ssid");
+        delete(probe_ssid_builder);
 
         associated_client_map_id =
             RegisterField("dot11.device.associated_client_map", TrackerMacMap,

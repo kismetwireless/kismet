@@ -142,7 +142,7 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
         _MSG(ss.str(), MSGFLAG_INFO);
 
         device_idle_timer =
-            globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 60, NULL, 
+            globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 
                 1, this);
     }
 

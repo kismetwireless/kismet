@@ -91,24 +91,28 @@ protected:
         packets_rrd_id =
             RegisterComplexField("kismet.channelrec.packets_rrd",
                     packets_rrd_builder, "number of packets RRD");
+        delete(packets_rrd_builder);
 
         kis_tracked_rrd<uint64_t, TrackerUInt64> *data_rrd_builder =
             new kis_tracked_rrd<uint64_t, TrackerUInt64>(globalreg, 0);
         data_rrd_id =
             RegisterComplexField("kismet.channelrec.data_rrd",
                     data_rrd_builder, "bytes of data RRD");
+        delete(data_rrd_builder);
 
         kis_tracked_rrd<uint64_t, TrackerUInt64> *device_rrd_builder =
             new kis_tracked_rrd<uint64_t, TrackerUInt64>(globalreg, 0);
         device_rrd_id =
             RegisterComplexField("kismet.channelrec.device_rrd",
                     device_rrd_builder, "number of active devices RRD");
+        delete(device_rrd_builder);
 
         kis_tracked_signal_data *sig_builder =
             new kis_tracked_signal_data(globalreg, 0);
         signal_data_id =
             RegisterComplexField("kismet.channelrec.signal", sig_builder,
                 "overall signal records");
+        delete(sig_builder);
     }
 
     virtual void reserve_fields(TrackerElement *e) {

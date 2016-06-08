@@ -300,14 +300,14 @@ protected:
     virtual void register_fields() {
         tracker_component::register_fields();
 
-        kis_tracked_location_triplet *loc_builder = 
-            new kis_tracked_location_triplet(globalreg, 0);
-
         loc_valid_id = RegisterField("kismet.common.location.loc_valid", TrackerUInt8,
                 "location data valid", (void **) &loc_valid);
 
         loc_fix_id = RegisterField("kismet.common.location.loc_fix", TrackerUInt8,
                 "location fix precision (2d/3d)", (void **) &loc_fix);
+
+        kis_tracked_location_triplet *loc_builder = 
+            new kis_tracked_location_triplet(globalreg, 0);
 
         min_loc_id = RegisterComplexField("kismet.common.location.min_loc", loc_builder, 
                 "minimum corner of bounding rectangle");
@@ -315,6 +315,8 @@ protected:
                 "maximum corner of bounding rectangle");
         avg_loc_id = RegisterComplexField("kismet.common.location.avg_loc", loc_builder,
                 "average corner of bounding rectangle");
+
+        delete(loc_builder);
 
         avg_lat_id = RegisterField("kismet.common.location.avg_lat", TrackerInt64,
                 "run-time average latitude", (void **) &avg_lat);
@@ -616,6 +618,7 @@ protected:
         peak_loc_id = 
             RegisterComplexField("kismet.common.signal.peak_loc", loc_builder,
                     "location of strongest signal");
+        delete(loc_builder);
 
         maxseenrate_id =
             RegisterField("kismet.common.signal.maxseenrate", TrackerDouble,
