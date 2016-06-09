@@ -1639,7 +1639,7 @@ void Devicetracker::httpd_msgpack_all_phys(std::stringstream &stream) {
 }
 
 void Devicetracker::httpd_msgpack_device_summary(std::stringstream &stream,
-        vector<kis_tracked_device_base *> *subvec) {
+        TrackerElementVector *subvec) {
 
     TrackerElement *devvec = 
         globalreg->entrytracker->GetTrackedInstance(device_summary_base_id);
@@ -1656,11 +1656,16 @@ void Devicetracker::httpd_msgpack_device_summary(std::stringstream &stream,
 
         MsgpackAdapter::Pack(globalreg, stream, devvec);
     } else {
-        local_locker lock(&devicelist_mutex);
-        for (unsigned int x = 0; x < subvec->size(); x++) {
+        /* we do NOT want to lock here actually, we're processing a subvec of
+         * stuff not the master device list
+         *
+         * local_locker lock(&devicelist_mutex);
+         */
+        for (TrackerElementVector::const_iterator x = subvec->begin();
+                x != subvec->end(); ++x) {
             kis_tracked_device_summary *summary =
-                new kis_tracked_device_summary(globalreg, device_summary_entry_id,
-                        (*subvec)[x]);
+                new kis_tracked_device_summary(globalreg, device_summary_entry_id, 
+                        (kis_tracked_device_base *) *x);
             devvec->add_vector(summary);
         }
 

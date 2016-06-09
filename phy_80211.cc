@@ -1976,16 +1976,22 @@ public:
     phy80211_devicetracker_worker(GlobalRegistry *in_globalreg, 
             std::stringstream *outstream, 
             vector<phy80211_pcre_filter *> *filtervec, int entry_id) {
+
         globalreg = in_globalreg;
         this->outstream = outstream;
         this->filter_vec = filtervec;
         dot11_device_entry_id = entry_id;
         error = false;
 
-        // get the summary id
-        device_summary_base_id =
-            globalreg->entrytracker->RegisterField("kismet.device.list", TrackerVector,
-                    "list of devices");
+        // Make a vector, we don't care about the container type
+        device_vec = new TrackerElement(TrackerVector);
+        // Wrap it in a vector handler, which links it
+        devices = new TrackerElementVector(device_vec);
+    }
+
+    virtual ~phy80211_devicetracker_worker() {
+        // Delete the wrapper which unlinks the child
+        delete(devices);
     }
 
     bool get_error() { return error; }
@@ -2003,12 +2009,12 @@ public:
         }
 
         // Iterate over all the SSIDs
-        TrackerElement *adv_ssid_map = dot11dev->get_advertised_ssid_map();
+        TrackerElementIntMap adv_ssid_map(dot11dev->get_advertised_ssid_map());
         dot11_advertised_ssid *ssid = NULL;
-        TrackerElement::int_map_const_iterator ssid_itr;
+        TrackerElementIntMap::const_iterator ssid_itr;
 
-        for (ssid_itr = adv_ssid_map->int_begin(); 
-                ssid_itr != adv_ssid_map->int_end(); ++ssid_itr) {
+        for (ssid_itr = adv_ssid_map.begin(); 
+                ssid_itr != adv_ssid_map.end(); ++ssid_itr) {
             ssid = (dot11_advertised_ssid *) ssid_itr->second;
             bool device_handled = false;
 
@@ -2025,7 +2031,7 @@ public:
                 // Export the device msgpack
                 if (rc >= 0) {
                     device_handled = true;
-                    devices.push_back(device);
+                    devices->push_back(device);
                     break;
                 }
             }
@@ -2039,7 +2045,7 @@ public:
 
     virtual void Finalize(Devicetracker *devicetracker) {
         // Push the summary of devices
-        devicetracker->httpd_msgpack_device_summary(*outstream, &devices);
+        devicetracker->httpd_msgpack_device_summary(*outstream, devices);
     }
 
 protected:
@@ -2048,8 +2054,8 @@ protected:
     vector<phy80211_pcre_filter *> *filter_vec;
     bool error;
     int dot11_device_entry_id;
-    int device_summary_base_id;
-    vector<kis_tracked_device_base *> devices;
+    TrackerElement *device_vec;
+    TrackerElementVector *devices;
 };
 
 #endif
@@ -2134,7 +2140,6 @@ int Kis_80211_Phy::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind
             filter_vec.clear();
 
             return 1;
-
         } catch(const std::exception& e) {
             // Exceptions can be caused by missing fields, or fields which
             // aren't the format we expected.  Throw it all out with an

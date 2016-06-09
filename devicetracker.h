@@ -712,7 +712,7 @@ public:
 
     void httpd_msgpack_all_phys(std::stringstream &stream);
     void httpd_msgpack_device_summary(std::stringstream &stream, 
-            vector<kis_tracked_device_base *> *subvec = NULL);
+            TrackerElementVector *subvec = NULL);
     void httpd_xml_device_summary(std::stringstream &stream);
 
     // Timetracker event handler
