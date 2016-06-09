@@ -81,6 +81,7 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
                 "device summary");
 
     packets_rrd = new kis_tracked_rrd<uint64_t, TrackerUInt64>(globalreg, 0);
+    packets_rrd->link();
     packets_rrd_id =
         globalreg->entrytracker->RegisterField("kismet.device.packets_rrd",
                 packets_rrd, "RRD of total packets seen");
@@ -173,6 +174,8 @@ Devicetracker::~Devicetracker() {
         for (unsigned int d = 0; d < tracked_vec.size(); d++) {
             tracked_vec[d]->unlink();
         }
+
+        packets_rrd->unlink();
     }
 
     pthread_mutex_destroy(&devicelist_mutex);
