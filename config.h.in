@@ -18,6 +18,9 @@
 /* kernel capability support */
 #undef HAVE_CAPABILITY
 
+/* define if the compiler supports basic C++11 syntax */
+#undef HAVE_CXX11
+
 /* Define to 1 if you have the <errno.h> header file. */
 #undef HAVE_ERRNO_H
 
