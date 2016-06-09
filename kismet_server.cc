@@ -22,6 +22,13 @@
 
 #include "version.h"
 
+#include "stacktrace.h"
+
+#include <cstdlib>
+#include <exception>
+#include <iostream>
+#include <stdexcept>
+
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -405,6 +412,21 @@ int BaseTimerEvent(TIMEEVENT_PARMS) {
 	return 1;
 }
 
+void TerminationHandler() {
+    std::exception_ptr exc = std::current_exception();
+
+    try {
+        if (exc) {
+            std::rethrow_exception(exc);
+        }
+    } catch(const std::exception& e) {
+        std::cout << "Uncaught exception \"" << e.what() << "\"\n";
+    }
+
+    print_stacktrace();
+    std::abort();
+}
+
 int main(int argc, char *argv[], char *envp[]) {
 	exec_name = argv[0];
 	char errstr[STATUS_MAX];
@@ -417,6 +439,9 @@ int main(int argc, char *argv[], char *envp[]) {
 	// Timer for silence
 	int local_silent = 0;
 	int startroot = 1;
+
+    // Set a backtrace on C++ terminate errors
+    std::set_terminate(&TerminationHandler);
 
 	// Catch the interrupt handler to shut down
     signal(SIGINT, CatchShutdown);
