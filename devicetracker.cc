@@ -1608,7 +1608,6 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
             mac_addr mac = mac_addr(macstr);
 
             if (mac.error) {
-                printf("mac arror\n");
                 return false;
             }
 
