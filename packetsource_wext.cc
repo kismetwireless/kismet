@@ -835,6 +835,10 @@ vector<unsigned int> PacketSource_Wext::FetchSupportedChannels(string in_interfa
 	 * have mac80211, go on to iwcontrol */
 	if (mac80211_get_chanlist(in_interface.c_str(), &ret, errstr) <= 0 ||
 		ret.size() == 0) {
+        _MSG("Failed to get channel list via mac80211 on source '" + name + "'. "
+                "Falling back to wext.  There is a known limitation in the old "
+                "wext API which limits the number of discovered channels to 32.",
+                MSGFLAG_ERROR);
 		/* I guess we don't really care about the return code here either */
 		Iwconfig_Get_Chanlist(in_interface.c_str(), errstr, &ret);
 	}
