@@ -17,15 +17,8 @@ if len(devices) == 0:
 # Print the SSID for every device we can.  Stupid print; no comparison
 # of the phy type, no handling empty ssid, etc.
 for d in devices:
-    if not d['kismet.device.base.phyname'] == "IEEE802.11":
-        continue
-
-    k = d['kismet.device.base.key']
-    ssid = kr.device_field(k, "dot11.device/dot11.device.last_beaconed_ssid")
-
     print "MAC", d['kismet.device.base.macaddr'],
     print "Type", d['kismet.device.base.type'],
-    print "Channel",d['kismet.device.base.channel'],
-    print "SSID", ssid
+    print "Channel",d['kismet.device.base.channel']
 
 
