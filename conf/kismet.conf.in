@@ -36,7 +36,8 @@ allowplugins=true
 # to stop tracking older devices.
 # Devices which are removed will be detected as new devices without historical
 # data if they are detected a second time.
-# tracker_device_timeout=10
+# Example timeout of 2 hours (60*60*2)
+# tracker_device_timeout=7200
 
 # See the README for full information on the new source format
 # ncsource=interface:options
