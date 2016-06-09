@@ -613,6 +613,9 @@ protected:
     TrackerElement *val;
 
 public:
+    typedef TrackerElement::vector_iterator iterator;
+    typedef TrackerElement::vector_const_iterator const_iterator;
+
     TrackerElementVector(TrackerElement *t) {
         val = t;
         val->link();
@@ -663,6 +666,9 @@ public:
     }
 
 public:
+    typedef TrackerElement::map_iterator iterator;
+    typedef TrackerElement::map_const_iterator const_iterator;
+
     virtual TrackerElement::map_const_iterator begin() {
         return val->begin();
     }
@@ -703,6 +709,9 @@ public:
     }
 
 public:
+    typedef TrackerElement::int_map_iterator iterator;
+    typedef TrackerElement::int_map_const_iterator const_iterator;
+
     virtual TrackerElement::int_map_const_iterator begin() {
         return val->int_begin();
     }
@@ -743,6 +752,9 @@ public:
     }
 
 public:
+    typedef TrackerElement::string_map_iterator iterator;
+    typedef TrackerElement::string_map_const_iterator const_iterator;
+
     virtual TrackerElement::string_map_const_iterator begin() {
         return val->string_begin();
     }
@@ -783,6 +795,9 @@ public:
     }
 
 public:
+    typedef TrackerElement::mac_map_iterator iterator;
+    typedef TrackerElement::mac_map_const_iterator const_iterator;
+
     virtual TrackerElement::mac_map_const_iterator begin() {
         return val->mac_begin();
     }
@@ -823,6 +838,9 @@ public:
     }
 
 public:
+    typedef TrackerElement::double_map_iterator iterator;
+    typedef TrackerElement::double_map_const_iterator const_iterator;
+
     virtual TrackerElement::double_map_const_iterator begin() {
         return val->double_begin();
     }
