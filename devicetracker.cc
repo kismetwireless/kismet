@@ -1892,7 +1892,7 @@ int Devicetracker::timetracker_event(int eventid) {
             if (mi != tracked_map.end())
                 tracked_map.erase(mi);
 
-            // fprintf(stderr, "debug - forgetting network %s\n", (*i)->get_macaddr().Mac2String().c_str());
+            fprintf(stderr, "debug - forgetting device %s age %lu\n", (*i)->get_macaddr().Mac2String().c_str(), globalreg->timestamp.tv_sec - (*i)->get_last_time());
 
             (*i)->unlink();
         }
