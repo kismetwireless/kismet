@@ -127,6 +127,7 @@ public:
     time_t get_time() { return start_time; }
     DataSourceTracker *get_tracker() { return tracker; }
     DST_Worker *get_completion_worker();
+    string get_definition() { return definition; }
 
     KisDataSource *get_proto();
     void set_proto(KisDataSource *in_proto);
@@ -134,8 +135,6 @@ public:
     // Clear a source from the list, returns number of sources left in the list.  Used
     // to purge failures out of the probe list and know when we've finished
     size_t remove_failed_proto(KisDataSource *in_src);
-
-    bool get_complete();
 
     void cancel();
 
@@ -154,7 +153,6 @@ protected:
 
     time_t start_time;
     string definition;
-    bool complete;
 };
 
 class DataSourceTracker : public Kis_Net_Httpd_Stream_Handler {
@@ -224,7 +222,11 @@ protected:
     static void open_handler(KisDataSource *in_src, void *in_aux, bool in_success);
     static void error_handler(KisDataSource *in_src, void *in_aux);
 
-    void launch_source(KisDataSource *in_src, DST_Worker *in_worker);
+    // Initiate a source from a known proto, add it to the list of open sources,
+    // and report success via the worker.  PERFORMS THREAD LOCK, do NOT call
+    // inside of a locked thread
+    void launch_source(KisDataSource *in_proto, string in_source, 
+            DST_Worker *in_worker);
 
 };
 

@@ -19,6 +19,8 @@
 #include "config.h"
 
 #include "datasourcetracker.h"
+#include "messagebus.h"
+#include "globalregistry.h"
 
 DST_DataSourcePrototype::DST_DataSourcePrototype(GlobalRegistry *in_globalreg) :
     tracker_component(in_globalreg, 0) {
@@ -58,8 +60,6 @@ DST_DataSourceProbe::DST_DataSourceProbe(time_t in_time, string in_definition,
     definition = in_definition;
     completion_worker = in_completion_worker;
     protosrc_vec = in_protovec;
-
-    complete = false;
 }
 
 DST_DataSourceProbe::~DST_DataSourceProbe() {
@@ -84,7 +84,6 @@ DST_DataSourceProbe::~DST_DataSourceProbe() {
 
     // Kill the protosrc if it's still around
     if (protosrc != NULL) {
-        protosrc->cancel_open_source();
         delete(protosrc);
     }
 }
@@ -105,10 +104,6 @@ void DST_DataSourceProbe::cancel() {
     }
 
     protosrc_vec.clear();
-
-    // We're done, whatever the state is; if protosrc is filled in
-    // we found a driver & type and can use it to build our final instance
-    complete = true;
 }
 
 KisDataSource *DST_DataSourceProbe::get_proto() {
@@ -123,11 +118,6 @@ void DST_DataSourceProbe::set_proto(KisDataSource *in_proto) {
 
 DST_Worker *DST_DataSourceProbe::get_completion_worker() {
     return completion_worker;
-}
-
-bool DST_DataSourceProbe::get_complete() {
-    local_locker lock(&probe_lock);
-    return complete;
 }
 
 size_t DST_DataSourceProbe::remove_failed_proto(KisDataSource *in_src) {
@@ -248,28 +238,34 @@ int DataSourceTracker::open_datasource(string in_source, DST_Worker *in_worker) 
 
     // If type isn't autodetect, we're looking for a specific driver
     if (type != "auto") {
-        local_locker lock(&dst_lock);
-        bool proto_found = false;
+        KisDataSource *proto;
 
-        for (TrackerElement::vector_const_iterator i = proto_vec->vec_begin();
-                i != proto_vec->vec_end(); ++i) {
-            KisDataSource *proto = (KisDataSource *) *i;
+        {
+            local_locker lock(&dst_lock);
+            bool proto_found = false;
 
-            if (StrLower(proto->get_source_name()) == StrLower(type)) {
-                proto_found = true;
-                break;
+            for (TrackerElement::vector_const_iterator i = proto_vec->vec_begin();
+                    i != proto_vec->vec_end(); ++i) {
+                proto = (KisDataSource *) *i;
+
+                if (StrLower(proto->get_source_name()) == StrLower(type)) {
+                    proto_found = true;
+                    break;
+                }
+            }
+
+            if (!proto_found) {
+                stringstream ss;
+                ss << "Unable to find datasource for '" << type << "'.  Make sure "
+                    "that any plugins required are loaded.";
+                _MSG(ss.str(), MSGFLAG_ERROR);
+                return -1;
             }
         }
 
-        if (!proto_found) {
-            stringstream ss;
-            ss << "Unable to find datasource for '" << type << "'.  Make sure that " <<
-                "any plugins required are loaded.";
-            _MSG(ss.str(), MSGFLAG_ERROR);
-            return -1;
-        }
-
         // Start opening source
+        launch_source(proto, in_source, in_worker);
+        return 1;
     }
 
     // Otherwise build a probe lookup record
@@ -353,13 +349,42 @@ void DataSourceTracker::probe_handler(KisDataSource *in_src, void *in_aux,
     // If we've succeeded, set the source and cancel the rest, then continue opening the
     // source
     if (in_success) {
+        // Mark the good source
         dstproto->set_proto(in_src);
-
+        // Cancel the rest immediately, clearing the callbacks even if they trigger
+        // while we're still cleaning up
         dstproto->cancel();
+
+        // We know the proto src now, so start launching it, passing along the
+        // completion worker
+        tracker->launch_source(in_src, dstproto->get_definition(), 
+                dstproto->get_completion_worker());
+
+        // Get rid of the prototype, we're done; this will also clean up the
+        // protosrc we used to build and open the new src
+        delete(dstproto);
+
     } else {
         // Cancel out if we have no sources left & finish our failure of opening sources
         if (dstproto->remove_failed_proto(in_src) <= 0) {
+            GlobalRegistry *globalreg = tracker->globalreg;
+
+            // Cancel out to be sure
             dstproto->cancel();
+
+            // in_src already deleted
+            
+            std::stringstream ss;
+            ss << "Unable to find any source to handle '" <<
+                dstproto->get_definition() << "'";
+            _MSG(ss.str(), MSGFLAG_ERROR);
+           
+            // Call the completion work with a fail
+            dstproto->get_completion_worker()->handle_datasource_open(tracker,
+                    NULL, false);
+
+            // Nuke the tracker
+            delete(dstproto);
         }
     }
 
@@ -373,5 +398,20 @@ void DataSourceTracker::open_handler(KisDataSource *in_src, void *in_aux,
 
 void DataSourceTracker::error_handler(KisDataSource *in_src, void *in_aux) {
 
+}
+
+void DataSourceTracker::launch_source(KisDataSource *in_proto, string in_source,
+        DST_Worker *in_worker) {
+    local_locker lock(&dst_lock);
+
+    TrackerElementVector vec(datasource_vec);
+
+    // Clone the src and add it to the vec immediately
+    KisDataSource *new_src = in_proto->build_data_source();
+    vec.push_back(new_src);
+
+    // Try to open it, referencing our open handler and the worker
+    new_src->open_source(in_source, open_handler, in_worker);
+    
 }
 
