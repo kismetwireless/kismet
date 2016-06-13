@@ -427,6 +427,13 @@ void TerminationHandler() {
     std::abort();
 }
 
+void SegVHandler(int sig) {
+    std::cout << "Segmentation Fault (SIGSEGV / 11)" << endl;
+
+    print_stacktrace();
+    exit(-11);
+}
+
 int main(int argc, char *argv[], char *envp[]) {
 	exec_name = argv[0];
 	char errstr[STATUS_MAX];
@@ -442,6 +449,7 @@ int main(int argc, char *argv[], char *envp[]) {
 
     // Set a backtrace on C++ terminate errors
     std::set_terminate(&TerminationHandler);
+    signal(SIGSEGV, SegVHandler);
 
 	// Catch the interrupt handler to shut down
     signal(SIGINT, CatchShutdown);
