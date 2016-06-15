@@ -57,13 +57,15 @@
 #include "kis_dissector_ipdata.h"
 
 #include "packetsource.h"
-
 #include "packetsource_bsdrt.h"
 #include "packetsource_pcap.h"
 #include "packetsource_wext.h"
 #include "packetsource_ipwlive.h"
 #include "packetsource_airpcap.h"
 #include "packetsourcetracker.h"
+
+#include "kis_datasource.h"
+#include "datasourcetracker.h"
 
 #include "timetracker.h"
 #include "alertracker.h"
@@ -717,6 +719,9 @@ int main(int argc, char *argv[], char *envp[]) {
 
     // Add channel tracking
     new Channeltracker_V2(globalregistry);
+
+    // Add the datasource tracker
+    new Datasourcetracker(globalregistry);
 
 	// Create the basic network/protocol server
 	globalregistry->kisnetserver = new KisNetFramework(globalregistry);

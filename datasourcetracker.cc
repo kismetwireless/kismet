@@ -37,10 +37,10 @@ DST_DataSourcePrototype::~DST_DataSourcePrototype() {
 
 void DST_DataSourcePrototype::register_fields() {
     proto_type_id = 
-        RegisterField("kismet.datasourcetracker.protosource.type", TrackerString,
+        RegisterField("kismet.Datasourcetracker.protosource.type", TrackerString,
                 "Prototype source type", (void **) &proto_type);
     proto_description_id =
-        RegisterField("kismet.datasourcetracker.protosource.description", TrackerString,
+        RegisterField("kismet.Datasourcetracker.protosource.description", TrackerString,
                 "Prototype source description", (void **) &proto_description);
 }
 
@@ -49,7 +49,7 @@ void DST_DataSourcePrototype::set_proto_builder(KisDataSource *in_builder) {
 }
 
 DST_DataSourceProbe::DST_DataSourceProbe(time_t in_time, string in_definition,
-     DataSourceTracker *in_tracker, vector<KisDataSource *> in_protovec) {
+     Datasourcetracker *in_tracker, vector<KisDataSource *> in_protovec) {
 
     pthread_mutex_init(&probe_lock, NULL);
 
@@ -129,14 +129,14 @@ size_t DST_DataSourceProbe::remove_failed_proto(KisDataSource *in_src) {
     return protosrc_vec.size();
 }
 
-DataSourceTracker::DataSourceTracker(GlobalRegistry *in_globalreg) {
+Datasourcetracker::Datasourcetracker(GlobalRegistry *in_globalreg) {
     globalreg = in_globalreg;
 
     entrytracker = (EntryTracker *) globalreg->FetchGlobal("ENTRY_TRACKER");
 
     if (entrytracker == NULL)
         throw std::runtime_error("entrytracker not initialized before "
-                "datasourcetracker");
+                "Datasourcetracker");
 
     globalreg->InsertGlobal("DATA_SOURCE_TRACKER", this);
     
@@ -145,40 +145,44 @@ DataSourceTracker::DataSourceTracker(GlobalRegistry *in_globalreg) {
     DST_DataSourcePrototype *dst_builder =
         new DST_DataSourcePrototype(globalreg);
     dst_proto_entry_id = 
-        entrytracker->RegisterField("kismet.datasourcetracker.protosource.entry",
+        entrytracker->RegisterField("kismet.Datasourcetracker.protosource.entry",
                 dst_builder, "Protosource definition entry");
 
     KisDataSource *datasource_builder = new KisDataSource(globalreg);
     dst_source_entry_id =
-        entrytracker->RegisterField("kismet.datasourcetracker.datasource.entry",
+        entrytracker->RegisterField("kismet.Datasourcetracker.datasource.entry",
                 datasource_builder, "Datasource entry");
 
     // Make sure to link class-constant values
     proto_vec =
-        entrytracker->RegisterAndGetField("kismet.datasourcetracker.protosources",
+        entrytracker->RegisterAndGetField("kismet.Datasourcetracker.protosources",
                 TrackerVector, "Prototype datasources");
     proto_vec->link();
 
     datasource_vec =
-        entrytracker->RegisterAndGetField("kismet.datasourcetracker.datasources",
+        entrytracker->RegisterAndGetField("kismet.Datasourcetracker.datasources",
                 TrackerVector, "Datasources");
     datasource_vec->link();
 
     error_vec =
-        entrytracker->RegisterAndGetField("kismet.datasourcetracker.errordatasources",
+        entrytracker->RegisterAndGetField("kismet.Datasourcetracker.errordatasources",
                 TrackerVector, "Errored Datasources");
     error_vec->link();
 
 }
 
-DataSourceTracker::~DataSourceTracker() {
+Datasourcetracker::~Datasourcetracker() {
     pthread_mutex_destroy(&dst_lock);
 
     globalreg->RemoveGlobal("DATA_SOURCE_TRACKER");
 
+    proto_vec->unlink();
+    datasource_vec->unlink();
+    error_vec->unlink();
+
 }
 
-void DataSourceTracker::iterate_datasources(DST_Worker *in_worker) {
+void Datasourcetracker::iterate_datasources(DST_Worker *in_worker) {
     local_locker lock(&dst_lock);
 
     for (unsigned int x = 0; x < datasource_vec->size(); x++) {
@@ -189,7 +193,7 @@ void DataSourceTracker::iterate_datasources(DST_Worker *in_worker) {
     in_worker->finalize();
 }
 
-int DataSourceTracker::register_datasource_builder(string in_type,
+int Datasourcetracker::register_datasource_builder(string in_type,
         string in_description, KisDataSource *in_builder) {
     local_locker lock(&dst_lock);
 
@@ -216,7 +220,7 @@ int DataSourceTracker::register_datasource_builder(string in_type,
     return 1;
 }
 
-int DataSourceTracker::open_datasource(string in_source) {
+int Datasourcetracker::open_datasource(string in_source) {
     string interface;
     string options;
     vector<opt_pair> opt_vec;
@@ -307,7 +311,7 @@ int DataSourceTracker::open_datasource(string in_source) {
     return 1;
 }
 
-bool DataSourceTracker::Httpd_VerifyPath(const char *path, const char *method) {
+bool Datasourcetracker::Httpd_VerifyPath(const char *path, const char *method) {
     if (strcmp(method, "GET") == 0) {
         if (strcmp(path, "/datasource/all_sources.msgpack") == 0) {
             return true;
@@ -321,7 +325,7 @@ bool DataSourceTracker::Httpd_VerifyPath(const char *path, const char *method) {
     return false;
 }
 
-void DataSourceTracker::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
+void Datasourcetracker::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
        struct MHD_Connection *connection,
        const char *url, const char *method, const char *upload_data,
        size_t *upload_data_size, std::stringstream &stream) {
@@ -338,17 +342,18 @@ void DataSourceTracker::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
 
 }
 
-int DataSourceTracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind, 
+int Datasourcetracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind, 
         const char *key, const char *filename, const char *content_type, 
         const char *transfer_encoding, const char *data, uint64_t off, size_t size) {
 
     return 0;
 }
 
-void DataSourceTracker::probe_handler(KisDataSource *in_src, void *in_aux, 
+void Datasourcetracker::probe_handler(KisDataSource *in_src, void *in_aux, 
         bool in_success) {
+
     DST_DataSourceProbe *dstproto = (DST_DataSourceProbe *) in_aux;
-    DataSourceTracker *tracker = dstproto->get_tracker();
+    Datasourcetracker *tracker = dstproto->get_tracker();
 
     // If we've succeeded, set the source and cancel the rest, then continue opening the
     // source
@@ -392,10 +397,10 @@ void DataSourceTracker::probe_handler(KisDataSource *in_src, void *in_aux,
     // Otherwise nothing to do
 }
 
-void DataSourceTracker::open_handler(KisDataSource *in_src, void *in_aux, 
+void Datasourcetracker::open_handler(KisDataSource *in_src, void *in_aux, 
         bool in_success) {
 
-    DataSourceTracker *tracker = (DataSourceTracker *) in_aux;
+    Datasourcetracker *tracker = (Datasourcetracker *) in_aux;
 
     // Devices are already in the datasource vec even if they haven't 
     // completed opening so we just add them into the error vec
@@ -419,9 +424,9 @@ void DataSourceTracker::open_handler(KisDataSource *in_src, void *in_aux,
     }
 }
 
-void DataSourceTracker::error_handler(KisDataSource *in_src, void *in_aux) {
+void Datasourcetracker::error_handler(KisDataSource *in_src, void *in_aux) {
     // Same logic as the open handler
-    DataSourceTracker *tracker = (DataSourceTracker *) in_aux;
+    Datasourcetracker *tracker = (Datasourcetracker *) in_aux;
     
     {
         local_locker lock(&(tracker->dst_lock));
@@ -440,7 +445,7 @@ void DataSourceTracker::error_handler(KisDataSource *in_src, void *in_aux) {
     }
 }
 
-void DataSourceTracker::launch_source(KisDataSource *in_proto, string in_source) {
+void Datasourcetracker::launch_source(KisDataSource *in_proto, string in_source) {
     local_locker lock(&dst_lock);
 
     TrackerElementVector vec(datasource_vec);
@@ -449,14 +454,14 @@ void DataSourceTracker::launch_source(KisDataSource *in_proto, string in_source)
     KisDataSource *new_src = in_proto->build_data_source();
     vec.push_back(new_src);
 
-    new_src->set_error_handler(DataSourceTracker::error_handler, this);
+    new_src->set_error_handler(Datasourcetracker::error_handler, this);
 
     // Try to open it, referencing our open handler
     new_src->open_source(in_source, open_handler, this);
     
 }
 
-int DataSourceTracker::timetracker_event(int eventid) {
+int Datasourcetracker::timetracker_event(int eventid) {
     if (eventid == error_timer_id) {
         // Annoying
         vector<KisDataSource *> error_vec_copy;

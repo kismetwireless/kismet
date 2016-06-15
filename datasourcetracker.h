@@ -16,8 +16,8 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#ifndef __DATASOURCETRACKER_H__
-#define __DATASOURCETRACKER_H__
+#ifndef __Datasourcetracker_H__
+#define __Datasourcetracker_H__
 
 #include "config.h"
 
@@ -61,7 +61,7 @@
  *
  */
 
-class DataSourceTracker;
+class Datasourcetracker;
 class KisDataSource;
 class DST_Worker;
 
@@ -117,11 +117,11 @@ protected:
 class DST_DataSourceProbe {
 public:
     DST_DataSourceProbe(time_t in_time, string in_definition, 
-            DataSourceTracker *in_tracker, vector<KisDataSource *> in_protovec);
+            Datasourcetracker *in_tracker, vector<KisDataSource *> in_protovec);
     virtual ~DST_DataSourceProbe();
 
     time_t get_time() { return start_time; }
-    DataSourceTracker *get_tracker() { return tracker; }
+    Datasourcetracker *get_tracker() { return tracker; }
     string get_definition() { return definition; }
 
     KisDataSource *get_proto();
@@ -136,7 +136,7 @@ public:
 protected:
     pthread_mutex_t probe_lock;
 
-    DataSourceTracker *tracker;
+    Datasourcetracker *tracker;
 
     // Vector of sources we're still waiting to return from probing
     vector<KisDataSource *> protosrc_vec;
@@ -148,11 +148,11 @@ protected:
     string definition;
 };
 
-class DataSourceTracker : public Kis_Net_Httpd_Stream_Handler, 
+class Datasourcetracker : public Kis_Net_Httpd_Stream_Handler, 
     public TimetrackerEvent {
 public:
-    DataSourceTracker(GlobalRegistry *in_globalreg);
-    virtual ~DataSourceTracker();
+    Datasourcetracker(GlobalRegistry *in_globalreg);
+    virtual ~Datasourcetracker();
 
     // Add a datasource builder, with type and description.  Returns 0 or positive on
     // success, negative on failure
