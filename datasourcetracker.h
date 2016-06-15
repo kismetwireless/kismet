@@ -32,6 +32,7 @@
 #include "trackedelement.h"
 #include "kis_net_microhttpd.h"
 #include "entrytracker.h"
+#include "timetracker.h"
 
 /* Data source tracker
  *
@@ -55,6 +56,9 @@
  * but as the source is actually assigned, it will remain in the source list.
  * This is to allow defining sources that may not be plugged in yet, etc.
  *
+ * Devices which encounter errors are placed in the error vector and 
+ * periodically re-tried
+ *
  */
 
 class DataSourceTracker;
@@ -63,22 +67,15 @@ class DST_Worker;
 
 // Worker class used to perform work on the list of packet-sources in a thread
 // safe / continuity safe context.
-//
-// DST workers may also be used to handle results from opening data sources
 class DST_Worker {
 public:
     DST_Worker() { };
 
     // Handle a data source when working on iterate_datasources
-    virtual void handle_datasource(DataSourceTracker *in_tracker, 
-            KisDataSource *in_src) { };
+    virtual void handle_datasource(KisDataSource *in_src) { };
 
     // All data sources have been processed in iterate_datasources
-    virtual void finalize(DataSourceTracker *in_tracker) { };
-
-    // Handle a source open result
-    virtual void handle_datasource_open(DataSourceTracker *in_tracker,
-            KisDataSource *in_src, bool in_success) { };
+    virtual void finalize() { };
 };
 
 // Datasource prototype for easy tracking and exporting
@@ -120,13 +117,11 @@ protected:
 class DST_DataSourceProbe {
 public:
     DST_DataSourceProbe(time_t in_time, string in_definition, 
-            DataSourceTracker *in_tracker, vector<KisDataSource *> in_protovec, 
-            DST_Worker *in_completion_worker);
+            DataSourceTracker *in_tracker, vector<KisDataSource *> in_protovec);
     virtual ~DST_DataSourceProbe();
 
     time_t get_time() { return start_time; }
     DataSourceTracker *get_tracker() { return tracker; }
-    DST_Worker *get_completion_worker();
     string get_definition() { return definition; }
 
     KisDataSource *get_proto();
@@ -143,8 +138,6 @@ protected:
 
     DataSourceTracker *tracker;
 
-    DST_Worker *completion_worker;
-
     // Vector of sources we're still waiting to return from probing
     vector<KisDataSource *> protosrc_vec;
 
@@ -155,7 +148,8 @@ protected:
     string definition;
 };
 
-class DataSourceTracker : public Kis_Net_Httpd_Stream_Handler {
+class DataSourceTracker : public Kis_Net_Httpd_Stream_Handler, 
+    public TimetrackerEvent {
 public:
     DataSourceTracker(GlobalRegistry *in_globalreg);
     virtual ~DataSourceTracker();
@@ -180,10 +174,10 @@ public:
     // Malformed source definitions will result in an immediate error & failure callback
     // of the worker.  All other sources will result in an immediate success and async
     // callback of the worker for final success.
-    int open_datasource(string in_source, DST_Worker *in_worker);
+    int open_datasource(string in_source);
 
-    // Close a source which has been created
-    int close_datasource(uuid in_src_uuid);
+    // Remove a data source
+    int remove_datasource(uuid in_uud);
 
     // HTTP api
     virtual bool Httpd_VerifyPath(const char *path, const char *method);
@@ -198,11 +192,16 @@ public:
             const char *transfer_encoding, const char *data, 
             uint64_t off, size_t size);
 
+    // Timetracker API
+    virtual int timetracker_event(int eventid);
+
 protected:
     GlobalRegistry *globalreg;
     EntryTracker *entrytracker;
 
     pthread_mutex_t dst_lock;
+
+    int error_timer_id;
 
     int dst_proto_entry_id;
     int dst_source_entry_id;
@@ -210,6 +209,7 @@ protected:
     // Lists of proto and active sources
     TrackerElement *proto_vec;
     TrackerElement *datasource_vec;
+    TrackerElement *error_vec;
 
     // Currently probing
     vector<DST_DataSourceProbe *> probing_vec;
@@ -225,8 +225,7 @@ protected:
     // Initiate a source from a known proto, add it to the list of open sources,
     // and report success via the worker.  PERFORMS THREAD LOCK, do NOT call
     // inside of a locked thread
-    void launch_source(KisDataSource *in_proto, string in_source, 
-            DST_Worker *in_worker);
+    void launch_source(KisDataSource *in_proto, string in_source);
 
 };
 
