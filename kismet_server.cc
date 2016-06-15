@@ -751,59 +751,6 @@ int main(int argc, char *argv[], char *envp[]) {
 	if (globalregistry->rootipc != NULL) {
 		globalregistry->rootipc->SyncRoot();
 		globalregistry->rootipc->SyncIPC();
-
-#if 0
-		// Another startup spin to make sure the sync flushes through
-		time_t ipc_spin_start = time(0);
-
-		while (1) {
-			printf("debug - sync spin\n");
-
-			FD_ZERO(&rset);
-			FD_ZERO(&wset);
-			max_fd = 0;
-
-			if (globalregistry->fatal_condition)
-				CatchShutdown(-1);
-
-			// Collect all the pollable descriptors
-			for (unsigned int x = 0; x < globalregistry->subsys_pollable_vec.size(); x++) 
-				max_fd = 
-					globalregistry->subsys_pollable_vec[x]->MergeSet(max_fd, &rset, 
-																	 &wset);
-			tm.tv_sec = 0;
-			tm.tv_usec = 100000;
-
-			if (select(max_fd + 1, &rset, &wset, NULL, &tm) < 0) {
-				if (errno != EINTR && errno != EAGAIN) {
-					snprintf(errstr, STATUS_MAX, "Main select loop failed: %s",
-							 strerror(errno));
-					CatchShutdown(-1);
-				}
-			}
-
-			for (unsigned int x = 0; 
-				 x < globalregistry->subsys_pollable_vec.size(); x++) {
-
-				if (globalregistry->subsys_pollable_vec[x]->Poll(rset, wset) < 0 &&
-					globalregistry->fatal_condition) {
-					CatchShutdown(-1);
-				}
-			}
-
-			if (globalregistry->rootipc->FetchReadyState() > 0) {
-				printf("debug - ready\n");
-				break;
-			}
-
-			if (time(0) - ipc_spin_start > 2) {
-				printf("debug - timed out on sync spin\n");
-				break;
-			}
-		}
-
-		printf("debug - out of sync spin\n");
-#endif
 	}
 
 #if !defined(SYS_CYGWIN) && !defined(SYS_ANDROID)
@@ -821,13 +768,6 @@ int main(int argc, char *argv[], char *envp[]) {
 
 		globalreg->rootipc->SendIPC(ipc);
 	}
-
-#if 0
-	// Create the basic drone server
-	globalregistry->kisdroneserver = new KisDroneFramework(globalregistry);
-	if (globalregistry->fatal_condition)
-		CatchShutdown(-1);
-#endif
 
 	// Create the alert tracker
 	globalregistry->alertracker = new Alertracker(globalregistry);
@@ -918,16 +858,6 @@ int main(int argc, char *argv[], char *envp[]) {
 #if 0
 	// Create the basic drone server
 	globalregistry->kisdroneserver->Activate();
-	if (globalregistry->fatal_condition)
-		CatchShutdown(-1);
-#endif
-
-#if 0
-	// Register basic chain elements...  This is just instantiating a util class.
-	// Nothing else talks to it, so we don't have to care about following it
-	globalregistry->messagebus->InjectMessage("Inserting basic packet dissectors...",
-											  MSGFLAG_INFO);
-	globalregistry->builtindissector = new KisBuiltinDissector(globalregistry);
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
 #endif
