@@ -30,8 +30,6 @@ public:
     // Print usage info during --help
     void cliext_usage(const char *name __attribute__((unused)) ) { }
 
-    // Parse CLI options
-
 protected:
     GlobalRegistry *globalreg;
 };

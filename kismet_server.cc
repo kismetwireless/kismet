@@ -45,6 +45,8 @@
 
 #include "globalregistry.h"
 
+#include "cliutils.h"
+
 #include "configfile.h"
 #include "messagebus.h"
 
@@ -379,6 +381,12 @@ int Usage(char *argv) {
 		   "                               directory instead of the user entry\n"
 		   );
 
+    for (vector<CliExtension *>::iterator i = globalregistry->cli_extension_vec.begin();
+            i != globalregistry->cli_extension_vec.end(); ++i) {
+        (*i)->cliext_usage(argv);
+    }
+
+#if 0
 	printf("\n");
 	KisNetFramework::Usage(argv);
 	printf("\n");
@@ -386,6 +394,7 @@ int Usage(char *argv) {
 	printf("\n");
 	Packetsourcetracker::Usage(argv);
 	printf("\n");
+#endif
 
 	exit(1);
 }
