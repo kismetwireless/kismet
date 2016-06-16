@@ -220,15 +220,15 @@ int GlobalRegistry::GetNamedFd(string in_name) {
 	return -1;
 }
 
-void GlobalRegistry::RegisterCliExtension(CliExtension *in_cli) {
-    cli_extension_vec.push_back(in_cli);
+void GlobalRegistry::RegisterUsageFunc(usage_func in_cli) {
+    usage_func_vec.push_back(in_cli);
 }
 
-void GlobalRegistry::RemoveCliExtension(CliExtension *in_cli) {
-    for (vector<CliExtension *>::iterator i = cli_extension_vec.begin();
-            i != cli_extension_vec.end(); ++i) {
+void GlobalRegistry::RemoveUsageFunc(usage_func in_cli) {
+    for (vector<usage_func>::iterator i = usage_func_vec.begin();
+            i != usage_func_vec.end(); ++i) {
         if ((*i) == in_cli) {
-            cli_extension_vec.erase(i);
+            usage_func_vec.erase(i);
             return;
         }
     }

@@ -619,7 +619,6 @@ public:
 class Devicetracker : public Kis_Net_Httpd_Stream_Handler, 
     public TimetrackerEvent {
 public:
-	Devicetracker() { fprintf(stderr, "FATAL OOPS: Kis_Tracker()\n"); exit(0); }
 	Devicetracker(GlobalRegistry *in_globalreg);
 	virtual ~Devicetracker();
 
@@ -717,6 +716,9 @@ public:
 
     // Timetracker event handler
     virtual int timetracker_event(int eventid);
+
+    // CLI extension
+    static void usage(const char *name);
 
 protected:
 	void SaveTags();

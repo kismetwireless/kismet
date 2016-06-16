@@ -1903,4 +1903,11 @@ int Devicetracker::timetracker_event(int eventid) {
     return 1;
 }
 
+void Devicetracker::usage(const char *name __attribute__((unused))) {
+    printf("\n"); 
+	printf(" *** Device Tracking Options ***\n");
+	printf("     --device-timeout=n       Expire devices after N seconds\n"
+          );
+}
+
 

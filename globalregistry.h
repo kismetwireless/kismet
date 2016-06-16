@@ -60,8 +60,6 @@ class Dumpfile_Pcap;
 class EntryTracker;
 // HTTP server
 class Kis_Net_Httpd;
-// CLI extensions
-class CliExtension;
 
 #define KISMET_INSTANCE_SERVER	0
 #define KISMET_INSTANCE_DRONE	1
@@ -311,9 +309,10 @@ public:
 	int RemovePollableSubsys(Pollable *in_subcli);
 
     // Add a CLI extension
-    void RegisterCliExtension(CliExtension *in_cli);
-    void RemoveCliExtension(CliExtension *in_cli);
-    vector<CliExtension *> cli_extension_vec;
+    typedef void (*usage_func)(const char *);
+    void RegisterUsageFunc(usage_func in_cli);
+    void RemoveUsageFunc(usage_func in_cli);
+    vector<usage_func> usage_func_vec;
 
 	// Add a log file
 	void RegisterDumpFile(Dumpfile *in_dump);

@@ -45,8 +45,6 @@
 
 #include "globalregistry.h"
 
-#include "cliutils.h"
-
 #include "configfile.h"
 #include "messagebus.h"
 
@@ -381,9 +379,10 @@ int Usage(char *argv) {
 		   "                               directory instead of the user entry\n"
 		   );
 
-    for (vector<CliExtension *>::iterator i = globalregistry->cli_extension_vec.begin();
-            i != globalregistry->cli_extension_vec.end(); ++i) {
-        (*i)->cliext_usage(argv);
+    for (vector<GlobalRegistry::usage_func>::iterator i = 
+            globalregistry->usage_func_vec.begin();
+            i != globalregistry->usage_func_vec.end(); ++i) {
+        (*i)(argv);
     }
 
 #if 0
@@ -484,6 +483,9 @@ int main(int argc, char *argv[], char *envp[]) {
 	globalregistry->argc = argc;
 	globalregistry->argv = argv;
 	globalregistry->envp = envp;
+
+    // Set up usage functions
+    globalregistry->RegisterUsageFunc(Devicetracker::usage);
 
 	int startup_ipc_id = -1;
 
