@@ -64,6 +64,9 @@ KisDataSource::~KisDataSource() {
 }
 
 void KisDataSource::close_source() {
+    cancel_open_source();
+    cancel_open_source();
+
     if (source_ipc != NULL) {
         source_ipc->close_ipc();
         source_ipc->soft_kill();
