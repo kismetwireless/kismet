@@ -372,9 +372,6 @@ int Usage(char *argv) {
 		   " -s, --silent                 Turn off stdout output after setup phase\n"
 		   "     --daemonize              Spawn detatched in the background\n"
 		   "     --no-plugins             Do not load plugins\n"
-		   "     --no-root				  Do not start the kismet_capture binary \n"
-		   "                               when not running as root.  For no-priv \n"
-		   "                               remote capture ONLY.\n"
 		   "     --homedir <path>         Use an alternate path as the home \n"
 		   "                               directory instead of the user entry\n"
 		   );
