@@ -193,6 +193,50 @@ void Datasourcetracker::iterate_datasources(DST_Worker *in_worker) {
     in_worker->finalize();
 }
 
+int Datasourcetracker::remove_datasource(uuid in_uuid) {
+    local_locker lock(&dst_lock);
+
+    TrackerElementVector dsv(datasource_vec);
+
+    // Look for the source in the errored sources and get it out of the
+    // error vec
+    TrackerElementVector esv(error_vec);
+    for (TrackerElementVector::const_iterator i = esv.begin(); i != esv.end(); ++i) {
+        KisDataSource *kds = (KisDataSource *) (*i);
+
+        if (kds->get_source_uuid() == in_uuid) {
+            esv.erase(i);
+            break;
+        }
+    }
+
+    // Look for it in the sources vec and fully close it and get rid of it
+    for (TrackerElementVector::const_iterator i = dsv.begin(); i != dsv.end(); ++i) {
+        KisDataSource *kds = (KisDataSource *) (*i);
+
+        if (kds->get_source_uuid() == in_uuid) {
+            stringstream ss;
+
+            ss << "Closing source '" << kds->get_source_name() << "' and removing "
+                "from list of sources.";
+            _MSG(ss.str(), MSGFLAG_INFO);
+
+            // We don't care about errors anymore on it
+            kds->cancel_error_handler();
+
+            // Close it
+            kds->close_source();
+
+            // Remove it
+            dsv.erase(i);
+
+            // Done
+            return 1;
+        }
+    }
+
+}
+
 int Datasourcetracker::register_datasource_builder(string in_type,
         string in_description, KisDataSource *in_builder) {
     local_locker lock(&dst_lock);
