@@ -111,6 +111,10 @@ REST endpoints
 
         /datasource/supported_sources.msgpack
             Return a msgpack vector of all possible datasource types
+
+        /datasource/error_sources.msgpack
+            Return a msgpack vector of all defined sources which are currently
+            in an error state
     
     Packet Sources (old):
     

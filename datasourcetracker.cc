@@ -384,6 +384,10 @@ void Datasourcetracker::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
         return;
     }
 
+    if (strcmp(url, "/datasource/error_sources.msgpack") == 0) {
+        MsgpackAdapter::Pack(globalreg, stream, error_vec);
+    }
+
 }
 
 int Datasourcetracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind, 
