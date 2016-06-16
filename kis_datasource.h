@@ -98,6 +98,9 @@ public:
     // Cancel the callbacks
     virtual void cancel_open_source();
 
+    // Close and kill a source
+    virtual void close_source();
+
     // Set channel or frequency, string-based definition.  Specifics of channel
     // and frequency definition are determined by the source phy.  Does not return,
     // source will go into error state instead because of async

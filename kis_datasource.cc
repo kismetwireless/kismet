@@ -59,9 +59,18 @@ KisDataSource::~KisDataSource() {
 
     pthread_mutex_destroy(&source_lock);
 
+    close_source();
+
+}
+
+void KisDataSource::close_source() {
     if (source_ipc != NULL) {
-        source_ipc->hard_kill();
+        source_ipc->close_ipc();
+        source_ipc->soft_kill();
     }
+
+    set_source_running(false);
+    set_child_pid(-1);
 }
 
 void KisDataSource::register_fields() {
