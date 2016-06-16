@@ -440,7 +440,7 @@ public:
 
     void add_vector(TrackerElement *s);
     void del_vector(unsigned int p);
-    void del_vector(vector_iterator i);
+    void del_vector(vector_const_iterator i);
     void clear_vector();
 
     // Do our best to increment a value
@@ -645,7 +645,7 @@ public:
         return val->del_vector(p);
     }
 
-    virtual void erase(TrackerElement::vector_iterator i) {
+    virtual void erase(TrackerElement::vector_const_iterator i) {
         return val->del_vector(i);
     }
 

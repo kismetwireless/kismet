@@ -1301,7 +1301,7 @@ void TrackerElement::del_vector(unsigned int p) {
     e->unlink();
 }
 
-void TrackerElement::del_vector(vector_iterator i) {
+void TrackerElement::del_vector(vector_const_iterator i) {
     except_type_mismatch(TrackerVector);
 
     (*i)->unlink();
