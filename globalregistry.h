@@ -60,11 +60,15 @@ class Dumpfile_Pcap;
 class EntryTracker;
 // HTTP server
 class Kis_Net_Httpd;
+// CLI extensions
+class CliExtension;
 
 #define KISMET_INSTANCE_SERVER	0
 #define KISMET_INSTANCE_DRONE	1
 #define KISMET_INSTANCE_CLIENT	2
 
+// TODO remove these when netserver is fully removed
+//
 // These are the offsets into the array of protocol references, not
 // the reference itself.
 // tcpserver protocol numbers for all the builtin protocols kismet
@@ -178,11 +182,15 @@ public:
 	bool winch;
     
     MessageBus *messagebus;
+
+    // Globals which should be deprecated in favor of named globals
+
 	Plugintracker *plugintracker;
     Packetsourcetracker *sourcetracker;
 	
 	// Old network tracker due to be removed
     Netracker *netracker;
+
 	// New multiphy tracker
 	Devicetracker *devicetracker;
 
@@ -216,9 +224,11 @@ public:
 	// functions for this, but main needs to be able to see it directly
 	vector<Pollable *> subsys_pollable_vec;
 
+    // TODO probably deprecate these with the new logging system
 	// Vector of dumpfiles to close cleanly
 	vector<Dumpfile *> subsys_dumpfile_vec;
 
+    // TODO deprecate this with the new ipcremote2 system
 	// Vector of child signals
 	vector<pid_fail> sigchild_vec;
 	
@@ -230,10 +240,12 @@ public:
 
 	string logname;
 
-    unsigned int metric;
-
+    // TODO eliminate these when netserver is removed
     // Protocol references we don't want to keep looking up
 	int netproto_map[PROTO_REF_MAX];
+
+    // TODO eliminate these for per-phy filters and filters localized in
+    // devicetracker
 
     // Filter maps for the various filter types
     int filter_tracker;
@@ -297,6 +309,11 @@ public:
 	// Add something to the poll() main loop
 	int RegisterPollableSubsys(Pollable *in_subcli);
 	int RemovePollableSubsys(Pollable *in_subcli);
+
+    // Add a CLI extension
+    void RegisterCliExtension(CliExtension *in_cli);
+    void RemoveCliExtension(CliExtension *in_cli);
+    vector<CliExtension *> cli_extension_vec;
 
 	// Add a log file
 	void RegisterDumpFile(Dumpfile *in_dump);

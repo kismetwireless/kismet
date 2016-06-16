@@ -60,8 +60,6 @@ GlobalRegistry::GlobalRegistry() {
 
 	start_time = 0;
 
-	metric = 0;
-
 	for (int x = 0; x < PROTO_REF_MAX; x++)
 		netproto_map[x] = -1;
 
@@ -221,3 +219,18 @@ int GlobalRegistry::GetNamedFd(string in_name) {
 
 	return -1;
 }
+
+void GlobalRegistry::RegisterCliExtension(CliExtension *in_cli) {
+    cli_extension_vec.push_back(in_cli);
+}
+
+void GlobalRegistry::RemoveCliExtension(CliExtension *in_cli) {
+    for (vector<CliExtension *>::iterator i = cli_extension_vec.begin();
+            i != cli_extension_vec.end(); ++i) {
+        if ((*i) == in_cli) {
+            cli_extension_vec.erase(i);
+            return;
+        }
+    }
+}
+
