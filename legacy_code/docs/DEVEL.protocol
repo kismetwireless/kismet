@@ -1,0 +1,102 @@
+*DEVICE - Common device record across all PHYs
+	phytype			Integer		Phy ID of device, mapped with *PHYMAP
+	macaddr			MAC			MAC address
+	name			String		Arbitrary name
+	typestring		String		Arbitrary type as string
+	basictype		Integer		Basic type map per KIS_DEVICE_BASICTYPE_...
+	basiccrypt		Integer		Basic crypt map per KIS_DEVICE_BASICCRYPT_...
+	firsttime		Integer		First time seen
+	lasttime		Integer		Last time seen
+	packets			Integer		# of packets seen
+	llcpackets		Integer		# of LLC / Link definition packets
+	errorpackets	Integer		# of link-level error packets
+	datapackets		Integer		# of data packets
+	cryptpackets	Integer		# of encrypted packets (overlaps with data)
+	filterpackets	Integer		# of packets filtered for some reason
+	datasize		Int64		Data, in bytes
+	newpackets		Integer		# of packets since last update
+	channel			Integer		Phy-specific channel #
+	frequency		Integer		Frequency in MHz
+	freqmhz			Map			Map of packet count to frequency, P:F*P:F*...
+	gpsfixed		Integer		GPS quality (0, 2, 3)
+	minlat			Float		Minimum coordinate of bounding rect
+	minlon			Float		Minimum coordinate of bounding rect
+	minalt			Float		Minimum coordinate of bounding rect
+	minspd			Float		Minimum coordinate of bounding rect
+	maxlat			Float		Maximum coordinate of bounding rect
+	maxlon			Float		Maximum coordinate of bounding rect
+	maxalt			Float		Maximum coordinate of bounding rect
+	maxspd			Float		Maximum coordinate of bounding rect
+	// Either dBm OR rssi will be reported, not both, depends on driver
+	signaldbm		Integer		Current signal in dBm if available
+	noisedbm		Integer		Current noise in dBm if available
+	minsignaldbm	Integer		Minimum signal seen in dBm
+	minnoisedbm		Integer		Minimum noise seen in dBm
+	maxsignaldbm	Integer		Maximum signal seen in dBm
+	maxnoisedbm 	Integer		Minimum noise seen in dBm
+	signalrssi		Integer		Current signal in rssi if available
+	noiserssi		Integer		Current noise in rssi if available
+	minsignalrssi	Integer		Minimum signal seen in rssi
+	minnoiserssi	Integer		Minimum noise seen in rssi
+	maxsignalrssi	Integer		Maximum signal seen in rssi
+	maxnoiserssi 	Integer		Minimum noise seen in rssi
+	bestlat			Float		Coordinate of strongest signal
+	bestlon			Float		Coordinate of strongest signal
+	bestalt			Float		Coordinate of strongest signal
+	// See gps conversions in ppi, util for how to convert these
+	agglat			Int64		Aggregate of coordinates
+	agglon			Int64		Aggregate of coordinates
+	aggalt			Int64		Aggregate of coordinates
+	aggpoints		Int64		# of points in aggregate
+
+*DEVDONE - All related protocols to a device have been sent, a client can
+ consider the device record updated
+ 	phytype			Integer		Phy type of device
+	macaddr			MAC			MAC of completed device
+
+*DEVTAG - Arbitrary device data tag
+	phytype			Integer		Phy type of device
+	macaddr			MAC			MAC of tagged device
+	tag				String		Tag name
+	value			String		Tag data
+
+*PHYMAP - Map of phyids to phy type strings
+	phytype			Integer		Phy #
+	phyname			String		Name
+	packets			Integer		# of packets seen on this phy
+	datapackets		Integer		# of data packets seen
+	errorpackets	Integer		# of link-error packets seen
+	filterpackets	Integer		# of packets filtered
+	packetrate		Integer		# of packets/sec
+
+*TRACKINFO - General info about the tracker
+	devices			Integer		# of devices seen
+	packets			Integer		# of packets
+	datapackets		Integer		# of data packets
+	cryptpackets	Integer		# of encrypted packets
+	errorpackets	Integer		# of error packets
+	filterpackets	Integer		# of filtered packets
+	packetrate		Integer		# of packets/sec across all phys
+
+*STRING - Extracted plaintext string
+	phytype			Integer		Phy type of device
+	macaddr			MAC			MAC of device
+	source			MAC			MAC of source
+	dest			MAC			MAC of destination
+	string			String		Extracted string
+
+*DOT11SSID - 802.11 phy SSID record, many contained per device
+	bssidmac		MAC			MAC of device, phy assumed to be
+								 whatever phy# is assigned to the dot11 handler
+	checksum		Integer		Checksum of SSID, used as key
+	type			Integer		Type set, phy80211.h
+	ssid			String		Advertised or probed SSID
+	beaconinfo		String		Proprietary vendor extended info
+	cryptset		Integer		dot11 advertised crypt set (phy80211.h)
+	firsttime		Integer		Timestamp, first time seen
+	lasttime		Integer		Timestamp, last time seen
+	beaconrate		Integer		Advertised beacons per second
+	beacons			Integer		Observed beacons in last second
+	channel			Integer		Advertised channel
+	dot11d			String		Complex dot11d info, 
+	                             country:[start-numchan-txpower]:+

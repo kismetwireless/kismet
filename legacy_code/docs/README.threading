@@ -1,0 +1,20 @@
+Threading, Kismet, and Plugins
+------------------------------
+
+Kismet now has minimal support for threading in capture sources.  While Kismet
+is primarily single-threaded around a select() model, some capture sources 
+need to do extensive processing on incoming data before handing it over.  Doing
+extended processing in the select() handler can cause stalling and other
+sources to lose packets.
+
+While previously it was possible for a capture source to implement a thread
+and then use a pipe() to present a 'false' descriptor to Kismet as a selectable
+item, Kismet now provides minimal threading support.
+
+A capture source may now operate inside a thread, and call 
+
+packetchain->GeneratePacket() and packetchain->ProcessPacket() directly.
+
+No other functions in Kismet should be called outside the main thread.
+
+

@@ -1,0 +1,92 @@
+Client/Server Protocol
+
+The Kismet client/server protocol has evolved over time, but is finally (as of
+this writing) at a stable state.  This new method of communication allows a 
+client to request only the protocols which are of interest, AND to control the
+fields and field order that these protocols are sent with.  This removes the
+disruption the addition of new protocols and new tracking data caused to 
+independent clients.  The basics of the protocol are as follows:
+
+
+The server->client protocol consists of one-line statements of the format:
+*{HEADER}: {Data}
+{HEADER} denotes the type of protocol, ie KISMET, NETWORK, TIME, etc.
+{Data} denotes the free-form data for this protocol.
+Multi-field data is seperated with spaces.  Any data field that may contain
+spaces is buffered by \001{Field}\001.  This buffering is not used for
+protocols such as STATUS which return only a single field.
+
+
+The client->server commands consist of one-line statements of the format:
+!{ID} {COMMAND} {Options}
+{ID} is a unique numerical identifier (timestamp is often used) which is used
+     by the server to return an error condition for a specific command.
+     If {ID} is set to 0, no ACK is returned.
+{COMMAND} is the command to be run (ie, ENABLE, REMOVE, CAPABILITY)
+{Options} are the options for that command.
+
+
+Basic client support:
+The server expects every client to handle the following basic protocols, and 
+automatically enables them for that client at connect time.  All other 
+protocols must be specifically request.
+*KISMET: {Version} {Start time} {Server name} {Build Revision}
+  Initial identifier
+*ACK: {Command ID}
+  Acknowledgement that a command was processed.  If your client doesn't care
+  about acknowledgements, this can be ignored or commands can be sent with an
+  ID of 0.
+*ERROR: {String}
+  Error response for an invalid request.  The simplest way to handle this is to
+  print it as a status message.  More advanced handling can be added at your
+  discretion.
+*PROTOCOLS: {Comma-delimited string of supported protocols}
+  List of protocols this server supports
+*CAPABILITY: {Protocol} {Comma-delimited string of fields}
+  Capability of a specific protocol
+*TERMINATE: {String}
+  Server termination
+*TIME: {Current time}
+  Current server time in seconds since the epoch
+
+
+The server supports the following commands:
+!{ID} CAPABILITY {Protocol}
+  Request that a *CAPABILITY line be sent for the protocol
+!{ID} ENABLE {Protocol} {Comma-delimited string of requested fields}|{*}
+  Enable sending a protocol with the requested field order.  * enables all
+  fields in the default order.
+!{ID} REMOVE {Protocol}
+  Stop sending a protocol
+!{ID} PAUSE 
+  Pause the packet sources
+!{ID} RESUME
+  Resume capturing from the packet sources
+!{ID} LISTWEPKEYS
+  Lists WEP decryption keys if the server allows this.
+!{ID} ADDWEPKEY {bssid},{hex key}
+  Add a WEP decryption key for the given BSSID.
+!{ID} DELWEPKEY {bssid}
+  Remove the WEP key for a give BSSID.
+
+
+An example session:
+Connected to localhost.
+Escape character is '^]'.
+KISMET: 2.7.1 1038236534 `"Gir"` 20021118101152 
+*PROTOCOLS: KISMET,ERROR,PROTOCOLS,CAPABILITY,TERMINATE,TIME,NETWORK,CLIENT,GPS,INFO,REMOVE,STATUS,PACKET,ALERT,STRING
+!1234 CAPABILITY NETWORK
+*ACK: 1234
+*CAPABILITY: NETWORK bssid,type,ssid,beaconinfo,llcpackets,datapackets,cryptpackets,weakpackets,channel,wep,firsttime,lasttime,atype,rangeip,gpsfixed,minlat,minlon,minalt,minspd,maxlat,maxlon,maxalt,maxspd,octets,cloaked,beaconrate,maxrate,manufkey,manufscore,quality,signal,noise,bestquality,bestsignal,bestnoise,bestlat,bestlon,bestalt,agglat,agglon,aggalt,aggpoints
+!1235 ENABLE NETWORK bssid,type,ssid
+*ACK: 1235
+*NETWORK: 00:40:96:55:A2:72 0 `p@thf1nd3r` 
+*NETWORK: 00:A0:F8:41:3C:DD 0 `KrullNet1` 
+...
+
+
+PROTOCOL and CAPABILITY processing is left to the discretion of the client 
+author - they may be ignored with the understanding that a request for an 
+unknown protocol or an unknown field will result in an error, or they can
+be processed to verify that the server accepts all the desired fields.
+

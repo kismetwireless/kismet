@@ -1,0 +1,14 @@
+build-essential
+pkg-config
+libnl-genl-3-dev
+libnl-3-dev
+libnl2-dev
+libncurses-dev
+libpcre3-dev
+libpcap-dev
+libcap-dev
+subversion
+
+libbluetooth-dev
+libusb-dev
+libssl-dev
