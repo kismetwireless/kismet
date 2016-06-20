@@ -107,7 +107,7 @@ TrackerElements can store most types of data as a primitive:
 
 |Tracker Type|C++ Type|Description|
 |---------|--------|-----------|
-TrackerString | string | Standard std::string
+TrackerString | string | Basic std::string
 TrackerInt8 | int8_t | 8bit signed 
 TrackerUInt8 | uint8_t | 8bit unsigned
 TrackerInt16 | int16_t | 16bit signed
@@ -162,7 +162,7 @@ public:
     }
 ```
 
-This looks fairly standard, but allows for more interesting behavior to be defined simply.  For instance, we want to hold a stanard unix timestamp (`time_t`) in the timestamp field, however there is no TrackerElement primitive for timestamps.  However, if we do the following:
+This looks fairly standard, but allows for more interesting behavior to be defined simply.  For instance, we want to hold a standard unix timestamp (`time_t`) in the timestamp field, however there is no TrackerElement primitive for timestamps.  However, if we do the following:
 
 ```C++
 public:
@@ -196,13 +196,13 @@ public:
     }
 ```
 
-### Using Complex Fields
+### Using Vector and Map elements
 
-Complex field types - vectors and maps - need special handling.  Typically they do not get manipulated with traditional get/set functions.  
+More complex field types - vectors and maps - need special handling.  Typically they do not get manipulated with traditional get/set functions.  
 
-#### Using complex fields locally
+#### Using vectors nad maps locally
 
-It is possible to use a complex TrackerElement directly via the complex access APIs, ie `add_vector()`, `add_doublemap()`, etc.  However, it is much simpler to use the wrapper classes which translate the TrackerElements to behave like the STL library versions of their data.
+It is possible to use a TrackerElement directly via the complex access APIs, ie `add_vector()`, `add_doublemap()`, etc.  However, it is much simpler to use the wrapper classes which translate the TrackerElements to behave like the STL library versions of their data.
 
 ```C++
 public:
@@ -222,7 +222,7 @@ public:
     }
 ```
 
-Wrapper classes are provided for all of the complex TrackerElement variants:
+Wrapper classes are provided for all of the TrackerElement variants:
 
 * `TrackerElementVector`
 * `TrackerElementMap`
