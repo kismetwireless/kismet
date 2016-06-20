@@ -137,11 +137,13 @@ Now that we have some data structures, we need to define how to access them.
 
 It's certainly possible to define your own get/set methods, but there are some macros to help you.
 
-The `__Proxy(...)` macro allows easy definition of a handful of methods in one line, at the expense of slightly obtuse syntax.
+The `__Proxy(...)` macro allows easy definition of a handful of methods in one line, at the expense of slightly obtuse syntax:
 
-`__Proxy(...)` takes five arguments: The name to be used in the generated functions, the content type of the TrackerElement, the input type to the get/set functions, the return type from the get function, and finally the variable it will use for the get/set operations.
+`__Proxy(name, tracker type, input type, return type, variable)`
 
-This allows you to define in a single line cast-conversions between compatible types and define standard get/set mechanisms.  For example, for a simple unsigned int element, `flags`, defined as `TrackerUInt32`, you might use:
+This expands to define get and set functions (get_*name* and set_*name*) which accept *input type* variables and return *return type*, while automatically casting it to the type required by the TrackerElement, indicated by *tracker type*.
+
+What this really allows you to define in a single line cast-conversions between compatible types and define standard get/set mechanisms.  For example, for a simple unsigned int element, `flags`, defined as `TrackerUInt32`, you might use:
 
 ```C++
 public:
@@ -231,7 +233,9 @@ Wrapper classes are provided for all of the complex TrackerElement variants:
 
 #### Accessing from outside the object
 
-It may be necessary to allow access from outside callers.  There are several methods you can utilize:
+It may be necessary to allow access from outside callers.  This is only required for other code directly accessing your object; for exporting your data via the REST interface and other serialization methods, so long as your data is in `TrackerElement` objects it will be handled automatically.
+
+If you do need to provide access to your data objects, there are several methods you can utilize:
 
 ##### Method one: Provide functions which interface to the complex type
 
@@ -243,6 +247,8 @@ public:
         example_vec->add_vector(e);
     }
 ```
+
+Essentially the same is hiding the internal data structure via your object API:  `add_foo(...)` may internally add to the vector, without ever explicitly exposing the actual data types.
 
 ##### Method two: Proxy the TrackedElement directly
 
@@ -265,6 +271,153 @@ A caller could use this via:
         ...
     }
     ...
+```
+
+##### Method three: Provide wrapper objects and expose them
+
+It may make sense to expose the wrapper objects (`TrackerElementVector` and friends):
+
+```C+++
+public:
+    TrackerElementVec *get_foo_vec() {
+        return foovec_wrapper;
+    }
+
+protected:
+    TrackerElement *foovec;
+    TrackerElementVec *foovec_wrapper;
+```
+
+Then there is the question of how to assign the wrapper during the creation.  To do this, we need to override the `reserve_fields(...)` function.  This function is responsible for allocating fields defined in `register_fields()`, and in complex classes, is used to map complex sub-types.
+
+We can ignore the more complex issues, for now, and just use it to build our wrapper.
+
+```C++
+private:
+    virtual void reserve_fields(TrackerElement *e) {
+        tracker_component::reserve_fields(e);
+
+        foovec_wrapper = new TrackerElementVec(foovec);
+    }
+```
+
+Of course, now we'll also need to update our destructor to prevent leaking the wrapper memory:
+
+```C++
+public:
+    virtual ~TrackedFoo() {
+        delete(foovec_wrapper);
+    }
+```
+
+## Including complex sub-components
+
+Being able to nest complex objects inside a `tracker_component` is one of the major advantages it offers, and code and data-type re-use is encouraged whenever possible.
+
+Lets say we want to add a location to our data type.  A location block is already defined in `devicetracker_component.h`.
+
+### First, add the location elements
+
+Just like any other `TrackerElement` / `tracker_component` derived item, we need the ID and the element to track it.  In this case, we'll use the actual C++ class, remembering to include `devicetracker_component.h`: 
+
+```C++
+private:
+    int location_id;
+    kis_tracked_location *location;
+```
+
+### Registering complex elements
+
+To register an element derived from a complex class like `kis_tracked_location`, we need to provide an instance of the C++ class.  Later, the entry tracker code will use this class to call `clone_type()` and generate a new instance for us.  
+
+To do this, our `register_fields()` function looks like this now:
+
+```C++
+private:
+    virtual void register_fields() {
+        ... Existing field registration
+
+        // We instantiate a builder, passing in globalreg, and an id of 0.  The
+        // entry tracker will fill in the correct ID later.
+        kis_tracked_location *loc_builder = new kis_tracked_location(globalreg, 0);
+
+        // Register the field as complex type, providing our builder.  We still
+        // give it a name based on our class, and a description
+        location_id =
+            RegisterComplexField("foo.location", loc_builder, "location");
+
+        // RegisterComplex clones the builder internally, so we no longer need it
+        // and should delete it
+        delete(loc_builder);
+    }
+```
+
+### Allocating the complex element
+
+Also, special care needs to be taken for actually allocating the complex element.  As we learned above, allocating fields is done in the `reserve_fields(...)` function.
+
+The `reserve_fields(...)` method is used to both allocate new instances of fields, or to attach fields to an existing TrackerElement (for instance, once received from a generic deserialization of incoming data).  
+
+For our complex element, we simply need to instantiate it using the incoming data:
+
+```C++
+private:
+    virtual void reserve_fields(TrackerElement *e) {
+        // We MUST call the parent instance
+        tracker_component::reserve_fields(e);
+
+        // The parent takes care of anything that uses TrackerElement, we only
+        // have to worry about the custom fields
+
+        if (e != NULL) {
+            // If we're absorbing an existing generic structure, all we
+            // need to do is instantiate a new object of the right ID.
+            // It's already part of the map for the base object.
+          
+            // So we pass globalreg, the id we got from registering,
+            // and then we search in our object for the sub-tree of data
+            // matching our ID, which was built for us during deserializaton
+            location = new kis_tracked_location(globalreg, location_id,
+                    e->get_map_value(location_id));
+        } else {
+            // Otherwise, we're making a whole new object.  This is usually the
+            // case.
+
+            // So make a new location object
+            location = new kis_tracked_location(globalreg, location_id);
+
+            // And then attach it to our map so that it's tracked correctly
+            add_map(location);
+        }
+    }
+```
+
+### Providing access
+
+Providing access to the child custom type is much the same as providing access to complex `TrackerElement` types, either by providing custom APIs or providing direct access via `__ProxyTrackable(...)`.
+
+## Serialization
+
+Serialization is handled by the `tracker_component` and `TrackerElement` system automatically.  Since the types of the fields are introspectable, serialization systems should be able to export nested data automatically.  
+
+The only aspect of serialization that a custom `tracker_component` class needs to consider is what happens prior to serialization.  This is handled by the `pre_serialize()` method, and is called by any serialization/export class.
+
+This method allows the class to do any updating, averaging, etc before its contents are delivered to a REST endpoing, XML serialization, or other export.
+
+For example, the RRD object uses this method to ensure that the data is synced to the current time:
+
+```C++
+public:
+    virtual void pre_serialize() {
+        // Always call the parent in case work needs to be done
+        tracker_component::pre_serialize();
+
+        // Call an internal funtion for adding a sample; we add '0' to our
+        // current sample and set the time, this fast-forwards the RRD to
+        // 'now' and computes history for us in case we didn't see an update
+        // in a long time
+        add_sample(0, globalreg->timestamp.tv_sec);
+    }
 ```
 
 
