@@ -756,7 +756,7 @@ TrackerElement *TrackerElement::operator[](mac_addr i) {
     return NULL;
 }
 
-TrackerElement::map_const_iterator TrackerElement::begin() {
+TrackerElement::map_iterator TrackerElement::begin() {
     switch (type) {
         case TrackerMap:
             return dataunion.submap_value->begin();
@@ -768,7 +768,7 @@ TrackerElement::map_const_iterator TrackerElement::begin() {
     }
 }
 
-TrackerElement::map_const_iterator TrackerElement::end() {
+TrackerElement::map_iterator TrackerElement::end() {
     switch (type) {
         case TrackerMap:
             return dataunion.submap_value->end();
@@ -804,25 +804,25 @@ TrackerElement *TrackerElement::get_macmap_value(int idx) {
     return i->second;
 }
 
-TrackerElement::vector_const_iterator TrackerElement::vec_begin() {
+TrackerElement::vector_iterator TrackerElement::vec_begin() {
     except_type_mismatch(TrackerVector);
 
     return dataunion.subvector_value->begin();
 }
 
-TrackerElement::vector_const_iterator TrackerElement::vec_end() {
+TrackerElement::vector_iterator TrackerElement::vec_end() {
     except_type_mismatch(TrackerVector);
 
     return dataunion.subvector_value->end();
 }
 
-TrackerElement::mac_map_const_iterator TrackerElement::mac_begin() {
+TrackerElement::mac_map_iterator TrackerElement::mac_begin() {
     except_type_mismatch(TrackerMacMap);
 
     return dataunion.submacmap_value->begin();
 }
 
-TrackerElement::mac_map_const_iterator TrackerElement::mac_end() {
+TrackerElement::mac_map_iterator TrackerElement::mac_end() {
     except_type_mismatch(TrackerMacMap);
 
     return dataunion.submacmap_value->end();
@@ -903,13 +903,13 @@ TrackerElement *TrackerElement::get_stringmap_value(string idx) {
     return i->second;
 }
 
-TrackerElement::string_map_const_iterator TrackerElement::string_begin() {
+TrackerElement::string_map_iterator TrackerElement::string_begin() {
     except_type_mismatch(TrackerStringMap);
 
     return dataunion.substringmap_value->begin();
 }
 
-TrackerElement::string_map_const_iterator TrackerElement::string_end() {
+TrackerElement::string_map_iterator TrackerElement::string_end() {
     except_type_mismatch(TrackerStringMap);
 
     return dataunion.substringmap_value->end();
@@ -991,13 +991,13 @@ TrackerElement *TrackerElement::get_doublemap_value(double idx) {
     return i->second;
 }
 
-TrackerElement::double_map_const_iterator TrackerElement::double_begin() {
+TrackerElement::double_map_iterator TrackerElement::double_begin() {
     except_type_mismatch(TrackerDoubleMap);
 
     return dataunion.subdoublemap_value->begin();
 }
 
-TrackerElement::double_map_const_iterator TrackerElement::double_end() {
+TrackerElement::double_map_iterator TrackerElement::double_end() {
     except_type_mismatch(TrackerDoubleMap);
 
     return dataunion.subdoublemap_value->end();
@@ -1203,13 +1203,13 @@ TrackerElement *TrackerElement::get_intmap_value(int idx) {
     return i->second;
 }
 
-TrackerElement::int_map_const_iterator TrackerElement::int_begin() {
+TrackerElement::int_map_iterator TrackerElement::int_begin() {
     except_type_mismatch(TrackerIntMap);
 
     return dataunion.subintmap_value->begin();
 }
 
-TrackerElement::int_map_const_iterator TrackerElement::int_end() {
+TrackerElement::int_map_iterator TrackerElement::int_end() {
     except_type_mismatch(TrackerIntMap);
 
     return dataunion.subintmap_value->end();
@@ -1301,7 +1301,7 @@ void TrackerElement::del_vector(unsigned int p) {
     e->unlink();
 }
 
-void TrackerElement::del_vector(vector_const_iterator i) {
+void TrackerElement::del_vector(vector_iterator i) {
     except_type_mismatch(TrackerVector);
 
     (*i)->unlink();

@@ -201,7 +201,7 @@ int Datasourcetracker::remove_datasource(uuid in_uuid) {
     // Look for the source in the errored sources and get it out of the
     // error vec
     TrackerElementVector esv(error_vec);
-    for (TrackerElementVector::const_iterator i = esv.begin(); i != esv.end(); ++i) {
+    for (TrackerElementVector::iterator i = esv.begin(); i != esv.end(); ++i) {
         KisDataSource *kds = (KisDataSource *) (*i);
 
         if (kds->get_source_uuid() == in_uuid) {
@@ -211,7 +211,7 @@ int Datasourcetracker::remove_datasource(uuid in_uuid) {
     }
 
     // Look for it in the sources vec and fully close it and get rid of it
-    for (TrackerElementVector::const_iterator i = dsv.begin(); i != dsv.end(); ++i) {
+    for (TrackerElementVector::iterator i = dsv.begin(); i != dsv.end(); ++i) {
         KisDataSource *kds = (KisDataSource *) (*i);
 
         if (kds->get_source_uuid() == in_uuid) {
@@ -296,7 +296,7 @@ int Datasourcetracker::open_datasource(string in_source) {
             local_locker lock(&dst_lock);
             bool proto_found = false;
 
-            for (TrackerElement::vector_const_iterator i = proto_vec->vec_begin();
+            for (TrackerElement::vector_iterator i = proto_vec->vec_begin();
                     i != proto_vec->vec_end(); ++i) {
                 proto = (KisDataSource *) *i;
 
@@ -329,7 +329,7 @@ int Datasourcetracker::open_datasource(string in_source) {
         vector<KisDataSource *> probe_vec;
 
         // Build instances to actually do the probes
-        for (TrackerElement::vector_const_iterator i = proto_vec->vec_begin();
+        for (TrackerElement::vector_iterator i = proto_vec->vec_begin();
                 i != proto_vec->vec_end(); ++i) {
             KisDataSource *proto = (KisDataSource *) (*i);
             probe_vec.push_back(proto->build_data_source());
@@ -460,7 +460,7 @@ void Datasourcetracker::open_handler(KisDataSource *in_src, void *in_aux,
         bool found = false;
 
         // Bail if this source is still in error somehow
-        for (TrackerElementVector::const_iterator i = err_vec.begin();
+        for (TrackerElementVector::iterator i = err_vec.begin();
                 i != err_vec.end(); ++i) {
             if ((*i) == in_src) {
                 found = true;
@@ -481,7 +481,7 @@ void Datasourcetracker::error_handler(KisDataSource *in_src, void *in_aux) {
         TrackerElementVector err_vec(tracker->error_vec);
         bool found = false;
 
-        for (TrackerElementVector::const_iterator i = err_vec.begin();
+        for (TrackerElementVector::iterator i = err_vec.begin();
                 i != err_vec.end(); ++i) {
             if ((*i) == in_src) {
                 found = true;
@@ -520,7 +520,7 @@ int Datasourcetracker::timetracker_event(int eventid) {
 
             TrackerElementVector err_vec(error_vec);
 
-            for (TrackerElementVector::const_iterator i = err_vec.begin();
+            for (TrackerElementVector::iterator i = err_vec.begin();
                     i != err_vec.end(); ++i) {
                 error_vec_copy.push_back((KisDataSource *) (*i));
             }
@@ -530,7 +530,7 @@ int Datasourcetracker::timetracker_event(int eventid) {
         }
 
         // Re-launch all the sources
-        for (vector<KisDataSource *>::const_iterator i = error_vec_copy.begin();
+        for (vector<KisDataSource *>::iterator i = error_vec_copy.begin();
                 i != error_vec_copy.end(); ++i) {
             stringstream ss;
             KisDataSource *src = (KisDataSource *) (*i);

@@ -379,11 +379,11 @@ public:
     typedef map<double, TrackerElement *>::const_iterator double_map_const_iterator;
     typedef pair<double, TrackerElement *> double_map_pair;
 
-    vector_const_iterator vec_begin();
-    vector_const_iterator vec_end();
+    vector_iterator vec_begin();
+    vector_iterator vec_end();
 
-    map_const_iterator begin();
-    map_const_iterator end();
+    map_iterator begin();
+    map_iterator end();
     map_iterator find(int k);
     void clear_map();
 
@@ -401,8 +401,8 @@ public:
     void insert_intmap(int_map_pair p);
 
     TrackerElement *get_intmap_value(int idx);
-    int_map_const_iterator int_begin();
-    int_map_const_iterator int_end();
+    int_map_iterator int_begin();
+    int_map_iterator int_end();
     int_map_iterator int_find(int k);
 
     void add_macmap(mac_addr i, TrackerElement *s);
@@ -412,8 +412,8 @@ public:
     void insert_macmap(mac_map_pair p);
 
     TrackerElement *get_macmap_value(int idx);
-    mac_map_const_iterator mac_begin();
-    mac_map_const_iterator mac_end();
+    mac_map_iterator mac_begin();
+    mac_map_iterator mac_end();
     mac_map_iterator mac_find(mac_addr k);
 
     void add_stringmap(string i, TrackerElement *s);
@@ -423,8 +423,8 @@ public:
     void insert_stringmap(string_map_pair p);
 
     TrackerElement *get_stringmap_value(string idx);
-    string_map_const_iterator string_begin();
-    string_map_const_iterator string_end();
+    string_map_iterator string_begin();
+    string_map_iterator string_end();
     string_map_iterator string_find(string k);
 
     void add_doublemap(double i, TrackerElement *s);
@@ -434,13 +434,13 @@ public:
     void insert_doublemap(double_map_pair p);
 
     TrackerElement *get_doublemap_value(double idx);
-    double_map_const_iterator double_begin();
-    double_map_const_iterator double_end();
+    double_map_iterator double_begin();
+    double_map_iterator double_end();
     double_map_iterator double_find(double k);
 
     void add_vector(TrackerElement *s);
     void del_vector(unsigned int p);
-    void del_vector(vector_const_iterator i);
+    void del_vector(vector_iterator i);
     void clear_vector();
 
     // Do our best to increment a value
@@ -625,11 +625,11 @@ public:
         val->unlink();
     }
 
-    virtual TrackerElement::vector_const_iterator begin() {
+    virtual iterator begin() {
         return val->vec_begin();
     }
 
-    virtual TrackerElement::vector_const_iterator end() {
+    virtual iterator end() {
         return val->vec_end();
     }
 
@@ -645,7 +645,7 @@ public:
         return val->del_vector(p);
     }
 
-    virtual void erase(TrackerElement::vector_const_iterator i) {
+    virtual void erase(iterator i) {
         return val->del_vector(i);
     }
 
@@ -668,24 +668,25 @@ public:
 public:
     typedef TrackerElement::map_iterator iterator;
     typedef TrackerElement::map_const_iterator const_iterator;
+    typedef TrackerElement::tracked_pair pair;
 
-    virtual TrackerElement::map_const_iterator begin() {
+    virtual iterator begin() {
         return val->begin();
     }
 
-    virtual TrackerElement::map_const_iterator end() {
+    virtual iterator end() {
         return val->end();
     }
 
-    virtual TrackerElement::map_iterator find(int k) {
+    virtual iterator find(int k) {
         return val->find(k);
     }
 
-    virtual void insert(TrackerElement::tracked_pair p) {
+    virtual void insert(pair p) {
         return val->insert_map(p);
     }
 
-    virtual void erase(TrackerElement::map_iterator i) {
+    virtual void erase(iterator i) {
         return val->del_map(i);
     }
 
@@ -711,24 +712,25 @@ public:
 public:
     typedef TrackerElement::int_map_iterator iterator;
     typedef TrackerElement::int_map_const_iterator const_iterator;
+    typedef TrackerElement::int_map_pair pair;
 
-    virtual TrackerElement::int_map_const_iterator begin() {
+    virtual iterator begin() {
         return val->int_begin();
     }
 
-    virtual TrackerElement::int_map_const_iterator end() {
+    virtual iterator end() {
         return val->int_end();
     }
 
-    virtual TrackerElement::int_map_iterator find(int k) {
+    virtual iterator find(int k) {
         return val->int_find(k);
     }
 
-    virtual void insert(TrackerElement::int_map_pair p) {
+    virtual void insert(pair p) {
         return val->insert_intmap(p);
     }
 
-    virtual void erase(TrackerElement::int_map_iterator i) {
+    virtual void erase(iterator i) {
         return val->del_intmap(i);
     }
 
@@ -754,24 +756,25 @@ public:
 public:
     typedef TrackerElement::string_map_iterator iterator;
     typedef TrackerElement::string_map_const_iterator const_iterator;
+    typedef TrackerElement::string_map_pair pair;
 
-    virtual TrackerElement::string_map_const_iterator begin() {
+    virtual iterator begin() {
         return val->string_begin();
     }
 
-    virtual TrackerElement::string_map_const_iterator end() {
+    virtual iterator end() {
         return val->string_end();
     }
 
-    virtual TrackerElement::string_map_iterator find(string k) {
+    virtual iterator find(string k) {
         return val->string_find(k);
     }
 
-    virtual void insert(TrackerElement::string_map_pair p) {
+    virtual void insert(pair p) {
         return val->insert_stringmap(p);
     }
 
-    virtual void erase(TrackerElement::string_map_iterator i) {
+    virtual void erase(iterator i) {
         return val->del_stringmap(i);
     }
 
@@ -797,24 +800,25 @@ public:
 public:
     typedef TrackerElement::mac_map_iterator iterator;
     typedef TrackerElement::mac_map_const_iterator const_iterator;
+    typedef TrackerElement::mac_map_pair pair;
 
-    virtual TrackerElement::mac_map_const_iterator begin() {
+    virtual iterator begin() {
         return val->mac_begin();
     }
 
-    virtual TrackerElement::mac_map_const_iterator end() {
+    virtual iterator end() {
         return val->mac_end();
     }
 
-    virtual TrackerElement::mac_map_iterator find(mac_addr k) {
+    virtual iterator find(mac_addr k) {
         return val->mac_find(k);
     }
 
-    virtual void insert(TrackerElement::mac_map_pair p) {
+    virtual void insert(pair p) {
         return val->insert_macmap(p);
     }
 
-    virtual void erase(TrackerElement::mac_map_iterator i) {
+    virtual void erase(iterator i) {
         return val->del_macmap(i);
     }
 
@@ -840,24 +844,25 @@ public:
 public:
     typedef TrackerElement::double_map_iterator iterator;
     typedef TrackerElement::double_map_const_iterator const_iterator;
+    typedef TrackerElement::double_map_pair pair;
 
-    virtual TrackerElement::double_map_const_iterator begin() {
+    virtual iterator begin() {
         return val->double_begin();
     }
 
-    virtual TrackerElement::double_map_const_iterator end() {
+    virtual iterator end() {
         return val->double_end();
     }
 
-    virtual TrackerElement::double_map_iterator find(double k) {
+    virtual iterator find(double k) {
         return val->double_find(k);
     }
 
-    virtual void insert(TrackerElement::double_map_pair p) {
+    virtual void insert(pair p) {
         return val->insert_doublemap(p);
     }
 
-    virtual void erase(TrackerElement::double_map_iterator i) {
+    virtual void erase(iterator i) {
         return val->del_doublemap(i);
     }
 
