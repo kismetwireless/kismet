@@ -386,6 +386,7 @@ public:
     map_iterator end();
     map_iterator find(int k);
     void clear_map();
+    size_t size_map();
 
     void add_map(int f, TrackerElement *s);
     void add_map(TrackerElement *s); 
@@ -399,6 +400,7 @@ public:
     void del_intmap(int_map_iterator i);
     void clear_intmap();
     void insert_intmap(int_map_pair p);
+    size_t size_intmap();
 
     TrackerElement *get_intmap_value(int idx);
     int_map_iterator int_begin();
@@ -410,6 +412,7 @@ public:
     void del_macmap(mac_map_iterator i);
     void clear_macmap();
     void insert_macmap(mac_map_pair p);
+    size_t size_macmap();
 
     TrackerElement *get_macmap_value(int idx);
     mac_map_iterator mac_begin();
@@ -421,6 +424,7 @@ public:
     void del_stringmap(string_map_iterator i);
     void clear_stringmap();
     void insert_stringmap(string_map_pair p);
+    size_t size_stringmap();
 
     TrackerElement *get_stringmap_value(string idx);
     string_map_iterator string_begin();
@@ -432,6 +436,7 @@ public:
     void del_doublemap(double_map_iterator i);
     void clear_doublemap();
     void insert_doublemap(double_map_pair p);
+    size_t size_doublemap();
 
     TrackerElement *get_doublemap_value(double idx);
     double_map_iterator double_begin();
@@ -442,6 +447,7 @@ public:
     void del_vector(unsigned int p);
     void del_vector(vector_iterator i);
     void clear_vector();
+    size_t size_vector();
 
     // Do our best to increment a value
     TrackerElement& operator++(const int);
@@ -649,6 +655,10 @@ public:
         return val->del_vector(i);
     }
 
+    virtual size_t size() {
+        return val->size_vector();
+    }
+
 };
 
 class TrackerElementMap {
@@ -692,6 +702,10 @@ public:
 
     virtual void clear() {
         return val->clear_map();
+    }
+
+    virtual size_t size() {
+        return val->size_map();
     }
 };
 
@@ -737,6 +751,10 @@ public:
     virtual void clear() {
         return val->clear_intmap();
     }
+
+    virtual size_t size() {
+        return val->size_intmap();
+    }
 };
 
 class TrackerElementStringMap {
@@ -780,6 +798,10 @@ public:
 
     virtual void clear() {
         return val->clear_stringmap();
+    }
+
+    virtual size_t size() {
+        return val->size_stringmap();
     }
 };
 
@@ -825,6 +847,10 @@ public:
     virtual void clear() {
         return val->clear_macmap();
     }
+
+    virtual size_t size() {
+        return val->size_macmap();
+    }
 };
 
 class TrackerElementDoubleMap {
@@ -868,6 +894,10 @@ public:
 
     virtual void clear() {
         return val->clear_doublemap();
+    }
+
+    virtual size_t size() {
+        return val->size_doublemap();
     }
 };
 

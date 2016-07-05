@@ -881,6 +881,12 @@ void TrackerElement::clear_macmap() {
     dataunion.submacmap_value->clear();
 }
 
+size_t TrackerElement::size_macmap() {
+    except_type_mismatch(TrackerMacMap);
+
+    return dataunion.submacmap_value->size();
+}
+
 void TrackerElement::insert_macmap(mac_map_pair p) {
     except_type_mismatch(TrackerMacMap);
 
@@ -967,6 +973,12 @@ void TrackerElement::clear_stringmap() {
     }
 
     dataunion.substringmap_value->clear();
+}
+
+size_t TrackerElement::size_stringmap() {
+    except_type_mismatch(TrackerStringMap);
+
+    return dataunion.substringmap_value->size();
 }
 
 void TrackerElement::insert_stringmap(string_map_pair p) {
@@ -1064,6 +1076,12 @@ void TrackerElement::insert_doublemap(double_map_pair p) {
     if (ret.second) {
         ret.first->second->link();
     }
+}
+
+size_t TrackerElement::size_doublemap() {
+    except_type_mismatch(TrackerDoubleMap);
+
+    return dataunion.subdoublemap_value->size();
 }
 
 string TrackerElement::type_to_string(TrackerType t) {
@@ -1191,6 +1209,12 @@ void TrackerElement::clear_map() {
     dataunion.submap_value->clear();
 }
 
+size_t TrackerElement::size_map() {
+    except_type_mismatch(TrackerMap);
+
+    return dataunion.submap_value->size();
+}
+
 TrackerElement *TrackerElement::get_intmap_value(int idx) {
     except_type_mismatch(TrackerIntMap);
 
@@ -1230,6 +1254,12 @@ void TrackerElement::clear_intmap() {
     }
 
     dataunion.subintmap_value->clear();
+}
+
+size_t TrackerElement::size_intmap() {
+    except_type_mismatch(TrackerIntMap);
+
+    return dataunion.subintmap_value->size();
 }
 
 void TrackerElement::insert_intmap(int_map_pair p) {
@@ -1319,6 +1349,12 @@ void TrackerElement::clear_vector() {
     dataunion.subvector_value->clear();
 }
 
+size_t TrackerElement::size_vector() {
+    except_type_mismatch(TrackerVector);
+
+    return dataunion.subvector_value->size();
+}
+
 size_t TrackerElement::size() {
     switch (type) {
         case TrackerVector:
@@ -1329,6 +1365,10 @@ size_t TrackerElement::size() {
             return dataunion.subintmap_value->size();
         case TrackerMacMap:
             return dataunion.submacmap_value->size();
+        case TrackerStringMap:
+            return dataunion.substringmap_value->size();
+        case TrackerDoubleMap:
+            return dataunion.subdoublemap_value->size();
         default:
             throw std::runtime_error(string("can't get size of a " + type_to_string(type)));
     }
