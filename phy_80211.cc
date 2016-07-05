@@ -226,6 +226,23 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
 		}
 	}
 
+    // Set up the device timeout
+    device_idle_expiration =
+        globalreg->kismet_config->FetchOptInt("tracker_device_timeout", 0);
+
+    if (device_idle_expiration != 0) {
+        stringstream ss;
+        ss << "Removing dot11 device info which has been inactive for "
+            "more than " << device_idle_expiration << " seconds.";
+        _MSG(ss.str(), MSGFLAG_INFO);
+
+        device_idle_timer =
+            globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 60, NULL, 
+                1, this);
+    } else {
+        device_idle_timer = -1;
+    }
+
 	conf_save = globalreg->timestamp.tv_sec;
 
 	ssid_conf = new ConfigFile(globalreg);
@@ -250,6 +267,7 @@ Kis_80211_Phy::~Kis_80211_Phy() {
 	globalreg->packetchain->RemoveHandler(&phydot11_packethook_dot11tracker, 
 										  CHAINPOS_TRACKER);
 
+    globalreg->timetracker->RemoveTimer(device_idle_timer);
 }
 
 int Kis_80211_Phy::LoadWepkeys() {
@@ -1971,9 +1989,9 @@ typedef struct {
 // and then export it as a device summary vector.
 // This all happens inside the thread lock of the devicetracker worker, 
 // so it's safe to build a list of devices
-class phy80211_devicetracker_worker : public DevicetrackerFilterWorker {
+class phy80211_devicetracker_pcre_worker : public DevicetrackerFilterWorker {
 public:
-    phy80211_devicetracker_worker(GlobalRegistry *in_globalreg, 
+    phy80211_devicetracker_pcre_worker(GlobalRegistry *in_globalreg, 
             std::stringstream *outstream, 
             vector<phy80211_pcre_filter *> *filtervec, int entry_id) {
 
@@ -1989,7 +2007,7 @@ public:
         devices = new TrackerElementVector(device_vec);
     }
 
-    virtual ~phy80211_devicetracker_worker() {
+    virtual ~phy80211_devicetracker_pcre_worker() {
         // Delete the wrapper which unlinks the child
         delete(devices);
     }
@@ -2125,7 +2143,7 @@ int Kis_80211_Phy::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind
             }
 
             // Make a worker instance
-            phy80211_devicetracker_worker worker(globalreg,
+            phy80211_devicetracker_pcre_worker worker(globalreg,
                     &(concls->response_stream),
                     &filter_vec, dot11_device_entry_id);
 
@@ -2177,5 +2195,76 @@ int Kis_80211_Phy::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind
 
     return 1;
 
+}
+
+class phy80211_devicetracker_expire_worker : public DevicetrackerFilterWorker {
+public:
+    phy80211_devicetracker_expire_worker(GlobalRegistry *in_globalreg, 
+            unsigned int in_timeout, int entry_id) {
+        globalreg = in_globalreg;
+        dot11_device_entry_id = entry_id;
+        timeout = in_timeout;
+    }
+
+    virtual ~phy80211_devicetracker_expire_worker() { }
+
+    // Compare against our PCRE and export msgpack objects if we match
+    virtual void MatchDevice(Devicetracker *devicetracker, 
+            kis_tracked_device_base *device) {
+
+        dot11_tracked_device *dot11dev =
+            (dot11_tracked_device *) device->get_map_value(dot11_device_entry_id);
+
+        // Not 802.11?  nothing we can do
+        if (dot11dev == NULL) {
+            return;
+        }
+
+        // Iterate over all the SSID records
+        TrackerElementIntMap adv_ssid_map(dot11dev->get_advertised_ssid_map());
+        dot11_advertised_ssid *ssid = NULL;
+        TrackerElementIntMap::iterator int_itr;
+
+        for (int_itr = adv_ssid_map.begin(); 
+                int_itr != adv_ssid_map.end(); ++int_itr) {
+            ssid = (dot11_advertised_ssid *) int_itr->second;
+
+            if (globalreg->timestamp.tv_sec - ssid->get_last_time() > timeout) {
+                fprintf(stderr, "debug - forgetting dot11ssid %s expiration %d\n", ssid->get_ssid().c_str(), timeout);
+                adv_ssid_map.erase(int_itr);
+                int_itr = adv_ssid_map.begin();
+            }
+        }
+
+        TrackerElementIntMap probe_map(dot11dev->get_probed_ssid_map());
+        dot11_probed_ssid *pssid = NULL;
+
+        for (int_itr = probe_map.begin(); int_itr != probe_map.end(); ++int_itr) {
+            pssid = (dot11_probed_ssid *) int_itr->second;
+
+            if (globalreg->timestamp.tv_sec - pssid->get_last_time() > timeout) {
+                fprintf(stderr, "debug - forgetting dot11probessid %s expiration %d\n", pssid->get_ssid().c_str(), timeout);
+                probe_map.erase(int_itr);
+                int_itr = probe_map.begin();
+            }
+        }
+    }
+
+protected:
+    GlobalRegistry *globalreg;
+    int dot11_device_entry_id;
+    unsigned int timeout;
+};
+
+int Kis_80211_Phy::timetracker_event(int eventid) {
+    // Spawn a worker to handle this
+    if (eventid == device_idle_timer) {
+        phy80211_devicetracker_expire_worker worker(globalreg,
+                device_idle_expiration, dot11_device_entry_id);
+        devicetracker->MatchOnDevices(&worker);
+    }
+
+    // Loop
+    return 1;
 }
 

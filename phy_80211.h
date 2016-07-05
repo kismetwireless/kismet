@@ -1090,7 +1090,8 @@ public:
 	macmap<int> allow_mac_map;
 };
 
-class Kis_80211_Phy : public Kis_Phy_Handler, public Kis_Net_Httpd_Stream_Handler {
+class Kis_80211_Phy : public Kis_Phy_Handler, public Kis_Net_Httpd_Stream_Handler,
+    public TimetrackerEvent {
 public:
 	// Stub
 	Kis_80211_Phy() { }
@@ -1167,6 +1168,9 @@ public:
             const char *key, const char *filename, const char *content_type,
             const char *transfer_encoding, const char *data, 
             uint64_t off, size_t size);
+
+    // Timetracker event handler
+    virtual int timetracker_event(int eventid);
 
 protected:
     void HandleSSID(kis_tracked_device_base *basedev, 
@@ -1254,6 +1258,10 @@ protected:
 	map<mac_addr, kis_tracked_device_base *> probe_assoc_map;
 
 	vector<dot11_ssid_alert *> apspoof_vec;
+
+    // Do we time out components of devices?
+    int device_idle_expiration;
+    int device_idle_timer;
 
 };
 
