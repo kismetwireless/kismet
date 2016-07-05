@@ -2225,27 +2225,31 @@ public:
         dot11_advertised_ssid *ssid = NULL;
         TrackerElementIntMap::iterator int_itr;
 
-        for (int_itr = adv_ssid_map.begin(); 
-                int_itr != adv_ssid_map.end(); ++int_itr) {
-            ssid = (dot11_advertised_ssid *) int_itr->second;
+        if (adv_ssid_map.size() > 1) {
+            for (int_itr = adv_ssid_map.begin(); 
+                    int_itr != adv_ssid_map.end(); ++int_itr) {
+                ssid = (dot11_advertised_ssid *) int_itr->second;
 
-            if (globalreg->timestamp.tv_sec - ssid->get_last_time() > timeout) {
-                fprintf(stderr, "debug - forgetting dot11ssid %s expiration %d\n", ssid->get_ssid().c_str(), timeout);
-                adv_ssid_map.erase(int_itr);
-                int_itr = adv_ssid_map.begin();
+                if (globalreg->timestamp.tv_sec - ssid->get_last_time() > timeout) {
+                    fprintf(stderr, "debug - forgetting dot11ssid %s expiration %d\n", ssid->get_ssid().c_str(), timeout);
+                    adv_ssid_map.erase(int_itr);
+                    int_itr = adv_ssid_map.begin();
+                }
             }
         }
 
         TrackerElementIntMap probe_map(dot11dev->get_probed_ssid_map());
         dot11_probed_ssid *pssid = NULL;
 
-        for (int_itr = probe_map.begin(); int_itr != probe_map.end(); ++int_itr) {
-            pssid = (dot11_probed_ssid *) int_itr->second;
+        if (probe_map.size() > 1) {
+            for (int_itr = probe_map.begin(); int_itr != probe_map.end(); ++int_itr) {
+                pssid = (dot11_probed_ssid *) int_itr->second;
 
-            if (globalreg->timestamp.tv_sec - pssid->get_last_time() > timeout) {
-                fprintf(stderr, "debug - forgetting dot11probessid %s expiration %d\n", pssid->get_ssid().c_str(), timeout);
-                probe_map.erase(int_itr);
-                int_itr = probe_map.begin();
+                if (globalreg->timestamp.tv_sec - pssid->get_last_time() > timeout) {
+                    fprintf(stderr, "debug - forgetting dot11probessid %s expiration %d\n", pssid->get_ssid().c_str(), timeout);
+                    probe_map.erase(int_itr);
+                    int_itr = probe_map.begin();
+                }
             }
         }
     }
