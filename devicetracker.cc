@@ -145,6 +145,8 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
         device_idle_timer =
             globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 60, NULL, 
                 1, this);
+    } else {
+        device_idle_timer = -1;
     }
 
 }
