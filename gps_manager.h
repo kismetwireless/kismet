@@ -77,10 +77,10 @@ public:
 
 /* GPS manager which handles configuring GPS sources and deciding which one
  * is going to be used */
-class GpsManager : public Kis_Net_Httpd_Stream_Handler {
+class GpsManager : public Kis_Net_Httpd_Stream_Handler, public LifetimeGlobal {
 public:
     GpsManager(GlobalRegistry *in_globalreg);
-    ~GpsManager();
+    virtual ~GpsManager();
 
     virtual bool Httpd_VerifyPath(const char *path, const char *method);
 

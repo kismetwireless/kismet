@@ -880,7 +880,7 @@ int main(int argc, char *argv[], char *envp[]) {
 #endif
 
 	// Create the GPS components
-    new GpsManager(globalregistry);
+    globalregistry->RegisterLifetimeGlobal((LifetimeGlobal *) new GpsManager(globalregistry));
 
 	// Create the manuf db
 	globalregistry->manufdb = new Manuf(globalregistry);
