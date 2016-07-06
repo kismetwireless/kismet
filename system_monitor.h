@@ -25,10 +25,11 @@
 #include "trackedelement.h"
 #include "kis_net_microhttpd.h"
 
-class Systemmonitor : public tracker_component, public Kis_Net_Httpd_Stream_Handler {
+class Systemmonitor : public tracker_component, public Kis_Net_Httpd_Stream_Handler,
+    public LifetimeGlobal {
 public:
     Systemmonitor(GlobalRegistry *in_globalreg);
-    ~Systemmonitor();
+    virtual ~Systemmonitor();
 
     virtual bool Httpd_VerifyPath(const char *path, const char *method);
 

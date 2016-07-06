@@ -953,7 +953,7 @@ int main(int argc, char *argv[], char *envp[]) {
 											   &BaseTimerEvent, NULL);
     
     // Add system monitor as the last thing before we start sources
-    new Systemmonitor(globalregistry);
+    globalregistry->RegisterLifetimeGlobal((LifetimeGlobal *) new Systemmonitor(globalregistry));
 
 	// Blab about starting
 	globalregistry->messagebus->InjectMessage("Kismet starting to gather packets",
