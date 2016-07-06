@@ -662,6 +662,7 @@ Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) :
         tracked_oldsource_entry_id =
             entrytracker->RegisterField("kis.oldsource.source", old_builder,
                     "Old packetsource");
+        delete(old_builder);
     }
 }
 
