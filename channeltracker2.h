@@ -32,7 +32,7 @@
 
 // Can appear in the list as either a numerical frequency or a named
 // channel
-class Channeltracker_V2_Channel : public tracker_component {
+class Channeltracker_V2_Channel : public tracker_component, public LifetimeGlobal {
 public:
     Channeltracker_V2_Channel(GlobalRegistry *in_globalreg, int in_id) :
         tracker_component(in_globalreg, in_id) { 
@@ -182,7 +182,7 @@ protected:
 class Channeltracker_V2 : public tracker_component, public Kis_Net_Httpd_Stream_Handler {
 public:
     Channeltracker_V2(GlobalRegistry *in_globalreg);
-    ~Channeltracker_V2();
+    virtual ~Channeltracker_V2();
 
     // HTTP API
     virtual bool Httpd_VerifyPath(const char *path, const char *method);

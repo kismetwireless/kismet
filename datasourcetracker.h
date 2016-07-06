@@ -149,7 +149,7 @@ protected:
 };
 
 class Datasourcetracker : public Kis_Net_Httpd_Stream_Handler, 
-    public TimetrackerEvent {
+    public TimetrackerEvent, public LifetimeGlobal {
 public:
     Datasourcetracker(GlobalRegistry *in_globalreg);
     virtual ~Datasourcetracker();

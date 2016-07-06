@@ -165,10 +165,10 @@ public:
     time_t session_lifetime;
 };
 
-class Kis_Net_Httpd {
+class Kis_Net_Httpd : public LifetimeGlobal {
 public:
     Kis_Net_Httpd(GlobalRegistry *in_globalreg);
-    ~Kis_Net_Httpd();
+    virtual ~Kis_Net_Httpd();
 
     int StartHttpd();
     int StopHttpd();

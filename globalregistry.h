@@ -150,6 +150,12 @@ struct critical_fail {
 	string fail_msg;
 };
 
+// Stub class for lifetime globals to inherit from to get auto-destroyed on exit
+class LifetimeGlobal {
+public:
+    virtual ~LifetimeGlobal() { }
+};
+
 // Global registry of references to tracker objects and preferences.  This 
 // should supplant the masses of globals and externs we'd otherwise need.
 // 
@@ -327,12 +333,18 @@ public:
 	void AddNamedFd(string name, int fd);
 	int GetNamedFd(string name);
 
+    void RegisterLifetimeGlobal(LifetimeGlobal *in_g);
+    void RemoveLifetimeGlobal(LifetimeGlobal *in_g);
+    void DeleteLifetimeGlobals();
+
 protected:
     // Exernal global references, string to intid
     map<string, int> ext_name_map;
     // External globals
     map<int, void *> ext_data_map;
     int next_ext_ref;
+
+    vector<LifetimeGlobal *> lifetime_vec;
 };
 
 #endif

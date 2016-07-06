@@ -234,3 +234,29 @@ void GlobalRegistry::RemoveUsageFunc(usage_func in_cli) {
     }
 }
 
+void GlobalRegistry::RegisterLifetimeGlobal(LifetimeGlobal *in_g) {
+    fprintf(stderr, "debug - registering lifetime global %p\n", in_g);
+    lifetime_vec.insert(lifetime_vec.begin(), in_g);
+}
+
+void GlobalRegistry::RemoveLifetimeGlobal(LifetimeGlobal *in_g) {
+    for (vector<LifetimeGlobal *>::iterator i = lifetime_vec.begin();
+            i != lifetime_vec.end(); ++i) {
+        if (*i == in_g) {
+            lifetime_vec.erase(i);
+            break;
+        }
+    }
+}
+
+void GlobalRegistry::DeleteLifetimeGlobals() {
+    for (vector<LifetimeGlobal *>::iterator i = lifetime_vec.begin();
+            i != lifetime_vec.end(); ++i) {
+        fprintf(stderr, "debug - freeing lifetime global %p\n", *i);
+        delete(*i);
+        lifetime_vec.erase(i);
+        i = lifetime_vec.begin();
+    }
+}
+
+

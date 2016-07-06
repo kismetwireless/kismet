@@ -34,6 +34,17 @@ EntryTracker::EntryTracker(GlobalRegistry *in_globalreg) :
 
 EntryTracker::~EntryTracker() {
     globalreg->RemoveGlobal("ENTRY_TRACKER");
+
+    for (map<int, reserved_field *>::iterator i = field_id_map.begin(); 
+            i != field_id_map.end(); ++i) {
+        if (i->second->builder != NULL)
+            delete(i->second->builder);
+
+        delete(i->second);
+    }
+
+    field_name_map.clear();
+    field_id_map.clear();
 }
 
 int EntryTracker::RegisterField(string in_name, TrackerType in_type, string in_desc) {

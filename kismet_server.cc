@@ -325,6 +325,9 @@ void CatchShutdown(int sig) {
 		fprintf(stderr, "Kismet exiting.\n");
 	}
 
+    fprintf(stderr, "debug - freeing lifetime globals\n");
+    globalregistry->DeleteLifetimeGlobals();
+
     exit(0);
 }
 
@@ -680,15 +683,19 @@ int main(int argc, char *argv[], char *envp[]) {
 	}
 	globalregistry->kismet_config = conf;
 
+    // Make the timetracker
+	globalregistry->timetracker = new Timetracker(globalregistry);
+    globalregistry->RegisterLifetimeGlobal((LifetimeGlobal *) globalregistry->timetracker);
+
 
     // HTTP BLOCK
     // Create the HTTPD server, it needs to exist before most things
     globalregistry->httpd_server = new Kis_Net_Httpd(globalregistry);
+    globalregistry->RegisterLifetimeGlobal((LifetimeGlobal *) globalregistry->httpd_server);
 
 	// Allocate some other critical stuff
     globalregistry->entrytracker = new EntryTracker(globalregistry);
-
-	globalregistry->timetracker = new Timetracker(globalregistry);
+    globalregistry->RegisterLifetimeGlobal((LifetimeGlobal *) globalregistry->entrytracker);
 
 	if (daemonize) {
 		if (fork() != 0) {
@@ -712,12 +719,13 @@ int main(int argc, char *argv[], char *envp[]) {
 	}
 
     // Create the IPC handler
-    new IPCRemoteV2Tracker(globalregistry);
+    globalregistry->RegisterLifetimeGlobal((LifetimeGlobal *) new IPCRemoteV2Tracker(globalregistry));
 
 	// Create the packet chain
 	globalregistry->packetchain = new Packetchain(globalregistry);
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
+    globalregistry->RegisterLifetimeGlobal((LifetimeGlobal *) globalregistry->packetchain);
 
     // Start the http server
     globalregistry->httpd_server->StartHttpd();
@@ -726,10 +734,10 @@ int main(int argc, char *argv[], char *envp[]) {
     new Kis_Httpd_Websession(globalregistry);
 
     // Add channel tracking
-    new Channeltracker_V2(globalregistry);
+    globalregistry->RegisterLifetimeGlobal((LifetimeGlobal *) new Channeltracker_V2(globalregistry));
 
     // Add the datasource tracker
-    new Datasourcetracker(globalregistry);
+    globalregistry->RegisterLifetimeGlobal((LifetimeGlobal *) new Datasourcetracker(globalregistry));
 
 	// Create the basic network/protocol server
 	globalregistry->kisnetserver = new KisNetFramework(globalregistry);
@@ -740,6 +748,7 @@ int main(int argc, char *argv[], char *envp[]) {
 	globalregistry->sourcetracker = new Packetsourcetracker(globalregistry);
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
+    globalregistry->RegisterLifetimeGlobal((LifetimeGlobal *) globalregistry->sourcetracker);
 
 	// Register the IPC
 	if (globalregistry->rootipc != NULL) {

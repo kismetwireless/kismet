@@ -32,10 +32,10 @@
 #include "kis_net_microhttpd.h"
 
 // Allocate and track named fields and give each one a custom int
-class EntryTracker : public Kis_Net_Httpd_Stream_Handler {
+class EntryTracker : public Kis_Net_Httpd_Stream_Handler, public LifetimeGlobal {
 public:
     EntryTracker(GlobalRegistry *in_globalreg);
-    ~EntryTracker();
+    virtual ~EntryTracker();
 
     // Reserve a field name.  Field names are plain strings, which can
     // be used to derive namespaces later.

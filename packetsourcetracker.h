@@ -186,7 +186,8 @@ typedef void (*SourceActCallback)(SOURCEACT_PARMS);
 #define SOURCEACT_CHVECTOR		4
 #define SOURCEACT_CHHOPDWELL	5
 
-class Packetsourcetracker : public Pollable, public Kis_Net_Httpd_Stream_Handler {
+class Packetsourcetracker : public Pollable, public Kis_Net_Httpd_Stream_Handler, 
+    public LifetimeGlobal {
 public:
 	Packetsourcetracker(GlobalRegistry *in_globalreg);
 	virtual ~Packetsourcetracker();

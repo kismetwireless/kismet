@@ -51,6 +51,7 @@ Channeltracker_V2::Channeltracker_V2(GlobalRegistry *in_globalreg) :
 Channeltracker_V2::~Channeltracker_V2() {
     globalreg->RemoveGlobal("CHANNEL_TRACKER");
     globalreg->packetchain->RemoveHandler(&PacketChainHandler, CHAINPOS_LOGGING);
+    fprintf(stderr, "debug: channeltracker freed\n");
 }
 
 void Channeltracker_V2::register_fields() {

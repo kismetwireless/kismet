@@ -77,10 +77,12 @@
 
 class kis_packet;
 
-class Packetchain {
+class Packetchain : public LifetimeGlobal {
 public:
     Packetchain();
     Packetchain(GlobalRegistry *in_globalreg);
+
+    virtual ~Packetchain() { }
 
     int RegisterPacketComponent(string in_component);
     int RemovePacketComponent(int in_id);

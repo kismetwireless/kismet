@@ -39,7 +39,7 @@
 
 class TimetrackerEvent;
 
-class Timetracker {
+class Timetracker : public LifetimeGlobal {
 public:
     struct timer_event {
         int timer_id;

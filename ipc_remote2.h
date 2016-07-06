@@ -117,10 +117,10 @@ protected:
  * and shutdown.
  *
  */
-class IPCRemoteV2Tracker : public TimetrackerEvent {
+class IPCRemoteV2Tracker : public TimetrackerEvent, public LifetimeGlobal {
 public:
     IPCRemoteV2Tracker(GlobalRegistry *in_globalreg);
-    ~IPCRemoteV2Tracker();
+    virtual ~IPCRemoteV2Tracker();
 
     // Add an IPC handler to tracking
     void add_ipc(IPCRemoteV2 *in_remote);
