@@ -81,6 +81,7 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
     dot11_device_entry_id =
         globalreg->entrytracker->RegisterField("dot11.device", dot11_builder, 
                 "IEEE802.11 device");
+    delete(dot11_builder);
 
 	// Packet classifier - makes basic records plus dot11 data
 	globalreg->packetchain->RegisterHandler(&CommonClassifierDot11, this,
