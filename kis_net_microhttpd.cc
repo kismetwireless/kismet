@@ -176,10 +176,23 @@ Kis_Net_Httpd::Kis_Net_Httpd(GlobalRegistry *in_globalreg) {
 }
 
 Kis_Net_Httpd::~Kis_Net_Httpd() {
-    if (running)
-        StopHttpd();
+    {
+        local_locker lock(&controller_mutex);
 
-    globalreg->RemoveGlobal("HTTPD_SERVER");
+        if (running)
+            StopHttpd();
+
+        globalreg->RemoveGlobal("HTTPD_SERVER");
+
+        if (session_db) {
+            delete(session_db);
+        }
+
+        for (map<string, Kis_Net_Httpd_Session *>::iterator i = session_map.begin();
+                i != session_map.end(); ++i) {
+            delete(i->second);
+        }
+    }
 
     pthread_mutex_destroy(&controller_mutex);
 }
