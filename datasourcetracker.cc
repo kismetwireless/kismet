@@ -125,7 +125,8 @@ size_t DST_DataSourceProbe::remove_failed_proto(KisDataSource *in_src) {
     return protosrc_vec.size();
 }
 
-Datasourcetracker::Datasourcetracker(GlobalRegistry *in_globalreg) {
+Datasourcetracker::Datasourcetracker(GlobalRegistry *in_globalreg) :
+    Kis_Net_Httpd_Stream_Handler(in_globalreg) {
     globalreg = in_globalreg;
 
     entrytracker = (EntryTracker *) globalreg->FetchGlobal("ENTRY_TRACKER");
