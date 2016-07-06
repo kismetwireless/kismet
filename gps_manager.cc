@@ -80,6 +80,11 @@ GpsManager::~GpsManager() {
             delete i->second;
         }
 
+        vector<gps_instance *>::iterator ii;
+        for (ii = instance_vec.begin(); ii != instance_vec.end(); ++ii) {
+            delete(*ii);
+        }
+
         globalreg->packetchain->RemoveHandler(&kis_gpspack_hook, CHAINPOS_POSTCAP);
     }
 
