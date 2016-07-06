@@ -2225,31 +2225,34 @@ public:
         dot11_advertised_ssid *ssid = NULL;
         TrackerElementIntMap::iterator int_itr;
 
-        if (adv_ssid_map.size() > 1) {
-            for (int_itr = adv_ssid_map.begin(); 
-                    int_itr != adv_ssid_map.end(); ++int_itr) {
-                ssid = (dot11_advertised_ssid *) int_itr->second;
+        for (int_itr = adv_ssid_map.begin(); int_itr != adv_ssid_map.end(); ++int_itr) {
+            // Always leave one
+            if (adv_ssid_map.size() <= 1)
+                break;
 
-                if (globalreg->timestamp.tv_sec - ssid->get_last_time() > timeout) {
-                    fprintf(stderr, "debug - forgetting dot11ssid %s expiration %d\n", ssid->get_ssid().c_str(), timeout);
-                    adv_ssid_map.erase(int_itr);
-                    int_itr = adv_ssid_map.begin();
-                }
+            ssid = (dot11_advertised_ssid *) int_itr->second;
+
+            if (globalreg->timestamp.tv_sec - ssid->get_last_time() > timeout) {
+                fprintf(stderr, "debug - forgetting dot11ssid %s expiration %d\n", ssid->get_ssid().c_str(), timeout);
+                adv_ssid_map.erase(int_itr);
+                int_itr = adv_ssid_map.begin();
             }
         }
 
         TrackerElementIntMap probe_map(dot11dev->get_probed_ssid_map());
         dot11_probed_ssid *pssid = NULL;
 
-        if (probe_map.size() > 1) {
-            for (int_itr = probe_map.begin(); int_itr != probe_map.end(); ++int_itr) {
-                pssid = (dot11_probed_ssid *) int_itr->second;
+        for (int_itr = probe_map.begin(); int_itr != probe_map.end(); ++int_itr) {
+            // Always leave one
+            if (probe_map.size() <= 1)
+                break;
 
-                if (globalreg->timestamp.tv_sec - pssid->get_last_time() > timeout) {
-                    fprintf(stderr, "debug - forgetting dot11probessid %s expiration %d\n", pssid->get_ssid().c_str(), timeout);
-                    probe_map.erase(int_itr);
-                    int_itr = probe_map.begin();
-                }
+            pssid = (dot11_probed_ssid *) int_itr->second;
+
+            if (globalreg->timestamp.tv_sec - pssid->get_last_time() > timeout) {
+                fprintf(stderr, "debug - forgetting dot11probessid %s expiration %d\n", pssid->get_ssid().c_str(), timeout);
+                probe_map.erase(int_itr);
+                int_itr = probe_map.begin();
             }
         }
 
@@ -2257,15 +2260,17 @@ public:
         dot11_client *client = NULL;
         TrackerElementMacMap::iterator mac_itr;
 
-        if (client_map.size() > 1) {
-            for (mac_itr = client_map.begin(); mac_itr != client_map.end(); ++mac_itr) {
-                client = (dot11_client *) mac_itr->second;
+        for (mac_itr = client_map.begin(); mac_itr != client_map.end(); ++mac_itr) {
+            // Always leave one
+            if (client_map.size() <= 1)
+                break;
 
-                if (globalreg->timestamp.tv_sec - client->get_last_time() > timeout) {
-                    fprintf(stderr, "debug - forgetting client link from %s to %s expiration %d\n", dot11dev->get_mac().Mac2String().c_str(), mac_itr->first.Mac2String().c_str(), timeout);
-                    client_map.erase(mac_itr);
-                    mac_itr = client_map.begin();
-                }
+            client = (dot11_client *) mac_itr->second;
+
+            if (globalreg->timestamp.tv_sec - client->get_last_time() > timeout) {
+                fprintf(stderr, "debug - forgetting client link from %s to %s expiration %d\n", dot11dev->get_mac().Mac2String().c_str(), mac_itr->first.Mac2String().c_str(), timeout);
+                client_map.erase(mac_itr);
+                mac_itr = client_map.begin();
             }
         }
     }
