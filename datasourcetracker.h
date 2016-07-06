@@ -82,7 +82,6 @@ public:
 class DST_DataSourcePrototype : public tracker_component {
 public:
     DST_DataSourcePrototype(GlobalRegistry *in_globalreg);
-    virtual ~DST_DataSourcePrototype();
 
     KisDataSource *get_proto_builder() { return proto_builder; }
     void set_proto_builder(KisDataSource *in_builder);

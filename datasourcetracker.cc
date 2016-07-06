@@ -31,10 +31,6 @@ DST_DataSourcePrototype::DST_DataSourcePrototype(GlobalRegistry *in_globalreg) :
     reserve_fields(NULL);
 }
 
-DST_DataSourcePrototype::~DST_DataSourcePrototype() {
-
-}
-
 void DST_DataSourcePrototype::register_fields() {
     proto_type_id = 
         RegisterField("kismet.Datasourcetracker.protosource.type", TrackerString,
@@ -147,11 +143,13 @@ Datasourcetracker::Datasourcetracker(GlobalRegistry *in_globalreg) {
     dst_proto_entry_id = 
         entrytracker->RegisterField("kismet.Datasourcetracker.protosource.entry",
                 dst_builder, "Protosource definition entry");
+    delete(dst_builder);
 
     KisDataSource *datasource_builder = new KisDataSource(globalreg);
     dst_source_entry_id =
         entrytracker->RegisterField("kismet.Datasourcetracker.datasource.entry",
                 datasource_builder, "Datasource entry");
+    delete(datasource_builder);
 
     // Make sure to link class-constant values
     proto_vec =
