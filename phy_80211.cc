@@ -2252,6 +2252,22 @@ public:
                 }
             }
         }
+
+        TrackerElementMacMap client_map(dot11dev->get_client_map());
+        dot11_client *client = NULL;
+        TrackerElementMacMap::iterator mac_itr;
+
+        if (client_map.size() > 1) {
+            for (mac_itr = client_map.begin(); mac_itr != client_map.end(); ++mac_itr) {
+                client = (dot11_client *) mac_itr->second;
+
+                if (globalreg->timestamp.tv_sec - client->get_last_time() > timeout) {
+                    fprintf(stderr, "debug - forgetting client link from %s to %s expiration %d\n", dot11dev->get_mac().Mac2String().c_str(), mac_itr->first.Mac2String().c_str(), timeout);
+                    client_map.erase(mac_itr);
+                    mac_itr = client_map.begin();
+                }
+            }
+        }
     }
 
 protected:
