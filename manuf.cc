@@ -153,10 +153,7 @@ string Manuf::LookupOUI(mac_addr in_mac) {
 
 			// Log a position at the previous pos - which is the line before
 			// this one, so we're inclusive
-			toui = 0;
-			toui |= (uint32_t) m[0] << 16;
-			toui |= (uint32_t) m[1] << 8;
-			toui |= (uint32_t) m[2];
+            toui = mac_addr::OUI(m);
 
 			if (toui == soui) {
 				manuf_data md;

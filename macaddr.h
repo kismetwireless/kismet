@@ -141,6 +141,17 @@ struct mac_addr {
         }
     }
 
+    inline mac_addr(uint8_t *in, unsigned int len, unsigned int mask) {
+        longmac = 0;
+        longmask = (uint64_t) -1;
+
+        for (unsigned int x = 0; x < len && x < MAC_LEN_MAX; x++) {
+            longmac |= (uint64_t) in[x] << ((MAC_LEN_MAX - x - 1) * 8);
+        }
+
+        longmask = (longmask >> (64 - mask)) << mask;
+    }
+
 
     // Masked MAC compare
     inline bool operator== (const mac_addr& op) const {
@@ -211,8 +222,16 @@ struct mac_addr {
 
 	// Return the top 3 of the mac. 
 	inline uint32_t OUI() const {
-		return (longmac >> (4 * 8)) & 0x00FFFFFF;
+		return (longmac >> (3 * 8)) & 0x00FFFFFF;
 	}
+
+    static inline uint32_t OUI(uint8_t *val) {
+        return (val[0] << 16) | (val[1] << 8) | val[2];
+    }
+
+    static inline uint32_t OUI(short int *val) {
+        return (val[0] << 16) | (val[1] << 8) | val[2];
+    }
 
     inline string Mac2String() const {
 		ostringstream osstr;
