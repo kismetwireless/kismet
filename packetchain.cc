@@ -53,6 +53,52 @@ Packetchain::Packetchain(GlobalRegistry *in_globalreg) {
 	pthread_mutex_init(&packetchain_mutex, NULL);
 }
 
+Packetchain::~Packetchain() {
+    {
+        local_locker lock(&packetchain_mutex);
+
+        vector<Packetchain::pc_link *>::iterator i;
+
+        for (i = genesis_chain.begin(); i != genesis_chain.end(); ++i) {
+            delete(*i);
+        }
+
+        for (i = destruction_chain.begin(); i != destruction_chain.end(); ++i) {
+            delete(*i);
+        }
+
+        for (i = postcap_chain.begin(); i != postcap_chain.end(); ++i) {
+            delete(*i);
+        }
+
+        for (i = llcdissect_chain.begin(); i != llcdissect_chain.end(); ++i) {
+            delete(*i);
+        }
+
+        for (i = decrypt_chain.begin(); i != decrypt_chain.end(); ++i) {
+            delete(*i);
+        }
+
+        for (i = datadissect_chain.begin(); i != datadissect_chain.end(); ++i) {
+            delete(*i);
+        }
+
+        for (i = classifier_chain.begin(); i != classifier_chain.end(); ++i) {
+            delete(*i);
+        }
+
+        for (i = tracker_chain.begin(); i != tracker_chain.end(); ++i) {
+            delete(*i);
+        }
+
+        for (i = logging_chain.begin(); i != logging_chain.end(); ++i) {
+            delete(*i);
+        }
+    }
+
+    pthread_mutex_destroy(&packetchain_mutex);
+}
+
 int Packetchain::RegisterPacketComponent(string in_component) {
 	pthread_mutex_lock(&packetchain_mutex);
 	if (next_componentid >= MAX_PACKET_COMPONENTS) {

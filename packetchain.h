@@ -82,7 +82,7 @@ public:
     Packetchain();
     Packetchain(GlobalRegistry *in_globalreg);
 
-    virtual ~Packetchain() { }
+    virtual ~Packetchain();
 
     int RegisterPacketComponent(string in_component);
     int RemovePacketComponent(int in_id);
