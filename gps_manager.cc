@@ -82,6 +82,7 @@ GpsManager::~GpsManager() {
 
         vector<gps_instance *>::iterator ii;
         for (ii = instance_vec.begin(); ii != instance_vec.end(); ++ii) {
+            delete((*ii)->gps);
             delete(*ii);
         }
 
