@@ -2269,7 +2269,7 @@ public:
             client = (dot11_client *) mac_itr->second;
 
             if (globalreg->timestamp.tv_sec - client->get_last_time() > timeout) {
-                fprintf(stderr, "debug - forgetting client link from %s to %s expiration %d\n", dot11dev->get_mac().Mac2String().c_str(), mac_itr->first.Mac2String().c_str(), timeout);
+                fprintf(stderr, "debug - forgetting client link from %s to %s expiration %d\n", device->get_macaddr().Mac2String().c_str(), mac_itr->first.Mac2String().c_str(), timeout);
                 client_map.erase(mac_itr);
                 mac_itr = client_map.begin();
             }
