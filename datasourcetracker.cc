@@ -288,7 +288,9 @@ int Datasourcetracker::open_datasource(string in_source) {
             type = "auto";
     }
 
-    // If type isn't autodetect, we're looking for a specific driver
+    // If type isn't autodetect, we're looking for a specific driver.  A proto
+    // source can define multiple types, we just need to call its probe_type
+    // function.
     if (type != "auto") {
         KisDataSource *proto;
 
@@ -300,7 +302,7 @@ int Datasourcetracker::open_datasource(string in_source) {
                     i != proto_vec->vec_end(); ++i) {
                 proto = (KisDataSource *) *i;
 
-                if (StrLower(proto->get_source_name()) == StrLower(type)) {
+                if (proto->probe_type(StrLower(type))) {
                     proto_found = true;
                     break;
                 }
