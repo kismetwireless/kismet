@@ -754,6 +754,70 @@ bool KisDataSource::handle_kv_channels(KisDataSource_CapKeyedObject *in_obj) {
     return true;
 }
 
+kis_layer1_packinfo *KisDataSource::handle_kv_signal(KisDataSource_CapKeyedObject *in_obj) {
+    kis_layer1_packinfo *siginfo = new kis_layer1_packinfo();
+
+    // Unpack the dictionary
+    MsgpackAdapter::MsgpackStrMap dict;
+    msgpack::unpacked result;
+    MsgpackAdapter::MsgpackStrMap::iterator obj_iter;
+
+    try {
+        msgpack::unpack(result, in_obj->object, in_obj->size);
+        msgpack::object deserialized = result.get();
+        dict = deserialized.as<MsgpackAdapter::MsgpackStrMap>();
+
+        if ((obj_iter = dict.find("signal_dbm")) != dict.end()) {
+            siginfo->signal_type = kis_l1_signal_type_dbm;
+            siginfo->signal_dbm = obj_iter->second.as<int32_t>();
+        }
+
+        if ((obj_iter = dict.find("noise_dbm")) != dict.end()) {
+            siginfo->signal_type = kis_l1_signal_type_dbm;
+            siginfo->noise_dbm = obj_iter->second.as<int32_t>();
+        }
+
+        if ((obj_iter = dict.find("signal_rssi")) != dict.end()) {
+            siginfo->signal_type = kis_l1_signal_type_rssi;
+            siginfo->signal_rssi = obj_iter->second.as<int32_t>();
+        }
+
+        if ((obj_iter = dict.find("noise_rssi")) != dict.end()) {
+            siginfo->signal_type = kis_l1_signal_type_rssi;
+            siginfo->noise_rssi = obj_iter->second.as<int32_t>();
+        }
+
+        if ((obj_iter = dict.find("freq_khz")) != dict.end()) {
+            siginfo->freq_khz = obj_iter->second.as<double>();
+        }
+
+        if ((obj_iter = dict.find("channel")) != dict.end()) {
+            siginfo->channel = obj_iter->second.as<string>();
+        }
+
+        if ((obj_iter = dict.find("datarate")) != dict.end()) {
+            siginfo->datarate = obj_iter->second.as<double>();
+        }
+
+    } catch (const std::exception& e) {
+        // Something went wrong with msgpack unpacking
+        stringstream ss;
+        ss << "Source " << get_source_name() << " failed to unpack gps bundle: " <<
+            e.what();
+        _MSG(ss.str(), MSGFLAG_ERROR);
+
+        local_locker lock(&source_lock);
+        inc_ipc_errors(1);
+
+        delete(siginfo);
+
+        return NULL;
+    }
+
+
+    return siginfo;
+}
+
 kis_gps_packinfo *KisDataSource::handle_kv_gps(KisDataSource_CapKeyedObject *in_obj) {
     kis_gps_packinfo *gpsinfo = new kis_gps_packinfo();
 
@@ -761,7 +825,6 @@ kis_gps_packinfo *KisDataSource::handle_kv_gps(KisDataSource_CapKeyedObject *in_
     MsgpackAdapter::MsgpackStrMap dict;
     msgpack::unpacked result;
     MsgpackAdapter::MsgpackStrMap::iterator obj_iter;
-    vector<string> channel_vec;
 
     try {
         msgpack::unpack(result, in_obj->object, in_obj->size);

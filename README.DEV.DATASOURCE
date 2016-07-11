@@ -232,6 +232,9 @@ Data sources replace the PacketSource class in Kismet.
                  "noise_dbm":int32     Noise value in DBM (optional)
                  "signal_rssi":int32   Signal value in RSSI (optional)
                  "noise_rssi":int32    Noise value in RSSI (optional)
+                 "freq_khz":double     Center frequency in KHz
+                 "channel":string      Phy channel as string
+                 "datarate":double     Phy-specific data rate
 
         The SIGNAL pair is inserted into a Kismet packetchain packet as
         a PACK_COMP_RADIODATA kis_layer1_radioinfo record.
