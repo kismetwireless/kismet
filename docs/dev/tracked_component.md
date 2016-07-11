@@ -97,7 +97,7 @@ protected:
     }
 ```
 
-`RegisterField(...) is part of the base tracker_component class, and handles the connection between a tracked data set and the tracking system which assigns fields.
+`RegisterField(...)` is part of the base tracker_component class, and handles the connection between a tracked data set and the tracking system which assigns fields.
 
 It requires a name (which should be unique, you can ensure uniqueness by including a reference to your module in the name), a type (used to manage introspection and export, the list is below), a description (which is shown on the tracked_fields page and is helpful for future developers), and finally a void ** handle (pointer-to-a-pointer) to the TrackerElement that will hold the data when your class is assembled.
 
@@ -186,11 +186,11 @@ To continue our Messagebus example, let's define a method for adapting a message
 ```C++
 public:
     void set_from_message(string in_msg, int in_flags) {
-        // We have the globalreg, so inherit the timestamp from there.
-        // Since our proxy function accepts a time_t value we can call it
-        // directly
+        // Since we used __Proxy to define get and set functions, we'll
+        // call them instead of doing custom get/set and risking doing
+        // it wrong.
+        
         set_timestamp(globalreg->timestamp.tv_sec);
-
         set_message(in_msg);
         set_flags(in_flags);
     }
@@ -200,7 +200,7 @@ public:
 
 More complex field types - vectors and maps - need special handling.  Typically they do not get manipulated with traditional get/set functions.  
 
-#### Using vectors nad maps locally
+#### Using vectors and maps locally
 
 It is possible to use a TrackerElement directly via the complex access APIs, ie `add_vector()`, `add_doublemap()`, etc.  However, it is much simpler to use the wrapper classes which translate the TrackerElements to behave like the STL library versions of their data.
 
@@ -215,7 +215,7 @@ public:
             // ...
         }
 
-        for (TrackerElementStringMap::const_iterator i = smap.begin();
+        for (TrackerElementStringMap::iterator i = smap.begin();
                 i != smap.end(); ++i) {
             // ...
         }
@@ -266,7 +266,7 @@ A caller could use this via:
 ```C++
     ...
     TrackedElementVector ev(foo->get_example_vec);
-    for (TrackedElementVector::const_iterator i = foo->begin; 
+    for (TrackedElementVector::iterator i = foo->begin; 
             i != foo->end(); ++i) {
         ...
     }
