@@ -163,8 +163,8 @@ public:
     void iterate_datasources(DST_Worker *in_worker);
 
     // Launch a source.  If there is no type defined or the type is 'auto', attempt to
-    // find the source.  When the source is opened or there is a failure, in_open_handler
-    // will be called.
+    // find the source.  When the source is opened or there is a failure, 
+    // in_open_handler will be called.
     //
     // Opening a data source is an asynchronous operation - the worker will be called
     // at some point in the future.  Callers requiring a blocking operation should call
