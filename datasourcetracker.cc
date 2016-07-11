@@ -192,7 +192,7 @@ void Datasourcetracker::iterate_datasources(DST_Worker *in_worker) {
     in_worker->finalize();
 }
 
-int Datasourcetracker::remove_datasource(uuid in_uuid) {
+bool Datasourcetracker::remove_datasource(uuid in_uuid) {
     local_locker lock(&dst_lock);
 
     TrackerElementVector dsv(datasource_vec);
@@ -230,10 +230,11 @@ int Datasourcetracker::remove_datasource(uuid in_uuid) {
             dsv.erase(i);
 
             // Done
-            return 1;
+            return true;
         }
     }
 
+    return false;
 }
 
 int Datasourcetracker::register_datasource_builder(string in_type,

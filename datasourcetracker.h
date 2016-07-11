@@ -176,7 +176,7 @@ public:
     int open_datasource(string in_source);
 
     // Remove a data source
-    int remove_datasource(uuid in_uud);
+    bool remove_datasource(uuid in_uud);
 
     // HTTP api
     virtual bool Httpd_VerifyPath(const char *path, const char *method);
