@@ -727,9 +727,6 @@ int main(int argc, char *argv[], char *envp[]) {
 		CatchShutdown(-1);
     globalregistry->RegisterLifetimeGlobal((LifetimeGlobal *) globalregistry->packetchain);
 
-    // Start the http server
-    globalregistry->httpd_server->StartHttpd();
-
     // Add login session
     new Kis_Httpd_Websession(globalregistry);
 
@@ -952,8 +949,11 @@ int main(int argc, char *argv[], char *envp[]) {
 											   NULL, 1, 
 											   &BaseTimerEvent, NULL);
     
-    // Add system monitor as the last thing before we start sources
+    // Add system monitor 
     globalregistry->RegisterLifetimeGlobal((LifetimeGlobal *) new Systemmonitor(globalregistry));
+
+    // Start the http server as the last thing before we start sources
+    globalregistry->httpd_server->StartHttpd();
 
 	// Blab about starting
 	globalregistry->messagebus->InjectMessage("Kismet starting to gather packets",
