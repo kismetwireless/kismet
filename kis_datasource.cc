@@ -63,7 +63,7 @@ KisDataSource::~KisDataSource() {
 }
 
 void KisDataSource::close_source() {
-    cancel_open_source();
+    cancel_probe_source();
     cancel_open_source();
 
     if (source_ipc != NULL) {
@@ -363,9 +363,38 @@ void KisDataSource::cancel_error_handler() {
     error_aux = NULL;
 }
 
+bool KisDataSource::probe_source(string in_source, probe_handler in_cb,
+        void *in_aux) {
+    local_locker lock(&source_lock);
+
+    // Fail out an existing callback
+    if (probe_callback != NULL) {
+        (*probe_callback)(this, probe_aux, false);
+    }
+
+    if (!spawn_ipc()) {
+        if (in_cb != NULL) {
+            (*in_cb)(this, in_aux, false);
+        }
+
+        if (error_callback != NULL) {
+            (*error_callback)(this, error_aux);
+        }
+
+        return false;
+    }
+
+    return true;
+}
+
 bool KisDataSource::open_source(string in_definition, open_handler in_cb, 
         void *in_aux) {
     local_locker lock(&source_lock);
+
+    // Fail out any existing callback
+    if (open_callback != NULL) {
+        (*open_callback)(this, in_aux, false);
+    }
 
     // Set the callback to get run when we get the openresp
     open_callback = in_cb;
@@ -378,6 +407,11 @@ bool KisDataSource::open_source(string in_definition, open_handler in_cb,
         if (in_cb != NULL) {
             (*in_cb)(this, in_aux, false);
         }
+
+        if (error_callback != NULL) {
+            (*error_callback)(this, error_aux);
+        }
+
         return false;
     }
 
@@ -390,7 +424,7 @@ bool KisDataSource::open_source(string in_definition, open_handler in_cb,
 
     queue_ipc_command("OPENDEVICE", kvmap);
 
-    return 0;
+    return true;
 }
 
 void KisDataSource::cancel_probe_source() {

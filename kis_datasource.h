@@ -57,6 +57,9 @@
  *
  */
 
+/* DST forward ref */
+class DatasourceTracker;
+
 /* Keypair object from cap proto */
 class KisDataSource_CapKeyedObject;
 
@@ -70,9 +73,6 @@ public:
     KisDataSource(GlobalRegistry *in_globalreg);
     virtual ~KisDataSource();
 
-    // Register the source and any sub-sources (builder)
-    virtual int register_sources() { return -1; }
-
     // Build a new instance of the class, used for opening and probing
     virtual KisDataSource *build_data_source() { return NULL; }
 
@@ -82,17 +82,21 @@ public:
     virtual void set_error_handler(error_handler in_cb, void *in_aux);
     virtual void cancel_error_handler();
 
+    // Can we handle this type?
+    virtual bool probe_type(string in_type) { return false; }
+
     // Can we handle this source?  May require launching the external binary
-    // to probe.  Since this may be an async operation, provide a callback
+    // to probe.  Since this is an async operation, provide a callback.
+    // Returns false if unable to launch probe, or true if probe is underway.
     typedef void (*probe_handler)(KisDataSource *, void *, bool);
-    virtual bool probe_source(string in_source, probe_handler in_cb, void *in_aux) {
-        return false;
-    }
+    virtual bool probe_source(string in_source, probe_handler in_cb, void *in_aux);
 
     // Cancel the callbacks
     virtual void cancel_probe_source();
 
-    // Launch IPC and open source
+    // Launch IPC and open source.  This is an async operation, the callback
+    // will be notified when complete.
+    // Returns false if unable to initiate opening, or true if opening is underway
     typedef void (*open_handler)(KisDataSource *, void *, bool);
     virtual bool open_source(string in_source, open_handler in_cb, void *in_aux);
     // Cancel the callbacks
