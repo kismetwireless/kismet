@@ -669,6 +669,8 @@ int Kis_Net_Httpd::SendHttpResponse(Kis_Net_Httpd *httpd,
 }
 
 Kis_Net_Httpd_Handler::Kis_Net_Httpd_Handler(GlobalRegistry *in_globalreg) {
+    httpd = NULL;
+
     Bind_Httpd_Server(in_globalreg);
 }
 
