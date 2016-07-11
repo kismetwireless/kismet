@@ -26,6 +26,7 @@
 #include "ipc_remote2.h"
 #include "ringbuf_handler.h"
 #include "uuid.h"
+#include "gps_manager.h"
 #include "devicetracker_component.h"
 #include "simple_datasource_proto.h"
 
@@ -134,6 +135,10 @@ public:
 
     __Proxy(source_ipc_bin, string, string, string, source_ipc_bin);
 
+    __Proxy(last_report_time, uint64_t, time_t, time_t, last_report_time);
+    __Proxy(num_reports, uint64_t, uint64_t, uint64_t, num_reports);
+    __ProxyIncDec(num_reports, uint64_t, uint64_t, num_reports);
+
     // Only proxy get, because setting these is a complex operation
     __ProxyGet(source_hopping, uint8_t, bool, source_hopping);
     __ProxyGet(source_hop_rate, double, double, source_hop_rate);
@@ -226,6 +231,12 @@ protected:
     int source_ipc_bin_id;
     TrackerElement *source_ipc_bin;
 
+    int last_report_time_id;
+    TrackerElement *last_report_time;
+
+    int num_reports_id;
+    TrackerElement *num_reports;
+
     IPCRemoteV2 *source_ipc;
     RingbufferHandler *ipchandler;
 
@@ -254,6 +265,7 @@ protected:
     virtual bool handle_kv_success(KisDataSource_CapKeyedObject *in_obj);
     virtual bool handle_kv_message(KisDataSource_CapKeyedObject *in_obj);
     virtual bool handle_kv_channels(KisDataSource_CapKeyedObject *in_obj);
+    virtual kis_gps_packinfo *handle_kv_gps(KisDataSource_CapKeyedObject *in_obj);
 
     // Spawn an IPC process, using the source_ipc_bin.  If the IPC system is running
     // already, issue a kill

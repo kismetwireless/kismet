@@ -131,6 +131,14 @@ void KisDataSource::register_fields() {
         RegisterField("kismet.datasource.ipc_bin", TrackerString,
                 "driver binary", (void **) &source_ipc_bin);
 
+    last_report_time_id =
+        RegisterField("kismet.datasource.last_report_time", TrackerUInt64,
+                "last packet/device report time", 
+                (void **) &last_report_time);
+
+    num_reports_id =
+        RegisterField("kismet.datasource.num_reports", TrackerUInt64,
+                "number of packtes/device reports", (void **) &num_reports);
 }
 
 void KisDataSource::BufferAvailable(size_t in_amt) {
@@ -636,6 +644,14 @@ void KisDataSource::handle_packet_data(KVmap in_kvpairs) {
         handle_kv_message(i->second);
     }
 
+    // Gather signal data
+    
+    // Gather GPS data
+    
+    // Gather any packet data
+    
+    // Inject the packet into the packetchain if we have one
+
 }
 
 bool KisDataSource::handle_kv_success(KisDataSource_CapKeyedObject *in_obj) {
@@ -736,6 +752,74 @@ bool KisDataSource::handle_kv_channels(KisDataSource_CapKeyedObject *in_obj) {
     }
 
     return true;
+}
+
+kis_gps_packinfo *KisDataSource::handle_kv_gps(KisDataSource_CapKeyedObject *in_obj) {
+    kis_gps_packinfo *gpsinfo = new kis_gps_packinfo();
+
+    // Unpack the dictionary
+    MsgpackAdapter::MsgpackStrMap dict;
+    msgpack::unpacked result;
+    MsgpackAdapter::MsgpackStrMap::iterator obj_iter;
+    vector<string> channel_vec;
+
+    try {
+        msgpack::unpack(result, in_obj->object, in_obj->size);
+        msgpack::object deserialized = result.get();
+        dict = deserialized.as<MsgpackAdapter::MsgpackStrMap>();
+
+        if ((obj_iter = dict.find("lat")) != dict.end()) {
+            gpsinfo->lat = obj_iter->second.as<double>();
+        }
+
+        if ((obj_iter = dict.find("lon")) != dict.end()) {
+            gpsinfo->lon = obj_iter->second.as<double>();
+        }
+
+        if ((obj_iter = dict.find("alt")) != dict.end()) {
+            gpsinfo->alt = obj_iter->second.as<double>();
+        }
+
+        if ((obj_iter = dict.find("speed")) != dict.end()) {
+            gpsinfo->speed = obj_iter->second.as<double>();
+        }
+
+        if ((obj_iter = dict.find("heading")) != dict.end()) {
+            gpsinfo->heading = obj_iter->second.as<double>();
+        }
+
+        if ((obj_iter = dict.find("precision")) != dict.end()) {
+            gpsinfo->precision = obj_iter->second.as<double>();
+        }
+
+        if ((obj_iter = dict.find("fix")) != dict.end()) {
+            gpsinfo->precision = obj_iter->second.as<int32_t>();
+        }
+
+        if ((obj_iter = dict.find("time")) != dict.end()) {
+            gpsinfo->time = (time_t) obj_iter->second.as<uint64_t>();
+        }
+
+        if ((obj_iter = dict.find("name")) != dict.end()) {
+            gpsinfo->gpsname = obj_iter->second.as<string>();
+        }
+
+    } catch (const std::exception& e) {
+        // Something went wrong with msgpack unpacking
+        stringstream ss;
+        ss << "Source " << get_source_name() << " failed to unpack gps bundle: " <<
+            e.what();
+        _MSG(ss.str(), MSGFLAG_ERROR);
+
+        local_locker lock(&source_lock);
+        inc_ipc_errors(1);
+
+        delete(gpsinfo);
+        return NULL;
+    }
+
+    return gpsinfo;
+
 }
 
 bool KisDataSource::spawn_ipc() {
