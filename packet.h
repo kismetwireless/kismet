@@ -322,7 +322,7 @@ public:
     phy_encoding_type encoding;
 
     // What data rate?
-    int datarate;
+    double datarate;
 
 	// Checksum, if checksumming is enabled; Only of the non-header 
 	// data
