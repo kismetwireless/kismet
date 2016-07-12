@@ -51,9 +51,13 @@ Packetchain::Packetchain(GlobalRegistry *in_globalreg) {
 	next_handlerid = 1;
 
 	pthread_mutex_init(&packetchain_mutex, NULL);
+
+    globalreg->InsertGlobal("PACKETCHAIN", this);
 }
 
 Packetchain::~Packetchain() {
+    globalreg->RemoveGlobal("PACKETCHAIN");
+
     {
         local_locker lock(&packetchain_mutex);
 
