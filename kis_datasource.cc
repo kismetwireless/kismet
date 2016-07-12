@@ -30,6 +30,11 @@
 KisDataSource::KisDataSource(GlobalRegistry *in_globalreg) :
     tracker_component(in_globalreg, 0) {
     globalreg = in_globalreg;
+    packetchain = (Packetchain *) globalreg->FetchGlobal("PACKETCHAIN");
+
+	pack_comp_linkframe = packetchain->RegisterPacketComponent("LINKFRAME");
+    pack_comp_l1info = packetchain->RegisterPacketComponent("RADIODATA");
+    pack_comp_gps = packetchain->RegisterPacketComponent("GPS");
 
     pthread_mutex_init(&source_lock, NULL);
 
@@ -639,18 +644,44 @@ void KisDataSource::handle_packet_message(KVmap in_kvpairs) {
 void KisDataSource::handle_packet_data(KVmap in_kvpairs) {
     KVmap::iterator i;
 
+    kis_packet *packet = NULL;
+    kis_layer1_packinfo *siginfo = NULL;
+    kis_gps_packinfo *gpsinfo = NULL;
+
     // Process any messages
     if ((i = in_kvpairs.find("message")) != in_kvpairs.end()) {
         handle_kv_message(i->second);
     }
 
+    // Do we have a packet?
+    if ((i = in_kvpairs.find("packet")) != in_kvpairs.end()) {
+        packet = handle_kv_packet(i->second);
+    }
+
+    if (packet == NULL)
+        return;
+
     // Gather signal data
+    if ((i = in_kvpairs.find("signal")) != in_kvpairs.end()) {
+        siginfo = handle_kv_signal(i->second);
+    }
     
     // Gather GPS data
-    
-    // Gather any packet data
+    if ((i = in_kvpairs.find("gps")) != in_kvpairs.end()) {
+        gpsinfo = handle_kv_gps(i->second);
+    }
+
+    // Add them to the packet
+    if (siginfo != NULL) {
+        packet->insert(pack_comp_l1info, siginfo);
+    }
+
+    if (gpsinfo != NULL) {
+        packet->insert(pack_comp_gps, gpsinfo);
+    }
     
     // Inject the packet into the packetchain if we have one
+    packetchain->ProcessPacket(packet);
 
 }
 
@@ -882,6 +913,84 @@ kis_gps_packinfo *KisDataSource::handle_kv_gps(KisDataSource_CapKeyedObject *in_
     }
 
     return gpsinfo;
+
+}
+
+kis_packet *KisDataSource::handle_kv_packet(KisDataSource_CapKeyedObject *in_obj) {
+    kis_packet *packet = packetchain->GeneratePacket();
+    kis_datachunk *datachunk = new kis_datachunk();
+
+    // Unpack the dictionary
+    MsgpackAdapter::MsgpackStrMap dict;
+    msgpack::unpacked result;
+    MsgpackAdapter::MsgpackStrMap::iterator obj_iter;
+
+    try {
+        msgpack::unpack(result, in_obj->object, in_obj->size);
+        msgpack::object deserialized = result.get();
+        dict = deserialized.as<MsgpackAdapter::MsgpackStrMap>();
+
+        if ((obj_iter = dict.find("tv_sec")) != dict.end()) {
+            packet->ts.tv_sec = (time_t) obj_iter->second.as<uint64_t>();
+        } else {
+            throw std::runtime_error(string("tv_sec timestamp missing"));
+        }
+
+        if ((obj_iter = dict.find("tv_usec")) != dict.end()) {
+            packet->ts.tv_usec = (time_t) obj_iter->second.as<uint64_t>();
+        } else {
+            throw std::runtime_error(string("tv_usec timestamp missing"));
+        }
+
+        if ((obj_iter = dict.find("dlt")) != dict.end()) {
+            datachunk->dlt = obj_iter->second.as<uint64_t>();
+        } else {
+            throw std::runtime_error(string("DLT missing"));
+        }
+
+        // Record the size
+        uint64_t size = 0;
+        if ((obj_iter = dict.find("size")) != dict.end()) {
+            size = obj_iter->second.as<uint64_t>();
+        } else {
+            throw std::runtime_error(string("size field missing or zero"));
+        }
+
+        msgpack::object rawdata;
+        if ((obj_iter = dict.find("packet")) != dict.end()) {
+            rawdata = obj_iter->second;
+        } else {
+            throw std::runtime_error(string("packet data missing"));
+        }
+
+        if (rawdata.via.bin.size != size) {
+            throw std::runtime_error(string("packet size did not match data size"));
+        }
+
+        datachunk->copy_data((const uint8_t *) rawdata.via.bin.ptr, size);
+
+    } catch (const std::exception& e) {
+        // Something went wrong with msgpack unpacking
+        stringstream ss;
+        ss << "Source " << get_source_name() << " failed to unpack packet bundle: " <<
+            e.what();
+        _MSG(ss.str(), MSGFLAG_ERROR);
+
+        local_locker lock(&source_lock);
+        inc_ipc_errors(1);
+
+        // Destroy the packet appropriately
+        packetchain->DestroyPacket(packet);
+        // Always delete the datachunk, we don't insert it into the packet
+        // until later
+        delete(datachunk);
+
+        return NULL;
+    }
+
+    packet->insert(pack_comp_linkframe, datachunk);
+
+    return packet;
 
 }
 

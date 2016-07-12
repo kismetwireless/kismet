@@ -29,6 +29,7 @@
 #include "gps_manager.h"
 #include "packet.h"
 #include "devicetracker_component.h"
+#include "packetchain.h"
 #include "simple_datasource_proto.h"
 
 /*
@@ -155,7 +156,10 @@ public:
     typedef pair<string, KisDataSource_CapKeyedObject *> KVpair;
 
 protected:
-    GlobalRegistry *in_globalreg;
+    GlobalRegistry *globalreg;
+    Packetchain *packetchain;
+
+    int pack_comp_linkframe, pack_comp_l1info, pack_comp_gps;
 
     pthread_mutex_t source_lock;
 
@@ -268,6 +272,7 @@ protected:
     virtual bool handle_kv_channels(KisDataSource_CapKeyedObject *in_obj);
     virtual kis_gps_packinfo *handle_kv_gps(KisDataSource_CapKeyedObject *in_obj);
     virtual kis_layer1_packinfo *handle_kv_signal(KisDataSource_CapKeyedObject *in_obj);
+    virtual kis_packet *handle_kv_packet(KisDataSource_CapKeyedObject *in_obj);
 
     // Spawn an IPC process, using the source_ipc_bin.  If the IPC system is running
     // already, issue a kill

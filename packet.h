@@ -136,6 +136,18 @@ public:
 
 		length = in_length;
 	}
+
+    virtual void copy_data(const uint8_t *in_data, unsigned int in_length) {
+		if (data != NULL && self_data)
+			delete[] data;
+
+        data = new uint8_t[in_length];
+        memcpy(data, in_data, in_length);
+        self_data = true;
+
+		length = in_length;
+
+    }
 };
 
 class kis_packet_checksum : public kis_datachunk {
