@@ -679,6 +679,10 @@ void KisDataSource::handle_packet_data(KVmap in_kvpairs) {
     if (gpsinfo != NULL) {
         packet->insert(pack_comp_gps, gpsinfo);
     }
+
+    // Update the last valid report time
+    inc_num_reports(1);
+    set_last_report_time(globalreg->timestamp.tv_sec);
     
     // Inject the packet into the packetchain if we have one
     packetchain->ProcessPacket(packet);
