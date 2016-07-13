@@ -70,7 +70,7 @@ Kis_DLT_Radiotap::Kis_DLT_Radiotap(GlobalRegistry *in_globalreg) :
 }
 
 Kis_DLT_Radiotap::~Kis_DLT_Radiotap() {
-	globalreg->InsertGlobal("DLT_RADIOTAP", NULL);
+    globalreg->RemoveGlobal("DLT_RADIOTAP");
 }
 
 #define ALIGN_OFFSET(offset, width) \
