@@ -122,8 +122,9 @@ TrackerMac | mac_addr | Kismet MAC address record
 TrackerUuid | uuid | Kismet UUID record
 
 TrackerElements can also contain more complex data:
+
 |Tracker Type|C++ Equivalent|Description|
-|------------|----------------------------|-----------|
+|---------|--------|-----------|
 TrackerMap | map/dictionary | Element contains additional sub-fields.  All tracker_component objects are Maps internally.
 TrackerVector | vector<TrackerElement *> | Element is a vector of additional elements
 TrackerIntMap | map<int, TrackerElement *> | Element is an integer-indexed map of additional elements.  This is useful for representing a keyed list of data.

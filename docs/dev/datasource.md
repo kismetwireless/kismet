@@ -287,3 +287,77 @@ A datasource which operates by passing packets should be able to function with n
 further customization:  Packet data passed via the `PACKET` record will be
 decapsulated and inserted into the packetchain with the proper DLT.
 
+## Handling the DLT
+
+A datasource which is packet-based but does not conform to an existing DLT defined in Kismet will often need to provide its own DLT handler.
+
+### Do I need a custom DLT handler?
+
+If data records are entirely parsed by the classifier (see below for more information), then a separate DLT handler may not be necessary, however if your DLT embeds signal, location, or other information which needs to be made available to other Kismet data handlers, it should be decoded by your DLT handler.
+
+### Deriving the DLT
+
+Kismet DLT handlers are derived from `Kis_DLT_Handler` from `kis_dlt.h`.  A DLT handler needs to override the constructor and the `HandlePacket(...)` functions:
+
+```C++
+class DLT_Example : public Kis_DLT_Handler {
+public:
+    DLT_Example(GlobalRegistry *in_globalreg);
+
+    virtual int HandlePacket(kis_packet *in_pack);
+};
+
+DLT_Example::DLT_Example(GlobalRegistry *in_globalreg) : 
+    Kis_DLT_Handler(in_globalreg) {
+
+    /* Packet components and insertion into the packetchain is handled
+       automatically by the Kis_DLT_Handler constructor.  All that needs
+       to happen here is setting the name and DLT type */
+    dlt_name = "Example DLT";
+
+    /* DLT type is set in tcpdump.h */
+    dlt = DLT_SOME_EXAMPLE;
+
+    /* Optionally, announce that we're loaded */
+    _MSG("Registering support for DLT_SOME_EXAMPLE", MSGFLAG_INFO);
+}
+
+/* HandlePacket(...) is called by the packet chain with the packet data
+   as reported by the datasource.  This may already include GPS and signal
+   information, as well as the actual link data frame.
+
+   HandlePacket is responsible for decapsulating the DLT, creating any
+   additional kis_packet records, and prepping the data for the classifier
+   stage.
+*/
+int DLT_Example::HandlePacket(kis_packet *in_pack) {
+    /* Example sanity check - do we already have packet data 
+       decapsulated?  For a type like radiotap or PPI that encodes another
+       DLT, this encapsulated chunk might be handled differently */
+    kis_datachunk *decapchunk =
+        (kis_datachunk *) in_pack->fetch(pack_comp_decap);
+    if (decapchunk != NULL) {
+        return 1;
+    }
+
+    /* Get the linklayer data record */
+    kis_datachunk *linkdata =
+        (kis_datachunk *) in_pack->fetch(pack_comp_linkframe);
+
+    /* Sanity check - do we even have a link chunk? */
+    if (linkdata == NULL) {
+        return 1;
+    }
+
+    /* Sanity check - does the DLT match? */
+    if (linkdata->dlt != dlt) {
+        return 1;
+    }
+
+    /* Other code goes here */
+}
+
+```
+
+
+
