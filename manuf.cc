@@ -125,11 +125,11 @@ string Manuf::LookupOUI(mac_addr in_mac) {
 	}
 
 	for (unsigned int x = 0; x < index_vec.size(); x++) {
-		if (soui > index_vec[x].oui)
-			continue;
+        if (soui > index_vec[x].oui)
+            continue;
 
-		matched = x - 1;
-		break;
+        matched = x;
+        break;
 	}
 
 	// Cache unknown to save us effort in the future
@@ -141,6 +141,10 @@ string Manuf::LookupOUI(mac_addr in_mac) {
 
 		return md.manuf;
 	}
+
+    // Jump backwards one index in the matching unless we're in the first block
+    if (matched > 0)
+        matched -= 1;
 
 	fsetpos(mfile, &(index_vec[matched].pos));
 
