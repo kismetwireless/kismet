@@ -33,12 +33,29 @@
 #include "macaddr.h"
 #include "uuid.h"
 
+// Type safety can be disabled by commenting out this definition.  This will no
+// longer validate that the type of element matches the use; if used improperly this
+// will lead to "interesting" errors (for simple types) or segfaults (with complex
+// types, either due to a null pointer or due to overlapping union values in the
+// complex pointer).
+//
+// On the flip side, validating the type is one of the most commonly called 
+// functions, and if this presents a problem, turning off type checking can cull 
+// a large percentage of the function calls
+
+#define TE_TYPE_SAFETY  1
+
+#ifndef TE_TYPE_SAFETY
+// If there's no type safety, define an empty except_type_mismatch
+#define except_type_mismatch(V) ;
+#endif
+
 class GlobalRegistry;
 class EntryTracker;
 
 // Types of fields we can track and automatically resolve
-// Statically assigned type numbers which MUST NOT CHANGE as things go forwards for binary/fast
-// serialization, new types must be added to the end of the list
+// Statically assigned type numbers which MUST NOT CHANGE as things go forwards for 
+// binary/fast serialization, new types must be added to the end of the list
 enum TrackerType {
     TrackerUnassigned = -1,
 
@@ -552,7 +569,8 @@ public:
 
 protected:
     // Generic coercion exception
-    void except_type_mismatch(TrackerType t) {
+#ifdef TE_TYPE_SAFETY
+    inline void except_type_mismatch(const TrackerType t) const {
         if (type != t) {
             string w = "element type mismatch, is " + type_to_string(this->type) + 
                 " tried to use as " + type_to_string(t);
@@ -560,6 +578,7 @@ protected:
             throw std::runtime_error(w);
         }
     }
+#endif
 
     // Garbage collection?  Say it ain't so...
     int reference_count;
