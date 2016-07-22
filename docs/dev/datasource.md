@@ -295,6 +295,8 @@ A datasource which is packet-based but does not conform to an existing DLT defin
 
 If data records are entirely parsed by the classifier (see below for more information), then a separate DLT handler may not be necessary, however if your DLT embeds signal, location, or other information which needs to be made available to other Kismet data handlers, it should be decoded by your DLT handler.
 
+Capture sources implementing alternate capture methods for known DLTs (for instance, support for 802.11 on other operating systems, etc) do not need to implement a new DLT handler.
+
 ### Deriving the DLT
 
 Kismet DLT handlers are derived from `Kis_DLT_Handler` from `kis_dlt.h`.  A DLT handler needs to override the constructor and the `HandlePacket(...)` functions:
