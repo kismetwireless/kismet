@@ -63,6 +63,7 @@ void Manuf::IndexOUI() {
 	int line = 0;
 	fpos_t prev_pos;
 	short int m[3];
+    uint32_t last_oui = 0;
 
 	if (mfile == NULL)
 		return;
@@ -89,8 +90,15 @@ void Manuf::IndexOUI() {
 				oui |= (uint32_t) m[1] << 8;
 				oui |= (uint32_t) m[2];
 
+                if (oui < last_oui) {
+                    _MSG("Warning:  Manuf file appears to be out of order, expected "
+                            "sorted manuf OUI data", MSGFLAG_ERROR);
+                }
+
 				ip.oui = oui;
 				ip.pos = prev_pos;
+
+                last_oui = oui;
 
 				index_vec.push_back(ip);
 			} else {
@@ -125,10 +133,11 @@ string Manuf::LookupOUI(mac_addr in_mac) {
 	}
 
 	for (unsigned int x = 0; x < index_vec.size(); x++) {
-        if (soui > index_vec[x].oui)
+        if (soui > index_vec[x].oui) {
+            matched = x;
             continue;
+        }
 
-        matched = x;
         break;
 	}
 
@@ -164,7 +173,6 @@ string Manuf::LookupOUI(mac_addr in_mac) {
 				md.oui = soui;
 				md.manuf = MungeToPrintable(string(manuf));
 				oui_map[soui] = md;
-
 				return md.manuf;
 			}
 
@@ -173,7 +181,6 @@ string Manuf::LookupOUI(mac_addr in_mac) {
 				md.oui = soui;
 				md.manuf = "Unknown";
 				oui_map[soui] = md;
-
 				return md.manuf;
 			}
 		}
