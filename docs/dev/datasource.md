@@ -134,7 +134,7 @@ Kismet will automatically handle standard KV pairs in a message.  A datasource m
 #### CHANNELS
 Conveys a list of channels supported by this device, if there is a user presentable list for this phy type.  Channels are considered free-form strings which are unique to a phy type, but should be human readable.  Channel definitions may also represent frequencies in a form relevant to the phy, such as "2412MHz", but the representation is phy specific.
 
-Content: 
+Content:
 
 A msgpack packed dictionary of parameters containing the following:
 * "channels": Vector of strings defining channels.
@@ -206,7 +206,7 @@ Msgpack packed dictionary containing at the following values:
 #### MESSAGE
 MESSAGE KV pairs bridge directly to the messagebus of the Kismet server and are presented to users, logged, etc.
 
-Content: 
+Content:
 
 Msgpack packed dictionary containing the following values:
 * "flags": uint32 message type flags (defined in `messagebus.h`)
@@ -283,7 +283,7 @@ virtual KisDataSource *build_data_source() {
 }
 ```
 
-A datasource which operates by passing packets should be able to function with no 
+A datasource which operates by passing packets should be able to function with no
 further customization:  Packet data passed via the `PACKET` record will be
 decapsulated and inserted into the packetchain with the proper DLT.
 
@@ -309,7 +309,7 @@ public:
     virtual int HandlePacket(kis_packet *in_pack);
 };
 
-DLT_Example::DLT_Example(GlobalRegistry *in_globalreg) : 
+DLT_Example::DLT_Example(GlobalRegistry *in_globalreg) :
     Kis_DLT_Handler(in_globalreg) {
 
     /* Packet components and insertion into the packetchain is handled
@@ -332,8 +332,9 @@ DLT_Example::DLT_Example(GlobalRegistry *in_globalreg) :
    additional kis_packet records, and prepping the data for the classifier
    stage.
 */
+
 int DLT_Example::HandlePacket(kis_packet *in_pack) {
-    /* Example sanity check - do we already have packet data 
+    /* Example sanity check - do we already have packet data
        decapsulated?  For a type like radiotap or PPI that encodes another
        DLT, this encapsulated chunk might be handled differently */
     kis_datachunk *decapchunk =
@@ -360,6 +361,3 @@ int DLT_Example::HandlePacket(kis_packet *in_pack) {
 }
 
 ```
-
-
-
