@@ -283,8 +283,7 @@ virtual KisDataSource *build_data_source() {
 }
 ```
 
-A datasource which operates by passing packets should be able to function with no
-further customization:  Packet data passed via the `PACKET` record will be
+A datasource which operates by passing packets should be able to function with no further customization:  Packet data passed via the `PACKET` record will be
 decapsulated and inserted into the packetchain with the proper DLT.
 
 ## Handling the DLT
@@ -358,6 +357,81 @@ int DLT_Example::HandlePacket(kis_packet *in_pack) {
     }
 
     /* Other code goes here */
+}
+
+```
+
+## Handling Non-Packet Data
+
+Non-packet data can be decapsulated by extending the `KisDataSource::handle_packet` method.  By default this method handles defined packet types, an extended version should first call the parent instance.
+
+```C++
+void SomeDataSource::handle_packet(string in_type, KVmap in_kvmap) {
+    KisDataSource::handle_packet(in_type, in_kvmap);
+
+    string ltype = StrLower(in_type);
+
+    if (ltype == "customtype") {
+        handle_packet_custom(in_kvmap);
+    }
+}
+```
+
+Extended information can be added to a packet as a custom record and transmitted via the Kismet packetchain, or can be injected directly into the tracker for the new phy type (See the [devicetracker](/docs/dev/devicetracker.html) docs for more information).  Injecting into the packet chain allows existing Kismet code to track signal levels, location, etc, automatically.
+
+When processing a custom frame, existing KV pair handlers can be used.  For example:
+
+```C++
+void SomeDataSource::handle_packet_custom(KVmap in_kvpairs) {
+    KVmap::iterator i;
+
+    // We inject into the packetchain so we need to make a packet
+    kis_packet *packet = NULL;
+
+    // We accept signal and gps info in our custom IPC packet
+    kis_layer1_packinfo *siginfo = NULL;
+    kis_gps_packinfo *gpsinfo = NULL;
+
+    // We accept messages, so process them using the existin message KV
+    // handler
+    if ((i = in_kvpairs.find("message")) != in_kvpairs.end()) {
+        handle_kv_message(i->second);
+    }
+
+    // Generate a packet using the packetchain
+    packet = packetchain->GeneratePacket();
+
+    // Gather signal data if we have any
+    if ((i = in_kvpairs.find("signal")) != in_kvpairs.end()) {
+        siginfo = handle_kv_signal(i->second);
+    }
+
+    // Gather GPS data if we have any
+    if ((i = in_kvpairs.find("gps")) != in_kvpairs.end()) {
+        gpsinfo = handle_kv_gps(i->second);
+    }
+
+    // Add them to the packet
+    if (siginfo != NULL) {
+        packet->insert(pack_comp_l1info, siginfo);
+    }
+
+    if (gpsinfo != NULL) {
+        packet->insert(pack_comp_gps, gpsinfo);
+    }
+
+    // Gather whatever custom data we have and add it to the packet
+    if ((i = in_kvpairs.find("customfoo")) != in_kvpairs.end()) {
+        handle_kv_customfoo(i->second, packet);
+    }
+
+    // Update the last valid report time
+    inc_num_reports(1);
+    set_last_report_time(globalreg->timestamp.tv_sec);
+
+    // Inject the packet into the packet chain, this will clean up
+    // the packet when it's done with it automatically.
+    packetchain->ProcessPacket(packet);
 }
 
 ```
