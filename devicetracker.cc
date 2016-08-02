@@ -42,7 +42,7 @@
 #include "packetsource.h"
 #include "dumpfile_devicetracker.h"
 #include "entrytracker.h"
-#include "devicetracker_component.h" 
+#include "devicetracker_component.h"
 #include "msgpack_adapter.h"
 #include "xmlserialize_adapter.h"
 
@@ -58,11 +58,11 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
 
 	globalreg->InsertGlobal("DEVICE_TRACKER", this);
 
-    device_base_id = 
+    device_base_id =
         globalreg->entrytracker->RegisterField("kismet.device.base", TrackerMac,
                 "core device record");
     device_list_base_id =
-        globalreg->entrytracker->RegisterField("kismet.device.list", 
+        globalreg->entrytracker->RegisterField("kismet.device.list",
                 TrackerVector, "list of devices");
 
     phy_base_id =
@@ -74,7 +74,7 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
                 "phy entry");
 
     device_summary_base_id =
-        globalreg->entrytracker->RegisterField("kismet.device.summary_list", 
+        globalreg->entrytracker->RegisterField("kismet.device.summary_list",
                 TrackerVector, "summary list of devices");
     device_summary_entry_id =
         globalreg->entrytracker->RegisterField("kismet.device.summary", TrackerMac,
@@ -86,7 +86,7 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
         globalreg->entrytracker->RegisterField("kismet.device.packets_rrd",
                 packets_rrd, "RRD of total packets seen");
 
-	num_packets = num_datapackets = num_errorpackets = 
+	num_packets = num_datapackets = num_errorpackets =
 		num_filterpackets = 0;
 
 	conf_save = 0;
@@ -100,19 +100,19 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
 	pack_comp_common =  _PCM(PACK_COMP_COMMON) =
 		globalreg->packetchain->RegisterPacketComponent("COMMON");
 
-	pack_comp_basicdata = _PCM(PACK_COMP_BASICDATA) = 
+	pack_comp_basicdata = _PCM(PACK_COMP_BASICDATA) =
 		globalreg->packetchain->RegisterPacketComponent("BASICDATA");
 
 	_PCM(PACK_COMP_MANGLEFRAME) =
 		globalreg->packetchain->RegisterPacketComponent("MANGLEDATA");
 
-	pack_comp_radiodata = 
+	pack_comp_radiodata =
 		globalreg->packetchain->RegisterPacketComponent("RADIODATA");
 
 	pack_comp_gps =
 		globalreg->packetchain->RegisterPacketComponent("GPS");
 
-	pack_comp_capsrc = _PCM(PACK_COMP_KISCAPSRC) = 
+	pack_comp_capsrc = _PCM(PACK_COMP_KISCAPSRC) =
 		globalreg->packetchain->RegisterPacketComponent("KISCAPSRC");
 
 	// Common tracker, very early in the tracker chain
@@ -129,7 +129,7 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
 
 	tag_conf = new ConfigFile(globalreg);
 	tag_conf->ParseConfig(
-            tag_conf->ExpandLogPath(globalreg->kismet_config->FetchOpt("configdir") + 
+            tag_conf->ExpandLogPath(globalreg->kismet_config->FetchOpt("configdir") +
                 "/" + "tag.conf", "", "", 0, 1).c_str());
 
     // Set up the device timeout
@@ -142,13 +142,30 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
             device_idle_expiration << " seconds.";
         _MSG(ss.str(), MSGFLAG_INFO);
 
+		// Schedule device idle reaping every minute
         device_idle_timer =
-            globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 60, NULL, 
+            globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 60, NULL,
                 1, this);
     } else {
         device_idle_timer = -1;
     }
 
+	max_num_devices =
+		globalreg->kismet_config->FetchOptUInt("tracker_max_devices", 0);
+
+	if (max_num_devices > 0) {
+		stringstream ss;
+		ss << "Limiting maximum number of devices to " << max_num_devices <<
+			" older devices will be removed from tracking when this limit is reached.";
+		_MSG(ss.str(), MSGFLAG_INFO);
+
+		// Schedule max device reaping every 5 seconds
+		max_devices_timer =
+			globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 5, NULL,
+				1, this);
+	} else {
+		max_devices_timer = -1;
+	}
 }
 
 Devicetracker::~Devicetracker() {
@@ -158,6 +175,7 @@ Devicetracker::~Devicetracker() {
 										  CHAINPOS_TRACKER);
 
     globalreg->timetracker->RemoveTimer(device_idle_timer);
+	globalreg->timetracker->RemoveTimer(max_devices_timer);
 
     // TODO broken for now
     /*
@@ -186,7 +204,7 @@ Devicetracker::~Devicetracker() {
 void Devicetracker::SaveTags() {
 	int ret;
 
-	string dir = 
+	string dir =
 		tag_conf->ExpandLogPath(globalreg->kismet_config->FetchOpt("configdir"),
 								"", "", 0, 1);
 
@@ -309,7 +327,7 @@ int Devicetracker::FetchNumFilterpackets(int in_phy) {
 int Devicetracker::RegisterPhyHandler(Kis_Phy_Handler *in_weak_handler) {
 	int num = next_phy_id++;
 
-	Kis_Phy_Handler *strongphy = 
+	Kis_Phy_Handler *strongphy =
 		in_weak_handler->CreatePhyHandler(globalreg, this, num);
 
 	phy_handler_map[num] = strongphy;
@@ -318,7 +336,7 @@ int Devicetracker::RegisterPhyHandler(Kis_Phy_Handler *in_weak_handler) {
 	phy_datapackets[num] = 0;
 	phy_errorpackets[num] = 0;
 	phy_filterpackets[num] = 0;
-	
+
 	_MSG("Registered PHY handler '" + strongphy->FetchPhyName() + "' as ID " +
 		 IntToString(num), MSGFLAG_INFO);
 
@@ -336,13 +354,13 @@ kis_tracked_device_base *Devicetracker::FetchDevice(uint64_t in_key) {
 	return NULL;
 }
 
-kis_tracked_device_base *Devicetracker::FetchDevice(mac_addr in_device, 
+kis_tracked_device_base *Devicetracker::FetchDevice(mac_addr in_device,
         unsigned int in_phy) {
 	return FetchDevice(DevicetrackerKey::MakeKey(in_device, in_phy));
 }
 
 int Devicetracker::CommonTracker(kis_packet *in_pack) {
-	kis_common_info *pack_common = 
+	kis_common_info *pack_common =
 		(kis_common_info *) in_pack->fetch(pack_comp_common);
 
 	kis_ref_capsource *pack_capsrc =
@@ -401,7 +419,7 @@ int Devicetracker::CommonTracker(kis_packet *in_pack) {
 		if (pack_common->type == packet_basic_data) {
 			num_datapackets++;
 			phy_datapackets[pack_common->phyid]++;
-		} 
+		}
 	}
 
     // This is all moved to phys doing smart things
@@ -433,18 +451,18 @@ int Devicetracker::CommonTracker(kis_packet *in_pack) {
 
 // This function handles populating the base common info about a device.
 // Specific info should be populated by the phy handler.
-kis_tracked_device_base *Devicetracker::UpdateCommonDevice(mac_addr in_mac, 
+kis_tracked_device_base *Devicetracker::UpdateCommonDevice(mac_addr in_mac,
         int in_phy, kis_packet *in_pack, unsigned int in_flags) {
 
     stringstream sstr;
 
-	kis_layer1_packinfo *pack_l1info = 
+	kis_layer1_packinfo *pack_l1info =
 		(kis_layer1_packinfo *) in_pack->fetch(pack_comp_radiodata);
 	kis_gps_packinfo *pack_gpsinfo =
 		(kis_gps_packinfo *) in_pack->fetch(pack_comp_gps);
 	kis_ref_capsource *pack_capsrc =
 		(kis_ref_capsource *) in_pack->fetch(pack_comp_capsrc);
-	kis_common_info *pack_common = 
+	kis_common_info *pack_common =
 		(kis_common_info *) in_pack->fetch(pack_comp_common);
 
 	kis_tracked_device_base *device = NULL;
@@ -461,7 +479,7 @@ kis_tracked_device_base *Devicetracker::UpdateCommonDevice(mac_addr in_mac,
 
 	if ((device = FetchDevice(key)) == NULL) {
         device = new kis_tracked_device_base(globalreg, device_base_id);
-        
+
         // Always hold a linkage to the device for ourselves
         device->link();
 
@@ -474,12 +492,12 @@ kis_tracked_device_base *Devicetracker::UpdateCommonDevice(mac_addr in_mac,
             tracked_map[device->get_key()] = device;
             tracked_vec.push_back(device);
         }
-    
+
         device->set_first_time(in_pack->ts.tv_sec);
 
-        if (globalreg->manufdb != NULL) 
+        if (globalreg->manufdb != NULL)
             device->set_manuf(globalreg->manufdb->LookupOUI(device->get_macaddr()));
-    } 
+    }
 
     device->set_last_time(in_pack->ts.tv_sec);
 
@@ -543,9 +561,9 @@ kis_tracked_device_base *Devicetracker::UpdateCommonDevice(mac_addr in_mac,
 }
 
 int Devicetracker::PopulateCommon(kis_tracked_device_base *device, kis_packet *in_pack) {
-	kis_common_info *pack_common = 
+	kis_common_info *pack_common =
 		(kis_common_info *) in_pack->fetch(pack_comp_common);
-	kis_layer1_packinfo *pack_l1info = 
+	kis_layer1_packinfo *pack_l1info =
 		(kis_layer1_packinfo *) in_pack->fetch(pack_comp_radiodata);
 	kis_gps_packinfo *pack_gpsinfo =
 		(kis_gps_packinfo *) in_pack->fetch(pack_comp_gps);
@@ -569,7 +587,7 @@ int Devicetracker::PopulateCommon(kis_tracked_device_base *device, kis_packet *i
 
     // device->set_first_time(in_pack->ts.tv_sec);
 
-    if (globalreg->manufdb != NULL) 
+    if (globalreg->manufdb != NULL)
         device->set_manuf(globalreg->manufdb->LookupOUI(device->get_macaddr()));
 
     // Set name
@@ -631,7 +649,7 @@ int Devicetracker::PopulateCommon(kis_tracked_device_base *device, kis_packet *i
 	if (!(pack_common->channel == "0"))
         device->set_channel(pack_common->channel);
 
-	kis_tracked_device_info *devinfo = 
+	kis_tracked_device_info *devinfo =
 		(kis_tracked_device_info *) in_pack->fetch(pack_comp_device);
 
 	if (devinfo == NULL) {
@@ -644,7 +662,7 @@ int Devicetracker::PopulateCommon(kis_tracked_device_base *device, kis_packet *i
 }
 
 void Devicetracker::WriteXML(FILE *in_logfile) {
-	Packetsourcetracker *pst = 
+	Packetsourcetracker *pst =
 		(Packetsourcetracker *) globalreg->FetchGlobal("PACKETSOURCE_TRACKER");
 
 	// Punt and die, better than segv
@@ -654,7 +672,7 @@ void Devicetracker::WriteXML(FILE *in_logfile) {
 	}
 
 #if 0
-	GpsWrapper *gpsw = 
+	GpsWrapper *gpsw =
 		(GpsWrapper *) globalreg->FetchGlobal("GPSWRAPPER");
 
 	if (gpsw == NULL) {
@@ -665,7 +683,7 @@ void Devicetracker::WriteXML(FILE *in_logfile) {
 
 	fprintf(in_logfile, "<?xml version=\"1.0\"?>\n");
 
-	fprintf(in_logfile, 
+	fprintf(in_logfile,
 			"<k:run xmlns:k=\"http://www.kismetwireless.net/xml\"\n"
 			"xmlns:xs=\"http://www.w3.org/2001/XMLSchema\"\n"
 			"xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n"
@@ -673,7 +691,7 @@ void Devicetracker::WriteXML(FILE *in_logfile) {
 
 	for (map<int, Kis_Phy_Handler *>::iterator x = phy_handler_map.begin();
 		 x != phy_handler_map.end(); ++x) {
-		fprintf(in_logfile, 
+		fprintf(in_logfile,
 				"\nxmlns:%s=\"http://www.kismetwireless.net/xml/%s\"",
 				x->second->FetchPhyXsdNs().c_str(),
 				x->second->FetchPhyXsdNs().c_str());
@@ -681,7 +699,7 @@ void Devicetracker::WriteXML(FILE *in_logfile) {
 	fprintf(in_logfile, ">\n\n");
 
 	// write the schema into the run element
-	fprintf(in_logfile, "<xs:schema\n" 
+	fprintf(in_logfile, "<xs:schema\n"
 			"xmlns:xs=\"http://www.w3.org/2001/XMLSchema\"\n"
 			"xmlns=\"http://xmlns.myexample.com/version3\"\n"
 			"targetNamespace=\"http://www.kismetwireless.net/xml\"\n"
@@ -700,7 +718,7 @@ void Devicetracker::WriteXML(FILE *in_logfile) {
 	fprintf(in_logfile, "elementFormDefault=\"unqualified\"\n"
 			"attributeFromDefault=\"unqualified\">\n");
 
-	fprintf(in_logfile, 
+	fprintf(in_logfile,
 			"<xs:import namespace=\"http://www.kismetwireless.net/xml/common\" "
 			"schemaLocation=\"http://www.kismetwireless.net/xml/common.xsd\"/>\n"
 			"<xs:import namespace=\"http://www.kismetwireless.net/xml/device\" "
@@ -712,7 +730,7 @@ void Devicetracker::WriteXML(FILE *in_logfile) {
 
 	for (map<int, Kis_Phy_Handler *>::iterator x = phy_handler_map.begin();
 		 x != phy_handler_map.end(); ++x) {
-		fprintf(in_logfile, 
+		fprintf(in_logfile,
 				"<xs:import namespace=\"http://www.kismetwireless.net/xml/%s\" "
 				"schemaLocation=\"%s\"/>\n",
 				x->second->FetchPhyXsdNs().c_str(),
@@ -722,9 +740,9 @@ void Devicetracker::WriteXML(FILE *in_logfile) {
 	fprintf(in_logfile,
 			"<xs:element name=\"run\"/>\n"
 			"</xs:schema>\n");
-	
 
-	fprintf(in_logfile, 
+
+	fprintf(in_logfile,
 			"<version>%s-%s-%s</version>\n",
 			globalreg->version_major.c_str(),
 			globalreg->version_minor.c_str(),
@@ -733,12 +751,12 @@ void Devicetracker::WriteXML(FILE *in_logfile) {
 	fprintf(in_logfile,
 			"<server>%s</server>\n",
 			SanitizeXML(globalreg->servername).c_str());
-	
+
 	fprintf(in_logfile,
 			"<logname>%s</logname>\n",
 			SanitizeXML(globalreg->logname).c_str());
 
-	fprintf(in_logfile, 
+	fprintf(in_logfile,
 			"<startTime>%.24s</startTime>\n",
 			ctime(&(globalreg->start_time)));
 	fprintf(in_logfile,
@@ -811,7 +829,7 @@ void Devicetracker::WriteXML(FILE *in_logfile) {
 
 	for (map<int, Kis_Phy_Handler *>::iterator x = phy_handler_map.begin();
 		 x != phy_handler_map.end(); ++x) {
-		fprintf(in_logfile, 
+		fprintf(in_logfile,
 				"<phyType>\n"
 				"<name>%s</name>\n"
 				"<devices>%u</devices>\n"
@@ -830,7 +848,7 @@ void Devicetracker::WriteXML(FILE *in_logfile) {
 	fprintf(in_logfile, "</phyTypes>\n");
 
 #if 0
-	fprintf(in_logfile, 
+	fprintf(in_logfile,
 			"<gpsDevices>\n"
 			"<gpsDevice>\n"
 			"<device>%s</device>\n"
@@ -850,20 +868,20 @@ void Devicetracker::WriteXML(FILE *in_logfile) {
 		kis_tracked_device_base *dev = (*devlist)[x];
 		Kis_Phy_Handler *phy = FetchPhyHandler(dev->get_key());
 
-		if (phy == NULL) 
+		if (phy == NULL)
 			fprintf(in_logfile, "<device phy=\"unknown\">\n");
 		else
-			fprintf(in_logfile, 
+			fprintf(in_logfile,
 					"<device xsi:type=\"%s:%sdevice\" phy=\"%s\">\n",
 					phy->FetchPhyXsdNs().c_str(), phy->FetchPhyXsdNs().c_str(),
 					phy->FetchPhyXsdNs().c_str());
 
-		fprintf(in_logfile, 
+		fprintf(in_logfile,
 				"<deviceMac>%s</deviceMac>\n",
 				dev->get_mac().Mac2String().c_str());
 
 		if (dev->get_name() != "")
-			fprintf(in_logfile, 
+			fprintf(in_logfile,
 					"<name>%s</name>\n",
 					SanitizeXML(dev->get_name()).c_str());
 
@@ -896,7 +914,7 @@ void Devicetracker::WriteXML(FILE *in_logfile) {
 		fprintf(in_logfile, "</commonCryptTypes>\n");
 
         time_t t = dev->get_first_time();
-		fprintf(in_logfile, 
+		fprintf(in_logfile,
 				"<firstSeen>%.24s</firstSeen>\n",
 				ctime(&t));
         t = dev->get_last_time();
@@ -906,7 +924,7 @@ void Devicetracker::WriteXML(FILE *in_logfile) {
 
         TrackerElement *seenby_map = dev->get_seenby_map();
 
-        if (seenby_map->size() > 0) 
+        if (seenby_map->size() > 0)
 			fprintf(in_logfile, "<seenBySources>\n");
 
         for (TrackerElement::map_const_iterator si = seenby_map->begin();
@@ -915,11 +933,11 @@ void Devicetracker::WriteXML(FILE *in_logfile) {
 
             time_t st;
 
-			fprintf(in_logfile, 
+			fprintf(in_logfile,
 					"<seenBySource>\n"
 					"<uuid>%s</uuid>\n",
 					sbd->get_uuid().UUID2String().c_str());
-            
+
             st = sbd->get_first_time();
 			fprintf(in_logfile, "<firstSeen>%.24s</firstSeen>\n",
 					ctime(&st));
@@ -950,14 +968,14 @@ void Devicetracker::WriteXML(FILE *in_logfile) {
 			fprintf(in_logfile, "</seenBySource>\n");
 		}
 
-        if (seenby_map->size() > 0) 
+        if (seenby_map->size() > 0)
 			fprintf(in_logfile, "</seenBySources>\n");
 
         kis_tracked_location *location = dev->get_location();
         kis_tracked_signal_data *snrdata = dev->get_signal_data();
 
         if (location->get_valid()) {
-			fprintf(in_logfile, 
+			fprintf(in_logfile,
 					"<gpsAverage>\n"
 					"<latitude>%f</latitude>\n"
 					"<longitude>%f</longitude>\n"
@@ -1009,24 +1027,24 @@ void Devicetracker::WriteXML(FILE *in_logfile) {
 			fprintf(in_logfile, "<lastSignal>%d</lastSignal>\n",
 					snrdata->get_last_signal_dbm());
 
-            if (snrdata->get_last_noise_dbm() != 0) 
+            if (snrdata->get_last_noise_dbm() != 0)
 				fprintf(in_logfile, "<lastNoise>%d</lastNoise>\n",
 						snrdata->get_last_noise_dbm());
 
 			fprintf(in_logfile, "<minSignal>%d</minSignal>\n",
 					snrdata->get_min_signal_dbm());
 
-            if (snrdata->get_min_noise_dbm() != 0) 
+            if (snrdata->get_min_noise_dbm() != 0)
 				fprintf(in_logfile, "<minNoise>%d</minNoise>\n",
 						snrdata->get_min_noise_dbm());
 
 			fprintf(in_logfile, "<maxSignal>%d</maxSignal>\n",
 					snrdata->get_max_signal_dbm());
 
-            if (snrdata->get_max_noise_dbm() != 0) 
+            if (snrdata->get_max_noise_dbm() != 0)
 				fprintf(in_logfile, "<maxNoise>%d</maxNoise>\n",
 						snrdata->get_max_noise_dbm());
-			
+
 			fprintf(in_logfile, "</signalLevel>\n");
 		} else if (snrdata->get_last_signal_rssi() != 0) {
 			// Smells like RSSI
@@ -1052,11 +1070,11 @@ void Devicetracker::WriteXML(FILE *in_logfile) {
 			if (snrdata->get_max_noise_rssi() != 0)
 				fprintf(in_logfile, "<maxNoise>%d</maxNoise>\n",
 						snrdata->get_max_noise_rssi());
-			
+
 			fprintf(in_logfile, "</signalLevel>\n");
 		}
 
-		fprintf(in_logfile, 
+		fprintf(in_logfile,
 				"<packets>%lu</packets>\n"
 				"<packetLink>%lu</packetLink>\n"
 				"<packetData>%lu</packetData>\n"
@@ -1064,7 +1082,7 @@ void Devicetracker::WriteXML(FILE *in_logfile) {
 				"<packetError>%lu</packetError>\n"
 				"<dataBytes>%lu</dataBytes>\n",
                 dev->get_packets(), dev->get_llc_packets(), dev->get_data_packets(),
-                dev->get_filter_packets(), dev->get_error_packets(), 
+                dev->get_filter_packets(), dev->get_error_packets(),
                 dev->get_datasize());
 
 		if (dev->get_manuf() != "")
@@ -1093,7 +1111,7 @@ void Devicetracker::WriteXML(FILE *in_logfile) {
 }
 
 void Devicetracker::WriteTXT(FILE *in_logfile) {
-	Packetsourcetracker *pst = 
+	Packetsourcetracker *pst =
 		(Packetsourcetracker *) globalreg->FetchGlobal("PACKETSOURCE_TRACKER");
 
 	// Punt and die, better than segv
@@ -1103,7 +1121,7 @@ void Devicetracker::WriteTXT(FILE *in_logfile) {
 	}
 
 #if 0
-	GpsWrapper *gpsw = 
+	GpsWrapper *gpsw =
 		(GpsWrapper *) globalreg->FetchGlobal("GPSWRAPPER");
 
 	if (gpsw == NULL) {
@@ -1196,7 +1214,7 @@ void Devicetracker::WriteTXT(FILE *in_logfile) {
 
 	for (map<int, Kis_Phy_Handler *>::iterator x = phy_handler_map.begin();
 		 x != phy_handler_map.end(); ++x) {
-		fprintf(in_logfile, 
+		fprintf(in_logfile,
 				" Phy name: %s\n"
 				" Devices: %u\n"
 				" Packets: %u\n"
@@ -1222,7 +1240,7 @@ void Devicetracker::WriteTXT(FILE *in_logfile) {
 	}
 	fprintf(in_logfile, "\n");
 #endif
-	
+
 	vector<kis_tracked_device_base *> *devlist; // = FetchDevices(KIS_PHY_ANY);
 
 	if (devlist->size() > 0)
@@ -1232,18 +1250,18 @@ void Devicetracker::WriteTXT(FILE *in_logfile) {
 		kis_tracked_device_base *dev = (*devlist)[x];
 		Kis_Phy_Handler *phy = FetchPhyHandler(dev->get_key());
 
-		fprintf(in_logfile, 
+		fprintf(in_logfile,
 				" Device MAC: %s\n",
                 dev->get_mac().Mac2String().c_str());
 
-		if (phy == NULL) 
+		if (phy == NULL)
 			fprintf(in_logfile, " Device phy: Unknown\n");
 		else
 			fprintf(in_logfile, " Device phy: %s\n",
 					phy->FetchPhyName().c_str());
 
 		if (dev->get_name() != "")
-			fprintf(in_logfile, 
+			fprintf(in_logfile,
 					" Device name: %s\n",
 					dev->get_name().c_str());
 
@@ -1252,7 +1270,7 @@ void Devicetracker::WriteTXT(FILE *in_logfile) {
 					dev->get_type_string().c_str());
 
 		fprintf(in_logfile, " Basic device type:\n");
-		if (dev->get_basic_type_set() == KIS_DEVICE_BASICTYPE_DEVICE) 
+		if (dev->get_basic_type_set() == KIS_DEVICE_BASICTYPE_DEVICE)
 			fprintf(in_logfile, "  Generic device (No special characteristics detected)\n");
 		if ((dev->get_basic_type_set() & KIS_DEVICE_BASICTYPE_AP))
 			fprintf(in_logfile, "  AP (Central network controller)\n");
@@ -1281,7 +1299,7 @@ void Devicetracker::WriteTXT(FILE *in_logfile) {
         time_t dt;
 
         dt = dev->get_first_time();
-		fprintf(in_logfile, 
+		fprintf(in_logfile,
 				" First seen: %.24s\n",
 				ctime(&(dt)));
         dt = dev->get_last_time();
@@ -1299,7 +1317,7 @@ void Devicetracker::WriteTXT(FILE *in_logfile) {
                 si != seenby_map->end(); ++si) {
             kis_tracked_seenby_data *sbd = (kis_tracked_seenby_data *) si->second;
 
-			fprintf(in_logfile, 
+			fprintf(in_logfile,
 					"  UUID: %s>\n",
 					sbd->get_uuid().UUID2String().c_str());
 
@@ -1337,7 +1355,7 @@ void Devicetracker::WriteTXT(FILE *in_logfile) {
         kis_tracked_signal_data *snrdata = dev->get_signal_data();
 
         if (location->get_valid()) {
-			fprintf(in_logfile, 
+			fprintf(in_logfile,
 					"  GPS average latitude: %f\n"
 					"  GPS average longitude: %f\n"
 					"  GPS average altitude: %f\n"
@@ -1425,7 +1443,7 @@ void Devicetracker::WriteTXT(FILE *in_logfile) {
 			fprintf(in_logfile, "\n");
         }
 
-		fprintf(in_logfile, 
+		fprintf(in_logfile,
 				" Total packets: %lu\n"
 				" Link-type packets: %lu\n"
 				" Data packets: %lu\n"
@@ -1436,12 +1454,12 @@ void Devicetracker::WriteTXT(FILE *in_logfile) {
                 dev->get_filter_packets(), dev->get_error_packets(),
                 dev->get_datasize());
 
-        if (dev->get_manuf() != "") 
+        if (dev->get_manuf() != "")
 			fprintf(in_logfile, " Manufacturer: %s\n\n",
 					dev->get_manuf().c_str());
 
         if (dev->get_tag() != "") {
-            fprintf(in_logfile, " Tag: %s\n", 
+            fprintf(in_logfile, " Tag: %s\n",
                     dev->get_tag().c_str());
 		}
 
@@ -1460,7 +1478,7 @@ void Devicetracker::WriteTXT(FILE *in_logfile) {
 
 }
 
-int Devicetracker::LogDevices(string in_logclass, 
+int Devicetracker::LogDevices(string in_logclass,
 							  string in_logtype, FILE *in_logfile) {
 	string logclass = StrLower(in_logclass);
 	string logtype = StrLower(in_logtype);
@@ -1544,7 +1562,7 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
     }
 
     // Simple fixed URLS
-    
+
     if (strcmp(path, "/devices/all_devices.msgpack") == 0)
         return true;
 
@@ -1643,7 +1661,7 @@ void Devicetracker::httpd_msgpack_all_phys(std::stringstream &stream) {
 void Devicetracker::httpd_msgpack_device_summary(std::stringstream &stream,
         TrackerElementVector *subvec) {
 
-    TrackerElement *devvec = 
+    TrackerElement *devvec =
         globalreg->entrytracker->GetTrackedInstance(device_summary_base_id);
 
     if (subvec == NULL) {
@@ -1666,7 +1684,7 @@ void Devicetracker::httpd_msgpack_device_summary(std::stringstream &stream,
         for (TrackerElementVector::const_iterator x = subvec->begin();
                 x != subvec->end(); ++x) {
             kis_tracked_device_summary *summary =
-                new kis_tracked_device_summary(globalreg, device_summary_entry_id, 
+                new kis_tracked_device_summary(globalreg, device_summary_entry_id,
                         (kis_tracked_device_base *) *x);
             devvec->add_vector(summary);
         }
@@ -1680,7 +1698,7 @@ void Devicetracker::httpd_msgpack_device_summary(std::stringstream &stream,
 void Devicetracker::httpd_xml_device_summary(std::stringstream &stream) {
     local_locker lock(&devicelist_mutex);
 
-    TrackerElement *devvec = 
+    TrackerElement *devvec =
         globalreg->entrytracker->GetTrackedInstance(device_summary_base_id);
 
     for (unsigned int x = 0; x < tracked_vec.size(); x++) {
@@ -1693,7 +1711,7 @@ void Devicetracker::httpd_xml_device_summary(std::stringstream &stream) {
     XmlserializeAdapter *xml = new XmlserializeAdapter(globalreg);
 
     xml->RegisterField("kismet.device.list", "SummaryDevices");
-    xml->RegisterFieldNamespace("kismet.device.list", 
+    xml->RegisterFieldNamespace("kismet.device.list",
             "k",
             "http://www.kismetwireless.net/xml/summary",
             "http://www.kismetwireless.net/xml/summary.xsd");
@@ -1737,7 +1755,7 @@ void Devicetracker::httpd_xml_device_summary(std::stringstream &stream) {
 
     xml->RegisterField("kismet.common.signal.peak_loc", "peaklocation");
     xml->RegisterFieldXsitype("kismet.common.signal.peak_loc", "kismet:location");
-    
+
     xml->RegisterField("kismet.common.location.lat", "lat");
     xml->RegisterField("kismet.common.location.lon", "lon");
     xml->RegisterField("kismet.common.location.alt", "alt");
@@ -1836,7 +1854,7 @@ void Devicetracker::Httpd_CreateStreamResponse(
                 return;
             }
 
-            TrackerElement *devvec = 
+            TrackerElement *devvec =
                 globalreg->entrytracker->GetTrackedInstance(device_list_base_id);
 
             vector<kis_tracked_device_base *>::iterator vi;
@@ -1859,14 +1877,22 @@ void Devicetracker::MatchOnDevices(DevicetrackerFilterWorker *worker) {
     local_locker lock(&devicelist_mutex);
 
     map<uint64_t, kis_tracked_device_base *>::iterator tmi;
-    
+
     for (tmi = tracked_map.begin(); tmi != tracked_map.end(); ++tmi) {
         worker->MatchDevice(this, tmi->second);
     }
 
     worker->Finalize(this);
 }
-    
+
+// Simple std::sort comparison function to order by the least frequently
+// seen devices
+bool devicetracker_sort_lastseen(kis_tracked_device_base *a,
+	kis_tracked_device_base *b) {
+
+	return a->get_last_time() < b->get_last_time();
+}
+
 int Devicetracker::timetracker_event(int eventid) {
     if (eventid == device_idle_timer) {
         local_locker lock(&devicelist_mutex);
@@ -1876,7 +1902,7 @@ int Devicetracker::timetracker_event(int eventid) {
         // Find all eligible devices, remove them from the tracked vec
         for (vector<kis_tracked_device_base *>::iterator i =
                 tracked_vec.begin(); i != tracked_vec.end(); /* */ ) {
-            if (globalreg->timestamp.tv_sec - (*i)->get_last_time() > 
+            if (globalreg->timestamp.tv_sec - (*i)->get_last_time() >
                     device_idle_expiration) {
                 target_devs.push_back(*i);
                 tracked_vec.erase(i);
@@ -1899,17 +1925,49 @@ int Devicetracker::timetracker_event(int eventid) {
             (*i)->unlink();
         }
 
-    }
+    } else if (eventid == max_devices_timer) {
+		local_locker lock(&devicelist_mutex);
+
+		// Do nothing if we don't care
+		if (max_num_devices <= 0)
+			return 1;
+
+		// Do nothing if the number of devices is less than the max
+		if (tracked_vec.size() <= max_num_devices)
+			return 1;
+
+		// Now things start getting expensive.  Start by sorting the
+		// vector of devices - we don't use it for anything else in a sorted
+		// state, so sorting it by last seen should be a) safe and b) save us
+		// some time going forwards since it will be mostly sorted already
+		std::sort(tracked_vec.begin(), tracked_vec.end(), devicetracker_sort_lastseen);
+
+		unsigned int drop = tracked_vec.size() - max_num_devices;
+		fprintf(stderr, "debug - about to forget %u devices (from %u) max %u\n", drop, tracked_vec.size(), max_num_devices);
+
+		// Figure out how many we don't care about, and remove them from the map
+		for (unsigned int d = 0; d < drop; d++) {
+			device_itr mi = tracked_map.find(tracked_vec[d]->get_key());
+
+			if (mi != tracked_map.end())
+				tracked_map.erase(mi);
+
+			// Pre-emptively unlink because we're about to go through and clear
+			// them out of the vec in bulk
+			mi->second->unlink();
+		}
+
+		// Clear them out of the vector
+		tracked_vec.erase(tracked_vec.begin(), tracked_vec.begin() + drop);
+	}
 
     // Loop
     return 1;
 }
 
 void Devicetracker::usage(const char *name __attribute__((unused))) {
-    printf("\n"); 
+    printf("\n");
 	printf(" *** Device Tracking Options ***\n");
 	printf("     --device-timeout=n       Expire devices after N seconds\n"
           );
 }
-
-

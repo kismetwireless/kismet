@@ -52,7 +52,7 @@
 #include "kis_net_microhttpd.h"
 
 // How big the main vector of components is, if we ever get more than this
-// many tracked components we'll need to expand this but since it ties to 
+// many tracked components we'll need to expand this but since it ties to
 // memory and track record creation it starts relatively low
 #define MAX_TRACKER_COMPONENTS	64
 
@@ -61,7 +61,7 @@
 
 // Helper for making keys
 //
-// Device keys are phy and runtime specific.  
+// Device keys are phy and runtime specific.
 //
 // A device key should not be exported to file with the phy component.
 // A device key may be exported to a client with the phy component intact,
@@ -106,7 +106,7 @@ class Devicetracker;
 // in the display filter.
 //
 // Generic device.  Everything is a device.  If the phy has no
-// distinguishing factors for classifying it as anything else, this is 
+// distinguishing factors for classifying it as anything else, this is
 // what it gets to be.
 #define KIS_DEVICE_BASICTYPE_DEVICE		0
 // Access point (in wifi terms) or otherwise central coordinating device
@@ -136,7 +136,7 @@ class Devicetracker;
 class kis_tracked_device_base : public tracker_component {
 public:
     kis_tracked_device_base(GlobalRegistry *in_globalreg, int in_id) :
-        tracker_component(in_globalreg, in_id) { 
+        tracker_component(in_globalreg, in_id) {
 
         dirty = false;
 
@@ -145,7 +145,7 @@ public:
         reserve_fields(NULL);
     }
 
-    kis_tracked_device_base(GlobalRegistry *in_globalreg, int in_id, 
+    kis_tracked_device_base(GlobalRegistry *in_globalreg, int in_id,
             TrackerElement *e) : tracker_component(in_globalreg, in_id) {
 
         dirty = false;
@@ -163,7 +163,7 @@ public:
     __Proxy(key, uint64_t, uint64_t, uint64_t, key);
 
     __Proxy(macaddr, mac_addr, mac_addr, mac_addr, macaddr);
-    
+
     __Proxy(phyname, string, string, string, phyname);
 
     __Proxy(devicename, string, string, string, devicename);
@@ -218,7 +218,7 @@ public:
     __Proxy(frequency, double, double, double, frequency);
 
     __Proxy(manuf, string, string, string, manuf);
-    
+
     __Proxy(num_alerts, uint32_t, unsigned int, unsigned int, alert);
 
     __ProxyTrackable(signal_data, kis_tracked_signal_data, signal_data);
@@ -247,7 +247,7 @@ public:
         TrackerElement::double_map_iterator i = freq_khz_map->double_find(frequency);
 
         if (i == freq_khz_map->double_end()) {
-            TrackerElement *e = 
+            TrackerElement *e =
                 globalreg->entrytracker->GetTrackedInstance(frequency_val_id);
             e->set((uint64_t) 1);
             freq_khz_map->add_doublemap(frequency, e);
@@ -256,8 +256,8 @@ public:
         }
     }
 
-    kis_tracked_seenby_data *get_seenby_map() { 
-        return (kis_tracked_seenby_data *) seenby_map; 
+    kis_tracked_seenby_data *get_seenby_map() {
+        return (kis_tracked_seenby_data *) seenby_map;
     }
 
     void inc_seenby_count(KisPacketSource *source, time_t tv_sec, int frequency) {
@@ -310,7 +310,7 @@ protected:
             RegisterField("kismet.device.base.phyname", TrackerString,
                     "phy name", (void **) &phyname);
 
-        devicename_id = 
+        devicename_id =
             RegisterField("kismet.device.base.name", TrackerString,
                     "printable device name", (void **) &devicename);
 
@@ -318,7 +318,7 @@ protected:
             RegisterField("kismet.device.base.username", TrackerString,
                     "user name", (void **) &username);
 
-        type_string_id = 
+        type_string_id =
             RegisterField("kismet.device.base.type", TrackerString,
                     "printable device type", (void **) &type_string);
 
@@ -334,7 +334,7 @@ protected:
             RegisterField("kismet.device.base.basic_crypt_set", TrackerUInt64,
                     "bitset of basic encryption", (void **) &basic_crypt_set);
 
-        first_time_id = 
+        first_time_id =
             RegisterField("kismet.device.base.first_time", TrackerUInt64,
                     "first time seen time_t", (void **) &first_time);
         last_time_id =
@@ -384,7 +384,7 @@ protected:
                     data_rrd_builder, "packet size rrd");
         delete(data_rrd_builder);
 
-        kis_tracked_signal_data *sig_builder = 
+        kis_tracked_signal_data *sig_builder =
             new kis_tracked_signal_data(globalreg, 0);
         signal_data_id =
             RegisterComplexField("kismet.device.base.signal", sig_builder,
@@ -431,10 +431,10 @@ protected:
             globalreg->entrytracker->RegisterField("kismet.device.base.frequency.count",
                     TrackerUInt64, "frequency packet count");
 
-        kis_tracked_seenby_data *seenby_builder = 
+        kis_tracked_seenby_data *seenby_builder =
             new kis_tracked_seenby_data(globalreg, 0);
         seenby_val_id =
-            globalreg->entrytracker->RegisterField("kismet.device.base.seenby.data", 
+            globalreg->entrytracker->RegisterField("kismet.device.base.seenby.data",
                     seenby_builder, "seen-by data");
         delete(seenby_builder);
 
@@ -499,7 +499,7 @@ protected:
     int username_id;
 
     // Printable basic type relevant to the phy, ie "Wired", "AP", "Bluetooth", etc.
-    // This can be set per-phy and is treated as a printable interpretation.  
+    // This can be set per-phy and is treated as a printable interpretation.
     // This should be empty if the phy layer is unable to add something intelligent
     TrackerElement *type_string;
     int type_string_id;
@@ -525,11 +525,11 @@ protected:
     // Packet counts
     TrackerElement *packets, *tx_packets, *rx_packets,
                    // link-level packets
-                   *llc_packets, 
+                   *llc_packets,
                    // known-bad packets
                    *error_packets,
                    // data packets
-                   *data_packets, 
+                   *data_packets,
                    // Encrypted data packets (double-counted with data)
                    *crypt_packets,
                    // Excluded / filtered packets
@@ -609,14 +609,14 @@ public:
     DevicetrackerFilterWorker() { };
 
     // Perform a match on a device
-    virtual void MatchDevice(Devicetracker *devicetracker, 
+    virtual void MatchDevice(Devicetracker *devicetracker,
             kis_tracked_device_base *base) = 0;
 
     // Finalize operations
     virtual void Finalize(Devicetracker *devicetracker) { }
 };
 
-class Devicetracker : public Kis_Net_Httpd_Stream_Handler, 
+class Devicetracker : public Kis_Net_Httpd_Stream_Handler,
     public TimetrackerEvent {
 public:
 	Devicetracker(GlobalRegistry *in_globalreg);
@@ -652,10 +652,10 @@ public:
 	kis_tracked_device_base *FetchDevice(mac_addr in_device, unsigned int in_phy);
 
     // Perform a device filter.  Pass a subclassed filter instance.  It is not
-    // thread safe to retain a vector/copy of devices, so all work should be 
+    // thread safe to retain a vector/copy of devices, so all work should be
     // done inside the worker
     void MatchOnDevices(DevicetrackerFilterWorker *worker);
-	
+
 	typedef map<uint64_t, kis_tracked_device_base *>::iterator device_itr;
 	typedef map<uint64_t, kis_tracked_device_base *>::const_iterator const_device_itr;
 
@@ -670,7 +670,7 @@ public:
     // Add common into to a device.  If necessary, create the new device.
     //
     // This will update location, signal, manufacturer, and seenby values.
-    // It will NOT update packet count, data size, or encryption options:  The 
+    // It will NOT update packet count, data size, or encryption options:  The
     // Phy handler should update those values itself.
     //
     // Phy handlers should call this to populate associated devices when a phy
@@ -678,7 +678,7 @@ public:
     //
     // It is recommended that plugin developers look at the UpdateCommonDevice
     // implementation in devicetracker.cc as well as the reference implementations
-    // in phy80211 and other native code, as this is one of the most complex 
+    // in phy80211 and other native code, as this is one of the most complex
     // functions a phy handler will interact with when building trackable devices.
     //
     // Accepts a bitset of flags for what attributes of the device should be
@@ -697,9 +697,8 @@ public:
 #define UCD_UPDATE_SEENBY       (1 << 4)
 // Update encryption options
 #define UCD_UPDATE_ENCRYPTION   (1 << 5)
-    kis_tracked_device_base *UpdateCommonDevice(mac_addr in_mac, int in_phy, 
+    kis_tracked_device_base *UpdateCommonDevice(mac_addr in_mac, int in_phy,
             kis_packet *in_pack, unsigned int in_flags);
-
 
     // HTTP handlers
     virtual bool Httpd_VerifyPath(const char *path, const char *method);
@@ -710,7 +709,7 @@ public:
             size_t *upload_data_size, std::stringstream &stream);
 
     void httpd_msgpack_all_phys(std::stringstream &stream);
-    void httpd_msgpack_device_summary(std::stringstream &stream, 
+    void httpd_msgpack_device_summary(std::stringstream &stream,
             TrackerElementVector *subvec = NULL);
     void httpd_xml_device_summary(std::stringstream &stream);
 
@@ -749,6 +748,10 @@ protected:
     int device_idle_expiration;
     int device_idle_timer;
 
+    // Maximum number of devices
+    unsigned int max_num_devices;
+    int max_devices_timer;
+
 	// Common device component
 	int devcomp_ref_common;
 
@@ -784,14 +787,14 @@ protected:
 
 class kis_tracked_device_summary : public tracker_component {
 public:
-    kis_tracked_device_summary(GlobalRegistry *in_globalreg, int in_id) : 
+    kis_tracked_device_summary(GlobalRegistry *in_globalreg, int in_id) :
         tracker_component(in_globalreg, in_id) {
         register_fields();
         reserve_fields(NULL);
-    } 
+    }
 
     kis_tracked_device_summary(GlobalRegistry *in_globalreg, int in_id,
-            TrackerElement *e) : 
+            TrackerElement *e) :
         tracker_component(in_globalreg, in_id) {
 
         register_fields();
@@ -827,14 +830,14 @@ public:
 
 class kis_tracked_phy : public tracker_component {
 public:
-    kis_tracked_phy(GlobalRegistry *in_globalreg, int in_id) : 
+    kis_tracked_phy(GlobalRegistry *in_globalreg, int in_id) :
         tracker_component(in_globalreg, in_id) {
         register_fields();
         reserve_fields(NULL);
-    } 
+    }
 
     kis_tracked_phy(GlobalRegistry *in_globalreg, int in_id,
-            TrackerElement *e) : 
+            TrackerElement *e) :
         tracker_component(in_globalreg, in_id) {
 
         register_fields();
@@ -888,7 +891,7 @@ protected:
         num_filter_packets_id =
             RegisterField("kismet.phy.packets.filtered", TrackerUInt64,
                     "number of filtered packets", (void **) &num_filter_packets);
-    } 
+    }
 
     int phy_id_id;
     TrackerElement *phy_id;
@@ -901,7 +904,7 @@ protected:
 
     int num_packets_id;
     TrackerElement *num_packets;
-   
+
     int num_data_packets_id;
     TrackerElement *num_data_packets;
 
@@ -917,4 +920,3 @@ protected:
 };
 
 #endif
-
