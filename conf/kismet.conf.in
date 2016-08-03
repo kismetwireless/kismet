@@ -31,13 +31,24 @@ include=%E/kismet_httpd.conf
 # plugin locations).
 allowplugins=true
 
+# For long-running instances of Kismet in a WIDS style usage, it may be 
+# useful to limit the amount of memory kismet will consume, with the
+# following tuning values:
+
 # Time, in seconds, for devices to be tracked when idle.  By default, devices
 # are kept forever, however in RAM constrained environments it may be preferable
 # to stop tracking older devices.
 # Devices which are removed will be detected as new devices without historical
 # data if they are detected a second time.
 # Example timeout of 2 hours (60*60*2)
+#
 # tracker_device_timeout=7200
+
+# Maximum number of devices allowed in the tracker.  If this is reached, older
+# devices will be purged, and if they are detected again, will show up as new 
+# devices without historical data.
+#
+# tracker_max_devices=10000
 
 # See the README for full information on the new source format
 # ncsource=interface:options
