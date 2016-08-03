@@ -377,9 +377,9 @@ void SomeDataSource::handle_packet(string in_type, KVmap in_kvmap) {
 }
 ```
 
-Extended information can be added to a packet as a custom record and transmitted via the Kismet packetchain, or can be injected directly into the tracker for the new phy type (See the [devicetracker](/docs/dev/devicetracker.html) docs for more information).  Injecting into the packet chain allows existing Kismet code to track signal levels, location, etc, automatically.
+Extended information can be added to a packet as a custom record and transmitted via the Kismet packetchain, or can be injected directly into the tracker for the new phy type (See the [datatracker](/docs/dev/datatracker.html) docs for more information).  Injecting into the packet chain allows existing Kismet code to track signal levels, location, etc, automatically.
 
-If the incoming data is directly injected into the data tracking system for the new phy type, then special care must be taken to create pseudo-packet records for the core device tracking system.  Ultimately, a pseudo-packet event must be created, either when processing the custom IPC packet or in the device classifier.
+If the incoming data is directly injected into the data tracking system for the new phy type, then special care must be taken to create pseudo-packet records for the core device tracking system.  Ultimately, a pseudo-packet event must be created, either when processing the custom IPC packet or in the device classifier.  Generally, it is recommended that a datasource attach the custom record to a packet object and process it via the packetchain as documented in [datatracker](/docs/dev/datatracker.html).
 
 When processing a custom frame, existing KV pair handlers can be used.  For example:
 
