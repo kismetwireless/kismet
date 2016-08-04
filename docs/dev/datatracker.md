@@ -61,7 +61,7 @@ enum kis_packet_basictype {
 * **mgmt** - Management / network maintenance packets.  In Wi-Fi networks, management frames include beacons, probe requests, etc
 * **data** - Packet carries data of some sort
 * **phy** - Physical-layer control packets.  In Wi-Fi, CTS/RTS packets are classified as phy type frames
-*
+
 #### Basic Encryption Set
 
 The basic encryption allows Kismet to show encrypted, unencrypted, decrypted, and vulnerable devices.  A phy should provide detailed information about the types of encryption used inside its own data, but this allows Kismet to display more common information.
@@ -215,3 +215,11 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
 	return 1;
 }
 ```
+
+## Custom Device data
+
+All but the most basic of device records will need custom device data.
+
+Because the `kis_tracked_base` record is a `tracker_component` record, it can hold arbitrary additional `tracker_component` data.  These sub-elements will automatically be included in serialization to web clients and other exports.
+
+Data can be included either as multiple unique fields inserted into the `kis_tracked_base` record, or as a complete sub-record containing all the information.  For organization and simplicity (and ease of serialization to formats like XML) it is generally much better to create a complete sub-record and attach it to the `kis_tracked_base`.
