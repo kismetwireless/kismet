@@ -36,6 +36,8 @@ Four main mac addresses are recorded:
 * **transmitter** - The address of the radio which transmitted the packet, if available.  This may be the same as the source mac.  Again using Wi-Fi as an example, the transmitter mac address would be the access point.
 * **device** - The actual address of the device.  This is likely the same as the source mac, and is the address used to identify the device.
 
+If the phy type you are implementing doesn't use traditional MAC addresses, a similar unique addressing scheme must be created for devices in that phy, which can be packed into a mac-address style record.  The addressing should be unique and repeatable (that is, the same device must generate the same mac-like address to be tracked properly).
+
 #### Basic Type
 
 The basic type is aggregated per-packet and used to indicate the type of packet:
@@ -118,17 +120,34 @@ Phy-specific complex channel.  Channel is represented as a string and can carry 
 
 The center frequency of the communication, in KHz.
 
+### An Example of Common Info
+
+To demonstrate how to use the common into, lets take the 802.11 common classifier as an example.  This is registered by the 802.11 decoder as a packet chain element in the `CLASSIFIER` portion.
+
+The classifier is called after we have already:
+
+1. Decapsulated the 802.11 frame from any L2 data (such as radiotap or PPI)
+2. Processed the signalling (and in PPIs case, location) data from the L2 header
+3. Processed the 802.11 packet into our own packet component, dot11info, which tells us about the 802.11 addressing, encryption, errors, etc.
+
+Already knowing the 802.11 characteristics makes filling in the `kis_common_info` record very simple.
+
 ```C++
 int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
-	Kis_80211_Phy *d11phy = (Kis_80211_Phy *) auxdata;
+    /* Grab the instance of the Dot111 Phy from the auxptr, remember we're a
+       static function so that we can be called directly */
+    Kis_80211_Phy *d11phy = (Kis_80211_Phy *) auxdata;
 
-	// Get the 802.11 info
-	dot11_packinfo *dot11info =
-		(dot11_packinfo *) in_pack->fetch(d11phy->pack_comp_80211);
+    /* Get the 802.11 component of the packet, or die trying */
+    dot11_packinfo *dot11info =
+        (dot11_packinfo *) in_pack->fetch(d11phy->pack_comp_80211);
 
 	if (dot11info == NULL)
 		return 0;
 
+    /* Get the common info, and if it doesn't exist, make one and insert it.
+       There shouldn't be a situation where we have a CI already, but if we
+       just inserted blindly we risk leaking memory. */
 	kis_common_info *ci =
 		(kis_common_info *) in_pack->fetch(d11phy->pack_comp_common);
 
@@ -137,13 +156,13 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
 		in_pack->insert(d11phy->pack_comp_common, ci);
 	}
 
+    /* Set the phy ID from our phyhandler */
 	ci->phyid = d11phy->phyid;
 
+    /* Start decoding the dot11 to get our common info */
 	if (dot11info->type == packet_management) {
 		ci->type = packet_basic_mgmt;
 
-		// We track devices/nets/clients by source mac, bssid if source
-		// is impossible
 		if (dot11info->source_mac == globalreg->empty_mac) {
 			if (dot11info->bssid_mac == globalreg->empty_mac) {
 				ci->error = 1;
@@ -160,58 +179,33 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
 
         ci->transmitter = dot11info->bssid_mac;
 	} else if (dot11info->type == packet_phy) {
-        if (dot11info->subtype == packet_sub_ack ||
-                dot11info->subtype == packet_sub_cts) {
-            // map some phys as a device since we know they're being talked to
-            ci->device = dot11info->dest_mac;
-        } else if (dot11info->source_mac == globalreg->empty_mac) {
-            ci->error = 1;
-		} else {
-            ci->device = dot11info->source_mac;
-        }
-
-		ci->type = packet_basic_phy;
-
-        ci->transmitter = ci->device;
+        // ...
 
 	} else if (dot11info->type == packet_data) {
-        // Data packets come from the source address.  Wired devices bridged
-        // from an AP are considered wired clients of that AP and classified as
-        // clients normally
-		ci->type = packet_basic_data;
-
-		ci->device = dot11info->source_mac;
-		ci->source = dot11info->source_mac;
-
-		ci->dest = dot11info->dest_mac;
-
-        ci->transmitter = dot11info->bssid_mac;
-
-        // Something is broken with the data frame
-        if (dot11info->bssid_mac == globalreg->empty_mac ||
-                dot11info->source_mac == globalreg->empty_mac ||
-                dot11info->dest_mac == globalreg->empty_mac) {
-            ci->error = 1;
-        }
+        // ...
 	}
 
+    /* If we're known corrupt from the dot11 handlers... */
 	if (dot11info->type == packet_noise || dot11info->corrupt ||
 			   in_pack->error || dot11info->type == packet_unknown ||
 			   dot11info->subtype == packet_sub_unknown) {
 		ci->error = 1;
 	}
 
+    /* Set the channel from the dot11 channel */
 	ci->channel = dot11info->channel;
 
+    /* Set the data size */
 	ci->datasize = dot11info->datasize;
 
+    /* Either we're encrypted or we're not */
 	if (dot11info->cryptset == crypt_none) {
 		ci->basic_crypt_set = KIS_DEVICE_BASICCRYPT_NONE;
 	} else {
 		ci->basic_crypt_set = KIS_DEVICE_BASICCRYPT_ENCRYPTED;
 	}
 
-    // Fill in basic l2 and l3 encryption
+    /* Add in the additional L2/L3 crypto knowledge from the 802.11 decoder */
 	if (dot11info->cryptset & crypt_l2_mask) {
 		ci->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_L2;
 	} if (dot11info->cryptset & crypt_l3_mask) {
