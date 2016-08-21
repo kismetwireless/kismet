@@ -20,7 +20,8 @@ PSO	= util.o cygwin_utils.o globalregistry.o \
 	kis_net_microhttpd.o system_monitor.o kis_httpd_websession.o base64.o \
 	gps_manager.o kis_gps.o gpsserial2.o gpsgpsd2.o gpsfake.o gpsweb.o \
 	packetchain.o \
-	trackedelement.o entrytracker.o msgpack_adapter.o xmlserialize_adapter.o \
+	trackedelement.o entrytracker.o \
+	msgpack_adapter.o xmlserialize_adapter.o json_adapter.o \
 	plugintracker.o alertracker.o timetracker.o channeltracker2.o \
 	devicetracker.o \
 	kis_dlt.o kis_dlt_ppi.o kis_dlt_radiotap.o kis_dlt_prism2.o \
