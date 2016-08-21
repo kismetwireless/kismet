@@ -32,6 +32,17 @@ void Pack(GlobalRegistry *globalreg, std::stringstream &stream, TrackerElement *
 
 void Pack(GlobalRegistry *globalreg, std::stringstream &stream, tracker_component *c);
 
+class json_element_serializer : public tracker_element_serializer {
+public:
+    json_element_serializer(GlobalRegistry *in_globalreg,
+            std::stringstream &in_stream) : 
+        tracker_element_serializer(in_globalreg, in_stream) { }
+
+    virtual void serialize(TrackerElement *in_elem) {
+        Pack(globalreg, stream, in_elem);
+    }
+};
+
 }
 
 #endif
