@@ -1993,14 +1993,14 @@ typedef struct {
 class phy80211_devicetracker_pcre_worker : public DevicetrackerFilterWorker {
 public:
     phy80211_devicetracker_pcre_worker(GlobalRegistry *in_globalreg, 
-            std::stringstream *outstream, 
-            vector<phy80211_pcre_filter *> *filtervec, int entry_id) {
+            vector<phy80211_pcre_filter *> *filtervec, int entry_id,
+            tracker_element_serializer *in_serializer) {
 
         globalreg = in_globalreg;
-        this->outstream = outstream;
         this->filter_vec = filtervec;
         dot11_device_entry_id = entry_id;
         error = false;
+        serializer = in_serializer;
 
         // Make a vector, we don't care about the container type
         device_vec = new TrackerElement(TrackerVector);
@@ -2064,7 +2064,7 @@ public:
 
     virtual void Finalize(Devicetracker *devicetracker) {
         // Push the summary of devices
-        devicetracker->httpd_msgpack_device_summary(*outstream, devices);
+        devicetracker->httpd_device_summary(serializer, devices);
     }
 
 protected:
@@ -2075,6 +2075,7 @@ protected:
     int dot11_device_entry_id;
     TrackerElement *device_vec;
     TrackerElementVector *devices;
+    tracker_element_serializer *serializer;
 };
 
 #endif
@@ -2087,6 +2088,9 @@ int Kis_80211_Phy::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind
     Kis_Net_Httpd_Connection *concls = (Kis_Net_Httpd_Connection *) coninfo_cls;
 
     bool handled = false;
+
+    bool use_msgpack = false;
+    bool use_json = false;
 
     if (concls->url == "/phy/phy80211/ssid_regex.cmd" &&
             strcmp(key, "msgpack") == 0 && size > 0) {
@@ -2144,9 +2148,13 @@ int Kis_80211_Phy::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind
             }
 
             // Make a worker instance
+            
+            // TODO expand to JSON
+            tracker_element_serializer *serializer = 
+                new MsgpackAdapter::serializer(globalreg, concls->response_stream);
+
             phy80211_devicetracker_pcre_worker worker(globalreg,
-                    &(concls->response_stream),
-                    &filter_vec, dot11_device_entry_id);
+                    &filter_vec, dot11_device_entry_id, serializer);
 
             // Tell devicetracker to do the work
             devicetracker->MatchOnDevices(&worker);
@@ -2157,6 +2165,8 @@ int Kis_80211_Phy::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind
                 delete filter_vec[i];
             }
             filter_vec.clear();
+
+            delete(serializer);
 
             return 1;
         } catch(const std::exception& e) {

@@ -45,6 +45,7 @@
 #include "devicetracker_component.h"
 #include "msgpack_adapter.h"
 #include "xmlserialize_adapter.h"
+#include "json_adapter.h"
 
 int Devicetracker_packethook_commontracker(CHAINCALL_PARMS) {
 	return ((Devicetracker *) auxdata)->CommonTracker(in_pack);
@@ -1566,10 +1567,16 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
     if (strcmp(path, "/devices/all_devices.msgpack") == 0)
         return true;
 
+    if (strcmp(path, "/devices/all_devices.json") == 0)
+        return true;
+
     if (strcmp(path, "/devices/all_devices.xml") == 0)
         return true;
 
     if (strcmp(path, "/phy/all_phys.msgpack") == 0)
+        return true;
+
+    if (strcmp(path, "/phy/all_phys.json") == 0)
         return true;
 
     // Split URL and process
@@ -1588,10 +1595,18 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
 
             local_locker lock(&devicelist_mutex);
 
-            uint64_t key;
-            if (sscanf(tokenurl[3].c_str(), "%lu.msgpack", &key) != 1) {
+            uint64_t key = 0;
+            uint64_t jkey = 0;
+
+            // Check msgpack and json
+            if (sscanf(tokenurl[3].c_str(), "%lu.msgpack", &key) != 1 &&
+                    sscanf(tokenurl[3].c_str(), "%lu.json", &jkey) != 1) {
                 return false;
             }
+
+            // If we found ajson key, use it instead
+            if (key == 0)
+                key = jkey;
 
             map<uint64_t, kis_tracked_device_base *>::iterator tmi =
                 tracked_map.find(key);
@@ -1616,10 +1631,12 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
 
             local_locker lock(&devicelist_mutex);
 
-            // Slice .msgpack off it
+            // Slice .msgpack or .json off it
             size_t trimpos = tokenurl[3].find(".msgpack");
             if (trimpos == string::npos) {
-                return false;
+                // Didn't end in mspack?  Does it end in json?
+                if ((trimpos = tokenurl[3].find(".json")) == string::npos)
+                    return false;
             }
 
             string macstr = tokenurl[3].substr(0, trimpos);
@@ -1638,7 +1655,7 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
     return false;
 }
 
-void Devicetracker::httpd_msgpack_all_phys(std::stringstream &stream) {
+void Devicetracker::httpd_all_phys(tracker_element_serializer *serializer) {
     TrackerElement *phyvec =
         globalreg->entrytracker->GetTrackedInstance(phy_base_id);
 
@@ -1653,12 +1670,13 @@ void Devicetracker::httpd_msgpack_all_phys(std::stringstream &stream) {
         phyvec->add_vector(p);
     }
 
-    MsgpackAdapter::Pack(globalreg, stream, phyvec);
+    serializer->serialize(phyvec);
 
     delete(phyvec);
+
 }
 
-void Devicetracker::httpd_msgpack_device_summary(std::stringstream &stream,
+void Devicetracker::httpd_device_summary(tracker_element_serializer *serializer,
         TrackerElementVector *subvec) {
 
     TrackerElement *devvec =
@@ -1674,7 +1692,7 @@ void Devicetracker::httpd_msgpack_device_summary(std::stringstream &stream,
             devvec->add_vector(summary);
         }
 
-        MsgpackAdapter::Pack(globalreg, stream, devvec);
+        serializer->serialize(devvec);
     } else {
         /* we do NOT want to lock here actually, we're processing a subvec of
          * stuff not the master device list
@@ -1689,7 +1707,7 @@ void Devicetracker::httpd_msgpack_device_summary(std::stringstream &stream,
             devvec->add_vector(summary);
         }
 
-        MsgpackAdapter::Pack(globalreg, stream, devvec);
+        serializer->serialize(devvec);
     }
 
     delete(devvec);
@@ -1781,7 +1799,18 @@ void Devicetracker::Httpd_CreateStreamResponse(
     }
 
     if (strcmp(path, "/devices/all_devices.msgpack") == 0) {
-        httpd_msgpack_device_summary(stream);
+        tracker_element_serializer *serializer = 
+            new MsgpackAdapter::serializer(globalreg, stream);
+        httpd_device_summary(serializer);
+        delete(serializer);
+        return;
+    }
+
+    if (strcmp(path, "/devices/all_devices.json") == 0) {
+        tracker_element_serializer *serializer = 
+            new JsonAdapter::serializer(globalreg, stream);
+        httpd_device_summary(serializer);
+        delete(serializer);
         return;
     }
 
@@ -1791,8 +1820,18 @@ void Devicetracker::Httpd_CreateStreamResponse(
     }
 
     if (strcmp(path, "/phy/all_phys.msgpack") == 0) {
-        httpd_msgpack_all_phys(stream);
+        tracker_element_serializer *serializer = 
+            new MsgpackAdapter::serializer(globalreg, stream);
+        httpd_all_phys(serializer);
+        delete(serializer);
         return;
+    }
+
+    if (strcmp(path, "/phy/all_phys.json") == 0) {
+        tracker_element_serializer *serializer = 
+            new JsonAdapter::serializer(globalreg, stream);
+        httpd_all_phys(serializer);
+        delete(serializer);
     }
 
     vector<string> tokenurl = StrTokenize(path, "/");
@@ -1807,9 +1846,21 @@ void Devicetracker::Httpd_CreateStreamResponse(
         if (tokenurl[2] == "by-key") {
             local_locker lock(&devicelist_mutex);
 
-            uint64_t key;
-            if (sscanf(tokenurl[3].c_str(), "%lu.msgpack", &key) != 1) {
+            uint64_t key = 0;
+            uint64_t jkey = 0;
+            bool use_msgpack = false;
+            bool use_json = false;
+
+            if (sscanf(tokenurl[3].c_str(), "%lu.msgpack", &key) != 1 &&
+                    sscanf(tokenurl[3].c_str(), "%lu.json", &jkey) != 1) {
                 return;
+            }
+
+            if (key == 0) {
+                use_json = true;
+                key = jkey;
+            } else {
+                use_msgpack = true;
             }
 
             map<uint64_t, kis_tracked_device_base *>::iterator tmi =
@@ -1826,12 +1877,31 @@ void Devicetracker::Httpd_CreateStreamResponse(
                     if (sub == NULL) {
                         return;
                     } else {
-                        MsgpackAdapter::Pack(globalreg, stream, sub);
+                        tracker_element_serializer *serializer = NULL;
+                        if (use_msgpack) {
+                            serializer = 
+                                new MsgpackAdapter::serializer(globalreg, stream);
+                        } else if (use_json) {
+                            serializer = 
+                                new JsonAdapter::serializer(globalreg, stream);
+                        }
+                        serializer->serialize(sub);
+                        delete(serializer);
                         return;
                     }
                 }
 
-                MsgpackAdapter::Pack(globalreg, stream, (TrackerElement *) tmi->second);
+                tracker_element_serializer *serializer = NULL;
+                if (use_msgpack) {
+                    serializer = 
+                        new MsgpackAdapter::serializer(globalreg, stream);
+                } else if (use_json) {
+                    serializer = 
+                        new JsonAdapter::serializer(globalreg, stream);
+                }
+                serializer->serialize(tmi->second);
+                delete(serializer);
+                return;
             } else {
                 return;
             }
@@ -1841,10 +1911,18 @@ void Devicetracker::Httpd_CreateStreamResponse(
 
             local_locker lock(&devicelist_mutex);
 
+            bool use_msgpack = false;
+            bool use_json = false;
+
             // Slice .msgpack off it
             size_t trimpos = tokenurl[3].find(".msgpack");
             if (trimpos == string::npos) {
-                return;
+                if ((trimpos = tokenurl[3].find(".json")) == string::npos)
+                    return;
+
+                use_json = true;
+            } else {
+                use_msgpack = true;
             }
 
             string macstr = tokenurl[3].substr(0, trimpos);
@@ -1864,7 +1942,17 @@ void Devicetracker::Httpd_CreateStreamResponse(
                 }
             }
 
-            MsgpackAdapter::Pack(globalreg, stream, devvec);
+            tracker_element_serializer *serializer = NULL;
+            if (use_msgpack) {
+                serializer = 
+                    new MsgpackAdapter::serializer(globalreg, stream);
+            } else if (use_json) {
+                serializer = 
+                    new JsonAdapter::serializer(globalreg, stream);
+            }
+            serializer->serialize(devvec);
+            delete(serializer);
+
             delete(devvec);
 
             return;

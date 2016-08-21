@@ -708,9 +708,12 @@ public:
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size, std::stringstream &stream);
 
-    void httpd_msgpack_all_phys(std::stringstream &stream);
-    void httpd_msgpack_device_summary(std::stringstream &stream,
+    void httpd_all_phys(tracker_element_serializer *serializer);
+
+    void httpd_device_summary(tracker_element_serializer *serializer,
             TrackerElementVector *subvec = NULL);
+
+    // TODO merge this into a normal serializer call
     void httpd_xml_device_summary(std::stringstream &stream);
 
     // Timetracker event handler

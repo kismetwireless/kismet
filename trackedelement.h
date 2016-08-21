@@ -1152,6 +1152,8 @@ public:
         globalreg = in_globalreg;
     }
 
+    virtual ~tracker_element_serializer() { }
+
     virtual void serialize(TrackerElement *in_elem) = 0;
 
     virtual void serialize(tracker_component *in_component) {
