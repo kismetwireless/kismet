@@ -34,6 +34,12 @@
 #include "devicetracker_component.h"
 #include "json_adapter.h"
 
+void JsonAdapter::Pack(GlobalRegistry *globalreg, std::stringstream &stream, 
+        tracker_component *c) {
+    Pack(globalreg, stream, (TrackerElement *) c);
+}
+
+
 void JsonAdapter::Pack(GlobalRegistry *globalreg, std::stringstream &stream,
     TrackerElement *e) {
 
@@ -68,17 +74,18 @@ void JsonAdapter::Pack(GlobalRegistry *globalreg, std::stringstream &stream,
     switch (e->get_type()) {
         case TrackerString:
             stream << "\"" << GetTrackerValue<string>(e) << "\"";
+            break;
         case TrackerInt8:
-             stream << GetTrackerValue<int8_t>(e);
+            stream << (int) GetTrackerValue<int8_t>(e);
             break;
         case TrackerUInt8:
-            stream << GetTrackerValue<uint8_t>(e);
+            stream << (unsigned int) GetTrackerValue<uint8_t>(e);
             break;
         case TrackerInt16:
-            stream << GetTrackerValue<int16_t>(e);
+            stream << (int) GetTrackerValue<int16_t>(e);
             break;
         case TrackerUInt16:
-            stream << GetTrackerValue<uint16_t>(e);
+            stream << (unsigned int) GetTrackerValue<uint16_t>(e);
             break;
         case TrackerInt32:
             stream << GetTrackerValue<int32_t>(e);

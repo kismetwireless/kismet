@@ -28,13 +28,9 @@
 
 namespace JsonAdapter {
 
-void Pack(GlobalRegistry *globalreg, std::stringstream &stream,
-    TrackerElement *e);
+void Pack(GlobalRegistry *globalreg, std::stringstream &stream, TrackerElement *e);
 
-void Pack(GlobalRegistry *globalreg, std::stringstream &stream,
-    tracker_component *c) {
-        Pack(globalreg, stream, (TrackerElement *) c);
-    }
+void Pack(GlobalRegistry *globalreg, std::stringstream &stream, tracker_component *c);
 
 }
 

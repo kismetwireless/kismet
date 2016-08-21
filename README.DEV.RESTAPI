@@ -55,7 +55,9 @@ REST endpoints
     System status:
     
         /system/status.msgpack
-            packed record of system status (battery, etc)
+            msgpack packed record of system status (battery, etc)
+        /system/status.json
+            json packed record of system status (battery, etc)
     
         /system/tracked_fields.html
             Human-readable table of all registered field names, types, and

@@ -21,6 +21,7 @@
 #include "entrytracker.h"
 #include "system_monitor.h"
 #include "msgpack_adapter.h"
+#include "json_adapter.h"
 
 Systemmonitor::Systemmonitor(GlobalRegistry *in_globalreg) :
     tracker_component(in_globalreg, 0),
@@ -59,6 +60,8 @@ bool Systemmonitor::Httpd_VerifyPath(const char *path, const char *method) {
 
     if (strcmp(path, "/system/status.msgpack") == 0)
         return true;
+    if (strcmp(path, "/system/status.json") == 0)
+        return true;
 
     return false;
 }
@@ -75,8 +78,15 @@ void Systemmonitor::Httpd_CreateStreamResponse(
         return;
     }
 
-    if (strcmp(path, "/system/status.msgpack") == 0) {
+    bool out_msgpack = false;
+    bool out_json = false;
 
+    if (strcmp(path, "/system/status.msgpack") == 0)
+        out_msgpack = true;
+    else if (strcmp(path, "/system/status.json") == 0)
+        out_json = true;
+
+    if (out_msgpack || out_json) {
         kis_battery_info batinfo;
         Fetch_Battery_Info(&batinfo);
 
@@ -92,7 +102,10 @@ void Systemmonitor::Httpd_CreateStreamResponse(
         set_battery_ac(batinfo.ac);
         set_battery_remaining(batinfo.remaining_sec);
 
-        MsgpackAdapter::Pack(globalreg, stream, this);
+        if (out_msgpack)
+            MsgpackAdapter::Pack(globalreg, stream, this);
+        else if (out_json)
+            JsonAdapter::Pack(globalreg, stream, this);
 
         return;
     }
