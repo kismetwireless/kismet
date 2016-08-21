@@ -54,6 +54,23 @@ void Systemmonitor::register_fields() {
                 "battery remaining in seconds", (void **) &battery_remaining);
 }
 
+void Systemmonitor::pre_serialize() {
+    kis_battery_info batinfo;
+    Fetch_Battery_Info(&batinfo);
+
+    set_battery_perc(batinfo.percentage);
+    if (batinfo.ac && batinfo.charging) {
+        set_battery_charging("charging");
+    } else if (batinfo.ac && !batinfo.charging) {
+        set_battery_charging("charged");
+    } else if (!batinfo.ac) {
+        set_battery_charging("discharging");
+    }
+
+    set_battery_ac(batinfo.ac);
+    set_battery_remaining(batinfo.remaining_sec);
+}
+
 bool Systemmonitor::Httpd_VerifyPath(const char *path, const char *method) {
     if (strcmp(method, "GET") != 0)
         return false;
@@ -78,36 +95,10 @@ void Systemmonitor::Httpd_CreateStreamResponse(
         return;
     }
 
-    bool out_msgpack = false;
-    bool out_json = false;
-
-    if (strcmp(path, "/system/status.msgpack") == 0)
-        out_msgpack = true;
-    else if (strcmp(path, "/system/status.json") == 0)
-        out_json = true;
-
-    if (out_msgpack || out_json) {
-        kis_battery_info batinfo;
-        Fetch_Battery_Info(&batinfo);
-
-        set_battery_perc(batinfo.percentage);
-        if (batinfo.ac && batinfo.charging) {
-            set_battery_charging("charging");
-        } else if (batinfo.ac && !batinfo.charging) {
-            set_battery_charging("charged");
-        } else if (!batinfo.ac) {
-            set_battery_charging("discharging");
-        }
-
-        set_battery_ac(batinfo.ac);
-        set_battery_remaining(batinfo.remaining_sec);
-
-        if (out_msgpack)
-            MsgpackAdapter::Pack(globalreg, stream, this);
-        else if (out_json)
-            JsonAdapter::Pack(globalreg, stream, this);
-
-        return;
+    if (strcmp(path, "/system/status.msgpack") == 0) {
+        MsgpackAdapter::Pack(globalreg, stream, this);
+    } else if (strcmp(path, "/system/status.json") == 0) {
+        JsonAdapter::Pack(globalreg, stream, this);
     }
 
 }

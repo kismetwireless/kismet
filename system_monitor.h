@@ -43,6 +43,8 @@ public:
     __Proxy(battery_ac, uint8_t, bool, bool, battery_ac);
     __Proxy(battery_remaining, uint32_t, uint32_t, uint32_t, battery_remaining);
 
+    virtual void pre_serialize();
+
 protected:
     virtual void register_fields();
 
