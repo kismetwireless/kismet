@@ -158,6 +158,14 @@ public:
         tracked_id = id;
     }
 
+    void set_local_name(string in_name) {
+        local_name = in_name;
+    }
+
+    string get_local_name() {
+        return local_name;
+    }
+
     void link() {
         reference_count++;
     }
@@ -585,6 +593,9 @@ protected:
 
     TrackerType type;
     int tracked_id;
+
+    // Overridden name for this instance only
+    string local_name;
 
     // We could make these all one type, but then we'd have odd interactions
     // with incrementing and I'm not positive that's safe in all cases

@@ -71,6 +71,8 @@ void JsonAdapter::Pack(GlobalRegistry *globalreg, std::stringstream &stream,
     mac_addr mac;
     uuid euuid;
 
+    string tname;
+
     switch (e->get_type()) {
         case TrackerString:
             stream << "\"" << GetTrackerValue<string>(e) << "\"";
@@ -129,8 +131,10 @@ void JsonAdapter::Pack(GlobalRegistry *globalreg, std::stringstream &stream,
             tmap = e->get_map();
             stream << "{";
             for (map_iter = tmap->begin(); map_iter != tmap->end(); /* */) {
+                if ((tname = map_iter->second->get_local_name()) == "")
+                    tname = globalreg->entrytracker->GetFieldName(map_iter->first);
                 stream << "\"" << 
-                    globalreg->entrytracker->GetFieldName(map_iter->first) <<
+                    tname <<
                     "\": ";
                 JsonAdapter::Pack(globalreg, stream, map_iter->second);
                 if (++map_iter != tmap->end()) // Increment iter in loop
