@@ -45,10 +45,10 @@ void Pack(GlobalRegistry *globalreg, std::stringstream &stream,
 void Pack(GlobalRegistry *globalreg, std::stringstream &stream, 
         TrackerElement *e);
 
-class serializer : public tracker_element_serializer {
+class Serializer : public TrackerElementSerializer {
 public:
-    serializer(GlobalRegistry *in_globalreg, std::stringstream &in_stream) : 
-        tracker_element_serializer(in_globalreg, in_stream) { }
+    Serializer(GlobalRegistry *in_globalreg, std::stringstream &in_stream) : 
+        TrackerElementSerializer(in_globalreg, in_stream) { }
 
     virtual void serialize(TrackerElement *in_elem) {
         Pack(globalreg, stream, in_elem);
