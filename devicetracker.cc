@@ -1655,7 +1655,7 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
     return false;
 }
 
-void Devicetracker::httpd_all_phys(tracker_element_serializer *serializer) {
+void Devicetracker::httpd_all_phys(TrackerElementSerializer *serializer) {
     TrackerElement *phyvec =
         globalreg->entrytracker->GetTrackedInstance(phy_base_id);
 
@@ -1676,7 +1676,7 @@ void Devicetracker::httpd_all_phys(tracker_element_serializer *serializer) {
 
 }
 
-void Devicetracker::httpd_device_summary(tracker_element_serializer *serializer,
+void Devicetracker::httpd_device_summary(TrackerElementSerializer *serializer,
         TrackerElementVector *subvec) {
 
     TrackerElement *devvec =
@@ -1799,16 +1799,16 @@ void Devicetracker::Httpd_CreateStreamResponse(
     }
 
     if (strcmp(path, "/devices/all_devices.msgpack") == 0) {
-        tracker_element_serializer *serializer = 
-            new MsgpackAdapter::serializer(globalreg, stream);
+        TrackerElementSerializer *serializer = 
+            new MsgpackAdapter::Serializer(globalreg, stream);
         httpd_device_summary(serializer);
         delete(serializer);
         return;
     }
 
     if (strcmp(path, "/devices/all_devices.json") == 0) {
-        tracker_element_serializer *serializer = 
-            new JsonAdapter::serializer(globalreg, stream);
+        TrackerElementSerializer *serializer = 
+            new JsonAdapter::Serializer(globalreg, stream);
         httpd_device_summary(serializer);
         delete(serializer);
         return;
@@ -1820,16 +1820,16 @@ void Devicetracker::Httpd_CreateStreamResponse(
     }
 
     if (strcmp(path, "/phy/all_phys.msgpack") == 0) {
-        tracker_element_serializer *serializer = 
-            new MsgpackAdapter::serializer(globalreg, stream);
+        TrackerElementSerializer *serializer = 
+            new MsgpackAdapter::Serializer(globalreg, stream);
         httpd_all_phys(serializer);
         delete(serializer);
         return;
     }
 
     if (strcmp(path, "/phy/all_phys.json") == 0) {
-        tracker_element_serializer *serializer = 
-            new JsonAdapter::serializer(globalreg, stream);
+        TrackerElementSerializer *serializer = 
+            new JsonAdapter::Serializer(globalreg, stream);
         httpd_all_phys(serializer);
         delete(serializer);
     }
@@ -1877,13 +1877,13 @@ void Devicetracker::Httpd_CreateStreamResponse(
                     if (sub == NULL) {
                         return;
                     } else {
-                        tracker_element_serializer *serializer = NULL;
+                        TrackerElementSerializer *serializer = NULL;
                         if (use_msgpack) {
                             serializer = 
-                                new MsgpackAdapter::serializer(globalreg, stream);
+                                new MsgpackAdapter::Serializer(globalreg, stream);
                         } else if (use_json) {
                             serializer = 
-                                new JsonAdapter::serializer(globalreg, stream);
+                                new JsonAdapter::Serializer(globalreg, stream);
                         }
                         serializer->serialize(sub);
                         delete(serializer);
@@ -1891,13 +1891,13 @@ void Devicetracker::Httpd_CreateStreamResponse(
                     }
                 }
 
-                tracker_element_serializer *serializer = NULL;
+                TrackerElementSerializer *serializer = NULL;
                 if (use_msgpack) {
                     serializer = 
-                        new MsgpackAdapter::serializer(globalreg, stream);
+                        new MsgpackAdapter::Serializer(globalreg, stream);
                 } else if (use_json) {
                     serializer = 
-                        new JsonAdapter::serializer(globalreg, stream);
+                        new JsonAdapter::Serializer(globalreg, stream);
                 }
                 serializer->serialize(tmi->second);
                 delete(serializer);
@@ -1942,13 +1942,13 @@ void Devicetracker::Httpd_CreateStreamResponse(
                 }
             }
 
-            tracker_element_serializer *serializer = NULL;
+            TrackerElementSerializer *serializer = NULL;
             if (use_msgpack) {
                 serializer = 
-                    new MsgpackAdapter::serializer(globalreg, stream);
+                    new MsgpackAdapter::Serializer(globalreg, stream);
             } else if (use_json) {
                 serializer = 
-                    new JsonAdapter::serializer(globalreg, stream);
+                    new JsonAdapter::Serializer(globalreg, stream);
             }
             serializer->serialize(devvec);
             delete(serializer);

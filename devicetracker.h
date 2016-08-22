@@ -708,9 +708,9 @@ public:
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size, std::stringstream &stream);
 
-    void httpd_all_phys(tracker_element_serializer *serializer);
+    void httpd_all_phys(TrackerElementSerializer *serializer);
 
-    void httpd_device_summary(tracker_element_serializer *serializer,
+    void httpd_device_summary(TrackerElementSerializer *serializer,
             TrackerElementVector *subvec = NULL);
 
     // TODO merge this into a normal serializer call

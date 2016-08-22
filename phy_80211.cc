@@ -1994,7 +1994,7 @@ class phy80211_devicetracker_pcre_worker : public DevicetrackerFilterWorker {
 public:
     phy80211_devicetracker_pcre_worker(GlobalRegistry *in_globalreg, 
             vector<phy80211_pcre_filter *> *filtervec, int entry_id,
-            tracker_element_serializer *in_serializer) {
+            TrackerElementSerializer *in_serializer) {
 
         globalreg = in_globalreg;
         this->filter_vec = filtervec;
@@ -2075,7 +2075,7 @@ protected:
     int dot11_device_entry_id;
     TrackerElement *device_vec;
     TrackerElementVector *devices;
-    tracker_element_serializer *serializer;
+    TrackerElementSerializer *serializer;
 };
 
 #endif
@@ -2150,8 +2150,8 @@ int Kis_80211_Phy::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind
             // Make a worker instance
             
             // TODO expand to JSON
-            tracker_element_serializer *serializer = 
-                new MsgpackAdapter::serializer(globalreg, concls->response_stream);
+            TrackerElementSerializer *serializer = 
+                new MsgpackAdapter::Serializer(globalreg, concls->response_stream);
 
             phy80211_devicetracker_pcre_worker worker(globalreg,
                     &filter_vec, dot11_device_entry_id, serializer);
