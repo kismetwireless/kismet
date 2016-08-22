@@ -133,6 +133,11 @@ void JsonAdapter::Pack(GlobalRegistry *globalreg, std::stringstream &stream,
             for (map_iter = tmap->begin(); map_iter != tmap->end(); /* */) {
                 if ((tname = map_iter->second->get_local_name()) == "")
                     tname = globalreg->entrytracker->GetFieldName(map_iter->first);
+
+                // JSON is special, and considers '.' to be a path separator, so
+                // change all our '.' to '_'.
+                std::replace(tname.begin(), tname.end(), '.', '_');
+
                 stream << "\"" << 
                     tname <<
                     "\": ";
