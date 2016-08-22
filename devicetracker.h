@@ -708,10 +708,18 @@ public:
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size, std::stringstream &stream);
 
-    void httpd_all_phys(TrackerElementSerializer *serializer);
+    // Generate a list of all phys, serialized appropriately.  If specified,
+    // wrap it in a dictionary and name it with the key in in_wrapper, which
+    // is required for some js libs like datatables.
+    void httpd_all_phys(TrackerElementSerializer *serializer,
+            string in_wrapper_key = "");
 
+    // Generate a device summary, serialized.  Optionally provide an existing
+    // vector to generate a summary of devices matching a given criteria via
+    // a worker.  Also optionally, wrap the results in a dictionary named via
+    // the in_wrapper key, which is required for some js libs like datatables
     void httpd_device_summary(TrackerElementSerializer *serializer,
-            TrackerElementVector *subvec = NULL);
+            TrackerElementVector *subvec = NULL, string in_wrapper_key = "");
 
     // TODO merge this into a normal serializer call
     void httpd_xml_device_summary(std::stringstream &stream);

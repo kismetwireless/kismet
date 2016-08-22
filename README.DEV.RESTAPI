@@ -69,6 +69,9 @@ REST endpoints
             msgpack packed vector of device summary records
         /devices/all_devices.json
             json list of device summary records
+        /devices/all_devices_dt.json
+            json list of device summary records, wrapped in an aaData dictionary
+            key for supporting the jquery datatables API
     
         /devices/by-key/DEVICE_KEY.msgpack
             packed trackercomponent of DEVICE (where DEVICE_KEY is the device 
@@ -93,7 +96,12 @@ REST endpoints
     Phy handling:
     
         /phy/all_phys.msgpack
-            packed vector of phy descriptors and counts
+            msgpack packed vector of phy descriptors and counts
+        /phy/all_phys.json
+            json vector of phy descriptors and counts
+        /phy/all_phys_dt.json
+            json vector of phy descriptors and counts, wrapped in an aaData
+            dictionary key for supporting the jquery datatables API
     
     Sessions/Logins:
     

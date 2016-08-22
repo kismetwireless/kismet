@@ -1570,6 +1570,9 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
     if (strcmp(path, "/devices/all_devices.json") == 0)
         return true;
 
+    if (strcmp(path, "/devices/all_devices_dt.json") == 0)
+        return true;
+
     if (strcmp(path, "/devices/all_devices.xml") == 0)
         return true;
 
@@ -1577,6 +1580,9 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
         return true;
 
     if (strcmp(path, "/phy/all_phys.json") == 0)
+        return true;
+
+    if (strcmp(path, "/phy/all_phys_dt.json") == 0)
         return true;
 
     // Split URL and process
@@ -1655,9 +1661,21 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
     return false;
 }
 
-void Devicetracker::httpd_all_phys(TrackerElementSerializer *serializer) {
+void Devicetracker::httpd_all_phys(TrackerElementSerializer *serializer,
+        string in_wrapper_key) {
+
     TrackerElement *phyvec =
         globalreg->entrytracker->GetTrackedInstance(phy_base_id);
+
+    TrackerElement *wrapper = NULL;
+
+    if (in_wrapper_key != "") {
+        wrapper = new TrackerElement(TrackerMap);
+        wrapper->add_map(phyvec);
+        phyvec->set_local_name(in_wrapper_key);
+    } else {
+        wrapper = phyvec;
+    }
 
     kis_tracked_phy *anyphy = new kis_tracked_phy(globalreg, phy_base_id);
     anyphy->set_from_phy(this, KIS_PHY_ANY);
@@ -1670,17 +1688,27 @@ void Devicetracker::httpd_all_phys(TrackerElementSerializer *serializer) {
         phyvec->add_vector(p);
     }
 
-    serializer->serialize(phyvec);
+    serializer->serialize(wrapper);
 
-    delete(phyvec);
-
+    delete(wrapper);
 }
 
 void Devicetracker::httpd_device_summary(TrackerElementSerializer *serializer,
-        TrackerElementVector *subvec) {
+        TrackerElementVector *subvec, string in_wrapper_key) {
 
     TrackerElement *devvec =
         globalreg->entrytracker->GetTrackedInstance(device_summary_base_id);
+
+    // Wrap the dev vec in a dictionary and change its name
+    TrackerElement *wrapper = NULL;
+
+    if (in_wrapper_key != "") {
+        wrapper = new TrackerElement(TrackerMap);
+        wrapper->add_map(devvec);
+        devvec->set_local_name(in_wrapper_key);
+    } else {
+        wrapper = devvec;
+    }
 
     if (subvec == NULL) {
         local_locker lock(&devicelist_mutex);
@@ -1692,7 +1720,7 @@ void Devicetracker::httpd_device_summary(TrackerElementSerializer *serializer,
             devvec->add_vector(summary);
         }
 
-        serializer->serialize(devvec);
+        serializer->serialize(wrapper);
     } else {
         /* we do NOT want to lock here actually, we're processing a subvec of
          * stuff not the master device list
@@ -1707,10 +1735,10 @@ void Devicetracker::httpd_device_summary(TrackerElementSerializer *serializer,
             devvec->add_vector(summary);
         }
 
-        serializer->serialize(devvec);
+        serializer->serialize(wrapper);
     }
 
-    delete(devvec);
+    delete(wrapper);
 }
 
 void Devicetracker::httpd_xml_device_summary(std::stringstream &stream) {
@@ -1814,6 +1842,15 @@ void Devicetracker::Httpd_CreateStreamResponse(
         return;
     }
 
+    // Datatable wrapper
+    if (strcmp(path, "/devices/all_devices_dt.json") == 0) {
+        TrackerElementSerializer *serializer = 
+            new JsonAdapter::Serializer(globalreg, stream);
+        httpd_device_summary(serializer, NULL, "aaData");
+        delete(serializer);
+        return;
+    }
+
     if (strcmp(path, "/devices/all_devices.xml") == 0) {
         httpd_xml_device_summary(stream);
         return;
@@ -1831,6 +1868,14 @@ void Devicetracker::Httpd_CreateStreamResponse(
         TrackerElementSerializer *serializer = 
             new JsonAdapter::Serializer(globalreg, stream);
         httpd_all_phys(serializer);
+        delete(serializer);
+    }
+   
+    // Datatable wrapper
+    if (strcmp(path, "/phy/all_phys_dt.json") == 0) {
+        TrackerElementSerializer *serializer = 
+            new JsonAdapter::Serializer(globalreg, stream);
+        httpd_all_phys(serializer, "aaData");
         delete(serializer);
     }
 
@@ -2031,7 +2076,6 @@ int Devicetracker::timetracker_event(int eventid) {
 		std::sort(tracked_vec.begin(), tracked_vec.end(), devicetracker_sort_lastseen);
 
 		unsigned int drop = tracked_vec.size() - max_num_devices;
-		fprintf(stderr, "debug - about to forget %u devices (from %u) max %u\n", drop, tracked_vec.size(), max_num_devices);
 
 		// Figure out how many we don't care about, and remove them from the map
 		for (unsigned int d = 0; d < drop; d++) {
