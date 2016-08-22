@@ -66,7 +66,9 @@ REST endpoints
     Devices:
     
         /devices/all_devices.msgpack
-            packed vector of device summary records
+            msgpack packed vector of device summary records
+        /devices/all_devices.json
+            json list of device summary records
     
         /devices/by-key/DEVICE_KEY.msgpack
             packed trackercomponent of DEVICE (where DEVICE_KEY is the device 
