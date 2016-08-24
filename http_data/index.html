@@ -8,6 +8,7 @@
 <script src="/js/kismet.utils.js"></script>
 <script src="/js/kismet.ui.js"></script>
 <script src="/js/jquery.dataTables.min.js"></script>
+<script src="/js/dataTables.scroller.min.js"></script>
 <script src="/js/d3.v3.min.js" charset="utf-8"></script>
 
 <link rel="stylesheet" href="/css/font-awesome.min.css">
@@ -45,87 +46,14 @@ function populateDeviceSummary() {
 }
 
 function handleDeviceSummary() {
-    kismet.GetDeviceSummary(function(devices) {
-        var conv = [];
 
-        for (var x = 0; x < devices.length; x++) {
-            var d = devices[x];
-            var t = new Date(d["kismet.device.base.last_time"]*1000);
-
-            var cd = {
-                key: d["kismet.device.base.key"],
-                name: d["kismet.device.base.name"],
-                type: d["kismet.device.base.type"],
-                phyname: d["kismet.device.base.phyname"],
-                signal: d["kismet.device.base.signal"]["kismet.common.signal.last_signal_dbm"],
-                time: t,
-                channel: d["kismet.device.base.channel"],
-                rrdsecond: d["kismet.device.base.packets.rrd"]["kismet.common.rrd.last_time"],
-                rrddata: d["kismet.device.base.packets.rrd"]["kismet.common.rrd.minute_vec"],
-            };
-
-            conv.push(cd);
-        }
-
-        var dt = $('#devices').dataTable().api();
-
-        var scrollPos = $(".dataTables_scrollBody").scrollTop();
-
-        dt.clear();
-        dt.rows.add(conv);
-        dt.draw();
-
+    // Preserve the scroll position
+    scrollPos = $(".dataTables_scrollBody").scrollTop();
+    $('#devices').DataTable().ajax.reload(function() {
         $(".dataTables_scrollBody").scrollTop(scrollPos);
+    },false);
 
-        var w = 120;
-        var h = 20;
-        var barPadding = 0;
-
-        for (var i = 0; i < conv.length; i++) {
-            var rrd = [ ];
-            var starts = conv[i]['rrdsecond'] % 60;
-            var rrdlen = conv[i]['rrddata'].length;
-
-            // start at the current second in the rrd, and average them
-            // to thicker bars.
-            var avg = 0;
-            var secs_avg = 3;
-            for (var r = 0; r < rrdlen; r++) {
-                avg += conv[i]['rrddata'][(starts + r) % rrdlen];
-
-                if ((r % secs_avg) == (secs_avg - 1)) {
-                    rrd.push(avg / secs_avg);
-                    avg = 0;
-                }
-
-                // rrd.push(conv[i]['rrddata'][(starts + r) % rrdlen])
-            }
-
-            var svg = d3.select("#graphContainer" + conv[i]['key'])
-                .append("svg")
-                .attr("width", w)
-                .attr("height", h);
-
-            svg.selectAll("rect")
-                .data(rrd)
-                .enter()
-                .append("rect")
-                .attr("x", function(d, i) {
-                    return i * (w / rrd.length);
-                })
-                .attr("y", function(d) {
-                    return h - (d * 4);
-                })
-                .attr("width", w / rrd.length - barPadding)
-                .attr("height", function(d) {
-                    return d * 4;
-                });
-
-        }
-
-    }, function(e) {
-        throw(e);
-    });
+    var api = $('#devices').DataTable();
 
     deviceTid = setTimeout(handleDeviceSummary, 2000); 
 }
@@ -137,24 +65,99 @@ $(document).ready(function() {
 
     $('#devices').DataTable( {
         "scrollY":        "60vh",
-        "scrollCollapse": true,
-        "paging":         false,
-        columns: [
-        { title: "Name", data: "name" },
-        { title: "Type", data: "type" },
-        { title: "Phy", data: "phyname" },
-        { title: "Signal", data: "signal" },
-        { title: "Channel", data: "channel" },
-        { title: "Last Time", data: "time" },
-        { title: "Packets", data: null, defaultContent: "" },
-        ],
+        "scroller":       true,
+        // "scrollCollapse": true,
+        // "stateSave":      true,
+        "ajax":           "/devices/all_devices_dt.json",
+        "deferRender":    true,
+        aoColumns: [
+        { sTitle: "Name", mData: "kismet_device_base_name" },
+        { sTitle: "Type", mData: "kismet_device_base_type" },
+        { sTitle: "Phy", mData: "kismet_device_base_phyname" },
+        { sTitle: "Signal", mData: "kismet_device_base_signal.kismet_common_signal_last_signal_dbm" },
+        { sTitle: "Channel", mData: "kismet_device_base_channel" },
+        { sTitle: "Last Time", mData: "kismet_device_base_last_time", name: "last_time" },
+        { sTitle: "Packets", mData: null, defaultContent: "", name: "packets" },
+        ], 
         "order":
             [ [ 0, "desc" ] ],
-        "fnRowCallback": function(nRow, aData, iDisplayIndex, iDisplayIndexFull) {
-            // Set an ID on the row for us to go in after and set the graph with D3
-            var row = $('td:eq(6)', nRow).attr("id", "graphContainer" + aData['key']);
-            return nRow;
+
+        "rowCallback": function(row, data, index) {
+            /* Convert the timestamp to a human readable time */
+            var rid = this.DataTable().column('last_time:name').index();
+            var match = "td:eq(" + rid + ")";
+            var t = new Date(data["kismet_device_base_last_time"] * 1000);
+            $(match, row).html(t);
+
+            rid = this.DataTable().column('packets:name').index();
+            match = "td:eq(" + rid + ")";
+            // I'm sure there's a smarter way to do this but I don't know it.
+            var key = data["kismet_device_base_key"]
+            $(match, row).attr("id", "graphContainer" + key);
+
+        },
+        "drawCallback": function( settings ) {
+            var page = this.DataTable().scroller.page();
+
+            // For the rows that are visible...
+            for (var r = page.start; r < page.end; r++) {
+                // Grab the data
+                var row = this.DataTable().row(r);
+                var data = row.data();
+
+                // Get the key
+                var key = data["kismet_device_base_key"]
+
+                // Simplify the RRD so that the bars are thicker in the graph, which
+                // I think looks better
+                var avg = 0;
+                var secs_avg = 3;
+
+                var simple_rrd = [];
+                var rrd_len = data["kismet_device_base_packets_rrd"]["kismet_common_rrd_minute_vec"].length;
+                var startsec = data["kismet_device_base_packets_rrd"]["kismet_common_rrd_last_time"] % 60;
+
+                for (var ri = 0; ri < rrd_len; ri++) {
+                    avg += data["kismet_device_base_packets_rrd"]["kismet_common_rrd_minute_vec"][(startsec + ri) % rrd_len];
+
+                    if ((ri % secs_avg) == (secs_avg - 1)) {
+                        simple_rrd.push(avg / secs_avg);
+                        avg = 0;
+                    }
+                }
+
+
+                // generate the RRD
+
+                var w = 120;
+                var h = 20;
+                var barPadding = 0;
+
+                var svg = d3.select("#graphContainer" + key)
+                    .append("svg")
+                    .attr("width", w)
+                    .attr("height", h);
+
+                svg.selectAll("rect")
+                    .data(simple_rrd)
+                    .enter()
+                    .append("rect")
+                    .attr("x", function(d, i) {
+                        return i * (w / simple_rrd.length);
+                    })
+                    .attr("y", function(d) {
+                        return h - (d * 4);
+                    })
+                    .attr("width", w / simple_rrd.length - barPadding)
+                    .attr("height", function(d) {
+                        return d * 4;
+                    });
+
+
+            }
+
         }
+
     });
 
     handleDeviceSummary();
