@@ -1219,3 +1219,13 @@ int GetLengthTagOffsets(unsigned int init_offset,
     return 0;
 }
 
+std::string MultiReplaceAll(std::string in, std::string match, 
+        std::string repl) {
+    for (size_t pos = 0; (pos = in.find(match, pos)) != std::string::npos;
+            pos += repl.length()) {
+        in.replace(pos, match.length(), repl);
+    }
+
+    return in;
+}
+
