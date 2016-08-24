@@ -142,6 +142,8 @@ void JsonAdapter::Pack(GlobalRegistry *globalreg, std::stringstream &stream,
                 // change all our '.' to '_'.
                 std::replace(tname.begin(), tname.end(), '.', '_');
 
+                tname = SanitizeString(tname);
+
                 stream << "\"" << 
                     tname <<
                     "\": ";
