@@ -32,6 +32,8 @@ void Pack(GlobalRegistry *globalreg, std::stringstream &stream, TrackerElement *
 
 void Pack(GlobalRegistry *globalreg, std::stringstream &stream, tracker_component *c);
 
+string SanitizeString(string in);
+
 class Serializer : public TrackerElementSerializer {
 public:
     Serializer(GlobalRegistry *in_globalreg, std::stringstream &in_stream) : 

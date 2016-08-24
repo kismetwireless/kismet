@@ -39,6 +39,10 @@ void JsonAdapter::Pack(GlobalRegistry *globalreg, std::stringstream &stream,
     Pack(globalreg, stream, (TrackerElement *) c);
 }
 
+string JsonAdapter::SanitizeString(string in) {
+    return MultiReplaceAll(in, "\\", "\\\\");
+}
+
 
 void JsonAdapter::Pack(GlobalRegistry *globalreg, std::stringstream &stream,
     TrackerElement *e) {
