@@ -23,6 +23,9 @@
 
 <script>
 
+var packetGraphWidth = 120;
+var packetGraphHeight = 20;
+
 var deviceTid;
 
 function populateDeviceSummary() {
@@ -81,7 +84,8 @@ function handleDeviceSummary() {
                 $(".dataTables_scrollBody").scrollTop(scrollPos);
             },false);
         } else {
-            $(".dataTables_scrollBody").scrollTop(scrollPos);
+            dt.draw(false);
+            // $(".dataTables_scrollBody").scrollTop(scrollPos);
         }
     });
 
@@ -113,28 +117,30 @@ $(document).ready(function() {
         { sTitle: "Phy", mData: "kismet_device_base_phyname" },
         { sTitle: "Signal", mData: "kismet_device_base_signal.kismet_common_signal_last_signal_dbm" },
         { sTitle: "Channel", mData: "kismet_device_base_channel" },
-        { sTitle: "Last Time", mData: "kismet_device_base_last_time", name: "last_time" },
-        { sTitle: "Packets", mData: null, defaultContent: "", name: "packets" },
+        { sTitle: "Last Time", mData: "kismet_device_base_last_time", name: "last_time",
+            "render": function(data, type, row, meta) {
+                return new Date(data * 1000);
+            }
+        },
+        { sTitle: "Packets", mData: "kismet_device_base_key", defaultContent: "", name: "packets", 
+            "render": function(data, type, row, meta) {
+                // This sucks!
+                return "<svg id=\"graphContainer" + data + "\" " +
+                    "width=" + packetGraphWidth + " " +
+                    "height=" + packetGraphHeight + " >";
+            }},
         ], 
         "order":
             [ [ 0, "desc" ] ],
+
         rowId: "kismet_device_base_key",
 
-        "createdRow": function(row, data, index) {
-            /* Convert the timestamp to a human readable time */
-            var rid = this.DataTable().column('last_time:name').index();
-            var match = "td:eq(" + rid + ")";
-            var t = new Date(data["kismet_device_base_last_time"] * 1000);
-            $(match, row).html(t);
-
-            rid = this.DataTable().column('packets:name').index();
-            match = "td:eq(" + rid + ")";
-            // I'm sure there's a smarter way to do this but I don't know it.
-            var key = data["kismet_device_base_key"]
-            $(match, row).attr("id", "graphContainer" + key);
-        },
         "drawCallback": function( settings ) {
             var page = this.DataTable().scroller.page();
+
+            // Find the column
+            var rid = this.DataTable().column('packets:name').index();
+            var match = "td:eq(" + rid + ")";
 
             // For the rows that are visible...
             for (var r = page.start; r < page.end; r++) {
@@ -164,16 +170,20 @@ $(document).ready(function() {
                 }
 
 
-                // generate the RRD
+                // There has to be a smarter way to do this but that's what
+                // we're doing for now
 
-                var w = 120;
-                var h = 20;
+                // Draw the rrd in the part we flagged above
+
+                var w = packetGraphWidth;
+                var h = packetGraphHeight;
                 var barPadding = 0;
 
-                var svg = d3.select("#graphContainer" + key)
-                    .append("svg")
+                var svg = d3.select("#graphContainer" + key);
+                    /*
+                    .select("svg")
                     .attr("width", w)
-                    .attr("height", h);
+                    .attr("height", h); */
 
                 svg.selectAll("rect")
                     .data(simple_rrd)
