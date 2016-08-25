@@ -120,7 +120,7 @@ $(document).ready(function() {
             [ [ 0, "desc" ] ],
         rowId: "kismet_device_base_key",
 
-        "rowCallback": function(row, data, index) {
+        "createdRow": function(row, data, index) {
             /* Convert the timestamp to a human readable time */
             var rid = this.DataTable().column('last_time:name').index();
             var match = "td:eq(" + rid + ")";
@@ -132,7 +132,6 @@ $(document).ready(function() {
             // I'm sure there's a smarter way to do this but I don't know it.
             var key = data["kismet_device_base_key"]
             $(match, row).attr("id", "graphContainer" + key);
-
         },
         "drawCallback": function( settings ) {
             var page = this.DataTable().scroller.page();
