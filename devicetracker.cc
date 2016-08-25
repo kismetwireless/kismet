@@ -81,6 +81,13 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
         globalreg->entrytracker->RegisterField("kismet.device.summary", TrackerMac,
                 "device summary");
 
+    device_update_required_id =
+        globalreg->entrytracker->RegisterField("kismet.devicelist.refresh",
+                TrackerUInt8, "device list refresh recommended");
+    device_update_timestamp_id =
+        globalreg->entrytracker->RegisterField("kismet.devicelist.timestamp",
+                TrackerInt64, "device list timestamp");
+
     packets_rrd = new kis_tracked_rrd<uint64_t, TrackerUInt64>(globalreg, 0);
     packets_rrd->link();
     packets_rrd_id =
@@ -167,6 +174,8 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
 	} else {
 		max_devices_timer = -1;
 	}
+
+    full_refresh_time = 0;
 }
 
 Devicetracker::~Devicetracker() {
@@ -342,6 +351,10 @@ int Devicetracker::RegisterPhyHandler(Kis_Phy_Handler *in_weak_handler) {
 		 IntToString(num), MSGFLAG_INFO);
 
 	return num;
+}
+
+void Devicetracker::UpdateFullRefresh() {
+    full_refresh_time = globalreg->timestamp.tv_sec;
 }
 
 kis_tracked_device_base *Devicetracker::FetchDevice(uint64_t in_key) {
@@ -1655,6 +1668,24 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
             }
 
             return true;
+        } else if (tokenurl[2] == "last-time") {
+            if (tokenurl.size() < 5) {
+                return false;
+            }
+
+            // Is the timestamp an int?
+            long lastts;
+            if (sscanf(tokenurl[3].c_str(), "%ld", &lastts) != 1) {
+                return false;
+            }
+
+            // Are we asking for a summary we understand?
+            if (tokenurl[4] == "devices.json")
+                return true;
+            if (tokenurl[4] == "devices.msgpack")
+                return true;
+
+            return false;
         }
     }
 
@@ -1995,10 +2026,72 @@ void Devicetracker::Httpd_CreateStreamResponse(
                 serializer = 
                     new JsonAdapter::Serializer(globalreg, stream);
             }
-            serializer->serialize(devvec);
-            delete(serializer);
+
+            if (serializer != NULL) {
+                serializer->serialize(devvec);
+                delete(serializer);
+            }
 
             delete(devvec);
+
+            return;
+        } else if (tokenurl[2] == "last-time") {
+            if (tokenurl.size() < 5)
+                return;
+
+            // Is the timestamp an int?
+            long lastts;
+            if (sscanf(tokenurl[3].c_str(), "%ld", &lastts) != 1)
+                return;
+
+            local_locker lock(&devicelist_mutex);
+
+            TrackerElement *wrapper = new TrackerElement(TrackerMap);
+
+            TrackerElement *refresh = 
+                globalreg->entrytracker->GetTrackedInstance(device_update_required_id);
+
+            // If we've changed the list more recently, we have to do a refresh
+            if (lastts < full_refresh_time) {
+                refresh->set((uint8_t) 1);
+            } else {
+                refresh->set((uint8_t) 0);
+            }
+
+            wrapper->add_map(refresh);
+
+            TrackerElement *updatets = 
+                globalreg->entrytracker->GetTrackedInstance(device_update_timestamp_id);
+            updatets->set((int64_t) globalreg->timestamp.tv_sec);
+
+            wrapper->add_map(updatets);
+
+            TrackerElement *devvec =
+                globalreg->entrytracker->GetTrackedInstance(device_list_base_id);
+
+            wrapper->add_map(devvec);
+
+            vector<kis_tracked_device_base *>::iterator vi;
+            for (vi = tracked_vec.begin(); vi != tracked_vec.end(); ++vi) {
+                if ((*vi)->get_last_time() > lastts)
+                    devvec->add_vector((*vi));
+            }
+
+            TrackerElementSerializer *serializer = NULL;
+            // Are we asking for a summary we understand?
+            if (tokenurl[4] == "devices.json")
+                serializer = 
+                    new JsonAdapter::Serializer(globalreg, stream);
+            if (tokenurl[4] == "devices.msgpack")
+                serializer = 
+                    new MsgpackAdapter::Serializer(globalreg, stream);
+
+            if (serializer != NULL) {
+                serializer->serialize(wrapper);
+                delete(serializer);
+            }
+
+            delete(wrapper);
 
             return;
         }
@@ -2044,6 +2137,9 @@ int Devicetracker::timetracker_event(int eventid) {
             }
         }
 
+        if (target_devs.size() > 0)
+            UpdateFullRefresh();
+
         // Remove them from the global index, and then unlink to let the
         // tracked element GC clean them up
         for (vector<kis_tracked_device_base *>::iterator i =
@@ -2068,6 +2164,9 @@ int Devicetracker::timetracker_event(int eventid) {
 		// Do nothing if the number of devices is less than the max
 		if (tracked_vec.size() <= max_num_devices)
 			return 1;
+
+        // Do an update since we're trimming something
+        UpdateFullRefresh();
 
 		// Now things start getting expensive.  Start by sorting the
 		// vector of devices - we don't use it for anything else in a sorted

@@ -72,6 +72,17 @@ REST endpoints
         /devices/all_devices_dt.json
             json list of device summary records, wrapped in an aaData dictionary
             key for supporting the jquery datatables API
+
+        /devices/last-time/[ts]/devices.json
+            json dictionary containing list of devices modified since [ts] 
+            timestamp (unix time_t value) and a flag if a full device refresh
+            should be performed due to deleted devices or other structural 
+            changes
+        /devices/last-time/[ts]/devices.msgpack
+            msgpack dictionary containing list of devices modified since [ts] 
+            timestamp (unix time_t value) and a flag if a full device refresh
+            should be performed due to deleted devices or other structural 
+            changes
     
         /devices/by-key/DEVICE_KEY.msgpack
             packed trackercomponent of DEVICE (where DEVICE_KEY is the device 
@@ -92,6 +103,7 @@ REST endpoints
             It is possible that there is an overlap between PHYs, the caller
             is responsible for comparing the phy types and confirming they
             receive the expected device.
+
     
     Phy handling:
     

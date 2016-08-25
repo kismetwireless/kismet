@@ -641,6 +641,11 @@ public:
 	int AddFilter(string in_filter);
 	int AddNetCliFilter(string in_filter);
 
+    // Flag that we've altered the device structure in a way that a client should
+    // perform a full pull.  For instance, removing devices or device record
+    // components due to timeouts / max device cleanup
+    void UpdateFullRefresh();
+
 #if 0
 	int SetDeviceTag(mac_addr in_device, string in_data);
 	int ClearDeviceTag(mac_addr in_device);
@@ -738,6 +743,7 @@ protected:
     // Base IDs for tracker components
     int device_list_base_id, device_base_id, phy_base_id, phy_entry_id;
     int device_summary_base_id, device_summary_entry_id;
+    int device_update_required_id, device_update_timestamp_id;
 
 	// Total # of packets
 	int num_packets;
@@ -762,6 +768,9 @@ protected:
     // Maximum number of devices
     unsigned int max_num_devices;
     int max_devices_timer;
+
+    // Timestamp for the last time we removed a device
+    time_t full_refresh_time;
 
 	// Common device component
 	int devcomp_ref_common;
