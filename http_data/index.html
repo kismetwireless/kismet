@@ -45,15 +45,52 @@ function populateDeviceSummary() {
 
 }
 
+var last_devicelist_time = 0
+
 function handleDeviceSummary() {
+
+    var dt = $('#devices').DataTable();
 
     // Preserve the scroll position
     scrollPos = $(".dataTables_scrollBody").scrollTop();
+
+    $.get("/devices/last-time/" + last_devicelist_time + "/devices.json")
+        .done(function(data) {
+
+        console.log(data.kismet_devicelist_refresh);
+        console.log(data.kismet_devicelist_timestamp);
+        console.log(data.kismet_device_list);
+
+        last_devicelist_time = data.kismet_devicelist_timestamp;
+
+        for (var d in data.kismet_device_list) {
+            // console.log(data.kismet_device_list[d]);
+            var dev = data.kismet_device_list[d];
+            var row = dt.row("#" + dev.kismet_device_base_key);
+
+            if (typeof(row.data()) !== 'undefined') {
+                row.data(dev);
+                row.invalidate();
+            } else {
+                dt.row.add(dev);
+            }
+        }
+
+        if (data.kismet_devicelist_refresh == 1) {
+            dt.ajax.reload(function() {
+                $(".dataTables_scrollBody").scrollTop(scrollPos);
+            },false);
+        } else {
+            $(".dataTables_scrollBody").scrollTop(scrollPos);
+        }
+    });
+
+    /* Bulk-refresh the whole table, not what we
     $('#devices').DataTable().ajax.reload(function() {
         $(".dataTables_scrollBody").scrollTop(scrollPos);
     },false);
+    */
 
-    var api = $('#devices').DataTable();
 
     deviceTid = setTimeout(handleDeviceSummary, 2000); 
 }

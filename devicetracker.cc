@@ -175,7 +175,7 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
 		max_devices_timer = -1;
 	}
 
-    full_refresh_time = 0;
+    full_refresh_time = globalreg->timestamp.tv_sec;
 }
 
 Devicetracker::~Devicetracker() {
