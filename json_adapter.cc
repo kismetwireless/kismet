@@ -79,7 +79,7 @@ void JsonAdapter::Pack(GlobalRegistry *globalreg, std::stringstream &stream,
 
     switch (e->get_type()) {
         case TrackerString:
-            stream << "\"" << GetTrackerValue<string>(e) << "\"";
+            stream << "\"" << SanitizeString(GetTrackerValue<string>(e)) << "\"";
             break;
         case TrackerInt8:
             stream << (int) GetTrackerValue<int8_t>(e);
