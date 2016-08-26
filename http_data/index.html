@@ -60,14 +60,9 @@ function handleDeviceSummary() {
     $.get("/devices/last-time/" + last_devicelist_time + "/devices.json")
         .done(function(data) {
 
-        console.log(data.kismet_devicelist_refresh);
-        console.log(data.kismet_devicelist_timestamp);
-        console.log(data.kismet_device_list);
-
         last_devicelist_time = data.kismet_devicelist_timestamp;
 
         for (var d in data.kismet_device_list) {
-            // console.log(data.kismet_device_list[d]);
             var dev = data.kismet_device_list[d];
             var row = dt.row("#" + dev.kismet_device_base_key);
 
