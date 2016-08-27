@@ -10,7 +10,6 @@
 <script src="/js/jquery.dataTables.min.js"></script>
 <script src="/js/dataTables.scroller.min.js"></script>
 <script src="/js/jquery.sparkline.min.js"></script>
-<script src="/js/d3.v3.min.js" charset="utf-8"></script>
 
 <link rel="stylesheet" href="/css/font-awesome.min.css">
 <link rel="stylesheet" type="text/css" href="css/reset.css" media="screen" />
@@ -96,8 +95,6 @@ function handleDeviceSummary() {
 
     deviceTid = setTimeout(handleDeviceSummary, 2000); 
 }
-
-var svg = d3.select("#foobar");
 
 $(document).ready(function() {
     kismet_ui.BatteryUi($("#batspinner"), $("#batpower"), $("#battime"));
