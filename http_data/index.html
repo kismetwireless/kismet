@@ -9,6 +9,7 @@
 <script src="/js/kismet.ui.js"></script>
 <script src="/js/jquery.dataTables.min.js"></script>
 <script src="/js/dataTables.scroller.min.js"></script>
+<script src="/js/jquery.sparkline.min.js"></script>
 <script src="/js/d3.v3.min.js" charset="utf-8"></script>
 
 <link rel="stylesheet" href="/css/font-awesome.min.css">
@@ -48,6 +49,8 @@ function populateDeviceSummary() {
 
 }
 
+/* Last update we got from the device delta, we use it for some of the
+   graphing updates later on too */
 var last_devicelist_time = 0
 
 function handleDeviceSummary() {
@@ -117,13 +120,7 @@ $(document).ready(function() {
                 return new Date(data * 1000);
             }
         },
-        { sTitle: "Packets", mData: "kismet_device_base_key", defaultContent: "", name: "packets", 
-            "render": function(data, type, row, meta) {
-                // This sucks!
-                return "<svg id=\"graphContainer" + data + "\" " +
-                    "width=" + packetGraphWidth + " " +
-                    "height=" + packetGraphHeight + " >";
-            }},
+        { sTitle: "Packets", mData: null, defaultContent: "", name: "packets" },
         ], 
         "order":
             [ [ 0, "desc" ] ],
@@ -153,48 +150,31 @@ $(document).ready(function() {
 
                 var simple_rrd = [];
                 var rrd_len = data["kismet_device_base_packets_rrd"]["kismet_common_rrd_minute_vec"].length;
-                var startsec = data["kismet_device_base_packets_rrd"]["kismet_common_rrd_last_time"] % 60;
+                var startsec = data["kismet_device_base_packets_rrd"]["kismet_common_rrd_last_time"];
+                var startslot = data["kismet_device_base_packets_rrd"]["kismet_common_rrd_last_time"] % 60;
 
-                for (var ri = 0; ri < rrd_len; ri++) {
-                    avg += data["kismet_device_base_packets_rrd"]["kismet_common_rrd_minute_vec"][(startsec + ri) % rrd_len];
+                if (last_devicelist_time - startsec > 60) {
+                    // If we haven't seen this device in more than a minute the
+                    // graph is no good, fill it with zeroes in the most annoying
+                    // way possible to make sure that we match the number of empty bars
+                    for (var ri = 0; ri < rrd_len; ri += 1) {
+                        if ((ri % secs_avg) == (secs_avg - 1))
+                            simple_rrd.push(0);
+                    }
+                } else {
+                    for (var ri = 0; ri < rrd_len; ri++) {
+                        avg += data["kismet_device_base_packets_rrd"]["kismet_common_rrd_minute_vec"][(startslot + ri) % rrd_len];
 
-                    if ((ri % secs_avg) == (secs_avg - 1)) {
-                        simple_rrd.push(avg / secs_avg);
-                        avg = 0;
+                        if ((ri % secs_avg) == (secs_avg - 1)) {
+                            simple_rrd.push(Math.round(avg / secs_avg));
+                            avg = 0;
+                        }
                     }
                 }
 
-
-                // There has to be a smarter way to do this but that's what
-                // we're doing for now
-
-                // Draw the rrd in the part we flagged above
-
-                var w = packetGraphWidth;
-                var h = packetGraphHeight;
-                var barPadding = 0;
-
-                var svg = d3.select("#graphContainer" + key);
-                    /*
-                    .select("svg")
-                    .attr("width", w)
-                    .attr("height", h); */
-
-                svg.selectAll("rect")
-                    .data(simple_rrd)
-                    .enter()
-                    .append("rect")
-                    .attr("x", function(d, i) {
-                        return i * (w / simple_rrd.length);
-                    })
-                    .attr("y", function(d) {
-                        return h - (d * 4);
-                    })
-                    .attr("width", w / simple_rrd.length - barPadding)
-                    .attr("height", function(d) {
-                        return d * 4;
-                    });
-
+                $(match, row.node()).sparkline(simple_rrd, 
+                        { type: "bar",
+                          barColor: '#000000' });
 
             }
 
