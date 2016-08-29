@@ -102,6 +102,13 @@ $(document).ready(function() {
         rowId: "kismet_device_base_key",
 
         "drawCallback": function( settings ) {
+            $(this.api().table().container())
+                .find('div.dataTables_paginate')
+                .css( 'display', 'none' );
+            $(this.api().table().container())
+                .find('div.dataTables_length')
+                .css( 'display', 'none' );
+
             var page = this.DataTable().scroller.page();
 
             // Find the column
