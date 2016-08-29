@@ -100,7 +100,10 @@ $(document).ready(function() {
                 return new Date(data * 1000);
             }
         },
-        { sTitle: "Packets", mData: null, defaultContent: "", name: "packets" },
+        { sTitle: "Packets", mData: null, defaultContent: "", name: "packets",
+            "render": function(data, type, row, meta) {
+                return "<i>Preparing graph</i>";
+            }},
         ], 
         "order":
             [ [ 0, "desc" ] ],
@@ -132,9 +135,6 @@ $(document).ready(function() {
                 // var row = this.DataTable().row(r);
                 var row = this.DataTable().row(':eq('+r+')', {order:'applied', search:'applied'});
                 var data = row.data();
-
-                // Get the key
-                var key = data["kismet_device_base_key"]
 
                 // Simplify the RRD so that the bars are thicker in the graph, which
                 // I think looks better
