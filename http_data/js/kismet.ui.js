@@ -15,23 +15,23 @@ exports.BatteryUi = function(spinner, power, time) {
     spinner.show();
     kismet.GetSystemStatus(function(status) {
         if (status['kismet.system.battery.charging'] == "charging") {
-            power.attr("src", "/img/icon_battery_full_charge.svg");
+            power.attr("src", "/images/icon_battery_full_charge.svg");
             time.text("Charging " + 
                     status['kismet.system.battery.percentage'] + "% ");
         } else if (status['kismet.system.battery.charging'] == "charged") {
-            power.attr("src", "/img/icon_battery_full_charge.svg");
+            power.attr("src", "/images/icon_battery_full_charge.svg");
             time.text("Charged");
         } else {
             if (status['kismet.system.battery.percentage'] < 25)
-                power.attr("src", "/img/icon_battery_0.svg");
+                power.attr("src", "/images/icon_battery_0.svg");
             else if (status['kismet.system.battery.percentage'] < 50)
-                power.attr("src", "/img/icon_battery_25.svg");
+                power.attr("src", "/images/icon_battery_25.svg");
             else if (status['kismet.system.battery.percentage'] < 75)
-                power.attr("src", "/img/icon_battery_50.svg");
+                power.attr("src", "/images/icon_battery_50.svg");
             else if (status['kismet.system.battery.percentage'] < 90)
-                power.attr("src", "/img/icon_battery_75.svg");
+                power.attr("src", "/images/icon_battery_75.svg");
             else 
-                power.attr("src", "/img/icon_battery_100.svg");
+                power.attr("src", "/images/icon_battery_100.svg");
 
             var s = status['kismet.system.battery.remaining'];
 
@@ -51,7 +51,7 @@ exports.BatteryUi = function(spinner, power, time) {
         }
 
     }, function() {
-        power.attr("src", "/img/icon/battery_no_battery_power.svg");
+        power.attr("src", "/images/icon/battery_no_battery_power.svg");
         power.text("ERROR");
     });
     spinner.hide();
