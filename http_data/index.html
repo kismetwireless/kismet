@@ -23,9 +23,6 @@
 
 <script>
 
-var packetGraphWidth = 120;
-var packetGraphHeight = 20;
-
 var deviceTid;
 
 /* Last update we got from the device delta, we use it for some of the
@@ -132,16 +129,19 @@ $(document).ready(function() {
                 var startslot = data["kismet_device_base_packets_rrd"]["kismet_common_rrd_last_time"] % 60;
 
                 if (last_devicelist_time - startsec > 60) {
-                    // If we haven't seen this device in more than a minute the
-                    // graph is no good, fill it with zeroes in the most annoying
-                    // way possible to make sure that we match the number of empty bars
-                    for (var ri = 0; ri < rrd_len; ri += 1) {
-                        if ((ri % secs_avg) == (secs_avg - 1))
-                            simple_rrd.push(0);
+                    simple_rrd = [0] * (rrd_len / secs_avg);
+                } else {
+                    /* Skip ahead by the number of seconds since the last time */
+                    var sec_offt = Math.max(0, last_devicelist_time - startsec);
+
+                    // Clobber some seconds
+                    for (var ri = 0; ri < sec_offt; ri++) {
+                         data["kismet_device_base_packets_rrd"]["kismet_common_rrd_minute_vec"][(startslot + ri) % rrd_len] = 0;
                     }
 
-                    console.log("Row " + r + " is old, filling with 0, has " + simple_rrd);
-                } else {
+                    // And advance the start
+                    startsec += sec_offt;
+
                     for (var ri = 0; ri < rrd_len; ri++) {
                         avg += data["kismet_device_base_packets_rrd"]["kismet_common_rrd_minute_vec"][(startslot + ri) % rrd_len];
 
@@ -150,8 +150,6 @@ $(document).ready(function() {
                             avg = 0;
                         }
                     }
-
-                    console.log("Row " + r + " has graph " + simple_rrd);
                 }
 
                 $(match, row.node()).sparkline(simple_rrd, 
