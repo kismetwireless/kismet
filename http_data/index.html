@@ -21,6 +21,12 @@
 <!--[if IE 7]><link rel="stylesheet" type="text/css" href="css/ie.css" media="screen" /><![endif]-->
 <link rel="stylesheet" href="/css/jquery.dataTables.min.css"/>
 
+<style>
+td.highlight {
+        background-color: red !important;
+}
+</style>
+
 <script>
 
 var deviceTid;
@@ -115,7 +121,12 @@ $(document).ready(function() {
             var rid = this.DataTable().column('packets:name').index();
             var match = "td:eq(" + rid + ")";
 
-            // For the rows that are visible...
+            // Kluge the visible rows because it seems to miss the first and last
+            // with some degree of regularity
+            if (page.start > 0)
+                page.start--;
+            page.end++;
+
             for (var r = page.start; r < page.end; r++) {
                 // Grab the data
                 // var row = this.DataTable().row(r);
@@ -172,6 +183,12 @@ $(document).ready(function() {
 
         }
 
+    });
+
+    var device_dt = $('#devices').DataTable();
+
+    $('div.dataTables_scrollBody').scroll(function(e) {
+            //device_dt.draw(false);
     });
 
     handleDeviceSummary();
