@@ -136,7 +136,9 @@ $(document).ready(function() {
                 var startslot = data["kismet_device_base_packets_rrd"]["kismet_common_rrd_last_time"] % 60;
 
                 if (last_devicelist_time - startsec > 60) {
-                    simple_rrd = [0] * (rrd_len / secs_avg);
+                    for (var ri = 0; ri < (rrd_len / secs_avg); ri++) {
+                        simple_rrd.push(0);
+                    }
                 } else {
                     /* Skip ahead by the number of seconds since the last time */
                     var sec_offt = Math.max(0, last_devicelist_time - startsec);
