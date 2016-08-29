@@ -28,26 +28,6 @@ var packetGraphHeight = 20;
 
 var deviceTid;
 
-function populateDeviceSummary() {
-    $("#live").empty();
-    kismet.GetDeviceSummary(function(devices) {
-        for (var x = 0; x < devices.length; x++ ) {
-            var d = devices[x];
-
-            var newDiv = document.createElement("div");
-            $(newDiv).append(d["kismet.device.base.name"]);
-            $(newDiv).append("<b>[ Graph packets ]</b>");
-            $(newDiv).attr("key", d["kismet.device.base.key"]);
-            $(newDiv).click(function () { populateDeviceGraph($(this).attr("key")); });
-
-            $("#live").append(newDiv);
-        }
-    }, function(e) {
-        $("#live").append("Couldn't fetch list " + e);    
-    });
-
-}
-
 /* Last update we got from the device delta, we use it for some of the
    graphing updates later on too */
 var last_devicelist_time = 0
@@ -134,7 +114,8 @@ $(document).ready(function() {
             // For the rows that are visible...
             for (var r = page.start; r < page.end; r++) {
                 // Grab the data
-                var row = this.DataTable().row(r);
+                // var row = this.DataTable().row(r);
+                var row = this.DataTable().row(':eq('+r+')', {order:'applied', search:'applied'});
                 var data = row.data();
 
                 // Get the key
@@ -158,6 +139,8 @@ $(document).ready(function() {
                         if ((ri % secs_avg) == (secs_avg - 1))
                             simple_rrd.push(0);
                     }
+
+                    console.log("Row " + r + " is old, filling with 0, has " + simple_rrd);
                 } else {
                     for (var ri = 0; ri < rrd_len; ri++) {
                         avg += data["kismet_device_base_packets_rrd"]["kismet_common_rrd_minute_vec"][(startslot + ri) % rrd_len];
@@ -167,11 +150,16 @@ $(document).ready(function() {
                             avg = 0;
                         }
                     }
+
+                    console.log("Row " + r + " has graph " + simple_rrd);
                 }
 
                 $(match, row.node()).sparkline(simple_rrd, 
                         { type: "bar",
-                          barColor: '#000000' });
+                          barColor: '#000000',
+                          nullColor: '#000000',
+                          zeroColor: '#000000'
+                          });
 
             }
 
