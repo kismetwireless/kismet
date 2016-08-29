@@ -147,7 +147,7 @@ $(document).ready(function() {
                     }
 
                     // And advance the start
-                    startsec += sec_offt;
+                    startslot = (startslot + sec_offt) % 60;
 
                     for (var ri = 0; ri < rrd_len; ri++) {
                         avg += data["kismet_device_base_packets_rrd"]["kismet_common_rrd_minute_vec"][(startslot + ri) % rrd_len];
