@@ -2,21 +2,29 @@
 <head>
 <title>Kismet</title>
 
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <script src="/js/msgpack.js"></script>
-<script src="/js/jquery-2.2.0.min.js"></script>
+<script src="/js/jquery-3.1.0.min.js"></script>
 <script src="/js/jquery.ajax.binary.js"></script>
 <script src="/js/kismet.utils.js"></script>
 <script src="/js/kismet.ui.js"></script>
 <script src="/js/jquery.dataTables.min.js"></script>
 <script src="/js/dataTables.scroller.min.js"></script>
 <script src="/js/jquery.sparkline.min.js"></script>
+<script src="/js/jquery-ui.min.js"></script>
+<script src="/js/jquery.jspanel-compiled.min.js"></script>
 
 <link rel="stylesheet" href="/css/font-awesome.min.css">
-<link rel="stylesheet" type="text/css" href="css/reset.css" media="screen" />
-<link rel="stylesheet" type="text/css" href="css/text.css" media="screen" />
-<link rel="stylesheet" type="text/css" href="css/grid.css" media="screen" />
-<link rel="stylesheet" type="text/css" href="css/layout.css" media="screen" />
-<link rel="stylesheet" type="text/css" href="css/nav.css" media="screen" />
+<link rel="stylesheet" type="text/css" href="css/reset.css" />
+<link rel="stylesheet" type="text/css" href="css/text.css" />
+<link rel="stylesheet" type="text/css" href="css/grid.css" />
+<link rel="stylesheet" type="text/css" href="css/layout.css" />
+<link rel="stylesheet" type="text/css" href="css/nav.css" />
+<link rel="stylesheet" type="text/css" href="css/jquery-ui.min.css" />
+<link rel="stylesheet" type="text/css" href="css/jquery.jspanel.min.css" />
+
 <!--[if IE 6]><link rel="stylesheet" type="text/css" href="css/ie6.css" media="screen" /><![endif]-->
 <!--[if IE 7]><link rel="stylesheet" type="text/css" href="css/ie.css" media="screen" /><![endif]-->
 <link rel="stylesheet" href="/css/jquery.dataTables.min.css"/>
@@ -186,12 +194,18 @@ $(document).ready(function() {
     });
 
     handleDeviceSummary();
-});
 
+    $('#dialogtest').click(function() {
+            $.jsPanel();
+        });
+
+});
 </script>
 
 </head>
 <body>
+
+<button id="dialogtest">Dialog test</button>
 
     <div class="container_16">
         <div class="grid_16">
