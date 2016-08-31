@@ -78,10 +78,10 @@ function handleDeviceSummary() {
     */
 
 
-    deviceTid = setTimeout(handleDeviceSummary, 2000); 
+    deviceTid = setTimeout(handleDeviceSummary, 2000);
 }
 
-$(document).ready(function() {
+$(function() {
     kismet_ui.BatteryUi($("#batspinner"), $("#batpower"), $("#battime"));
 
     $('#devices').DataTable( {
@@ -106,7 +106,7 @@ $(document).ready(function() {
             "render": function(data, type, row, meta) {
                 return "<i>Preparing graph</i>";
             }},
-        ], 
+        ],
         "order":
             [ [ 0, "desc" ] ],
 
@@ -174,7 +174,7 @@ $(document).ready(function() {
                     }
                 }
 
-                $(match, row.node()).sparkline(simple_rrd, 
+                $(match, row.node()).sparkline(simple_rrd,
                         { type: "bar",
                           barColor: '#000000',
                           nullColor: '#000000',
@@ -189,24 +189,50 @@ $(document).ready(function() {
 
     var device_dt = $('#devices').DataTable();
 
-    $('div.dataTables_scrollBody').scroll(function(e) {
-            //device_dt.draw(false);
-    });
+    // Set an onclick handler
+    $('#devices tbody').on('click', 'tr', function () {
+        // Fetch the data of the row that got clicked
+        var data = device_dt.row( this ).data();
 
+        // Generate a unique ID for this dialog
+        var dialogid = "devicedialog" + data["kismet_device_base_key"];
+        var dialogmatch = '#' + dialogid;
+
+        $.jsPanel({
+            id: dialogid,
+            headerTitle: data["kismet_device_base_name"],
+            callback: function() {
+                // Append an accordion div
+                this.content.append($('<div />',
+                        {"id": "accordion"}));
+
+                // Match using our parent dialog ID or we over-modify
+                $(dialogmatch + ' #accordion').append($('<h3 />',
+                        {"id": "device", "html": "Device Info"}));
+
+                $(dialogmatch + ' #accordion #device').after($('<p />',
+                        {"html": "Device table?"}));
+
+                $(dialogmatch + ' #accordion').append($('<h3 />',
+                        {"id": "dot11", "html": "802.11 Info"}));
+
+                $(dialogmatch + ' #accordion #dot11').after($('<p />',
+                        {"html": "802.11 info table"}));
+
+                $(dialogmatch + ' #accordion').accordion();
+            }
+
+        })
+    } );
+
+    // Start the auto-updating
     handleDeviceSummary();
-
-    $('#dialogtest').click(function() {
-            $.jsPanel();
-        });
 
 });
 </script>
 
 </head>
 <body>
-
-<button id="dialogtest">Dialog test</button>
-
     <div class="container_16">
         <div class="grid_16">
             <div class="box">
