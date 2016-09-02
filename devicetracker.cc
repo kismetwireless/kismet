@@ -1614,18 +1614,18 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
 
             local_locker lock(&devicelist_mutex);
 
-            uint64_t key = 0;
-            uint64_t jkey = 0;
+			uint64_t key;
 
-            // Check msgpack and json
-            if (sscanf(tokenurl[3].c_str(), "%lu.msgpack", &key) != 1 &&
-                    sscanf(tokenurl[3].c_str(), "%lu.json", &jkey) != 1) {
-                return false;
-            }
+			vector<string> filesplit = StrTokenize(tokenurl[3], ".");
 
-            // If we found ajson key, use it instead
-            if (key == 0)
-                key = jkey;
+			if (filesplit.size() != 2)
+				return false;
+
+			if (sscanf(filesplit[0].c_str(), "%lu", &key) != 1)
+				return false;
+
+			if (filesplit[1] != "msgpack" && filesplit[1] != "json")
+				return false;
 
             map<uint64_t, kis_tracked_device_base *>::iterator tmi =
                 tracked_map.find(key);
@@ -1858,7 +1858,7 @@ void Devicetracker::Httpd_CreateStreamResponse(
     }
 
     if (strcmp(path, "/devices/all_devices.msgpack") == 0) {
-        TrackerElementSerializer *serializer = 
+        TrackerElementSerializer *serializer =
             new MsgpackAdapter::Serializer(globalreg, stream);
         httpd_device_summary(serializer);
         delete(serializer);
@@ -1866,7 +1866,7 @@ void Devicetracker::Httpd_CreateStreamResponse(
     }
 
     if (strcmp(path, "/devices/all_devices.json") == 0) {
-        TrackerElementSerializer *serializer = 
+        TrackerElementSerializer *serializer =
             new JsonAdapter::Serializer(globalreg, stream);
         httpd_device_summary(serializer);
         delete(serializer);
@@ -1875,7 +1875,7 @@ void Devicetracker::Httpd_CreateStreamResponse(
 
     // Datatable wrapper
     if (strcmp(path, "/devices/all_devices_dt.json") == 0) {
-        TrackerElementSerializer *serializer = 
+        TrackerElementSerializer *serializer =
             new JsonAdapter::Serializer(globalreg, stream);
         httpd_device_summary(serializer, NULL, "aaData");
         delete(serializer);
@@ -1888,7 +1888,7 @@ void Devicetracker::Httpd_CreateStreamResponse(
     }
 
     if (strcmp(path, "/phy/all_phys.msgpack") == 0) {
-        TrackerElementSerializer *serializer = 
+        TrackerElementSerializer *serializer =
             new MsgpackAdapter::Serializer(globalreg, stream);
         httpd_all_phys(serializer);
         delete(serializer);
@@ -1896,15 +1896,15 @@ void Devicetracker::Httpd_CreateStreamResponse(
     }
 
     if (strcmp(path, "/phy/all_phys.json") == 0) {
-        TrackerElementSerializer *serializer = 
+        TrackerElementSerializer *serializer =
             new JsonAdapter::Serializer(globalreg, stream);
         httpd_all_phys(serializer);
         delete(serializer);
     }
-   
+
     // Datatable wrapper
     if (strcmp(path, "/phy/all_phys_dt.json") == 0) {
-        TrackerElementSerializer *serializer = 
+        TrackerElementSerializer *serializer =
             new JsonAdapter::Serializer(globalreg, stream);
         httpd_all_phys(serializer, "aaData");
         delete(serializer);
@@ -1923,21 +1923,23 @@ void Devicetracker::Httpd_CreateStreamResponse(
             local_locker lock(&devicelist_mutex);
 
             uint64_t key = 0;
-            uint64_t jkey = 0;
             bool use_msgpack = false;
             bool use_json = false;
 
-            if (sscanf(tokenurl[3].c_str(), "%lu.msgpack", &key) != 1 &&
-                    sscanf(tokenurl[3].c_str(), "%lu.json", &jkey) != 1) {
-                return;
-            }
+			vector<string> filesplit = StrTokenize(tokenurl[3], ".");
 
-            if (key == 0) {
-                use_json = true;
-                key = jkey;
-            } else {
-                use_msgpack = true;
-            }
+			if (filesplit.size() != 2)
+				return;
+
+			if (sscanf(filesplit[0].c_str(), "%lu", &key) != 1)
+				return;
+
+			if (filesplit[1] == "msgpack")
+				use_msgpack = true;
+			else if (filesplit[1] == "json")
+				use_json = true;
+			else
+				return;
 
             map<uint64_t, kis_tracked_device_base *>::iterator tmi =
                 tracked_map.find(key);
@@ -1955,10 +1957,10 @@ void Devicetracker::Httpd_CreateStreamResponse(
                     } else {
                         TrackerElementSerializer *serializer = NULL;
                         if (use_msgpack) {
-                            serializer = 
+                            serializer =
                                 new MsgpackAdapter::Serializer(globalreg, stream);
                         } else if (use_json) {
-                            serializer = 
+                            serializer =
                                 new JsonAdapter::Serializer(globalreg, stream);
                         }
                         serializer->serialize(sub);
@@ -1969,10 +1971,10 @@ void Devicetracker::Httpd_CreateStreamResponse(
 
                 TrackerElementSerializer *serializer = NULL;
                 if (use_msgpack) {
-                    serializer = 
+                    serializer =
                         new MsgpackAdapter::Serializer(globalreg, stream);
                 } else if (use_json) {
-                    serializer = 
+                    serializer =
                         new JsonAdapter::Serializer(globalreg, stream);
                 }
                 serializer->serialize(tmi->second);
@@ -2020,10 +2022,10 @@ void Devicetracker::Httpd_CreateStreamResponse(
 
             TrackerElementSerializer *serializer = NULL;
             if (use_msgpack) {
-                serializer = 
+                serializer =
                     new MsgpackAdapter::Serializer(globalreg, stream);
             } else if (use_json) {
-                serializer = 
+                serializer =
                     new JsonAdapter::Serializer(globalreg, stream);
             }
 
@@ -2048,7 +2050,7 @@ void Devicetracker::Httpd_CreateStreamResponse(
 
             TrackerElement *wrapper = new TrackerElement(TrackerMap);
 
-            TrackerElement *refresh = 
+            TrackerElement *refresh =
                 globalreg->entrytracker->GetTrackedInstance(device_update_required_id);
 
             // If we've changed the list more recently, we have to do a refresh
@@ -2060,7 +2062,7 @@ void Devicetracker::Httpd_CreateStreamResponse(
 
             wrapper->add_map(refresh);
 
-            TrackerElement *updatets = 
+            TrackerElement *updatets =
                 globalreg->entrytracker->GetTrackedInstance(device_update_timestamp_id);
             updatets->set((int64_t) globalreg->timestamp.tv_sec);
 
@@ -2080,10 +2082,10 @@ void Devicetracker::Httpd_CreateStreamResponse(
             TrackerElementSerializer *serializer = NULL;
             // Are we asking for a summary we understand?
             if (tokenurl[4] == "devices.json")
-                serializer = 
+                serializer =
                     new JsonAdapter::Serializer(globalreg, stream);
             if (tokenurl[4] == "devices.msgpack")
-                serializer = 
+                serializer =
                     new MsgpackAdapter::Serializer(globalreg, stream);
 
             if (serializer != NULL) {
