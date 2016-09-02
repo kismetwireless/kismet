@@ -22,12 +22,18 @@
 <link rel="stylesheet" type="text/css" href="css/grid.css" />
 <link rel="stylesheet" type="text/css" href="css/layout.css" />
 <link rel="stylesheet" type="text/css" href="css/nav.css" />
-<link rel="stylesheet" type="text/css" href="css/jquery-ui.min.css" />
-<link rel="stylesheet" type="text/css" href="css/jquery.jspanel.min.css" />
-
 <!--[if IE 6]><link rel="stylesheet" type="text/css" href="css/ie6.css" media="screen" /><![endif]-->
 <!--[if IE 7]><link rel="stylesheet" type="text/css" href="css/ie.css" media="screen" /><![endif]-->
-<link rel="stylesheet" href="/css/jquery.dataTables.min.css"/>
+<link rel="stylesheet" type="text/css" href="css/jquery-ui.min.css" />
+<link rel="stylesheet" type="text/css" href="css/jquery.jspanel.min.css" />
+<link rel="stylesheet" type="text/css" href="/css/jquery.dataTables.min.css"/>
+
+<style type="text/css">
+td.highlight {
+    /* background-color: whitesmoke !important; */
+    background-color: #dddddd !important;
+}
+</style>
 
 <script>
 
@@ -201,6 +207,18 @@ $(function() {
         $.jsPanel({
             id: dialogid,
             headerTitle: data["kismet_device_base_name"],
+            position: {
+                "my": "left-top",
+                "at": "left-top",
+                "of": "window",
+                "offsetX": 5,
+                "offsetY": 10,
+                "autoposition": "RIGHT"
+            },
+            contentSize: {
+                "width": ($(window).width() / 3) - 20,
+                "height": $(window).height() * 0.9
+            },
             callback: function() {
                 // Append an accordion div
                 this.content.append($('<div />',
@@ -210,8 +228,11 @@ $(function() {
                 $(dialogmatch + ' #accordion').append($('<h3 />',
                         {"id": "device", "html": "Device Info"}));
 
-                $(dialogmatch + ' #accordion #device').after($('<p />',
-                        {"html": "Device table?"}));
+                $(dialogmatch + ' #accordion #device')
+                .after($('<div />', {
+                    "id": "devicedata",
+                    "html": "Device table?"
+                }));
 
                 $(dialogmatch + ' #accordion').append($('<h3 />',
                         {"id": "dot11", "html": "802.11 Info"}));
@@ -224,6 +245,17 @@ $(function() {
 
         })
     } );
+
+    $('#devices tbody')
+        .on( 'mouseenter', 'td', function () {
+            var colIdx = device_dt.cell(this).index().column;
+            var rowIdx = device_dt.cell(this).index().row;
+
+            // Remove from all cells
+            $( device_dt.cells().nodes() ).removeClass( 'highlight' );
+            // Highlight the td in this row
+            $( 'td', device_dt.row(rowIdx).nodes() ).addClass('highlight');
+        } );
 
     // Start the auto-updating
     handleDeviceSummary();
@@ -249,7 +281,7 @@ $(function() {
                 <h2>Devices</h2>
 
                 <div id="devtable" class="fill">
-                    <table id="devices" class="hover" cellspacing="0" width="100%">
+                    <table id="devices" class="stripe hover" cell-spacing="0" width="100%">
                     </table>
                 </div>
 
