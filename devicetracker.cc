@@ -1609,35 +1609,36 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
 
         // Do a by-key lookup and return the device or the device path
         if (tokenurl[2] == "by-key") {
-            if (tokenurl.size() < 4)
+            if (tokenurl.size() < 5) {
                 return false;
+            }
 
             local_locker lock(&devicelist_mutex);
 
-			uint64_t key;
+            uint64_t key = 0;
 
-			vector<string> filesplit = StrTokenize(tokenurl[3], ".");
-
-			if (filesplit.size() != 2)
+			if (sscanf(tokenurl[3].c_str(), "%lu", &key) != 1)
 				return false;
 
-			if (sscanf(filesplit[0].c_str(), "%lu", &key) != 1)
-				return false;
-
-			if (filesplit[1] != "msgpack" && filesplit[1] != "json")
+			if (tokenurl[4] == "device.msgpack")
+                ;
+			else if (tokenurl[4] == "device.json")
+                ;
+			else
 				return false;
 
             map<uint64_t, kis_tracked_device_base *>::iterator tmi =
                 tracked_map.find(key);
             if (tmi != tracked_map.end()) {
                 // Try to find the exact field
-                if (tokenurl.size() > 4) {
-                    vector<string>::const_iterator first = tokenurl.begin() + 4;
+                if (tokenurl.size() > 5) {
+                    vector<string>::const_iterator first = tokenurl.begin() + 5;
                     vector<string>::const_iterator last = tokenurl.end();
                     vector<string> fpath(first, last);
 
-                    if (tmi->second->get_child_path(fpath) == NULL)
+                    if (tmi->second->get_child_path(fpath) == NULL) {
                         return false;
+                    }
                 }
 
                 return true;
@@ -1645,29 +1646,33 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
                 return false;
             }
         } else if (tokenurl[2] == "by-mac") {
-            if (tokenurl.size() < 4)
+            if (tokenurl.size() < 5)
                 return false;
 
             local_locker lock(&devicelist_mutex);
 
-            // Slice .msgpack or .json off it
-            size_t trimpos = tokenurl[3].find(".msgpack");
-            if (trimpos == string::npos) {
-                // Didn't end in mspack?  Does it end in json?
-                if ((trimpos = tokenurl[3].find(".json")) == string::npos)
-                    return false;
-            }
+			if (tokenurl[4] == "devices.msgpack")
+                ;
+			else if (tokenurl[4] == "devices.json")
+                ;
+            else
+                return false;
 
-            string macstr = tokenurl[3].substr(0, trimpos);
-
-            // Convert to MAC
-            mac_addr mac = mac_addr(macstr);
+            mac_addr mac = mac_addr(tokenurl[3]);
 
             if (mac.error) {
                 return false;
             }
 
-            return true;
+            // Try to find the actual mac
+            vector<kis_tracked_device_base *>::iterator vi;
+            for (vi = tracked_vec.begin(); vi != tracked_vec.end(); ++vi) {
+                if ((*vi)->get_macaddr() == mac) {
+                    return true;
+                }
+            }
+
+            return false;
         } else if (tokenurl[2] == "last-time") {
             if (tokenurl.size() < 5) {
                 return false;
@@ -1916,37 +1921,38 @@ void Devicetracker::Httpd_CreateStreamResponse(
         return;
 
     if (tokenurl[1] == "devices") {
-        if (tokenurl.size() < 3)
+        if (tokenurl.size() < 5)
             return;
 
         if (tokenurl[2] == "by-key") {
+            if (tokenurl.size() < 5) {
+                return;
+            }
+
             local_locker lock(&devicelist_mutex);
 
             uint64_t key = 0;
+
             bool use_msgpack = false;
             bool use_json = false;
 
-			vector<string> filesplit = StrTokenize(tokenurl[3], ".");
-
-			if (filesplit.size() != 2)
+			if (sscanf(tokenurl[3].c_str(), "%lu", &key) != 1) {
 				return;
+            }
 
-			if (sscanf(filesplit[0].c_str(), "%lu", &key) != 1)
-				return;
-
-			if (filesplit[1] == "msgpack")
+			if (tokenurl[4] == "device.msgpack")
 				use_msgpack = true;
-			else if (filesplit[1] == "json")
+			else if (tokenurl[4] == "device.json")
 				use_json = true;
-			else
+			else 
 				return;
 
             map<uint64_t, kis_tracked_device_base *>::iterator tmi =
                 tracked_map.find(key);
             if (tmi != tracked_map.end()) {
                 // Try to find the exact field
-                if (tokenurl.size() > 4) {
-                    vector<string>::const_iterator first = tokenurl.begin() + 4;
+                if (tokenurl.size() > 5) {
+                    vector<string>::const_iterator first = tokenurl.begin() + 5;
                     vector<string>::const_iterator last = tokenurl.end();
                     vector<string> fpath(first, last);
 
@@ -1984,7 +1990,7 @@ void Devicetracker::Httpd_CreateStreamResponse(
                 return;
             }
         } else if (tokenurl[2] == "by-mac") {
-            if (tokenurl.size() < 4)
+            if (tokenurl.size() < 5)
                 return;
 
             local_locker lock(&devicelist_mutex);
@@ -1992,19 +1998,14 @@ void Devicetracker::Httpd_CreateStreamResponse(
             bool use_msgpack = false;
             bool use_json = false;
 
-            // Slice .msgpack off it
-            size_t trimpos = tokenurl[3].find(".msgpack");
-            if (trimpos == string::npos) {
-                if ((trimpos = tokenurl[3].find(".json")) == string::npos)
-                    return;
+			if (tokenurl[4] == "devices.msgpack")
+				use_msgpack = true;
+			else if (tokenurl[4] == "devices.json")
+				use_json = true;
+            else
+                return;
 
-                use_json = true;
-            } else {
-                use_msgpack = true;
-            }
-
-            string macstr = tokenurl[3].substr(0, trimpos);
-            mac_addr mac = mac_addr(macstr);
+            mac_addr mac = mac_addr(tokenurl[3]);
 
             if (mac.error) {
                 return;

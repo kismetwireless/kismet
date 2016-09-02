@@ -84,22 +84,35 @@ REST endpoints
             should be performed due to deleted devices or other structural 
             changes
     
-        /devices/by-key/DEVICE_KEY.msgpack
+        /devices/by-key/DEVICE_KEY/device.msgpack
             packed trackercomponent of DEVICE (where DEVICE_KEY is the device 
             key from the summary)
     
-        /devices/by-key/DEVICE_KEY.msgpack/device/record/path
+        /devices/by-key/DEVICE_KEY/device.msgpack/record/path
             packed trackercomponent of DEVICE, selected by supplied path.
             
             Example:
-            /devices/KEY.msgpack/dot11.device/dot11.device.last_beaconed_ssid
+            /devices/by-key/KEY/device.msgpack/dot11.device/dot11.device.last_beaconed_ssid
     
             would yield the last_beaconed_ssid record ONLY, using normal msgpack
             serialization, or:
                 [0, "some string"]
 
-        /devices/by-mac/DEVICE_MAC.msgpack
+        /devices/by-key/DEVICE_KEY/device.json
+            json trackercomponent of DEVICE (where DEVICE_KEY is the device 
+            key from the summary)
+    
+        /devices/by-key/DEVICE_KEY/device.json/device/record/path
+            packed trackercomponent of DEVICE, selected by supplied path.
+
+        /devices/by-mac/DEVICE_MAC/devices.msgpack
             packed vector of devices matching the MAC address across all PHYs.
+            It is possible that there is an overlap between PHYs, the caller
+            is responsible for comparing the phy types and confirming they
+            receive the expected device.
+
+        /devices/by-mac/DEVICE_MAC/devices.json
+            json vector of devices matching the MAC address across all PHYs.
             It is possible that there is an overlap between PHYs, the caller
             is responsible for comparing the phy types and confirming they
             receive the expected device.

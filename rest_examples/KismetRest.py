@@ -144,7 +144,7 @@ class KismetConnector:
         try:
             r = self.session.get("%s/%s" % (self.host_uri, url))
             if not r.status_code == 200:
-                print "Did not get 200 OK"
+                print "Did not get 200 OK: {} {}".format(url, r.status_code)
                 return None
             urlbin = r.content
         except Exception as e:
@@ -274,7 +274,7 @@ class KismetConnector:
 
         Return complete device object of device referenced by key
         """
-        return self.__unpack_simple_url("devices/by-key/{}.msgpack".format(key))
+        return self.__unpack_simple_url("devices/by-key/{}/device.msgpack".format(key))
 
     def device_field(self, key, field):
         """
@@ -285,7 +285,7 @@ class KismetConnector:
         field: Kismet tracked field path, ex:
             dot11.device/dot11.device.last_beaconed_ssid
         """
-        return self.__unpack_simple_url("devices/by-key/{}.msgpack/{}".format(key, field))
+        return self.__unpack_simple_url("devices/by-key/{}/device.msgpack/{}".format(key, field))
 
     def device_by_mac(self, mac):
         """
@@ -294,7 +294,7 @@ class KismetConnector:
         Return a vector of all devices in all phy types matching the supplied MAC
         address
         """
-        return self.__unpack_simple_url("devices/by-mac/{}.msgpack".format(mac))
+        return self.__unpack_simple_url("devices/by-mac/{}/devices.msgpack".format(mac))
 
     def old_sources(self):
         """
