@@ -16,6 +16,8 @@
 <script src="/js/jquery-ui.min.js"></script>
 <script src="/js/jquery.jspanel-compiled.min.js"></script>
 
+<script src="/js/jquery.kismet.devicedata.js"></script>
+
 <link rel="stylesheet" href="/css/font-awesome.min.css">
 <link rel="stylesheet" type="text/css" href="css/reset.css" />
 <link rel="stylesheet" type="text/css" href="css/text.css" />
@@ -215,30 +217,54 @@ $(function() {
                 "offsetY": 10,
                 "autoposition": "RIGHT"
             },
+
             contentSize: {
                 "width": ($(window).width() / 3) - 20,
                 "height": $(window).height() * 0.9
             },
+
             callback: function() {
                 // Append an accordion div
                 this.content.append($('<div />',
                         {"id": "accordion"}));
 
                 // Match using our parent dialog ID or we over-modify
-                $(dialogmatch + ' #accordion').append($('<h3 />',
-                        {"id": "device", "html": "Device Info"}));
+                $(dialogmatch + ' #accordion')
+                    .append($('<h3 />', {
+                        "id": "device",
+                        "html": "Device Info"
+                    }));
 
                 $(dialogmatch + ' #accordion #device')
-                .after($('<div />', {
-                    "id": "devicedata",
-                    "html": "Device table?"
-                }));
+                    .after($('<div />', {
+                        "id": "devicedata",
+                    }));
 
-                $(dialogmatch + ' #accordion').append($('<h3 />',
-                        {"id": "dot11", "html": "802.11 Info"}));
+                $(dialogmatch + ' #devicedata').devicedata(data, {
+                    "fields": [
+                        {
+                            "field": "kismet_device_base_key",
+                            "title": "Device Key"
+                        },
+                        {
+                            "field": "kismet_device_base_name",
+                            "title": "Name",
+                            "render": function(key, data) {
+                                return '<b>' + data[key] + '</b>';
+                            }
+                        }
+                    ]
+                });
 
-                $(dialogmatch + ' #accordion #dot11').after($('<p />',
-                        {"html": "802.11 info table"}));
+                $(dialogmatch + ' #accordion')
+                    .append($('<h3 />', {
+                        "id": "dot11", "html": "802.11 Info"
+                    }));
+
+                $(dialogmatch + ' #accordion #dot11')
+                    .after($('<p />', {
+                        "html": "802.11 info table"
+                    }));
 
                 $(dialogmatch + ' #accordion').accordion();
             }
