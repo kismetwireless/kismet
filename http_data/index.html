@@ -333,20 +333,34 @@ $(function() {
                                 {
                                     // Sub-group, groups it in a control group 
                                     // spanning both columns
-                                    "groupTitle": "Avg. Location",
+                                    groupTitle: "Avg. Location",
                                     // Spoofed field for ID purposes
-                                    "field": "group_avg_location",
+                                    field: "group_avg_location",
                                     // Sub-table ID
-                                    "id": "group_avg_location",
+                                    id: "group_avg_location",
+
+                                    // Don't show location if we don't know it
+                                    filter: function(key, data, value) {
+                                        return (kismet.ObjectByString(data, "kismet_device_base_location.kismet_common_location_avg_loc.kismet_common_location_valid") == 1);
+                                    },
+
                                     // Fields in subgroup
-                                    "fields": [
+                                    fields: [
                                     { 
-                                        "field": "kismet_device_base_location.kismet_common_location_avg_loc.kismet_common_location_lat",
-                                        "title": "Latitude"
+                                        field: "kismet_device_base_location.kismet_common_location_avg_loc.kismet_common_location_lat",
+                                        title: "Latitude"
                                     },
                                     {
-                                        "field": "kismet_device_base_location.kismet_common_location_avg_loc.kismet_common_location_lon",
-                                        "title": "Longitude"
+                                        field: "kismet_device_base_location.kismet_common_location_avg_loc.kismet_common_location_lon",
+                                        title: "Longitude"
+                                    },
+                                    {
+                                        field: "kismet_device_base_location.kismet_common_location_avg_loc.kismet_common_location_alt",
+                                        title: "Altitude (meters)",
+                                        filter: function(key, data, value) {
+                                            return (kismet.ObjectByString(data, "kismet_device_base_location.kismet_common_location_avg_loc.kismet_common_location_fix") >= 3);
+                                        }
+
                                     }
                                     ],
                                 }

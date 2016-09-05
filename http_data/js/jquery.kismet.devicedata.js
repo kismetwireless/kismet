@@ -10,6 +10,9 @@
         // the original key, data, and resolved value
         "render": function(key, data, value) {}  
         "emtpy": "..." // Text to be substituted when there is no value
+        // Optional function for filtering if we display this entity, returns
+        // boolean for display
+        "filter": function(key, data, value) {}
     }
 */
 
@@ -34,6 +37,15 @@
         }
 
         settings.fields.forEach(function(v, index, array) {
+            // Do we have a function for rendering this?
+            var d = kismet.ObjectByString(data, v['field']);
+
+            if ('filter' in v && typeof(v['filter']) == "function") {
+                if (!(v['filter'](v['field'], data, d))) {
+                    return;
+                }
+            }
+
             // Find the row if it exists
             var drow = $('#' + v['field'], subtable);
 
@@ -82,9 +94,6 @@
             }
 
             $('td:eq(0)', drow).html(v['title']);
-
-            // Do we have a function for rendering this?
-            var d = kismet.ObjectByString(data, v['field']);
 
             if ('render' in v && typeof(v['render']) == "function") {
                 $('td:eq(1)', drow).html(v['render'](v['field'], data, d));
