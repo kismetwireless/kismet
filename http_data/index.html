@@ -35,6 +35,16 @@ td.highlight {
     /* background-color: whitesmoke !important; */
     background-color: #dddddd !important;
 }
+
+div.autosize {
+    height: auto !important;
+    min-height: 10px;
+}
+
+table.kismet_devicedata {
+    border: 0;
+}
+
 </style>
 
 <script>
@@ -238,23 +248,112 @@ $(function() {
                 $(dialogmatch + ' #accordion #device')
                     .after($('<div />', {
                         "id": "devicedata",
+                        "class": "autosize",
                     }));
 
-                $(dialogmatch + ' #devicedata').devicedata(data, {
-                    "fields": [
-                        {
-                            "field": "kismet_device_base_key",
-                            "title": "Device Key"
-                        },
-                        {
-                            "field": "kismet_device_base_name",
-                            "title": "Name",
-                            "render": function(key, data) {
-                                return '<b>' + data[key] + '</b>';
-                            }
-                        }
-                    ]
-                });
+                $.get("/devices/by-key/" + data.kismet_device_base_key + "/device.json")
+                    .done(function(fulldata) {
+                        $(dialogmatch + ' #devicedata').devicedata(fulldata, {
+                            "id": "genericDeviceData",
+                            "fields": [
+                                {
+                                    field: "kismet_device_base_name",
+                                    title: "Name",
+                                    empty: "<i>None</i>"
+                                },
+                                {
+                                    field: "kismet_device_base_macaddr",
+                                    title: "MAC Address",
+                                    render: function(key, data, value) {
+                                        // Split out the mac from the mask
+                                        return value.split('/')[0];
+                                    }
+                                },
+                                {
+                                    field: "kismet_device_base_type",
+                                    title: "Type",
+                                    empty: "Unknown"
+                                },
+                                {
+                                    field: "kismet_device_base_first_time",
+                                    title: "First Seen",
+                                    render: function(key, data, value) {
+                                        return new Date(value * 1000);
+                                    }
+                                },
+                                {
+                                    field: "kismet_device_base_last_time",
+                                    title: "Last Seen",
+                                    render: function(key, data, value) {
+                                        return new Date(value * 1000);
+                                    }
+                                },
+                                {
+                                    field: "group_packet_counts",
+                                    groupTitle: "Packets",
+                                    id: "group_pcket_counts",
+
+                                    fields: [
+                                    {
+                                        field: "kismet_device_base_packets_total",
+                                        title: "Total Packets"
+                                    },
+                                    {
+                                        field: "kismet_device_base_packets_llc",
+                                        title: "LLC/Management"
+                                    },
+                                    {
+                                        field: "kismet_device_base_packets_error",
+                                        title: "Error/Invalid"
+                                    },
+                                    {
+                                        field: "kismet_device_base_packets_data",
+                                        title: "Data"
+                                    },
+                                    {
+                                        field: "kismet_device_base_packets_crypt",
+                                        title: "Encrypted"
+                                    },
+                                    {
+                                        field: "kismet_device_base_packets_filtered",
+                                        title: "Filtered"
+                                    },
+                                    {
+                                        field: "kismet_device_base_datasize",
+                                        title: "Data Transferred",
+                                        render: function(key, data, value) {
+                                            return kismet.HumanReadableSize(value);
+                                        }
+                                    }
+
+
+                                    ]
+                                },
+
+                                {
+                                    // Sub-group, groups it in a control group 
+                                    // spanning both columns
+                                    "groupTitle": "Avg. Location",
+                                    // Spoofed field for ID purposes
+                                    "field": "group_avg_location",
+                                    // Sub-table ID
+                                    "id": "group_avg_location",
+                                    // Fields in subgroup
+                                    "fields": [
+                                    { 
+                                        "field": "kismet_device_base_location.kismet_common_location_avg_loc.kismet_common_location_lat",
+                                        "title": "Latitude"
+                                    },
+                                    {
+                                        "field": "kismet_device_base_location.kismet_common_location_avg_loc.kismet_common_location_lon",
+                                        "title": "Longitude"
+                                    }
+                                    ],
+                                }
+                            ]
+                        });
+
+                    });
 
                 $(dialogmatch + ' #accordion')
                     .append($('<h3 />', {
@@ -272,6 +371,9 @@ $(function() {
         })
     } );
 
+    // Start the auto-updating
+    handleDeviceSummary();
+
     $('#devices tbody')
         .on( 'mouseenter', 'td', function () {
             var colIdx = device_dt.cell(this).index().column;
@@ -282,9 +384,6 @@ $(function() {
             // Highlight the td in this row
             $( 'td', device_dt.row(rowIdx).nodes() ).addClass('highlight');
         } );
-
-    // Start the auto-updating
-    handleDeviceSummary();
 
 });
 </script>

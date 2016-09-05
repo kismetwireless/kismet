@@ -191,6 +191,38 @@ exports.GetChannelData = function(callback, failback) {
     });
 };
 
+// From http://stackoverflow.com/a/6491621
+exports.ObjectByString = function(o, s) {
+    s = s.replace(/\[(\w+)\]/g, '.$1');
+    s = s.replace(/^\./, '');
+    var a = s.split('.');
+    for (var i = 0, n = a.length; i < n; ++i) {
+        var k = a[i];
+        if (k in o) {
+            o = o[k];
+        } else {
+            return;
+        }
+    }
+
+    return o;
+}
+
+exports.HumanReadableSize = function(sz) {
+    console.log(sz);
+    if (sz < 1024) {
+        return sz + " bytes";
+    } else if (sz < 1024 * 1024) {
+        return (sz / 1024).toFixed(2) + " kB";
+    } else if (sz < 1024 * 1024 * 1024) {
+        return (sz / 1024 / 1024).toFixed(2) + " mB";
+    } else if (sz < 1024 * 1024 * 1024 * 1024) {
+        return (sz / 1024 / 1024 / 1024).toFixed(2) + " gB";
+    }
+
+    return sz;
+}
+
 return exports;
 
 });

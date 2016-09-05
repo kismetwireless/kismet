@@ -2,9 +2,14 @@
 
 /* Fields is an array, processed in order, of:
     {
-        "field", "..." // Field spec
-        "title", "..." // title text
-        "render", function(key, data) {}  // Optional function for rendering that should return html
+        "field": "..." // Field spec
+        "title": "..." // title text
+        "groupTitle": "..." // This will be a sub-group, which is a new
+            table made from this keys id, fields, etc records
+        // Optional function for rendering that should return html, taking
+        // the original key, data, and resolved value
+        "render": function(key, data, value) {}  
+        "emtpy": "..." // Text to be substituted when there is no value
     }
 */
 
@@ -12,6 +17,7 @@
     $.fn.devicedata = function(data, options) {
         var settings = $.extend({
             "stripe": true,
+            "id": "kismetDeviceData",
             "fields": {},
         }, options);
 
@@ -20,34 +26,74 @@
         // Do we need to make a table to hold our stuff?
         if (subtable.length == 0) {
             subtable = $('<table />', {
-                    "id": "kismetDeviceData"
+                    "id": settings['id'],
+                    "border": settings['border'],
+                    "class": "kismet_devicedata"
                 });
             this.append(subtable);
         }
 
         settings.fields.forEach(function(v, index, array) {
+            // Find the row if it exists
             var drow = $('#' + v['field'], subtable);
 
+            // Do we have a sub-group?
+            if ('groupTitle' in v) {
+                if (drow.length == 0) {
+                    drow = $('<tr />', {
+                        "id": v['field']
+                    });
+
+                    drow.append($('<td />', {
+                        "colspan": 2
+                    }));
+
+                    subtable.append(drow);
+                }
+
+                var cell = $('td:eq(0)', drow);
+
+                cell.append($('<b />', {
+                        'html': v['groupTitle']
+                }));
+
+                cell.append($('<br />'));
+                cell.append($('<div />'));
+
+                var contentdiv = $('div', cell);
+
+                // Recursively fill in the div with the sub-settings
+                contentdiv.devicedata(data, v);
+
+                return;
+
+            }
+
+            // Standard row
             if (drow.length == 0) {
                 drow = $('<tr />', {
                     "id": v['field']
                 });
-                drow.append('<td /><td />');
+                drow.append($('<td /><td />'));
 
                 subtable.append(drow);
             } else {
                 console.log("existing row?");
             }
 
-            console.log(drow);
-
             $('td:eq(0)', drow).html(v['title']);
 
             // Do we have a function for rendering this?
+            var d = kismet.ObjectByString(data, v['field']);
+
             if ('render' in v && typeof(v['render']) == "function") {
-                $('td:eq(1)', drow).html(v['render'](v['field'], data));
+                $('td:eq(1)', drow).html(v['render'](v['field'], data, d));
             } else {
-                $('td:eq(1)', drow).html(data[v['field']]);
+                if ('empty' in v && d.length == 0) {
+                    $('td:eq(1)', drow).html(v['empty'])
+                } else {
+                    $('td:eq(1)', drow).html(d);
+                }
             }
 
         });
