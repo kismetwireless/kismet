@@ -216,6 +216,12 @@ $(function() {
         var dialogid = "devicedialog" + data["kismet_device_base_key"];
         var dialogmatch = '#' + dialogid;
 
+        var w = ($(window).width() / 3) - 20;
+
+        if (w < 500) {
+            w = ($(window).width() / 2) - 20;
+        }
+
         $.jsPanel({
             id: dialogid,
             headerTitle: data["kismet_device_base_name"],
@@ -229,7 +235,7 @@ $(function() {
             },
 
             contentSize: {
-                "width": ($(window).width() / 3) - 20,
+                "width": w,
                 "height": $(window).height() * 0.9
             },
 
