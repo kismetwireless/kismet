@@ -289,9 +289,158 @@ $(function() {
                                     }
                                 },
                                 {
+                                    field: "group_signal_data",
+                                    groupTitle: "Signal",
+                                    id: "group_signal_data",
+
+                                    fields: [
+                                    { // Only show when dbm
+                                        field: "kismet_device_base_signal.kismet_common_signal_last_signal_dbm",
+                                        title: "Latest Signal",
+                                        render: function(key, data, value) {
+                                            return value + " dBm";
+                                        },
+                                        filter: function(key, data, value) {
+                                            return (value != 0);
+                                        }
+                                    },
+                                    { // Only show when rssi
+                                        field: "kismet_device_base_signal.kismet_common_signal_last_signal_rssi",
+                                        title: "Latest Signal",
+                                        render: function(key, data, value) {
+                                            return value + " RSSI";
+                                        },
+                                        filter: function(key, data, value) {
+                                            return (value != 0);
+                                        }
+                                    },
+                                    { // Only show when dbm
+                                        field: "kismet_device_base_signal.kismet_common_signal_last_noise_dbm",
+                                        title: "Latest Noise",
+                                        render: function(key, data, value) {
+                                            return value + " dBm";
+                                        },
+                                        filter: function(key, data, value) {
+                                            return (value != 0);
+                                        }
+                                    },
+                                    { // Only show when rssi
+                                        field: "kismet_device_base_signal.kismet_common_signal_last_noise_rssi",
+                                        title: "Latest Noise",
+                                        render: function(key, data, value) {
+                                            return value + " RSSI";
+                                        },
+                                        filter: function(key, data, value) {
+                                            return (value != 0);
+                                        }
+                                    },
+                                    { // Only show when dbm
+                                        field: "kismet_device_base_signal.kismet_common_signal_min_signal_dbm",
+                                        title: "Min. Signal",
+                                        render: function(key, data, value) {
+                                            return value + " dBm";
+                                        },
+                                        filter: function(key, data, value) {
+                                            return (value != 0);
+                                        }
+                                    },
+                                    { // Only show when rssi
+                                        field: "kismet_device_base_signal.kismet_common_signal_min_signal_rssi",
+                                        title: "Min. Signal",
+                                        render: function(key, data, value) {
+                                            return value + " RSSI";
+                                        },
+                                        filter: function(key, data, value) {
+                                            return (value != 0);
+                                        }
+                                    },
+                                    { // Only show when dbm
+                                        field: "kismet_device_base_signal.kismet_common_signal_max_signal_dbm",
+                                        title: "Max. Signal",
+                                        render: function(key, data, value) {
+                                            return value + " dBm";
+                                        },
+                                        filter: function(key, data, value) {
+                                            return (value != 0);
+                                        }
+                                    },
+                                    { // Only show when rssi
+                                        field: "kismet_device_base_signal.kismet_common_signal_max_signal_rssi",
+                                        title: "Max. Signal",
+                                        render: function(key, data, value) {
+                                            return value + " RSSI";
+                                        },
+                                        filter: function(key, data, value) {
+                                            return (value != 0);
+                                        }
+                                    },
+                                    { // Only show when dbm
+                                        field: "kismet_device_base_signal.kismet_common_signal_min_noise_dbm",
+                                        title: "Min. Noise",
+                                        render: function(key, data, value) {
+                                            return value + " dBm";
+                                        },
+                                        filter: function(key, data, value) {
+                                            return (value != 0);
+                                        }
+                                    },
+                                    { // Only show when rssi
+                                        field: "kismet_device_base_signal.kismet_common_signal_min_noise_rssi",
+                                        title: "Min. Noise",
+                                        render: function(key, data, value) {
+                                            return value + " RSSI";
+                                        },
+                                        filter: function(key, data, value) {
+                                            return (value != 0);
+                                        }
+                                    },
+                                    { // Only show when dbm
+                                        field: "kismet_device_base_signal.kismet_common_signal_max_noise_dbm",
+                                        title: "Max. Noise",
+                                        render: function(key, data, value) {
+                                            return value + " dBm";
+                                        },
+                                        filter: function(key, data, value) {
+                                            return (value != 0);
+                                        }
+                                    },
+                                    { // Only show when rssi
+                                        field: "kismet_device_base_signal.kismet_common_signal_max_noise_rssi",
+                                        title: "Max. Noise",
+                                        render: function(key, data, value) {
+                                            return value + " RSSI";
+                                        },
+                                        filter: function(key, data, value) {
+                                            return (value != 0);
+                                        }
+                                    },
+                                    { // Pseudo-field of aggregated location, only show when the location is valid
+                                        field: "kismet_device_base_signal.kismet_common_signal_peak_loc",
+                                        title: "Peak Location",
+                                        filter: function(key, data, value) {
+                                            return kismet.ObjectByString(data, "kismet_device_base_signal.kismet_common_signal_peak_loc.kismet_common_location_valid") == 1;
+                                        },
+                                        render: function(key, data, value) {
+                                            var loc = 
+                                                kismet.ObjectByString(data, "kismet_device_base_signal.kismet_common_signal_peak_loc.kismet_common_location_lat") + ", " + 
+                                                kismet.ObjectByString(data, "kismet_device_base_signal.kismet_common_signal_peak_loc.kismet_common_location_lon");
+
+                                            /*
+                                            if (kismet.ObjectByString(data, "kismet_device_base_signal.kismet_common_signal_peak_loc.kismet_common_location_fix") >= 3) {
+                                                loc += " " + kismet.ObjectByString(data, "kismet_device_base_signal.kismet_common_signal_peak_loc.kismet_common_location_alt") + " (M)";
+                                            }
+                                            */
+
+                                            return loc;
+                                        },
+                                    },
+
+                                    ],
+                                },
+                                {
                                     field: "group_packet_counts",
                                     groupTitle: "Packets",
-                                    id: "group_pcket_counts",
+                                    id: "group_packet_counts",
 
                                     fields: [
                                     {
