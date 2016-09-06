@@ -117,7 +117,7 @@ $(function() {
         { sTitle: "Channel", mData: "kismet_device_base_channel" },
         { sTitle: "Last Time", mData: "kismet_device_base_last_time", name: "last_time",
             "render": function(data, type, row, meta) {
-                return new Date(data * 1000);
+                return new Date(data * 1000).toString().substring(4, 25);
             }
         },
         { sTitle: "Packets", mData: null, defaultContent: "", name: "packets",
