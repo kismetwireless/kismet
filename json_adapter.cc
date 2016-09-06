@@ -106,10 +106,10 @@ void JsonAdapter::Pack(GlobalRegistry *globalreg, std::stringstream &stream,
             stream << GetTrackerValue<uint64_t>(e);
             break;
         case TrackerFloat:
-            stream << GetTrackerValue<float>(e);
+            stream << fixed << GetTrackerValue<float>(e);
             break;
         case TrackerDouble:
-            stream << GetTrackerValue<double>(e);
+            stream << fixed << GetTrackerValue<double>(e);
             break;
         case TrackerMac:
             mac = GetTrackerValue<mac_addr>(e);
