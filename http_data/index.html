@@ -99,7 +99,114 @@ function handleDeviceSummary() {
     deviceTid = setTimeout(handleDeviceSummary, 2000);
 }
 
+var mainTableCallbacks = {
+    renderLastTime: function(data, type, row, meta) {
+        return Date(data * 1000).toString().substring(4, 25);
+    },
+
+    renderPackets: function(data, type, row, meta) {
+        return "<i>Preparing graph</i>";
+    },
+
+    drawPackets: function(dyncolumn, table, row) {
+        // Find the column
+        var rid = table.column(dyncolumn.name + ':name').index();
+        var match = "td:eq(" + rid + ")";
+
+        var data = row.data();
+
+        // Simplify the RRD so that the bars are thicker in the graph, which
+        // I think looks better
+        var avg = 0;
+        var secs_avg = 3;
+
+        var simple_rrd = [];
+        var rrd_len = data["kismet_device_base_packets_rrd"]["kismet_common_rrd_minute_vec"].length;
+        var startsec = data["kismet_device_base_packets_rrd"]["kismet_common_rrd_last_time"];
+        var startslot = data["kismet_device_base_packets_rrd"]["kismet_common_rrd_last_time"] % 60;
+
+        if (last_devicelist_time - startsec > 60) {
+            for (var ri = 0; ri < (rrd_len / secs_avg); ri++) {
+                simple_rrd.push(0);
+            }
+        } else {
+            /* Skip ahead by the number of seconds since the last time */
+            var sec_offt = Math.max(0, last_devicelist_time - startsec);
+
+            // Clobber some seconds
+            for (var ri = 0; ri < sec_offt; ri++) {
+                data["kismet_device_base_packets_rrd"]["kismet_common_rrd_minute_vec"][(startslot + ri) % rrd_len] = 0;
+            }
+
+            // And advance the start
+            startslot = (startslot + sec_offt) % 60;
+
+            for (var ri = 0; ri < rrd_len; ri++) {
+                avg += data["kismet_device_base_packets_rrd"]["kismet_common_rrd_minute_vec"][(startslot + ri) % rrd_len];
+
+                if ((ri % secs_avg) == (secs_avg - 1)) {
+                    simple_rrd.push(Math.round(avg / secs_avg));
+                    avg = 0;
+                }
+            }
+        }
+
+        $(match, row.node()).sparkline(simple_rrd,
+                { type: "bar",
+                    barColor: '#000000',
+                    nullColor: '#000000',
+                    zeroColor: '#000000'
+                });
+
+    }
+
+};
+
+// jquery onload complete
 $(function() {
+    // Load the static columns we use first
+    kismet_ui.AddDeviceColumn('column_name', {
+        sTitle: 'Name',
+        mData: 'kismet_device_base_name'
+    });
+
+    kismet_ui.AddDeviceColumn('column_type', {
+        sTitle: 'Type',
+        mData: 'kismet_device_base_type'
+    });
+
+    kismet_ui.AddDeviceColumn('column_phy', {
+        sTitle: 'Phy',
+        mData: 'kismet_device_base_phyname'
+    });
+
+    kismet_ui.AddDeviceColumn('column_signal', { 
+        sTitle: 'Signal', 
+        mData: 'kismet_device_base_signal.kismet_common_signal_last_signal_dbm' 
+    });
+
+    kismet_ui.AddDeviceColumn('column_channel', {
+        sTitle: 'Channel',
+        mData: 'kismet_device_base_channel'
+    });
+
+    kismet_ui.AddDeviceColumn('column_time', {
+        sTitle: 'Last Seen',
+        mData: 'kismet_device_base_last_time',
+        cbmodule: 'mainTableCallbacks',
+        renderfunc: 'renderLastTime'
+    });
+
+    kismet_ui.AddDeviceColumn('column_packet_rrd', {
+        sTitle: 'Packets',
+        mData: null,
+        name: 'packets',
+        cbmodule: 'mainTableCallbacks',
+        renderfunc: 'renderPackets',
+        drawfunc: 'drawPackets'
+    });
+
+
     // Load any plugin elements
     kismet.GetDynamicIncludes();
 
@@ -112,22 +219,7 @@ $(function() {
         // "stateSave":      true,
         "ajax":           "/devices/all_devices_dt.json",
         "deferRender":    true,
-        aoColumns: [
-        { sTitle: "Name", mData: "kismet_device_base_name" },
-        { sTitle: "Type", mData: "kismet_device_base_type" },
-        { sTitle: "Phy", mData: "kismet_device_base_phyname" },
-        { sTitle: "Signal", mData: "kismet_device_base_signal.kismet_common_signal_last_signal_dbm" },
-        { sTitle: "Channel", mData: "kismet_device_base_channel" },
-        { sTitle: "Last Time", mData: "kismet_device_base_last_time", name: "last_time",
-            "render": function(data, type, row, meta) {
-                return new Date(data * 1000).toString().substring(4, 25);
-            }
-        },
-        { sTitle: "Packets", mData: null, defaultContent: "", name: "packets",
-            "render": function(data, type, row, meta) {
-                return "<i>Preparing graph</i>";
-            }},
-        ],
+        aoColumns: kismet_ui.DeviceColumns,
         "order":
             [ [ 0, "desc" ] ],
 
@@ -143,10 +235,6 @@ $(function() {
 
             var page = this.DataTable().scroller.page();
 
-            // Find the column
-            var rid = this.DataTable().column('packets:name').index();
-            var match = "td:eq(" + rid + ")";
-
             // Kluge the visible rows because it seems to miss the first and last
             // with some degree of regularity
             if (page.start > 0)
@@ -154,53 +242,19 @@ $(function() {
             page.end++;
 
             for (var r = page.start; r < page.end; r++) {
-                // Grab the data
-                // var row = this.DataTable().row(r);
-                var row = this.DataTable().row(':eq('+r+')', {order:'applied', search:'applied'});
-                var data = row.data();
+                for (var c in kismet_ui.DeviceColumns) {
+                    var col = kismet_ui.DeviceColumns[c];
 
-                // Simplify the RRD so that the bars are thicker in the graph, which
-                // I think looks better
-                var avg = 0;
-                var secs_avg = 3;
-
-                var simple_rrd = [];
-                var rrd_len = data["kismet_device_base_packets_rrd"]["kismet_common_rrd_minute_vec"].length;
-                var startsec = data["kismet_device_base_packets_rrd"]["kismet_common_rrd_last_time"];
-                var startslot = data["kismet_device_base_packets_rrd"]["kismet_common_rrd_last_time"] % 60;
-
-                if (last_devicelist_time - startsec > 60) {
-                    for (var ri = 0; ri < (rrd_len / secs_avg); ri++) {
-                        simple_rrd.push(0);
-                    }
-                } else {
-                    /* Skip ahead by the number of seconds since the last time */
-                    var sec_offt = Math.max(0, last_devicelist_time - startsec);
-
-                    // Clobber some seconds
-                    for (var ri = 0; ri < sec_offt; ri++) {
-                         data["kismet_device_base_packets_rrd"]["kismet_common_rrd_minute_vec"][(startslot + ri) % rrd_len] = 0;
+                    if (!('kismetdrawfunc' in col)) {
+                        continue;
                     }
 
-                    // And advance the start
-                    startslot = (startslot + sec_offt) % 60;
+                    // Grab the data, applying the transform in the row
+                    var row = this.DataTable().row(':eq('+r+')', {order:'applied', search:'applied'});
 
-                    for (var ri = 0; ri < rrd_len; ri++) {
-                        avg += data["kismet_device_base_packets_rrd"]["kismet_common_rrd_minute_vec"][(startslot + ri) % rrd_len];
-
-                        if ((ri % secs_avg) == (secs_avg - 1)) {
-                            simple_rrd.push(Math.round(avg / secs_avg));
-                            avg = 0;
-                        }
-                    }
+                    // Call the draw callback if one exists
+                    col.kismetdrawfunc(col, this.DataTable(), row);
                 }
-
-                $(match, row.node()).sparkline(simple_rrd,
-                        { type: "bar",
-                          barColor: '#000000',
-                          nullColor: '#000000',
-                          zeroColor: '#000000'
-                          });
 
             }
 
