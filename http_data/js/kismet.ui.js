@@ -80,6 +80,7 @@ exports.DeviceColumns = new Array();
  */
 exports.AddDeviceColumn = function(id, options) {
     var coldef = {
+        kismetId: id,
         sTitle: options.sTitle,
         mData: options.mData
     };
@@ -105,6 +106,19 @@ exports.AddDeviceColumn = function(id, options) {
     exports.DeviceColumns.push(coldef);
 }
 
+/* Return columns from the selected list of column IDs */
+exports.GetDeviceColumns = function(selected) {
+    var ret = new Array();
+
+    for (var i in exports.DeviceColumns) {
+        console.log("Adding column " + exports.DeviceColumns[i].kismetId);
+        ret.push(exports.DeviceColumns[i]);
+    }
+
+    return ret;
+}
+
 return exports;
 
 });
+

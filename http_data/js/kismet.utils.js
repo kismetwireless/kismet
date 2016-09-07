@@ -228,12 +228,47 @@ exports.HumanReadableSize = function(sz) {
 
 // Load any plugin scripts defined in /system/dynamic.json
 exports.GetDynamicIncludes = function() {
-    $.get("/system/dynamic.json")
-        .done(function(data) {
-            for (var plugin in data["dynamic"]) {
-                $.getScript(plugin);
-            }
-        });
+
+     $.get("/dynamic.json") // Update URL
+    .done(function(data) {
+        var deferred = [];
+
+        // Build a list of deferred stuff
+        for (var p in data['dynamicjs']) {
+            console.log("Adding to deferred list");
+            deferred.push($.getScript(data.dynamicjs[p]['js'], function() {
+                var defer = $.Deferred();
+                if (typeof data.dynamicjs[p]['module'] === 'undefined') { 
+                    var attempts = 0;
+
+                    // create an interval
+                    // that will check each 100ms if the "foo" function
+                    // was loaded
+                    var interval = setInterval(function() {
+                        if (typeof data.dynamicjs[p]['module'] !== 'undefined') { // loaded
+                            window.clearInterval(interval);
+                            console.log("done loading");
+                            defer.resolve();
+                        }
+                        // after X unsuccessfull attempts, abort the operation
+                        else if (attempts >= 100) {
+                            window.clearInterval(interval);
+                            console.log("loading went wrong");
+                            defer.reject('Something went wrong');
+                        }
+
+                        attempts++;
+                    }, 100);
+                } else { 
+                    console.log("loaded, resolving");
+                    defer.resolve();
+                }
+
+                console.log("returning promise");
+                return defer.promise();
+            }));
+        }
+    });
 }
 
 return exports;

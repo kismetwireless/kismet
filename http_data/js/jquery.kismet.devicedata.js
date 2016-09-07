@@ -40,7 +40,7 @@
             // Do we have a function for rendering this?
             var d = kismet.ObjectByString(data, v['field']);
 
-            if ('filter' in v && typeof(v['filter']) == "function") {
+            if ('filter' in v && typeof(v['filter']) === 'function') {
                 if (!(v['filter'](v['field'], data, d))) {
                     return;
                 }
@@ -95,7 +95,7 @@
 
             $('td:eq(0)', drow).html(v['title']);
 
-            if ('render' in v && typeof(v['render']) == "function") {
+            if ('render' in v && typeof(v['render']) === 'function') {
                 $('td:eq(1)', drow).html(v['render'](v['field'], data, d));
             } else {
                 if ('empty' in v && d.length == 0) {
