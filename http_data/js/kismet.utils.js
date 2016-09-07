@@ -35,6 +35,7 @@ var KIS_TRACKERTYPE_MACMAP    = 16;
 var KIS_TRACKERTYPE_STRINGMAP = 17;
 var KIS_TRACKERTYPE_DOUBLEMAP = 18;
 
+// Convert msgpack mac addresses
 exports.ConvertMacaddr = ConvertMacaddr;
 function ConvertMacaddr(trackermac) {
     var ret = {};
@@ -43,6 +44,7 @@ function ConvertMacaddr(trackermac) {
     return ret;
 }
 
+// Convert msgpack dictionaries
 exports.ConvertTrackerPack = ConvertTrackerPack;
 function ConvertTrackerPack(unpacked) {
     if (unpacked[0] == KIS_TRACKERTYPE_VECTOR) {
@@ -91,6 +93,7 @@ exports.PostGpsLocation = function(gps, callback, failback) {
     });
 };
 
+// Deprecated by json, here for reference
 exports.GetDeviceSummary = function(callback, failback) {
     $.ajax({
         url: "/devices/all_devices.msgpack",
@@ -116,6 +119,7 @@ exports.GetDeviceSummary = function(callback, failback) {
     });
 };
 
+// Deprecated by json, here for reference
 exports.GetDevice = function(key, callback, failback) {
     $.ajax({
         url: "/devices/" + key + ".msgpack",
@@ -209,7 +213,6 @@ exports.ObjectByString = function(o, s) {
 }
 
 exports.HumanReadableSize = function(sz) {
-    console.log(sz);
     if (sz < 1024) {
         return sz + " bytes";
     } else if (sz < 1024 * 1024) {
@@ -222,6 +225,59 @@ exports.HumanReadableSize = function(sz) {
 
     return sz;
 }
+
+// Load any plugin scripts defined in /system/dynamic.json
+exports.GetDynamicIncludes = function() {
+    $.get("/system/dynamic.json")
+        .done(function(data) {
+            for (var plugin in data["dynamic"]) {
+                $.getScript(plugin);
+            }
+        });
+}
+
+// List of datatable columns we have available
+exports.DeviceColumns = new Array();
+
+/* Add a jquery datatable column that the user can pick from, with various 
+ * options:
+ *
+ * sTitle: datatable column title
+ * name: datatable 'name' field (optional)
+ * mData: datatable field spec
+ * cbmodule: string name of callback module (ie "kismet_dot11") (optional)
+ * renderfunc: string name of datatable render function, taking DT arguments
+ *  (data, type, row, meta), found in cbmodule (optional)
+ * drawfunc: string name of a draw function, taking a row entity as the argument,
+ *  found in cbmodule.  This will be called during the drawCallback of the device
+ *  table (optional)
+ */
+exports.AddDeviceColumn = function(id, options) {
+    var coldef = {
+        sTitle: options.sTitle,
+        mData: options.mData
+    };
+
+    if ('name' in options) {
+        coldev.name = options.name;
+    }
+
+    // Set the render function to proxy through the module+function
+    if ('cbmodule' in options && 'renderfunc' in options) {
+        coldev.render = function(data, type, row, meta) {
+            return window[options.cbmodule][options.renderfunc](data, type, row, meta);
+        }
+    }
+
+    // Set an arbitrary draw hook we call ourselves during the draw loop later
+    if ('cbmodule' in options && 'drawfunc' in options) {
+        coldev.kismetdraw = function(row) {
+            return window[options.cbmodule][options.renderfunc](row);
+        }
+    }
+}
+
+
 
 return exports;
 
