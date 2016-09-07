@@ -59,6 +59,48 @@ exports.BatteryUi = function(spinner, power, time) {
     batteryTid = setTimeout(exports.BatteryUi, 5000, spinner, power, time);
 }
 
+// List of datatable columns we have available
+exports.DeviceColumns = new Array();
+
+/* Add a jquery datatable column that the user can pick from, with various 
+ * options:
+ *
+ * sTitle: datatable column title
+ * name: datatable 'name' field (optional)
+ * mData: datatable field spec
+ * cbmodule: string name of callback module (ie "kismet_dot11") (optional)
+ * renderfunc: string name of datatable render function, taking DT arguments
+ *  (data, type, row, meta), found in cbmodule (optional)
+ * drawfunc: string name of a draw function, taking a row entity as the argument,
+ *  found in cbmodule.  This will be called during the drawCallback of the device
+ *  table (optional)
+ */
+exports.AddDeviceColumn = function(id, options) {
+    var coldef = {
+        sTitle: options.sTitle,
+        mData: options.mData
+    };
+
+    if ('name' in options) {
+        coldev.name = options.name;
+    }
+
+    // Set the render function to proxy through the module+function
+    if ('cbmodule' in options && 'renderfunc' in options) {
+        coldev.render = function(data, type, row, meta) {
+            return window[options.cbmodule][options.renderfunc](data, type, row, meta);
+        }
+    }
+
+    // Set an arbitrary draw hook we call ourselves during the draw loop later
+    if ('cbmodule' in options && 'drawfunc' in options) {
+        coldev.kismetdraw = function(row) {
+            return window[options.cbmodule][options.renderfunc](row);
+        }
+    }
+}
+
+
 return exports;
 
 });
