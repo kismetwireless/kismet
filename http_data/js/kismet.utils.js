@@ -228,47 +228,62 @@ exports.HumanReadableSize = function(sz) {
 
 // Load any plugin scripts defined in /system/dynamic.json
 exports.GetDynamicIncludes = function() {
+    // Make a deferred promise that the scripts are loaded
+    var scriptchain = $.Deferred();
 
-     $.get("/dynamic.json") // Update URL
-    .done(function(data) {
-        var deferred = [];
-
+    $.get("/dynamic.json", function(data) {
         // Build a list of deferred stuff
+        var scriptloads = new Array();
         for (var p in data['dynamicjs']) {
-            console.log("Adding to deferred list");
-            deferred.push($.getScript(data.dynamicjs[p]['js'], function() {
-                var defer = $.Deferred();
-                if (typeof data.dynamicjs[p]['module'] === 'undefined') { 
-                    var attempts = 0;
+            console.log("calling getscript");
+            $.getScript(data.dynamicjs[p]['js']);
+            console.log("looping to see if it loaded");
 
-                    // create an interval
-                    // that will check each 100ms if the "foo" function
-                    // was loaded
-                    var interval = setInterval(function() {
-                        if (typeof data.dynamicjs[p]['module'] !== 'undefined') { // loaded
-                            window.clearInterval(interval);
-                            console.log("done loading");
-                            defer.resolve();
-                        }
-                        // after X unsuccessfull attempts, abort the operation
-                        else if (attempts >= 100) {
-                            window.clearInterval(interval);
-                            console.log("loading went wrong");
-                            defer.reject('Something went wrong');
-                        }
+            var defer = $.Deferred();
+            var module = data.dynamicjs[p]['module'];
 
-                        attempts++;
-                    }, 100);
-                } else { 
-                    console.log("loaded, resolving");
-                    defer.resolve();
-                }
+            if (typeof window[module] === 'undefined' ||
+                (typeof window[module] !== 'undefined' &&
+                 window[module].load_complete == 1)) { 
 
-                console.log("returning promise");
-                return defer.promise();
-            }));
+                var attempts = 0;
+
+                // create an interval
+                // that will check each 100ms if the "foo" function
+                // was loaded
+                var interval = setInterval(function() {
+                    if (typeof window[module] !== 'undefined' &&
+                            window[module].load_complete == 1) { // loaded
+                        window.clearInterval(interval);
+                        console.log("done loading");
+                        defer.resolve();
+                    }
+                    // after X unsuccessfull attempts, abort the operation
+                    else if (attempts >= 100) {
+                        window.clearInterval(interval);
+                        console.log("loading went wrong");
+                        defer.reject('Something went wrong');
+                    }
+
+                    attempts++;
+                }, 100);
+            } else { 
+                console.log("loaded, " + data.dynamicjs[p]['module'] + " resolving");
+                defer.resolve();
+            }
+
+            console.log("adding promise to list");
+            scriptloads.push(defer.promise());
         }
+
+        console.log("Waiting for script loads");
+        $.when.apply(null, scriptloads).done(function() {
+            console.log("Script load array is done, setting scriptchain to resolved");
+            scriptchain.resolve();
+        });
     });
+
+    return scriptchain;
 }
 
 return exports;

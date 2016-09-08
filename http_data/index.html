@@ -104,11 +104,7 @@ $(function() {
     // Dynamic load of our plugin js, then continue.  is this the only way to do
     // this?  sure is annoying.
     console.log("Triggering dynamic includes\n");
-    var promises = kismet.GetDynamicIncludes();
-
-    console.log(promises);
-
-    $.when.done($, promises).then(function() {
+    kismet.GetDynamicIncludes().done(function() {
 
     console.log("loaded dynamics");
     console.log(kismet_ui.GetDeviceColumns([]));

@@ -1,0 +1,5 @@
+{
+    "dynamicjs": [
+        { "js": "/js/kismet.ui.base.js", "module": "kismet_ui_base" }
+    ]
+}
