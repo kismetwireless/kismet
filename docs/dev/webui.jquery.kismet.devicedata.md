@@ -104,3 +104,43 @@ For example, a row which combines filtering and drawing to only display the dBm 
     }
 },
 ```
+
+### groupTitle (optional)
+
+Indicates that this is a sub-group and provides a user-visible title for the group.
+
+Sub-groups are rendered as a nested table, and fields defining a subgroup act as a top-level options directive - that is, they may then contain their own `id` and `fields` options.  The `id` option is applied to the nested table, and the `fields` are placed inside the nested instance.
+
+For example, to define a location group:
+
+```javascript
+{
+    // Indicate that we're a subgroup, and give it the title 'Avg. Location'
+    groupTitle: "Avg. Location",
+
+    // The subgroup doesn't apply to a specific field, so we give it a junk value
+    field: "group_avg_location",
+
+    // Assign an ID to our subgroup
+    id: "group_avg_location",
+
+    // Subgroups can have filters, too, so we query the data and see if we have
+    // a valid location.  If not, this subgroup will be hidden entirely
+    filter: function(key, data, value) {
+        return (kismet.ObjectByString(data, "kismet_device_base_location.kismet_common_location_avg_loc.kismet_common_location_valid") == 1);
+    },
+
+    // Fields in subgroup
+    fields: [
+        {
+            field: "kismet_device_base_location.kismet_common_location_avg_loc.kismet_common_location_lat",
+            title: "Latitude"
+        },
+        {
+            field: "kismet_device_base_location.kismet_common_location_avg_loc.kismet_common_location_lon",
+            title: "Longitude"
+        },
+    ],
+}
+
+```
