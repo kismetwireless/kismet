@@ -1,10 +1,9 @@
-/* jshint browser: true */
-/* global define, module */
-( // Module boilerplate to support browser globals and browserify and AMD.
+(
   typeof define === "function" ? function (m) { define("kismet-ui-js", m); } :
   typeof exports === "object" ? function (m) { module.exports = m(); } :
   function(m){ this.kismet_ui = m(); }
 )(function () {
+
 "use strict";
 
 var exports = {};
