@@ -21,7 +21,8 @@
         var settings = $.extend({
             "stripe": true,
             "id": "kismetDeviceData",
-            "fields": {},
+            "fields": [],
+            "filter": null,
         }, options);
 
         var subtable = $('table #kismetDeviceData', this);
