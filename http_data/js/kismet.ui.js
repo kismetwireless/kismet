@@ -125,7 +125,19 @@ exports.DeviceDetails = new Array();
  * can't be moved around / saved as configs like columns can, callbacks
  * are just direct functions here.
  *
- * filter, render, and draw each take the device data as an argument 
+ * filter and render take one argument, the data to be shown
+ * filter: function(data) {
+ *  return false;
+ * }
+ *
+ * render: function(data) {
+ *  return "Some content";
+ * }
+ *
+ * draw takes the device data and a container element as an argument:
+ * draw: function(data, element) {
+ *  e.append("hi");
+ * }
  * */
 exports.AddDeviceDetail = function(id, title, position, options) {
     var settings = $.extend({
