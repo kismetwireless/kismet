@@ -117,6 +117,41 @@ exports.GetDeviceColumns = function(selected) {
     return ret;
 }
 
+exports.DeviceDetails = new Array();
+
+/* Register a device detail accordion panel, taking an id for the panel 
+ * content, a title presented to the user, a position in the list, and
+ * options.  Because details are directly rendered all the time and
+ * can't be moved around / saved as configs like columns can, callbacks
+ * are just direct functions here.
+ *
+ * filter, render, and draw each take the device data as an argument 
+ * */
+exports.AddDeviceDetail = function(id, title, position, options) {
+    var settings = $.extend({
+        "filter": null,
+        "render": null,
+        "draw": null
+    }, options);
+
+    var det = {
+        id: id,
+        title: title,
+        position: position,
+        options: settings
+    };
+
+    exports.DeviceDetails.push(det);
+
+    exports.DeviceDetails.sort(function(a, b) {
+        return a.position < b.position;
+    });
+}
+
+exports.GetDeviceDetails = function() {
+    return exports.DeviceDetails;
+}
+
 return exports;
 
 });
