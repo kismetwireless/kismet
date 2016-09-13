@@ -393,6 +393,37 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
     }
 });
 
+kismet_ui.AddDeviceDetail("packets", "Packet Rates", 10, {
+    render: function(data) {
+        // Make 3 divs for s, m, h RRD
+        return '<div /><br /><div /><br /><div />';
+    },
+    draw: function(data, target) {
+        var m = $('div:eq(0)', target);
+        var h = $('div:eq(1)', target);
+        var d = $('div:eq(2)', target);
+
+        m.sparkline(data.kismet_device_base_packets_rrd.kismet_common_rrd_minute_vec,
+            { type: "bar",
+                barColor: '#000000',
+                nullColor: '#000000',
+                zeroColor: '#000000'
+            });
+        h.sparkline(data.kismet_device_base_packets_rrd.kismet_common_rrd_hour_vec,
+            { type: "bar",
+                barColor: '#000000',
+                nullColor: '#000000',
+                zeroColor: '#000000'
+            });
+        d.sparkline(data.kismet_device_base_packets_rrd.kismet_common_rrd_day_vec,
+            { type: "bar",
+                barColor: '#000000',
+                nullColor: '#000000',
+                zeroColor: '#000000'
+            });
+    }
+});
+
 console.log("kismet.ui.base.js returning, we think we loaded everything?");
 
 // We're done loading
