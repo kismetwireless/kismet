@@ -20,6 +20,7 @@
 
 #include "channeltracker2.h"
 #include "msgpack_adapter.h"
+#include "json_adapter.h"
 #include "devicetracker.h"
 #include "devicetracker_component.h"
 #include "packinfo_signal.h"
@@ -79,6 +80,9 @@ bool Channeltracker_V2::Httpd_VerifyPath(const char *path, const char *method) {
     if (strcmp(path, "/channels/channels.msgpack") == 0)
         return true;
 
+    if (strcmp(path, "/channels/channels.json") == 0)
+        return true;
+
     return false;
 }
 
@@ -99,6 +103,10 @@ void Channeltracker_V2::Httpd_CreateStreamResponse(
         return;
     }
 
+    if (strcmp(path, "/channels/channels.json") == 0) {
+        JsonAdapter::Pack(globalreg, stream, this);
+        return;
+    }
 }
 
 int Channeltracker_V2::PacketChainHandler(CHAINCALL_PARMS) {
