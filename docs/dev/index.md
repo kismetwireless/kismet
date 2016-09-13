@@ -18,6 +18,8 @@ Extending the Kismet web UI can be done with any toolkit which does not require 
 
 Kismet predominately uses the jQuery framework for the Web UI, but other frameworks could be included.  Kismet also provides various utility functions and jQuery plugins for defining columns, device detail windows, and other components of the UI.
 
+* [Interacting with the Rest API](webui_rest.html) can be done trivially with nearly any scripting language.  Most endpoints output either msgpack binary data or JSON formatted data.  Kismet-related utilities, alternate clients, or different web interfaces should start here.
+
 * [Creating web UI plugins](webui.html) can be done relatively simply by using functions built into `kismet_ui.js` which allow for complex, richly formatted add-ons to be defined by a plugin, integrating directly with the main device view using custom columns, or the device details windows with custom tables or graphs to display radio-specific information.
 
 * [Device detail tables](webui.jquery.kismet.devicedata.html) are handled by a custom jQuery plugin, `jquery.kismet.devicedata` which allows for automatic creation of device information tables with the ability to show or hide rows depending on data availability.
