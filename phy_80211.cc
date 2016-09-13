@@ -1030,7 +1030,8 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
     } else if (dot11info->bssid_mac != basedev->get_macaddr() &&
             dot11info->distrib == distrib_to) {
 
-        dot11dev->set_last_bssid(dot11info->bssid_mac);
+        if (dot11info->bssid_mac != globalreg->broadcast_mac)
+            dot11dev->set_last_bssid(dot11info->bssid_mac);
 
         basedev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_CLIENT);
 
