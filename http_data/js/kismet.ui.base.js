@@ -396,7 +396,9 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
 kismet_ui.AddDeviceDetail("packets", "Packet Rates", 10, {
     render: function(data) {
         // Make 3 divs for s, m, h RRD
-        return '<div /><br /><div /><br /><div />';
+        return 'Packets per Second (last minute)<br><div /><br>' + 
+            'Packets per Minute (last hour)<br /><div /><br>' + 
+            'Packets per Hour (last day)<br /><div />';
     },
     draw: function(data, target) {
         var m = $('div:eq(0)', target);
