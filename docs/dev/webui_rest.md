@@ -120,7 +120,7 @@ Return if a login session is valid
 ##### `/channels/channels.msgpack`
 Msgpack object of channel and frequency usage and historical data.
 
-###### `/channels/channels.json`
+##### `/channels/channels.json`
 JSON object of channel and frequency data.
 
 ## Data Sources (new)
