@@ -232,49 +232,54 @@ exports.GetDynamicIncludes = function() {
     var scriptchain = $.Deferred();
 
     $.get("/dynamic.json", function(data) {
+        console.log(data);
+
         // Build a list of deferred stuff
         var scriptloads = new Array();
+
+        // Trigger them all
         for (var p in data['dynamicjs']) {
-            console.log("calling getscript");
+            console.log("calling getscript " + data.dynamicjs[p]['js']);
+
             $.getScript(data.dynamicjs[p]['js']);
             console.log("looping to see if it loaded");
 
+            // Make a deferred entry per script we load
             var defer = $.Deferred();
-            var module = data.dynamicjs[p]['module'];
 
-            if (typeof window[module] === 'undefined' ||
-                (typeof window[module] !== 'undefined' &&
-                 window[module].load_complete == 1)) { 
+            // Hack it into our data so we can find it later
+            data.dynamicjs[p]['defer'] = defer;
 
-                var attempts = 0;
+            // Add it to our vector so we can apply them all
+            console.log("adding promise to list");
+            scriptloads.push(defer);
+        }
 
-                // create an interval
-                // that will check each 100ms if the "foo" function
-                // was loaded
-                var interval = setInterval(function() {
-                    if (typeof window[module] !== 'undefined' &&
-                            window[module].load_complete == 1) { // loaded
-                        window.clearInterval(interval);
-                        console.log("done loading");
-                        defer.resolve();
-                    }
-                    // after X unsuccessfull attempts, abort the operation
-                    else if (attempts >= 100) {
-                        window.clearInterval(interval);
-                        console.log("loading went wrong");
-                        defer.reject('Something went wrong');
-                    }
+        var attempts = 0;
 
-                    attempts++;
-                }, 100);
-            } else { 
-                console.log("loaded, " + data.dynamicjs[p]['module'] + " resolving");
-                defer.resolve();
+        // Now that we know all our deferred loads, make one event loop that looks
+        // for them and unlocks all their deferred promises
+        var interval = setInterval(function() {
+            console.log(interval);
+
+            for (var p in data['dynamicjs']) {
+                var module = data.dynamicjs[p]['module'];
+                var defer = data.dynamicjs[p]['defer'];
+
+                if (typeof window[module] !== 'undefined' &&
+                        window[module].load_complete == 1) {
+                    window.clearInterval(interval);
+                    console.log("done loading " + module + " on attempt " + attempts);
+                    defer.resolve();
+                } else if (attempts >= 100) {
+                    window.clearInterval(interval);
+                    console.log("loading went wrong");
+                    defer.reject('Something went wrong');
+                }
             }
 
-            console.log("adding promise to list");
-            scriptloads.push(defer.promise());
-        }
+            attempts++;
+        }, 100);
 
         console.log("Waiting for script loads");
         $.when.apply(null, scriptloads).done(function() {

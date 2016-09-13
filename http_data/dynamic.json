@@ -1,5 +1,6 @@
 {
     "dynamicjs": [
-        { "js": "/js/kismet.ui.base.js", "module": "kismet_ui_base" }
+        { "js": "/js/kismet.ui.base.js", "module": "kismet_ui_base" },
+        { "js": "/js/kismet.ui.dot11.js", "module": "kismet_ui_dot11" }
     ]
 }

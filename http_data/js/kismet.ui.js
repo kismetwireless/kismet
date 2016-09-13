@@ -156,7 +156,7 @@ exports.AddDeviceDetail = function(id, title, position, options) {
     exports.DeviceDetails.push(det);
 
     exports.DeviceDetails.sort(function(a, b) {
-        return a.position < b.position;
+        return b.position < a.position;
     });
 }
 
