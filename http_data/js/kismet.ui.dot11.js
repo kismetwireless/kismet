@@ -20,17 +20,14 @@ kismet_ui.AddDeviceDetail("dot11", "802.11 Wi-Fi", 0, {
             "id": "dot11DeviceData",
             "fields": [
             {
-                field: "kismet_device_base_name",
-                title: "Name",
+                field: "dot11_device.dot11_device_last_beaconed_ssid",
+                title: "Last Beaconed SSID (AP)",
                 empty: "<i>None</i>"
             },
             {
-                field: "kismet_device_base_macaddr",
-                title: "MAC Address",
-                render: function(key, data, value) {
-                    // Split out the mac from the mask
-                    return value.split('/')[0];
-                }
+                field: "dot11_device.dot11_device_last_probed_ssid",
+                title: "Last Probed SSID (Client)",
+                empty: "<i>None</i>"
             },
             ]
         });

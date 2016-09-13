@@ -99,7 +99,8 @@
             if ('render' in v && typeof(v['render']) === 'function') {
                 $('td:eq(1)', drow).html(v['render'](v['field'], data, d));
             } else {
-                if ('empty' in v && d.length == 0) {
+                if ('empty' in v && typeof(d) === 'undefined' ||
+                        (typeof(d) !== 'undefined' && d.length == 0)) {
                     $('td:eq(1)', drow).html(v['empty'])
                 } else {
                     $('td:eq(1)', drow).html(d);
