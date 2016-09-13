@@ -29,6 +29,28 @@ kismet_ui.AddDeviceDetail("dot11", "802.11 Wi-Fi", 0, {
                 title: "Last Probed SSID (Client)",
                 empty: "<i>None</i>"
             },
+            {
+                field: "dot11_device.dot11_device_num_fragments",
+                title: "Fragmented Packets"
+            },
+            {
+                field: "dot11_device.dot11_device_num_retries",
+                title: "Retried Packets"
+            },
+            {
+                field: "dot11_device.dot11_device_datasize",
+                title: "Data Transferred",
+                render: function(key, data, value) {
+                    return kismet.HumanReadableSize(value);
+                }
+            },
+            {
+                field: "dot11_device.dot11_device_datasize_retry",
+                title: "Data Transferred (Retry)",
+                render: function(key, data, value) {
+                    return kismet.HumanReadableSize(value);
+                }
+            }
             ]
         });
     }
