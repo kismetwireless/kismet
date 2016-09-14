@@ -841,6 +841,7 @@ public:
         add_map(base->get_tracker_frequency());
         add_map(base->get_tracker_manuf());
         add_map(base->get_tracker_packets_rrd());
+        add_map(base->get_tracker_datasize());
     }
 
     virtual TrackerElement *clone_type() {
