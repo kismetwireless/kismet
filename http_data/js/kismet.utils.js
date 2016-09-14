@@ -214,13 +214,13 @@ exports.ObjectByString = function(o, s) {
 
 exports.HumanReadableSize = function(sz) {
     if (sz < 1024) {
-        return sz + " bytes";
+        return sz + " B";
     } else if (sz < 1024 * 1024) {
-        return (sz / 1024).toFixed(2) + " kB";
+        return (sz / 1024).toFixed(2) + " KB";
     } else if (sz < 1024 * 1024 * 1024) {
-        return (sz / 1024 / 1024).toFixed(2) + " mB";
+        return (sz / 1024 / 1024).toFixed(2) + " MB";
     } else if (sz < 1024 * 1024 * 1024 * 1024) {
-        return (sz / 1024 / 1024 / 1024).toFixed(2) + " gB";
+        return (sz / 1024 / 1024 / 1024).toFixed(2) + " GB";
     }
 
     return sz;

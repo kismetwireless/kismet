@@ -90,7 +90,7 @@ exports.AddDeviceColumn = function(id, options) {
 
     // Set the render function to proxy through the module+function
     if ('cbmodule' in options && 'renderfunc' in options) {
-        coldef.render = function(data, type, row, meta) {
+        coldef.mRender = function(data, type, row, meta) {
             return window[options.cbmodule][options.renderfunc](data, type, row, meta);
         }
     }

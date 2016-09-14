@@ -18,7 +18,10 @@ exports.renderLastTime = function(data, type, row, meta) {
 }
 
 exports.renderDataSize = function(data, type, row, meta) {
-    return kismet.HumanReadableSize(data);
+    if (type === 'display')
+        return kismet.HumanReadableSize(data);
+    
+    return data;
 }
 
 exports.renderPackets = function(data, type, row, meta) {
@@ -115,6 +118,7 @@ kismet_ui.AddDeviceColumn('column_time', {
 kismet_ui.AddDeviceColumn('column_datasize', {
     sTitle: 'Data',
     mData: 'kismet_device_base_datasize',
+    bUseRendered: false,
     cbmodule: 'kismet_ui_base',
     renderfunc: 'renderDataSize'
 });
