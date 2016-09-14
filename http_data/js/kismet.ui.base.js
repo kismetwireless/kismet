@@ -17,6 +17,10 @@ exports.renderLastTime = function(data, type, row, meta) {
     return (new Date(data * 1000).toString()).substring(4, 25);
 }
 
+exports.renderDataSize = function(data, type, row, meta) {
+    return kismet.HumanReadableSize(data);
+}
+
 exports.renderPackets = function(data, type, row, meta) {
     return "<i>Preparing graph</i>";
 }
@@ -106,6 +110,13 @@ kismet_ui.AddDeviceColumn('column_time', {
     mData: 'kismet_device_base_last_time',
     cbmodule: 'kismet_ui_base',
     renderfunc: 'renderLastTime'
+});
+
+kismet_ui.AddDeviceColumn('column_datasize', {
+    sTitle: 'Data',
+    mData: 'kismet_device_base_datasize',
+    cbmodule: 'kismet_ui_base',
+    renderfunc: 'renderDataSize'
 });
 
 kismet_ui.AddDeviceColumn('column_packet_rrd', {
@@ -396,9 +407,9 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
 kismet_ui.AddDeviceDetail("packets", "Packet Rates", 10, {
     render: function(data) {
         // Make 3 divs for s, m, h RRD
-        return 'Packets per Second (last minute)<br><div /><br>' + 
-            'Packets per Minute (last hour)<br /><div /><br>' + 
-            'Packets per Hour (last day)<br /><div />';
+        return 'Packets per second (last minute)<br /><div /><br />' + 
+            'Packets per minute (last hour)<br /><div /><br />' + 
+            'Packets per hour (last day)<br /><div />';
     },
     draw: function(data, target) {
         var m = $('div:eq(0)', target);
