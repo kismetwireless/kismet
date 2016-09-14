@@ -268,14 +268,23 @@ exports.GetDynamicIncludes = function() {
 
                 if (typeof window[module] !== 'undefined' &&
                         window[module].load_complete == 1) {
-                    window.clearInterval(interval);
+                    // window.clearInterval(interval);
+                    // Remove this entry from the list
+                    data['dynamicjs'].splice(p, 1);
                     console.log("done loading " + module + " on attempt " + attempts);
                     defer.resolve();
                 } else if (attempts >= 100) {
-                    window.clearInterval(interval);
+                    // window.clearInterval(interval);
+                    // // Remove this entry from the list
+                    data['dynamicjs'].splice(p, 1);
                     console.log("loading went wrong");
                     defer.reject('Something went wrong');
                 }
+            }
+
+            // If we're done, bail on the loop
+            if (data['dynamicjs'].length == 0) {
+                window.clearInterval(interval);
             }
 
             attempts++;
