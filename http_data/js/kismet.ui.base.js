@@ -441,6 +441,11 @@ kismet_ui.AddDeviceDetail("packets", "Packet Rates", 10, {
     }
 });
 
+kismet_ui.AddDeviceDetail("devel", "Dev/Debug Options", 10000, {
+    render: function(data) {
+        return 'Device JSON: <a href="/devices/by-key/' + data.kismet_device_base_key + '/device.json" target="_new">link</a><br />';
+    }});
+
 console.log("kismet.ui.base.js returning, we think we loaded everything?");
 
 // We're done loading
