@@ -147,9 +147,14 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                 }
             },
             {
+                field: "kismet_device_base_manuf",
+                title: "Manufacturer",
+                empty: "<i>Unknown</i>"
+            },
+            {
                 field: "kismet_device_base_type",
                 title: "Type",
-                empty: "Unknown"
+                empty: "<i>Unknown</i>"
             },
             {
                 field: "kismet_device_base_first_time",
@@ -163,6 +168,13 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                 title: "Last Seen",
                 render: function(key, data, value) {
                     return new Date(value * 1000);
+                }
+            },
+            {
+                field: "kismet_device_base_frequency",
+                title: "Frequency",
+                render: function(key, data, value) {
+                    return kismet.HumanReadableFrequency(value);
                 }
             },
             {

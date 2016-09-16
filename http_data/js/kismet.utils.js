@@ -226,6 +226,17 @@ exports.HumanReadableSize = function(sz) {
     return sz;
 }
 
+exports.HumanReadableFrequency = function(f) {
+    // Kismet reports in *kHz* so all these values are scaled down by an order
+    // of magnitude
+    if (f < 1000)
+        return f + " KHz";
+    else if (f < 1000 * 1000)
+        return (f / 1000).toFixed(3) + " MHz";
+    else 
+        return (f / 1000 / 1000).toFixed(3) + " GHz";
+}
+
 // Load any plugin scripts defined in /system/dynamic.json
 exports.GetDynamicIncludes = function() {
     // Make a deferred promise that the scripts are loaded
