@@ -37,39 +37,23 @@ exports.drawPackets = function(dyncolumn, table, row) {
 
     // Simplify the RRD so that the bars are thicker in the graph, which
     // I think looks better
-    var avg = 0;
-    var secs_avg = 3;
+    var simple_rrd = kismet.RecalcRrdData(data.kismet_device_base_packets_rrd.kismet_common_rrd_last_time, last_devicelist_time, kismet.RRD_SECOND, data["kismet_device_base_packets_rrd"]["kismet_common_rrd_minute_vec"], {
+        transform: function(data, opt) {
+            var slices = 3;
+            var avg = 0;
+            var ret = new Array();
 
-    var simple_rrd = [];
-    var rrd_len = data["kismet_device_base_packets_rrd"]["kismet_common_rrd_minute_vec"].length;
-    var startsec = data["kismet_device_base_packets_rrd"]["kismet_common_rrd_last_time"];
-    var startslot = data["kismet_device_base_packets_rrd"]["kismet_common_rrd_last_time"] % 60;
+            for (var ri = 0; ri < data.length; ri++) {
+                avg += data[ri];
 
-    if (last_devicelist_time - startsec > 60) {
-        for (var ri = 0; ri < (rrd_len / secs_avg); ri++) {
-            simple_rrd.push(0);
-        }
-    } else {
-        // Skip ahead by the number of seconds since the last time 
-        var sec_offt = Math.max(0, last_devicelist_time - startsec);
-
-        // Clobber some seconds
-        for (var ri = 0; ri < sec_offt; ri++) {
-            data["kismet_device_base_packets_rrd"]["kismet_common_rrd_minute_vec"][(startslot + ri) % rrd_len] = 0;
-        }
-
-        // And advance the start
-        startslot = (startslot + sec_offt) % 60;
-
-        for (var ri = 0; ri < rrd_len; ri++) {
-            avg += data["kismet_device_base_packets_rrd"]["kismet_common_rrd_minute_vec"][(startslot + ri) % rrd_len];
-
-            if ((ri % secs_avg) == (secs_avg - 1)) {
-                simple_rrd.push(Math.round(avg / secs_avg));
-                avg = 0;
+                if ((ri % slices) == (slices - 1)) {
+                    ret.push(Math.round(avg / slices));
+                    avg = 0;
+                }
             }
-        }
-    }
+
+            return ret;
+        }});
 
     // Render the sparkline
     $(match, row.node()).sparkline(simple_rrd,

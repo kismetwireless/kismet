@@ -300,6 +300,76 @@ exports.GetDynamicIncludes = function() {
     return scriptchain;
 }
 
+// Modify a RRD minute record by fast-forwarding it to 'now', and optionally
+// applying a transform function which could do something like average it
+
+// Conversion factors / type definitions for RRD data arrays
+exports.RRD_SECOND = 1; 
+exports.RRD_MINUTE = 60;
+exports.RRD_HOUR = 3600;
+
+// exports.RRD_DAY = 86400
+
+exports.RecalcRrdData = function(start, now, type, data, opt) {
+    var rrd_len = data.length;
+
+    // Each type value is the number of seconds in each bin of the array
+    //
+    // A bin for a given time is (time / type) % len
+    //
+    // A completely expired RRD is (now - start) > (type * len) and should
+    // be filled with only zeroes
+    //
+    // To zero the array between "then" and "now", we simply calculate
+    // the bin for "then", the bin for "now", and increment-with-modulo 
+    // until we reach "now".
+
+    // Adjusted data we return
+    var adj_data = new Array();
+
+    // Check if we're past the recording bounds of the rrd for this type, if we
+    // are, we don't have to do any shifting or any manipulation, we just fill
+    // the array with zeroes.
+    if ((now - start) > (type * rrd_len)) {
+        for (var ri = 0; ri < rrd_len; ri++) {
+            adj_data.push(0);
+        }
+    } else {
+        // Otherwise, we're valid inside the range of the array.  We know we got
+        // no data between the time of the RRD and now, because if we had, the 
+        // time would be more current.  Figure out how many bins lie between
+        // 'then' and 'now', rescale the array to start at 'now', and fill
+        // in the time we got no data with zeroes
+        
+        var start_bin = (start / type) % rrd_len;
+        var sec_offt = Math.max(0, now - start);
+        var now_bin = (sec_offt / type) % rrd_len;
+
+        // Walk the entire array, starting with 'now', and copy zeroes
+        // when we fall into the blank spot between 'start' and 'now' when we
+        // know we received no data
+        for (var ri = 0; ri < rrd_len; ri++) {
+            if (ri >= start_bin && ri < now_bin)
+                adj_data.push(0);
+            else
+                adj_data.push(data[(now_bin + ri) % rrd_len]);
+        }
+    }
+
+    // If we have a transform function in the options, call it, otherwise
+    // return the shifted RRD entry
+    if ('transform' in opt && typeof(opt.transform) === 'function') {
+        var cbopt = {};
+
+        if ('transformopt' in opt)
+            cbopt = opt.cbopt;
+
+        return opt.transform(adj_data, cbopt);
+    }
+
+    return adj_data;
+}
+
 return exports;
 
 });
