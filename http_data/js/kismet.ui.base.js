@@ -404,19 +404,23 @@ kismet_ui.AddDeviceDetail("packets", "Packet Rates", 10, {
         var h = $('div:eq(1)', target);
         var d = $('div:eq(2)', target);
 
-        m.sparkline(data.kismet_device_base_packets_rrd.kismet_common_rrd_minute_vec,
+        var mdata = kismet.RecalcRrdData(data.kismet_device_base_packets_rrd.kismet_common_rrd_last_time, last_devicelist_time, kismet.RRD_SECOND, data["kismet_device_base_packets_rrd"]["kismet_common_rrd_minute_vec"], {});
+        var hdata = kismet.RecalcRrdData(data.kismet_device_base_packets_rrd.kismet_common_rrd_last_time, last_devicelist_time, kismet.RRD_MINUTE, data["kismet_device_base_packets_rrd"]["kismet_common_rrd_hour_vec"], {});
+        var ddata = kismet.RecalcRrdData(data.kismet_device_base_packets_rrd.kismet_common_rrd_last_time, last_devicelist_time, kismet.RRD_HOUR, data["kismet_device_base_packets_rrd"]["kismet_common_rrd_day_vec"], {});
+
+        m.sparkline(mdata,
             { type: "bar",
                 barColor: '#000000',
                 nullColor: '#000000',
                 zeroColor: '#000000'
             });
-        h.sparkline(data.kismet_device_base_packets_rrd.kismet_common_rrd_hour_vec,
+        h.sparkline(hdata,
             { type: "bar",
                 barColor: '#000000',
                 nullColor: '#000000',
                 zeroColor: '#000000'
             });
-        d.sparkline(data.kismet_device_base_packets_rrd.kismet_common_rrd_day_vec,
+        d.sparkline(ddata,
             { type: "bar",
                 barColor: '#000000',
                 nullColor: '#000000',
