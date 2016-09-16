@@ -36,19 +36,21 @@ exports.drawPackets = function(dyncolumn, table, row) {
     var data = row.data();
 
     // Simplify the RRD so that the bars are thicker in the graph, which
-    // I think looks better
+    // I think looks better.  We do this with a transform function on the
+    // RRD function, and we take the peak value of each triplet of samples
+    // because it seems to be more stable, visually
     var simple_rrd = kismet.RecalcRrdData(data.kismet_device_base_packets_rrd.kismet_common_rrd_last_time, last_devicelist_time, kismet.RRD_SECOND, data["kismet_device_base_packets_rrd"]["kismet_common_rrd_minute_vec"], {
         transform: function(data, opt) {
             var slices = 3;
-            var avg = 0;
+            var peak = 0;
             var ret = new Array();
 
             for (var ri = 0; ri < data.length; ri++) {
-                avg += data[ri];
+                peak = Math.max(peak, data[ri]);
 
                 if ((ri % slices) == (slices - 1)) {
-                    ret.push(Math.round(avg / slices));
-                    avg = 0;
+                    ret.push(peak);
+                    peak = 0;
                 }
             }
 
