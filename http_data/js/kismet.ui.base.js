@@ -333,6 +333,30 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
 
                 fields: [
                 {
+                    field: "graph_field_overall",
+                    span: true,
+                    render: function(key, data, value) {
+                        return '<div class="donut" id="' + key + '" width="50" height="50" />';
+                    },
+                    draw: function(key, data, value, container) {
+                        var donutdiv = $('div', container);
+
+                        // Make an array morris likes using our whole data record
+                        var moddata = [
+                        { label: "LLC/Management", value: data.kismet_device_base_packets_llc },
+                        { label: "Data", value: data.kismet_device_base_packets_data }
+                        ];
+
+                        if (data.kismet_device_base_packets_error != 0)
+                            moddata.push({ label: "Error", value: data.kismet_device_base_packets_error });
+
+                        Morris.Donut({
+                            element: donutdiv,
+                            data: moddata
+                        });
+                    }
+                },
+                {
                     field: "kismet_device_base_packets_total",
                     title: "Total Packets"
                 },

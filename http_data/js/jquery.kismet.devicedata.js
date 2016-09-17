@@ -23,9 +23,10 @@
             "id": "kismetDeviceData",
             "fields": [],
             "filter": null,
+            "span": false,
         }, options);
 
-        var subtable = $('table #kismetDeviceData', this);
+        var subtable = $('table #' + settings['id'], this);
 
         // Do we need to make a table to hold our stuff?
         if (subtable.length == 0) {
@@ -35,9 +36,12 @@
                     "class": "kismet_devicedata"
                 });
             this.append(subtable);
+            console.log(subtable);
         }
 
         settings.fields.forEach(function(v, index, array) {
+            var id = v['field'].replace(/[.\[\]\(\)]/g, '_');
+
             // Do we have a function for rendering this?
             var d = kismet.ObjectByString(data, v['field']);
 
@@ -48,13 +52,13 @@
             }
 
             // Find the row if it exists
-            var drow = $('#' + v['field'], subtable);
+            var drow = $('#tr_' + id, subtable);
 
             // Do we have a sub-group?
             if ('groupTitle' in v) {
                 if (drow.length == 0) {
                     drow = $('<tr />', {
-                        "id": v['field']
+                        "id": "tr_" + id
                     });
 
                     drow.append($('<td />', {
@@ -85,29 +89,86 @@
             // Standard row
             if (drow.length == 0) {
                 drow = $('<tr />', {
-                    "id": v['field']
+                    "id": "tr_" + id,
                 });
-                drow.append($('<td /><td />'));
+
+                if (v["span"]) {
+                    drow.append($('<td />', {
+                        "colspan": 2,
+                        "class": "span"
+                    }));
+                } else {
+                    drow.append($('<td /><td />'));
+                }
 
                 subtable.append(drow);
             } else {
                 console.log("existing row?");
             }
 
-            $('td:eq(0)', drow).html(v['title']);
+            var td;
+
+            if (v["span"]) {
+                td = $('td:eq(0)', drow);
+            } else {
+                $('td:eq(0)', drow).html(v['title']);
+                td = $('td:eq(1)', drow);
+            }
 
             if ('render' in v && typeof(v['render']) === 'function') {
-                $('td:eq(1)', drow).html(v['render'](v['field'], data, d));
+                td.html(v['render'](v['field'], data, d));
             } else {
                 if ('empty' in v && typeof(d) === 'undefined' ||
                         (typeof(d) !== 'undefined' && d.length == 0)) {
-                    $('td:eq(1)', drow).html(v['empty'])
+                    td.html(v['empty']);
                 } else {
-                    $('td:eq(1)', drow).html(d);
+                    td.html(d);
                 }
             }
 
+            // Apply the draw function after the row is created
+            if ('draw' in v && typeof(v.draw) === 'function') 
+                v.draw(v['field'], data, kismet.ObjectByString(data, v['field']), td);
+
         });
+
+        /*
+        var drawloop = function(settings, container) {
+            settings.fields.forEach(function(v, index, array) {
+                var id = v['field'].replace(/[.\[\]\(\)]/g, '_');
+
+                // Find the row if it exists
+                var drow = $('#' + id, container);
+
+                // Skip any we can't find
+                if (drow.length == 0)
+                    return;
+
+                if ('draw' in v && typeof(v.draw) === 'function') 
+                    v.draw(v['field'], data, kismet.ObjectByString(data, v['field']), drow);
+
+                if ('fields' in v) {
+                    console.log("Looking for #" + settings["id"]);
+                    console.log(container);
+
+                    var subtable = $('table #' + settings["id"], container);
+
+                    console.log(subtable);
+
+                    // Bail if we can't find the subtable
+                    if (subtable.length == 0) {
+                        console.log("Failed to find table in draw");
+                        return;
+                    }
+
+                    drawloop(v, subtable);
+                }
+            });
+        }
+
+        // Initiate a recursive loop calling the draw function
+        drawloop(settings, this);
+        */
 
     };
 }(jQuery));

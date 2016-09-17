@@ -18,6 +18,9 @@
 
 <script src="/js/jquery.kismet.devicedata.js"></script>
 
+<script src="/js/raphael.min.js"></script>
+<script src="/js/morris.min.js"></script>
+
 <link rel="stylesheet" href="/css/font-awesome.min.css">
 <link rel="stylesheet" type="text/css" href="css/reset.css" />
 <link rel="stylesheet" type="text/css" href="css/text.css" />
@@ -28,7 +31,8 @@
 <!--[if IE 7]><link rel="stylesheet" type="text/css" href="css/ie.css" media="screen" /><![endif]-->
 <link rel="stylesheet" type="text/css" href="css/jquery-ui.min.css" />
 <link rel="stylesheet" type="text/css" href="css/jquery.jspanel.min.css" />
-<link rel="stylesheet" type="text/css" href="/css/jquery.dataTables.min.css"/>
+<link rel="stylesheet" type="text/css" href="/css/jquery.dataTables.min.css" />
+<link rel="stylesheet" type="text/css" href="/css/morris.css" />
 
 <style type="text/css">
 td.highlight {
@@ -37,8 +41,8 @@ td.highlight {
 }
 
 div.autosize {
-    height: auto !important;
     min-height: 10px;
+    overflow: scroll;
 }
 
 table.kismet_devicedata {
@@ -47,6 +51,20 @@ table.kismet_devicedata {
 
 table.kismet_devicedata b {
     padding-top: 0.5em;
+}
+
+table.kismet_devicedata td {
+    vertical-align: top;
+}
+
+table.kismet_devicedata td.span {
+    text-align: center;
+}
+
+div.donut {
+    width: 200px;
+    height: 200px;
+    margin: auto;
 }
 
 </style>
@@ -239,7 +257,7 @@ $(function() {
 
                             var vcontent = $('<div />', {
                                 id: di.id,
-                                class: 'autosize'
+                                //class: 'autosize'
                             });
 
                             // Do we have pre-rendered content?
@@ -253,12 +271,11 @@ $(function() {
 
                             if ('draw' in di.options &&
                                     typeof(di.options.draw) === 'function') {
-                                console.log(fulldata);
                                 di.options.draw(fulldata, vcontent);
                             }
                         }
 
-                        accordion.accordion();
+                        accordion.accordion({ heightStyle: 'fill' });
 
                     });
 
