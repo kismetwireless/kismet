@@ -20,6 +20,12 @@ div.donut {
     margin: auto;
 }
 
+div.smalldonut {
+    width: 150px;
+    height: 150px;
+    margin: auto;
+}
+
 div.freqbar {
     width: 350px;
     height: 150px;
