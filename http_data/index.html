@@ -35,11 +35,12 @@
 <link rel="stylesheet" type="text/css" href="/css/morris.css" />
 
 <style type="text/css">
+/* Fix the hover-highlight of the device table */
 td.highlight {
-    /* background-color: whitesmoke !important; */
     background-color: #dddddd !important;
 }
 
+/* Accordion scroll */
 div.autosize {
     min-height: 10px;
     overflow: scroll;
@@ -88,13 +89,6 @@ function handleDeviceSummary() {
             // $(".dataTables_scrollBody").scrollTop(scrollPos);
         }
     });
-
-    /* Bulk-refresh the whole table, not what we
-    $('#devices').DataTable().ajax.reload(function() {
-        $(".dataTables_scrollBody").scrollTop(scrollPos);
-    },false);
-    */
-
 
     deviceTid = setTimeout(handleDeviceSummary, 2000);
 }
