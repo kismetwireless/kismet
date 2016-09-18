@@ -32,7 +32,6 @@
         if (subtable.length == 0) {
             subtable = $('<table />', {
                     "id": settings['id'],
-                    "border": settings['border'],
                     "class": "kismet_devicedata"
                 });
             this.append(subtable);
