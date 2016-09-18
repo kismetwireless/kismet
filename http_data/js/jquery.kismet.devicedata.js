@@ -22,7 +22,6 @@
             "stripe": true,
             "id": "kismetDeviceData",
             "fields": [],
-            "filter": null,
             "span": false,
         }, options);
 
@@ -35,7 +34,6 @@
                     "class": "kismet_devicedata"
                 });
             this.append(subtable);
-            console.log(subtable);
         }
 
         settings.fields.forEach(function(v, index, array) {
@@ -130,44 +128,5 @@
                 v.draw(v['field'], data, kismet.ObjectByString(data, v['field']), td);
 
         });
-
-        /*
-        var drawloop = function(settings, container) {
-            settings.fields.forEach(function(v, index, array) {
-                var id = v['field'].replace(/[.\[\]\(\)]/g, '_');
-
-                // Find the row if it exists
-                var drow = $('#' + id, container);
-
-                // Skip any we can't find
-                if (drow.length == 0)
-                    return;
-
-                if ('draw' in v && typeof(v.draw) === 'function') 
-                    v.draw(v['field'], data, kismet.ObjectByString(data, v['field']), drow);
-
-                if ('fields' in v) {
-                    console.log("Looking for #" + settings["id"]);
-                    console.log(container);
-
-                    var subtable = $('table #' + settings["id"], container);
-
-                    console.log(subtable);
-
-                    // Bail if we can't find the subtable
-                    if (subtable.length == 0) {
-                        console.log("Failed to find table in draw");
-                        return;
-                    }
-
-                    drawloop(v, subtable);
-                }
-            });
-        }
-
-        // Initiate a recursive loop calling the draw function
-        drawloop(settings, this);
-        */
-
     };
 }(jQuery));
