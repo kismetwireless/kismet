@@ -86,7 +86,14 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     field: "kismet_device_base_packets_total",
                     title: "Total Packets"
                 },
-
+                {
+                    field: "kismet_device_base_packets_llc",
+                    title: "LLC/Management"
+                },
+                {
+                    field: "kismet_device_base_packets_error",
+                    title: "Error/Invalid"
+                },
                 {
                     field: "dot11_device.dot11_device_num_fragments",
                     title: "Fragmented Packets"
