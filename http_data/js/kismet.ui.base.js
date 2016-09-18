@@ -11,6 +11,15 @@ var exports = {};
 // Flag we're still loading
 exports.load_complete = 0;
 
+// Load our css
+$('<link>')
+    .appendTo('head')
+    .attr({
+        type: 'text/css', 
+        rel: 'stylesheet',
+        href: '/css/kismet.ui.base.css'
+    });
+
 /* Define some callback functions for the table */
 
 exports.renderLastTime = function(data, type, row, meta) {
@@ -171,11 +180,50 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                 }
             },
             {
-                field: "kismet_device_base_frequency",
-                title: "Frequency",
-                render: function(key, data, value) {
-                    return kismet.HumanReadableFrequency(value);
-                }
+                field: "group_frequency",
+                groupTitle: "Frequencies",
+                id: "group_frequency",
+
+                fields: [
+                {
+                    field: "kismet_device_base_frequency",
+                    title: "Main Frequency",
+                    render: function(key, data, value) {
+                        return kismet.HumanReadableFrequency(value);
+                    }
+                },
+                {
+                    field: "frequency_map",
+                    span: true,
+                    render: function(key, data, value) {
+                        return '<div class="freqbar" id="' + key + '" />';
+                    },
+                    draw: function(key, data, value, container) {
+                        var bardiv = $('div', container);
+
+                        // Make an array morris likes using our whole data record
+                        var moddata = new Array();
+
+                        for (var fk in data.kismet_device_base_freq_khz_map) {
+                            moddata.push({
+                                y: kismet.HumanReadableFrequency(parseInt(fk)),
+                                c: data.kismet_device_base_freq_khz_map[fk]
+                            });
+                        }
+
+                        console.log(moddata);
+
+                        Morris.Bar({
+                            element: bardiv,
+                            data: moddata,
+                            xkey: 'y',
+                            ykeys: ['c'],
+                            labels: ['Packets'],
+                            hideHover: 'always'
+                        });
+                    }
+                },
+                ]
             },
             {
                 field: "group_signal_data",
@@ -336,7 +384,7 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                     field: "graph_field_overall",
                     span: true,
                     render: function(key, data, value) {
-                        return '<div class="donut" id="' + key + '" width="50" height="50" />';
+                        return '<div class="donut" id="' + key + '" />';
                     },
                     draw: function(key, data, value, container) {
                         var donutdiv = $('div', container);
