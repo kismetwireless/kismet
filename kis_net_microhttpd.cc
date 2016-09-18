@@ -619,6 +619,12 @@ int Kis_Net_Httpd::handle_static_file(void *cls, struct MHD_Connection *connecti
                     }
                 }
 
+                // Never let the browser cache our responses.  Maybe moderate this
+                // in the future to cache for 60 seconds or something?
+                MHD_add_response_header(response, "Cache-Control", "no-cache");
+                MHD_add_response_header(response, "Pragma", "no-cache");
+                MHD_add_response_header(response, 
+                        "Expires", "Sat, 01 Jan 2000 00:00:00 GMT");
 
                 MHD_queue_response(connection, MHD_HTTP_OK, response);
                 MHD_destroy_response(response);
