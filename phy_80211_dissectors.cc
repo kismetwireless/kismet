@@ -591,9 +591,12 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
             if (GetLengthTagOffsets(packinfo->header_offset, chunk, 
 									&tag_cache_map) < 0) {
 				if (srcparms.weak_dissect == 0) {
-					// The frame is corrupt, bail
+					// The frame is corrupt, bail.  This is a good indication that it's
+                    // corrupt but snuck past the FCS check, so we set the whole packet
+                    // as a failure condition
 					packinfo->corrupt = 1;
-					in_pack->insert(pack_comp_80211, packinfo);
+					in_pack->insert(pack_comp_80211, (packet_component *) packinfo);
+                    in_pack->error = 1;
 					return 0;
 				}
             }

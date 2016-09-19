@@ -434,13 +434,16 @@ int Kis_DLT_Radiotap::HandlePacket(kis_packet *in_pack) {
 						   decapchunk->length);
 
 		if (memcmp(fcschunk->checksum_ptr, &calc_crc, 4)) {
-			in_pack->error = 1;
 			fcschunk->checksum_valid = 0;
 		} else {
 			fcschunk->checksum_valid = 1;
 		}
-
 	}
+
+    // If we've validated the FCS and know this packet is junk, flag it at the
+    // packet level
+    if (fcschunk != NULL && fcschunk->checksum_valid == 0)
+        in_pack->error = 1;
 
 	return 1;
 }

@@ -344,8 +344,9 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
     // the error condition on a network when FCS errors are pretty normal.
     // By never creating a common info record we should prevent any handling of this
     // nonsense.
-    if (fcs != NULL && fcs->checksum_valid == 0) 
+    if (fcs != NULL && fcs->checksum_valid == 0) {
         return 0;
+    }
 
 	kis_common_info *ci = 
 		(kis_common_info *) in_pack->fetch(d11phy->pack_comp_common);
@@ -353,7 +354,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
 	if (ci == NULL) {
 		ci = new kis_common_info;
 		in_pack->insert(d11phy->pack_comp_common, ci);
-	}
+    } 
 
 	ci->phyid = d11phy->phyid;
 
