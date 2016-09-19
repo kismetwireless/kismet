@@ -195,6 +195,20 @@ $(function() {
                 "height": $(window).height() * 0.9
             },
 
+            resizable: {
+                stop: function(event, ui) {
+                    $('div#accordion', ui.element).accordion("refresh");
+                }
+            },
+
+            onmaximized: function() {
+                $('div#accordion', this.content).accordion("refresh");
+            },
+
+            onnormalized: function() {
+                $('div#accordion', this.content).accordion("refresh");
+            },
+
             callback: function() {
                 var content = this.content;
 
