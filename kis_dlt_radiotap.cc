@@ -58,6 +58,12 @@
 #define IEEE80211_RADIOTAP_F_FCS        0x10    /* frame includes FCS */
 #endif
 
+// Extension to radiotap header not yet found everywhere, indicates a packet
+// has a bad FCS but may not include the FCS itself
+#ifndef IEEE80211_RADIOTAP_F_BADFCS
+#define IEEE80211_RADIOTAP_F_BADFCS     0x40    /* frame has bad FCS */
+#endif
+
 Kis_DLT_Radiotap::Kis_DLT_Radiotap(GlobalRegistry *in_globalreg) :
 	Kis_DLT_Handler(in_globalreg) {
 
@@ -172,6 +178,7 @@ int Kis_DLT_Radiotap::HandlePacket(kis_packet *in_pack) {
 	const u_char *iter_start;
 	unsigned int iter_align;
 	int fcs_cut = 0; // Is the FCS bit set?
+    bool fcs_flag_invalid = false; // Do we have a flag that tells us the fcs is known bad?
 	char errstr[STATUS_MAX];
 
 	kis_layer1_packinfo *radioheader = NULL;
@@ -341,6 +348,11 @@ int Kis_DLT_Radiotap::HandlePacket(kis_packet *in_pack) {
                     if (u.u8 & IEEE80211_RADIOTAP_F_FCS) {
 						fcs_cut = 4;
 					}
+
+                    if (u.u8 & IEEE80211_RADIOTAP_F_BADFCS) {
+                        fcs_flag_invalid = true;
+                    }
+
                     break;
 #if defined(SYS_OPENBSD)
                 case IEEE80211_RADIOTAP_RSSI:
@@ -381,19 +393,41 @@ int Kis_DLT_Radiotap::HandlePacket(kis_packet *in_pack) {
 	in_pack->insert(pack_comp_decap, decapchunk);
 
 	kis_packet_checksum *fcschunk = NULL;
+
+    // If we're slicing the FCS into its own record and we have the space
 	if (fcs_cut && linkchunk->length > 4) {
 		fcschunk = new kis_packet_checksum;
 
 		fcschunk->set_data(&(linkchunk->data[linkchunk->length - 4]), 4);
 
-		// Valid until proven otherwise
-		fcschunk->checksum_valid = 1;
+        // If we know it's invalid already from the flags, flag it, otherwise
+        // it's assumed good until proven otherwise
+        if (fcs_flag_invalid)
+            fcschunk->checksum_valid = 0;
+        else
+            fcschunk->checksum_valid = 1;
 
 		in_pack->insert(pack_comp_checksum, fcschunk);
 	}
 
-	// If we're validating the FCS
-	if (capsrc->ref_source->FetchValidateCRC() && fcschunk != NULL) {
+    // If we're not slicing the fcs into its own record, but we know
+    // it's bad, we make a junk FCS and set it bad
+    if (!fcs_cut && fcs_flag_invalid) {
+        fcschunk = new kis_packet_checksum;
+       
+        // Set data of all FF, force a copy
+        uint8_t junkfcs[] = {0xFF, 0xFF, 0xFF, 0xFF};
+        fcschunk->set_data(junkfcs, 4, true);
+
+        fcschunk->checksum_valid = 0;
+
+        in_pack->insert(pack_comp_checksum, fcschunk);
+    }
+
+	// If we're validating the FCS, and don't already know it's junk, do
+    // the FCS check
+	if (capsrc->ref_source->FetchValidateCRC() && fcschunk != NULL &&
+            fcschunk->checksum_valid) {
 		// Compare it and flag the packet
 		uint32_t calc_crc =
 			crc32_le_80211(globalreg->crc32_table, decapchunk->data, 
@@ -402,7 +436,6 @@ int Kis_DLT_Radiotap::HandlePacket(kis_packet *in_pack) {
 		if (memcmp(fcschunk->checksum_ptr, &calc_crc, 4)) {
 			in_pack->error = 1;
 			fcschunk->checksum_valid = 0;
-			// fprintf(stderr, "debug - rtap to kis, fcs invalid\n");
 		} else {
 			fcschunk->checksum_valid = 1;
 		}
