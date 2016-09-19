@@ -169,13 +169,20 @@ $(function() {
         var dialogid = "devicedialog" + data["kismet_device_base_key"];
         var dialogmatch = '#' + dialogid;
 
+        var h = $(window).height() - 10;
+
         // If we're on a wide-screen browser, try to split it into 3 details windows
-        var w = ($(window).width() / 3) - 20;
+        var w = ($(window).width() / 3) - 10;
 
         // If we can't, split it into 2.  This seems to look better when people 
         // don't run full-size browser windows.
         if (w < 450) {
-            w = ($(window).width() / 2) - 20;
+            w = ($(window).width() / 2) - 10;
+        }
+
+        // Finally make it full-width if we're still narrow
+        if (w < 450) {
+            w = $(window).width() - 5;
         }
 
         $.jsPanel({
@@ -192,7 +199,7 @@ $(function() {
 
             contentSize: {
                 "width": w,
-                "height": $(window).height() * 0.9
+                "height": h
             },
 
             resizable: {
@@ -267,7 +274,7 @@ $(function() {
 
             }
 
-        })
+        }).resize(w, h);
     } );
 
     // Start the auto-updating
