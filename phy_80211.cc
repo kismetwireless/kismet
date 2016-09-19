@@ -334,6 +334,19 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
 	if (dot11info == NULL)
 		return 0;
 
+    // Get the checksum info
+    kis_packet_checksum *fcs =
+        (kis_packet_checksum *) in_pack->fetch(d11phy->pack_comp_checksum);
+
+    // We don't do anything if the packet is invalid;  in the future we might want
+    // to try to attach it to an existing network if we can understand that much
+    // of the frame and then treat it as an error, but that artificially inflates 
+    // the error condition on a network when FCS errors are pretty normal.
+    // By never creating a common info record we should prevent any handling of this
+    // nonsense.
+    if (fcs != NULL && fcs->checksum_valid == 0) 
+        return 0;
+
 	kis_common_info *ci = 
 		(kis_common_info *) in_pack->fetch(d11phy->pack_comp_common);
 
