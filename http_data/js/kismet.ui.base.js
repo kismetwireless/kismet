@@ -224,7 +224,7 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                             xkey: 'y',
                             ykeys: ['c'],
                             labels: ['Packets'],
-                            hideHover: 'always'
+                            hideHover: 'auto'
                         });
                     }
                 },
