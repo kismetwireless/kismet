@@ -177,7 +177,7 @@ $(function() {
         // If we can't, split it into 2.  This seems to look better when people 
         // don't run full-size browser windows.
         if (w < 450) {
-            w = ($(window).width() / 2) - 10;
+            w = ($(window).width() / 2) - 5;
         }
 
         // Finally make it full-width if we're still narrow
@@ -192,17 +192,15 @@ $(function() {
                 "my": "left-top",
                 "at": "left-top",
                 "of": "window",
-                "offsetX": 5,
+                "offsetX": 2,
                 "offsetY": 10,
                 "autoposition": "RIGHT"
             },
 
-            contentSize: {
-                "width": w,
-                "height": h
-            },
-
             resizable: {
+                minWidth: 450,
+                maxWidth: 600,
+                minHeight: 400,
                 stop: function(event, ui) {
                     $('div#accordion', ui.element).accordion("refresh");
                 }
@@ -274,7 +272,13 @@ $(function() {
 
             }
 
-        }).resize(w, h);
+        }).resize({
+            width: w, 
+            height: h,
+            callback: function(panel) {
+                $('div#accordion', this.content).accordion("refresh");
+            },
+        });
     } );
 
     // Start the auto-updating
