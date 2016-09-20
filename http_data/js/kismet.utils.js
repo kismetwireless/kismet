@@ -352,9 +352,9 @@ exports.RecalcRrdData = function(start, now, type, data, opt) {
         // 'then' and 'now', rescale the array to start at 'now', and fill
         // in the time we got no data with zeroes
         
-        var start_bin = (start / type) % rrd_len;
+        var start_bin = Math.round(start / type) % rrd_len;
         var sec_offt = Math.max(0, now - start);
-        var now_bin = (sec_offt / type) % rrd_len;
+        var now_bin = Math.round(now / type) % rrd_len;
 
         // Walk the entire array, starting with 'now', and copy zeroes
         // when we fall into the blank spot between 'start' and 'now' when we
