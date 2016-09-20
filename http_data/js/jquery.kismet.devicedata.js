@@ -4,15 +4,42 @@
     {
         "field": "..." // Field spec
         "title": "..." // title text
-        "groupTitle": "..." // This will be a sub-group, which is a new
-            table made from this keys id, fields, etc records
-        // Optional function for rendering that should return html, taking
-        // the original key, data, and resolved value
-        "render": function(key, data, value) {}  
-        "emtpy": "..." // Text to be substituted when there is no value
+
         // Optional function for filtering if we display this entity, returns
         // boolean for display
-        "filter": function(key, data, value) {}
+        "filter": function(key, data, value) { return bool }
+
+        Subgroups (nested table of a subset of fields)
+
+        // Indicates we have a subgroup.  Title is string, or function
+        // returning a string
+        "groupTitle": string | function(key, data, value)
+        "fields": [...] // Additional nested fields w/in the subgroup
+
+        Iterative groups (vectors and dictionaries of multiple values,
+        the fields group is applied to each index
+        "groupIterate": boolean // Do we iterate over an index of the field
+        and apply fields to each?
+        "iterateTitle": string|function(key, data, value, index) // Fixed string
+        or optional function for each index
+        "fields": [...] // Additional nested fields which will be indexed 
+        and grouped.
+
+        When using iterator groups, field references should be based on the 
+        inner fields, ie a top-level array field of foo.bar.array containing
+        foo.bar.array[x].val1, foo.bar.array[x].val2, the sub group of 
+        fields should reference fields as 'val1' and 'val2' to get automatically
+        indexed by reference
+
+        // Optional string or function for rendering that should return html, taking
+        // the original key, data, and resolved value
+        "render": string | function(key, data, value) {}  
+
+        // Optional function for
+
+        "emtpy": "..." | function(key, data, value) 
+        // Text to be substituted when there is no value
+        
     }
 */
 
@@ -58,14 +85,24 @@
                         "id": "tr_" + id
                     });
 
-                    drow.append($('<td />', {
-                        "colspan": 2
-                    }));
-
                     subtable.append(drow);
+                } else {
+                    // Clear it if it exists and we'll remake it
+                    drow.empty();
                 }
 
+                drow.append($('<td />', {
+                    "colspan": 2
+                }));
+
                 var cell = $('td:eq(0)', drow);
+
+                var gt = "";
+
+                if (typeof(v['groupTitle']) === 'string')
+                    gt = v['groupTitle'];
+                else if (typeof(v['groupTitle']) === 'function')
+                    gt = v['groupTitle'](v['field'], data, d);
 
                 cell.append($('<b />', {
                         'html': v['groupTitle']
@@ -80,6 +117,10 @@
                 contentdiv.devicedata(data, v);
 
                 return;
+            }
+
+            // Do we have an iterative subgroup?
+            if ('groupIterate' in v && v['groupIterate'] == true) {
 
             }
 
@@ -112,12 +153,19 @@
                 td = $('td:eq(1)', drow);
             }
 
-            if ('render' in v && typeof(v['render']) === 'function') {
-                td.html(v['render'](v['field'], data, d));
+            if ('render' in v) {
+                if (typeof(v['render']) === 'function') {
+                    td.html(v['render'](v['field'], data, d));
+                } else if (typeof(v['render']) === 'string') {
+                    td.html(v['render']);
+                }
             } else {
                 if ('empty' in v && typeof(d) === 'undefined' ||
                         (typeof(d) !== 'undefined' && d.length == 0)) {
-                    td.html(v['empty']);
+                    if (typeof(v['empty']) === 'string')
+                        td.html(v['empty']);
+                    else if (typeof(v['empty']) === 'function')
+                        td.html(v['empty'](v['field'], data, d));
                 } else {
                     td.html(d);
                 }
