@@ -65,7 +65,7 @@ Text to be substituted if the key is not available in the data set.
 
 ### render (optional)
 
-Render function called during creation of the table row.  The results of this function are placed directly in the cell, prior to completion of the entire table.  The render function is called with:
+The render option can be a fixed string, or a function.  The render function will called during creation of the table row, and the returned string is placed directly in the cell, prior to completion of the entire table.  The render function is called with:
 
 * **key** - the key field specified in the `field` option.
 * **data** - the complete data record for this table.
@@ -148,6 +148,8 @@ For example, a row which combines filtering and drawing to only display the dBm 
 Indicates that this is a sub-group and provides a user-visible title for the group.
 
 Sub-groups are rendered as a nested table, and fields defining a subgroup act as a top-level options directive - that is, they may then contain their own `id` and `fields` options.  The `id` option is applied to the nested table, and the `fields` are placed inside the nested instance.
+
+The `groupTitle` option can be a fixed string, or a function taking a `(key, data, value)` set of arguments.
 
 For example, to define a location group:
 
