@@ -1,3 +1,38 @@
+******
+
+nextgen-fields has just been merged into Kismet Master.
+
+This is a major disruptive change to Kismet, and will present a bit more
+thrash in git-dev than normal.
+
+If you're looking for a stable Kismet build, grab a release tarball or grab
+the Kismet-Stable git branch!
+
+This is a major rewrite of how Kismet works, and will break any
+third-party plugins as the API changes and solidifies.
+
+This introduces the new web-based UI and removes the ncurses UI.
+
+At the time of merge, text and xml logs are not functional.  Support for
+these logs will return as development continues.
+
+There have been, and will continue to be, changes to the Kismet config files,
+which are documented in:
+
+    README2 - Rewrite of this readme file, currently focused on the new GPS
+    and web options
+
+    README.SSL - Using SSL with the Kismet webserver interface
+
+Developer documentation for the new API is in the docs/dev/ directory!
+
+******
+
+*OLD* readme to follow.
+
+******
+
+
 Kismet 2016-01-R1
 Mike Kershaw <dragorn@kismetwireless.net>
 http://www.kismetwireless.net
