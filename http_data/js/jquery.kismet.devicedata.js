@@ -50,6 +50,7 @@
             "id": "kismetDeviceData",
             "fields": [],
             "span": false,
+            "baseobject": "",
         }, options);
 
         var subtable = $('table #' + settings['id'], this);
@@ -67,7 +68,7 @@
             var id = v['field'].replace(/[.\[\]\(\)]/g, '_');
 
             // Do we have a function for rendering this?
-            var d = kismet.ObjectByString(data, v['field']);
+            var d = kismet.ObjectByString(data, settings.baseobject + v['field']);
 
             if ('filter' in v && typeof(v['filter']) === 'function') {
                 if (!(v['filter'](v['field'], data, d))) {
@@ -104,7 +105,7 @@
                 else if (typeof(v['groupTitle']) === 'function')
                     gt = v['groupTitle'](v['field'], data, d);
 
-                cell.append($('<b />', {
+                cell.append($('<b class="devicedata_subgroup_header"/>', {
                         'html': v['groupTitle']
                 }));
 
@@ -117,11 +118,6 @@
                 contentdiv.devicedata(data, v);
 
                 return;
-            }
-
-            // Do we have an iterative subgroup?
-            if ('groupIterate' in v && v['groupIterate'] == true) {
-
             }
 
             // Standard row

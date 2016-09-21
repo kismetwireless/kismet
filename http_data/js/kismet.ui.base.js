@@ -520,6 +520,44 @@ kismet_ui.AddDeviceDetail("packets", "Packet Rates", 10, {
     }
 });
 
+kismet_ui.AddDeviceDetail("seenby", "Seen By", 900, {
+    filter: function(data) {
+        return (Object.keys(data.kismet_device_base_seenby).length >= 1);
+    },
+    draw: function(data, target) {
+        target.devicedata(data, {
+            "id": "seenbyDeviceData",
+            "groupIterate": true,
+            "iterateTitle": function(key, data, value, index) {
+                return data[index].kismet_common_seenby_uuid;
+            },
+
+            "fields": [
+            {
+                field: "kismet_common_seenby_uuid",
+                title: "UUID",
+                empty: "<i>None</i>"
+            },
+            {
+                field: "kismet_common_seenby_first_time",
+                title: "First Seen",
+                render: function(key, data, value) {
+                    return new Date(value * 1000);
+                }
+            },
+            {
+                field: "kismet_common_seenby_last_time",
+                title: "Last Seen",
+                render: function(key, data, value) {
+                    return new Date(value * 1000);
+                }
+            },
+            ]
+        });
+    },
+});
+
+
 kismet_ui.AddDeviceDetail("devel", "Dev/Debug Options", 10000, {
     render: function(data) {
         return 'Device JSON: <a href="/devices/by-key/' + data.kismet_device_base_key + '/device.json" target="_new">link</a><br />';
