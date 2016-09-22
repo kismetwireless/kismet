@@ -481,7 +481,7 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
     }
 });
 
-kismet_ui.AddDeviceDetail("packets", "Packet Rates", 10, {
+kismet_ui.AddDeviceDetail("packets", "Packet Graphs", 10, {
     render: function(data) {
         // Make 3 divs for s, m, h RRD
         return 'Packets per second (last minute)<br /><div /><br />' + 
