@@ -137,7 +137,9 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 fields: [
                 {
                     field: "dot11_advertisedssid_ssid",
-                    title: "SSID"
+                    title: "SSID",
+                    empty: "<i>Unknown</i>"
+                        
                 },
                 {
                     field: "dot11_advertisedssid_channel",
@@ -177,6 +179,43 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     filter: function(key, data, value) {
                         return value !== '';
                     }
+                },
+                {
+                    field: "dot11_advertisedssid_wps_manuf",
+                    groupTitle: "WPS",
+                    id: "dot11_wps_group",
+
+                    filter: function(key, data, value) {
+                        return value !== '';
+                    },
+
+                    fields: [
+                    {
+                        field: "dot11_advertisedssid_wps_manuf",
+                        title: "WPS Manufacturer"
+                    },
+                    {
+                        field: "dot11_advertisedssid_wps_device_name",
+                        title: "WPS Device",
+                        filter: function(key, data, value) {
+                            return value !== '';
+                        }
+                    },
+                    {
+                        field: "dot11_advertisedssid_wps_model_name",
+                        title: "WPS Model",
+                        filter: function(key, data, value) {
+                            return value !== '';
+                        }
+                    },
+                    {
+                        field: "dot11_advertisedssid_wps_model_number",
+                        title: "WPS Model #",
+                        filter: function(key, data, value) {
+                            return value !== '';
+                        }
+                    }
+                    ]
                 },
 
                 ]
