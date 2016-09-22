@@ -197,7 +197,7 @@ exports.GetChannelData = function(callback, failback) {
 
 // From http://stackoverflow.com/a/6491621
 exports.ObjectByString = function(o, s) {
-    s = s.replace(/\[(\w+)\]/g, '.$1');
+    s = s.replace(/\[['"]?(-?\w+)['"]?\]/g, '.$1');
     s = s.replace(/^\./, '');
     var a = s.split('.');
     for (var i = 0, n = a.length; i < n; ++i) {
@@ -243,8 +243,6 @@ exports.GetDynamicIncludes = function() {
     var scriptchain = $.Deferred();
 
     $.get("/dynamic.json", function(data) {
-        // console.log(data);
-
         // Build a list of deferred stuff
         var scriptloads = new Array();
 

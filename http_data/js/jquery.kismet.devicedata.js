@@ -70,7 +70,6 @@
             var id = (settings.baseobject + v['field']).replace(/[.\[\]\(\)]/g, '_');
 
             // Do we have a function for rendering this?
-            console.log("Trying to read " + settings.baseobject + v['field']);
             var d = kismet.ObjectByString(data, settings.baseobject + v['field']);
 
             if ('filter' in v && typeof(v['filter']) === 'function') {
@@ -149,7 +148,7 @@
                     var contentdiv = $('div', cell);
 
                     // index the subobject
-                    v['baseobject'] = v['field'] + '[' + idx + ']' + '.';
+                    v['baseobject'] = v['field'] + '["' + idx + '"]' + '.';
                     
                     contentdiv.devicedata(data, v);
                 }
