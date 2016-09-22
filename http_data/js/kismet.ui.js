@@ -110,7 +110,7 @@ exports.GetDeviceColumns = function(selected) {
     var ret = new Array();
 
     for (var i in exports.DeviceColumns) {
-        console.log("Adding column " + exports.DeviceColumns[i].kismetId);
+        // console.log("Adding column " + exports.DeviceColumns[i].kismetId);
         ret.push(exports.DeviceColumns[i]);
     }
 

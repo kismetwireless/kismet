@@ -62,12 +62,15 @@
                     "class": "kismet_devicedata"
                 });
             this.append(subtable);
+        } else {
+            subtable.empty();
         }
 
         settings.fields.forEach(function(v, index, array) {
-            var id = v['field'].replace(/[.\[\]\(\)]/g, '_');
+            var id = (settings.baseobject + v['field']).replace(/[.\[\]\(\)]/g, '_');
 
             // Do we have a function for rendering this?
+            console.log("Trying to read " + settings.baseobject + v['field']);
             var d = kismet.ObjectByString(data, settings.baseobject + v['field']);
 
             if ('filter' in v && typeof(v['filter']) === 'function') {
@@ -76,21 +79,13 @@
                 }
             }
 
-            // Find the row if it exists
-            var drow = $('#tr_' + id, subtable);
-
-            // Do we have a sub-group?
+            // Do we have a sub-group or group list?
             if ('groupTitle' in v) {
-                if (drow.length == 0) {
-                    drow = $('<tr />', {
-                        "id": "tr_" + id
-                    });
+                var drow = $('<tr />', {
+                    "id": "tr_" + id
+                });
 
-                    subtable.append(drow);
-                } else {
-                    // Clear it if it exists and we'll remake it
-                    drow.empty();
-                }
+                subtable.append(drow);
 
                 drow.append($('<td />', {
                     "colspan": 2
@@ -105,9 +100,8 @@
                 else if (typeof(v['groupTitle']) === 'function')
                     gt = v['groupTitle'](v['field'], data, d);
 
-                cell.append($('<b class="devicedata_subgroup_header"/>', {
-                        'html': v['groupTitle']
-                }));
+                console.log("appending bold " + gt);
+                cell.append($('<b class="devicedata_subgroup_header">' + gt + '</b>'));
 
                 cell.append($('<br />'));
                 cell.append($('<div />'));
@@ -120,25 +114,65 @@
                 return;
             }
 
-            // Standard row
-            if (drow.length == 0) {
-                drow = $('<tr />', {
-                    "id": "tr_" + id,
-                });
+            // Iterative group
+            if ('groupIterate' in v && v['groupIterate'] == true) {
+                console.log("iterate group");
+                for (var idx in d) {
+                    // If we have a title, make a span row for it
+                    if ('iterateTitle' in v) {
+                        var subid = (id + '[' + idx + ']').replace(/[.\[\]\(\)]/g, '_');
 
-                if (v["span"]) {
-                    drow.append($('<td />', {
-                        "colspan": 2,
-                        "class": "span"
-                    }));
-                } else {
-                    drow.append($('<td /><td />'));
+                        var drow = $('<tr />', {
+                            "id": "tr_" + subid
+                        });
+
+                        subtable.append(drow);
+
+                        drow.append($('<td />', {
+                            "colspan": 2
+                        }));
+
+                        var cell = $('td:eq(0)', drow);
+
+                        var it = "";
+
+                        if (typeof(v['iterateTitle']) === 'string')
+                            it = v['iterateTitle'];
+                        else if (typeof(v['iterateTitle']) === 'function')
+                            it = v['iterateTitle'](v['field'], data, d, idx);
+                        
+                        cell.append($('<b class="devicedata_subgroup_header">' + it + '</b>'));
+
+                        cell.append($('<br />'));
+                    }
+
+                    cell.append($('<div />'));
+
+                    var contentdiv = $('div', cell);
+
+                    // index the subobject
+                    v['baseobject'] = v['field'] + '[' + idx + ']' + '.';
+                    console.log("passing baseobj " + v['baseobject']);
+                    
+                    contentdiv.devicedata(data, v);
                 }
-
-                subtable.append(drow);
-            } else {
-                console.log("existing row?");
             }
+
+            // Standard row
+            var drow = $('<tr />', {
+                "id": "tr_" + id,
+            });
+
+            if (v["span"]) {
+                drow.append($('<td />', {
+                    "colspan": 2,
+                    "class": "span"
+                }));
+            } else {
+                drow.append($('<td /><td />'));
+            }
+
+            subtable.append(drow);
 
             var td;
 

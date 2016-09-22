@@ -216,8 +216,6 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                             });
                         }
 
-                        console.log(moddata);
-
                         Morris.Bar({
                             element: bardiv,
                             data: moddata,
@@ -526,33 +524,38 @@ kismet_ui.AddDeviceDetail("seenby", "Seen By", 900, {
     },
     draw: function(data, target) {
         target.devicedata(data, {
-            "id": "seenbyDeviceData",
-            "groupIterate": true,
-            "iterateTitle": function(key, data, value, index) {
-                return data[index].kismet_common_seenby_uuid;
-            },
+            id: "seenbyDeviceData",
 
-            "fields": [
+            fields: [
             {
-                field: "kismet_common_seenby_uuid",
-                title: "UUID",
-                empty: "<i>None</i>"
-            },
-            {
-                field: "kismet_common_seenby_first_time",
-                title: "First Seen",
-                render: function(key, data, value) {
-                    return new Date(value * 1000);
-                }
-            },
-            {
-                field: "kismet_common_seenby_last_time",
-                title: "Last Seen",
-                render: function(key, data, value) {
-                    return new Date(value * 1000);
-                }
-            },
-            ]
+                field: "kismet_device_base_seenby",
+                id: "seenby_group",
+                groupIterate: true,
+                iterateTitle: function(key, data, value, index) {
+                    return value[index].kismet_common_seenby_uuid;
+                },
+                fields: [
+                {
+                    field: "kismet_common_seenby_uuid",
+                    title: "UUID",
+                    empty: "<i>None</i>"
+                },
+                {
+                    field: "kismet_common_seenby_first_time",
+                    title: "First Seen",
+                    render: function(key, data, value) {
+                        return new Date(value * 1000);
+                    }
+                },
+                {
+                    field: "kismet_common_seenby_last_time",
+                    title: "Last Seen",
+                    render: function(key, data, value) {
+                        return new Date(value * 1000);
+                    }
+                },
+                ]
+            }]
         });
     },
 });

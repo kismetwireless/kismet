@@ -102,15 +102,11 @@ function handleDeviceSummary() {
 $(function() {
     // Dynamic load of our plugin js, then continue.  is this the only way to do
     // this?  sure is annoying.
-    console.log("Triggering dynamic includes\n");
     kismet.GetDynamicIncludes().done(function() {
 
-    console.log("loaded dynamics");
-    console.log(kismet_ui.GetDeviceColumns([]));
+    // console.log(kismet_ui.GetDeviceColumns([]));
 
     kismet_ui.BatteryUi($("#batspinner"), $("#batpower"), $("#battime"));
-
-    console.log($('#devices'));
 
     $('#devices').DataTable( {
         "scrollY":        "60vh",
@@ -235,8 +231,6 @@ $(function() {
 
                         for (var dii in detailslist) {
                             var di = detailslist[dii];
-
-                            console.log(di);
 
                             // Do we skip?
                             if ('filter' in di.options &&

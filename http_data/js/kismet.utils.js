@@ -243,17 +243,17 @@ exports.GetDynamicIncludes = function() {
     var scriptchain = $.Deferred();
 
     $.get("/dynamic.json", function(data) {
-        console.log(data);
+        // console.log(data);
 
         // Build a list of deferred stuff
         var scriptloads = new Array();
 
         // Trigger them all
         for (var p in data['dynamicjs']) {
-            console.log("calling getscript " + data.dynamicjs[p]['js']);
+            // console.log("calling getscript " + data.dynamicjs[p]['js']);
 
             $.getScript(data.dynamicjs[p]['js']);
-            console.log("looping to see if it loaded");
+            // console.log("looping to see if it loaded");
 
             // Make a deferred entry per script we load
             var defer = $.Deferred();
@@ -262,7 +262,7 @@ exports.GetDynamicIncludes = function() {
             data.dynamicjs[p]['defer'] = defer;
 
             // Add it to our vector so we can apply them all
-            console.log("adding promise to list");
+            // console.log("adding promise to list");
             scriptloads.push(defer);
         }
 
@@ -271,7 +271,7 @@ exports.GetDynamicIncludes = function() {
         // Now that we know all our deferred loads, make one event loop that looks
         // for them and unlocks all their deferred promises
         var interval = setInterval(function() {
-            console.log(interval);
+            // console.log(interval);
 
             for (var p in data['dynamicjs']) {
                 var module = data.dynamicjs[p]['module'];
@@ -282,13 +282,13 @@ exports.GetDynamicIncludes = function() {
                     // window.clearInterval(interval);
                     // Remove this entry from the list
                     data['dynamicjs'].splice(p, 1);
-                    console.log("done loading " + module + " on attempt " + attempts);
+                    // console.log("done loading " + module + " on attempt " + attempts);
                     defer.resolve();
                 } else if (attempts >= 100) {
                     // window.clearInterval(interval);
                     // // Remove this entry from the list
                     data['dynamicjs'].splice(p, 1);
-                    console.log("loading went wrong");
+                    // console.log("loading went wrong");
                     defer.reject('Something went wrong');
                 }
             }
@@ -301,9 +301,9 @@ exports.GetDynamicIncludes = function() {
             attempts++;
         }, 100);
 
-        console.log("Waiting for script loads");
+        // console.log("Waiting for script loads");
         $.when.apply(null, scriptloads).done(function() {
-            console.log("Script load array is done, setting scriptchain to resolved");
+            // console.log("Script load array is done, setting scriptchain to resolved");
             scriptchain.resolve();
         });
     });
