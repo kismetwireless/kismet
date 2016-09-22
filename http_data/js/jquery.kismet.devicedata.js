@@ -148,7 +148,7 @@
                     var contentdiv = $('div', cell);
 
                     // index the subobject
-                    v['baseobject'] = v['field'] + '["' + idx + '"]' + '.';
+                    v['baseobject'] = v['field'] + '[' + idx + ']' + '.';
                     
                     contentdiv.devicedata(data, v);
                 }
@@ -186,12 +186,20 @@
                     td.html(v['render']);
                 }
             } else {
-                if ('empty' in v && typeof(d) === 'undefined' ||
-                        (typeof(d) !== 'undefined' && d.length == 0)) {
+                if ('empty' in v && 
+                        (typeof(d) === 'undefined' ||
+                        (typeof(d) !== 'undefined' && d.length == 0))) {
                     if (typeof(v['empty']) === 'string')
                         td.html(v['empty']);
                     else if (typeof(v['empty']) === 'function')
                         td.html(v['empty'](v['field'], data, d));
+                } else if ('zero' in v &&
+                        (typeof(d) === 'undefined' ||
+                         (typeof(d) === 'number' && d == 0))) {
+                    if (typeof(v['zero']) === 'string')
+                        td.html(v['zero']);
+                    else if (typeof(v['zero']) === 'function')
+                        td.html(v['zero'](v['field'], data, d));
                 } else {
                     td.html(d);
                 }

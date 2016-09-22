@@ -220,6 +220,120 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
 
                 ]
             },
+            {
+                field: "dot11_device.dot11_device_client_map",
+                id: "client_behavior",
+
+                filter: function(key, data, value) {
+                    return (Object.keys(data.dot11_device.dot11_device_client_map).length >= 1);
+                },
+
+                groupIterate: true,
+                iterateTitle: function(key, data, value, index) {
+                    return "Client for: " + index;
+                },
+
+                fields: [
+                {
+                    field: "dot11_client_bssid",
+                    title: "BSSID",
+                    render: function(key, data, value) {
+                        console.log(key + " " + value);
+                        return value.split("/")[0];
+                    }
+                },
+                {
+                    field: "dot11_client_first_time",
+                    title: "First Seen",
+                    render: function(key, data, value) {
+                        return new Date(value * 1000);
+                    }
+                },
+                {
+                    field: "dot11_client_last_time",
+                    title: "Last Seen",
+                    render: function(key, data, value) {
+                        return new Date(value * 1000);
+                    }
+                },
+                {
+                    field: "dot11_client_datasize",
+                    title: "Data",
+                    render: function(key, data, value) {
+                        return kismet.HumanReadableSize(value);
+                    }
+                },
+                {
+                    field: "dot11_client_dhcp_host",
+                    groupTitle: "DHCP",
+                    id: "client_dhcp",
+                    filter: function(key, data, value) {
+                        return value !== '';
+                    },
+                    fields: [
+                    {
+                        field: "dot11_client_dhcp_host",
+                        title: "DHCP Hostname",
+                        empty: "<i>Unknown</i>"
+                    },
+                    {
+                        field: "dot11_client_dhcp_vendor",
+                        title: "DHCP Vendor",
+                        empty: "<i>Unknown</i>"
+                    }
+                    ]
+                },
+                {
+                    field: "dot11_client_eap_identity",
+                    title: "EAP Identity",
+                    filter: function(key, data, value) {
+                        return value !== '';
+                    }
+                },
+                {
+                    field: "dot11_client_cdp_device",
+                    groupTitle: "CDP",
+                    id: "client_cdp",
+                    filter: function(key, data, value) {
+                        return value !== '';
+                    },
+                    fields: [
+                    {
+                        field: "dot11_client_cdp_device",
+                        title: "CDP Device"
+                    },
+                    {
+                        field: "dot11_client_cdp_port",
+                        title: "CDP Port",
+                        empty: "<i>Unknown</i>"
+                    }
+                    ]
+                },
+                {
+                    field: "dot11_client_ipdata",
+                    groupTitle: "IP",
+                    filter: function(key, data, value) {
+                        return value['kismet_common_ipdata_address'] != 0;
+                    },
+                    fields: [
+                    {
+                        field: "dot11_client_ipdata.kismet_common_ipdata_address",
+                        title: "IP Address",
+                    },
+                    {
+                        field: "dot11_client_ipdata.kismet_common_ipdata_netmask",
+                        title: "Netmask",
+                        zero: "<i>Unknown</i>"
+                    },
+                    {
+                        field: "dot11_client_ipdata.kismet_common_ipdata_gateway",
+                        title: "Gateway",
+                        zero: "<i>Unknown</i>"
+                    }
+                    ]
+                },
+                ]
+            },
             ]
         });
     }
