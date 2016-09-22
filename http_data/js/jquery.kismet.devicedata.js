@@ -100,7 +100,6 @@
                 else if (typeof(v['groupTitle']) === 'function')
                     gt = v['groupTitle'](v['field'], data, d);
 
-                console.log("appending bold " + gt);
                 cell.append($('<b class="devicedata_subgroup_header">' + gt + '</b>'));
 
                 cell.append($('<br />'));
@@ -116,7 +115,6 @@
 
             // Iterative group
             if ('groupIterate' in v && v['groupIterate'] == true) {
-                console.log("iterate group");
                 for (var idx in d) {
                     // If we have a title, make a span row for it
                     if ('iterateTitle' in v) {
@@ -152,7 +150,6 @@
 
                     // index the subobject
                     v['baseobject'] = v['field'] + '[' + idx + ']' + '.';
-                    console.log("passing baseobj " + v['baseobject']);
                     
                     contentdiv.devicedata(data, v);
                 }

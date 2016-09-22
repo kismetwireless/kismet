@@ -118,6 +118,69 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 }
                 ],
             },
+            {
+                field: "dot11_device.dot11_device_advertised_ssid_map",
+                id: "advertised_ssid",
+
+                filter: function(key, data, value) {
+                    return (Object.keys(data.dot11_device.dot11_device_advertised_ssid_map).length >= 1);
+                },
+
+                groupIterate: true,
+                iterateTitle: function(key, data, value, index) {
+                    var lastssid = value[index].dot11_advertisedssid_ssid;
+                    if (lastssid === '')
+                        return "Advertised SSID: <i>Unknown</i>";
+
+                    return "Advertised SSID: " + lastssid;
+                },
+                fields: [
+                {
+                    field: "dot11_advertisedssid_ssid",
+                    title: "SSID"
+                },
+                {
+                    field: "dot11_advertisedssid_channel",
+                    title: "Channel"
+                },
+                {
+                    field: "dot11_advertisedssid_first_time",
+                    title: "First Seen",
+                    render: function(key, data, value) {
+                        return new Date(value * 1000);
+                    }
+                },
+                {
+                    field: "dot11_advertisedssid_last_time",
+                    title: "Last Seen",
+                    render: function(key, data, value) {
+                        return new Date(value * 1000);
+                    }
+                },
+                {
+                    field: "dot11_advertisedssid_beaconrate",
+                    title: "Beacon Rate",
+                    render: function(key, data, value) {
+                        return value + '/sec';
+                    }
+                },
+                {
+                    field: "dot11_advertisedssid_maxrate",
+                    title: "Max. Rate",
+                    render: function(key, data, value) {
+                        return value + ' mbit';
+                    }
+                },
+                {
+                    field: "dot11_advertisedssid_dot11d_country",
+                    title: "802.11d Country",
+                    filter: function(key, data, value) {
+                        return value !== '';
+                    }
+                },
+
+                ]
+            },
             ]
         });
     }
