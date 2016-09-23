@@ -632,6 +632,7 @@ public:
     }
 
     __Proxy(bssid, mac_addr, mac_addr, mac_addr, bssid);
+    __Proxy(bssid_key, uint64_t, uint64_t, uint64_t, bssid_key);
     __Proxy(client_type, uint32_t, uint32_t, uint32_t, client_type);
 
     __Proxy(first_time, uint64_t, time_t, time_t, first_time);
@@ -676,6 +677,9 @@ protected:
         bssid_id =
             RegisterField("dot11.client.bssid", TrackerMac,
                     "bssid", (void **) &bssid);
+        bssid_key_id =
+            RegisterField("dot11.client.bssid_key", TrackerUInt64,
+                    "key of BSSID record", (void **) &bssid_key);
         first_time_id =
             RegisterField("dot11.client.first_time", TrackerUInt64,
                     "first time seen", (void **) &first_time);
@@ -764,6 +768,9 @@ protected:
         
     int bssid_id;
     TrackerElement *bssid;
+
+    int bssid_key_id;
+    TrackerElement *bssid_key;
 
     int first_time_id;
     TrackerElement *first_time;
