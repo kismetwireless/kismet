@@ -164,6 +164,119 @@ exports.GetDeviceDetails = function() {
     return exports.DeviceDetails;
 }
 
+exports.DeviceDetailWindow = function(key) {
+    // Generate a unique ID for this dialog
+    var dialogid = "devicedialog" + key;
+    var dialogmatch = '#' + dialogid;
+
+    var h = $(window).height() - 10;
+
+    // If we're on a wide-screen browser, try to split it into 3 details windows
+    var w = ($(window).width() / 3) - 10;
+
+    // If we can't, split it into 2.  This seems to look better when people 
+    // don't run full-size browser windows.
+    if (w < 450) {
+        w = ($(window).width() / 2) - 5;
+    }
+
+    // Finally make it full-width if we're still narrow
+    if (w < 450) {
+        w = $(window).width() - 5;
+    }
+
+    $.jsPanel({
+        id: dialogid,
+        headerTitle: 'Device Details',
+        position: {
+            "my": "left-top",
+            "at": "left-top",
+            "of": "window",
+            "offsetX": 2,
+            "offsetY": 10,
+            "autoposition": "RIGHT"
+        },
+
+        resizable: {
+            minWidth: 450,
+            maxWidth: 600,
+            minHeight: 400,
+            stop: function(event, ui) {
+                $('div#accordion', ui.element).accordion("refresh");
+            }
+        },
+
+        onmaximized: function() {
+            $('div#accordion', this.content).accordion("refresh");
+        },
+
+        onnormalized: function() {
+            $('div#accordion', this.content).accordion("refresh");
+        },
+
+        callback: function() {
+            var panel = this;
+            var content = this.content;
+
+            $.get("/devices/by-key/" + key + "/device.json")
+                .done(function(fulldata) {
+                    panel.headerTitle(fulldata['kismet_device_base_name']);
+
+                    var accordion = $('<div />', {
+                        id: 'accordion'
+                    });
+
+                    content.append(accordion);
+
+                    var detailslist = kismet_ui.GetDeviceDetails();
+
+                    for (var dii in detailslist) {
+                        var di = detailslist[dii];
+
+                        // Do we skip?
+                        if ('filter' in di.options &&
+                                typeof(di.options.filter) === 'function') {
+                            if (di.options.filter(fulldata) == false) {
+                                continue;
+                            }
+                        }
+
+                        var vheader = $('<h3 />', {
+                            id: "header" + di.id,
+                            html: di.title
+                        });
+
+                        var vcontent = $('<div />', {
+                            id: di.id,
+                            //class: 'autosize'
+                        });
+
+                        // Do we have pre-rendered content?
+                        if ('render' in di.options &&
+                                typeof(di.options.render) === 'function') {
+                            vcontent.html(di.options.render(fulldata));
+                        }
+
+                        accordion.append(vheader);
+                        accordion.append(vcontent);
+
+                        if ('draw' in di.options &&
+                                typeof(di.options.draw) === 'function') {
+                            di.options.draw(fulldata, vcontent);
+                        }
+                    }
+                    accordion.accordion({ heightStyle: 'fill' });
+                });
+        }
+    }).resize({
+        width: w, 
+        height: h,
+        callback: function(panel) {
+            $('div#accordion', this.content).accordion("refresh");
+        },
+    });
+};
+
 return exports;
 
 });

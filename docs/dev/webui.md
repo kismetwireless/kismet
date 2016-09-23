@@ -130,7 +130,7 @@ kismet_ui.AddDeviceColumn('column_foo_time', {
 });
 ```
 
-Notice that we provide the name of our modue in `cbmodule` - this needs to match the module definition at the top of the file.
+Notice that we provide the name of our module in `cbmodule` - this needs to match the module definition at the top of the file.
 
 Finally, we'll show an example of doing custom drawing in a column.  Because the render function happens too early, the easiest way to accomplish custom elements drawn on a row is to combine a render function which inserts a placeholder, and a draw function which gets called when that row is visible.
 
@@ -188,4 +188,16 @@ kismet_ui.AddDeviceColumn('column_foo_packet_rrd', {
     drawfunc: 'drawPackets'
 });
 
+```
+
+## Device Details
+
+A device details window can be created by calling the `DeviceDetailWindow(key)` function in `kismet_ui`.
+
+For instance, to show a device detail for a known device key,
+
+```javascript
+foo.on('click', 'div', function() {
+    kismet_ui.DeviceDetailWindow(somekey);
+});
 ```
