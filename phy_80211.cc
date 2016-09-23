@@ -534,7 +534,7 @@ void Kis_80211_Phy::HandleSSID(kis_tracked_device_base *basedev,
             ssid->inc_beacons_sec();
         } else {
             ssid = (dot11_advertised_ssid *) ssid_itr->second;
-
+            ssid->set_last_time(in_pack->ts.tv_sec);
         }
 
         if (dot11info->subtype == packet_sub_beacon) {
