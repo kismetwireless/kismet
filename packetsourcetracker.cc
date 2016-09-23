@@ -984,7 +984,9 @@ int Packetsourcetracker::AddPacketSource(string in_source,
 	else
 		pstsource->local_only = 0;
 	pstsource->sourceline = in_source;
+
 	pstsource->strong_source = in_strong;
+
 	pstsource->proto_source = NULL;
 	// Set to an undefined status first
 	pstsource->channel = 0;
@@ -1010,6 +1012,13 @@ int Packetsourcetracker::AddPacketSource(string in_source,
 	pstsource->error = 0;
 	pstsource->reopen = 1;
 	pstsource->zeropoll = 0;
+
+    pstsource->source_id = next_source_id;
+    next_source_id++;
+
+    if (in_strong != NULL) {
+        in_strong->SetSourceID(pstsource->source_id);
+    }
 
 	string name = StrLower(FetchOpt("name", &options));
 	if (name == "")
@@ -1096,10 +1105,8 @@ int Packetsourcetracker::AddPacketSource(string in_source,
 			pstsource->reopen = 0;
 			pstsource->strong_source = NULL;
 
-			pstsource->source_id = next_source_id;
 			packetsource_map[pstsource->source_id] = pstsource;
 			packetsource_vec.push_back(pstsource);
-			next_source_id++;
 
 			return 0;
 		}
@@ -1187,10 +1194,12 @@ int Packetsourcetracker::AddPacketSource(string in_source,
 	}
 
 	// Do the initial build of a strong source now that we know the type
-	if (pstsource->strong_source == NULL)
+	if (pstsource->strong_source == NULL) {
 		pstsource->strong_source = 
 			pstsource->proto_source->weak_source->CreateSource(globalreg, interface, 
 															   &options);
+        pstsource->strong_source->SetSourceID(pstsource->source_id);
+    }
 
 	_MSG("Created source " + interface + " with UUID " +
 		 pstsource->strong_source->FetchUUID().UUID2String(), MSGFLAG_INFO);
@@ -1342,11 +1351,8 @@ int Packetsourcetracker::AddPacketSource(string in_source,
 	}
 
 	// Add the created strong source to our list
-	pstsource->source_id = next_source_id;
 	packetsource_map[pstsource->source_id] = pstsource;
 	packetsource_vec.push_back(pstsource);
-
-	next_source_id++;
 
 	if (pstsource->proto_source != NULL && pstsource->proto_source->require_root)
 		SendIPCSourceAdd(pstsource);
@@ -1994,7 +2000,7 @@ int Packetsourcetracker::StartSource(uint16_t in_source_id) {
 
 	// Enable monitor and open it, because we're either the IPC and root, 
 	// or the parent and root, or we're going to fail
-	
+
 	pstsource->strong_source->SetSourceID(pstsource->source_id);
 	
 	// Don't decode the DLT if we're the IPC target
