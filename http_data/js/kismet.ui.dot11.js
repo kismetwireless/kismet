@@ -11,6 +11,39 @@ var exports = {};
 // Flag we're still loading
 exports.load_complete = 0;
 
+// Crypt set from packet_ieee80211.h
+exports.crypt_none = 0;
+exports.crypt_unknown = 1;
+exports.crypt_wep = (1 << 1);
+exports.crypt_layer3 = (1 << 2);
+exports.crypt_wep40 = (1 << 3);
+exports.crypt_wep104 = (1 << 4);
+exports.crypt_tkip = (1 << 5);
+exports.crypt_wpa = (1 << 6);
+exports.crypt_psk = (1 << 7);
+exports.crypt_aes_ocb = (1 << 8);
+exports.crypt_aes_ccm = (1 << 9);
+exports.crypt_wpa_migmode = (1 << 10);
+exports.crypt_eap = (1 << 11);
+exports.crypt_leap = (1 << 12);
+exports.crypt_ttls = (1 << 13);
+exports.crypt_tls = (1 << 14);
+exports.crypt_peap = (1 << 15);
+
+exports.crypt_protectmask = 0xFFFFF;
+exports.crypt_isakmp = (1 << 20);
+exports.crypt_pptp = (1 << 21);
+exports.crypt_fortress = (1 << 22);
+exports.crypt_keyguard = (1 << 23);
+exports.crypt_unknown_protected = (1 << 24); 
+exports.crypt_unknown_nonwep = (1 << 25);
+exports.crypt_wps = (1 << 26);
+exports.crypt_version_wpa = (1 << 27);
+exports.crypt_version_wpa2 = (1 << 28);
+
+exports.crypt_l3_mask = 0x300004;
+exports.crypt_l2_mask = 0xFBFA;
+
 /* Define some callback functions for the table */
 
 console.log("adding device detail 'dot11'");
@@ -91,8 +124,12 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     title: "LLC/Management"
                 },
                 {
+                    field: "kismet_device_base_packets_data",
+                    title: "Data Packets"
+                },
+                {
                     field: "kismet_device_base_packets_error",
-                    title: "Error/Invalid"
+                    title: "Error/Invalid Packets"
                 },
                 {
                     field: "dot11_device.dot11_device_num_fragments",
@@ -104,7 +141,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 },
                 {
                     field: "dot11_device.dot11_device_datasize",
-                    title: "Data",
+                    title: "Data (size)",
                     render: function(opts) {
                         return kismet.HumanReadableSize(opts['value']);
                     }
@@ -229,7 +266,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     render: function(opts) {
                         var ret = opts['value'].split("/")[0];
 
-                        console.log(key);
+                        console.log(opts['index']);
 
                         return ret;
                     }
@@ -250,12 +287,21 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 },
                 {
                     field: "dot11_client_datasize",
-                    title: "Data",
+                    title: "Data (Size)",
                     render: function(opts) {
                         return kismet.HumanReadableSize(opts['value']);
                     }
                 },
                 {
+                    field: "dot11_client_datasize_retry",
+                    title: "Data Retry (Size)",
+                    render: function(opts) {
+                        return kismet.HumanReadableSize(opts['value']);
+                    }
+                },
+                {
+                    // Set the field to be the host, and filter on it, but also
+                    // define a group
                     field: "dot11_client_dhcp_host",
                     groupTitle: "DHCP",
                     id: "client_dhcp",
@@ -298,7 +344,9 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 {
                     field: "dot11_client_ipdata",
                     groupTitle: "IP",
-                    filterOnZero: true,
+                    filter: function(opts) {
+                        return (kismet.ObjectByString(data, opts['basekey'] + 'dot11_client_ipdata.kismet_common_ipdata_address') != 0);
+                    },
                     fields: [
                     {
                         field: "dot11_client_ipdata.kismet_common_ipdata_address",
