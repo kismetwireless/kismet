@@ -150,9 +150,9 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
             {
                 field: "kismet_device_base_macaddr",
                 title: "MAC Address",
-                render: function(key, data, value) {
+                render: function(opts) {
                     // Split out the mac from the mask
-                    return value.split('/')[0];
+                    return opts['value'].split('/')[0];
                 }
             },
             {
@@ -168,15 +168,15 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
             {
                 field: "kismet_device_base_first_time",
                 title: "First Seen",
-                render: function(key, data, value) {
-                    return new Date(value * 1000);
+                render: function(opts) {
+                    return new Date(opts['value'] * 1000);
                 }
             },
             {
                 field: "kismet_device_base_last_time",
                 title: "Last Seen",
-                render: function(key, data, value) {
-                    return new Date(value * 1000);
+                render: function(opts) {
+                    return new Date(opts['value'] * 1000);
                 }
             },
             {
@@ -193,26 +193,26 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                 {
                     field: "kismet_device_base_frequency",
                     title: "Main Frequency",
-                    render: function(key, data, value) {
-                        return kismet.HumanReadableFrequency(value);
+                    render: function(opts) {
+                        return kismet.HumanReadableFrequency(opts['value']);
                     }
                 },
                 {
                     field: "frequency_map",
                     span: true,
-                    render: function(key, data, value) {
-                        return 'Packet Distribution<div class="freqbar" id="' + key + '" />';
+                    render: function(opts) {
+                        return 'Packet Distribution<div class="freqbar" id="' + opts['key'] + '" />';
                     },
-                    draw: function(key, data, value, container) {
-                        var bardiv = $('div', container);
+                    draw: function(opts) {
+                        var bardiv = $('div', opts['container']);
 
                         // Make an array morris likes using our whole data record
                         var moddata = new Array();
 
-                        for (var fk in data.kismet_device_base_freq_khz_map) {
+                        for (var fk in opts['data'].kismet_device_base_freq_khz_map) {
                             moddata.push({
                                 y: kismet.HumanReadableFrequency(parseInt(fk)),
-                                c: data.kismet_device_base_freq_khz_map[fk]
+                                c: opts['data'].kismet_device_base_freq_khz_map[fk]
                             });
                         }
 
@@ -237,139 +237,109 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                 { // Only show when dbm
                     field: "kismet_device_base_signal.kismet_common_signal_last_signal_dbm",
                     title: "Latest Signal",
-                    render: function(key, data, value) {
-                        return value + " dBm";
+                    render: function(opts) {
+                        return opts['value'] + " dBm";
                     },
-                    filter: function(key, data, value) {
-                        return (value != 0);
-                    }
+                    filterOnZero: true,
                 },
                 { // Only show when rssi
                     field: "kismet_device_base_signal.kismet_common_signal_last_signal_rssi",
                     title: "Latest Signal",
-                    render: function(key, data, value) {
-                        return value + " RSSI";
+                    render: function(opts) {
+                        return opts['value'] + " RSSI";
                     },
-                    filter: function(key, data, value) {
-                        return (value != 0);
-                    }
+                    filterOnZero: true,
                 },
                 { // Only show when dbm
                     field: "kismet_device_base_signal.kismet_common_signal_last_noise_dbm",
                     title: "Latest Noise",
-                    render: function(key, data, value) {
-                        return value + " dBm";
+                    render: function(opts) {
+                        return opts['value'] + " dBm";
                     },
-                    filter: function(key, data, value) {
-                        return (value != 0);
-                    }
+                    filterOnZero: true,
                 },
                 { // Only show when rssi
                     field: "kismet_device_base_signal.kismet_common_signal_last_noise_rssi",
                     title: "Latest Noise",
-                    render: function(key, data, value) {
-                        return value + " RSSI";
+                    render: function(opts) {
+                        return opts['value'] + " RSSI";
                     },
-                    filter: function(key, data, value) {
-                        return (value != 0);
-                    }
+                    filterOnZero: true,
                 },
                 { // Only show when dbm
                     field: "kismet_device_base_signal.kismet_common_signal_min_signal_dbm",
                     title: "Min. Signal",
-                    render: function(key, data, value) {
-                        return value + " dBm";
+                    render: function(opts) {
+                        return opts['value'] + " dBm";
                     },
-                    filter: function(key, data, value) {
-                        return (value != 0);
-                    }
+                    filterOnZero: true,
                 },
                 { // Only show when rssi
                     field: "kismet_device_base_signal.kismet_common_signal_min_signal_rssi",
                     title: "Min. Signal",
-                    render: function(key, data, value) {
-                        return value + " RSSI";
+                    render: function(opts) {
+                        return opts['value'] + " RSSI";
                     },
-                    filter: function(key, data, value) {
-                        return (value != 0);
-                    }
+                    filterOnZero: true,
                 },
                 { // Only show when dbm
                     field: "kismet_device_base_signal.kismet_common_signal_max_signal_dbm",
                     title: "Max. Signal",
-                    render: function(key, data, value) {
-                        return value + " dBm";
+                    render: function(opts) {
+                        return opts['value'] + " dBm";
                     },
-                    filter: function(key, data, value) {
-                        return (value != 0);
-                    }
+                    filterOnZero: true,
                 },
                 { // Only show when rssi
                     field: "kismet_device_base_signal.kismet_common_signal_max_signal_rssi",
                     title: "Max. Signal",
-                    render: function(key, data, value) {
-                        return value + " RSSI";
+                    filterOnZero: true,
+                    render: function(opts) {
+                        return opts['value'] + " RSSI";
                     },
-                    filter: function(key, data, value) {
-                        return (value != 0);
-                    }
                 },
                 { // Only show when dbm
                     field: "kismet_device_base_signal.kismet_common_signal_min_noise_dbm",
                     title: "Min. Noise",
-                    render: function(key, data, value) {
-                        return value + " dBm";
+                    filterOnZero: true,
+                    render: function(opts) {
+                        return opts['value'] + " dBm";
                     },
-                    filter: function(key, data, value) {
-                        return (value != 0);
-                    }
                 },
                 { // Only show when rssi
                     field: "kismet_device_base_signal.kismet_common_signal_min_noise_rssi",
                     title: "Min. Noise",
-                    render: function(key, data, value) {
-                        return value + " RSSI";
+                    filterOnZero: true,
+                    render: function(opts) {
+                        return opts['value'] + " RSSI";
                     },
-                    filter: function(key, data, value) {
-                        return (value != 0);
-                    }
                 },
                 { // Only show when dbm
                     field: "kismet_device_base_signal.kismet_common_signal_max_noise_dbm",
                     title: "Max. Noise",
-                    render: function(key, data, value) {
-                        return value + " dBm";
+                    filterOnZero: true,
+                    render: function(opts) {
+                        return opts['value'] + " dBm";
                     },
-                    filter: function(key, data, value) {
-                        return (value != 0);
-                    }
                 },
                 { // Only show when rssi
                     field: "kismet_device_base_signal.kismet_common_signal_max_noise_rssi",
                     title: "Max. Noise",
-                    render: function(key, data, value) {
-                        return value + " RSSI";
+                    filterOnZero: true,
+                    render: function(opts) {
+                        return opts['value'] + " RSSI";
                     },
-                    filter: function(key, data, value) {
-                        return (value != 0);
-                    }
                 },
                 { // Pseudo-field of aggregated location, only show when the location is valid
                     field: "kismet_device_base_signal.kismet_common_signal_peak_loc",
                     title: "Peak Location",
-                    filter: function(key, data, value) {
-                        return kismet.ObjectByString(data, "kismet_device_base_signal.kismet_common_signal_peak_loc.kismet_common_location_valid") == 1;
+                    filter: function(opts) {
+                        return kismet.ObjectByString(opts['data'], "kismet_device_base_signal.kismet_common_signal_peak_loc.kismet_common_location_valid") == 1;
                     },
-                    render: function(key, data, value) {
+                    render: function(opts) {
                         var loc = 
-                            kismet.ObjectByString(data, "kismet_device_base_signal.kismet_common_signal_peak_loc.kismet_common_location_lat") + ", " + 
-                            kismet.ObjectByString(data, "kismet_device_base_signal.kismet_common_signal_peak_loc.kismet_common_location_lon");
-
-                        /*
-                           if (kismet.ObjectByString(data, "kismet_device_base_signal.kismet_common_signal_peak_loc.kismet_common_location_fix") >= 3) {
-                           loc += " " + kismet.ObjectByString(data, "kismet_device_base_signal.kismet_common_signal_peak_loc.kismet_common_location_alt") + " (M)";
-                           }
-                           */
+                            kismet.ObjectByString(opts['data'], "kismet_device_base_signal.kismet_common_signal_peak_loc.kismet_common_location_lat") + ", " + 
+                            kismet.ObjectByString(opts['data'], "kismet_device_base_signal.kismet_common_signal_peak_loc.kismet_common_location_lon");
 
                         return loc;
                     },
@@ -386,20 +356,20 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                 {
                     field: "graph_field_overall",
                     span: true,
-                    render: function(key, data, value) {
-                        return '<div class="donut" id="' + key + '" />';
+                    render: function(opts) {
+                        return '<div class="donut" id="' + opts['key'] + '" />';
                     },
-                    draw: function(key, data, value, container) {
-                        var donutdiv = $('div', container);
+                    draw: function(opts) {
+                        var donutdiv = $('div', opts['container']);
 
                         // Make an array morris likes using our whole data record
                         var moddata = [
-                        { label: "LLC/Management", value: data.kismet_device_base_packets_llc },
-                        { label: "Data", value: data.kismet_device_base_packets_data }
+                        { label: "LLC/Management", value: opts['data'].kismet_device_base_packets_llc },
+                        { label: "Data", value: opts['data'].kismet_device_base_packets_data }
                         ];
 
-                        if (data.kismet_device_base_packets_error != 0)
-                            moddata.push({ label: "Error", value: data.kismet_device_base_packets_error });
+                        if (opts['data'].kismet_device_base_packets_error != 0)
+                            moddata.push({ label: "Error", value: opts['data'].kismet_device_base_packets_error });
 
                         Morris.Donut({
                             element: donutdiv,
@@ -434,8 +404,8 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                 {
                     field: "kismet_device_base_datasize",
                     title: "Data Transferred",
-                    render: function(key, data, value) {
-                        return kismet.HumanReadableSize(value);
+                    render: function(opts) {
+                        return kismet.HumanReadableSize(opts['value']);
                     }
                 }
 
@@ -452,8 +422,8 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                 id: "group_avg_location",
 
                 // Don't show location if we don't know it
-                filter: function(key, data, value) {
-                    return (kismet.ObjectByString(data, "kismet_device_base_location.kismet_common_location_avg_loc.kismet_common_location_valid") == 1);
+                filter: function(opts) {
+                    return (kismet.ObjectByString(opts['data'], "kismet_device_base_location.kismet_common_location_avg_loc.kismet_common_location_valid") == 1);
                 },
 
                 // Fields in subgroup
@@ -469,8 +439,8 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                 {
                     field: "kismet_device_base_location.kismet_common_location_avg_loc.kismet_common_location_alt",
                     title: "Altitude (meters)",
-                    filter: function(key, data, value) {
-                        return (kismet.ObjectByString(data, "kismet_device_base_location.kismet_common_location_avg_loc.kismet_common_location_fix") >= 3);
+                    filter: function(opts) {
+                        return (kismet.ObjectByString(opts['data'], "kismet_device_base_location.kismet_common_location_avg_loc.kismet_common_location_fix") >= 3);
                     }
 
                 }
@@ -531,8 +501,8 @@ kismet_ui.AddDeviceDetail("seenby", "Seen By", 900, {
                 field: "kismet_device_base_seenby",
                 id: "seenby_group",
                 groupIterate: true,
-                iterateTitle: function(key, data, value, index) {
-                    return value[index].kismet_common_seenby_uuid;
+                iterateTitle: function(opts) {
+                    return opts['value'][opts['index']].kismet_common_seenby_uuid;
                 },
                 fields: [
                 {
@@ -543,15 +513,15 @@ kismet_ui.AddDeviceDetail("seenby", "Seen By", 900, {
                 {
                     field: "kismet_common_seenby_first_time",
                     title: "First Seen",
-                    render: function(key, data, value) {
-                        return new Date(value * 1000);
+                    render: function(opts) {
+                        return new Date(opts['value'] * 1000);
                     }
                 },
                 {
                     field: "kismet_common_seenby_last_time",
                     title: "Last Seen",
-                    render: function(key, data, value) {
-                        return new Date(value * 1000);
+                    render: function(opts) {
+                        return new Date(opts['value'] * 1000);
                     }
                 },
                 ]

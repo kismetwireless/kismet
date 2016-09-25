@@ -32,11 +32,11 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
             {
                 field: "dot11_device.dot11_device_last_bssid",
                 title: "Last BSSID",
-                filter: function(key, data, value) {
-                    return value.split('/')[0] !== '00:00:00:00:00:00';
+                filter: function(opts) {
+                    return opts['value'].split('/')[0] !== '00:00:00:00:00:00';
                 },
-                render: function(key, data, value) {
-                    return value.split('/')[0];
+                render: function(opts) {
+                    return opts['value'].split('/')[0];
                 }
             },
             {
@@ -48,22 +48,22 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 {
                     field: "graph_field_dot11",
                     span: true,
-                    render: function(key, data, value) {
+                    render: function(opts) {
                         return '<div class="smalldonut" id="overall" style="float: left;" />' +
                             '<div class="smalldonut" id="data" style="float: right;" />';
                     },
-                    draw: function(key, data, value, container) {
-                        var overalldiv = $('#overall', container);
-                        var datadiv = $('#data', container);
+                    draw: function(opts) {
+                        var overalldiv = $('#overall', opts['container']);
+                        var datadiv = $('#data', opts['container']);
 
                         // Make an array morris likes using our whole data record
                         var modoverall = [
-                        { label: "Mgmt", value: data.kismet_device_base_packets_llc },
-                        { label: "Data", value: data.kismet_device_base_packets_data }
+                        { label: "Mgmt", value: opts['data'].kismet_device_base_packets_llc },
+                        { label: "Data", value: opts['data'].kismet_device_base_packets_data }
                         ];
 
-                        if (data.kismet_device_base_packets_error != 0)
-                            modoverall.push({ label: "Error", value: data.kismet_device_base_packets_error });
+                        if (opts['data'].kismet_device_base_packets_error != 0)
+                            modoverall.push({ label: "Error", value: opts['data'].kismet_device_base_packets_error });
 
                         Morris.Donut({
                             element: overalldiv,
@@ -71,9 +71,9 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                         });
 
                         var moddata = [
-                        { label: "Data", value: data.kismet_device_base_packets_data },
-                        { label: "Retry", value: data.dot11_device.dot11_device_num_retries },
-                        { label: "Frag", value: data.dot11_device.dot11_device_num_fragments }
+                        { label: "Data", value: opts['data'].kismet_device_base_packets_data },
+                        { label: "Retry", value: opts['data'].dot11_device.dot11_device_num_retries },
+                        { label: "Frag", value: opts['data'].dot11_device.dot11_device_num_fragments }
                         ];
 
                         Morris.Donut({
@@ -105,15 +105,15 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 {
                     field: "dot11_device.dot11_device_datasize",
                     title: "Data",
-                    render: function(key, data, value) {
-                        return kismet.HumanReadableSize(value);
+                    render: function(opts) {
+                        return kismet.HumanReadableSize(opts['value']);
                     }
                 },
                 {
                     field: "dot11_device.dot11_device_datasize_retry",
                     title: "Retried Data",
-                    render: function(key, data, value) {
-                        return kismet.HumanReadableSize(value);
+                    render: function(opts) {
+                        return kismet.HumanReadableSize(opts['value']);
                     }
                 }
                 ],
@@ -122,13 +122,13 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 field: "dot11_device.dot11_device_advertised_ssid_map",
                 id: "advertised_ssid",
 
-                filter: function(key, data, value) {
-                    return (Object.keys(data.dot11_device.dot11_device_advertised_ssid_map).length >= 1);
+                filter: function(opts) {
+                    return (Object.keys(opts['data'].dot11_device.dot11_device_advertised_ssid_map).length >= 1);
                 },
 
                 groupIterate: true,
-                iterateTitle: function(key, data, value, index) {
-                    var lastssid = value[index].dot11_advertisedssid_ssid;
+                iterateTitle: function(opts) {
+                    var lastssid = opts['value'][opts['index']].dot11_advertisedssid_ssid;
                     if (lastssid === '')
                         return "Advertised SSID: <i>Unknown</i>";
 
@@ -148,46 +148,41 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 {
                     field: "dot11_advertisedssid_first_time",
                     title: "First Seen",
-                    render: function(key, data, value) {
-                        return new Date(value * 1000);
+                    render: function(opts) {
+                        return new Date(opts['value'] * 1000);
                     }
                 },
                 {
                     field: "dot11_advertisedssid_last_time",
                     title: "Last Seen",
-                    render: function(key, data, value) {
-                        return new Date(value * 1000);
+                    render: function(opts) {
+                        return new Date(opts['value'] * 1000);
                     }
                 },
                 {
                     field: "dot11_advertisedssid_beaconrate",
                     title: "Beacon Rate",
-                    render: function(key, data, value) {
-                        return value + '/sec';
+                    render: function(opts) {
+                        return opts['value'] + '/sec';
                     }
                 },
                 {
                     field: "dot11_advertisedssid_maxrate",
                     title: "Max. Rate",
-                    render: function(key, data, value) {
-                        return value + ' mbit';
+                    render: function(opts) {
+                        return opts['value'] + ' mbit';
                     }
                 },
                 {
                     field: "dot11_advertisedssid_dot11d_country",
                     title: "802.11d Country",
-                    filter: function(key, data, value) {
-                        return value !== '';
-                    }
+                    filterOnEmpty: true,
                 },
                 {
                     field: "dot11_advertisedssid_wps_manuf",
                     groupTitle: "WPS",
                     id: "dot11_wps_group",
-
-                    filter: function(key, data, value) {
-                        return value !== '';
-                    },
+                    filterOnEmpty: true,
 
                     fields: [
                     {
@@ -197,23 +192,17 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     {
                         field: "dot11_advertisedssid_wps_device_name",
                         title: "WPS Device",
-                        filter: function(key, data, value) {
-                            return value !== '';
-                        }
+                        filterOnEmpty: true,
                     },
                     {
                         field: "dot11_advertisedssid_wps_model_name",
                         title: "WPS Model",
-                        filter: function(key, data, value) {
-                            return value !== '';
-                        }
+                        filterOnEmpty: true,
                     },
                     {
                         field: "dot11_advertisedssid_wps_model_number",
                         title: "WPS Model #",
-                        filter: function(key, data, value) {
-                            return value !== '';
-                        }
+                        filterOnEmpty: true,
                     }
                     ]
                 },
@@ -224,52 +213,53 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 field: "dot11_device.dot11_device_client_map",
                 id: "client_behavior",
 
-                filter: function(key, data, value) {
-                    return (Object.keys(data.dot11_device.dot11_device_client_map).length >= 1);
+                filter: function(opts) {
+                    return (Object.keys(opts['data'].dot11_device.dot11_device_client_map).length >= 1);
                 },
 
                 groupIterate: true,
-                iterateTitle: function(key, data, value, index) {
-                    return "Client for: " + index;
+                iterateTitle: function(opts) {
+                    return "Client for: " + opts['index'];
                 },
 
                 fields: [
                 {
                     field: "dot11_client_bssid",
                     title: "BSSID",
-                    render: function(key, data, value) {
-                        console.log(key + " " + value);
-                        return value.split("/")[0];
+                    render: function(opts) {
+                        var ret = opts['value'].split("/")[0];
+
+                        console.log(key);
+
+                        return ret;
                     }
                 },
                 {
                     field: "dot11_client_first_time",
                     title: "First Seen",
-                    render: function(key, data, value) {
-                        return new Date(value * 1000);
+                    render: function(opts) {
+                        return new Date(opts['value'] * 1000);
                     }
                 },
                 {
                     field: "dot11_client_last_time",
                     title: "Last Seen",
-                    render: function(key, data, value) {
-                        return new Date(value * 1000);
+                    render: function(opts) {
+                        return new Date(opts['value'] * 1000);
                     }
                 },
                 {
                     field: "dot11_client_datasize",
                     title: "Data",
-                    render: function(key, data, value) {
-                        return kismet.HumanReadableSize(value);
+                    render: function(opts) {
+                        return kismet.HumanReadableSize(opts['value']);
                     }
                 },
                 {
                     field: "dot11_client_dhcp_host",
                     groupTitle: "DHCP",
                     id: "client_dhcp",
-                    filter: function(key, data, value) {
-                        return value !== '';
-                    },
+                    filterOnEmpty: true,
                     fields: [
                     {
                         field: "dot11_client_dhcp_host",
@@ -286,17 +276,13 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 {
                     field: "dot11_client_eap_identity",
                     title: "EAP Identity",
-                    filter: function(key, data, value) {
-                        return value !== '';
-                    }
+                    filterOnEmpty: true,
                 },
                 {
                     field: "dot11_client_cdp_device",
                     groupTitle: "CDP",
                     id: "client_cdp",
-                    filter: function(key, data, value) {
-                        return value !== '';
-                    },
+                    filterOnEmpty: true,
                     fields: [
                     {
                         field: "dot11_client_cdp_device",
@@ -312,9 +298,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 {
                     field: "dot11_client_ipdata",
                     groupTitle: "IP",
-                    filter: function(key, data, value) {
-                        return value['kismet_common_ipdata_address'] != 0;
-                    },
+                    filterOnZero: true,
                     fields: [
                     {
                         field: "dot11_client_ipdata.kismet_common_ipdata_address",

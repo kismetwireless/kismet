@@ -5,22 +5,38 @@
         "field": "..." // Field spec
         "title": "..." // title text
 
+        // Options will contain AT LEAST
+        // 'key' - current field key
+        // 'data' - current data
+        // 'value' - resolved value
+        // 'basekey' - string key of base in an iteration
+        // 'base' - resolved object base
+        // and may also include
+        // 'index' - iteration index
+        // 'container' - parent container for draw functions
+
         // Optional function for filtering if we display this entity, returns
-        // boolean for display
-        "filter": function(key, data, value) { return bool }
+        // boolean for display.  
+        "filter": function(opts) { return bool }
+
+        // Optional shortcut filters for common filtering options
+        "filterOnEmpty": boolean // Filter this row if the value does not exist,
+        or exists, is a string, and is empty ('')
+        "filterOnZero": boolean // Filter this row if the value does not exist,
+        or exists, is a number, and is equal to 0
 
         Subgroups (nested table of a subset of fields)
 
         // Indicates we have a subgroup.  Title is string, or function
         // returning a string
-        "groupTitle": string | function(key, data, value)
+        "groupTitle": string | function(opts)
         "fields": [...] // Additional nested fields w/in the subgroup
 
         Iterative groups (vectors and dictionaries of multiple values,
         the fields group is applied to each index
         "groupIterate": boolean // Do we iterate over an index of the field
         and apply fields to each?
-        "iterateTitle": string|function(key, data, value, index) // Fixed string
+        "iterateTitle": string|function(opts) // Fixed string
         or optional function for each index
         "fields": [...] // Additional nested fields which will be indexed 
         and grouped.
@@ -33,11 +49,11 @@
 
         // Optional string or function for rendering that should return html, taking
         // the original key, data, and resolved value
-        "render": string | function(key, data, value) {}  
+        "render": string | function(opts) {}  
 
         // Optional function for
 
-        "emtpy": "..." | function(key, data, value) 
+        "emtpy": string | function(opts) 
         // Text to be substituted when there is no value
         
     }
@@ -49,7 +65,6 @@
             "stripe": true,
             "id": "kismetDeviceData",
             "fields": [],
-            "span": false,
             "baseobject": "",
         }, options);
 
@@ -72,10 +87,30 @@
             // Do we have a function for rendering this?
             var d = kismet.ObjectByString(data, settings.baseobject + v['field']);
 
+            var callopts = {
+                key: v['field'],
+                basekey: settings.baseobject,
+                base: kismet.ObjectByString(data, settings.baseobject),
+                data: data,
+                value: d
+            };
+
             if ('filter' in v && typeof(v['filter']) === 'function') {
-                if (!(v['filter'](v['field'], data, d))) {
+                if (!(v['filter'](callopts))) {
                     return;
                 }
+            }
+
+            if ('filterOnEmpty' in v && v['filterOnEmpty'] && 
+                    (typeof(d) === 'undefined' ||
+                     (typeof(d) === 'string' && d.length == 0))) {
+                return;
+            }
+
+            if ('filterOnZero' in v && v['filterOnZero'] &&
+                    (typeof(d) === 'undefined' ||
+                     (typeof(d) === 'number' && d == 0))) {
+                return;
             }
 
             // Do we have a sub-group or group list?
@@ -97,7 +132,7 @@
                 if (typeof(v['groupTitle']) === 'string')
                     gt = v['groupTitle'];
                 else if (typeof(v['groupTitle']) === 'function')
-                    gt = v['groupTitle'](v['field'], data, d);
+                    gt = v['groupTitle'](callopts);
 
                 cell.append($('<b class="devicedata_subgroup_header">' + gt + '</b>'));
 
@@ -115,6 +150,8 @@
             // Iterative group
             if ('groupIterate' in v && v['groupIterate'] == true) {
                 for (var idx in d) {
+                    callopts['index'] = idx;
+
                     // If we have a title, make a span row for it
                     if ('iterateTitle' in v) {
                         var subid = (id + '[' + idx + ']').replace(/[.\[\]\(\)]/g, '_');
@@ -136,8 +173,8 @@
                         if (typeof(v['iterateTitle']) === 'string')
                             it = v['iterateTitle'];
                         else if (typeof(v['iterateTitle']) === 'function')
-                            it = v['iterateTitle'](v['field'], data, d, idx);
-                        
+                            it = v['iterateTitle'](callopts);
+
                         cell.append($('<b class="devicedata_subgroup_header">' + it + '</b>'));
 
                         cell.append($('<br />'));
@@ -149,7 +186,7 @@
 
                     // index the subobject
                     v['baseobject'] = v['field'] + '[' + idx + ']' + '.';
-                    
+
                     contentdiv.devicedata(data, v);
                 }
             }
@@ -181,34 +218,37 @@
 
             if ('render' in v) {
                 if (typeof(v['render']) === 'function') {
-                    td.html(v['render'](v['field'], data, d));
+                    td.html(v['render'](callopts));
                 } else if (typeof(v['render']) === 'string') {
                     td.html(v['render']);
                 }
             } else {
                 if ('empty' in v && 
                         (typeof(d) === 'undefined' ||
-                        (typeof(d) !== 'undefined' && d.length == 0))) {
+                         (typeof(d) !== 'undefined' && d.length == 0))) {
                     if (typeof(v['empty']) === 'string')
                         td.html(v['empty']);
                     else if (typeof(v['empty']) === 'function')
-                        td.html(v['empty'](v['field'], data, d));
+                        td.html(v['empty'](callopts));
                 } else if ('zero' in v &&
                         (typeof(d) === 'undefined' ||
                          (typeof(d) === 'number' && d == 0))) {
                     if (typeof(v['zero']) === 'string')
                         td.html(v['zero']);
                     else if (typeof(v['zero']) === 'function')
-                        td.html(v['zero'](v['field'], data, d));
+                        td.html(v['zero'](callopts));
                 } else {
                     td.html(d);
                 }
             }
 
             // Apply the draw function after the row is created
-            if ('draw' in v && typeof(v.draw) === 'function') 
-                v.draw(v['field'], data, kismet.ObjectByString(data, v['field']), td);
+            if ('draw' in v && typeof(v.draw) === 'function') {
+                callopts['container'] = td;
 
-        });
+                v.draw(callopts);
+            }
+        }
+        );
     };
 }(jQuery));
