@@ -155,6 +155,8 @@
             if ('groupIterate' in v && v['groupIterate'] == true) {
                 for (var idx in d) {
                     callopts['index'] = idx;
+                    callopts['basekey'] = v['field'] + '[' + idx + ']' + '.';
+                    callopts['base'] = kismet.ObjectByString(data, callopts['basekey']);
 
                     // If we have a title, make a span row for it
                     if ('iterateTitle' in v) {
