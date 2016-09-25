@@ -256,10 +256,26 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
 
                 groupIterate: true,
                 iterateTitle: function(opts) {
-                    return "Client for: " + opts['index'];
+                    console.log(opts);
+                    var key = kismet.ObjectByString(opts['data'], opts['basekey'] + 'dot11_client_bssid_key');
+                    if (key != 0) {
+                        return 'Client of <u onclick="kismet_ui.DeviceDetailWindow(' + key + ')">' + opts['index'] + '</u>';
+                    }
+
+                    return "Client of " + opts['index'];
                 },
 
                 fields: [
+                { 
+                    field: "dot11_client_bssid_key",
+                    title: "Associated AP",
+                    render: function(opts) {
+                        if (opts['key'] === '')
+                            return "<i>No records for access point</i>";
+                        else
+                            return '&gt; <u onclick="kismet_ui.DeviceDetailWindow(' + opts['value'] + ')">View Access Point Details</u>';
+                    }
+                },
                 {
                     field: "dot11_client_bssid",
                     title: "BSSID",
@@ -273,14 +289,14 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 },
                 {
                     field: "dot11_client_first_time",
-                    title: "First Seen",
+                    title: "First Connected",
                     render: function(opts) {
                         return new Date(opts['value'] * 1000);
                     }
                 },
                 {
                     field: "dot11_client_last_time",
-                    title: "Last Seen",
+                    title: "Last Connected",
                     render: function(opts) {
                         return new Date(opts['value'] * 1000);
                     }
@@ -345,7 +361,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     field: "dot11_client_ipdata",
                     groupTitle: "IP",
                     filter: function(opts) {
-                        return (kismet.ObjectByString(data, opts['basekey'] + 'dot11_client_ipdata.kismet_common_ipdata_address') != 0);
+                        return (kismet.ObjectByString(opts['data'], opts['basekey'] + 'dot11_client_ipdata.kismet_common_ipdata_address') != 0);
                     },
                     fields: [
                     {
