@@ -95,6 +95,10 @@
                 value: d
             };
 
+            if ('index' in v) {
+                callopts['index'] = v;
+            }
+
             if ('filter' in v && typeof(v['filter']) === 'function') {
                 if (!(v['filter'](callopts))) {
                     return;
@@ -186,6 +190,7 @@
 
                     // index the subobject
                     v['baseobject'] = v['field'] + '[' + idx + ']' + '.';
+                    v['index'] = idx;
 
                     contentdiv.devicedata(data, v);
                 }
