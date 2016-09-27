@@ -2254,6 +2254,7 @@ public:
                 fprintf(stderr, "debug - forgetting dot11ssid %s expiration %d\n", ssid->get_ssid().c_str(), timeout);
                 adv_ssid_map.erase(int_itr);
                 int_itr = adv_ssid_map.begin();
+                devicetracker->UpdateFullRefresh();
             }
         }
 
@@ -2271,6 +2272,7 @@ public:
                 fprintf(stderr, "debug - forgetting dot11probessid %s expiration %d\n", pssid->get_ssid().c_str(), timeout);
                 probe_map.erase(int_itr);
                 int_itr = probe_map.begin();
+                devicetracker->UpdateFullRefresh();
             }
         }
 
@@ -2289,6 +2291,7 @@ public:
                 fprintf(stderr, "debug - forgetting client link from %s to %s expiration %d\n", device->get_macaddr().Mac2String().c_str(), mac_itr->first.Mac2String().c_str(), timeout);
                 client_map.erase(mac_itr);
                 mac_itr = client_map.begin();
+                devicetracker->UpdateFullRefresh();
             }
         }
     }
