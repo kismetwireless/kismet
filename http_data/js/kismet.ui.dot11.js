@@ -259,7 +259,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     console.log(opts);
                     var key = kismet.ObjectByString(opts['data'], opts['basekey'] + 'dot11_client_bssid_key');
                     if (key != 0) {
-                        return 'Client of <u onclick="kismet_ui.DeviceDetailWindow(' + key + ')">' + opts['index'] + '</u>';
+                        return 'Client of ' + opts['index'];
                     }
 
                     return "Client of " + opts['index'];
@@ -268,12 +268,12 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 fields: [
                 { 
                     field: "dot11_client_bssid_key",
-                    title: "Associated AP",
+                    title: "Connected AP",
                     render: function(opts) {
                         if (opts['key'] === '')
                             return "<i>No records for access point</i>";
                         else
-                            return '&gt; <u onclick="kismet_ui.DeviceDetailWindow(' + opts['value'] + ')">View Access Point Details</u>';
+                            return '<u onclick="kismet_ui.DeviceDetailWindow(' + opts['value'] + ')">View AP Details</u>';
                     }
                 },
                 {
@@ -396,7 +396,9 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 },
                 fields: [
                 {
-                    // Dummy field to get us a nested area
+                    // Dummy field to get us a nested area since we don't have
+                    // a real field in the client list since it's just a key-val
+                    // not a nested object
                     field: "dummy",
                     // Span to fill it
                     span: true,
@@ -411,6 +413,13 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                             opts['container'].devicedata(clidata, {
                                 id: "clientData",
                                 fields: [
+                                {
+                                    field: "kismet_device_base_key",
+                                    title: "Client Info",
+                                    render: function(opts) {
+                                        return '<u onclick="kismet_ui.DeviceDetailWindow(' + opts['value'] + ')">View Client Details</u>';
+                                    }
+                                },
                                 {
                                     field: "kismet_device_base_name",
                                     title: "Name",
@@ -428,6 +437,9 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                                 }
                                 ]
                             });
+                        })
+                        .fail(function(xhr, status, error) {
+                            opts['container'].html("Unable to load client details.  Device data may have been timed out by the Kismet server (" + error + ").");
                         });
                     }
                 },
