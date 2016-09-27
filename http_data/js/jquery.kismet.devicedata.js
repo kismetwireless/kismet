@@ -95,8 +95,8 @@
                 value: d
             };
 
-            if ('index' in v) {
-                callopts['index'] = v;
+            if ('index' in settings) {
+                callopts['index'] = settings['index'];
             }
 
             if ('filter' in v && typeof(v['filter']) === 'function') {

@@ -277,6 +277,10 @@ exports.DeviceDetailWindow = function(key) {
     });
 };
 
+exports.RenderTrimmedTime = function(opts) {
+    return (new Date(opts['value'] * 1000).toString()).substring(4, 25);
+}
+
 return exports;
 
 });

@@ -185,16 +185,12 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 {
                     field: "dot11_advertisedssid_first_time",
                     title: "First Seen",
-                    render: function(opts) {
-                        return new Date(opts['value'] * 1000);
-                    }
+                    render: kismet_ui.RenderTrimmedTime,
                 },
                 {
                     field: "dot11_advertisedssid_last_time",
                     title: "Last Seen",
-                    render: function(opts) {
-                        return new Date(opts['value'] * 1000);
-                    }
+                    render: kismet_ui.RenderTrimmedTime,
                 },
                 {
                     field: "dot11_advertisedssid_beaconrate",
@@ -268,7 +264,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 fields: [
                 { 
                     field: "dot11_client_bssid_key",
-                    title: "Connected AP",
+                    title: "Access Point",
                     render: function(opts) {
                         if (opts['key'] === '')
                             return "<i>No records for access point</i>";
@@ -290,16 +286,12 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 {
                     field: "dot11_client_first_time",
                     title: "First Connected",
-                    render: function(opts) {
-                        return new Date(opts['value'] * 1000);
-                    }
+                    render: kismet_ui.RenderTrimmedTime,
                 },
                 {
                     field: "dot11_client_last_time",
                     title: "Last Connected",
-                    render: function(opts) {
-                        return new Date(opts['value'] * 1000);
-                    }
+                    render: kismet_ui.RenderTrimmedTime,
                 },
                 {
                     field: "dot11_client_datasize",
@@ -408,6 +400,8 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                         // Now we get the client id, form an ajax query, and embed
                         // a whole new devicedata into our container.  It works!
                         var clientid = kismet.ObjectByString(data, opts['basekey']);
+                        var apkey = data['kismet_device_base_macaddr'].split('/')[0];
+
                         $.get("/devices/by-key/" + clientid + "/device.json")
                         .done(function(clidata) {
                             opts['container'].devicedata(clidata, {
@@ -434,7 +428,31 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                                     field: "kismet_device_base_manuf",
                                     title: "Manufacturer",
                                     empty: "<i>Unknown</i>"
-                                }
+                                },
+                                {
+                                    field: "dot11_device.dot11_device_client_map[" + apkey + "].dot11_client_first_time",
+                                    title: "First Connected",
+                                    render: kismet_ui.RenderTrimmedTime,
+                                },
+                                {
+                                    field: "dot11_device.dot11_device_client_map[" + apkey + "].dot11_client_last_time",
+                                    title: "Last Connected",
+                                    render: kismet_ui.RenderTrimmedTime,
+                                },
+                                {
+                                    field: "dot11_device.dot11_device_client_map[" + apkey + "].dot11_client_datasize",
+                                    title: "Data",
+                                    render: function(opts) {
+                                        return kismet.HumanReadableSize(opts['value']);
+                                    }
+                                },
+                                {
+                                    field: "dot11_device.dot11_device_client_map[" + apkey + "].dot11_client_datasize_retry",
+                                    title: "Retried Data",
+                                    render: function(opts) {
+                                        return kismet.HumanReadableSize(opts['value']);
+                                    }
+                                },
                                 ]
                             });
                         })
