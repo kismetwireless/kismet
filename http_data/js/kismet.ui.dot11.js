@@ -394,6 +394,44 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 iterateTitle: function(opts) {
                     return "Client " + opts['index'];
                 },
+                fields: [
+                {
+                    // Dummy field to get us a nested area
+                    field: "dummy",
+                    // Span to fill it
+                    span: true,
+                    // Render nothing into the container
+                    render: "",
+                    draw: function(opts) {
+                        // Now we get the client id, form an ajax query, and embed
+                        // a whole new devicedata into our container.  It works!
+                        var clientid = kismet.ObjectByString(data, opts['basekey']);
+                        $.get("/devices/by-key/" + clientid + "/device.json")
+                        .done(function(clidata) {
+                            opts['container'].devicedata(clidata, {
+                                id: "clientData",
+                                fields: [
+                                {
+                                    field: "kismet_device_base_name",
+                                    title: "Name",
+                                    empty: "<i>None</i>"
+                                },
+                                {
+                                    field: "kismet_device_base_type",
+                                    title: "Type",
+                                    empty: "<i>Unknown</i>"
+                                },
+                                {
+                                    field: "kismet_device_base_manuf",
+                                    title: "Manufacturer",
+                                    empty: "<i>Unknown</i>"
+                                }
+                                ]
+                            });
+                        });
+                    }
+                },
+                ]
             },
             ]
         });

@@ -201,7 +201,7 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                     field: "frequency_map",
                     span: true,
                     render: function(opts) {
-                        return 'Packet Distribution<div class="freqbar" id="' + opts['key'] + '" />';
+                        return '<center>Packet Frequency Distribution</center><div class="freqbar" id="' + opts['key'] + '" />';
                     },
                     draw: function(opts) {
                         var bardiv = $('div', opts['container']);

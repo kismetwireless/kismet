@@ -207,6 +207,10 @@ exports.ObjectByString = function(o, s) {
     var a = s.split('.');
     for (var i = 0, n = a.length; i < n; ++i) {
         var k = a[i];
+
+        if (typeof(o) !== 'object')
+            return;
+
         if (k in o) {
             o = o[k];
         } else {

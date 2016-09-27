@@ -10,9 +10,11 @@ table.kismet_devicedata td {
     vertical-align: top;
 }
 
+/*
 table.kismet_devicedata td.span {
     text-align: center;
 }
+*/
 
 div.donut {
     width: 200px;
