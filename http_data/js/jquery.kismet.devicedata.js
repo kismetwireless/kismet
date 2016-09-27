@@ -74,7 +74,8 @@
         if (subtable.length == 0) {
             subtable = $('<table />', {
                     "id": settings['id'],
-                    "class": "kismet_devicedata"
+                    "class": "kismet_devicedata",
+                    "width": "100%",
                 });
             this.append(subtable);
         } else {
@@ -119,13 +120,14 @@
 
             // Do we have a sub-group or group list?
             if ('groupTitle' in v) {
-                var drow = $('<tr />', {
+                var drow = $('<tr class="kismet_devicedata_grouptitle" />', {
                     "id": "tr_" + id
                 });
 
                 subtable.append(drow);
 
                 drow.append($('<td />', {
+                    "class": "kismet_devicedata_span",
                     "colspan": 2
                 }));
 
@@ -162,13 +164,14 @@
                     if ('iterateTitle' in v) {
                         var subid = (id + '[' + idx + ']').replace(/[.\[\]\(\)]/g, '_');
 
-                        var drow = $('<tr />', {
+                        var drow = $('<tr class="kismet_devicedata_groupdata" />', {
                             "id": "tr_" + subid
                         });
 
                         subtable.append(drow);
 
                         drow.append($('<td />', {
+                            "class": "kismet_devicedata_span",
                             "colspan": 2
                         }));
 
@@ -206,10 +209,10 @@
             if (v["span"]) {
                 drow.append($('<td />', {
                     "colspan": 2,
-                    "class": "span"
+                    "class": "kismet_devicedata_span"
                 }));
             } else {
-                drow.append($('<td /><td />'));
+                drow.html('<td class="kismet_devicedata_td_title" /><td class="kismet_devicedata_td_content" />');
             }
 
             subtable.append(drow);

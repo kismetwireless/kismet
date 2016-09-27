@@ -10,6 +10,19 @@ table.kismet_devicedata td {
     vertical-align: top;
 }
 
+td.kismet_devicedata_td_title:first-child {
+    width: 40%;
+    max-width: 100px;
+}
+
+td.kismet_devicedata_td_content {
+    width: 100%;
+}
+
+td.kismet_devicedata_span {
+    width: 100%;
+}
+
 /*
 table.kismet_devicedata td.span {
     text-align: center;
