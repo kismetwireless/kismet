@@ -799,7 +799,6 @@ void Kis_80211_Phy::HandleClient(kis_tracked_device_base *basedev,
     bool new_client = false;
     if (client_itr == client_map.end()) {
         client = dot11dev->new_client();
-        fprintf(stderr, "debug - %s is a client of %s making client behavior record\n", basedev->get_macaddr().Mac2String().c_str(), dot11info->bssid_mac.Mac2String().c_str());
         TrackerElement::mac_map_pair cp(dot11info->bssid_mac, client);
         client_map.insert(cp);
         new_client = true;
@@ -955,8 +954,9 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
         (dot11_tracked_device *) basedev->get_map_value(dot11_device_entry_id);
 
     if (dot11dev == NULL) {
-        fprintf(stderr, "debug - phydot11 making new 802.11 device record for '%s'\n",
-                commoninfo->device.Mac2String().c_str());
+        stringstream ss;
+        ss << "Detected new 802.11 Wi-Fi device " << commoninfo->device.Mac2String();
+        _MSG(ss.str(), MSGFLAG_INFO);
 
         dot11dev = new dot11_tracked_device(globalreg, dot11_device_entry_id);
         basedev->add_map(dot11dev);
