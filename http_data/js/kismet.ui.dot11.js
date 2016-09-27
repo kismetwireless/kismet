@@ -303,14 +303,14 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 },
                 {
                     field: "dot11_client_datasize",
-                    title: "Data (Size)",
+                    title: "Data",
                     render: function(opts) {
                         return kismet.HumanReadableSize(opts['value']);
                     }
                 },
                 {
                     field: "dot11_client_datasize_retry",
-                    title: "Data Retry (Size)",
+                    title: "Retried Data",
                     render: function(opts) {
                         return kismet.HumanReadableSize(opts['value']);
                     }
@@ -381,6 +381,19 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     ]
                 },
                 ]
+            },
+            {
+                field: "dot11_device.dot11_device_associated_client_map",
+                id: "client_list",
+
+                filter: function(opts) {
+                    return (Object.keys(opts['data'].dot11_device.dot11_device_associated_client_map).length >= 1);
+                },
+
+                groupIterate: true,
+                iterateTitle: function(opts) {
+                    return "Client " + opts['index'];
+                },
             },
             ]
         });
