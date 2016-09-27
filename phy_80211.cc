@@ -1033,6 +1033,9 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
         dot11dev->bitset_type_set(DOT11_DEVICE_TYPE_WIRED);
 
         basedev->set_devicename(basedev->get_macaddr().Mac2String());
+
+        HandleClient(basedev, dot11dev, in_pack, dot11info,
+                pack_gpsinfo, pack_datainfo);
     } else if (dot11info->bssid_mac != basedev->get_macaddr() &&
             dot11info->distrib == distrib_to) {
 
