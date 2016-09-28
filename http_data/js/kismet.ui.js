@@ -281,6 +281,10 @@ exports.RenderTrimmedTime = function(opts) {
     return (new Date(opts['value'] * 1000).toString()).substring(4, 25);
 }
 
+exports.RenderHumanSize = function(opts) {
+    return kismet.HumanReadableSize(opts['value']);
+};
+
 return exports;
 
 });
