@@ -69,6 +69,8 @@ exports.drawPackets = function(dyncolumn, table, row) {
     // Render the sparkline
     $(match, row.node()).sparkline(simple_rrd,
         { type: "bar",
+            width: 100,
+            height: 12,
             barColor: '#000000',
             nullColor: '#000000',
             zeroColor: '#000000'
