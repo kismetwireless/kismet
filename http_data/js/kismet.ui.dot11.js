@@ -44,6 +44,86 @@ exports.crypt_version_wpa2 = (1 << 28);
 exports.crypt_l3_mask = 0x300004;
 exports.crypt_l2_mask = 0xFBFA;
 
+exports.CryptToHumanReadable = function(cryptset) {
+    var ret = [];
+
+    if (cryptset == exports.crypt_none)
+        return "None / Open";
+
+    if (cryptset == exports.crypt_unknown)
+        return "Unknown";
+
+    if (cryptset & exports.crypt_wps)
+        ret.push("WPS");
+
+    if ((cryptset & exports.crypt_protectmask) == exports.crypt_wep) {
+        ret.push("WEP");
+        return ret.join(" ");
+    }
+
+    if (cryptset & exports.crypt_wpa)
+        ret.push("WPA");
+
+    if (cryptset & exports.crypt_psk)
+        ret.push("WPA-PSK");
+
+    if (cryptset & exports.crypt_eap)
+        ret.push("WPA-EAP");
+
+    if (cryptset & exports.crypt_peap)
+        ret.push("EAP-PEAP");
+
+    if (cryptset & exports.crypt_leap)
+        ret.push("EAP-LEAP");
+
+    if (cryptset & exports.crypt_ttls)
+        ret.push("EAP-TTLS");
+
+    if (cryptset & exports.crypt_tls)
+        ret.push("EAP-TLS");
+
+    if (cryptset & exports.crypt_wpa_migmode)
+        ret.push("WPA-MIGRATION");
+
+    if (cryptset & exports.crypt_wep40)
+        ret.push("WEP40");
+
+    if (cryptset & exports.crypt_wep104)
+        ret.push("WEP104");
+
+    if (cryptset & exports.crypt_tkip)
+        ret.push("TKIP");
+
+    if (cryptset & exports.crypt_aes_ocb)
+        ret.push("AES-OCB");
+
+    if (cryptset & exports.crypt_aes_ccm)
+        ret.push("AES-CCM");
+
+    if (cryptset & exports.crypt_layer3)
+        ret.push("Layer3");
+
+    if (cryptset & exports.crypt_isakmp)
+        ret.push("Layer3-ISA-KMP");
+
+    if (cryptset & exports.crypt_pptp)
+        ret.push("Layer3-PPTP");
+
+    if (cryptset & exports.crypt_fortress)
+        ret.push("Fortress");
+
+    if (cryptset & exports.crypt_keyguard)
+        ret.push("Keyguard");
+
+    if (cryptset & exports.crypt_unknown_protected)
+        ret.push("Unknown");
+
+    if (cryptset & exports.crypt_unkown_nonwep)
+        ret.push("Unknown-Non-WEP");
+
+    return ret.join(" ");
+};
+
 /* Define some callback functions for the table */
 
 console.log("adding device detail 'dot11'");
@@ -173,6 +253,13 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     title: "SSID",
                     empty: "<i>Unknown</i>"
                         
+                },
+                {
+                    field: "dot11_advertisedssid_crypt_set",
+                    title: "Encryption",
+                    render: function(opts) {
+                        return exports.CryptToHumanReadable(opts['value']);
+                    },
                 },
                 {
                     field: "dot11_advertisedssid_channel",
