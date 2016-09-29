@@ -179,6 +179,11 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     title: "Channel"
                 },
                 {
+                    field: "dot11_advertisedssid_beacon_info",
+                    title: "Beacon Info",
+                    filterOnEmpty: true
+                },
+                {
                     field: "dot11_advertisedssid_first_time",
                     title: "First Seen",
                     render: kismet_ui.RenderTrimmedTime,
