@@ -41,6 +41,10 @@
 #include <vector>
 #include <sstream>
 
+#ifdef HAVE_LIBNCURSES
+#include <ncurses.h>
+#endif
+
 #include "util.h"
 
 #include "globalregistry.h"
@@ -369,6 +373,7 @@ int Usage(char *argv) {
 
 	printf(" *** Generic Options ***\n");
 	printf(" -v, --version                Show version\n"
+           "     --no-ncurses-wrapper     Disable ncurses wrapper\n"
 		   " -f, --config-file <file>     Use alternate configuration file\n"
 		   "     --no-line-wrap           Turn of linewrapping of output\n"
 		   "                              (for grep, speed, etc)\n"
@@ -437,12 +442,140 @@ void TerminationHandler() {
     std::abort();
 }
 
-void SegVHandler(int sig) {
+void SegVHandler(int sig __attribute__((unused))) {
     std::cout << "Segmentation Fault (SIGSEGV / 11)" << endl;
 
     print_stacktrace();
     exit(-11);
 }
+
+#ifdef HAVE_LIBNCURSES
+vector<string> ncurses_exitbuf;
+
+pid_t ncurses_kismet_pid = 0;
+
+void NcursesKillHandler(int sig __attribute__((unused))) {
+    endwin();
+
+    printf("Kismet server terminated on signal %d.  Last output:\n", sig);
+
+    for (unsigned int x = 0; x < ncurses_exitbuf.size(); x++) {
+        printf("%s", ncurses_exitbuf[x].c_str());
+    }
+
+    printf("Kismet exited.\n");
+
+    exit(1);
+}
+
+// Handle cancel events - kill kismet, and then catch sigchild
+// when it exits
+void NcursesCancelHandler(int sig __attribute__((unused))) {
+    if (ncurses_kismet_pid != 0) 
+        kill(ncurses_kismet_pid, SIGQUIT);
+    else
+        NcursesKillHandler(sig);
+}
+
+void ncurses_wrapper_fork() {
+    int pipefd[2];
+    pipe(pipefd);
+
+    if ((ncurses_kismet_pid = fork()) == 0) {
+        close(pipefd[0]);
+        dup2(pipefd[1], 1);
+        dup2(pipefd[1], 2);
+
+        setbuf(stdout, NULL);
+        setbuf(stderr, NULL);
+
+        close(pipefd[1]);
+
+        // Jump back to the main function that called us
+        return;
+    } else {
+        close(pipefd[1]);
+
+        // Catch all the ways we die and bail out of ncurses mode &
+        // print the last output cleanly
+        signal(SIGKILL, NcursesCancelHandler);
+        signal(SIGQUIT, NcursesCancelHandler);
+        signal(SIGINT, NcursesCancelHandler);
+
+        signal(SIGABRT, NcursesKillHandler);
+        signal(SIGCHLD, NcursesKillHandler);
+
+        FILE *c_stdin = fdopen(pipefd[0], "r");
+        fcntl(pipefd[0], F_SETFL, fcntl(pipefd[0], F_GETFL, 0) | O_NONBLOCK);
+
+        WINDOW *top_bar, *main_text, *bottom_bar;
+
+        initscr();
+
+        top_bar = newwin(1, COLS, 0, 0);
+        main_text = newwin(LINES - 2, COLS, 1, 0);
+        bottom_bar = newwin(1, COLS, LINES - 1, 0);
+
+        scrollok(main_text, true);
+
+        wattron(top_bar, A_REVERSE);
+        wattron(bottom_bar, A_REVERSE);
+
+        // Cheesy fill
+        for (int x = 0; x < COLS; x += 5) {
+            wprintw(top_bar, "     ");
+        }
+        mvwprintw(top_bar, 0, 0, "Kismet Server");
+        wrefresh(top_bar);
+
+        for (int x = 0; x < COLS; x += 5) {
+            wprintw(bottom_bar, "     ");
+        }
+        mvwprintw(bottom_bar, 0, 0, "Visit http://localhost:2501 to view the Kismet UI");
+        wrefresh(bottom_bar);
+
+        int read;
+        size_t len = 2048;
+        char *buf = new char[len];
+
+        while (1) {
+            fd_set rset;
+            FD_ZERO(&rset);
+            FD_SET(pipefd[0], &rset);
+
+            if (select(pipefd[0] + 1, &rset, NULL, NULL, NULL) < 0) {
+                if (errno != EINTR && errno != EAGAIN) {
+                    break;
+                }
+            }
+
+            if ((read = getline(&buf, &len, c_stdin)) != -1) {
+                wprintw(main_text, "%s", buf);
+                wrefresh(main_text);
+
+                ncurses_exitbuf.push_back(string(buf));
+                if (ncurses_exitbuf.size() > 48)
+                    ncurses_exitbuf.erase(ncurses_exitbuf.begin());
+            }
+
+            if (feof(c_stdin) || ferror(c_stdin))
+                break;
+
+        }
+        delete[] buf;
+    
+        endwin();
+
+        for (unsigned int x = 0; x < ncurses_exitbuf.size(); x++) {
+            printf("%s", ncurses_exitbuf[x].c_str());
+        }
+
+        printf("Kismet exited");
+
+        exit(1);
+    }
+}
+#endif
 
 int main(int argc, char *argv[], char *envp[]) {
 	exec_name = argv[0];
@@ -452,6 +585,36 @@ int main(int argc, char *argv[], char *envp[]) {
 	int option_idx = 0;
 	int data_dump = 0;
 	GlobalRegistry *globalreg;
+
+#ifdef HAVE_LIBNCURSES
+	static struct option wrapper_longopt[] = {
+		{ "no-ncurses-wrapper", no_argument, 0, 'w' },
+		{ 0, 0, 0, 0 }
+	};
+
+	// Reset the options index
+	optind = 0;
+	option_idx = 0;
+    opterr = 0;
+
+    bool wrapper = true;
+
+	while (1) {
+		int r = getopt_long(argc, argv, "-", wrapper_longopt, &option_idx);
+		if (r < 0) break;
+
+        if (r == 'w') {
+            wrapper = false; 
+            break;
+        }
+    }
+
+    optind = 0;
+    option_idx = 0;
+
+    if (wrapper)
+        ncurses_wrapper_fork();
+#endif
 
 	// Timer for silence
 	int local_silent = 0;
@@ -493,10 +656,6 @@ int main(int argc, char *argv[], char *envp[]) {
 	fd_set rset, wset;
 	struct timeval tm;
 
-	// Turn off the getopt error reporting
-	opterr = 0;
-	optind = 0;
-
 	const int nlwc = globalregistry->getopt_long_num++;
 	const int dwc = globalregistry->getopt_long_num++;
 	const int npwc = globalregistry->getopt_long_num++;
@@ -520,6 +679,9 @@ int main(int argc, char *argv[], char *envp[]) {
 	// Reset the options index
 	optind = 0;
 	option_idx = 0;
+
+	// Turn off the getopt error reporting
+	opterr = 0;
 
 	while (1) {
 		int r = getopt_long(argc, argv, 

@@ -60,9 +60,6 @@
 /* libnl-3.0 netlink library */
 #undef HAVE_LIBNL30
 
-/* Panel terminal lib */
-#undef HAVE_LIBPANEL
-
 /* libpcap packet capture lib */
 #undef HAVE_LIBPCAP
 

@@ -445,68 +445,37 @@ AC_CHECK_HEADER([microhttpd.h],
 #AC_MSG_RESULT([found])
 
 # Check for libcurses or libncurses.  Fatal error if we didn't use disable.
-AC_ARG_ENABLE(client,
-	[  --disable-client        disable kismet client],
-	[case "${enableval}" in
-	  no) wantclient=no ;;
-	   *) wantclient=yes ;;
-	 esac],
-	[wantclient=yes]
-)
-AC_SUBST(wantclient)
-
-# Add additional cflags since some distros bury panel.h
-CPPFLAGS="$CPPFLAGS -I/usr/include/ncurses"
 
 termcontrol="none";
 
-if test "$wantclient" = "yes"; then
-    OLIBS="$LIBS"
-	AC_CHECK_LIB([ncurses], [initscr],
-		AC_DEFINE(HAVE_LIBNCURSES, 1, NCurses terminal lib) \
-			foundlcurses=yes curseaux="-lncurses" termcontrol="ncurses" )
+OLIBS="$LIBS"
+AC_CHECK_LIB([ncurses], [initscr],
+             AC_DEFINE(HAVE_LIBNCURSES, 1, NCurses terminal lib) \
+                 foundlcurses=yes curseaux="-lncurses" termcontrol="ncurses" )
 
-	if test "$foundlcurses" != "yes"; then
-		AC_CHECK_LIB([curses], [initscr],
-			 AC_DEFINE(HAVE_LIBCURSES, 1, Curses terminal lib) \
-				 foundlcurses=yes curseaux="-lcurses" termcontrol="curses" )
-	fi
-
-    AC_SEARCH_LIBS([stdscr], tinfo ncurses,curseaux="$curseaux $ac_res")
-
-	if test "$foundlcurses" != "yes"; then
-		AC_MSG_ERROR(Failed to find libcurses or libncurses.  Install them or disable building the Kismet client with --disable-client.  Disabling the client is probably not something you want to do normally.)
-	fi
-
-	if test "$termcontrol" = "ncurses"; then
-		AC_CHECK_HEADER([ncurses.h], [foundhcurses=yes])
-	else
-		AC_CHECK_HEADER([curses.h], [foundhcurses=yes])
-	fi
-
-	if test "$foundhcurses" != "yes"; then
-		AC_MSG_ERROR(Failed to find curses.h or ncurses.h.  You probably need to install the curses-devel package from your distribution)
-	fi
-
-	LIBS="$LIBS $curseaux"
-	AC_CHECK_LIB([panel], [new_panel],
-				 AC_DEFINE(HAVE_LIBPANEL, 1, Panel terminal lib)
-				 curseaux="$curseaux -lpanel",
-				 AC_MSG_ERROR(Failed to find libpanel extension to curses/ncurses.  Install it, or disable building the Kismet client with --disable-client.  Disabling the client is probably not something you want to do normally.))
-
-	AC_CHECK_HEADER([panel.h], [foundhpanel=yes])
-	if test "$foundhpanel" != "yes"; then
-		AC_MSG_ERROR(Failed to find panel.h curses extension header.  You probably need to install the curses-devel or panel-devel package from your distribution.)
-	fi
-
-	LIBS="$OLIBS"
-
-	CLIENTCLIBS="$CLIENTCLIBS $curseaux"
+if test "$foundlcurses" != "yes"; then
+    AC_CHECK_LIB([curses], [initscr],
+                 AC_DEFINE(HAVE_LIBCURSES, 1, Curses terminal lib) \
+                     foundlcurses=yes curseaux="-lcurses" termcontrol="curses" )
 fi
 
-AC_SUBST(CLIBS)
-AC_SUBST(CLIENTCLIBS)
-AC_SUBST(CLIENTCFLAGS)
+AC_SEARCH_LIBS([stdscr], tinfo ncurses,curseaux="$curseaux $ac_res")
+
+if test "$foundlcurses" != "yes"; then
+    AC_MSG_WARN(Failed to find libcurses or libncurses. Kismet will be compiled without the pretty wrapper)
+fi
+
+if test "$termcontrol" = "ncurses"; then
+    AC_CHECK_HEADER([ncurses.h], [foundhcurses=yes])
+else
+    AC_CHECK_HEADER([curses.h], [foundhcurses=yes])
+fi
+
+if test "$foundhcurses" != "yes"; then
+    AC_MSG_WARN(Failed to find curses.h or ncurses.h.  You probably need to install the curses-devel package from your distribution)
+fi
+
+KSLIBS="$KSLIBS $curseaux"
 
 # TODO - check for advanced curses stuff here like cdk/panels
 

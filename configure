@@ -642,10 +642,6 @@ pcap
 pcaplnk
 wantpcap
 caplibs
-CLIENTCFLAGS
-CLIENTCLIBS
-CLIBS
-wantclient
 mangrp
 instgrp
 CXXLIBS
@@ -725,7 +721,6 @@ ac_subst_files=''
 ac_user_opts='
 enable_option_checking
 enable_largefile
-enable_client
 with_linuxheaders
 enable_linuxwext
 with_pcreheaders
@@ -1384,7 +1379,6 @@ Optional Features:
   --disable-FEATURE       do not include FEATURE (same as --enable-FEATURE=no)
   --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
   --disable-largefile     omit support for large files
-  --disable-client        disable kismet client
   --disable-linuxwext     disable Linux wireless extensions
   --disable-pcre          disable building pcre components
   --enable-airpcap        enable checking for CACE airpcap
@@ -6940,27 +6934,11 @@ fi
 #AC_MSG_RESULT([found])
 
 # Check for libcurses or libncurses.  Fatal error if we didn't use disable.
-# Check whether --enable-client was given.
-if test "${enable_client+set}" = set; then :
-  enableval=$enable_client; case "${enableval}" in
-	  no) wantclient=no ;;
-	   *) wantclient=yes ;;
-	 esac
-else
-  wantclient=yes
-
-fi
-
-
-
-# Add additional cflags since some distros bury panel.h
-CPPFLAGS="$CPPFLAGS -I/usr/include/ncurses"
 
 termcontrol="none";
 
-if test "$wantclient" = "yes"; then
-    OLIBS="$LIBS"
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for initscr in -lncurses" >&5
+OLIBS="$LIBS"
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for initscr in -lncurses" >&5
 $as_echo_n "checking for initscr in -lncurses... " >&6; }
 if ${ac_cv_lib_ncurses_initscr+:} false; then :
   $as_echo_n "(cached) " >&6
@@ -7000,12 +6978,12 @@ if test "x$ac_cv_lib_ncurses_initscr" = xyes; then :
 
 $as_echo "#define HAVE_LIBNCURSES 1" >>confdefs.h
  \
-			foundlcurses=yes curseaux="-lncurses" termcontrol="ncurses"
+                 foundlcurses=yes curseaux="-lncurses" termcontrol="ncurses"
 fi
 
 
-	if test "$foundlcurses" != "yes"; then
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for initscr in -lcurses" >&5
+if test "$foundlcurses" != "yes"; then
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for initscr in -lcurses" >&5
 $as_echo_n "checking for initscr in -lcurses... " >&6; }
 if ${ac_cv_lib_curses_initscr+:} false; then :
   $as_echo_n "(cached) " >&6
@@ -7045,12 +7023,12 @@ if test "x$ac_cv_lib_curses_initscr" = xyes; then :
 
 $as_echo "#define HAVE_LIBCURSES 1" >>confdefs.h
  \
-				 foundlcurses=yes curseaux="-lcurses" termcontrol="curses"
+                     foundlcurses=yes curseaux="-lcurses" termcontrol="curses"
 fi
 
-	fi
+fi
 
-    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing stdscr" >&5
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing stdscr" >&5
 $as_echo_n "checking for library containing stdscr... " >&6; }
 if ${ac_cv_search_stdscr+:} false; then :
   $as_echo_n "(cached) " >&6
@@ -7107,95 +7085,33 @@ if test "$ac_res" != no; then :
 fi
 
 
-	if test "$foundlcurses" != "yes"; then
-		as_fn_error $? "Failed to find libcurses or libncurses.  Install them or disable building the Kismet client with --disable-client.  Disabling the client is probably not something you want to do normally." "$LINENO" 5
-	fi
+if test "$foundlcurses" != "yes"; then
+    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Failed to find libcurses or libncurses. Kismet will be compiled without the pretty wrapper" >&5
+$as_echo "$as_me: WARNING: Failed to find libcurses or libncurses. Kismet will be compiled without the pretty wrapper" >&2;}
+fi
 
-	if test "$termcontrol" = "ncurses"; then
-		ac_fn_c_check_header_mongrel "$LINENO" "ncurses.h" "ac_cv_header_ncurses_h" "$ac_includes_default"
+if test "$termcontrol" = "ncurses"; then
+    ac_fn_c_check_header_mongrel "$LINENO" "ncurses.h" "ac_cv_header_ncurses_h" "$ac_includes_default"
 if test "x$ac_cv_header_ncurses_h" = xyes; then :
   foundhcurses=yes
 fi
 
 
-	else
-		ac_fn_c_check_header_mongrel "$LINENO" "curses.h" "ac_cv_header_curses_h" "$ac_includes_default"
+else
+    ac_fn_c_check_header_mongrel "$LINENO" "curses.h" "ac_cv_header_curses_h" "$ac_includes_default"
 if test "x$ac_cv_header_curses_h" = xyes; then :
   foundhcurses=yes
 fi
 
 
-	fi
-
-	if test "$foundhcurses" != "yes"; then
-		as_fn_error $? "Failed to find curses.h or ncurses.h.  You probably need to install the curses-devel package from your distribution" "$LINENO" 5
-	fi
-
-	LIBS="$LIBS $curseaux"
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for new_panel in -lpanel" >&5
-$as_echo_n "checking for new_panel in -lpanel... " >&6; }
-if ${ac_cv_lib_panel_new_panel+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  ac_check_lib_save_LIBS=$LIBS
-LIBS="-lpanel  $LIBS"
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-/* Override any GCC internal prototype to avoid an error.
-   Use char because int might match the return type of a GCC
-   builtin and then its argument prototype would still apply.  */
-#ifdef __cplusplus
-extern "C"
-#endif
-char new_panel ();
-int
-main ()
-{
-return new_panel ();
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_link "$LINENO"; then :
-  ac_cv_lib_panel_new_panel=yes
-else
-  ac_cv_lib_panel_new_panel=no
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-LIBS=$ac_check_lib_save_LIBS
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_panel_new_panel" >&5
-$as_echo "$ac_cv_lib_panel_new_panel" >&6; }
-if test "x$ac_cv_lib_panel_new_panel" = xyes; then :
-
-$as_echo "#define HAVE_LIBPANEL 1" >>confdefs.h
-
-				 curseaux="$curseaux -lpanel"
-else
-  as_fn_error or disable building the Kismet client with --disable-client.  Disabling the client is probably not something you want to do normally. "Failed to find libpanel extension to curses/ncurses.  Install it" "$LINENO" 5
 fi
 
-
-	ac_fn_c_check_header_mongrel "$LINENO" "panel.h" "ac_cv_header_panel_h" "$ac_includes_default"
-if test "x$ac_cv_header_panel_h" = xyes; then :
-  foundhpanel=yes
+if test "$foundhcurses" != "yes"; then
+    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Failed to find curses.h or ncurses.h.  You probably need to install the curses-devel package from your distribution" >&5
+$as_echo "$as_me: WARNING: Failed to find curses.h or ncurses.h.  You probably need to install the curses-devel package from your distribution" >&2;}
 fi
 
-
-	if test "$foundhpanel" != "yes"; then
-		as_fn_error $? "Failed to find panel.h curses extension header.  You probably need to install the curses-devel or panel-devel package from your distribution." "$LINENO" 5
-	fi
-
-	LIBS="$OLIBS"
-
-	CLIENTCLIBS="$CLIENTCLIBS $curseaux"
-fi
-
-
-
-
+KSLIBS="$KSLIBS $curseaux"
 
 # TODO - check for advanced curses stuff here like cdk/panels
 
