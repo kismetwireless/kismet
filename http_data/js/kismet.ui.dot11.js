@@ -243,9 +243,9 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 iterateTitle: function(opts) {
                     var lastssid = opts['value'][opts['index']].dot11_advertisedssid_ssid;
                     if (lastssid === '')
-                        return "Advertised SSID: <i>Unknown</i>";
+                        return "SSID: <i>Unknown</i>";
 
-                    return "Advertised SSID: " + lastssid;
+                    return "SSID: " + lastssid;
                 },
                 fields: [
                 {
