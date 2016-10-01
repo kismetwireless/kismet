@@ -252,7 +252,6 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     field: "dot11_advertisedssid_ssid",
                     title: "SSID",
                     empty: "<i>Unknown</i>"
-                        
                 },
                 {
                     field: "dot11_advertisedssid_crypt_set",
@@ -357,7 +356,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                         if (opts['key'] === '')
                             return "<i>No records for access point</i>";
                         else
-                            return '<u onclick="kismet_ui.DeviceDetailWindow(' + opts['value'] + ')">View AP Details</u>';
+                            return '<a href="#" onclick="kismet_ui.DeviceDetailWindow(' + opts['value'] + ')">View AP Details</a>';
                     }
                 },
                 {
@@ -489,7 +488,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                                     field: "kismet_device_base_key",
                                     title: "Client Info",
                                     render: function(opts) {
-                                        return '<u onclick="kismet_ui.DeviceDetailWindow(' + opts['value'] + ')">View Client Details</u>';
+                                        return '<a href="#" onclick="kismet_ui.DeviceDetailWindow(' + opts['value'] + ')">View Client Details</a>';
                                     }
                                 },
                                 {

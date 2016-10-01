@@ -456,18 +456,31 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
 kismet_ui.AddDeviceDetail("packets", "Packet Graphs", 10, {
     render: function(data) {
         // Make 3 divs for s, m, h RRD
-        return 'Packets per second (last minute)<br /><div /><br />' + 
+        return '<b>Packet Rates</b><br /><br />' +
+            'Packets per second (last minute)<br /><div /><br />' + 
             'Packets per minute (last hour)<br /><div /><br />' + 
-            'Packets per hour (last day)<br /><div />';
+            'Packets per hour (last day)<br /><div />' +
+            '<br /><b>Data</b><br /><br />' + 
+            'Data per second (last minute)<br /><div /><br />' + 
+            'Data per minute (last hour)<br /><div /><br />' + 
+            'Data per hour (last day)<br /><div />';
     },
     draw: function(data, target) {
         var m = $('div:eq(0)', target);
         var h = $('div:eq(1)', target);
         var d = $('div:eq(2)', target);
 
+        var dm = $('div:eq(3)', target);
+        var dh = $('div:eq(4)', target);
+        var dd = $('div:eq(5)', target);
+
         var mdata = kismet.RecalcRrdData(data.kismet_device_base_packets_rrd.kismet_common_rrd_last_time, last_devicelist_time, kismet.RRD_SECOND, data["kismet_device_base_packets_rrd"]["kismet_common_rrd_minute_vec"], {});
         var hdata = kismet.RecalcRrdData(data.kismet_device_base_packets_rrd.kismet_common_rrd_last_time, last_devicelist_time, kismet.RRD_MINUTE, data["kismet_device_base_packets_rrd"]["kismet_common_rrd_hour_vec"], {});
         var ddata = kismet.RecalcRrdData(data.kismet_device_base_packets_rrd.kismet_common_rrd_last_time, last_devicelist_time, kismet.RRD_HOUR, data["kismet_device_base_packets_rrd"]["kismet_common_rrd_day_vec"], {});
+
+        var dmdata = kismet.RecalcRrdData(data.kismet_device_base_datasize_rrd.kismet_common_rrd_last_time, last_devicelist_time, kismet.RRD_SECOND, data["kismet_device_base_datasize_rrd"]["kismet_common_rrd_minute_vec"], {});
+        var dhdata = kismet.RecalcRrdData(data.kismet_device_base_datasize_rrd.kismet_common_rrd_last_time, last_devicelist_time, kismet.RRD_MINUTE, data["kismet_device_base_datasize_rrd"]["kismet_common_rrd_hour_vec"], {});
+        var dddata = kismet.RecalcRrdData(data.kismet_device_base_datasize_rrd.kismet_common_rrd_last_time, last_devicelist_time, kismet.RRD_HOUR, data["kismet_device_base_datasize_rrd"]["kismet_common_rrd_day_vec"], {});
 
         m.sparkline(mdata,
             { type: "bar",
@@ -482,6 +495,25 @@ kismet_ui.AddDeviceDetail("packets", "Packet Graphs", 10, {
                 zeroColor: '#000000'
             });
         d.sparkline(ddata,
+            { type: "bar",
+                barColor: '#000000',
+                nullColor: '#000000',
+                zeroColor: '#000000'
+            });
+
+        dm.sparkline(dmdata,
+            { type: "bar",
+                barColor: '#000000',
+                nullColor: '#000000',
+                zeroColor: '#000000'
+            });
+        dh.sparkline(dhdata,
+            { type: "bar",
+                barColor: '#000000',
+                nullColor: '#000000',
+                zeroColor: '#000000'
+            });
+        dd.sparkline(dddata,
             { type: "bar",
                 barColor: '#000000',
                 nullColor: '#000000',
