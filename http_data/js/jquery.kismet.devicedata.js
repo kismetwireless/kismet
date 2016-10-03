@@ -150,6 +150,13 @@
                 // Recursively fill in the div with the sub-settings
                 contentdiv.devicedata(data, v);
 
+                // Apply the draw function after the subgroup is created
+                if ('draw' in v && typeof(v.draw) === 'function') {
+                    callopts['container'] = cell;
+
+                    v.draw(callopts);
+                }
+
                 return;
             }
 
@@ -198,7 +205,17 @@
                     v['index'] = idx;
 
                     contentdiv.devicedata(data, v);
+
+                    // Apply the draw function after the iterative group is processed
+                    if ('draw' in v && typeof(v.draw) === 'function') {
+                        callopts['container'] = cell;
+
+                        v.draw(callopts);
+                    }
+
                 }
+
+                return;
             }
 
             // Standard row

@@ -342,10 +342,13 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     console.log(opts);
                     var key = kismet.ObjectByString(opts['data'], opts['basekey'] + 'dot11_client_bssid_key');
                     if (key != 0) {
-                        return 'Client of ' + opts['index'];
+                        return '<a class="expander collapsed" data-expander-target="#client_behavior" href="#">Client of ' + opts['index'] + '</a>';
                     }
 
-                    return "Client of " + opts['index'];
+                    return '<a class="expander collapsed" data-expander-target="#client_behavior" href="#">Client of ' + opts['index'] + '</a>';
+                },
+                draw: function(opts) {
+                    var tb = $('.expander', opts['container']).simpleexpand();
                 },
 
                 fields: [
@@ -461,7 +464,10 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
 
                 groupIterate: true,
                 iterateTitle: function(opts) {
-                    return "Client " + opts['index'];
+                    return '<a class="expander collapsed" href="#" data-expander-target="#client_list">Client ' + opts['index'] + '</a>';
+                },
+                draw: function(opts) {
+                    var tb = $('.expander', opts['container']).simpleexpand();
                 },
                 fields: [
                 {
