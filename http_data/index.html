@@ -140,15 +140,21 @@ $(function() {
             page.end++;
 
             for (var r = page.start; r < page.end; r++) {
+                // Grab the data, applying the transform in the row
+                var row = this.DataTable().row(':eq('+r+')', {order:'applied', search:'applied'});
+
+                if (typeof(row) === 'undefined')
+                    continue;
+
+                if (typeof(row.data()) === 'undefined')
+                    continue;
+
                 for (var c in kismet_ui.DeviceColumns) {
                     var col = kismet_ui.DeviceColumns[c];
 
                     if (!('kismetdrawfunc' in col)) {
                         continue;
                     }
-
-                    // Grab the data, applying the transform in the row
-                    var row = this.DataTable().row(':eq('+r+')', {order:'applied', search:'applied'});
 
                     // Call the draw callback if one exists
                     col.kismetdrawfunc(col, this.DataTable(), row);
