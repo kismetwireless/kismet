@@ -138,26 +138,52 @@ public:
     kis_tracked_device_base(GlobalRegistry *in_globalreg, int in_id) :
         tracker_component(in_globalreg, in_id) {
 
-        dirty = false;
+        // Register the summary outside the actual component tree
+        // because we get it w/ a C++ function
+        summary_map_id =
+            globalreg->entrytracker->RegisterField("kismet.device.summary",
+                    TrackerMap, "device summary");
+        summary_map = globalreg->entrytracker->GetTrackedInstance(summary_map_id);
+        // We own it, so link it once
+        summary_map->link();
 
-        // printf("debug - kis_tracked_device_base(globalreg, id=%d)\n", in_id);
         register_fields();
         reserve_fields(NULL);
     }
 
     kis_tracked_device_base(GlobalRegistry *in_globalreg, int in_id,
             TrackerElement *e) : tracker_component(in_globalreg, in_id) {
+        
+        // Register the summary outside the actual component tree
+        // because we get it w/ a C++ function
+        summary_map_id =
+            globalreg->entrytracker->RegisterField("kismet.device.summary",
+                    TrackerMap, "device summary");
+        summary_map = globalreg->entrytracker->GetTrackedInstance(summary_map_id);
+        // We own it, so link it once
+        summary_map->link();
 
-        dirty = false;
-
-        // printf("debug - kis_tracked_device_base(globalreg, id=%d, element=%p)\n", in_id, e);
         register_fields();
         reserve_fields(e);
     }
 
+    virtual ~kis_tracked_device_base() {
+        // Unlink the summary
+        summary_map->unlink();
+    }
+
     virtual TrackerElement *clone_type() {
-        // printf("debug - clone()ing a kis_tracked_device_base\n");
         return new kis_tracked_device_base(globalreg, get_id());
+    }
+
+    // Add a field to the summary
+    void add_summary_field(TrackerElement *f) {
+        summary_map->add_map(f);
+    }
+
+    // Get the tracked summary object
+    TrackerElement *get_tracked_summary() {
+        return summary_map;
     }
 
     __Proxy(key, uint64_t, uint64_t, uint64_t, key);
@@ -237,9 +263,6 @@ public:
 
     kis_tracked_location *get_location() { return location; }
 
-    bool get_dirty() { return dirty; }
-    void set_dirty(bool d) { dirty = d; }
-
     void inc_frequency_count(double frequency) {
         if (frequency <= 0)
             return;
@@ -297,7 +320,7 @@ protected:
         tracker_component::register_fields();
 
         // printf("debug - kis_tracked_device_base register_fields\n");
-
+        
         key_id =
             RegisterField("kismet.device.base.key", TrackerUInt64,
                     "unique integer key", (void **) &key);
@@ -443,8 +466,6 @@ protected:
     virtual void reserve_fields(TrackerElement *e) {
         tracker_component::reserve_fields(e);
 
-        // printf("debug - kis_tracked_device_base reservefields seed %p\n", e);
-
         if (e != NULL) {
             signal_data = new kis_tracked_signal_data(globalreg, signal_data_id,
                     e->get_map_value(signal_data_id));
@@ -474,8 +495,24 @@ protected:
                    data_rrd_id);
             add_map(data_rrd);
         }
-    }
 
+        // Add fields to the summary
+        add_summary_field(key);
+        add_summary_field(macaddr);
+        add_summary_field(phyname);
+        add_summary_field(devicename);
+        add_summary_field(type_string);
+        add_summary_field(crypt_string);
+        add_summary_field(first_time);
+        add_summary_field(last_time);
+        add_summary_field(packets);
+        add_summary_field(signal_data);
+        add_summary_field(channel);
+        add_summary_field(frequency);
+        add_summary_field(manuf);
+        add_summary_field(packets_rrd);
+        add_summary_field(datasize);
+    }
 
     // Unique key
     TrackerElement *key;
@@ -561,7 +598,8 @@ protected:
     TrackerElement *freq_khz_map;
     int freq_khz_map_id;
 
-    // Manufacturer, if we're able to derive, either from OUI or from other data (phy-dependent)
+    // Manufacturer, if we're able to derive, either from OUI or 
+    // from other data (phy-dependent)
     TrackerElement *manuf;
     int manuf_id;
 
@@ -581,8 +619,9 @@ protected:
     TrackerElement *seenby_map;
     int seenby_map_id;
 
-    // Non-exported local tracking, is device dirty?
-    bool dirty;
+    // Summary map - used to build device summaries for all_devices endpoint
+    TrackerElement *summary_map;
+    int summary_map_id;
 
     // Non-exported local value for frequency count
     int frequency_val_id;
@@ -742,7 +781,7 @@ protected:
 
     // Base IDs for tracker components
     int device_list_base_id, device_base_id, phy_base_id, phy_entry_id;
-    int device_summary_base_id, device_summary_entry_id;
+    int device_summary_base_id;
     int device_update_required_id, device_update_timestamp_id;
 
 	// Total # of packets
@@ -803,50 +842,6 @@ protected:
 	int PopulateCommon(kis_tracked_device_base *device, kis_packet *in_pack);
 
     pthread_mutex_t devicelist_mutex;
-};
-
-class kis_tracked_device_summary : public tracker_component {
-public:
-    kis_tracked_device_summary(GlobalRegistry *in_globalreg, int in_id) :
-        tracker_component(in_globalreg, in_id) {
-        register_fields();
-        reserve_fields(NULL);
-    }
-
-    kis_tracked_device_summary(GlobalRegistry *in_globalreg, int in_id,
-            TrackerElement *e) :
-        tracker_component(in_globalreg, in_id) {
-
-        register_fields();
-        reserve_fields(e);
-    }
-
-    // Build a summary by grabbing values out of a base device
-    kis_tracked_device_summary(GlobalRegistry *in_globalreg, int in_id,
-            kis_tracked_device_base *base) : tracker_component(in_globalreg, in_id) {
-
-        // We don't register or reserve fields because we grab them directly out of
-        // an existing component
-        add_map(base->get_tracker_key());
-        add_map(base->get_tracker_macaddr());
-        add_map(base->get_tracker_phyname());
-        add_map(base->get_tracker_devicename());
-        add_map(base->get_tracker_type_string());
-        add_map(base->get_tracker_crypt_string());
-        add_map(base->get_tracker_first_time());
-        add_map(base->get_tracker_last_time());
-        add_map(base->get_tracker_packets());
-        add_map(base->get_tracker_signal_data());
-        add_map(base->get_tracker_channel());
-        add_map(base->get_tracker_frequency());
-        add_map(base->get_tracker_manuf());
-        add_map(base->get_tracker_packets_rrd());
-        add_map(base->get_tracker_datasize());
-    }
-
-    virtual TrackerElement *clone_type() {
-        return new kis_tracked_device_summary(globalreg, get_id());
-    }
 };
 
 class kis_tracked_phy : public tracker_component {

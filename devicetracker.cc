@@ -77,9 +77,6 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
     device_summary_base_id =
         globalreg->entrytracker->RegisterField("kismet.device.summary_list",
                 TrackerVector, "summary list of devices");
-    device_summary_entry_id =
-        globalreg->entrytracker->RegisterField("kismet.device.summary", TrackerMac,
-                "device summary");
 
     device_update_required_id =
         globalreg->entrytracker->RegisterField("kismet.devicelist.refresh",
@@ -1750,10 +1747,7 @@ void Devicetracker::httpd_device_summary(TrackerElementSerializer *serializer,
         local_locker lock(&devicelist_mutex);
 
         for (unsigned int x = 0; x < tracked_vec.size(); x++) {
-            kis_tracked_device_summary *summary =
-                new kis_tracked_device_summary(globalreg, device_summary_entry_id,
-                        tracked_vec[x]);
-            devvec->add_vector(summary);
+            devvec->add_vector(tracked_vec[x]->get_tracked_summary());
         }
 
         serializer->serialize(wrapper);
@@ -1765,10 +1759,7 @@ void Devicetracker::httpd_device_summary(TrackerElementSerializer *serializer,
          */
         for (TrackerElementVector::const_iterator x = subvec->begin();
                 x != subvec->end(); ++x) {
-            kis_tracked_device_summary *summary =
-                new kis_tracked_device_summary(globalreg, device_summary_entry_id,
-                        (kis_tracked_device_base *) *x);
-            devvec->add_vector(summary);
+            devvec->add_vector(((kis_tracked_device_base *) *x)->get_tracked_summary());
         }
 
         serializer->serialize(wrapper);
@@ -1784,10 +1775,7 @@ void Devicetracker::httpd_xml_device_summary(std::stringstream &stream) {
         globalreg->entrytracker->GetTrackedInstance(device_summary_base_id);
 
     for (unsigned int x = 0; x < tracked_vec.size(); x++) {
-        kis_tracked_device_summary *summary =
-            new kis_tracked_device_summary(globalreg, device_summary_entry_id,
-                    tracked_vec[x]);
-        devvec->add_vector(summary);
+        devvec->add_vector(tracked_vec[x]->get_tracked_summary());
     }
 
     XmlserializeAdapter *xml = new XmlserializeAdapter(globalreg);

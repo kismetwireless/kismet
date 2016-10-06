@@ -872,6 +872,12 @@ public:
         reserve_fields(e);
     }
 
+    void attach_base_parent(kis_tracked_device_base *parent) {
+        parent->add_map(this);
+        
+        parent->add_summary_field(last_beaconed_ssid);
+    }
+
     __Proxy(type_set, uint64_t, uint64_t, uint64_t, type_set);
     __ProxyBitset(type_set, uint64_t, type_set);
 
@@ -919,9 +925,6 @@ public:
     __Proxy(last_beaconed_ssid, string, string, string, last_beaconed_ssid);
     __Proxy(last_beaconed_ssid_csum, uint32_t, uint32_t, 
             uint32_t, last_beaconed_ssid_csum);
-
-    bool get_dirty() { return dirty; }
-    void set_dirty(bool d) { dirty = d; }
 
 protected:
     virtual void register_fields() {
@@ -1073,8 +1076,6 @@ protected:
 
     int last_bssid_id;
     TrackerElement *last_bssid;
-
-    bool dirty;
 };
 
 class dot11_ssid_alert {

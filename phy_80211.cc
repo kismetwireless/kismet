@@ -959,7 +959,8 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
         _MSG(ss.str(), MSGFLAG_INFO);
 
         dot11dev = new dot11_tracked_device(globalreg, dot11_device_entry_id);
-        basedev->add_map(dot11dev);
+        dot11dev->attach_base_parent(basedev);
+        // basedev->add_map(dot11dev);
     }
 
     // Handle beacons and SSID responses from the AP.  This is still all the same
