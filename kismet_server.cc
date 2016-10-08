@@ -374,6 +374,8 @@ int Usage(char *argv) {
 	printf(" *** Generic Options ***\n");
 	printf(" -v, --version                Show version\n"
            "     --no-ncurses-wrapper     Disable ncurses wrapper\n"
+           "     --debug                  Disable the ncurses wrapper and the crash\n"
+           "                              handling functions, for debugging\n"
 		   " -f, --config-file <file>     Use alternate configuration file\n"
 		   "     --no-line-wrap           Turn of linewrapping of output\n"
 		   "                              (for grep, speed, etc)\n"
@@ -586,9 +588,11 @@ int main(int argc, char *argv[], char *envp[]) {
 	int data_dump = 0;
 	GlobalRegistry *globalreg;
 
-#ifdef HAVE_LIBNCURSES
+    bool debug_mode = false;
+
 	static struct option wrapper_longopt[] = {
 		{ "no-ncurses-wrapper", no_argument, 0, 'w' },
+        { "debug", no_argument, 0, 'd' },
 		{ 0, 0, 0, 0 }
 	};
 
@@ -605,13 +609,16 @@ int main(int argc, char *argv[], char *envp[]) {
 
         if (r == 'w') {
             wrapper = false; 
-            break;
+        } else if (r == 'd') {
+            debug_mode = true;
+            wrapper = false;
         }
     }
 
     optind = 0;
     option_idx = 0;
 
+#ifdef HAVE_LIBNCURSES
     if (wrapper)
         ncurses_wrapper_fork();
 #endif
@@ -621,8 +628,10 @@ int main(int argc, char *argv[], char *envp[]) {
 	int startroot = 1;
 
     // Set a backtrace on C++ terminate errors
-    std::set_terminate(&TerminationHandler);
-    signal(SIGSEGV, SegVHandler);
+    if (!debug_mode) {
+        std::set_terminate(&TerminationHandler);
+        signal(SIGSEGV, SegVHandler);
+    }
 
 	// Catch the interrupt handler to shut down
     signal(SIGINT, CatchShutdown);
