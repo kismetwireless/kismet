@@ -88,6 +88,18 @@ exports.AddDeviceColumn = function(id, options) {
         coldef.name = options.name;
     }
 
+    if ('orderable' in options) {
+        coldef.bSortable = options.orderable;
+    }
+
+    if ('visible' in options) {
+        coldef.bVisible = options.visible;
+    }
+
+    if ('searchable' in options) {
+        coldef.bSearchable = options.searchable;
+    }
+
     // Set the render function to proxy through the module+function
     if ('cbmodule' in options && 'renderfunc' in options) {
         coldef.mRender = function(data, type, row, meta) {

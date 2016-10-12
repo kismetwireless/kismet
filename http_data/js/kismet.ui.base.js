@@ -33,6 +33,10 @@ exports.renderDataSize = function(data, type, row, meta) {
     return data;
 }
 
+exports.renderMac = function(data, type, row, meta) {
+    return data.split('/')[0];
+}
+
 exports.renderPackets = function(data, type, row, meta) {
     return "<i>Preparing graph</i>";
 }
@@ -126,7 +130,20 @@ kismet_ui.AddDeviceColumn('column_packet_rrd', {
     name: 'packets',
     cbmodule: 'kismet_ui_base',
     renderfunc: 'renderPackets',
-    drawfunc: 'drawPackets'
+    drawfunc: 'drawPackets',
+    orderable: false,
+    searchable: false,
+});
+
+// Hidden row for mac address, searchable
+kismet_ui.AddDeviceColumn('column_device_mac_hidden', {
+    sTitle: 'MAC',
+    mData: 'kismet_device_base_macaddr',
+    searchable: true,
+    orderable: false,
+    visible: false,
+    cbmodule: 'kismet_ui_base',
+    renderfunc: 'renderMac'
 });
 
 // Add the (quite complex) device details.

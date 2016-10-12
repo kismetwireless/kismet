@@ -61,23 +61,35 @@ Columns are directly linked to the [jQuery DataTables](https://datatables.net/) 
 
 Columns can be defined as basic mappings of the JSON data in the device summary, custom transforms of the data, or complete custom drawing routines.
 
-#### sTitle
+#### sTitle - string
 
-Display title of the column.
+Display title of the column.  Passed as sTitle directly to the DataTables column definition.
 
-#### mData
+#### mData - string
 
 DataTables-compatible field spec for the data.  This follows the normal DataTables naming convention for nested JSON structures (for example `kismet_device_base_signal.kismet_common_signal_last_signal_dbm`)
 
-#### name (optional)
+#### name - string (optional)
 
-Optional name of the column definition.  This allows searching by the column name.
+Optional name of the column definition.  This allows searching by the column name in render functions to determine the index.
 
-#### cbmodule (optional)
+#### orderable - boolean (optional)
+
+Passed to DataTables as bSortable, allows disabling sorting by this column.  Most useful on graphical columns which don't contain sortable data.
+
+#### visible - boolean (optional)
+
+Passed to DataTables as bVisisible, allows creating invisible columns.  The most common use for an invisible column would be to create a searchable field which isn't shown.  Invisible columns cannot be selected by the user in the column selection UI.
+
+#### searchable - boolean (optional)
+
+Passed to DataTables as bSearchable, controls if the content of the column is searchable from the quick search field.
+
+#### cbmodule - string (optional)
 
 Optional name of the module / namespace holding callback function code.  For columns which define a custom render or draw function, `cbmodule` is required to tell the column callbacks where to look.
 
-#### renderfunc (optional)
+#### renderfunc - function (optional)
 
 Optional function for rendering the field.  This is called as the `render` option of a DataTable row and takes the standard DataTable arguments: `data, type, row, meta`.
 
@@ -85,7 +97,7 @@ Render functions return an element to be inserted into the cell and are called b
 
 If a `renderfunc` is provided, a `cbmodule` must also be provided.
 
-#### drawfunc (optional)
+#### drawfunc - function (optional)
 
 Optional function for performing custom drawing when the row is visible.  The devicetable is optimized to only call draw functions when the row is visible, so you don't need to worry about performing unncessary work.
 
