@@ -32,6 +32,7 @@ PSO	= util.o cygwin_utils.o globalregistry.o \
 	dumpfile_tuntap.o dumpfile_netxml.o dumpfile_nettxt.o dumpfile_string.o \
 	dumpfile_alert.o dumpfile_devicetracker.o \
 	statealert.o \
+	messagebus_restclient.o \
 	kismet_server.o
 
 PS	= kismet_server

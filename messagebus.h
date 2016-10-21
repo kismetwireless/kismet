@@ -24,6 +24,7 @@
 
 #include <string>
 #include <vector>
+#include <pthread.h>
 
 #include "globalregistry.h"
 

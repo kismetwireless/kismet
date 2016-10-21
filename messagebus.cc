@@ -17,7 +17,13 @@
 */
 
 #include "config.h"
+
+#include <pthread.h>
+
 #include "messagebus.h"
+#include "entrytracker.h"
+
+#include "util.h"
 
 void StdoutMessageClient::ProcessMessage(string in_msg, int in_flags) {
     if (in_flags & (MSGFLAG_ERROR | MSGFLAG_FATAL))
