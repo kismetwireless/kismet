@@ -73,7 +73,7 @@ protected:
                     "Message content", (void **) &message);
         flags_id =
             RegisterField("kismet.messagebus.message_flags", TrackerInt32,
-                    "Message flags", (void **) &flags);
+                    "Message flags (per messagebus.h)", (void **) &flags);
         timestamp_id =
             RegisterField("kismet.messagebus.message_time", TrackerUInt64,
                     "Message time_t", (void **) &timestamp);
