@@ -82,6 +82,7 @@
 #include "system_monitor.h"
 #include "channeltracker2.h"
 #include "kis_httpd_websession.h"
+#include "messagebus_restclient.h"
 
 #include "gps_manager.h"
 
@@ -858,7 +859,6 @@ int main(int argc, char *argv[], char *envp[]) {
 	globalregistry->timetracker = new Timetracker(globalregistry);
     globalregistry->RegisterLifetimeGlobal((LifetimeGlobal *) globalregistry->timetracker);
 
-
     // HTTP BLOCK
     // Create the HTTPD server, it needs to exist before most things
     globalregistry->httpd_server = new Kis_Net_Httpd(globalregistry);
@@ -897,6 +897,9 @@ int main(int argc, char *argv[], char *envp[]) {
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
     globalregistry->RegisterLifetimeGlobal((LifetimeGlobal *) globalregistry->packetchain);
+
+    // Add the messagebus REST interface
+    new RestMessageClient(globalregistry, NULL);
 
     // Add login session
     new Kis_Httpd_Websession(globalregistry);

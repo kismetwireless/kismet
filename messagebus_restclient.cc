@@ -51,9 +51,13 @@ RestMessageClient::RestMessageClient(GlobalRegistry *in_globalreg, void *in_aux)
     delete(msg_builder);
 
     pthread_mutex_init(&msg_mutex, NULL);
+
+	globalreg->messagebus->RegisterClient(this, MSGFLAG_ALL);
 }
 
 RestMessageClient::~RestMessageClient() {
+    globalreg->messagebus->RemoveClient(this);
+
     globalreg->RemoveGlobal("REST_MSG_CLIENT");
 
     {
@@ -186,7 +190,7 @@ void RestMessageClient::Httpd_CreateStreamResponse(
 
             TrackerElement *ts =
                 globalreg->entrytracker->GetTrackedInstance(message_timestamp_id);
-            ts->set((uint64_t) since_time);
+            ts->set((int64_t) since_time);
             wrapper->add_map(ts);
         } else {
             wrapper = msgvec;
