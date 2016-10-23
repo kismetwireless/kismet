@@ -86,7 +86,7 @@ int TcpClientV2::Connect(string in_host, unsigned int in_port) {
     local_sock.sin_addr.s_addr = htonl(INADDR_ANY);
     local_sock.sin_port = htons(0);
 
-    if (bind(cli_fd, (struct sockaddr *) &local_sock, sizeof(local_sock)) < 0) {
+    if (::bind(cli_fd, (struct sockaddr *) &local_sock, sizeof(local_sock)) < 0) {
         errstr = strerror_r(errno, strerrbuf, 1024);
         msg << "TCP client could not connect to " << in_host << ":" << in_port <<
             " - " << errstr;
