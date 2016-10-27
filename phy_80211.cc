@@ -963,6 +963,12 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
         // basedev->add_map(dot11dev);
     }
 
+    // Update the last beacon timestamp
+    if (dot11info->type == packet_management &&
+            dot11info->subtype == packet_sub_beacon) {
+        dot11dev->set_last_beacon_timestamp(in_pack->ts.tv_sec);
+    }
+
     // Handle beacons and SSID responses from the AP.  This is still all the same
     // basic device
     if (dot11info->type == packet_management && 

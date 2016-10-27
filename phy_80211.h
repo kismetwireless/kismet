@@ -926,6 +926,9 @@ public:
     __Proxy(last_beaconed_ssid_csum, uint32_t, uint32_t, 
             uint32_t, last_beaconed_ssid_csum);
 
+    __Proxy(last_beacon_timestamp, uint64_t, time_t, 
+            time_t, last_beacon_timestamp);
+
 protected:
     virtual void register_fields() {
         type_set_id =
@@ -1016,6 +1019,11 @@ protected:
         last_bssid_id =
             RegisterField("dot11.device.last_bssid", TrackerMac,
                     "last BSSID", (void **) &last_bssid);
+
+        last_beacon_timestamp_id =
+            RegisterField("dot11.device.last_beacon_timestamp", TrackerUInt64,
+                    "unix timestamp of last beacon frame", 
+                    (void **) &last_beacon_timestamp);
     }
 
     int type_set_id;
@@ -1076,6 +1084,9 @@ protected:
 
     int last_bssid_id;
     TrackerElement *last_bssid;
+
+    int last_beacon_timestamp_id;
+    TrackerElement *last_beacon_timestamp;
 };
 
 class dot11_ssid_alert {
