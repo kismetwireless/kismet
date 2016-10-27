@@ -876,6 +876,7 @@ public:
         parent->add_map(this);
         
         parent->add_summary_field(last_beaconed_ssid);
+        parent->add_summary_field(last_beacon_timestamp);
     }
 
     __Proxy(type_set, uint64_t, uint64_t, uint64_t, type_set);
