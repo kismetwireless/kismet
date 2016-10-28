@@ -1,5 +1,109 @@
+html, body {
+    height: 100%
+}
+
+body {
+    overflow: hidden;
+}
+
+#mainholder {
+    /*
+    min-height: 100%;
+    position: relative;
+    */
+
+    min-width: 100%;
+    min-height: 100%;
+    display: -webkit-box;
+    display: -moz-box;
+    display: -ms-flexbox;
+    display: -webkit-flex;
+    display: flex;
+    -ms-flex-direction: column;
+    -moz-flex-direction: column;
+    -webkit-flex-direction: column;
+    flex-direction: column;
+
+}
+
+#panelcontainer {
+    /*padding-bottom: 30px;*/
+
+    -webkit-box-flex: 1; /* OLD - iOS 6-, Safari 3.1-6 */
+    -moz-box-flex: 1; /* OLD - Firefox 19- */
+    -webkit-flex: 1; /* Chrome */
+    -ms-flex: 1; /* IE 10 */
+    flex: 1; /* NEW, */
+}
+
+#creditbar {
+
+    /*
+    width:100%;
+    position: absolute;
+    left: 0;
+    bottom: 30px; 
+    */
+
+    background-color: #cccccc;
+    font-size: 13px;
+    height: 20px;
+}
+
+
+.ui-layout-pane-north {
+    padding: 0 !important;
+    border-bottom: none;
+}
+
+.ui-layout-pane-south {
+    padding: 0 !important;
+    border-top: none;
+}
+
+
+#topbar {
+    position: relative;
+    overflow: hidden;
+    height: 40px;
+    background-color: #CCCCCC;
+    padding-left: 10px;
+    padding-right: 10px;
+}
+
+
+#topbar_title {
+    float: left;
+    position: relative;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+#topbar_battery {
+    float: right;
+    position: relative;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+div.server_messages {
+    min-height: 100px;
+}
 
 div.vfill {
-    height: auto;
+    height: 100%;
+}
+
+div.messages {
+    overflow-y: scroll;
+    height: 100px;
+}
+
+div.message_info {
+    background-color: yellow;
+}
+
+div.message_alert {
+    background-color: red;
 }
 

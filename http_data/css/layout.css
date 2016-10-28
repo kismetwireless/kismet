@@ -5,10 +5,9 @@ Grey Box Method - Layout CSS
 
 body {
 	background: #eee;
-	border-top: 5px solid #000;
 	color: #333;
 	font-size: 11px;
-	padding: 0 0 40px;
+	padding: 0;
 }
 
 

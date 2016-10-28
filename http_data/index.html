@@ -27,18 +27,22 @@
 <script src="/js/raphael.min.js"></script>
 <script src="/js/morris.min.js"></script>
 
+<script src="/js/jquery.layout-latest.js"></script>
+
 <link rel="stylesheet" href="/css/font-awesome.min.css">
-<link rel="stylesheet" type="text/css" href="css/reset.css" />
-<link rel="stylesheet" type="text/css" href="css/text.css" />
-<link rel="stylesheet" type="text/css" href="css/grid.css" />
-<link rel="stylesheet" type="text/css" href="css/layout.css" />
-<link rel="stylesheet" type="text/css" href="css/nav.css" />
-<!--[if IE 6]><link rel="stylesheet" type="text/css" href="css/ie6.css" media="screen" /><![endif]-->
-<!--[if IE 7]><link rel="stylesheet" type="text/css" href="css/ie.css" media="screen" /><![endif]-->
+
 <link rel="stylesheet" type="text/css" href="css/jquery-ui.min.css" />
 <link rel="stylesheet" type="text/css" href="css/jquery.jspanel.min.css" />
 <link rel="stylesheet" type="text/css" href="/css/jquery.dataTables.min.css" />
 <link rel="stylesheet" type="text/css" href="/css/morris.css" />
+
+<link rel="stylesheet" type="text/css" href="/css/layout-default-1.4.0.css" />
+
+<link rel="stylesheet" type="text/css" href="css/reset.css" />
+<link rel="stylesheet" type="text/css" href="css/text.css" /> 
+<link rel="stylesheet" type="text/css" href="css/layout.css" /> 
+
+<link rel="stylesheet" href="/css/kismet.css">
 
 <style type="text/css">
 /* Fix the hover-highlight of the device table */
@@ -101,16 +105,41 @@ function handleDeviceSummary() {
 
 // jquery onload complete
 $(function() {
+
+    // Datatable and base size
+    var device_dt = null;
+    var dt_base_height = null;
+    
+    // Load the framework
+    $('#panelcontainer').layout({ 
+        north: {
+            closable: false,
+            resizeable: false,
+            slidable: false,
+            togglerLength_open: 0,
+            togglerLength_closed: -1,
+            fxName: "none",
+            spacing_open: 1,
+        },
+        center: {
+            onresize: function() {
+                if (device_dt != null && dt_base_height != null) {
+                    $('div.dataTables_scrollBody').height($('#main_center').height() - 
+                            dt_base_height - 50);
+                    device_dt.draw(false);
+                }
+            },
+        },
+    });
+
     // Dynamic load of our plugin js, then continue.  is this the only way to do
     // this?  sure is annoying.
     kismet.GetDynamicIncludes().done(function() {
 
-    // console.log(kismet_ui.GetDeviceColumns([]));
-
     kismet_ui.BatteryUi($("#batspinner"), $("#batpower"), $("#battime"));
 
     $('#devices').DataTable( {
-        "scrollY":        "60vh",
+        "scrollY":        "1",
         "scroller":       true,
 
         "ajax":           "/devices/all_devices_dt.json",
@@ -166,7 +195,8 @@ $(function() {
 
     });
 
-    var device_dt = $('#devices').DataTable();
+    device_dt = $('#devices').DataTable();
+    dt_base_height = $('#devices').height();
 
     // Set an onclick handler to spawn the device details dialog
     $('#devices tbody').on('click', 'tr', function () {
@@ -191,6 +221,20 @@ $(function() {
             $( 'td', device_dt.row(rowIdx).nodes() ).addClass('highlight');
         } );
 
+    $('div.dataTables_scrollBody').height($('#main_center').height() - 
+            dt_base_height - 50);
+    device_dt.draw(false);
+
+    /*
+    $('#panelcontainer').layout().panes.center.bind("layoutpaneresize", 
+            function(pane, element, paneState, paneOptions ) {
+                console.log("resize?");
+                $('div.dataTables_scrollBody').height(element.height() - 
+                        dt_base_height - 50);
+                device_dt.draw(false);
+            });
+            */
+
 }); // when
 
 }); // onload
@@ -198,35 +242,39 @@ $(function() {
 
 </head>
 <body>
-    <div class="container_16">
-        <div class="grid_16">
-            <div class="box">
-                <h2>Kismet</h2>
-                <div style="text-align: right;"><span id="battime">00:11:22</span> <a href="#"><img id="batpower" src="/images/icon_battery_0.svg" style="width: 2em; height: auto; align: right; vertical-align: middle;"></a></div>
-                <i id="batspinner" class="fa fa-refresh fa-spin"></i>
-            </div>
-        </div>
+    <div id="mainholder">
+        <div id="panelcontainer">
 
-        <div class="clear"></div>
-
-        <div class="grid_16">
-            <div class="box">
-                <h2>Devices</h2>
-
-                <div id="devtable" class="fill">
-                    <table id="devices" class="stripe hover" cell-spacing="0" width="100%">
-                    </table>
+            <div class="ui-layout-north">
+                <div id="topbar">
+                    <div id="topbar_title"><h4>Kismet</h4></div>
+                    <div id="topbar_battery">
+                        <span id="battime">00:11:22</span> <a href="#"><img id="batpower" src="/images/icon_battery_0.svg" style="width: 2em; height: auto; align: right; vertical-align: middle;"></a>
+                        <i id="batspinner" class="fa fa-refresh fa-spin"></i>
+                    </div>
                 </div>
-
             </div>
+
+            <!--
+                <div class="ui-layout-east">East</div>
+
+                <div class="ui-layout-west">West</div>
+            -->
+
+            <div class="ui-layout-center" id="main_center">
+                <table id="devices" class="stripe hover" cell-spacing="0" width="100%"></table>
+            </div>
+
+            <div class="ui-layout-south server_messages">
+                Server messages<br>
+                Will go<br>
+                Here soon<br>
+            </div>
+
         </div>
 
-        <div class="clear"></div>
-
-        <div class="grid_16" id="site_info">
-            <div class="box">
-                <p>Powered by many open source JS components, look at the <a href="/credit.html">credits page</a>
-            </div>
+        <div id="creditbar">
+            <p>Powered by many open source JS components, for more info see the <a href="/credit.html">credits page</a>
         </div>
     </div>
 
