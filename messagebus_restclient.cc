@@ -190,7 +190,7 @@ void RestMessageClient::Httpd_CreateStreamResponse(
 
             TrackerElement *ts =
                 globalreg->entrytracker->GetTrackedInstance(message_timestamp_id);
-            ts->set((int64_t) since_time);
+            ts->set((int64_t) globalreg->timestamp.tv_sec);
             wrapper->add_map(ts);
         } else {
             wrapper = msgvec;
