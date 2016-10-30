@@ -86,24 +86,3 @@ body {
     transform: translateY(-50%);
 }
 
-div.server_messages {
-    min-height: 100px;
-}
-
-div.vfill {
-    height: 100%;
-}
-
-div.messages {
-    overflow-y: scroll;
-    height: 100px;
-}
-
-div.message_info {
-    background-color: yellow;
-}
-
-div.message_alert {
-    background-color: red;
-}
-

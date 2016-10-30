@@ -23,6 +23,7 @@
 <script src="/js/jquery.sparkline.min.js"></script>
 
 <script src="/js/jquery.kismet.devicedata.js"></script>
+<script src="/js/jquery.kismet.messagebus.js"></script>
 
 <script src="/js/raphael.min.js"></script>
 <script src="/js/morris.min.js"></script>
@@ -37,6 +38,8 @@
 <link rel="stylesheet" type="text/css" href="/css/morris.css" />
 
 <link rel="stylesheet" type="text/css" href="/css/layout-default-1.4.0.css" />
+
+<link rel="stylesheet" href="/css/jquery.kismet.messagebus.css" />
 
 <link rel="stylesheet" type="text/css" href="css/reset.css" />
 <link rel="stylesheet" type="text/css" href="css/text.css" /> 
@@ -109,6 +112,9 @@ $(function() {
     // Datatable and base size
     var device_dt = null;
     var dt_base_height = null;
+
+    // Compute 20% height of window
+    var southsize = $(window).height() * 0.20;
     
     // Load the framework
     $('#panelcontainer').layout({ 
@@ -129,6 +135,10 @@ $(function() {
                     device_dt.draw(false);
                 }
             },
+        },
+        south: {
+            // Default to computed percentage of total window
+            size: southsize,
         },
     });
 
@@ -235,6 +245,8 @@ $(function() {
             });
             */
 
+    $('#messagebus').messagebus();
+
 }); // when
 
 }); // onload
@@ -265,10 +277,12 @@ $(function() {
                 <table id="devices" class="stripe hover" cell-spacing="0" width="100%"></table>
             </div>
 
-            <div class="ui-layout-south server_messages">
-                Server messages<br>
-                Will go<br>
-                Here soon<br>
+            <div class="ui-layout-south">
+                <div id="messagebus" class="messagebus">
+                    <div class="messagebus_message messagebus_debug"><p>Sep 20 2016 19:59:47</p>Server messages</div>
+                    <div class="messagebus_message messagebus_info"><p>Sep 20 2016 19:99:99</p>Will go</div>
+                    <div class="messagebus_message messagebus_alert"><p>Sep 20 2016 19:99:99</p>Here</div>
+                </div>
             </div>
 
         </div>

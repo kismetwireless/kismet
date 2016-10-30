@@ -1,0 +1,48 @@
+/* Basic message formatting */
+.messagebus_message {
+    border-top: 1px solid DarkGrey !important;
+    border-bottom: 1px solid DarkGrey !important;
+    border-left: 5px solid black;
+    margin-bottom: 3px;
+    margin-top: 3px;
+    padding-left: 5px;
+}
+
+.messagebus_message:hover {
+    background-color: #CCCCCC;
+}
+
+/* Let us use empty divs as a cheap hack for replacing messages */
+.messagebus_message:empty {
+    display: none;
+}
+
+/* Match the first paragraph element and format it for the date */
+.messagebus_message > p:nth-of-type(1) {
+    font-weight: bold;
+    font-family: monospace;
+    display: inline;
+    margin-right: 5px;
+}
+
+/* Different message classes get different side color tags */
+.messagebus_debug {
+    border-left: 5px solid grey;
+}
+
+.messagebus_info {
+    border-left: 5px solid yellow;
+}
+
+.messagebus_error {
+    border-left: 5px solid red;
+}
+
+.messagebus_alert {
+    border-left: 5px solid red;
+}
+
+.messagebus_fatal {
+    border-left: 5px solid red;
+}
+
