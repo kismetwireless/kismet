@@ -181,7 +181,7 @@ exports.DeviceDetailWindow = function(key) {
     var dialogid = "devicedialog" + key;
     var dialogmatch = '#' + dialogid;
 
-    var h = $(window).height() - 10;
+    var h = $(window).height() - 5;
 
     // If we're on a wide-screen browser, try to split it into 3 details windows
     var w = ($(window).width() / 3) - 10;
@@ -205,7 +205,7 @@ exports.DeviceDetailWindow = function(key) {
             "at": "left-top",
             "of": "window",
             "offsetX": 2,
-            "offsetY": 10,
+            "offsetY": 2,
             "autoposition": "RIGHT"
         },
 
