@@ -30,6 +30,8 @@
 
 <script src="/js/jquery.layout-latest.js"></script>
 
+<script src="/js/pushmenu.js"></script>
+
 <link rel="stylesheet" href="/css/font-awesome.min.css">
 
 <link rel="stylesheet" type="text/css" href="css/jquery-ui.min.css" />
@@ -38,6 +40,8 @@
 <link rel="stylesheet" type="text/css" href="/css/morris.css" />
 
 <link rel="stylesheet" type="text/css" href="/css/layout-default-1.4.0.css" />
+
+<link rel="stylesheet" type="text/css" href="/css/pushmenu.css" />
 
 <link rel="stylesheet" href="/css/jquery.kismet.messagebus.css" />
 
@@ -108,6 +112,7 @@ function handleDeviceSummary() {
 
 // jquery onload complete
 $(function() {
+    $('#pm_menu').pushmenu({ button : "#pm_open" });
 
     // Datatable and base size
     var device_dt = null;
@@ -255,11 +260,19 @@ $(function() {
 </head>
 <body>
     <div id="mainholder">
+        <div id="pm_menu" class="pm_hide pm_initial kismet_sidebar">
+            <h1>Sidebar</h1>
+            <br>
+            Sidebar menu and actions coming soon
+        </div>
+
         <div id="panelcontainer">
 
             <div class="ui-layout-north">
                 <div id="topbar">
-                    <div id="topbar_title"><h4>Kismet</h4></div>
+                    <i id="pm_open" class="fa fa-bars"></i>
+                    <!-- <button id="pm_open"><i class="fa fa-bars"></i></button> -->
+                    <div id="topbar_title">Kismet</div>
                     <div id="topbar_battery">
                         <span id="battime">00:11:22</span> <a href="#"><img id="batpower" src="/images/icon_battery_0.svg" style="width: 2em; height: auto; align: right; vertical-align: middle;"></a>
                         <i id="batspinner" class="fa fa-refresh fa-spin"></i>

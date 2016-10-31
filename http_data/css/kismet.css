@@ -61,7 +61,6 @@ body {
     border-top: none;
 }
 
-
 #topbar {
     position: relative;
     overflow: hidden;
@@ -71,18 +70,48 @@ body {
     padding-right: 10px;
 }
 
-
+/* Title text */
 #topbar_title {
     float: left;
+
     position: relative;
+    padding-left: 10px;
+
     top: 50%;
     transform: translateY(-50%);
+
+    font-style: bold;
+    font-size: 24px;
 }
 
+/* Sidebar button */
+#pm_open {
+    top: 50%;
+    transform: translateY(-50%);
+
+    margin-left: 10px;
+    margin-right: 10px;
+
+    float: left;
+
+    position: relative;
+
+    font-size: 18px;
+}
+
+/* Battery holder */
 #topbar_battery {
     float: right;
     position: relative;
     top: 50%;
     transform: translateY(-50%);
 }
+
+/* Sidebar content */
+.kismet_sidebar {
+    padding: 10px 10px 10px 10px;
+    background-color: #555555 !important;
+    color: #ABABAB !important;
+}
+
 
