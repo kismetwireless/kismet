@@ -23,6 +23,7 @@
     font-family: monospace;
     display: inline;
     margin-right: 5px;
+    padding-left: 5px;
 }
 
 /* Different message classes get different side color tags */
@@ -42,7 +43,16 @@
     border-left: 5px solid red;
 }
 
+.messagebus_alert > p:nth-of-type(1) {
+    background-color: #FF5555;
+}
+
 .messagebus_fatal {
     border-left: 5px solid red;
 }
+
+.messagebus_alert > p:nth-of-type(1) {
+    background-color: #FF0000;
+}
+
 
