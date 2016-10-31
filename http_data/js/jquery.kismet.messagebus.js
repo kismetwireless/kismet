@@ -49,38 +49,43 @@
         .done(function(data) {
             last_msg_time = data['kismet_messagebus_timestamp'];
             var divs = $('div.messagebus_message', element);
-            for (var x = 0; 
-                x < data['kismet_messagebus_list'].length &&
-                x < options.max_messages; x++) {
-                    var d = divs.eq(x);
 
-                    // Compute trimmed date
-                    var ds = (new Date(data['kismet_messagebus_list'][x]['kismet_messagebus_message_time'] * 1000).toString()).substring(4, 25);
+            // We should only get items which are new so we merge and then drop
+            data['kismet_messagebus_list'].reverse();
+            $.merge(data['kismet_messagebus_list'], message_list);
 
-                    // Set the HTML
-                    d.html('<p>' + ds + '</p>' +
-                        data['kismet_messagebus_list'][x]['kismet_messagebus_message_string']);
+            message_list = data['kismet_messagebus_list'].slice(0, options.max_messages);
 
-                    // Remove all flagged clases
-                    d.removeClass("messagebus_debug");
-                    d.removeClass("messagebus_info");
-                    d.removeClass("messagebus_error");
-                    d.removeClass("messagebus_alert");
-                    d.removeClass("messagebus_fatal");
+            for (var x = 0; x < message_list.length; x++) {
+                var d = divs.eq(x);
 
-                    var f = data['kismet_messagebus_list'][x]['kismet_messagebus_message_flags'];
+                // Compute trimmed date
+                var ds = (new Date(message_list[x]['kismet_messagebus_message_time'] * 1000).toString()).substring(4, 25);
 
-                    if (f & MSGFLAG_FATAL) {
-                        d.addClass("messagebus_fatal");
-                    } else if (f & MSGFLAG_ALERT) {
-                        d.addClass("messagebus_alert");
-                    } else if (f & MSGFLAG_ERROR) {
-                        d.addClass("messagebus_error");
-                    } else if (f & MSGFLAG_INFO) {
-                        d.addClass("messagebus_info");
-                    } else if (f & MSGFLAG_DEBUG) {
-                        d.addClass("messagebus_debug");
-                    }
+                // Set the HTML
+                d.html('<p>' + ds + '</p>' +
+                    message_list[x]['kismet_messagebus_message_string']);
+
+                // Remove all flagged clases
+                d.removeClass("messagebus_debug");
+                d.removeClass("messagebus_info");
+                d.removeClass("messagebus_error");
+                d.removeClass("messagebus_alert");
+                d.removeClass("messagebus_fatal");
+
+                var f = message_list[x]['kismet_messagebus_message_flags'];
+
+                if (f & MSGFLAG_FATAL) {
+                    d.addClass("messagebus_fatal");
+                } else if (f & MSGFLAG_ALERT) {
+                    d.addClass("messagebus_alert");
+                } else if (f & MSGFLAG_ERROR) {
+                    d.addClass("messagebus_error");
+                } else if (f & MSGFLAG_INFO) {
+                    d.addClass("messagebus_info");
+                } else if (f & MSGFLAG_DEBUG) {
+                    d.addClass("messagebus_debug");
+                }
             }
 
             timerid = setTimeout(messagebus_refresh, 1000);
@@ -111,8 +116,6 @@
                 nremoved++;
             });
         }
-
-        console.log($('div.messagebus_message', this).length);
 
         messagebus_refresh();
     };
