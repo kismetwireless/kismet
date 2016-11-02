@@ -1,4 +1,9 @@
 // Display the messagebus message system from Kismet
+//
+// dragorn@kismetwireless.net
+// MIT/GPL License (pick one); the web ui code is licensed more
+// freely than GPL to reflect the generally MIT-licensed nature
+// of the web/jquery environment
 
 // Options:
 // use_color (bool) (true) - Colorize messages
