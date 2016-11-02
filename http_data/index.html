@@ -118,11 +118,12 @@ $(function() {
     var device_dt = null;
     var dt_base_height = null;
 
-    // Compute 20% height of window
-    var southsize = $(window).height() * 0.20;
+    // Compute 30% height of window
+    var southsize = $(window).height() * 0.30;
     
     // Load the framework
-    $('#panelcontainer').layout({ 
+    var layout = $('#panelcontainer').layout({ 
+        resizeWithWindowDelay:  250,
         north: {
             closable: false,
             resizeable: false,
@@ -144,8 +145,16 @@ $(function() {
         south: {
             // Default to computed percentage of total window
             size: southsize,
+            onresize: function() {
+                $('#southpane-tabs').tabs("refresh");
+            },
         },
     });
+
+    $('#southpane-tabs').tabs({
+        heightStyle: "fill",
+    });
+
 
     // Dynamic load of our plugin js, then continue.  is this the only way to do
     // this?  sure is annoying.
@@ -227,6 +236,9 @@ $(function() {
 
     $('#devices tbody')
         .on( 'mouseenter', 'td', function () {
+            if (typeof(device_dt.cell(this).index()) === 'Undefined')
+                return;
+
             var colIdx = device_dt.cell(this).index().column;
             var rowIdx = device_dt.cell(this).index().row;
 
@@ -262,7 +274,7 @@ $(function() {
     <div id="mainholder">
         <div id="pm_menu" class="pm_hide pm_initial kismet_sidebar">
             <h1>Sidebar</h1>
-            <br>
+            <hr>
             Sidebar menu and actions coming soon
         </div>
 
@@ -291,15 +303,31 @@ $(function() {
             </div>
 
             <div class="ui-layout-south">
-                <div id="messagebus" class="messagebus">
-                    <div class="messagebus_message messagebus_debug">Waiting for server messages...</div>
+                <div id="southpane-tabs" class="tabs-min">
+                    <ul >
+                        <li><a href="#messagebus">Messages</a></li>
+                        <li><a href="#channels">Channels</a></li>
+                        <li><a href="#packets">Packets</a></li>
+                    </ul>
+
+                    <div id="messagebus" class="messagebus">
+                        <div class="messagebus_message messagebus_debug">Waiting for server messages...</div>
+                    </div>
+
+                    <div id="channels">
+                        <p>Channel graph will go here
+                    </div>
+
+                    <div id="packets">
+                        <p>Packet graph will go here
+                    </div>
                 </div>
             </div>
 
         </div>
 
         <div id="creditbar">
-            <p>Powered by many open source JS components, for more info see the <a href="/credit.html">credits page</a>
+            <p>Powered by many open source JS components, for more info see the <a href="/credit.html" target="_new">credits page</a>
         </div>
     </div>
 

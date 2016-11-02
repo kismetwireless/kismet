@@ -1,3 +1,9 @@
+.messagebus {
+    overflow-y: scroll;
+    overflow-x: hidden;
+    padding-bottom: 5px;
+}
+
 /* Basic message formatting */
 .messagebus_message {
     border-top: 1px solid DarkGrey !important;
