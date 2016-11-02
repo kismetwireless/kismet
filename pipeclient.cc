@@ -105,7 +105,7 @@ int PipeClient::Poll(fd_set& in_rset, fd_set& in_wset) {
         if ((ret = read(read_fd, buf, len)) < 0) {
             if (errno != EINTR && errno != EAGAIN) {
                 // Push the error upstream if we failed to read here
-                strerror_r(errno, strerrbuf, 1024);
+                if (strerror_r(errno, strerrbuf, 1024)) { }
                 msg << "Pipe client error reading - " << strerrbuf;
                 handler->BufferError(msg.str());
                 delete[] buf;
@@ -138,7 +138,7 @@ int PipeClient::Poll(fd_set& in_rset, fd_set& in_wset) {
         if ((iret = write(write_fd, buf, len)) < 0) {
             if (errno != EINTR && errno != EAGAIN) {
                 // Push the error upstream
-                strerror_r(errno, strerrbuf, 1024);
+                if (strerror_r(errno, strerrbuf, 1024)) { }
                 msg << "Pipe client error writing - " << strerrbuf;
                 handler->BufferError(msg.str());
                 delete[] buf;

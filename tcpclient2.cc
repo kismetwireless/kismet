@@ -73,7 +73,7 @@ int TcpClientV2::Connect(string in_host, unsigned int in_port) {
     client_sock.sin_port = htons(in_port);
 
     if ((cli_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-        strerror_r(errno, strerrbuf, 1024);
+        if (strerror_r(errno, strerrbuf, 1024)) { }
         msg << "TCP client could not connect to " << in_host << ":" << in_port <<
             " - " << strerrbuf;
         _MSG(msg.str(), MSGFLAG_ERROR);
@@ -87,7 +87,7 @@ int TcpClientV2::Connect(string in_host, unsigned int in_port) {
     local_sock.sin_port = htons(0);
 
     if (::bind(cli_fd, (struct sockaddr *) &local_sock, sizeof(local_sock)) < 0) {
-        strerror_r(errno, strerrbuf, 1024);
+        if (strerror_r(errno, strerrbuf, 1024)) { }
         msg << "TCP client could not connect to " << in_host << ":" << in_port <<
             " - " << strerrbuf;
         _MSG(msg.str(), MSGFLAG_ERROR);
@@ -111,7 +111,7 @@ int TcpClientV2::Connect(string in_host, unsigned int in_port) {
             connected = false;
             pending_connect = false;
 
-            strerror_r(errno, strerrbuf, 1024);
+            if (strerror_r(errno, strerrbuf, 1024)) { }
             msg << "TCP client could not connect to " << in_host << ":" << in_port <<
                 " - " << strerrbuf;
             _MSG(msg.str(), MSGFLAG_ERROR);
@@ -180,7 +180,7 @@ int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
             r = getsockopt(cli_fd, SOL_SOCKET, SO_ERROR, &e, &l);
 
             if (r < 0 || e != 0) {
-                strerror_r(errno, strerrbuf, 1024);
+                if (strerror_r(errno, strerrbuf, 1024)) { }
                 msg << "TCP client could not connect to " << host << ":" << port <<
                     " - " << strerrbuf;
                 _MSG(msg.str(), MSGFLAG_ERROR);
@@ -216,7 +216,7 @@ int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
         if ((ret = read(cli_fd, buf, len)) < 0) {
             if (errno != EINTR && errno != EAGAIN) {
                 // Push the error upstream if we failed to read here
-                strerror_r(errno, strerrbuf, 1024);
+                if (strerror_r(errno, strerrbuf, 1024)) { }
                 msg << "TCP client error reading from " << host << ":" << port << 
                     " - " << strerrbuf;
                 handler->BufferError(msg.str());
@@ -250,7 +250,7 @@ int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
         if ((iret = write(cli_fd, buf, len)) < 0) {
             if (errno != EINTR && errno != EAGAIN) {
                 // Push the error upstream
-                strerror_r(errno, strerrbuf, 1024);
+                if (strerror_r(errno, strerrbuf, 1024)) { }
                 msg << "TCP client error writing to " << host << ":" << port << 
                     " - " << strerrbuf;
                 handler->BufferError(msg.str());
