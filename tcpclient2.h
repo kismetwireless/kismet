@@ -69,8 +69,6 @@ protected:
 
     // strerror_r buffers
     char strerrbuf[1024];
-    char *errstr;
-
 };
 
 #endif
