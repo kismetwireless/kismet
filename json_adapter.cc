@@ -196,7 +196,7 @@ void JsonAdapter::Pack(GlobalRegistry *globalreg, std::stringstream &stream,
             for (double_map_iter = tdoublemap->begin();
                     double_map_iter != tdoublemap->end(); /* */) {
                 // Double keys are handled as strings in json
-                stream << "\"" << double_map_iter->first << "\": ";
+                stream << "\"" << fixed << double_map_iter->first << "\": ";
                 JsonAdapter::Pack(globalreg, stream, double_map_iter->second);
                 if (++double_map_iter != tdoublemap->end())
                     stream << ",";
