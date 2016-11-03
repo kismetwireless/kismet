@@ -192,6 +192,10 @@ void FatalQueueMessageClient::ProcessMessage(string in_msg, int in_flags) {
 	} else if (in_flags & MSGFLAG_FATAL) {
 		fatalqueue.push_back("FATAL: " + in_msg);
 	}
+
+    if (fatalqueue.size() > 50) {
+        fatalqueue.erase(fatalqueue.begin(), fatalqueue.begin() + (fatalqueue.size() - 50));
+    }
 }
 
 void FatalQueueMessageClient::DumpFatals() {
