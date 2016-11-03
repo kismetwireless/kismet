@@ -29,8 +29,8 @@
 
             for (var fk in data['kismet_channeltracker_frequency_map']) {
                 var slot_now =
-                    data['kismet_channeltracker_frequency_map'][fk]['kismet_channelrec_packets_rrd']['kismet_common_rrd_last_time'] % 60;
-                var dev_now = data['kismet_channeltracker_frequency_map'][fk]['kismet_channelrec_packets_rrd']['kismet_common_rrd_minute_vec'][slot_now];
+                    data['kismet_channeltracker_frequency_map'][fk]['kismet_channelrec_device_rrd']['kismet_common_rrd_last_time'] % 60;
+                var dev_now = data['kismet_channeltracker_frequency_map'][fk]['kismet_channelrec_device_rrd']['kismet_common_rrd_minute_vec'][slot_now];
 
                 devtitles.push(kismet.HumanReadableFrequency(parseInt(fk)));
                 // devnums.push(dev_now + Math.random() * 100);
