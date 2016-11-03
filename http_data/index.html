@@ -24,6 +24,7 @@
 
 <script src="/js/jquery.kismet.devicedata.js"></script>
 <script src="/js/jquery.kismet.messagebus.js"></script>
+<script src="/js/jquery.kismet.channeldisplay.js"></script>
 
 <script src="/js/raphael.min.js"></script>
 <script src="/js/morris.min.js"></script>
@@ -31,6 +32,8 @@
 <script src="/js/jquery.layout-latest.js"></script>
 
 <script src="/js/pushmenu.js"></script>
+
+<script src="/js/Chart.bundle.min.js"></script>
 
 <link rel="stylesheet" href="/css/font-awesome.min.css">
 
@@ -44,6 +47,7 @@
 <link rel="stylesheet" type="text/css" href="/css/pushmenu.css" />
 
 <link rel="stylesheet" href="/css/jquery.kismet.messagebus.css" />
+<link rel="stylesheet" href="/css/jquery.kismet.channeldisplay.css" />
 
 <link rel="stylesheet" type="text/css" href="css/reset.css" />
 <link rel="stylesheet" type="text/css" href="css/text.css" /> 
@@ -264,6 +268,8 @@ $(function() {
 
     $('#messagebus').messagebus();
 
+    $('#channels').channels();
+
 }); // when
 
 }); // onload
@@ -314,8 +320,8 @@ $(function() {
                         <div class="messagebus_message messagebus_debug">Waiting for server messages...</div>
                     </div>
 
-                    <div id="channels">
-                        <p>Channel graph will go here
+                    <div id="channels"> 
+                        <i>Channel graph loading</i>
                     </div>
 
                     <div id="packets">
