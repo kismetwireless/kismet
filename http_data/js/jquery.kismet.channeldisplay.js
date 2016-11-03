@@ -36,7 +36,9 @@
                 // devnums.push(dev_now + Math.random() * 100);
                 devnums.push(dev_now);
 
-                if (dev_now > maxdev)
+                console.log(dev_now);
+
+                if (maxdev < dev_now)
                     maxdev = dev_now;
             }
 
@@ -89,7 +91,7 @@
                 devgraph_chart.update();
             }
 
-            timerid = setTimeout(channeldisplay_refresh, 1000);
+            timerid = setTimeout(channeldisplay_refresh, 5000);
         });
     };
 

@@ -29,17 +29,18 @@
 #include "kis_net_microhttpd.h"
 #include "devicetracker_component.h"
 #include "packetchain.h"
+#include "timetracker.h"
 
 // Can appear in the list as either a numerical frequency or a named
 // channel
-class Channeltracker_V2_Channel : public tracker_component, public LifetimeGlobal {
+class Channeltracker_V2_Channel : public tracker_component {
 public:
     Channeltracker_V2_Channel(GlobalRegistry *in_globalreg, int in_id) :
         tracker_component(in_globalreg, in_id) { 
         register_fields();
         reserve_fields(NULL);
 
-        last_device_sec = 0;
+        // last_device_sec = 0;
     }
 
     Channeltracker_V2_Channel(GlobalRegistry *in_globalreg, 
@@ -49,7 +50,7 @@ public:
         register_fields();
         reserve_fields(e);
 
-        last_device_sec = 0;
+        // last_device_sec = 0;
     }
 
     virtual TrackerElement *clone_type() {
@@ -67,13 +68,16 @@ public:
 
     __ProxyTrackable(signal_data, kis_tracked_signal_data, signal_data);
 
+    /*
     // C++-domain map of devices we've seen in the last second for computing if we
     // increase the RRD record
     map<mac_addr, bool> seen_device_map;
     time_t last_device_sec;
-
+    */
 
 protected:
+    // Timer for updating the device list
+    int timer_id;
 
     virtual void register_fields() {
         tracker_component::register_fields();
@@ -179,7 +183,8 @@ protected:
 
 };
 
-class Channeltracker_V2 : public tracker_component, public Kis_Net_Httpd_Stream_Handler {
+class Channeltracker_V2 : public tracker_component, public Kis_Net_Httpd_Stream_Handler,
+    public LifetimeGlobal, public TimetrackerEvent {
 public:
     Channeltracker_V2(GlobalRegistry *in_globalreg);
     virtual ~Channeltracker_V2();
@@ -191,6 +196,12 @@ public:
             struct MHD_Connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size, std::stringstream &stream);
+
+    // Timetracker API
+    virtual int timetracker_event(int event_id);
+
+    // Update device counts
+    void update_device_counts(map<double, unsigned int> in_counts);
 
 protected:
     // Packetchain callback
@@ -213,6 +224,7 @@ protected:
 
     int pack_comp_l1data, pack_comp_devinfo, pack_comp_common, pack_comp_device;
 
+    int timer_id;
 };
 
 #endif

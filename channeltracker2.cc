@@ -47,12 +47,14 @@ Channeltracker_V2::Channeltracker_V2(GlobalRegistry *in_globalreg) :
 	pack_comp_l1data = 
 		globalreg->packetchain->RegisterPacketComponent("RADIODATA");
 
+    timer_id = 
+        globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1, this);
 }
 
 Channeltracker_V2::~Channeltracker_V2() {
-    globalreg->RemoveGlobal("CHANNEL_TRACKER");
+    globalreg->timetracker->RemoveTimer(timer_id);
     globalreg->packetchain->RemoveHandler(&PacketChainHandler, CHAINPOS_LOGGING);
-    fprintf(stderr, "debug: channeltracker freed\n");
+    globalreg->RemoveGlobal("CHANNEL_TRACKER");
 }
 
 void Channeltracker_V2::register_fields() {
@@ -106,6 +108,72 @@ void Channeltracker_V2::Httpd_CreateStreamResponse(
     if (strcmp(path, "/channels/channels.json") == 0) {
         JsonAdapter::Pack(globalreg, stream, this);
         return;
+    }
+}
+
+class channeltracker_v2_device_worker : public DevicetrackerFilterWorker {
+public:
+    channeltracker_v2_device_worker(GlobalRegistry *in_globalreg,
+            Channeltracker_V2 *channelv2) {
+        globalreg = in_globalreg;
+        this->channelv2 = channelv2;
+    }
+
+    virtual ~channeltracker_v2_device_worker() {
+
+    }
+
+    // Count all the devices.  We use a filter worker but 'match' on all
+    // and count them into our local map
+    virtual void MatchDevice(Devicetracker *devicetracker __attribute__((unused)),
+            kis_tracked_device_base *device) {
+        if (device == NULL)
+            return;
+
+        map<double, unsigned int>::iterator i =
+            device_count.find(device->get_frequency());
+
+        if (i != device_count.end()) {
+            i->second++;
+        } else {
+            device_count[device->get_frequency()] = 1;
+        }
+    }
+
+    // Send it back to our channel tracker
+    virtual void Finalize(Devicetracker *devicetracker __attribute__((unused))) {
+        channelv2->update_device_counts(device_count);
+    }
+
+protected:
+    GlobalRegistry *globalreg;
+    Channeltracker_V2 *channelv2;
+
+    map<double, unsigned int> device_count;
+
+};
+
+
+int Channeltracker_V2::timetracker_event(int event_id __attribute__((unused))) {
+    channeltracker_v2_device_worker worker(globalreg, this);
+    globalreg->devicetracker->MatchOnDevices(&worker);
+    return 1;
+}
+
+void Channeltracker_V2::update_device_counts(map<double, unsigned int> in_counts) {
+    for (map<double, unsigned int>::iterator i = in_counts.begin();
+            i != in_counts.end(); ++i) {
+
+        TrackerElement::double_map_iterator imi =
+            frequency_map->double_find(i->first);
+
+        // If we can't find the device, skip it
+        if (imi == frequency_map->double_end())
+            continue;
+
+        // Update the device RRD for the count
+        ((Channeltracker_V2_Channel *) imi->second)->get_device_rrd()->add_sample(
+                i->second, globalreg->timestamp.tv_sec);
     }
 }
 
@@ -171,18 +239,24 @@ int Channeltracker_V2::PacketChainHandler(CHAINCALL_PARMS) {
         if (common != NULL) {
             freq_channel->get_data_rrd()->add_sample(common->datasize,
                     cv2->globalreg->timestamp.tv_sec);
+            /*
             freq_channel->seen_device_map[common->device] = true;
+            */
         }
 
+        /*
         // Track unique devices
         if (globalreg->timestamp.tv_sec != freq_channel->last_device_sec) {
             freq_channel->last_device_sec = globalreg->timestamp.tv_sec;
             freq_channel->seen_device_map.clear();
         }
+        */
 
+        /*
         freq_channel->get_device_rrd()->add_sample(
                 freq_channel->seen_device_map.size(),
                 globalreg->timestamp.tv_sec);
+                */
 
     }
 
@@ -196,17 +270,21 @@ int Channeltracker_V2::PacketChainHandler(CHAINCALL_PARMS) {
                     cv2->globalreg->timestamp.tv_sec);
         }
 
+        /*
         // Track unique devices
         if (globalreg->timestamp.tv_sec != chan_channel->last_device_sec) {
             chan_channel->last_device_sec = globalreg->timestamp.tv_sec;
             chan_channel->seen_device_map.clear();
         }
+        */
 
+        /*
         chan_channel->seen_device_map[common->device] = true;
 
         chan_channel->get_device_rrd()->add_sample(
                 chan_channel->seen_device_map.size(),
                 globalreg->timestamp.tv_sec);
+                */
     }
 
     return 1;
