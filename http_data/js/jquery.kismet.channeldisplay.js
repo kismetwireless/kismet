@@ -62,7 +62,6 @@
                         scales: {
                             yAxes: [{
                                 ticks: {
-                                    max: parseInt(maxdev * 1.25),
                                     min: 0,
                                 }
                             }],
