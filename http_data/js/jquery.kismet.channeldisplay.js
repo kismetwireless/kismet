@@ -79,6 +79,7 @@
                         datasets: [
                             {
                                 label: "Devices per Channel",
+                                backgroundColor: 'rgba(200, 200, 200, 1)',
                                 data: devnums,
                                 borderWidth: 1,
                             }
