@@ -20,7 +20,14 @@
 
     var devgraph_chart = null;
 
+    var visible = false;
+
     var channeldisplay_refresh = function() {
+        if (element.is(':hidden')) {
+            timerid = -1;
+            return;
+        }
+
         $.get("/channels/channels.json")
         .done(function(data) {
             var devtitles = new Array();
@@ -36,8 +43,6 @@
                 // devnums.push(dev_now + Math.random() * 100);
                 devnums.push(dev_now);
 
-                console.log(dev_now);
-
                 if (maxdev < dev_now)
                     maxdev = dev_now;
             }
@@ -52,7 +57,6 @@
                     "class": "k_cd_dg",
                     "width": "100%",
                     "height": "100%",
-
                 });
 
                 element.append(devgraph_canvas);
@@ -98,9 +102,7 @@
     $.fn.channels = function(data, inopt) {
         element = $(this);
 
-        element.bind('resize', function(e) {
-            console.log("channels div resize");
-        });
+        visible = element.is(":visible");
 
         if (typeof(inopt) === "string") {
 
@@ -108,7 +110,27 @@
             options = $.extend(base_options, inopt);
         }
 
-        channeldisplay_refresh();
+        // Hook an observer to see when we become visible
+        var observer = new MutationObserver(function(mutations) {
+            if (element.is(":hidden") && timerid >= 0) {
+                console.log("not visible, cancelling timer");
+                visible = false;
+                clearTimeout(timerid);
+            } else if (element.is(":visible") && !visible) {
+                console.log("now visible, starting timer");
+                visible = true;
+                channeldisplay_refresh();
+            }
+        });
+
+        observer.observe(element[0], {
+            attributes: true
+        });
+
+        if (visible) {
+            channeldisplay_refresh();
+        }
+
     };
 
 }(jQuery));
