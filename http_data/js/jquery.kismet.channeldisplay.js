@@ -68,7 +68,7 @@
                         scales: {
                             yAxes: [{
                                 ticks: {
-                                    min: 0,
+                                    beginAtZero: true,
                                 }
                             }],
                         },
@@ -79,7 +79,7 @@
                         datasets: [
                             {
                                 label: "Devices per Channel",
-                                backgroundColor: 'rgba(200, 200, 200, 1)',
+                                backgroundColor: 'rgba(230, 230, 230, 1)',
                                 data: devnums,
                                 borderWidth: 1,
                             }
