@@ -798,6 +798,7 @@ public:
         tracker_component(in_globalreg, in_id) {
         register_fields();
         reserve_fields(NULL);
+        update_first = true;
     }
 
     kis_tracked_rrd(GlobalRegistry *in_globalreg, int in_id, TrackerElement *e) :
@@ -805,10 +806,21 @@ public:
 
         register_fields();
         reserve_fields(e);
+        update_first = true;
     }
 
     virtual TrackerElement *clone_type() {
         return new kis_tracked_rrd<IC, ET>(globalreg, get_id());
+    }
+
+    // By default a RRD will fast forward to the current time before
+    // transmission (this is desirable for RRD records that may not be
+    // routinely updated, like records tracking activity on a specific 
+    // device).  For records which are updated on a timer and the most
+    // recently used value accessed (like devices per frequency) turning
+    // this off may produce better results.
+    void update_before_serialzie(bool in_upd) {
+        update_first = in_upd;
     }
 
     __Proxy(last_time, uint64_t, time_t, time_t, last_time);
@@ -1038,7 +1050,9 @@ public:
 
         // printf("debug - rrd - preserialize\n");
         // Update the averages
-        add_sample(0, globalreg->timestamp.tv_sec);
+        if (update_first) {
+            add_sample(0, globalreg->timestamp.tv_sec);
+        }
     }
 
 protected:
@@ -1148,6 +1162,8 @@ protected:
     int second_entry_id;
     int minute_entry_id;
     int hour_entry_id;
+
+    bool update_first;
 };
 
 #endif

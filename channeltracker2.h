@@ -154,6 +154,9 @@ protected:
             add_map(signal_data);
         }
 
+        // Don't fast-forward the device RRD
+        device_rrd->update_before_serialzie(false);
+
     }
 
     // Channel, as string - Logical channels
