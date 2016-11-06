@@ -39,7 +39,13 @@
                     (data['kismet_channeltracker_frequency_map'][fk]['kismet_channelrec_device_rrd']['kismet_common_rrd_last_time'] - 1) % 60;
                 var dev_now = data['kismet_channeltracker_frequency_map'][fk]['kismet_channelrec_device_rrd']['kismet_common_rrd_minute_vec'][slot_now];
 
-                devtitles.push(kismet.HumanReadableFrequency(parseInt(fk)));
+                cfk = kismet_ui.GetConvertedChannel("IEEE 802.11", fk);
+
+                if (cfk == fk) 
+                    devtitles.push(kismet.HumanReadableFrequency(parseInt(fk)));
+                else
+                    devtitles.push(cfk);
+
                 // devnums.push(dev_now + Math.random() * 100);
                 devnums.push(dev_now);
 

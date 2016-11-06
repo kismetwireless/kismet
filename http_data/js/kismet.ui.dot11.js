@@ -124,9 +124,25 @@ exports.CryptToHumanReadable = function(cryptset) {
     return ret.join(" ");
 };
 
+kismet_ui.AddChannelList("IEEE 802.11", function(in_freq) {
+    in_freq = parseInt(in_freq / 1000);
+
+    if (in_freq == 2484)
+        return 14;
+    else if (in_freq < 2484)
+        return (in_freq - 2407) / 5;
+    else if (in_freq >= 4910 && in_freq <= 4980)
+        return (in_freq - 4000) / 5;
+    else if (in_freq <= 45000)
+        return (in_freq - 5000) / 5;
+    else if (in_freq >= 58320 && in_freq <= 64800)
+        return (in_freq - 56160) / 2160;
+    else
+        return in_freq;
+});
+
 /* Define some callback functions for the table */
 
-console.log("adding device detail 'dot11'");
 kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
     draw: function(data, target) {
         target.devicedata(data, {

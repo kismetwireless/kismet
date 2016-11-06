@@ -297,6 +297,31 @@ exports.RenderHumanSize = function(opts) {
     return kismet.HumanReadableSize(opts['value']);
 };
 
+// Central location to register channel conversion lists.  Conversion can
+// be a function or a fixed dictionary.
+exports.freq_channel_list = { };
+
+exports.AddChannelList = function(phyname, channellist) {
+    exports.freq_channel_list[phyname] = channellist;
+}
+
+exports.GetConvertedChannel = function(phyname, frequency) {
+    if (phyname in exports.freq_channel_list) {
+        var conv = exports.freq_channel_list[phyname];
+
+        if (typeof(conv) === "function") {
+            // Call the conversion function if one exists
+            return conv(frequency);
+        } else if (frequency in conv) {
+            // Return the mapped value
+            return conv[frequency];
+        }
+    }
+
+    // Return the frequency if we couldn't figure out what to do
+    return frequency;
+}
+
 return exports;
 
 });
