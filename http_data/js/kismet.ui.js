@@ -305,6 +305,12 @@ exports.AddChannelList = function(phyname, channellist) {
     exports.freq_channel_list[phyname] = channellist;
 }
 
+// Get a list of frequency conversions
+exports.GetChannelListKeys = function() {
+    return Object.keys(exports.freq_channel_list);
+}
+
+// Get a converted channel name, or the raw frequency if we can't help
 exports.GetConvertedChannel = function(phyname, frequency) {
     if (phyname in exports.freq_channel_list) {
         var conv = exports.freq_channel_list[phyname];

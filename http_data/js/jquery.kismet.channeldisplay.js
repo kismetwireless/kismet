@@ -19,10 +19,14 @@
     var timerid = -1;
 
     var devgraph_chart = null;
+    var picker = null;
+    var coming_soon = null;
 
     var visible = false;
 
     var channeldisplay_refresh = function() {
+        clearTimeout(timerid);
+
         if (element.is(':hidden')) {
             timerid = -1;
             return;
@@ -34,12 +38,14 @@
             var devnums = new Array();
             var maxdev = 0;
 
+            var freqtrans = $('select#k_cd_freq_selector option:selected', element).val();
+
             for (var fk in data['kismet_channeltracker_frequency_map']) {
                 var slot_now =
                     (data['kismet_channeltracker_frequency_map'][fk]['kismet_channelrec_device_rrd']['kismet_common_rrd_last_time'] - 1) % 60;
                 var dev_now = data['kismet_channeltracker_frequency_map'][fk]['kismet_channelrec_device_rrd']['kismet_common_rrd_minute_vec'][slot_now];
 
-                cfk = kismet_ui.GetConvertedChannel("IEEE 802.11", fk);
+                cfk = kismet_ui.GetConvertedChannel(freqtrans, fk);
 
                 if (cfk == fk) 
                     devtitles.push(kismet.HumanReadableFrequency(parseInt(fk)));
@@ -57,15 +63,7 @@
                 maxdev = 5;
 
             if (devgraph_chart == null) {
-                element.html("");
-
-                devgraph_canvas = $('<canvas>', {
-                    "class": "k_cd_dg",
-                    "width": "100%",
-                    "height": "100%",
-                });
-
-                element.append(devgraph_canvas);
+                coming_soon.hide();
 
                 var device_options = {
                     options: {
@@ -117,14 +115,63 @@
             options = $.extend(base_options, inopt);
         }
 
+        if (picker == null) {
+            picker = $('<div>', {
+                "id": "picker",
+                "class": "k_cd_picker",
+            });
+
+            var sel = $('<select>', {
+                "id": "k_cd_freq_selector",
+                class: "k_cd_list",
+            });
+
+            picker.append(sel);
+
+            var chlist = new Array();
+            chlist.push("Frequency");
+
+            chlist = chlist.concat(kismet_ui.GetChannelListKeys());
+
+            for (var c in chlist) {
+                var e = $('<option>', {
+                    "value": chlist[c], 
+                });
+                e.html(chlist[c]);
+
+                sel.append(e);
+            }
+
+            element.append(picker);
+        }
+
+        picker.on('change', function() {
+            channeldisplay_refresh();
+        });
+
+        devgraph_canvas = $('<canvas>', {
+            "class": "k_cd_dg",
+            "width": "100%",
+            "height": "100%",
+        });
+
+        element.append(devgraph_canvas);
+
+        // Add a 'coming soon' item
+        if (coming_soon == null)  {
+            coming_soon = $('<i>', {
+                "id": "coming_soon",
+            });
+            coming_soon.html("Channel data loading...");
+            element.append(coming_soon);
+        }
+
         // Hook an observer to see when we become visible
         var observer = new MutationObserver(function(mutations) {
             if (element.is(":hidden") && timerid >= 0) {
-                console.log("not visible, cancelling timer");
                 visible = false;
                 clearTimeout(timerid);
             } else if (element.is(":visible") && !visible) {
-                console.log("now visible, starting timer");
                 visible = true;
                 channeldisplay_refresh();
             }

@@ -1,6 +1,14 @@
 #channels {
     overflow: hidden !important;
+    position: relative;
     width=100%;
     height=100%;
+}
+
+.k_cd_picker {
+    position: absolute;
+    right: 10px;
+    top: 10px;
+    z-index: 100;
 }
 
