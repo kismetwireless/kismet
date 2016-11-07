@@ -165,6 +165,8 @@ int Channeltracker_V2::timetracker_event(int event_id __attribute__((unused))) {
 
 void Channeltracker_V2::update_device_counts(map<double, unsigned int> in_counts) {
     local_locker locker(&lock);
+    time_t ts = globalreg->timestamp.tv_sec;
+
     for (map<double, unsigned int>::iterator i = in_counts.begin();
             i != in_counts.end(); ++i) {
 
@@ -177,7 +179,7 @@ void Channeltracker_V2::update_device_counts(map<double, unsigned int> in_counts
 
         // Update the device RRD for the count
         ((Channeltracker_V2_Channel *) imi->second)->get_device_rrd()->add_sample(
-                i->second, globalreg->timestamp.tv_sec);
+                i->second, ts);
     }
 }
 
