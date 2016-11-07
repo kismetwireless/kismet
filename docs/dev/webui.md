@@ -213,3 +213,46 @@ foo.on('click', 'div', function() {
     kismet_ui.DeviceDetailWindow(somekey);
 });
 ```
+
+## Channels
+
+Sometimes Kismet needs to display information by frequency - most notably, in the
+"Channels" display of devices per frequency.
+
+Each phy can provide a custom frequency to channel transform which the user can select.
+
+This is done via the `kismet_ui.AddChannelList(name, list)` function.  The `list` argument can be either a dictionary of `{ frequency: channelname }` pairs, or a function taking the frequency as an argument and returning the channel.
+
+For example:
+
+```javascript
+kismet_ui.AddChannelList("RTL 433", {
+    433.00, "433 ISM",
+    433.10, "Channel 1",
+});
+```
+
+or the more complex transform used for Wi-Fi, where the frequency passed through
+a conversion function:
+
+```javascript
+kismet_ui.AddChannelList("Wi-Fi (802.11)", function(in_freq) {
+    in_freq = parseInt(in_freq / 1000);
+
+    if (in_freq == 2484)
+        return 14;
+    else if (in_freq < 2484)
+        return (in_freq - 2407) / 5;
+    else if (in_freq >= 4910 && in_freq <= 4980)
+        return (in_freq - 4000) / 5;
+    else if (in_freq <= 45000)
+        return (in_freq - 5000) / 5;
+    else if (in_freq >= 58320 && in_freq <= 64800)
+        return (in_freq - 56160) / 2160;
+    else
+        return in_freq;
+});
+```
+
+When using conversion functions, always return the unmodified frequency if no conversion can be found - often devices can be mixed from multiple phy types and frequencies which do not correspond to any known channel may be passed to your conversion function.
+
