@@ -207,6 +207,8 @@ public:
     void update_device_counts(map<double, unsigned int> in_counts);
 
 protected:
+    pthread_mutex_t lock;
+
     // Packetchain callback
     static int PacketChainHandler(CHAINCALL_PARMS);
 

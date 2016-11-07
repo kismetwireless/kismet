@@ -49,12 +49,15 @@ Channeltracker_V2::Channeltracker_V2(GlobalRegistry *in_globalreg) :
 
     timer_id = 
         globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1, this);
+
+    pthread_mutex_init(&lock, NULL);
 }
 
 Channeltracker_V2::~Channeltracker_V2() {
     globalreg->timetracker->RemoveTimer(timer_id);
     globalreg->packetchain->RemoveHandler(&PacketChainHandler, CHAINPOS_LOGGING);
     globalreg->RemoveGlobal("CHANNEL_TRACKER");
+    pthread_mutex_destroy(&lock);
 }
 
 void Channeltracker_V2::register_fields() {
@@ -161,6 +164,7 @@ int Channeltracker_V2::timetracker_event(int event_id __attribute__((unused))) {
 }
 
 void Channeltracker_V2::update_device_counts(map<double, unsigned int> in_counts) {
+    local_locker locker(&lock);
     for (map<double, unsigned int>::iterator i = in_counts.begin();
             i != in_counts.end(); ++i) {
 
@@ -180,12 +184,10 @@ void Channeltracker_V2::update_device_counts(map<double, unsigned int> in_counts
 int Channeltracker_V2::PacketChainHandler(CHAINCALL_PARMS) {
     Channeltracker_V2 *cv2 = (Channeltracker_V2 *) auxdata;
 
+    local_locker locker(&(cv2->lock));
+
     kis_layer1_packinfo *l1info =
         (kis_layer1_packinfo *) in_pack->fetch(cv2->pack_comp_l1data);
-    /*
-	kis_tracked_device_info *devinfo = 
-		(kis_tracked_device_info *) in_pack->fetch(cv2->pack_comp_device);
-    */
 	kis_common_info *common = 
 		(kis_common_info *) in_pack->fetch(cv2->pack_comp_common);
 
