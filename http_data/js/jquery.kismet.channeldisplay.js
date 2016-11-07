@@ -42,7 +42,7 @@
 
             for (var fk in data['kismet_channeltracker_frequency_map']) {
                 var slot_now =
-                    (data['kismet_channeltracker_frequency_map'][fk]['kismet_channelrec_device_rrd']['kismet_common_rrd_last_time'] - 1) % 60;
+                    (data['kismet_channeltracker_frequency_map'][fk]['kismet_channelrec_device_rrd']['kismet_common_rrd_last_time']) % 60;
                 var dev_now = data['kismet_channeltracker_frequency_map'][fk]['kismet_channelrec_device_rrd']['kismet_common_rrd_minute_vec'][slot_now];
 
                 cfk = kismet_ui.GetConvertedChannel(freqtrans, fk);
