@@ -219,7 +219,7 @@ foo.on('click', 'div', function() {
 Sometimes Kismet needs to display information by frequency - most notably, in the
 "Channels" display of devices per frequency.
 
-Each phy can provide a custom frequency to channel transform which the user can select.
+Each plugin can provide a custom frequency to channel transform.  Displays like the devices-per-frequency graph can present a selection option to the user.
 
 This is done via the `kismet_ui.AddChannelList(name, list)` function.  The `list` argument can be either a dictionary of `{ frequency: channelname }` pairs, or a function taking the frequency as an argument and returning the channel.
 
@@ -254,5 +254,5 @@ kismet_ui.AddChannelList("Wi-Fi (802.11)", function(in_freq) {
 });
 ```
 
-When using conversion functions, always return the unmodified frequency if no conversion can be found - often devices can be mixed from multiple phy types and frequencies which do not correspond to any known channel may be passed to your conversion function.
+When using conversion functions, always return the unmodified frequency if no conversion can be found - often devices can be mixed from multiple plugins and frequencies which do not correspond to any known channel may be passed to your conversion function.
 
