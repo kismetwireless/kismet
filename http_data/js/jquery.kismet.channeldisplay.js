@@ -162,7 +162,7 @@
                     timegraph_chart.data.datasets = datasets;
                     timegraph_chart.data.labels = pointtitles;
 
-                    timegraph_chart.update();
+                    timegraph_chart.update(0);
                 }
             } else {
                 // 'now', but default - if for some reason we didn't get a
