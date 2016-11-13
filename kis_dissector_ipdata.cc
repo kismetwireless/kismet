@@ -550,7 +550,7 @@ int Kis_Dissector_IPdata::HandlePacket(kis_packet *in_pack) {
 				goto mdns_end;
 
 			// printf("debug - mdns - looking at %u answers\n", answer_rr + auth_rr + additional_rr);
-			for (unsigned int a = 0; a < (answer_rr + auth_rr + additional_rr); a++) {
+			for (uint32_t a = 0; a < (uint32_t) (answer_rr + auth_rr + additional_rr); a++) {
 				int retbytes;
 
 				mdns_name = MDNS_Fetchname(chunk, mdns_start, offt, &mdns_cache, &retbytes);

@@ -959,7 +959,6 @@ int RootIPCRemote::SendDescriptor(int in_fd) {
 	struct msghdr msg;
 	struct iovec vec[1];
 	cmsg_fd cm;
-	struct msghdr m;
 	char str[1] = {'x'};
 
 	/* we have to send at least one byte */
@@ -974,8 +973,6 @@ int RootIPCRemote::SendDescriptor(int in_fd) {
 
 	msg.msg_control = &cm;
 	msg.msg_controllen = sizeof(cm);
-
-	m.msg_flags = 0;
 
 	cm.header.cmsg_len = sizeof(cm);
 	cm.header.cmsg_level = SOL_SOCKET;

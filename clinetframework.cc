@@ -139,13 +139,14 @@ int NetworkClient::Poll(fd_set& in_rset, fd_set& in_wset) {
 
     // Look for stuff to write
     if (FD_ISSET(cli_fd, &in_wset)) {
-		// fprintf(stderr, "debug - %d poll looks like something to write\n", cli_fd);
+        // fprintf(stderr, "debug - %d poll looks like something to write\n", cli_fd);
         // If we can't write data, die.
-        if ((ret = WriteBytes()) < 0)
+        if ((ret = WriteBytes()) < 0) {
             KillConnection();
             return ret;
+        }
     }
-    
+
     return ret;
 }
 
@@ -211,7 +212,7 @@ void NetworkClient::KillConnection() {
     if (cli_fd >= 0)
         close(cli_fd);
 
-	cli_fd = -1;
+    cli_fd = -1;
 
     cl_valid = 0;
 

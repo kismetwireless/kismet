@@ -2106,9 +2106,6 @@ int Kis_80211_Phy::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind
 
     bool handled = false;
 
-    bool use_msgpack = false;
-    bool use_json = false;
-
     if (concls->url == "/phy/phy80211/ssid_regex.cmd" &&
             strcmp(key, "msgpack") == 0 && size > 0) {
 #ifdef HAVE_LIBPCRE

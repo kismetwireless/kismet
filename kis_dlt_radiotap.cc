@@ -445,7 +445,7 @@ int Kis_DLT_Radiotap::HandlePacket(kis_packet *in_pack) {
     if (fcschunk != NULL && fcschunk->checksum_valid == 0)
         in_pack->error = 1;
 
-	return 1;
+    return 1;
 }
 #undef BITNO_32
 #undef BITNO_16

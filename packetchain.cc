@@ -205,9 +205,10 @@ int Packetchain::ProcessPacket(kis_packet *in_pack) {
         (*(pcl->callback))(globalreg, pcl->auxdata, in_pack);
 
     for (unsigned int x = 0; x < logging_chain.size() && 
-		 (pcl = logging_chain[x]); x++)
+            (pcl = logging_chain[x]); x++)
         (*(pcl->callback))(globalreg, pcl->auxdata, in_pack);
-	pthread_mutex_unlock(&packetchain_mutex);
+
+    pthread_mutex_unlock(&packetchain_mutex);
 
     DestroyPacket(in_pack);
 
