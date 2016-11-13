@@ -367,10 +367,12 @@ exports.RecalcRrdData = function(start, now, type, data, opt) {
         // when we fall into the blank spot between 'start' and 'now' when we
         // know we received no data
         for (var ri = 0; ri < rrd_len; ri++) {
-            if (ri >= start_bin && ri < now_bin)
+            var slot = (now_bin + ri) % rrd_len;
+
+            if (slot >= start_bin && slot < now_bin)
                 adj_data.push(0);
             else
-                adj_data.push(data[(now_bin + ri) % rrd_len]);
+                adj_data.push(data[slot]);
         }
     }
 
