@@ -99,6 +99,9 @@
 
                 }
 
+                // Position in the color map
+                var colorpos = 0;
+                var nkeys = Object.keys(data['kismet_channeltracker_frequency_map']).length;
                 for (var fk in data['kismet_channeltracker_frequency_map']) {
                     var linedata = 
                         kismet.RecalcRrdData(
@@ -120,12 +123,17 @@
                     else
                         label = cfk;
 
+                    // Rotate through the color wheel
+                    var color = 255 * (colorpos / nkeys);
+                    colorpos++;
+
                     // Build the dataset record
                     var ds = {
                         label:  label,
                         fill: false,
                         lineTension: 0.1,
-                        data: linedata
+                        data: linedata,
+                        borderColor: "hsl(" + color + ", 100%, 50%)",
                     };
 
                     // Add it to the dataset
