@@ -5,16 +5,28 @@
     height=100%;
 }
 
+.k_cd_banner {
+    position: absolute;
+    left: 0px;
+    top: 0px;
+    height: 22px;
+    max-height: 22px;
+    margin-top: 2px;
+    margin-bottom: 2px;
+    width: 100%;
+    overflow: hidden !important;
+    background-color: #d0d0d0;
+    font-size: 10px;
+
+    display: flex;
+    justify-content: center;
+    align-items:center;
+
+}
+
 .k_cd_picker {
     position: absolute;
     right: 10px;
-    top: 10px;
-    z-index: 100;
-}
-
-.k_cd_type {
-    position: absolute;
-    left: 35px;
     top: 5px;
     z-index: 100;
 
@@ -22,17 +34,24 @@
     justify-content: center;
     align-items:center;
 
-    background-color: #eeeeee;
-    border: 0.5px solid #808080;
+}
+
+.k_cd_type {
+    position: absolute;
+    left: 10px;
+    top: 5px;
+    z-index: 100;
+
+    display: flex;
+    justify-content: center;
+    align-items:center;
+
 
     padding-left: 5px;
     padding-right: 5px;
-
-    margin-bottom: 2px;
 }
 
 .k_cd_type select {
-    margin-bottom: 2px;
-    margin-top: 2px;
+
 }
 

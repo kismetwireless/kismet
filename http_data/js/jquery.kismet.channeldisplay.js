@@ -134,6 +134,7 @@
                         lineTension: 0.1,
                         data: linedata,
                         borderColor: "hsl(" + color + ", 100%, 50%)",
+                        backgroundColor: "hsl(" + color + ", 100%, 50%)",
                     };
 
                     // Add it to the dataset
@@ -249,6 +250,16 @@
             options = $.extend(base_options, inopt);
         }
 
+        var banner = $('div.k_cd_banner', element);
+        if (banner.length == 0) {
+            banner = $('<div>', {
+                id: "banner",
+                class: "k_cd_banner"
+            });
+
+            element.append(banner);
+        }
+
         if (graphtype == null) {
             graphtype = $('<div>', {
                 "id": "graphtype",
@@ -306,7 +317,7 @@
                 .hide()
             );
 
-            element.append(graphtype);
+            banner.append(graphtype);
 
             graphtype.on('change', function() {
                 var gt = $("input[name='graphtype']:checked", graphtype). val();
@@ -350,7 +361,7 @@
                 sel.append(e);
             }
 
-            element.append(picker);
+            banner.append(picker);
 
             picker.on('change', function() {
                 channeldisplay_refresh();
