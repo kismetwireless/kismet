@@ -49,6 +49,8 @@
             var charttime = $('select#historyrange option:selected', element).val();
             // Frequency translation from selector
             var freqtrans = $('select#k_cd_freq_selector option:selected', element).val();
+            // Filter from selector
+            var filter_string = $('select#gh_filter option:selected', element).val();
 
             // historical line chart
             if (charttype === 'history') {
@@ -102,6 +104,27 @@
                 // Position in the color map
                 var colorpos = 0;
                 var nkeys = Object.keys(data['kismet_channeltracker_frequency_map']).length;
+
+                var filter = $('select#gh_filter', element);
+                filter.empty();
+
+                if (filter_string === '' || filter_string === 'any') {
+                    filter.append(
+                        $('<option>', {
+                            value: "",
+                            selected: "selected",
+                        })
+                        .text("Any")
+                    );
+                }  else {
+                    filter.append(
+                        $('<option>', {
+                            value: "any",
+                        })
+                        .text("Any")
+                    );
+                }
+
                 for (var fk in data['kismet_channeltracker_frequency_map']) {
                     var linedata = 
                         kismet.RecalcRrdData(
@@ -123,8 +146,26 @@
                     else
                         label = cfk;
 
+                    // Make a filter option
+                    if (filter_string === fk) {
+                        filter.append(
+                            $('<option>', {
+                                value: fk,
+                                selected: "selected",
+                            })
+                            .text(label)
+                        );
+                    } else {
+                        filter.append(
+                            $('<option>', {
+                                value: fk,
+                            })
+                            .text(label)
+                        );
+                    }
+
                     // Rotate through the color wheel
-                    var color = 255 * (colorpos / nkeys);
+                    var color = parseInt(255 * (colorpos / nkeys));
                     colorpos++;
 
                     // Build the dataset record
@@ -137,13 +178,19 @@
                         backgroundColor: "hsl(" + color + ", 100%, 50%)",
                     };
 
-                    // Add it to the dataset
-                    datasets.push(ds);
+                    // Add it to the dataset if we're not filtering
+                    if (filter_string === fk || 
+                        filter_string === '' || 
+                        filter_string === 'any') {
+                            datasets.push(ds);
+                    }
                 }
 
                 devgraph_canvas.hide();
                 timegraph_canvas.show();
                 coming_soon.hide();
+
+                console.log(datasets);
 
                 if (timegraph_chart == null) {
                     var device_options = {
@@ -157,6 +204,13 @@
                                         beginAtZero: true,
                                     }
                                 }],
+                            },
+                            legend: {
+                                labels: {
+                                    boxWidth: 15,
+                                    fontSize: 9,
+                                    padding: 5,
+                                },
                             },
                         },
                         data: {
@@ -315,20 +369,47 @@
                     .text("Past Day")
                 )
                 .hide()
+            )
+            .append(
+                $('<label>', {
+                    id: "gh_filter_label",
+                    for: "gh_filter",
+                })
+                .text("Filter")
+                .append(
+                    $('<select>', {
+                        id: "gh_filter"
+                    })
+                    .append(
+                        $('<option>', {
+                            value: "any",
+                            selected: "selected",
+                        })
+                        .text("Any")
+                    )
+                )
+                .hide()
             );
 
             banner.append(graphtype);
 
             graphtype.on('change', function() {
                 var gt = $("input[name='graphtype']:checked", graphtype). val();
-                console.log("changed graph type " + gt);
 
                 if (gt === 'now') {
                     $("select#historyrange", graphtype).hide();
+                    $("select#gh_filter", graphtype).hide();
+                    $("label#gh_filter_label", graphtype).hide();
                 } else {
                     $("select#historyrange", graphtype).show();
+                    $("label#gh_filter_label", graphtype).show();
+                    $("select#gh_filter", graphtype).show();
                 }
 
+                channeldisplay_refresh();
+            });
+
+            $('select#gh_filter', graphtype).on('change', function() {
                 channeldisplay_refresh();
             });
 

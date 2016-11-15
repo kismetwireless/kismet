@@ -6,7 +6,6 @@
 }
 
 .k_cd_banner {
-    position: absolute;
     left: 0px;
     top: 0px;
     height: 22px;
@@ -21,7 +20,11 @@
     display: flex;
     justify-content: center;
     align-items:center;
+}
 
+.k_cd_banner select {
+    margin-left: 5px;
+    margin-right: 5px;
 }
 
 .k_cd_picker {
