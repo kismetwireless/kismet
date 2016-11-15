@@ -18,6 +18,8 @@
 
     var timerid = -1;
 
+    var devgraph_container = null;
+
     var devgraph_chart = null;
     var timegraph_chart = null;
 
@@ -450,22 +452,27 @@
 
         }
 
-        devgraph_canvas = $('<canvas>', {
-            class: "k_cd_dg",
-            width: "100%",
-            height: "100%",
-        });
+        if (devgraph_container == null) {
+            devgraph_container =
+                $('<div>', {
+                    class: "k_cd_container"
+                });
 
-        element.append(devgraph_canvas);
+            devgraph_canvas = $('<canvas>', {
+                class: "k_cd_dg",
+            });
 
-        timegraph_canvas = $('<canvas>', {
-            class: "k_cd_dg",
-            width: "100%",
-            height: "100%"
-        });
+            devgraph_container.append(devgraph_canvas);
 
-        timegraph_canvas.hide();
-        element.append(timegraph_canvas);
+            timegraph_canvas = $('<canvas>', {
+                class: "k_cd_dg",
+            });
+
+            timegraph_canvas.hide();
+            devgraph_container.append(timegraph_canvas);
+
+            element.append(devgraph_container);
+        }
 
         // Add a 'coming soon' item
         if (coming_soon == null)  {
