@@ -177,22 +177,23 @@ Kis_Net_Httpd::Kis_Net_Httpd(GlobalRegistry *in_globalreg) {
 }
 
 Kis_Net_Httpd::~Kis_Net_Httpd() {
-    {
-        local_locker lock(&controller_mutex);
+    pthread_mutex_lock(&controller_mutex);
 
-        if (running)
-            StopHttpd();
+    // Wipe out all handlers
+    handler_vec.erase(handler_vec.begin(), handler_vec.end());
 
-        globalreg->RemoveGlobal("HTTPD_SERVER");
+    if (running)
+        StopHttpd();
 
-        if (session_db) {
-            delete(session_db);
-        }
+    globalreg->RemoveGlobal("HTTPD_SERVER");
 
-        for (map<string, Kis_Net_Httpd_Session *>::iterator i = session_map.begin();
-                i != session_map.end(); ++i) {
-            delete(i->second);
-        }
+    if (session_db) {
+        delete(session_db);
+    }
+
+    for (map<string, Kis_Net_Httpd_Session *>::iterator i = session_map.begin();
+            i != session_map.end(); ++i) {
+        delete(i->second);
     }
 
     pthread_mutex_destroy(&controller_mutex);
@@ -672,11 +673,14 @@ int Kis_Net_Httpd::SendHttpResponse(Kis_Net_Httpd *httpd,
 
 Kis_Net_Httpd_Handler::Kis_Net_Httpd_Handler(GlobalRegistry *in_globalreg) {
     httpd = NULL;
+    http_globalreg = in_globalreg;
 
     Bind_Httpd_Server(in_globalreg);
 }
 
 Kis_Net_Httpd_Handler::~Kis_Net_Httpd_Handler() {
+    httpd = (Kis_Net_Httpd *) http_globalreg->FetchGlobal("HTTPD_SERVER");
+
     if (httpd != NULL)
         httpd->RemoveHandler(this);
 }

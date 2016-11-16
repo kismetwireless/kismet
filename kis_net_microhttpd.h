@@ -81,6 +81,7 @@ public:
     }
 
 protected:
+    GlobalRegistry *http_globalreg;
     Kis_Net_Httpd *httpd;
 
 };
