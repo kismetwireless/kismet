@@ -133,7 +133,7 @@ public:
         if (device == NULL)
             return;
 
-        if (device->get_last_time() < globalreg->timestamp.tv_sec - 1)
+        if (device->get_last_time() < globalreg->timestamp.tv_sec - 5)
             return;
 
         map<double, unsigned int>::iterator i =
