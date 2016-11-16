@@ -154,6 +154,24 @@ Msgpack dictionary containing a list of all messages since unix timestamp `[TS]`
 
 JSON dictionary containing a list of all messages since unix timestamp `[TS]`, and a timestamp record indicating the time of this report.  This can be used to fetch only new messages since the last time messages were fetched.
 
+## Alerts
+
+Kismet provides alerts via the `/alert/` REST collection.  Alerts are generated as messages and as alert records with machine-processable details.
+
+##### `/alerts/all_alerts.msgpack`
+Msgpack list of the alert backlog
+
+##### `/alerts/all_alerts.json`
+JSON list of the alert backlog
+
+##### `/alerts/last-time/[TS]/alerts.msgpack`
+
+Msgpack dictionary containing a list of alerts since unix timestamp `[TS]`, and a timestamp record indicating the time of this report.  This can be used to fetch only new alerts since the last time alerts were requested.
+
+##### `/alerts/last-time/[TS]/alerts.json`
+
+JSON dictionary containing a list of alerts since unix timestamp `[TS]`, and a timestamp record indicating the time of this report.  This can be used to fetch only new alerts since the last time alerts were requested.
+
 ## Packet Sources (old)
 
 Kismet is replacing the old PacketSource code with Data Sources.  Once this is complete, the PacketSource options will be deprecated, but development of DataSources is still ongoing.  Until such time as DataSources are complete, the PacketSources API will be used.
