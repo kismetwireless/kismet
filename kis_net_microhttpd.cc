@@ -179,13 +179,13 @@ Kis_Net_Httpd::Kis_Net_Httpd(GlobalRegistry *in_globalreg) {
 Kis_Net_Httpd::~Kis_Net_Httpd() {
     pthread_mutex_lock(&controller_mutex);
 
+    globalreg->RemoveGlobal("HTTPD_SERVER");
+
     // Wipe out all handlers
     handler_vec.erase(handler_vec.begin(), handler_vec.end());
 
     if (running)
         StopHttpd();
-
-    globalreg->RemoveGlobal("HTTPD_SERVER");
 
     if (session_db) {
         delete(session_db);
