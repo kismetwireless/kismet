@@ -435,6 +435,13 @@ int BaseTimerEvent(TIMEEVENT_PARMS) {
 }
 
 void TerminationHandler() {
+    signal(SIGKILL, SIG_DFL);
+    signal(SIGQUIT, SIG_DFL);
+    signal(SIGINT, SIG_DFL);
+    signal(SIGABRT, SIG_DFL);
+    signal(SIGCHLD, SIG_DFL);
+    signal(SIGSEGV, SIG_DFL);
+
     std::exception_ptr exc = std::current_exception();
 
     try {
@@ -450,6 +457,13 @@ void TerminationHandler() {
 }
 
 void SegVHandler(int sig __attribute__((unused))) {
+    signal(SIGKILL, SIG_DFL);
+    signal(SIGQUIT, SIG_DFL);
+    signal(SIGINT, SIG_DFL);
+    signal(SIGABRT, SIG_DFL);
+    signal(SIGCHLD, SIG_DFL);
+    signal(SIGSEGV, SIG_DFL);
+
     std::cout << "Segmentation Fault (SIGSEGV / 11)" << endl;
 
     print_stacktrace();
