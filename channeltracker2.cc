@@ -133,6 +133,9 @@ public:
         if (device == NULL)
             return;
 
+        if (device->get_last_time() < globalreg->timestamp.tv_sec - 1)
+            return;
+
         map<double, unsigned int>::iterator i =
             device_count.find(device->get_frequency());
 
