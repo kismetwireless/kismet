@@ -26,11 +26,11 @@
 #include "devicetracker.h"
 #include "configfile.h"
 
-Alertracker::Alertracker() {
-	fprintf(stderr, "*** Alertracker::Alertracker() called with no global registry.  Bad.\n");
-}
+#include "json_adapter.h"
+#include "msgpack_adapter.h"
 
-Alertracker::Alertracker(GlobalRegistry *in_globalreg) {
+Alertracker::Alertracker(GlobalRegistry *in_globalreg) :
+    Kis_Net_Httpd_Stream_Handler(in_globalreg) {
 	globalreg = in_globalreg;
 	next_alert_id = 0;
 
@@ -44,10 +44,7 @@ Alertracker::Alertracker(GlobalRegistry *in_globalreg) {
 		exit(1);
 	}
 
-	if (globalreg->kisnetserver == NULL) {
-		fprintf(stderr, "FATAL OOPS:  Alertracker called with null kisnetserver\n");
-		exit(1);
-	}
+    globalreg->InsertGlobal("ALERTTRACKER", this);
 
 	if (globalreg->kismet_config->FetchOpt("alertbacklog") != "") {
 		int scantmp;
@@ -75,19 +72,42 @@ Alertracker::Alertracker(GlobalRegistry *in_globalreg) {
 		globalreg->fatal_condition = 1;
 		return;
 	}
+
+    alert_vec_id =
+        globalreg->entrytracker->RegisterField("kismet.alert.list",
+                TrackerVector, "list of alerts");
+    alert_timestamp_id =
+        globalreg->entrytracker->RegisterField("kismet.alert.timestamp",
+                TrackerUInt64, "alert update timestamp");
+
+    tracked_alert *alert_builder = new tracked_alert(globalreg, 0);
+    alert_entry_id =
+        globalreg->entrytracker->RegisterField("kismet.alert.alert",
+                alert_builder, "Kismet alert");
+    delete(alert_builder);
+
+    pthread_mutex_init(&alert_mutex, NULL);
 	
 	_MSG("Created alert tracker...", MSGFLAG_INFO);
 }
 
 Alertracker::~Alertracker() {
+    pthread_mutex_lock(&alert_mutex);
+
+    globalreg->RemoveGlobal("ALERTTRACKER");
+
 	for (map<int, alert_rec *>::iterator x = alert_ref_map.begin();
 		 x != alert_ref_map.end(); ++x)
 		delete x->second;
+
+    pthread_mutex_destroy(&alert_mutex);
 }
 
 int Alertracker::RegisterAlert(const char *in_header, alert_time_unit in_unit, 
 							   int in_rate, alert_time_unit in_burstunit,
 							   int in_burst, int in_phy) {
+    local_locker lock(&alert_mutex);
+
 	char err[1024];
 
 	// Bail if this header is registered
@@ -124,12 +144,12 @@ int Alertracker::RegisterAlert(const char *in_header, alert_time_unit in_unit,
 	return arec->ref_index;
 }
 
-	int Alertracker::FetchAlertRef(string in_header) {
-		if (alert_name_map.find(in_header) != alert_name_map.end())
-			return alert_name_map[in_header];
+int Alertracker::FetchAlertRef(string in_header) {
+    if (alert_name_map.find(in_header) != alert_name_map.end())
+        return alert_name_map[in_header];
 
-		return -1;
-	}
+    return -1;
+}
 
 int Alertracker::CheckTimes(alert_rec *arec) {
 	// Is this alert rate-limited?  If not, shortcut out and send it
@@ -175,6 +195,8 @@ int Alertracker::PotentialAlert(int in_ref) {
 int Alertracker::RaiseAlert(int in_ref, kis_packet *in_pack,
 							mac_addr bssid, mac_addr source, mac_addr dest, 
 							mac_addr other, string in_channel, string in_text) {
+    local_locker lock(&alert_mutex);
+
 	map<int, alert_rec *>::iterator aritr = alert_ref_map.find(in_ref);
 
 	if (aritr == alert_ref_map.end())
@@ -226,22 +248,11 @@ int Alertracker::RaiseAlert(int in_ref, kis_packet *in_pack,
 		acomp->alert_vec.push_back(info);
 	}
 
-	// Send it to the network as an alert
-	globalreg->kisnetserver->SendToAll(_NPM(PROTO_REF_ALERT), (void *) info);
-
 	// Send the text info
 	globalreg->messagebus->InjectMessage((info->header + " " + info->text), 
 										 MSGFLAG_ALERT);
 
 	return 1;
-}
-
-void Alertracker::BlitBacklogged(int in_fd) {
-	for (unsigned int x = 0; x < alert_backlog.size(); x++) {
-		kis_protocol_cache cache;
-		globalreg->kisnetserver->SendToClient(in_fd, _NPM(PROTO_REF_ALERT),
-											  (void *) alert_backlog[x], &cache);
-	}
 }
 
 int Alertracker::ParseAlertStr(string alert_str, string *ret_name, 
@@ -333,21 +344,149 @@ int Alertracker::ActivateConfiguredAlert(const char *in_header) {
 }
 
 int Alertracker::ActivateConfiguredAlert(const char *in_header, int in_phy) {
-	string hdr = StrLower(in_header);
+    alert_conf_rec *rec;
 
-	if (alert_conf_map.find(hdr) == alert_conf_map.end()) {
-		_MSG("Alert type " + string(in_header) + " not found in list of activated "
-			 "alerts.", MSGFLAG_INFO);
-		return -1;
-	}
+    {
+        local_locker lock(&alert_mutex);
 
-	alert_conf_rec *rec = alert_conf_map[hdr];
+        string hdr = StrLower(in_header);
+
+        if (alert_conf_map.find(hdr) == alert_conf_map.end()) {
+            _MSG("Alert type " + string(in_header) + " not found in list of activated "
+                    "alerts.", MSGFLAG_INFO);
+            return -1;
+        }
+
+        rec = alert_conf_map[hdr];
+    }
 
 	return RegisterAlert(rec->header.c_str(), rec->limit_unit, rec->limit_rate, 
 						 rec->burst_unit, rec->limit_burst, in_phy);
 }
 
 const vector<kis_alert_info *> *Alertracker::FetchBacklog() {
+    local_locker lock(&alert_mutex);
+
 	return (const vector<kis_alert_info *> *) &alert_backlog;
+}
+
+bool Alertracker::Httpd_VerifyPath(const char *path, const char *method) {
+    if (strcmp(method, "GET") != 0) {
+        return false;
+    }
+
+    // Split URL and process
+    vector<string> tokenurl = StrTokenize(path, "/");
+    if (tokenurl.size() < 3)
+        return false;
+
+    if (tokenurl[1] == "alerts") {
+        if (tokenurl[2] == "all_alerts.msgpack") {
+            return true;
+        } else if (tokenurl[2] == "all_alerts.json") {
+            return true;
+        } else if (tokenurl[2] == "last-time") {
+            if (tokenurl.size() < 5)
+                return false;
+
+            if (tokenurl[4] == "alerts.msgpack")
+                return true;
+            else if (tokenurl[4] == "alerts.json")
+                return true;
+            else
+                return false;
+        }
+    }
+
+    return false;
+}
+
+void Alertracker::Httpd_CreateStreamResponse(
+        Kis_Net_Httpd *httpd __attribute__((unused)),
+        struct MHD_Connection *connection,
+        const char *path, const char *method, const char *upload_data,
+        size_t *upload_data_size, std::stringstream &stream) {
+
+    TrackerElementSerializer *serializer = NULL;
+    time_t since_time = 0;
+    bool wrap = false;
+
+    if (strcmp(method, "GET") != 0) {
+        return;
+    }
+
+    // Split URL and process
+    vector<string> tokenurl = StrTokenize(path, "/");
+    if (tokenurl.size() < 3)
+        return;
+
+    if (tokenurl[1] == "alerts") {
+        if (tokenurl[2] == "all_alerts.msgpack") {
+            serializer =
+                new MsgpackAdapter::Serializer(globalreg, stream);
+        } else if (tokenurl[2] == "all_alerts.json") {
+            serializer =
+                new JsonAdapter::Serializer(globalreg, stream);
+        } else if (tokenurl[2] == "last-time") {
+            if (tokenurl.size() < 5)
+                return;
+
+            long lastts;
+            if (sscanf(tokenurl[3].c_str(), "%ld", &lastts) != 1)
+                return;
+
+            wrap = true;
+
+            since_time = lastts;
+
+            if (tokenurl[4] == "alerts.msgpack") {
+                serializer =
+                    new MsgpackAdapter::Serializer(globalreg, stream);
+            } else if (tokenurl[4] == "alerts.json") {
+                serializer =
+                    new JsonAdapter::Serializer(globalreg, stream);
+            } else {
+                return;
+            }
+        }
+    }
+
+    if (serializer == NULL)
+        return;
+
+    {
+        local_locker lock(&alert_mutex);
+
+        TrackerElement *wrapper;
+        TrackerElement *msgvec = 
+            globalreg->entrytracker->GetTrackedInstance(alert_vec_id);
+       
+        // If we're doing a time-since, wrap the vector
+        if (wrap) {
+            wrapper = new TrackerElement(TrackerMap);
+            wrapper->add_map(msgvec);
+
+            TrackerElement *ts =
+                globalreg->entrytracker->GetTrackedInstance(alert_timestamp_id);
+            ts->set((uint64_t) globalreg->timestamp.tv_sec);
+            wrapper->add_map(ts);
+        } else {
+            wrapper = msgvec;
+        }
+
+        for (vector<kis_alert_info *>::iterator i = alert_backlog.begin();
+                i != alert_backlog.end(); ++i) {
+            if (since_time < (*i)->tm.tv_sec) {
+                tracked_alert *ta = new tracked_alert(globalreg, alert_entry_id);
+                ta->from_alert_info(*i);
+                msgvec->add_vector(ta);
+            }
+        }
+
+        serializer->serialize(wrapper);
+
+        delete(wrapper);
+        delete(serializer);
+    }
 }
 
