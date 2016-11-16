@@ -243,15 +243,13 @@ void Kis_Net_Httpd::RegisterMimeType(string suffix, string mimetype) {
 }
 
 void Kis_Net_Httpd::RegisterHandler(Kis_Net_Httpd_Handler *in_handler) {
-    pthread_mutex_lock(&controller_mutex);
+    local_locker lock(&controller_mutex);
 
     handler_vec.push_back(in_handler);
-
-    pthread_mutex_unlock(&controller_mutex);
 }
 
 void Kis_Net_Httpd::RemoveHandler(Kis_Net_Httpd_Handler *in_handler) {
-    pthread_mutex_lock(&controller_mutex);
+    local_locker lock(&controller_mutex);
 
     for (unsigned int x = 0; x < handler_vec.size(); x++) {
         if (handler_vec[x] == in_handler) {
@@ -259,8 +257,6 @@ void Kis_Net_Httpd::RemoveHandler(Kis_Net_Httpd_Handler *in_handler) {
             break;
         }
     }
-
-    pthread_mutex_unlock(&controller_mutex);
 }
 
 int Kis_Net_Httpd::StartHttpd() {
