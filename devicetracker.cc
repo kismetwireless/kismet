@@ -57,6 +57,7 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
 
 	globalreg = in_globalreg;
 
+    globalreg->devicetracker = this;
 	globalreg->InsertGlobal("DEVICE_TRACKER", this);
 
     device_base_id =
@@ -176,7 +177,8 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
 }
 
 Devicetracker::~Devicetracker() {
-    // globalreg->httpd_server->RemoveHandler(this);
+    globalreg->devicetracker = NULL;
+    globalreg->RemoveGlobal("DEVICE_TRACKER");
 
 	globalreg->packetchain->RemoveHandler(&Devicetracker_packethook_commontracker,
 										  CHAINPOS_TRACKER);

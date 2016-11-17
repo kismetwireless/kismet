@@ -656,7 +656,7 @@ public:
 };
 
 class Devicetracker : public Kis_Net_Httpd_Stream_Handler,
-    public TimetrackerEvent {
+    public TimetrackerEvent, public LifetimeGlobal {
 public:
 	Devicetracker(GlobalRegistry *in_globalreg);
 	virtual ~Devicetracker();

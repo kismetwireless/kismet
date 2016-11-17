@@ -742,7 +742,7 @@ int main(int argc, char *argv[], char *envp[]) {
     }
 
     // First order - create our message bus and our client for outputting
-    globalregistry->messagebus = new MessageBus;
+    globalregistry->RegisterLifetimeGlobal((LifetimeGlobal *) new MessageBus(globalregistry));
 
     // Create a smart stdout client and allocate the fatal message client, 
     // add them to the messagebus
@@ -976,13 +976,15 @@ int main(int argc, char *argv[], char *envp[]) {
     }
 
     // Create the alert tracker
-    globalregistry->alertracker = new Alertracker(globalregistry);
+    globalregistry->RegisterLifetimeGlobal((LifetimeGlobal *) new Alertracker(globalregistry));
+
     if (globalregistry->fatal_condition)
         CatchShutdown(-1);
 
     // Create the device tracker
     _MSG("Creating device tracker...", MSGFLAG_INFO);
-    globalregistry->devicetracker = new Devicetracker(globalregistry);
+    globalregistry->RegisterLifetimeGlobal((LifetimeGlobal *) new Devicetracker(globalregistry));
+
     if (globalregistry->fatal_condition)
         CatchShutdown(-1);
 

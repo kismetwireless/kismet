@@ -508,7 +508,7 @@ void IPCRemote::IPC_Child_Loop() {
 
 	// Kluge in a new message bus to talk to our parent and give it only
 	// the IPC client to replicate messages
-	globalreg->messagebus = new MessageBus;
+    globalreg->RegisterLifetimeGlobal((LifetimeGlobal *) new MessageBus(globalreg));
 	IPC_MessageClient *ipcmc = new IPC_MessageClient(globalreg, this);
 	globalreg->messagebus->RegisterClient(ipcmc, MSGFLAG_ALL);
 

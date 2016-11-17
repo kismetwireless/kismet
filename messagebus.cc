@@ -34,7 +34,27 @@ void StdoutMessageClient::ProcessMessage(string in_msg, int in_flags) {
     return;
 }
 
+MessageBus::MessageBus(GlobalRegistry *in_globalreg) {
+    globalreg = in_globalreg;
+
+    globalreg->messagebus = this;
+
+    globalreg->InsertGlobal("MESSAGEBUS", this);
+    pthread_mutex_init(&msg_mutex, NULL);
+}
+
+MessageBus::~MessageBus() {
+    pthread_mutex_lock(&msg_mutex);
+
+    globalreg->RemoveGlobal("MESSAGEBUS");
+    globalreg->messagebus = NULL;
+
+    pthread_mutex_destroy(&msg_mutex);
+}
+
 void MessageBus::InjectMessage(string in_msg, int in_flags) {
+    local_locker lock(&msg_mutex);
+
     for (unsigned int x = 0; x < subscribers.size(); x++) {
         if (subscribers[x]->mask & in_flags)
             subscribers[x]->client->ProcessMessage(in_msg, in_flags);
@@ -44,6 +64,8 @@ void MessageBus::InjectMessage(string in_msg, int in_flags) {
 }
 
 void MessageBus::RegisterClient(MessageClient *in_subscriber, int in_mask) {
+    local_locker lock(&msg_mutex);
+
     busclient *bc = new busclient;
 
     bc->client = in_subscriber;
@@ -55,6 +77,8 @@ void MessageBus::RegisterClient(MessageClient *in_subscriber, int in_mask) {
 }
 
 void MessageBus::RemoveClient(MessageClient *in_unsubscriber) {
+    local_locker lock(&msg_mutex);
+
     for (unsigned int x = 0; x < subscribers.size(); x++) {
         if (subscribers[x]->client == in_unsubscriber) {
             subscribers.erase(subscribers.begin() + x);

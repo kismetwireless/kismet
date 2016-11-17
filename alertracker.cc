@@ -34,6 +34,8 @@ Alertracker::Alertracker(GlobalRegistry *in_globalreg) :
 	globalreg = in_globalreg;
 	next_alert_id = 0;
 
+    pthread_mutex_init(&alert_mutex, NULL);
+
 	if (globalreg->kismet_config == NULL) {
 		fprintf(stderr, "FATAL OOPS:  Alertracker called with null config\n");
 		exit(1);
@@ -45,6 +47,7 @@ Alertracker::Alertracker(GlobalRegistry *in_globalreg) :
 	}
 
     globalreg->InsertGlobal("ALERTTRACKER", this);
+    globalreg->alertracker = this;
 
 	if (globalreg->kismet_config->FetchOpt("alertbacklog") != "") {
 		int scantmp;
@@ -57,14 +60,6 @@ Alertracker::Alertracker(GlobalRegistry *in_globalreg) :
 		}
 		num_backlog = scantmp;
 	}
-
-	// Register the alert component
-	_PCM(PACK_COMP_ALERT) =
-		globalreg->packetchain->RegisterPacketComponent("alert");
-
-	// Register a KISMET alert type with no rate restrictions
-	_ARM(ALERT_REF_KISMET) =
-		RegisterAlert("KISMET", sat_day, 0, sat_day, 0, KIS_PHY_ANY);
 
 	// Parse config file vector of all alerts
 	if (ParseAlertConfig(globalreg->kismet_config) < 0) {
@@ -86,7 +81,14 @@ Alertracker::Alertracker(GlobalRegistry *in_globalreg) :
                 alert_builder, "Kismet alert");
     delete(alert_builder);
 
-    pthread_mutex_init(&alert_mutex, NULL);
+	// Register the alert component
+	_PCM(PACK_COMP_ALERT) =
+		globalreg->packetchain->RegisterPacketComponent("alert");
+
+	// Register a KISMET alert type with no rate restrictions
+	_ARM(ALERT_REF_KISMET) =
+		RegisterAlert("KISMET", sat_day, 0, sat_day, 0, KIS_PHY_ANY);
+
 	
 	_MSG("Created alert tracker...", MSGFLAG_INFO);
 }
@@ -95,6 +97,7 @@ Alertracker::~Alertracker() {
     pthread_mutex_lock(&alert_mutex);
 
     globalreg->RemoveGlobal("ALERTTRACKER");
+    globalreg->alertracker = NULL;
 
 	for (map<int, alert_rec *>::iterator x = alert_ref_map.begin();
 		 x != alert_ref_map.end(); ++x)
@@ -145,6 +148,8 @@ int Alertracker::RegisterAlert(const char *in_header, alert_time_unit in_unit,
 }
 
 int Alertracker::FetchAlertRef(string in_header) {
+    local_locker lock(&alert_mutex);
+
     if (alert_name_map.find(in_header) != alert_name_map.end())
         return alert_name_map[in_header];
 
@@ -182,6 +187,8 @@ int Alertracker::CheckTimes(alert_rec *arec) {
 }
 
 int Alertracker::PotentialAlert(int in_ref) {
+    local_locker lock(&alert_mutex);
+
 	map<int, alert_rec *>::iterator aritr = alert_ref_map.find(in_ref);
 
 	if (aritr == alert_ref_map.end())

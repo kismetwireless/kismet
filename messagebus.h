@@ -76,8 +76,11 @@ public:
     void ProcessMessage(string in_msg, int in_flags);
 };
 
-class MessageBus {
+class MessageBus : public LifetimeGlobal {
 public:
+    MessageBus(GlobalRegistry *in_globalreg);
+    virtual ~MessageBus();
+
     // Inject a message into the bus
     void InjectMessage(string in_msg, int in_flags);
 
@@ -86,6 +89,10 @@ public:
     void RemoveClient(MessageClient *in_unsubscriber);
 
 protected:
+    GlobalRegistry *globalreg;
+
+    pthread_mutex_t msg_mutex;
+
     typedef struct {
         MessageClient *client;
         int mask;
