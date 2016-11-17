@@ -28,20 +28,35 @@ Timetracker::Timetracker() {
 
 Timetracker::Timetracker(GlobalRegistry *in_globalreg) {
     globalreg = in_globalreg;
+
+    pthread_mutex_init(&time_mutex, NULL);
+
     next_timer_id = 0;
 
 	globalreg->start_time = time(0);
 	gettimeofday(&(globalreg->timestamp), NULL);
+
+    globalreg->timetracker = this;
+    globalreg->InsertGlobal("TIMETRACKER", this);
 }
 
 Timetracker::~Timetracker() {
+    pthread_mutex_lock(&time_mutex);
+
+    globalreg->RemoveGlobal("TIMETRACKER");
+    globalreg->timetracker = NULL;
+
     // Free the events
     for (map<int, timer_event *>::iterator x = timer_map.begin();
          x != timer_map.end(); ++x)
         delete x->second;
+
+    pthread_mutex_destroy(&time_mutex);
 }
 
 int Timetracker::Tick() {
+    local_locker lock(&time_mutex);
+
     // Handle scheduled events
     struct timeval cur_tm;
     gettimeofday(&cur_tm, NULL);
@@ -82,7 +97,7 @@ int Timetracker::Tick() {
             stable_sort(sorted_timers.begin(), sorted_timers.end(), 
 						SortTimerEventsTrigger());
         } else {
-            RemoveTimer(evt->timer_id);
+            RemoveTimer_nb(evt->timer_id);
         }
 
     }
@@ -91,6 +106,15 @@ int Timetracker::Tick() {
 }
 
 int Timetracker::RegisterTimer(int in_timeslices, struct timeval *in_trigger,
+                               int in_recurring, 
+                               int (*in_callback)(TIMEEVENT_PARMS),
+                               void *in_parm) {
+    local_locker lock(&time_mutex);
+    return RegisterTimer_nb(in_timeslices, in_trigger, 
+            in_recurring, in_callback, in_parm);
+}
+
+int Timetracker::RegisterTimer_nb(int in_timeslices, struct timeval *in_trigger,
                                int in_recurring, 
                                int (*in_callback)(TIMEEVENT_PARMS),
                                void *in_parm) {
@@ -125,6 +149,12 @@ int Timetracker::RegisterTimer(int in_timeslices, struct timeval *in_trigger,
 
 int Timetracker::RegisterTimer(int in_timeslices, struct timeval *in_trigger,
         int in_recurring, TimetrackerEvent *in_event) {
+    local_locker lock(&time_mutex);
+    return RegisterTimer_nb(in_timeslices, in_trigger, in_recurring, in_event);
+}
+
+int Timetracker::RegisterTimer_nb(int in_timeslices, struct timeval *in_trigger,
+        int in_recurring, TimetrackerEvent *in_event) {
     timer_event *evt = new timer_event;
 
     evt->timer_id = next_timer_id++;
@@ -155,6 +185,11 @@ int Timetracker::RegisterTimer(int in_timeslices, struct timeval *in_trigger,
 }
 
 int Timetracker::RemoveTimer(int in_timerid) {
+    local_locker lock(&time_mutex);
+    return RemoveTimer_nb(in_timerid);
+}
+
+int Timetracker::RemoveTimer_nb(int in_timerid) {
     map<int, timer_event *>::iterator itr;
 
     itr = timer_map.find(in_timerid);

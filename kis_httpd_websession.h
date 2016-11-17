@@ -24,11 +24,12 @@
 #include <string>
 #include "trackedelement.h"
 #include "kis_net_microhttpd.h"
+#include "globalregistry.h"
 
 // We need to subclass the HTTPD handler directly because even though we can
 // generally act like a stream, we need to be able to directly manipulate the
 // response header
-class Kis_Httpd_Websession : public Kis_Net_Httpd_Handler {
+class Kis_Httpd_Websession : public Kis_Net_Httpd_Handler, public LifetimeGlobal {
 public:
     Kis_Httpd_Websession(GlobalRegistry *in_globalreg);
     ~Kis_Httpd_Websession();

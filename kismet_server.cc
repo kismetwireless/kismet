@@ -234,9 +234,11 @@ void CatchShutdown(int sig) {
     // Eat the child signal handler
     signal(SIGCHLD, SIG_DFL);
 
-    if (globalregistry->kisnetserver != NULL) {
-        globalregistry->kisnetserver->SendToAll(globalregistry->netproto_map[PROTO_REF_TERMINATE], (void *) &termstr);
-    }
+    // Shut down the webserver first
+    Kis_Net_Httpd *httpd = 
+        (Kis_Net_Httpd *) globalregistry->FetchGlobal("HTTPD_SERVER");
+    if (httpd != NULL)
+        httpd->StopHttpd();
 
     if (globalregistry->sourcetracker != NULL) {
         // Shut down the packet sources
@@ -312,11 +314,6 @@ void CatchShutdown(int sig) {
     }
 
     globalregistry->pcapdump = NULL;
-
-    if (globalregistry->devicetracker != NULL) {
-        delete globalregistry->devicetracker;
-        globalregistry->devicetracker = NULL;
-    }
 
     if (globalregistry->plugintracker != NULL)
         globalregistry->plugintracker->ShutdownPlugins();
@@ -874,8 +871,7 @@ int main(int argc, char *argv[], char *envp[]) {
     globalregistry->kismet_config = conf;
 
     // Make the timetracker
-    globalregistry->timetracker = new Timetracker(globalregistry);
-    globalregistry->RegisterLifetimeGlobal((LifetimeGlobal *) globalregistry->timetracker);
+    globalregistry->RegisterLifetimeGlobal((LifetimeGlobal *) new Timetracker(globalregistry));
 
     // HTTP BLOCK
     // Create the HTTPD server, it needs to exist before most things
@@ -911,16 +907,16 @@ int main(int argc, char *argv[], char *envp[]) {
     globalregistry->RegisterLifetimeGlobal((LifetimeGlobal *) new IPCRemoteV2Tracker(globalregistry));
 
     // Create the packet chain
-    globalregistry->packetchain = new Packetchain(globalregistry);
+    _MSG("Creating packet chain...", MSGFLAG_INFO);
+    globalregistry->RegisterLifetimeGlobal((LifetimeGlobal *) new Packetchain(globalregistry));
     if (globalregistry->fatal_condition)
         CatchShutdown(-1);
-    globalregistry->RegisterLifetimeGlobal((LifetimeGlobal *) globalregistry->packetchain);
 
     // Add the messagebus REST interface
-    new RestMessageClient(globalregistry, NULL);
+    globalregistry->RegisterLifetimeGlobal((LifetimeGlobal *) new RestMessageClient(globalregistry, NULL));
 
     // Add login session
-    new Kis_Httpd_Websession(globalregistry);
+    globalregistry->RegisterLifetimeGlobal((LifetimeGlobal *) new Kis_Httpd_Websession(globalregistry));
 
     // Add channel tracking
     globalregistry->RegisterLifetimeGlobal((LifetimeGlobal *) new Channeltracker_V2(globalregistry));

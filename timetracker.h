@@ -29,6 +29,8 @@
 #include <algorithm>
 #include <string>
 
+#include <pthread.h>
+
 #include "globalregistry.h"
 
 // For ubertooth and a few older plugins that compile against both svn and old
@@ -98,6 +100,17 @@ public:
 
 protected:
     GlobalRegistry *globalreg;
+
+    pthread_mutex_t time_mutex;
+
+    // Nonblocking versions
+    int RegisterTimer_nb(int in_timeslices, struct timeval *in_trigger,
+                      int in_recurring, 
+                      int (*in_callback)(timer_event *, void *, GlobalRegistry *),
+                      void *in_parm);
+    int RegisterTimer_nb(int timeslices, struct timeval *in_trigger,
+            int in_recurring, TimetrackerEvent *event);
+    int RemoveTimer_nb(int timer_id);
 
     int next_timer_id;
     map<int, timer_event *> timer_map;

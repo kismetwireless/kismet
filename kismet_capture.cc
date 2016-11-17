@@ -161,7 +161,7 @@ int main(int argc, char *argv[], char *envp[]) {
 	globalreg->envp = envp;
 
 	// Create the message bus
-	globalreg->messagebus = new MessageBus;
+    globalreg->RegisterLifetimeGlobal((LifetimeGlobal *) new MessageBus(globalreg));
 
 	// Create the IPC system
 	globalreg->rootipc = new RootIPCRemote(globalreg, "root capture control");

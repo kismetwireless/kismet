@@ -177,6 +177,9 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
 }
 
 Devicetracker::~Devicetracker() {
+    fprintf(stderr, "debug - ~Devicetracker %p\n", this);
+    pthread_mutex_lock(&devicelist_mutex);
+
     globalreg->devicetracker = NULL;
     globalreg->RemoveGlobal("DEVICE_TRACKER");
 
@@ -192,20 +195,16 @@ Devicetracker::~Devicetracker() {
 		delete track_filter;
     */
 
-    {
-        local_locker lock(&devicelist_mutex);
-
-        for (map<int, Kis_Phy_Handler *>::iterator p = phy_handler_map.begin();
-                p != phy_handler_map.end(); ++p) {
-            delete p->second;
-        }
-
-        for (unsigned int d = 0; d < tracked_vec.size(); d++) {
-            tracked_vec[d]->unlink();
-        }
-
-        packets_rrd->unlink();
+    for (map<int, Kis_Phy_Handler *>::iterator p = phy_handler_map.begin();
+            p != phy_handler_map.end(); ++p) {
+        delete p->second;
     }
+
+    for (unsigned int d = 0; d < tracked_vec.size(); d++) {
+        tracked_vec[d]->unlink();
+    }
+
+    packets_rrd->unlink();
 
     pthread_mutex_destroy(&devicelist_mutex);
 }
