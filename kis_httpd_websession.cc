@@ -22,12 +22,12 @@
 
 #include "configfile.h"
 #include "messagebus.h"
+#include "kis_net_microhttpd.h"
 #include "kis_httpd_websession.h"
 
-Kis_Httpd_Websession::Kis_Httpd_Websession(GlobalRegistry *in_globalreg) {
+Kis_Httpd_Websession::Kis_Httpd_Websession(GlobalRegistry *in_globalreg) :
+    Kis_Net_Httpd_Handler(in_globalreg) {
     globalreg = in_globalreg;
-
-    globalreg->httpd_server->RegisterHandler(this);
 
     string userpair = globalreg->kismet_config->FetchOpt("httpd_user");
     vector<string> up = StrTokenize(userpair, ":");
@@ -44,7 +44,7 @@ Kis_Httpd_Websession::Kis_Httpd_Websession(GlobalRegistry *in_globalreg) {
     }
 
 Kis_Httpd_Websession::~Kis_Httpd_Websession() {
-    globalreg->httpd_server->RemoveHandler(this);
+
 }
 
 void Kis_Httpd_Websession::SetLogin(string in_username, string in_password) {

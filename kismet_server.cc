@@ -875,8 +875,10 @@ int main(int argc, char *argv[], char *envp[]) {
 
     // HTTP BLOCK
     // Create the HTTPD server, it needs to exist before most things
-    globalregistry->httpd_server = new Kis_Net_Httpd(globalregistry);
-    globalregistry->RegisterLifetimeGlobal((LifetimeGlobal *) globalregistry->httpd_server);
+    _MSG("Starting Kismet web server...", MSGFLAG_INFO);
+    globalregistry->RegisterLifetimeGlobal((LifetimeGlobal *) new Kis_Net_Httpd(globalregistry));
+    if (globalregistry->fatal_condition)
+        CatchShutdown(-1);
 
     // Allocate some other critical stuff
     globalregistry->entrytracker = new EntryTracker(globalregistry);
