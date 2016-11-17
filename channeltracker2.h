@@ -206,6 +206,8 @@ public:
     // Update device counts
     void update_device_counts(map<double, unsigned int> in_counts);
 
+    int device_decay;
+
 protected:
     pthread_mutex_t lock;
 
