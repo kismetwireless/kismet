@@ -50,7 +50,13 @@ Packetchain::Packetchain(GlobalRegistry *in_globalreg) {
     next_componentid = 1;
 	next_handlerid = 1;
 
-	pthread_mutex_init(&packetchain_mutex, NULL);
+    // Make a recursive mutex that the owning thread can lock multiple times;
+    // If we fall into the error handler we have to be able to handle the shutdown
+    // properly.
+    pthread_mutexattr_t mutexattr;
+    pthread_mutexattr_init(&mutexattr);
+    pthread_mutexattr_settype(&mutexattr, PTHREAD_MUTEX_RECURSIVE);
+	pthread_mutex_init(&packetchain_mutex, &mutexattr);
 
     globalreg->InsertGlobal("PACKETCHAIN", this);
     globalreg->packetchain = this;
