@@ -169,6 +169,8 @@ int IPCRemote::CheckPidVec() {
 	if (ipc_pid == 0)
 		return 0;
 
+    // There is a situation here where multiple sig handlers call this and cause
+    // a double free, I think - dragorn
 	for (unsigned int x = 0; x < globalreg->sigchild_vec.size(); x++) {
 		if (globalreg->sigchild_vec[x].pid == ipc_pid) {
 			// printf("debug - check pid vec found pid %d status %d\n", ipc_pid, globalreg->sigchild_vec[x].status);
