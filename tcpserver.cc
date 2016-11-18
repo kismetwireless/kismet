@@ -91,6 +91,9 @@ int TcpServer::EnableServer() {
         return -1;
     }
 
+    // Set it to nonblocking
+    fcntl(serv_fd, F_SETFL, fcntl(serv_fd, F_GETFL, 0) | O_NONBLOCK | FD_CLOEXEC);
+
     // Listen for connections
     if (listen(serv_fd, 5) < 0) {
         snprintf(errstr, STATUS_MAX, "TCP server listen() failed: %s",
