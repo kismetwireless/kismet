@@ -238,6 +238,12 @@ void CatchShutdown(int sig) {
         return;
     }
 
+    globalregistry->spindown = 1;
+
+    return;
+}
+
+void SpindownKismet() {
     // Eat the child signal handler
     signal(SIGCHLD, SIG_DFL);
 
@@ -1172,7 +1178,10 @@ int main(int argc, char *argv[], char *envp[]) {
 
     // Core loop
     while (1) {
-        // printf("debug - %d - main loop tick\n", getpid());
+        if (globalregistry->spindown) {
+            SpindownKismet();
+            break;
+        }
 
         FD_ZERO(&rset);
         FD_ZERO(&wset);
