@@ -46,12 +46,8 @@ int NetworkServer::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
         max = in_max_fd;
     }
 
-    // Set the server fdif we're not in spindown, if we are spinning down,
-	// stop listening and shut down
-	if (globalreg->spindown && serv_fd >= 0) {
-		close(serv_fd);
-		serv_fd = -1;
-	} else if (serv_fd >= 0) {
+    // Only set the server fd if we're in spindown mode
+	if (!globalreg->spindown && serv_fd >= 0) {
 		FD_SET(serv_fd, out_rset);
 	}
     
