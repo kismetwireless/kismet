@@ -224,12 +224,19 @@ GlobalRegistry *globalregistry = NULL;
 
 // Catch our interrupt
 void CatchShutdown(int sig) {
+    static bool in_shutdown = false;
+
+    if (in_shutdown)
+        return;
+
+    in_shutdown = true;
+
+    fprintf(stderr, "DEBUG - Catch shutdown on pid %u sig %d\n", getpid(), sig);
+
     if (sig == 0) {
         kill(getpid(), SIGTERM);
         return;
     }
-
-    string termstr = "Kismet server terminating.";
 
     // Eat the child signal handler
     signal(SIGCHLD, SIG_DFL);

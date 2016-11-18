@@ -328,7 +328,12 @@ int Kis_Net_Httpd::StartHttpd() {
 
 int Kis_Net_Httpd::StopHttpd() {
     if (microhttpd != NULL) {
-        MHD_stop_daemon(microhttpd);
+        // We would want to stop but that seems to have some problems with
+        // thread joining; for now, quiesce it, and we'll kill it when the
+        // process exits, because we never shut down httpd and keep running
+        MHD_quiesce_daemon(microhttpd);
+
+        // MHD_stop_daemon(microhttpd);
         return 1;
     }
 
