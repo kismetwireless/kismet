@@ -193,6 +193,10 @@ public:
             struct MHD_Connection *connection, 
             const char *url, int httpcode, string responsestr);
 
+    // Catch MHD panics and try to close more elegantly
+    static void MHD_Panic(void *cls, const char *file, unsigned int line,
+            const char *reason);
+
 protected:
     GlobalRegistry *globalreg;
 

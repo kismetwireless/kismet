@@ -319,6 +319,8 @@ int Kis_Net_Httpd::StartHttpd() {
         return -1;
     }
 
+    MHD_set_panic_func(Kis_Net_Httpd::MHD_Panic, this);
+
     _MSG("Started http server on port " + UIntToString(http_port), MSGFLAG_INFO);
 
     return 1;
@@ -331,6 +333,19 @@ int Kis_Net_Httpd::StopHttpd() {
     }
 
     return 0;
+}
+
+void Kis_Net_Httpd::MHD_Panic(void *cls, const char *file, unsigned int line,
+        const char *reason) {
+    Kis_Net_Httpd *httpd = (Kis_Net_Httpd *) cls;
+
+    httpd->globalreg->fatal_condition = 1;
+    httpd->globalreg->messagebus->InjectMessage("Unable to continue after "
+            "MicroHTTPD fatal error: " + string(reason), MSGFLAG_FATAL);
+
+    // Null out the microhttpd since it can't keep operating and can't be
+    // trusted to close down properly
+    httpd->microhttpd = NULL;
 }
 
 void Kis_Net_Httpd::AddSession(Kis_Net_Httpd_Session *in_session) {
