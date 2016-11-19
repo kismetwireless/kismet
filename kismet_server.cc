@@ -76,7 +76,6 @@
 
 #include "netframework.h"
 #include "tcpserver.h"
-#include "kis_netframe.h"
 
 #include "kis_net_microhttpd.h"
 #include "system_monitor.h"
@@ -310,10 +309,6 @@ void SpindownKismet() {
         globalregistry->rootipc->ShutdownIPC(NULL);;
     }
 
-    if (globalregistry->kisnetserver != NULL) {
-        globalregistry->kisnetserver->Shutdown();
-    }
-
     // Be noisy
     if (globalregistry->fatal_condition) {
         fprintf(stderr, "\n*** KISMET HAS ENCOUNTERED A FATAL ERROR AND CANNOT "
@@ -433,13 +428,6 @@ int FlushDatafilesEvent(TIMEEVENT_PARMS) {
 
     if (r)
         _MSG("Saved data files", MSGFLAG_INFO);
-
-    return 1;
-}
-
-int BaseTimerEvent(TIMEEVENT_PARMS) {
-    // Send the info frame to everyone
-    globalreg->kisnetserver->SendToAll(_NPM(PROTO_REF_INFO), NULL);
 
     return 1;
 }
@@ -939,11 +927,6 @@ int main(int argc, char *argv[], char *envp[]) {
     // Add the datasource tracker
     globalregistry->RegisterLifetimeGlobal((LifetimeGlobal *) new Datasourcetracker(globalregistry));
 
-    // Create the basic network/protocol server
-    globalregistry->kisnetserver = new KisNetFramework(globalregistry);
-    if (globalregistry->fatal_condition)
-        CatchShutdown(-1);
-
     // Create the packetsourcetracker
     globalregistry->sourcetracker = new Packetsourcetracker(globalregistry);
     if (globalregistry->fatal_condition)
@@ -1069,11 +1052,6 @@ int main(int argc, char *argv[], char *envp[]) {
     if (globalregistry->sourcetracker->LoadConfiguration() < 0)
         CatchShutdown(-1);
 
-    // Create the basic network/protocol server
-    globalregistry->kisnetserver->Activate();
-    if (globalregistry->fatal_condition)
-        CatchShutdown(-1);
-
 #if 0
     // Create the basic drone server
     globalregistry->kisdroneserver->Activate();
@@ -1150,10 +1128,6 @@ int main(int argc, char *argv[], char *envp[]) {
             CatchShutdown(-1);
     }
 
-    globalregistry->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC,
-                                               NULL, 1, 
-                                               &BaseTimerEvent, NULL);
-    
     // Add system monitor 
     globalregistry->RegisterLifetimeGlobal((LifetimeGlobal *) new Systemmonitor(globalregistry));
 
