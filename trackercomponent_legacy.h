@@ -37,7 +37,6 @@
 #include "entrytracker.h"
 #include "packet.h"
 #include "packetchain.h"
-#include "kis_netframe.h"
 #include "timetracker.h"
 #include "filtercore.h"
 #include "uuid.h"

@@ -52,8 +52,6 @@
 
 #include "netframework.h"
 #include "tcpserver.h"
-// Include the stubbed empty netframe code
-#include "kis_netframe.h"
 
 #include "ipc_remote.h"
 
@@ -186,9 +184,6 @@ int main(int argc, char *argv[], char *envp[]) {
 	
 	// Allocate some other critical stuff
 	globalreg->timetracker = new Timetracker(globalreg);
-
-	// Create the stubbed network/protocol server
-	globalreg->kisnetserver = new KisNetFramework(globalreg);	
 
 	// Create the packet chain - PST uses it to grab frames to send to IPC
 	globalreg->packetchain = new Packetchain(globalreg);
