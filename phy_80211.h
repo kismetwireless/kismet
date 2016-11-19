@@ -36,7 +36,6 @@
 
 #include "globalregistry.h"
 #include "packetchain.h"
-#include "kis_netframe.h"
 #include "timetracker.h"
 #include "packet.h"
 #include "gps_manager.h"

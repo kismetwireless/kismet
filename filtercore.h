@@ -42,7 +42,6 @@
 #include "messagebus.h"
 #include "packetchain.h"
 #include "timetracker.h"
-#include "kis_netframe.h"
 
 class FilterCore {
 public:
