@@ -163,9 +163,6 @@ public:
 	// Shut down the plugins and close the shared files
 	int ShutdownPlugins();
 
-	// Network hook to send the plugins to a user on enable
-	int BlitPlugins(int in_fd);
-
 protected:
 	GlobalRegistry *globalreg;
 	int plugins_active;
