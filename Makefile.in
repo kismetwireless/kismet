@@ -54,7 +54,7 @@ CSO = util.o cygwin_utils.o globalregistry.o ringbuf.o \
 	packet.o messagebus.o configfile.o getopt.o \
 	filtercore.o ifcontrol.o iwcontrol.o madwifing_control.o nl80211_control.o \
 	psutils.o ipc_remote.o netframework.o clinetframework.o tcpserver.o tcpclient.o \
-	timetracker.o drone_kisnetframe.o \
+	timetracker.o \
 	packetsourcetracker.o packetchain.o $(CAPSOURCES) \
 	dumpfile.o dumpfile_tuntap.o \
 	kis_net_microhttpd.o base64.o entrytracker.o trackedelement.o msgpack_adapter.o \
