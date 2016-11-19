@@ -282,22 +282,6 @@ public:
 		void *auxdata;
 	} sourceactcb_rec;
 
-	// Network protocol stuff
-	void BlitSources(int in_fd);
-	void BlitProtoSources(int in_fd);
-
-	// Network commands
-	int cmd_ADDSOURCE(int, KisNetFramework *, char *, string, 
-					  vector<smart_word_token> *);
-	int cmd_DELSOURCE(int, KisNetFramework *, char *, string, 
-					  vector<smart_word_token> *);
-	int cmd_RESTARTSOURCE(int, KisNetFramework *, char *, string, 
-						  vector<smart_word_token> *);
-	int cmd_HOPSOURCE(int, KisNetFramework *, char *, string, 
-					  vector<smart_word_token> *);
-	int cmd_CHANLIST(int, KisNetFramework *, char *, string,
-					 vector<smart_word_token> *);
-
 	// Fetch and clear the channel time map
 	map<uint32_t, int> *FetchChannelTickMap() {
 		return &channel_tick_map;
@@ -349,9 +333,6 @@ protected:
 	int source_ipc_id, channellist_ipc_id, channel_ipc_id,
 		report_ipc_id, run_ipc_id, remove_ipc_id, sync_ipc_id,
 		packet_ipc_id, chanreport_ipc_id, stop_ipc_id;
-
-	int cmd_addsource_id, cmd_delsource_id, cmd_restartsource_id,
-		cmd_hopsource_id, cmd_channellist_id;
 
 	int running_as_ipc;
 
