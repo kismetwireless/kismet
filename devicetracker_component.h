@@ -790,7 +790,6 @@ protected:
     TrackerElement *value, *dirty;
 };
 
-// Currently borked
 template <class IC, int ET>
 class kis_tracked_rrd : public tracker_component {
 public:
@@ -1162,6 +1161,148 @@ protected:
     int second_entry_id;
     int minute_entry_id;
     int hour_entry_id;
+
+    bool update_first;
+};
+
+// Easier to make this it's own class since for a single-minute RRD the logic is
+// far simpler
+template <class IC, int ET>
+class kis_tracked_minute_rrd : public tracker_component {
+public:
+    kis_tracked_minute_rrd(GlobalRegistry *in_globalreg, int in_id) :
+        tracker_component(in_globalreg, in_id) {
+        register_fields();
+        reserve_fields(NULL);
+        update_first = true;
+    }
+
+    kis_tracked_minute_rrd(GlobalRegistry *in_globalreg, int in_id, TrackerElement *e) :
+        tracker_component(in_globalreg, in_id) {
+
+        register_fields();
+        reserve_fields(e);
+        update_first = true;
+    }
+
+    virtual TrackerElement *clone_type() {
+        return new kis_tracked_minute_rrd<IC, ET>(globalreg, get_id());
+    }
+
+    // By default a RRD will fast forward to the current time before
+    // transmission (this is desirable for RRD records that may not be
+    // routinely updated, like records tracking activity on a specific 
+    // device).  For records which are updated on a timer and the most
+    // recently used value accessed (like devices per frequency) turning
+    // this off may produce better results.
+    void update_before_serialzie(bool in_upd) {
+        update_first = in_upd;
+    }
+
+    __Proxy(last_time, uint64_t, time_t, time_t, last_time);
+
+    void add_sample(IC in_s, time_t in_time) {
+        int sec_bucket = in_time % 60;
+
+        time_t ltime = get_last_time();
+
+        // The second slot for the last time
+        int last_sec_bucket = ltime % 60;
+
+        if (in_time < ltime) {
+            return;
+        }
+        
+        TrackerElement *e;
+
+        // If we haven't seen data in a minute, wipe
+        if (in_time - ltime > 60) {
+            for (int x = 0; x < 60; x++) {
+                e = minute_vec->get_vector_value(x);
+                e->set((IC) 0);
+            }
+        } else {
+            // If in_time == last_time then we're updating an existing record, so
+            // add that in.
+            // Otherwise, fast-forward seconds with zero data, average the seconds,
+            // and propagate the averages up
+            if (in_time == ltime) {
+                e = minute_vec->get_vector_value(sec_bucket);
+                (*e) += in_s;
+            } else {
+                for (int s = 0; 
+                        s < minutes_different(last_sec_bucket + 1, sec_bucket); s++) {
+                    e = minute_vec->get_vector_value((last_sec_bucket + 1 + s) % 60);
+                    e->set((IC) 0);
+                }
+
+                e = minute_vec->get_vector_value(sec_bucket);
+                e->set((IC) in_s);
+            }
+        }
+
+
+        set_last_time(in_time);
+    }
+
+    virtual void pre_serialize() {
+        tracker_component::pre_serialize();
+
+        if (update_first) {
+            add_sample(0, globalreg->timestamp.tv_sec);
+        }
+    }
+
+protected:
+    inline int minutes_different(int m1, int m2) const {
+        if (m1 == m2) {
+            return 0;
+        } else if (m1 < m2) {
+            return m2 - m1;
+        } else {
+            return 60 - m1 + m2;
+        }
+    }
+
+    virtual void register_fields() {
+        tracker_component::register_fields();
+
+        last_time_id =
+            RegisterField("kismet.common.rrd.last_time", TrackerUInt64,
+                    "last time udpated", (void **) &last_time);
+
+        minute_vec_id = 
+            RegisterField("kismet.common.rrd.minute_vec", TrackerVector,
+                    "past minute values per second", (void **) &minute_vec);
+
+        second_entry_id = 
+            RegisterField("kismet.common.rrd.second", (TrackerType) ET, 
+                    "second value", NULL);
+    } 
+
+    virtual void reserve_fields(TrackerElement *e) {
+        tracker_component::reserve_fields(e);
+
+        set_last_time(0);
+
+        // Build slots for all the times
+        int x;
+        if ((x = minute_vec->get_vector()->size()) != 60) {
+            for ( ; x < 60; x++) {
+                TrackerElement *me =
+                    new TrackerElement((TrackerType) ET, second_entry_id);
+                minute_vec->add_vector(me);
+            }
+        }
+    }
+
+    int last_time_id;
+    TrackerElement *last_time;
+
+    int minute_vec_id;
+    TrackerElement *minute_vec;
+
+    int second_entry_id;
 
     bool update_first;
 };
