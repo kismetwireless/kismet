@@ -528,10 +528,28 @@ kis_tracked_device_base *Devicetracker::UpdateCommonDevice(mac_addr in_mac,
                 device->inc_datasize(pack_common->datasize);
                 device->get_data_rrd()->add_sample(pack_common->datasize,
                         globalreg->timestamp.tv_sec);
+
+                if (pack_common->datasize <= 250)
+                    device->get_packet_rrd_bin_250()->add_sample(1, 
+                            globalreg->timestamp.tv_sec);
+                else if (pack_common->datasize <= 500)
+                    device->get_packet_rrd_bin_500()->add_sample(1, 
+                            globalreg->timestamp.tv_sec);
+                else if (pack_common->datasize <= 1000)
+                    device->get_packet_rrd_bin_1000()->add_sample(1, 
+                            globalreg->timestamp.tv_sec);
+                else if (pack_common->datasize <= 1500)
+                    device->get_packet_rrd_bin_1500()->add_sample(1, 
+                            globalreg->timestamp.tv_sec);
+                else 
+                    device->get_packet_rrd_bin_jumbo()->add_sample(1, 
+                            globalreg->timestamp.tv_sec);
+
             } else if (pack_common->type == packet_basic_mgmt ||
                     pack_common->type == packet_basic_phy) {
                 device->inc_llc_packets();
             }
+
         }
     }
 
