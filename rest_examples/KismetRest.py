@@ -421,6 +421,36 @@ class KismetConnector:
 
         return self.__simplify(obj)
 
+    def device_filtered_dot11_probe_summary(self, pcre):
+        """
+        device_filtered_dot11_probe_summary() -> device summary list, filtered by
+        dot11 ssid
+
+        Return summary of all devices that match filter terms
+        """
+
+        cmd = {
+                "essid": pcre
+                }
+
+        (r, v) = self.post_url("phy/phy80211/probe_regex.cmd", cmd)
+        if not r:
+            print "Could not fetch summary"
+
+            if self.debug:
+                print "Error: ", v
+
+            return list()
+
+        try:
+            obj = msgpack.unpackb(v)
+        except Exception as e:
+            if self.debug:
+                print "Failed to unpack object: ", e
+            return list()
+
+        return self.__simplify(obj)
+
     def device_dot11_clients(self, device):
         """
         device_dot11_clients() -> device list of clients associated to a 
