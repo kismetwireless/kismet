@@ -103,6 +103,8 @@ public:
         this->type = TrackerUnassigned;
         reference_count = 0;
 
+        deallocated = false;
+
         set_id(-1);
 
         // Redundant I guess
@@ -579,6 +581,11 @@ protected:
     // Generic coercion exception
 #ifdef TE_TYPE_SAFETY
     inline void except_type_mismatch(const TrackerType t) const {
+        if (deallocated) {
+            string w = "element appears to have been deallocated, something is wrong.";
+            throw std::runtime_error(w);
+        }
+
         if (type != t) {
             string w = "element type mismatch, is " + type_to_string(this->type) + 
                 " tried to use as " + type_to_string(t);
@@ -590,6 +597,9 @@ protected:
 
     // Garbage collection?  Say it ain't so...
     int reference_count;
+
+    // Try to track if we've been double-freed and blow up cleanly
+    bool deallocated;
 
     TrackerType type;
     int tracked_id;

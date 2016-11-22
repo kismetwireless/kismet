@@ -30,6 +30,7 @@
 TrackerElement::TrackerElement(TrackerType type) {
     this->type = TrackerUnassigned;
     reference_count = 0;
+    deallocated = false;
 
     set_id(-1);
 
@@ -67,6 +68,7 @@ TrackerElement::TrackerElement(TrackerType type, int id) {
     set_id(id);
 
     reference_count = 0;
+    deallocated = false;
 
     dataunion.string_value = NULL;
 
@@ -96,6 +98,8 @@ TrackerElement::TrackerElement(TrackerType type, int id) {
 }
 
 TrackerElement::~TrackerElement() {
+    deallocated = true;
+
     // Blow up if we're still in use and someone free'd us
     if (reference_count != 0) {
         string w = "destroying element with non-zero reference count (" + 

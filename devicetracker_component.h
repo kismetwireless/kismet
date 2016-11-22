@@ -790,7 +790,33 @@ protected:
     TrackerElement *value, *dirty;
 };
 
-template <class IC, int ET>
+// Aggregator class used for RRD.  Performs functions like combining elements
+// (for instance, adding to the existing element, or choosing to replace the
+// element), and for averaging to higher buckets (for instance, performing a 
+// raw average or taking absolutes)
+template <class IC> 
+class kis_tracked_rrd_default_aggregator {
+public:
+    // Performed when adding an element to the RRD.  By default, adds the new
+    // value to the current value for aggregating multiple samples over time.
+    static IC combine_element(const IC a, const IC b) {
+        return a + b;
+    }
+
+    // Combine a vector for a higher-level record (seconds to minutes, minutes to 
+    // hours, and so on).
+    static IC combine_vector(TrackerElement *e) {
+        TrackerElementVector v(e);
+
+        IC avg = 0;
+        for (TrackerElementVector::iterator i = v.begin(); i != v.end(); ++i) 
+            avg += GetTrackerValue<IC>(*i);
+
+        return avg / v.size();
+    }
+};
+
+template <class IC, int ET, class Aggregator = kis_tracked_rrd_default_aggregator<IC> >
 class kis_tracked_rrd : public tracker_component {
 public:
     kis_tracked_rrd(GlobalRegistry *in_globalreg, int in_id) :
@@ -824,7 +850,10 @@ public:
 
     __Proxy(last_time, uint64_t, time_t, time_t, last_time);
 
+    // Add a sample.  Use combinator function 'c' to derive the new sample value
     void add_sample(IC in_s, time_t in_time) {
+        Aggregator agg;
+
         int sec_bucket = in_time % 60;
         int min_bucket = (in_time / 60) % 60;
         int hour_bucket = (in_time / 3600) % 24;
@@ -848,38 +877,36 @@ public:
         // If we haven't seen data in a day, we reset everything because
         // none of it is valid.  This is the simplest case.
         if (in_time - ltime > (60 * 60 * 24)) {
-            // printf("debug - rrd - beed a day since last value\n");
             // Directly fill in this second, clear rest of the minute
-            for (int x = 0; x < 60; x++) {
-                e = minute_vec->get_vector_value(x);
-
-                if (x == sec_bucket)
-                    e->set((IC) in_s);
+            TrackerElementVector mv(minute_vec);
+            for (TrackerElementVector::iterator i = mv.begin(); i != mv.end(); ++i) {
+                if (i - mv.begin() == sec_bucket)
+                    (*i)->set(in_s);
                 else
-                    e->set((IC) 0);
+                    (*i)->set((IC) 0);
             }
 
-            // We know we haven't seen it in the last hour, so we can just put
-            // the average of one sample in the last minute into the hour record
-            for (int x = 0; x < 60; x++) {
-                e = hour_vec->get_vector_value(x);
-
-                if (x == min_bucket)
-                    e->set((IC) in_s / 60);
+            // Reset the last hour, setting it to a single sample
+            // Get the combined value for the minute
+            IC min_val = agg.combine_vector(minute_vec);
+            TrackerElementVector hv = TrackerElementVector(hour_vec);
+            for (TrackerElementVector::iterator i = hv.begin(); i != hv.end(); ++i) {
+                if (i - hv.begin() == min_bucket)
+                    (*i)->set(min_val);
                 else
-                    e->set((IC) 0);
+                    (*i)->set((IC) 0);
             }
 
-            // We know we haven't seen it in the last day, so we can put the
-            // average of seeing it once directly into the day
-            for (int x = 0; x < 24; x++) {
-                e = day_vec->get_vector_value(x);
-
-                if (x == hour_bucket)
-                    e->set((IC) in_s / (60) / (60));
+            // Reset the last day, setting it to a single sample
+            IC hr_val = agg.combine_vector(hour_vec);
+            TrackerElementVector dv = TrackerElementVector(day_vec);
+            for (TrackerElementVector::iterator i = dv.begin(); i != dv.end(); ++i) {
+                if (i - dv.begin() == hour_bucket)
+                    (*i)->set(hr_val);
                 else
-                    e->set((IC) 0);
+                    (*i)->set((IC) 0);
             }
+
             set_last_time(in_time);
 
             return;
@@ -893,40 +920,28 @@ public:
            
             IC sec_avg = 0, min_avg = 0;
 
-            // Clear the past minutes worth of second data and build the average,
-            // set the new second entry for the otherwise empty minute
-            for (int x = 0; x < 60; x++) {
-                e = minute_vec->get_vector_value(x);
-
-                sec_avg += GetTrackerValue<IC>(e);
-
-                if (x == sec_bucket)
-                    e->set((IC) in_s);
+            // We only have this entry in the minute, so set it and get the 
+            // combined value
+            
+            TrackerElementVector mv(minute_vec);
+            for (TrackerElementVector::iterator i = mv.begin(); i != mv.end(); ++i) {
+                if (i - mv.begin() == sec_bucket)
+                    (*i)->set(in_s);
                 else
-                    e->set((IC) 0);
+                    (*i)->set((IC) 0);
             }
+            sec_avg = agg.combine_vector(minute_vec);
 
-            // Compute the average from the minute we knew about
-            sec_avg /= 60;
-
-            for (int x = 0; x < 60; x++) {
-                e = minute_vec->get_vector_value(x);
-
-                // Get the average of the minute value we had
-                min_avg += GetTrackerValue<IC>(e);
-
-                // Put the old minute data in place, put the new value in,
-                // or zero out
-                if (x == last_min_bucket) {
-                    e->set((IC) sec_avg);
-                } else if (x == min_bucket)
-                    e->set((IC) in_s / 60);
+            // We haven't seen anything in this hour, so clear it, set the minute
+            // and get the aggregate
+            TrackerElementVector hv = TrackerElementVector(hour_vec);
+            for (TrackerElementVector::iterator i = hv.begin(); i != hv.end(); ++i) {
+                if (i - hv.begin() == min_bucket)
+                    (*i)->set(sec_avg);
                 else
-                    e->set((IC) 0);
+                    (*i)->set((IC) 0);
             }
-
-            // Set the last hour aggregation
-            min_avg /= 60;
+            min_avg = agg.combine_vector(hour_vec);
 
             // Fill the hours between the last time we saw data and now with
             // zeroes; fastforward time
@@ -934,6 +949,9 @@ public:
                 e = hour_vec->get_vector_value((last_hour_bucket + 1 + h) % 24);
                 e->set((IC) 0);
             }
+
+            e = day_vec->get_vector_value(hour_bucket);
+            e->set(min_avg);
 
         } else if (in_time - ltime > 60) {
             // - Calculate the average seconds
@@ -945,95 +963,63 @@ public:
 
             IC sec_avg = 0, min_avg = 0;
 
-            for (int s = 0; s < 60; s++) {
-                e = minute_vec->get_vector_value(s);
-                sec_avg += GetTrackerValue<IC>(e);
-
-                if (s == sec_bucket)
-                    e->set((IC) in_s);
-                else 
-                    e->set((IC) 0);
+            TrackerElementVector mv(minute_vec);
+            for (TrackerElementVector::iterator i = mv.begin(); i != mv.end(); ++i) {
+                if (i - mv.begin() == sec_bucket)
+                    (*i)->set(in_s);
+                else
+                    (*i)->set((IC) 0);
             }
+            sec_avg = agg.combine_vector(minute_vec);
 
-            sec_avg /= 60;
-
+            // Zero between last and current
             for (int m = 0; 
                     m < minutes_different(last_min_bucket + 1, min_bucket); m++) {
                 e = hour_vec->get_vector_value((last_min_bucket + 1 + m) % 60);
                 e->set((IC) 0);
             }
 
+            // Set the updated value
             e = hour_vec->get_vector_value(min_bucket);
             e->set((IC) sec_avg);
 
-            // Average the minutes into an hour
-            for (unsigned int m = 0; m < 60; m++) {
-                e = hour_vec->get_vector_value(m);
-                min_avg += GetTrackerValue<IC>(e);
-            }
+            min_avg = agg.combine_vector(hour_vec);
 
-            min_avg /= 60;
-
-            // Set the hour
+            // Reset the hour
             e = day_vec->get_vector_value(hour_bucket);
             e->set(min_avg);
 
         } else {
             // printf("debug - rrd - w/in the last minute %d seconds\n", in_time - last_time);
-            // If in_time == last_time then we're updating an existing record, so
-            // add that in.
-            // Otherwise, fast-forward seconds with zero data, average the seconds,
-            // and propagate the averages up
+            // If in_time == last_time then we're updating an existing record,
+            // use the aggregator class to combine it
+            
+            // Otherwise, fast-forward seconds with zero data, then propagate the
+            // changes up
             if (in_time == ltime) {
                 e = minute_vec->get_vector_value(sec_bucket);
-                (*e) += in_s;
-
-                // printf("setting second %d to %d\n",  sec_bucket, GetTrackerValue<IC>(e));
+                e->set(agg.combine_element(GetTrackerValue<IC>(e), in_s));
             } else {
-                // printf("seconds different: %d zeroing from %d to %d... ", minutes_different(last_sec_bucket, sec_bucket), last_sec_bucket, sec_bucket);
                 for (int s = 0; 
                         s < minutes_different(last_sec_bucket + 1, sec_bucket); s++) {
                     e = minute_vec->get_vector_value((last_sec_bucket + 1 + s) % 60);
                     e->set((IC) 0);
-                    // printf("%d ", s);
                 }
-                // printf("\n");
 
                 e = minute_vec->get_vector_value(sec_bucket);
                 e->set((IC) in_s);
             }
 
-#if 0
-            printf("last minute: ");
-            for (int s = 0; s < 60; s++) {
-                e = minute_vec->get_vector_value(s);
-                printf("%u ", GetTrackerValue<IC>(e));
-            }
-            printf("\n");
-#endif
-               
             // Update all the averages
             IC sec_avg = 0, min_avg = 0;
 
-            // Average the seconds into a minute
-            for (unsigned int s = 0; s < 60; s++) {
-                e = minute_vec->get_vector_value(s);
-                sec_avg += GetTrackerValue<IC>(e);
-            }
-
-            sec_avg /= 60;
+            sec_avg = agg.combine_vector(minute_vec);
 
             // Set the minute
             e = hour_vec->get_vector_value(min_bucket);
             e->set(sec_avg);
 
-            // Average the minutes into an hour
-            for (unsigned int m = 0; m < 60; m++) {
-                e = hour_vec->get_vector_value(m);
-                min_avg += GetTrackerValue<IC>(e);
-            }
-
-            min_avg /= 60;
+            min_avg = agg.combine_vector(hour_vec);
 
             // Set the hour
             e = day_vec->get_vector_value(hour_bucket);
@@ -1166,7 +1152,9 @@ protected:
 };
 
 // Easier to make this it's own class since for a single-minute RRD the logic is
-// far simpler
+// far simpler.  In a perfect would this would be derived from the common
+// RRD (or the other way around) but until it becomes a problem that's a
+// task for another day.
 template <class IC, int ET>
 class kis_tracked_minute_rrd : public tracker_component {
 public:
