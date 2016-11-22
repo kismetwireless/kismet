@@ -258,7 +258,23 @@ Expects a command dictionary including:
 
 *LOGIN _NOT_ REQUIRED*
 
-Retrieve a msgpack array of device summaries based on the supplied PCRE-compatible regular expression.
+Retrieve a msgpack array of device summaries based on the supplied PCRE-compatible regular expression.  Devices are matched on advertised SSIDs or probe response SSIDs.
+
+This API requires a Kismet server that has been compiled with libpcre support.
+
+Multiple PCRE terms may be supplied.  The response will include devices which match *any* of the supplied terms.
+
+Expects a command dictionary including:
+
+| Key | Value | Type | Desc |
+| --- | ----- | ---- | ---- |
+| essid | ["one", "two", "three" ] | array of string | Array of PCRE regex filters |
+
+##### `/phy/phy80211/probe_regex.cmd`
+
+*LOGIN _NOT_ REQUIRED*
+
+Retrieve a msgpack array of device summaries based on the supplied PCRE-compatible regular expression.  Devices are matched on *requested* SSIDs from probe request fields.
 
 This API requires a Kismet server that has been compiled with libpcre support.
 
