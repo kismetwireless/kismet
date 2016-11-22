@@ -1981,9 +1981,12 @@ string Kis_80211_Phy::CryptToString(uint64_t cryptset) {
 bool Kis_80211_Phy::Httpd_VerifyPath(const char *path, const char *method) {
     // Always return that the URL exists, but throw an error during post
     // handling if we don't have PCRE.  Less weird behavior for clients.
-    if (strcmp(method, "POST") == 0 &&
-            strcmp(path, "/phy/phy80211/ssid_regex.cmd") == 0)
-        return true;
+    if (strcmp(method, "POST") == 0) {
+        if (strcmp(path, "/phy/phy80211/ssid_regex.cmd") == 0)
+            return true;
+        if (strcmp(path, "/phy/phy80211/probe_regex.cmd") == 0)
+            return true;
+    }
 
     return false;
 }
@@ -2006,9 +2009,9 @@ typedef struct {
 // and then export it as a device summary vector.
 // This all happens inside the thread lock of the devicetracker worker, 
 // so it's safe to build a list of devices
-class phy80211_devicetracker_pcre_worker : public DevicetrackerFilterWorker {
+class phy80211_devicetracker_ssid_pcre_worker : public DevicetrackerFilterWorker {
 public:
-    phy80211_devicetracker_pcre_worker(GlobalRegistry *in_globalreg, 
+    phy80211_devicetracker_ssid_pcre_worker(GlobalRegistry *in_globalreg, 
             vector<phy80211_pcre_filter *> *filtervec, int entry_id,
             TrackerElementSerializer *in_serializer) {
 
@@ -2024,7 +2027,7 @@ public:
         devices = new TrackerElementVector(device_vec);
     }
 
-    virtual ~phy80211_devicetracker_pcre_worker() {
+    virtual ~phy80211_devicetracker_ssid_pcre_worker() {
         // Delete the wrapper which unlinks the child
         delete(devices);
     }
@@ -2032,7 +2035,7 @@ public:
     bool get_error() { return error; }
 
     // Compare against our PCRE and export msgpack objects if we match
-    virtual void MatchDevice(Devicetracker *devicetracker, 
+    virtual void MatchDevice(Devicetracker *devicetracker __attribute__((unused)), 
             kis_tracked_device_base *device) {
 
         dot11_tracked_device *dot11dev =
@@ -2094,6 +2097,94 @@ protected:
     TrackerElementSerializer *serializer;
 };
 
+class phy80211_devicetracker_probe_pcre_worker : public DevicetrackerFilterWorker {
+public:
+    phy80211_devicetracker_probe_pcre_worker(GlobalRegistry *in_globalreg, 
+            vector<phy80211_pcre_filter *> *filtervec, int entry_id,
+            TrackerElementSerializer *in_serializer) {
+
+        globalreg = in_globalreg;
+        this->filter_vec = filtervec;
+        dot11_device_entry_id = entry_id;
+        error = false;
+        serializer = in_serializer;
+
+        // Make a vector, we don't care about the container type
+        device_vec = new TrackerElement(TrackerVector);
+        // Wrap it in a vector handler, which links it
+        devices = new TrackerElementVector(device_vec);
+    }
+
+    virtual ~phy80211_devicetracker_probe_pcre_worker() {
+        // Delete the wrapper which unlinks the child
+        delete(devices);
+    }
+
+    bool get_error() { return error; }
+
+    // Compare against our PCRE and export msgpack objects if we match
+    virtual void MatchDevice(Devicetracker *devicetracker __attribute__((unused)), 
+            kis_tracked_device_base *device) {
+
+        dot11_tracked_device *dot11dev =
+            (dot11_tracked_device *) device->get_map_value(dot11_device_entry_id);
+
+        // Not 802.11?  nothing we can do
+        if (dot11dev == NULL) {
+            return;
+        }
+
+        // Iterate over all the probed SSIDs
+        TrackerElementIntMap probe_ssid_map(dot11dev->get_probed_ssid_map());
+        dot11_probed_ssid *ssid = NULL;
+        TrackerElementIntMap::const_iterator ssid_itr;
+
+        for (ssid_itr = probe_ssid_map.begin(); 
+                ssid_itr != probe_ssid_map.end(); ++ssid_itr) {
+            ssid = (dot11_probed_ssid *) ssid_itr->second;
+            bool device_handled = false;
+
+            for (unsigned int i = 0; i < filter_vec->size(); i++) {
+                int rc;
+                int ovector[128];
+
+                rc = pcre_exec((*filter_vec)[i]->re,
+                        (*filter_vec)[i]->study,
+                        ssid->get_ssid().c_str(),
+                        ssid->get_ssid_len(),
+                        0, 0, ovector, 128);
+
+                // Export the device msgpack
+                if (rc >= 0) {
+                    device_handled = true;
+                    devices->push_back(device);
+                    break;
+                }
+            }
+
+            // Don't match more than once on a device
+            if (device_handled)
+                break;
+        }
+
+    }
+
+    virtual void Finalize(Devicetracker *devicetracker) {
+        // Push the summary of devices
+        devicetracker->httpd_device_summary(serializer, devices);
+    }
+
+protected:
+    GlobalRegistry *globalreg;
+    std::stringstream *outstream;
+    vector<phy80211_pcre_filter *> *filter_vec;
+    bool error;
+    int dot11_device_entry_id;
+    TrackerElement *device_vec;
+    TrackerElementVector *devices;
+    TrackerElementSerializer *serializer;
+};
+
 #endif
 
 int Kis_80211_Phy::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind, 
@@ -2105,7 +2196,8 @@ int Kis_80211_Phy::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind
 
     bool handled = false;
 
-    if (concls->url == "/phy/phy80211/ssid_regex.cmd" &&
+    if ((concls->url == "/phy/phy80211/ssid_regex.cmd" ||
+                concls->url == "/phy/phy80211/probe_regex.cmd") &&
             strcmp(key, "msgpack") == 0 && size > 0) {
 #ifdef HAVE_LIBPCRE
         MsgpackAdapter::MsgpackStrMap::iterator obj_iter;
@@ -2166,11 +2258,19 @@ int Kis_80211_Phy::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind
             TrackerElementSerializer *serializer = 
                 new MsgpackAdapter::Serializer(globalreg, concls->response_stream);
 
-            phy80211_devicetracker_pcre_worker worker(globalreg,
-                    &filter_vec, dot11_device_entry_id, serializer);
+            if (concls->url == "/phy/phy80211/ssid_regex.cmd") {
+                phy80211_devicetracker_ssid_pcre_worker worker(globalreg,
+                        &filter_vec, dot11_device_entry_id, serializer);
 
-            // Tell devicetracker to do the work
-            devicetracker->MatchOnDevices(&worker);
+                // Tell devicetracker to do the work
+                devicetracker->MatchOnDevices(&worker);
+            } else if (concls->url == "/phy/phy80211/probe_regex.cmd") {
+                phy80211_devicetracker_probe_pcre_worker worker(globalreg,
+                        &filter_vec, dot11_device_entry_id, serializer);
+
+                // Tell devicetracker to do the work
+                devicetracker->MatchOnDevices(&worker);
+            }
             
             for (unsigned int i = 0; i < filter_vec.size(); i++) {
                 pcre_free(filter_vec[i]->re);
