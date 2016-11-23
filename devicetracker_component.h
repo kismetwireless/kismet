@@ -1155,7 +1155,7 @@ protected:
 // far simpler.  In a perfect would this would be derived from the common
 // RRD (or the other way around) but until it becomes a problem that's a
 // task for another day.
-template <class IC, int ET>
+template <class IC, int ET, class Aggregator = kis_tracked_rrd_default_aggregator<IC> >
 class kis_tracked_minute_rrd : public tracker_component {
 public:
     kis_tracked_minute_rrd(GlobalRegistry *in_globalreg, int in_id) :
@@ -1190,6 +1190,8 @@ public:
     __Proxy(last_time, uint64_t, time_t, time_t, last_time);
 
     void add_sample(IC in_s, time_t in_time) {
+        Aggregator agg;
+
         int sec_bucket = in_time % 60;
 
         time_t ltime = get_last_time();
@@ -1216,7 +1218,7 @@ public:
             // and propagate the averages up
             if (in_time == ltime) {
                 e = minute_vec->get_vector_value(sec_bucket);
-                (*e) += in_s;
+                e->set(agg.combine_element(GetTrackerValue<IC>(e), in_s));
             } else {
                 for (int s = 0; 
                         s < minutes_different(last_sec_bucket + 1, sec_bucket); s++) {
