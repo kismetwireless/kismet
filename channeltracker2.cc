@@ -51,8 +51,12 @@ Channeltracker_V2::Channeltracker_V2(GlobalRegistry *in_globalreg) :
 	pack_comp_l1data = 
 		globalreg->packetchain->RegisterPacketComponent("RADIODATA");
 
+    struct timeval trigger_tm;
+    trigger_tm.tv_sec = globalreg->timestamp.tv_sec + 1;
+    trigger_tm.tv_usec = 0;
+
     timer_id = 
-        globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1, this);
+        globalreg->timetracker->RegisterTimer(0, &trigger_tm, 0, this);
 
     pthread_mutex_init(&lock, NULL);
 }
@@ -168,6 +172,15 @@ protected:
 int Channeltracker_V2::timetracker_event(int event_id __attribute__((unused))) {
     channeltracker_v2_device_worker worker(globalreg, this);
     globalreg->devicetracker->MatchOnDevices(&worker);
+
+    // Reschedule
+    struct timeval trigger_tm;
+    trigger_tm.tv_sec = globalreg->timestamp.tv_sec + 1;
+    trigger_tm.tv_usec = 0;
+
+    timer_id = 
+        globalreg->timetracker->RegisterTimer(0, &trigger_tm, 0, this);
+
     return 1;
 }
 
