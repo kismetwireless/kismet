@@ -814,6 +814,11 @@ public:
 
         return avg / v.size();
     }
+
+    // Default 'empty' value
+    static IC default_val() {
+        return (IC) 0;
+    }
 };
 
 template <class IC, int ET, class Aggregator = kis_tracked_rrd_default_aggregator<IC> >
@@ -883,7 +888,7 @@ public:
                 if (i - mv.begin() == sec_bucket)
                     (*i)->set(in_s);
                 else
-                    (*i)->set((IC) 0);
+                    (*i)->set((IC) agg.default_val());
             }
 
             // Reset the last hour, setting it to a single sample
@@ -894,7 +899,7 @@ public:
                 if (i - hv.begin() == min_bucket)
                     (*i)->set(min_val);
                 else
-                    (*i)->set((IC) 0);
+                    (*i)->set((IC) agg.default_val());
             }
 
             // Reset the last day, setting it to a single sample
@@ -904,7 +909,7 @@ public:
                 if (i - dv.begin() == hour_bucket)
                     (*i)->set(hr_val);
                 else
-                    (*i)->set((IC) 0);
+                    (*i)->set((IC) agg.default_val());
             }
 
             set_last_time(in_time);
@@ -928,7 +933,7 @@ public:
                 if (i - mv.begin() == sec_bucket)
                     (*i)->set(in_s);
                 else
-                    (*i)->set((IC) 0);
+                    (*i)->set((IC) agg.default_val());
             }
             sec_avg = agg.combine_vector(minute_vec);
 
@@ -939,7 +944,7 @@ public:
                 if (i - hv.begin() == min_bucket)
                     (*i)->set(sec_avg);
                 else
-                    (*i)->set((IC) 0);
+                    (*i)->set((IC) agg.default_val());
             }
             min_avg = agg.combine_vector(hour_vec);
 
@@ -947,7 +952,7 @@ public:
             // zeroes; fastforward time
             for (int h = 0; h < hours_different(last_hour_bucket + 1, hour_bucket); h++) {
                 e = hour_vec->get_vector_value((last_hour_bucket + 1 + h) % 24);
-                e->set((IC) 0);
+                e->set((IC) agg.default_val());
             }
 
             e = day_vec->get_vector_value(hour_bucket);
@@ -968,7 +973,7 @@ public:
                 if (i - mv.begin() == sec_bucket)
                     (*i)->set(in_s);
                 else
-                    (*i)->set((IC) 0);
+                    (*i)->set((IC) agg.default_val());
             }
             sec_avg = agg.combine_vector(minute_vec);
 
@@ -976,7 +981,7 @@ public:
             for (int m = 0; 
                     m < minutes_different(last_min_bucket + 1, min_bucket); m++) {
                 e = hour_vec->get_vector_value((last_min_bucket + 1 + m) % 60);
-                e->set((IC) 0);
+                e->set((IC) agg.default_val());
             }
 
             // Set the updated value
@@ -1003,7 +1008,7 @@ public:
                 for (int s = 0; 
                         s < minutes_different(last_sec_bucket + 1, sec_bucket); s++) {
                     e = minute_vec->get_vector_value((last_sec_bucket + 1 + s) % 60);
-                    e->set((IC) 0);
+                    e->set((IC) agg.default_val());
                 }
 
                 e = minute_vec->get_vector_value(sec_bucket);
@@ -1032,11 +1037,12 @@ public:
 
     virtual void pre_serialize() {
         tracker_component::pre_serialize();
+        Aggregator agg;
 
         // printf("debug - rrd - preserialize\n");
         // Update the averages
         if (update_first) {
-            add_sample(0, globalreg->timestamp.tv_sec);
+            add_sample(agg.default_val(), globalreg->timestamp.tv_sec);
         }
     }
 
@@ -1209,7 +1215,7 @@ public:
         if (in_time - ltime > 60) {
             for (int x = 0; x < 60; x++) {
                 e = minute_vec->get_vector_value(x);
-                e->set((IC) 0);
+                e->set((IC) agg.default_val());
             }
         } else {
             // If in_time == last_time then we're updating an existing record, so
@@ -1223,7 +1229,7 @@ public:
                 for (int s = 0; 
                         s < minutes_different(last_sec_bucket + 1, sec_bucket); s++) {
                     e = minute_vec->get_vector_value((last_sec_bucket + 1 + s) % 60);
-                    e->set((IC) 0);
+                    e->set((IC) agg.default_val());
                 }
 
                 e = minute_vec->get_vector_value(sec_bucket);
@@ -1237,9 +1243,10 @@ public:
 
     virtual void pre_serialize() {
         tracker_component::pre_serialize();
+        Aggregator agg;
 
         if (update_first) {
-            add_sample(0, globalreg->timestamp.tv_sec);
+            add_sample(agg.default_val(), globalreg->timestamp.tv_sec);
         }
     }
 
