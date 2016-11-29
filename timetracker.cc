@@ -29,7 +29,12 @@ Timetracker::Timetracker() {
 Timetracker::Timetracker(GlobalRegistry *in_globalreg) {
     globalreg = in_globalreg;
 
-    pthread_mutex_init(&time_mutex, NULL);
+    // Make a recursive mutex that the owning thread can lock multiple times;
+    // Required to allow a timer event to reschedule itself on completion
+    pthread_mutexattr_t mutexattr;
+    pthread_mutexattr_init(&mutexattr);
+    pthread_mutexattr_settype(&mutexattr, PTHREAD_MUTEX_RECURSIVE);
+	pthread_mutex_init(&time_mutex, &mutexattr);
 
     next_timer_id = 0;
 
@@ -55,6 +60,8 @@ Timetracker::~Timetracker() {
 }
 
 int Timetracker::Tick() {
+    vector<timer_event *> action_timers;
+
     local_locker lock(&time_mutex);
 
     // Handle scheduled events
