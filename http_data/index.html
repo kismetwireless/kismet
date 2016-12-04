@@ -25,6 +25,7 @@
 <script src="/js/jquery.kismet.devicedata.js"></script>
 <script src="/js/jquery.kismet.messagebus.js"></script>
 <script src="/js/jquery.kismet.channeldisplay.js"></script>
+<script src="/js/jquery.kismet.battery.js"></script>
 
 <script src="/js/raphael.min.js"></script>
 <script src="/js/morris.min.js"></script>
@@ -164,8 +165,6 @@ $(function() {
     // this?  sure is annoying.
     kismet.GetDynamicIncludes().done(function() {
 
-    kismet_ui.BatteryUi($("#batspinner"), $("#batpower"), $("#battime"));
-
     $('#devices').DataTable( {
         "scrollY":        "1",
         "scroller":       true,
@@ -270,6 +269,9 @@ $(function() {
 
     $('#channels').channels();
 
+    // kismet_ui.BatteryUi($("#batspinner"), $("#batpower"), $("#battime"));
+    $('#topbar_battery').battery();
+
 }); // when
 
 }); // onload
@@ -289,12 +291,8 @@ $(function() {
             <div class="ui-layout-north">
                 <div id="topbar">
                     <i id="pm_open" class="fa fa-bars"></i>
-                    <!-- <button id="pm_open"><i class="fa fa-bars"></i></button> -->
                     <div id="topbar_title">Kismet</div>
-                    <div id="topbar_battery">
-                        <span id="battime">00:11:22</span> <a href="#"><img id="batpower" src="/images/icon_battery_0.svg" style="width: 2em; height: auto; align: right; vertical-align: middle;"></a>
-                        <i id="batspinner" class="fa fa-refresh fa-spin"></i>
-                    </div>
+                    <div id="topbar_battery"></div>
                 </div>
             </div>
 
