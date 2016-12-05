@@ -421,4 +421,26 @@ public:
     }
 ```
 
+### Using `tracker_component` objects elsewhere
+
+Sometimes you will want to use a `tracker_component` in a class that is not, itself, a component: creating data for serialization is a good example.
+
+`tracker_component` objects can be created and used as normal, with one important exception: Any object created manually must be referenced with `link()` before use and should be destroyed with `unlink()`, not `delete()`:
+
+```C++
+
+int foo::bar() {
+    some_component *c = new some_component(globalreg, some_component_id);
+
+    c->link();
+
+    // Do stuff
+
+    c->unlink();
+}
+```
+
+Objects which remain active for the parents lifecycle should be linked at the time of creation, and unlinked in the parents destructor.
+
+This precaution is required because `tracker_component` objects manage memory and multiple associations by using a reference counting system.  When the reference count hits zero, the object is destroyed.  When using functions which manipulate `tracker_component` objects, they are linked and unlinked during use.  If the owning object does not link the object, the reference is falsely set to zero (because it is unused in any known context) and destroyed prematurely.
 

@@ -41,6 +41,552 @@
 #include "uuid.h"
 #include "packinfo_signal.h"
 
+// Aggregator class used for RRD.  Performs functions like combining elements
+// (for instance, adding to the existing element, or choosing to replace the
+// element), and for averaging to higher buckets (for instance, performing a 
+// raw average or taking absolutes)
+template <class IC> 
+class kis_tracked_rrd_default_aggregator {
+public:
+    // Performed when adding an element to the RRD.  By default, adds the new
+    // value to the current value for aggregating multiple samples over time.
+    static IC combine_element(const IC a, const IC b) {
+        return a + b;
+    }
+
+    // Combine a vector for a higher-level record (seconds to minutes, minutes to 
+    // hours, and so on).
+    static IC combine_vector(TrackerElement *e) {
+        TrackerElementVector v(e);
+
+        IC avg = 0;
+        for (TrackerElementVector::iterator i = v.begin(); i != v.end(); ++i) 
+            avg += GetTrackerValue<IC>(*i);
+
+        return avg / v.size();
+    }
+
+    // Default 'empty' value
+    static IC default_val() {
+        return (IC) 0;
+    }
+};
+
+template <class IC, int ET, class Aggregator = kis_tracked_rrd_default_aggregator<IC> >
+class kis_tracked_rrd : public tracker_component {
+public:
+    kis_tracked_rrd(GlobalRegistry *in_globalreg, int in_id) :
+        tracker_component(in_globalreg, in_id) {
+        register_fields();
+        reserve_fields(NULL);
+        update_first = true;
+    }
+
+    kis_tracked_rrd(GlobalRegistry *in_globalreg, int in_id, TrackerElement *e) :
+        tracker_component(in_globalreg, in_id) {
+
+        register_fields();
+        reserve_fields(e);
+        update_first = true;
+    }
+
+    virtual TrackerElement *clone_type() {
+        return new kis_tracked_rrd<IC, ET>(globalreg, get_id());
+    }
+
+    // By default a RRD will fast forward to the current time before
+    // transmission (this is desirable for RRD records that may not be
+    // routinely updated, like records tracking activity on a specific 
+    // device).  For records which are updated on a timer and the most
+    // recently used value accessed (like devices per frequency) turning
+    // this off may produce better results.
+    void update_before_serialzie(bool in_upd) {
+        update_first = in_upd;
+    }
+
+    __Proxy(last_time, uint64_t, time_t, time_t, last_time);
+
+    // Add a sample.  Use combinator function 'c' to derive the new sample value
+    void add_sample(IC in_s, time_t in_time) {
+        Aggregator agg;
+
+        int sec_bucket = in_time % 60;
+        int min_bucket = (in_time / 60) % 60;
+        int hour_bucket = (in_time / 3600) % 24;
+
+        time_t ltime = get_last_time();
+
+        // The second slot for the last time
+        int last_sec_bucket = ltime % 60;
+        // The minute of the hour the last known data would go in
+        int last_min_bucket = (ltime / 60) % 60;
+        // The hour of the day the last known data would go in
+        int last_hour_bucket = (ltime / 3600) % 24;
+
+        if (in_time < ltime) {
+            // printf("debug - rrd - timewarp to the past?  discard\n");
+            return;
+        }
+        
+        TrackerElement *e;
+
+        // If we haven't seen data in a day, we reset everything because
+        // none of it is valid.  This is the simplest case.
+        if (in_time - ltime > (60 * 60 * 24)) {
+            // Directly fill in this second, clear rest of the minute
+            TrackerElementVector mv(minute_vec);
+            for (TrackerElementVector::iterator i = mv.begin(); i != mv.end(); ++i) {
+                if (i - mv.begin() == sec_bucket)
+                    (*i)->set(in_s);
+                else
+                    (*i)->set((IC) agg.default_val());
+            }
+
+            // Reset the last hour, setting it to a single sample
+            // Get the combined value for the minute
+            IC min_val = agg.combine_vector(minute_vec);
+            TrackerElementVector hv = TrackerElementVector(hour_vec);
+            for (TrackerElementVector::iterator i = hv.begin(); i != hv.end(); ++i) {
+                if (i - hv.begin() == min_bucket)
+                    (*i)->set(min_val);
+                else
+                    (*i)->set((IC) agg.default_val());
+            }
+
+            // Reset the last day, setting it to a single sample
+            IC hr_val = agg.combine_vector(hour_vec);
+            TrackerElementVector dv = TrackerElementVector(day_vec);
+            for (TrackerElementVector::iterator i = dv.begin(); i != dv.end(); ++i) {
+                if (i - dv.begin() == hour_bucket)
+                    (*i)->set(hr_val);
+                else
+                    (*i)->set((IC) agg.default_val());
+            }
+
+            set_last_time(in_time);
+
+            return;
+        } else if (in_time - ltime > (60*60)) {
+            // printf("debug - rrd - been an hour since last value\n");
+            // If we haven't seen data in an hour but we're still w/in the day:
+            //   - Average the seconds we know about & set the minute record
+            //   - Clear seconds data & set our current value
+            //   - Average the minutes we know about & set the hour record
+            //
+           
+            IC sec_avg = 0, min_avg = 0;
+
+            // We only have this entry in the minute, so set it and get the 
+            // combined value
+            
+            TrackerElementVector mv(minute_vec);
+            for (TrackerElementVector::iterator i = mv.begin(); i != mv.end(); ++i) {
+                if (i - mv.begin() == sec_bucket)
+                    (*i)->set(in_s);
+                else
+                    (*i)->set((IC) agg.default_val());
+            }
+            sec_avg = agg.combine_vector(minute_vec);
+
+            // We haven't seen anything in this hour, so clear it, set the minute
+            // and get the aggregate
+            TrackerElementVector hv = TrackerElementVector(hour_vec);
+            for (TrackerElementVector::iterator i = hv.begin(); i != hv.end(); ++i) {
+                if (i - hv.begin() == min_bucket)
+                    (*i)->set(sec_avg);
+                else
+                    (*i)->set((IC) agg.default_val());
+            }
+            min_avg = agg.combine_vector(hour_vec);
+
+            // Fill the hours between the last time we saw data and now with
+            // zeroes; fastforward time
+            for (int h = 0; h < hours_different(last_hour_bucket + 1, hour_bucket); h++) {
+                e = hour_vec->get_vector_value((last_hour_bucket + 1 + h) % 24);
+                e->set((IC) agg.default_val());
+            }
+
+            e = day_vec->get_vector_value(hour_bucket);
+            e->set(min_avg);
+
+        } else if (in_time - ltime > 60) {
+            // - Calculate the average seconds
+            // - Wipe the seconds
+            // - Set the new second value
+            // - Update minutes
+            // - Update hours
+            // printf("debug - rrd - been over a minute since last value\n");
+
+            IC sec_avg = 0, min_avg = 0;
+
+            TrackerElementVector mv(minute_vec);
+            for (TrackerElementVector::iterator i = mv.begin(); i != mv.end(); ++i) {
+                if (i - mv.begin() == sec_bucket)
+                    (*i)->set(in_s);
+                else
+                    (*i)->set((IC) agg.default_val());
+            }
+            sec_avg = agg.combine_vector(minute_vec);
+
+            // Zero between last and current
+            for (int m = 0; 
+                    m < minutes_different(last_min_bucket + 1, min_bucket); m++) {
+                e = hour_vec->get_vector_value((last_min_bucket + 1 + m) % 60);
+                e->set((IC) agg.default_val());
+            }
+
+            // Set the updated value
+            e = hour_vec->get_vector_value(min_bucket);
+            e->set((IC) sec_avg);
+
+            min_avg = agg.combine_vector(hour_vec);
+
+            // Reset the hour
+            e = day_vec->get_vector_value(hour_bucket);
+            e->set(min_avg);
+
+        } else {
+            // printf("debug - rrd - w/in the last minute %d seconds\n", in_time - last_time);
+            // If in_time == last_time then we're updating an existing record,
+            // use the aggregator class to combine it
+            
+            // Otherwise, fast-forward seconds with zero data, then propagate the
+            // changes up
+            if (in_time == ltime) {
+                e = minute_vec->get_vector_value(sec_bucket);
+                e->set(agg.combine_element(GetTrackerValue<IC>(e), in_s));
+            } else {
+                for (int s = 0; 
+                        s < minutes_different(last_sec_bucket + 1, sec_bucket); s++) {
+                    e = minute_vec->get_vector_value((last_sec_bucket + 1 + s) % 60);
+                    e->set((IC) agg.default_val());
+                }
+
+                e = minute_vec->get_vector_value(sec_bucket);
+                e->set((IC) in_s);
+            }
+
+            // Update all the averages
+            IC sec_avg = 0, min_avg = 0;
+
+            sec_avg = agg.combine_vector(minute_vec);
+
+            // Set the minute
+            e = hour_vec->get_vector_value(min_bucket);
+            e->set(sec_avg);
+
+            min_avg = agg.combine_vector(hour_vec);
+
+            // Set the hour
+            e = day_vec->get_vector_value(hour_bucket);
+            e->set(min_avg);
+        }
+
+
+        set_last_time(in_time);
+    }
+
+    virtual void pre_serialize() {
+        tracker_component::pre_serialize();
+        Aggregator agg;
+
+        // printf("debug - rrd - preserialize\n");
+        // Update the averages
+        if (update_first) {
+            add_sample(agg.default_val(), globalreg->timestamp.tv_sec);
+        }
+    }
+
+protected:
+    inline int minutes_different(int m1, int m2) const {
+        if (m1 == m2) {
+            return 0;
+        } else if (m1 < m2) {
+            return m2 - m1;
+        } else {
+            return 60 - m1 + m2;
+        }
+    }
+
+    inline int hours_different(int h1, int h2) const {
+        if (h1 == h2) {
+            return 0;
+        } else if (h1 < h2) {
+            return h2 - h1;
+        } else {
+            return 24 - h1 + h2;
+        }
+    }
+
+    inline int days_different(int d1, int d2) const {
+        if (d1 == d2) {
+            return 0;
+        } else if (d1 < d2) {
+            return d2 - d1;
+        } else {
+            return 7 - d1 + d2;
+        }
+    }
+
+    virtual void register_fields() {
+        tracker_component::register_fields();
+
+        last_time_id =
+            RegisterField("kismet.common.rrd.last_time", TrackerUInt64,
+                    "last time udpated", (void **) &last_time);
+
+        minute_vec_id = 
+            RegisterField("kismet.common.rrd.minute_vec", TrackerVector,
+                    "past minute values per second", (void **) &minute_vec);
+        hour_vec_id = 
+            RegisterField("kismet.common.rrd.hour_vec", TrackerVector,
+                    "past hour values per minute", (void **) &hour_vec);
+        day_vec_id = 
+            RegisterField("kismet.common.rrd.day_vec", TrackerVector,
+                    "past day values per hour", (void **) &day_vec);
+
+        second_entry_id = 
+            RegisterField("kismet.common.rrd.second", (TrackerType) ET, 
+                    "second value", NULL);
+        minute_entry_id = 
+            RegisterField("kismet.common.rrd.minute", (TrackerType) ET, 
+                    "minute value", NULL);
+        hour_entry_id = 
+            RegisterField("kismet.common.rrd.hour", (TrackerType) ET, 
+                    "hour value", NULL);
+
+    } 
+
+    virtual void reserve_fields(TrackerElement *e) {
+        tracker_component::reserve_fields(e);
+
+        set_last_time(0);
+
+        // Build slots for all the times
+        int x;
+        if ((x = minute_vec->get_vector()->size()) != 60) {
+            for ( ; x < 60; x++) {
+                TrackerElement *me =
+                    new TrackerElement((TrackerType) ET, second_entry_id);
+                minute_vec->add_vector(me);
+            }
+        }
+
+        if ((x = hour_vec->get_vector()->size()) != 60) {
+            for ( ; x < 60; x++) {
+                TrackerElement *he =
+                    new TrackerElement((TrackerType) ET, minute_entry_id);
+                hour_vec->add_vector(he);
+            }
+        }
+
+        if ((x = day_vec->get_vector()->size()) != 24) {
+            for ( ; x < 24; x++) {
+                TrackerElement *he =
+                    new TrackerElement((TrackerType) ET, hour_entry_id);
+                day_vec->add_vector(he);
+            }
+        }
+    }
+
+    int last_time_id;
+    TrackerElement *last_time;
+
+    int minute_vec_id;
+    TrackerElement *minute_vec;
+
+    int hour_vec_id;
+    TrackerElement *hour_vec;
+
+    int day_vec_id;
+    TrackerElement *day_vec;
+
+    int second_entry_id;
+    int minute_entry_id;
+    int hour_entry_id;
+
+    bool update_first;
+};
+
+// Easier to make this it's own class since for a single-minute RRD the logic is
+// far simpler.  In a perfect would this would be derived from the common
+// RRD (or the other way around) but until it becomes a problem that's a
+// task for another day.
+template <class IC, int ET, class Aggregator = kis_tracked_rrd_default_aggregator<IC> >
+class kis_tracked_minute_rrd : public tracker_component {
+public:
+    kis_tracked_minute_rrd(GlobalRegistry *in_globalreg, int in_id) :
+        tracker_component(in_globalreg, in_id) {
+        register_fields();
+        reserve_fields(NULL);
+        update_first = true;
+    }
+
+    kis_tracked_minute_rrd(GlobalRegistry *in_globalreg, int in_id, TrackerElement *e) :
+        tracker_component(in_globalreg, in_id) {
+
+        register_fields();
+        reserve_fields(e);
+        update_first = true;
+    }
+
+    virtual TrackerElement *clone_type() {
+        return new kis_tracked_minute_rrd<IC, ET>(globalreg, get_id());
+    }
+
+    // By default a RRD will fast forward to the current time before
+    // transmission (this is desirable for RRD records that may not be
+    // routinely updated, like records tracking activity on a specific 
+    // device).  For records which are updated on a timer and the most
+    // recently used value accessed (like devices per frequency) turning
+    // this off may produce better results.
+    void update_before_serialzie(bool in_upd) {
+        update_first = in_upd;
+    }
+
+    __Proxy(last_time, uint64_t, time_t, time_t, last_time);
+
+    void add_sample(IC in_s, time_t in_time) {
+        Aggregator agg;
+
+        int sec_bucket = in_time % 60;
+
+        time_t ltime = get_last_time();
+
+        // The second slot for the last time
+        int last_sec_bucket = ltime % 60;
+
+        if (in_time < ltime) {
+            return;
+        }
+        
+        TrackerElement *e;
+
+        // If we haven't seen data in a minute, wipe
+        if (in_time - ltime > 60) {
+            for (int x = 0; x < 60; x++) {
+                e = minute_vec->get_vector_value(x);
+                e->set((IC) agg.default_val());
+            }
+        } else {
+            // If in_time == last_time then we're updating an existing record, so
+            // add that in.
+            // Otherwise, fast-forward seconds with zero data, average the seconds,
+            // and propagate the averages up
+            if (in_time == ltime) {
+                e = minute_vec->get_vector_value(sec_bucket);
+                e->set(agg.combine_element(GetTrackerValue<IC>(e), in_s));
+            } else {
+                for (int s = 0; 
+                        s < minutes_different(last_sec_bucket + 1, sec_bucket); s++) {
+                    e = minute_vec->get_vector_value((last_sec_bucket + 1 + s) % 60);
+                    e->set((IC) agg.default_val());
+                }
+
+                e = minute_vec->get_vector_value(sec_bucket);
+                e->set((IC) in_s);
+            }
+        }
+
+
+        set_last_time(in_time);
+    }
+
+    virtual void pre_serialize() {
+        tracker_component::pre_serialize();
+        Aggregator agg;
+
+        if (update_first) {
+            add_sample(agg.default_val(), globalreg->timestamp.tv_sec);
+        }
+    }
+
+protected:
+    inline int minutes_different(int m1, int m2) const {
+        if (m1 == m2) {
+            return 0;
+        } else if (m1 < m2) {
+            return m2 - m1;
+        } else {
+            return 60 - m1 + m2;
+        }
+    }
+
+    virtual void register_fields() {
+        tracker_component::register_fields();
+
+        last_time_id =
+            RegisterField("kismet.common.rrd.last_time", TrackerUInt64,
+                    "last time udpated", (void **) &last_time);
+
+        minute_vec_id = 
+            RegisterField("kismet.common.rrd.minute_vec", TrackerVector,
+                    "past minute values per second", (void **) &minute_vec);
+
+        second_entry_id = 
+            RegisterField("kismet.common.rrd.second", (TrackerType) ET, 
+                    "second value", NULL);
+    } 
+
+    virtual void reserve_fields(TrackerElement *e) {
+        tracker_component::reserve_fields(e);
+
+        set_last_time(0);
+
+        // Build slots for all the times
+        int x;
+        if ((x = minute_vec->get_vector()->size()) != 60) {
+            for ( ; x < 60; x++) {
+                TrackerElement *me =
+                    new TrackerElement((TrackerType) ET, second_entry_id);
+                minute_vec->add_vector(me);
+            }
+        }
+    }
+
+    int last_time_id;
+    TrackerElement *last_time;
+
+    int minute_vec_id;
+    TrackerElement *minute_vec;
+
+    int second_entry_id;
+
+    bool update_first;
+};
+
+// Signal level RRD, peak selector
+template <class IC> 
+class kis_tracked_rrd_peak_signal_aggregator {
+public:
+    // Select the stronger signal
+    static IC combine_element(const IC a, const IC b) {
+        if (a < b)
+            return b;
+        return a;
+    }
+
+    // Select the strongest signal of the bucket
+    static IC combine_vector(TrackerElement *e) {
+        TrackerElementVector v(e);
+
+        IC max = 0;
+        for (TrackerElementVector::iterator i = v.begin(); i != v.end(); ++i) {
+            IC v = GetTrackerValue<IC>(*i);
+
+            if (max == 0 || max < v)
+                max = v;
+        }
+
+        return max;
+    }
+
+    // Default 'empty' value, no legit signal would be 0
+    static IC default_val() {
+        return (IC) 0;
+    }
+};
+
 enum kis_ipdata_type {
 	ipdata_unknown = 0,
 	ipdata_factoryguess = 1,
@@ -564,6 +1110,10 @@ public:
     __ProxyGet(encodingset, uint64_t, uint64_t, encodingset);
     __ProxyGet(carrierset, uint64_t, uint64_t, carrierset);
 
+    typedef kis_tracked_minute_rrd<int32_t, TrackerInt32, 
+            kis_tracked_rrd_peak_signal_aggregator<int32_t> > msig_rrd;
+    __ProxyTrackable(signal_min_rrd, msig_rrd, signal_min_rrd);
+
     kis_tracked_location_triplet *get_peak_loc() { return peak_loc; }
 
 protected:
@@ -629,6 +1179,15 @@ protected:
         carrierset_id =
             RegisterField("kismet.common.signal.carrierset", TrackerUInt64,
                     "bitset of observed carrier types", (void **) &carrierset);
+
+        kis_tracked_minute_rrd<int32_t, TrackerInt32, 
+            kis_tracked_rrd_peak_signal_aggregator<int32_t> > *signal_min_rrd_builder =
+                new kis_tracked_minute_rrd<int32_t, TrackerInt32, 
+                    kis_tracked_rrd_peak_signal_aggregator<int32_t> >(globalreg, 0);
+        signal_min_rrd_id =
+            RegisterComplexField("kismet.device.base.signal.rrd",
+                    signal_min_rrd_builder, "signal data for past minute");
+        delete(signal_min_rrd_builder);
     }
 
     virtual void reserve_fields(TrackerElement *e) {
@@ -637,9 +1196,20 @@ protected:
         if (e != NULL) {
             peak_loc = new kis_tracked_location_triplet(globalreg, peak_loc_id,
                     e->get_map_value(peak_loc_id)); 
+            signal_min_rrd = 
+                new kis_tracked_minute_rrd<int32_t, TrackerInt32, 
+                    kis_tracked_rrd_peak_signal_aggregator<int32_t> >(globalreg, 
+                            signal_min_rrd_id, e->get_map_value(signal_min_rrd_id));
         } else {
             peak_loc = new kis_tracked_location_triplet(globalreg, peak_loc_id);
             add_map(peak_loc);
+
+            signal_min_rrd = 
+                new kis_tracked_minute_rrd<int32_t, TrackerInt32, 
+                    kis_tracked_rrd_peak_signal_aggregator<int32_t> >(globalreg, 
+                            signal_min_rrd_id);
+            add_map(signal_min_rrd);
+
         }
     }
 
@@ -665,6 +1235,12 @@ protected:
     kis_tracked_location_triplet *peak_loc;
 
     TrackerElement *maxseenrate, *encodingset, *carrierset;
+
+    // Signal record over the past minute, either rssi or dbm.  Devices
+    // should not mix rssi and dbm signal reporting.
+    int signal_min_rrd_id;
+    kis_tracked_minute_rrd<int32_t, TrackerInt32, 
+        kis_tracked_rrd_peak_signal_aggregator<int32_t> > *signal_min_rrd;
 };
 
 class kis_tracked_seenby_data : public tracker_component {
@@ -790,519 +1366,6 @@ protected:
     TrackerElement *value, *dirty;
 };
 
-// Aggregator class used for RRD.  Performs functions like combining elements
-// (for instance, adding to the existing element, or choosing to replace the
-// element), and for averaging to higher buckets (for instance, performing a 
-// raw average or taking absolutes)
-template <class IC> 
-class kis_tracked_rrd_default_aggregator {
-public:
-    // Performed when adding an element to the RRD.  By default, adds the new
-    // value to the current value for aggregating multiple samples over time.
-    static IC combine_element(const IC a, const IC b) {
-        return a + b;
-    }
-
-    // Combine a vector for a higher-level record (seconds to minutes, minutes to 
-    // hours, and so on).
-    static IC combine_vector(TrackerElement *e) {
-        TrackerElementVector v(e);
-
-        IC avg = 0;
-        for (TrackerElementVector::iterator i = v.begin(); i != v.end(); ++i) 
-            avg += GetTrackerValue<IC>(*i);
-
-        return avg / v.size();
-    }
-
-    // Default 'empty' value
-    static IC default_val() {
-        return (IC) 0;
-    }
-};
-
-template <class IC, int ET, class Aggregator = kis_tracked_rrd_default_aggregator<IC> >
-class kis_tracked_rrd : public tracker_component {
-public:
-    kis_tracked_rrd(GlobalRegistry *in_globalreg, int in_id) :
-        tracker_component(in_globalreg, in_id) {
-        register_fields();
-        reserve_fields(NULL);
-        update_first = true;
-    }
-
-    kis_tracked_rrd(GlobalRegistry *in_globalreg, int in_id, TrackerElement *e) :
-        tracker_component(in_globalreg, in_id) {
-
-        register_fields();
-        reserve_fields(e);
-        update_first = true;
-    }
-
-    virtual TrackerElement *clone_type() {
-        return new kis_tracked_rrd<IC, ET>(globalreg, get_id());
-    }
-
-    // By default a RRD will fast forward to the current time before
-    // transmission (this is desirable for RRD records that may not be
-    // routinely updated, like records tracking activity on a specific 
-    // device).  For records which are updated on a timer and the most
-    // recently used value accessed (like devices per frequency) turning
-    // this off may produce better results.
-    void update_before_serialzie(bool in_upd) {
-        update_first = in_upd;
-    }
-
-    __Proxy(last_time, uint64_t, time_t, time_t, last_time);
-
-    // Add a sample.  Use combinator function 'c' to derive the new sample value
-    void add_sample(IC in_s, time_t in_time) {
-        Aggregator agg;
-
-        int sec_bucket = in_time % 60;
-        int min_bucket = (in_time / 60) % 60;
-        int hour_bucket = (in_time / 3600) % 24;
-
-        time_t ltime = get_last_time();
-
-        // The second slot for the last time
-        int last_sec_bucket = ltime % 60;
-        // The minute of the hour the last known data would go in
-        int last_min_bucket = (ltime / 60) % 60;
-        // The hour of the day the last known data would go in
-        int last_hour_bucket = (ltime / 3600) % 24;
-
-        if (in_time < ltime) {
-            // printf("debug - rrd - timewarp to the past?  discard\n");
-            return;
-        }
-        
-        TrackerElement *e;
-
-        // If we haven't seen data in a day, we reset everything because
-        // none of it is valid.  This is the simplest case.
-        if (in_time - ltime > (60 * 60 * 24)) {
-            // Directly fill in this second, clear rest of the minute
-            TrackerElementVector mv(minute_vec);
-            for (TrackerElementVector::iterator i = mv.begin(); i != mv.end(); ++i) {
-                if (i - mv.begin() == sec_bucket)
-                    (*i)->set(in_s);
-                else
-                    (*i)->set((IC) agg.default_val());
-            }
-
-            // Reset the last hour, setting it to a single sample
-            // Get the combined value for the minute
-            IC min_val = agg.combine_vector(minute_vec);
-            TrackerElementVector hv = TrackerElementVector(hour_vec);
-            for (TrackerElementVector::iterator i = hv.begin(); i != hv.end(); ++i) {
-                if (i - hv.begin() == min_bucket)
-                    (*i)->set(min_val);
-                else
-                    (*i)->set((IC) agg.default_val());
-            }
-
-            // Reset the last day, setting it to a single sample
-            IC hr_val = agg.combine_vector(hour_vec);
-            TrackerElementVector dv = TrackerElementVector(day_vec);
-            for (TrackerElementVector::iterator i = dv.begin(); i != dv.end(); ++i) {
-                if (i - dv.begin() == hour_bucket)
-                    (*i)->set(hr_val);
-                else
-                    (*i)->set((IC) agg.default_val());
-            }
-
-            set_last_time(in_time);
-
-            return;
-        } else if (in_time - ltime > (60*60)) {
-            // printf("debug - rrd - been an hour since last value\n");
-            // If we haven't seen data in an hour but we're still w/in the day:
-            //   - Average the seconds we know about & set the minute record
-            //   - Clear seconds data & set our current value
-            //   - Average the minutes we know about & set the hour record
-            //
-           
-            IC sec_avg = 0, min_avg = 0;
-
-            // We only have this entry in the minute, so set it and get the 
-            // combined value
-            
-            TrackerElementVector mv(minute_vec);
-            for (TrackerElementVector::iterator i = mv.begin(); i != mv.end(); ++i) {
-                if (i - mv.begin() == sec_bucket)
-                    (*i)->set(in_s);
-                else
-                    (*i)->set((IC) agg.default_val());
-            }
-            sec_avg = agg.combine_vector(minute_vec);
-
-            // We haven't seen anything in this hour, so clear it, set the minute
-            // and get the aggregate
-            TrackerElementVector hv = TrackerElementVector(hour_vec);
-            for (TrackerElementVector::iterator i = hv.begin(); i != hv.end(); ++i) {
-                if (i - hv.begin() == min_bucket)
-                    (*i)->set(sec_avg);
-                else
-                    (*i)->set((IC) agg.default_val());
-            }
-            min_avg = agg.combine_vector(hour_vec);
-
-            // Fill the hours between the last time we saw data and now with
-            // zeroes; fastforward time
-            for (int h = 0; h < hours_different(last_hour_bucket + 1, hour_bucket); h++) {
-                e = hour_vec->get_vector_value((last_hour_bucket + 1 + h) % 24);
-                e->set((IC) agg.default_val());
-            }
-
-            e = day_vec->get_vector_value(hour_bucket);
-            e->set(min_avg);
-
-        } else if (in_time - ltime > 60) {
-            // - Calculate the average seconds
-            // - Wipe the seconds
-            // - Set the new second value
-            // - Update minutes
-            // - Update hours
-            // printf("debug - rrd - been over a minute since last value\n");
-
-            IC sec_avg = 0, min_avg = 0;
-
-            TrackerElementVector mv(minute_vec);
-            for (TrackerElementVector::iterator i = mv.begin(); i != mv.end(); ++i) {
-                if (i - mv.begin() == sec_bucket)
-                    (*i)->set(in_s);
-                else
-                    (*i)->set((IC) agg.default_val());
-            }
-            sec_avg = agg.combine_vector(minute_vec);
-
-            // Zero between last and current
-            for (int m = 0; 
-                    m < minutes_different(last_min_bucket + 1, min_bucket); m++) {
-                e = hour_vec->get_vector_value((last_min_bucket + 1 + m) % 60);
-                e->set((IC) agg.default_val());
-            }
-
-            // Set the updated value
-            e = hour_vec->get_vector_value(min_bucket);
-            e->set((IC) sec_avg);
-
-            min_avg = agg.combine_vector(hour_vec);
-
-            // Reset the hour
-            e = day_vec->get_vector_value(hour_bucket);
-            e->set(min_avg);
-
-        } else {
-            // printf("debug - rrd - w/in the last minute %d seconds\n", in_time - last_time);
-            // If in_time == last_time then we're updating an existing record,
-            // use the aggregator class to combine it
-            
-            // Otherwise, fast-forward seconds with zero data, then propagate the
-            // changes up
-            if (in_time == ltime) {
-                e = minute_vec->get_vector_value(sec_bucket);
-                e->set(agg.combine_element(GetTrackerValue<IC>(e), in_s));
-            } else {
-                for (int s = 0; 
-                        s < minutes_different(last_sec_bucket + 1, sec_bucket); s++) {
-                    e = minute_vec->get_vector_value((last_sec_bucket + 1 + s) % 60);
-                    e->set((IC) agg.default_val());
-                }
-
-                e = minute_vec->get_vector_value(sec_bucket);
-                e->set((IC) in_s);
-            }
-
-            // Update all the averages
-            IC sec_avg = 0, min_avg = 0;
-
-            sec_avg = agg.combine_vector(minute_vec);
-
-            // Set the minute
-            e = hour_vec->get_vector_value(min_bucket);
-            e->set(sec_avg);
-
-            min_avg = agg.combine_vector(hour_vec);
-
-            // Set the hour
-            e = day_vec->get_vector_value(hour_bucket);
-            e->set(min_avg);
-        }
-
-
-        set_last_time(in_time);
-    }
-
-    virtual void pre_serialize() {
-        tracker_component::pre_serialize();
-        Aggregator agg;
-
-        // printf("debug - rrd - preserialize\n");
-        // Update the averages
-        if (update_first) {
-            add_sample(agg.default_val(), globalreg->timestamp.tv_sec);
-        }
-    }
-
-protected:
-    inline int minutes_different(int m1, int m2) const {
-        if (m1 == m2) {
-            return 0;
-        } else if (m1 < m2) {
-            return m2 - m1;
-        } else {
-            return 60 - m1 + m2;
-        }
-    }
-
-    inline int hours_different(int h1, int h2) const {
-        if (h1 == h2) {
-            return 0;
-        } else if (h1 < h2) {
-            return h2 - h1;
-        } else {
-            return 24 - h1 + h2;
-        }
-    }
-
-    inline int days_different(int d1, int d2) const {
-        if (d1 == d2) {
-            return 0;
-        } else if (d1 < d2) {
-            return d2 - d1;
-        } else {
-            return 7 - d1 + d2;
-        }
-    }
-
-    virtual void register_fields() {
-        tracker_component::register_fields();
-
-        last_time_id =
-            RegisterField("kismet.common.rrd.last_time", TrackerUInt64,
-                    "last time udpated", (void **) &last_time);
-
-        minute_vec_id = 
-            RegisterField("kismet.common.rrd.minute_vec", TrackerVector,
-                    "past minute values per second", (void **) &minute_vec);
-        hour_vec_id = 
-            RegisterField("kismet.common.rrd.hour_vec", TrackerVector,
-                    "past hour values per minute", (void **) &hour_vec);
-        day_vec_id = 
-            RegisterField("kismet.common.rrd.day_vec", TrackerVector,
-                    "past day values per hour", (void **) &day_vec);
-
-        second_entry_id = 
-            RegisterField("kismet.common.rrd.second", (TrackerType) ET, 
-                    "second value", NULL);
-        minute_entry_id = 
-            RegisterField("kismet.common.rrd.minute", (TrackerType) ET, 
-                    "minute value", NULL);
-        hour_entry_id = 
-            RegisterField("kismet.common.rrd.hour", (TrackerType) ET, 
-                    "hour value", NULL);
-
-    } 
-
-    virtual void reserve_fields(TrackerElement *e) {
-        tracker_component::reserve_fields(e);
-
-        set_last_time(0);
-
-        // Build slots for all the times
-        int x;
-        if ((x = minute_vec->get_vector()->size()) != 60) {
-            for ( ; x < 60; x++) {
-                TrackerElement *me =
-                    new TrackerElement((TrackerType) ET, second_entry_id);
-                minute_vec->add_vector(me);
-            }
-        }
-
-        if ((x = hour_vec->get_vector()->size()) != 60) {
-            for ( ; x < 60; x++) {
-                TrackerElement *he =
-                    new TrackerElement((TrackerType) ET, minute_entry_id);
-                hour_vec->add_vector(he);
-            }
-        }
-
-        if ((x = day_vec->get_vector()->size()) != 24) {
-            for ( ; x < 24; x++) {
-                TrackerElement *he =
-                    new TrackerElement((TrackerType) ET, hour_entry_id);
-                day_vec->add_vector(he);
-            }
-        }
-    }
-
-    int last_time_id;
-    TrackerElement *last_time;
-
-    int minute_vec_id;
-    TrackerElement *minute_vec;
-
-    int hour_vec_id;
-    TrackerElement *hour_vec;
-
-    int day_vec_id;
-    TrackerElement *day_vec;
-
-    int second_entry_id;
-    int minute_entry_id;
-    int hour_entry_id;
-
-    bool update_first;
-};
-
-// Easier to make this it's own class since for a single-minute RRD the logic is
-// far simpler.  In a perfect would this would be derived from the common
-// RRD (or the other way around) but until it becomes a problem that's a
-// task for another day.
-template <class IC, int ET, class Aggregator = kis_tracked_rrd_default_aggregator<IC> >
-class kis_tracked_minute_rrd : public tracker_component {
-public:
-    kis_tracked_minute_rrd(GlobalRegistry *in_globalreg, int in_id) :
-        tracker_component(in_globalreg, in_id) {
-        register_fields();
-        reserve_fields(NULL);
-        update_first = true;
-    }
-
-    kis_tracked_minute_rrd(GlobalRegistry *in_globalreg, int in_id, TrackerElement *e) :
-        tracker_component(in_globalreg, in_id) {
-
-        register_fields();
-        reserve_fields(e);
-        update_first = true;
-    }
-
-    virtual TrackerElement *clone_type() {
-        return new kis_tracked_minute_rrd<IC, ET>(globalreg, get_id());
-    }
-
-    // By default a RRD will fast forward to the current time before
-    // transmission (this is desirable for RRD records that may not be
-    // routinely updated, like records tracking activity on a specific 
-    // device).  For records which are updated on a timer and the most
-    // recently used value accessed (like devices per frequency) turning
-    // this off may produce better results.
-    void update_before_serialzie(bool in_upd) {
-        update_first = in_upd;
-    }
-
-    __Proxy(last_time, uint64_t, time_t, time_t, last_time);
-
-    void add_sample(IC in_s, time_t in_time) {
-        Aggregator agg;
-
-        int sec_bucket = in_time % 60;
-
-        time_t ltime = get_last_time();
-
-        // The second slot for the last time
-        int last_sec_bucket = ltime % 60;
-
-        if (in_time < ltime) {
-            return;
-        }
-        
-        TrackerElement *e;
-
-        // If we haven't seen data in a minute, wipe
-        if (in_time - ltime > 60) {
-            for (int x = 0; x < 60; x++) {
-                e = minute_vec->get_vector_value(x);
-                e->set((IC) agg.default_val());
-            }
-        } else {
-            // If in_time == last_time then we're updating an existing record, so
-            // add that in.
-            // Otherwise, fast-forward seconds with zero data, average the seconds,
-            // and propagate the averages up
-            if (in_time == ltime) {
-                e = minute_vec->get_vector_value(sec_bucket);
-                e->set(agg.combine_element(GetTrackerValue<IC>(e), in_s));
-            } else {
-                for (int s = 0; 
-                        s < minutes_different(last_sec_bucket + 1, sec_bucket); s++) {
-                    e = minute_vec->get_vector_value((last_sec_bucket + 1 + s) % 60);
-                    e->set((IC) agg.default_val());
-                }
-
-                e = minute_vec->get_vector_value(sec_bucket);
-                e->set((IC) in_s);
-            }
-        }
-
-
-        set_last_time(in_time);
-    }
-
-    virtual void pre_serialize() {
-        tracker_component::pre_serialize();
-        Aggregator agg;
-
-        if (update_first) {
-            add_sample(agg.default_val(), globalreg->timestamp.tv_sec);
-        }
-    }
-
-protected:
-    inline int minutes_different(int m1, int m2) const {
-        if (m1 == m2) {
-            return 0;
-        } else if (m1 < m2) {
-            return m2 - m1;
-        } else {
-            return 60 - m1 + m2;
-        }
-    }
-
-    virtual void register_fields() {
-        tracker_component::register_fields();
-
-        last_time_id =
-            RegisterField("kismet.common.rrd.last_time", TrackerUInt64,
-                    "last time udpated", (void **) &last_time);
-
-        minute_vec_id = 
-            RegisterField("kismet.common.rrd.minute_vec", TrackerVector,
-                    "past minute values per second", (void **) &minute_vec);
-
-        second_entry_id = 
-            RegisterField("kismet.common.rrd.second", (TrackerType) ET, 
-                    "second value", NULL);
-    } 
-
-    virtual void reserve_fields(TrackerElement *e) {
-        tracker_component::reserve_fields(e);
-
-        set_last_time(0);
-
-        // Build slots for all the times
-        int x;
-        if ((x = minute_vec->get_vector()->size()) != 60) {
-            for ( ; x < 60; x++) {
-                TrackerElement *me =
-                    new TrackerElement((TrackerType) ET, second_entry_id);
-                minute_vec->add_vector(me);
-            }
-        }
-    }
-
-    int last_time_id;
-    TrackerElement *last_time;
-
-    int minute_vec_id;
-    TrackerElement *minute_vec;
-
-    int second_entry_id;
-
-    bool update_first;
-};
 
 #endif
 
