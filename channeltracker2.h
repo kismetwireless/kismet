@@ -60,7 +60,7 @@ public:
     __Proxy(channel, string, string, string, channel);
     __Proxy(frequency, double, double, double, frequency);
 
-    typedef kis_tracked_rrd<uint64_t, TrackerUInt64> uint64_rrd;
+    typedef kis_tracked_rrd<> uint64_rrd;
 
     __ProxyTrackable(packets_rrd, uint64_rrd, packets_rrd);
     __ProxyTrackable(data_rrd, uint64_rrd, data_rrd);
@@ -90,22 +90,19 @@ protected:
             RegisterField("kismet.channelrec.frequency", TrackerDouble,
                     "physical frequency", (void **) &frequency);
 
-        kis_tracked_rrd<uint64_t, TrackerUInt64> *packets_rrd_builder =
-            new kis_tracked_rrd<uint64_t, TrackerUInt64>(globalreg, 0);
+        kis_tracked_rrd<> *packets_rrd_builder = new kis_tracked_rrd<>(globalreg, 0);
         packets_rrd_id =
             RegisterComplexField("kismet.channelrec.packets_rrd",
                     packets_rrd_builder, "number of packets RRD");
         delete(packets_rrd_builder);
 
-        kis_tracked_rrd<uint64_t, TrackerUInt64> *data_rrd_builder =
-            new kis_tracked_rrd<uint64_t, TrackerUInt64>(globalreg, 0);
+        kis_tracked_rrd<> *data_rrd_builder = new kis_tracked_rrd<>(globalreg, 0);
         data_rrd_id =
             RegisterComplexField("kismet.channelrec.data_rrd",
                     data_rrd_builder, "bytes of data RRD");
         delete(data_rrd_builder);
 
-        kis_tracked_rrd<uint64_t, TrackerUInt64> *device_rrd_builder =
-            new kis_tracked_rrd<uint64_t, TrackerUInt64>(globalreg, 0);
+        kis_tracked_rrd<> *device_rrd_builder = new kis_tracked_rrd<>(globalreg, 0);
         device_rrd_id =
             RegisterComplexField("kismet.channelrec.device_rrd",
                     device_rrd_builder, "number of active devices RRD");
@@ -124,29 +121,26 @@ protected:
 
         if (e != NULL) {
             packets_rrd = 
-                new kis_tracked_rrd<uint64_t, TrackerUInt64>(globalreg, 
+                new kis_tracked_rrd<>(globalreg, 
                         packets_rrd_id, e->get_map_value(packets_rrd_id));
             data_rrd = 
-                new kis_tracked_rrd<uint64_t, TrackerUInt64>(globalreg, 
+                new kis_tracked_rrd<>(globalreg, 
                         data_rrd_id, e->get_map_value(data_rrd_id));
             device_rrd = 
-                new kis_tracked_rrd<uint64_t, TrackerUInt64>(globalreg, 
+                new kis_tracked_rrd<>(globalreg, 
                         device_rrd_id, e->get_map_value(device_rrd_id));
 
             signal_data =
                 new kis_tracked_signal_data(globalreg, signal_data_id,
                         e->get_map_value(signal_data_id));
         } else {
-            packets_rrd =
-                new kis_tracked_rrd<uint64_t, TrackerUInt64>(globalreg, packets_rrd_id);
+            packets_rrd = new kis_tracked_rrd<>(globalreg, packets_rrd_id);
             add_map(packets_rrd);
 
-            data_rrd =
-                new kis_tracked_rrd<uint64_t, TrackerUInt64>(globalreg, data_rrd_id);
+            data_rrd = new kis_tracked_rrd<>(globalreg, data_rrd_id);
             add_map(data_rrd);
 
-            device_rrd =
-                new kis_tracked_rrd<uint64_t, TrackerUInt64>(globalreg, device_rrd_id);
+            device_rrd = new kis_tracked_rrd<>(globalreg, device_rrd_id);
             add_map(device_rrd);
 
             signal_data =
@@ -169,15 +163,15 @@ protected:
 
     // Packets per second RRD
     int packets_rrd_id;
-    kis_tracked_rrd<uint64_t, TrackerUInt64> *packets_rrd;
+    kis_tracked_rrd<> *packets_rrd;
 
     // Data in bytes per second RRD
     int data_rrd_id;
-    kis_tracked_rrd<uint64_t, TrackerUInt64> *data_rrd;
+    kis_tracked_rrd<> *data_rrd;
 
     // Devices active per second RRD
     int device_rrd_id;
-    kis_tracked_rrd<uint64_t, TrackerUInt64> *device_rrd;
+    kis_tracked_rrd<> *device_rrd;
 
     // Overall signal data.  This could in theory be populated by spectrum
     // analyzers in the future as well.

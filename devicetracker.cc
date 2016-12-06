@@ -86,7 +86,7 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
         globalreg->entrytracker->RegisterField("kismet.devicelist.timestamp",
                 TrackerInt64, "device list timestamp");
 
-    packets_rrd = new kis_tracked_rrd<uint64_t, TrackerUInt64>(globalreg, 0);
+    packets_rrd = new kis_tracked_rrd<>(globalreg, 0);
     packets_rrd->link();
     packets_rrd_id =
         globalreg->entrytracker->RegisterField("kismet.device.packets_rrd",

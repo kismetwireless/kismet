@@ -234,17 +234,17 @@ public:
     __Proxy(datasize, uint64_t, uint64_t, uint64_t, datasize);
     __ProxyIncDec(datasize, uint64_t, uint64_t, datasize);
 
-    typedef kis_tracked_rrd<uint64_t, TrackerUInt64> uint64_rrd;
-    __ProxyTrackable(packets_rrd, uint64_rrd, packets_rrd);
+    typedef kis_tracked_rrd<> rrdt;
+    __ProxyTrackable(packets_rrd, rrdt, packets_rrd);
 
-    __ProxyTrackable(data_rrd, uint64_rrd, data_rrd);
+    __ProxyTrackable(data_rrd, rrdt, data_rrd);
 
-    typedef kis_tracked_minute_rrd<uint64_t, TrackerUInt64> muint64_rrd;
-    __ProxyTrackable(packet_rrd_bin_250, muint64_rrd, packet_rrd_bin_250);
-    __ProxyTrackable(packet_rrd_bin_500, muint64_rrd, packet_rrd_bin_500);
-    __ProxyTrackable(packet_rrd_bin_1000, muint64_rrd, packet_rrd_bin_1000);
-    __ProxyTrackable(packet_rrd_bin_1500, muint64_rrd, packet_rrd_bin_1500);
-    __ProxyTrackable(packet_rrd_bin_jumbo, muint64_rrd, packet_rrd_bin_jumbo);
+    typedef kis_tracked_minute_rrd<> mrrdt;
+    __ProxyTrackable(packet_rrd_bin_250, mrrdt, packet_rrd_bin_250);
+    __ProxyTrackable(packet_rrd_bin_500, mrrdt, packet_rrd_bin_500);
+    __ProxyTrackable(packet_rrd_bin_1000, mrrdt, packet_rrd_bin_1000);
+    __ProxyTrackable(packet_rrd_bin_1500, mrrdt, packet_rrd_bin_1500);
+    __ProxyTrackable(packet_rrd_bin_jumbo, mrrdt, packet_rrd_bin_jumbo);
 
     __Proxy(channel, string, string, string, channel);
     __Proxy(frequency, double, double, double, frequency);
@@ -399,15 +399,13 @@ protected:
             RegisterField("kismet.device.base.datasize", TrackerUInt64,
                         "transmitted data in bytes", (void **) &datasize);
 
-        kis_tracked_rrd<uint64_t, TrackerUInt64> *packets_rrd_builder =
-            new kis_tracked_rrd<uint64_t, TrackerUInt64>(globalreg, 0);
+        kis_tracked_rrd<> *packets_rrd_builder = new kis_tracked_rrd<>(globalreg, 0);
         packets_rrd_id =
             globalreg->entrytracker->RegisterField("kismet.device.base.packets.rrd",
                     packets_rrd_builder, "packet rate rrd");
         delete(packets_rrd_builder);
 
-        kis_tracked_rrd<uint64_t, TrackerUInt64> *data_rrd_builder =
-            new kis_tracked_rrd<uint64_t, TrackerUInt64>(globalreg, 0);
+        kis_tracked_rrd<> *data_rrd_builder = new kis_tracked_rrd<>(globalreg, 0);
         data_rrd_id =
             globalreg->entrytracker->RegisterField("kismet.device.base.datasize.rrd",
                     data_rrd_builder, "packet size rrd");
@@ -467,8 +465,8 @@ protected:
                     seenby_builder, "seen-by data");
         delete(seenby_builder);
 
-        kis_tracked_minute_rrd<uint64_t, TrackerUInt64> *bin_rrd_builder =
-            new kis_tracked_minute_rrd<uint64_t, TrackerUInt64>(globalreg, 0);
+        kis_tracked_minute_rrd<> *bin_rrd_builder =
+            new kis_tracked_minute_rrd<>(globalreg, 0);
 
         packet_rrd_bin_250_id =
             RegisterField("kismet.device.base.packet.bin.250", bin_rrd_builder, 
@@ -501,25 +499,25 @@ protected:
             location = new kis_tracked_location(globalreg, location_id,
                     e->get_map_value(location_id));
 
-            packets_rrd = new kis_tracked_rrd<uint64_t, TrackerUInt64>(globalreg,
+            packets_rrd = new kis_tracked_rrd<>(globalreg,
                     packets_rrd_id, e->get_map_value(packets_rrd_id));
-            data_rrd = new kis_tracked_rrd<uint64_t, TrackerUInt64>(globalreg,
+            data_rrd = new kis_tracked_rrd<>(globalreg,
                     data_rrd_id, e->get_map_value(data_rrd_id));
 
             packet_rrd_bin_250 = 
-                new kis_tracked_minute_rrd<uint64_t, TrackerUInt64>(globalreg,
+                new kis_tracked_minute_rrd<>(globalreg,
                         packet_rrd_bin_250_id, e->get_map_value(packet_rrd_bin_250_id));
             packet_rrd_bin_500 = 
-                new kis_tracked_minute_rrd<uint64_t, TrackerUInt64>(globalreg,
+                new kis_tracked_minute_rrd<>(globalreg,
                         packet_rrd_bin_500_id, e->get_map_value(packet_rrd_bin_500_id));
             packet_rrd_bin_1000 = 
-                new kis_tracked_minute_rrd<uint64_t, TrackerUInt64>(globalreg,
+                new kis_tracked_minute_rrd<>(globalreg,
                         packet_rrd_bin_1000_id, e->get_map_value(packet_rrd_bin_1000_id));
             packet_rrd_bin_1500 = 
-                new kis_tracked_minute_rrd<uint64_t, TrackerUInt64>(globalreg,
+                new kis_tracked_minute_rrd<>(globalreg,
                         packet_rrd_bin_1500_id, e->get_map_value(packet_rrd_bin_1500_id));
             packet_rrd_bin_jumbo = 
-                new kis_tracked_minute_rrd<uint64_t, TrackerUInt64>(globalreg,
+                new kis_tracked_minute_rrd<>(globalreg,
                         packet_rrd_bin_jumbo_id, e->get_map_value(packet_rrd_bin_jumbo_id));
 
         } else {
@@ -532,37 +530,30 @@ protected:
             location = new kis_tracked_location(globalreg, location_id);
             add_map(location);
 
-            packets_rrd = new kis_tracked_rrd<uint64_t, TrackerUInt64>(globalreg,
-                    packets_rrd_id);
+            packets_rrd = new kis_tracked_rrd<>(globalreg, packets_rrd_id);
             add_map(packets_rrd);
 
-            data_rrd = new kis_tracked_rrd<uint64_t, TrackerUInt64>(globalreg,
-                   data_rrd_id);
+            data_rrd = new kis_tracked_rrd<>(globalreg, data_rrd_id);
             add_map(data_rrd);
 
             packet_rrd_bin_250 =
-                new kis_tracked_minute_rrd<uint64_t, TrackerUInt64>(globalreg,
-                        packet_rrd_bin_250_id);
+                new kis_tracked_minute_rrd<>(globalreg, packet_rrd_bin_250_id);
             add_map(packet_rrd_bin_250);
 
             packet_rrd_bin_500 =
-                new kis_tracked_minute_rrd<uint64_t, TrackerUInt64>(globalreg,
-                        packet_rrd_bin_500_id);
+                new kis_tracked_minute_rrd<>(globalreg, packet_rrd_bin_500_id);
             add_map(packet_rrd_bin_500);
 
             packet_rrd_bin_1000 =
-                new kis_tracked_minute_rrd<uint64_t, TrackerUInt64>(globalreg,
-                        packet_rrd_bin_1000_id);
+                new kis_tracked_minute_rrd<>(globalreg, packet_rrd_bin_1000_id);
             add_map(packet_rrd_bin_1000);
 
             packet_rrd_bin_1500 =
-                new kis_tracked_minute_rrd<uint64_t, TrackerUInt64>(globalreg,
-                        packet_rrd_bin_1500_id);
+                new kis_tracked_minute_rrd<>(globalreg, packet_rrd_bin_1500_id);
             add_map(packet_rrd_bin_1500);
 
             packet_rrd_bin_jumbo =
-                new kis_tracked_minute_rrd<uint64_t, TrackerUInt64>(globalreg,
-                        packet_rrd_bin_jumbo_id);
+                new kis_tracked_minute_rrd<>(globalreg, packet_rrd_bin_jumbo_id);
             add_map(packet_rrd_bin_jumbo);
         }
 
@@ -651,22 +642,22 @@ protected:
 
     // Packets and data RRDs
     int packets_rrd_id;
-    kis_tracked_rrd<uint64_t, TrackerUInt64> *packets_rrd;
+    kis_tracked_rrd<> *packets_rrd;
 
     int data_rrd_id;
-    kis_tracked_rrd<uint64_t, TrackerUInt64> *data_rrd;
+    kis_tracked_rrd<> *data_rrd;
 
     // Data bins divided by size we track, named by max size
     int packet_rrd_bin_250_id;
-    kis_tracked_minute_rrd<uint64_t, TrackerUInt64> *packet_rrd_bin_250;
+    kis_tracked_minute_rrd<> *packet_rrd_bin_250;
     int packet_rrd_bin_500_id;
-    kis_tracked_minute_rrd<uint64_t, TrackerUInt64> *packet_rrd_bin_500;
+    kis_tracked_minute_rrd<> *packet_rrd_bin_500;
     int packet_rrd_bin_1000_id;
-    kis_tracked_minute_rrd<uint64_t, TrackerUInt64> *packet_rrd_bin_1000;
+    kis_tracked_minute_rrd<> *packet_rrd_bin_1000;
     int packet_rrd_bin_1500_id;
-    kis_tracked_minute_rrd<uint64_t, TrackerUInt64> *packet_rrd_bin_1500;
+    kis_tracked_minute_rrd<> *packet_rrd_bin_1500;
     int packet_rrd_bin_jumbo_id;
-    kis_tracked_minute_rrd<uint64_t, TrackerUInt64> *packet_rrd_bin_jumbo;
+    kis_tracked_minute_rrd<> *packet_rrd_bin_jumbo;
 
 	// Channel and frequency as per PHY type
     TrackerElement *channel, *frequency;
@@ -880,7 +871,7 @@ protected:
 
     // Total packet history
     int packets_rrd_id;
-    kis_tracked_rrd<uint64_t, TrackerUInt64> *packets_rrd;
+    kis_tracked_rrd<> *packets_rrd;
 
     // Timeout of idle devices
     int device_idle_expiration;

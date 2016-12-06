@@ -45,34 +45,33 @@
 // (for instance, adding to the existing element, or choosing to replace the
 // element), and for averaging to higher buckets (for instance, performing a 
 // raw average or taking absolutes)
-template <class IC> 
 class kis_tracked_rrd_default_aggregator {
 public:
     // Performed when adding an element to the RRD.  By default, adds the new
     // value to the current value for aggregating multiple samples over time.
-    static IC combine_element(const IC a, const IC b) {
+    static int64_t combine_element(const int64_t a, const int64_t b) {
         return a + b;
     }
 
     // Combine a vector for a higher-level record (seconds to minutes, minutes to 
     // hours, and so on).
-    static IC combine_vector(TrackerElement *e) {
+    static int64_t combine_vector(TrackerElement *e) {
         TrackerElementVector v(e);
 
-        IC avg = 0;
+        int64_t avg = 0;
         for (TrackerElementVector::iterator i = v.begin(); i != v.end(); ++i) 
-            avg += GetTrackerValue<IC>(*i);
+            avg += GetTrackerValue<int64_t>(*i);
 
         return avg / v.size();
     }
 
     // Default 'empty' value
-    static IC default_val() {
-        return (IC) 0;
+    static int64_t default_val() {
+        return (int64_t) 0;
     }
 };
 
-template <class IC, int ET, class Aggregator = kis_tracked_rrd_default_aggregator<IC> >
+template <class Aggregator = kis_tracked_rrd_default_aggregator>
 class kis_tracked_rrd : public tracker_component {
 public:
     kis_tracked_rrd(GlobalRegistry *in_globalreg, int in_id) :
@@ -91,7 +90,7 @@ public:
     }
 
     virtual TrackerElement *clone_type() {
-        return new kis_tracked_rrd<IC, ET>(globalreg, get_id());
+        return new kis_tracked_rrd<Aggregator>(globalreg, get_id());
     }
 
     // By default a RRD will fast forward to the current time before
@@ -107,7 +106,7 @@ public:
     __Proxy(last_time, uint64_t, time_t, time_t, last_time);
 
     // Add a sample.  Use combinator function 'c' to derive the new sample value
-    void add_sample(IC in_s, time_t in_time) {
+    void add_sample(int64_t in_s, time_t in_time) {
         Aggregator agg;
 
         int sec_bucket = in_time % 60;
@@ -139,28 +138,28 @@ public:
                 if (i - mv.begin() == sec_bucket)
                     (*i)->set(in_s);
                 else
-                    (*i)->set((IC) agg.default_val());
+                    (*i)->set((int64_t) agg.default_val());
             }
 
             // Reset the last hour, setting it to a single sample
             // Get the combined value for the minute
-            IC min_val = agg.combine_vector(minute_vec);
+            int64_t min_val = agg.combine_vector(minute_vec);
             TrackerElementVector hv = TrackerElementVector(hour_vec);
             for (TrackerElementVector::iterator i = hv.begin(); i != hv.end(); ++i) {
                 if (i - hv.begin() == min_bucket)
                     (*i)->set(min_val);
                 else
-                    (*i)->set((IC) agg.default_val());
+                    (*i)->set((int64_t) agg.default_val());
             }
 
             // Reset the last day, setting it to a single sample
-            IC hr_val = agg.combine_vector(hour_vec);
+            int64_t hr_val = agg.combine_vector(hour_vec);
             TrackerElementVector dv = TrackerElementVector(day_vec);
             for (TrackerElementVector::iterator i = dv.begin(); i != dv.end(); ++i) {
                 if (i - dv.begin() == hour_bucket)
                     (*i)->set(hr_val);
                 else
-                    (*i)->set((IC) agg.default_val());
+                    (*i)->set((int64_t) agg.default_val());
             }
 
             set_last_time(in_time);
@@ -174,7 +173,7 @@ public:
             //   - Average the minutes we know about & set the hour record
             //
            
-            IC sec_avg = 0, min_avg = 0;
+            int64_t sec_avg = 0, min_avg = 0;
 
             // We only have this entry in the minute, so set it and get the 
             // combined value
@@ -184,7 +183,7 @@ public:
                 if (i - mv.begin() == sec_bucket)
                     (*i)->set(in_s);
                 else
-                    (*i)->set((IC) agg.default_val());
+                    (*i)->set((int64_t) agg.default_val());
             }
             sec_avg = agg.combine_vector(minute_vec);
 
@@ -195,7 +194,7 @@ public:
                 if (i - hv.begin() == min_bucket)
                     (*i)->set(sec_avg);
                 else
-                    (*i)->set((IC) agg.default_val());
+                    (*i)->set((int64_t) agg.default_val());
             }
             min_avg = agg.combine_vector(hour_vec);
 
@@ -203,7 +202,7 @@ public:
             // zeroes; fastforward time
             for (int h = 0; h < hours_different(last_hour_bucket + 1, hour_bucket); h++) {
                 e = hour_vec->get_vector_value((last_hour_bucket + 1 + h) % 24);
-                e->set((IC) agg.default_val());
+                e->set((int64_t) agg.default_val());
             }
 
             e = day_vec->get_vector_value(hour_bucket);
@@ -217,14 +216,14 @@ public:
             // - Update hours
             // printf("debug - rrd - been over a minute since last value\n");
 
-            IC sec_avg = 0, min_avg = 0;
+            int64_t sec_avg = 0, min_avg = 0;
 
             TrackerElementVector mv(minute_vec);
             for (TrackerElementVector::iterator i = mv.begin(); i != mv.end(); ++i) {
                 if (i - mv.begin() == sec_bucket)
                     (*i)->set(in_s);
                 else
-                    (*i)->set((IC) agg.default_val());
+                    (*i)->set((int64_t) agg.default_val());
             }
             sec_avg = agg.combine_vector(minute_vec);
 
@@ -232,12 +231,12 @@ public:
             for (int m = 0; 
                     m < minutes_different(last_min_bucket + 1, min_bucket); m++) {
                 e = hour_vec->get_vector_value((last_min_bucket + 1 + m) % 60);
-                e->set((IC) agg.default_val());
+                e->set((int64_t) agg.default_val());
             }
 
             // Set the updated value
             e = hour_vec->get_vector_value(min_bucket);
-            e->set((IC) sec_avg);
+            e->set((int64_t) sec_avg);
 
             min_avg = agg.combine_vector(hour_vec);
 
@@ -254,20 +253,20 @@ public:
             // changes up
             if (in_time == ltime) {
                 e = minute_vec->get_vector_value(sec_bucket);
-                e->set(agg.combine_element(GetTrackerValue<IC>(e), in_s));
+                e->set(agg.combine_element(GetTrackerValue<int64_t>(e), in_s));
             } else {
                 for (int s = 0; 
                         s < minutes_different(last_sec_bucket + 1, sec_bucket); s++) {
                     e = minute_vec->get_vector_value((last_sec_bucket + 1 + s) % 60);
-                    e->set((IC) agg.default_val());
+                    e->set((int64_t) agg.default_val());
                 }
 
                 e = minute_vec->get_vector_value(sec_bucket);
-                e->set((IC) in_s);
+                e->set((int64_t) in_s);
             }
 
             // Update all the averages
-            IC sec_avg = 0, min_avg = 0;
+            int64_t sec_avg = 0, min_avg = 0;
 
             sec_avg = agg.combine_vector(minute_vec);
 
@@ -346,13 +345,13 @@ protected:
                     "past day values per hour", (void **) &day_vec);
 
         second_entry_id = 
-            RegisterField("kismet.common.rrd.second", (TrackerType) ET, 
+            RegisterField("kismet.common.rrd.second", TrackerInt64, 
                     "second value", NULL);
         minute_entry_id = 
-            RegisterField("kismet.common.rrd.minute", (TrackerType) ET, 
+            RegisterField("kismet.common.rrd.minute", TrackerInt64, 
                     "minute value", NULL);
         hour_entry_id = 
-            RegisterField("kismet.common.rrd.hour", (TrackerType) ET, 
+            RegisterField("kismet.common.rrd.hour", TrackerInt64, 
                     "hour value", NULL);
 
     } 
@@ -367,7 +366,7 @@ protected:
         if ((x = minute_vec->get_vector()->size()) != 60) {
             for ( ; x < 60; x++) {
                 TrackerElement *me =
-                    new TrackerElement((TrackerType) ET, second_entry_id);
+                    new TrackerElement(TrackerInt64, second_entry_id);
                 minute_vec->add_vector(me);
             }
         }
@@ -375,7 +374,7 @@ protected:
         if ((x = hour_vec->get_vector()->size()) != 60) {
             for ( ; x < 60; x++) {
                 TrackerElement *he =
-                    new TrackerElement((TrackerType) ET, minute_entry_id);
+                    new TrackerElement(TrackerInt64, minute_entry_id);
                 hour_vec->add_vector(he);
             }
         }
@@ -383,7 +382,7 @@ protected:
         if ((x = day_vec->get_vector()->size()) != 24) {
             for ( ; x < 24; x++) {
                 TrackerElement *he =
-                    new TrackerElement((TrackerType) ET, hour_entry_id);
+                    new TrackerElement(TrackerInt64, hour_entry_id);
                 day_vec->add_vector(he);
             }
         }
@@ -412,7 +411,7 @@ protected:
 // far simpler.  In a perfect would this would be derived from the common
 // RRD (or the other way around) but until it becomes a problem that's a
 // task for another day.
-template <class IC, int ET, class Aggregator = kis_tracked_rrd_default_aggregator<IC> >
+template <class Aggregator = kis_tracked_rrd_default_aggregator >
 class kis_tracked_minute_rrd : public tracker_component {
 public:
     kis_tracked_minute_rrd(GlobalRegistry *in_globalreg, int in_id) :
@@ -431,7 +430,7 @@ public:
     }
 
     virtual TrackerElement *clone_type() {
-        return new kis_tracked_minute_rrd<IC, ET>(globalreg, get_id());
+        return new kis_tracked_minute_rrd<Aggregator>(globalreg, get_id());
     }
 
     // By default a RRD will fast forward to the current time before
@@ -446,7 +445,7 @@ public:
 
     __Proxy(last_time, uint64_t, time_t, time_t, last_time);
 
-    void add_sample(IC in_s, time_t in_time) {
+    void add_sample(int64_t in_s, time_t in_time) {
         Aggregator agg;
 
         int sec_bucket = in_time % 60;
@@ -466,7 +465,7 @@ public:
         if (in_time - ltime > 60) {
             for (int x = 0; x < 60; x++) {
                 e = minute_vec->get_vector_value(x);
-                e->set((IC) agg.default_val());
+                e->set((int64_t) agg.default_val());
             }
         } else {
             // If in_time == last_time then we're updating an existing record, so
@@ -475,16 +474,16 @@ public:
             // and propagate the averages up
             if (in_time == ltime) {
                 e = minute_vec->get_vector_value(sec_bucket);
-                e->set(agg.combine_element(GetTrackerValue<IC>(e), in_s));
+                e->set(agg.combine_element(GetTrackerValue<int64_t>(e), in_s));
             } else {
                 for (int s = 0; 
                         s < minutes_different(last_sec_bucket + 1, sec_bucket); s++) {
                     e = minute_vec->get_vector_value((last_sec_bucket + 1 + s) % 60);
-                    e->set((IC) agg.default_val());
+                    e->set((int64_t) agg.default_val());
                 }
 
                 e = minute_vec->get_vector_value(sec_bucket);
-                e->set((IC) in_s);
+                e->set((int64_t) in_s);
             }
         }
 
@@ -524,7 +523,7 @@ protected:
                     "past minute values per second", (void **) &minute_vec);
 
         second_entry_id = 
-            RegisterField("kismet.common.rrd.second", (TrackerType) ET, 
+            RegisterField("kismet.common.rrd.second", TrackerInt64, 
                     "second value", NULL);
     } 
 
@@ -538,7 +537,7 @@ protected:
         if ((x = minute_vec->get_vector()->size()) != 60) {
             for ( ; x < 60; x++) {
                 TrackerElement *me =
-                    new TrackerElement((TrackerType) ET, second_entry_id);
+                    new TrackerElement(TrackerInt64, second_entry_id);
                 minute_vec->add_vector(me);
             }
         }
@@ -556,23 +555,22 @@ protected:
 };
 
 // Signal level RRD, peak selector
-template <class IC> 
 class kis_tracked_rrd_peak_signal_aggregator {
 public:
     // Select the stronger signal
-    static IC combine_element(const IC a, const IC b) {
+    static int64_t combine_element(const int64_t a, const int64_t b) {
         if (a < b)
             return b;
         return a;
     }
 
     // Select the strongest signal of the bucket
-    static IC combine_vector(TrackerElement *e) {
+    static int64_t combine_vector(TrackerElement *e) {
         TrackerElementVector v(e);
 
-        IC max = 0;
+        int64_t max = 0;
         for (TrackerElementVector::iterator i = v.begin(); i != v.end(); ++i) {
-            IC v = GetTrackerValue<IC>(*i);
+            int64_t v = GetTrackerValue<int64_t>(*i);
 
             if (max == 0 || max < v)
                 max = v;
@@ -582,8 +580,8 @@ public:
     }
 
     // Default 'empty' value, no legit signal would be 0
-    static IC default_val() {
-        return (IC) 0;
+    static int64_t default_val() {
+        return (int64_t) 0;
     }
 };
 
@@ -1028,6 +1026,9 @@ public:
                                     in.gps->fix);
                         }
                     }
+
+                    signal_min_rrd->add_sample(in.lay1->signal_dbm, 
+                            globalreg->timestamp.tv_sec);
                 }
 
                 if (in.lay1->noise_dbm != 0) {
@@ -1061,6 +1062,9 @@ public:
                                     in.gps->fix);
                         }
                     }
+
+                    signal_min_rrd->add_sample(in.lay1->signal_rssi, 
+                            globalreg->timestamp.tv_sec);
                 }
 
                 if (in.lay1->noise_rssi != 0) {
@@ -1110,8 +1114,7 @@ public:
     __ProxyGet(encodingset, uint64_t, uint64_t, encodingset);
     __ProxyGet(carrierset, uint64_t, uint64_t, carrierset);
 
-    typedef kis_tracked_minute_rrd<int32_t, TrackerInt32, 
-            kis_tracked_rrd_peak_signal_aggregator<int32_t> > msig_rrd;
+    typedef kis_tracked_minute_rrd<kis_tracked_rrd_peak_signal_aggregator> msig_rrd;
     __ProxyTrackable(signal_min_rrd, msig_rrd, signal_min_rrd);
 
     kis_tracked_location_triplet *get_peak_loc() { return peak_loc; }
@@ -1180,10 +1183,10 @@ protected:
             RegisterField("kismet.common.signal.carrierset", TrackerUInt64,
                     "bitset of observed carrier types", (void **) &carrierset);
 
-        kis_tracked_minute_rrd<int32_t, TrackerInt32, 
-            kis_tracked_rrd_peak_signal_aggregator<int32_t> > *signal_min_rrd_builder =
-                new kis_tracked_minute_rrd<int32_t, TrackerInt32, 
-                    kis_tracked_rrd_peak_signal_aggregator<int32_t> >(globalreg, 0);
+        kis_tracked_minute_rrd<kis_tracked_rrd_peak_signal_aggregator> 
+            *signal_min_rrd_builder = new 
+            kis_tracked_minute_rrd<kis_tracked_rrd_peak_signal_aggregator>(globalreg,
+                    0);
         signal_min_rrd_id =
             RegisterComplexField("kismet.device.base.signal.rrd",
                     signal_min_rrd_builder, "signal data for past minute");
@@ -1196,17 +1199,18 @@ protected:
         if (e != NULL) {
             peak_loc = new kis_tracked_location_triplet(globalreg, peak_loc_id,
                     e->get_map_value(peak_loc_id)); 
-            signal_min_rrd = 
-                new kis_tracked_minute_rrd<int32_t, TrackerInt32, 
-                    kis_tracked_rrd_peak_signal_aggregator<int32_t> >(globalreg, 
-                            signal_min_rrd_id, e->get_map_value(signal_min_rrd_id));
+                signal_min_rrd = new 
+                kis_tracked_minute_rrd<kis_tracked_rrd_peak_signal_aggregator>(globalreg,
+                        signal_min_rrd_id, e->get_map_value(signal_min_rrd_id));
         } else {
+            signal_min_rrd = new
+                kis_tracked_minute_rrd<kis_tracked_rrd_peak_signal_aggregator>(globalreg,
+                        signal_min_rrd_id);
             peak_loc = new kis_tracked_location_triplet(globalreg, peak_loc_id);
             add_map(peak_loc);
 
-            signal_min_rrd = 
-                new kis_tracked_minute_rrd<int32_t, TrackerInt32, 
-                    kis_tracked_rrd_peak_signal_aggregator<int32_t> >(globalreg, 
+            signal_min_rrd = new 
+                kis_tracked_minute_rrd<kis_tracked_rrd_peak_signal_aggregator>(globalreg, 
                             signal_min_rrd_id);
             add_map(signal_min_rrd);
 
@@ -1239,8 +1243,7 @@ protected:
     // Signal record over the past minute, either rssi or dbm.  Devices
     // should not mix rssi and dbm signal reporting.
     int signal_min_rrd_id;
-    kis_tracked_minute_rrd<int32_t, TrackerInt32, 
-        kis_tracked_rrd_peak_signal_aggregator<int32_t> > *signal_min_rrd;
+    kis_tracked_minute_rrd<kis_tracked_rrd_peak_signal_aggregator> *signal_min_rrd;
 };
 
 class kis_tracked_seenby_data : public tracker_component {
