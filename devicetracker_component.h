@@ -1188,7 +1188,7 @@ protected:
             kis_tracked_minute_rrd<kis_tracked_rrd_peak_signal_aggregator>(globalreg,
                     0);
         signal_min_rrd_id =
-            RegisterComplexField("kismet.device.base.signal.rrd",
+            RegisterComplexField("kismet.common.signal.signal_rrd",
                     signal_min_rrd_builder, "signal data for past minute");
         delete(signal_min_rrd_builder);
     }
