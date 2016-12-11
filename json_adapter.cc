@@ -47,6 +47,8 @@ string JsonAdapter::SanitizeString(string in) {
 void JsonAdapter::Pack(GlobalRegistry *globalreg, std::stringstream &stream,
     TrackerElement *e) {
 
+    e->link();
+
     e->pre_serialize();
 
     // XXX no, they don't, this only happens when we're a map of some sort,
@@ -205,6 +207,7 @@ void JsonAdapter::Pack(GlobalRegistry *globalreg, std::stringstream &stream,
             break;
         default:
             break;
-
     }
+
+    e->unlink();
 }

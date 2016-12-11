@@ -1729,6 +1729,8 @@ void Devicetracker::httpd_all_phys(TrackerElementSerializer *serializer,
         wrapper = phyvec;
     }
 
+    wrapper->link();
+
     kis_tracked_phy *anyphy = new kis_tracked_phy(globalreg, phy_base_id);
     anyphy->set_from_phy(this, KIS_PHY_ANY);
     phyvec->add_vector(anyphy);
@@ -1742,7 +1744,7 @@ void Devicetracker::httpd_all_phys(TrackerElementSerializer *serializer,
 
     serializer->serialize(wrapper);
 
-    delete(wrapper);
+    wrapper->unlink();
 }
 
 void Devicetracker::httpd_device_summary(TrackerElementSerializer *serializer,
@@ -1761,6 +1763,8 @@ void Devicetracker::httpd_device_summary(TrackerElementSerializer *serializer,
     } else {
         wrapper = devvec;
     }
+
+    wrapper->link();
 
     if (subvec == NULL) {
         local_locker lock(&devicelist_mutex);
@@ -1784,7 +1788,7 @@ void Devicetracker::httpd_device_summary(TrackerElementSerializer *serializer,
         serializer->serialize(wrapper);
     }
 
-    delete(wrapper);
+    wrapper->unlink();
 }
 
 void Devicetracker::httpd_xml_device_summary(std::stringstream &stream) {
@@ -1792,6 +1796,8 @@ void Devicetracker::httpd_xml_device_summary(std::stringstream &stream) {
 
     TrackerElement *devvec =
         globalreg->entrytracker->GetTrackedInstance(device_summary_base_id);
+
+    devvec->link();
 
     for (unsigned int x = 0; x < tracked_vec.size(); x++) {
         devvec->add_vector(tracked_vec[x]->get_tracked_summary());
@@ -1855,8 +1861,8 @@ void Devicetracker::httpd_xml_device_summary(std::stringstream &stream) {
     xml->XmlSerialize(devvec, stream);
 
     delete(xml);
-    delete(devvec);
 
+    devvec->unlink();
 }
 
 void Devicetracker::Httpd_CreateStreamResponse(
@@ -1968,6 +1974,7 @@ void Devicetracker::Httpd_CreateStreamResponse(
                     if (sub == NULL) {
                         return;
                     } else {
+                        sub->link();
                         TrackerElementSerializer *serializer = NULL;
                         if (use_msgpack) {
                             serializer =
@@ -1978,6 +1985,7 @@ void Devicetracker::Httpd_CreateStreamResponse(
                         }
                         serializer->serialize(sub);
                         delete(serializer);
+                        sub->unlink();
                         return;
                     }
                 }
@@ -2057,6 +2065,7 @@ void Devicetracker::Httpd_CreateStreamResponse(
             local_locker lock(&devicelist_mutex);
 
             TrackerElement *wrapper = new TrackerElement(TrackerMap);
+            wrapper->link();
 
             TrackerElement *refresh =
                 globalreg->entrytracker->GetTrackedInstance(device_update_required_id);
@@ -2101,7 +2110,7 @@ void Devicetracker::Httpd_CreateStreamResponse(
                 delete(serializer);
             }
 
-            delete(wrapper);
+            wrapper->unlink();
 
             return;
         }

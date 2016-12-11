@@ -336,9 +336,9 @@ int Alertracker::ParseAlertConfig(ConfigFile *in_conf) {
 						  &(rec->limit_burst)) < 0) {
 			_MSG("Invalid alert line in config file: " + clines[x], MSGFLAG_FATAL);
 			globalreg->fatal_condition = 1;
-      delete rec;
-			return -1;
-		}
+            delete rec;
+            return -1;
+        }
 
 		alert_conf_map[StrLower(rec->header)] = rec;
 	}
@@ -481,6 +481,8 @@ void Alertracker::Httpd_CreateStreamResponse(
             wrapper = msgvec;
         }
 
+        wrapper->link();
+
         for (vector<kis_alert_info *>::iterator i = alert_backlog.begin();
                 i != alert_backlog.end(); ++i) {
             if (since_time < (*i)->tm.tv_sec) {
@@ -492,8 +494,9 @@ void Alertracker::Httpd_CreateStreamResponse(
 
         serializer->serialize(wrapper);
 
-        delete(wrapper);
         delete(serializer);
+
+        wrapper->unlink();
     }
 }
 

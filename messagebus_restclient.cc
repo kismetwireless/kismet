@@ -194,6 +194,8 @@ void RestMessageClient::Httpd_CreateStreamResponse(
             wrapper = msgvec;
         }
 
+        wrapper->link();
+
         for (vector<tracked_message *>::iterator i = message_vec.begin();
                 i != message_vec.end(); ++i) {
             if (since_time < (*i)->get_timestamp()) {
@@ -203,8 +205,9 @@ void RestMessageClient::Httpd_CreateStreamResponse(
 
         serializer->serialize(wrapper);
 
-        delete(wrapper);
         delete(serializer);
+
+        wrapper->unlink();
     }
 }
 

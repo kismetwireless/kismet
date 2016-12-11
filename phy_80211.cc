@@ -2023,12 +2023,12 @@ public:
 
         // Make a vector, we don't care about the container type
         device_vec = new TrackerElement(TrackerVector);
-        // Wrap it in a vector handler, which links it
+        // Wrap it in a vector handler, which links the usage for the lifetime
+        // of the device_vec
         devices = new TrackerElementVector(device_vec);
     }
 
     virtual ~phy80211_devicetracker_ssid_pcre_worker() {
-        // Delete the wrapper which unlinks the child
         delete(devices);
     }
 
