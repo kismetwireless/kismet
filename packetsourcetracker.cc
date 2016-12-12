@@ -2699,6 +2699,7 @@ void Packetsourcetracker::httpd_pack_all_sources(std::stringstream &stream) {
 
     TrackerElement *sourcevec =
         entrytracker->GetTrackedInstance(tracked_oldsource_vec_id);
+    TrackerElementScopeLinker slink(sourcevec);
 
     {
         local_locker lock(&pst_lock);
@@ -2711,9 +2712,6 @@ void Packetsourcetracker::httpd_pack_all_sources(std::stringstream &stream) {
     }
 
     MsgpackAdapter::Pack(globalreg, stream, sourcevec);
-
-    delete(sourcevec);
-        
 }
 
 void Packetsourcetracker::Httpd_CreateStreamResponse(
