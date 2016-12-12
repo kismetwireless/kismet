@@ -1185,6 +1185,28 @@ protected:
     GlobalRegistry *globalreg;
     std::stringstream &stream;
 };
+
+// Scope-lifetime linker for protecting variables not directly mapped
+// into a parent object (ie, serialization wrappers, etc)
+class TrackerElementScopeLinker {
+public:
+    TrackerElementScopeLinker(TrackerElement *in_elem) {
+        elem = NULL;
+
+        if (in_elem != NULL) {
+            elem = in_elem;
+            elem->link();
+        }
+    }
+
+    ~TrackerElementScopeLinker() {
+        if (elem != NULL)
+            elem->unlink();
+    }
+
+protected:
+    TrackerElement *elem;
+};
         
 
 #endif
