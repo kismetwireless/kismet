@@ -1729,7 +1729,7 @@ void Devicetracker::httpd_all_phys(TrackerElementSerializer *serializer,
         wrapper = phyvec;
     }
 
-    wrapper->link();
+    TrackerElementScopeLinker slink(wrapper);
 
     kis_tracked_phy *anyphy = new kis_tracked_phy(globalreg, phy_base_id);
     anyphy->set_from_phy(this, KIS_PHY_ANY);
@@ -1743,8 +1743,6 @@ void Devicetracker::httpd_all_phys(TrackerElementSerializer *serializer,
     }
 
     serializer->serialize(wrapper);
-
-    wrapper->unlink();
 }
 
 void Devicetracker::httpd_device_summary(TrackerElementSerializer *serializer,
@@ -1963,6 +1961,8 @@ void Devicetracker::Httpd_CreateStreamResponse(
             map<uint64_t, kis_tracked_device_base *>::iterator tmi =
                 tracked_map.find(key);
             if (tmi != tracked_map.end()) {
+                TrackerElementScopeLinker slink(tmi->second);
+
                 // Try to find the exact field
                 if (tokenurl.size() > 5) {
                     vector<string>::const_iterator first = tokenurl.begin() + 5;
@@ -1971,33 +1971,41 @@ void Devicetracker::Httpd_CreateStreamResponse(
 
                     TrackerElement *sub = tmi->second->get_child_path(fpath);
 
+                    TrackerElementScopeLinker slink(sub);
+
                     if (sub == NULL) {
                         return;
+                    } 
+
+                    TrackerElementSerializer *serializer = NULL;
+                    if (use_msgpack) {
+                        serializer =
+                            new MsgpackAdapter::Serializer(globalreg, stream);
+                    } else if (use_json) {
+                        serializer =
+                            new JsonAdapter::Serializer(globalreg, stream);
                     } else {
-                        sub->link();
-                        TrackerElementSerializer *serializer = NULL;
-                        if (use_msgpack) {
-                            serializer =
-                                new MsgpackAdapter::Serializer(globalreg, stream);
-                        } else if (use_json) {
-                            serializer =
-                                new JsonAdapter::Serializer(globalreg, stream);
-                        }
-                        serializer->serialize(sub);
-                        delete(serializer);
-                        sub->unlink();
                         return;
                     }
+
+                    serializer->serialize(sub);
+                    delete(serializer);
+
+                    return;
                 }
 
                 TrackerElementSerializer *serializer = NULL;
+
                 if (use_msgpack) {
                     serializer =
                         new MsgpackAdapter::Serializer(globalreg, stream);
                 } else if (use_json) {
                     serializer =
                         new JsonAdapter::Serializer(globalreg, stream);
+                } else {
+                    return;
                 }
+
                 serializer->serialize(tmi->second);
                 delete(serializer);
                 return;
@@ -2029,6 +2037,8 @@ void Devicetracker::Httpd_CreateStreamResponse(
             TrackerElement *devvec =
                 globalreg->entrytracker->GetTrackedInstance(device_list_base_id);
 
+            TrackerElementScopeLinker slink(devvec);
+
             vector<kis_tracked_device_base *>::iterator vi;
             for (vi = tracked_vec.begin(); vi != tracked_vec.end(); ++vi) {
                 if ((*vi)->get_macaddr() == mac) {
@@ -2050,7 +2060,7 @@ void Devicetracker::Httpd_CreateStreamResponse(
                 delete(serializer);
             }
 
-            delete(devvec);
+            // delete(devvec);
 
             return;
         } else if (tokenurl[2] == "last-time") {
@@ -2065,7 +2075,7 @@ void Devicetracker::Httpd_CreateStreamResponse(
             local_locker lock(&devicelist_mutex);
 
             TrackerElement *wrapper = new TrackerElement(TrackerMap);
-            wrapper->link();
+            TrackerElementScopeLinker slink(wrapper);
 
             TrackerElement *refresh =
                 globalreg->entrytracker->GetTrackedInstance(device_update_required_id);
@@ -2109,8 +2119,6 @@ void Devicetracker::Httpd_CreateStreamResponse(
                 serializer->serialize(wrapper);
                 delete(serializer);
             }
-
-            wrapper->unlink();
 
             return;
         }
