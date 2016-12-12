@@ -33,6 +33,9 @@ Systemmonitor::Systemmonitor(GlobalRegistry *in_globalreg) :
 
     register_fields();
     reserve_fields(NULL);
+
+    // Link ourselves so serialization doesn't get rid of us
+    link();
 }
 
 Systemmonitor::~Systemmonitor() {

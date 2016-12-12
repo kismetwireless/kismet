@@ -59,6 +59,9 @@ Channeltracker_V2::Channeltracker_V2(GlobalRegistry *in_globalreg) :
         globalreg->timetracker->RegisterTimer(0, &trigger_tm, 0, this);
 
     pthread_mutex_init(&lock, NULL);
+
+    // Always link ourselves so that serialization doesn't unlink us
+    link();
 }
 
 Channeltracker_V2::~Channeltracker_V2() {
