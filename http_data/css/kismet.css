@@ -99,12 +99,16 @@ body {
     font-size: 18px;
 }
 
-/* Battery holder */
-#topbar_battery {
+div.topright_holder {
     float: right;
     position: relative;
     top: 50%;
     transform: translateY(-50%);
+    margin-right: 10px;
+}
+
+#topbar_battery {
+    display: inline-block;
 }
 
 /* Sidebar content */

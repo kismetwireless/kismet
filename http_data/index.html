@@ -26,6 +26,7 @@
 <script src="/js/jquery.kismet.messagebus.js"></script>
 <script src="/js/jquery.kismet.channeldisplay.js"></script>
 <script src="/js/jquery.kismet.battery.js"></script>
+<script src="/js/jquery.kismet.alert.js"></script>
 
 <script src="/js/raphael.min.js"></script>
 <script src="/js/morris.min.js"></script>
@@ -49,6 +50,7 @@
 
 <link rel="stylesheet" href="/css/jquery.kismet.messagebus.css" />
 <link rel="stylesheet" href="/css/jquery.kismet.channeldisplay.css" />
+<link rel="stylesheet" href="/css/jquery.kismet.alert.css" />
 
 <link rel="stylesheet" type="text/css" href="css/reset.css" />
 <link rel="stylesheet" type="text/css" href="css/text.css" /> 
@@ -270,6 +272,7 @@ $(function() {
     $('#channels').channels();
 
     // kismet_ui.BatteryUi($("#batspinner"), $("#batpower"), $("#battime"));
+    $('#topbar_alert').alert();
     $('#topbar_battery').battery();
 
 }); // when
@@ -292,7 +295,10 @@ $(function() {
                 <div id="topbar">
                     <i id="pm_open" class="fa fa-bars"></i>
                     <div id="topbar_title">Kismet</div>
-                    <div id="topbar_battery"></div>
+                    <div class="topright_holder">
+                        <div id="topbar_alert"></div>
+                        <div id="topbar_battery"></div>
+                    </div>
                 </div>
             </div>
 
