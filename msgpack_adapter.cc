@@ -38,6 +38,8 @@
 void MsgpackAdapter::Packer(GlobalRegistry *globalreg, TrackerElement *v,
         msgpack::packer<std::stringstream> &o) {
 
+    v->link();
+
     v->pre_serialize();
 
     o.pack_array(2);
@@ -173,6 +175,7 @@ void MsgpackAdapter::Packer(GlobalRegistry *globalreg, TrackerElement *v,
             break;
     }
 
+    v->unlink();
 }
 
 void MsgpackAdapter::Pack(GlobalRegistry *globalreg, std::stringstream &stream,
