@@ -1,0 +1,14 @@
+div.kis_alert_icon {
+    display: inline-block;
+    padding-left: 10px;
+    padding-right: 10px;
+}
+
+i.kis_alert_bg_normal {
+    color: #707070;
+}
+
+i.kis_alert_bg_alert {
+    color: red;
+}
+
