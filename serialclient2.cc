@@ -56,9 +56,11 @@ int SerialClientV2::OpenDevice(string in_device, unsigned int in_baud) {
     device_fd = open(in_device.c_str(), O_RDWR | O_NONBLOCK | O_NOCTTY | O_CLOEXEC);
 
     if (device_fd < 0) {
-        if (strerror_r(errno, strerrbuf, 1024)) { }
-        msg << "Serial client failed to open device " << in_device << "@" <<
-            in_baud << " - " << strerrbuf;
+        msg << "Serial client failed to open device " << in_device << "@";
+        msg << in_baud;
+        if (strerror_r(errno, strerrbuf, 1024) == 0) {
+            msg << " - " << strerrbuf;
+        }
         _MSG(msg.str(), MSGFLAG_ERROR);
         return -1;
     }
@@ -99,9 +101,11 @@ int SerialClientV2::OpenDevice(string in_device, unsigned int in_baud) {
     cfsetospeed(&options, setbaud);
 
     if (tcsetattr(device_fd, TCSANOW, &options) < 0) {
-        if (strerror_r(errno, strerrbuf, 1024)) { }
         msg << "Serial client failed to set baud rate " << in_device << "@" <<
-            in_baud << " - " << strerrbuf;
+            in_baud;
+        if (strerror_r(errno, strerrbuf, 1024) == 0) { 
+            msg << " - " << strerrbuf;
+        }
         _MSG(msg.str(), MSGFLAG_ERROR);
         return -1;
     }
@@ -155,9 +159,10 @@ int SerialClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
         if ((ret = read(device_fd, buf, len)) < 0) {
             if (errno != EINTR && errno != EAGAIN) {
                 // Push the error upstream if we failed to read here
-                if (strerror_r(errno, strerrbuf, 1024)) { }
-                msg << "Serial client error reading from " << device << "@" << baud << 
-                    " - " << strerrbuf;
+                msg << "Serial client error reading from " << device << "@" << baud;
+                if (strerror_r(errno, strerrbuf, 1024) == 0) { 
+                    msg << " - " << strerrbuf;
+                }
                 handler->BufferError(msg.str());
                 delete[] buf;
                 Close();
@@ -189,9 +194,10 @@ int SerialClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
         if ((iret = write(device_fd, buf, len)) < 0) {
             if (errno != EINTR && errno != EAGAIN) {
                 // Push the error upstream
-                if (strerror_r(errno, strerrbuf, 1024)) { }
-                msg << "Serial client error writing to " << device << "@" << baud << 
-                    " - " << strerrbuf;
+                msg << "Serial client error writing to " << device << "@" << baud;
+                if (strerror_r(errno, strerrbuf, 1024) == 0) { 
+                    msg << " - " << strerrbuf;
+                }
                 handler->BufferError(msg.str());
                 delete[] buf;
                 Close();

@@ -58,9 +58,11 @@ int ConfigFile::ParseConfig_nl(const char *in_fname) {
     stringstream sstream;
 
     if ((configf = fopen(in_fname, "r")) == NULL) {
-        if (strerror_r(errno, errbuf, 1024)) {}
 
-        sstream << "Error reading config file '" << in_fname << "': " << errbuf;
+        sstream << "Error reading config file '" << in_fname;
+        if (strerror_r(errno, errbuf, 1024) == 0) {
+            sstream << "': " << errbuf;
+        }
         _MSG(sstream.str(), MSGFLAG_ERROR);
         return -1;
     }
@@ -134,9 +136,11 @@ int ConfigFile::SaveConfig(const char *in_fname) {
 	FILE *wf = NULL;
 
 	if ((wf = fopen(in_fname, "w")) == NULL) {
-        if (strerror_r(errno, errbuf, 1024)) { }
 
-        sstream << "Error writing config file '" << in_fname << "': " << errbuf;
+        sstream << "Error writing config file '" << in_fname;
+        if (strerror_r(errno, errbuf, 1024) == 0) { 
+            sstream << "': " << errbuf;
+        }
         _MSG(sstream.str(), MSGFLAG_ERROR);
 		return -1;
 	}

@@ -73,9 +73,10 @@ int TcpClientV2::Connect(string in_host, unsigned int in_port) {
     client_sock.sin_port = htons(in_port);
 
     if ((cli_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-        if (strerror_r(errno, strerrbuf, 1024)) { }
-        msg << "TCP client could not connect to " << in_host << ":" << in_port <<
-            " - " << strerrbuf;
+        msg << "TCP client could not connect to " << in_host << ":" << in_port;
+        if (strerror_r(errno, strerrbuf, 1024) == 0) {
+            msg << " - " << strerrbuf;
+        }
         _MSG(msg.str(), MSGFLAG_ERROR);
         return -1;
     }
@@ -87,9 +88,10 @@ int TcpClientV2::Connect(string in_host, unsigned int in_port) {
     local_sock.sin_port = htons(0);
 
     if (::bind(cli_fd, (struct sockaddr *) &local_sock, sizeof(local_sock)) < 0) {
-        if (strerror_r(errno, strerrbuf, 1024)) { }
-        msg << "TCP client could not connect to " << in_host << ":" << in_port <<
-            " - " << strerrbuf;
+        msg << "TCP client could not connect to " << in_host << ":" << in_port;
+        if (strerror_r(errno, strerrbuf, 1024) == 0) {
+            msg << " - " << strerrbuf;
+        }
         _MSG(msg.str(), MSGFLAG_ERROR);
         close(cli_fd);
         return -1;
@@ -111,9 +113,10 @@ int TcpClientV2::Connect(string in_host, unsigned int in_port) {
             connected = false;
             pending_connect = false;
 
-            if (strerror_r(errno, strerrbuf, 1024)) { }
-            msg << "TCP client could not connect to " << in_host << ":" << in_port <<
-                " - " << strerrbuf;
+            msg << "TCP client could not connect to " << in_host << ":" << in_port;
+            if (strerror_r(errno, strerrbuf, 1024) == 0) {
+                msg << " - " << strerrbuf;
+            }
             _MSG(msg.str(), MSGFLAG_ERROR);
 
             // Send the error to any listeners
@@ -180,9 +183,10 @@ int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
             r = getsockopt(cli_fd, SOL_SOCKET, SO_ERROR, &e, &l);
 
             if (r < 0 || e != 0) {
-                if (strerror_r(errno, strerrbuf, 1024)) { }
-                msg << "TCP client could not connect to " << host << ":" << port <<
-                    " - " << strerrbuf;
+                msg << "TCP client could not connect to " << host << ":" << port;
+                if (strerror_r(errno, strerrbuf, 1024) == 0) {
+                    msg << " - " << strerrbuf;
+                }
                 _MSG(msg.str(), MSGFLAG_ERROR);
 
                 handler->BufferError(msg.str());
@@ -216,9 +220,10 @@ int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
         if ((ret = read(cli_fd, buf, len)) < 0) {
             if (errno != EINTR && errno != EAGAIN) {
                 // Push the error upstream if we failed to read here
-                if (strerror_r(errno, strerrbuf, 1024)) { }
-                msg << "TCP client error reading from " << host << ":" << port << 
-                    " - " << strerrbuf;
+                msg << "TCP client error reading from " << host << ":" << port;
+                if (strerror_r(errno, strerrbuf, 1024) == 0) {
+                    msg << " - " << strerrbuf;
+                }
                 handler->BufferError(msg.str());
                 delete[] buf;
                 Disconnect();
@@ -250,9 +255,10 @@ int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
         if ((iret = write(cli_fd, buf, len)) < 0) {
             if (errno != EINTR && errno != EAGAIN) {
                 // Push the error upstream
-                if (strerror_r(errno, strerrbuf, 1024)) { }
-                msg << "TCP client error writing to " << host << ":" << port << 
-                    " - " << strerrbuf;
+                msg << "TCP client error writing to " << host << ":" << port;
+                if (strerror_r(errno, strerrbuf, 1024) == 0) {
+                    msg << " - " << strerrbuf;
+                }
                 handler->BufferError(msg.str());
                 delete[] buf;
                 Disconnect();

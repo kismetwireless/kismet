@@ -106,6 +106,8 @@ int GPSSerialV2::OpenGps(string in_opts) {
 
     if (proto_name != "")
         name = proto_name;
+    else
+        name = proto_device;
 
     // We never write to a serial gps so don't make a write buffer
     serialhandler = new RingbufferHandler(2048, 0);
