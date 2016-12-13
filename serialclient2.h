@@ -61,9 +61,6 @@ protected:
 
     string device;
     unsigned int baud;
-
-    // strerror_r buffers
-    char strerrbuf[1024];
 };
 
 #endif

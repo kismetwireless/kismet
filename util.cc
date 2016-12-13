@@ -1229,3 +1229,25 @@ std::string MultiReplaceAll(std::string in, std::string match,
     return in;
 }
 
+string kis_strerror_r(int errnum) {
+    char *d_errstr = new char[1024];
+    string rs;
+
+    // How did glibc get this so amazingly wrong?
+
+#if (_POSIX_C_SOURCE >= 200112L || _XOPEN_SOURCE >= 600) && ! _GNU_SOURCE
+    int r;
+    r = strerror_r(errnum, d_errstr, 1024);
+
+    if (r == 0)
+        rs = string(d_errstr);
+    
+    delete[] d_errstr;
+    return rs;
+#else
+    rs = string(strerror_r(errnum, d_errstr, 1024));
+    delete[] d_errstr;
+    return rs;
+#endif
+}
+

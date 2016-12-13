@@ -60,8 +60,6 @@ protected:
 
     int read_fd, write_fd;
 
-    // strerror_r buffers
-    char strerrbuf[1024];
 };
 
 #endif

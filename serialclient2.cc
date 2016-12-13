@@ -58,9 +58,7 @@ int SerialClientV2::OpenDevice(string in_device, unsigned int in_baud) {
     if (device_fd < 0) {
         msg << "Serial client failed to open device " << in_device << "@";
         msg << in_baud;
-        if (strerror_r(errno, strerrbuf, 1024) == 0) {
-            msg << " - " << strerrbuf;
-        }
+        msg << " - " << kis_strerror_r(errno);
         _MSG(msg.str(), MSGFLAG_ERROR);
         return -1;
     }
@@ -102,10 +100,7 @@ int SerialClientV2::OpenDevice(string in_device, unsigned int in_baud) {
 
     if (tcsetattr(device_fd, TCSANOW, &options) < 0) {
         msg << "Serial client failed to set baud rate " << in_device << "@" <<
-            in_baud;
-        if (strerror_r(errno, strerrbuf, 1024) == 0) { 
-            msg << " - " << strerrbuf;
-        }
+            in_baud << " - " << kis_strerror_r(errno);
         _MSG(msg.str(), MSGFLAG_ERROR);
         return -1;
     }
@@ -159,10 +154,8 @@ int SerialClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
         if ((ret = read(device_fd, buf, len)) < 0) {
             if (errno != EINTR && errno != EAGAIN) {
                 // Push the error upstream if we failed to read here
-                msg << "Serial client error reading from " << device << "@" << baud;
-                if (strerror_r(errno, strerrbuf, 1024) == 0) { 
-                    msg << " - " << strerrbuf;
-                }
+                msg << "Serial client error reading from " << device << "@" << baud <<
+                    " - " << kis_strerror_r(errno);
                 handler->BufferError(msg.str());
                 delete[] buf;
                 Close();
@@ -194,10 +187,8 @@ int SerialClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
         if ((iret = write(device_fd, buf, len)) < 0) {
             if (errno != EINTR && errno != EAGAIN) {
                 // Push the error upstream
-                msg << "Serial client error writing to " << device << "@" << baud;
-                if (strerror_r(errno, strerrbuf, 1024) == 0) { 
-                    msg << " - " << strerrbuf;
-                }
+                msg << "Serial client error writing to " << device << "@" << baud <<
+                    " - " << kis_strerror_r(errno);
                 handler->BufferError(msg.str());
                 delete[] buf;
                 Close();

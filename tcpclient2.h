@@ -66,9 +66,6 @@ protected:
 
     string host;
     unsigned int port;
-
-    // strerror_r buffers
-    char strerrbuf[1024];
 };
 
 #endif

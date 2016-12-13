@@ -296,5 +296,8 @@ protected:
     pthread_mutex_t *lock;
 };
 
+// Local copy of strerror_r because glibc did such an amazingly poor job of it
+string kis_strerror_r(int errnum);
+
 #endif
 

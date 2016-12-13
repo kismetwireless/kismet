@@ -203,17 +203,14 @@ Kis_Net_Httpd::~Kis_Net_Httpd() {
 
 char *Kis_Net_Httpd::read_ssl_file(string in_fname) {
     FILE *f;
-    char strerrbuf[1024];
     stringstream str;
     char *buf = NULL;
     long sz;
 
     // Read errors are considered fatal
     if ((f = fopen(in_fname.c_str(), "rb")) == NULL) {
-        str << "Unable to open SSL file " << in_fname;
-        if (strerror_r(errno, strerrbuf, 1024) == 0) { 
-            str << ": " << strerrbuf;
-        }
+        str << "Unable to open SSL file " << in_fname <<
+            ": " << kis_strerror_r(errno);
         _MSG(str.str(), MSGFLAG_FATAL);
         return NULL;
     }
@@ -230,10 +227,8 @@ char *Kis_Net_Httpd::read_ssl_file(string in_fname) {
 
     buf = new char[sz + 1];
     if (fread(buf, sz, 1, f) <= 0) {
-        str << "Unable to read SSL file " << in_fname;
-        if (strerror_r(errno, strerrbuf, 1024) == 0) { 
-            str << ": " << strerrbuf;
-        }
+        str << "Unable to read SSL file " << in_fname <<
+            ": " << kis_strerror_r(errno);
         _MSG(str.str(), MSGFLAG_FATAL);
         return NULL;
     }
