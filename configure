@@ -732,6 +732,7 @@ enable_pcap
 with_netlink_version
 with_suidgroup
 enable_optimization
+enable_asan
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1384,6 +1385,7 @@ Optional Features:
   --enable-airpcap        enable checking for CACE airpcap
   --disable-pcap          disable libpcap (most sources) capture support
   --disable-optimization        disable -Ox gcc optimization
+  --enable-asan           enable ASAN address debugging
 
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
@@ -8754,6 +8756,22 @@ fi
 if test "$wantopto" != "yes"; then
 	CPPFLAGS=`echo $CPPFLAGS | sed -e 's/-O.//g'`
 	CXXFLAGS=`echo $CXXFLAGS | sed -e 's/-O.//g'`
+fi
+
+# Check whether --enable-asan was given.
+if test "${enable_asan+set}" = set; then :
+  enableval=$enable_asan; case "${enableval}" in
+	 yes) want_asan=yes ;;
+	   *) want_asan=no ;;
+	 esac
+else
+  want_asan=no
+
+fi
+
+if test "$want_asan" == "yes"; then
+    CPPFLAGS="$CPPFLAGS -fsanitize=address"
+    LDFLAGS="$LDFLAGS -fsanitize=address"
 fi
 
 

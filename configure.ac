@@ -1015,6 +1015,19 @@ if test "$wantopto" != "yes"; then
 	CXXFLAGS=`echo $CXXFLAGS | sed -e 's/-O.//g'`
 fi
 
+AC_ARG_ENABLE(asan,
+	[  --enable-asan           enable ASAN address debugging],
+	[case "${enableval}" in
+	 yes) want_asan=yes ;;
+	   *) want_asan=no ;;
+	 esac],
+	[want_asan=no]
+)
+if test "$want_asan" == "yes"; then
+    CPPFLAGS="$CPPFLAGS -fsanitize=address"
+    LDFLAGS="$LDFLAGS -fsanitize=address"
+fi
+
 AC_SUBST(threadlib)
 
 AC_SUBST(KSLIBS)
