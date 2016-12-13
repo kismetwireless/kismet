@@ -113,7 +113,7 @@
             });
 
             baticon = $('<i>', {
-                class: "batpower fa fa-stack-2x fa-refresh fa-spin",
+                class: "batpower fa fa-stack-1x fa-refresh fa-spin",
             });
 
             batholder.append(baticon);
