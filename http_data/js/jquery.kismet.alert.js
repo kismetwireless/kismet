@@ -27,6 +27,8 @@
         $.get("/alerts/last-time/" + last_time + "/alerts.json")
         .done(function(data) {
 
+        })
+        .always(function() {
             timerid = setTimeout(alert_refresh, 1000);
         });
 

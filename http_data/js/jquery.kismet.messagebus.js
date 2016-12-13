@@ -93,6 +93,8 @@
                 }
             }
 
+        })
+        .always(function() {
             timerid = setTimeout(messagebus_refresh, 1000);
         });
     }

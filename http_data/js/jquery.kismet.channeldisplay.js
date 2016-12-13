@@ -291,6 +291,8 @@
                 }
             }
 
+        })
+        .always(function() {
             timerid = setTimeout(channeldisplay_refresh, 5000);
         });
     };

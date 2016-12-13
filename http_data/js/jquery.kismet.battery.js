@@ -81,6 +81,8 @@
                 timetext.show();
             }
 
+        })
+        .always(function() {
             timerid = setTimeout(batinfo_refresh, 1000);
         });
 
