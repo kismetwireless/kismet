@@ -27,7 +27,13 @@
 #include "globalregistry.h"
 #include "entrytracker.h"
 
-TrackerElement::TrackerElement(TrackerType type) {
+void TrackerElement::Initialize() {
+    // Initialize as recursive to allow multiple locks in a single thread
+    pthread_mutexattr_t mutexattr;
+    pthread_mutexattr_init(&mutexattr);
+    pthread_mutexattr_settype(&mutexattr, PTHREAD_MUTEX_RECURSIVE);
+	pthread_mutex_init(&mutex, &mutexattr);
+
     this->type = TrackerUnassigned;
     reference_count = 0;
     deallocated = false;
@@ -59,45 +65,23 @@ TrackerElement::TrackerElement(TrackerType type) {
     dataunion.subvector_value = NULL;
     dataunion.custom_value = NULL;
 
+}
+
+TrackerElement::TrackerElement(TrackerType type) {
+    Initialize();
     set_type(type);
 }
 
 TrackerElement::TrackerElement(TrackerType type, int id) {
-    this->type = TrackerUnassigned;
+    Initialize();
 
     set_id(id);
-
-    reference_count = 0;
-    deallocated = false;
-
-    dataunion.string_value = NULL;
-
-    dataunion.int8_value = 0;
-    dataunion.uint8_value = 0;
-    dataunion.int16_value = 0;
-    dataunion.uint16_value = 0;
-    dataunion.int32_value = 0;
-    dataunion.uint32_value = 0;
-    dataunion.int64_value = 0;
-    dataunion.uint64_value = 0;
-    dataunion.float_value = 0.0f;
-    dataunion.double_value = 0.0f;
-
-    dataunion.mac_value = NULL;
-    dataunion.uuid_value = NULL;
-
-    dataunion.submap_value = NULL;
-    dataunion.subintmap_value = NULL;
-    dataunion.submacmap_value = NULL;
-    dataunion.substringmap_value = NULL;
-    dataunion.subdoublemap_value = NULL;
-    dataunion.subvector_value = NULL;
-    dataunion.custom_value = NULL;
-
     set_type(type);
 }
 
 TrackerElement::~TrackerElement() {
+    pthread_mutex_lock(&mutex);
+
     deallocated = true;
 
     // Blow up if we're still in use and someone free'd us
@@ -164,6 +148,9 @@ TrackerElement::~TrackerElement() {
     } else if (type == TrackerUuid) {
         delete dataunion.uuid_value;
     }
+
+    pthread_mutex_unlock(&mutex);
+    pthread_mutex_destroy(&mutex);
 }
 
 void TrackerElement::set_type(TrackerType in_type) {
@@ -1584,8 +1571,6 @@ tracker_component::tracker_component(GlobalRegistry *in_globalreg, int in_id) {
 
     set_type(TrackerMap);
     set_id(in_id);
-
-    pthread_mutex_init(&pthread_lock, NULL);
 }
 
 tracker_component::tracker_component(GlobalRegistry *in_globalreg, int in_id, 
@@ -1596,16 +1581,12 @@ tracker_component::tracker_component(GlobalRegistry *in_globalreg, int in_id,
 
     set_type(TrackerMap);
     set_id(in_id);
-
-    pthread_mutex_init(&pthread_lock, NULL);
 }
 
 tracker_component::~tracker_component() { 
     for (unsigned int i = 0; i < registered_fields.size(); i++) {
         delete registered_fields[i];
     }
-
-    pthread_mutex_destroy(&pthread_lock);
 }
 
 TrackerElement * tracker_component::clone_type() {

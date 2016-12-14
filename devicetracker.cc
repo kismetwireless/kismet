@@ -378,6 +378,8 @@ int Devicetracker::CommonTracker(kis_packet *in_pack) {
 	kis_ref_capsource *pack_capsrc =
 		(kis_ref_capsource *) in_pack->fetch(pack_comp_capsrc);
 
+    TrackerElementScopeLocker slock(packets_rrd);
+
     packets_rrd->add_sample(1, globalreg->timestamp.tv_sec);
 
 	num_packets++;
@@ -511,6 +513,8 @@ kis_tracked_device_base *Devicetracker::UpdateCommonDevice(mac_addr in_mac,
             device->set_manuf(globalreg->manufdb->LookupOUI(device->get_macaddr()));
     }
 
+    TrackerElementScopeLocker slock(device);
+
     device->set_last_time(in_pack->ts.tv_sec);
 
     if (in_flags & UCD_UPDATE_PACKETS) {
@@ -600,7 +604,7 @@ int Devicetracker::PopulateCommon(kis_tracked_device_base *device, kis_packet *i
 	kis_ref_capsource *pack_capsrc =
 		(kis_ref_capsource *) in_pack->fetch(pack_comp_capsrc);
 
-    tracker_component_locker((tracker_component *) device);
+    TrackerElementScopeLocker((TrackerElement *) device);
 
 	// If we can't figure it out at all (no common layer) just bail
 	if (pack_common == NULL)

@@ -30,6 +30,8 @@
 #include <vector>
 #include <map>
 
+#include <pthread.h>
+
 #include "macaddr.h"
 #include "uuid.h"
 
@@ -100,42 +102,15 @@ enum TrackerType {
 class TrackerElement {
 public:
     TrackerElement() {
-        this->type = TrackerUnassigned;
-        reference_count = 0;
-
-        deallocated = false;
-
-        set_id(-1);
-
-        // Redundant I guess
-        dataunion.string_value = NULL;
-        dataunion.int8_value = 0;
-        dataunion.uint8_value = 0;
-        dataunion.int16_value = 0;
-        dataunion.uint16_value = 0;
-        dataunion.int32_value = 0;
-        dataunion.uint32_value = 0;
-        dataunion.int64_value = 0;
-        dataunion.uint64_value = 0;
-        dataunion.float_value = 0.0f;
-        dataunion.double_value = 0.0f;
-
-        dataunion.mac_value = NULL;
-        dataunion.uuid_value = NULL;
-
-        dataunion.submap_value = NULL;
-        dataunion.subintmap_value = NULL;
-        dataunion.submacmap_value = NULL;
-        dataunion.substringmap_value = NULL;
-        dataunion.subdoublemap_value = NULL;
-        dataunion.subvector_value = NULL;
-        dataunion.custom_value = NULL;
+        Initialize();
     }
 
     TrackerElement(TrackerType type);
     TrackerElement(TrackerType type, int id);
 
     virtual ~TrackerElement();
+
+    void Initialize();
 
     // Factory-style for easily making more of the same if we're subclassed
     virtual TrackerElement *clone_type() {
@@ -188,6 +163,25 @@ public:
 
     int get_links() {
         return reference_count;
+    }
+
+    void thread_mutex_lock() {
+#ifdef HAVE_PTHREAD_TIMELOCK
+        struct timespec t;
+
+        clock_gettime(CLOCK_REALTIME , &t); 
+        t.tv_sec += 5; \
+
+        if (pthread_mutex_timedlock(&mutex, &t) != 0) {
+            throw(std::runtime_error("mutex not available w/in 5 seconds"));
+        }
+#else
+        pthread_mutex_lock(&mutex);
+#endif
+    }
+
+    void thread_mutex_unlock() {
+        pthread_mutex_unlock(&mutex);
     }
 
     void set_type(TrackerType type);
@@ -606,6 +600,9 @@ protected:
 
     // Overridden name for this instance only
     string local_name;
+
+    // Mutex for this object
+    pthread_mutex_t mutex;
 
     // We could make these all one type, but then we'd have odd interactions
     // with incrementing and I'm not positive that's safe in all cases
@@ -1066,14 +1063,6 @@ public:
 
 	virtual ~tracker_component();
 
-    virtual void mutex_lock() {
-        pthread_mutex_lock(&pthread_lock);
-    }
-
-    virtual void mutex_unlock() {
-        pthread_mutex_unlock(&pthread_lock);
-    }
-
     // Clones the type and preserves that we're a tracker component.  
     // Complex subclasses will replace this to function as builders of
     // their own complex types.
@@ -1147,22 +1136,6 @@ protected:
 
     vector<registered_field *> registered_fields;
 
-    pthread_mutex_t pthread_lock;
-};
-
-class tracker_component_locker {
-public:
-    tracker_component_locker(tracker_component *c) {
-        component = c;
-        component->mutex_lock();
-    }
-
-    ~tracker_component_locker() {
-        component->mutex_unlock();
-    }
-
-protected:
-    tracker_component *component;
 };
 
 // Generic serializer class to allow easy swapping of serializers
@@ -1207,6 +1180,29 @@ public:
 protected:
     TrackerElement *elem;
 };
-        
+
+// Scope-lifetime locker and linker
+class TrackerElementScopeLocker {
+public:
+    TrackerElementScopeLocker(TrackerElement *in_elem) {
+        elem = NULL;
+
+        if (in_elem != NULL) {
+            elem = in_elem;
+            elem->thread_mutex_lock();
+            elem->link();
+        }
+    }
+
+    ~TrackerElementScopeLocker() {
+        if (elem != NULL) {
+            elem->thread_mutex_unlock();
+            elem->unlink();
+        }
+    }
+
+protected:
+    TrackerElement *elem;
+};
 
 #endif
