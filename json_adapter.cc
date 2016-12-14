@@ -47,7 +47,7 @@ string JsonAdapter::SanitizeString(string in) {
 void JsonAdapter::Pack(GlobalRegistry *globalreg, std::stringstream &stream,
     TrackerElement *e) {
 
-    e->link();
+    TrackerElementScopeLinker slink(e);
 
     e->pre_serialize();
 
@@ -208,6 +208,4 @@ void JsonAdapter::Pack(GlobalRegistry *globalreg, std::stringstream &stream,
         default:
             break;
     }
-
-    e->unlink();
 }
