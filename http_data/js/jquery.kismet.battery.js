@@ -38,8 +38,20 @@
             if (c === 'charging') {
                 timetext.text("Charging " + p + "% ");
                 timetext.show();
+
                 batoverlay.show();
-                baticon.addClass("fa-battery-0");
+                batoverlay.addClass("battery-blink");
+
+                if (p < 25)
+                    baticon.addClass("fa-battery-0");
+                else if (p < 50)
+                    baticon.addClass("fa-battery-1");
+                else if (p < 75)
+                    baticon.addClass("fa-battery-2");
+                else if (p < 90)
+                    baticon.addClass("fa-battery-3");
+                else
+                    baticon.addClass("fa-battery-4");
             } else if (c === 'discharging') {
                 batoverlay.hide();
 
@@ -73,12 +85,15 @@
                 timetext.show();
             } else if (c === 'charged') {
                 batoverlay.show();
+                batoverlay.removeClass("battery-blink")
                 baticon.addClass("fa-battery-4");
                 timetext.text("Charged");
                 timetext.show();
             } else {
                 timetext.text("Unknown");
                 timetext.show();
+                baticon.addClass("fa-battery-0");
+                batoverlay.hide();
             }
 
         })
@@ -105,11 +120,11 @@
         }
 
         // Build the icon, set as a spinner first
-        var batholder = $('span.fa-stack', this);
+        var batholder = $('span.batholder-stack', this);
 
         if (batholder.length == 0) {
             batholder = $('<span>', {
-                class: "fa-stack"
+                class: "fa-stack batholder-stack"
             });
 
             baticon = $('<i>', {

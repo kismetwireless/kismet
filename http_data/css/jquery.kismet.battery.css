@@ -2,8 +2,26 @@ span.battime {
     font-size: 10pt;
 }
 
-i.batpower {
-    font-size: 12pt;
+span.batholder-stack {
     padding-left: 5px;
+}
+
+i.batpower {
+    font-size: 14pt;
+}
+
+@keyframes battery-blink {
+    0% { opacity: 1; }
+    25% { opacity: 0.5; }
+    50% { opacity: 0.25; }
+    75% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+.battery-blink {
+    -webkit-animation: battery-blink 3s linear infinite;
+    -moz-animation: battery-blink 3s linear infinite;
+    -ms-animation: battery-blink 3s linear infinite;
+    -o-animation: battery-blink 3s linear infinite;
+    animation: battery-blink 3s linear infinite;
 }
 
