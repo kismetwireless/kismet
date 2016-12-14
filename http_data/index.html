@@ -14,19 +14,10 @@
 <script src="/js/jquery.jspanel-compiled.min.js"></script>
 <script src="/js/simple-expand.min.js"></script>
 
-<script src="/js/kismet.utils.js"></script>
-<script src="/js/kismet.ui.js"></script>
-
 <script src="/js/jquery.dataTables.min.js"></script>
 <script src="/js/dataTables.scroller.min.js"></script>
 
 <script src="/js/jquery.sparkline.min.js"></script>
-
-<script src="/js/jquery.kismet.devicedata.js"></script>
-<script src="/js/jquery.kismet.messagebus.js"></script>
-<script src="/js/jquery.kismet.channeldisplay.js"></script>
-<script src="/js/jquery.kismet.battery.js"></script>
-<script src="/js/jquery.kismet.alert.js"></script>
 
 <script src="/js/raphael.min.js"></script>
 <script src="/js/morris.min.js"></script>
@@ -36,6 +27,15 @@
 <script src="/js/pushmenu.js"></script>
 
 <script src="/js/Chart.bundle.min.js"></script>
+
+<script src="/js/kismet.utils.js"></script>
+<script src="/js/kismet.ui.js"></script>
+
+<script src="/js/jquery.kismet.devicedata.js"></script>
+<script src="/js/jquery.kismet.messagebus.js"></script>
+<script src="/js/jquery.kismet.channeldisplay.js"></script>
+<script src="/js/jquery.kismet.battery.js"></script>
+<script src="/js/jquery.kismet.alert.js"></script>
 
 <link rel="stylesheet" href="/css/font-awesome.min.css">
 
@@ -275,6 +275,8 @@ $(function() {
     // kismet_ui.BatteryUi($("#batspinner"), $("#batpower"), $("#battime"));
     $('#topbar_alert').alert();
     $('#topbar_battery').battery();
+
+    kismet_ui.HealthCheck();
 
 }); // when
 

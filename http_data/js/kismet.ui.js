@@ -278,6 +278,45 @@ exports.GetConvertedChannel = function(phyname, frequency) {
     return frequency;
 }
 
+exports.connection_error = false;
+exports.connection_error_panel = null;
+
+exports.HealthCheck = function() {
+    var timerid;
+    
+    $.get("/system/status.json")
+    .done(function() {
+        if (exports.connection_error) {
+            exports.connection_error_panel.close();
+        }
+
+        exports.connection_error = false;
+    })
+    .fail(function() {
+        if (!exports.connection_error) {
+            exports.connection_error_panel = $.jsPanel({
+                id: "connection-alert",
+                headerTitle: 'Cannot Connect to Kismet',
+                headerControls: {
+                    controls: 'none'
+                },
+                contentSize: "auto auto",
+                paneltype: 'modal',
+                content: '<div style="padding: 10px;"><h3><i class="fa fa-exclamation-triangle" style="color: red;" /> Sorry!</h3><p>Cannot connect to the Kismet webserver.  Make sure Kismet is still running on this host!<p><i class="fa fa-refresh fa-spin" style="margin-right: 5px" /> Connecting to the Kismet server...</div>',
+            });
+        }
+
+        exports.connection_error = true;
+    })
+    .always(function() {
+        if (exports.connection_error)
+            timerid = setTimeout(exports.HealthCheck, 1000);
+        else
+            timerid = setTimeout(exports.HealthCheck, 5000);
+    });
+
+}
+
 return exports;
 
 });
