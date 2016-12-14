@@ -1028,6 +1028,19 @@ if test "$want_asan" == "yes"; then
     LDFLAGS="$LDFLAGS -fsanitize=address"
 fi
 
+AC_ARG_ENABLE(tsan,
+	[  --enable-tsan           enable thread-sanitizer debugging],
+	[case "${enableval}" in
+	 yes) want_tsan=yes ;;
+	   *) want_tsan=no ;;
+	 esac],
+	[want_tsan=no]
+)
+if test "$want_tsan" == "yes"; then
+    CPPFLAGS="$CPPFLAGS -fsanitize=thread"
+    LDFLAGS="$LDFLAGS -fsanitize=thread"
+fi
+
 AC_SUBST(threadlib)
 
 AC_SUBST(KSLIBS)
@@ -1207,3 +1220,13 @@ if test "$havenetlink" = "yes" -a "$pcap" = "yes"; then
 	echo "./configure --with-netlink-version=1"
 	echo
 fi
+
+if test "$want_asan" = "yes" -a "$want_tsan" = "yes"; then
+	echo
+    echo "*** WARNING ***"
+    echo "It is unlikely that enabling both thread sanitization debugging"
+    echo "and address sanitizer debugging simultaneously will work due to "
+    echo "binary differences.  Likely, the compiler will reject this, "
+    echo "but you can try."
+fi
+
