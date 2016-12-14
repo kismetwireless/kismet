@@ -1,9 +1,6 @@
 span.battime {
     font-size: 10pt;
-}
-
-span.batholder-stack {
-    padding-left: 5px;
+    padding-right: 5px;
 }
 
 i.batpower {
