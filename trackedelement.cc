@@ -102,9 +102,10 @@ TrackerElement::~TrackerElement() {
 
     // Blow up if we're still in use and someone free'd us
     if (reference_count != 0) {
-        string w = "destroying element with non-zero reference count (" + 
+        string w = "WARNING: destroying element with non-zero reference count (" + 
             IntToString(reference_count) + ")";
-        throw std::runtime_error(w);
+        fprintf(stderr, "%s", w.c_str());
+        // throw std::runtime_error(w);
     }
 
     // If we contain references to other things, unlink them.  This may cause them to
