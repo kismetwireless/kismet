@@ -110,6 +110,8 @@ void Channeltracker_V2::Httpd_CreateStreamResponse(
         size_t *upload_data_size __attribute__((unused)), 
         std::stringstream &stream) {
 
+    local_locker locker(&lock);
+
     if (strcmp(method, "GET") != 0) {
         return;
     }
