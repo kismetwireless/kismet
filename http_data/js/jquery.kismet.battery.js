@@ -91,7 +91,7 @@
                 baticon.addClass("fa-battery-4");
                 timetext.text("Charged");
                 timetext.show();
-            } else if (a == 1) {
+            } else if (a == 1 && p == 0) {
                 timetext.hide();
                 baticon.addClass("fa-plug");
                 batoverlay.hide();
