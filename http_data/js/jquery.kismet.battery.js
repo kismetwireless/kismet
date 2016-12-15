@@ -37,11 +37,7 @@
             var c = data.kismet_system_battery_charging
             var a = data.kismet_system_battery_ac;
 
-            if (a == 1) {
-                timetext.hide();
-                baticon.addClass("fa-plug");
-                batoverlay.hide();
-            } else if (c === 'charging') {
+            if (c === 'charging') {
                 timetext.text("Charging " + p + "% ");
                 timetext.show();
 
@@ -95,6 +91,10 @@
                 baticon.addClass("fa-battery-4");
                 timetext.text("Charged");
                 timetext.show();
+            } else if (a == 1) {
+                timetext.hide();
+                baticon.addClass("fa-plug");
+                batoverlay.hide();
             } else {
                 timetext.text("Unknown");
                 timetext.show();
