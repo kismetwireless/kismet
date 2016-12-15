@@ -85,16 +85,16 @@
                 }
 
                 timetext.show();
+            } else if (a == 1 && p == 0) {
+                timetext.hide();
+                baticon.addClass("fa-plug");
+                batoverlay.hide();
             } else if (c === 'charged') {
                 batoverlay.show();
                 batoverlay.removeClass("battery-blink")
                 baticon.addClass("fa-battery-4");
                 timetext.text("Charged");
                 timetext.show();
-            } else if (a == 1 && p == 0) {
-                timetext.hide();
-                baticon.addClass("fa-plug");
-                batoverlay.hide();
             } else {
                 timetext.text("Unknown");
                 timetext.show();
