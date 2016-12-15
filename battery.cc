@@ -159,6 +159,10 @@ int Fetch_Battery_Linux_Sys(kis_battery_info *out __attribute__((unused))) {
      *      Michael Meskes  <meskes@debian.org>
      */
 #ifdef SYS_LINUX
+    // Default to being on AC; if we lack battery info we're probably
+    // not a laptop
+    out->ac = 1;
+
     FILE *f;
     struct stat statbuf;
 

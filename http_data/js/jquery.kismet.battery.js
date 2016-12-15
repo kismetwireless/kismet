@@ -31,11 +31,17 @@
             baticon.removeClass("fa-battery-2");
             baticon.removeClass("fa-battery-3");
             baticon.removeClass("fa-battery-4");
+            baticon.removeClass("fa-plug");
 
             var p = data.kismet_system_battery_percentage;
             var c = data.kismet_system_battery_charging
+            var a = data.kismet_system_battery_ac;
 
-            if (c === 'charging') {
+            if (a == 1) {
+                timetext.hide();
+                baticon.addClass("fa-plug");
+                batoverlay.hide();
+            } else if (c === 'charging') {
                 timetext.text("Charging " + p + "% ");
                 timetext.show();
 
@@ -98,7 +104,7 @@
 
         })
         .always(function() {
-            timerid = setTimeout(batinfo_refresh, 1000);
+            timerid = setTimeout(batinfo_refresh, 5000);
         });
 
     }
