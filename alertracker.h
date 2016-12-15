@@ -132,7 +132,7 @@ protected:
         tracker_component::register_fields();
 
         device_key_id =
-            RegisterField("ksimet.alert.device_key", TrackerUInt64,
+            RegisterField("kismet.alert.device_key", TrackerUInt64,
                     "Device key of linked device", (void **) &device_key);
 
         header_id =
