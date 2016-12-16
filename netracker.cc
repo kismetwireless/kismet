@@ -571,27 +571,27 @@ int Protocol_SSID(PROTO_PARMS) {
 				cache->Cache(fnum, osstr.str());
 				break;
 			case SSID_wps:
-				osstr << ssid->wps;
+				osstr << (int) ssid->wps;
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
 			case SSID_wps_manuf:
-				osstr << ssid->wps_manuf;
+				osstr << "\001" << ssid->wps_manuf << "\001";
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
 			case SSID_wps_device_name:
-				osstr << ssid->wps_device_name;
+				osstr << "\001" << ssid->wps_device_name << "\001";
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
 			case SSID_wps_model_name:
-				osstr << ssid->wps_model_name;
+				osstr << "\001" << ssid->wps_model_name << "\001";
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
 			case SSID_wps_model_number:
-				osstr << ssid->wps_model_number;
+				osstr << "\001" << ssid->wps_model_number << "\001";
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
