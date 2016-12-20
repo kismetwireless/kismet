@@ -105,31 +105,25 @@
             })
             .on('click', function(e) {
                 var nominal_w = 400;
-                var nominal_h = 200;
+                var nominal_h = 300;
 
-                // Basic offset
+                // Position under the element
                 var off_y = (nominal_h / 2) + (element.outerHeight() / 2) + 3;
-                var off_x = (nominal_w / 3);
 
-                // Absolute middle position
-                var mid_e = element.offset().left + (element.outerWidth() / 2);
+                // left-ish of the icon
+                var off_x = (nominal_w / 3);
+                off_x *= -1;
 
                 // Where the outer border lands
-                var outerborder = mid_e + (nominal_w / 2);
-
-                // If we're outside the window
-                if (outerborder > $(window).width()) {
-                    off_x += ($(window).width() - outerborder);
-                    off_x += 10;
-                }
+                var outerborder = off_x + (nominal_w / 2);
 
                 dialog = $.jsPanel({
                     id: "alertdialog",
                     headerRemove: true,
                     position: {
-                        of: link,
+                        of: element,
                         offsetY: off_y,
-                        offsetX: off_x * - 1
+                        offsetX: off_x
                     },
                     contentSize: {
                         width: nominal_w,
