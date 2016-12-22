@@ -1,14 +1,67 @@
-div.kis_alert_icon {
+div.ka-top-icon {
     display: inline-block;
     padding-left: 10px;
     padding-right: 10px;
 }
 
-i.kis_alert_bg_normal {
+div.ka-dialog-content {
+    height: 100%;
+    display: flex;
+
+    flex-direction: column;
+}
+
+div.ka-dialog-header {
+    background-color: #AAAAAA;
+}
+
+div.ka-dialog-main {
+    flex: 1;
+}
+
+div.ka-dialog-footer {
+    background-color: #CCCCCC;
+}
+
+i.ka-top-bg-normal {
     color: #707070;
 }
 
-i.kis_alert_bg_alert {
+i.ka-top-bg-alert {
     color: red;
+}
+
+i.ka-header-icon {
+    margin: 5px;
+    font-size: 14px;
+    color: red;
+}
+
+b.ka-header-text {
+    font-size: 14px;
+}
+
+.ka-bottom-text {
+    margin: auto;
+    display: table;
+}
+
+.ka-dialog-center {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translateX(-50%) translateY(-50%);
+}
+
+.ka-no-text {
+    font-size: 18px;
+    line-height: 100%;
+    white-space: nowrap;
+}
+
+.ka-big-icon {
+    font-size: 150px;
+    color: #E0E0E0;
+    text-align: center;
 }
 

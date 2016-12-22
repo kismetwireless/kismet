@@ -55,14 +55,14 @@
     $.fn.alert = function(data, inopt) {
         element = $(this);
 
-        element.addClass('kis_alert_icon');
+        element.addClass('ka-top-icon');
 
         options = $.extend(base_options, inopt);
 
         alertbg = $('i.background', this);
         if (alertbg.length == 0) {
             alertbg = $('<i>', {
-                class: "background fa fa-square fa-stack-2x kis_alert_bg_normal"
+                class: "background fa fa-square fa-stack-2x ka-top-bg-normal"
             });
         }
 
@@ -104,8 +104,66 @@
                 class: "alertbutton"
             })
             .on('click', function(e) {
+                if (dialog != null) {
+                    e.stopImmediatePropagation();
+                    return;
+                }
+
+                var alert_popup_content = 
+                    $('<div>', {
+                        class: "ka-dialog-content"
+                    })
+                    .append(
+                        $('<div>', {
+                            class: "ka-dialog-header"
+                        })
+                        .append(
+                            $('<i>', {
+                                class: "fa fa-bell ka-header-icon"
+                            })
+                        )
+                        .append(
+                            $('<b>', {
+                                class: "ka-header-text"
+                            }).text('Alerts')
+                        )
+                    )
+                    .append(
+                        $('<div>', {
+                            class: "ka-dialog-main"
+                        })
+                        .append(
+                            $('<div>', {
+                                class: "ka-dialog-center",
+                                id: "ka-dialog-none"
+                            })
+                            .append(
+                                $('<span>', {
+                                    class: "fa fa-bell-slash ka-big-icon"
+                                })
+                            )
+                            .append(
+                                $('<span>', {
+                                    class: "ka-dialog-center ka-no-text"
+                                })
+                                .text("No alerts to show!")
+                            )
+                        )
+                    )
+                    .append(
+                        $('<div>', {
+                            class: "ka-dialog-footer"
+                        })
+                        .append(
+                            $('<span>', {
+                                class: "ka-bottom-text"
+                            })
+                            .text("No previous alerts")
+                        )
+                    );
+
                 var nominal_w = 400;
-                var nominal_h = 300;
+                var nominal_h = ($(window).height() / 3) * 2;
 
                 // Position under the element
                 var off_y = (nominal_h / 2) + (element.outerHeight() / 2) + 3;
@@ -129,6 +187,7 @@
                         width: nominal_w,
                         height: nominal_h
                     },
+                    content: alert_popup_content,
                 });
 
                 $("body").on("click", close_dialog_outside);
