@@ -21,6 +21,8 @@
     var alertbg = null;
     var alertnum = null;
 
+    var alertclick = null;
+
     var last_time = 0;
 
     var dialog = null;
@@ -39,6 +41,100 @@
             // Don't pass the click on
             e.stopImmediatePropagation();
         }
+    }
+
+    var open_dialog = function(e) {
+        if (dialog != null) {
+            close_dialog_outside(e);
+
+            e.stopImmediatePropagation();
+            return;
+        }
+
+        var alert_popup_content = 
+            $('<div>', {
+                class: "ka-dialog-content"
+            })
+            .append(
+                $('<div>', {
+                    class: "ka-dialog-header"
+                })
+                .append(
+                    $('<i>', {
+                        class: "fa fa-bell ka-header-icon"
+                    })
+                )
+                .append(
+                    $('<b>', {
+                        class: "ka-header-text"
+                    }).text('Alerts')
+                )
+            )
+            .append(
+                $('<div>', {
+                    class: "ka-dialog-main"
+                })
+                .append(
+                    $('<div>', {
+                        class: "ka-dialog-center",
+                        id: "ka-dialog-none"
+                    })
+                    .append(
+                        $('<span>', {
+                            class: "fa fa-bell-slash ka-big-icon"
+                        })
+                    )
+                    .append(
+                        $('<span>', {
+                            class: "ka-dialog-center ka-no-text"
+                        })
+                        .text("No alerts to show!")
+                    )
+                )
+            )
+            .append(
+                $('<div>', {
+                    class: "ka-dialog-footer"
+                })
+                .append(
+                    $('<span>', {
+                        class: "ka-bottom-text"
+                    })
+                    .text("No previous alerts")
+                )
+            );
+
+        var nominal_w = 400;
+        var nominal_h = ($(window).height() / 3) * 2;
+
+        // Position under the element
+        var off_y = (nominal_h / 2) + (element.outerHeight() / 2) + 3;
+
+        // left-ish of the icon
+        var off_x = (nominal_w / 3);
+        off_x *= -1;
+
+        // Where the outer border lands
+        var outerborder = off_x + (nominal_w / 2);
+
+        dialog = $.jsPanel({
+            id: "alertdialog",
+            headerRemove: true,
+            position: {
+                of: element,
+                offsetY: off_y,
+                offsetX: off_x
+            },
+            contentSize: {
+                width: nominal_w,
+                height: nominal_h
+            },
+            content: alert_popup_content,
+        });
+
+        $("body").on("click", close_dialog_outside);
+
+        e.stopImmediatePropagation();
     }
 
     var alert_refresh = function() {
@@ -94,110 +190,22 @@
         alertholder.append(alerticon);
         alertholder.append(alertnum);
 
-        var link = $('a.alertbutton', this);
+        alertclick = $('a.alertbutton', this);
 
-        if (link.length != 0) {
-            link.empty();
-        } else {
-            link = $('<a>', {
-                href: "#",
-                class: "alertbutton"
-            })
-            .on('click', function(e) {
-                if (dialog != null) {
-                    e.stopImmediatePropagation();
-                    return;
-                }
-
-                var alert_popup_content = 
-                    $('<div>', {
-                        class: "ka-dialog-content"
-                    })
-                    .append(
-                        $('<div>', {
-                            class: "ka-dialog-header"
-                        })
-                        .append(
-                            $('<i>', {
-                                class: "fa fa-bell ka-header-icon"
-                            })
-                        )
-                        .append(
-                            $('<b>', {
-                                class: "ka-header-text"
-                            }).text('Alerts')
-                        )
-                    )
-                    .append(
-                        $('<div>', {
-                            class: "ka-dialog-main"
-                        })
-                        .append(
-                            $('<div>', {
-                                class: "ka-dialog-center",
-                                id: "ka-dialog-none"
-                            })
-                            .append(
-                                $('<span>', {
-                                    class: "fa fa-bell-slash ka-big-icon"
-                                })
-                            )
-                            .append(
-                                $('<span>', {
-                                    class: "ka-dialog-center ka-no-text"
-                                })
-                                .text("No alerts to show!")
-                            )
-                        )
-                    )
-                    .append(
-                        $('<div>', {
-                            class: "ka-dialog-footer"
-                        })
-                        .append(
-                            $('<span>', {
-                                class: "ka-bottom-text"
-                            })
-                            .text("No previous alerts")
-                        )
-                    );
-
-                var nominal_w = 400;
-                var nominal_h = ($(window).height() / 3) * 2;
-
-                // Position under the element
-                var off_y = (nominal_h / 2) + (element.outerHeight() / 2) + 3;
-
-                // left-ish of the icon
-                var off_x = (nominal_w / 3);
-                off_x *= -1;
-
-                // Where the outer border lands
-                var outerborder = off_x + (nominal_w / 2);
-
-                dialog = $.jsPanel({
-                    id: "alertdialog",
-                    headerRemove: true,
-                    position: {
-                        of: element,
-                        offsetY: off_y,
-                        offsetX: off_x
-                    },
-                    contentSize: {
-                        width: nominal_w,
-                        height: nominal_h
-                    },
-                    content: alert_popup_content,
-                });
-
-                $("body").on("click", close_dialog_outside);
-
-                e.stopImmediatePropagation();
-            });
+        if (alertclick.length != 0) {
+            alertclick.empty();
         }
 
-        link.append(alertholder);
-        element.append(link);
+        alertclick = $('<a>', {
+            href: "#",
+            class: "alertbutton"
+        })
+        .on('click', open_dialog);
+
+        alertclick.append(alertholder);
+        element.append(alertclick);
+
+        console.log(alertclick);
 
         alert_refresh();
     };
