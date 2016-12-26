@@ -28,7 +28,7 @@ i.ka-top-bg-normal {
 }
 
 i.ka-top-bg-alert {
-    color: red;
+    color: red !important;
 }
 
 i.ka-header-icon {

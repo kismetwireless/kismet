@@ -23,8 +23,8 @@
 
     var alertclick = null;
 
+    // Last time from the server
     var last_time = 0;
-    var last_clicked = 0;
 
     var dialog = null;
 
@@ -35,6 +35,9 @@
                 dialog.remove();
                 dialog = null;
             }
+
+            // Un-flag the alert button
+            alertbg.removeClass('ka-top-bg-alert');
 
             // Remove the handler
             $('body').off('click', close_dialog_outside);
@@ -141,6 +144,17 @@
     var alert_refresh = function() {
         $.get("/alerts/last-time/" + last_time + "/alerts.json")
         .done(function(data) {
+            // Update the timestamp
+            last_time = data['kismet_alert_timestamp'];
+
+            // Have we got new alerts?
+            if (data['kismet_alert_list'].length > 0) {
+                // If the dialog isn't visible, make it red
+                if (dialog == null) {
+                    alertbg.addClass('ka-top-bg-alert');
+                }
+
+            }
 
         })
         .always(function() {
