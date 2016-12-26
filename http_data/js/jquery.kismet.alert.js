@@ -24,6 +24,7 @@
     var alertclick = null;
 
     var last_time = 0;
+    var last_clicked = 0;
 
     var dialog = null;
 
