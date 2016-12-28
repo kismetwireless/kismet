@@ -6926,73 +6926,7 @@ fi
 
 
 
-# We need nanomsg
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for nn_sleep in -lnanomsg" >&5
-$as_echo_n "checking for nn_sleep in -lnanomsg... " >&6; }
-if ${ac_cv_lib_nanomsg_nn_sleep+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  ac_check_lib_save_LIBS=$LIBS
-LIBS="-lnanomsg  $LIBS"
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-/* Override any GCC internal prototype to avoid an error.
-   Use char because int might match the return type of a GCC
-   builtin and then its argument prototype would still apply.  */
-#ifdef __cplusplus
-extern "C"
-#endif
-char nn_sleep ();
-int
-main ()
-{
-return nn_sleep ();
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_link "$LINENO"; then :
-  ac_cv_lib_nanomsg_nn_sleep=yes
-else
-  ac_cv_lib_nanomsg_nn_sleep=no
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-LIBS=$ac_check_lib_save_LIBS
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_nanomsg_nn_sleep" >&5
-$as_echo "$ac_cv_lib_nanomsg_nn_sleep" >&6; }
-if test "x$ac_cv_lib_nanomsg_nn_sleep" = xyes; then :
-  KSLIBS="$KSLIBS -lnanomsg"
-else
-  as_fn_error $? "libnanomsg is needed and is not available" "$LINENO" 5
-fi
-
-ac_fn_c_check_header_mongrel "$LINENO" "nanomsg/nn.h" "ac_cv_header_nanomsg_nn_h" "$ac_includes_default"
-if test "x$ac_cv_header_nanomsg_nn_h" = xyes; then :
-
-$as_echo "#define HAVE_NANOMSG_H 1" >>confdefs.h
-
-else
-  as_fn_error $? "nanomsg/nn.h is not available check that libnanomsg-dev is installed
-" "$LINENO" 5
-fi
-
-
-
-# we need libmsgpack-c
-# Not any more, we package our own copy
-#AC_MSG_CHECKING([for libmsgpack / msgpack-c library])
-#AC_LANG(C++)
-#AC_LINK_IFELSE(
-#    [AC_LANG_PROGRAM([#include <msgpack.hpp>],
-#                     [;])],
-#    [HAVE_CPP_MSGPACK=1],
-#    [AC_MSG_ERROR([libmsgpack / msgpack-c / libmsgpack-dev is not installed])])
-#AC_MSG_RESULT([found])
-
-# Check for libcurses or libncurses.  Fatal error if we didn't use disable.
+# Check for ncurses for pretty wrapper; no longer mandatory
 
 termcontrol="none";
 

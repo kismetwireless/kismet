@@ -90,9 +90,6 @@
 /* microhttpd is present */
 #undef HAVE_MICROHTTPD_H
 
-/* nanomsg/nn.h is present */
-#undef HAVE_NANOMSG_H
-
 /* Define to 1 if you have the <netdb.h> header file. */
 #undef HAVE_NETDB_H
 
