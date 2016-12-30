@@ -13,14 +13,17 @@ div.ka-dialog-content {
 
 div.ka-dialog-header {
     background-color: #AAAAAA;
+    height: 20px;
 }
 
 div.ka-dialog-main {
+    height: 100%;
     flex: 1;
 }
 
 div.ka-dialog-footer {
     background-color: #CCCCCC;
+    height: 20px;
 }
 
 i.ka-top-bg-normal {
@@ -63,5 +66,13 @@ b.ka-header-text {
     font-size: 150px;
     color: #E0E0E0;
     text-align: center;
+}
+
+div.ka-alert-list {
+    position: absolute;
+    top: 20;
+    bottom: 20;
+    left: 0;
+    overflow-y: auto;
 }
 

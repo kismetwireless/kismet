@@ -9,6 +9,7 @@
 (function ($) {
     var base_options = { 
         use_color: true,
+        max_backlog: 50,
     };
 
     var options = base_options;
@@ -26,7 +27,12 @@
     // Last time from the server
     var last_time = 0;
 
+    // Last time we closed the alert window
+    var last_closed_time = 0;
+
     var dialog = null;
+
+    var alert_list = new Array();
 
     // Close the alert panel if we click outside it
     var close_dialog_outside = function(e) {
@@ -44,6 +50,9 @@
 
             // Don't pass the click on
             e.stopImmediatePropagation();
+
+            // Remember the time
+            last_closed_time = last_time;
         }
     }
 
@@ -53,6 +62,19 @@
 
             e.stopImmediatePropagation();
             return;
+        }
+
+        // Make the list of alerts
+        var listholder = $('<div>', {
+            class: "ka-alert-list",
+            id: "ka-alert-list"
+        });
+
+        for (var x = 0; x < options.max_backlog; x++) {
+            var d = $('<div>', {
+                class: "ka-alert-line"
+            });
+            listholder.append(d);
         }
 
         var alert_popup_content = 
@@ -95,6 +117,7 @@
                         .text("No alerts to show!")
                     )
                 )
+                .append(listholder)
             )
             .append(
                 $('<div>', {
@@ -104,9 +127,20 @@
                     $('<span>', {
                         class: "ka-bottom-text"
                     })
-                    .text("No previous alerts")
+                    .append(
+                        $('<a>', {
+                            href: '#',
+                            id: 'ka-alert-show-all'
+                        })
+                        .on('click', function() {
+                            populate_alert_content(alert_popup_content, true);
+                        })
+                        .text("No previous alerts")
+                    )
                 )
             );
+
+        populate_alert_content(alert_popup_content);
 
         var nominal_w = 400;
         var nominal_h = ($(window).height() / 3) * 2;
@@ -153,7 +187,16 @@
                 if (dialog == null) {
                     alertbg.addClass('ka-top-bg-alert');
                 }
+    
+                // Reverse, combine in the data var, slice and assign to the alert list
+                data['kismet_alert_list'].reverse();
+                $.merge(data['kismet_alert_list'], alert_list);
+                alert_list = data['kismet_alert_list'].slice(0, options.max_backlog);
 
+                // Is the dialog showing?  Update it if it is
+                if (dialog != null) {
+                    populate_alert_content(dialog.content());
+                }
             }
 
         })
@@ -161,6 +204,53 @@
             timerid = setTimeout(alert_refresh, 1000);
         });
 
+    }
+
+    var populate_alert_content = function(c, showall = false) {
+        var divs = $('div.ka-alert-line', c);
+
+        // If the top alert is older (or equal) to the last time we closed the
+        // alert popup, then we don't have any new alerts
+        if (alert_list.length == 0) {
+            $('div#ka-dialog-none', c).show();
+            $('div#ka-alert-list', c).hide();
+            $('a#ka-alert-show-all', c).text("No alerts...");
+            return;
+        } 
+       
+        // Are we showing all alerts, or do we have new ones?
+        if (showall || (alert_list.length > 0 &&
+                alert_list[0]['kismet_alert_timestamp_sec'] >= last_closed_time)) {
+            $('div#ka-dialog-none', c).hide();
+            $('div#ka-alert-list', c).show();
+
+            // Clear all the divs
+            divs.empty();
+
+            // Set the txt at the bottom to something sane
+            $('a#ka-alert-show-all', c).text("Showing all alerts...");
+
+            for (var x = 0; x < alert_list.length; x++) {
+                // Stop when we get to old ones
+                if (alert_list[x]['kismet_alert_timestamp_sec'] < last_closed_time &&
+                        !showall) {
+
+                    // Set the text to 'show all'
+                    $('a#ka-alert-show-all', c).text("Show all previous alerts...");
+                    break;
+                }
+
+                var d = divs.eq(x);
+                d.html("Alert: " + alert_list[x]['kismet_alert_text']);
+
+                console.log(d);
+            }
+        } else {
+            $('div#ka-dialog-none', c).show();
+            $('div#ka-alert-list', c).hide();
+            divs.empty();
+            $('a#ka-alert-show-all', c).text("Show all previous alerts...");
+        }
     }
 
     $.fn.alert = function(data, inopt) {
@@ -191,6 +281,7 @@
             });
         }
 
+        // Make the headerbar icon
         var alertholder = $('span.fa-stack', this);
 
         if (alertholder.length != 0) {
@@ -204,6 +295,8 @@
         alertholder.append(alertbg);
         alertholder.append(alerticon);
         alertholder.append(alertnum);
+
+        // Build the wrapper around the header button
 
         alertclick = $('a.alertbutton', this);
 
