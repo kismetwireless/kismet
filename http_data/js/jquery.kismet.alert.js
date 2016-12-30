@@ -238,7 +238,61 @@
                 }
 
                 var d = divs.eq(x);
-                d.html("Alert: " + alert_list[x]['kismet_alert_text']);
+
+                var ds = (new Date(alert_list[x]['kismet_alert_timestamp_sec'] * 1000).toString()).substring(4, 25);
+
+                // Build the content of each alert line
+                d.append(
+                    $('<div>', {
+                        class: "ka-alert-line-header"
+                    })
+                    .append(
+                        $('<i>', {
+                            class: "fa fa-bell ka-alert-line-icon"
+                        })
+                    )
+                    .append(
+                        $('<span>', {
+                            class: "ka-alert-line-date"
+                        })
+                        .text(ds)
+                    )
+                    .append(
+                        $('<span>', {
+                            class: "ka-alert-line-type"
+                        })
+                        .text(alert_list[x]['kismet_alert_header'])
+                    )
+                    .append(
+                        $('<div>', {
+                            class: "ka-alert-line-text"
+                        })
+                        .text(alert_list[x]['kismet_alert_text'])
+                    )
+                    .append(
+                        $('<div>', {
+                            class: "ka-alert-line-footer"
+                        })
+                        .append(
+                            $('<span>', {
+                                class: "ka-alert-line-address"
+                            })
+                            .text(alert_list[x]['kismet_alert_source_mac'].split('/')[0])
+                        )
+                        .append(
+                            $('<i>', {
+                                class: "fa fa-arrow-right ka-alert-line-arrow"
+                            })
+                        )
+                        .append(
+                            $('<span>', {
+                                class: "ka-alert-line-address"
+                            })
+                            .text(alert_list[x]['kismet_alert_dest_mac'].split('/')[0])
+                        )
+                    )
+                );
+
             }
 
         } else {
