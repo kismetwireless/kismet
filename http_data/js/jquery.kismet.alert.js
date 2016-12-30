@@ -226,6 +226,7 @@
 
             // Clear all the divs
             divs.empty();
+            divs.hide();
 
             for (var x = 0; x < alert_list.length; x++) {
                 // Stop when we get to old ones
@@ -292,6 +293,8 @@
                         )
                     )
                 );
+
+                d.show();
 
             }
 
