@@ -220,7 +220,7 @@
        
         // Are we showing all alerts, or do we have new ones?
         if (showall || (alert_list.length > 0 &&
-                alert_list[0]['kismet_alert_timestamp_sec'] >= last_closed_time)) {
+                alert_list[0]['kismet_alert_timestamp_sec'] > last_closed_time)) {
             $('div#ka-dialog-none', c).hide();
             $('div#ka-alert-list', c).show();
 
@@ -232,7 +232,7 @@
 
             for (var x = 0; x < alert_list.length; x++) {
                 // Stop when we get to old ones
-                if (alert_list[x]['kismet_alert_timestamp_sec'] < last_closed_time &&
+                if (alert_list[x]['kismet_alert_timestamp_sec'] <= last_closed_time &&
                         !showall) {
 
                     // Set the text to 'show all'
@@ -242,8 +242,6 @@
 
                 var d = divs.eq(x);
                 d.html("Alert: " + alert_list[x]['kismet_alert_text']);
-
-                console.log(d);
             }
         } else {
             $('div#ka-dialog-none', c).show();
@@ -312,8 +310,6 @@
 
         alertclick.append(alertholder);
         element.append(alertclick);
-
-        console.log(alertclick);
 
         alert_refresh();
     };
