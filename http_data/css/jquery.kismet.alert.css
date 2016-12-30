@@ -77,10 +77,14 @@ div.ka-alert-list {
 }
 
 div.ka-alert-line {
-    margin-left: 8px;
-    margin-right: 8px;
-    margin-top: 2px;
-    margin-bottom: 4px;
+    padding-left: 8px;
+    padding-right: 8px;
+    padding-top: 2px;
+    padding-bottom: 4px;
+}
+
+div.ka-alert-line:hover {
+    background-color: #CCCCCC;
 }
 
 span.ka-alert-line-date {
@@ -98,7 +102,12 @@ i.ka-alert-line-icon {
     margin-right: 5px;
 }
 
+div.ka-alert-line-text {
+    margin-left: 10px;
+}
+
 div.ka-alert-line-footer {
+    margin-left: 10px;
     font-size: 10px;
 }
 
