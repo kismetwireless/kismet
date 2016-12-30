@@ -54,6 +54,11 @@ body {
 .ui-layout-pane-north {
     padding: 0 !important;
     border-bottom: none;
+    overflow: hidden !important;
+}
+
+.ui-layout-center {
+    overflow: hidden !important;
 }
 
 .ui-layout-pane-south {
@@ -63,7 +68,7 @@ body {
 
 #topbar {
     position: relative;
-    overflow: hidden;
+    overflow: hidden !important;
     height: 40px;
     background-color: #CCCCCC;
     padding-left: 10px;
