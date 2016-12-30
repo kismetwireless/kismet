@@ -149,7 +149,7 @@
         var off_y = (nominal_h / 2) + (element.outerHeight() / 2) + 3;
 
         // left-ish of the icon
-        var off_x = (nominal_w / 3);
+        var off_x = (nominal_w / 5) * 2;
         off_x *= -1;
 
         // Where the outer border lands
