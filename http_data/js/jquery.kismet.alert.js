@@ -183,10 +183,7 @@
 
             // Have we got new alerts?
             if (data['kismet_alert_list'].length > 0) {
-                // If the dialog isn't visible, make it red
-                if (dialog == null) {
-                    alertbg.addClass('ka-top-bg-alert');
-                }
+                alertbg.addClass('ka-top-bg-alert');
     
                 // Reverse, combine in the data var, slice and assign to the alert list
                 data['kismet_alert_list'].reverse();
@@ -195,7 +192,7 @@
 
                 // Is the dialog showing?  Update it if it is
                 if (dialog != null) {
-                    populate_alert_content(dialog.content());
+                    populate_alert_content(dialog.content);
                 }
             }
 
@@ -224,11 +221,11 @@
             $('div#ka-dialog-none', c).hide();
             $('div#ka-alert-list', c).show();
 
-            // Clear all the divs
-            divs.empty();
-
             // Set the txt at the bottom to something sane
             $('a#ka-alert-show-all', c).text("Showing all alerts...");
+
+            // Clear all the divs
+            divs.empty();
 
             for (var x = 0; x < alert_list.length; x++) {
                 // Stop when we get to old ones
@@ -243,6 +240,7 @@
                 var d = divs.eq(x);
                 d.html("Alert: " + alert_list[x]['kismet_alert_text']);
             }
+
         } else {
             $('div#ka-dialog-none', c).show();
             $('div#ka-alert-list', c).hide();
