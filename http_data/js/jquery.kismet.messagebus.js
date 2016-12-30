@@ -56,6 +56,8 @@
             var divs = $('div.messagebus_message', element);
 
             // We should only get items which are new so we merge and then drop
+            // We merge the existing list into our current data, then assign the 
+            // trimmed version of the data to the message list
             data['kismet_messagebus_list'].reverse();
             $.merge(data['kismet_messagebus_list'], message_list);
 

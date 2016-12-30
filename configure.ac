@@ -433,18 +433,7 @@ AC_CHECK_HEADER([microhttpd.h],
 	AC_DEFINE(HAVE_MICROHTTPD_H, 1, microhttpd is present),
     AC_MSG_ERROR([microhttpd.h is not available check that libmicrohttpd-dev is installed]))
 
-# we need libmsgpack-c
-# Not any more, we package our own copy
-#AC_MSG_CHECKING([for libmsgpack / msgpack-c library])
-#AC_LANG(C++)
-#AC_LINK_IFELSE(
-#    [AC_LANG_PROGRAM([#include <msgpack.hpp>], 
-#                     [;])],
-#    [HAVE_CPP_MSGPACK=1], 
-#    [AC_MSG_ERROR([libmsgpack / msgpack-c / libmsgpack-dev is not installed])])
-#AC_MSG_RESULT([found])
-
-# Check for libcurses or libncurses.  Fatal error if we didn't use disable.
+# Check for ncurses for pretty wrapper; no longer mandatory
 
 termcontrol="none";
 
