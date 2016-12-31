@@ -38,6 +38,10 @@
     var close_dialog_outside = function(e) {
         if (e == null ||
             (e != null && $(e.target).closest('#alertdialog').length == 0)) {
+
+            // Remember the time
+            last_closed_time = last_time;
+
             if (dialog != null) {
                 dialog.remove();
                 dialog = null;
@@ -52,8 +56,6 @@
             // Don't pass the click on
             e.stopImmediatePropagation();
 
-            // Remember the time
-            last_closed_time = last_time;
         }
     }
 
