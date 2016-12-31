@@ -36,7 +36,8 @@
 
     // Close the alert panel if we click outside it
     var close_dialog_outside = function(e) {
-        if ($(e.target).closest('#alertdialog').length == 0) {
+        if (e == null ||
+            (e != null && $(e.target).closest('#alertdialog').length == 0)) {
             if (dialog != null) {
                 dialog.remove();
                 dialog = null;
@@ -63,6 +64,48 @@
             e.stopImmediatePropagation();
             return;
         }
+
+        var fullscreen = false;
+
+        var nominal_w = 400;
+        var nominal_h = ($(window).height() / 3) * 2;
+
+        var pos = { };
+
+        if ($(window).width() < 450) {
+            nominal_w = $(window).width() - 5;
+            nominal_h = $(window).height() - 5;
+        
+            pos = {
+                "my": "left-top",
+                "at": "left-top",
+                "of": "window",
+                "offsetX": 2,
+                "offsetY": 2,
+                "autoposition": "RIGHT"
+            };
+
+            fullscreen = true;
+        } else {
+            // Position under the element
+            var off_y = (nominal_h / 2) + (element.outerHeight() / 2) + 3;
+
+            // left-ish of the icon
+            var off_x = (nominal_w / 5) * 2;
+            off_x *= -1;
+
+            // Where the outer border lands
+            var outerborder = off_x + (nominal_w / 2);
+
+            pos = {
+                of: element,
+                offsetY: off_y,
+                offsetX: off_x
+            };
+
+            fullscreen = false;
+        }
+
 
         // Make the list of alerts
         var listholder = $('<div>', {
@@ -94,6 +137,20 @@
                     $('<b>', {
                         class: "ka-header-text"
                     }).text('Alerts')
+                )
+                .append(
+                    $('<a>', {
+                        href: "#"
+                    })
+                    .on('click', function() {
+                        close_dialog_outside(null);
+                    })
+                    .append(
+                        $('<span>', {
+                            class: "ka-header-close jsglyph jsglyph-close"
+                        })
+                        .hide()
+                    )
                 )
             )
             .append(
@@ -140,29 +197,16 @@
                 )
             );
 
+
+        if (fullscreen)
+            $('.ka-header-close', alert_popup_content).show();
+
         populate_alert_content(alert_popup_content);
-
-        var nominal_w = 400;
-        var nominal_h = ($(window).height() / 3) * 2;
-
-        // Position under the element
-        var off_y = (nominal_h / 2) + (element.outerHeight() / 2) + 3;
-
-        // left-ish of the icon
-        var off_x = (nominal_w / 5) * 2;
-        off_x *= -1;
-
-        // Where the outer border lands
-        var outerborder = off_x + (nominal_w / 2);
 
         dialog = $.jsPanel({
             id: "alertdialog",
             headerRemove: true,
-            position: {
-                of: element,
-                offsetY: off_y,
-                offsetX: off_x
-            },
+            position: pos,
             contentSize: {
                 width: nominal_w,
                 height: nominal_h

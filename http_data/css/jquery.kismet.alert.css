@@ -49,6 +49,12 @@ b.ka-header-text {
     display: table;
 }
 
+span.ka-header-close {
+    position: absolute;
+    right: 5px;
+    top: 5px;
+}
+
 .ka-dialog-center {
     position: absolute;
     top: 50%;
@@ -115,4 +121,5 @@ i.ka-alert-line-arrow {
     margin-left: 2px;
     margin-right: 2px;
 }
+
 
