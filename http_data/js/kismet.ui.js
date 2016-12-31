@@ -131,6 +131,11 @@ exports.DeviceDetailWindow = function(key) {
     var dialogid = "devicedialog" + key;
     var dialogmatch = '#' + dialogid;
 
+    if (jsPanel.activePanels.list.indexOf(dialogid) != -1) {
+        jsPanel.activePanels.getPanel(dialogid).front();
+        return;
+    }
+
     var h = $(window).height() - 5;
 
     // If we're on a wide-screen browser, try to split it into 3 details windows
@@ -147,7 +152,7 @@ exports.DeviceDetailWindow = function(key) {
         w = $(window).width() - 5;
     }
 
-    $.jsPanel({
+    var panel = $.jsPanel({
         id: dialogid,
         headerTitle: 'Device Details',
         position: {
@@ -237,6 +242,19 @@ exports.DeviceDetailWindow = function(key) {
             $('div#accordion', this.content).accordion("refresh");
         },
     });
+
+    // Did we creep off the screen in our autopositioning?  Put this panel in
+    // the left if so (or if it's a single-panel situation like mobile, just
+    // put it front and center)
+    if (panel.offset().left + panel.width() > $(window).width()) {
+        panel.reposition({
+            "my": "left-top",
+            "at": "left-top",
+            "of": "window",
+            "offsetX": 2,
+            "offsetY": 2,
+        });
+    }
 };
 
 exports.RenderTrimmedTime = function(opts) {
