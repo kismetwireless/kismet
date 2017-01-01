@@ -35,8 +35,11 @@
 #include "timetracker.h"
 #include "kis_net_microhttpd.h"
 
-// TODO move packet_component to a tracked system & just use the converted
-// kis_alert_info in the future...
+// TODO:
+// - move packet_component to a tracked system & just use the converted
+//   kis_alert_info in the future...
+// - Move alert_ref into a tracked component and return via rest
+// - Add description to alerts
 
 class kis_alert_info : public packet_component {
 public:
@@ -88,7 +91,7 @@ public:
         reserve_fields(e);
     }
 
-    virtual TrackerElement *clon_type() {
+    virtual TrackerElement *clone_type() {
         return new tracked_alert(globalreg, get_id());
     }
 
