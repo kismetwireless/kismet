@@ -333,6 +333,10 @@
         if (storage.isSet('jquery.kismet.channels.range'))
             stored_range = storage.get('jquery.kismet.channels.range');
 
+
+        if (!storage.isSet('jquery.kismet.channels.filter'))
+            storage.set('jquery.kismet.channels.filter', 'any');
+
         element = $(this);
 
         visible = element.is(":visible");
