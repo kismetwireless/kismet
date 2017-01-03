@@ -1,4 +1,6 @@
-// Display the channel records system from Ksimet
+// Display the channel records system from Kismet
+//
+// Requires js-storage and jquery be loaded first
 // 
 // dragorn@kismetwireless.net
 // MIT/GPL License (pick one); the web ui code is licensed more
@@ -32,6 +34,8 @@
 
     var visible = false;
 
+    var storage = null;
+
     var channeldisplay_refresh = function() {
         clearTimeout(timerid);
 
@@ -51,8 +55,8 @@
             var charttime = $('select#historyrange option:selected', element).val();
             // Frequency translation from selector
             var freqtrans = $('select#k_cd_freq_selector option:selected', element).val();
-            // Filter from selector
-            var filter_string = $('select#gh_filter option:selected', element).val();
+            // Pull from the stored value instead of the live
+            var filter_string = storage.get('jquery.kismet.channels.filter');
 
             // historical line chart
             if (charttype === 'history') {
@@ -76,7 +80,6 @@
 
                     rrd_type = kismet.RRD_SECOND;
                     rrd_data = "kismet_channelrec_device_rrd.kismet_common_rrd_minute_vec";
-
                 } else if (charttime === 'hour') {
                     title = "Past Hour";
 
@@ -192,8 +195,6 @@
                 timegraph_canvas.show();
                 coming_soon.hide();
 
-                console.log(datasets);
-
                 if (timegraph_chart == null) {
                     var device_options = {
                         type: "line",
@@ -297,7 +298,41 @@
         });
     };
 
+    var update_graphtype = 
+        function(gt = $("input[name='graphtype']:checked", graphtype).val()) {
+
+        storage.set('jquery.kismet.channels.graphtype', gt);
+
+        if (gt === 'now') {
+            $("select#historyrange", graphtype).hide();
+            $("select#gh_filter", graphtype).hide();
+            $("label#gh_filter_label", graphtype).hide();
+        } else {
+            $("select#historyrange", graphtype).show();
+            $("label#gh_filter_label", graphtype).show();
+            $("select#gh_filter", graphtype).show();
+        }
+
+        charttime = $('select#historyrange option:selected', element).val();
+        storage.set('jquery.kismet.channels.range', charttime);
+    }
+
     $.fn.channels = function(data, inopt) {
+        storage = Storages.localStorage;
+
+        var stored_gtype = "now";
+        var stored_channel = "Frequency";
+        var stored_range = "min";
+
+        if (storage.isSet('jquery.kismet.channels.graphtype'))
+            stored_gtype = storage.get('jquery.kismet.channels.graphtype');
+
+        if (storage.isSet('jquery.kismet.channels.channeltype'))
+            stored_channel = storage.get('jquery.kismet.channels.channeltype');
+
+        if (storage.isSet('jquery.kismet.channels.range'))
+            stored_range = storage.get('jquery.kismet.channels.range');
+
         element = $(this);
 
         visible = element.is(":visible");
@@ -334,7 +369,6 @@
                 id: "gt_bar",
                 name: "graphtype",
                 value: "now",
-                checked: "checked"
                 })
             )
             .append(
@@ -345,6 +379,7 @@
             )
             .append($('<input>', {
                 type: "radio",
+                id: "gt_line",
                 name: "graphtype",
                 value: "history"
             })
@@ -356,18 +391,21 @@
                 })
                 .append(
                     $('<option>', {
+                        id: "hr_min",
                         value: "min",
                     })
                     .text("Past Minute")
                 )
                 .append(
                     $('<option>', {
+                        id: "hr_hour",
                         value: "hour",
                     })
                     .text("Past Hour")
                 )
                 .append(
                     $('<option>', {
+                        id: "hr_day",
                         value: "day",
                     })
                     .text("Past Day")
@@ -386,6 +424,7 @@
                     })
                     .append(
                         $('<option>', {
+                            id: "any",
                             value: "any",
                             selected: "selected",
                         })
@@ -395,25 +434,28 @@
                 .hide()
             );
 
+            // Select time range from stored value
+            $('option#hr_' + stored_range, graphtype).attr('selected', 'selected');
+
+            // Select graph type from stored value
+            if (stored_gtype == 'now') {
+                $('input#gt_bar', graphtype).attr('checked', 'checked');
+            } else {
+                $('input#gt_line', graphtype).attr('checked', 'checked');
+            }
+
             banner.append(graphtype);
 
+            update_graphtype(stored_gtype);
+
             graphtype.on('change', function() {
-                var gt = $("input[name='graphtype']:checked", graphtype). val();
-
-                if (gt === 'now') {
-                    $("select#historyrange", graphtype).hide();
-                    $("select#gh_filter", graphtype).hide();
-                    $("label#gh_filter_label", graphtype).hide();
-                } else {
-                    $("select#historyrange", graphtype).show();
-                    $("label#gh_filter_label", graphtype).show();
-                    $("select#gh_filter", graphtype).show();
-                }
-
+                update_graphtype();
                 channeldisplay_refresh();
             });
 
             $('select#gh_filter', graphtype).on('change', function() {
+                var filter_string = $('select#gh_filter option:selected', element).val();
+                storage.set('jquery.kismet.channels.filter', filter_string);
                 channeldisplay_refresh();
             });
 
@@ -440,8 +482,10 @@
             for (var c in chlist) {
                 var e = $('<option>', {
                     value: chlist[c], 
-                });
-                e.html(chlist[c]);
+                }).html(chlist[c]);
+
+                if (chlist[c] === stored_channel)
+                    e.attr("selected", "selected");
 
                 sel.append(e);
             }
@@ -449,6 +493,11 @@
             banner.append(picker);
 
             picker.on('change', function() {
+                var freqtrans = 
+                    $('select#k_cd_freq_selector option:selected', element).val();
+
+                storage.set('jquery.kismet.channels.channeltype', freqtrans);
+
                 channeldisplay_refresh();
             });
 
