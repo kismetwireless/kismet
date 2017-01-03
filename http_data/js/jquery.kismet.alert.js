@@ -235,7 +235,9 @@
 
             // Have we got new alerts?
             if (data['kismet_alert_list'].length > 0) {
-                alertbg.addClass('ka-top-bg-alert');
+                if (data[0]['kismet_alert_timestamp_sec'] > last_closed_time) {
+                    alertbg.addClass('ka-top-bg-alert');
+                }
     
                 // Reverse, combine in the data var, slice and assign to the alert list
                 data['kismet_alert_list'].reverse();
