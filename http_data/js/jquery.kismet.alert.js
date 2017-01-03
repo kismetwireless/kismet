@@ -1,5 +1,7 @@
 // Alert icon and window
 //
+// Requires js-storage and jquery be loaded prior
+//
 // dragorn@kismetwireless.net
 // MIT/GPL License (pick one); the web ui code is licensed more
 // freely than GPL to reflect the generally MIT-licensed nature
@@ -34,6 +36,8 @@
 
     var alert_list = new Array();
 
+    var storage = null;
+
     // Close the alert panel if we click outside it
     var close_dialog_outside = function(e) {
         if (e == null ||
@@ -41,6 +45,8 @@
 
             // Remember the time
             last_closed_time = last_time;
+
+            storage.set('jquery.kismet.alert.last_closed', last_closed_time);
 
             if (dialog != null) {
                 dialog.remove();
@@ -252,8 +258,10 @@
     var populate_alert_content = function(c, showall = false) {
         var divs = $('div.ka-alert-line', c);
 
-        if (showall)
+        if (showall) {
             last_closed_time = 0;
+            storage.set('jquery.kismet.alert.last_closed', last_closed_time);
+        }
 
         // If the top alert is older (or equal) to the last time we closed the
         // alert popup, then we don't have any new alerts
@@ -354,6 +362,12 @@
     }
 
     $.fn.alert = function(data, inopt) {
+        // Get the stored value if one exists
+        storage = Storages.localStorage;
+
+        if (storage.isSet('jquery.kismet.alert.last_closed'))
+            last_closed_time = storage.get('jquery.kismet.alert.last_closed');
+
         element = $(this);
 
         element.addClass('ka-top-icon');
