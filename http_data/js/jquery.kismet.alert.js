@@ -235,7 +235,7 @@
 
             // Have we got new alerts?
             if (data['kismet_alert_list'].length > 0) {
-                if (data[0]['kismet_alert_timestamp_sec'] > last_closed_time) {
+                if (data['kismet_alert_list'][0]['kismet_alert_timestamp_sec'] > last_closed_time) {
                     alertbg.addClass('ka-top-bg-alert');
                 }
     
