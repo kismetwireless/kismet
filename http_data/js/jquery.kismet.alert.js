@@ -227,8 +227,8 @@
         e.stopImmediatePropagation();
     }
 
-    var alert_refresh = function() {
-        $.get("/alerts/last-time/" + last_time + "/alerts.json")
+    var alert_refresh = function(fetchtime = last_time) {
+        $.get("/alerts/last-time/" + fetchtime + "/alerts.json")
         .done(function(data) {
             // Update the timestamp
             last_time = data['kismet_alert_timestamp'];
@@ -429,7 +429,7 @@
         alertclick.append(alertholder);
         element.append(alertclick);
 
-        alert_refresh();
+        alert_refresh(0);
     };
 
 }(jQuery));
