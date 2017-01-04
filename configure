@@ -6926,6 +6926,87 @@ fi
 
 
 
+URIPARSER_MISSING="Please install uriparser 0.6.4 or later.
+   On a Debian-based system enter 'sudo apt-get install liburiparser-dev'."
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for uriParseUriA in -luriparser" >&5
+$as_echo_n "checking for uriParseUriA in -luriparser... " >&6; }
+if ${ac_cv_lib_uriparser_uriParseUriA+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-luriparser  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char uriParseUriA ();
+int
+main ()
+{
+return uriParseUriA ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_uriparser_uriParseUriA=yes
+else
+  ac_cv_lib_uriparser_uriParseUriA=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_uriparser_uriParseUriA" >&5
+$as_echo "$ac_cv_lib_uriparser_uriParseUriA" >&6; }
+if test "x$ac_cv_lib_uriparser_uriParseUriA" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_LIBURIPARSER 1
+_ACEOF
+
+  LIBS="-luriparser $LIBS"
+
+else
+  as_fn_error $? "${URIPARSER_MISSING}" "$LINENO" 5
+fi
+
+ac_fn_c_check_header_mongrel "$LINENO" "uriparser/Uri.h" "ac_cv_header_uriparser_Uri_h" "$ac_includes_default"
+if test "x$ac_cv_header_uriparser_Uri_h" = xyes; then :
+
+else
+  as_fn_error $? "${URIPARSER_MISSING}" "$LINENO" 5
+fi
+
+
+
+URIPARSER_TOO_OLD="uriparser 0.6.4 or later is required, your copy is too old."
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#include <uriparser/Uri.h>
+#if (defined(URI_VER_MAJOR) && defined(URI_VER_MINOR) && defined(URI_VER_RELEASE) \
+&& ((URI_VER_MAJOR > 0) \
+|| ((URI_VER_MAJOR == 0) && (URI_VER_MINOR > 6)) \
+|| ((URI_VER_MAJOR == 0) && (URI_VER_MINOR == 6) && (URI_VER_RELEASE >= 4)) \
+))
+/* FINE */
+#else
+# error uriparser not recent enough
+#endif
+
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+
+else
+  as_fn_error $? "${URIPARSER_TOO_OLD}" "$LINENO" 5
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+
 # Check for ncurses for pretty wrapper; no longer mandatory
 
 termcontrol="none";
