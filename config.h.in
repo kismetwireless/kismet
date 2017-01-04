@@ -66,9 +66,6 @@
 /* libpcre regex support */
 #undef HAVE_LIBPCRE
 
-/* Define to 1 if you have the `uriparser' library (-luriparser). */
-#undef HAVE_LIBURIPARSER
-
 /* Define to 1 if you have the <libutil.h> header file. */
 #undef HAVE_LIBUTIL_H
 
