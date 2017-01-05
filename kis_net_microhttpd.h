@@ -59,7 +59,14 @@ public:
     virtual bool Httpd_VerifyPath(const char *path, const char *method) = 0;
 
     // Post handler.  By default does nothing and bails on the post data.
-    // Override this to do useful post interpreting.
+    // Override this to do useful post interpreting.  This implements parsing
+    // iterative data and will be called multiple times; if you are implementing
+    // a post system which takes multiple values you will need to index the state
+    // via the connection info and parse them all as you are called from the
+    // microhttpd handler.
+    //
+    // A simpler method is to take a single parameter encoding a JSON string 
+    // or a msgpack container, with all the options contained therein.
     virtual int Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind, 
             const char *key, const char *filename, const char *content_type,
             const char *transfer_encoding, const char *data, 
