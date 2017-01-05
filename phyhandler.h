@@ -24,7 +24,6 @@
 #include <stdio.h>
 
 #include "globalregistry.h"
-#include "devicetracker.h"
 
 class Devicetracker;
 
