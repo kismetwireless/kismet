@@ -332,6 +332,7 @@ protected:
         if (e != NULL) {
             location = new kis_tracked_location(globalreg, location_id, 
                     e->get_map_value(location_id));
+            add_map(location);
         } else {
             location = new kis_tracked_location(globalreg, location_id);
             add_map(location);
@@ -529,6 +530,7 @@ protected:
         if (e != NULL) {
             location = new kis_tracked_location(globalreg, location_id, 
                     e->get_map_value(location_id));
+            add_map(location);
         } else {
             location = new kis_tracked_location(globalreg, location_id);
             add_map(location);
@@ -753,8 +755,11 @@ protected:
         if (e != NULL) {
             ipdata = new kis_tracked_ip_data(globalreg, ipdata_id, 
                     e->get_map_value(ipdata_id));
+            add_map(ipdata);
+
             location = new kis_tracked_location(globalreg, location_id, 
                     e->get_map_value(location_id));
+            add_map(location);
         } else {
             ipdata = new kis_tracked_ip_data(globalreg, ipdata_id);
             add_map(ipdata);
