@@ -87,6 +87,7 @@
 
 #include "devicetracker.h"
 #include "phy_80211.h"
+#include "phy_rtl433.h"
 
 #include "dumpfile.h"
 #include "dumpfile_pcap.h"
@@ -991,6 +992,9 @@ int main(int argc, char *argv[], char *envp[]) {
 
     // Register the base PHYs
     if (globalregistry->devicetracker->RegisterPhyHandler(new Kis_80211_Phy(globalregistry)) < 0 || globalregistry->fatal_condition) 
+        CatchShutdown(-1);
+
+    if (globalregistry->devicetracker->RegisterPhyHandler(new Kis_RTL433_Phy(globalregistry)) < 0 || globalregistry->fatal_condition) 
         CatchShutdown(-1);
 
     // Add the packet sources
