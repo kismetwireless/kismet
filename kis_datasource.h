@@ -40,9 +40,8 @@
  * data frames from a capture engine and will create kis_packet structures
  * from them.
  *
- * The capture engine will, locally, be over IPC channels as defined in
- * IpcRemoteV2.  Data may also come from TCP sockets, or in the future,
- * other sources - anything which can plug into in a ringbufferhandler
+ * Capture sources communicate via the supplied RingbufferInterface, which
+ * will most likely be an IPC channel or a TCP socket.
  *
  * Data sources consume from the read buffer and send commands to the
  * write buffer of the ringbuf handler
@@ -56,7 +55,7 @@
  * as float and double, and changes in the protocol over time.
  *
  * Data sources derive from trackable elements so they can be easily 
- * inspected by client interfaces.
+ * serialized for status
  *
  */
 
@@ -66,8 +65,11 @@ class DatasourceTracker;
 /* Keypair object from cap proto */
 class KisDataSource_CapKeyedObject;
 
-/* Queued command when IPC is open proto */
+// Queued command/data
 class KisDataSource_QueuedCommand;
+
+// Supported source
+class KisDataSource_SupportedSource;
 
 class KisDataSource : public RingbufferInterface, public tracker_component {
 public:
@@ -76,17 +78,32 @@ public:
     KisDataSource(GlobalRegistry *in_globalreg);
     virtual ~KisDataSource();
 
-    // Build a new instance of the class, used for opening and probing
-    virtual KisDataSource *build_data_source() { return NULL; }
+    // Build a new instance of the class, used for opening and probing in IPC
+    // mode (local sources driven by kismet server)
+    virtual KisDataSource *build_ipc_data_source() { 
+        return NULL; 
+    }
+
+    // Build a new instance of the class bound to an existing ringbuffer
+    // handler (used when spawned via the network server)
+    virtual KisDataSource 
+        *build_net_data_source(RingbufferHandler *in_handler __attribute__((unused))) {
+            return NULL;
+    }
 
     // Error handler callback, called when something goes wrong in the source
-    // and it has to close
+    // and it has to close.  
     typedef void (*error_handler)(KisDataSource *, void *);
     virtual void set_error_handler(error_handler in_cb, void *in_aux);
     virtual void cancel_error_handler();
 
-    // Can we handle this type?
-    virtual bool probe_type(string in_type) { return false; }
+    // Scan for supported devices, since this is async, provide a callback.
+    // Returns false if unable to launch scan, or true of scan is underway.
+    typedef void (*scan_handler)(KisDataSource *, void *, bool);
+
+    // Can we handle this type?  Types are constant strings so can be compared without
+    // having to launch a helper binary
+    virtual bool probe_type(string in_type __attribute__((unused))) { return false; }
 
     // Can we handle this source?  May require launching the external binary
     // to probe.  Since this is an async operation, provide a callback.

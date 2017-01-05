@@ -72,7 +72,7 @@ public:
     DST_Worker() { };
 
     // Handle a data source when working on iterate_datasources
-    virtual void handle_datasource(KisDataSource *in_src) { };
+    virtual void handle_datasource(KisDataSource *in_src __attribute__((unused))) { };
 
     // All data sources have been processed in iterate_datasources
     virtual void finalize() { };
@@ -225,7 +225,6 @@ protected:
     // and report success via the worker.  PERFORMS THREAD LOCK, do NOT call
     // inside of a locked thread
     void launch_source(KisDataSource *in_proto, string in_source);
-
 };
 
 

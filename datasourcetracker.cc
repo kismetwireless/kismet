@@ -334,7 +334,7 @@ int Datasourcetracker::open_datasource(string in_source) {
         for (TrackerElement::vector_iterator i = proto_vec->vec_begin();
                 i != proto_vec->vec_end(); ++i) {
             KisDataSource *proto = (KisDataSource *) (*i);
-            probe_vec.push_back(proto->build_data_source());
+            probe_vec.push_back(proto->build_ipc_data_source());
         }
 
         // Make the probe handler entry
@@ -501,7 +501,7 @@ void Datasourcetracker::launch_source(KisDataSource *in_proto, string in_source)
     TrackerElementVector vec(datasource_vec);
 
     // Clone the src and add it to the vec immediately
-    KisDataSource *new_src = in_proto->build_data_source();
+    KisDataSource *new_src = in_proto->build_ipc_data_source();
     vec.push_back(new_src);
 
     new_src->set_error_handler(Datasourcetracker::error_handler, this);
