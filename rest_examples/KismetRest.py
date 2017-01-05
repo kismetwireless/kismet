@@ -176,23 +176,14 @@ class KismetConnector:
         """
         post_url(url, postdata) -> Boolean
 
-        Post an encoded command to a URL.  Automatically attempt to log in
-        if we are not current logged in.
+        Post data to a URL.  Automatically attempt to log in if we are not 
+        current logged in.
         """
 
         if self.debug:
             print "Posting to URL %s/%s" % (self.host_uri, url)
 
-        try:
-            finaldata = {
-                    "msgpack": base64.b64encode(msgpack.packb(postdata))
-                    }
-        except Exception as e:
-            if self.debug:
-                print "Failed to encode post data:", e
-            return (False, None)
-
-        r = self.session.post("%s/%s" % (self.host_uri, url), data=finaldata)
+        r = self.session.post("%s/%s" % (self.host_uri, url), data=postdata)
 
         # login required
         if r.status_code == 401:
@@ -212,6 +203,28 @@ class KismetConnector:
             return (False, None)
 
         return (True, r.content)
+
+    def post_msgpack_url(self, url, postdata):
+        """
+        post_msgpack_url(url, postdata) -> Boolean
+
+        Post an encoded msgpack command to a URL.  Automatically attempt to log in
+        if we are not current logged in.
+        """
+
+        if self.debug:
+            print "Posting to MSGPACK URL %s/%s" % (self.host_uri, url)
+
+        try:
+            finaldata = {
+                    "msgpack": base64.b64encode(msgpack.packb(postdata))
+                    }
+        except Exception as e:
+            if self.debug:
+                print "Failed to encode post data:", e
+            return (False, None)
+
+        return self.post_url(url, data=finaldata)
 
     def login(self):
         """
@@ -330,7 +343,7 @@ class KismetConnector:
                 "channel": chancmd
                 }
 
-        (r, v) = self.post_url("packetsource/config/channel.cmd", cmd)
+        (r, v) = self.post_msgpack_url("packetsource/config/channel.cmd", cmd)
 
         # Did we succeed?
         if not r:
@@ -354,7 +367,7 @@ class KismetConnector:
                 "source": source
                 }
 
-        (r, v) = self.post_url("packetsource/config/add_source.cmd", cmd)
+        (r, v) = self.post_msgpack_url("packetsource/config/add_source.cmd", cmd)
 
         if not r:
             if self.debug:
@@ -382,7 +395,7 @@ class KismetConnector:
                 "spd": speed
                 }
 
-        (r, v) = self.post_url("gps/web/update.cmd", cmd)
+        (r, v) = self.post_msgpack_url("gps/web/update.cmd", cmd)
 
         # Did we succeed?
         if not r:
@@ -403,7 +416,7 @@ class KismetConnector:
                 "essid": pcre
                 }
 
-        (r, v) = self.post_url("phy/phy80211/ssid_regex.cmd", cmd)
+        (r, v) = self.post_msgpack_url("phy/phy80211/ssid_regex.cmd", cmd)
         if not r:
             print "Could not fetch summary"
 
@@ -433,7 +446,7 @@ class KismetConnector:
                 "essid": pcre
                 }
 
-        (r, v) = self.post_url("phy/phy80211/probe_regex.cmd", cmd)
+        (r, v) = self.post_msgpack_url("phy/phy80211/probe_regex.cmd", cmd)
         if not r:
             print "Could not fetch summary"
 
