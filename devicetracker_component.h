@@ -885,10 +885,15 @@ protected:
         if (e != NULL) {
             min_loc = new kis_tracked_location_triplet(globalreg, min_loc_id,
                     e->get_map_value(min_loc_id));
+            add_map(min_loc);
+
             max_loc = new kis_tracked_location_triplet(globalreg, max_loc_id,
                     e->get_map_value(max_loc_id));
+            add_map(max_loc);
+
             avg_loc = new kis_tracked_location_triplet(globalreg, avg_loc_id,
                     e->get_map_value(avg_loc_id));
+            add_map(avg_loc);
         } else {
             min_loc = new kis_tracked_location_triplet(globalreg, min_loc_id);
             add_map(min_loc);
@@ -1199,9 +1204,12 @@ protected:
         if (e != NULL) {
             peak_loc = new kis_tracked_location_triplet(globalreg, peak_loc_id,
                     e->get_map_value(peak_loc_id)); 
-                signal_min_rrd = new 
+            add_map(peak_loc);
+
+            signal_min_rrd = new 
                 kis_tracked_minute_rrd<kis_tracked_rrd_peak_signal_aggregator>(globalreg,
                         signal_min_rrd_id, e->get_map_value(signal_min_rrd_id));
+            add_map(signal_min_rrd);
         } else {
             signal_min_rrd = new
                 kis_tracked_minute_rrd<kis_tracked_rrd_peak_signal_aggregator>(globalreg,

@@ -494,31 +494,48 @@ protected:
         if (e != NULL) {
             signal_data = new kis_tracked_signal_data(globalreg, signal_data_id,
                     e->get_map_value(signal_data_id));
+            add_map(signal_data);
+
             tag = new kis_tracked_tag(globalreg, tag_id,
                     e->get_map_value(tag_id));
+            add_map(tag);
+
             location = new kis_tracked_location(globalreg, location_id,
                     e->get_map_value(location_id));
+            add_map(location);
 
             packets_rrd = new kis_tracked_rrd<>(globalreg,
                     packets_rrd_id, e->get_map_value(packets_rrd_id));
+            add_map(packets_rrd);
+
             data_rrd = new kis_tracked_rrd<>(globalreg,
                     data_rrd_id, e->get_map_value(data_rrd_id));
+            add_map(data_rrd);
 
             packet_rrd_bin_250 = 
                 new kis_tracked_minute_rrd<>(globalreg,
                         packet_rrd_bin_250_id, e->get_map_value(packet_rrd_bin_250_id));
+            add_map(packet_rrd_bin_250);
+
             packet_rrd_bin_500 = 
                 new kis_tracked_minute_rrd<>(globalreg,
                         packet_rrd_bin_500_id, e->get_map_value(packet_rrd_bin_500_id));
+            add_map(packet_rrd_bin_500);
+
             packet_rrd_bin_1000 = 
                 new kis_tracked_minute_rrd<>(globalreg,
                         packet_rrd_bin_1000_id, e->get_map_value(packet_rrd_bin_1000_id));
+            add_map(packet_rrd_bin_1000);
+
             packet_rrd_bin_1500 = 
                 new kis_tracked_minute_rrd<>(globalreg,
                         packet_rrd_bin_1500_id, e->get_map_value(packet_rrd_bin_1500_id));
+            add_map(packet_rrd_bin_1500);
+
             packet_rrd_bin_jumbo = 
                 new kis_tracked_minute_rrd<>(globalreg,
                         packet_rrd_bin_jumbo_id, e->get_map_value(packet_rrd_bin_jumbo_id));
+            add_map(packet_rrd_bin_jumbo);
 
         } else {
             signal_data = new kis_tracked_signal_data(globalreg, signal_data_id);
