@@ -15,6 +15,11 @@ conf/kismet.conf
 scripts/kismet
 aclocal.m4
 autom4te.cache/
+config.h
+config.log
+config.status
+config.guess.dh*
+config.sub.dh*
 
 # built binaries
 kismet_capture
