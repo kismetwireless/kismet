@@ -320,6 +320,21 @@ struct JSON_value *JSON_parse(string in_json, string& error) {
 				expected = JSON_sym;
 
 				continue;
+			} else if (tok_vec[x].tok_type == JSON_arrstart) {
+#ifdef JSON_DEBUG
+				printf("DEBUG - started initial array\n");
+#endif 
+
+				ret = new struct JSON_value;
+				cur_val = ret;
+
+				// Flag that we're a dictionary
+				cur_val->value.tok_type = JSON_arrstart;
+
+				// we expect a symbol
+				expected = JSON_sym;
+
+				continue;
 			}
 		} else if (expected == JSON_sym) {
 			if (tok_vec[x].tok_type == JSON_quoted) {
