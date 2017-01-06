@@ -20,6 +20,9 @@
 
 #include "kismet_json.h"
 
+// Define to turn on verbose debug output
+// #define JSON_DEBUG
+
 void JSON_delete(struct JSON_value *v) {
 	for (unsigned int x = 0; x < v->value_array.size(); x++) {
 		JSON_delete(v->value_array[x]);
@@ -90,7 +93,9 @@ struct JSON_value *JSON_parse(string in_json, string& error) {
 		if (in_json[x] == '"' && !tk_st_escaped) {
 			// If we're unknown, this is a new quoted string
 			if (tk.tok_type == JSON_unknown) {
-				// printf("DEBUG - New quoted string\n");
+#ifdef JSON_DEBUG
+				printf("DEBUG - New quoted string\n");
+#endif
 				tk.tok_type = JSON_quoted;
 				tk.tok_position = x;
 				continue;
@@ -98,7 +103,9 @@ struct JSON_value *JSON_parse(string in_json, string& error) {
 		
 			// If we're known, we're ending this token
 			if (tk.tok_type == JSON_quoted) {
-				// printf("DEBUG - end quoted string '%s'\n", tk.tok_str.c_str());
+#ifdef JSON_DEBUG
+				printf("DEBUG - end quoted string '%s'\n", tk.tok_str.c_str());
+#endif 
 				tok_vec.push_back(tk);
 				tk.tok_str = "";
 				tk.tok_type = JSON_unknown;
@@ -108,7 +115,9 @@ struct JSON_value *JSON_parse(string in_json, string& error) {
 
 		if (in_json[x] == '{') {
 			if (tk.tok_type == JSON_unknown) {
-				// printf("DEBUG - {\n");
+#ifdef JSON_DEBUG
+                printf("DEBUG - {\n");
+#endif 
 				tk.tok_type = JSON_start;
 				tk.tok_position = x;
 				tok_vec.push_back(tk);
@@ -119,7 +128,9 @@ struct JSON_value *JSON_parse(string in_json, string& error) {
 
 		if (in_json[x] == '}') {
 			if (tk.tok_type == JSON_unknown) {
-				// printf("DEBUG - }\n");
+#ifdef JSON_DEBUG
+                printf("DEBUG - }\n");
+#endif 
 				tk.tok_type = JSON_end;
 				tk.tok_position = x;
 				tok_vec.push_back(tk);
@@ -130,7 +141,9 @@ struct JSON_value *JSON_parse(string in_json, string& error) {
 
 		if (in_json[x] == '[') {
 			if (tk.tok_type == JSON_unknown) {
-				// printf("DEBUG - [\n");
+#ifdef JSON_DEBUG
+				printf("DEBUG - [\n");
+#endif 
 				tk.tok_type = JSON_arrstart;
 				tk.tok_position = x;
 				tok_vec.push_back(tk);
@@ -141,7 +154,9 @@ struct JSON_value *JSON_parse(string in_json, string& error) {
 
 		if (in_json[x] == ']') {
 			if (tk.tok_type == JSON_unknown) {
-				// printf("DEBUG - ]\n");
+#ifdef JSON_DEBUG
+				printf("DEBUG - ]\n");
+#endif 
 				tk.tok_type = JSON_arrend;
 				tk.tok_position = x;
 				tok_vec.push_back(tk);
@@ -156,7 +171,9 @@ struct JSON_value *JSON_parse(string in_json, string& error) {
 
 		if (in_json[x] == ':') {
 			if (tk.tok_type == JSON_unknown) {
-				// printf("DEBUG - :\n");
+#ifdef JSON_DEBUG
+				printf("DEBUG - :\n");
+#endif 
 				tk.tok_type = JSON_colon;
 				tk.tok_position = x;
 				tok_vec.push_back(tk);
@@ -167,7 +184,9 @@ struct JSON_value *JSON_parse(string in_json, string& error) {
 
 		if (in_json[x] == ',') {
 			if (tk.tok_type == JSON_unknown) {
-				// printf("DEBUG - ,\n");
+#ifdef JSON_DEBUG
+				printf("DEBUG - ,\n");
+#endif 
 				tk.tok_type = JSON_comma;
 				tk.tok_position = x;
 				tok_vec.push_back(tk);
@@ -205,7 +224,9 @@ struct JSON_value *JSON_parse(string in_json, string& error) {
 		if (in_json[x] == 't') {
 			// Start looking for token 'true'
 			if (in_json.substr(x, 4) == "true") {
-				// printf("DEBUG - boolean TRUE\n");
+#ifdef JSON_DEBUG
+				printf("DEBUG - boolean TRUE\n");
+#endif 
 				tk.tok_type = JSON_boolean;
 				tk.tok_position = x;
 				tk.tok_str = "true";
@@ -220,7 +241,9 @@ struct JSON_value *JSON_parse(string in_json, string& error) {
 		if (in_json[x] == 'f') {
 			// Start looking for token 'true'
 			if (in_json.substr(x, 5) == "false") {
-				// printf("DEBUG - boolean FALSE\n");
+#ifdef JSON_DEBUG
+				printf("DEBUG - boolean FALSE\n");
+#endif 
 				tk.tok_type = JSON_boolean;
 				tk.tok_position = x;
 				tk.tok_str = "false";
@@ -242,7 +265,7 @@ struct JSON_value *JSON_parse(string in_json, string& error) {
 	expected = JSON_start;
 	for (unsigned int x = 0; x < tok_vec.size(); x++) {
 		// Debug - print it
-#if 0
+#ifdef JSON_DEBUG
 		switch (tok_vec[x].tok_type) {
 			case JSON_unknown:
 				printf("Unknown token\n");
@@ -283,7 +306,9 @@ struct JSON_value *JSON_parse(string in_json, string& error) {
 		// If we're in the initial state and we don't have anything...
 		if (cur_val == NULL) {
 			if (tok_vec[x].tok_type == JSON_start) {
-				// printf("DEBUG - started initial dictionary\n");
+#ifdef JSON_DEBUG
+				printf("DEBUG - started initial dictionary\n");
+#endif 
 
 				ret = new struct JSON_value;
 				cur_val = ret;
@@ -298,7 +323,9 @@ struct JSON_value *JSON_parse(string in_json, string& error) {
 			}
 		} else if (expected == JSON_sym) {
 			if (tok_vec[x].tok_type == JSON_quoted) {
-				// printf("DEBUG - Got symbol %s\n", tok_vec[x].tok_str.c_str());
+#ifdef JSON_DEBUG
+				printf("DEBUG - Got symbol %s\n", tok_vec[x].tok_str.c_str());
+#endif 
 				sym_tok = &(tok_vec[x]);
 
 				// "foo":<value>
@@ -310,12 +337,16 @@ struct JSON_value *JSON_parse(string in_json, string& error) {
 				expected = JSON_value;
 				continue;
 			}
-		} else if (expected == JSON_value) {
+		} 
+
+        if (expected == JSON_value || expected == JSON_sym) {
 			if (tok_vec[x].tok_type == JSON_quoted ||
 				tok_vec[x].tok_type == JSON_numeric ||
 				tok_vec[x].tok_type == JSON_boolean) {
 
-				// printf("Debug - Got %s=>%s\n", sym_tok->tok_str.c_str(), tok_vec[x].tok_str.c_str()); 
+#ifdef JSON_DEBUG
+				printf("Debug - Got %s=>%s\n", sym_tok->tok_str.c_str(), tok_vec[x].tok_str.c_str()); 
+#endif 
 
 				// Make a value record for it
 				struct JSON_value *v = new struct JSON_value;
@@ -323,10 +354,14 @@ struct JSON_value *JSON_parse(string in_json, string& error) {
 
 				// If we're in a dictionary, associate it
 				if (cur_val->value.tok_type == JSON_start) {
-					// printf("  Adding to dictionary\n");
+#ifdef JSON_DEBUG
+					 printf("  Adding to dictionary\n");
+#endif 
 					cur_val->value_map[sym_tok->tok_str] = v;
 				} else {
-					// printf("  Adding to array\n");
+#ifdef JSON_DEBUG
+					printf("  Adding to array\n");
+#endif 
 					cur_val->value_array.push_back(v);
 				}
 
@@ -335,7 +370,7 @@ struct JSON_value *JSON_parse(string in_json, string& error) {
 				continue;
 			} else if (tok_vec[x].tok_type == JSON_start ||
 					   tok_vec[x].tok_type == JSON_arrstart) {
-#if 0
+#ifdef JSON_DEBUG
 				if (tok_vec[x].tok_type == JSON_start) 
 					printf("DEBUG - starting new sub-dictionary\n");
 				else
@@ -355,10 +390,14 @@ struct JSON_value *JSON_parse(string in_json, string& error) {
 				// Insert it into a dictionary or append to an array based on our
 				// current container type
 				if (cur_val->value.tok_type == JSON_start) {
-					// printf("  Nested under dictionary %s\n", sym_tok->tok_str.c_str());
+#ifdef JSON_DEBUG
+					printf("  Nested under dictionary %s\n", sym_tok->tok_str.c_str());
+#endif 
 					cur_val->value_map[sym_tok->tok_str] = v;
 				} else {
-					// printf("  Adding to array\n");
+#ifdef JSON_DEBUG
+					printf("  Adding to array\n");
+#endif 
 					cur_val->value_array.push_back(v);
 				}
 
@@ -383,11 +422,54 @@ struct JSON_value *JSON_parse(string in_json, string& error) {
 				// value from the stack and reset, unless we're at the end of the
 				// stack!
 
+                // Safety
+                if (cur_val == NULL) {
+#ifdef JSON_DEBUG
+					printf("debug - end of block with no current value\n");
+#endif 
+                    error = "JSON parser found end of JSON block with no current "
+                        "entity at " + IntToString(tok_vec[x].tok_position);
+
+                    return ret;
+                }
+
+                // Make sure we don't have [}
+                if (cur_val->value.tok_type == JSON_arrstart && 
+                        tok_vec[x].tok_type != JSON_arrend) {
+#ifdef JSON_DEBUG
+                    printf("debug - expected end of array, got end of dictionary\n");
+#endif 
+
+                    error = "JSON parser didn't find expected end of array, but "
+                        "found end of dictionary at " + 
+                        IntToString(tok_vec[x].tok_position);
+
+                    return ret;
+                }
+
+                // Make sure we don't have {]
+                if (cur_val->value.tok_type == JSON_start && 
+                        tok_vec[x].tok_type != JSON_end) {
+#ifdef JSON_DEBUG
+                    printf("debug - expected end of dictionary, got end of array\n");
+#endif 
+
+                    error = "JSON parser didn't find expected end of dictionary, but "
+                        "found end of array at " + 
+                        IntToString(tok_vec[x].tok_position);
+
+                    return ret;
+                }
+
 				if (cur_val == ret) {
-					// printf("debug - end of starting block\n");
+#ifdef JSON_DEBUG
+					printf("debug - end of starting block\n");
+#endif 
 
 					if (x != (tok_vec.size() - 1)) {
-						// printf("debug - end of starting block before end of stream\n");
+#ifdef JSON_DEBUG
+						printf("debug - end of starting block before end of stream\n");
+#endif 
 
 						error = "JSON parser found end of JSON block before the "
 							"end of the token stream at " +
@@ -397,7 +479,9 @@ struct JSON_value *JSON_parse(string in_json, string& error) {
 					// printf("debug - returning successfully!\n");
 					return ret;
 				} else {
-					// printf("DEBUG - end of array/dictionary, popping back\n");
+#ifdef JSON_DEBUG
+					printf("DEBUG - end of array/dictionary, popping back\n");
+#endif 
 					// Pop back one in the stack
 					cur_val = value_stack[value_stack.size() - 1];
 					value_stack.erase(value_stack.begin() + value_stack.size() - 1);
@@ -429,20 +513,28 @@ struct JSON_value *JSON_parse(string in_json, string& error) {
 				// stack!
 
 				if (cur_val == ret) {
-					// printf("debug - end of starting block\n");
+#ifdef JSON_DEBUG
+					printf("debug - end of starting block\n");
+#endif 
 
 					if (x != (tok_vec.size() - 1)) {
-						// printf("debug - end of starting block before end of stream\n");
+#ifdef JSON_DEBUG
+						printf("debug - end of starting block before end of stream\n");
+#endif 
 
 						error = "JSON parser found end of JSON block before the "
 							"end of the token stream at " +
 							IntToString(tok_vec[x].tok_position);
 					}
 
-					// printf("debug - returning successfully!\n");
+#ifdef JSON_DEBUG
+					printf("debug - returning successfully!\n");
+#endif 
 					return ret;
 				} else {
-					// printf("DEBUG - end of array/dictionary, popping back\n");
+#ifdef JSON_DEBUG
+					printf("DEBUG - end of array/dictionary, popping back\n");
+#endif 
 					// Pop back one in the stack
 					cur_val = value_stack[value_stack.size() - 1];
 					value_stack.erase(value_stack.begin() + value_stack.size() - 1);
@@ -452,13 +544,17 @@ struct JSON_value *JSON_parse(string in_json, string& error) {
 				}
 
 				// We retain the expectation of a separator...
-				// printf("debug - ended block, expected %d\n", expected);
+#ifdef JSON_DEBUG
+				printf("debug - ended block, expected %d\n", expected);
+#endif 
 				expected = JSON_sep;
 				continue;
 			}
 		}
 				
-		// printf("debug - end of line, got %d wanted %d\n", tok_vec[x].tok_type, expected);
+#ifdef JSON_DEBUG
+		printf("debug - end of line, got %d wanted %d\n", tok_vec[x].tok_type, expected);
+#endif 
 		error = "JSON parser got unexpected data at " + 
 			IntToString(tok_vec[x].tok_position);
 		return ret;
@@ -470,28 +566,35 @@ struct JSON_value *JSON_parse(string in_json, string& error) {
 void JSON_dump(struct JSON_value *jsonv, string key, int depth) {
 	string d;
 
+    printf("\n");
+
 	for (int x = 0; x < depth; x++)
 		d += " ";
 
 	// printf("%sValue type: %d\n", d.c_str(), jsonv->value.tok_type);
 	if (jsonv->value.tok_type == JSON_start) {
-		printf("%sDictionary\n", d.c_str());
+		printf("%s%s : {\n", d.c_str(), key.c_str());
 		for (map<string, struct JSON_value *>::iterator x = jsonv->value_map.begin();
 			 x != jsonv->value_map.end(); ++x) {
-			JSON_dump(x->second, x->first + string(" => "), depth + 1);
+			JSON_dump(x->second, x->first + string(" : "), depth + 2);
+            printf(",\n");
 		}
+        printf("\n%s}", d.c_str());
 	} else if (jsonv->value.tok_type == JSON_arrstart) {
-		printf("%s%sArray\n", d.c_str(), key.c_str());
+		printf("%s%s : [\n", d.c_str(), key.c_str());
 		for (unsigned int x = 0; x < jsonv->value_array.size(); x++) {
-			JSON_dump(jsonv->value_array[x], "", depth + 1);
+			JSON_dump(jsonv->value_array[x], "", depth + 2);
+            printf(",");
 		}
+        printf("\n%s]", d.c_str());
 	} else if (jsonv->value.tok_type == JSON_quoted) {
-		printf("%s%s'%s'\n", d.c_str(), key.c_str(), jsonv->value.tok_str.c_str());
+		printf("%s%s'%s'", d.c_str(), key.c_str(), jsonv->value.tok_str.c_str());
 	} else if (jsonv->value.tok_type == JSON_numeric) {
-		printf("%s%s%s\n", d.c_str(), key.c_str(), jsonv->value.tok_str.c_str());
+		printf("%s%s%s", d.c_str(), key.c_str(), jsonv->value.tok_str.c_str());
 	} else if (jsonv->value.tok_type == JSON_boolean) {
-		printf("%s%s%s\n", d.c_str(), key.c_str(), jsonv->value.tok_str.c_str());
+		printf("%s%s%s", d.c_str(), key.c_str(), jsonv->value.tok_str.c_str());
 	}
+
 }
 
 struct JSON_value *JSON_dict_get_value(struct JSON_value *in_parent, string in_key,
