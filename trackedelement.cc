@@ -1655,7 +1655,7 @@ TrackerElement *tracker_component::import_or_new(TrackerElement *e, int i) {
         r = e->get_map_value(i);
 
         if (r != NULL) {
-            // printf("debug - found id %d, importing\n", i);
+            // printf("debug - found id %d %s, importing\n", i, globalreg->entrytracker->GetFieldName(i).c_str());
             // Added directly as a trackedelement of the right type and id
             add_map(r);
             // Return existing item
