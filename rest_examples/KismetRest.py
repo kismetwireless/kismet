@@ -57,8 +57,8 @@ class KismetConnector:
         self.session = requests.Session()
 
         # Set the default path for storing sessions
-        self.set_session_cache("~/.kismet/pykismet_session")
         self.sessioncache_path = None
+        self.set_session_cache("~/.kismet/pykismet_session")
 
     def set_debug(self, debug):
         """
