@@ -359,8 +359,6 @@ protected:
     virtual void reserve_fields(TrackerElement *e) {
         tracker_component::reserve_fields(e);
 
-        set_last_time(0);
-
         // Build slots for all the times
         int x;
         if ((x = minute_vec->get_vector()->size()) != 60) {
