@@ -637,7 +637,7 @@ struct JSON_value *JSON_dict_get_value(struct JSON_value *in_parent, string in_k
 	return vitr->second;
 }
 
-bool JSON_has_key(struct JSON_value *in_parent, string in_key) {
+bool JSON_dict_has_key(struct JSON_value *in_parent, string in_key) {
 	map<string, struct JSON_value *>::iterator vitr;
 
 	if (in_parent == NULL) {

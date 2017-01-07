@@ -118,7 +118,7 @@ float JSON_dict_get_number(struct JSON_value *in_parent, string in_key,
 							string& error);
 
 // Do we have a key?
-bool JSON_has_key(struct JSON_value *in_parent, string in_key);
+bool JSON_dict_has_key(struct JSON_value *in_parent, string in_key);
 
 // Example function which dumps to stdout a representation of the parsed JSON data
 void JSON_dump(struct JSON_value *jsonv, string key, int depth);
