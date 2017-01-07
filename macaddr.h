@@ -133,6 +133,7 @@ struct mac_addr {
     } 
 
     inline mac_addr(uint8_t *in, unsigned int len) {
+        error = 0;
         longmac = 0;
         longmask = (uint64_t) -1;
 
@@ -142,6 +143,7 @@ struct mac_addr {
     }
 
     inline mac_addr(uint8_t *in, unsigned int len, unsigned int mask) {
+        error = 0;
         longmac = 0;
         longmask = (uint64_t) -1;
 
