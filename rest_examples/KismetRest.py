@@ -194,7 +194,7 @@ class KismetConnector:
 
             print "Logged in, retrying post"
             # Try again after we log in
-            r = self.session.post("%s/%s" % (self.host_uri, url), data=finaldata)
+            r = self.session.post("%s/%s" % (self.host_uri, url), data=postdata)
 
         # Did we succeed?
         if not r.status_code == 200:
