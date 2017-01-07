@@ -26,6 +26,7 @@
 #include "trackedelement.h"
 #include "devicetracker_component.h"
 #include "phyhandler.h"
+#include "kismet_json.h"
 
 /* phy-rtl433
  *
@@ -216,6 +217,17 @@ public:
         reserve_fields(e);
     }
 
+    __Proxy(wind_dir, int32_t, int32_t, int32_t, wind_dir);
+    __Proxy(wind_speed, int32_t, int32_t, int32_t, wind_speed);
+    __Proxy(wind_gust, int32_t, int32_t, int32_t, wind_gust);
+    __Proxy(rain, int32_t, int32_t, int32_t, rain);
+
+    typedef kis_tracked_rrd<> rrdt;
+    __ProxyTrackable(wind_dir_rrd, rrdt, wind_dir_rrd);
+    __ProxyTrackable(wind_speed_rrd, rrdt, wind_speed_rrd);
+    __ProxyTrackable(wind_gust_rrd, rrdt, wind_gust_rrd);
+    __ProxyTrackable(rain_rrd, rrdt, rain_rrd);
+
 protected:
     virtual void register_fields() {
         wind_dir_id =
@@ -254,14 +266,14 @@ protected:
 
         rrd_builder = new kis_tracked_rrd<>(globalreg, 0);
         rain_rrd_id =
-            RegisterComplexField("rtl433.device.rain", rrd_builder,
+            RegisterComplexField("rtl433.device.rain_rrd", rrd_builder,
                     "Rain RRD");
         delete(rrd_builder);
 
     }
 
     virtual void reserve_fields(TrackerElement *e) {
-        rtl433_tracked_device::reserve_fields(e);
+        rtl433_tracked_thermometer::reserve_fields(e);
 
         if (e != NULL) {
             wind_dir_rrd = new kis_tracked_rrd<>(globalreg, 
@@ -359,6 +371,16 @@ public:
             const char *transfer_encoding, const char *data, 
             uint64_t off, size_t size);
 protected:
+    int rtl433_device_id, rtl433_thermometer_id, rtl433_weatherstation_id;
+
+    int pack_comp_common;
+
+    // Convert a JSON record to a RTL-based device key
+    mac_addr json_to_mac(struct JSON_value *in_json);
+
+    // convert to a device record & push into device tracker, return false
+    // if we can't do anything with it
+    bool json_to_rtl(struct JSON_value *in_json);
 
 };
 
