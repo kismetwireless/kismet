@@ -228,6 +228,7 @@ int Kis_RTL433_Phy::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kin
 
     // Anything involving POST here requires a login
     if (!httpd->HasValidSession(concls)) {
+        fprintf(stderr, "debug - no valid session\n");
         concls->response_stream << "Login required";
         concls->httpcode = 401;
         return 1;
@@ -243,6 +244,7 @@ int Kis_RTL433_Phy::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kin
         json = JSON_parse(data, err);
 
         if (err.length() != 0 || json == NULL) {
+            fprintf(stderr, "Could not parse json? %s\n", err.c_str());
             concls->response_stream << "Invalid request: could not parse JSON";
             concls->httpcode = 400;
 
@@ -254,14 +256,16 @@ int Kis_RTL433_Phy::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kin
 
         // If we can't make sense of it, blow up
         if (!json_to_rtl(json)) {
+            fprintf(stderr, "debug - could not ocnvert to rtl\n");
             concls->response_stream << 
                 "Invalid request:  could not convert to RTL device";
             concls->httpcode = 400;
+            handled = false;
+        } else {
+            handled = true;
         }
 
         JSON_delete(json);
-
-        handled = true;
     }
 
     // If we didn't handle it and got here, we don't know what it is, throw an
