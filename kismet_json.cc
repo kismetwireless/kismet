@@ -61,6 +61,10 @@ struct JSON_value *JSON_parse(string in_json, string& error) {
 
 	// Step one, tokenize the input
 	for (unsigned int x = 0; x < in_json.length(); x++) {
+        // Skip newlines
+        if (in_json[x] == '\n' || in_json[x] == '\r')
+            continue;
+
 		if (tk_st_escaped > 0)
 			tk_st_escaped--;
 
