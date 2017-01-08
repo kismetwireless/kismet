@@ -10,7 +10,7 @@
  * make
  *
  * # build test harness
- * g++ -o json_parser_test.o -c json_parser_test.cc
+ * g++ -o json_parser_test.o -c json_parser_test.cc -fsanitize=address
  * g++ -o json_parser_test json_parser_test.o kismet_json.o -lasan
  *
  * echo some json | ./json_parser_test
