@@ -376,6 +376,15 @@ struct JSON_value *JSON_parse(string in_json, string& error) {
 #ifdef JSON_DEBUG
 					 printf("  Adding to dictionary\n");
 #endif 
+                    if (sym_tok == NULL) {
+                        error = "JSON parser found value with no identifier at " + 
+                            IntToString(tok_vec[x].tok_position);
+
+                        delete(v);
+
+                        return ret;
+                    }
+
 					cur_val->value_map[sym_tok->tok_str] = v;
 				} else {
 #ifdef JSON_DEBUG
@@ -396,6 +405,13 @@ struct JSON_value *JSON_parse(string in_json, string& error) {
 					printf("DEBUG - starting new array\n");
 #endif
 
+                if (cur_val == NULL) {
+                    error = "JSON parser found start of JSON block with no current "
+                        "entity at " + IntToString(tok_vec[x].tok_position);
+
+                    return ret;
+                }
+
 				// Create a new container, of whatever type we're starting
 				struct JSON_value *v = new struct JSON_value;
 				v->value = tok_vec[x];
@@ -409,6 +425,14 @@ struct JSON_value *JSON_parse(string in_json, string& error) {
 				// Insert it into a dictionary or append to an array based on our
 				// current container type
 				if (cur_val->value.tok_type == JSON_start) {
+                    if (sym_tok == NULL) {
+                        error = "JSON parser found start of JSON block with no "
+                            "identifier at " + IntToString(tok_vec[x].tok_position);
+
+                        delete(v);
+
+                        return ret;
+                    }
 #ifdef JSON_DEBUG
 					printf("  Nested under dictionary %s\n", sym_tok->tok_str.c_str());
 #endif 
