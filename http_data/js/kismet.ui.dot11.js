@@ -145,7 +145,7 @@ kismet_ui.AddChannelList("Wi-Fi (802.11)", function(in_freq) {
 
 kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
     filter: function(data) {
-        return (data['kismet_device_base_phyname'] === "IEEE802.11")
+        return (data['kismet_device_base_phyname'] === "IEEE802.11");
     },
     draw: function(data, target) {
         target.devicedata(data, {
