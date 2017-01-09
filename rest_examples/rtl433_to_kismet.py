@@ -7,6 +7,8 @@ uri = "http://localhost:2501"
 user = "kismet"
 passwd = "kismet"
 
+parser = argparse.ArgumentParser(description='RTL433 to Kismet bridge')
+
 parser.add_argument('--uri', action="store", dest="uri")
 parser.add_argument('--user', action="store", dest="user")
 parser.add_argument('--passwd', action="store", dest="passwd")
