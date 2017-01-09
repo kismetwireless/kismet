@@ -48,13 +48,19 @@ kismet_ui.AddDeviceDetail("rtl433", "RTL-433 (SDR)", 0, {
                 {
                     field: "rtl433_device.rtl433_device_thermometer.rtl433_device_temperature",
                     title: "Temperature (C)",
-                    filterOnEmpty: true
+                    filterOnEmpty: true,
+                    render: function(opts) {
+                        return opts['value'] + "&deg;";
+                    }
                 },
                 {
                     field: "rtl433_device.rtl433_device_thermometer.rtl433_device_humidity",
                     title: "Humidity (%)",
                     filterOnEmpty: true,
-                    filterOnZero: true
+                    filterOnZero: true,
+                    render: function(opts) {
+                        return opts['value'] + "%";
+                    }
                 },
                 ]
             },
@@ -66,8 +72,11 @@ kismet_ui.AddDeviceDetail("rtl433", "RTL-433 (SDR)", 0, {
                 fields: [
                 {
                     field: "rtl433_device.rtl433_device_weatherstation.rtl433_device_wind_dir",
-                    title: "Wind Direction (&deg;)",
-                    filterOnEmpty: true
+                    title: "Wind Direction",
+                    filterOnEmpty: true,
+                    render: function(opts) {
+                        return opts['value'] + "&deg; (" + kismet_ui.DegToDir(opts['value']) + ")";
+                    }
                 },
                 {
                     field: "rtl433_device.rtl433_device_weatherstation.rtl433_device_wind_speed",

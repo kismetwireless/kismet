@@ -335,6 +335,30 @@ exports.HealthCheck = function() {
 
 }
 
+
+exports.DegToDir = function(deg) {
+    var directions = [
+        "N", "NNE", "NE", "ENE", 
+        "E", "ESE", "SE", "SSE", 
+        "S", "SSW", "SW", "WSW", 
+        "W", "WNW", "NW", "NNW"
+    ];
+
+    var degrees = [
+        0, 23, 45, 68, 
+        90, 113, 135, 158, 
+        180, 203, 225, 248, 
+        270, 293, 315, 338
+    ];
+
+    for (var p = 1; p < degrees.length; p++) {
+        if (deg < degrees[p])
+            return directions[p - 1];
+    }
+
+    return directions[directions.length - 1];
+}
+
 return exports;
 
 });
