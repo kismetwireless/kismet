@@ -2,11 +2,15 @@
 
 import sys, KismetRest, subprocess
 import argparse
+import requests
 import paho.mqtt.client as mqtt
 
 def on_msg(client, userkr, msg):
     print "Got data: ", msg.payload
-    print "Post:", userkr.post_url("phy/phyRTL433/post_sensor_json.cmd", { "obj": msg.payload })
+    try:
+        print "Post:", userkr.post_url("phy/phyRTL433/post_sensor_json.cmd", { "obj": msg.payload })
+    except requests.exceptions.ConnectionError as ce:
+        print "Connection error: ce"
 
 parser = argparse.ArgumentParser(description='RTL433 MQTT to Kismet bridge')
 
