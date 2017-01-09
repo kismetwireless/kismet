@@ -114,7 +114,8 @@
 
             if ('filterOnZero' in v && v['filterOnZero'] &&
                     (typeof(d) === 'undefined' ||
-                     (typeof(d) === 'number' && d == 0))) {
+                     (typeof(d) === 'number' && d == 0) ||
+                     typeof(d) === 'string' && d === '0')) {
                 return;
             }
 
