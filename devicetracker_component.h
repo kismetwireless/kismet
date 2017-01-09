@@ -583,6 +583,47 @@ public:
     }
 };
 
+// Generic RRD, extreme selector.  If both values are > 0, selects the highest.
+// If both values are below zero, selects the lowest.  If values are mixed,
+// selects the lowest
+class kis_tracked_rrd_extreme_aggregator {
+public:
+    // Select the most extreme value
+    static int64_t combine_element(const int64_t a, const int64_t b) {
+        if (a < 0 && b < 0) {
+            if (a < b)
+                return a;
+
+            return b;
+        } else if (a > 0 && b > 0) {
+            if (a > b)
+                return a;
+
+            return b;
+        } else if (a < b) {
+            return a;
+        }
+
+        return b;
+    }
+
+    // Simple average
+    static int64_t combine_vector(TrackerElement *e) {
+        TrackerElementVector v(e);
+
+        int64_t avg = 0;
+        for (TrackerElementVector::iterator i = v.begin(); i != v.end(); ++i) 
+            avg += GetTrackerValue<int64_t>(*i);
+
+        return avg / v.size();
+    }
+
+    // Default 'empty' value, no legit signal would be 0
+    static int64_t default_val() {
+        return (int64_t) 0;
+    }
+};
+
 enum kis_ipdata_type {
 	ipdata_unknown = 0,
 	ipdata_factoryguess = 1,
