@@ -286,6 +286,50 @@ bool Kis_RTL433_Phy::json_to_rtl(struct JSON_value *json) {
 
     }
 
+    if (JSON_dict_has_key(json, "direction_deg") || 
+            JSON_dict_has_key(json, "speed") ||
+            JSON_dict_has_key(json, "gust") ||
+            JSON_dict_has_key(json, "rain")) {
+
+        rtl433_tracked_weatherstation *weatherdev = 
+            (rtl433_tracked_weatherstation *) 
+            rtlholder->get_map_value(rtl433_weatherstation_id);
+
+        if (weatherdev == NULL) {
+            weatherdev = (rtl433_tracked_weatherstation *) 
+                globalreg->entrytracker->GetTrackedInstance(rtl433_weatherstation_id);
+            rtlholder->add_map(weatherdev);
+        }
+
+        d = JSON_dict_get_number(json, "direction_deg", err);
+        if (err.length() == 0) {
+            weatherdev->set_wind_dir((int32_t) d);
+            weatherdev->get_wind_dir_rrd()->add_sample((int64_t) d,
+                    globalreg->timestamp.tv_sec);
+        }
+
+        d = JSON_dict_get_number(json, "speed", err);
+        if (err.length() == 0) {
+            weatherdev->set_wind_speed((int32_t) d);
+            weatherdev->get_wind_speed_rrd()->add_sample((int64_t) d,
+                    globalreg->timestamp.tv_sec);
+        }
+
+        d = JSON_dict_get_number(json, "gust", err);
+        if (err.length() == 0) {
+            weatherdev->set_wind_gust((int32_t) d);
+            weatherdev->get_wind_gust_rrd()->add_sample((int64_t) d,
+                    globalreg->timestamp.tv_sec);
+        }
+
+        d = JSON_dict_get_number(json, "rain", err);
+        if (err.length() == 0) {
+            weatherdev->set_rain((int32_t) d);
+            weatherdev->get_rain_rrd()->add_sample((int64_t) d,
+                    globalreg->timestamp.tv_sec);
+        }
+
+    }
 
     return true;
 }

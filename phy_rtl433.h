@@ -135,7 +135,7 @@ public:
     __Proxy(temperature, double, double, double, temperature);
     __Proxy(humidity, int32_t, int32_t, int32_t, humidity);
 
-    typedef kis_tracked_rrd<> rrdt;
+    typedef kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator> rrdt;
     __ProxyTrackable(temperature_rrd, rrdt, temperature_rrd);
     __ProxyTrackable(humidity_rrd, rrdt, humidity_rrd);
 
@@ -145,7 +145,8 @@ protected:
             RegisterField("rtl433.device.temperature", TrackerDouble,
                     "Temperature in degrees Celsius", (void **) &temperature);
 
-        kis_tracked_rrd<> *rrd_builder = new kis_tracked_rrd<>(globalreg, 0);
+        kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator> *rrd_builder = 
+            new kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>(globalreg, 0);
         temperature_rrd_id =
             RegisterComplexField("rtl433.device.temperature_rrd", rrd_builder,
                     "Temperature RRD");
@@ -155,7 +156,8 @@ protected:
             RegisterField("rtl433.device.humidity", TrackerInt32,
                     "Humidity", (void **) &humidity);
 
-        rrd_builder = new kis_tracked_rrd<>(globalreg, 0);
+        rrd_builder = 
+            new kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>(globalreg, 0);
         humidity_rrd_id =
             RegisterComplexField("rtl433.device.humidity_rrd", rrd_builder,
                     "Humidity RRD");
@@ -165,18 +167,24 @@ protected:
         tracker_component::reserve_fields(e);
 
         if (e != NULL) {
-            temperature_rrd = new kis_tracked_rrd<>(globalreg, 
+            temperature_rrd = 
+                new kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>(globalreg, 
                     temperature_rrd_id, e->get_map_value(temperature_rrd_id));
             add_map(temperature_rrd);
 
-            humidity_rrd = new kis_tracked_rrd<>(globalreg,
+            humidity_rrd = 
+                new kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>(globalreg,
                     humidity_rrd_id, e->get_map_value(humidity_rrd_id));
             add_map(humidity_rrd);
         } else {
-            temperature_rrd = new kis_tracked_rrd<>(globalreg, temperature_rrd_id);
+            temperature_rrd = 
+                new kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>(globalreg, 
+                        temperature_rrd_id);
             add_map(temperature_rrd);
 
-            humidity_rrd = new kis_tracked_rrd<>(globalreg, humidity_rrd_id);
+            humidity_rrd = 
+                new kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>(globalreg, 
+                        humidity_rrd_id);
             add_map(humidity_rrd);
         }
     }
@@ -187,14 +195,14 @@ protected:
     TrackerElement *temperature;
 
     int temperature_rrd_id;
-    kis_tracked_rrd<> *temperature_rrd;
+    kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator> *temperature_rrd;
 
     // Basic humidity in percentage, from multiple sensors
     int humidity_id;
     TrackerElement *humidity;
 
     int humidity_rrd_id;
-    kis_tracked_rrd<> *humidity_rrd;
+    kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator> *humidity_rrd;
 };
 
 // Weather station type data
@@ -222,7 +230,7 @@ public:
     __Proxy(wind_gust, int32_t, int32_t, int32_t, wind_gust);
     __Proxy(rain, int32_t, int32_t, int32_t, rain);
 
-    typedef kis_tracked_rrd<> rrdt;
+    typedef kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator> rrdt;
     __ProxyTrackable(wind_dir_rrd, rrdt, wind_dir_rrd);
     __ProxyTrackable(wind_speed_rrd, rrdt, wind_speed_rrd);
     __ProxyTrackable(wind_gust_rrd, rrdt, wind_gust_rrd);
@@ -234,7 +242,8 @@ protected:
             RegisterField("rtl433.device.wind_dir", TrackerInt32,
                     "Wind direction in degrees", (void **) &wind_dir);
 
-        kis_tracked_rrd<> *rrd_builder = new kis_tracked_rrd<>(globalreg, 0);
+        kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator> *rrd_builder = 
+            new kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>(globalreg, 0);
         wind_dir_rrd_id =
             RegisterComplexField("rtl433.device.wind_dir_rrd", rrd_builder,
                     "Wind direction RRD");
@@ -244,7 +253,8 @@ protected:
             RegisterField("rtl433.device.wind_speed", TrackerInt32,
                     "Wind speed in Kph", (void **) &wind_speed);
 
-        rrd_builder = new kis_tracked_rrd<>(globalreg, 0);
+        rrd_builder = 
+            new kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>(globalreg, 0);
         wind_speed_rrd_id =
             RegisterComplexField("rtl433.device.wind_speed_rrd", rrd_builder,
                     "Wind speed RRD");
@@ -254,7 +264,8 @@ protected:
             RegisterField("rtl433.device.wind_gust", TrackerInt32,
                     "Wind gust in Kph", (void **) &wind_gust);
 
-        rrd_builder = new kis_tracked_rrd<>(globalreg, 0);
+        rrd_builder = 
+            new kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>(globalreg, 0);
         wind_gust_rrd_id =
             RegisterComplexField("rtl433.device.wind_gust_rrd", rrd_builder,
                     "Wind gust RRD");
@@ -264,7 +275,8 @@ protected:
             RegisterField("rtl433.device.rain", TrackerInt32,
                     "Measured rain", (void **) &rain);
 
-        rrd_builder = new kis_tracked_rrd<>(globalreg, 0);
+        rrd_builder = 
+            new kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>(globalreg, 0);
         rain_rrd_id =
             RegisterComplexField("rtl433.device.rain_rrd", rrd_builder,
                     "Rain RRD");
@@ -276,32 +288,44 @@ protected:
         tracker_component::reserve_fields(e);
 
         if (e != NULL) {
-            wind_dir_rrd = new kis_tracked_rrd<>(globalreg, 
+            wind_dir_rrd = 
+                new kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>(globalreg, 
                     wind_dir_rrd_id, e->get_map_value(wind_dir_rrd_id));
             add_map(wind_dir_rrd);
 
-            wind_speed_rrd = new kis_tracked_rrd<>(globalreg, 
+            wind_speed_rrd = 
+                new kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>(globalreg, 
                     wind_speed_rrd_id, e->get_map_value(wind_speed_rrd_id));
             add_map(wind_speed_rrd);
 
-            wind_gust_rrd = new kis_tracked_rrd<>(globalreg, 
+            wind_gust_rrd = 
+                new kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>(globalreg, 
                     wind_gust_rrd_id, e->get_map_value(wind_gust_rrd_id));
             add_map(wind_gust_rrd);
 
-            rain_rrd = new kis_tracked_rrd<>(globalreg, 
+            rain_rrd = 
+                new kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>(globalreg, 
                     rain_rrd_id, e->get_map_value(rain_rrd_id));
             add_map(rain_rrd);
         } else {
-            wind_dir_rrd = new kis_tracked_rrd<>(globalreg, wind_dir_rrd_id);
+            wind_dir_rrd = 
+                new kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>(globalreg, 
+                        wind_dir_rrd_id);
             add_map(wind_dir_rrd);
 
-            wind_speed_rrd = new kis_tracked_rrd<>(globalreg, wind_speed_rrd_id);
+            wind_speed_rrd = 
+                new kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>(globalreg, 
+                        wind_speed_rrd_id);
             add_map(wind_speed_rrd);
 
-            wind_gust_rrd = new kis_tracked_rrd<>(globalreg, wind_gust_rrd_id);
+            wind_gust_rrd = 
+                new kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>(globalreg, 
+                        wind_gust_rrd_id);
             add_map(wind_gust_rrd);
 
-            rain_rrd = new kis_tracked_rrd<>(globalreg, rain_rrd_id);
+            rain_rrd = 
+                new kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>(globalreg,
+                    rain_rrd_id);
             add_map(rain_rrd);
         }
     }
@@ -311,28 +335,28 @@ protected:
     TrackerElement *wind_dir;
 
     int wind_dir_rrd_id;
-    kis_tracked_rrd<> *wind_dir_rrd;
+    kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator> *wind_dir_rrd;
 
     // Wind speed in kph (might have to convert for some sensors)
     int wind_speed_id;
     TrackerElement *wind_speed;
 
     int wind_speed_rrd_id;
-    kis_tracked_rrd<> *wind_speed_rrd;
+    kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator> *wind_speed_rrd;
 
     // Wind gust in kph (might have to convert for some sensors)
     int wind_gust_id;
     TrackerElement *wind_gust;
 
     int wind_gust_rrd_id;
-    kis_tracked_rrd<> *wind_gust_rrd;
+    kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator> *wind_gust_rrd;
 
     // Rain (in whatever the sensor reports it in)
     int rain_id;
     TrackerElement *rain;
 
     int rain_rrd_id;
-    kis_tracked_rrd<> *rain_rrd;
+    kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator> *rain_rrd;
 };
 
 class Kis_RTL433_Phy : public Kis_Phy_Handler, public Kis_Net_Httpd_Stream_Handler {
