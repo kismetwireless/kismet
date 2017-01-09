@@ -185,9 +185,12 @@ bool Kis_RTL433_Phy::json_to_rtl(struct JSON_value *json) {
 
     TrackerElement *rtlholder = basedev->get_map_value(rtl433_holder_id);
 
+    bool newrtl = false;
+
     if (rtlholder == NULL) {
         rtlholder = globalreg->entrytracker->GetTrackedInstance(rtl433_holder_id);
         basedev->add_map(rtlholder);
+        newrtl = true;
     }
 
     rtl433_tracked_common *commondev = 
@@ -345,6 +348,18 @@ bool Kis_RTL433_Phy::json_to_rtl(struct JSON_value *json) {
                     globalreg->timestamp.tv_sec);
         }
 
+    }
+
+    if (newrtl && commondev != NULL) {
+        string info = "Detected new RTL433 RF device '" + commondev->get_model() + "'";
+
+        if (commondev->get_rtlid() != 0) 
+            info += " ID " + IntToString(commondev->get_rtlid());
+
+        if (commondev->get_rtlchannel() != "0")
+            info += " Channel " + commondev->get_rtlchannel();
+
+        _MSG(info, MSGFLAG_INFO);
     }
 
     return true;
