@@ -37,6 +37,18 @@ exports.renderMac = function(data, type, row, meta) {
     return data.split('/')[0];
 }
 
+exports.renderSignal = function(data, type, row, meta) {
+    if (data == 0)
+        return "<i>n/a</i>"
+    return data;
+}
+
+exports.renderChannel = function(data, type, row, meta) {
+    if (data == 0)
+        return "<i>n/a</i>"
+    return data;
+}
+
 exports.renderPackets = function(data, type, row, meta) {
     return "<i>Preparing graph</i>";
 }
@@ -101,12 +113,16 @@ kismet_ui.AddDeviceColumn('column_phy', {
 
 kismet_ui.AddDeviceColumn('column_signal', { 
     sTitle: 'Signal', 
-    mData: 'kismet_device_base_signal.kismet_common_signal_last_signal_dbm' 
+    mData: 'kismet_device_base_signal.kismet_common_signal_last_signal_dbm',
+    cbmodule: 'kismet_ui_base',
+    renderfunc: 'renderSignal'
 });
 
 kismet_ui.AddDeviceColumn('column_channel', {
     sTitle: 'Channel',
-    mData: 'kismet_device_base_channel'
+    mData: 'kismet_device_base_channel',
+    cbmodule: 'kismet_ui_base',
+    renderfunc: 'renderChannel'
 });
 
 kismet_ui.AddDeviceColumn('column_time', {
