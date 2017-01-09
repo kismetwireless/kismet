@@ -37,56 +37,30 @@ Kis_RTL433_Phy::Kis_RTL433_Phy(GlobalRegistry *in_globalreg,
 	pack_comp_common = 
 		globalreg->packetchain->RegisterPacketComponent("COMMON");
 
-    /* Test device/weatherstation inheritance */
-#if 0
-    rtl433_tracked_device *dev_builder = new rtl433_tracked_device(globalreg, 0);
-    rtl433_device_id = 
-        globalreg->entrytracker->RegisterField("rtl433.device", dev_builder,
-                "RTL433 device");
-    delete(dev_builder);
+    rtl433_holder_id =
+        globalreg->entrytracker->RegisterField("rtl433.device", TrackerMap, 
+                "rtl_433 device");
 
-    rtl433_tracked_thermometer *therm_builder = 
+    rtl433_tracked_common *commonbuilder = 
+        new rtl433_tracked_common(globalreg, 0);
+    rtl433_common_id =
+        globalreg->entrytracker->RegisterField("rtl433.device.common",
+                commonbuilder, "Shared RTL433 device info");
+    delete(commonbuilder);
+
+    rtl433_tracked_thermometer *thermbuilder =
         new rtl433_tracked_thermometer(globalreg, 0);
     rtl433_thermometer_id =
-        globalreg->entrytracker->RegisterField("rtl433.thermometer", therm_builder,
-                "RTL433 thermometer");
-    delete(therm_builder);
+        globalreg->entrytracker->RegisterField("rtl433.device.thermometer",
+                thermbuilder, "RTL433 thermometer");
+    delete(thermbuilder);
 
-    rtl433_tracked_weatherstation *weather_builder = 
+    rtl433_tracked_weatherstation *weatherbuilder =
         new rtl433_tracked_weatherstation(globalreg, 0);
     rtl433_weatherstation_id =
-        globalreg->entrytracker->RegisterField("rtl433.weatherstation", weather_builder,
-                "RTL433 weather station");
-    delete(weather_builder);
-
-    rtl433_tracked_device *dev = 
-        new rtl433_tracked_device(globalreg, rtl433_device_id);
-    dev->link();
-    dev->set_model("test model");
-
-    rtl433_tracked_thermometer *therm =
-        new rtl433_tracked_thermometer(globalreg, rtl433_thermometer_id, dev);
-
-    therm->link();
-    dev->unlink();
-
-    fprintf(stderr, "debug - therm model %s\n", therm->get_model().c_str());
-
-    therm->get_temperature_rrd()->add_sample(200, 1);
-    therm->get_temperature_rrd()->add_sample(300, 2);
-
-    fprintf(stderr, "debug - therm rrd last time %ld\n", therm->get_temperature_rrd()->get_last_time());
-
-    rtl433_tracked_weatherstation *weather =
-        new rtl433_tracked_weatherstation(globalreg, rtl433_weatherstation_id, therm);
-
-    weather->link();
-    therm->unlink();
-
-    fprintf(stderr, "debug - weather model %s\n", weather->get_model().c_str());
-
-    fprintf(stderr, "debug - weather temp rrd last time %ld\n", weather->get_temperature_rrd()->get_last_time());
-#endif
+        globalreg->entrytracker->RegisterField("rtl433.device.weatherstation",
+                weatherbuilder, "RTL433 weather station");
+    delete(weatherbuilder);
 
 }
 
@@ -103,6 +77,10 @@ bool Kis_RTL433_Phy::Httpd_VerifyPath(const char *path, const char *method) {
     return false;
 }
 
+double Kis_RTL433_Phy::f_to_c(double f) {
+    return (f - 32) / (double) 1.8f;
+}
+
 mac_addr Kis_RTL433_Phy::json_to_mac(struct JSON_value *json) {
     // Derive a mac addr from the model and device id data
     //
@@ -113,36 +91,34 @@ mac_addr Kis_RTL433_Phy::json_to_mac(struct JSON_value *json) {
 
     string err;
 
-    union {
-        uint8_t bytes[6];
-        struct {
-            uint16_t model;
-            uint32_t checksum;
-        } breakout;
-    } synth_mac;
+    uint8_t bytes[6];
+    uint16_t *model = (uint16_t *) bytes;
+    uint32_t *checksum = (uint32_t *) (bytes + 2);
 
-    string model = JSON_dict_get_string(json, "model", err);
-    synth_mac.breakout.checksum = Adler32Checksum(model.c_str(), model.length());
+    string smodel = JSON_dict_get_string(json, "model", err);
+    *checksum = Adler32Checksum(smodel.c_str(), smodel.length());
 
     // See what we can scrape up...
     if (JSON_dict_has_key(json, "id")) {
-        synth_mac.breakout.model = 
+        *model = 
             kis_hton16((uint16_t) JSON_dict_get_number(json, "id", err));
     } else if (JSON_dict_has_key(json, "device")) {
-        synth_mac.breakout.model =
+        *model =
             kis_hton16((uint16_t) JSON_dict_get_number(json, "device", err));
     } else {
-        synth_mac.breakout.model = 0x0000;
+        *model = 0x0000;
     }
 
     // Set the local bit
-    synth_mac.bytes[0] |= 0x2;
+    bytes[0] |= 0x2;
 
-    return mac_addr(synth_mac.bytes, 6);
+    return mac_addr(bytes, 6);
 }
 
 bool Kis_RTL433_Phy::json_to_rtl(struct JSON_value *json) {
     string err;
+    string v;
+    double d;
 
     if (json == NULL)
         return false;
@@ -151,7 +127,6 @@ bool Kis_RTL433_Phy::json_to_rtl(struct JSON_value *json) {
     mac_addr rtlmac = json_to_mac(json);
 
     if (rtlmac.error) {
-        fprintf(stderr, "debug - could not synth rtl mac\n");
         return false;
     }
 
@@ -207,6 +182,110 @@ bool Kis_RTL433_Phy::json_to_rtl(struct JSON_value *json) {
 
     basedev->set_type_string("RTL433 Sensor");
     basedev->set_devicename(dn);
+
+    TrackerElement *rtlholder = basedev->get_map_value(rtl433_holder_id);
+
+    if (rtlholder == NULL) {
+        rtlholder = globalreg->entrytracker->GetTrackedInstance(rtl433_holder_id);
+        basedev->add_map(rtlholder);
+    }
+
+    rtl433_tracked_common *commondev = 
+        (rtl433_tracked_common *) rtlholder->get_map_value(rtl433_common_id);
+
+    if (commondev == NULL) {
+        commondev = (rtl433_tracked_common *) 
+            globalreg->entrytracker->GetTrackedInstance(rtl433_common_id);
+        rtlholder->add_map(commondev);
+
+        if (JSON_dict_has_key(json, "model")) {
+            v = JSON_dict_get_string(json, "model", err);
+
+            if (err.length() == 0) {
+                commondev->set_model(v);
+            } else {
+                commondev->set_model("Unknown");
+            }
+        }
+
+        if (JSON_dict_has_key(json, "id")) {
+            d = JSON_dict_get_number(json, "id", err);
+
+            if (err.length() == 0) {
+                commondev->set_rtlid((uint64_t) d);
+            } else {
+                commondev->set_rtlid(0);
+            }
+
+        } else if (JSON_dict_has_key(json, "device")) {
+            d = JSON_dict_get_number(json, "device", err);
+
+            if (err.length() == 0) {
+                commondev->set_rtlid((uint64_t) d);
+            } else {
+                commondev->set_rtlid(0);
+            }
+
+        } else {
+            commondev->set_rtlid(0);
+        }
+
+        commondev->set_rtlchannel("0");
+    }
+
+    if (JSON_dict_has_key(json, "channel")) {
+        d = JSON_dict_get_number(json, "channel", err);
+
+        if (err.length() == 0) {
+            commondev->set_rtlchannel(IntToString((int) d));
+        }
+    }
+
+    if (JSON_dict_has_key(json, "battery")) {
+        v = JSON_dict_get_string(json, "battery", err);
+
+        if (err.length() == 0) {
+            commondev->set_battery(v);
+        }
+    }
+
+    if (JSON_dict_has_key(json, "humidity") || 
+            JSON_dict_has_key(json, "temperature_C") ||
+            JSON_dict_has_key(json, "temperature_F")) {
+
+        rtl433_tracked_thermometer *thermdev = 
+            (rtl433_tracked_thermometer *) 
+            rtlholder->get_map_value(rtl433_thermometer_id);
+
+        if (thermdev == NULL) {
+            thermdev = (rtl433_tracked_thermometer *) 
+                globalreg->entrytracker->GetTrackedInstance(rtl433_thermometer_id);
+            rtlholder->add_map(thermdev);
+        }
+
+        d = JSON_dict_get_number(json, "humidity", err);
+        if (err.length() == 0) {
+            thermdev->set_humidity((int32_t) d);
+            thermdev->get_humidity_rrd()->add_sample((int64_t) d,
+                    globalreg->timestamp.tv_sec);
+        }
+
+        d = JSON_dict_get_number(json, "temperature_F", err);
+        if (err.length() == 0) {
+            thermdev->set_temperature(f_to_c(d));
+            thermdev->get_temperature_rrd()->add_sample((int64_t) f_to_c(d),
+                    globalreg->timestamp.tv_sec);
+        }
+
+        d = JSON_dict_get_number(json, "temperature_C", err);
+        if (err.length() == 0) {
+            thermdev->set_temperature(d);
+            thermdev->get_temperature_rrd()->add_sample((int64_t) d,
+                    globalreg->timestamp.tv_sec);
+        }
+
+    }
+
 
     return true;
 }

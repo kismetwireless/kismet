@@ -53,26 +53,26 @@
 
 
 // Base rtl device record
-class rtl433_tracked_device : public tracker_component {
+class rtl433_tracked_common : public tracker_component {
 public:
-    rtl433_tracked_device(GlobalRegistry *in_globalreg, int in_id) :
+    rtl433_tracked_common(GlobalRegistry *in_globalreg, int in_id) :
         tracker_component(in_globalreg, in_id) {
             register_fields();
             reserve_fields(NULL);
         }
 
     virtual TrackerElement *clone_type() {
-        return new rtl433_tracked_device(globalreg, get_id());
+        return new rtl433_tracked_common(globalreg, get_id());
     }
 
-    rtl433_tracked_device(GlobalRegistry *in_globalreg, int in_id, TrackerElement *e) :
+    rtl433_tracked_common(GlobalRegistry *in_globalreg, int in_id, TrackerElement *e) :
         tracker_component(in_globalreg, in_id) {
         register_fields();
         reserve_fields(e);
     }
 
     __Proxy(model, string, string, string, model);
-    __Proxy(rtlid, string, string, string, rtlid);
+    __Proxy(rtlid, uint64_t, uint64_t, uint64_t, rtlid);
     __Proxy(rtlchannel, string, string, string, rtlchannel);
     __Proxy(battery, string, string, string, battery);
 
@@ -83,7 +83,7 @@ protected:
                     "Sensor model", (void **) &model);
 
         rtlid_id =
-            RegisterField("rtl433.device.id", TrackerString,
+            RegisterField("rtl433.device.id", TrackerUInt64,
                     "Sensor ID", (void **) &rtlid);
 
         rtlchannel_id =
@@ -92,7 +92,7 @@ protected:
 
         battery_id =
             RegisterField("rtl433.device.battery", TrackerString,
-                    "Sensor battery level", (void **) &rtlchannel);
+                    "Sensor battery level", (void **) &battery);
     }
 
     int model_id;
@@ -113,10 +113,10 @@ protected:
 
 // Thermometer type rtl data, derived from the rtl device.  This adds new
 // fields for thermometers but uses the same base IDs
-class rtl433_tracked_thermometer : public rtl433_tracked_device {
+class rtl433_tracked_thermometer : public tracker_component {
 public:
     rtl433_tracked_thermometer(GlobalRegistry *in_globalreg, int in_id) :
-        rtl433_tracked_device(in_globalreg, in_id) {
+       tracker_component(in_globalreg, in_id) {
             register_fields();
             reserve_fields(NULL);
         }
@@ -127,12 +127,12 @@ public:
 
     rtl433_tracked_thermometer(GlobalRegistry *in_globalreg, int in_id, 
             TrackerElement *e) :
-        rtl433_tracked_device(in_globalreg, in_id) {
+        tracker_component(in_globalreg, in_id) {
         register_fields();
         reserve_fields(e);
     }
 
-    __Proxy(temperature, int32_t, int32_t, int32_t, temperature);
+    __Proxy(temperature, double, double, double, temperature);
     __Proxy(humidity, int32_t, int32_t, int32_t, humidity);
 
     typedef kis_tracked_rrd<> rrdt;
@@ -142,7 +142,7 @@ public:
 protected:
     virtual void register_fields() {
         temperature_id =
-            RegisterField("rtl433.device.temperature", TrackerInt32,
+            RegisterField("rtl433.device.temperature", TrackerDouble,
                     "Temperature in degrees Celsius", (void **) &temperature);
 
         kis_tracked_rrd<> *rrd_builder = new kis_tracked_rrd<>(globalreg, 0);
@@ -162,7 +162,7 @@ protected:
     }
 
     virtual void reserve_fields(TrackerElement *e) {
-        rtl433_tracked_device::reserve_fields(e);
+        tracker_component::reserve_fields(e);
 
         if (e != NULL) {
             temperature_rrd = new kis_tracked_rrd<>(globalreg, 
@@ -198,10 +198,10 @@ protected:
 };
 
 // Weather station type data
-class rtl433_tracked_weatherstation : public rtl433_tracked_thermometer {
+class rtl433_tracked_weatherstation : public tracker_component {
 public:
     rtl433_tracked_weatherstation(GlobalRegistry *in_globalreg, int in_id) :
-        rtl433_tracked_thermometer(in_globalreg, in_id) {
+        tracker_component(in_globalreg, in_id) {
             register_fields();
             reserve_fields(NULL);
         }
@@ -212,7 +212,7 @@ public:
 
     rtl433_tracked_weatherstation(GlobalRegistry *in_globalreg, int in_id, 
             TrackerElement *e) :
-        rtl433_tracked_thermometer(in_globalreg, in_id) {
+        tracker_component(in_globalreg, in_id) {
         register_fields();
         reserve_fields(e);
     }
@@ -273,7 +273,7 @@ protected:
     }
 
     virtual void reserve_fields(TrackerElement *e) {
-        rtl433_tracked_thermometer::reserve_fields(e);
+        tracker_component::reserve_fields(e);
 
         if (e != NULL) {
             wind_dir_rrd = new kis_tracked_rrd<>(globalreg, 
@@ -371,7 +371,8 @@ public:
             const char *transfer_encoding, const char *data, 
             uint64_t off, size_t size);
 protected:
-    int rtl433_device_id, rtl433_thermometer_id, rtl433_weatherstation_id;
+    int rtl433_holder_id, rtl433_common_id, rtl433_thermometer_id, 
+        rtl433_weatherstation_id;
 
     int pack_comp_common;
 
@@ -381,6 +382,8 @@ protected:
     // convert to a device record & push into device tracker, return false
     // if we can't do anything with it
     bool json_to_rtl(struct JSON_value *in_json);
+
+    double f_to_c(double f);
 
 };
 
