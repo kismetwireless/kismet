@@ -287,6 +287,8 @@ bool Kis_RTL433_Phy::json_to_rtl(struct JSON_value *json) {
     }
 
     if (JSON_dict_has_key(json, "direction_deg") || 
+            JSON_dict_has_key(json, "windstrength") ||
+            JSON_dict_has_key(json, "winddirection") ||
             JSON_dict_has_key(json, "speed") ||
             JSON_dict_has_key(json, "gust") ||
             JSON_dict_has_key(json, "rain")) {
@@ -308,7 +310,21 @@ bool Kis_RTL433_Phy::json_to_rtl(struct JSON_value *json) {
                     globalreg->timestamp.tv_sec);
         }
 
+        d = JSON_dict_get_number(json, "winddirection", err);
+        if (err.length() == 0) {
+            weatherdev->set_wind_dir((int32_t) d);
+            weatherdev->get_wind_dir_rrd()->add_sample((int64_t) d,
+                    globalreg->timestamp.tv_sec);
+        }
+
         d = JSON_dict_get_number(json, "speed", err);
+        if (err.length() == 0) {
+            weatherdev->set_wind_speed((int32_t) d);
+            weatherdev->get_wind_speed_rrd()->add_sample((int64_t) d,
+                    globalreg->timestamp.tv_sec);
+        }
+
+        d = JSON_dict_get_number(json, "windstrength", err);
         if (err.length() == 0) {
             weatherdev->set_wind_speed((int32_t) d);
             weatherdev->get_wind_speed_rrd()->add_sample((int64_t) d,
