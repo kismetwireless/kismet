@@ -34,6 +34,10 @@ exports.renderDataSize = function(data, type, row, meta) {
 }
 
 exports.renderMac = function(data, type, row, meta) {
+    if (typeof(data) === 'undefined') {
+        return "<i>n/a</i>";
+    }
+
     return data.split('/')[0];
 }
 
@@ -267,6 +271,16 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                 field: "group_signal_data",
                 groupTitle: "Signal",
                 id: "group_signal_data",
+
+                filter: function(opts) {
+                    var db = kismet.ObjectByString(opts['data'], "kismet_device_base_signal.kismet_common_signal_last_signal_dbm");
+                    var rssi = kismet.ObjectByString(opts['data'], "kismet_device_base_signal.kismet_common_signal_last_signal_rssi");
+
+                    if (db == 0 && rssi == 0)
+                        return false;
+
+                    return true;
+                },
 
                 fields: [
                 { // Only show when dbm
