@@ -75,7 +75,23 @@ kismet_ui.AddDeviceDetail("rtl433", "RTL-433 (SDR)", 0, {
                     title: "Wind Direction",
                     filterOnEmpty: true,
                     render: function(opts) {
-                        return opts['value'] + "&deg; (" + kismet_ui.DegToDir(opts['value']) + ")";
+                        var rv = opts['value'] + "&deg; (" + 
+                            kismet_ui.DegToDir(opts['value']) + ")";
+
+                        /*
+                        rv += '<br>';
+
+                        rv += '<span class="fa-stack" style="font-size: 16pt;">';
+                        rv += '<i class="fa fa-stack-1x fa-circle-o" />';
+                        rv += '<i class="fa fa-stack-1x fa-chevron-up" style="' +
+                            '-ms-transform: rotate(' + opts['value'] + 'deg);' +
+                            '-webkit-transform: rotate(' + opts['value'] + 'deg);' +
+                            'transform: rotate(' + opts['value'] + 'deg);' +
+                            '" />';
+                        rv += '</span>';
+                        */
+
+                        return rv;
                     }
                 },
                 {
