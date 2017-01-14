@@ -722,3 +722,20 @@ float JSON_dict_get_number(struct JSON_value *in_parent, string in_key,
 	return f;
 }
 
+vector<struct JSON_value *> JSON_dict_get_array(struct JSON_value *in_parent,
+        string in_key, string& error) {
+    vector<struct JSON_value *> empty;
+
+	struct JSON_value *v = JSON_dict_get_value(in_parent, in_key, error);
+	
+	error = "";
+
+	if (error.length() != 0)
+        return empty;
+
+	if (v == NULL)
+        return empty;
+
+	return v->value_array;
+}
+

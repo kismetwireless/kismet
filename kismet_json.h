@@ -117,6 +117,9 @@ string JSON_dict_get_string(struct JSON_value *in_parent, string in_key,
 float JSON_dict_get_number(struct JSON_value *in_parent, string in_key,
 							string& error);
 
+vector<struct JSON_value *> JSON_dict_get_array(struct JSON_value *in_parent,
+        string in_key, string& error);
+
 // Do we have a key?
 bool JSON_dict_has_key(struct JSON_value *in_parent, string in_key);
 
