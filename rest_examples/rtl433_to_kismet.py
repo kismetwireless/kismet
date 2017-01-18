@@ -33,5 +33,8 @@ if not kr.check_session():
 while True:
     l = rtl.stdout.readline()
     print "Got data: ", l
-    print "Post:", kr.post_url("phy/phyRTL433/post_sensor_json.cmd", { "obj": l })
+    try:
+        print "Post:", kr.post_url("phy/phyRTL433/post_sensor_json.cmd", { "obj": l })
+    except Exception as e:
+        print "Post failed: ", e
 
