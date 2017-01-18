@@ -35,17 +35,17 @@
 #include "devicetracker_component.h"
 #include "msgpack_adapter.h"
 
-void MsgpackAdapter::Packer(GlobalRegistry *globalreg, TrackerElement *v,
+void MsgpackAdapter::Packer(GlobalRegistry *globalreg, SharedTrackerElement v,
         msgpack::packer<std::stringstream> &o) {
 
-    v->link();
+    // TrackerElementScopeLocker slock(v);
 
     v->pre_serialize();
 
     o.pack_array(2);
     o.pack((int) v->get_type());
 
-    vector<TrackerElement *> *tvec;
+    TrackerElement::tracked_vector *tvec;
     unsigned int x;
 
     TrackerElement::tracked_map *tmap;
@@ -122,7 +122,6 @@ void MsgpackAdapter::Packer(GlobalRegistry *globalreg, TrackerElement *v,
                     ++map_iter) {
                 o.pack(globalreg->entrytracker->GetFieldName(map_iter->first));
                 Packer(globalreg, map_iter->second, o);
-                // o.pack(map_iter->second);
             }
             break;
         case TrackerIntMap:
@@ -132,7 +131,6 @@ void MsgpackAdapter::Packer(GlobalRegistry *globalreg, TrackerElement *v,
                     ++map_iter) {
                 o.pack(map_iter->first);
                 Packer(globalreg, map_iter->second, o);
-                //o.pack(map_iter->second);
             }
             break;
         case TrackerMacMap:
@@ -144,7 +142,6 @@ void MsgpackAdapter::Packer(GlobalRegistry *globalreg, TrackerElement *v,
                 // Macmaps need to go out as just the mac string,
                 // not a vector of mac+mask
                 o.pack(mac_map_iter->first.MacFull2String());
-                // o.pack(mac_map_iter->second);
                 Packer(globalreg, mac_map_iter->second, o);
             }
             break;
@@ -155,7 +152,6 @@ void MsgpackAdapter::Packer(GlobalRegistry *globalreg, TrackerElement *v,
                     string_map_iter != tstringmap->end();
                     ++string_map_iter) {
                 o.pack(string_map_iter->first);
-                // o.pack(string_map_iter->second);
                 Packer(globalreg, string_map_iter->second, o);
             }
             break;
@@ -166,7 +162,6 @@ void MsgpackAdapter::Packer(GlobalRegistry *globalreg, TrackerElement *v,
                     double_map_iter != tdoublemap->end();
                     ++double_map_iter) {
                 o.pack(double_map_iter->first);
-                // o.pack(double_map_iter->second);
                 Packer(globalreg, double_map_iter->second, o);
             }
             break;
@@ -174,28 +169,10 @@ void MsgpackAdapter::Packer(GlobalRegistry *globalreg, TrackerElement *v,
         default:
             break;
     }
-
-    v->unlink();
 }
 
 void MsgpackAdapter::Pack(GlobalRegistry *globalreg, std::stringstream &stream,
-        tracker_component *c) {
-    /*
-    msgpack::adaptor::entrytracker = globalreg->entrytracker; 
-    msgpack::pack(stream, (TrackerElement *) c);
-    */
-
-    msgpack::packer<std::stringstream> packer(&stream);
-    Packer(globalreg, (TrackerElement *) c, packer);
-}
-
-void MsgpackAdapter::Pack(GlobalRegistry *globalreg, std::stringstream &stream,
-        TrackerElement *e) {
-    /*
-    msgpack::adaptor::entrytracker = globalreg->entrytracker; 
-    msgpack::pack(stream, e);
-    */
-
+        SharedTrackerElement e) {
     msgpack::packer<std::stringstream> packer(&stream);
     Packer(globalreg, e, packer);
 }

@@ -78,7 +78,18 @@ public:
 
 class MessageBus : public LifetimeGlobal {
 public:
+    static shared_ptr<MessageBus> create_messagebus(GlobalRegistry *in_globalreg) {
+        shared_ptr<MessageBus> mon(new MessageBus(in_globalreg));
+        in_globalreg->messagebus = mon.get();
+        in_globalreg->RegisterLifetimeGlobal(mon);
+        in_globalreg->InsertGlobal("MESSAGEBUS", mon);
+        return mon;
+    }
+
+private:
     MessageBus(GlobalRegistry *in_globalreg);
+
+public:
     virtual ~MessageBus();
 
     // Inject a message into the bus

@@ -38,7 +38,8 @@ Dumpfile_Devicetracker::Dumpfile_Devicetracker(GlobalRegistry *in_globalreg,
 
 	logfile = NULL;
 
-	Devicetracker *tracker = (Devicetracker *) globalreg->FetchGlobal("DEVICE_TRACKER");
+	shared_ptr<Devicetracker> tracker = 
+        static_pointer_cast<Devicetracker>(globalreg->FetchGlobal("DEVICE_TRACKER"));
 	
 	if (tracker == NULL) {
 		_MSG("Kismet phy-neutral devicetracker not present; did you disable it "
@@ -47,7 +48,8 @@ Dumpfile_Devicetracker::Dumpfile_Devicetracker(GlobalRegistry *in_globalreg,
 		return;
 	}
 
-	globalreg->InsertGlobal("DUMPFILE_" + in_type, this);
+	globalreg->InsertGlobal("DUMPFILE_" + in_type, 
+            shared_ptr<Dumpfile_Devicetracker>(this));
 
 	if ((fname = ProcessConfigOpt()) == "" || globalreg->fatal_condition) {
 		return;
@@ -85,7 +87,8 @@ Dumpfile_Devicetracker::~Dumpfile_Devicetracker() {
 }
 
 int Dumpfile_Devicetracker::Flush() {
-	Devicetracker *tracker = (Devicetracker *) globalreg->FetchGlobal("DEVICE_TRACKER");
+	shared_ptr<Devicetracker> tracker = 
+        static_pointer_cast<Devicetracker>(globalreg->FetchGlobal("DEVICE_TRACKER"));
 	
 	if (tracker == NULL) {
 		_MSG("Kismet phy-neutral devicetracker not present; did you disable it "

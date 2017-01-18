@@ -29,13 +29,8 @@ Systemmonitor::Systemmonitor(GlobalRegistry *in_globalreg) :
 
     globalreg = in_globalreg;
 
-    globalreg->InsertGlobal("SYSTEM_MONITOR", this);
-
     register_fields();
     reserve_fields(NULL);
-
-    // Link ourselves so serialization doesn't get rid of us
-    link();
 }
 
 Systemmonitor::~Systemmonitor() {
@@ -45,16 +40,16 @@ Systemmonitor::~Systemmonitor() {
 void Systemmonitor::register_fields() {
     battery_perc_id =
         RegisterField("kismet.system.battery.percentage", TrackerInt32,
-                "remaining battery percentage", (void **) &battery_perc);
+                "remaining battery percentage", &battery_perc);
     battery_charging_id =
         RegisterField("kismet.system.battery.charging", TrackerString,
-                "battery charging state", (void **) &battery_charging);
+                "battery charging state", &battery_charging);
     battery_ac_id =
         RegisterField("kismet.system.battery.ac", TrackerUInt8,
-                "on AC power", (void **) &battery_ac);
+                "on AC power", &battery_ac);
     battery_remaining_id =
         RegisterField("kismet.system.battery.remaining", TrackerUInt32,
-                "battery remaining in seconds", (void **) &battery_remaining);
+                "battery remaining in seconds", &battery_remaining);
 }
 
 void Systemmonitor::pre_serialize() {
@@ -99,9 +94,11 @@ void Systemmonitor::Httpd_CreateStreamResponse(
     }
 
     if (strcmp(path, "/system/status.msgpack") == 0) {
-        MsgpackAdapter::Pack(globalreg, stream, this);
+        MsgpackAdapter::Pack(globalreg, stream, 
+            static_pointer_cast<Systemmonitor>(globalreg->FetchGlobal("SYSTEM_MONITOR")));
     } else if (strcmp(path, "/system/status.json") == 0) {
-        JsonAdapter::Pack(globalreg, stream, this);
+        JsonAdapter::Pack(globalreg, stream, 
+            static_pointer_cast<Systemmonitor>(globalreg->FetchGlobal("SYSTEM_MONITOR")));
     }
 
 }

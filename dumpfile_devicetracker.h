@@ -32,7 +32,7 @@
 // Tightly integrated with devicetracker; this wraps the file IO in a standard
 // dumpfile, then hands off population of the file to the devicetracker
 
-class Dumpfile_Devicetracker : public Dumpfile {
+class Dumpfile_Devicetracker : public Dumpfile, public SharedGlobalData {
 public:
 	Dumpfile_Devicetracker();
 	Dumpfile_Devicetracker(GlobalRegistry *in_globalreg);

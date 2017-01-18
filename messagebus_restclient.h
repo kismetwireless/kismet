@@ -40,14 +40,14 @@ public:
         reserve_fields(NULL);
     }
 
-    tracked_message(GlobalRegistry *in_globalreg, int in_id, TrackerElement *e) :
+    tracked_message(GlobalRegistry *in_globalreg, int in_id, SharedTrackerElement e) :
         tracker_component(in_globalreg, in_id) {
         register_fields();
         reserve_fields(e);
         }
 
-    virtual TrackerElement *clone_type() {
-        return new tracked_message(globalreg, get_id());
+    virtual SharedTrackerElement clone_type() {
+        return SharedTrackerElement(new tracked_message(globalreg, get_id()));
     }
 
     __Proxy(message, string, string, string, message);
@@ -70,29 +70,40 @@ protected:
 
         message_id =
             RegisterField("kismet.messagebus.message_string", TrackerString,
-                    "Message content", (void **) &message);
+                    "Message content", &message);
         flags_id =
             RegisterField("kismet.messagebus.message_flags", TrackerInt32,
-                    "Message flags (per messagebus.h)", (void **) &flags);
+                    "Message flags (per messagebus.h)", &flags);
         timestamp_id =
             RegisterField("kismet.messagebus.message_time", TrackerUInt64,
-                    "Message time_t", (void **) &timestamp);
+                    "Message time_t", &timestamp);
     }
 
-    TrackerElement *message;
+    SharedTrackerElement message;
     int message_id;
 
-    TrackerElement *flags;
+    SharedTrackerElement flags;
     int flags_id;
 
-    TrackerElement *timestamp;
+    SharedTrackerElement timestamp;
     int timestamp_id;
 };
 
 class RestMessageClient : public MessageClient, public Kis_Net_Httpd_Stream_Handler,
     public LifetimeGlobal {
 public:
+    static shared_ptr<RestMessageClient> 
+        create_messageclient(GlobalRegistry *in_globalreg) {
+        shared_ptr<RestMessageClient> mon(new RestMessageClient(in_globalreg, NULL));
+        in_globalreg->RegisterLifetimeGlobal(mon);
+        in_globalreg->InsertGlobal("REST_MSG_CLIENT", mon);
+        return mon;
+    }
+
+private:
     RestMessageClient(GlobalRegistry *in_globalreg, void *in_aux);
+
+public:
 	virtual ~RestMessageClient();
     void ProcessMessage(string in_msg, int in_flags);
 
@@ -106,7 +117,7 @@ public:
 protected:
     pthread_mutex_t msg_mutex;
 
-    std::vector<tracked_message *> message_vec;
+    std::vector<shared_ptr<tracked_message> > message_vec;
 
     int message_vec_id, message_entry_id, message_timestamp_id;
 };

@@ -85,14 +85,14 @@ public:
         reserve_fields(NULL);
     }
 
-    tracked_alert(GlobalRegistry *in_globalreg, int in_id, TrackerElement *e) :
+    tracked_alert(GlobalRegistry *in_globalreg, int in_id, SharedTrackerElement e) :
         tracker_component(in_globalreg, in_id) {
         register_fields();
         reserve_fields(e);
     }
 
-    virtual TrackerElement *clone_type() {
-        return new tracked_alert(globalreg, get_id());
+    virtual SharedTrackerElement clone_type() {
+        return SharedTrackerElement(new tracked_alert(globalreg, get_id()));
     }
 
     __Proxy(device_key, uint64_t, uint64_t, uint64_t, device_key);
@@ -136,87 +136,87 @@ protected:
 
         device_key_id =
             RegisterField("kismet.alert.device_key", TrackerUInt64,
-                    "Device key of linked device", (void **) &device_key);
+                    "Device key of linked device", &device_key);
 
         header_id =
             RegisterField("kismet.alert.header", TrackerString,
-                    "Alert type", (void **) &header);
+                    "Alert type", &header);
 
         phy_id =
             RegisterField("kismet.alert.phy_id", TrackerUInt32,
-                    "ID of phy generating alert", (void **) &phy);
+                    "ID of phy generating alert", &phy);
 
         timestamp_sec_id =
             RegisterField("kismet.alert.timestamp_sec", TrackerUInt64,
-                    "Timestamp (second component)", (void **) &timestamp_sec);
+                    "Timestamp (second component)", &timestamp_sec);
 
         timestamp_usec_id =
             RegisterField("kismet.alert.timestamp_usec", TrackerUInt64,
-                    "Timestmap (microsecond component)", (void **) &timestamp_usec);
+                    "Timestmap (microsecond component)", &timestamp_usec);
 
         transmitter_mac_id =
             RegisterField("kismet.alert.transmitter_mac", TrackerMac,
-                    "Transmitter MAC address", (void **) &transmitter_mac);
+                    "Transmitter MAC address", &transmitter_mac);
 
         source_mac_id =
             RegisterField("kismet.alert.source_mac", TrackerMac,
-                    "Source MAC address", (void **) &source_mac);
+                    "Source MAC address", &source_mac);
 
         dest_mac_id =
             RegisterField("kismet.alert.dest_mac", TrackerMac,
-                    "Destination MAC address", (void **) &dest_mac);
+                    "Destination MAC address", &dest_mac);
 
         other_mac_id =
             RegisterField("kismet.alert.other_mac", TrackerMac,
-                    "Other / Extra MAC address", (void **) &other_mac);
+                    "Other / Extra MAC address", &other_mac);
 
         channel_id =
             RegisterField("kismet.alert.channel", TrackerString,
-                    "Phy-specific channel", (void **) &channel);
+                    "Phy-specific channel", &channel);
 
         frequency_id =
             RegisterField("kismet.alert.frequency", TrackerDouble,
-                    "Frequency (khz)", (void **) &frequency);
+                    "Frequency (khz)", &frequency);
 
         text_id =
             RegisterField("kismet.alert.text", TrackerString,
-                    "Alert text", (void **) &text);
+                    "Alert text", &text);
     }
 
-    TrackerElement *device_key;
+    SharedTrackerElement device_key;
     int device_key_id;
 
-    TrackerElement *header;
+    SharedTrackerElement header;
     int header_id;
 
-    TrackerElement *phy;
+    SharedTrackerElement phy;
     int phy_id;
 
-    TrackerElement *timestamp_sec;
+    SharedTrackerElement timestamp_sec;
     int timestamp_sec_id;
 
-    TrackerElement *timestamp_usec;
+    SharedTrackerElement timestamp_usec;
     int timestamp_usec_id;
 
-    TrackerElement *transmitter_mac;
+    SharedTrackerElement transmitter_mac;
     int transmitter_mac_id;
 
-    TrackerElement *source_mac;
+    SharedTrackerElement source_mac;
     int source_mac_id;
 
-    TrackerElement *dest_mac;
+    SharedTrackerElement dest_mac;
     int dest_mac_id;
 
-    TrackerElement *other_mac;
+    SharedTrackerElement other_mac;
     int other_mac_id;
 
-    TrackerElement *channel;
+    SharedTrackerElement channel;
     int channel_id;
 
-    TrackerElement *frequency;
+    SharedTrackerElement frequency;
     int frequency_id;
 
-    TrackerElement *text;
+    SharedTrackerElement text;
     int text_id;
 
 };
@@ -230,7 +230,7 @@ enum alert_time_unit {
     sat_second, sat_minute, sat_hour, sat_day
 };
 
-class Alertracker : public Kis_Net_Httpd_Stream_Handler, LifetimeGlobal {
+class Alertracker : public Kis_Net_Httpd_Stream_Handler, public LifetimeGlobal {
 public:
     // A registered alert type
     struct alert_rec {
@@ -267,8 +267,18 @@ public:
         int limit_burst;
 	};
 
+    static shared_ptr<Alertracker> create_alertracker(GlobalRegistry *in_globalreg) {
+        shared_ptr<Alertracker> mon(new Alertracker(in_globalreg));
+        in_globalreg->alertracker = mon.get();
+        in_globalreg->RegisterLifetimeGlobal(mon);
+        in_globalreg->InsertGlobal("ALERTTRACKER", mon);
+        return mon;
+    }
 
+private:
     Alertracker(GlobalRegistry *in_globalreg);
+
+public:
     virtual ~Alertracker();
 
     // Register an alert and get an alert reference number back.

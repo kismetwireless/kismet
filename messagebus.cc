@@ -36,10 +36,6 @@ void StdoutMessageClient::ProcessMessage(string in_msg, int in_flags) {
 
 MessageBus::MessageBus(GlobalRegistry *in_globalreg) {
     globalreg = in_globalreg;
-
-    globalreg->messagebus = this;
-
-    globalreg->InsertGlobal("MESSAGEBUS", this);
     pthread_mutex_init(&msg_mutex, NULL);
 }
 

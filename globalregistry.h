@@ -22,6 +22,8 @@
 #include "config.h"
 
 #include <unistd.h>
+#include <memory>
+
 #include "util.h"
 #include "macaddr.h"
 // #include "packet.h"
@@ -150,8 +152,14 @@ struct critical_fail {
 	string fail_msg;
 };
 
+// Stub class for global data
+class SharedGlobalData : public std::enable_shared_from_this<SharedGlobalData> {
+public:
+    virtual ~SharedGlobalData() { }
+};
+
 // Stub class for lifetime globals to inherit from to get auto-destroyed on exit
-class LifetimeGlobal {
+class LifetimeGlobal : public SharedGlobalData {
 public:
     virtual ~LifetimeGlobal() { }
 };
@@ -302,11 +310,11 @@ public:
     int RegisterGlobal(string in_name);
     int FetchGlobalRef(string in_name);
 
-    void *FetchGlobal(int in_ref);
-	void *FetchGlobal(string in_name);
+    shared_ptr<void> FetchGlobal(int in_ref);
+	shared_ptr<void> FetchGlobal(string in_name);
 
-    int InsertGlobal(int in_ref, void *in_data);
-	int InsertGlobal(string in_name, void *in_data);
+    int InsertGlobal(int in_ref, shared_ptr<void> in_data);
+	int InsertGlobal(string in_name, shared_ptr<void> in_data);
     void RemoveGlobal(int in_ref);
     void RemoveGlobal(string in_name);
 
@@ -333,18 +341,18 @@ public:
 	void AddNamedFd(string name, int fd);
 	int GetNamedFd(string name);
 
-    void RegisterLifetimeGlobal(LifetimeGlobal *in_g);
-    void RemoveLifetimeGlobal(LifetimeGlobal *in_g);
+    void RegisterLifetimeGlobal(shared_ptr<LifetimeGlobal> in_g);
+    void RemoveLifetimeGlobal(shared_ptr<LifetimeGlobal> in_g);
     void DeleteLifetimeGlobals();
 
 protected:
     // Exernal global references, string to intid
     map<string, int> ext_name_map;
     // External globals
-    map<int, void *> ext_data_map;
+    map<int, shared_ptr<void> > ext_data_map;
     int next_ext_ref;
 
-    vector<LifetimeGlobal *> lifetime_vec;
+    vector<shared_ptr<LifetimeGlobal> > lifetime_vec;
 };
 
 #endif

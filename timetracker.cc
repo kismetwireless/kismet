@@ -22,10 +22,6 @@
 
 #include "timetracker.h"
 
-Timetracker::Timetracker() {
-    fprintf(stderr, "Timetracker::Timetracker() called with no globalreg\n");
-}
-
 Timetracker::Timetracker(GlobalRegistry *in_globalreg) {
     globalreg = in_globalreg;
 
@@ -40,9 +36,6 @@ Timetracker::Timetracker(GlobalRegistry *in_globalreg) {
 
 	globalreg->start_time = time(0);
 	gettimeofday(&(globalreg->timestamp), NULL);
-
-    globalreg->timetracker = this;
-    globalreg->InsertGlobal("TIMETRACKER", this);
 }
 
 Timetracker::~Timetracker() {

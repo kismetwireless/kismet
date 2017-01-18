@@ -82,7 +82,7 @@ Kis_DLT_Prism2::Kis_DLT_Prism2(GlobalRegistry *in_globalreg) :
 	dlt_name = "Prism2";
 	dlt = DLT_PRISM_HEADER;
 
-	globalreg->InsertGlobal("DLT_PRISM2", this);
+	globalreg->InsertGlobal("DLT_PRISM2", shared_ptr<Kis_DLT_Prism2>(this));
 
 	_MSG("Registering support for DLT_Prism2 packet header decoding", MSGFLAG_INFO);
 }

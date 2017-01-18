@@ -78,8 +78,17 @@ public:
         }
     };
 
-    Timetracker();
+    static shared_ptr<Timetracker> create_timetracker(GlobalRegistry *in_globalreg) {
+        shared_ptr<Timetracker> mon(new Timetracker(in_globalreg));
+        in_globalreg->timetracker = mon.get();
+        in_globalreg->RegisterLifetimeGlobal(mon);
+        in_globalreg->InsertGlobal("TIMETRACKER", mon);
+        return mon;
+    }
+private:
     Timetracker(GlobalRegistry *in_globalreg);
+
+public:
     virtual ~Timetracker();
 
     // Tick and handle timers

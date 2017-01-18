@@ -48,15 +48,15 @@ public:
     }
 
     kis_tracked_oldsource(GlobalRegistry *in_globalreg, int in_id,
-            TrackerElement *e) :
+            SharedTrackerElement e) :
         tracker_component(in_globalreg, in_id) {
 
         register_fields();
         reserve_fields(e);
     }
 
-    virtual TrackerElement *clone_type() {
-        return new kis_tracked_oldsource(globalreg, get_id());
+    virtual SharedTrackerElement clone_type() {
+        return SharedTrackerElement(new kis_tracked_oldsource(globalreg, get_id()));
     }
 
     void set_from_source(Packetsourcetracker *pst, pst_packetsource *src) {
@@ -94,46 +94,46 @@ protected:
         tracker_component::register_fields();
 
         src_name_id = RegisterField("kismet.oldsource.name", TrackerString,
-                "source name", (void **) &src_name);
+                "source name", &src_name);
         interface_id = RegisterField("kismet.oldsource.interface", TrackerString,
-                "interface", (void **) &interface);
+                "interface", &interface);
         src_type_id = RegisterField("kismet.oldsource.type", TrackerString,
-                "type", (void **) &src_type);
+                "type", &src_type);
         src_uuid_id = RegisterField("kismet.oldsource.uuid", TrackerUuid,
-                "uuid", (void **) &src_uuid);
+                "uuid", &src_uuid);
         error_id = RegisterField("kismet.oldsource.error", TrackerUInt8,
-                "in error state (bool)", (void **) &error);
+                "in error state (bool)", &error);
         hopping_id = RegisterField("kismet.oldsource.hopping", TrackerUInt8,
-                "source is hopping (bool)", (void **) &hopping);
+                "source is hopping (bool)", &hopping);
         channel_id = RegisterField("kismet.oldsource.channel", TrackerString,
-                "channel", (void **) &channel);
+                "channel", &channel);
         sourceline_id = RegisterField("kismet.oldsource.sourceline", TrackerString,
-                "source definition", (void **) &sourceline);
+                "source definition", &sourceline);
     }
 
     int src_name_id;
-    TrackerElement *src_name;
+    SharedTrackerElement src_name;
 
     int interface_id;
-    TrackerElement *interface;
+    SharedTrackerElement interface;
 
     int src_type_id;
-    TrackerElement *src_type;
+    SharedTrackerElement src_type;
 
     int src_uuid_id;
-    TrackerElement *src_uuid;
+    SharedTrackerElement src_uuid;
 
     int error_id;
-    TrackerElement *error;
+    SharedTrackerElement error;
 
     int hopping_id;
-    TrackerElement *hopping;
+    SharedTrackerElement hopping;
 
     int channel_id;
-    TrackerElement *channel;
+    SharedTrackerElement channel;
 
     int sourceline_id;
-    TrackerElement *sourceline;
+    SharedTrackerElement sourceline;
 
 };
 
@@ -340,8 +340,6 @@ Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) :
 		exit(1);
 	}
 
-	globalreg->InsertGlobal("PACKETSOURCE_TRACKER", this);
-
 	// Register our packet components 
 	// back-refer to the capsource so we can get names and parameters
 	_PCM(PACK_COMP_KISCAPSRC) =
@@ -396,17 +394,18 @@ Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) :
         httpd->RegisterHandler(this);
         */
 
-    entrytracker = (EntryTracker *) globalreg->FetchGlobal("ENTRY_TRACKER");
+    entrytracker = 
+        static_pointer_cast<EntryTracker>(globalreg->FetchGlobal("ENTRY_TRACKER"));
+
     if (entrytracker != NULL) {
         tracked_oldsource_vec_id =
             entrytracker->RegisterField("kis.oldsource.sources", TrackerVector,
                     "List of available sources (old packetsources)");
-        kis_tracked_oldsource *old_builder =
-            new kis_tracked_oldsource(globalreg, 0);
+        shared_ptr<kis_tracked_oldsource> old_builder(new kis_tracked_oldsource(globalreg, 0));
+
         tracked_oldsource_entry_id =
             entrytracker->RegisterField("kis.oldsource.source", old_builder,
                     "Old packetsource");
-        delete(old_builder);
     }
 }
 
@@ -2697,15 +2696,12 @@ void Packetsourcetracker::httpd_pack_all_sources(std::stringstream &stream) {
     if (entrytracker == NULL)
         return;
 
-    TrackerElement *sourcevec =
-        entrytracker->GetTrackedInstance(tracked_oldsource_vec_id);
-    TrackerElementScopeLinker slink(sourcevec);
+    SharedTrackerElement sourcevec(entrytracker->GetTrackedInstance(tracked_oldsource_vec_id));
 
     {
         local_locker lock(&pst_lock);
         for (unsigned int i = 0; i < packetsource_vec.size(); i++) {
-            kis_tracked_oldsource *old = 
-                new kis_tracked_oldsource(globalreg, tracked_oldsource_entry_id);
+            shared_ptr<kis_tracked_oldsource> old(new kis_tracked_oldsource(globalreg, tracked_oldsource_entry_id));
             old->set_from_source(this, packetsource_vec[i]);
             sourcevec->add_vector(old);
         }

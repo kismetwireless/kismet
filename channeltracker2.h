@@ -33,7 +33,7 @@
 
 // Can appear in the list as either a numerical frequency or a named
 // channel
-class Channeltracker_V2_Channel : public tracker_component {
+class Channeltracker_V2_Channel : public tracker_component, public SharedGlobalData {
 public:
     Channeltracker_V2_Channel(GlobalRegistry *in_globalreg, int in_id) :
         tracker_component(in_globalreg, in_id) { 
@@ -44,7 +44,7 @@ public:
     }
 
     Channeltracker_V2_Channel(GlobalRegistry *in_globalreg, 
-            int in_id, TrackerElement *e) : 
+            int in_id, SharedTrackerElement e) : 
         tracker_component(in_globalreg, in_id) {
 
         register_fields();
@@ -53,8 +53,8 @@ public:
         // last_device_sec = 0;
     }
 
-    virtual TrackerElement *clone_type() {
-        return new Channeltracker_V2_Channel(globalreg, get_id());
+    virtual SharedTrackerElement clone_type() {
+        return SharedTrackerElement(new Channeltracker_V2_Channel(globalreg, get_id()));
     }
 
     __Proxy(channel, string, string, string, channel);
@@ -84,67 +84,57 @@ protected:
 
         channel_id =
             RegisterField("kismet.channelrec.channel", TrackerString,
-                    "logical channel", (void **) &channel);
+                    "logical channel", &channel);
 
         frequency_id =
             RegisterField("kismet.channelrec.frequency", TrackerDouble,
-                    "physical frequency", (void **) &frequency);
+                    "physical frequency", &frequency);
 
-        kis_tracked_rrd<> *packets_rrd_builder = new kis_tracked_rrd<>(globalreg, 0);
+        shared_ptr<kis_tracked_rrd<> > packets_rrd_builder(new kis_tracked_rrd<>(globalreg, 0));
         packets_rrd_id =
             RegisterComplexField("kismet.channelrec.packets_rrd",
                     packets_rrd_builder, "number of packets RRD");
-        delete(packets_rrd_builder);
 
-        kis_tracked_rrd<> *data_rrd_builder = new kis_tracked_rrd<>(globalreg, 0);
+        shared_ptr<kis_tracked_rrd<> > data_rrd_builder(new kis_tracked_rrd<>(globalreg, 0));
         data_rrd_id =
             RegisterComplexField("kismet.channelrec.data_rrd",
                     data_rrd_builder, "bytes of data RRD");
-        delete(data_rrd_builder);
 
-        kis_tracked_rrd<> *device_rrd_builder = new kis_tracked_rrd<>(globalreg, 0);
+        shared_ptr<kis_tracked_rrd<> > device_rrd_builder(new kis_tracked_rrd<>(globalreg, 0));
         device_rrd_id =
             RegisterComplexField("kismet.channelrec.device_rrd",
                     device_rrd_builder, "number of active devices RRD");
-        delete(device_rrd_builder);
 
-        kis_tracked_signal_data *sig_builder =
-            new kis_tracked_signal_data(globalreg, 0);
+        shared_ptr<kis_tracked_signal_data> sig_builder(new kis_tracked_signal_data(globalreg, 0));
         signal_data_id =
             RegisterComplexField("kismet.channelrec.signal", sig_builder,
                 "overall signal records");
-        delete(sig_builder);
     }
 
-    virtual void reserve_fields(TrackerElement *e) {
+    virtual void reserve_fields(SharedTrackerElement e) {
         tracker_component::reserve_fields(e);
 
         if (e != NULL) {
-            packets_rrd = 
-                new kis_tracked_rrd<>(globalreg, 
-                        packets_rrd_id, e->get_map_value(packets_rrd_id));
-            data_rrd = 
-                new kis_tracked_rrd<>(globalreg, 
-                        data_rrd_id, e->get_map_value(data_rrd_id));
-            device_rrd = 
-                new kis_tracked_rrd<>(globalreg, 
-                        device_rrd_id, e->get_map_value(device_rrd_id));
+            packets_rrd.reset(new kis_tracked_rrd<>(globalreg, 
+                        packets_rrd_id, e->get_map_value(packets_rrd_id)));
+            data_rrd.reset(new kis_tracked_rrd<>(globalreg, 
+                        data_rrd_id, e->get_map_value(data_rrd_id)));
+            device_rrd.reset(new kis_tracked_rrd<>(globalreg, 
+                        device_rrd_id, e->get_map_value(device_rrd_id)));
 
-            signal_data =
-                new kis_tracked_signal_data(globalreg, signal_data_id,
-                        e->get_map_value(signal_data_id));
+            signal_data.reset(new kis_tracked_signal_data(globalreg, signal_data_id,
+                        e->get_map_value(signal_data_id)));
         } else {
-            packets_rrd = new kis_tracked_rrd<>(globalreg, packets_rrd_id);
+            packets_rrd.reset(new kis_tracked_rrd<>(globalreg, packets_rrd_id));
             add_map(packets_rrd);
 
-            data_rrd = new kis_tracked_rrd<>(globalreg, data_rrd_id);
+            data_rrd.reset(new kis_tracked_rrd<>(globalreg, data_rrd_id));
             add_map(data_rrd);
 
-            device_rrd = new kis_tracked_rrd<>(globalreg, device_rrd_id);
+            device_rrd.reset(new kis_tracked_rrd<>(globalreg, device_rrd_id));
             add_map(device_rrd);
 
-            signal_data =
-                new kis_tracked_signal_data(globalreg, signal_data_id);
+            signal_data.reset(new kis_tracked_signal_data(globalreg, signal_data_id));
             add_map(signal_data);
         }
 
@@ -155,35 +145,45 @@ protected:
 
     // Channel, as string - Logical channels
     int channel_id;
-    TrackerElement *channel;
+    SharedTrackerElement channel;
 
     // Frequency, for collating
     int frequency_id;
-    TrackerElement *frequency;
+    SharedTrackerElement frequency;
 
     // Packets per second RRD
     int packets_rrd_id;
-    kis_tracked_rrd<> *packets_rrd;
+    shared_ptr<kis_tracked_rrd<> > packets_rrd;
 
     // Data in bytes per second RRD
     int data_rrd_id;
-    kis_tracked_rrd<> *data_rrd;
+    shared_ptr<kis_tracked_rrd<> > data_rrd;
 
     // Devices active per second RRD
     int device_rrd_id;
-    kis_tracked_rrd<> *device_rrd;
+    shared_ptr<kis_tracked_rrd<> > device_rrd;
 
     // Overall signal data.  This could in theory be populated by spectrum
     // analyzers in the future as well.
     int signal_data_id;
-    kis_tracked_signal_data *signal_data;
+    shared_ptr<kis_tracked_signal_data> signal_data;
 
 };
 
 class Channeltracker_V2 : public tracker_component, public Kis_Net_Httpd_Stream_Handler,
     public LifetimeGlobal, public TimetrackerEvent {
 public:
+    static shared_ptr<Channeltracker_V2> create_channeltracker(GlobalRegistry *in_globalreg) {
+        shared_ptr<Channeltracker_V2> mon(new Channeltracker_V2(in_globalreg));
+        in_globalreg->RegisterLifetimeGlobal(mon);
+        in_globalreg->InsertGlobal("CHANNEL_TRACKER", mon);
+        return mon;
+    }
+
+private:
     Channeltracker_V2(GlobalRegistry *in_globalreg);
+
+public:
     virtual ~Channeltracker_V2();
 
     // HTTP API
@@ -214,11 +214,11 @@ protected:
     // Seen channels as string-named channels, so logical channel allocation
     // per phy
     int channel_map_id;
-    TrackerElement *channel_map;
+    SharedTrackerElement channel_map;
 
     // Collapsed frequency information, multi-phy, spec-an, etc
     int freq_map_id;
-    TrackerElement *frequency_map;
+    SharedTrackerElement frequency_map;
 
     // Channel/freq content
     int channel_entry_id;

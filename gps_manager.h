@@ -79,7 +79,17 @@ public:
  * is going to be used */
 class GpsManager : public Kis_Net_Httpd_Stream_Handler, public LifetimeGlobal {
 public:
+    static shared_ptr<GpsManager> create_gpsmanager(GlobalRegistry *in_globalreg) {
+        shared_ptr<GpsManager> mon(new GpsManager(in_globalreg));
+        in_globalreg->RegisterLifetimeGlobal(mon);
+        in_globalreg->InsertGlobal("GPS_MANAGER", mon);
+        return mon;
+    }
+
+private:
     GpsManager(GlobalRegistry *in_globalreg);
+
+public:
     virtual ~GpsManager();
 
     virtual bool Httpd_VerifyPath(const char *path, const char *method);
@@ -107,7 +117,6 @@ public:
 
 protected:
     GlobalRegistry *globalreg;
-    Kis_Net_Httpd *httpd;
 
     pthread_mutex_t manager_locker;
 

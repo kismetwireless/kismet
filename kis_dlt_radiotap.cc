@@ -70,7 +70,7 @@ Kis_DLT_Radiotap::Kis_DLT_Radiotap(GlobalRegistry *in_globalreg) :
 	dlt_name = "Radiotap";
 	dlt = DLT_IEEE802_11_RADIO;
 
-	globalreg->InsertGlobal("DLT_RADIOTAP", this);
+	globalreg->InsertGlobal("DLT_RADIOTAP", shared_ptr<Kis_DLT_Radiotap>(this));
 
 	_MSG("Registering support for DLT_RADIOTAP packet header decoding", MSGFLAG_INFO);
 }

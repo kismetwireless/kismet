@@ -189,7 +189,18 @@ typedef void (*SourceActCallback)(SOURCEACT_PARMS);
 class Packetsourcetracker : public Pollable, public Kis_Net_Httpd_Stream_Handler, 
     public LifetimeGlobal {
 public:
+    static shared_ptr<Packetsourcetracker> create_pst(GlobalRegistry *in_globalreg) {
+        shared_ptr<Packetsourcetracker> mon(new Packetsourcetracker(in_globalreg));
+        in_globalreg->sourcetracker = mon.get();
+        in_globalreg->RegisterLifetimeGlobal(mon);
+        in_globalreg->InsertGlobal("PACKETSOURCE_TRACKER", mon);
+        return mon;
+    }
+
+private:
 	Packetsourcetracker(GlobalRegistry *in_globalreg);
+
+public:
 	virtual ~Packetsourcetracker();
 
 	// Bind an IPC helper (as parent or child)
@@ -372,11 +383,8 @@ protected:
 	// Preferred channels
 	vector<unsigned int> preferred_channels;
 
-    // Webserver reference
-    Kis_Net_Httpd *httpd;
-
     // Entrytracker reference
-    EntryTracker *entrytracker;
+    shared_ptr<EntryTracker> entrytracker;
 
     // Tracked vector and elements
     int tracked_oldsource_vec_id;

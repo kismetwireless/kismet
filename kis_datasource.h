@@ -80,26 +80,26 @@ public:
 
     // Build a new instance of the class, used for opening and probing in IPC
     // mode (local sources driven by kismet server)
-    virtual KisDataSource *build_ipc_data_source() { 
+    virtual shared_ptr<KisDataSource> build_ipc_data_source() { 
         return NULL; 
     }
 
     // Build a new instance of the class bound to an existing ringbuffer
     // handler (used when spawned via the network server)
-    virtual KisDataSource 
-        *build_net_data_source(RingbufferHandler *in_handler __attribute__((unused))) {
+    virtual shared_ptr<KisDataSource> 
+        build_net_data_source(RingbufferHandler *in_handler __attribute__((unused))) {
             return NULL;
     }
 
     // Error handler callback, called when something goes wrong in the source
     // and it has to close.  
-    typedef void (*error_handler)(KisDataSource *, void *);
-    virtual void set_error_handler(error_handler in_cb, void *in_aux);
+    typedef void (*error_handler)(shared_ptr<KisDataSource>, shared_ptr<void>);
+    virtual void set_error_handler(error_handler in_cb, shared_ptr<void> in_aux);
     virtual void cancel_error_handler();
 
     // Scan for supported devices, since this is async, provide a callback.
     // Returns false if unable to launch scan, or true of scan is underway.
-    typedef void (*scan_handler)(KisDataSource *, void *, bool);
+    typedef void (*scan_handler)(shared_ptr<KisDataSource>, shared_ptr<void>, bool);
 
     // Can we handle this type?  Types are constant strings so can be compared without
     // having to launch a helper binary
@@ -108,8 +108,9 @@ public:
     // Can we handle this source?  May require launching the external binary
     // to probe.  Since this is an async operation, provide a callback.
     // Returns false if unable to launch probe, or true if probe is underway.
-    typedef void (*probe_handler)(KisDataSource *, void *, bool);
-    virtual bool probe_source(string in_source, probe_handler in_cb, void *in_aux);
+    typedef void (*probe_handler)(shared_ptr<KisDataSource>, shared_ptr<void>, bool);
+    virtual bool probe_source(string in_source, probe_handler in_cb, 
+            shared_ptr<void> in_aux);
 
     // Cancel the callbacks
     virtual void cancel_probe_source();
@@ -117,8 +118,9 @@ public:
     // Launch IPC and open source.  This is an async operation, the callback
     // will be notified when complete.
     // Returns false if unable to initiate opening, or true if opening is underway
-    typedef void (*open_handler)(KisDataSource *, void *, bool);
-    virtual bool open_source(string in_source, open_handler in_cb, void *in_aux);
+    typedef void (*open_handler)(shared_ptr<KisDataSource>, shared_ptr<void>, bool);
+    virtual bool open_source(string in_source, open_handler in_cb, 
+            shared_ptr<void> in_aux);
     // Cancel the callbacks
     virtual void cancel_open_source();
 
@@ -174,90 +176,91 @@ public:
 
 protected:
     GlobalRegistry *globalreg;
-    Packetchain *packetchain;
+
+    shared_ptr<Packetchain> packetchain;
 
     int pack_comp_linkframe, pack_comp_l1info, pack_comp_gps;
 
     pthread_mutex_t source_lock;
 
     error_handler error_callback;
-    void *error_aux;
+    shared_ptr<void> error_aux;
 
     probe_handler probe_callback;
-    void *probe_aux;
+    shared_ptr<void> probe_aux;
 
     open_handler open_callback;
-    void *open_aux;
+    shared_ptr<void> open_aux;
 
     virtual void register_fields();
 
     // Human name
     int source_name_id;
-    TrackerElement *source_name;
+    SharedTrackerElement source_name;
 
     // Type
     int source_type_id;
-    TrackerElement *source_type;
+    SharedTrackerElement source_type;
 
     // Definition used to create interface
     int source_definition_id;
-    TrackerElement *source_definition;
+    SharedTrackerElement source_definition;
 
     // Source interface as string
     int source_interface_id;
-    TrackerElement *source_interface;
+    SharedTrackerElement source_interface;
 
     // UUID of source (expensive to resolve but good for logs)
     int source_uuid_id;
-    TrackerElement *source_uuid;
+    SharedTrackerElement source_uuid;
 
     // Runtime source id
     int source_id_id;
-    TrackerElement *source_id;
+    SharedTrackerElement source_id;
 
     // Can this source change channel/frequency?
     int source_channel_capable_id;
-    TrackerElement *source_channel_capable;
+    SharedTrackerElement source_channel_capable;
 
     // Description of the source
     int source_description_id;
-    TrackerElement *source_description;
+    SharedTrackerElement source_description;
 
     // PID
     int child_pid_id;
-    TrackerElement *child_pid;
+    SharedTrackerElement child_pid;
 
     // Channels
     int source_channels_vec_id;
-    TrackerElement *source_channels_vec;
+    SharedTrackerElement source_channels_vec;
     int source_channel_entry_id;
 
     // IPC errors
     int ipc_errors_id;
-    TrackerElement *ipc_errors;
+    SharedTrackerElement ipc_errors;
 
     // Currently running to the best of our knowledge
     int source_running_id;
-    TrackerElement *source_running;
+    SharedTrackerElement source_running;
 
     // Hopping and hop rate
     int source_hopping_id;
-    TrackerElement *source_hopping;
+    SharedTrackerElement source_hopping;
 
     int source_hop_rate_id;
-    TrackerElement *source_hop_rate;
+    SharedTrackerElement source_hop_rate;
 
     int source_hop_vec_id;
-    TrackerElement *source_hop_vec;
+    SharedTrackerElement source_hop_vec;
 
     int source_ipc_bin_id;
-    TrackerElement *source_ipc_bin;
+    SharedTrackerElement source_ipc_bin;
 
     int last_report_time_id;
-    TrackerElement *last_report_time;
+    SharedTrackerElement last_report_time;
 
     int num_reports_id;
-    TrackerElement *num_reports;
+    SharedTrackerElement num_reports;
 
     IPCRemoteV2 *source_ipc;
     RingbufferHandler *ipchandler;

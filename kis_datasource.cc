@@ -30,7 +30,9 @@
 KisDataSource::KisDataSource(GlobalRegistry *in_globalreg) :
     tracker_component(in_globalreg, 0) {
     globalreg = in_globalreg;
-    packetchain = (Packetchain *) globalreg->FetchGlobal("PACKETCHAIN");
+
+    packetchain = 
+        static_pointer_cast<Packetchain>(globalreg->FetchGlobal("PACKETCHAIN"));
 
 	pack_comp_linkframe = packetchain->RegisterPacketComponent("LINKFRAME");
     pack_comp_l1info = packetchain->RegisterPacketComponent("RADIODATA");
@@ -83,67 +85,67 @@ void KisDataSource::close_source() {
 void KisDataSource::register_fields() {
     source_name_id =
         RegisterField("kismet.datasource.source_name", TrackerString,
-                "Human name of data source", (void **) &source_name);
+                "Human name of data source", &source_name);
     source_type_id =
         RegisterField("kismet.datasource.source_type", TrackerString,
-                "Type of data source", (void **) &source_type);
+                "Type of data source", &source_type);
     source_interface_id =
         RegisterField("kismet.datasource.source_interface", TrackerString,
-                "Primary capture interface", (void **) &source_interface);
+                "Primary capture interface", &source_interface);
     source_uuid_id =
         RegisterField("kismet.datasource.source_uuid", TrackerUuid,
-                "UUID", (void **) &source_uuid);
+                "UUID", &source_uuid);
     source_id_id =
         RegisterField("kismet.datasource.source_id", TrackerInt32,
-                "Run-time ID", (void **) &source_id);
+                "Run-time ID", &source_id);
     source_channel_capable_id =
         RegisterField("kismet.datasource.source_channel_capable", TrackerUInt8,
                 "(bool) source capable of channel change", 
-                (void **) &source_channel_capable);
+                &source_channel_capable);
     child_pid_id =
         RegisterField("kismet.datasource.child_pid", TrackerInt64,
-                "PID of data capture process", (void **) &child_pid);
+                "PID of data capture process", &child_pid);
     source_definition_id =
         RegisterField("kismet.datasource.definition", TrackerString,
-                "original source definition", (void **) &source_definition);
+                "original source definition", &source_definition);
     source_description_id =
         RegisterField("kismet.datasource.description", TrackerString,
-                "human-readable description", (void **) &source_description);
+                "human-readable description", &source_description);
 
     source_channel_entry_id =
         globalreg->entrytracker->RegisterField("kismet.device.base.channel", 
                 TrackerString, "channel (phy specific)");
     source_channels_vec_id =
         RegisterField("kismet.datasource.channels", TrackerVector,
-                "valid channels for this device", (void **) &source_channels_vec);
+                "valid channels for this device", &source_channels_vec);
 
     ipc_errors_id =
         RegisterField("kismet.datasource.ipc_errors", TrackerUInt64,
-                "number of errors in IPC protocol", (void **) &ipc_errors);
+                "number of errors in IPC protocol", &ipc_errors);
     source_running_id =
         RegisterField("kismet.datasource.running", TrackerUInt8,
-                "source is currently operational", (void **) &source_running);
+                "source is currently operational", &source_running);
     source_hopping_id = 
         RegisterField("kismet.datasource.hopping", TrackerUInt8,
-                "source is channel hopping (bool)", (void **) &source_hopping);
+                "source is channel hopping (bool)", &source_hopping);
     source_hop_rate_id =
         RegisterField("kismet.datasource.hop_rate", TrackerDouble,
-                "channel hopping rate", (void **) &source_hop_rate);
+                "channel hopping rate", &source_hop_rate);
     source_hop_vec_id =
         RegisterField("kismet.datasource.hop_channels", TrackerVector,
-                "hopping channels", (void **) &source_hop_vec);
+                "hopping channels", &source_hop_vec);
     source_ipc_bin_id =
         RegisterField("kismet.datasource.ipc_bin", TrackerString,
-                "driver binary", (void **) &source_ipc_bin);
+                "driver binary", &source_ipc_bin);
 
     last_report_time_id =
         RegisterField("kismet.datasource.last_report_time", TrackerUInt64,
                 "last packet/device report time", 
-                (void **) &last_report_time);
+                &last_report_time);
 
     num_reports_id =
         RegisterField("kismet.datasource.num_reports", TrackerUInt64,
-                "number of packtes/device reports", (void **) &num_reports);
+                "number of packtes/device reports", &num_reports);
 }
 
 void KisDataSource::BufferAvailable(size_t in_amt) {
@@ -234,15 +236,15 @@ void KisDataSource::BufferError(string in_error) {
 
         // Trip all the callbacks
         if (probe_callback != NULL) {
-            (*probe_callback)(this, probe_aux, false);
+            (*probe_callback)(shared_ptr<KisDataSource>(this), probe_aux, false);
         }
 
         if (open_callback != NULL) {
-            (*probe_callback)(this, probe_aux, false);
+            (*probe_callback)(shared_ptr<KisDataSource>(this), probe_aux, false);
         }
 
         if (error_callback != NULL) {
-            (*error_callback)(this, error_aux);
+            (*error_callback)(shared_ptr<KisDataSource>(this), error_aux);
         }
 
         // Kill the IPC
@@ -362,7 +364,7 @@ bool KisDataSource::write_ipc_packet(string in_type, KVmap *in_kvpairs) {
     return true;
 }
 
-void KisDataSource::set_error_handler(error_handler in_cb, void *in_aux) {
+void KisDataSource::set_error_handler(error_handler in_cb, shared_ptr<void> in_aux) {
     local_locker lock(&source_lock);
 
     error_callback = in_cb;
@@ -377,21 +379,21 @@ void KisDataSource::cancel_error_handler() {
 }
 
 bool KisDataSource::probe_source(string in_source, probe_handler in_cb,
-        void *in_aux) {
+        shared_ptr<void> in_aux) {
     local_locker lock(&source_lock);
 
     // Fail out an existing callback
     if (probe_callback != NULL) {
-        (*probe_callback)(this, probe_aux, false);
+        (*probe_callback)(shared_ptr<KisDataSource>(this), probe_aux, false);
     }
 
     if (!spawn_ipc()) {
         if (in_cb != NULL) {
-            (*in_cb)(this, in_aux, false);
+            (*in_cb)(shared_ptr<KisDataSource>(this), in_aux, false);
         }
 
         if (error_callback != NULL) {
-            (*error_callback)(this, error_aux);
+            (*error_callback)(shared_ptr<KisDataSource>(this), error_aux);
         }
 
         return false;
@@ -401,12 +403,12 @@ bool KisDataSource::probe_source(string in_source, probe_handler in_cb,
 }
 
 bool KisDataSource::open_source(string in_definition, open_handler in_cb, 
-        void *in_aux) {
+        shared_ptr<void> in_aux) {
     local_locker lock(&source_lock);
 
     // Fail out any existing callback
     if (open_callback != NULL) {
-        (*open_callback)(this, in_aux, false);
+        (*open_callback)(shared_ptr<KisDataSource>(this), in_aux, false);
     }
 
     // Set the callback to get run when we get the openresp
@@ -418,11 +420,11 @@ bool KisDataSource::open_source(string in_definition, open_handler in_cb,
     // Launch the IPC, fail immediately if we can't
     if (!spawn_ipc()) {
         if (in_cb != NULL) {
-            (*in_cb)(this, in_aux, false);
+            (*in_cb)(shared_ptr<KisDataSource>(this), in_aux, false);
         }
 
         if (error_callback != NULL) {
-            (*error_callback)(this, error_aux);
+            (*error_callback)(shared_ptr<KisDataSource>(this), error_aux);
         }
 
         return false;
@@ -565,7 +567,8 @@ void KisDataSource::handle_packet_probe_resp(KVmap in_kvpairs) {
         local_locker lock(&source_lock);
 
         if (probe_callback != NULL) {
-            (*probe_callback)(this, probe_aux, handle_kv_success(i->second));
+            (*probe_callback)(shared_ptr<KisDataSource>(this), probe_aux, 
+                    handle_kv_success(i->second));
         }
     } else {
         // ProbeResp with no success value?  ehh.
@@ -597,7 +600,8 @@ void KisDataSource::handle_packet_open_resp(KVmap in_kvpairs) {
         local_locker lock(&source_lock);
 
         if (open_callback != NULL) {
-            (*open_callback)(this, open_aux, handle_kv_success(i->second));
+            (*open_callback)(shared_ptr<KisDataSource>(this), 
+                    open_aux, handle_kv_success(i->second));
         }
     } else {
         // OpenResp with no success value?  ehh.
@@ -627,7 +631,7 @@ void KisDataSource::handle_packet_error(KVmap in_kvpairs) {
         set_child_pid(0);
 
         if (error_callback != NULL)
-            (*error_callback)(this, error_aux);
+            (*error_callback)(shared_ptr<KisDataSource>(this), error_aux);
     }
 }
 
@@ -767,7 +771,7 @@ bool KisDataSource::handle_kv_channels(KisDataSource_CapKeyedObject *in_obj) {
 
             source_channels_vec->clear_vector();
             for (unsigned int x = 0; x < channel_vec.size(); x++) {
-                TrackerElement *chanstr =
+                SharedTrackerElement chanstr =
                     globalreg->entrytracker->GetTrackedInstance(source_channel_entry_id);
                 chanstr->set(channel_vec[x]);
                 source_channels_vec->add_vector(chanstr);
@@ -1015,7 +1019,7 @@ bool KisDataSource::spawn_ipc() {
 
         // Call the handler if we have one
         if (error_callback != NULL)
-            (*error_callback)(this, error_aux);
+            (*error_callback)(shared_ptr<KisDataSource>(this), error_aux);
 
         return false;
     }
@@ -1060,7 +1064,7 @@ bool KisDataSource::spawn_ipc() {
 
         // Call the handler if we have one
         if (error_callback != NULL)
-            (*error_callback)(this, error_aux);
+            (*error_callback)(shared_ptr<KisDataSource>(this), error_aux);
 
         return false;
     }

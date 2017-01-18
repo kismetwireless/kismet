@@ -237,13 +237,13 @@ public:
     }
 
     dot11_11d_tracked_range_info(GlobalRegistry *in_globalreg, int in_id, 
-            TrackerElement *e) : tracker_component(in_globalreg, in_id) {
+            SharedTrackerElement e) : tracker_component(in_globalreg, in_id) {
         register_fields();
         reserve_fields(e);
     }
 
-    virtual TrackerElement *clone_type() {
-        return new dot11_11d_tracked_range_info(globalreg, get_id());
+    virtual SharedTrackerElement clone_type() {
+        return SharedTrackerElement(new dot11_11d_tracked_range_info(globalreg, get_id()));
     }
 
 
@@ -255,24 +255,24 @@ protected:
     virtual void register_fields() {
         startchan_id =
             RegisterField("dot11.11d.start_channel", TrackerUInt32,
-                    "Starting channel of 11d range", (void **) &startchan);
+                    "Starting channel of 11d range", &startchan);
         numchan_id =
             RegisterField("dot11.11d.num_channels", TrackerUInt32,
-                    "Number of channels covered by range", (void **) &numchan);
+                    "Number of channels covered by range", &numchan);
         txpower_id =
             RegisterField("dot11.11d.tx_power", TrackerInt32,
-                    "Maximum allowed transmit power", (void **) &txpower);
+                    "Maximum allowed transmit power", &txpower);
     }
 
 
     int startchan_id;
-    TrackerElement *startchan;
+    SharedTrackerElement startchan;
 
     int numchan_id;
-    TrackerElement *numchan;
+    SharedTrackerElement numchan;
 
     int txpower_id;
-    TrackerElement *txpower;
+    SharedTrackerElement txpower;
 };
 
 class dot11_probed_ssid : public tracker_component {
@@ -283,15 +283,15 @@ public:
         reserve_fields(NULL);
     } 
 
-    dot11_probed_ssid(GlobalRegistry *in_globalreg, int in_id, TrackerElement *e) : 
+    dot11_probed_ssid(GlobalRegistry *in_globalreg, int in_id, SharedTrackerElement e) : 
         tracker_component(in_globalreg, in_id) {
 
         register_fields();
         reserve_fields(e);
     }
 
-    virtual TrackerElement *clone_type() {
-        return new dot11_probed_ssid(globalreg, get_id());
+    virtual SharedTrackerElement clone_type() {
+        return SharedTrackerElement(new dot11_probed_ssid(globalreg, get_id()));
     }
 
     __Proxy(ssid, string, string, string, ssid);
@@ -306,56 +306,55 @@ protected:
     virtual void register_fields() {
         ssid_id =
             RegisterField("dot11.probedssid.ssid", TrackerString,
-                    "probed ssid string (sanitized)", (void **) &ssid);
+                    "probed ssid string (sanitized)", &ssid);
         ssid_len_id =
             RegisterField("dot11.probedssid.ssidlen", TrackerUInt32,
-                    "probed ssid string length (original bytes)", (void **) &ssid_len);
+                    "probed ssid string length (original bytes)", &ssid_len);
         bssid_id =
             RegisterField("dot11.probessid.bssid", TrackerMac,
-                    "probed ssid BSSID", (void **) &bssid);
+                    "probed ssid BSSID", &bssid);
         first_time_id =
             RegisterField("dot11.probessid.first_time", TrackerUInt64,
-                    "first time probed", (void **) &first_time);
+                    "first time probed", &first_time);
         last_time_id = 
             RegisterField("dot11.probessid.last_time", TrackerUInt64,
-                    "last time probed", (void **) &last_time);
+                    "last time probed", &last_time);
 
-        kis_tracked_location *loc_builder = new kis_tracked_location(globalreg, 0);
+        shared_ptr<kis_tracked_location> loc_builder(new kis_tracked_location(globalreg, 0));
         location_id =
             RegisterComplexField("client.location", loc_builder, "location");
-        delete(loc_builder);
     }
 
-    virtual void reserve_fields(TrackerElement *e) {
+    virtual void reserve_fields(SharedTrackerElement e) {
         tracker_component::reserve_fields(e);
 
         if (e != NULL) {
-            location = new kis_tracked_location(globalreg, location_id, 
-                    e->get_map_value(location_id));
+            location.reset(new kis_tracked_location(globalreg, location_id, 
+                    e->get_map_value(location_id)));
             add_map(location);
         } else {
-            location = new kis_tracked_location(globalreg, location_id);
+            location.reset(new kis_tracked_location(globalreg, location_id));
             add_map(location);
         }
     }
 
     int ssid_id;
-    TrackerElement *ssid;
+    SharedTrackerElement ssid;
 
     int ssid_len_id;
-    TrackerElement *ssid_len;
+    SharedTrackerElement ssid_len;
 
     int bssid_id;
-    TrackerElement *bssid;
+    SharedTrackerElement bssid;
 
     int first_time_id;
-    TrackerElement *first_time;
+    SharedTrackerElement first_time;
 
     int last_time_id;
-    TrackerElement *last_time;
+    SharedTrackerElement last_time;
 
     int location_id;
-    kis_tracked_location *location;
+    shared_ptr<kis_tracked_location> location;
 };
 
 /* Advertised SSID
@@ -370,15 +369,16 @@ public:
         reserve_fields(NULL);
     } 
 
-    dot11_advertised_ssid(GlobalRegistry *in_globalreg, int in_id, TrackerElement *e) : 
+    dot11_advertised_ssid(GlobalRegistry *in_globalreg, int in_id, 
+            SharedTrackerElement e) : 
         tracker_component(in_globalreg, in_id) {
 
         register_fields();
         reserve_fields(e);
     }
 
-    virtual TrackerElement *clone_type() {
-        return new dot11_advertised_ssid(globalreg, get_id());
+    virtual SharedTrackerElement clone_type() {
+        return SharedTrackerElement(new dot11_advertised_ssid(globalreg, get_id()));
     }
 
     __Proxy(ssid, string, string, string, ssid);
@@ -412,11 +412,11 @@ public:
         dot11d_vec->clear_vector();
     }
 
-    void add_dot11d_vec(dot11_11d_tracked_range_info *i) {
+    void add_dot11d_vec(shared_ptr<dot11_11d_tracked_range_info> i) {
         dot11d_vec->add_vector(i);
     }
 
-    TrackerElement *get_dot11d_vec() {
+    SharedTrackerElement get_dot11d_vec() {
         return dot11d_vec;
     }
 
@@ -424,8 +424,7 @@ public:
         dot11d_vec->clear_vector();
         
         for (unsigned int x = 0; x < vec.size(); x++) {
-            dot11_11d_tracked_range_info *ri =
-                new dot11_11d_tracked_range_info(globalreg, dot11d_country_entry_id);
+            shared_ptr<dot11_11d_tracked_range_info> ri(new dot11_11d_tracked_range_info(globalreg, dot11d_country_entry_id));
             ri->set_startchan(vec[x].startchan);
             ri->set_numchan(vec[x].numchan);
             ri->set_txpower(vec[x].txpower);
@@ -446,166 +445,164 @@ protected:
     virtual void register_fields() {
         ssid_id =
             RegisterField("dot11.advertisedssid.ssid", TrackerString,
-                    "probed ssid string (sanitized)", (void **) &ssid);
+                    "probed ssid string (sanitized)", &ssid);
         ssid_len_id =
             RegisterField("dot11.advertisedssid.ssidlen", TrackerUInt32,
-                    "probed ssid string length (original bytes)", (void **) &ssid_len);
+                    "probed ssid string length (original bytes)", &ssid_len);
         ssid_beacon_id =
             RegisterField("dot11.advertisedssid.beacon", TrackerUInt8,
-                    "ssid advertised via beacon", (void **) &ssid_beacon);
+                    "ssid advertised via beacon", &ssid_beacon);
         ssid_probe_response_id = 
             RegisterField("dot11.advertisedssid.probe_response", TrackerUInt8,
                     "ssid advertised via probe response", 
-                    (void **) &ssid_probe_response);
+                    &ssid_probe_response);
         channel_id = 
             RegisterField("dot11.advertisedssid.channel", TrackerString,
-                    "channel", (void **) &channel);
+                    "channel", &channel);
         first_time_id = 
             RegisterField("dot11.advertisedssid.first_time", TrackerUInt64,
-                    "first time seen", (void **) &first_time);
+                    "first time seen", &first_time);
         last_time_id = 
             RegisterField("dot11.advertisedssid.last_time", TrackerUInt64,
-                    "last time seen", (void **) &last_time);
+                    "last time seen", &last_time);
         beacon_info_id = 
             RegisterField("dot11.advertisedssid.beacon_info", TrackerString,
-                    "beacon info / vendor description", (void **) &beacon_info);
+                    "beacon info / vendor description", &beacon_info);
         ssid_cloaked_id = 
             RegisterField("dot11.advertisedssid.cloaked", TrackerUInt8,
-                    "SSID is hidden / cloaked", (void **) &ssid_cloaked);
+                    "SSID is hidden / cloaked", &ssid_cloaked);
         crypt_set_id = 
             RegisterField("dot11.advertisedssid.crypt_set", TrackerUInt64,
-                    "bitfield of encryption options", (void **) &crypt_set);
+                    "bitfield of encryption options", &crypt_set);
         maxrate_id = 
             RegisterField("dot11.advertisedssid.maxrate", TrackerUInt64,
-                    "advertised maximum rate", (void **) &maxrate);
+                    "advertised maximum rate", &maxrate);
         beaconrate_id = 
             RegisterField("dot11.advertisedssid.beaconrate", TrackerUInt32,
-                    "beacon rate", (void **) &beaconrate);
+                    "beacon rate", &beaconrate);
         beacons_sec_id = 
             RegisterField("dot11.advertisedssid.beacons_sec", TrackerUInt32,
-                    "beacons seen in past second", (void **) &beacons_sec);
+                    "beacons seen in past second", &beacons_sec);
         ietag_checksum_id =
             RegisterField("dot11.advertisedssid.ietag_checksum", TrackerUInt32,
-                    "checksum of all ie tags", (void **) &ietag_checksum);
+                    "checksum of all ie tags", &ietag_checksum);
         dot11d_country_id = 
             RegisterField("dot11.advertisedssid.dot11d_country", TrackerString,
-                    "802.11d country", (void **) &dot11d_country);
+                    "802.11d country", &dot11d_country);
 
         dot11d_vec_id =
             RegisterField("dot11.advertisedssid.dot11d_list", TrackerVector,
-                    "802.11d channel list", (void **) &dot11d_vec);
-        dot11_11d_tracked_range_info *dot11d_builder = 
-            new dot11_11d_tracked_range_info(globalreg, 0);
+                    "802.11d channel list", &dot11d_vec);
+
+        shared_ptr<dot11_11d_tracked_range_info> dot11d_builder(new dot11_11d_tracked_range_info(globalreg, 0));
         dot11d_country_entry_id =
             RegisterComplexField("dot11.advertisedssid.dot11d_entry", 
                     dot11d_builder, "dot11d entry");
-        delete(dot11d_builder);
 
         wps_state_id =
             RegisterField("dot11.advertisedssid.wps_state", TrackerUInt32,
-                    "bitfield wps state", (void **) &wps_state);
+                    "bitfield wps state", &wps_state);
         wps_manuf_id =
             RegisterField("dot11.advertisedssid.wps_manuf", TrackerString,
-                    "WPS manufacturer", (void **) &wps_manuf);
+                    "WPS manufacturer", &wps_manuf);
         wps_device_name_id =
             RegisterField("dot11.advertisedssid.wps_device_name", TrackerString,
-                    "wps device name", (void **) &wps_device_name);
+                    "wps device name", &wps_device_name);
         wps_model_name_id =
             RegisterField("dot11.advertisedssid.wps_model_name", TrackerString,
-                    "wps model name", (void **) &wps_model_name);
+                    "wps model name", &wps_model_name);
         wps_model_number_id =
             RegisterField("dot11.advertisedssid.wps_model_number", TrackerString,
-                    "wps model number", (void **) &wps_model_number);
+                    "wps model number", &wps_model_number);
 
-        kis_tracked_location *loc_builder = new kis_tracked_location(globalreg, 0);
+        shared_ptr<kis_tracked_location> loc_builder(new kis_tracked_location(globalreg, 0));
         location_id =
             RegisterComplexField("dot11.advertisedssid.location", loc_builder, 
                     "location");
-        delete(loc_builder);
     }
 
-    virtual void reserve_fields(TrackerElement *e) {
+    virtual void reserve_fields(SharedTrackerElement e) {
         tracker_component::reserve_fields(e);
 
         if (e != NULL) {
-            location = new kis_tracked_location(globalreg, location_id, 
-                    e->get_map_value(location_id));
+            location.reset(new kis_tracked_location(globalreg, location_id, 
+                    e->get_map_value(location_id)));
             add_map(location);
         } else {
-            location = new kis_tracked_location(globalreg, location_id);
+            location.reset(new kis_tracked_location(globalreg, location_id));
             add_map(location);
         }
     }
 
     int ssid_id;
-    TrackerElement *ssid;
+    SharedTrackerElement ssid;
 
     int ssid_len_id;
-    TrackerElement *ssid_len;
+    SharedTrackerElement ssid_len;
 
     int ssid_beacon_id;
-    TrackerElement *ssid_beacon;
+    SharedTrackerElement ssid_beacon;
 
     int ssid_probe_response_id;
-    TrackerElement *ssid_probe_response;
+    SharedTrackerElement ssid_probe_response;
 
     int channel_id;
-    TrackerElement *channel;
+    SharedTrackerElement channel;
 
     int first_time_id;
-    TrackerElement *first_time;
+    SharedTrackerElement first_time;
 
     int last_time_id;
-    TrackerElement *last_time;
+    SharedTrackerElement last_time;
 
     int beacon_info_id;
-    TrackerElement *beacon_info;
+    SharedTrackerElement beacon_info;
 
     int ssid_cloaked_id;
-    TrackerElement *ssid_cloaked;
+    SharedTrackerElement ssid_cloaked;
 
     int crypt_set_id;
-    TrackerElement *crypt_set;
+    SharedTrackerElement crypt_set;
 
     int maxrate_id;
-    TrackerElement *maxrate;
+    SharedTrackerElement maxrate;
 
     int beaconrate_id;
-    TrackerElement *beaconrate;
+    SharedTrackerElement beaconrate;
 
     int beacons_sec_id;
-    TrackerElement *beacons_sec;
+    SharedTrackerElement beacons_sec;
 
     int ietag_checksum_id;
-    TrackerElement *ietag_checksum;
+    SharedTrackerElement ietag_checksum;
 
     int dot11d_country_id;
-    TrackerElement *dot11d_country;
+    SharedTrackerElement dot11d_country;
 
     int dot11d_vec_id;
-    TrackerElement *dot11d_vec;
+    SharedTrackerElement dot11d_vec;
 
     // dot11d vec component reference
     int dot11d_country_entry_id;
 
     // WPS components
     int wps_state_id;
-    TrackerElement *wps_state;
+    SharedTrackerElement wps_state;
 
     int wps_manuf_id;
-    TrackerElement *wps_manuf;
+    SharedTrackerElement wps_manuf;
 
     int wps_device_name_id;
-    TrackerElement *wps_device_name;
+    SharedTrackerElement wps_device_name;
 
     int wps_model_name_id;
-    TrackerElement *wps_model_name;
+    SharedTrackerElement wps_model_name;
 
     int wps_model_number_id;
-    TrackerElement *wps_model_number;
+    SharedTrackerElement wps_model_number;
 
     int location_id;
-    kis_tracked_location *location;
+    shared_ptr<kis_tracked_location> location;
 };
 
 /* dot11 client
@@ -622,14 +619,14 @@ public:
         reserve_fields(NULL);
     }
 
-    dot11_client(GlobalRegistry *in_globalreg, int in_id, TrackerElement *e) :
+    dot11_client(GlobalRegistry *in_globalreg, int in_id, SharedTrackerElement e) :
         tracker_component(in_globalreg, in_id) {
         register_fields();
         reserve_fields(e);
     }
 
-    virtual TrackerElement *clone_type() {
-        return new dot11_client(globalreg, get_id());
+    virtual SharedTrackerElement clone_type() {
+        return SharedTrackerElement(new dot11_client(globalreg, get_id()));
     }
 
     __Proxy(bssid, mac_addr, mac_addr, mac_addr, bssid);
@@ -677,162 +674,158 @@ protected:
     virtual void register_fields() {
         bssid_id =
             RegisterField("dot11.client.bssid", TrackerMac,
-                    "bssid", (void **) &bssid);
+                    "bssid", &bssid);
         bssid_key_id =
             RegisterField("dot11.client.bssid_key", TrackerUInt64,
-                    "key of BSSID record", (void **) &bssid_key);
+                    "key of BSSID record", &bssid_key);
         first_time_id =
             RegisterField("dot11.client.first_time", TrackerUInt64,
-                    "first time seen", (void **) &first_time);
+                    "first time seen", &first_time);
         last_time_id =
             RegisterField("dot11.client.last_time", TrackerUInt64,
-                    "last time seen", (void **) &last_time);
+                    "last time seen", &last_time);
         client_type_id =
             RegisterField("dot11.client.type", TrackerUInt32,
-                    "type of client", (void **) &client_type);
+                    "type of client", &client_type);
         dhcp_host_id =
             RegisterField("dot11.client.dhcp_host", TrackerString,
-                    "dhcp host", (void **) &dhcp_host);
+                    "dhcp host", &dhcp_host);
         dhcp_vendor_id =
             RegisterField("dot11.client.dhcp_vendor", TrackerString,
-                    "dhcp vendor", (void **) &dhcp_vendor);
+                    "dhcp vendor", &dhcp_vendor);
         tx_cryptset_id =
             RegisterField("dot11.client.tx_cryptset", TrackerUInt64,
                     "bitset of transmitted encryption",
-                    (void **) &tx_cryptset);
+                    &tx_cryptset);
         rx_cryptset_id =
             RegisterField("dot11.client.rx_cryptset", TrackerUInt64,
                     "bitset of received enryption",
-                    (void **) &rx_cryptset);
+                    &rx_cryptset);
         eap_identity_id = 
             RegisterField("dot11.client.eap_identity", TrackerString,
-                    "EAP identity", (void **) &eap_identity);
+                    "EAP identity", &eap_identity);
         cdp_device_id =
             RegisterField("dot11.client.cdp_device", TrackerString,
-                    "CDP device", (void **) &cdp_device);
+                    "CDP device", &cdp_device);
         cdp_port_id =
             RegisterField("dot11.client.cdp_port", TrackerString,
-                    "CDP port", (void **) &cdp_port);
+                    "CDP port", &cdp_port);
         wps_m3_count_id =
             RegisterField("dot11.client.wps_m3_count", TrackerUInt64,
-                    "WPS M3 message count", (void **) &wps_m3_count);
+                    "WPS M3 message count", &wps_m3_count);
         wps_m3_last_id =
             RegisterField("dot11.client.wps_m3_last", TrackerUInt64,
-                    "WPS M3 last message", (void **) &wps_m3_last);
+                    "WPS M3 last message", &wps_m3_last);
         decrypted_id =
             RegisterField("dot11.client.decrypted", TrackerUInt8,
-                    "client decrypted", (void **) &decrypted);
+                    "client decrypted", &decrypted);
 
-        kis_tracked_ip_data *ip_builder = 
-            new kis_tracked_ip_data(globalreg, 0);
+        shared_ptr<kis_tracked_ip_data> ip_builder(new kis_tracked_ip_data(globalreg, 0));
         ipdata_id =
             RegisterComplexField("dot11.client.ipdata", ip_builder,
                     "IP data");
-        delete(ip_builder);
 
         datasize_id =
             RegisterField("dot11.client.datasize", TrackerUInt64,
-                    "data in bytes", (void **) &datasize);
+                    "data in bytes", &datasize);
         datasize_retry_id =
             RegisterField("dot11.client.datasize_retry", TrackerUInt64,
-                    "retry data in bytes", (void **) &datasize_retry);
+                    "retry data in bytes", &datasize_retry);
         num_fragments_id =
             RegisterField("dot11.client.num_fragments", TrackerUInt64,
-                    "number of fragmented packets", (void **) &num_fragments);
+                    "number of fragmented packets", &num_fragments);
         num_retries_id =
             RegisterField("dot11.client.num_retries", TrackerUInt64,
-                    "number of retried packets", (void **) &num_retries);
+                    "number of retried packets", &num_retries);
 
-        kis_tracked_location *loc_builder = new kis_tracked_location(globalreg, 0);
+        shared_ptr<kis_tracked_location> loc_builder(new kis_tracked_location(globalreg, 0));
         location_id =
             RegisterComplexField("client.location", loc_builder, "location");
-        delete(loc_builder);
     }
 
-    virtual void reserve_fields(TrackerElement *e) {
+    virtual void reserve_fields(SharedTrackerElement e) {
         tracker_component::reserve_fields(e);
 
         if (e != NULL) {
-            ipdata = new kis_tracked_ip_data(globalreg, ipdata_id, 
-                    e->get_map_value(ipdata_id));
+            ipdata.reset(new kis_tracked_ip_data(globalreg, ipdata_id, 
+                    e->get_map_value(ipdata_id)));
             add_map(ipdata);
 
-            location = new kis_tracked_location(globalreg, location_id, 
-                    e->get_map_value(location_id));
+            location.reset(new kis_tracked_location(globalreg, location_id, 
+                    e->get_map_value(location_id)));
             add_map(location);
         } else {
-            ipdata = new kis_tracked_ip_data(globalreg, ipdata_id);
+            ipdata.reset(new kis_tracked_ip_data(globalreg, ipdata_id));
             add_map(ipdata);
 
-            location = new kis_tracked_location(globalreg, location_id);
+            location.reset(new kis_tracked_location(globalreg, location_id));
             add_map(location);
         }
     }
 
         
     int bssid_id;
-    TrackerElement *bssid;
+    SharedTrackerElement bssid;
 
     int bssid_key_id;
-    TrackerElement *bssid_key;
+    SharedTrackerElement bssid_key;
 
     int first_time_id;
-    TrackerElement *first_time;
+    SharedTrackerElement first_time;
 
     int last_time_id;
-    TrackerElement *last_time;
+    SharedTrackerElement last_time;
 
     int client_type_id;
-    TrackerElement *client_type;
+    SharedTrackerElement client_type;
 
     int dhcp_host_id;
-    TrackerElement *dhcp_host;
+    SharedTrackerElement dhcp_host;
 
     int dhcp_vendor_id;
-    TrackerElement *dhcp_vendor;
+    SharedTrackerElement dhcp_vendor;
 
     int tx_cryptset_id;
-    TrackerElement *tx_cryptset;
+    SharedTrackerElement tx_cryptset;
 
     int rx_cryptset_id;
-    TrackerElement *rx_cryptset;
+    SharedTrackerElement rx_cryptset;
 
     int eap_identity_id;
-    TrackerElement *eap_identity;
+    SharedTrackerElement eap_identity;
 
     int cdp_device_id;
-    TrackerElement *cdp_device;
+    SharedTrackerElement cdp_device;
 
     int cdp_port_id;
-    TrackerElement *cdp_port;
+    SharedTrackerElement cdp_port;
 
     int wps_m3_count_id;
-    TrackerElement *wps_m3_count;
+    SharedTrackerElement wps_m3_count;
 
     int wps_m3_last_id;
-    TrackerElement *wps_m3_last;
+    SharedTrackerElement wps_m3_last;
 
     int decrypted_id;
-    TrackerElement *decrypted;
+    SharedTrackerElement decrypted;
 
     int ipdata_id;
-    kis_tracked_ip_data *ipdata;
+    shared_ptr<kis_tracked_ip_data> ipdata;
 
     int datasize_id;
-    TrackerElement *datasize;
+    SharedTrackerElement datasize;
 
     int datasize_retry_id;
-    TrackerElement *datasize_retry;
+    SharedTrackerElement datasize_retry;
 
     int num_fragments_id;
-    TrackerElement *num_fragments;
+    SharedTrackerElement num_fragments;
 
     int num_retries_id;
-    TrackerElement *num_retries;
+    SharedTrackerElement num_retries;
 
     int location_id;
-    kis_tracked_location *location;
-
+    shared_ptr<kis_tracked_location> location;
 };
 
 // Bitset of top-level device types for easy sorting/browsing
@@ -866,39 +859,41 @@ public:
         reserve_fields(NULL);
     }
 
-    virtual TrackerElement *clone_type() {
-        return new dot11_tracked_device(globalreg, get_id());
+    virtual SharedTrackerElement clone_type() {
+        return SharedTrackerElement(new dot11_tracked_device(globalreg, get_id()));
     }
 
-    dot11_tracked_device(GlobalRegistry *in_globalreg, int in_id, TrackerElement *e) :
+    dot11_tracked_device(GlobalRegistry *in_globalreg, int in_id, 
+            SharedTrackerElement e) :
         tracker_component(in_globalreg, in_id) {
         register_fields();
         reserve_fields(e);
     }
 
-    void attach_base_parent(kis_tracked_device_base *parent) {
-        parent->add_map(this);
+    static void attach_base_parent(shared_ptr<dot11_tracked_device> self, 
+            shared_ptr<kis_tracked_device_base> parent) {
+        parent->add_map(self);
         
-        parent->add_summary_field(last_beaconed_ssid);
-        parent->add_summary_field(last_beacon_timestamp);
+        parent->add_summary_field(self->last_beaconed_ssid);
+        parent->add_summary_field(self->last_beacon_timestamp);
     }
 
     __Proxy(type_set, uint64_t, uint64_t, uint64_t, type_set);
     __ProxyBitset(type_set, uint64_t, type_set);
 
     __ProxyTrackable(client_map, TrackerElement, client_map);
-    dot11_client *new_client() {
-        return new dot11_client(globalreg, client_map_entry_id);
+    shared_ptr<dot11_client> new_client() {
+        return shared_ptr<dot11_client>(new dot11_client(globalreg, client_map_entry_id));
     }
 
     __ProxyTrackable(advertised_ssid_map, TrackerElement, advertised_ssid_map);
-    dot11_advertised_ssid *new_advertised_ssid() {
-        return new dot11_advertised_ssid(globalreg, advertised_ssid_map_entry_id);
+    shared_ptr<dot11_advertised_ssid> new_advertised_ssid() {
+        return shared_ptr<dot11_advertised_ssid>(new dot11_advertised_ssid(globalreg, advertised_ssid_map_entry_id));
     }
 
     __ProxyTrackable(probed_ssid_map, TrackerElement, probed_ssid_map);
-    dot11_probed_ssid *new_probed_ssid() {
-        return new dot11_probed_ssid(globalreg, probed_ssid_map_entry_id);
+    shared_ptr<dot11_probed_ssid> new_probed_ssid() {
+        return shared_ptr<dot11_probed_ssid>(new dot11_probed_ssid(globalreg, probed_ssid_map_entry_id));
     }
 
     __ProxyTrackable(associated_client_map, TrackerElement, associated_client_map);
@@ -938,41 +933,37 @@ protected:
     virtual void register_fields() {
         type_set_id =
             RegisterField("dot11.device.typeset", TrackerUInt64,
-                    "bitset of device type", (void **) &type_set);
+                    "bitset of device type", &type_set);
 
         client_map_id =
             RegisterField("dot11.device.client_map", TrackerMacMap,
-                    "client behavior", (void **) &client_map);
+                    "client behavior", &client_map);
 
-        dot11_client *client_builder = new dot11_client(globalreg, 0);
+        shared_ptr<dot11_client> client_builder(new dot11_client(globalreg, 0));
         client_map_entry_id =
-            RegisterComplexField("dot11.device.client", 
-                    client_builder, "client record");
-        delete(client_builder);
+            RegisterComplexField("dot11.device.client", client_builder, "client record");
 
         advertised_ssid_map_id =
             RegisterField("dot11.device.advertised_ssid_map", TrackerIntMap,
-                    "advertised SSIDs", (void **) &advertised_ssid_map);
-        dot11_advertised_ssid *adv_ssid_builder = 
-            new dot11_advertised_ssid(globalreg, 0);
+                    "advertised SSIDs", &advertised_ssid_map);
+
+        shared_ptr<dot11_advertised_ssid> adv_ssid_builder(new dot11_advertised_ssid(globalreg, 0));
         advertised_ssid_map_entry_id =
             RegisterComplexField("dot11.device.advertised_ssid",
                     adv_ssid_builder, "advertised ssid");
-        delete(adv_ssid_builder);
 
         probed_ssid_map_id =
             RegisterField("dot11.device.probed_ssid_map", TrackerIntMap,
-                    "probed SSIDs", (void **) &probed_ssid_map);
-        dot11_probed_ssid *probe_ssid_builder =
-            new dot11_probed_ssid(globalreg, 0);
+                    "probed SSIDs", &probed_ssid_map);
+
+        shared_ptr<dot11_probed_ssid> probe_ssid_builder(new dot11_probed_ssid(globalreg, 0));
         probed_ssid_map_entry_id =
             RegisterComplexField("dot11.device.probed_ssid",
                     probe_ssid_builder, "probed ssid");
-        delete(probe_ssid_builder);
 
         associated_client_map_id =
             RegisterField("dot11.device.associated_client_map", TrackerMacMap,
-                    "associated clients", (void **) &associated_client_map);
+                    "associated clients", &associated_client_map);
         // Key of associated device, indexed by mac address
         associated_client_map_entry_id =
             RegisterField("dot11.device.associated_client", TrackerUInt64,
@@ -981,117 +972,117 @@ protected:
         client_disconnects_id =
             RegisterField("dot11.device.client_disconnects", TrackerUInt64,
                     "client disconnects in last second", 
-                    (void **) &client_disconnects);
+                    &client_disconnects);
 
         last_sequence_id =
             RegisterField("dot11.device.last_sequence", TrackerUInt64,
-                    "last sequence number", (void **) &last_sequence);
+                    "last sequence number", &last_sequence);
         bss_timestamp_id =
             RegisterField("dot11.device.bss_timestamp", TrackerUInt64,
-                    "last BSS timestamp", (void **) &bss_timestamp);
+                    "last BSS timestamp", &bss_timestamp);
 
         num_fragments_id =
             RegisterField("dot11.device.num_fragments", TrackerUInt64,
-                    "number of fragmented packets", (void **) &num_fragments);
+                    "number of fragmented packets", &num_fragments);
         num_retries_id =
             RegisterField("dot11.device.num_retries", TrackerUInt64,
-                    "number of retried packets", (void **) &num_retries);
+                    "number of retried packets", &num_retries);
 
         datasize_id =
             RegisterField("dot11.device.datasize", TrackerUInt64,
-                    "data in bytes", (void **) &datasize);
+                    "data in bytes", &datasize);
 
         datasize_retry_id =
             RegisterField("dot11.device.datasize_retry", TrackerUInt64,
-                    "retried data in bytes", (void **) &datasize_retry);
+                    "retried data in bytes", &datasize_retry);
 
         last_probed_ssid_id =
             RegisterField("dot11.device.last_probed_ssid", TrackerString,
-                    "last probed ssid", (void **) &last_probed_ssid);
+                    "last probed ssid", &last_probed_ssid);
 
         last_probed_ssid_csum_id =
             RegisterField("dot11.device.last_probed_ssid_csum", TrackerUInt32,
-                    "last probed ssid checksum", (void **) &last_probed_ssid_csum);
+                    "last probed ssid checksum", &last_probed_ssid_csum);
 
         last_beaconed_ssid_id =
             RegisterField("dot11.device.last_beaconed_ssid", TrackerString,
-                    "last beaconed ssid", (void **) &last_beaconed_ssid);
+                    "last beaconed ssid", &last_beaconed_ssid);
 
         last_beaconed_ssid_csum_id =
             RegisterField("dot11.device.last_beaconed_ssid_checksum", TrackerUInt32,
-                    "last beaconed ssid checksum", (void **) &last_beaconed_ssid_csum);
+                    "last beaconed ssid checksum", &last_beaconed_ssid_csum);
 
         last_bssid_id =
             RegisterField("dot11.device.last_bssid", TrackerMac,
-                    "last BSSID", (void **) &last_bssid);
+                    "last BSSID", &last_bssid);
 
         last_beacon_timestamp_id =
             RegisterField("dot11.device.last_beacon_timestamp", TrackerUInt64,
                     "unix timestamp of last beacon frame", 
-                    (void **) &last_beacon_timestamp);
+                    &last_beacon_timestamp);
     }
 
     int type_set_id;
-    TrackerElement *type_set;
+    SharedTrackerElement type_set;
 
     // Records of this device behaving as a client
     int client_map_id;
-    TrackerElement *client_map;
+    SharedTrackerElement client_map;
     int client_map_entry_id;
 
     // Records of this device advertising SSIDs
     int advertised_ssid_map_id;
-    TrackerElement *advertised_ssid_map;
+    SharedTrackerElement advertised_ssid_map;
     int advertised_ssid_map_entry_id;
 
     // Records of this device probing for a network
     int probed_ssid_map_id;
-    TrackerElement *probed_ssid_map;
+    SharedTrackerElement probed_ssid_map;
     int probed_ssid_map_entry_id;
 
     // Mac addresses of clients who have talked to this network
     int associated_client_map_id;
-    TrackerElement *associated_client_map;
+    SharedTrackerElement associated_client_map;
     int associated_client_map_entry_id;
 
     int client_disconnects_id;
-    TrackerElement *client_disconnects;
+    SharedTrackerElement client_disconnects;
 
     int last_sequence_id;
-    TrackerElement *last_sequence;
+    SharedTrackerElement last_sequence;
 
     int bss_timestamp_id;
-    TrackerElement *bss_timestamp;
+    SharedTrackerElement bss_timestamp;
 
     int num_fragments_id;
-    TrackerElement *num_fragments;
+    SharedTrackerElement num_fragments;
 
     int num_retries_id;
-    TrackerElement *num_retries;
+    SharedTrackerElement num_retries;
 
     int datasize_id;
-    TrackerElement *datasize;
+    SharedTrackerElement datasize;
 
     int datasize_retry_id;
-    TrackerElement *datasize_retry;
+    SharedTrackerElement datasize_retry;
 
     int last_probed_ssid_id;
-    TrackerElement *last_probed_ssid;
+    SharedTrackerElement last_probed_ssid;
 
     int last_probed_ssid_csum_id;
-    TrackerElement *last_probed_ssid_csum;
+    SharedTrackerElement last_probed_ssid_csum;
 
     int last_beaconed_ssid_id;
-    TrackerElement *last_beaconed_ssid;
+    SharedTrackerElement last_beaconed_ssid;
 
     int last_beaconed_ssid_csum_id;
-    TrackerElement *last_beaconed_ssid_csum;
+    SharedTrackerElement last_beaconed_ssid_csum;
 
     int last_bssid_id;
-    TrackerElement *last_bssid;
+    SharedTrackerElement last_bssid;
 
     int last_beacon_timestamp_id;
-    TrackerElement *last_beacon_timestamp;
+    SharedTrackerElement last_beacon_timestamp;
 };
 
 class dot11_ssid_alert {
@@ -1197,20 +1188,20 @@ public:
     virtual int timetracker_event(int eventid);
 
 protected:
-    void HandleSSID(kis_tracked_device_base *basedev, 
-            dot11_tracked_device *dot11dev,
+    void HandleSSID(shared_ptr<kis_tracked_device_base> basedev, 
+            shared_ptr<dot11_tracked_device> dot11dev,
             kis_packet *in_pack,
             dot11_packinfo *dot11info,
             kis_gps_packinfo *pack_gpsinfo);
 
-    void HandleProbedSSID(kis_tracked_device_base *basedev, 
-            dot11_tracked_device *dot11dev,
+    void HandleProbedSSID(shared_ptr<kis_tracked_device_base> basedev, 
+            shared_ptr<dot11_tracked_device> dot11dev,
             kis_packet *in_pack,
             dot11_packinfo *dot11info,
             kis_gps_packinfo *pack_gpsinfo);
 
-    void HandleClient(kis_tracked_device_base *basedev, 
-            dot11_tracked_device *dot11dev,
+    void HandleClient(shared_ptr<kis_tracked_device_base> basedev, 
+            shared_ptr<dot11_tracked_device> dot11dev,
             kis_packet *in_pack,
             dot11_packinfo *dot11info,
             kis_gps_packinfo *pack_gpsinfo,

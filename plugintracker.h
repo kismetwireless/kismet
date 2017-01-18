@@ -113,7 +113,7 @@ struct plugin_revision {
 typedef void (*plugin_revisioncall)(plugin_revision *);
 
 // Plugin management class
-class Plugintracker {
+class Plugintracker : public LifetimeGlobal {
 public:
 	struct plugin_meta {
 		plugin_meta() {

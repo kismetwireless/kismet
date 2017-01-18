@@ -31,7 +31,18 @@
 // response header
 class Kis_Httpd_Websession : public Kis_Net_Httpd_Handler, public LifetimeGlobal {
 public:
+    static shared_ptr<Kis_Httpd_Websession> 
+        create_websession(GlobalRegistry *in_globalreg) {
+        shared_ptr<Kis_Httpd_Websession> mon(new Kis_Httpd_Websession(in_globalreg));
+        in_globalreg->RegisterLifetimeGlobal(mon);
+        in_globalreg->InsertGlobal("WEBSESSION", mon);
+        return mon;
+    }
+
+private:
     Kis_Httpd_Websession(GlobalRegistry *in_globalreg);
+
+public:
     ~Kis_Httpd_Websession();
 
     virtual bool Httpd_VerifyPath(const char *path, const char *method);

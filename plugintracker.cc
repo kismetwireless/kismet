@@ -85,6 +85,8 @@ Plugintracker::Plugintracker(GlobalRegistry *in_globalreg) {
 		return;
 	}
 
+    globalreg->InsertGlobal("PLUGINTRACKER", shared_ptr<Plugintracker>(this));
+
 	plugins_active = 1;
 
 }

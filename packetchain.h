@@ -79,7 +79,18 @@ class kis_packet;
 
 class Packetchain : public LifetimeGlobal {
 public:
+    static shared_ptr<Packetchain> create_packetchain(GlobalRegistry *in_globalreg) {
+        shared_ptr<Packetchain> mon(new Packetchain(in_globalreg));
+        in_globalreg->packetchain = mon.get();
+        in_globalreg->RegisterLifetimeGlobal(mon);
+        in_globalreg->InsertGlobal("PACKETCHAIN", mon);
+        return mon;
+    }
+
+private:
     Packetchain();
+
+public:
     Packetchain(GlobalRegistry *in_globalreg);
 
     virtual ~Packetchain();

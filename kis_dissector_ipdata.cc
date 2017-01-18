@@ -37,7 +37,7 @@ int ipdata_packethook(CHAINCALL_PARMS) {
 Kis_Dissector_IPdata::Kis_Dissector_IPdata(GlobalRegistry *in_globalreg) {
 	globalreg = in_globalreg;
 
-	globalreg->InsertGlobal("DISSECTOR_IPDATA", this);
+	globalreg->InsertGlobal("DISSECTOR_IPDATA", shared_ptr<Kis_Dissector_IPdata>(this));
 
 	globalreg->packetchain->RegisterHandler(&ipdata_packethook, this,
 		 									CHAINPOS_DATADISSECT, -100);

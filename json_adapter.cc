@@ -34,20 +34,15 @@
 #include "devicetracker_component.h"
 #include "json_adapter.h"
 
-void JsonAdapter::Pack(GlobalRegistry *globalreg, std::stringstream &stream, 
-        tracker_component *c) {
-    Pack(globalreg, stream, (TrackerElement *) c);
-}
 
 string JsonAdapter::SanitizeString(string in) {
     return MultiReplaceAll(in, "\\", "\\\\");
 }
 
-
 void JsonAdapter::Pack(GlobalRegistry *globalreg, std::stringstream &stream,
-    TrackerElement *e) {
+    SharedTrackerElement e) {
 
-    TrackerElementScopeLocker slock(e);
+    // TrackerElementScopeLocker slock(e);
 
     e->pre_serialize();
 

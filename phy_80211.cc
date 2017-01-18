@@ -68,19 +68,17 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
 	Kis_Phy_Handler(in_globalreg, in_tracker, in_phyid),
     Kis_Net_Httpd_Stream_Handler(in_globalreg) {
 
-	globalreg->InsertGlobal("PHY_80211", this);
+	globalreg->InsertGlobal("PHY_80211", shared_ptr<Kis_80211_Phy>(this));
 
 	// Initialize the crc tables
 	crc32_init_table_80211(globalreg->crc32_table);
 
 	phyname = "IEEE802.11";
 
-    dot11_tracked_device *dot11_builder = 
-        new dot11_tracked_device(globalreg, 0);
+    shared_ptr<dot11_tracked_device> dot11_builder(new dot11_tracked_device(globalreg, 0));
     dot11_device_entry_id =
         globalreg->entrytracker->RegisterField("dot11.device", dot11_builder, 
                 "IEEE802.11 device");
-    delete(dot11_builder);
 
 	// Packet classifier - makes basic records plus dot11 data
 	globalreg->packetchain->RegisterHandler(&CommonClassifierDot11, this,
@@ -247,7 +245,7 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
 
 	ssid_conf = new ConfigFile(globalreg);
 	ssid_conf->ParseConfig(ssid_conf->ExpandLogPath(globalreg->kismet_config->FetchOpt("configdir") + "/" + "ssid_map.conf", "", "", 0, 1).c_str());
-	globalreg->InsertGlobal("SSID_CONF_FILE", ssid_conf);
+	globalreg->InsertGlobal("SSID_CONF_FILE", shared_ptr<ConfigFile>(ssid_conf));
 
 }
 
@@ -476,15 +474,15 @@ void Kis_80211_Phy::AddWepKey(mac_addr bssid, uint8_t *key, unsigned int len,
 	wepkeys.insert(winfo->bssid, winfo);
 }
 
-void Kis_80211_Phy::HandleSSID(kis_tracked_device_base *basedev,
-        dot11_tracked_device *dot11dev,
+void Kis_80211_Phy::HandleSSID(shared_ptr<kis_tracked_device_base> basedev,
+        shared_ptr<dot11_tracked_device> dot11dev,
         kis_packet *in_pack,
         dot11_packinfo *dot11info,
         kis_gps_packinfo *pack_gpsinfo) {
 
-    TrackerElement *adv_ssid_map = dot11dev->get_advertised_ssid_map();
+    SharedTrackerElement adv_ssid_map = dot11dev->get_advertised_ssid_map();
 
-    dot11_advertised_ssid *ssid = NULL;
+    shared_ptr<dot11_advertised_ssid> ssid;
 
     TrackerElement::map_iterator ssid_itr;
 
@@ -532,7 +530,7 @@ void Kis_80211_Phy::HandleSSID(kis_tracked_device_base *basedev,
             ssid->set_last_time(in_pack->ts.tv_sec);
             ssid->inc_beacons_sec();
         } else {
-            ssid = (dot11_advertised_ssid *) ssid_itr->second;
+            ssid = static_pointer_cast<dot11_advertised_ssid>(ssid_itr->second);
             ssid->set_last_time(in_pack->ts.tv_sec);
         }
 
@@ -585,14 +583,13 @@ void Kis_80211_Phy::HandleSSID(kis_tracked_device_base *basedev,
             // TODO raise alert
         }
 
-        vector<TrackerElement *> *dot11dvec =
-            ssid->get_dot11d_vec()->get_vector();
         bool dot11dmismatch = false;
+
+        TrackerElementVector dot11dvec(ssid->get_dot11d_vec());
         for (unsigned int vc = 0; 
-                vc < dot11dvec->size() && vc < dot11info->dot11d_vec.size(); 
-                vc++) {
-            dot11_11d_tracked_range_info *ri = 
-                (dot11_11d_tracked_range_info *)(*dot11dvec)[vc];
+                vc < dot11dvec.size() && vc < dot11info->dot11d_vec.size(); vc++) {
+            shared_ptr<dot11_11d_tracked_range_info> ri =
+                static_pointer_cast<dot11_11d_tracked_range_info>(dot11dvec[vc]);
 
             if (ri->get_startchan() != dot11info->dot11d_vec[vc].startchan ||
                     ri->get_numchan() != dot11info->dot11d_vec[vc].numchan ||
@@ -600,6 +597,7 @@ void Kis_80211_Phy::HandleSSID(kis_tracked_device_base *basedev,
                 dot11dmismatch = true;
                 break;
             }
+
         }
 
         if (dot11dmismatch) {
@@ -734,15 +732,15 @@ void Kis_80211_Phy::HandleSSID(kis_tracked_device_base *basedev,
 
 }
 
-void Kis_80211_Phy::HandleProbedSSID(kis_tracked_device_base *basedev,
-        dot11_tracked_device *dot11dev,
+void Kis_80211_Phy::HandleProbedSSID(shared_ptr<kis_tracked_device_base> basedev,
+        shared_ptr<dot11_tracked_device> dot11dev,
         kis_packet *in_pack,
         dot11_packinfo *dot11info,
         kis_gps_packinfo *pack_gpsinfo) {
 
     TrackerElementIntMap probemap(dot11dev->get_probed_ssid_map());
 
-    dot11_probed_ssid *probessid = NULL;
+    shared_ptr<dot11_probed_ssid> probessid = NULL;
     TrackerElement::int_map_iterator ssid_itr;
 
     if (dot11info->subtype == packet_sub_probe_req) {
@@ -772,8 +770,8 @@ void Kis_80211_Phy::HandleProbedSSID(kis_tracked_device_base *basedev,
 
 }
 
-void Kis_80211_Phy::HandleClient(kis_tracked_device_base *basedev,
-        dot11_tracked_device *dot11dev,
+void Kis_80211_Phy::HandleClient(shared_ptr<kis_tracked_device_base> basedev,
+        shared_ptr<dot11_tracked_device> dot11dev,
         kis_packet *in_pack,
         dot11_packinfo *dot11info,
         kis_gps_packinfo *pack_gpsinfo,
@@ -789,7 +787,7 @@ void Kis_80211_Phy::HandleClient(kis_tracked_device_base *basedev,
 
     TrackerElementMacMap client_map(dot11dev->get_client_map());
 
-    dot11_client *client = NULL;
+    shared_ptr<dot11_client> client = NULL;
 
     TrackerElement::mac_map_iterator client_itr;
 
@@ -802,7 +800,7 @@ void Kis_80211_Phy::HandleClient(kis_tracked_device_base *basedev,
         client_map.insert(cp);
         new_client = true;
     } else {
-        client = (dot11_client *) client_itr->second;
+        client = static_pointer_cast<dot11_client>(client_itr->second);
     }
 
     if (new_client) {
@@ -865,13 +863,13 @@ void Kis_80211_Phy::HandleClient(kis_tracked_device_base *basedev,
     }
 
     // Try to make the back-record of us in the device we're a client OF
-    kis_tracked_device_base *backdev =
+    shared_ptr<kis_tracked_device_base> backdev =
         devicetracker->FetchDevice(dot11info->bssid_mac, phyid);
     if (backdev != NULL) {
         client->set_bssid_key(backdev->get_key());
 
-        dot11_tracked_device *backdot11 = 
-            (dot11_tracked_device *) backdev->get_map_value(dot11_device_entry_id);
+        shared_ptr<dot11_tracked_device> backdot11 = 
+            static_pointer_cast<dot11_tracked_device>(backdev->get_map_value(dot11_device_entry_id));
 
         if (backdot11 != NULL) {
             if (backdot11->get_associated_client_map()->mac_find(basedev->get_macaddr()) ==
@@ -887,6 +885,8 @@ static int packetnum = 0;
 
 int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
     packetnum++;
+
+    devicelist_scope_locker dlocker(devicetracker);
 
 	// We can't do anything w/ it from the packet layer
 	if (in_pack->error || in_pack->filtered) {
@@ -921,7 +921,7 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
     // and encryption, because this is the core record for everything we do.
     // We do this early on because we want to track things even if they're unknown
     // or broken.
-    kis_tracked_device_base *basedev =
+    shared_ptr<kis_tracked_device_base> basedev =
         devicetracker->UpdateCommonDevice(commoninfo->device, commoninfo->phyid,
                 in_pack, 
                 (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
@@ -946,19 +946,16 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
         return 0;
     }
 
-    // Lock on the base device
-    TrackerElementScopeLocker((TrackerElement *) basedev);
-
-    dot11_tracked_device *dot11dev =
-        (dot11_tracked_device *) basedev->get_map_value(dot11_device_entry_id);
+    shared_ptr<dot11_tracked_device> dot11dev =
+        static_pointer_cast<dot11_tracked_device>(basedev->get_map_value(dot11_device_entry_id));
 
     if (dot11dev == NULL) {
         stringstream ss;
         ss << "Detected new 802.11 Wi-Fi device " << commoninfo->device.Mac2String();
         _MSG(ss.str(), MSGFLAG_INFO);
 
-        dot11dev = new dot11_tracked_device(globalreg, dot11_device_entry_id);
-        dot11dev->attach_base_parent(basedev);
+        dot11dev.reset(new dot11_tracked_device(globalreg, dot11_device_entry_id));
+        dot11_tracked_device::attach_base_parent(dot11dev, basedev);
         // basedev->add_map(dot11dev);
     }
 
@@ -2022,24 +2019,22 @@ public:
         serializer = in_serializer;
 
         // Make a vector, we don't care about the container type
-        device_vec = new TrackerElement(TrackerVector);
+        device_vec = SharedTrackerElement(new TrackerElement(TrackerVector));
         // Wrap it in a vector handler, which links the usage for the lifetime
         // of the device_vec
-        devices = new TrackerElementVector(device_vec);
+        devices.reset(new TrackerElementVector(device_vec));
     }
 
-    virtual ~phy80211_devicetracker_ssid_pcre_worker() {
-        delete(devices);
-    }
+    virtual ~phy80211_devicetracker_ssid_pcre_worker() { }
 
     bool get_error() { return error; }
 
     // Compare against our PCRE and export msgpack objects if we match
     virtual void MatchDevice(Devicetracker *devicetracker __attribute__((unused)), 
-            kis_tracked_device_base *device) {
+            shared_ptr<kis_tracked_device_base> device) {
 
-        dot11_tracked_device *dot11dev =
-            (dot11_tracked_device *) device->get_map_value(dot11_device_entry_id);
+        shared_ptr<dot11_tracked_device> dot11dev =
+            static_pointer_cast<dot11_tracked_device>(device->get_map_value(dot11_device_entry_id));
 
         // Not 802.11?  nothing we can do
         if (dot11dev == NULL) {
@@ -2048,12 +2043,12 @@ public:
 
         // Iterate over all the SSIDs
         TrackerElementIntMap adv_ssid_map(dot11dev->get_advertised_ssid_map());
-        dot11_advertised_ssid *ssid = NULL;
+        shared_ptr<dot11_advertised_ssid> ssid = NULL;
         TrackerElementIntMap::const_iterator ssid_itr;
 
         for (ssid_itr = adv_ssid_map.begin(); 
                 ssid_itr != adv_ssid_map.end(); ++ssid_itr) {
-            ssid = (dot11_advertised_ssid *) ssid_itr->second;
+            ssid = static_pointer_cast<dot11_advertised_ssid>(ssid_itr->second);
             bool device_handled = false;
 
             for (unsigned int i = 0; i < filter_vec->size(); i++) {
@@ -2092,8 +2087,8 @@ protected:
     vector<phy80211_pcre_filter *> *filter_vec;
     bool error;
     int dot11_device_entry_id;
-    TrackerElement *device_vec;
-    TrackerElementVector *devices;
+    shared_ptr<TrackerElement> device_vec;
+    shared_ptr<TrackerElementVector> devices;
     TrackerElementSerializer *serializer;
 };
 
@@ -2110,24 +2105,21 @@ public:
         serializer = in_serializer;
 
         // Make a vector, we don't care about the container type
-        device_vec = new TrackerElement(TrackerVector);
+        device_vec.reset(new TrackerElement(TrackerVector));
         // Wrap it in a vector handler, which links it
-        devices = new TrackerElementVector(device_vec);
+        devices.reset(new TrackerElementVector(device_vec));
     }
 
-    virtual ~phy80211_devicetracker_probe_pcre_worker() {
-        // Delete the wrapper which unlinks the child
-        delete(devices);
-    }
+    virtual ~phy80211_devicetracker_probe_pcre_worker() { }
 
     bool get_error() { return error; }
 
     // Compare against our PCRE and export msgpack objects if we match
     virtual void MatchDevice(Devicetracker *devicetracker __attribute__((unused)), 
-            kis_tracked_device_base *device) {
+            shared_ptr<kis_tracked_device_base> device) {
 
-        dot11_tracked_device *dot11dev =
-            (dot11_tracked_device *) device->get_map_value(dot11_device_entry_id);
+        shared_ptr<dot11_tracked_device> dot11dev =
+            static_pointer_cast<dot11_tracked_device>(device->get_map_value(dot11_device_entry_id));
 
         // Not 802.11?  nothing we can do
         if (dot11dev == NULL) {
@@ -2136,12 +2128,12 @@ public:
 
         // Iterate over all the probed SSIDs
         TrackerElementIntMap probe_ssid_map(dot11dev->get_probed_ssid_map());
-        dot11_probed_ssid *ssid = NULL;
+        shared_ptr<dot11_probed_ssid> ssid = NULL;
         TrackerElementIntMap::const_iterator ssid_itr;
 
         for (ssid_itr = probe_ssid_map.begin(); 
                 ssid_itr != probe_ssid_map.end(); ++ssid_itr) {
-            ssid = (dot11_probed_ssid *) ssid_itr->second;
+            ssid = static_pointer_cast<dot11_probed_ssid>(ssid_itr->second);
             bool device_handled = false;
 
             for (unsigned int i = 0; i < filter_vec->size(); i++) {
@@ -2180,8 +2172,8 @@ protected:
     vector<phy80211_pcre_filter *> *filter_vec;
     bool error;
     int dot11_device_entry_id;
-    TrackerElement *device_vec;
-    TrackerElementVector *devices;
+    SharedTrackerElement device_vec;
+    shared_ptr<TrackerElementVector> devices;
     TrackerElementSerializer *serializer;
 };
 
@@ -2334,10 +2326,10 @@ public:
 
     // Compare against our PCRE and export msgpack objects if we match
     virtual void MatchDevice(Devicetracker *devicetracker, 
-            kis_tracked_device_base *device) {
+            shared_ptr<kis_tracked_device_base> device) {
 
-        dot11_tracked_device *dot11dev =
-            (dot11_tracked_device *) device->get_map_value(dot11_device_entry_id);
+        shared_ptr<dot11_tracked_device> dot11dev =
+            static_pointer_cast<dot11_tracked_device>(device->get_map_value(dot11_device_entry_id));
 
         // Not 802.11?  nothing we can do
         if (dot11dev == NULL) {
@@ -2346,7 +2338,7 @@ public:
 
         // Iterate over all the SSID records
         TrackerElementIntMap adv_ssid_map(dot11dev->get_advertised_ssid_map());
-        dot11_advertised_ssid *ssid = NULL;
+        shared_ptr<dot11_advertised_ssid> ssid = NULL;
         TrackerElementIntMap::iterator int_itr;
 
         for (int_itr = adv_ssid_map.begin(); int_itr != adv_ssid_map.end(); ++int_itr) {
@@ -2354,7 +2346,7 @@ public:
             if (adv_ssid_map.size() <= 1)
                 break;
 
-            ssid = (dot11_advertised_ssid *) int_itr->second;
+            ssid = static_pointer_cast<dot11_advertised_ssid>(int_itr->second);
 
             if (globalreg->timestamp.tv_sec - ssid->get_last_time() > timeout) {
                 fprintf(stderr, "debug - forgetting dot11ssid %s expiration %d\n", ssid->get_ssid().c_str(), timeout);
@@ -2365,14 +2357,14 @@ public:
         }
 
         TrackerElementIntMap probe_map(dot11dev->get_probed_ssid_map());
-        dot11_probed_ssid *pssid = NULL;
+        shared_ptr<dot11_probed_ssid> pssid = NULL;
 
         for (int_itr = probe_map.begin(); int_itr != probe_map.end(); ++int_itr) {
             // Always leave one
             if (probe_map.size() <= 1)
                 break;
 
-            pssid = (dot11_probed_ssid *) int_itr->second;
+            pssid = static_pointer_cast<dot11_probed_ssid>(int_itr->second);
 
             if (globalreg->timestamp.tv_sec - pssid->get_last_time() > timeout) {
                 fprintf(stderr, "debug - forgetting dot11probessid %s expiration %d\n", pssid->get_ssid().c_str(), timeout);
@@ -2383,7 +2375,7 @@ public:
         }
 
         TrackerElementMacMap client_map(dot11dev->get_client_map());
-        dot11_client *client = NULL;
+        shared_ptr<dot11_client> client = NULL;
         TrackerElementMacMap::iterator mac_itr;
 
         for (mac_itr = client_map.begin(); mac_itr != client_map.end(); ++mac_itr) {
@@ -2391,7 +2383,7 @@ public:
             if (client_map.size() <= 1)
                 break;
 
-            client = (dot11_client *) mac_itr->second;
+            client = static_pointer_cast<dot11_client>(mac_itr->second);
 
             if (globalreg->timestamp.tv_sec - client->get_last_time() > timeout) {
                 fprintf(stderr, "debug - forgetting client link from %s to %s expiration %d\n", device->get_macaddr().Mac2String().c_str(), mac_itr->first.Mac2String().c_str(), timeout);

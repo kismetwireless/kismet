@@ -80,8 +80,8 @@ Dumpfile_String::Dumpfile_String(GlobalRegistry *in_globalreg) :
 
 //	globalreg->builtindissector->SetStringExtract(2);
 
-	Kis_80211_Phy *dot11phy = 
-		(Kis_80211_Phy *) globalreg->FetchGlobal("PHY_80211");
+	shared_ptr<Kis_80211_Phy> dot11phy = 
+		static_pointer_cast<Kis_80211_Phy>(globalreg->FetchGlobal("PHY_80211"));
 	if (dot11phy != NULL) {
 		dot11phy->SetStringExtract(2);
 		_MSG("Dumpfile_String - forced string extraction from packets at all times", 

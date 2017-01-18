@@ -248,8 +248,8 @@ void SpindownKismet() {
     signal(SIGCHLD, SIG_DFL);
 
     // Shut down the webserver first
-    Kis_Net_Httpd *httpd = 
-        (Kis_Net_Httpd *) globalregistry->FetchGlobal("HTTPD_SERVER");
+    shared_ptr<Kis_Net_Httpd> httpd = 
+        static_pointer_cast<Kis_Net_Httpd>(globalregistry->FetchGlobal("HTTPD_SERVER"));
     if (httpd != NULL)
         httpd->StopHttpd();
 
@@ -340,7 +340,6 @@ void SpindownKismet() {
         fprintf(stderr, "Kismet exiting.\n");
     }
 
-    fprintf(stderr, "debug - freeing lifetime globals\n");
     globalregistry->DeleteLifetimeGlobals();
 
     exit(0);
@@ -741,7 +740,7 @@ int main(int argc, char *argv[], char *envp[]) {
     }
 
     // First order - create our message bus and our client for outputting
-    globalregistry->RegisterLifetimeGlobal((LifetimeGlobal *) new MessageBus(globalregistry));
+    MessageBus::create_messagebus(globalregistry);
 
     // Create a smart stdout client and allocate the fatal message client, 
     // add them to the messagebus
@@ -873,18 +872,18 @@ int main(int argc, char *argv[], char *envp[]) {
     globalregistry->kismet_config = conf;
 
     // Make the timetracker
-    globalregistry->RegisterLifetimeGlobal((LifetimeGlobal *) new Timetracker(globalregistry));
+    Timetracker::create_timetracker(globalregistry);
 
     // HTTP BLOCK
     // Create the HTTPD server, it needs to exist before most things
     _MSG("Starting Kismet web server...", MSGFLAG_INFO);
-    globalregistry->RegisterLifetimeGlobal((LifetimeGlobal *) new Kis_Net_Httpd(globalregistry));
+    Kis_Net_Httpd::create_httpd(globalregistry);
+
     if (globalregistry->fatal_condition)
         CatchShutdown(-1);
 
     // Allocate some other critical stuff
-    globalregistry->entrytracker = new EntryTracker(globalregistry);
-    globalregistry->RegisterLifetimeGlobal((LifetimeGlobal *) globalregistry->entrytracker);
+    EntryTracker::create_entrytracker(globalregistry);
 
     if (daemonize) {
         if (fork() != 0) {
@@ -908,31 +907,29 @@ int main(int argc, char *argv[], char *envp[]) {
     }
 
     // Create the IPC handler
-    globalregistry->RegisterLifetimeGlobal((LifetimeGlobal *) new IPCRemoteV2Tracker(globalregistry));
+    IPCRemoteV2Tracker::create_ipcremote(globalregistry);
 
     // Create the packet chain
     _MSG("Creating packet chain...", MSGFLAG_INFO);
-    globalregistry->RegisterLifetimeGlobal((LifetimeGlobal *) new Packetchain(globalregistry));
-    if (globalregistry->fatal_condition)
-        CatchShutdown(-1);
+    Packetchain::create_packetchain(globalregistry);
 
     // Add the messagebus REST interface
-    globalregistry->RegisterLifetimeGlobal((LifetimeGlobal *) new RestMessageClient(globalregistry, NULL));
+    RestMessageClient::create_messageclient(globalregistry);
 
     // Add login session
-    globalregistry->RegisterLifetimeGlobal((LifetimeGlobal *) new Kis_Httpd_Websession(globalregistry));
+    Kis_Httpd_Websession::create_websession(globalregistry);
 
     // Add channel tracking
-    globalregistry->RegisterLifetimeGlobal((LifetimeGlobal *) new Channeltracker_V2(globalregistry));
+    Channeltracker_V2::create_channeltracker(globalregistry);
 
     // Add the datasource tracker
-    globalregistry->RegisterLifetimeGlobal((LifetimeGlobal *) new Datasourcetracker(globalregistry));
+    Datasourcetracker::create_dst(globalregistry);
 
     // Create the packetsourcetracker
-    globalregistry->sourcetracker = new Packetsourcetracker(globalregistry);
+    Packetsourcetracker::create_pst(globalregistry);
+
     if (globalregistry->fatal_condition)
         CatchShutdown(-1);
-    globalregistry->RegisterLifetimeGlobal((LifetimeGlobal *) globalregistry->sourcetracker);
 
     // Register the IPC
     if (globalregistry->rootipc != NULL) {
@@ -971,14 +968,14 @@ int main(int argc, char *argv[], char *envp[]) {
     }
 
     // Create the alert tracker
-    globalregistry->RegisterLifetimeGlobal((LifetimeGlobal *) new Alertracker(globalregistry));
+    Alertracker::create_alertracker(globalregistry);
 
     if (globalregistry->fatal_condition)
         CatchShutdown(-1);
 
     // Create the device tracker
     _MSG("Creating device tracker...", MSGFLAG_INFO);
-    globalregistry->RegisterLifetimeGlobal((LifetimeGlobal *) new Devicetracker(globalregistry));
+    Devicetracker::create_devicetracker(globalregistry);
 
     if (globalregistry->fatal_condition)
         CatchShutdown(-1);
@@ -1064,7 +1061,7 @@ int main(int argc, char *argv[], char *envp[]) {
 #endif
 
     // Create the GPS components
-    globalregistry->RegisterLifetimeGlobal((LifetimeGlobal *) new GpsManager(globalregistry));
+    GpsManager::create_gpsmanager(globalregistry);
 
     // Create the manuf db
     globalregistry->manufdb = new Manuf(globalregistry);
@@ -1133,7 +1130,7 @@ int main(int argc, char *argv[], char *envp[]) {
     }
 
     // Add system monitor 
-    globalregistry->RegisterLifetimeGlobal((LifetimeGlobal *) new Systemmonitor(globalregistry));
+    Systemmonitor::create_systemmonitor(globalregistry);
 
     // Start the http server as the last thing before we start sources
     globalregistry->httpd_server->StartHttpd();

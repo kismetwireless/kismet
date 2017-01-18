@@ -57,9 +57,6 @@ Packetchain::Packetchain(GlobalRegistry *in_globalreg) {
     pthread_mutexattr_init(&mutexattr);
     pthread_mutexattr_settype(&mutexattr, PTHREAD_MUTEX_RECURSIVE);
 	pthread_mutex_init(&packetchain_mutex, &mutexattr);
-
-    globalreg->InsertGlobal("PACKETCHAIN", this);
-    globalreg->packetchain = this;
 }
 
 Packetchain::~Packetchain() {

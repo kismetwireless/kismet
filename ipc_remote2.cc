@@ -37,7 +37,8 @@ IPCRemoteV2::IPCRemoteV2(GlobalRegistry *in_globalreg,
     ipchandler = in_rbhandler;
     pipeclient = NULL;
 
-    remotehandler = (IPCRemoteV2Tracker *) globalreg->FetchGlobal("IPCHANDLER");
+    remotehandler = 
+        static_pointer_cast<IPCRemoteV2Tracker>(globalreg->FetchGlobal("IPCHANDLER"));
 
     if (remotehandler == NULL) {
         _MSG("IPCRemoteV2 called before IPCRemoteV2Tracker instantiated, cannot track "
@@ -350,8 +351,6 @@ void IPCRemoteV2::notify_killed(int in_exit) {
 
 IPCRemoteV2Tracker::IPCRemoteV2Tracker(GlobalRegistry *in_globalreg) {
     globalreg = in_globalreg;
-
-    globalreg->InsertGlobal("IPCHANDLER", this);
 
     pthread_mutex_init(&ipc_locker, NULL);
 

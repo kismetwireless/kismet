@@ -96,7 +96,7 @@ protected:
     GlobalRegistry *globalreg;
     RingbufferHandler *ipchandler;
     PipeClient *pipeclient;
-    IPCRemoteV2Tracker *remotehandler;
+    shared_ptr<IPCRemoteV2Tracker> remotehandler;
 
     bool tracker_free;
 
@@ -119,7 +119,17 @@ protected:
  */
 class IPCRemoteV2Tracker : public TimetrackerEvent, public LifetimeGlobal {
 public:
+    static shared_ptr<IPCRemoteV2Tracker> create_ipcremote(GlobalRegistry *in_globalreg) {
+        shared_ptr<IPCRemoteV2Tracker> mon(new IPCRemoteV2Tracker(in_globalreg));
+        in_globalreg->RegisterLifetimeGlobal(mon);
+        in_globalreg->InsertGlobal("IPCHANDLER", mon);
+        return mon;
+    }
+
+private:
     IPCRemoteV2Tracker(GlobalRegistry *in_globalreg);
+
+public:
     virtual ~IPCRemoteV2Tracker();
 
     // Add an IPC handler to tracking

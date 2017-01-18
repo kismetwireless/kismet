@@ -27,7 +27,7 @@
 #include "packet.h"
 #include "packetchain.h"
 
-class Kis_DLT_Handler {
+class Kis_DLT_Handler : public SharedGlobalData {
 public:
 	Kis_DLT_Handler() { fprintf(stderr, "FATAL OOPS: Kis_DLT_Handler()\n"); exit(1); }
 	Kis_DLT_Handler(GlobalRegistry *in_globalreg);

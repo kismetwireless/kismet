@@ -117,14 +117,14 @@ int GlobalRegistry::FetchGlobalRef(string in_name) {
 	return ext_name_map[StrLower(in_name)];
 }
 
-void *GlobalRegistry::FetchGlobal(int in_ref) {
+shared_ptr<void> GlobalRegistry::FetchGlobal(int in_ref) {
 	if (ext_data_map.find(in_ref) == ext_data_map.end())
 		return NULL;
 
 	return ext_data_map[in_ref];
 }
 
-void *GlobalRegistry::FetchGlobal(string in_name) {
+shared_ptr<void> GlobalRegistry::FetchGlobal(string in_name) {
 	int ref;
 
 	if ((ref = FetchGlobalRef(in_name)) < 0) {
@@ -134,7 +134,7 @@ void *GlobalRegistry::FetchGlobal(string in_name) {
 	return ext_data_map[ref];
 }
 
-int GlobalRegistry::InsertGlobal(int in_ref, void *in_data) {
+int GlobalRegistry::InsertGlobal(int in_ref, shared_ptr<void> in_data) {
 	/*
 	if (ext_data_map.find(in_ref) == ext_data_map.end()) {
 		fprintf(stderr, "debug - insertglobal no ref %d\n", in_ref);
@@ -153,7 +153,7 @@ void GlobalRegistry::RemoveGlobal(int in_ref) {
     }
 }
 
-int GlobalRegistry::InsertGlobal(string in_name, void *in_data) {
+int GlobalRegistry::InsertGlobal(string in_name, shared_ptr<void> in_data) {
 	int ref = RegisterGlobal(in_name);
 
 	return InsertGlobal(ref, in_data);
@@ -234,13 +234,12 @@ void GlobalRegistry::RemoveUsageFunc(usage_func in_cli) {
     }
 }
 
-void GlobalRegistry::RegisterLifetimeGlobal(LifetimeGlobal *in_g) {
-    fprintf(stderr, "debug - registering lifetime global %p\n", in_g);
+void GlobalRegistry::RegisterLifetimeGlobal(shared_ptr<LifetimeGlobal> in_g) {
     lifetime_vec.insert(lifetime_vec.begin(), in_g);
 }
 
-void GlobalRegistry::RemoveLifetimeGlobal(LifetimeGlobal *in_g) {
-    for (vector<LifetimeGlobal *>::iterator i = lifetime_vec.begin();
+void GlobalRegistry::RemoveLifetimeGlobal(shared_ptr<LifetimeGlobal> in_g) {
+    for (vector<shared_ptr<LifetimeGlobal> >::iterator i = lifetime_vec.begin();
             i != lifetime_vec.end(); ++i) {
         if (*i == in_g) {
             lifetime_vec.erase(i);
@@ -250,13 +249,12 @@ void GlobalRegistry::RemoveLifetimeGlobal(LifetimeGlobal *in_g) {
 }
 
 void GlobalRegistry::DeleteLifetimeGlobals() {
-    for (vector<LifetimeGlobal *>::iterator i = lifetime_vec.begin();
-            i != lifetime_vec.end(); ++i) {
-        fprintf(stderr, "debug - freeing lifetime global %p\n", *i);
-        delete(*i);
-        lifetime_vec.erase(i);
-        i = lifetime_vec.begin();
-    }
-}
+	for (vector<shared_ptr<LifetimeGlobal> >::iterator i = lifetime_vec.begin();
+			i != lifetime_vec.end(); ++i) {
+		lifetime_vec.erase(i);
+		i = lifetime_vec.begin();
+	}
 
+    lifetime_vec.clear();
+}
 

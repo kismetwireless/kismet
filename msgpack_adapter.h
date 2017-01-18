@@ -37,20 +37,18 @@ namespace MsgpackAdapter {
 
 typedef map<string, msgpack::object> MsgpackStrMap;
 
-void Packer(GlobalRegistry *globalreg, TrackerElement *v, 
+void Packer(GlobalRegistry *globalreg, SharedTrackerElement v, 
         msgpack::packer<std::stringstream> &packer);
 
 void Pack(GlobalRegistry *globalreg, std::stringstream &stream, 
-        tracker_component *c);
-void Pack(GlobalRegistry *globalreg, std::stringstream &stream, 
-        TrackerElement *e);
+        SharedTrackerElement e);
 
 class Serializer : public TrackerElementSerializer {
 public:
     Serializer(GlobalRegistry *in_globalreg, std::stringstream &in_stream) : 
         TrackerElementSerializer(in_globalreg, in_stream) { }
 
-    virtual void serialize(TrackerElement *in_elem) {
+    virtual void serialize(SharedTrackerElement in_elem) {
         Pack(globalreg, stream, in_elem);
     }
 };

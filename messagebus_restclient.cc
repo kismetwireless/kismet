@@ -31,7 +31,6 @@ RestMessageClient::RestMessageClient(GlobalRegistry *in_globalreg, void *in_aux)
     Kis_Net_Httpd_Stream_Handler(in_globalreg) {
 
     globalreg = in_globalreg;
-    globalreg->InsertGlobal("REST_MSG_CLIENT", this);
 
     message_vec_id =
         globalreg->entrytracker->RegisterField("kismet.messagebus.list",
@@ -41,14 +40,11 @@ RestMessageClient::RestMessageClient(GlobalRegistry *in_globalreg, void *in_aux)
         globalreg->entrytracker->RegisterField("kismet.messagebus.timestamp",
                 TrackerUInt64, "message update timestamp");
 
-    tracked_message *msg_builder =
-        new tracked_message(globalreg, 0);
+    shared_ptr<tracked_message> msg_builder(new tracked_message(globalreg, 0));
 
     message_entry_id =
         globalreg->entrytracker->RegisterField("kismet.messagebus.message",
                 msg_builder, "Kismet message");
-    
-    delete(msg_builder);
 
     pthread_mutex_init(&msg_mutex, NULL);
 
@@ -62,20 +58,16 @@ RestMessageClient::~RestMessageClient() {
 
     globalreg->RemoveGlobal("REST_MSG_CLIENT");
 
-    for (vector<tracked_message *>::iterator i = message_vec.begin();
-            i != message_vec.end(); ++i) {
-        (*i)->unlink();
-    }
+    message_vec.clear();
 
     pthread_mutex_destroy(&msg_mutex);
 }
 
 void RestMessageClient::ProcessMessage(string in_msg, int in_flags) {
-    tracked_message *msg = 
-        (tracked_message *) globalreg->entrytracker->GetTrackedInstance(message_entry_id);
+    shared_ptr<tracked_message> msg = 
+        static_pointer_cast<tracked_message>(globalreg->entrytracker->GetTrackedInstance(message_entry_id));
 
     msg->set_from_message(in_msg, in_flags);
-    msg->link();
 
     {
         local_locker lock(&msg_mutex);
@@ -84,7 +76,6 @@ void RestMessageClient::ProcessMessage(string in_msg, int in_flags) {
 
         // Hardcode a backlog count right now
         if (message_vec.size() > 50) {
-            message_vec.front()->unlink();
             message_vec.erase(message_vec.begin());
         }
     }
@@ -177,16 +168,15 @@ void RestMessageClient::Httpd_CreateStreamResponse(
     {
         local_locker lock(&msg_mutex);
 
-        TrackerElement *wrapper;
-        TrackerElement *msgvec = 
-            globalreg->entrytracker->GetTrackedInstance(message_vec_id);
+        SharedTrackerElement wrapper;
+        SharedTrackerElement msgvec(globalreg->entrytracker->GetTrackedInstance(message_vec_id));
        
         // If we're doing a time-since, wrap the vector
         if (wrap) {
-            wrapper = new TrackerElement(TrackerMap);
+            wrapper.reset(new TrackerElement(TrackerMap));
             wrapper->add_map(msgvec);
 
-            TrackerElement *ts =
+            SharedTrackerElement ts =
                 globalreg->entrytracker->GetTrackedInstance(message_timestamp_id);
             ts->set((uint64_t) globalreg->timestamp.tv_sec);
             wrapper->add_map(ts);
@@ -194,9 +184,7 @@ void RestMessageClient::Httpd_CreateStreamResponse(
             wrapper = msgvec;
         }
 
-        wrapper->link();
-
-        for (vector<tracked_message *>::iterator i = message_vec.begin();
+        for (vector<shared_ptr<tracked_message> >::iterator i = message_vec.begin();
                 i != message_vec.end(); ++i) {
             if (since_time < (*i)->get_timestamp()) {
                 msgvec->add_vector(*i);
@@ -206,8 +194,6 @@ void RestMessageClient::Httpd_CreateStreamResponse(
         serializer->serialize(wrapper);
 
         delete(serializer);
-
-        wrapper->unlink();
     }
 }
 

@@ -41,7 +41,7 @@ Kis_Httpd_Websession::Kis_Httpd_Websession(GlobalRegistry *in_globalreg) :
 
     conf_username = up[0];
     conf_password = up[1];
-    }
+}
 
 Kis_Httpd_Websession::~Kis_Httpd_Websession() {
 

@@ -159,7 +159,7 @@ int main(int argc, char *argv[], char *envp[]) {
 	globalreg->envp = envp;
 
 	// Create the message bus
-    globalreg->RegisterLifetimeGlobal((LifetimeGlobal *) new MessageBus(globalreg));
+    MessageBus::create_messagebus(globalreg);
 
 	// Create the IPC system
 	globalreg->rootipc = new RootIPCRemote(globalreg, "root capture control");
@@ -183,15 +183,17 @@ int main(int argc, char *argv[], char *envp[]) {
 	// DropPrivCapabilities();
 	
 	// Allocate some other critical stuff
-	globalreg->timetracker = new Timetracker(globalreg);
+    Timetracker::create_timetracker(globalreg);
 
 	// Create the packet chain - PST uses it to grab frames to send to IPC
-	globalreg->packetchain = new Packetchain(globalreg);
+    Packetchain::create_packetchain(globalreg);
+
 	if (globalreg->fatal_condition)
 		CatchShutdown(-1);
 
 	// Create the packetsourcetracker
-	globalreg->sourcetracker = new Packetsourcetracker(globalreg);
+    Packetsourcetracker::create_pst(globalreg);
+
 	if (globalreg->fatal_condition)
 		CatchShutdown(-1);
 

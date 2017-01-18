@@ -28,7 +28,17 @@
 class Systemmonitor : public tracker_component, public Kis_Net_Httpd_Stream_Handler,
     public LifetimeGlobal {
 public:
+    static shared_ptr<Systemmonitor> create_systemmonitor(GlobalRegistry *in_globalreg) {
+        shared_ptr<Systemmonitor> mon(new Systemmonitor(in_globalreg));
+        in_globalreg->RegisterLifetimeGlobal(mon);
+        in_globalreg->InsertGlobal("SYSTEM_MONITOR", mon);
+        return mon;
+    }
+
+private:
     Systemmonitor(GlobalRegistry *in_globalreg);
+
+public:
     virtual ~Systemmonitor();
 
     virtual bool Httpd_VerifyPath(const char *path, const char *method);
@@ -49,16 +59,16 @@ protected:
     virtual void register_fields();
 
     int battery_perc_id;
-    TrackerElement *battery_perc;
+    SharedTrackerElement battery_perc;
 
     int battery_charging_id;
-    TrackerElement *battery_charging;
+    SharedTrackerElement battery_charging;
 
     int battery_ac_id;
-    TrackerElement *battery_ac;
+    SharedTrackerElement battery_ac;
 
     int battery_remaining_id;
-    TrackerElement *battery_remaining;
+    SharedTrackerElement battery_remaining;
 
 };
 

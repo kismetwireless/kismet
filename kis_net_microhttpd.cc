@@ -45,9 +45,6 @@
 Kis_Net_Httpd::Kis_Net_Httpd(GlobalRegistry *in_globalreg) {
     globalreg = in_globalreg;
 
-    globalreg->InsertGlobal("HTTPD_SERVER", this);
-    globalreg->httpd_server = this;
-
     running = false;
 
     use_ssl = false;
@@ -700,7 +697,8 @@ Kis_Net_Httpd_Handler::Kis_Net_Httpd_Handler(GlobalRegistry *in_globalreg) {
 }
 
 Kis_Net_Httpd_Handler::~Kis_Net_Httpd_Handler() {
-    httpd = (Kis_Net_Httpd *) http_globalreg->FetchGlobal("HTTPD_SERVER");
+    httpd = 
+        static_pointer_cast<Kis_Net_Httpd>(http_globalreg->FetchGlobal("HTTPD_SERVER"));
 
     if (httpd != NULL)
         httpd->RemoveHandler(this);
@@ -708,7 +706,8 @@ Kis_Net_Httpd_Handler::~Kis_Net_Httpd_Handler() {
 
 void Kis_Net_Httpd_Handler::Bind_Httpd_Server(GlobalRegistry *in_globalreg) {
     if (in_globalreg != NULL) {
-        httpd = (Kis_Net_Httpd *) in_globalreg->FetchGlobal("HTTPD_SERVER");
+        httpd = 
+            static_pointer_cast<Kis_Net_Httpd>(in_globalreg->FetchGlobal("HTTPD_SERVER"));
         if (httpd != NULL)
             httpd->RegisterHandler(this);
     }

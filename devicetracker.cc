@@ -53,12 +53,14 @@ int Devicetracker_packethook_commontracker(CHAINCALL_PARMS) {
 
 Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
     Kis_Net_Httpd_Stream_Handler(in_globalreg) {
-    pthread_mutex_init(&devicelist_mutex, NULL);
+
+    // Initialize as recursive to allow multiple locks in a single thread
+    pthread_mutexattr_t mutexattr;
+    pthread_mutexattr_init(&mutexattr);
+    pthread_mutexattr_settype(&mutexattr, PTHREAD_MUTEX_RECURSIVE);
+	pthread_mutex_init(&devicelist_mutex, &mutexattr);
 
 	globalreg = in_globalreg;
-
-    globalreg->devicetracker = this;
-	globalreg->InsertGlobal("DEVICE_TRACKER", this);
 
     device_base_id =
         globalreg->entrytracker->RegisterField("kismet.device.base", TrackerMac,
@@ -86,8 +88,7 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
         globalreg->entrytracker->RegisterField("kismet.devicelist.timestamp",
                 TrackerInt64, "device list timestamp");
 
-    packets_rrd = new kis_tracked_rrd<>(globalreg, 0);
-    packets_rrd->link();
+    packets_rrd.reset(new kis_tracked_rrd<>(globalreg, 0));
     packets_rrd_id =
         globalreg->entrytracker->RegisterField("kismet.device.packets_rrd",
                 packets_rrd, "RRD of total packets seen");
@@ -200,11 +201,7 @@ Devicetracker::~Devicetracker() {
         delete p->second;
     }
 
-    for (unsigned int d = 0; d < tracked_vec.size(); d++) {
-        tracked_vec[d]->unlink();
-    }
-
-    packets_rrd->unlink();
+    tracked_vec.clear();
 
     pthread_mutex_destroy(&devicelist_mutex);
 }
@@ -355,7 +352,7 @@ void Devicetracker::UpdateFullRefresh() {
     full_refresh_time = globalreg->timestamp.tv_sec;
 }
 
-kis_tracked_device_base *Devicetracker::FetchDevice(uint64_t in_key) {
+shared_ptr<kis_tracked_device_base> Devicetracker::FetchDevice(uint64_t in_key) {
     local_locker lock(&devicelist_mutex);
 
 	device_itr i = tracked_map.find(in_key);
@@ -366,7 +363,7 @@ kis_tracked_device_base *Devicetracker::FetchDevice(uint64_t in_key) {
 	return NULL;
 }
 
-kis_tracked_device_base *Devicetracker::FetchDevice(mac_addr in_device,
+shared_ptr<kis_tracked_device_base> Devicetracker::FetchDevice(mac_addr in_device,
         unsigned int in_phy) {
 	return FetchDevice(DevicetrackerKey::MakeKey(in_device, in_phy));
 }
@@ -465,7 +462,7 @@ int Devicetracker::CommonTracker(kis_packet *in_pack) {
 
 // This function handles populating the base common info about a device.
 // Specific info should be populated by the phy handler.
-kis_tracked_device_base *Devicetracker::UpdateCommonDevice(mac_addr in_mac,
+shared_ptr<kis_tracked_device_base> Devicetracker::UpdateCommonDevice(mac_addr in_mac,
         int in_phy, kis_packet *in_pack, unsigned int in_flags) {
 
     stringstream sstr;
@@ -479,7 +476,7 @@ kis_tracked_device_base *Devicetracker::UpdateCommonDevice(mac_addr in_mac,
 	kis_common_info *pack_common =
 		(kis_common_info *) in_pack->fetch(pack_comp_common);
 
-	kis_tracked_device_base *device = NULL;
+	shared_ptr<kis_tracked_device_base> device = NULL;
     Kis_Phy_Handler *phy = NULL;
     uint64_t key = 0;
 
@@ -492,10 +489,7 @@ kis_tracked_device_base *Devicetracker::UpdateCommonDevice(mac_addr in_mac,
     key = DevicetrackerKey::MakeKey(in_mac, in_phy);
 
 	if ((device = FetchDevice(key)) == NULL) {
-        device = new kis_tracked_device_base(globalreg, device_base_id);
-
-        // Always hold a linkage to the device for ourselves
-        device->link();
+        device.reset(new kis_tracked_device_base(globalreg, device_base_id));
 
         device->set_key(key);
         device->set_macaddr(in_mac);
@@ -603,7 +597,8 @@ kis_tracked_device_base *Devicetracker::UpdateCommonDevice(mac_addr in_mac,
     return device;
 }
 
-int Devicetracker::PopulateCommon(kis_tracked_device_base *device, kis_packet *in_pack) {
+int Devicetracker::PopulateCommon(shared_ptr<kis_tracked_device_base> device, 
+        kis_packet *in_pack) {
 	kis_common_info *pack_common =
 		(kis_common_info *) in_pack->fetch(pack_comp_common);
 	kis_layer1_packinfo *pack_l1info =
@@ -613,7 +608,7 @@ int Devicetracker::PopulateCommon(kis_tracked_device_base *device, kis_packet *i
 	kis_ref_capsource *pack_capsrc =
 		(kis_ref_capsource *) in_pack->fetch(pack_comp_capsrc);
 
-    TrackerElementScopeLocker((TrackerElement *) device);
+    TrackerElementScopeLocker slocker(device);
 
 	// If we can't figure it out at all (no common layer) just bail
 	if (pack_common == NULL)
@@ -705,8 +700,8 @@ int Devicetracker::PopulateCommon(kis_tracked_device_base *device, kis_packet *i
 }
 
 void Devicetracker::WriteXML(FILE *in_logfile) {
-	Packetsourcetracker *pst =
-		(Packetsourcetracker *) globalreg->FetchGlobal("PACKETSOURCE_TRACKER");
+	shared_ptr<Packetsourcetracker> pst =
+		static_pointer_cast<Packetsourcetracker>(globalreg->FetchGlobal("PACKETSOURCE_TRACKER"));
 
 	// Punt and die, better than segv
 	if (pst == NULL) {
@@ -902,7 +897,7 @@ void Devicetracker::WriteXML(FILE *in_logfile) {
 			SanitizeXML(gpsw->FetchType()).c_str());
 #endif
 
-	vector<kis_tracked_device_base *> *devlist;// = FetchDevices(KIS_PHY_ANY);
+	vector<kis_tracked_device_base *> *devlist = NULL;// = FetchDevices(KIS_PHY_ANY);
 
 	if (devlist->size() > 0)
 		fprintf(in_logfile, "<devices>\n");
@@ -965,14 +960,15 @@ void Devicetracker::WriteXML(FILE *in_logfile) {
 				"<lastSeen>%.24s</lastSeen>\n",
 				ctime(&t));
 
-        TrackerElement *seenby_map = dev->get_seenby_map();
+        SharedTrackerElement seenby_map = dev->get_seenby_map();
 
         if (seenby_map->size() > 0)
 			fprintf(in_logfile, "<seenBySources>\n");
 
         for (TrackerElement::map_const_iterator si = seenby_map->begin();
                 si != seenby_map->end(); ++si) {
-            kis_tracked_seenby_data *sbd = (kis_tracked_seenby_data *) si->second;
+            shared_ptr<kis_tracked_seenby_data> sbd = 
+                static_pointer_cast<kis_tracked_seenby_data>(si->second);
 
             time_t st;
 
@@ -1014,8 +1010,8 @@ void Devicetracker::WriteXML(FILE *in_logfile) {
         if (seenby_map->size() > 0)
 			fprintf(in_logfile, "</seenBySources>\n");
 
-        kis_tracked_location *location = dev->get_location();
-        kis_tracked_signal_data *snrdata = dev->get_signal_data();
+        shared_ptr<kis_tracked_location> location = dev->get_location();
+        shared_ptr<kis_tracked_signal_data> snrdata = dev->get_signal_data();
 
         if (location->get_valid()) {
 			fprintf(in_logfile,
@@ -1048,7 +1044,7 @@ void Devicetracker::WriteXML(FILE *in_logfile) {
                     location->get_max_loc()->get_alt());
 			fprintf(in_logfile, "</gpsMaximum>\n");
 
-            kis_tracked_location_triplet *peak_location = snrdata->get_peak_loc();
+            shared_ptr<kis_tracked_location_triplet> peak_location = snrdata->get_peak_loc();
 
             if (peak_location->get_valid()) {
                 fprintf(in_logfile,
@@ -1154,8 +1150,8 @@ void Devicetracker::WriteXML(FILE *in_logfile) {
 }
 
 void Devicetracker::WriteTXT(FILE *in_logfile) {
-	Packetsourcetracker *pst =
-		(Packetsourcetracker *) globalreg->FetchGlobal("PACKETSOURCE_TRACKER");
+	shared_ptr<Packetsourcetracker> pst =
+        static_pointer_cast<Packetsourcetracker>(globalreg->FetchGlobal("PACKETSOURCE_TRACKER"));
 
 	// Punt and die, better than segv
 	if (pst == NULL) {
@@ -1284,7 +1280,7 @@ void Devicetracker::WriteTXT(FILE *in_logfile) {
 	fprintf(in_logfile, "\n");
 #endif
 
-	vector<kis_tracked_device_base *> *devlist; // = FetchDevices(KIS_PHY_ANY);
+	vector<kis_tracked_device_base *> *devlist = NULL; // = FetchDevices(KIS_PHY_ANY);
 
 	if (devlist->size() > 0)
 		fprintf(in_logfile, "Devices:\n");
@@ -1351,14 +1347,15 @@ void Devicetracker::WriteTXT(FILE *in_logfile) {
 				ctime(&(dt)));
 		fprintf(in_logfile, "\n");
 
-        TrackerElement *seenby_map = dev->get_seenby_map();
+        SharedTrackerElement seenby_map = dev->get_seenby_map();
 
 		if (seenby_map->size() > 0)
 			fprintf(in_logfile, " Seen by capture sources:\n");
 
         for (TrackerElement::map_const_iterator si = seenby_map->begin();
                 si != seenby_map->end(); ++si) {
-            kis_tracked_seenby_data *sbd = (kis_tracked_seenby_data *) si->second;
+            shared_ptr<kis_tracked_seenby_data> sbd = 
+                static_pointer_cast<kis_tracked_seenby_data>(si->second);
 
 			fprintf(in_logfile,
 					"  UUID: %s>\n",
@@ -1394,8 +1391,8 @@ void Devicetracker::WriteTXT(FILE *in_logfile) {
 			fprintf(in_logfile, "\n");
 		}
 
-        kis_tracked_location *location = dev->get_location();
-        kis_tracked_signal_data *snrdata = dev->get_signal_data();
+        shared_ptr<kis_tracked_location> location = dev->get_location();
+        shared_ptr<kis_tracked_signal_data> snrdata = dev->get_signal_data();
 
         if (location->get_valid()) {
 			fprintf(in_logfile,
@@ -1427,7 +1424,7 @@ void Devicetracker::WriteTXT(FILE *in_logfile) {
 
 			fprintf(in_logfile, "\n");
 
-            kis_tracked_location_triplet *peak_location = snrdata->get_peak_loc();
+            shared_ptr<kis_tracked_location_triplet> peak_location = snrdata->get_peak_loc();
 
 			fprintf(in_logfile,
 					"  GPS peak signal latitude: %f\n"
@@ -1656,7 +1653,7 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
 			else
 				return false;
 
-            map<uint64_t, kis_tracked_device_base *>::iterator tmi =
+            map<uint64_t, shared_ptr<kis_tracked_device_base> >::iterator tmi =
                 tracked_map.find(key);
             if (tmi != tracked_map.end()) {
                 // Try to find the exact field
@@ -1694,7 +1691,7 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
             }
 
             // Try to find the actual mac
-            vector<kis_tracked_device_base *>::iterator vi;
+            vector<shared_ptr<kis_tracked_device_base> >::iterator vi;
             for (vi = tracked_vec.begin(); vi != tracked_vec.end(); ++vi) {
                 if ((*vi)->get_macaddr() == mac) {
                     return true;
@@ -1729,28 +1726,26 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
 void Devicetracker::httpd_all_phys(TrackerElementSerializer *serializer,
         string in_wrapper_key) {
 
-    TrackerElement *phyvec =
+    SharedTrackerElement phyvec =
         globalreg->entrytracker->GetTrackedInstance(phy_base_id);
 
-    TrackerElement *wrapper = NULL;
+    SharedTrackerElement wrapper = NULL;
 
     if (in_wrapper_key != "") {
-        wrapper = new TrackerElement(TrackerMap);
+        wrapper.reset(new TrackerElement(TrackerMap));
         wrapper->add_map(phyvec);
         phyvec->set_local_name(in_wrapper_key);
     } else {
         wrapper = phyvec;
     }
 
-    TrackerElementScopeLinker slink(wrapper);
-
-    kis_tracked_phy *anyphy = new kis_tracked_phy(globalreg, phy_base_id);
+    shared_ptr<kis_tracked_phy> anyphy(new kis_tracked_phy(globalreg, phy_base_id));
     anyphy->set_from_phy(this, KIS_PHY_ANY);
     phyvec->add_vector(anyphy);
 
     map<int, Kis_Phy_Handler *>::iterator mi;
     for (mi = phy_handler_map.begin(); mi != phy_handler_map.end(); ++mi) {
-        kis_tracked_phy *p = new kis_tracked_phy(globalreg, phy_base_id);
+        shared_ptr<kis_tracked_phy> p(new kis_tracked_phy(globalreg, phy_base_id));
         p->set_from_phy(this, mi->first);
         phyvec->add_vector(p);
     }
@@ -1759,27 +1754,25 @@ void Devicetracker::httpd_all_phys(TrackerElementSerializer *serializer,
 }
 
 void Devicetracker::httpd_device_summary(TrackerElementSerializer *serializer,
-        TrackerElementVector *subvec, string in_wrapper_key) {
+        shared_ptr<TrackerElementVector> subvec, string in_wrapper_key) {
 
-    TrackerElement *devvec =
+    local_locker lock(&devicelist_mutex);
+
+    SharedTrackerElement devvec =
         globalreg->entrytracker->GetTrackedInstance(device_summary_base_id);
 
     // Wrap the dev vec in a dictionary and change its name
-    TrackerElement *wrapper = NULL;
+    SharedTrackerElement wrapper = NULL;
 
     if (in_wrapper_key != "") {
-        wrapper = new TrackerElement(TrackerMap);
+        wrapper.reset(new TrackerElement(TrackerMap));
         wrapper->add_map(devvec);
         devvec->set_local_name(in_wrapper_key);
     } else {
         wrapper = devvec;
     }
 
-    wrapper->link();
-
     if (subvec == NULL) {
-        local_locker lock(&devicelist_mutex);
-
         for (unsigned int x = 0; x < tracked_vec.size(); x++) {
             devvec->add_vector(tracked_vec[x]->get_tracked_summary());
         }
@@ -1793,22 +1786,18 @@ void Devicetracker::httpd_device_summary(TrackerElementSerializer *serializer,
          */
         for (TrackerElementVector::const_iterator x = subvec->begin();
                 x != subvec->end(); ++x) {
-            devvec->add_vector(((kis_tracked_device_base *) *x)->get_tracked_summary());
+            devvec->add_vector(static_pointer_cast<kis_tracked_device_base>(*x)->get_tracked_summary());
         }
 
         serializer->serialize(wrapper);
     }
-
-    wrapper->unlink();
 }
 
 void Devicetracker::httpd_xml_device_summary(std::stringstream &stream) {
     local_locker lock(&devicelist_mutex);
 
-    TrackerElement *devvec =
+    SharedTrackerElement devvec =
         globalreg->entrytracker->GetTrackedInstance(device_summary_base_id);
-
-    devvec->link();
 
     for (unsigned int x = 0; x < tracked_vec.size(); x++) {
         devvec->add_vector(tracked_vec[x]->get_tracked_summary());
@@ -1872,8 +1861,6 @@ void Devicetracker::httpd_xml_device_summary(std::stringstream &stream) {
     xml->XmlSerialize(devvec, stream);
 
     delete(xml);
-
-    devvec->unlink();
 }
 
 void Devicetracker::Httpd_CreateStreamResponse(
@@ -1889,7 +1876,7 @@ void Devicetracker::Httpd_CreateStreamResponse(
     if (strcmp(path, "/devices/all_devices.msgpack") == 0) {
         TrackerElementSerializer *serializer =
             new MsgpackAdapter::Serializer(globalreg, stream);
-        httpd_device_summary(serializer);
+        httpd_device_summary(serializer, NULL);
         delete(serializer);
         return;
     }
@@ -1897,7 +1884,7 @@ void Devicetracker::Httpd_CreateStreamResponse(
     if (strcmp(path, "/devices/all_devices.json") == 0) {
         TrackerElementSerializer *serializer =
             new JsonAdapter::Serializer(globalreg, stream);
-        httpd_device_summary(serializer);
+        httpd_device_summary(serializer, NULL);
         delete(serializer);
         return;
     }
@@ -1971,20 +1958,16 @@ void Devicetracker::Httpd_CreateStreamResponse(
 			else 
 				return;
 
-            map<uint64_t, kis_tracked_device_base *>::iterator tmi =
+            map<uint64_t, shared_ptr<kis_tracked_device_base> >::iterator tmi =
                 tracked_map.find(key);
             if (tmi != tracked_map.end()) {
-                TrackerElementScopeLinker slink(tmi->second);
-
                 // Try to find the exact field
                 if (tokenurl.size() > 5) {
                     vector<string>::const_iterator first = tokenurl.begin() + 5;
                     vector<string>::const_iterator last = tokenurl.end();
                     vector<string> fpath(first, last);
 
-                    TrackerElement *sub = tmi->second->get_child_path(fpath);
-
-                    TrackerElementScopeLinker slink(sub);
+                    SharedTrackerElement sub = tmi->second->get_child_path(fpath);
 
                     if (sub == NULL) {
                         return;
@@ -2047,12 +2030,10 @@ void Devicetracker::Httpd_CreateStreamResponse(
                 return;
             }
 
-            TrackerElement *devvec =
+            SharedTrackerElement devvec =
                 globalreg->entrytracker->GetTrackedInstance(device_list_base_id);
 
-            TrackerElementScopeLinker slink(devvec);
-
-            vector<kis_tracked_device_base *>::iterator vi;
+            vector<shared_ptr<kis_tracked_device_base> >::iterator vi;
             for (vi = tracked_vec.begin(); vi != tracked_vec.end(); ++vi) {
                 if ((*vi)->get_macaddr() == mac) {
                     devvec->add_vector((*vi));
@@ -2087,10 +2068,9 @@ void Devicetracker::Httpd_CreateStreamResponse(
 
             local_locker lock(&devicelist_mutex);
 
-            TrackerElement *wrapper = new TrackerElement(TrackerMap);
-            TrackerElementScopeLinker slink(wrapper);
+            SharedTrackerElement wrapper(new TrackerElement(TrackerMap));
 
-            TrackerElement *refresh =
+            SharedTrackerElement refresh =
                 globalreg->entrytracker->GetTrackedInstance(device_update_required_id);
 
             // If we've changed the list more recently, we have to do a refresh
@@ -2102,18 +2082,18 @@ void Devicetracker::Httpd_CreateStreamResponse(
 
             wrapper->add_map(refresh);
 
-            TrackerElement *updatets =
+            SharedTrackerElement updatets =
                 globalreg->entrytracker->GetTrackedInstance(device_update_timestamp_id);
             updatets->set((int64_t) globalreg->timestamp.tv_sec);
 
             wrapper->add_map(updatets);
 
-            TrackerElement *devvec =
+            SharedTrackerElement devvec =
                 globalreg->entrytracker->GetTrackedInstance(device_list_base_id);
 
             wrapper->add_map(devvec);
 
-            vector<kis_tracked_device_base *>::iterator vi;
+            vector<shared_ptr<kis_tracked_device_base> >::iterator vi;
             for (vi = tracked_vec.begin(); vi != tracked_vec.end(); ++vi) {
                 if ((*vi)->get_last_time() > lastts)
                     devvec->add_vector((*vi));
@@ -2142,7 +2122,7 @@ void Devicetracker::Httpd_CreateStreamResponse(
 void Devicetracker::MatchOnDevices(DevicetrackerFilterWorker *worker) {
     local_locker lock(&devicelist_mutex);
 
-    map<uint64_t, kis_tracked_device_base *>::iterator tmi;
+    map<uint64_t, shared_ptr<kis_tracked_device_base> >::iterator tmi;
 
     for (tmi = tracked_map.begin(); tmi != tracked_map.end(); ++tmi) {
         worker->MatchDevice(this, tmi->second);
@@ -2153,8 +2133,8 @@ void Devicetracker::MatchOnDevices(DevicetrackerFilterWorker *worker) {
 
 // Simple std::sort comparison function to order by the least frequently
 // seen devices
-bool devicetracker_sort_lastseen(kis_tracked_device_base *a,
-	kis_tracked_device_base *b) {
+bool devicetracker_sort_lastseen(shared_ptr<kis_tracked_device_base> a,
+	shared_ptr<kis_tracked_device_base> b) {
 
 	return a->get_last_time() < b->get_last_time();
 }
@@ -2163,10 +2143,10 @@ int Devicetracker::timetracker_event(int eventid) {
     if (eventid == device_idle_timer) {
         local_locker lock(&devicelist_mutex);
 
-        vector<kis_tracked_device_base *> target_devs;
+        vector<shared_ptr<kis_tracked_device_base> > target_devs;
 
         // Find all eligible devices, remove them from the tracked vec
-        for (vector<kis_tracked_device_base *>::iterator i =
+        for (vector<shared_ptr<kis_tracked_device_base> >::iterator i =
                 tracked_vec.begin(); i != tracked_vec.end(); /* */ ) {
             if (globalreg->timestamp.tv_sec - (*i)->get_last_time() >
                     device_idle_expiration) {
@@ -2182,7 +2162,7 @@ int Devicetracker::timetracker_event(int eventid) {
 
         // Remove them from the global index, and then unlink to let the
         // tracked element GC clean them up
-        for (vector<kis_tracked_device_base *>::iterator i =
+        for (vector<shared_ptr<kis_tracked_device_base> >::iterator i =
                 target_devs.begin(); i != target_devs.end(); ++i) {
             device_itr mi = tracked_map.find((*i)->get_key());
 
@@ -2190,8 +2170,6 @@ int Devicetracker::timetracker_event(int eventid) {
                 tracked_map.erase(mi);
 
             fprintf(stderr, "debug - forgetting device %s age %lu expiration %d\n", (*i)->get_macaddr().Mac2String().c_str(), globalreg->timestamp.tv_sec - (*i)->get_last_time(), device_idle_expiration);
-
-            (*i)->unlink();
         }
 
     } else if (eventid == max_devices_timer) {
@@ -2222,10 +2200,6 @@ int Devicetracker::timetracker_event(int eventid) {
 
 			if (mi != tracked_map.end())
 				tracked_map.erase(mi);
-
-			// Pre-emptively unlink because we're about to go through and clear
-			// them out of the vec in bulk
-			mi->second->unlink();
 		}
 
 		// Clear them out of the vector
@@ -2241,4 +2215,23 @@ void Devicetracker::usage(const char *name __attribute__((unused))) {
 	printf(" *** Device Tracking Options ***\n");
 	printf("     --device-timeout=n       Expire devices after N seconds\n"
           );
+}
+
+void Devicetracker::lock_devicelist() {
+#ifdef HAVE_PTHREAD_TIMELOCK
+        struct timespec t;
+
+        clock_gettime(CLOCK_REALTIME , &t); 
+        t.tv_sec += 5; \
+
+        if (pthread_mutex_timedlock(&devicelist_mutex, &t) != 0) {
+            throw(std::runtime_error("mutex not available w/in 5 seconds"));
+        }
+#else
+        pthread_mutex_lock(&devicelist_mutex);
+#endif
+}
+
+void Devicetracker::unlock_devicelist() {
+    pthread_mutex_unlock(&devicelist_mutex);
 }

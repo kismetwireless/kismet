@@ -32,6 +32,8 @@
 
 #include <pthread.h>
 
+#include <memory>
+
 #include "macaddr.h"
 #include "uuid.h"
 
@@ -54,6 +56,9 @@
 
 class GlobalRegistry;
 class EntryTracker;
+class TrackerElement;
+
+typedef std::shared_ptr<TrackerElement> SharedTrackerElement;
 
 // Types of fields we can track and automatically resolve
 // Statically assigned type numbers which MUST NOT CHANGE as things go forwards for 
@@ -99,7 +104,7 @@ enum TrackerType {
     TrackerDoubleMap = 18,
 };
 
-class TrackerElement {
+class TrackerElement : public std::enable_shared_from_this<TrackerElement> {
 public:
     TrackerElement() {
         Initialize();
@@ -113,15 +118,16 @@ public:
     void Initialize();
 
     // Factory-style for easily making more of the same if we're subclassed
-    virtual TrackerElement *clone_type() {
-        return new TrackerElement(get_type(), get_id());
+    virtual shared_ptr<TrackerElement> clone_type() {
+        shared_ptr<TrackerElement> dup1(new TrackerElement(get_type(), get_id()));
+        return dup1;
     }
 
-    virtual TrackerElement *clone_type(int in_id) {
-        TrackerElement *dupl = clone_type();
-        dupl->set_id(in_id);
+    virtual shared_ptr<TrackerElement> clone_type(int in_id) {
+        shared_ptr<TrackerElement> dup1(clone_type());
+        dup1->set_id(in_id);
 
-        return dupl;
+        return dup1;
     }
 
     // Called prior to serialization output
@@ -141,28 +147,6 @@ public:
 
     string get_local_name() {
         return local_name;
-    }
-
-    void link() {
-        reference_count++;
-    }
-
-    void unlink() {
-        reference_count--;
-
-        // what?
-        if (reference_count < 0) {
-            throw std::runtime_error("tracker element link count < 0");
-        }
-
-        // Time to go
-        if (reference_count == 0) {
-            delete(this);
-        }
-    }
-
-    int get_links() {
-        return reference_count;
     }
 
     void thread_mutex_lock() {
@@ -249,25 +233,26 @@ public:
         return (*(dataunion.mac_value));
     }
 
-    vector<TrackerElement *> *get_vector() {
+    vector<shared_ptr<TrackerElement> > *get_vector() {
         except_type_mismatch(TrackerVector);
         return dataunion.subvector_value;
     }
 
-    TrackerElement *get_vector_value(unsigned int offt) {
+    shared_ptr<TrackerElement> get_vector_value(unsigned int offt) {
         except_type_mismatch(TrackerVector);
         return (*dataunion.subvector_value)[offt];
     }
 
-    map<int, TrackerElement *> *get_map() {
+    map<int, shared_ptr<TrackerElement> > *get_map() {
         except_type_mismatch(TrackerMap);
         return dataunion.submap_value;
     }
 
-    TrackerElement *get_map_value(int fn) {
+    shared_ptr<TrackerElement> get_map_value(int fn) {
         except_type_mismatch(TrackerMap);
 
-        map<int, TrackerElement *>::iterator i = dataunion.submap_value->find(fn);
+        map<int, shared_ptr<TrackerElement> >::iterator i = 
+            dataunion.submap_value->find(fn);
 
         if (i == dataunion.submap_value->end()) {
             return NULL;
@@ -276,22 +261,22 @@ public:
         return i->second;
     }
 
-    map<int, TrackerElement *> *get_intmap() {
+    map<int, shared_ptr<TrackerElement> > *get_intmap() {
         except_type_mismatch(TrackerIntMap);
         return dataunion.subintmap_value;
     }
 
-    map<mac_addr, TrackerElement *> *get_macmap() {
+    map<mac_addr, shared_ptr<TrackerElement> > *get_macmap() {
         except_type_mismatch(TrackerMacMap);
         return dataunion.submacmap_value;
     }
 
-    map<string, TrackerElement *> *get_stringmap() {
+    map<string, shared_ptr<TrackerElement> > *get_stringmap() {
         except_type_mismatch(TrackerStringMap);
         return dataunion.substringmap_value;
     }
 
-    map<double, TrackerElement *> *get_doublemap() {
+    map<double, shared_ptr<TrackerElement> > *get_doublemap() {
         except_type_mismatch(TrackerDoubleMap);
         return dataunion.subdoublemap_value;
     }
@@ -371,34 +356,34 @@ public:
 
     size_t size();
 
-    typedef vector<TrackerElement *> tracked_vector;
-    typedef vector<TrackerElement *>::iterator vector_iterator;
-    typedef vector<TrackerElement *>::const_iterator vector_const_iterator;
+    typedef vector<shared_ptr<TrackerElement> > tracked_vector;
+    typedef vector<shared_ptr<TrackerElement> >::iterator vector_iterator;
+    typedef vector<shared_ptr<TrackerElement> >::const_iterator vector_const_iterator;
 
-    typedef map<int, TrackerElement *> tracked_map;
-    typedef map<int, TrackerElement *>::iterator map_iterator;
-    typedef map<int, TrackerElement *>::const_iterator map_const_iterator;
-    typedef pair<int, TrackerElement *> tracked_pair;
+    typedef map<int, shared_ptr<TrackerElement> > tracked_map;
+    typedef map<int, shared_ptr<TrackerElement> >::iterator map_iterator;
+    typedef map<int, shared_ptr<TrackerElement> >::const_iterator map_const_iterator;
+    typedef pair<int, shared_ptr<TrackerElement> > tracked_pair;
 
-    typedef map<int, TrackerElement *> tracked_int_map;
-    typedef map<int, TrackerElement *>::iterator int_map_iterator;
-    typedef map<int, TrackerElement *>::const_iterator int_map_const_iterator;
-    typedef pair<int, TrackerElement *> int_map_pair;
+    typedef map<int, shared_ptr<TrackerElement> > tracked_int_map;
+    typedef map<int, shared_ptr<TrackerElement> >::iterator int_map_iterator;
+    typedef map<int, shared_ptr<TrackerElement> >::const_iterator int_map_const_iterator;
+    typedef pair<int, shared_ptr<TrackerElement> > int_map_pair;
 
-    typedef map<mac_addr, TrackerElement *> tracked_mac_map;
-    typedef map<mac_addr, TrackerElement *>::iterator mac_map_iterator;
-    typedef map<mac_addr, TrackerElement *>::const_iterator mac_map_const_iterator;
-    typedef pair<mac_addr, TrackerElement *> mac_map_pair;
+    typedef map<mac_addr, shared_ptr<TrackerElement> > tracked_mac_map;
+    typedef map<mac_addr, shared_ptr<TrackerElement> >::iterator mac_map_iterator;
+    typedef map<mac_addr, shared_ptr<TrackerElement> >::const_iterator mac_map_const_iterator;
+    typedef pair<mac_addr, shared_ptr<TrackerElement> > mac_map_pair;
 
-    typedef map<string, TrackerElement *> tracked_string_map;
-    typedef map<string, TrackerElement *>::iterator string_map_iterator;
-    typedef map<string, TrackerElement *>::const_iterator string_map_const_iterator;
-    typedef pair<string, TrackerElement *> string_map_pair;
+    typedef map<string, shared_ptr<TrackerElement> > tracked_string_map;
+    typedef map<string, shared_ptr<TrackerElement> >::iterator string_map_iterator;
+    typedef map<string, shared_ptr<TrackerElement> >::const_iterator string_map_const_iterator;
+    typedef pair<string, shared_ptr<TrackerElement> > string_map_pair;
 
-    typedef map<double, TrackerElement *> tracked_double_map;
-    typedef map<double, TrackerElement *>::iterator double_map_iterator;
-    typedef map<double, TrackerElement *>::const_iterator double_map_const_iterator;
-    typedef pair<double, TrackerElement *> double_map_pair;
+    typedef map<double, shared_ptr<TrackerElement> > tracked_double_map;
+    typedef map<double, shared_ptr<TrackerElement> >::iterator double_map_iterator;
+    typedef map<double, shared_ptr<TrackerElement> >::const_iterator double_map_const_iterator;
+    typedef pair<double, shared_ptr<TrackerElement> > double_map_pair;
 
     vector_iterator vec_begin();
     vector_iterator vec_end();
@@ -409,62 +394,62 @@ public:
     void clear_map();
     size_t size_map();
 
-    void add_map(int f, TrackerElement *s);
-    void add_map(TrackerElement *s); 
+    void add_map(int f, shared_ptr<TrackerElement> s);
+    void add_map(shared_ptr<TrackerElement> s); 
     void del_map(int f);
-    void del_map(TrackerElement *s);
+    void del_map(shared_ptr<TrackerElement> s);
     void del_map(map_iterator i);
     void insert_map(tracked_pair p);
 
-    void add_intmap(int i, TrackerElement *s);
+    void add_intmap(int i, shared_ptr<TrackerElement> s);
     void del_intmap(int i);
     void del_intmap(int_map_iterator i);
     void clear_intmap();
     void insert_intmap(int_map_pair p);
     size_t size_intmap();
 
-    TrackerElement *get_intmap_value(int idx);
+    shared_ptr<TrackerElement> get_intmap_value(int idx);
     int_map_iterator int_begin();
     int_map_iterator int_end();
     int_map_iterator int_find(int k);
 
-    void add_macmap(mac_addr i, TrackerElement *s);
+    void add_macmap(mac_addr i, shared_ptr<TrackerElement> s);
     void del_macmap(mac_addr i);
     void del_macmap(mac_map_iterator i);
     void clear_macmap();
     void insert_macmap(mac_map_pair p);
     size_t size_macmap();
 
-    TrackerElement *get_macmap_value(int idx);
+    shared_ptr<TrackerElement> get_macmap_value(int idx);
     mac_map_iterator mac_begin();
     mac_map_iterator mac_end();
     mac_map_iterator mac_find(mac_addr k);
 
-    void add_stringmap(string i, TrackerElement *s);
+    void add_stringmap(string i, shared_ptr<TrackerElement> s);
     void del_stringmap(string i);
     void del_stringmap(string_map_iterator i);
     void clear_stringmap();
     void insert_stringmap(string_map_pair p);
     size_t size_stringmap();
 
-    TrackerElement *get_stringmap_value(string idx);
+    shared_ptr<TrackerElement> get_stringmap_value(string idx);
     string_map_iterator string_begin();
     string_map_iterator string_end();
     string_map_iterator string_find(string k);
 
-    void add_doublemap(double i, TrackerElement *s);
+    void add_doublemap(double i, shared_ptr<TrackerElement> s);
     void del_doublemap(double i);
     void del_doublemap(double_map_iterator i);
     void clear_doublemap();
     void insert_doublemap(double_map_pair p);
     size_t size_doublemap();
 
-    TrackerElement *get_doublemap_value(double idx);
+    shared_ptr<TrackerElement> get_doublemap_value(double idx);
     double_map_iterator double_begin();
     double_map_iterator double_end();
     double_map_iterator double_find(double k);
 
-    void add_vector(TrackerElement *s);
+    void add_vector(shared_ptr<TrackerElement> s);
     void del_vector(unsigned int p);
     void del_vector(vector_iterator i);
     void clear_vector();
@@ -566,8 +551,8 @@ public:
     TrackerElement& operator^=(int64_t i);
     TrackerElement& operator^=(uint64_t i);
 
-    TrackerElement *operator[](int i);
-    TrackerElement *operator[](mac_addr i);
+    shared_ptr<TrackerElement> operator[](int i);
+    shared_ptr<TrackerElement> operator[](mac_addr i);
 
     static string type_to_string(TrackerType t);
 
@@ -625,21 +610,21 @@ protected:
         double double_value;
 
         // Field ID,Element keyed map
-        map<int, TrackerElement *> *submap_value;
+        map<int, shared_ptr<TrackerElement> > *submap_value;
 
         // Index int,Element keyed map
-        map<int, TrackerElement *> *subintmap_value;
+        map<int, shared_ptr<TrackerElement> > *subintmap_value;
 
         // Index mac,element keyed map
-        map<mac_addr, TrackerElement *> *submacmap_value;
+        map<mac_addr, shared_ptr<TrackerElement> > *submacmap_value;
 
         // Index string,element keyed map
-        map<string, TrackerElement *> *substringmap_value;
+        map<string, shared_ptr<TrackerElement> > *substringmap_value;
 
         // Index double,element keyed map
-        map<double, TrackerElement *> *subdoublemap_value;
+        map<double, shared_ptr<TrackerElement> > *subdoublemap_value;
 
-        vector<TrackerElement *> *subvector_value;
+        vector<shared_ptr<TrackerElement> > *subvector_value;
 
         mac_addr *mac_value;
 
@@ -653,20 +638,17 @@ protected:
 // Helper child classes
 class TrackerElementVector {
 protected:
-    TrackerElement *val;
+    shared_ptr<TrackerElement> val;
 
 public:
     typedef TrackerElement::vector_iterator iterator;
     typedef TrackerElement::vector_const_iterator const_iterator;
 
-    TrackerElementVector(TrackerElement *t) {
+    TrackerElementVector(shared_ptr<TrackerElement> t) {
         val = t;
-        val->link();
     }
 
-    virtual ~TrackerElementVector() {
-        val->unlink();
-    }
+    virtual ~TrackerElementVector() { }
 
     virtual iterator begin() {
         return val->vec_begin();
@@ -680,7 +662,7 @@ public:
         return val->clear_vector();
     }
 
-    virtual void push_back(TrackerElement *i) {
+    virtual void push_back(shared_ptr<TrackerElement> i) {
         return val->add_vector(i);
     }
 
@@ -696,21 +678,22 @@ public:
         return val->size_vector();
     }
 
+    shared_ptr<TrackerElement> operator[](unsigned int i) {
+        return *(begin() + i);
+    }
+
 };
 
 class TrackerElementMap {
 protected:
-    TrackerElement *val;
+    shared_ptr<TrackerElement> val;
 
 public:
-    TrackerElementMap(TrackerElement *t) {
+    TrackerElementMap(shared_ptr<TrackerElement> t) {
         val = t;
-        val->link();
     }
 
-    virtual ~TrackerElementMap() {
-        val->unlink();
-    }
+    virtual ~TrackerElementMap() { }
 
 public:
     typedef TrackerElement::map_iterator iterator;
@@ -748,17 +731,14 @@ public:
 
 class TrackerElementIntMap {
 protected:
-    TrackerElement *val;
+    shared_ptr<TrackerElement> val;
 
 public:
-    TrackerElementIntMap(TrackerElement *t) {
+    TrackerElementIntMap(shared_ptr<TrackerElement> t) {
         val = t;
-        val->link();
     }
 
-    virtual ~TrackerElementIntMap() {
-        val->unlink();
-    }
+    virtual ~TrackerElementIntMap() { }
 
 public:
     typedef TrackerElement::int_map_iterator iterator;
@@ -796,17 +776,14 @@ public:
 
 class TrackerElementStringMap {
 protected:
-    TrackerElement *val;
+    shared_ptr<TrackerElement> val;
 
 public:
-    TrackerElementStringMap(TrackerElement *t) {
+    TrackerElementStringMap(shared_ptr<TrackerElement> t) {
         val = t;
-        val->link();
     }
 
-    virtual ~TrackerElementStringMap() {
-        val->unlink();
-    }
+    virtual ~TrackerElementStringMap() { }
 
 public:
     typedef TrackerElement::string_map_iterator iterator;
@@ -844,17 +821,14 @@ public:
 
 class TrackerElementMacMap {
 protected:
-    TrackerElement *val;
+    shared_ptr<TrackerElement> val;
 
 public:
-    TrackerElementMacMap(TrackerElement *t) {
+    TrackerElementMacMap(shared_ptr<TrackerElement> t) {
         val = t;
-        val->link();
     }
 
-    virtual ~TrackerElementMacMap() {
-        val->unlink();
-    }
+    virtual ~TrackerElementMacMap() { }
 
 public:
     typedef TrackerElement::mac_map_iterator iterator;
@@ -892,17 +866,14 @@ public:
 
 class TrackerElementDoubleMap {
 protected:
-    TrackerElement *val;
+    shared_ptr<TrackerElement> val;
 
 public:
-    TrackerElementDoubleMap(TrackerElement *t) {
+    TrackerElementDoubleMap(shared_ptr<TrackerElement> t) {
         val = t;
-        val->link();
     }
 
-    virtual ~TrackerElementDoubleMap() {
-        val->unlink();
-    }
+    virtual ~TrackerElementDoubleMap() { }
 
 public:
     typedef TrackerElement::double_map_iterator iterator;
@@ -940,22 +911,24 @@ public:
 
 // Templated access functions
 
-template<typename T> T GetTrackerValue(TrackerElement *);
+template<typename T> T GetTrackerValue(shared_ptr<TrackerElement>);
 
-template<> string GetTrackerValue(TrackerElement *e);
-template<> int8_t GetTrackerValue(TrackerElement *e);
-template<> uint8_t GetTrackerValue(TrackerElement *e);
-template<> int16_t GetTrackerValue(TrackerElement *e);
-template<> uint16_t GetTrackerValue(TrackerElement *e);
-template<> int32_t GetTrackerValue(TrackerElement *e);
-template<> uint32_t GetTrackerValue(TrackerElement *e);
-template<> int64_t GetTrackerValue(TrackerElement *e);
-template<> uint64_t GetTrackerValue(TrackerElement *e);
-template<> float GetTrackerValue(TrackerElement *e);
-template<> double GetTrackerValue(TrackerElement *e);
-template<> mac_addr GetTrackerValue(TrackerElement *e);
-template<> map<int, TrackerElement *> *GetTrackerValue(TrackerElement *e);
-template<> vector<TrackerElement *> *GetTrackerValue(TrackerElement *e);
+template<> string GetTrackerValue(shared_ptr<TrackerElement> e);
+template<> int8_t GetTrackerValue(shared_ptr<TrackerElement> e);
+template<> uint8_t GetTrackerValue(shared_ptr<TrackerElement> e);
+template<> int16_t GetTrackerValue(shared_ptr<TrackerElement> e);
+template<> uint16_t GetTrackerValue(shared_ptr<TrackerElement> e);
+template<> int32_t GetTrackerValue(shared_ptr<TrackerElement> e);
+template<> uint32_t GetTrackerValue(shared_ptr<TrackerElement> e);
+template<> int64_t GetTrackerValue(shared_ptr<TrackerElement> e);
+template<> uint64_t GetTrackerValue(shared_ptr<TrackerElement> e);
+template<> float GetTrackerValue(shared_ptr<TrackerElement> e);
+template<> double GetTrackerValue(shared_ptr<TrackerElement> e);
+template<> mac_addr GetTrackerValue(shared_ptr<TrackerElement> e);
+template<> map<int, shared_ptr<TrackerElement> > 
+    GetTrackerValue(shared_ptr<TrackerElement> e);
+template<> vector<shared_ptr<TrackerElement> > 
+    GetTrackerValue(shared_ptr<TrackerElement> e);
 
 // Complex trackable unit based on trackertype dataunion.
 //
@@ -981,8 +954,8 @@ class tracker_component : public TrackerElement {
 // <itype>, which must be castable to the TrackerElement type (itype), referencing 
 // class variable <cvar>
 #define __Proxy(name, ptype, itype, rtype, cvar) \
-    virtual TrackerElement *get_tracker_##name() { \
-        return (TrackerElement *) cvar; \
+    virtual shared_ptr<TrackerElement> get_tracker_##name() { \
+        return (shared_ptr<TrackerElement>) cvar; \
     } \
     virtual rtype get_##name() const { \
         return (rtype) GetTrackerValue<ptype>(cvar); \
@@ -1029,15 +1002,12 @@ class tracker_component : public TrackerElement {
 
 // Proxy sub-trackable (name, trackable type, class variable)
 #define __ProxyTrackable(name, ttype, cvar) \
-    virtual ttype *get_##name() { return cvar; } \
-    virtual void set_##name(ttype *in) { \
-        if (cvar != NULL) \
-            cvar->unlink(); \
+    virtual shared_ptr<ttype> get_##name() { return cvar; } \
+    virtual void set_##name(shared_ptr<ttype> in) { \
         cvar = in; \
-        cvar->link(); \
     }  \
-    virtual TrackerElement *get_tracker_##name() { \
-        return (TrackerElement *) cvar; \
+    virtual shared_ptr<TrackerElement> get_tracker_##name() { \
+        return (shared_ptr<TrackerElement>) cvar; \
     } 
 
 // Proxy bitset functions (name, trackable type, data type, class var)
@@ -1059,14 +1029,14 @@ public:
 
     // Build a component with existing map
     tracker_component(GlobalRegistry *in_globalreg, int in_id, 
-            TrackerElement *e __attribute__((unused)));
+            shared_ptr<TrackerElement> e __attribute__((unused)));
 
 	virtual ~tracker_component();
 
     // Clones the type and preserves that we're a tracker component.  
     // Complex subclasses will replace this to function as builders of
     // their own complex types.
-    virtual TrackerElement *clone_type();
+    virtual shared_ptr<TrackerElement> clone_type();
 
     // Return the name via the entrytracker
     virtual string get_name();
@@ -1074,15 +1044,15 @@ public:
     // Proxy getting any name via entry tracker
     virtual string get_name(int in_id);
 
-    TrackerElement *get_child_path(string in_path);
-    TrackerElement *get_child_path(std::vector<string> in_path);
+    shared_ptr<TrackerElement> get_child_path(string in_path);
+    shared_ptr<TrackerElement> get_child_path(std::vector<string> in_path);
 
 protected:
     // Reserve a field via the entrytracker, using standard entrytracker build methods.
     // This field will be automatically assigned or created during the reservefields 
     // stage.
     int RegisterField(string in_name, TrackerType in_type, string in_desc, 
-            void **in_dest);
+            shared_ptr<TrackerElement> *in_dest);
 
     // Reserve a field via the entrytracker, using standard entrytracker build methods,
     // but do not assign or create during the reservefields stage.
@@ -1095,13 +1065,13 @@ protected:
     // stage.
     // You will nearly always want to use registercomplex below since fields with 
     // specific builders typically want to inherit from a subtype
-    int RegisterField(string in_name, TrackerElement *in_builder, string in_desc, 
-            void **in_dest);
+    int RegisterField(string in_name, shared_ptr<TrackerElement> in_builder, 
+            string in_desc, shared_ptr<TrackerElement> *in_dest);
 
     // Reserve a complex via the entrytracker, using standard entrytracker build methods.
     // This field will NOT be automatically assigned or built during the reservefields 
     // stage, callers should manually create these fields, importing from the parent
-    int RegisterComplexField(string in_name, TrackerElement *in_builder, 
+    int RegisterComplexField(string in_name, shared_ptr<TrackerElement> in_builder, 
             string in_desc);
 
     // Register field types and get a field ID.  Called during record creation, prior to 
@@ -1114,28 +1084,28 @@ protected:
     //  that we can track usage and delete() appropriately.
     // Populate automatically based on the fields we have reserved, subclasses can 
     // override if they really need to do something special
-    virtual void reserve_fields(TrackerElement *e);
+    virtual void reserve_fields(shared_ptr<TrackerElement> e);
 
     // Inherit from an existing element or assign a new one.
     // Add imported or new field to our map for use tracking.
-    virtual TrackerElement *import_or_new(TrackerElement *e, int i);
+    virtual shared_ptr<TrackerElement> 
+        import_or_new(shared_ptr<TrackerElement> e, int i);
 
     class registered_field {
         public:
-            registered_field(int id, void **assign) { 
+            registered_field(int id, shared_ptr<TrackerElement> *assign) { 
                 this->id = id; 
-                this->assign = (TrackerElement **) assign;
+                this->assign = assign;
             }
 
             int id;
-            TrackerElement** assign;
+            shared_ptr<TrackerElement> *assign;
     };
 
     GlobalRegistry *globalreg;
     EntryTracker *tracker;
 
     vector<registered_field *> registered_fields;
-
 };
 
 // Generic serializer class to allow easy swapping of serializers
@@ -1148,61 +1118,34 @@ public:
 
     virtual ~TrackerElementSerializer() { }
 
-    virtual void serialize(TrackerElement *in_elem) = 0;
-
-    virtual void serialize(tracker_component *in_component) {
-        serialize((TrackerElement *) in_component);
-    }
+    virtual void serialize(shared_ptr<TrackerElement> in_elem) = 0;
 
 protected:
     GlobalRegistry *globalreg;
     std::stringstream &stream;
 };
 
-// Scope-lifetime linker for protecting variables not directly mapped
-// into a parent object (ie, serialization wrappers, etc)
-class TrackerElementScopeLinker {
-public:
-    TrackerElementScopeLinker(TrackerElement *in_elem) {
-        elem = NULL;
-
-        if (in_elem != NULL) {
-            elem = in_elem;
-            elem->link();
-        }
-    }
-
-    ~TrackerElementScopeLinker() {
-        if (elem != NULL)
-            elem->unlink();
-    }
-
-protected:
-    TrackerElement *elem;
-};
-
 // Scope-lifetime locker and linker
 class TrackerElementScopeLocker {
 public:
-    TrackerElementScopeLocker(TrackerElement *in_elem) {
+    TrackerElementScopeLocker(SharedTrackerElement in_elem) {
         elem = NULL;
 
         if (in_elem != NULL) {
             elem = in_elem;
             elem->thread_mutex_lock();
-            elem->link();
         }
     }
 
     ~TrackerElementScopeLocker() {
         if (elem != NULL) {
             elem->thread_mutex_unlock();
-            elem->unlink();
         }
     }
 
 protected:
-    TrackerElement *elem;
+    SharedTrackerElement elem;
 };
+
 
 #endif

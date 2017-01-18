@@ -30,12 +30,11 @@
 #include "gpsfake.h"
 #include "gpsweb.h"
 
-GpsManager::GpsManager(GlobalRegistry *in_globalreg) {
+GpsManager::GpsManager(GlobalRegistry *in_globalreg) :
+    Kis_Net_Httpd_Stream_Handler(in_globalreg) {
+
     globalreg = in_globalreg;
 
-    globalreg->InsertGlobal("GPS_MANAGER", this);
-
-    httpd = (Kis_Net_Httpd *) globalreg->FetchGlobal("HTTPD_SERVER");
     httpd->RegisterHandler(this);
 
     pthread_mutex_init(&manager_locker, NULL);

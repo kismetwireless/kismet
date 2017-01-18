@@ -37,7 +37,11 @@ XmlserializeAdapter::~XmlserializeAdapter() {
     }
 }
 
-void XmlserializeAdapter::XmlSerialize(TrackerElement *v, std::stringstream &stream) {
+void XmlserializeAdapter::XmlSerialize(SharedTrackerElement v, 
+        std::stringstream &stream) {
+
+    TrackerElementScopeLocker slock(v);
+
     v->pre_serialize();
 
     TrackerElement::tracked_map *tmap;
@@ -52,7 +56,8 @@ void XmlserializeAdapter::XmlSerialize(TrackerElement *v, std::stringstream &str
     TrackerElement::tracked_double_map *tdoublemap;
     TrackerElement::double_map_iterator double_map_iter;
 
-    vector<TrackerElement *> *tvec;
+    TrackerElement::tracked_vector *tvec;
+
     unsigned int tvi;
 
     string name = globalreg->entrytracker->GetFieldName(v->get_id());
@@ -221,7 +226,7 @@ void XmlserializeAdapter::XmlSerialize(TrackerElement *v, std::stringstream &str
 
 }
 
-bool XmlserializeAdapter::StreamSimpleValue(TrackerElement *v,
+bool XmlserializeAdapter::StreamSimpleValue(SharedTrackerElement v,
         std::stringstream &stream) {
     switch (v->get_type()) {
         case TrackerString:

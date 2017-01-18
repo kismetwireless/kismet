@@ -84,63 +84,20 @@ TrackerElement::~TrackerElement() {
 
     deallocated = true;
 
-    // Blow up if we're still in use and someone free'd us
-    if (reference_count != 0) {
-        string w = "WARNING: destroying element with non-zero reference count (" + 
-            IntToString(reference_count) + ")";
-        fprintf(stderr, "%s", w.c_str());
-        // throw std::runtime_error(w);
-    }
-
     // If we contain references to other things, unlink them.  This may cause them to
     // auto-delete themselves.
     if (type == TrackerVector) {
-        for (unsigned int i = 0; i < dataunion.subvector_value->size(); i++) {
-            (*dataunion.subvector_value)[i]->unlink();
-        }
-
         delete(dataunion.subvector_value);
     } else if (type == TrackerMap) {
-        map<int, TrackerElement *>::iterator i;
-
-        for (i = dataunion.submap_value->begin(); 
-                i != dataunion.submap_value->end(); ++i) {
-            i->second->unlink();
-        }
-
-        delete(dataunion.submap_value);
+        delete dataunion.submap_value;
     } else if (type == TrackerIntMap) {
-        map<int, TrackerElement *>::iterator i;
-
-        for (i = dataunion.subintmap_value->begin(); 
-                i != dataunion.subintmap_value->end(); ++i) {
-            i->second->unlink();
-        }
-
-        delete(dataunion.subintmap_value);
+        delete dataunion.subintmap_value;
     } else if (type == TrackerMacMap) {
-        map<mac_addr, TrackerElement *>::iterator i;
-
-        for (i = dataunion.submacmap_value->begin(); 
-                i != dataunion.submacmap_value->end(); ++i) {
-            i->second->unlink();
-        }
-
-        delete(dataunion.submacmap_value);
+        delete dataunion.submacmap_value;
     } else if (type == TrackerStringMap) {
-        for (string_map_iterator i = dataunion.substringmap_value->begin(); 
-                i != dataunion.substringmap_value->end(); ++i) {
-            i->second->unlink();
-        }
-
-        delete(dataunion.substringmap_value);
+        delete dataunion.substringmap_value;
     } else if (type == TrackerDoubleMap) {
-        for (double_map_iterator i = dataunion.subdoublemap_value->begin();
-                i != dataunion.subdoublemap_value->end(); ++i) {
-            i->second->unlink();
-        }
-
-        delete(dataunion.subdoublemap_value);
+        delete dataunion.subdoublemap_value;
     } else if (type == TrackerString) {
         delete(dataunion.string_value);
     } else if (type == TrackerMac) {
@@ -159,56 +116,21 @@ void TrackerElement::set_type(TrackerType in_type) {
 
     /* Purge old types if we change type */
     if (type == TrackerVector && dataunion.subvector_value != NULL) {
-        for (unsigned int i = 0; i < dataunion.subvector_value->size(); i++) {
-            (*dataunion.subvector_value)[i]->unlink();
-        }
-
         delete(dataunion.subvector_value);
         dataunion.subvector_value = NULL;
     } else if (type == TrackerMap && dataunion.submap_value != NULL) {
-        map<int, TrackerElement *>::iterator i;
-
-        for (i = dataunion.submap_value->begin(); 
-                i != dataunion.submap_value->end(); ++i) {
-            i->second->unlink();
-        }
-
         delete(dataunion.submap_value);
         dataunion.submap_value = NULL;
     } else if (type == TrackerIntMap && dataunion.subintmap_value != NULL) {
-        map<int, TrackerElement *>::iterator i;
-
-        for (i = dataunion.subintmap_value->begin(); 
-                i != dataunion.subintmap_value->end(); ++i) {
-            i->second->unlink();
-        }
-
         delete(dataunion.subintmap_value);
         dataunion.subintmap_value = NULL;
     } else if (type == TrackerMacMap && dataunion.submacmap_value != NULL) {
-        map<mac_addr, TrackerElement *>::iterator i;
-
-        for (i = dataunion.submacmap_value->begin(); 
-                i != dataunion.submacmap_value->end(); ++i) {
-            i->second->unlink();
-        }
-
         delete(dataunion.submacmap_value);
         dataunion.submacmap_value = NULL;
     } else if (type == TrackerStringMap && dataunion.substringmap_value != NULL) {
-        for (string_map_iterator i = dataunion.substringmap_value->begin(); 
-                i != dataunion.substringmap_value->end(); ++i) {
-            i->second->unlink();
-        }
-
         delete(dataunion.substringmap_value);
         dataunion.substringmap_value = NULL;
     } else if (type == TrackerDoubleMap && dataunion.subdoublemap_value != NULL) {
-        for (double_map_iterator i = dataunion.subdoublemap_value->begin();
-                i != dataunion.subdoublemap_value->end(); ++i) {
-            i->second->unlink();
-        }
-
         delete(dataunion.subdoublemap_value);
         dataunion.subdoublemap_value = NULL;
     } else if (type == TrackerMac && dataunion.mac_value != NULL) {
@@ -226,17 +148,17 @@ void TrackerElement::set_type(TrackerType in_type) {
     this->type = in_type;
 
     if (type == TrackerVector) {
-        dataunion.subvector_value = new vector<TrackerElement *>();
+        dataunion.subvector_value = new tracked_vector();
     } else if (type == TrackerMap) {
-        dataunion.submap_value = new map<int, TrackerElement *>();
+        dataunion.submap_value = new tracked_map();
     } else if (type == TrackerIntMap) {
-        dataunion.subintmap_value = new map<int, TrackerElement *>();
+        dataunion.subintmap_value = new tracked_int_map();
     } else if (type == TrackerMacMap) {
-        dataunion.submacmap_value = new map<mac_addr, TrackerElement *>();
+        dataunion.submacmap_value = new tracked_mac_map();
     } else if (type == TrackerStringMap) {
-        dataunion.substringmap_value = new map<string, TrackerElement *>();
+        dataunion.substringmap_value = new tracked_string_map();
     } else if (type == TrackerDoubleMap) {
-        dataunion.subdoublemap_value = new map<double, TrackerElement *>();
+        dataunion.subdoublemap_value = new tracked_double_map();
     } else if (type == TrackerMac) {
         dataunion.mac_value = new mac_addr(0);
     } else if (type == TrackerUuid) {
@@ -709,45 +631,6 @@ TrackerElement& TrackerElement::operator^=(uint64_t i) {
     return *this;
 }
 
-TrackerElement *TrackerElement::operator[](int i) {
-    string w;
-    map<int, TrackerElement *>::iterator itr;
-
-    switch (type) {
-        case TrackerVector:
-            if (i >= 0 && (unsigned int) i < dataunion.subvector_value->size()) {
-                return (*dataunion.subvector_value)[i];
-            }
-            break;
-        case TrackerMap:
-            itr = dataunion.submap_value->find(i);
-            if (itr != dataunion.submap_value->end())
-                return itr->second;
-            return NULL;
-        case TrackerIntMap:
-            itr = dataunion.subintmap_value->find(i);
-            if (itr != dataunion.subintmap_value->end())
-                return itr->second;
-            return NULL;
-        default:
-            throw std::runtime_error(string("can't -= float to " + 
-                        type_to_string(type)));
-    }
-
-    return NULL;
-}
-
-TrackerElement *TrackerElement::operator[](mac_addr i) {
-    except_type_mismatch(TrackerMacMap);
-
-    mac_map_const_iterator itr = dataunion.submacmap_value->find(i);
-
-    if (itr != dataunion.submacmap_value->end())
-        return itr->second;
-
-    return NULL;
-}
-
 TrackerElement::map_iterator TrackerElement::begin() {
     switch (type) {
         case TrackerMap:
@@ -784,10 +667,10 @@ TrackerElement::map_iterator TrackerElement::find(int k) {
     }
 }
 
-TrackerElement *TrackerElement::get_macmap_value(int idx) {
+shared_ptr<TrackerElement> TrackerElement::get_macmap_value(int idx) {
     except_type_mismatch(TrackerMacMap);
 
-    map<mac_addr, TrackerElement *>::iterator i = dataunion.submacmap_value->find(idx);
+    mac_map_iterator i = dataunion.submacmap_value->find(idx);
 
     if (i == dataunion.submacmap_value->end()) {
         return NULL;
@@ -826,23 +709,10 @@ TrackerElement::mac_map_iterator TrackerElement::mac_find(mac_addr k) {
     return dataunion.submacmap_value->find(k);
 }
 
-void TrackerElement::add_macmap(mac_addr i, TrackerElement *s) {
+void TrackerElement::add_macmap(mac_addr i, shared_ptr<TrackerElement> s) {
     except_type_mismatch(TrackerMacMap);
 
-    TrackerElement *old = NULL;
-
-    mac_map_iterator mi = dataunion.submacmap_value->find(i);
-
-    if (mi != dataunion.submacmap_value->end()) {
-        old = mi->second;
-    }
-
     (*dataunion.submacmap_value)[i] = s;
-
-    s->link();
-
-    if (old != NULL)
-        old->unlink();
 }
 
 void TrackerElement::del_macmap(mac_addr f) {
@@ -851,24 +721,17 @@ void TrackerElement::del_macmap(mac_addr f) {
     mac_map_iterator mi = dataunion.submacmap_value->find(f);
     if (mi != dataunion.submacmap_value->end()) {
         dataunion.submacmap_value->erase(mi);
-        mi->second->unlink();
     }
 }
 
 void TrackerElement::del_macmap(mac_map_iterator i) {
     except_type_mismatch(TrackerMacMap);
 
-    i->second->unlink();
     dataunion.submacmap_value->erase(i);
 }
 
 void TrackerElement::clear_macmap() {
     except_type_mismatch(TrackerMacMap);
-
-    for (mac_map_iterator i = dataunion.submacmap_value->begin();
-            i != dataunion.submacmap_value->end(); ++i) {
-        i->second->unlink();
-    }
 
     dataunion.submacmap_value->clear();
 }
@@ -882,17 +745,13 @@ size_t TrackerElement::size_macmap() {
 void TrackerElement::insert_macmap(mac_map_pair p) {
     except_type_mismatch(TrackerMacMap);
 
-    std::pair<mac_map_iterator, bool> ret = dataunion.submacmap_value->insert(p);
-
-    if (ret.second) {
-        ret.first->second->link();
-    }
+    dataunion.submacmap_value->insert(p);
 }
 
-TrackerElement *TrackerElement::get_stringmap_value(string idx) {
+shared_ptr<TrackerElement> TrackerElement::get_stringmap_value(string idx) {
     except_type_mismatch(TrackerStringMap);
 
-    map<string, TrackerElement *>::iterator i = dataunion.substringmap_value->find(idx);
+    string_map_iterator i = dataunion.substringmap_value->find(idx);
 
     if (i == dataunion.substringmap_value->end()) {
         return NULL;
@@ -919,23 +778,10 @@ TrackerElement::string_map_iterator TrackerElement::string_find(string k) {
     return dataunion.substringmap_value->find(k);
 }
 
-void TrackerElement::add_stringmap(string i, TrackerElement *s) {
+void TrackerElement::add_stringmap(string i, shared_ptr<TrackerElement> s) {
     except_type_mismatch(TrackerStringMap);
 
-    TrackerElement *old = NULL;
-
-    string_map_iterator mi = dataunion.substringmap_value->find(i);
-
-    if (mi != dataunion.substringmap_value->end()) {
-        old = mi->second;
-    }
-
     (*dataunion.substringmap_value)[i] = s;
-
-    s->link();
-
-    if (old != NULL)
-        old->unlink();
 }
 
 void TrackerElement::del_stringmap(string f) {
@@ -944,25 +790,17 @@ void TrackerElement::del_stringmap(string f) {
     string_map_iterator mi = dataunion.substringmap_value->find(f);
     if (mi != dataunion.substringmap_value->end()) {
         dataunion.substringmap_value->erase(mi);
-        mi->second->unlink();
     }
 }
 
 void TrackerElement::del_stringmap(string_map_iterator i) {
     except_type_mismatch(TrackerStringMap);
 
-    i->second->unlink();
-
     dataunion.substringmap_value->erase(i);
 }
 
 void TrackerElement::clear_stringmap() {
     except_type_mismatch(TrackerStringMap);
-
-    for (string_map_iterator i = dataunion.substringmap_value->begin();
-            i != dataunion.substringmap_value->end(); ++i) {
-        i->second->unlink();
-    }
 
     dataunion.substringmap_value->clear();
 }
@@ -976,17 +814,13 @@ size_t TrackerElement::size_stringmap() {
 void TrackerElement::insert_stringmap(string_map_pair p) {
     except_type_mismatch(TrackerStringMap);
 
-    std::pair<string_map_iterator, bool> ret = dataunion.substringmap_value->insert(p);
-
-    if (ret.second) {
-        ret.first->second->link();
-    }
+    dataunion.substringmap_value->insert(p);
 }
 
-TrackerElement *TrackerElement::get_doublemap_value(double idx) {
+shared_ptr<TrackerElement> TrackerElement::get_doublemap_value(double idx) {
     except_type_mismatch(TrackerDoubleMap);
 
-    map<double, TrackerElement *>::iterator i = dataunion.subdoublemap_value->find(idx);
+    double_map_iterator i = dataunion.subdoublemap_value->find(idx);
 
     if (i == dataunion.subdoublemap_value->end()) {
         return NULL;
@@ -1013,23 +847,10 @@ TrackerElement::double_map_iterator TrackerElement::double_find(double k) {
     return dataunion.subdoublemap_value->find(k);
 }
 
-void TrackerElement::add_doublemap(double i, TrackerElement *s) {
+void TrackerElement::add_doublemap(double i, shared_ptr<TrackerElement> s) {
     except_type_mismatch(TrackerDoubleMap);
 
-    TrackerElement *old = NULL;
-
-    double_map_iterator mi = dataunion.subdoublemap_value->find(i);
-
-    if (mi != dataunion.subdoublemap_value->end()) {
-        old = mi->second;
-    }
-
     (*dataunion.subdoublemap_value)[i] = s;
-
-    s->link();
-
-    if (old != NULL)
-        old->unlink();
 }
 
 void TrackerElement::del_doublemap(double f) {
@@ -1038,14 +859,12 @@ void TrackerElement::del_doublemap(double f) {
     double_map_iterator mi = dataunion.subdoublemap_value->find(f);
     if (mi != dataunion.subdoublemap_value->end()) {
         dataunion.subdoublemap_value->erase(mi);
-        mi->second->unlink();
     }
 }
 
 void TrackerElement::del_doublemap(double_map_iterator i) {
     except_type_mismatch(TrackerDoubleMap);
 
-    i->second->unlink();
     dataunion.subdoublemap_value->erase(i);
 }
 
@@ -1054,7 +873,6 @@ void TrackerElement::clear_doublemap() {
 
     for (double_map_iterator i = dataunion.subdoublemap_value->begin();
             i != dataunion.subdoublemap_value->end(); ++i) {
-        i->second->unlink();
     }
 
     dataunion.subdoublemap_value->clear();
@@ -1063,11 +881,7 @@ void TrackerElement::clear_doublemap() {
 void TrackerElement::insert_doublemap(double_map_pair p) {
     except_type_mismatch(TrackerDoubleMap);
 
-    std::pair<double_map_iterator, bool> ret = dataunion.subdoublemap_value->insert(p);
-
-    if (ret.second) {
-        ret.first->second->link();
-    }
+    dataunion.subdoublemap_value->insert(p);
 }
 
 size_t TrackerElement::size_doublemap() {
@@ -1121,83 +935,45 @@ string TrackerElement::type_to_string(TrackerType t) {
     }
 }
 
-void TrackerElement::add_map(int f, TrackerElement *s) {
+void TrackerElement::add_map(int f, shared_ptr<TrackerElement> s) {
     except_type_mismatch(TrackerMap);
-
-    TrackerElement *old = NULL;
-
-    map_iterator mi = dataunion.submap_value->find(f);
-
-    if (mi != dataunion.submap_value->end()) {
-        old = mi->second;
-    }
 
     (*dataunion.submap_value)[f] = s;
-
-    s->link();
-
-    if (old != NULL)
-        old->unlink();
 }
 
-void TrackerElement::add_map(TrackerElement *s) {
+void TrackerElement::add_map(shared_ptr<TrackerElement> s) {
     except_type_mismatch(TrackerMap);
 
-
-    TrackerElement *old = NULL;
-
-    map_iterator mi = dataunion.submap_value->find(s->get_id());
-
-    if (mi != dataunion.submap_value->end()) {
-        old = mi->second;
-    }
-
     (*dataunion.submap_value)[s->get_id()] = s;
-
-    s->link();
-
-    if (old != NULL)
-        old->unlink();
 }
 
 void TrackerElement::del_map(int f) {
     except_type_mismatch(TrackerMap);
 
-    map<int, TrackerElement *>::iterator i = dataunion.submap_value->find(f);
+    map_iterator i = dataunion.submap_value->find(f);
     if (i != dataunion.submap_value->end()) {
         dataunion.submap_value->erase(i);
-        i->second->unlink();
     }
 }
 
-void TrackerElement::del_map(TrackerElement *e) {
+void TrackerElement::del_map(shared_ptr<TrackerElement> e) {
     del_map(e->get_id());
 }
 
 void TrackerElement::del_map(map_iterator i) {
     except_type_mismatch(TrackerMap);
-    i->second->unlink();
     dataunion.submap_value->erase(i);
 }
 
 void TrackerElement::insert_map(tracked_pair p) {
     except_type_mismatch(TrackerMap);
 
-    std::pair<map_iterator, bool> ret = dataunion.submap_value->insert(p);
-
-    if (ret.second) {
-        ret.first->second->link();
-    }
+    dataunion.submap_value->insert(p);
 }
 
 void TrackerElement::clear_map() {
     except_type_mismatch(TrackerMap);
     
-    for (map_iterator i = dataunion.submap_value->begin();
-            i != dataunion.submap_value->end(); ++i) {
-        i->second->unlink();
-    }
-
     dataunion.submap_value->clear();
 }
 
@@ -1207,10 +983,10 @@ size_t TrackerElement::size_map() {
     return dataunion.submap_value->size();
 }
 
-TrackerElement *TrackerElement::get_intmap_value(int idx) {
+shared_ptr<TrackerElement> TrackerElement::get_intmap_value(int idx) {
     except_type_mismatch(TrackerIntMap);
 
-    map<int, TrackerElement *>::iterator i = dataunion.subintmap_value->find(idx);
+    int_map_iterator i = dataunion.subintmap_value->find(idx);
 
     if (i == dataunion.submap_value->end()) {
         return NULL;
@@ -1240,11 +1016,6 @@ TrackerElement::int_map_iterator TrackerElement::int_find(int k) {
 void TrackerElement::clear_intmap() {
     except_type_mismatch(TrackerIntMap);
 
-    for (int_map_iterator i = dataunion.subintmap_value->begin(); 
-            i != dataunion.subintmap_value->end(); ++i) {
-        i->second->unlink();
-    }
-
     dataunion.subintmap_value->clear();
 }
 
@@ -1257,54 +1028,34 @@ size_t TrackerElement::size_intmap() {
 void TrackerElement::insert_intmap(int_map_pair p) {
     except_type_mismatch(TrackerIntMap);
 
-    std::pair<int_map_iterator, bool> ret = dataunion.subintmap_value->insert(p);
-
-    if (ret.second) {
-        ret.first->second->link();
-    }
+    dataunion.subintmap_value->insert(p);
 }
 
-void TrackerElement::add_intmap(int i, TrackerElement *s) {
+void TrackerElement::add_intmap(int i, shared_ptr<TrackerElement> s) {
     except_type_mismatch(TrackerIntMap);
 
-    TrackerElement *old = NULL;
-
-    int_map_iterator mi = dataunion.subintmap_value->find(i);
-
-    if (mi != dataunion.subintmap_value->end()) {
-        old = mi->second;
-    }
-
     (*dataunion.subintmap_value)[i] = s;
-
-    s->link();
-
-    if (old != NULL)
-        old->unlink();
 }
 
 void TrackerElement::del_intmap(int i) {
     except_type_mismatch(TrackerIntMap);
 
-    map<int, TrackerElement *>::iterator itr = dataunion.subintmap_value->find(i);
+    int_map_iterator itr = dataunion.subintmap_value->find(i);
     if (itr != dataunion.subintmap_value->end()) {
         dataunion.subintmap_value->erase(i);
-        itr->second->unlink();
     }
 }
 
 void TrackerElement::del_intmap(int_map_iterator i) {
     except_type_mismatch(TrackerIntMap);
 
-    i->second->unlink();
     dataunion.subintmap_value->erase(i);
 }
 
-void TrackerElement::add_vector(TrackerElement *s) {
+void TrackerElement::add_vector(shared_ptr<TrackerElement> s) {
     except_type_mismatch(TrackerVector);
 
     dataunion.subvector_value->push_back(s);
-    s->link();
 }
 
 void TrackerElement::del_vector(unsigned int p) {
@@ -1316,27 +1067,19 @@ void TrackerElement::del_vector(unsigned int p) {
         throw std::runtime_error(w);
     }
 
-    TrackerElement *e = (*dataunion.subvector_value)[p];
-    vector<TrackerElement *>::iterator i = dataunion.subvector_value->begin() + p;
+    vector_iterator i = dataunion.subvector_value->begin() + p;
     dataunion.subvector_value->erase(i);
 
-    e->unlink();
 }
 
 void TrackerElement::del_vector(vector_iterator i) {
     except_type_mismatch(TrackerVector);
-
-    (*i)->unlink();
 
     dataunion.subvector_value->erase(i);
 }
 
 void TrackerElement::clear_vector() {
     except_type_mismatch(TrackerVector);
-
-    for (unsigned int i = 0; i < dataunion.subvector_value->size(); i++) {
-        (*dataunion.subvector_value)[i]->unlink();
-    }
 
     dataunion.subvector_value->clear();
 }
@@ -1366,63 +1109,64 @@ size_t TrackerElement::size() {
     }
 }
 
-template<> string GetTrackerValue(TrackerElement *e) {
+template<> string GetTrackerValue(shared_ptr<TrackerElement> e) {
     return e->get_string();
 }
 
-template<> int8_t GetTrackerValue(TrackerElement *e) {
+template<> int8_t GetTrackerValue(shared_ptr<TrackerElement> e) {
     return e->get_int8();
 }
 
-template<> uint8_t GetTrackerValue(TrackerElement *e) {
+template<> uint8_t GetTrackerValue(shared_ptr<TrackerElement> e) {
     return e->get_uint8();
 }
 
-template<> int16_t GetTrackerValue(TrackerElement *e) {
+template<> int16_t GetTrackerValue(shared_ptr<TrackerElement> e) {
     return e->get_int16();
 }
 
-template<> uint16_t GetTrackerValue(TrackerElement *e) {
+template<> uint16_t GetTrackerValue(shared_ptr<TrackerElement> e) {
     return e->get_uint16();
 }
 
-template<> int32_t GetTrackerValue(TrackerElement *e) {
+template<> int32_t GetTrackerValue(shared_ptr<TrackerElement> e) {
     return e->get_int32();
 }
 
-template<> uint32_t GetTrackerValue(TrackerElement *e) {
+template<> uint32_t GetTrackerValue(shared_ptr<TrackerElement> e) {
     return e->get_uint32();
 }
 
-template<> int64_t GetTrackerValue(TrackerElement *e) {
+template<> int64_t GetTrackerValue(shared_ptr<TrackerElement> e) {
     return e->get_int64();
 }
 
-template<> uint64_t GetTrackerValue(TrackerElement *e) {
+template<> uint64_t GetTrackerValue(shared_ptr<TrackerElement> e) {
     return e->get_uint64();
 }
 
-template<> float GetTrackerValue(TrackerElement *e) {
+template<> float GetTrackerValue(shared_ptr<TrackerElement> e) {
     return e->get_float();
 }
 
-template<> double GetTrackerValue(TrackerElement *e) {
+template<> double GetTrackerValue(shared_ptr<TrackerElement> e) {
     return e->get_double();
 }
 
-template<> mac_addr GetTrackerValue(TrackerElement *e) {
+template<> mac_addr GetTrackerValue(shared_ptr<TrackerElement> e) {
     return e->get_mac();
 }
 
-template<> map<int, TrackerElement *> *GetTrackerValue(TrackerElement *e) {
+template<> TrackerElement::tracked_map *GetTrackerValue(shared_ptr<TrackerElement> e) {
     return e->get_map();
 }
 
-template<> vector<TrackerElement *> *GetTrackerValue(TrackerElement *e) {
+template<> TrackerElement::tracked_vector 
+    *GetTrackerValue(shared_ptr<TrackerElement> e) {
     return e->get_vector();
 }
 
-template<> uuid GetTrackerValue(TrackerElement *e) {
+template<> uuid GetTrackerValue(shared_ptr<TrackerElement> e) {
     return e->get_uuid();
 }
 
@@ -1574,7 +1318,7 @@ tracker_component::tracker_component(GlobalRegistry *in_globalreg, int in_id) {
 }
 
 tracker_component::tracker_component(GlobalRegistry *in_globalreg, int in_id, 
-        TrackerElement *e __attribute__((unused))) {
+        shared_ptr<TrackerElement> e __attribute__((unused))) {
 
     globalreg = in_globalreg;
     tracker = in_globalreg->entrytracker;
@@ -1589,8 +1333,8 @@ tracker_component::~tracker_component() {
     }
 }
 
-TrackerElement * tracker_component::clone_type() {
-    return new tracker_component(globalreg, get_id());
+shared_ptr<TrackerElement> tracker_component::clone_type() {
+    return shared_ptr<TrackerElement>(new tracker_component(globalreg, get_id()));
 }
 
 string tracker_component::get_name() {
@@ -1602,7 +1346,7 @@ string tracker_component::get_name(int in_id) {
 }
 
 int tracker_component::RegisterField(string in_name, TrackerType in_type, 
-        string in_desc, void **in_dest) {
+        string in_desc, shared_ptr<TrackerElement> *in_dest) {
     int id = tracker->RegisterField(in_name, in_type, in_desc);
 
     registered_field *rf = new registered_field(id, in_dest);
@@ -1619,8 +1363,9 @@ int tracker_component::RegisterField(string in_name, TrackerType in_type,
     return id;
 }
 
-int tracker_component::RegisterField(string in_name, TrackerElement *in_builder, 
-        string in_desc, void **in_dest) {
+int tracker_component::RegisterField(string in_name, 
+        shared_ptr<TrackerElement> in_builder, 
+        string in_desc, shared_ptr<TrackerElement> *in_dest) {
     int id = tracker->RegisterField(in_name, in_builder, in_desc);
 
     registered_field *rf = new registered_field(id, in_dest);
@@ -1630,13 +1375,14 @@ int tracker_component::RegisterField(string in_name, TrackerElement *in_builder,
     return id;
 } 
 
-int tracker_component::RegisterComplexField(string in_name, TrackerElement *in_builder, 
+int tracker_component::RegisterComplexField(string in_name, 
+        shared_ptr<TrackerElement> in_builder, 
         string in_desc) {
     int id = tracker->RegisterField(in_name, in_builder, in_desc);
     return id;
 }
 
-void tracker_component::reserve_fields(TrackerElement *e) {
+void tracker_component::reserve_fields(shared_ptr<TrackerElement> e) {
     for (unsigned int i = 0; i < registered_fields.size(); i++) {
         registered_field *rf = registered_fields[i];
 
@@ -1647,8 +1393,10 @@ void tracker_component::reserve_fields(TrackerElement *e) {
     }
 }
 
-TrackerElement *tracker_component::import_or_new(TrackerElement *e, int i) {
-    TrackerElement *r;
+shared_ptr<TrackerElement> 
+    tracker_component::import_or_new(shared_ptr<TrackerElement> e, int i) {
+
+    shared_ptr<TrackerElement> r;
 
     // Find the value in the importer element
     if (e != NULL) {
@@ -1669,17 +1417,18 @@ TrackerElement *tracker_component::import_or_new(TrackerElement *e, int i) {
     return r;
 }
 
-TrackerElement *tracker_component::get_child_path(string in_path) {
+shared_ptr<TrackerElement> tracker_component::get_child_path(string in_path) {
     vector<string> tok = StrTokenize(in_path, "/");
     return get_child_path(tok);
 }
 
-TrackerElement *tracker_component::get_child_path(std::vector<string> in_path) {
+shared_ptr<TrackerElement> 
+    tracker_component::get_child_path(std::vector<string> in_path) {
     if (in_path.size() < 1)
         return NULL;
 
-    TrackerElement *cur_elem = (TrackerElement *) this;
-    TrackerElement *next_elem = NULL;
+    shared_ptr<TrackerElement> cur_elem(this);
+    shared_ptr<TrackerElement> next_elem = NULL;
 
     for (unsigned int x = 0; x < in_path.size(); x++) {
         // Skip empty path element
