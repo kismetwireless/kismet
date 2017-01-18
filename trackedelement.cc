@@ -1427,7 +1427,6 @@ shared_ptr<TrackerElement>
     if (in_path.size() < 1)
         return NULL;
 
-    shared_ptr<TrackerElement> cur_elem(this);
     shared_ptr<TrackerElement> next_elem = NULL;
 
     for (unsigned int x = 0; x < in_path.size(); x++) {
@@ -1441,17 +1440,19 @@ shared_ptr<TrackerElement>
             return NULL;
         }
 
-        next_elem = 
-            cur_elem->get_map_value(id);
+        if (next_elem == NULL)
+            next_elem = get_map_value(id);
+        else
+            next_elem = 
+                next_elem->get_map_value(id);
 
         if (next_elem == NULL) {
             return NULL;
         }
 
-        cur_elem = next_elem;
     }
 
-    return cur_elem;
+    return next_elem;
 }
 
 
