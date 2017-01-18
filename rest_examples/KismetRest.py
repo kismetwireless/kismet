@@ -224,7 +224,7 @@ class KismetConnector:
                 print "Failed to encode post data:", e
             return (False, None)
 
-        return self.post_url(url, data=finaldata)
+        return self.post_url(url, postdata=finaldata)
 
     def login(self):
         """
