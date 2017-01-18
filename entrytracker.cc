@@ -27,6 +27,12 @@ EntryTracker::EntryTracker(GlobalRegistry *in_globalreg) :
     Kis_Net_Httpd_Stream_Handler(in_globalreg) {
     globalreg = in_globalreg;
 
+    // Initialize as recursive to allow multiple locks in a single thread
+    pthread_mutexattr_t mutexattr;
+    pthread_mutexattr_init(&mutexattr);
+    pthread_mutexattr_settype(&mutexattr, PTHREAD_MUTEX_RECURSIVE);
+	pthread_mutex_init(&entry_mutex, &mutexattr);
+
     next_field_num = 1;
 }
 
@@ -38,6 +44,8 @@ EntryTracker::~EntryTracker() {
 }
 
 int EntryTracker::RegisterField(string in_name, TrackerType in_type, string in_desc) {
+    local_locker lock(&entry_mutex);
+
     string mod_name = StrLower(in_name);
 
     name_itr iter = field_name_map.find(mod_name);
@@ -79,6 +87,8 @@ int EntryTracker::RegisterField(string in_name, TrackerType in_type, string in_d
 
 int EntryTracker::RegisterField(string in_name, shared_ptr<TrackerElement> in_builder, 
         string in_desc) {
+    local_locker lock(&entry_mutex);
+
     string mod_name = StrLower(in_name);
 
     name_itr iter = field_name_map.find(mod_name);
@@ -115,6 +125,8 @@ int EntryTracker::RegisterField(string in_name, shared_ptr<TrackerElement> in_bu
 }
 
 int EntryTracker::GetFieldId(string in_name) {
+    local_locker lock(&entry_mutex);
+
     string mod_name = StrLower(in_name);
 
     name_itr iter = field_name_map.find(mod_name);
@@ -127,6 +139,8 @@ int EntryTracker::GetFieldId(string in_name) {
 }
 
 string EntryTracker::GetFieldName(int in_id) {
+    local_locker lock(&entry_mutex);
+
     id_itr iter = field_id_map.find(in_id);
 
     if (iter == field_id_map.end()) {
@@ -138,6 +152,7 @@ string EntryTracker::GetFieldName(int in_id) {
 
 shared_ptr<TrackerElement> EntryTracker::RegisterAndGetField(string in_name, 
         TrackerType in_type, string in_desc) {
+    local_locker lock(&entry_mutex);
 
     int fn = GetFieldId(in_name);
 
@@ -152,6 +167,8 @@ shared_ptr<TrackerElement> EntryTracker::RegisterAndGetField(string in_name,
 
 shared_ptr<TrackerElement> EntryTracker::RegisterAndGetField(string in_name, 
         shared_ptr<TrackerElement> in_builder, string in_desc) {
+    local_locker lock(&entry_mutex);
+
     int fn = GetFieldId(in_name);
 
     if (fn >= 0) {
@@ -165,6 +182,8 @@ shared_ptr<TrackerElement> EntryTracker::RegisterAndGetField(string in_name,
 
 
 shared_ptr<TrackerElement> EntryTracker::GetTrackedInstance(int in_id) {
+    local_locker lock(&entry_mutex);
+
     id_itr iter = field_id_map.find(in_id);
 
     if (iter == field_id_map.end()) {
@@ -183,6 +202,8 @@ shared_ptr<TrackerElement> EntryTracker::GetTrackedInstance(int in_id) {
 }
 
 shared_ptr<TrackerElement> EntryTracker::GetTrackedInstance(string in_name) {
+    local_locker lock(&entry_mutex);
+
     string mod_name = StrLower(in_name);
 
     name_itr iter = field_name_map.find(mod_name);
@@ -218,6 +239,8 @@ void EntryTracker::Httpd_CreateStreamResponse(
         const char *upload_data __attribute__((unused)),
         size_t *upload_data_size __attribute__((unused)), 
         std::stringstream &stream) {
+
+    local_locker lock(&entry_mutex);
 
     if (strcmp(method, "GET") != 0) {
         return;
