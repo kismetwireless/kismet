@@ -30,8 +30,6 @@
 #include <vector>
 #include <map>
 
-#include <pthread.h>
-
 #include <memory>
 
 #include "macaddr.h"
@@ -147,25 +145,6 @@ public:
 
     string get_local_name() {
         return local_name;
-    }
-
-    void thread_mutex_lock() {
-#ifdef HAVE_PTHREAD_TIMELOCK
-        struct timespec t;
-
-        clock_gettime(CLOCK_REALTIME , &t); 
-        t.tv_sec += 5; \
-
-        if (pthread_mutex_timedlock(&mutex, &t) != 0) {
-            throw(std::runtime_error("mutex not available w/in 5 seconds"));
-        }
-#else
-        pthread_mutex_lock(&mutex);
-#endif
-    }
-
-    void thread_mutex_unlock() {
-        pthread_mutex_unlock(&mutex);
     }
 
     void set_type(TrackerType type);
@@ -585,9 +564,6 @@ protected:
 
     // Overridden name for this instance only
     string local_name;
-
-    // Mutex for this object
-    pthread_mutex_t mutex;
 
     // We could make these all one type, but then we'd have odd interactions
     // with incrementing and I'm not positive that's safe in all cases
@@ -1124,28 +1100,5 @@ protected:
     GlobalRegistry *globalreg;
     std::stringstream &stream;
 };
-
-// Scope-lifetime locker and linker
-class TrackerElementScopeLocker {
-public:
-    TrackerElementScopeLocker(SharedTrackerElement in_elem) {
-        elem = NULL;
-
-        if (in_elem != NULL) {
-            elem = in_elem;
-            elem->thread_mutex_lock();
-        }
-    }
-
-    ~TrackerElementScopeLocker() {
-        if (elem != NULL) {
-            elem->thread_mutex_unlock();
-        }
-    }
-
-protected:
-    SharedTrackerElement elem;
-};
-
 
 #endif

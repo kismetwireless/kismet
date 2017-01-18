@@ -28,12 +28,6 @@
 #include "entrytracker.h"
 
 void TrackerElement::Initialize() {
-    // Initialize as recursive to allow multiple locks in a single thread
-    pthread_mutexattr_t mutexattr;
-    pthread_mutexattr_init(&mutexattr);
-    pthread_mutexattr_settype(&mutexattr, PTHREAD_MUTEX_RECURSIVE);
-	pthread_mutex_init(&mutex, &mutexattr);
-
     this->type = TrackerUnassigned;
     reference_count = 0;
     deallocated = false;
@@ -80,8 +74,6 @@ TrackerElement::TrackerElement(TrackerType type, int id) {
 }
 
 TrackerElement::~TrackerElement() {
-    pthread_mutex_lock(&mutex);
-
     deallocated = true;
 
     // If we contain references to other things, unlink them.  This may cause them to
@@ -105,9 +97,6 @@ TrackerElement::~TrackerElement() {
     } else if (type == TrackerUuid) {
         delete dataunion.uuid_value;
     }
-
-    pthread_mutex_unlock(&mutex);
-    pthread_mutex_destroy(&mutex);
 }
 
 void TrackerElement::set_type(TrackerType in_type) {

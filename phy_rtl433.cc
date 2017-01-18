@@ -114,6 +114,8 @@ bool Kis_RTL433_Phy::json_to_rtl(struct JSON_value *json) {
     string v;
     double d;
 
+    devicelist_scope_locker slocker(devicetracker);
+
     if (json == NULL)
         return false;
 
@@ -160,8 +162,6 @@ bool Kis_RTL433_Phy::json_to_rtl(struct JSON_value *json) {
 
     // Get rid of our pseudopacket
     delete(pack);
-
-    TrackerElementScopeLocker slocker(basedev);
 
     string dn = "Sensor";
     if (JSON_dict_has_key(json, "model")) {

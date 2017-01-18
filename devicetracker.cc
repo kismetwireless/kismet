@@ -369,13 +369,13 @@ shared_ptr<kis_tracked_device_base> Devicetracker::FetchDevice(mac_addr in_devic
 }
 
 int Devicetracker::CommonTracker(kis_packet *in_pack) {
+    local_locker lock(&devicelist_mutex);
+
 	kis_common_info *pack_common =
 		(kis_common_info *) in_pack->fetch(pack_comp_common);
 
 	kis_ref_capsource *pack_capsrc =
 		(kis_ref_capsource *) in_pack->fetch(pack_comp_capsrc);
-
-    TrackerElementScopeLocker slock(packets_rrd);
 
     packets_rrd->add_sample(1, globalreg->timestamp.tv_sec);
 
@@ -465,6 +465,8 @@ int Devicetracker::CommonTracker(kis_packet *in_pack) {
 shared_ptr<kis_tracked_device_base> Devicetracker::UpdateCommonDevice(mac_addr in_mac,
         int in_phy, kis_packet *in_pack, unsigned int in_flags) {
 
+    local_locker lock(&devicelist_mutex);
+
     stringstream sstr;
 
 	kis_layer1_packinfo *pack_l1info =
@@ -495,19 +497,14 @@ shared_ptr<kis_tracked_device_base> Devicetracker::UpdateCommonDevice(mac_addr i
         device->set_macaddr(in_mac);
         device->set_phyname(phy->FetchPhyName());
 
-        {
-            local_locker lock(&devicelist_mutex);
-            tracked_map[device->get_key()] = device;
-            tracked_vec.push_back(device);
-        }
+        tracked_map[device->get_key()] = device;
+        tracked_vec.push_back(device);
 
         device->set_first_time(in_pack->ts.tv_sec);
 
         if (globalreg->manufdb != NULL)
             device->set_manuf(globalreg->manufdb->LookupOUI(device->get_macaddr()));
     }
-
-    TrackerElementScopeLocker slock(device);
 
     device->set_last_time(in_pack->ts.tv_sec);
 
@@ -599,6 +596,9 @@ shared_ptr<kis_tracked_device_base> Devicetracker::UpdateCommonDevice(mac_addr i
 
 int Devicetracker::PopulateCommon(shared_ptr<kis_tracked_device_base> device, 
         kis_packet *in_pack) {
+
+    local_locker lock(&devicelist_mutex);
+
 	kis_common_info *pack_common =
 		(kis_common_info *) in_pack->fetch(pack_comp_common);
 	kis_layer1_packinfo *pack_l1info =
@@ -607,8 +607,6 @@ int Devicetracker::PopulateCommon(shared_ptr<kis_tracked_device_base> device,
 		(kis_gps_packinfo *) in_pack->fetch(pack_comp_gps);
 	kis_ref_capsource *pack_capsrc =
 		(kis_ref_capsource *) in_pack->fetch(pack_comp_capsrc);
-
-    TrackerElementScopeLocker slocker(device);
 
 	// If we can't figure it out at all (no common layer) just bail
 	if (pack_common == NULL)
