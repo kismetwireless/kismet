@@ -18,6 +18,8 @@
 
 #include "config.h"
 
+#include <memory>
+
 #include <stdio.h>
 #include <time.h>
 #include <list>
