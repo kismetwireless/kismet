@@ -32,6 +32,8 @@
 
 <script src="/js/kismet.utils.js"></script>
 <script src="/js/kismet.ui.js"></script>
+<script src="/js/kismet.ui.base.js"></script>
+<script src="/js/kismet.ui.settings.js"></script>
 
 <script src="/js/jquery.kismet.devicedata.js"></script>
 <script src="/js/jquery.kismet.messagebus.js"></script>
@@ -44,6 +46,7 @@
 <link rel="stylesheet" type="text/css" href="css/jquery-ui.min.css" />
 <link rel="stylesheet" type="text/css" href="css/jquery.jspanel.min.css" />
 <link rel="stylesheet" type="text/css" href="/css/jquery.dataTables.min.css" />
+<link rel="stylesheet" type="text/css" href="/css/jquery.offcanvas.min.css" />
 <link rel="stylesheet" type="text/css" href="/css/morris.css" />
 
 <link rel="stylesheet" type="text/css" href="/css/layout-default-1.4.0.css" />
@@ -122,6 +125,9 @@ function handleDeviceSummary() {
 
 // jquery onload complete
 $(function() {
+    // Set a global timeout
+    $.ajaxSetup({timeout:1000});
+
     $('#pm_menu').pushmenu({ button : "#pm_open" });
 
     // Datatable and base size
@@ -280,6 +286,11 @@ $(function() {
 
     kismet_ui.HealthCheck();
 
+    $('#k-sb-settings').on('click', function() {
+        $('.pm_overlay').click();
+        kismet_ui_settings.ShowSettings();
+    });
+
 }); // when
 
 }); // onload
@@ -289,9 +300,19 @@ $(function() {
 <body>
     <div id="mainholder">
         <div id="pm_menu" class="pm_hide pm_initial kismet_sidebar">
-            <h1>Sidebar</h1>
-            <hr>
-            Sidebar menu and actions coming soon
+            <div class="k-sb-header">
+                <h1>Sidebar</h1>
+                <hr>
+            </div>
+            <div class="k-sb-main">
+                Sidebar content coming soon
+            </div>
+            <div class="k-sb-footer">
+                <div id="k-sb-settings">
+                    <i class="fa fa-gear"></i> Settings
+                </div>
+            </div>
+
         </div>
 
         <div id="panelcontainer">

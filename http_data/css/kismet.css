@@ -116,13 +116,6 @@ div.topright_holder {
     display: inline-block;
 }
 
-/* Sidebar content */
-.kismet_sidebar {
-    padding: 10px 10px 10px 10px;
-    background-color: #555555 !important;
-    color: #ABABAB !important;
-}
-
 /* Tabs minimalism from http://keith-wood.name/uitabs.html#tabs-min */
 .tabs-min { 
     background: transparent; 
@@ -161,5 +154,33 @@ div.topright_holder {
 } 
 .ui-tabs-nav .ui-state-active a { 
     color: #303030; 
+}
+
+/* Sidebar content */
+div.kismet_sidebar {
+    height: 100%;
+    display: flex;
+
+    flex-direction: column;
+
+    padding: 10px 10px 10px 10px;
+    background-color: #555555 !important;
+    color: #ABABAB !important;
+
+    font-size: 18px;
+}
+
+div.k-sb-header {
+    height: 40px;
+    margin-bottom: 10px;
+}
+
+div.k-sb-main {
+    height: 100%;
+    flex: 1;
+}
+
+div.k-sb-footer {
+    height: 45px;
 }
 
