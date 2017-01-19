@@ -11,7 +11,8 @@ div.k-s-list {
     overflow-x: hidden;
     overflow-y: scroll;
     width: 25%;
-    padding: 10px;
+    padding-top: 10px;
+    padding-bottom: 10px
 }
 
 div.k-s-pane-holder {
@@ -32,4 +33,17 @@ div.k-s-pane-content {
 
 div.k-s-pane-buttons {
     height: 20px;
+    text-align: right;
+    padding-right: 20px;
 }
+
+div.k-s-list-item {
+    padding-top: 2px;
+    padding-bottom: 2px;
+    padding-left: 10px;
+}
+
+div.k-s-list-item:hover {
+    background-color: #C0C0C0;
+}
+

@@ -56,18 +56,61 @@ exports.AddSettingPane = function(id, options) {
     SettingsPanes.push(options);
 };
 
+function populateList(list) {
+    var mylist = ["Units & Measurements", "Login", "Device List"];
+
+    for (var i in mylist) {
+        var c = mylist[i];
+        list.append(
+            $('<div>', {
+                class: 'k-s-list-item'
+            })
+            .text(c)
+        );
+    }
+
+}
+
 exports.ShowSettings = function() {
     var w = $(window).width() * 0.75;
     var h = $(window).height() * 0.75;
 
+    var content = $('<div>', {
+        class: 'k-s-container'
+    })
+    .append(
+        $('<div>', {
+            class: 'k-s-list'
+        })
+    )
+    .append(
+        $('<div>', {
+            class: 'k-s-pane-holder'
+        })
+        .append(
+            $('<div>', {
+                class: 'k-s-pane-content'
+            })
+            .text("Settings content")
+        )
+        .append(
+            $('<div>', {
+                class: 'k-s-pane-buttons'
+            })
+            .text("Buttons")
+        )
+    );
+
+    populateList($('.k-s-list', content));
+
     var settingspanel = $.jsPanel({
         id: 'settings',
-        headerTitle: 'Settings',
+        headerTitle: '<i class="fa fa-gear" /> Settings',
         paneltype: 'modal',
         headerControls: {
             controls: 'none',
         },
-        content: '<div class="k-s-container"><div class="k-s-list">List</div><div class="k-s-pane-holder"><div class="k-s-pane-content">Content</div><div class="k-s-pane-buttons">Buttons</div></div></div>',
+        content: content,
     }).resize({
         width: w,
         height: h
