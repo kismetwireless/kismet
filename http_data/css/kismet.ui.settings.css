@@ -1,0 +1,35 @@
+div.k-s-container {
+    height: 100%;
+    width: 100%;
+
+    display: flex;
+    flex-direction: row;
+}
+
+div.k-s-list {
+    height: 100%;
+    overflow-x: hidden;
+    overflow-y: scroll;
+    width: 25%;
+    padding: 10px;
+}
+
+div.k-s-pane-holder {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 75%;
+    flex: 1;
+}
+
+div.k-s-pane-content {
+    height: 100%;
+    overflow-x: hidden;
+    overflow-y: scroll;
+    flex: 1;
+    padding: 10px;
+}
+
+div.k-s-pane-buttons {
+    height: 20px;
+}

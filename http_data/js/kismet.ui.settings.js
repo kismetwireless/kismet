@@ -67,6 +67,7 @@ exports.ShowSettings = function() {
         headerControls: {
             controls: 'none',
         },
+        content: '<div class="k-s-container"><div class="k-s-list">List</div><div class="k-s-pane-holder"><div class="k-s-pane-content">Content</div><div class="k-s-pane-buttons">Buttons</div></div></div>',
     }).resize({
         width: w,
         height: h
