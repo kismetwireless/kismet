@@ -22,11 +22,16 @@
 #include "config.h"
 
 #include <string>
+#include <pthread.h>
+
 #include "trackedelement.h"
+#include "timetracker.h"
+#include "devicetracker_component.h"
+#include "devicetracker.h"
 #include "kis_net_microhttpd.h"
 
 class Systemmonitor : public tracker_component, public Kis_Net_Httpd_Stream_Handler,
-    public LifetimeGlobal {
+    public LifetimeGlobal, public TimetrackerEvent {
 public:
     static shared_ptr<Systemmonitor> create_systemmonitor(GlobalRegistry *in_globalreg) {
         shared_ptr<Systemmonitor> mon(new Systemmonitor(in_globalreg));
@@ -53,10 +58,21 @@ public:
     __Proxy(battery_ac, uint8_t, bool, bool, battery_ac);
     __Proxy(battery_remaining, uint32_t, uint32_t, uint32_t, battery_remaining);
 
+    __Proxy(memory, uint64_t, uint64_t, uint64_t, memory);
+    __Proxy(devices, uint64_t, uint64_t, uint64_t, devices);
+
     virtual void pre_serialize();
 
+    // Timetracker callback
+    virtual int timetracker_event(int eventid);
+
 protected:
+    pthread_mutex_t monitor_mutex;
+
     virtual void register_fields();
+    virtual void reserve_fields(SharedTrackerElement e);
+
+    shared_ptr<Devicetracker> devicetracker;
 
     int battery_perc_id;
     SharedTrackerElement battery_perc;
@@ -70,6 +86,19 @@ protected:
     int battery_remaining_id;
     SharedTrackerElement battery_remaining;
 
+    int mem_id;
+    SharedTrackerElement memory;
+
+    int mem_rrd_id;
+    shared_ptr<kis_tracked_rrd<> > memory_rrd;
+
+    int devices_id;
+    SharedTrackerElement devices;
+
+    int devices_rrd_id;
+    shared_ptr<kis_tracked_rrd<> > devices_rrd;
+
+    long mem_per_page;
 };
 
 #endif
