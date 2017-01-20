@@ -83,6 +83,13 @@ void Systemmonitor::register_fields() {
         RegisterField("kismet.system.battery.remaining", TrackerUInt32,
                 "battery remaining in seconds", &battery_remaining);
 
+    timestamp_sec_id =
+        RegisterField("kismet.system.timestamp.sec", TrackerUInt64,
+                "system timestamp, seconds", &timestamp_sec);
+    timestamp_usec_id =
+        RegisterField("kismet.system.timestamp.usec", TrackerUInt64,
+                "system timestamp, usec", &timestamp_usec);
+
     mem_id = 
         RegisterField("kismet.system.memory.rss", TrackerUInt64,
                 "memory RSS in kbytes", &memory);
@@ -191,6 +198,9 @@ void Systemmonitor::pre_serialize() {
 
     set_battery_ac(batinfo.ac);
     set_battery_remaining(batinfo.remaining_sec);
+
+    set_timestamp_sec(globalreg->timestamp.tv_sec);
+    set_timestamp_usec(globalreg->timestamp.tv_usec);
 }
 
 bool Systemmonitor::Httpd_VerifyPath(const char *path, const char *method) {

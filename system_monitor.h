@@ -58,6 +58,9 @@ public:
     __Proxy(battery_ac, uint8_t, bool, bool, battery_ac);
     __Proxy(battery_remaining, uint32_t, uint32_t, uint32_t, battery_remaining);
 
+    __Proxy(timestamp_sec, uint64_t, uint64_t, uint64_t, timestamp_sec);
+    __Proxy(timestamp_usec, uint64_t, uint64_t, uint64_t, timestamp_usec);
+
     __Proxy(memory, uint64_t, uint64_t, uint64_t, memory);
     __Proxy(devices, uint64_t, uint64_t, uint64_t, devices);
 
@@ -85,6 +88,12 @@ protected:
 
     int battery_remaining_id;
     SharedTrackerElement battery_remaining;
+
+    int timestamp_sec_id;
+    SharedTrackerElement timestamp_sec;
+
+    int timestamp_usec_id;
+    SharedTrackerElement timestamp_usec;
 
     int mem_id;
     SharedTrackerElement memory;
