@@ -41,6 +41,7 @@ div.k-sb-list-item {
 
 div.k-sb-list-item:hover {
     background-color: #444444 !important;
+    cursor: pointer;
 }
 
 
