@@ -12,6 +12,11 @@ div.kismet_sidebar {
     font-size: 18px;
 }
 
+i.k-sb-hamburger:hover {
+    color: #888888 !important;
+    cursor: pointer;
+}
+
 div.k-sb-header {
     height: 40px;
     margin-bottom: 10px;
