@@ -712,14 +712,16 @@ var memorydisplay_refresh = function() {
                 label: 'Memory (MB)',
                 fill: 'false',
                 yAxisID: 'mem-axis',
-                backgroundColor: 'rgba(255, 100, 100, 0.50)',
+		borderColor: 'black',
+                backgroundColor: 'transparent',
                 data: mem_linedata,
             },
             {
                 label: 'Devices',
                 fill: 'false',
                 yAxisID: 'dev-axis',
-                backgroundColor: 'rgba(100, 100, 255, 0.50)',
+		borderColor: 'blue',
+                backgroundColor: 'rgba(100, 100, 255, 0.33)',
                 data: dev_linedata,
             }
         ];
