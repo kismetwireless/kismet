@@ -101,11 +101,11 @@ void Systemmonitor::register_fields() {
     shared_ptr<kis_tracked_rrd<> > rrd_builder(new kis_tracked_rrd<>(globalreg, 0));
 
     mem_rrd_id =
-        RegisterComplexField("kismet.device.memory.rrd", rrd_builder, 
+        RegisterComplexField("kismet.system.memory.rrd", rrd_builder, 
                 "memory used RRD"); 
 
     devices_rrd_id =
-        RegisterComplexField("kismet.device.devices.rrd", rrd_builder, 
+        RegisterComplexField("kismet.system.devices.rrd", rrd_builder, 
                 "device count RRD");
 }
 
