@@ -32,8 +32,9 @@
 
 <script src="/js/kismet.utils.js"></script>
 <script src="/js/kismet.ui.js"></script>
-<script src="/js/kismet.ui.base.js"></script>
 <script src="/js/kismet.ui.settings.js"></script>
+<script src="/js/kismet.ui.sidebar.js"></script>
+<script src="/js/kismet.ui.base.js"></script>
 
 <script src="/js/jquery.kismet.devicedata.js"></script>
 <script src="/js/jquery.kismet.messagebus.js"></script>
@@ -125,7 +126,7 @@ function handleDeviceSummary() {
 // jquery onload complete
 $(function() {
     // Set a global timeout
-    $.ajaxSetup({timeout:1000});
+    $.ajaxSetup({timeout:5000});
 
     $('#pm_menu').pushmenu({ button : "#pm_open" });
 
@@ -290,6 +291,9 @@ $(function() {
         kismet_ui_settings.ShowSettings();
     });
 
+    // Finalize the sidebar
+    kismet_ui_sidebar.MakeSidebar($('.k-sb-main'));
+
 }); // when
 
 }); // onload
@@ -304,7 +308,6 @@ $(function() {
                 <hr>
             </div>
             <div class="k-sb-main">
-                Sidebar content coming soon
             </div>
             <div class="k-sb-footer">
                 <div id="k-sb-settings">

@@ -156,31 +156,3 @@ div.topright_holder {
     color: #303030; 
 }
 
-/* Sidebar content */
-div.kismet_sidebar {
-    height: 100%;
-    display: flex;
-
-    flex-direction: column;
-
-    padding: 10px 10px 10px 10px;
-    background-color: #555555 !important;
-    color: #ABABAB !important;
-
-    font-size: 18px;
-}
-
-div.k-sb-header {
-    height: 40px;
-    margin-bottom: 10px;
-}
-
-div.k-sb-main {
-    height: 100%;
-    flex: 1;
-}
-
-div.k-sb-footer {
-    height: 45px;
-}
-

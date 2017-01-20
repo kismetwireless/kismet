@@ -621,6 +621,35 @@ kismet_ui.AddDeviceDetail("devel", "Dev/Debug Options", 10000, {
         return 'Device JSON: <a href="/devices/by-key/' + data.kismet_device_base_key + '/device.json" target="_new">link</a><br />';
     }});
 
+kismet_ui_sidebar.AddSidebarItem({
+    id: 'memory_sidebar',
+    listTitle: '<i class="fa fa-tasks"></i> Memory Monitor',
+    cbmodule: 'kismet_ui_base',
+    clickCallback: 'MemoryMonitor'
+});
+
+exports.MemoryMonitor = function() {
+    var w = $(window).width() * 0.75;
+    var h = $(window).height() * 0.5;
+        
+    var mempanel = $.jsPanel({
+        id: 'memory',
+        headerTitle: '<i class="fa fa-tasks" /> Memory use',
+        headerControls: {
+            controls: 'closeonly'
+        },
+        content: 'Coming soon',
+    }).resize({
+        width: w,
+        height: h
+    }).reposition({
+        my: 'center-top',
+        at: 'center-top',
+        of: 'window',
+        offsetY: 20
+    });
+}
+
 console.log("kismet.ui.base.js returning, we think we loaded everything?");
 
 // We're done loading

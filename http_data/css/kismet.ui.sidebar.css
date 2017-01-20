@@ -1,0 +1,41 @@
+/* Sidebar content */
+div.kismet_sidebar {
+    height: 100%;
+    display: flex;
+
+    flex-direction: column;
+
+    padding: 10px 10px 10px 10px;
+    background-color: #555555 !important;
+    color: #ABABAB !important;
+
+    font-size: 18px;
+}
+
+div.k-sb-header {
+    height: 40px;
+    margin-bottom: 10px;
+}
+
+div.k-sb-main {
+    height: 100%;
+    flex: 1;
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
+div.k-sb-footer {
+    height: 45px;
+}
+
+div.k-sb-list-item {
+    padding-top: 2px;
+    padding-bottom: 2px;
+    padding-left: 10px;
+}
+
+div.k-sb-list-item:hover {
+    background-color: #444444 !important;
+}
+
+
