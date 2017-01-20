@@ -621,6 +621,11 @@ kismet_ui.AddDeviceDetail("devel", "Dev/Debug Options", 10000, {
         return 'Device JSON: <a href="/devices/by-key/' + data.kismet_device_base_key + '/device.json" target="_new">link</a><br />';
     }});
 
+/* Sidebar:  Memory monitor
+ *
+ * The memory monitor looks at system_status and plots the amount of 
+ * ram vs number of tracked devices from the RRD
+ */
 kismet_ui_sidebar.AddSidebarItem({
     id: 'memory_sidebar',
     listTitle: '<i class="fa fa-tasks"></i> Memory Monitor',
@@ -628,17 +633,23 @@ kismet_ui_sidebar.AddSidebarItem({
     clickCallback: 'MemoryMonitor'
 });
 
+var memoryupdate_tid;
+var memory_panel = null;
+var memory_chart = null;
+
 exports.MemoryMonitor = function() {
     var w = $(window).width() * 0.75;
     var h = $(window).height() * 0.5;
+
+    memory_chart = null;
         
-    var mempanel = $.jsPanel({
+    memory_panel = $.jsPanel({
         id: 'memory',
         headerTitle: '<i class="fa fa-tasks" /> Memory use',
         headerControls: {
             controls: 'closeonly'
         },
-        content: 'Coming soon',
+        content: '<canvas id="k-mm-canvas" style="k-mm-canvas" />',
     }).resize({
         width: w,
         height: h
@@ -648,7 +659,114 @@ exports.MemoryMonitor = function() {
         of: 'window',
         offsetY: 20
     });
+
+    memorydisplay_refresh();
 }
+
+var memorydisplay_refresh = function() {
+    clearTimeout(memoryupdate_tid);
+
+    if (memory_panel == null)
+        return;
+
+    if (memory_panel.is(':hidden'))
+        return;
+
+    $.get("/system/status.json")
+    .done(function(data) {
+        // Common rrd type and source field
+        var rrdtype = kismet.RRD_SECOND;
+        var rrddata = 'kismet_common_rrd_minute_vec';
+
+        // Common point titles
+        var pointtitles = new Array();
+
+        for (var x = 0; x < 60; x++) {
+            if (x % 5 == 0) {
+                pointtitles.push(x);
+            } else {
+                pointtitles.push(' ');
+            }
+        }
+
+        var mem_linedata =
+            kismet.RecalcRrdData(
+                data['kismet_system_memory_rrd']['kismet_common_rrd_last_time'],
+                data['kismet_system_timestamp_sec'],
+                rrdtype,
+                data['kismet_system_memory_rrd'][rrddata]);
+
+        for (var p in mem_linedata) {
+            mem_linedata[p] = Math.round(mem_linedata[p] / 1024);
+        }
+
+        var dev_linedata =
+            kismet.RecalcRrdData(
+                data['kismet_system_devices_rrd']['kismet_common_rrd_last_time'],
+                data['kismet_system_timestamp_sec'],
+                rrdtype,
+                data['kismet_system_devices_rrd'][rrddata]);
+
+        var datasets = [
+            {
+                label: 'Memory (MB)',
+                fill: 'false',
+                yAxisID: 'mem-axis',
+                data: mem_linedata,
+            },
+            {
+                label: 'Devices',
+                fill: 'false',
+                yAxisID: 'dev-axis',
+                data: dev_linedata,
+            }
+        ];
+
+        if (memory_chart == null) {
+            var canvas = $('#k-mm-canvas', memory_panel.content);
+
+            console.log(canvas);
+
+            memory_chart = new Chart(canvas, {
+                type: 'line',
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        yAxes: [
+                            {
+                                position: "left",
+                                "id": "mem-axis",
+                                ticks: {
+                                    beginAtZero: true,
+                                }
+                            }, {
+                                position: "right",
+                                "id": "dev-axis",
+                                ticks: {
+                                    beginAtZero: true,
+                                }
+                            }
+                        ]
+                    },
+                },
+                data: {
+                    labels: pointtitles,
+                    datasets: datasets
+                }
+            });
+        
+        } else {
+            memory_chart.data.datasets = datasets;
+            memory_chart.data.labels = pointtitles;
+            memory_chart.update(0);
+        }
+    })
+    .always(function() {
+        memoryupdate_tid = setTimeout(memorydisplay_refresh, 5000);
+    });
+}
+
 
 console.log("kismet.ui.base.js returning, we think we loaded everything?");
 

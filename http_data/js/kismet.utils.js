@@ -252,7 +252,7 @@ exports.RRD_HOUR = 3600;
 
 // exports.RRD_DAY = 86400
 
-exports.RecalcRrdData = function(start, now, type, data, opt) {
+exports.RecalcRrdData = function(start, now, type, data, opt = {}) {
     var rrd_len = data.length;
 
     // Each type value is the number of seconds in each bin of the array

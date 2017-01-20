@@ -61,3 +61,8 @@ div.freqbar {
     background-image: url(/images/collapsed.gif);
 }
 
+canvas.k-mm-canvas {
+    width: 100%;
+    height: 100%;
+}
+
