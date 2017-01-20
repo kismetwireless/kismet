@@ -675,8 +675,8 @@ var memorydisplay_refresh = function() {
     $.get("/system/status.json")
     .done(function(data) {
         // Common rrd type and source field
-        var rrdtype = kismet.RRD_SECOND;
-        var rrddata = 'kismet_common_rrd_minute_vec';
+        var rrdtype = kismet.RRD_MINUTE;
+        var rrddata = 'kismet_common_rrd_hour_vec';
 
         // Common point titles
         var pointtitles = new Array();
@@ -712,12 +712,14 @@ var memorydisplay_refresh = function() {
                 label: 'Memory (MB)',
                 fill: 'false',
                 yAxisID: 'mem-axis',
+                backgroundColor: 'rgba(255, 100, 100, 0.50)',
                 data: mem_linedata,
             },
             {
                 label: 'Devices',
                 fill: 'false',
                 yAxisID: 'dev-axis',
+                backgroundColor: 'rgba(100, 100, 255, 0.50)',
                 data: dev_linedata,
             }
         ];
