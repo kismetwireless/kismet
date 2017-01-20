@@ -214,6 +214,76 @@ foo.on('click', 'div', function() {
 });
 ```
 
+## Sidebar Menu
+
+Kismet has a (now standard) sidebar menu which is activated with the 'hamburger menu' in the top left of the UI.  This is generally a good place to put features which are not otherwise directly accessible from the UI (for instance, independent windows which are not linked to device details, etc).
+
+The sidebar menu is managed by the `kismet_ui_sidebar` module which is loaded automatically before any dynamic modules.
+
+Sidebar items are automatically styled and wrapped in a div element which supports hovering animation.
+
+New menu items are added via `kismet_ui_sidebar.AddSidebarItem(options)`.  The `options` parameter is a dictionary object with the following values:
+
+#### id - string (required)
+
+This is the ID assigned to the `<div>` element created in the sidebar.
+
+#### listTitle - string (required)
+
+This is the title of the menu item.  This can included embedded HTML, and for consistency, it is recommended that an icon is selected from the included font-awesome icon font.
+
+#### cbmodule - string (required)
+
+The module name which contains a callback for when this item is clicked.
+
+#### clickCallback - string (required)
+
+The function in the `cbmodule` which is called which this item is clicked.  This function is responsible for launching whatever activity corresponds to the menu item.  The menu will be closed automatically when the item is clicked.
+
+#### priority - integer (optional)
+
+Where in the list to insert the new item.  Smaller numbers indicate higher priority.  In general, plugins should use a neutral priority (0) but in some cases it makes logical sense to place an option higher or lower in the list.
+
+### An example sidebar
+
+We will, again, use our example module, `kismet_plugin_foo`.  
+
+Our sidebar option will open an extremely simple jsPanel HTML5 window.
+
+```javascript
+
+// Module boilerplate and other functionality
+
+// Define a function to launch our 
+exports.PluginWindowDemo = function() {
+    var demopanel = $.jsPanel({
+        id: 'sidedemo',
+        headerTitle: 'Demo sidebar',
+        headerControls: {
+            controls: 'closeonely'
+            },
+            content: 'Hello from the sidebar!',
+        }).resize({
+            width: $(window).width() / 2,
+            height: $(window).height() / 2
+        }).reposition({
+            my: 'center-top',
+            at: 'center-top',
+            of: 'window',
+            offsetY: 20
+        });
+};
+
+// Add us to the sidebar with no specific priority
+kismet_ui_sidebar.AddSidebarItem({
+    id: 'sidebar_demo',
+    listTitle: '<i class="fa fa-star" /> Demo Item',
+    cbmodule: 'kismet_plugin_foo',
+    clickCallback: 'PluginWindowDemo'
+});
+
+```
+
 ## Channels
 
 Sometimes Kismet needs to display information by frequency - most notably, in the
