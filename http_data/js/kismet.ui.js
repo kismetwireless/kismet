@@ -17,14 +17,13 @@ exports.DeviceColumns = new Array();
  * sTitle: datatable column title
  * name: datatable 'name' field (optional)
  * mData: datatable field spec
- * cbmodule: string name of callback module (ie "kismet_dot11") (optional)
  * renderfunc: string name of datatable render function, taking DT arguments
- *  (data, type, row, meta), found in cbmodule (optional)
+ *  (data, type, row, meta), (optional)
  * drawfunc: string name of a draw function, taking arguments:
  *  dyncolumn - The dynamic column (this)
  *  datatable - A DataTable() object of the table we're operating on
  *  row - The row we're operating on, which should be visible
- *  found in the namespace cbmodule.  This will be called during the drawCallback
+ *  This will be called during the drawCallback
  *  stage of the table, on visible rows. (optional)
  */
 exports.AddDeviceColumn = function(id, options) {
@@ -51,17 +50,13 @@ exports.AddDeviceColumn = function(id, options) {
     }
 
     // Set the render function to proxy through the module+function
-    if ('cbmodule' in options && 'renderfunc' in options) {
-        coldef.mRender = function(data, type, row, meta) {
-            return window[options.cbmodule][options.renderfunc](data, type, row, meta);
-        }
+    if ('renderfunc' in options) {
+        coldef.mRender = options.renderfunc;
     }
 
     // Set an arbitrary draw hook we call ourselves during the draw loop later
-    if ('cbmodule' in options && 'drawfunc' in options) {
-        coldef.kismetdrawfunc = function(col, datatable, row) {
-            return window[options.cbmodule][options.drawfunc](col, datatable, row);
-        }
+    if ('drawfunc' in options) {
+        coldef.kismetdrawfunc = options.drawfunc;
     }
 
     exports.DeviceColumns.push(coldef);

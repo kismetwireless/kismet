@@ -31,15 +31,13 @@ var SidebarItems = new Array();
  *
  * id: id for created div
  * listTitle: Title shown in list, which can include HTML for improved icons
- * cbmodule: string name of callback module (ie "kismet_dot11")
- * clickCallback: function in the cbmodule for handling a click event
+ * clickCallback: function in for handling a click event
  *
  * priority: order priority in list (optional)
  */
 exports.AddSidebarItem = function(options) {
     if (! 'id' in options ||
         ! 'listTitle' in options ||
-        ! 'cbmodule' in options ||
         ! 'clickCallback' in options) {
         return;
     }
@@ -72,7 +70,7 @@ function populateList(list) {
             .on('click', function() {
                 // Hack closing the sidemenu
                 $('.pm_overlay').click();
-                window[c.cbmodule][c.clickCallback]();
+                c.clickCallback();
             })
         );
     }

@@ -118,39 +118,46 @@ kismet_ui.AddDeviceColumn('column_phy', {
 kismet_ui.AddDeviceColumn('column_signal', { 
     sTitle: 'Signal', 
     mData: 'kismet_device_base_signal.kismet_common_signal_last_signal_dbm',
-    cbmodule: 'kismet_ui_base',
-    renderfunc: 'renderSignal'
+    renderfunc: function(d, t, r, m) {
+        return exports.renderSignal(d, t, r, m);
+    },
 });
 
 kismet_ui.AddDeviceColumn('column_channel', {
     sTitle: 'Channel',
     mData: 'kismet_device_base_channel',
-    cbmodule: 'kismet_ui_base',
-    renderfunc: 'renderChannel'
+    renderfunc: function(d, t, r, m) {
+        return exports.renderChannel(d, t, r, m);
+    },
 });
 
 kismet_ui.AddDeviceColumn('column_time', {
     sTitle: 'Last Seen',
     mData: 'kismet_device_base_last_time',
-    cbmodule: 'kismet_ui_base',
-    renderfunc: 'renderLastTime'
+    renderfunc: function(d, t, r, m) {
+        return exports.renderLastTime(d, t, r, m);
+    },
 });
 
 kismet_ui.AddDeviceColumn('column_datasize', {
     sTitle: 'Data',
     mData: 'kismet_device_base_datasize',
     bUseRendered: false,
-    cbmodule: 'kismet_ui_base',
-    renderfunc: 'renderDataSize'
+    renderfunc: function(d, t, r, m) {
+        return exports.renderDataSize(d, t, r, m);
+    },
 });
 
 kismet_ui.AddDeviceColumn('column_packet_rrd', {
     sTitle: 'Packets',
     mData: null,
     name: 'packets',
-    cbmodule: 'kismet_ui_base',
-    renderfunc: 'renderPackets',
-    drawfunc: 'drawPackets',
+    renderfunc: function(d, t, r, m) {
+        return exports.renderPackets(d, t, r, m);
+    },
+    drawfunc: function(d, t, r) {
+        return exports.drawPackets(d, t, r);
+    },
     orderable: false,
     searchable: false,
 });
@@ -162,8 +169,9 @@ kismet_ui.AddDeviceColumn('column_device_mac_hidden', {
     searchable: true,
     orderable: false,
     visible: false,
-    cbmodule: 'kismet_ui_base',
-    renderfunc: 'renderMac'
+    renderfunc: function(d, t, r, m) {
+        return exports.renderMac(d, t, r, m);
+    },
 });
 
 // Add the (quite complex) device details.
@@ -629,8 +637,9 @@ kismet_ui.AddDeviceDetail("devel", "Dev/Debug Options", 10000, {
 kismet_ui_sidebar.AddSidebarItem({
     id: 'memory_sidebar',
     listTitle: '<i class="fa fa-tasks"></i> Memory Monitor',
-    cbmodule: 'kismet_ui_base',
-    clickCallback: 'MemoryMonitor'
+    clickCallback: function() {
+        exports.MemoryMonitor();
+    },
 });
 
 var memoryupdate_tid;
