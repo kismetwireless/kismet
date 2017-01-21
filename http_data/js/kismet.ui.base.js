@@ -659,6 +659,9 @@ exports.MemoryMonitor = function() {
             controls: 'closeonly'
         },
         content: '<canvas id="k-mm-canvas" style="k-mm-canvas" />',
+        onclosed: function() {
+            clearTimeout(memoryupdate_tid);
+        }
     }).resize({
         width: w,
         height: h
