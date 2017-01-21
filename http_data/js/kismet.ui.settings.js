@@ -83,6 +83,11 @@ function clickSetting(c) {
     var content = $('.k-s-pane-content', settingspanel.content);
     content.empty();
 
+    if ('windowTitle' in c)
+        settingspanel.headerTitle('Settings - ' + c.windowTitle);
+    else
+        settingspanel.headerTitle('Settings - ' + c.listTitle);
+            
     window[c.cbmodule][c.create](content);
 }
 
@@ -94,7 +99,9 @@ function populateList(list) {
                 class: 'k-s-list-item'
             })
             .html(c.listTitle)
-            .on('click', function() { clickSetting(c); })
+            .on('click', function() { 
+                clickSetting(c); 
+            })
         );
     }
 }

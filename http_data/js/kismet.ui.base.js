@@ -774,94 +774,170 @@ var memorydisplay_refresh = function() {
 // Settings options
 exports.SettingsUnitsPane = function(elem) {
     elem.append(
-        $('<form>', {
-        })
+        $('<form>', { })
         .append(
-            $('<fieldset>', { })
+            $('<fieldset>', { 
+                id: 'set_distance',
+            })
             .append(
                 $('<legend>', { })
                 .html("Distance")
             )
             .append(
-                $('<div>', {
-                    id: 'distance'
+                $('<input>', {
+                    type: 'radio',
+                    id: 'dst_metric',
+                    name: 'distance',
+                    value: 'metric',
                 })
-                .append(
-                    $('<input>', {
-                        type: 'radio',
-                        id: 'metric',
-                        name: 'distance',
-                    })
-                )
-                .append(
-                    $('<label>', {
-                        for: 'metric',
-                    })
-                    .html('Metric')
-                )
-                .append(
-                    $('<input>', {
-                        type: 'radio',
-                        id: 'imperial',
-                        name: 'distance',
-                    })
-                )
-                .append(
-                    $('<label>', {
-                        for: 'imperial',
-                    })
-                    .html('Imperial')
-                )
             )
-            .controlgroup()
+            .append(
+                $('<label>', {
+                    for: 'dst_metric',
+                })
+                .html('Metric')
+            )
+            .append(
+                $('<input>', {
+                    type: 'radio',
+                    id: 'dst_imperial',
+                    name: 'distance',
+                    value: 'imperial',
+                })
+            )
+            .append(
+                $('<label>', {
+                    for: 'dst_imperial',
+                })
+                .html('Imperial')
+            )
         )
         .append(
             $('<br>', { })
         )
         .append(
-            $('<fieldset>', { })
+            $('<fieldset>', {
+                id: 'set_speed'
+            })
+            .append(
+                $('<legend>', { })
+                .html("Speed")
+            )
+            .append(
+                $('<input>', {
+                    type: 'radio',
+                    id: 'spd_metric',
+                    name: 'speed',
+                })
+            )
+            .append(
+                $('<label>', {
+                    for: 'spd_metric',
+                })
+                .html('Metric')
+            )
+            .append(
+                $('<input>', {
+                    type: 'radio',
+                    id: 'spd_imperial',
+                    name: 'speed',
+                })
+            )
+            .append(
+                $('<label>', {
+                    for: 'spd_imperial',
+                })
+                .html('Imperial')
+            )
+        )
+        .append(
+            $('<br>', { })
+        )
+        .append(
+            $('<fieldset>', {
+                id: 'set_temp'
+            })
             .append(
                 $('<legend>', { })
                 .html("Temperature")
             )
             .append(
-                $('<div>', {
-                    id: 'temperature'
+                $('<input>', {
+                    type: 'radio',
+                    id: 'temp_celcius',
+                    name: 'temp',
                 })
-                .append(
-                    $('<input>', {
-                        type: 'radio',
-                        id: 'celcius',
-                        name: 'temperature',
-                    })
-                )
-                .append(
-                    $('<label>', {
-                        for: 'celcius',
-                    })
-                    .html('Celcius')
-                )
-                .append(
-                    $('<input>', {
-                        type: 'radio',
-                        id: 'farenheit',
-                        name: 'temperature',
-                    })
-                )
-                .append(
-                    $('<label>', {
-                        for: 'farenheit',
-                    })
-                    .html('Farenheit')
-                )
             )
-            .controlgroup()
+            .append(
+                $('<label>', {
+                    for: 'temp_celcius',
+                })
+                .html('Celcius')
+            )
+            .append(
+                $('<input>', {
+                    type: 'radio',
+                    id: 'temp_farenheit',
+                    name: 'temp',
+                })
+            )
+            .append(
+                $('<label>', {
+                    for: 'temp_farenheit',
+                })
+                .html('Farenheit')
+            )
         )
     );
+
+    $('#set_distance', elem)
+        .controlgroup()
+        .on('change', function() {
+            var dist = $("input[name='distance']:checked", elem).val();
+            kismet.putStorage('kismet.base.unit.distance', dist);
+        });
+
+    $('#set_speed', elem)
+        .controlgroup()
+        .on('change', function() {
+            var spd = $("input[name='speed']:checked", elem).val();
+            kismet.putStorage('kismet.base.unit.speed', spd);
+        });
+    $('#set_temp', elem)
+        .controlgroup()
+        .on('change', function() {
+            var tmp = $("input[name='temp']:checked", elem).val();
+            kismet.putStorage('kismet.base.unit.temp', tmp);
+        });
+
+    exports.SettingsUnitsReset(elem);
+
 }
 
 exports.SettingsUnitsReset = function(elem) {
-    elem.html("reset!");
+    if (kismet.getStorage('kismet.base.unit.distance', 'metric') === 'metric') {
+        $('#dst_metric', elem).attr('checked', 'checked');
+    } else {
+        $('#dst_imperial', elem).attr('checked', 'checked');
+    }
+
+    if (kismet.getStorage('kismet.base.unit.speed', 'metric') === 'metric') {
+        $('#spd_metric', elem).attr('checked', 'checked');
+    } else {
+        $('#spd_imperial', elem).attr('checked', 'checked');
+    }
+
+    if (kismet.getStorage('kismet.base.unit.temp', 'celcius') === 'celcius') {
+        $('#temp_celcius', elem).attr('checked', 'checked');
+    } else {
+        $('#temp_farenheit', elem).attr('checked', 'checked');
+    }
+
+    $('#set_distance', elem).controlgroup('refresh');
+    $('#set_speed', elem).controlgroup('refresh');
+    $('#set_temp', elem).controlgroup('refresh');
+
+
 }
 
 exports.SettingsUnitsSave = function(elem) {
