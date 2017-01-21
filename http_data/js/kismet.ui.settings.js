@@ -39,7 +39,6 @@ var SettingsPanes = new Array();
  *
  * listTitle: Title shown in list
  * windowTitle: Title appended to window (optional, if omitted, will use listTitle)
- * cbmodule: string name of callback module (ie "kismet_dot11")
  * create: Function creating the settings panel in a provided element
  * save: Function for saving the panel
  * priority: priority in list, lower is higher (optional)
@@ -50,7 +49,6 @@ var SettingsPanes = new Array();
  */
 exports.AddSettingsPane = function(options) {
     if (! 'listTitle' in options ||
-        ! 'cbmodule' in options ||
         ! 'create' in options ||
         ! 'save' in options) {
         return;
@@ -109,7 +107,7 @@ function populateSetting(c) {
     var content = $('.k-s-pane-content', settingspanel.content);
     content.empty();
 
-    window[c.cbmodule][c.create](content);
+    c.create(content);
 }
 
 function populateList(list) {
@@ -176,7 +174,7 @@ exports.ShowSettings = function() {
                 .button("disable")
                 .on('click', function() {
                     if (selected_item != null) {
-                        window[selected_item.cbmodule][selected_item.save](content);
+                        selected_item.save(content);
                         exports.SettingsModified(false);
                     }
                 })

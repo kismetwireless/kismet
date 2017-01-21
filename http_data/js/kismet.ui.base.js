@@ -934,10 +934,34 @@ exports.SettingsUnitsSave = function(elem) {
 
 kismet_ui_settings.AddSettingsPane({
     listTitle: 'Units &amp; Measurements',
-    cbmodule: 'kismet_ui_base',
-    create: 'SettingsUnitsPane',
-    save: 'SettingsUnitsSave'
+    create: function(e) { exports.SettingsUnitsPane(e); },
+    save: function(e) { exports.SettingsUnitsSave(e); },
 });
+
+// Use our settings to make some conversion functions for distance and temperature
+exports.renderDistance = function(k) {
+    if (kismet.getStorage('kismet.base.unit.distance') === 'metric') {
+        return k + ' km';
+    } else {
+        return (k * 0.621371) + ' miles';
+    }
+}
+
+exports.renderSpeed = function(kph) {
+    if (kismet.getStorage('kismet.base.unit.speed') === 'metric') {
+        return kph + ' KPH';
+    } else {
+        return (kph * 0.621371) + ' MPH';
+    }
+}
+
+exports.renderTemperature = function(c) {
+    if (kismet.getStorage('kismet.base.unit.temp') === 'celcius') {
+        return c + ' &deg; C';
+    } else {
+        return (c * (9/5) + 32) + ' &deg; F';
+    }
+}
 
 console.log("kismet.ui.base.js returning, we think we loaded everything?");
 
