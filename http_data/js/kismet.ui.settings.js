@@ -184,6 +184,8 @@ exports.ShowSettings = function() {
 
     populateList($('.k-s-list', content));
 
+    selected_item = null;
+
     settingspanel = $.jsPanel({
         id: 'settings',
         headerTitle: '<i class="fa fa-gear" /> Settings',

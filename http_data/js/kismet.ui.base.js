@@ -837,6 +837,7 @@ exports.SettingsUnitsPane = function(elem) {
                     type: 'radio',
                     id: 'spd_metric',
                     name: 'speed',
+                    value: 'metric',
                 })
             )
             .append(
@@ -850,6 +851,7 @@ exports.SettingsUnitsPane = function(elem) {
                     type: 'radio',
                     id: 'spd_imperial',
                     name: 'speed',
+                    value: 'imperial',
                 })
             )
             .append(
@@ -875,6 +877,7 @@ exports.SettingsUnitsPane = function(elem) {
                     type: 'radio',
                     id: 'temp_celcius',
                     name: 'temp',
+                    value: 'celcius',
                 })
             )
             .append(
@@ -888,6 +891,7 @@ exports.SettingsUnitsPane = function(elem) {
                     type: 'radio',
                     id: 'temp_farenheit',
                     name: 'temp',
+                    value: 'farenheit',
                 })
             )
             .append(
