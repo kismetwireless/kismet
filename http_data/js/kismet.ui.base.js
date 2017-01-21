@@ -890,31 +890,14 @@ exports.SettingsUnitsPane = function(elem) {
         )
     );
 
-    $('#set_distance', elem)
-        .controlgroup()
-        .on('change', function() {
-            var dist = $("input[name='distance']:checked", elem).val();
-            kismet.putStorage('kismet.base.unit.distance', dist);
-        });
+    elem.on('change', function() {
+        kismet_ui_settings.SettingsModified();
+    });
 
-    $('#set_speed', elem)
-        .controlgroup()
-        .on('change', function() {
-            var spd = $("input[name='speed']:checked", elem).val();
-            kismet.putStorage('kismet.base.unit.speed', spd);
-        });
-    $('#set_temp', elem)
-        .controlgroup()
-        .on('change', function() {
-            var tmp = $("input[name='temp']:checked", elem).val();
-            kismet.putStorage('kismet.base.unit.temp', tmp);
-        });
+    $('#set_distance', elem).controlgroup();
+    $('#set_speed', elem).controlgroup();
+    $('#set_temp', elem).controlgroup();
 
-    exports.SettingsUnitsReset(elem);
-
-}
-
-exports.SettingsUnitsReset = function(elem) {
     if (kismet.getStorage('kismet.base.unit.distance', 'metric') === 'metric') {
         $('#dst_metric', elem).attr('checked', 'checked');
     } else {
@@ -936,11 +919,16 @@ exports.SettingsUnitsReset = function(elem) {
     $('#set_distance', elem).controlgroup('refresh');
     $('#set_speed', elem).controlgroup('refresh');
     $('#set_temp', elem).controlgroup('refresh');
-
-
 }
 
 exports.SettingsUnitsSave = function(elem) {
+    var dist = $("input[name='distance']:checked", elem).val();
+    kismet.putStorage('kismet.base.unit.distance', dist);
+    var spd = $("input[name='speed']:checked", elem).val();
+    kismet.putStorage('kismet.base.unit.speed', spd);
+    var tmp = $("input[name='temp']:checked", elem).val();
+    kismet.putStorage('kismet.base.unit.temp', tmp);
+
     return true;
 }
 
@@ -948,7 +936,6 @@ kismet_ui_settings.AddSettingsPane({
     listTitle: 'Units &amp; Measurements',
     cbmodule: 'kismet_ui_base',
     create: 'SettingsUnitsPane',
-    reset: 'SettingsUnitsReset',
     save: 'SettingsUnitsSave'
 });
 

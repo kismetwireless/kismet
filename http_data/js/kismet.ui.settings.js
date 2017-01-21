@@ -42,8 +42,6 @@ var SettingsPanes = new Array();
  * cbmodule: string name of callback module (ie "kismet_dot11")
  * create: Function creating the settings panel in a provided element
  * save: Function for saving the panel
- * reset: User has cancelled editing & values should be set to 
- * original
  * priority: priority in list, lower is higher (optional)
  *
  * Settings panels should notify the sidebar when a setting is changed via
@@ -54,8 +52,7 @@ exports.AddSettingsPane = function(options) {
     if (! 'listTitle' in options ||
         ! 'cbmodule' in options ||
         ! 'create' in options ||
-        ! 'save' in options ||
-        ! 'reset' in options) {
+        ! 'save' in options) {
         return;
     }
 
@@ -70,24 +67,48 @@ var settingspanel = null;
 
 /* Indicate to the settings UI that an option has been modified so that the
  * save and reset buttons can be activated */
-exports.SettingsModified = function() {
-    modified = true;
+exports.SettingsModified = function(mod = true) {
+    if (mod) {
+        modified = true;
 
-    $('.k-s-button-save', settingspanel.content).button("enable");
-    $('.k-s-button-save', settingspanel.content).addclass('k-s-button-hot');
+        $('.k-s-button-save', settingspanel.content).button("enable");
+        $('.k-s-button-save', settingspanel.content).addClass('k-s-button-hot');
+
+        $('.k-s-button-reset', settingspanel.content).button("enable");
+    } else {
+        modified = false;
+
+        $('.k-s-button-save', settingspanel.content).button("disable");
+        $('.k-s-button-save', settingspanel.content).removeClass('k-s-button-hot');
+
+        $('.k-s-button-reset', settingspanel.content).button("disable");
+    }
+
 }
 
 var selected_item = null;
 
 function clickSetting(c) {
-    var content = $('.k-s-pane-content', settingspanel.content);
-    content.empty();
+    if (c == selected_item)
+        return;
+
+    selected_item = c;
 
     if ('windowTitle' in c)
         settingspanel.headerTitle('Settings - ' + c.windowTitle);
     else
         settingspanel.headerTitle('Settings - ' + c.listTitle);
+
+    exports.SettingsModified(false);
+
+    populateSetting(c);
+}
+
+function populateSetting(c) {
             
+    var content = $('.k-s-pane-content', settingspanel.content);
+    content.empty();
+
     window[c.cbmodule][c.create](content);
 }
 
@@ -126,7 +147,7 @@ exports.ShowSettings = function() {
             $('<div>', {
                 class: 'k-s-pane-content'
             })
-            .text("Settings content")
+            .html("<h3>Kismet Settings</h3><p>Kismet UI settings are stored in your browsers local storage and are saved between uses.")
         )
         .append(
             $('<div>', {
@@ -139,6 +160,12 @@ exports.ShowSettings = function() {
                 .text("Reset")
                 .button()
                 .button("disable")
+                .on('click', function() {
+                    if (selected_item != null) {
+                        exports.SettingsModified(false);
+                        populateSetting(selected_item);
+                    }
+                })
             )
             .append(
                 $('<button>', {
@@ -147,6 +174,12 @@ exports.ShowSettings = function() {
                 .text("Save Changes")
                 .button()
                 .button("disable")
+                .on('click', function() {
+                    if (selected_item != null) {
+                        window[selected_item.cbmodule][selected_item.save](content);
+                        exports.SettingsModified(false);
+                    }
+                })
             )
         )
     );
