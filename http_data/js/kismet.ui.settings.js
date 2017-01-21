@@ -40,35 +40,63 @@ var SettingsPanes = new Array();
  * listTitle: Title shown in list
  * windowTitle: Title appended to window (optional, if omitted, will use listTitle)
  * cbmodule: string name of callback module (ie "kismet_dot11")
- * paneCallback: Function creating the settings panel in a provided element
- * paneModifiedCallback: Function for telling the settings UI the panel has been modified
- * paneSaveCallback: Function for saving the panel
+ * create: Function creating the settings panel in a provided element
+ * save: Function for saving the panel
+ * reset: User has cancelled editing & values should be set to 
+ * original
+ * priority: priority in list, lower is higher (optional)
+ *
+ * Settings panels should notify the sidebar when a setting is changed via
+ * kismet_ui_sidbar.SettingsChanged()
+ *
  */
-exports.AddSettingPane = function(id, options) {
+exports.AddSettingsPane = function(options) {
     if (! 'listTitle' in options ||
         ! 'cbmodule' in options ||
-        ! 'paneCallback' in options ||
-        ! 'paneModifiedCallback' in options ||
-        ! 'paneSaveCallback' in options) {
+        ! 'create' in options ||
+        ! 'save' in options ||
+        ! 'reset' in options) {
         return;
     }
+
+    if (! 'priority' in options)
+        options['priority'] = 100;
 
     SettingsPanes.push(options);
 };
 
-function populateList(list) {
-    var mylist = ["Units & Measurements", "Login", "Device List"];
+var modified = false;
+var settingspanel = null;
 
-    for (var i in mylist) {
-        var c = mylist[i];
+/* Indicate to the settings UI that an option has been modified so that the
+ * save and reset buttons can be activated */
+exports.SettingsModified = function() {
+    modified = true;
+
+    $('.k-s-button-save', settingspanel.content).button("enable");
+    $('.k-s-button-save', settingspanel.content).addclass('k-s-button-hot');
+}
+
+var selected_item = null;
+
+function clickSetting(c) {
+    var content = $('.k-s-pane-content', settingspanel.content);
+    content.empty();
+
+    window[c.cbmodule][c.create](content);
+}
+
+function populateList(list) {
+    for (var i in SettingsPanes) {
+        var c = SettingsPanes[i];
         list.append(
             $('<div>', {
                 class: 'k-s-list-item'
             })
-            .text(c)
+            .html(c.listTitle)
+            .on('click', function() { clickSetting(c); })
         );
     }
-
 }
 
 exports.ShowSettings = function() {
@@ -97,18 +125,36 @@ exports.ShowSettings = function() {
             $('<div>', {
                 class: 'k-s-pane-buttons'
             })
-            .text("Buttons")
+            .append(
+                $('<button>', {
+                    class: 'k-s-button-reset'
+                })
+                .text("Reset")
+                .button()
+                .button("disable")
+            )
+            .append(
+                $('<button>', {
+                    class: 'k-s-button-save'
+                })
+                .text("Save Changes")
+                .button()
+                .button("disable")
+            )
         )
     );
 
     populateList($('.k-s-list', content));
 
-    var settingspanel = $.jsPanel({
+    settingspanel = $.jsPanel({
         id: 'settings',
         headerTitle: '<i class="fa fa-gear" /> Settings',
         paneltype: 'modal',
         headerControls: {
-            controls: 'none',
+            controls: 'closeonly',
+        },
+        onbeforeclose: function() {
+            return true;
         },
         content: content,
     }).resize({

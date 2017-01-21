@@ -769,8 +769,112 @@ var memorydisplay_refresh = function() {
     .always(function() {
         memoryupdate_tid = setTimeout(memorydisplay_refresh, 5000);
     });
+};
+
+// Settings options
+exports.SettingsUnitsPane = function(elem) {
+    elem.append(
+        $('<form>', {
+        })
+        .append(
+            $('<fieldset>', { })
+            .append(
+                $('<legend>', { })
+                .html("Distance")
+            )
+            .append(
+                $('<div>', {
+                    id: 'distance'
+                })
+                .append(
+                    $('<input>', {
+                        type: 'radio',
+                        id: 'metric',
+                        name: 'distance',
+                    })
+                )
+                .append(
+                    $('<label>', {
+                        for: 'metric',
+                    })
+                    .html('Metric')
+                )
+                .append(
+                    $('<input>', {
+                        type: 'radio',
+                        id: 'imperial',
+                        name: 'distance',
+                    })
+                )
+                .append(
+                    $('<label>', {
+                        for: 'imperial',
+                    })
+                    .html('Imperial')
+                )
+            )
+            .controlgroup()
+        )
+        .append(
+            $('<br>', { })
+        )
+        .append(
+            $('<fieldset>', { })
+            .append(
+                $('<legend>', { })
+                .html("Temperature")
+            )
+            .append(
+                $('<div>', {
+                    id: 'temperature'
+                })
+                .append(
+                    $('<input>', {
+                        type: 'radio',
+                        id: 'celcius',
+                        name: 'temperature',
+                    })
+                )
+                .append(
+                    $('<label>', {
+                        for: 'celcius',
+                    })
+                    .html('Celcius')
+                )
+                .append(
+                    $('<input>', {
+                        type: 'radio',
+                        id: 'farenheit',
+                        name: 'temperature',
+                    })
+                )
+                .append(
+                    $('<label>', {
+                        for: 'farenheit',
+                    })
+                    .html('Farenheit')
+                )
+            )
+            .controlgroup()
+        )
+    );
 }
 
+exports.SettingsUnitsReset = function(elem) {
+    elem.html("reset!");
+}
+
+exports.SettingsUnitsSave = function(elem) {
+    return true;
+}
+
+kismet_ui_settings.AddSettingsPane({
+    listTitle: 'Units &amp; Measurements',
+    cbmodule: 'kismet_ui_base',
+    create: 'SettingsUnitsPane',
+    reset: 'SettingsUnitsReset',
+    save: 'SettingsUnitsSave'
+});
 
 console.log("kismet.ui.base.js returning, we think we loaded everything?");
 
