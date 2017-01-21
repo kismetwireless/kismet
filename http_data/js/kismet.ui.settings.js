@@ -99,6 +99,10 @@ function clickSetting(c) {
 
     exports.SettingsModified(false);
 
+    $('.k-s-list-item', settingspanel.content).removeClass('k-s-list-item-active');
+    $('.k-s-list-item#sb_' + c.position, 
+        settingspanel.content).addClass('k-s-list-item-active');
+
     populateSetting(c);
 }
 
@@ -111,11 +115,24 @@ function populateSetting(c) {
 }
 
 function populateList(list) {
+    SettingsPanes.sort(function(a, b) {
+        if (a.priority < b.priority)
+            return -1;
+        if (a.priority > b.priority)
+            return 1;
+
+        return 0;
+    });
+
     for (var i in SettingsPanes) {
         var c = SettingsPanes[i];
+
+        c.position = i;
+
         list.append(
             $('<div>', {
-                class: 'k-s-list-item'
+                class: 'k-s-list-item',
+                id: 'sb_' + c.position,
             })
             .html(c.listTitle)
             .on('click', function() { 

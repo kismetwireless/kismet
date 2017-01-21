@@ -48,3 +48,8 @@ div.k-s-list-item:hover {
     cursor: pointer;
 }
 
+div.k-s-list-item-active {
+    background-color: #D0D0D0;
+}
+
+
