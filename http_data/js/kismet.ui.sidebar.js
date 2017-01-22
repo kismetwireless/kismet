@@ -49,6 +49,14 @@ exports.AddSidebarItem = function(options) {
     SidebarItems.push(options);
 };
 
+function createListCallback(c) {
+    return function() {
+        // Hack closing the sidemenu
+        $('.pm_overlay').click();
+        c.clickCallback();
+    };
+}
+
 function populateList(list) {
     SidebarItems.sort(function(a, b) {
         if (a.priority < b.priority)
@@ -67,11 +75,7 @@ function populateList(list) {
                 class: 'k-sb-list-item'
             })
             .html(c.listTitle)
-            .on('click', function() {
-                // Hack closing the sidemenu
-                $('.pm_overlay').click();
-                c.clickCallback();
-            })
+            .on('click', createListCallback(c))
         );
     }
 }
