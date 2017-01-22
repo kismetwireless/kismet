@@ -62,6 +62,7 @@ exports.AddSettingsPane = function(options) {
 
 var modified = false;
 var settingspanel = null;
+var alertpanel = null;
 
 /* Indicate to the settings UI that an option has been modified so that the
  * save and reset buttons can be activated */
@@ -114,6 +115,10 @@ function populateSetting(c) {
     c.create(content);
 }
 
+function createClickCallback(c) {
+    return function() { checkClose(c); };
+}
+
 function populateList(list) {
     SettingsPanes.sort(function(a, b) {
         if (a.priority < b.priority)
@@ -135,9 +140,7 @@ function populateList(list) {
                 id: 'sb_' + c.position,
             })
             .html(c.listTitle)
-            .on('click', function() { 
-                clickSetting(c); 
-            })
+            .on('click', createClickCallback(c))
         );
     }
 }
@@ -180,10 +183,12 @@ function checkClose(transfer = null) {
                 .button()
                 .on('click', function() {
                     exports.SettingsModified(false);
-                    if (transfer != null)
+                    if (transfer != null) {
+                        alertpanel.close();
                         clickSetting(transfer);
-                    else
+                    } else {
                         settingspanel.close();
+                    }
                 })
             )
             .append(
@@ -196,13 +201,19 @@ function checkClose(transfer = null) {
                     if (selected_item != null) {
                         selected_item.save(settingspanel.content);
                         exports.SettingsModified(false);
+                    }
+
+                    if (transfer != null) {
+                        alertpanel.close();
+                        clickSetting(transfer);
+                    } else {
                         settingspanel.close();
                     }
                 })
             )
         );
 
-        $.jsPanel({
+        alertpanel = $.jsPanel({
             template: jsPanel.tplContentOnly,
             container: settingspanel,
             paneltype: {
