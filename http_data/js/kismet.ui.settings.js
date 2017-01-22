@@ -161,7 +161,11 @@ function checkClose(transfer = null) {
                 $('<div>', { 
                     class: 'k-s-alert-header'
                 })
-                .html("Settings have changed")
+                .html("Settings changed")
+            )
+            .append(
+                $('<div>')
+                .html("Would you like to save the changes?")
             )
         )
         .append(
@@ -211,8 +215,8 @@ function checkClose(transfer = null) {
                 of: '.k-s-container', 
             },
             contentSize: {
-                width: $('.k-s-container', settingspanel.content).width() / 2, 
-                height: $('.k-s-container', settingspanel.content).height() * 0.45, 
+                width: $('.k-s-container', settingspanel.content).width() * 0.4, 
+                height: $('.k-s-container', settingspanel.content).height() * 0.25, 
             },
             theme: 'red filledlight',
             border: '2px solid',
