@@ -277,7 +277,132 @@ kismet_ui_sidebar.AddSidebarItem({
 
 ```
 
-## Channels
+## Preferences / Settings
+
+Kismet provides a common settings panel, which plugins are strongly encouraged to use.
+
+A plugin can register multiple categories of settings.
+
+Settings windows are registered via `kismet_ui_settings.AddSettingsPane(options)`, where options is a dictionary containing:
+
+#### listTitle - string (required)
+
+The title of the settings group in the settings list
+
+#### windowTitle - string (optional)
+
+The title appended to the settings window when this group is selected.  If no windowTitle is provided, the listTitle is used to make the window title.
+
+#### create - function (required)
+
+The create function is passed the content of the settings panel, and is responsible for populating it and creating any input callbacks.
+
+The create function is also called when the user clicks the 'Reset settings' button.
+
+#### save - function (required)
+
+The save function is passed the content element of the settings panel, and is called when the user opts to save the settings.  The function should use HTML5 local storage for any browser-local settings, and can use this callback as an opportunity to call the server with changes.
+
+#### priority - integer (optional)
+
+Where in the settings list to add this item.  Smaller numbers are higher in the list.  In general, plugins should use a neutral priority (0).
+
+### Settings Panels
+
+Settings panels are a vertically-scrolling panel, and generally constructed using the jquery-ui toolkit.  For visual consistency, plugin settings should also use the jquery-ui methods when creating input forms.
+
+Settings should only be saved when the user clicks the 'Save' button in the settings panel - the `save` callback is called in the settings object passed to `AddSettingsPanel`.
+
+Settings plugins are responsible for telling the settings system when values are modified - this allows the settings window to show the 'Save Settings' button and the window-closing assistant.
+
+### Example Settings
+
+An example settings group in a plugin module might look like:
+
+
+```javascript
+
+// Define a function for creating and populating our settings panel
+function CreateSettings(elem) {
+    // Create the object tree
+    elem.append(
+        $('<form>')
+        .append(
+            $('<fieldset>', {
+                id: 'set_radio',
+            })
+            .append(
+                $('<legend>')
+                .html("Radio example")
+            )
+            .append(
+                $('<input>', {
+                    type: 'radio',
+                    id: 'demo_r_one',
+                    name: 'radioexample',
+                    value: 'one'
+                })
+            )
+            .append(
+                $('<label>', {
+                    for: 'demo_r_one'
+                })
+                .html('Option One')
+            )
+            .append(
+                $('<input>', {
+                    type: 'radio',
+                    id: 'demo_r_two',
+                    name: 'radioexample',
+                    value: 'two'
+                })
+            )
+            .append(
+                $('<label>', {
+                    for: 'demo_r_two'
+                })
+                .html('Option Two')
+            )
+        )
+    );
+
+    // On any change, notify the settings panel
+    elem.on('change', function() {
+        kismet_ui_settings.SettingsModified();
+    });
+
+    // Make a jqueryui controlgroup
+    $('#set_radio', elem).controlgroup();
+
+    // Populate from html5 storage with default value of 'one'
+    if (kismet.getStorage('plugin.demo.radioexample', 'one') === 'one')
+        $('#demo_r_one', elem).attr('checked', 'checked');
+    else
+        $('#demo_r_two', elem).attr('checked', 'checked');
+
+    // Refresh the jqueryui stuff
+    $('#set_radio', elem).controlgroup('refresh');
+}
+
+// Make a simple function for saving settings
+function SaveSettings(elem) {
+    // jquery selector to get the checked elements value
+    var r1 = $("input[name='radioexample']:checked", elem).val();
+
+    // Put it into local storage
+    kismet.putStorage('plugin.demo.radioexample', r1);
+}
+
+// Finally, actually register a settings panel
+kismet_ui_settings.AddSettingsPanel({
+    listTitle: 'Demo Settings',
+    create: function(e) { CreateSettings(e); },
+    save: function(e) { SaveSettings(e); },
+});
+
+```
+
+## Channels and Frequencies
 
 Sometimes Kismet needs to display information by frequency - most notably, in the
 "Channels" display of devices per frequency.
