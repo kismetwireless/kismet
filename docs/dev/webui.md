@@ -373,17 +373,14 @@ function CreateSettings(elem) {
         kismet_ui_settings.SettingsModified();
     });
 
-    // Make a jqueryui controlgroup
-    $('#set_radio', elem).controlgroup();
-
     // Populate from html5 storage with default value of 'one'
     if (kismet.getStorage('plugin.demo.radioexample', 'one') === 'one')
         $('#demo_r_one', elem).attr('checked', 'checked');
     else
         $('#demo_r_two', elem).attr('checked', 'checked');
 
-    // Refresh the jqueryui stuff
-    $('#set_radio', elem).controlgroup('refresh');
+    // Make a jqueryui controlgroup
+    $('#set_radio', elem).controlgroup();
 }
 
 // Make a simple function for saving settings
