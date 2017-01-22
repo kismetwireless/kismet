@@ -43,7 +43,7 @@ exports.AddSidebarItem = function(options) {
     }
 
     if (! 'priority' in options) {
-        options.priority = 100;
+        options.priority = 0;
     }
 
     SidebarItems.push(options);

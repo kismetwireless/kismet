@@ -55,7 +55,7 @@ exports.AddSettingsPane = function(options) {
     }
 
     if (! 'priority' in options)
-        options['priority'] = 100;
+        options['priority'] = 0;
 
     SettingsPanes.push(options);
 };
