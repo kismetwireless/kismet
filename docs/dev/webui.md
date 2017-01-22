@@ -326,7 +326,9 @@ An example settings group in a plugin module might look like:
 function CreateSettings(elem) {
     // Create the object tree
     elem.append(
-        $('<form>')
+        $('<form>', {
+            id: 'form'
+        })
         .append(
             $('<fieldset>', {
                 id: 'set_radio',
@@ -367,7 +369,7 @@ function CreateSettings(elem) {
     );
 
     // On any change, notify the settings panel
-    elem.on('change', function() {
+    $('#form', elem).on('change', function() {
         kismet_ui_settings.SettingsModified();
     });
 
