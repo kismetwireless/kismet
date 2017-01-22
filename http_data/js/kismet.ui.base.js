@@ -892,16 +892,16 @@ exports.SettingsUnitsPane = function(elem) {
             .append(
                 $('<input>', {
                     type: 'radio',
-                    id: 'temp_farenheit',
+                    id: 'temp_fahrenheit',
                     name: 'temp',
-                    value: 'farenheit',
+                    value: 'fahrenheit',
                 })
             )
             .append(
                 $('<label>', {
-                    for: 'temp_farenheit',
+                    for: 'temp_fahrenheit',
                 })
-                .html('Farenheit')
+                .html('Fahrenheit')
             )
         )
     );
@@ -929,7 +929,7 @@ exports.SettingsUnitsPane = function(elem) {
     if (kismet.getStorage('kismet.base.unit.temp', 'celcius') === 'celcius') {
         $('#temp_celcius', elem).attr('checked', 'checked');
     } else {
-        $('#temp_farenheit', elem).attr('checked', 'checked');
+        $('#temp_fahrenheit', elem).attr('checked', 'checked');
     }
 
     $('#set_distance', elem).controlgroup('refresh');
