@@ -784,7 +784,7 @@ var memorydisplay_refresh = function() {
 };
 
 // Settings options
-exports.SettingsUnitsPane = function(elem) {
+function SettingsUnitsPane(elem) {
     elem.append(
         $('<form>', { })
         .append(
@@ -937,7 +937,7 @@ exports.SettingsUnitsPane = function(elem) {
     $('#set_temp', elem).controlgroup('refresh');
 }
 
-exports.SettingsUnitsSave = function(elem) {
+function SettingsUnitsSave(elem) {
     var dist = $("input[name='distance']:checked", elem).val();
     kismet.putStorage('kismet.base.unit.distance', dist);
     var spd = $("input[name='speed']:checked", elem).val();
@@ -950,8 +950,8 @@ exports.SettingsUnitsSave = function(elem) {
 
 kismet_ui_settings.AddSettingsPane({
     listTitle: 'Units &amp; Measurements',
-    create: function(e) { exports.SettingsUnitsPane(e); },
-    save: function(e) { exports.SettingsUnitsSave(e); },
+    create: function(e) { SettingsUnitsPane(e); },
+    save: function(e) { SettingsUnitsSave(e); },
 });
 
 console.log("kismet.ui.base.js returning, we think we loaded everything?");
