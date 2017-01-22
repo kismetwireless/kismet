@@ -786,7 +786,9 @@ var memorydisplay_refresh = function() {
 // Settings options
 function SettingsUnitsPane(elem) {
     elem.append(
-        $('<form>', { })
+        $('<form>', { 
+            id: 'form'
+        })
         .append(
             $('<fieldset>', { 
                 id: 'set_distance',
@@ -906,13 +908,9 @@ function SettingsUnitsPane(elem) {
         )
     );
 
-    elem.on('change', function() {
+    $('#form', elem).on('change', function() {
         kismet_ui_settings.SettingsModified();
     });
-
-    $('#set_distance', elem).controlgroup();
-    $('#set_speed', elem).controlgroup();
-    $('#set_temp', elem).controlgroup();
 
     if (kismet.getStorage('kismet.base.unit.distance', 'metric') === 'metric') {
         $('#dst_metric', elem).attr('checked', 'checked');
@@ -932,9 +930,9 @@ function SettingsUnitsPane(elem) {
         $('#temp_fahrenheit', elem).attr('checked', 'checked');
     }
 
-    $('#set_distance', elem).controlgroup('refresh');
-    $('#set_speed', elem).controlgroup('refresh');
-    $('#set_temp', elem).controlgroup('refresh');
+    $('#set_distance', elem).controlgroup();
+    $('#set_speed', elem).controlgroup();
+    $('#set_temp', elem).controlgroup();
 }
 
 function SettingsUnitsSave(elem) {
@@ -952,6 +950,87 @@ kismet_ui_settings.AddSettingsPane({
     listTitle: 'Units &amp; Measurements',
     create: function(e) { SettingsUnitsPane(e); },
     save: function(e) { SettingsUnitsSave(e); },
+});
+
+function SettingsLoginCreate(elem) {
+    elem.append(
+        $('<form>', { 
+            id: 'form'
+        })
+        .append(
+            $('<fieldset>', {
+                id: 'fs_login'
+            })
+            .append(
+                $('<legend>', {})
+                .html('Server Login')
+            )
+            .append(
+                $('<p>')
+                .html('Kismet requires a username and password for functionality which changes the server, such as adding interfaces or changing configuration.  The login info is defined in the kismet_httpd.conf file which is installed by default in /usr/local/etc/.')
+            )
+            .append(
+                $('<p>', {
+                    id: 'defaultwarning'
+                })
+                .html('<b>Warning</b>: You are using the <i>default Kismet login and password</i>.  This is a <i>bad idea</i> if your Kismet instance is exposed to the Internet, and we <i>strongly</i> recommend changing it.')
+                .hide()
+            )
+            .append(
+                $('<br>')
+            )
+            .append(
+                $('<span>')
+                .html('User name: ')
+            )
+            .append(
+                $('<input>', {
+                    type: 'text',
+                    name: 'user',
+                    id: 'user'
+                })
+            )
+            .append(
+                $('<br>')
+            )
+            .append(
+                $('<span>')
+                .html('Password: ')
+            )
+            .append(
+                $('<input>', {
+                    type: 'password',
+                    name: 'password',
+                    id: 'password'
+                })
+            )
+        )
+    );
+
+    $('#form', elem).on('change', function() {
+        kismet_ui_settings.SettingsModified();
+    });
+
+    $('#user', elem).val(kismet.getStorage('kismet.base.login.username', 'kismet'));
+    $('#password', elem).val(kismet.getStorage('kismet.base.login.password', 'kismet'));
+
+    if ($('#user', elem).val() === 'kismet' &&
+        $('#password', elem).val() === 'kismet') {
+        $('#defaultwarning').show();
+    }
+
+    $('fs_login', elem).controlGroup();
+}
+
+function SettingsLoginSave(elem) {
+    kismet.putStorage('kismet.base.login.username', $('#user', elem).val());
+    kismet.putStorage('kismet.base.login.password', $('#password', elem).val());
+}
+
+kismet_ui_settings.AddSettingsPane({
+    listTitle: 'Login &amp; Password',
+    create: function(e) { SettingsLoginCreate(e); },
+    save: function(e) { SettingsLoginSave(e); },
 });
 
 console.log("kismet.ui.base.js returning, we think we loaded everything?");
