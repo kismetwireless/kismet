@@ -355,27 +355,27 @@ exports.DegToDir = function(deg) {
 }
 
 // Use our settings to make some conversion functions for distance and temperature
-exports.renderDistance = function(k) {
+exports.renderDistance = function(k, precision = 5) {
     if (kismet.getStorage('kismet.base.unit.distance') === 'metric') {
-        return k + ' km';
+        return k.toFixed(precision) + ' km';
     } else {
-        return (k * 0.621371) + ' miles';
+        return (k * 0.621371).toFixed(precision) + ' miles';
     }
 }
 
-exports.renderSpeed = function(kph) {
+exports.renderSpeed = function(kph, precision = 5) {
     if (kismet.getStorage('kismet.base.unit.speed') === 'metric') {
-        return kph + ' KPH';
+        return kph.toFixed(precision) + ' KPH';
     } else {
-        return (kph * 0.621371) + ' MPH';
+        return (kph * 0.621371).toFixed(precision) + ' MPH';
     }
 }
 
-exports.renderTemperature = function(c) {
+exports.renderTemperature = function(c, precision = 5) {
     if (kismet.getStorage('kismet.base.unit.temp') === 'celcius') {
-        return c + ' &deg; C';
+        return c.toFixed(precision) + ' &deg;C';
     } else {
-        return (c * (9/5) + 32) + ' &deg; F';
+        return (c * (9/5) + 32).toFixed(precision) + ' &deg;F';
     }
 }
 
