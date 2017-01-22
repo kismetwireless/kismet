@@ -85,17 +85,11 @@ Passed to DataTables as bVisisible, allows creating invisible columns.  The most
 
 Passed to DataTables as bSearchable, controls if the content of the column is searchable from the quick search field.
 
-#### cbmodule - string (optional)
-
-Optional name of the module / namespace holding callback function code.  For columns which define a custom render or draw function, `cbmodule` is required to tell the column callbacks where to look.
-
 #### renderfunc - function (optional)
 
 Optional function for rendering the field.  This is called as the `render` option of a DataTable row and takes the standard DataTable arguments: `data, type, row, meta`.
 
-Render functions return an element to be inserted into the cell and are called before the entire row is assembled.
-
-If a `renderfunc` is provided, a `cbmodule` must also be provided.
+Render functions must return an element to be inserted into the cell and are called before the entire row is assembled.
 
 #### drawfunc - function (optional)
 
@@ -137,12 +131,11 @@ Now that we have the callback function, we define the column to map the data and
 kismet_ui.AddDeviceColumn('column_foo_time', {
     sTitle: 'Last Seen',
     mData: 'kismet_device_base_last_time',
-    cbmodule: 'kismet_plugin_foo',
-    renderfunc: 'renderLastTime'
+    renderfunc: function(data, type, row, meta) {
+        return renderLastTime(data, type, row, meta);
+    },
 });
 ```
-
-Notice that we provide the name of our module in `cbmodule` - this needs to match the module definition at the top of the file.
 
 Finally, we'll show an example of doing custom drawing in a column.  Because the render function happens too early, the easiest way to accomplish custom elements drawn on a row is to combine a render function which inserts a placeholder, and a draw function which gets called when that row is visible.
 
@@ -188,16 +181,19 @@ exports.drawPackets = function(dyncolumn, table, row) {
 };
 ```
 
-Finally, we add the column like we do anywhere else.  We need to provide a `cbmodule` option and both the `drawfunc` and `renderfunc` functions.  We also set the `name` parameter so we can find the column by name later instead of hardcoded index, and we set `mData` to `null` beause we don't populate from just a single simple field.
+Finally, we add the column like we do anywhere else.  We set the `name` parameter so we can find the column by name later instead of hardcoded index, and we set `mData` to `null` beause we don't populate from just a single simple field.
 
 ```javascript
 kismet_ui.AddDeviceColumn('column_foo_packet_rrd', {
     sTitle: 'Packets',
     mData: null,
     name: 'packets_foo',
-    cbmodule: 'kismet_plugin_foo',
-    renderfunc: 'renderPackets',
-    drawfunc: 'drawPackets'
+    renderfunc: function(data, type, row, meta) {
+        return renderPackets(data, type, row, meta);
+    },
+    drawfunc: function(data, type, row) {
+        return drawPackets(data, type, row);
+    }
 });
 
 ```
@@ -232,13 +228,9 @@ This is the ID assigned to the `<div>` element created in the sidebar.
 
 This is the title of the menu item.  This can included embedded HTML, and for consistency, it is recommended that an icon is selected from the included font-awesome icon font.
 
-#### cbmodule - string (required)
-
-The module name which contains a callback for when this item is clicked.
-
 #### clickCallback - string (required)
 
-The function in the `cbmodule` which is called which this item is clicked.  This function is responsible for launching whatever activity corresponds to the menu item.  The menu will be closed automatically when the item is clicked.
+The function in which is called which this item is clicked.  This function is responsible for launching whatever activity corresponds to the menu item.  The menu will be closed automatically when the item is clicked.
 
 #### priority - integer (optional)
 
@@ -278,8 +270,9 @@ exports.PluginWindowDemo = function() {
 kismet_ui_sidebar.AddSidebarItem({
     id: 'sidebar_demo',
     listTitle: '<i class="fa fa-star" /> Demo Item',
-    cbmodule: 'kismet_plugin_foo',
-    clickCallback: 'PluginWindowDemo'
+    clickCallback: function() {
+        return PluginWindowDemo();
+    }
 });
 
 ```
