@@ -373,9 +373,9 @@ exports.renderSpeed = function(kph, precision = 5) {
 
 exports.renderTemperature = function(c, precision = 5) {
     if (kismet.getStorage('kismet.base.unit.temp') === 'celcius') {
-        return c.toFixed(precision) + ' &deg;C';
+        return c.toFixed(precision) + '&deg; C';
     } else {
-        return (c * (9/5) + 32).toFixed(precision) + ' &deg;F';
+        return (c * (9/5) + 32).toFixed(precision) + '&deg; F';
     }
 }
 
