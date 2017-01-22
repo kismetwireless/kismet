@@ -147,8 +147,11 @@ function populateList(list) {
 
 function checkClose(transfer = null) {
     if (!modified) {
-        if (transfer != null)
+        if (transfer != null) {
             clickSetting(transfer);
+            return;
+        }
+
         return true;
     }
 
