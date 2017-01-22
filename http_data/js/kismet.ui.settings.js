@@ -142,6 +142,88 @@ function populateList(list) {
     }
 }
 
+function checkClose(transfer = null) {
+    if (!modified) {
+        if (transfer != null)
+            clickSetting(transfer);
+        return true;
+    }
+
+    if (modified) {
+        var content = $('<div>', {
+            class: 'k-s-alert'
+        })
+        .append(
+            $('<div>', {
+                class: 'k-s-alert-content'
+            })
+            .append(
+                $('<div>', { 
+                    class: 'k-s-alert-header'
+                })
+                .html("Settings have changed")
+            )
+        )
+        .append(
+            $('<div>', {
+                class: 'k-s-pane-buttons'
+            })
+            .append(
+                $('<button>', {
+                    class: 'k-s-button-reset'
+                })
+                .text("Don't Save")
+                .button()
+                .on('click', function() {
+                    exports.SettingsModified(false);
+                    if (transfer != null)
+                        clickSetting(transfer);
+                    else
+                        settingspanel.close();
+                })
+            )
+            .append(
+                $('<button>', {
+                    class: 'k-s-button-save'
+                })
+                .text("Save Changes")
+                .button()
+                .on('click', function() {
+                    if (selected_item != null) {
+                        selected_item.save(settingspanel.content);
+                        exports.SettingsModified(false);
+                        settingspanel.close();
+                    }
+                })
+            )
+        );
+
+        $.jsPanel({
+            template: jsPanel.tplContentOnly,
+            container: settingspanel,
+            paneltype: {
+                tooltip: true,
+                mode: 'sticky'
+            },
+            position: {
+                my: 'center', 
+                at: 'center', 
+                of: '.k-s-container', 
+            },
+            contentSize: {
+                width: $('.k-s-container', settingspanel.content).width() / 2, 
+                height: $('.k-s-container', settingspanel.content).height() * 0.45, 
+            },
+            theme: 'red filledlight',
+            border: '2px solid',
+            show: 'animated bounceInLeft',
+            content: content,
+        });
+
+        return false;
+    }
+}
+
 exports.ShowSettings = function() {
     var w = $(window).width() * 0.75;
     var h = $(window).height() * 0.75;
@@ -211,7 +293,7 @@ exports.ShowSettings = function() {
             controls: 'closeonly',
         },
         onbeforeclose: function() {
-            return true;
+            return checkClose();
         },
         content: content,
     }).resize({

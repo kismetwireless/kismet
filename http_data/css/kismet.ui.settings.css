@@ -26,13 +26,13 @@ div.k-s-pane-holder {
 div.k-s-pane-content {
     height: 100%;
     overflow-x: hidden;
-    overflow-y: scroll;
+    overflow-y: auto;
     flex: 1;
     padding: 10px;
 }
 
 div.k-s-pane-buttons {
-    height: 30px;
+    height: 35px;
     text-align: right;
     padding-right: 20px;
 }
@@ -51,5 +51,24 @@ div.k-s-list-item:hover {
 div.k-s-list-item-active {
     background-color: #D0D0D0;
 }
+
+div.k-s-alert {
+    padding-left: 10px;
+    padding-top: 5px;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+div.k-s-alert-content {
+    flex: 1;
+    height: 100%;
+}
+
+div.k-s-alert-header {
+    font-size: 18px;
+    font-weight: bold;
+}
+
 
 
