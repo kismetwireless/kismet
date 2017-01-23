@@ -980,7 +980,7 @@ function SettingsLoginCreate(elem) {
                 $('<br>')
             )
             .append(
-                $('<span>')
+                $('<span style="display: inline-block; width: 8em;">')
                 .html('User name: ')
             )
             .append(
@@ -994,7 +994,7 @@ function SettingsLoginCreate(elem) {
                 $('<br>')
             )
             .append(
-                $('<span>')
+                $('<span style="display: inline-block; width: 8em;">')
                 .html('Password: ')
             )
             .append(
@@ -1019,7 +1019,7 @@ function SettingsLoginCreate(elem) {
         $('#defaultwarning').show();
     }
 
-    $('fs_login', elem).controlGroup();
+    $('fs_login', elem).controlgroup();
 }
 
 function SettingsLoginSave(elem) {
