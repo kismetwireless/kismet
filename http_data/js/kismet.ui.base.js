@@ -1035,7 +1035,24 @@ kismet_ui_settings.AddSettingsPane({
     save: function(e) { SettingsLoginSave(e); },
 });
 
-console.log("kismet.ui.base.js returning, we think we loaded everything?");
+/* Add the messages and channels tabs */
+kismet_ui_tabpane.AddTab({
+    id: 'messagebus',
+    tabTitle: 'Messages',
+    createCallback: function(div) {
+        div.messagebus();
+    },
+    priority: -1001,
+});
+
+kismet_ui_tabpane.AddTab({
+    id: 'channels',
+    tabTitle: 'Channels',
+    createCallback: function(div) {
+        div.channels();
+    },
+    priority: -1000,
+});
 
 // We're done loading
 exports.load_complete = 1;

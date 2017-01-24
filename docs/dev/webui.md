@@ -401,6 +401,42 @@ kismet_ui_settings.AddSettingsPanel({
 
 ```
 
+## Tab pane views
+
+Kismet provides two main views:  The primary display (where the device list lives), and the lower display (approximately 25% of the screen) where multiple other panels live, including messages and channel graphs.
+
+Plugins may create their own tabs by calling `kismet_ui_tabpane.AddTab(...)` and passing an object dictionary containing:
+
+#### id - string (required)
+
+The ID of the div to be created
+
+#### tabTitle - string (required)
+
+Title HTML of the tab.  May include special formatting, but typically should be plain text.
+
+#### createCallback - function (required)
+
+A function, taking the newly created div as an argument.  This function is responsible for populating the div once it is added to the page layout.
+
+#### priority - integer (optional)
+
+The priority of the tab - tabs are sorted left to right, lowest numbers first.  Priority should only be set when the tab position is critical.
+
+### Example tab pane
+
+```javascript
+
+// Add a generic pane
+kismet_ui_tabpane.AddTab({
+    id: 'boring',
+    tabTitle: 'Boring tab',
+    createCallback: function(div) {
+        div.html("I am <i>Boring</i>");
+    }
+});
+```
+
 ## Channels and Frequencies
 
 Sometimes Kismet needs to display information by frequency - most notably, in the
