@@ -626,7 +626,7 @@ public:
         }
 
         if (avgc == 0)
-            return 0;
+            return default_val();
 
         return avg / avgc;
 

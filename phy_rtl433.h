@@ -98,7 +98,7 @@ public:
         }
 
         if (avg_c == 0)
-            return 0;
+            return default_val();
 
         return avg / avg_c;
     }
