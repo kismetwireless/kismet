@@ -723,16 +723,16 @@ var memorydisplay_refresh = function() {
             {
                 label: 'Memory (MB)',
                 fill: 'false',
-                yAxisID: 'mem-axis',
-		borderColor: 'black',
+                // yAxisID: 'mem-axis',
+                borderColor: 'black',
                 backgroundColor: 'transparent',
                 data: mem_linedata,
             },
             {
                 label: 'Devices',
                 fill: 'false',
-                yAxisID: 'dev-axis',
-		borderColor: 'blue',
+                // yAxisID: 'dev-axis',
+                borderColor: 'blue',
                 backgroundColor: 'rgba(100, 100, 255, 0.33)',
                 data: dev_linedata,
             }
@@ -756,13 +756,15 @@ var memorydisplay_refresh = function() {
                                 ticks: {
                                     beginAtZero: true,
                                 }
-                            }, {
+                            },
+/*                          {
                                 position: "right",
                                 "id": "dev-axis",
                                 ticks: {
                                     beginAtZero: true,
                                 }
                             }
+*/
                         ]
                     },
                 },
