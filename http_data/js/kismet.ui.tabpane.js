@@ -96,7 +96,14 @@ function populateList(div) {
 
     div.tabs({
         heightStyle: 'fill',
+        activate: function(e, ui) {
+            var id = $('a', ui.newTab).attr('href');
+            kismet.putStorage('kismet.base.last_tab', id);
+        }
     });
+
+    var lasttab = kismet.getStorage('kismet.base.last_tab', '');
+    $('a[href="' + lasttab + '"]', div).click();
 }
 
 // Populate the sidebar content in the supplied div
