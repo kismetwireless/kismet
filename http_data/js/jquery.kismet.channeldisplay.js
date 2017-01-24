@@ -176,7 +176,7 @@
                     // Build the dataset record
                     var ds = {
                         label:  label,
-                        fill: false,
+                        fill: true,
                         lineTension: 0.1,
                         data: linedata,
                         borderColor: "hsl(" + color + ", 100%, 50%)",
@@ -197,7 +197,7 @@
 
                 if (timegraph_chart == null) {
                     var device_options = {
-                        type: "line",
+                        type: "bar",
                         options: {
                             responsive: true,
                             maintainAspectRatio: false,
@@ -205,8 +205,12 @@
                                 yAxes: [{
                                     ticks: {
                                         beginAtZero: true,
-                                    }
+                                    },
+                                    stacked: true,
                                 }],
+				xAxes: [{
+				    stacked: true,
+				}],
                             },
                             legend: {
                                 labels: {
