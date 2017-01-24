@@ -139,7 +139,7 @@ protected:
         }
 
         // Don't fast-forward the device RRD
-        device_rrd->update_before_serialzie(false);
+        device_rrd->update_before_serialize(false);
 
     }
 

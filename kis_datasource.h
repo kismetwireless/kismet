@@ -71,6 +71,37 @@ class KisDataSource_QueuedCommand;
 // Supported source
 class KisDataSource_SupportedSource;
 
+class KisDataSource;
+
+/* KisDataSourceBuilder
+ *
+ * A 'prototype' of the data source which tells the tracking system it's 
+ * capabilities and knows how to build a full data source
+ *
+ * It is stored as a tracker_component so that the tracker can directly
+ * serialize the data for displaying what sources are possible.
+ */
+class KisDataSourceBuilder : public tracker_component {
+public:
+    KisDataSourceBuilder(GlobalRegistry *in_globalreg, int in_id) :
+        tracker_component(in_globalreg, in_id) {
+        register_fields();
+        reserve_fields(NULL);
+    }
+
+    virtual ~KisDataSourceBuilder();
+
+    // Build a source.  Sources can be:
+    //  - IPC (locally attached IPC channel using the kismet msgpack IPC
+    //  protocol)
+    //  - Remote (initiated by a remote TCP connection)
+    //  - Lightweight (for low-bandwidth 'whole device record' style capture
+    //  sources, which may implement a REST interface rather than a complete
+    //  IPC channel)
+    virtual shared_ptr<KisDataSource> create_source() { return NULL; };
+};
+
+
 class KisDataSource : public RingbufferInterface, public tracker_component {
 public:
     // Create a builder instance which only knows enough to be able to

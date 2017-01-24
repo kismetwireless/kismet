@@ -45,6 +45,10 @@
 // (for instance, adding to the existing element, or choosing to replace the
 // element), and for averaging to higher buckets (for instance, performing a 
 // raw average or taking absolutes)
+//
+// For aggregators which skip empty values, the 'default' value can be used as 
+// the 'empty' value (for instance, when aggregating temperature, a default value
+// could be -99999 and the average function would ignore it)
 class kis_tracked_rrd_default_aggregator {
 public:
     // Performed when adding an element to the RRD.  By default, adds the new
@@ -69,6 +73,10 @@ public:
     static int64_t default_val() {
         return (int64_t) 0;
     }
+
+    static string name() {
+        return "default";
+    }
 };
 
 template <class Aggregator = kis_tracked_rrd_default_aggregator>
@@ -88,6 +96,7 @@ public:
         register_fields();
         reserve_fields(e);
         update_first = true;
+
     }
 
     virtual shared_ptr<TrackerElement> clone_type() {
@@ -101,7 +110,7 @@ public:
     // device).  For records which are updated on a timer and the most
     // recently used value accessed (like devices per frequency) turning
     // this off may produce better results.
-    void update_before_serialzie(bool in_upd) {
+    void update_before_serialize(bool in_upd) {
         update_first = in_upd;
     }
 
@@ -283,7 +292,6 @@ public:
             e->set(min_avg);
         }
 
-
         set_last_time(in_time);
     }
 
@@ -346,6 +354,13 @@ protected:
             RegisterField("kismet.common.rrd.day_vec", TrackerVector,
                     "past day values per hour", &day_vec);
 
+        blank_val_id =
+            RegisterField("kismet.common.rrd.blank_val", TrackerInt64,
+                    "blank value", &blank_val);
+        aggregator_name_id =
+            RegisterField("kismet.common.rrd.aggregator", TrackerString,
+                    "aggregator name", &aggregator_name);
+
         second_entry_id = 
             RegisterField("kismet.common.rrd.second", TrackerInt64, 
                     "second value", NULL);
@@ -385,6 +400,11 @@ protected:
                 day_vec->add_vector(he);
             }
         }
+
+        Aggregator agg;
+        (*blank_val).set(agg.default_val());
+        (*aggregator_name).set(agg.name());
+
     }
 
     int last_time_id;
@@ -398,6 +418,12 @@ protected:
 
     int day_vec_id;
     SharedTrackerElement day_vec;
+
+    int blank_val_id;
+    SharedTrackerElement blank_val;
+
+    int aggregator_name_id;
+    SharedTrackerElement aggregator_name;
 
     int second_entry_id;
     int minute_entry_id;
@@ -440,7 +466,7 @@ public:
     // device).  For records which are updated on a timer and the most
     // recently used value accessed (like devices per frequency) turning
     // this off may produce better results.
-    void update_before_serialzie(bool in_upd) {
+    void update_before_serialize(bool in_upd) {
         update_first = in_upd;
     }
 
@@ -526,6 +552,13 @@ protected:
         second_entry_id = 
             RegisterField("kismet.common.rrd.second", TrackerInt64, 
                     "second value", NULL);
+
+        blank_val_id =
+            RegisterField("kismet.common.rrd.blank_val", TrackerInt64,
+                    "blank value", &blank_val);
+        aggregator_name_id =
+            RegisterField("kismet.common.rrd.aggregator", TrackerString,
+                    "aggregator name", &aggregator_name);
     } 
 
     virtual void reserve_fields(SharedTrackerElement e) {
@@ -542,6 +575,10 @@ protected:
                 minute_vec->add_vector(me);
             }
         }
+
+        Aggregator agg;
+        (*blank_val).set(agg.default_val());
+        (*aggregator_name).set(agg.name());
     }
 
     int last_time_id;
@@ -550,12 +587,19 @@ protected:
     int minute_vec_id;
     SharedTrackerElement minute_vec;
 
+    int blank_val_id;
+    SharedTrackerElement blank_val;
+
+    int aggregator_name_id;
+    SharedTrackerElement aggregator_name;
+
     int second_entry_id;
 
     bool update_first;
 };
 
-// Signal level RRD, peak selector
+// Signal level RRD, peak selector on overlap, averages signal but ignores
+// empty slots
 class kis_tracked_rrd_peak_signal_aggregator {
 public:
     // Select the stronger signal
@@ -569,6 +613,24 @@ public:
     static int64_t combine_vector(SharedTrackerElement e) {
         TrackerElementVector v(e);
 
+        int64_t avg = 0, avgc = 0;
+
+        for (TrackerElementVector::iterator i = v.begin(); i != v.end(); ++i) {
+            int64_t v = GetTrackerValue<int64_t>(*i);
+
+            if (v == 0)
+                continue;
+
+            avg += v;
+            avgc++;
+        }
+
+        if (avgc == 0)
+            return 0;
+
+        return avg / avgc;
+
+#if 0
         int64_t max = 0;
         for (TrackerElementVector::iterator i = v.begin(); i != v.end(); ++i) {
             int64_t v = GetTrackerValue<int64_t>(*i);
@@ -578,11 +640,16 @@ public:
         }
 
         return max;
+#endif
     }
 
     // Default 'empty' value, no legit signal would be 0
     static int64_t default_val() {
         return (int64_t) 0;
+    }
+
+    static string name() {
+        return "peak_signal";
     }
 };
 
@@ -628,6 +695,10 @@ public:
     // Default 'empty' value, no legit signal would be 0
     static int64_t default_val() {
         return (int64_t) 0;
+    }
+
+    static string name() {
+        return "extreme";
     }
 };
 
