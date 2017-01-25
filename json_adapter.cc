@@ -42,8 +42,10 @@ string JsonAdapter::SanitizeString(string in) {
 void JsonAdapter::Pack(GlobalRegistry *globalreg, std::stringstream &stream,
     SharedTrackerElement e) {
 
-    if (e == NULL)
+    if (e == NULL) {
+        stream << "0";
         return;
+    }
 
     e->pre_serialize();
 
@@ -125,8 +127,12 @@ void JsonAdapter::Pack(GlobalRegistry *globalreg, std::stringstream &stream,
             tmap = e->get_map();
             stream << "{";
             for (map_iter = tmap->begin(); map_iter != tmap->end(); /* */) {
-                if ((tname = map_iter->second->get_local_name()) == "")
+                if (map_iter->second == NULL) {
                     tname = globalreg->entrytracker->GetFieldName(map_iter->first);
+                } else {
+                    if ((tname = map_iter->second->get_local_name()) == "")
+                        tname = globalreg->entrytracker->GetFieldName(map_iter->first);
+                }
 
                 // JSON is special, and considers '.' to be a path separator, so
                 // change all our '.' to '_'.
