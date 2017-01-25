@@ -1143,9 +1143,17 @@ public:
                         max_signal_dbm->set((int32_t) in.lay1->signal_dbm);
 
                         if (in.gps != NULL) {
+                            if (peak_loc == NULL) {
+                                peak_loc.reset(new kis_tracked_location_triplet(globalreg, peak_loc_id));
+                            }
+
                             peak_loc->set(in.gps->lat, in.gps->lon, in.gps->alt, 
                                     in.gps->fix);
                         }
+                    }
+
+                    if (signal_min_rrd == NULL) {
+                        signal_min_rrd.reset(new kis_tracked_minute_rrd<kis_tracked_rrd_peak_signal_aggregator>(globalreg, signal_min_rrd_id));
                     }
 
                     signal_min_rrd->add_sample(in.lay1->signal_dbm, 
@@ -1179,9 +1187,17 @@ public:
                         max_signal_rssi->set((int32_t) in.lay1->signal_rssi);
 
                         if (in.gps != NULL) {
+                            if (peak_loc == NULL) {
+                                peak_loc.reset(new kis_tracked_location_triplet(globalreg, peak_loc_id));
+                            }
+                            
                             peak_loc->set(in.gps->lat, in.gps->lon, in.gps->alt, 
                                     in.gps->fix);
                         }
+                    }
+
+                    if (signal_min_rrd != NULL) {
+                        signal_min_rrd.reset(new kis_tracked_minute_rrd<kis_tracked_rrd_peak_signal_aggregator>(globalreg, signal_min_rrd_id));
                     }
 
                     signal_min_rrd->add_sample(in.lay1->signal_rssi, 
@@ -1316,17 +1332,20 @@ protected:
         if (e != NULL) {
             peak_loc.reset(new kis_tracked_location_triplet(globalreg, peak_loc_id,
                     e->get_map_value(peak_loc_id))); 
-            add_map(peak_loc);
 
             signal_min_rrd.reset(new kis_tracked_minute_rrd<kis_tracked_rrd_peak_signal_aggregator>(globalreg, signal_min_rrd_id, e->get_map_value(signal_min_rrd_id)));
-            add_map(signal_min_rrd);
-        } else {
+        } 
+
+        /* else {
             peak_loc.reset(new kis_tracked_location_triplet(globalreg, peak_loc_id));
-            add_map(peak_loc);
 
             signal_min_rrd.reset(new kis_tracked_minute_rrd<kis_tracked_rrd_peak_signal_aggregator>(globalreg, signal_min_rrd_id));
-            add_map(signal_min_rrd);
         }
+        */
+
+        // We MUST add using our known ID because we might be adding null pointers here
+        add_map(peak_loc_id, peak_loc);
+        add_map(signal_min_rrd_id, signal_min_rrd);
     }
 
     int last_signal_dbm_id, last_noise_dbm_id,
