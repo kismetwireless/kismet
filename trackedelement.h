@@ -100,6 +100,9 @@ enum TrackerType {
     
     // Double-keyed map
     TrackerDoubleMap = 18,
+
+    // Byte array
+    TrackerByteArray = 19,
 };
 
 class TrackerElement : public std::enable_shared_from_this<TrackerElement> {
@@ -434,6 +437,12 @@ public:
     void clear_vector();
     size_t size_vector();
 
+    // Set byte array values
+    void set_bytearray(uint8_t *d, size_t len);
+    void set_bytearray(shared_ptr<uint8_t> d, size_t len);
+    size_t get_bytearray_size();
+    shared_ptr<uint8_t> get_bytearray();
+
     // Do our best to increment a value
     TrackerElement& operator++(const int);
 
@@ -539,11 +548,6 @@ protected:
     // Generic coercion exception
 #ifdef TE_TYPE_SAFETY
     inline void except_type_mismatch(const TrackerType t) const {
-        if (deallocated) {
-            string w = "element appears to have been deallocated, something is wrong.";
-            throw std::runtime_error(w);
-        }
-
         if (type != t) {
             string w = "element type mismatch, is " + type_to_string(this->type) + 
                 " tried to use as " + type_to_string(t);
@@ -556,14 +560,13 @@ protected:
     // Garbage collection?  Say it ain't so...
     int reference_count;
 
-    // Try to track if we've been double-freed and blow up cleanly
-    bool deallocated;
-
     TrackerType type;
     int tracked_id;
 
     // Overridden name for this instance only
     string local_name;
+
+    size_t bytearray_value_len;
 
     // We could make these all one type, but then we'd have odd interactions
     // with incrementing and I'm not positive that's safe in all cases
@@ -605,6 +608,8 @@ protected:
         mac_addr *mac_value;
 
         uuid *uuid_value;
+
+        shared_ptr<uint8_t> *bytearray_value;
 
         void *custom_value;
     } dataunion;

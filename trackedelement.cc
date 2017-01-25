@@ -30,7 +30,6 @@
 void TrackerElement::Initialize() {
     this->type = TrackerUnassigned;
     reference_count = 0;
-    deallocated = false;
 
     set_id(-1);
 
@@ -58,6 +57,7 @@ void TrackerElement::Initialize() {
     dataunion.subdoublemap_value = NULL;
     dataunion.subvector_value = NULL;
     dataunion.custom_value = NULL;
+    dataunion.bytearray_value = NULL;
 
 }
 
@@ -74,8 +74,6 @@ TrackerElement::TrackerElement(TrackerType type, int id) {
 }
 
 TrackerElement::~TrackerElement() {
-    deallocated = true;
-
     // If we contain references to other things, unlink them.  This may cause them to
     // auto-delete themselves.
     if (type == TrackerVector) {
@@ -96,6 +94,8 @@ TrackerElement::~TrackerElement() {
         delete(dataunion.mac_value);
     } else if (type == TrackerUuid) {
         delete dataunion.uuid_value;
+    } else if (type == TrackerByteArray) {
+        delete dataunion.bytearray_value;
     }
 }
 
@@ -131,8 +131,11 @@ void TrackerElement::set_type(TrackerType in_type) {
     } else if (type == TrackerString && dataunion.string_value != NULL) {
         delete(dataunion.string_value);
         dataunion.string_value = NULL;
+    } else if (type == TrackerByteArray && dataunion.bytearray_value != NULL) {
+        delete(dataunion.bytearray_value);
+        dataunion.bytearray_value = NULL;
+        bytearray_value_len = 0;
     }
-    
 
     this->type = in_type;
 
@@ -154,6 +157,9 @@ void TrackerElement::set_type(TrackerType in_type) {
         dataunion.uuid_value = new uuid();
     } else if (type == TrackerString) {
         dataunion.string_value = new string();
+    } else if (type == TrackerByteArray) {
+        dataunion.bytearray_value = new shared_ptr<uint8_t>();
+        bytearray_value_len = 0;
     }
 }
 
@@ -919,6 +925,8 @@ string TrackerElement::type_to_string(TrackerType t) {
             return "map[string, x]";
         case TrackerDoubleMap:
             return "map[double, x]";
+        case TrackerByteArray:
+            return "bytearray";
         default:
             return "unknown";
     }
@@ -1077,6 +1085,32 @@ size_t TrackerElement::size_vector() {
     except_type_mismatch(TrackerVector);
 
     return dataunion.subvector_value->size();
+}
+
+void TrackerElement::set_bytearray(uint8_t *d, size_t len) {
+    except_type_mismatch(TrackerByteArray);
+
+    dataunion.bytearray_value->reset(d);
+    bytearray_value_len = len;
+}
+
+void TrackerElement::set_bytearray(shared_ptr<uint8_t> d, size_t len) {
+    except_type_mismatch(TrackerByteArray);
+
+    *(dataunion.bytearray_value) = d;
+    bytearray_value_len = len;
+}
+
+size_t TrackerElement::get_bytearray_size() {
+    except_type_mismatch(TrackerByteArray);
+
+    return bytearray_value_len;
+}
+
+shared_ptr<uint8_t> TrackerElement::get_bytearray() {
+    except_type_mismatch(TrackerByteArray);
+
+    return *(dataunion.bytearray_value);
 }
 
 size_t TrackerElement::size() {
@@ -1443,5 +1477,4 @@ shared_ptr<TrackerElement>
 
     return next_elem;
 }
-
 
