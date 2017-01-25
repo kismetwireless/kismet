@@ -42,17 +42,10 @@ string JsonAdapter::SanitizeString(string in) {
 void JsonAdapter::Pack(GlobalRegistry *globalreg, std::stringstream &stream,
     SharedTrackerElement e) {
 
-    // TrackerElementScopeLocker slock(e);
+    if (e == NULL)
+        return;
 
     e->pre_serialize();
-
-    // XXX no, they don't, this only happens when we're a map of some sort,
-    // vectors etc get normal treatment.  Delete this after confirmation.
-    /*
-    // All fields get "name": [value]
-    stream << "\"" << globalreg->entrytracker->GetFieldName(e->get_id()) <<
-        "\":";
-    */
 
     TrackerElement::tracked_vector *tvec;
     TrackerElement::vector_iterator vec_iter;

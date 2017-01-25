@@ -38,7 +38,8 @@
 void MsgpackAdapter::Packer(GlobalRegistry *globalreg, SharedTrackerElement v,
         msgpack::packer<std::stringstream> &o) {
 
-    // TrackerElementScopeLocker slock(v);
+    if (v == NULL)
+        return;
 
     v->pre_serialize();
 

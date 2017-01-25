@@ -40,6 +40,9 @@ XmlserializeAdapter::~XmlserializeAdapter() {
 void XmlserializeAdapter::XmlSerialize(SharedTrackerElement v, 
         std::stringstream &stream) {
 
+    if (v == NULL)
+        return;
+
     v->pre_serialize();
 
     TrackerElement::tracked_map *tmap;
