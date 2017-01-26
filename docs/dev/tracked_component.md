@@ -390,6 +390,57 @@ private:
     }
 ```
 
+### Dynamic complex elements
+
+Complex elements typically hold many sub-fields - for example a RRD can hold over a hundred samples, and some records, like signal or location, can rapidly grow in size.
+
+If possible, these elements should be allocated dynamically, instead of inserted in every object.  Kismet provides a mechanism to do this simply via `__ProxyDynamicTrackable(...)` which defines functions to automatically create the complex record at the first `get` request - this allows you to keep the rest of your code simple.
+
+To use the dynamic method of defining a complex object, first change your `__ProxyTrackable` to `__ProxyDynamicTrackable`.  This takes an additional argument:  the ID of the complex to create:
+
+```C++
+__ProxyDynamicTrackable(location, kis_tracked_location, location, location_id);
+```
+
+This defines a get_location(...) function which will automatically create a kis_tracked_location if we don't have one.
+
+Next, we modify our reserve_fields function:
+
+```C++
+private:
+    virtual void reserve_fields(SharedTrackerElement e) {
+        // We MUST call the parent instance
+        tracker_component::reserve_fields(e);
+
+        // The parent takes care of anything that uses TrackerElement, we only
+        // have to worry about the custom fields
+
+        if (e != NULL) {
+            if (e->get_map_value(location_id) != NULL) {
+                location.reset(new kis_tracked_location(globalreg, location_id,
+                    e->get_map_value(location_id)));
+            }
+        } 
+
+
+        add_map(location_id, location);
+    }
+```
+
+Notice two important changes:
+
+1. We only allocate the `location` record if we are inheriting an object which defines it.  We do NOT create an empty `location` if the object we're absorbing into our record does not have it, or if we're creating an entirely new class, we leave the `shared_ptr` set to NULL.
+2. We *must* provide the field id in the `add_map` call now.  `add_map(SharedElement *)` extracts the id from the element automatically - but our element may be NULL!  By providing the ID we place the element in the map as a placeholder with a NULL value.  When we create it dynamically later, it will be filled in in-place.
+
+With these two changes, all the memory used by the `kis_tracked_location` complex will only be allocated once a location has been obtained, so long as all accesses to it are handled via `whatever->get_location()->...`.
+
+Empty objects will be serialized as a uint8 zero value:
+
+```json
+"kismet_device_base_packet_bin_250": 0,
+"kismet_device_base_packet_bin_500": 0,
+```
+
 ### Providing access
 
 Providing access to the child custom type is much the same as providing access to complex `TrackerElement` types, either by providing custom APIs or providing direct access via `__ProxyTrackable(...)`.
