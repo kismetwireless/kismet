@@ -36,6 +36,7 @@
 #include "globalregistry.h"
 #include "macaddr.h"
 #include "packet_ieee80211.h"
+#include "trackedelement.h"
 
 // This is the main switch for how big the vector is.  If something ever starts
 // bumping up against this we'll need to increase it, but that'll slow down 
@@ -94,6 +95,74 @@ public:
 
 protected:
 	GlobalRegistry *globalreg;
+};
+
+// A generic tracked packet, which allows us to save some frames in a way we
+// can recall and expose via the REST interface, for instance
+class kis_tracked_packet : public tracker_component {
+public:
+    kis_tracked_packet(GlobalRegistry *in_globalreg, int in_id) :
+        tracker_component(in_globalreg, in_id) {
+        register_fields();
+        reserve_fields(NULL);
+    }
+
+    kis_tracked_packet(GlobalRegistry *in_globalreg, int in_id,
+        SharedTrackerElement e) :
+        tracker_component(in_globalreg, in_id) {
+        register_fields();
+        reserve_fields(e);
+    }
+
+    virtual SharedTrackerElement clone_type() {
+        return SharedTrackerElement(new kis_tracked_packet(globalreg, get_id()));
+    }
+
+    __Proxy(ts_sec, uint64_t, time_t, time_t, ts_sec);
+    __Proxy(ts_usec, uint64_t, uint64_t, uint64_t, ts_usec);
+    __Proxy(dlt, uint64_t, uint64_t, uint64_t, dlt);
+    __Proxy(source, uint64_t, uint64_t, uint64_t, source);
+
+    __ProxyTrackable(data, TrackerElement, data);
+
+protected:
+    virtual void register_fields() {
+        tracker_component::register_fields();
+
+        ts_sec_id =
+            RegisterField("kismet.packet.ts_sec", TrackerUInt64,
+                    "packet timestamp (second)", &ts_sec);
+        ts_usec_id =
+            RegisterField("kismet.packet.ts_usec", TrackerUInt64,
+                    "packet timestamp (usec)", &ts_usec);
+
+        dlt_id =
+            RegisterField("kismet.packet.dlt", TrackerUInt64,
+                    "packet DLT linktype", &dlt);
+        source_id =
+            RegisterField("kismet.packet.source", TrackerUInt64,
+                    "packetsource id", &source);
+
+        data_id =
+            RegisterField("kismet.packet.data", TrackerByteArray,
+                    "packet data", &data);
+    }
+
+    int ts_sec_id;
+    SharedTrackerElement ts_sec;
+
+    int ts_usec_id;
+    SharedTrackerElement ts_usec;
+
+    int dlt_id;
+    SharedTrackerElement dlt;
+
+    int source_id;
+    SharedTrackerElement source;
+
+    int data_id;
+    SharedTrackerElement data;
+
 };
 
 // Arbitrary data chunk, decapsulated from the link headers
