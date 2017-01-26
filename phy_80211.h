@@ -228,6 +228,51 @@ public:
     // about it because it's almost always bogus.
 };
 
+class dot11_tracked_eapol : public tracker_component {
+public:
+    dot11_tracked_eapol(GlobalRegistry *in_globalreg, int in_id) :
+        tracker_component(in_globalreg, in_id) {
+        register_fields();
+        reserve_fields(NULL);
+    }
+
+    dot11_tracked_eapol(GlobalRegistry *in_globalreg, int in_id,
+            SharedTrackerElement e) : tracker_component(in_globalreg, in_id) {
+        register_fields();
+        reserve_fields(e);
+    }
+
+    virtual SharedTrackerElement clone_type() {
+        return SharedTrackerElement(new dot11_tracked_eapol(globalreg, get_id()));
+    }
+
+    __Proxy(eapol_version, uint8_t, uint8_t, uint8_t, eapol_version);
+    __Proxy(eapol_key_info, uint16_t, uint16_t, uint16_t, eapol_key_info);
+    __Proxy(eapol_key_length, uint16_t, uint16_t, uint16_t, eapol_key_length);
+
+    typedef shared_ptr<uint8_t> byte_t;
+    __ProxyGet(eapol_packet, byte_t, byte_t, eapol_packet);
+    void set_eapol_packet(uint8_t *in, size_t len) {
+        eapol_packet->set_bytearray(in, len);
+    }
+
+protected:
+    virtual void register_fields();
+
+    int eapol_version_id;
+    SharedTrackerElement eapol_version;
+
+    int eapol_key_info_id;
+    SharedTrackerElement eapol_key_info;
+
+    int eapol_key_length_id;
+    SharedTrackerElement eapol_key_length;
+
+    int eapol_packet_id;
+    SharedTrackerElement eapol_packet;
+    
+};
+
 class dot11_11d_tracked_range_info : public tracker_component {
 public:
     dot11_11d_tracked_range_info(GlobalRegistry *in_globalreg, int in_id) :
