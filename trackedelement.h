@@ -1020,6 +1020,10 @@ class tracker_component : public TrackerElement {
         return (dtype) (GetTrackerValue<dtype>(cvar) & bs); \
     }
 
+#define __RegisterComplexField(type, id, name, description) \
+    shared_ptr< type > builder_##id(new type(globalreg, 0)); \
+    id = RegisterComplexField(name, builder_##id, description);
+
 public:
     // Build a basic component.  All basic components are maps.
     // Set the field id automatically.
