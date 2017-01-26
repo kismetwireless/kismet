@@ -995,8 +995,10 @@ class tracker_component : public TrackerElement {
 // built)
 #define __ProxyDynamicTrackable(name, ttype, cvar, id) \
     virtual shared_ptr<ttype> get_##name() { \
-        if (cvar == NULL) \
+        if (cvar == NULL) { \
             cvar = static_pointer_cast<ttype>(tracker->GetTrackedInstance(id)); \
+            add_map(cvar); \
+        } \
         return cvar; \
     } \
     virtual void set_tracker_##name(shared_ptr<ttype> in) { \
