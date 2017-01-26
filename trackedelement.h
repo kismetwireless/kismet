@@ -105,7 +105,7 @@ enum TrackerType {
     TrackerByteArray = 19,
 };
 
-class TrackerElement : public std::enable_shared_from_this<TrackerElement> {
+class TrackerElement {
 public:
     TrackerElement() {
         Initialize();

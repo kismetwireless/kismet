@@ -153,7 +153,7 @@ struct critical_fail {
 };
 
 // Stub class for global data
-class SharedGlobalData : public std::enable_shared_from_this<SharedGlobalData> {
+class SharedGlobalData {
 public:
     virtual ~SharedGlobalData() { }
 };
