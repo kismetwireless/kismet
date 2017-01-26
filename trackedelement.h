@@ -988,7 +988,22 @@ class tracker_component : public TrackerElement {
         cvar = in; \
     }  \
     virtual shared_ptr<TrackerElement> get_tracker_##name() { \
-        return (shared_ptr<TrackerElement>) cvar; \
+        return static_pointer_cast<TrackerElement>(cvar); \
+    } 
+
+// Proxy dynamic trackable (value in class may be null and is dynamically
+// built)
+#define __ProxyDynamicTrackable(name, ttype, cvar, id) \
+    virtual shared_ptr<ttype> get_##name() { \
+        if (cvar == NULL) \
+            cvar = static_pointer_cast<ttype>(tracker->GetTrackedInstance(id)); \
+        return cvar; \
+    } \
+    virtual void set_tracker_##name(shared_ptr<ttype> in) { \
+        cvar = in; \
+    } \
+    virtual shared_ptr<TrackerElement> get_tracker_##name() { \
+        return static_pointer_cast<TrackerElement>(cvar); \
     } 
 
 // Proxy bitset functions (name, trackable type, data type, class var)
