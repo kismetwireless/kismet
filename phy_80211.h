@@ -248,13 +248,8 @@ public:
 
     __Proxy(eapol_version, uint8_t, uint8_t, uint8_t, eapol_version);
     __Proxy(eapol_key_info, uint16_t, uint16_t, uint16_t, eapol_key_info);
-    __Proxy(eapol_key_length, uint16_t, uint16_t, uint16_t, eapol_key_length);
-
-    typedef shared_ptr<uint8_t> byte_t;
-    __ProxyGet(eapol_packet, byte_t, byte_t, eapol_packet);
-    void set_eapol_packet(uint8_t *in, size_t len) {
-        eapol_packet->set_bytearray(in, len);
-    }
+    __Proxy(eapol_key_number, uint8_t, uint8_t, uint8_t, eapol_key_number);
+    __ProxyTrackable(eapol_packet, kis_tracked_packet, eapol_packet);
 
 protected:
     virtual void register_fields();
@@ -265,11 +260,11 @@ protected:
     int eapol_key_info_id;
     SharedTrackerElement eapol_key_info;
 
-    int eapol_key_length_id;
-    SharedTrackerElement eapol_key_length;
+    int eapol_key_number_id;
+    SharedTrackerElement eapol_key_number;
 
     int eapol_packet_id;
-    SharedTrackerElement eapol_packet;
+    shared_ptr<kis_tracked_packet> eapol_packet;
     
 };
 
@@ -365,9 +360,13 @@ protected:
             RegisterField("dot11.probessid.last_time", TrackerUInt64,
                     "last time probed", &last_time);
 
+        /*
         shared_ptr<kis_tracked_location> loc_builder(new kis_tracked_location(globalreg, 0));
         location_id =
             RegisterComplexField("client.location", loc_builder, "location");
+            */
+        __RegisterComplexField(kis_tracked_location, location_id, 
+                "dot11.probessid.location", "location");
     }
 
     virtual void reserve_fields(SharedTrackerElement e) {

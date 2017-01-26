@@ -51,6 +51,23 @@
 #include <pcre.h>
 #endif
 
+void dot11_tracked_eapol::register_fields() {
+    tracker_component::register_fields();
+
+    eapol_version_id = 
+        RegisterField("dot11.eapol.version", TrackerUInt8, 
+                "EAPOL version", &eapol_version);
+    eapol_key_info_id =
+        RegisterField("dot11.eapol.key_info", TrackerUInt16,
+                "EAPOL key info", &eapol_key_info);
+    eapol_key_number_id =
+        RegisterField("dot11.eapol.key_number", TrackerUInt8,
+                "EAPOL frame number", &eapol_key_number);
+
+    __RegisterComplexField(kis_tracked_packet, eapol_packet_id,
+            "dot11.eapol.packet", "EAPOL handshake");
+}
+
 int phydot11_packethook_wep(CHAINCALL_PARMS) {
 	return ((Kis_80211_Phy *) auxdata)->PacketWepDecryptor(in_pack);
 }
