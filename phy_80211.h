@@ -147,6 +147,9 @@ public:
         wps_device_name = "";
         wps_model_name = "";
         wps_model_number = "";
+        wpa_eapol = false;
+        wpa_eapol_info = 0;
+        wpa_eapol_key_number = 0;
     }
 
     // Corrupt 802.11 frame
@@ -226,6 +229,11 @@ public:
     string wps_model_number;
     // There's also the serial number field but we don't care
     // about it because it's almost always bogus.
+   
+    // wpa handshake
+    bool wpa_eapol;
+    uint16_t wpa_eapol_info;
+    int wpa_eapol_key_number;
 };
 
 class dot11_tracked_eapol : public tracker_component {
@@ -679,11 +687,6 @@ public:
     __Proxy(cdp_device, string, string, string, cdp_device);
     __Proxy(cdp_port, string, string, string, cdp_port);
 
-    __Proxy(wps_m3_count, uint64_t, uint64_t, uint64_t, wps_m3_count);
-    __ProxyIncDec(wps_m3_count, uint64_t, uint64_t, wps_m3_count);
-
-    __Proxy(wps_m3_last, uint64_t, uint64_t, uint64_t, wps_m3_last);
-
     __Proxy(decrypted, uint8_t, bool, bool, decrypted);
 
     __ProxyDynamicTrackable(ipdata, kis_tracked_ip_data, ipdata, ipdata_id);
@@ -742,12 +745,6 @@ protected:
         cdp_port_id =
             RegisterField("dot11.client.cdp_port", TrackerString,
                     "CDP port", &cdp_port);
-        wps_m3_count_id =
-            RegisterField("dot11.client.wps_m3_count", TrackerUInt64,
-                    "WPS M3 message count", &wps_m3_count);
-        wps_m3_last_id =
-            RegisterField("dot11.client.wps_m3_last", TrackerUInt64,
-                    "WPS M3 last message", &wps_m3_last);
         decrypted_id =
             RegisterField("dot11.client.decrypted", TrackerUInt8,
                     "client decrypted", &decrypted);
@@ -826,12 +823,6 @@ protected:
 
     int cdp_port_id;
     SharedTrackerElement cdp_port;
-
-    int wps_m3_count_id;
-    SharedTrackerElement wps_m3_count;
-
-    int wps_m3_last_id;
-    SharedTrackerElement wps_m3_last;
 
     int decrypted_id;
     SharedTrackerElement decrypted;
@@ -956,6 +947,12 @@ public:
     __Proxy(last_beacon_timestamp, uint64_t, time_t, 
             time_t, last_beacon_timestamp);
 
+    __Proxy(wps_m3_count, uint64_t, uint64_t, uint64_t, wps_m3_count);
+    __ProxyIncDec(wps_m3_count, uint64_t, uint64_t, wps_m3_count);
+
+    __Proxy(wps_m3_last, uint64_t, uint64_t, uint64_t, wps_m3_last);
+
+
 protected:
     virtual void register_fields() {
         type_set_id =
@@ -1047,6 +1044,13 @@ protected:
             RegisterField("dot11.device.last_beacon_timestamp", TrackerUInt64,
                     "unix timestamp of last beacon frame", 
                     &last_beacon_timestamp);
+
+        wps_m3_count_id =
+            RegisterField("dot11.client.wps_m3_count", TrackerUInt64,
+                    "WPS M3 message count", &wps_m3_count);
+        wps_m3_last_id =
+            RegisterField("dot11.client.wps_m3_last", TrackerUInt64,
+                    "WPS M3 last message", &wps_m3_last);
     }
 
     int type_set_id;
@@ -1110,6 +1114,13 @@ protected:
 
     int last_beacon_timestamp_id;
     SharedTrackerElement last_beacon_timestamp;
+
+    int wps_m3_count_id;
+    SharedTrackerElement wps_m3_count;
+
+    int wps_m3_last_id;
+    SharedTrackerElement wps_m3_last;
+
 };
 
 class dot11_ssid_alert {
