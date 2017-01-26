@@ -158,6 +158,28 @@ exports.RRD_HOUR = 3600;
 // exports.RRD_DAY = 86400
 
 exports.RecalcRrdData = function(start, now, type, data, opt = {}) {
+    if (data == undefined) {
+        if (type == exports.RRD_SECOND || type == exports.RRD_MINUTE) {
+            return [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0 
+            ];
+        } else if (type == exports.RRD_HOUR) {
+            return [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+                0, 0, 0, 0
+            ];
+        }
+
+        return;
+    }
+
     var rrd_len = data.length;
 
     // Each type value is the number of seconds in each bin of the array
