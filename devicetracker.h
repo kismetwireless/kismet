@@ -232,23 +232,6 @@ public:
     typedef kis_tracked_rrd<> rrdt;
     __ProxyTrackable(packets_rrd, rrdt, packets_rrd);
 
-    /*
-     * We don't proxy these directly, instead we add helper functions
-     * so that we can dynamically allocate them
-
-    shared_ptr<kis_tracked_location> get_location() { return location; }
-
-    __ProxyTrackable(data_rrd, rrdt, data_rrd);
-
-    typedef kis_tracked_minute_rrd<> mrrdt;
-    __ProxyTrackable(packet_rrd_bin_250, mrrdt, packet_rrd_bin_250);
-    __ProxyTrackable(packet_rrd_bin_500, mrrdt, packet_rrd_bin_500);
-    __ProxyTrackable(packet_rrd_bin_1000, mrrdt, packet_rrd_bin_1000);
-    __ProxyTrackable(packet_rrd_bin_1500, mrrdt, packet_rrd_bin_1500);
-    __ProxyTrackable(packet_rrd_bin_jumbo, mrrdt, packet_rrd_bin_jumbo);
-
-    */
-
     __ProxyDynamicTrackable(location, kis_tracked_location, location, location_id);
     __ProxyDynamicTrackable(data_rrd, rrdt, data_rrd, data_rrd_id);
 
@@ -263,21 +246,6 @@ public:
             packet_rrd_bin_1500_id);
     __ProxyDynamicTrackable(packet_rrd_bin_jumbo, mrrdt, packet_rrd_bin_jumbo,
             packet_rrd_bin_jumbo_id);
-
-#if 0
-        location.reset(new kis_tracked_location(globalreg, location_id));
-        data_rrd.reset(new kis_tracked_rrd<>(globalreg, data_rrd_id));
-
-            packet_rrd_bin_250.reset(new kis_tracked_minute_rrd<>(globalreg, packet_rrd_bin_250_id));
-
-            packet_rrd_bin_500.reset(new kis_tracked_minute_rrd<>(globalreg, packet_rrd_bin_500_id));
-
-            packet_rrd_bin_1000.reset(new kis_tracked_minute_rrd<>(globalreg, packet_rrd_bin_1000_id));
-
-            packet_rrd_bin_1500.reset(new kis_tracked_minute_rrd<>(globalreg, packet_rrd_bin_1500_id));
-
-            packet_rrd_bin_jumbo.reset(new kis_tracked_minute_rrd<>(globalreg, packet_rrd_bin_jumbo_id));
-#endif
 
     __Proxy(channel, string, string, string, channel);
     __Proxy(frequency, double, double, double, frequency);
