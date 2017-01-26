@@ -345,7 +345,7 @@ public:
     __Proxy(first_time, uint64_t, time_t, time_t, first_time);
     __Proxy(last_time, uint64_t, time_t, time_t, last_time);
     
-    __ProxyTrackable(location, kis_tracked_location, location);
+    __ProxyDynamicTrackable(location, kis_tracked_location, location, location_id);
 
 protected:
     virtual void register_fields() {
@@ -376,11 +376,9 @@ protected:
         if (e != NULL) {
             location.reset(new kis_tracked_location(globalreg, location_id, 
                     e->get_map_value(location_id)));
-            add_map(location);
-        } else {
-            location.reset(new kis_tracked_location(globalreg, location_id));
-            add_map(location);
         }
+
+        add_map(location_id, location);
     }
 
     int ssid_id;
@@ -453,20 +451,12 @@ public:
 
     __Proxy(dot11d_country, string, string, string, dot11d_country);
 
-    void clear_dot11d_vec() {
-        dot11d_vec->clear_vector();
-    }
-
-    void add_dot11d_vec(shared_ptr<dot11_11d_tracked_range_info> i) {
-        dot11d_vec->add_vector(i);
-    }
-
-    SharedTrackerElement get_dot11d_vec() {
-        return dot11d_vec;
-    }
+    __ProxyTrackable(dot11d_vec, TrackerElement, dot11d_vec);
 
     void set_dot11d_vec(vector<dot11_packinfo_dot11d_entry> vec) {
-        dot11d_vec->clear_vector();
+        TrackerElementVector d11vec(get_dot11d_vec());
+
+        d11vec.clear();
         
         for (unsigned int x = 0; x < vec.size(); x++) {
             shared_ptr<dot11_11d_tracked_range_info> ri(new dot11_11d_tracked_range_info(globalreg, dot11d_country_entry_id));
@@ -474,7 +464,7 @@ public:
             ri->set_numchan(vec[x].numchan);
             ri->set_txpower(vec[x].txpower);
 
-            dot11d_vec->add_vector(ri);
+            d11vec.push_back(ri);
         }
     }
 
@@ -484,7 +474,7 @@ public:
     __Proxy(wps_model_name, string, string, string, wps_model_name);
     __Proxy(wps_model_number, string, string, string, wps_model_number);
 
-    __ProxyTrackable(location, kis_tracked_location, location);
+    __ProxyDynamicTrackable(location, kis_tracked_location, location, location_id);
 
 protected:
     virtual void register_fields() {
@@ -572,11 +562,9 @@ protected:
         if (e != NULL) {
             location.reset(new kis_tracked_location(globalreg, location_id, 
                     e->get_map_value(location_id)));
-            add_map(location);
-        } else {
-            location.reset(new kis_tracked_location(globalreg, location_id));
-            add_map(location);
         }
+
+        add_map(location_id, location);
     }
 
     int ssid_id;
@@ -699,7 +687,7 @@ public:
 
     __Proxy(decrypted, uint8_t, bool, bool, decrypted);
 
-    __ProxyTrackable(ipdata, kis_tracked_ip_data, ipdata);
+    __ProxyDynamicTrackable(ipdata, kis_tracked_ip_data, ipdata, ipdata_id);
 
     __Proxy(datasize, uint64_t, uint64_t, uint64_t, datasize);
     __ProxyIncDec(datasize, uint64_t, uint64_t, datasize);
@@ -713,7 +701,7 @@ public:
     __Proxy(num_retries, uint64_t, uint64_t, uint64_t, num_retries);
     __ProxyIncDec(num_retries, uint64_t, uint64_t, num_retries);
 
-    __ProxyTrackable(location, kis_tracked_location, location);
+    __ProxyDynamicTrackable(location, kis_tracked_location, location, location_id);
 
 protected:
     virtual void register_fields() {
@@ -794,18 +782,13 @@ protected:
         if (e != NULL) {
             ipdata.reset(new kis_tracked_ip_data(globalreg, ipdata_id, 
                     e->get_map_value(ipdata_id)));
-            add_map(ipdata);
-
             location.reset(new kis_tracked_location(globalreg, location_id, 
                     e->get_map_value(location_id)));
-            add_map(location);
-        } else {
-            ipdata.reset(new kis_tracked_ip_data(globalreg, ipdata_id));
-            add_map(ipdata);
-
-            location.reset(new kis_tracked_location(globalreg, location_id));
-            add_map(location);
         }
+
+        add_map(ipdata_id, ipdata);
+        add_map(location_id, location);
+
     }
 
         
