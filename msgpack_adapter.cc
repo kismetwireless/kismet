@@ -39,6 +39,8 @@ void MsgpackAdapter::Packer(GlobalRegistry *globalreg, SharedTrackerElement v,
         msgpack::packer<std::stringstream> &o) {
 
     if (v == NULL) {
+        o.pack_array(2);
+        o.pack((int) TrackerUInt8);
         o.pack((uint8_t) 0);
         return;
     }
