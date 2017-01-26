@@ -281,6 +281,15 @@ class KismetConnector:
         """
         return self.__unpack_simple_url("devices/all_devices.msgpack")
 
+    def device_summary_since(self, ts):
+        """
+        device_summary_since(ts) -> device summary list 
+
+        Return object containing summary of devices added or changed since ts
+        and ts info
+        """
+        return self.__unpack_simple_url("devices/last-time/{}/devices.msgpack".format(ts))
+
     def device(self, key):
         """
         device(key) -> device object
