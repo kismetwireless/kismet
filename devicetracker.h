@@ -232,6 +232,12 @@ public:
     typedef kis_tracked_rrd<> rrdt;
     __ProxyTrackable(packets_rrd, rrdt, packets_rrd);
 
+    /*
+     * We don't proxy these directly, instead we add helper functions
+     * so that we can dynamically allocate them
+
+    shared_ptr<kis_tracked_location> get_location() { return location; }
+
     __ProxyTrackable(data_rrd, rrdt, data_rrd);
 
     typedef kis_tracked_minute_rrd<> mrrdt;
@@ -240,6 +246,38 @@ public:
     __ProxyTrackable(packet_rrd_bin_1000, mrrdt, packet_rrd_bin_1000);
     __ProxyTrackable(packet_rrd_bin_1500, mrrdt, packet_rrd_bin_1500);
     __ProxyTrackable(packet_rrd_bin_jumbo, mrrdt, packet_rrd_bin_jumbo);
+
+    */
+
+    __ProxyDynamicTrackable(location, kis_tracked_location, location, location_id);
+    __ProxyDynamicTrackable(data_rrd, rrdt, data_rrd, data_rrd_id);
+
+    typedef kis_tracked_minute_rrd<> mrrdt;
+    __ProxyDynamicTrackable(packet_rrd_bin_250, mrrdt, packet_rrd_bin_250, 
+            packet_rrd_bin_250_id);
+    __ProxyDynamicTrackable(packet_rrd_bin_500, mrrdt, packet_rrd_bin_500,
+            packet_rrd_bin_500_id);
+    __ProxyDynamicTrackable(packet_rrd_bin_1000, mrrdt, packet_rrd_bin_1000,
+            packet_rrd_bin_1000_id);
+    __ProxyDynamicTrackable(packet_rrd_bin_1500, mrrdt, packet_rrd_bin_1500,
+            packet_rrd_bin_1500_id);
+    __ProxyDynamicTrackable(packet_rrd_bin_jumbo, mrrdt, packet_rrd_bin_jumbo,
+            packet_rrd_bin_jumbo_id);
+
+#if 0
+        location.reset(new kis_tracked_location(globalreg, location_id));
+        data_rrd.reset(new kis_tracked_rrd<>(globalreg, data_rrd_id));
+
+            packet_rrd_bin_250.reset(new kis_tracked_minute_rrd<>(globalreg, packet_rrd_bin_250_id));
+
+            packet_rrd_bin_500.reset(new kis_tracked_minute_rrd<>(globalreg, packet_rrd_bin_500_id));
+
+            packet_rrd_bin_1000.reset(new kis_tracked_minute_rrd<>(globalreg, packet_rrd_bin_1000_id));
+
+            packet_rrd_bin_1500.reset(new kis_tracked_minute_rrd<>(globalreg, packet_rrd_bin_1500_id));
+
+            packet_rrd_bin_jumbo.reset(new kis_tracked_minute_rrd<>(globalreg, packet_rrd_bin_jumbo_id));
+#endif
 
     __Proxy(channel, string, string, string, channel);
     __Proxy(frequency, double, double, double, frequency);
@@ -261,8 +299,6 @@ public:
 
     bool get_tag_dirty() { return tag->get_dirty(); };
     void set_tag_dirty(bool in_dirty) { tag->set_dirty(in_dirty); };
-
-    shared_ptr<kis_tracked_location> get_location() { return location; }
 
     void inc_frequency_count(double frequency) {
         if (frequency <= 0)
@@ -477,75 +513,55 @@ protected:
         if (e != NULL) {
             signal_data.reset(new kis_tracked_signal_data(globalreg, signal_data_id,
                     e->get_map_value(signal_data_id)));
-            add_map(signal_data);
 
             tag.reset(new kis_tracked_tag(globalreg, tag_id,
                     e->get_map_value(tag_id)));
-            add_map(tag);
 
             location.reset(new kis_tracked_location(globalreg, location_id,
                     e->get_map_value(location_id)));
-            add_map(location);
 
             packets_rrd.reset(new kis_tracked_rrd<>(globalreg,
                     packets_rrd_id, e->get_map_value(packets_rrd_id)));
-            add_map(packets_rrd);
 
             data_rrd.reset(new kis_tracked_rrd<>(globalreg,
                     data_rrd_id, e->get_map_value(data_rrd_id)));
-            add_map(data_rrd);
 
             packet_rrd_bin_250.reset(new kis_tracked_minute_rrd<>(globalreg,
                     packet_rrd_bin_250_id, e->get_map_value(packet_rrd_bin_250_id)));
-            add_map(packet_rrd_bin_250);
 
             packet_rrd_bin_500.reset(new kis_tracked_minute_rrd<>(globalreg,
                     packet_rrd_bin_500_id, e->get_map_value(packet_rrd_bin_500_id)));
-            add_map(packet_rrd_bin_500);
 
             packet_rrd_bin_1000.reset(new kis_tracked_minute_rrd<>(globalreg,
                     packet_rrd_bin_1000_id, e->get_map_value(packet_rrd_bin_1000_id)));
-            add_map(packet_rrd_bin_1000);
 
             packet_rrd_bin_1500.reset(new kis_tracked_minute_rrd<>(globalreg,
                     packet_rrd_bin_1500_id, e->get_map_value(packet_rrd_bin_1500_id)));
-            add_map(packet_rrd_bin_1500);
 
             packet_rrd_bin_jumbo.reset(new kis_tracked_minute_rrd<>(globalreg,
                     packet_rrd_bin_jumbo_id, e->get_map_value(packet_rrd_bin_jumbo_id)));
-            add_map(packet_rrd_bin_jumbo);
 
         } else {
             signal_data.reset(new kis_tracked_signal_data(globalreg, signal_data_id));
-            add_map(signal_data);
 
             tag.reset(new kis_tracked_tag(globalreg, tag_id));
-            add_map(tag);
 
-            location.reset(new kis_tracked_location(globalreg, location_id));
-            add_map(location);
 
             packets_rrd.reset(new kis_tracked_rrd<>(globalreg, packets_rrd_id));
-            add_map(packets_rrd);
 
-            data_rrd.reset(new kis_tracked_rrd<>(globalreg, data_rrd_id));
-            add_map(data_rrd);
-
-            packet_rrd_bin_250.reset(new kis_tracked_minute_rrd<>(globalreg, packet_rrd_bin_250_id));
-            add_map(packet_rrd_bin_250);
-
-            packet_rrd_bin_500.reset(new kis_tracked_minute_rrd<>(globalreg, packet_rrd_bin_500_id));
-            add_map(packet_rrd_bin_500);
-
-            packet_rrd_bin_1000.reset(new kis_tracked_minute_rrd<>(globalreg, packet_rrd_bin_1000_id));
-            add_map(packet_rrd_bin_1000);
-
-            packet_rrd_bin_1500.reset(new kis_tracked_minute_rrd<>(globalreg, packet_rrd_bin_1500_id));
-            add_map(packet_rrd_bin_1500);
-
-            packet_rrd_bin_jumbo.reset(new kis_tracked_minute_rrd<>(globalreg, packet_rrd_bin_jumbo_id));
-            add_map(packet_rrd_bin_jumbo);
         }
+
+        // add using known fields b/c we might add null
+        add_map(signal_data_id, signal_data);
+        add_map(tag_id, tag);
+        add_map(location_id, location);
+        add_map(packets_rrd_id, packets_rrd);
+        add_map(data_rrd_id, data_rrd);
+        add_map(packet_rrd_bin_250_id, packet_rrd_bin_250);
+        add_map(packet_rrd_bin_500_id, packet_rrd_bin_500);
+        add_map(packet_rrd_bin_1000_id, packet_rrd_bin_1000);
+        add_map(packet_rrd_bin_1500_id, packet_rrd_bin_1500);
+        add_map(packet_rrd_bin_jumbo_id, packet_rrd_bin_jumbo);
 
         // Add fields to the summary
         add_summary_field(key);
