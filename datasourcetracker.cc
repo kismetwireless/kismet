@@ -405,7 +405,7 @@ void Datasourcetracker::probe_handler(shared_ptr<KisDataSource> in_src,
 
         // Get rid of the prototype, we're done; this will also clean up the
         // protosrc we used to build and open the new src
-        fprintf(stderr, "debug - dst finished with prototype group %p deleting after success\n", dstproto);
+        // fprintf(stderr, "debug - dst finished with prototype group %p deleting after success\n", dstproto);
     } else {
         // Cancel out if we have no sources left & finish our failure of opening sources
         if (dstproto->remove_failed_proto(in_src) <= 0) {
@@ -422,7 +422,7 @@ void Datasourcetracker::probe_handler(shared_ptr<KisDataSource> in_src,
             _MSG(ss.str(), MSGFLAG_ERROR);
 
             // Nuke the tracker
-            fprintf(stderr, "debug - dst finished with prototype group %p deleting after failure\n", dstproto);
+            // fprintf(stderr, "debug - dst finished with prototype group %p deleting after failure\n", dstproto);
         }
     }
 
