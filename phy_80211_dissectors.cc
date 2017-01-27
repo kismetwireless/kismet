@@ -1932,6 +1932,11 @@ int Kis_80211_Phy::PacketDot11WPSM3(kis_packet *in_pack) {
 shared_ptr<dot11_tracked_eapol> 
     Kis_80211_Phy::PacketDot11EapolHandshake(kis_packet *in_pack,
             shared_ptr<dot11_tracked_device> dot11dev) {
+
+    const uint16_t info_install_mask = 0x0040;
+    const uint16_t info_ack_mask = 0x0080;
+    const uint16_t info_mic_mask = 0x0100;
+
     if (in_pack->error)
         return NULL;
 
@@ -1997,12 +2002,12 @@ shared_ptr<dot11_tracked_eapol>
     // We've validated length already
     pos += sizeof(dot1x_v1_key_hdr);
 
-    uint16_t keylen;
-    memcpy(&keylen, &(chunk->data[pos]), 2);
-    keylen = kis_ntoh16(keylen);
+    uint16_t datalen;
+    memcpy(&datalen, &(chunk->data[pos]), 2);
+    datalen = kis_ntoh16(datalen);
 
     // Is the keylen too big for this frame?
-    if (packinfo->header_offset + sizeof(eapol_llc) + 4 + keylen > chunk->length) {
+    if (packinfo->header_offset + sizeof(eapol_llc) + 4 + datalen > chunk->length) {
         return NULL;
     }
 
@@ -2017,6 +2022,11 @@ shared_ptr<dot11_tracked_eapol>
     // Regardless of the length of the key we know we're good up through the
     // key information block
     pos++;
+
+    // wpa key len is 92 bytes into the data, which is after our framelen, info, etc
+    uint16_t keylen;
+    memcpy(&keylen, &(chunk->data[pos + 92]), 2);
+    keylen = kis_ntoh16(keylen);
 
     uint16_t info;
     memcpy(&info, &(chunk->data[pos]), 2);
@@ -2035,6 +2045,24 @@ shared_ptr<dot11_tracked_eapol>
     tp->set_source(chunk->source_id);
 
     tp->get_data()->set_bytearray(chunk->data, chunk->length);
+
+    uint16_t countinfo = info & (info_install_mask | info_mic_mask | info_ack_mask);
+
+    switch (countinfo) {
+        case info_ack_mask:
+            eapol->set_eapol_msg_num(1);
+            break;
+        case info_mic_mask:
+            // account for broken supplicants the same way wireshark does
+            if (keylen)
+                eapol->set_eapol_msg_num(2);
+            else
+                eapol->set_eapol_msg_num(4);
+            break;
+        case (info_install_mask | info_mic_mask | info_ack_mask):
+            eapol->set_eapol_msg_num(3);
+            break;
+    }
 
     return eapol;
 }

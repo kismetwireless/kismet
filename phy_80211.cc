@@ -62,6 +62,10 @@ void dot11_tracked_eapol::register_fields() {
         RegisterField("dot11.eapol.direction", TrackerUInt8,
                 "packet direction (fromds/tods)", &eapol_dir);
 
+    eapol_msg_num_id =
+        RegisterField("dot11.eapol.message_num", TrackerUInt8,
+                "handshake message number", &eapol_msg_num);
+
     __RegisterComplexField(kis_tracked_packet, eapol_packet_id,
             "dot11.eapol.packet", "EAPOL handshake");
 }

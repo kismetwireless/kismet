@@ -248,6 +248,7 @@ public:
 
     __Proxy(eapol_time, uint64_t, time_t, time_t, eapol_time);
     __Proxy(eapol_dir, uint8_t, uint8_t, uint8_t, eapol_dir);
+    __Proxy(eapol_msg_num, uint8_t, uint8_t, uint8_t, eapol_msg_num);
 
     __ProxyTrackable(eapol_packet, kis_tracked_packet, eapol_packet);
 
@@ -260,6 +261,9 @@ protected:
 
     int eapol_dir_id;
     SharedTrackerElement eapol_dir;
+
+    int eapol_msg_num_id;
+    SharedTrackerElement eapol_msg_num;
 
     int eapol_packet_id;
     shared_ptr<kis_tracked_packet> eapol_packet;
