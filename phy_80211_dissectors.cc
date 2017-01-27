@@ -1930,7 +1930,8 @@ int Kis_80211_Phy::PacketDot11WPSM3(kis_packet *in_pack) {
 }
 
 shared_ptr<dot11_tracked_eapol> 
-    Kis_80211_Phy::PacketDot11EapolHandshake(kis_packet *in_pack) {
+    Kis_80211_Phy::PacketDot11EapolHandshake(kis_packet *in_pack,
+            shared_ptr<dot11_tracked_device> dot11dev) {
     if (in_pack->error)
         return NULL;
 
@@ -2021,24 +2022,21 @@ shared_ptr<dot11_tracked_eapol>
     memcpy(&info, &(chunk->data[pos]), 2);
     info = kis_ntoh16(info);
 
-    fprintf(stderr, "debug - wpa keylen %u info %x\n", keylen, info);
+    shared_ptr<dot11_tracked_eapol> eapol = dot11dev->create_eapol_packet();
 
-    if ((info & 0x60) == 0x40) {
-        fprintf(stderr, "key 1\n");
-    } else if ((info & 0x60) == 0x00) {
-        fprintf(stderr, "key 2\n");
-    } else if ((info & 0x60) == 0x60)
-        fprintf(stderr, "key 3\n");
+    eapol->set_eapol_time(in_pack->ts.tv_sec);
+    eapol->set_eapol_dir(packinfo->distrib);
 
-    if (info & 0x20) {
-        fprintf(stderr, "debug - install bit\n");
-    }
+    shared_ptr<kis_tracked_packet> tp = eapol->get_eapol_packet();
+    tp->set_ts_sec(in_pack->ts.tv_sec);
+    tp->set_ts_usec(in_pack->ts.tv_usec);
+    
+    tp->set_dlt(chunk->dlt);
+    tp->set_source(chunk->source_id);
 
-    if (info & 0x40) {
-        fprintf(stderr, "debug - ack set\n");
-    }
+    tp->get_data()->set_bytearray(chunk->data, chunk->length);
 
-    return NULL;
+    return eapol;
 }
 
 

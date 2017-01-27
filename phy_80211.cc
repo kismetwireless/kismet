@@ -66,6 +66,19 @@ void dot11_tracked_eapol::register_fields() {
             "dot11.eapol.packet", "EAPOL handshake");
 }
 
+void dot11_tracked_eapol::reserve_fields(SharedTrackerElement e) {
+    tracker_component::reserve_fields(e);
+
+    if (e != NULL) {
+        eapol_packet.reset(new kis_tracked_packet(globalreg, eapol_packet_id,
+                    e->get_map_value(eapol_packet_id)));
+    } else {
+        eapol_packet.reset(new kis_tracked_packet(globalreg, eapol_packet_id));
+    }
+
+    add_map(eapol_packet);
+}
+
 int phydot11_packethook_wep(CHAINCALL_PARMS) {
 	return ((Kis_80211_Phy *) auxdata)->PacketWepDecryptor(in_pack);
 }
@@ -1074,7 +1087,28 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 
     // Look for WPA handshakes
     if (dot11info->type == packet_data) {
-        PacketDot11EapolHandshake(in_pack);
+        shared_ptr<dot11_tracked_eapol> eapol =
+            PacketDot11EapolHandshake(in_pack, dot11dev);
+
+        if (eapol != NULL) {
+            shared_ptr<kis_tracked_device_base> eapolbase =
+                devicetracker->FetchDevice(dot11info->bssid_mac, phyid);
+
+            if (eapolbase != NULL) {
+                shared_ptr<dot11_tracked_device> eapoldot11 = 
+                    static_pointer_cast<dot11_tracked_device>(eapolbase->get_map_value(dot11_device_entry_id));
+
+                if (eapoldot11 != NULL) {
+                    TrackerElementVector vec(eapoldot11->get_wpa_key_vec());
+
+                    if (vec.size() > 16) {
+                        vec.erase(vec.begin());
+                    }
+
+                    vec.push_back(eapol);
+                }
+            }
+        }
     }
 
 	if (dot11info->type == packet_data &&

@@ -253,6 +253,7 @@ public:
 
 protected:
     virtual void register_fields();
+    virtual void reserve_fields(SharedTrackerElement e);
 
     int eapol_time_id;
     SharedTrackerElement eapol_time;
@@ -941,6 +942,10 @@ public:
 
     __Proxy(wps_m3_last, uint64_t, uint64_t, uint64_t, wps_m3_last);
 
+    __ProxyTrackable(wpa_key_vec, TrackerElement, wpa_key_vec);
+    shared_ptr<dot11_tracked_eapol> create_eapol_packet() {
+        return static_pointer_cast<dot11_tracked_eapol>(tracker->GetTrackedInstance(wpa_key_entry_id));
+    }
 
 protected:
     virtual void register_fields() {
@@ -1178,7 +1183,8 @@ public:
 	int PacketDot11WPSM3(kis_packet *in_pack);
 
     // Is the packet a WPA handshake?  Return an eapol tracker element if so
-    shared_ptr<dot11_tracked_eapol> PacketDot11EapolHandshake(kis_packet *in_pack);
+    shared_ptr<dot11_tracked_eapol> PacketDot11EapolHandshake(kis_packet *in_pack,
+            shared_ptr<dot11_tracked_device> dot11device);
 
 	// static incase some other component wants to use it
 	static kis_datachunk *DecryptWEP(dot11_packinfo *in_packinfo,
