@@ -1979,11 +1979,10 @@ shared_ptr<dot11_tracked_eapol>
     unsigned int pos = packinfo->header_offset;
 
     uint8_t eapol_llc[] = { 0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00, 0x88, 0x8e };
-    uint8_t dot1x_v1_key_hdr[] = { 0x01, 0x03 };
 
-    // Sum up the size of the offset + llc header + key header + length(2) + 
+    // Sum up the size of the offset + llc header + key header(2) + length(2) + 
     //    type(1) + keyinfo(2)
-    if (pos + sizeof(eapol_llc) + sizeof(dot1x_v1_key_hdr) + 2 + 1 + 2 >= chunk->length)
+    if (pos + sizeof(eapol_llc) + 2 + 2 + 1 + 2 >= chunk->length)
         return NULL;
 
     if (memcmp(&(chunk->data[pos]), eapol_llc, sizeof(eapol_llc)))
@@ -1993,14 +1992,12 @@ shared_ptr<dot11_tracked_eapol>
 
     pos += sizeof(eapol_llc);
 
-    if (pos + sizeof(dot1x_v1_key_hdr) >= chunk->length)
-        return 0;
+    // Is it a key?
+    if (chunk->data[pos + 1] != 3)
+        return NULL;
 
-    if (memcmp(&(chunk->data[pos]), dot1x_v1_key_hdr, sizeof(dot1x_v1_key_hdr)))
-        return 0;
-
-    // We've validated length already
-    pos += sizeof(dot1x_v1_key_hdr);
+    // Get past version and type
+    pos += 2;
 
     uint16_t datalen;
     memcpy(&datalen, &(chunk->data[pos]), 2);
