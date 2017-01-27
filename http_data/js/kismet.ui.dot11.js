@@ -251,6 +251,42 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 ],
             },
             {
+                field: "dot11_device.dot11_device_wpa_handshake_list",
+                id: "wpa_handshake",
+                filter: function(opts) {
+                    return (opts['data'].dot11_device.dot11_device_wpa_handshake_list.length);
+                },
+                groupTitle: "WPA Key Exchange",
+
+                fields: [
+                {
+                    field: "wpa_handshake_count",
+                    id: "handshake_count",
+                    title: "Handshake Packets",
+                    render: function(opts) {
+                        return (opts['data'].dot11_device.dot11_device_wpa_handshake_list.length);
+                    },
+                },
+                {
+                    field: "wpa_handshake_download",
+                    id: "handshake_download",
+                    title: "Handshake PCAP",
+                    render: function(opts) {
+                        var mac = opts['data'].kismet_device_base_macaddr.split("/")[0];
+                        var url = '<a href="/phy/phy80211/handshake/' +
+                            mac + 
+                            '/' +
+                            mac + '-handshake.pcap">' +
+                            '<i class="fa fa-download"></i> PCAP download</a>';
+                        return url;
+                    },
+                }
+                ]
+
+
+            },
+
+            {
                 field: "dot11_device.dot11_device_advertised_ssid_map",
                 id: "advertised_ssid",
 
