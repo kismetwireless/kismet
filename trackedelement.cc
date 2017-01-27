@@ -1090,8 +1090,8 @@ size_t TrackerElement::size_vector() {
 void TrackerElement::set_bytearray(uint8_t *d, size_t len) {
     except_type_mismatch(TrackerByteArray);
 
-    dataunion.bytearray_value->reset(new uint8_t[len]);
-    memcpy(dataunion.bytearray_value, d, len);
+    dataunion.bytearray_value->reset(new uint8_t[len], std::default_delete<uint8_t[]>());
+    memcpy(dataunion.bytearray_value->get(), d, len);
     bytearray_value_len = len;
 }
 
