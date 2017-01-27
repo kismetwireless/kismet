@@ -1258,6 +1258,9 @@ protected:
             kis_gps_packinfo *pack_gpsinfo,
             kis_data_packinfo *pack_datainfo);
 
+    void GenerateHandshakePcap(shared_ptr<kis_tracked_device_base> dev, 
+            std::stringstream &stream);
+
     int dot11_device_entry_id;
 
 	int LoadWepkeys();

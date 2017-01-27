@@ -29,6 +29,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <iostream>
+#include <limits.h>
 
 #include "globalregistry.h"
 #include "packetchain.h"
@@ -50,6 +51,14 @@
 #ifdef HAVE_LIBPCRE
 #include <pcre.h>
 #endif
+
+extern "C" {
+#ifndef HAVE_PCAPPCAP_H
+#include <pcap.h>
+#else
+#include <pcap/pcap.h>
+#endif
+}
 
 void dot11_tracked_eapol::register_fields() {
     tracker_component::register_fields();
@@ -2097,13 +2106,168 @@ bool Kis_80211_Phy::Httpd_VerifyPath(const char *path, const char *method) {
             return true;
     }
 
+    if (strcmp(method, "GET") == 0) {
+        vector<string> tokenurl = StrTokenize(path, "/");
+
+        // For now we only care about /phy/phy80211/handshake/[mac]/[mac]-handshake.pcap
+        if (tokenurl.size() < 6)
+            return false;
+
+        if (tokenurl[1] == "phy") {
+            if (tokenurl[2] == "phy80211") {
+                if (tokenurl[3] == "handshake") {
+                    // Valid mac?
+                    mac_addr dmac(tokenurl[4]);
+                    if (dmac.error)
+                        return false;
+
+                    // Valid requested file?
+                    if (tokenurl[5] != tokenurl[4] + "-handshake.pcap")
+                        return false;
+
+                    // Does it exist?
+                    devicelist_scope_locker dlocker(devicetracker);
+                    if (devicetracker->FetchDevice(dmac, phyid) != NULL)
+                        return true;
+                }
+            }
+        }
+    }
+
     return false;
+}
+
+void Kis_80211_Phy::GenerateHandshakePcap(shared_ptr<kis_tracked_device_base> dev, 
+        std::stringstream &stream) {
+    // We need to make a temp file and then use that to make the pcap log
+    int pcapfd, readfd;
+    FILE *pcapw;
+
+    pcap_t *pcaplogger;
+    pcap_dumper_t *dumper;
+
+    // Packet header
+    struct pcap_pkthdr hdr;
+
+    // Temp file name
+    char tmpfname[PATH_MAX];
+
+    snprintf(tmpfname, PATH_MAX, "/tmp/kismet_wpa_handshake_XXXXXX");
+
+    // Can't do anything if we fail to make a pipe
+    if ((pcapfd = mkstemp(tmpfname)) < 0) {
+        _MSG("Failed to create a temporary handshake pcap file: " +
+                kis_strerror_r(errno), MSGFLAG_ERROR);
+        return;
+    }
+
+    // Open the tmp file
+    readfd = open(tmpfname, O_RDONLY);
+    // Immediately unlink it
+    unlink(tmpfname);
+
+    if ((pcapw = fdopen(pcapfd, "wb")) == NULL) {
+        _MSG("Failed to open temp file for handshake pcap file: " +
+                kis_strerror_r(errno), MSGFLAG_ERROR);
+        close(readfd);
+        return;
+    }
+
+    // We always open as 802.11 DLT because that's how we save the handshakes
+    pcaplogger = pcap_open_dead(KDLT_IEEE802_11, 2000);
+    dumper = pcap_dump_fopen(pcaplogger, pcapw);
+
+    if (dev != NULL) {
+        shared_ptr<dot11_tracked_device> dot11dev =
+            static_pointer_cast<dot11_tracked_device>(dev->get_map_value(dot11_device_entry_id));
+
+        if (dot11dev != NULL) {
+            TrackerElementVector hsvec(dot11dev->get_wpa_key_vec());
+
+            for (TrackerElementVector::iterator i = hsvec.begin(); 
+                    i != hsvec.end(); ++i) {
+                shared_ptr<dot11_tracked_eapol> eapol = 
+                    static_pointer_cast<dot11_tracked_eapol>(*i);
+
+                shared_ptr<kis_tracked_packet> packet = eapol->get_eapol_packet();
+
+                // Make a pcap header
+                hdr.ts.tv_sec = packet->get_ts_sec();
+                hdr.ts.tv_usec = packet->get_ts_usec();
+                
+                hdr.len = packet->get_data()->get_bytearray_size();
+                hdr.caplen = hdr.len;
+
+                // Dump the raw data
+                pcap_dump((u_char *) dumper, &hdr, 
+                        packet->get_data()->get_bytearray().get());
+            }
+
+        }
+
+    }
+
+    // Close the dumper
+    pcap_dump_flush(dumper);
+    pcap_dump_close(dumper);
+
+    // Read our buffered stuff out into the stream
+    char buf[128];
+    size_t len;
+    int total = 0;
+
+    while ((len = read(readfd, buf, 128)) >= 0) {
+        if (len == 0) {
+            if (errno == EAGAIN || errno == EINTR)
+                continue;
+            break;
+        }
+
+        total += len;
+
+        stream.write(buf, len);
+    }
+
+    // Pcapw and write pipe is already closed so just close read descriptor
+    close(readfd);
 }
 
 void Kis_80211_Phy::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
         struct MHD_Connection *connection,
         const char *url, const char *method, const char *upload_data,
         size_t *upload_data_size, std::stringstream &stream) {
+
+    if (strcmp(method, "GET") != 0) {
+        return;
+    }
+
+    vector<string> tokenurl = StrTokenize(url, "/");
+
+    // For now we only care about /phy/phy80211/handshake/[mac]/[mac]-handshake.pcap
+    if (tokenurl.size() < 6)
+        return;
+
+    if (tokenurl[1] == "phy") {
+        if (tokenurl[2] == "phy80211") {
+            if (tokenurl[3] == "handshake") {
+                // Valid mac?
+                mac_addr dmac(tokenurl[4]);
+                if (dmac.error) {
+                    stream << "Invalid MAC";
+                    return;
+                }
+
+                // Valid requested file?
+                if (tokenurl[5] != tokenurl[4] + "-handshake.pcap")
+                    return;
+
+                // It should exist and we'll handle if it doesn't in the stream
+                // handler
+                devicelist_scope_locker dlocker(devicetracker);
+                GenerateHandshakePcap(devicetracker->FetchDevice(dmac, phyid), stream);
+            }
+        }
+    }
 
     return;
 }
