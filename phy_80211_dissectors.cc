@@ -2014,10 +2014,12 @@ shared_ptr<dot11_tracked_eapol>
     // Get the descriptor type, we've validated length already
     pos += 2;
 
+    /* We can use WPA and RSN, maybe others, so don't check this after all
     // Not an EAPOL WPA key
     if (chunk->data[pos] != 0xFE) {
         return NULL;
     }
+    */
 
     // Regardless of the length of the key we know we're good up through the
     // key information block
