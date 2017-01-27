@@ -103,6 +103,7 @@ Kis_Net_Httpd::Kis_Net_Httpd(GlobalRegistry *in_globalreg) {
     RegisterMimeType("gif", "image/gif");
     RegisterMimeType("ico", "image/x-icon");
     RegisterMimeType("json", "application/json");
+    RegisterMimeType("pcap", "application/vnd.tcpdump.pcap");
 
     vector<string> mimeopts = globalreg->kismet_config->FetchOptVec("httpd_mime");
     for (unsigned int i = 0; i < mimeopts.size(); i++) {
