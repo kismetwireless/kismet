@@ -1143,20 +1143,12 @@ public:
                         max_signal_dbm->set((int32_t) in.lay1->signal_dbm);
 
                         if (in.gps != NULL) {
-                            if (peak_loc == NULL) {
-                                peak_loc.reset(new kis_tracked_location_triplet(globalreg, peak_loc_id));
-                            }
-
-                            peak_loc->set(in.gps->lat, in.gps->lon, in.gps->alt, 
+                            get_peak_loc()->set(in.gps->lat, in.gps->lon, in.gps->alt, 
                                     in.gps->fix);
                         }
                     }
 
-                    if (signal_min_rrd == NULL) {
-                        signal_min_rrd.reset(new kis_tracked_minute_rrd<kis_tracked_rrd_peak_signal_aggregator>(globalreg, signal_min_rrd_id));
-                    }
-
-                    signal_min_rrd->add_sample(in.lay1->signal_dbm, 
+                    get_signal_min_rrd()->add_sample(in.lay1->signal_dbm, 
                             globalreg->timestamp.tv_sec);
                 }
 
@@ -1187,20 +1179,12 @@ public:
                         max_signal_rssi->set((int32_t) in.lay1->signal_rssi);
 
                         if (in.gps != NULL) {
-                            if (peak_loc == NULL) {
-                                peak_loc.reset(new kis_tracked_location_triplet(globalreg, peak_loc_id));
-                            }
-                            
-                            peak_loc->set(in.gps->lat, in.gps->lon, in.gps->alt, 
+                            get_peak_loc()->set(in.gps->lat, in.gps->lon, in.gps->alt, 
                                     in.gps->fix);
                         }
                     }
 
-                    if (signal_min_rrd != NULL) {
-                        signal_min_rrd.reset(new kis_tracked_minute_rrd<kis_tracked_rrd_peak_signal_aggregator>(globalreg, signal_min_rrd_id));
-                    }
-
-                    signal_min_rrd->add_sample(in.lay1->signal_rssi, 
+                    get_signal_min_rrd()->add_sample(in.lay1->signal_rssi, 
                             globalreg->timestamp.tv_sec);
                 }
 
@@ -1252,9 +1236,10 @@ public:
     __ProxyGet(carrierset, uint64_t, uint64_t, carrierset);
 
     typedef kis_tracked_minute_rrd<kis_tracked_rrd_peak_signal_aggregator> msig_rrd;
-    __ProxyTrackable(signal_min_rrd, msig_rrd, signal_min_rrd);
+    __ProxyDynamicTrackable(signal_min_rrd, msig_rrd, signal_min_rrd, signal_min_rrd_id);
 
-    shared_ptr<kis_tracked_location_triplet> get_peak_loc() { return peak_loc; }
+    __ProxyDynamicTrackable(peak_loc, kis_tracked_location_triplet, 
+            peak_loc, peak_loc_id);
 
 protected:
     virtual void register_fields() {
@@ -1335,13 +1320,6 @@ protected:
 
             signal_min_rrd.reset(new kis_tracked_minute_rrd<kis_tracked_rrd_peak_signal_aggregator>(globalreg, signal_min_rrd_id, e->get_map_value(signal_min_rrd_id)));
         } 
-
-        /* else {
-            peak_loc.reset(new kis_tracked_location_triplet(globalreg, peak_loc_id));
-
-            signal_min_rrd.reset(new kis_tracked_minute_rrd<kis_tracked_rrd_peak_signal_aggregator>(globalreg, signal_min_rrd_id));
-        }
-        */
 
         // We MUST add using our known ID because we might be adding null pointers here
         add_map(peak_loc_id, peak_loc);
