@@ -54,15 +54,13 @@
 void dot11_tracked_eapol::register_fields() {
     tracker_component::register_fields();
 
-    eapol_version_id = 
-        RegisterField("dot11.eapol.version", TrackerUInt8, 
-                "EAPOL version", &eapol_version);
-    eapol_key_info_id =
-        RegisterField("dot11.eapol.key_info", TrackerUInt16,
-                "EAPOL key info", &eapol_key_info);
-    eapol_key_number_id =
-        RegisterField("dot11.eapol.key_number", TrackerUInt8,
-                "EAPOL frame number", &eapol_key_number);
+    eapol_time_id = 
+        RegisterField("dot11.eapol.timestamp", TrackerUInt64, 
+                "packet timestamp (second)", &eapol_time);
+    
+    eapol_dir_id =
+        RegisterField("dot11.eapol.direction", TrackerUInt8,
+                "packet direction (fromds/tods)", &eapol_dir);
 
     __RegisterComplexField(kis_tracked_packet, eapol_packet_id,
             "dot11.eapol.packet", "EAPOL handshake");
@@ -1072,6 +1070,11 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 
         HandleClient(basedev, dot11dev, in_pack, dot11info,
                 pack_gpsinfo, pack_datainfo);
+    }
+
+    // Look for WPA handshakes
+    if (dot11info->type == packet_data) {
+        PacketDot11EapolHandshake(in_pack);
     }
 
 	if (dot11info->type == packet_data &&

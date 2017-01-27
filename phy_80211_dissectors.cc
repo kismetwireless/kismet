@@ -1841,7 +1841,7 @@ int Kis_80211_Phy::PacketDot11WPSM3(kis_packet *in_pack) {
     uint8_t wfa_msg[] = { 0x10, 0x22 };
     uint8_t wfa_m3 = 0x07;
 
-    if (pos + sizeof(eapol_llc) >= chunk->length)
+    if (pos + sizeof(eapol_llc) + sizeof(dot1x_v1_hdr) >= chunk->length)
         return 0;
 
     if (memcmp(&(chunk->data[pos]), eapol_llc, sizeof(eapol_llc)))
@@ -1850,9 +1850,6 @@ int Kis_80211_Phy::PacketDot11WPSM3(kis_packet *in_pack) {
     // printf("debug - potential eapol frame, matched llc\n");
 
     pos += sizeof(eapol_llc);
-
-    if (pos + sizeof(dot1x_v1_hdr) >= chunk->length)
-        return 0;
 
     if (memcmp(&(chunk->data[pos]), dot1x_v1_hdr, sizeof(dot1x_v1_hdr)))
         return 0;
@@ -1930,6 +1927,118 @@ int Kis_80211_Phy::PacketDot11WPSM3(kis_packet *in_pack) {
 
 
     return 0;
+}
+
+shared_ptr<dot11_tracked_eapol> 
+    Kis_80211_Phy::PacketDot11EapolHandshake(kis_packet *in_pack) {
+    if (in_pack->error)
+        return NULL;
+
+    // Grab the 80211 info, compare, bail
+    dot11_packinfo *packinfo;
+    if ((packinfo = 
+         (dot11_packinfo *) in_pack->fetch(_PCM(PACK_COMP_80211))) == NULL)
+        return NULL;
+
+    if (packinfo->corrupt)
+        return NULL;
+
+    if (packinfo->type != packet_data || 
+        (packinfo->subtype != packet_sub_data &&
+         packinfo->subtype != packet_sub_data_qos_data))
+        return NULL;
+
+    // If it's encrypted it's not eapol
+    if (packinfo->cryptset)
+        return 0;
+
+    // Grab the 80211 frame, if that doesn't exist, grab the link frame
+    kis_datachunk *chunk = 
+        (kis_datachunk *) in_pack->fetch(pack_comp_decap);
+
+    if (chunk == NULL) {
+        if ((chunk = 
+             (kis_datachunk *) in_pack->fetch(pack_comp_linkframe)) == NULL) {
+            return NULL;
+        }
+    }
+
+    // If we don't have a dot11 frame, throw it away
+    if (chunk->dlt != KDLT_IEEE802_11)
+        return NULL;
+
+    if (packinfo->header_offset >= chunk->length)
+        return NULL;
+
+    unsigned int pos = packinfo->header_offset;
+
+    uint8_t eapol_llc[] = { 0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00, 0x88, 0x8e };
+    uint8_t dot1x_v1_key_hdr[] = { 0x01, 0x03 };
+
+    // Sum up the size of the offset + llc header + key header + length(2) + 
+    //    type(1) + keyinfo(2)
+    if (pos + sizeof(eapol_llc) + sizeof(dot1x_v1_key_hdr) + 2 + 1 + 2 >= chunk->length)
+        return NULL;
+
+    if (memcmp(&(chunk->data[pos]), eapol_llc, sizeof(eapol_llc)))
+        return NULL;
+
+    // printf("debug - potential eapol frame, matched llc\n");
+
+    pos += sizeof(eapol_llc);
+
+    if (pos + sizeof(dot1x_v1_key_hdr) >= chunk->length)
+        return 0;
+
+    if (memcmp(&(chunk->data[pos]), dot1x_v1_key_hdr, sizeof(dot1x_v1_key_hdr)))
+        return 0;
+
+    // We've validated length already
+    pos += sizeof(dot1x_v1_key_hdr);
+
+    uint16_t keylen;
+    memcpy(&keylen, &(chunk->data[pos]), 2);
+    keylen = kis_ntoh16(keylen);
+
+    // Is the keylen too big for this frame?
+    if (packinfo->header_offset + sizeof(eapol_llc) + 4 + keylen > chunk->length) {
+        return NULL;
+    }
+
+    // Get the descriptor type, we've validated length already
+    pos += 2;
+
+    // Not an EAPOL WPA key
+    if (chunk->data[pos] != 0xFE) {
+        return NULL;
+    }
+
+    // Regardless of the length of the key we know we're good up through the
+    // key information block
+    pos++;
+
+    uint16_t info;
+    memcpy(&info, &(chunk->data[pos]), 2);
+    info = kis_ntoh16(info);
+
+    fprintf(stderr, "debug - wpa keylen %u info %x\n", keylen, info);
+
+    if ((info & 0x60) == 0x40) {
+        fprintf(stderr, "key 1\n");
+    } else if ((info & 0x60) == 0x00) {
+        fprintf(stderr, "key 2\n");
+    } else if ((info & 0x60) == 0x60)
+        fprintf(stderr, "key 3\n");
+
+    if (info & 0x20) {
+        fprintf(stderr, "debug - install bit\n");
+    }
+
+    if (info & 0x40) {
+        fprintf(stderr, "debug - ack set\n");
+    }
+
+    return NULL;
 }
 
 

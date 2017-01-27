@@ -147,9 +147,6 @@ public:
         wps_device_name = "";
         wps_model_name = "";
         wps_model_number = "";
-        wpa_eapol = false;
-        wpa_eapol_info = 0;
-        wpa_eapol_key_number = 0;
     }
 
     // Corrupt 802.11 frame
@@ -229,11 +226,6 @@ public:
     string wps_model_number;
     // There's also the serial number field but we don't care
     // about it because it's almost always bogus.
-   
-    // wpa handshake
-    bool wpa_eapol;
-    uint16_t wpa_eapol_info;
-    int wpa_eapol_key_number;
 };
 
 class dot11_tracked_eapol : public tracker_component {
@@ -254,22 +246,19 @@ public:
         return SharedTrackerElement(new dot11_tracked_eapol(globalreg, get_id()));
     }
 
-    __Proxy(eapol_version, uint8_t, uint8_t, uint8_t, eapol_version);
-    __Proxy(eapol_key_info, uint16_t, uint16_t, uint16_t, eapol_key_info);
-    __Proxy(eapol_key_number, uint8_t, uint8_t, uint8_t, eapol_key_number);
+    __Proxy(eapol_time, uint64_t, time_t, time_t, eapol_time);
+    __Proxy(eapol_dir, uint8_t, uint8_t, uint8_t, eapol_dir);
+
     __ProxyTrackable(eapol_packet, kis_tracked_packet, eapol_packet);
 
 protected:
     virtual void register_fields();
 
-    int eapol_version_id;
-    SharedTrackerElement eapol_version;
+    int eapol_time_id;
+    SharedTrackerElement eapol_time;
 
-    int eapol_key_info_id;
-    SharedTrackerElement eapol_key_info;
-
-    int eapol_key_number_id;
-    SharedTrackerElement eapol_key_number;
+    int eapol_dir_id;
+    SharedTrackerElement eapol_dir;
 
     int eapol_packet_id;
     shared_ptr<kis_tracked_packet> eapol_packet;
@@ -1046,11 +1035,18 @@ protected:
                     &last_beacon_timestamp);
 
         wps_m3_count_id =
-            RegisterField("dot11.client.wps_m3_count", TrackerUInt64,
+            RegisterField("dot11.device.wps_m3_count", TrackerUInt64,
                     "WPS M3 message count", &wps_m3_count);
         wps_m3_last_id =
-            RegisterField("dot11.client.wps_m3_last", TrackerUInt64,
+            RegisterField("dot11.device.wps_m3_last", TrackerUInt64,
                     "WPS M3 last message", &wps_m3_last);
+
+        wpa_key_vec_id =
+            RegisterField("dot11.device.wpa_handshake_list", TrackerVector,
+                    "WPA handshakes", &wpa_key_vec);
+
+        __RegisterComplexField(dot11_tracked_eapol, wpa_key_entry_id, 
+                "dot11.eapol.key", "WPA handshake key");
     }
 
     int type_set_id;
@@ -1121,6 +1117,10 @@ protected:
     int wps_m3_last_id;
     SharedTrackerElement wps_m3_last;
 
+    int wpa_key_vec_id;
+    SharedTrackerElement wpa_key_vec;
+    int wpa_key_entry_id;
+
 };
 
 class dot11_ssid_alert {
@@ -1176,6 +1176,9 @@ public:
 	
 	// Is packet a WPS M3 message?  Used to detect Reaver, etc
 	int PacketDot11WPSM3(kis_packet *in_pack);
+
+    // Is the packet a WPA handshake?  Return an eapol tracker element if so
+    shared_ptr<dot11_tracked_eapol> PacketDot11EapolHandshake(kis_packet *in_pack);
 
 	// static incase some other component wants to use it
 	static kis_datachunk *DecryptWEP(dot11_packinfo *in_packinfo,
