@@ -69,6 +69,11 @@ void JsonAdapter::Pack(GlobalRegistry *globalreg, std::stringstream &stream,
 
     string tname;
 
+    shared_ptr<uint8_t> bytes;
+
+    size_t sz;
+    ios::fmtflags fflags;
+
     switch (e->get_type()) {
         case TrackerString:
             stream << "\"" << SanitizeString(GetTrackerValue<string>(e)) << "\"";
@@ -199,6 +204,23 @@ void JsonAdapter::Pack(GlobalRegistry *globalreg, std::stringstream &stream,
             }
             stream << "}";
             break;
+        case TrackerByteArray:
+            bytes = e->get_bytearray();
+            sz = e->get_bytearray_size();
+           
+            fflags = stream.flags();
+
+            stream << "\"";
+            for (size_t szx = 0; szx < sz; szx++) {
+                stream << std::uppercase << std::setfill('0') << std::setw(2) 
+                    << std::hex << (int) (bytes.get()[szx] & 0xFF);
+            }
+            stream << "\"";
+            stream.flags(fflags);
+
+            break;
+
+
         default:
             break;
     }
