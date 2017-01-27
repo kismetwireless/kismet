@@ -148,13 +148,13 @@ class KismetConnector:
                 return None
             urlbin = r.content
         except Exception as e:
-            print "Failed to get status object: ", e
+            print "Failed to get object: ", e
             return None
 
         try:
             obj = msgpack.unpackb(urlbin)
         except Exception as e:
-            print "Failed to unpack status object: ", e
+            print "Failed to unpack object: ", e
             return None
 
         return obj
