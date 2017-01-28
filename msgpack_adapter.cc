@@ -67,6 +67,9 @@ void MsgpackAdapter::Packer(GlobalRegistry *globalreg, SharedTrackerElement v,
 
     mac_addr mac;
 
+    shared_ptr<uint8_t> bytes;
+    size_t sz;
+
     switch (v->get_type()) {
         case TrackerString:
             o.pack(GetTrackerValue<string>(v));
@@ -169,6 +172,14 @@ void MsgpackAdapter::Packer(GlobalRegistry *globalreg, SharedTrackerElement v,
                 o.pack(double_map_iter->first);
                 Packer(globalreg, double_map_iter->second, o);
             }
+            break;
+        case TrackerByteArray:
+            bytes = v->get_bytearray();
+            sz = v->get_bytearray_size();
+
+            o.pack_bin(sz);
+            o.pack_bin_body((const char *) bytes.get(), sz);
+
             break;
 
         default:
