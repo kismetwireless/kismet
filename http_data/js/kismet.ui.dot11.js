@@ -279,7 +279,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                         var warning = "";
                         if ((pnums & 0x06) != 0x06 &&
                             (pnums & 0x0C) != 0x0C) {
-                            warning = '<br><i style="color: red;">Insufficient handshake packets collected for cracking attempt.</i>'; 
+                            warning = '<br><i style="color: red;">While handshake packets have been seen, no complete handshakes collected.</i>'; 
                         }
 
                         var mac = opts['data'].kismet_device_base_macaddr.split("/")[0];
