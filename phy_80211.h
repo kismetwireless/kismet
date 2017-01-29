@@ -951,185 +951,137 @@ public:
         return static_pointer_cast<dot11_tracked_eapol>(tracker->GetTrackedInstance(wpa_key_entry_id));
     }
 
+    __Proxy(wpa_present_handshake, uint8_t, uint8_t, uint8_t, wpa_present_handshake);
+
 protected:
     virtual void register_fields() {
-        type_set_id =
-            RegisterField("dot11.device.typeset", TrackerUInt64,
-                    "bitset of device type", &type_set);
+        RegisterField("dot11.device.typeset", TrackerUInt64,
+                "bitset of device type", &type_set);
 
-        client_map_id =
-            RegisterField("dot11.device.client_map", TrackerMacMap,
-                    "client behavior", &client_map);
+        RegisterField("dot11.device.client_map", TrackerMacMap,
+                "client behavior", &client_map);
 
         shared_ptr<dot11_client> client_builder(new dot11_client(globalreg, 0));
         client_map_entry_id =
             RegisterComplexField("dot11.device.client", client_builder, "client record");
 
-        advertised_ssid_map_id =
-            RegisterField("dot11.device.advertised_ssid_map", TrackerIntMap,
-                    "advertised SSIDs", &advertised_ssid_map);
+        RegisterField("dot11.device.advertised_ssid_map", TrackerIntMap,
+                "advertised SSIDs", &advertised_ssid_map);
 
         shared_ptr<dot11_advertised_ssid> adv_ssid_builder(new dot11_advertised_ssid(globalreg, 0));
         advertised_ssid_map_entry_id =
             RegisterComplexField("dot11.device.advertised_ssid",
                     adv_ssid_builder, "advertised ssid");
 
-        probed_ssid_map_id =
-            RegisterField("dot11.device.probed_ssid_map", TrackerIntMap,
-                    "probed SSIDs", &probed_ssid_map);
+        RegisterField("dot11.device.probed_ssid_map", TrackerIntMap,
+                "probed SSIDs", &probed_ssid_map);
 
         shared_ptr<dot11_probed_ssid> probe_ssid_builder(new dot11_probed_ssid(globalreg, 0));
         probed_ssid_map_entry_id =
             RegisterComplexField("dot11.device.probed_ssid",
                     probe_ssid_builder, "probed ssid");
 
-        associated_client_map_id =
-            RegisterField("dot11.device.associated_client_map", TrackerMacMap,
-                    "associated clients", &associated_client_map);
+        RegisterField("dot11.device.associated_client_map", TrackerMacMap,
+                "associated clients", &associated_client_map);
+
         // Key of associated device, indexed by mac address
         associated_client_map_entry_id =
             RegisterField("dot11.device.associated_client", TrackerUInt64,
                     "associated client");
 
-        client_disconnects_id =
-            RegisterField("dot11.device.client_disconnects", TrackerUInt64,
-                    "client disconnects in last second", 
-                    &client_disconnects);
+        RegisterField("dot11.device.client_disconnects", TrackerUInt64,
+                "client disconnects in last second", 
+                &client_disconnects);
 
-        last_sequence_id =
-            RegisterField("dot11.device.last_sequence", TrackerUInt64,
-                    "last sequence number", &last_sequence);
-        bss_timestamp_id =
-            RegisterField("dot11.device.bss_timestamp", TrackerUInt64,
-                    "last BSS timestamp", &bss_timestamp);
+        RegisterField("dot11.device.last_sequence", TrackerUInt64,
+                "last sequence number", &last_sequence);
 
-        num_fragments_id =
-            RegisterField("dot11.device.num_fragments", TrackerUInt64,
-                    "number of fragmented packets", &num_fragments);
-        num_retries_id =
-            RegisterField("dot11.device.num_retries", TrackerUInt64,
-                    "number of retried packets", &num_retries);
+        RegisterField("dot11.device.bss_timestamp", TrackerUInt64,
+                "last BSS timestamp", &bss_timestamp);
 
-        datasize_id =
-            RegisterField("dot11.device.datasize", TrackerUInt64,
-                    "data in bytes", &datasize);
+        RegisterField("dot11.device.num_fragments", TrackerUInt64,
+                "number of fragmented packets", &num_fragments);
+        RegisterField("dot11.device.num_retries", TrackerUInt64,
+                "number of retried packets", &num_retries);
 
-        datasize_retry_id =
-            RegisterField("dot11.device.datasize_retry", TrackerUInt64,
-                    "retried data in bytes", &datasize_retry);
+        RegisterField("dot11.device.datasize", TrackerUInt64,
+                "data in bytes", &datasize);
 
-        last_probed_ssid_id =
-            RegisterField("dot11.device.last_probed_ssid", TrackerString,
-                    "last probed ssid", &last_probed_ssid);
+        RegisterField("dot11.device.datasize_retry", TrackerUInt64,
+                "retried data in bytes", &datasize_retry);
 
-        last_probed_ssid_csum_id =
-            RegisterField("dot11.device.last_probed_ssid_csum", TrackerUInt32,
-                    "last probed ssid checksum", &last_probed_ssid_csum);
+        RegisterField("dot11.device.last_probed_ssid", TrackerString,
+                "last probed ssid", &last_probed_ssid);
 
-        last_beaconed_ssid_id =
-            RegisterField("dot11.device.last_beaconed_ssid", TrackerString,
-                    "last beaconed ssid", &last_beaconed_ssid);
+        RegisterField("dot11.device.last_probed_ssid_csum", TrackerUInt32,
+                "last probed ssid checksum", &last_probed_ssid_csum);
 
-        last_beaconed_ssid_csum_id =
-            RegisterField("dot11.device.last_beaconed_ssid_checksum", TrackerUInt32,
-                    "last beaconed ssid checksum", &last_beaconed_ssid_csum);
+        RegisterField("dot11.device.last_beaconed_ssid", TrackerString,
+                "last beaconed ssid", &last_beaconed_ssid);
 
-        last_bssid_id =
-            RegisterField("dot11.device.last_bssid", TrackerMac,
-                    "last BSSID", &last_bssid);
+        RegisterField("dot11.device.last_beaconed_ssid_checksum", TrackerUInt32,
+                "last beaconed ssid checksum", &last_beaconed_ssid_csum);
 
-        last_beacon_timestamp_id =
-            RegisterField("dot11.device.last_beacon_timestamp", TrackerUInt64,
-                    "unix timestamp of last beacon frame", 
-                    &last_beacon_timestamp);
+        RegisterField("dot11.device.last_bssid", TrackerMac,
+                "last BSSID", &last_bssid);
 
-        wps_m3_count_id =
-            RegisterField("dot11.device.wps_m3_count", TrackerUInt64,
-                    "WPS M3 message count", &wps_m3_count);
-        wps_m3_last_id =
-            RegisterField("dot11.device.wps_m3_last", TrackerUInt64,
-                    "WPS M3 last message", &wps_m3_last);
+        RegisterField("dot11.device.last_beacon_timestamp", TrackerUInt64,
+                "unix timestamp of last beacon frame", 
+                &last_beacon_timestamp);
 
-        wpa_key_vec_id =
-            RegisterField("dot11.device.wpa_handshake_list", TrackerVector,
-                    "WPA handshakes", &wpa_key_vec);
+        RegisterField("dot11.device.wps_m3_count", TrackerUInt64,
+                "WPS M3 message count", &wps_m3_count);
+        RegisterField("dot11.device.wps_m3_last", TrackerUInt64,
+                "WPS M3 last message", &wps_m3_last);
+
+        RegisterField("dot11.device.wpa_handshake_list", TrackerVector,
+                "WPA handshakes", &wpa_key_vec);
 
         __RegisterComplexField(dot11_tracked_eapol, wpa_key_entry_id, 
                 "dot11.eapol.key", "WPA handshake key");
+
+        RegisterField("dot11.device.wpa_present_handshake", TrackerUInt8,
+                "handshake sequences seen (bitmask)", &wpa_present_handshake);
     }
 
-    int type_set_id;
     SharedTrackerElement type_set;
 
     // Records of this device behaving as a client
-    int client_map_id;
     SharedTrackerElement client_map;
     int client_map_entry_id;
 
     // Records of this device advertising SSIDs
-    int advertised_ssid_map_id;
     SharedTrackerElement advertised_ssid_map;
     int advertised_ssid_map_entry_id;
 
     // Records of this device probing for a network
-    int probed_ssid_map_id;
     SharedTrackerElement probed_ssid_map;
     int probed_ssid_map_entry_id;
 
     // Mac addresses of clients who have talked to this network
-    int associated_client_map_id;
     SharedTrackerElement associated_client_map;
     int associated_client_map_entry_id;
 
-    int client_disconnects_id;
     SharedTrackerElement client_disconnects;
-
-    int last_sequence_id;
     SharedTrackerElement last_sequence;
-
-    int bss_timestamp_id;
     SharedTrackerElement bss_timestamp;
-
-    int num_fragments_id;
     SharedTrackerElement num_fragments;
-
-    int num_retries_id;
     SharedTrackerElement num_retries;
-
-    int datasize_id;
     SharedTrackerElement datasize;
-
-    int datasize_retry_id;
     SharedTrackerElement datasize_retry;
-
-    int last_probed_ssid_id;
     SharedTrackerElement last_probed_ssid;
-
-    int last_probed_ssid_csum_id;
     SharedTrackerElement last_probed_ssid_csum;
-
-    int last_beaconed_ssid_id;
     SharedTrackerElement last_beaconed_ssid;
-
-    int last_beaconed_ssid_csum_id;
     SharedTrackerElement last_beaconed_ssid_csum;
-
-    int last_bssid_id;
     SharedTrackerElement last_bssid;
-
-    int last_beacon_timestamp_id;
     SharedTrackerElement last_beacon_timestamp;
-
-    int wps_m3_count_id;
     SharedTrackerElement wps_m3_count;
-
-    int wps_m3_last_id;
     SharedTrackerElement wps_m3_last;
 
-    int wpa_key_vec_id;
     SharedTrackerElement wpa_key_vec;
     int wpa_key_entry_id;
 
+    SharedTrackerElement wpa_present_handshake;
 };
 
 class dot11_ssid_alert {

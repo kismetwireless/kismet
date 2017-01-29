@@ -1121,6 +1121,18 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
                     }
 
                     vec.push_back(eapol);
+
+                    // Calculate the key mask of seen handshake keys
+                    uint8_t keymask = 0;
+                    for (TrackerElementVector::iterator kvi = vec.begin(); 
+                            kvi != vec.end(); ++kvi) {
+                        shared_ptr<dot11_tracked_eapol> ke =
+                            static_pointer_cast<dot11_tracked_eapol>(*kvi);
+
+                        keymask |= (1 << ke->get_eapol_msg_num());
+                    }
+
+                    eapoldot11->set_wpa_present_handshake(keymask);
                 }
             }
         }
