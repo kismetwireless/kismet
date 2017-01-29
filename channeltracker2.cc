@@ -87,10 +87,12 @@ bool Channeltracker_V2::Httpd_VerifyPath(const char *path, const char *method) {
     if (strcmp(method, "GET") != 0)
         return false;
 
-    if (strcmp(path, "/channels/channels.msgpack") == 0)
-        return true;
+    if (!Httpd_CanSerialize(path))
+        return false;
 
-    if (strcmp(path, "/channels/channels.json") == 0)
+    string stripped = Httpd_StripSuffix(path);
+
+    if (stripped == "/channels/channels")
         return true;
 
     return false;
@@ -110,17 +112,13 @@ void Channeltracker_V2::Httpd_CreateStreamResponse(
         return;
     }
 
-    if (strcmp(path, "/channels/channels.msgpack") == 0) {
-        MsgpackAdapter::Pack(globalreg, stream, 
-            static_pointer_cast<Channeltracker_V2>(globalreg->FetchGlobal("CHANNEL_TRACKER")));
-        return;
+    string stripped = Httpd_StripSuffix(path);
+
+    if (stripped == "/channels/channels") {
+        Httpd_Serialize(path, stream,
+                static_pointer_cast<Channeltracker_V2>(globalreg->FetchGlobal("CHANNEL_TRACKER")));
     }
 
-    if (strcmp(path, "/channels/channels.json") == 0) {
-        JsonAdapter::Pack(globalreg, stream,
-            static_pointer_cast<Channeltracker_V2>(globalreg->FetchGlobal("CHANNEL_TRACKER")));
-        return;
-    }
 }
 
 class channeltracker_v2_device_worker : public DevicetrackerFilterWorker {

@@ -107,6 +107,9 @@
 
 #include "entrytracker.h"
 
+#include "msgpack_adapter.h"
+#include "json_adapter.h"
+
 #ifndef exec_name
 char *exec_name;
 #endif
@@ -882,8 +885,19 @@ int main(int argc, char *argv[], char *envp[]) {
     if (globalregistry->fatal_condition)
         CatchShutdown(-1);
 
-    // Allocate some other critical stuff
-    EntryTracker::create_entrytracker(globalregistry);
+    // Allocate some other critical stuff like the entry tracker and the
+    // serializers
+    shared_ptr<EntryTracker> entrytracker =
+        EntryTracker::create_entrytracker(globalregistry);
+
+    // Base serializers
+    entrytracker->RegisterSerializer("msgpack", shared_ptr<TrackerElementSerializer>(new MsgpackAdapter::Serializer(globalregistry)));
+    entrytracker->RegisterSerializer("json", shared_ptr<TrackerElementSerializer>(new JsonAdapter::Serializer(globalregistry)));
+
+    // cmd is msgpack, jcmd is json (for now?)
+    entrytracker->RegisterSerializer("cmd", shared_ptr<TrackerElementSerializer>(new MsgpackAdapter::Serializer(globalregistry)));
+    entrytracker->RegisterSerializer("jcmd", shared_ptr<TrackerElementSerializer>(new JsonAdapter::Serializer(globalregistry)));
+
 
     if (daemonize) {
         if (fork() != 0) {

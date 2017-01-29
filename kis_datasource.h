@@ -98,7 +98,14 @@ public:
     //  - Lightweight (for low-bandwidth 'whole device record' style capture
     //  sources, which may implement a REST interface rather than a complete
     //  IPC channel)
-    virtual shared_ptr<KisDataSource> create_source() { return NULL; };
+    virtual shared_ptr<KisDataSource> create_ipc_source() { return NULL; };
+    virtual shared_ptr<KisDataSource> create_net_source() { return NULL; };
+    virtual shared_ptr<KisDataSource> create_lightweight_source() { return NULL; }
+
+protected:
+    int source_type_id;
+    SharedTrackerElement source_type;
+
 };
 
 

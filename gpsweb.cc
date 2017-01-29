@@ -20,6 +20,7 @@
 #include "gpsweb.h"
 #include "gps_manager.h"
 #include "messagebus.h"
+#include "msgpack_adapter.h"
 
 // Don't bind to the http server until we're created, so pass a null to
 // the stream_handler init

@@ -384,20 +384,16 @@ bool Alertracker::Httpd_VerifyPath(const char *path, const char *method) {
         return false;
 
     if (tokenurl[1] == "alerts") {
-        if (tokenurl[2] == "all_alerts.msgpack") {
-            return true;
-        } else if (tokenurl[2] == "all_alerts.json") {
+        if (Httpd_CanSerialize(tokenurl[2])) {
             return true;
         } else if (tokenurl[2] == "last-time") {
             if (tokenurl.size() < 5)
                 return false;
 
-            if (tokenurl[4] == "alerts.msgpack")
+            if (Httpd_CanSerialize(tokenurl[4]))
                 return true;
-            else if (tokenurl[4] == "alerts.json")
-                return true;
-            else
-                return false;
+
+            return false;
         }
     }
 
@@ -410,7 +406,6 @@ void Alertracker::Httpd_CreateStreamResponse(
         const char *path, const char *method, const char *upload_data,
         size_t *upload_data_size, std::stringstream &stream) {
 
-    TrackerElementSerializer *serializer = NULL;
     time_t since_time = 0;
     bool wrap = false;
 
@@ -418,19 +413,16 @@ void Alertracker::Httpd_CreateStreamResponse(
         return;
     }
 
+    if (!Httpd_CanSerialize(path))
+        return;
+
     // Split URL and process
     vector<string> tokenurl = StrTokenize(path, "/");
     if (tokenurl.size() < 3)
         return;
 
     if (tokenurl[1] == "alerts") {
-        if (tokenurl[2] == "all_alerts.msgpack") {
-            serializer =
-                new MsgpackAdapter::Serializer(globalreg, stream);
-        } else if (tokenurl[2] == "all_alerts.json") {
-            serializer =
-                new JsonAdapter::Serializer(globalreg, stream);
-        } else if (tokenurl[2] == "last-time") {
+        if (tokenurl[2] == "last-time") {
             if (tokenurl.size() < 5)
                 return;
 
@@ -441,21 +433,8 @@ void Alertracker::Httpd_CreateStreamResponse(
             wrap = true;
 
             since_time = lastts;
-
-            if (tokenurl[4] == "alerts.msgpack") {
-                serializer =
-                    new MsgpackAdapter::Serializer(globalreg, stream);
-            } else if (tokenurl[4] == "alerts.json") {
-                serializer =
-                    new JsonAdapter::Serializer(globalreg, stream);
-            } else {
-                return;
-            }
         }
     }
-
-    if (serializer == NULL)
-        return;
 
     {
         local_locker lock(&alert_mutex);
@@ -484,9 +463,7 @@ void Alertracker::Httpd_CreateStreamResponse(
             }
         }
 
-        serializer->serialize(wrapper);
-
-        delete(serializer);
+        Httpd_Serialize(path, stream, wrapper);
     }
 }
 

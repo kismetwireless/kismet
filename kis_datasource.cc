@@ -22,6 +22,7 @@
 #include "simple_datasource_proto.h"
 #include "endian_magic.h"
 #include "configfile.h"
+#include "msgpack_adapter.h"
 
 #ifdef HAVE_LIBPCRE
 #include <pcre.h>

@@ -84,6 +84,12 @@ public:
     shared_ptr<TrackerElement> GetTrackedInstance(string in_name);
     shared_ptr<TrackerElement> GetTrackedInstance(int in_id);
 
+    // Register a serializer for auto-serialization based on type
+    void RegisterSerializer(string type, shared_ptr<TrackerElementSerializer> in_ser);
+    void RemoveSerializer(string type);
+    bool CanSerialize(string type);
+    bool Serialize(string type, std::stringstream &stream, SharedTrackerElement elem);
+
     // HTTP api
     virtual bool Httpd_VerifyPath(const char *path, const char *method);
 
@@ -119,6 +125,9 @@ protected:
 
     map<int, shared_ptr<reserved_field> > field_id_map;
     typedef map<int, shared_ptr<reserved_field> >::iterator id_itr;
+
+    map<string, shared_ptr<TrackerElementSerializer> > serializer_map;
+    typedef map<string, shared_ptr<TrackerElementSerializer> >::iterator serial_itr;
 
 };
 

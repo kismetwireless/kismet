@@ -22,6 +22,7 @@
 #include "util.h"
 
 #include "entrytracker.h"
+#include "messagebus.h"
 
 EntryTracker::EntryTracker(GlobalRegistry *in_globalreg) :
     Kis_Net_Httpd_Stream_Handler(in_globalreg) {
@@ -279,4 +280,57 @@ void EntryTracker::Httpd_CreateStreamResponse(
     }
 
 }
+
+void EntryTracker::RegisterSerializer(string in_name, 
+        shared_ptr<TrackerElementSerializer> in_ser) {
+    local_locker lock(&entry_mutex);
+    
+    string mod_type = StrLower(in_name);
+
+    if (serializer_map.find(mod_type) != serializer_map.end()) {
+        _MSG("Attempt to register two serializers for type " + in_name,
+                MSGFLAG_ERROR);
+        return;
+    }
+
+    serializer_map[mod_type] = in_ser;
+}
+
+void EntryTracker::RemoveSerializer(string in_name) {
+    local_locker lock(&entry_mutex);
+
+    string mod_type = StrLower(in_name);
+    serial_itr i = serializer_map.find(in_name);
+
+    if (i != serializer_map.end()) {
+        serializer_map.erase(i);
+    }
+}
+
+bool EntryTracker::CanSerialize(string in_name) {
+    local_locker lock(&entry_mutex);
+
+    string mod_type = StrLower(in_name);
+    serial_itr i = serializer_map.find(in_name);
+
+    if (i != serializer_map.end()) {
+        return true;
+    }
+
+    return false;
+}
+
+bool EntryTracker::Serialize(string in_name, std::stringstream &stream,
+        SharedTrackerElement e) {
+    local_locker lock(&entry_mutex);
+
+    serial_itr i = serializer_map.find(in_name);
+    if (i == serializer_map.end())
+        return false;
+
+    i->second->serialize(e, stream);
+
+    return true;
+}
+
 

@@ -814,20 +814,20 @@ public:
     // Generate a list of all phys, serialized appropriately.  If specified,
     // wrap it in a dictionary and name it with the key in in_wrapper, which
     // is required for some js libs like datatables.
-    void httpd_all_phys(TrackerElementSerializer *serializer,
+    void httpd_all_phys(string url, std::stringstream &stream, 
             string in_wrapper_key = "");
 
     // Generate a device summary, serialized.  Optionally provide an existing
     // vector to generate a summary of devices matching a given criteria via
     // a worker.  Also optionally, wrap the results in a dictionary named via
     // the in_wrapper key, which is required for some js libs like datatables
-    void httpd_device_summary(TrackerElementSerializer *serializer,
+    void httpd_device_summary(string url, std::stringstream &stream, 
             shared_ptr<TrackerElementVector> subvec, string in_wrapper_key = "");
 
     // Smarter HTTP summary of selected fields
-    void httpd_device_summary_smart(TrackerElementSerializer *serializer,
-            shared_ptr<TrackerElementVector> subvec, string in_wrapper_key,
-            vector<string> fields);
+    void httpd_device_summary_smart(string url, std::stringstream &stream,
+            shared_ptr<TrackerElementVector> subvec, 
+            string in_wrapper_key, vector<string> fields);
 
     // TODO merge this into a normal serializer call
     void httpd_xml_device_summary(std::stringstream &stream);

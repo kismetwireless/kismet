@@ -118,7 +118,6 @@ void RestMessageClient::Httpd_CreateStreamResponse(
         const char *path, const char *method, const char *upload_data,
         size_t *upload_data_size, std::stringstream &stream) {
 
-    TrackerElementSerializer *serializer = NULL;
     time_t since_time = 0;
     bool wrap = false;
 
@@ -126,20 +125,21 @@ void RestMessageClient::Httpd_CreateStreamResponse(
         return;
     }
 
+    // All paths end in final element
+    if (!Httpd_CanSerialize(path))
+        return;
+
     // Split URL and process
     vector<string> tokenurl = StrTokenize(path, "/");
     if (tokenurl.size() < 3)
         return;
 
     if (tokenurl[1] == "messagebus") {
-        if (tokenurl[2] == "all_messages.msgpack") {
-            serializer =
-                new MsgpackAdapter::Serializer(globalreg, stream);
-        } else if (tokenurl[2] == "all_messages.json") {
-            serializer =
-                new JsonAdapter::Serializer(globalreg, stream);
-        } else if (tokenurl[2] == "last-time") {
+        if (tokenurl[2] == "last-time") {
             if (tokenurl.size() < 5)
+                return;
+
+            if (!Httpd_CanSerialize(tokenurl[4]))
                 return;
 
             long lastts;
@@ -150,20 +150,10 @@ void RestMessageClient::Httpd_CreateStreamResponse(
 
             since_time = lastts;
 
-            if (tokenurl[4] == "messages.msgpack") {
-                serializer =
-                    new MsgpackAdapter::Serializer(globalreg, stream);
-            } else if (tokenurl[4] == "messages.json") {
-                serializer =
-                    new JsonAdapter::Serializer(globalreg, stream);
-            } else {
-                return;
-            }
+        } else if (Httpd_StripSuffix(tokenurl[2]) != "all_messages") {
+            return;
         }
     }
-
-    if (serializer == NULL)
-        return;
 
     {
         local_locker lock(&msg_mutex);
@@ -191,9 +181,7 @@ void RestMessageClient::Httpd_CreateStreamResponse(
             }
         }
 
-        serializer->serialize(wrapper);
-
-        delete(serializer);
+        Httpd_Serialize(path, stream, wrapper);
     }
 }
 

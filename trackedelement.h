@@ -1113,18 +1113,16 @@ protected:
 // Generic serializer class to allow easy swapping of serializers
 class TrackerElementSerializer {
 public:
-    TrackerElementSerializer(GlobalRegistry *in_globalreg,
-            std::stringstream &in_stream) : stream(in_stream) {
+    TrackerElementSerializer(GlobalRegistry *in_globalreg) {
         globalreg = in_globalreg;
     }
 
     virtual ~TrackerElementSerializer() { }
-
-    virtual void serialize(shared_ptr<TrackerElement> in_elem) = 0;
+    virtual void serialize(shared_ptr<TrackerElement> in_elem, 
+            std::stringstream &stream) = 0;
 
 protected:
     GlobalRegistry *globalreg;
-    std::stringstream &stream;
 };
 
 #endif

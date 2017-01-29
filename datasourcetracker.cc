@@ -21,6 +21,7 @@
 #include "datasourcetracker.h"
 #include "messagebus.h"
 #include "globalregistry.h"
+#include "msgpack_adapter.h"
 
 DST_DataSourcePrototype::DST_DataSourcePrototype(GlobalRegistry *in_globalreg) :
     tracker_component(in_globalreg, 0) {

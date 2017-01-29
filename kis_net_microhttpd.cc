@@ -41,6 +41,7 @@
 #include "configfile.h"
 #include "kis_net_microhttpd.h"
 #include "base64.h"
+#include "entrytracker.h"
 
 Kis_Net_Httpd::Kis_Net_Httpd(GlobalRegistry *in_globalreg) {
     globalreg = in_globalreg;
@@ -236,6 +237,24 @@ char *Kis_Net_Httpd::read_ssl_file(string in_fname) {
     buf[sz] = 0;
 
     return buf;
+}
+
+string Kis_Net_Httpd::GetSuffix(string url) {
+    size_t lastdot = url.find_last_of(".");
+
+    if (lastdot != string::npos)
+        return url.substr(lastdot + 1, url.length() - lastdot);
+
+    return "";
+}
+
+string Kis_Net_Httpd::StripSuffix(string url) {
+    size_t lastdot = url.find_last_of(".");
+
+    if (lastdot == std::string::npos)
+        lastdot = url.length();
+
+    return url.substr(0, lastdot);
 }
 
 void Kis_Net_Httpd::RegisterMimeType(string suffix, string mimetype) {
@@ -623,15 +642,11 @@ int Kis_Net_Httpd::handle_static_file(void *cls, struct MHD_Connection *connecti
                 strftime(lastmod, 31, "%a, %d %b %Y %H:%M:%S %Z", &tmstruct);
                 MHD_add_response_header(response, "Last-Modified", lastmod);
 
-                // Smarter way to do this in the future?  Probably.
-                vector<string> ext_comps = StrTokenize(url, ".");
-                if (ext_comps.size() >= 1) {
-                    string ext = StrLower(ext_comps[ext_comps.size() - 1]);
-                    string mime = kishttpd->GetMimeType(ext);
+                string suffix = GetSuffix(url);
+                string mime = kishttpd->GetMimeType(suffix);
 
-                    if (mime != "") {
-                        MHD_add_response_header(response, "Content-Type", mime.c_str());
-                    }
+                if (mime != "") {
+                    MHD_add_response_header(response, "Content-Type", mime.c_str());
                 }
 
                 // Never let the browser cache our responses.  Maybe moderate this
@@ -672,15 +687,11 @@ int Kis_Net_Httpd::SendHttpResponse(Kis_Net_Httpd *httpd,
     strftime(lastmod, 31, "%a, %d %b %Y %H:%M:%S %Z", &tmstruct);
     MHD_add_response_header(response, "Last-Modified", lastmod);
 
-    // Smarter way to do this in the future?  Probably.
-    vector<string> ext_comps = StrTokenize(url, ".");
-    if (ext_comps.size() >= 1) {
-        string ext = StrLower(ext_comps[ext_comps.size() - 1]);
+    string suffix = GetSuffix(url);
+    string mime = httpd->GetMimeType(suffix);
 
-        string mime = httpd->GetMimeType(ext);
-        if (mime != "") {
-            MHD_add_response_header(response, "Content-Type", mime.c_str());
-        }
+    if (mime != "") {
+        MHD_add_response_header(response, "Content-Type", mime.c_str());
     }
 
     int ret = MHD_queue_response(connection, httpcode, response);
@@ -695,6 +706,7 @@ Kis_Net_Httpd_Handler::Kis_Net_Httpd_Handler(GlobalRegistry *in_globalreg) {
     http_globalreg = in_globalreg;
 
     Bind_Httpd_Server(in_globalreg);
+
 }
 
 Kis_Net_Httpd_Handler::~Kis_Net_Httpd_Handler() {
@@ -707,11 +719,33 @@ Kis_Net_Httpd_Handler::~Kis_Net_Httpd_Handler() {
 
 void Kis_Net_Httpd_Handler::Bind_Httpd_Server(GlobalRegistry *in_globalreg) {
     if (in_globalreg != NULL) {
+        http_globalreg = in_globalreg;
+
         httpd = 
             static_pointer_cast<Kis_Net_Httpd>(in_globalreg->FetchGlobal("HTTPD_SERVER"));
         if (httpd != NULL)
             httpd->RegisterHandler(this);
+
+        entrytracker = 
+            static_pointer_cast<EntryTracker>(http_globalreg->FetchGlobal("ENTRY_TRACKER"));
     }
+}
+
+bool Kis_Net_Httpd_Handler::Httpd_CanSerialize(string path) {
+    return entrytracker->CanSerialize(httpd->GetSuffix(path));
+}
+
+string Kis_Net_Httpd_Handler::Httpd_GetSuffix(string path) {
+    return httpd->GetSuffix(path);
+}
+
+string Kis_Net_Httpd_Handler::Httpd_StripSuffix(string path) {
+    return httpd->StripSuffix(path);
+}
+
+bool Kis_Net_Httpd_Stream_Handler::Httpd_Serialize(string path, 
+        std::stringstream &stream, SharedTrackerElement e) {
+    return entrytracker->Serialize(httpd->GetSuffix(path), stream, e);
 }
 
 int Kis_Net_Httpd_Stream_Handler::Httpd_HandleRequest(Kis_Net_Httpd *httpd, 

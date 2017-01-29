@@ -30,7 +30,7 @@
 #include <microhttpd.h>
 
 #include "globalregistry.h"
-#include "msgpack_adapter.h"
+#include "trackedelement.h"
 
 #ifndef __KIS_NET_MICROHTTPD__
 #define __KIS_NET_MICROHTTPD__
@@ -38,6 +38,8 @@
 class Kis_Net_Httpd;
 class Kis_Net_Httpd_Session;
 class Kis_Net_Httpd_Connection;
+
+class EntryTracker;
 
 // Basic request handler from MHD
 class Kis_Net_Httpd_Handler {
@@ -57,6 +59,14 @@ public:
 
     // Can this handler process this request?
     virtual bool Httpd_VerifyPath(const char *path, const char *method) = 0;
+
+    // Shortcut to checking if the serializer can handle this, since most
+    // endpoints will be implementing serialization
+    virtual bool Httpd_CanSerialize(string path);
+
+    // Shortcuts for getting path info
+    virtual string Httpd_GetSuffix(string path);
+    virtual string Httpd_StripSuffix(string path);
 
     // Post handler.  By default does nothing and bails on the post data.
     // Override this to do useful post interpreting.  This implements parsing
@@ -89,7 +99,9 @@ public:
 
 protected:
     GlobalRegistry *http_globalreg;
+
     shared_ptr<Kis_Net_Httpd> httpd;
+    shared_ptr<EntryTracker> entrytracker;
 
 };
 
@@ -112,6 +124,11 @@ public:
             struct MHD_Connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size);
+
+    // Shortcuts to the entry tracker and serializer since most endpoints will
+    // need to serialize
+    virtual bool Httpd_Serialize(string path, std::stringstream &stream,
+            SharedTrackerElement e);
 };
 
 // Fallback handler to report that we can't serve static files
@@ -198,6 +215,9 @@ public:
 
     void RegisterHandler(Kis_Net_Httpd_Handler *in_handler);
     void RemoveHandler(Kis_Net_Httpd_Handler *in_handler);
+
+    static string GetSuffix(string url);
+    static string StripSuffix(string url);
 
     void RegisterMimeType(string suffix, string mimetype);
     string GetMimeType(string suffix);
