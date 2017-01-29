@@ -24,9 +24,16 @@ while 1:
     for d in devices['kismet.device.list']:
         if 'dot11.device' in d:
             if len(d['dot11.device']['dot11.device.wpa_handshake_list']):
-                print "MAC", d['kismet.device.base.macaddr'].split("/")[0],
+
+                print d['kismet.device.base.macaddr'].split("/")[0],
                 print d['dot11.device']['dot11.device.last_beaconed_ssid'],
-                print "{} handshake packets".format(len(d['dot11.device']['dot11.device.wpa_handshake_list']))
+                print "{} WPA EAPOL packets".format(len(d['dot11.device']['dot11.device.wpa_handshake_list'])),
+
+                if ((d['dot11.device']['dot11.device.wpa_present_handshake'] & 0x06) == 0x06 or
+                        (d['dot11.device']['dot11.device.wpa_present_handshake'] & 0x0C) == 0x0C):
+                    print "Complete"
+                else:
+                    print "Incomplete handshake"
 
     time.sleep(1)
     
