@@ -273,14 +273,10 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     id: "handshake_download",
                     title: "Handshake PCAP",
                     render: function(opts) {
-                        var pnums = 0;
-                        var hs = opts['data'].dot11_device.dot11_device_wpa_handshake_list;
+                        var pnums = opts['data'].dot11_device.dot11_device_wpa_present_handshake;
 
                         // We need packets 1&2 or 2&3 to be able to crack the handshake
                         var warning = "";
-                        for (var p in hs) {
-                            pnums += (1 << hs[p].dot11_eapol_message_num);
-                        }
                         if ((pnums & 0x06) != 0x06 &&
                             (pnums & 0x0C) != 0x0C) {
                             warning = '<br><i style="color: red;">Insufficient handshake packets collected for cracking attempt.</i>'; 
