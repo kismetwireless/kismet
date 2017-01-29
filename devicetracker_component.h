@@ -340,26 +340,20 @@ protected:
     virtual void register_fields() {
         tracker_component::register_fields();
 
-        last_time_id =
-            RegisterField("kismet.common.rrd.last_time", TrackerUInt64,
-                    "last time udpated", &last_time);
+        RegisterField("kismet.common.rrd.last_time", TrackerUInt64,
+                "last time udpated", &last_time);
 
-        minute_vec_id = 
-            RegisterField("kismet.common.rrd.minute_vec", TrackerVector,
-                    "past minute values per second", &minute_vec);
-        hour_vec_id = 
-            RegisterField("kismet.common.rrd.hour_vec", TrackerVector,
-                    "past hour values per minute", &hour_vec);
-        day_vec_id = 
-            RegisterField("kismet.common.rrd.day_vec", TrackerVector,
-                    "past day values per hour", &day_vec);
+        RegisterField("kismet.common.rrd.minute_vec", TrackerVector,
+                "past minute values per second", &minute_vec);
+        RegisterField("kismet.common.rrd.hour_vec", TrackerVector,
+                "past hour values per minute", &hour_vec);
+        RegisterField("kismet.common.rrd.day_vec", TrackerVector,
+                "past day values per hour", &day_vec);
 
-        blank_val_id =
-            RegisterField("kismet.common.rrd.blank_val", TrackerInt64,
-                    "blank value", &blank_val);
-        aggregator_name_id =
-            RegisterField("kismet.common.rrd.aggregator", TrackerString,
-                    "aggregator name", &aggregator_name);
+        RegisterField("kismet.common.rrd.blank_val", TrackerInt64,
+                "blank value", &blank_val);
+        RegisterField("kismet.common.rrd.aggregator", TrackerString,
+                "aggregator name", &aggregator_name);
 
         second_entry_id = 
             RegisterField("kismet.common.rrd.second", TrackerInt64, 
@@ -407,22 +401,11 @@ protected:
 
     }
 
-    int last_time_id;
     SharedTrackerElement last_time;
-
-    int minute_vec_id;
     SharedTrackerElement minute_vec;
-
-    int hour_vec_id;
     SharedTrackerElement hour_vec;
-
-    int day_vec_id;
     SharedTrackerElement day_vec;
-
-    int blank_val_id;
     SharedTrackerElement blank_val;
-
-    int aggregator_name_id;
     SharedTrackerElement aggregator_name;
 
     int second_entry_id;
@@ -541,24 +524,20 @@ protected:
     virtual void register_fields() {
         tracker_component::register_fields();
 
-        last_time_id =
-            RegisterField("kismet.common.rrd.last_time", TrackerUInt64,
-                    "last time udpated", &last_time);
+        RegisterField("kismet.common.rrd.last_time", TrackerUInt64,
+                "last time udpated", &last_time);
 
-        minute_vec_id = 
-            RegisterField("kismet.common.rrd.minute_vec", TrackerVector,
-                    "past minute values per second", &minute_vec);
+        RegisterField("kismet.common.rrd.minute_vec", TrackerVector,
+                "past minute values per second", &minute_vec);
 
         second_entry_id = 
             RegisterField("kismet.common.rrd.second", TrackerInt64, 
                     "second value", NULL);
 
-        blank_val_id =
-            RegisterField("kismet.common.rrd.blank_val", TrackerInt64,
-                    "blank value", &blank_val);
-        aggregator_name_id =
-            RegisterField("kismet.common.rrd.aggregator", TrackerString,
-                    "aggregator name", &aggregator_name);
+        RegisterField("kismet.common.rrd.blank_val", TrackerInt64,
+                "blank value", &blank_val);
+        RegisterField("kismet.common.rrd.aggregator", TrackerString,
+                "aggregator name", &aggregator_name);
     } 
 
     virtual void reserve_fields(SharedTrackerElement e) {
@@ -581,16 +560,9 @@ protected:
         (*aggregator_name).set(agg.name());
     }
 
-    int last_time_id;
     SharedTrackerElement last_time;
-
-    int minute_vec_id;
     SharedTrackerElement minute_vec;
-
-    int blank_val_id;
     SharedTrackerElement blank_val;
-
-    int aggregator_name_id;
     SharedTrackerElement aggregator_name;
 
     int second_entry_id;
@@ -742,21 +714,15 @@ protected:
     virtual void register_fields() {
         tracker_component::register_fields();
 
-        ip_type_id = 
-            RegisterField("kismet.common.ipdata.type", TrackerInt32, 
-                    "ipdata type enum", &ip_type);
-        ip_addr_block_id = 
-            RegisterField("kismet.common.ipdata.address", TrackerUInt64,
-                    "ip address", &ip_addr_block);
-        ip_netmask_id =
-            RegisterField("kismet.common.ipdata.netmask", TrackerUInt64,
-                    "ip netmask", &ip_netmask);
-        ip_gateway_id =
-            RegisterField("kismet.common.ipdata.gateway", TrackerUInt64,
-                    "ip gateway", &ip_gateway);
+        RegisterField("kismet.common.ipdata.type", TrackerInt32, 
+                "ipdata type enum", &ip_type);
+        RegisterField("kismet.common.ipdata.address", TrackerUInt64,
+                "ip address", &ip_addr_block);
+        RegisterField("kismet.common.ipdata.netmask", TrackerUInt64,
+                "ip netmask", &ip_netmask);
+        RegisterField("kismet.common.ipdata.gateway", TrackerUInt64,
+                "ip gateway", &ip_gateway);
     }
-
-    int ip_type_id, ip_addr_block_id, ip_netmask_id, ip_gateway_id;
 
     SharedTrackerElement ip_type;
     SharedTrackerElement ip_addr_block;
@@ -824,27 +790,19 @@ protected:
     virtual void register_fields() {
         tracker_component::register_fields();
 
-        lat_id = 
-            RegisterField("kismet.common.location.lat", TrackerDouble,
-                    "latitude", &lat);
-        lon_id = 
-            RegisterField("kismet.common.location.lon", TrackerDouble,
-                    "longitude", &lon);
-        alt_id =
-            RegisterField("kismet.common.location.alt", TrackerDouble,
-                    "altitude", &alt);
-        spd_id =
-            RegisterField("kismet.common.location.speed", TrackerDouble,
-                    "speed", &spd);
-        fix_id =
-            RegisterField("kismet.common.location.fix", TrackerUInt8,
-                    "gps fix", &fix);
-        valid_id =
-            RegisterField("kismet.common.location.valid", TrackerUInt8,
-                    "valid location", &valid);
+        RegisterField("kismet.common.location.lat", TrackerDouble,
+                "latitude", &lat);
+        RegisterField("kismet.common.location.lon", TrackerDouble,
+                "longitude", &lon);
+        RegisterField("kismet.common.location.alt", TrackerDouble,
+                "altitude", &alt);
+        RegisterField("kismet.common.location.speed", TrackerDouble,
+                "speed", &spd);
+        RegisterField("kismet.common.location.fix", TrackerUInt8,
+                "gps fix", &fix);
+        RegisterField("kismet.common.location.valid", TrackerUInt8,
+                "valid location", &valid);
     }
-
-    int lat_id, lon_id, alt_id, spd_id, fix_id, valid_id;
 
     SharedTrackerElement lat, lon, alt, spd, fix, valid;
 };
@@ -964,31 +922,34 @@ protected:
     virtual void register_fields() {
         tracker_component::register_fields();
 
-        loc_valid_id = RegisterField("kismet.common.location.loc_valid", TrackerUInt8,
+        RegisterField("kismet.common.location.loc_valid", TrackerUInt8,
                 "location data valid", &loc_valid);
 
-        loc_fix_id = RegisterField("kismet.common.location.loc_fix", TrackerUInt8,
+        RegisterField("kismet.common.location.loc_fix", TrackerUInt8,
                 "location fix precision (2d/3d)", &loc_fix);
 
         shared_ptr<kis_tracked_location_triplet> 
             loc_builder(new kis_tracked_location_triplet(globalreg, 0));
 
-        min_loc_id = RegisterComplexField("kismet.common.location.min_loc", loc_builder, 
-                "minimum corner of bounding rectangle");
-        max_loc_id = RegisterComplexField("kismet.common.location.max_loc", loc_builder,
-                "maximum corner of bounding rectangle");
-        avg_loc_id = RegisterComplexField("kismet.common.location.avg_loc", loc_builder,
-                "average corner of bounding rectangle");
+        min_loc_id = 
+            RegisterComplexField("kismet.common.location.min_loc", loc_builder, 
+                    "minimum corner of bounding rectangle");
+        max_loc_id = 
+            RegisterComplexField("kismet.common.location.max_loc", loc_builder,
+                    "maximum corner of bounding rectangle");
+        avg_loc_id = 
+            RegisterComplexField("kismet.common.location.avg_loc", loc_builder,
+                    "average corner of bounding rectangle");
 
-        avg_lat_id = RegisterField("kismet.common.location.avg_lat", TrackerInt64,
+        RegisterField("kismet.common.location.avg_lat", TrackerInt64,
                 "run-time average latitude", &avg_lat);
-        avg_lon_id = RegisterField("kismet.common.location.avg_lon", TrackerInt64,
+        RegisterField("kismet.common.location.avg_lon", TrackerInt64,
                 "run-time average longitude", &avg_lon);
-        avg_alt_id = RegisterField("kismet.common.location.avg_alt", TrackerInt64,
+        RegisterField("kismet.common.location.avg_alt", TrackerInt64,
                 "run-time average altitude", &avg_alt);
-        num_avg_id = RegisterField("kismet.common.location.avg_num", TrackerInt64,
+        RegisterField("kismet.common.location.avg_num", TrackerInt64,
                 "number of run-time average samples", &num_avg);
-        num_alt_avg_id = RegisterField("kismet.common.location.avg_alt_num", 
+        RegisterField("kismet.common.location.avg_alt_num", 
                 TrackerInt64,
                 "number of run-time average samples (altitude)", &num_alt_avg);
 
@@ -1002,36 +963,32 @@ protected:
 
         if (e != NULL) {
             min_loc.reset(new kis_tracked_location_triplet(globalreg, min_loc_id, e->get_map_value(min_loc_id)));
-            add_map(min_loc);
 
             max_loc.reset(new kis_tracked_location_triplet(globalreg, max_loc_id, e->get_map_value(max_loc_id)));
-            add_map(max_loc);
 
             avg_loc.reset(new kis_tracked_location_triplet(globalreg, avg_loc_id, e->get_map_value(avg_loc_id)));
-            add_map(avg_loc);
         } else {
             min_loc.reset(new kis_tracked_location_triplet(globalreg, min_loc_id));
-            add_map(min_loc);
 
             max_loc.reset(new kis_tracked_location_triplet(globalreg, max_loc_id));
-            add_map(max_loc);
 
             avg_loc.reset(new kis_tracked_location_triplet(globalreg, avg_loc_id));
-            add_map(avg_loc);
         }
+
+        add_map(avg_loc);
+        add_map(min_loc);
+        add_map(max_loc);
+
     }
 
     shared_ptr<kis_tracked_location_triplet> min_loc, max_loc, avg_loc;
     int min_loc_id, max_loc_id, avg_loc_id;
 
     SharedTrackerElement avg_lat, avg_lon, avg_alt, num_avg, num_alt_avg;
-    int avg_lat_id, avg_lon_id, avg_alt_id, num_avg_id, num_alt_avg_id;
 
     SharedTrackerElement loc_valid;
-    int loc_valid_id;
 
     SharedTrackerElement loc_fix;
-    int loc_fix_id;
 };
 
 // Component-tracker based signal data
@@ -1245,47 +1202,35 @@ protected:
     virtual void register_fields() {
         tracker_component::register_fields();
 
-        last_signal_dbm_id =
-            RegisterField("kismet.common.signal.last_signal_dbm", TrackerInt32,
-                    "most recent signal (dBm)", &last_signal_dbm);
-        last_noise_dbm_id =
-            RegisterField("kismet.common.signal.last_noise_dbm", TrackerInt32,
-                    "most recent noise (dBm)", &last_noise_dbm);
+        RegisterField("kismet.common.signal.last_signal_dbm", TrackerInt32,
+                "most recent signal (dBm)", &last_signal_dbm);
+        RegisterField("kismet.common.signal.last_noise_dbm", TrackerInt32,
+                "most recent noise (dBm)", &last_noise_dbm);
 
-        min_signal_dbm_id =
-            RegisterField("kismet.common.signal.min_signal_dbm", TrackerInt32,
-                    "minimum signal (dBm)", &min_signal_dbm);
-        min_noise_dbm_id =
-            RegisterField("kismet.common.signal.min_noise_dbm", TrackerInt32,
-                    "minimum noise (dBm)", &min_noise_dbm);
+        RegisterField("kismet.common.signal.min_signal_dbm", TrackerInt32,
+                "minimum signal (dBm)", &min_signal_dbm);
+        RegisterField("kismet.common.signal.min_noise_dbm", TrackerInt32,
+                "minimum noise (dBm)", &min_noise_dbm);
 
-        max_signal_dbm_id =
-            RegisterField("kismet.common.signal.max_signal_dbm", TrackerInt32,
-                    "maximum signal (dBm)", &max_signal_dbm);
-        max_noise_dbm_id =
-            RegisterField("kismet.common.signal.max_noise_dbm", TrackerInt32,
-                    "maximum noise (dBm)", &max_noise_dbm);
+        RegisterField("kismet.common.signal.max_signal_dbm", TrackerInt32,
+                "maximum signal (dBm)", &max_signal_dbm);
+        RegisterField("kismet.common.signal.max_noise_dbm", TrackerInt32,
+                "maximum noise (dBm)", &max_noise_dbm);
 
-        last_signal_rssi_id =
-            RegisterField("kismet.common.signal.last_signal_rssi", TrackerInt32,
-                    "most recent signal (RSSI)", &last_signal_rssi);
-        last_noise_rssi_id =
-            RegisterField("kismet.common.signal.last_noise_rssi", TrackerInt32,
-                    "most recent noise (RSSI)", &last_noise_rssi);
+        RegisterField("kismet.common.signal.last_signal_rssi", TrackerInt32,
+                "most recent signal (RSSI)", &last_signal_rssi);
+        RegisterField("kismet.common.signal.last_noise_rssi", TrackerInt32,
+                "most recent noise (RSSI)", &last_noise_rssi);
 
-        min_signal_rssi_id =
-            RegisterField("kismet.common.signal.min_signal_rssi", TrackerInt32,
-                    "minimum signal (rssi)", &min_signal_rssi);
-        min_noise_rssi_id =
-            RegisterField("kismet.common.signal.min_noise_rssi", TrackerInt32,
-                    "minimum noise (RSSI)", &min_noise_rssi);
+        RegisterField("kismet.common.signal.min_signal_rssi", TrackerInt32,
+                "minimum signal (rssi)", &min_signal_rssi);
+        RegisterField("kismet.common.signal.min_noise_rssi", TrackerInt32,
+                "minimum noise (RSSI)", &min_noise_rssi);
 
-        max_signal_rssi_id =
-            RegisterField("kismet.common.signal.max_signal_rssi", TrackerInt32,
-                    "maximum signal (RSSI)", &max_signal_rssi);
-        max_noise_rssi_id =
-            RegisterField("kismet.common.signal.max_noise_rssi", TrackerInt32,
-                    "maximum noise (RSSI)", &max_noise_rssi);
+        RegisterField("kismet.common.signal.max_signal_rssi", TrackerInt32,
+                "maximum signal (RSSI)", &max_signal_rssi);
+        RegisterField("kismet.common.signal.max_noise_rssi", TrackerInt32,
+                "maximum noise (RSSI)", &max_noise_rssi);
 
 
         shared_ptr<kis_tracked_location_triplet> 
@@ -1294,15 +1239,12 @@ protected:
             RegisterComplexField("kismet.common.signal.peak_loc", loc_builder,
                     "location of strongest signal");
 
-        maxseenrate_id =
-            RegisterField("kismet.common.signal.maxseenrate", TrackerDouble,
-                    "maximum observed data rate (phy dependent)", &maxseenrate);
-        encodingset_id =
-            RegisterField("kismet.common.signal.encodingset", TrackerUInt64,
-                    "bitset of observed encodings", &encodingset);
-        carrierset_id =
-            RegisterField("kismet.common.signal.carrierset", TrackerUInt64,
-                    "bitset of observed carrier types", &carrierset);
+        RegisterField("kismet.common.signal.maxseenrate", TrackerDouble,
+                "maximum observed data rate (phy dependent)", &maxseenrate);
+        RegisterField("kismet.common.signal.encodingset", TrackerUInt64,
+                "bitset of observed encodings", &encodingset);
+        RegisterField("kismet.common.signal.carrierset", TrackerUInt64,
+                "bitset of observed carrier types", &carrierset);
 
         shared_ptr<kis_tracked_minute_rrd<kis_tracked_rrd_peak_signal_aggregator> >
             signal_min_rrd_builder(new kis_tracked_minute_rrd<kis_tracked_rrd_peak_signal_aggregator>(globalreg, 0));
@@ -1326,17 +1268,6 @@ protected:
         add_map(signal_min_rrd_id, signal_min_rrd);
     }
 
-    int last_signal_dbm_id, last_noise_dbm_id,
-        min_signal_dbm_id, min_noise_dbm_id,
-        max_signal_dbm_id, max_noise_dbm_id,
-
-        last_signal_rssi_id, last_noise_rssi_id,
-        min_signal_rssi_id, min_noise_rssi_id,
-        max_signal_rssi_id, max_noise_rssi_id,
-
-        peak_loc_id,
-        maxseenrate_id, encodingset_id, carrierset_id;
-
     SharedTrackerElement last_signal_dbm, last_noise_dbm;
     SharedTrackerElement min_signal_dbm, min_noise_dbm;
     SharedTrackerElement max_signal_dbm, max_noise_dbm;
@@ -1345,6 +1276,7 @@ protected:
     SharedTrackerElement min_signal_rssi, min_noise_rssi;
     SharedTrackerElement max_signal_rssi, max_noise_rssi;
 
+    int peak_loc_id;
     shared_ptr<kis_tracked_location_triplet> peak_loc;
 
     SharedTrackerElement maxseenrate, encodingset, carrierset;
@@ -1401,40 +1333,26 @@ protected:
     virtual void register_fields() {
         tracker_component::register_fields();
 
-        src_uuid_id =
-            RegisterField("kismet.common.seenby.uuid", TrackerUuid,
-                    "UUID of source", &src_uuid);
-        first_time_id =
-            RegisterField("kismet.common.seenby.first_time", TrackerUInt64,
-                    "first time seen time_t", &first_time);
-        last_time_id =
-            RegisterField("kismet.common.seenby.last_time", TrackerUInt64,
-                    "last time seen time_t", &last_time);
-        num_packets_id =
-            RegisterField("kismet.common.seenby.num_packets", TrackerUInt64,
-                    "number of packets seen by this device", &num_packets);
-        freq_khz_map_id =
-            RegisterField("kismet.common.seenby.freq_khz_map", TrackerIntMap,
-                    "packets seen per frequency (khz)", &freq_khz_map);
+        RegisterField("kismet.common.seenby.uuid", TrackerUuid,
+                "UUID of source", &src_uuid);
+        RegisterField("kismet.common.seenby.first_time", TrackerUInt64,
+                "first time seen time_t", &first_time);
+        RegisterField("kismet.common.seenby.last_time", TrackerUInt64,
+                "last time seen time_t", &last_time);
+        RegisterField("kismet.common.seenby.num_packets", TrackerUInt64,
+                "number of packets seen by this device", &num_packets);
+        RegisterField("kismet.common.seenby.freq_khz_map", TrackerIntMap,
+                "packets seen per frequency (khz)", &freq_khz_map);
         frequency_val_id =
             globalreg->entrytracker->RegisterField("kismet.common.seenby.frequency.count",
                     TrackerUInt64, "frequency packet count");
     }
 
     SharedTrackerElement src_uuid;
-    int src_uuid_id;
-
     SharedTrackerElement first_time; 
-    int first_time_id;
-
     SharedTrackerElement last_time;
-    int last_time_id;
-
     SharedTrackerElement num_packets;
-    int num_packets_id;
-
     SharedTrackerElement freq_khz_map;
-    int freq_khz_map_id;
 
     int frequency_val_id;
 };
@@ -1468,15 +1386,12 @@ protected:
     virtual void register_fields() {
         tracker_component::register_fields();
 
-        value_id =
-            RegisterField("kismet.common.tag.value", TrackerString,
-                    "arbitrary tag", &value);
-        dirty_id =
-            RegisterField("kismet.common.tag.dirty", TrackerUInt8,
-                    "tag has been modified", &dirty);
+        RegisterField("kismet.common.tag.value", TrackerString,
+                "arbitrary tag", &value);
+        RegisterField("kismet.common.tag.dirty", TrackerUInt8,
+                "tag has been modified", &dirty);
     }
 
-    int value_id, dirty_id;
     SharedTrackerElement value, dirty;
 };
 

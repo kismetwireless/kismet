@@ -295,25 +295,16 @@ public:
 
 protected:
     virtual void register_fields() {
-        startchan_id =
-            RegisterField("dot11.11d.start_channel", TrackerUInt32,
-                    "Starting channel of 11d range", &startchan);
-        numchan_id =
-            RegisterField("dot11.11d.num_channels", TrackerUInt32,
-                    "Number of channels covered by range", &numchan);
-        txpower_id =
-            RegisterField("dot11.11d.tx_power", TrackerInt32,
-                    "Maximum allowed transmit power", &txpower);
+        RegisterField("dot11.11d.start_channel", TrackerUInt32,
+                "Starting channel of 11d range", &startchan);
+        RegisterField("dot11.11d.num_channels", TrackerUInt32,
+                "Number of channels covered by range", &numchan);
+        RegisterField("dot11.11d.tx_power", TrackerInt32,
+                "Maximum allowed transmit power", &txpower);
     }
 
-
-    int startchan_id;
     SharedTrackerElement startchan;
-
-    int numchan_id;
     SharedTrackerElement numchan;
-
-    int txpower_id;
     SharedTrackerElement txpower;
 };
 
@@ -346,27 +337,17 @@ public:
 
 protected:
     virtual void register_fields() {
-        ssid_id =
-            RegisterField("dot11.probedssid.ssid", TrackerString,
-                    "probed ssid string (sanitized)", &ssid);
-        ssid_len_id =
-            RegisterField("dot11.probedssid.ssidlen", TrackerUInt32,
-                    "probed ssid string length (original bytes)", &ssid_len);
-        bssid_id =
-            RegisterField("dot11.probessid.bssid", TrackerMac,
-                    "probed ssid BSSID", &bssid);
-        first_time_id =
-            RegisterField("dot11.probessid.first_time", TrackerUInt64,
-                    "first time probed", &first_time);
-        last_time_id = 
-            RegisterField("dot11.probessid.last_time", TrackerUInt64,
-                    "last time probed", &last_time);
+        RegisterField("dot11.probedssid.ssid", TrackerString,
+                "probed ssid string (sanitized)", &ssid);
+        RegisterField("dot11.probedssid.ssidlen", TrackerUInt32,
+                "probed ssid string length (original bytes)", &ssid_len);
+        RegisterField("dot11.probessid.bssid", TrackerMac,
+                "probed ssid BSSID", &bssid);
+        RegisterField("dot11.probessid.first_time", TrackerUInt64,
+                "first time probed", &first_time);
+        RegisterField("dot11.probessid.last_time", TrackerUInt64,
+                "last time probed", &last_time);
 
-        /*
-        shared_ptr<kis_tracked_location> loc_builder(new kis_tracked_location(globalreg, 0));
-        location_id =
-            RegisterComplexField("client.location", loc_builder, "location");
-            */
         __RegisterComplexField(kis_tracked_location, location_id, 
                 "dot11.probessid.location", "location");
     }
@@ -382,19 +363,10 @@ protected:
         add_map(location_id, location);
     }
 
-    int ssid_id;
     SharedTrackerElement ssid;
-
-    int ssid_len_id;
     SharedTrackerElement ssid_len;
-
-    int bssid_id;
     SharedTrackerElement bssid;
-
-    int first_time_id;
     SharedTrackerElement first_time;
-
-    int last_time_id;
     SharedTrackerElement last_time;
 
     int location_id;
@@ -479,82 +451,57 @@ public:
 
 protected:
     virtual void register_fields() {
-        ssid_id =
-            RegisterField("dot11.advertisedssid.ssid", TrackerString,
-                    "probed ssid string (sanitized)", &ssid);
-        ssid_len_id =
-            RegisterField("dot11.advertisedssid.ssidlen", TrackerUInt32,
-                    "probed ssid string length (original bytes)", &ssid_len);
-        ssid_beacon_id =
-            RegisterField("dot11.advertisedssid.beacon", TrackerUInt8,
-                    "ssid advertised via beacon", &ssid_beacon);
-        ssid_probe_response_id = 
-            RegisterField("dot11.advertisedssid.probe_response", TrackerUInt8,
-                    "ssid advertised via probe response", 
-                    &ssid_probe_response);
-        channel_id = 
-            RegisterField("dot11.advertisedssid.channel", TrackerString,
-                    "channel", &channel);
-        first_time_id = 
-            RegisterField("dot11.advertisedssid.first_time", TrackerUInt64,
-                    "first time seen", &first_time);
-        last_time_id = 
-            RegisterField("dot11.advertisedssid.last_time", TrackerUInt64,
-                    "last time seen", &last_time);
-        beacon_info_id = 
-            RegisterField("dot11.advertisedssid.beacon_info", TrackerString,
-                    "beacon info / vendor description", &beacon_info);
-        ssid_cloaked_id = 
-            RegisterField("dot11.advertisedssid.cloaked", TrackerUInt8,
-                    "SSID is hidden / cloaked", &ssid_cloaked);
-        crypt_set_id = 
-            RegisterField("dot11.advertisedssid.crypt_set", TrackerUInt64,
-                    "bitfield of encryption options", &crypt_set);
-        maxrate_id = 
-            RegisterField("dot11.advertisedssid.maxrate", TrackerUInt64,
-                    "advertised maximum rate", &maxrate);
-        beaconrate_id = 
-            RegisterField("dot11.advertisedssid.beaconrate", TrackerUInt32,
-                    "beacon rate", &beaconrate);
-        beacons_sec_id = 
-            RegisterField("dot11.advertisedssid.beacons_sec", TrackerUInt32,
-                    "beacons seen in past second", &beacons_sec);
-        ietag_checksum_id =
-            RegisterField("dot11.advertisedssid.ietag_checksum", TrackerUInt32,
-                    "checksum of all ie tags", &ietag_checksum);
-        dot11d_country_id = 
-            RegisterField("dot11.advertisedssid.dot11d_country", TrackerString,
-                    "802.11d country", &dot11d_country);
+        RegisterField("dot11.advertisedssid.ssid", TrackerString,
+                "probed ssid string (sanitized)", &ssid);
+        RegisterField("dot11.advertisedssid.ssidlen", TrackerUInt32,
+                "probed ssid string length (original bytes)", &ssid_len);
+        RegisterField("dot11.advertisedssid.beacon", TrackerUInt8,
+                "ssid advertised via beacon", &ssid_beacon);
+        RegisterField("dot11.advertisedssid.probe_response", TrackerUInt8,
+                "ssid advertised via probe response", 
+                &ssid_probe_response);
+        RegisterField("dot11.advertisedssid.channel", TrackerString,
+                "channel", &channel);
+        RegisterField("dot11.advertisedssid.first_time", TrackerUInt64,
+                "first time seen", &first_time);
+        RegisterField("dot11.advertisedssid.last_time", TrackerUInt64,
+                "last time seen", &last_time);
+        RegisterField("dot11.advertisedssid.beacon_info", TrackerString,
+                "beacon info / vendor description", &beacon_info);
+        RegisterField("dot11.advertisedssid.cloaked", TrackerUInt8,
+                "SSID is hidden / cloaked", &ssid_cloaked);
+        RegisterField("dot11.advertisedssid.crypt_set", TrackerUInt64,
+                "bitfield of encryption options", &crypt_set);
+        RegisterField("dot11.advertisedssid.maxrate", TrackerUInt64,
+                "advertised maximum rate", &maxrate);
+        RegisterField("dot11.advertisedssid.beaconrate", TrackerUInt32,
+                "beacon rate", &beaconrate);
+        RegisterField("dot11.advertisedssid.beacons_sec", TrackerUInt32,
+                "beacons seen in past second", &beacons_sec);
+        RegisterField("dot11.advertisedssid.ietag_checksum", TrackerUInt32,
+                "checksum of all ie tags", &ietag_checksum);
+        RegisterField("dot11.advertisedssid.dot11d_country", TrackerString,
+                "802.11d country", &dot11d_country);
 
-        dot11d_vec_id =
-            RegisterField("dot11.advertisedssid.dot11d_list", TrackerVector,
-                    "802.11d channel list", &dot11d_vec);
+        RegisterField("dot11.advertisedssid.dot11d_list", TrackerVector,
+                "802.11d channel list", &dot11d_vec);
 
-        shared_ptr<dot11_11d_tracked_range_info> dot11d_builder(new dot11_11d_tracked_range_info(globalreg, 0));
-        dot11d_country_entry_id =
-            RegisterComplexField("dot11.advertisedssid.dot11d_entry", 
-                    dot11d_builder, "dot11d entry");
+        __RegisterComplexField(dot11_11d_tracked_range_info, dot11d_country_entry_id, 
+                "dot11.advertisedssid.dot11d_entry", "dot11d entry");
 
-        wps_state_id =
-            RegisterField("dot11.advertisedssid.wps_state", TrackerUInt32,
-                    "bitfield wps state", &wps_state);
-        wps_manuf_id =
-            RegisterField("dot11.advertisedssid.wps_manuf", TrackerString,
-                    "WPS manufacturer", &wps_manuf);
-        wps_device_name_id =
-            RegisterField("dot11.advertisedssid.wps_device_name", TrackerString,
-                    "wps device name", &wps_device_name);
-        wps_model_name_id =
-            RegisterField("dot11.advertisedssid.wps_model_name", TrackerString,
-                    "wps model name", &wps_model_name);
-        wps_model_number_id =
-            RegisterField("dot11.advertisedssid.wps_model_number", TrackerString,
-                    "wps model number", &wps_model_number);
+        RegisterField("dot11.advertisedssid.wps_state", TrackerUInt32,
+                "bitfield wps state", &wps_state);
+        RegisterField("dot11.advertisedssid.wps_manuf", TrackerString,
+                "WPS manufacturer", &wps_manuf);
+        RegisterField("dot11.advertisedssid.wps_device_name", TrackerString,
+                "wps device name", &wps_device_name);
+        RegisterField("dot11.advertisedssid.wps_model_name", TrackerString,
+                "wps model name", &wps_model_name);
+        RegisterField("dot11.advertisedssid.wps_model_number", TrackerString,
+                "wps model number", &wps_model_number);
 
-        shared_ptr<kis_tracked_location> loc_builder(new kis_tracked_location(globalreg, 0));
-        location_id =
-            RegisterComplexField("dot11.advertisedssid.location", loc_builder, 
-                    "location");
+        __RegisterComplexField(kis_tracked_location, location_id, 
+                "dot11.advertisedssid.location", "location");
     }
 
     virtual void reserve_fields(SharedTrackerElement e) {
@@ -568,71 +515,31 @@ protected:
         add_map(location_id, location);
     }
 
-    int ssid_id;
     SharedTrackerElement ssid;
-
-    int ssid_len_id;
     SharedTrackerElement ssid_len;
-
-    int ssid_beacon_id;
     SharedTrackerElement ssid_beacon;
-
-    int ssid_probe_response_id;
     SharedTrackerElement ssid_probe_response;
-
-    int channel_id;
     SharedTrackerElement channel;
-
-    int first_time_id;
     SharedTrackerElement first_time;
-
-    int last_time_id;
     SharedTrackerElement last_time;
-
-    int beacon_info_id;
     SharedTrackerElement beacon_info;
-
-    int ssid_cloaked_id;
     SharedTrackerElement ssid_cloaked;
-
-    int crypt_set_id;
     SharedTrackerElement crypt_set;
-
-    int maxrate_id;
     SharedTrackerElement maxrate;
-
-    int beaconrate_id;
     SharedTrackerElement beaconrate;
-
-    int beacons_sec_id;
     SharedTrackerElement beacons_sec;
-
-    int ietag_checksum_id;
     SharedTrackerElement ietag_checksum;
-
-    int dot11d_country_id;
     SharedTrackerElement dot11d_country;
-
-    int dot11d_vec_id;
     SharedTrackerElement dot11d_vec;
 
     // dot11d vec component reference
     int dot11d_country_entry_id;
 
     // WPS components
-    int wps_state_id;
     SharedTrackerElement wps_state;
-
-    int wps_manuf_id;
     SharedTrackerElement wps_manuf;
-
-    int wps_device_name_id;
     SharedTrackerElement wps_device_name;
-
-    int wps_model_name_id;
     SharedTrackerElement wps_model_name;
-
-    int wps_model_number_id;
     SharedTrackerElement wps_model_number;
 
     int location_id;
@@ -701,69 +608,49 @@ public:
 
 protected:
     virtual void register_fields() {
-        bssid_id =
-            RegisterField("dot11.client.bssid", TrackerMac,
-                    "bssid", &bssid);
-        bssid_key_id =
-            RegisterField("dot11.client.bssid_key", TrackerUInt64,
-                    "key of BSSID record", &bssid_key);
-        first_time_id =
-            RegisterField("dot11.client.first_time", TrackerUInt64,
-                    "first time seen", &first_time);
-        last_time_id =
-            RegisterField("dot11.client.last_time", TrackerUInt64,
-                    "last time seen", &last_time);
-        client_type_id =
-            RegisterField("dot11.client.type", TrackerUInt32,
-                    "type of client", &client_type);
-        dhcp_host_id =
-            RegisterField("dot11.client.dhcp_host", TrackerString,
-                    "dhcp host", &dhcp_host);
-        dhcp_vendor_id =
-            RegisterField("dot11.client.dhcp_vendor", TrackerString,
-                    "dhcp vendor", &dhcp_vendor);
-        tx_cryptset_id =
-            RegisterField("dot11.client.tx_cryptset", TrackerUInt64,
-                    "bitset of transmitted encryption",
-                    &tx_cryptset);
-        rx_cryptset_id =
-            RegisterField("dot11.client.rx_cryptset", TrackerUInt64,
-                    "bitset of received enryption",
-                    &rx_cryptset);
-        eap_identity_id = 
-            RegisterField("dot11.client.eap_identity", TrackerString,
-                    "EAP identity", &eap_identity);
-        cdp_device_id =
-            RegisterField("dot11.client.cdp_device", TrackerString,
-                    "CDP device", &cdp_device);
-        cdp_port_id =
-            RegisterField("dot11.client.cdp_port", TrackerString,
-                    "CDP port", &cdp_port);
-        decrypted_id =
-            RegisterField("dot11.client.decrypted", TrackerUInt8,
-                    "client decrypted", &decrypted);
+        RegisterField("dot11.client.bssid", TrackerMac,
+                "bssid", &bssid);
+        RegisterField("dot11.client.bssid_key", TrackerUInt64,
+                "key of BSSID record", &bssid_key);
+        RegisterField("dot11.client.first_time", TrackerUInt64,
+                "first time seen", &first_time);
+        RegisterField("dot11.client.last_time", TrackerUInt64,
+                "last time seen", &last_time);
+        RegisterField("dot11.client.type", TrackerUInt32,
+                "type of client", &client_type);
+        RegisterField("dot11.client.dhcp_host", TrackerString,
+                "dhcp host", &dhcp_host);
+        RegisterField("dot11.client.dhcp_vendor", TrackerString,
+                "dhcp vendor", &dhcp_vendor);
+        RegisterField("dot11.client.tx_cryptset", TrackerUInt64,
+                "bitset of transmitted encryption",
+                &tx_cryptset);
+        RegisterField("dot11.client.rx_cryptset", TrackerUInt64,
+                "bitset of received enryption",
+                &rx_cryptset);
+        RegisterField("dot11.client.eap_identity", TrackerString,
+                "EAP identity", &eap_identity);
+        RegisterField("dot11.client.cdp_device", TrackerString,
+                "CDP device", &cdp_device);
+        RegisterField("dot11.client.cdp_port", TrackerString,
+                "CDP port", &cdp_port);
+        RegisterField("dot11.client.decrypted", TrackerUInt8,
+                "client decrypted", &decrypted);
 
-        shared_ptr<kis_tracked_ip_data> ip_builder(new kis_tracked_ip_data(globalreg, 0));
-        ipdata_id =
-            RegisterComplexField("dot11.client.ipdata", ip_builder,
-                    "IP data");
+        __RegisterComplexField(kis_tracked_ip_data, ipdata_id, 
+                "dot11.client.ipdata", "IP");
 
-        datasize_id =
-            RegisterField("dot11.client.datasize", TrackerUInt64,
-                    "data in bytes", &datasize);
-        datasize_retry_id =
-            RegisterField("dot11.client.datasize_retry", TrackerUInt64,
-                    "retry data in bytes", &datasize_retry);
-        num_fragments_id =
-            RegisterField("dot11.client.num_fragments", TrackerUInt64,
-                    "number of fragmented packets", &num_fragments);
-        num_retries_id =
-            RegisterField("dot11.client.num_retries", TrackerUInt64,
-                    "number of retried packets", &num_retries);
+        RegisterField("dot11.client.datasize", TrackerUInt64,
+                "data in bytes", &datasize);
+        RegisterField("dot11.client.datasize_retry", TrackerUInt64,
+                "retry data in bytes", &datasize_retry);
+        RegisterField("dot11.client.num_fragments", TrackerUInt64,
+                "number of fragmented packets", &num_fragments);
+        RegisterField("dot11.client.num_retries", TrackerUInt64,
+                "number of retried packets", &num_retries);
 
-        shared_ptr<kis_tracked_location> loc_builder(new kis_tracked_location(globalreg, 0));
-        location_id =
-            RegisterComplexField("client.location", loc_builder, "location");
+        __RegisterComplexField(kis_tracked_location, location_id, 
+                "client.location", "location");
     }
 
     virtual void reserve_fields(SharedTrackerElement e) {
@@ -778,62 +665,29 @@ protected:
 
         add_map(ipdata_id, ipdata);
         add_map(location_id, location);
-
     }
 
         
-    int bssid_id;
     SharedTrackerElement bssid;
-
-    int bssid_key_id;
     SharedTrackerElement bssid_key;
-
-    int first_time_id;
     SharedTrackerElement first_time;
-
-    int last_time_id;
     SharedTrackerElement last_time;
-
-    int client_type_id;
     SharedTrackerElement client_type;
-
-    int dhcp_host_id;
     SharedTrackerElement dhcp_host;
-
-    int dhcp_vendor_id;
     SharedTrackerElement dhcp_vendor;
-
-    int tx_cryptset_id;
     SharedTrackerElement tx_cryptset;
-
-    int rx_cryptset_id;
     SharedTrackerElement rx_cryptset;
-
-    int eap_identity_id;
     SharedTrackerElement eap_identity;
-
-    int cdp_device_id;
     SharedTrackerElement cdp_device;
-
-    int cdp_port_id;
     SharedTrackerElement cdp_port;
-
-    int decrypted_id;
     SharedTrackerElement decrypted;
 
     int ipdata_id;
     shared_ptr<kis_tracked_ip_data> ipdata;
 
-    int datasize_id;
     SharedTrackerElement datasize;
-
-    int datasize_retry_id;
     SharedTrackerElement datasize_retry;
-
-    int num_fragments_id;
     SharedTrackerElement num_fragments;
-
-    int num_retries_id;
     SharedTrackerElement num_retries;
 
     int location_id;

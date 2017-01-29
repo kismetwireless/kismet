@@ -324,79 +324,57 @@ protected:
     virtual void register_fields() {
         tracker_component::register_fields();
 
-        // printf("debug - kis_tracked_device_base register_fields\n");
-        
-        key_id =
-            RegisterField("kismet.device.base.key", TrackerUInt64,
-                    "unique integer key", &key);
+        RegisterField("kismet.device.base.key", TrackerUInt64,
+                "unique integer key", &key);
 
-        macaddr_id =
-            RegisterField("kismet.device.base.macaddr", TrackerMac,
-                    "mac address", &macaddr);
+        RegisterField("kismet.device.base.macaddr", TrackerMac,
+                "mac address", &macaddr);
 
-        phyname_id =
-            RegisterField("kismet.device.base.phyname", TrackerString,
-                    "phy name", &phyname);
+        RegisterField("kismet.device.base.phyname", TrackerString,
+                "phy name", &phyname);
 
-        devicename_id =
-            RegisterField("kismet.device.base.name", TrackerString,
-                    "printable device name", &devicename);
+        RegisterField("kismet.device.base.name", TrackerString,
+                "printable device name", &devicename);
 
-        username_id =
-            RegisterField("kismet.device.base.username", TrackerString,
-                    "user name", &username);
+        RegisterField("kismet.device.base.username", TrackerString,
+                "user name", &username);
 
-        type_string_id =
-            RegisterField("kismet.device.base.type", TrackerString,
-                    "printable device type", &type_string);
+        RegisterField("kismet.device.base.type", TrackerString,
+                "printable device type", &type_string);
 
-        basic_type_set_id =
-            RegisterField("kismet.device.base.basic_type_set", TrackerUInt64,
-                    "bitset of basic type", &basic_type_set);
+        RegisterField("kismet.device.base.basic_type_set", TrackerUInt64,
+                "bitset of basic type", &basic_type_set);
 
-        crypt_string_id =
-            RegisterField("kismet.device.base.crypt", TrackerString,
-                    "printable encryption type", &crypt_string);
+        RegisterField("kismet.device.base.crypt", TrackerString,
+                "printable encryption type", &crypt_string);
 
-        basic_crypt_set_id =
-            RegisterField("kismet.device.base.basic_crypt_set", TrackerUInt64,
-                    "bitset of basic encryption", &basic_crypt_set);
+        RegisterField("kismet.device.base.basic_crypt_set", TrackerUInt64,
+                "bitset of basic encryption", &basic_crypt_set);
 
-        first_time_id =
-            RegisterField("kismet.device.base.first_time", TrackerUInt64,
-                    "first time seen time_t", &first_time);
-        last_time_id =
-            RegisterField("kismet.device.base.last_time", TrackerUInt64,
-                    "last time seen time_t", &last_time);
+        RegisterField("kismet.device.base.first_time", TrackerUInt64,
+                "first time seen time_t", &first_time);
+        RegisterField("kismet.device.base.last_time", TrackerUInt64,
+                "last time seen time_t", &last_time);
 
-        packets_id =
-            RegisterField("kismet.device.base.packets.total", TrackerUInt64,
-                    "total packets seen of all types", &packets);
-        rx_packets_id =
-            RegisterField("kismet.device.base.packets.rx", TrackerUInt64,
-                        "observed packets sent to device", &rx_packets);
-        tx_packets_id =
-            RegisterField("kismet.device.base.packets.tx", TrackerUInt64,
-                        "observed packets from device", &tx_packets);
-        llc_packets_id =
-            RegisterField("kismet.device.base.packets.llc", TrackerUInt64,
-                        "observed protocol control packets", &llc_packets);
-        error_packets_id =
-            RegisterField("kismet.device.base.packets.error", TrackerUInt64,
-                        "corrupt/error packets", &error_packets);
-        data_packets_id =
-            RegisterField("kismet.device.base.packets.data", TrackerUInt64,
-                        "data packets", &data_packets);
-        crypt_packets_id =
-            RegisterField("kismet.device.base.packets.crypt", TrackerUInt64,
-                        "data packets using encryption", &crypt_packets);
-        filter_packets_id =
-            RegisterField("kismet.device.base.packets.filtered", TrackerUInt64,
-                        "packets dropped by filter", &filter_packets);
+        RegisterField("kismet.device.base.packets.total", TrackerUInt64,
+                "total packets seen of all types", &packets);
+        RegisterField("kismet.device.base.packets.rx", TrackerUInt64,
+                "observed packets sent to device", &rx_packets);
+        RegisterField("kismet.device.base.packets.tx", TrackerUInt64,
+                "observed packets from device", &tx_packets);
+        RegisterField("kismet.device.base.packets.llc", TrackerUInt64,
+                "observed protocol control packets", &llc_packets);
+        RegisterField("kismet.device.base.packets.error", TrackerUInt64,
+                "corrupt/error packets", &error_packets);
+        RegisterField("kismet.device.base.packets.data", TrackerUInt64,
+                "data packets", &data_packets);
+        RegisterField("kismet.device.base.packets.crypt", TrackerUInt64,
+                "data packets using encryption", &crypt_packets);
+        RegisterField("kismet.device.base.packets.filtered", TrackerUInt64,
+                "packets dropped by filter", &filter_packets);
 
-        datasize_id =
-            RegisterField("kismet.device.base.datasize", TrackerUInt64,
-                        "transmitted data in bytes", &datasize);
+        RegisterField("kismet.device.base.datasize", TrackerUInt64,
+                "transmitted data in bytes", &datasize);
 
         shared_ptr<kis_tracked_rrd<> > packets_rrd_builder(new kis_tracked_rrd<>(globalreg, 0));
         packets_rrd_id =
@@ -413,24 +391,19 @@ protected:
             RegisterComplexField("kismet.device.base.signal", sig_builder,
                     "signal data");
 
-        freq_khz_map_id =
-            RegisterField("kismet.device.base.freq_khz_map", TrackerDoubleMap,
-                    "packets seen per frequency (khz)", &freq_khz_map);
+        RegisterField("kismet.device.base.freq_khz_map", TrackerDoubleMap,
+                "packets seen per frequency (khz)", &freq_khz_map);
 
-        channel_id =
-            RegisterField("kismet.device.base.channel", TrackerString,
-                        "channel (phy specific)", &channel);
-        frequency_id =
-            RegisterField("kismet.device.base.frequency", TrackerDouble,
-                        "frequency", &frequency);
+        RegisterField("kismet.device.base.channel", TrackerString,
+                "channel (phy specific)", &channel);
+        RegisterField("kismet.device.base.frequency", TrackerDouble,
+                "frequency", &frequency);
 
-        manuf_id =
-            RegisterField("kismet.device.base.manuf", TrackerString,
-                        "manufacturer name", &manuf);
+        RegisterField("kismet.device.base.manuf", TrackerString,
+                "manufacturer name", &manuf);
 
-        alert_id =
-            RegisterField("kismet.device.base.num_alerts", TrackerUInt32,
-                        "number of alerts on this device", &alert);
+        RegisterField("kismet.device.base.num_alerts", TrackerUInt32,
+                "number of alerts on this device", &alert);
 
         shared_ptr<kis_tracked_tag> tag_builder(new kis_tracked_tag(globalreg, 0));
         tag_id =
@@ -442,9 +415,8 @@ protected:
             RegisterComplexField("kismet.device.base.location", loc_builder,
                     "location");
 
-        seenby_map_id =
-            RegisterField("kismet.device.base.seenby", TrackerIntMap,
-                    "sources that have seen this device", &seenby_map);
+        RegisterField("kismet.device.base.seenby", TrackerIntMap,
+                "sources that have seen this device", &seenby_map);
 
         // Packet count, not actual frequency, so uint64 not double
         frequency_val_id =
@@ -551,48 +523,38 @@ protected:
 
     // Unique key
     SharedTrackerElement key;
-    int key_id;
 
     // Mac address (probably the key, but could be different)
     SharedTrackerElement macaddr;
-    int macaddr_id;
 
     // Phy type (integer index)
     SharedTrackerElement phyname;
-    int phyname_id;
 
     // Printable name for UI summary.  For APs could be latest SSID, for BT the UAP
     // guess, etc.
     SharedTrackerElement devicename;
-    int devicename_id;
 
     // User name for arbitrary naming
     SharedTrackerElement username;
-    int username_id;
 
     // Printable basic type relevant to the phy, ie "Wired", "AP", "Bluetooth", etc.
     // This can be set per-phy and is treated as a printable interpretation.
     // This should be empty if the phy layer is unable to add something intelligent
     SharedTrackerElement type_string;
-    int type_string_id;
 
     // Basic phy-neutral type for sorting and classification
     SharedTrackerElement basic_type_set;
-    int basic_type_set_id;
 
     // Printable crypt string, which is set by the phy and is the best printable
     // representation of the phy crypt options.  This should be empty if the phy
     // layer hasn't added something intelligent.
     SharedTrackerElement crypt_string;
-    int crypt_string_id;
 
     // Bitset of basic phy-neutral crypt options
     SharedTrackerElement basic_crypt_set;
-    int basic_crypt_set_id;
 
     // First and last seen
     SharedTrackerElement first_time, last_time;
-    int first_time_id, last_time_id;
 
     // Packet counts
     SharedTrackerElement packets, tx_packets, rx_packets,
@@ -606,13 +568,9 @@ protected:
                    crypt_packets,
                    // Excluded / filtered packets
                    filter_packets;
-    int packets_id, tx_packets_id, rx_packets_id,
-        llc_packets_id, error_packets_id, data_packets_id,
-        crypt_packets_id, filter_packets_id;
 
     // Data seen in bytes
     SharedTrackerElement datasize;
-    int datasize_id;
 
     // Packets and data RRDs
     int packets_rrd_id;
@@ -635,7 +593,6 @@ protected:
 
 	// Channel and frequency as per PHY type
     SharedTrackerElement channel, frequency;
-    int channel_id, frequency_id;
 
     // Signal data
     shared_ptr<kis_tracked_signal_data> signal_data;
@@ -643,16 +600,13 @@ protected:
 
     // Global frequency distribution
     SharedTrackerElement freq_khz_map;
-    int freq_khz_map_id;
 
     // Manufacturer, if we're able to derive, either from OUI or 
     // from other data (phy-dependent)
     SharedTrackerElement manuf;
-    int manuf_id;
 
     // Alerts triggered on this device
     SharedTrackerElement alert;
-    int alert_id;
 
     // Device tag
     shared_ptr<kis_tracked_tag> tag;
@@ -955,51 +909,32 @@ protected:
     virtual void register_fields() {
         tracker_component::register_fields();
 
-        phy_id_id = RegisterField("kismet.phy.id", TrackerInt32,
+        RegisterField("kismet.phy.id", TrackerInt32,
                 "phy id", &phy_id);
-        phy_name_id = RegisterField("kismet.phy.name", TrackerString,
+        RegisterField("kismet.phy.name", TrackerString,
                 "phy name", &phy_name);
-        num_devices_id = RegisterField("kismet.phy.devices", TrackerUInt64,
+        RegisterField("kismet.phy.devices", TrackerUInt64,
                 "number of devices", &num_devices);
-        num_packets_id = RegisterField("kismet.phy.packets", TrackerUInt64,
+        RegisterField("kismet.phy.packets", TrackerUInt64,
                 "number of packets", &num_packets);
-        num_data_packets_id = RegisterField("kismet.phy.packets.data", TrackerUInt64,
+        RegisterField("kismet.phy.packets.data", TrackerUInt64,
                 "number of data packets", &num_data_packets);
-        num_crypt_packets_id =
-            RegisterField("kismet.phy.packets.crypt", TrackerUInt64,
-                    "number of encrypted packets", &num_crypt_packets);
-        num_error_packets_id =
-            RegisterField("kismet.phy.packets.error", TrackerUInt64,
-                    "number of error packets", &num_error_packets);
-        num_filter_packets_id =
-            RegisterField("kismet.phy.packets.filtered", TrackerUInt64,
-                    "number of filtered packets", &num_filter_packets);
+        RegisterField("kismet.phy.packets.crypt", TrackerUInt64,
+                "number of encrypted packets", &num_crypt_packets);
+        RegisterField("kismet.phy.packets.error", TrackerUInt64,
+                "number of error packets", &num_error_packets);
+        RegisterField("kismet.phy.packets.filtered", TrackerUInt64,
+                "number of filtered packets", &num_filter_packets);
     }
 
-    int phy_id_id;
     SharedTrackerElement phy_id;
-
-    int phy_name_id;
     SharedTrackerElement phy_name;
-
-    int num_devices_id;
     SharedTrackerElement num_devices;
-
-    int num_packets_id;
     SharedTrackerElement num_packets;
-
-    int num_data_packets_id;
     SharedTrackerElement num_data_packets;
-
-    int num_crypt_packets_id;
     SharedTrackerElement num_crypt_packets;
-
-    int num_error_packets_id;
     SharedTrackerElement num_error_packets;
-
-    int num_filter_packets_id;
     SharedTrackerElement num_filter_packets;
-
 };
 
 class devicelist_scope_locker {

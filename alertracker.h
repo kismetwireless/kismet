@@ -134,91 +134,55 @@ protected:
     virtual void register_fields() {
         tracker_component::register_fields();
 
-        device_key_id =
-            RegisterField("kismet.alert.device_key", TrackerUInt64,
-                    "Device key of linked device", &device_key);
+        RegisterField("kismet.alert.device_key", TrackerUInt64,
+                "Device key of linked device", &device_key);
 
-        header_id =
-            RegisterField("kismet.alert.header", TrackerString,
-                    "Alert type", &header);
+        RegisterField("kismet.alert.header", TrackerString,
+                "Alert type", &header);
 
-        phy_id =
-            RegisterField("kismet.alert.phy_id", TrackerUInt32,
-                    "ID of phy generating alert", &phy);
+        RegisterField("kismet.alert.phy_id", TrackerUInt32,
+                "ID of phy generating alert", &phy);
 
-        timestamp_sec_id =
-            RegisterField("kismet.alert.timestamp_sec", TrackerUInt64,
-                    "Timestamp (second component)", &timestamp_sec);
+        RegisterField("kismet.alert.timestamp_sec", TrackerUInt64,
+                "Timestamp (second component)", &timestamp_sec);
 
-        timestamp_usec_id =
-            RegisterField("kismet.alert.timestamp_usec", TrackerUInt64,
-                    "Timestmap (microsecond component)", &timestamp_usec);
+        RegisterField("kismet.alert.timestamp_usec", TrackerUInt64,
+                "Timestmap (microsecond component)", &timestamp_usec);
 
-        transmitter_mac_id =
-            RegisterField("kismet.alert.transmitter_mac", TrackerMac,
-                    "Transmitter MAC address", &transmitter_mac);
+        RegisterField("kismet.alert.transmitter_mac", TrackerMac,
+                "Transmitter MAC address", &transmitter_mac);
 
-        source_mac_id =
-            RegisterField("kismet.alert.source_mac", TrackerMac,
-                    "Source MAC address", &source_mac);
+        RegisterField("kismet.alert.source_mac", TrackerMac,
+                "Source MAC address", &source_mac);
 
-        dest_mac_id =
-            RegisterField("kismet.alert.dest_mac", TrackerMac,
-                    "Destination MAC address", &dest_mac);
+        RegisterField("kismet.alert.dest_mac", TrackerMac,
+                "Destination MAC address", &dest_mac);
 
-        other_mac_id =
-            RegisterField("kismet.alert.other_mac", TrackerMac,
-                    "Other / Extra MAC address", &other_mac);
+        RegisterField("kismet.alert.other_mac", TrackerMac,
+                "Other / Extra MAC address", &other_mac);
 
-        channel_id =
-            RegisterField("kismet.alert.channel", TrackerString,
-                    "Phy-specific channel", &channel);
+        RegisterField("kismet.alert.channel", TrackerString,
+                "Phy-specific channel", &channel);
 
-        frequency_id =
-            RegisterField("kismet.alert.frequency", TrackerDouble,
-                    "Frequency (khz)", &frequency);
+        RegisterField("kismet.alert.frequency", TrackerDouble,
+                "Frequency (khz)", &frequency);
 
-        text_id =
-            RegisterField("kismet.alert.text", TrackerString,
-                    "Alert text", &text);
+        RegisterField("kismet.alert.text", TrackerString,
+                "Alert text", &text);
     }
 
     SharedTrackerElement device_key;
-    int device_key_id;
-
     SharedTrackerElement header;
-    int header_id;
-
     SharedTrackerElement phy;
-    int phy_id;
-
     SharedTrackerElement timestamp_sec;
-    int timestamp_sec_id;
-
     SharedTrackerElement timestamp_usec;
-    int timestamp_usec_id;
-
     SharedTrackerElement transmitter_mac;
-    int transmitter_mac_id;
-
     SharedTrackerElement source_mac;
-    int source_mac_id;
-
     SharedTrackerElement dest_mac;
-    int dest_mac_id;
-
     SharedTrackerElement other_mac;
-    int other_mac_id;
-
     SharedTrackerElement channel;
-    int channel_id;
-
     SharedTrackerElement frequency;
-    int frequency_id;
-
     SharedTrackerElement text;
-    int text_id;
-
 };
 
 

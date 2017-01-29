@@ -59,17 +59,12 @@ This creates a tracked object, but there is nothing inside of it.  To do that, w
 
 ### TrackerElement Fields
 
-To track a field, we need to track the ID and we need the field itself, so lets add:
+To track a basic field, we generally only need to track the field itself, so lets add:
 
 ```C++
 protected:
-    int timestamp_id;
     SharedTrackerElement timestamp;
-    
-    int message_id;
     SharedTrackerElement message;
-    
-    int flags_id;
     SharedTrackerElement flags;
 ```
 
@@ -86,15 +81,15 @@ protected:
         tracker_component::register_fields();
 
         // Register the timestamp as a uint64_t
-        timestamp_id = RegisterField("kismet.message.timestamp", 
+        RegisterField("kismet.message.timestamp", 
                 TrackerUInt64, "message timestamp", &timestamp);
 
         // Register the message as a basic string
-        message_id = RegisterField("kismet.message.message",
+        RegisterField("kismet.message.message",
                 TrackerString, "message content", &message);
 
         // Register the flags as an int32_t
-        flags_id = RegisterField("kismet.message.flags",
+        RegisterField("kismet.message.flags",
                 TrackerInt32, "message flags", &flags);
     }
 ```
@@ -102,6 +97,8 @@ protected:
 `RegisterField(...)` is part of the base tracker_component class, and handles the connection between a tracked data set and the tracking system which assigns fields.
 
 It requires a name (which should be unique, you can ensure uniqueness by including a reference to your module in the name), a type (used to manage introspection and export, the list is below), a description (which is shown on the tracked_fields page and is helpful for future developers), and finally a pointer to the `shared_ptr` where your class will hold the data when it is assembled.
+
+RegisterField will return the internal id of the field which is created - most of the time this is not necessary, however when registering more complex instances, such as data held inside a vector, it may be necessary to save the field id.
 
 ### Field Primitives
 
@@ -122,6 +119,7 @@ TrackerFloat | float | Floating-point value
 TrackerDouble | double | Double-precision floating point value
 TrackerMac | mac_addr | Kismet MAC address record
 TrackerUuid | uuid | Kismet UUID record
+TrackerByteArray | uint8_t* | Arbitrary array of bytes
 
 TrackerElements can also contain more complex data:
 
@@ -234,6 +232,7 @@ Wrapper classes are provided for all of the TrackerElement variants:
 * `TrackerElementDoubleMap`
 * `TrackerElementMacMap`
 
+
 #### Accessing from outside the object
 
 It may be necessary to allow access from outside callers.  This is only required for other code directly accessing your object; for exporting your data via the REST interface and other serialization methods, so long as your data is in `TrackerElement` objects it will be handled automatically.
@@ -314,7 +313,7 @@ Lets say we want to add a location to our data type.  A location block is alread
 
 ### First, add the location elements
 
-Just like any other `TrackerElement` / `tracker_component` derived item, we need the ID and the element to track it.  In this case, we'll use the actual C++ class, remembering to include `devicetracker_component.h`.  Remember to use shared_ptr to define these complex variables:
+Unlike many other `TrackerElement` / `tracker_component` derived item, we need the ID and the element to track it.  In this case, we'll use the actual C++ class, remembering to include `devicetracker_component.h`.  Remember to use shared_ptr to define these complex variables:
 
 ```C++
 private:
@@ -342,6 +341,20 @@ private:
         // give it a name based on our class, and a description
         location_id =
             RegisterComplexField("foo.location", loc_builder, "location");
+    }
+```
+
+Alternately, the `__RegisterComplexField` macro can be used to simplify the process:
+
+```C++
+private:
+    virtual void register_fields() {
+        ... Existing field registration
+
+        // Register using the __RegisterComplexField macro, which takes the class
+        // of the complex object, the id, the field name, and the description
+        __RegisterComplexField(kis_tracked_location, location_id,
+            "foo.location", "location");
     }
 ```
 
@@ -374,19 +387,16 @@ private:
             // .reset function to re-assign to our new object
             location.reset(new kis_tracked_location(globalreg, location_id,
                     e->get_map_value(location_id)));
-
-            // And map it into our parent
-            add_map(location);
         } else {
             // Otherwise, we're making a whole new object.  This is usually the
             // case.
 
             // So make a new location object, and assign it using reset
             location.reset(new kis_tracked_location(globalreg, location_id));
-
-            // And then attach it to our map so that it's tracked correctly
-            add_map(location);
         }
+
+        // And then attach it to our map so that it's tracked correctly
+        add_map(location);
     }
 ```
 

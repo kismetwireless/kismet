@@ -82,33 +82,23 @@ protected:
     virtual void register_fields() {
         tracker_component::register_fields();
 
-        channel_id =
-            RegisterField("kismet.channelrec.channel", TrackerString,
-                    "logical channel", &channel);
+        RegisterField("kismet.channelrec.channel", TrackerString,
+                "logical channel", &channel);
 
-        frequency_id =
-            RegisterField("kismet.channelrec.frequency", TrackerDouble,
-                    "physical frequency", &frequency);
+        RegisterField("kismet.channelrec.frequency", TrackerDouble,
+                "physical frequency", &frequency);
 
-        shared_ptr<kis_tracked_rrd<> > packets_rrd_builder(new kis_tracked_rrd<>(globalreg, 0));
-        packets_rrd_id =
-            RegisterComplexField("kismet.channelrec.packets_rrd",
-                    packets_rrd_builder, "number of packets RRD");
+        __RegisterComplexField(kis_tracked_rrd<>, packets_rrd_id, 
+                "kismet.channelrec.packets_rrd", "packet count RRD");
 
-        shared_ptr<kis_tracked_rrd<> > data_rrd_builder(new kis_tracked_rrd<>(globalreg, 0));
-        data_rrd_id =
-            RegisterComplexField("kismet.channelrec.data_rrd",
-                    data_rrd_builder, "bytes of data RRD");
+        __RegisterComplexField(kis_tracked_rrd<>, data_rrd_id, 
+                "kismet.channelrec.data_rrd", "byte count RRD");
 
-        shared_ptr<kis_tracked_rrd<> > device_rrd_builder(new kis_tracked_rrd<>(globalreg, 0));
-        device_rrd_id =
-            RegisterComplexField("kismet.channelrec.device_rrd",
-                    device_rrd_builder, "number of active devices RRD");
+        __RegisterComplexField(kis_tracked_rrd<>, device_rrd_id, 
+                "kismet.channelrec.device_rrd", "active device RRD");
 
-        shared_ptr<kis_tracked_signal_data> sig_builder(new kis_tracked_signal_data(globalreg, 0));
-        signal_data_id =
-            RegisterComplexField("kismet.channelrec.signal", sig_builder,
-                "overall signal records");
+        __RegisterComplexField(kis_tracked_signal_data, signal_data_id, 
+                "kismet.channelrec.signal", "overall signal records");
     }
 
     virtual void reserve_fields(SharedTrackerElement e) {
@@ -126,17 +116,18 @@ protected:
                         e->get_map_value(signal_data_id)));
         } else {
             packets_rrd.reset(new kis_tracked_rrd<>(globalreg, packets_rrd_id));
-            add_map(packets_rrd);
 
             data_rrd.reset(new kis_tracked_rrd<>(globalreg, data_rrd_id));
-            add_map(data_rrd);
 
             device_rrd.reset(new kis_tracked_rrd<>(globalreg, device_rrd_id));
-            add_map(device_rrd);
 
             signal_data.reset(new kis_tracked_signal_data(globalreg, signal_data_id));
-            add_map(signal_data);
         }
+
+        add_map(packets_rrd);
+        add_map(data_rrd);
+        add_map(device_rrd);
+        add_map(signal_data);
 
         // Don't fast-forward the device RRD
         device_rrd->update_before_serialize(false);
@@ -144,11 +135,9 @@ protected:
     }
 
     // Channel, as string - Logical channels
-    int channel_id;
     SharedTrackerElement channel;
 
     // Frequency, for collating
-    int frequency_id;
     SharedTrackerElement frequency;
 
     // Packets per second RRD
