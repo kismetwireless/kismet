@@ -112,10 +112,10 @@ struct JSON_value *JSON_dict_get_value(struct JSON_value *in_parent, string in_k
 // Some basic JSON extraction functions for common actions
 string JSON_dict_get_string(struct JSON_value *in_parent, string in_key,
 							string& error);
-// Always return a float, cast it to an int if you need to, can be used
+// Always return a long double, cast it to an int if you need to, can be used
 // for bools too (you get a 0 or 1)
-float JSON_dict_get_number(struct JSON_value *in_parent, string in_key,
-							string& error);
+long double JSON_dict_get_number(struct JSON_value *in_parent, string in_key,
+        string& error);
 
 vector<struct JSON_value *> JSON_dict_get_array(struct JSON_value *in_parent,
         string in_key, string& error);

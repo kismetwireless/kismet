@@ -698,9 +698,9 @@ string JSON_dict_get_string(struct JSON_value *in_parent, string in_key,
 	return v->value.tok_str;
 }
 
-float JSON_dict_get_number(struct JSON_value *in_parent, string in_key,
+long double JSON_dict_get_number(struct JSON_value *in_parent, string in_key,
 						   string& error) {
-	float f = 0.0f;
+	long double f = 0.0f;
 	string v = JSON_dict_get_string(in_parent, in_key, error);
 
 	error = "";
@@ -714,7 +714,7 @@ float JSON_dict_get_number(struct JSON_value *in_parent, string in_key,
 	if (v == "false")
 		return 0.0f;
 
-	if (sscanf(v.c_str(), "%f", &f) != 1) {
+	if (sscanf(v.c_str(), "%Lf", &f) != 1) {
 		error = "JSON expected a numerical value but didn't get one";
 		return 0.0f;
 	}
