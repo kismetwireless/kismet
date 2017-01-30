@@ -2,7 +2,9 @@
 
 Kismet uses a REST-like interface on the embedded webserver for providing data and accepting commands.  Generally, data is fetched via HTTP GET and commands are sent via HTTP POST.
 
-Kismet can, in general, return data as a binary msgpack-formatted blob (for more information, see the docs about [serialization](serialization.html)) or as standard JSON.  Where multiple formats are supported, the documentation will show both endpoints.
+*Broadly speaking*, nearly all endpoints in Kismet should support all loaded output methods.  By default, these are JSON and Msgpack, but additional output serializers may be added in the future or added by plugins.
+
+Data returned by JSON serializers will transform field names to match the path delimiters used in many JS implementations - specifically, all instances of '.' will be transformed to '_'.
 
 ## Logins and Sessions
 
@@ -44,15 +46,15 @@ Dictionary key values are case sensitive.
 
 ## REST Endpoints
 
+### Data types
+
 ### System Status
 
-##### `/system/status.msgpack`
-Msgpack-formatted dictionary of system status, including battery charge level, discharge rate, etc.
+##### /system/status `/system/status.msgpack`, `/system/status.json`
 
-##### `/system/status.json`
-JSON-formatted dictionary of system status.
+Dictionary of system status, including battery and memory use.
 
-##### `/system/tracked_fields.html`
+##### /system/tracked_fields `/system/tracked_fields.html`
 Human-readable table of all registered field names, types, and descriptions.  While it cannot represent the nested features of some data structures, it will describe every allocated field.
 
 ### Device Handling
@@ -61,67 +63,57 @@ A device is the central record of a tracked entity in Kismet.  Clients, bridges,
 
 All devices will have a basic set of records (held in the `kismet.base.foo` group of fields, generally) and then sub-trees of records attached by the phy-specific handlers.
 
-##### `/devices/all_devices.msgpack`
-Msgpack-formatted array of device summary records, a subset of the entire device record kept for each device.
+##### /devices/all_devices `/devices/all_devices.msgpack`, `/devices/all_devices.json`
 
-##### `/devices/all_devices.json`
-JSON-formatted array of device summary records.
+Array of complete device records.  This may incur a significant load on both the Kismet server and on the receiving system, depending on the number of devices tracked.
 
-##### `/devices/all_devices_dt.json`
+##### /devices/all_devices_dt `/devices/all_devices_dt.json`
+
 JSON-formatted array of device summary records, contained in a dictionary under the key `aaData`, which supports direct loading into a jQuery DataTable element.
 
-##### `/devices/last-time/[TS]/devices.msgpack`
-Msgpack dictionary containing a list of devices modified since unix timestamp `[TS]`, a flag indicating the device structure has changed and the entire device list should be reloaded, and a timestamp record indicating the time of this report.
+##### /devices/last-time/[TS]/devices `/devices/last-time/[TS]/devices.msgpack`, `devices/last-time/[TS]/devices.json`
 
-##### `/devices/last-time/[TS]/devices.json`
-JSON dictionary containing the equivalent data, for optimized performance of the WebUI refreshing only networks which have changed.
+Dictionary containing the list of all devices new or modified since the server timestamp `[TS]`, a flag indicating that the device list has drastically changed indicating that the entire device list should be re-loaded, and a timestamp record indicating the server time this report was generated.
 
-##### `/devices/by-key/[DEVICEKEY]/device.msgpack`
-Msgpack dictionary of complete device record, including all nested records, referenced by `[DEVICEKEY]`.
+This endpoint is most useful for clients and scripts which need to monitor the state of *active* devices.  This is used by the Kismet Web UI to update changed devices.
 
-##### `/devices/by-key/[DEVICEKEY]/device.json`
-JSON dictionary of complete device record and all nested records referenced by `[DEVICEKEY]`.
+##### /devices/by-key/[DEVICEKEY]/device `/devices/by-key/[DEVICEKEY]/device.msgpack`, `/devices/by-key/[DEVICEKY]/device.json`
 
-##### `/devices/by-key/[DEVICEKEY]/device.msgpack/[path/to/subkey]`
-Msgpack dictionary of a sub-component of the device referenced by `[DEVICEKEY]`.  The subkey path allows selection of single keys or complete objects in the device tree.
+Complete dictionary object containing all information about the device referenced by [DEVICEKEY].
 
-##### `/devices/by-key/[DEVICEKEY]/device.json/[path/to/subkey]`
-JSON equivalent dictionary of the sub-component of the device.
+##### /devices/by-key/[DEVICEKEY]/device[/path/to/subkey] `/devices/by-key/[DEVICEKEY]/device.msgpack[/path/to/subkey]`, `/devices/by-key/[DEVICEKEY]/device.json[/path/to/subkey]`
 
-##### `/devices/by-mac/[DEVICEMAC]/devices.msgpack`
-Msgpack array of all devices matching `[DEVICEMAC]` across all PHYs.  It is possible (though not often likely) that there is a MAC address collision between different PHYs, in which case multiple devices will be returned in the array.
+Dictionary containing all the device data referenced by `[DEVICEKEY]`, in the sub-tree `[path/to/subkey]`.  Allows fetching single fields or objects from the device tree without fetching the entire device record.
 
-##### `/devices/by-mac/[DEVICEMAC]/devices.json`
-JSON equivalent MAC-based device list.
+Currently even JSON queries must be made using the original field names.
+
+##### /devices/by-mac/[DEVICEMAC]/devices `/devices/by-mac/[DEVICEMAC]/devices.msgpack`, `/devices/by-mac/[DEVICEMAC]/devices.json`
+
+Array/list of all devices matching `[DEVICEMAC]` across all PHY types.  It is possible (though not likely) that there can be a MAC address collision between different PHY types, especially types which synthesize false MAC addresses when no official address is available.
 
 ## Phy Handling
 
-A phy handler processes a specific type of radio physical layer - 802.11, Bluetooth, and so on.  A phy is often, but not always, linked to specific types of hardware and specific packet link types.
+A PHY handler processes a specific type of radio physical layer - 802.11, Bluetooth, and so on.  A PHY is often, but not always, linked to specific types of hardware and specific packet link types.
 
-##### `/phy/all_phys.msgpack`
-Msgpack array of phy descriptions and packet counts.
+##### /phy/all_phys `/phy/all_phys.msgpack`, `/phy/all_phys.json`
 
-##### `/phy/all_phys.json`
-JSON array of phy descriptions and packet counts.
-
-##### `/phy/all_phys_dt.json`
-JSON array of phy information contained in a dictionary under the `aaData` key for easy use with jQuery DataTables.
+Array of all PHY types and statistics
 
 ## Sessions and Logins
 
 ##### `/session/create_session`
+
 Initiate a login via HTTP Basic Auth
 
 ##### `/session/check_session`
+
 Return if a login session is valid
 
 ## Channels
 
-##### `/channels/channels.msgpack`
-Msgpack object of channel and frequency usage and historical data.
+##### /channels/channels `/channels/channels.msgpack`, `/channels/channels.json`
 
-##### `/channels/channels.json`
-JSON object of channel and frequency data.
+Channel usage and monitoring data.
 
 ## Data Sources (new)
 
@@ -136,41 +128,29 @@ Msgpack array of all supported sources (even those not configured with an interf
 ##### `/datasource/error_sources.msgpack`
 Msgpack array of defined sources which are currently in an error state.
 
-## Messagebus
+## Messages
 
 Kismet uses the `messagebus` as in internal system for displaying message to the user.  The messagebus is used to pass error and state messages, as well as notifications about detected devices, etc.
 
-##### `/messagebus/all_messages.msgpack`
-Msgpack list of the last 50 messages generated by Kismet
+##### /messagebus/all_messages `/messagebus/all_messages.msgpack`, `/messagebus/all_messages.json`
 
-##### `/messagebus/all_messages.json`
-JSON list of the last 50 messages generated by Kismet
+Vector of the last 50 messages stored in Kismet
 
-##### `/messagebus/last-time/[TS]/messages.msgpack`
+##### /messagebus/last-time/[TS]/messages `/messagebus/last-time/[TS]/messages.msgpack`, `/messagebus/last-time/[TS]/messages.json`
 
-Msgpack dictionary containing a list of all messages since unix timestamp `[TS]`, and a timestamp record indicating the time of this report.  This can be used to fetch only new messages since the last time messages were fetched.
-
-##### `/messagebus/last-time/[TS]/messages.json`
-
-JSON dictionary containing a list of all messages since unix timestamp `[TS]`, and a timestamp record indicating the time of this report.  This can be used to fetch only new messages since the last time messages were fetched.
+Dictionary containing a list of all messages since server timestamp `[TS]`, and a timestamp record indicating the time of this report.  This can be used to fetch only new messages since the last time messages were fetched.
 
 ## Alerts
 
-Kismet provides alerts via the `/alert/` REST collection.  Alerts are generated as messages and as alert records with machine-processable details.
+Kismet provides alerts via the `/alert/` REST collection.  Alerts are generated as messages and as alert records with machine-processable details.  Alerts can be generated for critical system states, or by the WIDS system.
 
-##### `/alerts/all_alerts.msgpack`
-Msgpack list of the alert backlog
+##### /alerts/all_alerts `/alerts/all_alerts.msgpack`, `/alerts/all_alerts.json`
 
-##### `/alerts/all_alerts.json`
-JSON list of the alert backlog
+List of the alert backlog.  The size of the backlog is configurable via the `alertbacklog` option in kismet.conf
 
-##### `/alerts/last-time/[TS]/alerts.msgpack`
+##### /alerts/last-time[TS]/alerts `/alerts/last-time/[TS]/alerts.msgpack`, `/alerts/last-time/[TS]/alerts.json`
 
-Msgpack dictionary containing a list of alerts since unix timestamp `[TS]`, and a timestamp record indicating the time of this report.  This can be used to fetch only new alerts since the last time alerts were requested.
-
-##### `/alerts/last-time/[TS]/alerts.json`
-
-JSON dictionary containing a list of alerts since unix timestamp `[TS]`, and a timestamp record indicating the time of this report.  This can be used to fetch only new alerts since the last time alerts were requested.
+Dictionary containing a list of alerts since Kismet timestamp `[TS]`, and a timestamp record indicating the time of this report.  This can be used to fetch only new alerts since the last time alerts were requested.
 
 ## Packet Sources (old)
 
@@ -254,11 +234,11 @@ Expects a command dictionary including:
 
 ## 802.11 Specific
 
-##### `/phy/phy80211/ssid_regex.cmd`
+##### /phy/phy80211/ssid_regex `/phy/phy80211/ssid_regex.cmd`, `/phy/phy80211/ssid_regex.jcmd`
 
 *LOGIN _NOT_ REQUIRED*
 
-Retrieve a msgpack array of device summaries based on the supplied PCRE-compatible regular expression.  Devices are matched on advertised SSIDs or probe response SSIDs.
+Retrieve an array of device summaries based on the supplied PCRE-compatible regular expression.  Devices are matched on advertised SSIDs or probe response SSIDs.
 
 This API requires a Kismet server that has been compiled with libpcre support.
 
@@ -270,11 +250,11 @@ Expects a command dictionary including:
 | --- | ----- | ---- | ---- |
 | essid | ["one", "two", "three" ] | array of string | Array of PCRE regex filters |
 
-##### `/phy/phy80211/probe_regex.cmd`
+##### /phy/phy80211/probe_regex `/phy/phy80211/probe_regex.cmd`, `/phy/phy80211/probe_regex.jcmd`
 
 *LOGIN _NOT_ REQUIRED*
 
-Retrieve a msgpack array of device summaries based on the supplied PCRE-compatible regular expression.  Devices are matched on *requested* SSIDs from probe request fields.
+Retrieve an array of device summaries based on the supplied PCRE-compatible regular expression.  Devices are matched on *requested* SSIDs from probe request fields.
 
 This API requires a Kismet server that has been compiled with libpcre support.
 
@@ -301,3 +281,8 @@ To match on a single explicit SSID or any ssid ending in 'foo':
     "essid": [ "^single$", ".*foo$" ]
 }
 ```
+
+##### /phy/phy80211/handshake/[MAC]/[MAC]-handshake.pcap `/phy/phy80211/handshake/[MAC]/[MAC]-handshake.pcap` 
+
+Retrieve a pcap file of WPA EAPOL key packets seen by the 802.11 access point with the BSSID `[MAC]`.  If there are no WPA handshake packets, an empty pcap file will be returned.
+
