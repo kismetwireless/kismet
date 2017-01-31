@@ -53,19 +53,32 @@
 #define nl_sock nl_handle
 
 static inline struct nl_handle *nl_socket_alloc(void) {
+#ifdef HAVE_LINUX_NETLINK
 	return nl_handle_alloc();
+#else
+    return NULL;
+#endif
 }
 
 static inline void nl_socket_free(struct nl_sock *h) {
+#ifdef HAVE_LINUX_NETLINK
 	nl_handle_destroy(h);
+#else
+    return NULL;
+#endif
 }
 
 static inline int __genl_ctrl_alloc_cache(struct nl_sock *h, struct nl_cache **cache) {
+#ifdef HAVE_LINUX_NETLINK
 	struct nl_cache *tmp = genl_ctrl_alloc_cache(h);
 	if (!tmp)
 		return -1;
 	*cache = tmp;
 	return 0;
+#else
+    *cache = NULL;
+    return 0;
+#endif
 }
 #define genl_ctrl_alloc_cache __genl_ctrl_alloc_cache
 #endif
