@@ -126,20 +126,6 @@ channellist=IEEE80211b:1:3,6:3,11:3,2,7,3,8,4,9,5,10
 channellist=IEEE80211a:36,40,44,48,52,56,60,64,149,153,157,161,165
 channellist=IEEE80211ab:1:3,6:3,11:3,2,7,3,8,4,9,5,10,36,40,44,48,52,56,60,64,149,153,157,161,165
 
-# DEPRECATED
-#
-# Client/server listen config
-listen=tcp://127.0.0.1:2505
-# People allowed to connect, comma seperated IP addresses or network/mask
-# blocks.  Netmasks can be expressed as dotted quad (/255.255.255.0) or as
-# numbers (/24)
-allowedhosts=127.0.0.1
-# Maximum number of concurrent GUI's
-maxclients=5
-# Maximum backlog before we start throwing out or killing clients.  The
-# bigger this number, the more memory and the more power it will use.
-maxbacklog=5000
-
 # OUI file, expected format 00:11:22<tab>manufname
 # IEEE OUI file used to look up manufacturer info.  We default to the
 # wireshark one since most people have that.
@@ -227,40 +213,6 @@ allowkeytransmit=true
 
 # How often (in seconds) do we write all our data files (0 to disable)
 writeinterval=300
-
-# Do we use sound?
-# Not to be confused with GUI sound parameter, this controls wether or not the
-# server itself will play sound.  Primarily for headless or automated systems.
-enablesound=false
-# Path to sound player
-soundbin=play
-
-sound=newnet,true
-sound=newcryptnet,true
-sound=packet,true
-sound=gpslock,true
-sound=gpslost,true
-sound=alert,true
-
-# Does the server have speech? (Again, not to be confused with the GUI's speech)
-enablespeech=false
-# Binary used for speech (if not in path, full path must be specified)
-speechbin=flite
-# Specify raw or festival; Flite (and anything else that doesn't need formatting
-# around the string to speak) is 'raw', festival requires the string be wrapped in
-# SayText("...")
-speechtype=raw
-
-# How do we speak?  Valid options:
-# speech    Normal speech
-# nato      NATO spellings (alpha, bravo, charlie)
-# spell     Spell the letters out (aye, bee, sea)
-speechencoding=nato
-
-speech=new,"New network detected s.s.i.d. %1 channel %2"
-speech=alert,"Alert %1"
-speech=gpslost,"G.P.S. signal lost"
-speech=gpslock,"G.P.S. signal O.K."
 
 # How many alerts do we backlog for new clients?  Only change this if you have
 # a -very- low memory system and need those extra bytes, or if you have a high
