@@ -70,8 +70,8 @@
 class DevicetrackerKey {
 public:
     static void SetPhy(uint64_t &key, int16_t phy) {
-        key &= ~(0xFFFFL << 48);
-        key |= ((phy & 0xFFFFL) << 48);
+        key &= ~((uint64_t) 0xFFFFL << 48L);
+        key |= ((uint64_t) (phy & (uint64_t) 0xFFFFL) << 48L);
     }
 
     static void SetDevice(uint64_t &key, uint64_t device) {
