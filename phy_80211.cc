@@ -1116,14 +1116,36 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
                 if (eapoldot11 != NULL) {
                     TrackerElementVector vec(eapoldot11->get_wpa_key_vec());
 
+                    // Start doing something smart here about eliminating
+                    // records - we want to do our best to keep a 1, 2, 3, 4
+                    // handshake sequence, so find out what duplicates we have
+                    // and eliminate the oldest one of them if we need to
+                    uint8_t keymask = 0;
+
                     if (vec.size() > 16) {
-                        vec.erase(vec.begin());
+                        for (TrackerElementVector::iterator kvi = vec.begin();
+                                kvi != vec.end(); ++kvi) {
+                            shared_ptr<dot11_tracked_eapol> ke =
+                                static_pointer_cast<dot11_tracked_eapol>(*kvi);
+
+                            uint8_t knum = (1 << ke->get_eapol_msg_num());
+
+                            // If this is a duplicate handshake number, we can get
+                            // rid of this one
+                            if ((keymask & knum) == knum) {
+                                vec.erase(kvi);
+                                break;
+                            }
+
+                            // Otherwise put this key in the keymask
+                            keymask |= knum;
+                        }
                     }
 
                     vec.push_back(eapol);
 
                     // Calculate the key mask of seen handshake keys
-                    uint8_t keymask = 0;
+                    keymask = 0;
                     for (TrackerElementVector::iterator kvi = vec.begin(); 
                             kvi != vec.end(); ++kvi) {
                         shared_ptr<dot11_tracked_eapol> ke =
