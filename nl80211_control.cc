@@ -64,7 +64,7 @@ static inline void nl_socket_free(struct nl_sock *h) {
 #ifdef HAVE_LINUX_NETLINK
 	nl_handle_destroy(h);
 #else
-    return NULL;
+    return;
 #endif
 }
 
