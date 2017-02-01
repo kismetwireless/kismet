@@ -1651,19 +1651,9 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
 
             local_locker lock(&devicelist_mutex);
 
-            uint64_t key;
-            try {
-                key = stoull(tokenurl[3]);
-            } catch (std::invalid_argument) {
-                return false;
-            }
-
-            /*
             uint64_t key = 0;
-
-			if (sscanf(tokenurl[3].c_str(), "%lu", &key) != 1)
-				return false;
-                */
+            std::stringstream ss(tokenurl[3]);
+            ss >> key;
 
             if (!Httpd_CanSerialize(tokenurl[4]))
                 return false;
@@ -1715,18 +1705,10 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
                 return false;
             }
 
-            // Is the timestamp an int?
-            try {
-                stoull(tokenurl[3]);
-            } catch (std::invalid_argument) {
-                return false;
-            }
-            /*
             long lastts;
             if (sscanf(tokenurl[3].c_str(), "%ld", &lastts) != 1) {
                 return false;
             }
-            */
 
             return Httpd_CanSerialize(tokenurl[4]);
         }
@@ -1931,12 +1913,9 @@ void Devicetracker::Httpd_CreateStreamResponse(
             local_locker lock(&devicelist_mutex);
 
             uint64_t key = 0;
+            std::stringstream ss(tokenurl[3]);
 
-            try {
-                key = stoull(tokenurl[3]);
-            } catch (std::invalid_argument) {
-                return;
-            }
+            ss >> key;
 
             /*
 			if (sscanf(tokenurl[3].c_str(), "%lu", &key) != 1) {
@@ -2004,15 +1983,8 @@ void Devicetracker::Httpd_CreateStreamResponse(
 
             // Is the timestamp an int?
             long lastts;
-            try {
-                lastts = stoull(tokenurl[3]);
-            } catch (std::invalid_argument) {
-                return;
-            }
-            /*
             if (sscanf(tokenurl[3].c_str(), "%ld", &lastts) != 1)
                 return;
-                */
 
             if (!Httpd_CanSerialize(tokenurl[4]))
                 return;

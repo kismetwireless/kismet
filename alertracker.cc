@@ -427,15 +427,8 @@ void Alertracker::Httpd_CreateStreamResponse(
                 return;
 
             long lastts;
-            /*
             if (sscanf(tokenurl[3].c_str(), "%ld", &lastts) != 1)
                 return;
-                */
-            try {
-                lastts = stoull(tokenurl[3]);
-            } catch (std::invalid_argument) {
-                return;
-            }
 
             wrap = true;
 
