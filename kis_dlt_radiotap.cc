@@ -432,8 +432,11 @@ int Kis_DLT_Radiotap::HandlePacket(kis_packet *in_pack) {
 		uint32_t calc_crc =
 			crc32_le_80211(globalreg->crc32_table, decapchunk->data, 
 						   decapchunk->length);
+        uint32_t flipped_crc = kis_swap32(calc_crc);
 
-		if (memcmp(fcschunk->checksum_ptr, &calc_crc, 4)) {
+        // compare both representations
+		if (memcmp(fcschunk->checksum_ptr, &calc_crc, 4) &&
+            memcmp(fcschunk->checksum_ptr, &flipped_crc, 4)) {
 			fcschunk->checksum_valid = 0;
 		} else {
 			fcschunk->checksum_valid = 1;
