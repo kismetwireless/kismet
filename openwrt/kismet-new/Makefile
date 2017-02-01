@@ -5,9 +5,9 @@ PKG_VERSION:=2017git
 PKG_RELEASE:=1
 
 PKG_SOURCE_PROTO:=git
-#PKG_SOURCE_URL:=https://www.kismetwireless.net/kismet.git
-PKG_SOURCE_URL:=/home/dragorn/src/kismet
-PKG_SOURCE_VERSION:=0e579019e3630bfd5b0f4141fda5f84fd7dd2f0d
+PKG_SOURCE_URL:=https://www.kismetwireless.net/kismet.git
+#PKG_SOURCE_URL:=/home/dragorn/src/kismet
+PKG_SOURCE_VERSION:=8b8fe6b0e3789e3613c188c145bde02822a53e0b
 PKG_SOURCE_SUBDIR:=$(PKG_NAME)-$(PKG_VERSION)
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION)-$(PKG_SOURCE_VERSION).tar.gz
 
