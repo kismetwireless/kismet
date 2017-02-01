@@ -227,6 +227,10 @@ AC_CHECK_HEADERS([errno.h stdlib.h string.h sys/socket.h sys/time.h sys/wait.h u
 
 AC_CHECK_HEADERS([getopt.h])
 
+AC_CHECK_HEADERS([execinfo.h],
+    AC_DEFINE(HAVE_EXECINFO, 1, Execinfo header present) have_execinfo=yes,
+    AC_MSG_WARN(Missing execinfo header, cannot provide crash info))
+
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
 AC_HEADER_TIME
@@ -1126,6 +1130,14 @@ else
 	echo "no (will not be able to make mac80211 vaps)";
 fi
 
+printf "        Build-in Debug: "
+if test "$have_execinfo" = "yes"; then
+	echo "yes";
+elif test "$linux" != "yes"; then
+	echo "n/a (only Linux)"
+else
+	echo "no (cannot dump built-in stack traces)";
+fi
 
 # printf "           GPSD LibGPS: "
 # if test "$havelgps" = "yes"; then

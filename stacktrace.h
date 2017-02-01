@@ -6,12 +6,18 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+
+#ifdef HAVE_EXECINFO
 #include <execinfo.h>
 #include <cxxabi.h>
+#endif
 
 /** Print a demangled stack backtrace of the caller function to FILE* out. */
 static inline void print_stacktrace(FILE *out = stderr, unsigned int max_frames = 63)
 {
+#ifndef HAVE_EXECINFO
+    fprintf(out, "unable to print stack trace\n");
+#else
 	fprintf(out, "stack trace:\n");
 
 	// storage array for stack trace address data
@@ -88,6 +94,7 @@ static inline void print_stacktrace(FILE *out = stderr, unsigned int max_frames 
 
 	free(funcname);
 	free(symbollist);
+#endif
 }
 
 #endif // _STACKTRACE_H_

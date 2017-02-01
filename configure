@@ -5436,6 +5436,24 @@ fi
 done
 
 
+for ac_header in execinfo.h
+do :
+  ac_fn_c_check_header_mongrel "$LINENO" "execinfo.h" "ac_cv_header_execinfo_h" "$ac_includes_default"
+if test "x$ac_cv_header_execinfo_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_EXECINFO_H 1
+_ACEOF
+
+$as_echo "#define HAVE_EXECINFO 1" >>confdefs.h
+ have_execinfo=yes
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Missing execinfo header" >&5
+$as_echo "$as_me: WARNING: Missing execinfo header" >&2;}
+fi
+
+done
+
+
 # Checks for typedefs, structures, and compiler characteristics.
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for an ANSI C-conforming const" >&5
 $as_echo_n "checking for an ANSI C-conforming const... " >&6; }
@@ -10304,6 +10322,14 @@ else
 	echo "no (will not be able to make mac80211 vaps)";
 fi
 
+printf "        Build-in Debug: "
+if test "$have_execinfo" = "yes"; then
+	echo "yes";
+elif test "$linux" != "yes"; then
+	echo "n/a (only Linux)"
+else
+	echo "no (cannot dump built-in stack traces)";
+fi
 
 # printf "           GPSD LibGPS: "
 # if test "$havelgps" = "yes"; then
