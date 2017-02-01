@@ -19,6 +19,7 @@
 #include "config.h"
 
 #include "dumpfile_alert.h"
+#include <errno.h>
 
 int dumpfilealert_chain_hook(CHAINCALL_PARMS) {
 	Dumpfile_Alert *auxptr = (Dumpfile_Alert *) auxdata;
