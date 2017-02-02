@@ -30,7 +30,7 @@
  * Because encodings like json lack strict type definitions, the best we
  * can do in the generic case is tell if it's a number, string, and so on; 
  * the consumer will need to determine if it is in-range.  For instance, we
- * currently have to assume all numbers are long doubles
+ * currently have to assume all numbers are doubles
  *
  */
 
@@ -49,13 +49,13 @@ public:
     typedef vector<SharedStructured> structured_vec;
     typedef structured_vec::iterator structured_vec_iterator;
 
-    typedef map<long double, SharedStructured> structured_num_map;
+    typedef map<double, SharedStructured> structured_num_map;
     typedef structured_num_map::iterator structured_num_map_iterator;
 
     typedef map<string, SharedStructured> structured_str_map;
     typedef structured_str_map::iterator structured_str_map_iterator;
 
-    typedef vector<long double> number_vec;
+    typedef vector<double> number_vec;
     typedef number_vec::iterator number_vec_iterator;
 
     typedef vector<string> string_vec;
@@ -73,7 +73,7 @@ public:
     virtual bool isArray() = 0;
     virtual bool isDictionary() = 0;
 
-    virtual long double getNumber() = 0;
+    virtual double getNumber() = 0;
     virtual string getString() = 0;
     virtual bool getBool() = 0;
 
@@ -84,8 +84,8 @@ public:
     // Get keyed values as...
     virtual bool hasKey(string key) = 0;
     virtual SharedStructured getStructuredByKey(string key) = 0;
-    virtual long double getKeyAsNumber(string key) = 0;
-    virtual long double getKeyAsNumber(string key, long double def) = 0;
+    virtual double getKeyAsNumber(string key) = 0;
+    virtual double getKeyAsNumber(string key, double def) = 0;
     virtual string getKeyAsString(string key, string def) = 0;
     virtual string getKeyAsString(string key) = 0;
     virtual bool getKeyAsBool(string key) = 0;

@@ -114,15 +114,15 @@ struct JSON_value *JSON_dict_get_value(struct JSON_value *in_parent, string in_k
 // Some basic JSON extraction functions for common actions
 string JSON_dict_get_string(struct JSON_value *in_parent, string in_key,
 							string& error);
-// Always return a long double, cast it to an int if you need to, can be used
+// Always return a double, cast it to an int if you need to, can be used
 // for bools too (you get a 0 or 1)
-long double JSON_dict_get_number(struct JSON_value *in_parent, string in_key,
+double JSON_dict_get_number(struct JSON_value *in_parent, string in_key,
         string& error);
 
 vector<struct JSON_value *> JSON_dict_get_array(struct JSON_value *in_parent,
         string in_key, string& error);
 
-long double JSON_get_number(struct JSON_value *val, string& error);
+double JSON_get_number(struct JSON_value *val, string& error);
 string JSON_get_string(struct JSON_value *val, string& error);
 
 // Do we have a key?
@@ -160,7 +160,7 @@ public:
 
     void exceptIfNot(bool match, string t) {
         if (!match) {
-            throw StructuredDataUnsuitable("could not extract " + t);
+            throw StructuredDataUnsuitable("JSON field is not " + t);
         }
     }
 
@@ -189,11 +189,11 @@ public:
         return (json->value_map.size() != 0);
     }
 
-    virtual long double getNumber() {
+    virtual double getNumber() {
         exceptIfNull();
         exceptIfNot(isNumber(), "number");
 
-        long double n = JSON_get_number(json, err);
+        double n = JSON_get_number(json, err);
 
         if (err.length() != 0)
             throw StructuredDataUnparseable(err);
@@ -233,7 +233,7 @@ public:
 
         for (vector<struct JSON_value *>::iterator jvi = json->value_array.begin();
                 jvi != json->value_array.end(); ++jvi) {
-            long double d = JSON_get_number(*jvi, err);
+            double d = JSON_get_number(*jvi, err);
 
             if (err.length() != 0)
                 throw StructuredDataUnparseable(err);
@@ -282,11 +282,11 @@ public:
         return SharedStructured(new StructuredJson(nj));
     }
 
-    virtual long double getKeyAsNumber(string key) {
+    virtual double getKeyAsNumber(string key) {
         return getStructuredByKey(key)->getNumber();
     }
 
-    virtual long double getKeyAsNumber(string key, long double def) {
+    virtual double getKeyAsNumber(string key, double def) {
         if (!hasKey(key))
             return def;
 
@@ -352,9 +352,9 @@ public:
 
         for (map<string, struct JSON_value *>::iterator jmi = json->value_map.begin();
                 jmi != json->value_map.end(); ++jmi) {
-            long double n;
+            double n;
 
-            if (sscanf(jmi->first.c_str(), "%Lf", &n) != 1)
+            if (sscanf(jmi->first.c_str(), "%lf", &n) != 1)
                 throw StructuredDataUnsuitable("got non-numerical key converting "
                         "to structured numerical map");
 
