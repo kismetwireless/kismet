@@ -346,7 +346,7 @@ public:
 
     virtual structured_num_map getStructuredNumMap() {
         exceptIfNull();
-        exceptIfNot(isArray(), "array/vector");
+        exceptIfNot(isArray(), "dictionary/map");
 
         structured_num_map m;
 
