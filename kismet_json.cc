@@ -683,27 +683,58 @@ bool JSON_dict_has_key(struct JSON_value *in_parent, string in_key) {
     return true;
 }
 
+string JSON_get_string(struct JSON_value *val, string& error) {
+    error = "";
+
+    return val->value.tok_str;
+}
+
 string JSON_dict_get_string(struct JSON_value *in_parent, string in_key,
 							string& error) {
-	struct JSON_value *v = JSON_dict_get_value(in_parent, in_key, error);
-	
 	error = "";
 
+	struct JSON_value *v = JSON_dict_get_value(in_parent, in_key, error);
+	
 	if (error.length() != 0)
 		return "";
 
-	if (v == NULL)
+	if (v == NULL) {
+        error = "No such key";
 		return "";
+    }
 
 	return v->value.tok_str;
+}
+
+long double JSON_get_number(struct JSON_value *val, string& error) {
+    long double f = 0.0f;
+
+    string v = JSON_get_string(val, error);
+
+    if (error.length() != 0) {
+        return f;
+    }
+
+    if (v == "true")
+        return 1.0f;
+
+    if (v == "false")
+        return 0.0f;
+
+	if (sscanf(v.c_str(), "%Lf", &f) != 1) {
+		error = "JSON expected a numerical value but didn't get one";
+		return 0.0f;
+	}
+
+	return f;
 }
 
 long double JSON_dict_get_number(struct JSON_value *in_parent, string in_key,
 						   string& error) {
 	long double f = 0.0f;
-	string v = JSON_dict_get_string(in_parent, in_key, error);
-
 	error = "";
+
+	string v = JSON_dict_get_string(in_parent, in_key, error);
 
 	if (error.length() != 0)
 		return f;
