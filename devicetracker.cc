@@ -1720,8 +1720,12 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
             return false;
 
         if (tokenurl[1] == "devices") {
-            if (tokenurl.size() < 3)
+            if (tokenurl.size() < 4)
                 return false;
+
+            if (tokenurl[2] == "summary") {
+                return Httpd_CanSerialize(tokenurl[3]);
+            }
 
             if (tokenurl[2] == "last-time") {
                 if (tokenurl.size() < 5) {
@@ -2063,7 +2067,9 @@ int Devicetracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind
 
     // Split URL and process
     vector<string> tokenurl = StrTokenize(concls->url, "/");
-    if (tokenurl.size() < 5) {
+
+    // All URLs are at least /devices/summary/x or /devices/last-time/ts/x
+    if (tokenurl.size() < 4) {
         concls->response_stream << "Invalid request";
         concls->httpcode = 400;
         return 1;
@@ -2077,6 +2083,11 @@ int Devicetracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind
 
     // Summarization vector
     vector<TrackerElementSummary> summary_vec;
+
+    // Wrapper, if any
+    string wrapper_name;
+
+    // fprintf(stderr, "post key %s data %s\n", key, data);
 
     try {
         if (strcmp(key, "msgpack") == 0) {
@@ -2113,6 +2124,9 @@ int Devicetracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind
             }
         }
 
+        // Get the wrapper, if one exists, default to empty if it doesn't
+        wrapper_name = structdata->getKeyAsString("wrapper", "");
+
     } catch(const StructuredDataException e) {
         // fprintf(stderr, "debug - missing data key %s data %s\n", key, data);
         concls->response_stream << "Invalid request: ";
@@ -2121,13 +2135,40 @@ int Devicetracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind
         return 1;
     }
 
-    // fprintf(stderr, "debug - got key %s\n", key);
-    // fprintf(stderr, "debug - data %s\n", data);
-
-    // fprintf(stderr, "debug - done processing fields\n");
-
     if (tokenurl[1] == "devices") {
-        if (tokenurl[2] == "last-time") {
+        if (tokenurl[2] == "summary") {
+            SharedTrackerElement wrapper = NULL;
+
+            // Rename cache generated during simplification
+            TrackerElementSerializer::rename_map rename_map;
+
+            // Create the device vector of all devices, and simplify it
+            SharedTrackerElement devvec =
+                globalreg->entrytracker->GetTrackedInstance(device_list_base_id);
+
+            vector<shared_ptr<kis_tracked_device_base> >::iterator vi;
+            for (vi = tracked_vec.begin(); vi != tracked_vec.end(); ++vi) {
+                SharedTrackerElement simple;
+
+                SummarizeTrackerElement(entrytracker,
+                        (*vi), summary_vec,
+                        simple, rename_map);
+
+                devvec->add_vector(simple);
+            }
+
+            if (wrapper_name != "") {
+                wrapper.reset(new TrackerElement(TrackerMap));
+                wrapper->add_map(devvec);
+                devvec->set_local_name(wrapper_name);
+            } else {
+                wrapper = devvec;
+            }
+
+            Httpd_Serialize(tokenurl[3], concls->response_stream, wrapper, &rename_map);
+            return 1;
+
+        } else if (tokenurl[2] == "last-time") {
             if (tokenurl.size() < 5) {
                 // fprintf(stderr, "debug - couldn't parse ts\n");
                 concls->response_stream << "Invalid request";
@@ -2167,14 +2208,12 @@ int Devicetracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind
 
             wrapper->add_map(updatets);
 
+            // Rename cache generated during simplification
+            TrackerElementSerializer::rename_map rename_map;
+
+            // Create the device vector based on timestamp, and simplify it
             SharedTrackerElement devvec =
                 globalreg->entrytracker->GetTrackedInstance(device_list_base_id);
-
-            wrapper->add_map(devvec);
-
-            // fprintf(stderr, "debug - simplifying and appending results\n");
-
-            TrackerElementSerializer::rename_map rename_map;
 
             vector<shared_ptr<kis_tracked_device_base> >::iterator vi;
             for (vi = tracked_vec.begin(); vi != tracked_vec.end(); ++vi) {
@@ -2189,7 +2228,8 @@ int Devicetracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind
                 }
             }
 
-            // fprintf(stderr, "debug - serializing results\n");
+            // Put the simplified map in the vector
+            wrapper->add_map(devvec);
 
             Httpd_Serialize(tokenurl[4], concls->response_stream, wrapper, &rename_map);
             return 1;

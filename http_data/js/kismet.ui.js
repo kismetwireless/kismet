@@ -16,7 +16,7 @@ exports.DeviceColumns = new Array();
  *
  * sTitle: datatable column title
  * name: datatable 'name' field (optional)
- * mData: datatable field spec
+ * field: Kismet field path or array pair of field path and name
  * renderfunc: string name of datatable render function, taking DT arguments
  *  (data, type, row, meta), (optional)
  * drawfunc: string name of a draw function, taking arguments:
@@ -30,7 +30,7 @@ exports.AddDeviceColumn = function(id, options) {
     var coldef = {
         kismetId: id,
         sTitle: options.sTitle,
-        mData: options.mData
+        field: options.field,
     };
 
     if ('name' in options) {
@@ -58,6 +58,16 @@ exports.AddDeviceColumn = function(id, options) {
     if ('drawfunc' in options) {
         coldef.kismetdrawfunc = options.drawfunc;
     }
+
+    var f;
+    if (typeof(coldef.field) === 'string') {
+        var fs = coldef.field.split("/");
+        f = fs[fs.length - 1];
+    } else if (typeof(coldef.field) === 'array') {
+        f = coldef.field[1];
+    }
+
+    coldef.mData = f.replace(/\./g, '_');
 
     exports.DeviceColumns.push(coldef);
 }

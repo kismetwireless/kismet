@@ -89,13 +89,45 @@ var deviceTid;
 var last_devicelist_time = 0
 
 function handleDeviceSummary() {
+    /*
+    var json = {
+        fields: [
+            "kismet.device.base.key",
+            "dot11.device/dot11.device.last_beaconed_ssid",
+            ["dot11.device/dot11.device.last_beaconed_ssid", "ssid"]
+        ]
+    };
+
+    var data = "json=" + JSON.stringify(json);
+
+    $.post("/devices/last-time/" + last_devicelist_time + "/devices.json", 
+            data = data,
+            dataType = "json")
+        .done(function(data) {
+            console.log(data);
+        });
+    */
+
+    return;
+
+    /* Make the fields list json */
+    var fields = new Array();
+    var cols = kismet_ui.GetDeviceColumns();
+    for (var ci in cols) {
+        fields.push(cols[ci].field);
+    }
+    var json = {
+        fields: fields
+    };
+    var postdata = "json=" + JSON.stringify(json);
 
     var dt = $('#devices').DataTable();
 
     // Preserve the scroll position
     scrollPos = $(".dataTables_scrollBody").scrollTop();
 
-    $.get("/devices/last-time/" + last_devicelist_time + "/devices.json")
+    $.post("/devices/last-time/" + last_devicelist_time + "/devices.json",
+            data = postdata, dataType = "json")
         .done(function(data) {
 
         last_devicelist_time = data.kismet_devicelist_timestamp;
@@ -173,11 +205,31 @@ $(function() {
     // this?  sure is annoying.
     kismet.GetDynamicIncludes().done(function() {
 
-    $('#devices').DataTable( {
-        "scrollY":        "1",
-        "scroller":       true,
+    /* Make the fields list json and set the wrapper object to aData to make
+     the DT happy */
+    var fields = new Array();
+    var cols = kismet_ui.GetDeviceColumns();
+    for (var ci in cols) {
+        fields.push(cols[ci].field);
+    }
+    var json = {
+        fields: fields,
+        wrapper: 'aaData',
+    };
+    var postdata = "json=" + JSON.stringify(json);
 
-        "ajax":           "/devices/all_devices_dt.json",
+    $('#devices').DataTable( {
+        "scrollY": "1",
+        "scroller": true,
+
+        "ajax": {
+            url: "/devices/summary/devices.json",
+            data: {
+                json: JSON.stringify(json)
+            },
+            method: "POST",
+        },
+
         "deferRender":    true,
 
         aoColumns: kismet_ui.GetDeviceColumns([]),
