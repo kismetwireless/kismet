@@ -722,8 +722,8 @@ double JSON_get_number(struct JSON_value *val, string& error) {
         return 0.0f;
 
 	if (sscanf(v.c_str(), "%lf", &f) != 1) {
-		error = "JSON expected a numerical value but didn't get one";
-		return 0.0f;
+        error = "JSON expected a numerical value but didn't get one";
+        return 0.0f;
 	}
 
 	return f;
