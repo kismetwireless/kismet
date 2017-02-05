@@ -290,6 +290,36 @@ class KismetConnector:
         """
         return self.__unpack_simple_url("devices/last-time/{}/devices.msgpack".format(ts))
 
+    def smart_summary_since(self, ts, fields):
+        """
+        smart_sumamry_since(ts, fields) -> device summary list
+
+        Return object containing summary of devices added or changed since ts
+        and ts info.  Restricted summary to provided vector of fields.
+        """
+
+        cmd = {
+                "fields": fields,
+                "test": "testval",
+                }
+
+        (r, v) = self.post_msgpack_url("devices/last-time/{}/devices.msgpack".format(ts), cmd)
+
+        # Did we succeed?
+        if not r:
+            if self.debug:
+                print "Failed to post smart summary: ", r
+            return False
+
+        try:
+            obj = msgpack.unpackb(v)
+        except Exception as e:
+            if self.debug:
+                print "Failed to unpack object: ", e
+            return list()
+
+        return self.__simplify(obj)
+
     def device(self, key):
         """
         device(key) -> device object
