@@ -2061,8 +2061,6 @@ int Devicetracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind
 
     Kis_Net_Httpd_Connection *concls = (Kis_Net_Httpd_Connection *) coninfo_cls;
 
-    bool handled = false;
-
     // Split URL and process
     vector<string> tokenurl = StrTokenize(concls->url, "/");
     if (tokenurl.size() < 5) {
@@ -2074,7 +2072,11 @@ int Devicetracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind
     if (size == 0)
         return 1;
 
+    // Common structured API data
     SharedStructured structdata;
+
+    // Summarization vector
+    vector<TrackerElementSummary> summary_vec;
 
     try {
         if (strcmp(key, "msgpack") == 0) {
@@ -2085,6 +2087,32 @@ int Devicetracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind
         } else {
             throw StructuredDataException("Missing data");
         }
+
+        SharedStructured fields = structdata->getStructuredByKey("fields");
+        StructuredData::structured_vec fvec = fields->getStructuredArray();
+
+        for (StructuredData::structured_vec::iterator i = fvec.begin(); 
+                i != fvec.end(); ++i) {
+            if ((*i)->isString()) {
+                // fprintf(stderr, "debug - field: %s\n", (*i)->getString().c_str());
+                summary_vec.push_back(TrackerElementSummary((*i)->getString()));
+            } else if ((*i)->isArray()) {
+                StructuredData::string_vec mapvec = (*i)->getStringVec();
+
+                if (mapvec.size() != 2) {
+                    // fprintf(stderr, "debug - malformed rename pair\n");
+                    concls->response_stream << "Invalid request: "
+                        "Expected field, rename";
+                    concls->httpcode = 400;
+                    return 1;
+                }
+
+                summary_vec.push_back(TrackerElementSummary(mapvec[0], mapvec[1]));
+
+                // fprintf(stderr, "debug - map field: %s:%s\n", mapvec[0].c_str(), mapvec[1].c_str());
+            }
+        }
+
     } catch(const StructuredDataException e) {
         // fprintf(stderr, "debug - missing data key %s data %s\n", key, data);
         concls->response_stream << "Invalid request: ";
@@ -2093,32 +2121,8 @@ int Devicetracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind
         return 1;
     }
 
-    SharedStructured fields = structdata->getStructuredByKey("fields");
-    StructuredData::structured_vec fvec = fields->getStructuredArray();
-
-    // Summarization vector
-    vector<TrackerElementSummary> summary_vec;
-
-    for (StructuredData::structured_vec::iterator i = fvec.begin(); 
-            i != fvec.end(); ++i) {
-        if ((*i)->isString()) {
-            // fprintf(stderr, "debug - field: %s\n", (*i)->getString().c_str());
-            summary_vec.push_back(TrackerElementSummary((*i)->getString()));
-        } else if ((*i)->isArray()) {
-            StructuredData::string_vec mapvec = (*i)->getStringVec();
-
-            if (mapvec.size() != 2) {
-                // fprintf(stderr, "debug - malformed rename pair\n");
-                concls->response_stream << "Invalid request: Expected field, rename";
-                concls->httpcode = 400;
-                return 1;
-            }
-
-            summary_vec.push_back(TrackerElementSummary(mapvec[0], mapvec[1]));
-
-            // fprintf(stderr, "debug - map field: %s:%s\n", mapvec[0].c_str(), mapvec[1].c_str());
-        }
-    }
+    // fprintf(stderr, "debug - got key %s\n", key);
+    // fprintf(stderr, "debug - data %s\n", data);
 
     // fprintf(stderr, "debug - done processing fields\n");
 
