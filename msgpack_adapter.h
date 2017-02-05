@@ -39,18 +39,21 @@ namespace MsgpackAdapter {
 typedef map<string, msgpack::object> MsgpackStrMap;
 
 void Packer(GlobalRegistry *globalreg, SharedTrackerElement v, 
-        msgpack::packer<std::stringstream> &packer);
+        msgpack::packer<std::stringstream> &packer,
+        TrackerElementSerializer::rename_map *name_map = NULL);
 
 void Pack(GlobalRegistry *globalreg, std::stringstream &stream, 
-        SharedTrackerElement e);
+        SharedTrackerElement e, 
+        TrackerElementSerializer::rename_map *name_map = NULL);
 
 class Serializer : public TrackerElementSerializer {
 public:
     Serializer(GlobalRegistry *in_globalreg) :
         TrackerElementSerializer(in_globalreg) { }
 
-    virtual void serialize(SharedTrackerElement in_elem, std::stringstream &stream) {
-        Pack(globalreg, stream, in_elem);
+    virtual void serialize(SharedTrackerElement in_elem, std::stringstream &stream,
+            rename_map *name_map = NULL) {
+        Pack(globalreg, stream, in_elem, name_map);
     }
 };
 
@@ -145,7 +148,7 @@ public:
     }
 
     virtual string_vec getStringVec() {
-        exceptIfNot(isDictionary(), "dictionary / map");
+        exceptIfNot(isArray(), "dictionary / map");
 
         try {
             return object.as<string_vec>();

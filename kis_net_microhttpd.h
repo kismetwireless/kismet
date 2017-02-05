@@ -128,7 +128,8 @@ public:
     // Shortcuts to the entry tracker and serializer since most endpoints will
     // need to serialize
     virtual bool Httpd_Serialize(string path, std::stringstream &stream,
-            SharedTrackerElement e);
+            SharedTrackerElement e, 
+            TrackerElementSerializer::rename_map *name_map = NULL);
 };
 
 // Fallback handler to report that we can't serve static files

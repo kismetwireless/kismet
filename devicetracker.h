@@ -765,6 +765,11 @@ public:
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size, std::stringstream &stream);
 
+    virtual int Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind, 
+            const char *key, const char *filename, const char *content_type,
+            const char *transfer_encoding, const char *data, 
+            uint64_t off, size_t size);
+
     // Generate a list of all phys, serialized appropriately.  If specified,
     // wrap it in a dictionary and name it with the key in in_wrapper, which
     // is required for some js libs like datatables.
@@ -777,11 +782,6 @@ public:
     // the in_wrapper key, which is required for some js libs like datatables
     void httpd_device_summary(string url, std::stringstream &stream, 
             shared_ptr<TrackerElementVector> subvec, string in_wrapper_key = "");
-
-    // Smarter HTTP summary of selected fields
-    void httpd_device_summary_smart(string url, std::stringstream &stream,
-            shared_ptr<TrackerElementVector> subvec, 
-            string in_wrapper_key, vector<string> fields);
 
     // TODO merge this into a normal serializer call
     void httpd_xml_device_summary(std::stringstream &stream);

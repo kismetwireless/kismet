@@ -28,7 +28,8 @@
 
 namespace JsonAdapter {
 
-void Pack(GlobalRegistry *globalreg, std::stringstream &stream, SharedTrackerElement e);
+void Pack(GlobalRegistry *globalreg, std::stringstream &stream, SharedTrackerElement e,
+        TrackerElementSerializer::rename_map *name_map = NULL);
 
 string SanitizeString(string in);
 
@@ -37,8 +38,9 @@ public:
     Serializer(GlobalRegistry *in_globalreg) :
         TrackerElementSerializer(in_globalreg) { }
 
-    virtual void serialize(SharedTrackerElement in_elem, std::stringstream &stream) {
-        Pack(globalreg, stream, in_elem);
+    virtual void serialize(SharedTrackerElement in_elem, std::stringstream &stream,
+            rename_map *name_map = NULL) {
+        Pack(globalreg, stream, in_elem, name_map);
     }
 };
 

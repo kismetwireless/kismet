@@ -36,7 +36,8 @@
 #include "msgpack_adapter.h"
 
 void MsgpackAdapter::Packer(GlobalRegistry *globalreg, SharedTrackerElement v,
-        msgpack::packer<std::stringstream> &o) {
+        msgpack::packer<std::stringstream> &o,
+        TrackerElementSerializer::rename_map *name_map) {
 
     if (v == NULL) {
         o.pack_array(2);
@@ -128,7 +129,25 @@ void MsgpackAdapter::Packer(GlobalRegistry *globalreg, SharedTrackerElement v,
             o.pack_map(tmap->size());
             for (map_iter = tmap->begin(); map_iter != tmap->end(); 
                     ++map_iter) {
-                o.pack(globalreg->entrytracker->GetFieldName(map_iter->first));
+                bool named = false;
+                if (name_map != NULL) {
+                    TrackerElementSerializer::rename_map::iterator nmi = 
+                        name_map->find(map_iter->second);
+                    if (nmi != name_map->end()) {
+                        o.pack(*(nmi->second));
+                        named = true;
+                    }
+                }
+
+                if (!named) {
+                    string tname;
+                    if (map_iter->second != NULL &&
+                            (tname = map_iter->second->get_local_name()) != "")
+                        o.pack(tname);
+                    else
+                        o.pack(globalreg->entrytracker->GetFieldName(map_iter->first));
+                }
+
                 Packer(globalreg, map_iter->second, o);
             }
             break;
@@ -188,9 +207,9 @@ void MsgpackAdapter::Packer(GlobalRegistry *globalreg, SharedTrackerElement v,
 }
 
 void MsgpackAdapter::Pack(GlobalRegistry *globalreg, std::stringstream &stream,
-        SharedTrackerElement e) {
+        SharedTrackerElement e, TrackerElementSerializer::rename_map *name_map) {
     msgpack::packer<std::stringstream> packer(&stream);
-    Packer(globalreg, e, packer);
+    Packer(globalreg, e, packer, name_map);
 }
 
 void MsgpackAdapter::AsStringVector(msgpack::object &obj, 

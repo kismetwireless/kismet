@@ -48,6 +48,9 @@
 #include "msgpack_adapter.h"
 #include "xmlserialize_adapter.h"
 #include "json_adapter.h"
+#include "structured.h"
+#include "kismet_json.h"
+#include "base64.h"
 
 int Devicetracker_packethook_commontracker(CHAINCALL_PARMS) {
 	return ((Devicetracker *) auxdata)->CommonTracker(in_pack);
@@ -1610,107 +1613,128 @@ string Devicetracker::FetchDeviceTag(mac_addr in_device) {
 
 // HTTP interfaces
 bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
-    if (strcmp(method, "GET") != 0) {
-        return false;
-    }
+    if (strcmp(method, "GET") == 0) {
+        // Simple fixed URLS
 
-    // Simple fixed URLS
-    
-    string stripped = Httpd_StripSuffix(path);
-    bool can_serialize = Httpd_CanSerialize(path);
+        string stripped = Httpd_StripSuffix(path);
+        bool can_serialize = Httpd_CanSerialize(path);
 
-    if (stripped == "/devices/all_devices" && can_serialize)
-        return true;
+        if (stripped == "/devices/all_devices" && can_serialize)
+            return true;
 
-    if (stripped == "/devices/all_devices_dt" && can_serialize)
-        return true;
+        if (stripped == "/devices/all_devices_dt" && can_serialize)
+            return true;
 
-    if (strcmp(path, "/devices/all_devices.xml") == 0)
-        return true;
+        if (strcmp(path, "/devices/all_devices.xml") == 0)
+            return true;
 
-    if (stripped == "/phy/all_phys" && can_serialize)
-        return true;
+        if (stripped == "/phy/all_phys" && can_serialize)
+            return true;
 
-    if (stripped == "/phy/all_phys_dt" && can_serialize)
-        return true;
+        if (stripped == "/phy/all_phys_dt" && can_serialize)
+            return true;
 
-    // Split URL and process
-    vector<string> tokenurl = StrTokenize(path, "/");
-    if (tokenurl.size() < 2)
-        return false;
-
-    if (tokenurl[1] == "devices") {
-        if (tokenurl.size() < 3)
+        // Split URL and process
+        vector<string> tokenurl = StrTokenize(path, "/");
+        if (tokenurl.size() < 2)
             return false;
 
-        // Do a by-key lookup and return the device or the device path
-        if (tokenurl[2] == "by-key") {
-            if (tokenurl.size() < 5) {
-                return false;
-            }
-
-            local_locker lock(&devicelist_mutex);
-
-            uint64_t key = 0;
-            std::stringstream ss(tokenurl[3]);
-            ss >> key;
-
-            if (!Httpd_CanSerialize(tokenurl[4]))
+        if (tokenurl[1] == "devices") {
+            if (tokenurl.size() < 3)
                 return false;
 
-            map<uint64_t, shared_ptr<kis_tracked_device_base> >::iterator tmi =
-                tracked_map.find(key);
-            if (tmi != tracked_map.end()) {
-                // Try to find the exact field
-                if (tokenurl.size() > 5) {
-                    vector<string>::const_iterator first = tokenurl.begin() + 5;
-                    vector<string>::const_iterator last = tokenurl.end();
-                    vector<string> fpath(first, last);
+            // Do a by-key lookup and return the device or the device path
+            if (tokenurl[2] == "by-key") {
+                if (tokenurl.size() < 5) {
+                    return false;
+                }
 
-                    if (tmi->second->get_child_path(fpath) == NULL) {
-                        return false;
+                local_locker lock(&devicelist_mutex);
+
+                uint64_t key = 0;
+                std::stringstream ss(tokenurl[3]);
+                ss >> key;
+
+                if (!Httpd_CanSerialize(tokenurl[4]))
+                    return false;
+
+                map<uint64_t, shared_ptr<kis_tracked_device_base> >::iterator tmi =
+                    tracked_map.find(key);
+                if (tmi != tracked_map.end()) {
+                    // Try to find the exact field
+                    if (tokenurl.size() > 5) {
+                        vector<string>::const_iterator first = tokenurl.begin() + 5;
+                        vector<string>::const_iterator last = tokenurl.end();
+                        vector<string> fpath(first, last);
+
+                        if (tmi->second->get_child_path(fpath) == NULL) {
+                            return false;
+                        }
+                    }
+
+                    return true;
+                } else {
+                    return false;
+                }
+            } else if (tokenurl[2] == "by-mac") {
+                if (tokenurl.size() < 5)
+                    return false;
+
+                local_locker lock(&devicelist_mutex);
+
+                if (!Httpd_CanSerialize(tokenurl[4]))
+                    return false;
+
+                mac_addr mac = mac_addr(tokenurl[3]);
+
+                if (mac.error) {
+                    return false;
+                }
+
+                // Try to find the actual mac
+                vector<shared_ptr<kis_tracked_device_base> >::iterator vi;
+                for (vi = tracked_vec.begin(); vi != tracked_vec.end(); ++vi) {
+                    if ((*vi)->get_macaddr() == mac) {
+                        return true;
                     }
                 }
 
-                return true;
-            } else {
                 return false;
-            }
-        } else if (tokenurl[2] == "by-mac") {
-            if (tokenurl.size() < 5)
-                return false;
-
-            local_locker lock(&devicelist_mutex);
-
-            if (!Httpd_CanSerialize(tokenurl[4]))
-                return false;
-
-            mac_addr mac = mac_addr(tokenurl[3]);
-
-            if (mac.error) {
-                return false;
-            }
-
-            // Try to find the actual mac
-            vector<shared_ptr<kis_tracked_device_base> >::iterator vi;
-            for (vi = tracked_vec.begin(); vi != tracked_vec.end(); ++vi) {
-                if ((*vi)->get_macaddr() == mac) {
-                    return true;
+            } else if (tokenurl[2] == "last-time") {
+                if (tokenurl.size() < 5) {
+                    return false;
                 }
-            }
 
+                long lastts;
+                if (sscanf(tokenurl[3].c_str(), "%ld", &lastts) != 1) {
+                    return false;
+                }
+
+                return Httpd_CanSerialize(tokenurl[4]);
+            }
+        }
+    } else if (strcmp(method, "POST") == 0) {
+        // Split URL and process
+        vector<string> tokenurl = StrTokenize(path, "/");
+        if (tokenurl.size() < 2)
             return false;
-        } else if (tokenurl[2] == "last-time") {
-            if (tokenurl.size() < 5) {
-                return false;
-            }
 
-            long lastts;
-            if (sscanf(tokenurl[3].c_str(), "%ld", &lastts) != 1) {
+        if (tokenurl[1] == "devices") {
+            if (tokenurl.size() < 3)
                 return false;
-            }
 
-            return Httpd_CanSerialize(tokenurl[4]);
+            if (tokenurl[2] == "last-time") {
+                if (tokenurl.size() < 5) {
+                    return false;
+                }
+
+                long lastts;
+                if (sscanf(tokenurl[3].c_str(), "%ld", &lastts) != 1) {
+                    return false;
+                }
+
+                return Httpd_CanSerialize(tokenurl[4]);
+            }
         }
     }
 
@@ -2028,6 +2052,149 @@ void Devicetracker::Httpd_CreateStreamResponse(
         }
 
     }
+}
+
+int Devicetracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind, 
+        const char *key, const char *filename, const char *content_type,
+        const char *transfer_encoding, const char *data, 
+        uint64_t off, size_t size) {
+
+    Kis_Net_Httpd_Connection *concls = (Kis_Net_Httpd_Connection *) coninfo_cls;
+
+    bool handled = false;
+
+    // Split URL and process
+    vector<string> tokenurl = StrTokenize(concls->url, "/");
+    if (tokenurl.size() < 5) {
+        concls->response_stream << "Invalid request";
+        concls->httpcode = 400;
+        return 1;
+    }
+
+    if (size == 0)
+        return 1;
+
+    SharedStructured structdata;
+
+    try {
+        if (strcmp(key, "msgpack") == 0) {
+            string decode = Base64::decode(string(data));
+            structdata.reset(new StructuredMsgpack(decode));
+        } else if (strcmp(key, "json") == 0) {
+            structdata.reset(new StructuredJson(data));
+        } else {
+            throw StructuredDataException("Missing data");
+        }
+    } catch(const StructuredDataException e) {
+        // fprintf(stderr, "debug - missing data key %s data %s\n", key, data);
+        concls->response_stream << "Invalid request: ";
+        concls->response_stream << e.what();
+        concls->httpcode = 400;
+        return 1;
+    }
+
+    SharedStructured fields = structdata->getStructuredByKey("fields");
+    StructuredData::structured_vec fvec = fields->getStructuredArray();
+
+    // Summarization vector
+    vector<TrackerElementSummary> summary_vec;
+
+    for (StructuredData::structured_vec::iterator i = fvec.begin(); 
+            i != fvec.end(); ++i) {
+        if ((*i)->isString()) {
+            // fprintf(stderr, "debug - field: %s\n", (*i)->getString().c_str());
+            summary_vec.push_back(TrackerElementSummary((*i)->getString()));
+        } else if ((*i)->isArray()) {
+            StructuredData::string_vec mapvec = (*i)->getStringVec();
+
+            if (mapvec.size() != 2) {
+                // fprintf(stderr, "debug - malformed rename pair\n");
+                concls->response_stream << "Invalid request: Expected field, rename";
+                concls->httpcode = 400;
+                return 1;
+            }
+
+            summary_vec.push_back(TrackerElementSummary(mapvec[0], mapvec[1]));
+
+            // fprintf(stderr, "debug - map field: %s:%s\n", mapvec[0].c_str(), mapvec[1].c_str());
+        }
+    }
+
+    // fprintf(stderr, "debug - done processing fields\n");
+
+    if (tokenurl[1] == "devices") {
+        if (tokenurl[2] == "last-time") {
+            if (tokenurl.size() < 5) {
+                // fprintf(stderr, "debug - couldn't parse ts\n");
+                concls->response_stream << "Invalid request";
+                concls->httpcode = 400;
+                return 1;
+            }
+
+            // Is the timestamp an int?
+            long lastts;
+            if (sscanf(tokenurl[3].c_str(), "%ld", &lastts) != 1 ||
+                    !Httpd_CanSerialize(tokenurl[4])) {
+                // fprintf(stderr, "debug - couldn't parse/deserialize\n");
+                concls->response_stream << "Invalid request";
+                concls->httpcode = 400;
+                return 1;
+            }
+
+            local_locker lock(&devicelist_mutex);
+
+            SharedTrackerElement wrapper(new TrackerElement(TrackerMap));
+
+            SharedTrackerElement refresh =
+                globalreg->entrytracker->GetTrackedInstance(device_update_required_id);
+
+            // If we've changed the list more recently, we have to do a refresh
+            if (lastts < full_refresh_time) {
+                refresh->set((uint8_t) 1);
+            } else {
+                refresh->set((uint8_t) 0);
+            }
+
+            wrapper->add_map(refresh);
+
+            SharedTrackerElement updatets =
+                globalreg->entrytracker->GetTrackedInstance(device_update_timestamp_id);
+            updatets->set((int64_t) globalreg->timestamp.tv_sec);
+
+            wrapper->add_map(updatets);
+
+            SharedTrackerElement devvec =
+                globalreg->entrytracker->GetTrackedInstance(device_list_base_id);
+
+            wrapper->add_map(devvec);
+
+            // fprintf(stderr, "debug - simplifying and appending results\n");
+
+            TrackerElementSerializer::rename_map rename_map;
+
+            vector<shared_ptr<kis_tracked_device_base> >::iterator vi;
+            for (vi = tracked_vec.begin(); vi != tracked_vec.end(); ++vi) {
+                if ((*vi)->get_last_time() > lastts) {
+                    SharedTrackerElement simple;
+
+                    SummarizeTrackerElement(entrytracker,
+                            (*vi), summary_vec,
+                            simple, rename_map);
+
+                    devvec->add_vector(simple);
+                }
+            }
+
+            // fprintf(stderr, "debug - serializing results\n");
+
+            Httpd_Serialize(tokenurl[4], concls->response_stream, wrapper, &rename_map);
+            return 1;
+        }
+    }
+
+    concls->response_stream << "OK";
+
+    return 1;
 }
 
 void Devicetracker::MatchOnDevices(DevicetrackerFilterWorker *worker) {

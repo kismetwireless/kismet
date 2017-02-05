@@ -570,7 +570,7 @@ protected:
 
     // We could make these all one type, but then we'd have odd interactions
     // with incrementing and I'm not positive that's safe in all cases
-    union {
+    union du {
         string *string_value;
 
         uint8_t uint8_value;
@@ -614,6 +614,7 @@ protected:
         void *custom_value;
     } dataunion;
 
+    
 };
 
 // Helper child classes
@@ -1117,12 +1118,56 @@ public:
         globalreg = in_globalreg;
     }
 
+    typedef map<SharedTrackerElement, string *> rename_map;
+
     virtual ~TrackerElementSerializer() { }
     virtual void serialize(shared_ptr<TrackerElement> in_elem, 
-            std::stringstream &stream) = 0;
+            std::stringstream &stream, rename_map *name_map = NULL) = 0;
 
 protected:
     GlobalRegistry *globalreg;
 };
+
+// Element simplification record for summarizing and simplifying records
+class TrackerElementSummary {
+public:
+    TrackerElementSummary(string in_path, string in_rename) {
+        field_path = StrTokenize(in_path, "/");
+        rename = in_rename;
+    }
+
+    TrackerElementSummary(vector<string> in_path, string in_rename) {
+        field_path = in_path;
+        rename = in_rename;
+    }
+
+    TrackerElementSummary(string in_path) {
+        field_path = StrTokenize(in_path, "/");
+    }
+
+    TrackerElementSummary(vector<string> in_path) {
+        field_path = in_path;
+    }
+
+    vector<string> field_path;
+    string rename;
+};
+
+// Get an element using path semantics
+shared_ptr<TrackerElement> GetTrackerElementPath(string in_path, 
+        SharedTrackerElement elem,
+        shared_ptr<EntryTracker> entrytracker);
+shared_ptr<TrackerElement> GetTrackerElementPath(std::vector<string> in_path, 
+        SharedTrackerElement elem,
+        shared_ptr<EntryTracker> entrytracker);
+
+// Summarize a complex record using a collection of summary elements.  The summarized
+// element is returned in ret_elem, and the rename mapping for serialization is
+// completed in rename.
+void SummarizeTrackerElement(shared_ptr<EntryTracker> entrytracker,
+        SharedTrackerElement in, 
+        vector<TrackerElementSummary> in_summarization, 
+        SharedTrackerElement &ret_elem, 
+        TrackerElementSerializer::rename_map &rename_map);
 
 #endif

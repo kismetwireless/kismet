@@ -1479,3 +1479,81 @@ shared_ptr<TrackerElement>
     return next_elem;
 }
 
+shared_ptr<TrackerElement> GetTrackerElementPath(string in_path, 
+        SharedTrackerElement elem,
+        shared_ptr<EntryTracker> entrytracker) {
+    return GetTrackerElementPath(StrTokenize(in_path, "/"),
+            elem, entrytracker);
+}
+
+shared_ptr<TrackerElement> GetTrackerElementPath(std::vector<string> in_path, 
+        SharedTrackerElement elem,
+        shared_ptr<EntryTracker> entrytracker) {
+
+    if (in_path.size() < 1)
+        return NULL;
+
+    shared_ptr<TrackerElement> next_elem = NULL;
+
+    for (unsigned int x = 0; x < in_path.size(); x++) {
+        // Skip empty path element
+        if (in_path[x].length() == 0)
+            continue;
+
+        int id = entrytracker->GetFieldId(in_path[x]);
+
+        if (id < 0) {
+            return NULL;
+        }
+
+        if (next_elem == NULL)
+            next_elem = elem->get_map_value(id);
+        else
+            next_elem = 
+                next_elem->get_map_value(id);
+
+        if (next_elem == NULL) {
+            return NULL;
+        }
+    }
+
+    return next_elem;
+}
+
+void SummarizeTrackerElement(shared_ptr<EntryTracker> entrytracker,
+        SharedTrackerElement in, 
+        vector<TrackerElementSummary> in_summarization, 
+        SharedTrackerElement &ret_elem, 
+        TrackerElementSerializer::rename_map &rename_map) {
+
+    unsigned int fn = 0;
+    ret_elem.reset(new TrackerElement(TrackerMap));
+
+    for (vector<TrackerElementSummary>::iterator si = in_summarization.begin();
+            si != in_summarization.end(); ++si) {
+        fn++;
+        SharedTrackerElement f =
+            GetTrackerElementPath(si->field_path, in, entrytracker);
+
+        if (f == NULL) {
+            f = entrytracker->RegisterAndGetField("unknown" + IntToString(fn),
+                    TrackerInt8, "unallocated field");
+
+            f = SharedTrackerElement(new TrackerElement(TrackerUInt8));
+            f->set((uint8_t) 0);
+        
+            if (si->rename.length() != 0) {
+                f->set_local_name((*si).rename);
+            } else {
+                f->set_local_name(si->field_path[(*si).field_path.size() - 1]);
+            }
+        }
+
+        ret_elem->add_map(f);
+
+        if (si->rename.length() != 0) {
+            rename_map[f] = &((*si).rename);
+        }
+    }
+}
+

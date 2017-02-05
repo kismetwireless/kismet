@@ -744,8 +744,9 @@ string Kis_Net_Httpd_Handler::Httpd_StripSuffix(string path) {
 }
 
 bool Kis_Net_Httpd_Stream_Handler::Httpd_Serialize(string path, 
-        std::stringstream &stream, SharedTrackerElement e) {
-    return entrytracker->Serialize(httpd->GetSuffix(path), stream, e);
+        std::stringstream &stream, SharedTrackerElement e, 
+        TrackerElementSerializer::rename_map *name_map) {
+    return entrytracker->Serialize(httpd->GetSuffix(path), stream, e, name_map);
 }
 
 int Kis_Net_Httpd_Stream_Handler::Httpd_HandleRequest(Kis_Net_Httpd *httpd, 

@@ -40,7 +40,7 @@ string JsonAdapter::SanitizeString(string in) {
 }
 
 void JsonAdapter::Pack(GlobalRegistry *globalreg, std::stringstream &stream,
-    SharedTrackerElement e) {
+    SharedTrackerElement e, TrackerElementSerializer::rename_map *name_map) {
 
     if (e == NULL) {
         stream << "0";
@@ -132,11 +132,25 @@ void JsonAdapter::Pack(GlobalRegistry *globalreg, std::stringstream &stream,
             tmap = e->get_map();
             stream << "{";
             for (map_iter = tmap->begin(); map_iter != tmap->end(); /* */) {
-                if (map_iter->second == NULL) {
-                    tname = globalreg->entrytracker->GetFieldName(map_iter->first);
-                } else {
-                    if ((tname = map_iter->second->get_local_name()) == "")
+                bool named = false;
+
+                if (name_map != NULL) {
+                    TrackerElementSerializer::rename_map::iterator nmi = 
+                        name_map->find(map_iter->second);
+                    if (nmi != name_map->end()) {
+                        tname = *(nmi->second);
+                        named = true;
+                    }
+                }
+
+                if (!named) {
+                    if (map_iter->second == NULL) {
                         tname = globalreg->entrytracker->GetFieldName(map_iter->first);
+                    } else {
+                        if ((tname = map_iter->second->get_local_name()) == "")
+                            tname = 
+                                globalreg->entrytracker->GetFieldName(map_iter->first);
+                    }
                 }
 
                 // JSON is special, and considers '.' to be a path separator, so

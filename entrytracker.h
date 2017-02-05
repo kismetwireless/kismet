@@ -88,7 +88,8 @@ public:
     void RegisterSerializer(string type, shared_ptr<TrackerElementSerializer> in_ser);
     void RemoveSerializer(string type);
     bool CanSerialize(string type);
-    bool Serialize(string type, std::stringstream &stream, SharedTrackerElement elem);
+    bool Serialize(string type, std::stringstream &stream, SharedTrackerElement elem,
+            TrackerElementSerializer::rename_map *name_map = NULL);
 
     // HTTP api
     virtual bool Httpd_VerifyPath(const char *path, const char *method);
