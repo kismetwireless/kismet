@@ -649,6 +649,9 @@ int Kis_Net_Httpd::handle_static_file(void *cls, struct MHD_Connection *connecti
                     MHD_add_response_header(response, "Content-Type", mime.c_str());
                 }
 
+		// Allow any?
+		MHD_add_response_header(response, "Access-Control-Allow-Origin", "*");
+
                 // Never let the browser cache our responses.  Maybe moderate this
                 // in the future to cache for 60 seconds or something?
                 MHD_add_response_header(response, "Cache-Control", "no-cache");
@@ -693,6 +696,9 @@ int Kis_Net_Httpd::SendHttpResponse(Kis_Net_Httpd *httpd,
     if (mime != "") {
         MHD_add_response_header(response, "Content-Type", mime.c_str());
     }
+
+    // Allow any?
+    MHD_add_response_header(response, "Access-Control-Allow-Origin", "*");
 
     int ret = MHD_queue_response(connection, httpcode, response);
 
