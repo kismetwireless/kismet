@@ -13,7 +13,7 @@
     var element = null;
 
     var base_options = {
-
+        url: ""
     };
 
     var options = base_options;
@@ -44,7 +44,9 @@
             return;
         }
 
-        $.get("/channels/channels.json")
+        console.log(options.url);
+
+        $.get(options.url + "/channels/channels.json")
         .done(function(data) {
             var devtitles = new Array();
             var devnums = new Array();
@@ -321,7 +323,7 @@
         storage.set('jquery.kismet.channels.range', charttime);
     }
 
-    $.fn.channels = function(data, inopt) {
+    $.fn.channels = function(inopt) {
         storage = Storages.localStorage;
 
         var stored_gtype = "now";
@@ -348,6 +350,7 @@
         if (typeof(inopt) === "string") {
 
         } else {
+            console.log(inopt);
             options = $.extend(base_options, inopt);
         }
 
