@@ -214,6 +214,11 @@ exports.RecalcRrdData = function(start, now, type, data, opt = {}) {
         var sec_offt = Math.max(0, now - start);
         var now_bin = Math.ceil(now / type) % rrd_len;
 
+        /*
+        console.log("we think we start in bin" + start_bin);
+        console.log("we think now is bin" + now_bin);
+        */
+
         // Walk the entire array, starting with 'now', and copy zeroes
         // when we fall into the blank spot between 'start' and 'now' when we
         // know we received no data

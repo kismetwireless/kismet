@@ -72,9 +72,9 @@
                 if (charttime === 'min') {
                     title = "Past Minute";
 
-                    for (var x = 0; x < 60; x++) {
+                    for (var x = 60; x > 0; x--) {
                         if (x % 5 == 0) {
-                            pointtitles.push(x);
+                            pointtitles.push(x + 's');
                         } else {
                             pointtitles.push(' ');
                         }
@@ -85,9 +85,9 @@
                 } else if (charttime === 'hour') {
                     title = "Past Hour";
 
-                    for (var x = 0; x < 60; x++) {
+                    for (var x = 60; x > 0; x--) {
                         if (x % 5 == 0) {
-                            pointtitles.push(x);
+                            pointtitles.push(x + 'm');
                         } else {
                             pointtitles.push(' ');
                         }
@@ -99,8 +99,12 @@
                 } else /* day */ {
                     title = "Past Day";
 
-                    for (var x = 0; x < 24; x++) {
-                        pointtitles.push(x);
+                    for (var x = 24; x > 0; x--) {
+                        if (x % 4 == 0) {
+                            pointtitles.push(x + 'h');
+                        } else {
+                            pointtitles.push(' ');
+                        }
                     }
 
                     rrd_type = kismet.RRD_HOUR;
@@ -136,7 +140,7 @@
                     var linedata = 
                         kismet.RecalcRrdData(
                             data['kismet_channeltracker_frequency_map'][fk]['kismet_channelrec_device_rrd']['kismet_common_rrd_last_time'], 
-                            last_devicelist_time, 
+                            data['kismet_channeltracker_frequency_map'][fk]['kismet_channelrec_device_rrd']['kismet_common_rrd_last_time'], 
                             rrd_type,
                             kismet.ObjectByString(
                                 data['kismet_channeltracker_frequency_map'][fk], 
