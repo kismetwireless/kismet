@@ -97,8 +97,6 @@ exports.drawPackets = function(dyncolumn, table, row) {
         });
 }
 
-console.log("kismet.ui.base.js adding device columns");
-
 // Define the basic columns
 kismet_ui.AddDeviceColumn('column_name', {
     sTitle: 'Name',
@@ -150,7 +148,7 @@ kismet_ui.AddDeviceColumn('column_datasize', {
 
 kismet_ui.AddDeviceColumn('column_packet_rrd', {
     sTitle: 'Packets',
-    field: 'kismet.device.base.packets_rrd',
+    field: 'kismet.device.base.packets.rrd',
     name: 'packets',
     renderfunc: function(d, t, r, m) {
         return exports.renderPackets(d, t, r, m);
@@ -192,7 +190,6 @@ kismet_ui.AddDeviceColumn('column_device_mac_hidden', {
 // There is no render function because we immediately fill it during draw.
 //
 // The draw function will populate the kismet devicedata when pinged
-console.log("adding device detail 'base'");
 kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
     draw: function(data, target) {
         target.devicedata(data, {
@@ -749,8 +746,6 @@ var memorydisplay_refresh = function() {
 
         if (memory_chart == null) {
             var canvas = $('#k-mm-canvas', memory_panel.content);
-
-            console.log(canvas);
 
             memory_chart = new Chart(canvas, {
                 type: 'line',
