@@ -138,7 +138,7 @@ void JsonAdapter::Pack(GlobalRegistry *globalreg, std::stringstream &stream,
                     TrackerElementSerializer::rename_map::iterator nmi = 
                         name_map->find(map_iter->second);
                     if (nmi != name_map->end()) {
-                        tname = *(nmi->second);
+                        tname = nmi->second;
                         named = true;
                     }
                 }

@@ -1118,7 +1118,7 @@ public:
         globalreg = in_globalreg;
     }
 
-    typedef map<SharedTrackerElement, string *> rename_map;
+    typedef map<SharedTrackerElement, string> rename_map;
 
     virtual ~TrackerElementSerializer() { }
     virtual void serialize(shared_ptr<TrackerElement> in_elem, 
@@ -1131,35 +1131,39 @@ protected:
 // Element simplification record for summarizing and simplifying records
 class TrackerElementSummary {
 public:
-    TrackerElementSummary(string in_path, string in_rename) {
-        field_path = StrTokenize(in_path, "/");
-        rename = in_rename;
-    }
+    TrackerElementSummary(string in_path, string in_rename, 
+            shared_ptr<EntryTracker> entrytracker);
 
-    TrackerElementSummary(vector<string> in_path, string in_rename) {
-        field_path = in_path;
-        rename = in_rename;
-    }
+    TrackerElementSummary(vector<string> in_path, string in_rename,
+            shared_ptr<EntryTracker> entrytracker);
 
-    TrackerElementSummary(string in_path) {
-        field_path = StrTokenize(in_path, "/");
-    }
+    TrackerElementSummary(string in_path, shared_ptr<EntryTracker> entrytracker);
 
-    TrackerElementSummary(vector<string> in_path) {
-        field_path = in_path;
-    }
+    TrackerElementSummary(vector<string> in_path, shared_ptr<EntryTracker> entrytracker);
 
-    vector<string> field_path;
+    TrackerElementSummary(vector<int> in_path, string in_rename);
+    TrackerElementSummary(vector<int> in_path);
+
+    vector<int> resolved_path;
     string rename;
+
+protected:
+    void parse_path(vector<string> in_path, string in_rename, 
+            shared_ptr<EntryTracker> entrytracker);
 };
 
 // Get an element using path semantics
+// Full string path
 shared_ptr<TrackerElement> GetTrackerElementPath(string in_path, 
         SharedTrackerElement elem,
         shared_ptr<EntryTracker> entrytracker);
+// Split string path
 shared_ptr<TrackerElement> GetTrackerElementPath(std::vector<string> in_path, 
         SharedTrackerElement elem,
         shared_ptr<EntryTracker> entrytracker);
+// Resolved field ID path
+shared_ptr<TrackerElement> GetTrackerElementPath(std::vector<int> in_path, 
+        SharedTrackerElement elem);
 
 // Summarize a complex record using a collection of summary elements.  The summarized
 // element is returned in ret_elem, and the rename mapping for serialization is

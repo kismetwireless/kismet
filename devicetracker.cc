@@ -2106,7 +2106,8 @@ int Devicetracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind
                 i != fvec.end(); ++i) {
             if ((*i)->isString()) {
                 // fprintf(stderr, "debug - field: %s\n", (*i)->getString().c_str());
-                summary_vec.push_back(TrackerElementSummary((*i)->getString()));
+                summary_vec.push_back(TrackerElementSummary((*i)->getString(), 
+                        entrytracker));
             } else if ((*i)->isArray()) {
                 StructuredData::string_vec mapvec = (*i)->getStringVec();
 
@@ -2118,7 +2119,8 @@ int Devicetracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind
                     return 1;
                 }
 
-                summary_vec.push_back(TrackerElementSummary(mapvec[0], mapvec[1]));
+                summary_vec.push_back(TrackerElementSummary(mapvec[0], mapvec[1],
+                            entrytracker));
                 // fprintf(stderr, "debug - map field: %s:%s\n", mapvec[0].c_str(), mapvec[1].c_str());
             }
         }

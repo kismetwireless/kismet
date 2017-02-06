@@ -1479,6 +1479,63 @@ shared_ptr<TrackerElement>
     return next_elem;
 }
 
+TrackerElementSummary::TrackerElementSummary(string in_path, string in_rename,
+        shared_ptr<EntryTracker> entrytracker) {
+    parse_path(StrTokenize(in_path, "/"), in_rename, entrytracker);
+}
+
+TrackerElementSummary::TrackerElementSummary(vector<string> in_path,
+        string in_rename, shared_ptr<EntryTracker> entrytracker) {
+    parse_path(in_path, in_rename, entrytracker);
+}
+
+TrackerElementSummary::TrackerElementSummary(string in_path, 
+        shared_ptr<EntryTracker> entrytracker) {
+    parse_path(StrTokenize(in_path, "/"), "", entrytracker);
+}
+
+TrackerElementSummary::TrackerElementSummary(vector<string> in_path, 
+        shared_ptr<EntryTracker> entrytracker) {
+    parse_path(in_path, "", entrytracker);
+}
+
+TrackerElementSummary::TrackerElementSummary(vector<int> in_path, string in_rename) {
+    resolved_path = in_path;
+    rename = in_rename;
+}
+
+TrackerElementSummary::TrackerElementSummary(vector<int> in_path) {
+    resolved_path = in_path;
+}
+
+void TrackerElementSummary::parse_path(vector<string> in_path, string in_rename,
+        shared_ptr<EntryTracker> entrytracker) {
+
+    if (in_path.size() == 0) {
+        return;
+    }
+
+    bool path_full = true;
+
+    for (unsigned int x = 0; x < in_path.size(); x++) {
+        if (in_path[x].length() == 0)
+            continue;
+
+        int id = entrytracker->GetFieldId(in_path[x]);
+
+        if (id < 0)
+            path_full = false;
+
+        resolved_path.push_back(id);
+    }
+
+    if (!path_full) {
+        rename = in_path[in_path.size() - 1];
+    } else {
+        rename = in_rename;
+    }
+}
+
 shared_ptr<TrackerElement> GetTrackerElementPath(string in_path, 
         SharedTrackerElement elem,
         shared_ptr<EntryTracker> entrytracker) {
@@ -1520,6 +1577,35 @@ shared_ptr<TrackerElement> GetTrackerElementPath(std::vector<string> in_path,
     return next_elem;
 }
 
+shared_ptr<TrackerElement> GetTrackerElementPath(std::vector<int> in_path, 
+        SharedTrackerElement elem) {
+
+    if (in_path.size() < 1)
+        return NULL;
+
+    shared_ptr<TrackerElement> next_elem = NULL;
+
+    for (unsigned int x = 0; x < in_path.size(); x++) {
+        int id = in_path[x];
+
+        if (id < 0) {
+            return NULL;
+        }
+
+        if (next_elem == NULL)
+            next_elem = elem->get_map_value(id);
+        else
+            next_elem = 
+                next_elem->get_map_value(id);
+
+        if (next_elem == NULL) {
+            return NULL;
+        }
+    }
+
+    return next_elem;
+}
+
 void SummarizeTrackerElement(shared_ptr<EntryTracker> entrytracker,
         SharedTrackerElement in, 
         vector<TrackerElementSummary> in_summarization, 
@@ -1534,7 +1620,7 @@ void SummarizeTrackerElement(shared_ptr<EntryTracker> entrytracker,
         fn++;
 
         SharedTrackerElement f =
-            GetTrackerElementPath(si->field_path, in, entrytracker);
+            GetTrackerElementPath(si->resolved_path, in);
 
         if (f == NULL) {
             f = entrytracker->RegisterAndGetField("unknown" + IntToString(fn),
@@ -1544,17 +1630,17 @@ void SummarizeTrackerElement(shared_ptr<EntryTracker> entrytracker,
             f->set((uint8_t) 0);
         
             if (si->rename.length() != 0) {
-                f->set_local_name((*si).rename);
+                f->set_local_name(si->rename);
             } else {
-                f->set_local_name(si->field_path[(*si).field_path.size() - 1]);
+                f->set_local_name("unknown");
             }
+        } 
+
+        if (si->rename.length() != 0) {
+            rename_map[f] = si->rename;
         }
 
         ret_elem->add_map(f);
-
-        if (si->rename.length() != 0) {
-            rename_map[f] = &((*si).rename);
-        }
     }
 }
 

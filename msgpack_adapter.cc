@@ -128,17 +128,11 @@ void MsgpackAdapter::Packer(GlobalRegistry *globalreg, SharedTrackerElement v,
             tmap = v->get_map();
             o.pack_map(tmap->size());
             for (map_iter = tmap->begin(); map_iter != tmap->end(); ++map_iter) {
-                bool named = false;
-                if (name_map != NULL) {
-                    TrackerElementSerializer::rename_map::iterator nmi = 
-                        name_map->find(map_iter->second);
-                    if (nmi != name_map->end()) {
-                        o.pack(*(nmi->second));
-                        named = true;
-                    }
-                }
-
-                if (!named) {
+                TrackerElementSerializer::rename_map::iterator nmi;
+                if (name_map != NULL &&
+                        (nmi = name_map->find(map_iter->second)) != name_map->end()) {
+                    o.pack(nmi->second);
+                } else {
                     string tname;
                     if (map_iter->second != NULL &&
                             (tname = map_iter->second->get_local_name()) != "")
