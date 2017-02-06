@@ -721,12 +721,12 @@ double JSON_get_number(struct JSON_value *val, string& error) {
     if (v == "false")
         return 0.0f;
 
-	if (sscanf(v.c_str(), "%lf", &f) != 1) {
+    if (sscanf(v.c_str(), "%lf", &f) != 1) {
         error = "JSON expected a numerical value but didn't get one";
         return 0.0f;
-	}
+    }
 
-	return f;
+    return f;
 }
 
 double JSON_dict_get_number(struct JSON_value *in_parent, string in_key,
