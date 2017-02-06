@@ -44,8 +44,6 @@
             return;
         }
 
-        console.log(options.url);
-
         $.get(options.url + "/channels/channels.json")
         .done(function(data) {
             var devtitles = new Array();
@@ -354,7 +352,6 @@
         if (typeof(inopt) === "string") {
 
         } else {
-            console.log(inopt);
             options = $.extend(base_options, inopt);
         }
 
