@@ -699,9 +699,9 @@ var memorydisplay_refresh = function() {
         // Common point titles
         var pointtitles = new Array();
 
-        for (var x = 0; x < 60; x++) {
+        for (var x = 60; x > 0; x--) {
             if (x % 5 == 0) {
-                pointtitles.push(x);
+                pointtitles.push(x + 'm');
             } else {
                 pointtitles.push(' ');
             }
