@@ -120,15 +120,14 @@ void MsgpackAdapter::Packer(GlobalRegistry *globalreg, SharedTrackerElement v,
 
             o.pack_array(v->size());
             for (x = 0; x < tvec->size(); x++) {
-                Packer(globalreg, (*tvec)[x], o);
+                Packer(globalreg, (*tvec)[x], o, name_map);
             }
 
             break;
         case TrackerMap:
             tmap = v->get_map();
             o.pack_map(tmap->size());
-            for (map_iter = tmap->begin(); map_iter != tmap->end(); 
-                    ++map_iter) {
+            for (map_iter = tmap->begin(); map_iter != tmap->end(); ++map_iter) {
                 bool named = false;
                 if (name_map != NULL) {
                     TrackerElementSerializer::rename_map::iterator nmi = 
@@ -148,7 +147,7 @@ void MsgpackAdapter::Packer(GlobalRegistry *globalreg, SharedTrackerElement v,
                         o.pack(globalreg->entrytracker->GetFieldName(map_iter->first));
                 }
 
-                Packer(globalreg, map_iter->second, o);
+                Packer(globalreg, map_iter->second, o, name_map);
             }
             break;
         case TrackerIntMap:
@@ -157,7 +156,7 @@ void MsgpackAdapter::Packer(GlobalRegistry *globalreg, SharedTrackerElement v,
             for (map_iter = tmap->begin(); map_iter != tmap->end(); 
                     ++map_iter) {
                 o.pack(map_iter->first);
-                Packer(globalreg, map_iter->second, o);
+                Packer(globalreg, map_iter->second, o, name_map);
             }
             break;
         case TrackerMacMap:
@@ -169,7 +168,7 @@ void MsgpackAdapter::Packer(GlobalRegistry *globalreg, SharedTrackerElement v,
                 // Macmaps need to go out as just the mac string,
                 // not a vector of mac+mask
                 o.pack(mac_map_iter->first.MacFull2String());
-                Packer(globalreg, mac_map_iter->second, o);
+                Packer(globalreg, mac_map_iter->second, o, name_map);
             }
             break;
         case TrackerStringMap:
@@ -179,7 +178,7 @@ void MsgpackAdapter::Packer(GlobalRegistry *globalreg, SharedTrackerElement v,
                     string_map_iter != tstringmap->end();
                     ++string_map_iter) {
                 o.pack(string_map_iter->first);
-                Packer(globalreg, string_map_iter->second, o);
+                Packer(globalreg, string_map_iter->second, o, name_map);
             }
             break;
         case TrackerDoubleMap:
@@ -189,7 +188,7 @@ void MsgpackAdapter::Packer(GlobalRegistry *globalreg, SharedTrackerElement v,
                     double_map_iter != tdoublemap->end();
                     ++double_map_iter) {
                 o.pack(double_map_iter->first);
-                Packer(globalreg, double_map_iter->second, o);
+                Packer(globalreg, double_map_iter->second, o, name_map);
             }
             break;
         case TrackerByteArray:

@@ -122,7 +122,7 @@ void JsonAdapter::Pack(GlobalRegistry *globalreg, std::stringstream &stream,
             tvec = e->get_vector();
             stream << "[";
             for (vec_iter = tvec->begin(); vec_iter != tvec->end(); /* */ ) {
-                JsonAdapter::Pack(globalreg, stream, *vec_iter);
+                JsonAdapter::Pack(globalreg, stream, *vec_iter, name_map);
                 if (++vec_iter != tvec->end())
                     stream << ",";
             }
@@ -162,7 +162,7 @@ void JsonAdapter::Pack(GlobalRegistry *globalreg, std::stringstream &stream,
                 stream << "\"" << 
                     tname <<
                     "\": ";
-                JsonAdapter::Pack(globalreg, stream, map_iter->second);
+                JsonAdapter::Pack(globalreg, stream, map_iter->second, name_map);
                 if (++map_iter != tmap->end()) // Increment iter in loop
                     stream << ",";
             }
@@ -174,7 +174,7 @@ void JsonAdapter::Pack(GlobalRegistry *globalreg, std::stringstream &stream,
             for (map_iter = tmap->begin(); map_iter != tmap->end(); /* */) {
                 // Integer dictionary keys in json are still quoted as strings
                 stream << "\"" << map_iter->first << "\": ";
-                JsonAdapter::Pack(globalreg, stream, map_iter->second);
+                JsonAdapter::Pack(globalreg, stream, map_iter->second, name_map);
                 if (++map_iter != tmap->end()) // Increment iter in loop
                     stream << ",";
             }
@@ -187,7 +187,7 @@ void JsonAdapter::Pack(GlobalRegistry *globalreg, std::stringstream &stream,
                     mac_map_iter != tmacmap->end(); /* */) {
                 // Mac keys are strings and we push only the mac not the mask */
                 stream << "\"" << mac_map_iter->first.Mac2String() << "\": ";
-                JsonAdapter::Pack(globalreg, stream, mac_map_iter->second);
+                JsonAdapter::Pack(globalreg, stream, mac_map_iter->second, name_map);
                 if (++mac_map_iter != tmacmap->end())
                     stream << ",";
             }
@@ -199,7 +199,7 @@ void JsonAdapter::Pack(GlobalRegistry *globalreg, std::stringstream &stream,
             for (string_map_iter = tstringmap->begin();
                     string_map_iter != tstringmap->end(); /* */) {
                 stream << "\"" << string_map_iter->first << "\": ";
-                JsonAdapter::Pack(globalreg, stream, string_map_iter->second);
+                JsonAdapter::Pack(globalreg, stream, string_map_iter->second, name_map);
                 if (++string_map_iter != tstringmap->end())
                     stream << ",";
             }
@@ -212,7 +212,7 @@ void JsonAdapter::Pack(GlobalRegistry *globalreg, std::stringstream &stream,
                     double_map_iter != tdoublemap->end(); /* */) {
                 // Double keys are handled as strings in json
                 stream << "\"" << fixed << double_map_iter->first << "\": ";
-                JsonAdapter::Pack(globalreg, stream, double_map_iter->second);
+                JsonAdapter::Pack(globalreg, stream, double_map_iter->second, name_map);
                 if (++double_map_iter != tdoublemap->end())
                     stream << ",";
             }

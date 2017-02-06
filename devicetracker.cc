@@ -2119,7 +2119,6 @@ int Devicetracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind
                 }
 
                 summary_vec.push_back(TrackerElementSummary(mapvec[0], mapvec[1]));
-
                 // fprintf(stderr, "debug - map field: %s:%s\n", mapvec[0].c_str(), mapvec[1].c_str());
             }
         }

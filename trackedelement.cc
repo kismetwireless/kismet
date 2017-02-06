@@ -1532,6 +1532,7 @@ void SummarizeTrackerElement(shared_ptr<EntryTracker> entrytracker,
     for (vector<TrackerElementSummary>::iterator si = in_summarization.begin();
             si != in_summarization.end(); ++si) {
         fn++;
+
         SharedTrackerElement f =
             GetTrackerElementPath(si->field_path, in, entrytracker);
 
