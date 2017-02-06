@@ -101,7 +101,7 @@
         });
     }
 
-    $.fn.messagebus = function(data, inopt) {
+    $.fn.messagebus = function(inopt) {
         element = $(this);
 
         options = $.extend(base_options, inopt);
