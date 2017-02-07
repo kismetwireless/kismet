@@ -133,18 +133,18 @@ function handleDeviceSummary() {
             var dev = data.kismet_device_list[d];
             var row = dt.row("#" + dev.kismet_device_base_key);
 
-            if (typeof(row.data()) !== 'undefined') {
-                row.data(dev);
-                row.invalidate();
-            } else {
+            if (typeof(row.data()) === 'undefined') {
                 dt.row.add(dev);
+            } else {
+                row.data(dev);
+                // row.invalidate();
             }
         }
 
         if (data.kismet_devicelist_refresh == 1) {
             dt.ajax.reload(function() {
                 $(".dataTables_scrollBody").scrollTop(scrollPos);
-            },false);
+            }, false);
         } else {
             // $(".dataTables_scrollBody").scrollTop(scrollPos);
         }
