@@ -242,10 +242,10 @@
                 // 'now', but default - if for some reason we didn't get a
                 // value from the selector, this falls through to the bar graph
                 // which is what we probably really want
-                for (var fk in data['kismet_channeltracker_frequency_map']) {
+                for (var fk in data['kismet.channeltracker.frequency_map']) {
                     var slot_now =
-                        (data['kismet_channeltracker_frequency_map'][fk]['kismet_channelrec_device_rrd']['kismet_common_rrd_last_time']) % 60;
-                    var dev_now = data['kismet_channeltracker_frequency_map'][fk]['kismet_channelrec_device_rrd']['kismet_common_rrd_minute_vec'][slot_now];
+                        (data['kismet.channeltracker.frequency_map'][fk]['kismet.channelrec.device_rrd']['kismet.common.rrd.last_time']) % 60;
+                    var dev_now = data['kismet.channeltracker.frequency_map'][fk]['kismet.channelrec.device_rrd']['kismet.common.rrd.minute_vec'][slot_now];
 
                     var cfk = kismet_ui.GetConvertedChannel(freqtrans, fk);
 
