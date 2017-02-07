@@ -183,7 +183,6 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
 }
 
 Devicetracker::~Devicetracker() {
-    fprintf(stderr, "debug - ~Devicetracker %p\n", this);
     pthread_mutex_lock(&devicelist_mutex);
 
     globalreg->devicetracker = NULL;
@@ -2075,8 +2074,27 @@ int Devicetracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind
         return 1;
     }
 
-    if (size == 0)
-        return 1;
+    // Process the post data - we care about 2 variables, cache either one.
+    // Whichever one finishes first, we process
+    if (size != 0) {
+        if (strcmp(key, "msgpack") == 0 ||
+                strcmp(key, "json") == 0) {
+            if (concls->variable_cache.find(key) == concls->variable_cache.end())
+                concls->variable_cache[key] = std::stringstream();
+
+            concls->variable_cache[key].write(data, size);
+        } else {
+            // fprintf(stderr, "debug - missing data\n");
+            concls->response_stream << "Invalid request: "
+                "expected JSON or Msgpack data";
+            concls->httpcode = 400;
+        }
+
+        // fprintf(stderr, "debug - wrote into '%s': '%s'\n", key, data);
+        return MHD_YES;
+    }
+
+    // fprintf(stderr, "debug - Got size 0\n");
 
     // Common structured API data
     SharedStructured structdata;
@@ -2087,17 +2105,24 @@ int Devicetracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind
     // Wrapper, if any
     string wrapper_name;
 
-    // fprintf(stderr, "post key %s data %s\n", key, data);
-
     try {
+        // Make sure we have the key
+        if (concls->variable_cache.find(key) == concls->variable_cache.end()) {
+            throw StructuredDataException("Completed POST collection, missing data");
+        }
+
+        // Decode the base64 msgpack and parse it, or parse the json
+
         if (strcmp(key, "msgpack") == 0) {
-            string decode = Base64::decode(string(data));
-            structdata.reset(new StructuredMsgpack(decode));
+            structdata.reset(new StructuredMsgpack(Base64::decode(concls->variable_cache[key].str())));
         } else if (strcmp(key, "json") == 0) {
-            structdata.reset(new StructuredJson(data));
+            structdata.reset(new StructuredJson(concls->variable_cache[key].str()));
         } else {
+            // fprintf(stderr, "debug - missing data\n");
             throw StructuredDataException("Missing data");
         }
+
+        // fprintf(stderr, "debug - parsed structured data\n");
 
         SharedStructured fields = structdata->getStructuredByKey("fields");
         StructuredData::structured_vec fvec = fields->getStructuredArray();
@@ -2233,13 +2258,13 @@ int Devicetracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind
             wrapper->add_map(devvec);
 
             Httpd_Serialize(tokenurl[4], concls->response_stream, wrapper, &rename_map);
-            return 1;
+            return MHD_YES;
         }
     }
 
     concls->response_stream << "OK";
 
-    return 1;
+    return MHD_YES;
 }
 
 void Devicetracker::MatchOnDevices(DevicetrackerFilterWorker *worker) {
