@@ -264,6 +264,7 @@ $(function() {
         rowId: 'kismet_device_base_key',
 
         "drawCallback": function( settings ) {
+            /*
             var api = this.api();
 
             // console.log( api.rows( {page:'current'} ).data() );
@@ -290,7 +291,47 @@ $(function() {
                     col.kismetdrawfunc(col, this.DataTable(), row);
                 }
             }
+            */
+
+            $(this.api().table().container())
+                .find('div.dataTables_paginate')
+                .css( 'display', 'none' );
+            $(this.api().table().container())
+                .find('div.dataTables_length')
+                .css( 'display', 'none' );
+
+            var page = this.DataTable().scroller.page();
+
+            // Kluge the visible rows because it seems to miss the first and last
+            // with some degree of regularity
+            if (page.start > 0)
+                page.start--;
+            page.end++;
+
+            for (var r = page.start; r < page.end; r++) {
+                // Grab the data, applying the transform in the row
+                var row = this.DataTable().row(':eq('+r+')', {order:'applied', search:'applied'});
+
+                if (typeof(row) === 'undefined')
+                    continue;
+
+                if (typeof(row.data()) === 'undefined')
+                    continue;
+
+                for (var c in kismet_ui.DeviceColumns) {
+                    var col = kismet_ui.DeviceColumns[c];
+
+                    if (!('kismetdrawfunc' in col)) {
+                        continue;
+                    }
+
+                    // Call the draw callback if one exists
+                    col.kismetdrawfunc(col, this.DataTable(), row);
+                }
+            }
+
         }
+
     });
 
     device_dt = $('#devices').DataTable();
