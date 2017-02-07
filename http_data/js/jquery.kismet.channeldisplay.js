@@ -72,9 +72,9 @@
 
                     for (var x = 60; x > 0; x--) {
                         if (x % 5 == 0) {
-                            pointtitles.push(x + 's');
+                            pointtitles.push(x);
                         } else {
-                            pointtitles.push(' ');
+                            pointtitles.push('');
                         }
                     }
 
@@ -85,9 +85,9 @@
 
                     for (var x = 60; x > 0; x--) {
                         if (x % 5 == 0) {
-                            pointtitles.push(x + 'm');
+                            pointtitles.push(x);
                         } else {
-                            pointtitles.push(' ');
+                            pointtitles.push('');
                         }
                     }
 
@@ -99,9 +99,9 @@
 
                     for (var x = 24; x > 0; x--) {
                         if (x % 4 == 0) {
-                            pointtitles.push(x + 'h');
+                            pointtitles.push(x);
                         } else {
-                            pointtitles.push(' ');
+                            pointtitles.push('');
                         }
                     }
 
@@ -202,8 +202,8 @@
                 if (timegraph_chart == null) {
                     var device_options = {
                         type: "bar",
+                        responsive: true,
                         options: {
-                            responsive: true,
                             maintainAspectRatio: false,
                             scales: {
                                 yAxes: [{
