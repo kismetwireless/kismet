@@ -102,7 +102,7 @@ If everything went well, you now have a bunch of packages to copy to your Tetra:
 
 ```
 $ cd bin/ar71xx/packages
-$ scp  packages/libmicrohttpd_0.9.38-1.2_ar71xx.ipk base/libpcap_1.5.3-1_ar71xx.ipk base/libnl_3.2.21-1_ar71xx.ipk base/libnettle_3.1.1-1_ar71xx.ipk packages/libgcrypt_1.6.1-1_ar71xx.ipk packages/libgpg-error_1.12-1_ar71xx.ipk base/libstdcpp_4.8-linaro-1_ar71xx.ipk packages/libcap_2.24-1_ar71xx.ipk base/kismet-new_2017git-1_ar71xx.ipk packages/libpcre_8.39-1_ar71xx.ipk root@172.16.42.1:/tmp
+$ scp  packages/libmicrohttpd_0.9.38-1.2_ar71xx.ipk base/libpcap_1.5.3-1_ar71xx.ipk base/libnl_3.2.21-1_ar71xx.ipk base/libnettle_3.1.1-1_ar71xx.ipk packages/libgcrypt_1.6.1-1_ar71xx.ipk packages/libgpg-error_1.12-1_ar71xx.ipk base/libstdcpp_4.8-linaro-1_ar71xx.ipk packages/libcap_2.24-1_ar71xx.ipk base/kismet-new_2017git-1_ar71xx.ipk packages/libpcre_8.39-1_ar71xx.ipk packages/libgnutls_3.4.15-1_ar71xx.ipk root@172.16.42.1:/tmp
 ```
 
 ## Install Kismet on the tetra
@@ -116,12 +116,22 @@ $ ssh root@172.16.42.1
 # opkg install *.ipk
 ```
 
+## Turn off the pineapple management SSID
+
+If you want to run Kismet on both interfaces, turn off the pineapple management SSID via the pineapple webui in Networking, Access Points, Disable Management AP
+
 ## Run kismet!
 
 Fire up kismet and see how it goes.  While SSHd into the tetra as root:
 
 ```
-# kismet_server -n -c wlan0
+# kismet_server -n -c wlan0 -c wlan1
+```
+
+If you want to leave the management SSID running, only run Kismet on wlan1:
+
+```
+# kismet_server -n -c wlan1
 ```
 
 then point your browser at http://172.16.42.1:2501 and you should see it running!
