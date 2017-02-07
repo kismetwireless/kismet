@@ -49,6 +49,21 @@ exports.AddDeviceColumn = function(id, options) {
         coldef.bSearchable = options.searchable;
     }
 
+    var f;
+    if (typeof(coldef.field) === 'string') {
+        var fs = coldef.field.split("/");
+        f = fs[fs.length - 1];
+    } else if (typeof(coldef.field) === 'array') {
+        f = coldef.field[1];
+    }
+
+    // coldef.mData = f.replace(/\./g, '_');
+    // f = f.replace(/\./g, '_');
+
+    coldef.mData = function(row, type, set) {
+        return kismet.ObjectByString(row, f);
+    }
+
     // Set the render function to proxy through the module+function
     if ('renderfunc' in options) {
         coldef.mRender = options.renderfunc;
@@ -58,16 +73,6 @@ exports.AddDeviceColumn = function(id, options) {
     if ('drawfunc' in options) {
         coldef.kismetdrawfunc = options.drawfunc;
     }
-
-    var f;
-    if (typeof(coldef.field) === 'string') {
-        var fs = coldef.field.split("/");
-        f = fs[fs.length - 1];
-    } else if (typeof(coldef.field) === 'array') {
-        f = coldef.field[1];
-    }
-
-    coldef.mData = f.replace(/\./g, '_');
 
     exports.DeviceColumns.push(coldef);
 }

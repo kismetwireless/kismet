@@ -79,7 +79,7 @@
                     }
 
                     rrd_type = kismet.RRD_SECOND;
-                    rrd_data = "kismet_channelrec_device_rrd.kismet_common_rrd_minute_vec";
+                    rrd_data = "kismet.channelrec.device_rrd/kismet.common.rrd.minute_vec";
                 } else if (charttime === 'hour') {
                     title = "Past Hour";
 
@@ -92,7 +92,7 @@
                     }
 
                     rrd_type = kismet.RRD_MINUTE;
-                    rrd_data = "kismet_channelrec_device_rrd.kismet_common_rrd_hour_vec";
+                    rrd_data = "kismet.channelrec.device_rrd/kismet.common.rrd.hour_vec";
 
                 } else /* day */ {
                     title = "Past Day";
@@ -106,13 +106,13 @@
                     }
 
                     rrd_type = kismet.RRD_HOUR;
-                    rrd_data = "kismet_channelrec_device_rrd.kismet_common_rrd_day_vec";
+                    rrd_data = "kismet.channelrec.device.rrd/kismet.common.rrd.day_vec";
 
                 }
 
                 // Position in the color map
                 var colorpos = 0;
-                var nkeys = Object.keys(data['kismet_channeltracker_frequency_map']).length;
+                var nkeys = Object.keys(data['kismet.channeltracker.frequency_map']).length;
 
                 var filter = $('select#gh_filter', element);
                 filter.empty();
@@ -134,14 +134,14 @@
                     );
                 }
 
-                for (var fk in data['kismet_channeltracker_frequency_map']) {
+                for (var fk in data['kismet.channeltracker.frequency_map']) {
                     var linedata = 
                         kismet.RecalcRrdData(
-                            data['kismet_channeltracker_frequency_map'][fk]['kismet_channelrec_device_rrd']['kismet_common_rrd_last_time'], 
-                            data['kismet_channeltracker_frequency_map'][fk]['kismet_channelrec_device_rrd']['kismet_common_rrd_last_time'], 
+                            data['kismet.channeltracker.frequency_map'][fk]['kismet.channelrec.device_rrd']['kismet.common.rrd.last_time'], 
+                            data['kismet.channeltracker.frequency_map'][fk]['kismet.channelrec.device_rrd']['kismet.common.rrd.last_time'], 
                             rrd_type,
                             kismet.ObjectByString(
-                                data['kismet_channeltracker_frequency_map'][fk], 
+                                data['kismet.channeltracker.frequency_map'][fk], 
                                 rrd_data),
                             {});
 

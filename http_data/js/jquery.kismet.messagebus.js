@@ -52,26 +52,26 @@
     var messagebus_refresh = function() {
         $.get("/messagebus/last-time/" + last_msg_time + "/messages.json")
         .done(function(data) {
-            last_msg_time = data['kismet_messagebus_timestamp'];
+            last_msg_time = data['kismet.messagebus.timestamp'];
             var divs = $('div.messagebus_message', element);
 
             // We should only get items which are new so we merge and then drop
             // We merge the existing list into our current data, then assign the 
             // trimmed version of the data to the message list
-            data['kismet_messagebus_list'].reverse();
-            $.merge(data['kismet_messagebus_list'], message_list);
+            data['kismet.messagebus.list'].reverse();
+            $.merge(data['kismet.messagebus.list'], message_list);
 
-            message_list = data['kismet_messagebus_list'].slice(0, options.max_messages);
+            message_list = data['kismet.messagebus.list'].slice(0, options.max_messages);
 
             for (var x = 0; x < message_list.length; x++) {
                 var d = divs.eq(x);
 
                 // Compute trimmed date
-                var ds = (new Date(message_list[x]['kismet_messagebus_message_time'] * 1000).toString()).substring(4, 25);
+                var ds = (new Date(message_list[x]['kismet.messagebus.message_time'] * 1000).toString()).substring(4, 25);
 
                 // Set the HTML
                 d.html('<p>' + ds + '</p>' +
-                    message_list[x]['kismet_messagebus_message_string']);
+                    message_list[x]['kismet.messagebus.message_string']);
 
                 // Remove all flagged clases
                 d.removeClass("messagebus_debug");
@@ -80,7 +80,7 @@
                 d.removeClass("messagebus_alert");
                 d.removeClass("messagebus_fatal");
 
-                var f = message_list[x]['kismet_messagebus_message_flags'];
+                var f = message_list[x]['kismet.messagebus.message_flags'];
 
                 if (f & MSGFLAG_FATAL) {
                     d.addClass("messagebus_fatal");

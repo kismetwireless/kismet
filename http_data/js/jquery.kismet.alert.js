@@ -231,18 +231,18 @@
         $.get("/alerts/last-time/" + fetchtime + "/alerts.json")
         .done(function(data) {
             // Update the timestamp
-            last_time = data['kismet_alert_timestamp'];
+            last_time = data['kismet.alert.timestamp'];
 
             // Have we got new alerts?
-            if (data['kismet_alert_list'].length > 0) {
-                if (data['kismet_alert_list'][0]['kismet_alert_timestamp_sec'] > last_closed_time) {
+            if (data['kismet.alert.list'].length > 0) {
+                if (data['kismet.alert.list'][0]['kismet.alert.timestamp_sec'] > last_closed_time) {
                     alertbg.addClass('ka-top-bg-alert');
                 }
     
                 // Reverse, combine in the data var, slice and assign to the alert list
-                data['kismet_alert_list'].reverse();
-                $.merge(data['kismet_alert_list'], alert_list);
-                alert_list = data['kismet_alert_list'].slice(0, options.max_backlog);
+                data['kismet.alert.list'].reverse();
+                $.merge(data['kismet.alert.list'], alert_list);
+                alert_list = data['kismet.alert.list'].slice(0, options.max_backlog);
 
                 // Is the dialog showing?  Update it if it is
                 if (dialog != null) {
@@ -276,7 +276,7 @@
        
         // Are we showing all alerts, or do we have new ones?
         if (alert_list.length > 0 &&
-                alert_list[0]['kismet_alert_timestamp_sec'] > last_closed_time) {
+                alert_list[0]['kismet.alert.timestamp_sec'] > last_closed_time) {
             $('div#ka-dialog-none', c).hide();
             $('div#ka-alert-list', c).show();
 
@@ -289,7 +289,7 @@
 
             for (var x = 0; x < alert_list.length; x++) {
                 // Stop when we get to old ones
-                if (alert_list[x]['kismet_alert_timestamp_sec'] <= last_closed_time) {
+                if (alert_list[x]['kismet.alert.timestamp_sec'] <= last_closed_time) {
                     // Set the text to 'show all'
                     $('a#ka-alert-show-all', c).text("Show all previous alerts...");
                     break;
@@ -297,7 +297,7 @@
 
                 var d = divs.eq(x);
 
-                var ds = (new Date(alert_list[x]['kismet_alert_timestamp_sec'] * 1000).toString()).substring(4, 25);
+                var ds = (new Date(alert_list[x]['kismet.alert.timestamp_sec'] * 1000).toString()).substring(4, 25);
 
                 // Build the content of each alert line
                 d.append(
@@ -319,13 +319,13 @@
                         $('<span>', {
                             class: "ka-alert-line-type"
                         })
-                        .text(alert_list[x]['kismet_alert_header'])
+                        .text(alert_list[x]['kismet.alert.header'])
                     )
                     .append(
                         $('<div>', {
                             class: "ka-alert-line-text"
                         })
-                        .text(alert_list[x]['kismet_alert_text'])
+                        .text(alert_list[x]['kismet.alert.text'])
                     )
                     .append(
                         $('<div>', {
@@ -335,7 +335,7 @@
                             $('<span>', {
                                 class: "ka-alert-line-address"
                             })
-                            .text(alert_list[x]['kismet_alert_source_mac'].split('/')[0])
+                            .text(alert_list[x]['kismet.alert.source_mac'].split('/')[0])
                         )
                         .append(
                             $('<i>', {
@@ -346,7 +346,7 @@
                             $('<span>', {
                                 class: "ka-alert-line-address"
                             })
-                            .text(alert_list[x]['kismet_alert_dest_mac'].split('/')[0])
+                            .text(alert_list[x]['kismet.alert.dest_mac'].split('/')[0])
                         )
                     )
                 );

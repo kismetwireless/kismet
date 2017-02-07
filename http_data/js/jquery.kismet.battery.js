@@ -33,9 +33,9 @@
             baticon.removeClass("fa-battery-4");
             baticon.removeClass("fa-plug");
 
-            var p = data.kismet_system_battery_percentage;
-            var c = data.kismet_system_battery_charging
-            var a = data.kismet_system_battery_ac;
+            var p = data['kismet.system.battery.percentage'];
+            var c = data['kismet.system.battery.charging'];
+            var a = data['kismet.system.battery.ac'];
 
             if (c === 'charging') {
                 timetext.text("Charging " + p + "% ");
@@ -68,7 +68,7 @@
                 else
                     baticon.addClass("fa-battery-4");
 
-                var s = data.kismet_system_battery_remaining;
+                var s = data['kismet.system.battery.remaining'];
 
                 if (s > 0) {
                     var h = Math.floor(s / 3600);

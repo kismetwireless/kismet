@@ -29,11 +29,11 @@ exports.ObjectByString = function(o, s) {
     if (typeof(o) === 'undefined')
         return;
 
-    s = s.replace(/\[('?"?-?[\w:]+'?"?)\]/g, '.$1');
-    s = s.replace(/^\./, '');
-    s = s.replace(/\.$/, '');
-    s = s.replace(/\.+/, '.');
-    var a = s.split('.');
+    s = s.replace(/\[('?"?-?[\w:]+'?"?)\]/g, '\/$1');
+    s = s.replace(/^\//, '');
+    s = s.replace(/\/$/, '');
+    s = s.replace(/\/+/, '\/');
+    var a = s.split('/');
     for (var i = 0, n = a.length; i < n; ++i) {
         var k = a[i];
 

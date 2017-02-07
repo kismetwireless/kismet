@@ -127,11 +127,11 @@ function handleDeviceSummary() {
     $.post("/devices/last-time/" + last_devicelist_time + "/devices.json",
             data = postdata, dataType = "json")
     .done(function(data) {
-        last_devicelist_time = data.kismet_devicelist_timestamp;
+        last_devicelist_time = data['kismet.devicelist.timestamp'];
 
         for (var d in data.kismet_device_list) {
             var dev = data.kismet_device_list[d];
-            var row = dt.row("#" + dev.kismet_device_base_key);
+            var row = dt.row("#" + dev['kismet.device.base.key']);
 
             if (typeof(row.data()) === 'undefined') {
                 dt.row.add(dev);
@@ -316,7 +316,7 @@ $(function() {
     $('#devices tbody').on('click', 'tr', function () {
         // Fetch the data of the row that got clicked
         var data = device_dt.row( this ).data();
-        var key = data['kismet_device_base_key'];
+        var key = data['kismet.device.base.key'];
 
         kismet_ui.DeviceDetailWindow(key);
     } );

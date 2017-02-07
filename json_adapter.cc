@@ -153,10 +153,6 @@ void JsonAdapter::Pack(GlobalRegistry *globalreg, std::stringstream &stream,
                     }
                 }
 
-                // JSON is special, and considers '.' to be a path separator, so
-                // change all our '.' to '_'.
-                std::replace(tname.begin(), tname.end(), '.', '_');
-
                 tname = SanitizeString(tname);
 
                 stream << "\"" << 
