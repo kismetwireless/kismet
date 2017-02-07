@@ -126,8 +126,7 @@ function handleDeviceSummary() {
 
     $.post("/devices/last-time/" + last_devicelist_time + "/devices.json",
             data = postdata, dataType = "json")
-        .done(function(data) {
-
+    .done(function(data) {
         last_devicelist_time = data.kismet_devicelist_timestamp;
 
         for (var d in data.kismet_device_list) {
@@ -147,12 +146,39 @@ function handleDeviceSummary() {
                 $(".dataTables_scrollBody").scrollTop(scrollPos);
             },false);
         } else {
-            dt.draw(false);
             // $(".dataTables_scrollBody").scrollTop(scrollPos);
         }
+    })
+    .always(function(data) {
+        deviceTid = setTimeout(handleDeviceSummary, 2000);
+        dt.draw(false);
+
+        /*
+        var rows = dt.rows( {page:'current'} );
+
+        for (var ri = 0; ri < rows[0].length; ri++) {
+            var row = dt.row(rows[0][ri]);
+
+            if (typeof(row) === 'undefined')
+                continue;
+
+            if (typeof(row.data()) === 'undefined')
+                continue;
+
+            for (var c in kismet_ui.DeviceColumns) {
+                var col = kismet_ui.DeviceColumns[c];
+
+                if (!('kismetdrawfunc' in col)) {
+                    continue;
+                }
+
+                // Call the draw callback if one exists
+                col.kismetdrawfunc(col, dt, row);
+            }
+        }
+        */
     });
 
-    deviceTid = setTimeout(handleDeviceSummary, 2000);
 }
 
 // jquery onload complete
@@ -238,24 +264,14 @@ $(function() {
         rowId: 'kismet_device_base_key',
 
         "drawCallback": function( settings ) {
-            $(this.api().table().container())
-                .find('div.dataTables_paginate')
-                .css( 'display', 'none' );
-            $(this.api().table().container())
-                .find('div.dataTables_length')
-                .css( 'display', 'none' );
+            var api = this.api();
 
-            var page = this.DataTable().scroller.page();
+            // console.log( api.rows( {page:'current'} ).data() );
 
-            // Kluge the visible rows because it seems to miss the first and last
-            // with some degree of regularity
-            if (page.start > 0)
-                page.start--;
-            page.end++;
+            var rows = api.rows( {page:'current'} );
 
-            for (var r = page.start; r < page.end; r++) {
-                // Grab the data, applying the transform in the row
-                var row = this.DataTable().row(':eq('+r+')', {order:'applied', search:'applied'});
+            for (var ri = 0; ri < rows[0].length; ri++) {
+                var row = this.DataTable().row(rows[0][ri]);
 
                 if (typeof(row) === 'undefined')
                     continue;
@@ -273,11 +289,8 @@ $(function() {
                     // Call the draw callback if one exists
                     col.kismetdrawfunc(col, this.DataTable(), row);
                 }
-
             }
-
         }
-
     });
 
     device_dt = $('#devices').DataTable();
