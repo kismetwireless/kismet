@@ -703,7 +703,7 @@ var memorydisplay_refresh = function() {
     .done(function(data) {
         // Common rrd type and source field
         var rrdtype = kismet.RRD_MINUTE;
-        var rrddata = 'kismet.common.rrd_hour_vec';
+        var rrddata = 'kismet.common.rrd.hour_vec';
 
         // Common point titles
         var pointtitles = new Array();
@@ -719,7 +719,7 @@ var memorydisplay_refresh = function() {
         var mem_linedata =
             kismet.RecalcRrdData(
                 data['kismet.system.memory.rrd']['kismet.common.rrd.last_time'],
-                data['kismet.system.timestamp_sec'],
+                data['kismet.system.timestamp.sec'],
                 rrdtype,
                 data['kismet.system.memory.rrd'][rrddata]);
 
@@ -730,7 +730,7 @@ var memorydisplay_refresh = function() {
         var dev_linedata =
             kismet.RecalcRrdData(
                 data['kismet.system.devices.rrd']['kismet.common.rrd.last_time'],
-                data['kismet.system.timestamp_sec'],
+                data['kismet.system.timestamp.sec'],
                 rrdtype,
                 data['kismet.system.devices.rrd'][rrddata]);
 
