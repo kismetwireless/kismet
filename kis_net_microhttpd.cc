@@ -519,7 +519,7 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
         MHD_post_process(concls->postprocessor, upload_data, *upload_data_size);
 
         if (*upload_data_size != 0) {
-            fprintf(stderr, "debug - handling postprocessor ul ds\n");
+            // fprintf(stderr, "debug - handling postprocessor ul ds\n");
             *upload_data_size = 0;
             return MHD_YES;
         } 
@@ -527,7 +527,7 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
         MHD_destroy_post_processor(concls->postprocessor);
         concls->postprocessor = NULL;
 
-        fprintf(stderr, "debug - sending postprocessor content\n");
+        // fprintf(stderr, "debug - sending postprocessor content\n");
         // Send the content
         ret = kishttpd->SendHttpResponse(kishttpd, connection, 
                 url, concls->httpcode, concls->response_stream.str());
