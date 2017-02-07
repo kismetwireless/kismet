@@ -152,31 +152,6 @@ function handleDeviceSummary() {
     .always(function(data) {
         deviceTid = setTimeout(handleDeviceSummary, 2000);
         dt.draw(false);
-
-        /*
-        var rows = dt.rows( {page:'current'} );
-
-        for (var ri = 0; ri < rows[0].length; ri++) {
-            var row = dt.row(rows[0][ri]);
-
-            if (typeof(row) === 'undefined')
-                continue;
-
-            if (typeof(row.data()) === 'undefined')
-                continue;
-
-            for (var c in kismet_ui.DeviceColumns) {
-                var col = kismet_ui.DeviceColumns[c];
-
-                if (!('kismetdrawfunc' in col)) {
-                    continue;
-                }
-
-                // Call the draw callback if one exists
-                col.kismetdrawfunc(col, dt, row);
-            }
-        }
-        */
     });
 
 }
