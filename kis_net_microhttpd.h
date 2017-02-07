@@ -156,7 +156,7 @@ public:
     std::stringstream response_stream;
 
     // Cache of variables in session
-    map<string, std::stringstream> variable_cache;
+    map<string, std::unique_ptr<std::stringstream> > variable_cache;
 
     // HTTP code of response
     int httpcode;

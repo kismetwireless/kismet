@@ -2080,9 +2080,10 @@ int Devicetracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind
         if (strcmp(key, "msgpack") == 0 ||
                 strcmp(key, "json") == 0) {
             if (concls->variable_cache.find(key) == concls->variable_cache.end())
-                concls->variable_cache[key] = std::stringstream();
+                concls->variable_cache[key] = 
+                    unique_ptr<std::stringstream>(new std::stringstream);
 
-            concls->variable_cache[key].write(data, size);
+            concls->variable_cache[key]->write(data, size);
         } else {
             // fprintf(stderr, "debug - missing data\n");
             concls->response_stream << "Invalid request: "
@@ -2114,9 +2115,9 @@ int Devicetracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind
         // Decode the base64 msgpack and parse it, or parse the json
 
         if (strcmp(key, "msgpack") == 0) {
-            structdata.reset(new StructuredMsgpack(Base64::decode(concls->variable_cache[key].str())));
+            structdata.reset(new StructuredMsgpack(Base64::decode(concls->variable_cache[key]->str())));
         } else if (strcmp(key, "json") == 0) {
-            structdata.reset(new StructuredJson(concls->variable_cache[key].str()));
+            structdata.reset(new StructuredJson(concls->variable_cache[key]->str()));
         } else {
             // fprintf(stderr, "debug - missing data\n");
             throw StructuredDataException("Missing data");
