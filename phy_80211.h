@@ -739,9 +739,6 @@ public:
     static void attach_base_parent(shared_ptr<dot11_tracked_device> self, 
             shared_ptr<kis_tracked_device_base> parent) {
         parent->add_map(self);
-        
-        parent->add_summary_field(self->last_beaconed_ssid);
-        parent->add_summary_field(self->last_beacon_timestamp);
     }
 
     __Proxy(type_set, uint64_t, uint64_t, uint64_t, type_set);

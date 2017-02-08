@@ -1775,12 +1775,16 @@ void Devicetracker::httpd_all_phys(string path, std::stringstream &stream,
 }
 
 void Devicetracker::httpd_device_summary(string url, std::stringstream &stream, 
-        shared_ptr<TrackerElementVector> subvec, string in_wrapper_key) {
+        shared_ptr<TrackerElementVector> subvec, 
+        vector<TrackerElementSummary> summary_vec,
+        string in_wrapper_key) {
 
     local_locker lock(&devicelist_mutex);
 
     SharedTrackerElement devvec =
         globalreg->entrytracker->GetTrackedInstance(device_summary_base_id);
+
+    TrackerElementSerializer::rename_map rename_map;
 
     // Wrap the dev vec in a dictionary and change its name
     SharedTrackerElement wrapper = NULL;
@@ -1795,23 +1799,34 @@ void Devicetracker::httpd_device_summary(string url, std::stringstream &stream,
 
     if (subvec == NULL) {
         for (unsigned int x = 0; x < tracked_vec.size(); x++) {
-            devvec->add_vector(tracked_vec[x]->get_tracked_summary());
-        }
+            if (summary_vec.size() == 0) {
+                devvec->add_vector(tracked_vec[x]);
+            } else {
+                SharedTrackerElement simple;
 
-        Httpd_Serialize(url, stream, wrapper);
+                SummarizeTrackerElement(entrytracker, tracked_vec[x], 
+                        summary_vec, simple, rename_map);
+
+                devvec->add_vector(simple);
+            }
+        }
     } else {
-        /* we do NOT want to lock here actually, we're processing a subvec of
-         * stuff not the master device list
-         *
-         * local_locker lock(&devicelist_mutex);
-         */
         for (TrackerElementVector::const_iterator x = subvec->begin();
                 x != subvec->end(); ++x) {
-            devvec->add_vector(static_pointer_cast<kis_tracked_device_base>(*x)->get_tracked_summary());
-        }
+            if (summary_vec.size() == 0) {
+                devvec->add_vector(*x);
+            } else {
+                SharedTrackerElement simple;
 
-        Httpd_Serialize(url, stream, wrapper);
+                SummarizeTrackerElement(entrytracker, *x, 
+                        summary_vec, simple, rename_map);
+
+                devvec->add_vector(simple);
+            }
+        }
     }
+
+    Httpd_Serialize(url, stream, wrapper, &rename_map);
 }
 
 void Devicetracker::httpd_xml_device_summary(std::stringstream &stream) {
@@ -1821,7 +1836,7 @@ void Devicetracker::httpd_xml_device_summary(std::stringstream &stream) {
         globalreg->entrytracker->GetTrackedInstance(device_summary_base_id);
 
     for (unsigned int x = 0; x < tracked_vec.size(); x++) {
-        devvec->add_vector(tracked_vec[x]->get_tracked_summary());
+        devvec->add_vector(tracked_vec[x]);
     }
 
     XmlserializeAdapter *xml = new XmlserializeAdapter(globalreg);
@@ -1897,12 +1912,13 @@ void Devicetracker::Httpd_CreateStreamResponse(
     string stripped = Httpd_StripSuffix(path);
 
     if (stripped == "/devices/all_devices") {
-        httpd_device_summary(path, stream, NULL);
+        httpd_device_summary(path, stream, NULL, vector<TrackerElementSummary>());
         return;
     }
 
     if (stripped == "/devices/all_devices_dt") {
-        httpd_device_summary(path, stream, NULL, "aaData");
+        httpd_device_summary(path, stream, NULL, 
+                vector<TrackerElementSummary>(), "aaData");
         return;
     }
 

@@ -137,13 +137,6 @@ public:
     kis_tracked_device_base(GlobalRegistry *in_globalreg, int in_id) :
         tracker_component(in_globalreg, in_id) {
 
-        // Register the summary outside the actual component tree
-        // because we get it w/ a C++ function
-        summary_map_id =
-            globalreg->entrytracker->RegisterField("kismet.device.summary",
-                    TrackerMap, "device summary");
-        summary_map = globalreg->entrytracker->GetTrackedInstance(summary_map_id);
-
         register_fields();
         reserve_fields(NULL);
     }
@@ -151,13 +144,6 @@ public:
     kis_tracked_device_base(GlobalRegistry *in_globalreg, int in_id,
             SharedTrackerElement e) : tracker_component(in_globalreg, in_id) {
         
-        // Register the summary outside the actual component tree
-        // because we get it w/ a C++ function
-        summary_map_id =
-            globalreg->entrytracker->RegisterField("kismet.device.summary",
-                    TrackerMap, "device summary");
-        summary_map = globalreg->entrytracker->GetTrackedInstance(summary_map_id);
-
         register_fields();
         reserve_fields(e);
     }
@@ -168,16 +154,6 @@ public:
 
     virtual SharedTrackerElement clone_type() {
         return SharedTrackerElement(new kis_tracked_device_base(globalreg, get_id()));
-    }
-
-    // Add a field to the summary
-    void add_summary_field(SharedTrackerElement f) {
-        summary_map->add_map(f);
-    }
-
-    // Get the tracked summary object
-    SharedTrackerElement get_tracked_summary() {
-        return summary_map;
     }
 
     __Proxy(key, uint64_t, uint64_t, uint64_t, key);
@@ -502,23 +478,6 @@ protected:
         add_map(packet_rrd_bin_1000_id, packet_rrd_bin_1000);
         add_map(packet_rrd_bin_1500_id, packet_rrd_bin_1500);
         add_map(packet_rrd_bin_jumbo_id, packet_rrd_bin_jumbo);
-
-        // Add fields to the summary
-        add_summary_field(key);
-        add_summary_field(macaddr);
-        add_summary_field(phyname);
-        add_summary_field(devicename);
-        add_summary_field(type_string);
-        add_summary_field(crypt_string);
-        add_summary_field(first_time);
-        add_summary_field(last_time);
-        add_summary_field(packets);
-        add_summary_field(signal_data);
-        add_summary_field(channel);
-        add_summary_field(frequency);
-        add_summary_field(manuf);
-        add_summary_field(packets_rrd);
-        add_summary_field(datasize);
     }
 
     // Unique key
@@ -781,7 +740,9 @@ public:
     // a worker.  Also optionally, wrap the results in a dictionary named via
     // the in_wrapper key, which is required for some js libs like datatables
     void httpd_device_summary(string url, std::stringstream &stream, 
-            shared_ptr<TrackerElementVector> subvec, string in_wrapper_key = "");
+            shared_ptr<TrackerElementVector> subvec, 
+            vector<TrackerElementSummary> summary_vec,
+            string in_wrapper_key = "");
 
     // TODO merge this into a normal serializer call
     void httpd_xml_device_summary(std::stringstream &stream);

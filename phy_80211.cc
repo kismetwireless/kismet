@@ -48,7 +48,9 @@
 #include "devicetracker.h"
 #include "phy_80211.h"
 
+#include "structured.h"
 #include "msgpack_adapter.h"
+#include "kismet_json.h"
 
 #ifdef HAVE_LIBPCRE
 #include <pcre.h>
@@ -2136,9 +2138,11 @@ bool Kis_80211_Phy::Httpd_VerifyPath(const char *path, const char *method) {
     // Always return that the URL exists, but throw an error during post
     // handling if we don't have PCRE.  Less weird behavior for clients.
     if (strcmp(method, "POST") == 0) {
-        if (strcmp(path, "/phy/phy80211/ssid_regex.cmd") == 0)
+        if (strcmp(path, "/phy/phy80211/ssid_regex.cmd") == 0 ||
+            strcmp(path, "/phy/phy80211/ssid_regex.jcmd") == 0)
             return true;
-        if (strcmp(path, "/phy/phy80211/probe_regex.cmd") == 0)
+        if (strcmp(path, "/phy/phy80211/probe_regex.cmd") == 0 ||
+            strcmp(path, "/phy/phy80211/probe_regex.jcmd") == 0)
             return true;
     }
 
@@ -2322,6 +2326,7 @@ class phy80211_devicetracker_ssid_pcre_worker : public DevicetrackerFilterWorker
 public:
     phy80211_devicetracker_ssid_pcre_worker(GlobalRegistry *in_globalreg, 
             vector<phy80211_pcre_filter *> *filtervec, int entry_id,
+            vector<TrackerElementSummary> in_summary_vec,
             string in_url, std::stringstream &in_stream) : stream(in_stream) {
 
         globalreg = in_globalreg;
@@ -2329,6 +2334,11 @@ public:
         dot11_device_entry_id = entry_id;
         error = false;
         url = in_url;
+
+        entrytracker =
+            static_pointer_cast<EntryTracker>(globalreg->FetchGlobal("ENTRY_TRACKER"));
+
+        summary_vec = in_summary_vec;
 
         // Make a vector, we don't care about the container type
         device_vec = SharedTrackerElement(new TrackerElement(TrackerVector));
@@ -2373,10 +2383,12 @@ public:
                         ssid->get_ssid_len(),
                         0, 0, ovector, 128);
 
-                // Export the device msgpack
+                // Export the device record
                 if (rc >= 0) {
                     device_handled = true;
+
                     devices->push_back(device);
+
                     break;
                 }
             }
@@ -2390,7 +2402,7 @@ public:
 
     virtual void Finalize(Devicetracker *devicetracker) {
         // Push the summary of devices
-        devicetracker->httpd_device_summary(url, stream, devices);
+        devicetracker->httpd_device_summary(url, stream, devices, summary_vec);
     }
 
 protected:
@@ -2400,6 +2412,8 @@ protected:
     int dot11_device_entry_id;
     shared_ptr<TrackerElement> device_vec;
     shared_ptr<TrackerElementVector> devices;
+    shared_ptr<EntryTracker> entrytracker;
+    vector<TrackerElementSummary> summary_vec;
     Kis_80211_Phy *phy;
     string url;
     std::stringstream &stream;
@@ -2409,6 +2423,7 @@ class phy80211_devicetracker_probe_pcre_worker : public DevicetrackerFilterWorke
 public:
     phy80211_devicetracker_probe_pcre_worker(GlobalRegistry *in_globalreg, 
             vector<phy80211_pcre_filter *> *filtervec, int entry_id,
+            vector<TrackerElementSummary> in_summary_vec,
             string in_url, std::stringstream &in_stream) : stream(in_stream) {
 
         globalreg = in_globalreg;
@@ -2416,6 +2431,11 @@ public:
         dot11_device_entry_id = entry_id;
         error = false;
         url = in_url;
+
+        entrytracker =
+            static_pointer_cast<EntryTracker>(globalreg->FetchGlobal("ENTRY_TRACKER"));
+
+        summary_vec = in_summary_vec;
 
         // Make a vector, we don't care about the container type
         device_vec.reset(new TrackerElement(TrackerVector));
@@ -2462,7 +2482,9 @@ public:
                 // Export the device msgpack
                 if (rc >= 0) {
                     device_handled = true;
+
                     devices->push_back(device);
+
                     break;
                 }
             }
@@ -2476,7 +2498,7 @@ public:
 
     virtual void Finalize(Devicetracker *devicetracker) {
         // Push the summary of devices
-        devicetracker->httpd_device_summary(url, stream, devices);
+        devicetracker->httpd_device_summary(url, stream, devices, summary_vec);
     }
 
 protected:
@@ -2486,6 +2508,8 @@ protected:
     int dot11_device_entry_id;
     SharedTrackerElement device_vec;
     shared_ptr<TrackerElementVector> devices;
+    shared_ptr<EntryTracker> entrytracker;
+    vector<TrackerElementSummary> summary_vec;
     string url;
     std::stringstream &stream;
 };
@@ -2502,114 +2526,176 @@ int Kis_80211_Phy::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind
     bool handled = false;
 
     string stripped = Httpd_StripSuffix(concls->url);
-    
-    if (Httpd_CanSerialize(concls->url) &&
-            (stripped == "/phy/phy80211/ssid_regex" ||
-                stripped == "/phy/phy80211/probe_regex") &&
-            strcmp(key, "msgpack") == 0 && size > 0) {
+   
+    if (!Httpd_CanSerialize(concls->url) ||
+            (stripped != "/phy/phy80211/ssid_regex" &&
+             stripped != "/phy/phy80211/probe_regex")) {
+        concls->response_stream << "Invalid request";
+        concls->httpcode = 400;
+        return 1;
+    }
+
 #ifdef HAVE_LIBPCRE
-        MsgpackAdapter::MsgpackStrMap::iterator obj_iter;
+    // Process the post data - we care about 2 variables, cache either one.
+    // Whichever one finishes first, we process
+    if (size != 0) {
+        if (strcmp(key, "msgpack") == 0 ||
+                strcmp(key, "json") == 0) {
+            if (concls->variable_cache.find(key) == concls->variable_cache.end())
+                concls->variable_cache[key] = 
+                    unique_ptr<std::stringstream>(new std::stringstream);
 
-        string decode = Base64::decode(string(data));
-
-        vector<phy80211_pcre_filter *> filter_vec;
-        std::vector<std::string> regex_vec;
-
-        // Get the dictionary
-        MsgpackAdapter::MsgpackStrMap params;
-        msgpack::unpacked result;
-
-        try {
-            msgpack::unpack(result, decode.data(), decode.size());
-            msgpack::object deserialized = result.get();
-            params = deserialized.as<MsgpackAdapter::MsgpackStrMap>();
-
-            obj_iter = params.find("essid");
-            if (obj_iter == params.end())
-                throw std::runtime_error("expected 'essid' list");
-
-            // Get the array of regexes
-            MsgpackAdapter::AsStringVector(obj_iter->second, regex_vec);
-
-            // Parse the PCREs we've been passed
-            for (unsigned int i = 0; i < regex_vec.size(); i++) {
-                phy80211_pcre_filter *filt = new phy80211_pcre_filter;
-                const char *error, *study_err;
-                int erroffset;
-                ostringstream osstr;
-
-                // Compile all the PCREs we got
-                filt->re =
-                    pcre_compile(regex_vec[i].c_str(), 0, &error, &erroffset, NULL);
-                if (filt->re == NULL) {
-                    delete(filt);
-                    osstr << "Could not parse PCRE expression: " << error << 
-                        " at " << erroffset;
-                    throw std::runtime_error(osstr.str());
-                }
-
-                filt->study = pcre_study(filt->re, 0, &study_err);
-                if (filt->study == NULL) {
-                    osstr << "Could not parse PCRE expression, study/optimization " 
-                        "failure: " << study_err;
-                    pcre_free(filt->re);
-                    delete(filt);
-                    throw std::runtime_error(osstr.str());
-                }
-
-                filter_vec.push_back(filt);
-            }
-
-            // Make a worker instance
-            
-            if (stripped == "/phy/phy80211/ssid_regex") {
-                phy80211_devicetracker_ssid_pcre_worker worker(globalreg,
-                        &filter_vec, dot11_device_entry_id, 
-                        concls->url, concls->response_stream);
-
-                // Tell devicetracker to do the work
-                devicetracker->MatchOnDevices(&worker);
-            } else if (stripped == "/phy/phy80211/probe_regex") {
-                phy80211_devicetracker_probe_pcre_worker worker(globalreg,
-                        &filter_vec, dot11_device_entry_id, 
-                        concls->url, concls->response_stream);
-
-                // Tell devicetracker to do the work
-                devicetracker->MatchOnDevices(&worker);
-            }
-            
-            for (unsigned int i = 0; i < filter_vec.size(); i++) {
-                pcre_free(filter_vec[i]->re);
-                pcre_free(filter_vec[i]->study);
-                delete filter_vec[i];
-            }
-            filter_vec.clear();
-
-            return 1;
-        } catch(const std::exception& e) {
-            // Exceptions can be caused by missing fields, or fields which
-            // aren't the format we expected.  Throw it all out with an
-            // error.
-            concls->response_stream << "Invalid request " << e.what();
+            concls->variable_cache[key]->write(data, size);
+        } else {
+            // fprintf(stderr, "debug - missing data\n");
+            concls->response_stream << "Invalid request: "
+                "expected JSON or Msgpack data";
             concls->httpcode = 400;
-
-            for (unsigned int i = 0; i < filter_vec.size(); i++) {
-                pcre_free(filter_vec[i]->re);
-                pcre_free(filter_vec[i]->study);
-                delete filter_vec[i];
-            }
-            filter_vec.clear();
-
-            return 1;
         }
 
-#else
-        concls->response_stream << "Unable to process: Kismet not compiled with PCRE";
-        concls->httpcode = 501;
-        return 1;
-#endif
-
+        // fprintf(stderr, "debug - wrote into '%s': '%s'\n", key, data);
+        return MHD_YES;
     }
+
+
+    // Common API
+    SharedStructured structdata;
+
+    vector<phy80211_pcre_filter *> filter_vec;
+    StructuredData::string_vec regex_vec;
+
+    vector<TrackerElementSummary> summary_vec;
+
+    // Make sure we can extract the parameters
+    try {
+        // Make sure we have the key
+        if (concls->variable_cache.find(key) == concls->variable_cache.end()) {
+            throw StructuredDataException("Completed POST collection, missing data");
+        }
+
+        // Decode the base64 msgpack and parse it, or parse the json
+
+        if (strcmp(key, "msgpack") == 0) {
+            structdata.reset(new StructuredMsgpack(Base64::decode(concls->variable_cache[key]->str())));
+        } else if (strcmp(key, "json") == 0) {
+            structdata.reset(new StructuredJson(concls->variable_cache[key]->str()));
+        } else {
+            // fprintf(stderr, "debug - missing data\n");
+            throw StructuredDataException("Missing data");
+        }
+
+        // Look for a vector named 'essid'
+        SharedStructured essid_list = structdata->getStructuredByKey("essid");
+
+        regex_vec = essid_list->getStringVec();
+
+        for (StructuredData::string_vec_iterator i = regex_vec.begin();
+                i != regex_vec.end(); ++i) {
+
+            phy80211_pcre_filter *filt = new phy80211_pcre_filter;
+            const char *error, *study_err;
+            int erroffset;
+            ostringstream osstr;
+
+            // Compile all the PCREs we got
+            filt->re =
+                pcre_compile(i->c_str(), 0, &error, &erroffset, NULL);
+            if (filt->re == NULL) {
+                delete(filt);
+                osstr << "Could not parse PCRE expression: " << error << 
+                    " at " << erroffset;
+                throw std::runtime_error(osstr.str());
+            }
+
+            filt->study = pcre_study(filt->re, 0, &study_err);
+            if (filt->study == NULL) {
+                osstr << "Could not parse PCRE expression, study/optimization " 
+                    "failure: " << study_err;
+                pcre_free(filt->re);
+                delete(filt);
+                throw std::runtime_error(osstr.str());
+            }
+
+            filter_vec.push_back(filt);
+        }
+
+        // Parse the fields, if we have them
+        SharedStructured field_list;
+
+        if (structdata->hasKey("fields"))
+            field_list = structdata->getStructuredByKey("fields");
+
+        if (field_list != NULL) {
+            StructuredData::structured_vec fvec = field_list->getStructuredArray();
+            for (StructuredData::structured_vec::iterator i = fvec.begin(); 
+                    i != fvec.end(); ++i) {
+                if ((*i)->isString()) {
+                    summary_vec.push_back(TrackerElementSummary((*i)->getString(), 
+                                entrytracker));
+                } else if ((*i)->isArray()) {
+                    StructuredData::string_vec mapvec = (*i)->getStringVec();
+
+                    if (mapvec.size() != 2) {
+                        concls->response_stream << "Invalid request: "
+                            "Expected field, rename";
+                        concls->httpcode = 400;
+                        return 1;
+                    }
+
+                    summary_vec.push_back(TrackerElementSummary(mapvec[0], mapvec[1],
+                                entrytracker));
+                }
+            }
+        }
+
+        // Make a worker instance
+
+        if (stripped == "/phy/phy80211/ssid_regex") {
+            phy80211_devicetracker_ssid_pcre_worker worker(globalreg,
+                    &filter_vec, dot11_device_entry_id, 
+                    summary_vec, concls->url, concls->response_stream);
+
+            // Tell devicetracker to do the work
+            devicetracker->MatchOnDevices(&worker);
+        } else if (stripped == "/phy/phy80211/probe_regex") {
+            phy80211_devicetracker_probe_pcre_worker worker(globalreg,
+                    &filter_vec, dot11_device_entry_id, 
+                    summary_vec, concls->url, concls->response_stream);
+
+            // Tell devicetracker to do the work
+            devicetracker->MatchOnDevices(&worker);
+        }
+
+        for (unsigned int i = 0; i < filter_vec.size(); i++) {
+            pcre_free(filter_vec[i]->re);
+            pcre_free(filter_vec[i]->study);
+            delete filter_vec[i];
+        }
+        filter_vec.clear();
+
+        return 1;
+    } catch(const std::exception& e) {
+        // Exceptions can be caused by missing fields, or fields which
+        // aren't the format we expected.  Throw it all out with an
+        // error.
+        concls->response_stream << "Invalid request " << e.what();
+        concls->httpcode = 400;
+
+        for (unsigned int i = 0; i < filter_vec.size(); i++) {
+            pcre_free(filter_vec[i]->re);
+            pcre_free(filter_vec[i]->study);
+            delete filter_vec[i];
+        }
+        filter_vec.clear();
+
+        return 1;
+    }
+
+#else
+    concls->response_stream << "Unable to process: Kismet not compiled with PCRE";
+    concls->httpcode = 501;
+    return 1;
+#endif
 
     // If we didn't handle it and got here, we don't know what it is, throw an
     // error.
@@ -2622,7 +2708,6 @@ int Kis_80211_Phy::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind
     }
 
     return 1;
-
 }
 
 class phy80211_devicetracker_expire_worker : public DevicetrackerFilterWorker {
