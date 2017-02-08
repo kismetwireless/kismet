@@ -2,26 +2,52 @@
 
 import sys, KismetRest, time
 
+# Scan for WPA Handshakes
+# A more useful example script that combines the summary API,
+# field simplification, and parsing data
+
 if len(sys.argv) < 2:
     print "Expected server URI"
     sys.exit(1)
 
 kr = KismetRest.KismetConnector(sys.argv[1])
 
-print "Waiting for devices with WPA handshake packets..."
+print "Looking for devices with WPA handshakes..."
+
+fields = [
+        'kismet.device.base.macaddr',
+        'dot11.device/dot11.device.last_beaconed_ssid',
+        'dot11.device/dot11.device.wpa_present_handshake'
+        ]
 
 sincets = 0
 
 while 1:
 
     # Get summary of devices
-    devices = kr.device_summary_since(sincets)
+    devices = kr.smart_summary_since(sincets, fields)
 
     sincets = devices['kismet.devicelist.timestamp']
 
     # Print the SSID for every device we can.  Stupid print; no comparison
     # of the phy type, no handling empty ssid, etc.
     for d in devices['kismet.device.list']:
+
+        if ((d['dot11.device.wpa_present_handshake'] & 0x06) == 0x06 or
+                (d['dot11.device.wpa_present_handshake'] & 0x0C) == 0x0C):
+            pkts = []
+            for i in range(1, 5):
+                if d['dot11.device.wpa_present_handshake'] & i:
+                    pkts.append(i)
+
+            print d['kismet.device.base.macaddr'].split("/")[0],
+            print "'{}'".format(d['dot11.device.last_beaconed_ssid']),
+            print "packets {}".format(pkts),
+            print "{}/phy/phy80211/handshake/{}/{}-handshake.pcap".format(
+                    sys.argv[1], d['kismet.device.base.macaddr'], 
+                    d['kismet.device.base.macaddr'])
+
+
         if 'dot11.device' in d:
             if len(d['dot11.device']['dot11.device.wpa_handshake_list']):
 
