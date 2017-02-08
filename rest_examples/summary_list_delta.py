@@ -1,5 +1,14 @@
 #!/usr/bin/env python
 
+# SummaryListDelta
+#
+# Fetches a complete device record of every device which has changed
+# since the last request.  This forces a complete serialization
+# of the entire record, so may impose significant loads on busy
+# systems.
+#
+# For a smarter method of doing this, look at smart_list_delta.py
+
 import sys, KismetRest, time
 
 if len(sys.argv) < 2:
@@ -11,7 +20,6 @@ kr = KismetRest.KismetConnector(sys.argv[1])
 sincets = 0
 
 while 1:
-
     # Get summary of devices
     devices = kr.device_summary_since(sincets)
 
