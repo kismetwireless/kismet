@@ -44,7 +44,7 @@ Additional fields may be present in the options object depending on the callback
 
 ### field
 
-A DataTables-style field spec.  This allows for addressing nested and index data by chaining the fields, for example, `kismet_device_base_signal.kismet_common_signal_last_signal_dbm`.
+A Kismet-style field spec.  This allows for addressing nested and index data by chaining the fields, for example, `kismet.device.base.signal/kismet.common.signal.last_signal_dbm`.
 
 ### title - string
 
@@ -88,7 +88,7 @@ The render function is called with a standard options dictionary.
 For example, a row rendering the timestamp as a human-readable time:
 ```javascript
 {
-    field: "kismet_device_base_first_time",
+    field: "kismet.device.base.first_time",
     title: "First Seen",
     render: function(options) {
         return new Date(options['value'] * 1000);
@@ -106,7 +106,7 @@ Draw functions receive the normal options object, with an additional value:
 For example, to insert a sparkline in a row you could combine the `draw` and `render` functions:
 ```javascript
 {
-    field: "some_data_array",
+    field: "some.data.array",
     title: "Sparkline",
     render: '<i>Graph coming soon</i>';
     draw: function(opts) {
@@ -118,7 +118,7 @@ For example, to insert a sparkline in a row you could combine the `draw` and `re
 A more complex example could create themed elements in the `draw` function and later utilize them in the `render` function:
 ```javascript
 {
-    field: "some_data",
+    field: "some.data",
     title: "Dynamid draw",
     render: '<div class="custom" />',
     draw: function(opts) {
@@ -154,17 +154,17 @@ For example, to define a location group:
     // Subgroups can have filters, too, so we query the data and see if we have
     // a valid location.  If not, this subgroup will be hidden entirely
     filter: function(opts) {
-        return (kismet.ObjectByString(opts['data'], "kismet_device_base_location.kismet_common_location_avg_loc.kismet_common_location_valid") == 1);
+        return (kismet.ObjectByString(opts['data'], "kismet.device.base.location/kismet.common.location.avg_loc/kismet.common.location.valid") == 1);
     },
 
     // Fields in subgroup
     fields: [
         {
-            field: "kismet_device_base_location.kismet_common_location_avg_loc.kismet_common_location_lat",
+            field: "kismet.device.base.location/kismet.common.location.avg_loc/kismet.common.location.lat",
             title: "Latitude"
         },
         {
-            field: "kismet_device_base_location.kismet_common_location_avg_loc.kismet_common_location_lon",
+            field: "kismet.device.base.location/kismet.common.location.avg_loc/kismet.common.location.lon",
             title: "Longitude"
         },
     ],
@@ -198,7 +198,7 @@ var data = {
 };
 ```
 
-A *standard* field definition might be `somegroup.field1`.  However, for an iterative group, you would want to use:
+A *standard* field definition might be `somegroup/field1`.  However, for an iterative group, you would want to use:
 
 ```javascript
 {
@@ -255,3 +255,4 @@ Most of the requirements for manipulating the content of a Devicedata table shou
 
 * **table**, `id` using the supplied `id` field, class `kismet_devicedata`.  This table is created for every group of fields - a devicedata table.  The parent table uses the master `id` option, and subgroup tables are each created using the `id` of the subgroup definition.
 * **tr**, `id` using a sanitized field reference prefixed with `tr_`.  To meet the requirements of an ID, complex field references (nested field names, indexed fields, etc) are converted by replacing all special characters with `_`.  A field reference such as `foo_bar_baz.sub_field` will form the table ID `tr_foo_bar_baz_sub_field`.
+

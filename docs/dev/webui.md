@@ -65,9 +65,11 @@ Columns can be defined as basic mappings of the JSON data in the device summary,
 
 Display title of the column.  Passed as sTitle directly to the DataTables column definition.
 
-#### mData - string
+#### field - string path and optional rename value
 
-DataTables-compatible field spec for the data.  This follows the normal DataTables naming convention for nested JSON structures (for example `kismet_device_base_signal.kismet_common_signal_last_signal_dbm`)
+To tell Kismet which fields to include in the summary, the path to the field must be provided.  The path follows normal Kismet field naming - for example, to included a nested signal structure, the field definition could be `'kismet.device.base.signal/kismet.common.signal.last_signal_dbm'`.
+
+When requesting common fields that might have overlapping names (such as location and signal fields), or simply to make referencing the field easier, an alternate name can be provided by passing an array, for example:  `['kismet.device.base.signal/kismet.common.signal.last_signal_dbm', 'base.signal']`.
 
 #### name - string (optional)
 
@@ -105,12 +107,12 @@ The `drawfunc` function takes three arguments:
 
 To define a simple example column, you can call `kismet_ui.AddDeviceColumn(...)` any time before setting `load_complete=1` in your JS module.
 
-A not-very-useful example would be to define 'column_foo_channel' which simply maps the `kismet_device_base_channel` record and calls it 'Channel'.
+A not-very-useful example would be to define 'column_foo_channel' which simply maps the `kismet.device.base.channel` record and calls it 'Channel'.
 
 ```javascript
 kismet_ui.AddDeviceColumn('column_foo_channel', {
     sTitle: 'Channel',
-    mData: 'kismet_device_base_channel'
+    field: 'kismet.device.base.channel'
 });
 ```
 
@@ -130,7 +132,7 @@ Now that we have the callback function, we define the column to map the data and
 ```javascript
 kismet_ui.AddDeviceColumn('column_foo_time', {
     sTitle: 'Last Seen',
-    mData: 'kismet_device_base_last_time',
+    field: 'kismet.device.base.last_time',
     renderfunc: function(data, type, row, meta) {
         return renderLastTime(data, type, row, meta);
     },
@@ -150,7 +152,7 @@ exports.renderPackets = function(data, type, row, meta) {
 Then during the draw function we use jQuery selectors and the DataTable API to find the column (by name) and offset to the proper cell in the table, then we wipe its content and replace it with the sparkline:
 
 ```javascript
-exports.drawPackets = function(dyncolumn, table, row) {
+function renderPackets(dyncolumn, table, row) {
     // Find the column by name using the 'foo:name' selector.  Get the index
     // of the column, which is the cell # in the row.
     var rid = table.column(dyncolumn.name + ':name').index();
@@ -181,12 +183,12 @@ exports.drawPackets = function(dyncolumn, table, row) {
 };
 ```
 
-Finally, we add the column like we do anywhere else.  We set the `name` parameter so we can find the column by name later instead of hardcoded index, and we set `mData` to `null` beause we don't populate from just a single simple field.
+Finally, we add the column like we do anywhere else.  We set the `name` parameter so we can find the column by name later instead of hardcoded index.  We set the field to the packets RRD object which we need Kismet to send us.
 
 ```javascript
 kismet_ui.AddDeviceColumn('column_foo_packet_rrd', {
     sTitle: 'Packets',
-    mData: null,
+    field: 'kismet.device.base.packets.rrd',
     name: 'packets_foo',
     renderfunc: function(data, type, row, meta) {
         return renderPackets(data, type, row, meta);
@@ -200,7 +202,7 @@ kismet_ui.AddDeviceColumn('column_foo_packet_rrd', {
 
 ## Device Details
 
-A device details window can be created by calling the `DeviceDetailWindow(key)` function in `kismet_ui`.
+A device details window can be created by calling the `kismet_ui.DeviceDetailWindow(key)` function.
 
 For instance, to show a device detail for a known device key,
 
@@ -209,6 +211,44 @@ foo.on('click', 'div', function() {
     kismet_ui.DeviceDetailWindow(somekey);
 });
 ```
+
+## Custom Device Details
+
+Plugins can add panes to device details windows via the `kismet_ui.AddDeviceDetail` API:
+
+`kismet_ui.AddDeviceDetail(id, name, priority, options);`
+
+### id - string
+
+An ID for referencing the device details panel
+
+### name - string
+
+User-readable name used for the title of the details panel
+
+### priority - integer
+
+Order preference for the device details.  Smaller numbers have a higher priority.  In general, plugins should use a neutral priority, such as 50.
+
+### options - dictionary
+
+An options object, containing the following:
+
+#### filter - function(data) - optional
+
+A function, returning if this details panel should be displayed.  It is passed the data record for the device.  A simple filter mechanism might be to compare the phy type, for example:
+
+```javascript
+filter: function(data) {
+    return (data['kismet.device.base.phyname'] === 'IEEE802.11');
+}
+```
+
+#### draw - function(data, target) 
+
+A function, responsible for populating the content of the details panel.  It is passed the data record for the active device, and the element created for the details panel.
+
+A draw function can use any mechanism for populating the details panel.  To replicate the standard system for displaying details, the `jquery.kismet.devicedata` module can be used (and is documented at [DeviceData](webui.jquery.kismet.devicedata.html))
 
 ## Sidebar Menu
 
