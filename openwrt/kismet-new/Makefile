@@ -7,13 +7,13 @@ PKG_RELEASE:=1
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://www.kismetwireless.net/kismet.git
 #PKG_SOURCE_URL:=/home/dragorn/src/kismet
-PKG_SOURCE_VERSION:=ec3d7127a5c71777a83061ccea4fb8851dad8333
+PKG_SOURCE_VERSION:=ba3f3dd631953dd8481645424d5e2fc6001523b0
 PKG_SOURCE_SUBDIR:=$(PKG_NAME)-$(PKG_VERSION)
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION)-$(PKG_SOURCE_VERSION).tar.gz
 
 include $(INCLUDE_DIR)/package.mk
 
-PKG_BUILD_DEPENDS:=+libpthread +libpcap +libpcre +libmicrohttpd +libnl +libcap +wireless-tools +libncurses +libstdcpp
+PKG_BUILD_DEPENDS:=+libpthread +libpcap +libpcre +libmicrohttpd +libnl +libcap +libncurses +libstdcpp
 
 define Package/kismet-new
   SECTION:=net
@@ -21,7 +21,7 @@ define Package/kismet-new
   TITLE:=Kismet (2017)
   #DESCRIPTION:=This variable is obsolete. use the Package/name/description define instead!
   URL:=https://www.kismetwireless.net/
-  DEPENDS:=+libpthread +libpcap +libpcre +libmicrohttpd +libnl +libcap +wireless-tools +libstdcpp +libncurses
+  DEPENDS:=+libpthread +libpcap +libpcre +libmicrohttpd +libnl +libcap +libstdcpp +libncurses
 endef
 
 define Package/kismet-new/description
