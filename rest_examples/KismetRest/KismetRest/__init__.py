@@ -443,7 +443,7 @@ class KismetConnector:
 
         return True
 
-    def device_filtered_dot11_summary(self, pcre):
+    def device_filtered_dot11_summary(self, pcre, fields = None):
         """
         device_filtered_dot11_summary() -> device summary list, filtered by
         dot11 ssid
@@ -454,6 +454,9 @@ class KismetConnector:
         cmd = {
                 "essid": pcre
                 }
+
+        if fields != None:
+            cmd["fields"] = fields
 
         (r, v) = self.post_msgpack_url("phy/phy80211/ssid_regex.cmd", cmd)
         if not r:
@@ -473,7 +476,7 @@ class KismetConnector:
 
         return self.__simplify(obj)
 
-    def device_filtered_dot11_probe_summary(self, pcre):
+    def device_filtered_dot11_probe_summary(self, pcre, fields = None):
         """
         device_filtered_dot11_probe_summary() -> device summary list, filtered by
         dot11 ssid
@@ -484,6 +487,9 @@ class KismetConnector:
         cmd = {
                 "essid": pcre
                 }
+
+        if fields != None:
+            cmd["fields"] = fields
 
         (r, v) = self.post_msgpack_url("phy/phy80211/probe_regex.cmd", cmd)
         if not r:

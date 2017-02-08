@@ -2,6 +2,18 @@
 
 import sys, KismetRest
 
+# SSID Filtering
+#
+# Applies one or more regexes to the list of known SSIDs via the
+# phy80211 regex API.
+#
+# This method will return ALL FIELDS in the matching devices, which
+# may place a considerable load on the server and parser depending on
+# how it is used.
+#
+# For a much more efficient version, look at the smart_ssid_filter.py
+# example
+
 if len(sys.argv) < 2:
     print "Expected server URI"
     sys.exit(1)
