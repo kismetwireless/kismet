@@ -63,13 +63,42 @@ A device is the central record of a tracked entity in Kismet.  Clients, bridges,
 
 All devices will have a basic set of records (held in the `kismet.base.foo` group of fields, generally) and then sub-trees of records attached by the phy-specific handlers.
 
+The preferred method of retrieving device lists is to use the POST URI `/devices/summary/` or `/devices/last-time` with a list of fields provided.
+
+##### POST /devices/summary/devices `/devices/summary/devices.msgpack`, `/devices/summary/devices.json`
+
+A POST endpoint which returns a summary of all devices.  This endpoint expects a variable containing a dictionary which defines the fields to include in the results; only these fields will be sent.
+
+Additionally, a wrapper may be specified, which indicates a transient dictionary object which should contain these values - specifically, this can be used by dataTables to wrap the initial query in an `aaData` object required for that API.
+
+The command dictionary should be passed as either JSON in the `json` POST variable, or as base64-encoded msgpack in the `msgpack` variable, and is expected to contain:
+
+| Key | Value | Type | Desc |
+| --- | ----- | ---- | ---- |
+| fields | ["field1", "field2", ..., ["fieldN", "renameN"], ... ] | array of string and string-pairs | Array of fields to be included in the summary.  If this is omitted, the entire device record is transmitted.  Fields may be a single field string, a complex field path string, or a rename pair - when renamed, fields are transmitted as the renamed value |
+| wrapper | "foo" | string | Wrapper dictionary to surround the data |
+
+##### POST /devices/last-time/[TS]/devices `/devices/last-time/[TS]/devices.msgpack`, `devices/last-time/[TS]/devices.json`
+
+Dictionary containing the list of all devices new or modified since the server timestamp `[TS]`, a flag indicating that the device list has drastically changed indicating that the entire device list should be re-loaded, and a timestamp record indicating the server time this report was generated.
+
+This endpoint is most useful for clients and scripts which need to monitor the state of *active* devices.  This is used by the Kismet Web UI to update changed devices.
+
+This endpoint expects a variable containing a dictionary which defines the fields to include in the results; only these fields will be sent.
+
+Additionally, a wrapper may be specified, which indicates a transient dictionary object which should contain these values - specifically, this can be used by dataTables to wrap the initial query in an `aaData` object required for that API.
+
+The command dictionary should be passed as either JSON in the `json` POST variable, or as base64-encoded msgpack in the `msgpack` variable, and is expected to contain:
+
+| Key | Value | Type | Desc |
+| --- | ----- | ---- | ---- |
+| fields | ["field1", "field2", ..., ["fieldN", "renameN"], ... ] | array of string and string-pairs | Array of fields to be included in the summary.  If this is omitted, the entire device record is transmitted.  Fields may be a single field string, a complex field path string, or a rename pair - when renamed, fields are transmitted as the renamed value |
+| wrapper | "foo" | string | Wrapper dictionary to surround the data |
+
+
 ##### /devices/all_devices `/devices/all_devices.msgpack`, `/devices/all_devices.json`
 
 Array of complete device records.  This may incur a significant load on both the Kismet server and on the receiving system, depending on the number of devices tracked.
-
-##### /devices/all_devices_dt `/devices/all_devices_dt.json`
-
-JSON-formatted array of device summary records, contained in a dictionary under the key `aaData`, which supports direct loading into a jQuery DataTable element.
 
 ##### /devices/last-time/[TS]/devices `/devices/last-time/[TS]/devices.msgpack`, `devices/last-time/[TS]/devices.json`
 
@@ -84,8 +113,6 @@ Complete dictionary object containing all information about the device reference
 ##### /devices/by-key/[DEVICEKEY]/device[/path/to/subkey] `/devices/by-key/[DEVICEKEY]/device.msgpack[/path/to/subkey]`, `/devices/by-key/[DEVICEKEY]/device.json[/path/to/subkey]`
 
 Dictionary containing all the device data referenced by `[DEVICEKEY]`, in the sub-tree `[path/to/subkey]`.  Allows fetching single fields or objects from the device tree without fetching the entire device record.
-
-Currently even JSON queries must be made using the original field names.
 
 ##### /devices/by-mac/[DEVICEMAC]/devices `/devices/by-mac/[DEVICEMAC]/devices.msgpack`, `/devices/by-mac/[DEVICEMAC]/devices.json`
 
@@ -234,7 +261,7 @@ Expects a command dictionary including:
 
 ## 802.11 Specific
 
-##### /phy/phy80211/ssid_regex `/phy/phy80211/ssid_regex.cmd`, `/phy/phy80211/ssid_regex.jcmd`
+##### POST /phy/phy80211/ssid_regex `/phy/phy80211/ssid_regex.cmd`, `/phy/phy80211/ssid_regex.jcmd`
 
 *LOGIN _NOT_ REQUIRED*
 
@@ -248,9 +275,10 @@ Expects a command dictionary including:
 
 | Key | Value | Type | Desc |
 | --- | ----- | ---- | ---- |
-| essid | ["one", "two", "three" ] | array of string | Array of PCRE regex filters |
+| essid | ["one", "two", "three", ... ] | array of string | Array of PCRE regex filters |
+| fields | ["field1", "field2", ..., ["fieldN", "renameN"], ... ] | array of string and string-pairs | Array of fields to be included in the summary.  If this is omitted, the entire device record is transmitted.  Fields may be a single field string, a complex field path string, or a rename pair - when renamed, fields are transmitted as the renamed value |
 
-##### /phy/phy80211/probe_regex `/phy/phy80211/probe_regex.cmd`, `/phy/phy80211/probe_regex.jcmd`
+##### POST /phy/phy80211/probe_regex `/phy/phy80211/probe_regex.cmd`, `/phy/phy80211/probe_regex.jcmd`
 
 *LOGIN _NOT_ REQUIRED*
 
@@ -265,6 +293,7 @@ Expects a command dictionary including:
 | Key | Value | Type | Desc |
 | --- | ----- | ---- | ---- |
 | essid | ["one", "two", "three" ] | array of string | Array of PCRE regex filters |
+| fields | ["field1", "field2", ..., ["fieldN", "renameN"], ... ] | array of string and string-pairs | Array of fields to be included in the summary.  If this is omitted, the entire device record is transmitted.  Fields may be a single field string, a complex field path string, or a rename pair - when renamed, fields are transmitted as the renamed value |
 
 ##### Examples
 
