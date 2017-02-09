@@ -1619,6 +1619,9 @@ void SummarizeTrackerElement(shared_ptr<EntryTracker> entrytracker,
             si != in_summarization.end(); ++si) {
         fn++;
 
+        if (si->resolved_path.size() == 0)
+            continue;
+
         SharedTrackerElement f =
             GetTrackerElementPath(si->resolved_path, in);
 
@@ -1632,7 +1635,13 @@ void SummarizeTrackerElement(shared_ptr<EntryTracker> entrytracker,
             if (si->rename.length() != 0) {
                 f->set_local_name(si->rename);
             } else {
-                f->set_local_name("unknown");
+                // Get the last name of the field in the path, if we can...
+                int lastid = si->resolved_path[si->resolved_path.size() - 1];
+
+                if (lastid < 0)
+                    f->set_local_name("unknown" + IntToString(fn));
+                else
+                    f->set_local_name(entrytracker->GetFieldName(lastid));
             }
         } 
 
