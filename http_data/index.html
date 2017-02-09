@@ -89,25 +89,6 @@ var deviceTid;
 var last_devicelist_time = 0
 
 function handleDeviceSummary() {
-    /*
-    var json = {
-        fields: [
-            "kismet.device.base.key",
-            "dot11.device/dot11.device.last_beaconed_ssid",
-            ["dot11.device/dot11.device.last_beaconed_ssid", "ssid"]
-        ]
-    };
-
-    var data = "json=" + JSON.stringify(json);
-
-    $.post("/devices/last-time/" + last_devicelist_time + "/devices.json", 
-            data = data,
-            dataType = "json")
-        .done(function(data) {
-            console.log(data);
-        });
-    */
-
     /* Make the fields list json */
     var fields = new Array();
     var cols = kismet_ui.GetDeviceColumns();
@@ -129,8 +110,8 @@ function handleDeviceSummary() {
     .done(function(data) {
         last_devicelist_time = data['kismet.devicelist.timestamp'];
 
-        for (var d in data.kismet_device_list) {
-            var dev = data.kismet_device_list[d];
+        for (var d in data['kismet.device.list']) {
+            var dev = data['kismet.device.list'][d];
             var row = dt.row("#" + dev['kismet.device.base.key']);
 
             if (typeof(row.data()) === 'undefined') {
@@ -141,7 +122,7 @@ function handleDeviceSummary() {
             }
         }
 
-        if (data.kismet_devicelist_refresh == 1) {
+        if (data['kismet.devicelist.refresh'] == 1) {
             dt.ajax.reload(function() {
                 $(".dataTables_scrollBody").scrollTop(scrollPos);
             }, false);
@@ -239,35 +220,6 @@ $(function() {
         rowId: 'kismet_device_base_key',
 
         "drawCallback": function( settings ) {
-            /*
-            var api = this.api();
-
-            // console.log( api.rows( {page:'current'} ).data() );
-
-            var rows = api.rows( {page:'current'} );
-
-            for (var ri = 0; ri < rows[0].length; ri++) {
-                var row = this.DataTable().row(rows[0][ri]);
-
-                if (typeof(row) === 'undefined')
-                    continue;
-
-                if (typeof(row.data()) === 'undefined')
-                    continue;
-
-                for (var c in kismet_ui.DeviceColumns) {
-                    var col = kismet_ui.DeviceColumns[c];
-
-                    if (!('kismetdrawfunc' in col)) {
-                        continue;
-                    }
-
-                    // Call the draw callback if one exists
-                    col.kismetdrawfunc(col, this.DataTable(), row);
-                }
-            }
-            */
-
             $(this.api().table().container())
                 .find('div.dataTables_paginate')
                 .css( 'display', 'none' );
@@ -352,13 +304,6 @@ $(function() {
             });
             */
 
-    /*
-    $('#messagebus').messagebus();
-
-    $('#channels').channels();
-    */
-
-    // kismet_ui.BatteryUi($("#batspinner"), $("#batpower"), $("#battime"));
     $('#topbar_alert').alert();
     $('#topbar_battery').battery();
 
