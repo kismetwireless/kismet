@@ -202,6 +202,7 @@ $(function() {
         "scrollY": "1",
         "scroller": true,
 
+        // Create a complex post to get our summary fields only
         "ajax": {
             url: "/devices/summary/devices.json",
             data: {
@@ -210,15 +211,20 @@ $(function() {
             method: "POST",
         },
 
-        "deferRender":    true,
+        "deferRender": true,
 
+        // Get our dynamic columns
         aoColumns: kismet_ui.GetDeviceColumns([]),
 
         "order":
             [ [ 0, "desc" ] ],
 
-        rowId: 'kismet_device_base_key',
+        // Map our ID into the row
+        "createdRow" : function( row, data, index ) {
+                row.id = data['kismet.device.base.key'];
+            },
 
+        // Opportunistic draw on new rows
         "drawCallback": function( settings ) {
             $(this.api().table().container())
                 .find('div.dataTables_paginate')
