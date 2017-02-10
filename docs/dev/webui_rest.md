@@ -96,6 +96,8 @@ When requesting multiple fields from different paths with the same name - for in
 
 Some endpoints in Kismet take a regex object.  These endpoints use a common format, which allows for multiple regular expressions to be mapped to multiple fields.  A device is considered to match if *any* of the regular expression terms are true.
 
+If the Kismet server was compiled without libpcre support, passing a regular expression to an endpoint will cause the endpoint to return an error.
+
 ```python
 [
     [ multifield, regex ],
@@ -103,10 +105,6 @@ Some endpoints in Kismet take a regex object.  These endpoints use a common form
     [ multifield, regex ]
 ]
 ```
-
-#### PCRE
-
-If the Kismet server was compiled with libpcre support, an endpoint passed a regular expression filter will fail.
 
 #### `multifield`
 
