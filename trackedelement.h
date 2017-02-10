@@ -1165,6 +1165,23 @@ shared_ptr<TrackerElement> GetTrackerElementPath(std::vector<string> in_path,
 shared_ptr<TrackerElement> GetTrackerElementPath(std::vector<int> in_path, 
         SharedTrackerElement elem);
 
+// Get a list of elements from a complex path which may include vectors
+// or key maps.  Returns a vector of all elements within that map.
+// For example, for a field spec:
+// 'dot11.device/dot11.device.advertised.ssid.map/dot11.advertised.ssid'
+// it would return a vector of dot11.advertised.ssid for every SSID in
+// the dot11.device.advertised.ssid.map keyed map
+std::vector<SharedTrackerElement> GetTrackerElementMultiPath(string in_path,
+        SharedTrackerElement elem,
+        shared_ptr<EntryTracker> entrytracker);
+// Split string path
+std::vector<SharedTrackerElement> GetTrackerElementMultiPath(std::vector<string> in_path, 
+        SharedTrackerElement elem,
+        shared_ptr<EntryTracker> entrytracker);
+// Resolved field ID path
+std::vector<SharedTrackerElement> GetTrackerElementMultiPath(std::vector<int> in_path, 
+        SharedTrackerElement elem);
+
 // Summarize a complex record using a collection of summary elements.  The summarized
 // element is returned in ret_elem, and the rename mapping for serialization is
 // completed in rename.

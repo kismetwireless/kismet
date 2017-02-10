@@ -49,6 +49,7 @@
 #include "trackercomponent_legacy.h"
 #include "timetracker.h"
 #include "kis_net_microhttpd.h"
+#include "structured.h"
 
 // How big the main vector of components is, if we ever get more than this
 // many tracked components we'll need to expand this but since it ties to
@@ -912,5 +913,79 @@ public:
 private:
     Devicetracker *tracker;
 };
+
+#ifdef HAVE_LIBPCRE
+// Retrieve a list of devices based on complex field paths and
+// return them in a vector sharedtrackerelement
+class devicetracker_pcre_worker : public DevicetrackerFilterWorker {
+public:
+    class pcre_filter {
+    public:
+        pcre_filter() {
+            re = NULL;
+            study = NULL;
+        }
+
+        ~pcre_filter() {
+            if (re != NULL)
+                pcre_free(re);
+            if (study != NULL)
+                pcre_free(study);
+        }
+
+        string target;
+        pcre *re;
+        pcre_extra *study;
+    };
+
+    // Prepare the worker with a set of filters and the object we fill our
+    // results into.  in_devvec_object must be a vector object.
+    devicetracker_pcre_worker(GlobalRegistry *in_globalreg,
+            vector<shared_ptr<devicetracker_pcre_worker::pcre_filter> > in_filter_vec,
+            SharedTrackerElement in_devvec_object);
+
+    // Shortcut function for building a PCRE from an incoming standard filter
+    // description on a POST event:
+    // Prepare the worker with a set of filters contained in a raw Structured 
+    // object, which is expected to be a vector of [field, regex] pairs.
+    // Results are filled into in_devvec_object which is expected to be a vector object
+    // This MAY THROW EXCEPTIONS from structured parsing or the PCRE parsing!
+    devicetracker_pcre_worker(GlobalRegistry *in_globalreg,
+            SharedStructured raw_pcre_vec,
+            SharedTrackerElement in_devvec_object);
+
+    // Shortcut function for building a PCRE worker from an incoming list of
+    // filters, targeting a single field (such as a SSID match):
+    // Prepare the worker with a set of filters referencing a single field
+    // target.  The filters should be contained in a raw Structured object, which
+    // is expected to be a vector of filter strings.  Results are filled into
+    // in_devvec_object which is expected to be a vector object.
+    // This MAY THROW EXCEPTIONS from structured parsing or the PCRE parsing!
+    devicetracker_pcre_worker(GlobalRegistry *in_globalreg,
+            string in_target,
+            SharedStructured raw_pcre_vec,
+            SharedTrackerElement in_devvec_object);
+    
+
+    virtual ~devicetracker_pcre_worker();
+
+    bool get_error() { return error; }
+
+    virtual void MatchDevice(Devicetracker *devicetracker,
+            shared_ptr<kis_tracked_device_base> device);
+
+    virtual void Finalize(Devicetracker *devicetracker);
+
+protected:
+    GlobalRegistry *globalreg;
+    shared_ptr<EntryTracker> entrytracker;
+
+    vector<shared_ptr<devicetracker_pcre_worker::pcre_filter> > filter_vec;
+    bool error;
+
+    SharedTrackerElement return_dev_vec;
+};
+
+#endif
 
 #endif

@@ -1606,6 +1606,256 @@ shared_ptr<TrackerElement> GetTrackerElementPath(std::vector<int> in_path,
     return next_elem;
 }
 
+std::vector<SharedTrackerElement> GetTrackerElementMultiPath(string in_path, 
+        SharedTrackerElement elem,
+        shared_ptr<EntryTracker> entrytracker) {
+    return GetTrackerElementMultiPath(StrTokenize(in_path, "/"),
+            elem, entrytracker);
+}
+
+std::vector<SharedTrackerElement> GetTrackerElementMultiPath(std::vector<string> in_path, 
+        SharedTrackerElement elem,
+        shared_ptr<EntryTracker> entrytracker) {
+
+    std::vector<SharedTrackerElement> ret;
+
+    if (in_path.size() < 1)
+        return ret;
+
+    shared_ptr<TrackerElement> next_elem = NULL;
+
+    bool complex_fulfilled = false;
+    for (vector<string>::iterator x = in_path.begin(); x != in_path.end(); ++x) {
+        // Skip empty path element
+        if (x->length() == 0)
+            continue;
+
+        int id = entrytracker->GetFieldId(*x);
+
+        if (id < 0) {
+            return ret;
+        }
+
+        if (next_elem == NULL)
+            next_elem = elem->get_map_value(id);
+        else
+            next_elem = 
+                next_elem->get_map_value(id);
+
+        if (next_elem == NULL) {
+            return ret;
+        }
+
+        // If we're at the termination of the path, we just return the
+        // object.  If we're in the middle of a path, we iterate over the 
+        // contents of the container, and find the rest of the path in it
+        if (x != std::next(in_path.end(), -1)) {
+            int type = next_elem->get_type();
+
+            if (type == TrackerVector) {
+                std::vector<string> sub_path(std::next(x, 1), in_path.end());
+
+                TrackerElementVector cn(next_elem);
+
+                for (TrackerElementVector::iterator i = cn.begin();
+                        i != cn.end(); ++i) {
+                    vector<SharedTrackerElement> subret =
+                        GetTrackerElementMultiPath(sub_path, *i, entrytracker);
+
+                    ret.insert(ret.end(), subret.begin(), subret.end());
+                }
+
+                complex_fulfilled = true;
+                break;
+            } else if (type == TrackerIntMap) {
+                std::vector<string> sub_path(std::next(x, 1), in_path.end());
+
+                TrackerElementIntMap cn(next_elem);
+
+                for (TrackerElementIntMap::iterator i = cn.begin();
+                        i != cn.end(); ++i) {
+                    vector<SharedTrackerElement> subret =
+                        GetTrackerElementMultiPath(sub_path, i->second, entrytracker);
+
+                    ret.insert(ret.end(), subret.begin(), subret.end());
+                }
+
+                complex_fulfilled = true;
+                break;
+            } else if (type == TrackerStringMap) {
+                std::vector<string> sub_path(std::next(x, 1), in_path.end());
+
+                TrackerElementStringMap cn(next_elem);
+
+                for (TrackerElementStringMap::iterator i = cn.begin();
+                        i != cn.end(); ++i) {
+                    vector<SharedTrackerElement> subret =
+                        GetTrackerElementMultiPath(sub_path, i->second, entrytracker);
+
+                    ret.insert(ret.end(), subret.begin(), subret.end());
+                }
+
+                complex_fulfilled = true;
+                break;
+            } else if (type == TrackerMacMap) {
+                std::vector<string> sub_path(std::next(x, 1), in_path.end());
+
+                TrackerElementMacMap cn(next_elem);
+
+                for (TrackerElementMacMap::iterator i = cn.begin();
+                        i != cn.end(); ++i) {
+                    vector<SharedTrackerElement> subret =
+                        GetTrackerElementMultiPath(sub_path, i->second, entrytracker);
+
+                    ret.insert(ret.end(), subret.begin(), subret.end());
+                }
+
+                complex_fulfilled = true;
+                break;
+            } else if (type == TrackerDoubleMap) {
+                std::vector<string> sub_path(std::next(x, 1), in_path.end());
+
+                TrackerElementDoubleMap cn(next_elem);
+
+                for (TrackerElementDoubleMap::iterator i = cn.begin();
+                        i != cn.end(); ++i) {
+                    vector<SharedTrackerElement> subret =
+                        GetTrackerElementMultiPath(sub_path, i->second, entrytracker);
+
+                    ret.insert(ret.end(), subret.begin(), subret.end());
+                }
+
+                complex_fulfilled = true;
+                break;
+            }
+        }
+    }
+
+    if (!complex_fulfilled)
+        ret.push_back(next_elem);
+
+    return ret;
+}
+
+std::vector<SharedTrackerElement> GetTrackerElementMultiPath(std::vector<int> in_path, 
+        SharedTrackerElement elem) {
+
+    std::vector<SharedTrackerElement> ret;
+
+    if (in_path.size() < 1)
+        return ret;
+
+    shared_ptr<TrackerElement> next_elem = NULL;
+
+    bool complex_fulfilled = false;
+    for (vector<int>::iterator x = in_path.begin(); x != in_path.end(); ++x) {
+        int id = *x;
+
+        if (id < 0) {
+            return ret;
+        }
+
+        if (next_elem == NULL)
+            next_elem = elem->get_map_value(id);
+        else
+            next_elem = 
+                next_elem->get_map_value(id);
+
+        if (next_elem == NULL) {
+            return ret;
+        }
+
+        // If we're at the termination of the path, we just return the
+        // object.  If we're in the middle of a path, we iterate over the 
+        // contents of the container, and find the rest of the path in it
+        if (x != std::next(in_path.end(), -1)) {
+            int type = next_elem->get_type();
+
+            if (type == TrackerVector) {
+                std::vector<int> sub_path(std::next(x, 1), in_path.end());
+
+                TrackerElementVector cn(next_elem);
+
+                for (TrackerElementVector::iterator i = cn.begin();
+                        i != cn.end(); ++i) {
+                    vector<SharedTrackerElement> subret =
+                        GetTrackerElementMultiPath(sub_path, *i);
+
+                    ret.insert(ret.end(), subret.begin(), subret.end());
+                }
+
+                complex_fulfilled = true;
+                break;
+            } else if (type == TrackerIntMap) {
+                std::vector<int> sub_path(std::next(x, 1), in_path.end());
+
+                TrackerElementIntMap cn(next_elem);
+
+                for (TrackerElementIntMap::iterator i = cn.begin();
+                        i != cn.end(); ++i) {
+                    vector<SharedTrackerElement> subret =
+                        GetTrackerElementMultiPath(sub_path, i->second);
+
+                    ret.insert(ret.end(), subret.begin(), subret.end());
+                }
+
+                complex_fulfilled = true;
+                break;
+            } else if (type == TrackerStringMap) {
+                std::vector<int> sub_path(std::next(x, 1), in_path.end());
+
+                TrackerElementStringMap cn(next_elem);
+
+                for (TrackerElementStringMap::iterator i = cn.begin();
+                        i != cn.end(); ++i) {
+                    vector<SharedTrackerElement> subret =
+                        GetTrackerElementMultiPath(sub_path, i->second);
+
+                    ret.insert(ret.end(), subret.begin(), subret.end());
+                }
+
+                complex_fulfilled = true;
+                break;
+            } else if (type == TrackerMacMap) {
+                std::vector<int> sub_path(std::next(x, 1), in_path.end());
+
+                TrackerElementMacMap cn(next_elem);
+
+                for (TrackerElementMacMap::iterator i = cn.begin();
+                        i != cn.end(); ++i) {
+                    vector<SharedTrackerElement> subret =
+                        GetTrackerElementMultiPath(sub_path, i->second);
+
+                    ret.insert(ret.end(), subret.begin(), subret.end());
+                }
+
+                complex_fulfilled = true;
+                break;
+            } else if (type == TrackerDoubleMap) {
+                std::vector<int> sub_path(std::next(x, 1), in_path.end());
+
+                TrackerElementDoubleMap cn(next_elem);
+
+                for (TrackerElementDoubleMap::iterator i = cn.begin();
+                        i != cn.end(); ++i) {
+                    vector<SharedTrackerElement> subret =
+                        GetTrackerElementMultiPath(sub_path, i->second);
+
+                    ret.insert(ret.end(), subret.begin(), subret.end());
+                }
+
+                complex_fulfilled = true;
+                break;
+            }
+        }
+    }
+
+    if (!complex_fulfilled)
+        ret.push_back(next_elem);
+
+    return ret;
+}
+
 void SummarizeTrackerElement(shared_ptr<EntryTracker> entrytracker,
         SharedTrackerElement in, 
         vector<TrackerElementSummary> in_summarization, 

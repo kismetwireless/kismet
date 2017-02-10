@@ -2400,3 +2400,178 @@ void Devicetracker::lock_devicelist() {
 void Devicetracker::unlock_devicelist() {
     pthread_mutex_unlock(&devicelist_mutex);
 }
+
+#ifdef HAVE_LIBPCRE
+
+devicetracker_pcre_worker::devicetracker_pcre_worker(GlobalRegistry *in_globalreg,
+        vector<shared_ptr<devicetracker_pcre_worker::pcre_filter> > in_filter_vec,
+        SharedTrackerElement in_devvec_object) {
+
+    globalreg = in_globalreg;
+
+    entrytracker =
+        static_pointer_cast<EntryTracker>(globalreg->FetchGlobal("ENTRY_TRACKER"));
+
+    filter_vec = in_filter_vec;
+    error = false;
+
+    return_dev_vec = in_devvec_object;
+}
+
+devicetracker_pcre_worker::devicetracker_pcre_worker(GlobalRegistry *in_globalreg,
+        SharedStructured raw_pcre_vec,
+        SharedTrackerElement in_devvec_object) {
+
+    globalreg = in_globalreg;
+
+    entrytracker =
+        static_pointer_cast<EntryTracker>(globalreg->FetchGlobal("ENTRY_TRACKER"));
+
+    error = false;
+
+    return_dev_vec = in_devvec_object;
+
+    // Process a structuredarray of sub-arrays of [target, filter]; throw any 
+    // exceptions we encounter
+
+    StructuredData::structured_vec rawvec = raw_pcre_vec->getStructuredArray();
+    for (StructuredData::structured_vec::iterator i = rawvec.begin(); 
+            i != rawvec.end(); ++i) {
+        StructuredData::structured_vec rpair = (*i)->getStructuredArray();
+
+        if (rpair.size() != 2)
+            throw StructuredDataException("expected [field, regex] pair");
+
+        string field = rpair[0]->getString();
+        string regex = rpair[1]->getString();
+
+        shared_ptr<pcre_filter> filter(new pcre_filter());
+        filter->target = field;
+
+        const char *compile_error, *study_error;
+        int erroroffset;
+        ostringstream errordesc;
+
+        filter->re =
+            pcre_compile(regex.c_str(), 0, &compile_error, &erroroffset, NULL);
+
+        if (filter->re == NULL) {
+            errordesc << "Could not parse PCRE expression: " << compile_error <<
+                " at character " << erroroffset;
+            throw std::runtime_error(errordesc.str());
+        }
+
+        filter->study = pcre_study(filter->re, 0, &study_error);
+        if (filter->study == NULL) {
+            errordesc << "Could not parse PCRE expression, study/optimization "
+                "failure: " << study_error;
+            throw std::runtime_error(errordesc.str());
+        }
+
+        filter_vec.push_back(filter);
+    }
+}
+
+devicetracker_pcre_worker::devicetracker_pcre_worker(GlobalRegistry *in_globalreg,
+        string in_target,
+        SharedStructured raw_pcre_vec,
+        SharedTrackerElement in_devvec_object) {
+
+    globalreg = in_globalreg;
+
+    entrytracker =
+        static_pointer_cast<EntryTracker>(globalreg->FetchGlobal("ENTRY_TRACKER"));
+
+    error = false;
+
+    return_dev_vec = in_devvec_object;
+
+    // Process a structuredarray of sub-arrays of [target, filter]; throw any 
+    // exceptions we encounter
+
+    StructuredData::structured_vec rawvec = raw_pcre_vec->getStructuredArray();
+    for (StructuredData::structured_vec::iterator i = rawvec.begin(); 
+            i != rawvec.end(); ++i) {
+
+        string regex = (*i)->getString();
+
+        shared_ptr<pcre_filter> filter(new pcre_filter());
+        filter->target = in_target; 
+
+        const char *compile_error, *study_error;
+        int erroroffset;
+        ostringstream errordesc;
+
+        filter->re =
+            pcre_compile(regex.c_str(), 0, &compile_error, &erroroffset, NULL);
+
+        if (filter->re == NULL) {
+            errordesc << "Could not parse PCRE expression: " << compile_error <<
+                " at character " << erroroffset;
+            throw std::runtime_error(errordesc.str());
+        }
+
+        filter->study = pcre_study(filter->re, 0, &study_error);
+        if (filter->study == NULL) {
+            errordesc << "Could not parse PCRE expression, study/optimization "
+                "failure: " << study_error;
+            throw std::runtime_error(errordesc.str());
+        }
+
+        filter_vec.push_back(filter);
+    }
+}
+
+devicetracker_pcre_worker::~devicetracker_pcre_worker() {
+
+}
+
+void devicetracker_pcre_worker::MatchDevice(Devicetracker *devicetracker __attribute__((unused)),
+        shared_ptr<kis_tracked_device_base> device) {
+    vector<shared_ptr<devicetracker_pcre_worker::pcre_filter> >::iterator i;
+
+    bool matched = false;
+
+    // Go through all the filters until we find one that hits
+    for (i = filter_vec.begin(); i != filter_vec.end(); ++i) {
+
+        // Get complex fields - this lets us search nested vectors
+        // or strings or whatnot
+        vector<SharedTrackerElement> fields = 
+            GetTrackerElementMultiPath((*i)->target, device, entrytracker);
+
+        for (vector<SharedTrackerElement>::iterator fi = fields.begin();
+                fi != fields.end(); ++fi) {
+            // We can only regex strings
+            if ((*fi)->get_type() != TrackerString)
+                continue;
+
+            int rc;
+            int ovector[128];
+
+            rc = pcre_exec((*i)->re, (*i)->study,
+                    GetTrackerValue<string>(*fi).c_str(),
+                    GetTrackerValue<string>(*fi).length(),
+                    0, 0, ovector, 128);
+
+            // Stop matching as soon as we find a hit
+            if (rc >= 0) {
+                matched = true;
+                break;
+            }
+
+        }
+
+        if (matched) {
+            return_dev_vec->add_vector(device);
+        }
+    }
+
+}
+
+void devicetracker_pcre_worker::Finalize(Devicetracker *devicetracker __attribute__((unused))) {
+
+}
+
+#endif
+
