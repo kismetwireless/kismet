@@ -2312,210 +2312,6 @@ void Kis_80211_Phy::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
     return;
 }
 
-#ifdef HAVE_LIBPCRE
-typedef struct {
-    pcre *re;
-    pcre_extra *study;
-} phy80211_pcre_filter;
-
-// Worker class.  We build a list of devices which match the PCRE filters
-// and then export it as a device summary vector.
-// This all happens inside the thread lock of the devicetracker worker, 
-// so it's safe to build a list of devices
-class phy80211_devicetracker_ssid_pcre_worker : public DevicetrackerFilterWorker {
-public:
-    phy80211_devicetracker_ssid_pcre_worker(GlobalRegistry *in_globalreg, 
-            vector<phy80211_pcre_filter *> *filtervec, int entry_id,
-            vector<TrackerElementSummary> in_summary_vec,
-            string in_url, std::stringstream &in_stream) : stream(in_stream) {
-
-        globalreg = in_globalreg;
-        this->filter_vec = filtervec;
-        dot11_device_entry_id = entry_id;
-        error = false;
-        url = in_url;
-
-        entrytracker =
-            static_pointer_cast<EntryTracker>(globalreg->FetchGlobal("ENTRY_TRACKER"));
-
-        summary_vec = in_summary_vec;
-
-        // Make a vector, we don't care about the container type
-        device_vec = SharedTrackerElement(new TrackerElement(TrackerVector));
-        // Wrap it in a vector handler, which links the usage for the lifetime
-        // of the device_vec
-        devices.reset(new TrackerElementVector(device_vec));
-    }
-
-    virtual ~phy80211_devicetracker_ssid_pcre_worker() { }
-
-    bool get_error() { return error; }
-
-    // Compare against our PCRE and export msgpack objects if we match
-    virtual void MatchDevice(Devicetracker *devicetracker __attribute__((unused)), 
-            shared_ptr<kis_tracked_device_base> device) {
-
-        shared_ptr<dot11_tracked_device> dot11dev =
-            static_pointer_cast<dot11_tracked_device>(device->get_map_value(dot11_device_entry_id));
-
-        // Not 802.11?  nothing we can do
-        if (dot11dev == NULL) {
-            return;
-        }
-
-        // Iterate over all the SSIDs
-        TrackerElementIntMap adv_ssid_map(dot11dev->get_advertised_ssid_map());
-        shared_ptr<dot11_advertised_ssid> ssid = NULL;
-        TrackerElementIntMap::const_iterator ssid_itr;
-
-        for (ssid_itr = adv_ssid_map.begin(); 
-                ssid_itr != adv_ssid_map.end(); ++ssid_itr) {
-            ssid = static_pointer_cast<dot11_advertised_ssid>(ssid_itr->second);
-            bool device_handled = false;
-
-            for (unsigned int i = 0; i < filter_vec->size(); i++) {
-                int rc;
-                int ovector[128];
-
-                rc = pcre_exec((*filter_vec)[i]->re,
-                        (*filter_vec)[i]->study,
-                        ssid->get_ssid().c_str(),
-                        ssid->get_ssid_len(),
-                        0, 0, ovector, 128);
-
-                // Export the device record
-                if (rc >= 0) {
-                    device_handled = true;
-
-                    devices->push_back(device);
-
-                    break;
-                }
-            }
-
-            // Don't match more than once on a device
-            if (device_handled)
-                break;
-        }
-
-    }
-
-    virtual void Finalize(Devicetracker *devicetracker) {
-        // Push the summary of devices
-        devicetracker->httpd_device_summary(url, stream, devices, summary_vec);
-    }
-
-protected:
-    GlobalRegistry *globalreg;
-    vector<phy80211_pcre_filter *> *filter_vec;
-    bool error;
-    int dot11_device_entry_id;
-    shared_ptr<TrackerElement> device_vec;
-    shared_ptr<TrackerElementVector> devices;
-    shared_ptr<EntryTracker> entrytracker;
-    vector<TrackerElementSummary> summary_vec;
-    Kis_80211_Phy *phy;
-    string url;
-    std::stringstream &stream;
-};
-
-class phy80211_devicetracker_probe_pcre_worker : public DevicetrackerFilterWorker {
-public:
-    phy80211_devicetracker_probe_pcre_worker(GlobalRegistry *in_globalreg, 
-            vector<phy80211_pcre_filter *> *filtervec, int entry_id,
-            vector<TrackerElementSummary> in_summary_vec,
-            string in_url, std::stringstream &in_stream) : stream(in_stream) {
-
-        globalreg = in_globalreg;
-        this->filter_vec = filtervec;
-        dot11_device_entry_id = entry_id;
-        error = false;
-        url = in_url;
-
-        entrytracker =
-            static_pointer_cast<EntryTracker>(globalreg->FetchGlobal("ENTRY_TRACKER"));
-
-        summary_vec = in_summary_vec;
-
-        // Make a vector, we don't care about the container type
-        device_vec.reset(new TrackerElement(TrackerVector));
-        // Wrap it in a vector handler, which links it
-        devices.reset(new TrackerElementVector(device_vec));
-    }
-
-    virtual ~phy80211_devicetracker_probe_pcre_worker() { }
-
-    bool get_error() { return error; }
-
-    // Compare against our PCRE and export msgpack objects if we match
-    virtual void MatchDevice(Devicetracker *devicetracker __attribute__((unused)), 
-            shared_ptr<kis_tracked_device_base> device) {
-
-        shared_ptr<dot11_tracked_device> dot11dev =
-            static_pointer_cast<dot11_tracked_device>(device->get_map_value(dot11_device_entry_id));
-
-        // Not 802.11?  nothing we can do
-        if (dot11dev == NULL) {
-            return;
-        }
-
-        // Iterate over all the probed SSIDs
-        TrackerElementIntMap probe_ssid_map(dot11dev->get_probed_ssid_map());
-        shared_ptr<dot11_probed_ssid> ssid = NULL;
-        TrackerElementIntMap::const_iterator ssid_itr;
-
-        for (ssid_itr = probe_ssid_map.begin(); 
-                ssid_itr != probe_ssid_map.end(); ++ssid_itr) {
-            ssid = static_pointer_cast<dot11_probed_ssid>(ssid_itr->second);
-            bool device_handled = false;
-
-            for (unsigned int i = 0; i < filter_vec->size(); i++) {
-                int rc;
-                int ovector[128];
-
-                rc = pcre_exec((*filter_vec)[i]->re,
-                        (*filter_vec)[i]->study,
-                        ssid->get_ssid().c_str(),
-                        ssid->get_ssid_len(),
-                        0, 0, ovector, 128);
-
-                // Export the device msgpack
-                if (rc >= 0) {
-                    device_handled = true;
-
-                    devices->push_back(device);
-
-                    break;
-                }
-            }
-
-            // Don't match more than once on a device
-            if (device_handled)
-                break;
-        }
-
-    }
-
-    virtual void Finalize(Devicetracker *devicetracker) {
-        // Push the summary of devices
-        devicetracker->httpd_device_summary(url, stream, devices, summary_vec);
-    }
-
-protected:
-    GlobalRegistry *globalreg;
-    vector<phy80211_pcre_filter *> *filter_vec;
-    bool error;
-    int dot11_device_entry_id;
-    SharedTrackerElement device_vec;
-    shared_ptr<TrackerElementVector> devices;
-    shared_ptr<EntryTracker> entrytracker;
-    vector<TrackerElementSummary> summary_vec;
-    string url;
-    std::stringstream &stream;
-};
-
-#endif
-
 int Kis_80211_Phy::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind, 
         const char *key, const char *filename, const char *content_type,
         const char *transfer_encoding, const char *data, 
@@ -2561,9 +2357,6 @@ int Kis_80211_Phy::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind
     // Common API
     SharedStructured structdata;
 
-    vector<phy80211_pcre_filter *> filter_vec;
-    StructuredData::string_vec regex_vec;
-
     vector<TrackerElementSummary> summary_vec;
 
     // Make sure we can extract the parameters
@@ -2584,40 +2377,8 @@ int Kis_80211_Phy::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind
             throw StructuredDataException("Missing data");
         }
 
-        // Look for a vector named 'essid'
+        // Look for a vector named 'essid', we need it for the worker
         SharedStructured essid_list = structdata->getStructuredByKey("essid");
-
-        regex_vec = essid_list->getStringVec();
-
-        for (StructuredData::string_vec_iterator i = regex_vec.begin();
-                i != regex_vec.end(); ++i) {
-
-            phy80211_pcre_filter *filt = new phy80211_pcre_filter;
-            const char *error, *study_err;
-            int erroffset;
-            ostringstream osstr;
-
-            // Compile all the PCREs we got
-            filt->re =
-                pcre_compile(i->c_str(), 0, &error, &erroffset, NULL);
-            if (filt->re == NULL) {
-                delete(filt);
-                osstr << "Could not parse PCRE expression: " << error << 
-                    " at " << erroffset;
-                throw std::runtime_error(osstr.str());
-            }
-
-            filt->study = pcre_study(filt->re, 0, &study_err);
-            if (filt->study == NULL) {
-                osstr << "Could not parse PCRE expression, study/optimization " 
-                    "failure: " << study_err;
-                pcre_free(filt->re);
-                delete(filt);
-                throw std::runtime_error(osstr.str());
-            }
-
-            filter_vec.push_back(filt);
-        }
 
         // Parse the fields, if we have them
         SharedStructured field_list;
@@ -2651,27 +2412,35 @@ int Kis_80211_Phy::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind
         // Make a worker instance
 
         if (stripped == "/phy/phy80211/ssid_regex") {
-            phy80211_devicetracker_ssid_pcre_worker worker(globalreg,
-                    &filter_vec, dot11_device_entry_id, 
-                    summary_vec, concls->url, concls->response_stream);
+            SharedTrackerElement devices(new TrackerElement(TrackerVector));
+            shared_ptr<TrackerElementVector> 
+                devices_vec(new TrackerElementVector(devices));
+
+            devicetracker_pcre_worker worker(globalreg,
+                "dot11.device/dot11.device.advertised_ssid_map/dot11.advertisedssid.ssid",
+                essid_list, devices);
 
             // Tell devicetracker to do the work
             devicetracker->MatchOnDevices(&worker);
+
+            devicetracker->httpd_device_summary(concls->url, concls->response_stream,
+                    devices_vec, summary_vec);
+
         } else if (stripped == "/phy/phy80211/probe_regex") {
-            phy80211_devicetracker_probe_pcre_worker worker(globalreg,
-                    &filter_vec, dot11_device_entry_id, 
-                    summary_vec, concls->url, concls->response_stream);
+            SharedTrackerElement devices(new TrackerElement(TrackerVector));
+            shared_ptr<TrackerElementVector> 
+                devices_vec(new TrackerElementVector(devices));
+
+            devicetracker_pcre_worker worker(globalreg,
+                "dot11.device/dot11.device.probed_ssid_map/dot11.probedssid.ssid",
+                essid_list, devices);
 
             // Tell devicetracker to do the work
             devicetracker->MatchOnDevices(&worker);
-        }
 
-        for (unsigned int i = 0; i < filter_vec.size(); i++) {
-            pcre_free(filter_vec[i]->re);
-            pcre_free(filter_vec[i]->study);
-            delete filter_vec[i];
+            devicetracker->httpd_device_summary(concls->url, concls->response_stream,
+                    devices_vec, summary_vec);
         }
-        filter_vec.clear();
 
         return 1;
     } catch(const std::exception& e) {
@@ -2680,13 +2449,6 @@ int Kis_80211_Phy::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind
         // error.
         concls->response_stream << "Invalid request " << e.what();
         concls->httpcode = 400;
-
-        for (unsigned int i = 0; i < filter_vec.size(); i++) {
-            pcre_free(filter_vec[i]->re);
-            pcre_free(filter_vec[i]->study);
-            delete filter_vec[i];
-        }
-        filter_vec.clear();
 
         return 1;
     }
