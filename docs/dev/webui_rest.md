@@ -104,6 +104,10 @@ Some endpoints in Kismet take a regex object.  These endpoints use a common form
 ]
 ```
 
+#### PCRE
+
+If the Kismet server was compiled with libpcre support, an endpoint passed a regular expression filter will fail.
+
 #### `multifield`
 
 `multifield` is a standard field path, but it will be automatically expanded to match all values if a vector or value-map field is encountered in the path.  For example, the multifield path:
