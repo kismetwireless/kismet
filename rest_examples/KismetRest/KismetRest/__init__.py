@@ -5,6 +5,70 @@ import requests
 import base64
 import os
 
+"""
+Field Specification:
+
+    Several endpoints in Kismet take a field filtering object.  These
+    use a common specification:
+
+    [
+        field1,
+        ...
+        fieldN
+    ]
+
+    where a field may be a single-element string, consisting of a
+    field name -or- a field path, such as:
+        'kismet.device.base.channel'
+        'kismet.device.base.signal/kismet.common.signal.last_signal_dbm'
+
+    OR a field may be a two-value array, consisting of a field name or
+    path, and a target name the field will be aliased to:
+
+        ['kismet.device.base.channel', 'base.channel']
+        ['kismet.device.base.signal/kismet.common.signal.last_signal_dbm', 
+            'last.signal']
+
+    The fields in the returned device will be inserted as their final
+    name - that is, from the first above example, the device will contain
+        'kismet.device.base.channel' and 'kismet.common.signal.last_signal_dbm'
+    and from the second example:
+        'base.channel' and 'last.signal'
+
+Filter Specification:
+
+    Several endpoints in Kismet take a regex object.  These use a common
+    specification:
+
+    [
+        [ multifield, regex ],
+        ...
+        [ multifield, regex ]
+    ]
+
+    Multifield is a field path specification which will automatically expand
+    value-maps and vectors found in the path.  For example, the multifield
+    path:
+        'dot11.device/dot11.device.advertised_ssid_map/dot11.advertisedssid.ssid'
+    
+    would apply to all 'dot11.advertisedssid.ssid' fields in the ssid_map 
+    automatically.
+
+    Regex is a basic string containing a regular expression, compatible with
+    PCRE.
+
+    To match on SSIDs:
+
+    regex = [
+        [ 'dot11.device/dot11.device.advertised_ssid_map/dot11.advertisedssid.ssid',
+            '^SomePrefix.*' ]
+        ]
+
+    A device is included in the results if it matches any of the regular 
+    expressions.
+
+"""
+
 
 class KismetConnectorException(Exception):
     """
@@ -290,18 +354,24 @@ class KismetConnector:
         """
         return self.__unpack_simple_url("devices/last-time/{}/devices.msgpack".format(ts))
 
-    def smart_summary_since(self, ts, fields):
+    def smart_summary_since(self, ts, fields, regex = None):
         """
-        smart_sumamry_since(ts, fields) -> device summary list
+        smart_summary_since(ts, fields) -> device summary list
 
         Return object containing summary of devices added or changed since ts
-        and ts info.  Restricted summary to provided vector of fields.
+        and ts info.  Restricted summary to provided vector of fields defined by
+        the fieldspec.
+
+        Optionally filter responses and return only responses which match the
+        regex defined by the filterspec
         """
 
         cmd = {
                 "fields": fields,
-                "test": "testval",
                 }
+
+        if not regex == None:
+            cmd["regex"] = regex;
 
         (r, v) = self.post_msgpack_url("devices/last-time/{}/devices.msgpack".format(ts), cmd)
 

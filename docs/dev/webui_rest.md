@@ -16,7 +16,7 @@ Endpoints which require authentication but do not have a valid session return HT
 
 ## Commands
 
-Commands are sent via HTTP POST.  Currently, a command should be a base64-encoded msgpack string dictionary containing key:value pairs, send under the `msgpack` POST field.  This may be subject to change as the HTTP interface evolves.
+Commands are sent via HTTP POST.  Currently, a command should be a base64-encoded msgpack string dictionary containing key:value pairs, sent under the `msgpack` or `json` POST fields.  This may be subject to change as the HTTP interface evolves.
 
 For instance, a command created in Python might look like:
 
@@ -40,9 +40,94 @@ post = {
 }
 ```
 
+A similar command generated in Javascript might be:
+
+```javascript
+var json = {
+    "cmd": "lock",
+    "channel": "6",
+    "uuid": "aaa:bbb:cc:dd:ee:ff:gg"
+};
+
+var postdata = "json=" + JSON.stringify(json);
+
+$.post("/some/endpoint", data = postdata, dataType = "json");
+```
+
 Commands are encoded as dictionaries to allow flexibility across calling platforms, as well as forward-compatibility as endpoints evolve.  Adding additional keys to an options dictionary should not cause an older version of the server code to return an error.
 
 Dictionary key values are case sensitive.
+
+### Field Specifications
+
+Several endpoints in Kismet take a field specification for limiting the fields returned - this allows scripts which query Kismet rapidly to request only the fields they need, and are strongly recommended.
+
+Field specification objects take the format of a vector/array containing multiple field definitions:
+
+```python
+[
+    field1,
+    ...
+    fieldN
+]
+```
+
+where a field may be a single element string, defining a field name or a field path, such as:
+
+* `'kismet.device.base.channel'`
+* `'kismet.device.base.signal/kismet.common.signal.last_signal_dbm'`
+
+*or* a field may be a two-element array, consisting of a field name or path, and a target name the field will be aliased as, for example:
+
+* `[kismet.device.base.channel', 'base.channel']`
+* `[kismet.device.base.signal/kismet.common.signal.last_signal_dbm', 'base.last.signal']`
+
+Fields will be returned in the device as their final path name:  that is, from the above example, the device would contain:
+
+`['kismet.device.base.channel', 'kismet.common.signal.last_signal_dbm']`
+
+And from the second example, it would contain:
+
+`['base.channel', 'base.last.signal']`
+
+When requesting multiple fields from different paths with the same name - for instance, multiple signal paths provide the `kismet.common.signal.last_signal_dbm` - it is important to provide an alias.  Fields which resolve to the same name will only be present in the results once, and the order is undefined.
+
+### Filter Specifications
+
+Some endpoints in Kismet take a regex object.  These endpoints use a common format, which allows for multiple regular expressions to be mapped to multiple fields.  A device is considered to match if *any* of the regular expression terms are true.
+
+```python
+[
+    [ multifield, regex ],
+    ...
+    [ multifield, regex ]
+]
+```
+
+#### `multifield`
+
+`multifield` is a standard field path, but it will be automatically expanded to match all values if a vector or value-map field is encountered in the path.  For example, the multifield path:
+
+`'dot11.device/dot11.device.advertised_ssid_map/dot11.advertisedssid.ssid'`
+
+will be expanded to include all `dot11.advertisedssid` objects in the `advetised_ssid_map` dictionary, and will apply to the `dot11.advertisedssid.ssid` field in each.  Similarly, vectors, intmaps, doublemaps, macmaps, and so forth will be expanded, allowing matching against nested fields.
+
+The field is expected to resolve as a string:  if it is not a string, the regex will be considered to not match.
+
+#### `regex`
+
+`regex` is a simple string containing a PCRE-compatible regular expression.
+
+#### Example
+
+For example, to match on SSIDs, a regex object might be:
+
+```python
+regex = [
+    [ 'dot11.device/dot11.device.advertised_ssid_map/dot11.advertisedssid.ssid', '^SomePrefix.*' ],
+    [ 'dot11.device/dot11.device.advertised_ssid_map/dot11.advertisedssid.ssid', '^Linksys$' ]
+]
+```
 
 ## REST Endpoints
 
@@ -69,14 +154,17 @@ The preferred method of retrieving device lists is to use the POST URI `/devices
 
 A POST endpoint which returns a summary of all devices.  This endpoint expects a variable containing a dictionary which defines the fields to include in the results; only these fields will be sent.
 
+Optionally, a regex dictionary may be provided to filter the devices returned.
+
 Additionally, a wrapper may be specified, which indicates a transient dictionary object which should contain these values - specifically, this can be used by dataTables to wrap the initial query in an `aaData` object required for that API.
 
 The command dictionary should be passed as either JSON in the `json` POST variable, or as base64-encoded msgpack in the `msgpack` variable, and is expected to contain:
 
 | Key | Value | Type | Desc |
 | --- | ----- | ---- | ---- |
-| fields | ["field1", "field2", ..., ["fieldN", "renameN"], ... ] | array of string and string-pairs | Array of fields to be included in the summary.  If this is omitted, the entire device record is transmitted.  Fields may be a single field string, a complex field path string, or a rename pair - when renamed, fields are transmitted as the renamed value |
-| wrapper | "foo" | string | Wrapper dictionary to surround the data |
+| fields | Field specification | field specification array listing fields and mappings |
+| regex | Regex specification | Optional, regular expression filter |
+| wrapper | "foo" | string | Optional, wrapper dictionary to surround the data |
 
 ##### POST /devices/last-time/[TS]/devices `/devices/last-time/[TS]/devices.msgpack`, `devices/last-time/[TS]/devices.json`
 
@@ -86,15 +174,14 @@ This endpoint is most useful for clients and scripts which need to monitor the s
 
 This endpoint expects a variable containing a dictionary which defines the fields to include in the results; only these fields will be sent.
 
-Additionally, a wrapper may be specified, which indicates a transient dictionary object which should contain these values - specifically, this can be used by dataTables to wrap the initial query in an `aaData` object required for that API.
+Optionally, a regex dictionary may be provided to filter the devices returned.
 
 The command dictionary should be passed as either JSON in the `json` POST variable, or as base64-encoded msgpack in the `msgpack` variable, and is expected to contain:
 
 | Key | Value | Type | Desc |
 | --- | ----- | ---- | ---- |
-| fields | ["field1", "field2", ..., ["fieldN", "renameN"], ... ] | array of string and string-pairs | Array of fields to be included in the summary.  If this is omitted, the entire device record is transmitted.  Fields may be a single field string, a complex field path string, or a rename pair - when renamed, fields are transmitted as the renamed value |
-| wrapper | "foo" | string | Wrapper dictionary to surround the data |
-
+| fields | Field specification | field specification array listing fields and mappings |
+| regex | Regex specification | Optional, regular expression filter |
 
 ##### /devices/all_devices `/devices/all_devices.msgpack`, `/devices/all_devices.json`
 

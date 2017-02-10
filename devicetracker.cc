@@ -2078,6 +2078,8 @@ int Devicetracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind
         const char *transfer_encoding, const char *data, 
         uint64_t off, size_t size) {
 
+    local_locker lock(&devicelist_mutex);
+
     Kis_Net_Httpd_Connection *concls = (Kis_Net_Httpd_Connection *) coninfo_cls;
 
     // Split URL and process
@@ -2121,6 +2123,8 @@ int Devicetracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind
 
     // Wrapper, if any
     string wrapper_name;
+
+    SharedStructured regexdata;
 
     try {
         // Make sure we have the key
@@ -2170,6 +2174,10 @@ int Devicetracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind
         // Get the wrapper, if one exists, default to empty if it doesn't
         wrapper_name = structdata->getKeyAsString("wrapper", "");
 
+        if (structdata->hasKey("regex")) {
+            regexdata = structdata->getStructuredByKey("regex");
+        }
+
     } catch(const StructuredDataException e) {
         // fprintf(stderr, "debug - missing data key %s data %s\n", key, data);
         concls->response_stream << "Invalid request: ";
@@ -2180,32 +2188,57 @@ int Devicetracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind
 
     if (tokenurl[1] == "devices") {
         if (tokenurl[2] == "summary") {
+            // Wrapper we insert under
             SharedTrackerElement wrapper = NULL;
 
             // Rename cache generated during simplification
             TrackerElementSerializer::rename_map rename_map;
 
             // Create the device vector of all devices, and simplify it
-            SharedTrackerElement devvec =
+            SharedTrackerElement sourcedevs =
+                globalreg->entrytracker->GetTrackedInstance(device_list_base_id);
+            TrackerElementVector sourcevec(sourcedevs);
+
+            if (regexdata != NULL) {
+                devicetracker_pcre_worker worker(globalreg, regexdata, sourcedevs);
+                MatchOnDevices(&worker);
+            }
+
+            SharedTrackerElement outdevs =
                 globalreg->entrytracker->GetTrackedInstance(device_list_base_id);
 
-            vector<shared_ptr<kis_tracked_device_base> >::iterator vi;
-            for (vi = tracked_vec.begin(); vi != tracked_vec.end(); ++vi) {
-                SharedTrackerElement simple;
+            if (regexdata != NULL) {
+                // If we filtered, that's our list
+                TrackerElementVector::iterator vi;
+                for (vi = sourcevec.begin(); vi != sourcevec.end(); ++vi) {
+                    SharedTrackerElement simple;
 
-                SummarizeTrackerElement(entrytracker,
-                        (*vi), summary_vec,
-                        simple, rename_map);
+                    SummarizeTrackerElement(entrytracker,
+                            (*vi), summary_vec,
+                            simple, rename_map);
 
-                devvec->add_vector(simple);
+                    outdevs->add_vector(simple);
+                }
+            } else {
+                // Otherwise we use the complete list
+                vector<shared_ptr<kis_tracked_device_base> >::iterator vi;
+                for (vi = tracked_vec.begin(); vi != tracked_vec.end(); ++vi) {
+                    SharedTrackerElement simple;
+
+                    SummarizeTrackerElement(entrytracker,
+                            (*vi), summary_vec,
+                            simple, rename_map);
+
+                    outdevs->add_vector(simple);
+                }
             }
 
             if (wrapper_name != "") {
                 wrapper.reset(new TrackerElement(TrackerMap));
-                wrapper->add_map(devvec);
-                devvec->set_local_name(wrapper_name);
+                wrapper->add_map(outdevs);
+                outdevs->set_local_name(wrapper_name);
             } else {
-                wrapper = devvec;
+                wrapper = outdevs;
             }
 
             Httpd_Serialize(tokenurl[3], concls->response_stream, wrapper, &rename_map);
@@ -2229,8 +2262,7 @@ int Devicetracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind
                 return 1;
             }
 
-            local_locker lock(&devicelist_mutex);
-
+            // We always wrap in a map
             SharedTrackerElement wrapper(new TrackerElement(TrackerMap));
 
             SharedTrackerElement refresh =
@@ -2254,25 +2286,54 @@ int Devicetracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind
             // Rename cache generated during simplification
             TrackerElementSerializer::rename_map rename_map;
 
-            // Create the device vector based on timestamp, and simplify it
-            SharedTrackerElement devvec =
+            // Create the device vector of all devices, and simplify it
+            SharedTrackerElement sourcedevs =
+                globalreg->entrytracker->GetTrackedInstance(device_list_base_id);
+            TrackerElementVector sourcevec(sourcedevs);
+
+            if (regexdata != NULL) {
+                devicetracker_pcre_worker worker(globalreg, regexdata, sourcedevs);
+                MatchOnDevices(&worker);
+            }
+
+            SharedTrackerElement outdevs =
                 globalreg->entrytracker->GetTrackedInstance(device_list_base_id);
 
-            vector<shared_ptr<kis_tracked_device_base> >::iterator vi;
-            for (vi = tracked_vec.begin(); vi != tracked_vec.end(); ++vi) {
-                if ((*vi)->get_last_time() > lastts) {
-                    SharedTrackerElement simple;
+            if (regexdata != NULL) {
+                // If we filtered, that's our list
+                TrackerElementVector::iterator vi;
+                for (vi = sourcevec.begin(); vi != sourcevec.end(); ++vi) {
+                    shared_ptr<kis_tracked_device_base> vid =
+                        static_pointer_cast<kis_tracked_device_base>(*vi);
 
-                    SummarizeTrackerElement(entrytracker,
-                            (*vi), summary_vec,
-                            simple, rename_map);
+                    if (vid->get_last_time() > lastts) {
+                        SharedTrackerElement simple;
 
-                    devvec->add_vector(simple);
+                        SummarizeTrackerElement(entrytracker,
+                                (*vi), summary_vec,
+                                simple, rename_map);
+
+                        outdevs->add_vector(simple);
+                    }
+                }
+            } else {
+                // Otherwise we use the complete list
+                vector<shared_ptr<kis_tracked_device_base> >::iterator vi;
+                for (vi = tracked_vec.begin(); vi != tracked_vec.end(); ++vi) {
+                    if ((*vi)->get_last_time() > lastts) {
+                        SharedTrackerElement simple;
+
+                        SummarizeTrackerElement(entrytracker,
+                                (*vi), summary_vec,
+                                simple, rename_map);
+
+                        outdevs->add_vector(simple);
+                    }
                 }
             }
 
             // Put the simplified map in the vector
-            wrapper->add_map(devvec);
+            wrapper->add_map(outdevs);
 
             Httpd_Serialize(tokenurl[4], concls->response_stream, wrapper, &rename_map);
             return MHD_YES;

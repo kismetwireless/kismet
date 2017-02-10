@@ -4,7 +4,7 @@ import sys, KismetRest, time
 
 # Scan for WPA Handshakes
 # A more useful example script that combines the summary API,
-# field simplification, and parsing data
+# field simplification, regex, and parsing data
 
 if len(sys.argv) < 2:
     print "Expected server URI"
@@ -20,12 +20,23 @@ fields = [
         'dot11.device/dot11.device.wpa_present_handshake'
         ]
 
+regex = None
+
+for re in sys.argv[2:]:
+    if regex == None:
+        regex = []
+
+    regex.append([
+        'dot11.device/dot11.device.advertised_ssid_map/dot11.advertisedssid.ssid',
+        re
+        ])
+
 sincets = 0
 
 while 1:
 
     # Get summary of devices
-    devices = kr.smart_summary_since(sincets, fields)
+    devices = kr.smart_summary_since(sincets, fields, regex)
 
     sincets = devices['kismet.devicelist.timestamp']
 

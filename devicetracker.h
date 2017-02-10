@@ -965,7 +965,6 @@ public:
             string in_target,
             SharedStructured raw_pcre_vec,
             SharedTrackerElement in_devvec_object);
-    
 
     virtual ~devicetracker_pcre_worker();
 
@@ -985,6 +984,59 @@ protected:
 
     SharedTrackerElement return_dev_vec;
 };
+#else
+class devicetracker_pcre_worker : public DevicetrackerFilterWorker {
+public:
+    class pcre_filter {
+    public:
+        pcre_filter() {
+            re = NULL;
+            study = NULL;
+        }
+
+        ~pcre_filter() {
+            if (re != NULL)
+                pcre_free(re);
+            if (study != NULL)
+                pcre_free(study);
+        }
+
+        string target;
+        pcre *re;
+        pcre_extra *study;
+    };
+
+    // Prepare the worker with a set of filters and the object we fill our
+    // results into.  in_devvec_object must be a vector object.
+    devicetracker_pcre_worker(GlobalRegistry *in_globalreg,
+            vector<shared_ptr<devicetracker_pcre_worker::pcre_filter> > in_filter_vec,
+            SharedTrackerElement in_devvec_object) {
+        throw std::runtime("Kismet not compiled with PCRE support");
+    }
+
+    devicetracker_pcre_worker(GlobalRegistry *in_globalreg,
+            SharedStructured raw_pcre_vec,
+            SharedTrackerElement in_devvec_object) {
+        throw std::runtime("Kismet not compiled with PCRE support");
+    }
+
+    devicetracker_pcre_worker(GlobalRegistry *in_globalreg,
+            string in_target,
+            SharedStructured raw_pcre_vec,
+            SharedTrackerElement in_devvec_object) {
+        throw std::runtime("Kismet not compiled with PCRE support");
+    }
+
+    virtual ~devicetracker_pcre_worker() { };
+
+    bool get_error() { return error; }
+
+    virtual void MatchDevice(Devicetracker *devicetracker,
+            shared_ptr<kis_tracked_device_base> device) { };
+
+    virtual void Finalize(Devicetracker *devicetracker) { };
+};
+
 
 #endif
 
