@@ -66,3 +66,57 @@ canvas.k-mm-canvas {
     height: 100%;
 }
 
+.pseudolink {
+    font-weight: bold;
+}
+
+.pseudolink:hover {
+    cursor: pointer;
+}
+
+div.k-dsd-container {
+    height: 100%;
+    width: 100%;
+    display: flex;
+    flex-direction: row;
+}
+
+div.k-dsd-info {
+    height: 100%;
+    width: 25%;
+    padding: 10px;
+}
+
+div.k-dsd-graph {
+    height: 100%;
+    width: 75%;
+    flex: 1;
+}
+
+canvas.k-dsd-canvas {
+    width: 100%;
+    height: 100%;
+    padding: 10px;
+}
+
+div.k-dsd-title {
+    font-weight: bold;
+    font-size: 14px;
+}
+
+table.k-dsd-table {
+    border: none !important;
+}
+
+i.k-dsd-arrow {
+    padding-left: 3px;
+}
+
+i.k-dsd-arrow-up {
+    color: green;
+}
+
+i.k-dsd-arrow-down {
+    color: red;
+}
+

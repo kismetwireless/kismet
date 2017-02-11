@@ -212,9 +212,9 @@
                                     },
                                     stacked: true,
                                 }],
-				xAxes: [{
-				    stacked: true,
-				}],
+                                xAxes: [{
+                                    stacked: true,
+                                }],
                             },
                             legend: {
                                 labels: {

@@ -303,6 +303,72 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                 },
 
                 fields: [
+                {
+                    field: "kismet.device.base.signal/kismet.common.signal.signal_rrd",
+                    filterOnZero: true,
+                    title: "Monitor Signal",
+
+                    render: function(opts) {
+                        return '<div class="monitor pseudolink">Monitor</div>';
+                    },
+                    draw: function(opts) {
+                        $('div.monitor', opts['container'])
+                        .on('click', function() {
+                            exports.DeviceSignalDetails(opts['data']['kismet.device.base.key']);
+                        });
+                    },
+
+                    /* RRD - come back to this later 
+                    render: function(opts) {
+                        return '<div class="rrd" id="' + opts['key'] + '" />';
+                    },
+                    draw: function(opts) {
+                        var rrdiv = $('div', opts['container']);
+
+                        var rrdata = kismet.RecalcRrdData(opts['data']['kismet.device.base.signal']['kismet.common.signal.signal_rrd']['kismet.common.rrd.last_time'], last_devicelist_time, kismet.RRD_MINUTE, opts['data']['kismet.device.base.signal']['kismet.common.signal.signal_rrd']['kismet.common.rrd.minute_vec'], {});
+
+                        // We assume the 'best' a signal can usefully be is -20dbm,
+                        // that means we're right on top of it.
+                        // We can assume that -100dbm is a sane floor value for 
+                        // the weakest signal.
+                        // If a signal is 0 it means we haven't seen it at all so
+                        // just ignore that data point
+                        // We turn signals into a 'useful' graph by clamping to
+                        // -100 and -20 and then scaling it as a positive number.
+                        var moddata = new Array();
+
+                        for (var x = 0; x < rrdata.length; x++) {
+                            var d = rrdata[x];
+
+                            if (d == 0) 
+                                moddata.push(0);
+
+                            if (d < -100)
+                                d = -100;
+
+                            if (d > -20)
+                                d = -20;
+
+                            // Normalize to 0-80
+                            d = (d * -1) - 20;
+
+                            // Reverse (weaker is worse), get as percentage
+                            var rs = (80 - d) / 80;
+
+                            moddata.push(100*rs);
+                        }
+
+                        rrdiv.sparkline(moddata, { type: "bar",
+                            height: 12,
+                            barColor: '#000000',
+                            nullColor: '#000000',
+                            zeroColor: '#000000'
+                        });
+
+                    }
+                    */
+
+                },
                 { // Only show when dbm
                     field: "kismet.device.base.signal/kismet.common.signal.last_signal_dbm",
                     title: "Latest Signal",
@@ -690,7 +756,7 @@ exports.MemoryMonitor = function() {
     memorydisplay_refresh();
 }
 
-var memorydisplay_refresh = function() {
+function memorydisplay_refresh() {
     clearTimeout(memoryupdate_tid);
 
     if (memory_panel == null)
@@ -1067,11 +1133,277 @@ kismet_ui_tabpane.AddTab({
     priority: -1000,
 });
 
+exports.DeviceSignalDetails = function(key) {
+    var w = $(window).width() * 0.75;
+    var h = $(window).height() * 0.5;
+
+    var devsignal_chart = null;
+
+    var devsignal_tid = -1;
+
+    var content = 
+        $('<div>', {
+            class: 'k-dsd-container'
+        })
+        .append(
+            $('<div>', {
+                class: 'k-dsd-info'
+            })
+            .append(
+                $('<div>', {
+                    class: 'k-dsd-title'
+                })
+                .html("Signal")
+            )
+            .append(
+                $('<table>', {
+                    class: 'k-dsd-table'
+                })
+                .append(
+                    $('<tr>', { 
+                    })
+                    .append(
+                        $('<td>', {
+                            width: '50%'
+                        })
+                        .html("Last Signal:")
+                    )
+                    .append(
+                        $('<td>', {
+                            width: '50%',
+                            class: 'k-dsd-lastsignal',
+                        })
+                        .html("n/a")
+                        .append(
+                            $('<i>', {
+                                class: 'fa k-dsd-arrow fa-arrow-down',
+                            })
+                        )
+                    )
+                )
+                .append(
+                    $('<tr>', { 
+                    })
+                    .append(
+                        $('<td>', {
+                            width: '50%'
+                        })
+                        .html("Min Signal:")
+                    )
+                    .append(
+                        $('<td>', {
+                            width: '50%',
+                            class: 'k-dsd-minsignal',
+                        })
+                        .html("n/a")
+                    )
+                )
+                .append(
+                    $('<tr>', { 
+                    })
+                    .append(
+                        $('<td>', {
+                            width: '50%'
+                        })
+                        .html("Max Signal:")
+                    )
+                    .append(
+                        $('<td>', {
+                            width: '50%',
+                            class: 'k-dsd-maxsignal',
+                        })
+                        .html("n/a")
+                    )
+                )
+            )
+        )
+        .append(
+            $('<div>', {
+                class: 'k-dsd-graph'
+            })
+            .append(
+                $('<canvas>', {
+                    id: 'k-dsd-canvas',
+                    class: 'k-dsd-canvas'
+                })
+            )
+        );
+        
+    var devsignal_panel = $.jsPanel({
+        id: 'devsignal' + key,
+        headerTitle: '<i class="fa fa-signal" /> Signal',
+        headerControls: {
+            controls: 'closeonly'
+        },
+        content: content,
+        onclosed: function() {
+            clearTimeout(devsignal_tid);
+        }
+    }).resize({
+        width: w,
+        height: h
+    }).reposition({
+        my: 'center-top',
+        at: 'center-top',
+        of: 'window',
+        offsetY: 20
+    });
+
+    devsignal_tid = devsignal_refresh(key, devsignal_panel, 
+        devsignal_chart, devsignal_tid, 0);
+}
+
+function devsignal_refresh(key, devsignal_panel, devsignal_chart, 
+    devsignal_tid, lastsignal) {
+    clearTimeout(devsignal_tid);
+
+    if (devsignal_panel == null)
+        return;
+
+    if (devsignal_panel.is(':hidden'))
+        return;
+
+    var signal = lastsignal;
+
+    $.get("/devices/by-key/" + key + "/device.json")
+    .done(function(data) {
+        var title = '<i class="fa fa-signal" /> Signal ' +
+            data['kismet.device.base.macaddr'].split("/")[0] + ' ' +
+            data['kismet.device.base.name'];
+        devsignal_panel.headerTitle(title);
+
+        // Common point titles
+        var pointtitles = new Array();
+
+        for (var x = 60; x > 0; x--) {
+            if (x % 5 == 0) {
+                pointtitles.push(x + 's');
+            } else {
+                pointtitles.push(' ');
+            }
+        }
+
+        var rrdata = kismet.RecalcRrdData(
+            data['kismet.device.base.signal']['kismet.common.signal.signal_rrd']['kismet.common.rrd.last_time'], 
+            data['kismet.device.base.signal']['kismet.common.signal.signal_rrd']['kismet.common.rrd.last_time'], 
+            kismet.RRD_SECOND, 
+            data['kismet.device.base.signal']['kismet.common.signal.signal_rrd']['kismet.common.rrd.minute_vec'], {});
+
+        // We assume the 'best' a signal can usefully be is -20dbm,
+        // that means we're right on top of it.
+        // We can assume that -100dbm is a sane floor value for 
+        // the weakest signal.
+        // If a signal is 0 it means we haven't seen it at all so
+        // just ignore that data point
+        // We turn signals into a 'useful' graph by clamping to
+        // -100 and -20 and then scaling it as a positive number.
+        var moddata = new Array();
+
+        for (var x = 0; x < rrdata.length; x++) {
+            var d = rrdata[x];
+
+            if (d == 0) {
+                moddata.push(0);
+                continue;
+            }
+
+            if (d < -100)
+                d = -100;
+
+            if (d > -20)
+                d = -20;
+
+            // Normalize to 0-80
+            d = (d * -1) - 20;
+
+            // Reverse (weaker is worse), get as percentage
+            var rs = (80 - d) / 80;
+
+            moddata.push(100*rs);
+        }
+
+        var datasets = [
+            {
+                label: 'Signal (%)',
+                fill: 'false',
+                borderColor: 'blue',
+                backgroundColor: 'rgba(100, 100, 255, 0.83)',
+                data: moddata,
+            },
+        ];
+
+        if (devsignal_chart == null) {
+            var canvas = $('#k-dsd-canvas', devsignal_panel.content);
+
+            devsignal_chart = new Chart(canvas, {
+                type: 'bar',
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: false,
+                    scales: {
+                        yAxes: [ {
+                            ticks: {
+                                beginAtZero: true,
+                            }
+                        }],
+                    },
+                },
+                data: {
+                    labels: pointtitles,
+                    datasets: datasets
+                }
+            });
+        } else {
+            devsignal_chart.data.datasets[0].data = moddata;
+            devsignal_chart.update();
+        }
+
+        var sigicon = $('.k-dsd-arrow', devsignal_panel.content);
+
+        console.log(sigicon);
+
+        sigicon.removeClass('k-dsd-arrow-up');
+        sigicon.removeClass('k-dsd-arrow-down');
+        sigicon.removeClass('fa-arrow-up');
+        sigicon.removeClass('fa-arrow-down');
+
+        signal = data['kismet.device.base.signal']['kismet.common.signal.last_signal_dbm'];
+
+        if (signal < lastsignal) {
+            sigicon.addClass('k-dsd-arrow-down');
+            sigicon.addClass('fa-arrow-down');
+            sigicon.show();
+        } else {
+            sigicon.addClass('k-dsd-arrow-up');
+            sigicon.addClass('fa-arrow-up');
+            sigicon.show();
+        }
+
+        $('.k-dsd-lastsignal', devsignal_panel.content)
+        .html(signal + " dBm");
+
+        $('.k-dsd-minsignal', devsignal_panel.content)
+        .html(data['kismet.device.base.signal']['kismet.common.signal.min_signal_dbm'] + " dBm");
+
+        $('.k-dsd-maxsignal', devsignal_panel.content)
+        .html(data['kismet.device.base.signal']['kismet.common.signal.max_signal_dbm'] + " dBm");
+
+
+    })
+    .always(function() {
+        devsignal_tid = setTimeout(function() {
+                devsignal_refresh(key, devsignal_panel, 
+                    devsignal_chart, devsignal_tid, signal);
+        }, 1000);
+    });
+};
+
+
 // We're done loading
 exports.load_complete = 1;
 
 return exports;
 
 });
-
 
