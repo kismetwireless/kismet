@@ -1171,13 +1171,17 @@ exports.DeviceSignalDetails = function(key) {
                     .append(
                         $('<td>', {
                             width: '50%',
-                            class: 'k-dsd-lastsignal',
                         })
-                        .html("n/a")
+                        .append(
+                            $('<span>', {
+                                class: 'k-dsd-lastsignal',
+                            })
+                        )
                         .append(
                             $('<i>', {
-                                class: 'fa k-dsd-arrow fa-arrow-down',
+                                class: 'fa k-dsd-arrow k-dsd-arrow-down',
                             })
+                            .hide()
                         )
                     )
                 )
@@ -1249,12 +1253,17 @@ exports.DeviceSignalDetails = function(key) {
         offsetY: 20
     });
 
+    var emptyminute = new Array();
+    for (var x = 0; x < 60; x++) {
+        emptyminute.push(0);
+    }
+
     devsignal_tid = devsignal_refresh(key, devsignal_panel, 
-        devsignal_chart, devsignal_tid, 0);
+        devsignal_chart, devsignal_tid, 0, emptyminute);
 }
 
 function devsignal_refresh(key, devsignal_panel, devsignal_chart, 
-    devsignal_tid, lastsignal) {
+    devsignal_tid, lastsignal, fakerrd) {
     clearTimeout(devsignal_tid);
 
     if (devsignal_panel == null)
@@ -1272,6 +1281,35 @@ function devsignal_refresh(key, devsignal_panel, devsignal_chart,
             data['kismet.device.base.name'];
         devsignal_panel.headerTitle(title);
 
+        var sigicon = $('.k-dsd-arrow', devsignal_panel.content);
+
+        sigicon.removeClass('k-dsd-arrow-up');
+        sigicon.removeClass('k-dsd-arrow-down');
+        sigicon.removeClass('fa-arrow-up');
+        sigicon.removeClass('fa-arrow-down');
+
+        signal = data['kismet.device.base.signal']['kismet.common.signal.last_signal_dbm'];
+        console.log(signal + " " + lastsignal);
+
+        if (signal < lastsignal) {
+            sigicon.addClass('k-dsd-arrow-down');
+            sigicon.addClass('fa-arrow-down');
+            sigicon.show();
+        } else {
+            sigicon.addClass('k-dsd-arrow-up');
+            sigicon.addClass('fa-arrow-up');
+            sigicon.show();
+        }
+
+        $('.k-dsd-lastsignal', devsignal_panel.content)
+        .text(signal + " dBm");
+
+        $('.k-dsd-minsignal', devsignal_panel.content)
+        .text(data['kismet.device.base.signal']['kismet.common.signal.min_signal_dbm'] + " dBm");
+
+        $('.k-dsd-maxsignal', devsignal_panel.content)
+        .text(data['kismet.device.base.signal']['kismet.common.signal.max_signal_dbm'] + " dBm");
+
         // Common point titles
         var pointtitles = new Array();
 
@@ -1283,6 +1321,8 @@ function devsignal_refresh(key, devsignal_panel, devsignal_chart,
             }
         }
 
+
+        /*
         var rrdata = kismet.RecalcRrdData(
             data['kismet.device.base.signal']['kismet.common.signal.signal_rrd']['kismet.common.rrd.last_time'], 
             data['kismet.device.base.signal']['kismet.common.signal.signal_rrd']['kismet.common.rrd.last_time'], 
@@ -1321,6 +1361,26 @@ function devsignal_refresh(key, devsignal_panel, devsignal_chart,
 
             moddata.push(100*rs);
         }
+        */
+
+        var msignal = signal;
+
+        if (msignal == 0) {
+            fakerrd.push(0);
+        } else if (msignal < -100) {
+            msignal = -100;
+        } else if (msignal > -20) {
+            msignal = -20;
+        }
+
+        msignal = (msignal * -1) - 20;
+        var rs = (80 - msignal) / 80;
+
+        fakerrd.push(100 * rs);
+
+        fakerrd.splice(0, 1);
+
+        var moddata = fakerrd;
 
         var datasets = [
             {
@@ -1345,6 +1405,7 @@ function devsignal_refresh(key, devsignal_panel, devsignal_chart,
                         yAxes: [ {
                             ticks: {
                                 beginAtZero: true,
+                                max: 100,
                             }
                         }],
                     },
@@ -1359,42 +1420,12 @@ function devsignal_refresh(key, devsignal_panel, devsignal_chart,
             devsignal_chart.update();
         }
 
-        var sigicon = $('.k-dsd-arrow', devsignal_panel.content);
-
-        console.log(sigicon);
-
-        sigicon.removeClass('k-dsd-arrow-up');
-        sigicon.removeClass('k-dsd-arrow-down');
-        sigicon.removeClass('fa-arrow-up');
-        sigicon.removeClass('fa-arrow-down');
-
-        signal = data['kismet.device.base.signal']['kismet.common.signal.last_signal_dbm'];
-
-        if (signal < lastsignal) {
-            sigicon.addClass('k-dsd-arrow-down');
-            sigicon.addClass('fa-arrow-down');
-            sigicon.show();
-        } else {
-            sigicon.addClass('k-dsd-arrow-up');
-            sigicon.addClass('fa-arrow-up');
-            sigicon.show();
-        }
-
-        $('.k-dsd-lastsignal', devsignal_panel.content)
-        .html(signal + " dBm");
-
-        $('.k-dsd-minsignal', devsignal_panel.content)
-        .html(data['kismet.device.base.signal']['kismet.common.signal.min_signal_dbm'] + " dBm");
-
-        $('.k-dsd-maxsignal', devsignal_panel.content)
-        .html(data['kismet.device.base.signal']['kismet.common.signal.max_signal_dbm'] + " dBm");
-
 
     })
     .always(function() {
         devsignal_tid = setTimeout(function() {
                 devsignal_refresh(key, devsignal_panel, 
-                    devsignal_chart, devsignal_tid, signal);
+                    devsignal_chart, devsignal_tid, signal, fakerrd);
         }, 1000);
     });
 };
