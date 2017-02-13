@@ -31,6 +31,10 @@
 #include <iostream>
 #include <limits.h>
 
+#ifdef HAVE_LIBPCRE
+#include <pcre.h>
+#endif
+
 #include "globalregistry.h"
 #include "packetchain.h"
 #include "timetracker.h"

@@ -33,6 +33,10 @@
 #include <arpa/inet.h>
 #include <pthread.h>
 
+#ifdef HAVE_LIBPCRE
+#include <pcre.h>
+#endif
+
 #include "globalregistry.h"
 #include "trackedelement.h"
 #include "entrytracker.h"
