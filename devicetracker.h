@@ -1003,20 +1003,20 @@ public:
     devicetracker_pcre_worker(GlobalRegistry *in_globalreg,
             vector<shared_ptr<devicetracker_pcre_worker::pcre_filter> > in_filter_vec,
             SharedTrackerElement in_devvec_object) {
-        throw std::runtime("Kismet not compiled with PCRE support");
+        throw std::runtime_error("Kismet not compiled with PCRE support");
     }
 
     devicetracker_pcre_worker(GlobalRegistry *in_globalreg,
             SharedStructured raw_pcre_vec,
             SharedTrackerElement in_devvec_object) {
-        throw std::runtime("Kismet not compiled with PCRE support");
+        throw std::runtime_error("Kismet not compiled with PCRE support");
     }
 
     devicetracker_pcre_worker(GlobalRegistry *in_globalreg,
             string in_target,
             SharedStructured raw_pcre_vec,
             SharedTrackerElement in_devvec_object) {
-        throw std::runtime("Kismet not compiled with PCRE support");
+        throw std::runtime_error("Kismet not compiled with PCRE support");
     }
 
     virtual ~devicetracker_pcre_worker() { };
