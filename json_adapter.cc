@@ -36,7 +36,9 @@
 
 
 string JsonAdapter::SanitizeString(string in) {
-    return MultiReplaceAll(in, "\\", "\\\\");
+    string itr = MultiReplaceAll(in, "\\", "\\\\");
+    itr = MultiReplaceAll(itr, "\"", "\\\"");
+    return itr;
 }
 
 void JsonAdapter::Pack(GlobalRegistry *globalreg, std::stringstream &stream,
