@@ -486,7 +486,6 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
 
         concls->httpd = kishttpd;
         concls->httpdhandler = handler;
-        // printf("%s %s session = %p\n", method, url, s);
         concls->session = s;
         concls->httpcode = MHD_HTTP_OK;
         concls->url = string(url);
@@ -505,7 +504,7 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
             }
 
         } else {
-            concls->connection_type = Kis_Net_Httpd_Connection::CONNECTION_POST;
+            concls->connection_type = Kis_Net_Httpd_Connection::CONNECTION_GET;
         }
 
         *ptr = (void *) concls;
@@ -519,10 +518,14 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
         MHD_post_process(concls->postprocessor, upload_data, *upload_data_size);
 
         if (*upload_data_size != 0) {
-            // fprintf(stderr, "debug - handling postprocessor ul ds\n");
+            // Continue processing post data
             *upload_data_size = 0;
             return MHD_YES;
-        } 
+        } else {
+            // Otherwise we've completed our post data processing, flag us
+            // as completed so our post handler knows we're done
+            concls->post_complete = true;
+        }
        
         MHD_destroy_post_processor(concls->postprocessor);
         concls->postprocessor = NULL;
