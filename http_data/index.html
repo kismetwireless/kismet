@@ -89,6 +89,12 @@ var deviceTid;
 var last_devicelist_time = 0
 
 function handleDeviceSummary() {
+        deviceTid = setTimeout(handleDeviceSummary, 2000);
+        var dt = $('#devices').DataTable();
+        dt.draw('page');
+
+        return;
+
     /* Make the fields list json */
     var fields = new Array();
     var cols = kismet_ui.GetDeviceColumns();
@@ -167,7 +173,7 @@ $(function() {
             onresize: function() {
                 if (device_dt != null && dt_base_height != null) {
                     $('div.dataTables_scrollBody').height($('#main_center').height() - 
-                            dt_base_height - 50);
+                            dt_base_height - 80);
                     device_dt.draw(false);
                 }
             },
@@ -194,18 +200,19 @@ $(function() {
     }
     var json = {
         fields: fields,
-        wrapper: 'aaData',
+        datatable: true,
     };
     var postdata = "json=" + JSON.stringify(json);
 
     $('#devices').DataTable( {
-        "scrollY": "1",
-        "scroller": {
-            boundaryScale: 0,
+        scrollY: 200,
+        serverSide: true,
+        scroller: {
+            loadingIndicator: true,
         },
 
         // Create a complex post to get our summary fields only
-        "ajax": {
+        ajax: {
             url: "/devices/summary/devices.json",
             data: {
                 json: JSON.stringify(json)
@@ -218,22 +225,45 @@ $(function() {
         // Get our dynamic columns
         aoColumns: kismet_ui.GetDeviceColumns([]),
 
-        "order":
+        order:
             [ [ 0, "desc" ] ],
 
         // Map our ID into the row
-        "createdRow" : function( row, data, index ) {
-                row.id = data['kismet.device.base.key'];
-            },
+        createdRow : function( row, data, index ) {
+            row.id = data['kismet.device.base.key'];
+        },
 
         // Opportunistic draw on new rows
-        "drawCallback": function( settings ) {
+        drawCallback: function( settings ) {
+            var dt = this.api();
+
+            // Hack to turn off some elements
             $(this.api().table().container())
                 .find('div.dataTables_paginate')
                 .css( 'display', 'none' );
             $(this.api().table().container())
                 .find('div.dataTables_length')
                 .css( 'display', 'none' );
+
+            dt.rows({ 
+                page: 'current' 
+            }).every(function(rowIdx, tableLoop, rowLoop) { 
+                for (var c in kismet_ui.DeviceColumns) {
+                    var col = kismet_ui.DeviceColumns[c];
+
+                    if (!('kismetdrawfunc' in col)) {
+                        continue;
+                    }
+
+                    // Call the draw callback if one exists
+                    col.kismetdrawfunc(col, dt, this);
+                }
+            }  
+            );
+
+            /*
+
+            console.log("draw callback", settings);
 
             var page = this.DataTable().scroller.page();
 
@@ -253,6 +283,9 @@ $(function() {
                 if (typeof(row.data()) === 'undefined')
                     continue;
 
+                console.log("drawing on row " + row.data()['kismet.device.base.macaddr']);
+
+
                 for (var c in kismet_ui.DeviceColumns) {
                     var col = kismet_ui.DeviceColumns[c];
 
@@ -264,6 +297,7 @@ $(function() {
                     col.kismetdrawfunc(col, this.DataTable(), row);
                 }
             }
+            */
 
         }
 
@@ -299,7 +333,7 @@ $(function() {
         } );
 
     $('div.dataTables_scrollBody').height($('#main_center').height() - 
-            dt_base_height - 50);
+            dt_base_height - 80);
     device_dt.draw(false);
 
     /*

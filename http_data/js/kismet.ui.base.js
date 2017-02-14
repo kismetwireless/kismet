@@ -71,7 +71,7 @@ exports.drawPackets = function(dyncolumn, table, row) {
     var simple_rrd = 
         kismet.RecalcRrdData(
             data['kismet.device.base.packets.rrd']['kismet.common.rrd.last_time'], 
-            last_devicelist_time, 
+            data['kismet.device.base.packets.rrd']['kismet.common.rrd.last_time'], 
             kismet.RRD_SECOND, 
             data['kismet.device.base.packets.rrd']['kismet.common.rrd.minute_vec'], {
                 transform: function(data, opt) {
