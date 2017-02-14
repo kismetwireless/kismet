@@ -995,21 +995,7 @@ class devicetracker_pcre_worker : public DevicetrackerFilterWorker {
 public:
     class pcre_filter {
     public:
-        pcre_filter() {
-            re = NULL;
-            study = NULL;
-        }
-
-        ~pcre_filter() {
-            if (re != NULL)
-                pcre_free(re);
-            if (study != NULL)
-                pcre_free(study);
-        }
-
-        string target;
-        pcre *re;
-        pcre_extra *study;
+        pcre_filter() { }
     };
 
     // Prepare the worker with a set of filters and the object we fill our
