@@ -200,7 +200,9 @@ $(function() {
 
     $('#devices').DataTable( {
         "scrollY": "1",
-        "scroller": true,
+        "scroller": {
+            boundaryScale: 0,
+        },
 
         // Create a complex post to get our summary fields only
         "ajax": {
