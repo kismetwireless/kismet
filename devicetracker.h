@@ -33,6 +33,8 @@
 #include <arpa/inet.h>
 #include <pthread.h>
 
+#include <stdexcept>
+
 #ifdef HAVE_LIBPCRE
 #include <pcre.h>
 #endif
@@ -1033,7 +1035,7 @@ public:
 
     virtual ~devicetracker_pcre_worker() { };
 
-    bool get_error() { return error; }
+    bool get_error() { return true; }
 
     virtual void MatchDevice(Devicetracker *devicetracker,
             shared_ptr<kis_tracked_device_base> device) { };
