@@ -767,11 +767,14 @@ protected:
 	void SaveTags();
 
 	GlobalRegistry *globalreg;
+    shared_ptr<EntryTracker> entrytracker;
 
     // Base IDs for tracker components
     int device_list_base_id, device_base_id, phy_base_id, phy_entry_id;
     int device_summary_base_id;
     int device_update_required_id, device_update_timestamp_id;
+
+    int dt_length_id, dt_filter_id, dt_draw_id;
 
 	// Total # of packets
 	int num_packets;

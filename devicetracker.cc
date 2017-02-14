@@ -67,31 +67,46 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
 
 	globalreg = in_globalreg;
 
+    entrytracker =
+        static_pointer_cast<EntryTracker>(globalreg->FetchGlobal("ENTRY_TRACKER"));
+
     device_base_id =
-        globalreg->entrytracker->RegisterField("kismet.device.base", TrackerMac,
+        entrytracker->RegisterField("kismet.device.base", TrackerMac,
                 "core device record");
     device_list_base_id =
-        globalreg->entrytracker->RegisterField("kismet.device.list",
+        entrytracker->RegisterField("kismet.device.list",
                 TrackerVector, "list of devices");
 
     phy_base_id =
-        globalreg->entrytracker->RegisterField("kismet.phy.list", TrackerVector,
+        entrytracker->RegisterField("kismet.phy.list", TrackerVector,
                 "list of phys");
 
     phy_entry_id =
-        globalreg->entrytracker->RegisterField("kismet.phy.entry", TrackerMac,
+        entrytracker->RegisterField("kismet.phy.entry", TrackerMac,
                 "phy entry");
 
     device_summary_base_id =
-        globalreg->entrytracker->RegisterField("kismet.device.summary_list",
+        entrytracker->RegisterField("kismet.device.summary_list",
                 TrackerVector, "summary list of devices");
 
     device_update_required_id =
-        globalreg->entrytracker->RegisterField("kismet.devicelist.refresh",
+        entrytracker->RegisterField("kismet.devicelist.refresh",
                 TrackerUInt8, "device list refresh recommended");
     device_update_timestamp_id =
-        globalreg->entrytracker->RegisterField("kismet.devicelist.timestamp",
+        entrytracker->RegisterField("kismet.devicelist.timestamp",
                 TrackerInt64, "device list timestamp");
+
+    // These need unique IDs to be put in the map for serialization.
+    // They also need unique field names, we can rename them with setlocalname
+    dt_length_id =
+        entrytracker->RegisterField("kismet.datatables.recordsTotal", TrackerUInt64, 
+                "datatable records total");
+    dt_filter_id =
+        entrytracker->RegisterField("kismet.datatables.recordsFiltered", TrackerUInt64,
+                "datatable records filtered");
+    dt_draw_id =
+        entrytracker->RegisterField("kismet.datatables.draw", TrackerUInt64,
+                "Datatable records draw ID");
 
     packets_rrd.reset(new kis_tracked_rrd<>(globalreg, 0));
     packets_rrd_id =
@@ -2078,6 +2093,8 @@ int Devicetracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind
         const char *transfer_encoding, const char *data, 
         uint64_t off, size_t size) {
 
+    // fprintf(stderr, "key %s data %p size %lu\n", key, data, size);
+
     local_locker lock(&devicelist_mutex);
 
     Kis_Net_Httpd_Connection *concls = (Kis_Net_Httpd_Connection *) coninfo_cls;
@@ -2092,28 +2109,16 @@ int Devicetracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind
         return 1;
     }
 
-    // Process the post data - we care about 2 variables, cache either one.
-    // Whichever one finishes first, we process
-    if (size != 0) {
-        if (strcmp(key, "msgpack") == 0 ||
-                strcmp(key, "json") == 0) {
-            if (concls->variable_cache.find(key) == concls->variable_cache.end())
-                concls->variable_cache[key] = 
-                    unique_ptr<std::stringstream>(new std::stringstream);
+    // Cache all the variables by name
+    if (concls->post_complete == false) {
+        if (concls->variable_cache.find(key) == concls->variable_cache.end())
+            concls->variable_cache[key] = 
+                unique_ptr<std::stringstream>(new std::stringstream);
 
-            concls->variable_cache[key]->write(data, size);
-        } else {
-            // fprintf(stderr, "debug - missing data\n");
-            concls->response_stream << "Invalid request: "
-                "expected JSON or Msgpack data";
-            concls->httpcode = 400;
-        }
+        concls->variable_cache[key]->write(data, size);
 
-        // fprintf(stderr, "debug - wrote into '%s': '%s'\n", key, data);
         return MHD_YES;
     }
-
-    // fprintf(stderr, "debug - Got size 0\n");
 
     // Common structured API data
     SharedStructured structdata;
@@ -2127,17 +2132,12 @@ int Devicetracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind
     SharedStructured regexdata;
 
     try {
-        // Make sure we have the key
-        if (concls->variable_cache.find(key) == concls->variable_cache.end()) {
-            throw StructuredDataException("Completed POST collection, missing data");
-        }
-
         // Decode the base64 msgpack and parse it, or parse the json
-
-        if (strcmp(key, "msgpack") == 0) {
-            structdata.reset(new StructuredMsgpack(Base64::decode(concls->variable_cache[key]->str())));
-        } else if (strcmp(key, "json") == 0) {
-            structdata.reset(new StructuredJson(concls->variable_cache[key]->str()));
+        if (concls->variable_cache.find("msgpack") != concls->variable_cache.end()) {
+            structdata.reset(new StructuredMsgpack(Base64::decode(concls->variable_cache["msgpack"]->str())));
+        } else if (concls->variable_cache.find("json") != 
+                concls->variable_cache.end()) {
+            structdata.reset(new StructuredJson(concls->variable_cache["json"]->str()));
         } else {
             // fprintf(stderr, "debug - missing data\n");
             throw StructuredDataException("Missing data");
@@ -2191,26 +2191,89 @@ int Devicetracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind
             // Wrapper we insert under
             SharedTrackerElement wrapper = NULL;
 
+            // DT fields
+            SharedTrackerElement dt_length_elem = NULL;
+            SharedTrackerElement dt_filter_elem = NULL;
+
             // Rename cache generated during simplification
             TrackerElementSerializer::rename_map rename_map;
 
             // Create the device vector of all devices, and simplify it
-            SharedTrackerElement sourcedevs =
+            SharedTrackerElement pcredevs =
                 globalreg->entrytracker->GetTrackedInstance(device_list_base_id);
-            TrackerElementVector sourcevec(sourcedevs);
+            TrackerElementVector pcrevec(pcredevs);
 
             if (regexdata != NULL) {
-                devicetracker_pcre_worker worker(globalreg, regexdata, sourcedevs);
+                devicetracker_pcre_worker worker(globalreg, regexdata, pcredevs);
                 MatchOnDevices(&worker);
             }
 
             SharedTrackerElement outdevs =
                 globalreg->entrytracker->GetTrackedInstance(device_list_base_id);
 
+            unsigned int dt_start = 0;
+            unsigned int dt_length = 0;
+            unsigned int dt_draw = 0;
+
+            if (structdata->getKeyAsBool("datatable", false)) {
+                // fprintf(stderr, "debug - we think we're doing a server-side datatable\n");
+                if (concls->variable_cache.find("start") != 
+                        concls->variable_cache.end()) {
+                    *(concls->variable_cache["start"]) >> dt_start;
+                }
+
+                if (concls->variable_cache.find("length") != 
+                        concls->variable_cache.end()) {
+                    *(concls->variable_cache["length"]) >> dt_length;
+                }
+
+                if (concls->variable_cache.find("draw") != 
+                        concls->variable_cache.end()) {
+                    *(concls->variable_cache["draw"]) >> dt_draw;
+                }
+
+                // fprintf(stderr, "debug - dt start %u len %u\n", dt_start, dt_length);
+
+                // Force a length if we think we're doing a smart position
+                if (dt_length == 0)
+                    dt_length = 50;
+
+                // DT always has to wrap in an object
+                wrapper.reset(new TrackerElement(TrackerMap));
+
+                // wrap in 'data' for DT
+                wrapper->add_map(outdevs);
+                outdevs->set_local_name("data");
+
+                // Set the DT draw
+                SharedTrackerElement 
+                    draw_elem(new TrackerElement(TrackerUInt64, dt_draw_id));
+                draw_elem->set((uint64_t) dt_draw);
+                draw_elem->set_local_name("draw");
+                wrapper->add_map(draw_elem);
+
+                // Make the length and filter elements
+                dt_length_elem.reset(new TrackerElement(TrackerUInt64, dt_length_id));
+                dt_length_elem->set_local_name("recordsTotal");
+                dt_length_elem->set((uint64_t) tracked_vec.size());
+                wrapper->add_map(dt_length_elem);
+
+                dt_filter_elem.reset(new TrackerElement(TrackerUInt64, dt_filter_id));
+                dt_filter_elem->set_local_name("recordsFiltered");
+                wrapper->add_map(dt_filter_elem);
+            }
+
             if (regexdata != NULL) {
+                // Check DT ranges
+                if (dt_start >= pcrevec.size())
+                    dt_start = 0;
+
+                if (dt_filter_elem != NULL)
+                    dt_filter_elem->set((uint64_t) pcrevec.size());
+
                 // If we filtered, that's our list
                 TrackerElementVector::iterator vi;
-                for (vi = sourcevec.begin(); vi != sourcevec.end(); ++vi) {
+                for (vi = pcrevec.begin() + dt_start; vi != pcrevec.end(); ++vi) {
                     SharedTrackerElement simple;
 
                     SummarizeTrackerElement(entrytracker,
@@ -2221,8 +2284,25 @@ int Devicetracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind
                 }
             } else {
                 // Otherwise we use the complete list
+                //
+                // Check DT ranges
+                if (dt_start >= tracked_vec.size())
+                    dt_start = 0;
+
+                if (dt_filter_elem != NULL)
+                    dt_filter_elem->set((uint64_t) tracked_vec.size());
+
                 vector<shared_ptr<kis_tracked_device_base> >::iterator vi;
-                for (vi = tracked_vec.begin(); vi != tracked_vec.end(); ++vi) {
+                vector<shared_ptr<kis_tracked_device_base> >::iterator ei;
+
+                // Set the iterator endpoint for our length
+                if (dt_length == 0 ||
+                        dt_length + dt_start >= tracked_vec.size())
+                    ei = tracked_vec.end();
+                else
+                    ei = tracked_vec.begin() + dt_start + dt_length;
+
+                for (vi = tracked_vec.begin() + dt_start; vi != ei; ++vi) {
                     SharedTrackerElement simple;
 
                     SummarizeTrackerElement(entrytracker,
@@ -2233,11 +2313,12 @@ int Devicetracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind
                 }
             }
 
-            if (wrapper_name != "") {
+            // Apply wrapper if we haven't applied it already
+            if (wrapper_name != "" && wrapper == NULL) {
                 wrapper.reset(new TrackerElement(TrackerMap));
                 wrapper->add_map(outdevs);
                 outdevs->set_local_name(wrapper_name);
-            } else {
+            } else if (wrapper == NULL) {
                 wrapper = outdevs;
             }
 
