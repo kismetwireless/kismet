@@ -8,6 +8,9 @@
 
 var exports = {};
 
+// Set panels to close on escape system-wide
+jsPanel.closeOnEscape = true;
+
 // List of datatable columns we have available
 exports.DeviceColumns = new Array();
 
@@ -165,6 +168,11 @@ exports.DeviceDetailWindow = function(key) {
     var panel = $.jsPanel({
         id: dialogid,
         headerTitle: 'Device Details',
+
+        headerControls: {
+            iconfont: 'font-awesome',
+        },
+
         position: {
             "my": "left-top",
             "at": "left-top",
@@ -326,7 +334,8 @@ exports.HealthCheck = function() {
                 id: "connection-alert",
                 headerTitle: 'Cannot Connect to Kismet',
                 headerControls: {
-                    controls: 'none'
+                    controls: 'none',
+                    iconfont: 'font-awesome',
                 },
                 contentSize: "auto auto",
                 paneltype: 'modal',

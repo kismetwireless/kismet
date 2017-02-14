@@ -221,7 +221,8 @@ function checkClose(transfer = null) {
             container: settingspanel,
             paneltype: {
                 tooltip: true,
-                mode: 'sticky'
+                mode: 'sticky',
+                iconfont: 'font-awesome',
             },
             position: {
                 my: 'center', 
@@ -309,6 +310,7 @@ exports.ShowSettings = function() {
         paneltype: 'modal',
         headerControls: {
             controls: 'closeonly',
+            iconfont: 'font-awesome',
         },
         onbeforeclose: function() {
             return checkClose();

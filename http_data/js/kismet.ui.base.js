@@ -737,7 +737,8 @@ exports.MemoryMonitor = function() {
         id: 'memory',
         headerTitle: '<i class="fa fa-tasks" /> Memory use',
         headerControls: {
-            controls: 'closeonly'
+            controls: 'closeonly',
+            iconfont: 'font-awesome',
         },
         content: '<canvas id="k-mm-canvas" style="k-mm-canvas" />',
         onclosed: function() {
@@ -1237,7 +1238,8 @@ exports.DeviceSignalDetails = function(key) {
         id: 'devsignal' + key,
         headerTitle: '<i class="fa fa-signal" /> Signal',
         headerControls: {
-            controls: 'closeonly'
+            controls: 'closeonly',
+            iconfont: 'font-awesome',
         },
         content: content,
         onclosed: function() {
