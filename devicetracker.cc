@@ -2337,7 +2337,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                             if (dt_order_dir == 0)
                                 return fa < fb;
                             return fb < fa;
-                            });
+                        });
                 }
 
                 // If we filtered, that's our list
@@ -2376,15 +2376,15 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                     std::sort(matchvec.begin(), matchvec.end(), 
                             [&](SharedTrackerElement a, SharedTrackerElement b) {
                             SharedTrackerElement fa =
-                            GetTrackerElementPath(summary_vec[dt_order_col].resolved_path, a);
+                                GetTrackerElementPath(dt_order_field, a);
                             SharedTrackerElement fb =
-                            GetTrackerElementPath(summary_vec[dt_order_col].resolved_path, b);
+                                GetTrackerElementPath(dt_order_field, b);
 
                             if (dt_order_dir == 0)
-                            return fa < fb;
+                                return fa < fb;
 
                             return fb < fa;
-                            });
+                        });
                 }
 
                 // Check DT ranges
@@ -2427,15 +2427,15 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                     std::sort(tracked_vec.begin(), tracked_vec.end(), 
                             [&](SharedTrackerElement a, SharedTrackerElement b) {
                             SharedTrackerElement fa =
-                            GetTrackerElementPath(summary_vec[dt_order_col].resolved_path, a);
+                                GetTrackerElementPath(dt_order_field, a);
                             SharedTrackerElement fb =
-                            GetTrackerElementPath(summary_vec[dt_order_col].resolved_path, b);
+                                GetTrackerElementPath(dt_order_field, b);
 
                             if (dt_order_dir == 0)
-                            return fa < fb;
+                                return fa < fb;
 
                             return fb < fa;
-                            });
+                        });
                 }
 
                 vector<shared_ptr<kis_tracked_device_base> >::iterator vi;
