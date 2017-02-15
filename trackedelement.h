@@ -499,6 +499,10 @@ public:
     friend bool operator<(TrackerElement &te1, mac_addr m);
     friend bool operator<(TrackerElement &te1, uuid u);
 
+    // Valid for comparing two fields of the same type
+    friend bool operator<(TrackerElement &te1, TrackerElement &te2);
+    friend bool operator<(SharedTrackerElement te1, SharedTrackerElement te2);
+
     friend bool operator>(TrackerElement &te1, int8_t i);
     friend bool operator>(TrackerElement &te1, uint8_t i);
     friend bool operator>(TrackerElement &te1, int16_t i);

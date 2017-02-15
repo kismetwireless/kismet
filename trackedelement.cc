@@ -1292,6 +1292,100 @@ bool operator<(TrackerElement &te1, uuid u) {
     return te1.get_uuid() < u;
 }
 
+bool operator<(TrackerElement &te1, TrackerElement &te2) {
+    if (te1.get_type() != te2.get_type())
+        return false;
+
+    switch (te1.get_type()) {
+        case TrackerInt8:
+            return te1.get_int8() < te2.get_int8();
+            break;
+        case TrackerUInt8:
+            return te1.get_uint8() < te2.get_uint8();
+            break;
+        case TrackerInt16:
+            return te1.get_int16() < te2.get_int16();
+            break;
+        case TrackerUInt16:
+            return te1.get_uint16() < te2.get_uint16();
+            break;
+        case TrackerInt32:
+            return te1.get_int32() < te2.get_int32();
+            break;
+        case TrackerUInt32:
+            return te1.get_uint32() < te2.get_uint32();
+            break;
+        case TrackerInt64:
+            return te1.get_int64() < te2.get_int64();
+            break;
+        case TrackerUInt64:
+            return te1.get_uint64() < te2.get_uint64();
+            break;
+        case TrackerFloat:
+            return te1.get_float() < te2.get_float();
+            break;
+        case TrackerDouble:
+            return te1.get_double() < te2.get_double();
+            break;
+        case TrackerString:
+            return te1.get_string() < te2.get_string();
+        case TrackerMac:
+            return te1.get_mac() < te2.get_mac();
+        default:
+            return false;
+    }
+}
+
+bool operator<(SharedTrackerElement te1, SharedTrackerElement te2) {
+    if (te1 == NULL)
+        return false;
+
+    if (te2 == NULL)
+        return true;
+
+    if (te1->get_type() != te2->get_type())
+        return false;
+
+    switch (te1->get_type()) {
+        case TrackerInt8:
+            return te1->get_int8() < te2->get_int8();
+            break;
+        case TrackerUInt8:
+            return te1->get_uint8() < te2->get_uint8();
+            break;
+        case TrackerInt16:
+            return te1->get_int16() < te2->get_int16();
+            break;
+        case TrackerUInt16:
+            return te1->get_uint16() < te2->get_uint16();
+            break;
+        case TrackerInt32:
+            return te1->get_int32() < te2->get_int32();
+            break;
+        case TrackerUInt32:
+            return te1->get_uint32() < te2->get_uint32();
+            break;
+        case TrackerInt64:
+            return te1->get_int64() < te2->get_int64();
+            break;
+        case TrackerUInt64:
+            return te1->get_uint64() < te2->get_uint64();
+            break;
+        case TrackerFloat:
+            return te1->get_float() < te2->get_float();
+            break;
+        case TrackerDouble:
+            return te1->get_double() < te2->get_double();
+            break;
+        case TrackerString:
+            return te1->get_string() < te2->get_string();
+        case TrackerMac:
+            return te1->get_mac() < te2->get_mac();
+        default:
+            return false;
+    }
+}
+
 
 bool operator>(TrackerElement &te1, int8_t i) {
     return te1.get_int8() > i;
