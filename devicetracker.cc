@@ -2193,6 +2193,9 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
             // Resolved paths to fields we search
             vector<vector<int> > dt_search_paths;
+            
+            unsigned int dt_order_col = -1;
+            int dt_order_dir = 0;
 
             if (structdata->getKeyAsBool("datatable", false)) {
                 // fprintf(stderr, "debug - we think we're doing a server-side datatable\n");
@@ -2252,8 +2255,28 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                     }
 
                 }
+                
+                // We only handle sorting by the first column
+                if (concls->variable_cache.find("order[0][column]") !=
+                        concls->variable_cache.end()) {
+                    *(concls->variable_cache["order[0][column]"]) >> dt_order_col;
+                }
 
-                // Force a length if we think we're doing a smart position
+                // Don't allow ordering by a column that doesn't make sense
+                if (dt_order_col >= summary_vec.size())
+                    dt_order_col = -1;
+
+                if (dt_order_col >= 0 &&
+                        concls->variable_cache.find("order[0][dir]") !=
+                        concls->variable_cache.end()) {
+                    string ord = concls->variable_cache["order[0][dir]"]->str();
+
+                    if (ord == "asc")
+                        dt_order_dir = 1;
+                }
+
+                // Force a length if we think we're doing a smart position and
+                // something has gone wonky
                 if (dt_length == 0)
                     dt_length = 50;
 
@@ -2299,6 +2322,22 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 if (dt_filter_elem != NULL)
                     dt_filter_elem->set((uint64_t) pcrevec.size());
 
+                // Sort the list by the selected column
+                if (dt_order_col >= 0) {
+                    std::sort(pcrevec.begin(), pcrevec.end(), 
+                            [&](SharedTrackerElement a, SharedTrackerElement b) {
+                            SharedTrackerElement fa =
+                            GetTrackerElementPath(summary_vec[dt_order_col].resolved_path, a);
+                            SharedTrackerElement fb =
+                            GetTrackerElementPath(summary_vec[dt_order_col].resolved_path, b);
+
+                            if (dt_order_dir == 0)
+                            return fa < fb;
+
+                            return fb < fa;
+                            });
+                }
+
                 // If we filtered, that's our list
                 TrackerElementVector::iterator vi;
                 // Set the iterator endpoint for our length
@@ -2331,6 +2370,21 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                         dt_search_paths, matchdevs);
                 MatchOnDevices(&worker);
                 
+                if (dt_order_col >= 0) {
+                    std::sort(matchvec.begin(), matchvec.end(), 
+                            [&](SharedTrackerElement a, SharedTrackerElement b) {
+                            SharedTrackerElement fa =
+                            GetTrackerElementPath(summary_vec[dt_order_col].resolved_path, a);
+                            SharedTrackerElement fb =
+                            GetTrackerElementPath(summary_vec[dt_order_col].resolved_path, b);
+
+                            if (dt_order_dir == 0)
+                            return fa < fb;
+
+                            return fb < fa;
+                            });
+                }
+
                 // Check DT ranges
                 if (dt_start >= matchvec.size())
                     dt_start = 0;
@@ -2366,6 +2420,21 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
                 if (dt_filter_elem != NULL)
                     dt_filter_elem->set((uint64_t) tracked_vec.size());
+
+                if (dt_order_col >= 0) {
+                    std::sort(tracked_vec.begin(), tracked_vec.end(), 
+                            [&](SharedTrackerElement a, SharedTrackerElement b) {
+                            SharedTrackerElement fa =
+                            GetTrackerElementPath(summary_vec[dt_order_col].resolved_path, a);
+                            SharedTrackerElement fb =
+                            GetTrackerElementPath(summary_vec[dt_order_col].resolved_path, b);
+
+                            if (dt_order_dir == 0)
+                            return fa < fb;
+
+                            return fb < fa;
+                            });
+                }
 
                 vector<shared_ptr<kis_tracked_device_base> >::iterator vi;
                 vector<shared_ptr<kis_tracked_device_base> >::iterator ei;
