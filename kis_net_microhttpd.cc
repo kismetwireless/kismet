@@ -483,6 +483,9 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
     // If we don't have a connection state, make one
     if (*ptr == NULL) {
         Kis_Net_Httpd_Connection *concls = new Kis_Net_Httpd_Connection();
+        fprintf(stderr, "debug - allocated new connection state %p\n", concls);
+
+        *ptr = (void *) concls;
 
         concls->httpd = kishttpd;
         concls->httpdhandler = handler;
@@ -499,48 +502,54 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
                         kishttpd->http_post_handler, (void *) concls);
 
             if (concls->postprocessor == NULL) {
-                delete(concls);
+                fprintf(stderr, "debug - failed to make postprocessor\n");
+                // This might get cleaned up elsewhere? The examples don't 
+                // free it.
+                // delete(concls);
                 return MHD_NO;
             }
-
         } else {
+            // Otherwise default to the get handler
             concls->connection_type = Kis_Net_Httpd_Connection::CONNECTION_GET;
         }
 
-        *ptr = (void *) concls;
-
+        // We're done
         return MHD_YES;
     }
 
     // Handle post
     if (strcmp(method, "POST") == 0) {
         Kis_Net_Httpd_Connection *concls = (Kis_Net_Httpd_Connection *) *ptr;
-        MHD_post_process(concls->postprocessor, upload_data, *upload_data_size);
 
+        // If we still have data to process
         if (*upload_data_size != 0) {
+            // Process regardless of size to get our completion
+            MHD_post_process(concls->postprocessor, upload_data, *upload_data_size);
+
             // Continue processing post data
             *upload_data_size = 0;
             return MHD_YES;
-        } else {
-            // Otherwise we've completed our post data processing, flag us
-            // as completed so our post handler knows we're done
-            concls->post_complete = true;
-        }
-       
-        MHD_destroy_post_processor(concls->postprocessor);
-        concls->postprocessor = NULL;
+        } 
 
-        // fprintf(stderr, "debug - sending postprocessor content\n");
+        // Otherwise we've completed our post data processing, flag us
+        // as completed so our post handler knows we're done
+        
+        fprintf(stderr, "con %p post complete\n", concls);
+        concls->post_complete = true;
+
+        // Notify the processor it's complete
+        (concls->httpdhandler)->Httpd_PostComplete(concls);
+
         // Send the content
+        fprintf(stderr, "debug - sending postprocessor content %p\n", concls);
         ret = kishttpd->SendHttpResponse(kishttpd, connection, 
                 url, concls->httpcode, concls->response_stream.str());
-
-
-        return ret;
+      
+        return MHD_YES;
     } else {
-        ret = 
-            handler->Httpd_HandleRequest(kishttpd, connection, url, method, 
-                    upload_data, upload_data_size);
+        // Generic handler
+        ret = handler->Httpd_HandleRequest(kishttpd, connection, url, method, 
+                upload_data, upload_data_size);
     }
 
     return ret;
@@ -553,8 +562,19 @@ int Kis_Net_Httpd::http_post_handler(void *coninfo_cls, enum MHD_ValueKind kind,
 
     Kis_Net_Httpd_Connection *concls = (Kis_Net_Httpd_Connection *) coninfo_cls;
 
-    return (concls->httpdhandler)->Httpd_PostIterator(coninfo_cls, kind,
-            key, filename, content_type, transfer_encoding, data, off, size);
+    if (concls->httpdhandler->Httpd_UseCustomPostIterator()) {
+        return (concls->httpdhandler)->Httpd_PostIterator(coninfo_cls, kind,
+                key, filename, content_type, transfer_encoding, data, off, size);
+    } else {
+        // Cache all the variables by name until we're complete
+        if (concls->variable_cache.find(key) == concls->variable_cache.end())
+            concls->variable_cache[key] = 
+                unique_ptr<std::stringstream>(new std::stringstream);
+
+        concls->variable_cache[key]->write(data, size);
+
+        return MHD_YES;
+    }
 }
 
 void Kis_Net_Httpd::http_request_completed(void *cls __attribute__((unused)), 
@@ -568,7 +588,10 @@ void Kis_Net_Httpd::http_request_completed(void *cls __attribute__((unused)),
 
     if (con_info->connection_type == Kis_Net_Httpd_Connection::CONNECTION_POST) {
         MHD_destroy_post_processor(con_info->postprocessor);
+        con_info->postprocessor = NULL;
     }
+
+    fprintf(stderr, "debug - destroying state %p\n", con_info);
 
     delete(con_info);
     *con_cls = NULL;
@@ -689,7 +712,7 @@ int Kis_Net_Httpd::SendHttpResponse(Kis_Net_Httpd *httpd,
 
     struct MHD_Response *response = 
         MHD_create_response_from_buffer(responsestr.length(),
-                (void *) responsestr.c_str(), MHD_RESPMEM_MUST_COPY);
+                (void *) responsestr.data(), MHD_RESPMEM_MUST_COPY);
 
     char lastmod[31];
     struct tm tmstruct;
@@ -706,7 +729,7 @@ int Kis_Net_Httpd::SendHttpResponse(Kis_Net_Httpd *httpd,
         MHD_add_response_header(response, "Content-Type", mime.c_str());
     }
 
-    // Allow any?
+    // Allow any?  This lets us handle webuis hosted elsewhere
     MHD_add_response_header(response, "Access-Control-Allow-Origin", "*");
 
     int ret = MHD_queue_response(connection, httpcode, response);

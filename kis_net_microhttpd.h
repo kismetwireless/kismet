@@ -68,33 +68,54 @@ public:
     virtual string Httpd_GetSuffix(string path);
     virtual string Httpd_StripSuffix(string path);
 
-    // Post handler.  By default does nothing and bails on the post data.
+
+    // By default, the Kismet HTTPD implementation will cache all POST variables
+    // in the variable_cache map in the connection record, and call
+    // Httpd_PostComplete(connection, stream&) to generate the output.
+    // If this is inappropriate for your endpoint, for instance if you are
+    // implementing some sort of file upload, then this function should
+    // return 'true' and you should implement it in Httpd_PostIterator
+    virtual bool Httpd_UseCustomPostIterator() {
+        return false;
+    }
+
+    // Called when a POST event is complete - all data has been uploaded and
+    // cached in the connection info.
+    virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *con __attribute__((unused))) {
+        return MHD_NO;
+    }
+
+    // If Httpd_UseCustomPostIterator() is true, this is expected to perform
+    // a custom handling of POST.  Properly handling post is non-trivial
+    //
+    // By default does nothing and bails on the post data.
+    //
     // Override this to do useful post interpreting.  This implements parsing
     // iterative data and will be called multiple times; if you are implementing
     // a post system which takes multiple values you will need to index the state
     // via the connection info and parse them all as you are called from the
     // microhttpd handler.
-    //
-    // A simpler method is to take a single parameter encoding a JSON string 
-    // or a msgpack container, with all the options contained therein.
-    virtual int Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind, 
-            const char *key, const char *filename, const char *content_type,
-            const char *transfer_encoding, const char *data, 
-            uint64_t off, size_t size) {
-#if 0
-        // Example implementation 
-        Kis_Net_Httpd_Connection *concls = (Kis_Net_Httpd_Connection *) coninfo_cls;
-
-        if (strcmp(key, "msgpack") == 0) {
-            // Handle data
-        }
-
-        concls->response_stream << "OK";
-
-        return MHD_YES;
-
-#endif
+    virtual int Httpd_PostIterator(void *coninfo_cls __attribute__((unused)), 
+            enum MHD_ValueKind kind __attribute__((unused)), 
+            const char *key __attribute__((unused)), 
+            const char *filename __attribute__((unused)), 
+            const char *content_type __attribute__((unused)),
+            const char *transfer_encoding __attribute__((unused)), 
+            const char *data __attribute__((unused)), 
+            uint64_t off __attribute__((unused)), 
+            size_t size __attribute__((unused))) {
+        // Do nothing
         return MHD_NO;
+    }
+
+    // If Httpd_UseCustomPostIterator() is true, this is expected to perform
+    // and cleanup at the end of handling a POST event, for instance, closing
+    // files, etc
+    virtual void Httpd_PostRequestCompleted(void *cls __attribute__((unused)),
+            struct MHD_Connection *connection __attribute__((unused)),
+            void **con_cls __attribute__((unused)),
+            enum MHD_RequestTerminationCode toe __attribute__((unused))) {
+        // Do nothing
     }
 
 protected:
