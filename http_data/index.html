@@ -148,6 +148,9 @@ $(function() {
     // Set a global timeout
     $.ajaxSetup({timeout:5000});
 
+    // Don't let DT make alerts
+    $.fn.dataTableExt.sErrMode = "console";
+
     $('#pm_menu').pushmenu({ button : "#pm_open" });
 
     // Datatable and base size
