@@ -52,6 +52,9 @@ exports.AddDeviceColumn = function(id, options) {
         coldef.bSearchable = options.searchable;
     }
 
+    if ('width' in options)
+        coldef.width = options.width;
+
     var f;
     if (typeof(coldef.field) === 'string') {
         var fs = coldef.field.split("/");

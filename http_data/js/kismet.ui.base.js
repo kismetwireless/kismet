@@ -116,12 +116,14 @@ kismet_ui.AddDeviceColumn('column_type', {
 
 kismet_ui.AddDeviceColumn('column_phy', {
     sTitle: 'Phy',
-    field: 'kismet.device.base.phyname'
+    field: 'kismet.device.base.phyname',
+    width: "8em",
 });
 
 kismet_ui.AddDeviceColumn('column_signal', { 
     sTitle: 'Signal', 
     field: 'kismet.device.base.signal/kismet.common.signal.last_signal_dbm',
+    width: "6em",
     renderfunc: function(d, t, r, m) {
         return exports.renderSignal(d, t, r, m);
     },
@@ -130,6 +132,7 @@ kismet_ui.AddDeviceColumn('column_signal', {
 kismet_ui.AddDeviceColumn('column_channel', {
     sTitle: 'Channel',
     field: 'kismet.device.base.channel',
+    width: "6em",
     renderfunc: function(d, t, r, m) {
         return exports.renderChannel(d, t, r, m);
     },
