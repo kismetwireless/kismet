@@ -2181,16 +2181,6 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
             // Rename cache generated during simplification
             TrackerElementSerializer::rename_map rename_map;
 
-            // Create the device vector of all devices, and simplify it
-            SharedTrackerElement pcredevs =
-                globalreg->entrytracker->GetTrackedInstance(device_list_base_id);
-            TrackerElementVector pcrevec(pcredevs);
-
-            if (regexdata != NULL) {
-                devicetracker_pcre_worker worker(globalreg, regexdata, pcredevs);
-                MatchOnDevices(&worker);
-            }
-
             SharedTrackerElement outdevs =
                 globalreg->entrytracker->GetTrackedInstance(device_list_base_id);
 
@@ -2295,6 +2285,12 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
             if (regexdata != NULL) {
                 // If we're doing a basic regex outside of devicetables
                 // shenanigans...
+                SharedTrackerElement pcredevs =
+                    globalreg->entrytracker->GetTrackedInstance(device_list_base_id);
+                TrackerElementVector pcrevec(pcredevs);
+
+                devicetracker_pcre_worker worker(globalreg, regexdata, pcredevs);
+                MatchOnDevices(&worker);
                 
                 // Check DT ranges
                 if (dt_start >= pcrevec.size())
@@ -2305,7 +2301,54 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
                 // If we filtered, that's our list
                 TrackerElementVector::iterator vi;
-                for (vi = pcrevec.begin() + dt_start; vi != pcrevec.end(); ++vi) {
+                // Set the iterator endpoint for our length
+                TrackerElementVector::iterator ei;
+                if (dt_length == 0 ||
+                        dt_length + dt_start >= pcrevec.size())
+                    ei = pcrevec.end();
+                else
+                    ei = pcrevec.begin() + dt_start + dt_length;
+
+                for (vi = pcrevec.begin() + dt_start; vi != ei; ++vi) {
+                    SharedTrackerElement simple;
+
+                    SummarizeTrackerElement(entrytracker,
+                            (*vi), summary_vec,
+                            simple, rename_map);
+
+                    outdevs->add_vector(simple);
+                }
+            } else if (dt_search_paths.size() != 0) {
+                // Otherwise, we're doing a search inside a datatables query,
+                // so go through every device and do a search on every element
+                // which we have flagged as searchable, and which is a string or
+                // mac which we can treat as a string.
+                SharedTrackerElement matchdevs =
+                    globalreg->entrytracker->GetTrackedInstance(device_list_base_id);
+                TrackerElementVector matchvec(matchdevs);
+
+                devicetracker_stringmatch_worker worker(globalreg, dt_search, 
+                        dt_search_paths, matchdevs);
+                MatchOnDevices(&worker);
+                
+                // Check DT ranges
+                if (dt_start >= matchvec.size())
+                    dt_start = 0;
+
+                if (dt_filter_elem != NULL)
+                    dt_filter_elem->set((uint64_t) matchvec.size());
+                
+                // Set the iterator endpoint for our length
+                TrackerElementVector::iterator ei;
+                if (dt_length == 0 ||
+                        dt_length + dt_start >= matchvec.size())
+                    ei = matchvec.end();
+                else
+                    ei = matchvec.begin() + dt_start + dt_length;
+
+                // If we filtered, that's our list
+                TrackerElementVector::iterator vi;
+                for (vi = matchvec.begin() + dt_start; vi != ei; ++vi) {
                     SharedTrackerElement simple;
 
                     SummarizeTrackerElement(entrytracker,
@@ -2573,6 +2616,65 @@ void Devicetracker::lock_devicelist() {
 
 void Devicetracker::unlock_devicelist() {
     pthread_mutex_unlock(&devicelist_mutex);
+}
+
+devicetracker_stringmatch_worker::devicetracker_stringmatch_worker(GlobalRegistry *in_globalreg,
+        string in_query,
+        vector<vector<int> > in_paths,
+        SharedTrackerElement in_devvec_object) {
+
+    globalreg = in_globalreg;
+
+    entrytracker =
+        static_pointer_cast<EntryTracker>(globalreg->FetchGlobal("ENTRY_TRACKER"));
+
+    query = in_query;
+    fieldpaths = in_paths;
+
+    return_dev_vec = in_devvec_object;
+}
+
+devicetracker_stringmatch_worker::~devicetracker_stringmatch_worker() {
+
+}
+
+void devicetracker_stringmatch_worker::MatchDevice(Devicetracker *devicetracker __attribute__((unused)),
+        shared_ptr<kis_tracked_device_base> device) {
+    vector<vector<int> >::iterator i;
+
+    bool matched = false;
+
+    // Go through the fields
+    for (i = fieldpaths.begin(); i != fieldpaths.end(); ++i) {
+        // Get complex fields - this lets us search nested vectors
+        // or strings or whatnot
+        vector<SharedTrackerElement> fields = GetTrackerElementMultiPath((*i), device);
+
+        for (vector<SharedTrackerElement>::iterator fi = fields.begin();
+                fi != fields.end(); ++fi) {
+            // We can only regex strings
+            if ((*fi)->get_type() == TrackerString) {
+                matched = GetTrackerValue<string>(*fi).find(query) != std::string::npos;
+            } else if ((*fi)->get_type() == TrackerMac) {
+                matched =
+                    GetTrackerValue<mac_addr>(*fi).Mac2String().find(query) != std::string::npos;
+            } else {
+                continue;
+            }
+
+            if (matched)
+                break;
+        }
+
+        if (matched) {
+            return_dev_vec->add_vector(device);
+        }
+    }
+
+}
+
+void devicetracker_stringmatch_worker::Finalize(Devicetracker *devicetracker __attribute__((unused))) {
+
 }
 
 #ifdef HAVE_LIBPCRE

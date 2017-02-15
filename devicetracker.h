@@ -920,6 +920,38 @@ private:
     Devicetracker *tracker;
 };
 
+// Matching worker to match fields against a string search term
+
+class devicetracker_stringmatch_worker : public DevicetrackerFilterWorker {
+public:
+    // Prepare the worker with the query and the vector of paths we
+    // query against.  The vector of paths is equivalent to a field
+    // summary/request field path, and can be extracted directly from 
+    // that object.
+    // in_devvec_object is the object the responses are placed into.
+    // in_devvec_object must be a vector object.
+    devicetracker_stringmatch_worker(GlobalRegistry *in_globalreg,
+            string in_query,
+            vector<vector<int> > in_paths,
+            SharedTrackerElement in_devvec_object);
+
+    virtual ~devicetracker_stringmatch_worker();
+
+    virtual void MatchDevice(Devicetracker *devicetracker,
+            shared_ptr<kis_tracked_device_base> device);
+
+    virtual void Finalize(Devicetracker *devicetracker);
+
+protected:
+    GlobalRegistry *globalreg;
+    shared_ptr<EntryTracker> entrytracker;
+
+    string query;
+    vector<vector<int> > fieldpaths;
+
+    SharedTrackerElement return_dev_vec;
+};
+
 #ifdef HAVE_LIBPCRE
 // Retrieve a list of devices based on complex field paths and
 // return them in a vector sharedtrackerelement
