@@ -2196,6 +2196,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
             
             unsigned int dt_order_col = -1;
             int dt_order_dir = 0;
+            vector<int> dt_order_field;
 
             if (structdata->getKeyAsBool("datatable", false)) {
                 // fprintf(stderr, "debug - we think we're doing a server-side datatable\n");
@@ -2273,6 +2274,8 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
                     if (ord == "asc")
                         dt_order_dir = 1;
+
+                    dt_order_field = summary_vec[dt_order_col].resolved_path;
                 }
 
                 // Force a length if we think we're doing a smart position and
@@ -2327,13 +2330,12 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                     std::sort(pcrevec.begin(), pcrevec.end(), 
                             [&](SharedTrackerElement a, SharedTrackerElement b) {
                             SharedTrackerElement fa =
-                            GetTrackerElementPath(summary_vec[dt_order_col].resolved_path, a);
+                                GetTrackerElementPath(dt_order_field, a);
                             SharedTrackerElement fb =
-                            GetTrackerElementPath(summary_vec[dt_order_col].resolved_path, b);
+                                GetTrackerElementPath(dt_order_field, b);
 
                             if (dt_order_dir == 0)
-                            return fa < fb;
-
+                                return fa < fb;
                             return fb < fa;
                             });
                 }
