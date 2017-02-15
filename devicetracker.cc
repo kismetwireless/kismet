@@ -2739,6 +2739,7 @@ void devicetracker_stringmatch_worker::MatchDevice(Devicetracker *devicetracker 
 
         if (matched) {
             return_dev_vec->add_vector(device);
+            break;
         }
     }
 
