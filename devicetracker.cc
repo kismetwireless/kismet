@@ -2088,16 +2088,8 @@ void Devicetracker::Httpd_CreateStreamResponse(
     }
 }
 
-int Devicetracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind, 
-        const char *key, const char *filename, const char *content_type,
-        const char *transfer_encoding, const char *data, 
-        uint64_t off, size_t size) {
-
-    // fprintf(stderr, "key %s data %p size %lu\n", key, data, size);
-
+int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
     local_locker lock(&devicelist_mutex);
-
-    Kis_Net_Httpd_Connection *concls = (Kis_Net_Httpd_Connection *) coninfo_cls;
 
     // Split URL and process
     vector<string> tokenurl = StrTokenize(concls->url, "/");
@@ -2109,16 +2101,7 @@ int Devicetracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind
         return 1;
     }
 
-    // Cache all the variables by name
-    if (concls->post_complete == false) {
-        if (concls->variable_cache.find(key) == concls->variable_cache.end())
-            concls->variable_cache[key] = 
-                unique_ptr<std::stringstream>(new std::stringstream);
-
-        concls->variable_cache[key]->write(data, size);
-
-        return MHD_YES;
-    }
+    fprintf(stderr, "debug - devicetracker con %p thinks we're complete, populating\n", concls);
 
     // Common structured API data
     SharedStructured structdata;
@@ -2215,6 +2198,12 @@ int Devicetracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind
             unsigned int dt_length = 0;
             unsigned int dt_draw = 0;
 
+            // Search string
+            string dt_search;
+
+            // Resolved paths to fields we search
+            vector<vector<int> > dt_search_paths;
+
             if (structdata->getKeyAsBool("datatable", false)) {
                 // fprintf(stderr, "debug - we think we're doing a server-side datatable\n");
                 if (concls->variable_cache.find("start") != 
@@ -2232,7 +2221,47 @@ int Devicetracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind
                     *(concls->variable_cache["draw"]) >> dt_draw;
                 }
 
-                // fprintf(stderr, "debug - dt start %u len %u\n", dt_start, dt_length);
+                if (concls->variable_cache.find("search[value]") !=
+                            concls->variable_cache.end()) {
+                    dt_search = concls->variable_cache["search[value]"]->str();
+                    fprintf(stderr, "debug - searching for '%s'\n", dt_search.c_str());
+                }
+
+                // If we're searching, we need to figure out what columns are
+                // searchable.  Because of how we have to map names into datatables,
+                // we don't get a usable field definition from the dt js plugin,
+                // BUT we DO get a usable fieldspec from our fields list that
+                // we already processed... so we have to make a slightly funky
+                // assumption that columns[x] is equivalent to summary_vec[x],
+                // and then we just pull the parsed-int field path in for our
+                // searching mechanism
+                if (dt_search.length() != 0) {
+                    std::stringstream sstr;
+
+                    // We have to act like an array and iterate through the
+                    // column fields...  We use the summary vec length as a 
+                    // quick cheat
+                    for (unsigned int ci = 0; ci < summary_vec.size(); ci++) {
+                        sstr.str("");
+                        sstr << "columns[" << ci << "][searchable]";
+                        map<string, std::unique_ptr<std::stringstream> >::iterator mi;
+                        if ((mi = concls->variable_cache.find(sstr.str())) !=
+                                concls->variable_cache.end()) {
+                            if (mi->second->str() == "true") {
+                                // We can blindly trust the offset b/c we're 
+                                // iterating from our summary vec size, not the
+                                // form data
+                                dt_search_paths.push_back(summary_vec[ci].resolved_path);
+                            }
+                        } else {
+                            // If we've run out of columns to look at for some
+                            // reason just bail instead of doing more string 
+                            // construction
+                            break;
+                        }
+                    }
+
+                }
 
                 // Force a length if we think we're doing a smart position
                 if (dt_length == 0)
@@ -2264,6 +2293,9 @@ int Devicetracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind
             }
 
             if (regexdata != NULL) {
+                // If we're doing a basic regex outside of devicetables
+                // shenanigans...
+                
                 // Check DT ranges
                 if (dt_start >= pcrevec.size())
                     dt_start = 0;
