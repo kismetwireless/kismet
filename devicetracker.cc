@@ -2101,7 +2101,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
         return 1;
     }
 
-    fprintf(stderr, "debug - devicetracker con %p thinks we're complete, populating\n", concls);
+    // fprintf(stderr, "debug - devicetracker con %p thinks we're complete, populating\n", concls);
 
     // Common structured API data
     SharedStructured structdata;
@@ -2229,7 +2229,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 // and then we just pull the parsed-int field path in for our
                 // searching mechanism
                 if (dt_search.length() != 0) {
-                    fprintf(stderr, "debug - searching for '%s'\n", dt_search.c_str());
+                    // fprintf(stderr, "debug - searching for '%s'\n", dt_search.c_str());
                     std::stringstream sstr;
 
                     // We have to act like an array and iterate through the

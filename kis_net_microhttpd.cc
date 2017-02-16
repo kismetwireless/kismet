@@ -483,7 +483,7 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
     // If we don't have a connection state, make one
     if (*ptr == NULL) {
         Kis_Net_Httpd_Connection *concls = new Kis_Net_Httpd_Connection();
-        fprintf(stderr, "debug - allocated new connection state %p\n", concls);
+        // fprintf(stderr, "debug - allocated new connection state %p\n", concls);
 
         *ptr = (void *) concls;
 
@@ -502,7 +502,7 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
                         kishttpd->http_post_handler, (void *) concls);
 
             if (concls->postprocessor == NULL) {
-                fprintf(stderr, "debug - failed to make postprocessor\n");
+                // fprintf(stderr, "debug - failed to make postprocessor\n");
                 // This might get cleaned up elsewhere? The examples don't 
                 // free it.
                 // delete(concls);
@@ -534,14 +534,14 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
         // Otherwise we've completed our post data processing, flag us
         // as completed so our post handler knows we're done
         
-        fprintf(stderr, "con %p post complete\n", concls);
+        // fprintf(stderr, "con %p post complete\n", concls);
         concls->post_complete = true;
 
         // Notify the processor it's complete
         (concls->httpdhandler)->Httpd_PostComplete(concls);
 
         // Send the content
-        fprintf(stderr, "debug - sending postprocessor content %p\n", concls);
+        // fprintf(stderr, "debug - sending postprocessor content %p\n", concls);
         ret = kishttpd->SendHttpResponse(kishttpd, connection, 
                 url, concls->httpcode, concls->response_stream.str());
       
@@ -591,7 +591,7 @@ void Kis_Net_Httpd::http_request_completed(void *cls __attribute__((unused)),
         con_info->postprocessor = NULL;
     }
 
-    fprintf(stderr, "debug - destroying state %p\n", con_info);
+    // fprintf(stderr, "debug - destroying state %p\n", con_info);
 
     delete(con_info);
     *con_cls = NULL;
