@@ -2622,7 +2622,7 @@ int Devicetracker::timetracker_event(int eventid) {
             if (mi != tracked_map.end())
                 tracked_map.erase(mi);
 
-            fprintf(stderr, "debug - forgetting device %s age %lu expiration %d\n", (*i)->get_macaddr().Mac2String().c_str(), globalreg->timestamp.tv_sec - (*i)->get_last_time(), device_idle_expiration);
+            // fprintf(stderr, "debug - forgetting device %s age %lu expiration %d\n", (*i)->get_macaddr().Mac2String().c_str(), globalreg->timestamp.tv_sec - (*i)->get_last_time(), device_idle_expiration);
         }
 
     } else if (eventid == max_devices_timer) {
@@ -2640,9 +2640,8 @@ int Devicetracker::timetracker_event(int eventid) {
         UpdateFullRefresh();
 
 		// Now things start getting expensive.  Start by sorting the
-		// vector of devices - we don't use it for anything else in a sorted
-		// state, so sorting it by last seen should be a) safe and b) save us
-		// some time going forwards since it will be mostly sorted already
+		// vector of devices - anything else that has to sort the entire list
+        // has to sort it themselves
 		std::sort(tracked_vec.begin(), tracked_vec.end(), devicetracker_sort_lastseen);
 
 		unsigned int drop = tracked_vec.size() - max_num_devices;
@@ -2702,6 +2701,9 @@ devicetracker_stringmatch_worker::devicetracker_stringmatch_worker(GlobalRegistr
     query = in_query;
     fieldpaths = in_paths;
 
+    // Preemptively try to compute a mac address partial search term
+    mac_addr::PrepareSearchTerm(query, mac_query_term, mac_query_term_len);
+
     return_dev_vec = in_devvec_object;
 }
 
@@ -2726,9 +2728,13 @@ void devicetracker_stringmatch_worker::MatchDevice(Devicetracker *devicetracker 
             // We can only regex strings
             if ((*fi)->get_type() == TrackerString) {
                 matched = GetTrackerValue<string>(*fi).find(query) != std::string::npos;
-            } else if ((*fi)->get_type() == TrackerMac) {
-                matched =
-                    GetTrackerValue<mac_addr>(*fi).Mac2String().find(query) != std::string::npos;
+            } else if ((*fi)->get_type() == TrackerMac &&
+                    mac_query_term_len != 0) {
+                // If we were able to interpret the query term as a partial
+                // mac address, do a mac compare
+                matched = 
+                    GetTrackerValue<mac_addr>(*fi).PartialSearch(mac_query_term,
+                            mac_query_term_len);
             } else {
                 continue;
             }

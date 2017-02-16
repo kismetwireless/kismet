@@ -949,6 +949,10 @@ protected:
     string query;
     vector<vector<int> > fieldpaths;
 
+    // Make a macaddr query out of it, too
+    uint64_t mac_query_term;
+    unsigned int mac_query_term_len;
+
     SharedTrackerElement return_dev_vec;
 };
 
