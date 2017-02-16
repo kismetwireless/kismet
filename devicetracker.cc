@@ -2218,7 +2218,6 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 if (concls->variable_cache.find("search[value]") !=
                             concls->variable_cache.end()) {
                     dt_search = concls->variable_cache["search[value]"]->str();
-                    fprintf(stderr, "debug - searching for '%s'\n", dt_search.c_str());
                 }
 
                 // If we're searching, we need to figure out what columns are
@@ -2230,6 +2229,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 // and then we just pull the parsed-int field path in for our
                 // searching mechanism
                 if (dt_search.length() != 0) {
+                    fprintf(stderr, "debug - searching for '%s'\n", dt_search.c_str());
                     std::stringstream sstr;
 
                     // We have to act like an array and iterate through the
@@ -2719,28 +2719,19 @@ void devicetracker_stringmatch_worker::MatchDevice(Devicetracker *devicetracker 
 
     // Go through the fields
     for (i = fieldpaths.begin(); i != fieldpaths.end(); ++i) {
-        // Get complex fields - this lets us search nested vectors
-        // or strings or whatnot
-        vector<SharedTrackerElement> fields = GetTrackerElementMultiPath((*i), device);
+        // We should never have to search nested vectors so we don't use
+        // multipath
+        SharedTrackerElement field = GetTrackerElementPath(*i, device);
 
-        for (vector<SharedTrackerElement>::iterator fi = fields.begin();
-                fi != fields.end(); ++fi) {
-            // We can only regex strings
-            if ((*fi)->get_type() == TrackerString) {
-                matched = GetTrackerValue<string>(*fi).find(query) != std::string::npos;
-            } else if ((*fi)->get_type() == TrackerMac &&
-                    mac_query_term_len != 0) {
-                // If we were able to interpret the query term as a partial
-                // mac address, do a mac compare
-                matched = 
-                    GetTrackerValue<mac_addr>(*fi).PartialSearch(mac_query_term,
-                            mac_query_term_len);
-            } else {
-                continue;
-            }
-
-            if (matched)
-                break;
+        if (field->get_type() == TrackerString) {
+            // We can only do a straight string match against string fields
+            matched = GetTrackerValue<string>(field).find(query) != std::string::npos;
+        } else if (field->get_type() == TrackerMac && mac_query_term_len != 0) {
+            // If we were able to interpret the query term as a partial
+            // mac address, do a mac compare
+            matched = 
+                GetTrackerValue<mac_addr>(field).PartialSearch(mac_query_term,
+                        mac_query_term_len);
         }
 
         if (matched) {
