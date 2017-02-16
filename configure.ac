@@ -358,6 +358,8 @@ fi
 
 OCPFLAGS=$CPPFLAGS
 CPPFLAGS="$CPPFLAGS -fopenmp"
+OLDFLAGS=$LDFLAGS
+LDFLAGS="$CPPFLAGS -fopenmp"
 
 AC_MSG_CHECKING([for __gnu_parallel extensions])
 AC_LINK_IFELSE([AC_LANG_PROGRAM([[
@@ -375,6 +377,7 @@ if test "$have_gnuparallel" = "yes"; then
 else
     AC_MSG_RESULT([no])
     CPPFLAGS=$OCPPFLAGS
+    LDFLAGS=$OLDFLAGS
 fi
 
 # sqlite3=yes
