@@ -207,7 +207,6 @@ struct mac_addr {
         unsigned char *rlm = (uint8_t *) &longmac;
 
         for (unsigned int p = 0; p <= MAC_LEN_MAX - in_len; p++) {
-            printf("comparing offset %u\n", p);
             if (memcmp(rt, rlm + p, in_len) == 0)
                 return true;
         }
