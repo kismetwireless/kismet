@@ -85,7 +85,7 @@ struct mac_addr {
 				continue;
 			}
 
-			if (sscanf(in, "%hX", &byte) != 1) {
+			if (sscanf(in, "%2hX", &byte) != 1) {
                 // printf("couldn't read byte in pos %d '%s' %x\n", nbyte, in, in[0]);
 				error = 1;
 				break;
@@ -154,6 +154,66 @@ struct mac_addr {
         longmask = (longmask >> (64 - mask)) << mask;
     }
 
+    // Convert a string to a positional search fragment, places fragent
+    // in ret_term and length of fragment in ret_len
+    inline static bool PrepareSearchTerm(string s, uint64_t &ret_term, 
+            unsigned int &ret_len) {
+
+		short unsigned int byte;
+		int nbyte = 0;
+        const char *in = s.c_str();
+
+        uint64_t temp_long = 0LL;
+
+        ret_term = 0LL;
+
+        // Parse the same way as we parse a string into a mac, count the number 
+        // of bytes we found
+		while (*in) {
+			if (in[0] == ':') {
+				in++;
+				continue;
+			}
+
+			if (sscanf(in, "%2hX", &byte) != 1) {
+                ret_len = 0;
+                return false;
+			}
+
+			if (strlen(in) >= 2)
+				in += 2;
+			else
+				in++;
+
+			if (nbyte >= MAC_LEN_MAX) {
+                ret_len = 0;
+                return false;
+			}
+
+            temp_long |= (uint64_t) byte << ((MAC_LEN_MAX - nbyte - 1) * 8);
+
+			nbyte++;
+		}
+
+        ret_len = nbyte;
+        ret_term = temp_long >> ((MAC_LEN_MAX - nbyte) * 8);
+
+        return true;
+    }
+
+    // Match against a partial MAC address, prepared with PrepareSearchTerm
+    inline bool PartialSearch(uint64_t in_term, unsigned int in_len) {
+        unsigned char *rt = (uint8_t *) &in_term;
+        unsigned char *rlm = (uint8_t *) &longmac;
+
+        for (unsigned int p = 0; p <= MAC_LEN_MAX - in_len; p++) {
+            printf("comparing offset %u\n", p);
+            if (memcmp(rt, rlm + p, in_len) == 0)
+                return true;
+        }
+
+        return false;
+    }
 
     // Masked MAC compare
     inline bool operator== (const mac_addr& op) const {
