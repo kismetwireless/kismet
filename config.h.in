@@ -39,6 +39,9 @@
 /* Define to 1 if you have the `gettimeofday' function. */
 #undef HAVE_GETTIMEOFDAY
 
+/* have __GNU_PARALLEL extensions */
+#undef HAVE_GNU_PARALLEL
+
 /* GPS support will be built. */
 #undef HAVE_GPS
 

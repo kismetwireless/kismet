@@ -26,6 +26,11 @@
 #include <map>
 #include <vector>
 #include <algorithm>
+
+#ifdef HAVE_GNU_PARALLEL
+#include <parallel/algorithm>
+#endif
+
 #include <string>
 #include <sstream>
 #include <pthread.h>
@@ -51,6 +56,13 @@
 #include "structured.h"
 #include "kismet_json.h"
 #include "base64.h"
+
+// Use parallel sorts if we can for threading boost
+#ifdef HAVE_GNU_PARALLEL
+#define kismet__sort __gnu_parallel::sort
+#else
+#define kismet__sort std::sort
+#endif
 
 int Devicetracker_packethook_commontracker(CHAINCALL_PARMS) {
 	return ((Devicetracker *) auxdata)->CommonTracker(in_pack);
@@ -2327,7 +2339,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
                 // Sort the list by the selected column
                 if (dt_order_col >= 0) {
-                    std::sort(pcrevec.begin(), pcrevec.end(), 
+                    kismet__sort(pcrevec.begin(), pcrevec.end(), 
                             [&](SharedTrackerElement a, SharedTrackerElement b) {
                             SharedTrackerElement fa =
                                 GetTrackerElementPath(dt_order_field, a);
@@ -2373,7 +2385,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 MatchOnDevices(&worker);
                 
                 if (dt_order_col >= 0) {
-                    std::sort(matchvec.begin(), matchvec.end(), 
+                    kismet__sort(matchvec.begin(), matchvec.end(), 
                             [&](SharedTrackerElement a, SharedTrackerElement b) {
                             SharedTrackerElement fa =
                                 GetTrackerElementPath(dt_order_field, a);
@@ -2424,7 +2436,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                     dt_filter_elem->set((uint64_t) tracked_vec.size());
 
                 if (dt_order_col >= 0) {
-                    std::sort(tracked_vec.begin(), tracked_vec.end(), 
+                    kismet__sort(tracked_vec.begin(), tracked_vec.end(), 
                             [&](SharedTrackerElement a, SharedTrackerElement b) {
                             SharedTrackerElement fa =
                                 GetTrackerElementPath(dt_order_field, a);
@@ -2642,7 +2654,8 @@ int Devicetracker::timetracker_event(int eventid) {
 		// Now things start getting expensive.  Start by sorting the
 		// vector of devices - anything else that has to sort the entire list
         // has to sort it themselves
-		std::sort(tracked_vec.begin(), tracked_vec.end(), devicetracker_sort_lastseen);
+		kismet__sort(tracked_vec.begin(), tracked_vec.end(), 
+                devicetracker_sort_lastseen);
 
 		unsigned int drop = tracked_vec.size() - max_num_devices;
 

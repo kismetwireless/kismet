@@ -24,6 +24,8 @@ AC_PROG_INSTALL
 AC_PROG_MAKE_SET
 AC_PROG_CPP
 
+AC_LANG_CPLUSPLUS
+
 # Liberated from ethereal's configure.in
 #
 # Add any platform-specific compiler flags needed.
@@ -352,6 +354,27 @@ if test "$have_timedlock" = "yes"; then
     AC_DEFINE(HAVE_PTHREAD_TIMELOCK, [1], [have pthread timelock])
 else
     AC_MSG_RESULT([no])
+fi
+
+OCPFLAGS=$CPPFLAGS
+CPPFLAGS="$CPPFLAGS -fopenmp"
+
+AC_MSG_CHECKING([for __gnu_parallel extensions])
+AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+                #include <vector>
+                #include <parallel/algorithm>
+                ]], [[
+                std::vector<int> m;
+                __gnu_parallel::sort(m.begin(), m.end());
+                return 0;
+                ]])], [have_gnuparallel=yes], 
+                [have_gnuparallel=no])
+if test "$have_gnuparallel" = "yes"; then
+    AC_MSG_RESULT([yes])
+    AC_DEFINE(HAVE_GNU_PARALLEL, [1], [have __GNU_PARALLEL extensions])
+else
+    AC_MSG_RESULT([no])
+    CPPFLAGS=$OCPPFLAGS
 fi
 
 # sqlite3=yes
