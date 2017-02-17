@@ -59,10 +59,10 @@
 
 // Use parallel sorts if we can for threading boost
 #ifdef HAVE_GNU_PARALLEL
-#define kismet__sort __gnu_parallel::sort
+#define kismet__sort __gnu_parallel::stable_sort
 #define kismet__for_each __gnu_parallel::for_each
 #else
-#define kismet__sort std::sort
+#define kismet__sort std::stable_sort
 #define kismet__for_each std::for_each
 #endif
 
