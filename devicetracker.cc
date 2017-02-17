@@ -2617,35 +2617,30 @@ int Devicetracker::timetracker_event(int eventid) {
     if (eventid == device_idle_timer) {
         local_locker lock(&devicelist_mutex);
 
-        vector<shared_ptr<kis_tracked_device_base> > target_devs;
-
         time_t ts_now = globalreg->timestamp.tv_sec;
+        bool purged = false;
 
         // Find all eligible devices, remove them from the tracked vec
-        std::remove_if(tracked_vec.begin(), tracked_vec.end(),
+        tracked_vec.erase(std::remove_if(tracked_vec.begin(), tracked_vec.end(),
                 [&](shared_ptr<kis_tracked_device_base> d) {
                     if (ts_now - d->get_last_time() > device_idle_expiration) {
-                        target_devs.push_back(d);
+                        // fprintf(stderr, "debug - forgetting device %s age %lu expiration %d\n", d->get_macaddr().Mac2String().c_str(), globalreg->timestamp.tv_sec - d->get_last_time(), device_idle_expiration);
+                        device_itr mi = tracked_map.find(d->get_key());
+
+                        if (mi != tracked_map.end())
+                            tracked_map.erase(mi);
+
+                        purged = true;
+
                         return true;
                     }
 
                     return false;
-                });
+         
+                    }), tracked_vec.end());
 
-        if (target_devs.size() > 0)
+        if (purged)
             UpdateFullRefresh();
-
-        // Remove them from the global index, and then unlink to let the
-        // tracked element GC clean them up
-        for (vector<shared_ptr<kis_tracked_device_base> >::iterator i =
-                target_devs.begin(); i != target_devs.end(); ++i) {
-            device_itr mi = tracked_map.find((*i)->get_key());
-
-            if (mi != tracked_map.end())
-                tracked_map.erase(mi);
-
-            // fprintf(stderr, "debug - forgetting device %s age %lu expiration %d\n", (*i)->get_macaddr().Mac2String().c_str(), globalreg->timestamp.tv_sec - (*i)->get_last_time(), device_idle_expiration);
-        }
 
     } else if (eventid == max_devices_timer) {
 		local_locker lock(&devicelist_mutex);
