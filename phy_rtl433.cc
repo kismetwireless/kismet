@@ -365,12 +365,8 @@ void Kis_RTL433_Phy::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
     return;
 }
 
-int Kis_RTL433_Phy::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind, 
-        const char *key, const char *filename, const char *content_type,
-        const char *transfer_encoding, const char *data, 
-        uint64_t off, size_t size) {
 
-    Kis_Net_Httpd_Connection *concls = (Kis_Net_Httpd_Connection *) coninfo_cls;
+int Kis_RTL433_Phy::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
     // Anything involving POST here requires a login
     if (!httpd->HasValidSession(concls)) {
@@ -382,12 +378,14 @@ int Kis_RTL433_Phy::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kin
 
     bool handled = false;
 
-    if (concls->url == "/phy/phyRTL433/post_sensor_json.cmd" &&
-            strcmp(key, "obj") == 0 && size > 0) {
+    if (concls->url != "/phy/phyRTL433/post_sensor_json.cmd")
+        return 1;
+   
+    if (concls->variable_cache.find("obj") != concls->variable_cache.end()) {
         struct JSON_value *json;
         string err;
 
-        json = JSON_parse(data, err);
+        json = JSON_parse(concls->variable_cache["obj"]->str(), err);
 
         if (err.length() != 0 || json == NULL) {
             fprintf(stderr, "Could not parse json? %s\n", err.c_str());
