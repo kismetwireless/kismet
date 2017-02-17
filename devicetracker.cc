@@ -2737,8 +2737,6 @@ devicetracker_stringmatch_worker::~devicetracker_stringmatch_worker() {
 
 void devicetracker_stringmatch_worker::MatchDevice(Devicetracker *devicetracker __attribute__((unused)),
         shared_ptr<kis_tracked_device_base> device) {
-    local_locker lock(&worker_mutex);
-
     vector<vector<int> >::iterator i;
 
     bool matched = false;
@@ -2761,6 +2759,7 @@ void devicetracker_stringmatch_worker::MatchDevice(Devicetracker *devicetracker 
         }
 
         if (matched) {
+            local_locker lock(&worker_mutex);
             return_dev_vec->add_vector(device);
             break;
         }
@@ -2905,8 +2904,6 @@ devicetracker_pcre_worker::~devicetracker_pcre_worker() {
 
 void devicetracker_pcre_worker::MatchDevice(Devicetracker *devicetracker __attribute__((unused)),
         shared_ptr<kis_tracked_device_base> device) {
-    local_locker lock(&worker_mutex);
-
     vector<shared_ptr<devicetracker_pcre_worker::pcre_filter> >::iterator i;
 
     bool matched = false;
@@ -2942,6 +2939,7 @@ void devicetracker_pcre_worker::MatchDevice(Devicetracker *devicetracker __attri
         }
 
         if (matched) {
+            local_locker lock(&worker_mutex);
             return_dev_vec->add_vector(device);
         }
     }
