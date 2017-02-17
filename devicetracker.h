@@ -621,6 +621,9 @@ public:
 
     // Finalize operations
     virtual void Finalize(Devicetracker *devicetracker) { }
+
+protected:
+    pthread_mutex_t worker_mutex;
 };
 
 class Devicetracker : public Kis_Net_Httpd_Stream_Handler,

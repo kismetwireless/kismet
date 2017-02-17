@@ -60,8 +60,10 @@
 // Use parallel sorts if we can for threading boost
 #ifdef HAVE_GNU_PARALLEL
 #define kismet__sort __gnu_parallel::sort
+#define kismet__for_each __gnu_parallel::for_each
 #else
 #define kismet__sort std::sort
+#define kismet__for_each std::for_each
 #endif
 
 int Devicetracker_packethook_commontracker(CHAINCALL_PARMS) {
@@ -2589,9 +2591,16 @@ void Devicetracker::MatchOnDevices(DevicetrackerFilterWorker *worker) {
 
     map<uint64_t, shared_ptr<kis_tracked_device_base> >::iterator tmi;
 
+    kismet__for_each(tracked_vec.begin(), tracked_vec.end(), 
+            [&](shared_ptr<kis_tracked_device_base> val) {
+            worker->MatchDevice(this, val);
+        }
+    );
+    /*
     for (tmi = tracked_map.begin(); tmi != tracked_map.end(); ++tmi) {
         worker->MatchDevice(this, tmi->second);
     }
+    */
 
     worker->Finalize(this);
 }
@@ -2718,14 +2727,18 @@ devicetracker_stringmatch_worker::devicetracker_stringmatch_worker(GlobalRegistr
     mac_addr::PrepareSearchTerm(query, mac_query_term, mac_query_term_len);
 
     return_dev_vec = in_devvec_object;
+
+    pthread_mutex_init(&worker_mutex, NULL);
 }
 
 devicetracker_stringmatch_worker::~devicetracker_stringmatch_worker() {
-
+    pthread_mutex_destroy(&worker_mutex);
 }
 
 void devicetracker_stringmatch_worker::MatchDevice(Devicetracker *devicetracker __attribute__((unused)),
         shared_ptr<kis_tracked_device_base> device) {
+    local_locker lock(&worker_mutex);
+
     vector<vector<int> >::iterator i;
 
     bool matched = false;
@@ -2774,6 +2787,8 @@ devicetracker_pcre_worker::devicetracker_pcre_worker(GlobalRegistry *in_globalre
     error = false;
 
     return_dev_vec = in_devvec_object;
+
+    pthread_mutex_init(&worker_mutex, NULL);
 }
 
 devicetracker_pcre_worker::devicetracker_pcre_worker(GlobalRegistry *in_globalreg,
@@ -2828,6 +2843,8 @@ devicetracker_pcre_worker::devicetracker_pcre_worker(GlobalRegistry *in_globalre
 
         filter_vec.push_back(filter);
     }
+
+    pthread_mutex_init(&worker_mutex, NULL);
 }
 
 devicetracker_pcre_worker::devicetracker_pcre_worker(GlobalRegistry *in_globalreg,
@@ -2878,14 +2895,18 @@ devicetracker_pcre_worker::devicetracker_pcre_worker(GlobalRegistry *in_globalre
 
         filter_vec.push_back(filter);
     }
+
+    pthread_mutex_init(&worker_mutex, NULL);
 }
 
 devicetracker_pcre_worker::~devicetracker_pcre_worker() {
-
+    pthread_mutex_destroy(&worker_mutex);
 }
 
 void devicetracker_pcre_worker::MatchDevice(Devicetracker *devicetracker __attribute__((unused)),
         shared_ptr<kis_tracked_device_base> device) {
+    local_locker lock(&worker_mutex);
+
     vector<shared_ptr<devicetracker_pcre_worker::pcre_filter> >::iterator i;
 
     bool matched = false;
