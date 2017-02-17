@@ -2619,17 +2619,18 @@ int Devicetracker::timetracker_event(int eventid) {
 
         vector<shared_ptr<kis_tracked_device_base> > target_devs;
 
+        time_t ts_now = globalreg->timestamp.tv_sec;
+
         // Find all eligible devices, remove them from the tracked vec
-        for (vector<shared_ptr<kis_tracked_device_base> >::iterator i =
-                tracked_vec.begin(); i != tracked_vec.end(); /* */ ) {
-            if (globalreg->timestamp.tv_sec - (*i)->get_last_time() >
-                    device_idle_expiration) {
-                target_devs.push_back(*i);
-                tracked_vec.erase(i);
-            } else {
-                ++i;
-            }
-        }
+        std::remove_if(tracked_vec.begin(), tracked_vec.end(),
+                [&](shared_ptr<kis_tracked_device_base> d) {
+                    if (ts_now - d->get_last_time() > device_idle_expiration) {
+                        target_devs.push_back(d);
+                        return true;
+                    }
+
+                    return false;
+                });
 
         if (target_devs.size() > 0)
             UpdateFullRefresh();
