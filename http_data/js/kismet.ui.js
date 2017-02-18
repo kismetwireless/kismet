@@ -59,9 +59,11 @@ exports.AddDeviceColumn = function(id, options) {
     if (typeof(coldef.field) === 'string') {
         var fs = coldef.field.split("/");
         f = fs[fs.length - 1];
-    } else if (typeof(coldef.field) === 'array') {
+    } else if (Array.isArray(coldef.field)) {
         f = coldef.field[1];
     }
+
+    console.log("field", coldef.field, "using", f);
 
     // coldef.mData = f.replace(/\./g, '_');
     // f = f.replace(/\./g, '_');
@@ -338,7 +340,7 @@ exports.HealthCheck = function() {
                 headerTitle: 'Cannot Connect to Kismet',
                 headerControls: {
                     controls: 'none',
-                    iconfont: 'font-awesome',
+                    iconfont: 'jsglyph',
                 },
                 contentSize: "auto auto",
                 paneltype: 'modal',

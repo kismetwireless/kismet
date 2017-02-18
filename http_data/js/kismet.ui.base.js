@@ -68,12 +68,15 @@ exports.drawPackets = function(dyncolumn, table, row) {
     // I think looks better.  We do this with a transform function on the
     // RRD function, and we take the peak value of each triplet of samples
     // because it seems to be more stable, visually
+    //
+    // We use the aliased field names we extracted from just the minute
+    // component of the per-device packet RRD
     var simple_rrd = 
         kismet.RecalcRrdData(
-            data['kismet.device.base.packets.rrd']['kismet.common.rrd.last_time'], 
-            data['kismet.device.base.packets.rrd']['kismet.common.rrd.last_time'], 
+            data['packet.rrd.last_time'], 
+            data['packet.rrd.last_time'], 
             kismet.RRD_SECOND, 
-            data['kismet.device.base.packets.rrd']['kismet.common.rrd.minute_vec'], {
+            data['packet.rrd.minute_vec'], {
                 transform: function(data, opt) {
                     var slices = 3;
                     var peak = 0;
@@ -155,9 +158,13 @@ kismet_ui.AddDeviceColumn('column_datasize', {
     },
 });
 
+// Fetch just the last time field, we use the hidden rrd_min_data field to assemble
+// the rrd.  This is a hack to be more efficient and not send the house or day
+// rrd records along with it.
 kismet_ui.AddDeviceColumn('column_packet_rrd', {
     sTitle: 'Packets',
-    field: 'kismet.device.base.packets.rrd',
+    field: ['kismet.device.base.packets.rrd/kismet.common.rrd.last_time',
+            'packet.rrd.last_time'],
     name: 'packets',
     renderfunc: function(d, t, r, m) {
         return exports.renderPackets(d, t, r, m);
@@ -169,16 +176,28 @@ kismet_ui.AddDeviceColumn('column_packet_rrd', {
     searchable: false,
 });
 
-// Hidden row for key, searchable and mappable
+// Hidden col for packet minute rrd data
+kismet_ui.AddDeviceColumn('column_rrd_minute_hidden', {
+    sTitle: 'packets_rrd_min_data',
+    field: ['kismet.device.base.packets.rrd/kismet.common.rrd.minute_vec',
+            'packet.rrd.minute_vec'],
+    name: 'packets_rrd_min_data',
+    searchable: false,
+    visible: false,
+    orderable: false
+});
+
+// Hidden col for key, mappable, we need to be sure to
+// fetch it so we can use it as an index
 kismet_ui.AddDeviceColumn('column_device_key_hidden', {
     sTitle: 'Key',
     field: 'kismet.device.base.key',
-    searchable: true,
+    searchable: false,
     orderable: false,
     visible: false,
 });
 
-// Hidden row for mac address, searchable
+// Hidden col for mac address, searchable
 kismet_ui.AddDeviceColumn('column_device_mac_hidden', {
     sTitle: 'MAC',
     field: 'kismet.device.base.macaddr',
@@ -741,7 +760,7 @@ exports.MemoryMonitor = function() {
         headerTitle: '<i class="fa fa-tasks" /> Memory use',
         headerControls: {
             controls: 'closeonly',
-            iconfont: 'font-awesome',
+            iconfont: 'jsglyph',
         },
         content: '<canvas id="k-mm-canvas" style="k-mm-canvas" />',
         onclosed: function() {
