@@ -173,7 +173,7 @@ exports.DeviceDetailWindow = function(key) {
         headerTitle: 'Device Details',
 
         headerControls: {
-            iconfont: 'font-awesome',
+            iconfont: 'jsglyph',
         },
 
         position: {
