@@ -368,8 +368,11 @@ int PacketSource_Pcap::Eight2KisPack(kis_packet *packet, kis_datachunk *linkchun
 		uint32_t calc_crc =
 			crc32_le_80211(globalreg->crc32_table, eight11chunk->data, 
 						   eight11chunk->length);
+        uint32_t flipped_crc = kis_swap32(calc_crc);
 
-		if (memcmp(fcschunk->fcsp, &calc_crc, 4)) {
+        // Compare normal and endian-flipped crc
+		if (memcmp(fcschunk->fcsp, &calc_crc, 4) &&
+                memcmp(fcschunk->fcsp, &flipped_crc, 4)) {
 			packet->error = 1;
 			fcschunk->fcsvalid = 0;
 			//fprintf(stderr, "debug - dot11 to kis, fcs invalid\n");
