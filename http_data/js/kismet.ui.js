@@ -176,6 +176,7 @@ exports.DeviceDetailWindow = function(key) {
 
         headerControls: {
             iconfont: 'jsglyph',
+            controls: 'closeonly',
         },
 
         position: {
