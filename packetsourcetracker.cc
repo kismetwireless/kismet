@@ -36,7 +36,9 @@
 
 #include "trackedelement.h"
 #include "entrytracker.h"
+#include "structured.h"
 #include "msgpack_adapter.h"
+#include "kismet_json.h"
 
 // Kluged in tracker_component for reporting sources and states
 class kis_tracked_oldsource : public tracker_component {
@@ -2725,18 +2727,8 @@ void Packetsourcetracker::Httpd_CreateStreamResponse(
 
 }
 
-int Packetsourcetracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind, 
-        const char *key, const char *filename, const char *content_type,
-        const char *transfer_encoding, const char *data, 
-        uint64_t off, size_t size) {
-
-    Kis_Net_Httpd_Connection *concls = (Kis_Net_Httpd_Connection *) coninfo_cls;
-
+int Packetsourcetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
     bool handled = false;
-
-    MsgpackAdapter::MsgpackStrMap::iterator obj_iter;
-    MsgpackAdapter::MsgpackStrMap params;
-    msgpack::unpacked result;
 
     // Anything involving POST here requires a login
     if (!httpd->HasValidSession(concls)) {
@@ -2745,18 +2737,29 @@ int Packetsourcetracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKin
         return 1;
     }
 
-    // Punt immediately if no data
-    if (strcmp(key, "msgpack") != 0 || size == 0) {
-        concls->response_stream << "Invalid request";
+    // Base structured data
+    SharedStructured structdata;
+
+    // Process the structured data in general
+    try {
+        if (concls->variable_cache.find("msgpack") != concls->variable_cache.end()) {
+            structdata.reset(new StructuredMsgpack(Base64::decode(concls->variable_cache["msgpack"]->str())));
+        } else if (concls->variable_cache.find("json") != 
+                concls->variable_cache.end()) {
+            structdata.reset(new StructuredJson(concls->variable_cache["json"]->str()));
+        } else {
+            throw StructuredDataException("Missing data");
+        }
+    } catch(const StructuredDataException e) {
+        concls->response_stream << "Invalid request: ";
+        concls->response_stream << e.what();
         concls->httpcode = 400;
         return 1;
     }
 
     if (concls->url == "/packetsource/config/channel.cmd") {
-        string decode = Base64::decode(string(data));
-
         // Extracted values
-        string raw_cmd, raw_uuid, raw_channel;
+        string raw_cmd, raw_uuid;
 
         uuid src_uuid;
         unsigned int channel;
@@ -2766,21 +2769,8 @@ int Packetsourcetracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKin
         // We don't use exceptions a lot, but we have to use them here, so we
         // might as well use them for dropping out of the processing list, too
         try {
-            msgpack::unpack(result, decode.data(), decode.size());
-            msgpack::object deserialized = result.get();
-            params = deserialized.as<MsgpackAdapter::MsgpackStrMap>();
-
-            // Extract the command string
-            obj_iter = params.find("cmd");
-            if (obj_iter == params.end()) 
-                throw std::runtime_error("expected 'cmd' entry");
-            raw_cmd = obj_iter->second.as<string>();
-
-            // Extract the UUID string
-            obj_iter = params.find("uuid");
-            if (obj_iter == params.end())
-                throw std::runtime_error("expected 'uuid' entry");
-            raw_uuid = obj_iter->second.as<string>();
+            raw_cmd = structdata->getKeyAsString("cmd");
+            raw_uuid = structdata->getKeyAsString("uuid");
 
             // Parse the UUID
             src_uuid = uuid(raw_uuid);
@@ -2792,17 +2782,7 @@ int Packetsourcetracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKin
                 // Hop only needs UUID and command
                 ret = SetSourceHopping(src_uuid, 1, 0);
             } else if (StrLower(raw_cmd) == "lock") {
-                // Lock needs a channel, get that
-                obj_iter = params.find("channel");
-                if (obj_iter == params.end())
-                    throw std::runtime_error("expected 'channel' entry");
-                raw_channel = obj_iter->second.as<string>();
-
-                // Packetsources talk integer channels, because they're
-                // broken.  Parse it into an int.
-                if (sscanf(raw_channel.c_str(), "%u", &channel) != 1)
-                    throw std::runtime_error("expected channel number");
-
+                channel = (unsigned int) structdata->getKeyAsNumber("channel");
                 ret = SetSourceHopping(src_uuid, 0, channel);
             } else {
                 throw std::runtime_error("unknown channel command");
@@ -2823,8 +2803,6 @@ int Packetsourcetracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKin
             return 1;
         }
     } else if (concls->url == "/packetsource/config/add_source.cmd") {
-        string decode = Base64::decode(string(data));
-
         string source_line;
 
         int ret = 0;
@@ -2832,15 +2810,7 @@ int Packetsourcetracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKin
         // We don't use exceptions a lot, but we have to use them here, so we
         // might as well use them for dropping out of the processing list, too
         try {
-            msgpack::unpack(result, decode.data(), decode.size());
-            msgpack::object deserialized = result.get();
-            params = deserialized.as<MsgpackAdapter::MsgpackStrMap>();
-
-            // Extract the command string
-            obj_iter = params.find("source");
-            if (obj_iter == params.end()) 
-                throw std::runtime_error("expected 'source' entry");
-            source_line = obj_iter->second.as<string>();
+            source_line = structdata->getKeyAsString("source");
 
             uint16_t new_source_id;
 

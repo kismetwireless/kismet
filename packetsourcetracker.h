@@ -322,10 +322,7 @@ public:
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size, std::stringstream &stream);
 
-    virtual int Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind, 
-            const char *key, const char *filename, const char *content_type,
-            const char *transfer_encoding, const char *data, 
-            uint64_t off, size_t size);
+    virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *concls);
 
 protected:
 	void SendIPCSourceAdd(pst_packetsource *in_source);
