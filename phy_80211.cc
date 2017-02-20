@@ -591,25 +591,23 @@ void Kis_80211_Phy::HandleSSID(shared_ptr<kis_tracked_device_base> basedev,
         }
 
         if (dot11info->subtype == packet_sub_beacon) {
-            if (ssid->get_channel() != dot11info->channel &&
-                    alertracker->PotentialAlert(alert_chan_ref)) {
-
-					string al = "IEEE80211 Access Point BSSID " +
-						basedev->get_macaddr().Mac2String() + " SSID \"" +
-						ssid->get_ssid() + "\" changed advertised channel from " +
-						ssid->get_channel() + " to " + 
-						dot11info->channel + " which may "
-						"indicate AP spoofing/impersonation";
-
-					alertracker->RaiseAlert(alert_chan_ref, in_pack, 
-                            dot11info->bssid_mac, dot11info->source_mac, 
-                            dot11info->dest_mac, dot11info->other_mac, 
-                            dot11info->channel, al);
-            }
-
             // Update the base device records
             dot11dev->set_last_beaconed_ssid(ssid->get_ssid());
             dot11dev->set_last_beaconed_ssid_csum(dot11info->ssid_csum);
+
+            if ( globalreg->alertracker->PotentialAlert(alert_airjackssid_ref &&
+                        ssid->get_ssid() == "AirJack" )) {
+
+                string al = "IEEE80211 Access Point BSSID " +
+                    basedev->get_macaddr().Mac2String() + " broadcasting SSID "
+                    "\"AirJack\" which implies an attempt to disrupt "
+                    "networks.";
+
+                alertracker->RaiseAlert(alert_airjackssid_ref, in_pack, 
+                        dot11info->bssid_mac, dot11info->source_mac, 
+                        dot11info->dest_mac, dot11info->other_mac, 
+                        dot11info->channel, al);
+            }
 
             basedev->set_devicename(ssid->get_ssid());
 
@@ -640,11 +638,24 @@ void Kis_80211_Phy::HandleSSID(shared_ptr<kis_tracked_device_base> basedev,
         }
 
         if (ssid->get_channel() != dot11info->channel) {
-            fprintf(stderr, "debug - dot11phy:HandleSSID %s channel changed\n", basedev->get_macaddr().Mac2String().c_str());
+            if (ssid->get_channel() != dot11info->channel &&
+                    alertracker->PotentialAlert(alert_chan_ref)) {
+
+					string al = "IEEE80211 Access Point BSSID " +
+						basedev->get_macaddr().Mac2String() + " SSID \"" +
+						ssid->get_ssid() + "\" changed advertised channel from " +
+						ssid->get_channel() + " to " + 
+						dot11info->channel + " which may "
+						"indicate AP spoofing/impersonation";
+
+					alertracker->RaiseAlert(alert_chan_ref, in_pack, 
+                            dot11info->bssid_mac, dot11info->source_mac, 
+                            dot11info->dest_mac, dot11info->other_mac, 
+                            dot11info->channel, al);
+            }
+
 
             ssid->set_channel(dot11info->channel); 
-
-            // TODO raise alert
         }
 
         if (ssid->get_dot11d_country() != dot11info->dot11d_country) {
@@ -687,18 +698,11 @@ void Kis_80211_Phy::HandleSSID(shared_ptr<kis_tracked_device_base> basedev,
             // TODO raise alert?
         }
 
+        ssid->set_maxrate(dot11info->maxrate);
+        ssid->set_beaconrate(Ieee80211Interval2NSecs(dot11info->beacon_interval));
+
         ssid->set_ietag_checksum(dot11info->ietag_csum);
     }
-
-    // TODO alert on cryptset degrade/change?
-    if (ssid->get_crypt_set() != dot11info->cryptset) {
-        fprintf(stderr, "debug - dot11phy:HandleSSID cryptset changed\n");
-    }
-
-    ssid->set_crypt_set(dot11info->cryptset);
-
-    ssid->set_maxrate(dot11info->maxrate);
-    ssid->set_beaconrate(Ieee80211Interval2NSecs(dot11info->beacon_interval));
 
     // Add the location data, if any
     if (pack_gpsinfo != NULL && pack_gpsinfo->fix > 1) {
@@ -1305,129 +1309,6 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 
 
 #if 0
-
-	// Track the SSID data if we're a ssid-bearing packet
-	if (dot11info->type == packet_management &&
-		(dot11info->subtype == packet_sub_beacon || 
-		 dot11info->subtype == packet_sub_probe_resp ||
-		 dot11info->subtype == packet_sub_probe_req)) {
-
-		string ptype;
-
-		if (dot11info->subtype == packet_sub_probe_req)
-			ptype = "P";
-		else
-			ptype = "B";
-
-		string ssidkey = dot11info->ssid + IntToString(dot11info->ssid_len) + ptype;
-
-		uint32_t ssidhash = Adler32Checksum(ssidkey.c_str(), ssidkey.length());
-
-		if (net != NULL && (dot11info->subtype == packet_sub_beacon ||
-							dot11info->subtype == packet_sub_probe_resp)) {
-			// Should never be possible to have a null net and be a beacon/proberesp
-			// but lets not make assumptions
-			map<uint32_t, dot11_ssid *>::iterator si = net->ssid_map.find(ssidhash);
-			if (si == net->ssid_map.end()) {
-				ssid = BuildSSID(ssidhash, dot11info, in_pack);
-				ssid_new = true;
-
-				net->ssid_map[ssidhash] = ssid;
-
-			} else {
-				ssid = si->second;
-			}
-
-		} else if (dot11info->subtype == packet_sub_probe_req) {
-			// If we're a probe, make a probe record
-			map<uint32_t, dot11_ssid *>::iterator si = 
-				dot11dev->ssid_map.find(ssidhash);
-			if (si == dot11dev->ssid_map.end()) {
-				ssid = BuildSSID(ssidhash, dot11info, in_pack);
-				ssid_new = true;
-
-				dot11dev->ssid_map[ssidhash] = ssid;
-			} else {
-				ssid = si->second;
-			}
-		}
-
-		if (ssid != NULL) {
-			// TODO alert for degraded crypto on probe_resp
-
-			if (net != NULL)
-				net->lastssid = ssid;
-
-			if (cli != NULL)
-				cli->lastssid = ssid;
-
-			if (dot11info->subtype == packet_sub_beacon ||
-				dot11info->subtype == packet_sub_probe_resp) {
-				if (ssid->ssid == "") 
-					commondev->name = "<Hidden SSID>";
-				else if (ssid->ssid_cloaked)
-					commondev->name = "<" + ssid->ssid + ">";
-				else
-					commondev->name = ssid->ssid;
-
-				// Update the network record if it's a beacon
-				// or probe resp
-				if (net != NULL) {
-					kis_device_common *apcommon = 
-						(kis_device_common *) apdev->fetch(dev_comp_common);
-					if (apcommon != NULL) {
-						if (ssid->ssid == "") 
-							apcommon->name = "<Hidden SSID>";
-						else if (ssid->ssid_cloaked)
-							apcommon->name = "<" + ssid->ssid + ">";
-						else
-							apcommon->name = ssid->ssid;
-					}
-					net->lastssid = ssid;
-				}
-			}
-
-			ssid->dirty = 1;
-
-			if (dot11info->subtype == packet_sub_beacon) {
-				if (net->ssid_map.size() == 1) {
-					if (ssid->cryptset & crypt_wps)
-						commondev->crypt_string = "WPS";
-					else if (ssid->cryptset & crypt_wpa) 
-						commondev->crypt_string = "WPA";
-					else if (ssid->cryptset & crypt_wep)
-						commondev->crypt_string = "WEP";
-				}
-
-				unsigned int ieeerate = 
-					Ieee80211Interval2NSecs(dot11info->beacon_interval);
-
-				ssid->beacons++;
-
-				// If we're changing from something else to a beacon...
-				if (ssid->type != dot11_ssid_beacon) {
-					ssid->type = dot11_ssid_beacon;
-					ssid->cryptset = dot11info->cryptset;
-					ssid->beaconrate = ieeerate;
-					ssid->channel = dot11info->channel;
-				}
-
-				if (ssid->channel != dot11info->channel &&
-					globalreg->alertracker->PotentialAlert(alert_chan_ref)) {
-
-					string al = "IEEE80211 Access Point BSSID " +
-						apdev->key.Mac2String() + " SSID \"" +
-						ssid->ssid + "\" changed advertised channel from " +
-						IntToString(ssid->channel) + " to " + 
-						IntToString(dot11info->channel) + " which may "
-						"indicate AP spoofing/impersonation";
-
-					globalreg->alertracker->RaiseAlert(alert_chan_ref, in_pack, 
-													   dot11info->bssid_mac, 
-													   dot11info->source_mac, 
-													   dot11info->dest_mac, 
-													   dot11info->other_mac, 
-													   dot11info->channel, al);
 
 				}
 				dot11info->channel = ssid->channel;
