@@ -117,7 +117,14 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
 	Kis_Phy_Handler(in_globalreg, in_tracker, in_phyid),
     Kis_Net_Httpd_Stream_Handler(in_globalreg) {
 
-	globalreg->InsertGlobal("PHY_80211", shared_ptr<Kis_80211_Phy>(this));
+    alertracker =
+        static_pointer_cast<Alertracker>(globalreg->FetchGlobal("ALERTRACKER"));
+
+    packetchain =
+        static_pointer_cast<Packetchain>(globalreg->FetchGlobal("PACKETCHAIN"));
+
+    timetracker =
+        static_pointer_cast<Timetracker>(globalreg->FetchGlobal("TIMETRACKER"));
 
 	// Initialize the crc tables
 	crc32_init_table_80211(globalreg->crc32_table);
@@ -130,105 +137,105 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
                 "IEEE802.11 device");
 
 	// Packet classifier - makes basic records plus dot11 data
-	globalreg->packetchain->RegisterHandler(&CommonClassifierDot11, this,
-											CHAINPOS_CLASSIFIER, -100);
+	packetchain->RegisterHandler(&CommonClassifierDot11, this,
+            CHAINPOS_CLASSIFIER, -100);
 
-	globalreg->packetchain->RegisterHandler(&phydot11_packethook_wep, this,
-											CHAINPOS_DECRYPT, -100);
-	globalreg->packetchain->RegisterHandler(&phydot11_packethook_dot11, this,
-											CHAINPOS_LLCDISSECT, -100);
+	packetchain->RegisterHandler(&phydot11_packethook_wep, this,
+            CHAINPOS_DECRYPT, -100);
+	packetchain->RegisterHandler(&phydot11_packethook_dot11, this,
+            CHAINPOS_LLCDISSECT, -100);
 #if 0
-	globalreg->packetchain->RegisterHandler(&phydot11_packethook_dot11data, this,
-											CHAINPOS_DATADISSECT, -100);
-	globalreg->packetchain->RegisterHandler(&phydot11_packethook_dot11string, this,
-											CHAINPOS_DATADISSECT, -99);
+	packetchain->RegisterHandler(&phydot11_packethook_dot11data, this,
+            CHAINPOS_DATADISSECT, -100);
+	packetchain->RegisterHandler(&phydot11_packethook_dot11string, this,
+            CHAINPOS_DATADISSECT, -99);
 #endif
 
-	globalreg->packetchain->RegisterHandler(&phydot11_packethook_dot11tracker, this,
+	packetchain->RegisterHandler(&phydot11_packethook_dot11tracker, this,
 											CHAINPOS_TRACKER, 100);
 
 	// If we haven't registered packet components yet, do so.  We have to
 	// co-exist with the old tracker core for some time
 	pack_comp_80211 = _PCM(PACK_COMP_80211) =
-		globalreg->packetchain->RegisterPacketComponent("PHY80211");
+		packetchain->RegisterPacketComponent("PHY80211");
 
 	pack_comp_basicdata = 
-		globalreg->packetchain->RegisterPacketComponent("BASICDATA");
+		packetchain->RegisterPacketComponent("BASICDATA");
 
 	pack_comp_mangleframe = 
-		globalreg->packetchain->RegisterPacketComponent("MANGLEDATA");
+		packetchain->RegisterPacketComponent("MANGLEDATA");
 
 	pack_comp_checksum =
-		globalreg->packetchain->RegisterPacketComponent("CHECKSUM");
+		packetchain->RegisterPacketComponent("CHECKSUM");
 
 	pack_comp_linkframe = 
-		globalreg->packetchain->RegisterPacketComponent("LINKFRAME");
+		packetchain->RegisterPacketComponent("LINKFRAME");
 
 	pack_comp_decap =
-		globalreg->packetchain->RegisterPacketComponent("DECAP");
+		packetchain->RegisterPacketComponent("DECAP");
 
 	pack_comp_common = 
-		globalreg->packetchain->RegisterPacketComponent("COMMON");
+		packetchain->RegisterPacketComponent("COMMON");
 
 	pack_comp_datapayload =
-		globalreg->packetchain->RegisterPacketComponent("DATAPAYLOAD");
+		packetchain->RegisterPacketComponent("DATAPAYLOAD");
 
 	pack_comp_gps =
-		globalreg->packetchain->RegisterPacketComponent("GPS");
+		packetchain->RegisterPacketComponent("GPS");
 
 	// Register the dissector alerts
 	alert_netstumbler_ref = 
-		globalreg->alertracker->ActivateConfiguredAlert("NETSTUMBLER", phyid);
+		alertracker->ActivateConfiguredAlert("NETSTUMBLER", phyid);
 	alert_nullproberesp_ref =
-		globalreg->alertracker->ActivateConfiguredAlert("NULLPROBERESP", phyid);
+		alertracker->ActivateConfiguredAlert("NULLPROBERESP", phyid);
 	alert_lucenttest_ref =
-		globalreg->alertracker->ActivateConfiguredAlert("LUCENTTEST", phyid);
+		alertracker->ActivateConfiguredAlert("LUCENTTEST", phyid);
 	alert_msfbcomssid_ref =
-		globalreg->alertracker->ActivateConfiguredAlert("MSFBCOMSSID", phyid);
+		alertracker->ActivateConfiguredAlert("MSFBCOMSSID", phyid);
 	alert_msfdlinkrate_ref =
-		globalreg->alertracker->ActivateConfiguredAlert("MSFDLINKRATE", phyid);
+		alertracker->ActivateConfiguredAlert("MSFDLINKRATE", phyid);
 	alert_msfnetgearbeacon_ref =
-		globalreg->alertracker->ActivateConfiguredAlert("MSFNETGEARBEACON", phyid);
+		alertracker->ActivateConfiguredAlert("MSFNETGEARBEACON", phyid);
 	alert_longssid_ref =
-		globalreg->alertracker->ActivateConfiguredAlert("LONGSSID", phyid);
+		alertracker->ActivateConfiguredAlert("LONGSSID", phyid);
 	alert_disconinvalid_ref =
-		globalreg->alertracker->ActivateConfiguredAlert("DISCONCODEINVALID", phyid);
+		alertracker->ActivateConfiguredAlert("DISCONCODEINVALID", phyid);
 	alert_deauthinvalid_ref =
-		globalreg->alertracker->ActivateConfiguredAlert("DEAUTHCODEINVALID", phyid);
+		alertracker->ActivateConfiguredAlert("DEAUTHCODEINVALID", phyid);
 #if 0
 	alert_dhcpclient_ref =
-		globalreg->alertracker->ActivateConfiguredAlert("DHCPCLIENTID", phyid);
+		alertracker->ActivateConfiguredAlert("DHCPCLIENTID", phyid);
 #endif
 
 	// Register the tracker alerts
 	alert_chan_ref =
-		globalreg->alertracker->ActivateConfiguredAlert("CHANCHANGE", phyid);
+		alertracker->ActivateConfiguredAlert("CHANCHANGE", phyid);
 	alert_dhcpcon_ref =
-		globalreg->alertracker->ActivateConfiguredAlert("DHCPCONFLICT", phyid);
+		alertracker->ActivateConfiguredAlert("DHCPCONFLICT", phyid);
 	alert_bcastdcon_ref =
-		globalreg->alertracker->ActivateConfiguredAlert("BCASTDISCON", phyid);
+		alertracker->ActivateConfiguredAlert("BCASTDISCON", phyid);
 	alert_airjackssid_ref = 
-		globalreg->alertracker->ActivateConfiguredAlert("AIRJACKSSID", phyid);
+		alertracker->ActivateConfiguredAlert("AIRJACKSSID", phyid);
 	alert_wepflap_ref =
-		globalreg->alertracker->ActivateConfiguredAlert("CRYPTODROP", phyid);
+		alertracker->ActivateConfiguredAlert("CRYPTODROP", phyid);
 	alert_dhcpname_ref =
-		globalreg->alertracker->ActivateConfiguredAlert("DHCPNAMECHANGE", phyid);
+		alertracker->ActivateConfiguredAlert("DHCPNAMECHANGE", phyid);
 	alert_dhcpos_ref =
-		globalreg->alertracker->ActivateConfiguredAlert("DHCPOSCHANGE", phyid);
+		alertracker->ActivateConfiguredAlert("DHCPOSCHANGE", phyid);
 	alert_adhoc_ref =
-		globalreg->alertracker->ActivateConfiguredAlert("ADHOCCONFLICT", phyid);
+		alertracker->ActivateConfiguredAlert("ADHOCCONFLICT", phyid);
 	alert_ssidmatch_ref =
-		globalreg->alertracker->ActivateConfiguredAlert("APSPOOF", phyid);
+		alertracker->ActivateConfiguredAlert("APSPOOF", phyid);
 	alert_dot11d_ref =
-		globalreg->alertracker->ActivateConfiguredAlert("DOT11D", phyid);
+		alertracker->ActivateConfiguredAlert("DOT11D", phyid);
 	alert_beaconrate_ref =
-		globalreg->alertracker->ActivateConfiguredAlert("BEACONRATE", phyid);
+		alertracker->ActivateConfiguredAlert("BEACONRATE", phyid);
 	alert_cryptchange_ref =
-		globalreg->alertracker->ActivateConfiguredAlert("ADVCRYPTCHANGE", phyid);
+		alertracker->ActivateConfiguredAlert("ADVCRYPTCHANGE", phyid);
 	alert_malformmgmt_ref =
-		globalreg->alertracker->ActivateConfiguredAlert("MALFORMMGMT", phyid);
+		alertracker->ActivateConfiguredAlert("MALFORMMGMT", phyid);
 	alert_wpsbrute_ref =
-		globalreg->alertracker->ActivateConfiguredAlert("WPSBRUTE", phyid);
+		alertracker->ActivateConfiguredAlert("WPSBRUTE", phyid);
 
 	// Do we process the whole data packet?
     if (globalreg->kismet_config->FetchOptBoolean("hidedata", 0) ||
@@ -284,7 +291,7 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
         _MSG(ss.str(), MSGFLAG_INFO);
 
         device_idle_timer =
-            globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 60, NULL, 
+            timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 60, NULL, 
                 1, this);
     } else {
         device_idle_timer = -1;
@@ -299,8 +306,8 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
 }
 
 Kis_80211_Phy::~Kis_80211_Phy() {
-	globalreg->packetchain->RemoveHandler(&phydot11_packethook_wep, CHAINPOS_DECRYPT);
-	globalreg->packetchain->RemoveHandler(&phydot11_packethook_dot11, 
+	packetchain->RemoveHandler(&phydot11_packethook_wep, CHAINPOS_DECRYPT);
+	packetchain->RemoveHandler(&phydot11_packethook_dot11, 
 										  CHAINPOS_LLCDISSECT);
 	/*
 	globalreg->packetchain->RemoveHandler(&phydot11_packethook_dot11data, 
@@ -308,13 +315,13 @@ Kis_80211_Phy::~Kis_80211_Phy() {
 	globalreg->packetchain->RemoveHandler(&phydot11_packethook_dot11string,
 										  CHAINPOS_DATADISSECT);
 										  */
-	globalreg->packetchain->RemoveHandler(&CommonClassifierDot11,
-										  CHAINPOS_CLASSIFIER);
+	packetchain->RemoveHandler(&CommonClassifierDot11,
+            CHAINPOS_CLASSIFIER);
 
-	globalreg->packetchain->RemoveHandler(&phydot11_packethook_dot11tracker, 
-										  CHAINPOS_TRACKER);
+	packetchain->RemoveHandler(&phydot11_packethook_dot11tracker, 
+            CHAINPOS_TRACKER);
 
-    globalreg->timetracker->RemoveTimer(device_idle_timer);
+    timetracker->RemoveTimer(device_idle_timer);
 }
 
 int Kis_80211_Phy::LoadWepkeys() {
@@ -584,6 +591,22 @@ void Kis_80211_Phy::HandleSSID(shared_ptr<kis_tracked_device_base> basedev,
         }
 
         if (dot11info->subtype == packet_sub_beacon) {
+            if (ssid->get_channel() != dot11info->channel &&
+                    alertracker->PotentialAlert(alert_chan_ref)) {
+
+					string al = "IEEE80211 Access Point BSSID " +
+						basedev->get_macaddr().Mac2String() + " SSID \"" +
+						ssid->get_ssid() + "\" changed advertised channel from " +
+						ssid->get_channel() + " to " + 
+						dot11info->channel + " which may "
+						"indicate AP spoofing/impersonation";
+
+					alertracker->RaiseAlert(alert_chan_ref, in_pack, 
+                            dot11info->bssid_mac, dot11info->source_mac, 
+                            dot11info->dest_mac, dot11info->other_mac, 
+                            dot11info->channel, al);
+            }
+
             // Update the base device records
             dot11dev->set_last_beaconed_ssid(ssid->get_ssid());
             dot11dev->set_last_beaconed_ssid_csum(dot11info->ssid_csum);
@@ -880,8 +903,21 @@ void Kis_80211_Phy::HandleClient(shared_ptr<kis_tracked_device_base> basedev,
 
             if (pack_datainfo->discover_vendor != "") {
                 if (client->get_dhcp_vendor() != "" &&
-                        client->get_dhcp_vendor() != pack_datainfo->discover_vendor) {
-                    // TODO alert, DHCP vendor changed
+                        client->get_dhcp_vendor() != pack_datainfo->discover_vendor &&
+						alertracker->PotentialAlert(alert_dhcpos_ref)) {
+						string al = "IEEE80211 network BSSID " + 
+							client->get_bssid().Mac2String() +
+							" client " + 
+							basedev->get_macaddr().Mac2String() + 
+							"changed advertised DHCP vendor from '" +
+							client->get_dhcp_vendor() + "' to '" +
+							pack_datainfo->discover_vendor + "' which may indicate "
+							"client spoofing or impersonation";
+
+                        alertracker->RaiseAlert(alert_dhcpos_ref, in_pack,
+                                dot11info->bssid_mac, dot11info->source_mac,
+                                dot11info->dest_mac, dot11info->other_mac,
+                                dot11info->channel, al);
                 }
 
                 client->set_dhcp_vendor(pack_datainfo->discover_vendor);
@@ -889,8 +925,21 @@ void Kis_80211_Phy::HandleClient(shared_ptr<kis_tracked_device_base> basedev,
 
             if (pack_datainfo->discover_host != "") {
                 if (client->get_dhcp_host() != "" &&
-                        client->get_dhcp_host() != pack_datainfo->discover_host) {
-                    // TODO alert, DHCP host changed
+                        client->get_dhcp_host() != pack_datainfo->discover_host &&
+						alertracker->PotentialAlert(alert_dhcpname_ref)) {
+						string al = "IEEE80211 network BSSID " + 
+							client->get_bssid().Mac2String() +
+							" client " + 
+							basedev->get_macaddr().Mac2String() + 
+							"changed advertised DHCP hostname from '" +
+							client->get_dhcp_host() + "' to '" +
+							pack_datainfo->discover_host + "' which may indicate "
+							"client spoofing or impersonation";
+
+                        alertracker->RaiseAlert(alert_dhcpname_ref, in_pack,
+                                dot11info->bssid_mac, dot11info->source_mac,
+                                dot11info->dest_mac, dot11info->other_mac,
+                                dot11info->channel, al);
                 }
 
                 client->set_dhcp_host(pack_datainfo->discover_host);
@@ -1061,18 +1110,17 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 
 		// Throw alert if device changes between bss and adhoc
         if (dot11dev->bitcheck_type_set(DOT11_DEVICE_TYPE_ADHOC) &&
-                !dot11dev->bitcheck_type_set(DOT11_DEVICE_TYPE_BEACON_AP)) {
+                !dot11dev->bitcheck_type_set(DOT11_DEVICE_TYPE_BEACON_AP) &&
+                alertracker->PotentialAlert(alert_adhoc_ref)) {
 				string al = "IEEE80211 Network BSSID " + 
 					dot11info->bssid_mac.Mac2String() + 
 					" previously advertised as AP network, now advertising as "
 					"Ad-Hoc which may indicate AP spoofing/impersonation";
 
-				globalreg->alertracker->RaiseAlert(alert_adhoc_ref, in_pack,
-												   dot11info->bssid_mac,
-												   dot11info->source_mac,
-												   dot11info->dest_mac,
-												   dot11info->other_mac,
-												   dot11info->channel, al);
+                alertracker->RaiseAlert(alert_adhoc_ref, in_pack,
+                        dot11info->bssid_mac, dot11info->source_mac,
+                        dot11info->dest_mac, dot11info->other_mac,
+                        dot11info->channel, al);
         }
 
         dot11dev->bitset_type_set(DOT11_DEVICE_TYPE_BEACON_AP);
@@ -1085,18 +1133,17 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 
 		// Throw alert if device changes to adhoc
         if (!dot11dev->bitcheck_type_set(DOT11_DEVICE_TYPE_ADHOC) &&
-                dot11dev->bitcheck_type_set(DOT11_DEVICE_TYPE_BEACON_AP)) {
+                dot11dev->bitcheck_type_set(DOT11_DEVICE_TYPE_BEACON_AP) &&
+                alertracker->PotentialAlert(alert_adhoc_ref)) {
 				string al = "IEEE80211 Network BSSID " + 
 					dot11info->bssid_mac.Mac2String() + 
 					" previously advertised as AP network, now advertising as "
 					"Ad-Hoc which may indicate AP spoofing/impersonation";
 
-				globalreg->alertracker->RaiseAlert(alert_adhoc_ref, in_pack,
-												   dot11info->bssid_mac,
-												   dot11info->source_mac,
-												   dot11info->dest_mac,
-												   dot11info->other_mac,
-												   dot11info->channel, al);
+                alertracker->RaiseAlert(alert_adhoc_ref, in_pack,
+                        dot11info->bssid_mac, dot11info->source_mac,
+                        dot11info->dest_mac, dot11info->other_mac,
+                        dot11info->channel, al);
         }
 
         dot11dev->bitset_type_set(DOT11_DEVICE_TYPE_ADHOC);
@@ -1231,19 +1278,19 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
                 dot11dev->set_wps_m3_last(globalreg->timestamp.tv_sec);
 
 				if (dot11dev->get_wps_m3_count() > 5) {
-					if (globalreg->alertracker->PotentialAlert(alert_wpsbrute_ref)) {
+					if (alertracker->PotentialAlert(alert_wpsbrute_ref)) {
 						string al = "IEEE80211 AP '" + ssidtxt + "' (" + 
 							dot11info->bssid_mac.Mac2String() +
 							") sending excessive number of WPS messages which may "
 							"indicate a WPS brute force attack such as Reaver";
 
-						globalreg->alertracker->RaiseAlert(alert_wpsbrute_ref, 
-														   in_pack, 
-														   dot11info->bssid_mac, 
-														   dot11info->source_mac, 
-														   dot11info->dest_mac, 
-														   dot11info->other_mac, 
-														   ssidchan, al);
+                        alertracker->RaiseAlert(alert_wpsbrute_ref, 
+                                in_pack, 
+                                dot11info->bssid_mac, 
+                                dot11info->source_mac, 
+                                dot11info->dest_mac, 
+                                dot11info->other_mac, 
+                                ssidchan, al);
 					}
 
                     dot11dev->set_wps_m3_count(1);
@@ -1258,420 +1305,6 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 
 
 #if 0
-
-	if (dot11info->ess) {
-		dot11dev->type_set |= dot11_network_ap;
-		commondev->basic_type_set |= KIS_DEVICE_BASICTYPE_AP;
-		commondev->type_string = "AP";
-	} else if (dot11info->distrib == distrib_from &&
-			   dot11info->type == packet_data) {
-		commondev->basic_type_set |= KIS_DEVICE_BASICTYPE_WIRED;
-		dot11dev->type_set |= dot11_network_wired;
-
-		if (!(commondev->basic_type_set & KIS_DEVICE_BASICTYPE_AP)) 
-			commondev->type_string = "Wired";
-	} else if (dot11info->distrib == distrib_to &&
-			   dot11info->type == packet_data) {
-		dot11dev->type_set |= dot11_network_client;
-
-		if (!(commondev->basic_type_set & KIS_DEVICE_BASICTYPE_AP)) {
-			commondev->type_string = "Client";
-			commondev->basic_type_set |= KIS_DEVICE_BASICTYPE_CLIENT;
-		}
-	} else if (dot11info->distrib == distrib_inter) {
-		dot11dev->type_set |= dot11_network_wds;
-		commondev->type_string = "WDS";
-	} else if (dot11info->type == packet_management &&
-			   dot11info->subtype == packet_sub_probe_req) {
-		dot11dev->type_set |= dot11_network_client;
-
-		if (!(commondev->basic_type_set & KIS_DEVICE_BASICTYPE_AP)) {
-			commondev->type_string = "Client";
-			commondev->basic_type_set |= KIS_DEVICE_BASICTYPE_CLIENT;
-		}
-	} else if (dot11info->distrib == distrib_adhoc) {
-		// Throw alert if device changes to adhoc
-		if (!(dot11dev->type_set & dot11_network_adhoc)) {
-			if (dot11info->distrib == distrib_adhoc && 
-				(dot11dev->type_set & dot11_network_ap)) {
-				string al = "IEEE80211 Network BSSID " + 
-					dot11info->bssid_mac.Mac2String() + 
-					" previously advertised as AP network, now advertising as "
-					"Ad-Hoc which may indicate AP spoofing/impersonation";
-
-				globalreg->alertracker->RaiseAlert(alert_adhoc_ref, in_pack,
-												   dot11info->bssid_mac,
-												   dot11info->source_mac,
-												   dot11info->dest_mac,
-												   dot11info->other_mac,
-												   dot11info->channel, al);
-			}
-		}
-
-		dot11dev->type_set |= dot11_network_adhoc;
-
-		// printf("debug - setting type peer on network because we saw an explicit adhoc packet\n");
-		commondev->basic_type_set |= KIS_DEVICE_BASICTYPE_PEER |
-			KIS_DEVICE_BASICTYPE_CLIENT;
-
-		if (!(commondev->basic_type_set & KIS_DEVICE_BASICTYPE_AP)) 
-			commondev->type_string = "Ad-Hoc";
-
-	} else if (dot11info->type == packet_management) {
-		if (dot11info->subtype == packet_sub_disassociation ||
-			dot11info->subtype == packet_sub_deauthentication)
-			dot11dev->type_set |= dot11_network_ap;
-
-		commondev->type_string = "AP";
-
-		if (dot11info->subtype == packet_sub_authentication &&
-			dot11info->source_mac == dot11info->bssid_mac) {
-
-			commondev->basic_type_set |= KIS_DEVICE_BASICTYPE_AP;
-			dot11dev->type_set |= dot11_network_ap;
-			commondev->type_string = "AP";
-
-		} else {
-			commondev->basic_type_set |= KIS_DEVICE_BASICTYPE_CLIENT;
-			dot11dev->type_set |= dot11_network_client;
-			commondev->type_string = "Client";
-		}
-	}
-
-	if (dot11dev->type_set == dot11_network_none) {
-		printf("debug - unknown net typeset for bs %s sr %s dt %s type %u sub %u\n", dot11info->bssid_mac.Mac2String().c_str(), dot11info->source_mac.Mac2String().c_str(), dot11info->dest_mac.Mac2String().c_str(), dot11info->type, dot11info->subtype);
-		if (commondev->type_string == "")
-			commondev->type_string = "Unknown";
-	}
-
-	if (dot11dev->type_set & dot11_network_inferred) {
-		// printf("debug - net %s no longer inferred, saw a packet from it\n", dev->key.Mac2String().c_str());
-		dot11dev->type_set &= ~dot11_network_inferred;
-	}
-
-	// we need to figure out the access point that this is happening with;
-	// if we're acting as an AP already, it's us
-	kis_tracked_device *apdev = NULL;
-
-	// Don't map to a bssid device if we're broadcast or we're ourselves
-	if (dot11info->bssid_mac == dot11info->source_mac) {
-		net = dot11dev;
-		apdev = dev;
-		build_net = false;
-	} else if (dot11info->bssid_mac == globalreg->broadcast_mac) {
-		apdev = devicetracker->MapToDevice(dot11info->source_mac, in_pack);
-		build_net = false;
-	} else if (dot11info->bssid_mac != globalreg->broadcast_mac) {
-		apdev = devicetracker->MapToDevice(dot11info->bssid_mac, in_pack);
-		if (apdev != NULL)
-			net = (dot11_device *) apdev->fetch(dev_comp_dot11);
-	} else {
-		build_net = false;
-	}
-
-#if 0
-	if (apdev == NULL)
-		printf("debug - apdev null bssid %s source %s dest %s type %d sub %d\n", dot11info->bssid_mac.Mac2String().c_str(), dot11info->source_mac.Mac2String().c_str(), dot11info->dest_mac.Mac2String().c_str(), dot11info->type, dot11info->subtype);
-#endif
-
-	// Flag the AP as an AP
-	if (apdev != NULL) {
-		apcommon = 
-			(kis_device_common *) apdev->fetch(dev_comp_common);
-
-		// Add to the counters for the AP record
-		if (apdev != dev)
-			devicetracker->PopulateCommon(apdev, in_pack);
-
-		if (apcommon != NULL) {
-			apcommon->basic_type_set |= KIS_DEVICE_BASICTYPE_AP;
-
-			if (dot11info->distrib == distrib_adhoc) {
-				// printf("debug - apdev null, distrib is distrib adhoc\n");
-				apcommon->basic_type_set |= KIS_DEVICE_BASICTYPE_PEER;
-				apcommon->type_string = "Ad-Hoc";
-			}
-		}
-	}
-
-	// If we need to make a network, it's because we're talking to a bssid
-	// that isn't visible/hasn't yet been seen.  We make it as an inferred
-	// device.
-	if (net == NULL && build_net) {
-		net = new dot11_device();
-
-		// printf("debug - making inferred net for bs %s sr %s dt %s type %u sub %u\n", dot11info->bssid_mac.Mac2String().c_str(), dot11info->source_mac.Mac2String().c_str(), dot11info->dest_mac.Mac2String().c_str(), dot11info->type, dot11info->subtype);
-		net_new = true;
-
-		net->type_set |= dot11_network_inferred;
-		
-		// If it's not IBSS or WDS they must be talking to an AP...
-		if (dot11info->distrib == distrib_adhoc)
-			net->type_set |= dot11_network_adhoc;
-		else if (dot11info->distrib == distrib_inter)
-			net->type_set |= dot11_network_wds;
-		else
-			net->type_set |= dot11_network_ap;
-
-		if (apdev != NULL) {
-			apdev->insert(dev_comp_dot11, net);
-		}
-	}
-
-	if (net != NULL) {
-		// We have a net record, update it.
-		// It may be the only record (packet came from AP), we'll
-		// test that later to make sure we aren't double counting
-
-		// Cryptset changes
-		uint64_t cryptset_old = net->tx_cryptset;
-
-		// Flag distribution
-		if (dot11info->type == packet_data) {
-			if (dot11info->distrib == distrib_from) {
-				net->tx_cryptset |= dot11info->cryptset;
-				net->tx_datasize += dot11info->datasize;
-			} else if (dot11info->distrib == distrib_to) {
-				net->rx_cryptset |= dot11info->cryptset;
-				net->rx_datasize += dot11info->datasize;
-			} else if (dot11info->distrib == distrib_adhoc ||
-					   dot11info->distrib == distrib_inter) {
-				net->tx_cryptset |= dot11info->cryptset;
-				net->rx_cryptset |= dot11info->cryptset;
-				net->tx_datasize += dot11info->datasize;
-				net->rx_datasize += dot11info->datasize;
-			}
-		}
-
-		bool new_decrypted = false;
-		if (dot11info->decrypted && !net->decrypted) {
-			new_decrypted = true;
-			net->decrypted = 1;
-		}
-
-		if (dot11info->fragmented)
-			net->fragments++;
-
-		if (dot11info->retry)
-			net->retries++;
-
-		if (dot11info->type == packet_management &&
-			(dot11info->subtype == packet_sub_disassociation ||
-			 dot11info->subtype == packet_sub_deauthentication))
-			net->client_disconnects++;
-
-		string crypt_update;
-
-		if (cryptset_old != net->tx_cryptset) {
-			crypt_update = StringAppend(crypt_update, 
-										"updated observed data encryption to " + 
-										CryptToString(net->tx_cryptset));
-
-			if (net->tx_cryptset & crypt_wps)
-				apcommon->crypt_string = "WPS";
-			else if (net->tx_cryptset & crypt_wpa) 
-				apcommon->crypt_string = "WPA";
-			else if (net->tx_cryptset & crypt_wep)
-				apcommon->crypt_string = "WEP";
-		}
-
-		if (new_decrypted) {
-			crypt_update = StringAppend(crypt_update,
-										"began decrypting data",
-										"and");
-		}
-
-		if (crypt_update != "")
-			_MSG("IEEE80211 BSSID " + dot11info->bssid_mac.Mac2String() + " " +
-				 crypt_update, MSGFLAG_INFO);
-
-		net->dirty = 1;
-	} 
-	
-	if (dot11dev == net) {
-		// This is a packet from the AP, update stuff that we only update
-		// when the AP says it...
-
-		// printf("debug - self = ap, %p\n", dot11dev);
-
-		// Only update these when sources from the AP
-		net->bss_timestamp = dot11info->timestamp;
-		net->last_sequence = dot11info->sequence_number;
-
-		if (datainfo != NULL) {
-			if (datainfo->cdp_dev_id != "") {
-				net->cdp_dev_id = datainfo->cdp_dev_id;
-			}
-
-			if (datainfo->cdp_port_id != "") {
-				net->cdp_port_id = datainfo->cdp_port_id;
-			}
-		}
-	} else if (dot11dev != net) {
-		// We're a client packet
-		if (datainfo != NULL) {
-			if (datainfo->proto == proto_eap) {
-				if (datainfo->auxstring != "") {
-					dot11dev->eap_id = datainfo->auxstring;
-				}
-			}
-
-			if (datainfo->cdp_dev_id != "") {
-				dot11dev->cdp_dev_id = datainfo->cdp_dev_id;
-			}
-
-			if (datainfo->cdp_port_id != "") {
-				dot11dev->cdp_port_id = datainfo->cdp_port_id;
-			}
-
-			if (datainfo->discover_vendor != "") {
-				dot11dev->dhcp_vendor = datainfo->discover_vendor;
-			}
-
-			if (datainfo->discover_host != "") {
-				dot11dev->dhcp_host = datainfo->discover_host;
-			}
-		}
-
-		if (dot11info->bssid_mac != globalreg->broadcast_mac)
-			dot11dev->last_bssid = dot11info->bssid_mac;
-
-		if (net != NULL) {
-			// we're a client; find a client record, if we know what the network is
-			map<mac_addr, dot11_client *>::iterator ci =
-				net->client_map.find(dot11info->source_mac);
-
-			if (ci == net->client_map.end()) {
-				cli = new dot11_client;
-
-				cli_new = true;
-
-				cli->first_time = in_pack->ts.tv_sec;
-
-				cli->mac = dot11info->source_mac;
-				cli->bssid = dot11dev->mac;
-
-				if (globalreg->manufdb != NULL)
-					cli->manuf = globalreg->manufdb->LookupOUI(cli->mac);
-
-				net->client_map.insert(pair<mac_addr, 
-									   dot11_client *>(dot11info->source_mac, cli));
-
-				// printf("debug - new client %s on %s\n", dot11info->source_mac.Mac2String().c_str(), dot11info->bssid_mac.Mac2String().c_str());
-			} else {
-				cli = ci->second;
-			}
-
-			cli->dirty = 1;
-
-			cli->last_time = in_pack->ts.tv_sec;
-
-			if (dot11info->ess) {
-				cli->type = dot11_network_ap;
-			} else if (dot11info->distrib == distrib_from &&
-					   dot11info->type == packet_data) {
-				cli->type = dot11_network_wired;
-			} else if (dot11info->distrib == distrib_to &&
-					   dot11info->type == packet_data) {
-				cli->type = dot11_network_client;
-			} else if (dot11info->distrib == distrib_inter) {
-				cli->type = dot11_network_wds;
-			} else if (dot11info->type == packet_management &&
-					   dot11info->subtype == packet_sub_probe_req) {
-				cli->type = dot11_network_client;
-			} else if (dot11info->distrib == distrib_adhoc) {
-				cli->type = dot11_network_adhoc;
-			}
-
-			if (dot11info->decrypted)
-				cli->decrypted = 1;
-
-			cli->last_sequence = dot11info->sequence_number;
-
-			if (datainfo != NULL) {
-				if (datainfo->proto == proto_eap) {
-					if (datainfo->auxstring != "") {
-						// printf("debug - client %s on %s got EAP ID %s\n", dot11info->source_mac.Mac2String().c_str(), dot11info->bssid_mac.Mac2String().c_str(), datainfo->auxstring.c_str());
-						cli->eap_id = datainfo->auxstring;
-					}
-				}
-
-				if (datainfo->cdp_dev_id != "") {
-					cli->cdp_dev_id = datainfo->cdp_dev_id;
-				}
-
-				if (datainfo->cdp_port_id != "") {
-					cli->cdp_port_id = datainfo->cdp_port_id;
-				}
-
-				if (datainfo->discover_vendor != "") {
-					if (cli->dhcp_vendor != "" &&
-						cli->dhcp_vendor != datainfo->discover_vendor &&
-						globalreg->alertracker->PotentialAlert(alert_dhcpos_ref)) {
-						string al = "IEEE80211 network BSSID " + 
-							apdev->key.Mac2String() +
-							" client " + 
-							cli->mac.Mac2String() + 
-							"changed advertised DHCP vendor from '" +
-							dot11dev->dhcp_vendor + "' to '" +
-							datainfo->discover_vendor + "' which may indicate "
-							"client spoofing or impersonation";
-
-						globalreg->alertracker->RaiseAlert(alert_dhcpos_ref, in_pack,
-														   dot11info->bssid_mac,
-														   dot11info->source_mac,
-														   dot11info->dest_mac,
-														   dot11info->other_mac,
-														   dot11info->channel, al);
-					}
-
-					cli->dhcp_vendor = datainfo->discover_vendor;
-				}
-
-				if (datainfo->discover_host != "") {
-					if (cli->dhcp_host != "" &&
-						cli->dhcp_host != datainfo->discover_host &&
-						globalreg->alertracker->PotentialAlert(alert_dhcpname_ref)) {
-						string al = "IEEE80211 network BSSID " + 
-							apdev->key.Mac2String() +
-							" client " + 
-							cli->mac.Mac2String() + 
-							"changed advertised DHCP hostname from '" +
-							dot11dev->dhcp_host + "' to '" +
-							datainfo->discover_host + "' which may indicate "
-							"client spoofing or impersonation";
-
-						globalreg->alertracker->RaiseAlert(alert_dhcpname_ref, in_pack,
-														   dot11info->bssid_mac,
-														   dot11info->source_mac,
-														   dot11info->dest_mac,
-														   dot11info->other_mac,
-														   dot11info->channel, al);
-					}
-
-					cli->dhcp_host = datainfo->discover_host;
-				}
-			}
-
-			if (dot11info->type == packet_data) {
-				if (dot11info->distrib == distrib_from) {
-					cli->tx_cryptset |= dot11info->cryptset;
-					cli->tx_datasize += dot11info->datasize;
-				} else if (dot11info->distrib == distrib_to) {
-					cli->rx_cryptset |= dot11info->cryptset;
-					cli->rx_datasize += dot11info->datasize;
-				} else if (dot11info->distrib == distrib_adhoc ||
-						   dot11info->distrib == distrib_inter) {
-					cli->tx_cryptset |= dot11info->cryptset;
-					cli->rx_cryptset |= dot11info->cryptset;
-					cli->tx_datasize += dot11info->datasize;
-					cli->rx_datasize += dot11info->datasize;
-				}
-			}
-
-		}
-
-	}
 
 	// Track the SSID data if we're a ssid-bearing packet
 	if (dot11info->type == packet_management &&

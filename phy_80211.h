@@ -1042,6 +1042,10 @@ public:
     virtual int timetracker_event(int eventid);
 
 protected:
+    shared_ptr<Alertracker> alertracker;
+    shared_ptr<Packetchain> packetchain;
+    shared_ptr<Timetracker> timetracker;
+
     void HandleSSID(shared_ptr<kis_tracked_device_base> basedev, 
             shared_ptr<dot11_tracked_device> dot11dev,
             kis_packet *in_pack,
