@@ -758,35 +758,6 @@ void Kis_80211_Phy::HandleSSID(shared_ptr<kis_tracked_device_base> basedev,
         ssid->set_ietag_checksum(dot11info->ietag_csum);
     }
 
-    bool wpsm3 = PacketDot11WPSM3(in_pack);
-    if (wpsm3) {
-        // if we're w/in time of the last one, update, otherwise clear
-        if (globalreg->timestamp.tv_sec - 
-                dot11dev->get_wps_m3_last() > (60 * 5))
-            dot11dev->set_wps_m3_count(1);
-        else
-            dot11dev->inc_wps_m3_count(1);
-
-        dot11dev->set_wps_m3_last(globalreg->timestamp.tv_sec);
-
-        if (dot11dev->get_wps_m3_count() > 5) {
-            if (alertracker->PotentialAlert(alert_wpsbrute_ref)) {
-                string al = "IEEE80211 AP '" + ssid->get_ssid() + "' (" + 
-                    dot11info->bssid_mac.Mac2String() +
-                    ") sending excessive number of WPS messages which may "
-                    "indicate a WPS brute force attack such as Reaver";
-
-                alertracker->RaiseAlert(alert_wpsbrute_ref, 
-                        in_pack, dot11info->bssid_mac, 
-                        dot11info->source_mac, dot11info->dest_mac, 
-                        dot11info->other_mac, 
-                        ssid->get_channel(), al);
-            }
-
-            dot11dev->set_wps_m3_count(1);
-        }
-    }
-
     // Add the location data, if any
     if (pack_gpsinfo != NULL && pack_gpsinfo->fix > 1) {
         ssid->get_location()->add_loc(pack_gpsinfo->lat, pack_gpsinfo->lon,
@@ -1373,10 +1344,8 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 
                         alertracker->RaiseAlert(alert_wpsbrute_ref, 
                                 in_pack, 
-                                dot11info->bssid_mac, 
-                                dot11info->source_mac, 
-                                dot11info->dest_mac, 
-                                dot11info->other_mac, 
+                                dot11info->bssid_mac, dot11info->source_mac, 
+                                dot11info->dest_mac, dot11info->other_mac, 
                                 ssidchan, al);
 					}
 
@@ -1386,6 +1355,22 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 		}
 	}
 
+	if (dot11info->type == packet_management &&
+		(dot11info->subtype == packet_sub_disassociation ||
+		 dot11info->subtype == packet_sub_deauthentication) &&
+		dot11info->dest_mac == globalreg->broadcast_mac &&
+		alertracker->PotentialAlert(alert_bcastdcon_ref)) {
+
+		string al = "IEEE80211 Access Point BSSID " +
+			basedev->get_macaddr().Mac2String() + " broadcast deauthentication or "
+			"disassociation of all clients, probable denial of service";
+			
+        alertracker->RaiseAlert(alert_bcastdcon_ref, in_pack, 
+                dot11info->bssid_mac, dot11info->source_mac, 
+                dot11info->dest_mac, dot11info->other_mac, 
+                dot11info->channel, al);
+    }
+
     if (basedev->get_type_string() == "") {
         printf("unclassed device as of packet %d\n", packetnum);
     }
@@ -1393,56 +1378,6 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 
 #if 0
 
-	if (dot11info->type == packet_data &&
-		dot11info->source_mac == dot11info->bssid_mac) {
-		int wps = 0;
-		int ssidchan = 0;
-		string ssidtxt="<Unknown>";
-
-		for (map<uint32_t, dot11_ssid *>::iterator si = net->ssid_map.begin();
-			 si != net->ssid_map.end(); ++si) {
-			if (si->second->cryptset & crypt_wps) {
-				wps = 1;
-				ssidchan = si->second->channel;
-				ssidtxt = si->second->ssid;
-				break;
-			}
-		}
-
-		if (wps) {
-			wps = PacketDot11WPSM3(in_pack);
-
-			if (wps) {
-				// if we're w/in time of the last one, update, otherwise clear
-				if (globalreg->timestamp.tv_sec - net->last_wps_m3 > (60 * 5))
-					net->wps_m3_count = 1;
-				else
-					net->wps_m3_count++;
-
-				net->last_wps_m3 = globalreg->timestamp.tv_sec;
-
-				if (net->wps_m3_count > 5) {
-					if (globalreg->alertracker->PotentialAlert(alert_wpsbrute_ref)) {
-						string al = "IEEE80211 AP '" + ssidtxt + "' (" + 
-							dot11info->bssid_mac.Mac2String() +
-							") sending excessive number of WPS messages which may "
-							"indicate a WPS brute force attack such as Reaver";
-
-						globalreg->alertracker->RaiseAlert(alert_wpsbrute_ref, 
-														   in_pack, 
-														   dot11info->bssid_mac, 
-														   dot11info->source_mac, 
-														   dot11info->dest_mac, 
-														   dot11info->other_mac, 
-														   ssidchan, al);
-					}
-
-					net->wps_m3_count = 1;
-				}
-			}
-
-		}
-	}
 
 	if (ssid_new) {
 		string printssid;
