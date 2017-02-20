@@ -1059,6 +1059,22 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
         // "most important" thing we can be
         basedev->set_type_string("Wi-Fi AP");
 
+		// Throw alert if device changes between bss and adhoc
+        if (dot11dev->bitcheck_type_set(DOT11_DEVICE_TYPE_ADHOC) &&
+                !dot11dev->bitcheck_type_set(DOT11_DEVICE_TYPE_BEACON_AP)) {
+				string al = "IEEE80211 Network BSSID " + 
+					dot11info->bssid_mac.Mac2String() + 
+					" previously advertised as AP network, now advertising as "
+					"Ad-Hoc which may indicate AP spoofing/impersonation";
+
+				globalreg->alertracker->RaiseAlert(alert_adhoc_ref, in_pack,
+												   dot11info->bssid_mac,
+												   dot11info->source_mac,
+												   dot11info->dest_mac,
+												   dot11info->other_mac,
+												   dot11info->channel, al);
+        }
+
         dot11dev->bitset_type_set(DOT11_DEVICE_TYPE_BEACON_AP);
     } else if (dot11info->distrib == distrib_inter) {
         // Adhoc
@@ -1066,6 +1082,22 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 
         if (basedev->get_basic_type_set() == KIS_DEVICE_BASICTYPE_PEER)
             basedev->set_type_string("Wi-Fi Ad-hoc Device");
+
+		// Throw alert if device changes to adhoc
+        if (!dot11dev->bitcheck_type_set(DOT11_DEVICE_TYPE_ADHOC) &&
+                dot11dev->bitcheck_type_set(DOT11_DEVICE_TYPE_BEACON_AP)) {
+				string al = "IEEE80211 Network BSSID " + 
+					dot11info->bssid_mac.Mac2String() + 
+					" previously advertised as AP network, now advertising as "
+					"Ad-Hoc which may indicate AP spoofing/impersonation";
+
+				globalreg->alertracker->RaiseAlert(alert_adhoc_ref, in_pack,
+												   dot11info->bssid_mac,
+												   dot11info->source_mac,
+												   dot11info->dest_mac,
+												   dot11info->other_mac,
+												   dot11info->channel, al);
+        }
 
         dot11dev->bitset_type_set(DOT11_DEVICE_TYPE_ADHOC);
     } 
