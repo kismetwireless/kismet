@@ -711,11 +711,21 @@ void Kis_80211_Phy::HandleSSID(shared_ptr<kis_tracked_device_base> basedev,
         }
 
         if (dot11dmismatch) {
-            fprintf(stderr, "debug - dot11phy:HandleSSID %s dot11d channels changed\n", basedev->get_macaddr().Mac2String().c_str());
-
             ssid->set_dot11d_vec(dot11info->dot11d_vec);
 
-            // TODO raise alert
+            if (alertracker->PotentialAlert(alert_dot11d_ref)) {
+
+					string al = "IEEE80211 Access Point BSSID " +
+						basedev->get_macaddr().Mac2String() + " SSID \"" +
+						ssid->get_ssid() + "\" advertised conflicting 802.11d "
+                        "information which may indicate AP spoofing/impersonation";
+
+					alertracker->RaiseAlert(alert_dot11d_ref, in_pack, 
+                            dot11info->bssid_mac, dot11info->source_mac, 
+                            dot11info->dest_mac, dot11info->other_mac, 
+                            dot11info->channel, al);
+
+            }
         }
 
         if (ssid->get_wps_state() != dot11info->wps) {
@@ -1355,64 +1365,6 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 
 
 #if 0
-
-
-				if (ssid->beaconrate != ieeerate &&
-					globalreg->alertracker->PotentialAlert(alert_beaconrate_ref)) {
-
-					string al = "IEEE80211 Access Point BSSID " +
-						apdev->key.Mac2String() + " SSID \"" +
-						ssid->ssid + "\" changed beacon rate from " +
-						IntToString(ssid->beaconrate) + " to " + 
-						IntToString(ieeerate) + " which may indicate "
-						"AP spoofing/impersonation";
-
-					globalreg->alertracker->RaiseAlert(alert_beaconrate_ref, in_pack, 
-													   dot11info->bssid_mac, 
-													   dot11info->source_mac, 
-													   dot11info->dest_mac, 
-													   dot11info->other_mac, 
-													   dot11info->channel, al);
-				}
-
-				ssid->beaconrate = ieeerate;
-
-				bool dot11dfail = false;
-				string dot11dfailreason;
-
-				if (ssid->dot11d_country != dot11info->dot11d_country &&
-					ssid->dot11d_country != "") {
-					dot11dfail = true;
-					dot11dfailreason = "changed 802.11d country from \"" + 
-						ssid->dot11d_country + "\" to \"" +
-						dot11info->dot11d_country + "\"";
-				}
-
-				if (ssid->dot11d_vec.size() > 0) {
-					for (unsigned int x = 0; x < ssid->dot11d_vec.size() && 
-						 x < dot11info->dot11d_vec.size(); x++) {
-						if (ssid->dot11d_vec[x].startchan !=
-							dot11info->dot11d_vec[x].startchan)
-							dot11dfail = true;
-						if (ssid->dot11d_vec[x].numchan !=
-							dot11info->dot11d_vec[x].numchan)
-							dot11dfail = true;
-						if (ssid->dot11d_vec[x].txpower !=
-							dot11info->dot11d_vec[x].txpower)
-							dot11dfail = true;
-
-						if (dot11dfail) {
-							dot11dfailreason = "changed 802.11d channel restrictions";
-							break;
-						}
-					}
-
-					if (!dot11dfail)
-						if (ssid->dot11d_vec.size() !=
-							dot11info->dot11d_vec.size()) {
-							dot11dfail = true;
-							dot11dfailreason = "changed 802.11d channel restrictions";
-						}
 
 					if (dot11dfail &&
 						globalreg->alertracker->PotentialAlert(alert_dot11d_ref)) {
