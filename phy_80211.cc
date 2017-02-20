@@ -725,8 +725,27 @@ void Kis_80211_Phy::HandleSSID(shared_ptr<kis_tracked_device_base> basedev,
             // TODO raise alert?
         }
 
+        if (ssid->get_beaconrate() != 
+                Ieee80211Interval2NSecs(dot11info->beacon_interval)) {
+
+            if (alertracker->PotentialAlert(alert_beaconrate_ref)) {
+                string al = "IEEE80211 Access Point BSSID " +
+                    basedev->get_macaddr().Mac2String() + " SSID \"" +
+                    ssid->get_ssid() + "\" changed beacon rate from " +
+                    IntToString(ssid->get_beaconrate()) + " to " + 
+                    IntToString(Ieee80211Interval2NSecs(dot11info->beacon_interval)) + 
+                    " which may indicate AP spoofing/impersonation";
+
+                alertracker->RaiseAlert(alert_beaconrate_ref, in_pack, 
+                        dot11info->bssid_mac, dot11info->source_mac, 
+                        dot11info->dest_mac, dot11info->other_mac, 
+                        dot11info->channel, al);
+            }
+
+            ssid->set_beaconrate(Ieee80211Interval2NSecs(dot11info->beacon_interval));
+        }
+
         ssid->set_maxrate(dot11info->maxrate);
-        ssid->set_beaconrate(Ieee80211Interval2NSecs(dot11info->beacon_interval));
 
         ssid->set_ietag_checksum(dot11info->ietag_csum);
     }
@@ -1337,59 +1356,6 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 
 #if 0
 
-				}
-				dot11info->channel = ssid->channel;
-
-				if (ssid->ssid == "AirJack" &&
-					globalreg->alertracker->PotentialAlert(alert_airjackssid_ref)) {
-
-					string al = "IEEE80211 Access Point BSSID " +
-						apdev->key.Mac2String() + " broadcasting SSID "
-						"\"AirJack\" which implies an attempt to disrupt "
-						"networks.";
-
-					globalreg->alertracker->RaiseAlert(alert_airjackssid_ref, in_pack, 
-													   dot11info->bssid_mac, 
-													   dot11info->source_mac, 
-													   dot11info->dest_mac, 
-													   dot11info->other_mac, 
-													   dot11info->channel, al);
-				}
-
-				if (ssid->cryptset && dot11info->cryptset == crypt_none &&
-					globalreg->alertracker->PotentialAlert(alert_wepflap_ref)) {
-
-					string al = "IEEE80211 Access Point BSSID " +
-						apdev->key.Mac2String() + " SSID \"" +
-						ssid->ssid + "\" changed advertised encryption from " +
-						CryptToString(ssid->cryptset) + " to Open which may "
-						"indicate AP spoofing/impersonation";
-
-					globalreg->alertracker->RaiseAlert(alert_wepflap_ref, in_pack, 
-													   dot11info->bssid_mac, 
-													   dot11info->source_mac, 
-													   dot11info->dest_mac, 
-													   dot11info->other_mac, 
-													   dot11info->channel, al);
-				} else if (ssid->cryptset != dot11info->cryptset &&
-					globalreg->alertracker->PotentialAlert(alert_cryptchange_ref)) {
-
-					string al = "IEEE80211 Access Point BSSID " +
-						apdev->key.Mac2String() + " SSID \"" +
-						ssid->ssid + "\" changed advertised encryption from " +
-						CryptToString(ssid->cryptset) + " to " + 
-						CryptToString(dot11info->cryptset) + " which may indicate "
-						"AP spoofing/impersonation";
-
-					globalreg->alertracker->RaiseAlert(alert_cryptchange_ref, in_pack, 
-													   dot11info->bssid_mac, 
-													   dot11info->source_mac, 
-													   dot11info->dest_mac, 
-													   dot11info->other_mac, 
-													   dot11info->channel, al);
-				}
-
-				ssid->cryptset = dot11info->cryptset;
 
 				if (ssid->beaconrate != ieeerate &&
 					globalreg->alertracker->PotentialAlert(alert_beaconrate_ref)) {
