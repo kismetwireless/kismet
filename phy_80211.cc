@@ -729,10 +729,8 @@ void Kis_80211_Phy::HandleSSID(shared_ptr<kis_tracked_device_base> basedev,
         }
 
         if (ssid->get_wps_state() != dot11info->wps) {
-            fprintf(stderr, "debug - dot11phy:HandleSSID %s wps state changed %u to %u\n", basedev->get_macaddr().Mac2String().c_str(), ssid->get_wps_state(), dot11info->wps);
             ssid->set_wps_state(dot11info->wps);
 
-            // TODO raise alert?
         }
 
         if (ssid->get_beaconrate() != 
@@ -758,6 +756,35 @@ void Kis_80211_Phy::HandleSSID(shared_ptr<kis_tracked_device_base> basedev,
         ssid->set_maxrate(dot11info->maxrate);
 
         ssid->set_ietag_checksum(dot11info->ietag_csum);
+    }
+
+    bool wpsm3 = PacketDot11WPSM3(in_pack);
+    if (wpsm3) {
+        // if we're w/in time of the last one, update, otherwise clear
+        if (globalreg->timestamp.tv_sec - 
+                dot11dev->get_wps_m3_last() > (60 * 5))
+            dot11dev->set_wps_m3_count(1);
+        else
+            dot11dev->inc_wps_m3_count(1);
+
+        dot11dev->set_wps_m3_last(globalreg->timestamp.tv_sec);
+
+        if (dot11dev->get_wps_m3_count() > 5) {
+            if (alertracker->PotentialAlert(alert_wpsbrute_ref)) {
+                string al = "IEEE80211 AP '" + ssid->get_ssid() + "' (" + 
+                    dot11info->bssid_mac.Mac2String() +
+                    ") sending excessive number of WPS messages which may "
+                    "indicate a WPS brute force attack such as Reaver";
+
+                alertracker->RaiseAlert(alert_wpsbrute_ref, 
+                        in_pack, dot11info->bssid_mac, 
+                        dot11info->source_mac, dot11info->dest_mac, 
+                        dot11info->other_mac, 
+                        ssid->get_channel(), al);
+            }
+
+            dot11dev->set_wps_m3_count(1);
+        }
     }
 
     // Add the location data, if any
@@ -1365,34 +1392,6 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 
 
 #if 0
-
-					if (dot11dfail &&
-						globalreg->alertracker->PotentialAlert(alert_dot11d_ref)) {
-
-					string al = "IEEE80211 Access Point BSSID " +
-						apdev->key.Mac2String() + " SSID \"" +
-						ssid->ssid + "\" " + dot11dfailreason +
-						IntToString(ieeerate) + " which may indicate "
-						"AP spoofing/impersonation";
-
-					globalreg->alertracker->RaiseAlert(alert_dot11d_ref, in_pack, 
-													   dot11info->bssid_mac, 
-													   dot11info->source_mac, 
-													   dot11info->dest_mac, 
-													   dot11info->other_mac, 
-													   dot11info->channel, al);
-
-					}
-
-					ssid->dot11d_country = dot11info->dot11d_country;
-					ssid->dot11d_vec = dot11info->dot11d_vec;
-
-				}
-			} 
-
-			ssid->last_time = in_pack->ts.tv_sec;
-		}
-	}
 
 	if (dot11info->type == packet_data &&
 		dot11info->source_mac == dot11info->bssid_mac) {
