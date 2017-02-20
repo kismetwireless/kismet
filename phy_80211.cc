@@ -595,7 +595,7 @@ void Kis_80211_Phy::HandleSSID(shared_ptr<kis_tracked_device_base> basedev,
             dot11dev->set_last_beaconed_ssid(ssid->get_ssid());
             dot11dev->set_last_beaconed_ssid_csum(dot11info->ssid_csum);
 
-            if ( globalreg->alertracker->PotentialAlert(alert_airjackssid_ref &&
+            if (alertracker->PotentialAlert(alert_airjackssid_ref &&
                         ssid->get_ssid() == "AirJack" )) {
 
                 string al = "IEEE80211 Access Point BSSID " +
@@ -632,7 +632,34 @@ void Kis_80211_Phy::HandleSSID(shared_ptr<kis_tracked_device_base> basedev,
         
 
         if (ssid->get_crypt_set() != dot11info->cryptset) {
-            fprintf(stderr, "debug - dot11phy::HandleSSID %s cryptset changed\n", basedev->get_macaddr().Mac2String().c_str());
+            if (ssid->get_crypt_set() && dot11info->cryptset == crypt_none &&
+                    alertracker->PotentialAlert(alert_wepflap_ref)) {
+
+                string al = "IEEE80211 Access Point BSSID " +
+                    basedev->get_macaddr().Mac2String() + " SSID \"" +
+                    ssid->get_ssid() + "\" changed advertised encryption from " +
+                    CryptToString(ssid->get_crypt_set()) + " to Open which may "
+                    "indicate AP spoofing/impersonation";
+
+                alertracker->RaiseAlert(alert_wepflap_ref, in_pack, 
+                        dot11info->bssid_mac, dot11info->source_mac, 
+                        dot11info->dest_mac, dot11info->other_mac, 
+                        dot11info->channel, al);
+            } else if (ssid->get_crypt_set() != dot11info->cryptset &&
+                    alertracker->PotentialAlert(alert_cryptchange_ref)) {
+
+                string al = "IEEE80211 Access Point BSSID " +
+                    basedev->get_macaddr().Mac2String() + " SSID \"" +
+                    ssid->get_ssid() + "\" changed advertised encryption from " +
+                    CryptToString(ssid->get_crypt_set()) + " to " + 
+                    CryptToString(dot11info->cryptset) + " which may indicate "
+                    "AP spoofing/impersonation";
+
+                alertracker->RaiseAlert(alert_cryptchange_ref, in_pack, 
+                        dot11info->bssid_mac, dot11info->source_mac, 
+                        dot11info->dest_mac, dot11info->other_mac, 
+                        dot11info->channel, al);
+            }
 
             ssid->set_crypt_set(dot11info->cryptset);
         }
