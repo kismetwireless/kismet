@@ -630,6 +630,10 @@ public:
     typedef TrackerElement::vector_iterator iterator;
     typedef TrackerElement::vector_const_iterator const_iterator;
 
+    TrackerElementVector() {
+        val = NULL;
+    }
+
     TrackerElementVector(shared_ptr<TrackerElement> t) {
         val = t;
     }
@@ -675,6 +679,10 @@ protected:
     shared_ptr<TrackerElement> val;
 
 public:
+    TrackerElementMap() {
+        val = NULL;
+    }
+
     TrackerElementMap(shared_ptr<TrackerElement> t) {
         val = t;
     }
@@ -720,6 +728,10 @@ protected:
     shared_ptr<TrackerElement> val;
 
 public:
+    TrackerElementIntMap() {
+        val = NULL;
+    }
+
     TrackerElementIntMap(shared_ptr<TrackerElement> t) {
         val = t;
     }
@@ -765,6 +777,10 @@ protected:
     shared_ptr<TrackerElement> val;
 
 public:
+    TrackerElementStringMap() {
+        val = NULL;
+    }
+
     TrackerElementStringMap(shared_ptr<TrackerElement> t) {
         val = t;
     }
@@ -810,6 +826,10 @@ protected:
     shared_ptr<TrackerElement> val;
 
 public:
+    TrackerElementMacMap() {
+        val = NULL;
+    }
+
     TrackerElementMacMap(shared_ptr<TrackerElement> t) {
         val = t;
     }
@@ -855,6 +875,10 @@ protected:
     shared_ptr<TrackerElement> val;
 
 public:
+    TrackerElementDoubleMap() {
+        val = NULL;
+    }
+
     TrackerElementDoubleMap(shared_ptr<TrackerElement> t) {
         val = t;
     }
