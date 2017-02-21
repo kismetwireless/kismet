@@ -194,34 +194,104 @@ enum alert_time_unit {
     sat_second, sat_minute, sat_hour, sat_day
 };
 
+class tracked_alert_definition : public tracker_component {
+public:
+    tracked_alert_definition(GlobalRegistry *in_globalreg, int in_id) :
+        tracker_component(in_globalreg, in_id) {
+        register_fields();
+        reserve_fields(NULL);
+    }
+
+    tracked_alert_definition(GlobalRegistry *in_globalreg, int in_id, 
+            SharedTrackerElement e) :
+        tracker_component(in_globalreg, in_id) {
+        register_fields();
+        reserve_fields(e);
+    }
+
+    virtual SharedTrackerElement clone_type() {
+        return SharedTrackerElement(new tracked_alert_definition(globalreg, get_id()));
+    }
+
+    __Proxy(header, string, string, string, header);
+    __Proxy(description, string, string, string, description);
+    __Proxy(phy, int64_t, int64_t, int64_t, phy);
+
+    __Proxy(limit_unit, uint64_t, alert_time_unit, alert_time_unit, limit_unit);
+    __Proxy(limit_rate, uint64_t, uint64_t, uint64_t, limit_rate);
+
+    __Proxy(burst_unit, uint64_t, alert_time_unit, alert_time_unit, burst_unit);
+    __Proxy(limit_burst, uint64_t, uint64_t, uint64_t, limit_burst);
+
+    __Proxy(burst_sent, uint64_t, uint64_t, uint64_t, burst_sent);
+    __ProxyIncDec(burst_sent, uint64_t, uint64_t, burst_sent);
+
+    __Proxy(total_sent, uint64_t, uint64_t, uint64_t, total_sent);
+    __ProxyIncDec(total_sent, uint64_t, uint64_t, total_sent);
+
+    __Proxy(time_last, uint64_t, time_t, time_t, time_last);
+
+    int get_alert_ref() { return alert_ref; }
+    void set_alert_ref(int in_ref) { alert_ref = in_ref; }
+
+protected:
+    virtual void register_fields() {
+        tracker_component::register_fields();
+
+        RegisterField("kismet.alert.definition.header", TrackerString,
+                "Alert type", &header);
+
+        RegisterField("kismet.alert.definition.description", TrackerString,
+                "Alert description", &description);
+
+        RegisterField("kismet.alert.definition.phyid", TrackerInt64,
+                "Alert phy type", &phy);
+
+        RegisterField("kismet.alert.definition.limit_unit", TrackerUInt64,
+                "Alert limit time unit (defined in alertracker.h)", &limit_unit);
+
+        RegisterField("kismet.alert.definition.limit_rate", TrackerUInt64,
+                "Alert rate limit", &limit_rate);
+
+        RegisterField("kismet.alert.definition.burst_unit", TrackerUInt64,
+                "Burst limit time unit (defined in alertracker.h)", &burst_unit);
+
+        RegisterField("kismet.alert.definition.limit_burst", TrackerUInt64,
+                "Burst rate limit", &limit_burst);
+
+        RegisterField("kismet.alert.definition.burst_sent", TrackerUInt64,
+                "Alerts sent in burst", &burst_sent);
+
+        RegisterField("kismet.alert.definition.total_sent", TrackerUInt64,
+                "Total alerts sent", &total_sent);
+
+        RegisterField("kismet.alert.definition.time_last", TrackerUInt64,
+                "Timestamp of last alert (unix ts)", &time_last);
+
+    }
+
+    // Non-exposed internal reference
+    int alert_ref;
+
+    // Alert type and description
+    SharedTrackerElement header, description;
+    // Phynum this is linked to
+    SharedTrackerElement phy;
+
+    // Units, rate limit, burst, and burst rate
+    SharedTrackerElement limit_unit, limit_rate, burst_unit, limit_burst;
+
+    // Number of burst and total alerts we've sent of this type
+    SharedTrackerElement burst_sent, total_sent;
+
+    // Timestamp of the last time
+    SharedTrackerElement time_last;
+};
+
+typedef shared_ptr<tracked_alert_definition> shared_alert_def;
+
 class Alertracker : public Kis_Net_Httpd_Stream_Handler, public LifetimeGlobal {
 public:
-    // A registered alert type
-    struct alert_rec {
-        int ref_index;
-        string header;
-
-		int phy;
-
-        // Units limiting is measured in
-        alert_time_unit limit_unit;
-        // Alerts per unit
-        int limit_rate;
-		// Units burst is measured in
-		alert_time_unit burst_unit;
-        // Alerts sent before limiting takes hold
-        int limit_burst;
-
-        // How many alerts have been sent burst-mode (decremented once per unit)
-        int burst_sent;
-		// How many have we sent in total?
-		int total_sent;
-
-		// Last time we sent an alert, to tell if we can reset the burst or
-		// rate counters
-		time_t time_last;
-    };
-
 	// Simple struct from reading config lines
 	struct alert_conf_rec {
 		string header;
@@ -246,8 +316,9 @@ public:
     virtual ~Alertracker();
 
     // Register an alert and get an alert reference number back.
-    int RegisterAlert(const char *in_header, alert_time_unit in_unit, int in_rate,
-                      alert_time_unit in_burstunit, int in_burst, int in_phy);
+    int RegisterAlert(string in_header, string in_desc, 
+            alert_time_unit in_unit, int in_rate, alert_time_unit in_burstunit, 
+            int in_burst, int in_phy);
 
     // Find a reference from a name
     int FetchAlertRef(string in_header);
@@ -260,21 +331,17 @@ public:
                    mac_addr bssid, mac_addr source, mac_addr dest, mac_addr other,
                    string in_channel, string in_text);
 
-	// Load an alert reference from a config file (not tied only to the
-	// kismet conf in globalreg)
+    // parse an alert config string
 	int ParseAlertStr(string alert_str, string *ret_name, 
 					  alert_time_unit *ret_limit_unit, int *ret_limit_rate,
 					  alert_time_unit *ret_limit_burst, int *ret_burst_rate);
 
-	// Load alert rates from a config file...  Called on kismet_config by
-	// default
+	// Load alert rates from a config file
 	int ParseAlertConfig(ConfigFile *in_conf);
 
 	// Activate a preconfigured alert from a file
-	int ActivateConfiguredAlert(const char *in_header);
-	int ActivateConfiguredAlert(const char *in_header, int in_phy);
-
-	const vector<kis_alert_info *> *FetchBacklog();
+	int ActivateConfiguredAlert(string in_header, string in_desc);
+	int ActivateConfiguredAlert(string in_header, string in_desc, int in_phy);
 
     virtual bool Httpd_VerifyPath(const char *path, const char *method);
 
@@ -286,10 +353,13 @@ public:
 protected:
     pthread_mutex_t alert_mutex;
 
-    int alert_vec_id, alert_entry_id, alert_timestamp_id;
+    shared_ptr<Packetchain> packetchain;
+    shared_ptr<EntryTracker> entrytracker;
+
+    int alert_vec_id, alert_entry_id, alert_timestamp_id, alert_def_id;
 
     // Check and age times
-    int CheckTimes(alert_rec *arec);
+    int CheckTimes(shared_alert_def arec);
 
 	// Parse a foo/bar rate/unit option
 	int ParseRateUnit(string in_ru, alert_time_unit *ret_unit, int *ret_rate);
@@ -298,13 +368,20 @@ protected:
 
     int next_alert_id;
 
+    // Internal C++ mapping
     map<string, int> alert_name_map;
-    map<int, alert_rec *> alert_ref_map;
+    map<int, shared_alert_def> alert_ref_map;
 
-	vector<kis_alert_info *> alert_backlog;
+    // Tracked mapping for export
+    SharedTrackerElement alert_defs;
+    TrackerElementVector alert_defs_vec;
 
     int num_backlog;
 
+    // Backlog of alerts to be sent
+    vector<kis_alert_info *> alert_backlog;
+
+    // Alert configs we read before we know the alerts themselves
 	map<string, alert_conf_rec *> alert_conf_map;
 };
 

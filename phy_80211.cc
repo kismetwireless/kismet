@@ -118,7 +118,7 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
     Kis_Net_Httpd_Stream_Handler(in_globalreg) {
 
     alertracker =
-        static_pointer_cast<Alertracker>(globalreg->FetchGlobal("ALERTRACKER"));
+        static_pointer_cast<Alertracker>(globalreg->FetchGlobal("ALERTTRACKER"));
 
     packetchain =
         static_pointer_cast<Packetchain>(globalreg->FetchGlobal("PACKETCHAIN"));
@@ -185,23 +185,70 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
 
 	// Register the dissector alerts
 	alert_netstumbler_ref = 
-		alertracker->ActivateConfiguredAlert("NETSTUMBLER", phyid);
+		alertracker->ActivateConfiguredAlert("NETSTUMBLER", 
+                "Netstumbler (and similar older Windows tools) may generate unique "
+                "beacons which can be used to identify these tools in use.  These "
+                "tools and the cards which generate these frames are uncommon.",
+                phyid);
 	alert_nullproberesp_ref =
-		alertracker->ActivateConfiguredAlert("NULLPROBERESP", phyid);
+		alertracker->ActivateConfiguredAlert("NULLPROBERESP", 
+                "A probe response with a SSID length of 0 can be used to crash the "
+                "firmware in specific older Orinoco cards.  These cards are "
+                "unlikely to be in use in modern systems.",
+                phyid);
 	alert_lucenttest_ref =
-		alertracker->ActivateConfiguredAlert("LUCENTTEST", phyid);
+		alertracker->ActivateConfiguredAlert("LUCENTTEST", 
+                "Specific Lucent Orinoco test tools generate identifiable frames, "
+                "which can indicate these tools are in use.  These tools and the "
+                "cards which generate these frames are uncommon.",
+                phyid);
 	alert_msfbcomssid_ref =
-		alertracker->ActivateConfiguredAlert("MSFBCOMSSID", phyid);
+		alertracker->ActivateConfiguredAlert("MSFBCOMSSID", 
+                "Old versions of the Broadcom Windows drivers (and Linux NDIS drivers) "
+                "are vulnerable to overflow exploits.  The Metasploit framework "
+                "can attack these vulnerabilities.  These drivers are unlikely to "
+                "be found in modern systems, but seeing these malformed frames "
+                "indicates an attempted attack is occurring.",
+                phyid);
 	alert_msfdlinkrate_ref =
-		alertracker->ActivateConfiguredAlert("MSFDLINKRATE", phyid);
+		alertracker->ActivateConfiguredAlert("MSFDLINKRATE", 
+                "Old versions of the D-Link Windows drivers are vulnerable to "
+                "malformed rate fields.  The Metasploit framework can attack these "
+                "vulnerabilities.  These drivers are unlikely to be found in "
+                "modern systems, but seeing these malformed frames indicates an "
+                "attempted attack is occurring.",
+                phyid);
 	alert_msfnetgearbeacon_ref =
-		alertracker->ActivateConfiguredAlert("MSFNETGEARBEACON", phyid);
+		alertracker->ActivateConfiguredAlert("MSFNETGEARBEACON", 
+                "Old versions of the Netgear windows drivers are vulnerable to "
+                "malformed beacons.  The Metasploit framework can attack these "
+                "vulnerabilities.  These drivers are unlikely to be found in "
+                "modern systems, but seeing these malformed frames indicates an "
+                "attempted attack is occurring.",
+                phyid);
 	alert_longssid_ref =
-		alertracker->ActivateConfiguredAlert("LONGSSID", phyid);
+		alertracker->ActivateConfiguredAlert("LONGSSID", 
+                "The Wi-Fi standard allows for 32 characters in a SSID. "
+                "Historically, some drivers have had vulnerabilities related to "
+                "invalid over-long SSID fields.  Seeing these frames indicates that "
+                "significant corruption or an attempted attack is occurring.",
+                phyid);
 	alert_disconinvalid_ref =
-		alertracker->ActivateConfiguredAlert("DISCONCODEINVALID", phyid);
+		alertracker->ActivateConfiguredAlert("DISCONCODEINVALID", 
+                "The 802.11 specification defines reason codes for disconnect "
+                "and deauthentication events.  Historically, various drivers "
+                "have been reported to improperly handle invalid reason codes.  "
+                "An invalid reason code indicates an improperly behaving device or "
+                "an attempted attack.",
+                phyid);
 	alert_deauthinvalid_ref =
-		alertracker->ActivateConfiguredAlert("DEAUTHCODEINVALID", phyid);
+		alertracker->ActivateConfiguredAlert("DEAUTHCODEINVALID", 
+                "The 802.11 specification defines reason codes for disconnect "
+                "and deauthentication events.  Historically, various drivers "
+                "have been reported to improperly handle invalid reason codes.  "
+                "An invalid reason code indicates an improperly behaving device or "
+                "an attempted attack.",
+                phyid);
 #if 0
 	alert_dhcpclient_ref =
 		alertracker->ActivateConfiguredAlert("DHCPCLIENTID", phyid);
@@ -209,33 +256,104 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
 
 	// Register the tracker alerts
 	alert_chan_ref =
-		alertracker->ActivateConfiguredAlert("CHANCHANGE", phyid);
+		alertracker->ActivateConfiguredAlert("CHANCHANGE", 
+                "An access point has changed channel.  This may occur on "
+                "enterprise equipment or on personal equipment with automatic "
+                "channel selection, but may also indicate a spoofed or "
+                "'evil twin' network.",
+                phyid);
 	alert_dhcpcon_ref =
-		alertracker->ActivateConfiguredAlert("DHCPCONFLICT", phyid);
+		alertracker->ActivateConfiguredAlert("DHCPCONFLICT", 
+                "A DHCP exchange was observed and a client was given an IP via "
+                "DHCP, but is not using the assigned IP.  This may be a "
+                "mis-configured client device, or may indicate client spoofing.",
+                phyid);
 	alert_bcastdcon_ref =
-		alertracker->ActivateConfiguredAlert("BCASTDISCON", phyid);
+		alertracker->ActivateConfiguredAlert("BCASTDISCON", 
+                "A broadcast disconnect packet forces all clients on a network "
+                "to disconnect.  While these may rarely occur in some environments, "
+                "typically a broadcast disconnect indicates a denial of service "
+                "attack or an attempt to attack the network encryption by forcing "
+                "clients to reconnect.",
+                phyid);
 	alert_airjackssid_ref = 
-		alertracker->ActivateConfiguredAlert("AIRJACKSSID", phyid);
+		alertracker->ActivateConfiguredAlert("AIRJACKSSID", 
+                "Very old wireless tools used the SSID 'Airjack' while configuring "
+                "card state.  It is very unlikely to see these tools in operation "
+                "in modern environments.",
+                phyid);
 	alert_wepflap_ref =
-		alertracker->ActivateConfiguredAlert("CRYPTODROP", phyid);
+		alertracker->ActivateConfiguredAlert("CRYPTODROP", 
+                "A previously encrypted SSID has stopped advertising encryption.  "
+                "This may rarely occur when a network is reconfigured to an open "
+                "state, but more likely indicates some form of network spoofing or "
+                "'evil twin' attack.",
+                phyid);
 	alert_dhcpname_ref =
-		alertracker->ActivateConfiguredAlert("DHCPNAMECHANGE", phyid);
+		alertracker->ActivateConfiguredAlert("DHCPNAMECHANGE", 
+                "The DHCP protocol allows clients to put the host name and "
+                "DHCP client / vendor / operating system details in the DHCP "
+                "Discovery packet.  These values should old change if the client "
+                "has changed drastically (such as a dual-boot system with multiple "
+                "operating systems).  Changing values can often indicate a client "
+                "spoofing or MAC cloning attempt.",
+                phyid);
 	alert_dhcpos_ref =
-		alertracker->ActivateConfiguredAlert("DHCPOSCHANGE", phyid);
+		alertracker->ActivateConfiguredAlert("DHCPOSCHANGE", 
+                "The DHCP protocol allows clients to put the host name and "
+                "DHCP client / vendor / operating system details in the DHCP "
+                "Discovery packet.  These values should old change if the client "
+                "has changed drastically (such as a dual-boot system with multiple "
+                "operating systems).  Changing values can often indicate a client "
+                "spoofing or MAC cloning attempt.",
+                phyid);
 	alert_adhoc_ref =
-		alertracker->ActivateConfiguredAlert("ADHOCCONFLICT", phyid);
+		alertracker->ActivateConfiguredAlert("ADHOCCONFLICT", 
+                "The same SSID is being advertised as an access point and as an "
+                "ad-hoc network.  This may indicate a misconfigured or misbehaving "
+                "device, or could indicate an attempt at spoofing or an 'evil twin' "
+                "attack.",
+                phyid);
 	alert_ssidmatch_ref =
-		alertracker->ActivateConfiguredAlert("APSPOOF", phyid);
+		alertracker->ActivateConfiguredAlert("APSPOOF", 
+                "Kismet may be given a list of authorized MAC addresses for "
+                "a SSID.  If a beacon or probe response is seen from a MAC address "
+                "not listed in the authorized list, this alert will be raised.",
+                phyid);
 	alert_dot11d_ref =
-		alertracker->ActivateConfiguredAlert("DOT11D", phyid);
+		alertracker->ActivateConfiguredAlert("DOT11D", 
+                "Conflicting 802.11d (country code) data has been advertised by the "
+                "same SSID.  It is unlikely this is a normal configuration change, "
+                "and can indicate a spoofed or 'evil twin' network, or an attempt "
+                "to perform a denial of service on clients by restricting their "
+                "frequencies.  802.11d has been phased out and is unlikely to be "
+                "seen on modern devices, but it is still supported by many systems.",
+                phyid);
 	alert_beaconrate_ref =
-		alertracker->ActivateConfiguredAlert("BEACONRATE", phyid);
+		alertracker->ActivateConfiguredAlert("BEACONRATE", 
+                "The advertised beacon rate of a SSID has changed.  In an "
+                "enterprise or multi-SSID environment this may indicate a normal "
+                "configuration change, but can also indicate a spoofed or "
+                "'evil twin' network.",
+                phyid);
 	alert_cryptchange_ref =
-		alertracker->ActivateConfiguredAlert("ADVCRYPTCHANGE", phyid);
+		alertracker->ActivateConfiguredAlert("ADVCRYPTCHANGE", 
+                "A SSID has changed the advertised supported encryption standards.  "
+                "This may be a normal change when reconfiguring an access point, "
+                "but can also indicate a spoofed or 'evil twin' attack.",
+                phyid);
 	alert_malformmgmt_ref =
-		alertracker->ActivateConfiguredAlert("MALFORMMGMT", phyid);
+		alertracker->ActivateConfiguredAlert("MALFORMMGMT", 
+                "Malformed management frames may indicate errors in the capture "
+                "source driver (such as not discarding corrupted packets), but can "
+                "also be indicative of an attempted attack against drivers which may "
+                "not properly handle malformed frames.",
+                phyid);
 	alert_wpsbrute_ref =
-		alertracker->ActivateConfiguredAlert("WPSBRUTE", phyid);
+		alertracker->ActivateConfiguredAlert("WPSBRUTE", 
+                "Excessive WPS events may indicate a malformed client, or an "
+                "attack on the WPS system by a tool such as Reaver.",
+                phyid);
 
 	// Do we process the whole data packet?
     if (globalreg->kismet_config->FetchOptBoolean("hidedata", 0) ||
@@ -595,8 +713,8 @@ void Kis_80211_Phy::HandleSSID(shared_ptr<kis_tracked_device_base> basedev,
             dot11dev->set_last_beaconed_ssid(ssid->get_ssid());
             dot11dev->set_last_beaconed_ssid_csum(dot11info->ssid_csum);
 
-            if (alertracker->PotentialAlert(alert_airjackssid_ref &&
-                        ssid->get_ssid() == "AirJack" )) {
+            if (alertracker->PotentialAlert(alert_airjackssid_ref) &&
+                        ssid->get_ssid() == "AirJack" ) {
 
                 string al = "IEEE80211 Access Point BSSID " +
                     basedev->get_macaddr().Mac2String() + " broadcasting SSID "
@@ -733,10 +851,11 @@ void Kis_80211_Phy::HandleSSID(shared_ptr<kis_tracked_device_base> basedev,
 
         }
 
-        if (ssid->get_beaconrate() != 
+        if (dot11info->beacon_interval && ssid->get_beaconrate() != 
                 Ieee80211Interval2NSecs(dot11info->beacon_interval)) {
 
-            if (alertracker->PotentialAlert(alert_beaconrate_ref)) {
+            if (ssid->get_beaconrate() != 0 && 
+                    alertracker->PotentialAlert(alert_beaconrate_ref)) {
                 string al = "IEEE80211 Access Point BSSID " +
                     basedev->get_macaddr().Mac2String() + " SSID \"" +
                     ssid->get_ssid() + "\" changed beacon rate from " +

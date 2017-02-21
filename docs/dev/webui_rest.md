@@ -260,6 +260,10 @@ Dictionary containing a list of all messages since server timestamp `[TS]`, and 
 
 Kismet provides alerts via the `/alert/` REST collection.  Alerts are generated as messages and as alert records with machine-processable details.  Alerts can be generated for critical system states, or by the WIDS system.
 
+##### /alerts/definitions `/alerts/definitions.msgpack`, `/alerts/definitions.json`
+
+All defined alerts, including descriptions, time and burst limits, and current alert counts and states for each type.
+
 ##### /alerts/all_alerts `/alerts/all_alerts.msgpack`, `/alerts/all_alerts.json`
 
 List of the alert backlog.  The size of the backlog is configurable via the `alertbacklog` option in kismet.conf

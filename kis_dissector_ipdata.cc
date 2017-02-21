@@ -52,7 +52,11 @@ Kis_Dissector_IPdata::Kis_Dissector_IPdata(GlobalRegistry *in_globalreg) {
 		globalreg->packetchain->RegisterPacketComponent("COMMON");
 
 	alert_dhcpclient_ref =
-		globalreg->alertracker->ActivateConfiguredAlert("DHCPCLIENTID");
+		globalreg->alertracker->ActivateConfiguredAlert("DHCPCLIENTID",
+                "A DHCP client sending a DHCP Discovery packet should "
+                "provide a Client-ID tag (Tag 61) which matches the source "
+                "MAC of the packet.  A client which fails to do so may "
+                "be attempting to exhaust the DHCP pool with spoofed requests.");
 
 }
 

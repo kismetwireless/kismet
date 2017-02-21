@@ -41,10 +41,10 @@ Alertracker::Alertracker(GlobalRegistry *in_globalreg) :
 		exit(1);
 	}
 
-	if (globalreg->packetchain == NULL) {
-		fprintf(stderr, "FATAL OOPS:  Alertracker called with null packetchain\n");
-		exit(1);
-	}
+    packetchain =
+        static_pointer_cast<Packetchain>(globalreg->FetchGlobal("PACKETCHAIN"));
+    entrytracker =
+        static_pointer_cast<EntryTracker>(globalreg->FetchGlobal("ENTRY_TRACKER"));
 
 	if (globalreg->kismet_config->FetchOpt("alertbacklog") != "") {
 		int scantmp;
@@ -66,24 +66,34 @@ Alertracker::Alertracker(GlobalRegistry *in_globalreg) :
 	}
 
     alert_vec_id =
-        globalreg->entrytracker->RegisterField("kismet.alert.list",
+        entrytracker->RegisterField("kismet.alert.list",
                 TrackerVector, "list of alerts");
     alert_timestamp_id =
-        globalreg->entrytracker->RegisterField("kismet.alert.timestamp",
+        entrytracker->RegisterField("kismet.alert.timestamp",
                 TrackerUInt64, "alert update timestamp");
 
     shared_ptr<tracked_alert> alert_builder(new tracked_alert(globalreg, 0));
     alert_entry_id =
-        globalreg->entrytracker->RegisterField("kismet.alert.alert",
+        entrytracker->RegisterField("kismet.alert.alert",
                 alert_builder, "Kismet alert");
+
+    alert_defs = 
+        entrytracker->RegisterAndGetField("kismet.alert.definition_list",
+                TrackerVector, "Kismet alert definitions");
+    alert_defs_vec = TrackerElementVector(alert_defs);
+
+    shared_alert_def def_builder(new tracked_alert_definition(globalreg, 0));
+    alert_def_id =
+        entrytracker->RegisterField("kismet.alert.alert_definition",
+                def_builder, "Kismet alert definition");
 
 	// Register the alert component
 	_PCM(PACK_COMP_ALERT) =
-		globalreg->packetchain->RegisterPacketComponent("alert");
+		packetchain->RegisterPacketComponent("alert");
 
 	// Register a KISMET alert type with no rate restrictions
 	_ARM(ALERT_REF_KISMET) =
-		RegisterAlert("KISMET", sat_day, 0, sat_day, 0, KIS_PHY_ANY);
+		RegisterAlert("KISMET", "Server events", sat_day, 0, sat_day, 0, KIS_PHY_ANY);
 
 	
 	_MSG("Created alert tracker...", MSGFLAG_INFO);
@@ -95,52 +105,53 @@ Alertracker::~Alertracker() {
     globalreg->RemoveGlobal("ALERTTRACKER");
     globalreg->alertracker = NULL;
 
-	for (map<int, alert_rec *>::iterator x = alert_ref_map.begin();
-		 x != alert_ref_map.end(); ++x)
-		delete x->second;
-
     pthread_mutex_destroy(&alert_mutex);
 }
 
-int Alertracker::RegisterAlert(const char *in_header, alert_time_unit in_unit, 
-							   int in_rate, alert_time_unit in_burstunit,
-							   int in_burst, int in_phy) {
+int Alertracker::RegisterAlert(string in_header, string in_description, 
+        alert_time_unit in_unit, int in_rate, alert_time_unit in_burstunit,
+        int in_burst, int in_phy) {
     local_locker lock(&alert_mutex);
-
-	char err[1024];
 
 	// Bail if this header is registered
 	if (alert_name_map.find(in_header) != alert_name_map.end()) {
-		snprintf(err, 1024, "RegisterAlert() header already registered '%s'",
-				 in_header);
-		globalreg->messagebus->InjectMessage(err, MSGFLAG_ERROR);
+        _MSG("Tried to re-register duplicate alert " + in_header, MSGFLAG_ERROR);
 		return -1;
 	}
+
+    // Make sure we're not going to overstep our range
+    if ((unsigned int) in_burstunit > sat_day)
+        in_burstunit = sat_day;
+    if ((unsigned int) in_unit > sat_day)
+        in_unit = sat_day;
+
 
 	// Bail if the rates are impossible
 	if (in_burstunit > in_unit) {
-		snprintf(err, 1024, "Registering alert '%s' failed, time unit for "
-				 "burst rate must be <= time unit for max rate", in_header);
-		globalreg->messagebus->InjectMessage(err, MSGFLAG_ERROR);
+        _MSG("Failed to register alert " + in_header + ", time unit for "
+                "burst rate must be less than or equal to the time unit "
+                "for the max rate", MSGFLAG_ERROR);
 		return -1;
 	}
 
-	alert_rec *arec = new alert_rec;
+    shared_alert_def arec = static_pointer_cast<tracked_alert_definition>(entrytracker->GetTrackedInstance(alert_def_id));
 
-	arec->ref_index = next_alert_id++;
-	arec->header = StrUpper(in_header);
-	arec->limit_unit = in_unit;
-	arec->burst_unit = in_burstunit;
-	arec->limit_rate = in_rate;
-	arec->limit_burst = in_burst;
-	arec->burst_sent = 0;
-	arec->time_last = 0;
-	arec->phy = in_phy;
+    arec->set_alert_ref(next_alert_id++);
+    arec->set_header(StrUpper(in_header));
+    arec->set_description(in_description);
+    arec->set_limit_unit(in_unit);
+    arec->set_limit_rate(in_rate);
+    arec->set_burst_unit(in_burstunit);
+    arec->set_limit_burst(in_burst);
+    arec->set_phy(in_phy);
+    arec->set_time_last(0);
 
-	alert_name_map[arec->header] = arec->ref_index;
-	alert_ref_map[arec->ref_index] = arec;
+	alert_name_map[arec->get_header()] = arec->get_alert_ref();
+	alert_ref_map[arec->get_alert_ref()] = arec;
 
-	return arec->ref_index;
+    alert_defs_vec.push_back(arec);
+
+	return arec->get_alert_ref();
 }
 
 int Alertracker::FetchAlertRef(string in_header) {
@@ -152,9 +163,9 @@ int Alertracker::FetchAlertRef(string in_header) {
     return -1;
 }
 
-int Alertracker::CheckTimes(alert_rec *arec) {
+int Alertracker::CheckTimes(shared_alert_def arec) {
 	// Is this alert rate-limited?  If not, shortcut out and send it
-	if (arec->limit_rate == 0) {
+	if (arec->get_limit_rate() == 0) {
 		return 1;
 	}
 
@@ -163,20 +174,23 @@ int Alertracker::CheckTimes(alert_rec *arec) {
 
 	// If the last time we sent anything was longer than the main rate limit,
 	// then we reset back to empty
-	if (arec->time_last < (now.tv_sec - alert_time_unit_conv[arec->limit_unit])) {
-		arec->total_sent = 0;
-		arec->burst_sent = 0;
+	if (arec->get_time_last() < (now.tv_sec - 
+                alert_time_unit_conv[arec->get_limit_unit()])) {
+		arec->set_total_sent(0);
+		arec->set_burst_sent(0);
 		return 1;
 	}
 
 	// If the last time we sent anything was longer than the burst rate, we can
 	// reset the burst to 0
-	if (arec->time_last < (now.tv_sec - alert_time_unit_conv[arec->burst_unit])) {
-		arec->burst_sent = 0;
+	if (arec->get_time_last() < (now.tv_sec - 
+                alert_time_unit_conv[arec->get_burst_unit()])) {
+		arec->set_burst_sent(0);
 	}
 
 	// If we're under the limit on both, we're good to go
-	if (arec->burst_sent < arec->limit_burst && arec->total_sent < arec->limit_rate)
+	if (arec->get_burst_sent() < arec->get_limit_burst() && 
+            arec->get_total_sent() < arec->get_limit_rate())
 		return 1;
 
 	return 0;
@@ -185,12 +199,12 @@ int Alertracker::CheckTimes(alert_rec *arec) {
 int Alertracker::PotentialAlert(int in_ref) {
     local_locker lock(&alert_mutex);
 
-	map<int, alert_rec *>::iterator aritr = alert_ref_map.find(in_ref);
+	map<int, shared_alert_def>::iterator aritr = alert_ref_map.find(in_ref);
 
 	if (aritr == alert_ref_map.end())
 		return 0;
 
-	alert_rec *arec = aritr->second;
+	shared_alert_def arec = aritr->second;
 
 	return CheckTimes(arec);
 }
@@ -200,20 +214,20 @@ int Alertracker::RaiseAlert(int in_ref, kis_packet *in_pack,
 							mac_addr other, string in_channel, string in_text) {
     local_locker lock(&alert_mutex);
 
-	map<int, alert_rec *>::iterator aritr = alert_ref_map.find(in_ref);
+	map<int, shared_alert_def>::iterator aritr = alert_ref_map.find(in_ref);
 
 	if (aritr == alert_ref_map.end())
 		return -1;
 
-	alert_rec *arec = aritr->second;
+	shared_alert_def arec = aritr->second;
 
 	if (CheckTimes(arec) != 1)
 		return 0;
 
 	kis_alert_info *info = new kis_alert_info;
 
-	info->header = arec->header;
-	info->phy = arec->phy;
+	info->header = arec->get_header();
+	info->phy = arec->get_phy();
 	gettimeofday(&(info->tm), NULL);
 
 	info->bssid = bssid;
@@ -226,9 +240,9 @@ int Alertracker::RaiseAlert(int in_ref, kis_packet *in_pack,
 	info->text = in_text;
 
 	// Increment and set the timers
-	arec->burst_sent++;
-	arec->total_sent++;
-	arec->time_last = time(0);
+    arec->inc_burst_sent(1);
+    arec->inc_total_sent(1);
+    arec->set_time_last(time(0));
 
 	alert_backlog.push_back(info);
 	if ((int) alert_backlog.size() > num_backlog) {
@@ -252,8 +266,7 @@ int Alertracker::RaiseAlert(int in_ref, kis_packet *in_pack,
 	}
 
 	// Send the text info
-	globalreg->messagebus->InjectMessage((info->header + " " + info->text), 
-										 MSGFLAG_ALERT);
+	_MSG(info->header + " " + info->text, MSGFLAG_ALERT);
 
 	return 1;
 }
@@ -286,7 +299,6 @@ int Alertracker::ParseAlertStr(string alert_str, string *ret_name,
 // Split up a rate/unit string into real values
 int Alertracker::ParseRateUnit(string in_ru, alert_time_unit *ret_unit,
 							   int *ret_rate) {
-	char err[1024];
 	vector<string> units = StrTokenize(in_ru, "/");
 
 	if (units.size() == 1) {
@@ -303,18 +315,15 @@ int Alertracker::ParseRateUnit(string in_ru, alert_time_unit *ret_unit,
 		} else if (units[1] == "day") {
 			(*ret_unit) = sat_day;
 		} else {
-			snprintf(err, 1024, "Alertracker - Invalid time unit for alert rate '%s'",
-					 units[1].c_str());
-			globalreg->messagebus->InjectMessage(err, MSGFLAG_ERROR);
+            _MSG("Invalid time unit for alert rate '" + units[1] + "'", 
+                    MSGFLAG_ERROR);
 			return -1;
 		}
 	}
 
 	// Get the number
 	if (sscanf(units[0].c_str(), "%d", ret_rate) != 1) {
-		snprintf(err, 1024, "Alertracker - Invalid rate '%s' for alert",
-				 units[0].c_str());
-		globalreg->messagebus->InjectMessage(err, MSGFLAG_ERROR);
+        _MSG("Invalid rate '" + units[0] + "' for alert", MSGFLAG_ERROR);
 		return -1;
 	}
 
@@ -342,11 +351,11 @@ int Alertracker::ParseAlertConfig(ConfigFile *in_conf) {
 	return 1;
 }
 
-int Alertracker::ActivateConfiguredAlert(const char *in_header) {
-	return ActivateConfiguredAlert(in_header, KIS_PHY_UNKNOWN);
+int Alertracker::ActivateConfiguredAlert(string in_header, string in_desc) {
+	return ActivateConfiguredAlert(in_header, in_desc, KIS_PHY_UNKNOWN);
 }
 
-int Alertracker::ActivateConfiguredAlert(const char *in_header, int in_phy) {
+int Alertracker::ActivateConfiguredAlert(string in_header, string in_desc, int in_phy) {
     alert_conf_rec *rec;
 
     {
@@ -363,14 +372,8 @@ int Alertracker::ActivateConfiguredAlert(const char *in_header, int in_phy) {
         rec = alert_conf_map[hdr];
     }
 
-	return RegisterAlert(rec->header.c_str(), rec->limit_unit, rec->limit_rate, 
+	return RegisterAlert(rec->header, in_desc, rec->limit_unit, rec->limit_rate, 
 						 rec->burst_unit, rec->limit_burst, in_phy);
-}
-
-const vector<kis_alert_info *> *Alertracker::FetchBacklog() {
-    local_locker lock(&alert_mutex);
-
-	return (const vector<kis_alert_info *> *) &alert_backlog;
 }
 
 bool Alertracker::Httpd_VerifyPath(const char *path, const char *method) {
@@ -378,13 +381,18 @@ bool Alertracker::Httpd_VerifyPath(const char *path, const char *method) {
         return false;
     }
 
+    if (!Httpd_CanSerialize(path))
+        return false;
+
     // Split URL and process
     vector<string> tokenurl = StrTokenize(path, "/");
     if (tokenurl.size() < 3)
         return false;
 
     if (tokenurl[1] == "alerts") {
-        if (Httpd_CanSerialize(tokenurl[2])) {
+        if (Httpd_StripSuffix(tokenurl[2]) == "definitions") {
+            return true;
+        } else if (Httpd_StripSuffix(tokenurl[2]) == "all_alerts") {
             return true;
         } else if (tokenurl[2] == "last-time") {
             if (tokenurl.size() < 5)
@@ -422,7 +430,10 @@ void Alertracker::Httpd_CreateStreamResponse(
         return;
 
     if (tokenurl[1] == "alerts") {
-        if (tokenurl[2] == "last-time") {
+        if (Httpd_StripSuffix(tokenurl[2]) == "definitions") {
+            Httpd_Serialize(path, stream, alert_defs);
+            return;
+        } else if (tokenurl[2] == "last-time") {
             if (tokenurl.size() < 5)
                 return;
 
@@ -441,7 +452,7 @@ void Alertracker::Httpd_CreateStreamResponse(
 
         shared_ptr<TrackerElement> wrapper;
         shared_ptr<TrackerElement> msgvec(globalreg->entrytracker->GetTrackedInstance(alert_vec_id));
-       
+
         // If we're doing a time-since, wrap the vector
         if (wrap) {
             wrapper.reset(new TrackerElement(TrackerMap));
