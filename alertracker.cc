@@ -125,7 +125,6 @@ int Alertracker::RegisterAlert(string in_header, string in_description,
     if ((unsigned int) in_unit > sat_day)
         in_unit = sat_day;
 
-
 	// Bail if the rates are impossible
 	if (in_burstunit > in_unit) {
         _MSG("Failed to register alert " + in_header + ", time unit for "
