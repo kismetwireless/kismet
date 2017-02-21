@@ -160,7 +160,7 @@ exports.RRD_HOUR = 3600;
 exports.RecalcRrdData = function(start, now, type, data, opt = {}) {
     if (data == undefined) {
         if (type == exports.RRD_SECOND || type == exports.RRD_MINUTE) {
-            return [
+            data = [
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
@@ -170,14 +170,12 @@ exports.RecalcRrdData = function(start, now, type, data, opt = {}) {
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 
             ];
         } else if (type == exports.RRD_HOUR) {
-            return [
+            data = [
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
                 0, 0, 0, 0
             ];
         }
-
-        return;
     }
 
     var rrd_len = data.length;
@@ -210,9 +208,9 @@ exports.RecalcRrdData = function(start, now, type, data, opt = {}) {
         // 'then' and 'now', rescale the array to start at 'now', and fill
         // in the time we got no data with zeroes
         
-        var start_bin = Math.ceil(start / type) % rrd_len;
+        var start_bin = (Math.floor(start / type) % rrd_len) + 1;
+        var now_bin = (Math.floor(now / type) % rrd_len) + 1;
         var sec_offt = Math.max(0, now - start);
-        var now_bin = Math.ceil(now / type) % rrd_len;
 
         /*
         console.log("we think we start in bin" + start_bin);
