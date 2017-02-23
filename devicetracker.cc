@@ -1793,7 +1793,7 @@ void Devicetracker::httpd_all_phys(string path, std::stringstream &stream,
 
 void Devicetracker::httpd_device_summary(string url, std::stringstream &stream, 
         shared_ptr<TrackerElementVector> subvec, 
-        vector<TrackerElementSummary> summary_vec,
+        vector<SharedElementSummary> summary_vec,
         string in_wrapper_key) {
 
     local_locker lock(&devicelist_mutex);
@@ -1929,13 +1929,13 @@ void Devicetracker::Httpd_CreateStreamResponse(
     string stripped = Httpd_StripSuffix(path);
 
     if (stripped == "/devices/all_devices") {
-        httpd_device_summary(path, stream, NULL, vector<TrackerElementSummary>());
+        httpd_device_summary(path, stream, NULL, vector<SharedElementSummary>());
         return;
     }
 
     if (stripped == "/devices/all_devices_dt") {
         httpd_device_summary(path, stream, NULL, 
-                vector<TrackerElementSummary>(), "aaData");
+                vector<SharedElementSummary>(), "aaData");
         return;
     }
 
@@ -2109,7 +2109,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
     SharedStructured structdata;
 
     // Summarization vector
-    vector<TrackerElementSummary> summary_vec;
+    vector<SharedElementSummary> summary_vec;
 
     // Wrapper, if any
     string wrapper_name;
@@ -2137,8 +2137,9 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 i != fvec.end(); ++i) {
             if ((*i)->isString()) {
                 // fprintf(stderr, "debug - field: %s\n", (*i)->getString().c_str());
-                summary_vec.push_back(TrackerElementSummary((*i)->getString(), 
-                        entrytracker));
+                SharedElementSummary s(new TrackerElementSummary((*i)->getString(), 
+                            entrytracker));
+                summary_vec.push_back(s);
             } else if ((*i)->isArray()) {
                 StructuredData::string_vec mapvec = (*i)->getStringVec();
 
@@ -2150,8 +2151,9 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                     return 1;
                 }
 
-                summary_vec.push_back(TrackerElementSummary(mapvec[0], mapvec[1],
-                            entrytracker));
+                SharedElementSummary s(new TrackerElementSummary(mapvec[0], 
+                            mapvec[1], entrytracker));
+                summary_vec.push_back(s);
                 // fprintf(stderr, "debug - map field: %s:%s\n", mapvec[0].c_str(), mapvec[1].c_str());
             }
         }
@@ -2247,7 +2249,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                                 // We can blindly trust the offset b/c we're 
                                 // iterating from our summary vec size, not the
                                 // form data
-                                dt_search_paths.push_back(summary_vec[ci].resolved_path);
+                                dt_search_paths.push_back(summary_vec[ci]->resolved_path);
                             }
                         } else {
                             // If we've run out of columns to look at for some
@@ -2277,7 +2279,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                     if (ord == "asc")
                         dt_order_dir = 1;
 
-                    dt_order_field = summary_vec[dt_order_col].resolved_path;
+                    dt_order_field = summary_vec[dt_order_col]->resolved_path;
                 }
 
                 // Force a length if we think we're doing a smart position and

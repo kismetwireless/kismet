@@ -1573,6 +1573,39 @@ shared_ptr<TrackerElement>
     return next_elem;
 }
 
+void TrackerElementSerializer::pre_serialize_path(SharedElementSummary in_summary) {
+
+    // Iterate through the path on this object, calling pre-serialize as
+    // necessary on each object in the summary path
+
+    SharedTrackerElement inter = in_summary->parent_element;
+
+    if (inter == NULL)
+        return;
+
+    try {
+        for (vector<int>::iterator i = in_summary->resolved_path.begin();
+                i != in_summary->resolved_path.end(); ++i) {
+            inter = inter->get_map_value(*i);
+
+            if (inter == NULL)
+                return;
+
+            inter->pre_serialize();
+        }
+    } catch (std::runtime_error c) {
+        // Do nothing if we hit a map error
+        fprintf(stderr, "debug - preser summary error: %s\n", c.what());
+        return;
+    }
+}
+
+TrackerElementSummary::TrackerElementSummary(SharedElementSummary in_c) {
+    parent_element = in_c->parent_element;
+    resolved_path = in_c->resolved_path;
+    rename = in_c->rename;
+}
+
 TrackerElementSummary::TrackerElementSummary(string in_path, string in_rename,
         shared_ptr<EntryTracker> entrytracker) {
     parse_path(StrTokenize(in_path, "/"), in_rename, entrytracker);
@@ -1952,22 +1985,22 @@ std::vector<SharedTrackerElement> GetTrackerElementMultiPath(std::vector<int> in
 
 void SummarizeTrackerElement(shared_ptr<EntryTracker> entrytracker,
         SharedTrackerElement in, 
-        vector<TrackerElementSummary> in_summarization, 
+        vector<SharedElementSummary> in_summarization, 
         SharedTrackerElement &ret_elem, 
         TrackerElementSerializer::rename_map &rename_map) {
 
     unsigned int fn = 0;
     ret_elem.reset(new TrackerElement(TrackerMap));
 
-    for (vector<TrackerElementSummary>::iterator si = in_summarization.begin();
+    for (vector<SharedElementSummary>::iterator si = in_summarization.begin();
             si != in_summarization.end(); ++si) {
         fn++;
 
-        if (si->resolved_path.size() == 0)
+        if ((*si)->resolved_path.size() == 0)
             continue;
 
         SharedTrackerElement f =
-            GetTrackerElementPath(si->resolved_path, in);
+            GetTrackerElementPath((*si)->resolved_path, in);
 
         if (f == NULL) {
             f = entrytracker->RegisterAndGetField("unknown" + IntToString(fn),
@@ -1976,11 +2009,11 @@ void SummarizeTrackerElement(shared_ptr<EntryTracker> entrytracker,
             f = SharedTrackerElement(new TrackerElement(TrackerUInt8));
             f->set((uint8_t) 0);
         
-            if (si->rename.length() != 0) {
-                f->set_local_name(si->rename);
+            if ((*si)->rename.length() != 0) {
+                f->set_local_name((*si)->rename);
             } else {
                 // Get the last name of the field in the path, if we can...
-                int lastid = si->resolved_path[si->resolved_path.size() - 1];
+                int lastid = (*si)->resolved_path[(*si)->resolved_path.size() - 1];
 
                 if (lastid < 0)
                     f->set_local_name("unknown" + IntToString(fn));
@@ -1989,8 +2022,15 @@ void SummarizeTrackerElement(shared_ptr<EntryTracker> entrytracker,
             }
         } 
 
-        if (si->rename.length() != 0) {
-            rename_map[f] = si->rename;
+       
+        // If we're renaming it or we're a path, we put the record in.  We need
+        // to duplicate the summary object and make a reference to our parent
+        // object so that when we serialize we can descend the path calling
+        // the proper pre-serialization methods
+        if ((*si)->rename.length() != 0 || (*si)->resolved_path.size() > 1) {
+            SharedElementSummary sum(new TrackerElementSummary(*si));
+            sum->parent_element = in;
+            rename_map[f] = sum;
         }
 
         ret_elem->add_map(f);

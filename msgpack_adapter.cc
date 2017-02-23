@@ -46,7 +46,18 @@ void MsgpackAdapter::Packer(GlobalRegistry *globalreg, SharedTrackerElement v,
         return;
     }
 
-    v->pre_serialize();
+    // If we have a rename map, find out if we've got a pathed element that needs
+    // to be custom-serialized
+    if (name_map != NULL) {
+        TrackerElementSerializer::rename_map::iterator nmi = name_map->find(v);
+        if (nmi != name_map->end()) {
+            TrackerElementSerializer::pre_serialize_path(nmi->second);
+        } else {
+            v->pre_serialize();
+        } 
+    } else {
+        v->pre_serialize();
+    }
 
     o.pack_array(2);
     o.pack((int) v->get_type());
@@ -130,8 +141,9 @@ void MsgpackAdapter::Packer(GlobalRegistry *globalreg, SharedTrackerElement v,
             for (map_iter = tmap->begin(); map_iter != tmap->end(); ++map_iter) {
                 TrackerElementSerializer::rename_map::iterator nmi;
                 if (name_map != NULL &&
-                        (nmi = name_map->find(map_iter->second)) != name_map->end()) {
-                    o.pack(nmi->second);
+                        (nmi = name_map->find(map_iter->second)) != name_map->end() &&
+                        nmi->second->rename.length() != 0) {
+                    o.pack(nmi->second->rename);
                 } else {
                     string tname;
                     if (map_iter->second != NULL &&

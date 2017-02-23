@@ -49,7 +49,18 @@ void JsonAdapter::Pack(GlobalRegistry *globalreg, std::stringstream &stream,
         return;
     }
 
-    e->pre_serialize();
+    // If we have a rename map, find out if we've got a pathed element that needs
+    // to be custom-serialized
+    if (name_map != NULL) {
+        TrackerElementSerializer::rename_map::iterator nmi = name_map->find(e);
+        if (nmi != name_map->end()) {
+            TrackerElementSerializer::pre_serialize_path(nmi->second);
+        } else {
+            e->pre_serialize();
+        } 
+    } else {
+        e->pre_serialize();
+    }
 
     TrackerElement::tracked_vector *tvec;
     TrackerElement::vector_iterator vec_iter;
@@ -139,8 +150,8 @@ void JsonAdapter::Pack(GlobalRegistry *globalreg, std::stringstream &stream,
                 if (name_map != NULL) {
                     TrackerElementSerializer::rename_map::iterator nmi = 
                         name_map->find(map_iter->second);
-                    if (nmi != name_map->end()) {
-                        tname = nmi->second;
+                    if (nmi != name_map->end() && nmi->second->rename.length() != 0) {
+                        tname = nmi->second->rename;
                         named = true;
                     }
                 }

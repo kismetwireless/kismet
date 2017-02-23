@@ -586,10 +586,6 @@ protected:
     SharedTrackerElement seenby_map;
     int seenby_map_id;
 
-    // Summary map - used to build device summaries for all_devices endpoint
-    SharedTrackerElement summary_map;
-    int summary_map_id;
-
     // Non-exported local value for frequency count
     int frequency_val_id;
 
@@ -748,7 +744,7 @@ public:
     // the in_wrapper key, which is required for some js libs like datatables
     void httpd_device_summary(string url, std::stringstream &stream, 
             shared_ptr<TrackerElementVector> subvec, 
-            vector<TrackerElementSummary> summary_vec,
+            vector<SharedElementSummary> summary_vec,
             string in_wrapper_key = "");
 
     // TODO merge this into a normal serializer call

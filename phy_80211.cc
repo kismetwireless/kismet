@@ -1905,7 +1905,7 @@ int Kis_80211_Phy::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind
     // Common API
     SharedStructured structdata;
 
-    vector<TrackerElementSummary> summary_vec;
+    vector<SharedElementSummary> summary_vec;
 
     // Make sure we can extract the parameters
     try {
@@ -1939,8 +1939,9 @@ int Kis_80211_Phy::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind
             for (StructuredData::structured_vec::iterator i = fvec.begin(); 
                     i != fvec.end(); ++i) {
                 if ((*i)->isString()) {
-                    summary_vec.push_back(TrackerElementSummary((*i)->getString(), 
+                    SharedElementSummary s(new TrackerElementSummary((*i)->getString(), 
                                 entrytracker));
+                    summary_vec.push_back(s);
                 } else if ((*i)->isArray()) {
                     StructuredData::string_vec mapvec = (*i)->getStringVec();
 
@@ -1951,8 +1952,9 @@ int Kis_80211_Phy::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind
                         return 1;
                     }
 
-                    summary_vec.push_back(TrackerElementSummary(mapvec[0], mapvec[1],
-                                entrytracker));
+                    SharedElementSummary s(new TrackerElementSummary(mapvec[0], 
+                                mapvec[1], entrytracker));
+                    summary_vec.push_back(s);
                 }
             }
         }

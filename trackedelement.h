@@ -1139,22 +1139,8 @@ protected:
     vector<registered_field *> registered_fields;
 };
 
-// Generic serializer class to allow easy swapping of serializers
-class TrackerElementSerializer {
-public:
-    TrackerElementSerializer(GlobalRegistry *in_globalreg) {
-        globalreg = in_globalreg;
-    }
-
-    typedef map<SharedTrackerElement, string> rename_map;
-
-    virtual ~TrackerElementSerializer() { }
-    virtual void serialize(shared_ptr<TrackerElement> in_elem, 
-            std::stringstream &stream, rename_map *name_map = NULL) = 0;
-
-protected:
-    GlobalRegistry *globalreg;
-};
+class TrackerElementSummary;
+typedef shared_ptr<TrackerElementSummary> SharedElementSummary;
 
 // Element simplification record for summarizing and simplifying records
 class TrackerElementSummary {
@@ -1172,12 +1158,37 @@ public:
     TrackerElementSummary(vector<int> in_path, string in_rename);
     TrackerElementSummary(vector<int> in_path);
 
+    // copy constructor
+    TrackerElementSummary(SharedElementSummary in_c);
+
+    SharedTrackerElement parent_element;
     vector<int> resolved_path;
     string rename;
 
 protected:
     void parse_path(vector<string> in_path, string in_rename, 
             shared_ptr<EntryTracker> entrytracker);
+};
+
+// Generic serializer class to allow easy swapping of serializers
+class TrackerElementSerializer {
+public:
+    TrackerElementSerializer(GlobalRegistry *in_globalreg) {
+        globalreg = in_globalreg;
+    }
+
+    typedef map<SharedTrackerElement, SharedElementSummary> rename_map;
+
+    virtual ~TrackerElementSerializer() { }
+    virtual void serialize(shared_ptr<TrackerElement> in_elem, 
+            std::stringstream &stream, rename_map *name_map = NULL) = 0;
+
+    // Fields extracted from a summary path need to preserialize their parent
+    // paths or updates may not happen in the expected fashion, serializers should
+    // call this when necessary
+    static void pre_serialize_path(SharedElementSummary in_summary);
+protected:
+    GlobalRegistry *globalreg;
 };
 
 // Get an element using path semantics
@@ -1215,8 +1226,9 @@ std::vector<SharedTrackerElement> GetTrackerElementMultiPath(std::vector<int> in
 // completed in rename.
 void SummarizeTrackerElement(shared_ptr<EntryTracker> entrytracker,
         SharedTrackerElement in, 
-        vector<TrackerElementSummary> in_summarization, 
+        vector<SharedElementSummary> in_summarization, 
         SharedTrackerElement &ret_elem, 
         TrackerElementSerializer::rename_map &rename_map);
+
 
 #endif
