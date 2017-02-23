@@ -97,6 +97,24 @@ exports.GetDeviceColumns = function(selected) {
     return ret;
 }
 
+/* Return field arrays for the device list; aggregates fields from device columns,
+ * widget columns, and color highlight columns.
+ */
+exports.GetDeviceFields = function(selected) {
+    var rawret = new Array();
+
+    for (var i in exports.DeviceColumns) {
+        rawret.push(exports.DeviceColumns[i]['field']);
+    }
+
+    // De-dupe the list of fields/field aliases
+    var ret = rawret.filter(function(item, pos, self) {
+        return self.indexOf(item) == pos;
+    });
+
+    return ret;
+}
+
 exports.DeviceDetails = new Array();
 
 /* Register a device detail accordion panel, taking an id for the panel 
