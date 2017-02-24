@@ -518,7 +518,7 @@ exports.CreateDeviceTable = function(element) {
         "deferRender": true,
 
         // Get our dynamic columns
-        aoColumns: kismet_ui.GetDeviceColumns([]),
+        aoColumns: exports.GetDeviceColumns([]),
 
         order:
             [ [ 0, "desc" ] ],
