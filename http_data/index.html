@@ -82,20 +82,6 @@ div.autosize {
 
 <script>
 
-var deviceTid;
-
-/* Last update we got from the device delta, we use it for some of the
-   graphing updates later on too */
-var last_devicelist_time = 0
-
-function handleDeviceSummary() {
-    deviceTid = setTimeout(handleDeviceSummary, 2000);
-    var dt = $('#devices').DataTable();
-    dt.draw('page');
-
-    return;
-}
-
 // jquery onload complete
 $(function() {
     // Set a global timeout
@@ -105,10 +91,6 @@ $(function() {
     $.fn.dataTableExt.sErrMode = "console";
 
     $('#pm_menu').pushmenu({ button : "#pm_open" });
-
-    // Datatable and base size
-    var device_dt = null;
-    var dt_base_height = null;
 
     // Compute 30% height of window
     var southsize = $(window).height() * 0.30;
@@ -147,160 +129,7 @@ $(function() {
     // this?  sure is annoying.
     kismet.GetDynamicIncludes().done(function() {
 
-    /* Make the fields list json and set the wrapper object to aData to make
-     the DT happy */
-    var cols = kismet_ui.GetDeviceColumns();
-
-    var fields = kismet_ui.GetDeviceFields();
-
-    var json = {
-        fields: fields,
-        datatable: true,
-    };
-    var postdata = "json=" + JSON.stringify(json);
-
-    $('#devices').DataTable( {
-        scrollY: 200,
-        serverSide: true,
-        scroller: {
-            loadingIndicator: true,
-        },
-
-        // Create a complex post to get our summary fields only
-        ajax: {
-            url: "/devices/summary/devices.json",
-            data: {
-                json: JSON.stringify(json)
-            },
-            method: "POST",
-            timeout: 10000,
-        },
-
-        "deferRender": true,
-
-        // Get our dynamic columns
-        aoColumns: kismet_ui.GetDeviceColumns([]),
-
-        order:
-            [ [ 0, "desc" ] ],
-
-        // Map our ID into the row
-        createdRow : function( row, data, index ) {
-            row.id = data['kismet.device.base.key'];
-        },
-
-        // Opportunistic draw on new rows
-        drawCallback: function( settings ) {
-            var dt = this.api();
-
-            // Hack to turn off some elements
-            $(this.api().table().container())
-                .find('div.dataTables_paginate')
-                .css( 'display', 'none' );
-            $(this.api().table().container())
-                .find('div.dataTables_length')
-                .css( 'display', 'none' );
-
-            dt.rows({ 
-                page: 'current' 
-            }).every(function(rowIdx, tableLoop, rowLoop) { 
-                for (var c in kismet_ui.DeviceColumns) {
-                    var col = kismet_ui.DeviceColumns[c];
-
-                    if (!('kismetdrawfunc' in col)) {
-                        continue;
-                    }
-
-                    // Call the draw callback if one exists
-                    col.kismetdrawfunc(col, dt, this);
-                }
-            }  
-            );
-
-            /*
-
-            console.log("draw callback", settings);
-
-            var page = this.DataTable().scroller.page();
-
-            // Kluge the visible rows because it seems to miss the first and last
-            // with some degree of regularity
-            if (page.start > 0)
-                page.start--;
-            page.end++;
-
-            for (var r = page.start; r < page.end; r++) {
-                // Grab the data, applying the transform in the row
-                var row = this.DataTable().row(':eq('+r+')', {order:'applied', search:'applied'});
-
-                if (typeof(row) === 'undefined')
-                    continue;
-
-                if (typeof(row.data()) === 'undefined')
-                    continue;
-
-                console.log("drawing on row " + row.data()['kismet.device.base.macaddr']);
-
-
-                for (var c in kismet_ui.DeviceColumns) {
-                    var col = kismet_ui.DeviceColumns[c];
-
-                    if (!('kismetdrawfunc' in col)) {
-                        continue;
-                    }
-
-                    // Call the draw callback if one exists
-                    col.kismetdrawfunc(col, this.DataTable(), row);
-                }
-            }
-            */
-
-        }
-
-    });
-
-    device_dt = $('#devices').DataTable();
-    dt_base_height = $('#devices').height();
-
-    // Set an onclick handler to spawn the device details dialog
-    $('#devices tbody').on('click', 'tr', function () {
-        // Fetch the data of the row that got clicked
-        var data = device_dt.row( this ).data();
-        var key = data['kismet.device.base.key'];
-
-        kismet_ui.DeviceDetailWindow(key);
-    } );
-
-    // Start the auto-updating
-    handleDeviceSummary();
-
-    $('#devices tbody')
-        .on( 'mouseenter', 'td', function () {
-            if (typeof(device_dt.cell(this).index()) === 'Undefined')
-                return;
-
-            var colIdx = device_dt.cell(this).index().column;
-            var rowIdx = device_dt.cell(this).index().row;
-
-            // Remove from all cells
-            $( device_dt.cells().nodes() ).removeClass( 'highlight' );
-            // Highlight the td in this row
-            $( 'td', device_dt.row(rowIdx).nodes() ).addClass('highlight');
-        } );
-
-    $('div.dataTables_scrollBody').height($('#main_center').height() - 
-            dt_base_height - 80);
-    device_dt.draw(false);
-
-    /*
-    $('#panelcontainer').layout().panes.center.bind("layoutpaneresize", 
-            function(pane, element, paneState, paneOptions ) {
-                console.log("resize?");
-                $('div.dataTables_scrollBody').height(element.height() - 
-                        dt_base_height - 50);
-                device_dt.draw(false);
-            });
-            */
+    kismet_ui.CreateDeviceTable($('#devices'));
 
     $('#topbar_alert').alert();
     $('#topbar_battery').battery();

@@ -470,6 +470,125 @@ exports.renderTemperature = function(c, precision = 5) {
     }
 }
 
+var deviceTid;
+
+function ScheduleDeviceSummary() {
+    deviceTid = setTimeout(ScheduleDeviceSummary, 2000);
+    var dt = $('#devices').DataTable();
+    dt.draw('page');
+
+    return;
+}
+
+/* Create the device table */
+exports.CreateDeviceTable = function(element) {
+    /* Make the fields list json and set the wrapper object to aData to make
+     the DT happy */
+    var cols = exports.GetDeviceColumns();
+
+    var fields = exports.GetDeviceFields();
+
+    var json = {
+        fields: fields,
+        datatable: true,
+    };
+    var postdata = "json=" + JSON.stringify(json);
+
+    element.DataTable( {
+        scrollY: 200,
+        serverSide: true,
+        scroller: {
+            loadingIndicator: true,
+        },
+
+        // Create a complex post to get our summary fields only
+        ajax: {
+            url: "/devices/summary/devices.json",
+            data: {
+                json: JSON.stringify(json)
+            },
+            method: "POST",
+            timeout: 10000,
+        },
+
+        "deferRender": true,
+
+        // Get our dynamic columns
+        aoColumns: kismet_ui.GetDeviceColumns([]),
+
+        order:
+            [ [ 0, "desc" ] ],
+
+        // Map our ID into the row
+        createdRow : function( row, data, index ) {
+            row.id = data['kismet.device.base.key'];
+        },
+
+        // Opportunistic draw on new rows
+        drawCallback: function( settings ) {
+            var dt = this.api();
+
+            // Hack to turn off some elements
+            $(this.api().table().container())
+                .find('div.dataTables_paginate')
+                .css( 'display', 'none' );
+            $(this.api().table().container())
+                .find('div.dataTables_length')
+                .css( 'display', 'none' );
+
+            dt.rows({ 
+                page: 'current' 
+            }).every(function(rowIdx, tableLoop, rowLoop) { 
+                for (var c in kismet_ui.DeviceColumns) {
+                    var col = kismet_ui.DeviceColumns[c];
+
+                    if (!('kismetdrawfunc' in col)) {
+                        continue;
+                    }
+
+                    // Call the draw callback if one exists
+                    col.kismetdrawfunc(col, dt, this);
+                }
+            }  
+            );
+        }
+
+    });
+
+    var device_dt = element.DataTable();
+    var dt_base_height = element.height();
+
+    // Set an onclick handler to spawn the device details dialog
+    $('tbody', element).on('click', 'tr', function () {
+        // Fetch the data of the row that got clicked
+        var data = device_dt.row( this ).data();
+        var key = data['kismet.device.base.key'];
+
+        kismet_ui.DeviceDetailWindow(key);
+    } );
+
+    $('tbody', element)
+        .on( 'mouseenter', 'td', function () {
+            if (typeof(device_dt.cell(this).index()) === 'Undefined')
+                return;
+
+            var colIdx = device_dt.cell(this).index().column;
+            var rowIdx = device_dt.cell(this).index().row;
+
+            // Remove from all cells
+            $( device_dt.cells().nodes() ).removeClass( 'highlight' );
+            // Highlight the td in this row
+            $( 'td', device_dt.row(rowIdx).nodes() ).addClass('highlight');
+        } );
+
+    $('div.dataTables_scrollBody').height($('#main_center').height() - 
+            dt_base_height - 80);
+    device_dt.draw(false);
+
+    // Start the auto-updating
+    ScheduleDeviceSummary();
+}
+
 return exports;
 
 });
