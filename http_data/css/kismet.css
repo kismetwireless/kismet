@@ -156,3 +156,9 @@ div.topright_holder {
     color: #303030; 
 }
 
+.kismet-highlight {
+    border-style: top, bottom;
+    border-width: 3px;
+    border-color: darkgrey;
+}
+

@@ -588,9 +588,9 @@ exports.CreateDeviceTable = function(element) {
             var rowIdx = device_dt.cell(this).index().row;
 
             // Remove from all cells
-            $(device_dt.cells().nodes()).removeClass( 'highlight' );
+            $(device_dt.cells().nodes()).removeClass('kismet-highlight');
             // Highlight the td in this row
-            $('td', device_dt.row(rowIdx).nodes()).addClass('highlight');
+            $('td', device_dt.row(rowIdx).nodes()).addClass('kismet-highlight');
         } );
 
     $('div.dataTables_scrollBody').height($('#main_center').height() - 
