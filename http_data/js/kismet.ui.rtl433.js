@@ -11,6 +11,21 @@ var exports = {};
 // Flag we're still loading
 exports.load_complete = 0;
 
+/* Highlight rtl devices */
+kismet_ui.AddDeviceRowHighlight({
+    name: "WPA Handshake",
+    description: "A possibly complete WPA handshake has been captured",
+    priority: 10,
+    defaultcolor: "yellow",
+    defaultenable: true,
+    fields: [
+        'kismet.device.base.phyname'
+    ],
+    selector: function(data) {
+        return data['kismet.device.base.phyname'] === "RTL433";
+    }
+});
+
 kismet_ui.AddDeviceDetail("rtl433", "RTL-433 (SDR)", 0, {
     filter: function(data) {
         return (data['kismet.device.base.phyname'] === "RTL433");
