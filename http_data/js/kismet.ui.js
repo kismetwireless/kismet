@@ -12,7 +12,10 @@ var exports = {};
 jsPanel.closeOnEscape = true;
 
 // List of datatable columns we have available
-exports.DeviceColumns = new Array();
+var DeviceColumns = new Array();
+
+// Device row highlights, consisting of fields, function, name, and color
+var DeviceRowHighlights = new Array();
 
 /* Add a jquery datatable column that the user can pick from, with various 
  * options:
@@ -63,16 +66,12 @@ exports.AddDeviceColumn = function(id, options) {
         f = coldef.field[1];
     }
 
-    console.log("field", coldef.field, "using", f);
-
-    // coldef.mData = f.replace(/\./g, '_');
-    // f = f.replace(/\./g, '_');
-
+    // Bypass datatable/jquery pathing
     coldef.mData = function(row, type, set) {
         return kismet.ObjectByString(row, f);
     }
 
-    // Set the render function to proxy through the module+function
+    // Datatable render function
     if ('renderfunc' in options) {
         coldef.mRender = options.renderfunc;
     }
@@ -82,16 +81,56 @@ exports.AddDeviceColumn = function(id, options) {
         coldef.kismetdrawfunc = options.drawfunc;
     }
 
-    exports.DeviceColumns.push(coldef);
+    DeviceColumns.push(coldef);
+}
+
+/* Add a row highlighter for coloring rows; expects an options dictionary containing:
+ * name: Simple name
+ * description: Longer description
+ * priority: Priority for assigning color
+ * defaultcolor: rgb default color
+ * defaultenable: optional bool, should be turned on by default 
+ * fields: *array* of field definitions, each of which may be a single or two-element
+ *  field definition/path.  A *single* field must still be represented as an array,
+ *  ie, ['some.field.def'].  Multiple fields and complex fields could be represented
+ *  as ['some.field.def', 'some.second.field', ['some.complex/field.path', 'field.foo']]
+ * selector: function(data) returning true for color or false for ignore
+ */
+exports.AddDeviceRowHighlight = function(options) {
+
+    // Load enable preference
+    var storedenable =
+        kismet.getStorage('kismet.rowhighlight.enable' + options.name, 'NONE');
+
+    if (storedenable === 'NONE') {
+        if ('defaultenable' in options) {
+            options['enable'] = options['defaultenable'];
+        } else {
+            options['enable'] = true;
+        }
+    } else {
+        options['enable'] = storedenable;
+    }
+
+    // Load color preference
+    var storedcolor = 
+        kismet.getStorage('kismet.rowhighlight.color' + options.name, 'NONE');
+   
+    if (storedcolor !== 'NONE') {
+        options['color'] = storedcolor;
+    } else {
+        options['color'] = options['defaultcolor'];
+    }
+
+    DeviceRowHighlights.push(options);
 }
 
 /* Return columns from the selected list of column IDs */
 exports.GetDeviceColumns = function(selected) {
     var ret = new Array();
 
-    for (var i in exports.DeviceColumns) {
-        // console.log("Adding column " + exports.DeviceColumns[i].kismetId);
-        ret.push(exports.DeviceColumns[i]);
+    for (var i in DeviceColumns) {
+        ret.push(DeviceColumns[i]);
     }
 
     return ret;
@@ -103,8 +142,12 @@ exports.GetDeviceColumns = function(selected) {
 exports.GetDeviceFields = function(selected) {
     var rawret = new Array();
 
-    for (var i in exports.DeviceColumns) {
-        rawret.push(exports.DeviceColumns[i]['field']);
+    for (var i in DeviceColumns) {
+        rawret.push(DeviceColumns[i]['field']);
+    }
+
+    for (var i in DeviceRowHighlights) {
+        rawret.push.apply(DeviceRowHighlights[i]['fields']);
     }
 
     // De-dupe the list of fields/field aliases
