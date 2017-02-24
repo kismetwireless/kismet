@@ -149,7 +149,7 @@ exports.GetDeviceFields = function(selected) {
     }
 
     for (var i in DeviceRowHighlights) {
-        rawret.push.apply(DeviceRowHighlights[i]['fields']);
+        rawret.push.apply(rawret, DeviceRowHighlights[i]['fields']);
     }
 
     // De-dupe the list of fields/field aliases
@@ -543,8 +543,8 @@ exports.CreateDeviceTable = function(element) {
             dt.rows({ 
                 page: 'current' 
             }).every(function(rowIdx, tableLoop, rowLoop) { 
-                for (var c in kismet_ui.DeviceColumns) {
-                    var col = kismet_ui.DeviceColumns[c];
+                for (var c in DeviceColumns) {
+                    var col = DeviceColumns[c];
 
                     if (!('kismetdrawfunc' in col)) {
                         continue;
@@ -552,6 +552,14 @@ exports.CreateDeviceTable = function(element) {
 
                     // Call the draw callback if one exists
                     col.kismetdrawfunc(col, dt, this);
+                }
+
+                for (var r in DeviceRowHighlights) {
+                    var rowh = DeviceRowHighlights[r];
+
+                    if (rowh['selector'](this.data())) {
+                        $('td', this.node()).css('background-color', rowh['color']);
+                    } 
                 }
             }  
             );
@@ -580,9 +588,9 @@ exports.CreateDeviceTable = function(element) {
             var rowIdx = device_dt.cell(this).index().row;
 
             // Remove from all cells
-            $( device_dt.cells().nodes() ).removeClass( 'highlight' );
+            $(device_dt.cells().nodes()).removeClass( 'highlight' );
             // Highlight the td in this row
-            $( 'td', device_dt.row(rowIdx).nodes() ).addClass('highlight');
+            $('td', device_dt.row(rowIdx).nodes()).addClass('highlight');
         } );
 
     $('div.dataTables_scrollBody').height($('#main_center').height() - 
@@ -591,6 +599,17 @@ exports.CreateDeviceTable = function(element) {
 
     // Start the auto-updating
     ScheduleDeviceSummary();
+}
+
+exports.ResizeDeviceTable = function(element) {
+    var device_dt = element.DataTable();
+    var dt_base_height = element.height();
+
+    if (device_dt != null && dt_base_height != null) {
+        $('div.dataTables_scrollBody').height($('#main_center').height() - 
+            dt_base_height - 80);
+        device_dt.draw(false);
+    }
 }
 
 return exports;

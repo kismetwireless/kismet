@@ -109,11 +109,7 @@ $(function() {
         },
         center: {
             onresize: function() {
-                if (device_dt != null && dt_base_height != null) {
-                    $('div.dataTables_scrollBody').height($('#main_center').height() - 
-                            dt_base_height - 80);
-                    device_dt.draw(false);
-                }
+                kismet_ui.ResizeDeviceTable($('#devices'));
             },
         },
         south: {

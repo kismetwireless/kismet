@@ -141,8 +141,29 @@ kismet_ui.AddChannelList("Wi-Fi (802.11)", function(in_freq) {
         return in_freq;
 });
 
-/* Define some callback functions for the table */
+/* Highlight WPA handshakes */
+kismet_ui.AddDeviceRowHighlight({
+    name: "WPA Handshake",
+    description: "A possibly complete WPA handshake has been captured",
+    priority: 100,
+    defaultcolor: "#F00",
+    defaultenable: true,
+    fields: [
+        'dot11.device/dot11.device.wpa_present_handshake'
+    ],
+    selector: function(data) {
+        var pnums = data['dot11.device.wpa_present_handshake'];
 
+        // We need packets 1&2 or 2&3 to be able to crack the handshake
+        if ((pnums & 0x06) == 0x06 || (pnums & 0x0C) == 0x0C) {
+            return true;
+        }
+
+        return false;
+    }
+});
+
+/* Custom device details for dot11 data */
 kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
     filter: function(data) {
         return (data['kismet.device.base.phyname'] === "IEEE802.11");
