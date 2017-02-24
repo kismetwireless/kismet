@@ -8,6 +8,8 @@
 
 var exports = {};
 
+exports.last_timestamp = 0;
+
 // Set panels to close on escape system-wide
 jsPanel.closeOnEscape = true;
 
@@ -388,12 +390,14 @@ exports.HealthCheck = function() {
     var timerid;
     
     $.get("/system/status.json")
-    .done(function() {
+    .done(function(data) {
         if (exports.connection_error) {
             exports.connection_error_panel.close();
         }
 
         exports.connection_error = false;
+
+        exports.last_timestamp = data['kismet.system.timestamp.sec'];
     })
     .fail(function() {
         if (!exports.connection_error) {
