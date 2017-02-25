@@ -516,6 +516,7 @@ exports.CreateDeviceTable = function(element) {
     element.DataTable( {
         scrollY: 200,
         serverSide: true,
+        stateSave: true,
         scroller: {
             loadingIndicator: true,
         },
