@@ -573,8 +573,11 @@ exports.CreateDeviceTable = function(element) {
                 for (var r in DeviceRowHighlights) {
                     var rowh = DeviceRowHighlights[r];
 
-                    if (rowh['selector'](this.data())) {
-                        $('td', this.node()).css('background-color', rowh['color']);
+                    if (rowh['enable']) {
+
+                        if (rowh['selector'](this.data())) {
+                            $('td', this.node()).css('background-color', rowh['color']);
+                        }
                     }
                 }
             }
@@ -726,9 +729,12 @@ kismet_ui_settings.AddSettingsPane({
         $('tr', elem).each(function() {
             kismet.putStorage('kismet.rowhighlight.color' + $(this).attr('hlname'), $('.k-dt-colorwidget', $(this)).val());
 
+            kismet.putStorage('kismet.rowhighlight.enable' + $(this).attr('hlname'), $('.k-dt-enable', $(this)).is(':checked'));
+
             for (var ri in DeviceRowHighlights) {
                 if (DeviceRowHighlights[ri]['name'] === $(this).attr('hlname')) {
                     DeviceRowHighlights[ri]['color'] = $('.k-dt-colorwidget', $(this)).val();
+                    DeviceRowHighlights[ri]['enable'] = $('.k-dt-enable', $(this)).is(':checked');
                 }
             }
         });
