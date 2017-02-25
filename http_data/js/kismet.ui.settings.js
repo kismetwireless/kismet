@@ -43,7 +43,7 @@ var SettingsPanes = new Array();
  * save: Function for saving the panel
  * priority: priority in list, lower is higher (optional)
  *
- * Settings panels should notify the sidebar when a setting is changed via
+ * Settings panels should notify the when a setting is changed via
  * kismet_ui_sidbar.SettingsChanged()
  *
  */

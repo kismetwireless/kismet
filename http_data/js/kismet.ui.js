@@ -8,6 +8,21 @@
 
 var exports = {};
 
+// Load spectrum css and js
+$('<link>')
+    .appendTo('head')
+    .attr({
+        type: 'text/css',
+        rel: 'stylesheet',
+        href: '/css/spectrum.css'
+    });
+$('<script>')
+    .appendTo('head')
+    .attr({
+        type: 'text/javascript',
+        src: '/js/spectrum.js'
+    });
+
 exports.last_timestamp = 0;
 
 // Set panels to close on escape system-wide
@@ -19,7 +34,7 @@ var DeviceColumns = new Array();
 // Device row highlights, consisting of fields, function, name, and color
 var DeviceRowHighlights = new Array();
 
-/* Add a jquery datatable column that the user can pick from, with various 
+/* Add a jquery datatable column that the user can pick from, with various
  * options:
  *
  * sTitle: datatable column title
@@ -91,7 +106,7 @@ exports.AddDeviceColumn = function(id, options) {
  * description: Longer description
  * priority: Priority for assigning color
  * defaultcolor: rgb default color
- * defaultenable: optional bool, should be turned on by default 
+ * defaultenable: optional bool, should be turned on by default
  * fields: *array* of field definitions, each of which may be a single or two-element
  *  field definition/path.  A *single* field must still be represented as an array,
  *  ie, ['some.field.def'].  Multiple fields and complex fields could be represented
@@ -115,9 +130,9 @@ exports.AddDeviceRowHighlight = function(options) {
     }
 
     // Load color preference
-    var storedcolor = 
+    var storedcolor =
         kismet.getStorage('kismet.rowhighlight.color' + options.name, 'NONE');
-   
+
     if (storedcolor !== 'NONE') {
         options['color'] = storedcolor;
     } else {
@@ -162,7 +177,7 @@ exports.GetDeviceFields = function(selected) {
 
 exports.DeviceDetails = new Array();
 
-/* Register a device detail accordion panel, taking an id for the panel 
+/* Register a device detail accordion panel, taking an id for the panel
  * content, a title presented to the user, a position in the list, and
  * options.  Because details are directly rendered all the time and
  * can't be moved around / saved as configs like columns can, callbacks
@@ -222,7 +237,7 @@ exports.DeviceDetailWindow = function(key) {
     // If we're on a wide-screen browser, try to split it into 3 details windows
     var w = ($(window).width() / 3) - 10;
 
-    // If we can't, split it into 2.  This seems to look better when people 
+    // If we can't, split it into 2.  This seems to look better when people
     // don't run full-size browser windows.
     if (w < 450) {
         w = ($(window).width() / 2) - 5;
@@ -323,7 +338,7 @@ exports.DeviceDetailWindow = function(key) {
                 });
         }
     }).resize({
-        width: w, 
+        width: w,
         height: h,
         callback: function(panel) {
             $('div#accordion', this.content).accordion("refresh");
@@ -388,7 +403,7 @@ exports.connection_error_panel = null;
 
 exports.HealthCheck = function() {
     var timerid;
-    
+
     $.get("/system/status.json")
     .done(function(data) {
         if (exports.connection_error) {
@@ -428,16 +443,16 @@ exports.HealthCheck = function() {
 
 exports.DegToDir = function(deg) {
     var directions = [
-        "N", "NNE", "NE", "ENE", 
-        "E", "ESE", "SE", "SSE", 
-        "S", "SSW", "SW", "WSW", 
+        "N", "NNE", "NE", "ENE",
+        "E", "ESE", "SE", "SSE",
+        "S", "SSW", "SW", "WSW",
         "W", "WNW", "NW", "NNW"
     ];
 
     var degrees = [
-        0, 23, 45, 68, 
-        90, 113, 135, 158, 
-        180, 203, 225, 248, 
+        0, 23, 45, 68,
+        90, 113, 135, 158,
+        180, 203, 225, 248,
         270, 293, 315, 338
     ];
 
@@ -540,9 +555,9 @@ exports.CreateDeviceTable = function(element) {
                 .find('div.dataTables_length')
                 .css( 'display', 'none' );
 
-            dt.rows({ 
-                page: 'current' 
-            }).every(function(rowIdx, tableLoop, rowLoop) { 
+            dt.rows({
+                page: 'current'
+            }).every(function(rowIdx, tableLoop, rowLoop) {
                 for (var c in DeviceColumns) {
                     var col = DeviceColumns[c];
 
@@ -559,9 +574,9 @@ exports.CreateDeviceTable = function(element) {
 
                     if (rowh['selector'](this.data())) {
                         $('td', this.node()).css('background-color', rowh['color']);
-                    } 
+                    }
                 }
-            }  
+            }
             );
         }
 
@@ -593,7 +608,7 @@ exports.CreateDeviceTable = function(element) {
             $('td', device_dt.row(rowIdx).nodes()).addClass('kismet-highlight');
         } );
 
-    $('div.dataTables_scrollBody').height($('#main_center').height() - 
+    $('div.dataTables_scrollBody').height($('#main_center').height() -
             dt_base_height - 80);
     device_dt.draw(false);
 
@@ -606,13 +621,119 @@ exports.ResizeDeviceTable = function(element) {
     var dt_base_height = element.height();
 
     if (device_dt != null && dt_base_height != null) {
-        $('div.dataTables_scrollBody').height($('#main_center').height() - 
+        $('div.dataTables_scrollBody').height($('#main_center').height() -
             dt_base_height - 80);
         device_dt.draw(false);
     }
 }
 
+// Add the row highlighting
+kismet_ui_settings.AddSettingsPane({
+    listTitle: 'Device Row Highlighting',
+    create: function(elem) {
+        elem.append(
+            $('<form>', {
+                id: 'form'
+            })
+            .append(
+                $('<fieldset>', {
+                    id: 'fs_devicerows'
+                })
+                .append(
+                    $('<legend>', {})
+                    .html('Device Row Highlights')
+                )
+                .append(
+                    $('<table>', {
+                        id: "devicerow_table",
+                        width: "100%",
+                    })
+                    .append(
+                        $('<tr>', {})
+                        .append(
+                            $('<th>')
+                        )
+                        .append(
+                            $('<th>')
+                            .html("Name")
+                        )
+                        .append(
+                            $('<th>')
+                            .html("Color")
+                        )
+                        .append(
+                            $('<th>')
+                            .html("Description")
+                        )
+                    )
+                )
+            )
+        );
+
+        $('#form', elem).on('change', function() {
+            kismet_ui_settings.SettingsModified();
+        });
+
+        for (var ri in DeviceRowHighlights) {
+            var rh = DeviceRowHighlights[ri];
+
+            var row =
+                $('<tr>')
+                .attr('hlname', rh['name'])
+                .append(
+                    $('<td>')
+                    .append(
+                        $('<input>', {
+                            type: "checkbox",
+                            class: "k-dt-enable",
+                        })
+                    )
+                )
+                .append(
+                    $('<td>')
+                    .html(rh['name'])
+                )
+                .append(
+                    $('<td>')
+                    .append(
+                        $('<input>', {
+                            type: "text",
+                            value: rh['color'],
+                            class: "k-dt-colorwidget"
+                        })
+                    )
+                )
+                .append(
+                    $('<td>')
+                    .html(rh['description'])
+                );
+
+            $('#devicerow_table', elem).append(row);
+
+            if (rh['enable']) {
+                $('.k-dt-enable', row).prop('checked', true);
+            }
+
+            $(".k-dt-colorwidget", row).spectrum({
+                showInitial: true,
+                preferredFormat: "rgb",
+            });
+
+        }
+    },
+    save: function(elem) {
+        $('tr', elem).each(function() {
+            kismet.putStorage('kismet.rowhighlight.color' + $(this).attr('hlname'), $('.k-dt-colorwidget', $(this)).val());
+
+            for (var ri in DeviceRowHighlights) {
+                if (DeviceRowHighlights[ri]['name'] === $(this).attr('hlname')) {
+                    DeviceRowHighlights[ri]['color'] = $('.k-dt-colorwidget', $(this)).val();
+                }
+            }
+        });
+    },
+});
+
 return exports;
 
 });
-

@@ -15,7 +15,7 @@ exports.load_complete = 0;
 $('<link>')
     .appendTo('head')
     .attr({
-        type: 'text/css', 
+        type: 'text/css',
         rel: 'stylesheet',
         href: '/css/kismet.ui.base.css'
     });
@@ -29,7 +29,7 @@ exports.renderLastTime = function(data, type, row, meta) {
 exports.renderDataSize = function(data, type, row, meta) {
     if (type === 'display')
         return kismet.HumanReadableSize(data);
-    
+
     return data;
 }
 
@@ -71,11 +71,11 @@ exports.drawPackets = function(dyncolumn, table, row) {
     //
     // We use the aliased field names we extracted from just the minute
     // component of the per-device packet RRD
-    var simple_rrd = 
+    var simple_rrd =
         kismet.RecalcRrdData(
-            data['packet.rrd.last_time'], 
-            data['packet.rrd.last_time'], 
-            kismet.RRD_SECOND, 
+            data['packet.rrd.last_time'],
+            data['packet.rrd.last_time'],
+            kismet.RRD_SECOND,
             data['packet.rrd.minute_vec'], {
                 transform: function(data, opt) {
                     var slices = 3;
@@ -123,8 +123,8 @@ kismet_ui.AddDeviceColumn('column_phy', {
     width: "8em",
 });
 
-kismet_ui.AddDeviceColumn('column_signal', { 
-    sTitle: 'Signal', 
+kismet_ui.AddDeviceColumn('column_signal', {
+    sTitle: 'Signal',
     field: 'kismet.device.base.signal/kismet.common.signal.last_signal_dbm',
     width: "6em",
     renderfunc: function(d, t, r, m) {
@@ -340,7 +340,7 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                         });
                     },
 
-                    /* RRD - come back to this later 
+                    /* RRD - come back to this later
                     render: function(opts) {
                         return '<div class="rrd" id="' + opts['key'] + '" />';
                     },
@@ -351,7 +351,7 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
 
                         // We assume the 'best' a signal can usefully be is -20dbm,
                         // that means we're right on top of it.
-                        // We can assume that -100dbm is a sane floor value for 
+                        // We can assume that -100dbm is a sane floor value for
                         // the weakest signal.
                         // If a signal is 0 it means we haven't seen it at all so
                         // just ignore that data point
@@ -362,7 +362,7 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                         for (var x = 0; x < rrdata.length; x++) {
                             var d = rrdata[x];
 
-                            if (d == 0) 
+                            if (d == 0)
                                 moddata.push(0);
 
                             if (d < -100)
@@ -494,8 +494,8 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                         return kismet.ObjectByString(opts['data'], "kismet.device.base.signal/kismet.common.signal.peak_loc/kismet.common.location.valid") == 1;
                     },
                     render: function(opts) {
-                        var loc = 
-                            kismet.ObjectByString(opts['data'], "kismet.device.base.signal/kismet.common.signal.peak_loc/kismet.common.location.lat") + ", " + 
+                        var loc =
+                            kismet.ObjectByString(opts['data'], "kismet.device.base.signal/kismet.common.signal.peak_loc/kismet.common.location.lat") + ", " +
                             kismet.ObjectByString(opts['data'], "kismet.device.base.signal/kismet.common.signal.peak_loc/kismet.common.location.lon");
 
                         return loc;
@@ -521,14 +521,14 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
 
                         // Make an array morris likes using our whole data record
                         var moddata = [
-                        { label: "LLC/Management", 
+                        { label: "LLC/Management",
                             value: opts['data']['kismet.device.base.packets.llc'] },
-                        { label: "Data", 
+                        { label: "Data",
                             value: opts['data']['kismet.device.base.packets.data'] }
                         ];
 
                         if (opts['data']['kismet.device.base.packets.error'] != 0)
-                            moddata.push({ label: "Error", 
+                            moddata.push({ label: "Error",
                                 value: opts['data']['kismet.device.base.packets.error'] });
 
                         Morris.Donut({
@@ -588,7 +588,7 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
 
                 // Fields in subgroup
                 fields: [
-                { 
+                {
                     field: "kismet.device.base.location/kismet.common.location.avg_loc/kismet.common.location.lat",
                     title: "Latitude"
                 },
@@ -615,12 +615,12 @@ kismet_ui.AddDeviceDetail("packets", "Packet Graphs", 10, {
     render: function(data) {
         // Make 3 divs for s, m, h RRD
         return '<b>Packet Rates</b><br /><br />' +
-            'Packets per second (last minute)<br /><div /><br />' + 
-            'Packets per minute (last hour)<br /><div /><br />' + 
+            'Packets per second (last minute)<br /><div /><br />' +
+            'Packets per minute (last hour)<br /><div /><br />' +
             'Packets per hour (last day)<br /><div />' +
-            '<br /><b>Data</b><br /><br />' + 
-            'Data per second (last minute)<br /><div /><br />' + 
-            'Data per minute (last hour)<br /><div /><br />' + 
+            '<br /><b>Data</b><br /><br />' +
+            'Data per second (last minute)<br /><div /><br />' +
+            'Data per minute (last hour)<br /><div /><br />' +
             'Data per hour (last day)<br /><div />';
     },
     draw: function(data, target) {
@@ -734,7 +734,7 @@ kismet_ui.AddDeviceDetail("devel", "Dev/Debug Options", 10000, {
 
 /* Sidebar:  Memory monitor
  *
- * The memory monitor looks at system_status and plots the amount of 
+ * The memory monitor looks at system_status and plots the amount of
  * ram vs number of tracked devices from the RRD
  */
 kismet_ui_sidebar.AddSidebarItem({
@@ -754,7 +754,7 @@ exports.MemoryMonitor = function() {
     var h = $(window).height() * 0.5;
 
     memory_chart = null;
-        
+
     memory_panel = $.jsPanel({
         id: 'memory',
         headerTitle: '<i class="fa fa-tasks" /> Memory use',
@@ -875,7 +875,7 @@ function memorydisplay_refresh() {
                     datasets: datasets
                 }
             });
-        
+
         } else {
             memory_chart.data.datasets = datasets;
             memory_chart.data.labels = pointtitles;
@@ -888,253 +888,246 @@ function memorydisplay_refresh() {
 };
 
 // Settings options
-function SettingsUnitsPane(elem) {
-    elem.append(
-        $('<form>', { 
-            id: 'form'
-        })
-        .append(
-            $('<fieldset>', { 
-                id: 'set_distance',
-            })
-            .append(
-                $('<legend>', { })
-                .html("Distance")
-            )
-            .append(
-                $('<input>', {
-                    type: 'radio',
-                    id: 'dst_metric',
-                    name: 'distance',
-                    value: 'metric',
-                })
-            )
-            .append(
-                $('<label>', {
-                    for: 'dst_metric',
-                })
-                .html('Metric')
-            )
-            .append(
-                $('<input>', {
-                    type: 'radio',
-                    id: 'dst_imperial',
-                    name: 'distance',
-                    value: 'imperial',
-                })
-            )
-            .append(
-                $('<label>', {
-                    for: 'dst_imperial',
-                })
-                .html('Imperial')
-            )
-        )
-        .append(
-            $('<br>', { })
-        )
-        .append(
-            $('<fieldset>', {
-                id: 'set_speed'
-            })
-            .append(
-                $('<legend>', { })
-                .html("Speed")
-            )
-            .append(
-                $('<input>', {
-                    type: 'radio',
-                    id: 'spd_metric',
-                    name: 'speed',
-                    value: 'metric',
-                })
-            )
-            .append(
-                $('<label>', {
-                    for: 'spd_metric',
-                })
-                .html('Metric')
-            )
-            .append(
-                $('<input>', {
-                    type: 'radio',
-                    id: 'spd_imperial',
-                    name: 'speed',
-                    value: 'imperial',
-                })
-            )
-            .append(
-                $('<label>', {
-                    for: 'spd_imperial',
-                })
-                .html('Imperial')
-            )
-        )
-        .append(
-            $('<br>', { })
-        )
-        .append(
-            $('<fieldset>', {
-                id: 'set_temp'
-            })
-            .append(
-                $('<legend>', { })
-                .html("Temperature")
-            )
-            .append(
-                $('<input>', {
-                    type: 'radio',
-                    id: 'temp_celcius',
-                    name: 'temp',
-                    value: 'celcius',
-                })
-            )
-            .append(
-                $('<label>', {
-                    for: 'temp_celcius',
-                })
-                .html('Celcius')
-            )
-            .append(
-                $('<input>', {
-                    type: 'radio',
-                    id: 'temp_fahrenheit',
-                    name: 'temp',
-                    value: 'fahrenheit',
-                })
-            )
-            .append(
-                $('<label>', {
-                    for: 'temp_fahrenheit',
-                })
-                .html('Fahrenheit')
-            )
-        )
-    );
-
-    $('#form', elem).on('change', function() {
-        kismet_ui_settings.SettingsModified();
-    });
-
-    if (kismet.getStorage('kismet.base.unit.distance', 'metric') === 'metric') {
-        $('#dst_metric', elem).attr('checked', 'checked');
-    } else {
-        $('#dst_imperial', elem).attr('checked', 'checked');
-    }
-
-    if (kismet.getStorage('kismet.base.unit.speed', 'metric') === 'metric') {
-        $('#spd_metric', elem).attr('checked', 'checked');
-    } else {
-        $('#spd_imperial', elem).attr('checked', 'checked');
-    }
-
-    if (kismet.getStorage('kismet.base.unit.temp', 'celcius') === 'celcius') {
-        $('#temp_celcius', elem).attr('checked', 'checked');
-    } else {
-        $('#temp_fahrenheit', elem).attr('checked', 'checked');
-    }
-
-    $('#set_distance', elem).controlgroup();
-    $('#set_speed', elem).controlgroup();
-    $('#set_temp', elem).controlgroup();
-}
-
-function SettingsUnitsSave(elem) {
-    var dist = $("input[name='distance']:checked", elem).val();
-    kismet.putStorage('kismet.base.unit.distance', dist);
-    var spd = $("input[name='speed']:checked", elem).val();
-    kismet.putStorage('kismet.base.unit.speed', spd);
-    var tmp = $("input[name='temp']:checked", elem).val();
-    kismet.putStorage('kismet.base.unit.temp', tmp);
-
-    return true;
-}
-
 kismet_ui_settings.AddSettingsPane({
     listTitle: 'Units &amp; Measurements',
-    create: function(e) { SettingsUnitsPane(e); },
-    save: function(e) { SettingsUnitsSave(e); },
-});
-
-function SettingsLoginCreate(elem) {
-    elem.append(
-        $('<form>', { 
-            id: 'form'
-        })
-        .append(
-            $('<fieldset>', {
-                id: 'fs_login'
+    create: function(elem) {
+        elem.append(
+            $('<form>', {
+                id: 'form'
             })
             .append(
-                $('<legend>', {})
-                .html('Server Login')
-            )
-            .append(
-                $('<p>')
-                .html('Kismet requires a username and password for functionality which changes the server, such as adding interfaces or changing configuration.  The login info is defined in the kismet_httpd.conf file which is installed by default in /usr/local/etc/.')
-            )
-            .append(
-                $('<p>', {
-                    id: 'defaultwarning'
+                $('<fieldset>', {
+                    id: 'set_distance',
                 })
-                .html('<b>Warning</b>: You are using the <i>default Kismet login and password</i>.  This is a <i>bad idea</i> if your Kismet instance is exposed to the Internet, and we <i>strongly</i> recommend changing it.')
-                .hide()
+                .append(
+                    $('<legend>', { })
+                    .html("Distance")
+                )
+                .append(
+                    $('<input>', {
+                        type: 'radio',
+                        id: 'dst_metric',
+                        name: 'distance',
+                        value: 'metric',
+                    })
+                )
+                .append(
+                    $('<label>', {
+                        for: 'dst_metric',
+                    })
+                    .html('Metric')
+                )
+                .append(
+                    $('<input>', {
+                        type: 'radio',
+                        id: 'dst_imperial',
+                        name: 'distance',
+                        value: 'imperial',
+                    })
+                )
+                .append(
+                    $('<label>', {
+                        for: 'dst_imperial',
+                    })
+                    .html('Imperial')
+                )
             )
             .append(
-                $('<br>')
+                $('<br>', { })
             )
             .append(
-                $('<span style="display: inline-block; width: 8em;">')
-                .html('User name: ')
-            )
-            .append(
-                $('<input>', {
-                    type: 'text',
-                    name: 'user',
-                    id: 'user'
+                $('<fieldset>', {
+                    id: 'set_speed'
                 })
+                .append(
+                    $('<legend>', { })
+                    .html("Speed")
+                )
+                .append(
+                    $('<input>', {
+                        type: 'radio',
+                        id: 'spd_metric',
+                        name: 'speed',
+                        value: 'metric',
+                    })
+                )
+                .append(
+                    $('<label>', {
+                        for: 'spd_metric',
+                    })
+                    .html('Metric')
+                )
+                .append(
+                    $('<input>', {
+                        type: 'radio',
+                        id: 'spd_imperial',
+                        name: 'speed',
+                        value: 'imperial',
+                    })
+                )
+                .append(
+                    $('<label>', {
+                        for: 'spd_imperial',
+                    })
+                    .html('Imperial')
+                )
             )
             .append(
-                $('<br>')
+                $('<br>', { })
             )
             .append(
-                $('<span style="display: inline-block; width: 8em;">')
-                .html('Password: ')
-            )
-            .append(
-                $('<input>', {
-                    type: 'password',
-                    name: 'password',
-                    id: 'password'
+                $('<fieldset>', {
+                    id: 'set_temp'
                 })
+                .append(
+                    $('<legend>', { })
+                    .html("Temperature")
+                )
+                .append(
+                    $('<input>', {
+                        type: 'radio',
+                        id: 'temp_celcius',
+                        name: 'temp',
+                        value: 'celcius',
+                    })
+                )
+                .append(
+                    $('<label>', {
+                        for: 'temp_celcius',
+                    })
+                    .html('Celcius')
+                )
+                .append(
+                    $('<input>', {
+                        type: 'radio',
+                        id: 'temp_fahrenheit',
+                        name: 'temp',
+                        value: 'fahrenheit',
+                    })
+                )
+                .append(
+                    $('<label>', {
+                        for: 'temp_fahrenheit',
+                    })
+                    .html('Fahrenheit')
+                )
             )
-        )
-    );
+        );
 
-    $('#form', elem).on('change', function() {
-        kismet_ui_settings.SettingsModified();
-    });
+        $('#form', elem).on('change', function() {
+            kismet_ui_settings.SettingsModified();
+        });
 
-    $('#user', elem).val(kismet.getStorage('kismet.base.login.username', 'kismet'));
-    $('#password', elem).val(kismet.getStorage('kismet.base.login.password', 'kismet'));
+        if (kismet.getStorage('kismet.base.unit.distance', 'metric') === 'metric') {
+            $('#dst_metric', elem).attr('checked', 'checked');
+        } else {
+            $('#dst_imperial', elem).attr('checked', 'checked');
+        }
 
-    if ($('#user', elem).val() === 'kismet' &&
-        $('#password', elem).val() === 'kismet') {
-        $('#defaultwarning').show();
-    }
+        if (kismet.getStorage('kismet.base.unit.speed', 'metric') === 'metric') {
+            $('#spd_metric', elem).attr('checked', 'checked');
+        } else {
+            $('#spd_imperial', elem).attr('checked', 'checked');
+        }
 
-    $('fs_login', elem).controlgroup();
-}
+        if (kismet.getStorage('kismet.base.unit.temp', 'celcius') === 'celcius') {
+            $('#temp_celcius', elem).attr('checked', 'checked');
+        } else {
+            $('#temp_fahrenheit', elem).attr('checked', 'checked');
+        }
 
-function SettingsLoginSave(elem) {
-    kismet.putStorage('kismet.base.login.username', $('#user', elem).val());
-    kismet.putStorage('kismet.base.login.password', $('#password', elem).val());
-}
+        $('#set_distance', elem).controlgroup();
+        $('#set_speed', elem).controlgroup();
+        $('#set_temp', elem).controlgroup();
+
+    },
+    save: function(elem) {
+        var dist = $("input[name='distance']:checked", elem).val();
+        kismet.putStorage('kismet.base.unit.distance', dist);
+        var spd = $("input[name='speed']:checked", elem).val();
+        kismet.putStorage('kismet.base.unit.speed', spd);
+        var tmp = $("input[name='temp']:checked", elem).val();
+        kismet.putStorage('kismet.base.unit.temp', tmp);
+
+        return true;
+    },
+});
 
 kismet_ui_settings.AddSettingsPane({
     listTitle: 'Login &amp; Password',
-    create: function(e) { SettingsLoginCreate(e); },
-    save: function(e) { SettingsLoginSave(e); },
+    create: function(elem) {
+        elem.append(
+            $('<form>', {
+                id: 'form'
+            })
+            .append(
+                $('<fieldset>', {
+                    id: 'fs_login'
+                })
+                .append(
+                    $('<legend>', {})
+                    .html('Server Login')
+                )
+                .append(
+                    $('<p>')
+                    .html('Kismet requires a username and password for functionality which changes the server, such as adding interfaces or changing configuration.  The login info is defined in the kismet_httpd.conf file which is installed by default in /usr/local/etc/.')
+                )
+                .append(
+                    $('<p>', {
+                        id: 'defaultwarning'
+                    })
+                    .html('<b>Warning</b>: You are using the <i>default Kismet login and password</i>.  This is a <i>bad idea</i> if your Kismet instance is exposed to the Internet, and we <i>strongly</i> recommend changing it.')
+                    .hide()
+                )
+                .append(
+                    $('<br>')
+                )
+                .append(
+                    $('<span style="display: inline-block; width: 8em;">')
+                    .html('User name: ')
+                )
+                .append(
+                    $('<input>', {
+                        type: 'text',
+                        name: 'user',
+                        id: 'user'
+                    })
+                )
+                .append(
+                    $('<br>')
+                )
+                .append(
+                    $('<span style="display: inline-block; width: 8em;">')
+                    .html('Password: ')
+                )
+                .append(
+                    $('<input>', {
+                        type: 'password',
+                        name: 'password',
+                        id: 'password'
+                    })
+                )
+            )
+        );
+
+        $('#form', elem).on('change', function() {
+            kismet_ui_settings.SettingsModified();
+        });
+
+        $('#user', elem).val(kismet.getStorage('kismet.base.login.username', 'kismet'));
+        $('#password', elem).val(kismet.getStorage('kismet.base.login.password', 'kismet'));
+
+        if ($('#user', elem).val() === 'kismet' &&
+        $('#password', elem).val() === 'kismet') {
+            $('#defaultwarning').show();
+        }
+
+        $('fs_login', elem).controlgroup();
+    },
+    save: function(elem) {
+        kismet.putStorage('kismet.base.login.username', $('#user', elem).val());
+        kismet.putStorage('kismet.base.login.password', $('#password', elem).val());
+    },
 });
 
 /* Add the messages and channels tabs */
@@ -1164,7 +1157,7 @@ exports.DeviceSignalDetails = function(key) {
 
     var devsignal_tid = -1;
 
-    var content = 
+    var content =
         $('<div>', {
             class: 'k-dsd-container'
         })
@@ -1183,7 +1176,7 @@ exports.DeviceSignalDetails = function(key) {
                     class: 'k-dsd-table'
                 })
                 .append(
-                    $('<tr>', { 
+                    $('<tr>', {
                     })
                     .append(
                         $('<td>', {
@@ -1209,7 +1202,7 @@ exports.DeviceSignalDetails = function(key) {
                     )
                 )
                 .append(
-                    $('<tr>', { 
+                    $('<tr>', {
                     })
                     .append(
                         $('<td>', {
@@ -1226,7 +1219,7 @@ exports.DeviceSignalDetails = function(key) {
                     )
                 )
                 .append(
-                    $('<tr>', { 
+                    $('<tr>', {
                     })
                     .append(
                         $('<td>', {
@@ -1255,7 +1248,7 @@ exports.DeviceSignalDetails = function(key) {
                 })
             )
         );
-        
+
     var devsignal_panel = $.jsPanel({
         id: 'devsignal' + key,
         headerTitle: '<i class="fa fa-signal" /> Signal',
@@ -1282,11 +1275,11 @@ exports.DeviceSignalDetails = function(key) {
         emptyminute.push(0);
     }
 
-    devsignal_tid = devsignal_refresh(key, devsignal_panel, 
+    devsignal_tid = devsignal_refresh(key, devsignal_panel,
         devsignal_chart, devsignal_tid, 0, emptyminute);
 }
 
-function devsignal_refresh(key, devsignal_panel, devsignal_chart, 
+function devsignal_refresh(key, devsignal_panel, devsignal_chart,
     devsignal_tid, lastsignal, fakerrd) {
     clearTimeout(devsignal_tid);
 
@@ -1348,14 +1341,14 @@ function devsignal_refresh(key, devsignal_panel, devsignal_chart,
 
         /*
         var rrdata = kismet.RecalcRrdData(
-            data['kismet.device.base.signal']['kismet.common.signal.signal_rrd']['kismet.common.rrd.last_time'], 
-            data['kismet.device.base.signal']['kismet.common.signal.signal_rrd']['kismet.common.rrd.last_time'], 
-            kismet.RRD_SECOND, 
+            data['kismet.device.base.signal']['kismet.common.signal.signal_rrd']['kismet.common.rrd.last_time'],
+            data['kismet.device.base.signal']['kismet.common.signal.signal_rrd']['kismet.common.rrd.last_time'],
+            kismet.RRD_SECOND,
             data['kismet.device.base.signal']['kismet.common.signal.signal_rrd']['kismet.common.rrd.minute_vec'], {});
 
         // We assume the 'best' a signal can usefully be is -20dbm,
         // that means we're right on top of it.
-        // We can assume that -100dbm is a sane floor value for 
+        // We can assume that -100dbm is a sane floor value for
         // the weakest signal.
         // If a signal is 0 it means we haven't seen it at all so
         // just ignore that data point
@@ -1448,7 +1441,7 @@ function devsignal_refresh(key, devsignal_panel, devsignal_chart,
     })
     .always(function() {
         devsignal_tid = setTimeout(function() {
-                devsignal_refresh(key, devsignal_panel, 
+                devsignal_refresh(key, devsignal_panel,
                     devsignal_chart, devsignal_tid, signal, fakerrd);
         }, 1000);
     });
@@ -1461,4 +1454,3 @@ exports.load_complete = 1;
 return exports;
 
 });
-

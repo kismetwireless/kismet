@@ -144,7 +144,7 @@ kismet_ui.AddChannelList("Wi-Fi (802.11)", function(in_freq) {
 /* Highlight WPA handshakes */
 kismet_ui.AddDeviceRowHighlight({
     name: "WPA Handshake",
-    description: "A possibly complete WPA handshake has been captured",
+    description: "A possibly crackable WPA handshake has been captured",
     priority: 10,
     defaultcolor: "#F00",
     defaultenable: true,

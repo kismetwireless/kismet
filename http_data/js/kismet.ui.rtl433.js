@@ -13,8 +13,8 @@ exports.load_complete = 0;
 
 /* Highlight rtl devices */
 kismet_ui.AddDeviceRowHighlight({
-    name: "WPA Handshake",
-    description: "A possibly complete WPA handshake has been captured",
+    name: "RTL433 Devices",
+    description: "RTL433 Sensor",
     priority: 10,
     defaultcolor: "yellow",
     defaultenable: true,
