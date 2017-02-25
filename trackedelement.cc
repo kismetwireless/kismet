@@ -27,6 +27,8 @@
 #include "globalregistry.h"
 #include "entrytracker.h"
 
+#include "alphanum.hpp"
+
 void TrackerElement::Initialize() {
     this->type = TrackerUnassigned;
     reference_count = 0;
@@ -1328,7 +1330,7 @@ bool operator<(TrackerElement &te1, TrackerElement &te2) {
             return te1.get_double() < te2.get_double();
             break;
         case TrackerString:
-            return te1.get_string() < te2.get_string();
+            return doj::alphanum_comp(te1.get_string(), te2.get_string()) < 0;
         case TrackerMac:
             return te1.get_mac() < te2.get_mac();
         default:
@@ -1378,7 +1380,7 @@ bool operator<(SharedTrackerElement te1, SharedTrackerElement te2) {
             return te1->get_double() < te2->get_double();
             break;
         case TrackerString:
-            return te1->get_string() < te2->get_string();
+            return doj::alphanum_comp(te1->get_string(), te2->get_string()) < 0;
         case TrackerMac:
             return te1->get_mac() < te2->get_mac();
         default:
