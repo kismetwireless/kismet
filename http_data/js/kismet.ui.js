@@ -494,6 +494,12 @@ var deviceTid;
 function ScheduleDeviceSummary() {
     deviceTid = setTimeout(ScheduleDeviceSummary, 2000);
     var dt = $('#devices').DataTable();
+
+    // Save the state.  We can't use proper state saving because it seems to break
+    // the table position
+    kismet.putStorage('kismet.base.devicetable.order', JSON.stringify(dt.order()));
+    kismet.putStorage('kismet.base.devicetable.search', JSON.stringify(dt.search()));
+
     dt.draw('page');
 
     return;
@@ -515,8 +521,9 @@ exports.CreateDeviceTable = function(element) {
 
     element.DataTable( {
         scrollY: 200,
+        paging: false,
         serverSide: true,
-        stateSave: true,
+
         scroller: {
             loadingIndicator: true,
         },
@@ -547,14 +554,6 @@ exports.CreateDeviceTable = function(element) {
         // Opportunistic draw on new rows
         drawCallback: function( settings ) {
             var dt = this.api();
-
-            // Hack to turn off some elements
-            $(this.api().table().container())
-                .find('div.dataTables_paginate')
-                .css( 'display', 'none' );
-            $(this.api().table().container())
-                .find('div.dataTables_length')
-                .css( 'display', 'none' );
 
             dt.rows({
                 page: 'current'
@@ -589,6 +588,16 @@ exports.CreateDeviceTable = function(element) {
     var device_dt = element.DataTable();
     var dt_base_height = element.height();
 
+    // Restore the order
+    var saved_order = kismet.getStorage('kismet.base.devicetable.order', "");
+    if (saved_order !== "")
+        device_dt.order(JSON.parse(saved_order));
+
+    // Restore the search
+    var saved_search = kismet.getStorage('kismet.base.devicetable.search', "");
+    if (saved_search !== "")
+        device_dt.search(JSON.parse(saved_search));
+
     // Set an onclick handler to spawn the device details dialog
     $('tbody', element).on('click', 'tr', function () {
         // Fetch the data of the row that got clicked
@@ -612,8 +621,7 @@ exports.CreateDeviceTable = function(element) {
             $('td', device_dt.row(rowIdx).nodes()).addClass('kismet-highlight');
         } );
 
-    $('div.dataTables_scrollBody').height($('#main_center').height() -
-            dt_base_height - 80);
+    $('div.dataTables_scrollBody').height($('#main_center').height() - dt_base_height - 80);
     device_dt.draw(false);
 
     // Start the auto-updating

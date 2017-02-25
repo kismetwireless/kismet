@@ -35,7 +35,7 @@ exports.crypt_isakmp = (1 << 20);
 exports.crypt_pptp = (1 << 21);
 exports.crypt_fortress = (1 << 22);
 exports.crypt_keyguard = (1 << 23);
-exports.crypt_unknown_protected = (1 << 24); 
+exports.crypt_unknown_protected = (1 << 24);
 exports.crypt_unknown_nonwep = (1 << 25);
 exports.crypt_wps = (1 << 26);
 exports.crypt_version_wpa = (1 << 27);
@@ -144,7 +144,7 @@ kismet_ui.AddChannelList("Wi-Fi (802.11)", function(in_freq) {
 /* Highlight WPA handshakes */
 kismet_ui.AddDeviceRowHighlight({
     name: "WPA Handshake",
-    description: "A possibly crackable WPA handshake has been captured",
+    description: "Network contains a complete WPA handshake",
     priority: 10,
     defaultcolor: "#F00",
     defaultenable: true,
@@ -300,12 +300,12 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                         var warning = "";
                         if ((pnums & 0x06) != 0x06 &&
                             (pnums & 0x0C) != 0x0C) {
-                            warning = '<br><i style="color: red;">While handshake packets have been seen, no complete handshakes collected.</i>'; 
+                            warning = '<br><i style="color: red;">While handshake packets have been seen, no complete handshakes collected.</i>';
                         }
 
                         var mac = opts['data']['kismet.device.base.macaddr'].split("/")[0];
                         var url = '<a href="/phy/phy80211/handshake/' +
-                            mac + 
+                            mac +
                             '/' +
                             mac + '-handshake.pcap">' +
                             '<i class="fa fa-download"></i> PCAP download</a>' +
@@ -439,7 +439,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 },
 
                 fields: [
-                { 
+                {
                     field: "dot11.client.bssid_key",
                     title: "Access Point",
                     render: function(opts) {
@@ -461,7 +461,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     field: "dot11.client.bssid_key",
                     title: "Last SSID",
                     draw: function(opts) {
-                        $.get("/devices/by-key/" + opts['value'] + 
+                        $.get("/devices/by-key/" + opts['value'] +
                                 "/device.json/dot11.device/dot11.device.last_beaconed_ssid")
                         .done(function(clidata) {
                             if (clidata === '' || clidata === '""') {
@@ -659,5 +659,3 @@ exports.load_complete = 1;
 return exports;
 
 });
-
-
