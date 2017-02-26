@@ -154,6 +154,35 @@ public:
 
     TrackerType get_type() { return type; }
 
+    typedef vector<shared_ptr<TrackerElement> > tracked_vector;
+    typedef vector<shared_ptr<TrackerElement> >::iterator vector_iterator;
+    typedef vector<shared_ptr<TrackerElement> >::const_iterator vector_const_iterator;
+
+    typedef multimap<int, shared_ptr<TrackerElement> > tracked_map;
+    typedef multimap<int, shared_ptr<TrackerElement> >::iterator map_iterator;
+    typedef multimap<int, shared_ptr<TrackerElement> >::const_iterator map_const_iterator;
+    typedef pair<int, shared_ptr<TrackerElement> > tracked_pair;
+
+    typedef map<int, shared_ptr<TrackerElement> > tracked_int_map;
+    typedef map<int, shared_ptr<TrackerElement> >::iterator int_map_iterator;
+    typedef map<int, shared_ptr<TrackerElement> >::const_iterator int_map_const_iterator;
+    typedef pair<int, shared_ptr<TrackerElement> > int_map_pair;
+
+    typedef map<mac_addr, shared_ptr<TrackerElement> > tracked_mac_map;
+    typedef map<mac_addr, shared_ptr<TrackerElement> >::iterator mac_map_iterator;
+    typedef map<mac_addr, shared_ptr<TrackerElement> >::const_iterator mac_map_const_iterator;
+    typedef pair<mac_addr, shared_ptr<TrackerElement> > mac_map_pair;
+
+    typedef map<string, shared_ptr<TrackerElement> > tracked_string_map;
+    typedef map<string, shared_ptr<TrackerElement> >::iterator string_map_iterator;
+    typedef map<string, shared_ptr<TrackerElement> >::const_iterator string_map_const_iterator;
+    typedef pair<string, shared_ptr<TrackerElement> > string_map_pair;
+
+    typedef map<double, shared_ptr<TrackerElement> > tracked_double_map;
+    typedef map<double, shared_ptr<TrackerElement> >::iterator double_map_iterator;
+    typedef map<double, shared_ptr<TrackerElement> >::const_iterator double_map_const_iterator;
+    typedef pair<double, shared_ptr<TrackerElement> > double_map_pair;
+
     // Getter per type, use templated GetTrackerValue() for easy fetch
     string get_string() {
         except_type_mismatch(TrackerString);
@@ -225,7 +254,7 @@ public:
         return (*dataunion.subvector_value)[offt];
     }
 
-    map<int, shared_ptr<TrackerElement> > *get_map() {
+    tracked_map *get_map() {
         except_type_mismatch(TrackerMap);
         return dataunion.submap_value;
     }
@@ -337,35 +366,6 @@ public:
     }
 
     size_t size();
-
-    typedef vector<shared_ptr<TrackerElement> > tracked_vector;
-    typedef vector<shared_ptr<TrackerElement> >::iterator vector_iterator;
-    typedef vector<shared_ptr<TrackerElement> >::const_iterator vector_const_iterator;
-
-    typedef map<int, shared_ptr<TrackerElement> > tracked_map;
-    typedef map<int, shared_ptr<TrackerElement> >::iterator map_iterator;
-    typedef map<int, shared_ptr<TrackerElement> >::const_iterator map_const_iterator;
-    typedef pair<int, shared_ptr<TrackerElement> > tracked_pair;
-
-    typedef map<int, shared_ptr<TrackerElement> > tracked_int_map;
-    typedef map<int, shared_ptr<TrackerElement> >::iterator int_map_iterator;
-    typedef map<int, shared_ptr<TrackerElement> >::const_iterator int_map_const_iterator;
-    typedef pair<int, shared_ptr<TrackerElement> > int_map_pair;
-
-    typedef map<mac_addr, shared_ptr<TrackerElement> > tracked_mac_map;
-    typedef map<mac_addr, shared_ptr<TrackerElement> >::iterator mac_map_iterator;
-    typedef map<mac_addr, shared_ptr<TrackerElement> >::const_iterator mac_map_const_iterator;
-    typedef pair<mac_addr, shared_ptr<TrackerElement> > mac_map_pair;
-
-    typedef map<string, shared_ptr<TrackerElement> > tracked_string_map;
-    typedef map<string, shared_ptr<TrackerElement> >::iterator string_map_iterator;
-    typedef map<string, shared_ptr<TrackerElement> >::const_iterator string_map_const_iterator;
-    typedef pair<string, shared_ptr<TrackerElement> > string_map_pair;
-
-    typedef map<double, shared_ptr<TrackerElement> > tracked_double_map;
-    typedef map<double, shared_ptr<TrackerElement> >::iterator double_map_iterator;
-    typedef map<double, shared_ptr<TrackerElement> >::const_iterator double_map_const_iterator;
-    typedef pair<double, shared_ptr<TrackerElement> > double_map_pair;
 
     vector_iterator vec_begin();
     vector_iterator vec_end();
@@ -593,7 +593,7 @@ protected:
         double double_value;
 
         // Field ID,Element keyed map
-        map<int, shared_ptr<TrackerElement> > *submap_value;
+        tracked_map *submap_value;
 
         // Index int,Element keyed map
         map<int, shared_ptr<TrackerElement> > *subintmap_value;

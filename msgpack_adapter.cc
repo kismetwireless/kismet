@@ -68,6 +68,9 @@ void MsgpackAdapter::Packer(GlobalRegistry *globalreg, SharedTrackerElement v,
     TrackerElement::tracked_map *tmap;
     TrackerElement::map_iterator map_iter;
 
+    TrackerElement::tracked_int_map *tintmap;
+    TrackerElement::int_map_iterator int_map_iter;
+
     TrackerElement::tracked_mac_map *tmacmap;
     TrackerElement::mac_map_iterator mac_map_iter;
 
@@ -157,12 +160,12 @@ void MsgpackAdapter::Packer(GlobalRegistry *globalreg, SharedTrackerElement v,
             }
             break;
         case TrackerIntMap:
-            tmap = v->get_intmap();
-            o.pack_map(tmap->size());
-            for (map_iter = tmap->begin(); map_iter != tmap->end(); 
-                    ++map_iter) {
-                o.pack(map_iter->first);
-                Packer(globalreg, map_iter->second, o, name_map);
+            tintmap = v->get_intmap();
+            o.pack_map(tintmap->size());
+            for (int_map_iter = tintmap->begin(); int_map_iter != tintmap->end(); 
+                    ++int_map_iter) {
+                o.pack(int_map_iter->first);
+                Packer(globalreg, int_map_iter->second, o, name_map);
             }
             break;
         case TrackerMacMap:

@@ -48,6 +48,9 @@ void XmlserializeAdapter::XmlSerialize(SharedTrackerElement v,
     TrackerElement::tracked_map *tmap;
     TrackerElement::map_iterator map_iter;
 
+    TrackerElement::tracked_int_map *tintmap;
+    TrackerElement::int_map_iterator int_map_iter;
+
     TrackerElement::tracked_mac_map *tmacmap;
     TrackerElement::mac_map_iterator mac_map_iter;
 
@@ -152,18 +155,18 @@ void XmlserializeAdapter::XmlSerialize(SharedTrackerElement v,
             }
             break;
         case TrackerIntMap:
-            tmap = v->get_intmap();
+            tintmap = v->get_intmap();
 
             if (adapter->map_entries) {
                 // Assumes our children are simple types
                 // TODO be smarter
-                for (map_iter = tmap->begin(); map_iter != tmap->end(); 
-                        ++map_iter) {
+                for (int_map_iter = tintmap->begin(); int_map_iter != tintmap->end(); 
+                        ++int_map_iter) {
                     stream << "<" << adapter->map_entry_element <<
                         " " << adapter->map_key_attribute << "=\"" <<
-                        map_iter->first << "\" " <<
+                        int_map_iter->first << "\" " <<
                         adapter->map_value_attribute << "=\"";
-                    StreamSimpleValue(map_iter->second, stream);
+                    StreamSimpleValue(int_map_iter->second, stream);
                     stream << "\" />";
                 }
             }

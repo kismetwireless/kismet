@@ -68,6 +68,9 @@ void JsonAdapter::Pack(GlobalRegistry *globalreg, std::stringstream &stream,
     TrackerElement::tracked_map *tmap;
     TrackerElement::map_iterator map_iter;
 
+    TrackerElement::tracked_int_map *tintmap;
+    TrackerElement::int_map_iterator int_map_iter;
+
     TrackerElement::tracked_mac_map *tmacmap;
     TrackerElement::mac_map_iterator mac_map_iter;
 
@@ -178,13 +181,13 @@ void JsonAdapter::Pack(GlobalRegistry *globalreg, std::stringstream &stream,
             stream << "}";
             break;
         case TrackerIntMap:
-            tmap = e->get_intmap();
+            tintmap = e->get_intmap();
             stream << "{";
-            for (map_iter = tmap->begin(); map_iter != tmap->end(); /* */) {
+            for (int_map_iter = tintmap->begin(); int_map_iter != tintmap->end(); /* */) {
                 // Integer dictionary keys in json are still quoted as strings
-                stream << "\"" << map_iter->first << "\": ";
-                JsonAdapter::Pack(globalreg, stream, map_iter->second, name_map);
-                if (++map_iter != tmap->end()) // Increment iter in loop
+                stream << "\"" << int_map_iter->first << "\": ";
+                JsonAdapter::Pack(globalreg, stream, int_map_iter->second, name_map);
+                if (++int_map_iter != tintmap->end()) // Increment iter in loop
                     stream << ",";
             }
             stream << "}";
