@@ -39,39 +39,29 @@
         class_old: "messagebus_old",
     };
 
-    var options = base_options;
-
-    var last_msg_time = 0;
-
-    var message_list = [];
-
-    var timerid = -1;
-
-    var element = null;
-
-    var messagebus_refresh = function() {
-        $.get("/messagebus/last-time/" + last_msg_time + "/messages.json")
+    var messagebus_refresh = function(state) {
+        $.get("/messagebus/last-time/" + state['last_msg_time'] + "/messages.json")
         .done(function(data) {
-            last_msg_time = data['kismet.messagebus.timestamp'];
-            var divs = $('div.messagebus_message', element);
+            state['last_msg_time'] = data['kismet.messagebus.timestamp'];
+            var divs = $('div.messagebus_message', state['element']);
 
             // We should only get items which are new so we merge and then drop
             // We merge the existing list into our current data, then assign the 
             // trimmed version of the data to the message list
             data['kismet.messagebus.list'].reverse();
-            $.merge(data['kismet.messagebus.list'], message_list);
+            $.merge(data['kismet.messagebus.list'], state['message_list']);
 
-            message_list = data['kismet.messagebus.list'].slice(0, options.max_messages);
+            state['message_list'] = data['kismet.messagebus.list'].slice(0, state['options'].max_messages);
 
-            for (var x = 0; x < message_list.length; x++) {
+            for (var x = 0; x < state['message_list'].length; x++) {
                 var d = divs.eq(x);
 
                 // Compute trimmed date
-                var ds = (new Date(message_list[x]['kismet.messagebus.message_time'] * 1000).toString()).substring(4, 25);
+                var ds = (new Date(state['message_list'][x]['kismet.messagebus.message_time'] * 1000).toString()).substring(4, 25);
 
                 // Set the HTML
                 d.html('<p>' + ds + '</p>' +
-                    message_list[x]['kismet.messagebus.message_string']);
+                    state['message_list'][x]['kismet.messagebus.message_string']);
 
                 // Remove all flagged clases
                 d.removeClass("messagebus_debug");
@@ -80,7 +70,7 @@
                 d.removeClass("messagebus_alert");
                 d.removeClass("messagebus_fatal");
 
-                var f = message_list[x]['kismet.messagebus.message_flags'];
+                var f = state['message_list'][x]['kismet.messagebus.message_flags'];
 
                 if (f & MSGFLAG_FATAL) {
                     d.addClass("messagebus_fatal");
@@ -97,27 +87,37 @@
 
         })
         .always(function() {
-            timerid = setTimeout(messagebus_refresh, 1000);
+            state['timerid'] = setTimeout(function() { messagebus_refresh(state); }, 1500);
         });
     }
 
     $.fn.messagebus = function(inopt) {
-        element = $(this);
+        var state = {
+            element: $(this),
+            options: base_options,
+            last_msg_time: 0,
+            message_list: [],
+            timerid: -1,
+        };
 
-        options = $.extend(base_options, inopt);
+        state['element'].empty();
+
+        state['element'].addClass('messagebus');
+
+        state['options'] = $.extend(base_options, inopt);
 
         // Fill the div with placeholders for as many messages as we need
-        var ndiv = $('div.messagebus_message', this).length;
+        var ndiv = $('div.messagebus_message', state['element']).length;
 
-        if (ndiv < options.max_messages) {
-            for (var x = ndiv; x < options.max_messages; x++) {
+        if (ndiv < state['options'].max_messages) {
+            for (var x = ndiv; x < state['options'].max_messages; x++) {
                 var d = $('<div>', { class: "messagebus_message" });
-                this.append(d);
+                state['element'].append(d);
             }
-        } else if (ndiv > options.max_messages) {
+        } else if (ndiv > state['options'].max_messages) {
             var nremoved = 0;
-            $('div.messagebus_message', this).each(function() {
-                if (ndiv - nremoved <= options.max_messages) {
+            $('div.messagebus_message', state['element']).each(function() {
+                if (ndiv - nremoved <= state['options'].max_messages) {
                     return;
                 }
 
@@ -126,7 +126,7 @@
             });
         }
 
-        messagebus_refresh();
+        messagebus_refresh(state);
     };
 
 }(jQuery));
