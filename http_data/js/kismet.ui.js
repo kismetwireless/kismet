@@ -520,6 +520,7 @@ exports.CreateDeviceTable = function(element) {
     var postdata = "json=" + JSON.stringify(json);
 
     element.DataTable( {
+        scrollResize: true,
         scrollY: 200,
         paging: false,
         serverSide: true,
@@ -586,7 +587,7 @@ exports.CreateDeviceTable = function(element) {
     });
 
     var device_dt = element.DataTable();
-    var dt_base_height = element.height();
+    // var dt_base_height = element.height();
 
     // Restore the order
     var saved_order = kismet.getStorage('kismet.base.devicetable.order', "");
@@ -621,22 +622,10 @@ exports.CreateDeviceTable = function(element) {
             $('td', device_dt.row(rowIdx).nodes()).addClass('kismet-highlight');
         } );
 
-    $('div.dataTables_scrollBody').height($('#main_center').height() - dt_base_height - 80);
     device_dt.draw(false);
 
     // Start the auto-updating
     ScheduleDeviceSummary();
-}
-
-exports.ResizeDeviceTable = function(element) {
-    var device_dt = element.DataTable();
-    var dt_base_height = element.height();
-
-    if (device_dt != null && dt_base_height != null) {
-        $('div.dataTables_scrollBody').height($('#main_center').height() -
-            dt_base_height - 80);
-        device_dt.draw(false);
-    }
 }
 
 // Add the row highlighting

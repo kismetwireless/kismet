@@ -36,6 +36,11 @@ body {
     flex: 1; /* NEW, */
 }
 
+#golden {
+    width: 100%;
+    height: calc(100% - 60px);
+}
+
 #creditbar {
 
     /*
