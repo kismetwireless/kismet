@@ -1,13 +1,12 @@
-.channels {
+#channels {
     overflow: hidden !important;
-}
-
-.channels canvas {
+    position: relative;
     width: 100%;
-    height: 100%;
 }
 
 .k_cd_container {
+    position: absolute;
+
     top: 24px;
     left: 0px; 
     right: 0px;
@@ -15,6 +14,8 @@
 }
 
 .k_cd_banner {
+    position: absolute;
+
     left: 0px;
     top: 0px;
     right: 0px;
@@ -32,9 +33,6 @@
     background-color: #d0d0d0;
 
     font-size: 10px;
-
-    display: flex;
-    flex-direction: row;
 }
 
 .k_cd_banner select {
@@ -43,18 +41,27 @@
 }
 
 .k_cd_picker {
+    position: absolute;
+    right: 10px;
+    top: 5px;
     z-index: 100;
-    text-align: right;
 
     display: flex;
-    flex: 1;
-    width: 10%;
+    justify-content: center;
+    align-items:center;
+
 }
 
 .k_cd_type {
+    position: absolute;
+    left: 10px;
+    top: 5px;
     z-index: 100;
 
-    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items:center;
+
 
     padding-left: 5px;
     padding-right: 5px;

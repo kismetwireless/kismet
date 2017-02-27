@@ -305,6 +305,22 @@
         state.storage.set('jquery.kismet.channels.range', charttime);
     }
 
+    var channels_resize = function(state) {
+        console.log('resize container ', state.devgraph_container.width(), state.devgraph_container.height());
+
+        state.devgraph_canvas
+        .prop('width', state.devgraph_container.width())
+        .prop('height', state.devgraph_container.height());
+
+        state.timegraph_canvas
+        .prop('width', state.devgraph_container.width())
+        .prop('height', state.devgraph_container.height());
+
+        state.devgraph_chart = null;
+        state.timegraph_chart = null;
+        channeldisplay_refresh(state);
+    }
+
     $.fn.channels = function(inopt) {
         var state = {
             element: $(this),
@@ -320,7 +336,50 @@
             coming_soon: null,
             visible: false,
             storage: null,
+            resizer: null,
+            reset_size: null,
         };
+
+        var that = this;
+
+        // Modeled on the datatables resize function
+        state.resizer = $('<iframe/>')
+            .css({
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                height: '100%',
+                width: '100%',
+                zIndex: -1,
+                border: 0
+            })
+        .attr('frameBorder', '0')
+        .attr('src', 'about:blank');
+
+        state.resizer[0].onload = function() {
+			var body = this.contentDocument.body;
+			var height = body.offsetHeight;
+			var contentDoc = this.contentDocument;
+			var defaultView = contentDoc.defaultView || contentDoc.parentWindow;
+
+			defaultView.onresize = function () {
+				var newHeight = body.clientHeight || body.offsetHeight;
+				var docClientHeight = contentDoc.documentElement.clientHeight;
+
+				if ( ! newHeight && docClientHeight ) {
+					newHeight = docClientHeight;
+				}
+
+				if ( newHeight !== height ) {
+					height = newHeight;
+                    channels_resize(state);
+				}
+			};
+		};
+
+        state.resizer
+            .appendTo(state.element)
+            .attr('data', 'about:blank');
 
         state.element.addClass(".channels");
 
