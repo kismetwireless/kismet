@@ -10,53 +10,31 @@
 
 
 (function($) {
-    var element = null;
-
     var base_options = {
         url: ""
     };
 
-    var options = base_options;
+    var channeldisplay_refresh = function(state) {
+        clearTimeout(state.timerid);
 
-    var timerid = -1;
-
-    var devgraph_container = null;
-
-    var devgraph_chart = null;
-    var timegraph_chart = null;
-
-    var devgraph_canvas = null;
-    var timegraph_canvas = null;
-
-    var picker = null;
-    var graphtype = null;
-    var coming_soon = null;
-
-    var visible = false;
-
-    var storage = null;
-
-    var channeldisplay_refresh = function() {
-        clearTimeout(timerid);
-
-        if (element.is(':hidden')) {
-            timerid = -1;
+        if (state.element.is(':hidden')) {
+            state.timerid = -1;
             return;
         }
 
-        $.get(options.url + "/channels/channels.json")
+        $.get(state.options.url + "/channels/channels.json")
         .done(function(data) {
             var devtitles = new Array();
             var devnums = new Array();
 
             // Chart type from radio buttons
-            var charttype = $("input[name='graphtype']:checked", graphtype).val();
+            var charttype = $("input[name='graphtype']:checked", state.graphtype).val();
             // Chart timeline from selector
-            var charttime = $('select#historyrange option:selected', element).val();
+            var charttime = $('select#historyrange option:selected', state.element).val();
             // Frequency translation from selector
-            var freqtrans = $('select#k_cd_freq_selector option:selected', element).val();
+            var freqtrans = $('select#k_cd_freq_selector option:selected', state.element).val();
             // Pull from the stored value instead of the live
-            var filter_string = storage.get('jquery.kismet.channels.filter');
+            var filter_string = state.storage.get('jquery.kismet.channels.filter');
 
             // historical line chart
             if (charttype === 'history') {
@@ -114,7 +92,7 @@
                 var colorpos = 0;
                 var nkeys = Object.keys(data['kismet.channeltracker.frequency_map']).length;
 
-                var filter = $('select#gh_filter', element);
+                var filter = $('select#gh_filter', state.element);
                 filter.empty();
 
                 if (filter_string === '' || filter_string === 'any') {
@@ -195,11 +173,11 @@
                     }
                 }
 
-                devgraph_canvas.hide();
-                timegraph_canvas.show();
-                coming_soon.hide();
+                state.devgraph_canvas.hide();
+                state.timegraph_canvas.show();
+                state.coming_soon.hide();
 
-                if (timegraph_chart == null) {
+                if (state.timegraph_chart == null) {
                     var device_options = {
                         type: "bar",
                         responsive: true,
@@ -230,13 +208,13 @@
                         }
                     };
 
-                    timegraph_chart = new Chart(timegraph_canvas, 
+                    state.timegraph_chart = new Chart(state.timegraph_canvas, 
                         device_options);
                 } else {
-                    timegraph_chart.data.datasets = datasets;
-                    timegraph_chart.data.labels = pointtitles;
+                    state.timegraph_chart.data.datasets = datasets;
+                    state.timegraph_chart.data.labels = pointtitles;
 
-                    timegraph_chart.update(0);
+                    state.timegraph_chart.update(0);
                 }
             } else {
                 // 'now', but default - if for some reason we didn't get a
@@ -257,11 +235,11 @@
                     devnums.push(dev_now);
                 }
 
-                devgraph_canvas.show();
-                timegraph_canvas.hide();
+                state.devgraph_canvas.show();
+                state.timegraph_canvas.hide();
 
-                if (devgraph_chart == null) {
-                    coming_soon.hide();
+                if (state.devgraph_chart == null) {
+                    state.coming_soon.hide();
 
                     var device_options = {
                         type: "bar",
@@ -289,84 +267,100 @@
                         }
                     };
 
-                    devgraph_chart = new Chart(devgraph_canvas, 
+                    state.devgraph_chart = new Chart(state.devgraph_canvas, 
                         device_options);
 
                 } else {
-                    devgraph_chart.data.datasets[0].data = devnums;
-                    devgraph_chart.data.labels = devtitles;
+                    state.devgraph_chart.data.datasets[0].data = devnums;
+                    state.devgraph_chart.data.labels = devtitles;
 
-                    devgraph_chart.update();
+                    state.devgraph_chart.update();
                 }
             }
 
         })
         .always(function() {
-            timerid = setTimeout(channeldisplay_refresh, 5000);
+            timerid = setTimeout(function() { channeldisplay_refresh(state); }, 5000);
         });
     };
 
-    var update_graphtype = 
-        function(gt = $("input[name='graphtype']:checked", graphtype).val()) {
+    var update_graphtype = function(state, gt = null) {
 
-        storage.set('jquery.kismet.channels.graphtype', gt);
+        if (gt == null)
+            gt = $("input[name='graphtype']:checked", state.graphtype).val();
+
+        state.storage.set('jquery.kismet.channels.graphtype', gt);
 
         if (gt === 'now') {
-            $("select#historyrange", graphtype).hide();
-            $("select#gh_filter", graphtype).hide();
-            $("label#gh_filter_label", graphtype).hide();
+            $("select#historyrange", state.graphtype).hide();
+            $("select#gh_filter", state.graphtype).hide();
+            $("label#gh_filter_label", state.graphtype).hide();
         } else {
-            $("select#historyrange", graphtype).show();
-            $("label#gh_filter_label", graphtype).show();
-            $("select#gh_filter", graphtype).show();
+            $("select#historyrange", state.graphtype).show();
+            $("label#gh_filter_label", state.graphtype).show();
+            $("select#gh_filter", state.graphtype).show();
         }
 
-        charttime = $('select#historyrange option:selected', element).val();
-        storage.set('jquery.kismet.channels.range', charttime);
+        charttime = $('select#historyrange option:selected', state.element).val();
+        state.storage.set('jquery.kismet.channels.range', charttime);
     }
 
     $.fn.channels = function(inopt) {
-        storage = Storages.localStorage;
+        var state = {
+            element: $(this),
+            options: base_options,
+            timerid: -1,
+            devgraph_container: null,
+            devgraph_chart: null,
+            timegraph_chart: null,
+            devgraph_canvas: null,
+            timegraph_canvas: null,
+            picker: null,
+            graphtype: null,
+            coming_soon: null,
+            visible: false,
+            storage: null,
+        };
+
+        state.storage = Storages.localStorage;
 
         var stored_gtype = "now";
         var stored_channel = "Frequency";
         var stored_range = "min";
 
-        if (storage.isSet('jquery.kismet.channels.graphtype'))
-            stored_gtype = storage.get('jquery.kismet.channels.graphtype');
+        if (state.storage.isSet('jquery.kismet.channels.graphtype'))
+            stored_gtype = state.storage.get('jquery.kismet.channels.graphtype');
 
-        if (storage.isSet('jquery.kismet.channels.channeltype'))
-            stored_channel = storage.get('jquery.kismet.channels.channeltype');
+        if (state.storage.isSet('jquery.kismet.channels.channeltype'))
+            stored_channel = state.storage.get('jquery.kismet.channels.channeltype');
 
-        if (storage.isSet('jquery.kismet.channels.range'))
-            stored_range = storage.get('jquery.kismet.channels.range');
+        if (state.storage.isSet('jquery.kismet.channels.range'))
+            stored_range = state.storage.get('jquery.kismet.channels.range');
 
 
-        if (!storage.isSet('jquery.kismet.channels.filter'))
-            storage.set('jquery.kismet.channels.filter', 'any');
+        if (!state.storage.isSet('jquery.kismet.channels.filter'))
+            state.storage.set('jquery.kismet.channels.filter', 'any');
 
-        element = $(this);
-
-        visible = element.is(":visible");
+        state.visible = state.element.is(":visible");
 
         if (typeof(inopt) === "string") {
 
         } else {
-            options = $.extend(base_options, inopt);
+            state.options = $.extend(base_options, inopt);
         }
 
-        var banner = $('div.k_cd_banner', element);
+        var banner = $('div.k_cd_banner', state.element);
         if (banner.length == 0) {
             banner = $('<div>', {
                 id: "banner",
                 class: "k_cd_banner"
             });
 
-            element.append(banner);
+            state.element.append(banner);
         }
 
-        if (graphtype == null) {
-            graphtype = $('<div>', {
+        if (state.graphtype == null) {
+            state.graphtype = $('<div>', {
                 "id": "graphtype",
                 "class": "k_cd_type",
             })
@@ -447,34 +441,34 @@
             );
 
             // Select time range from stored value
-            $('option#hr_' + stored_range, graphtype).attr('selected', 'selected');
+            $('option#hr_' + stored_range, state.graphtype).attr('selected', 'selected');
 
             // Select graph type from stored value
             if (stored_gtype == 'now') {
-                $('input#gt_bar', graphtype).attr('checked', 'checked');
+                $('input#gt_bar', state.graphtype).attr('checked', 'checked');
             } else {
-                $('input#gt_line', graphtype).attr('checked', 'checked');
+                $('input#gt_line', state.graphtype).attr('checked', 'checked');
             }
 
-            banner.append(graphtype);
+            banner.append(state.graphtype);
 
-            update_graphtype(stored_gtype);
+            update_graphtype(state, stored_gtype);
 
-            graphtype.on('change', function() {
-                update_graphtype();
-                channeldisplay_refresh();
+            state.graphtype.on('change', function() {
+                update_graphtype(state);
+                channeldisplay_refresh(state);
             });
 
-            $('select#gh_filter', graphtype).on('change', function() {
-                var filter_string = $('select#gh_filter option:selected', element).val();
-                storage.set('jquery.kismet.channels.filter', filter_string);
-                channeldisplay_refresh();
+            $('select#gh_filter', state.graphtype).on('change', function() {
+                var filter_string = $('select#gh_filter option:selected', state.element).val();
+                state.storage.set('jquery.kismet.channels.filter', filter_string);
+                channeldisplay_refresh(state);
             });
 
         }
 
-        if (picker == null) {
-            picker = $('<div>', {
+        if (state.picker == null) {
+            state.picker = $('<div>', {
                 id: "picker",
                 class: "k_cd_picker",
             });
@@ -484,7 +478,7 @@
                 class: "k_cd_list",
             });
 
-            picker.append(sel);
+            state.picker.append(sel);
 
             var chlist = new Array();
             chlist.push("Frequency");
@@ -502,69 +496,68 @@
                 sel.append(e);
             }
 
-            banner.append(picker);
+            banner.append(state.picker);
 
-            picker.on('change', function() {
+            state.picker.on('change', function() {
                 var freqtrans = 
-                    $('select#k_cd_freq_selector option:selected', element).val();
+                    $('select#k_cd_freq_selector option:selected', state.element).val();
 
-                storage.set('jquery.kismet.channels.channeltype', freqtrans);
+                state.storage.set('jquery.kismet.channels.channeltype', freqtrans);
 
-                channeldisplay_refresh();
+                channeldisplay_refresh(state);
             });
 
         }
 
-        if (devgraph_container == null) {
-            devgraph_container =
+        if (state.devgraph_container == null) {
+            state.devgraph_container =
                 $('<div>', {
                     class: "k_cd_container"
                 });
 
-            devgraph_canvas = $('<canvas>', {
+            state.devgraph_canvas = $('<canvas>', {
                 class: "k_cd_dg",
             });
 
-            devgraph_container.append(devgraph_canvas);
+            state.devgraph_container.append(state.devgraph_canvas);
 
-            timegraph_canvas = $('<canvas>', {
+            state.timegraph_canvas = $('<canvas>', {
                 class: "k_cd_dg",
             });
 
-            timegraph_canvas.hide();
-            devgraph_container.append(timegraph_canvas);
+            state.timegraph_canvas.hide();
+            state.devgraph_container.append(state.timegraph_canvas);
 
-            element.append(devgraph_container);
+            state.element.append(state.devgraph_container);
         }
 
         // Add a 'coming soon' item
-        if (coming_soon == null)  {
-            coming_soon = $('<i>', {
+        if (state.coming_soon == null)  {
+            state.coming_soon = $('<i>', {
                 "id": "coming_soon",
             });
-            coming_soon.html("Channel data loading...");
-            element.append(coming_soon);
+            state.coming_soon.html("Channel data loading...");
+            state.element.append(state.coming_soon);
         }
 
         // Hook an observer to see when we become visible
         var observer = new MutationObserver(function(mutations) {
-            if (element.is(":hidden") && timerid >= 0) {
-                visible = false;
-                clearTimeout(timerid);
-            } else if (element.is(":visible") && !visible) {
-                visible = true;
-                channeldisplay_refresh();
+            if (state.element.is(":hidden") && state.timerid >= 0) {
+                state.visible = false;
+                clearTimeout(state.timerid);
+            } else if (state.element.is(":visible") && !state.visible) {
+                state.visible = true;
+                channeldisplay_refresh(state);
             }
         });
 
-        observer.observe(element[0], {
+        observer.observe(state.element[0], {
             attributes: true
         });
 
-        if (visible) {
-            channeldisplay_refresh();
+        if (state.visible) {
+            channeldisplay_refresh(state);
         }
-
     };
 
 }(jQuery));
