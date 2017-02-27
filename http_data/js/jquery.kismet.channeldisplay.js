@@ -322,6 +322,8 @@
             storage: null,
         };
 
+        state.element.addClass(".channels");
+
         state.storage = Storages.localStorage;
 
         var stored_gtype = "now";
