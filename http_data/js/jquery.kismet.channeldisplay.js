@@ -316,8 +316,8 @@
         .prop('width', state.devgraph_container.width())
         .prop('height', state.devgraph_container.height());
 
-        state.devgraph_chart = null;
-        state.timegraph_chart = null;
+        state.devgraph_chart.resize();
+        state.timegraph_chart.resize();
         channeldisplay_refresh(state);
     }
 
