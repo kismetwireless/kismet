@@ -280,7 +280,7 @@
 
         })
         .always(function() {
-            timerid = setTimeout(function() { channeldisplay_refresh(state); }, 5000);
+            state.timerid = setTimeout(function() { channeldisplay_refresh(state); }, 5000);
         });
     };
 
