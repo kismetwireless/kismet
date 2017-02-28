@@ -753,6 +753,11 @@ exports.MemoryMonitor = function() {
     var w = $(window).width() * 0.75;
     var h = $(window).height() * 0.5;
 
+    if (w < 450 || h < 450) {
+        w = $(window).width() - 5;
+        h = $(window).height() - 5;
+    }
+
     memory_chart = null;
 
     memory_panel = $.jsPanel({
