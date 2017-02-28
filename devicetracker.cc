@@ -2190,7 +2190,9 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
             unsigned int dt_start = 0;
             unsigned int dt_length = 0;
-            unsigned int dt_draw = 0;
+            int dt_draw = 0;
+
+            int in_dt_length, in_dt_start;
 
             // Search string
             string dt_search;
@@ -2206,12 +2208,12 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 // fprintf(stderr, "debug - we think we're doing a server-side datatable\n");
                 if (concls->variable_cache.find("start") != 
                         concls->variable_cache.end()) {
-                    *(concls->variable_cache["start"]) >> dt_start;
+                    *(concls->variable_cache["start"]) >> in_dt_start;
                 }
 
                 if (concls->variable_cache.find("length") != 
                         concls->variable_cache.end()) {
-                    *(concls->variable_cache["length"]) >> dt_length;
+                    *(concls->variable_cache["length"]) >> in_dt_length;
                 }
 
                 if (concls->variable_cache.find("draw") != 
@@ -2284,8 +2286,16 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
                 // Force a length if we think we're doing a smart position and
                 // something has gone wonky
-                if (dt_length == 0)
+                if (in_dt_length <= 0 || in_dt_length > 200) {
                     dt_length = 50;
+                } else {
+                    dt_length = in_dt_length;
+                }
+
+                if (in_dt_start < 0)
+                    dt_start = 0;
+                else
+                    dt_start = in_dt_start;
 
                 // DT always has to wrap in an object
                 wrapper.reset(new TrackerElement(TrackerMap));

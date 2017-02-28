@@ -522,8 +522,9 @@ exports.CreateDeviceTable = function(element) {
     element.DataTable( {
         scrollResize: true,
         scrollY: 200,
-        paging: false,
         serverSide: true,
+
+        dom: 'fti',
 
         scroller: {
             loadingIndicator: true,
