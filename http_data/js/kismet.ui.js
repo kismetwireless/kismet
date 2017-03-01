@@ -551,8 +551,6 @@ exports.CreateDeviceTable = function(element) {
         // Map our ID into the row
         createdRow : function( row, data, index ) {
             row.id = data['kismet.device.base.key'];
-            $('td', row).addClass('kismet-unhighlight');
-
         },
 
         // Opportunistic draw on new rows

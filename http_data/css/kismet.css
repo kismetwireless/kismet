@@ -162,14 +162,19 @@ div.topright_holder {
 }
 
 .kismet-unhighlight {
+/*
     border-style: top, bottom;
     border-width: 3px;
     border-color: transparent;
+    border-style: inset;
+    */
+}
+
+@function css_shade($color, $percentage) {
+    @return mix(black, $color, $percentage);
 }
 
 .kismet-highlight {
-    border-style: top, bottom;
-    border-width: 3px;
-    border-color: darkgrey !important;
+    filter: brightness(0.75);
 }
 
