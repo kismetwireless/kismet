@@ -308,16 +308,22 @@
     var channels_resize = function(state) {
         console.log('resize container ', state.devgraph_container.width(), state.devgraph_container.height());
 
-        state.devgraph_canvas
-        .prop('width', state.devgraph_container.width())
-        .prop('height', state.devgraph_container.height());
+        if (state.devgraph_canvas != null)
+            state.devgraph_canvas
+                .prop('width', state.devgraph_container.width())
+                .prop('height', state.devgraph_container.height());
 
-        state.timegraph_canvas
-        .prop('width', state.devgraph_container.width())
-        .prop('height', state.devgraph_container.height());
+        if (state.timegraph_canvas != null)
+            state.timegraph_canvas
+                .prop('width', state.devgraph_container.width())
+                .prop('height', state.devgraph_container.height());
 
-        state.devgraph_chart.resize();
-        state.timegraph_chart.resize();
+        if (state.devgraph_chart != null)
+            state.devgraph_chart.resize();
+
+        if (state.timegraph_chart != null)
+            state.timegraph_chart.resize();
+
         channeldisplay_refresh(state);
     }
 
