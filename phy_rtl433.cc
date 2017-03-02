@@ -30,36 +30,39 @@ Kis_RTL433_Phy::Kis_RTL433_Phy(GlobalRegistry *in_globalreg,
     Kis_Phy_Handler(in_globalreg, in_tracker, in_phyid),
     Kis_Net_Httpd_Stream_Handler(in_globalreg) {
 
-    globalreg->InsertGlobal("PHY_RTL433", shared_ptr<Kis_RTL433_Phy>(this));
-
     phyname = "RTL433";
 
+    packetchain =
+        static_pointer_cast<Packetchain>(globalreg->FetchGlobal("PACKETCHAIN"));
+    entrytracker =
+        static_pointer_cast<EntryTracker>(globalreg->FetchGlobal("ENTRY_TRACKER"));
+
 	pack_comp_common = 
-		globalreg->packetchain->RegisterPacketComponent("COMMON");
+		packetchain->RegisterPacketComponent("COMMON");
 
     rtl433_holder_id =
-        globalreg->entrytracker->RegisterField("rtl433.device", TrackerMap, 
+        entrytracker->RegisterField("rtl433.device", TrackerMap, 
                 "rtl_433 device");
 
     shared_ptr<rtl433_tracked_common> commonbuilder(new rtl433_tracked_common(globalreg, 0));
     rtl433_common_id =
-        globalreg->entrytracker->RegisterField("rtl433.device.common",
+        entrytracker->RegisterField("rtl433.device.common",
                 commonbuilder, "Shared RTL433 device info");
 
     shared_ptr<rtl433_tracked_thermometer> thermbuilder(new rtl433_tracked_thermometer(globalreg, 0));
     rtl433_thermometer_id =
-        globalreg->entrytracker->RegisterField("rtl433.device.thermometer",
+        entrytracker->RegisterField("rtl433.device.thermometer",
                 thermbuilder, "RTL433 thermometer");
 
     shared_ptr<rtl433_tracked_weatherstation> weatherbuilder(new rtl433_tracked_weatherstation(globalreg, 0));
     rtl433_weatherstation_id =
-        globalreg->entrytracker->RegisterField("rtl433.device.weatherstation",
+        entrytracker->RegisterField("rtl433.device.weatherstation",
                 weatherbuilder, "RTL433 weather station");
 
 }
 
 Kis_RTL433_Phy::~Kis_RTL433_Phy() {
-    globalreg->RemoveGlobal("PHY_RTL433");
+
 }
 
 bool Kis_RTL433_Phy::Httpd_VerifyPath(const char *path, const char *method) {
@@ -182,7 +185,7 @@ bool Kis_RTL433_Phy::json_to_rtl(struct JSON_value *json) {
     bool newrtl = false;
 
     if (rtlholder == NULL) {
-        rtlholder = globalreg->entrytracker->GetTrackedInstance(rtl433_holder_id);
+        rtlholder = entrytracker->GetTrackedInstance(rtl433_holder_id);
         basedev->add_map(rtlholder);
         newrtl = true;
     }
@@ -192,7 +195,7 @@ bool Kis_RTL433_Phy::json_to_rtl(struct JSON_value *json) {
 
     if (commondev == NULL) {
         commondev = 
-            static_pointer_cast<rtl433_tracked_common>(globalreg->entrytracker->GetTrackedInstance(rtl433_common_id));
+            static_pointer_cast<rtl433_tracked_common>(entrytracker->GetTrackedInstance(rtl433_common_id));
         rtlholder->add_map(commondev);
 
         if (JSON_dict_has_key(json, "model")) {
@@ -255,7 +258,7 @@ bool Kis_RTL433_Phy::json_to_rtl(struct JSON_value *json) {
 
         if (thermdev == NULL) {
             thermdev = 
-                static_pointer_cast<rtl433_tracked_thermometer>(globalreg->entrytracker->GetTrackedInstance(rtl433_thermometer_id));
+                static_pointer_cast<rtl433_tracked_thermometer>(entrytracker->GetTrackedInstance(rtl433_thermometer_id));
             rtlholder->add_map(thermdev);
         }
 
@@ -294,7 +297,7 @@ bool Kis_RTL433_Phy::json_to_rtl(struct JSON_value *json) {
 
         if (weatherdev == NULL) {
             weatherdev = 
-                static_pointer_cast<rtl433_tracked_weatherstation>(globalreg->entrytracker->GetTrackedInstance(rtl433_weatherstation_id));
+                static_pointer_cast<rtl433_tracked_weatherstation>(entrytracker->GetTrackedInstance(rtl433_weatherstation_id));
             rtlholder->add_map(weatherdev);
         }
 
@@ -369,10 +372,7 @@ void Kis_RTL433_Phy::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
 int Kis_RTL433_Phy::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
     // Anything involving POST here requires a login
-    if (!httpd->HasValidSession(concls)) {
-        fprintf(stderr, "debug - no valid session\n");
-        concls->response_stream << "Login required";
-        concls->httpcode = 401;
+    if (!httpd->HasValidSession(concls, true)) {
         return 1;
     }
 
@@ -388,7 +388,6 @@ int Kis_RTL433_Phy::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
         json = JSON_parse(concls->variable_cache["obj"]->str(), err);
 
         if (err.length() != 0 || json == NULL) {
-            fprintf(stderr, "Could not parse json? %s\n", err.c_str());
             concls->response_stream << "Invalid request: could not parse JSON";
             concls->httpcode = 400;
 
@@ -400,7 +399,6 @@ int Kis_RTL433_Phy::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
         // If we can't make sense of it, blow up
         if (!json_to_rtl(json)) {
-            fprintf(stderr, "debug - could not ocnvert to rtl\n");
             concls->response_stream << 
                 "Invalid request:  could not convert to RTL device";
             concls->httpcode = 400;
@@ -418,7 +416,6 @@ int Kis_RTL433_Phy::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
         concls->response_stream << "Invalid request";
         concls->httpcode = 400;
     } else {
-        // Return a generic OK.  msgpack returns shouldn't get to here.
         concls->response_stream << "OK";
     }
 

@@ -141,6 +141,8 @@ public:
 
 protected:
     virtual void register_fields() {
+        tracker_component::register_fields();
+
         model_id =
             RegisterField("rtl433.device.model", TrackerString,
                     "Sensor model", &model);
@@ -421,6 +423,9 @@ public:
     virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *concls);
 
 protected:
+    shared_ptr<Packetchain> packetchain;
+    shared_ptr<EntryTracker> entrytracker;
+
     int rtl433_holder_id, rtl433_common_id, rtl433_thermometer_id, 
         rtl433_weatherstation_id;
 
