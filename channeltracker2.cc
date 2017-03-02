@@ -100,7 +100,7 @@ bool Channeltracker_V2::Httpd_VerifyPath(const char *path, const char *method) {
 
 void Channeltracker_V2::Httpd_CreateStreamResponse(
         Kis_Net_Httpd *httpd __attribute__((unused)),
-        struct MHD_Connection *connection __attribute__((unused)),
+        Kis_Net_Httpd_Connection *connection __attribute__((unused)),
         const char *path, const char *method, 
         const char *upload_data __attribute__((unused)),
         size_t *upload_data_size __attribute__((unused)), 

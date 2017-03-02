@@ -10,14 +10,8 @@ kr.set_debug(True)
 
 kr.set_login("kismet", "kismet")
 
-svalid = kr.check_session();
-print "Stored session valid:", svalid
-
-if not svalid:
-    print "Logging in:", kr.login()
-
-# Check our session
-print "Valid session:", kr.check_session()
+svalid = kr.login();
+print "Login valid:", svalid
 
 # Get system status
 status = kr.system_status()
@@ -37,12 +31,7 @@ device = kr.device(key)
 
 # Print the SSID for every device we can.  Stupid print; no comparison
 # of the phy type, no handling empty ssid, etc.
-for d in devices:
-    k = d['kismet.device.base.key']
-    ssid = kr.device_field(k, "dot11.device/dot11.device.last_beaconed_ssid")
-
-    print d['kismet.device.base.macaddr'], ssid
-
+print "Found {} devices".format(len(devices));
 
 # Try to set a channel source (invalid, then valid)
 print "Trying to set invalid source UUID:", kr.config_old_source_channel("invalid", False, 0)

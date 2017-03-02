@@ -242,15 +242,6 @@ public:
     // Intmaps need special care by the caller
     SharedTrackerElement get_freq_khz_map() { return freq_khz_map; }
 
-    string get_tag() { return tag->get_value(); }
-    void set_tag(string in_tag) {
-        tag->set_value(in_tag);
-        tag->set_dirty(true);
-    }
-
-    bool get_tag_dirty() { return tag->get_dirty(); };
-    void set_tag_dirty(bool in_dirty) { tag->set_dirty(in_dirty); };
-
     void inc_frequency_count(double frequency) {
         if (frequency <= 0)
             return;
@@ -302,6 +293,8 @@ public:
         }
 
     }
+
+    __ProxyTrackable(tag_map, TrackerElement, tag_map);
 
 protected:
     virtual void register_fields() {
@@ -388,10 +381,10 @@ protected:
         RegisterField("kismet.device.base.num_alerts", TrackerUInt32,
                 "number of alerts on this device", &alert);
 
-        shared_ptr<kis_tracked_tag> tag_builder(new kis_tracked_tag(globalreg, 0));
-        tag_id =
-            RegisterComplexField("kismet.device.base.tag", tag_builder,
-                    "arbitrary tag");
+        RegisterField("kismet.device.base.tags", TrackerStringMap,
+                "set of arbitrary tags", &tag_map);
+        tag_entry_id =
+            RegisterField("kismet.device.base.tag", TrackerString, "arbitrary tag");
 
         shared_ptr<kis_tracked_location> loc_builder(new kis_tracked_location(globalreg, 0));
         location_id =
@@ -437,9 +430,6 @@ protected:
             signal_data.reset(new kis_tracked_signal_data(globalreg, signal_data_id,
                     e->get_map_value(signal_data_id)));
 
-            tag.reset(new kis_tracked_tag(globalreg, tag_id,
-                    e->get_map_value(tag_id)));
-
             location.reset(new kis_tracked_location(globalreg, location_id,
                     e->get_map_value(location_id)));
 
@@ -467,16 +457,11 @@ protected:
         } else {
             signal_data.reset(new kis_tracked_signal_data(globalreg, signal_data_id));
 
-            tag.reset(new kis_tracked_tag(globalreg, tag_id));
-
-
             packets_rrd.reset(new kis_tracked_rrd<>(globalreg, packets_rrd_id));
-
         }
 
         // add using known fields b/c we might add null
         add_map(signal_data_id, signal_data);
-        add_map(tag_id, tag);
         add_map(location_id, location);
         add_map(packets_rrd_id, packets_rrd);
         add_map(data_rrd_id, data_rrd);
@@ -574,9 +559,10 @@ protected:
     // Alerts triggered on this device
     SharedTrackerElement alert;
 
-    // Device tag
-    shared_ptr<kis_tracked_tag> tag;
-    int tag_id;
+    // Stringmap of tags
+    SharedTrackerElement tag_map;
+    // Entry ID for tag map
+    int tag_entry_id;
 
     // Location min/max/avg
     shared_ptr<kis_tracked_location> location;
@@ -726,7 +712,7 @@ public:
     virtual bool Httpd_VerifyPath(const char *path, const char *method);
 
     virtual void Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
-            struct MHD_Connection *connection,
+            Kis_Net_Httpd_Connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size, std::stringstream &stream);
 

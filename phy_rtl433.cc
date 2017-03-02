@@ -358,7 +358,7 @@ bool Kis_RTL433_Phy::json_to_rtl(struct JSON_value *json) {
 }
 
 void Kis_RTL433_Phy::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
-        struct MHD_Connection *connection,
+        Kis_Net_Httpd_Connection *connection,
         const char *url, const char *method, const char *upload_data,
         size_t *upload_data_size, std::stringstream &stream) {
 

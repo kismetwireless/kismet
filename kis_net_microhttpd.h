@@ -53,7 +53,7 @@ public:
 
     // Handle a request
     virtual int Httpd_HandleRequest(Kis_Net_Httpd *httpd,
-            struct MHD_Connection *connection,
+            Kis_Net_Httpd_Connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size) = 0;
 
@@ -137,12 +137,12 @@ public:
     virtual bool Httpd_VerifyPath(const char *path, const char *method) = 0;
 
     virtual void Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
-            struct MHD_Connection *connection,
+            Kis_Net_Httpd_Connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size, std::stringstream &stream) = 0;
 
     virtual int Httpd_HandleRequest(Kis_Net_Httpd *httpd, 
-            struct MHD_Connection *connection,
+            Kis_Net_Httpd_Connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size);
 
@@ -159,7 +159,7 @@ public:
     virtual bool Httpd_VerifyPath(const char *path, const char *method);
 
     virtual void Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
-            struct MHD_Connection *connection,
+            Kis_Net_Httpd_Connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size, std::stringstream &stream);
 };
@@ -212,6 +212,9 @@ public:
 
     // Login session
     Kis_Net_Httpd_Session *session;
+
+    // Connection
+    struct MHD_Connection *connection;
 };
 
 class Kis_Net_Httpd_Session {
@@ -261,13 +264,18 @@ public:
     void RegisterMimeType(string suffix, string mimetype);
     string GetMimeType(string suffix);
 
-    bool HasValidSession(struct MHD_Connection *connection);
-    bool HasValidSession(Kis_Net_Httpd_Connection *connection);
-    void CreateSession(struct MHD_Response *response, time_t in_lifetime);
+    // Interrogate the session handler and figure out if this connection has a
+    // valid session; optionally sends basic auth failure automatically
+    bool HasValidSession(Kis_Net_Httpd_Connection *connection, bool send_reject = true);
+
+    // Create a session; if connection is not null, insert session into connection.
+    // If response is not null, append to the response
+    void CreateSession(Kis_Net_Httpd_Connection *connection, 
+            struct MHD_Response *response, time_t in_lifetime);
 
     // Generic response sender
     static int SendHttpResponse(Kis_Net_Httpd *httpd,
-            struct MHD_Connection *connection, 
+            Kis_Net_Httpd_Connection *connection,
             const char *url, int httpcode, string responsestr);
 
     // Catch MHD panics and try to close more elegantly
@@ -284,6 +292,8 @@ protected:
 
     struct MHD_Daemon *microhttpd;
     std::vector<Kis_Net_Httpd_Handler *> handler_vec;
+
+    string conf_username, conf_password;
 
     bool use_ssl;
     char *cert_pem, *cert_key;
@@ -303,7 +313,7 @@ protected:
     static void http_request_completed(void *cls, struct MHD_Connection *connection,
             void **con_cls, enum MHD_RequestTerminationCode toe);
 
-    static int handle_static_file(void *cls, struct MHD_Connection *connection,
+    static int handle_static_file(void *cls, Kis_Net_Httpd_Connection *connection,
             const char *url, const char *method);
 
     static int http_post_handler(void *coninfo_cls, enum MHD_ValueKind kind, 

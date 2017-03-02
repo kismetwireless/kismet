@@ -29,7 +29,8 @@
 // We need to subclass the HTTPD handler directly because even though we can
 // generally act like a stream, we need to be able to directly manipulate the
 // response header
-class Kis_Httpd_Websession : public Kis_Net_Httpd_Handler, public LifetimeGlobal {
+class Kis_Httpd_Websession : public Kis_Net_Httpd_Stream_Handler, 
+    public LifetimeGlobal {
 public:
     static shared_ptr<Kis_Httpd_Websession> 
         create_websession(GlobalRegistry *in_globalreg) {
@@ -47,12 +48,15 @@ public:
 
     virtual bool Httpd_VerifyPath(const char *path, const char *method);
 
-    virtual int Httpd_HandleRequest(Kis_Net_Httpd *httpd, 
-            struct MHD_Connection *connection,
+    virtual void Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
+            Kis_Net_Httpd_Connection *connection,
             const char *url, const char *method, const char *upload_data,
-            size_t *upload_data_size);
+            size_t *upload_data_size, std::stringstream &stream);
 
     virtual void SetLogin(string in_username, string in_password);
+
+    // Live-check a session login
+    virtual bool CompareLogin(struct MHD_Connection *connection);
 
 protected:
     GlobalRegistry *globalreg;

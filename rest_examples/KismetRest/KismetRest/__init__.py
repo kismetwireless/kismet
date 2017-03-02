@@ -216,6 +216,17 @@ class KismetConnector:
             return None
 
         try:
+            cd = requests.utils.dict_from_cookiejar(self.session.cookies)
+            cookie = cd["KISMET"]
+            if (len(cookie) != 0):
+                lcachef = open(self.sessioncache_path, "w")
+                lcachef.write(cookie)
+                lcachef.close()
+        except Exception as e:
+            print "Failed to save session:", e
+            x = 1
+
+        try:
             obj = msgpack.unpackb(urlbin)
         except Exception as e:
             print "Failed to unpack object: ", e
@@ -266,6 +277,18 @@ class KismetConnector:
                 print "Post failed:", r.content
             return (False, None)
 
+        # Save the session
+        try:
+            cd = requests.utils.dict_from_cookiejar(self.session.cookies)
+            cookie = cd["KISMET"]
+            if (len(cookie) != 0):
+                lcachef = open(self.sessioncache_path, "w")
+                lcachef.write(cookie)
+                lcachef.close()
+        except Exception as e:
+            print "Failed to save session:", e
+            x = 1
+
         return (True, r.content)
 
     def post_msgpack_url(self, url, postdata):
@@ -297,7 +320,7 @@ class KismetConnector:
         Logs in (and caches login credentials).  Required for administrative
         behavior.
         """
-        r = self.session.get("%s/session/create_session" % self.host_uri)
+        r = self.session.get("%s/session/check_session" % self.host_uri)
 
         if not r.status_code == 200:
             return False

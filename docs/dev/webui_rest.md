@@ -10,9 +10,9 @@ Data returned by JSON serializers will transform field names to match the path d
 
 Kismet uses session cookies to maintain a login session.  Typically GET requests which do not reveal sensitive configuration data do not require a login, while POST commands which change configuration or GET commands which might return parts of the Kismet configuration values will require the user to login with the credentials in the `kismet_httpd.conf` config file.
 
-Sessions are created via HTTP Basic Auth to the `/session/create_session` endpoint and are stored in the `KISMET` session cookie for future page requests.
+Sessions are created via HTTP Basic Auth.  A session will be created for any valid login passed to a page requiring authentication.  Logins may be validated directly against the `/session/check_session` endpoint by passing HTTP Basic Auth to it.
 
-Endpoints which require authentication but do not have a valid session return HTTP 401 "Unauthorized".
+Session IDs are returned in the `KISMET` session cookie.  Clients which interact with logins should retain this session cookie and use it for future communication.
 
 ## Commands
 

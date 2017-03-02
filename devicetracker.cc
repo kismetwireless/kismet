@@ -1160,10 +1160,12 @@ void Devicetracker::WriteXML(FILE *in_logfile) {
 			fprintf(in_logfile, "<manufacturer>%s</manufacturer>\n",
 					SanitizeXML(dev->get_manuf()).c_str());
 
+        /*
         if (dev->get_tag() != "") {
             fprintf(in_logfile, "<tags><tag name=\"tag\">%s</tag></tags>",
                     SanitizeXML(dev->get_tag()).c_str());
         }
+        */
 
 		// Call all the phy handlers for logging
 		for (map<int, Kis_Phy_Handler *>::iterator x = phy_handler_map.begin();
@@ -1530,10 +1532,12 @@ void Devicetracker::WriteTXT(FILE *in_logfile) {
 			fprintf(in_logfile, " Manufacturer: %s\n\n",
 					dev->get_manuf().c_str());
 
+        /*
         if (dev->get_tag() != "") {
             fprintf(in_logfile, " Tag: %s\n",
                     dev->get_tag().c_str());
 		}
+        */
 
 		// Call all the phy handlers for logging
 		for (map<int, Kis_Phy_Handler *>::iterator x = phy_handler_map.begin();
@@ -1918,7 +1922,7 @@ void Devicetracker::httpd_xml_device_summary(std::stringstream &stream) {
 
 void Devicetracker::Httpd_CreateStreamResponse(
         Kis_Net_Httpd *httpd __attribute__((unused)),
-        struct MHD_Connection *connection,
+        Kis_Net_Httpd_Connection *connection,
         const char *path, const char *method, const char *upload_data,
         size_t *upload_data_size, std::stringstream &stream) {
 

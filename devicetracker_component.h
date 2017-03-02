@@ -1357,44 +1357,5 @@ protected:
     int frequency_val_id;
 };
 
-// Arbitrary tag data added to network
-class kis_tracked_tag : public tracker_component {
-public:
-    kis_tracked_tag(GlobalRegistry *in_globalreg, int in_id) :
-        tracker_component(in_globalreg, in_id) { 
-        register_fields();
-        reserve_fields(NULL);
-    }
-
-    kis_tracked_tag(GlobalRegistry *in_globalreg, int in_id, 
-            SharedTrackerElement e) : 
-        tracker_component(in_globalreg, in_id) {
-
-        register_fields();
-        reserve_fields(e);
-    }
-
-    virtual SharedTrackerElement clone_type() {
-        return SharedTrackerElement(new kis_tracked_tag(globalreg, get_id()));
-    }
-
-
-    __Proxy(value, string, string, string, value);
-    __Proxy(dirty, uint8_t, bool, bool, dirty);
-
-protected:
-    virtual void register_fields() {
-        tracker_component::register_fields();
-
-        RegisterField("kismet.common.tag.value", TrackerString,
-                "arbitrary tag", &value);
-        RegisterField("kismet.common.tag.dirty", TrackerUInt8,
-                "tag has been modified", &dirty);
-    }
-
-    SharedTrackerElement value, dirty;
-};
-
-
 #endif
 
