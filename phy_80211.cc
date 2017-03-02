@@ -1846,13 +1846,21 @@ void Kis_80211_Phy::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
                 }
 
                 // Valid requested file?
-                if (tokenurl[5] != tokenurl[4] + "-handshake.pcap")
+                if (tokenurl[5] != tokenurl[4] + "-handshake.pcap") {
+                    stream << "Invalid file";
                     return;
+                }
 
-                // It should exist and we'll handle if it doesn't in the stream
-                // handler
-                devicelist_scope_locker dlocker(devicetracker);
-                GenerateHandshakePcap(devicetracker->FetchDevice(dmac, phyid), stream);
+                // Validate the session and return a basic auth prompt
+                if (httpd->HasValidSession(connection, true)) {
+                    // It should exist and we'll handle if it doesn't in the stream
+                    // handler
+                    devicelist_scope_locker dlocker(devicetracker);
+                    GenerateHandshakePcap(devicetracker->FetchDevice(dmac, phyid), stream);
+                } else {
+                    stream << "Login required";
+                    return;
+                }
             }
         }
     }

@@ -738,43 +738,53 @@ int Kis_Net_Httpd::SendHttpResponse(Kis_Net_Httpd *httpd,
         Kis_Net_Httpd_Connection *connection,
         const char *url, int httpcode, string responsestr) {
 
-    struct MHD_Response *response = 
-        MHD_create_response_from_buffer(responsestr.length(),
-                (void *) responsestr.data(), MHD_RESPMEM_MUST_COPY);
+    int ret = MHD_YES;
 
-    if (connection->session != NULL) {
-        std::stringstream cookiestr;
-        std::stringstream cookie;
+    // If this connection doesn't have a response, make one, populate it, and
+    // send it.  If there is already a response for this connection, it means
+    // something did a custom send - like a basicauth reject - so we just destroy
+    // the response at the end during cleanup.
+    if (connection->response == NULL) {
+        connection->response = 
+            MHD_create_response_from_buffer(responsestr.length(),
+                    (void *) responsestr.data(), MHD_RESPMEM_MUST_COPY);
 
-        cookiestr << KIS_SESSION_COOKIE << "=";
-        cookiestr << connection->session->sessionid;
-        cookiestr << "; Path=/";
+        if (connection->session != NULL) {
+            std::stringstream cookiestr;
+            std::stringstream cookie;
 
-        MHD_add_response_header(response, MHD_HTTP_HEADER_SET_COOKIE, 
-                cookiestr.str().c_str());
+            cookiestr << KIS_SESSION_COOKIE << "=";
+            cookiestr << connection->session->sessionid;
+            cookiestr << "; Path=/";
+
+            MHD_add_response_header(connection->response, MHD_HTTP_HEADER_SET_COOKIE, 
+                    cookiestr.str().c_str());
+        }
+
+        char lastmod[31];
+        struct tm tmstruct;
+        time_t now;
+        time(&now);
+        gmtime_r(&now, &tmstruct);
+        strftime(lastmod, 31, "%a, %d %b %Y %H:%M:%S %Z", &tmstruct);
+        MHD_add_response_header(connection->response, "Last-Modified", lastmod);
+
+        string suffix = GetSuffix(url);
+        string mime = httpd->GetMimeType(suffix);
+
+        if (mime != "") {
+            MHD_add_response_header(connection->response, "Content-Type", mime.c_str());
+        }
+
+        // Allow any?  This lets us handle webuis hosted elsewhere
+        MHD_add_response_header(connection->response, 
+                "Access-Control-Allow-Origin", "*");
+
+        ret = MHD_queue_response(connection->connection, httpcode, 
+                connection->response);
     }
 
-    char lastmod[31];
-    struct tm tmstruct;
-    time_t now;
-    time(&now);
-    localtime_r(&now, &tmstruct);
-    strftime(lastmod, 31, "%a, %d %b %Y %H:%M:%S %Z", &tmstruct);
-    MHD_add_response_header(response, "Last-Modified", lastmod);
-
-    string suffix = GetSuffix(url);
-    string mime = httpd->GetMimeType(suffix);
-
-    if (mime != "") {
-        MHD_add_response_header(response, "Content-Type", mime.c_str());
-    }
-
-    // Allow any?  This lets us handle webuis hosted elsewhere
-    MHD_add_response_header(response, "Access-Control-Allow-Origin", "*");
-
-    int ret = MHD_queue_response(connection->connection, httpcode, response);
-
-    MHD_destroy_response(response);
+    MHD_destroy_response(connection->response);
 
     return ret;
 }
@@ -855,7 +865,6 @@ bool Kis_Net_Httpd::HasValidSession(Kis_Net_Httpd_Connection *connection,
             MHD_COOKIE_KIND, KIS_SESSION_COOKIE);
 
     if (cookieval != NULL) {
-        fprintf(stderr, "debug - comparing session cookie '%s'\n", cookieval);
         map<string, Kis_Net_Httpd_Session *>::iterator si = session_map.find(cookieval);
 
         if (si != session_map.end()) {
@@ -884,7 +893,8 @@ bool Kis_Net_Httpd::HasValidSession(Kis_Net_Httpd_Connection *connection,
     char *pass = NULL;
 
     user = MHD_basic_auth_get_username_password(connection->connection, &pass);
-    if (user == NULL || conf_username != user || conf_password != pass) {
+    if (user == NULL || pass == NULL || conf_username != user || 
+            conf_password != pass) {
         ;
     } else {
         CreateSession(connection, NULL, 0);
@@ -896,14 +906,12 @@ bool Kis_Net_Httpd::HasValidSession(Kis_Net_Httpd_Connection *connection,
     if (send_invalid) {
         string respstr = "Login Required";
 
-        struct MHD_Response *response = 
+        connection->response = 
             MHD_create_response_from_buffer(respstr.length(),
                     (void *) respstr.c_str(), MHD_RESPMEM_MUST_COPY);
 
         MHD_queue_basic_auth_fail_response(connection->connection,
-                "Kismet Admin", response);
-
-        MHD_destroy_response(response);
+                "Kismet Admin", connection->response);
     }
 
     return false;
@@ -945,8 +953,6 @@ void Kis_Net_Httpd::CreateSession(Kis_Net_Httpd_Connection *connection,
     cookiestr << cookie.str();
 
     cookiestr << "; Path=/";
-
-    fprintf(stderr, "debug - created new session %s\n", cookiestr.str().c_str());
 
     if (response != NULL) {
         if (MHD_add_response_header(response, MHD_HTTP_HEADER_SET_COOKIE, 
