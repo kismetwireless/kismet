@@ -1,6 +1,7 @@
 {
     "dynamicjs": [
         { "js": "/js/kismet.ui.dot11.js", "module": "kismet_ui_dot11" },
-        { "js": "/js/kismet.ui.rtl433.js", "module": "kismet_ui_rtl433" }
+        { "js": "/js/kismet.ui.rtl433.js", "module": "kismet_ui_rtl433" },
+        { "js": "/js/kismet.ui.zwave.js", "module": "kismet_ui_zwave" }
     ]
 }
