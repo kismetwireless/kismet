@@ -60,17 +60,12 @@ bool Kis_Zwave_Phy::Httpd_VerifyPath(const char *path, const char *method) {
 }
 
 mac_addr Kis_Zwave_Phy::id_to_mac(uint32_t in_homeid, uint8_t in_devid) {
-    uint8_t bytes[6];
-    uint32_t *homeid = (uint32_t *) bytes + 1;
-    uint8_t *devid = (uint8_t *) bytes + 5;
+    stringstream macstr;
 
-    *homeid = in_homeid;
-    *devid = in_devid;
+    // Lazy!
+    macstr << "02" << std::hex << in_homeid << in_devid;
 
-    // Set the local bit in the OUI
-    bytes[0] = 0x2;
-
-    return mac_addr(bytes, 6);
+    return mac_addr(macstr.str());
 }
 
 bool Kis_Zwave_Phy::json_to_record(struct JSON_value *json) {
@@ -153,7 +148,23 @@ bool Kis_Zwave_Phy::json_to_record(struct JSON_value *json) {
 
     basedev->set_manuf("Z-Wave");
     basedev->set_type_string("Z-Wave Node");
-    basedev->set_devicename("Z-Wave " + smac.Mac2String());
+
+    string devname;
+    stringstream devstr;
+
+    devstr << std::hex << homeid;
+
+    devname = "Z-Wave " +
+        devstr.str().substr(0, 2) + ":" +
+        devstr.str().substr(2, 2) + ":" +
+        devstr.str().substr(4, 2);
+
+    devstr.str("");
+    devstr << std::hex << (unsigned int) devid;
+
+    devname += " id " + devstr.str();
+
+    basedev->set_devicename(devname);
 
     shared_ptr<zwave_tracked_device> zdev =
         static_pointer_cast<zwave_tracked_device>(basedev->get_map_value(zwave_device_id));
