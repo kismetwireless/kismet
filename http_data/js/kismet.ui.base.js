@@ -138,7 +138,7 @@ kismet_ui.AddDeviceColumn('column_channel', {
     width: "6em",
     renderfunc: function(d, t, r, m) {
         if (d != 0) {
-            return data;
+            return d;
         } else if ('kismet.device.base.frequency' in r &&
             r['kismet.device.base_frequency'] != 0) {
             return kismet.HumanReadableFrequency(r['kismet.device.base.frequency']);
