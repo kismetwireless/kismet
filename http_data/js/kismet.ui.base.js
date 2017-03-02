@@ -137,8 +137,23 @@ kismet_ui.AddDeviceColumn('column_channel', {
     field: 'kismet.device.base.channel',
     width: "6em",
     renderfunc: function(d, t, r, m) {
-        return exports.renderChannel(d, t, r, m);
+        if (d != 0) {
+            return data;
+        } else if ('kismet.device.base.frequency' in r &&
+            r['kismet.device.base_frequency'] != 0) {
+            return kismet.HumanReadableFrequency(r['kismet.device.base.frequency']);
+        } else {
+            return "<i>n/a</i>";
+        }
     },
+});
+
+// Hidden column for computing freq in the absence of channel
+kismet_ui.AddDeviceColumn('column_frequency', {
+    sTitle: 'Frequency',
+    field: 'kismet.device.base.frequency',
+    width: "6em",
+    visible: false
 });
 
 kismet_ui.AddDeviceColumn('column_time', {
