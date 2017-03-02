@@ -1680,7 +1680,13 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
 
                 map<uint64_t, shared_ptr<kis_tracked_device_base> >::iterator tmi =
                     tracked_map.find(key);
-                if (tmi != tracked_map.end()) {
+
+                if (tmi == tracked_map.end())
+                    return false;
+
+                string target = Httpd_StripSuffix(tokenurl[4]);
+
+                if (target == "device") {
                     // Try to find the exact field
                     if (tokenurl.size() > 5) {
                         vector<string>::const_iterator first = tokenurl.begin() + 5;
@@ -1693,9 +1699,9 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
                     }
 
                     return true;
-                } else {
-                    return false;
                 }
+
+                return false;
             } else if (tokenurl[2] == "by-mac") {
                 if (tokenurl.size() < 5)
                     return false;
@@ -1740,14 +1746,12 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
             return false;
 
         if (tokenurl[1] == "devices") {
-            if (tokenurl.size() < 4)
+            if (tokenurl.size() < 4) {
                 return false;
 
-            if (tokenurl[2] == "summary") {
+            } else if (tokenurl[2] == "summary") {
                 return Httpd_CanSerialize(tokenurl[3]);
-            }
-
-            if (tokenurl[2] == "last-time") {
+            } else if (tokenurl[2] == "last-time") {
                 if (tokenurl.size() < 5) {
                     return false;
                 }
@@ -1758,6 +1762,31 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
                 }
 
                 return Httpd_CanSerialize(tokenurl[4]);
+            } else if (tokenurl[2] == "by-key") {
+                if (tokenurl.size() < 5) {
+                    return false;
+                }
+
+                local_locker lock(&devicelist_mutex);
+
+                uint64_t key = 0;
+                std::stringstream ss(tokenurl[3]);
+                ss >> key;
+
+                if (!Httpd_CanSerialize(tokenurl[4]))
+                    return false;
+
+                map<uint64_t, shared_ptr<kis_tracked_device_base> >::iterator tmi =
+                    tracked_map.find(key);
+
+                if (tmi == tracked_map.end())
+                    return false;
+
+                string target = Httpd_StripSuffix(tokenurl[4]);
+
+                if (target == "set_name") {
+                    return true;
+                }
             }
         }
     }
@@ -1989,7 +2018,15 @@ void Devicetracker::Httpd_CreateStreamResponse(
 
             map<uint64_t, shared_ptr<kis_tracked_device_base> >::iterator tmi =
                 tracked_map.find(key);
-            if (tmi != tracked_map.end()) {
+
+            if (tmi == tracked_map.end()) {
+                stream << "Invalid device key";
+                return;
+            }
+
+            string target = Httpd_StripSuffix(tokenurl[4]);
+
+            if (target == "device") {
                 // Try to find the exact field
                 if (tokenurl.size() > 5) {
                     vector<string>::const_iterator first = tokenurl.begin() + 5;
@@ -2134,41 +2171,6 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
         // fprintf(stderr, "debug - parsed structured data\n");
 
-        SharedStructured fields = structdata->getStructuredByKey("fields");
-        StructuredData::structured_vec fvec = fields->getStructuredArray();
-
-        for (StructuredData::structured_vec::iterator i = fvec.begin(); 
-                i != fvec.end(); ++i) {
-            if ((*i)->isString()) {
-                // fprintf(stderr, "debug - field: %s\n", (*i)->getString().c_str());
-                SharedElementSummary s(new TrackerElementSummary((*i)->getString(), 
-                            entrytracker));
-                summary_vec.push_back(s);
-            } else if ((*i)->isArray()) {
-                StructuredData::string_vec mapvec = (*i)->getStringVec();
-
-                if (mapvec.size() != 2) {
-                    // fprintf(stderr, "debug - malformed rename pair\n");
-                    concls->response_stream << "Invalid request: "
-                        "Expected field, rename";
-                    concls->httpcode = 400;
-                    return 1;
-                }
-
-                SharedElementSummary s(new TrackerElementSummary(mapvec[0], 
-                            mapvec[1], entrytracker));
-                summary_vec.push_back(s);
-                // fprintf(stderr, "debug - map field: %s:%s\n", mapvec[0].c_str(), mapvec[1].c_str());
-            }
-        }
-
-        // Get the wrapper, if one exists, default to empty if it doesn't
-        wrapper_name = structdata->getKeyAsString("wrapper", "");
-
-        if (structdata->hasKey("regex")) {
-            regexdata = structdata->getStructuredByKey("regex");
-        }
-
     } catch(const StructuredDataException e) {
         // fprintf(stderr, "debug - missing data key %s data %s\n", key, data);
         concls->response_stream << "Invalid request: ";
@@ -2178,7 +2180,82 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
     }
 
     if (tokenurl[1] == "devices") {
-        if (tokenurl[2] == "summary") {
+        if (tokenurl[2] == "by-key") {
+            if (tokenurl.size() < 5) {
+                concls->response_stream << "Invalid request";
+                concls->httpcode = 400;
+                return 1;
+            }
+
+            if (!Httpd_CanSerialize(tokenurl[4])) {
+                concls->response_stream << "Invalid request";
+                concls->httpcode = 400;
+                return 1;
+            }
+
+            uint64_t key = 0;
+            std::stringstream ss(tokenurl[3]);
+            ss >> key;
+
+            map<uint64_t, shared_ptr<kis_tracked_device_base> >::iterator tmi =
+                tracked_map.find(key);
+
+            if (tmi == tracked_map.end()) {
+                concls->response_stream << "Invalid request";
+                concls->httpcode = 400;
+                return 1;
+            }
+
+            string target = Httpd_StripSuffix(tokenurl[4]);
+
+            if (target == "set_name") {
+                // Must have a session to set the name
+                if (!httpd->HasValidSession(concls)) {
+                    return 1;
+                }
+
+            }
+
+        } else if (tokenurl[2] == "summary") {
+            try {
+                SharedStructured fields = structdata->getStructuredByKey("fields");
+                StructuredData::structured_vec fvec = fields->getStructuredArray();
+
+                for (StructuredData::structured_vec::iterator i = fvec.begin(); 
+                        i != fvec.end(); ++i) {
+                    if ((*i)->isString()) {
+                        SharedElementSummary s(new TrackerElementSummary((*i)->getString(), entrytracker));
+                        summary_vec.push_back(s);
+                    } else if ((*i)->isArray()) {
+                        StructuredData::string_vec mapvec = (*i)->getStringVec();
+
+                        if (mapvec.size() != 2) {
+                            // fprintf(stderr, "debug - malformed rename pair\n");
+                            concls->response_stream << "Invalid request: "
+                                "Expected field, rename";
+                            concls->httpcode = 400;
+                            return 1;
+                        }
+
+                        SharedElementSummary s(new TrackerElementSummary(mapvec[0], 
+                                    mapvec[1], entrytracker));
+                        summary_vec.push_back(s);
+                    }
+                }
+
+                // Get the wrapper, if one exists, default to empty if it doesn't
+                wrapper_name = structdata->getKeyAsString("wrapper", "");
+
+                if (structdata->hasKey("regex")) {
+                    regexdata = structdata->getStructuredByKey("regex");
+                }
+            } catch(const StructuredDataException e) {
+                concls->response_stream << "Invalid request: ";
+                concls->response_stream << e.what();
+                concls->httpcode = 400;
+                return 1;
+            }
+
             // Wrapper we insert under
             SharedTrackerElement wrapper = NULL;
 
