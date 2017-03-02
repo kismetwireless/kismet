@@ -148,14 +148,6 @@ kismet_ui.AddDeviceColumn('column_channel', {
     },
 });
 
-// Hidden column for computing freq in the absence of channel
-kismet_ui.AddDeviceColumn('column_frequency', {
-    sTitle: 'Frequency',
-    field: 'kismet.device.base.frequency',
-    width: "6em",
-    visible: false
-});
-
 kismet_ui.AddDeviceColumn('column_time', {
     sTitle: 'Last Seen',
     field: 'kismet.device.base.last_time',
@@ -223,6 +215,17 @@ kismet_ui.AddDeviceColumn('column_device_mac_hidden', {
         return exports.renderMac(d, t, r, m);
     },
 });
+
+// Hidden column for computing freq in the absence of channel
+kismet_ui.AddDeviceColumn('column_frequency_hidden', {
+    sTitle: 'Frequency',
+    field: 'kismet.device.base.frequency',
+    name: 'frequency',
+    searchable: false,
+    visible: false,
+    orderable: false,
+});
+
 
 // Add the (quite complex) device details.
 // It has a priority of -1000 because we want it to always come first.
