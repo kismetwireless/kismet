@@ -63,7 +63,7 @@ mac_addr Kis_Zwave_Phy::id_to_mac(uint32_t in_homeid, uint8_t in_devid) {
     stringstream macstr;
 
     // Lazy!
-    macstr << "02" << std::hex << in_homeid << in_devid;
+    macstr << "02" << std::hex << in_homeid << std::hex << (int) in_devid;
 
     return mac_addr(macstr.str());
 }
