@@ -1,0 +1,86 @@
+Datasource Builder
+    - Register
+        - Register capabilities with builder object
+        - Register capability set of 'local', 'remote', 'passive'
+        - Provider builder instance
+
+Datasource
+
+    - Local_List
+        - Does not instantiate fully registered datasource
+
+        - Return immediate list of interfaces if able to probe with
+          local code / unprivileged code
+
+        - Otherwise
+
+        - Launch binary via IPC
+        - Return IPC entry
+        - Async collection of interfaces by datasourcetracker
+
+        - Spawn IPC source with CLI options to list interfaces
+        - Return valid local sources via device listing
+
+    - Local_Probe
+        - Does not instantiate fully registered datasource
+
+        - Return immediate success if able to probe with local
+          code / unprivileged code
+
+        - Otherwise
+
+        - Launch binary via IPC
+        - Return IPC entry
+        - Async collection of response by datasourcetracker
+
+        - Spawn IPC source with CLI option to probe interface
+        - Return valid or invalid
+
+    - Create_Local
+        - Instantiate a local datasource
+
+        - DST calls us with an interface object
+        - Place it in the interface
+        - IPC deframer calls Handle_Frame
+
+    - Create_Network
+        - Instantiate a local endpoint for a remote datasource
+
+        - Remote connection brokered by Datasourcetracker
+        - DST calls us with an interface object
+        - Deframer in Datasourcetracker calls Handle_Frame
+
+    - Create_Passive
+        - Instantiate a local datasource with no framer connection
+
+        - Called once datasourcetracker is ready
+
+        - Used for web based arbitrary input
+        - Allows us to associate network events and packets with a datasource
+
+    - Close
+        - Close any opened instance (local or remote)
+        - Send shutdown over control
+
+    - Channel set
+        - Set channel
+        - Command queued via framer; same command used for local or remote
+
+    - Configure
+        - Re-open source if there's an error
+
+    - Capture info
+        - reported as string
+        - 'Local + PID'
+        - 'Passive'
+        - 'Remote + Host'
+
+    - Handle_Frame (Handles datasource control frame independent of frame source)
+
+    - Built-in frame handlers
+        - Handle_PACKET
+        - Handle_CHANNEL
+        - Handle_CLOSE
+        - Handle_ERROR
+        - Handle_GPS
+
