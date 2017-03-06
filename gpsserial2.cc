@@ -175,18 +175,18 @@ void GPSSerialV2::BufferAvailable(size_t in_amt) {
     // Aggregate into a new location; then copy into the main location
     // depending on what we found.  Locations can come in multiple sentences
     // so if we're within a second of the previous one we can aggregate them
+    vector<string> inptok = StrTokenize(buf, "\n", 0);
+    delete[] buf;
+
+    if (inptok.size() < 1) {
+        return;
+    }
+
     kis_gps_packinfo *new_location = new kis_gps_packinfo;
     bool set_lat_lon;
     bool set_alt;
     bool set_speed;
     bool set_fix;
-
-	vector<string> inptok = StrTokenize(buf, "\n", 0);
-	delete[] buf;
-
-	if (inptok.size() < 1) {
-        return;
-	}
 
     set_lat_lon = false;
     set_alt = false;
@@ -452,5 +452,7 @@ void GPSSerialV2::BufferAvailable(size_t in_amt) {
             last_heading_time = gps_location->time;
 		}
     }
+
+    delete new_location;
 }
 
