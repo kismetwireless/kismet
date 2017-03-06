@@ -31,6 +31,8 @@
 
 #include <pthread.h>
 
+#include <functional>
+
 #include "globalregistry.h"
 
 // For ubertooth and a few older plugins that compile against both svn and old
@@ -58,6 +60,9 @@ public:
 
         // Event, if we were passed a class
         TimetrackerEvent *event;
+
+        // Function if we were passed a lambda
+        std::function<int (int)> event_func;
 
         // C function, if we weren't
         int (*callback)(timer_event *, void *, GlobalRegistry *);
@@ -104,6 +109,9 @@ public:
     int RegisterTimer(int timeslices, struct timeval *in_trigger,
             int in_recurring, TimetrackerEvent *event);
 
+    int RegisterTimer(int timeslices, struct timeval *in_trigger,
+            int in_recurring, std::function<int (int)> event);
+
     // Remove a timer that's going to execute
     int RemoveTimer(int timer_id);
 
@@ -119,6 +127,8 @@ protected:
                       void *in_parm);
     int RegisterTimer_nb(int timeslices, struct timeval *in_trigger,
             int in_recurring, TimetrackerEvent *event);
+    int RegisterTimer_nb(int timeslices, struct timeval *in_trigger,
+            int in_recurring, std::function<int (int)> event);
     int RemoveTimer_nb(int timer_id);
 
     int next_timer_id;

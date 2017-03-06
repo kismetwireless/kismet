@@ -74,11 +74,13 @@ int Timetracker::Tick() {
 		}
 
         // Call the function with the given parameters
-        int ret;
+        int ret = 0;
         if (evt->callback != NULL) {
             ret = (*evt->callback)(evt, evt->callback_parm, globalreg);
-        } else {
+        } else if (evt->event != NULL) {
             ret = evt->event->timetracker_event(evt->timer_id);
+        } else if (evt->event_func != NULL) {
+            ret = evt->event_func(evt->timer_id);
         }
 
         if (ret > 0 && evt->timeslices != -1 && evt->recurring) {
@@ -183,6 +185,46 @@ int Timetracker::RegisterTimer_nb(int in_timeslices, struct timeval *in_trigger,
 
     return evt->timer_id;
 }
+
+int Timetracker::RegisterTimer(int in_timeslices, struct timeval *in_trigger,
+        int in_recurring, std::function<int (int)> in_event) {
+    local_locker lock(&time_mutex);
+    return RegisterTimer_nb(in_timeslices, in_trigger, in_recurring, in_event);
+}
+
+int Timetracker::RegisterTimer_nb(int in_timeslices, struct timeval *in_trigger,
+        int in_recurring, std::function<int (int)> in_event) {
+    timer_event *evt = new timer_event;
+
+    evt->timer_id = next_timer_id++;
+    gettimeofday(&(evt->schedule_tm), NULL);
+
+    if (in_trigger != NULL) {
+        evt->trigger_tm.tv_sec = in_trigger->tv_sec;
+        evt->trigger_tm.tv_usec = in_trigger->tv_usec;
+        evt->timeslices = -1;
+    } else {
+        evt->trigger_tm.tv_sec = evt->schedule_tm.tv_sec + (in_timeslices / 10);
+        evt->trigger_tm.tv_usec = evt->schedule_tm.tv_usec + (in_timeslices % 10);
+        evt->timeslices = in_timeslices;
+    }
+
+    evt->recurring = in_recurring;
+    evt->callback = NULL;
+    evt->callback_parm = NULL;
+    evt->event = NULL;
+    
+    evt->event_func = in_event;
+
+    timer_map[evt->timer_id] = evt;
+    sorted_timers.push_back(evt);
+
+    // Resort the list
+    stable_sort(sorted_timers.begin(), sorted_timers.end(), SortTimerEventsTrigger());
+
+    return evt->timer_id;
+}
+
 
 int Timetracker::RemoveTimer(int in_timerid) {
     local_locker lock(&time_mutex);
