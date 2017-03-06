@@ -166,7 +166,7 @@ int TcpServerV2::Poll(fd_set& in_rset, fd_set& in_wset) {
             return 0;
         }
 
-        shared_ptr<RingbufferHandler> con_handler = NewConnection(accept_fd);
+        shared_ptr<RingbufferHandler> con_handler = AllocateConnection(accept_fd);
 
         if (con_handler == NULL) {
             KillConnection(accept_fd);
@@ -174,6 +174,8 @@ int TcpServerV2::Poll(fd_set& in_rset, fd_set& in_wset) {
         }
 
         handler_map.emplace(accept_fd, con_handler);
+
+        NewConnection(con_handler);
     }
 
     for (auto i = handler_map.begin();
@@ -323,6 +325,14 @@ bool TcpServerV2::AllowConnection(int in_fd) {
             MSGFLAG_ERROR);
 
     return false;
+}
+
+shared_ptr<RingbufferHandler> TcpServerV2::AllocateConnection(int in_fd __attribute__((unused))) {
+    // Exceptionally simple basic allocation
+    shared_ptr<RingbufferHandler> 
+        rbh(new RingbufferHandler(ringbuf_size, ringbuf_size));  
+
+    return rbh;
 }
 
 void TcpServerV2::Shutdown() {

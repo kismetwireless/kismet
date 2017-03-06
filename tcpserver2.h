@@ -74,14 +74,16 @@ public:
     virtual int Poll(fd_set& in_rset, fd_set& in_wset);
     
 protected:
-    // Create a new connection (assigning ringbufferhandler, etc) 
-    virtual shared_ptr<RingbufferHandler> NewConnection(int in_fd) = 0;
+    virtual void NewConnection(shared_ptr<RingbufferHandler> conn_handler) = 0;
 
     // Perform the TCP accept
     virtual int AcceptConnection();
 
     // Filter against the filter list
     virtual bool AllowConnection(int in_fd);
+
+    // Allocate the connection
+    virtual shared_ptr<RingbufferHandler> AllocateConnection(int in_fd);
 
     bool valid;
 
