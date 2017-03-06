@@ -346,9 +346,6 @@ if __name__ == "__main__":
     kr = KismetRest.KismetConnector(uri)
     kr.set_login(user, passwd)
     
-    if not kr.check_session():
-        kr.login()
-
     pktflen = 54
 
     sigstop=0
@@ -423,8 +420,14 @@ if __name__ == "__main__":
 
             print "Posting: ", json.dumps(obj)
 
-            print "Post:", kr.post_url("phy/phyZwave/post_zwave_json.cmd", 
-                    { "obj": json.dumps(obj) });
+            try:
+                if not kr.check_session():
+                    kr.login()
+
+                print "Post:", kr.post_url("phy/phyZwave/post_zwave_json.cmd", 
+                        { "obj": json.dumps(obj) });
+            except Exception as e:
+                print "Post failed: ", e
 
             continue
 
