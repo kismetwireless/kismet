@@ -71,7 +71,9 @@ class KisDataSource_QueuedCommand;
 // Supported source
 class KisDataSource_SupportedSource;
 
+// Forward definition of data sources
 class KisDataSource;
+typedef shared_ptr<KisDataSource> SharedDataSource;
 
 /* KisDataSourceBuilder
  *
@@ -81,6 +83,9 @@ class KisDataSource;
  * It is stored as a tracker_component so that the tracker can directly
  * serialize the data for displaying what sources are possible.
  */
+class KisDataSourceBuilder;
+typedef shared_ptr<KisDataSourceBuilder> SharedDataSourceBuilder;
+
 class KisDataSourceBuilder : public tracker_component {
 public:
     KisDataSourceBuilder(GlobalRegistry *in_globalreg, int in_id) :
@@ -89,51 +94,76 @@ public:
         reserve_fields(NULL);
     }
 
+    KisDataSourceBuilder(GlobalRegistry *in_globalreg, int in_id,
+            SharedTrackerElement e) :
+        tracker_component(in_globalreg, in_id) {
+        register_fields();
+        reserve_fields(e);
+    }
+
     virtual ~KisDataSourceBuilder();
 
-    // Build a source.  Sources can be:
-    //  - IPC (locally attached IPC channel using the kismet msgpack IPC
-    //  protocol)
-    //  - Remote (initiated by a remote TCP connection)
-    //  - Lightweight (for low-bandwidth 'whole device record' style capture
-    //  sources, which may implement a REST interface rather than a complete
-    //  IPC channel)
-    virtual shared_ptr<KisDataSource> create_ipc_source() { return NULL; };
-    virtual shared_ptr<KisDataSource> create_net_source() { return NULL; };
-    virtual shared_ptr<KisDataSource> create_lightweight_source() { return NULL; }
+    virtual SharedTrackerElement clone_type() {
+        return SharedTrackerElement(new KisDataSourceBuilder(globalreg, get_id()));
+    }
+
+    // Build the actual data source
+    virtual SharedDataSource build_datasource() { return NULL; }
+
+    __Proxy(source_type, string, string, string, source_type);
+    __Proxy(source_description, string, string, string, source_description);
+
+    __Proxy(probe_capable, uint8_t, bool, bool, probe_capable);
+    __Proxy(list_capable, uint8_t, bool, bool, list_capable);
+    __Proxy(local_capable, uint8_t, bool, bool, local_capable);
+    __Proxy(remote_capable, uint8_t, bool, bool, remote_capable);
+    __Proxy(passive_capable, uint8_t, bool, bool, passive_capable);
 
 protected:
-    int source_type_id;
+    virtual void register_fields() {
+        tracker_component::register_fields();
+
+        RegisterField("kismet.datasource.type", TrackerString, 
+                "Datasource type", &source_type);
+
+        RegisterField("kismet.datasource.description", TrackerString,
+                "Datasource description", &source_description);
+
+        RegisterField("kismet.datasource.probe_capable", TrackerUInt8,
+                "Datasource can automatically probe", &probe_capable);
+
+        RegisterField("kismet.datasource.list_capable", TrackerUInt8,
+                "Datasource can list local interfaces", &list_capable);
+
+        RegisterField("kismet.datasource.local_capable", TrackerUInt8,
+                "Datasource can support local interfaces", &local_capable);
+
+        RegisterField("kismet.datasource.remote_capable", TrackerUInt8,
+                "Datasource can support remote interfaces", &remote_capable);
+
+        RegisterField("kismet.datasource.passive_capable", TrackerUInt8,
+                "Datasource can support passive interface-less data", &passive_capable);
+    }
+
     SharedTrackerElement source_type;
+    SharedTrackerElement source_description;
+
+    SharedTrackerElement probe_capable;
+    SharedTrackerElement list_capable;
+    SharedTrackerElement local_capable;
+    SharedTrackerElement remote_capable;
+    SharedTrackerElement passive_capable;
 
 };
 
 
-class KisDataSource : public RingbufferInterface, public tracker_component {
+class KisDataSource : public tracker_component {
 public:
     // Create a builder instance which only knows enough to be able to
     // build a complete version of itself
     KisDataSource(GlobalRegistry *in_globalreg);
     virtual ~KisDataSource();
 
-    // Build a new instance of the class, used for opening and probing in IPC
-    // mode (local sources driven by kismet server)
-    virtual shared_ptr<KisDataSource> build_ipc_data_source() { 
-        return NULL; 
-    }
-
-    // Build a new instance of the class bound to an existing ringbuffer
-    // handler (used when spawned via the network server)
-    virtual shared_ptr<KisDataSource> 
-        build_net_data_source(RingbufferHandler *in_handler __attribute__((unused))) {
-            return NULL;
-    }
-
-    // Error handler callback, called when something goes wrong in the source
-    // and it has to close.  
-    typedef void (*error_handler)(shared_ptr<KisDataSource>, shared_ptr<void>);
-    virtual void set_error_handler(error_handler in_cb, shared_ptr<void> in_aux);
-    virtual void cancel_error_handler();
 
     // Scan for supported devices, since this is async, provide a callback.
     // Returns false if unable to launch scan, or true of scan is underway.

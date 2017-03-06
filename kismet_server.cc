@@ -68,14 +68,11 @@
 #include "packetsource_airpcap.h"
 #include "packetsourcetracker.h"
 
-#include "kis_datasource.h"
-#include "datasourcetracker.h"
+// #include "kis_datasource.h"
+// #include "datasourcetracker.h"
 
 #include "timetracker.h"
 #include "alertracker.h"
-
-#include "netframework.h"
-#include "tcpserver.h"
 
 #include "kis_net_microhttpd.h"
 #include "system_monitor.h"
@@ -938,7 +935,7 @@ int main(int argc, char *argv[], char *envp[]) {
     Channeltracker_V2::create_channeltracker(globalregistry);
 
     // Add the datasource tracker
-    Datasourcetracker::create_dst(globalregistry);
+    // Datasourcetracker::create_dst(globalregistry);
 
     // Create the packetsourcetracker
     Packetsourcetracker::create_pst(globalregistry);

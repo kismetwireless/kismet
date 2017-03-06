@@ -22,7 +22,6 @@
 #include "config.h"
 
 #include "util.h"
-#include "netframework.h"
 #include "ipc_remote.h"
 
 // Packet control IPC protocol

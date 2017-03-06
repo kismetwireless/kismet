@@ -12,10 +12,8 @@ PSO	= util.o cygwin_utils.o globalregistry.o \
 	packet.o messagebus.o configfile.o getopt.o \
 	filtercore.o ifcontrol.o iwcontrol.o madwifing_control.o nl80211_control.o \
 	psutils.o ipc_remote.o battery.o kismet_json.o \
-	netframework.o clinetframework.o tcpserver.o tcpclient.o \
-	tcpclient2.o serialclient2.o pipeclient.o ipc_remote2.o \
+	tcpserver2.o tcpclient2.o serialclient2.o pipeclient.o ipc_remote2.o \
 	packetsourcetracker.o $(CAPSOURCES) \
-	datasourcetracker.o kis_datasource.o \
 	kis_net_microhttpd.o system_monitor.o kis_httpd_websession.o base64.o \
 	gps_manager.o kis_gps.o gpsserial2.o gpsgpsd2.o gpsfake.o gpsweb.o \
 	packetchain.o \
@@ -33,6 +31,8 @@ PSO	= util.o cygwin_utils.o globalregistry.o \
 	statealert.o \
 	messagebus_restclient.o \
 	kismet_server.o
+
+	#datasourcetracker.o kis_datasource.o \
 
 PS	= kismet_server
 
@@ -53,7 +53,7 @@ DRONEO =
 CSO = util.o cygwin_utils.o globalregistry.o ringbuf.o \
 	packet.o messagebus.o configfile.o getopt.o \
 	filtercore.o ifcontrol.o iwcontrol.o madwifing_control.o nl80211_control.o \
-	psutils.o ipc_remote.o netframework.o clinetframework.o tcpserver.o tcpclient.o \
+	psutils.o ipc_remote.o \
 	timetracker.o kismet_json.o \
 	packetsourcetracker.o packetchain.o $(CAPSOURCES) \
 	dumpfile.o dumpfile_tuntap.o \

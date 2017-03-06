@@ -40,7 +40,7 @@ class RingbufferHandler {
 public:
     // For one-way buffers, define a buffer as having a size of zero
     RingbufferHandler(size_t r_buffer_sz, size_t w_buffer_sz);
-    ~RingbufferHandler();
+    virtual ~RingbufferHandler();
 
     // Basic size ops
     size_t GetReadBufferSize();
@@ -85,7 +85,14 @@ public:
     void ReadBufferError(string in_error);
     void WriteBufferError(string in_error);
 
+    // Close ring buffer (sets closed attribute, can be overridden; provides a
+    // non-error-oriented closure)
+    virtual void CloseHandler();
+    virtual bool FetchClosed();
+
 protected:
+    bool closed;
+
     RingbufV2 *read_buffer;
     RingbufV2 *write_buffer;
 

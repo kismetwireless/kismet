@@ -25,6 +25,8 @@
 #include "ringbuf_handler.h"
 
 RingbufferHandler::RingbufferHandler(size_t r_buffer_sz, size_t w_buffer_sz) {
+    closed = false;
+
     if (r_buffer_sz != 0)
         read_buffer = new RingbufV2(r_buffer_sz);
     else
@@ -256,6 +258,18 @@ void RingbufferHandler::WriteBufferError(string in_error) {
 
     if (wbuf_notify)
         wbuf_notify->BufferError(in_error);
+}
+
+void RingbufferHandler::CloseHandler() {
+    local_locker lock(&handler_locker);
+
+    closed = true;
+}
+
+bool RingbufferHandler::FetchClosed() {
+    local_locker lock(&handler_locker);
+
+    return closed;
 }
 
 RingbufferInterface::RingbufferInterface() {
