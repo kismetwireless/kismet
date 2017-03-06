@@ -50,9 +50,6 @@
 
 #include "timetracker.h"
 
-#include "netframework.h"
-#include "tcpserver.h"
-
 #include "ipc_remote.h"
 
 #ifdef HAVE_CAPABILITY
