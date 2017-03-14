@@ -122,7 +122,7 @@ public:
     virtual void BufferError(string in_error __attribute__((unused))) { }
 
 protected:
-    RingbufferHandler *handler;
+    RingbufferHandler *ringbuffer_handler;
     bool read_handler;
     bool write_handler;
 };

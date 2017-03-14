@@ -273,29 +273,29 @@ bool RingbufferHandler::FetchClosed() {
 }
 
 RingbufferInterface::RingbufferInterface() {
-    handler = NULL;
+    ringbuffer_handler = NULL;
     read_handler = false;
     write_handler = false;
 }
 
 RingbufferInterface::~RingbufferInterface() {
-    if (handler != NULL) {
+    if (ringbuffer_handler != NULL) {
         if (read_handler)
-            handler->RemoveReadBufferInterface();
+            ringbuffer_handler->RemoveReadBufferInterface();
         if (write_handler)
-            handler->RemoveWriteBufferInterface();
+            ringbuffer_handler->RemoveWriteBufferInterface();
     }
 }
 
 void RingbufferInterface::HandleReadBuffer(RingbufferHandler *in_handler) {
-    handler = in_handler;
+    ringbuffer_handler = in_handler;
     read_handler = true;
 
     in_handler->SetReadBufferInterface(this);
 }
 
 void RingbufferInterface::HandleWriteBuffer(RingbufferHandler *in_handler) {
-    handler = in_handler;
+    ringbuffer_handler = in_handler;
     write_handler = true;
 
     in_handler->SetWriteBufferInterface(this);
