@@ -23,6 +23,8 @@
 
 #include <stdlib.h>
 #include <string>
+#include <functional>
+
 #include "ringbuf2.h"
 
 class RingbufferInterface;
@@ -90,8 +92,13 @@ public:
     virtual void CloseHandler();
     virtual bool FetchClosed();
 
+    // Set close function, called when terminating a RBH
+    virtual void SetHandlerClose(function<void ()> in_cb);
+
 protected:
     bool closed;
+
+    function<void ()> close_callback;
 
     RingbufV2 *read_buffer;
     RingbufV2 *write_buffer;
