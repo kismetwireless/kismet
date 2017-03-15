@@ -296,6 +296,33 @@ protected:
     pthread_mutex_t *lock;
 };
 
+// Act as a scoped locker on a mutex that never expires; used for performing
+// end-of-life mutex maintenance
+class local_eol_locker {
+public:
+    local_eol_locker(pthread_mutex_t *in) {
+#ifdef HAVE_PTHREAD_TIMELOCK
+        struct timespec t;
+
+        clock_gettime(CLOCK_REALTIME , &t); 
+        t.tv_sec += 5; \
+
+        if (pthread_mutex_timedlock(in, &t) != 0) {
+            throw(std::runtime_error("mutex not available w/in 5 seconds"));
+        }
+#else
+        pthread_mutex_lock(in);
+#endif
+        lock = in;
+    }
+
+    ~local_eol_locker() {
+
+    }
+protected:
+    pthread_mutex_t *lock;
+};
+
 // Local copy of strerror_r because glibc did such an amazingly poor job of it
 string kis_strerror_r(int errnum);
 
