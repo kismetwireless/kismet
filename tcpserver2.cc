@@ -332,6 +332,10 @@ shared_ptr<RingbufferHandler> TcpServerV2::AllocateConnection(int in_fd __attrib
     shared_ptr<RingbufferHandler> 
         rbh(new RingbufferHandler(ringbuf_size, ringbuf_size));  
 
+    rbh->SetHandlerClose([in_fd]() {
+        close(in_fd);
+    });
+
     return rbh;
 }
 
