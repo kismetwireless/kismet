@@ -251,11 +251,22 @@ void TcpServerV2::KillConnection(int in_fd) {
     auto i = handler_map.find(in_fd);
 
     if (i != handler_map.end()) {
-        i->second->CloseHandler();
+        i->second->CloseHandler("TCP connection closed");
         handler_map.erase(i);
     }
 
     close(in_fd);
+}
+
+void TcpServerV2::KillConnection(shared_ptr<RingbufferHandler> in_handler) {
+    for (auto i = handler_map.begin(); i != handler_map.end(); ++i) {
+        if (i->second == in_handler) {
+            close(i->first);
+            handler_map.erase(i);
+            in_handler->CloseHandler("TCP connection closed");
+            return;
+        }
+    }
 }
 
 int TcpServerV2::AcceptConnection() {
@@ -331,10 +342,6 @@ shared_ptr<RingbufferHandler> TcpServerV2::AllocateConnection(int in_fd __attrib
     // Exceptionally simple basic allocation
     shared_ptr<RingbufferHandler> 
         rbh(new RingbufferHandler(ringbuf_size, ringbuf_size));  
-
-    rbh->SetHandlerClose([in_fd]() {
-        close(in_fd);
-    });
 
     return rbh;
 }

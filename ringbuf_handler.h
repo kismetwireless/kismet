@@ -89,16 +89,11 @@ public:
 
     // Close ring buffer (sets closed attribute, can be overridden; provides a
     // non-error-oriented closure)
-    virtual void CloseHandler();
+    virtual void CloseHandler(string in_reason);
     virtual bool FetchClosed();
-
-    // Set close function, called when terminating a RBH
-    virtual void SetHandlerClose(function<void ()> in_cb);
 
 protected:
     bool closed;
-
-    function<void ()> close_callback;
 
     RingbufV2 *read_buffer;
     RingbufV2 *write_buffer;

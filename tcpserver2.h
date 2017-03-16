@@ -64,6 +64,7 @@ public:
             string in_bindaddress, vector<string> in_filtervec);
 
     virtual void KillConnection(int in_fd);
+    virtual void KillConnection(shared_ptr<RingbufferHandler> in_handler);
 
     virtual void Shutdown();
 
