@@ -974,6 +974,25 @@ class tracker_component : public TrackerElement {
         cvar->set((ptype) in); \
     }
 
+// Ugly trackercomponent macro for proxying trackerelement values
+// Defines get_<name> function, for a TrackerElement of type <ptype>, returning type 
+// <rtype>, referencing class variable <cvar>
+// Defines set_<name> funciton, for a TrackerElement of type <ptype>, taking type 
+// <itype>, which must be castable to the TrackerElement type (itype), referencing 
+// class variable <cvar>, which executes function <lambda> after the set command has
+// been executed.  <lambda> should be of the form [](itype) -> void
+#define __ProxyL(name, ptype, itype, rtype, cvar, lamda) \
+    virtual shared_ptr<TrackerElement> get_tracker_##name() { \
+        return (shared_ptr<TrackerElement>) cvar; \
+    } \
+    virtual rtype get_##name() const { \
+        return (rtype) GetTrackerValue<ptype>(cvar); \
+    } \
+    virtual void set_##name(itype in) { \
+        cvar->set((ptype) in); \
+        lambda(in); \
+    }
+
 // Only proxy a Get function
 #define __ProxyGet(name, ptype, rtype, cvar) \
     virtual rtype get_##name() { \
