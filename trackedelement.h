@@ -980,7 +980,7 @@ class tracker_component : public TrackerElement {
 // Defines set_<name> funciton, for a TrackerElement of type <ptype>, taking type 
 // <itype>, which must be castable to the TrackerElement type (itype), referencing 
 // class variable <cvar>, which executes function <lambda> after the set command has
-// been executed.  <lambda> should be of the form [](itype) -> void
+// been executed.  <lambda> should be of the form [](itype) -> bool
 #define __ProxyL(name, ptype, itype, rtype, cvar, lamda) \
     virtual shared_ptr<TrackerElement> get_tracker_##name() { \
         return (shared_ptr<TrackerElement>) cvar; \
@@ -988,9 +988,9 @@ class tracker_component : public TrackerElement {
     virtual rtype get_##name() const { \
         return (rtype) GetTrackerValue<ptype>(cvar); \
     } \
-    virtual void set_##name(itype in) { \
+    virtual bool set_##name(itype in) { \
         cvar->set((ptype) in); \
-        lambda(in); \
+        return lambda(in); \
     }
 
 // Only proxy a Get function
@@ -1038,6 +1038,21 @@ class tracker_component : public TrackerElement {
     virtual shared_ptr<TrackerElement> get_tracker_##name() { \
         return static_pointer_cast<TrackerElement>(cvar); \
     } 
+
+// Proxy sub-trackable (name, trackable type, class variable, set function)
+// Returns a shared_ptr instance of a trackable object, or defines a basic
+// setting function.  Set function calls lambda, which should be of the signature
+// [] (shared_ptr<ttype>) -> bool
+#define __ProxyTrackableL(name, ttype, cvar, lamda) \
+    virtual shared_ptr<ttype> get_##name() { return cvar; } \
+    virtual bool set_##name(shared_ptr<ttype> in) { \
+        cvar = in; \
+        return lamda(in); \
+    }  \
+    virtual shared_ptr<TrackerElement> get_tracker_##name() { \
+        return static_pointer_cast<TrackerElement>(cvar); \
+    } 
+
 
 // Proxy dynamic trackable (value in class may be null and is dynamically
 // built)
