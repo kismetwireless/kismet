@@ -28,10 +28,27 @@
 #include <pcre.h>
 #endif
 
-KisDataSource::KisDataSource(GlobalRegistry *in_globalreg) :
-    tracker_component(in_globalreg, 0) {
+KisDataSource::KisDataSource(GlobalRegistry *in_globalreg, int in_id,
+        SharedTrackerElement e) : tracker_component(in_globalreg, in_id) {
     globalreg = in_globalreg;
 
+    register_fields();
+    reserve_fields(e);
+
+    initialize();
+}
+
+KisDataSource::KisDataSource(GlobalRegistry *in_globalreg, int in_id) :
+    tracker_component(in_globalreg, in_id) {
+    globalreg = in_globalreg;
+        
+    register_fields();
+    reserve_fields(NULL);
+
+    initialize();
+}
+
+void KisDataSource::initialize() {
     packetchain = 
         static_pointer_cast<Packetchain>(globalreg->FetchGlobal("PACKETCHAIN"));
 
@@ -41,42 +58,26 @@ KisDataSource::KisDataSource(GlobalRegistry *in_globalreg) :
 
     pthread_mutex_init(&source_lock, NULL);
 
-    probe_callback = NULL;
-    probe_aux = NULL;
-
-    error_callback = NULL;
-    error_aux = NULL;
-
-    open_callback = NULL;
-    open_aux = NULL;
-
-    register_fields();
-    reserve_fields(NULL);
-
-    set_source_running(false);
-
-    ipchandler = NULL;
-    source_ipc = NULL;
+    ringbuf_handler = NULL;
+    ipc_remote = NULL;
 }
 
 KisDataSource::~KisDataSource() {
-    close_source();
+    // Make sure no-one is holding a reference to us
+    local_eol_locker lock(&source_lock);
 
-    {
-        // Make sure no-one is holding a reference to us
-        local_locker lock(&source_lock);
-    }
+    close_source();
 
     pthread_mutex_destroy(&source_lock);
 }
 
 void KisDataSource::close_source() {
-    cancel_probe_source();
-    cancel_open_source();
 
-    if (source_ipc != NULL) {
-        source_ipc->close_ipc();
-        source_ipc->soft_kill();
+    if (ipc_remote != NULL) {
+        ipc_remote->close_ipc();
+        ipc_remote->soft_kill();
+    } else {
+        // Try killing the connection with the DST TCPserver
     }
 
     set_source_running(false);
@@ -84,69 +85,40 @@ void KisDataSource::close_source() {
 }
 
 void KisDataSource::register_fields() {
-    source_name_id =
-        RegisterField("kismet.datasource.source_name", TrackerString,
-                "Human name of data source", &source_name);
-    source_type_id =
-        RegisterField("kismet.datasource.source_type", TrackerString,
-                "Type of data source", &source_type);
-    source_interface_id =
-        RegisterField("kismet.datasource.source_interface", TrackerString,
-                "Primary capture interface", &source_interface);
-    source_uuid_id =
-        RegisterField("kismet.datasource.source_uuid", TrackerUuid,
-                "UUID", &source_uuid);
-    source_id_id =
-        RegisterField("kismet.datasource.source_id", TrackerInt32,
-                "Run-time ID", &source_id);
-    source_channel_capable_id =
-        RegisterField("kismet.datasource.source_channel_capable", TrackerUInt8,
-                "(bool) source capable of channel change", 
-                &source_channel_capable);
-    child_pid_id =
-        RegisterField("kismet.datasource.child_pid", TrackerInt64,
-                "PID of data capture process", &child_pid);
-    source_definition_id =
-        RegisterField("kismet.datasource.definition", TrackerString,
-                "original source definition", &source_definition);
-    source_description_id =
-        RegisterField("kismet.datasource.description", TrackerString,
-                "human-readable description", &source_description);
+    RegisterField("kismet.datasource.source_name", TrackerString,
+            "Human name of data source", &source_name);
+    RegisterField("kismet.datasource.source_interface", TrackerString,
+            "Primary capture interface", &source_interface);
+    RegisterField("kismet.datasource.source_uuid", TrackerUuid,
+            "UUID", &source_uuid);
+    RegisterField("kismet.datasource.source_id", TrackerInt32,
+            "Run-time ID", &source_id);
+
+    __RegisterComplexField(KisDataSourceBuilder, prototype);
+
+    RegisterField("kismet.datasource.child_pid", TrackerInt64,
+            "PID of data capture process", &child_pid);
+    RegisterField("kismet.datasource.ipc_bin", TrackerString,
+            "driver binary", &source_ipc_bin);
+
+    RegisterField("kismet.datasource.sourceline", TrackerString,
+            "original source definition", &sourceline);
 
     source_channel_entry_id =
         globalreg->entrytracker->RegisterField("kismet.device.base.channel", 
                 TrackerString, "channel (phy specific)");
-    source_channels_vec_id =
-        RegisterField("kismet.datasource.channels", TrackerVector,
-                "valid channels for this device", &source_channels_vec);
+    RegisterField("kismet.datasource.channels", TrackerVector,
+            "Supported channels for this device", &source_channels_vec);
 
-    ipc_errors_id =
-        RegisterField("kismet.datasource.ipc_errors", TrackerUInt64,
-                "number of errors in IPC protocol", &ipc_errors);
-    source_running_id =
-        RegisterField("kismet.datasource.running", TrackerUInt8,
-                "source is currently operational", &source_running);
-    source_hopping_id = 
-        RegisterField("kismet.datasource.hopping", TrackerUInt8,
-                "source is channel hopping (bool)", &source_hopping);
-    source_hop_rate_id =
-        RegisterField("kismet.datasource.hop_rate", TrackerDouble,
-                "channel hopping rate", &source_hop_rate);
-    source_hop_vec_id =
-        RegisterField("kismet.datasource.hop_channels", TrackerVector,
-                "hopping channels", &source_hop_vec);
-    source_ipc_bin_id =
-        RegisterField("kismet.datasource.ipc_bin", TrackerString,
-                "driver binary", &source_ipc_bin);
+    RegisterField("kismet.datasource.running", TrackerUInt8,
+            "source is currently operational", &source_running);
 
-    last_report_time_id =
-        RegisterField("kismet.datasource.last_report_time", TrackerUInt64,
-                "last packet/device report time", 
-                &last_report_time);
-
-    num_reports_id =
-        RegisterField("kismet.datasource.num_reports", TrackerUInt64,
-                "number of packtes/device reports", &num_reports);
+    RegisterField("kismet.datasource.hopping", TrackerUInt8,
+            "source is channel hopping (bool)", &source_hopping);
+    RegisterField("kismet.datasource.hop_rate", TrackerDouble,
+            "channel hopping rate", &source_hop_rate);
+    RegisterField("kismet.datasource.hop_channels", TrackerVector,
+            "channel hop list", &source_hop_vec);
 }
 
 void KisDataSource::BufferAvailable(size_t in_amt) {
@@ -166,16 +138,17 @@ void KisDataSource::BufferAvailable(size_t in_amt) {
     frame_header = (simple_cap_proto_t *) buf;
 
     if (kis_ntoh32(frame_header->signature) != KIS_CAP_SIMPLE_PROTO_SIG) {
-        // TODO kill connection or seek for valid
+        _MSG("Kismet data source " + get_source_name() + " got an invalid "
+                "control from on IPC/Network, closing.", MSGFLAG_ERROR);
         delete[] buf;
+        close_source();
         return;
     }
 
     frame_sz = kis_ntoh32(frame_header->packet_sz);
 
     if (frame_sz > in_amt) {
-        // Nothing we can do right now, not enough data to make up a
-        // complete packet.
+        // Nothing we can do right now, not enough data to make up a complete packet.
         delete[] buf;
         return;
     }
@@ -248,11 +221,15 @@ void KisDataSource::BufferError(string in_error) {
             (*error_callback)(shared_ptr<KisDataSource>(this), error_aux);
         }
 
-        // Kill the IPC
-        source_ipc->soft_kill();
+        if (source_ipc != NULL) {
+            // Kill the IPC
+            source_ipc->soft_kill();
 
-        set_source_running(false);
-        set_child_pid(0);
+            set_source_running(false);
+            set_child_pid(-1);
+        } else {
+            datasourcetracker->KillConnection(ringbuf_handler);
+        }
 
     }
 }
