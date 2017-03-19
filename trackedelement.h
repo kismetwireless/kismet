@@ -981,6 +981,8 @@ class tracker_component : public TrackerElement {
 // <itype>, which must be castable to the TrackerElement type (itype), referencing 
 // class variable <cvar>, which executes function <lambda> after the set command has
 // been executed.  <lambda> should be of the form [](itype) -> bool
+// Defines set_only_<name> which sets the trackerelement variable without
+// calling the callback function
 #define __ProxyL(name, ptype, itype, rtype, cvar, lambda) \
     virtual shared_ptr<TrackerElement> get_tracker_##name() { \
         return (shared_ptr<TrackerElement>) cvar; \
@@ -991,6 +993,9 @@ class tracker_component : public TrackerElement {
     virtual bool set_##name(itype in) { \
         cvar->set((ptype) in); \
         return lambda(in); \
+    } \
+    virtual void set_only_##name(itype in) { \
+        cvar->set((ptype) in); \
     }
 
 // Only proxy a Get function
@@ -1048,6 +1053,9 @@ class tracker_component : public TrackerElement {
     virtual bool set_##name(shared_ptr<ttype> in) { \
         cvar = in; \
         return lambda(in); \
+    }  \
+    virtual void set_only_##name(shared_ptr<ttype> in) { \
+        cvar = in; \
     }  \
     virtual shared_ptr<TrackerElement> get_tracker_##name() { \
         return static_pointer_cast<TrackerElement>(cvar); \
