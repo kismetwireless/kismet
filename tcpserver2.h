@@ -73,9 +73,10 @@ public:
     // Pollable
     virtual int MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset);
     virtual int Poll(fd_set& in_rset, fd_set& in_wset);
-    
-protected:
+   
+    // Must be filled in
     virtual void NewConnection(shared_ptr<RingbufferHandler> conn_handler) = 0;
+protected:
 
     // Perform the TCP accept
     virtual int AcceptConnection();
