@@ -41,7 +41,7 @@
 // or write directly but consumes out of the handler
 class PipeClient : public Pollable {
 public:
-    PipeClient(GlobalRegistry *in_globalreg, RingbufferHandler *in_rbhandler);
+    PipeClient(GlobalRegistry *in_globalreg, shared_ptr<RingbufferHandler> in_rbhandler);
     virtual ~PipeClient();
 
     // Bind to a r/w pair of pipes
@@ -56,7 +56,7 @@ public:
 
 protected:
     GlobalRegistry *globalreg;
-    RingbufferHandler *handler;
+    shared_ptr<RingbufferHandler> handler;
 
     int read_fd, write_fd;
 

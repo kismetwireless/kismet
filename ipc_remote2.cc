@@ -29,7 +29,7 @@
 #include "ipc_remote2.h"
 
 IPCRemoteV2::IPCRemoteV2(GlobalRegistry *in_globalreg, 
-        RingbufferHandler *in_rbhandler) {
+        shared_ptr<RingbufferHandler> in_rbhandler) {
 
     globalreg = in_globalreg;
     pthread_mutex_init(&ipc_locker, NULL);

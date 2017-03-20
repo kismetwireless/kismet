@@ -340,9 +340,7 @@ bool TcpServerV2::AllowConnection(int in_fd) {
 
 shared_ptr<RingbufferHandler> TcpServerV2::AllocateConnection(int in_fd __attribute__((unused))) {
     // Exceptionally simple basic allocation
-    shared_ptr<RingbufferHandler> 
-        rbh(new RingbufferHandler(ringbuf_size, ringbuf_size));  
-
+    shared_ptr<RingbufferHandler> rbh(new RingbufferHandler(ringbuf_size, ringbuf_size));  
     return rbh;
 }
 

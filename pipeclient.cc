@@ -30,7 +30,7 @@
 #include "messagebus.h"
 
 PipeClient::PipeClient(GlobalRegistry *in_globalreg, 
-        RingbufferHandler *in_rbhandler) {
+        shared_ptr<RingbufferHandler> in_rbhandler) {
     globalreg = in_globalreg;
     handler = in_rbhandler;
 

@@ -49,7 +49,7 @@ class IPCRemoteV2Tracker;
 
 class IPCRemoteV2 {
 public:
-    IPCRemoteV2(GlobalRegistry *in_globalreg, RingbufferHandler *in_rbhandler);
+    IPCRemoteV2(GlobalRegistry *in_globalreg, shared_ptr<RingbufferHandler> in_rbhandler);
     virtual ~IPCRemoteV2();
 
     // Add paths to look for binary in.  Paths are searched in the order
@@ -94,7 +94,7 @@ protected:
     pthread_mutex_t ipc_locker;
 
     GlobalRegistry *globalreg;
-    RingbufferHandler *ipchandler;
+    shared_ptr<RingbufferHandler> ipchandler;
     PipeClient *pipeclient;
     shared_ptr<IPCRemoteV2Tracker> remotehandler;
 
