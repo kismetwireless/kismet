@@ -86,16 +86,18 @@ int Timetracker::Tick() {
         if (ret > 0 && evt->timeslices != -1 && evt->recurring) {
             evt->schedule_tm.tv_sec = cur_tm.tv_sec;
             evt->schedule_tm.tv_usec = cur_tm.tv_usec;
-            evt->trigger_tm.tv_sec = evt->schedule_tm.tv_sec + (evt->timeslices / 10);
+            evt->trigger_tm.tv_sec = evt->schedule_tm.tv_sec + 
+                (evt->timeslices / SERVER_TIMESLICES_SEC);
             evt->trigger_tm.tv_usec = evt->schedule_tm.tv_usec + 
-				(100000 * (evt->timeslices % 10));
+				((evt->timeslices % SERVER_TIMESLICES_SEC) *
+                 (1000000L / SERVER_TIMESLICES_SEC));
 
-            if (evt->trigger_tm.tv_usec > 999999) {
-                evt->trigger_tm.tv_usec = evt->trigger_tm.tv_usec - 1000000;
+            if (evt->trigger_tm.tv_usec >= 999999L) {
                 evt->trigger_tm.tv_sec++;
+                evt->trigger_tm.tv_usec %= 1000000L;
             }
 
-            // Resort the list
+            // Re-sort the list
             stable_sort(sorted_timers.begin(), sorted_timers.end(), 
 						SortTimerEventsTrigger());
         } else {
@@ -167,8 +169,17 @@ int Timetracker::RegisterTimer_nb(int in_timeslices, struct timeval *in_trigger,
         evt->trigger_tm.tv_usec = in_trigger->tv_usec;
         evt->timeslices = -1;
     } else {
-        evt->trigger_tm.tv_sec = evt->schedule_tm.tv_sec + (in_timeslices / 10);
-        evt->trigger_tm.tv_usec = evt->schedule_tm.tv_usec + (in_timeslices % 10);
+        evt->trigger_tm.tv_sec = evt->schedule_tm.tv_sec + 
+            (in_timeslices / SERVER_TIMESLICES_SEC);
+        evt->trigger_tm.tv_usec = evt->schedule_tm.tv_usec + 
+            ((in_timeslices % SERVER_TIMESLICES_SEC) *
+             (1000000L / SERVER_TIMESLICES_SEC));
+
+        if (evt->trigger_tm.tv_usec >= 999999L) {
+            evt->trigger_tm.tv_sec++;
+            evt->trigger_tm.tv_usec %= 1000000L;
+        }
+            
         evt->timeslices = in_timeslices;
     }
 
@@ -204,9 +215,17 @@ int Timetracker::RegisterTimer_nb(int in_timeslices, struct timeval *in_trigger,
         evt->trigger_tm.tv_usec = in_trigger->tv_usec;
         evt->timeslices = -1;
     } else {
-        evt->trigger_tm.tv_sec = evt->schedule_tm.tv_sec + (in_timeslices / 10);
-        evt->trigger_tm.tv_usec = evt->schedule_tm.tv_usec + (in_timeslices % 10);
+        evt->trigger_tm.tv_sec = evt->schedule_tm.tv_sec + 
+            (in_timeslices / SERVER_TIMESLICES_SEC);
+        evt->trigger_tm.tv_usec = evt->schedule_tm.tv_usec + 
+            ((in_timeslices % SERVER_TIMESLICES_SEC) * 
+             (1000000L / SERVER_TIMESLICES_SEC));
         evt->timeslices = in_timeslices;
+
+        if (evt->trigger_tm.tv_usec >= 999999L) {
+            evt->trigger_tm.tv_sec++;
+            evt->trigger_tm.tv_usec %= 1000000L;
+        }
     }
 
     evt->recurring = in_recurring;
@@ -224,7 +243,6 @@ int Timetracker::RegisterTimer_nb(int in_timeslices, struct timeval *in_trigger,
 
     return evt->timer_id;
 }
-
 
 int Timetracker::RemoveTimer(int in_timerid) {
     local_locker lock(&time_mutex);
