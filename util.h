@@ -45,8 +45,12 @@
 #include <sstream>
 #include <iomanip>
 #include <stdexcept>
+#include <functional>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
 
-#include <pthread.h>
+#include <pthread.h> 
 
 // ieee float struct for a 64bit float for serialization
 typedef struct {
@@ -325,6 +329,52 @@ protected:
 
 // Local copy of strerror_r because glibc did such an amazingly poor job of it
 string kis_strerror_r(int errnum);
+
+// Utility class for doing conditional thread locking; allows one thread to wait
+// indefinitely and another thread to easily unlock it
+template<class t>
+class conditional_locker {
+public:
+    conditional_locker() {
+        locked = false;
+    }
+
+    conditional_locker(t in_data) {
+        locked = false;
+        data = in_data;
+    }
+
+    // Lock the conditional, does not block the caller
+    void lock() {
+        std::lock_guard<std::mutex> lk(m);
+        locked = true;
+    }
+
+    // Block this thread until another thread calls us and unlocks us, return
+    // whatever value we were unlocked with
+    t block_until() {
+        std::unique_lock<std::mutex> lk(m);
+        cv.wait(lk, [this] { return !locked; });
+        return data;
+    }
+
+    // Unlock the conditional, unblocking whatever thread was blocked
+    // waiting for us, and passing whatever data we'd like to pass
+    void unlock(t in_data) {
+        {
+            std::lock_guard<std::mutex> lg(m);
+            locked = false;
+            data = in_data;
+        }
+        cv.notify_one();
+    }
+
+protected:
+    std::mutex m;
+    std::condition_variable cv;
+    bool locked;
+    t data;
+};
 
 #endif
 
