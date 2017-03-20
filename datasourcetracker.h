@@ -25,6 +25,7 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <functional>
 
 #include "globalregistry.h"
 #include "util.h"
@@ -33,6 +34,7 @@
 #include "kis_net_microhttpd.h"
 #include "entrytracker.h"
 #include "timetracker.h"
+#include "tcpserver2.h"
 
 /* Data source tracker
  *
@@ -78,58 +80,89 @@ public:
     virtual void finalize() { };
 };
 
-// Datasource prototype for easy tracking and exporting
-class DST_DataSourcePrototype : public tracker_component {
-public:
-    DST_DataSourcePrototype(GlobalRegistry *in_globalreg);
-
-    shared_ptr<KisDataSource> get_proto_builder() { return proto_builder; }
-    void set_proto_builder(shared_ptr<KisDataSource> in_builder);
-
-    __Proxy(proto_type, string, string, string, proto_type);
-    __Proxy(proto_description, string, string, string, proto_description);
-
-protected:
-    GlobalRegistry *globalreg;
-
-    virtual void register_fields();
-
-    int proto_type_id;
-    SharedTrackerElement proto_type;
-
-    int proto_description_id;
-    SharedTrackerElement proto_description;
-
-    // Builder used for probe and building the valid source
-    shared_ptr<KisDataSource> proto_builder;
-};
-
-// Probing record, generated to keep track of source responses during type probe.
-// Used as the auxptr for the probe callback.
+// Probe resolution for auto type sources
 //
-// * Source added with 'auto' type
-// * All current sources instantiated in probe mode
-// * Probe called on each source with DST probe handler as the callback
-// * As probe responses come in, delete the probe instance of the source
-// * If a positive probe response comes in, remove handlers from all other probes and
-//   cancel the probes for the rest
+// Scans drivers which don't need IPC for probing first and returns immediately
+// if one of them is able to handle the probe without an IPC.
+// 
+// Spawns IPC sources for all prototype sources concurrently.
+// The first source to answer a probe with an affirmative wins; the rest of the
+// probes are cancelled.
+//
+// After 5 seconds, probing is cancelled.
 class DST_DataSourceProbe {
 public:
-    DST_DataSourceProbe(time_t in_time, string in_definition, 
-            shared_ptr<Datasourcetracker> in_tracker, 
-            vector<shared_ptr<KisDataSource> > in_protovec);
+    DST_DataSourceProbe(GlobalRegistry *in_globalreg, string in_definition, 
+            SharedTrackerElement in_protovec);
     virtual ~DST_DataSourceProbe();
+
+    void probe_sources(function<void (SharedDataSourceBuilder)> in_cb);
+
+    string get_definition() { return definition; }
+
+    SharedDataSourceBuilder get_proto();
+
+    // Complete a probe - when the last one completes we're done
+    void complete_probe(bool in_success, unsigned int in_transaction);
+
+    void cancel();
+
+protected:
+    pthread_mutex_t probe_lock;
+
+    GlobalRegistry *globalreg;
+
+    shared_ptr<Timetracker> timetracker;
+
+    // Probing instances
+    map<unsigned int, SharedDataSource> ipc_probe_map;
+
+    SharedTrackerElement proto_vec;
+
+    // Vector of sources we're still waiting to return from probing
+    vector<SharedDataSource> probe_vec;
+
+    // Prototype we found
+    SharedDataSourceBuilder source_builder;
+
+    // Transaction ID
+    unsigned int transaction_id;
+
+    string definition;
+
+    function<void (SharedDataSourceBuilder)> probe_cb;
+    bool cancelled;
+
+    int cancel_timer;
+};
+
+typedef shared_ptr<DST_DataSourceProbe> SharedDSTProbe;
+
+// List all interface supported by a phy
+//
+// Handles listing interfaces supported by kismet
+//
+// Populated with a list transaction ID, and the prototype sources, 
+//
+// Scans drivers which don't need IPC launching first, then launches all 
+// IPC sources capable of doing an interface list and sends a query.
+//
+// IPC sources spawned concurrently, and results aggregated.
+//
+// List requests cancelled after 5 seconds
+class DST_DataSourceList {
+    DST_DataSourceList(time_t in_time,
+            shared_ptr<Datasourcetracker> in_tracker, 
+            vector<SharedDataSourceBuilder> in_protovec,
+            unsigned int in_transaction);
+    virtual ~DST_DataSourceList();
 
     time_t get_time() { return start_time; }
     shared_ptr<Datasourcetracker> get_tracker() { return tracker; }
-    string get_definition() { return definition; }
 
-    shared_ptr<KisDataSource> get_proto();
-    void set_proto(shared_ptr<KisDataSource> in_proto);
-
-    // Clear a source from the list, returns number of sources left in the list.  Used
-    // to purge failures out of the probe list and know when we've finished
-    size_t remove_failed_proto(shared_ptr<KisDataSource> in_src);
+    SharedTrackerElement get_device_list() {
+        return device_list;
+    }
 
     void cancel();
 
@@ -138,23 +171,29 @@ protected:
 
     shared_ptr<Datasourcetracker> tracker;
 
-    // Vector of sources we're still waiting to return from probing
-    vector<shared_ptr<KisDataSource> > protosrc_vec;
+    SharedTrackerElement device_list;
 
-    // Source we've found
+    map<pid_t, shared_ptr<RingbufferHandler> > ipc_handler_map;
+
+    // Vector of sources we're still waiting to return from listing
+    vector<shared_ptr<KisDataSource> > listsrc_vec;
+
+    // Source we matched
     shared_ptr<KisDataSource> protosrc;
 
     time_t start_time;
-    string definition;
 };
 
+typedef shared_ptr<DST_DataSourceList> SharedDSTList;
+
 class Datasourcetracker : public Kis_Net_Httpd_Stream_Handler, 
-    public TimetrackerEvent, public LifetimeGlobal {
+    public TimetrackerEvent, public LifetimeGlobal, public TcpServerV2 {
 public:
     static shared_ptr<Datasourcetracker> create_dst(GlobalRegistry *in_globalreg) {
         shared_ptr<Datasourcetracker> mon(new Datasourcetracker(in_globalreg));
         in_globalreg->RegisterLifetimeGlobal(mon);
         in_globalreg->InsertGlobal("DATA_SOURCE_TRACKER", mon);
+        mon->datasourcetracker = mon;
         return mon;
     }
 
@@ -164,30 +203,29 @@ private:
 public:
     virtual ~Datasourcetracker();
 
-    // Add a datasource builder, with type and description.  Returns 0 or positive on
-    // success, negative on failure
-    int register_datasource_builder(string in_type, string in_description,
-            shared_ptr<KisDataSource> in_builder);
+    // Add a driver
+    int register_datasource(SharedDataSourceBuilder in_builder);
 
-    // Operate on all data sources currently defined.  The datasource tracker is locked
-    // during this operation, making it thread safe.
-    void iterate_datasources(DST_Worker *in_worker);
-
-    // Launch a source.  If there is no type defined or the type is 'auto', attempt to
-    // find the source.  When the source is opened or there is a failure, 
-    // in_open_handler will be called.
+    // Handle everything about launching a source, given a basic source line
     //
-    // Opening a data source is an asynchronous operation - the worker will be called
-    // at some point in the future.  Callers requiring a blocking operation should call
-    // this in a dedicated thread and wait for the thread to re-join.
+    // If there is no type defined or the type is 'auto', attempt to find the
+    // driver via local probe.
     //
-    // Malformed source definitions will result in an immediate error & failure callback
-    // of the worker.  All other sources will result in an immediate success and async
-    // callback of the worker for final success.
-    int open_datasource(string in_source);
+    // Optional completion function will be called, asynchronously,
+    // on completion.
+    void open_datasource(string in_source, function<void (bool, string)> in_cb);
 
-    // Remove a data source
+    // Launch a source with a known prototype, given a basic source line
+    // and a prototype.
+    //
+    // Optional completion function will be called on error or success
+    void open_datasource(string in_source, SharedDataSourceBuilder in_proto,
+            function<void (bool, string)> in_cb);
+
+    // Remove a data source by UUID; stop it if necessary
     bool remove_datasource(uuid in_uud);
+    // Remove a data source by index; stop it if necessary
+    bool remove_datasource(int in_index);
 
     // HTTP api
     virtual bool Httpd_VerifyPath(const char *path, const char *method);
@@ -205,41 +243,40 @@ public:
     // Timetracker API
     virtual int timetracker_event(int eventid);
 
+    // Operate on all data sources currently defined.  The datasource tracker is locked
+    // during this operation, making it thread safe.
+    void iterate_datasources(DST_Worker *in_worker);
+
+    // TCPServerV2 API
+    virtual void NewConnection(shared_ptr<RingbufferHandler> conn_handler);
+
 protected:
     GlobalRegistry *globalreg;
 
+    shared_ptr<Datasourcetracker> datasourcetracker;
     shared_ptr<EntryTracker> entrytracker;
 
     pthread_mutex_t dst_lock;
 
     int error_timer_id;
 
-    int dst_proto_entry_id;
-    int dst_source_entry_id;
+    SharedTrackerElement dst_proto_builder;
+    SharedTrackerElement dst_source_builder;
 
-    // Lists of proto and active sources
+    // Available prototypes
     SharedTrackerElement proto_vec;
+
+    // Active data sources
     SharedTrackerElement datasource_vec;
+
+    // Datasources in error state
     SharedTrackerElement error_vec;
 
-    // Currently probing
-    vector<shared_ptr<DST_DataSourceProbe> > probing_vec;
+    // Sub-workers probing for a source definition
+    vector<SharedDSTProbe> probing_vec;
 
-    // Start a probe for finding a source to handle the auto type
-    void start_source_probe(string in_source);
-
-    // Callbacks for source async operations
-    static void probe_handler(shared_ptr<KisDataSource> in_src, 
-            shared_ptr<void> in_aux, bool in_success);
-    static void open_handler(shared_ptr<KisDataSource> in_src, 
-            shared_ptr<void> in_aux, bool in_success);
-    static void error_handler(shared_ptr<KisDataSource> in_src, 
-            shared_ptr<void> in_aux);
-
-    // Initiate a source from a known proto, add it to the list of open sources,
-    // and report success via the worker.  PERFORMS THREAD LOCK, do NOT call
-    // inside of a locked thread
-    void launch_source(shared_ptr<KisDataSource> in_proto, string in_source);
+    // Sub-workers listing interfaces
+    vector<SharedDSTList> listing_vec;
 };
 
 

@@ -21,6 +21,7 @@ PSO	= util.o cygwin_utils.o globalregistry.o \
 	msgpack_adapter.o xmlserialize_adapter.o json_adapter.o \
 	plugintracker.o alertracker.o timetracker.o channeltracker2.o \
 	devicetracker.o \
+	datasourcetracker.o kis_datasource.o \
 	kis_dlt.o kis_dlt_ppi.o kis_dlt_radiotap.o kis_dlt_prism2.o \
 	phy_80211.o phy_80211_dissectors.o phy_rtl433.o phy_zwave.o \
 	kis_dissector_ipdata.o \
@@ -30,9 +31,7 @@ PSO	= util.o cygwin_utils.o globalregistry.o \
 	dumpfile_alert.o dumpfile_devicetracker.o \
 	statealert.o \
 	messagebus_restclient.o \
-	kismet_server.o
-
-	#datasourcetracker.o kis_datasource.o \
+	kismet_server.o \
 
 PS	= kismet_server
 

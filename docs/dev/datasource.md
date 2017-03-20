@@ -250,7 +250,7 @@ Msgpack packed dictionary containing the following:
 A simple boolean indicating success or failure of the relevant command.
 
 Content:
-A single byte (`uint8_t`) indicating success (non-zero) or failure (zero).
+* A single byte (`uint8_t`) indicating success (non-zero) or failure (zero).
 
 ## Defining the driver:  Deriving from KisDatasource
 

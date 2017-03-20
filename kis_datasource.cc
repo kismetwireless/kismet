@@ -19,6 +19,7 @@
 #include "config.h"
 
 #include "kis_datasource.h"
+#include "datasourcetracker.h"
 #include "simple_datasource_proto.h"
 #include "endian_magic.h"
 #include "configfile.h"
@@ -60,6 +61,8 @@ void KisDataSource::initialize() {
 
     ringbuf_handler = NULL;
     ipc_remote = NULL;
+
+    next_cmd_sequence = 1;
 }
 
 KisDataSource::~KisDataSource() {
@@ -94,7 +97,8 @@ void KisDataSource::register_fields() {
     RegisterField("kismet.datasource.source_id", TrackerInt32,
             "Run-time ID", &source_id);
 
-    __RegisterComplexField(KisDataSourceBuilder, prototype);
+    __RegisterComplexField(KisDataSourceBuilder, prototype_id, 
+            "kismet.datasource.driver", "Datasource driver definition");
 
     RegisterField("kismet.datasource.child_pid", TrackerInt64,
             "PID of data capture process", &child_pid);
@@ -104,9 +108,13 @@ void KisDataSource::register_fields() {
     RegisterField("kismet.datasource.sourceline", TrackerString,
             "original source definition", &sourceline);
 
-    source_channel_entry_id =
-        globalreg->entrytracker->RegisterField("kismet.device.base.channel", 
+    RegisterField("kismet.datasource.channel", TrackerString,
+            "channel (if not hopping)", &source_channel);
+
+    source_channel_entry_builder =
+        globalreg->entrytracker->RegisterAndGetField("kismet.device.base.channel", 
                 TrackerString, "channel (phy specific)");
+
     RegisterField("kismet.datasource.channels", TrackerVector,
             "Supported channels for this device", &source_channels_vec);
 
@@ -133,7 +141,7 @@ void KisDataSource::BufferAvailable(size_t in_amt) {
 
     // Peek the buffer
     buf = new uint8_t[in_amt];
-    ipchandler->PeekReadBufferData(buf, in_amt);
+    ringbuf_handler->PeekReadBufferData(buf, in_amt);
 
     frame_header = (simple_cap_proto_t *) buf;
 
@@ -153,7 +161,7 @@ void KisDataSource::BufferAvailable(size_t in_amt) {
         return;
     }
 
-    // Get the checksum
+    // Get the checksum & save it
     frame_checksum = kis_ntoh32(frame_header->checksum);
 
     // Zero the checksum field in the packet
@@ -170,7 +178,7 @@ void KisDataSource::BufferAvailable(size_t in_amt) {
     }
 
     // Consume the packet in the ringbuf 
-    ipchandler->GetReadBufferData(NULL, frame_sz);
+    ringbuf_handler->GetReadBufferData(NULL, frame_sz);
 
     // Extract the kv pairs
     KVmap kv_map;
@@ -208,73 +216,35 @@ void KisDataSource::BufferError(string in_error) {
     {
         local_locker lock(&source_lock);
 
-        // Trip all the callbacks
-        if (probe_callback != NULL) {
-            (*probe_callback)(shared_ptr<KisDataSource>(this), probe_aux, false);
+        if (probe_cb != NULL) {
+            probe_cb(false, probe_transaction);
         }
 
-        if (open_callback != NULL) {
-            (*probe_callback)(shared_ptr<KisDataSource>(this), probe_aux, false);
+        if (list_cb != NULL) {
+            list_cb(vector<SharedListInterface>());
         }
 
-        if (error_callback != NULL) {
-            (*error_callback)(shared_ptr<KisDataSource>(this), error_aux);
-        }
-
-        if (source_ipc != NULL) {
+        if (ipc_remote != NULL) {
             // Kill the IPC
-            source_ipc->soft_kill();
+            ipc_remote->soft_kill();
 
             set_source_running(false);
             set_child_pid(-1);
-        } else {
+        } else if (ringbuf_handler != NULL) {
             datasourcetracker->KillConnection(ringbuf_handler);
         }
 
     }
 }
 
-bool KisDataSource::queue_ipc_command(string in_cmd, KVmap *in_kvpairs) {
-
-    // If IPC is running just write it straight out
-    if (source_ipc != NULL && source_ipc->get_pid() > 0) {
-        bool ret = false;
-
-        ret = write_ipc_packet(in_cmd, in_kvpairs);
-
-        if (ret) {
-            for (KVmap::iterator i = in_kvpairs->begin(); i != in_kvpairs->end(); ++i) {
-                delete i->second;
-            }
-            delete in_kvpairs;
-
-            return ret;
-        }
-    }
-
-    // If we didn't succeed in writing the packet for some reason
-
-    // Queue the command
-    KisDataSource_QueuedCommand *cmd = 
-        new KisDataSource_QueuedCommand(in_cmd, in_kvpairs, 
-                globalreg->timestamp.tv_sec);
-
-    {
-        local_locker lock(&source_lock);
-        pending_commands.push_back(cmd);
-    }
-
-    return true;
-}
-
-bool KisDataSource::write_ipc_packet(string in_type, KVmap *in_kvpairs) {
+bool KisDataSource::write_packet(string in_cmd, KVmap in_kvmap) {
     simple_cap_proto_t *ret = NULL;
     vector<simple_cap_proto_kv_t *> proto_kvpairs;
     size_t kvpair_len = 0;
     size_t kvpair_offt = 0;
     size_t pack_len;
 
-    for (KVmap::iterator i = in_kvpairs->begin(); i != in_kvpairs->end(); ++i) {
+    for (auto i = in_kvmap.begin(); i != in_kvmap.end(); ++i) {
         // Size of header + size of object
         simple_cap_proto_kv_t *kvt = (simple_cap_proto_kv_t *) 
             new char[sizeof(simple_cap_proto_kv_h_t) + i->second->size];
@@ -302,7 +272,7 @@ bool KisDataSource::write_ipc_packet(string in_type, KVmap *in_kvpairs) {
 
     ret->packet_sz = kis_hton32(pack_len);
 
-    snprintf(ret->type, 16, "%s", in_type.c_str());
+    snprintf(ret->type, 16, "%s", in_cmd.c_str());
 
     ret->num_kv_pairs = kis_hton32(proto_kvpairs.size());
 
@@ -329,144 +299,179 @@ bool KisDataSource::write_ipc_packet(string in_type, KVmap *in_kvpairs) {
     size_t ret_sz;
 
     {
-        // Lock & send to the IPC ringbuffer
+        // Lock & send to the ringbuffer
         local_locker lock(&source_lock);
-        ret_sz = ipchandler->PutWriteBufferData(ret, pack_len, true);
+        ret_sz = ringbuf_handler->PutWriteBufferData(ret, pack_len, true);
 
         delete ret;
     }
 
-    if (ret_sz != pack_len)
-        return false;
-
-    return true;
-}
-
-void KisDataSource::set_error_handler(error_handler in_cb, shared_ptr<void> in_aux) {
-    local_locker lock(&source_lock);
-
-    error_callback = in_cb;
-    error_aux = in_aux;
-}
-
-void KisDataSource::cancel_error_handler() {
-    local_locker lock(&source_lock);
-
-    error_callback = NULL;
-    error_aux = NULL;
-}
-
-bool KisDataSource::probe_source(string in_source, probe_handler in_cb,
-        shared_ptr<void> in_aux) {
-    local_locker lock(&source_lock);
-
-    // Fail out an existing callback
-    if (probe_callback != NULL) {
-        (*probe_callback)(shared_ptr<KisDataSource>(this), probe_aux, false);
-    }
-
-    if (!spawn_ipc()) {
-        if (in_cb != NULL) {
-            (*in_cb)(shared_ptr<KisDataSource>(this), in_aux, false);
-        }
-
-        if (error_callback != NULL) {
-            (*error_callback)(shared_ptr<KisDataSource>(this), error_aux);
-        }
-
+    if (ret_sz != pack_len) {
         return false;
     }
 
     return true;
 }
 
-bool KisDataSource::open_source(string in_definition, open_handler in_cb, 
-        shared_ptr<void> in_aux) {
+
+int KisDataSource::probe_source(string in_source, unsigned int in_transaction,
+        function<void (bool, unsigned int)> in_cb) {
     local_locker lock(&source_lock);
 
-    // Fail out any existing callback
-    if (open_callback != NULL) {
-        (*open_callback)(shared_ptr<KisDataSource>(this), in_aux, false);
-    }
+    /* Inherited functions must fill this in.
+     *
+     * Non-ipc probing should be handled immediately, ipc probe should
+     * launch ipc and queue a probe command, returning the results to the
+     * callback when the probe command completes
+     */
 
-    // Set the callback to get run when we get the openresp
-    open_callback = in_cb;
-    open_aux = in_aux;
+    probe_cb = in_cb;
+    probe_transaction = in_transaction;
 
-    set_source_definition(in_definition);
+    set_sourceline(in_source);
 
-    // Launch the IPC, fail immediately if we can't
-    if (!spawn_ipc()) {
-        if (in_cb != NULL) {
-            (*in_cb)(shared_ptr<KisDataSource>(this), in_aux, false);
-        }
+    return 0;
+}
 
-        if (error_callback != NULL) {
-            (*error_callback)(shared_ptr<KisDataSource>(this), error_aux);
-        }
+int KisDataSource::open_local_source(string in_source, unsigned int in_transaction,
+        function<void (bool, unsigned int)> in_cb) {
+    local_locker lock(&source_lock);
 
+    /* Inherited functions must fill this in.
+     *
+     * Non-IPC sources can perform an open directly
+     * IPC sources should use src_send_open
+     *
+     */
+
+    open_cb = in_cb;
+    open_transaction = in_transaction;
+    set_sourceline(in_source);
+
+    return 0;
+}
+
+bool KisDataSource::src_send_probe(string srcdef) {
+    if (!get_prototype()->get_tracker_local_capable())
         return false;
+
+    if (!get_prototype()->get_local_ipc()) 
+        return false;
+
+    if (ringbuf_handler == NULL && ipc_remote == NULL) {
+        if (!spawn_ipc()) {
+            if (open_cb != NULL) {
+                open_cb(false, open_transaction);
+            }
+
+            return false;
+        }
     }
 
     KisDataSource_CapKeyedObject *definition =
-        new KisDataSource_CapKeyedObject("DEFINITION", in_definition.data(),
-                in_definition.length());
-    KVmap *kvmap = new KVmap();
+        new KisDataSource_CapKeyedObject("DEFINITION", srcdef.data(), srcdef.length());
 
-    kvmap->insert(KVpair("DEFINITION", definition));
+    KVmap kvmap;
 
-    queue_ipc_command("OPENDEVICE", kvmap);
+    kvmap.insert(KVpair("DEFINITION", definition));
 
-    return true;
+    return write_packet("PROBEDEVICE", kvmap);
 }
 
-void KisDataSource::cancel_probe_source() {
-    local_locker lock(&source_lock);
+bool KisDataSource::src_send_open(string srcdef) {
+    if (!get_prototype()->get_tracker_local_capable())
+        return false;
 
-    probe_callback = NULL;
-    probe_aux = NULL;
-}
+    if (!get_prototype()->get_local_ipc()) 
+        return false;
 
-void KisDataSource::cancel_open_source() {
-    local_locker lock(&source_lock);
+    if (ringbuf_handler == NULL && ipc_remote == NULL) {
+        if (!spawn_ipc()) {
+            if (open_cb != NULL) {
+                open_cb(false, open_transaction);
+            }
 
-    open_callback = NULL;
-    open_aux = NULL;
-}
-
-void KisDataSource::set_channel(string in_channel) {
-    if (source_ipc == NULL) {
-        _MSG("Attempt to set channel on source which is closed", MSGFLAG_ERROR);
-        return;
+            return false;
+        }
     }
 
-    if (source_ipc->get_pid() <= 0) {
-        _MSG("Attempt to set channel on source with closed IPC", MSGFLAG_ERROR);
-        return;
+    KisDataSource_CapKeyedObject *definition =
+        new KisDataSource_CapKeyedObject("DEFINITION", srcdef.data(), srcdef.length());
+
+    KVmap kvmap;
+
+    kvmap.insert(KVpair("DEFINITION", definition));
+
+    return write_packet("OPENDEVICE", kvmap);
+}
+
+bool KisDataSource::src_set_channel(string in_channel) {
+    // Blow up if we can't set a channel
+    if (!get_prototype()->get_tune_capable()) {
+        _MSG("Attempt to set channel on source " + get_source_name() + " which is "
+                "not capable of tuning", MSGFLAG_ERROR);
+        return false;
+    }
+
+    if (ringbuf_handler == NULL) {
+        _MSG("Attempt to set channel on source '" + get_source_name() + "' which "
+                "is closed", MSGFLAG_ERROR);
+        return false;
     }
 
     KisDataSource_CapKeyedObject *chanset =
         new KisDataSource_CapKeyedObject("CHANSET", in_channel.data(),
                 in_channel.length());
-    KVmap *kvmap = new KVmap();
+    KVmap kvmap;
 
-    kvmap->insert(KVpair("CHANSET", chanset));
+    kvmap.insert(KVpair("CHANSET", chanset));
 
-    queue_ipc_command("CONFIGURE", kvmap);
+    return write_packet("CONFIGURE", kvmap);
 }
 
-void KisDataSource::set_channel_hop(vector<string> in_channel_list, 
+bool KisDataSource::set_channel_hop(vector<string> in_channel_list, double in_rate) {
+    if (!get_prototype()->get_tune_capable()) {
+        _MSG("Attempt to set channel hop on source " + get_source_name() + " which is "
+                "not capable of tuning", MSGFLAG_ERROR);
+        return false;
+    }
+
+    if (ringbuf_handler == NULL) {
+        _MSG("Attempt to set channel hop on source " + get_source_name() + " which is "
+                "closed", MSGFLAG_ERROR);
+        return false;
+    }
+
+    // Build a new element of the channels
+    SharedTrackerElement newchans = get_source_hop_vec()->clone_type();
+    TrackerElementVector hv(newchans);
+
+    for (auto i = in_channel_list.begin(); i != in_channel_list.end(); ++i) {
+        SharedTrackerElement c = source_channel_entry_builder->clone_type();
+        c->set(*i);
+        hv.push_back(c);
+    }
+
+    // Call the element-based set
+    return set_channel_hop(newchans, in_rate);
+}
+
+bool KisDataSource::set_channel_hop(SharedTrackerElement in_channel_list, 
         double in_rate) {
 
-    if (source_ipc == NULL) {
-        _MSG("Attempt to set channel hop on source which is closed", MSGFLAG_ERROR);
-        return;
+    if (!get_prototype()->get_tune_capable()) {
+        _MSG("Attempt to set channel hop on source " + get_source_name() + " which is "
+                "not capable of tuning", MSGFLAG_ERROR);
+        return false;
     }
 
-    if (source_ipc->get_pid() <= 0) {
-        _MSG("Attempt to set channel hop on source with closed IPC", MSGFLAG_ERROR);
-        return;
+    if (ringbuf_handler == NULL) {
+        _MSG("Attempt to set channel hop on source " + get_source_name() + " which is "
+                "closed", MSGFLAG_ERROR);
+        return false;
     }
+
+    TrackerElementVector in_vec(in_channel_list);
 
     stringstream stream;
     msgpack::packer<std::stringstream> packer(&stream);
@@ -480,21 +485,41 @@ void KisDataSource::set_channel_hop(vector<string> in_channel_list,
 
     // Pack the vector of channels
     packer.pack(string("channels"));
-    packer.pack_array(in_channel_list.size());
+    packer.pack_array(in_vec.size());
 
-    for (vector<string>::iterator i = in_channel_list.begin();
-            i != in_channel_list.end(); ++i) {
-        packer.pack(*i);
+    for (auto i = in_vec.begin(); i != in_vec.end(); ++i) {
+        packer.pack((*i)->get_string());
     }
 
     KisDataSource_CapKeyedObject *chanhop =
         new KisDataSource_CapKeyedObject("CHANHOP", stream.str().data(),
                 stream.str().length());
-    KVmap *kvmap = new KVmap();
+    KVmap kvmap;
 
-    kvmap->insert(KVpair("CHANHOP", chanhop));
+    kvmap.insert(KVpair("CHANHOP", chanhop));
 
-    queue_ipc_command("CONFIGURE", kvmap);
+    // Set the local variables
+    set_int_source_hop_rate(in_rate);
+
+    // Only dupe the hop vec if it's not the one we already have set, since
+    // we can get called w/ our existing vector when just setting the hop rate
+    if (in_channel_list != get_source_hop_vec()) {
+        TrackerElementVector hv(get_source_hop_vec());
+        hv.clear();
+        for (auto i = in_vec.begin(); i != in_vec.end(); ++i) {
+            hv.push_back(*i);
+        }
+    }
+
+    return write_packet("CONFIGURE", kvmap);
+}
+
+bool KisDataSource::src_set_source_hop_vec(SharedTrackerElement in_vec) {
+    return set_channel_hop(in_vec, get_source_hop_rate());
+}
+
+bool KisDataSource::src_set_source_hop_rate(double in_rate) {
+    return set_channel_hop(get_source_hop_vec(), in_rate);
 }
 
 void KisDataSource::handle_packet(string in_type, KVmap in_kvmap) {
@@ -521,9 +546,6 @@ void KisDataSource::handle_packet_status(KVmap in_kvpairs) {
         handle_kv_message(i->second);
     }
 
-    // If we just launched, this lets us know we're awake and can 
-    // send any queued commands
-
 }
 
 void KisDataSource::handle_packet_probe_resp(KVmap in_kvpairs) {
@@ -544,19 +566,18 @@ void KisDataSource::handle_packet_probe_resp(KVmap in_kvpairs) {
     if ((i = in_kvpairs.find("success")) != in_kvpairs.end()) {
         local_locker lock(&source_lock);
 
-        if (probe_callback != NULL) {
-            (*probe_callback)(shared_ptr<KisDataSource>(this), probe_aux, 
-                    handle_kv_success(i->second));
+        if (probe_cb != NULL) {
+            probe_cb(handle_kv_success(i->second), probe_transaction);
         }
+
     } else {
         // ProbeResp with no success value?  ehh.
-        local_locker lock(&source_lock);
-        inc_ipc_errors(1);
+        BufferError("Invalid interface probe response");
         return;
     }
 
-    // Close the source since probe is done
-    source_ipc->close_ipc();
+    if (ipc_remote != NULL)
+        ipc_remote->close_ipc();
 }
 
 void KisDataSource::handle_packet_open_resp(KVmap in_kvpairs) {
@@ -577,17 +598,14 @@ void KisDataSource::handle_packet_open_resp(KVmap in_kvpairs) {
     if ((i = in_kvpairs.find("success")) != in_kvpairs.end()) {
         local_locker lock(&source_lock);
 
-        if (open_callback != NULL) {
-            (*open_callback)(shared_ptr<KisDataSource>(this), 
-                    open_aux, handle_kv_success(i->second));
+        if (open_cb != NULL) {
+            open_cb(handle_kv_success(i->second), open_transaction);
         }
     } else {
         // OpenResp with no success value?  ehh.
-        local_locker lock(&source_lock);
-        inc_ipc_errors(1);
+        BufferError("Invalid interface open response");
         return;
     }
-
 }
 
 void KisDataSource::handle_packet_error(KVmap in_kvpairs) {
@@ -602,14 +620,14 @@ void KisDataSource::handle_packet_error(KVmap in_kvpairs) {
     {
         local_locker lock(&source_lock);
 
-        // Kill the IPC
-        source_ipc->soft_kill();
+        if (ipc_remote != NULL) {
+            ipc_remote->soft_kill();
 
-        set_source_running(false);
-        set_child_pid(0);
-
-        if (error_callback != NULL)
-            (*error_callback)(shared_ptr<KisDataSource>(this), error_aux);
+            set_source_running(false);
+            set_child_pid(0);
+        } else if (ringbuf_handler != NULL) {
+            datasourcetracker->KillConnection(ringbuf_handler);
+        }
     }
 }
 
@@ -662,10 +680,6 @@ void KisDataSource::handle_packet_data(KVmap in_kvpairs) {
         packet->insert(pack_comp_gps, gpsinfo);
     }
 
-    // Update the last valid report time
-    inc_num_reports(1);
-    set_last_report_time(globalreg->timestamp.tv_sec);
-    
     // Inject the packet into the packetchain if we have one
     packetchain->ProcessPacket(packet);
 
@@ -674,8 +688,7 @@ void KisDataSource::handle_packet_data(KVmap in_kvpairs) {
 bool KisDataSource::handle_kv_success(KisDataSource_CapKeyedObject *in_obj) {
     // Not a msgpacked object, just a single byte
     if (in_obj->size != 1) {
-        local_locker lock(&source_lock);
-        inc_ipc_errors(1);
+        BufferError("Invalid kv_success object");
         return false;
     }
 
@@ -716,10 +729,8 @@ bool KisDataSource::handle_kv_message(KisDataSource_CapKeyedObject *in_obj) {
         stringstream ss;
         ss << "Source " << get_source_name() << " failed to unpack message " <<
             "bundle: " << e.what();
-        _MSG(ss.str(), MSGFLAG_ERROR);
 
-        local_locker lock(&source_lock);
-        inc_ipc_errors(1);
+        BufferError(ss.str());
 
         return false;
     }
@@ -747,12 +758,14 @@ bool KisDataSource::handle_kv_channels(KisDataSource_CapKeyedObject *in_obj) {
             // tracked channels vec
             local_locker lock(&source_lock);
 
-            source_channels_vec->clear_vector();
+            TrackerElementVector chan_vec(get_source_channels_vec());
+            chan_vec.clear();
+
             for (unsigned int x = 0; x < channel_vec.size(); x++) {
-                SharedTrackerElement chanstr =
-                    globalreg->entrytracker->GetTrackedInstance(source_channel_entry_id);
+                SharedTrackerElement chanstr = 
+                    source_channel_entry_builder->clone_type();
                 chanstr->set(channel_vec[x]);
-                source_channels_vec->add_vector(chanstr);
+                chan_vec.push_back(chanstr);
             }
         }
     } catch (const std::exception& e) {
@@ -760,10 +773,8 @@ bool KisDataSource::handle_kv_channels(KisDataSource_CapKeyedObject *in_obj) {
         stringstream ss;
         ss << "Source " << get_source_name() << " failed to unpack proberesp " <<
             "channels bundle: " << e.what();
-        _MSG(ss.str(), MSGFLAG_ERROR);
 
-        local_locker lock(&source_lock);
-        inc_ipc_errors(1);
+        BufferError(ss.str());
 
         return false;
     }
@@ -821,10 +832,8 @@ kis_layer1_packinfo *KisDataSource::handle_kv_signal(KisDataSource_CapKeyedObjec
         stringstream ss;
         ss << "Source " << get_source_name() << " failed to unpack gps bundle: " <<
             e.what();
-        _MSG(ss.str(), MSGFLAG_ERROR);
 
-        local_locker lock(&source_lock);
-        inc_ipc_errors(1);
+        BufferError(ss.str());
 
         delete(siginfo);
 
@@ -889,10 +898,8 @@ kis_gps_packinfo *KisDataSource::handle_kv_gps(KisDataSource_CapKeyedObject *in_
         stringstream ss;
         ss << "Source " << get_source_name() << " failed to unpack gps bundle: " <<
             e.what();
-        _MSG(ss.str(), MSGFLAG_ERROR);
 
-        local_locker lock(&source_lock);
-        inc_ipc_errors(1);
+        BufferError(ss.str());
 
         delete(gpsinfo);
         return NULL;
@@ -960,10 +967,8 @@ kis_packet *KisDataSource::handle_kv_packet(KisDataSource_CapKeyedObject *in_obj
         stringstream ss;
         ss << "Source " << get_source_name() << " failed to unpack packet bundle: " <<
             e.what();
-        _MSG(ss.str(), MSGFLAG_ERROR);
 
-        local_locker lock(&source_lock);
-        inc_ipc_errors(1);
+        BufferError(ss.str());
 
         // Destroy the packet appropriately
         packetchain->DestroyPacket(packet);
@@ -985,7 +990,6 @@ bool KisDataSource::spawn_ipc() {
 
     // Do not lock thread, we can only be called when we're inside a locked
     // context.
-    // local_locker lock(&source_lock);
     
     set_source_running(false);
     set_child_pid(0);
@@ -993,46 +997,38 @@ bool KisDataSource::spawn_ipc() {
     if (get_source_ipc_bin() == "") {
         ss << "Datasource '" << get_source_name() << "' missing IPC binary, cannot "
             "launch binary";
+        
         _MSG(ss.str(), MSGFLAG_ERROR);
-
-        // Call the handler if we have one
-        if (error_callback != NULL)
-            (*error_callback)(shared_ptr<KisDataSource>(this), error_aux);
 
         return false;
     }
 
-    // Deregister from the handler if we have one
-    if (ipchandler != NULL) {
-        ipchandler->RemoveReadBufferInterface();
-    }
-
     // Kill the running process if we have one
-    if (source_ipc != NULL) {
+    if (ipc_remote != NULL) {
         ss.str("");
         ss << "Datasource '" << get_source_name() << "' launching IPC with a running "
             "process, killing existing process pid " << get_child_pid();
         _MSG(ss.str(), MSGFLAG_INFO);
 
-        source_ipc->soft_kill();
+        ipc_remote->soft_kill();
     }
 
     // Make a new handler and new ipc.  Give a generous buffer.
-    ipchandler = new RingbufferHandler((32 * 1024), (32 * 1024));
-    ipchandler->SetReadBufferInterface(this);
+    ringbuf_handler.reset(new RingbufferHandler((32 * 1024), (32 * 1024)));
+    ringbuf_handler->SetReadBufferInterface(this);
 
-    source_ipc = new IPCRemoteV2(globalreg, ipchandler);
+    ipc_remote = new IPCRemoteV2(globalreg, ringbuf_handler);
 
     // Get allowed paths for binaries
     vector<string> bin_paths = globalreg->kismet_config->FetchOptVec("bin_paths");
 
     for (vector<string>::iterator i = bin_paths.begin(); i != bin_paths.end(); ++i) {
-        source_ipc->add_path(*i);
+        ipc_remote->add_path(*i);
     }
 
     vector<string> args;
 
-    int ret = source_ipc->launch_kis_binary(get_source_ipc_bin(), args);
+    int ret = ipc_remote->launch_kis_binary(get_source_ipc_bin(), args);
 
     if (ret < 0) {
         ss.str("");
@@ -1040,24 +1036,13 @@ bool KisDataSource::spawn_ipc() {
             "binary '" << get_source_ipc_bin() << "'";
         _MSG(ss.str(), MSGFLAG_ERROR);
 
-        // Call the handler if we have one
-        if (error_callback != NULL)
-            (*error_callback)(shared_ptr<KisDataSource>(this), error_aux);
-
         return false;
     }
 
     set_source_running(true);
-    set_child_pid(source_ipc->get_pid());
+    set_child_pid(ipc_remote->get_pid());
 
     return true;
-}
-
-KisDataSource_QueuedCommand::KisDataSource_QueuedCommand(string in_cmd,
-        KisDataSource::KVmap *in_kv, time_t in_time) {
-    command = in_cmd;
-    kv = in_kv;
-    insert_time = in_time;
 }
 
 KisDataSource_CapKeyedObject::KisDataSource_CapKeyedObject(simple_cap_proto_kv *in_kp) {

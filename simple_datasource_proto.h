@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -72,6 +72,8 @@ struct simple_cap_proto {
     uint32_t checksum;
     /* Total size of packet including signature and checksum */
     uint32_t packet_sz;
+    /* Sequence number (sender) */
+    uint32_t sequence_number;
     /* Type of packet */
     char type[16];
     /* Number of KV pairs */

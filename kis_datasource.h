@@ -24,7 +24,6 @@
 #include <functional>
 
 #include "globalregistry.h"
-#include "datasourcetracker.h"
 #include "ipc_remote2.h"
 #include "ringbuf_handler.h"
 #include "uuid.h"
@@ -73,14 +72,11 @@
  */
 
 /* DST forward ref */
-class DatasourceTracker;
-typedef shared_ptr<DatasourceTracker> SharedDatasourceTracker;
+class Datasourcetracker;
+typedef shared_ptr<Datasourcetracker> SharedDatasourcetracker;
 
 /* Keypair object from cap proto */
 class KisDataSource_CapKeyedObject;
-
-// Queued command/data
-class KisDataSource_QueuedCommand;
 
 // Supported source
 class KisDataSource_SupportedSource;
@@ -115,14 +111,21 @@ public:
         reserve_fields(e);
     }
 
-    virtual ~KisDataSourceBuilder();
+    virtual ~KisDataSourceBuilder() { };
 
     virtual SharedTrackerElement clone_type() {
         return SharedTrackerElement(new KisDataSourceBuilder(globalreg, get_id()));
     }
 
-    // Build the actual data source
-    virtual SharedDataSource build_datasource() { return NULL; }
+    // Build the actual data source; when subclassing this MUST fill in the prototype!
+    virtual SharedDataSource build_datasource() { 
+        return NULL; 
+
+        /*
+         * example:
+         * SharedDataSource ds(new SomeDataSource(globalreg, this));
+         */
+    }
 
     __Proxy(source_type, string, string, string, source_type);
     __Proxy(source_description, string, string, string, source_description);
@@ -136,6 +139,8 @@ public:
     __Proxy(list_ipc, uint8_t, bool, bool, list_ipc);
 
     __Proxy(local_capable, uint8_t, bool, bool, local_capable);
+    __Proxy(local_ipc, uint8_t, bool, bool, local_ipc);
+
     __Proxy(remote_capable, uint8_t, bool, bool, remote_capable);
     __Proxy(passive_capable, uint8_t, bool, bool, passive_capable);
     __Proxy(tune_capable, uint8_t, bool, bool, tune_capable);
@@ -144,37 +149,40 @@ protected:
     virtual void register_fields() {
         tracker_component::register_fields();
 
-        RegisterField("kismet.datasource.def.type", TrackerString, 
+        RegisterField("kismet.datasource.driver.type", TrackerString, 
                 "Datasource type", &source_type);
 
-        RegisterField("kismet.datasource.def.description", TrackerString,
+        RegisterField("kismet.datasource.driver.description", TrackerString,
                 "Datasource description", &source_description);
 
-        RegisterField("kismet.datasource.def.phyname", TrackerString,
+        RegisterField("kismet.datasource.driver.phyname", TrackerString,
                 "Datasource phy layer name", &phyname);
 
-        RegisterField("kismet.datasource.def.probe_capable", TrackerUInt8,
+        RegisterField("kismet.datasource.driver.probe_capable", TrackerUInt8,
                 "Datasource can automatically probe", &probe_capable);
 
-        RegisterField("kismet.datasource.def.probe_ipc", TrackerUInt8,
+        RegisterField("kismet.datasource.driver.probe_ipc", TrackerUInt8,
                 "Datasource requires IPC to probe", &probe_capable);
 
-        RegisterField("kismet.datasource.def.list_capable", TrackerUInt8,
+        RegisterField("kismet.datasource.driver.list_capable", TrackerUInt8,
                 "Datasource can list interfaces", &list_capable);
 
-        RegisterField("kismet.datasource.def.list_ipc", TrackerUInt8,
+        RegisterField("kismet.datasource.driver.list_ipc", TrackerUInt8,
                 "Datasource requires IPC to list interfaces", &list_capable);
 
-        RegisterField("kismet.datasource.def.local_capable", TrackerUInt8,
+        RegisterField("kismet.datasource.driver.local_capable", TrackerUInt8,
                 "Datasource can support local interfaces", &local_capable);
 
-        RegisterField("kismet.datasource.def.remote_capable", TrackerUInt8,
+        RegisterField("kismet.datasource.driver.local_ipc", TrackerUInt8,
+                "Datasource requires IPC for local interfaces", &local_ipc);
+
+        RegisterField("kismet.datasource.driver.remote_capable", TrackerUInt8,
                 "Datasource can support remote interfaces", &remote_capable);
 
-        RegisterField("kismet.datasource.def.passive_capable", TrackerUInt8,
+        RegisterField("kismet.datasource.driver.passive_capable", TrackerUInt8,
                 "Datasource can support passive interface-less data", &passive_capable);
 
-        RegisterField("kismet.datasource.def.tuning_capable", TrackerUInt8,
+        RegisterField("kismet.datasource.driver.tuning_capable", TrackerUInt8,
                 "Datasource can control channels", &tune_capable);
     }
 
@@ -190,6 +198,8 @@ protected:
     SharedTrackerElement list_ipc;
 
     SharedTrackerElement local_capable;
+    SharedTrackerElement local_ipc;
+
     SharedTrackerElement remote_capable;
     SharedTrackerElement passive_capable;
 
@@ -259,11 +269,15 @@ protected:
             RegisterField("kismet.datasource.probed.option", TrackerString,
                     "Interface option");
 
+        __RegisterComplexField(KisDataSourceBuilder, prototype_id,
+                "kismet.datasource.probed.driver", "Autoprobed driver");
+
     }
 
     SharedTrackerElement interface;
     SharedTrackerElement options_vec;
 
+    int prototype_id;
     SharedDataSourceBuilder prototype;
 
     int options_entry_id;
@@ -274,14 +288,18 @@ class KisDataSource : public tracker_component, public RingbufferInterface {
 public:
     KisDataSource(GlobalRegistry *in_globalreg, int in_id); 
     KisDataSource(GlobalRegistry *in_globalreg, int in_id, SharedTrackerElement e);
+
+    KisDataSource(GlobalRegistry *in_globalreg, SharedDataSourceBuilder *in_builder);
+
     virtual ~KisDataSource();
 
     virtual SharedTrackerElement clone_type() {
         return SharedTrackerElement(new KisDataSource(globalreg, get_id()));
     }
 
-    virtual void set_proto(SharedDataSourceBuilder in_proto);
-    virtual void set_datasource_tracker(SharedDatasourceTracker in_tracker);
+    virtual void set_datasource_tracker(SharedDatasourcetracker in_tracker) {
+        datasourcetracker = in_tracker;
+    };
 
     typedef map<string, KisDataSource_CapKeyedObject *> KVmap;
     typedef pair<string, KisDataSource_CapKeyedObject *> KVpair;
@@ -304,25 +322,23 @@ public:
     //  1 - This source is handled by this driver, stop looking
     //  0 - This source is not handled by this driver, keep looking
     // -1 - Asynchronous probe via IPC required and will be reported via the
-    //      callback function
+    //      callback function, which takes the result and the transaction id
     int probe_source(string srcdef, unsigned int in_transaction,
-            function<void (bool)> in_cb);
+            function<void (bool, unsigned int)> in_cb);
 
     // Open a local data source
     //
     // Configure from a given spec and populate the ring buffer interface.
-    // Typically this means connecting the ring buffer to an IPCRemoteV2 instance
-    // and launching our control binary, but could also use a non-IPC non-privileged
-    // mechanism and write directly into the handler.
+    // Typically this means creating a ringbuffer bound to an ipcremote2
     //
     // Returns:
     //
     //  1 - This source is completely configured and is ready for use
     //  0 - This source has encountered a fatal error during setup
     // -1 - This source has initiated IPC bringup and success or failure will
-    //      be reported to the DST
-    int open_local_source(string srcdef, RingbufferHandler *in_handler, 
-            unsigned int in_transaction);
+    //      be reported via the callback function
+    int open_local_source(string srcdef, unsigned int in_transaction,
+            function<void (bool, unsigned int)> in_cb);
 
     // Allocate the local side of a network capture.
     //
@@ -361,13 +377,21 @@ public:
     // Stops accepting packets on a passive source
     void close_source();
 
-    // Ringbuffer interface, called when new data arrives from IPC or 
+    // Ringbuffer interface, called when new data arrives from IPC or network
     virtual void BufferAvailable(size_t in_amt);
+    virtual void BufferError(string in_error);
 
-    __Proxy(source_running, bool, uint8_t, uint8_t, source_running);
+    __Proxy(source_running, uint8_t, bool, bool, source_running);
+
     __ProxyTrackable(prototype, KisDataSourceBuilder, prototype);
+
     __Proxy(sourceline, string, string, string, sourceline);
     __Proxy(source_interface, string, string, string, source_interface);
+
+    __Proxy(source_name, string, string, string, source_name);
+
+    __ProxyL(source_channel, string, string, string, source_channel, src_set_channel);
+
     __Proxy(source_uuid, uuid, uuid, uuid, source_uuid);
     __Proxy(source_id, uint64_t, uint64_t, uint64_t, source_id);
 
@@ -375,19 +399,39 @@ public:
     __Proxy(source_ipc_bin, string, string, string, source_ipc_bin);
 
     __ProxyTrackable(source_channels_vec, TrackerElement, source_channels_vec);
-    __ProxyL(source_hopping, bool, uint8_t, uint8_t, 
-            source_hopping, src_set_source_hopping);
-    __ProxyL(source_hop_rate, double, double, double, source_hop_rate,
-            src_set_source_hop_rate);
+
+    // Get-only interfaces
+    __ProxyGet(source_hopping, uint8_t, bool, source_hopping);
+    __ProxyGet(source_hop_rate, double, double, source_hop_rate);
+
+    // Combined set function because we need to push both as one event
+    virtual bool set_channel_hop(vector<string> in_list, double in_rate);
+    virtual bool set_channel_hop(SharedTrackerElement in_list, double in_rate);
+
+    // We can independently set the hop vector
     __ProxyTrackableL(source_hop_vec, TrackerElement, source_hop_vec,
             src_set_source_hop_vec);
 
+    virtual string get_response_message() { 
+        local_locker lock(&source_lock);
+        return response_message;
+    }
+
 protected:
+    // Proxy set commands that just update the tracked element
+    __ProxySet(int_source_hopping, uint8_t, bool, source_hopping);
+    __ProxySet(int_source_hop_rate, double, double, source_hop_rate);
+    __ProxySet(int_source_channel, string, string, source_channel);
+
     void initialize();
 
     GlobalRegistry *globalreg;
 
-    SharedDatasourceTracker datasourcetracker;
+    uint32_t next_cmd_sequence;
+
+    string response_message;
+
+    SharedDatasourcetracker datasourcetracker;
 
     shared_ptr<Packetchain> packetchain;
 
@@ -396,7 +440,7 @@ protected:
 
     // Ringbuffer handler, either we launched it via IPC or DST provided it to
     // us via a network source connecting
-    RingbufferHandler *ringbuf_handler;
+    shared_ptr<RingbufferHandler> ringbuf_handler;
 
     int pack_comp_linkframe, pack_comp_l1info, pack_comp_gps;
 
@@ -408,13 +452,17 @@ protected:
     SharedTrackerElement source_name;
 
     // Prototype that built us
+    int prototype_id;
     SharedDataSourceBuilder prototype;
 
     // Source line that created us
     SharedTrackerElement sourceline;
 
     // Interface name
-    SharedTrackerElemnt source_interface;
+    SharedTrackerElement source_interface;
+
+    // Channel
+    SharedTrackerElement source_channel;
 
     // Source UUID, automatically derived or provided by user
     SharedTrackerElement source_uuid;
@@ -430,7 +478,7 @@ protected:
 
     // Supported channels, as vector of strings
     SharedTrackerElement source_channels_vec;
-    int source_channel_entry_id;
+    SharedTrackerElement source_channel_entry_builder;
 
     // Currently running to the best of our knowledge
     SharedTrackerElement source_running;
@@ -442,22 +490,26 @@ protected:
     SharedTrackerElement source_hop_vec;
 
     // Callbacks for list and probe modes
-    function<void (bool)> probe_cb;
+    function<void (bool, unsigned int)> probe_cb;
+    unsigned int probe_transaction;
+
     function<void (vector<SharedListInterface>)> list_cb;
+    unsigned int list_transaction;
 
-    // Commands waiting to be sent
-    vector<KisDataSource_QueuedCommand *> pending_commands;
+    function<void (bool, unsigned int)> open_cb;
+    unsigned int open_transaction;
 
-    // Internal commands called when we set the tracked types
-    virtual bool src_set_source_hopping(bool in_hop);
+    // Internal commands; called to send the command frames to an IPC/network
+    // driver, and linked to the tracked element proxy functions
+    virtual bool src_send_probe(string in_srcdef);
+    virtual bool src_send_open(string in_srcdef);
+    virtual bool src_set_channel(string in_channel);
     virtual bool src_set_source_hop_vec(SharedTrackerElement in_vec);
     virtual bool src_set_source_hop_rate(double in_rate);
 
-    // Queue commands to be sent over ipc or tcp
-    virtual bool queue_ipc_command(string in_cmd, KVmap *in_kvpairs);
-
-    // IPC protocol assembly & send to driver
-    virtual bool write_packet(string in_type, KVmap *in_kvpairs);
+    // Assemble a packet and write it to the buffer; returns false if the buffer
+    // could not accept more commands
+    virtual bool write_packet(string in_cmd, KVmap in_kvpairs);
 
     // Top-level packet handler called by DST
     virtual void handle_packet(string in_type, KVmap in_kvmap);
@@ -482,16 +534,6 @@ protected:
     // already, issue a kill
     virtual bool spawn_ipc();
 
-};
-
-class KisDataSource_QueuedCommand {
-public:
-    KisDataSource_QueuedCommand(string in_cmd, KisDataSource::KVmap *in_kv, 
-            time_t in_time);
-
-    string command;
-    KisDataSource::KVmap *kv;
-    time_t insert_time;
 };
 
 class KisDataSource_CapKeyedObject {
