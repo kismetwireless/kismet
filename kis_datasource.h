@@ -318,8 +318,8 @@ public:
     // Returns a list immediately if it is possible to probe for them without
     // special privileges, otherwise spawns an IPC interface and performs an async
     // IPC probe, returning the values in the callback function
-    vector<SharedListInterface> list_interfaces(unsigned int in_transaction,
-            function<void (vector<SharedListInterface>)> in_cb);
+    virtual vector<SharedListInterface> list_interfaces(unsigned int in_transaction,
+            function<void (unsigned int, vector<SharedListInterface>)> in_cb);
 
     // Determine if an interface spec is supported locally by this driver.
     //
@@ -330,7 +330,7 @@ public:
     //  0 - This source is not handled by this driver, keep looking
     // -1 - Asynchronous probe via IPC required and will be reported via the
     //      callback function, which takes the result and the transaction id
-    int probe_source(string srcdef, unsigned int in_transaction,
+    virtual int probe_source(string srcdef, unsigned int in_transaction,
             function<void (bool, unsigned int)> in_cb);
 
     // Open a local data source
@@ -344,7 +344,7 @@ public:
     //  0 - This source has encountered a fatal error during setup
     // -1 - This source has initiated IPC bringup and success or failure will
     //      be reported via the callback function
-    int open_local_source(string srcdef, unsigned int in_transaction,
+    virtual int open_ipc_source(string srcdef, unsigned int in_transaction,
             function<void (bool, unsigned int)> in_cb);
 
     // Allocate the local side of a network capture.
@@ -357,7 +357,7 @@ public:
     //
     //  true - successful open
     //  false - failed to configure source to receive network events
-    bool open_network_source(RingbufferHandler *in_handler);
+    virtual bool open_network_source(shared_ptr<RingbufferHandler> in_handler);
 
     // Allocate the local side of a passive source
     //
@@ -374,7 +374,7 @@ public:
     //
     //  true - successful establishment of passive source
     //  false - failed to establish passive source somehow
-    bool open_passive_source(string srcdef);
+    virtual bool open_passive_source(string srcdef);
 
     // Close any active operation
     //
@@ -382,7 +382,7 @@ public:
     // Cancels opening if opening is underway
     // Closes an open source and terminates IPC if necessary
     // Stops accepting packets on a passive source
-    void close_source();
+    virtual void close_source();
 
     // Ringbuffer interface, called when new data arrives from IPC or network
     virtual void BufferAvailable(size_t in_amt);
@@ -411,7 +411,7 @@ public:
     __ProxyGet(source_hopping, uint8_t, bool, source_hopping);
     __ProxyGet(source_hop_rate, double, double, source_hop_rate);
 
-    // Combined set function because we need to push both as one event
+    // Combined set function because we want to push both as one event usually
     virtual bool set_channel_hop(vector<string> in_list, double in_rate);
     virtual bool set_channel_hop(SharedTrackerElement in_list, double in_rate);
 
@@ -500,7 +500,7 @@ protected:
     function<void (bool, unsigned int)> probe_cb;
     unsigned int probe_transaction;
 
-    function<void (vector<SharedListInterface>)> list_cb;
+    function<void (unsigned int, vector<SharedListInterface>)> list_cb;
     unsigned int list_transaction;
 
     function<void (bool, unsigned int)> open_cb;

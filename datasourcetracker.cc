@@ -472,7 +472,7 @@ void Datasourcetracker::open_datasource(string in_source,
     TrackerElementVector vec(datasource_vec);
     vec.push_back(ds);
 
-    int r = ds->open_local_source(in_source, 0, 
+    int r = ds->open_ipc_source(in_source, 0, 
         [this, ds, in_cb] (bool success, unsigned int) {
             // Whenever we succeed (or fail) at opening a deferred open source,
             // call our callback w/ whatever we know

@@ -364,6 +364,39 @@ int KisDataSource::open_local_source(string in_source, unsigned int in_transacti
     return 0;
 }
 
+bool KisDataSource::open_network_source(shared_ptr<RingbufferHandler> in_handler) {
+    local_locker lock(&source_lock);
+
+    /* TODO figure out semantics of inheriting name, channels, etc from
+     * remote source */
+
+    ringbuf_handler = in_handler;
+
+    return true;
+}
+
+bool KisDataSource::open_passive_source(string srcdef) {
+    local_locker lock(&source_lock);
+
+    /* TODO figure out semantics of this */
+
+    set_sourceline(srcdef);
+
+    return true;
+}
+
+vector<SharedListInterface> KisDataSource::list_interfaces(unsigned int in_transaction,
+        function<void (unsigned int, vector<SharedListInterface>)> in_cb) {
+    local_locker lock(&source_lock);
+
+    list_cb = in_cb;
+    list_transaction = in_transaction;
+
+    /* TODO figure out this, too */
+
+    return vector<SharedListInterface>();
+}
+
 bool KisDataSource::src_send_probe(string srcdef) {
     if (!get_prototype()->get_tracker_local_capable())
         return false;
