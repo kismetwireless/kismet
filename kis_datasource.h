@@ -32,6 +32,7 @@
 #include "devicetracker_component.h"
 #include "packetchain.h"
 #include "simple_datasource_proto.h"
+#include "entrytracker.h"
 
 /*
  * Kismet Data Source
@@ -102,6 +103,14 @@ public:
         tracker_component(in_globalreg, in_id) {
         register_fields();
         reserve_fields(NULL);
+
+        entrytracker = 
+            static_pointer_cast<EntryTracker>(globalreg->FetchGlobal("ENTRY_TRACKER"));
+
+        datasource_entity_id = 
+            entrytracker->RegisterField("kismet.datasource", 
+                    TrackerMap, "Data capture object");
+
     }
 
     KisDataSourceBuilder(GlobalRegistry *in_globalreg, int in_id,
@@ -123,14 +132,12 @@ public:
 
         /*
          * example:
-         * SharedDataSource ds(new SomeDataSource(globalreg, this));
+         * SharedDataSource ds(new SomeDataSource(globalreg, datasource_entity_id, this));
          */
     }
 
     __Proxy(source_type, string, string, string, source_type);
     __Proxy(source_description, string, string, string, source_description);
-
-    __Proxy(phyname, string, string, string, phyname);
 
     __Proxy(probe_capable, uint8_t, bool, bool, probe_capable);
     __Proxy(probe_ipc, uint8_t, bool, bool, probe_ipc);
@@ -154,9 +161,6 @@ protected:
 
         RegisterField("kismet.datasource.driver.description", TrackerString,
                 "Datasource description", &source_description);
-
-        RegisterField("kismet.datasource.driver.phyname", TrackerString,
-                "Datasource phy layer name", &phyname);
 
         RegisterField("kismet.datasource.driver.probe_capable", TrackerUInt8,
                 "Datasource can automatically probe", &probe_capable);
@@ -186,10 +190,12 @@ protected:
                 "Datasource can control channels", &tune_capable);
     }
 
+    shared_ptr<EntryTracker> entrytracker;
+
+    int datasource_entity_id;
+
     SharedTrackerElement source_type;
     SharedTrackerElement source_description;
-
-    SharedTrackerElement phyname;
 
     SharedTrackerElement probe_capable;
     SharedTrackerElement probe_ipc;
@@ -289,7 +295,8 @@ public:
     KisDataSource(GlobalRegistry *in_globalreg, int in_id); 
     KisDataSource(GlobalRegistry *in_globalreg, int in_id, SharedTrackerElement e);
 
-    KisDataSource(GlobalRegistry *in_globalreg, SharedDataSourceBuilder *in_builder);
+    KisDataSource(GlobalRegistry *in_globalreg, int in_id,
+            SharedDataSourceBuilder in_builder);
 
     virtual ~KisDataSource();
 
@@ -423,7 +430,7 @@ protected:
     __ProxySet(int_source_hop_rate, double, double, source_hop_rate);
     __ProxySet(int_source_channel, string, string, source_channel);
 
-    void initialize();
+    virtual void initialize();
 
     GlobalRegistry *globalreg;
 
@@ -504,6 +511,7 @@ protected:
     virtual bool src_send_probe(string in_srcdef);
     virtual bool src_send_open(string in_srcdef);
     virtual bool src_set_channel(string in_channel);
+
     virtual bool src_set_source_hop_vec(SharedTrackerElement in_vec);
     virtual bool src_set_source_hop_rate(double in_rate);
 

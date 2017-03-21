@@ -49,6 +49,19 @@ KisDataSource::KisDataSource(GlobalRegistry *in_globalreg, int in_id) :
     initialize();
 }
 
+KisDataSource::KisDataSource(GlobalRegistry *in_globalreg, int in_id,
+        SharedDataSourceBuilder in_proto) :
+    tracker_component(in_globalreg, in_id) {
+
+    globalreg = in_globalreg;
+    register_fields();
+    reserve_fields(NULL);
+
+    initialize();
+
+    set_prototype(in_proto);
+}
+
 void KisDataSource::initialize() {
     packetchain = 
         static_pointer_cast<Packetchain>(globalreg->FetchGlobal("PACKETCHAIN"));
