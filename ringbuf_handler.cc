@@ -287,17 +287,3 @@ RingbufferInterface::~RingbufferInterface() {
     }
 }
 
-void RingbufferInterface::HandleReadBuffer(RingbufferHandler *in_handler) {
-    ringbuffer_handler = in_handler;
-    read_handler = true;
-
-    in_handler->SetReadBufferInterface(this);
-}
-
-void RingbufferInterface::HandleWriteBuffer(RingbufferHandler *in_handler) {
-    ringbuffer_handler = in_handler;
-    write_handler = true;
-
-    in_handler->SetWriteBufferInterface(this);
-}
-

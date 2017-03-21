@@ -113,11 +113,7 @@ public:
     RingbufferInterface();
     virtual ~RingbufferInterface();
 
-    // Define which buffer we handle (register it with the interface automatically)
-    virtual void HandleReadBuffer(RingbufferHandler *in_handler);
-    virtual void HandleWriteBuffer(RingbufferHandler *in_handler);
-
-    // Called when a buffer grows
+    // Called when the linked buffer grows
     virtual void BufferAvailable(size_t in_amt) = 0;
 
     // Called when a buffer encounters an error
