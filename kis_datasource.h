@@ -135,10 +135,12 @@ public:
     __ProxyGet(source_hop_rate, double, double, source_hop_rate);
     __ProxyTrackable(source_hop_vec, TrackerElement, source_hop_vec);
 
-    // Asynchronous communication API
-    // All commands to a datasource are asynchronous - they either go over the IPC
-    // channel or over the network.
-   
+
+    // Retry API - do we try to re-open when there's a problem?
+    __ProxyGet(source_error, uint8_t, bool, source_error);
+    __Proxy(source_retry, uint8_t, bool, bool, source_retry);
+    __ProxyGet(source_retry_attempts, uint32_t, uint32_t, source_retry_attempts);
+
 protected:
     // Datasource protocol - each datasource is responsible for processing incoming
     // data, which may come from IPC or may come from the network.  Handling is
@@ -262,6 +264,29 @@ protected:
 
     // Global registry all objects have for coordination
     GlobalRegistry *globalreg;
+
+
+
+    // Retry API
+    // Try to re-open sources in error automatically
+    
+    // Are we in error state?
+    __ProxySet(int_source_error, uint8_t, bool, source_error);
+    SharedTrackerElement source_error;
+
+    // Do we want to try to re-open automatically?
+    SharedTrackerElement source_retry;
+
+    // How many consecutive errors have we had?
+    __ProxySet(int_source_retry_attempts, uint32_t, uint32_t, source_retry_attempts);
+    SharedTrackerElement source_retry_attempts;
+
+    // Timer ID for trying to recover from an error
+    int error_timer_id;
+
+    // Function that gets called when we encounter an error
+    virtual void handle_source_error();
+
 
 
     // Communications API.  We implement a ringbuffer interface and listen to the
