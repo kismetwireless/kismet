@@ -83,8 +83,20 @@ struct simple_cap_proto {
 } __attribute__((packed));
 typedef struct simple_cap_proto simple_cap_proto_t;
 
+/* Basic success object */
+struct simple_cap_proto_success_value {
+    /* Success bool */
+    uint8_t success;
+    /* 3 byte padding */
+    uint8_t pad1;
+    uint16_t pad2;
+    /* Sequence number of command */
+    uint32_t sequence_number;
+} __attribute__((packed));
+typedef struct simple_cap_proto_success_value simple_cap_proto_success_t;
+
 /* Encode a KV list */
-simple_cap_proto_t *encode_simple_cap_proto(char *in_type, 
+simple_cap_proto_t *encode_simple_cap_proto(char *in_type, uint32_t in_seqno,
         simple_cap_proto_kv_t **in_kv_list, unsigned int in_kv_len);
 
 /* Encode data into a kb pair */

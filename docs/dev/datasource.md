@@ -4,15 +4,17 @@ Kismet supports additional capture types via the `KisDatasource` interface.  Dat
 
 Datasources can report packets or complex records - if your datasource needs to pass parsed information about a device event, that's possible!
 
-## Capture via IPC
+## Capture via IPC and Network
 
-Kismet datasources communicate from the capture binary to the Kismet server via an IPC channel.  This channel passes commands, data, and msgpack binary objects via a simple wrapper protocol.
+Kismet datasources communicate from the capture binary to the Kismet server via an IPC channel or TCP connection.  This channel passes commands, data, and msgpack binary objects via a simple wrapper protocol.
 
 The datasource IPC channel is via inherited file descriptors:  Prior to launching the capture binary, the Kismet server makes a pipe(2) pair and will pass the read (incoming data to the capture binary) and write (outgoing data from the capture binary) file descriptor numbers on the command line of the capture binary.
 
 Operating as a completely separate binary allows the capture code to use increased permissions via suid, operate independently of the Kismet main loop, allowing the use of alternate main loop methods or other processor-intensive operations which could stall the main Kismet packet loop, or even using other languages to define the capture binary, such as a python capture system which utilizes python radio libraries.
 
-## The IPC Protocol
+The network protocol is an encapsulation of the same protocol over a TCP channel, with some additional setup frames.  The network protocol will be more fully defined in future revisions of this document.
+
+## The Simplified Datasource Protocol
 
 The data source capture protocol is defined in `simple_datasource_proto.h`.  It is designed to be a simple protocol to communicate with from a variety of languages.
 
@@ -22,9 +24,9 @@ K:V pairs may be simple (a single value or type), or complex (a binary msgpack o
 
 In general, complex objects are always passed as dictionaries holding string:value KV pairs.  This allows multiple languages easy access, eliminates magic number values, and should greatly simplify future compatibility issues if additional fields are required.
 
-Datasource binaries and drivers may use any other message passing mechanism they prefer, but are encouraged to stay with the standard mechanisms.
+Datasource implementations *may* use other message passing mechanisms, either inside the established communications channel or via independent channels, but are encouraged to stay within the defined protocol whenever possible.
 
-## Top-level IPC Frame Types
+## Top-level Frame Types
 
 Several top-level packet types and key:value pairs are pre-defined and will be automatically handled by classes derived from the `KisDataSource` driver.
 
@@ -35,51 +37,56 @@ KV Pairs:
 * NONE
 
 Responses:
-* NONE
+* STATUS
 
 #### CONFIGURE (Kismet->Datasource)
-Pass configuration data
+Reconfigure a source.  Typically used to pass channel configuration data but may be used to embed additional information.
+
+When sent from a datasource to kismet, 
 
 KV Pairs:
-* CHANSET
-* CHANHOP
+* CHANSET (optional)
+* CHANHOP (optional)
+* SUCCESS (optional, datasource->kismet)
+* MESSAGE (optional, datasource->kismet)
 
 Responses:
-* NONE
+* CONFIGURE
 
 #### DATA (Datasource->Kismet)
-Pass capture data.  May be a packet, a decoded trackable entity, or othe r information.
+Pass capture data.  May be a packet, a decoded trackable entity, or other information.
 
 KV Pairs:
-* MESSAGE
-* SIGNAL
-* PACKET
-* GPS
+* MESSAGE (optional)
+* SIGNAL (optional)
+* PACKET (optional)
+* GPS (optional)
 
 Responses:
 * NONE
 
 #### ERROR (Any)
-An error occurred.  The capture is assumed closed, and the IPC will be shut down.
+An error occurred.  The capture is assumed closed, and the connection will be shut down.
 
 KV Pairs:
-* ERROR
+* SUCCESS
+* MESSAGE (optional)
 
 Responses:
 * NONE
 
 #### STATUS (Datasource->Kismet)
-Generic status report.  May carry other information.
+Generic status report.  The SUCCESS pair will carry the command number of command, if any is related to this report.  May carry other information.
 
 KV Pairs:
-* MESSAGE
+* MESSAGE (optional)
 * SUCCESS
 
 Responses:
 * NONE
 
 #### MESSAGE (Datasource->Kismet)
-Message for the user - informational, warning, or other non-critical errors.
+Message for the user - informational, warning, or other non-critical errors.  Essentially a tunneling of the Kismet Messagebus protocol.  Permanent failure conditions should be carried over the STATUS or ERROR frames.
 
 KV Pairs:
 * MESSAGE
@@ -101,8 +108,8 @@ Device open response.  Sent to declare the source is open and functioning, or th
 
 KV Pairs:
 * SUCCESS
-* CHANNELS
-* MESSAGE
+* CHANNELS (optional)
+* MESSAGE (optional)
 
 Responses:
 * NONE
@@ -121,8 +128,7 @@ Response for attempting to probe if a device is supported via PROBEDEVICE.  This
 
 KV Pairs:
 * SUCCESS
-* CHANNELS
-* MESSAGE
+* MESSAGE (optional)
 
 Responses:
 * NONE
@@ -247,10 +253,12 @@ Msgpack packed dictionary containing the following:
 * "datarate": double-precision float representing a phy-specific data rate (optional)
 
 #### SUCCESS
-A simple boolean indicating success or failure of the relevant command.
+A simple boolean indicating success or failure of the relevant command.  This value is padded to 4 bytes and is followed by the `uint32_t` sequence number of the command, if any, this success value applies to.
 
 Content:
 * A single byte (`uint8_t`) indicating success (non-zero) or failure (zero).
+* Three bytes of padding to align word boundaries
+* An unsigned 32 bit int (`uint32_t`) of the command sequence number this is acknowledging.
 
 ## Defining the driver:  Deriving from KisDatasource
 

@@ -41,7 +41,7 @@ simple_cap_proto_kv_t *encode_simple_cap_proto_kv(char *in_key, uint8_t *in_obj,
     return kv;
 }
 
-simple_cap_proto_t *encode_simple_cap_proto(char *in_type,
+simple_cap_proto_t *encode_simple_cap_proto(char *in_type, uint32_t in_seqno,
         simple_cap_proto_kv_t **in_kv_list, unsigned int in_kv_len) {
     simple_cap_proto_t *cp;
     simple_cap_proto_kv_t *kv;
@@ -62,6 +62,7 @@ simple_cap_proto_t *encode_simple_cap_proto(char *in_type,
 
     cp->signature = kis_hton32(KIS_CAP_SIMPLE_PROTO_SIG);
     cp->checksum = 0;
+    cp->sequence_number = kis_hton32(in_seqno);
     snprintf(cp->type, 16, "%16s", in_type);
     cp->packet_sz = kis_hton32((uint32_t) sz);
     cp->num_kv_pairs = kis_hton32(in_kv_len);
