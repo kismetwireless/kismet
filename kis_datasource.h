@@ -103,6 +103,13 @@ public:
             configure_callback_t in_cb);
 
 
+    // Close the source
+    // Cancels any current activity (probe, open, pending commands) and sends a
+    // terminate command to the capture binary.
+    // Closing sends a failure result to any pending async commands
+    virtual void close_source();
+
+
 
     // Ringbuffer interface - called when the attached ringbuffer has data available.
     // Datasources only bind to the read side of the buffer handler.  This connection
@@ -112,8 +119,8 @@ public:
     virtual void BufferAvailable(size_t in_amt);
 
     // Ringbuffer interface - handles error on IPC or TCP, called when there is a 
-    // low-level error on the communications stack (process death, etc).  May
-    // be called after our own kill event shuts down the handler as well.
+    // low-level error on the communications stack (process death, etc).
+    // Passes error to the the internal source_error function
     virtual void BufferError(string in_error);
 
     // Kismet-only variables can be set realtime, they have no capture-binary
@@ -142,6 +149,12 @@ public:
     __ProxyGet(source_retry_attempts, uint32_t, uint32_t, source_retry_attempts);
 
 protected:
+
+    // Source error; sets error state, fails all pending function callbacks,
+    // and initiates retry if we retry errors
+    virtual void source_error(string in_reason);
+
+
     // Datasource protocol - each datasource is responsible for processing incoming
     // data, which may come from IPC or may come from the network.  Handling is
     // dispatched by packet type, then kv pairs.  Packets and kv pair handling
@@ -168,9 +181,14 @@ protected:
     // "proper" behavior for existing pairs, or overridden and extended.  In general,
     // datasources will want to extend proto_dispatch_packet and add their own
     // packet types, and generally should not override the core pair handlers.
+    //
+    // Default KV handlers have some hidden complexities: they are responsible for
+    // maintaining the async events, filling in the packet responses, etc.
     virtual bool handle_kv_success(KisDatasourceCapKeyedObject *in_obj);
     virtual bool handle_kv_message(KisDatasourceCapKeyedObject *in_obj);
     virtual bool handle_kv_channels(KisDatasourceCapKeyedObject *in_obj);
+    virtual bool handle_kv_config_channel(KisDatasourceCapKeyedObject *in_obj);
+    virtual bool handle_kv_config_hop(KisDatasourceCapKeyedObject *in_obj);
     virtual kis_gps_packinfo *handle_kv_gps(KisDatasourceCapKeyedObject *in_obj);
     virtual kis_layer1_packinfo *handle_kv_signal(KisDatasourceCapKeyedObject *in_obj);
     virtual kis_packet *handle_kv_packet(KisDatasourceCapKeyedObject *in_obj);
