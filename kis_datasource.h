@@ -34,107 +34,273 @@
 #include "simple_datasource_proto.h"
 #include "entrytracker.h"
 
-/*
- * Kismet Data Source
- *
- * Data sources replace packetsources in the new Kismet code model.
- * A data source is the kismet_server side of a capture engine:  It accepts
- * data frames from a capture binary over network or IPC and injects them to the
- * packet tracker.  Additionally, datasources can accept complex network objects
- * and interact directly with the device tracker system for non-packet-based
- * captures.
- *
- * A small number of capture sources will not need any capture driver code; 
- * All others will need to launch their capture binary and communicate with it,
- * or communicate with a network instance supplied by the datasourcetracker.
- * Datasource code should be as agnostic as possible and work with the RBI 
- * so that it will interface automatically with the IPC management and network 
- * connections.
- *
- * The same common protocol is used for local ipc and remote network sources.
- *
- * Data frames are defined in simple_datasource_proto.h.  A frame consists of an
- * overall type and multiple objects indexed by name.  Each object may
- * contain additional data.
- *
- * Objects are packed using the msgpack library as dictionaries of named values.
- *
- * Msgpack abstracts endian and byte issues and has implementations in nearly
- * every language, hopefully allowing the capture binary code to be highly
- * agnostic & writeable in any suitable language.  The key:value nomenclature 
- * allows for arbitrary changes to the protocol without breaking a rigid framing
- * structure.
- *
- * A datasource builder defines the capabilities and describes the functionality
- * of the datasource; it is used to instantiate an actual datasource object, 
- * which is used for performing interface lists, auto type probing, or actually
- * driving the capture.
- *
- */
+// Builder class responsible for making an instance of this datasource
+class KisDatasourceBuilder;
+typedef shared_ptr<KisDatasourceBuilder> SharedDatasourceBuilder;
 
-/* DST forward ref */
-class Datasourcetracker;
-typedef shared_ptr<Datasourcetracker> SharedDatasourcetracker;
+// Auto-discovered interface
+class KisDatasourceInterface;
+typedef shared_ptr<KisDatasourceInterface> SharedInterface;
 
-/* Keypair object from cap proto */
-class KisDataSource_CapKeyedObject;
+// Simple keyed object derived from the low-level C protocol
+class KisDatasourceCapKeyedObject;
 
-// Supported source
-class KisDataSource_SupportedSource;
-
-// Forward definition of data sources
-class KisDataSource;
-typedef shared_ptr<KisDataSource> SharedDataSource;
-
-/* KisDataSourceBuilder
- *
- * A 'prototype' of the data source which tells the tracking system it's 
- * capabilities and knows how to build a full data source
- *
- * It is stored as a tracker_component so that the tracker can directly
- * serialize the data for displaying what sources are possible.
- */
-class KisDataSourceBuilder;
-typedef shared_ptr<KisDataSourceBuilder> SharedDataSourceBuilder;
-
-class KisDataSourceBuilder : public tracker_component {
+class KisDatasource : public tracker_component, public RingbufferInterface {
 public:
-    KisDataSourceBuilder(GlobalRegistry *in_globalreg, int in_id) :
+
+    // Async command API
+    // All commands to change non-local state are asynchronous.  Failure, success,
+    // and state change will not be known until the command completes.
+    // To marshal this, all commands take a transaction id (arbitrary number provided
+    // by the caller) and a callback function.  If the function exists, it is called
+    // when the command completes.
+    
+    // 'List' callback - called with caller-supplied transaction id and contents,
+    // if any, of the interface list command
+    typedef function<void (unsigned int, vector<SharedInterface>)> list_callback_t;
+
+    // List all interfaces this source can support
+    virtual void list_interfaces(unsigned int in_transaction, list_callback_t in_cb);
+
+    // 'Probe' callback - called with caller-supplied transaction id and success
+    // or failure of the probe command and string message of any additional 
+    // information if there was a MESSAGE key in the PROBERESP or if there was a
+    // local communications error.
+    typedef function<void (unsigned int, bool, string)> probe_callback_t;
+
+    // Probe to determine if a specific interface is supported by this source
+    virtual void probe_interface(string in_definition, unsigned int in_transaction,
+            probe_callback_t in_cb);
+
+    // 'Open' callback - called with the caller-supplied transaction id,
+    // success (or not) of open command, and a string message of any failure
+    // data if there was a MESSAGE key in the OPENRESP or there was a
+    // local communications error.
+    typedef function<void (unsigned int, bool, string)> open_callback_t;
+
+    // Open an interface defined by in_definition
+    virtual void open_interface(string in_definition, unsigned int in_transaction,
+            open_callback_t in_cb);
+
+    // 'Configure' callback - called when a configure-related command such as
+    // channel set, hop set, etc is performed.  Returns the caller-supplied
+    // transaction id, success, string message (if any) related to a failure
+    typedef function<void (unsigned int, bool, string)> configure_callback_t;
+
+    // Lock to a specific channel and stop hopping
+    virtual void set_channel(string in_channel, unsigned int in_transaction,
+            configure_callback_t in_cb);
+
+    // Set the channel hop rate and list of channels to hop on, using a string vector
+    virtual void set_channel_hop(double in_rate, std::vector<std::string> in_chans,
+            unsigned int in_transaction, configure_callback_t in_cb);
+    // Set the channel hop rate using a TrackerElement vector object
+    virtual void set_channel_hop(double in_rate, SharedTrackerElement in_chans,
+            unsigned int in_transaction, configure_callback_t in_cb);
+    // Set just the channel hop rate; internally this is the same as setting a 
+    // hop+vector but we simplify the API for callers
+    virtual void set_channel_hop_rate(double in_rate, unsigned int in_transaction,
+            configure_callback_t in_cb);
+
+
+
+    // Ringbuffer interface - called when the attached ringbuffer has data available.
+    // Datasources only bind to the read side of the buffer handler.  This connection
+    // may be made to IPC or network, and speaks the kismet datasource simplified
+    // protocol.  This function does basic framing and then calls the private 
+    // hierarchy of key-value parsers.
+    virtual void BufferAvailable(size_t in_amt);
+
+    // Ringbuffer interface - handles error on IPC or TCP, called when there is a 
+    // low-level error on the communications stack (process death, etc).  May
+    // be called after our own kill event shuts down the handler as well.
+    virtual void BufferError(string in_error);
+
+    // Kismet-only variables can be set realtime, they have no capture-binary
+    // equivalents and are only used for tracking purposes in the Kismet server
+    __Proxy(source_name, string, string, string, source_name);
+    __Proxy(source_uuid, uuid, uuid, uuid, source_uuid);
+
+    // Prototype/driver definition
+    __ProxyTrackable(source_builder, KisDatasourceBuilder, source_builder);
+
+    // Read-only access to the source state; this mirrors the state in the capture
+    // binary. Set commands queue a command to the binary and then update as
+    // they complete.
+    __ProxyGet(source_definition, string, string, source_definition);
+    __ProxyGet(source_interface, string, string, source_interface);
+    __ProxyTrackable(source_channels_vec, TrackerElement, source_channels_vec);
+    __ProxyGet(source_hopping, uint8_t, bool, source_hopping);
+    __ProxyGet(source_channel, string, string, source_channel);
+    __ProxyGet(source_hop_rate, double, double, source_hop_rate);
+    __ProxyTrackable(source_hop_vec, TrackerElement, source_hop_vec);
+
+    // Asynchronous communication API
+    // All commands to a datasource are asynchronous - they either go over the IPC
+    // channel or over the network.
+   
+protected:
+    // Datasource protocol - each datasource is responsible for processing incoming
+    // data, which may come from IPC or may come from the network.  Handling is
+    // dispatched by packet type, then kv pairs.  Packets and kv pair handling
+    // can be overridden to add additional handlers.  When overriding, make sure
+    // to call the parent implementation to get the default packet handling.
+    typedef map<string, KisDatasourceCapKeyedObject *> KVmap;
+
+    // Datasource protocol - dispatch handler.  Handles dispatching top-level
+    // packet types to helper functions.  Automatically handles the default
+    // packet types, and can be overridden to handle additional types.
+    virtual void proto_dispatch_packet(string in_type, KVmap in_kvmap);
+
+    // Top-level default packet type handlers for the datasource simplified protocol
+    virtual void proto_packet_status(KVmap in_kvpairs);
+    virtual void proto_packet_probe_resp(KVmap in_kvpairs);
+    virtual void proto_packet_open_resp(KVmap in_kvpairs);
+    virtual void proto_packet_error(KVmap in_kvpairs);
+    virtual void proto_packet_message(KVmap in_kvpairs);
+    virtual void proto_packet_configure(KVmap in_kvpairs);
+    virtual void proto_packet_data(KVmap in_kvpairs);
+
+    // Common K-V pair handlers that are likely to be found in multiple types
+    // of packets; these can be used by custom packet handlers to implement automatic
+    // "proper" behavior for existing pairs, or overridden and extended.  In general,
+    // datasources will want to extend proto_dispatch_packet and add their own
+    // packet types, and generally should not override the core pair handlers.
+    virtual bool handle_kv_success(KisDatasourceCapKeyedObject *in_obj);
+    virtual bool handle_kv_message(KisDatasourceCapKeyedObject *in_obj);
+    virtual bool handle_kv_channels(KisDatasourceCapKeyedObject *in_obj);
+    virtual kis_gps_packinfo *handle_kv_gps(KisDatasourceCapKeyedObject *in_obj);
+    virtual kis_layer1_packinfo *handle_kv_signal(KisDatasourceCapKeyedObject *in_obj);
+    virtual kis_packet *handle_kv_packet(KisDatasourceCapKeyedObject *in_obj);
+
+
+
+
+    // Async command API
+    // Commands have to be sent over the IPC channel or the network connection, making
+    // all commands fundamentally asynchronous.
+    // Any set / open / probe / list command takes an optional callback
+    // which will be called on completion of the command
+    
+    // Tracker object for our map of commands which haven't finished
+    class tracked_command {
+    public:
+        tracked_command(unsigned int in_trans, uint32_t in_seq) {
+            transaction = in_trans;
+            command_seq = in_seq;
+            command_time = time(0);
+        }
+
+        unsigned int transaction;
+        uint32_t command_seq;
+        time_t command_time;
+
+        // Callbacks
+        list_callback_t list_cb;
+        probe_callback_t probe_cb;
+        open_callback_t open_cb;
+        configure_callback_t configure_cb;
+    };
+
+    // Tracked commands we need to ack
+    std::map<uint32_t, KisDatasource::tracked_command *> command_ack_map;
+
+
+
+
+    // TrackerComponent API, we can't ever get instantiated from a saved element
+    // so we always initialize as if we're a new object
+    virtual void register_fields();
+    virtual void reserve_fields(SharedTrackerElement e);
+
+    // We don't build quite like a normal object so just remember what our
+    // element ID is - it's a generic TrackerMap which holds our serializable
+    // presentation data for indexing sources
+    int datasource_entity_id;
+
+    // We define internal proxies for the set_ commands because we don't present
+    // a writeable trackercomponent interface - these are just mirrors of the state
+    // given to us by the capture binary itself.  We use the ProxySet macros with
+    // a modified function name so that we can easily set our tracker components
+    // from the KV handlers
+    __ProxySet(int_source_definition, string, string, source_definition);
+    __ProxySet(int_source_interface, string, string, source_interface);
+    __ProxyTrackable(int_source_channels_vec, TrackerElement, source_channels_vec);
+    __ProxySet(int_source_hopping, uint8_t, bool, source_hopping);
+    __ProxySet(int_source_channel, string, string, source_channel);
+    __ProxySet(int_source_hop_rate, double, double, source_hop_rate);
+    __ProxyTrackable(int_source_hop_vec, TrackerElement, source_hop_vec);
+
+    // Prototype object which created us, defines our overall capabilities
+    SharedDatasourceBuilder source_builder;
+
+    // RW fields, they're relevant only to Kismet
+    SharedTrackerElement source_name;
+    SharedTrackerElement source_uuid;
+
+    // Read-only tracked element states
+    
+    // Raw definition
+    SharedTrackerElement source_definition;
+   
+    // Network interface / filename
+    SharedTrackerElement source_interface;
+
+    // Possible channels supported by this source
+    SharedTrackerElement source_channels_vec;
+
+    // Are we channel hopping?
+    SharedTrackerElement source_hopping;
+
+    // Current channel if we're not hopping
+    SharedTrackerElement source_channel;
+
+    // Current hop rate and vector of channels we hop through, if we're hopping
+    SharedTrackerElement source_hop_rate;
+    SharedTrackerElement source_hop_vec;
+
+
+    // Global registry all objects have for coordination
+    GlobalRegistry *globalreg;
+
+
+    // Communications API.  We implement a ringbuffer interface and listen to the
+    // incoming read buffer, we're agnostic if it's a network or IPC buffer.
+    shared_ptr<RingbufferHandler> ringbuf_handler;
+
+    // If we're an IPC instance, the IPC control.  The ringbuf_handler is associated
+    // with the IPC instance.
+    IPCRemoteV2 *ipc_remote;
+
+};
+
+typedef shared_ptr<KisDatasource> SharedDatasource;
+
+class KisDatasourceBuilder : public tracker_component {
+public:
+    KisDatasourceBuilder(GlobalRegistry *in_globalreg, int in_id) :
         tracker_component(in_globalreg, in_id) {
         register_fields();
         reserve_fields(NULL);
-
-        entrytracker = 
-            static_pointer_cast<EntryTracker>(globalreg->FetchGlobal("ENTRY_TRACKER"));
-
-        datasource_entity_id = 
-            entrytracker->RegisterField("kismet.datasource", 
-                    TrackerMap, "Data capture object");
-
     }
 
-    KisDataSourceBuilder(GlobalRegistry *in_globalreg, int in_id,
+    KisDatasourceBuilder(GlobalRegistry *in_globalreg, int in_id,
             SharedTrackerElement e) :
         tracker_component(in_globalreg, in_id) {
         register_fields();
         reserve_fields(e);
     }
 
-    virtual ~KisDataSourceBuilder() { };
-
-    virtual SharedTrackerElement clone_type() {
-        return SharedTrackerElement(new KisDataSourceBuilder(globalreg, get_id()));
-    }
+    virtual ~KisDatasourceBuilder() { };
 
     // Build the actual data source; when subclassing this MUST fill in the prototype!
-    virtual SharedDataSource build_datasource() { 
-        return NULL; 
-
-        /*
-         * example:
-         * SharedDataSource ds(new SomeDataSource(globalreg, datasource_entity_id, this));
-         */
-    }
+    // Due to semantics of shared_pointers we can't simply pass a 'this' sharedptr 
+    // to the instantiated datasource, so we need to take a pointer to ourselves 
+    // in the input.
+    // Typical implementation:
+    // return SharedDatasource(new SomeKismetDatasource(globalreg, in_shared_builder));
+    virtual SharedDatasource build_datasource(SharedDatasourceBuilder 
+            in_shared_builder) = 0;
 
     __Proxy(source_type, string, string, string, source_type);
     __Proxy(source_description, string, string, string, source_description);
@@ -213,39 +379,36 @@ protected:
 
 };
 
-/* List results
- *
- * Tracked element of list results, consisting of the interface and any parameters
- * required to make the interface unique
- */
-class KisDataSourceListInterface;
-typedef shared_ptr<KisDataSourceListInterface> SharedListInterface;
 
-class KisDataSourceListInterface : public tracker_component {
+// KisDatasourceInterface
+// An automatically discovered interface, and any parameters needed to instantiate
+// it; returned by the probe API
+
+class KisDatasourceInterface : public tracker_component {
 public:
-    KisDataSourceListInterface(GlobalRegistry *in_globalreg, int in_id) :
+    KisDatasourceInterface(GlobalRegistry *in_globalreg, int in_id) :
         tracker_component(in_globalreg, in_id) {
         register_fields();
         reserve_fields(NULL);
     }
 
-    KisDataSourceListInterface(GlobalRegistry *in_globalreg, int in_id,
+    KisDatasourceInterface(GlobalRegistry *in_globalreg, int in_id,
             SharedTrackerElement e) :
         tracker_component(in_globalreg, in_id) {
         register_fields();
         reserve_fields(e);
     }
 
-    virtual ~KisDataSourceListInterface();
+    virtual ~KisDatasourceInterface();
 
     virtual SharedTrackerElement clone_type() {
-        return SharedTrackerElement(new KisDataSourceListInterface(globalreg, get_id()));
+        return SharedTrackerElement(new KisDatasourceInterface(globalreg, get_id()));
     }
 
     __Proxy(interface, string, string, string, interface);
     __ProxyTrackable(options_vec, TrackerElement, options_vec);
 
-    __ProxyTrackable(prototype, KisDataSourceBuilder, prototype);
+    __ProxyTrackable(prototype, KisDatasourceBuilder, prototype);
 
     void populate(string in_interface, vector<string> in_options) {
         set_interface(in_interface);
@@ -284,11 +447,87 @@ protected:
     SharedTrackerElement options_vec;
 
     int prototype_id;
-    SharedDataSourceBuilder prototype;
+    SharedDatasourceBuilder prototype;
 
     int options_entry_id;
 
 };
+
+class KisDataSource_CapKeyedObject {
+public:
+    KisDataSource_CapKeyedObject(simple_cap_proto_kv *in_kp);
+    KisDataSource_CapKeyedObject(string in_key, const char *in_object, ssize_t in_len);
+    ~KisDataSource_CapKeyedObject();
+
+    string key;
+    size_t size;
+    char *object;
+};
+
+#if 0
+/*
+ * Kismet Data Source
+ *
+ * Data sources replace packetsources in the new Kismet code model.
+ * A data source is the kismet_server side of a capture engine:  It accepts
+ * data frames from a capture binary over network or IPC and injects them to the
+ * packet tracker.  Additionally, datasources can accept complex network objects
+ * and interact directly with the device tracker system for non-packet-based
+ * captures.
+ *
+ * A small number of capture sources will not need any capture driver code; 
+ * All others will need to launch their capture binary and communicate with it,
+ * or communicate with a network instance supplied by the datasourcetracker.
+ * Datasource code should be as agnostic as possible and work with the RBI 
+ * so that it will interface automatically with the IPC management and network 
+ * connections.
+ *
+ * The same common protocol is used for local ipc and remote network sources.
+ *
+ * Data frames are defined in simple_datasource_proto.h.  A frame consists of an
+ * overall type and multiple objects indexed by name.  Each object may
+ * contain additional data.
+ *
+ * Objects are packed using the msgpack library as dictionaries of named values.
+ *
+ * Msgpack abstracts endian and byte issues and has implementations in nearly
+ * every language, hopefully allowing the capture binary code to be highly
+ * agnostic & writeable in any suitable language.  The key:value nomenclature 
+ * allows for arbitrary changes to the protocol without breaking a rigid framing
+ * structure.
+ *
+ * A datasource builder defines the capabilities and describes the functionality
+ * of the datasource; it is used to instantiate an actual datasource object, 
+ * which is used for performing interface lists, auto type probing, or actually
+ * driving the capture.
+ *
+ */
+
+/* DST forward ref */
+class Datasourcetracker;
+typedef shared_ptr<Datasourcetracker> SharedDatasourcetracker;
+
+/* Keypair object from cap proto */
+class KisDataSource_CapKeyedObject;
+
+// Supported source
+class KisDataSource_SupportedSource;
+
+// Forward definition of data sources
+class KisDataSource;
+typedef shared_ptr<KisDataSource> SharedDataSource;
+
+/* KisDataSourceBuilder
+ *
+ * A 'prototype' of the data source which tells the tracking system it's 
+ * capabilities and knows how to build a full data source
+ *
+ * It is stored as a tracker_component so that the tracker can directly
+ * serialize the data for displaying what sources are possible.
+ */
+class KisDataSourceBuilder;
+typedef shared_ptr<KisDataSourceBuilder> SharedDataSourceBuilder;
+
 
 class KisDataSource : public tracker_component, public RingbufferInterface {
 public:
@@ -554,6 +793,7 @@ public:
     size_t size;
     char *object;
 };
+#endif
 
 #endif
 
