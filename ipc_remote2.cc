@@ -53,6 +53,14 @@ IPCRemoteV2::IPCRemoteV2(GlobalRegistry *in_globalreg,
 
         });
 
+    ipchandler->SetCloseHandlerCb([this](string) {
+        local_locker lock(&ipc_locker);
+
+        if (pipeclient != NULL)
+            pipeclient->Close();
+
+        });
+
     child_pid = -1;
     tracker_free = false;
 }

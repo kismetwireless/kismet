@@ -92,6 +92,9 @@ public:
     void ReadBufferError(string in_error);
     void WriteBufferError(string in_error);
 
+    // Set a close callback, this is triggered after setting the ringbuf handler
+    // as closed
+    virtual void SetCloseHandlerCb(function<void (string)> in_cb);
     // Set handler as closed
     virtual void CloseHandler(string in_reason);
     virtual bool FetchClosed();
@@ -118,6 +121,7 @@ protected:
     pthread_mutex_t r_callback_locker;
     pthread_mutex_t w_callback_locker;
 
+    function<void (string)> close_cb;
     function<void (string)> error_cb;
 };
 

@@ -276,10 +276,19 @@ void RingbufferHandler::WriteBufferError(string in_error) {
         wbuf_notify->BufferError(in_error);
 }
 
+void RingbufferHandler::SetCloseHandlerCb(function<void (string)> in_cb) {
+    local_locker lock(&handler_locker);
+
+    close_cb = in_cb;
+}
+
 void RingbufferHandler::CloseHandler(string in_reason __attribute__((unused))) {
     local_locker lock(&handler_locker);
 
     closed = true;
+
+    if (close_cb != NULL)
+        close_cb(in_reason);
 }
 
 void RingbufferHandler::SetErrorHandlerCb(function<void (string)> in_cb) {

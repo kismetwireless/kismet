@@ -341,8 +341,12 @@ bool TcpServerV2::AllowConnection(int in_fd) {
 shared_ptr<RingbufferHandler> TcpServerV2::AllocateConnection(int in_fd __attribute__((unused))) {
     // Basic allocation
     shared_ptr<RingbufferHandler> rbh(new RingbufferHandler(ringbuf_size, ringbuf_size));  
-    // Set a callback for errors that kills the connection
+    // Set a callback for errors that kill the connection
     rbh->SetErrorHandlerCb([this, in_fd](string) {
+            KillConnection(in_fd);
+        });
+    // Set a callback for errors that kill the connection
+    rbh->SetCloseHandlerCb([this, in_fd](string) {
             KillConnection(in_fd);
         });
 
