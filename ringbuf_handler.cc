@@ -226,12 +226,23 @@ void RingbufferHandler::SetReadBufferInterface(RingbufferInterface *in_interface
     local_locker lock(&r_callback_locker);
 
     rbuf_notify = in_interface;
+
+    size_t pending = GetReadBufferUsed();
+
+    if (pending)
+        rbuf_notify->BufferAvailable(pending);
+
 }
 
 void RingbufferHandler::SetWriteBufferInterface(RingbufferInterface *in_interface) {
     local_locker lock(&w_callback_locker);
 
     wbuf_notify = in_interface;
+
+    size_t pending = GetWriteBufferUsed();
+
+    if (pending)
+        wbuf_notify->BufferAvailable(pending);
 }
 
 void RingbufferHandler::RemoveReadBufferInterface() {
