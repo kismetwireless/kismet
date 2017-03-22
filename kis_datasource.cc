@@ -31,16 +31,33 @@ KisDatasource::KisDatasource(GlobalRegistry *in_globalreg,
         SharedDatasourceBuilder in_builder) :
     tracker_component(in_globalreg, 0) {
 
+    pthread_mutexattr_t mutexattr;
+    pthread_mutexattr_init(&mutexattr);
+    pthread_mutexattr_settype(&mutexattr, PTHREAD_MUTEX_RECURSIVE);
+	pthread_mutex_init(&source_lock, &mutexattr);
+
     globalreg = in_globalreg;
     
     register_fields();
     reserve_fields(NULL);
 
     set_source_builder(in_builder);
+
+    timetracker = 
+        static_pointer_cast<Timetracker>(globalreg->FetchGlobal("TIMETRACKER"));
+}
+
+KisDatasource::~KisDatasource() {
+    local_eol_locker lock(&source_lock);
+
+    close_source();
+
+    pthread_mutex_destroy(&source_lock);
 }
 
 void KisDatasource::list_interfaces(unsigned int in_transaction, 
         list_callback_t in_cb) {
+    local_locker lock(&source_lock);
 
     // If we can't list interfaces according to our prototype, die 
     // and call the cb instantly
@@ -58,6 +75,7 @@ void KisDatasource::list_interfaces(unsigned int in_transaction,
 
 void KisDatasource::probe_interface(string in_definition, unsigned int in_transaction,
         probe_callback_t in_cb) {
+    local_locker lock(&source_lock);
     
     // If we can't probe interfaces according to our prototype, die
     // and call the cb instantly
@@ -75,6 +93,7 @@ void KisDatasource::probe_interface(string in_definition, unsigned int in_transa
 
 void KisDatasource::open_interface(string in_definition, unsigned int in_transaction, 
         open_callback_t in_cb) {
+    local_locker lock(&source_lock);
     
     // If we can't open local interfaces, die
     if (!get_source_builder()->get_local_capable()) {
@@ -100,6 +119,7 @@ void KisDatasource::open_interface(string in_definition, unsigned int in_transac
 
 void KisDatasource::set_channel(string in_channel, unsigned int in_transaction,
         configure_callback_t in_cb) {
+    local_locker lock(&source_lock);
 
     if (!get_source_builder()->get_tune_capable()) {
         if (in_cb != NULL) {
@@ -113,6 +133,7 @@ void KisDatasource::set_channel(string in_channel, unsigned int in_transaction,
 
 void KisDatasource::set_channel_hop(double in_rate, std::vector<std::string> in_chans,
         unsigned int in_transaction, configure_callback_t in_cb) {
+    local_locker lock(&source_lock);
 
     if (!get_source_builder()->get_tune_capable()) {
         if (in_cb != NULL) {
@@ -137,6 +158,7 @@ void KisDatasource::set_channel_hop(double in_rate, std::vector<std::string> in_
 
 void KisDatasource::set_channel_hop(double in_rate, SharedTrackerElement in_chans,
         unsigned int in_transaction, configure_callback_t in_cb) {
+    local_locker lock(&source_lock);
 
     if (!get_source_builder()->get_tune_capable()) {
         if (in_cb != NULL) {
@@ -163,9 +185,346 @@ void KisDatasource::set_channel_hop_list(std::vector<std::string> in_chans,
 }
 
 void KisDatasource::connect_ringbuffer(shared_ptr<RingbufferHandler> in_ringbuf) {
+    local_locker lock(&source_lock);
     // Assign the ringbuffer & set us as the wakeup interface
     ringbuf_handler = in_ringbuf;
     ringbuf_handler->SetReadBufferInterface(this);
+}
+
+void KisDatasource::close_source() {
+    local_locker lock(&source_lock);
+    cancel_all_commands("Closing source");
+
+    // Common close via ringbuf_handler; will call the IPC or TCP server close
+    if (ringbuf_handler != NULL)
+        ringbuf_handler->CloseHandler("Closing source");
+}
+
+void KisDatasource::BufferAvailable(size_t in_amt) {
+    // Handle reading raw frames off the incoming buffer and validate their
+    // framing, then break them into KVMap records and dispatch them.
+    //
+    // We can survive unknown frame types, but we can't survive invalid ones -
+    // if we get an invalid frame, throw an error and drop into the error
+    // processing.
+    
+    local_locker lock(&source_lock);
+    
+    simple_cap_proto_t *frame_header;
+    uint8_t *buf;
+    uint32_t frame_sz;
+    uint32_t frame_checksum, calc_checksum;
+
+    if (in_amt < sizeof(simple_cap_proto_t)) {
+        return;
+    }
+
+    // Peek the buffer
+    buf = new uint8_t[in_amt];
+    ringbuf_handler->PeekReadBufferData(buf, in_amt);
+
+    frame_header = (simple_cap_proto_t *) buf;
+
+    if (kis_ntoh32(frame_header->signature) != KIS_CAP_SIMPLE_PROTO_SIG) {
+        delete[] buf;
+
+        _MSG("Kismet data source " + get_source_name() + " got an invalid "
+                "control from on IPC/Network, closing.", MSGFLAG_ERROR);
+        trigger_error("Source got invalid control frame");
+
+        return;
+    }
+
+    frame_sz = kis_ntoh32(frame_header->packet_sz);
+
+    if (frame_sz > in_amt) {
+        // Nothing we can do right now, not enough data to make up a complete packet.
+        delete[] buf;
+        return;
+    }
+
+    // Get the checksum & save it
+    frame_checksum = kis_ntoh32(frame_header->checksum);
+
+    // Zero the checksum field in the packet
+    frame_header->checksum = 0x00000000;
+
+    // Calc the checksum of the rest
+    calc_checksum = Adler32Checksum((const char *) buf, frame_sz);
+
+    // Compare to the saved checksum
+    if (calc_checksum != frame_checksum) {
+        delete[] buf;
+
+        _MSG("Kismet data source " + get_source_name() + " got an invalid checksum "
+                "on control from IPC/Network, closing.", MSGFLAG_ERROR);
+        trigger_error("Source got invalid control frame");
+
+        return;
+    }
+
+    // Consume the packet in the ringbuf 
+    ringbuf_handler->GetReadBufferData(NULL, frame_sz);
+
+    // Extract the kv pairs
+    KVmap kv_map;
+
+    ssize_t data_offt = 0;
+    for (unsigned int kvn = 0; kvn < kis_ntoh32(frame_header->num_kv_pairs); kvn++) {
+        simple_cap_proto_kv *pkv =
+            (simple_cap_proto_kv *) &((frame_header->data)[data_offt]);
+
+        data_offt = 
+            sizeof(simple_cap_proto_kv_h_t) +
+            kis_ntoh32(pkv->header.obj_sz);
+
+        KisDatasourceCapKeyedObject *kv =
+            new KisDatasourceCapKeyedObject(pkv);
+
+        kv_map[StrLower(kv->key)] = kv;
+    }
+
+    char ctype[17];
+    snprintf(ctype, 17, "%s", frame_header->type);
+    proto_dispatch_packet(ctype, kv_map);
+
+    for (auto i = kv_map.begin(); i != kv_map.end(); ++i) {
+        delete i->second;
+    }
+
+    delete[] buf;
+}
+
+void KisDatasource::BufferError(string in_error) {
+    // Simple passthrough to crash the source out from an error at the buffer level
+    trigger_error(in_error);
+}
+
+void KisDatasource::trigger_error(string in_error) {
+    local_locker lock(&source_lock);
+
+    // Something has gone wrong; we need to cancel all pending commands
+    cancel_all_commands(in_error);
+
+    // And shut down the RB handler, which will kill whatever
+    if (ringbuf_handler != NULL)
+        ringbuf_handler->ErrorHandler(in_error);
+}
+
+bool KisDatasource::parse_interface_definition(string in_definition) {
+    local_locker lock(&source_lock);
+
+    string interface;
+
+    size_t cpos = in_definition.find(":");
+
+    // If there's no ':' then there are no options
+    if (cpos == string::npos) {
+        set_int_source_interface(in_definition);
+        set_source_name(in_definition);
+        return true;
+    }
+
+    // Slice the interface
+    set_int_source_interface(in_definition.substr(0, cpos));
+
+    // Turn the rest into an opt vector
+    std::vector<opt_pair> options;
+
+    // Blow up if we fail parsing
+    if (StringToOpts(in_definition.substr(cpos + 1, 
+                in_definition.size() - cpos - 1), ",", &options) < 0) {
+        return false;
+    }
+
+    // Throw into a nice keyed dictionary so other elements of the DS can use it
+    for (auto i = options.begin(); i != options.end(); ++i) {
+        source_definition_opts[StrLower((*i).opt)] = (*i).val;
+    }
+
+    // Set some basic options
+    
+    auto name_i = source_definition_opts.find("name");
+
+    if (name_i != source_definition_opts.end()) {
+        set_source_name(name_i->second);
+    } else {
+        set_source_name(get_source_interface());
+    }
+
+    auto uuid_i = source_definition_opts.find("uuid");
+    if (uuid_i != source_definition_opts.end()) {
+        uuid u(uuid_i->second);
+
+        if (u.error) {
+            _MSG("Invalid UUID for data source " + get_source_name() + "/" + 
+                    get_source_interface(), MSGFLAG_ERROR);
+            return false;
+        }
+
+        set_source_uuid(u);
+    }
+
+    auto error_i = source_definition_opts.find("retry");
+    if (error_i != source_definition_opts.end()) {
+        set_int_source_retry(StringToBool(error_i->second, true));
+    }
+   
+    return true;
+}
+
+void KisDatasource::cancel_command(uint32_t in_transaction, string in_error) {
+    local_locker lock(&source_lock);
+
+    auto i = command_ack_map.find(in_transaction);
+    if (i != command_ack_map.end()) {
+        // Cancel any callbacks
+        if (i->second->list_cb != NULL) {
+            i->second->list_cb(i->second->transaction, vector<SharedInterface>());
+        } else if (i->second->probe_cb != NULL) {
+            i->second->probe_cb(i->second->transaction, false, in_error);
+        } else if (i->second->open_cb != NULL) {
+            i->second->open_cb(i->second->transaction, false, in_error);
+        } else if (i->second->configure_cb != NULL) {
+            i->second->configure_cb(i->second->transaction, false, in_error);
+        }
+
+        // Cancel any timers
+        if (i->second->timer_id > -1) {
+            timetracker->RemoveTimer(i->second->timer_id);
+        }
+    }
+}
+
+void KisDatasource::cancel_all_commands(string in_error) {
+    local_locker lock(&source_lock);
+   
+    for (auto i = command_ack_map.begin(); i != command_ack_map.end(); ++i) {
+        cancel_command(i->first, in_error);
+    }
+
+    // Clear the map
+    command_ack_map.clear();
+}
+
+void KisDatasource::proto_dispatch_packet(string in_type, KVmap in_kvmap) {
+    string ltype = StrLower(in_type);
+
+    if (ltype == "status")
+        proto_packet_status(in_kvmap);
+    else if (ltype == "proberesp")
+        proto_packet_probe_resp(in_kvmap);
+    else if (ltype == "openresp")
+        proto_packet_open_resp(in_kvmap);
+    else if (ltype == "listresp")
+        proto_packet_list_resp(in_kvmap);
+    else if (ltype == "error")
+        proto_packet_error(in_kvmap);
+    else if (ltype == "message")
+        proto_packet_message(in_kvmap);
+    else if (ltype == "configure")
+        proto_packet_configure(in_kvmap);
+    else if (ltype == "data")
+        proto_packet_data(in_kvmap);
+
+    // We don't care about types we don't understand
+}
+
+void KisDatasource::proto_packet_status(KVmap in_kvpairs) {
+    KVmap::iterator i;
+
+    if ((i = in_kvpairs.find("success")) != in_kvpairs.end()) {
+        handle_kv_success(i->second);
+    }
+
+    if ((i = in_kvpairs.find("message")) != in_kvpairs.end()) {
+        handle_kv_message(i->second);
+    }
+}
+
+void KisDatasource::proto_packet_probe_resp(KVmap in_kvpairs) {
+    KVmap::iterator i;
+
+    // Process any messages
+    if ((i = in_kvpairs.find("message")) != in_kvpairs.end()) {
+        handle_kv_message(i->second);
+    }
+
+    // Process channels list if we got one; this will populate our
+    // channels fields automatically
+    if ((i = in_kvpairs.find("channels")) != in_kvpairs.end()) {
+        if (!handle_kv_channels(i->second))
+            return;
+    }
+
+    // Process success or error out; success processor will handle 
+    // the callbacks if any
+    if ((i = in_kvpairs.find("success")) != in_kvpairs.end()) {
+        handle_kv_success(i->second);
+    } else {
+        trigger_error("No valid response found for probe request");
+        return;
+    }
+
+    // Close down the source when we're done probing
+    close_source();
+}
+
+void KisDatasource::proto_packet_open_resp(KVmap in_kvpairs) {
+    KVmap::iterator i;
+
+    // Process any messages
+    if ((i = in_kvpairs.find("message")) != in_kvpairs.end()) {
+        handle_kv_message(i->second);
+    }
+
+    // Process channels list if we got one
+    if ((i = in_kvpairs.find("channels")) != in_kvpairs.end()) {
+        handle_kv_channels(i->second);
+    }
+
+    // Process config list
+    if ((i = in_kvpairs.find("chanset")) != in_kvpairs.end()) {
+        handle_kv_config_channel(i->second);
+    }
+
+    if ((i = in_kvpairs.find("chanhop")) != in_kvpairs.end()) {
+        handle_kv_config_hop(i->second);
+    }
+
+    // Process success or error out; success processor will handle 
+    // the callbacks if any
+    if ((i = in_kvpairs.find("success")) != in_kvpairs.end()) {
+        handle_kv_success(i->second);
+    } else {
+        trigger_error("No valid response found for probe request");
+        return;
+    }
+
+}
+
+void KisDatasource::proto_packet_list_resp(KVmap in_kvpairs) {
+    KVmap::iterator i;
+
+    if ((i = in_kvpairs.find("message")) != in_kvpairs.end()) {
+        handle_kv_message(i->second);
+    }
+
+    if ((i = in_kvpairs.find("interfacelist")) != in_kvpairs.end()) {
+        handle_kv_interfacelist(i->second);
+    }
+
+    // Process success or error out; success processor will handle 
+    // the callbacks if any
+    if ((i = in_kvpairs.find("success")) != in_kvpairs.end()) {
+        handle_kv_success(i->second);
+    } else {
+        trigger_error("No valid response found for probe request");
+        return;
+    }
+
+    // We're done after listing
+    close_source();
 }
 
 #if 0

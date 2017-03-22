@@ -50,6 +50,8 @@ public:
     // Initialize and tell us what sort of builder
     KisDatasource(GlobalRegistry *in_globalreg, SharedDatasourceBuilder in_builder);
 
+    virtual ~KisDatasource();
+
     // Async command API
     // All commands to change non-local state are asynchronous.  Failure, success,
     // and state change will not be known until the command completes.
@@ -165,15 +167,18 @@ public:
 
 
 protected:
-
     // Source error; sets error state, fails all pending function callbacks,
     // shuts down the ringbuffer and ipc, and initiates retry if we retry errors
     virtual void trigger_error(string in_reason);
 
 
     // Common interface parsing to set our name/uuid/interface and interface
-    // config pairs
+    // config pairs.  Once this is done it will have automatically set any 
+    // local variables like name, uuid, etc that needed to get set.
     virtual bool parse_interface_definition(string in_definition);
+
+    // Split out local var-key pairs for the source definition
+    std::map<std::string, std::string> source_definition_opts;
 
 
     // Async command API
@@ -185,15 +190,26 @@ protected:
     // Tracker object for our map of commands which haven't finished
     class tracked_command {
     public:
-        tracked_command(unsigned int in_trans, uint32_t in_seq) {
+        tracked_command(unsigned int in_trans, uint32_t in_seq, KisDatasource *in_src) {
             transaction = in_trans;
             command_seq = in_seq;
             command_time = time(0);
+
+            // Generate a timeout for 5 seconds from now
+            timer_id = in_src->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 5,
+                    NULL, 0, [in_src, this](int) -> int {
+                    in_src->cancel_command(command_seq, "Command did not complete");
+                    return 0;
+                });
+
         }
+
+        void set_timeout(shared_ptr<Timetracker> timetracker, unsigned int ticks);
 
         unsigned int transaction;
         uint32_t command_seq;
         time_t command_time;
+        int timer_id;
 
         // Callbacks
         list_callback_t list_cb;
@@ -204,8 +220,14 @@ protected:
 
     // Tracked commands we need to ack
     std::map<uint32_t, KisDatasource::tracked_command *> command_ack_map;
+  
+    // Cancel a specific command; exposed as a function for easy callbacks
+    virtual void cancel_command(uint32_t in_transaction, string in_reason);
 
-
+    // Kill any pending commands - we're entering error state or closing, so 
+    // any pending callbacks get cleared out
+    virtual void cancel_all_commands(string in_error);
+    
 
 
     // Datasource protocol - each datasource is responsible for processing incoming
@@ -222,6 +244,7 @@ protected:
 
     // Top-level default packet type handlers for the datasource simplified protocol
     virtual void proto_packet_status(KVmap in_kvpairs);
+    virtual void proto_packet_list_resp(KVmap in_kvpairs);
     virtual void proto_packet_probe_resp(KVmap in_kvpairs);
     virtual void proto_packet_open_resp(KVmap in_kvpairs);
     virtual void proto_packet_error(KVmap in_kvpairs);
@@ -237,11 +260,12 @@ protected:
     //
     // Default KV handlers have some hidden complexities: they are responsible for
     // maintaining the async events, filling in the packet responses, etc.
-    virtual bool handle_kv_success(KisDatasourceCapKeyedObject *in_obj);
-    virtual bool handle_kv_message(KisDatasourceCapKeyedObject *in_obj);
-    virtual bool handle_kv_channels(KisDatasourceCapKeyedObject *in_obj);
-    virtual bool handle_kv_config_channel(KisDatasourceCapKeyedObject *in_obj);
-    virtual bool handle_kv_config_hop(KisDatasourceCapKeyedObject *in_obj);
+    virtual void handle_kv_success(KisDatasourceCapKeyedObject *in_obj);
+    virtual void handle_kv_message(KisDatasourceCapKeyedObject *in_obj);
+    virtual void handle_kv_channels(KisDatasourceCapKeyedObject *in_obj);
+    virtual void handle_kv_config_channel(KisDatasourceCapKeyedObject *in_obj);
+    virtual void handle_kv_config_hop(KisDatasourceCapKeyedObject *in_obj);
+    virtual void handle_kv_interfacelist(KisDatasourceCapKeyedObject *in_obj);
     virtual kis_gps_packinfo *handle_kv_gps(KisDatasourceCapKeyedObject *in_obj);
     virtual kis_layer1_packinfo *handle_kv_signal(KisDatasourceCapKeyedObject *in_obj);
     virtual kis_packet *handle_kv_packet(KisDatasourceCapKeyedObject *in_obj);
@@ -302,7 +326,7 @@ protected:
     
     // Raw definition
     SharedTrackerElement source_definition;
-   
+
     // Network interface / filename
     SharedTrackerElement source_interface;
 
@@ -335,7 +359,12 @@ protected:
     __ProxySet(int_source_error, uint8_t, bool, source_error);
     SharedTrackerElement source_error;
 
+    // Why are we in error state?
+    __ProxySet(int_source_error_reason, string, string, source_error_reason);
+    SharedTrackerElement source_error_reason;
+
     // Do we want to try to re-open automatically?
+    __ProxySet(int_source_retry, uint8_t, bool, source_retry);
     SharedTrackerElement source_retry;
 
     // How many consecutive errors have we had?
@@ -358,6 +387,11 @@ protected:
     // If we're an IPC instance, the IPC control.  The ringbuf_handler is associated
     // with the IPC instance.
     IPCRemoteV2 *ipc_remote;
+
+    // Thread
+    pthread_mutex_t source_lock;
+
+    shared_ptr<Timetracker> timetracker;
 
 };
 
@@ -544,11 +578,11 @@ protected:
 
 };
 
-class KisDataSource_CapKeyedObject {
+class KisDatasourceCapKeyedObject {
 public:
-    KisDataSource_CapKeyedObject(simple_cap_proto_kv *in_kp);
-    KisDataSource_CapKeyedObject(string in_key, const char *in_object, ssize_t in_len);
-    ~KisDataSource_CapKeyedObject();
+    KisDatasourceCapKeyedObject(simple_cap_proto_kv *in_kp);
+    KisDatasourceCapKeyedObject(string in_key, const char *in_object, ssize_t in_len);
+    ~KisDatasourceCapKeyedObject();
 
     string key;
     size_t size;

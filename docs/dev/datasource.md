@@ -75,6 +75,26 @@ KV Pairs:
 Responses:
 * NONE
 
+#### LISTINTERFACES (Kismet->Datasource)
+Request a list of interfaces.  This allows Kismet to present a list of compatible auto-detected interfaces, but not all datasource methods will support it.
+
+KV Pairs:
+* NONE
+
+Responses:
+* LISTRESP
+
+#### LISTRESP (Datasource->Kismet)
+Return a list of interfaces.
+
+KV Pairs:
+* SUCCESS
+* MESSAGE (optional)
+* INTERFACELIST (optional)
+
+Responses:
+* NONE
+
 #### STATUS (Datasource->Kismet)
 Generic status report.  The SUCCESS pair will carry the command number of command, if any is related to this report.  May carry other information.
 
@@ -109,6 +129,8 @@ Device open response.  Sent to declare the source is open and functioning, or th
 KV Pairs:
 * SUCCESS
 * CHANNELS (optional)
+* CHANSET (optional)
+* CHANHOP (optional)
 * MESSAGE (optional)
 
 Responses:
@@ -197,7 +219,7 @@ A GPS record is inserted into the Kismet packet as a "GPS" record.
 
 Content:
 
-Msgpack packed dictionary containing at the following values:
+Msgpack packed dictionary containing at least the following values:
 * "lat": double-precision float containing latitude
 * "lon": double-precision float containing logitude
 * "alt": double-precision float containing altitude, in meters
@@ -208,6 +230,14 @@ Msgpack packed dictionary containing at the following values:
 * "time": uint64 containing the time in seconds since the epoch (time_t record)
 * "type": string containing the GPS type
 * "name": string containing the GPS user-defined name
+
+#### INTERFACELIST
+A list of interfaces the source detected it can support.  This is the result of running an interface scan or list.
+
+Content:
+Msgpack packed array containing mspack dictionaries of the following:
+* "interface": String interface compatible with a source=interface definition
+* "flags": String flags, aggregated as "flag1=foo,flag2=bar", compatible with a source=interface:flags source definition.
 
 #### MESSAGE
 MESSAGE KV pairs bridge directly to the messagebus of the Kismet server and are presented to users, logged, etc.
