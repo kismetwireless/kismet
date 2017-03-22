@@ -32,12 +32,17 @@ class RingbufferInterface;
 // Common handler for a ringbuffer, which allows a simple standardized interface
 // to the buffer when data is added.
 //
+// Anything that handles async / nonblocking data can use this interface.
+// 
 // Network servers and consumers should communicate by defining ringbuffer
 // interfaces
 //
-// Anything that handles async / nonblocking data can use this interface.
+// Typically a ringbuffer handler is created for each async communication task
+// (ie client connection, server socket, serial port, etc) and connected to 
+// the low-level IO driver (often a Pollable) which reads and writes directly
+// to the ring buffers.  The Ringbuffer Handler then automatically calls bound 
+// handlers for read/write events.
 //
-// RingbufferHandler automatically protects itself against 
 class RingbufferHandler {
 public:
     // For one-way buffers, define a buffer as having a size of zero
@@ -87,10 +92,17 @@ public:
     void ReadBufferError(string in_error);
     void WriteBufferError(string in_error);
 
-    // Close ring buffer (sets closed attribute, can be overridden; provides a
-    // non-error-oriented closure)
+    // Set handler as closed
     virtual void CloseHandler(string in_reason);
     virtual bool FetchClosed();
+
+    // Set an error callback; this is triggered via ErrorHandler(..) which 
+    // calls the cb and then sets closed.  This allows external users of the
+    // ringbuffer to propagate an error back to the low-level drivers, such as
+    // closing a tcp socket on a protocol error
+    virtual void SetErrorHandlerCb(function<void (string)> in_cb);
+    // Trigger an error callback
+    virtual void ErrorHandler(string in_reason);
 
 protected:
     bool closed;
@@ -105,6 +117,8 @@ protected:
     pthread_mutex_t handler_locker;
     pthread_mutex_t r_callback_locker;
     pthread_mutex_t w_callback_locker;
+
+    function<void (string)> error_cb;
 };
 
 // Ringbuffer interface, interacts with a ringbuffer handler 

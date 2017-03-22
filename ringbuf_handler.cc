@@ -40,9 +40,14 @@ RingbufferHandler::RingbufferHandler(size_t r_buffer_sz, size_t w_buffer_sz) {
     rbuf_notify = NULL;
     wbuf_notify = NULL;
 
-    pthread_mutex_init(&handler_locker, NULL);
-    pthread_mutex_init(&r_callback_locker, NULL);
-    pthread_mutex_init(&w_callback_locker, NULL);
+    // Initialize as recursive to allow multiple locks in a single thread
+    pthread_mutexattr_t mutexattr;
+    pthread_mutexattr_init(&mutexattr);
+    pthread_mutexattr_settype(&mutexattr, PTHREAD_MUTEX_RECURSIVE);
+
+    pthread_mutex_init(&handler_locker, &mutexattr);
+    pthread_mutex_init(&r_callback_locker, &mutexattr);
+    pthread_mutex_init(&w_callback_locker, &mutexattr);
 }
 
 RingbufferHandler::~RingbufferHandler() {
@@ -264,6 +269,21 @@ void RingbufferHandler::CloseHandler(string in_reason __attribute__((unused))) {
     local_locker lock(&handler_locker);
 
     closed = true;
+}
+
+void RingbufferHandler::SetErrorHandlerCb(function<void (string)> in_cb) {
+    local_locker lock(&handler_locker);
+
+    error_cb = in_cb;
+}
+
+void RingbufferHandler::ErrorHandler(string in_reason) {
+    local_locker lock(&handler_locker);
+
+    CloseHandler(in_reason);
+
+    if (error_cb != NULL)
+        error_cb(in_reason);
 }
 
 bool RingbufferHandler::FetchClosed() {
