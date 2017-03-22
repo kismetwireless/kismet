@@ -25,10 +25,150 @@
 #include "configfile.h"
 #include "msgpack_adapter.h"
 
-#ifdef HAVE_LIBPCRE
-#include <pcre.h>
-#endif
+// We never instantiate from a generic tracker component or from a stored
+// record so we always re-allocate ourselves
+KisDatasource::KisDatasource(GlobalRegistry *in_globalreg, 
+        SharedDatasourceBuilder in_builder) :
+    tracker_component(in_globalreg, 0) {
 
+    globalreg = in_globalreg;
+    
+    register_fields();
+    reserve_fields(NULL);
+
+    set_source_builder(in_builder);
+}
+
+void KisDatasource::list_interfaces(unsigned int in_transaction, 
+        list_callback_t in_cb) {
+
+    // If we can't list interfaces according to our prototype, die 
+    // and call the cb instantly
+    if (!get_source_builder()->get_list_capable()) {
+        if (in_cb != NULL) {
+            in_cb(in_transaction, vector<SharedInterface>());
+        }
+
+        return;
+    }
+
+    // Otherwise create and send a list command
+    send_command_list_interfaces(in_transaction, in_cb);
+}
+
+void KisDatasource::probe_interface(string in_definition, unsigned int in_transaction,
+        probe_callback_t in_cb) {
+    
+    // If we can't probe interfaces according to our prototype, die
+    // and call the cb instantly
+    if (!get_source_builder()->get_probe_capable()) {
+        if (in_cb != NULL) {
+            in_cb(in_transaction, false, "Driver not capable of probing");
+        }
+
+        return;
+    }
+
+    // Create and send list command
+    send_command_probe_interface(in_definition, in_transaction, in_cb);
+}
+
+void KisDatasource::open_interface(string in_definition, unsigned int in_transaction, 
+        open_callback_t in_cb) {
+    
+    // If we can't open local interfaces, die
+    if (!get_source_builder()->get_local_capable()) {
+        if (in_cb != NULL) {
+            in_cb(in_transaction, false, "Driver does not support direct capture");
+        }
+        
+        return;
+    }
+
+    // Populate our local info about the interface
+    if (!parse_interface_definition(in_definition)) {
+        if (in_cb != NULL) {
+            in_cb(in_transaction, false, "Malformed source config");
+        }
+
+        return;
+    }
+
+    // Create and send open command
+    send_command_open_interface(in_definition, in_transaction, in_cb);
+}
+
+void KisDatasource::set_channel(string in_channel, unsigned int in_transaction,
+        configure_callback_t in_cb) {
+
+    if (!get_source_builder()->get_tune_capable()) {
+        if (in_cb != NULL) {
+            in_cb(in_transaction, false, "Driver not capable of changing channel");
+        }
+        return;
+    }
+
+    send_command_set_channel(in_channel, in_transaction, in_cb);
+}
+
+void KisDatasource::set_channel_hop(double in_rate, std::vector<std::string> in_chans,
+        unsigned int in_transaction, configure_callback_t in_cb) {
+
+    if (!get_source_builder()->get_tune_capable()) {
+        if (in_cb != NULL) {
+            in_cb(in_transaction, false, "Driver not capable of changing channel");
+        }
+        return;
+    }
+
+    // Convert the std::vector to a channel vector
+    SharedTrackerElement elem(get_source_hop_vec()->clone_type());
+    TrackerElementVector vec(elem);
+
+    for (auto i = in_chans.begin(); i != in_chans.end(); ++i) {
+        SharedTrackerElement c(channel_entry_builder->clone_type());
+        c->set(*i);
+        vec.push_back(c);
+    }
+
+    // Call the tracker element variation
+    set_channel_hop(in_rate, elem, in_transaction, in_cb);
+}
+
+void KisDatasource::set_channel_hop(double in_rate, SharedTrackerElement in_chans,
+        unsigned int in_transaction, configure_callback_t in_cb) {
+
+    if (!get_source_builder()->get_tune_capable()) {
+        if (in_cb != NULL) {
+            in_cb(in_transaction, false, "Driver not capable of changing channel");
+        }
+        return;
+    }
+
+    // Generate the command and send it
+    send_command_set_channel_hop(in_rate, in_chans, in_transaction, in_cb);
+}
+
+void KisDatasource::set_channel_hop_rate(double in_rate, unsigned int in_transaction,
+        configure_callback_t in_cb) {
+    // Don't bother checking if we can set channel since we're just calling a function
+    // that already checks that
+    set_channel_hop(in_rate, get_source_hop_vec(), in_transaction, in_cb);
+}
+
+void KisDatasource::set_channel_hop_list(std::vector<std::string> in_chans,
+        unsigned int in_transaction, configure_callback_t in_cb) {
+    // Again don't bother, we're just an API shim
+    set_channel_hop(get_source_hop_rate(), in_chans, in_transaction, in_cb);
+}
+
+void KisDatasource::connect_ringbuffer(shared_ptr<RingbufferHandler> in_ringbuf) {
+    // Assign the ringbuffer & set us as the wakeup interface
+    ringbuf_handler = in_ringbuf;
+    ringbuf_handler->SetReadBufferInterface(this);
+}
+
+#if 0
 KisDataSource::KisDataSource(GlobalRegistry *in_globalreg, int in_id,
         SharedTrackerElement e) : tracker_component(in_globalreg, in_id) {
     globalreg = in_globalreg;
@@ -1113,4 +1253,5 @@ KisDataSource_CapKeyedObject::KisDataSource_CapKeyedObject(string in_key,
 KisDataSource_CapKeyedObject::~KisDataSource_CapKeyedObject() {
     delete[] object;
 }
+#endif
 

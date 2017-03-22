@@ -47,6 +47,8 @@ class KisDatasourceCapKeyedObject;
 
 class KisDatasource : public tracker_component, public RingbufferInterface {
 public:
+    // Initialize and tell us what sort of builder
+    KisDatasource(GlobalRegistry *in_globalreg, SharedDatasourceBuilder in_builder);
 
     // Async command API
     // All commands to change non-local state are asynchronous.  Failure, success,
@@ -101,6 +103,16 @@ public:
     // hop+vector but we simplify the API for callers
     virtual void set_channel_hop_rate(double in_rate, unsigned int in_transaction,
             configure_callback_t in_cb);
+    // Set just the hop channels; internally this is the same as setting a
+    // hop+vector but we simplify the API for callers
+    virtual void set_channel_hop_list(std::vector<std::string> in_chans, 
+            unsigned int in_transaction, configure_callback_t in_cb);
+
+    // Connect an interface to a pre-existing ringbuffer (such as from a TCP server
+    // connection); This doesn't require async because we're just binding the
+    // interface; anything we do with the ringbuffer is itself async in the
+    // future however
+    virtual void connect_ringbuffer(shared_ptr<RingbufferHandler> in_ringbuf);
 
 
     // Close the source
@@ -108,6 +120,7 @@ public:
     // terminate command to the capture binary.
     // Closing sends a failure result to any pending async commands
     virtual void close_source();
+
 
 
 
@@ -143,16 +156,56 @@ public:
     __ProxyTrackable(source_hop_vec, TrackerElement, source_hop_vec);
 
 
+
     // Retry API - do we try to re-open when there's a problem?
     __ProxyGet(source_error, uint8_t, bool, source_error);
     __Proxy(source_retry, uint8_t, bool, bool, source_retry);
     __ProxyGet(source_retry_attempts, uint32_t, uint32_t, source_retry_attempts);
 
+
+
 protected:
 
     // Source error; sets error state, fails all pending function callbacks,
-    // and initiates retry if we retry errors
-    virtual void source_error(string in_reason);
+    // shuts down the ringbuffer and ipc, and initiates retry if we retry errors
+    virtual void trigger_error(string in_reason);
+
+
+    // Common interface parsing to set our name/uuid/interface and interface
+    // config pairs
+    virtual bool parse_interface_definition(string in_definition);
+
+
+    // Async command API
+    // Commands have to be sent over the IPC channel or the network connection, making
+    // all commands fundamentally asynchronous.
+    // Any set / open / probe / list command takes an optional callback
+    // which will be called on completion of the command
+    
+    // Tracker object for our map of commands which haven't finished
+    class tracked_command {
+    public:
+        tracked_command(unsigned int in_trans, uint32_t in_seq) {
+            transaction = in_trans;
+            command_seq = in_seq;
+            command_time = time(0);
+        }
+
+        unsigned int transaction;
+        uint32_t command_seq;
+        time_t command_time;
+
+        // Callbacks
+        list_callback_t list_cb;
+        probe_callback_t probe_cb;
+        open_callback_t open_cb;
+        configure_callback_t configure_cb;
+    };
+
+    // Tracked commands we need to ack
+    std::map<uint32_t, KisDatasource::tracked_command *> command_ack_map;
+
+
 
 
     // Datasource protocol - each datasource is responsible for processing incoming
@@ -194,38 +247,25 @@ protected:
     virtual kis_packet *handle_kv_packet(KisDatasourceCapKeyedObject *in_obj);
 
 
+    // Assemble a packet it write it out the ringbuffer, returning a command 
+    // sequence number in ret_seqno.  Returns false on low-level failure such as
+    // inability to write to the ringbuffer
+    virtual bool write_packet(string in_cmd, KVmap in_kvpairs, uint32_t &ret_seqno);
 
 
-    // Async command API
-    // Commands have to be sent over the IPC channel or the network connection, making
-    // all commands fundamentally asynchronous.
-    // Any set / open / probe / list command takes an optional callback
-    // which will be called on completion of the command
-    
-    // Tracker object for our map of commands which haven't finished
-    class tracked_command {
-    public:
-        tracked_command(unsigned int in_trans, uint32_t in_seq) {
-            transaction = in_trans;
-            command_seq = in_seq;
-            command_time = time(0);
-        }
-
-        unsigned int transaction;
-        uint32_t command_seq;
-        time_t command_time;
-
-        // Callbacks
-        list_callback_t list_cb;
-        probe_callback_t probe_cb;
-        open_callback_t open_cb;
-        configure_callback_t configure_cb;
-    };
-
-    // Tracked commands we need to ack
-    std::map<uint32_t, KisDatasource::tracked_command *> command_ack_map;
-
-
+    // Form basic commands; call the callback with failure if we're unable to
+    // form the low-level command
+    virtual bool send_command_list_interfaces(unsigned int in_transaction,
+            list_callback_t in_cb);
+    virtual bool send_command_probe_interface(string in_definition, 
+            unsigned int in_transaction, probe_callback_t in_cb);
+    virtual bool send_command_open_interface(string in_definition,
+            unsigned int in_transaction, open_callback_t in_cb);
+    virtual bool send_command_set_channel(string in_channel,
+            unsigned int in_transaction, configure_callback_t in_cb);
+    virtual bool send_command_set_channel_hop(double in_rate,
+            SharedTrackerElement in_chans, unsigned int in_transaction,
+            configure_callback_t in_cb);
 
 
     // TrackerComponent API, we can't ever get instantiated from a saved element
@@ -265,6 +305,9 @@ protected:
    
     // Network interface / filename
     SharedTrackerElement source_interface;
+
+    // Builder for channel string elements
+    SharedTrackerElement channel_entry_builder;
 
     // Possible channels supported by this source
     SharedTrackerElement source_channels_vec;
@@ -307,6 +350,7 @@ protected:
 
 
 
+
     // Communications API.  We implement a ringbuffer interface and listen to the
     // incoming read buffer, we're agnostic if it's a network or IPC buffer.
     shared_ptr<RingbufferHandler> ringbuf_handler;
@@ -325,6 +369,7 @@ public:
         tracker_component(in_globalreg, in_id) {
         register_fields();
         reserve_fields(NULL);
+        Initialize();
     }
 
     KisDatasourceBuilder(GlobalRegistry *in_globalreg, int in_id,
@@ -332,9 +377,12 @@ public:
         tracker_component(in_globalreg, in_id) {
         register_fields();
         reserve_fields(e);
+        Initialize();
     }
 
     virtual ~KisDatasourceBuilder() { };
+
+    virtual void Initialize() { };
 
     // Build the actual data source; when subclassing this MUST fill in the prototype!
     // Due to semantics of shared_pointers we can't simply pass a 'this' sharedptr 
