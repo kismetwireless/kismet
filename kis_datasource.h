@@ -187,6 +187,8 @@ protected:
     // Any set / open / probe / list command takes an optional callback
     // which will be called on completion of the command
     
+    uint32_t next_cmd_sequence;
+
     // Tracker object for our map of commands which haven't finished
     class tracked_command {
     public:
@@ -230,8 +232,6 @@ protected:
     // Kill any pending commands - we're entering error state or closing, so 
     // any pending callbacks get cleared out
     virtual void cancel_all_commands(string in_error);
-    
-
 
     // Datasource protocol - each datasource is responsible for processing incoming
     // data, which may come from IPC or may come from the network.  Handling is
@@ -283,15 +283,15 @@ protected:
 
     // Form basic commands; call the callback with failure if we're unable to
     // form the low-level command
-    virtual bool send_command_list_interfaces(unsigned int in_transaction,
+    virtual void send_command_list_interfaces(unsigned int in_transaction,
             list_callback_t in_cb);
-    virtual bool send_command_probe_interface(string in_definition, 
+    virtual void send_command_probe_interface(string in_definition, 
             unsigned int in_transaction, probe_callback_t in_cb);
-    virtual bool send_command_open_interface(string in_definition,
+    virtual void send_command_open_interface(string in_definition,
             unsigned int in_transaction, open_callback_t in_cb);
-    virtual bool send_command_set_channel(string in_channel,
+    virtual void send_command_set_channel(string in_channel,
             unsigned int in_transaction, configure_callback_t in_cb);
-    virtual bool send_command_set_channel_hop(double in_rate,
+    virtual void send_command_set_channel_hop(double in_rate,
             SharedTrackerElement in_chans, unsigned int in_transaction,
             configure_callback_t in_cb);
 
@@ -580,8 +580,8 @@ protected:
             RegisterField("kismet.datasource.probed.option", TrackerString,
                     "Interface option");
 
-        __RegisterComplexField(KisDataSourceBuilder, prototype_id,
-                "kismet.datasource.probed.driver", "Autoprobed driver");
+        RegisterField("kismet.datasource.probed.driver", TrackerMap,
+                "Autoprobed driver");
 
     }
 
@@ -668,7 +668,7 @@ typedef shared_ptr<KisDataSource> SharedDataSource;
  * serialize the data for displaying what sources are possible.
  */
 class KisDataSourceBuilder;
-typedef shared_ptr<KisDataSourceBuilder> SharedDataSourceBuilder;
+typedef shared_ptr<KisDataSourceBuilder> SharedDatasourceBuilder;
 
 
 class KisDataSource : public tracker_component, public RingbufferInterface {
@@ -677,7 +677,7 @@ public:
     KisDataSource(GlobalRegistry *in_globalreg, int in_id, SharedTrackerElement e);
 
     KisDataSource(GlobalRegistry *in_globalreg, int in_id,
-            SharedDataSourceBuilder in_builder);
+            SharedDatasourceBuilder in_builder);
 
     virtual ~KisDataSource();
 
