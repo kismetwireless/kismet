@@ -45,6 +45,13 @@ KisDatasource::KisDatasource(GlobalRegistry *in_globalreg,
 
     timetracker = 
         static_pointer_cast<Timetracker>(globalreg->FetchGlobal("TIMETRACKER"));
+
+    packetchain =
+        static_pointer_cast<Packetchain>(globalreg->FetchGlobal("PACKETCHAIN"));
+
+	pack_comp_linkframe = packetchain->RegisterPacketComponent("LINKFRAME");
+    pack_comp_l1info = packetchain->RegisterPacketComponent("RADIODATA");
+    pack_comp_gps = packetchain->RegisterPacketComponent("GPS");
 }
 
 KisDatasource::~KisDatasource() {
@@ -373,6 +380,15 @@ bool KisDatasource::parse_interface_definition(string in_definition) {
     return true;
 }
 
+KisDatasource::tracked_command *KisDatasource::get_command(uint32_t in_transaction) {
+    auto i = command_ack_map.find(in_transaction);
+
+    if (i == command_ack_map.end())
+        return NULL;
+
+    return i->second;
+}
+
 void KisDatasource::cancel_command(uint32_t in_transaction, string in_error) {
     local_locker lock(&source_lock);
 
@@ -393,26 +409,25 @@ void KisDatasource::cancel_command(uint32_t in_transaction, string in_error) {
         if (i->second->timer_id > -1) {
             timetracker->RemoveTimer(i->second->timer_id);
         }
+
+        delete(i->second);
+        command_ack_map.erase(i);
     }
 }
 
 void KisDatasource::cancel_all_commands(string in_error) {
     local_locker lock(&source_lock);
-   
-    for (auto i = command_ack_map.begin(); i != command_ack_map.end(); ++i) {
-        cancel_command(i->first, in_error);
-    }
 
-    // Clear the map
-    command_ack_map.clear();
+    auto i = command_ack_map.begin();
+
+    while (i != command_ack_map.end())
+        cancel_command(i->first, in_error);
 }
 
 void KisDatasource::proto_dispatch_packet(string in_type, KVmap in_kvmap) {
     string ltype = StrLower(in_type);
 
-    if (ltype == "status")
-        proto_packet_status(in_kvmap);
-    else if (ltype == "proberesp")
+    if (ltype == "proberesp")
         proto_packet_probe_resp(in_kvmap);
     else if (ltype == "openresp")
         proto_packet_open_resp(in_kvmap);
@@ -422,48 +437,43 @@ void KisDatasource::proto_dispatch_packet(string in_type, KVmap in_kvmap) {
         proto_packet_error(in_kvmap);
     else if (ltype == "message")
         proto_packet_message(in_kvmap);
-    else if (ltype == "configure")
-        proto_packet_configure(in_kvmap);
+    else if (ltype == "configresp")
+        proto_packet_configresp(in_kvmap);
     else if (ltype == "data")
         proto_packet_data(in_kvmap);
 
     // We don't care about types we don't understand
 }
 
-void KisDatasource::proto_packet_status(KVmap in_kvpairs) {
-    KVmap::iterator i;
-
-    if ((i = in_kvpairs.find("success")) != in_kvpairs.end()) {
-        handle_kv_success(i->second);
-    }
-
-    if ((i = in_kvpairs.find("message")) != in_kvpairs.end()) {
-        handle_kv_message(i->second);
-    }
-}
-
 void KisDatasource::proto_packet_probe_resp(KVmap in_kvpairs) {
     KVmap::iterator i;
+    string msg;
 
     // Process any messages
     if ((i = in_kvpairs.find("message")) != in_kvpairs.end()) {
-        handle_kv_message(i->second);
+        msg = handle_kv_message(i->second);
     }
 
     // Process channels list if we got one; this will populate our
     // channels fields automatically
     if ((i = in_kvpairs.find("channels")) != in_kvpairs.end()) {
-        if (!handle_kv_channels(i->second))
-            return;
+        handle_kv_channels(i->second);
     }
 
-    // Process success or error out; success processor will handle 
-    // the callbacks if any
-    if ((i = in_kvpairs.find("success")) != in_kvpairs.end()) {
-        handle_kv_success(i->second);
-    } else {
+    // If we don't have a success record we're flat out invalid
+    if ((i = in_kvpairs.find("success")) == in_kvpairs.end()) {
         trigger_error("No valid response found for probe request");
         return;
+    }
+
+    // Get the sequence number and look up our command
+    uint32_t seq = get_kv_success_sequence(i->second);
+    auto ci = command_ack_map.find(seq);
+    if (ci != command_ack_map.end()) {
+        if (ci->second->probe_cb != NULL)
+            ci->second->probe_cb(seq, get_kv_success(i->second), msg);
+        delete(ci->second);
+        command_ack_map.erase(ci);
     }
 
     // Close down the source when we're done probing
@@ -472,10 +482,11 @@ void KisDatasource::proto_packet_probe_resp(KVmap in_kvpairs) {
 
 void KisDatasource::proto_packet_open_resp(KVmap in_kvpairs) {
     KVmap::iterator i;
+    string msg;
 
     // Process any messages
     if ((i = in_kvpairs.find("message")) != in_kvpairs.end()) {
-        handle_kv_message(i->second);
+        msg = handle_kv_message(i->second);
     }
 
     // Process channels list if we got one
@@ -492,39 +503,482 @@ void KisDatasource::proto_packet_open_resp(KVmap in_kvpairs) {
         handle_kv_config_hop(i->second);
     }
 
-    // Process success or error out; success processor will handle 
-    // the callbacks if any
-    if ((i = in_kvpairs.find("success")) != in_kvpairs.end()) {
-        handle_kv_success(i->second);
-    } else {
-        trigger_error("No valid response found for probe request");
+    // If we don't have a success record we're flat out invalid
+    if ((i = in_kvpairs.find("success")) == in_kvpairs.end()) {
+        trigger_error("No valid response found for open request");
         return;
+    }
+
+    // Get the sequence number and look up our command
+    uint32_t seq = get_kv_success_sequence(i->second);
+    auto ci = command_ack_map.find(seq);
+    if (ci != command_ack_map.end()) {
+        if (ci->second->open_cb != NULL)
+            ci->second->open_cb(seq, get_kv_success(i->second), msg);
+        delete(ci->second);
+        command_ack_map.erase(ci);
+    }
+
+    // If the open failed, kill the source
+    if (!get_kv_success(i->second)) {
+        trigger_error(msg);
     }
 
 }
 
 void KisDatasource::proto_packet_list_resp(KVmap in_kvpairs) {
     KVmap::iterator i;
+    string msg;
 
     if ((i = in_kvpairs.find("message")) != in_kvpairs.end()) {
-        handle_kv_message(i->second);
+        msg = handle_kv_message(i->second);
     }
 
     if ((i = in_kvpairs.find("interfacelist")) != in_kvpairs.end()) {
         handle_kv_interfacelist(i->second);
     }
 
-    // Process success or error out; success processor will handle 
-    // the callbacks if any
-    if ((i = in_kvpairs.find("success")) != in_kvpairs.end()) {
-        handle_kv_success(i->second);
-    } else {
-        trigger_error("No valid response found for probe request");
+    // If we don't have a success record we're flat out invalid
+    if ((i = in_kvpairs.find("success")) == in_kvpairs.end()) {
+        trigger_error("No valid response found for list request");
         return;
+    }
+
+    // Get the sequence number and look up our command
+    uint32_t seq = get_kv_success_sequence(i->second);
+    auto ci = command_ack_map.find(seq);
+    if (ci != command_ack_map.end()) {
+        if (ci->second->list_cb != NULL)
+            ci->second->list_cb(seq, listed_interfaces);
+        delete(ci->second);
+        command_ack_map.erase(ci);
     }
 
     // We're done after listing
     close_source();
+}
+
+void KisDatasource::proto_packet_error(KVmap in_kvpairs) {
+    KVmap::iterator i;
+
+    string fail_reason = "Received error frame on data source";
+
+    // Process any messages
+    if ((i = in_kvpairs.find("message")) != in_kvpairs.end()) {
+        handle_kv_message(i->second);
+        fail_reason = get_kv_message(i->second);
+    }
+
+    trigger_error(fail_reason);
+}
+
+void KisDatasource::proto_packet_message(KVmap in_kvpairs) {
+    KVmap::iterator i;
+
+    // Process any messages
+    if ((i = in_kvpairs.find("message")) != in_kvpairs.end()) {
+        handle_kv_message(i->second);
+    }
+}
+
+void KisDatasource::proto_packet_configresp(KVmap in_kvpairs) {
+    KVmap::iterator i;
+    string msg;
+
+    // Process any messages
+    if ((i = in_kvpairs.find("message")) != in_kvpairs.end()) {
+        msg = handle_kv_message(i->second);
+    }
+
+    // Process config list
+    if ((i = in_kvpairs.find("chanset")) != in_kvpairs.end()) {
+        handle_kv_config_channel(i->second);
+    }
+
+    if ((i = in_kvpairs.find("chanhop")) != in_kvpairs.end()) {
+        handle_kv_config_hop(i->second);
+    }
+
+    // If we don't have a success record we're flat out invalid
+    if ((i = in_kvpairs.find("success")) == in_kvpairs.end()) {
+        trigger_error("No valid response found for config request");
+        return;
+    }
+
+    // Get the sequence number and look up our command
+    uint32_t seq = get_kv_success_sequence(i->second);
+    auto ci = command_ack_map.find(seq);
+    if (ci != command_ack_map.end()) {
+        if (ci->second->configure_cb != NULL)
+            ci->second->configure_cb(seq, get_kv_success(i->second), msg);
+        delete(ci->second);
+        command_ack_map.erase(ci);
+    }
+
+    if (!get_kv_success(i->second)) {
+        trigger_error(msg);
+    }
+}
+
+void KisDatasource::proto_packet_data(KVmap in_kvpairs) {
+    KVmap::iterator i;
+
+    kis_packet *packet = NULL;
+    kis_layer1_packinfo *siginfo = NULL;
+    kis_gps_packinfo *gpsinfo = NULL;
+
+    // Process any messages
+    if ((i = in_kvpairs.find("message")) != in_kvpairs.end()) {
+        handle_kv_message(i->second);
+    }
+
+    // Do we have a packet?
+    if ((i = in_kvpairs.find("packet")) != in_kvpairs.end()) {
+        packet = handle_kv_packet(i->second);
+    }
+
+    if (packet == NULL)
+        return;
+
+    // Gather signal data
+    if ((i = in_kvpairs.find("signal")) != in_kvpairs.end()) {
+        siginfo = handle_kv_signal(i->second);
+    }
+    
+    // Gather GPS data
+    if ((i = in_kvpairs.find("gps")) != in_kvpairs.end()) {
+        gpsinfo = handle_kv_gps(i->second);
+    }
+
+    // Add them to the packet
+    if (siginfo != NULL) {
+        packet->insert(pack_comp_l1info, siginfo);
+    }
+
+    if (gpsinfo != NULL) {
+        packet->insert(pack_comp_gps, gpsinfo);
+    }
+
+    // Inject the packet into the packetchain if we have one
+    packetchain->ProcessPacket(packet);
+
+}
+
+bool KisDatasource::get_kv_success(KisDatasourceCapKeyedObject *in_obj) {
+    if (in_obj->size != sizeof(simple_cap_proto_success_value)) {
+        trigger_error("Invalid SUCCESS object in response");
+        return false;
+    }
+
+    simple_cap_proto_success_t *status = (simple_cap_proto_success_t *) in_obj->object;
+
+    return status->success;
+}
+
+uint32_t KisDatasource::get_kv_success_sequence(KisDatasourceCapKeyedObject *in_obj) {
+    if (in_obj->size != sizeof(simple_cap_proto_success_value)) {
+        trigger_error("Invalid SUCCESS object in response");
+        return false;
+    }
+
+    simple_cap_proto_success_t *status = (simple_cap_proto_success_t *) in_obj->object;
+    uint32_t seqno = kis_ntoh32(status->sequence_number);
+
+    return seqno;
+}
+
+string KisDatasource::handle_kv_message(KisDatasourceCapKeyedObject *in_obj) {
+    // Unpack the dictionary
+    MsgpackAdapter::MsgpackStrMap dict;
+    msgpack::unpacked result;
+    MsgpackAdapter::MsgpackStrMap::iterator obj_iter;
+    vector<string> channel_vec;
+    string msg;
+
+    try {
+        msgpack::unpack(result, in_obj->object, in_obj->size); 
+        msgpack::object deserialized = result.get();
+        dict = deserialized.as<MsgpackAdapter::MsgpackStrMap>();
+
+        unsigned int flags;
+
+        if ((obj_iter = dict.find("msg")) != dict.end()) {
+            msg = obj_iter->second.as<string>();
+        } else {
+            throw std::runtime_error("missing 'msg' entry");
+        }
+
+        if ((obj_iter = dict.find("flags")) != dict.end()) {
+            flags = obj_iter->second.as<unsigned int>();
+        } else {
+            throw std::runtime_error("missing 'flags' entry");
+        }
+
+        _MSG(msg, flags);
+
+    } catch (const std::exception& e) {
+        // Something went wrong with msgpack unpacking
+        stringstream ss;
+        ss << "Source " << get_source_name() << " failed to unpack message " <<
+            "bundle: " << e.what();
+
+        trigger_error(ss.str());
+
+        return ss.str();
+    }
+
+    return msg;
+}
+
+void KisDatasource::handle_kv_channels(KisDatasourceCapKeyedObject *in_obj) {
+    // Extracts the keyed value from a msgpack dictionary, turns it into
+    // a string vector, then clears our local channel list and populates it with
+    // the new data sent to us; this lets us inherit the channel list
+    // as a whole
+
+    // Unpack the dictionary
+    MsgpackAdapter::MsgpackStrMap dict;
+    msgpack::unpacked result;
+    MsgpackAdapter::MsgpackStrMap::iterator obj_iter;
+    vector<string> channel_vec;
+
+    try {
+        msgpack::unpack(result, in_obj->object, in_obj->size);
+        msgpack::object deserialized = result.get();
+        dict = deserialized.as<MsgpackAdapter::MsgpackStrMap>();
+
+        if ((obj_iter = dict.find("channels")) != dict.end()) {
+            MsgpackAdapter::AsStringVector(obj_iter->second, channel_vec);
+
+            // We now have a string vector of channels, dupe it into our 
+            // tracked channels vec
+            local_locker lock(&source_lock);
+
+            TrackerElementVector chan_vec(get_int_source_channels_vec());
+            chan_vec.clear();
+
+            for (unsigned int x = 0; x < channel_vec.size(); x++) {
+                SharedTrackerElement chanstr = 
+                    channel_entry_builder->clone_type();
+                chanstr->set(channel_vec[x]);
+                chan_vec.push_back(chanstr);
+            }
+        }
+    } catch (const std::exception& e) {
+        // Something went wrong with msgpack unpacking
+        stringstream ss;
+        ss << "Source " << get_source_name() << " failed to unpack proberesp " <<
+            "channels bundle: " << e.what();
+
+        trigger_error(ss.str());
+
+        return;
+    }
+
+    return;
+}
+
+kis_layer1_packinfo *KisDataSource::handle_kv_signal(KisDataSource_CapKeyedObject *in_obj) {
+    kis_layer1_packinfo *siginfo = new kis_layer1_packinfo();
+
+    // Unpack the dictionary
+    MsgpackAdapter::MsgpackStrMap dict;
+    msgpack::unpacked result;
+    MsgpackAdapter::MsgpackStrMap::iterator obj_iter;
+
+    try {
+        msgpack::unpack(result, in_obj->object, in_obj->size);
+        msgpack::object deserialized = result.get();
+        dict = deserialized.as<MsgpackAdapter::MsgpackStrMap>();
+
+        if ((obj_iter = dict.find("signal_dbm")) != dict.end()) {
+            siginfo->signal_type = kis_l1_signal_type_dbm;
+            siginfo->signal_dbm = obj_iter->second.as<int32_t>();
+        }
+
+        if ((obj_iter = dict.find("noise_dbm")) != dict.end()) {
+            siginfo->signal_type = kis_l1_signal_type_dbm;
+            siginfo->noise_dbm = obj_iter->second.as<int32_t>();
+        }
+
+        if ((obj_iter = dict.find("signal_rssi")) != dict.end()) {
+            siginfo->signal_type = kis_l1_signal_type_rssi;
+            siginfo->signal_rssi = obj_iter->second.as<int32_t>();
+        }
+
+        if ((obj_iter = dict.find("noise_rssi")) != dict.end()) {
+            siginfo->signal_type = kis_l1_signal_type_rssi;
+            siginfo->noise_rssi = obj_iter->second.as<int32_t>();
+        }
+
+        if ((obj_iter = dict.find("freq_khz")) != dict.end()) {
+            siginfo->freq_khz = obj_iter->second.as<double>();
+        }
+
+        if ((obj_iter = dict.find("channel")) != dict.end()) {
+            siginfo->channel = obj_iter->second.as<string>();
+        }
+
+        if ((obj_iter = dict.find("datarate")) != dict.end()) {
+            siginfo->datarate = obj_iter->second.as<double>();
+        }
+
+    } catch (const std::exception& e) {
+        // Something went wrong with msgpack unpacking
+        stringstream ss;
+        ss << "Source " << get_source_name() << " failed to unpack gps bundle: " <<
+            e.what();
+
+        BufferError(ss.str());
+
+        delete(siginfo);
+
+        return NULL;
+    }
+
+
+    return siginfo;
+}
+
+kis_gps_packinfo *KisDataSource::handle_kv_gps(KisDataSource_CapKeyedObject *in_obj) {
+    kis_gps_packinfo *gpsinfo = new kis_gps_packinfo();
+
+    // Unpack the dictionary
+    MsgpackAdapter::MsgpackStrMap dict;
+    msgpack::unpacked result;
+    MsgpackAdapter::MsgpackStrMap::iterator obj_iter;
+
+    try {
+        msgpack::unpack(result, in_obj->object, in_obj->size);
+        msgpack::object deserialized = result.get();
+        dict = deserialized.as<MsgpackAdapter::MsgpackStrMap>();
+
+        if ((obj_iter = dict.find("lat")) != dict.end()) {
+            gpsinfo->lat = obj_iter->second.as<double>();
+        }
+
+        if ((obj_iter = dict.find("lon")) != dict.end()) {
+            gpsinfo->lon = obj_iter->second.as<double>();
+        }
+
+        if ((obj_iter = dict.find("alt")) != dict.end()) {
+            gpsinfo->alt = obj_iter->second.as<double>();
+        }
+
+        if ((obj_iter = dict.find("speed")) != dict.end()) {
+            gpsinfo->speed = obj_iter->second.as<double>();
+        }
+
+        if ((obj_iter = dict.find("heading")) != dict.end()) {
+            gpsinfo->heading = obj_iter->second.as<double>();
+        }
+
+        if ((obj_iter = dict.find("precision")) != dict.end()) {
+            gpsinfo->precision = obj_iter->second.as<double>();
+        }
+
+        if ((obj_iter = dict.find("fix")) != dict.end()) {
+            gpsinfo->precision = obj_iter->second.as<int32_t>();
+        }
+
+        if ((obj_iter = dict.find("time")) != dict.end()) {
+            gpsinfo->time = (time_t) obj_iter->second.as<uint64_t>();
+        }
+
+        if ((obj_iter = dict.find("name")) != dict.end()) {
+            gpsinfo->gpsname = obj_iter->second.as<string>();
+        }
+
+    } catch (const std::exception& e) {
+        // Something went wrong with msgpack unpacking
+        stringstream ss;
+        ss << "Source " << get_source_name() << " failed to unpack gps bundle: " <<
+            e.what();
+
+        BufferError(ss.str());
+
+        delete(gpsinfo);
+        return NULL;
+    }
+
+    return gpsinfo;
+
+}
+
+kis_packet *KisDataSource::handle_kv_packet(KisDataSource_CapKeyedObject *in_obj) {
+    kis_packet *packet = packetchain->GeneratePacket();
+    kis_datachunk *datachunk = new kis_datachunk();
+
+    // Unpack the dictionary
+    MsgpackAdapter::MsgpackStrMap dict;
+    msgpack::unpacked result;
+    MsgpackAdapter::MsgpackStrMap::iterator obj_iter;
+
+    try {
+        msgpack::unpack(result, in_obj->object, in_obj->size);
+        msgpack::object deserialized = result.get();
+        dict = deserialized.as<MsgpackAdapter::MsgpackStrMap>();
+
+        if ((obj_iter = dict.find("tv_sec")) != dict.end()) {
+            packet->ts.tv_sec = (time_t) obj_iter->second.as<uint64_t>();
+        } else {
+            throw std::runtime_error(string("tv_sec timestamp missing"));
+        }
+
+        if ((obj_iter = dict.find("tv_usec")) != dict.end()) {
+            packet->ts.tv_usec = (time_t) obj_iter->second.as<uint64_t>();
+        } else {
+            throw std::runtime_error(string("tv_usec timestamp missing"));
+        }
+
+        if ((obj_iter = dict.find("dlt")) != dict.end()) {
+            datachunk->dlt = obj_iter->second.as<uint64_t>();
+        } else {
+            throw std::runtime_error(string("DLT missing"));
+        }
+
+        // Record the size
+        uint64_t size = 0;
+        if ((obj_iter = dict.find("size")) != dict.end()) {
+            size = obj_iter->second.as<uint64_t>();
+        } else {
+            throw std::runtime_error(string("size field missing or zero"));
+        }
+
+        msgpack::object rawdata;
+        if ((obj_iter = dict.find("packet")) != dict.end()) {
+            rawdata = obj_iter->second;
+        } else {
+            throw std::runtime_error(string("packet data missing"));
+        }
+
+        if (rawdata.via.bin.size != size) {
+            throw std::runtime_error(string("packet size did not match data size"));
+        }
+
+        datachunk->copy_data((const uint8_t *) rawdata.via.bin.ptr, size);
+
+    } catch (const std::exception& e) {
+        // Something went wrong with msgpack unpacking
+        stringstream ss;
+        ss << "Source " << get_source_name() << " failed to unpack packet bundle: " <<
+            e.what();
+
+        BufferError(ss.str());
+
+        // Destroy the packet appropriately
+        packetchain->DestroyPacket(packet);
+        // Always delete the datachunk, we don't insert it into the packet
+        // until later
+        delete(datachunk);
+
+        return NULL;
+    }
+
+    packet->insert(pack_comp_linkframe, datachunk);
+
+    return packet;
+
 }
 
 #if 0
@@ -1230,305 +1684,6 @@ void KisDataSource::handle_packet_data(KVmap in_kvpairs) {
 
 }
 
-bool KisDataSource::handle_kv_success(KisDataSource_CapKeyedObject *in_obj) {
-    // Not a msgpacked object, just a single byte
-    if (in_obj->size != 1) {
-        BufferError("Invalid kv_success object");
-        return false;
-    }
-
-    return in_obj->object[0];
-}
-
-bool KisDataSource::handle_kv_message(KisDataSource_CapKeyedObject *in_obj) {
-    // Unpack the dictionary
-    MsgpackAdapter::MsgpackStrMap dict;
-    msgpack::unpacked result;
-    MsgpackAdapter::MsgpackStrMap::iterator obj_iter;
-    vector<string> channel_vec;
-
-    try {
-        msgpack::unpack(result, in_obj->object, in_obj->size); 
-        msgpack::object deserialized = result.get();
-        dict = deserialized.as<MsgpackAdapter::MsgpackStrMap>();
-
-        string msg;
-        unsigned int flags;
-
-        if ((obj_iter = dict.find("msg")) != dict.end()) {
-            msg = obj_iter->second.as<string>();
-        } else {
-            throw std::runtime_error("missing 'msg' entry");
-        }
-
-        if ((obj_iter = dict.find("flags")) != dict.end()) {
-            flags = obj_iter->second.as<unsigned int>();
-        } else {
-            throw std::runtime_error("missing 'flags' entry");
-        }
-
-        _MSG(msg, flags);
-
-    } catch (const std::exception& e) {
-        // Something went wrong with msgpack unpacking
-        stringstream ss;
-        ss << "Source " << get_source_name() << " failed to unpack message " <<
-            "bundle: " << e.what();
-
-        BufferError(ss.str());
-
-        return false;
-    }
-
-    return true;
-
-}
-
-bool KisDataSource::handle_kv_channels(KisDataSource_CapKeyedObject *in_obj) {
-    // Unpack the dictionary
-    MsgpackAdapter::MsgpackStrMap dict;
-    msgpack::unpacked result;
-    MsgpackAdapter::MsgpackStrMap::iterator obj_iter;
-    vector<string> channel_vec;
-
-    try {
-        msgpack::unpack(result, in_obj->object, in_obj->size);
-        msgpack::object deserialized = result.get();
-        dict = deserialized.as<MsgpackAdapter::MsgpackStrMap>();
-
-        if ((obj_iter = dict.find("channels")) != dict.end()) {
-            MsgpackAdapter::AsStringVector(obj_iter->second, channel_vec);
-
-            // We now have a string vector of channels, dupe it into our 
-            // tracked channels vec
-            local_locker lock(&source_lock);
-
-            TrackerElementVector chan_vec(get_source_channels_vec());
-            chan_vec.clear();
-
-            for (unsigned int x = 0; x < channel_vec.size(); x++) {
-                SharedTrackerElement chanstr = 
-                    source_channel_entry_builder->clone_type();
-                chanstr->set(channel_vec[x]);
-                chan_vec.push_back(chanstr);
-            }
-        }
-    } catch (const std::exception& e) {
-        // Something went wrong with msgpack unpacking
-        stringstream ss;
-        ss << "Source " << get_source_name() << " failed to unpack proberesp " <<
-            "channels bundle: " << e.what();
-
-        BufferError(ss.str());
-
-        return false;
-    }
-
-    return true;
-}
-
-kis_layer1_packinfo *KisDataSource::handle_kv_signal(KisDataSource_CapKeyedObject *in_obj) {
-    kis_layer1_packinfo *siginfo = new kis_layer1_packinfo();
-
-    // Unpack the dictionary
-    MsgpackAdapter::MsgpackStrMap dict;
-    msgpack::unpacked result;
-    MsgpackAdapter::MsgpackStrMap::iterator obj_iter;
-
-    try {
-        msgpack::unpack(result, in_obj->object, in_obj->size);
-        msgpack::object deserialized = result.get();
-        dict = deserialized.as<MsgpackAdapter::MsgpackStrMap>();
-
-        if ((obj_iter = dict.find("signal_dbm")) != dict.end()) {
-            siginfo->signal_type = kis_l1_signal_type_dbm;
-            siginfo->signal_dbm = obj_iter->second.as<int32_t>();
-        }
-
-        if ((obj_iter = dict.find("noise_dbm")) != dict.end()) {
-            siginfo->signal_type = kis_l1_signal_type_dbm;
-            siginfo->noise_dbm = obj_iter->second.as<int32_t>();
-        }
-
-        if ((obj_iter = dict.find("signal_rssi")) != dict.end()) {
-            siginfo->signal_type = kis_l1_signal_type_rssi;
-            siginfo->signal_rssi = obj_iter->second.as<int32_t>();
-        }
-
-        if ((obj_iter = dict.find("noise_rssi")) != dict.end()) {
-            siginfo->signal_type = kis_l1_signal_type_rssi;
-            siginfo->noise_rssi = obj_iter->second.as<int32_t>();
-        }
-
-        if ((obj_iter = dict.find("freq_khz")) != dict.end()) {
-            siginfo->freq_khz = obj_iter->second.as<double>();
-        }
-
-        if ((obj_iter = dict.find("channel")) != dict.end()) {
-            siginfo->channel = obj_iter->second.as<string>();
-        }
-
-        if ((obj_iter = dict.find("datarate")) != dict.end()) {
-            siginfo->datarate = obj_iter->second.as<double>();
-        }
-
-    } catch (const std::exception& e) {
-        // Something went wrong with msgpack unpacking
-        stringstream ss;
-        ss << "Source " << get_source_name() << " failed to unpack gps bundle: " <<
-            e.what();
-
-        BufferError(ss.str());
-
-        delete(siginfo);
-
-        return NULL;
-    }
-
-
-    return siginfo;
-}
-
-kis_gps_packinfo *KisDataSource::handle_kv_gps(KisDataSource_CapKeyedObject *in_obj) {
-    kis_gps_packinfo *gpsinfo = new kis_gps_packinfo();
-
-    // Unpack the dictionary
-    MsgpackAdapter::MsgpackStrMap dict;
-    msgpack::unpacked result;
-    MsgpackAdapter::MsgpackStrMap::iterator obj_iter;
-
-    try {
-        msgpack::unpack(result, in_obj->object, in_obj->size);
-        msgpack::object deserialized = result.get();
-        dict = deserialized.as<MsgpackAdapter::MsgpackStrMap>();
-
-        if ((obj_iter = dict.find("lat")) != dict.end()) {
-            gpsinfo->lat = obj_iter->second.as<double>();
-        }
-
-        if ((obj_iter = dict.find("lon")) != dict.end()) {
-            gpsinfo->lon = obj_iter->second.as<double>();
-        }
-
-        if ((obj_iter = dict.find("alt")) != dict.end()) {
-            gpsinfo->alt = obj_iter->second.as<double>();
-        }
-
-        if ((obj_iter = dict.find("speed")) != dict.end()) {
-            gpsinfo->speed = obj_iter->second.as<double>();
-        }
-
-        if ((obj_iter = dict.find("heading")) != dict.end()) {
-            gpsinfo->heading = obj_iter->second.as<double>();
-        }
-
-        if ((obj_iter = dict.find("precision")) != dict.end()) {
-            gpsinfo->precision = obj_iter->second.as<double>();
-        }
-
-        if ((obj_iter = dict.find("fix")) != dict.end()) {
-            gpsinfo->precision = obj_iter->second.as<int32_t>();
-        }
-
-        if ((obj_iter = dict.find("time")) != dict.end()) {
-            gpsinfo->time = (time_t) obj_iter->second.as<uint64_t>();
-        }
-
-        if ((obj_iter = dict.find("name")) != dict.end()) {
-            gpsinfo->gpsname = obj_iter->second.as<string>();
-        }
-
-    } catch (const std::exception& e) {
-        // Something went wrong with msgpack unpacking
-        stringstream ss;
-        ss << "Source " << get_source_name() << " failed to unpack gps bundle: " <<
-            e.what();
-
-        BufferError(ss.str());
-
-        delete(gpsinfo);
-        return NULL;
-    }
-
-    return gpsinfo;
-
-}
-
-kis_packet *KisDataSource::handle_kv_packet(KisDataSource_CapKeyedObject *in_obj) {
-    kis_packet *packet = packetchain->GeneratePacket();
-    kis_datachunk *datachunk = new kis_datachunk();
-
-    // Unpack the dictionary
-    MsgpackAdapter::MsgpackStrMap dict;
-    msgpack::unpacked result;
-    MsgpackAdapter::MsgpackStrMap::iterator obj_iter;
-
-    try {
-        msgpack::unpack(result, in_obj->object, in_obj->size);
-        msgpack::object deserialized = result.get();
-        dict = deserialized.as<MsgpackAdapter::MsgpackStrMap>();
-
-        if ((obj_iter = dict.find("tv_sec")) != dict.end()) {
-            packet->ts.tv_sec = (time_t) obj_iter->second.as<uint64_t>();
-        } else {
-            throw std::runtime_error(string("tv_sec timestamp missing"));
-        }
-
-        if ((obj_iter = dict.find("tv_usec")) != dict.end()) {
-            packet->ts.tv_usec = (time_t) obj_iter->second.as<uint64_t>();
-        } else {
-            throw std::runtime_error(string("tv_usec timestamp missing"));
-        }
-
-        if ((obj_iter = dict.find("dlt")) != dict.end()) {
-            datachunk->dlt = obj_iter->second.as<uint64_t>();
-        } else {
-            throw std::runtime_error(string("DLT missing"));
-        }
-
-        // Record the size
-        uint64_t size = 0;
-        if ((obj_iter = dict.find("size")) != dict.end()) {
-            size = obj_iter->second.as<uint64_t>();
-        } else {
-            throw std::runtime_error(string("size field missing or zero"));
-        }
-
-        msgpack::object rawdata;
-        if ((obj_iter = dict.find("packet")) != dict.end()) {
-            rawdata = obj_iter->second;
-        } else {
-            throw std::runtime_error(string("packet data missing"));
-        }
-
-        if (rawdata.via.bin.size != size) {
-            throw std::runtime_error(string("packet size did not match data size"));
-        }
-
-        datachunk->copy_data((const uint8_t *) rawdata.via.bin.ptr, size);
-
-    } catch (const std::exception& e) {
-        // Something went wrong with msgpack unpacking
-        stringstream ss;
-        ss << "Source " << get_source_name() << " failed to unpack packet bundle: " <<
-            e.what();
-
-        BufferError(ss.str());
-
-        // Destroy the packet appropriately
-        packetchain->DestroyPacket(packet);
-        // Always delete the datachunk, we don't insert it into the packet
-        // until later
-        delete(datachunk);
-
-        return NULL;
-    }
-
-    packet->insert(pack_comp_linkframe, datachunk);
-
-    return packet;
-
-}
 
 bool KisDataSource::spawn_ipc() {
     stringstream ss;

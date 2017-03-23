@@ -220,6 +220,9 @@ protected:
 
     // Tracked commands we need to ack
     std::map<uint32_t, KisDatasource::tracked_command *> command_ack_map;
+
+    // Get a command
+    virtual KisDatasource::tracked_command *get_command(uint32_t in_transaction);
   
     // Cancel a specific command; exposed as a function for easy callbacks
     virtual void cancel_command(uint32_t in_transaction, string in_reason);
@@ -243,13 +246,12 @@ protected:
     virtual void proto_dispatch_packet(string in_type, KVmap in_kvmap);
 
     // Top-level default packet type handlers for the datasource simplified protocol
-    virtual void proto_packet_status(KVmap in_kvpairs);
     virtual void proto_packet_list_resp(KVmap in_kvpairs);
     virtual void proto_packet_probe_resp(KVmap in_kvpairs);
     virtual void proto_packet_open_resp(KVmap in_kvpairs);
     virtual void proto_packet_error(KVmap in_kvpairs);
     virtual void proto_packet_message(KVmap in_kvpairs);
-    virtual void proto_packet_configure(KVmap in_kvpairs);
+    virtual void proto_packet_configresp(KVmap in_kvpairs);
     virtual void proto_packet_data(KVmap in_kvpairs);
 
     // Common K-V pair handlers that are likely to be found in multiple types
@@ -260,8 +262,10 @@ protected:
     //
     // Default KV handlers have some hidden complexities: they are responsible for
     // maintaining the async events, filling in the packet responses, etc.
-    virtual void handle_kv_success(KisDatasourceCapKeyedObject *in_obj);
-    virtual void handle_kv_message(KisDatasourceCapKeyedObject *in_obj);
+    virtual bool get_kv_success(KisDatasourceCapKeyedObject *in_obj);
+    virtual uint32_t get_kv_success_sequence(KisDatasourceCapKeyedObject *in_obj);
+    virtual string handle_kv_message(KisDatasourceCapKeyedObject *in_obj);
+    virtual string get_kv_message(KisDatasourceCapKeyedObject *in_obj);
     virtual void handle_kv_channels(KisDatasourceCapKeyedObject *in_obj);
     virtual void handle_kv_config_channel(KisDatasourceCapKeyedObject *in_obj);
     virtual void handle_kv_config_hop(KisDatasourceCapKeyedObject *in_obj);
@@ -388,10 +392,23 @@ protected:
     // with the IPC instance.
     IPCRemoteV2 *ipc_remote;
 
+
+    // Interfaces we found via list
+    vector<SharedInterface> listed_interfaces;
+
+
     // Thread
     pthread_mutex_t source_lock;
-
     shared_ptr<Timetracker> timetracker;
+
+
+
+
+    // Packetchain
+    shared_ptr<Packetchain> packetchain;
+
+    // Packet components we inject
+    int pack_comp_linkframe, pack_comp_l1info, pack_comp_gps;
 
 };
 

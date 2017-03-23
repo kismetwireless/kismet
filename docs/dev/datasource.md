@@ -37,12 +37,20 @@ KV Pairs:
 * NONE
 
 Responses:
-* STATUS
+* NONE
 
 #### CONFIGURE (Kismet->Datasource)
 Reconfigure a source.  Typically used to pass channel configuration data but may be used to embed additional information.
 
-When sent from a datasource to kismet, 
+KV Pairs:
+* CHANSET (optional)
+* CHANHOP (optional)
+
+Responses:
+* CONFIGRESP
+
+#### CONFIGRESP (Datasource->Kismet)
+Acknowledge a source has been reconfigured, and return the new configuration state.
 
 KV Pairs:
 * CHANSET (optional)
@@ -51,7 +59,7 @@ KV Pairs:
 * MESSAGE (optional, datasource->kismet)
 
 Responses:
-* CONFIGURE
+* NONE
 
 #### DATA (Datasource->Kismet)
 Pass capture data.  May be a packet, a decoded trackable entity, or other information.
@@ -95,18 +103,8 @@ KV Pairs:
 Responses:
 * NONE
 
-#### STATUS (Datasource->Kismet)
-Generic status report.  The SUCCESS pair will carry the command number of command, if any is related to this report.  May carry other information.
-
-KV Pairs:
-* MESSAGE (optional)
-* SUCCESS
-
-Responses:
-* NONE
-
 #### MESSAGE (Datasource->Kismet)
-Message for the user - informational, warning, or other non-critical errors.  Essentially a tunneling of the Kismet Messagebus protocol.  Permanent failure conditions should be carried over the STATUS or ERROR frames.
+Message for the user - informational, warning, or other non-critical errors.  Essentially a tunneling of the Kismet Messagebus protocol.  Permanent failure conditions should be carried over the ERROR frames.
 
 KV Pairs:
 * MESSAGE
