@@ -53,6 +53,8 @@ KisDatasource::KisDatasource(GlobalRegistry *in_globalreg,
     pack_comp_gps = packetchain->RegisterPacketComponent("GPS");
 
     next_cmd_sequence = rand(); 
+
+    error_timer_id = -1;
 }
 
 KisDatasource::~KisDatasource() {
@@ -111,6 +113,10 @@ void KisDatasource::open_interface(string in_definition, unsigned int in_transac
         
         return;
     }
+
+    // If we have an error callback that's going to try to re-open us, cancel it
+    if (error_timer_id > 0)
+        timetracker->RemoveTimer(error_timer_id);
 
     // Populate our local info about the interface
     if (!parse_interface_definition(in_definition)) {
@@ -201,6 +207,10 @@ void KisDatasource::connect_ringbuffer(shared_ptr<RingbufferHandler> in_ringbuf)
 
 void KisDatasource::close_source() {
     local_locker lock(&source_lock);
+
+    if (error_timer_id > 0)
+        timetracker->RemoveTimer(error_timer_id);
+
     cancel_all_commands("Closing source");
 
     // Common close via ringbuf_handler; will call the IPC or TCP server close
@@ -317,6 +327,9 @@ void KisDatasource::trigger_error(string in_error) {
     // And shut down the RB handler, which will kill whatever
     if (ringbuf_handler != NULL)
         ringbuf_handler->ErrorHandler(in_error);
+
+    set_int_source_error(true);
+    set_int_source_error_reason(in_error);
 }
 
 bool KisDatasource::parse_interface_definition(string in_definition) {
@@ -578,8 +591,7 @@ void KisDatasource::proto_packet_error(KVmap in_kvpairs) {
 
     // Process any messages
     if ((i = in_kvpairs.find("message")) != in_kvpairs.end()) {
-        handle_kv_message(i->second);
-        fail_reason = get_kv_message(i->second);
+        fail_reason = handle_kv_message(i->second);
     }
 
     trigger_error(fail_reason);
@@ -1056,6 +1068,65 @@ void KisDatasource::handle_kv_config_hop(KisDatasourceCapKeyedObject *in_obj) {
     }
 }
 
+void KisDatasource::handle_kv_interfacelist(KisDatasourceCapKeyedObject *in_obj) {
+    // Clears the list of interfaces, then extracts the array of new interfaces
+    // from the packet
+    
+    listed_interfaces.clear();
+
+    // Unpack the dictionary
+    msgpack::unpacked result;
+    MsgpackAdapter::MsgpackStrMap dict;
+    MsgpackAdapter::MsgpackStrMap::iterator obj_iter;
+    vector<string> channel_vec;
+
+    try {
+        msgpack::unpack(result, in_obj->object, in_obj->size);
+        msgpack::object deserialized = result.get();
+
+        // we expect an array of msgpack dicts, so turn it into an array
+        for (unsigned int i = 0; i < deserialized.via.array.size; i++) {
+            // Then turn it into a string map
+            dict = deserialized.via.array.ptr[i].as<MsgpackAdapter::MsgpackStrMap>();
+
+            // Our extracted values
+            string interface;
+            string opts;
+
+            // Interface is mandatory, flags are not
+            if ((obj_iter = dict.find("interface")) != dict.end()) {
+                interface = obj_iter->second.as<string>();
+            } else {
+                throw std::runtime_error(string("interface missing in list response"));
+            }
+
+            if ((obj_iter = dict.find("flags")) != dict.end()) {
+                opts = obj_iter->second.as<string>();
+            }
+
+            SharedInterface intf = static_pointer_cast<KisDatasourceInterface>(listed_interface_builder->clone_type());
+            intf->populate(interface, opts);
+            intf->set_prototype(get_source_builder());
+
+            {
+                local_locker lock(&source_lock);
+                listed_interfaces.push_back(intf);
+            }
+
+        }
+    } catch (const std::exception& e) {
+        // Something went wrong with msgpack unpacking
+        stringstream ss;
+        ss << "failed to unpack proberesp channels bundle: " << e.what();
+
+        trigger_error(ss.str());
+
+        return;
+    }
+
+    return;
+}
+
 bool KisDatasource::write_packet(string in_cmd, KVmap in_kvpairs,
         uint32_t &ret_seqno) {
     // Generate a packet and put it in the buffer
@@ -1330,55 +1401,111 @@ void KisDatasource::send_command_set_channel_hop(double in_rate,
 void KisDatasource::register_fields() {
     tracker_component::register_fields();
 
-    RegisterField("kismet.datasource.source_name", TrackerString,
+    RegisterField("kismet.datasource.name", TrackerString,
             "Human-readable name", &source_name);
-    RegisterField("kismet.datasource.source_uuid", TrackerUuid,
+    RegisterField("kismet.datasource.uuid", TrackerUuid,
             "UUID", &source_uuid);
 
+    RegisterField("kismet.datasource.definition", TrackerString,
+            "Original source= definition", &source_definition);
+    RegisterField("kismet.datasource.interface", TrackerString,
+            "Interface", &source_interface);
+
+    channel_entry_builder.reset(new TrackerElement(TrackerString, 0));
+    RegisterComplexField("kismet.datasource.channel_entry",
+            channel_entry_builder, "Channel");
+
+    RegisterField("kismet.datasource.channels", TrackerVector,
+            "Supported channels", &source_channels_vec);
+    RegisterField("kismet.datasource.hopping", TrackerUInt8,
+            "Source is channel hopping", &source_hopping);
+    RegisterField("kismet.datasource.channel", TrackerString,
+            "Current channel", &source_channel);
+    RegisterField("kismet.datasource.hop_rate", TrackerDouble,
+            "Hop rate if channel hopping", &source_hop_rate);
+    RegisterField("kismet.datasource.hop_channels", TrackerVector,
+            "Hop pattern if hopping", &source_hop_vec);
+
+    RegisterField("kismet.datasource.error", TrackerUInt8,
+            "Source is in error state", &source_error);
+    RegisterField("kismet.datasource.error_reason", TrackerString,
+            "Last known reason for error state", &source_error_reason);
+
+    RegisterField("kismet.datasource.retry", TrackerUInt8,
+            "Source will try to re-open after failure", &source_retry);
+    RegisterField("kismet.datasource.retry_attempts", TrackerUInt32,
+            "Consecutive unsuccessful retry attempts", &source_retry_attempts);
+
+}
+
+void KisDatasource::reserve_fields(SharedTrackerElement e) {
+    tracker_component::reserve_fields(e);
+
+    // We don't ever instantiate from an existing object so we don't do anything
+}
+
+void KisDatasource::handle_source_error() {
+    local_locker lock(&source_lock);
+
+    stringstream ss;
+
+    // Do nothing if we don't handle retry
+    if (!get_source_retry()) {
+        ss << "Source " << get_source_name() << " has encountered an error but "
+            "is not configured to automatically re-try opening; it will remain "
+            "closed.";
+        _MSG(ss.str(), MSGFLAG_ERROR);
+
+        return;
+    }
+
+    // Increment our failures
+    inc_int_source_retry_attempts(1);
+
+    // Notify about it
+    ss << "Source " << get_source_name() << " has encountered an error. "
+        "Kismet will attempt to re-open the source in 5 seconds.  (" <<
+        get_source_retry_attempts() << " failures)";
+    _MSG(ss.str(), MSGFLAG_ERROR);
+
+    // Cancel any timers
+    if (error_timer_id > 0)
+        timetracker->RemoveTimer(error_timer_id);
+
+    // Set a new event to try to re-open the interface
+    error_timer_id = timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 5,
+            NULL, 0, [this](int) -> int {
+                // Call open on the same sourceline, no transaction, no cb
+                open_interface(get_source_definition(), 0, NULL);
+                return 0;
+            });
+}
+
+
+KisDatasourceCapKeyedObject::KisDatasourceCapKeyedObject(simple_cap_proto_kv *in_kp) {
+    char ckey[17];
+
+    snprintf(ckey, 17, "%s", in_kp->header.key);
+    key = string(ckey);
+
+    size = kis_ntoh32(in_kp->header.obj_sz);
+    object = new char[size];
+    memcpy(object, in_kp->object, size);
+}
+
+KisDatasourceCapKeyedObject::KisDatasourceCapKeyedObject(string in_key,
+        const char *in_object, ssize_t in_len) {
+
+    key = in_key.substr(0, 16);
+    object = new char[in_len];
+    memcpy(object, in_object, in_len);
+}
+
+KisDatasourceCapKeyedObject::~KisDatasourceCapKeyedObject() {
+    delete[] object;
 }
 
 #if 0
-void KisDataSource::register_fields() {
-    RegisterField("kismet.datasource.source_name", TrackerString,
-            "Human name of data source", &source_name);
-    RegisterField("kismet.datasource.source_interface", TrackerString,
-            "Primary capture interface", &source_interface);
-    RegisterField("kismet.datasource.source_uuid", TrackerUuid,
-            "UUID", &source_uuid);
-    RegisterField("kismet.datasource.source_id", TrackerInt32,
-            "Run-time ID", &source_id);
-
-    __RegisterComplexField(KisDataSourceBuilder, prototype_id, 
-            "kismet.datasource.driver", "Datasource driver definition");
-
-    RegisterField("kismet.datasource.child_pid", TrackerInt64,
-            "PID of data capture process", &child_pid);
-    RegisterField("kismet.datasource.ipc_bin", TrackerString,
-            "driver binary", &source_ipc_bin);
-
-    RegisterField("kismet.datasource.sourceline", TrackerString,
-            "original source definition", &sourceline);
-
-    RegisterField("kismet.datasource.channel", TrackerString,
-            "channel (if not hopping)", &source_channel);
-
-    source_channel_entry_builder =
-        globalreg->entrytracker->RegisterAndGetField("kismet.device.base.channel", 
-                TrackerString, "channel (phy specific)");
-
-    RegisterField("kismet.datasource.channels", TrackerVector,
-            "Supported channels for this device", &source_channels_vec);
-
-    RegisterField("kismet.datasource.running", TrackerUInt8,
-            "source is currently operational", &source_running);
-
-    RegisterField("kismet.datasource.hopping", TrackerUInt8,
-            "source is channel hopping (bool)", &source_hopping);
-    RegisterField("kismet.datasource.hop_rate", TrackerDouble,
-            "channel hopping rate", &source_hop_rate);
-    RegisterField("kismet.datasource.hop_channels", TrackerVector,
-            "channel hop list", &source_hop_vec);
-}
 
 void KisDataSource::BufferAvailable(size_t in_amt) {
     simple_cap_proto_t *frame_header;
