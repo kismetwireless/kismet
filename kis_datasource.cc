@@ -322,6 +322,8 @@ void KisDatasource::trigger_error(string in_error) {
 bool KisDatasource::parse_interface_definition(string in_definition) {
     local_locker lock(&source_lock);
 
+    local_uuid = false;
+
     string interface;
 
     size_t cpos = in_definition.find(":");
@@ -371,6 +373,7 @@ bool KisDatasource::parse_interface_definition(string in_definition) {
         }
 
         set_source_uuid(u);
+        local_uuid = true;
     }
 
     auto error_i = source_definition_opts.find("retry");
@@ -461,6 +464,11 @@ void KisDatasource::proto_packet_probe_resp(KVmap in_kvpairs) {
         handle_kv_channels(i->second);
     }
 
+    // Process single channel if we got one
+    if ((i = in_kvpairs.find("chanset")) != in_kvpairs.end()) {
+        handle_kv_config_channel(i->second);
+    }
+
     // If we don't have a success record we're flat out invalid
     if ((i = in_kvpairs.find("success")) == in_kvpairs.end()) {
         trigger_error("No valid response found for probe request");
@@ -502,6 +510,10 @@ void KisDatasource::proto_packet_open_resp(KVmap in_kvpairs) {
 
     if ((i = in_kvpairs.find("chanhop")) != in_kvpairs.end()) {
         handle_kv_config_hop(i->second);
+    }
+
+    if ((i = in_kvpairs.find("uuid")) != in_kvpairs.end()) {
+        handle_kv_uuid(i->second);
     }
 
     // If we don't have a success record we're flat out invalid
@@ -720,8 +732,7 @@ string KisDatasource::handle_kv_message(KisDatasourceCapKeyedObject *in_obj) {
     } catch (const std::exception& e) {
         // Something went wrong with msgpack unpacking
         stringstream ss;
-        ss << "Source " << get_source_name() << " failed to unpack message " <<
-            "bundle: " << e.what();
+        ss << "failed to unpack message bundle: " << e.what();
 
         trigger_error(ss.str());
 
@@ -768,8 +779,7 @@ void KisDatasource::handle_kv_channels(KisDatasourceCapKeyedObject *in_obj) {
     } catch (const std::exception& e) {
         // Something went wrong with msgpack unpacking
         stringstream ss;
-        ss << "Source " << get_source_name() << " failed to unpack proberesp " <<
-            "channels bundle: " << e.what();
+        ss << "failed to unpack proberesp channels bundle: " << e.what();
 
         trigger_error(ss.str());
 
@@ -831,8 +841,7 @@ kis_layer1_packinfo *KisDatasource::handle_kv_signal(KisDatasourceCapKeyedObject
 
         // Something went wrong with msgpack unpacking
         stringstream ss;
-        ss << "Source " << get_source_name() << " failed to unpack gps bundle: " <<
-            e.what();
+        ss << "failed to unpack gps bundle: " << e.what();
 
         trigger_error(ss.str());
         return NULL;
@@ -895,8 +904,7 @@ kis_gps_packinfo *KisDatasource::handle_kv_gps(KisDatasourceCapKeyedObject *in_o
         // Something went wrong with msgpack unpacking
         delete(gpsinfo);
         stringstream ss;
-        ss << "Source " << get_source_name() << " failed to unpack gps bundle: " <<
-            e.what();
+        ss << "failed to unpack gps bundle: " << e.what();
 
         trigger_error(ss.str());
 
@@ -971,8 +979,7 @@ kis_packet *KisDatasource::handle_kv_packet(KisDatasourceCapKeyedObject *in_obj)
         delete(datachunk);
 
         stringstream ss;
-        ss << "Source " << get_source_name() << " failed to unpack packet bundle: " <<
-            e.what();
+        ss << "failed to unpack packet bundle: " << e.what();
         trigger_error(ss.str());
 
         return NULL;
@@ -983,9 +990,78 @@ kis_packet *KisDatasource::handle_kv_packet(KisDatasourceCapKeyedObject *in_obj)
     return packet;
 }
 
+void KisDatasource::handle_kv_uuid(KisDatasourceCapKeyedObject *in_obj) {
+    uuid parsed_uuid(string(in_obj->object, in_obj->size));
+
+    if (parsed_uuid.error) {
+        trigger_error("unable to parse UUID");
+        return;
+    }
+
+    // Only set the local UUID if we don't define one in the sourceline
+    if (!local_uuid) {
+        set_source_uuid(parsed_uuid);
+    }
+}
+
+void KisDatasource::handle_kv_config_channel(KisDatasourceCapKeyedObject *in_obj) {
+    // Very simple - we just copy the channel string over
+    set_int_source_channel(string(in_obj->object, in_obj->size));
+}
+
+void KisDatasource::handle_kv_config_hop(KisDatasourceCapKeyedObject *in_obj) {
+    // Unpack the dictionary
+    MsgpackAdapter::MsgpackStrMap dict;
+    msgpack::unpacked result;
+    MsgpackAdapter::MsgpackStrMap::iterator obj_iter;
+    vector<string> channel_vec;
+
+    try {
+        msgpack::unpack(result, in_obj->object, in_obj->size);
+        msgpack::object deserialized = result.get();
+        dict = deserialized.as<MsgpackAdapter::MsgpackStrMap>();
+
+        if ((obj_iter = dict.find("channels")) != dict.end()) {
+            MsgpackAdapter::AsStringVector(obj_iter->second, channel_vec);
+
+            // We now have a string vector of channels, dupe it into our 
+            // tracked channels vec
+            local_locker lock(&source_lock);
+
+            TrackerElementVector hop_chan_vec(get_int_source_hop_vec());
+            hop_chan_vec.clear();
+
+            for (unsigned int x = 0; x < channel_vec.size(); x++) {
+                SharedTrackerElement chanstr = 
+                    channel_entry_builder->clone_type();
+                chanstr->set(channel_vec[x]);
+                hop_chan_vec.push_back(chanstr);
+            }
+        } else {
+            throw std::runtime_error(string("channel list missing in hop config"));
+        }
+
+        if ((obj_iter = dict.find("rate")) != dict.end()) {
+            set_int_source_hop_rate(obj_iter->second.as<double>());
+        } else {
+            throw std::runtime_error(string("rate missing in hop config"));
+        }
+    } catch (const std::exception& e) {
+        // Something went wrong with msgpack unpacking
+        stringstream ss;
+        ss << "failed to unpack chanset bundle: " << e.what();
+        trigger_error(ss.str());
+
+        return;
+    }
+}
+
 bool KisDatasource::write_packet(string in_cmd, KVmap in_kvpairs,
         uint32_t &ret_seqno) {
     // Generate a packet and put it in the buffer
+    
+    if (ringbuf_handler == NULL)
+        return false;
     
     simple_cap_proto_t *ret = NULL;
     vector<simple_cap_proto_kv_t *> proto_kvpairs;
@@ -1131,101 +1207,81 @@ void KisDatasource::send_command_probe_interface(string in_definition,
 }
 
 
-void KisDatasource::src_send_open(string srcdef) {
-    if (!get_prototype()->get_tracker_local_capable())
-        return false;
+void KisDatasource::send_command_open_interface(string in_definition,
+        unsigned int in_transaction, open_callback_t in_cb) {
+    local_locker lock(&source_lock);
 
-    if (!get_prototype()->get_local_ipc()) 
-        return false;
-
-    if (ringbuf_handler == NULL && ipc_remote == NULL) {
-        if (!spawn_ipc()) {
-            if (open_cb != NULL) {
-                open_cb(false, open_transaction);
-            }
-
-            return false;
-        }
-    }
-
-    KisDataSource_CapKeyedObject *definition =
-        new KisDataSource_CapKeyedObject("DEFINITION", srcdef.data(), srcdef.length());
+    KisDatasourceCapKeyedObject *definition =
+        new KisDatasourceCapKeyedObject("DEFINITION", in_definition.data(), 
+                in_definition.length());
 
     KVmap kvmap;
+    kvmap.emplace("DEFINITION", definition);
 
-    kvmap.insert(KVpair("DEFINITION", definition));
+    uint32_t seqno;
+    bool success;
+    tracked_command *cmd;
 
-    return write_packet("OPENDEVICE", kvmap);
+    success = write_packet("OPENDEVICE", kvmap, seqno);
+
+    if (!success) {
+        if (in_cb != NULL) {
+            in_cb(in_transaction, false, "unable to generate command frame");
+        }
+
+        return;
+    }
+
+    cmd = new tracked_command(in_transaction, seqno, this);
+    cmd->open_cb = in_cb;
+
+    command_ack_map[seqno] = cmd;
 }
 
-bool KisDataSource::src_set_channel(string in_channel) {
-    // Blow up if we can't set a channel
-    if (!get_prototype()->get_tune_capable()) {
-        _MSG("Attempt to set channel on source " + get_source_name() + " which is "
-                "not capable of tuning", MSGFLAG_ERROR);
-        return false;
-    }
+void KisDatasource::send_command_set_channel(string in_channel, 
+        unsigned int in_transaction, configure_callback_t in_cb) {
+    local_locker lock(&source_lock);
 
-    if (ringbuf_handler == NULL) {
-        _MSG("Attempt to set channel on source '" + get_source_name() + "' which "
-                "is closed", MSGFLAG_ERROR);
-        return false;
-    }
-
-    KisDataSource_CapKeyedObject *chanset =
-        new KisDataSource_CapKeyedObject("CHANSET", in_channel.data(),
+    KisDatasourceCapKeyedObject *chanset =
+        new KisDatasourceCapKeyedObject("CHANSET", in_channel.data(),
                 in_channel.length());
     KVmap kvmap;
 
-    kvmap.insert(KVpair("CHANSET", chanset));
+    kvmap.emplace("CHANSET", chanset);
 
-    return write_packet("CONFIGURE", kvmap);
+    uint32_t seqno;
+    bool success;
+    tracked_command *cmd;
+
+    success = write_packet("CONFIGURE", kvmap, seqno);
+
+    if (!success) {
+        if (in_cb != NULL) {
+            in_cb(in_transaction, false, "unable to generate command frame");
+        }
+
+        return;
+    }
+
+    cmd = new tracked_command(in_transaction, seqno, this);
+    cmd->configure_cb = in_cb;
+
+    command_ack_map[seqno] = cmd;
 }
 
-bool KisDataSource::set_channel_hop(vector<string> in_channel_list, double in_rate) {
-    if (!get_prototype()->get_tune_capable()) {
-        _MSG("Attempt to set channel hop on source " + get_source_name() + " which is "
-                "not capable of tuning", MSGFLAG_ERROR);
-        return false;
-    }
+void KisDatasource::send_command_set_channel_hop(double in_rate, 
+        SharedTrackerElement in_chans, unsigned int in_transaction,
+        configure_callback_t in_cb) {
 
-    if (ringbuf_handler == NULL) {
-        _MSG("Attempt to set channel hop on source " + get_source_name() + " which is "
-                "closed", MSGFLAG_ERROR);
-        return false;
-    }
+    // This is one of the more complex commands - we have to generate a 
+    // command dictionary containing a rate:double and a channels:vector
+    // structure; fortunately msgpack makes this easy for us.
 
-    // Build a new element of the channels
-    SharedTrackerElement newchans = get_source_hop_vec()->clone_type();
-    TrackerElementVector hv(newchans);
+    local_locker lock(&source_lock);
 
-    for (auto i = in_channel_list.begin(); i != in_channel_list.end(); ++i) {
-        SharedTrackerElement c = source_channel_entry_builder->clone_type();
-        c->set(*i);
-        hv.push_back(c);
-    }
+    TrackerElementVector in_vec(in_chans);
 
-    // Call the element-based set
-    return set_channel_hop(newchans, in_rate);
-}
-
-bool KisDataSource::set_channel_hop(SharedTrackerElement in_channel_list, 
-        double in_rate) {
-
-    if (!get_prototype()->get_tune_capable()) {
-        _MSG("Attempt to set channel hop on source " + get_source_name() + " which is "
-                "not capable of tuning", MSGFLAG_ERROR);
-        return false;
-    }
-
-    if (ringbuf_handler == NULL) {
-        _MSG("Attempt to set channel hop on source " + get_source_name() + " which is "
-                "closed", MSGFLAG_ERROR);
-        return false;
-    }
-
-    TrackerElementVector in_vec(in_channel_list);
-
+    // Pack the vector into a string stream using the msgpack api
     stringstream stream;
     msgpack::packer<std::stringstream> packer(&stream);
 
@@ -1244,28 +1300,41 @@ bool KisDataSource::set_channel_hop(SharedTrackerElement in_channel_list,
         packer.pack((*i)->get_string());
     }
 
-    KisDataSource_CapKeyedObject *chanhop =
-        new KisDataSource_CapKeyedObject("CHANHOP", stream.str().data(),
+    KisDatasourceCapKeyedObject *chanhop =
+        new KisDatasourceCapKeyedObject("CHANHOP", stream.str().data(),
                 stream.str().length());
     KVmap kvmap;
 
-    kvmap.insert(KVpair("CHANHOP", chanhop));
+    kvmap.emplace("CHANHOP", chanhop);
 
-    // Set the local variables
-    set_int_source_hop_rate(in_rate);
+    uint32_t seqno;
+    bool success;
+    tracked_command *cmd;
 
-    // Only dupe the hop vec if it's not the one we already have set, since
-    // we can get called w/ our existing vector when just setting the hop rate
-    if (in_channel_list != get_source_hop_vec()) {
-        TrackerElementVector hv(get_source_hop_vec());
-        hv.clear();
-        for (auto i = in_vec.begin(); i != in_vec.end(); ++i) {
-            hv.push_back(*i);
+    success = write_packet("CONFIGURE", kvmap, seqno);
+
+    if (!success) {
+        if (in_cb != NULL) {
+            in_cb(in_transaction, false, "unable to generate command frame");
         }
+
+        return;
     }
 
-    return write_packet("CONFIGURE", kvmap);
+    cmd = new tracked_command(in_transaction, seqno, this);
+    cmd->configure_cb = in_cb;
+
+    command_ack_map[seqno] = cmd;
 }
+
+void KisDatasource::register_fields() {
+    tracker_component::register_fields();
+
+    RegisterField("kismet.datasource.source_name", TrackerString,
+            "Human-readable name", &source_name);
+    RegisterField("kismet.datasource.source_uuid", TrackerUuid,
+            "UUID", &source_uuid);
+
 }
 
 #if 0

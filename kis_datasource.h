@@ -273,6 +273,7 @@ protected:
     virtual kis_gps_packinfo *handle_kv_gps(KisDatasourceCapKeyedObject *in_obj);
     virtual kis_layer1_packinfo *handle_kv_signal(KisDatasourceCapKeyedObject *in_obj);
     virtual kis_packet *handle_kv_packet(KisDatasourceCapKeyedObject *in_obj);
+    virtual void handle_kv_uuid(KisDatasourceCapKeyedObject *in_obj);
 
 
     // Assemble a packet it write it out the ringbuffer, returning a command 
@@ -325,6 +326,7 @@ protected:
     // RW fields, they're relevant only to Kismet
     SharedTrackerElement source_name;
     SharedTrackerElement source_uuid;
+    bool local_uuid;
 
     // Read-only tracked element states
     

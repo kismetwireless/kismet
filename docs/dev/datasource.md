@@ -126,6 +126,7 @@ Device open response.  Sent to declare the source is open and functioning, or th
 
 KV Pairs:
 * SUCCESS
+* UUID (optional)
 * CHANNELS (optional)
 * CHANSET (optional)
 * CHANHOP (optional)
@@ -149,6 +150,8 @@ Response for attempting to probe if a device is supported via PROBEDEVICE.  This
 KV Pairs:
 * SUCCESS
 * MESSAGE (optional)
+* CHANNELS (optional)
+* CHANSET (optional)
 
 Responses:
 * NONE
@@ -287,6 +290,17 @@ Content:
 * A single byte (`uint8_t`) indicating success (non-zero) or failure (zero).
 * Three bytes of padding to align word boundaries
 * An unsigned 32 bit int (`uint32_t`) of the command sequence number this is acknowledging.
+
+#### UUID
+Capture-binary derived UUID (often based on the MAC address of the interface, if available).  Transmitted to the Kismet server for tracking, if the UUID is not already overridden by the source definition.
+
+Content:
+
+Simple string `(char *)` of the UUID, length dictated by the KV length record.
+
+Example:
+
+`"b4d6e78a-109a-11e7-a60d-09076f44c503"`
 
 ## Defining the driver:  Deriving from KisDatasource
 
