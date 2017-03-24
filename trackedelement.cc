@@ -1499,6 +1499,7 @@ int tracker_component::RegisterComplexField(string in_name,
         shared_ptr<TrackerElement> in_builder, 
         string in_desc) {
     int id = tracker->RegisterField(in_name, in_builder, in_desc);
+    in_builder->set_id(id);
     return id;
 }
 
