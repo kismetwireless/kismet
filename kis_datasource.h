@@ -463,7 +463,11 @@ public:
     // Typical implementation:
     // return SharedDatasource(new SomeKismetDatasource(globalreg, in_shared_builder));
     virtual SharedDatasource build_datasource(SharedDatasourceBuilder 
-            in_shared_builder) = 0;
+            in_shared_builder __attribute__((unused))) { return NULL; };
+
+    virtual SharedTrackerElement clone_type() {
+        return SharedTrackerElement(new KisDatasourceBuilder(globalreg, get_id()));
+    }
 
     __Proxy(source_type, string, string, string, source_type);
     __Proxy(source_description, string, string, string, source_description);

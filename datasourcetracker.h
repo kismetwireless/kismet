@@ -64,7 +64,7 @@
  */
 
 class Datasourcetracker;
-class KisDataSource;
+class KisDatasource;
 class DST_Worker;
 
 // Worker class used to perform work on the list of packet-sources in a thread
@@ -74,7 +74,7 @@ public:
     DST_Worker() { };
 
     // Handle a data source when working on iterate_datasources
-    virtual void handle_datasource(shared_ptr<KisDataSource> in_src __attribute__((unused))) { };
+    virtual void handle_datasource(shared_ptr<KisDatasource> in_src __attribute__((unused))) { };
 
     // All data sources have been processed in iterate_datasources
     virtual void finalize() { };
@@ -90,20 +90,20 @@ public:
 // probes are cancelled.
 //
 // After 5 seconds, probing is cancelled.
-class DST_DataSourceProbe {
+class DST_DatasourceProbe {
 public:
-    DST_DataSourceProbe(GlobalRegistry *in_globalreg, string in_definition, 
+    DST_DatasourceProbe(GlobalRegistry *in_globalreg, string in_definition, 
             SharedTrackerElement in_protovec);
-    virtual ~DST_DataSourceProbe();
+    virtual ~DST_DatasourceProbe();
 
-    void probe_sources(function<void (SharedDataSourceBuilder)> in_cb);
+    void probe_sources(function<void (SharedDatasourceBuilder)> in_cb);
 
     string get_definition() { return definition; }
 
-    SharedDataSourceBuilder get_proto();
+    SharedDatasourceBuilder get_proto();
 
     // Complete a probe - when the last one completes we're done
-    void complete_probe(bool in_success, unsigned int in_transaction);
+    void complete_probe(bool in_success, unsigned int in_transaction, string in_reason);
 
     void cancel();
 
@@ -115,28 +115,28 @@ protected:
     shared_ptr<Timetracker> timetracker;
 
     // Probing instances
-    map<unsigned int, SharedDataSource> ipc_probe_map;
+    map<unsigned int, SharedDatasource> ipc_probe_map;
 
     SharedTrackerElement proto_vec;
 
     // Vector of sources we're still waiting to return from probing
-    vector<SharedDataSource> probe_vec;
+    vector<SharedDatasource> probe_vec;
 
     // Prototype we found
-    SharedDataSourceBuilder source_builder;
+    SharedDatasourceBuilder source_builder;
 
     // Transaction ID
     unsigned int transaction_id;
 
     string definition;
 
-    function<void (SharedDataSourceBuilder)> probe_cb;
+    function<void (SharedDatasourceBuilder)> probe_cb;
     bool cancelled;
 
     int cancel_timer;
 };
 
-typedef shared_ptr<DST_DataSourceProbe> SharedDSTProbe;
+typedef shared_ptr<DST_DatasourceProbe> SharedDSTProbe;
 
 // List all interface supported by a phy
 //
@@ -150,12 +150,13 @@ typedef shared_ptr<DST_DataSourceProbe> SharedDSTProbe;
 // IPC sources spawned concurrently, and results aggregated.
 //
 // List requests cancelled after 5 seconds
-class DST_DataSourceList {
-    DST_DataSourceList(time_t in_time,
+class DST_DatasourceList {
+public:
+    DST_DatasourceList(time_t in_time,
             shared_ptr<Datasourcetracker> in_tracker, 
-            vector<SharedDataSourceBuilder> in_protovec,
+            vector<SharedDatasourceBuilder> in_protovec,
             unsigned int in_transaction);
-    virtual ~DST_DataSourceList();
+    virtual ~DST_DatasourceList();
 
     time_t get_time() { return start_time; }
     shared_ptr<Datasourcetracker> get_tracker() { return tracker; }
@@ -176,23 +177,23 @@ protected:
     map<pid_t, shared_ptr<RingbufferHandler> > ipc_handler_map;
 
     // Vector of sources we're still waiting to return from listing
-    vector<shared_ptr<KisDataSource> > listsrc_vec;
+    vector<shared_ptr<KisDatasource> > listsrc_vec;
 
     // Source we matched
-    shared_ptr<KisDataSource> protosrc;
+    shared_ptr<KisDatasource> protosrc;
 
     time_t start_time;
 };
 
-typedef shared_ptr<DST_DataSourceList> SharedDSTList;
+typedef shared_ptr<DST_DatasourceList> SharedDSTList;
 
 class Datasourcetracker : public Kis_Net_Httpd_Stream_Handler, 
-    public TimetrackerEvent, public LifetimeGlobal, public TcpServerV2 {
+    public LifetimeGlobal, public TcpServerV2 {
 public:
     static shared_ptr<Datasourcetracker> create_dst(GlobalRegistry *in_globalreg) {
         shared_ptr<Datasourcetracker> mon(new Datasourcetracker(in_globalreg));
         in_globalreg->RegisterLifetimeGlobal(mon);
-        in_globalreg->InsertGlobal("DATA_SOURCE_TRACKER", mon);
+        in_globalreg->InsertGlobal("DATASOURCETRACKER", mon);
         mon->datasourcetracker = mon;
         return mon;
     }
@@ -204,7 +205,7 @@ public:
     virtual ~Datasourcetracker();
 
     // Add a driver
-    int register_datasource(SharedDataSourceBuilder in_builder);
+    int register_datasource(SharedDatasourceBuilder in_builder);
 
     // Handle everything about launching a source, given a basic source line
     //
@@ -219,7 +220,7 @@ public:
     // and a prototype.
     //
     // Optional completion function will be called on error or success
-    void open_datasource(string in_source, SharedDataSourceBuilder in_proto,
+    void open_datasource(string in_source, SharedDatasourceBuilder in_proto,
             function<void (bool, string)> in_cb);
 
     // Remove a data source by UUID; stop it if necessary
@@ -240,9 +241,6 @@ public:
             const char *transfer_encoding, const char *data, 
             uint64_t off, size_t size);
 
-    // Timetracker API
-    virtual int timetracker_event(int eventid);
-
     // Operate on all data sources currently defined.  The datasource tracker is locked
     // during this operation, making it thread safe.
     void iterate_datasources(DST_Worker *in_worker);
@@ -258,8 +256,6 @@ protected:
 
     pthread_mutex_t dst_lock;
 
-    int error_timer_id;
-
     SharedTrackerElement dst_proto_builder;
     SharedTrackerElement dst_source_builder;
 
@@ -268,9 +264,6 @@ protected:
 
     // Active data sources
     SharedTrackerElement datasource_vec;
-
-    // Datasources in error state
-    SharedTrackerElement error_vec;
 
     // Sub-workers probing for a source definition
     vector<SharedDSTProbe> probing_vec;
