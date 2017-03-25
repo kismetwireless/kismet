@@ -157,7 +157,10 @@ public:
     __ProxyGet(source_hop_rate, double, double, source_hop_rate);
     __ProxyTrackable(source_hop_vec, TrackerElement, source_hop_vec);
 
-
+    // IPC binary name, if any
+    __ProxyGet(source_ipc_binary, string, string, source_ipc_binary);
+    // IPC channel pid, if any
+    __ProxyGet(source_ipc_pid, int64_t, pid_t, source_ipc_pid);
 
     // Retry API - do we try to re-open when there's a problem?
     __ProxyGet(source_error, uint8_t, bool, source_error);
@@ -394,6 +397,20 @@ protected:
     // If we're an IPC instance, the IPC control.  The ringbuf_handler is associated
     // with the IPC instance.
     IPCRemoteV2 *ipc_remote;
+
+    SharedTrackerElement source_ipc_binary;
+    __ProxySet(int_source_ipc_binary, string, string, source_ipc_binary);
+
+    SharedTrackerElement source_ipc_pid;
+    __ProxySet(int_source_ipc_pid, int64_t, pid_t, source_ipc_pid);
+
+    // Local list of additional arguments we pass to the IPC binary - could
+    // be derived from the source line, could just be stuff we know
+    std::vector<std::string> ipc_binary_args;
+
+    // Launch IPC binary or fail trying
+    void launch_ipc();
+
 
 
     // Interfaces we found via list
