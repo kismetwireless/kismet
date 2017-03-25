@@ -409,7 +409,7 @@ protected:
     std::vector<std::string> ipc_binary_args;
 
     // Launch IPC binary or fail trying
-    void launch_ipc();
+    virtual void launch_ipc();
 
 
 
@@ -441,7 +441,7 @@ public:
         tracker_component(in_globalreg, in_id) {
         register_fields();
         reserve_fields(NULL);
-        Initialize();
+        initialize();
     }
 
     KisDatasourceBuilder(GlobalRegistry *in_globalreg, int in_id,
@@ -449,12 +449,12 @@ public:
         tracker_component(in_globalreg, in_id) {
         register_fields();
         reserve_fields(e);
-        Initialize();
+        initialize();
     }
 
     virtual ~KisDatasourceBuilder() { };
 
-    virtual void Initialize() { };
+    virtual void initialize() { };
 
     // Build the actual data source; when subclassing this MUST fill in the prototype!
     // Due to semantics of shared_pointers we can't simply pass a 'this' sharedptr 
@@ -473,16 +473,15 @@ public:
     __Proxy(source_description, string, string, string, source_description);
 
     __Proxy(probe_capable, uint8_t, bool, bool, probe_capable);
-    __Proxy(probe_ipc, uint8_t, bool, bool, probe_ipc);
 
     __Proxy(list_capable, uint8_t, bool, bool, list_capable);
-    __Proxy(list_ipc, uint8_t, bool, bool, list_ipc);
 
     __Proxy(local_capable, uint8_t, bool, bool, local_capable);
-    __Proxy(local_ipc, uint8_t, bool, bool, local_ipc);
 
     __Proxy(remote_capable, uint8_t, bool, bool, remote_capable);
+
     __Proxy(passive_capable, uint8_t, bool, bool, passive_capable);
+
     __Proxy(tune_capable, uint8_t, bool, bool, tune_capable);
 
 protected:

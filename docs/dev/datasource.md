@@ -1,3 +1,7 @@
+# Under Development
+
+These docs represent a protocol that is still heavily under development - until the first internal implementations are done, it would be unwise to start an independent implementation as I may change the protocol at any point until it's feature complete.
+
 # Extending Kismet: Creating Capture Sources
 
 Kismet supports additional capture types via the `KisDatasource` interface.  Data sources run in an independent process and can be written in any language, however they require a C++ component which functions as a Kismet driver to allow it to communicate with the datasource binary.
