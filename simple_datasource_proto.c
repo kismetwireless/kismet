@@ -20,10 +20,14 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <msgpack.h>
 
 #include "simple_datasource_proto.h"
 #include "endian_magic.h"
+
+// Use alternate simpler msgpack library, msgpuck
+#include "msgpuck.h"
+// And use our resizing buffer code
+#include "msgpuck_buffer.h"
 
 simple_cap_proto_kv_t *encode_simple_cap_proto_kv(char *in_key, uint8_t *in_obj,
         unsigned int in_obj_len) {
@@ -79,57 +83,45 @@ simple_cap_proto_t *encode_simple_cap_proto(char *in_type, uint32_t in_seqno,
     return cp;
 }
 
-#if 0
-// Doesn't work with ubuntu msgpack 0.57 b/c it lacks strings, floats, etc.
-// Left for reference
 int pack_packet_capdata(uint8_t **ret_buffer, uint32_t *ret_sz,
         struct timeval in_ts, int in_dlt, uint32_t in_pack_sz, uint8_t *in_pack) {
-    char key[16];
-    msgpack_sbuffer sbuf;
-    msgpack_packer pk;
 
-    msgpack_sbuffer_init(&sbuf);
-    msgpack_packer_init(&pk, &sbuf, msgpack_sbuffer_write);
+    const char *key_tv_sec = "tv_sec";
+    const char *key_tv_usec = "tv_usec";
+    const char *key_dlt = "dlt";
+    const char *key_pack_sz = "pack_sz";
+    const char *key_packet = "packet";
 
-    msgpack_pack_map(&pk, 5);
+    msgpuck_buffer_t *puckbuffer;
 
-    snprintf(key, 16, "tv_sec");
-    msgpack_pack_str(&pk, strlen(key));
-    msgpack_pack_str_body(&pk, key, strlen(key));
-    msgpack_pack_uint64(&pk, in_ts.tv_sec);
+    // Allocate a fairly generous headroom in our buffer
+    puckbuffer = mp_b_create_buffer(in_pack_sz + 256);
 
-    snprintf(key, 16, "tv_usec");
-    msgpack_pack_str(&pk, strlen(key));
-    msgpack_pack_str_body(&pk, key, strlen(key));
-    msgpack_pack_uint64(&pk, in_ts.tv_usec);
-
-    snprintf(key, 16, "dlt");
-    msgpack_pack_str(&pk, strlen(key));
-    msgpack_pack_str_body(&pk, key, strlen(key));
-    msgpack_pack_uint64(&pk, in_dlt);
-
-    snprintf(key, 16, "pack_sz");
-    msgpack_pack_str(&pk, strlen(key));
-    msgpack_pack_str_body(&pk, key, strlen(key));
-    msgpack_pack_uint32(&pk, in_pack_sz);
-
-    snprintf(key, 16, "packet");
-    msgpack_pack_str(&pk, strlen(key));
-    msgpack_pack_str_body(&pk, key, strlen(key));
-    msgpack_pack_bin(&pk, in_pack_sz);
-    msgpack_pack_bin_body(&pk, in_pack, in_pack_sz);
-
-    *ret_buffer = (uint8_t *) malloc(sbuf.size);
-
-    if (*ret_buffer == NULL) {
-        msgpack_sbuffer_destroy(&sbuf);
+    if (puckbuffer == NULL) {
+        *ret_buffer = NULL;
+        *ret_sz = 0;
         return -1;
     }
 
-    memcpy(*ret_buffer, sbuf.data, sbuf.size);
-    *ret_sz = sbuf.size;
+    mp_b_encode_map(puckbuffer, 5);
 
-    msgpack_sbuffer_destroy(&sbuf);
+    mp_b_encode_str(puckbuffer, key_tv_sec, strlen(key_tv_sec));
+    mp_b_encode_uint(puckbuffer, in_ts.tv_sec);
+
+    mp_b_encode_str(puckbuffer, key_tv_usec, strlen(key_tv_usec));
+    mp_b_encode_uint(puckbuffer, in_ts.tv_usec);
+
+    mp_b_encode_str(puckbuffer, key_dlt, strlen(key_dlt));
+    mp_b_encode_uint(puckbuffer, in_dlt);
+
+    mp_b_encode_str(puckbuffer, key_pack_sz, strlen(key_pack_sz));
+    mp_b_encode_uint(puckbuffer, in_pack_sz);
+
+    mp_b_encode_str(puckbuffer, key_packet, strlen(key_packet));
+    mp_b_encode_bin(puckbuffer, (const char *) in_pack, in_pack_sz);
+
+    *ret_sz = mp_b_used_buffer(puckbuffer);
+    *ret_buffer = (uint8_t *) mp_b_extract_buffer(puckbuffer);
 
     return 1;
 }
@@ -138,80 +130,71 @@ int pack_packet_gps(uint8_t **ret_buffer, uint32_t *ret_sz,
         double in_lat, double in_lon, double in_alt, double in_speed, double in_heading,
         double in_precision, int in_fix, time_t in_time, 
         char *in_gps_type, char *in_gps_name) {
-    char key[16];
-    msgpack_sbuffer sbuf;
-    msgpack_packer pk;
 
-    msgpack_sbuffer_init(&sbuf);
-    msgpack_packer_init(&pk, &sbuf, msgpack_sbuffer_write);
+    const char *key_lat = "lat";
+    const char *key_lon = "lon";
+    const char *key_alt = "alt";
+    const char *key_speed = "speed";
+    const char *key_heading = "heading";
+    const char *key_precision = "precision";
+    const char *key_fix = "fix";
+    const char *key_time = "time";
+    const char *key_type = "type";
+    const char *key_name = "name";
 
-    msgpack_pack_map(&pk, 5);
+    msgpuck_buffer_t *puckbuffer;
 
-    snprintf(key, 16, "lat");
-    msgpack_pack_str(&pk, strlen(key));
-    msgpack_pack_str_body(&pk, key, strlen(key));
-    msgpack_pack_double(&pk, in_lat);
+    // Allocate a fairly generous headroom in our buffer
+    puckbuffer = mp_b_create_buffer(1024);
 
-    snprintf(key, 16, "lon");
-    msgpack_pack_str(&pk, strlen(key));
-    msgpack_pack_str_body(&pk, key, strlen(key));
-    msgpack_pack_double(&pk, in_lon);
-
-    snprintf(key, 16, "alt");
-    msgpack_pack_str(&pk, strlen(key));
-    msgpack_pack_str_body(&pk, key, strlen(key));
-    msgpack_pack_double(&pk, in_alt);
-
-    snprintf(key, 16, "speed");
-    msgpack_pack_str(&pk, strlen(key));
-    msgpack_pack_str_body(&pk, key, strlen(key));
-    msgpack_pack_double(&pk, in_speed);
-
-    snprintf(key, 16, "heading");
-    msgpack_pack_str(&pk, strlen(key));
-    msgpack_pack_str_body(&pk, key, strlen(key));
-    msgpack_pack_double(&pk, in_heading);
-
-    snprintf(key, 16, "precision");
-    msgpack_pack_str(&pk, strlen(key));
-    msgpack_pack_str_body(&pk, key, strlen(key));
-    msgpack_pack_double(&pk, in_precision);
-
-    snprintf(key, 16, "fix");
-    msgpack_pack_str(&pk, strlen(key));
-    msgpack_pack_str_body(&pk, key, strlen(key));
-    msgpack_pack_int32(&pk, in_fix);
-
-    snprintf(key, 16, "time");
-    msgpack_pack_str(&pk, strlen(key));
-    msgpack_pack_str_body(&pk, key, strlen(key));
-    msgpack_pack_uint64(&pk, in_time);
-
-    snprintf(key, 16, "type");
-    msgpack_pack_str(&pk, strlen(key));
-    msgpack_pack_str_body(&pk, key, strlen(key));
-    msgpack_pack_str(&pk, strlen(in_gps_type));
-    msgpack_pack_str_body(&pk, in_gps_type, strlen(in_gps_type));
-
-    snprintf(key, 16, "name");
-    msgpack_pack_str(&pk, strlen(key));
-    msgpack_pack_str_body(&pk, key, strlen(key));
-    msgpack_pack_str(&pk, strlen(in_gps_name));
-    msgpack_pack_str_body(&pk, in_gps_name, strlen(in_gps_name));
-
-    *ret_buffer = (uint8_t *) malloc(sbuf.size);
-
-    if (*ret_buffer == NULL) {
-        msgpack_sbuffer_destroy(&sbuf);
+    if (puckbuffer == NULL) {
+        *ret_buffer = NULL;
+        *ret_sz = 0;
         return -1;
     }
 
-    memcpy(*ret_buffer, sbuf.data, sbuf.size);
-    *ret_sz = sbuf.size;
+    unsigned int num_fields = 10;
 
-    msgpack_sbuffer_destroy(&sbuf);
+    if (in_precision == 0.0f)
+        num_fields--;
+
+    mp_b_encode_map(puckbuffer, num_fields);
+
+    mp_b_encode_str(puckbuffer, key_lat, strlen(key_lat));
+    mp_b_encode_double(puckbuffer, in_lat);
+
+    mp_b_encode_str(puckbuffer, key_lon, strlen(key_lon));
+    mp_b_encode_double(puckbuffer, in_lon);
+
+    mp_b_encode_str(puckbuffer, key_alt, strlen(key_alt));
+    mp_b_encode_double(puckbuffer, in_alt);
+
+    mp_b_encode_str(puckbuffer, key_speed, strlen(key_speed));
+    mp_b_encode_double(puckbuffer, in_speed);
+
+    mp_b_encode_str(puckbuffer, key_heading, strlen(key_heading));
+    mp_b_encode_double(puckbuffer, in_heading);
+
+    if (in_precision != 0.0f) {
+        mp_b_encode_str(puckbuffer, key_precision, strlen(key_precision));
+        mp_b_encode_double(puckbuffer, in_alt);
+    }
+
+    mp_b_encode_str(puckbuffer, key_fix, strlen(key_fix));
+    mp_b_encode_int(puckbuffer, in_fix);
+
+    mp_b_encode_str(puckbuffer, key_time, strlen(key_time));
+    mp_b_encode_uint(puckbuffer, in_time);
+
+    mp_b_encode_str(puckbuffer, key_type, strlen(key_type));
+    mp_b_encode_str(puckbuffer, in_gps_type, strlen(in_gps_type));
+
+    mp_b_encode_str(puckbuffer, key_name, strlen(key_name));
+    mp_b_encode_str(puckbuffer, in_gps_name, strlen(in_gps_name));
+
+    *ret_sz = mp_b_used_buffer(puckbuffer);
+    *ret_buffer = (uint8_t *) mp_b_extract_buffer(puckbuffer);
 
     return 1;
 }
-#endif
 

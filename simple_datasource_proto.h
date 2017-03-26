@@ -99,9 +99,19 @@ typedef struct simple_cap_proto_success_value simple_cap_proto_success_t;
 simple_cap_proto_t *encode_simple_cap_proto(char *in_type, uint32_t in_seqno,
         simple_cap_proto_kv_t **in_kv_list, unsigned int in_kv_len);
 
-/* Encode data into a kb pair */
+/* Encode raw data into a kv pair */
 simple_cap_proto_kv_t *encode_simple_cap_proto_kv(char *in_key, uint8_t *in_obj,
         unsigned int in_obj_len);
+
+/* Encode a packet into a raw KV value suitable for being sent in a PACKET frame */
+int pack_packet_capdata(uint8_t **ret_buffer, uint32_t *ret_sz,
+        struct timeval in_ts, int in_dlt, uint32_t in_pack_sz, uint8_t *in_pack);
+
+/* Encode a GPS frame into a raw KV suitable for being sent in a PACKET frame */
+int pack_packet_gps(uint8_t **ret_buffer, uint32_t *ret_sz,
+        double in_lat, double in_lon, double in_alt, double in_speed, double in_heading,
+        double in_precision, int in_fix, time_t in_time, 
+        char *in_gps_type, char *in_gps_name);
 
 #endif
 
