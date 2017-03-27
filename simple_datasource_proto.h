@@ -103,15 +103,44 @@ simple_cap_proto_t *encode_simple_cap_proto(char *in_type, uint32_t in_seqno,
 simple_cap_proto_kv_t *encode_simple_cap_proto_kv(char *in_key, uint8_t *in_obj,
         unsigned int in_obj_len);
 
-/* Encode a packet into a raw KV value suitable for being sent in a PACKET frame */
-int pack_packet_capdata(uint8_t **ret_buffer, uint32_t *ret_sz,
+/* Encode a packet into a raw KV value suitable for being sent in a PACKET frame.
+ * Buffer is returned in ret_buffer, length in ret_sz
+ *
+ * Returns:
+ * -1   Failure
+ *  1   Success
+ *
+ */
+int pack_kv_capdata(uint8_t **ret_buffer, uint32_t *ret_sz,
         struct timeval in_ts, int in_dlt, uint32_t in_pack_sz, uint8_t *in_pack);
 
-/* Encode a GPS frame into a raw KV suitable for being sent in a PACKET frame */
-int pack_packet_gps(uint8_t **ret_buffer, uint32_t *ret_sz,
+/* Encode a GPS frame into a raw KV suitable for being sent in a PACKET frame 
+ * Buffer is returned in ret_buffer, length in ret_sz
+ *
+ * Returns:
+ * -1   Failure
+ *  1   Success
+ */
+int pack_kv_gps(uint8_t **ret_buffer, uint32_t *ret_sz,
         double in_lat, double in_lon, double in_alt, double in_speed, double in_heading,
         double in_precision, int in_fix, time_t in_time, 
         char *in_gps_type, char *in_gps_name);
+
+/* Encode a list response frame into a raw KV suitable for being set int a 
+ * LISTRESP frame.  
+ * Buffer is returned in ret_buffer, length in ret_sz
+ *
+ * Interfaces and Options are expected to be of identical lengths; if an 
+ * interface has no corresponding OPTIONS element, it should have a NULL in
+ * that slot.
+ *
+ * Returns:
+ * -1   Failure
+ *  1   Success
+ *
+ */
+int pack_kv_interfacelist(uint8_t **ret_buffer, uint32_t *ret_sz,
+        const char **interfaces, const char **options, size_t len);
 
 #endif
 

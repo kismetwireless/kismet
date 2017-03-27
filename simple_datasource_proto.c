@@ -83,7 +83,7 @@ simple_cap_proto_t *encode_simple_cap_proto(char *in_type, uint32_t in_seqno,
     return cp;
 }
 
-int pack_packet_capdata(uint8_t **ret_buffer, uint32_t *ret_sz,
+int pack_kv_capdata(uint8_t **ret_buffer, uint32_t *ret_sz,
         struct timeval in_ts, int in_dlt, uint32_t in_pack_sz, uint8_t *in_pack) {
 
     const char *key_tv_sec = "tv_sec";
@@ -126,7 +126,7 @@ int pack_packet_capdata(uint8_t **ret_buffer, uint32_t *ret_sz,
     return 1;
 }
 
-int pack_packet_gps(uint8_t **ret_buffer, uint32_t *ret_sz,
+int pack_kv_gps(uint8_t **ret_buffer, uint32_t *ret_sz,
         double in_lat, double in_lon, double in_alt, double in_speed, double in_heading,
         double in_precision, int in_fix, time_t in_time, 
         char *in_gps_type, char *in_gps_name) {
@@ -194,6 +194,55 @@ int pack_packet_gps(uint8_t **ret_buffer, uint32_t *ret_sz,
 
     *ret_sz = mp_b_used_buffer(puckbuffer);
     *ret_buffer = (uint8_t *) mp_b_extract_buffer(puckbuffer);
+
+    return 1;
+}
+
+int pack_kv_interfacelist(uint8_t **ret_buffer, uint32_t *ret_sz,
+        const char **interfaces, const char **options, size_t len) {
+
+    const char *key_interface = "interface";
+    const char *key_flags = "flags";
+
+    msgpuck_buffer_t *puckbuffer;
+
+    /* Allocate a chunk per interface as a guess, seems reasonable */
+    size_t initial_sz = len * 512;
+
+    size_t i;
+
+    /* If we got passed a 0, we're an empty array */
+    if (initial_sz == 0)
+        initial_sz = 32;
+
+    puckbuffer = mp_b_create_buffer(initial_sz);
+
+    if (puckbuffer == NULL) {
+        *ret_buffer = NULL;
+        *ret_sz = 0;
+        return -1;
+    }
+
+    mp_b_encode_array(puckbuffer, len);
+
+    for (i = 0; i < len; i++) {
+        if (options[i] != NULL) {
+            /* If we have options encode both in the dictionary */
+            mp_b_encode_map(puckbuffer, 2);
+
+            mp_b_encode_str(puckbuffer, key_interface, strlen(key_interface));
+            mp_b_encode_str(puckbuffer, interfaces[i], strlen(interfaces[i]));
+
+            mp_b_encode_str(puckbuffer, key_flags, strlen(key_flags));
+            mp_b_encode_str(puckbuffer, options[i], strlen(options[i]));
+        } else {
+            /* Otherwise no flags, one dict entry */
+            mp_b_encode_map(puckbuffer, 1);
+
+            mp_b_encode_str(puckbuffer, key_interface, strlen(key_interface));
+            mp_b_encode_str(puckbuffer, interfaces[i], strlen(interfaces[i]));
+        }
+    }
 
     return 1;
 }
