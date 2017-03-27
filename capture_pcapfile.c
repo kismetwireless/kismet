@@ -62,6 +62,8 @@
 #include <unistd.h>
 #include <errno.h>
 
+#include <arpa/inet.h>
+
 
 #include "simple_datasource_proto.h"
 #include "simple_ringbuf_c.h"
@@ -88,9 +90,68 @@ pthread_mutex_t out_ringbuf_lock;
 
 /* Handle data in our incoming ringbuffer and dispatch parsing it / handling
  * commands from it.  Triggered from the main select() loop and called whenever
- * there is new data in the ringbuffer */
+ * there is new data in the ringbuffer; Command processing from the ringbuffer
+ * happens in the main thread */
 int handle_rx_data(kis_simple_ringbuf_t *ringbuf) {
-    fprintf(stderr, "DEBUG - handle rx data %lu\n", kis_simple_ringbuf_used(ringbuf));
+    size_t rb_available;
+
+    simple_cap_proto_t *cap_proto_frame;
+
+    /* Buffer of just the packet header */
+    uint8_t hdr_buf[sizeof(simple_cap_proto_t)];
+
+    /* Buffer of entire frame, dynamic */
+    uint8_t *frame_buf;
+
+    /* Incoming size */
+    uint32_t packet_sz;
+
+    rb_available = kis_simple_ringbuf_used(ringbuf);
+
+    if (rb_available < sizeof(simple_cap_proto_t)) {
+        fprintf(stderr, "DEBUG - insufficient data to represent a frame\n");
+        return 0;
+    }
+
+    if (kis_simple_ringbuf_peek(ringbuf, hdr_buf, sizeof(simple_cap_proto_t)) !=
+            sizeof(simple_cap_proto_t)) {
+        return 0;
+    }
+
+    cap_proto_frame = (simple_cap_proto_t *) hdr_buf;
+
+    /* Check the signature */
+    if (ntohl(cap_proto_frame->signature) != KIS_CAP_SIMPLE_PROTO_SIG) {
+        fprintf(stderr, "FATAL: Invalid frame header received\n");
+        return -1;
+    }
+
+    /* If the signature passes, see if we can read the whole frame */
+    packet_sz = ntohl(cap_proto_frame->packet_sz);
+
+    if (rb_available < packet_sz) {
+        fprintf(stderr, "DEBUG: Waiting additional data (%lu available, "
+                "%u needed\n", rb_available, packet_sz);
+        return 0;
+    }
+
+    /* We've got enough to read it all; allocate the buffer and read it in */
+    frame_buf = (uint8_t *) malloc(packet_sz);
+
+    if (frame_buf == NULL) {
+        fprintf(stderr, "FATAL:  Could not allocate read buffer\n");
+        return -1;
+    }
+
+    // Peek our ring buffer
+    if (kis_simple_ringbuf_peek(ringbuf, frame_buf, packet_sz) != packet_sz) {
+        fprintf(stderr, "FATAL: Failed to read packet from ringbuf\n");
+        free(frame_buf);
+        return -1;
+    }
+
+    // Clear it out from the buffer
+    kis_simple_ringbuf_read(ringbuf, NULL, packet_sz);
 
     return -1;
 }
