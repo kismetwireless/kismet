@@ -19,8 +19,6 @@
 #ifndef __SIMPLE_CAP_PROTO_H__
 #define __SIMPLE_CAP_PROTO_H__
 
-#include "config.h"
-
 #include <stdint.h>
 #include <time.h>
 
@@ -126,6 +124,18 @@ int pack_kv_gps(uint8_t **ret_buffer, uint32_t *ret_sz,
         double in_precision, int in_fix, time_t in_time, 
         char *in_gps_type, char *in_gps_name);
 
+/* Encode a signal record
+ * Buffer is returned in ret_buffer, length in ret_sz
+ *
+ * returns:
+ * -1   Failure
+ *  1   Success
+ *
+ */
+int pack_kv_signal(uint8_t **ret_buffer, uint32_t *ret_sz,
+        uint32_t signal_dbm, uint32_t signal_rssi, uint32_t noise_dbm,
+        uint32_t noise_rssi, double freq_khz, char *channel, double datarate);
+
 /* Encode a list response frame into a raw KV suitable for being sent int a 
  * LISTRESP frame.  
  * Buffer is returned in ret_buffer, length in ret_sz
@@ -154,6 +164,20 @@ int pack_kv_interfacelist(uint8_t **ret_buffer, uint32_t *ret_sz,
  */
 int pack_kv_channels(uint8_t **ret_buffer, uint32_t *ret_sz,
         const char **channels, size_t len);
+
+/* Encode a channel hop record
+ * Buffer is returned in ret_buffer, length in ret_sz
+ *
+ * Channels are arbitrary strings
+ *
+ * Returns:
+ * -1   Failure
+ *  1   Success
+ *
+ */
+int pack_kv_chanhop(uint8_t **ret_buffer, uint32_t *ret_sz,
+        double rate, const char **channels, size_t len);
+
 
 #endif
 
