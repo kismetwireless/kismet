@@ -39,7 +39,7 @@ typedef struct kis_simple_ringbuf kis_simple_ringbuf_t;
  *
  * Returns NULL if allocation failed
  */
-kis_simple_ringbuf_t *tcpw_simple_ringbuf_create(size_t size) {
+kis_simple_ringbuf_t *kis_simple_ringbuf_create(size_t size) {
     kis_simple_ringbuf_t *rb;
 
     rb = (kis_simple_ringbuf_t *) malloc(sizeof(kis_simple_ringbuf_t));
