@@ -90,8 +90,15 @@ char *mp_b_extract_buffer(msgpuck_buffer_t *buf) {
 
 /* Double the size of a buffer and copy the contents to the new array */
 int mp_b_zoom_buffer(msgpuck_buffer_t *buf) {
-    /* Double the size of the buffer so we don't keep doing micro-allocs and copies */
-    char *newbuf = (char *) malloc(buf->buffer_len * 2);
+    /* Double the size of the buffer so we don't keep doing micro-allocs and copies
+     * If our buffer is somehow 0, make it a semi-arbitrary 32 bytes (and then 
+     * double it) because otherwise we'll never grow */
+    size_t bufsz = buf->buffer_len;
+
+    if (bufsz == 0)
+        bufsz = 32;
+
+    char *newbuf = (char *) malloc(bufsz * 2);
 
     if (newbuf == NULL)
         return -1;
