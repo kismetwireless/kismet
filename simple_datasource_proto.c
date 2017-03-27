@@ -198,6 +198,99 @@ int pack_kv_gps(uint8_t **ret_buffer, uint32_t *ret_sz,
     return 1;
 }
 
+int pack_kv_signal(uint8_t **ret_buffer, uint32_t *ret_sz,
+        uint32_t signal_dbm, uint32_t signal_rssi, uint32_t noise_dbm,
+        uint32_t noise_rssi, double freq_khz, char *channel, double datarate) {
+
+    const char *key_signal_dbm = "signal_dbm";
+    const char *key_signal_rssi = "signal_rssi";
+    const char *key_noise_dbm = "noise_dbm";
+    const char *key_noise_rssi = "noise_rssi";
+    const char *key_freq = "freq_khz";
+    const char *key_channel = "channel";
+    const char *key_datarate = "datarate";
+
+    size_t num_fields = 0;
+
+    /* Count up all the filled-in fields */
+    
+    if (signal_dbm != 0)
+        num_fields++;
+
+    if (noise_dbm != 0)
+        num_fields++;
+
+    if (signal_rssi != 0)
+        num_fields++;
+
+    if (noise_rssi != 0)
+        num_fields++;
+
+    if (freq_khz != 0.0f)
+        num_fields++;
+
+    if (channel != NULL)
+        num_fields++;
+
+    if (datarate != 0.0f)
+        num_fields++;
+
+    msgpuck_buffer_t *puckbuffer;
+
+    /* Make a rough guess */
+    size_t initial_sz = num_fields * 32;
+
+    puckbuffer = mp_b_create_buffer(initial_sz);
+
+    if (puckbuffer == NULL) {
+        *ret_buffer = NULL;
+        *ret_sz = 0;
+        return -1;
+    }
+
+    mp_b_encode_map(puckbuffer, num_fields);
+
+    if (signal_dbm != 0) {
+        mp_b_encode_str(puckbuffer, key_signal_dbm, strlen(key_signal_dbm));
+        mp_b_encode_int(puckbuffer, signal_dbm);
+    }
+
+    if (noise_dbm != 0) {
+        mp_b_encode_str(puckbuffer, key_noise_dbm, strlen(key_noise_dbm));
+        mp_b_encode_int(puckbuffer, noise_dbm);
+    }
+
+    if (signal_rssi != 0) {
+        mp_b_encode_str(puckbuffer, key_signal_rssi, strlen(key_signal_rssi));
+        mp_b_encode_int(puckbuffer, signal_rssi);
+    }
+
+    if (noise_rssi != 0) {
+        mp_b_encode_str(puckbuffer, key_noise_rssi, strlen(key_noise_rssi));
+        mp_b_encode_int(puckbuffer, noise_rssi);
+    }
+
+    if (freq_khz != 0.0f) {
+        mp_b_encode_str(puckbuffer, key_freq, strlen(key_freq));
+        mp_b_encode_double(puckbuffer, freq_khz);
+    }
+
+    if (channel != NULL) {
+        mp_b_encode_str(puckbuffer, key_channel, strlen(key_channel));
+        mp_b_encode_str(puckbuffer, channel, strlen(channel));
+    }
+
+    if (datarate != 0.0f) {
+        mp_b_encode_str(puckbuffer, key_datarate, strlen(key_datarate));
+        mp_b_encode_double(puckbuffer, datarate);
+    }
+
+    *ret_sz = mp_b_used_buffer(puckbuffer);
+    *ret_buffer = (uint8_t *) mp_b_extract_buffer(puckbuffer);
+
+    return 1;
+}
+
 int pack_kv_interfacelist(uint8_t **ret_buffer, uint32_t *ret_sz,
         const char **interfaces, const char **options, size_t len) {
 
@@ -206,10 +299,10 @@ int pack_kv_interfacelist(uint8_t **ret_buffer, uint32_t *ret_sz,
 
     msgpuck_buffer_t *puckbuffer;
 
+    size_t i;
+
     /* Allocate a chunk per interface as a guess, seems reasonable */
     size_t initial_sz = len * 512;
-
-    size_t i;
 
     /* If we got passed a 0, we're an empty array */
     if (initial_sz == 0)
@@ -243,6 +336,89 @@ int pack_kv_interfacelist(uint8_t **ret_buffer, uint32_t *ret_sz,
             mp_b_encode_str(puckbuffer, interfaces[i], strlen(interfaces[i]));
         }
     }
+
+    *ret_sz = mp_b_used_buffer(puckbuffer);
+    *ret_buffer = (uint8_t *) mp_b_extract_buffer(puckbuffer);
+
+    return 1;
+}
+
+int pack_kv_channels(uint8_t **ret_buffer, uint32_t *ret_sz,
+        const char **channels, size_t len) {
+
+    /* Channels are packed into a dictionary in case we need to pack additional
+     * data with them in the future */
+    const char *key_channels = "channels";
+
+    msgpuck_buffer_t *puckbuffer;
+
+    size_t i;
+
+    /* Allocate a chunk per interface as a guess, seems reasonable */
+    size_t initial_sz = len * 32;
+
+    /* If we got passed a 0, we're an empty array */
+    if (initial_sz == 0)
+        initial_sz = 32;
+
+    puckbuffer = mp_b_create_buffer(initial_sz);
+
+    if (puckbuffer == NULL) {
+        *ret_buffer = NULL;
+        *ret_sz = 0;
+        return -1;
+    }
+
+    mp_b_encode_map(puckbuffer, 1);
+
+    mp_b_encode_str(puckbuffer, key_channels, strlen(key_channels));
+    mp_b_encode_array(puckbuffer, len);
+
+    for (i = 0; i < len; i++) {
+        mp_b_encode_str(puckbuffer, channels[i], strlen(channels[i]));
+    }
+
+    *ret_sz = mp_b_used_buffer(puckbuffer);
+    *ret_buffer = (uint8_t *) mp_b_extract_buffer(puckbuffer);
+
+    return 1;
+}
+
+int pack_kv_chanhop(uint8_t **ret_buffer, uint32_t *ret_sz,
+        double rate, const char **channels, size_t len) {
+
+    const char *key_channels = "channels";
+    const char *key_rate = "rate";
+
+    msgpuck_buffer_t *puckbuffer;
+
+    size_t i;
+
+    /* Allocate a chunk per interface as a guess, seems reasonable */
+    size_t initial_sz = (len * 32) + 32;
+
+    puckbuffer = mp_b_create_buffer(initial_sz);
+
+    if (puckbuffer == NULL) {
+        *ret_buffer = NULL;
+        *ret_sz = 0;
+        return -1;
+    }
+
+    mp_b_encode_map(puckbuffer, 2);
+
+    mp_b_encode_str(puckbuffer, key_rate, strlen(key_rate));
+    mp_b_encode_double(puckbuffer, rate);
+
+    mp_b_encode_str(puckbuffer, key_channels, strlen(key_channels));
+    mp_b_encode_array(puckbuffer, len);
+
+    for (i = 0; i < len; i++) {
+        mp_b_encode_str(puckbuffer, channels[i], strlen(channels[i]));
+    }
+
+    *ret_sz = mp_b_used_buffer(puckbuffer);
+    *ret_buffer = (uint8_t *) mp_b_extract_buffer(puckbuffer);
 
     return 1;
 }

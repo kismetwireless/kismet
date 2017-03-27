@@ -126,7 +126,7 @@ int pack_kv_gps(uint8_t **ret_buffer, uint32_t *ret_sz,
         double in_precision, int in_fix, time_t in_time, 
         char *in_gps_type, char *in_gps_name);
 
-/* Encode a list response frame into a raw KV suitable for being set int a 
+/* Encode a list response frame into a raw KV suitable for being sent int a 
  * LISTRESP frame.  
  * Buffer is returned in ret_buffer, length in ret_sz
  *
@@ -141,6 +141,19 @@ int pack_kv_gps(uint8_t **ret_buffer, uint32_t *ret_sz,
  */
 int pack_kv_interfacelist(uint8_t **ret_buffer, uint32_t *ret_sz,
         const char **interfaces, const char **options, size_t len);
+
+/* Encode a list of channels into a raw KV
+ * Buffer is returned in ret_buffer, length in ret_sz
+ *
+ * Channels are arbitrary strings.
+ *
+ * Returns:
+ * -1   Failure
+ *  1   Success
+ *
+ */
+int pack_kv_channels(uint8_t **ret_buffer, uint32_t *ret_sz,
+        const char **channels, size_t len);
 
 #endif
 
