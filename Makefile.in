@@ -35,6 +35,12 @@ PSO	= util.o cygwin_utils.o globalregistry.o \
 
 PS	= kismet_server
 
+CAPTURE_PCAPFILE_O 	= msgpuck.o msgpuck_hints.o \
+					  simple_ringbuf_c.o msgpuck_buffer.o \
+					  simple_datasource_proto.o \
+					  capture_pcapfile.o
+CAPTURE_PCAPFILE 	= capture_pcapfile
+
 DRONEO = 
 # DRONEO = util.o cygwin_utils.o globalregistry.o ringbuf.o \
 # 		 packet.o messagebus.o configfile.o getopt.o \
@@ -61,20 +67,6 @@ CSO = util.o cygwin_utils.o globalregistry.o ringbuf.o \
 CS	= kismet_capture
 
 DRONE = kismet_drone
-
-NCO = 
-# NCO	= util.o ringbuf.o globalregistry.o messagebus.o configfile.o getopt.o \
-# 	  soundcontrol.o timetracker.o ipc_remote.o \
-# 	  trackedelement.o entrytracker.o \
-# 	  clinetframework.o tcpclient.o popenclient.o kis_clinetframe.o \
-# 	  text_cliframe.o \
-# 	  kis_panel_widgets.o kis_panel_windows.o kis_panel_details.o \
-# 	  kis_panel_info.o kis_panel_preferences.o \
-# 	  kis_panel_frontend.o \
-# 	  kis_client_devicetracker.o kis_client_phy80211.o \
-# 	  kis_panel_device.o \
-# 	  kismet_client.o
-NC	= kismet_client
 
 # HOPPERO = util.o configfile.o getopt.o kismet_hopper.o
 # HOPPER = kismet_hopper
@@ -104,8 +96,8 @@ $(CS):	$(CSO)
 $(DRONE):	$(DRONEO) $(CS)
 	$(LD) $(LDFLAGS) -o $(DRONE) $(DRONEO) $(LIBS) $(CXXLIBS) $(PCAPLNK) $(KSLIBS)
 
-$(NC):	$(NCO)
-	$(LD) $(LDFLAGS) -o $(NC) $(NCO) $(CXXLIBS) $(CLIENTLIBS)
+$(CAPTURE_PCAPFILE):	$(CAPTURE_PCAPFILE_O)
+	$(CC) $(LDFLAGS) -o $(CAPTURE_PCAPFILE) $(CAPTURE_PCAPFILE_O) -lpthread -lpcap
 
 #$(HOPPER):	$(HOPPERO)
 #	$(LD) $(LDFLAGS) -o $(HOPPER) $(HOPPERO)
