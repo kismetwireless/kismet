@@ -38,6 +38,7 @@ PS	= kismet_server
 CAPTURE_PCAPFILE_O 	= msgpuck.o msgpuck_hints.o \
 					  simple_ringbuf_c.o msgpuck_buffer.o \
 					  simple_datasource_proto.o \
+					  capture_framework.o \
 					  capture_pcapfile.o
 CAPTURE_PCAPFILE 	= capture_pcapfile
 

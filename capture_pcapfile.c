@@ -64,10 +64,8 @@
 
 #include <arpa/inet.h>
 
-
 #include "simple_datasource_proto.h"
-#include "simple_ringbuf_c.h"
-#include "msgpuck_buffer.h"
+#include "capture_framework.h"
 
 /* Pcap file */
 pcap_t *pd;
@@ -76,280 +74,26 @@ int datalink_type;
 /* Overridden DLT */
 int override_dlt;
 
-/* Descriptor pair */
-int in_fd;
-int out_fd;
-
-/* Incoming buffer */
-kis_simple_ringbuf_t *in_ringbuf;
-/* Outgoing buffer */
-kis_simple_ringbuf_t *out_ringbuf;
-
-/* Outgoing buffer mutex */
-pthread_mutex_t out_ringbuf_lock;
-
-/* Handle data in our incoming ringbuffer and dispatch parsing it / handling
- * commands from it.  Triggered from the main select() loop and called whenever
- * there is new data in the ringbuffer; Command processing from the ringbuffer
- * happens in the main thread */
-int handle_rx_data(kis_simple_ringbuf_t *ringbuf) {
-    size_t rb_available;
-
-    simple_cap_proto_t *cap_proto_frame;
-
-    /* Buffer of just the packet header */
-    uint8_t hdr_buf[sizeof(simple_cap_proto_t)];
-
-    /* Buffer of entire frame, dynamic */
-    uint8_t *frame_buf;
-
-    /* Incoming size */
-    uint32_t packet_sz;
-
-    rb_available = kis_simple_ringbuf_used(ringbuf);
-
-    if (rb_available < sizeof(simple_cap_proto_t)) {
-        fprintf(stderr, "DEBUG - insufficient data to represent a frame\n");
-        return 0;
-    }
-
-    if (kis_simple_ringbuf_peek(ringbuf, hdr_buf, sizeof(simple_cap_proto_t)) !=
-            sizeof(simple_cap_proto_t)) {
-        return 0;
-    }
-
-    cap_proto_frame = (simple_cap_proto_t *) hdr_buf;
-
-    /* Check the signature */
-    if (ntohl(cap_proto_frame->signature) != KIS_CAP_SIMPLE_PROTO_SIG) {
-        fprintf(stderr, "FATAL: Invalid frame header received\n");
-        return -1;
-    }
-
-    /* If the signature passes, see if we can read the whole frame */
-    packet_sz = ntohl(cap_proto_frame->packet_sz);
-
-    if (rb_available < packet_sz) {
-        fprintf(stderr, "DEBUG: Waiting additional data (%lu available, "
-                "%u needed\n", rb_available, packet_sz);
-        return 0;
-    }
-
-    /* We've got enough to read it all; allocate the buffer and read it in */
-    frame_buf = (uint8_t *) malloc(packet_sz);
-
-    if (frame_buf == NULL) {
-        fprintf(stderr, "FATAL:  Could not allocate read buffer\n");
-        return -1;
-    }
-
-    // Peek our ring buffer
-    if (kis_simple_ringbuf_peek(ringbuf, frame_buf, packet_sz) != packet_sz) {
-        fprintf(stderr, "FATAL: Failed to read packet from ringbuf\n");
-        free(frame_buf);
-        return -1;
-    }
-
-    // Clear it out from the buffer
-    kis_simple_ringbuf_read(ringbuf, NULL, packet_sz);
-
-    return -1;
-}
-
-int parse_opts(int argc, char *argv[]) {
-    int option_idx;
-
-    optind = 0;
-    opterr = 0;
-    option_idx = 0;
-
-    static struct option longopt[] = {
-        { "in-fd", required_argument, 0, 1 },
-        { "out-fd", required_argument, 0, 2 },
-        { 0, 0, 0, 0 }
-    };
-
-    while (1) {
-        int r = getopt_long(argc, argv, "-", longopt, &option_idx);
-
-        if (r < 0)
-            break;
-
-        if (r == 1) {
-            if (sscanf(optarg, "%d", &in_fd) != 1) {
-                fprintf(stderr, "FATAL: Unable to parse incoming file descriptor\n");
-                return -1;
-            }
-        } else if (r == 2) {
-            if (sscanf(optarg, "%d", &out_fd) != 1) {
-                fprintf(stderr, "FATAL: Unable to parse outgoing file descriptor\n");
-                return -1;
-            }
-
-        }
-
-    }
-
-    if (in_fd == -1 || out_fd == -1)
-        return -1;
-
-    return 1;
-}
 
 int main(int argc, char *argv[]) {
-    in_fd = -1;
-    out_fd = -1;
-    in_ringbuf = NULL;
-    out_ringbuf = NULL;
+    kis_capture_handler_t *caph = cf_handler_init();
 
-    fd_set rset, wset;
-    int max_fd;
-
-    /* Warn after parsing options */
-    if (parse_opts(argc, argv) < 0) {
-        fprintf(stderr, 
-                "FATAL: Failed to parse arguments.  This tool should be automatically\n"
-                "launched by Kismet as part of the capture process, running it \n"
-                "manually is likely not what you're looking to do.\n");
-        return 1;
+    if (caph == NULL) {
+        fprintf(stderr, "FATAL: Could not allocate basic handler data, your system "
+                "is very low on RAM or something is wrong.\n");
+        return -1;
     }
 
-    /* Input is fairly small */
-    in_ringbuf = kis_simple_ringbuf_create(1024 * 8);
-
-    if (in_ringbuf == NULL) {
-        fprintf(stderr, 
-                "FATAL:  Could not allocate memory for protocol buffers, your system\n"
-                "is extremely low on RAM or something is wrong.\n");
-        return 1;
+    if (cf_handler_parse_opts(caph, argc, argv) < 1) {
+        fprintf(stderr, "FATAL: Missing command line parameters.\n");
+        return -1;
     }
 
-    /* Output needs to be more generous because we're reading TCP frames */
-    out_ringbuf = kis_simple_ringbuf_create(1024 * 128);
-
-    if (out_ringbuf == NULL) {
-        fprintf(stderr, 
-                "FATAL:  Could not allocate memory for protocol buffers, your system\n"
-                "is extremely low on RAM or something is wrong.\n");
-        return 1;
-    }
-
-    /* Allocate the mutex */
-    pthread_mutex_init(&out_ringbuf_lock, NULL);
-
-    /* Set our descriptors as nonblocking */
-    fcntl(in_fd, F_SETFL, fcntl(in_fd, F_GETFL, 0) | O_NONBLOCK);
-    fcntl(out_fd, F_SETFL, fcntl(out_fd, F_GETFL, 0) | O_NONBLOCK);
-
-    /* Basic select loop using ring buffers; we fill in from the read descriptor
-     * and try to make frames; similarly we populate the outbound descriptor from
-     * anything that comes in from our IO thread */
-    while (1) {
-        FD_ZERO(&rset);
-        FD_SET(in_fd, &rset);
-        max_fd = in_fd;
-
-        FD_ZERO(&wset);
-
-        /* Inspect the write buffer - do we have data? */
-        pthread_mutex_lock(&out_ringbuf_lock);
-        if (kis_simple_ringbuf_used(out_ringbuf) != 0) {
-            FD_SET(out_fd, &wset);
-            if (max_fd < out_fd)
-                max_fd = out_fd;
-        }
-        pthread_mutex_unlock(&out_ringbuf_lock);
-
-        if (select(max_fd + 1, &rset, &wset, NULL, NULL) < 0) {
-            if (errno != EINTR && errno != EAGAIN) {
-                fprintf(stderr, 
-                        "FATAL:  Error during select(): %s\n", strerror(errno));
-                break;
-            }
-        }
-
-        if (FD_ISSET(in_fd, &rset)) {
-            /* We use a fixed-length read buffer for simplicity, and we shouldn't
-             * ever have too many incoming packets queued because the datasource
-             * protocol is very tx-heavy */
-            ssize_t amt_read;
-            size_t amt_buffered;
-            uint8_t rbuf[1024];
-
-            /* We deliberately read as much as we need and try to put it in the 
-             * buffer, if the buffer fills up something has gone wrong anyhow */
-
-            if ((amt_read = read(in_fd, rbuf, 1024)) < 0) {
-                if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
-                    fprintf(stderr,
-                            "FATAL:  Error during read(): %s\n", strerror(errno));
-                    break;
-                }
-            }
-
-            amt_buffered = kis_simple_ringbuf_write(in_ringbuf, rbuf, amt_read);
-
-            if ((ssize_t) amt_buffered != amt_read) {
-                fprintf(stderr,
-                        "FATAL:  Error during read(): insufficient buffer space\n");
-                break;
-            }
-
-            /* See if we have a complete packet to do something with */
-            if (handle_rx_data(in_ringbuf) < 0)
-                break;
-
-        }
-
-        if (FD_ISSET(out_fd, &wset)) {
-            /* We can write data - lock the ring buffer mutex and write out
-             * whatever we can; we peek the ringbuffer and then flag off what
-             * we've successfully written out */
-            ssize_t written_sz;
-            size_t peek_sz;
-            size_t peeked_sz;
-            uint8_t *peek_buf;
-
-            pthread_mutex_lock(&out_ringbuf_lock);
-
-            peek_sz = kis_simple_ringbuf_used(out_ringbuf);
-
-            /* Don't know how we'd get here... */
-            if (peek_sz == 0) {
-                pthread_mutex_unlock(&out_ringbuf_lock);
-                continue;
-            }
-
-            peek_buf = (uint8_t *) malloc(peek_sz);
-
-            if (peek_buf == NULL) {
-                pthread_mutex_unlock(&out_ringbuf_lock);
-                fprintf(stderr,
-                        "FATAL:  Error during write(): could not allocate write "
-                        "buffer space\n");
-                break;
-            }
-
-            peeked_sz = kis_simple_ringbuf_peek(out_ringbuf, peek_buf, peek_sz);
-
-            if ((written_sz = write(out_fd, peek_buf, peeked_sz)) < 0) {
-                if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
-                    pthread_mutex_unlock(&out_ringbuf_lock);
-                    fprintf(stderr,
-                            "FATAL:  Error during read(): %s\n", strerror(errno));
-                    break;
-                }
-            }
-
-            /* Flag it as consumed */
-            kis_simple_ringbuf_read(out_ringbuf, NULL, (size_t) written_sz);
-
-            /* Unlock */
-            pthread_mutex_unlock(&out_ringbuf_lock);
-        }
-    }
+    cf_handler_loop(caph);
 
     fprintf(stderr, "FATAL: Exited main select() loop\n");
+
+    cf_handler_free(caph);
 
     return 1;
 }
