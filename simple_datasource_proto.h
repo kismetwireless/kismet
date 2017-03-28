@@ -181,6 +181,23 @@ int pack_kv_channels(uint8_t **ret_buffer, uint32_t *ret_sz,
 int pack_kv_chanhop(uint8_t **ret_buffer, uint32_t *ret_sz,
         double rate, const char **channels, size_t len);
 
+#define MSGFLAG_NONE    0
+#define MSGFLAG_DEBUG   1
+#define MSGFLAG_INFO    2
+#define MSGFLAG_ERROR   4
+#define MSGFLAG_ALERT   8
+#define MSGFLAG_FATAL   16
+/* Encode a message KV pair
+ * Buffer is returned in ret_buffer, length in ret_sz
+ *
+ * Returns:
+ * -1   Failure
+ *  1   Success
+ *
+ */
+int pack_kv_message(uint8_t **ret_buffer, uint32_t *ret_sz,
+        const char *message, unsigned int flags);
+
 /* Validate if a frame passes checksum
  *
  * Returns:

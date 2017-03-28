@@ -443,7 +443,52 @@ int pack_kv_chanhop(uint8_t **ret_buffer, uint32_t *ret_sz,
     return 1;
 }
 
-int validate_simple_cap_proto(simple_cap_proto_t *in_packet) {
+int pack_kv_message(uint8_t **ret_buffer, uint32_t *ret_sz,
+        const char *message, unsigned int flags) {
 
+    const char *key_message = "msg";
+    const char *key_flags = "flags";
+
+    msgpuck_buffer_t *puckbuffer;
+
+    size_t initial_sz = strlen(message) + 64;
+
+    puckbuffer = mp_b_create_buffer(initial_sz);
+
+    if (puckbuffer == NULL) {
+        *ret_buffer = NULL;
+        *ret_sz = 0;
+        return -1;
+    }
+
+    mp_b_encode_map(puckbuffer, 2);
+
+    mp_b_encode_str(puckbuffer, key_message, strlen(key_message));
+    mp_b_encode_str(puckbuffer, message, strlen(message));
+
+    mp_b_encode_str(puckbuffer, key_flags, strlen(key_flags));
+    mp_b_encode_uint(puckbuffer, flags);
+
+    *ret_sz = mp_b_used_buffer(puckbuffer);
+    *ret_buffer = (uint8_t *) mp_b_extract_buffer(puckbuffer);
+
+    return 1;
+}
+
+int validate_simple_cap_proto(simple_cap_proto_t *in_packet) {
+    /* Extract original checksum */
+    uint32_t original_csum = ntohl(in_packet->checksum);
+    uint32_t calc_csum;
+
+    /* Zero csum field in packet */
+    in_packet->checksum = 0;
+
+    /* Checksum the contents */
+    calc_csum = adler32_csum((uint8_t *) in_packet, ntohl(in_packet->packet_sz));
+
+    if (original_csum != calc_csum)
+        return -1;
+
+    return 1;
 }
 

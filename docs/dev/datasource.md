@@ -245,7 +245,7 @@ Msgpack packed array containing mspack dictionaries of the following:
 * "flags": String flags, aggregated as "flag1=foo,flag2=bar", compatible with a source=interface:flags source definition.
 
 #### MESSAGE
-MESSAGE KV pairs bridge directly to the messagebus of the Kismet server and are presented to users, logged, etc.
+MESSAGE KV pairs bridge directly to the messagebus of the Kismet server and are presented to users, logged, etc.  Message values may also be used in error reports if a source fails to open or a similar error occurs.
 
 Content:
 
