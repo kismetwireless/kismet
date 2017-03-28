@@ -52,6 +52,9 @@ size_t mp_b_used_buffer(msgpuck_buffer_t *buf);
 /* Available size */
 size_t mp_b_available_buffer(msgpuck_buffer_t *buf);
 
+/* Reference to the internal buffer */
+char *mp_b_get_buffer(msgpuck_buffer_t *buf);
+
 /* Free a buffer *and contents* */
 void mp_b_free_buffer(msgpuck_buffer_t *buf);
 

@@ -48,6 +48,11 @@ size_t mp_b_sizeof_buffer(msgpuck_buffer_t *buf) {
     return buf->buffer_len;
 }
 
+/* Reference to buffer */
+char *mp_b_get_buffer(msgpuck_buffer_t *buf) {
+    return buf->buffer;
+}
+
 /* Used */
 size_t mp_b_used_buffer(msgpuck_buffer_t *buf) {
     return (buf->buffer_write - buf->buffer);
