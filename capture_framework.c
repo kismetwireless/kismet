@@ -56,6 +56,9 @@ kis_capture_handler_t *cf_handler_init() {
     ch->shutdown = 0;
     pthread_mutex_init(&(ch->handler_lock), NULL);
 
+    ch->listdevices_cb = NULL;
+    ch->probe_cb = NULL;
+
     return ch;
 }
 
@@ -128,6 +131,27 @@ int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]) {
 
     return 1;
 
+}
+
+void cf_handler_set_listdevices_cb(kis_capture_handler_t *capf, 
+        cf_callback_listdevices cb) {
+    pthread_mutex_lock(&(capf->handler_lock));
+    capf->listdevices_cb = cb;
+    pthread_mutex_unlock(&(capf->handler_lock));
+}
+
+void cf_handler_set_probe_cb(kis_capture_handler_t *capf, 
+        cf_callback_probe cb) {
+    pthread_mutex_lock(&(capf->handler_lock));
+    capf->probe_cb = cb;
+    pthread_mutex_unlock(&(capf->handler_lock));
+}
+
+void cf_handler_set_open_cb(kis_capture_handler_t *capf, 
+        cf_callback_open cb) {
+    pthread_mutex_lock(&(capf->handler_lock));
+    capf->open_cb = cb;
+    pthread_mutex_unlock(&(capf->handler_lock));
 }
 
 int cf_handle_rx_data(kis_capture_handler_t *caph) {
@@ -330,5 +354,140 @@ void cf_handler_loop(kis_capture_handler_t *caph) {
             pthread_mutex_unlock(&(caph->out_ringbuf_lock));
         }
     }
+}
+
+int cf_send_raw_bytes(kis_capture_handler_t *caph, uint8_t *data, size_t len) {
+    pthread_mutex_lock(&(caph->out_ringbuf_lock));
+
+    if (kis_simple_ringbuf_available(caph->out_ringbuf) < len) {
+        fprintf(stderr, "FATAL: Insufficient room in write buffer to queue data\n");
+        pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+        return -1;
+    }
+
+    if (kis_simple_ringbuf_write(caph->out_ringbuf, data, len) != len) {
+        fprintf(stderr, "FATAL: Failed to write data to buffer\n");
+        pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+        return -1;
+    }
+
+    pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+    return 1;
+}
+
+int cf_stream_packet(kis_capture_handler_t *caph, const char *packtype,
+        simple_cap_proto_kv_t **in_kv_list, unsigned int in_kv_len) {
+
+    /* Proto header we write to the buffer */
+    simple_cap_proto_t *proto_hdr;
+    size_t proto_sz;
+
+    size_t i;
+
+    /* Encode a header */
+    proto_hdr = encode_simple_cap_proto_hdr(&proto_sz, packtype, 0, 
+            in_kv_list, in_kv_len);
+
+    if (proto_hdr == NULL) {
+        fprintf(stderr, "FATAL: Unable to allocate protocol frame header\n");
+        for (i = 0; i < in_kv_len; i++) {
+            free(in_kv_list[i]);
+        }
+        free(in_kv_list);
+        return -1;
+    }
+
+    pthread_mutex_lock(&(caph->out_ringbuf_lock));
+
+    if (kis_simple_ringbuf_available(caph->out_ringbuf) < proto_sz) {
+        fprintf(stderr, "FATAL: Unable to put frame in write buffer\n");
+        for (i = 0; i < in_kv_len; i++) {
+            free(in_kv_list[i]);
+        }
+        free(in_kv_list);
+        free(proto_hdr);
+        pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+        return -1;
+    }
+
+    /* Write the header out */
+    kis_simple_ringbuf_write(caph->out_ringbuf, (uint8_t *) proto_hdr, 
+            sizeof(simple_cap_proto_t));
+
+    /* Write all the kv pairs out */
+    for (i = 0; i < in_kv_len; i++) {
+        kis_simple_ringbuf_write(caph->out_ringbuf, (uint8_t *) in_kv_list[i],
+                ntohl(in_kv_list[i]->header.obj_sz));
+        free(in_kv_list[i]);
+    }
+
+    free(in_kv_list);
+    free(proto_hdr);
+
+    pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+
+    return 1;
+}
+
+int cf_send_listresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int success,
+        const char *msg, const char **interfaces, const char **flags, size_t len) {
+    /* How many KV pairs are we allocating?  1 for success for sure */
+    size_t num_kvs = 1;
+
+    size_t kv_pos = 0;
+    size_t i = 0;
+
+    /* Actual KV pairs we encode into the packet */
+    simple_cap_proto_kv_t **kv_pairs;
+
+    if (msg != NULL)
+        num_kvs++;
+
+    if (len != 0)
+        num_kvs++;
+
+    kv_pairs = 
+        (simple_cap_proto_kv_t **) malloc(sizeof(simple_cap_proto_kv_t *) * num_kvs);
+
+    kv_pairs[kv_pos] = encode_kv_success(success, seq);
+
+    if (kv_pairs[kv_pos] == NULL) {
+        fprintf(stderr, "FATAL: Unable to allocate KV SUCCESS pair\n");
+        free(kv_pairs);
+        return -1;
+    }
+
+    kv_pos++;
+
+    if (msg != NULL) {
+        kv_pairs[kv_pos] = 
+            encode_kv_message(msg, success ? MSGFLAG_INFO : MSGFLAG_ERROR);
+        if (kv_pairs[kv_pos] == NULL) {
+            fprintf(stderr, "FATAL: Unable to allocate KV MESSAGE pair\n");
+            for (i = 0; i < kv_pos; i++) {
+                free(kv_pairs[i]);
+            }
+            free(kv_pairs);
+            return -1;
+        }
+        kv_pos++;
+    }
+
+    if (len != 0) {
+        kv_pairs[kv_pos] =
+            encode_kv_interfacelist(interfaces, flags, len);
+        if (kv_pairs[kv_pos] == NULL) {
+            fprintf(stderr, "FATAL: Unable to allocate KV MESSAGE pair\n");
+            for (i = 0; i < kv_pos; i++) {
+                free(kv_pairs[i]);
+            }
+            free(kv_pairs);
+            return -1;
+        }
+        kv_pos++;
+    }
+
+
+    return cf_stream_packet(caph, "LISTRESP", kv_pairs, kv_pos);
 }
 
