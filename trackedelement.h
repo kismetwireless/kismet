@@ -1007,7 +1007,7 @@ class tracker_component : public TrackerElement {
 // Only proxy a Set function for overload
 #define __ProxySet(name, ptype, stype, cvar) \
     virtual void set_##name(stype in) { \
-        cvar->set((stype) in); \
+        cvar->set((ptype) in); \
     } 
 
 // Proxy increment and decrement functions
