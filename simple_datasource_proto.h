@@ -96,8 +96,42 @@ typedef struct simple_cap_proto_success_value simple_cap_proto_success_t;
 /* Adler32 checksum */
 uint32_t adler32_csum(uint8_t *in_buffer, size_t in_len);
 
-/* Encode a KV list */
-simple_cap_proto_t *encode_simple_cap_proto(char *in_type, uint32_t in_seqno,
+/* Incremental adler32; to compute a checksum over multiple chunks, the caller
+ * must preserve s1 and s2 and provide them to each incremental call.
+ * The first call must set s1 and s2 to 0.
+ */
+uint32_t adler32_partial_csum(uint8_t *in_buf, size_t in_len,
+        uint32_t *s1, uint32_t *s2); 
+
+/* Encode a KV list into a packet; DOES NOT free any supplied data, and performs a
+ * memcpy of all the data into a single record.
+ *
+ * For more efficient methods with fewer memcpy operations, look at
+ * encode_simple_cap_proto_header(..)
+ *
+ * Returns:
+ * Pointer to data
+ * NULL on failure
+ */
+simple_cap_proto_t *encode_simple_cap_proto(const char *in_type, uint32_t in_seqno,
+        simple_cap_proto_kv_t **in_kv_list, unsigned int in_kv_len);
+
+/* Encode a KV list into a packet *header*.  This allocates *only a buffer for the
+ * packet header*, and does not memcpy any data.
+ *
+ * The total size of the packet is returned in ret_sz.  The returned buffer is the
+ * size of *a header only*
+ *
+ * This function should be used to prepare a packet for writing to a streaming
+ * buffer - the caller can prepare the packet header and then write the streaming
+ * content out itself rather than cause a full memcpy of the entire frame.
+ *
+ * Returns:
+ * Pointer to data
+ * NULL on failure
+ */
+simple_cap_proto_t *encode_simple_cap_proto_hdr(size_t *ret_sz, 
+        const char *in_type, uint32_t in_seqno,
         simple_cap_proto_kv_t **in_kv_list, unsigned int in_kv_len);
 
 /* Encode raw data into a kv pair.  Copies provided data, and DOES NOT free or

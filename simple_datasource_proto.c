@@ -28,25 +28,33 @@
 // And use our resizing buffer code
 #include "msgpuck_buffer.h"
 
-uint32_t adler32_csum(uint8_t *in_buf, size_t in_len) {
+uint32_t adler32_partial_csum(uint8_t *in_buf, size_t in_len,
+        uint32_t *s1, uint32_t *s2) {
 	size_t i;
-	uint32_t s1, s2;
 	uint8_t *buf = in_buf;
 	int CHAR_OFFSET = 0;
 
-	s1 = s2 = 0;
 	for (i = 0; i < (in_len - 4); i += 4) {
-		s2 += 4 * (s1 + buf[i]) + 3 * buf[i + 1] + 2 * buf[i+2] + buf[i + 3] + 
-			10 * CHAR_OFFSET;
-		s1 += (buf[i + 0] + buf[i + 1] + buf[i + 2] + buf[i + 3] + 4 * CHAR_OFFSET); 
+		*s2 += 4 * (*s1 + buf[i]) + 3 * buf[i + 1] + 2 * buf[i+2] + buf[i + 3] + 
+            10 * CHAR_OFFSET;
+        *s1 += (buf[i + 0] + buf[i + 1] + buf[i + 2] + buf[i + 3] + 4 * CHAR_OFFSET); 
 	}
 
 	for (; i < in_len; i++) {
-		s1 += (buf[i] + CHAR_OFFSET); 
-        s2 += s1;
+		*s1 += (buf[i] + CHAR_OFFSET); 
+        *s2 += *s1;
 	}
 
-	return (s1 & 0xffff) + (s2 << 16);
+	return (*s1 & 0xffff) + (*s2 << 16);
+}
+
+uint32_t adler32_csum(uint8_t *in_buf, size_t in_len) {
+    uint32_t s1, s2;
+
+    s1 = 0;
+    s2 = 0;
+
+    return adler32_partial_csum(in_buf, in_len, &s1, &s2);
 }
 
 simple_cap_proto_kv_t *encode_simple_cap_proto_kv(const char *in_key, uint8_t *in_obj,
@@ -65,7 +73,7 @@ simple_cap_proto_kv_t *encode_simple_cap_proto_kv(const char *in_key, uint8_t *i
     return kv;
 }
 
-simple_cap_proto_t *encode_simple_cap_proto(char *in_type, uint32_t in_seqno,
+simple_cap_proto_t *encode_simple_cap_proto(const char *in_type, uint32_t in_seqno,
         simple_cap_proto_kv_t **in_kv_list, unsigned int in_kv_len) {
     simple_cap_proto_t *cp;
     simple_cap_proto_kv_t *kv;
@@ -76,7 +84,7 @@ simple_cap_proto_t *encode_simple_cap_proto(char *in_type, uint32_t in_seqno,
 
     for (x = 0; x < in_kv_len; x++) {
         kv = in_kv_list[x];
-        sz += sizeof(simple_cap_proto_t) + kv->header.obj_sz;
+        sz += sizeof(simple_cap_proto_t) + ntohl(kv->header.obj_sz);
     }
 
     cp = (simple_cap_proto_t *) malloc(sz);
@@ -93,12 +101,62 @@ simple_cap_proto_t *encode_simple_cap_proto(char *in_type, uint32_t in_seqno,
 
     for (x = 0; x < in_kv_len; x++) {
         kv = in_kv_list[x];
-        memcpy(cp->data + offt, kv, sizeof(simple_cap_proto_kv_t) + kv->header.obj_sz);
-        offt += sizeof(simple_cap_proto_kv_t) + kv->header.obj_sz;
+        memcpy(cp->data + offt, kv, sizeof(simple_cap_proto_kv_t) + 
+                ntohl(kv->header.obj_sz));
+        offt += sizeof(simple_cap_proto_kv_t) + ntohl(kv->header.obj_sz);
     }
 
     csum = adler32_csum((uint8_t *) cp, sz);
     cp->checksum = htonl(csum);
+
+    return cp;
+}
+
+simple_cap_proto_t *encode_simple_cap_proto_hdr(size_t *ret_sz, 
+        const char *in_type, uint32_t in_seqno,
+        simple_cap_proto_kv_t **in_kv_list, unsigned int in_kv_len) {
+    simple_cap_proto_t *cp;
+    simple_cap_proto_kv_t *kv;
+    unsigned int x;
+    size_t sz = sizeof(simple_cap_proto_t);
+
+    uint32_t csum;
+    uint32_t csum_s1 = 0;
+    uint32_t csum_s2 = 0;
+
+    /* measure the size */
+    for (x = 0; x < in_kv_len; x++) {
+        kv = in_kv_list[x];
+        sz += sizeof(simple_cap_proto_t) + ntohl(kv->header.obj_sz);
+    }
+
+    /* allocate just the header */
+    cp = (simple_cap_proto_t *) malloc(sizeof(simple_cap_proto_t));
+
+    if (cp == NULL)
+        return NULL;
+
+    cp->signature = htonl(KIS_CAP_SIMPLE_PROTO_SIG);
+    cp->checksum = 0;
+    cp->sequence_number = htonl(in_seqno);
+    snprintf(cp->type, 16, "%16s", in_type);
+    cp->packet_sz = htonl((uint32_t) sz);
+    cp->num_kv_pairs = htonl(in_kv_len);
+
+    /* calculate the incremental checksum */
+    adler32_partial_csum((uint8_t *) cp, sizeof(simple_cap_proto_t), &csum_s1, &csum_s2);
+
+    /* Checksum the KVs */
+    for (x = 0; x < in_kv_len; x++) {
+        kv = in_kv_list[x];
+        csum = adler32_partial_csum((uint8_t *) kv, ntohl(kv->header.obj_sz), 
+                &csum_s1, &csum_s2);
+    }
+
+    /* Set the total checksum */
+    cp->checksum = htonl(csum);
+
+    *ret_sz = sz;
 
     return cp;
 }
@@ -575,7 +633,6 @@ simple_cap_proto_kv_t *encode_kv_message(const char *message, unsigned int flags
     mp_b_free_buffer(puckbuffer);
 
     return kv;
-
 }
 
 int validate_simple_cap_proto(simple_cap_proto_t *in_packet) {
