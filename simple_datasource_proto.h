@@ -93,6 +93,9 @@ struct simple_cap_proto_success_value {
 } __attribute__((packed));
 typedef struct simple_cap_proto_success_value simple_cap_proto_success_t;
 
+/* Adler32 checksum */
+uint32_t adler32_csum(uint8_t *in_buffer, size_t in_len);
+
 /* Encode a KV list */
 simple_cap_proto_t *encode_simple_cap_proto(char *in_type, uint32_t in_seqno,
         simple_cap_proto_kv_t **in_kv_list, unsigned int in_kv_len);
@@ -177,6 +180,14 @@ int pack_kv_channels(uint8_t **ret_buffer, uint32_t *ret_sz,
  */
 int pack_kv_chanhop(uint8_t **ret_buffer, uint32_t *ret_sz,
         double rate, const char **channels, size_t len);
+
+/* Validate if a frame passes checksum
+ *
+ * Returns:
+ * -1   Failure
+ *  1   Success
+ */
+int validate_simple_cap_proto(simple_cap_proto_t *in_packet);
 
 
 #endif

@@ -19,13 +19,35 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <arpa/inet.h>
+
 #include "simple_datasource_proto.h"
-#include "endian_magic.h"
 
 // Use alternate simpler msgpack library, msgpuck
 #include "msgpuck.h"
 // And use our resizing buffer code
 #include "msgpuck_buffer.h"
+
+uint32_t adler32_csum(uint8_t *in_buf, size_t in_len) {
+	size_t i;
+	uint32_t s1, s2;
+	uint8_t *buf = in_buf;
+	int CHAR_OFFSET = 0;
+
+	s1 = s2 = 0;
+	for (i = 0; i < (in_len - 4); i += 4) {
+		s2 += 4 * (s1 + buf[i]) + 3 * buf[i + 1] + 2 * buf[i+2] + buf[i + 3] + 
+			10 * CHAR_OFFSET;
+		s1 += (buf[i + 0] + buf[i + 1] + buf[i + 2] + buf[i + 3] + 4 * CHAR_OFFSET); 
+	}
+
+	for (; i < in_len; i++) {
+		s1 += (buf[i] + CHAR_OFFSET); 
+        s2 += s1;
+	}
+
+	return (s1 & 0xffff) + (s2 << 16);
+}
 
 simple_cap_proto_kv_t *encode_simple_cap_proto_kv(char *in_key, uint8_t *in_obj,
         unsigned int in_obj_len) {
@@ -36,7 +58,7 @@ simple_cap_proto_kv_t *encode_simple_cap_proto_kv(char *in_key, uint8_t *in_obj,
         return NULL;
 
     snprintf(kv->header.key, 16, "%16s", in_key);
-    kv->header.obj_sz = kis_hton32(in_obj_len);
+    kv->header.obj_sz = htonl(in_obj_len);
 
     memcpy(kv->object, in_obj, in_obj_len);
 
@@ -62,12 +84,12 @@ simple_cap_proto_t *encode_simple_cap_proto(char *in_type, uint32_t in_seqno,
     if (cp == NULL)
         return NULL;
 
-    cp->signature = kis_hton32(KIS_CAP_SIMPLE_PROTO_SIG);
+    cp->signature = htonl(KIS_CAP_SIMPLE_PROTO_SIG);
     cp->checksum = 0;
-    cp->sequence_number = kis_hton32(in_seqno);
+    cp->sequence_number = htonl(in_seqno);
     snprintf(cp->type, 16, "%16s", in_type);
-    cp->packet_sz = kis_hton32((uint32_t) sz);
-    cp->num_kv_pairs = kis_hton32(in_kv_len);
+    cp->packet_sz = htonl((uint32_t) sz);
+    cp->num_kv_pairs = htonl(in_kv_len);
 
     for (x = 0; x < in_kv_len; x++) {
         kv = in_kv_list[x];
@@ -75,8 +97,8 @@ simple_cap_proto_t *encode_simple_cap_proto(char *in_type, uint32_t in_seqno,
         offt += sizeof(simple_cap_proto_kv_t) + kv->header.obj_sz;
     }
 
-    csum = Adler32Checksum((const char *) cp, sz);
-    cp->checksum = kis_hton32(csum);
+    csum = adler32_csum((uint8_t *) cp, sz);
+    cp->checksum = htonl(csum);
 
     return cp;
 }
@@ -419,5 +441,9 @@ int pack_kv_chanhop(uint8_t **ret_buffer, uint32_t *ret_sz,
     *ret_buffer = (uint8_t *) mp_b_extract_buffer(puckbuffer);
 
     return 1;
+}
+
+int validate_simple_cap_proto(simple_cap_proto_t *in_packet) {
+
 }
 
