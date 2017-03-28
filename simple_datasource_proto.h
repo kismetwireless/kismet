@@ -107,95 +107,87 @@ simple_cap_proto_t *encode_simple_cap_proto(char *in_type, uint32_t in_seqno,
  * Pointer on success
  * NULL on failure
  */
-simple_cap_proto_kv_t *encode_simple_cap_proto_kv(char *in_key, uint8_t *in_obj,
+simple_cap_proto_kv_t *encode_simple_cap_proto_kv(const char *in_key, uint8_t *in_obj,
         size_t in_obj_len);
 
 /* Encode a simple success response
- * Buffer is returned in ret_buffer, length in ret_sz
  *
  * Returns:
- * -1   Failure
- *  1   Success
+ * Pointer on success
+ * NULL on failure
  */
-int pack_kv_success(uint8_t **ret_buffer, size_t *ret_sz, unsigned int success,
-        uint32_t sequence);
+simple_cap_proto_kv_t *encode_kv_success(unsigned int success, uint32_t sequence);
 
-/* Encode a packet into a raw KV value suitable for being sent in a PACKET frame.
- * Buffer is returned in ret_buffer, length in ret_sz
+/* Encode a packet into a PACKET KV
+ *
+ * Copies the content of the packet - for faster transmission of packets in a 
+ * high-bandwidth scenario look at stream_packdata(...) in the capture_framework code
  *
  * Returns:
- * -1   Failure
- *  1   Success
+ * Pointer on success
+ * Null on failure
  *
  */
-int pack_kv_capdata(uint8_t **ret_buffer, size_t *ret_sz,
-        struct timeval in_ts, int in_dlt, uint32_t in_pack_sz, uint8_t *in_pack);
+simple_cap_proto_kv_t *encode_kv_capdata(struct timeval in_ts, int in_dlt, 
+        uint32_t in_pack_sz, uint8_t *in_pack);
 
-/* Encode a GPS frame into a raw KV suitable for being sent in a PACKET frame 
- * Buffer is returned in ret_buffer, length in ret_sz
+/* Encode a GPS KV
  *
  * Returns:
- * -1   Failure
- *  1   Success
+ * Pointer on success
+ * Null on failure
  */
-int pack_kv_gps(uint8_t **ret_buffer, size_t *ret_sz,
-        double in_lat, double in_lon, double in_alt, double in_speed, double in_heading,
+simple_cap_proto_kv_t *encode_kv_gps(double in_lat, double in_lon, double in_alt, 
+        double in_speed, double in_heading,
         double in_precision, int in_fix, time_t in_time, 
         char *in_gps_type, char *in_gps_name);
 
-/* Encode a signal record
- * Buffer is returned in ret_buffer, length in ret_sz
+/* Encode a SIGNAL KV
  *
  * returns:
- * -1   Failure
- *  1   Success
+ * Pointer on success
+ * Null on failure
  *
  */
-int pack_kv_signal(uint8_t **ret_buffer, size_t *ret_sz,
-        uint32_t signal_dbm, uint32_t signal_rssi, uint32_t noise_dbm,
-        uint32_t noise_rssi, double freq_khz, char *channel, double datarate);
+simple_cap_proto_kv_t *encode_kv_signal(uint32_t signal_dbm, uint32_t signal_rssi, 
+        uint32_t noise_dbm, uint32_t noise_rssi, double freq_khz, char *channel, 
+        double datarate);
 
-/* Encode a list response frame into a raw KV suitable for being sent int a 
- * LISTRESP frame.  
- * Buffer is returned in ret_buffer, length in ret_sz
+/* Encode an INTERFACELIST KV 
  *
  * Interfaces and Options are expected to be of identical lengths; if an 
  * interface has no corresponding OPTIONS element, it should have a NULL in
  * that slot.
  *
  * Returns:
- * -1   Failure
- *  1   Success
+ * Pointer on success
+ * Null on failure
  *
  */
-int pack_kv_interfacelist(uint8_t **ret_buffer, size_t *ret_sz,
-        const char **interfaces, const char **options, size_t len);
+simple_cap_proto_kv_t *encode_kv_interfacelist(const char **interfaces, 
+        const char **options, size_t len);
 
 /* Encode a list of channels into a raw KV
- * Buffer is returned in ret_buffer, length in ret_sz
  *
  * Channels are arbitrary strings.
  *
  * Returns:
- * -1   Failure
- *  1   Success
+ * Pointer on success
+ * Null on failure
  *
  */
-int pack_kv_channels(uint8_t **ret_buffer, size_t *ret_sz,
-        const char **channels, size_t len);
+simple_cap_proto_kv_t *encode_kv_channels(const char **channels, size_t len);
 
-/* Encode a channel hop record
- * Buffer is returned in ret_buffer, length in ret_sz
+/* Encode a CHANHOP KV pair
  *
  * Channels are arbitrary strings
  *
  * Returns:
- * -1   Failure
- *  1   Success
+ * Pointer on success
+ * Null on failure
  *
  */
-int pack_kv_chanhop(uint8_t **ret_buffer, size_t *ret_sz,
-        double rate, const char **channels, size_t len);
+simple_cap_proto_kv_t *encode_kv_chanhop(double rate, const char **channels, size_t len);
 
 #define MSGFLAG_NONE    0
 #define MSGFLAG_DEBUG   1
@@ -203,16 +195,15 @@ int pack_kv_chanhop(uint8_t **ret_buffer, size_t *ret_sz,
 #define MSGFLAG_ERROR   4
 #define MSGFLAG_ALERT   8
 #define MSGFLAG_FATAL   16
-/* Encode a message KV pair
+/* Encode a MESSAGE KV pair
  * Buffer is returned in ret_buffer, length in ret_sz
  *
  * Returns:
- * -1   Failure
- *  1   Success
+ * Pointer on success
+ * Null on failure
  *
  */
-int pack_kv_message(uint8_t **ret_buffer, size_t *ret_sz,
-        const char *message, unsigned int flags);
+simple_cap_proto_kv_t *encode_kv_message(const char *message, unsigned int flags);
 
 /* Validate if a frame passes checksum
  *
