@@ -180,6 +180,24 @@ simple_cap_proto_kv_t *encode_kv_success(unsigned int success, uint32_t sequence
     return kv;
 }
 
+simple_cap_proto_kv_t *encode_kv_chanset(const char *channel) {
+    simple_cap_proto_kv_t *kv;
+
+    size_t content_sz = strlen(channel);
+
+    kv = (simple_cap_proto_kv_t *) malloc(sizeof(simple_cap_proto_kv_t) + content_sz);
+
+    if (kv == NULL)
+        return NULL;
+
+    snprintf(kv->header.key, 16, "%16s", "SUCCESS");
+    kv->header.obj_sz = htonl(content_sz);
+
+    memcpy(&(kv->object), channel, content_sz);
+
+    return kv;
+}
+
 simple_cap_proto_kv_t *encode_kv_capdata(struct timeval in_ts, int in_dlt, 
         uint32_t in_pack_sz, uint8_t *in_pack) {
 
