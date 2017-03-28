@@ -36,7 +36,7 @@ public:
         set_int_source_ipc_binary("kismet_cap_pcapfile");
     }
 
-    virtual ~KisDatasourcePcapfile();
+    virtual ~KisDatasourcePcapfile() { };
 
     // Almost all of the logic is implemented in the capture binary and derived
     // from our prototype; all the list, probe, etc functions proxy to our binary
@@ -58,6 +58,13 @@ public:
     DatasourcePcapfileBuilder(GlobalRegistry *in_globalreg, int in_id,
         SharedTrackerElement e) :
         KisDatasourceBuilder(in_globalreg, in_id, e) {
+
+        register_fields();
+        reserve_fields(NULL);
+    }
+
+    DatasourcePcapfileBuilder(GlobalRegistry *in_globalreg) :
+        KisDatasourceBuilder(in_globalreg, 0) {
 
         register_fields();
         reserve_fields(NULL);
