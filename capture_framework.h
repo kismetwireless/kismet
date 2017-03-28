@@ -172,5 +172,15 @@ int cf_stream_packet(kis_capture_handler_t *caph, const char *packtype,
 int cf_send_listresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int success,
         const char *msg, const char **interfaces, const char **flags, size_t len);
 
+/* Send a PROBERESP response
+ * Call be called from any thread
+ *
+ * Returns:
+ * -1   An error occurred while probing
+ *  1   Success
+ */
+int cf_send_proberesp(kis_capture_handler_t *caph, uint32_t seq, unsigned int success,
+        const char *msg, const char *chanset, const char **channels, size_t channels_len);
+
 #endif
 

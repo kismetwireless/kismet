@@ -205,15 +205,34 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
         return -1;
     }
 
-    // Peek our ring buffer
+    /* Peek our ring buffer */
     if (kis_simple_ringbuf_peek(caph->in_ringbuf, frame_buf, packet_sz) != packet_sz) {
         fprintf(stderr, "FATAL: Failed to read packet from ringbuf\n");
         free(frame_buf);
         return -1;
     }
 
-    // Clear it out from the buffer
+    /* Clear it out from the buffer */
     kis_simple_ringbuf_read(caph->in_ringbuf, NULL, packet_sz);
+
+    cap_proto_frame = (simple_cap_proto_t *) frame_buf;
+
+    /* Validate it */
+    if (!validate_simple_cap_proto(cap_proto_frame)) {
+        fprintf(stderr, "FATAL:  Invalid control frame\n");
+        free(frame_buf);
+        return -1;
+    }
+
+    if (strncasecmp(cap_proto_frame->type, "LISTINTERFACES", 16)) {
+        fprintf(stderr, "DEBUG - Got LISTINTERFACES request\n");
+        cf_send_listresp(caph, ntohl(cap_proto_frame->sequence_number),
+                false, "We don't support listing", NULL, NULL, 0);
+    } else if (strncasecmp(cap_proto_frame->type, "PROBEDEVICE", 16)) {
+        fprintf(stderr, "DEBUG - Got PROBEDEVICE request\n");
+        cf_send_proberesp(caph, ntohl(cap_proto_frame->sequence_number),
+                false, "We don't support probing", NULL, NULL, 0);
+    }
 
     return -1;
 }
@@ -491,3 +510,80 @@ int cf_send_listresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
     return cf_stream_packet(caph, "LISTRESP", kv_pairs, kv_pos);
 }
 
+int cf_send_proberesp(kis_capture_handler_t *caph, uint32_t seq, unsigned int success,
+        const char *msg, const char *chanset, const char **channels, 
+        size_t channels_len) {
+    /* How many KV pairs are we allocating?  1 for success for sure */
+    size_t num_kvs = 1;
+
+    size_t kv_pos = 0;
+    size_t i = 0;
+
+    /* Actual KV pairs we encode into the packet */
+    simple_cap_proto_kv_t **kv_pairs;
+
+    if (msg != NULL)
+        num_kvs++;
+
+    if (chanset != NULL)
+        num_kvs++;
+
+    if (channels_len != 0)
+        num_kvs++;
+
+    kv_pairs = 
+        (simple_cap_proto_kv_t **) malloc(sizeof(simple_cap_proto_kv_t *) * num_kvs);
+
+    kv_pairs[kv_pos] = encode_kv_success(success, seq);
+
+    if (kv_pairs[kv_pos] == NULL) {
+        fprintf(stderr, "FATAL: Unable to allocate KV SUCCESS pair\n");
+        free(kv_pairs);
+        return -1;
+    }
+
+    kv_pos++;
+
+    if (msg != NULL) {
+        kv_pairs[kv_pos] = 
+            encode_kv_message(msg, success ? MSGFLAG_INFO : MSGFLAG_ERROR);
+        if (kv_pairs[kv_pos] == NULL) {
+            fprintf(stderr, "FATAL: Unable to allocate KV MESSAGE pair\n");
+            for (i = 0; i < kv_pos; i++) {
+                free(kv_pairs[i]);
+            }
+            free(kv_pairs);
+            return -1;
+        }
+        kv_pos++;
+    }
+
+    if (chanset != 0) {
+        kv_pairs[kv_pos] = encode_kv_chanset(chanset);
+        if (kv_pairs[kv_pos] == NULL) {
+            fprintf(stderr, "FATAL: Unable to allocate KV CHANSET pair\n");
+            for (i = 0; i < kv_pos; i++) {
+                free(kv_pairs[i]);
+            }
+            free(kv_pairs);
+            return -1;
+        }
+        kv_pos++;
+    }
+
+    if (channels_len != 0) {
+        kv_pairs[kv_pos] = encode_kv_channels(channels, channels_len);
+        if (kv_pairs[kv_pos] == NULL) {
+            fprintf(stderr, "FATAL: Unable to allocate KV CHANNELS pair\n");
+            for (i = 0; i < kv_pos; i++) {
+                free(kv_pairs[i]);
+            }
+            free(kv_pairs);
+            return -1;
+        }
+        kv_pos++;
+    }
+
+
+    return cf_stream_packet(caph, "PROBERESP", kv_pairs, kv_pos);
+}
