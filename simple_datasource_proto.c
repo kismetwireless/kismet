@@ -50,7 +50,7 @@ uint32_t adler32_csum(uint8_t *in_buf, size_t in_len) {
 }
 
 simple_cap_proto_kv_t *encode_simple_cap_proto_kv(char *in_key, uint8_t *in_obj,
-        unsigned int in_obj_len) {
+        size_t in_obj_len) {
     simple_cap_proto_kv_t *kv;
 
     kv = (simple_cap_proto_kv_t *) malloc(sizeof(simple_cap_proto_kv_t) + in_obj_len);
@@ -103,7 +103,24 @@ simple_cap_proto_t *encode_simple_cap_proto(char *in_type, uint32_t in_seqno,
     return cp;
 }
 
-int pack_kv_capdata(uint8_t **ret_buffer, uint32_t *ret_sz,
+int pack_kv_success(uint8_t **ret_buffer, size_t *ret_sz, unsigned int success,
+        uint32_t sequence) {
+    *ret_buffer = (uint8_t *) malloc(sizeof(simple_cap_proto_success_t));
+
+    if (*ret_buffer == NULL) {
+        *ret_sz = 0;
+        return -1;
+    }
+
+    ((simple_cap_proto_success_t *) *ret_buffer)->success = success;
+    ((simple_cap_proto_success_t *) *ret_buffer)->sequence_number = htonl(sequence);
+
+    *ret_sz = sizeof(simple_cap_proto_success_t);
+
+    return 1;
+}
+
+int pack_kv_capdata(uint8_t **ret_buffer, size_t *ret_sz,
         struct timeval in_ts, int in_dlt, uint32_t in_pack_sz, uint8_t *in_pack) {
 
     const char *key_tv_sec = "tv_sec";
@@ -146,7 +163,7 @@ int pack_kv_capdata(uint8_t **ret_buffer, uint32_t *ret_sz,
     return 1;
 }
 
-int pack_kv_gps(uint8_t **ret_buffer, uint32_t *ret_sz,
+int pack_kv_gps(uint8_t **ret_buffer, size_t *ret_sz,
         double in_lat, double in_lon, double in_alt, double in_speed, double in_heading,
         double in_precision, int in_fix, time_t in_time, 
         char *in_gps_type, char *in_gps_name) {
@@ -218,7 +235,7 @@ int pack_kv_gps(uint8_t **ret_buffer, uint32_t *ret_sz,
     return 1;
 }
 
-int pack_kv_signal(uint8_t **ret_buffer, uint32_t *ret_sz,
+int pack_kv_signal(uint8_t **ret_buffer, size_t *ret_sz,
         uint32_t signal_dbm, uint32_t signal_rssi, uint32_t noise_dbm,
         uint32_t noise_rssi, double freq_khz, char *channel, double datarate) {
 
@@ -311,7 +328,7 @@ int pack_kv_signal(uint8_t **ret_buffer, uint32_t *ret_sz,
     return 1;
 }
 
-int pack_kv_interfacelist(uint8_t **ret_buffer, uint32_t *ret_sz,
+int pack_kv_interfacelist(uint8_t **ret_buffer, size_t *ret_sz,
         const char **interfaces, const char **options, size_t len) {
 
     const char *key_interface = "interface";
@@ -363,7 +380,7 @@ int pack_kv_interfacelist(uint8_t **ret_buffer, uint32_t *ret_sz,
     return 1;
 }
 
-int pack_kv_channels(uint8_t **ret_buffer, uint32_t *ret_sz,
+int pack_kv_channels(uint8_t **ret_buffer, size_t *ret_sz,
         const char **channels, size_t len) {
 
     /* Channels are packed into a dictionary in case we need to pack additional
@@ -404,7 +421,7 @@ int pack_kv_channels(uint8_t **ret_buffer, uint32_t *ret_sz,
     return 1;
 }
 
-int pack_kv_chanhop(uint8_t **ret_buffer, uint32_t *ret_sz,
+int pack_kv_chanhop(uint8_t **ret_buffer, size_t *ret_sz,
         double rate, const char **channels, size_t len) {
 
     const char *key_channels = "channels";
@@ -443,7 +460,7 @@ int pack_kv_chanhop(uint8_t **ret_buffer, uint32_t *ret_sz,
     return 1;
 }
 
-int pack_kv_message(uint8_t **ret_buffer, uint32_t *ret_sz,
+int pack_kv_message(uint8_t **ret_buffer, size_t *ret_sz,
         const char *message, unsigned int flags) {
 
     const char *key_message = "msg";
