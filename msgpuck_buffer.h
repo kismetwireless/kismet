@@ -41,148 +41,35 @@ struct msgpuck_buffer {
 typedef struct msgpuck_buffer msgpuck_buffer_t;
 
 /* Create a buffer; return NULL if unable to allocate */
-msgpuck_buffer_t *mp_b_create_buffer(size_t initial_sz) {
-    msgpuck_buffer_t *ret = (msgpuck_buffer_t *) malloc(sizeof(msgpuck_buffer_t));
-
-    if (ret == NULL)
-        return NULL;
-
-    ret->buffer = (char *) malloc(initial_sz);
-
-    if (ret->buffer == NULL) {
-        free(ret);
-        return NULL;
-    }
-
-    ret->buffer_write = ret->buffer;
-    ret->buffer_len = initial_sz;
-
-    return ret;
-}
+msgpuck_buffer_t *mp_b_create_buffer(size_t initial_sz);
 
 /* Allocated size */
-size_t mp_b_sizeof_buffer(msgpuck_buffer_t *buf) {
-    return buf->buffer_len;
-}
+size_t mp_b_sizeof_buffer(msgpuck_buffer_t *buf);
 
 /* Used */
-size_t mp_b_used_buffer(msgpuck_buffer_t *buf) {
-    return (buf->buffer_write - buf->buffer);
-}
+size_t mp_b_used_buffer(msgpuck_buffer_t *buf);
 
 /* Available size */
-size_t mp_b_available_buffer(msgpuck_buffer_t *buf) {
-    return buf->buffer_len - (buf->buffer_write - buf->buffer);
-}
+size_t mp_b_available_buffer(msgpuck_buffer_t *buf);
 
 /* Free a buffer *and contents* */
-void mp_b_free_buffer(msgpuck_buffer_t *buf) {
-    free(buf->buffer);
-    free(buf);
-}
+void mp_b_free_buffer(msgpuck_buffer_t *buf);
 
 /* Free a buffer *returning contents which are not freed* */
-char *mp_b_extract_buffer(msgpuck_buffer_t *buf) {
-    char *ret = buf->buffer;
-    free(buf);
-    return ret;
-}
+char *mp_b_extract_buffer(msgpuck_buffer_t *buf);
 
 /* Double the size of a buffer and copy the contents to the new array */
-int mp_b_zoom_buffer(msgpuck_buffer_t *buf) {
-    /* Double the size of the buffer so we don't keep doing micro-allocs and copies
-     * If our buffer is somehow 0, make it a semi-arbitrary 32 bytes (and then 
-     * double it) because otherwise we'll never grow */
-    size_t bufsz = buf->buffer_len;
-
-    if (bufsz == 0)
-        bufsz = 32;
-
-    char *newbuf = (char *) malloc(bufsz * 2);
-
-    if (newbuf == NULL)
-        return -1;
-
-    size_t sz = mp_b_sizeof_buffer(buf);
-
-    // Copy
-    memcpy(newbuf, buf->buffer, sz);
-
-    // Swap
-    free(buf->buffer);
-    buf->buffer = newbuf;
-
-    // Advance the write pointer
-    buf->buffer_write = newbuf + sz;
-
-    return 1;
-}
+int mp_b_zoom_buffer(msgpuck_buffer_t *buf);
 
 /* Duplicates of the msgpuck encode functions, but with length checking */
-
-int mp_b_encode_array(msgpuck_buffer_t *buf, uint32_t size) {
-    if (mp_b_available_buffer(buf) < mp_sizeof_array(size)) 
-        if (mp_b_zoom_buffer(buf) < 0)
-            return -1;
-    buf->buffer_write = mp_encode_array(buf->buffer_write, size);
-    return 1;
-}
-
-int mp_b_encode_map(msgpuck_buffer_t *buf, uint32_t size) {
-    if (mp_b_available_buffer(buf) < mp_sizeof_map(size)) 
-        if (mp_b_zoom_buffer(buf) < 0)
-            return -1;
-    buf->buffer_write = mp_encode_map(buf->buffer_write, size);
-    return 1;
-}
-
-int mp_b_encode_uint(msgpuck_buffer_t *buf, uint32_t size) {
-    if (mp_b_available_buffer(buf) < mp_sizeof_uint(size)) 
-        if (mp_b_zoom_buffer(buf) < 0)
-            return -1;
-    buf->buffer_write = mp_encode_uint(buf->buffer_write, size);
-    return 1;
-}
-
-int mp_b_encode_int(msgpuck_buffer_t *buf, uint32_t size) {
-    if (mp_b_available_buffer(buf) < mp_sizeof_int(size)) 
-        if (mp_b_zoom_buffer(buf) < 0)
-            return -1;
-    buf->buffer_write = mp_encode_int(buf->buffer_write, size);
-    return 1;
-}
-
-int mp_b_encode_float(msgpuck_buffer_t *buf, uint32_t size) {
-    if (mp_b_available_buffer(buf) < mp_sizeof_float(size)) 
-        if (mp_b_zoom_buffer(buf) < 0)
-            return -1;
-    buf->buffer_write = mp_encode_float(buf->buffer_write, size);
-    return 1;
-}
-
-int mp_b_encode_double(msgpuck_buffer_t *buf, uint32_t size) {
-    if (mp_b_available_buffer(buf) < mp_sizeof_double(size)) 
-        if (mp_b_zoom_buffer(buf) < 0)
-            return -1;
-    buf->buffer_write = mp_encode_double(buf->buffer_write, size);
-    return 1;
-}
-
-int mp_b_encode_str(msgpuck_buffer_t *buf, const char *str, uint32_t size) {
-    if (mp_b_available_buffer(buf) < mp_sizeof_str(size)) 
-        if (mp_b_zoom_buffer(buf) < 0)
-            return -1;
-    buf->buffer_write = mp_encode_str(buf->buffer_write, str, size);
-    return 1;
-}
-
-int mp_b_encode_bin(msgpuck_buffer_t *buf, const char *str, uint32_t size) {
-    if (mp_b_available_buffer(buf) < mp_sizeof_bin(size)) 
-        if (mp_b_zoom_buffer(buf) < 0)
-            return -1;
-    buf->buffer_write = mp_encode_bin(buf->buffer_write, str, size);
-    return 1;
-}
+int mp_b_encode_array(msgpuck_buffer_t *buf, uint32_t size);
+int mp_b_encode_map(msgpuck_buffer_t *buf, uint32_t size);
+int mp_b_encode_uint(msgpuck_buffer_t *buf, uint32_t size);
+int mp_b_encode_int(msgpuck_buffer_t *buf, uint32_t size);
+int mp_b_encode_float(msgpuck_buffer_t *buf, uint32_t size);
+int mp_b_encode_double(msgpuck_buffer_t *buf, uint32_t size);
+int mp_b_encode_str(msgpuck_buffer_t *buf, const char *str, uint32_t size);
+int mp_b_encode_bin(msgpuck_buffer_t *buf, const char *str, uint32_t size);
 
 #endif
 
