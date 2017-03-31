@@ -73,9 +73,9 @@ simple_cap_proto_kv_t *encode_simple_cap_proto_kv(const char *in_key, uint8_t *i
     return kv;
 }
 
-simple_cap_proto_t *encode_simple_cap_proto(const char *in_type, uint32_t in_seqno,
+simple_cap_proto_frame_t *encode_simple_cap_proto(const char *in_type, uint32_t in_seqno,
         simple_cap_proto_kv_t **in_kv_list, unsigned int in_kv_len) {
-    simple_cap_proto_t *cp;
+    simple_cap_proto_frame_t *cp;
     simple_cap_proto_kv_t *kv;
     unsigned int x;
     size_t sz = sizeof(simple_cap_proto_t);
@@ -84,20 +84,20 @@ simple_cap_proto_t *encode_simple_cap_proto(const char *in_type, uint32_t in_seq
 
     for (x = 0; x < in_kv_len; x++) {
         kv = in_kv_list[x];
-        sz += sizeof(simple_cap_proto_t) + ntohl(kv->header.obj_sz);
+        sz += sizeof(simple_cap_proto_frame_t) + ntohl(kv->header.obj_sz);
     }
 
-    cp = (simple_cap_proto_t *) malloc(sz);
+    cp = (simple_cap_proto_frame_t *) malloc(sz);
 
     if (cp == NULL)
         return NULL;
 
-    cp->signature = htonl(KIS_CAP_SIMPLE_PROTO_SIG);
-    cp->checksum = 0;
-    cp->sequence_number = htonl(in_seqno);
-    snprintf(cp->type, 16, "%16s", in_type);
-    cp->packet_sz = htonl((uint32_t) sz);
-    cp->num_kv_pairs = htonl(in_kv_len);
+    cp->header.signature = htonl(KIS_CAP_SIMPLE_PROTO_SIG);
+    cp->header.checksum = 0;
+    cp->header.sequence_number = htonl(in_seqno);
+    snprintf(cp->header.type, 16, "%16s", in_type);
+    cp->header.packet_sz = htonl((uint32_t) sz);
+    cp->header.num_kv_pairs = htonl(in_kv_len);
 
     for (x = 0; x < in_kv_len; x++) {
         kv = in_kv_list[x];
@@ -107,7 +107,7 @@ simple_cap_proto_t *encode_simple_cap_proto(const char *in_type, uint32_t in_seq
     }
 
     csum = adler32_csum((uint8_t *) cp, sz);
-    cp->checksum = htonl(csum);
+    cp->header.checksum = htonl(csum);
 
     return cp;
 }

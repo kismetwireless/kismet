@@ -58,7 +58,7 @@ typedef struct simple_cap_proto_kv_h simple_cap_proto_kv_h_t;
 struct simple_cap_proto_kv {
     simple_cap_proto_kv_h_t header;
     /* Packed binary representation of value */
-    uint8_t *object;
+    uint8_t object[0];
 } __attribute__((packed));
 typedef struct simple_cap_proto_kv simple_cap_proto_kv_t;
 
@@ -76,10 +76,15 @@ struct simple_cap_proto {
     char type[16];
     /* Number of KV pairs */
     uint32_t num_kv_pairs;
-    /* List of kv pairs */
-    uint8_t *data;
 } __attribute__((packed));
 typedef struct simple_cap_proto simple_cap_proto_t;
+
+struct simple_cap_proto_frame {
+    simple_cap_proto_t header;
+    /* List of kv pairs */
+    uint8_t data[0];
+} __attribute__((packed));
+typedef struct simple_cap_proto_frame simple_cap_proto_frame_t;
 
 /* Basic success object */
 struct simple_cap_proto_success_value {
@@ -113,7 +118,7 @@ uint32_t adler32_partial_csum(uint8_t *in_buf, size_t in_len,
  * Pointer to data
  * NULL on failure
  */
-simple_cap_proto_t *encode_simple_cap_proto(const char *in_type, uint32_t in_seqno,
+simple_cap_proto_frame_t *encode_simple_cap_proto(const char *in_type, uint32_t in_seqno,
         simple_cap_proto_kv_t **in_kv_list, unsigned int in_kv_len);
 
 /* Encode a KV list into a packet *header*.  This allocates *only a buffer for the
