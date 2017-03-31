@@ -63,15 +63,19 @@ int Timetracker::Tick() {
 	globalreg->timestamp.tv_sec = cur_tm.tv_sec;
 	globalreg->timestamp.tv_usec = cur_tm.tv_usec;
     timer_event *evt;
+    int timerid;
 
     for (unsigned int x = 0; x < sorted_timers.size(); x++) {
         evt = sorted_timers[x];
+        timerid = evt->timer_id;
 
         if ((cur_tm.tv_sec < evt->trigger_tm.tv_sec) ||
             ((cur_tm.tv_sec == evt->trigger_tm.tv_sec) && 
 			 (cur_tm.tv_usec < evt->trigger_tm.tv_usec))) {
             return 1;
 		}
+
+        // fprintf(stderr, "debug - triggering timer %d\n", timerid);
 
         // Call the function with the given parameters
         int ret = 0;
@@ -101,7 +105,7 @@ int Timetracker::Tick() {
             stable_sort(sorted_timers.begin(), sorted_timers.end(), 
 						SortTimerEventsTrigger());
         } else {
-            RemoveTimer_nb(evt->timer_id);
+            RemoveTimer_nb(timerid);
         }
 
     }
@@ -256,15 +260,18 @@ int Timetracker::RemoveTimer_nb(int in_timerid) {
 
     if (itr != timer_map.end()) {
         for (unsigned int x = 0; x < sorted_timers.size(); x++) {
-            if (sorted_timers[x]->timer_id == in_timerid)
+            if (sorted_timers[x]->timer_id == in_timerid) {
                 sorted_timers.erase(sorted_timers.begin() + x);
+                break;
+            }
         }
+
+        delete itr->second;
+        timer_map.erase(itr);
 
         // Resort the list
         stable_sort(sorted_timers.begin(), sorted_timers.end(), SortTimerEventsTrigger());
 
-        delete itr->second;
-        timer_map.erase(itr);
         return 1;
     }
 
