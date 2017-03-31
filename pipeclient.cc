@@ -126,12 +126,15 @@ int PipeClient::Poll(fd_set& in_rset, fd_set& in_wset) {
         len = handler->GetReadBufferFree();
         buf = new uint8_t[len];
 
-        if ((ret = read(read_fd, buf, len)) < 0) {
+        if ((ret = read(read_fd, buf, len)) <= 0) {
             if (errno != EINTR && errno != EAGAIN) {
-                msg << "Pipe client error reading - " << kis_strerror_r(errno);
-    
-                // fprintf(stderr, "debug - pipeclient - read fail %s\n", msg.str().c_str());
 
+                if (ret == 0) {
+                    msg << "Pipe client closing - remote side closed pipe";
+                } else {
+                    msg << "Pipe client error reading - " << kis_strerror_r(errno);
+                }
+    
                 delete[] buf;
                 ClosePipes();
                 // Push the error upstream if we failed to read here
