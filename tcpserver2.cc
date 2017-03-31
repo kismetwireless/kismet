@@ -187,11 +187,16 @@ int TcpServerV2::Poll(fd_set& in_rset, fd_set& in_wset) {
             len = i->second->GetReadBufferFree();
             buf = new uint8_t[len];
 
-            if ((ret = read(i->first, buf, len)) < 0) {
+            if ((ret = read(i->first, buf, len)) <= 0) {
                 if (errno != EINTR && errno != EAGAIN) {
                     // Push the error upstream if we failed to read here
-                    msg << "TCP server error reading from client " << i->first << 
-                        " - " << kis_strerror_r(errno);
+                    if (ret == 0) {
+                        msg << "TCP server closing connection from client " << i->first <<
+                            " - connection closed by remote side";
+                    } else {
+                        msg << "TCP server error reading from client " << i->first << 
+                            " - " << kis_strerror_r(errno);
+                    }
                     i->second->BufferError(msg.str());
                     delete[] buf;
                     KillConnection(i->first);
