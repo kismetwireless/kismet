@@ -54,6 +54,8 @@ kis_capture_handler_t *cf_handler_init() {
     pthread_mutex_init(&(ch->out_ringbuf_lock), NULL);
 
     ch->shutdown = 0;
+    ch->spindown = 0;
+
     pthread_mutex_init(&(ch->handler_lock), NULL);
 
     ch->listdevices_cb = NULL;
@@ -65,6 +67,9 @@ kis_capture_handler_t *cf_handler_init() {
 void cf_handler_free(kis_capture_handler_t *caph) {
     if (caph == NULL)
         return;
+
+    pthread_mutex_lock(&(caph->handler_lock));
+    pthread_mutex_lock(&(caph->out_ringbuf_lock));
 
     if (caph->in_fd >= 0)
         close(caph->in_fd);
@@ -86,6 +91,24 @@ void cf_handler_free(kis_capture_handler_t *caph) {
 
     pthread_mutex_destroy(&(caph->out_ringbuf_lock));
     pthread_mutex_destroy(&(caph->handler_lock));
+}
+
+void cf_handler_shutdown(kis_capture_handler_t *caph) {
+    if (caph == NULL)
+        return;
+
+    pthread_mutex_lock(&(caph->handler_lock));
+    caph->shutdown = 1;
+    pthread_mutex_unlock(&(caph->handler_lock));
+}
+
+void cf_handler_spindown(kis_capture_handler_t *caph) {
+    if (caph == NULL)
+        return;
+
+    pthread_mutex_lock(&(caph->handler_lock));
+    caph->spindown = 1;
+    pthread_mutex_unlock(&(caph->handler_lock));
 }
 
 int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]) {
@@ -224,14 +247,22 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
         return -1;
     }
 
-    if (strncasecmp(cap_proto_frame->type, "LISTINTERFACES", 16)) {
+    if (strncasecmp(cap_proto_frame->type, "LISTINTERFACES", 16) == 0) {
         fprintf(stderr, "DEBUG - Got LISTINTERFACES request\n");
         cf_send_listresp(caph, ntohl(cap_proto_frame->sequence_number),
                 false, "We don't support listing", NULL, NULL, 0);
-    } else if (strncasecmp(cap_proto_frame->type, "PROBEDEVICE", 16)) {
+    } else if (strncasecmp(cap_proto_frame->type, "PROBEDEVICE", 16) == 0) {
         fprintf(stderr, "DEBUG - Got PROBEDEVICE request\n");
         cf_send_proberesp(caph, ntohl(cap_proto_frame->sequence_number),
                 false, "We don't support probing", NULL, NULL, 0);
+    } else if (strncasecmp(cap_proto_frame->type, "OPENDEVICE", 16) == 0) {
+        fprintf(stderr, "DEBUG - Got OPENDEVICE request\n");
+        cf_send_proberesp(caph, ntohl(cap_proto_frame->sequence_number),
+                false, "We don't support opening", NULL, NULL, 0);
+    } else {
+        fprintf(stderr, "DEBUG - got unhandled request - '%.16s'\n", cap_proto_frame->type);
+        cf_send_proberesp(caph, ntohl(cap_proto_frame->sequence_number),
+                false, "Unsupported request", NULL, NULL, 0);
     }
 
     return -1;
@@ -242,6 +273,7 @@ void cf_handler_loop(kis_capture_handler_t *caph) {
     int max_fd;
     int read_fd, write_fd;
     struct timeval tm;
+    int spindown;
 
     if (caph->tcp_fd >= 0) {
         read_fd = caph->tcp_fd;
@@ -259,27 +291,44 @@ void cf_handler_loop(kis_capture_handler_t *caph) {
      * and try to make frames; similarly we populate the outbound descriptor from
      * anything that comes in from our IO thread */
     while (1) {
+        FD_ZERO(&rset);
+        FD_ZERO(&wset);
+
+        /* Check shutdown state or if we're spinning down */
         pthread_mutex_lock(&(caph->handler_lock));
+
+        /* Hard shutdown */
         if (caph->shutdown) {
             fprintf(stderr, "FATAL: Shutting down main select loop\n");
+            pthread_mutex_unlock(&(caph->handler_lock));
             break;
         }
+
+        /* Copy spindown state outside of lock */
+        spindown = caph->spindown;
+
         pthread_mutex_unlock(&(caph->handler_lock));
 
-        FD_ZERO(&rset);
-
-        FD_SET(read_fd, &rset);
-        max_fd = read_fd;
-
-        FD_ZERO(&wset);
+        /* Only set read sets if we're not spinning down */
+        if (spindown == 0) {
+            /* Only set rset if we're not spinning down */
+            FD_SET(read_fd, &rset);
+            max_fd = read_fd;
+        }
 
         /* Inspect the write buffer - do we have data? */
         pthread_mutex_lock(&(caph->out_ringbuf_lock));
+
         if (kis_simple_ringbuf_used(caph->out_ringbuf) != 0) {
             FD_SET(write_fd, &wset);
             if (max_fd < write_fd)
                 max_fd = write_fd;
+        } else if (spindown != 0) {
+            fprintf(stderr, "DEBUG - caphandler finished spinning down\n");
+            pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+            break;
         }
+
         pthread_mutex_unlock(&(caph->out_ringbuf_lock));
 
         tm.tv_sec = 0;
@@ -305,7 +354,8 @@ void cf_handler_loop(kis_capture_handler_t *caph) {
              * buffer, if the buffer fills up something has gone wrong anyhow */
 
             if ((amt_read = read(read_fd, rbuf, 1024)) < 0) {
-                if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
+                if (errno != EINTR && errno != EAGAIN) {
+                    /* Bail entirely */
                     fprintf(stderr,
                             "FATAL:  Error during read(): %s\n", strerror(errno));
                     break;
@@ -315,14 +365,19 @@ void cf_handler_loop(kis_capture_handler_t *caph) {
             amt_buffered = kis_simple_ringbuf_write(caph->in_ringbuf, rbuf, amt_read);
 
             if ((ssize_t) amt_buffered != amt_read) {
+                /* Bail entirely - to do, report error if we can over connection */
                 fprintf(stderr,
                         "FATAL:  Error during read(): insufficient buffer space\n");
                 break;
             }
 
+            fprintf(stderr, "debug - capframework - read %lu\n", amt_buffered);
+
             /* See if we have a complete packet to do something with */
-            if (cf_handle_rx_data(caph) < 0)
-                break;
+            if (cf_handle_rx_data(caph) < 0) {
+                /* Enter spindown if processing an incoming packet failed */
+                cf_handler_spindown(caph);
+            }
 
         }
 

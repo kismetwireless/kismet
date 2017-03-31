@@ -58,6 +58,8 @@ typedef struct kis_capture_handler kis_capture_handler_t;
 typedef int (*cf_callback_listdevices)(kis_capture_handler_t *, uint32_t);
 typedef int (*cf_callback_probe)(kis_capture_handler_t *, uint32_t, const char *);
 typedef int (*cf_callback_open)(kis_capture_handler_t *, uint32_t, const char *);
+typedef int (*cf_callback_unknown)(kis_capture_handler_t *, uint32_t, 
+        simple_cap_proto_frame_t *);
 
 struct kis_capture_handler {
     /* Descriptor pair */
@@ -69,6 +71,9 @@ struct kis_capture_handler {
 
     /* TCP connection */
     int tcp_fd;
+
+    /* Die when we hit the end of our write buffer */
+    int spindown;
 
     /* Buffers */
     kis_simple_ringbuf_t *in_ringbuf;
@@ -99,6 +104,22 @@ kis_capture_handler_t *cf_handler_init();
  * Closes any sockets/descriptors and destroys ringbuffers
  */
 void cf_handler_free(kis_capture_handler_t *caph);
+
+/* Shutdown immediately - dies at the start of the next select() loop, regardless
+ * of pending data.
+ *
+ * It is not safe to destroy the capture_handler record until the select() blocking
+ * loop has exited.
+ */
+void cf_handler_shutdown(kis_capture_handler_t *caph);
+
+/* Spindown gracefully - flushes any pending data in the write buffer and then
+ * exits the select() loop.
+ *
+ * It is not safe to destroy the capture_handler record until the select() blocking
+ * loop has exited.
+ */
+void cf_handler_spindown(kis_capture_handler_t *caph);
 
 /* Parse command line options
  *

@@ -75,6 +75,13 @@ int datalink_type;
 int override_dlt;
 
 int main(int argc, char *argv[]) {
+    FILE *sterr;
+
+    sterr = fopen("capture_pcapfile.stderr", "a");
+    dup2(fileno(sterr), STDERR_FILENO);
+
+    fprintf(stderr, "CAPTURE_PCAPFILE launched on pid %d\n", getpid());
+
     kis_capture_handler_t *caph = cf_handler_init();
 
     if (caph == NULL) {

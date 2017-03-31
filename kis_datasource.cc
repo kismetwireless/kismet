@@ -1241,6 +1241,8 @@ bool KisDatasource::write_packet(string in_cmd, KVmap in_kvpairs,
 
     snprintf(proto_hdr.type, 16, "%s", in_cmd.c_str());
 
+    fprintf(stderr, "debug - kds - forming proto hdr type '%.16s'\n", proto_hdr.type);
+
     proto_hdr.num_kv_pairs = kis_hton32(in_kvpairs.size());
 
     // Start calculating the checksum

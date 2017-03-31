@@ -1173,11 +1173,11 @@ int main(int argc, char *argv[], char *envp[]) {
     datasourcetracker->open_datasource("wlan0", [](bool success, string reason) {
             fprintf(stderr, "TESTCODE - wlan0 %u: %s\n", success, reason.c_str());
             });
+            */
     datasourcetracker->open_datasource("test3.pcap:type=pcapfile", 
             [](bool success, string reason) {
             fprintf(stderr, "TESTCODE - test3.pcap %u: %s\n", success, reason.c_str());
             });
-            */
 
     // Core loop
     while (1) {
