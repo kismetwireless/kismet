@@ -191,6 +191,7 @@ int IPCRemoteV2::launch_kis_explicit_binary(string cmdpath, vector<string> args)
         close(inpipepair[1]);
         close(outpipepair[0]);
 
+        fprintf(stderr, "debug - ipcremote2 - exec %s\n", cmdarg[0]);
         execvp(cmdarg[0], cmdarg);
 
         exit(255);
@@ -205,11 +206,11 @@ int IPCRemoteV2::launch_kis_explicit_binary(string cmdpath, vector<string> args)
     pollabletracker->RegisterPollable(pipeclient);
 
     // Read from the child write pair, write to the child read pair
-    pipeclient->OpenPipes(outpipepair[1], inpipepair[0]);
+    pipeclient->OpenPipes(outpipepair[0], inpipepair[1]);
 
     // Close the remote side of the pipes from the parent, they're open in the child
-    close(inpipepair[1]);
-    close(outpipepair[0]);
+    close(inpipepair[0]);
+    close(outpipepair[1]);
 
     binary_path = cmdpath;
     binary_args = args;
@@ -353,6 +354,7 @@ int IPCRemoteV2::soft_kill() {
     if (child_pid <= 0)
         return -1;
 
+    fprintf(stderr, "debug - sending sigterm to %d\n", child_pid);
     return kill(child_pid, SIGTERM);
 }
 
