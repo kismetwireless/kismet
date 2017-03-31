@@ -211,7 +211,14 @@ int FetchSysLoadAvg(uint8_t *in_avgmaj, uint8_t *in_avgmin);
 #endif
 
 // Adler-32 checksum, derived from rsync, adler-32
-uint32_t Adler32Checksum(const char *buf1, int len);
+uint32_t Adler32Checksum(const char *buf1, size_t len);
+
+// Adler-32 incremental checksum, performs a non-contiguous checksum over 
+// multiple records.
+// Caller must set s1 and s2 to 0 for the initial call and provide them for
+// subsequent calls.
+uint32_t Adler32IncrementalChecksum(const char *buf1, size_t len, 
+        uint32_t &s1, uint32_t &s2);
 
 // 802.11 checksum functions, derived from the BBN USRP 802.11 code
 #define IEEE_802_3_CRC32_POLY	0xEDB88320
