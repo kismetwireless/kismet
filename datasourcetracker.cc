@@ -333,7 +333,7 @@ void Datasourcetracker::open_datasource(string in_source,
         type = "auto";
     } else {
         interface = in_source.substr(0, cpos);
-        options = in_source.substr(cpos);
+        options = in_source.substr(cpos + 1, in_source.size() - cpos);
 
         StringToOpts(options, ",", &opt_vec);
 
@@ -360,6 +360,8 @@ void Datasourcetracker::open_datasource(string in_source,
 
         for (auto i = vec.begin(); i != vec.end(); ++i) {
             proto = static_pointer_cast<KisDatasourceBuilder>(*i);
+
+            fprintf(stderr, "debug - dst checking driver %s\n", proto->get_source_type().c_str());
 
             if (StrLower(proto->get_source_type()) == StrLower(type)) {
                 proto_found = true;
