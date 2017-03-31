@@ -55,12 +55,37 @@ KisDatasource::KisDatasource(GlobalRegistry *in_globalreg,
     next_cmd_sequence = rand(); 
 
     error_timer_id = -1;
+
+    mode_probing = false;
+    mode_listing = false;
 }
 
 KisDatasource::~KisDatasource() {
     local_eol_locker lock(&source_lock);
 
-    close_source();
+    // fprintf(stderr, "debug - ~kds() %p\n", this);
+
+    // Cancel any timer
+    if (error_timer_id > 0)
+        timetracker->RemoveTimer(error_timer_id);
+
+    // Delete the ringbuf handler
+    if (ringbuf_handler != NULL) {
+        // fprintf(stderr, "debug - ~kds closing ringbuf down\n");
+        // Remove ourself from getting notifications from the rb
+        ringbuf_handler->RemoveReadBufferInterface();
+        // We're shutting down, issue a protocol error to kill any line-drivers
+        // attached to this buffer
+        ringbuf_handler->ProtocolError();
+        // Lose our local ref
+        ringbuf_handler.reset();
+    } else {
+        // fprintf(stderr, "debug - ~kds null ringbuf\n");
+    }
+
+    // We don't call a normal close here because we can't risk double-free
+    // or going through commands again - if the source is being deleted, it should
+    // be completed!
 
     pthread_mutex_destroy(&source_lock);
 }
@@ -68,6 +93,8 @@ KisDatasource::~KisDatasource() {
 void KisDatasource::list_interfaces(unsigned int in_transaction, 
         list_callback_t in_cb) {
     local_locker lock(&source_lock);
+
+    mode_listing = true;
 
     // If we can't list interfaces according to our prototype, die 
     // and call the cb instantly
@@ -89,6 +116,10 @@ void KisDatasource::list_interfaces(unsigned int in_transaction,
 void KisDatasource::probe_interface(string in_definition, unsigned int in_transaction,
         probe_callback_t in_cb) {
     local_locker lock(&source_lock);
+
+    mode_probing = true;
+
+    set_int_source_definition(in_definition);
     
     // If we can't probe interfaces according to our prototype, die
     // and call the cb instantly
@@ -110,6 +141,8 @@ void KisDatasource::probe_interface(string in_definition, unsigned int in_transa
 void KisDatasource::open_interface(string in_definition, unsigned int in_transaction, 
         open_callback_t in_cb) {
     local_locker lock(&source_lock);
+
+    set_int_source_definition(in_definition);
     
     // If we can't open local interfaces, die
     if (!get_source_builder()->get_local_capable()) {
@@ -217,16 +250,29 @@ void KisDatasource::connect_ringbuffer(shared_ptr<RingbufferHandler> in_ringbuf)
 }
 
 void KisDatasource::close_source() {
+    //fprintf(stderr, "!! debug - kds close_source() %p %lu\n", this, time(0));
     local_locker lock(&source_lock);
 
-    if (error_timer_id > 0)
-        timetracker->RemoveTimer(error_timer_id);
+    // fprintf(stderr, "!!! debug - kds inside close_source\n");
 
+    // Delete the ringbuf handler
+    if (ringbuf_handler != NULL) {
+        // fprintf(stderr, "!!! debug - kds closing ringbuf down\n");
+        // Remove ourself from getting notifications from the rb
+        ringbuf_handler->RemoveReadBufferInterface();
+        // We're shutting down, issue a protocol error to kill any line-drivers
+        // attached to this buffer
+        ringbuf_handler->ProtocolError();
+        // Lose our local ref
+        ringbuf_handler.reset();
+
+        // fprintf(stderr, "!!! debug - ringbuf_handler == NULL %u\n", ringbuf_handler == NULL);
+    }
+
+    // fprintf(stderr, "!!! debug - kds cancelling all commands via close_source()\n");
     cancel_all_commands("Closing source");
 
-    // Common close via ringbuf_handler; will call the IPC or TCP server close
-    if (ringbuf_handler != NULL)
-        ringbuf_handler->CloseHandler("Closing source");
+    //fprintf(stderr, "!! debug - kds close_source() complete %lu\n", time(0));
 }
 
 void KisDatasource::BufferAvailable(size_t in_amt) {
@@ -239,7 +285,7 @@ void KisDatasource::BufferAvailable(size_t in_amt) {
     
     local_locker lock(&source_lock);
     
-    simple_cap_proto_t *frame_header;
+    simple_cap_proto_frame_t *frame;
     uint8_t *buf;
     uint32_t frame_sz;
     uint32_t frame_checksum, calc_checksum;
@@ -252,9 +298,9 @@ void KisDatasource::BufferAvailable(size_t in_amt) {
     buf = new uint8_t[in_amt];
     ringbuf_handler->PeekReadBufferData(buf, in_amt);
 
-    frame_header = (simple_cap_proto_t *) buf;
+    frame = (simple_cap_proto_frame_t *) buf;
 
-    if (kis_ntoh32(frame_header->signature) != KIS_CAP_SIMPLE_PROTO_SIG) {
+    if (kis_ntoh32(frame->header.signature) != KIS_CAP_SIMPLE_PROTO_SIG) {
         delete[] buf;
 
         _MSG("Kismet data source " + get_source_name() + " got an invalid "
@@ -264,7 +310,7 @@ void KisDatasource::BufferAvailable(size_t in_amt) {
         return;
     }
 
-    frame_sz = kis_ntoh32(frame_header->packet_sz);
+    frame_sz = kis_ntoh32(frame->header.packet_sz);
 
     if (frame_sz > in_amt) {
         // Nothing we can do right now, not enough data to make up a complete packet.
@@ -273,10 +319,10 @@ void KisDatasource::BufferAvailable(size_t in_amt) {
     }
 
     // Get the checksum & save it
-    frame_checksum = kis_ntoh32(frame_header->checksum);
+    frame_checksum = kis_ntoh32(frame->header.checksum);
 
     // Zero the checksum field in the packet
-    frame_header->checksum = 0x00000000;
+    frame->header.checksum = 0x00000000;
 
     // Calc the checksum of the rest
     calc_checksum = Adler32Checksum((const char *) buf, frame_sz);
@@ -299,9 +345,9 @@ void KisDatasource::BufferAvailable(size_t in_amt) {
     KVmap kv_map;
 
     ssize_t data_offt = 0;
-    for (unsigned int kvn = 0; kvn < kis_ntoh32(frame_header->num_kv_pairs); kvn++) {
+    for (unsigned int kvn = 0; kvn < kis_ntoh32(frame->header.num_kv_pairs); kvn++) {
         simple_cap_proto_kv *pkv =
-            (simple_cap_proto_kv *) &((frame_header->data)[data_offt]);
+            (simple_cap_proto_kv *) &((frame->data)[data_offt]);
 
         data_offt = 
             sizeof(simple_cap_proto_kv_h_t) +
@@ -314,7 +360,7 @@ void KisDatasource::BufferAvailable(size_t in_amt) {
     }
 
     char ctype[17];
-    snprintf(ctype, 17, "%s", frame_header->type);
+    snprintf(ctype, 17, "%s", frame->header.type);
     proto_dispatch_packet(ctype, kv_map);
 
     for (auto i = kv_map.begin(); i != kv_map.end(); ++i) {
@@ -325,12 +371,18 @@ void KisDatasource::BufferAvailable(size_t in_amt) {
 }
 
 void KisDatasource::BufferError(string in_error) {
+    // fprintf(stderr, "debug - kds - buffererror(%s)\n", in_error.c_str());
     // Simple passthrough to crash the source out from an error at the buffer level
     trigger_error(in_error);
 }
 
 void KisDatasource::trigger_error(string in_error) {
     local_locker lock(&source_lock);
+
+    // fprintf(stderr, "debug - kds triger_error(%s)\n", in_error.c_str());
+
+    // Kill any interaction w/ the source
+    close_source();
 
     stringstream ss;
 
@@ -339,17 +391,10 @@ void KisDatasource::trigger_error(string in_error) {
         in_error;
     _MSG(ss.str(), MSGFLAG_ERROR);
 
-    // Something has gone wrong; we need to cancel all pending commands
-    cancel_all_commands(in_error);
-
-    // And shut down the RB handler, which will kill whatever
-    if (ringbuf_handler != NULL)
-        ringbuf_handler->ErrorHandler(in_error);
+    handle_source_error();
 
     set_int_source_error(true);
     set_int_source_error_reason(in_error);
-
-    handle_source_error();
 }
 
 bool KisDatasource::parse_interface_definition(string in_definition) {
@@ -417,7 +462,7 @@ bool KisDatasource::parse_interface_definition(string in_definition) {
     return true;
 }
 
-KisDatasource::tracked_command *KisDatasource::get_command(uint32_t in_transaction) {
+shared_ptr<KisDatasource::tracked_command> KisDatasource::get_command(uint32_t in_transaction) {
     auto i = command_ack_map.find(in_transaction);
 
     if (i == command_ack_map.end())
@@ -429,36 +474,60 @@ KisDatasource::tracked_command *KisDatasource::get_command(uint32_t in_transacti
 void KisDatasource::cancel_command(uint32_t in_transaction, string in_error) {
     local_locker lock(&source_lock);
 
+    // fprintf(stderr, "debug - kds - cancel command %u\n", in_transaction);
+
     auto i = command_ack_map.find(in_transaction);
     if (i != command_ack_map.end()) {
-        // Cancel any callbacks
-        if (i->second->list_cb != NULL) {
-            i->second->list_cb(i->second->transaction, vector<SharedInterface>());
-        } else if (i->second->probe_cb != NULL) {
-            i->second->probe_cb(i->second->transaction, false, in_error);
-        } else if (i->second->open_cb != NULL) {
-            i->second->open_cb(i->second->transaction, false, in_error);
-        } else if (i->second->configure_cb != NULL) {
-            i->second->configure_cb(i->second->transaction, false, in_error);
+        fprintf(stderr, "debug - kds cancel_command - removed %u\n", i->first);
+        shared_ptr<tracked_command> cmd = i->second;
+
+        command_ack_map.erase(i);
+
+        // Cancel any callbacks, zeroing them out as we call them so they
+        // can't recurse through
+        if (cmd->list_cb != NULL) {
+            list_callback_t cb = cmd->list_cb;
+            cmd->list_cb = NULL;
+            cb(cmd->transaction, vector<SharedInterface>());
+        } else if (cmd->probe_cb != NULL) {
+            probe_callback_t cb = cmd->probe_cb;
+            cmd->probe_cb = NULL;
+            cb(cmd->transaction, false, in_error);
+        } else if (cmd->open_cb != NULL) {
+            open_callback_t cb = cmd->open_cb;
+            cmd->open_cb = NULL;
+            cb(cmd->transaction, false, in_error);
+        } else if (cmd->configure_cb != NULL) {
+            configure_callback_t cb = cmd->configure_cb;
+            cmd->configure_cb = NULL;
+            cb(cmd->transaction, false, in_error);
         }
 
         // Cancel any timers
-        if (i->second->timer_id > -1) {
-            timetracker->RemoveTimer(i->second->timer_id);
+        if (cmd->timer_id > -1) {
+            fprintf(stderr, "debug - kds - removing timer %d\n", cmd->timer_id);
+            timetracker->RemoveTimer(cmd->timer_id);
         }
-
-        delete(i->second);
-        command_ack_map.erase(i);
     }
 }
 
 void KisDatasource::cancel_all_commands(string in_error) {
     local_locker lock(&source_lock);
 
-    auto i = command_ack_map.begin();
+    fprintf(stderr, "debug - kds - %s cancel_all_commands(%s)\n", get_source_definition().c_str(), in_error.c_str());
 
-    while (i != command_ack_map.end())
+    while (1) {
+        auto i = command_ack_map.begin();
+
+        if (i == command_ack_map.end())
+            break;
+
+        fprintf(stderr, "debug - kds - cancel_all_commands cancelling command %u\n", i->first);
+
         cancel_command(i->first, in_error);
+    }
+
+    fprintf(stderr, "debug - kds - %s cancel_all_commands size %lu\n", get_source_definition().c_str(), command_ack_map.size());
 }
 
 void KisDatasource::proto_dispatch_packet(string in_type, KVmap in_kvmap) {
@@ -514,7 +583,6 @@ void KisDatasource::proto_packet_probe_resp(KVmap in_kvpairs) {
     if (ci != command_ack_map.end()) {
         if (ci->second->probe_cb != NULL)
             ci->second->probe_cb(seq, get_kv_success(i->second), msg);
-        delete(ci->second);
         command_ack_map.erase(ci);
     }
 
@@ -561,7 +629,6 @@ void KisDatasource::proto_packet_open_resp(KVmap in_kvpairs) {
     if (ci != command_ack_map.end()) {
         if (ci->second->open_cb != NULL)
             ci->second->open_cb(seq, get_kv_success(i->second), msg);
-        delete(ci->second);
         command_ack_map.erase(ci);
     }
 
@@ -596,7 +663,6 @@ void KisDatasource::proto_packet_list_resp(KVmap in_kvpairs) {
     if (ci != command_ack_map.end()) {
         if (ci->second->list_cb != NULL)
             ci->second->list_cb(seq, listed_interfaces);
-        delete(ci->second);
         command_ack_map.erase(ci);
     }
 
@@ -656,7 +722,6 @@ void KisDatasource::proto_packet_configresp(KVmap in_kvpairs) {
     if (ci != command_ack_map.end()) {
         if (ci->second->configure_cb != NULL)
             ci->second->configure_cb(seq, get_kv_success(i->second), msg);
-        delete(ci->second);
         command_ack_map.erase(ci);
     }
 
@@ -1149,90 +1214,56 @@ void KisDatasource::handle_kv_interfacelist(KisDatasourceCapKeyedObject *in_obj)
 
 bool KisDatasource::write_packet(string in_cmd, KVmap in_kvpairs,
         uint32_t &ret_seqno) {
+    local_locker lock(&source_lock);
     // Generate a packet and put it in the buffer
     
     if (ringbuf_handler == NULL)
         return false;
-    
-    simple_cap_proto_t *ret = NULL;
-    vector<simple_cap_proto_kv_t *> proto_kvpairs;
-    size_t kvpair_len = 0;
-    size_t kvpair_offt = 0;
-    size_t pack_len;
+
+    simple_cap_proto_t proto_hdr;
+
+    uint32_t csum, csum_s1 = 0, csum_s2 = 0;
+
+    size_t total_len = sizeof(simple_cap_proto_t);
+
+    // Add up the length of all of the kv pairs
+    for (auto i = in_kvpairs.begin(); i != in_kvpairs.end(); ++i) {
+        total_len += sizeof(simple_cap_proto_kv_h_t) + i->second->size;
+    }
+
+    proto_hdr.signature = kis_hton32(KIS_CAP_SIMPLE_PROTO_SIG);
+    proto_hdr.checksum = 0;
+    proto_hdr.packet_sz = kis_hton32(total_len);
+
+    proto_hdr.sequence_number = kis_hton32(next_cmd_sequence);
+    ret_seqno = next_cmd_sequence;
+    next_cmd_sequence++;
+
+    snprintf(proto_hdr.type, 16, "%s", in_cmd.c_str());
+
+    proto_hdr.num_kv_pairs = kis_hton32(in_kvpairs.size());
+
+    // Start calculating the checksum
+    csum = Adler32IncrementalChecksum((const char *) &proto_hdr, 
+            sizeof(simple_cap_proto_t), csum_s1, csum_s2);
+
+    // Calc the checksum of all the kv pairs
+    for (auto i = in_kvpairs.begin(); i != in_kvpairs.end(); ++i) {
+        csum = Adler32IncrementalChecksum((const char *) i->second->kv,
+                sizeof(simple_cap_proto_kv_h_t) + i->second->size,
+                csum_s1, csum_s2);
+    }
+
+    proto_hdr.checksum = kis_hton32(csum);
+
+    if (ringbuf_handler->PutWriteBufferData(&proto_hdr, 
+                sizeof(simple_cap_proto_t), true) == 0)
+        return false;
 
     for (auto i = in_kvpairs.begin(); i != in_kvpairs.end(); ++i) {
-        // Size of header + size of object
-        simple_cap_proto_kv_t *kvt = (simple_cap_proto_kv_t *) 
-            new char[sizeof(simple_cap_proto_kv_h_t) + i->second->size];
-
-        // Set up the header, network endian
-        snprintf(kvt->header.key, 16, "%s", i->second->key.c_str());
-        kvt->header.obj_sz = kis_hton32(i->second->size);
-
-        // Copy the content
-        memcpy(kvt->object, i->second->object, i->second->size);
-
-        // Add the total size
-        kvpair_len += sizeof(simple_cap_proto_kv_h_t) + i->second->size;
-    }
-
-    // Make the container packet
-    pack_len = sizeof(simple_cap_proto_t) + kvpair_len;
-
-    ret = (simple_cap_proto_t *) new char[pack_len];
-
-    ret->signature = kis_hton32(KIS_CAP_SIMPLE_PROTO_SIG);
-   
-    // Prep the checksum with 0
-    ret->checksum = 0;
-
-    {
-        local_locker lock(&source_lock);
-        ret->sequence_number = kis_hton32(next_cmd_sequence);
-        ret_seqno = kis_ntoh32(next_cmd_sequence);
-        next_cmd_sequence++;
-    }
-
-    ret->packet_sz = kis_hton32(pack_len);
-
-    snprintf(ret->type, 16, "%s", in_cmd.c_str());
-
-    ret->num_kv_pairs = kis_hton32(proto_kvpairs.size());
-
-    // Progress through the kv pairs and pack them 
-    for (unsigned int i = 0; i < proto_kvpairs.size(); i++) {
-        // Annoying to have to do it this way
-        size_t len = kis_ntoh32(proto_kvpairs[i]->header.obj_sz) +
-            sizeof(simple_cap_proto_kv_h_t);
-
-        memcpy(&(ret->data[kvpair_offt]), proto_kvpairs[i], len);
-
-        kvpair_offt += len;
-
-        // Delete it as we go
-        delete(proto_kvpairs[i]);
-    }
-
-    // Calculate the checksum with it pre-populated as 0x0
-    uint32_t calc_checksum;
-    calc_checksum = Adler32Checksum((const char *) ret, pack_len);
-
-    ret->checksum = kis_hton32(calc_checksum);
-
-    size_t ret_sz;
-
-    {
-        // Lock & send to the ringbuffer
-        local_locker lock(&source_lock);
-        ret_sz = ringbuf_handler->PutWriteBufferData(ret, pack_len, true);
-        
-        // It's copied into the write buffer so delete our copy
-        delete ret;
-    }
-
-    // Did we not fill the write buffer somehow?
-    if (ret_sz != pack_len) {
-        return false;
+        if (ringbuf_handler->PutWriteBufferData(i->second->kv,
+                    sizeof(simple_cap_proto_kv_h_t) + i->second->size, true) == 0)
+            return false;
     }
 
     return true;
@@ -1248,7 +1279,7 @@ void KisDatasource::send_command_list_interfaces(unsigned int in_transaction,
 
     uint32_t seqno;
     bool success;
-    tracked_command *cmd;
+    shared_ptr<tracked_command> cmd;
 
     success = write_packet("LISTDEVICE", kvmap, seqno);
 
@@ -1260,10 +1291,10 @@ void KisDatasource::send_command_list_interfaces(unsigned int in_transaction,
         return;
     }
 
-    cmd = new tracked_command(in_transaction, seqno, this);
+    cmd.reset(new tracked_command(in_transaction, seqno, this));
     cmd->list_cb = in_cb;
-
-    command_ack_map[seqno] = cmd;
+    
+    command_ack_map.emplace(seqno, cmd);
 }
 
 void KisDatasource::send_command_probe_interface(string in_definition, 
@@ -1272,6 +1303,7 @@ void KisDatasource::send_command_probe_interface(string in_definition,
 
     KVmap kvmap;
 
+    fprintf(stderr, "debug - probe interface, definition len %lu %s\n", in_definition.length(), in_definition.c_str());
     KisDatasourceCapKeyedObject *definition =
         new KisDatasourceCapKeyedObject("DEFINITION", in_definition.data(), 
                 in_definition.length());
@@ -1279,7 +1311,7 @@ void KisDatasource::send_command_probe_interface(string in_definition,
 
     uint32_t seqno;
     bool success;
-    tracked_command *cmd;
+    shared_ptr<tracked_command> cmd;
 
     success = write_packet("PROBEDEVICE", kvmap, seqno);
 
@@ -1291,10 +1323,10 @@ void KisDatasource::send_command_probe_interface(string in_definition,
         return;
     }
 
-    cmd = new tracked_command(in_transaction, seqno, this);
+    cmd.reset(new tracked_command(in_transaction, seqno, this));
     cmd->probe_cb = in_cb;
 
-    command_ack_map[seqno] = cmd;
+    command_ack_map.emplace(seqno, cmd);
 }
 
 
@@ -1311,7 +1343,7 @@ void KisDatasource::send_command_open_interface(string in_definition,
 
     uint32_t seqno;
     bool success;
-    tracked_command *cmd;
+    shared_ptr<tracked_command> cmd;
 
     success = write_packet("OPENDEVICE", kvmap, seqno);
 
@@ -1323,10 +1355,10 @@ void KisDatasource::send_command_open_interface(string in_definition,
         return;
     }
 
-    cmd = new tracked_command(in_transaction, seqno, this);
+    cmd.reset(new tracked_command(in_transaction, seqno, this));
     cmd->open_cb = in_cb;
 
-    command_ack_map[seqno] = cmd;
+    command_ack_map.emplace(seqno, cmd);
 }
 
 void KisDatasource::send_command_set_channel(string in_channel, 
@@ -1342,7 +1374,7 @@ void KisDatasource::send_command_set_channel(string in_channel,
 
     uint32_t seqno;
     bool success;
-    tracked_command *cmd;
+    shared_ptr<tracked_command> cmd;
 
     success = write_packet("CONFIGURE", kvmap, seqno);
 
@@ -1354,10 +1386,10 @@ void KisDatasource::send_command_set_channel(string in_channel,
         return;
     }
 
-    cmd = new tracked_command(in_transaction, seqno, this);
+    cmd.reset(new tracked_command(in_transaction, seqno, this));
     cmd->configure_cb = in_cb;
 
-    command_ack_map[seqno] = cmd;
+    command_ack_map.emplace(seqno, cmd);
 }
 
 void KisDatasource::send_command_set_channel_hop(double in_rate, 
@@ -1400,7 +1432,7 @@ void KisDatasource::send_command_set_channel_hop(double in_rate,
 
     uint32_t seqno;
     bool success;
-    tracked_command *cmd;
+    shared_ptr<tracked_command> cmd;
 
     success = write_packet("CONFIGURE", kvmap, seqno);
 
@@ -1412,10 +1444,10 @@ void KisDatasource::send_command_set_channel_hop(double in_rate,
         return;
     }
 
-    cmd = new tracked_command(in_transaction, seqno, this);
+    cmd.reset(new tracked_command(in_transaction, seqno, this));
     cmd->configure_cb = in_cb;
 
-    command_ack_map[seqno] = cmd;
+    command_ack_map.emplace(seqno, cmd);
 }
 
 void KisDatasource::register_fields() {
@@ -1471,6 +1503,10 @@ void KisDatasource::reserve_fields(SharedTrackerElement e) {
 
 void KisDatasource::handle_source_error() {
     local_locker lock(&source_lock);
+
+    // If we're probing or listing we don't do any special handling
+    if (mode_listing || mode_probing)
+        return;
 
     stringstream ss;
 
@@ -1530,13 +1566,15 @@ void KisDatasource::launch_ipc() {
     set_int_source_ipc_pid(-1);
 
     // Make a new handler and new ipc.  Give a generous buffer.
-    ringbuf_handler.reset(new RingbufferHandler((32 * 1024), (32 * 1024)));
+    fprintf(stderr, "debug - kds resetting ringbuf handler\n");
+    ringbuf_handler.reset(new RingbufferHandler((128 * 1024), (128 * 1024)));
     ringbuf_handler->SetReadBufferInterface(this);
 
-    ipc_remote = new IPCRemoteV2(globalreg, ringbuf_handler);
+    ipc_remote.reset(new IPCRemoteV2(globalreg, ringbuf_handler));
 
     // Get allowed paths for binaries
-    vector<string> bin_paths = globalreg->kismet_config->FetchOptVec("bin_paths");
+    vector<string> bin_paths = 
+        globalreg->kismet_config->FetchOptVec("capture_binary_paths");
 
     for (vector<string>::iterator i = bin_paths.begin(); i != bin_paths.end(); ++i) {
         ipc_remote->add_path(*i);
@@ -1557,26 +1595,44 @@ void KisDatasource::launch_ipc() {
 }
 
 KisDatasourceCapKeyedObject::KisDatasourceCapKeyedObject(simple_cap_proto_kv *in_kp) {
-    char ckey[17];
+    char ckey[16];
 
-    snprintf(ckey, 17, "%s", in_kp->header.key);
+    kv = in_kp;
+
+    snprintf(ckey, 16, "%s", in_kp->header.key);
     key = string(ckey);
 
     size = kis_ntoh32(in_kp->header.obj_sz);
-    object = new char[size];
-    memcpy(object, in_kp->object, size);
+    object = (char *) kv->object;
+
+    allocated = false;
 }
 
 KisDatasourceCapKeyedObject::KisDatasourceCapKeyedObject(string in_key,
         const char *in_object, ssize_t in_len) {
+    // Clone the object into a kv header for easier transmission assembly
+    
+    fprintf(stderr, "debug - assembling new kv object size %ld total %ld\n", in_len,
+            in_len + sizeof(simple_cap_proto_kv_h_t));
 
+    allocated = true;
+    kv = (simple_cap_proto_kv_t *) 
+        new uint8_t[in_len + sizeof(simple_cap_proto_kv_h_t)];
+
+    kv->header.obj_sz = kis_hton32(in_len);
+    size = in_len;
+
+    snprintf(kv->header.key, 16, "%s", key.c_str());
     key = in_key.substr(0, 16);
-    object = new char[in_len];
-    memcpy(object, in_object, in_len);
+   
+    memcpy(kv->object, in_object, in_len);
+    object = (char *) kv->object;
+
 }
 
 KisDatasourceCapKeyedObject::~KisDatasourceCapKeyedObject() {
-    delete[] object;
+    if (allocated)
+        delete[] kv;
 }
 
 

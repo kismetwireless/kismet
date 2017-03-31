@@ -70,6 +70,7 @@
 
 #include "kis_datasource.h"
 #include "datasourcetracker.h"
+#include "datasource_pcapfile.h"
 
 #include "timetracker.h"
 #include "alertracker.h"
@@ -244,7 +245,7 @@ void CatchShutdown(int sig) {
     return;
 }
 
-void SpindownKismet() {
+void SpindownKismet(shared_ptr<PollableTracker> pollabletracker) {
     // Eat the child signal handler
     signal(SIGCHLD, SIG_DFL);
 
@@ -282,10 +283,7 @@ void SpindownKismet() {
         }
 
         // Collect all the pollable descriptors
-        for (unsigned int x = 0; x < globalregistry->subsys_pollable_vec.size(); x++) 
-            max_fd = 
-                globalregistry->subsys_pollable_vec[x]->MergeSet(max_fd, &rset, 
-                                                                 &wset);
+        max_fd = pollabletracker->MergePollableFds(&rset, &wset);
 
         tm.tv_sec = 0;
         tm.tv_usec = 100000;
@@ -296,12 +294,9 @@ void SpindownKismet() {
             }
         }
 
-        for (unsigned int x = 0; x < globalregistry->subsys_pollable_vec.size(); 
-             x++) {
-            if (globalregistry->subsys_pollable_vec[x]->Poll(rset, wset) < 0 &&
-                globalregistry->fatal_condition) {
-                break;
-            }
+        pollabletracker->ProcessPollableSelect(rset, wset);
+        if (globalregistry->fatal_condition) {
+            break;
         }
 
     }
@@ -754,6 +749,9 @@ int main(int argc, char *argv[], char *envp[]) {
     // Register the smart msg printer for everything
     globalregistry->messagebus->RegisterClient(smartmsgcli, MSGFLAG_ALL);
 
+    // We need to create the pollable system near the top of execution as well
+    shared_ptr<PollableTracker> pollabletracker(PollableTracker::create_pollabletracker(globalregistry));
+
 #ifndef SYS_CYGWIN
     // Generate the root ipc packet capture and spawn it immediately, then register
     // and sync the packet protocol stuff
@@ -767,7 +765,11 @@ int main(int argc, char *argv[], char *envp[]) {
             "launch root control binary (" + string(BIN_LOC) + "/kismet_capture) to "
             "control cards.", MSGFLAG_INFO);
 
-        globalregistry->rootipc = new RootIPCRemote(globalregistry, "kismet_root");
+        // Terrible hack for dualhoming the rootipc object in the globalreg
+        // outside of the shared ptr, but it's going to go away, so I don't care
+        shared_ptr<RootIPCRemote> rootipc(RootIPCRemote::create_rootipcremote(globalregistry, "kismet_root"));
+
+        globalregistry->rootipc = rootipc.get();
         globalregistry->rootipc->SpawnIPC();
 
         startup_ipc_id = 
@@ -780,14 +782,13 @@ int main(int argc, char *argv[], char *envp[]) {
             FD_ZERO(&wset);
             max_fd = 0;
 
-            if (globalregistry->fatal_condition)
+            if (globalregistry->fatal_condition) {
+                fprintf(stderr, "debug - rootipc fatal\n");
                 CatchShutdown(-1);
+            }
 
-            // Collect all the pollable descriptors
-            for (unsigned int x = 0; x < globalregistry->subsys_pollable_vec.size(); x++) 
-                max_fd = 
-                    globalregistry->subsys_pollable_vec[x]->MergeSet(max_fd, &rset, 
-                                                                     &wset);
+            max_fd = pollabletracker->MergePollableFds(&rset, &wset);
+
             tm.tv_sec = 0;
             tm.tv_usec = 100000;
 
@@ -799,13 +800,11 @@ int main(int argc, char *argv[], char *envp[]) {
                 }
             }
 
-            for (unsigned int x = 0; 
-                 x < globalregistry->subsys_pollable_vec.size(); x++) {
+            pollabletracker->ProcessPollableSelect(rset, wset);
 
-                if (globalregistry->subsys_pollable_vec[x]->Poll(rset, wset) < 0 &&
-                    globalregistry->fatal_condition) {
-                    CatchShutdown(-1);
-                }
+            if (globalregistry->fatal_condition) {
+                fprintf(stderr, "debug - rootipc fatal after processpollable\n");
+                CatchShutdown(-1);
             }
 
             if (globalregistry->rootipc->FetchRootIPCSynced() > 0) {
@@ -935,10 +934,13 @@ int main(int argc, char *argv[], char *envp[]) {
     Channeltracker_V2::create_channeltracker(globalregistry);
 
     // Add the datasource tracker
-    Datasourcetracker::create_dst(globalregistry);
+    shared_ptr<Datasourcetracker> datasourcetracker;
+    datasourcetracker = Datasourcetracker::create_dst(globalregistry);
 
     // Create the packetsourcetracker
-    Packetsourcetracker::create_pst(globalregistry);
+    shared_ptr<Packetsourcetracker> packetsourcetracker;
+    packetsourcetracker = Packetsourcetracker::create_pst(globalregistry);
+    pollabletracker->RegisterPollable(packetsourcetracker);
 
     if (globalregistry->fatal_condition)
         CatchShutdown(-1);
@@ -1043,6 +1045,12 @@ int main(int argc, char *argv[], char *envp[]) {
         CatchShutdown(-1);
 #endif
 
+    // Add the datasources
+#ifdef USE_PACKETSOURCE_PCAPFILE
+    datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourcePcapfileBuilder(globalregistry)));
+
+#endif
+
     // Start the plugin handler
     if (plugins) {
         globalregistry->plugintracker = new Plugintracker(globalregistry);
@@ -1067,13 +1075,6 @@ int main(int argc, char *argv[], char *envp[]) {
     // Enable cards from config/cmdline
     if (globalregistry->sourcetracker->LoadConfiguration() < 0)
         CatchShutdown(-1);
-
-#if 0
-    // Create the basic drone server
-    globalregistry->kisdroneserver->Activate();
-    if (globalregistry->fatal_condition)
-        CatchShutdown(-1);
-#endif
 
     // Create the GPS components
     GpsManager::create_gpsmanager(globalregistry);
@@ -1166,31 +1167,40 @@ int main(int argc, char *argv[], char *envp[]) {
     // Set the global silence now that we're set up
     glob_silent = local_silent;
 
+    // Hack in DS test
+    fprintf(stderr, "TESTCODE - Opening hardcoded sources for DST\n");
+    /*
+    datasourcetracker->open_datasource("wlan0", [](bool success, string reason) {
+            fprintf(stderr, "TESTCODE - wlan0 %u: %s\n", success, reason.c_str());
+            });
+    datasourcetracker->open_datasource("test3.pcap:type=pcapfile", 
+            [](bool success, string reason) {
+            fprintf(stderr, "TESTCODE - test3.pcap %u: %s\n", success, reason.c_str());
+            });
+            */
+
     // Core loop
     while (1) {
         if (globalregistry->spindown) {
-            SpindownKismet();
+            SpindownKismet(pollabletracker);
             break;
         }
 
-        FD_ZERO(&rset);
-        FD_ZERO(&wset);
-        max_fd = 0;
-
-        if (globalregistry->fatal_condition)
+        if (globalregistry->fatal_condition) {
+            fprintf(stderr, "debug - fatal at start of select()\n");
             CatchShutdown(-1);
+        }
 
-        // Collect all the pollable descriptors
-        for (unsigned int x = 0; x < globalregistry->subsys_pollable_vec.size(); x++) 
-            max_fd = 
-                globalregistry->subsys_pollable_vec[x]->MergeSet(max_fd, &rset, 
-                                                                 &wset);
+        max_fd = pollabletracker->MergePollableFds(&rset, &wset);
+
+        // fprintf(stderr, "debug - maxfd %d\n", max_fd);
 
         tm.tv_sec = 0;
         tm.tv_usec = 100000;
 
         if (select(max_fd + 1, &rset, &wset, NULL, &tm) < 0) {
             if (errno != EINTR && errno != EAGAIN) {
+                fprintf(stderr, "Main select failed: %s\n", strerror(errno));
                 snprintf(errstr, STATUS_MAX, "Main select loop failed: %s",
                          strerror(errno));
                 CatchShutdown(-1);
@@ -1199,11 +1209,13 @@ int main(int argc, char *argv[], char *envp[]) {
 
         globalregistry->timetracker->Tick();
 
-        for (unsigned int x = 0; x < globalregistry->subsys_pollable_vec.size(); x++) {
-            if (globalregistry->subsys_pollable_vec[x]->Poll(rset, wset) < 0 &&
-                globalregistry->fatal_condition) {
-                CatchShutdown(-1);
-            }
+        // fprintf(stderr, "debug - main poll()\n");
+
+        pollabletracker->ProcessPollableSelect(rset, wset);
+
+        if (globalregistry->fatal_condition) {
+            fprintf(stderr, "fatal condition after processpollable\n");
+            CatchShutdown(-1);
         }
     }
 

@@ -28,6 +28,7 @@
 #include "util.h"
 #include "serialclient2.h"
 #include "messagebus.h"
+#include "pollabletracker.h"
 
 SerialClientV2::SerialClientV2(GlobalRegistry *in_globalreg, 
         RingbufferHandler *in_rbhandler) {
@@ -39,6 +40,10 @@ SerialClientV2::SerialClientV2(GlobalRegistry *in_globalreg,
 
 SerialClientV2::~SerialClientV2() {
     Close();
+
+    shared_ptr<PollableTracker> pollabletracker =
+        static_pointer_cast<PollableTracker>(globalreg->FetchGlobal("POLLABLETRACKER"));
+	pollabletracker->RemovePollable(this);
 }
 
 int SerialClientV2::OpenDevice(string in_device, unsigned int in_baud) {
@@ -107,8 +112,6 @@ int SerialClientV2::OpenDevice(string in_device, unsigned int in_baud) {
 
     device = in_device;
     baud = in_baud;
-
-    globalreg->RegisterPollableSubsys(this);
 
     return 0;
 }
@@ -211,7 +214,5 @@ void SerialClientV2::Close() {
     }
 
     device_fd = -1;
-
-    globalreg->RemovePollableSubsys(this);
 }
 

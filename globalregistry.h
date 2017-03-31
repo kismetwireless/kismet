@@ -232,10 +232,6 @@ public:
 	// Map of named file pipes that sub-components should use
 	map<string, int> namedfd_map;
 
-	// Vector of pollable subservices for main()...  You should use the util 
-	// functions for this, but main needs to be able to see it directly
-	vector<Pollable *> subsys_pollable_vec;
-
     // TODO probably deprecate these with the new logging system
 	// Vector of dumpfiles to close cleanly
 	vector<Dumpfile *> subsys_dumpfile_vec;
@@ -317,10 +313,6 @@ public:
 	int InsertGlobal(string in_name, shared_ptr<void> in_data);
     void RemoveGlobal(int in_ref);
     void RemoveGlobal(string in_name);
-
-	// Add something to the poll() main loop
-	int RegisterPollableSubsys(Pollable *in_subcli);
-	int RemovePollableSubsys(Pollable *in_subcli);
 
     // Add a CLI extension
     typedef void (*usage_func)(const char *);

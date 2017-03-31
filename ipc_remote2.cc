@@ -27,15 +27,22 @@
 #include "util.h"
 #include "messagebus.h"
 #include "ipc_remote2.h"
+#include "pollabletracker.h"
 
 IPCRemoteV2::IPCRemoteV2(GlobalRegistry *in_globalreg, 
         shared_ptr<RingbufferHandler> in_rbhandler) {
 
     globalreg = in_globalreg;
-    pthread_mutex_init(&ipc_locker, NULL);
+
+    pthread_mutexattr_t mutexattr;
+    pthread_mutexattr_init(&mutexattr);
+    pthread_mutexattr_settype(&mutexattr, PTHREAD_MUTEX_RECURSIVE);
+    pthread_mutex_init(&ipc_locker, &mutexattr);
+
+    pollabletracker =
+        static_pointer_cast<PollableTracker>(globalreg->FetchGlobal("POLLABLETRACKER"));
 
     ipchandler = in_rbhandler;
-    pipeclient = NULL;
 
     remotehandler = 
         static_pointer_cast<IPCRemoteV2Tracker>(globalreg->FetchGlobal("IPCHANDLER"));
@@ -45,32 +52,23 @@ IPCRemoteV2::IPCRemoteV2(GlobalRegistry *in_globalreg,
                 "IPC binaries.", MSGFLAG_ERROR);
     }
 
-    ipchandler->SetErrorHandlerCb([this](string) {
+    ipchandler->SetProtocolErrorCb([this]() {
         local_locker lock(&ipc_locker);
+        // fprintf(stderr, "debug - ipchandler got protocol error, shutting down pid %u\n", child_pid);
 
-        if (pipeclient != NULL)
-            pipeclient->Close();
-
-        });
-
-    ipchandler->SetCloseHandlerCb([this](string) {
-        local_locker lock(&ipc_locker);
-
-        if (pipeclient != NULL)
-            pipeclient->Close();
-
-        });
+        close_ipc();
+    });
 
     child_pid = -1;
     tracker_free = false;
 }
 
 IPCRemoteV2::~IPCRemoteV2() {
-    {
-        local_locker lock(&ipc_locker);
-        if (pipeclient != NULL)
-            delete(pipeclient);
-    }
+    local_eol_locker lock(&ipc_locker);
+
+    // fprintf(stderr, "debug - ~ipcremotev2\n");
+
+    close_ipc();
 
     pthread_mutex_destroy(&ipc_locker);
 }
@@ -100,12 +98,11 @@ string IPCRemoteV2::FindBinaryPath(string in_cmd) {
 }
 
 void IPCRemoteV2::close_ipc() {
-    soft_kill();
+    // Remove the IPC entry first, we already are shutting down; let the ipc
+    // catcher reap the signal normally, we just don't need to know about it.
+    remotehandler->remove_ipc(this);
 
-    if (pipeclient != NULL) {
-        delete(pipeclient);
-        pipeclient = NULL;
-    }
+    soft_kill();
 }
 
 int IPCRemoteV2::launch_kis_binary(string cmd, vector<string> args) {
@@ -125,8 +122,7 @@ int IPCRemoteV2::launch_kis_explicit_binary(string cmdpath, vector<string> args)
     stringstream arg;
 
     if (pipeclient != NULL) {
-        delete(pipeclient);
-        pipeclient = NULL;
+        soft_kill();
     }
 
     if (stat(cmdpath.c_str(), &buf) < 0) {
@@ -144,24 +140,28 @@ int IPCRemoteV2::launch_kis_explicit_binary(string cmdpath, vector<string> args)
     // forking
     pthread_mutex_lock(&ipc_locker);
 
-    // 'in' to the spawned process, [0] belongs to us, [1] to them
+    // 'in' to the spawned process, write to the server process, 
+    // [1] belongs to us, [0] to them
     int inpipepair[2];
-    // 'out' from the spawned process, [1] belongs to us, [0] to them
+    // 'out' from the spawned process, read to the server process, 
+    // [0] belongs to us, [1] to them
     int outpipepair[2];
 
-    if (pipe(inpipepair) < 0) {
+    if (pipe2(inpipepair, O_NONBLOCK) < 0) {
         _MSG("IPC could not create pipe", MSGFLAG_ERROR);
         pthread_mutex_unlock(&ipc_locker);
         return -1;
     }
 
-    if (pipe(outpipepair) < 0) {
+    if (pipe2(outpipepair, O_NONBLOCK) < 0) {
         _MSG("IPC could not create pipe", MSGFLAG_ERROR);
         close(inpipepair[0]);
         close(inpipepair[1]);
         pthread_mutex_unlock(&ipc_locker);
         return -1;
     }
+
+    // fprintf(stderr, "debug - ipcremote2 - inpair %d %d outpair %d %d\n", inpipepair[0], inpipepair[1], outpipepair[0], outpipepair[1]);
 
     if ((child_pid = fork()) < 0) {
         _MSG("IPC could not fork()", MSGFLAG_ERROR);
@@ -173,13 +173,13 @@ int IPCRemoteV2::launch_kis_explicit_binary(string cmdpath, vector<string> args)
         cmdarg = new char*[args.size() + 4];
         cmdarg[0] = strdup(cmdpath.c_str());
 
-        // FD we read from is the read end of the in pair
-        arg << "--in-fd=" << inpipepair[1];
+        // Child reads from inpair
+        arg << "--in-fd=" << inpipepair[0];
         cmdarg[1] = strdup(arg.str().c_str());
         arg.str("");
 
-        // FD we write to is the write end of the out pair
-        arg << "--out-fd=" << outpipepair[0];
+        // Child writes to writepair
+        arg << "--out-fd=" << outpipepair[1];
         cmdarg[2] = strdup(arg.str().c_str());
 
         for (unsigned int x = 0; x < args.size(); x++)
@@ -187,26 +187,29 @@ int IPCRemoteV2::launch_kis_explicit_binary(string cmdpath, vector<string> args)
 
         cmdarg[args.size() + 3] = NULL;
 
-        // Close the remote side of the pipes
-        close(inpipepair[0]);
-        close(outpipepair[1]);
+        // Close the unused half of the pairs on the child
+        close(inpipepair[1]);
+        close(outpipepair[0]);
 
         execvp(cmdarg[0], cmdarg);
 
         exit(255);
     } 
+   
+    // Parent process
+   
+    // fprintf(stderr, "debug - ipcremote2 creating pipeclient\n");
 
-    // Only reach here if we're the parent process
-    
-    // Close the remote side of the pipes
+    pipeclient.reset(new PipeClient(globalreg, ipchandler));
+
+    pollabletracker->RegisterPollable(pipeclient);
+
+    // Read from the child write pair, write to the child read pair
+    pipeclient->OpenPipes(outpipepair[1], inpipepair[0]);
+
+    // Close the remote side of the pipes from the parent, they're open in the child
     close(inpipepair[1]);
     close(outpipepair[0]);
-
-    pipeclient = new PipeClient(globalreg, ipchandler);
-
-    // We read from the read end of the out pair, and write to the write end of the in
-    // pair.  Confused?
-    pipeclient->OpenPipes(outpipepair[0], inpipepair[1]);
 
     binary_path = cmdpath;
     binary_args = args;
@@ -237,8 +240,7 @@ int IPCRemoteV2::launch_standard_explicit_binary(string cmdpath, vector<string> 
     stringstream arg;
 
     if (pipeclient != NULL) {
-        delete(pipeclient);
-        pipeclient = NULL;
+        soft_kill();
     }
 
     if (stat(cmdpath.c_str(), &buf) < 0) {
@@ -309,7 +311,9 @@ int IPCRemoteV2::launch_standard_explicit_binary(string cmdpath, vector<string> 
     close(inpipepair[1]);
     close(outpipepair[0]);
 
-    pipeclient = new PipeClient(globalreg, ipchandler);
+    pipeclient.reset(new PipeClient(globalreg, ipchandler));
+
+    pollabletracker->RegisterPollable(pipeclient);
 
     // We read from the read end of the out pair, and write to the write end of the in
     // pair.  Confused?
@@ -338,6 +342,14 @@ void IPCRemoteV2::set_tracker_free(bool in_free) {
 }
 
 int IPCRemoteV2::soft_kill() {
+    local_locker lock(&ipc_locker);
+
+    if (pipeclient != NULL) {
+        pipeclient->ClosePipes();
+        pollabletracker->RemovePollable(pipeclient);
+        pipeclient.reset();
+    }
+
     if (child_pid <= 0)
         return -1;
 
@@ -345,6 +357,12 @@ int IPCRemoteV2::soft_kill() {
 }
 
 int IPCRemoteV2::hard_kill() {
+    if (pipeclient != NULL) {
+        pipeclient->ClosePipes();
+        pollabletracker->RemovePollable(pipeclient);
+        pipeclient.reset();
+    }
+
     if (child_pid <= 0)
         return -1;
 

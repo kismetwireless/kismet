@@ -164,21 +164,6 @@ void GlobalRegistry::RemoveGlobal(string in_name) {
     RemoveGlobal(ref);
 }
 
-int GlobalRegistry::RegisterPollableSubsys(Pollable *in_subcli) {
-	subsys_pollable_vec.push_back(in_subcli);
-	return 1;
-}
-
-int GlobalRegistry::RemovePollableSubsys(Pollable *in_subcli) {
-	for (unsigned int x = 0; x < subsys_pollable_vec.size(); x++) {
-		if (subsys_pollable_vec[x] == in_subcli) {
-			subsys_pollable_vec.erase(subsys_pollable_vec.begin() + x);
-			return 1;
-		}
-	}
-	return 0;
-}
-
 void GlobalRegistry::RegisterDumpFile(Dumpfile *in_dump) {
 	subsys_dumpfile_vec.push_back(in_dump);
 }

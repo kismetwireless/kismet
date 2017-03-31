@@ -68,6 +68,7 @@
 
 #include "globalregistry.h"
 #include "pollable.h"
+#include "pollabletracker.h"
 #include "messagebus.h"
 
 #define IPC_CMD_PARMS GlobalRegistry *globalreg, const void *data, int len, \
@@ -117,10 +118,24 @@ struct ipc_sync {
 // IPC sentinel
 const uint32_t IPCRemoteSentinel = 0xDECAFBAD;
 
-class IPCRemote : public Pollable {
+class IPCRemote : public Pollable, public LifetimeGlobal {
 public:
-	IPCRemote();
+    static shared_ptr<IPCRemote> 
+        create_ipcremote(GlobalRegistry *in_globalreg, string procname) {
+        shared_ptr<IPCRemote> mon(new IPCRemote(in_globalreg, procname));
+        in_globalreg->RegisterLifetimeGlobal(mon);
+        in_globalreg->InsertGlobal("IPCREMOTE", mon);
+        shared_ptr<PollableTracker> pollabletracker =
+            static_pointer_cast<PollableTracker>(in_globalreg->FetchGlobal("POLLABLETRACKER"));
+
+        pollabletracker->RegisterPollable(mon);
+        return mon;
+    }
+
+protected:
 	IPCRemote(GlobalRegistry *in_globalreg, string procname);
+
+public:
 	virtual ~IPCRemote();
 
 	virtual void SetChildCmd(string in_cmd) {
@@ -239,9 +254,23 @@ protected:
 // tuntap control, among others
 class RootIPCRemote : public IPCRemote {
 public:
-	RootIPCRemote() { IPCRemote(); }
+    static shared_ptr<RootIPCRemote> 
+        create_rootipcremote(GlobalRegistry *in_globalreg, string procname) {
+        shared_ptr<RootIPCRemote> mon(new RootIPCRemote(in_globalreg, procname));
+        in_globalreg->RegisterLifetimeGlobal(mon);
+        in_globalreg->InsertGlobal("ROOTIPCREMOTE", mon);
+        shared_ptr<PollableTracker> pollabletracker =
+            static_pointer_cast<PollableTracker>(in_globalreg->FetchGlobal("POLLABLETRACKER"));
+
+        pollabletracker->RegisterPollable(mon);
+        return mon;
+    }
+
+private:
 	RootIPCRemote(GlobalRegistry *in_globalreg, string procname);
-	virtual ~RootIPCRemote() { IPCDie(); }
+
+public:
+	virtual ~RootIPCRemote();
 
 	virtual void CatchSigChild(int status) {
 		if (!globalreg->spindown) {

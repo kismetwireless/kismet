@@ -22,6 +22,7 @@
 #include "util.h"
 #include "gps_manager.h"
 #include "kismet_json.h"
+#include "pollabletracker.h"
 
 GPSGpsdV2::GPSGpsdV2(GlobalRegistry *in_globalreg) : Kis_Gps(in_globalreg) {
     globalreg = in_globalreg;
@@ -29,7 +30,6 @@ GPSGpsdV2::GPSGpsdV2(GlobalRegistry *in_globalreg) : Kis_Gps(in_globalreg) {
     // Defer making buffers until open, because we might be used to make a 
     // builder instance
    
-    tcpclient = NULL;
     tcphandler = NULL;
 
     last_heading_time = globalreg->timestamp.tv_sec;
@@ -40,12 +40,11 @@ GPSGpsdV2::GPSGpsdV2(GlobalRegistry *in_globalreg) : Kis_Gps(in_globalreg) {
 }
 
 GPSGpsdV2::~GPSGpsdV2() {
-    {
-        local_locker lock(&gps_locker);
+    local_eol_locker lock(&gps_locker);
 
-        delete(tcpclient);
-        delete(tcphandler);
-    }
+    delete(tcphandler);
+
+    pthread_mutex_destroy(&gps_locker);
 }
 
 Kis_Gps *GPSGpsdV2::BuildGps(string in_opts) {
@@ -71,8 +70,7 @@ int GPSGpsdV2::OpenGps(string in_opts) {
     }
 
     if (tcpclient != NULL) {
-        delete tcpclient;
-        tcpclient = NULL;
+        tcpclient.reset();
     }
 
     // Now figure out if our options make sense... 
@@ -108,8 +106,13 @@ int GPSGpsdV2::OpenGps(string in_opts) {
     // Set the read handler to us
     tcphandler->SetReadBufferInterface(this);
     // Link it to a tcp connection
-    tcpclient = new TcpClientV2(globalreg, tcphandler);
+    tcpclient.reset(new TcpClientV2(globalreg, tcphandler));
     tcpclient->Connect(proto_host, proto_port);
+
+    // Register a pollable event
+    shared_ptr<PollableTracker> pollabletracker =
+        static_pointer_cast<PollableTracker>(globalreg->FetchGlobal("POLLABLETRACKER"));
+    pollabletracker->RegisterPollable(tcpclient);
 
     host = proto_host;
     port = proto_port;

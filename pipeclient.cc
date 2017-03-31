@@ -28,21 +28,39 @@
 #include "util.h"
 #include "pipeclient.h"
 #include "messagebus.h"
+#include "pollabletracker.h"
 
 PipeClient::PipeClient(GlobalRegistry *in_globalreg, 
         shared_ptr<RingbufferHandler> in_rbhandler) {
     globalreg = in_globalreg;
     handler = in_rbhandler;
 
+    pthread_mutexattr_t mutexattr;
+    pthread_mutexattr_init(&mutexattr);
+    pthread_mutexattr_settype(&mutexattr, PTHREAD_MUTEX_RECURSIVE);
+	pthread_mutex_init(&pipe_lock, &mutexattr);
+
     read_fd = -1;
     write_fd = -1;
 }
 
 PipeClient::~PipeClient() {
-    Close();
+    local_eol_locker lock(&pipe_lock);
+
+    // fprintf(stderr, "debug - ~Pipeclient() %p\n", this);
+
+    ClosePipes();
+
+    shared_ptr<PollableTracker> pollabletracker =
+        static_pointer_cast<PollableTracker>(globalreg->FetchGlobal("POLLABLETRACKER"));
+	pollabletracker->RemovePollable(this);
+
+    pthread_mutex_destroy(&pipe_lock);
 }
 
 int PipeClient::OpenPipes(int rpipe, int wpipe) {
+    local_locker lock(&pipe_lock);
+
     if (read_fd > -1 || write_fd > -1) {
         _MSG("Pipe client asked to bind to pipes but already connected to a "
                 "pipe interface.", MSGFLAG_ERROR);
@@ -60,27 +78,29 @@ int PipeClient::OpenPipes(int rpipe, int wpipe) {
         fcntl(write_fd, F_SETFL, fcntl(write_fd, F_GETFL, 0) | O_NONBLOCK);
     }
 
-    globalreg->RegisterPollableSubsys(this);
-
     return 0;
 }
 
 bool PipeClient::FetchConnected() {
+    local_locker lock(&pipe_lock);
+
     return read_fd > -1 || write_fd > -1;
 }
 
 int PipeClient::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
+    local_locker lock(&pipe_lock);
+
     int max_fd = in_max_fd;
 
     // If we have data waiting to be written, fill it in
-    if (handler->GetWriteBufferUsed() && write_fd > -1) {
+    if (write_fd > -1 && handler->GetWriteBufferUsed()) {
         FD_SET(write_fd, out_wset);
         if (write_fd > in_max_fd)
             max_fd = write_fd;
     }
 
     // We always want to read data
-    if (read_fd > in_max_fd) {
+    if (read_fd > -1 && read_fd > in_max_fd) {
         max_fd = read_fd;
         FD_SET(read_fd, out_rset);
     }
@@ -89,13 +109,17 @@ int PipeClient::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
 }
 
 int PipeClient::Poll(fd_set& in_rset, fd_set& in_wset) {
+    local_locker lock(&pipe_lock);
+
     stringstream msg;
 
     uint8_t *buf;
     size_t len;
     ssize_t ret, iret;
 
-    if (FD_ISSET(read_fd, &in_rset)) {
+    // fprintf(stderr, "debug - pipeclient - poll rfd %d wfd %d\n", read_fd, write_fd);
+
+    if (read_fd > -1 && FD_ISSET(read_fd, &in_rset)) {
         // Allocate the biggest buffer we can fit in the ring, read as much
         // as we can at once.
         
@@ -104,11 +128,16 @@ int PipeClient::Poll(fd_set& in_rset, fd_set& in_wset) {
 
         if ((ret = read(read_fd, buf, len)) < 0) {
             if (errno != EINTR && errno != EAGAIN) {
-                // Push the error upstream if we failed to read here
                 msg << "Pipe client error reading - " << kis_strerror_r(errno);
-                handler->BufferError(msg.str());
+    
+                // fprintf(stderr, "debug - pipeclient - read fail %s\n", msg.str().c_str());
+
                 delete[] buf;
-                Close();
+                ClosePipes();
+                // Push the error upstream if we failed to read here
+                handler->BufferError(msg.str());
+
+                // fprintf(stderr, "debug - pipeclient - returning from poll\n");
                 return 0;
             }
         } else {
@@ -119,7 +148,7 @@ int PipeClient::Poll(fd_set& in_rset, fd_set& in_wset) {
                 // Die if we couldn't insert all our data, the error is already going
                 // upstream.
                 delete[] buf;
-                Close();
+                ClosePipes();
                 return 0;
             }
         }
@@ -127,7 +156,7 @@ int PipeClient::Poll(fd_set& in_rset, fd_set& in_wset) {
         delete[] buf;
     }
 
-    if (FD_ISSET(write_fd, &in_wset)) {
+    if (write_fd > -1 && FD_ISSET(write_fd, &in_wset)) {
         len = handler->GetWriteBufferUsed();
         buf = new uint8_t[len];
 
@@ -136,11 +165,11 @@ int PipeClient::Poll(fd_set& in_rset, fd_set& in_wset) {
 
         if ((iret = write(write_fd, buf, len)) < 0) {
             if (errno != EINTR && errno != EAGAIN) {
-                // Push the error upstream
                 msg << "Pipe client error writing - " << kis_strerror_r(errno);
-                handler->BufferError(msg.str());
                 delete[] buf;
-                Close();
+                ClosePipes();
+                // Push the error upstream
+                handler->BufferError(msg.str());
                 return 0;
             }
         } else {
@@ -154,7 +183,9 @@ int PipeClient::Poll(fd_set& in_rset, fd_set& in_wset) {
     return 0;
 }
 
-void PipeClient::Close() {
+void PipeClient::ClosePipes() {
+    local_locker lock(&pipe_lock);
+
     if (read_fd > -1)
         close(read_fd);
 
@@ -163,7 +194,5 @@ void PipeClient::Close() {
 
     read_fd = -1;
     write_fd = -1;
-
-    globalreg->RemovePollableSubsys(this);
 }
 

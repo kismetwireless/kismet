@@ -53,6 +53,7 @@ public:
 
         register_fields();
         reserve_fields(NULL);
+        initialize();
     }
 
     DatasourcePcapfileBuilder(GlobalRegistry *in_globalreg, int in_id,
@@ -61,6 +62,7 @@ public:
 
         register_fields();
         reserve_fields(NULL);
+        initialize();
     }
 
     DatasourcePcapfileBuilder(GlobalRegistry *in_globalreg) :
@@ -68,6 +70,7 @@ public:
 
         register_fields();
         reserve_fields(NULL);
+        initialize();
     }
 
     virtual ~DatasourcePcapfileBuilder() { }

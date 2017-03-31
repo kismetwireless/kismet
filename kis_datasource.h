@@ -224,11 +224,11 @@ protected:
     };
 
     // Tracked commands we need to ack
-    std::map<uint32_t, KisDatasource::tracked_command *> command_ack_map;
+    std::map<uint32_t, shared_ptr<KisDatasource::tracked_command> > command_ack_map;
 
     // Get a command
-    virtual KisDatasource::tracked_command *get_command(uint32_t in_transaction);
-  
+    virtual shared_ptr<KisDatasource::tracked_command> get_command(uint32_t in_transaction);
+
     // Cancel a specific command; exposed as a function for easy callbacks
     virtual void cancel_command(uint32_t in_transaction, string in_reason);
 
@@ -396,7 +396,7 @@ protected:
 
     // If we're an IPC instance, the IPC control.  The ringbuf_handler is associated
     // with the IPC instance.
-    IPCRemoteV2 *ipc_remote;
+    shared_ptr<IPCRemoteV2> ipc_remote;
 
     SharedTrackerElement source_ipc_binary;
     __ProxySet(int_source_ipc_binary, string, string, source_ipc_binary);
@@ -422,6 +422,10 @@ protected:
     pthread_mutex_t source_lock;
     shared_ptr<Timetracker> timetracker;
 
+
+    // Special modes which suppress error output and retry handling
+    bool mode_probing;
+    bool mode_listing;
 
 
 
@@ -629,6 +633,10 @@ public:
     KisDatasourceCapKeyedObject(simple_cap_proto_kv *in_kp);
     KisDatasourceCapKeyedObject(string in_key, const char *in_object, ssize_t in_len);
     ~KisDatasourceCapKeyedObject();
+
+    simple_cap_proto_kv_t *kv;
+
+    bool allocated;
 
     string key;
     size_t size;

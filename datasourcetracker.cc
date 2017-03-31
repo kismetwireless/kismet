@@ -51,12 +51,12 @@ DST_DatasourceProbe::DST_DatasourceProbe(GlobalRegistry *in_globalreg,
 DST_DatasourceProbe::~DST_DatasourceProbe() {
     local_eol_locker lock(&probe_lock);
 
+    // fprintf(stderr, "debug - ~DSTprobe %p\n", this);
+
     // Cancel any probing sources and delete them
     for (auto i = probe_vec.begin(); i != probe_vec.end(); ++i) {
         (*i)->close_source();
     }
-
-    probe_vec.clear();
 
     pthread_mutex_destroy(&probe_lock);
 }
@@ -66,12 +66,14 @@ void DST_DatasourceProbe::cancel() {
 
     local_locker lock(&probe_lock);
 
+    // fprintf(stderr, "debug - dstprobe cancelling search for %s\n", definition.c_str());
+
     cancelled = true;
 
     // Cancel any pending timer
-    if (cancel_timer) {
+    if (cancel_timer >= 0) {
+        // fprintf(stderr, "debug - dstprobe cancelling completion timer %d\n", cancel_timer);
         timetracker->RemoveTimer(cancel_timer);
-        cancel_timer = 0;
     }
 
     // Cancel any other competing probing sources; this may trigger the callbacks
@@ -81,7 +83,8 @@ void DST_DatasourceProbe::cancel() {
         i->second->close_source();
     }
 
-    ipc_probe_map.clear();
+    // We don't delete sources now because we might be inside the loop somehow
+    // and deleting references to ourselves
 
     // Call our cb with whatever we know about our builder; null if we didn't 
     // find something
@@ -108,7 +111,10 @@ void DST_DatasourceProbe::complete_probe(bool in_success, unsigned int in_transa
             source_builder = v->second->get_source_builder();
         }
 
-        // Remove from the map regardless of success
+        // Move them to the completed vec
+        complete_vec.push_back(v->second);
+
+        // Remove them from the map
         ipc_probe_map.erase(v);
     }
 
@@ -131,6 +137,16 @@ void DST_DatasourceProbe::probe_sources(
     // Lock while we generate all of the probes; 
     local_locker lock(&probe_lock);
 
+    // fprintf(stderr, "debug - dstprobe probing sources for %s\n", definition.c_str());
+
+    cancel_timer = 
+        timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 5, NULL, 0, 
+            [this] (int) -> int {
+                // fprintf(stderr, "debug - dstprobe timer expired for %s\n", definition.c_str());
+                cancel();
+                return 0;
+            });
+
     probe_cb = in_cb;
 
     TrackerElementVector vec(proto_vec);
@@ -149,6 +165,7 @@ void DST_DatasourceProbe::probe_sources(
         SharedDatasource pds = b->build_datasource(b);
         pds->probe_interface(definition, transaction, 
             [this] (unsigned int transaction, bool success, string reason) {
+                // fprintf(stderr, "debug - dstprobe probe_sources callback complete\n");
                 complete_probe(success, transaction, reason);
             });
 
@@ -158,18 +175,11 @@ void DST_DatasourceProbe::probe_sources(
     // We've done all we can; if we haven't gotten an answer yet and we
     // have nothing in our transactional map, we've failed
     if (ipc_probe_map.size() == 0) {
+        // fprintf(stderr, "debug - dstprobe probe map 0\n");
         cancel();
         return;
     }
 
-    // Otherwise we're probing; set a cancel timeout of 5 seconds, for now
-    cancel_timer = 
-        timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 5,
-            NULL, 0, 
-            [this] (int) -> int {
-                cancel();
-                return 0;
-            });
 }
 
 Datasourcetracker::Datasourcetracker(GlobalRegistry *in_globalreg) :
@@ -179,10 +189,16 @@ Datasourcetracker::Datasourcetracker(GlobalRegistry *in_globalreg) :
 
     entrytracker = 
         static_pointer_cast<EntryTracker>(globalreg->FetchGlobal("ENTRY_TRACKER"));
-
     if (entrytracker == NULL)
         throw std::runtime_error("entrytracker not initialized before "
                 "Datasourcetracker");
+
+    timetracker =
+        static_pointer_cast<Timetracker>(globalreg->FetchGlobal("TIMETRACKER"));
+    if (timetracker == NULL)
+        throw std::runtime_error("timetracker not initialized before "
+                "Datasourcetracker");
+
 
     // Make a recursive mutex that the owning thread can lock multiple times;
     // Required to allow a timer event to reschedule itself on completion
@@ -190,8 +206,6 @@ Datasourcetracker::Datasourcetracker(GlobalRegistry *in_globalreg) :
     pthread_mutexattr_init(&mutexattr);
     pthread_mutexattr_settype(&mutexattr, PTHREAD_MUTEX_RECURSIVE);
 	pthread_mutex_init(&dst_lock, &mutexattr);
-    pthread_mutex_init(&dst_lock, NULL);
-
 
     dst_proto_builder =
         entrytracker->RegisterAndGetField("kismet.datasourcetracker.driver", 
@@ -211,6 +225,10 @@ Datasourcetracker::Datasourcetracker(GlobalRegistry *in_globalreg) :
         entrytracker->RegisterAndGetField("kismet.datasourcetracker.sources",
                 TrackerVector, "Configured sources");
 
+    completion_cleanup_id = -1;
+    next_probe_id = 0;
+    next_list_id = 0;
+
 }
 
 Datasourcetracker::~Datasourcetracker() {
@@ -218,13 +236,16 @@ Datasourcetracker::~Datasourcetracker() {
 
     globalreg->RemoveGlobal("DATA_SOURCE_TRACKER");
 
-    for (auto i = probing_vec.begin(); i != probing_vec.end(); ++i) {
-        (*i)->cancel();
+    if (completion_cleanup_id >= 0)
+        timetracker->RemoveTimer(completion_cleanup_id);
+
+    for (auto i = probing_map.begin(); i != probing_map.end(); ++i) {
+        i->second->cancel();
     }
 
-    for (auto i = listing_vec.begin(); i != listing_vec.end(); ++i) {
+    for (auto i = listing_map.begin(); i != listing_map.end(); ++i) {
         // TODO implement these
-        // (*i)->cancel();
+        // i->second->cancel();
     }
 
     pthread_mutex_destroy(&dst_lock);
@@ -295,6 +316,7 @@ int Datasourcetracker::register_datasource(SharedDatasourceBuilder in_builder) {
 
 void Datasourcetracker::open_datasource(string in_source, 
         function<void (bool, string)> in_cb) {
+    // fprintf(stderr, "debug - DST open source %s\n", in_source.c_str());
 
     // Open a datasource only from the string definition
 
@@ -326,6 +348,8 @@ void Datasourcetracker::open_datasource(string in_source,
     // for that driver in the prototype vector, confirm it can open it, and fire
     // the launch command at it
     if (type != "auto") {
+        fprintf(stderr, "debug - DST looking for type %s\n", type.c_str());
+
         local_locker lock(&dst_lock);
 
         SharedDatasourceBuilder proto;
@@ -363,50 +387,60 @@ void Datasourcetracker::open_datasource(string in_source,
     // tell it to call our CB when it completes.  The probe will find if there 
     // is a driver that can claim the source string we were given, and 
     // we'll initiate opening it if there is
-    {
+    _MSG("Probing for datasource type for '" + interface + "'", MSGFLAG_INFO);
+
+    // Create a DSTProber to handle the probing
+    SharedDSTProbe dst_probe(new DST_DatasourceProbe(globalreg, 
+                in_source, proto_vec));
+    unsigned int probeid = next_probe_id++;
+
+    // Record it
+    probing_map.emplace(probeid, dst_probe);
+
+    // fprintf(stderr, "debug - pushed probe %u raw %p\n", probeid, dst_probe.get());
+
+    // Initiate the probe
+    dst_probe->probe_sources([this, probeid, in_cb](SharedDatasourceBuilder builder) {
+        // fprintf(stderr, "debug - probe %u completed with builder %d\n", probeid, builder != NULL);
+
+        // Lock on completion
         local_locker lock(&dst_lock);
 
-        _MSG("Probing for datasource type for '" + interface + "'", MSGFLAG_INFO);
+        // fprintf(stderr, "debug - moving probe to completed vec\n");
 
-        // Create a DSTProber to handle the probing
-        SharedDSTProbe 
-            dst_probe(new DST_DatasourceProbe(globalreg, in_source, proto_vec));
+        auto i = probing_map.find(probeid);
 
-        // Record it
-        probing_vec.push_back(dst_probe);
-
-        // Initiate the probe
-        dst_probe->probe_sources([this, dst_probe, in_cb](SharedDatasourceBuilder builder) {
-            // Lock on completion
-            local_locker lock(&dst_lock);
-
-            // Remove this entry from the probe list
-            for (auto i = probing_vec.begin(); i != probing_vec.end(); ++i) {
-                if (*i == dst_probe) {
-                    probing_vec.erase(i);
-                }
-            }
-
+        if (i != probing_map.end()) {
+            // fprintf(stderr, "debug - dst - calling callback\n");
             stringstream ss;
-
             if (builder == NULL) {
+                // fprintf(stderr, "debug - DST - callback with fail\n");
+
                 // We couldn't find a type, return an error to our initial open CB
-                ss << "Unable to find driver for '" << dst_probe->get_definition() << 
-                     "'.  Make sure that any plugins required are loaded.";
+                ss << "Unable to find driver for '" << 
+                    i->second->get_definition() << 
+                    "'.  Make sure that any plugins required are loaded.";
                 _MSG(ss.str(), MSGFLAG_ERROR);
                 in_cb(false, ss.str());
             } else {
                 ss << "Found type '" << builder->get_source_type() << "' for '" <<
-                dst_probe->get_definition() << "'";
+                    i->second->get_definition() << "'";
                 _MSG(ss.str(), MSGFLAG_INFO);
 
                 // Initiate an open w/ a known builder
-                open_datasource(dst_probe->get_definition(), builder, in_cb);
+                open_datasource(i->second->get_definition(), builder, in_cb);
             }
 
-        });
+            // fprintf(stderr, "debug - removing %u %p from probing map\n", probeid, i->second.get());
+            probing_complete_vec.push_back(i->second);
+            probing_map.erase(i);
+            schedule_cleanup();
 
-    }
+        } else {
+            // fprintf(stderr, "debug - DST couldn't find response %u\n", probeid);
+        }
+    });
+
 
     return;
 }
@@ -432,6 +466,28 @@ void Datasourcetracker::open_datasource(string in_source,
                 in_cb(false, reason);
             }
         });
+}
+
+void Datasourcetracker::schedule_cleanup() {
+    local_locker lock(&dst_lock);
+
+    if (completion_cleanup_id >= 0)
+        return;
+
+    completion_cleanup_id = 
+        timetracker->RegisterTimer(1, NULL, 0, [this] (int) -> int {
+            local_locker lock(&dst_lock);
+
+            completion_cleanup_id = -1;
+
+            // fprintf(stderr, "debug - dst cleanup scheduler - emptying complete vecs\n");
+
+            probing_complete_vec.clear();
+            listing_complete_vec.clear();
+
+            return 0;
+        });
+    //fprintf(stderr, "debug - dst scheduling cleanup as %d\n", completion_cleanup_id);
 }
 
 void Datasourcetracker::NewConnection(shared_ptr<RingbufferHandler> conn_handler) {

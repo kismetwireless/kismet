@@ -39,6 +39,7 @@
 #include "structured.h"
 #include "msgpack_adapter.h"
 #include "kismet_json.h"
+#include "pollabletracker.h"
 
 // Kluged in tracker_component for reporting sources and states
 class kis_tracked_oldsource : public tracker_component {
@@ -367,9 +368,6 @@ Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) :
 	globalreg->packetchain->RegisterHandler(&pst_chain_hook, this,
 											CHAINPOS_POSTCAP, -100);
 
-	// Register the packetsourcetracker as a pollable subsystem
-	globalreg->RegisterPollableSubsys(this);
-
 	// Set up the base source IDs - 0 indicates error
 	next_source_id = 1;
 	next_channel_id = 1;
@@ -416,7 +414,9 @@ Packetsourcetracker::~Packetsourcetracker() {
 
 	globalreg->InsertGlobal("PACKETSOURCE_TRACKER", NULL);
 
-	globalreg->RemovePollableSubsys(this);
+    shared_ptr<PollableTracker> pollabletracker =
+        static_pointer_cast<PollableTracker>(globalreg->FetchGlobal("POLLABLETRACKER"));
+	pollabletracker->RemovePollable(this);
 
 	globalreg->timetracker->RemoveTimer(channel_time_id);
 

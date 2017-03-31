@@ -28,6 +28,7 @@
 #include "util.h"
 #include "tcpclient2.h"
 #include "messagebus.h"
+#include "pollabletracker.h"
 
 TcpClientV2::TcpClientV2(GlobalRegistry *in_globalreg, 
         RingbufferHandler *in_rbhandler) {
@@ -41,6 +42,9 @@ TcpClientV2::TcpClientV2(GlobalRegistry *in_globalreg,
 
 TcpClientV2::~TcpClientV2() {
     Disconnect();
+    shared_ptr<PollableTracker> pollabletracker =
+        static_pointer_cast<PollableTracker>(globalreg->FetchGlobal("POLLABLETRACKER"));
+	pollabletracker->RemovePollable(this);
 }
 
 int TcpClientV2::Connect(string in_host, unsigned int in_port) {
@@ -125,8 +129,6 @@ int TcpClientV2::Connect(string in_host, unsigned int in_port) {
 
     host = in_host;
     port = in_port;
-
-    globalreg->RegisterPollableSubsys(this);
 
     return 0;
 }
@@ -271,8 +273,6 @@ void TcpClientV2::Disconnect() {
     cli_fd = -1;
     pending_connect = false;
     connected = false;
-
-    globalreg->RemovePollableSubsys(this);
 }
 
 bool TcpClientV2::FetchConnected() {

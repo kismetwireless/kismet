@@ -54,7 +54,7 @@ public:
 protected:
     GlobalRegistry *globalreg;
     
-    SerialClientV2 *serialclient;
+    shared_ptr<SerialClientV2> serialclient;
     RingbufferHandler *serialhandler;
 
     // Device

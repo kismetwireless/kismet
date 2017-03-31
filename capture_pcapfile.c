@@ -74,7 +74,6 @@ int datalink_type;
 /* Overridden DLT */
 int override_dlt;
 
-
 int main(int argc, char *argv[]) {
     kis_capture_handler_t *caph = cf_handler_init();
 

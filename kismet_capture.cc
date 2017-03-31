@@ -45,6 +45,8 @@
 #include "packetsource_airpcap.h"
 #include "packetsourcetracker.h"
 
+#include "pollabletracker.h"
+
 #include "dumpfile.h"
 #include "dumpfile_tuntap.h"
 
@@ -158,8 +160,15 @@ int main(int argc, char *argv[], char *envp[]) {
 	// Create the message bus
     MessageBus::create_messagebus(globalreg);
 
-	// Create the IPC system
-	globalreg->rootipc = new RootIPCRemote(globalreg, "root capture control");
+    shared_ptr<PollableTracker> pollabletracker(PollableTracker::create_pollabletracker(globalreg));
+
+    // Create the IPC system
+    // Terrible hack for dualhoming the rootipc object in the globalreg
+    // outside of the shared ptr, but it's going to go away, so I don't care
+    shared_ptr<RootIPCRemote> rootipc(RootIPCRemote::create_rootipcremote(globalreg, "kismet_root"));
+
+    globalreg->rootipc = rootipc.get();
+    globalreg->rootipc->SpawnIPC();
 
 	if (globalreg->rootipc->SetChildExecMode(argc, argv) < 0) {
 		fprintf(stderr, "FATAL:  Failed to attach to parent IPC.  Do not run this "
@@ -262,10 +271,8 @@ int main(int argc, char *argv[], char *envp[]) {
 		if (globalreg->fatal_condition)
 			CatchShutdown(-1);
 
-		// Collect all the pollable descriptors
-		for (unsigned int x = 0; x < globalreg->subsys_pollable_vec.size(); x++) 
-			max_fd = 
-				globalreg->subsys_pollable_vec[x]->MergeSet(max_fd, &rset, &wset);
+        max_fd = pollabletracker->MergePollableFds(&rset, &wset);
+
 		tm.tv_sec = 0;
 		tm.tv_usec = 100000;
 
@@ -277,15 +284,11 @@ int main(int argc, char *argv[], char *envp[]) {
 			}
 		}
 
-		for (unsigned int x = 0; 
-			 x < globalreg->subsys_pollable_vec.size(); x++) {
+        pollabletracker->ProcessPollableSelect(rset, wset);
 
-			if (globalreg->subsys_pollable_vec[x]->Poll(rset, wset) < 0 &&
-				globalreg->fatal_condition) {
-				// printf("debug - capture got a fail in startup poll\n");
-				CatchShutdown(-1);
-			}
-		}
+        if (globalreg->fatal_condition) {
+            CatchShutdown(-1);
+        }
 
 		if (globalreg->rootipc->FetchRootIPCSynced() > 0)
 			break;
@@ -316,9 +319,7 @@ int main(int argc, char *argv[], char *envp[]) {
 			CatchShutdown(-1);
 
 		// Collect all the pollable descriptors
-		for (unsigned int x = 0; x < globalreg->subsys_pollable_vec.size(); x++) 
-			max_fd = 
-				globalreg->subsys_pollable_vec[x]->MergeSet(max_fd, &rset, &wset);
+        max_fd = pollabletracker->MergePollableFds(&rset, &wset);
 
 		tm.tv_sec = 0;
 		tm.tv_usec = 100000;
@@ -333,13 +334,11 @@ int main(int argc, char *argv[], char *envp[]) {
 
 		globalreg->timetracker->Tick();
 
-		for (unsigned int x = 0; x < globalreg->subsys_pollable_vec.size(); 
-			 x++) {
-			if (globalreg->subsys_pollable_vec[x]->Poll(rset, wset) < 0 &&
-				globalreg->fatal_condition) {
-				CatchShutdown(-1);
-			}
-		}
+        pollabletracker->ProcessPollableSelect(rset, wset);
+
+        if (globalreg->fatal_condition) {
+            CatchShutdown(-1);
+        }
 	}
 
 	CatchShutdown(-1);

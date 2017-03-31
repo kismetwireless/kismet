@@ -46,7 +46,7 @@ public:
 
     // Bind to a r/w pair of pipes
     int OpenPipes(int rpipe, int wpipe);
-    void Close();
+    void ClosePipes();
 
     // Pollable interface
     virtual int MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset);
@@ -55,11 +55,12 @@ public:
     bool FetchConnected();
 
 protected:
+    pthread_mutex_t pipe_lock;
+
     GlobalRegistry *globalreg;
     shared_ptr<RingbufferHandler> handler;
 
     int read_fd, write_fd;
-
 };
 
 #endif

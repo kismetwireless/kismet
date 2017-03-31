@@ -29,6 +29,7 @@
 #include "ringbuf_handler.h"
 #include "pipeclient.h"
 #include "timetracker.h"
+#include "pollabletracker.h"
 
 /* IPC remote v2
  *
@@ -56,7 +57,7 @@ public:
     // they are added
     void add_path(string in_path);
 
-    // Close down IPC (but don't issue a kill)
+    // Close IPC and issue a soft-kill
     void close_ipc();
 
     // Launch a binary with specified arguments.
@@ -94,9 +95,15 @@ protected:
     pthread_mutex_t ipc_locker;
 
     GlobalRegistry *globalreg;
-    shared_ptr<RingbufferHandler> ipchandler;
-    PipeClient *pipeclient;
+
     shared_ptr<IPCRemoteV2Tracker> remotehandler;
+    shared_ptr<PollableTracker> pollabletracker;
+
+    // Handler for proxying IPC results
+    shared_ptr<RingbufferHandler> ipchandler;
+
+    // Client that reads/writes from the pipes and populates the IPC
+    shared_ptr<PipeClient> pipeclient;
 
     bool tracker_free;
 

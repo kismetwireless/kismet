@@ -122,6 +122,9 @@ protected:
     // Vector of sources we're still waiting to return from probing
     vector<SharedDatasource> probe_vec;
 
+    // Vector of sources which are complete and waiting for cleanup
+    vector<SharedDatasource> complete_vec;
+
     // Prototype we found
     SharedDatasourceBuilder source_builder;
 
@@ -253,6 +256,7 @@ protected:
 
     shared_ptr<Datasourcetracker> datasourcetracker;
     shared_ptr<EntryTracker> entrytracker;
+    shared_ptr<Timetracker> timetracker;
 
     pthread_mutex_t dst_lock;
 
@@ -266,10 +270,23 @@ protected:
     SharedTrackerElement datasource_vec;
 
     // Sub-workers probing for a source definition
-    vector<SharedDSTProbe> probing_vec;
+    map<unsigned int, SharedDSTProbe> probing_map;
+    unsigned int next_probe_id;
+
+    // Sub-workers slated for being removed
+    vector<SharedDSTProbe> probing_complete_vec;
 
     // Sub-workers listing interfaces
-    vector<SharedDSTList> listing_vec;
+    map<unsigned int, SharedDSTList> listing_map;
+    unsigned int next_list_id;
+
+    // Sub-workers slated for being removed
+    vector<SharedDSTList> listing_complete_vec;
+
+    // Cleanup task
+    int completion_cleanup_id;
+    void schedule_cleanup();
+
 };
 
 

@@ -54,7 +54,7 @@ public:
 protected:
     GlobalRegistry *globalreg;
 
-    TcpClientV2 *tcpclient;
+    shared_ptr<TcpClientV2> tcpclient;
     RingbufferHandler *tcphandler;
 
     // Device

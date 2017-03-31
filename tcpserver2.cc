@@ -251,7 +251,7 @@ void TcpServerV2::KillConnection(int in_fd) {
     auto i = handler_map.find(in_fd);
 
     if (i != handler_map.end()) {
-        i->second->CloseHandler("TCP connection closed");
+        i->second->BufferError("TCP connection closed");
         handler_map.erase(i);
     }
 
@@ -263,7 +263,7 @@ void TcpServerV2::KillConnection(shared_ptr<RingbufferHandler> in_handler) {
         if (i->second == in_handler) {
             close(i->first);
             handler_map.erase(i);
-            in_handler->CloseHandler("TCP connection closed");
+            i->second->BufferError("TCP connection closed");
             return;
         }
     }
@@ -340,15 +340,13 @@ bool TcpServerV2::AllowConnection(int in_fd) {
 
 shared_ptr<RingbufferHandler> TcpServerV2::AllocateConnection(int in_fd __attribute__((unused))) {
     // Basic allocation
-    shared_ptr<RingbufferHandler> rbh(new RingbufferHandler(ringbuf_size, ringbuf_size));  
-    // Set a callback for errors that kill the connection
-    rbh->SetErrorHandlerCb([this, in_fd](string) {
-            KillConnection(in_fd);
-        });
-    // Set a callback for errors that kill the connection
-    rbh->SetCloseHandlerCb([this, in_fd](string) {
-            KillConnection(in_fd);
-        });
+    shared_ptr<RingbufferHandler> rbh(new RingbufferHandler(ringbuf_size, 
+                ringbuf_size));  
+
+    // Protocol errors kill the connection
+    rbh->SetProtocolErrorCb([this, in_fd]() {
+        KillConnection(in_fd);
+    });
 
     return rbh;
 }

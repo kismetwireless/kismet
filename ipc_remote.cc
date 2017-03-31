@@ -32,6 +32,7 @@
 #include <errno.h>
 
 #include "ipc_remote.h"
+#include "pollabletracker.h"
 
 void IPC_MessageClient::ProcessMessage(string in_msg, int in_flags) {
 	// Build it into a msgbus ipc block ... is there a smarter way to
@@ -129,11 +130,6 @@ int ipc_sync_callback(IPC_CMD_PARMS) {
 	return 0;
 }
 
-IPCRemote::IPCRemote() {
-	fprintf(stderr, "FATAL OOPS:  IPCRemote called w/ no globalreg\n");
-	exit(1);
-}
-
 IPCRemote::IPCRemote(GlobalRegistry *in_globalreg, string in_procname) {
 	globalreg = in_globalreg;
 	procname = in_procname;
@@ -156,12 +152,12 @@ IPCRemote::IPCRemote(GlobalRegistry *in_globalreg, string in_procname) {
 	RegisterIPCCmd(&ipc_die_callback, NULL, this, "DIE");
 	RegisterIPCCmd(&ipc_msg_callback, NULL, this, "MSG");
 	RegisterIPCCmd(&ipc_sync_callback, NULL, this, "SYNC");
-
-	globalreg->RegisterPollableSubsys(this);
 }
 
 IPCRemote::~IPCRemote() {
-	globalreg->RemovePollableSubsys(this);
+    shared_ptr<PollableTracker> pollabletracker =
+        static_pointer_cast<PollableTracker>(globalreg->FetchGlobal("POLLABLETRACKER"));
+	pollabletracker->RemovePollable(this);
 }
 
 int IPCRemote::CheckPidVec() {
@@ -857,6 +853,12 @@ RootIPCRemote::RootIPCRemote(GlobalRegistry *in_globalreg, string procname) :
 	SetChildCmd(string(BIN_LOC) + "/kismet_capture");
 	fdpass_cmd = RegisterIPCCmd(&ipc_fdpass_callback, NULL, this, "FDPASS");
 	rootipcsync_cmd = RegisterIPCCmd(&ipc_rootipc_sync, NULL, this, "ROOTSYNCED");
+}
+
+RootIPCRemote::~RootIPCRemote() {
+    shared_ptr<PollableTracker> pollabletracker =
+        static_pointer_cast<PollableTracker>(globalreg->FetchGlobal("POLLABLETRACKER"));
+	pollabletracker->RemovePollable(this);
 }
 
 int RootIPCRemote::FetchReadyState() {

@@ -86,29 +86,21 @@ public:
     void RemoveReadBufferInterface();
     void RemoveWriteBufferInterface();
 
-    // Propagate a buffer error to any listeners
+    // Propagate a line-layer buffer error to any listeners (line IO system to interfaces)
     void BufferError(string in_error);
     // Propagate an error to a specific listener
     void ReadBufferError(string in_error);
     void WriteBufferError(string in_error);
 
-    // Set a close callback, this is triggered after setting the ringbuf handler
-    // as closed
-    virtual void SetCloseHandlerCb(function<void (string)> in_cb);
-    // Set handler as closed
-    virtual void CloseHandler(string in_reason);
-    virtual bool FetchClosed();
-
-    // Set an error callback; this is triggered via ErrorHandler(..) which 
-    // calls the cb and then sets closed.  This allows external users of the
-    // ringbuffer to propagate an error back to the low-level drivers, such as
-    // closing a tcp socket on a protocol error
-    virtual void SetErrorHandlerCb(function<void (string)> in_cb);
-    // Trigger an error callback
-    virtual void ErrorHandler(string in_reason);
+    // Propagate a protocol-layer error to any line-drivers (protocol parser
+    // to line drivers).  We don't pass a string to the line drivers because
+    // the protocol driver should present the error usefully
+    void ProtocolError();
+    // Set a protocol error callback; line level drivers should set this and initiate
+    // a shutdown of the line connections
+    void SetProtocolErrorCb(function<void (void)> in_cb);
 
 protected:
-    bool closed;
 
     RingbufV2 *read_buffer;
     RingbufV2 *write_buffer;
@@ -121,8 +113,7 @@ protected:
     pthread_mutex_t r_callback_locker;
     pthread_mutex_t w_callback_locker;
 
-    function<void (string)> close_cb;
-    function<void (string)> error_cb;
+    function<void (void)> protoerror_cb;
 };
 
 // Ringbuffer interface, interacts with a ringbuffer handler 

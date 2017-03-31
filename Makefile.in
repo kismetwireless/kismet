@@ -7,8 +7,7 @@ CAPSOURCES = \
 	packetsource_ipwlive.o packetsource_airpcap.o 
 
 PSO	= util.o cygwin_utils.o globalregistry.o \
-	ringbuf.o \
-	ringbuf2.o ringbuf_handler.o \
+	pollabletracker.o ringbuf.o ringbuf2.o ringbuf_handler.o \
 	packet.o messagebus.o configfile.o getopt.o \
 	filtercore.o ifcontrol.o iwcontrol.o madwifing_control.o nl80211_control.o \
 	psutils.o ipc_remote.o battery.o kismet_json.o \
@@ -40,7 +39,7 @@ CAPTURE_PCAPFILE_O 	= msgpuck.o msgpuck_hints.o \
 					  simple_datasource_proto.o \
 					  capture_framework.o \
 					  capture_pcapfile.o
-CAPTURE_PCAPFILE 	= capture_pcapfile
+CAPTURE_PCAPFILE 	= kismet_cap_pcapfile
 
 DRONEO = 
 # DRONEO = util.o cygwin_utils.o globalregistry.o ringbuf.o \
@@ -56,7 +55,7 @@ DRONEO =
 # 		 dumpfile_drone.o \
 # 		 kismet_drone.o
 
-CSO = util.o cygwin_utils.o globalregistry.o ringbuf.o \
+CSO = util.o cygwin_utils.o globalregistry.o pollabletracker.o ringbuf.o \
 	packet.o messagebus.o configfile.o getopt.o \
 	filtercore.o ifcontrol.o iwcontrol.o madwifing_control.o nl80211_control.o \
 	psutils.o ipc_remote.o \

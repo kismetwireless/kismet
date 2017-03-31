@@ -25,8 +25,6 @@
 #include "ringbuf_handler.h"
 
 RingbufferHandler::RingbufferHandler(size_t r_buffer_sz, size_t w_buffer_sz) {
-    closed = false;
-
     if (r_buffer_sz != 0)
         read_buffer = new RingbufV2(r_buffer_sz);
     else
@@ -51,15 +49,17 @@ RingbufferHandler::RingbufferHandler(size_t r_buffer_sz, size_t w_buffer_sz) {
 }
 
 RingbufferHandler::~RingbufferHandler() {
-    {
-        local_locker lock(&handler_locker);
-        if (read_buffer)
-            delete read_buffer;
+    local_eol_locker lock(&handler_locker);
+    local_eol_locker rlock(&r_callback_locker);
+    local_eol_locker wlock(&w_callback_locker);
 
-        if (write_buffer)
-            delete write_buffer;
-    }
+    // fprintf(stderr, "debug - ~rbh inside locks\n");
 
+    if (read_buffer)
+        delete read_buffer;
+
+    if (write_buffer)
+        delete write_buffer;
 
     pthread_mutex_destroy(&handler_locker);
     pthread_mutex_destroy(&r_callback_locker);
@@ -197,8 +197,12 @@ size_t RingbufferHandler::PutWriteBufferData(void *in_ptr, size_t in_sz,
         // Sub-context for locking so we don't lock read-op out
         local_locker lock(&handler_locker);
 
-        if (!write_buffer)
+        if (!write_buffer) {
+            if (wbuf_notify)
+                wbuf_notify->BufferError("No write buffer connected");
+
             return 0;
+        }
 
         // Don't write any if we're an atomic complete write
         if (in_atomic && write_buffer->available() < in_sz)
@@ -212,7 +216,7 @@ size_t RingbufferHandler::PutWriteBufferData(void *in_ptr, size_t in_sz,
         // needs to interact with us
         local_locker lock(&w_callback_locker);
 
-        if (ret != in_sz)
+        if (ret != in_sz && wbuf_notify)
             wbuf_notify->BufferError("insufficient space in buffer");
 
         if (wbuf_notify)
@@ -247,6 +251,7 @@ void RingbufferHandler::SetWriteBufferInterface(RingbufferInterface *in_interfac
 
 void RingbufferHandler::RemoveReadBufferInterface() {
     local_locker lock(&r_callback_locker);
+    // fprintf(stderr, "debug - RBH removing read buffer interface\n");
 
     rbuf_notify = NULL;
 }
@@ -276,40 +281,20 @@ void RingbufferHandler::WriteBufferError(string in_error) {
         wbuf_notify->BufferError(in_error);
 }
 
-void RingbufferHandler::SetCloseHandlerCb(function<void (string)> in_cb) {
+void RingbufferHandler::SetProtocolErrorCb(function<void (void)> in_cb) {
     local_locker lock(&handler_locker);
 
-    close_cb = in_cb;
+    protoerror_cb = in_cb;
 }
 
-void RingbufferHandler::CloseHandler(string in_reason __attribute__((unused))) {
+void RingbufferHandler::ProtocolError() {
     local_locker lock(&handler_locker);
 
-    closed = true;
+    // fprintf(stderr, "debug - RBH calling protocol error\n");
 
-    if (close_cb != NULL)
-        close_cb(in_reason);
-}
+    if (protoerror_cb != NULL)
+        protoerror_cb();
 
-void RingbufferHandler::SetErrorHandlerCb(function<void (string)> in_cb) {
-    local_locker lock(&handler_locker);
-
-    error_cb = in_cb;
-}
-
-void RingbufferHandler::ErrorHandler(string in_reason) {
-    local_locker lock(&handler_locker);
-
-    CloseHandler(in_reason);
-
-    if (error_cb != NULL)
-        error_cb(in_reason);
-}
-
-bool RingbufferHandler::FetchClosed() {
-    local_locker lock(&handler_locker);
-
-    return closed;
 }
 
 RingbufferInterface::RingbufferInterface() {

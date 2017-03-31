@@ -21,6 +21,7 @@
 #include "gpsserial2.h"
 #include "util.h"
 #include "gps_manager.h"
+#include "pollabletracker.h"
 
 GPSSerialV2::GPSSerialV2(GlobalRegistry *in_globalreg) : Kis_Gps(in_globalreg) {
     globalreg = in_globalreg;
@@ -37,13 +38,10 @@ GPSSerialV2::GPSSerialV2(GlobalRegistry *in_globalreg) : Kis_Gps(in_globalreg) {
 }
 
 GPSSerialV2::~GPSSerialV2() {
-    {
-        local_locker lock(&gps_locker);
-        if (serialclient != NULL)
-            delete(serialclient);
-        if (serialhandler != NULL)
-            delete(serialhandler);
-    }
+    local_eol_locker lock(&gps_locker);
+
+    if (serialhandler != NULL)
+        delete(serialhandler);
 
     pthread_mutex_destroy(&gps_locker);
 }
@@ -71,8 +69,7 @@ int GPSSerialV2::OpenGps(string in_opts) {
     }
 
     if (serialclient != NULL) {
-        delete serialclient;
-        serialclient = NULL;
+        serialclient.reset();
     }
 
     // Now figure out if our options make sense... 
@@ -114,8 +111,12 @@ int GPSSerialV2::OpenGps(string in_opts) {
     // Set the read handler to us
     serialhandler->SetReadBufferInterface(this);
     // Link it to a serial port
-    serialclient = new SerialClientV2(globalreg, serialhandler);
+    serialclient.reset(new SerialClientV2(globalreg, serialhandler));
     serialclient->OpenDevice(proto_device, proto_baud);
+
+    shared_ptr<PollableTracker> pollabletracker =
+        static_pointer_cast<PollableTracker>(globalreg->FetchGlobal("POLLABLETRACKER"));
+    pollabletracker->RegisterPollable(serialclient);
 
     serial_device = proto_device;
     baud = proto_baud;

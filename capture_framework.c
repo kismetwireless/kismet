@@ -171,7 +171,7 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
     rb_available = kis_simple_ringbuf_used(caph->in_ringbuf);
 
     if (rb_available < sizeof(simple_cap_proto_t)) {
-        fprintf(stderr, "DEBUG - insufficient data to represent a frame\n");
+        // fprintf(stderr, "DEBUG - insufficient data to represent a frame\n");
         return 0;
     }
 
