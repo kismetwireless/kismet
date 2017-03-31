@@ -211,11 +211,16 @@ int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
         len = handler->GetReadBufferFree();
         buf = new uint8_t[len];
 
-        if ((ret = read(cli_fd, buf, len)) < 0) {
+        if ((ret = read(cli_fd, buf, len)) <= 0) {
             if (errno != EINTR && errno != EAGAIN) {
                 // Push the error upstream if we failed to read here
-                msg << "TCP client error reading from " << host << ":" << port <<
-                    " - " << kis_strerror_r(errno);
+                if (ret == 0) {
+                    msg << "TCP client closing " << host << ":" << port <<
+                        " - connection closed by remote side.";
+                } else {
+                    msg << "TCP client error reading from " << host << ":" << port <<
+                        " - " << kis_strerror_r(errno);
+                }
                 handler->BufferError(msg.str());
                 delete[] buf;
                 Disconnect();

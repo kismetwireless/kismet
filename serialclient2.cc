@@ -154,11 +154,17 @@ int SerialClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
         len = handler->GetReadBufferFree();
         buf = new uint8_t[len];
 
-        if ((ret = read(device_fd, buf, len)) < 0) {
+        if ((ret = read(device_fd, buf, len)) <= 0) {
             if (errno != EINTR && errno != EAGAIN) {
                 // Push the error upstream if we failed to read here
-                msg << "Serial client error reading from " << device << "@" << baud <<
-                    " - " << kis_strerror_r(errno);
+                if (ret == 0) {
+                    msg << "Serial client closing " << device << "@" << baud <<
+                        " - connection closed / device removed";
+                } else {
+                    msg << "Serial client error reading from " << device << "@" << 
+                        baud << " - " << kis_strerror_r(errno);
+                }
+
                 handler->BufferError(msg.str());
                 delete[] buf;
                 Close();
