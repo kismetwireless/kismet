@@ -92,6 +92,33 @@ struct kis_capture_handler {
     cf_callback_open open_cb;
 };
 
+/* Parse an interface name from a definition string.
+ * Returns a pointer to the start of the interface name in the definition in
+ * ret_interface, and the length of the interface name.  
+ *
+ * CALLERS SHOULD ALLOCATE AN ADDITIONAL BYTE FOR NULL TERMINATION when extracting
+ * this string, the LENGTH RETURNED IS THE ABSOLUTE LENGTH INSIDE THE DEFINITION.
+ *
+ * Returns:
+ * -1   Error
+ *  1+  Length of interface name in the definition
+ */
+int cf_parse_interface(char **ret_interface, char *definition);
+
+/* Parse a definition string looking for a specific flag and returns a pointer to
+ * the start of the flag value in definition in ret_value, and the length of the
+ * flag.
+ *
+ * CALLERS SHOULD ALLOCATE AN ADDITIONAL BYTE FOR NULL TERMINATION when extracting
+ * this string, the LENGTH RETURNED IS THE ABSOLUTE LENGTH INSIDE THE DEFINITION.
+ *
+ * Returns:
+ * -1   Error
+ *  0   Flag not found
+ *  1+  Length of flag value in definition
+ */
+int cf_parse_flag(char **ret_value, const char *flag, char *definition);
+
 /* Initialize a caphandler
  *
  * Returns:

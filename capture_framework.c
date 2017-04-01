@@ -18,6 +18,82 @@
 
 #include "capture_framework.h"
 
+int cf_parse_interface(char **ret_interface, char *definition) {
+    char *colonpos;
+
+    colonpos = strstr(definition, ":");
+
+    *ret_interface = definition;
+
+    /* If there is no : separator, the entire line is the interface and there
+     * are no flags. */
+    if (colonpos == NULL) {
+        return strlen(definition);
+    }
+
+    /* Otherwise return until the separator */
+    return (colonpos - definition);
+}
+
+int cf_parse_flag(char **ret_value, const char *flag, char *definition) {
+    char *colonpos;
+    char *flagpos;
+    char *comma;
+    char *equals;
+
+    colonpos = strstr(definition, ":");
+
+    /* If there is no : separator, the entire line is the interface, return NULL
+     * and 0 */
+    if (colonpos == NULL) {
+        *ret_value = NULL;
+        return 0;
+    }
+
+    flagpos = colonpos + 1;
+
+    while ((size_t) (flagpos - definition) < strlen(definition)) {
+        equals = strstr(flagpos, "=");
+
+        /* If we have a flag with no =value that's an error */
+        if (equals == NULL) {
+            *ret_value = NULL;
+            return -1;
+        }
+
+        /* Compare the flag */
+        if (strncasecmp(flag, flagpos, (equals - flagpos)) == 0) {
+            /* Find the next comma */
+            comma = strstr(equals, ",");
+
+            /* If it's null we're the last flag, so use the total length after
+             * the equals as the value */
+            if (comma == NULL) {
+                *ret_value = equals + 1;
+                return strlen(equals) - 1;
+            }
+
+            /* Otherwise return until the equals */
+            *ret_value = equals + 1;
+            return (comma - (equals + 1));
+        }
+
+        /* Otherwise find the next comma and advance */
+        comma = strstr(flagpos, ",");
+
+        /* No comma, no more flags, nothing to find */
+        if (comma == NULL) {
+            *ret_value = NULL;
+            return 0;
+        }
+
+        flagpos = comma + 1;
+    }
+
+    *ret_value = NULL;
+    return 0;
+}
+
 kis_capture_handler_t *cf_handler_init() {
     kis_capture_handler_t *ch;
 
