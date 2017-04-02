@@ -288,7 +288,7 @@ void KisDatasource::BufferAvailable(size_t in_amt) {
     simple_cap_proto_frame_t *frame;
     uint8_t *buf;
     uint32_t frame_sz;
-    uint32_t frame_checksum, calc_checksum;
+    uint32_t frame_checksum, data_checksum, calc_checksum;
 
     if (in_amt < sizeof(simple_cap_proto_t)) {
         return;
@@ -310,6 +310,30 @@ void KisDatasource::BufferAvailable(size_t in_amt) {
         return;
     }
 
+    // Get the frame header checksum and validate it; to validate we need to clear
+    // both the frame and the data checksum fields so remember them both now
+    frame_checksum = kis_ntoh32(frame->header.header_checksum);
+    data_checksum = kis_ntoh32(frame->header.data_checksum);
+
+    // Zero the checksum field in the packet
+    frame->header.header_checksum = 0x00000000;
+    frame->header.data_checksum = 0x00000000;
+
+    // Calc the checksum of the header
+    calc_checksum = Adler32Checksum((const char *) buf, sizeof(simple_cap_proto_t));
+
+    // Compare to the saved checksum
+    if (calc_checksum != frame_checksum) {
+        delete[] buf;
+
+        _MSG("Kismet data source " + get_source_name() + " got an invalid hdr checksum "
+                "on control from IPC/Network, closing.", MSGFLAG_ERROR);
+        trigger_error("Source got invalid control frame");
+
+        return;
+    }
+
+    // Get the size of the frame
     frame_sz = kis_ntoh32(frame->header.packet_sz);
 
     if (frame_sz > in_amt) {
@@ -318,17 +342,11 @@ void KisDatasource::BufferAvailable(size_t in_amt) {
         return;
     }
 
-    // Get the checksum & save it
-    frame_checksum = kis_ntoh32(frame->header.checksum);
-
-    // Zero the checksum field in the packet
-    frame->header.checksum = 0x00000000;
-
     // Calc the checksum of the rest
     calc_checksum = Adler32Checksum((const char *) buf, frame_sz);
 
     // Compare to the saved checksum
-    if (calc_checksum != frame_checksum) {
+    if (calc_checksum != data_checksum) {
         delete[] buf;
 
         _MSG("Kismet data source " + get_source_name() + " got an invalid checksum "
@@ -1222,7 +1240,7 @@ bool KisDatasource::write_packet(string in_cmd, KVmap in_kvpairs,
 
     simple_cap_proto_t proto_hdr;
 
-    uint32_t csum, csum_s1 = 0, csum_s2 = 0;
+    uint32_t hcsum, dcsum = 0, csum_s1 = 0, csum_s2 = 0;
 
     size_t total_len = sizeof(simple_cap_proto_t);
 
@@ -1232,7 +1250,8 @@ bool KisDatasource::write_packet(string in_cmd, KVmap in_kvpairs,
     }
 
     proto_hdr.signature = kis_hton32(KIS_CAP_SIMPLE_PROTO_SIG);
-    proto_hdr.checksum = 0;
+    proto_hdr.header_checksum = 0;
+    proto_hdr.data_checksum = 0;
     proto_hdr.packet_sz = kis_hton32(total_len);
 
     proto_hdr.sequence_number = kis_hton32(next_cmd_sequence);
@@ -1245,18 +1264,20 @@ bool KisDatasource::write_packet(string in_cmd, KVmap in_kvpairs,
 
     proto_hdr.num_kv_pairs = kis_hton32(in_kvpairs.size());
 
-    // Start calculating the checksum
-    csum = Adler32IncrementalChecksum((const char *) &proto_hdr, 
+    // Start calculating the checksum on just the header
+    hcsum = Adler32IncrementalChecksum((const char *) &proto_hdr, 
             sizeof(simple_cap_proto_t), csum_s1, csum_s2);
+    
 
     // Calc the checksum of all the kv pairs
     for (auto i = in_kvpairs.begin(); i != in_kvpairs.end(); ++i) {
-        csum = Adler32IncrementalChecksum((const char *) i->second->kv,
+        dcsum = Adler32IncrementalChecksum((const char *) i->second->kv,
                 sizeof(simple_cap_proto_kv_h_t) + i->second->size,
                 csum_s1, csum_s2);
     }
 
-    proto_hdr.checksum = kis_hton32(csum);
+    proto_hdr.header_checksum = kis_hton32(hcsum);
+    proto_hdr.data_checksum = kis_hton32(dcsum);
 
     if (ringbuf_handler->PutWriteBufferData(&proto_hdr, 
                 sizeof(simple_cap_proto_t), true) == 0)

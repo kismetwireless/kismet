@@ -66,8 +66,11 @@ typedef struct simple_cap_proto_kv simple_cap_proto_kv_t;
 struct simple_cap_proto {
     /* Fixed Start-of-packet signature */
     uint32_t signature;
-    /* Basic crc32 checksum of packet data, calculated with checksum set to zero */
-    uint32_t checksum;
+    /* Basic adler32 checksum of header data, calculated with both header and data
+     * checksum set to zero */
+    uint32_t header_checksum;
+    /* Basic adler32 checksum of packet data, calculated with checksum set to zero */
+    uint32_t data_checksum;
     /* Total size of packet including signature and checksum */
     uint32_t packet_sz;
     /* Sequence number (sender) */
@@ -252,7 +255,15 @@ simple_cap_proto_kv_t *encode_kv_chanhop(double rate, const char **channels, siz
  */
 simple_cap_proto_kv_t *encode_kv_message(const char *message, unsigned int flags);
 
-/* Validate if a frame passes checksum
+/* Validate if a header passes checksum
+ *
+ * Returns:
+ * -1   Failure
+ *  1   Success
+ */
+int validate_simple_cap_proto_header(simple_cap_proto_t *in_packet);
+
+/* Validate if a complete frame passes checksum
  *
  * Returns:
  * -1   Failure

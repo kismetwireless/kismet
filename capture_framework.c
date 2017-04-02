@@ -267,6 +267,9 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
     /* Incoming size */
     uint32_t packet_sz;
 
+    /* Callback ret */
+    int cbret;
+
     rb_available = kis_simple_ringbuf_used(caph->in_ringbuf);
 
     if (rb_available < sizeof(simple_cap_proto_t)) {
@@ -323,14 +326,34 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
         return -1;
     }
 
+    /* Lock so we can look at callbacks */
+    pthread_mutex_lock(&(caph->handler_lock));
+
     if (strncasecmp(cap_proto_frame->type, "LISTINTERFACES", 16) == 0) {
         fprintf(stderr, "DEBUG - Got LISTINTERFACES request\n");
-        cf_send_listresp(caph, ntohl(cap_proto_frame->sequence_number),
-                false, "We don't support listing", NULL, NULL, 0);
+
+        if (caph->listdevices_cb == NULL) {
+            pthread_mutex_unlock(&(caph->handler_lock));
+            cf_send_listresp(caph, ntohl(cap_proto_frame->sequence_number),
+                    false, "We don't support listing", NULL, NULL, 0);
+            cbret = -1;
+        } else {
+            pthread_mutex_unlock(&(caph->handler_lock));
+            cbret = (*(caph->listdevices_cb))(caph, 
+                    ntohl(cap_proto_frame->sequence_number));
+        }
     } else if (strncasecmp(cap_proto_frame->type, "PROBEDEVICE", 16) == 0) {
         fprintf(stderr, "DEBUG - Got PROBEDEVICE request\n");
-        cf_send_proberesp(caph, ntohl(cap_proto_frame->sequence_number),
-                false, "We don't support probing", NULL, NULL, 0);
+
+        if (caph->probe_cb == NULL) {
+            pthread_mutex_unlock(&(caph->handler_lock));
+            cf_send_proberesp(caph, ntohl(cap_proto_frame->sequence_number),
+                    false, "We don't support probing", NULL, NULL, 0);
+            cbret = -1;
+        } else {
+            pthread_mutex_unlock(&(caph->handler_lock));
+
+        }
     } else if (strncasecmp(cap_proto_frame->type, "OPENDEVICE", 16) == 0) {
         fprintf(stderr, "DEBUG - Got OPENDEVICE request\n");
         cf_send_proberesp(caph, ntohl(cap_proto_frame->sequence_number),
@@ -341,7 +364,22 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
                 false, "Unsupported request", NULL, NULL, 0);
     }
 
+
     return -1;
+}
+
+int cf_get_DEFINITION(char *ret_definition, simple_cap_proto_t *in_frame) {
+    uint32_t packet_sz;
+    uint32_t num_kv_pairs;
+    uint32_t obj_sz;
+    uint32_t i;
+
+    packet_sz = ntohl(in_frame->packet_sz);
+    num_kv_pairs = ntohl(in_frame->num_kv_pairs);
+
+    for (i = 0; i < num_kv_pairs; i++) {
+
+    }
 }
 
 void cf_handler_loop(kis_capture_handler_t *caph) {

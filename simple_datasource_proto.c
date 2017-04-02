@@ -80,7 +80,7 @@ simple_cap_proto_frame_t *encode_simple_cap_proto(const char *in_type, uint32_t 
     unsigned int x;
     size_t sz = sizeof(simple_cap_proto_t);
     size_t offt = 0;
-    uint32_t csum;
+    uint32_t hcsum, dcsum;
 
     for (x = 0; x < in_kv_len; x++) {
         kv = in_kv_list[x];
@@ -93,7 +93,8 @@ simple_cap_proto_frame_t *encode_simple_cap_proto(const char *in_type, uint32_t 
         return NULL;
 
     cp->header.signature = htonl(KIS_CAP_SIMPLE_PROTO_SIG);
-    cp->header.checksum = 0;
+    cp->header.header_checksum = 0;
+    cp->header.data_checksum = 0;
     cp->header.sequence_number = htonl(in_seqno);
     snprintf(cp->header.type, 16, "%16s", in_type);
     cp->header.packet_sz = htonl((uint32_t) sz);
@@ -106,8 +107,10 @@ simple_cap_proto_frame_t *encode_simple_cap_proto(const char *in_type, uint32_t 
         offt += sizeof(simple_cap_proto_kv_t) + ntohl(kv->header.obj_sz);
     }
 
-    csum = adler32_csum((uint8_t *) cp, sz);
-    cp->header.checksum = htonl(csum);
+    hcsum = adler32_csum((uint8_t *) cp, sizeof(simple_cap_proto_t));
+    dcsum = adler32_csum((uint8_t *) cp, sz);
+    cp->header.header_checksum = htonl(hcsum);
+    cp->header.data_checksum = htonl(dcsum);
 
     return cp;
 }
@@ -120,7 +123,7 @@ simple_cap_proto_t *encode_simple_cap_proto_hdr(size_t *ret_sz,
     unsigned int x;
     size_t sz = sizeof(simple_cap_proto_t);
 
-    uint32_t csum;
+    uint32_t hcsum, dcsum;
     uint32_t csum_s1 = 0;
     uint32_t csum_s2 = 0;
 
@@ -137,24 +140,28 @@ simple_cap_proto_t *encode_simple_cap_proto_hdr(size_t *ret_sz,
         return NULL;
 
     cp->signature = htonl(KIS_CAP_SIMPLE_PROTO_SIG);
-    cp->checksum = 0;
+    cp->header_checksum = 0;
+    cp->data_checksum = 0;
     cp->sequence_number = htonl(in_seqno);
     snprintf(cp->type, 16, "%16s", in_type);
     cp->packet_sz = htonl((uint32_t) sz);
     cp->num_kv_pairs = htonl(in_kv_len);
 
-    /* calculate the incremental checksum */
-    adler32_partial_csum((uint8_t *) cp, sizeof(simple_cap_proto_t), &csum_s1, &csum_s2);
+    /* calculate the incremental checksum; first we calc the header and save
+     * it as the header-only cssum */
+    hcsum = adler32_partial_csum((uint8_t *) cp, 
+            sizeof(simple_cap_proto_t), &csum_s1, &csum_s2);
 
-    /* Checksum the KVs */
+    /* Then add the checksum of the KVs */
     for (x = 0; x < in_kv_len; x++) {
         kv = in_kv_list[x];
-        csum = adler32_partial_csum((uint8_t *) kv, ntohl(kv->header.obj_sz), 
+        dcsum = adler32_partial_csum((uint8_t *) kv, ntohl(kv->header.obj_sz), 
                 &csum_s1, &csum_s2);
     }
 
-    /* Set the total checksum */
-    cp->checksum = htonl(csum);
+    /* Set the total checksums */
+    cp->header_checksum = htonl(hcsum);
+    cp->data_checksum = htonl(dcsum);
 
     *ret_sz = sz;
 
@@ -653,19 +660,58 @@ simple_cap_proto_kv_t *encode_kv_message(const char *message, unsigned int flags
     return kv;
 }
 
-int validate_simple_cap_proto(simple_cap_proto_t *in_packet) {
+int validate_simple_cap_proto_header(simple_cap_proto_t *in_packet) {
     /* Extract original checksum */
-    uint32_t original_csum = ntohl(in_packet->checksum);
+    uint32_t original_hcsum = ntohl(in_packet->header_checksum);
+    uint32_t original_dcsum = ntohl(in_packet->data_checksum);
     uint32_t calc_csum;
 
     /* Zero csum field in packet */
-    in_packet->checksum = 0;
+    in_packet->header_checksum = 0;
+    in_packet->data_checksum = 0;
 
     /* Checksum the contents */
+    calc_csum = adler32_csum((uint8_t *) in_packet, sizeof(simple_cap_proto_t));
+
+    if (original_hcsum != calc_csum)
+        return -1;
+
     calc_csum = adler32_csum((uint8_t *) in_packet, ntohl(in_packet->packet_sz));
 
-    if (original_csum != calc_csum)
+    if (original_dcsum != calc_csum)
         return -1;
+
+    /* Restore the contents */
+    in_packet->header_checksum = htonl(original_hcsum);
+    in_packet->data_checksum = htonl(original_dcsum);
+
+    return 1;
+}
+
+int validate_simple_cap_proto(simple_cap_proto_t *in_packet) {
+    /* Extract original checksum */
+    uint32_t original_hcsum = ntohl(in_packet->header_checksum);
+    uint32_t original_dcsum = ntohl(in_packet->data_checksum);
+    uint32_t calc_csum;
+
+    /* Zero csum field in packet */
+    in_packet->header_checksum = 0;
+    in_packet->data_checksum = 0;
+
+    /* Checksum the contents */
+    calc_csum = adler32_csum((uint8_t *) in_packet, sizeof(simple_cap_proto_t));
+
+    if (original_hcsum != calc_csum)
+        return -1;
+
+    calc_csum = adler32_csum((uint8_t *) in_packet, ntohl(in_packet->packet_sz));
+
+    if (original_dcsum != calc_csum)
+        return -1;
+
+    /* Restore the contents */
+    in_packet->header_checksum = htonl(original_hcsum);
+    in_packet->data_checksum = htonl(original_dcsum);
 
     return 1;
 }

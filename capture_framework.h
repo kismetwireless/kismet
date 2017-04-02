@@ -159,7 +159,7 @@ void cf_handler_spindown(kis_capture_handler_t *caph);
  */
 int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]);
 
-/* Set callbacks; pass NULL to remove a callback */
+/* Set callbacks; pass NULL to remove a callback. */
 void cf_handler_set_listdevices_cb(kis_capture_handler_t *capf, 
         cf_callback_listdevices cb);
 void cf_handler_set_probe_cb(kis_capture_handler_t *capf,
@@ -172,6 +172,22 @@ void cf_handler_set_open_cb(kis_capture_handler_t *capf,
  * received.
  */
 int cf_handle_rx_data(kis_capture_handler_t *caph);
+
+/* Extract a definition string from a packet, assuming it contains a 
+ * 'DEFINITION' KV pair.
+ *
+ * If available, returns a pointer to the definition in the packet in
+ * ret_definition, and returns the length of the definition.
+ *
+ * CALLERS SHOULD ALLOCATE AN ADDITIONAL BYTE FOR NULL TERMINATION when extracting
+ * this string, the LENGTH RETURNED IS THE ABSOLUTE LENGTH INSIDE THE DEFINITION.
+ *
+ * Returns:
+ * -1   Error
+ *  0   No DEFINITION key found
+ *  1+  Length of definition
+ */
+int cf_get_DEFINITION(char *ret_definition, simple_cap_proto_t *in_frame);
 
 /* Handle the sockets in a select() loop; this function will block until it
  * encounters an error or gets a shutdown command.
