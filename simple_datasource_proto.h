@@ -183,6 +183,14 @@ simple_cap_proto_kv_t *encode_kv_capdata(struct timeval in_ts, int in_dlt,
 
 /* Encode a GPS KV
  *
+ * This should only be needed when the GPS data is not encoded in the DLT already.
+ * For instance, it's not recommended to parse a PPI header and extract embedded
+ * GPS data, then encode as a GPS KV pair; instead, pass the entire radiotap packet
+ * to Kismet.
+ *
+ * This is best used for remote capture drivers with independent GPS or a fixed GPS
+ * location.
+ *
  * Returns:
  * Pointer on success
  * Null on failure
@@ -193,6 +201,14 @@ simple_cap_proto_kv_t *encode_kv_gps(double in_lat, double in_lon, double in_alt
         char *in_gps_type, char *in_gps_name);
 
 /* Encode a SIGNAL KV
+ *
+ * This should only be needed when the signal data is not encoded in the DLT already.
+ * For instance, it's not recommended to parse a radiotap header from a capture and
+ * encode the signal information here - simply pass the radiotap packet with the 
+ * proper DLT to Kismet.
+ *
+ * This is best used in situations where there is no embedded signal data in the packet
+ * record.
  *
  * returns:
  * Pointer on success

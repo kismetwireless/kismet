@@ -170,8 +170,8 @@ int main(int argc, char *argv[]) {
         .realtime = 0
     };
 
+    /* Remap stderr so we can log debugging to a file */
     FILE *sterr;
-
     sterr = fopen("capture_pcapfile.stderr", "a");
     dup2(fileno(sterr), STDERR_FILENO);
 
