@@ -218,7 +218,7 @@ uint32_t Adler32Checksum(const char *buf1, size_t len);
 // Caller must set s1 and s2 to 0 for the initial call and provide them for
 // subsequent calls.
 uint32_t Adler32IncrementalChecksum(const char *buf1, size_t len, 
-        uint32_t &s1, uint32_t &s2);
+        uint32_t *s1, uint32_t *s2);
 
 // 802.11 checksum functions, derived from the BBN USRP 802.11 code
 #define IEEE_802_3_CRC32_POLY	0xEDB88320
