@@ -37,7 +37,7 @@ int cf_parse_interface(char **ret_interface, char *definition) {
     return (colonpos - definition);
 }
 
-int cf_parse_flag(char **ret_value, const char *flag, char *definition) {
+int cf_find_flag(char **ret_value, const char *flag, char *definition) {
     char *colonpos;
     char *flagpos;
     char *comma;

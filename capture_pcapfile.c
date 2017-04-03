@@ -73,6 +73,7 @@ typedef struct {
     char *pcapfname;
     int datalink_type;
     int override_dlt;
+    int realtime;
 } local_pcap_t;
 
 int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition) {
@@ -149,6 +150,14 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition)
 
     cf_send_message(caph, "Pcapfile ready to start playback", MSGFLAG_INFO);
 
+    if ((placeholder_len = cf_find_flag(&placeholder, "realtime", definition)) > 0) {
+        if (strncasecmp(placeholder, "true", placeholder_len) == 0) {
+            snprintf(errstr, PCAP_ERRBUF_SIZE, 
+                    "Pcapfile '%s' will replay in realtime", pcapfname);
+            cf_send_message(caph, errstr, MSGFLAG_INFO);
+        }
+    }
+
     return 1;
 }
 
@@ -157,7 +166,8 @@ int main(int argc, char *argv[]) {
         .pd = NULL,
         .pcapfname = NULL,
         .datalink_type = -1,
-        .override_dlt = -1
+        .override_dlt = -1,
+        .realtime = 0
     };
 
     FILE *sterr;

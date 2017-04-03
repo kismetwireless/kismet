@@ -120,7 +120,7 @@ int cf_parse_interface(char **ret_interface, char *definition);
  *  0   Flag not found
  *  1+  Length of flag value in definition
  */
-int cf_parse_flag(char **ret_value, const char *flag, char *definition);
+int cf_find_flag(char **ret_value, const char *flag, char *definition);
 
 /* Initialize a caphandler
  *
