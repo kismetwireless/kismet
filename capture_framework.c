@@ -16,6 +16,8 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
+#include <string.h>
+
 #include "capture_framework.h"
 
 int cf_parse_interface(char **ret_interface, char *definition) {
@@ -363,8 +365,7 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
             def_len = cf_get_DEFINITION(&def, cap_proto_frame);
 
             if (def_len > 0) {
-                nuldef = (char *) malloc(def_len + 1);
-                snprintf(nuldef, def_len + 1, "%s", def);
+                nuldef = strndup(def, def_len + 1);
             }
 
             cbret = (*(caph->probe_cb))(caph,
@@ -390,8 +391,7 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
             def_len = cf_get_DEFINITION(&def, cap_proto_frame);
 
             if (def_len > 0) {
-                nuldef = (char *) malloc(def_len + 1);
-                snprintf(nuldef, def_len + 1, "%s", def);
+                nuldef = strndup(def, def_len + 1);
             }
 
             cbret = (*(caph->open_cb))(caph,
