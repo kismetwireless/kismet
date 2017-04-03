@@ -716,3 +716,80 @@ int validate_simple_cap_proto(simple_cap_proto_t *in_packet) {
     return 1;
 }
 
+int get_simple_cap_proto_next_kv(simple_cap_proto_frame_t *in_packet, char **key,
+        simple_cap_proto_kv_t **last_kv) {
+    /* Size of the packet data portion */
+    size_t data_len = ntohl(in_packet->header.packet_sz) - sizeof(simple_cap_proto_t);
+
+    /* Offset into the data frame */
+    size_t kv_offt;
+
+    /* Current KV info */
+    size_t this_len;
+    simple_cap_proto_kv_t *kv;
+
+    /* No KVs at all */
+    if (ntohl(in_packet->header.num_kv_pairs == 0)) {
+        *key = NULL;
+        *last_kv = NULL;
+        return 0;
+    }
+
+    if (*last_kv == NULL) {
+        /* If last_kv is null, set it to the current KV and that's the one we look at */
+        *last_kv = (simple_cap_proto_kv_t *) in_packet->data;
+        kv_offt = 0;
+    } else {
+        if (data_len < sizeof(simple_cap_proto_kv_t)) {
+            /* Error that we got to here */
+            fprintf(stderr, "ERROR - insufficient space in packet for kv_t\n");
+            *key = NULL;
+            return -1;
+        }
+
+        /* Otherwise find the next KV after last_kv; to do this we need to find the
+         * length of last_kv, make sure it's not the last KV in the packet by
+         * checking the lengths, and jump to the next one */
+        kv = (simple_cap_proto_kv_t *) *last_kv;
+        this_len = ntohl(kv->header.obj_sz);
+
+        /* Get the end of this KV by finding the beginning of it in the data
+         * field, and adding its length + header size */
+        kv_offt = ((uint8_t *) *last_kv - in_packet->data) + 
+            sizeof(simple_cap_proto_kv_t) + this_len;
+
+        /* is there no room after this one for another kv? */
+        if (data_len < kv_offt + sizeof(simple_cap_proto_kv_t)) {
+            *key = NULL;
+            *last_kv = NULL;
+            return 0;
+        }
+
+        /* If there is room, assign it */
+        kv = (simple_cap_proto_kv_t *) *last_kv + kv_offt;
+
+        /* Get the new length */
+        this_len = ntohl(kv->header.obj_sz);
+
+        /* kv_offt points to the beginning of this kv (which is the one after
+         * where we started).  We know it has enough room for the header,
+         * does it have enough room for the whole frame? */
+        if (data_len < (kv_offt + sizeof(simple_cap_proto_kv_t) + this_len)) {
+            fprintf(stderr, "ERROR - insufficient space in packet for kv content\n");
+            *key = NULL;
+            *last_kv = NULL;
+            return -1;
+        }
+
+        /* We've got enough room in the packet to hold everything, kv_offt is the
+         * start of the next kv, grab the key and return the length */
+        *key = kv->header.key;
+        *last_kv = kv;
+        return this_len;
+    }
+
+    *key = NULL;
+    *last_kv = NULL;
+    return -1;
+}
+

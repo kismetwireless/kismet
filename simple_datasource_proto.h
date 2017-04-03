@@ -271,6 +271,21 @@ int validate_simple_cap_proto_header(simple_cap_proto_t *in_packet);
  */
 int validate_simple_cap_proto(simple_cap_proto_t *in_packet);
 
+/* Get the next KV from a simple cap proto frame.
+ * If *last_kv is NULL, returns the first KV and populates *last_kv.  If
+ * *last_kv is not NULL, returns the next KV pair.
+ *
+ * Returns pointer to key in *key or NULL in *key if no more KV pairs.
+ *
+ * Upon return, *last_kv points to the KV pair matching *key
+ *
+ * Return values:
+ * -1   Failure
+ *  0   No additional keys found
+ *  1+  Length of key string
+ */
+int get_simple_cap_proto_next_kv(simple_cap_proto_frame_t *in_packet, char **key,
+        simple_cap_proto_kv_t **last_kv);
 
 #endif
 

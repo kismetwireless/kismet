@@ -290,6 +290,12 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
         return -1;
     }
 
+    /* Check the header checksum */
+    if (!validate_simple_cap_proto_header(cap_proto_frame)) {
+        fprintf(stderr, "DEBUG: Invalid checksum on frame header\n");
+        return -1;
+    }
+
     /* If the signature passes, see if we can read the whole frame */
     packet_sz = ntohl(cap_proto_frame->packet_sz);
 
