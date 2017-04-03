@@ -56,8 +56,8 @@ struct kis_capture_handler;
 typedef struct kis_capture_handler kis_capture_handler_t;
 
 typedef int (*cf_callback_listdevices)(kis_capture_handler_t *, uint32_t);
-typedef int (*cf_callback_probe)(kis_capture_handler_t *, uint32_t, const char *);
-typedef int (*cf_callback_open)(kis_capture_handler_t *, uint32_t, const char *);
+typedef int (*cf_callback_probe)(kis_capture_handler_t *, uint32_t, char *);
+typedef int (*cf_callback_open)(kis_capture_handler_t *, uint32_t, char *);
 typedef int (*cf_callback_unknown)(kis_capture_handler_t *, uint32_t, 
         simple_cap_proto_frame_t *);
 
@@ -90,6 +90,9 @@ struct kis_capture_handler {
     cf_callback_listdevices listdevices_cb;
     cf_callback_probe probe_cb;
     cf_callback_open open_cb;
+
+    /* Arbitrary data blob */
+    void *userdata;
 };
 
 /* Parse an interface name from a definition string.
@@ -162,10 +165,11 @@ int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]);
 /* Set callbacks; pass NULL to remove a callback. */
 void cf_handler_set_listdevices_cb(kis_capture_handler_t *capf, 
         cf_callback_listdevices cb);
-void cf_handler_set_probe_cb(kis_capture_handler_t *capf,
-        cf_callback_probe cb);
-void cf_handler_set_open_cb(kis_capture_handler_t *capf, 
-        cf_callback_open cb);
+void cf_handler_set_probe_cb(kis_capture_handler_t *capf, cf_callback_probe cb);
+void cf_handler_set_open_cb(kis_capture_handler_t *capf, cf_callback_open cb);
+
+/* Set random data blob */
+void cf_handler_set_userdata(kis_capture_handler_t *capf, void *userdata);
 
 /* Handle data in the rx ringbuffer; called from the select/poll loop.
  * Calls callbacks for packet types automatically when a complete packet is
@@ -245,6 +249,28 @@ int cf_send_listresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
  */
 int cf_send_proberesp(kis_capture_handler_t *caph, uint32_t seq, unsigned int success,
         const char *msg, const char *chanset, const char **channels, size_t channels_len);
+
+/* Send an OPENRESP response
+ * Call be called from any thread
+ *
+ * To send supported channels list, provide channels and channels_len, otherwise set 
+ * channels_len to 0
+ *
+ * To set initial state 'hopping', populate hoprate, hop_channels, and hop_channels_len
+ * and set chanset to NULL.
+ *
+ * To set initial state locked, populate chanset and set hop_channels_len to 0.
+ *
+ * Returns:
+ * -1   An error occurred while probing
+ *  1   Success
+ */
+int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int success,
+        const char *msg, 
+        const char **channels, size_t channels_len,
+        const char *chanset, 
+        double hoprate, 
+        const char **hop_channels, size_t hop_channels_len);
 
 #endif
 

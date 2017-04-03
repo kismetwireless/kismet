@@ -379,6 +379,9 @@ void KisDatasource::BufferAvailable(size_t in_amt) {
 
     char ctype[17];
     snprintf(ctype, 17, "%s", frame->header.type);
+
+    fprintf(stderr, "debug - kds bufferavailable '%s'\n", ctype);
+
     proto_dispatch_packet(ctype, kv_map);
 
     for (auto i = kv_map.begin(); i != kv_map.end(); ++i) {
@@ -551,6 +554,8 @@ void KisDatasource::cancel_all_commands(string in_error) {
 void KisDatasource::proto_dispatch_packet(string in_type, KVmap in_kvmap) {
     string ltype = StrLower(in_type);
 
+    fprintf(stderr, "debug - kds - dispatch type '%s'\n", in_type.c_str());
+
     if (ltype == "proberesp")
         proto_packet_probe_resp(in_kvmap);
     else if (ltype == "openresp")
@@ -611,6 +616,8 @@ void KisDatasource::proto_packet_probe_resp(KVmap in_kvpairs) {
 void KisDatasource::proto_packet_open_resp(KVmap in_kvpairs) {
     KVmap::iterator i;
     string msg;
+
+    fprintf(stderr, "debug - kds - got open_resp\n");
 
     // Process any messages
     if ((i = in_kvpairs.find("message")) != in_kvpairs.end()) {

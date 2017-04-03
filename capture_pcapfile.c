@@ -58,6 +58,7 @@
 /* According to earlier standards */
 #include <sys/time.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 
 #include <unistd.h>
 #include <errno.h>
@@ -67,22 +68,96 @@
 #include "simple_datasource_proto.h"
 #include "capture_framework.h"
 
-/* Pcap file */
-pcap_t *pd;
-/* Pcap DLT */
-int datalink_type;
-/* Overridden DLT */
-int override_dlt;
+typedef struct {
+    pcap_t *pd;
+    char *pcapfname;
+    int datalink_type;
+    int override_dlt;
+} local_pcap_t;
 
-int open_callback(kis_capture_handler_t *in_handler, uint32_t in_seqno,
-        const char *definition) {
+int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition) {
+
+    char *placeholder = NULL;
+    int placeholder_len;
+
+    char *pcapfname = NULL;
+
+    struct stat sbuf;
+
+    local_pcap_t *local_pcap = (local_pcap_t *) caph->userdata;
+
+    char errstr[PCAP_ERRBUF_SIZE] = "";
+
+    /* Clean up any old state */
+    if (local_pcap->pcapfname != NULL) {
+        free(local_pcap->pcapfname);
+        local_pcap->pcapfname = NULL;
+    }
+
+    if (local_pcap->pd != NULL) {
+        pcap_close(local_pcap->pd);
+        local_pcap->pd = NULL;
+    }
 
     fprintf(stderr, "debug - pcapfile - trying to open source %s\n", definition);
 
-    return -1;
+    if ((placeholder_len = cf_parse_interface(&placeholder, definition)) <= 0) {
+        cf_send_openresp(caph, seqno, false, 
+                "Unable to find PCAP file name in definition",
+                NULL, 0,
+                NULL, 
+                0, NULL, 0);
+        return -1;
+    }
+
+    pcapfname = strndup(placeholder, placeholder_len);
+
+    local_pcap->pcapfname = pcapfname;
+
+    fprintf(stderr, "debug - pcapfile - got fname '%s'\n", pcapfname);
+
+    if (stat(pcapfname, &sbuf) < 0) {
+        snprintf(errstr, PCAP_ERRBUF_SIZE, "Unable to find pcapfile '%s'", pcapfname);
+        fprintf(stderr, "debug - pcapfile - %s\n", errstr);
+        cf_send_openresp(caph, seqno, false, errstr, NULL, 0, NULL, 0, NULL, 0);
+        return -1;
+    }
+
+    if (!S_ISREG(sbuf.st_mode)) {
+        snprintf(errstr, PCAP_ERRBUF_SIZE, 
+                "File '%s' is not a regular file", pcapfname);
+        fprintf(stderr, "debug - pcapfile - %s\n", errstr);
+        cf_send_openresp(caph, seqno, false, errstr, NULL, 0, NULL, 0, NULL, 0);
+        return -1;
+    }
+
+    local_pcap->pd = pcap_open_offline(pcapfname, errstr);
+    if (strlen(errstr) > 0) {
+        fprintf(stderr, "debug - pcapfile - %s\n", errstr);
+        cf_send_openresp(caph, seqno, false, errstr, NULL, 0, NULL, 0, NULL, 0);
+        return -1;
+    }
+
+    fprintf(stderr, "debug - pcapfile - opened pcap file!\n");
+
+    /* Succesful open with no channel, hop, or chanset data */
+    snprintf(errstr, PCAP_ERRBUF_SIZE,
+            "Opened pcapfile '%s' for playback", pcapfname);
+    cf_send_openresp(caph, seqno, true, errstr, NULL, 0, NULL, 0, NULL, 0);
+
+    fprintf(stderr, "debug - pcapfile - returning from open handler\n");
+
+    return 1;
 }
 
 int main(int argc, char *argv[]) {
+    local_pcap_t local_pcap = {
+        .pd = NULL,
+        .pcapfname = NULL,
+        .datalink_type = -1,
+        .override_dlt = -1
+    };
+
     FILE *sterr;
 
     sterr = fopen("capture_pcapfile.stderr", "a");
@@ -102,6 +177,9 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "FATAL: Missing command line parameters.\n");
         return -1;
     }
+
+    /* Set the local data ptr */
+    cf_handler_set_userdata(caph, &local_pcap);
 
     /* Set the callback for opening a pcapfile */
     cf_handler_set_open_cb(caph, open_callback);

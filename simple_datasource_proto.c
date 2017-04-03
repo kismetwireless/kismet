@@ -68,7 +68,7 @@ simple_cap_proto_kv_t *encode_simple_cap_proto_kv(const char *in_key, uint8_t *i
     if (kv == NULL)
         return NULL;
 
-    snprintf(kv->header.key, 16, "%16s", in_key);
+    snprintf(kv->header.key, 16, "%.16s", in_key);
     kv->header.obj_sz = htonl(in_obj_len);
 
     memcpy(kv->object, in_obj, in_obj_len);
@@ -99,7 +99,7 @@ simple_cap_proto_frame_t *encode_simple_cap_proto(const char *in_type, uint32_t 
     cp->header.header_checksum = 0;
     cp->header.data_checksum = 0;
     cp->header.sequence_number = htonl(in_seqno);
-    snprintf(cp->header.type, 16, "%16s", in_type);
+    snprintf(cp->header.type, 16, "%.16s", in_type);
     cp->header.packet_sz = htonl((uint32_t) sz);
     cp->header.num_kv_pairs = htonl(in_kv_len);
 
@@ -133,7 +133,7 @@ simple_cap_proto_t *encode_simple_cap_proto_hdr(size_t *ret_sz,
     /* measure the size */
     for (x = 0; x < in_kv_len; x++) {
         kv = in_kv_list[x];
-        sz += sizeof(simple_cap_proto_t) + ntohl(kv->header.obj_sz);
+        sz += sizeof(simple_cap_proto_kv_t) + ntohl(kv->header.obj_sz);
     }
 
     /* allocate just the header */
@@ -146,7 +146,7 @@ simple_cap_proto_t *encode_simple_cap_proto_hdr(size_t *ret_sz,
     cp->header_checksum = 0;
     cp->data_checksum = 0;
     cp->sequence_number = htonl(in_seqno);
-    snprintf(cp->type, 16, "%16s", in_type);
+    snprintf(cp->type, 16, "%.16s", in_type);
     cp->packet_sz = htonl((uint32_t) sz);
     cp->num_kv_pairs = htonl(in_kv_len);
 
@@ -158,7 +158,8 @@ simple_cap_proto_t *encode_simple_cap_proto_hdr(size_t *ret_sz,
     /* Then add the checksum of the KVs */
     for (x = 0; x < in_kv_len; x++) {
         kv = in_kv_list[x];
-        dcsum = adler32_partial_csum((uint8_t *) kv, ntohl(kv->header.obj_sz), 
+        dcsum = adler32_partial_csum((uint8_t *) kv, 
+                sizeof(simple_cap_proto_kv_t) + ntohl(kv->header.obj_sz), 
                 &csum_s1, &csum_s2);
     }
 
@@ -181,7 +182,7 @@ simple_cap_proto_kv_t *encode_kv_success(unsigned int success, uint32_t sequence
     if (kv == NULL)
         return NULL;
 
-    snprintf(kv->header.key, 16, "%16s", "SUCCESS");
+    snprintf(kv->header.key, 16, "%.16s", "SUCCESS");
     kv->header.obj_sz = htonl(content_sz);
 
     ((simple_cap_proto_success_t *) kv->object)->success = success;
@@ -200,7 +201,7 @@ simple_cap_proto_kv_t *encode_kv_chanset(const char *channel) {
     if (kv == NULL)
         return NULL;
 
-    snprintf(kv->header.key, 16, "%16s", "SUCCESS");
+    snprintf(kv->header.key, 16, "%.16s", "SUCCESS");
     kv->header.obj_sz = htonl(content_sz);
 
     memcpy(&(kv->object), channel, content_sz);
@@ -253,7 +254,7 @@ simple_cap_proto_kv_t *encode_kv_capdata(struct timeval in_ts, int in_dlt,
     if (kv == NULL)
         return NULL;
 
-    snprintf(kv->header.key, 16, "%16s", "SUCCESS");
+    snprintf(kv->header.key, 16, "%.16s", "SUCCESS");
     kv->header.obj_sz = htonl(content_sz);
 
     memcpy(kv->object, mp_b_get_buffer(puckbuffer), content_sz);
@@ -442,7 +443,7 @@ simple_cap_proto_kv_t *encode_kv_signal(uint32_t signal_dbm, uint32_t signal_rss
     if (kv == NULL)
         return NULL;
 
-    snprintf(kv->header.key, 16, "%16s", "SIGNAL");
+    snprintf(kv->header.key, 16, "%.16s", "SIGNAL");
     kv->header.obj_sz = htonl(content_sz);
 
     memcpy(kv->object, mp_b_get_buffer(puckbuffer), content_sz);
@@ -506,7 +507,7 @@ simple_cap_proto_kv_t *encode_kv_interfacelist(const char **interfaces,
     if (kv == NULL)
         return NULL;
 
-    snprintf(kv->header.key, 16, "%16s", "INTERFACELIST");
+    snprintf(kv->header.key, 16, "%.16s", "INTERFACELIST");
     kv->header.obj_sz = htonl(content_sz);
 
     memcpy(kv->object, mp_b_get_buffer(puckbuffer), content_sz);
@@ -558,7 +559,7 @@ simple_cap_proto_kv_t *encode_kv_channels(const char **channels, size_t len) {
     if (kv == NULL)
         return NULL;
 
-    snprintf(kv->header.key, 16, "%16s", "CHANNELS");
+    snprintf(kv->header.key, 16, "%.16s", "CHANNELS");
     kv->header.obj_sz = htonl(content_sz);
 
     memcpy(kv->object, mp_b_get_buffer(puckbuffer), content_sz);
@@ -610,7 +611,7 @@ simple_cap_proto_kv_t *encode_kv_chanhop(double rate, const char **channels,
     if (kv == NULL)
         return NULL;
 
-    snprintf(kv->header.key, 16, "%16s", "CHANHOP");
+    snprintf(kv->header.key, 16, "%.16s", "CHANHOP");
     kv->header.obj_sz = htonl(content_sz);
 
     memcpy(kv->object, mp_b_get_buffer(puckbuffer), content_sz);
@@ -653,7 +654,7 @@ simple_cap_proto_kv_t *encode_kv_message(const char *message, unsigned int flags
     if (kv == NULL)
         return NULL;
 
-    snprintf(kv->header.key, 16, "%16s", "MESSAGE");
+    snprintf(kv->header.key, 16, "%.16s", "MESSAGE");
     kv->header.obj_sz = htonl(content_sz);
 
     memcpy(kv->object, mp_b_get_buffer(puckbuffer), content_sz);

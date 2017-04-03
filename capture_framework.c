@@ -138,6 +138,9 @@ kis_capture_handler_t *cf_handler_init() {
 
     ch->listdevices_cb = NULL;
     ch->probe_cb = NULL;
+    ch->open_cb = NULL;
+
+    ch->userdata = NULL;
 
     return ch;
 }
@@ -255,6 +258,12 @@ void cf_handler_set_open_cb(kis_capture_handler_t *capf,
     pthread_mutex_unlock(&(capf->handler_lock));
 }
 
+void cf_handler_set_userdata(kis_capture_handler_t *capf, void *userdata) {
+    pthread_mutex_lock(&(capf->handler_lock));
+    capf->userdata = userdata;
+    pthread_mutex_unlock(&(capf->handler_lock));
+}
+
 int cf_handle_rx_data(kis_capture_handler_t *caph) {
     size_t rb_available;
 
@@ -365,7 +374,7 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
             def_len = cf_get_DEFINITION(&def, cap_proto_frame);
 
             if (def_len > 0) {
-                nuldef = strndup(def, def_len + 1);
+                nuldef = strndup(def, def_len);
             }
 
             cbret = (*(caph->probe_cb))(caph,
@@ -381,8 +390,11 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
 
         if (caph->open_cb == NULL) {
             pthread_mutex_unlock(&(caph->handler_lock));
-            cf_send_proberesp(caph, ntohl(cap_proto_frame->header.sequence_number),
-                    false, "We don't support opening", NULL, NULL, 0);
+            cf_send_openresp(caph, ntohl(cap_proto_frame->header.sequence_number),
+                    false, "We don't support opening", 
+                    NULL, 0,
+                    NULL, 
+                    0, NULL, 0);
             cbret = -1;
         } else {
             char *def, *nuldef = NULL;
@@ -391,7 +403,7 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
             def_len = cf_get_DEFINITION(&def, cap_proto_frame);
 
             if (def_len > 0) {
-                nuldef = strndup(def, def_len + 1);
+                nuldef = strndup(def, def_len);
             }
 
             cbret = (*(caph->open_cb))(caph,
@@ -481,6 +493,7 @@ void cf_handler_loop(kis_capture_handler_t *caph) {
         pthread_mutex_lock(&(caph->out_ringbuf_lock));
 
         if (kis_simple_ringbuf_used(caph->out_ringbuf) != 0) {
+            fprintf(stderr, "debug - capf - writebuffer has %lu\n", kis_simple_ringbuf_used(caph->out_ringbuf));
             FD_SET(write_fd, &wset);
             if (max_fd < write_fd)
                 max_fd = write_fd;
@@ -582,6 +595,8 @@ void cf_handler_loop(kis_capture_handler_t *caph) {
                 }
             }
 
+            fprintf(stderr, "debug - capf - wrote %lu\n", written_sz);
+
             /* Flag it as consumed */
             kis_simple_ringbuf_read(caph->out_ringbuf, NULL, (size_t) written_sz);
 
@@ -652,7 +667,7 @@ int cf_stream_packet(kis_capture_handler_t *caph, const char *packtype,
     /* Write all the kv pairs out */
     for (i = 0; i < in_kv_len; i++) {
         kis_simple_ringbuf_write(caph->out_ringbuf, (uint8_t *) in_kv_list[i],
-                ntohl(in_kv_list[i]->header.obj_sz));
+                ntohl(in_kv_list[i]->header.obj_sz) + sizeof(simple_cap_proto_kv_t));
         free(in_kv_list[i]);
     }
 
@@ -660,6 +675,8 @@ int cf_stream_packet(kis_capture_handler_t *caph, const char *packtype,
     free(proto_hdr);
 
     pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+
+    fprintf(stderr, "debug - wrote streaming packet '%s' len %lu\n", packtype, proto_sz);
 
     return 1;
 }
@@ -802,4 +819,100 @@ int cf_send_proberesp(kis_capture_handler_t *caph, uint32_t seq, unsigned int su
 
 
     return cf_stream_packet(caph, "PROBERESP", kv_pairs, kv_pos);
+}
+
+int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int success,
+        const char *msg, 
+        const char **channels, size_t channels_len,
+        const char *chanset, 
+        double hoprate, const char **hop_channels, size_t hop_channels_len) {
+    /* How many KV pairs are we allocating?  1 for success for sure */
+    size_t num_kvs = 1;
+
+    size_t kv_pos = 0;
+    size_t i = 0;
+
+    /* Actual KV pairs we encode into the packet */
+    simple_cap_proto_kv_t **kv_pairs;
+
+    if (msg != NULL)
+        num_kvs++;
+
+    if (chanset != NULL)
+        num_kvs++;
+
+    if (channels_len != 0)
+        num_kvs++;
+
+    if (hop_channels_len != 0)
+        num_kvs++;
+
+    kv_pairs = 
+        (simple_cap_proto_kv_t **) malloc(sizeof(simple_cap_proto_kv_t *) * num_kvs);
+
+    kv_pairs[kv_pos] = encode_kv_success(success, seq);
+
+    if (kv_pairs[kv_pos] == NULL) {
+        fprintf(stderr, "FATAL: Unable to allocate KV SUCCESS pair\n");
+        free(kv_pairs);
+        return -1;
+    }
+
+    kv_pos++;
+
+    if (msg != NULL) {
+        kv_pairs[kv_pos] = 
+            encode_kv_message(msg, success ? MSGFLAG_INFO : MSGFLAG_ERROR);
+        if (kv_pairs[kv_pos] == NULL) {
+            fprintf(stderr, "FATAL: Unable to allocate KV MESSAGE pair\n");
+            for (i = 0; i < kv_pos; i++) {
+                free(kv_pairs[i]);
+            }
+            free(kv_pairs);
+            return -1;
+        }
+        kv_pos++;
+    }
+
+    if (chanset != 0) {
+        kv_pairs[kv_pos] = encode_kv_chanset(chanset);
+        if (kv_pairs[kv_pos] == NULL) {
+            fprintf(stderr, "FATAL: Unable to allocate KV CHANSET pair\n");
+            for (i = 0; i < kv_pos; i++) {
+                free(kv_pairs[i]);
+            }
+            free(kv_pairs);
+            return -1;
+        }
+        kv_pos++;
+    }
+
+    if (channels_len != 0) {
+        kv_pairs[kv_pos] = encode_kv_channels(channels, channels_len);
+        if (kv_pairs[kv_pos] == NULL) {
+            fprintf(stderr, "FATAL: Unable to allocate KV CHANNELS pair\n");
+            for (i = 0; i < kv_pos; i++) {
+                free(kv_pairs[i]);
+            }
+            free(kv_pairs);
+            return -1;
+        }
+        kv_pos++;
+    }
+
+    if (hop_channels_len != 0) {
+        kv_pairs[kv_pos] = encode_kv_chanhop(hoprate, hop_channels, hop_channels_len);
+        if (kv_pairs[kv_pos] == NULL) {
+            fprintf(stderr, "FATAL: Unable to allocate KV CHANHOP pair\n");
+            for (i = 0; i < kv_pos; i++) {
+                free(kv_pairs[i]);
+            }
+            free(kv_pairs);
+            return -1;
+        }
+        kv_pos++;
+    }
+
+
+    return cf_stream_packet(caph, "OPENRESP", kv_pairs, kv_pos);
 }
