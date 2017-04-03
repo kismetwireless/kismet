@@ -282,10 +282,23 @@ int validate_simple_cap_proto(simple_cap_proto_t *in_packet);
  * Return values:
  * -1   Failure
  *  0   No additional keys found
- *  1+  Length of key string
+ *  1+  Length of the KV data object
  */
 int get_simple_cap_proto_next_kv(simple_cap_proto_frame_t *in_packet, char **key,
         simple_cap_proto_kv_t **last_kv);
+
+/* Find a KV in a simple cap proto frame.
+ *
+ * Returns pointer to the KV structure in *kv, or NULL if the value can't be
+ * found.
+ *
+ * Returns values:
+ * -1   Failure
+ *  0   Key not found
+ *  1+  Length of KV data object
+ */
+int find_simple_cap_proto_kv(simple_cap_proto_frame_t *in_packet, const char *key,
+        simple_cap_proto_kv_t **kv);
 
 #endif
 

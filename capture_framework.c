@@ -256,7 +256,7 @@ void cf_handler_set_open_cb(kis_capture_handler_t *capf,
 int cf_handle_rx_data(kis_capture_handler_t *caph) {
     size_t rb_available;
 
-    simple_cap_proto_t *cap_proto_frame;
+    simple_cap_proto_frame_t *cap_proto_frame;
 
     /* Buffer of just the packet header */
     uint8_t hdr_buf[sizeof(simple_cap_proto_t)];
@@ -282,22 +282,22 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
         return 0;
     }
 
-    cap_proto_frame = (simple_cap_proto_t *) hdr_buf;
+    cap_proto_frame = (simple_cap_proto_frame_t *) hdr_buf;
 
     /* Check the signature */
-    if (ntohl(cap_proto_frame->signature) != KIS_CAP_SIMPLE_PROTO_SIG) {
+    if (ntohl(cap_proto_frame->header.signature) != KIS_CAP_SIMPLE_PROTO_SIG) {
         fprintf(stderr, "FATAL: Invalid frame header received\n");
         return -1;
     }
 
     /* Check the header checksum */
-    if (!validate_simple_cap_proto_header(cap_proto_frame)) {
+    if (!validate_simple_cap_proto_header(&(cap_proto_frame->header))) {
         fprintf(stderr, "DEBUG: Invalid checksum on frame header\n");
         return -1;
     }
 
     /* If the signature passes, see if we can read the whole frame */
-    packet_sz = ntohl(cap_proto_frame->packet_sz);
+    packet_sz = ntohl(cap_proto_frame->header.packet_sz);
 
     if (rb_available < packet_sz) {
         fprintf(stderr, "DEBUG: Waiting additional data (%lu available, "
@@ -323,10 +323,10 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
     /* Clear it out from the buffer */
     kis_simple_ringbuf_read(caph->in_ringbuf, NULL, packet_sz);
 
-    cap_proto_frame = (simple_cap_proto_t *) frame_buf;
+    cap_proto_frame = (simple_cap_proto_frame_t *) frame_buf;
 
     /* Validate it */
-    if (!validate_simple_cap_proto(cap_proto_frame)) {
+    if (!validate_simple_cap_proto(&(cap_proto_frame->header))) {
         fprintf(stderr, "FATAL:  Invalid control frame\n");
         free(frame_buf);
         return -1;
@@ -335,57 +335,98 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
     /* Lock so we can look at callbacks */
     pthread_mutex_lock(&(caph->handler_lock));
 
-    if (strncasecmp(cap_proto_frame->type, "LISTINTERFACES", 16) == 0) {
+    if (strncasecmp(cap_proto_frame->header.type, "LISTINTERFACES", 16) == 0) {
         fprintf(stderr, "DEBUG - Got LISTINTERFACES request\n");
 
         if (caph->listdevices_cb == NULL) {
             pthread_mutex_unlock(&(caph->handler_lock));
-            cf_send_listresp(caph, ntohl(cap_proto_frame->sequence_number),
+            cf_send_listresp(caph, ntohl(cap_proto_frame->header.sequence_number),
                     false, "We don't support listing", NULL, NULL, 0);
             cbret = -1;
         } else {
-            pthread_mutex_unlock(&(caph->handler_lock));
             cbret = (*(caph->listdevices_cb))(caph, 
-                    ntohl(cap_proto_frame->sequence_number));
+                    ntohl(cap_proto_frame->header.sequence_number));
+            pthread_mutex_unlock(&(caph->handler_lock));
         }
-    } else if (strncasecmp(cap_proto_frame->type, "PROBEDEVICE", 16) == 0) {
+    } else if (strncasecmp(cap_proto_frame->header.type, "PROBEDEVICE", 16) == 0) {
         fprintf(stderr, "DEBUG - Got PROBEDEVICE request\n");
 
         if (caph->probe_cb == NULL) {
             pthread_mutex_unlock(&(caph->handler_lock));
-            cf_send_proberesp(caph, ntohl(cap_proto_frame->sequence_number),
+            cf_send_proberesp(caph, ntohl(cap_proto_frame->header.sequence_number),
                     false, "We don't support probing", NULL, NULL, 0);
             cbret = -1;
         } else {
-            pthread_mutex_unlock(&(caph->handler_lock));
+            char *def, *nuldef = NULL;
+            int def_len;
+            
+            def_len = cf_get_DEFINITION(&def, cap_proto_frame);
 
+            if (def_len > 0) {
+                nuldef = (char *) malloc(def_len + 1);
+                snprintf(nuldef, def_len + 1, "%s", def);
+            }
+
+            cbret = (*(caph->probe_cb))(caph,
+                    ntohl(cap_proto_frame->header.sequence_number), nuldef);
+
+            if (nuldef != NULL)
+                free(nuldef);
+
+            pthread_mutex_unlock(&(caph->handler_lock));
         }
-    } else if (strncasecmp(cap_proto_frame->type, "OPENDEVICE", 16) == 0) {
+    } else if (strncasecmp(cap_proto_frame->header.type, "OPENDEVICE", 16) == 0) {
         fprintf(stderr, "DEBUG - Got OPENDEVICE request\n");
-        cf_send_proberesp(caph, ntohl(cap_proto_frame->sequence_number),
-                false, "We don't support opening", NULL, NULL, 0);
+
+        if (caph->open_cb == NULL) {
+            pthread_mutex_unlock(&(caph->handler_lock));
+            cf_send_proberesp(caph, ntohl(cap_proto_frame->header.sequence_number),
+                    false, "We don't support opening", NULL, NULL, 0);
+            cbret = -1;
+        } else {
+            char *def, *nuldef = NULL;
+            int def_len;
+            
+            def_len = cf_get_DEFINITION(&def, cap_proto_frame);
+
+            if (def_len > 0) {
+                nuldef = (char *) malloc(def_len + 1);
+                snprintf(nuldef, def_len + 1, "%s", def);
+            }
+
+            cbret = (*(caph->open_cb))(caph,
+                    ntohl(cap_proto_frame->header.sequence_number), nuldef);
+
+            if (nuldef != NULL)
+                free(nuldef);
+
+            pthread_mutex_unlock(&(caph->handler_lock));
+        }
     } else {
-        fprintf(stderr, "DEBUG - got unhandled request - '%.16s'\n", cap_proto_frame->type);
-        cf_send_proberesp(caph, ntohl(cap_proto_frame->sequence_number),
+        fprintf(stderr, "DEBUG - got unhandled request - '%.16s'\n", cap_proto_frame->header.type);
+
+        pthread_mutex_unlock(&(caph->handler_lock));
+        cf_send_proberesp(caph, ntohl(cap_proto_frame->header.sequence_number),
                 false, "Unsupported request", NULL, NULL, 0);
+        cbret = -1;
     }
 
-
-    return -1;
+    return cbret;
 }
 
-int cf_get_DEFINITION(char *ret_definition, simple_cap_proto_t *in_frame) {
-    uint32_t packet_sz;
-    uint32_t num_kv_pairs;
-    uint32_t obj_sz;
-    uint32_t i;
+int cf_get_DEFINITION(char **ret_definition, simple_cap_proto_frame_t *in_frame) {
+    simple_cap_proto_kv_t *def_kv = NULL;
+    int def_len;
 
-    packet_sz = ntohl(in_frame->packet_sz);
-    num_kv_pairs = ntohl(in_frame->num_kv_pairs);
+    def_len = find_simple_cap_proto_kv(in_frame, "DEFINITION", &def_kv);
 
-    for (i = 0; i < num_kv_pairs; i++) {
-
+    if (def_len <= 0) {
+        *ret_definition = NULL;
+        return def_len;
     }
+
+    *ret_definition = (char *) def_kv->object;
+    return def_len;
 }
 
 void cf_handler_loop(kis_capture_handler_t *caph) {

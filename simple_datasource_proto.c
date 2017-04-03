@@ -34,6 +34,9 @@ uint32_t adler32_partial_csum(uint8_t *in_buf, size_t in_len,
 	uint8_t *buf = in_buf;
 	int CHAR_OFFSET = 0;
 
+    if (in_len < 4)
+        return 0;
+
 	for (i = 0; i < (in_len - 4); i += 4) {
 		*s2 += 4 * (*s1 + buf[i]) + 3 * buf[i + 1] + 2 * buf[i+2] + buf[i + 3] + 
             10 * CHAR_OFFSET;
@@ -730,12 +733,14 @@ int get_simple_cap_proto_next_kv(simple_cap_proto_frame_t *in_packet, char **key
 
     /* No KVs at all */
     if (ntohl(in_packet->header.num_kv_pairs == 0)) {
+        fprintf(stderr, "debug - no kvpairs\n");
         *key = NULL;
         *last_kv = NULL;
         return 0;
     }
 
     if (*last_kv == NULL) {
+        fprintf(stderr, "debug - first KV pair\n");
         /* If last_kv is null, set it to the current KV and that's the one we look at */
         *last_kv = (simple_cap_proto_kv_t *) in_packet->data;
         kv_offt = 0;
@@ -764,32 +769,49 @@ int get_simple_cap_proto_next_kv(simple_cap_proto_frame_t *in_packet, char **key
             *last_kv = NULL;
             return 0;
         }
-
-        /* If there is room, assign it */
-        kv = (simple_cap_proto_kv_t *) *last_kv + kv_offt;
-
-        /* Get the new length */
-        this_len = ntohl(kv->header.obj_sz);
-
-        /* kv_offt points to the beginning of this kv (which is the one after
-         * where we started).  We know it has enough room for the header,
-         * does it have enough room for the whole frame? */
-        if (data_len < (kv_offt + sizeof(simple_cap_proto_kv_t) + this_len)) {
-            fprintf(stderr, "ERROR - insufficient space in packet for kv content\n");
-            *key = NULL;
-            *last_kv = NULL;
-            return -1;
-        }
-
-        /* We've got enough room in the packet to hold everything, kv_offt is the
-         * start of the next kv, grab the key and return the length */
-        *key = kv->header.key;
-        *last_kv = kv;
-        return this_len;
     }
 
-    *key = NULL;
-    *last_kv = NULL;
-    return -1;
+    /* If there is room, assign it */
+    kv = (simple_cap_proto_kv_t *) *last_kv + kv_offt;
+
+    /* Get the new length */
+    this_len = ntohl(kv->header.obj_sz);
+
+    /* kv_offt points to the beginning of this kv (which is the one after
+     * where we started).  We know it has enough room for the header,
+     * does it have enough room for the whole frame? */
+    if (data_len < (kv_offt + sizeof(simple_cap_proto_kv_t) + this_len)) {
+        fprintf(stderr, "ERROR - insufficient space in packet for kv content\n");
+        *key = NULL;
+        *last_kv = NULL;
+        return -1;
+    }
+
+    /* We've got enough room in the packet to hold everything, kv_offt is the
+     * start of the next kv, grab the key and return the length */
+    *key = kv->header.key;
+    *last_kv = kv;
+    return this_len;
+}
+
+int find_simple_cap_proto_kv(simple_cap_proto_frame_t *in_packet, const char *key,
+        simple_cap_proto_kv_t **kv) {
+
+    simple_cap_proto_kv_t *search_kv = NULL;
+    int search_kv_len = 0;
+    char *search_key;
+
+    /* Iterate over all the KV pairs */
+    while ((search_kv_len = get_simple_cap_proto_next_kv(in_packet, &search_key, 
+                    &search_kv)) > 0) {
+        fprintf(stderr, "debug - got kv len %d key %s\n", search_kv_len, search_key);
+        if (strncasecmp(key, search_key, 16) == 0) {
+            *kv = search_kv;
+            return search_kv_len;
+        }
+    }
+
+    *kv = NULL;
+    return search_kv_len;
 }
 

@@ -74,6 +74,14 @@ int datalink_type;
 /* Overridden DLT */
 int override_dlt;
 
+int open_callback(kis_capture_handler_t *in_handler, uint32_t in_seqno,
+        const char *definition) {
+
+    fprintf(stderr, "debug - pcapfile - trying to open source %s\n", definition);
+
+    return -1;
+}
+
 int main(int argc, char *argv[]) {
     FILE *sterr;
 
@@ -94,6 +102,9 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "FATAL: Missing command line parameters.\n");
         return -1;
     }
+
+    /* Set the callback for opening a pcapfile */
+    cf_handler_set_open_cb(caph, open_callback);
 
     cf_handler_loop(caph);
 

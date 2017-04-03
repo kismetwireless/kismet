@@ -288,7 +288,7 @@ void KisDatasource::BufferAvailable(size_t in_amt) {
     simple_cap_proto_frame_t *frame;
     uint8_t *buf;
     uint32_t frame_sz;
-    uint32_t frame_checksum, data_checksum, calc_checksum;
+    uint32_t header_checksum, data_checksum, calc_checksum;
 
     if (in_amt < sizeof(simple_cap_proto_t)) {
         return;
@@ -312,18 +312,18 @@ void KisDatasource::BufferAvailable(size_t in_amt) {
 
     // Get the frame header checksum and validate it; to validate we need to clear
     // both the frame and the data checksum fields so remember them both now
-    frame_checksum = kis_ntoh32(frame->header.header_checksum);
+    header_checksum = kis_ntoh32(frame->header.header_checksum);
     data_checksum = kis_ntoh32(frame->header.data_checksum);
 
     // Zero the checksum field in the packet
-    frame->header.header_checksum = 0x00000000;
-    frame->header.data_checksum = 0x00000000;
+    frame->header.header_checksum = 0;
+    frame->header.data_checksum = 0;
 
     // Calc the checksum of the header
-    calc_checksum = Adler32Checksum((const char *) buf, sizeof(simple_cap_proto_t));
+    calc_checksum = Adler32Checksum((const char *) frame, sizeof(simple_cap_proto_t));
 
     // Compare to the saved checksum
-    if (calc_checksum != frame_checksum) {
+    if (calc_checksum != header_checksum) {
         delete[] buf;
 
         _MSG("Kismet data source " + get_source_name() + " got an invalid hdr checksum "
@@ -1266,14 +1266,14 @@ bool KisDatasource::write_packet(string in_cmd, KVmap in_kvpairs,
 
     // Start calculating the checksum on just the header
     hcsum = Adler32IncrementalChecksum((const char *) &proto_hdr, 
-            sizeof(simple_cap_proto_t), csum_s1, csum_s2);
+            sizeof(simple_cap_proto_t), &csum_s1, &csum_s2);
     
 
     // Calc the checksum of all the kv pairs
     for (auto i = in_kvpairs.begin(); i != in_kvpairs.end(); ++i) {
         dcsum = Adler32IncrementalChecksum((const char *) i->second->kv,
                 sizeof(simple_cap_proto_kv_h_t) + i->second->size,
-                csum_s1, csum_s2);
+                &csum_s1, &csum_s2);
     }
 
     proto_hdr.header_checksum = kis_hton32(hcsum);
@@ -1356,6 +1356,8 @@ void KisDatasource::send_command_probe_interface(string in_definition,
 void KisDatasource::send_command_open_interface(string in_definition,
         unsigned int in_transaction, open_callback_t in_cb) {
     local_locker lock(&source_lock);
+
+    fprintf(stderr, "debug - creating DEFINITION for opendevice\n");
 
     KisDatasourceCapKeyedObject *definition =
         new KisDatasourceCapKeyedObject("DEFINITION", in_definition.data(), 
@@ -1645,8 +1647,10 @@ KisDatasourceCapKeyedObject::KisDatasourceCapKeyedObject(string in_key,
     kv->header.obj_sz = kis_hton32(in_len);
     size = in_len;
 
-    snprintf(kv->header.key, 16, "%s", key.c_str());
+    snprintf(kv->header.key, 16, "%s", in_key.c_str());
     key = in_key.substr(0, 16);
+
+    fprintf(stderr, "debug - made field %s\n", kv->header.key);
    
     memcpy(kv->object, in_object, in_len);
     object = (char *) kv->object;

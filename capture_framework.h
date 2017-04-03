@@ -187,7 +187,7 @@ int cf_handle_rx_data(kis_capture_handler_t *caph);
  *  0   No DEFINITION key found
  *  1+  Length of definition
  */
-int cf_get_DEFINITION(char *ret_definition, simple_cap_proto_t *in_frame);
+int cf_get_DEFINITION(char **ret_definition, simple_cap_proto_frame_t *in_frame);
 
 /* Handle the sockets in a select() loop; this function will block until it
  * encounters an error or gets a shutdown command.
