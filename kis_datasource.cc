@@ -290,105 +290,115 @@ void KisDatasource::BufferAvailable(size_t in_amt) {
     uint32_t frame_sz;
     uint32_t header_checksum, data_checksum, calc_checksum;
 
-    if (in_amt < sizeof(simple_cap_proto_t)) {
-        return;
-    }
+    while (1) {
+        if (in_amt < sizeof(simple_cap_proto_t)) {
+            return;
+        }
 
-    // Peek the buffer
-    buf = new uint8_t[in_amt];
-    ringbuf_handler->PeekReadBufferData(buf, in_amt);
+        // Peek the buffer
+        buf = new uint8_t[in_amt];
+        ringbuf_handler->PeekReadBufferData(buf, in_amt);
 
-    frame = (simple_cap_proto_frame_t *) buf;
+        frame = (simple_cap_proto_frame_t *) buf;
 
-    if (kis_ntoh32(frame->header.signature) != KIS_CAP_SIMPLE_PROTO_SIG) {
+        if (kis_ntoh32(frame->header.signature) != KIS_CAP_SIMPLE_PROTO_SIG) {
+            delete[] buf;
+
+            _MSG("Kismet data source " + get_source_name() + " got an invalid "
+                    "control from on IPC/Network, closing.", MSGFLAG_ERROR);
+            trigger_error("Source got invalid control frame");
+
+            return;
+        }
+
+        // Get the frame header checksum and validate it; to validate we need to clear
+        // both the frame and the data checksum fields so remember them both now
+        header_checksum = kis_ntoh32(frame->header.header_checksum);
+        data_checksum = kis_ntoh32(frame->header.data_checksum);
+
+        // Zero the checksum field in the packet
+        frame->header.header_checksum = 0;
+        frame->header.data_checksum = 0;
+
+        // Calc the checksum of the header
+        calc_checksum = Adler32Checksum((const char *) frame, 
+                sizeof(simple_cap_proto_t));
+
+        // Compare to the saved checksum
+        if (calc_checksum != header_checksum) {
+            delete[] buf;
+
+            _MSG("Kismet data source " + get_source_name() + 
+                    " got an invalid hdr checksum on control from "
+                    "IPC/Network, closing.", MSGFLAG_ERROR);
+            trigger_error("Source got invalid control frame");
+
+            return;
+        }
+
+        fprintf(stderr, "debug - kds bufferavailable - peeked '%.16s'\n", frame->header.type);
+
+        // Get the size of the frame
+        frame_sz = kis_ntoh32(frame->header.packet_sz);
+
+        if (frame_sz > in_amt) {
+            // Nothing we can do right now, not enough data to 
+            // make up a complete packet.
+            delete[] buf;
+            return;
+        }
+
+        // Calc the checksum of the rest
+        calc_checksum = Adler32Checksum((const char *) buf, frame_sz);
+
+        // Compare to the saved checksum
+        if (calc_checksum != data_checksum) {
+            delete[] buf;
+
+            _MSG("Kismet data source " + get_source_name() + " got an invalid checksum "
+                    "on control from IPC/Network, closing.", MSGFLAG_ERROR);
+            trigger_error("Source got invalid control frame");
+
+            return;
+        }
+
+        // Consume the packet in the ringbuf 
+        ringbuf_handler->GetReadBufferData(NULL, frame_sz);
+
+        // Extract the kv pairs
+        KVmap kv_map;
+
+        ssize_t data_offt = 0;
+        for (unsigned int kvn = 0; 
+                kvn < kis_ntoh32(frame->header.num_kv_pairs); kvn++) {
+            simple_cap_proto_kv *pkv =
+                (simple_cap_proto_kv *) &((frame->data)[data_offt]);
+
+            data_offt = 
+                sizeof(simple_cap_proto_kv_h_t) +
+                kis_ntoh32(pkv->header.obj_sz);
+
+            KisDatasourceCapKeyedObject *kv =
+                new KisDatasourceCapKeyedObject(pkv);
+
+            kv_map[StrLower(kv->key)] = kv;
+        }
+
+        char ctype[17];
+        snprintf(ctype, 17, "%s", frame->header.type);
+
+        fprintf(stderr, "debug - kds bufferavailable '%s'\n", ctype);
+
+        proto_dispatch_packet(ctype, kv_map);
+
+        for (auto i = kv_map.begin(); i != kv_map.end(); ++i) {
+            delete i->second;
+        }
+
         delete[] buf;
 
-        _MSG("Kismet data source " + get_source_name() + " got an invalid "
-                "control from on IPC/Network, closing.", MSGFLAG_ERROR);
-        trigger_error("Source got invalid control frame");
-
-        return;
+        in_amt -= frame_sz;
     }
-
-    // Get the frame header checksum and validate it; to validate we need to clear
-    // both the frame and the data checksum fields so remember them both now
-    header_checksum = kis_ntoh32(frame->header.header_checksum);
-    data_checksum = kis_ntoh32(frame->header.data_checksum);
-
-    // Zero the checksum field in the packet
-    frame->header.header_checksum = 0;
-    frame->header.data_checksum = 0;
-
-    // Calc the checksum of the header
-    calc_checksum = Adler32Checksum((const char *) frame, sizeof(simple_cap_proto_t));
-
-    // Compare to the saved checksum
-    if (calc_checksum != header_checksum) {
-        delete[] buf;
-
-        _MSG("Kismet data source " + get_source_name() + " got an invalid hdr checksum "
-                "on control from IPC/Network, closing.", MSGFLAG_ERROR);
-        trigger_error("Source got invalid control frame");
-
-        return;
-    }
-
-    // Get the size of the frame
-    frame_sz = kis_ntoh32(frame->header.packet_sz);
-
-    if (frame_sz > in_amt) {
-        // Nothing we can do right now, not enough data to make up a complete packet.
-        delete[] buf;
-        return;
-    }
-
-    // Calc the checksum of the rest
-    calc_checksum = Adler32Checksum((const char *) buf, frame_sz);
-
-    // Compare to the saved checksum
-    if (calc_checksum != data_checksum) {
-        delete[] buf;
-
-        _MSG("Kismet data source " + get_source_name() + " got an invalid checksum "
-                "on control from IPC/Network, closing.", MSGFLAG_ERROR);
-        trigger_error("Source got invalid control frame");
-
-        return;
-    }
-
-    // Consume the packet in the ringbuf 
-    ringbuf_handler->GetReadBufferData(NULL, frame_sz);
-
-    // Extract the kv pairs
-    KVmap kv_map;
-
-    ssize_t data_offt = 0;
-    for (unsigned int kvn = 0; kvn < kis_ntoh32(frame->header.num_kv_pairs); kvn++) {
-        simple_cap_proto_kv *pkv =
-            (simple_cap_proto_kv *) &((frame->data)[data_offt]);
-
-        data_offt = 
-            sizeof(simple_cap_proto_kv_h_t) +
-            kis_ntoh32(pkv->header.obj_sz);
-
-        KisDatasourceCapKeyedObject *kv =
-            new KisDatasourceCapKeyedObject(pkv);
-
-        kv_map[StrLower(kv->key)] = kv;
-    }
-
-    char ctype[17];
-    snprintf(ctype, 17, "%s", frame->header.type);
-
-    fprintf(stderr, "debug - kds bufferavailable '%s'\n", ctype);
-
-    proto_dispatch_packet(ctype, kv_map);
-
-    for (auto i = kv_map.begin(); i != kv_map.end(); ++i) {
-        delete i->second;
-    }
-
-    delete[] buf;
 }
 
 void KisDatasource::BufferError(string in_error) {
@@ -642,6 +652,15 @@ void KisDatasource::proto_packet_open_resp(KVmap in_kvpairs) {
         handle_kv_uuid(i->second);
     }
 
+    // If we didn't get a uuid and we don't have one, make up a timestamp-based one
+    if (get_source_uuid().error && !local_uuid) {
+        uuid nuuid;
+
+        nuuid.GenerateTimeUUID((uint8_t *) "\x00\x00\x00\x00\x00\x00");
+
+        set_source_uuid(nuuid);
+    }
+
     // If we don't have a success record we're flat out invalid
     if ((i = in_kvpairs.find("success")) == in_kvpairs.end()) {
         trigger_error("No valid response found for open request");
@@ -801,6 +820,7 @@ void KisDatasource::proto_packet_data(KVmap in_kvpairs) {
 
 bool KisDatasource::get_kv_success(KisDatasourceCapKeyedObject *in_obj) {
     if (in_obj->size != sizeof(simple_cap_proto_success_value)) {
+        fprintf(stderr, "debug - kds - get_kv_success objsize %lu wanted %lu\n", in_obj->size, sizeof(simple_cap_proto_success_value));
         trigger_error("Invalid SUCCESS object in response");
         return false;
     }
@@ -1266,8 +1286,6 @@ bool KisDatasource::write_packet(string in_cmd, KVmap in_kvpairs,
     next_cmd_sequence++;
 
     snprintf(proto_hdr.type, 16, "%s", in_cmd.c_str());
-
-    fprintf(stderr, "debug - kds - forming proto hdr type '%.16s'\n", proto_hdr.type);
 
     proto_hdr.num_kv_pairs = kis_hton32(in_kvpairs.size());
 

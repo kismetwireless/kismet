@@ -147,6 +147,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition)
 
     fprintf(stderr, "debug - pcapfile - returning from open handler\n");
 
+    cf_send_message(caph, "Pcapfile ready to start playback", MSGFLAG_INFO);
+
     return 1;
 }
 

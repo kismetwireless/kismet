@@ -681,6 +681,21 @@ int cf_stream_packet(kis_capture_handler_t *caph, const char *packtype,
     return 1;
 }
 
+int cf_send_message(kis_capture_handler_t *caph, const char *msg, unsigned int flags) {
+    /* How many KV pairs are we allocating?  1 for success for sure */
+    size_t num_kvs = 1;
+
+    /* Actual KV pairs we encode into the packet */
+    simple_cap_proto_kv_t **kv_pairs;
+
+    kv_pairs = 
+        (simple_cap_proto_kv_t **) malloc(sizeof(simple_cap_proto_kv_t *) * num_kvs);
+
+    kv_pairs[0] = encode_kv_message(msg, flags);
+
+    return cf_stream_packet(caph, "MESSAGE", kv_pairs, 1);
+}
+
 int cf_send_listresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int success,
         const char *msg, const char **interfaces, const char **flags, size_t len) {
     /* How many KV pairs are we allocating?  1 for success for sure */

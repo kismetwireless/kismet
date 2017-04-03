@@ -227,6 +227,18 @@ int cf_send_raw_bytes(kis_capture_handler_t *caph, uint8_t *data, size_t len);
 int cf_stream_packet(kis_capture_handler_t *caph, const char *packtype,
         simple_cap_proto_kv_t **in_kv_list, unsigned int in_kv_len);
 
+/* Send a MESSAGE
+ * Can be called from any thread.
+ *
+ * Flags are expected to match the MSGFLAG_ flags in simple_datasource.h
+ *
+ * Returns:
+ * -1   An error occurred writing the frame
+ *  1   Success
+ */
+int cf_send_message(kis_capture_handler_t *caph, const char *message, 
+        unsigned int flags);
+
 /* Send a LISTRESP response
  * Can be called from any thread.
  *
