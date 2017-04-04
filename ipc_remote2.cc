@@ -54,7 +54,7 @@ IPCRemoteV2::IPCRemoteV2(GlobalRegistry *in_globalreg,
 
     ipchandler->SetProtocolErrorCb([this]() {
         local_locker lock(&ipc_locker);
-        // fprintf(stderr, "debug - ipchandler got protocol error, shutting down pid %u\n", child_pid);
+        fprintf(stderr, "debug - ipchandler got protocol error, shutting down pid %u\n", child_pid);
 
         close_ipc();
     });
@@ -373,6 +373,8 @@ int IPCRemoteV2::hard_kill() {
 
 void IPCRemoteV2::notify_killed(int in_exit) {
     stringstream ss;
+
+    fprintf(stderr, "debug - ipcremote2 notify_killed\n");
 
     if (ipchandler != NULL) {
         ss << "IPC process '" << binary_path << "' " << child_pid << " exited, " <<

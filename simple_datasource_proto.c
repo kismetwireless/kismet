@@ -734,14 +734,14 @@ int get_simple_cap_proto_next_kv(simple_cap_proto_frame_t *in_packet, char **key
 
     /* No KVs at all */
     if (ntohl(in_packet->header.num_kv_pairs == 0)) {
-        fprintf(stderr, "debug - no kvpairs\n");
+        // fprintf(stderr, "debug - no kvpairs\n");
         *key = NULL;
         *last_kv = NULL;
         return 0;
     }
 
     if (*last_kv == NULL) {
-        fprintf(stderr, "debug - first KV pair\n");
+        // fprintf(stderr, "debug - first KV pair\n");
         /* If last_kv is null, set it to the current KV and that's the one we look at */
         *last_kv = (simple_cap_proto_kv_t *) in_packet->data;
         kv_offt = 0;
@@ -805,7 +805,7 @@ int find_simple_cap_proto_kv(simple_cap_proto_frame_t *in_packet, const char *ke
     /* Iterate over all the KV pairs */
     while ((search_kv_len = get_simple_cap_proto_next_kv(in_packet, &search_key, 
                     &search_kv)) > 0) {
-        fprintf(stderr, "debug - got kv len %d key %s\n", search_kv_len, search_key);
+        // fprintf(stderr, "debug - got kv len %d key %s\n", search_kv_len, search_key);
         if (strncasecmp(key, search_key, 16) == 0) {
             *kv = search_kv;
             return search_kv_len;

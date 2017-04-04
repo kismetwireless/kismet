@@ -204,13 +204,6 @@ void cf_handler_spindown(kis_capture_handler_t *caph) {
 
     pthread_mutex_lock(&(caph->handler_lock));
     caph->spindown = 1;
-
-    /* Kill the capture thread */
-    if (caph->capture_running) {
-        pthread_cancel(caph->capturethread);
-        caph->capture_running = 0;
-    }
-
     pthread_mutex_unlock(&(caph->handler_lock));
 }
 
@@ -298,20 +291,20 @@ void cf_handler_set_capture_cb(kis_capture_handler_t *capf,
 void *cf_int_capture_thread(void *arg) {
     kis_capture_handler_t *caph = (kis_capture_handler_t *) arg;
 
-    fprintf(stderr, "debug - inside int_capture_thread\n");
+    // fprintf(stderr, "debug - inside int_capture_thread\n");
 
     /* Set us cancelable */
     pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
     pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
 
     if (caph->capture_cb != NULL) {
-        fprintf(stderr, "debug - launching capture callback\n");
+        // fprintf(stderr, "debug - launching capture callback\n");
         (*(caph->capture_cb))(caph);
     } else {
         fprintf(stderr, "ERROR - No capture handler defined for capture thread\n");
     }
 
-    fprintf(stderr, "DEBUG - got to end of capture thread\n");
+    // fprintf(stderr, "DEBUG - got to end of capture thread\n");
     cf_send_error(caph, "capture thread ended, source is closed.");
     
     cf_handler_spindown(caph);
@@ -328,7 +321,7 @@ int cf_handler_launch_capture_thread(kis_capture_handler_t *caph) {
 
     if (pthread_create(&(caph->capturethread), &attr, 
                 cf_int_capture_thread, caph) < 0) {
-        fprintf(stderr, "debug - failed to pthread_create %s\n", strerror(errno));
+        // fprintf(stderr, "debug - failed to pthread_create %s\n", strerror(errno));
         cf_send_error(caph, "failed to launch capture thread");
         cf_handler_spindown(caph);
         return -1;
@@ -336,17 +329,17 @@ int cf_handler_launch_capture_thread(kis_capture_handler_t *caph) {
 
     caph->capture_running = 1;
     
-    fprintf(stderr, "debug - capture thread launched\n");
+    // fprintf(stderr, "debug - capture thread launched\n");
 
     return 1;
 }
 
 void cf_handler_wait_ringbuffer(kis_capture_handler_t *caph) {
-    fprintf(stderr, "debug - waiting for ringbuf_flush_cond\n");
+    // fprintf(stderr, "debug - waiting for ringbuf_flush_cond\n");
     pthread_cond_wait(&(caph->out_ringbuf_flush_cond),
             &(caph->out_ringbuf_flush_cond_mutex));
     pthread_mutex_unlock(&(caph->out_ringbuf_flush_cond_mutex));
-    fprintf(stderr, "debug - done waiting for ringbuffer to drain\n");
+    // fprintf(stderr, "debug - done waiting for ringbuffer to drain\n");
 }
 
 int cf_handle_rx_data(kis_capture_handler_t *caph) {
@@ -532,6 +525,7 @@ void cf_handler_loop(kis_capture_handler_t *caph) {
     int read_fd, write_fd;
     struct timeval tm;
     int spindown;
+    int ret;
 
     if (caph->tcp_fd >= 0) {
         read_fd = caph->tcp_fd;
@@ -551,8 +545,6 @@ void cf_handler_loop(kis_capture_handler_t *caph) {
     while (1) {
         FD_ZERO(&rset);
         FD_ZERO(&wset);
-
-        fprintf(stderr, "debug - select\n");
 
         /* Check shutdown state or if we're spinning down */
         pthread_mutex_lock(&(caph->handler_lock));
@@ -580,7 +572,7 @@ void cf_handler_loop(kis_capture_handler_t *caph) {
         pthread_mutex_lock(&(caph->out_ringbuf_lock));
 
         if (kis_simple_ringbuf_used(caph->out_ringbuf) != 0) {
-            fprintf(stderr, "debug - capf - writebuffer has %lu\n", kis_simple_ringbuf_used(caph->out_ringbuf));
+            // fprintf(stderr, "debug - capf - writebuffer has %lu\n", kis_simple_ringbuf_used(caph->out_ringbuf));
             FD_SET(write_fd, &wset);
             if (max_fd < write_fd)
                 max_fd = write_fd;
@@ -595,7 +587,7 @@ void cf_handler_loop(kis_capture_handler_t *caph) {
         tm.tv_sec = 0;
         tm.tv_usec = 500000;
 
-        if (select(max_fd + 1, &rset, &wset, NULL, &tm) < 0) {
+        if ((ret = select(max_fd + 1, &rset, &wset, NULL, &tm)) < 0) {
             if (errno != EINTR && errno != EAGAIN) {
                 fprintf(stderr, 
                         "FATAL:  Error during select(): %s\n", strerror(errno));
@@ -603,7 +595,11 @@ void cf_handler_loop(kis_capture_handler_t *caph) {
             }
         }
 
+        if (ret == 0)
+            continue;
+
         if (FD_ISSET(read_fd, &rset)) {
+            fprintf(stderr, "debug - read set\n");
             /* We use a fixed-length read buffer for simplicity, and we shouldn't
              * ever have too many incoming packets queued because the datasource
              * protocol is very tx-heavy */
@@ -614,11 +610,15 @@ void cf_handler_loop(kis_capture_handler_t *caph) {
             /* We deliberately read as much as we need and try to put it in the 
              * buffer, if the buffer fills up something has gone wrong anyhow */
 
-            if ((amt_read = read(read_fd, rbuf, 1024)) < 0) {
+            if ((amt_read = read(read_fd, rbuf, 1024)) <= 0) {
                 if (errno != EINTR && errno != EAGAIN) {
                     /* Bail entirely */
-                    fprintf(stderr,
-                            "FATAL:  Error during read(): %s\n", strerror(errno));
+                    if (amt_read == 0) {
+                        fprintf(stderr, "FATAL: Remote side closed read pipe\n");
+                    } else {
+                        fprintf(stderr,
+                                "FATAL:  Error during read(): %s\n", strerror(errno));
+                    }
                     break;
                 }
             }
@@ -632,7 +632,7 @@ void cf_handler_loop(kis_capture_handler_t *caph) {
                 break;
             }
 
-            fprintf(stderr, "debug - capframework - read %lu\n", amt_buffered);
+            // fprintf(stderr, "debug - capframework - read %lu\n", amt_buffered);
 
             /* See if we have a complete packet to do something with */
             if (cf_handle_rx_data(caph) < 0) {
@@ -673,18 +673,18 @@ void cf_handler_loop(kis_capture_handler_t *caph) {
 
             peeked_sz = kis_simple_ringbuf_peek(caph->out_ringbuf, peek_buf, peek_sz);
 
-            fprintf(stderr, "debug - peeked %lu\n", peeked_sz);
+            // fprintf(stderr, "debug - peeked %lu\n", peeked_sz);
 
             if ((written_sz = write(write_fd, peek_buf, peeked_sz)) < 0) {
                 if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
                     pthread_mutex_unlock(&(caph->out_ringbuf_lock));
                     fprintf(stderr,
-                            "FATAL:  Error during read(): %s\n", strerror(errno));
+                            "FATAL:  Error during write(): %s\n", strerror(errno));
                     break;
                 }
             }
 
-            fprintf(stderr, "debug - capf - wrote %lu\n", written_sz);
+            fprintf(stderr, "debug - capf - wrote %lu of %lu\n", written_sz, peek_sz);
 
             /* Flag it as consumed */
             kis_simple_ringbuf_read(caph->out_ringbuf, NULL, (size_t) written_sz);
@@ -697,6 +697,8 @@ void cf_handler_loop(kis_capture_handler_t *caph) {
             pthread_cond_signal(&(caph->out_ringbuf_flush_cond));
         }
     }
+
+    fprintf(stderr, "FATAL - dropped out of select loop\n");
     
     /* Kill the capture thread */
     pthread_mutex_lock(&(caph->out_ringbuf_lock));
@@ -748,12 +750,13 @@ int cf_stream_packet(kis_capture_handler_t *caph, const char *packtype,
         return -1;
     }
 
-    fprintf(stderr, "debug - trying to write streaming packet '%s' len %lu\n", packtype, proto_sz);
+    /* 
+     fprintf(stderr, "debug - trying to write streaming packet '%s' len %lu\n", packtype, proto_sz);
+     */
 
     pthread_mutex_lock(&(caph->out_ringbuf_lock));
 
     if (kis_simple_ringbuf_available(caph->out_ringbuf) < proto_sz) {
-        fprintf(stderr, "debug - no space for frame in write buffer\n");
         pthread_mutex_unlock(&(caph->out_ringbuf_lock));
         for (i = 0; i < in_kv_len; i++) {
             free(in_kv_list[i]);
@@ -777,9 +780,10 @@ int cf_stream_packet(kis_capture_handler_t *caph, const char *packtype,
     free(in_kv_list);
     free(proto_hdr);
 
+    /* fprintf(stderr, "debug - wrote streaming packet '%s' len %lu buffer %lu\n", packtype, proto_sz, kis_simple_ringbuf_used(caph->out_ringbuf)); */
+
     pthread_mutex_unlock(&(caph->out_ringbuf_lock));
 
-    fprintf(stderr, "debug - wrote streaming packet '%s' len %lu\n", packtype, proto_sz);
 
     return 1;
 }
@@ -1073,7 +1077,7 @@ int cf_send_data(kis_capture_handler_t *caph,
         simple_cap_proto_kv_t *kv_gps,
         struct timeval ts, int dlt, uint32_t packet_sz, uint8_t *pack) {
 
-    fprintf(stderr, "debug - cf_send_data starting\n");
+    // fprintf(stderr, "debug - cf_send_data starting\n");
 
     /* How many KV pairs are we allocating?  1 for data for sure */
     size_t num_kvs = 1;
@@ -1119,8 +1123,6 @@ int cf_send_data(kis_capture_handler_t *caph,
         return -1;
     }
     kv_pos++;
-
-    fprintf(stderr, "debug - cf_send_data initiating packet streaming\n");
 
     return cf_stream_packet(caph, "DATA", kv_pairs, kv_pos);
 }

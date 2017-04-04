@@ -178,11 +178,12 @@ void pcap_dispatch_cb(u_char *user, const struct pcap_pkthdr *header,
                         header->ts, local_pcap->datalink_type,
                         header->caplen, (uint8_t *) data)) < 0) {
             fprintf(stderr, "debug - pcapfile - cf_send_data failed\n");
+            pcap_breakloop(local_pcap->pd);
             cf_send_error(caph, "unable to send DATA frame");
             cf_handler_spindown(caph);
         } else if (ret == 0) {
             /* Go into a wait for the write buffer to get flushed */
-            fprintf(stderr, "debug - pcapfile - dispatch_cb - no room in write buffer - waiting for it to have more space\n");
+            // fprintf(stderr, "debug - pcapfile - dispatch_cb - no room in write buffer - waiting for it to have more space\n");
             cf_handler_wait_ringbuffer(caph);
             continue;
         } else {
@@ -193,18 +194,25 @@ void pcap_dispatch_cb(u_char *user, const struct pcap_pkthdr *header,
 
 void capture_thread(kis_capture_handler_t *caph) {
     local_pcap_t *local_pcap = (local_pcap_t *) caph->userdata;
-    int ret;
+    char errstr[PCAP_ERRBUF_SIZE];
+    char *pcap_errstr;
 
-    while (1) {
-        if ((ret = pcap_dispatch(local_pcap->pd, 1, 
-                        pcap_dispatch_cb, (u_char *) caph)) < 0) {
-            fprintf(stderr, "debug - reading from pcap failed\n");
-            cf_send_error(caph, "Reading from Pcapfile failed");
-            cf_handler_spindown(caph);
-            break;
+    fprintf(stderr, "debug - pcap_loop\n");
 
-        }
-    }
+    pcap_loop(local_pcap->pd, -1, pcap_dispatch_cb, (u_char *) caph);
+
+    pcap_errstr = pcap_geterr(local_pcap->pd);
+
+    snprintf(errstr, PCAP_ERRBUF_SIZE, "Pcapfile '%s' closed: %s", 
+            local_pcap->pcapfname, 
+            strlen(pcap_errstr) == 0 ? "end of pcapfile reached" : pcap_errstr );
+
+    fprintf(stderr, "debug - %s\n", errstr);
+
+    cf_send_error(caph, errstr);
+    cf_handler_spindown(caph);
+
+    fprintf(stderr, "debug - pcapfile - capture thread finishing\n");
 }
 
 int main(int argc, char *argv[]) {

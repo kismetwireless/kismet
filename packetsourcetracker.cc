@@ -2657,9 +2657,11 @@ void Packetsourcetracker::ChainHandler(kis_packet *in_pack) {
 			(kis_ref_capsource *) in_pack->fetch(_PCM(PACK_COMP_KISCAPSRC));
 
 		if (csrc_ref == NULL) {
+            /*
 			_MSG("We got a packet in the PST chainhandler with data but no capsource "
 				 "reference so we don't know how to handle it, we're going to have "
 				 "to throw it on the floor, something is wrong.", MSGFLAG_ERROR);
+            */
 			return;
 		}
 
