@@ -275,7 +275,7 @@ void KisDatasource::close_source() {
     //fprintf(stderr, "!! debug - kds close_source() complete %lu\n", time(0));
 }
 
-void KisDatasource::BufferAvailable(size_t in_amt) {
+void KisDatasource::BufferAvailable(size_t in_amt __attribute__((unused))) {
     // Handle reading raw frames off the incoming buffer and validate their
     // framing, then break them into KVMap records and dispatch them.
     //
@@ -290,18 +290,21 @@ void KisDatasource::BufferAvailable(size_t in_amt) {
     uint32_t frame_sz;
     uint32_t header_checksum, data_checksum, calc_checksum;
 
+    // Loop until we drain the buffer
     while (1) {
-        if (in_amt < sizeof(simple_cap_proto_t)) {
-            return;
-        }
-
         if (ringbuf_handler == NULL)
             return;
 
-        // Peek the buffer
-        buf = new uint8_t[in_amt];
-        ringbuf_handler->PeekReadBufferData(buf, in_amt);
+        size_t buffamt = ringbuf_handler->GetReadBufferUsed();
+        if (buffamt < sizeof(simple_cap_proto_t)) {
+            return;
+        }
 
+        // Allocate as much as we can and peek it from the buffer
+        buf = new uint8_t[buffamt];
+        ringbuf_handler->PeekReadBufferData(buf, buffamt);
+
+        // Turn it into a frame header
         frame = (simple_cap_proto_frame_t *) buf;
 
         if (kis_ntoh32(frame->header.signature) != KIS_CAP_SIMPLE_PROTO_SIG) {
@@ -331,20 +334,20 @@ void KisDatasource::BufferAvailable(size_t in_amt) {
         if (calc_checksum != header_checksum) {
             delete[] buf;
 
-            _MSG("Kismet data source " + get_source_name() + 
-                    " got an invalid hdr checksum on control from "
-                    "IPC/Network, closing.", MSGFLAG_ERROR);
+            _MSG("Kismet data source " + get_source_name() + " got an invalid hdr " +
+                    "checksum on control from IPC/Network, closing.", MSGFLAG_ERROR);
             trigger_error("Source got invalid control frame");
 
             return;
         }
 
-        fprintf(stderr, "debug - kds bufferavailable - peeked '%.16s'\n", frame->header.type);
-
         // Get the size of the frame
         frame_sz = kis_ntoh32(frame->header.packet_sz);
 
-        if (frame_sz > in_amt) {
+        // fprintf(stderr, "debug - kds BufferAvailable - peeked frame '%.16s' valid header needs %u bytes has %lu\n", frame->header.type, frame_sz, buffamt);
+
+        if (frame_sz > buffamt) {
+            // fprintf(stderr, "debug - kds BufferAvailable - insufficient space for peeked frame\n");
             // Nothing we can do right now, not enough data to 
             // make up a complete packet.
             delete[] buf;
@@ -390,8 +393,6 @@ void KisDatasource::BufferAvailable(size_t in_amt) {
         char ctype[17];
         snprintf(ctype, 17, "%s", frame->header.type);
 
-        fprintf(stderr, "debug - kds bufferavailable '%s'\n", ctype);
-
         proto_dispatch_packet(ctype, kv_map);
 
         for (auto i = kv_map.begin(); i != kv_map.end(); ++i) {
@@ -399,13 +400,10 @@ void KisDatasource::BufferAvailable(size_t in_amt) {
         }
 
         delete[] buf;
-
-        in_amt -= frame_sz;
     }
 }
 
 void KisDatasource::BufferError(string in_error) {
-    // fprintf(stderr, "debug - kds - buffererror(%s)\n", in_error.c_str());
     // Simple passthrough to crash the source out from an error at the buffer level
     trigger_error(in_error);
 }
@@ -512,7 +510,7 @@ void KisDatasource::cancel_command(uint32_t in_transaction, string in_error) {
 
     auto i = command_ack_map.find(in_transaction);
     if (i != command_ack_map.end()) {
-        fprintf(stderr, "debug - kds cancel_command - removed %u\n", i->first);
+        // fprintf(stderr, "debug - kds cancel_command - removed %u\n", i->first);
         shared_ptr<tracked_command> cmd = i->second;
 
         command_ack_map.erase(i);
@@ -539,7 +537,7 @@ void KisDatasource::cancel_command(uint32_t in_transaction, string in_error) {
 
         // Cancel any timers
         if (cmd->timer_id > -1) {
-            fprintf(stderr, "debug - kds - removing timer %d\n", cmd->timer_id);
+            // fprintf(stderr, "debug - kds - removing timer %d\n", cmd->timer_id);
             timetracker->RemoveTimer(cmd->timer_id);
         }
     }
@@ -548,7 +546,7 @@ void KisDatasource::cancel_command(uint32_t in_transaction, string in_error) {
 void KisDatasource::cancel_all_commands(string in_error) {
     local_locker lock(&source_lock);
 
-    fprintf(stderr, "debug - kds - %s cancel_all_commands(%s)\n", get_source_definition().c_str(), in_error.c_str());
+    // fprintf(stderr, "debug - kds - %s cancel_all_commands(%s)\n", get_source_definition().c_str(), in_error.c_str());
 
     while (1) {
         auto i = command_ack_map.begin();
@@ -556,18 +554,18 @@ void KisDatasource::cancel_all_commands(string in_error) {
         if (i == command_ack_map.end())
             break;
 
-        fprintf(stderr, "debug - kds - cancel_all_commands cancelling command %u\n", i->first);
+        // fprintf(stderr, "debug - kds - cancel_all_commands cancelling command %u\n", i->first);
 
         cancel_command(i->first, in_error);
     }
 
-    fprintf(stderr, "debug - kds - %s cancel_all_commands size %lu\n", get_source_definition().c_str(), command_ack_map.size());
+    // fprintf(stderr, "debug - kds - %s cancel_all_commands size %lu\n", get_source_definition().c_str(), command_ack_map.size());
 }
 
 void KisDatasource::proto_dispatch_packet(string in_type, KVmap in_kvmap) {
     string ltype = StrLower(in_type);
 
-    fprintf(stderr, "debug - kds - dispatch type '%s'\n", in_type.c_str());
+    // fprintf(stderr, "debug - kds - dispatch type '%s'\n", in_type.c_str());
 
     if (ltype == "proberesp")
         proto_packet_probe_resp(in_kvmap);
@@ -629,8 +627,6 @@ void KisDatasource::proto_packet_probe_resp(KVmap in_kvpairs) {
 void KisDatasource::proto_packet_open_resp(KVmap in_kvpairs) {
     KVmap::iterator i;
     string msg;
-
-    fprintf(stderr, "debug - kds - got open_resp\n");
 
     // Process any messages
     if ((i = in_kvpairs.find("message")) != in_kvpairs.end()) {
@@ -720,6 +716,8 @@ void KisDatasource::proto_packet_list_resp(KVmap in_kvpairs) {
 void KisDatasource::proto_packet_error(KVmap in_kvpairs) {
     KVmap::iterator i;
 
+    fprintf(stderr, "debug - kds - error packet\n");
+
     string fail_reason = "Received error frame on data source";
 
     // Process any messages
@@ -795,7 +793,6 @@ void KisDatasource::proto_packet_data(KVmap in_kvpairs) {
     }
 
     if (packet == NULL) {
-        fprintf(stderr, "debug - kds got empty packet\n");
         return;
     }
 
@@ -825,7 +822,6 @@ void KisDatasource::proto_packet_data(KVmap in_kvpairs) {
 
 bool KisDatasource::get_kv_success(KisDatasourceCapKeyedObject *in_obj) {
     if (in_obj->size != sizeof(simple_cap_proto_success_value)) {
-        fprintf(stderr, "debug - kds - get_kv_success objsize %lu wanted %lu\n", in_obj->size, sizeof(simple_cap_proto_success_value));
         trigger_error("Invalid SUCCESS object in response");
         return false;
     }
@@ -1359,7 +1355,7 @@ void KisDatasource::send_command_probe_interface(string in_definition,
 
     KVmap kvmap;
 
-    fprintf(stderr, "debug - probe interface, definition len %lu %s\n", in_definition.length(), in_definition.c_str());
+    // fprintf(stderr, "debug - probe interface, definition len %lu %s\n", in_definition.length(), in_definition.c_str());
     KisDatasourceCapKeyedObject *definition =
         new KisDatasourceCapKeyedObject("DEFINITION", in_definition.data(), 
                 in_definition.length());
@@ -1390,7 +1386,7 @@ void KisDatasource::send_command_open_interface(string in_definition,
         unsigned int in_transaction, open_callback_t in_cb) {
     local_locker lock(&source_lock);
 
-    fprintf(stderr, "debug - creating DEFINITION for opendevice\n");
+    // fprintf(stderr, "debug - creating DEFINITION for opendevice\n");
 
     KisDatasourceCapKeyedObject *definition =
         new KisDatasourceCapKeyedObject("DEFINITION", in_definition.data(), 
@@ -1624,7 +1620,6 @@ void KisDatasource::launch_ipc() {
     set_int_source_ipc_pid(-1);
 
     // Make a new handler and new ipc.  Give a generous buffer.
-    fprintf(stderr, "debug - kds resetting ringbuf handler\n");
     ringbuf_handler.reset(new RingbufferHandler((128 * 1024), (128 * 1024)));
     ringbuf_handler->SetReadBufferInterface(this);
 
@@ -1670,8 +1665,7 @@ KisDatasourceCapKeyedObject::KisDatasourceCapKeyedObject(string in_key,
         const char *in_object, ssize_t in_len) {
     // Clone the object into a kv header for easier transmission assembly
     
-    fprintf(stderr, "debug - assembling new kv object size %ld total %ld\n", in_len,
-            in_len + sizeof(simple_cap_proto_kv_h_t));
+    // fprintf(stderr, "debug - assembling new kv object size %ld total %ld\n", in_len, in_len + sizeof(simple_cap_proto_kv_h_t));
 
     allocated = true;
     kv = (simple_cap_proto_kv_t *) 
@@ -1683,8 +1677,6 @@ KisDatasourceCapKeyedObject::KisDatasourceCapKeyedObject(string in_key,
     snprintf(kv->header.key, 16, "%s", in_key.c_str());
     key = in_key.substr(0, 16);
 
-    fprintf(stderr, "debug - made field %s\n", kv->header.key);
-   
     memcpy(kv->object, in_object, in_len);
     object = (char *) kv->object;
 
