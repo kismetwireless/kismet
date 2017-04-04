@@ -30,6 +30,10 @@
  *
  * Monitors pollable events and wraps them into a single select() loop
  * and handles erroring out sources after their events have been processed.
+ *
+ * Add/remove from the pollable vector is handled asynchronously to protect the
+ * integrity of the pollable object itself and the internal pollable vectors;
+ * adds and removes are synced at the next descriptor or poll event.
  */
 
 class PollableTracker : public LifetimeGlobal {
@@ -55,9 +59,6 @@ public:
     // operation completes (or the next one begins); This allows errored sources
     // to remove themselves once their tasks are complete.
     void RemovePollable(shared_ptr<Pollable> in_pollable);
-    // Hack to search shared_ptrs for their raw reference since pollables only
-    // know their own 'this'
-    void RemovePollable(Pollable *in_pollable);
 
     // populate the FD sets for polling, populates rset and wset
     //
@@ -79,9 +80,10 @@ protected:
     pthread_mutex_t pollable_mutex;
 
     vector<shared_ptr<Pollable> > pollable_vec;
+    vector<shared_ptr<Pollable> > add_vec;
     vector<shared_ptr<Pollable> > remove_vec;
 
-    void CleanupRemoveVec();
+    void Maintenance();
 };
 
 #endif

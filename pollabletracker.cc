@@ -36,49 +36,38 @@ PollableTracker::~PollableTracker() {
 void PollableTracker::RegisterPollable(shared_ptr<Pollable> in_pollable) {
     local_locker lock(&pollable_mutex);
 
-    pollable_vec.push_back(in_pollable);
+    add_vec.push_back(in_pollable);
 }
 
 void PollableTracker::RemovePollable(shared_ptr<Pollable> in_pollable) {
     local_locker lock(&pollable_mutex);
 
-    // fprintf(stderr, "debug - Flagging pollable %p to remove\n", in_pollable.get());
-
     remove_vec.push_back(in_pollable);
 }
 
-void PollableTracker::RemovePollable(Pollable *in_pollable) {
-    local_locker lock(&pollable_mutex);
-
-    for (auto i = pollable_vec.begin(); i != pollable_vec.end(); ++i) {
-        if ((*i).get() == in_pollable) {
-            // fprintf(stderr, "debug - Flagging pollable %p to remove\n", in_pollable);
-            remove_vec.push_back(*i);
-            break;
-        }
-    }
-}
-
-void PollableTracker::CleanupRemoveVec() {
+void PollableTracker::Maintenance() {
     local_locker lock(&pollable_mutex);
 
     for (auto r = remove_vec.begin(); r != remove_vec.end(); ++r) {
         for (auto i = pollable_vec.begin(); i != pollable_vec.end(); ++i) {
             if (*r == *i) {
-                // fprintf(stderr, "debug - expiring pollable %p\n", (*i).get());
                 pollable_vec.erase(i);
                 break;
             }
         }
     }
-
     remove_vec.clear();
+
+    for (auto i = add_vec.begin(); i != add_vec.end(); ++i) {
+        pollable_vec.push_back(*i);
+    }
+    add_vec.clear();
 }
 
 int PollableTracker::MergePollableFds(fd_set *rset, fd_set *wset) {
     local_locker lock(&pollable_mutex);
 
-    CleanupRemoveVec();
+    Maintenance();
 
     int max_fd = 0;
 
@@ -89,8 +78,6 @@ int PollableTracker::MergePollableFds(fd_set *rset, fd_set *wset) {
         max_fd = (*i)->MergeSet(max_fd, rset, wset);
     }
 
-    CleanupRemoveVec();
-
     return max_fd;
 }
 
@@ -99,16 +86,16 @@ int PollableTracker::ProcessPollableSelect(fd_set rset, fd_set wset) {
     int r;
     int num = 0;
 
-    CleanupRemoveVec();
+    Maintenance();
 
     for (auto i = pollable_vec.begin(); i != pollable_vec.end(); ++i) {
+        fprintf(stderr, "debug - polling %p\n", (*i).get());
         r = (*i)->Poll(rset, wset);
+        fprintf(stderr, "debug - done polling %p\n", (*i).get());
 
         if (r >= 0)
             num++;
     }
-
-    CleanupRemoveVec();
 
     return num;
 }
