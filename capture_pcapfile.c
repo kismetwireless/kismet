@@ -74,6 +74,7 @@ typedef struct {
     int datalink_type;
     int override_dlt;
     int realtime;
+    struct timeval last_ts;
 } local_pcap_t;
 
 int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition) {
@@ -156,6 +157,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition)
             snprintf(errstr, PCAP_ERRBUF_SIZE, 
                     "Pcapfile '%s' will replay in realtime", pcapfname);
             cf_send_message(caph, errstr, MSGFLAG_INFO);
+            local_pcap->realtime = 1;
         }
     }
 
@@ -171,7 +173,45 @@ void pcap_dispatch_cb(u_char *user, const struct pcap_pkthdr *header,
     kis_capture_handler_t *caph = (kis_capture_handler_t *) user;
     local_pcap_t *local_pcap = (local_pcap_t *) caph->userdata;
     int ret;
+    unsigned long delay_usec = 0;
 
+    /* If we're doing 'realtime' playback, delay accordingly based on the
+     * previous packet. 
+     *
+     * Because we're in our own thread, we can block as long as we want - this
+     * simulates blocking IO for capturing from hardware, too.
+     */
+    if (local_pcap->realtime) {
+        if (local_pcap->last_ts.tv_sec == 0 && local_pcap->last_ts.tv_usec == 0) {
+            delay_usec = 0;
+        } else {
+            /* Catch corrupt pcaps w/ inconsistent times */
+            if (header->ts.tv_sec < local_pcap->last_ts.tv_sec) {
+                delay_usec = 0;
+            } else {
+                delay_usec = (header->ts.tv_sec - local_pcap->last_ts.tv_sec) * 1000000L;
+            }
+
+            if (header->ts.tv_usec < local_pcap->last_ts.tv_usec) {
+                delay_usec += (1000000L - local_pcap->last_ts.tv_usec) + 
+                    header->ts.tv_usec;
+            } else {
+                delay_usec += header->ts.tv_usec - local_pcap->last_ts.tv_usec;
+            }
+
+        }
+
+        local_pcap->last_ts.tv_sec = header->ts.tv_sec;
+        local_pcap->last_ts.tv_usec = header->ts.tv_usec;
+
+        if (delay_usec != 0) {
+            usleep(delay_usec);
+        }
+    }
+
+    /* Try repeatedly to send the packet; go into a thread wait state if
+     * the write buffer is full & we'll be woken up as soon as it flushes
+     * data out in the main select() loop */
     while (1) {
         if ((ret = cf_send_data(caph, 
                         NULL, NULL, NULL,
@@ -221,7 +261,9 @@ int main(int argc, char *argv[]) {
         .pcapfname = NULL,
         .datalink_type = -1,
         .override_dlt = -1,
-        .realtime = 0
+        .realtime = 0,
+        .last_ts.tv_sec = 0,
+        .last_ts.tv_usec = 0
     };
 
     /* Remap stderr so we can log debugging to a file */
