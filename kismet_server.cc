@@ -520,6 +520,9 @@ void ncurses_wrapper_fork() {
         signal(SIGABRT, NcursesKillHandler);
         signal(SIGCHLD, NcursesKillHandler);
 
+        // Ignore WINCH and have a wrong-sized screen
+        signal(SIGWINCH, SIG_IGN);
+
         FILE *c_stdin = fdopen(pipefd[0], "r");
         fcntl(pipefd[0], F_SETFL, fcntl(pipefd[0], F_GETFL, 0) | O_NONBLOCK);
 
