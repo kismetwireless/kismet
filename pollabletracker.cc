@@ -89,9 +89,7 @@ int PollableTracker::ProcessPollableSelect(fd_set rset, fd_set wset) {
     Maintenance();
 
     for (auto i = pollable_vec.begin(); i != pollable_vec.end(); ++i) {
-        fprintf(stderr, "debug - polling %p\n", (*i).get());
         r = (*i)->Poll(rset, wset);
-        fprintf(stderr, "debug - done polling %p\n", (*i).get());
 
         if (r >= 0)
             num++;
