@@ -99,10 +99,13 @@ int PipeClient::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
             max_fd = write_fd;
     }
 
-    // We always want to read data
-    if (read_fd > -1 && read_fd > in_max_fd) {
-        max_fd = read_fd;
-        FD_SET(read_fd, out_rset);
+    // If we have room to read set the readfd, otherwise skip it for now
+    if (read_fd > -1) {
+        if (handler->GetReadBufferFree() > 0) {
+            if (max_fd < read_fd)
+                max_fd = read_fd;
+            FD_SET(read_fd, out_rset);
+        }
     }
 
     return max_fd;
@@ -127,6 +130,7 @@ int PipeClient::Poll(fd_set& in_rset, fd_set& in_wset) {
         buf = new uint8_t[len];
 
         if ((ret = read(read_fd, buf, len)) <= 0) {
+            fprintf(stderr, "debug - pipeclient - read returned %ld errno %s\n", ret, strerror(errno));
             if (errno != EINTR && errno != EAGAIN) {
 
                 if (ret == 0) {
@@ -136,9 +140,11 @@ int PipeClient::Poll(fd_set& in_rset, fd_set& in_wset) {
                 }
     
                 delete[] buf;
-                ClosePipes();
+
                 // Push the error upstream if we failed to read here
                 handler->BufferError(msg.str());
+
+                ClosePipes();
 
                 // fprintf(stderr, "debug - pipeclient - returning from poll\n");
                 return 0;
