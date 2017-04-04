@@ -19,7 +19,7 @@
 #ifndef __KISMET_SERVER_H__
 #define __KISMET_SERVER_H__
 
-#include "config.h"
+#include "config.hpp"
 
 #include <map>
 #include <string>

@@ -18,7 +18,7 @@
 
 /* DLT handler framework */
 
-#include "config.h"
+#include "config.hpp"
 
 #include "globalregistry.h"
 #include "util.h"

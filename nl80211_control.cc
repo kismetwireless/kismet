@@ -16,7 +16,7 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#include "config.h"
+#include "config.hpp"
 
 #if defined(HAVE_LIBNL20) || defined(HAVE_LIBNL30)
 #define HAVE_LIBNL_NG

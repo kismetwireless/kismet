@@ -4948,6 +4948,8 @@ fi
 
 ac_config_headers="$ac_config_headers config.h"
 
+ac_config_headers="$ac_config_headers config.hpp"
+
 
 # Config location for code to default to
 CONFFILE_DIR=$sysconfdir
@@ -9779,6 +9781,7 @@ for ac_config_target in $ac_config_targets
 do
   case $ac_config_target in
     "config.h") CONFIG_HEADERS="$CONFIG_HEADERS config.h" ;;
+    "config.hpp") CONFIG_HEADERS="$CONFIG_HEADERS config.hpp" ;;
     "Makefile") CONFIG_FILES="$CONFIG_FILES Makefile" ;;
     "Makefile.inc") CONFIG_FILES="$CONFIG_FILES Makefile.inc" ;;
     "scripts/kismet") CONFIG_FILES="$CONFIG_FILES scripts/kismet" ;;

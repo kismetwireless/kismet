@@ -19,7 +19,7 @@
 #ifndef __KISMET_ALGORITHM_H__
 #define __KISMET_ALGORITHM_H__
 
-#include "config.h"
+#include "config.hpp"
 
 #include <memory>
 

@@ -17,7 +17,7 @@
 
 */
 
-#include "config.h"
+#include "config.hpp"
 
 #include "phy_zwave.h"
 #include "devicetracker.h"

@@ -19,7 +19,7 @@
 #ifndef __CONFIGFILE_H__
 #define __CONFIGFILE_H__
 
-#include "config.h"
+#include "config.hpp"
 
 #include <unistd.h>
 #include <sys/stat.h>

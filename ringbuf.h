@@ -1,7 +1,7 @@
 #ifndef __RINGBUF_H__
 #define __RINGBUF_H__
 
-#include "config.h"
+#include "config.hpp"
 
 #include <stdio.h>
 #ifdef HAVE_STDINT_H

@@ -20,7 +20,7 @@
 #ifndef __PHY_ZWAVE_H__
 #define __PHY_ZWAVE_H__
 
-#include "config.h"
+#include "config.hpp"
 #include "globalregistry.h"
 #include "kis_net_microhttpd.h"
 #include "trackedelement.h"

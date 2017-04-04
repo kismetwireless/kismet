@@ -19,7 +19,7 @@
 #ifndef __PSUTILS_H__
 #define __PSUTILS_H__
 
-#include "config.h"
+#include "config.hpp"
 
 #include <string>
 

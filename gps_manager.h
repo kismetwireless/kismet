@@ -19,7 +19,7 @@
 #ifndef __GPS_MANAGER_H__
 #define __GPS_MANAGER_H__
 
-#include "config.h"
+#include "config.hpp"
 
 #include <pthread.h>
 

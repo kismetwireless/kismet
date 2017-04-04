@@ -19,7 +19,7 @@
 #ifndef __PACKET_H__
 #define __PACKET_H__
 
-#include "config.h"
+#include "config.hpp"
 
 #ifdef HAVE_STDINT_H
 #include <stdint.h>

@@ -19,7 +19,7 @@
 #ifndef __RINGBUFFER_HANDLER__
 #define __RINGBUFFER_HANDLER__
 
-#include "config.h"
+#include "config.hpp"
 
 #include <stdlib.h>
 #include <string>

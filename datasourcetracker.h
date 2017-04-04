@@ -19,7 +19,7 @@
 #ifndef __Datasourcetracker_H__
 #define __Datasourcetracker_H__
 
-#include "config.h"
+#include "config.hpp"
 
 #include <pthread.h>
 #include <string>

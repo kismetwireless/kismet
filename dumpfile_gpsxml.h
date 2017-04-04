@@ -19,7 +19,7 @@
 #ifndef __DUMPFILE_GPSXML_H__
 #define __DUMPFILE_GPSXML_H__
 
-#include "config.h"
+#include "config.hpp"
 
 #include <stdio.h>
 #include <string>

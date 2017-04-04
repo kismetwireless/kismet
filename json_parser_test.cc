@@ -17,10 +17,11 @@
  *
  */
 
+#include "config.hpp"
+
 #include <string>
 #include <iostream>
 
-#include "config.h"
 #include "kismet_json.h"
 
 int main(void) {

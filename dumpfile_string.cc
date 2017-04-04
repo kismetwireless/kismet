@@ -16,7 +16,7 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#include "config.h"
+#include "config.hpp"
 
 #include "dumpfile_string.h"
 #include "phy_80211.h"

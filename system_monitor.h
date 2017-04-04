@@ -19,7 +19,7 @@
 #ifndef __SYSTEM_MONITOR_H__
 #define __SYSTEM_MONITOR_H__
 
-#include "config.h"
+#include "config.hpp"
 
 #include <string>
 #include <pthread.h>

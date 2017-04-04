@@ -21,7 +21,7 @@
 #ifndef __KIS_DLT_PPI_H__
 #define __KIS_DLT_PPI_H__
 
-#include "config.h"
+#include "config.hpp"
 
 #include "globalregistry.h"
 #include "packet.h"

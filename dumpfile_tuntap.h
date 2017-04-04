@@ -43,7 +43,7 @@
  * track system isn't worth duplicating.
  */
 
-#include "config.h"
+#include "config.hpp"
 
 #include <string>
 

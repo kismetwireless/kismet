@@ -302,6 +302,9 @@
 /* Maximum number of characters in the status line */
 #define STATUS_MAX 1024
 
+/* Maximum number of channels - I've only ever heard of 14 being used. */
+#define CHANNEL_MAX 14
+
 /* Stupid ncurses */
 #define NCURSES_NOMACROS
 
@@ -310,6 +313,9 @@
 
 /* String length of a key */
 #define WEPKEYSTR_MAX ((WEPKEY_MAX * 2) + WEPKEY_MAX)
+
+/* Number of past alerts to queue for new clients */
+#define ALERT_BACKLOG 50
 
 /* system min isn't reliable */
 #define kismin(x,y) ((x) < (y) ? (x) : (y))
@@ -320,6 +326,12 @@
 
 // Max chars in SSID
 #define MAX_SSID_LEN    255
+
+/* Namespace (on non-obj-c files) */
+#ifndef __IN_OBJC_FILE__
+using namespace std;
+#define __STL_USE_NAMESPACES
+#endif
 
 #ifndef _
 #define _(x) x

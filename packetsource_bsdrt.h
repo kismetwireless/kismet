@@ -24,7 +24,7 @@
 #ifndef __PACKETSOURCE_BSD_H__
 #define __PACKETSOURCE_BSD_H__
 
-#include "config.h"
+#include "config.hpp"
 
 #if (defined(HAVE_LIBPCAP) && (defined(SYS_OPENBSD) || defined(SYS_NETBSD) || \
 							   defined(SYS_FREEBSD)))

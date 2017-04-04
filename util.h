@@ -19,7 +19,7 @@
 #ifndef __UTIL_H__
 #define __UTIL_H__
 
-#include "config.h"
+#include "config.hpp"
 
 #include <stdio.h>
 #ifdef HAVE_STDINT_H

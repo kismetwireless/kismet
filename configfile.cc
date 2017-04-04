@@ -17,7 +17,7 @@
 */
 
 
-#include "config.h"
+#include "config.hpp"
 
 #include <string>
 #include <ctype.h>

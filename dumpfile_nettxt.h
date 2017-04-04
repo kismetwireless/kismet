@@ -19,7 +19,7 @@
 #ifndef __DUMPFILE_NETTXT_H__
 #define __DUMPFILE_NETTXT_H__
 
-#include "config.h"
+#include "config.hpp"
 
 #include <stdio.h>
 #include <string>

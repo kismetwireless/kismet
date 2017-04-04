@@ -22,7 +22,7 @@
 #ifndef __PACKETSOURCE_AIRPCAP_H__
 #define __PACKETSOURCE_AIRPCAP_H__
 
-#include "config.h"
+#include "config.hpp"
 
 #if defined(HAVE_LIBPCAP) && defined(HAVE_LIBAIRPCAP) && defined(SYS_CYGWIN)
 

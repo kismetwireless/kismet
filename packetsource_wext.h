@@ -24,7 +24,7 @@
 #ifndef __PACKETSOURCE_WEXT_H__
 #define __PACKETSOURCE_WEXT_H__
 
-#include "config.h"
+#include "config.hpp"
 
 #if (defined(HAVE_LIBPCAP) && defined(SYS_LINUX) && defined(HAVE_LINUX_WIRELESS))
 

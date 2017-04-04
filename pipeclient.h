@@ -19,7 +19,7 @@
 #ifndef __PIPECLIENT_H__
 #define __PIPECLIENT_H__
 
-#include "config.h"
+#include "config.hpp"
 
 #include <sys/types.h>
 #include <sys/socket.h>

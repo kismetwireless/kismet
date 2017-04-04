@@ -65,6 +65,7 @@
 
 #include <arpa/inet.h>
 
+#include "config.h"
 #include "simple_datasource_proto.h"
 #include "capture_framework.h"
 

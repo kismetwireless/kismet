@@ -19,7 +19,7 @@
 #ifndef __KIS_PKTPROTO_H__
 #define __KIS_PKTPROTO_H__
 
-#include "config.h"
+#include "config.hpp"
 
 #include "util.h"
 #include "ipc_remote.h"

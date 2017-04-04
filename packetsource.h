@@ -19,7 +19,7 @@
 #ifndef __PACKETSOURCE_H__
 #define __PACKETSOURCE_H__
 
-#include "config.h"
+#include "config.hpp"
 
 #include <string>
 #include <errno.h>

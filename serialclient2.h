@@ -19,7 +19,7 @@
 #ifndef __SERIALCLIENT_V2_H__
 #define __SERIALCLIENT_V2_H__
 
-#include "config.h"
+#include "config.hpp"
 
 #include <sys/types.h>
 #include <sys/socket.h>

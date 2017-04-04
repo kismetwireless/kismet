@@ -19,7 +19,7 @@
 #ifndef __PACKETSOURCETRACKER_H__
 #define __PACKETSOURCETRACKER_H__
 
-#include "config.h"
+#include "config.hpp"
 
 #include <stdio.h>
 #include <time.h>

@@ -19,7 +19,7 @@
 #ifndef __TRACKEDELEMENT_H__
 #define __TRACKEDELEMENT_H__
 
-#include "config.h"
+#include "config.hpp"
 
 #include <stdio.h>
 #include <stdint.h>

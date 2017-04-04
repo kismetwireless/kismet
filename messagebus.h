@@ -20,7 +20,7 @@
 #ifndef __MESSAGEBUS_H__
 #define __MESSAGEBUS_H__
 
-#include "config.h"
+#include "config.hpp"
 
 #include <string>
 #include <vector>

@@ -19,7 +19,7 @@
 #ifndef __DATASOURCE_H__
 #define __DATASOURCE_H__
 
-#include "config.h"
+#include "config.hpp"
 
 #include <functional>
 

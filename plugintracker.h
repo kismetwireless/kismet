@@ -43,7 +43,7 @@
 // server/rootpid system, this may change if needed in the future.  Open any
 // files and sockets you need before the drop.
 
-#include "config.h"
+#include "config.hpp"
 
 #include <stdio.h>
 #include <time.h>

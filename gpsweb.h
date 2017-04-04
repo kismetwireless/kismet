@@ -19,7 +19,7 @@
 #ifndef __GPSWEB_H__
 #define __GPSWEB_H__
 
-#include "config.h"
+#include "config.hpp"
 
 #include "kis_gps.h"
 #include "timetracker.h"

@@ -177,6 +177,7 @@ fi
 
 AC_CONFIG_SRCDIR([kismet_server.cc])
 AC_CONFIG_HEADER([config.h])
+AC_CONFIG_HEADER([config.hpp])
 
 # Config location for code to default to
 CONFFILE_DIR=$sysconfdir
