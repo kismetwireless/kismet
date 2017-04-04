@@ -74,7 +74,7 @@ int Kis_DLT_PPI::HandlePacket(kis_packet *in_pack) {
 
 	if (capsrc == NULL) {
 		// printf("debug - no capsrc?\n");
-		return 1;
+		// return 1;
 	}
 
 	ppi_packet_header *ppi_ph;
@@ -294,7 +294,7 @@ int Kis_DLT_PPI::HandlePacket(kis_packet *in_pack) {
 	}
 
 	// If we're validating the FCS
-	if (capsrc->ref_source->FetchValidateCRC() && fcschunk != NULL) {
+	if (capsrc != NULL && capsrc->ref_source->FetchValidateCRC() && fcschunk != NULL) {
 		// Compare it and flag the packet
 		uint32_t calc_crc =
 			crc32_le_80211(globalreg->crc32_table, decapchunk->data, 

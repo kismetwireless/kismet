@@ -1131,6 +1131,8 @@ kis_packet *KisDatasource::handle_kv_packet(KisDatasourceCapKeyedObject *in_obj)
         return NULL;
     }
 
+    // fprintf(stderr, "debug - generated linkframe dlt %u length %u\n", datachunk->dlt, datachunk->length);
+
     packet->insert(pack_comp_linkframe, datachunk);
 
     return packet;
