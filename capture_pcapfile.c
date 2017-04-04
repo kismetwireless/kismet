@@ -77,7 +77,6 @@ typedef struct {
 } local_pcap_t;
 
 int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition) {
-
     char *placeholder = NULL;
     int placeholder_len;
 
@@ -139,6 +138,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition)
         return -1;
     }
 
+    local_pcap->datalink_type = pcap_datalink(local_pcap->pd);
+
     fprintf(stderr, "debug - pcapfile - opened pcap file!\n");
 
     /* Succesful open with no channel, hop, or chanset data */
@@ -158,7 +159,41 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition)
         }
     }
 
+    /* Launch the capture thread */
+    fprintf(stderr, "debug - pcapfile - launching capture thread\n");
+    cf_handler_launch_capture_thread(caph);
+
     return 1;
+}
+
+void pcap_dispatch_cb(u_char *user, const struct pcap_pkthdr *header,
+        const u_char *data)  {
+    kis_capture_handler_t *caph = (kis_capture_handler_t *) user;
+    local_pcap_t *local_pcap = (local_pcap_t *) caph->userdata;
+
+    if (cf_send_data(caph, 
+                NULL, NULL, NULL,
+                header->ts, local_pcap->datalink_type,
+                header->caplen, (uint8_t *) data) < 0) {
+        fprintf(stderr, "debug - pcapfile - cf_send_data failed\n");
+        cf_send_error(caph, "unable to send DATA frame");
+        cf_handler_spindown(caph);
+    }
+
+    usleep(1000);
+}
+
+void capture_thread(kis_capture_handler_t *caph) {
+    local_pcap_t *local_pcap = (local_pcap_t *) caph->userdata;
+
+    while (1) {
+        if (pcap_dispatch(local_pcap->pd, 1, pcap_dispatch_cb, (u_char *) caph) < 0) {
+            fprintf(stderr, "debug - reading from pcap failed\n");
+            cf_send_error(caph, "Reading from Pcapfile failed");
+            cf_handler_spindown(caph);
+            break;
+        }
+    }
 }
 
 int main(int argc, char *argv[]) {
@@ -195,6 +230,9 @@ int main(int argc, char *argv[]) {
 
     /* Set the callback for opening a pcapfile */
     cf_handler_set_open_cb(caph, open_callback);
+
+    /* Set the capture thread */
+    cf_handler_set_capture_cb(caph, capture_thread);
 
     cf_handler_loop(caph);
 

@@ -295,6 +295,9 @@ void KisDatasource::BufferAvailable(size_t in_amt) {
             return;
         }
 
+        if (ringbuf_handler == NULL)
+            return;
+
         // Peek the buffer
         buf = new uint8_t[in_amt];
         ringbuf_handler->PeekReadBufferData(buf, in_amt);
@@ -791,8 +794,10 @@ void KisDatasource::proto_packet_data(KVmap in_kvpairs) {
         packet = handle_kv_packet(i->second);
     }
 
-    if (packet == NULL)
+    if (packet == NULL) {
+        fprintf(stderr, "debug - kds got empty packet\n");
         return;
+    }
 
     // Gather signal data
     if ((i = in_kvpairs.find("signal")) != in_kvpairs.end()) {
@@ -1122,6 +1127,9 @@ kis_packet *KisDatasource::handle_kv_packet(KisDatasourceCapKeyedObject *in_obj)
 
         stringstream ss;
         ss << "failed to unpack packet bundle: " << e.what();
+
+        fprintf(stderr, "debug - kds - handle_packet_kv - %s\n", e.what());
+
         trigger_error(ss.str());
 
         return NULL;

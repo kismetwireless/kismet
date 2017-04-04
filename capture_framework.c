@@ -98,6 +98,7 @@ int cf_find_flag(char **ret_value, const char *flag, char *definition) {
 
 kis_capture_handler_t *cf_handler_init() {
     kis_capture_handler_t *ch;
+    pthread_mutexattr_t mutexattr;
 
     ch = (kis_capture_handler_t *) malloc(sizeof(kis_capture_handler_t));
 
@@ -129,18 +130,22 @@ kis_capture_handler_t *cf_handler_init() {
         return NULL;
     }
 
-    pthread_mutex_init(&(ch->out_ringbuf_lock), NULL);
+    pthread_mutexattr_init(&mutexattr);
+    pthread_mutexattr_settype(&mutexattr, PTHREAD_MUTEX_RECURSIVE);
+    pthread_mutex_init(&(ch->out_ringbuf_lock), &mutexattr);
 
     ch->shutdown = 0;
     ch->spindown = 0;
 
-    pthread_mutex_init(&(ch->handler_lock), NULL);
+    pthread_mutex_init(&(ch->handler_lock), &mutexattr);
 
     ch->listdevices_cb = NULL;
     ch->probe_cb = NULL;
     ch->open_cb = NULL;
 
     ch->userdata = NULL;
+
+    ch->capture_running = 0;
 
     return ch;
 }
@@ -180,6 +185,13 @@ void cf_handler_shutdown(kis_capture_handler_t *caph) {
 
     pthread_mutex_lock(&(caph->handler_lock));
     caph->shutdown = 1;
+
+    /* Kill the capture thread */
+    if (caph->capture_running) {
+        pthread_cancel(caph->capturethread);
+        caph->capture_running = 0;
+    }
+
     pthread_mutex_unlock(&(caph->handler_lock));
 }
 
@@ -189,6 +201,13 @@ void cf_handler_spindown(kis_capture_handler_t *caph) {
 
     pthread_mutex_lock(&(caph->handler_lock));
     caph->spindown = 1;
+
+    /* Kill the capture thread */
+    if (caph->capture_running) {
+        pthread_cancel(caph->capturethread);
+        caph->capture_running = 0;
+    }
+
     pthread_mutex_unlock(&(caph->handler_lock));
 }
 
@@ -262,6 +281,61 @@ void cf_handler_set_userdata(kis_capture_handler_t *capf, void *userdata) {
     pthread_mutex_lock(&(capf->handler_lock));
     capf->userdata = userdata;
     pthread_mutex_unlock(&(capf->handler_lock));
+}
+
+void cf_handler_set_capture_cb(kis_capture_handler_t *capf,
+        cf_callback_capture cb) {
+    pthread_mutex_lock(&(capf->handler_lock));
+    capf->capture_cb = cb;
+    pthread_mutex_unlock(&(capf->handler_lock));
+}
+
+/* Internal capture thread which spawns the capture callback
+ */
+void *cf_int_capture_thread(void *arg) {
+    kis_capture_handler_t *caph = (kis_capture_handler_t *) arg;
+
+    fprintf(stderr, "debug - inside int_capture_thread\n");
+
+    /* Set us cancelable */
+    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+    pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
+
+    if (caph->capture_cb != NULL) {
+        fprintf(stderr, "debug - launching capture callback\n");
+        (*(caph->capture_cb))(caph);
+    } else {
+        fprintf(stderr, "ERROR - No capture handler defined for capture thread\n");
+    }
+
+    fprintf(stderr, "DEBUG - got to end of capture thread\n");
+    cf_send_error(caph, "capture thread ended, source is closed.");
+    
+    cf_handler_spindown(caph);
+
+    return NULL;
+}
+
+/* Launch a capture thread after opening has been successful */
+int cf_handler_launch_capture_thread(kis_capture_handler_t *caph) {
+    /* Set the thread attributes - detatched, cancelable */
+    pthread_attr_t attr;
+    pthread_attr_init(&attr);
+    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+
+    if (pthread_create(&(caph->capturethread), &attr, 
+                cf_int_capture_thread, caph) < 0) {
+        fprintf(stderr, "debug - failed to pthread_create %s\n", strerror(errno));
+        cf_send_error(caph, "failed to launch capture thread");
+        cf_handler_spindown(caph);
+        return -1;
+    }
+
+    caph->capture_running = 1;
+    
+    fprintf(stderr, "debug - capture thread launched\n");
+
+    return 1;
 }
 
 int cf_handle_rx_data(kis_capture_handler_t *caph) {
@@ -467,6 +541,8 @@ void cf_handler_loop(kis_capture_handler_t *caph) {
         FD_ZERO(&rset);
         FD_ZERO(&wset);
 
+        fprintf(stderr, "debug - select\n");
+
         /* Check shutdown state or if we're spinning down */
         pthread_mutex_lock(&(caph->handler_lock));
 
@@ -586,6 +662,8 @@ void cf_handler_loop(kis_capture_handler_t *caph) {
 
             peeked_sz = kis_simple_ringbuf_peek(caph->out_ringbuf, peek_buf, peek_sz);
 
+            fprintf(stderr, "debug - peeked %lu\n", peeked_sz);
+
             if ((written_sz = write(write_fd, peek_buf, peeked_sz)) < 0) {
                 if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
                     pthread_mutex_unlock(&(caph->out_ringbuf_lock));
@@ -604,6 +682,14 @@ void cf_handler_loop(kis_capture_handler_t *caph) {
             pthread_mutex_unlock(&(caph->out_ringbuf_lock));
         }
     }
+    
+    /* Kill the capture thread */
+    pthread_mutex_lock(&(caph->out_ringbuf_lock));
+    if (caph->capture_running) {
+        pthread_cancel(caph->capturethread);
+        caph->capture_running = 0;
+    }
+    pthread_mutex_unlock(&(caph->out_ringbuf_lock));
 }
 
 int cf_send_raw_bytes(kis_capture_handler_t *caph, uint8_t *data, size_t len) {
@@ -647,16 +733,18 @@ int cf_stream_packet(kis_capture_handler_t *caph, const char *packtype,
         return -1;
     }
 
+    fprintf(stderr, "debug - trying to write streaming packet '%s' len %lu\n", packtype, proto_sz);
+
     pthread_mutex_lock(&(caph->out_ringbuf_lock));
 
     if (kis_simple_ringbuf_available(caph->out_ringbuf) < proto_sz) {
         fprintf(stderr, "FATAL: Unable to put frame in write buffer\n");
+        pthread_mutex_unlock(&(caph->out_ringbuf_lock));
         for (i = 0; i < in_kv_len; i++) {
             free(in_kv_list[i]);
         }
         free(in_kv_list);
         free(proto_hdr);
-        pthread_mutex_unlock(&(caph->out_ringbuf_lock));
         return -1;
     }
 
@@ -693,7 +781,39 @@ int cf_send_message(kis_capture_handler_t *caph, const char *msg, unsigned int f
 
     kv_pairs[0] = encode_kv_message(msg, flags);
 
+    if (kv_pairs[0] == NULL) {
+        free(kv_pairs);
+        return -1;
+    }
+
     return cf_stream_packet(caph, "MESSAGE", kv_pairs, 1);
+}
+
+int cf_send_error(kis_capture_handler_t *caph, const char *msg) {
+    size_t num_kvs = 2;
+
+    /* Actual KV pairs we encode into the packet */
+    simple_cap_proto_kv_t **kv_pairs;
+
+    kv_pairs = 
+        (simple_cap_proto_kv_t **) malloc(sizeof(simple_cap_proto_kv_t *) * num_kvs);
+
+    kv_pairs[0] = encode_kv_message(msg, MSGFLAG_ERROR);
+
+    if (kv_pairs[0] == NULL) {
+        free(kv_pairs);
+        return -1;
+    }
+
+    kv_pairs[1] = encode_kv_success(0, 0);
+
+    if (kv_pairs[1] == NULL) {
+        free(kv_pairs[0]);
+        free(kv_pairs);
+        return -1;
+    }
+
+    return cf_stream_packet(caph, "ERROR", kv_pairs, 2);
 }
 
 int cf_send_listresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int success,
@@ -930,4 +1050,62 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
 
 
     return cf_stream_packet(caph, "OPENRESP", kv_pairs, kv_pos);
+}
+
+int cf_send_data(kis_capture_handler_t *caph,
+        simple_cap_proto_kv_t *kv_message,
+        simple_cap_proto_kv_t *kv_signal,
+        simple_cap_proto_kv_t *kv_gps,
+        struct timeval ts, int dlt, uint32_t packet_sz, uint8_t *pack) {
+
+    fprintf(stderr, "debug - cf_send_data starting\n");
+
+    /* How many KV pairs are we allocating?  1 for data for sure */
+    size_t num_kvs = 1;
+
+    size_t kv_pos = 0;
+    size_t i = 0;
+
+    /* Actual KV pairs we encode into the packet */
+    simple_cap_proto_kv_t **kv_pairs;
+
+    if (kv_message != NULL)
+        kv_pos++;
+    if (kv_signal != NULL)
+        kv_signal++;
+    if (kv_gps != NULL)
+        kv_gps++;
+
+    kv_pairs = 
+        (simple_cap_proto_kv_t **) malloc(sizeof(simple_cap_proto_kv_t *) * num_kvs);
+
+    if (kv_message != NULL) {
+        kv_pairs[kv_pos] = kv_message;
+        kv_pos++;
+    }
+
+    if (kv_signal != NULL) {
+        kv_pairs[kv_pos] = kv_signal;
+        kv_pos++;
+    }
+
+    if (kv_gps != NULL) {
+        kv_pairs[kv_pos] = kv_gps;
+        kv_pos++;
+    }
+
+    kv_pairs[kv_pos] = encode_kv_capdata(ts, dlt, packet_sz, pack);
+    if (kv_pairs[kv_pos] == NULL) {
+        fprintf(stderr, "FATAL: Unable to allocate KV DATA pair\n");
+        for (i = 0; i < kv_pos; i++) {
+            free(kv_pairs[i]);
+        }
+        free(kv_pairs);
+        return -1;
+    }
+    kv_pos++;
+
+    fprintf(stderr, "debug - cf_send_data initiating packet streaming\n");
+
+    return cf_stream_packet(caph, "DATA", kv_pairs, kv_pos);
 }

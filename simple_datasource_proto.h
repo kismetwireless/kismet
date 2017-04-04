@@ -170,9 +170,6 @@ simple_cap_proto_kv_t *encode_kv_chanset(const char *channel);
 
 /* Encode a packet into a PACKET KV
  *
- * Copies the content of the packet - for faster transmission of packets in a 
- * high-bandwidth scenario look at stream_packdata(...) in the capture_framework code
- *
  * Returns:
  * Pointer on success
  * Null on failure

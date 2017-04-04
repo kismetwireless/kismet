@@ -215,7 +215,7 @@ simple_cap_proto_kv_t *encode_kv_capdata(struct timeval in_ts, int in_dlt,
     const char *key_tv_sec = "tv_sec";
     const char *key_tv_usec = "tv_usec";
     const char *key_dlt = "dlt";
-    const char *key_pack_sz = "pack_sz";
+    const char *key_pack_sz = "size";
     const char *key_packet = "packet";
 
     msgpuck_buffer_t *puckbuffer;
@@ -254,7 +254,7 @@ simple_cap_proto_kv_t *encode_kv_capdata(struct timeval in_ts, int in_dlt,
     if (kv == NULL)
         return NULL;
 
-    snprintf(kv->header.key, 16, "%.16s", "SUCCESS");
+    snprintf(kv->header.key, 16, "%.16s", "PACKET");
     kv->header.obj_sz = htonl(content_sz);
 
     memcpy(kv->object, mp_b_get_buffer(puckbuffer), content_sz);

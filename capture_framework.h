@@ -61,6 +61,8 @@ typedef int (*cf_callback_open)(kis_capture_handler_t *, uint32_t, char *);
 typedef int (*cf_callback_unknown)(kis_capture_handler_t *, uint32_t, 
         simple_cap_proto_frame_t *);
 
+typedef void (*cf_callback_capture)(kis_capture_handler_t *);
+
 struct kis_capture_handler {
     /* Descriptor pair */
     int in_fd;
@@ -91,8 +93,14 @@ struct kis_capture_handler {
     cf_callback_probe probe_cb;
     cf_callback_open open_cb;
 
+    cf_callback_capture capture_cb;
+
     /* Arbitrary data blob */
     void *userdata;
+
+    /* Capture thread */
+    int capture_running;
+    pthread_t capturethread;
 };
 
 /* Parse an interface name from a definition string.
@@ -168,8 +176,15 @@ void cf_handler_set_listdevices_cb(kis_capture_handler_t *capf,
 void cf_handler_set_probe_cb(kis_capture_handler_t *capf, cf_callback_probe cb);
 void cf_handler_set_open_cb(kis_capture_handler_t *capf, cf_callback_open cb);
 
+/* Set the capture function, which runs inside its own thread */
+void cf_handler_set_capture_cb(kis_capture_handler_t *capf, cf_callback_capture cb);
+
 /* Set random data blob */
 void cf_handler_set_userdata(kis_capture_handler_t *capf, void *userdata);
+
+/* Initiate the capture thread, which will call the capture callback function in
+ * its own thread */
+int cf_handler_launch_capture_thread(kis_capture_handler_t *caph);
 
 /* Handle data in the rx ringbuffer; called from the select/poll loop.
  * Calls callbacks for packet types automatically when a complete packet is
@@ -239,6 +254,17 @@ int cf_stream_packet(kis_capture_handler_t *caph, const char *packtype,
 int cf_send_message(kis_capture_handler_t *caph, const char *message, 
         unsigned int flags);
 
+/* Send an ERROR
+ * Can be called from any thread
+ *
+ * Send an error message indicating this source is now closed
+ *
+ * Returns:
+ * -1   An error occurred writing the frame
+ *  1   Success
+ */
+int cf_send_error(kis_capture_handler_t *caph, const char *message);
+
 /* Send a LISTRESP response
  * Can be called from any thread.
  *
@@ -256,14 +282,14 @@ int cf_send_listresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
  * Call be called from any thread
  *
  * Returns:
- * -1   An error occurred while probing
+ * -1   An error occurred while creating the packet
  *  1   Success
  */
 int cf_send_proberesp(kis_capture_handler_t *caph, uint32_t seq, unsigned int success,
         const char *msg, const char *chanset, const char **channels, size_t channels_len);
 
 /* Send an OPENRESP response
- * Call be called from any thread
+ * Can be called from any thread
  *
  * To send supported channels list, provide channels and channels_len, otherwise set 
  * channels_len to 0
@@ -274,7 +300,7 @@ int cf_send_proberesp(kis_capture_handler_t *caph, uint32_t seq, unsigned int su
  * To set initial state locked, populate chanset and set hop_channels_len to 0.
  *
  * Returns:
- * -1   An error occurred while probing
+ * -1   An error occurred while creating the packet
  *  1   Success
  */
 int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int success,
@@ -283,6 +309,22 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
         const char *chanset, 
         double hoprate, 
         const char **hop_channels, size_t hop_channels_len);
+
+/* Send a DATA frame with packet data
+ * Can be called from any thread
+ *
+ * If present, include message_kv, signal_kv, or gps_kv along with the packet data.
+ * On failure or transmit, provided accessory KV pairs will be freed.
+ *
+ * Returns:
+ * -1   An error occurred 
+ *  1   Success
+ */
+int cf_send_data(kis_capture_handler_t *caph,
+        simple_cap_proto_kv_t *kv_message,
+        simple_cap_proto_kv_t *kv_signal,
+        simple_cap_proto_kv_t *kv_gps,
+        struct timeval ts, int dlt, uint32_t packet_sz, uint8_t *pack);
 
 #endif
 
