@@ -435,6 +435,10 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
         } else {
             cbret = (*(caph->listdevices_cb))(caph, 
                     ntohl(cap_proto_frame->header.sequence_number));
+
+            /* Always spin down after listing */
+            cf_handler_spindown(caph);
+
             pthread_mutex_unlock(&(caph->handler_lock));
         }
     } else if (strncasecmp(cap_proto_frame->header.type, "PROBEDEVICE", 16) == 0) {
@@ -460,6 +464,9 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
 
             if (nuldef != NULL)
                 free(nuldef);
+
+            /* Always spin down after probing */
+            cf_handler_spindown(caph);
 
             pthread_mutex_unlock(&(caph->handler_lock));
         }

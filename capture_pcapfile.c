@@ -78,6 +78,59 @@ typedef struct {
     struct timeval last_ts;
 } local_pcap_t;
 
+int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition) {
+    char *placeholder = NULL;
+    int placeholder_len;
+
+    char *pcapfname = NULL;
+
+    struct stat sbuf;
+
+    char errstr[PCAP_ERRBUF_SIZE] = "";
+
+    pcap_t *pd;
+
+    fprintf(stderr, "debug - pcapfile - trying to probe source %s\n", definition);
+
+    if ((placeholder_len = cf_parse_interface(&placeholder, definition)) <= 0) {
+        cf_send_proberesp(caph, seqno, false, 
+                "Unable to find PCAP file name in definition",
+                NULL, NULL, 0);
+        return -1;
+    }
+
+    pcapfname = strndup(placeholder, placeholder_len);
+
+    if (stat(pcapfname, &sbuf) < 0) {
+        snprintf(errstr, PCAP_ERRBUF_SIZE, "Unable to find pcapfile '%s'", pcapfname);
+        fprintf(stderr, "debug - pcapfile - %s\n", errstr);
+        cf_send_proberesp(caph, seqno, false, errstr, NULL, NULL, 0);
+        return -1;
+    }
+
+    if (!S_ISREG(sbuf.st_mode)) {
+        snprintf(errstr, PCAP_ERRBUF_SIZE, 
+                "File '%s' is not a regular file", pcapfname);
+        fprintf(stderr, "debug - pcapfile - %s\n", errstr);
+        cf_send_proberesp(caph, seqno, false, errstr, NULL, NULL, 0);
+        return -1;
+    }
+
+    pd = pcap_open_offline(pcapfname, errstr);
+    if (strlen(errstr) > 0) {
+        fprintf(stderr, "debug - pcapfile - %s\n", errstr);
+        cf_send_proberesp(caph, seqno, false, errstr, NULL, NULL, 0);
+        return -1;
+    }
+
+    fprintf(stderr, "debug - probe ok!\n");
+
+    pcap_close(pd);
+    cf_send_proberesp(caph, seqno, true, NULL, NULL, NULL, 0);
+
+    return 1;
+}
+
 int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition) {
     char *placeholder = NULL;
     int placeholder_len;
@@ -292,6 +345,9 @@ int main(int argc, char *argv[]) {
 
     /* Set the callback for opening a pcapfile */
     cf_handler_set_open_cb(caph, open_callback);
+
+    /* Set the callback for probing an interface */
+    cf_handler_set_probe_cb(caph, probe_callback);
 
     /* Set the capture thread */
     cf_handler_set_capture_cb(caph, capture_thread);
