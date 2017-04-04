@@ -134,6 +134,9 @@ kis_capture_handler_t *cf_handler_init() {
     pthread_mutexattr_settype(&mutexattr, PTHREAD_MUTEX_RECURSIVE);
     pthread_mutex_init(&(ch->out_ringbuf_lock), &mutexattr);
 
+    pthread_cond_init(&(ch->out_ringbuf_flush_cond), NULL);
+    pthread_mutex_init(&(ch->out_ringbuf_flush_cond_mutex), NULL);
+
     ch->shutdown = 0;
     ch->spindown = 0;
 
@@ -336,6 +339,14 @@ int cf_handler_launch_capture_thread(kis_capture_handler_t *caph) {
     fprintf(stderr, "debug - capture thread launched\n");
 
     return 1;
+}
+
+void cf_handler_wait_ringbuffer(kis_capture_handler_t *caph) {
+    fprintf(stderr, "debug - waiting for ringbuf_flush_cond\n");
+    pthread_cond_wait(&(caph->out_ringbuf_flush_cond),
+            &(caph->out_ringbuf_flush_cond_mutex));
+    pthread_mutex_unlock(&(caph->out_ringbuf_flush_cond_mutex));
+    fprintf(stderr, "debug - done waiting for ringbuffer to drain\n");
 }
 
 int cf_handle_rx_data(kis_capture_handler_t *caph) {
@@ -680,6 +691,10 @@ void cf_handler_loop(kis_capture_handler_t *caph) {
 
             /* Unlock */
             pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+
+            /* Signal to any waiting IO that the buffer has some
+             * headroom */
+            pthread_cond_signal(&(caph->out_ringbuf_flush_cond));
         }
     }
     
@@ -696,9 +711,9 @@ int cf_send_raw_bytes(kis_capture_handler_t *caph, uint8_t *data, size_t len) {
     pthread_mutex_lock(&(caph->out_ringbuf_lock));
 
     if (kis_simple_ringbuf_available(caph->out_ringbuf) < len) {
-        fprintf(stderr, "FATAL: Insufficient room in write buffer to queue data\n");
+        fprintf(stderr, "debug - Insufficient room in write buffer to queue data\n");
         pthread_mutex_unlock(&(caph->out_ringbuf_lock));
-        return -1;
+        return 0;
     }
 
     if (kis_simple_ringbuf_write(caph->out_ringbuf, data, len) != len) {
@@ -738,14 +753,14 @@ int cf_stream_packet(kis_capture_handler_t *caph, const char *packtype,
     pthread_mutex_lock(&(caph->out_ringbuf_lock));
 
     if (kis_simple_ringbuf_available(caph->out_ringbuf) < proto_sz) {
-        fprintf(stderr, "FATAL: Unable to put frame in write buffer\n");
+        fprintf(stderr, "debug - no space for frame in write buffer\n");
         pthread_mutex_unlock(&(caph->out_ringbuf_lock));
         for (i = 0; i < in_kv_len; i++) {
             free(in_kv_list[i]);
         }
         free(in_kv_list);
         free(proto_hdr);
-        return -1;
+        return 0;
     }
 
     /* Write the header out */

@@ -170,28 +170,39 @@ void pcap_dispatch_cb(u_char *user, const struct pcap_pkthdr *header,
         const u_char *data)  {
     kis_capture_handler_t *caph = (kis_capture_handler_t *) user;
     local_pcap_t *local_pcap = (local_pcap_t *) caph->userdata;
+    int ret;
 
-    if (cf_send_data(caph, 
-                NULL, NULL, NULL,
-                header->ts, local_pcap->datalink_type,
-                header->caplen, (uint8_t *) data) < 0) {
-        fprintf(stderr, "debug - pcapfile - cf_send_data failed\n");
-        cf_send_error(caph, "unable to send DATA frame");
-        cf_handler_spindown(caph);
+    while (1) {
+        if ((ret = cf_send_data(caph, 
+                        NULL, NULL, NULL,
+                        header->ts, local_pcap->datalink_type,
+                        header->caplen, (uint8_t *) data)) < 0) {
+            fprintf(stderr, "debug - pcapfile - cf_send_data failed\n");
+            cf_send_error(caph, "unable to send DATA frame");
+            cf_handler_spindown(caph);
+        } else if (ret == 0) {
+            /* Go into a wait for the write buffer to get flushed */
+            fprintf(stderr, "debug - pcapfile - dispatch_cb - no room in write buffer - waiting for it to have more space\n");
+            cf_handler_wait_ringbuffer(caph);
+            continue;
+        } else {
+            break;
+        }
     }
-
-    usleep(1000);
 }
 
 void capture_thread(kis_capture_handler_t *caph) {
     local_pcap_t *local_pcap = (local_pcap_t *) caph->userdata;
+    int ret;
 
     while (1) {
-        if (pcap_dispatch(local_pcap->pd, 1, pcap_dispatch_cb, (u_char *) caph) < 0) {
+        if ((ret = pcap_dispatch(local_pcap->pd, 1, 
+                        pcap_dispatch_cb, (u_char *) caph)) < 0) {
             fprintf(stderr, "debug - reading from pcap failed\n");
             cf_send_error(caph, "Reading from Pcapfile failed");
             cf_handler_spindown(caph);
             break;
+
         }
     }
 }

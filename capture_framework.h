@@ -84,6 +84,10 @@ struct kis_capture_handler {
     /* Lock for output buffer */
     pthread_mutex_t out_ringbuf_lock;
 
+    /* conditional waiter for ringbuf flushing data */
+    pthread_cond_t out_ringbuf_flush_cond;
+    pthread_mutex_t out_ringbuf_flush_cond_mutex;
+
     /* Are we shutting down? */
     int shutdown;
     pthread_mutex_t handler_lock;
@@ -186,6 +190,9 @@ void cf_handler_set_userdata(kis_capture_handler_t *capf, void *userdata);
  * its own thread */
 int cf_handler_launch_capture_thread(kis_capture_handler_t *caph);
 
+/* Perform a blocking wait, waiting for the ringbuffer to free data */
+void cf_handler_wait_ringbuffer(kis_capture_handler_t *caph);
+
 /* Handle data in the rx ringbuffer; called from the select/poll loop.
  * Calls callbacks for packet types automatically when a complete packet is
  * received.
@@ -225,6 +232,7 @@ void cf_handler_loop(kis_capture_handler_t *caph);
  *
  * Returns:
  * -1   An error occurred
+ *  0   Insufficient space in buffer
  *  1   Success
  */
 int cf_send_raw_bytes(kis_capture_handler_t *caph, uint8_t *data, size_t len);
@@ -237,6 +245,7 @@ int cf_send_raw_bytes(kis_capture_handler_t *caph, uint8_t *data, size_t len);
  *
  * Returns:
  * -1   An error occurred
+ *  0   Insufficient space in buffer
  *  1   Success
  */
 int cf_stream_packet(kis_capture_handler_t *caph, const char *packtype,
@@ -249,6 +258,7 @@ int cf_stream_packet(kis_capture_handler_t *caph, const char *packtype,
  *
  * Returns:
  * -1   An error occurred writing the frame
+ *  0   Insufficient space in buffer
  *  1   Success
  */
 int cf_send_message(kis_capture_handler_t *caph, const char *message, 
@@ -261,6 +271,7 @@ int cf_send_message(kis_capture_handler_t *caph, const char *message,
  *
  * Returns:
  * -1   An error occurred writing the frame
+ *  0   Insufficient space in buffer
  *  1   Success
  */
 int cf_send_error(kis_capture_handler_t *caph, const char *message);
@@ -273,6 +284,7 @@ int cf_send_error(kis_capture_handler_t *caph, const char *message);
  *
  * Returns:
  * -1   An error occurred writing the frame
+ *  0   Insufficient space in buffer
  *  1   Success
  */
 int cf_send_listresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int success,
@@ -283,6 +295,7 @@ int cf_send_listresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
  *
  * Returns:
  * -1   An error occurred while creating the packet
+ *  0   Insufficient space in buffer
  *  1   Success
  */
 int cf_send_proberesp(kis_capture_handler_t *caph, uint32_t seq, unsigned int success,
@@ -301,6 +314,7 @@ int cf_send_proberesp(kis_capture_handler_t *caph, uint32_t seq, unsigned int su
  *
  * Returns:
  * -1   An error occurred while creating the packet
+ *  0   Insufficient space in buffer
  *  1   Success
  */
 int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int success,
@@ -318,6 +332,7 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
  *
  * Returns:
  * -1   An error occurred 
+ *  0   Insufficient space in buffer
  *  1   Success
  */
 int cf_send_data(kis_capture_handler_t *caph,
