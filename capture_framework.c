@@ -684,7 +684,7 @@ void cf_handler_loop(kis_capture_handler_t *caph) {
                 }
             }
 
-            fprintf(stderr, "debug - capf - wrote %lu of %lu\n", written_sz, peek_sz);
+            // fprintf(stderr, "debug - capf - wrote %lu of %lu\n", written_sz, peek_sz);
 
             /* Flag it as consumed */
             kis_simple_ringbuf_read(caph->out_ringbuf, NULL, (size_t) written_sz);
