@@ -1177,7 +1177,7 @@ int main(int argc, char *argv[], char *envp[]) {
             fprintf(stderr, "TESTCODE - wlan0 %u: %s\n", success, reason.c_str());
             });
             */
-    datasourcetracker->open_datasource("test.pcap:type=pcapfile,realtime=true", 
+    datasourcetracker->open_datasource("test.pcap:realtime=true", 
             [](bool success, string reason) {
             fprintf(stderr, "TESTCODE - test3.pcap %u: %s\n", success, reason.c_str());
             });

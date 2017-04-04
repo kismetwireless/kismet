@@ -44,7 +44,6 @@ TcpClientV2::~TcpClientV2() {
     Disconnect();
     shared_ptr<PollableTracker> pollabletracker =
         static_pointer_cast<PollableTracker>(globalreg->FetchGlobal("POLLABLETRACKER"));
-	pollabletracker->RemovePollable(this);
 }
 
 int TcpClientV2::Connect(string in_host, unsigned int in_port) {

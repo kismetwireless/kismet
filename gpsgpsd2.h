@@ -26,6 +26,7 @@
 #include "ringbuf_handler.h"
 #include "globalregistry.h"
 #include "tcpclient2.h"
+#include "pollabletracker.h"
 
 // New GPSD interface
 //
@@ -53,6 +54,8 @@ public:
 
 protected:
     GlobalRegistry *globalreg;
+
+    shared_ptr<PollableTracker> pollabletracker;
 
     shared_ptr<TcpClientV2> tcpclient;
     RingbufferHandler *tcphandler;

@@ -346,9 +346,9 @@ int IPCRemoteV2::soft_kill() {
     local_locker lock(&ipc_locker);
 
     if (pipeclient != NULL) {
-        pipeclient->ClosePipes();
+        fprintf(stderr, "debug - IPCRemoteV2 soft_kill pipeclient != null, removing pollable and closing pipes\n");
         pollabletracker->RemovePollable(pipeclient);
-        pipeclient.reset();
+        pipeclient->ClosePipes();
     }
 
     if (child_pid <= 0)
@@ -360,9 +360,8 @@ int IPCRemoteV2::soft_kill() {
 
 int IPCRemoteV2::hard_kill() {
     if (pipeclient != NULL) {
-        pipeclient->ClosePipes();
         pollabletracker->RemovePollable(pipeclient);
-        pipeclient.reset();
+        pipeclient->ClosePipes();
     }
 
     if (child_pid <= 0)

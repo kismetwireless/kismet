@@ -43,7 +43,6 @@ SerialClientV2::~SerialClientV2() {
 
     shared_ptr<PollableTracker> pollabletracker =
         static_pointer_cast<PollableTracker>(globalreg->FetchGlobal("POLLABLETRACKER"));
-	pollabletracker->RemovePollable(this);
 }
 
 int SerialClientV2::OpenDevice(string in_device, unsigned int in_baud) {

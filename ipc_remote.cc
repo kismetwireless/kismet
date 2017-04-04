@@ -157,7 +157,8 @@ IPCRemote::IPCRemote(GlobalRegistry *in_globalreg, string in_procname) {
 IPCRemote::~IPCRemote() {
     shared_ptr<PollableTracker> pollabletracker =
         static_pointer_cast<PollableTracker>(globalreg->FetchGlobal("POLLABLETRACKER"));
-	pollabletracker->RemovePollable(this);
+    // TODO resolve this hack, but this code is dying anyhow
+	// pollabletracker->RemovePollable(this);
 }
 
 int IPCRemote::CheckPidVec() {
@@ -858,7 +859,8 @@ RootIPCRemote::RootIPCRemote(GlobalRegistry *in_globalreg, string procname) :
 RootIPCRemote::~RootIPCRemote() {
     shared_ptr<PollableTracker> pollabletracker =
         static_pointer_cast<PollableTracker>(globalreg->FetchGlobal("POLLABLETRACKER"));
-	pollabletracker->RemovePollable(this);
+    // TODO resolve this hack but this code is dying anyhow
+	// pollabletracker->RemovePollable(this);
 }
 
 int RootIPCRemote::FetchReadyState() {

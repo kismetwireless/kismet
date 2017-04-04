@@ -416,7 +416,8 @@ Packetsourcetracker::~Packetsourcetracker() {
 
     shared_ptr<PollableTracker> pollabletracker =
         static_pointer_cast<PollableTracker>(globalreg->FetchGlobal("POLLABLETRACKER"));
-	pollabletracker->RemovePollable(this);
+    // TODO fix this, but this code is dying anyhow
+	// pollabletracker->RemovePollable(this);
 
 	globalreg->timetracker->RemoveTimer(channel_time_id);
 

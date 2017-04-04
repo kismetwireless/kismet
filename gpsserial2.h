@@ -26,6 +26,7 @@
 #include "ringbuf_handler.h"
 #include "globalregistry.h"
 #include "serialclient2.h"
+#include "pollabletracker.h"
 
 // New serial GPS code
 //
@@ -53,6 +54,8 @@ public:
 
 protected:
     GlobalRegistry *globalreg;
+
+    shared_ptr<PollableTracker> pollabletracker;
     
     shared_ptr<SerialClientV2> serialclient;
     RingbufferHandler *serialhandler;

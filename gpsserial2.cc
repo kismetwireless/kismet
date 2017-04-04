@@ -35,6 +35,9 @@ GPSSerialV2::GPSSerialV2(GlobalRegistry *in_globalreg) : Kis_Gps(in_globalreg) {
     ever_seen_gps = false;
 
     last_heading_time = globalreg->timestamp.tv_sec;
+
+    pollabletracker =
+        static_pointer_cast<PollableTracker>(globalreg->FetchGlobal("POLLABLETRACKER"));
 }
 
 GPSSerialV2::~GPSSerialV2() {
@@ -42,6 +45,8 @@ GPSSerialV2::~GPSSerialV2() {
 
     if (serialhandler != NULL)
         delete(serialhandler);
+
+    pollabletracker->RemovePollable(serialclient);
 
     pthread_mutex_destroy(&gps_locker);
 }
@@ -69,6 +74,7 @@ int GPSSerialV2::OpenGps(string in_opts) {
     }
 
     if (serialclient != NULL) {
+        pollabletracker->RemovePollable(serialclient);
         serialclient.reset();
     }
 
@@ -114,8 +120,6 @@ int GPSSerialV2::OpenGps(string in_opts) {
     serialclient.reset(new SerialClientV2(globalreg, serialhandler));
     serialclient->OpenDevice(proto_device, proto_baud);
 
-    shared_ptr<PollableTracker> pollabletracker =
-        static_pointer_cast<PollableTracker>(globalreg->FetchGlobal("POLLABLETRACKER"));
     pollabletracker->RegisterPollable(serialclient);
 
     serial_device = proto_device;

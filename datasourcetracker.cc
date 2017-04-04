@@ -66,13 +66,13 @@ void DST_DatasourceProbe::cancel() {
 
     local_locker lock(&probe_lock);
 
-    // fprintf(stderr, "debug - dstprobe cancelling search for %s\n", definition.c_str());
+    fprintf(stderr, "debug - dstprobe cancelling search for %s\n", definition.c_str());
 
     cancelled = true;
 
     // Cancel any pending timer
     if (cancel_timer >= 0) {
-        // fprintf(stderr, "debug - dstprobe cancelling completion timer %d\n", cancel_timer);
+        fprintf(stderr, "debug - dstprobe cancelling completion timer %d\n", cancel_timer);
         timetracker->RemoveTimer(cancel_timer);
     }
 
@@ -108,6 +108,7 @@ void DST_DatasourceProbe::complete_probe(bool in_success, unsigned int in_transa
     auto v = ipc_probe_map.find(in_transaction);
     if (v != ipc_probe_map.end()) {
         if (in_success) {
+            fprintf(stderr, "debug - dstp - complete_probe - found transaction id, setting builder\n");
             source_builder = v->second->get_source_builder();
         }
 
@@ -116,11 +117,14 @@ void DST_DatasourceProbe::complete_probe(bool in_success, unsigned int in_transa
 
         // Remove them from the map
         ipc_probe_map.erase(v);
+    } else {
+        fprintf(stderr, "debug - dstp - complete_probe - couldn't find transaction record for transaction %u\n", in_transaction);
     }
 
     // If we've succeeded, cancel any others, cancel will take care of our
     // callback for completion
     if (in_success) {
+        fprintf(stderr, "debug - dstp - completed with success! Calling cancel?\n");
         cancel();
         return;
     } else {
@@ -163,13 +167,15 @@ void DST_DatasourceProbe::probe_sources(
 
         // Instantiate a local prober
         SharedDatasource pds = b->build_datasource(b);
+
+        fprintf(stderr, "debug - kdsp - probe_sources - emplacing transaction %u\n", transaction);
+        ipc_probe_map.emplace(transaction, pds);
+
         pds->probe_interface(definition, transaction, 
             [this] (unsigned int transaction, bool success, string reason) {
-                // fprintf(stderr, "debug - dstprobe probe_sources callback complete\n");
+                fprintf(stderr, "debug - dstprobe probe_sources callback complete\n");
                 complete_probe(success, transaction, reason);
             });
-
-        ipc_probe_map[transaction] = pds;
     }
 
     // We've done all we can; if we haven't gotten an answer yet and we
@@ -348,8 +354,6 @@ void Datasourcetracker::open_datasource(string in_source,
     // for that driver in the prototype vector, confirm it can open it, and fire
     // the launch command at it
     if (type != "auto") {
-        fprintf(stderr, "debug - DST looking for type %s\n", type.c_str());
-
         local_locker lock(&dst_lock);
 
         SharedDatasourceBuilder proto;
@@ -360,8 +364,6 @@ void Datasourcetracker::open_datasource(string in_source,
 
         for (auto i = vec.begin(); i != vec.end(); ++i) {
             proto = static_pointer_cast<KisDatasourceBuilder>(*i);
-
-            fprintf(stderr, "debug - dst checking driver %s\n", proto->get_source_type().c_str());
 
             if (StrLower(proto->get_source_type()) == StrLower(type)) {
                 proto_found = true;
@@ -377,6 +379,7 @@ void Datasourcetracker::open_datasource(string in_source,
             if (in_cb != NULL) {
                 in_cb(false, ss.str());
             }
+
             return;
         }
 
@@ -403,8 +406,6 @@ void Datasourcetracker::open_datasource(string in_source,
 
     // Initiate the probe
     dst_probe->probe_sources([this, probeid, in_cb](SharedDatasourceBuilder builder) {
-        // fprintf(stderr, "debug - probe %u completed with builder %d\n", probeid, builder != NULL);
-
         // Lock on completion
         local_locker lock(&dst_lock);
 
@@ -419,8 +420,7 @@ void Datasourcetracker::open_datasource(string in_source,
                 // fprintf(stderr, "debug - DST - callback with fail\n");
 
                 // We couldn't find a type, return an error to our initial open CB
-                ss << "Unable to find driver for '" << 
-                    i->second->get_definition() << 
+                ss << "Unable to find driver for '" << i->second->get_definition() << 
                     "'.  Make sure that any plugins required are loaded.";
                 _MSG(ss.str(), MSGFLAG_ERROR);
                 in_cb(false, ss.str());
@@ -433,13 +433,11 @@ void Datasourcetracker::open_datasource(string in_source,
                 open_datasource(i->second->get_definition(), builder, in_cb);
             }
 
-            // fprintf(stderr, "debug - removing %u %p from probing map\n", probeid, i->second.get());
             probing_complete_vec.push_back(i->second);
             probing_map.erase(i);
             schedule_cleanup();
-
         } else {
-            // fprintf(stderr, "debug - DST couldn't find response %u\n", probeid);
+            fprintf(stderr, "debug - DST couldn't find response %u\n", probeid);
         }
     });
 
@@ -482,7 +480,7 @@ void Datasourcetracker::schedule_cleanup() {
 
             completion_cleanup_id = -1;
 
-            // fprintf(stderr, "debug - dst cleanup scheduler - emptying complete vecs\n");
+            fprintf(stderr, "debug - dst cleanup scheduler - emptying complete vecs\n");
 
             probing_complete_vec.clear();
             listing_complete_vec.clear();

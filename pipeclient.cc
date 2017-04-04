@@ -53,7 +53,6 @@ PipeClient::~PipeClient() {
 
     shared_ptr<PollableTracker> pollabletracker =
         static_pointer_cast<PollableTracker>(globalreg->FetchGlobal("POLLABLETRACKER"));
-	pollabletracker->RemovePollable(this);
 
     pthread_mutex_destroy(&pipe_lock);
 }
@@ -172,7 +171,9 @@ int PipeClient::Poll(fd_set& in_rset, fd_set& in_wset) {
         // Peek the data into our buffer
         ret = handler->PeekWriteBufferData(buf, len);
 
-        if ((iret = write(write_fd, buf, len)) < 0) {
+        fprintf(stderr, "debug - pipe client write - used %u peeked %u\n", len, ret);
+
+        if ((iret = write(write_fd, buf, ret)) < 0) {
             if (errno != EINTR && errno != EAGAIN) {
                 msg << "Pipe client error writing - " << kis_strerror_r(errno);
                 delete[] buf;

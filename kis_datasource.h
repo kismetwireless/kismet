@@ -200,8 +200,10 @@ protected:
             command_seq = in_seq;
             command_time = time(0);
 
+            timetracker = in_src->timetracker;
+
             // Generate a timeout for 5 seconds from now
-            timer_id = in_src->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 5,
+            timer_id = timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 5,
                     NULL, 0, [in_src, this](int) -> int {
                     in_src->cancel_command(command_seq, "Command did not complete");
                     return 0;
@@ -209,7 +211,13 @@ protected:
 
         }
 
-        void set_timeout(shared_ptr<Timetracker> timetracker, unsigned int ticks);
+        ~tracked_command() {
+            if (timer_id > -1) {
+                timetracker->RemoveTimer(timer_id);
+            }
+        }
+
+        shared_ptr<Timetracker> timetracker;
 
         unsigned int transaction;
         uint32_t command_seq;

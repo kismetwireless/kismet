@@ -63,15 +63,12 @@ KisDatasource::KisDatasource(GlobalRegistry *in_globalreg,
 KisDatasource::~KisDatasource() {
     local_eol_locker lock(&source_lock);
 
-    // fprintf(stderr, "debug - ~kds() %p\n", this);
-
     // Cancel any timer
     if (error_timer_id > 0)
         timetracker->RemoveTimer(error_timer_id);
 
     // Delete the ringbuf handler
     if (ringbuf_handler != NULL) {
-        // fprintf(stderr, "debug - ~kds closing ringbuf down\n");
         // Remove ourself from getting notifications from the rb
         ringbuf_handler->RemoveReadBufferInterface();
         // We're shutting down, issue a protocol error to kill any line-drivers
@@ -80,7 +77,7 @@ KisDatasource::~KisDatasource() {
         // Lose our local ref
         ringbuf_handler.reset();
     } else {
-        // fprintf(stderr, "debug - ~kds null ringbuf\n");
+        fprintf(stderr, "debug - ~kds null ringbuf\n");
     }
 
     // We don't call a normal close here because we can't risk double-free
@@ -146,6 +143,7 @@ void KisDatasource::open_interface(string in_definition, unsigned int in_transac
     
     // If we can't open local interfaces, die
     if (!get_source_builder()->get_local_capable()) {
+        fprintf(stderr, "debug - kds - open_interface - does not support cap\n");
         if (in_cb != NULL) {
             in_cb(in_transaction, false, "Driver does not support direct capture");
         }
@@ -157,10 +155,8 @@ void KisDatasource::open_interface(string in_definition, unsigned int in_transac
     if (error_timer_id > 0)
         timetracker->RemoveTimer(error_timer_id);
 
-
     // Launch the IPC
     launch_ipc();
-
 
     // Populate our local info about the interface
     if (!parse_interface_definition(in_definition)) {
@@ -250,14 +246,10 @@ void KisDatasource::connect_ringbuffer(shared_ptr<RingbufferHandler> in_ringbuf)
 }
 
 void KisDatasource::close_source() {
-    //fprintf(stderr, "!! debug - kds close_source() %p %lu\n", this, time(0));
     local_locker lock(&source_lock);
-
-    // fprintf(stderr, "!!! debug - kds inside close_source\n");
 
     // Delete the ringbuf handler
     if (ringbuf_handler != NULL) {
-        // fprintf(stderr, "!!! debug - kds closing ringbuf down\n");
         // Remove ourself from getting notifications from the rb
         ringbuf_handler->RemoveReadBufferInterface();
         // We're shutting down, issue a protocol error to kill any line-drivers
@@ -265,14 +257,9 @@ void KisDatasource::close_source() {
         ringbuf_handler->ProtocolError();
         // Lose our local ref
         ringbuf_handler.reset();
-
-        // fprintf(stderr, "!!! debug - ringbuf_handler == NULL %u\n", ringbuf_handler == NULL);
     }
 
-    // fprintf(stderr, "!!! debug - kds cancelling all commands via close_source()\n");
     cancel_all_commands("Closing source");
-
-    //fprintf(stderr, "!! debug - kds close_source() complete %lu\n", time(0));
 }
 
 void KisDatasource::BufferAvailable(size_t in_amt __attribute__((unused))) {
@@ -347,7 +334,6 @@ void KisDatasource::BufferAvailable(size_t in_amt __attribute__((unused))) {
         // fprintf(stderr, "debug - kds BufferAvailable - peeked frame '%.16s' valid header needs %u bytes has %lu\n", frame->header.type, frame_sz, buffamt);
 
         if (frame_sz > buffamt) {
-            // fprintf(stderr, "debug - kds BufferAvailable - insufficient space for peeked frame\n");
             // Nothing we can do right now, not enough data to 
             // make up a complete packet.
             delete[] buf;
@@ -410,8 +396,6 @@ void KisDatasource::BufferError(string in_error) {
 
 void KisDatasource::trigger_error(string in_error) {
     local_locker lock(&source_lock);
-
-    // fprintf(stderr, "debug - kds triger_error(%s)\n", in_error.c_str());
 
     // Kill any interaction w/ the source
     close_source();
@@ -510,8 +494,12 @@ void KisDatasource::cancel_command(uint32_t in_transaction, string in_error) {
 
     auto i = command_ack_map.find(in_transaction);
     if (i != command_ack_map.end()) {
-        // fprintf(stderr, "debug - kds cancel_command - removed %u\n", i->first);
         shared_ptr<tracked_command> cmd = i->second;
+
+        // Cancel any timers
+        if (cmd->timer_id > -1) {
+            timetracker->RemoveTimer(cmd->timer_id);
+        }
 
         command_ack_map.erase(i);
 
@@ -535,18 +523,11 @@ void KisDatasource::cancel_command(uint32_t in_transaction, string in_error) {
             cb(cmd->transaction, false, in_error);
         }
 
-        // Cancel any timers
-        if (cmd->timer_id > -1) {
-            // fprintf(stderr, "debug - kds - removing timer %d\n", cmd->timer_id);
-            timetracker->RemoveTimer(cmd->timer_id);
-        }
     }
 }
 
 void KisDatasource::cancel_all_commands(string in_error) {
     local_locker lock(&source_lock);
-
-    // fprintf(stderr, "debug - kds - %s cancel_all_commands(%s)\n", get_source_definition().c_str(), in_error.c_str());
 
     while (1) {
         auto i = command_ack_map.begin();
@@ -554,18 +535,12 @@ void KisDatasource::cancel_all_commands(string in_error) {
         if (i == command_ack_map.end())
             break;
 
-        // fprintf(stderr, "debug - kds - cancel_all_commands cancelling command %u\n", i->first);
-
         cancel_command(i->first, in_error);
     }
-
-    // fprintf(stderr, "debug - kds - %s cancel_all_commands size %lu\n", get_source_definition().c_str(), command_ack_map.size());
 }
 
 void KisDatasource::proto_dispatch_packet(string in_type, KVmap in_kvmap) {
     string ltype = StrLower(in_type);
-
-    // fprintf(stderr, "debug - kds - dispatch type '%s'\n", in_type.c_str());
 
     if (ltype == "proberesp")
         proto_packet_probe_resp(in_kvmap);
@@ -616,12 +591,10 @@ void KisDatasource::proto_packet_probe_resp(KVmap in_kvpairs) {
     auto ci = command_ack_map.find(seq);
     if (ci != command_ack_map.end()) {
         if (ci->second->probe_cb != NULL)
-            ci->second->probe_cb(seq, get_kv_success(i->second), msg);
+            ci->second->probe_cb(ci->second->transaction, 
+                    get_kv_success(i->second), msg);
         command_ack_map.erase(ci);
     }
-
-    // Close down the source when we're done probing
-    close_source();
 }
 
 void KisDatasource::proto_packet_open_resp(KVmap in_kvpairs) {
@@ -671,7 +644,8 @@ void KisDatasource::proto_packet_open_resp(KVmap in_kvpairs) {
     auto ci = command_ack_map.find(seq);
     if (ci != command_ack_map.end()) {
         if (ci->second->open_cb != NULL)
-            ci->second->open_cb(seq, get_kv_success(i->second), msg);
+            ci->second->open_cb(ci->second->transaction, 
+                    get_kv_success(i->second), msg);
         command_ack_map.erase(ci);
     }
 
@@ -708,15 +682,10 @@ void KisDatasource::proto_packet_list_resp(KVmap in_kvpairs) {
             ci->second->list_cb(seq, listed_interfaces);
         command_ack_map.erase(ci);
     }
-
-    // We're done after listing
-    close_source();
 }
 
 void KisDatasource::proto_packet_error(KVmap in_kvpairs) {
     KVmap::iterator i;
-
-    fprintf(stderr, "debug - kds - error packet\n");
 
     string fail_reason = "Received error frame on data source";
 
@@ -1124,14 +1093,10 @@ kis_packet *KisDatasource::handle_kv_packet(KisDatasourceCapKeyedObject *in_obj)
         stringstream ss;
         ss << "failed to unpack packet bundle: " << e.what();
 
-        fprintf(stderr, "debug - kds - handle_packet_kv - %s\n", e.what());
-
         trigger_error(ss.str());
 
         return NULL;
     }
-
-    // fprintf(stderr, "debug - generated linkframe dlt %u length %u\n", datachunk->dlt, datachunk->length);
 
     packet->insert(pack_comp_linkframe, datachunk);
 
@@ -1357,7 +1322,6 @@ void KisDatasource::send_command_probe_interface(string in_definition,
 
     KVmap kvmap;
 
-    // fprintf(stderr, "debug - probe interface, definition len %lu %s\n", in_definition.length(), in_definition.c_str());
     KisDatasourceCapKeyedObject *definition =
         new KisDatasourceCapKeyedObject("DEFINITION", in_definition.data(), 
                 in_definition.length());
@@ -1387,8 +1351,6 @@ void KisDatasource::send_command_probe_interface(string in_definition,
 void KisDatasource::send_command_open_interface(string in_definition,
         unsigned int in_transaction, open_callback_t in_cb) {
     local_locker lock(&source_lock);
-
-    // fprintf(stderr, "debug - creating DEFINITION for opendevice\n");
 
     KisDatasourceCapKeyedObject *definition =
         new KisDatasourceCapKeyedObject("DEFINITION", in_definition.data(), 
@@ -1667,8 +1629,6 @@ KisDatasourceCapKeyedObject::KisDatasourceCapKeyedObject(string in_key,
         const char *in_object, ssize_t in_len) {
     // Clone the object into a kv header for easier transmission assembly
     
-    // fprintf(stderr, "debug - assembling new kv object size %ld total %ld\n", in_len, in_len + sizeof(simple_cap_proto_kv_h_t));
-
     allocated = true;
     kv = (simple_cap_proto_kv_t *) 
         new uint8_t[in_len + sizeof(simple_cap_proto_kv_h_t)];

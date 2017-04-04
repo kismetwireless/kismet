@@ -77,6 +77,7 @@ public:
     // Must be filled in
     virtual void NewConnection(shared_ptr<RingbufferHandler> conn_handler) = 0;
 protected:
+    GlobalRegistry *globalreg;
 
     // Perform the TCP accept
     virtual int AcceptConnection();

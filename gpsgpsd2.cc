@@ -32,15 +32,20 @@ GPSGpsdV2::GPSGpsdV2(GlobalRegistry *in_globalreg) : Kis_Gps(in_globalreg) {
    
     tcphandler = NULL;
 
-    last_heading_time = globalreg->timestamp.tv_sec;
+    last_heading_time = time(0);
 
     poll_mode = 0;
     si_units = 0;
     si_raw = 0;
+
+    pollabletracker =
+        static_pointer_cast<PollableTracker>(globalreg->FetchGlobal("POLLABLETRACKER"));
 }
 
 GPSGpsdV2::~GPSGpsdV2() {
     local_eol_locker lock(&gps_locker);
+
+    pollabletracker->RemovePollable(tcpclient);
 
     delete(tcphandler);
 
@@ -70,6 +75,7 @@ int GPSGpsdV2::OpenGps(string in_opts) {
     }
 
     if (tcpclient != NULL) {
+        pollabletracker->RemovePollable(tcpclient);
         tcpclient.reset();
     }
 
@@ -110,8 +116,6 @@ int GPSGpsdV2::OpenGps(string in_opts) {
     tcpclient->Connect(proto_host, proto_port);
 
     // Register a pollable event
-    shared_ptr<PollableTracker> pollabletracker =
-        static_pointer_cast<PollableTracker>(globalreg->FetchGlobal("POLLABLETRACKER"));
     pollabletracker->RegisterPollable(tcpclient);
 
     host = proto_host;
