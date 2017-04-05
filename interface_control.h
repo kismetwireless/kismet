@@ -48,8 +48,6 @@
 #include <net80211/ieee80211_ioctl.h>
 #endif
 
-#include "util.h"
-
 #if defined(SYS_LINUX) || defined(SYS_NETBSD) || defined(SYS_OPENBSD) || \
 	defined(SYS_FREEBSD) || defined(SYS_DARWIN)
 /* proxy for SIOCGIFFLAGS and SIOCSIFFLAGS

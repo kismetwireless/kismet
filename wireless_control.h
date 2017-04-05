@@ -16,8 +16,8 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#ifndef __IWCONTROL_H__
-#define __IWCONTROL_H__
+#ifndef __WIRELESS_CONTROL_H__
+#define __WIRELESS_CONTROL_H__
 
 #include "config.h"
 
@@ -25,8 +25,6 @@
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
-
-#include "util.h"
 
 #ifdef HAVE_LINUX_WIRELESS
 

@@ -16,8 +16,7 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#include "config.hpp"
-#include "iwcontrol.h"
+#include "config.h"
 
 #ifdef SYS_LINUX
 #include <net/if_arp.h>
@@ -26,6 +25,9 @@
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
 #include <arpa/inet.h>
+
+#include <math.h>
+#include <stdlib.h>
 
 #ifdef HAVE_LINUX_WIRELESS
 #include <asm/types.h>
@@ -36,8 +38,10 @@
 #define rintf(x) (float) rint((double) (x))
 #endif
 
+#include "wireless_control.h"
+
 /* Internal freq conversions */
-float IwFreq2Float(iwreq *inreq) {
+float IwFreq2Float(struct iwreq *inreq) {
     return ((float) inreq->u.freq.m) * pow(10,inreq->u.freq.e);
 }
 
@@ -59,7 +63,7 @@ void IwFloat2Freq(double in_val, struct iw_freq *out_freq) {
     }  
 }
 
-int floatchan_to_int(float in_chan) {
+int FloatChan2Int(float in_chan) {
 	if (in_chan > 0 && in_chan < 165)
 		return (int) in_chan;
 
@@ -610,7 +614,7 @@ int iwconfig_get_chanlist(const char *interface, char *errstr,
 	/* Direct copy from wireless-tools; mangle the range code and
 	 * figure out what we need to do with it */
 	if (range_raw->range.we_version_compiled > 15) {
-		memcpy((char *) &range, buffer, sizeof(iw_range));
+		memcpy((char *) &range, buffer, sizeof(struct iw_range));
 	} else {
 		/* Zero unknown fields */
 		memset((char *) &range, 0, sizeof(struct iw_range));
