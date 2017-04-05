@@ -34,26 +34,27 @@ PSO	= util.o cygwin_utils.o globalregistry.o \
 
 PS	= kismet_server
 
-CAPTURE_PCAPFILE_O 	= msgpuck.o msgpuck_hints.o \
-					  simple_ringbuf_c.o msgpuck_buffer.o \
-					  simple_datasource_proto.o \
-					  capture_framework.o \
-					  capture_pcapfile.o
+# Common pure-c code for capturesource binaries
+DATASOURCE_COMMON_C = \
+	msgpuck.o msgpuck_hints.o \
+	simple_ringbuf_c.o msgpuck_buffer.o \
+	simple_datasource_proto.o capture_framework.o 
+
+CAPTURE_PCAPFILE_O = \
+	$(DATASOURCE_COMMON_C) \
+	capture_pcapfile.o
 CAPTURE_PCAPFILE 	= kismet_cap_pcapfile
 
-DRONEO = 
-# DRONEO = util.o cygwin_utils.o globalregistry.o ringbuf.o \
-# 		 packet.o messagebus.o configfile.o getopt.o \
-# 		 ifcontrol.o iwcontrol.o madwifing_control.o nl80211_control.o $(OBJC_LINK) \
-# 		 psutils.o ipc_remote.o soundcontrol.o kismet_json.o \
-# 		 netframework.o clinetframework.o tcpserver.o tcpclient.o serialclient.o \
-# 		 drone_kisnetframe.o kis_droneframe.o \
-# 		 gpswrapper.o gpscore.o gpsdclient.o gpsserial.o gpsfixed.o \
-# 		 packetchain.o \
-# 		 $(CAPSOURCES) \
-# 		 plugintracker.o packetsourcetracker.o timetracker.o devicetracker_drone.o \
-# 		 dumpfile_drone.o \
-# 		 kismet_drone.o
+CAPTURE_LINUX_WIFI_O = \
+	$(DATASOURCE_COMMON_C) \
+	interface_control.o wireless_control.o linux_netlink_control.o \
+	capsource_linux_wifi.o
+CAPTURE_LINUX_WIFI	= kismet_cap_linux_wifi
+
+# Capture binaries to build
+DATASOURCE_BINS = \
+	$(CAPTURE_PCAPFILE) \
+	$(CAPTURE_LINUX_WIFI)
 
 CSO = util.o cygwin_utils.o globalregistry.o pollabletracker.o ringbuf.o \
 	packet.o messagebus.o configfile.o getopt.o \
@@ -66,19 +67,9 @@ CSO = util.o cygwin_utils.o globalregistry.o pollabletracker.o ringbuf.o \
 	kismet_capture.o
 CS	= kismet_capture
 
-DRONE = kismet_drone
+ALL	= Makefile $(DEPEND) $(PS) $(CS) 
 
-# HOPPERO = util.o configfile.o getopt.o kismet_hopper.o
-# HOPPER = kismet_hopper
-
-BUILDCLIENT=@wantclient@
-
-ALL	= Makefile $(DEPEND) $(PS) $(CS) #$(DRONE)
-INSTBINS = $(PS) $(CS) #$(DRONE)
-#ifeq ($(BUILDCLIENT), yes)
-#ALL += $(NC)
-#INSTBINS += $(NC)
-#endif
+INSTBINS = $(PS) $(CS) 
 
 all:	$(ALL)
 
@@ -93,31 +84,20 @@ $(PS):	$(PSO) $(CS)
 $(CS):	$(CSO)
 	$(LD) $(LDFLAGS) -o $(CS) $(CSO) $(LIBS) $(CXXLIBS) $(PCAPLNK) $(CAPLIBS) $(KSLIBS)
 
-$(DRONE):	$(DRONEO) $(CS)
-	$(LD) $(LDFLAGS) -o $(DRONE) $(DRONEO) $(LIBS) $(CXXLIBS) $(PCAPLNK) $(KSLIBS)
 
 $(CAPTURE_PCAPFILE):	$(CAPTURE_PCAPFILE_O)
 	$(CC) $(LDFLAGS) -o $(CAPTURE_PCAPFILE) $(CAPTURE_PCAPFILE_O) -lpthread -lpcap
 
-#$(HOPPER):	$(HOPPERO)
-#	$(LD) $(LDFLAGS) -o $(HOPPER) $(HOPPERO)
+$(CAPTURE_LINUX_WIFI):	$(CAPTURE_LINUX_WIFI_O)
+	$(CC) $(LDFLAGS) -o $(CAPTURE_LINUX_WIFI) $(CAPTURE_LINUX_WIFI_O) -lpthread -lpcap
+
+datasources:	$(DATASOURCE_BINS)
 
 Makefile: Makefile.in configure
 	@-echo "'Makefile.in' or 'configure' are more current than this Makefile.  You should re-run 'configure'."
 
 binsuidinstall: $(CS)
 	$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CS) $(BIN)/$(CS); 
-
-droneinstall: $(INSTBINS)
-	mkdir -p $(ETC)
-	mkdir -p $(BIN)
-
-	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(DRONE) $(BIN)/$(DRONE);
-
-	mkdir -p $(MAN)/man1
-	$(INSTALL) -o $(INSTUSR) -g $(MANGRP) -m 644 man/kismet_drone.1 $(MAN)/man1/kismet_drone.1
-	mkdir -p $(MAN)/man5
-	$(INSTALL) -o $(INSTUSR) -g $(MANGRP) -m 644 man/kismet_drone.conf.5 $(MAN)/man5/kismet_drone.conf.5
 
 commoninstall: $(INSTBINS)
 	mkdir -p $(ETC)
@@ -222,8 +202,6 @@ clean:
 	@-$(MAKE) all-plugins-clean
 	@-rm -f $(PS)
 	@-rm -f $(CS)
-	@-rm -f $(DRONE)
-	@-rm -f $(NC)
 
 distclean:
 	@-$(MAKE) clean
