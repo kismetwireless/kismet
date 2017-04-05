@@ -946,6 +946,7 @@ if test "$havenetlink" = "yes"; then
 		if test $netlink_force = "no" -o $netlink_force = "1"; then
 			picked_nl=1
 			AC_DEFINE(HAVE_LIBNL, 1, libnl netlink library)
+			AC_DEFINE(HAVE_LIBNL10, 1, libnl netlink library)
 			nlname="libnl-1"
 		fi
 	fi

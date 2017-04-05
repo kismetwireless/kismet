@@ -8921,6 +8921,9 @@ $as_echo "#define HAVE_LIBNL20 1" >>confdefs.h
 
 $as_echo "#define HAVE_LIBNL 1" >>confdefs.h
 
+
+$as_echo "#define HAVE_LIBNL10 1" >>confdefs.h
+
 			nlname="libnl-1"
 		fi
 	fi
