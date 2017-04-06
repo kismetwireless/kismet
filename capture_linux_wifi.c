@@ -164,6 +164,27 @@ int main(int argc, char *argv[]) {
         .override_dlt = -1,
     };
 
+    char errstr[STATUS_MAX];
+    char **channels;
+    unsigned int channels_len, i;
+
+    int ret;
+
+    ret = mac80211_get_chanlist("wlan0", errstr, &channels, &channels_len);
+
+    if (ret < 0) {
+        printf("oops: %s\n", errstr);
+    }
+
+    for (i = 0; i < channels_len; i++) {
+        printf("channel '%s'\n", channels[i]);
+        free(channels[i]);
+    }
+
+    free(channels);
+
+    return 0;
+
     /* Remap stderr so we can log debugging to a file */
     FILE *sterr;
     sterr = fopen("capture_linux_wifi.stderr", "a");
