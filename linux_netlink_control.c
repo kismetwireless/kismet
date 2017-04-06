@@ -45,6 +45,7 @@
 #include <errno.h>
 
 #include "linux_netlink_control.h"
+#include "wifi_ht_channels.h"
 
 // Libnl1->Libnl2 compatability mode since the API changed, cribbed from 'iw'
 #if defined(HAVE_LIBNL10)
@@ -358,6 +359,11 @@ static int nl80211_freqlist_cb(struct nl_msg *msg, void *arg) {
 	uint32_t freq;
 	struct nl80211_channel_block *chanb = (struct nl80211_channel_block *) arg;
     char channel_str[32];
+    int band_ht40, band_ht80, band_ht160;
+
+    /* number of indexed wifi channels from wifi_ht_channels.h */
+    unsigned int num_ht_wifi_channels = sizeof(wifi_ht_channels) / sizeof(wifi_channel);
+    unsigned int hti;
 
 	nla_parse(tb_msg, NL80211_ATTR_MAX, genlmsg_attrdata(gnlh, 0),
 			  genlmsg_attrlen(gnlh, 0), NULL);
@@ -377,10 +383,41 @@ static int nl80211_freqlist_cb(struct nl_msg *msg, void *arg) {
 	for (nl_band = (struct nlattr *) nla_data(tb_msg[NL80211_ATTR_WIPHY_BANDS]),
 		 rem_band = nla_len(tb_msg[NL80211_ATTR_WIPHY_BANDS]);
 		 nla_ok(nl_band, rem_band); 
-		 nl_band = (struct nlattr *) nla_next(nl_band, &rem_band)) {
+         nl_band = (struct nlattr *) nla_next(nl_band, &rem_band)) {
 
-		nla_parse(tb_band, NL80211_BAND_ATTR_MAX, (struct nlattr *) nla_data(nl_band),
-				  nla_len(nl_band), NULL);
+        band_ht40 = 0;
+        band_ht80 = 0;
+        band_ht160 = 0;
+
+        nla_parse(tb_band, NL80211_BAND_ATTR_MAX, (struct nlattr *) nla_data(nl_band),
+                nla_len(nl_band), NULL);
+
+        /* If we have a HT capability field, examine it for HT40 */
+        if (tb_band[NL80211_BAND_ATTR_HT_CAPA]) {
+            __u16 cap = nla_get_u16(tb_band[NL80211_BAND_ATTR_HT_CAPA]);
+
+            /* bit 1 is the HT40 bit */
+            if (cap & (1 << 1))
+                band_ht40 = 1;
+        }
+
+        /* If we have a VHT field, we can assume we have HT80 and then we need
+         * to examine ht160.  
+         * TODO: figure out 160 80+80; do all devices that support 80+80 support
+         * 160?  For now we assume they do...
+         */
+        if (tb_band[NL80211_BAND_ATTR_VHT_CAPA]) {
+            band_ht80 = 1;
+
+            __u16 cap = nla_get_u32(tb_band[NL80211_BAND_ATTR_VHT_CAPA]);
+
+            if (((cap >> 2) & 3) == 1) {
+                band_ht160 = 1;
+            } else if (((cap >> 2) & 3) == 2) {
+                fprintf(stderr, "debug - your device supports 160(80+80) mode\n");
+                band_ht160 = 1;
+            }
+        }
 
 		for (nl_freq = (struct nlattr *) nla_data(tb_band[NL80211_BAND_ATTR_FREQS]),
 			 rem_freq = nla_len(tb_band[NL80211_BAND_ATTR_FREQS]);
@@ -397,7 +434,34 @@ static int nl80211_freqlist_cb(struct nl_msg *msg, void *arg) {
 			if (tb_freq[NL80211_FREQUENCY_ATTR_DISABLED])
 				continue;
 
+            /* We've got at least one actual frequency */
 			num_freq++;
+
+			freq = nla_get_u32(tb_freq[NL80211_FREQUENCY_ATTR_FREQ]);
+
+            /* Look us up in the wifi_ht_channels list and add channels if we
+             * need to add HT capabilities.  We could convert this to a channel
+             * but it's better to do a frequency lookup */
+            for (hti = 0; hti < num_ht_wifi_channels; hti++) {
+                if (wifi_ht_channels[hti].freq == freq) {
+                    if (band_ht40) {
+                        if (wifi_ht_channels[hti].flags & WIFI_HT_HT40MINUS) 
+                            num_freq++;
+                        if (wifi_ht_channels[hti].flags & WIFI_HT_HT40PLUS)
+                            num_freq++;
+                    }
+
+                    if (band_ht80 && wifi_ht_channels[hti].flags & WIFI_HT_HT80) {
+                        num_freq++;
+                    }
+
+                    if (band_ht160 && wifi_ht_channels[hti].flags & WIFI_HT_HT160) {
+                        num_freq++;
+                    }
+
+                    break;
+                }
+            }
 		}
 	}
 
@@ -433,6 +497,39 @@ static int nl80211_freqlist_cb(struct nl_msg *msg, void *arg) {
 
             snprintf(channel_str, 32, "%u", mac80211_freq_to_chan(freq));
             chanb->channel_list[num_freq++] = strdup(channel_str);
+
+            /* Look us up again, this time making a HT-channel string for 
+             * each channel */
+            for (hti = 0; hti < num_ht_wifi_channels; hti++) {
+                if (wifi_ht_channels[hti].freq == freq) {
+                    if (band_ht40) {
+                        if (wifi_ht_channels[hti].flags & WIFI_HT_HT40MINUS) {
+                            snprintf(channel_str, 32, 
+                                    "%uHT40-", mac80211_freq_to_chan(freq));
+                            chanb->channel_list[num_freq++] = strdup(channel_str);
+                        } 
+                        if (wifi_ht_channels[hti].flags & WIFI_HT_HT40PLUS) {
+                            snprintf(channel_str, 32, 
+                                    "%uHT40+", mac80211_freq_to_chan(freq));
+                            chanb->channel_list[num_freq++] = strdup(channel_str);
+                        }
+                    }
+
+                    if (band_ht80 && wifi_ht_channels[hti].flags & WIFI_HT_HT80) {
+                        snprintf(channel_str, 32, 
+                                "%uHT80", mac80211_freq_to_chan(freq));
+                        chanb->channel_list[num_freq++] = strdup(channel_str);
+                    }
+
+                    if (band_ht160 && wifi_ht_channels[hti].flags & WIFI_HT_HT160) {
+                        snprintf(channel_str, 32, 
+                                "%uHT160", mac80211_freq_to_chan(freq));
+                        chanb->channel_list[num_freq++] = strdup(channel_str);
+                    }
+
+                    break;
+                }
+            }
 		}
 	}
 
@@ -456,8 +553,12 @@ static int nl80211_finish_cb(struct nl_msg *msg, void *arg) {
 #endif
 
 int mac80211_get_chanlist(const char *interface, char *errstr,
-        char **ret_chan_list, unsigned int *ret_num_chans) {
-	struct nl80211_channel_block cblock;
+        char ***ret_chan_list, unsigned int *ret_num_chans) {
+	struct nl80211_channel_block cblock = {
+        .phyname = NULL,
+        .nfreqs = 0,
+        .channel_list = NULL,
+    };
 
 #ifndef HAVE_LINUX_NETLINK
 	snprintf(errstr, STATUS_MAX, "Kismet was not compiled with netlink/nl80211 "
@@ -505,16 +606,18 @@ int mac80211_get_chanlist(const char *interface, char *errstr,
                 "failed to fetch channels from interface '%s': failed to "
                 "write netlink command", interface);
 		mac80211_disconnect(handle, cache);
+        free(cb);
         return -1;
 	}
 
 	while (err)
 		nl_recvmsgs((struct nl_sock *) handle, cb);
 
+    free(cb);
 	mac80211_disconnect(handle, cache);
 
 	(*ret_num_chans) = cblock.nfreqs;
-    (*ret_chan_list) = *(cblock.channel_list);
+    (*ret_chan_list) = (cblock.channel_list);
 
 	free(cblock.phyname);
 

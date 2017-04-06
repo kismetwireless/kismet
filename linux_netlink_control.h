@@ -128,7 +128,7 @@ char *mac80211_find_parent(const char *interface);
  * HT80 channel:    36HT80 (which automatically derives 80mhz control channel)
  * HT160 channel:   36HT160 (which automatically derives 160mhz control channel)
  *
- * Returns channel list in *ret_chanlist and length in *ret_chanlist_len.
+ * Returns channel list array in *ret_chanlist and length in *ret_chanlist_len.
  *
  * Caller is responsible for freeing returned chanlist with mac80211_free_chanlist(..)
  *
@@ -138,7 +138,7 @@ char *mac80211_find_parent(const char *interface);
  *
  */
 int mac80211_get_chanlist(const char *interface, char *errstr,
-        char **ret_chanlist, unsigned int *ret_chanlist_len);
+        char ***ret_chanlist, unsigned int *ret_chanlist_len);
 
 #endif
 
