@@ -335,8 +335,6 @@ fi
 
 
 # We need threads
-dnl ACX_PTHREAD(pthread=1,
-dnl		   AC_MSG_ERROR([pthreads are needed and are not available]))
 ACX_PTHREAD
 KSLIBS="$KSLIBS $PTHREAD_LIBS"
 CPPFLAGS="$CPPFLAGS $PTHREAD_CFLAGS"
@@ -380,20 +378,6 @@ else
     CPPFLAGS=$OCPPFLAGS
     LDFLAGS=$OLDFLAGS
 fi
-
-# sqlite3=yes
-# AC_CHECK_HEADER([sqlite3.h],
-# 	AC_DEFINE(HAVE_SQLITE_H, 1, sqlite3.h is present) sqlite3=yes,
-# 	sqlite3=no)
-#
-# if test "$sqlite3" = yes; then
-# AC_CHECK_LIB([sqlite3], [sqlite3_open],
-# 			 KSLIBS="$KSLIBS -lsqlite3", sqlite3=no)
-# fi
-#
-# if test "$sqlite3" != yes; then
-# 	AC_MSG_WARN(Failed to find sqlite3 runtime resuming will be disabled)
-# fi
 
 # Do we need libm for math functions?
 AC_MSG_CHECKING([for libm math function in std libs])
@@ -652,16 +636,6 @@ fi # want headers
 
 fi # linux
 
-# Look for libgps
-# havelgps="yes"
-# AC_CHECK_LIB([gps], [gps_open],,havelgps=no)
-# AC_CHECK_HEADER([gps.h],,havelgps=no)
-#
-# if test "$havelgps" = "yes"; then
-# AC_DEFINE(HAVE_LIBGPS, 1, gpsd libgps client support)
-# KSLIBS="$KSLIBS -lgps"
-# fi
-
 # Look for capability support
 havecap="yes"
 AC_CHECK_LIB([cap], [cap_init],,havecap=no)
@@ -837,6 +811,7 @@ if test "$pcap" = "no" -a "$want_airpcap" = "yes"; then
 	want_airpcap=no;
 fi
 
+airpcaplib=""
 if test "$want_airpcap" = "yes" -a "$pcap" = "yes"; then
 	foundairpcap=no
 	AC_CHECK_LIB([airpcap], [AirpcapSetLinkType],
@@ -853,9 +828,10 @@ if test "$want_airpcap" = "yes" -a "$pcap" = "yes"; then
 		AC_MSG_WARN(Compiling without airpcap support)
 	else
 		airpcap="yes"
-		KSLIBS="$KSLIBS -lairpcap"
+        airpcaplib = "-lairpcap"
 	fi
 fi
+AC_SUBST(airpcaplib)
 
 if test "$bsd" = yes; then
 	AC_MSG_CHECKING(for BSD net80211/radiotap support)
@@ -983,7 +959,7 @@ if test "$havenetlink" = "yes"; then
 			NL80211_IFTYPE_MONITOR;
 			NL80211_CMD_NEW_INTERFACE;
 			return 0;
-			]])],[havenetlink=yes KSLIBS="$KSLIBS $NLLIBS"],[havenetlink=no])
+			]])],[havenetlink=yes],[havenetlink=no])
 
 	LIBS="$OLIBS"
 else
@@ -997,6 +973,8 @@ if test "$havenetlink" = "yes"; then
 fi
 
 fi
+
+AC_SUBST(NLLIBS)
 
 if test "$darwin" = "yes"; then
 	suidgroup="staff"
@@ -1061,8 +1039,6 @@ if test "$want_tsan" == "yes"; then
     CPPFLAGS="$CPPFLAGS -fsanitize=thread"
     LDFLAGS="$LDFLAGS -fsanitize=thread"
 fi
-
-AC_SUBST(threadlib)
 
 AC_SUBST(KSLIBS)
 

@@ -2,12 +2,6 @@ INSTGRP 	?= "@instgrp@"
 MANGRP 		?= "@mangrp@"
 INSTUSR 	?= "root"
 
-ZAURUS 		= @zaurus@
-
-PCAPLNK 	= @pcaplnk@
-
-THREADL 	= @threadlib@
-
 BLDHOME		= @srcdir@
 CXX			= @CXX@
 CC			= @CC@
@@ -23,9 +17,10 @@ CLIBS   	= @CLIBS@
 CXXLIBS		= @CXXLIBS@
 KSLIBS		= @KSLIBS@
 CFLAGS		= @CPPFLAGS@
-CLIENTLIBS 	= @CLIENTCLIBS@
 CAPLIBS		= @caplibs@
-CLIENTFLAGS = @CLIENTCFLAGS@
+NETLINKLIBS	= @NLLIBS@
+AIRCAPLIBS	= @airpcaplib@
+PCAPLIBS	= @pcaplnk@
 CXXFLAGS 	= -Wall @CXXFLAGS@
 CPPFLAGS 	= @CPPFLAGS@
 SUIDGROUP 	= @suidgroup@

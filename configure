@@ -624,8 +624,8 @@ ac_includes_default="\
 ac_subst_vars='LTLIBOBJS
 sharedatadir
 KSLIBS
-threadlib
 suidgroup
+NLLIBS
 libnl1_LIBS
 libnl1_CFLAGS
 libnl20_LIBS
@@ -638,6 +638,7 @@ PKG_CONFIG_LIBDIR
 PKG_CONFIG_PATH
 PKG_CONFIG
 havepkgconfig
+airpcaplib
 pcap
 pcaplnk
 wantpcap
@@ -6960,20 +6961,6 @@ $as_echo "no" >&6; }
     LDFLAGS=$OLDFLAGS
 fi
 
-# sqlite3=yes
-# AC_CHECK_HEADER([sqlite3.h],
-# 	AC_DEFINE(HAVE_SQLITE_H, 1, sqlite3.h is present) sqlite3=yes,
-# 	sqlite3=no)
-#
-# if test "$sqlite3" = yes; then
-# AC_CHECK_LIB([sqlite3], [sqlite3_open],
-# 			 KSLIBS="$KSLIBS -lsqlite3", sqlite3=no)
-# fi
-#
-# if test "$sqlite3" != yes; then
-# 	AC_MSG_WARN(Failed to find sqlite3 runtime resuming will be disabled)
-# fi
-
 # Do we need libm for math functions?
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for libm math function in std libs" >&5
 $as_echo_n "checking for libm math function in std libs... " >&6; }
@@ -7748,16 +7735,6 @@ fi # want headers
 
 fi # linux
 
-# Look for libgps
-# havelgps="yes"
-# AC_CHECK_LIB([gps], [gps_open],,havelgps=no)
-# AC_CHECK_HEADER([gps.h],,havelgps=no)
-#
-# if test "$havelgps" = "yes"; then
-# AC_DEFINE(HAVE_LIBGPS, 1, gpsd libgps client support)
-# KSLIBS="$KSLIBS -lgps"
-# fi
-
 # Look for capability support
 havecap="yes"
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for cap_init in -lcap" >&5
@@ -8288,6 +8265,7 @@ $as_echo "$as_me: WARNING: *** Disabling AirPcap, libpcap not enabled ***" >&2;}
 	want_airpcap=no;
 fi
 
+airpcaplib=""
 if test "$want_airpcap" = "yes" -a "$pcap" = "yes"; then
 	foundairpcap=no
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for AirpcapSetLinkType in -lairpcap" >&5
@@ -8353,9 +8331,10 @@ fi
 $as_echo "$as_me: WARNING: Compiling without airpcap support" >&2;}
 	else
 		airpcap="yes"
-		KSLIBS="$KSLIBS -lairpcap"
+        airpcaplib = "-lairpcap"
 	fi
 fi
+
 
 if test "$bsd" = yes; then
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for BSD net80211/radiotap support" >&5
@@ -8973,7 +8952,7 @@ main ()
 }
 _ACEOF
 if ac_fn_cxx_try_link "$LINENO"; then :
-  havenetlink=yes KSLIBS="$KSLIBS $NLLIBS"
+  havenetlink=yes
 else
   havenetlink=no
 fi
@@ -8996,6 +8975,8 @@ $as_echo "#define HAVE_LINUX_NETLINK 1" >>confdefs.h
 fi
 
 fi
+
+
 
 if test "$darwin" = "yes"; then
 	suidgroup="staff"
@@ -9074,8 +9055,6 @@ if test "$want_tsan" == "yes"; then
     CPPFLAGS="$CPPFLAGS -fsanitize=thread"
     LDFLAGS="$LDFLAGS -fsanitize=thread"
 fi
-
-
 
 
 
