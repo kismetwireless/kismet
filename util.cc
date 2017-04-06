@@ -714,6 +714,10 @@ uint32_t Adler32Checksum(const char *buf1, int len) {
 }
 
 int ChanToFreq(int in_chan) {
+    /* if it looks like a frequency, leave it as a frequency */
+    if (in_chan > 250)
+        return in_chan;
+
 	// 80211 frequencies to channels
 	// Stolen from Linux net/wireless/util.c
 	if (in_chan == 14)
@@ -729,6 +733,10 @@ int ChanToFreq(int in_chan) {
 }
 
 int FreqToChan(int in_freq) {
+    // If it looks like a channel, leave it as a channel
+    if (in_freq < 250)
+        return in_freq;
+
 	// 80211 frequencies to channels
 	// Stolen from Linux net/wireless/util.c
 	/* see 802.11 17.3.8.3.2 and Annex J */
