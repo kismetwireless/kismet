@@ -53,7 +53,7 @@ typedef struct {
     double freq160;
 } wifi_channel;
 
-wifi_channel channels[] = {
+wifi_channel wifi_ht_channels[] = {
     [1] = { 
         .chan = 1, 
         .freq = 2412, 
@@ -61,12 +61,12 @@ wifi_channel channels[] = {
     },
     [2] = { 
         .chan = 2, 
-        .freq =2417, 
+        .freq = 2417, 
         .flags = WIFI_WIDTH_20MHZ 
     },
     [3] = { 
-        .chan =3, 
-        .freq =2422, 
+        .chan = 3, 
+        .freq = 2422, 
         .flags = WIFI_WIDTH_20MHZ 
     },
     [4] = { 
