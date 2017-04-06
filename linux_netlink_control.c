@@ -101,6 +101,20 @@ unsigned int mac80211_chan_to_freq(unsigned int in_chan) {
 	return in_chan;
 }
 
+unsigned int mac80211_freq_to_chan(unsigned int in_freq) {
+    if (in_freq < 250)
+        return in_freq;
+
+    /* revamped from iw */
+    if (in_freq == 2484)
+        return 14;
+
+    if (in_freq < 2484)
+        return (in_freq - 2407) / 5;
+
+    return in_freq / 5 - 1000;
+}
+
 int mac80211_connect(const char *interface, void **handle, void **cache,
 					 void **family, char *errstr) {
 #ifndef HAVE_LINUX_NETLINK
@@ -327,17 +341,23 @@ int mac80211_setchannel(const char *interface, int channel,
 #endif
 }
 
-#if 0
+struct nl80211_channel_block {
+	char *phyname;
+	int nfreqs;
+	char **channel_list;
+};
+
 #ifdef HAVE_LINUX_NETLINK
-static int mac80211_freqlist_cb(struct nl_msg *msg, void *arg) {
+static int nl80211_freqlist_cb(struct nl_msg *msg, void *arg) {
 	struct nlattr *tb_msg[NL80211_ATTR_MAX + 1];
 	struct genlmsghdr *gnlh = (struct genlmsghdr *) nlmsg_data(nlmsg_hdr(msg));
 	struct nlattr *tb_band[NL80211_BAND_ATTR_MAX + 1];
 	struct nlattr *tb_freq[NL80211_FREQUENCY_ATTR_MAX + 1];
 	struct nlattr *nl_band, *nl_freq;
-	int rem_band, rem_freq;
+	int rem_band, rem_freq, num_freq = 0;
 	uint32_t freq;
-	mac80211_channel_block *chanb = (mac80211_channel_block *) arg;
+	struct nl80211_channel_block *chanb = (struct nl80211_channel_block *) arg;
+    char channel_str[32];
 
 	nla_parse(tb_msg, NL80211_ATTR_MAX, genlmsg_attrdata(gnlh, 0),
 			  genlmsg_attrlen(gnlh, 0), NULL);
@@ -348,11 +368,44 @@ static int mac80211_freqlist_cb(struct nl_msg *msg, void *arg) {
 
 	if (tb_msg[NL80211_ATTR_WIPHY_NAME]) {
 		if (strcmp(nla_get_string(tb_msg[NL80211_ATTR_WIPHY_NAME]), 
-				   chanb->phyname.c_str()) != 0) {
+				   chanb->phyname) != 0) {
 			return NL_SKIP;
 		}
 	}
 
+	// Count the number of channels
+	for (nl_band = (struct nlattr *) nla_data(tb_msg[NL80211_ATTR_WIPHY_BANDS]),
+		 rem_band = nla_len(tb_msg[NL80211_ATTR_WIPHY_BANDS]);
+		 nla_ok(nl_band, rem_band); 
+		 nl_band = (struct nlattr *) nla_next(nl_band, &rem_band)) {
+
+		nla_parse(tb_band, NL80211_BAND_ATTR_MAX, (struct nlattr *) nla_data(nl_band),
+				  nla_len(nl_band), NULL);
+
+		for (nl_freq = (struct nlattr *) nla_data(tb_band[NL80211_BAND_ATTR_FREQS]),
+			 rem_freq = nla_len(tb_band[NL80211_BAND_ATTR_FREQS]);
+			 nla_ok(nl_freq, rem_freq); 
+			 nl_freq = (struct nlattr *) nla_next(nl_freq, &rem_freq)) {
+
+			nla_parse(tb_freq, NL80211_FREQUENCY_ATTR_MAX, 
+					  (struct nlattr *) nla_data(nl_freq),
+					  nla_len(nl_freq), NULL);
+
+			if (!tb_freq[NL80211_FREQUENCY_ATTR_FREQ])
+				continue;
+
+			if (tb_freq[NL80211_FREQUENCY_ATTR_DISABLED])
+				continue;
+
+			num_freq++;
+		}
+	}
+
+	chanb->nfreqs = num_freq;
+	chanb->channel_list = malloc(sizeof(char *) * num_freq);
+	num_freq = 0;
+
+	// Assemble a return
 	for (nl_band = (struct nlattr *) nla_data(tb_msg[NL80211_ATTR_WIPHY_BANDS]),
 		 rem_band = nla_len(tb_msg[NL80211_ATTR_WIPHY_BANDS]);
 		 nla_ok(nl_band, rem_band); 
@@ -378,11 +431,8 @@ static int mac80211_freqlist_cb(struct nl_msg *msg, void *arg) {
 
 			freq = nla_get_u32(tb_freq[NL80211_FREQUENCY_ATTR_FREQ]);
 
-			if (freq == 0)
-				continue;
-
-			chanb->channel_list.push_back(FreqToChan(freq));
-
+            snprintf(channel_str, 32, "%u", mac80211_freq_to_chan(freq));
+            chanb->channel_list[num_freq++] = strdup(channel_str);
 		}
 	}
 
@@ -391,28 +441,28 @@ static int mac80211_freqlist_cb(struct nl_msg *msg, void *arg) {
 #endif
 
 #ifdef HAVE_LINUX_NETLINK
-static int mac80211_error_cb(struct sockaddr_nl *nla, struct nlmsgerr *err,
+static int nl80211_error_cb(struct sockaddr_nl *nla, struct nlmsgerr *err,
 			 void *arg) {
 	int *ret = (int *) arg;
 	*ret = err->error;
 	return NL_STOP;
 }
 
-static int mac80211_finish_cb(struct nl_msg *msg, void *arg) {
+static int nl80211_finish_cb(struct nl_msg *msg, void *arg) {
 	int *ret = (int *) arg;
 	*ret = 0;
 	return NL_SKIP;
 }
 #endif
 
-int mac80211_get_chanlist(const char *interface, vector<unsigned int> *chan_list,
-						  char *errstr) {
-	mac80211_channel_block cblock;
+int mac80211_get_chanlist(const char *interface, char *errstr,
+        char **ret_chan_list, unsigned int *ret_num_chans) {
+	struct nl80211_channel_block cblock;
 
 #ifndef HAVE_LINUX_NETLINK
-	snprintf(errstr, STATUS_MAX, "Kismet was not compiled with netlink/mac80211 "
+	snprintf(errstr, STATUS_MAX, "Kismet was not compiled with netlink/nl80211 "
 			 "support, check the output of ./configure for why");
-	return MAC80211_CHANLIST_NOT_MAC80211;
+	return NL80211_CHANLIST_NOT_NL80211;
 #else
 	void *handle = NULL, *cache = NULL, *family = NULL;
 	struct nl_cb *cb;
@@ -420,19 +470,22 @@ int mac80211_get_chanlist(const char *interface, vector<unsigned int> *chan_list
 	struct nl_msg *msg;
 
 	cblock.phyname = mac80211_find_parent(interface);
-	if (cblock.phyname == "") {
+	if (strlen(cblock.phyname) == 0) {
 		if (if_nametoindex(interface) <= 0) {
-			snprintf(errstr, STATUS_MAX, "Interface %s doesn't exist", interface);
-			return MAC80211_CHANLIST_NO_INTERFACE;
+			snprintf(errstr, STATUS_MAX, 
+                    "failed to get channels from interface '%s': interface does "
+                    "not exist.", interface);
+            return -1;
 		} 
 
-		snprintf(errstr, STATUS_MAX, "Kismet could not find a parent phy device "
-				 "for interface %s, it isn't mac80211?", interface);
-		return MAC80211_CHANLIST_NOT_MAC80211;
+		snprintf(errstr, STATUS_MAX, 
+                "failed to find parent phy interface for interface '%s': interface "
+                "may not be a mac80211 wifi device?", interface);
+        return -1;
 	}
 
 	if (mac80211_connect(interface, &handle, &cache, &family, errstr) < 0) {
-		return MAC80211_CHANLIST_GENERIC;
+        return -1;
 	}
 
 	msg = nlmsg_alloc();
@@ -440,30 +493,35 @@ int mac80211_get_chanlist(const char *interface, vector<unsigned int> *chan_list
 
 	err = 1;
 
-	nl_cb_set(cb, NL_CB_VALID, NL_CB_CUSTOM, mac80211_freqlist_cb, &cblock);
-	nl_cb_set(cb, NL_CB_FINISH, NL_CB_CUSTOM, mac80211_finish_cb, &err);
-	nl_cb_err(cb, NL_CB_CUSTOM, mac80211_error_cb, &err);
+	nl_cb_set(cb, NL_CB_VALID, NL_CB_CUSTOM, nl80211_freqlist_cb, &cblock);
+	nl_cb_set(cb, NL_CB_FINISH, NL_CB_CUSTOM, nl80211_finish_cb, &err);
+	nl_cb_err(cb, NL_CB_CUSTOM, nl80211_error_cb, &err);
 
 	genlmsg_put(msg, 0, 0, genl_family_get_id((struct genl_family *) family),
 			  0, NLM_F_DUMP, NL80211_CMD_GET_WIPHY, 0);
 
 	if (nl_send_auto_complete((struct nl_sock *) handle, msg) < 0) {
-		snprintf(errstr, STATUS_MAX, "%s: Failed to write nl80211 message",
-				__FUNCTION__);
+		snprintf(errstr, STATUS_MAX, 
+                "failed to fetch channels from interface '%s': failed to "
+                "write netlink command", interface);
 		mac80211_disconnect(handle, cache);
-		return MAC80211_CHANLIST_GENERIC;
+        return -1;
 	}
 
 	while (err)
 		nl_recvmsgs((struct nl_sock *) handle, cb);
 
 	mac80211_disconnect(handle, cache);
-	(*chan_list) = cblock.channel_list;
 
-	return cblock.channel_list.size();
+	(*ret_num_chans) = cblock.nfreqs;
+    (*ret_chan_list) = *(cblock.channel_list);
+
+	free(cblock.phyname);
+
+	return (*ret_num_chans);
 #endif
 }
-#endif
+
 
 char *mac80211_find_parent(const char *interface) {
 	DIR *devdir;
