@@ -30,6 +30,56 @@
  * In this model, the actual data capture happens asynchronously in a capture
  * thread, while the protocol IO and incoming commands are handled by the
  * thread which calls the cf_handler_loop(..) function.
+ *
+ * Capture may be completely blocking - for example using pcap_loop directly - 
+ * because it is isolated from the protocol control thread.
+ *
+ * Callbacks:
+ *  list_devices
+ *      If present, called when the capture binary receives a LISTDEVICES command.
+ *      Is responsible for generating a list of all supported devices, (or none), and
+ *      any flags needed to uniquely identify the device.
+ *
+ *  probe
+ *      If present, called when the capture binary receives a PROBEDEVICE command.
+ *      This is part of the autoprobe system - it is responsible for determining if
+ *      this datasource can handle a device specified with no type.
+ *
+ *  open
+ *      If present, called when the capture binary receives an OPENDEVICE command.
+ *      This occurs once Kismet has identified what datasource handles a source
+ *      definition, and should actually open the device.
+ *
+ *  chanset
+ *      If present, called when the capture binary receives a CHANSET command.
+ *      This is called when the source is locked to a single channel, and the
+ *      channel is sent as a complex channel string definition - for instance
+ *      '2412MHz', '2.412GHz', '1', '1HT40+' would all be valid channel strings;
+ *      it is up to the source to interpret them.
+ *
+ *  chanhop
+ *      If present, called when the capture binary receives a CHANHOP command.
+ *      This configures the basic channel hopping pattern.  Channels are passed
+ *      as complex strings.
+ *      Sources are encouraged to translate the channels to an internal format
+ *      and populate the callback framework channel cache.  These parsed
+ *      strings will then be passed to the hw_channel_set callback, to prevent
+ *      a full string parse every hop event.
+ *      Internal formats are best described by a custom struct, and are stored in
+ *      the framework as a void*
+ *
+ *  chanfree
+ *      If present, called when the capture binary needs to purge the list of
+ *      internally formatted channels.  Called once for each custom channel.
+ *      If the custom channel format is a simple struct which can be freed
+ *      entirely with 'free(...)', a chanfree callback is not required.
+ *
+ *  capture
+ *      Called once the source is opened, and run in its own thread.  The thread
+ *      is marked cancellable; the callback does not need to perform any special
+ *      actions.
+ *      When the capture callback ends, the source is placed into error mode.
+ *
  */
 
 #include <getopt.h>
@@ -61,10 +111,13 @@ typedef int (*cf_callback_open)(kis_capture_handler_t *, uint32_t, char *);
 typedef int (*cf_callback_chanset)(kis_capture_handler_t *, uint32_t, char *);
 typedef int (*cf_callback_chanhop)(kis_capture_handler_t *, uint32_t,
         double, char **, size_t);
+
 typedef int (*cf_callback_unknown)(kis_capture_handler_t *, uint32_t, 
         simple_cap_proto_frame_t *);
 
 typedef void (*cf_callback_capture)(kis_capture_handler_t *);
+
+typedef void (*cf_callback_chanfree)(void *);
 
 struct kis_capture_handler {
     /* Descriptor pair */
@@ -104,12 +157,19 @@ struct kis_capture_handler {
     cf_callback_unknown unknown_cb;
     cf_callback_capture capture_cb;
 
+    cf_callback_chanfree chanfree_cb;
+
     /* Arbitrary data blob */
     void *userdata;
 
     /* Capture thread */
     int capture_running;
     pthread_t capturethread;
+
+    /* Channel list */
+    char **channel_hop_list;
+    void **custom_channel_hop_list;
+    size_t channel_hop_list_sz;
 };
 
 /* Parse an interface name from a definition string.
@@ -187,6 +247,7 @@ void cf_handler_set_open_cb(kis_capture_handler_t *capf, cf_callback_open cb);
 void cf_handler_set_chanset_cb(kis_capture_handler_t *capf, cf_callback_chanset cb);
 void cf_handler_set_chanhop_cb(kis_capture_handler_t *capf, cf_callback_chanhop cb);
 void cf_handler_set_unknown_cb(kis_capture_handler_t *capf, cf_callback_unknown cb);
+void cf_handler_set_chanfree_cb(kis_capture_handler_t *capf, cf_callback_chanfree cb);
 
 /* Set the capture function, which runs inside its own thread */
 void cf_handler_set_capture_cb(kis_capture_handler_t *capf, cf_callback_capture cb);

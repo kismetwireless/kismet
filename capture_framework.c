@@ -148,15 +148,22 @@ kis_capture_handler_t *cf_handler_init() {
     ch->unknown_cb = NULL;
     ch->chanset_cb = NULL;
     ch->chanhop_cb = NULL;
+    ch->chanfree_cb = NULL;
 
     ch->userdata = NULL;
 
     ch->capture_running = 0;
 
+    ch->channel_hop_list = NULL;
+    ch->custom_channel_hop_list = NULL;
+    ch->channel_hop_list_sz = 0;
+
     return ch;
 }
 
 void cf_handler_free(kis_capture_handler_t *caph) {
+    size_t szi;
+
     if (caph == NULL)
         return;
 
@@ -180,6 +187,23 @@ void cf_handler_free(kis_capture_handler_t *caph) {
 
     if (caph->out_ringbuf != NULL)
         kis_simple_ringbuf_free(caph->out_ringbuf);
+
+    for (szi = 0; szi < caph->channel_hop_list_sz; szi++) {
+        if (caph->channel_hop_list[szi] != NULL)
+            free(caph->channel_hop_list[szi]);
+
+        if (caph->chanfree_cb != NULL) {
+            (*(caph->chanfree_cb))(caph->custom_channel_hop_list[szi]);
+        } else if (caph->custom_channel_hop_list[szi] != NULL) {
+            free(caph->custom_channel_hop_list[szi]);
+        }
+    }
+
+    if (caph->channel_hop_list != NULL)
+        free(caph->channel_hop_list);
+
+    if (caph->custom_channel_hop_list != NULL)
+        free(caph->custom_channel_hop_list);
 
     pthread_mutex_destroy(&(caph->out_ringbuf_lock));
     pthread_mutex_destroy(&(caph->handler_lock));
@@ -262,8 +286,7 @@ void cf_handler_set_listdevices_cb(kis_capture_handler_t *capf,
     pthread_mutex_unlock(&(capf->handler_lock));
 }
 
-void cf_handler_set_probe_cb(kis_capture_handler_t *capf, 
-        cf_callback_probe cb) {
+void cf_handler_set_probe_cb(kis_capture_handler_t *capf, cf_callback_probe cb) {
     pthread_mutex_lock(&(capf->handler_lock));
     capf->probe_cb = cb;
     pthread_mutex_unlock(&(capf->handler_lock));
@@ -282,31 +305,33 @@ void cf_handler_set_userdata(kis_capture_handler_t *capf, void *userdata) {
     pthread_mutex_unlock(&(capf->handler_lock));
 }
 
-void cf_handler_set_capture_cb(kis_capture_handler_t *capf,
-        cf_callback_capture cb) {
+void cf_handler_set_capture_cb(kis_capture_handler_t *capf, cf_callback_capture cb) {
     pthread_mutex_lock(&(capf->handler_lock));
     capf->capture_cb = cb;
     pthread_mutex_unlock(&(capf->handler_lock));
 }
 
-void cf_handler_set_unknown_cb(kis_capture_handler_t *capf,
-        cf_callback_unknown cb) {
+void cf_handler_set_unknown_cb(kis_capture_handler_t *capf, cf_callback_unknown cb) {
     pthread_mutex_lock(&(capf->handler_lock));
     capf->unknown_cb = cb;
     pthread_mutex_unlock(&(capf->handler_lock));
 }
 
-void cf_handler_set_chanset_cb(kis_capture_handler_t *capf,
-        cf_callback_chanset cb) {
+void cf_handler_set_chanset_cb(kis_capture_handler_t *capf, cf_callback_chanset cb) {
     pthread_mutex_lock(&(capf->handler_lock));
     capf->chanset_cb = cb;
     pthread_mutex_unlock(&(capf->handler_lock));
 }
 
-void cf_handler_set_chanhop_cb(kis_capture_handler_t *capf,
-        cf_callback_chanhop cb) {
+void cf_handler_set_chanhop_cb(kis_capture_handler_t *capf, cf_callback_chanhop cb) {
     pthread_mutex_lock(&(capf->handler_lock));
     capf->chanhop_cb = cb;
+    pthread_mutex_unlock(&(capf->handler_lock));
+}
+
+void cf_handler_set_chanfree_cb(kis_capture_handler_t *capf, cf_callback_chanfree cb) {
+    pthread_mutex_lock(&(capf->handler_lock));
+    capf->chanfree_cb = cb;
     pthread_mutex_unlock(&(capf->handler_lock));
 }
 
