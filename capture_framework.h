@@ -58,6 +58,9 @@ typedef struct kis_capture_handler kis_capture_handler_t;
 typedef int (*cf_callback_listdevices)(kis_capture_handler_t *, uint32_t);
 typedef int (*cf_callback_probe)(kis_capture_handler_t *, uint32_t, char *);
 typedef int (*cf_callback_open)(kis_capture_handler_t *, uint32_t, char *);
+typedef int (*cf_callback_chanset)(kis_capture_handler_t *, uint32_t, char *);
+typedef int (*cf_callback_chanhop)(kis_capture_handler_t *, uint32_t,
+        double, char **, size_t);
 typedef int (*cf_callback_unknown)(kis_capture_handler_t *, uint32_t, 
         simple_cap_proto_frame_t *);
 
@@ -96,7 +99,9 @@ struct kis_capture_handler {
     cf_callback_listdevices listdevices_cb;
     cf_callback_probe probe_cb;
     cf_callback_open open_cb;
-
+    cf_callback_chanset chanset_cb;
+    cf_callback_chanhop chanhop_cb;
+    cf_callback_unknown unknown_cb;
     cf_callback_capture capture_cb;
 
     /* Arbitrary data blob */
@@ -179,6 +184,9 @@ void cf_handler_set_listdevices_cb(kis_capture_handler_t *capf,
         cf_callback_listdevices cb);
 void cf_handler_set_probe_cb(kis_capture_handler_t *capf, cf_callback_probe cb);
 void cf_handler_set_open_cb(kis_capture_handler_t *capf, cf_callback_open cb);
+void cf_handler_set_chanset_cb(kis_capture_handler_t *capf, cf_callback_chanset cb);
+void cf_handler_set_chanhop_cb(kis_capture_handler_t *capf, cf_callback_chanhop cb);
+void cf_handler_set_unknown_cb(kis_capture_handler_t *capf, cf_callback_unknown cb);
 
 /* Set the capture function, which runs inside its own thread */
 void cf_handler_set_capture_cb(kis_capture_handler_t *capf, cf_callback_capture cb);

@@ -145,6 +145,9 @@ kis_capture_handler_t *cf_handler_init() {
     ch->listdevices_cb = NULL;
     ch->probe_cb = NULL;
     ch->open_cb = NULL;
+    ch->unknown_cb = NULL;
+    ch->chanset_cb = NULL;
+    ch->chanhop_cb = NULL;
 
     ch->userdata = NULL;
 
@@ -283,6 +286,27 @@ void cf_handler_set_capture_cb(kis_capture_handler_t *capf,
         cf_callback_capture cb) {
     pthread_mutex_lock(&(capf->handler_lock));
     capf->capture_cb = cb;
+    pthread_mutex_unlock(&(capf->handler_lock));
+}
+
+void cf_handler_set_unknown_cb(kis_capture_handler_t *capf,
+        cf_callback_unknown cb) {
+    pthread_mutex_lock(&(capf->handler_lock));
+    capf->unknown_cb = cb;
+    pthread_mutex_unlock(&(capf->handler_lock));
+}
+
+void cf_handler_set_chanset_cb(kis_capture_handler_t *capf,
+        cf_callback_chanset cb) {
+    pthread_mutex_lock(&(capf->handler_lock));
+    capf->chanset_cb = cb;
+    pthread_mutex_unlock(&(capf->handler_lock));
+}
+
+void cf_handler_set_chanhop_cb(kis_capture_handler_t *capf,
+        cf_callback_chanhop cb) {
+    pthread_mutex_lock(&(capf->handler_lock));
+    capf->chanhop_cb = cb;
     pthread_mutex_unlock(&(capf->handler_lock));
 }
 
