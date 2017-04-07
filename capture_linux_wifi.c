@@ -33,8 +33,8 @@
  * to process the DLT.
  *
  * This binary needs to run as root to be able to control and capture from
- * the interface - it will drop privileges as soon as possible once it has
- * configured the interface.
+ * the interface - and it needs to continue running as root to be able to control
+ * the channels.
  *
  * If an error occurs, it will not be possible to re-escalate privileges; the
  * source will have to be re-opened.  Any error which prevents configuring 
@@ -78,6 +78,11 @@ typedef struct {
 
     int datalink_type;
     int override_dlt;
+
+    /* Cached mac80211 controls */
+    void *mac80211_handle;
+    void *mac80211_cache;
+    void *mac80211_family;
 } local_wifi_t;
 
 int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition) {
@@ -238,6 +243,9 @@ int main(int argc, char *argv[]) {
         .cap_interface = NULL,
         .datalink_type = -1,
         .override_dlt = -1,
+        .mac80211_cache = NULL,
+        .mac80211_handle = NULL,
+        .mac80211_family = NULL,
     };
 
     char errstr[STATUS_MAX];
