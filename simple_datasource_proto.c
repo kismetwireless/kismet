@@ -453,8 +453,8 @@ simple_cap_proto_kv_t *encode_kv_signal(uint32_t signal_dbm, uint32_t signal_rss
     return kv;
 }
 
-simple_cap_proto_kv_t *encode_kv_interfacelist(const char **interfaces, 
-        const char **options, size_t len) {
+simple_cap_proto_kv_t *encode_kv_interfacelist(char **interfaces, 
+        char **options, size_t len) {
 
     const char *key_interface = "interface";
     const char *key_flags = "flags";
@@ -517,7 +517,7 @@ simple_cap_proto_kv_t *encode_kv_interfacelist(const char **interfaces,
     return kv;
 }
 
-simple_cap_proto_kv_t *encode_kv_channels(const char **channels, size_t len) {
+simple_cap_proto_kv_t *encode_kv_channels(char **channels, size_t len) {
 
     /* Channels are packed into a dictionary in case we need to pack additional
      * data with them in the future */
@@ -569,8 +569,7 @@ simple_cap_proto_kv_t *encode_kv_channels(const char **channels, size_t len) {
     return kv;
 }
 
-simple_cap_proto_kv_t *encode_kv_chanhop(double rate, const char **channels, 
-        size_t len) {
+simple_cap_proto_kv_t *encode_kv_chanhop(double rate, char **channels, size_t len) {
 
     const char *key_channels = "channels";
     const char *key_rate = "rate";

@@ -843,7 +843,7 @@ int cf_send_error(kis_capture_handler_t *caph, const char *msg) {
 }
 
 int cf_send_listresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int success,
-        const char *msg, const char **interfaces, const char **flags, size_t len) {
+        const char *msg, char **interfaces, char **flags, size_t len) {
     /* How many KV pairs are we allocating?  1 for success for sure */
     size_t num_kvs = 1;
 
@@ -905,7 +905,7 @@ int cf_send_listresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
 }
 
 int cf_send_proberesp(kis_capture_handler_t *caph, uint32_t seq, unsigned int success,
-        const char *msg, const char *chanset, const char **channels, 
+        const char *msg, const char *chanset, char **channels, 
         size_t channels_len) {
     /* How many KV pairs are we allocating?  1 for success for sure */
     size_t num_kvs = 1;
@@ -984,9 +984,9 @@ int cf_send_proberesp(kis_capture_handler_t *caph, uint32_t seq, unsigned int su
 
 int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int success,
         const char *msg, 
-        const char **channels, size_t channels_len,
+        char **channels, size_t channels_len,
         const char *chanset, 
-        double hoprate, const char **hop_channels, size_t hop_channels_len) {
+        double hoprate, char **hop_channels, size_t hop_channels_len) {
     /* How many KV pairs are we allocating?  1 for success for sure */
     size_t num_kvs = 1;
 

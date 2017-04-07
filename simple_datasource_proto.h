@@ -227,8 +227,8 @@ simple_cap_proto_kv_t *encode_kv_signal(uint32_t signal_dbm, uint32_t signal_rss
  * Null on failure
  *
  */
-simple_cap_proto_kv_t *encode_kv_interfacelist(const char **interfaces, 
-        const char **options, size_t len);
+simple_cap_proto_kv_t *encode_kv_interfacelist(char **interfaces, char **options, 
+        size_t len);
 
 /* Encode a list of channels into a raw KV
  *
@@ -239,7 +239,7 @@ simple_cap_proto_kv_t *encode_kv_interfacelist(const char **interfaces,
  * Null on failure
  *
  */
-simple_cap_proto_kv_t *encode_kv_channels(const char **channels, size_t len);
+simple_cap_proto_kv_t *encode_kv_channels(char **channels, size_t len);
 
 /* Encode a CHANHOP KV pair
  *
@@ -250,7 +250,7 @@ simple_cap_proto_kv_t *encode_kv_channels(const char **channels, size_t len);
  * Null on failure
  *
  */
-simple_cap_proto_kv_t *encode_kv_chanhop(double rate, const char **channels, size_t len);
+simple_cap_proto_kv_t *encode_kv_chanhop(double rate, char **channels, size_t len);
 
 #define MSGFLAG_NONE    0
 #define MSGFLAG_DEBUG   1
