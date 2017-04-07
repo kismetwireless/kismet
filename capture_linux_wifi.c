@@ -55,6 +55,7 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <dirent.h>
 
 #include <unistd.h>
 #include <errno.h>
@@ -96,10 +97,85 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition)
     char *placeholder = NULL;
     int placeholder_len;
 
-    char *pcapfname = NULL;
 
-    struct stat sbuf;
+    return 1;
+}
 
+int list_callback(kis_capture_handler_t *caph, uint32_t seqno) {
+    DIR *devdir;
+    struct dirent *devfile;
+    char errstr[STATUS_MAX];
+
+    int ret;
+
+    /* Basic list of devices */
+    typedef struct wifi_list {
+        char *device;
+        char *flags;
+        struct wifi_list *next;
+    } wifi_list_t; 
+
+    wifi_list_t *devs = NULL;
+    size_t num_devs = 0;
+
+    char **devices = NULL;
+    char **flags = NULL;
+    unsigned int i;
+
+    if ((devdir = opendir("/sys/class/net/")) == NULL) {
+        fprintf(stderr, "debug - no /sys/class/net dir?\n");
+
+        return cf_send_listresp(caph, seqno, 1, NULL, NULL, NULL, 0);
+    }
+
+    /* Look at the files in the sys dir and see if they're wi-fi */
+    while ((devfile = readdir(devdir)) != NULL) {
+        /* if we can get the current channel with simple iwconfig ioctls
+         * it's definitely a wifi device; even mac80211 devices respond 
+         * to it */
+        if (iwconfig_get_channel(devfile->d_name, errstr) > 0) {
+            wifi_list_t *d = (wifi_list_t *) sizeof(wifi_list_t);
+            fprintf(stderr, "debug - found wireless device %s\n", devfile->d_name);
+            num_devs++;
+            d->device = strdup(devfile->d_name);
+            d->flags = NULL;
+            d->next = devs;
+            devs = d;
+        }
+    }
+
+    closedir(devdir);
+
+    if (num_devs == 0) {
+        return cf_send_listresp(caph, seqno, 1, NULL, NULL, NULL, 0);
+    }
+
+    devices = (char **) malloc(sizeof(char *) * num_devs);
+    flags = (char **) malloc(sizeof(char *) * num_devs);
+
+    i = 0;
+    while (devs != NULL) {
+        wifi_list_t *td = devs->next;
+        devices[i] = devs->device;
+        flags[i] = devs->flags;
+
+        free(devs);
+        devs = td;
+
+        i++;
+    }
+
+    ret = cf_send_listresp(caph, seqno, 1, NULL, devices, flags, num_devs);
+
+    for (i = 0; i < num_devs; i++) {
+        if (devices[i] != NULL)
+            free(devices[i]);
+        if (flags[i] != NULL)
+            free(flags[i]);
+    }
+
+    free(devices);
+    free(flags);
 
     return 1;
 }
