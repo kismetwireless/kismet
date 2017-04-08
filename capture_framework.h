@@ -276,6 +276,7 @@ int cf_handle_rx_data(kis_capture_handler_t *caph);
  *
  * CALLERS SHOULD ALLOCATE AN ADDITIONAL BYTE FOR NULL TERMINATION when extracting
  * this string, the LENGTH RETURNED IS THE ABSOLUTE LENGTH INSIDE THE DEFINITION.
+ * Length is suitable for passing to strndup().
  *
  * Returns:
  * -1   Error
@@ -283,6 +284,40 @@ int cf_handle_rx_data(kis_capture_handler_t *caph);
  *  1+  Length of definition
  */
 int cf_get_DEFINITION(char **ret_definition, simple_cap_proto_frame_t *in_frame);
+
+/* Extract a channel set string from a packet, assuming it contains a
+ * 'CHANSET' KV pair.
+ *
+ * If available, returns a pointer to the channel in the packet in
+ * ret_channel, and returns the length of the channel.
+ *
+ * Length is suitable for passing to strndup() to copy the channel string.
+ *
+ * Returns:
+ * -1   Error
+ *  0   No CHANSET key found
+ *  1+  Length of channel string
+ */
+int cf_get_CHANSET(char **ret_definition, simple_cap_proto_frame_t *in_frame);
+
+/* Extract a channel hop command from a packet, assuming it contains a 'CHANHOP'
+ * kv pair.
+ *
+ * Returns the hop rate in *ret_hop_rate.
+ *
+ * *ALLOCATES* a new array of strings in **ret_channel_list *which the caller is 
+ * responsible for freeing*.  The caller must free both the channel string and the
+ * overall list.
+ *
+ * Returns the number of channels in *ret_channel_list_sz.
+ *
+ * Returns:
+ * -1   Error
+ *  0   No CHANHOP key found
+ *  1+  Number of channels in chanhop command
+ */
+int cf_get_CHANHOP(double *hop_rate, char ***ret_channel_list, 
+        size_t *ret_channel_list_sz, simple_cap_proto_frame_t *in_frame);
 
 /* Handle the sockets in a select() loop; this function will block until it
  * encounters an error or gets a shutdown command.

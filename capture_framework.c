@@ -18,6 +18,7 @@
 
 #include <string.h>
 
+#include "msgpuck.h"
 #include "capture_framework.h"
 
 int cf_parse_interface(char **ret_interface, char *definition) {
@@ -573,6 +574,100 @@ int cf_get_DEFINITION(char **ret_definition, simple_cap_proto_frame_t *in_frame)
 
     *ret_definition = (char *) def_kv->object;
     return def_len;
+}
+
+int cf_get_CHANSET(char **ret_definition, simple_cap_proto_frame_t *in_frame) {
+    simple_cap_proto_kv_t *ch_kv = NULL;
+    int ch_len;
+
+    ch_len = find_simple_cap_proto_kv(in_frame, "CHANSET", &ch_kv);
+
+    if (ch_len <= 0) {
+        *ret_definition = NULL;
+        return ch_len;
+    }
+
+    *ret_definition = (char *) ch_kv->object;
+    return ch_len;
+}
+
+int cf_get_CHANHOP(double *hop_rate, char ***ret_channel_list,
+        size_t *ret_channel_list_sz, simple_cap_proto_frame_t *in_frame) {
+    simple_cap_proto_kv_t *ch_kv = NULL;
+    int ch_len;
+
+    /* msgpuck validation */
+    const char *mp_end;
+    const char *mp_buf;
+    int mp_ret;
+    const char *sval;
+    uint32_t sval_len;
+    uint32_t dict_size, chan_size;
+    uint32_t dict_itr, chan_itr;
+
+    *ret_channel_list = NULL;
+    *ret_channel_list_sz = 0;
+    *hop_rate = 0;
+
+    ch_len = find_simple_cap_proto_kv(in_frame, "CHANHOP", &ch_kv);
+
+    if (ch_len <= 0) {
+        return ch_len;
+    }
+
+    /* Validate the msgpack data before we try to parse it */
+
+    mp_buf = (char *) ch_kv->object;
+    mp_end = mp_buf + ntohl(ch_kv->header.obj_sz);
+
+    if ((mp_ret = mp_check(&mp_buf, mp_end)) != 0 ||
+            mp_buf != mp_end) {
+        fprintf(stderr, "debug - chanhop failed mp_check\n");
+        return -1;
+    }
+
+    /* Reset the buffer position to the start of the object */
+    mp_buf = (char *) ch_kv->object;
+
+    /* Get all the elements in the dictionary */
+    dict_size = mp_decode_map(&mp_buf);
+    for (dict_itr = 0; dict_itr < dict_size; dict_itr++) {
+        sval = mp_decode_str(&mp_buf, &sval_len);
+
+        if (strncasecmp(sval, "rate", sval_len) == 0) {
+            *hop_rate = mp_decode_double(&mp_buf);
+        } else if (strncasecmp(sval, "channels", sval_len) == 0) {
+            if (*ret_channel_list != NULL) {
+                fprintf(stderr, "debug - duplicate channels list in chanhop\n");
+                return -1;
+            }
+
+            chan_size = mp_decode_array(&mp_buf);
+
+            if (chan_size > 0) {
+                *ret_channel_list = (char **) malloc(sizeof(char *) * chan_size);
+                if (*ret_channel_list == NULL) {
+                    fprintf(stderr, "debug - chanhop failed to allocate channels\n");
+                    return -1;
+                }
+
+                for (chan_itr = 0; chan_itr < chan_size; chan_itr++) {
+                    /* Re-use our sval */
+                    sval = mp_decode_str(&mp_buf, &sval_len);
+
+                    /* Dupe the channel into our list */
+                    *ret_channel_list[chan_itr] = strndup(sval, sval_len);
+                }
+
+                *ret_channel_list_sz = chan_size;
+            } else {
+                *ret_channel_list_sz = 0;
+                *ret_channel_list = NULL;
+            }
+        }
+    }
+    
+    return chan_size;
 }
 
 void cf_handler_loop(kis_capture_handler_t *caph) {
