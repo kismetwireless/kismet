@@ -673,15 +673,10 @@ int validate_simple_cap_proto_header(simple_cap_proto_t *in_packet) {
     in_packet->header_checksum = 0;
     in_packet->data_checksum = 0;
 
-    /* Checksum the contents */
+    /* Checksum the header only */
     calc_csum = adler32_csum((uint8_t *) in_packet, sizeof(simple_cap_proto_t));
 
     if (original_hcsum != calc_csum)
-        return -1;
-
-    calc_csum = adler32_csum((uint8_t *) in_packet, ntohl(in_packet->packet_sz));
-
-    if (original_dcsum != calc_csum)
         return -1;
 
     /* Restore the contents */
@@ -696,6 +691,12 @@ int validate_simple_cap_proto(simple_cap_proto_t *in_packet) {
     uint32_t original_hcsum = ntohl(in_packet->header_checksum);
     uint32_t original_dcsum = ntohl(in_packet->data_checksum);
     uint32_t calc_csum;
+
+    /* KV validation */
+    simple_cap_proto_frame_t *frame = (simple_cap_proto_frame_t *) in_packet;
+    unsigned int i;
+    size_t kv_pos;
+    simple_cap_proto_kv_t *kv;
 
     /* Zero csum field in packet */
     in_packet->header_checksum = 0;
@@ -715,6 +716,27 @@ int validate_simple_cap_proto(simple_cap_proto_t *in_packet) {
     /* Restore the contents */
     in_packet->header_checksum = htonl(original_hcsum);
     in_packet->data_checksum = htonl(original_dcsum);
+
+    if (ntohl(frame->header.num_kv_pairs) != 0 && 
+                ntohl(frame->header.packet_sz) - sizeof(simple_cap_proto_t) <
+                sizeof(simple_cap_proto_kv_t)) {
+        /* invalid packet - it claims to have KV pairs but can't fit one */
+        return -1;
+    }
+
+    /* Validate the lengths of the KV pairs */
+    kv_pos = 0;
+    for (i = 0; i < ntohl(frame->header.num_kv_pairs); i++) {
+        kv = (simple_cap_proto_kv_t *) &(frame->data[kv_pos]);
+        
+        /* Is there room for this KV? */
+        if (kv_pos + sizeof(simple_cap_proto_t) + ntohl(kv->header.obj_sz) +
+                sizeof(simple_cap_proto_kv_t) > ntohl(in_packet->packet_sz)) {
+            return -1;
+        }
+
+        kv_pos = ntohl(kv->header.obj_sz) + sizeof(simple_cap_proto_kv_t);
+    }
 
     return 1;
 }
