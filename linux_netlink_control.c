@@ -262,7 +262,7 @@ nla_put_failure:
 #endif
 }
 
-int mac80211_setchannel_cache(const char *interface, void *handle,
+int mac80211_set_channel_cache(const char *interface, void *handle,
 							  void *family, int channel,
 							  unsigned int chmode, char *errstr) {
 #ifndef HAVE_LINUX_NETLINK
@@ -317,7 +317,7 @@ nla_put_failure:
 #endif
 }
 
-int mac80211_setchannel(const char *interface, int channel, 
+int mac80211_set_channel(const char *interface, int channel, 
 						unsigned int chmode, char *errstr) {
 #ifndef HAVE_LINUX_NETLINK
 	snprintf(errstr, STATUS_MAX, "Kismet was not compiled with netlink/mac80211 "
@@ -333,8 +333,84 @@ int mac80211_setchannel(const char *interface, int channel,
 		return -1;
 
 	int ret = 
-		mac80211_setchannel_cache(interface, (void *) nl_handle,
-								  (void *) nl80211, channel, chmode, errstr);
+		mac80211_set_channel_cache(interface, (void *) nl_handle,
+                (void *) nl80211, channel, chmode, errstr);
+
+	mac80211_disconnect(nl_handle, nl_cache);
+
+	return ret;
+#endif
+}
+
+int mac80211_set_frequency_cache(const char *interface, void *handle, void *family, 
+        unsigned int control_freq, unsigned int chan_width, 
+        unsigned int center_freq1, unsigned int center_freq2,
+        char *errstr) {
+#ifndef HAVE_LINUX_NETLINK
+	snprintf(errstr, STATUS_MAX, "Kismet was not compiled with netlink/mac80211 "
+			 "support, check the output of ./configure for why");
+    return -1;
+#else
+	struct nl_sock *nl_handle = (struct nl_sock *) handle;
+	struct genl_family *nl80211 = (struct genl_family *) family;
+	struct nl_msg *msg;
+	int ret = 0;
+
+	if ((msg = nlmsg_alloc()) == NULL) {
+		snprintf(errstr, STATUS_MAX, 
+                "unable to set channel/frequency on interface '%s': unable to "
+                "allocate mac80211 control message.", interface);
+		return -1;
+	}
+
+	genlmsg_put(msg, 0, 0, genl_family_get_id(nl80211), 0, 0, NL80211_CMD_SET_WIPHY, 0);
+	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, if_nametoindex(interface));
+	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY_FREQ, control_freq);
+    NLA_PUT_U32(msg, NL80211_ATTR_CHANNEL_WIDTH, chan_width);
+
+    if (center_freq1 != 0) {
+        NLA_PUT_U32(msg, NL80211_ATTR_CENTER_FREQ1, center_freq1);
+    }
+
+	if ((ret = nl_send_auto_complete(nl_handle, msg)) >= 0) {
+		if ((ret = nl_wait_for_ack(nl_handle)) < 0) 
+			goto nla_put_failure;
+	}
+
+	nlmsg_free(msg);
+
+	return 0;
+
+nla_put_failure:
+	snprintf(errstr, STATUS_MAX, 
+            "unable to set frequency %u %u %u on interface '%s' via mac80211: "
+            "error code %d",
+            control_freq, chan_width, center_freq1, interface, ret);
+	nlmsg_free(msg);
+	return ret;
+#endif
+}
+
+int mac80211_set_frequency(const char *interface, 
+        unsigned int control_freq, unsigned int chan_width,
+        unsigned int center_freq1, unsigned int center_freq2,
+        char *errstr) {
+#ifndef HAVE_LINUX_NETLINK
+	snprintf(errstr, STATUS_MAX, "Kismet was not compiled with netlink/mac80211 "
+			 "support, check the output of ./configure for why");
+    return -1;
+#else
+	struct nl_sock *nl_handle = NULL;
+	struct nl_cache *nl_cache = NULL;
+	struct genl_family *nl80211 = NULL;
+
+	if (mac80211_connect(interface, (void **) &nl_handle, 
+						 (void **) &nl_cache, (void **) &nl80211, errstr) < 0)
+		return -1;
+
+	int ret = 
+		mac80211_set_frequency_cache(interface, (void *) nl_handle, (void *) nl80211, 
+                control_freq, chan_width, center_freq1, center_freq2, errstr);
 
 	mac80211_disconnect(nl_handle, nl_cache);
 

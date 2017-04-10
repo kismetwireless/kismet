@@ -97,10 +97,11 @@ int mac80211_set_channel_cache(const char *interface, void *handle,
  *
  */
 int mac80211_set_frequency(const char *interface, unsigned int control_freq,
-        unsigned int chan_width, unsigned int center_freq1, unsigned int center_freq2);
+        unsigned int chan_width, unsigned int center_freq1, unsigned int center_freq2,
+        char *errstr);
 int mac80211_set_frequency_cache(const char *interface, void *handle, void *family, 
         unsigned int control_freq, unsigned int chan_width, unsigned int center_freq1, 
-        unsigned int center_freq2);
+        unsigned int center_freq2, char *errstr);
 
 /* Get the parent phy of an interface.
  *
