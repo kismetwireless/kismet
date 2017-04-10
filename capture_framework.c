@@ -237,6 +237,32 @@ void cf_handler_spindown(kis_capture_handler_t *caph) {
     pthread_mutex_unlock(&(caph->handler_lock));
 }
 
+void cf_handler_assign_hop_channels(kis_capture_handler_t *caph, char **stringchans,
+        void **privchans, size_t chan_sz, double rate) {
+    size_t szi;
+
+    pthread_mutex_lock(&(caph->handler_lock));
+
+    /* Purge any existing data */
+    for (szi = 0; szi < caph->channel_hop_list_sz; szi++) {
+        if (caph->channel_hop_list[szi] != NULL)
+            free(caph->channel_hop_list[szi]);
+
+        if (caph->chanfree_cb != NULL) {
+            (*(caph->chanfree_cb))(caph->custom_channel_hop_list[szi]);
+        } else if (caph->custom_channel_hop_list[szi] != NULL) {
+            free(caph->custom_channel_hop_list[szi]);
+        }
+    }
+
+    caph->channel_hop_list = stringchans;
+    caph->custom_channel_hop_list = privchans;
+    caph->channel_hop_list_sz = chan_sz;
+    caph->channel_hop_rate = rate;
+
+    pthread_mutex_unlock(&(caph->handler_lock));
+}
+
 int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]) {
     int option_idx;
 

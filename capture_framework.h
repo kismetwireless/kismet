@@ -175,10 +175,13 @@ struct kis_capture_handler {
     int capture_running;
     pthread_t capturethread;
 
-    /* Channel list */
+    /* Hop information:  Original channel list, custom converted hop list (which
+     * MUST be the same length as channel hop list; if a channel cannot be parsed,
+     * put a NULL), hop list size, and rate. */
     char **channel_hop_list;
     void **custom_channel_hop_list;
     size_t channel_hop_list_sz;
+    double channel_hop_rate;
 };
 
 /* Parse an interface name from a definition string.
@@ -237,6 +240,10 @@ void cf_handler_shutdown(kis_capture_handler_t *caph);
  */
 void cf_handler_spindown(kis_capture_handler_t *caph);
 
+/* Assign a channel hopping list processed by a capture binary */
+void cf_handler_assign_hop_channels(kis_capture_handler_t *caph, char **stringchans,
+        void **privchans, size_t chan_sz, double rate);
+
 /* Parse command line options
  *
  * Parse command line for --in-fd, --out-fd, --connect, and populate.
@@ -265,21 +272,30 @@ void cf_handler_set_unknown_cb(kis_capture_handler_t *capf, cf_callback_unknown 
 /* Set the capture function, which runs inside its own thread */
 void cf_handler_set_capture_cb(kis_capture_handler_t *capf, cf_callback_capture cb);
 
+
+
 /* Set random data blob */
 void cf_handler_set_userdata(kis_capture_handler_t *capf, void *userdata);
+
+
 
 /* Initiate the capture thread, which will call the capture callback function in
  * its own thread */
 int cf_handler_launch_capture_thread(kis_capture_handler_t *caph);
 
+
+
 /* Perform a blocking wait, waiting for the ringbuffer to free data */
 void cf_handler_wait_ringbuffer(kis_capture_handler_t *caph);
+
 
 /* Handle data in the rx ringbuffer; called from the select/poll loop.
  * Calls callbacks for packet types automatically when a complete packet is
  * received.
  */
 int cf_handle_rx_data(kis_capture_handler_t *caph);
+
+
 
 /* Extract a definition string from a packet, assuming it contains a 
  * 'DEFINITION' KV pair.
