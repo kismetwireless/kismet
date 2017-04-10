@@ -50,23 +50,10 @@
  *      This occurs once Kismet has identified what datasource handles a source
  *      definition, and should actually open the device.
  *
- *  chanset
- *      If present, called when the capture binary receives a CHANSET command.
- *      This is called when the source is locked to a single channel, and the
- *      channel is sent as a complex channel string definition - for instance
- *      '2412MHz', '2.412GHz', '1', '1HT40+' would all be valid channel strings;
- *      it is up to the source to interpret them.
- *
- *  chanhop
- *      If present, called when the capture binary receives a CHANHOP command.
- *      This configures the basic channel hopping pattern.  Channels are passed
- *      as complex strings.
- *      Sources are encouraged to translate the channels to an internal format
- *      and populate the callback framework channel cache.  These parsed
- *      strings will then be passed to the hw_channel_set callback, to prevent
- *      a full string parse every hop event.
- *      Internal formats are best described by a custom struct, and are stored in
- *      the framework as a void*
+ *  chantranslate
+ *      If present, called when the capture binary sets a channel; this is expected
+ *      to return an allocated private channel record.  This is used to convert
+ *      the channels from strings to something which does not need to be parsed.
  *
  *  chancontrol
  *      If present, called when the capture binary sets a channel; this is called
@@ -113,9 +100,7 @@ typedef int (*cf_callback_listdevices)(kis_capture_handler_t *, uint32_t);
 typedef int (*cf_callback_probe)(kis_capture_handler_t *, uint32_t, char *);
 typedef int (*cf_callback_open)(kis_capture_handler_t *, uint32_t, char *);
 
-typedef int (*cf_callback_chanset)(kis_capture_handler_t *, uint32_t, char *);
-typedef int (*cf_callback_chanhop)(kis_capture_handler_t *, uint32_t,
-        double, char **, size_t);
+typedef void *(*cf_callback_chantranslate)(kis_capture_handler_t *, char *);
 typedef int (*cf_callback_chancontrol)(kis_capture_handler_t *, uint32_t, void *);
 typedef void (*cf_callback_chanfree)(void *);
 
@@ -158,8 +143,7 @@ struct kis_capture_handler {
     cf_callback_probe probe_cb;
     cf_callback_open open_cb;
 
-    cf_callback_chanset chanset_cb;
-    cf_callback_chanhop chanhop_cb;
+    cf_callback_chantranslate chantranslate_cb;
     cf_callback_chancontrol chancontrol_cb;
     cf_callback_chanfree chanfree_cb;
 
@@ -265,8 +249,8 @@ void cf_handler_set_listdevices_cb(kis_capture_handler_t *capf,
 void cf_handler_set_probe_cb(kis_capture_handler_t *capf, cf_callback_probe cb);
 void cf_handler_set_open_cb(kis_capture_handler_t *capf, cf_callback_open cb);
 
-void cf_handler_set_chanset_cb(kis_capture_handler_t *capf, cf_callback_chanset cb);
-void cf_handler_set_chanhop_cb(kis_capture_handler_t *capf, cf_callback_chanhop cb);
+void cf_handler_set_chantranslate_cb(kis_capture_handler_t *capf, 
+        cf_callback_chantranslate cb);
 void cf_handler_set_chancontrol_cb(kis_capture_handler_t *capf, 
         cf_callback_chancontrol cb);
 void cf_handler_set_chanfree_cb(kis_capture_handler_t *capf, cf_callback_chanfree cb);

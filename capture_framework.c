@@ -148,8 +148,7 @@ kis_capture_handler_t *cf_handler_init() {
     ch->open_cb = NULL;
     ch->unknown_cb = NULL;
 
-    ch->chanset_cb = NULL;
-    ch->chanhop_cb = NULL;
+    ch->chantranslate_cb = NULL;
     ch->chanfree_cb = NULL;
     ch->chancontrol_cb = NULL;
 
@@ -358,15 +357,10 @@ void cf_handler_set_unknown_cb(kis_capture_handler_t *capf, cf_callback_unknown 
     pthread_mutex_unlock(&(capf->handler_lock));
 }
 
-void cf_handler_set_chanset_cb(kis_capture_handler_t *capf, cf_callback_chanset cb) {
+void cf_handler_set_chantranslate_cb(kis_capture_handler_t *capf, 
+        cf_callback_chantranslate cb) {
     pthread_mutex_lock(&(capf->handler_lock));
-    capf->chanset_cb = cb;
-    pthread_mutex_unlock(&(capf->handler_lock));
-}
-
-void cf_handler_set_chanhop_cb(kis_capture_handler_t *capf, cf_callback_chanhop cb) {
-    pthread_mutex_lock(&(capf->handler_lock));
-    capf->chanhop_cb = cb;
+    capf->chantranslate_cb = cb;
     pthread_mutex_unlock(&(capf->handler_lock));
 }
 
@@ -600,7 +594,9 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
         char *cdef, *chanset_channel;
         double chanhop_rate;
         char **chanhop_channels;
+        void **chanhop_priv_channels;
         size_t chanhop_channels_sz, szi;
+        void *translate_chan;
         int r;
 
         fprintf(stderr, "DEBUG - Got CONFIGURE request\n");
@@ -613,7 +609,7 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
                     0, "Unable to parse CHANSET KV");
             cbret = -1;
         } else if (r > 0) {
-            if (caph->chanset_cb == NULL) {
+            if (caph->chancontrol_cb == NULL) {
                 pthread_mutex_unlock(&(caph->handler_lock));
                 cf_send_configresp(caph, ntohl(cap_proto_frame->header.sequence_number),
                         0, "Source does not support setting channel");
@@ -621,11 +617,28 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
             } else {
                 chanset_channel = strndup(cdef, r);
 
-                cbret = (*(caph->chanset_cb))(caph,
+                if (caph->chantranslate_cb != NULL) {
+                    translate_chan = (*(caph->chantranslate_cb))(caph, chanset_channel);
+                } else {
+                    translate_chan = strdup(chanset_channel);
+                }
+
+                cbret = (*(caph->chancontrol_cb))(caph,
+                        ntohl(cap_proto_frame->header.sequence_number), translate_chan);
+
+                /* Send a response based on the channel set success */
+                cf_send_configresp_channel(caph, 
                         ntohl(cap_proto_frame->header.sequence_number), 
-                        chanset_channel);
+                        cbret >= 0, NULL, chanset_channel);
+
+                /* Free our channel copies */
 
                 free(chanset_channel);
+
+                if (caph->chanfree_cb != NULL)
+                    (*(caph->chanfree_cb))(translate_chan);
+                else
+                    free(translate_chan);
 
                 pthread_mutex_unlock(&(caph->handler_lock));
             }
@@ -635,37 +648,48 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
             r = cf_get_CHANHOP(&chanhop_rate, &chanhop_channels, &chanhop_channels_sz,
                     cap_proto_frame);
 
-            if (r < 0) {
+            if (r < 0 || chanhop_channels_sz == 0) {
                 cf_send_configresp(caph, ntohl(cap_proto_frame->header.sequence_number),
                         0, "Unable to parse CHANHOP KV");
                 cbret = -1;
             } else if (r > 0) {
-                if (caph->chanhop_cb == NULL) {
+                if (caph->chancontrol_cb == NULL) {
                     pthread_mutex_unlock(&(caph->handler_lock));
                     cf_send_configresp(caph, 
                             ntohl(cap_proto_frame->header.sequence_number),
-                            0, "Source does not support setting channelhop");
+                            0, "Source does not support setting channel");
                     cbret = -1;
                 } else {
-                    cbret = (*(caph->chanhop_cb))(caph,
-                            ntohl(cap_proto_frame->header.sequence_number), 
+                    /* Translate all the channels, or dupe them as strings */
+                    chanhop_priv_channels = 
+                        (void **) malloc(sizeof(void *) * chanhop_channels_sz);
+
+                    for (szi = 0; szi < chanhop_channels_sz; szi++) {
+                        if (caph->chantranslate_cb != NULL) {
+                            chanhop_priv_channels[szi] = 
+                                (*(caph->chantranslate_cb))(caph, 
+                                    chanhop_channels[szi]);
+                        } else {
+                            chanhop_priv_channels[szi] = strdup(chanhop_channels[szi]);
+                        }
+                    }
+
+                    /* Set the hop data, which will handle our thread */
+                    cf_handler_assign_hop_channels(caph, chanhop_channels,
+                            chanhop_priv_channels, chanhop_channels_sz, chanhop_rate);
+
+                    /* Return a completion, and we do NOT free the channel lists we
+                     * dynamically allocated out of the buffer with cf_get_CHANHOP, as
+                     * we're now using them for keeping the channel record in the
+                     * caph */
+                    cf_send_configresp_chanhop(caph, 
+                            ntohl(cap_proto_frame->header.sequence_number), 1, NULL,
                             chanhop_rate, chanhop_channels, chanhop_channels_sz);
 
                     pthread_mutex_unlock(&(caph->handler_lock));
-
                 }
-
-                /* Free the channels */
-                for (szi = 0; szi < chanhop_channels_sz; szi++) {
-                    if (chanhop_channels[szi] != NULL)
-                        free(chanhop_channels[szi]);
-                }
-
-                free(chanhop_channels);
             }
-
         }
-
     } else {
         fprintf(stderr, "DEBUG - got unhandled request - '%.16s'\n", cap_proto_frame->header.type);
 
