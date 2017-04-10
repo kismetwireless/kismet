@@ -147,9 +147,11 @@ kis_capture_handler_t *cf_handler_init() {
     ch->probe_cb = NULL;
     ch->open_cb = NULL;
     ch->unknown_cb = NULL;
+
     ch->chanset_cb = NULL;
     ch->chanhop_cb = NULL;
     ch->chanfree_cb = NULL;
+    ch->chancontrol_cb = NULL;
 
     ch->userdata = NULL;
 
@@ -330,6 +332,13 @@ void cf_handler_set_chanhop_cb(kis_capture_handler_t *capf, cf_callback_chanhop 
     pthread_mutex_unlock(&(capf->handler_lock));
 }
 
+void cf_handler_set_chancontrol_cb(kis_capture_handler_t *capf,
+        cf_callback_chancontrol cb) {
+    pthread_mutex_lock(&(capf->handler_lock));
+    capf->chancontrol_cb = cb; 
+    pthread_mutex_unlock(&(capf->handler_lock));
+}
+
 void cf_handler_set_chanfree_cb(kis_capture_handler_t *capf, cf_callback_chanfree cb) {
     pthread_mutex_lock(&(capf->handler_lock));
     capf->chanfree_cb = cb;
@@ -407,7 +416,7 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
     uint32_t packet_sz;
 
     /* Callback ret */
-    int cbret;
+    int cbret = -1;
 
     rb_available = kis_simple_ringbuf_used(caph->in_ringbuf);
 
@@ -549,6 +558,76 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
 
             pthread_mutex_unlock(&(caph->handler_lock));
         }
+    } else if (strncasecmp(cap_proto_frame->header.type, "CONFIGURE", 16) == 0) {
+        char *cdef, *chanset_channel;
+        double chanhop_rate;
+        char **chanhop_channels;
+        size_t chanhop_channels_sz, szi;
+        int r;
+
+        fprintf(stderr, "DEBUG - Got CONFIGURE request\n");
+
+        /* Look to see if we have a CHANSET command */
+        r = cf_get_CHANSET(&cdef, cap_proto_frame);
+
+        if (r < 0) {
+            cf_send_configresp(caph, ntohl(cap_proto_frame->header.sequence_number),
+                    0, "Unable to parse CHANSET KV");
+            cbret = -1;
+        } else if (r > 0) {
+            if (caph->chanset_cb == NULL) {
+                pthread_mutex_unlock(&(caph->handler_lock));
+                cf_send_configresp(caph, ntohl(cap_proto_frame->header.sequence_number),
+                        0, "Source does not support setting channel");
+                cbret = -1;
+            } else {
+                chanset_channel = strndup(cdef, r);
+
+                cbret = (*(caph->chanset_cb))(caph,
+                        ntohl(cap_proto_frame->header.sequence_number), 
+                        chanset_channel);
+
+                free(chanset_channel);
+
+                pthread_mutex_unlock(&(caph->handler_lock));
+            }
+        } else {
+            /* We didn't find a CHANSET, look for CHANHOP.  We only respect one;
+             * we'll never look at a CHANHOP if we got a CHANSET */
+            r = cf_get_CHANHOP(&chanhop_rate, &chanhop_channels, &chanhop_channels_sz,
+                    cap_proto_frame);
+
+            if (r < 0) {
+                cf_send_configresp(caph, ntohl(cap_proto_frame->header.sequence_number),
+                        0, "Unable to parse CHANHOP KV");
+                cbret = -1;
+            } else if (r > 0) {
+                if (caph->chanhop_cb == NULL) {
+                    pthread_mutex_unlock(&(caph->handler_lock));
+                    cf_send_configresp(caph, 
+                            ntohl(cap_proto_frame->header.sequence_number),
+                            0, "Source does not support setting channelhop");
+                    cbret = -1;
+                } else {
+                    cbret = (*(caph->chanhop_cb))(caph,
+                            ntohl(cap_proto_frame->header.sequence_number), 
+                            chanhop_rate, chanhop_channels, chanhop_channels_sz);
+
+                    pthread_mutex_unlock(&(caph->handler_lock));
+
+                }
+
+                /* Free the channels */
+                for (szi = 0; szi < chanhop_channels_sz; szi++) {
+                    if (chanhop_channels[szi] != NULL)
+                        free(chanhop_channels[szi]);
+                }
+
+                free(chanhop_channels);
+            }
+
+        }
+
     } else {
         fprintf(stderr, "DEBUG - got unhandled request - '%.16s'\n", cap_proto_frame->header.type);
 
@@ -1277,3 +1356,150 @@ int cf_send_data(kis_capture_handler_t *caph,
 
     return cf_stream_packet(caph, "DATA", kv_pairs, kv_pos);
 }
+
+int cf_send_configresp(kis_capture_handler_t *caph, unsigned int seqno, 
+        unsigned int success, const char *msg) {
+    size_t num_kvs = 1;
+    size_t kv_pos = 0;
+    size_t kvi;
+
+    /* Actual KV pairs we encode into the packet */
+    simple_cap_proto_kv_t **kv_pairs;
+
+    if (msg != NULL)
+        num_kvs++;
+
+    kv_pairs = 
+        (simple_cap_proto_kv_t **) malloc(sizeof(simple_cap_proto_kv_t *) * num_kvs);
+
+    if (msg != NULL) {
+        kv_pairs[kv_pos] = encode_kv_message(msg, 
+                success ? MSGFLAG_INFO : MSGFLAG_ERROR);
+
+        if (kv_pairs[kv_pos] == NULL) {
+            free(kv_pairs);
+            return -1;
+        }
+
+        kv_pairs++;
+    }
+
+    kv_pairs[kv_pos] = encode_kv_success(success, seqno);
+
+    if (kv_pairs[kv_pos] == NULL) {
+        for (kvi = 0; kvi < kv_pos; kvi++) 
+            free(kv_pairs[kvi]);
+        free(kv_pairs);
+        return -1;
+    }
+
+    return cf_stream_packet(caph, "CONFIGRESP", kv_pairs, num_kvs);
+}
+
+int cf_send_configresp_channel(kis_capture_handler_t *caph, unsigned int seqno, 
+        unsigned int success, const char *msg, const char *channel) {
+    size_t num_kvs = 1;
+    size_t kv_pos = 0;
+    size_t kvi;
+
+    /* Actual KV pairs we encode into the packet */
+    simple_cap_proto_kv_t **kv_pairs;
+
+    if (msg != NULL)
+        num_kvs++;
+
+    if (channel != NULL)
+        num_kvs++;
+
+    kv_pairs = 
+        (simple_cap_proto_kv_t **) malloc(sizeof(simple_cap_proto_kv_t *) * num_kvs);
+
+    if (msg != NULL) {
+        kv_pairs[kv_pos] = encode_kv_message(msg, 
+                success ? MSGFLAG_INFO : MSGFLAG_ERROR);
+
+        if (kv_pairs[kv_pos] == NULL) {
+            free(kv_pairs);
+            return -1;
+        }
+
+        kv_pairs++;
+    }
+
+    if (channel != NULL) {
+        kv_pairs[kv_pos] = encode_kv_channel(channel);
+
+        if (kv_pairs[kv_pos] == NULL) {
+            for (kvi = 0; kvi < kv_pos; kvi++) 
+                free(kv_pairs[kvi]);
+            free(kv_pairs);
+            return -1;
+        }
+    }
+
+    kv_pairs[kv_pos] = encode_kv_success(success, seqno);
+
+    if (kv_pairs[kv_pos] == NULL) {
+        for (kvi = 0; kvi < kv_pos; kvi++) 
+            free(kv_pairs[kvi]);
+        free(kv_pairs);
+        return -1;
+    }
+
+    return cf_stream_packet(caph, "CONFIGRESP", kv_pairs, num_kvs);
+}
+
+int cf_send_configresp_chanhop(kis_capture_handler_t *caph, unsigned int seqno, 
+        unsigned int success, const char *msg, double hop_rate,
+        char **channel_list, size_t channel_list_sz) {
+    size_t num_kvs = 1;
+    size_t kv_pos = 0;
+    size_t kvi;
+
+    /* Actual KV pairs we encode into the packet */
+    simple_cap_proto_kv_t **kv_pairs;
+
+    if (msg != NULL)
+        num_kvs++;
+
+    if (channel_list_sz != 0)
+        num_kvs++;
+
+    kv_pairs = 
+        (simple_cap_proto_kv_t **) malloc(sizeof(simple_cap_proto_kv_t *) * num_kvs);
+
+    if (msg != NULL) {
+        kv_pairs[kv_pos] = encode_kv_message(msg, 
+                success ? MSGFLAG_INFO : MSGFLAG_ERROR);
+
+        if (kv_pairs[kv_pos] == NULL) {
+            free(kv_pairs);
+            return -1;
+        }
+
+        kv_pairs++;
+    }
+
+    if (channel_list_sz != 0) {
+        kv_pairs[kv_pos] = encode_kv_chanhop(hop_rate, channel_list, channel_list_sz);
+
+        if (kv_pairs[kv_pos] == NULL) {
+            for (kvi = 0; kvi < kv_pos; kvi++) 
+                free(kv_pairs[kvi]);
+            free(kv_pairs);
+            return -1;
+        }
+    }
+
+    kv_pairs[kv_pos] = encode_kv_success(success, seqno);
+
+    if (kv_pairs[kv_pos] == NULL) {
+        for (kvi = 0; kvi < kv_pos; kvi++) 
+            free(kv_pairs[kvi]);
+        free(kv_pairs);
+        return -1;
+    }
+
+    return cf_stream_packet(caph, "CONFIGRESP", kv_pairs, num_kvs);
+}
+

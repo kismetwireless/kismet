@@ -68,6 +68,10 @@
  *      Internal formats are best described by a custom struct, and are stored in
  *      the framework as a void*
  *
+ *  chancontrol
+ *      If present, called when the capture binary sets a channel; this is called
+ *      with the interpreted channel data passed as a void*
+ *
  *  chanfree
  *      If present, called when the capture binary needs to purge the list of
  *      internally formatted channels.  Called once for each custom channel.
@@ -108,16 +112,17 @@ typedef struct kis_capture_handler kis_capture_handler_t;
 typedef int (*cf_callback_listdevices)(kis_capture_handler_t *, uint32_t);
 typedef int (*cf_callback_probe)(kis_capture_handler_t *, uint32_t, char *);
 typedef int (*cf_callback_open)(kis_capture_handler_t *, uint32_t, char *);
+
 typedef int (*cf_callback_chanset)(kis_capture_handler_t *, uint32_t, char *);
 typedef int (*cf_callback_chanhop)(kis_capture_handler_t *, uint32_t,
         double, char **, size_t);
+typedef int (*cf_callback_chancontrol)(kis_capture_handler_t *, void *);
+typedef void (*cf_callback_chanfree)(void *);
 
 typedef int (*cf_callback_unknown)(kis_capture_handler_t *, uint32_t, 
         simple_cap_proto_frame_t *);
 
 typedef void (*cf_callback_capture)(kis_capture_handler_t *);
-
-typedef void (*cf_callback_chanfree)(void *);
 
 struct kis_capture_handler {
     /* Descriptor pair */
@@ -152,12 +157,16 @@ struct kis_capture_handler {
     cf_callback_listdevices listdevices_cb;
     cf_callback_probe probe_cb;
     cf_callback_open open_cb;
+
     cf_callback_chanset chanset_cb;
     cf_callback_chanhop chanhop_cb;
+    cf_callback_chancontrol chancontrol_cb;
+    cf_callback_chanfree chanfree_cb;
+
     cf_callback_unknown unknown_cb;
+
     cf_callback_capture capture_cb;
 
-    cf_callback_chanfree chanfree_cb;
 
     /* Arbitrary data blob */
     void *userdata;
@@ -244,10 +253,14 @@ void cf_handler_set_listdevices_cb(kis_capture_handler_t *capf,
         cf_callback_listdevices cb);
 void cf_handler_set_probe_cb(kis_capture_handler_t *capf, cf_callback_probe cb);
 void cf_handler_set_open_cb(kis_capture_handler_t *capf, cf_callback_open cb);
+
 void cf_handler_set_chanset_cb(kis_capture_handler_t *capf, cf_callback_chanset cb);
 void cf_handler_set_chanhop_cb(kis_capture_handler_t *capf, cf_callback_chanhop cb);
-void cf_handler_set_unknown_cb(kis_capture_handler_t *capf, cf_callback_unknown cb);
+void cf_handler_set_chancontrol_cb(kis_capture_handler_t *capf, 
+        cf_callback_chancontrol cb);
 void cf_handler_set_chanfree_cb(kis_capture_handler_t *capf, cf_callback_chanfree cb);
+
+void cf_handler_set_unknown_cb(kis_capture_handler_t *capf, cf_callback_unknown cb);
 
 /* Set the capture function, which runs inside its own thread */
 void cf_handler_set_capture_cb(kis_capture_handler_t *capf, cf_callback_capture cb);
@@ -313,7 +326,7 @@ int cf_get_CHANSET(char **ret_definition, simple_cap_proto_frame_t *in_frame);
  *
  * Returns:
  * -1   Error
- *  0   No CHANHOP key found
+ *  0   No CHANHOP key found or no channels found
  *  1+  Number of channels in chanhop command
  */
 int cf_get_CHANHOP(double *hop_rate, char ***ret_channel_list, 
@@ -444,6 +457,37 @@ int cf_send_data(kis_capture_handler_t *caph,
         simple_cap_proto_kv_t *kv_signal,
         simple_cap_proto_kv_t *kv_gps,
         struct timeval ts, int dlt, uint32_t packet_sz, uint8_t *pack);
+
+/* Send a CONFIGRESP with only a success and optional message
+ *
+ * Returns:
+ * -1   An error occurred
+ *  0   Insufficient space in buffer
+ *  1   Success
+ */
+int cf_send_configresp(kis_capture_handler_t *caph, unsigned int seq,
+        unsigned int success, const char *msg);
+
+/* Send a CONFIGRESP with a fixed channel and optional message 
+ *
+ * Returns:
+ * -1   An error occurred
+ *  0   Insufficient space in buffer
+ *  1   Success
+ */
+int cf_send_configresp_channel(kis_capture_handler_t *caph,
+        unsigned int seq, unsigned int success, const char *msg, const char *channel);
+
+/* Send a CONFIGRESP with a channel hop and optional message.
+ *
+ * Returns:
+ * -1   An error occurred
+ *  0   Insufficient space in buffer
+ *  1   Success
+ */
+int cf_send_configresp_chanhop(kis_capture_handler_t *caph,
+        unsigned int seq, unsigned int success, const char *msg, 
+        double hop_rate, char **channel_list, size_t channel_list_sz);
 
 #endif
 
