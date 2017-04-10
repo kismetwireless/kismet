@@ -157,6 +157,9 @@ int local_channel_from_str(kis_capture_handler_t *caph, char *chanstr,
     r = sscanf(chanstr, "%u%16[^-]-%u", &parsechan, parsetype, &parse_center1);
 
     if (r <= 0) {
+        snprintf(errstr, STATUS_MAX, "unable to parse any channel information from "
+                "channel string '%s'", chanstr);
+        cf_send_message(caph, errstr, MSGFLAG_ERROR);
         *ret_localchan = NULL;
         return -1;
     }
@@ -323,7 +326,6 @@ void local_channel_to_str(local_channel_t *chan, char *chanstr) {
         }
     }
 }
-
 
 int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition) {
     char *placeholder = NULL;
@@ -524,6 +526,31 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
    
     return 0;
 }
+
+/* Set a single channel */
+int chanset_callback(kis_capture_handler_t *caph, uint32_t seqno, char *channel) {
+    /* Try to convert the channel into a local channel definition */
+    local_channel_t *chan;
+    char errstr[STATUS_MAX];
+    int r;
+
+    if (local_channel_from_str(caph, channel, &chan) < 0) {
+        snprintf(errstr, STATUS_MAX, "unable to process channel '%s'", channel);
+        cf_send_configresp(caph, seqno, 0, errstr);
+        return -1;
+    }
+
+    /* Call the channel handling callback directly w/ a seqno, it will dispatch
+     * any configresp data for us w/ info if there's a problem */
+    r = chancontrol_callback(caph, seqno, chan); 
+
+    /* Remember to get rid of the parsed channel */
+    free(chan);
+
+    return r;
+}
+
+
 
 void pcap_dispatch_cb(u_char *user, const struct pcap_pkthdr *header,
         const u_char *data)  {

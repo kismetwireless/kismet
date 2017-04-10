@@ -208,6 +208,16 @@ void cf_handler_free(kis_capture_handler_t *caph) {
     if (caph->custom_channel_hop_list != NULL)
         free(caph->custom_channel_hop_list);
 
+    if (caph->capture_running) {
+        pthread_cancel(caph->capturethread);
+        caph->capture_running = 0;
+    }
+
+    if (caph->hopping_running) {
+        pthread_cancel(caph->hopthread);
+        caph->hopping_running = 0;
+    }
+
     pthread_mutex_destroy(&(caph->out_ringbuf_lock));
     pthread_mutex_destroy(&(caph->handler_lock));
 }
@@ -259,6 +269,8 @@ void cf_handler_assign_hop_channels(kis_capture_handler_t *caph, char **stringch
     caph->custom_channel_hop_list = privchans;
     caph->channel_hop_list_sz = chan_sz;
     caph->channel_hop_rate = rate;
+
+    /* TODO launch hopping thread */
 
     pthread_mutex_unlock(&(caph->handler_lock));
 }

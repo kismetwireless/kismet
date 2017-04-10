@@ -175,6 +175,10 @@ struct kis_capture_handler {
     int capture_running;
     pthread_t capturethread;
 
+    /* Hopping thread */
+    int hopping_running;
+    pthread_t hopthread;
+
     /* Hop information:  Original channel list, custom converted hop list (which
      * MUST be the same length as channel hop list; if a channel cannot be parsed,
      * put a NULL), hop list size, and rate. */
