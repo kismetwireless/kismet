@@ -38,7 +38,7 @@
 #define rintf(x) (float) rint((double) (x))
 #endif
 
-#include "wireless_control.h"
+#include "linux_wireless_control.h"
 
 /* Internal freq conversions */
 float IwFreq2Float(struct iwreq *inreq) {
