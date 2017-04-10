@@ -197,8 +197,10 @@ int main(int argc, char *argv[], char *envp[]) {
 	if (globalreg->fatal_condition)
 		CatchShutdown(-1);
 
-	// Create the packetsourcetracker
-    Packetsourcetracker::create_pst(globalreg);
+    // Create the packetsourcetracker
+    shared_ptr<Packetsourcetracker> packetsourcetracker;
+    packetsourcetracker = Packetsourcetracker::create_pst(globalreg);
+    pollabletracker->RegisterPollable(packetsourcetracker);
 
 	if (globalreg->fatal_condition)
 		CatchShutdown(-1);
