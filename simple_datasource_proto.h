@@ -230,6 +230,16 @@ simple_cap_proto_kv_t *encode_kv_signal(uint32_t signal_dbm, uint32_t signal_rss
 simple_cap_proto_kv_t *encode_kv_interfacelist(char **interfaces, char **options, 
         size_t len);
 
+/* Encode a single channel into a kv 
+ *
+ * Channel is an arbitrary string
+ *
+ * Returns:
+ * Pointer on success
+ * Null on failure
+ */
+simple_cap_proto_kv_t *encode_kv_channel(const char *channel);
+
 /* Encode a list of channels into a raw KV
  *
  * Channels are arbitrary strings.
