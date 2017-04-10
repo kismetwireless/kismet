@@ -65,6 +65,8 @@
 #include "linux_wireless_control.h"
 #include "linux_netlink_control.h"
 
+#include "wifi_ht_channels.h"
+
 /* State tracking, put in userdata */
 typedef struct {
     pcap_t *pd;
@@ -104,6 +106,9 @@ typedef struct {
  * XXVHT160     Channel/frequency XX, VHT 160MHz channel.  Upper pair automatically
  *              derived from channel definition table
  *
+ * XXVHT80-YY   Channel/frequency XX, VHT 80MHz channel, upper pair specified
+ * XXVHT160-YY  Channel/frequency XX, VHT 160MHz channel, upper pair specified
+ *
  * 5, 10, HT, and VHT channels require mac80211 drivers; the old wireless IOCTLs do
  * not support the needed attributes.
  */
@@ -121,14 +126,16 @@ typedef struct {
      * chan_width is set accordingly to one of NL80211_CHAN_WIDTH_, and
      * center_freq1 is set to the corresponding vht center frequency.
      *
+     * If 'unusual_center1' is true, the center_freq1 was not derived
+     * automatically; this is relevant only when printing
+     *
      * For sub-20mhz channels, chan_type is set to 0, chan_width is set 
      * accordingly from NL80211_CHAN_WIDTH_5/10, and center_freq1 is 0.
      */
     unsigned int control_freq;
     unsigned int chan_type;
-
     unsigned int chan_width;
-
+    unsigned int unusual_center1;
     unsigned int center_freq1;
     unsigned int center_freq2;
 } local_channel_t;
@@ -139,12 +146,15 @@ typedef struct {
  * -1   Error parsing channel, ret_localchan will be NULL
  *  0   Success
  */
-int local_channel_from_str(char *chanstr, local_channel_t **ret_localchan) {
-    int parsechan;
+int local_channel_from_str(kis_capture_handler_t *caph, char *chanstr, 
+        local_channel_t **ret_localchan) {
+    unsigned int parsechan, parse_center1;
     char parsetype[16];
     int r;
+    unsigned int ci;
+    char errstr[STATUS_MAX];
 
-    r = sscanf(chanstr, "%u%16s", &parsechan, parsetype);
+    r = sscanf(chanstr, "%u%16[^-]-%u", &parsechan, parsetype, &parse_center1);
 
     if (r <= 0) {
         *ret_localchan = NULL;
@@ -159,7 +169,7 @@ int local_channel_from_str(char *chanstr, local_channel_t **ret_localchan) {
         return 0;
     }
 
-    if (r == 2) {
+    if (r >= 2) {
         (*ret_localchan)->control_freq = parsechan;
 
         if (strcasecmp(parsetype, "w5") == 0) {
@@ -168,15 +178,103 @@ int local_channel_from_str(char *chanstr, local_channel_t **ret_localchan) {
             (*ret_localchan)->chan_width = NL80211_CHAN_WIDTH_10;
         } else if (strcasecmp(parsetype, "ht40-") == 0) {
             (*ret_localchan)->chan_type = NL80211_CHAN_HT40MINUS;
+
+            /* Search for the ht channel record */
+            for (ci = 0; ci < MAX_WIFI_HT_CHANNEL; ci++) {
+                if (wifi_ht_channels[ci].chan == parsechan || 
+                        wifi_ht_channels[ci].freq == parsechan) {
+
+                    if ((wifi_ht_channels[ci].flags & WIFI_HT_HT40MINUS) == 0) {
+                        snprintf(errstr, STATUS_MAX, "requested channel %u as a HT40- "
+                                "channel; this does not appear to be a valid channel "
+                                "for 40MHz operation.", parsechan);
+                        cf_send_message(caph, errstr, MSGFLAG_INFO);
+                    }
+
+                }
+            }
         } else if (strcasecmp(parsetype, "ht40+") == 0) {
             (*ret_localchan)->chan_type = NL80211_CHAN_HT40PLUS;
+
+            /* Search for the ht channel record */
+            for (ci = 0; ci < sizeof(wifi_ht_channels) / 
+                    sizeof (wifi_channel); ci++) {
+                if (wifi_ht_channels[ci].chan == parsechan || 
+                        wifi_ht_channels[ci].freq == parsechan) {
+
+                    if ((wifi_ht_channels[ci].flags & WIFI_HT_HT40PLUS) == 0) {
+                        snprintf(errstr, STATUS_MAX, "requested channel %u as a HT40+ "
+                                "channel; this does not appear to be a valid channel "
+                                "for 40MHz operation.", parsechan);
+                        cf_send_message(caph, errstr, MSGFLAG_INFO);
+                    }
+
+                }
+            }
         } else if (strcasecmp(parsetype, "vht80") == 0) {
             (*ret_localchan)->chan_width = NL80211_CHAN_WIDTH_80;
+
+            /* Do we have a hardcoded 80mhz freq pair? */
+            if (r == 3) {
+                (*ret_localchan)->center_freq1 = parse_center1;
+                (*ret_localchan)->unusual_center1 = 1;
+            } else {
+                /* Search for the vht channel record to find the 80mhz center freq */
+                for (ci = 0; ci < sizeof(wifi_ht_channels) / 
+                        sizeof (wifi_channel); ci++) {
+                    if (wifi_ht_channels[ci].chan == parsechan || 
+                            wifi_ht_channels[ci].freq == parsechan) {
+
+                        if ((wifi_ht_channels[ci].flags & WIFI_HT_HT80) == 0) {
+                            snprintf(errstr, STATUS_MAX, "requested channel %u as a "
+                                    "VHT80 channel; this does not appear to be a valid "
+                                    "channel for 80MHz operation, skipping channel", 
+                                    parsechan);
+                            cf_send_message(caph, errstr, MSGFLAG_ERROR);
+                            free(*ret_localchan);
+                            *ret_localchan = NULL;
+                            return -1;
+                        }
+
+                        (*ret_localchan)->center_freq1 = wifi_ht_channels[ci].freq80;
+                    }
+                }
+            }
         } else if (strcasecmp(parsetype, "vht160") == 0) {
             (*ret_localchan)->chan_width = NL80211_CHAN_WIDTH_160;
-        } 
 
-        /* otherwise turn it into a basic channel; we don't know what to do */
+            /* Do we have a hardcoded 80mhz freq pair? */
+            if (r == 3) {
+                (*ret_localchan)->center_freq1 = parse_center1;
+                (*ret_localchan)->unusual_center1 = 1;
+            } else {
+                /* Search for the vht channel record to find the 160mhz center freq */
+                for (ci = 0; ci < sizeof(wifi_ht_channels) / 
+                        sizeof (wifi_channel); ci++) {
+                    if (wifi_ht_channels[ci].chan == parsechan || 
+                            wifi_ht_channels[ci].freq == parsechan) {
+
+                        if ((wifi_ht_channels[ci].flags & WIFI_HT_HT160) == 0) {
+                            snprintf(errstr, STATUS_MAX, "requested channel %u as a "
+                                    "VHT160 channel; this does not appear to be a "
+                                    "valid channel for 160MHz operation, skipping "
+                                    "channel", parsechan);
+                            cf_send_message(caph, errstr, MSGFLAG_ERROR);
+                            free(*ret_localchan);
+                            *ret_localchan = NULL;
+                        }
+
+                        (*ret_localchan)->center_freq1 = wifi_ht_channels[ci].freq160;
+                    }
+                }
+            }
+        } else {
+            /* otherwise return it as a basic channel; we don't know what to do */
+            snprintf(errstr, STATUS_MAX, "unable to parse attributes on channel "
+                    "'%s', treating as standard non-HT channel.", chanstr);
+            cf_send_message(caph, errstr, MSGFLAG_INFO);
+        }
+
     }
 
     return 0;
@@ -203,10 +301,20 @@ void local_channel_to_str(local_channel_t *chan, char *chanstr) {
                 snprintf(chanstr, STATUS_MAX, "%uW10", chan->control_freq);
                 break;
             case NL80211_CHAN_WIDTH_80:
-                snprintf(chanstr, STATUS_MAX, "%uVHT80", chan->control_freq);
+                if (chan->unusual_center1) {
+                    snprintf(chanstr, STATUS_MAX, "%uVHT80-%u",
+                            chan->control_freq, chan->center_freq1);
+                } else {
+                    snprintf(chanstr, STATUS_MAX, "%uVHT80", chan->control_freq);
+                }
                 break;
             case NL80211_CHAN_WIDTH_160:
-                snprintf(chanstr, STATUS_MAX, "%uVHT160", chan->control_freq);
+                if (chan->unusual_center1) {
+                    snprintf(chanstr, STATUS_MAX, "%uVHT160-%u",
+                            chan->control_freq, chan->center_freq1);
+                } else {
+                    snprintf(chanstr, STATUS_MAX, "%uVHT160", chan->control_freq);
+                }
                 break;
             default:
                 /* Just put the basic freq if we can't figure out what to do */
@@ -353,12 +461,24 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
         } else {
             if (seqno != 0) {
                 /* Send a config response with a reconstituted channel if we're
-                 * configuring the interface */
-
+                 * configuring the interface; re-use errstr as a buffer */
+                local_channel_to_str(channel, errstr);
+                cf_send_configresp_channel(caph, seqno, 1, NULL, errstr);
             }
         }
 
         return 0;
+    } else {
+        /* Otherwise we're using mac80211 which means we need to figure out
+         * what kind of channel we're setting */
+        if (channel->chan_width != 0) {
+            /* An explicit channel width means we need to use _set_freq to set
+             * a control freq, a width, and possibly an extended center frequency
+             * for VHT */
+
+
+        }
+
     }
    
     return 0;
