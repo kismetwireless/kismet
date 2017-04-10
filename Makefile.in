@@ -48,6 +48,7 @@ CAPTURE_PCAPFILE 	= kismet_cap_pcapfile
 CAPTURE_LINUX_WIFI_O = \
 	$(DATASOURCE_COMMON_C) \
 	interface_control.o linux_wireless_control.o linux_netlink_control.o \
+	wifi_ht_channels.o \
 	capture_linux_wifi.o
 CAPTURE_LINUX_WIFI	= kismet_cap_linux_wifi
 
