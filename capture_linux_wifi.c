@@ -442,8 +442,14 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
             /* Sometimes tuning a channel fails; this is only a problem if we fail
              * to tune a channel a bunch of times.  Spit out a tuning error at first;
              * if we continually fail, if we have a seqno we're part of a CONFIGURE
-             * command and we send a configresp, otherwise send an error */
-            if (local_wifi->seq_channel_failure < 10) {
+             * command and we send a configresp, otherwise send an error 
+             *
+             * If seqno == 0 we're inside the chanhop, so we can tolerate failures.
+             * If we're sending an explicit channel change command, error out
+             * immediately.
+             *
+             * */
+            if (local_wifi->seq_channel_failure < 10 && seqno == 0) {
                 snprintf(err, STATUS_MAX, "Could not set channel; ignoring error and "
                         "continuing (%s)", errstr);
                 cf_send_message(caph, err, MSGFLAG_ERROR);
@@ -494,7 +500,11 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
 
         /* Handle channel set results */
         if (r < 0) {
-            if (local_wifi->seq_channel_failure < 10) {
+            /* If seqno == 0 we're inside the chanhop, so we can tolerate failures.
+             * If we're sending an explicit channel change command, error out
+             * immediately.
+             */
+            if (local_wifi->seq_channel_failure < 10 && seqno == 0) {
                 snprintf(err, STATUS_MAX, "Could not set channel; ignoring error "
                         "and continuing (%s)", errstr);
                 cf_send_message(caph, err, MSGFLAG_ERROR);
@@ -549,8 +559,6 @@ int chanset_callback(kis_capture_handler_t *caph, uint32_t seqno, char *channel)
 
     return r;
 }
-
-
 
 void pcap_dispatch_cb(u_char *user, const struct pcap_pkthdr *header,
         const u_char *data)  {
