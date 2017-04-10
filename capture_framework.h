@@ -116,7 +116,7 @@ typedef int (*cf_callback_open)(kis_capture_handler_t *, uint32_t, char *);
 typedef int (*cf_callback_chanset)(kis_capture_handler_t *, uint32_t, char *);
 typedef int (*cf_callback_chanhop)(kis_capture_handler_t *, uint32_t,
         double, char **, size_t);
-typedef int (*cf_callback_chancontrol)(kis_capture_handler_t *, void *);
+typedef int (*cf_callback_chancontrol)(kis_capture_handler_t *, uint32_t, void *);
 typedef void (*cf_callback_chanfree)(void *);
 
 typedef int (*cf_callback_unknown)(kis_capture_handler_t *, uint32_t, 
