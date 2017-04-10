@@ -168,7 +168,6 @@ int main(int argc, char *argv[], char *envp[]) {
     shared_ptr<RootIPCRemote> rootipc(RootIPCRemote::create_rootipcremote(globalreg, "kismet_root"));
 
     globalreg->rootipc = rootipc.get();
-    globalreg->rootipc->SpawnIPC();
 
 	if (globalreg->rootipc->SetChildExecMode(argc, argv) < 0) {
 		fprintf(stderr, "FATAL:  Failed to attach to parent IPC.  Do not run this "
