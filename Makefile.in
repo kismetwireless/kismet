@@ -228,8 +228,11 @@ $(DEPEND): Makefile
 	@echo "Generating dependencies... "
 	@echo > $(DEPEND)
 	@$(CXX) $(CFLAGS) -MM \
-		`echo $(PSO) $(DRONEO) | \
+		`echo $(PSO) $(CSO) | \
 		sed -e "s/\.o/\.cc/g" | sed -e "s/\.mo/\.m/g"` >> $(DEPEND)
+	@$(CC) $(CFLAGS) -MM \
+		`echo $(CAPTURE_PCAPFILE_O) $(CAPTURE_LINUX_WIFI_O) | \
+		sed -e "s/\.o/\.c/g"` >> $(DEPEND)
 
 plugins: Makefile
 	@( export KIS_SRC_DIR=`pwd`; for x in plugin-*/; do echo "PLUGIN: $$x"; ( cd "$$x"; make; ); done )
