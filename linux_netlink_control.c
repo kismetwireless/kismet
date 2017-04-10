@@ -436,9 +436,6 @@ static int nl80211_freqlist_cb(struct nl_msg *msg, void *arg) {
 	struct nl80211_channel_block *chanb = (struct nl80211_channel_block *) arg;
     char channel_str[32];
     int band_ht40, band_ht80, band_ht160;
-
-    /* number of indexed wifi channels from wifi_ht_channels.h */
-    unsigned int num_ht_wifi_channels = sizeof(wifi_ht_channels) / sizeof(wifi_channel);
     unsigned int hti;
 
 	nla_parse(tb_msg, NL80211_ATTR_MAX, genlmsg_attrdata(gnlh, 0),
@@ -518,7 +515,7 @@ static int nl80211_freqlist_cb(struct nl_msg *msg, void *arg) {
             /* Look us up in the wifi_ht_channels list and add channels if we
              * need to add HT capabilities.  We could convert this to a channel
              * but it's better to do a frequency lookup */
-            for (hti = 0; hti < num_ht_wifi_channels; hti++) {
+            for (hti = 0; hti < MAX_WIFI_HT_CHANNEL; hti++) {
                 if (wifi_ht_channels[hti].freq == freq) {
                     if (band_ht40) {
                         if (wifi_ht_channels[hti].flags & WIFI_HT_HT40MINUS) 
@@ -576,7 +573,7 @@ static int nl80211_freqlist_cb(struct nl_msg *msg, void *arg) {
 
             /* Look us up again, this time making a HT-channel string for 
              * each channel */
-            for (hti = 0; hti < num_ht_wifi_channels; hti++) {
+            for (hti = 0; hti < MAX_WIFI_HT_CHANNEL; hti++) {
                 if (wifi_ht_channels[hti].freq == freq) {
                     if (band_ht40) {
                         if (wifi_ht_channels[hti].flags & WIFI_HT_HT40MINUS) {
