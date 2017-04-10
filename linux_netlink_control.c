@@ -593,13 +593,13 @@ static int nl80211_freqlist_cb(struct nl_msg *msg, void *arg) {
 
                     if (band_ht80 && wifi_ht_channels[hti].flags & WIFI_HT_HT80) {
                         snprintf(channel_str, 32, 
-                                "%uHT80", mac80211_freq_to_chan(freq));
+                                "%uVHT80", mac80211_freq_to_chan(freq));
                         chanb->channel_list[num_freq++] = strdup(channel_str);
                     }
 
                     if (band_ht160 && wifi_ht_channels[hti].flags & WIFI_HT_HT160) {
                         snprintf(channel_str, 32, 
-                                "%uHT160", mac80211_freq_to_chan(freq));
+                                "%uVHT160", mac80211_freq_to_chan(freq));
                         chanb->channel_list[num_freq++] = strdup(channel_str);
                     }
 
