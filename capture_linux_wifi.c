@@ -36,11 +36,6 @@
  * the interface - and it needs to continue running as root to be able to control
  * the channels.
  *
- * If an error occurs, it will not be possible to re-escalate privileges; the
- * source will have to be re-opened.  Any error which prevents configuring 
- * the interface or requires re-opening the capture is therefor considered a fatal
- * error.
- *
  */
 
 #include <pcap.h>
@@ -67,9 +62,10 @@
 #include "capture_framework.h"
 
 #include "interface_control.h"
-#include "wireless_control.h"
+#include "linux_wireless_control.h"
 #include "linux_netlink_control.h"
 
+/* State tracking, put in userdata */
 typedef struct {
     pcap_t *pd;
 
@@ -79,11 +75,147 @@ typedef struct {
     int datalink_type;
     int override_dlt;
 
+    /* Do we use mac80211 controls or basic ioctls */
+    int use_mac80211;
+
     /* Cached mac80211 controls */
     void *mac80211_handle;
     void *mac80211_cache;
     void *mac80211_family;
+
+    /* Number of sequential errors setting channel */
+    unsigned int seq_channel_failure;
 } local_wifi_t;
+
+/* Linux Wi-Fi Channels:
+ *
+ * Wi-Fi can use multiple channel widths and encodings which need to be
+ * accounted for.
+ *
+ * Channel formats:
+ *
+ * XXW5         Channel/frequency XX, custom 5MHz channel
+ * XXW10        Channel/frequency XX, custom 10MHz channel
+ * XX           Channel/frequency XX, non-HT standard 20MHz channel
+ * XXHT40+      Channel/frequency XX, HT40+ channel
+ * XXHT40-      Channel/frequency XX, HT40- channel
+ * XXVHT80      Channel/frequency XX, VHT 80MHz channel.  Upper pair automatically
+ *              derived from channel definition table
+ * XXVHT160     Channel/frequency XX, VHT 160MHz channel.  Upper pair automatically
+ *              derived from channel definition table
+ *
+ * 5, 10, HT, and VHT channels require mac80211 drivers; the old wireless IOCTLs do
+ * not support the needed attributes.
+ */
+
+/* Local interpretation of a channel; this lets us parse the string definitions
+ * into a faster non-parsed version, once. */
+typedef struct {
+    /* For stock 20mhz channels, center freq is set to channel and 
+     * chan_type is set to 0/NL80211_CHAN_NO_HT
+     *
+     * For ht40 channels we set only the center freq/chan and the type 
+     * is set to NL80211_CHAN_HT40MINUS/HT40PLUS
+     *
+     * For vht80 and vht160, center freq is set, chan_type is set to 0,
+     * chan_width is set accordingly to one of NL80211_CHAN_WIDTH_, and
+     * center_freq1 is set to the corresponding vht center frequency.
+     *
+     * For sub-20mhz channels, chan_type is set to 0, chan_width is set 
+     * accordingly from NL80211_CHAN_WIDTH_5/10, and center_freq1 is 0.
+     */
+    unsigned int control_freq;
+    unsigned int chan_type;
+
+    unsigned int chan_width;
+
+    unsigned int center_freq1;
+    unsigned int center_freq2;
+} local_channel_t;
+
+/* Convert a string into a local interpretation; allocate ret_localchan.
+ *
+ * Returns:
+ * -1   Error parsing channel, ret_localchan will be NULL
+ *  0   Success
+ */
+int local_channel_from_str(char *chanstr, local_channel_t **ret_localchan) {
+    int parsechan;
+    char parsetype[16];
+    int r;
+
+    r = sscanf(chanstr, "%u%16s", &parsechan, parsetype);
+
+    if (r <= 0) {
+        *ret_localchan = NULL;
+        return -1;
+    }
+
+    *ret_localchan = (local_channel_t *) malloc(sizeof(local_channel_t));
+    memset(*ret_localchan, 0, sizeof(local_channel_t));
+
+    if (r == 1) {
+        (*ret_localchan)->control_freq = parsechan;
+        return 0;
+    }
+
+    if (r == 2) {
+        (*ret_localchan)->control_freq = parsechan;
+
+        if (strcasecmp(parsetype, "w5") == 0) {
+            (*ret_localchan)->chan_width = NL80211_CHAN_WIDTH_5;
+        } else if (strcasecmp(parsetype, "w10") == 0) {
+            (*ret_localchan)->chan_width = NL80211_CHAN_WIDTH_10;
+        } else if (strcasecmp(parsetype, "ht40-") == 0) {
+            (*ret_localchan)->chan_type = NL80211_CHAN_HT40MINUS;
+        } else if (strcasecmp(parsetype, "ht40+") == 0) {
+            (*ret_localchan)->chan_type = NL80211_CHAN_HT40PLUS;
+        } else if (strcasecmp(parsetype, "vht80") == 0) {
+            (*ret_localchan)->chan_width = NL80211_CHAN_WIDTH_80;
+        } else if (strcasecmp(parsetype, "vht160") == 0) {
+            (*ret_localchan)->chan_width = NL80211_CHAN_WIDTH_160;
+        } 
+
+        /* otherwise turn it into a basic channel; we don't know what to do */
+    }
+
+    return 0;
+}
+
+/* Convert a local interpretation of a channel back info a string;
+ * 'chanstr' should hold at least STATUS_MAX characters; we'll never use
+ * that many but it lets us do some cheaty stuff and re-use errstrs */
+void local_channel_to_str(local_channel_t *chan, char *chanstr) {
+    /* Basic channel with no HT/VHT */
+    if (chan->chan_type == 0 && chan->chan_width == 0) {
+        snprintf(chanstr, STATUS_MAX, "%u", chan->control_freq);
+    } else if (chan->chan_type == NL80211_CHAN_HT40MINUS) {
+        snprintf(chanstr, STATUS_MAX, "%uHT40-", chan->control_freq);
+    } else if (chan->chan_type == NL80211_CHAN_HT40PLUS) {
+        snprintf(chanstr, STATUS_MAX, "%uHT40+", chan->control_freq);
+    } else {
+        /* We've got some channel width; work with them */
+        switch (chan->chan_width) {
+            case NL80211_CHAN_WIDTH_5:
+                snprintf(chanstr, STATUS_MAX, "%uW5", chan->control_freq);
+                break;
+            case NL80211_CHAN_WIDTH_10:
+                snprintf(chanstr, STATUS_MAX, "%uW10", chan->control_freq);
+                break;
+            case NL80211_CHAN_WIDTH_80:
+                snprintf(chanstr, STATUS_MAX, "%uVHT80", chan->control_freq);
+                break;
+            case NL80211_CHAN_WIDTH_160:
+                snprintf(chanstr, STATUS_MAX, "%uVHT160", chan->control_freq);
+                break;
+            default:
+                /* Just put the basic freq if we can't figure out what to do */
+                snprintf(chanstr, STATUS_MAX, "%u", chan->control_freq);
+                break;
+        }
+    }
+}
+
 
 int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition) {
     char *placeholder = NULL;
@@ -185,6 +317,53 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno) {
     return 1;
 }
 
+/* Channel control callback; actually set a channel.  Determines if our
+ * custom channel needs a VHT frequency set. */
+int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *privchan) {
+    local_wifi_t *local_wifi = (local_wifi_t *) caph->userdata;
+    local_channel_t *channel = (local_channel_t *) privchan;
+    int r;
+    char errstr[STATUS_MAX];
+    char err[STATUS_MAX];
+
+    if (local_wifi->use_mac80211 == 0) {
+        if ((r = iwconfig_set_channel(local_wifi->interface, 
+                        channel->control_freq, errstr)) < 0) {
+            /* Sometimes tuning a channel fails; this is only a problem if we fail
+             * to tune a channel a bunch of times.  Spit out a tuning error at first;
+             * if we continually fail, if we have a seqno we're part of a CONFIGURE
+             * command and we send a configresp, otherwise send an error */
+            if (local_wifi->seq_channel_failure < 10) {
+                snprintf(err, STATUS_MAX, "Could not set channel; ignoring error and "
+                        "continuing (%s)", errstr);
+                cf_send_message(caph, err, MSGFLAG_ERROR);
+                return 0;
+            } else {
+                snprintf(err, STATUS_MAX, "Repeated failure to set channel: %s",
+                        errstr);
+
+                if (seqno != 0) {
+                    cf_send_configresp(caph, seqno, 0, err);
+                } else {
+                    cf_send_error(caph, err);
+                }
+
+                return -1;
+            }
+        } else {
+            if (seqno != 0) {
+                /* Send a config response with a reconstituted channel if we're
+                 * configuring the interface */
+
+            }
+        }
+
+        return 0;
+    }
+   
+    return 0;
+}
+
 void pcap_dispatch_cb(u_char *user, const struct pcap_pkthdr *header,
         const u_char *data)  {
     kis_capture_handler_t *caph = (kis_capture_handler_t *) user;
@@ -233,7 +412,7 @@ void capture_thread(kis_capture_handler_t *caph) {
     cf_send_error(caph, errstr);
     cf_handler_spindown(caph);
 
-    fprintf(stderr, "debug - pcapfile - capture thread finishing\n");
+    fprintf(stderr, "debug - linux wifi - capture thread finishing\n");
 }
 
 int main(int argc, char *argv[]) {
@@ -243,9 +422,11 @@ int main(int argc, char *argv[]) {
         .cap_interface = NULL,
         .datalink_type = -1,
         .override_dlt = -1,
+        .use_mac80211 = 1,
         .mac80211_cache = NULL,
         .mac80211_handle = NULL,
         .mac80211_family = NULL,
+        .seq_channel_failure = 0,
     };
 
     char errstr[STATUS_MAX];
