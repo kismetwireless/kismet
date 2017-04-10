@@ -459,6 +459,8 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
                 return -1;
             }
         } else {
+            local_wifi->seq_channel_failure = 0;
+
             if (seqno != 0) {
                 /* Send a config response with a reconstituted channel if we're
                  * configuring the interface; re-use errstr as a buffer */
@@ -474,9 +476,48 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
         if (channel->chan_width != 0) {
             /* An explicit channel width means we need to use _set_freq to set
              * a control freq, a width, and possibly an extended center frequency
-             * for VHT */
+             * for VHT; if center1 is 0 _set_frequency will automatically
+             * exclude it and only set the width */
+            r = mac80211_set_frequency_cache(local_wifi->cap_interface,
+                    local_wifi->mac80211_handle, local_wifi->mac80211_family,
+                    channel->control_freq, channel->chan_width,
+                    channel->center_freq1, channel->center_freq2, errstr);
+        } else {
+            /* Otherwise for HT40 and non-HT channels, set the channel w/ any
+             * flags present */
+            r = mac80211_set_channel_cache(local_wifi->cap_interface,
+                    local_wifi->mac80211_handle, local_wifi->mac80211_family,
+                    channel->control_freq, channel->chan_type, errstr);
+        } 
 
+        /* Handle channel set results */
+        if (r < 0) {
+            if (local_wifi->seq_channel_failure < 10) {
+                snprintf(err, STATUS_MAX, "Could not set channel; ignoring error "
+                        "and continuing (%s)", errstr);
+                cf_send_message(caph, err, MSGFLAG_ERROR);
+                return 0;
+            } else {
+                snprintf(err, STATUS_MAX, "Repeated failure to set channel: %s",
+                        errstr);
 
+                if (seqno != 0) {
+                    cf_send_configresp(caph, seqno, 0, err);
+                } else {
+                    cf_send_error(caph, err);
+                }
+
+                return -1;
+            }
+        } else {
+            local_wifi->seq_channel_failure = 0;
+
+            if (seqno != 0) {
+                /* Send a config response with a reconstituted channel if we're
+                 * configuring the interface; re-use errstr as a buffer */
+                local_channel_to_str(channel, errstr);
+                cf_send_configresp_channel(caph, seqno, 1, NULL, errstr);
+            }
         }
 
     }
