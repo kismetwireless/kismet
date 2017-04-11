@@ -348,7 +348,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition)
     return 1;
 }
 
-int list_callback(kis_capture_handler_t *caph, uint32_t seqno) {
+int list_callback(kis_capture_handler_t *caph, uint32_t seqno,
+        char *msg, char ***interfaces, char ***flags) {
     DIR *devdir;
     struct dirent *devfile;
     char errstr[STATUS_MAX];
@@ -365,14 +366,15 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno) {
     wifi_list_t *devs = NULL;
     size_t num_devs = 0;
 
-    char **devices = NULL;
-    char **flags = NULL;
     unsigned int i;
 
     if ((devdir = opendir("/sys/class/net/")) == NULL) {
         fprintf(stderr, "debug - no /sys/class/net dir?\n");
 
-        return cf_send_listresp(caph, seqno, 1, NULL, NULL, NULL, 0);
+        /* Not an error, just nothing to do */
+        *interfaces = NULL;
+        *flags = NULL;
+        return 0;
     }
 
     /* Look at the files in the sys dir and see if they're wi-fi */
@@ -394,17 +396,19 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno) {
     closedir(devdir);
 
     if (num_devs == 0) {
-        return cf_send_listresp(caph, seqno, 1, NULL, NULL, NULL, 0);
+        *interfaces = NULL;
+        *flags = NULL;
+        return 0;
     }
 
-    devices = (char **) malloc(sizeof(char *) * num_devs);
-    flags = (char **) malloc(sizeof(char *) * num_devs);
+    *interfaces = (char **) malloc(sizeof(char *) * num_devs);
+    *flags = (char **) malloc(sizeof(char *) * num_devs);
 
     i = 0;
     while (devs != NULL) {
         wifi_list_t *td = devs->next;
-        devices[i] = devs->device;
-        flags[i] = devs->flags;
+        (*interfaces)[i] = devs->device;
+        (*flags)[i] = devs->flags;
 
         free(devs);
         devs = td;
@@ -412,19 +416,7 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno) {
         i++;
     }
 
-    ret = cf_send_listresp(caph, seqno, 1, NULL, devices, flags, num_devs);
-
-    for (i = 0; i < num_devs; i++) {
-        if (devices[i] != NULL)
-            free(devices[i]);
-        if (flags[i] != NULL)
-            free(flags[i]);
-    }
-
-    free(devices);
-    free(flags);
-
-    return 1;
+    return num_devs;
 }
 
 /* Channel control callback; actually set a channel.  Determines if our

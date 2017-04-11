@@ -96,7 +96,24 @@
 struct kis_capture_handler;
 typedef struct kis_capture_handler kis_capture_handler_t;
 
-typedef int (*cf_callback_listdevices)(kis_capture_handler_t *, uint32_t);
+/* List devices callback
+ * Called to list devices available
+ *
+ * *msg is allocated by the caller and can hold STATUS_MAX characters and should
+ * be populated with any message the listcb wants to return.
+ * **interfaces must be allocated by the list cb and should contain allocated
+ * strings of interfaces
+ * **flags must be allocated by the list cb and should contain allocated strings
+ * of flags, or NULL if no flags.  It must be the same length as **interfaces.
+ *
+ * Return values:
+ * -1   error occurred while listing
+ *  0   no error occurred but no interfaces found
+ *  1+  number of interfaces and flags present in **interfaces / **flags
+ */
+typedef int (*cf_callback_listdevices)(kis_capture_handler_t *, uint32_t seqno,
+        char *msg, char ***interfaces, char ***flags);
+
 typedef int (*cf_callback_probe)(kis_capture_handler_t *, uint32_t, char *);
 typedef int (*cf_callback_open)(kis_capture_handler_t *, uint32_t, char *);
 

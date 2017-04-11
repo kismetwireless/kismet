@@ -18,6 +18,8 @@
 
 #include <string.h>
 
+#include "config.h"
+
 #include "msgpuck.h"
 #include "capture_framework.h"
 
@@ -450,6 +452,9 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
     /* Callback ret */
     int cbret = -1;
 
+    /* Status buffer */
+    char msgstr[STATUS_MAX];
+
     rb_available = kis_simple_ringbuf_used(caph->in_ringbuf);
 
     if (rb_available < sizeof(simple_cap_proto_t)) {
@@ -524,8 +529,15 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
                     false, "We don't support listing", NULL, NULL, 0);
             cbret = -1;
         } else {
+            char **interfaces = NULL;
+            char **flags = NULL;
+
             cbret = (*(caph->listdevices_cb))(caph, 
-                    ntohl(cap_proto_frame->header.sequence_number));
+                    ntohl(cap_proto_frame->header.sequence_number),
+                    msgstr, &interfaces, &flags);
+
+            cf_send_listresp(caph, ntohl(cap_proto_frame->header.sequence_number),
+                    cbret >= 0, msgstr, interfaces, flags, cbret < 0 ? 0 : cbret);
 
             /* Always spin down after listing */
             cf_handler_spindown(caph);
