@@ -534,6 +534,7 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
             char **interfaces = NULL;
             char **flags = NULL;
 
+            msgstr[0] = 0;
             cbret = (*(caph->listdevices_cb))(caph, 
                     ntohl(cap_proto_frame->header.sequence_number),
                     msgstr, &interfaces, &flags);
@@ -580,6 +581,7 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
                 nuldef = strndup(def, def_len);
             }
 
+            msgstr[0] = 0;
             cbret = (*(caph->probe_cb))(caph,
                     ntohl(cap_proto_frame->header.sequence_number), nuldef,
                     msgstr, &chanset, &channels, &channels_sz);
@@ -628,6 +630,7 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
                 nuldef = strndup(def, def_len);
             }
 
+            msgstr[0] = 0;
             cbret = (*(caph->open_cb))(caph,
                     ntohl(cap_proto_frame->header.sequence_number), nuldef,
                     msgstr, &uuid, &chanset, &channels, &channels_sz);
@@ -647,6 +650,10 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
 
             if (chanset != NULL)
                 free(chanset);
+
+            if (cbret >= 0) {
+                cf_handler_launch_capture_thread(caph);
+            }
 
             pthread_mutex_unlock(&(caph->handler_lock));
         }
