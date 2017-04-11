@@ -33,44 +33,6 @@
  *
  * Capture may be completely blocking - for example using pcap_loop directly - 
  * because it is isolated from the protocol control thread.
- *
- * Callbacks:
- *  list_devices
- *      If present, called when the capture binary receives a LISTDEVICES command.
- *      Is responsible for generating a list of all supported devices, (or none), and
- *      any flags needed to uniquely identify the device.
- *
- *  probe
- *      If present, called when the capture binary receives a PROBEDEVICE command.
- *      This is part of the autoprobe system - it is responsible for determining if
- *      this datasource can handle a device specified with no type.
- *
- *  open
- *      If present, called when the capture binary receives an OPENDEVICE command.
- *      This occurs once Kismet has identified what datasource handles a source
- *      definition, and should actually open the device.
- *
- *  chantranslate
- *      If present, called when the capture binary sets a channel; this is expected
- *      to return an allocated private channel record.  This is used to convert
- *      the channels from strings to something which does not need to be parsed.
- *
- *  chancontrol
- *      If present, called when the capture binary sets a channel; this is called
- *      with the interpreted channel data passed as a void*
- *
- *  chanfree
- *      If present, called when the capture binary needs to purge the list of
- *      internally formatted channels.  Called once for each custom channel.
- *      If the custom channel format is a simple struct which can be freed
- *      entirely with 'free(...)', a chanfree callback is not required.
- *
- *  capture
- *      Called once the source is opened, and run in its own thread.  The thread
- *      is marked cancellable; the callback does not need to perform any special
- *      actions.
- *      When the capture callback ends, the source is placed into error mode.
- *
  */
 
 #include <getopt.h>
@@ -151,14 +113,58 @@ typedef int (*cf_callback_probe)(kis_capture_handler_t *, uint32_t seqno,
  *
  * Return values:
  * -1   error occurred while opening
- *  0   no error occurred
+ *  0   success
  */
 typedef int (*cf_callback_open)(kis_capture_handler_t *, uint32_t seqno, 
         char *definition, char *msg, char **uuid, char **chanset, char ***chanlist,
         size_t *chanlist_sz);
 
-typedef void *(*cf_callback_chantranslate)(kis_capture_handler_t *, char *);
-typedef int (*cf_callback_chancontrol)(kis_capture_handler_t *, uint32_t, void *);
+/* Channel translate
+ * Called to translate a channel from a generic string to a local representation
+ * suitable for controlling a capture interface.  This is used to prevent
+ * constant heavy parsing of strings during channel hopping, etc.
+ *
+ * The callback should allocate a custom structure containing the information and 
+ * return it as a void*.  This structure will be passed to future callback operations.
+ *
+ * If the structure is complex and cannot be freed with a simple free() operation,
+ * the datasource binary must provide cf_callback_chanfree.
+ *
+ * Returns:
+ * NULL     Unable to translate channel
+ * Pointer  callback-allocated structure containing the channel info.
+ */
+typedef void *(*cf_callback_chantranslate)(kis_capture_handler_t *, char *chanstr);
+
+/* Channel set
+ * Actually set a physical channel on an interface.
+ *
+ * Called as part of a channel hopping pattern (seqno == 0) or in response to a
+ * direct channel set command (seqno != 0).
+ *
+ * Appropriate classification of tuning errors is left to the discretion of the 
+ * callback; typically an error during hopping may be allowable while an error
+ * during an explicit channel set is not.
+ *
+ * msg is allocated by the caller and can hold up to STATUS_MAX characters.  It
+ * will be transmitted along with success or failure if seqno != 0.
+ *
+ * In all other situations, the callback may communicate to the user status 
+ * changes via cf_send_message(...)
+ *
+ * Returns:
+ * -1   Error occurred
+ *  0   Success
+ */
+typedef int (*cf_callback_chancontrol)(kis_capture_handler_t *, uint32_t seqno, 
+        void *privchan, char *msg);
+
+/* Channel free
+ * Called to free an allocated private channel struct.
+ *
+ * This callback is needed only when the private channel structure defined by the
+ * datasource cannot be deallocated with a simple free()
+ */
 typedef void (*cf_callback_chanfree)(void *);
 
 typedef int (*cf_callback_unknown)(kis_capture_handler_t *, uint32_t, 

@@ -690,13 +690,15 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
                     translate_chan = strdup(chanset_channel);
                 }
 
+                msgstr[0] = 0;
                 cbret = (*(caph->chancontrol_cb))(caph,
-                        ntohl(cap_proto_frame->header.sequence_number), translate_chan);
+                        ntohl(cap_proto_frame->header.sequence_number), 
+                        translate_chan, msgstr);
 
                 /* Send a response based on the channel set success */
                 cf_send_configresp_channel(caph, 
                         ntohl(cap_proto_frame->header.sequence_number), 
-                        cbret >= 0, NULL, chanset_channel);
+                        cbret >= 0, msgstr, chanset_channel);
 
                 /* Free our channel copies */
 

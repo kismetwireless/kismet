@@ -141,46 +141,42 @@ typedef struct {
 } local_channel_t;
 
 /* Convert a string into a local interpretation; allocate ret_localchan.
- *
- * Returns:
- * -1   Error parsing channel, ret_localchan will be NULL
- *  0   Success
  */
-int local_channel_from_str(kis_capture_handler_t *caph, char *chanstr, 
-        local_channel_t **ret_localchan) {
+void *chantranslate_cb(kis_capture_handler_t *caph, char *chanstr) {
+    local_channel_t *ret_localchan;
     unsigned int parsechan, parse_center1;
     char parsetype[16];
     int r;
     unsigned int ci;
     char errstr[STATUS_MAX];
 
+    /* Multipart scanf which matches all of our variants in one go */
     r = sscanf(chanstr, "%u%16[^-]-%u", &parsechan, parsetype, &parse_center1);
 
     if (r <= 0) {
         snprintf(errstr, STATUS_MAX, "unable to parse any channel information from "
                 "channel string '%s'", chanstr);
         cf_send_message(caph, errstr, MSGFLAG_ERROR);
-        *ret_localchan = NULL;
-        return -1;
+        return NULL;
     }
 
-    *ret_localchan = (local_channel_t *) malloc(sizeof(local_channel_t));
-    memset(*ret_localchan, 0, sizeof(local_channel_t));
+    ret_localchan = (local_channel_t *) malloc(sizeof(local_channel_t));
+    memset(ret_localchan, 0, sizeof(local_channel_t));
 
     if (r == 1) {
-        (*ret_localchan)->control_freq = parsechan;
+        (ret_localchan)->control_freq = parsechan;
         return 0;
     }
 
     if (r >= 2) {
-        (*ret_localchan)->control_freq = parsechan;
+        (ret_localchan)->control_freq = parsechan;
 
         if (strcasecmp(parsetype, "w5") == 0) {
-            (*ret_localchan)->chan_width = NL80211_CHAN_WIDTH_5;
+            (ret_localchan)->chan_width = NL80211_CHAN_WIDTH_5;
         } else if (strcasecmp(parsetype, "w10") == 0) {
-            (*ret_localchan)->chan_width = NL80211_CHAN_WIDTH_10;
+            (ret_localchan)->chan_width = NL80211_CHAN_WIDTH_10;
         } else if (strcasecmp(parsetype, "ht40-") == 0) {
-            (*ret_localchan)->chan_type = NL80211_CHAN_HT40MINUS;
+            (ret_localchan)->chan_type = NL80211_CHAN_HT40MINUS;
 
             /* Search for the ht channel record */
             for (ci = 0; ci < MAX_WIFI_HT_CHANNEL; ci++) {
@@ -197,7 +193,7 @@ int local_channel_from_str(kis_capture_handler_t *caph, char *chanstr,
                 }
             }
         } else if (strcasecmp(parsetype, "ht40+") == 0) {
-            (*ret_localchan)->chan_type = NL80211_CHAN_HT40PLUS;
+            (ret_localchan)->chan_type = NL80211_CHAN_HT40PLUS;
 
             /* Search for the ht channel record */
             for (ci = 0; ci < sizeof(wifi_ht_channels) / 
@@ -215,12 +211,12 @@ int local_channel_from_str(kis_capture_handler_t *caph, char *chanstr,
                 }
             }
         } else if (strcasecmp(parsetype, "vht80") == 0) {
-            (*ret_localchan)->chan_width = NL80211_CHAN_WIDTH_80;
+            (ret_localchan)->chan_width = NL80211_CHAN_WIDTH_80;
 
             /* Do we have a hardcoded 80mhz freq pair? */
             if (r == 3) {
-                (*ret_localchan)->center_freq1 = parse_center1;
-                (*ret_localchan)->unusual_center1 = 1;
+                (ret_localchan)->center_freq1 = parse_center1;
+                (ret_localchan)->unusual_center1 = 1;
             } else {
                 /* Search for the vht channel record to find the 80mhz center freq */
                 for (ci = 0; ci < sizeof(wifi_ht_channels) / 
@@ -234,22 +230,21 @@ int local_channel_from_str(kis_capture_handler_t *caph, char *chanstr,
                                     "channel for 80MHz operation, skipping channel", 
                                     parsechan);
                             cf_send_message(caph, errstr, MSGFLAG_ERROR);
-                            free(*ret_localchan);
-                            *ret_localchan = NULL;
-                            return -1;
+                            free(ret_localchan);
+                            return NULL;
                         }
 
-                        (*ret_localchan)->center_freq1 = wifi_ht_channels[ci].freq80;
+                        (ret_localchan)->center_freq1 = wifi_ht_channels[ci].freq80;
                     }
                 }
             }
         } else if (strcasecmp(parsetype, "vht160") == 0) {
-            (*ret_localchan)->chan_width = NL80211_CHAN_WIDTH_160;
+            (ret_localchan)->chan_width = NL80211_CHAN_WIDTH_160;
 
             /* Do we have a hardcoded 80mhz freq pair? */
             if (r == 3) {
-                (*ret_localchan)->center_freq1 = parse_center1;
-                (*ret_localchan)->unusual_center1 = 1;
+                (ret_localchan)->center_freq1 = parse_center1;
+                (ret_localchan)->unusual_center1 = 1;
             } else {
                 /* Search for the vht channel record to find the 160mhz center freq */
                 for (ci = 0; ci < sizeof(wifi_ht_channels) / 
@@ -263,11 +258,11 @@ int local_channel_from_str(kis_capture_handler_t *caph, char *chanstr,
                                     "valid channel for 160MHz operation, skipping "
                                     "channel", parsechan);
                             cf_send_message(caph, errstr, MSGFLAG_ERROR);
-                            free(*ret_localchan);
-                            *ret_localchan = NULL;
+                            free(ret_localchan);
+                            return NULL;
                         }
 
-                        (*ret_localchan)->center_freq1 = wifi_ht_channels[ci].freq160;
+                        (ret_localchan)->center_freq1 = wifi_ht_channels[ci].freq160;
                     }
                 }
             }
@@ -280,7 +275,7 @@ int local_channel_from_str(kis_capture_handler_t *caph, char *chanstr,
 
     }
 
-    return 0;
+    return ret_localchan;
 }
 
 /* Convert a local interpretation of a channel back info a string;
@@ -421,12 +416,13 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno,
 
 /* Channel control callback; actually set a channel.  Determines if our
  * custom channel needs a VHT frequency set. */
-int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *privchan) {
+int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *privchan,
+        char *msg) {
     local_wifi_t *local_wifi = (local_wifi_t *) caph->userdata;
     local_channel_t *channel = (local_channel_t *) privchan;
     int r;
     char errstr[STATUS_MAX];
-    char err[STATUS_MAX];
+    char chanstr[STATUS_MAX];
 
     if (local_wifi->use_mac80211 == 0) {
         if ((r = iwconfig_set_channel(local_wifi->interface, 
@@ -442,18 +438,18 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
              *
              * */
             if (local_wifi->seq_channel_failure < 10 && seqno == 0) {
-                snprintf(err, STATUS_MAX, "Could not set channel; ignoring error and "
-                        "continuing (%s)", errstr);
-                cf_send_message(caph, err, MSGFLAG_ERROR);
+                local_channel_to_str(channel, chanstr);
+                snprintf(msg, STATUS_MAX, "Could not set channel %s; ignoring error "
+                        "and continuing (%s)", chanstr, errstr);
+                cf_send_message(caph, msg, MSGFLAG_ERROR);
                 return 0;
             } else {
-                snprintf(err, STATUS_MAX, "Repeated failure to set channel: %s",
-                        errstr);
+                local_channel_to_str(channel, chanstr);
+                snprintf(msg, STATUS_MAX, "failed to set channel %s: %s", 
+                        chanstr, errstr);
 
-                if (seqno != 0) {
-                    cf_send_configresp(caph, seqno, 0, err);
-                } else {
-                    cf_send_error(caph, err);
+                if (seqno == 0) {
+                    cf_send_error(caph, msg);
                 }
 
                 return -1;
@@ -497,59 +493,29 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
              * immediately.
              */
             if (local_wifi->seq_channel_failure < 10 && seqno == 0) {
-                snprintf(err, STATUS_MAX, "Could not set channel; ignoring error "
-                        "and continuing (%s)", errstr);
-                cf_send_message(caph, err, MSGFLAG_ERROR);
+                local_channel_to_str(channel, chanstr);
+                snprintf(msg, STATUS_MAX, "Could not set channel %s; ignoring error "
+                        "and continuing (%s)", chanstr, errstr);
+                cf_send_message(caph, msg, MSGFLAG_ERROR);
                 return 0;
             } else {
-                snprintf(err, STATUS_MAX, "Repeated failure to set channel: %s",
-                        errstr);
+                local_channel_to_str(channel, chanstr);
+                snprintf(msg, STATUS_MAX, "failed to set channel %s: %s", 
+                        chanstr, errstr);
 
-                if (seqno != 0) {
-                    cf_send_configresp(caph, seqno, 0, err);
-                } else {
-                    cf_send_error(caph, err);
+                if (seqno == 0) {
+                    cf_send_error(caph, msg);
                 }
 
                 return -1;
             }
         } else {
             local_wifi->seq_channel_failure = 0;
-
-            if (seqno != 0) {
-                /* Send a config response with a reconstituted channel if we're
-                 * configuring the interface; re-use errstr as a buffer */
-                local_channel_to_str(channel, errstr);
-                cf_send_configresp_channel(caph, seqno, 1, NULL, errstr);
-            }
+            return 0;
         }
-
     }
    
     return 0;
-}
-
-/* Set a single channel */
-int chanset_callback(kis_capture_handler_t *caph, uint32_t seqno, char *channel) {
-    /* Try to convert the channel into a local channel definition */
-    local_channel_t *chan;
-    char errstr[STATUS_MAX];
-    int r;
-
-    if (local_channel_from_str(caph, channel, &chan) < 0) {
-        snprintf(errstr, STATUS_MAX, "unable to process channel '%s'", channel);
-        cf_send_configresp(caph, seqno, 0, errstr);
-        return -1;
-    }
-
-    /* Call the channel handling callback directly w/ a seqno, it will dispatch
-     * any configresp data for us w/ info if there's a problem */
-    r = chancontrol_callback(caph, seqno, chan); 
-
-    /* Remember to get rid of the parsed channel */
-    free(chan);
-
-    return r;
 }
 
 void pcap_dispatch_cb(u_char *user, const struct pcap_pkthdr *header,
@@ -666,6 +632,9 @@ int main(int argc, char *argv[]) {
 
     /* Set the callback for probing an interface */
     cf_handler_set_probe_cb(caph, probe_callback);
+
+    /* Set the translation cb */
+    cf_handler_set_chantranslate_cb(caph, chantranslate_cb);
 
     /* Set the capture thread */
     cf_handler_set_capture_cb(caph, capture_thread);
