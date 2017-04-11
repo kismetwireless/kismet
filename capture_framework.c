@@ -501,6 +501,7 @@ void *cf_int_chanhop_thread(void *arg) {
         if (hoppos >= caph->channel_hop_list_sz)
             hoppos = 0;
 
+        errstr[0] = 0;
         if ((caph->chancontrol_cb)(caph, 0, 
                     caph->custom_channel_hop_list[hoppos], errstr) < 0) {
             cf_send_error(caph, errstr);
