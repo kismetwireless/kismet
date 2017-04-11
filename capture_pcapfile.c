@@ -78,7 +78,8 @@ typedef struct {
     struct timeval last_ts;
 } local_pcap_t;
 
-int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition) {
+int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
+        char *msg, char **chanset, char ***chanlist, size_t *chanlist_sz) {
     char *placeholder = NULL;
     int placeholder_len;
 
@@ -90,43 +91,42 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
 
     pcap_t *pd;
 
+    /* pcapfile does not support channel ops */
+    *chanset = NULL;
+    *chanlist = NULL;
+    *chanlist_sz = 0;
+
     fprintf(stderr, "debug - pcapfile - trying to probe source %s\n", definition);
 
     if ((placeholder_len = cf_parse_interface(&placeholder, definition)) <= 0) {
-        cf_send_proberesp(caph, seqno, false, 
-                "Unable to find PCAP file name in definition",
-                NULL, NULL, 0);
-        return -1;
+        snprintf(msg, STATUS_MAX, "Unable to find PCAP file name in definition"); 
+        return 0;
     }
 
     pcapfname = strndup(placeholder, placeholder_len);
 
     if (stat(pcapfname, &sbuf) < 0) {
-        snprintf(errstr, PCAP_ERRBUF_SIZE, "Unable to find pcapfile '%s'", pcapfname);
-        fprintf(stderr, "debug - pcapfile - %s\n", errstr);
-        cf_send_proberesp(caph, seqno, false, errstr, NULL, NULL, 0);
-        return -1;
+        snprintf(msg, STATUS_MAX, "Unable to find pcapfile '%s'", pcapfname);
+        return 0;
     }
 
     if (!S_ISREG(sbuf.st_mode)) {
-        snprintf(errstr, PCAP_ERRBUF_SIZE, 
+        snprintf(msg, STATUS_MAX, 
                 "File '%s' is not a regular file", pcapfname);
         fprintf(stderr, "debug - pcapfile - %s\n", errstr);
-        cf_send_proberesp(caph, seqno, false, errstr, NULL, NULL, 0);
-        return -1;
+        return 0;
     }
 
     pd = pcap_open_offline(pcapfname, errstr);
     if (strlen(errstr) > 0) {
         fprintf(stderr, "debug - pcapfile - %s\n", errstr);
-        cf_send_proberesp(caph, seqno, false, errstr, NULL, NULL, 0);
-        return -1;
+        snprintf(msg, STATUS_MAX, "%s", errstr);
+        return 0;
     }
 
     fprintf(stderr, "debug - probe ok!\n");
 
     pcap_close(pd);
-    cf_send_proberesp(caph, seqno, true, NULL, NULL, NULL, 0);
 
     return 1;
 }

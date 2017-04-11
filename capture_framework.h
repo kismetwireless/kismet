@@ -114,7 +114,27 @@ typedef struct kis_capture_handler kis_capture_handler_t;
 typedef int (*cf_callback_listdevices)(kis_capture_handler_t *, uint32_t seqno,
         char *msg, char ***interfaces, char ***flags);
 
-typedef int (*cf_callback_probe)(kis_capture_handler_t *, uint32_t, char *);
+/* Probe definition callback
+ * Called to determine if definition is supported by this datasource
+ *
+ * *msg is allocated by the caller and can hold STATUS_MAX characters and should
+ * be populated with any message the listcb wants to return.
+ *
+ * *chanset is to be allocated by the cb and should hold the supported channel,
+ * if only one channel is supported.  
+ * **chanlist is to be allocated by the cb and should hold the supported channel list,
+ * if any.
+ * *chanlist_sz is to be filled in by the cb with the number of channels in the chanlist
+ *
+ * Return values:
+ * -1   error occurred while probing
+ *  0   no error occurred, interface is not supported
+ *  1   interface supported
+ */
+typedef int (*cf_callback_probe)(kis_capture_handler_t *, uint32_t seqno, 
+        char *definition, char *msg, char **chanset, char ***chanlist, 
+        size_t *chanlist_sz);
+
 typedef int (*cf_callback_open)(kis_capture_handler_t *, uint32_t, char *);
 
 typedef void *(*cf_callback_chantranslate)(kis_capture_handler_t *, char *);

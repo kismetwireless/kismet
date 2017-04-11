@@ -327,7 +327,8 @@ void local_channel_to_str(local_channel_t *chan, char *chanstr) {
     }
 }
 
-int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition) {
+int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
+        char *msg, char **chanset, char ***chanlist, size_t *chanlist_sz) {
     char *placeholder = NULL;
     int placeholder_len;
 
@@ -353,8 +354,6 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno,
     DIR *devdir;
     struct dirent *devfile;
     char errstr[STATUS_MAX];
-
-    int ret;
 
     /* Basic list of devices */
     typedef struct wifi_list {

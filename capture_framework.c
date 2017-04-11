@@ -455,6 +455,8 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
     /* Status buffer */
     char msgstr[STATUS_MAX];
 
+    size_t i;
+
     rb_available = kis_simple_ringbuf_used(caph->in_ringbuf);
 
     if (rb_available < sizeof(simple_cap_proto_t)) {
@@ -539,6 +541,18 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
             cf_send_listresp(caph, ntohl(cap_proto_frame->header.sequence_number),
                     cbret >= 0, msgstr, interfaces, flags, cbret < 0 ? 0 : cbret);
 
+            if (cbret > 0) {
+                for (i = 0; i < (size_t) cbret; i++) {
+                    if (interfaces[i] != NULL)
+                        free(interfaces[i]);
+                    if (flags[i] != NULL)
+                        free(flags[i]);
+                }
+
+                free(interfaces);
+                free(flags);
+            }
+
             /* Always spin down after listing */
             cf_handler_spindown(caph);
 
@@ -555,6 +569,10 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
         } else {
             char *def, *nuldef = NULL;
             int def_len;
+
+            char **channels = NULL;
+            size_t channels_sz = 0;
+            char *chanset = NULL;
             
             def_len = cf_get_DEFINITION(&def, cap_proto_frame);
 
@@ -563,10 +581,24 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
             }
 
             cbret = (*(caph->probe_cb))(caph,
-                    ntohl(cap_proto_frame->header.sequence_number), nuldef);
+                    ntohl(cap_proto_frame->header.sequence_number), nuldef,
+                    msgstr, &chanset, &channels, &channels_sz);
+
+            cf_send_proberesp(caph, ntohl(cap_proto_frame->header.sequence_number),
+                    cbret < 0 ? 0 : cbret, msgstr, chanset, channels, channels_sz);
 
             if (nuldef != NULL)
                 free(nuldef);
+
+            for (i = 0; i < channels_sz; i++) {
+                free(channels[i]);
+            }
+
+            if (channels != NULL)
+                free(channels);
+
+            if (chanset != NULL)
+                free(chanset);
 
             /* Always spin down after probing */
             cf_handler_spindown(caph);
