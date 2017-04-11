@@ -201,10 +201,28 @@ simple_cap_proto_kv_t *encode_kv_chanset(const char *channel) {
     if (kv == NULL)
         return NULL;
 
-    snprintf(kv->header.key, 16, "%.16s", "SUCCESS");
+    snprintf(kv->header.key, 16, "%.16s", "CHANSET");
     kv->header.obj_sz = htonl(content_sz);
 
     memcpy(&(kv->object), channel, content_sz);
+
+    return kv;
+}
+
+simple_cap_proto_kv_t *encode_kv_uuid(const char *uuid) {
+    simple_cap_proto_kv_t *kv;
+
+    size_t content_sz = strlen(uuid);
+
+    kv = (simple_cap_proto_kv_t *) malloc(sizeof(simple_cap_proto_kv_t) + content_sz);
+
+    if (kv == NULL)
+        return NULL;
+
+    snprintf(kv->header.key, 16, "%.16s", "UUID");
+    kv->header.obj_sz = htonl(content_sz);
+
+    memcpy(&(kv->object), uuid, content_sz);
 
     return kv;
 }

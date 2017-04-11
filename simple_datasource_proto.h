@@ -168,6 +168,14 @@ simple_cap_proto_kv_t *encode_kv_success(unsigned int success, uint32_t sequence
  */
 simple_cap_proto_kv_t *encode_kv_chanset(const char *channel);
 
+/* Encode a uuid response
+ *
+ * Returns:
+ * Pointer on success
+ * NULL on failure 
+ */
+simple_cap_proto_kv_t *encode_kv_uuid(const char *uuid);
+
 /* Encode a packet into a PACKET KV
  *
  * Returns:
