@@ -334,6 +334,9 @@ void cf_handler_set_userdata(kis_capture_handler_t *capf, void *userdata);
  * its own thread */
 int cf_handler_launch_capture_thread(kis_capture_handler_t *caph);
 
+/* Initiate the channel hopping thread, which will call the channel set function
+ * its own thread */
+int cf_handler_launch_hopping_thread(kis_capture_handler_t *caph);
 
 
 /* Perform a blocking wait, waiting for the ringbuffer to free data */

@@ -412,6 +412,13 @@ int cf_handler_launch_capture_thread(kis_capture_handler_t *caph) {
     pthread_attr_init(&attr);
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 
+    pthread_mutex_lock(&(caph->handler_lock));
+    if (caph->capture_running) {
+        fprintf(stderr, "debug - capture thread already running, doing nothing.\n");
+        pthread_mutex_unlock(&(caph->handler_lock));
+        return 0;
+    }
+
     if (pthread_create(&(caph->capturethread), &attr, 
                 cf_int_capture_thread, caph) < 0) {
         // fprintf(stderr, "debug - failed to pthread_create %s\n", strerror(errno));
@@ -421,8 +428,10 @@ int cf_handler_launch_capture_thread(kis_capture_handler_t *caph) {
     }
 
     caph->capture_running = 1;
+
+    pthread_mutex_unlock(&(caph->handler_lock));
     
-    // fprintf(stderr, "debug - capture thread launched\n");
+    fprintf(stderr, "debug - capture thread launched\n");
 
     return 1;
 }
@@ -433,6 +442,107 @@ void cf_handler_wait_ringbuffer(kis_capture_handler_t *caph) {
             &(caph->out_ringbuf_flush_cond_mutex));
     pthread_mutex_unlock(&(caph->out_ringbuf_flush_cond_mutex));
     // fprintf(stderr, "debug - done waiting for ringbuffer to drain\n");
+}
+
+/* Internal capture thread which drives channel hopping
+ */
+void *cf_int_chanhop_thread(void *arg) {
+    kis_capture_handler_t *caph = (kis_capture_handler_t *) arg;
+
+    /* Set us cancelable */
+    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+    pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
+
+    /* Where we are in the hopping vec */
+    size_t hoppos = 0;
+
+    /* How long we're waiting until the next time */
+    unsigned int wait_sec;
+    unsigned int wait_usec;
+
+    char errstr[STATUS_MAX];
+
+    while (1) {
+        pthread_mutex_lock(&(caph->handler_lock));
+
+        /* Cancel thread if we're no longer hopping */
+        if (caph->channel_hop_rate == 0) {
+            fprintf(stderr, "debug - no longer hopping - exiting hopping thread\n");
+            caph->hopping_running = 0;
+            pthread_mutex_unlock(&(caph->handler_lock));
+            return NULL;
+        }
+       
+        wait_usec = 1000000L / caph->channel_hop_rate;
+
+        if (wait_usec < 50000) {
+            wait_sec = 0;
+            wait_usec = 50000;
+        } else if (wait_usec > 1000000L) {
+            wait_sec = wait_usec / 1000000L;
+            wait_usec = wait_usec % 1000000L;
+        }
+
+        pthread_mutex_unlock(&(caph->handler_lock));
+
+        /* Sleep until the next wakeup */
+        sleep(wait_sec);
+        usleep(wait_usec);
+
+        pthread_mutex_lock(&caph->handler_lock);
+
+        if (caph->channel_hop_rate == 0 || caph->chancontrol_cb == NULL) {
+            fprintf(stderr, "debug - no longer hopping / lost chancontrol cb, exiting hopping thread\n");
+            caph->hopping_running = 0;
+            pthread_mutex_unlock(&caph->handler_lock);
+            return NULL;
+        }
+
+        if (hoppos >= caph->channel_hop_list_sz)
+            hoppos = 0;
+
+        if ((caph->chancontrol_cb)(caph, 0, 
+                    caph->custom_channel_hop_list[hoppos], errstr) < 0) {
+            cf_send_error(caph, errstr);
+            fprintf(stderr, "debug - failed channel hopping %s\n", errstr);
+            caph->hopping_running = 0;
+            pthread_mutex_unlock(&caph->handler_lock);
+            cf_handler_spindown(caph);
+            return NULL;
+        }
+
+        pthread_mutex_unlock(&caph->handler_lock);
+        hoppos++;
+    }
+
+    return NULL;
+}
+
+int cf_handler_launch_hopping_thread(kis_capture_handler_t *caph) {
+    /* Set the thread attributes - detatched, cancelable */
+    pthread_attr_t attr;
+    pthread_attr_init(&attr);
+    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+
+    pthread_mutex_lock(&(caph->handler_lock));
+    if (caph->hopping_running) {
+        fprintf(stderr, "debug - hop thread already running, cancelling\n");
+        pthread_cancel(caph->hopthread);
+    }
+
+    if (pthread_create(&(caph->hopthread), &attr, cf_int_chanhop_thread, caph) < 0) {
+        cf_send_error(caph, "failed to launch channel hopping thread");
+        cf_handler_spindown(caph);
+        return -1;
+    }
+
+    caph->hopping_running = 1;
+
+    pthread_mutex_unlock(&(caph->handler_lock));
+    
+    fprintf(stderr, "debug - hopping thread launched\n");
+
+    return 1;
 }
 
 int cf_handle_rx_data(kis_capture_handler_t *caph) {
@@ -690,6 +800,14 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
                     translate_chan = strdup(chanset_channel);
                 }
 
+                /* Cancel channel hopping */
+                caph->channel_hop_rate = 0;
+
+                if (caph->hopping_running) {
+                    pthread_cancel(caph->hopthread);
+                    caph->hopping_running = 0;
+                }
+
                 msgstr[0] = 0;
                 cbret = (*(caph->chancontrol_cb))(caph,
                         ntohl(cap_proto_frame->header.sequence_number), 
@@ -710,6 +828,7 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
                     free(translate_chan);
 
                 pthread_mutex_unlock(&(caph->handler_lock));
+
             }
         } else {
             /* We didn't find a CHANSET, look for CHANHOP.  We only respect one;
@@ -754,6 +873,10 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
                     cf_send_configresp_chanhop(caph, 
                             ntohl(cap_proto_frame->header.sequence_number), 1, NULL,
                             chanhop_rate, chanhop_channels, chanhop_channels_sz);
+
+                    /* Launch the channel hop thread (cancelling any current channel 
+                     * hopping) */
+                    cf_handler_launch_hopping_thread(caph);
 
                     pthread_mutex_unlock(&(caph->handler_lock));
                 }
