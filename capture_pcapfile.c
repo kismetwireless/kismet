@@ -131,7 +131,8 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     return 1;
 }
 
-int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition) {
+int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
+        char *msg, char **uuid, char **chanset, char ***chanlist, size_t *chanlist_sz) {
     char *placeholder = NULL;
     int placeholder_len;
 
@@ -142,6 +143,12 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition)
     local_pcap_t *local_pcap = (local_pcap_t *) caph->userdata;
 
     char errstr[PCAP_ERRBUF_SIZE] = "";
+
+    /* pcapfile does not support channel ops */
+    *chanset = NULL;
+    *chanlist = NULL;
+    *chanlist_sz = 0;
+    *uuid = NULL;
 
     /* Clean up any old state */
     if (local_pcap->pcapfname != NULL) {
@@ -157,11 +164,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition)
     fprintf(stderr, "debug - pcapfile - trying to open source %s\n", definition);
 
     if ((placeholder_len = cf_parse_interface(&placeholder, definition)) <= 0) {
-        cf_send_openresp(caph, seqno, false, 
-                "Unable to find PCAP file name in definition",
-                NULL, 0,
-                NULL, 
-                0, NULL, 0);
+        /* What was not an error during probe definitely is an error during open */
+        snprintf(msg, STATUS_MAX, "Unable to find PCAP file name in definition");
         return -1;
     }
 
@@ -172,24 +176,19 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition)
     fprintf(stderr, "debug - pcapfile - got fname '%s'\n", pcapfname);
 
     if (stat(pcapfname, &sbuf) < 0) {
-        snprintf(errstr, PCAP_ERRBUF_SIZE, "Unable to find pcapfile '%s'", pcapfname);
+        snprintf(msg, STATUS_MAX, "Unable to find pcapfile '%s'", pcapfname);
         fprintf(stderr, "debug - pcapfile - %s\n", errstr);
-        cf_send_openresp(caph, seqno, false, errstr, NULL, 0, NULL, 0, NULL, 0);
         return -1;
     }
 
-    if (!S_ISREG(sbuf.st_mode)) {
-        snprintf(errstr, PCAP_ERRBUF_SIZE, 
-                "File '%s' is not a regular file", pcapfname);
-        fprintf(stderr, "debug - pcapfile - %s\n", errstr);
-        cf_send_openresp(caph, seqno, false, errstr, NULL, 0, NULL, 0, NULL, 0);
-        return -1;
-    }
+    /* We don't check for regular file during open, only probe; we don't want to 
+     * open a fifo during probe and then cause a glitch, but we could open it during
+     * normal operation */
 
     local_pcap->pd = pcap_open_offline(pcapfname, errstr);
     if (strlen(errstr) > 0) {
         fprintf(stderr, "debug - pcapfile - %s\n", errstr);
-        cf_send_openresp(caph, seqno, false, errstr, NULL, 0, NULL, 0, NULL, 0);
+        snprintf(msg, STATUS_MAX, "%s", errstr);
         return -1;
     }
 
@@ -198,13 +197,9 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition)
     fprintf(stderr, "debug - pcapfile - opened pcap file!\n");
 
     /* Succesful open with no channel, hop, or chanset data */
-    snprintf(errstr, PCAP_ERRBUF_SIZE,
-            "Opened pcapfile '%s' for playback", pcapfname);
-    cf_send_openresp(caph, seqno, true, errstr, NULL, 0, NULL, 0, NULL, 0);
+    snprintf(msg, STATUS_MAX, "Opened pcapfile '%s' for playback", pcapfname);
 
     fprintf(stderr, "debug - pcapfile - returning from open handler\n");
-
-    cf_send_message(caph, "Pcapfile ready to start playback", MSGFLAG_INFO);
 
     if ((placeholder_len = cf_find_flag(&placeholder, "realtime", definition)) > 0) {
         if (strncasecmp(placeholder, "true", placeholder_len) == 0) {
@@ -214,10 +209,6 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition)
             local_pcap->realtime = 1;
         }
     }
-
-    /* Launch the capture thread */
-    fprintf(stderr, "debug - pcapfile - launching capture thread\n");
-    cf_handler_launch_capture_thread(caph);
 
     return 1;
 }

@@ -135,7 +135,27 @@ typedef int (*cf_callback_probe)(kis_capture_handler_t *, uint32_t seqno,
         char *definition, char *msg, char **chanset, char ***chanlist, 
         size_t *chanlist_sz);
 
-typedef int (*cf_callback_open)(kis_capture_handler_t *, uint32_t, char *);
+/* Open callback
+ * Called to open a datasource
+ *
+ * *msg is allocated by the caller and can hold STATUS_MAX characters and should
+ * be populated with any message the listcb wants to return
+ *
+ * *uuid is to be allocated by the cb and should hold the interface UUID
+ * *chanset is to be allocated by the cb and should hold the channel,
+ * if only one channel is supported.
+ * **chanlist is to be allocated by the cb and should hold the supported channel list,
+ * if any.
+ * *chanlist_sz is to be filled in by the cb with the number of channels in the
+ * chanlist.
+ *
+ * Return values:
+ * -1   error occurred while opening
+ *  0   no error occurred
+ */
+typedef int (*cf_callback_open)(kis_capture_handler_t *, uint32_t seqno, 
+        char *definition, char *msg, char **uuid, char **chanset, char ***chanlist,
+        size_t *chanlist_sz);
 
 typedef void *(*cf_callback_chantranslate)(kis_capture_handler_t *, char *);
 typedef int (*cf_callback_chancontrol)(kis_capture_handler_t *, uint32_t, void *);
@@ -465,22 +485,14 @@ int cf_send_proberesp(kis_capture_handler_t *caph, uint32_t seq, unsigned int su
  * To send supported channels list, provide channels and channels_len, otherwise set 
  * channels_len to 0
  *
- * To set initial state 'hopping', populate hoprate, hop_channels, and hop_channels_len
- * and set chanset to NULL.
- *
- * To set initial state locked, populate chanset and set hop_channels_len to 0.
- *
  * Returns:
  * -1   An error occurred while creating the packet
  *  0   Insufficient space in buffer
  *  1   Success
  */
 int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int success,
-        const char *msg, 
-        char **channels, size_t channels_len,
-        const char *chanset, 
-        double hoprate, 
-        char **hop_channels, size_t hop_channels_len);
+        const char *msg, const char *uuid, const char *chanset, char **channels, 
+        size_t channels_len);
 
 /* Send a DATA frame with packet data
  * Can be called from any thread

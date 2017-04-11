@@ -341,7 +341,8 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     return 1;
 }
 
-int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition) {
+int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
+        char *msg, char **uuid, char **chanset, char ***chanlist, size_t *chanlist_sz) {
     char *placeholder = NULL;
     int placeholder_len;
 

@@ -133,7 +133,6 @@ KV Pairs:
 * UUID (optional)
 * CHANNELS (optional)
 * CHANSET (optional)
-* CHANHOP (optional)
 * MESSAGE (optional)
 
 Responses:

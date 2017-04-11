@@ -611,14 +611,16 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
         if (caph->open_cb == NULL) {
             pthread_mutex_unlock(&(caph->handler_lock));
             cf_send_openresp(caph, ntohl(cap_proto_frame->header.sequence_number),
-                    false, "We don't support opening", 
-                    NULL, 0,
-                    NULL, 
-                    0, NULL, 0);
+                    false, "We don't support opening", NULL, NULL, NULL, 0);
             cbret = -1;
         } else {
             char *def, *nuldef = NULL;
             int def_len;
+
+            char **channels = NULL;
+            size_t channels_sz = 0;
+            char *chanset = NULL;
+            char *uuid = NULL;
             
             def_len = cf_get_DEFINITION(&def, cap_proto_frame);
 
@@ -627,10 +629,24 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
             }
 
             cbret = (*(caph->open_cb))(caph,
-                    ntohl(cap_proto_frame->header.sequence_number), nuldef);
+                    ntohl(cap_proto_frame->header.sequence_number), nuldef,
+                    msgstr, &uuid, &chanset, &channels, &channels_sz);
+
+            cf_send_openresp(caph, ntohl(cap_proto_frame->header.sequence_number),
+                    cbret < 0 ? 0 : cbret, msgstr, uuid, chanset, channels, channels_sz);
 
             if (nuldef != NULL)
                 free(nuldef);
+
+            for (i = 0; i < channels_sz; i++) {
+                free(channels[i]);
+            }
+
+            if (channels != NULL)
+                free(channels);
+
+            if (chanset != NULL)
+                free(chanset);
 
             pthread_mutex_unlock(&(caph->handler_lock));
         }
@@ -1312,10 +1328,8 @@ int cf_send_proberesp(kis_capture_handler_t *caph, uint32_t seq, unsigned int su
 }
 
 int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int success,
-        const char *msg, 
-        char **channels, size_t channels_len,
-        const char *chanset, 
-        double hoprate, char **hop_channels, size_t hop_channels_len) {
+        const char *msg, const char *uuid, const char *chanset, char **channels, 
+        size_t channels_len) {
     /* How many KV pairs are we allocating?  1 for success for sure */
     size_t num_kvs = 1;
 
@@ -1334,7 +1348,7 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
     if (channels_len != 0)
         num_kvs++;
 
-    if (hop_channels_len != 0)
+    if (uuid != NULL)
         num_kvs++;
 
     kv_pairs = 
@@ -1355,6 +1369,20 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
             encode_kv_message(msg, success ? MSGFLAG_INFO : MSGFLAG_ERROR);
         if (kv_pairs[kv_pos] == NULL) {
             fprintf(stderr, "FATAL: Unable to allocate KV MESSAGE pair\n");
+            for (i = 0; i < kv_pos; i++) {
+                free(kv_pairs[i]);
+            }
+            free(kv_pairs);
+            return -1;
+        }
+        kv_pos++;
+    }
+
+    if (uuid != NULL) {
+        kv_pairs[kv_pos] = 
+            encode_kv_uuid(uuid);
+        if (kv_pairs[kv_pos] == NULL) {
+            fprintf(stderr, "FATAL: Unable to allocate KV UUID pair\n");
             for (i = 0; i < kv_pos; i++) {
                 free(kv_pairs[i]);
             }
@@ -1389,20 +1417,6 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
         }
         kv_pos++;
     }
-
-    if (hop_channels_len != 0) {
-        kv_pairs[kv_pos] = encode_kv_chanhop(hoprate, hop_channels, hop_channels_len);
-        if (kv_pairs[kv_pos] == NULL) {
-            fprintf(stderr, "FATAL: Unable to allocate KV CHANHOP pair\n");
-            for (i = 0; i < kv_pos; i++) {
-                free(kv_pairs[i]);
-            }
-            free(kv_pairs);
-            return -1;
-        }
-        kv_pos++;
-    }
-
 
     return cf_stream_packet(caph, "OPENRESP", kv_pairs, kv_pos);
 }
