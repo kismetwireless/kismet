@@ -326,12 +326,64 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
         char *msg, char **chanset, char ***chanlist, size_t *chanlist_sz) {
     char *placeholder = NULL;
     int placeholder_len;
+    char *interface;
+    unsigned int *iw_chanlist;
+    char errstr[STATUS_MAX];
+    int ret;
+    unsigned int chan_sz;
+    unsigned int ci;
+    char conv_chan[16];
 
-    char *pcapfname = NULL;
+    *chanset = NULL;
+    *chanlist = NULL;
+    *chanlist_sz = 0;
 
-    struct stat sbuf;
+    if ((placeholder_len = cf_parse_interface(&placeholder, definition)) <= 0) {
+        snprintf(msg, STATUS_MAX, "Unable to find interface in definition"); 
+        return 0;
+    }
 
-    char errstr[PCAP_ERRBUF_SIZE] = "";
+    interface = strndup(placeholder, placeholder_len);
+
+    /* If we can't get the channel, we can't do anything with it */
+    if (iwconfig_get_channel(interface, errstr) < 0) {
+        free(interface);
+        return 0;
+    }
+
+    /* We don't care about fixed channel */
+    *chanset = NULL;
+
+    /* Prefer mac80211 channel fetch */
+    ret = mac80211_get_chanlist(interface, errstr, chanlist, 
+            (unsigned int *) chanlist_sz);
+
+    if (ret < 0) {
+        ret = iwconfig_get_chanlist(interface, errstr, &iw_chanlist, &chan_sz);
+
+        /* We thought we could deal with this interface, but we can't seem to get
+         * any channels from it, so, no. */
+        if (ret < 0 || chan_sz == 0) {
+            free(interface);
+            return 0;
+        }
+
+        *chanlist = (char **) malloc(sizeof(char *) * chan_sz);
+
+        for (ci = 0; ci < chan_sz; ci++) {
+            snprintf(conv_chan, 16, "%u", iw_chanlist[ci]);
+            (*chanlist)[ci] = strdup(conv_chan);
+        }
+        
+        free(iw_chanlist);
+
+        *chanlist_sz = chan_sz;
+
+
+    }
+
+
+    free(interface);
 
     return 1;
 }
@@ -550,6 +602,10 @@ void capture_thread(kis_capture_handler_t *caph) {
     local_wifi_t *local_wifi = (local_wifi_t *) caph->userdata;
     char errstr[PCAP_ERRBUF_SIZE];
     char *pcap_errstr;
+
+    /* Simple capture thread: since we don't care about blocking and 
+     * channel control is managed by the channel hopping thread, all we have
+     * to do is enter a blocking pcap loop */
 
     fprintf(stderr, "debug - pcap_loop\n");
 
