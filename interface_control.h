@@ -70,6 +70,7 @@ int ifconfig_get_flags(const char *in_dev, char *errstr, int *flags);
 
 /* Fetches the current HW address of the device and copies it to ret_hwaddr.
  * ret_hwaddr must be allocated by the caller and be able to hold 6 bytes.
+ * Only the first 6 bytes of the interface will be copied.
  *
  * Errstr must be allocated by the caller and be able to hold STATUS_MAX characters.
  *

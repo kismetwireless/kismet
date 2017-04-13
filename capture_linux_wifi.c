@@ -55,7 +55,10 @@
 #include <unistd.h>
 #include <errno.h>
 
+#include <net/if.h>
 #include <arpa/inet.h>
+
+#include <ifaddrs.h>
 
 #include "config.h"
 #include "simple_datasource_proto.h"
@@ -139,6 +142,68 @@ typedef struct {
     unsigned int center_freq1;
     unsigned int center_freq2;
 } local_channel_t;
+
+/* Find an interface based on a mac address (or mac address prefix in the case
+ * of monitor mode interfaces); if we have to make a disassociated monitor interface
+ * name we want to be able to find it again if we re-open
+ *
+ * if ignored_ifname is not null, we will ignore any interface which matches mac
+ * but has the same name; we only want to find the monitor interface variant. 
+ *
+ * wlmode will typically be LINUX_WLEXT_MONITOR but could be any other wireless
+ * extensions mode.
+ *
+ * returns the ifnum index which can then be resolved into an interface 
+ * name.
+ */
+int find_interface_mode_by_mac(const char *ignored_ifname, int wlmode, uint8_t *mac) {
+    struct ifaddrs *ifaddr, *ifa;
+    uint8_t dmac[6];
+    char errstr[STATUS_MAX];
+    int r;
+
+    if (getifaddrs(&ifaddr) == -1)
+        return -1;
+
+    for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
+        if (ignored_ifname != NULL && strcmp(ifa->ifa_name, ignored_ifname) == 0)
+            continue;
+
+        if (ifconfig_get_hwaddr(ifa->ifa_name, errstr, dmac) < 0)
+            continue;
+
+        if (memcmp(dmac, mac, 6) == 0) {
+            /* Found matching mac addr, which doesn't match our existing name,
+             * is it in the right mode? */
+            int mode;
+
+            if (iwconfig_get_mode(ifa->ifa_name, errstr, &mode) >= 0) {
+                if (mode == wlmode) {
+                    r = if_nametoindex(ifa->ifa_name);
+                    freeifaddrs(ifaddr);
+                    return r;
+                }
+            }
+        }
+    }
+
+    return -1;
+}
+
+/* Find the next unused interface number for a given interface name */
+int find_next_ifnum(const char *basename) {
+    int i;
+    char ifname[IFNAMSIZ];
+
+    for (i = 0; i < 100; i++) {
+        snprintf(ifname, IFNAMSIZ, "%s%d", basename, i);
+
+        if (if_nametoindex(ifname) == 0)
+            return i;
+    }
+
+    return -1;
+}
 
 /* Convert a string into a local interpretation; allocate ret_localchan.
  */
@@ -387,7 +452,6 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
 
 int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         char *msg, char **uuid, char **chanset, char ***chanlist, size_t *chanlist_sz) {
-
     /* Try to open an interface for monitoring
      * 
      * - Confirm it's an interface, and that it's wireless, by doing a basic 
@@ -405,69 +469,141 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
      * - Initiate pcap
      */
 
+    local_wifi_t *local_wifi = (local_wifi_t *) caph->userdata;
+
     char *placeholder = NULL;
     int placeholder_len;
     
-    char *interface;
     uint8_t hwaddr[6];
 
     char errstr[STATUS_MAX];
+    char ifnam[IFNAMSIZ];
 
     *uuid = NULL;
     *chanset = NULL;
     *chanlist = NULL;
     *chanlist_sz = 0;
 
+    int mode;
+
     if ((placeholder_len = cf_parse_interface(&placeholder, definition)) <= 0) {
         snprintf(msg, STATUS_MAX, "Unable to find interface in definition"); 
         return -1;
     }
 
-    interface = strndup(placeholder, placeholder_len);
+    local_wifi->interface = strndup(placeholder, placeholder_len);
 
     /* If we can't get the channel, we can't do anything with it */
-    if (iwconfig_get_channel(interface, errstr) < 0) {
+    if (iwconfig_get_channel(local_wifi->interface, errstr) < 0) {
         snprintf(msg, STATUS_MAX, "Could not fetch basic wireless info from '%s': %s",
-                interface, errstr);
-        free(interface);
+                local_wifi->interface, errstr);
         return -1;
     }
 
     /* get the mac address; this should be standard for anything */
-    if (ifconfig_get_hwaddr(interface, errstr, hwaddr) < 0) {
+    if (ifconfig_get_hwaddr(local_wifi->interface, errstr, hwaddr) < 0) {
         snprintf(msg, STATUS_MAX, "Could not fetch interface address from '%s': %s",
-                interface, errstr);
-        free(interface);
+                local_wifi->interface, errstr);
         return -1;
     }
 
     /* if we're hard rfkilled we can't do anything */
-    if (linux_sys_get_rfkill(interface, LINUX_RFKILL_TYPE_HARD) == 1) {
+    if (linux_sys_get_rfkill(local_wifi->interface, LINUX_RFKILL_TYPE_HARD) == 1) {
         snprintf(msg, STATUS_MAX, "Interface '%s' is set to hard rfkill; check your "
-                "wireless switch if you have one.", interface);
-        free(interface);
+                "wireless switch if you have one.", local_wifi->interface);
         return -1;
     }
 
     /* if we're soft rfkilled, unkill us */
-    if (linux_sys_get_rfkill(interface, LINUX_RFKILL_TYPE_SOFT) == 1) {
-        if (linux_sys_clear_rfkill(interface) < 0) {
+    if (linux_sys_get_rfkill(local_wifi->interface, LINUX_RFKILL_TYPE_SOFT) == 1) {
+        if (linux_sys_clear_rfkill(local_wifi->interface) < 0) {
             snprintf(msg, STATUS_MAX, "Unable to activate interface '%s' set to "
-                    "soft rfkill", interface);
-            free(interface);
+                    "soft rfkill", local_wifi->interface);
             return -1;
         }
-        snprintf(errstr, STATUS_MAX, "Removed rfkill from interface '%s'", interface);
+        snprintf(errstr, STATUS_MAX, "Removed soft-rfkill and enabled interface '%s'", 
+                local_wifi->interface);
         cf_send_message(caph, errstr, MSGFLAG_INFO);
     }
 
     /* Make a spoofed, but consistent, UUID based on the adler32 of the interface name 
      * and the mac address of the device */
     snprintf(errstr, STATUS_MAX, "%08X-0000-0000-0000-%02X%02X%02X%02X%02X%02X",
-            adler32_csum(interface, strlen(interface)) & 0xFFFFFFFF,
+            adler32_csum(local_wifi->interface, 
+                strlen(local_wifi->interface)) & 0xFFFFFFFF,
             hwaddr[0] & 0xFF, hwaddr[1] & 0xFF, hwaddr[2] & 0xFF,
             hwaddr[3] & 0xFF, hwaddr[4] & 0xFF, hwaddr[5] & 0xFF);
     *uuid = strdup(errstr);
+
+    /* Try to get it into monitor mode if it isn't already; even mac80211 drivers
+     * respond to SIOCGIWMODE */
+    if (iwconfig_get_mode(local_wifi->interface, errstr, &mode) < 0) {
+        snprintf(msg, STATUS_MAX, "Unable to get current wireless mode of "
+                "interface '%s': %s", local_wifi->interface, errstr);
+        return -1;
+    }
+
+    if (mode != LINUX_WLEXT_MONITOR) {
+        int existing_ifnum;
+
+        /* Look for an interface that shares the mac and is in monitor mode */
+        existing_ifnum = 
+            find_interface_mode_by_mac(local_wifi->interface, 
+                    LINUX_WLEXT_MONITOR, hwaddr);
+
+        if (existing_ifnum >= 0) {
+            if (if_indextoname((unsigned int) existing_ifnum, ifnam) != NULL) {
+                local_wifi->cap_interface = strdup(ifnam);
+            }
+        }
+            
+        /* Otherwise try to come up with a monitor name */
+        if (local_wifi->cap_interface == NULL) {
+            /* First we'd like to make a monitor vif if we can; can we fit that
+             * in our interface name?  */
+            if (strlen(local_wifi->interface) + 3 >= IFNAMSIZ) {
+                /* Can't fit our name in, we have to make an unrelated name, 
+                 * we'll call it 'kismonX'; find the next kismonX interface */
+                int ifnum = find_next_ifnum("kismon");
+
+                if (ifnum < 0) {
+                    snprintf(msg, STATUS_MAX, "Could not append 'mon' extension to "
+                            "existing interface (%s) and could not find a kismonX "
+                            "within 100 tries", local_wifi->interface);
+                    return -1;
+                }
+
+                /* We know we're ok here; we got this by figuring out nothing
+                 * matched and then enumerating our own */
+                snprintf(ifnam, IFNAMSIZ, "kismon%d", ifnum);
+            } else {
+                snprintf(ifnam, IFNAMSIZ, "%smon", local_wifi->interface);
+
+                /* We need to check the mode here to make sure we're not in a weird
+                 * state where NM retyped our interface or something */
+                if (iwconfig_get_mode(ifnam, errstr, &mode) >= 0) {
+                    if (mode != LINUX_WLEXT_MONITOR) {
+                        snprintf(msg, STATUS_MAX, "A monitor vif already exists "
+                                "for interface '%s' (%s) but isn't in monitor mode, "
+                                "check that NetworkManager isn't hijacking the "
+                                "interface, delete the false monitor vif, and try "
+                                "again.", local_wifi->interface, ifnam);
+                        return -1;
+                    }
+                }
+            }
+
+            /* Dup our monitor interface name */
+            local_wifi->cap_interface = strdup(ifnam);
+        }
+
+        /* We think we know what we're going to capture from now; see if it already 
+         * exists and is in monitor mode; we may be doing multiple mode fetches
+         * but it doesn't really matter much; it's a simple ioctl and it only
+         * happens during open */
+
+
+    }
 
 
     return 1;
