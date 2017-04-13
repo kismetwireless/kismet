@@ -752,6 +752,9 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
             if (nuldef != NULL)
                 free(nuldef);
 
+            if (uuid != NULL)
+                free(uuid);
+
             for (i = 0; i < channels_sz; i++) {
                 free(channels[i]);
             }
