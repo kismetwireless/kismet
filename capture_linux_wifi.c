@@ -378,10 +378,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
         free(iw_chanlist);
 
         *chanlist_sz = chan_sz;
-
-
     }
-
 
     free(interface);
 
@@ -390,8 +387,87 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
 
 int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         char *msg, char **uuid, char **chanset, char ***chanlist, size_t *chanlist_sz) {
+
+    /* Try to open an interface for monitoring
+     * 
+     * - Confirm it's an interface, and that it's wireless, by doing a basic 
+     *   siocgiwchan channel fetch to see if wireless icotls work on it
+     * - Get the current mode - is it already in monitor mode?  If so, we're done
+     *   and the world is good
+     * - Check and warn about reg domain
+     * - Check for rfkill
+     * - It's not in monitor mode.  Try to make a VIF via mac80211 for it; this is
+     *   by far the most likely to succeed on modern systems.
+     * - Figure out if we can name the vif something sane under new interface
+     *   naming rules; preferably interfaceXmon
+     * - Extract channels
+     * - Generate UUID
+     * - Initiate pcap
+     */
+
     char *placeholder = NULL;
     int placeholder_len;
+    
+    char *interface;
+    uint8_t hwaddr[6];
+
+    char errstr[STATUS_MAX];
+
+    *uuid = NULL;
+    *chanset = NULL;
+    *chanlist = NULL;
+    *chanlist_sz = 0;
+
+    if ((placeholder_len = cf_parse_interface(&placeholder, definition)) <= 0) {
+        snprintf(msg, STATUS_MAX, "Unable to find interface in definition"); 
+        return -1;
+    }
+
+    interface = strndup(placeholder, placeholder_len);
+
+    /* If we can't get the channel, we can't do anything with it */
+    if (iwconfig_get_channel(interface, errstr) < 0) {
+        snprintf(msg, STATUS_MAX, "Could not fetch basic wireless info from '%s': %s",
+                interface, errstr);
+        free(interface);
+        return -1;
+    }
+
+    /* get the mac address; this should be standard for anything */
+    if (ifconfig_get_hwaddr(interface, errstr, hwaddr) < 0) {
+        snprintf(msg, STATUS_MAX, "Could not fetch interface address from '%s': %s",
+                interface, errstr);
+        free(interface);
+        return -1;
+    }
+
+    /* if we're hard rfkilled we can't do anything */
+    if (linux_sys_get_rfkill(interface, LINUX_RFKILL_TYPE_HARD) == 1) {
+        snprintf(msg, STATUS_MAX, "Interface '%s' is set to hard rfkill; check your "
+                "wireless switch if you have one.", interface);
+        free(interface);
+        return -1;
+    }
+
+    /* if we're soft rfkilled, unkill us */
+    if (linux_sys_get_rfkill(interface, LINUX_RFKILL_TYPE_SOFT) == 1) {
+        if (linux_sys_clear_rfkill(interface) < 0) {
+            snprintf(msg, STATUS_MAX, "Unable to activate interface '%s' set to "
+                    "soft rfkill", interface);
+            free(interface);
+            return -1;
+        }
+        snprintf(errstr, STATUS_MAX, "Removed rfkill from interface '%s'", interface);
+        cf_send_message(caph, errstr, MSGFLAG_INFO);
+    }
+
+    /* Make a spoofed, but consistent, UUID based on the adler32 of the interface name 
+     * and the mac address of the device */
+    snprintf(errstr, STATUS_MAX, "%08X-0000-0000-0000-%02X%02X%02X%02X%02X%02X",
+            adler32_csum(interface, strlen(interface)) & 0xFFFFFFFF,
+            hwaddr[0] & 0xFF, hwaddr[1] & 0xFF, hwaddr[2] & 0xFF,
+            hwaddr[3] & 0xFF, hwaddr[4] & 0xFF, hwaddr[5] & 0xFF);
+    *uuid = strdup(errstr);
 
 
     return 1;
@@ -638,27 +714,6 @@ int main(int argc, char *argv[]) {
         .mac80211_family = NULL,
         .seq_channel_failure = 0,
     };
-
-    char errstr[STATUS_MAX];
-    char **channels;
-    unsigned int channels_len, i;
-
-    int ret;
-
-    ret = mac80211_get_chanlist("wlan0", errstr, &channels, &channels_len);
-
-    if (ret < 0) {
-        printf("oops: %s\n", errstr);
-    }
-
-    for (i = 0; i < channels_len; i++) {
-        printf("channel '%s'\n", channels[i]);
-        free(channels[i]);
-    }
-
-    free(channels);
-
-    return 0;
 
     /* Remap stderr so we can log debugging to a file */
     FILE *sterr;
