@@ -410,14 +410,9 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
 
     interface = strndup(placeholder, placeholder_len);
 
-    /* If we can't get the channel, we can't do anything with it */
-    if (iwconfig_get_channel(interface, errstr) < 0) {
-        free(interface);
-        return 0;
-    }
-
     /* We don't care about fixed channel */
     *chanset = NULL;
+    
 
     /* Prefer mac80211 channel fetch */
     ret = mac80211_get_chanlist(interface, errstr, chanlist, 
@@ -426,8 +421,8 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     if (ret < 0) {
         ret = iwconfig_get_chanlist(interface, errstr, &iw_chanlist, &chan_sz);
 
-        /* We thought we could deal with this interface, but we can't seem to get
-         * any channels from it, so, no. */
+        /* We can't seem to get any channels from this interface, either 
+         * through mac80211 or siocgiwfreq so we can't do anything */
         if (ret < 0 || chan_sz == 0) {
             free(interface);
             return 0;
@@ -443,6 +438,11 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
         free(iw_chanlist);
 
         *chanlist_sz = chan_sz;
+    } else {
+        fprintf(stderr, "debug - linux wifi %s got channel list: \n", interface);
+        for (unsigned int i = 0; i < *chanlist_sz; i++) {
+            fprintf(stderr, "debug -     %s\n", (*chanlist)[i]);
+        }
     }
 
     free(interface);
@@ -495,13 +495,6 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     local_wifi->interface = strndup(placeholder, placeholder_len);
 
-    /* If we can't get the channel, we can't do anything with it */
-    if (iwconfig_get_channel(local_wifi->interface, errstr) < 0) {
-        snprintf(msg, STATUS_MAX, "Could not fetch basic wireless info from '%s': %s",
-                local_wifi->interface, errstr);
-        return -1;
-    }
-
     /* get the mac address; this should be standard for anything */
     if (ifconfig_get_hwaddr(local_wifi->interface, errstr, hwaddr) < 0) {
         snprintf(msg, STATUS_MAX, "Could not fetch interface address from '%s': %s",
@@ -536,6 +529,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
             hwaddr[0] & 0xFF, hwaddr[1] & 0xFF, hwaddr[2] & 0xFF,
             hwaddr[3] & 0xFF, hwaddr[4] & 0xFF, hwaddr[5] & 0xFF);
     *uuid = strdup(errstr);
+
+    fprintf(stderr, "debug - generated uuid %s for %s\n", *uuid, local_wifi->interface);
 
     /* Try to get it into monitor mode if it isn't already; even mac80211 drivers
      * respond to SIOCGIWMODE */
