@@ -71,6 +71,7 @@
 #include "kis_datasource.h"
 #include "datasourcetracker.h"
 #include "datasource_pcapfile.h"
+#include "datasource_linux_wifi.h"
 
 #include "timetracker.h"
 #include "alertracker.h"
@@ -1051,7 +1052,6 @@ int main(int argc, char *argv[], char *envp[]) {
     // Add the datasources
 #ifdef USE_PACKETSOURCE_PCAPFILE
     datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourcePcapfileBuilder(globalregistry)));
-
 #endif
 
     // Start the plugin handler
