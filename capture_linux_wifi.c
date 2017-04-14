@@ -486,6 +486,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     int mode;
 
+    int mac80211_vif_success = 0;
+
     if ((placeholder_len = cf_parse_interface(&placeholder, definition)) <= 0) {
         snprintf(msg, STATUS_MAX, "Unable to find interface in definition"); 
         return -1;
@@ -597,12 +599,139 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
             local_wifi->cap_interface = strdup(ifnam);
         }
 
-        /* We think we know what we're going to capture from now; see if it already 
-         * exists and is in monitor mode; we may be doing multiple mode fetches
-         * but it doesn't really matter much; it's a simple ioctl and it only
-         * happens during open */
+    } else {
+        /* Otherwise the capinterface equals the interface because it's 
+         * already in monitor mode */
+        local_wifi->cap_interface = strdup(local_wifi->interface);
+    }
 
+    /* We think we know what we're going to capture from now; see if it already 
+     * exists and is in monitor mode; we may be doing multiple mode fetches
+     * but it doesn't really matter much; it's a simple ioctl and it only
+     * happens during open; we tolerate a failure here since the interface
+     * might not exist! */
 
+    if (iwconfig_get_mode(local_wifi->interface, errstr, &mode) < 0) 
+        mode = -1;
+
+    /* We're going to start interacting with devices - connect to mac80211 if
+     * we can; an error here is tolerable because we'll fail properly later
+     * on */
+    local_wifi->mac80211_handle = NULL;
+    local_wifi->mac80211_cache = NULL;
+    local_wifi->mac80211_family = NULL;
+
+    if (mac80211_connect(local_wifi->interface, &(local_wifi->mac80211_handle),
+                &(local_wifi->mac80211_cache), &(local_wifi->mac80211_family),
+                errstr) < 0) {
+        local_wifi->mac80211_handle = NULL;
+        local_wifi->mac80211_cache = NULL;
+        local_wifi->mac80211_family = NULL;
+    }
+
+    /* The interface we want to use isn't in monitor mode - and presumably
+     * doesn't exist - so try to make a monitor vif via mac80211; this will 
+     * work with all modern drivers and we'd definitely rather do this.
+     */
+    if (mode != LINUX_WLEXT_MONITOR && local_wifi->mac80211_handle != NULL &&
+            strcmp(local_wifi->interface, local_wifi->cap_interface) != 0) {
+        /* First, look for some nl80211 flags in the arguments. */
+        unsigned int num_flags = 2;
+        unsigned int fi;
+        unsigned int *flags = NULL;
+
+        bool fcs = false;
+        bool plcp = false;
+
+        char errstr2[STATUS_MAX];
+
+        if ((placeholder_len = cf_find_flag(&placeholder, "fcsfail", definition)) > 0) {
+            if (strncasecmp(placeholder, "true", placeholder_len) == 0) {
+                snprintf(errstr, STATUS_MAX,
+                        "Source '%s' configuring monitor interface to pass packets "
+                        "which fail FCS checksum", local_wifi->interface);
+                cf_send_message(caph, errstr, MSGFLAG_INFO);
+                num_flags++;
+                fcs = true;
+            }
+        }
+
+        if ((placeholder_len = cf_find_flag(&placeholder, "plcpfail", 
+                        definition)) > 0) {
+            if (strncasecmp(placeholder, "true", placeholder_len) == 0) {
+                snprintf(errstr, STATUS_MAX,
+                        "Source '%s' configuring monitor interface to pass packets "
+                        "which fail PLCP checksum", local_wifi->interface);
+                cf_send_message(caph, errstr, MSGFLAG_INFO);
+                num_flags++;
+                plcp = true;
+            }
+        }
+
+        /* Allocate the flag list */
+        flags = (unsigned int *) malloc(sizeof(unsigned int) * num_flags);
+
+        /* We always set these */
+        fi = 0;
+        flags[fi++] = NL80211_MNTR_FLAG_CONTROL;
+        flags[fi++] = NL80211_MNTR_FLAG_OTHER_BSS;
+
+        if (fcs)
+            flags[fi++] = NL80211_MNTR_FLAG_FCSFAIL;
+
+        if (plcp)
+            flags[fi++] = NL80211_MNTR_FLAG_PLCPFAIL;
+
+        /* Try to make the monitor vif */
+        if (mac80211_create_monitor_vif(local_wifi->interface,
+                    local_wifi->cap_interface, flags, num_flags, errstr) < 0) {
+            /* Send an error message */
+            snprintf(errstr2, STATUS_MAX, "Failed to create monitor vif interface '%s' "
+                    "for interface '%s': %s", local_wifi->cap_interface,
+                    local_wifi->interface, errstr);
+            cf_send_message(caph, errstr2, MSGFLAG_ERROR);
+
+            /* Try to switch the mode of this interface to monitor; maybe we're a
+             * wlext device after all */
+            if (iwconfig_set_mode(local_wifi->interface, errstr, 
+                        LINUX_WLEXT_MONITOR) < 0) {
+                snprintf(errstr2, STATUS_MAX, "Failed to re-set mode of base "
+                        "interface '%s': %s", local_wifi->interface,
+                        errstr);
+                cf_send_message(caph, errstr2, MSGFLAG_ERROR);
+
+                /* We've failed at everything */
+                snprintf(msg, STATUS_MAX, "Failed to create a monitor vif and could "
+                        "not set mode of existing interface, unable to put "
+                        "'%s' into monitor mode.", local_wifi->interface);
+                return -1;
+            } else {
+                snprintf(errstr2, STATUS_MAX, "Configured '%s' as monitor mode "
+                        "interface instead of using a monitor vif; will continue using "
+                        "this interface as the capture source.", local_wifi->interface);
+                cf_send_message(caph, errstr2, MSGFLAG_INFO);
+
+                mac80211_disconnect(local_wifi->mac80211_handle, 
+                        local_wifi->mac80211_cache);
+                local_wifi->mac80211_cache = NULL;
+                local_wifi->mac80211_family = NULL;
+                local_wifi->mac80211_handle = NULL;
+            }
+        } else {
+            snprintf(errstr2, STATUS_MAX, "Successfully created monitor interface "
+                    "'%s' for interface '%s'", local_wifi->cap_interface,
+                    local_wifi->interface);
+            local_wifi->use_mac80211 = 1;
+        }
+    } 
+    
+    if (mode != LINUX_WLEXT_MONITOR) {
+        /* We're not in monitor mode and we couldn't connect to mac80211 */
+    } else {
+        snprintf(errstr, STATUS_MAX, "Monitor interface '%s' already exists for "
+                "capture interface '%s', we'll use that.",
+                local_wifi->interface, local_wifi->cap_interface);
+        cf_send_message(caph, errstr, MSGFLAG_INFO);
     }
 
 
