@@ -61,6 +61,12 @@
 #include <ifaddrs.h>
 
 #include "config.h"
+
+#ifdef HAVE_LIBNM
+#include <NetworkManager.h>
+#include <glib.h>
+#endif
+
 #include "simple_datasource_proto.h"
 #include "capture_framework.h"
 
@@ -90,6 +96,12 @@ typedef struct {
 
     /* Number of sequential errors setting channel */
     unsigned int seq_channel_failure;
+
+    /* network manager objects; our nm client, device record,
+     * and do we reset network manager controlling the device? */
+    void *nm_client;
+    void *nm_device;
+    int reset_nm_management;
 } local_wifi_t;
 
 /* Linux Wi-Fi Channels:
@@ -524,7 +536,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     /* Make a spoofed, but consistent, UUID based on the adler32 of the interface name 
      * and the mac address of the device */
     snprintf(errstr, STATUS_MAX, "%08X-0000-0000-0000-%02X%02X%02X%02X%02X%02X",
-            adler32_csum(local_wifi->interface, 
+            adler32_csum((unsigned char *) local_wifi->interface, 
                 strlen(local_wifi->interface)) & 0xFFFFFFFF,
             hwaddr[0] & 0xFF, hwaddr[1] & 0xFF, hwaddr[2] & 0xFF,
             hwaddr[3] & 0xFF, hwaddr[4] & 0xFF, hwaddr[5] & 0xFF);
@@ -539,6 +551,64 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                 "interface '%s': %s", local_wifi->interface, errstr);
         return -1;
     }
+
+    /* We think we can do something with this interface; if we have support,
+     * connect to network manager */
+#ifdef HAVE_LIBNM
+    {
+        NMClient *nmclient = NULL;
+        NMDevice *nmdevice = NULL;
+        const GPtrArray *nmdevices;
+        GError *nmerror = NULL;
+
+        nmclient = nm_client_new(NULL, &nmerror);
+
+        if (nmclient == NULL) {
+            if (nmerror != NULL) {
+                snprintf(errstr, STATUS_MAX, "Could not connect to NetworkManager, "
+                        "cannot automatically prevent interface '%s' from being "
+                        "modified if NetworkManager is running: %s",
+                        local_wifi->interface, nmerror->message);
+            } else {
+                snprintf(errstr, STATUS_MAX, "Could not connect to NetworkManager, "
+                        "cannot automatically prevent interface '%s' from being "
+                        "modified if NetworkManager is running.",
+                        local_wifi->interface);
+            }
+
+            cf_send_message(caph, errstr, MSGFLAG_INFO);
+        } else if (nm_client_get_nm_running(nmclient)) {
+            nmdevices = nm_client_get_devices(nmclient);
+
+            if (nmdevices != NULL) {
+                for (int i = 0; i < nmdevices->len; i++) {
+                    NMDevice *d = g_ptr_array_index(nmdevices, i);
+
+                    if (strcmp(nm_device_get_iface(d), local_wifi->interface) == 0) {
+                        nmdevice = d;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (nmdevice != NULL) {
+            local_wifi->reset_nm_management = nm_device_get_managed(nmdevice);
+
+            if (local_wifi->reset_nm_management) {
+                snprintf(errstr, STATUS_MAX, "Telling NetworkManager not to control "
+                        "interface '%s': you may need to re-initialize this interface "
+                        "later or tell NetworkManager to control it again via 'nmcli'",
+                        local_wifi->interface);
+                cf_send_message(caph, errstr, MSGFLAG_INFO);
+                nm_device_set_managed(nmdevice, 0);
+
+                local_wifi->nm_client = nmclient;
+                local_wifi->nm_device = nmdevice;
+            }
+        }
+    }
+#endif
 
     if (mode != LINUX_WLEXT_MONITOR) {
         int existing_ifnum;
