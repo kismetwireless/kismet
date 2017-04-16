@@ -62,6 +62,15 @@ int ifconfig_set_flags(const char *in_dev, char *errstr, int flags);
 int ifconfig_delta_flags(const char *in_dev, char *errstr, int flags);
 int ifconfig_get_flags(const char *in_dev, char *errstr, int *flags);
 
+/* Bring an interface up or down by setting up, running, and promisc 
+ *
+ * Returns:
+ * 0        Success
+ * Others   Failure, errno returned
+ */
+int ifconfig_interface_up(const char *in_dev, char *errstr);
+int ifconfig_interface_down(const char *in_dev, char *errstr);
+
 #endif
 
 #ifdef SYS_LINUX

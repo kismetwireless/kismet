@@ -96,6 +96,21 @@ int ifconfig_get_flags(const char *in_dev, char *errstr, int *flags) {
     return 0;
 }
 
+int ifconfig_interface_up(const char *in_dev, char *errstr) {
+    return ifconfig_delta_flags(in_dev, errstr, IFF_UP | IFF_RUNNING | IFF_PROMISC);
+}
+
+int ifconfig_interface_down(const char *in_dev, char *errstr) {
+    int flags;
+    int r;
+
+    if ((r = ifconfig_get_flags(in_dev, errstr, &flags)) < 0)
+        return r;
+
+    return ifconfig_set_flags(in_dev, errstr, 
+            flags & ~(IFF_UP | IFF_RUNNING | IFF_PROMISC));
+}
+
 int ifconfig_delta_flags(const char *in_dev, char *errstr, int flags) {
 #ifndef SYS_CYGWIN
     int ret;
