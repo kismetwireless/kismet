@@ -72,6 +72,9 @@
 /* libnl-3.0 netlink library */
 #undef HAVE_LIBNL30
 
+/* NetworkManager interface library */
+#undef HAVE_LIBNM
+
 /* libpcap packet capture lib */
 #undef HAVE_LIBPCAP
 

@@ -634,6 +634,10 @@ libnlgenl30_LIBS
 libnlgenl30_CFLAGS
 libnl30_LIBS
 libnl30_CFLAGS
+NMCFLAGS
+NMLIBS
+libnm_LIBS
+libnm_CFLAGS
 PKG_CONFIG_LIBDIR
 PKG_CONFIG_PATH
 PKG_CONFIG
@@ -753,6 +757,8 @@ CXXCPP
 PKG_CONFIG
 PKG_CONFIG_PATH
 PKG_CONFIG_LIBDIR
+libnm_CFLAGS
+libnm_LIBS
 libnl30_CFLAGS
 libnl30_LIBS
 libnlgenl30_CFLAGS
@@ -1419,6 +1425,9 @@ Some influential environment variables:
               directories to add to pkg-config's search path
   PKG_CONFIG_LIBDIR
               path overriding pkg-config's built-in search path
+  libnm_CFLAGS
+              C compiler flags for libnm, overriding pkg-config
+  libnm_LIBS  linker flags for libnm, overriding pkg-config
   libnl30_CFLAGS
               C compiler flags for libnl30, overriding pkg-config
   libnl30_LIBS
@@ -8457,11 +8466,9 @@ if test "$havepkgconfig" = "no"; then
 $as_echo "$as_me: WARNING: Missing pkg-config will lead to multiple other checks failing" >&2;}
 fi
 
-NLLIBS=""
-NLCFLAGS=""
-nlname=""
+NMLIBS=""
+NMCFLAGS=""
 
-if test "$havenetlink" = "yes"; then
 
 
 
@@ -8582,6 +8589,93 @@ $as_echo "no" >&6; }
 		PKG_CONFIG=""
 	fi
 fi
+
+pkg_failed=no
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for libnm" >&5
+$as_echo_n "checking for libnm... " >&6; }
+
+if test -n "$libnm_CFLAGS"; then
+    pkg_cv_libnm_CFLAGS="$libnm_CFLAGS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"libnm\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "libnm") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_libnm_CFLAGS=`$PKG_CONFIG --cflags "libnm" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+if test -n "$libnm_LIBS"; then
+    pkg_cv_libnm_LIBS="$libnm_LIBS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"libnm\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "libnm") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_libnm_LIBS=`$PKG_CONFIG --libs "libnm" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+
+
+
+if test $pkg_failed = yes; then
+   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
+        _pkg_short_errors_supported=yes
+else
+        _pkg_short_errors_supported=no
+fi
+        if test $_pkg_short_errors_supported = yes; then
+	        libnm_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "libnm" 2>&1`
+        else
+	        libnm_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "libnm" 2>&1`
+        fi
+	# Put the nasty error message in config.log where it belongs
+	echo "$libnm_PKG_ERRORS" >&5
+
+	havelibnm=no
+elif test $pkg_failed = untried; then
+     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+	havelibnm=no
+else
+	libnm_CFLAGS=$pkg_cv_libnm_CFLAGS
+	libnm_LIBS=$pkg_cv_libnm_LIBS
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+	havelibnm=yes
+fi
+if test $havelibnm = yes; then
+
+$as_echo "#define HAVE_LIBNM 1" >>confdefs.h
+
+    NMLIBS=`pkg-config --libs libnm`
+    NMCFLAGS=`pkg-config --cflags libnm`
+fi
+
+
+
+
+NLLIBS=""
+NLCFLAGS=""
+nlname=""
+
+if test "$havenetlink" = "yes"; then
 
 pkg_failed=no
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for libnl30" >&5
@@ -10578,7 +10672,16 @@ else
 	echo "no (will not be able to make mac80211 vaps)";
 fi
 
-printf "        Build-in Debug: "
+printf "  Linux NetworkManager: "
+if test "$havelibnm" = "yes"; then
+	echo "yes (libnm NetworkManager control)";
+elif test "$linux" != "yes"; then
+	echo "n/a (only Linux)"
+else
+	echo "no (will not be able to control NetworkManager)";
+fi
+
+printf "        Built-in Debug: "
 if test "$have_execinfo" = "yes"; then
 	echo "yes";
 elif test "$linux" != "yes"; then
@@ -10653,6 +10756,15 @@ if test "$havenetlink" != "yes" -a "$linux" = "yes"; then
 		echo "this to find the options libnl uses.  If libnl is installed but "
 		echo "pkg-config is not, Kismet will not detect libnl!"
 	fi
+fi
+
+if test "$havelibnm" != "yes" -a "$linux" = "yes"; then
+    echo
+    echo "*** WARNING ***"
+    echo "libnm (the NetworkManager control library) was not found.  Kismet uses "
+    echo "libnm to prevent NetworkManager from reconfiguring monitor mode interfaces "
+    echo "while Kismet is running; without this library you will need to manually "
+    echo "disable NetworkManager or manually tell it to ignore specific interaces."
 fi
 
 if test "$havenetlink" = "yes" -a "$pcap" = "yes"; then

@@ -20,9 +20,15 @@ CFLAGS		= @CPPFLAGS@
 CAPLIBS		= @caplibs@
 NETLINKLIBS	= @NLLIBS@
 AIRCAPLIBS	= @airpcaplib@
+
+NMFLAGS		= @NMCFLAGS@
+NMLIBS		= @NMLIBS@
+
 PCAPLIBS	= @pcaplnk@
+
 CXXFLAGS 	= -Wall @CXXFLAGS@
 CPPFLAGS 	= @CPPFLAGS@
+
 SUIDGROUP 	= @suidgroup@
 
 prefix 		= @prefix@

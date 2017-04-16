@@ -889,6 +889,19 @@ if test "$havepkgconfig" = "no"; then
   AC_MSG_WARN(Missing pkg-config will lead to multiple other checks failing)
 fi
 
+NMLIBS=""
+NMCFLAGS=""
+
+PKG_CHECK_MODULES(libnm, [libnm], havelibnm=yes, havelibnm=no)
+if test $havelibnm = yes; then
+    AC_DEFINE(HAVE_LIBNM, 1, NetworkManager interface library)
+    NMLIBS=`pkg-config --libs libnm`
+    NMCFLAGS=`pkg-config --cflags libnm`
+fi
+
+AC_SUBST(NMLIBS)
+AC_SUBST(NMCFLAGS)
+
 NLLIBS=""
 NLCFLAGS=""
 nlname=""
@@ -1134,7 +1147,16 @@ else
 	echo "no (will not be able to make mac80211 vaps)";
 fi
 
-printf "        Build-in Debug: "
+printf "  Linux NetworkManager: "
+if test "$havelibnm" = "yes"; then
+	echo "yes (libnm NetworkManager control)";
+elif test "$linux" != "yes"; then
+	echo "n/a (only Linux)"
+else
+	echo "no (will not be able to control NetworkManager)";
+fi
+
+printf "        Built-in Debug: "
 if test "$have_execinfo" = "yes"; then
 	echo "yes";
 elif test "$linux" != "yes"; then
@@ -1209,6 +1231,15 @@ if test "$havenetlink" != "yes" -a "$linux" = "yes"; then
 		echo "this to find the options libnl uses.  If libnl is installed but "
 		echo "pkg-config is not, Kismet will not detect libnl!"
 	fi
+fi
+
+if test "$havelibnm" != "yes" -a "$linux" = "yes"; then
+    echo
+    echo "*** WARNING ***"
+    echo "libnm (the NetworkManager control library) was not found.  Kismet uses "
+    echo "libnm to prevent NetworkManager from reconfiguring monitor mode interfaces "
+    echo "while Kismet is running; without this library you will need to manually "
+    echo "disable NetworkManager or manually tell it to ignore specific interaces."
 fi
 
 if test "$havenetlink" = "yes" -a "$pcap" = "yes"; then
