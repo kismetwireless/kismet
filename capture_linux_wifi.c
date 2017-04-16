@@ -76,6 +76,8 @@
 
 #include "wifi_ht_channels.h"
 
+#define MAX_PACKET_LEN  8192
+
 /* State tracking, put in userdata */
 typedef struct {
     pcap_t *pd;
@@ -489,6 +491,9 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     uint8_t hwaddr[6];
 
     char errstr[STATUS_MAX];
+    char errstr2[STATUS_MAX];
+    char pcap_errstr[PCAP_ERRBUF_SIZE] = "";
+
     char ifnam[IFNAMSIZ];
 
     *uuid = NULL;
@@ -498,7 +503,12 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     int mode;
 
-    int mac80211_vif_success = 0;
+#ifdef HAVE_LIBNM
+    NMClient *nmclient = NULL;
+    NMDevice *nmdevice = NULL;
+    const GPtrArray *nmdevices;
+    GError *nmerror = NULL;
+#endif
 
     if ((placeholder_len = cf_parse_interface(&placeholder, definition)) <= 0) {
         snprintf(msg, STATUS_MAX, "Unable to find interface in definition"); 
@@ -555,57 +565,50 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     /* We think we can do something with this interface; if we have support,
      * connect to network manager */
 #ifdef HAVE_LIBNM
-    {
-        NMClient *nmclient = NULL;
-        NMDevice *nmdevice = NULL;
-        const GPtrArray *nmdevices;
-        GError *nmerror = NULL;
+    nmclient = nm_client_new(NULL, &nmerror);
 
-        nmclient = nm_client_new(NULL, &nmerror);
+    if (nmclient == NULL) {
+        if (nmerror != NULL) {
+            snprintf(errstr, STATUS_MAX, "Could not connect to NetworkManager, "
+                    "cannot automatically prevent interface '%s' from being "
+                    "modified if NetworkManager is running: %s",
+                    local_wifi->interface, nmerror->message);
+        } else {
+            snprintf(errstr, STATUS_MAX, "Could not connect to NetworkManager, "
+                    "cannot automatically prevent interface '%s' from being "
+                    "modified if NetworkManager is running.",
+                    local_wifi->interface);
+        }
 
-        if (nmclient == NULL) {
-            if (nmerror != NULL) {
-                snprintf(errstr, STATUS_MAX, "Could not connect to NetworkManager, "
-                        "cannot automatically prevent interface '%s' from being "
-                        "modified if NetworkManager is running: %s",
-                        local_wifi->interface, nmerror->message);
-            } else {
-                snprintf(errstr, STATUS_MAX, "Could not connect to NetworkManager, "
-                        "cannot automatically prevent interface '%s' from being "
-                        "modified if NetworkManager is running.",
-                        local_wifi->interface);
-            }
+        cf_send_message(caph, errstr, MSGFLAG_INFO);
+    } else if (nm_client_get_nm_running(nmclient)) {
+        nmdevices = nm_client_get_devices(nmclient);
 
-            cf_send_message(caph, errstr, MSGFLAG_INFO);
-        } else if (nm_client_get_nm_running(nmclient)) {
-            nmdevices = nm_client_get_devices(nmclient);
+        if (nmdevices != NULL) {
+            for (int i = 0; i < nmdevices->len; i++) {
+                NMDevice *d = g_ptr_array_index(nmdevices, i);
 
-            if (nmdevices != NULL) {
-                for (int i = 0; i < nmdevices->len; i++) {
-                    NMDevice *d = g_ptr_array_index(nmdevices, i);
-
-                    if (strcmp(nm_device_get_iface(d), local_wifi->interface) == 0) {
-                        nmdevice = d;
-                        break;
-                    }
+                if (strcmp(nm_device_get_iface(d), local_wifi->interface) == 0) {
+                    nmdevice = d;
+                    break;
                 }
             }
         }
+    }
 
-        if (nmdevice != NULL) {
-            local_wifi->reset_nm_management = nm_device_get_managed(nmdevice);
+    if (nmdevice != NULL) {
+        local_wifi->reset_nm_management = nm_device_get_managed(nmdevice);
 
-            if (local_wifi->reset_nm_management) {
-                snprintf(errstr, STATUS_MAX, "Telling NetworkManager not to control "
-                        "interface '%s': you may need to re-initialize this interface "
-                        "later or tell NetworkManager to control it again via 'nmcli'",
-                        local_wifi->interface);
-                cf_send_message(caph, errstr, MSGFLAG_INFO);
-                nm_device_set_managed(nmdevice, 0);
+        if (local_wifi->reset_nm_management) {
+            snprintf(errstr, STATUS_MAX, "Telling NetworkManager not to control "
+                    "interface '%s': you may need to re-initialize this interface "
+                    "later or tell NetworkManager to control it again via 'nmcli'",
+                    local_wifi->interface);
+            cf_send_message(caph, errstr, MSGFLAG_INFO);
+            nm_device_set_managed(nmdevice, 0);
 
-                local_wifi->nm_client = nmclient;
-                local_wifi->nm_device = nmdevice;
-            }
+            local_wifi->nm_client = nmclient;
+            local_wifi->nm_device = nmdevice;
         }
     }
 #endif
@@ -613,14 +616,20 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     if (mode != LINUX_WLEXT_MONITOR) {
         int existing_ifnum;
 
-        /* Look for an interface that shares the mac and is in monitor mode */
-        existing_ifnum = 
-            find_interface_mode_by_mac(local_wifi->interface, 
-                    LINUX_WLEXT_MONITOR, hwaddr);
+        /* Look to see if there's a vif= flag specified on the source line; this
+         * takes precedence over everything */
+        if ((placeholder_len = cf_find_flag(&placeholder, "vif", definition)) > 0) {
+            local_wifi->cap_interface = strndup(placeholder, placeholder_len);
+        } else {
+            /* Look for an interface that shares the mac and is in monitor mode */
+            existing_ifnum = 
+                find_interface_mode_by_mac(local_wifi->interface, 
+                        LINUX_WLEXT_MONITOR, hwaddr);
 
-        if (existing_ifnum >= 0) {
-            if (if_indextoname((unsigned int) existing_ifnum, ifnam) != NULL) {
-                local_wifi->cap_interface = strdup(ifnam);
+            if (existing_ifnum >= 0) {
+                if (if_indextoname((unsigned int) existing_ifnum, ifnam) != NULL) {
+                    local_wifi->cap_interface = strdup(ifnam);
+                }
             }
         }
             
@@ -708,8 +717,6 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         bool fcs = false;
         bool plcp = false;
 
-        char errstr2[STATUS_MAX];
-
         if ((placeholder_len = cf_find_flag(&placeholder, "fcsfail", definition)) > 0) {
             if (strncasecmp(placeholder, "true", placeholder_len) == 0) {
                 snprintf(errstr, STATUS_MAX,
@@ -760,9 +767,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
              * wlext device after all */
             if (iwconfig_set_mode(local_wifi->interface, errstr, 
                         LINUX_WLEXT_MONITOR) < 0) {
-                snprintf(errstr2, STATUS_MAX, "Failed to re-set mode of base "
-                        "interface '%s': %s", local_wifi->interface,
-                        errstr);
+                snprintf(errstr2, STATUS_MAX, "Failed to put interface '%s' in monitor "
+                        "mode: %s", local_wifi->interface, errstr);
                 cf_send_message(caph, errstr2, MSGFLAG_ERROR);
 
                 /* We've failed at everything */
@@ -788,10 +794,25 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                     local_wifi->interface);
             local_wifi->use_mac80211 = 1;
         }
-    } 
-    
-    if (mode != LINUX_WLEXT_MONITOR) {
-        /* We're not in monitor mode and we couldn't connect to mac80211 */
+    } else if (mode != LINUX_WLEXT_MONITOR) {
+        /* Otherwise we want monitor mode but we don't have nl / found the same vif */
+        if (iwconfig_set_mode(local_wifi->interface, errstr, 
+                    LINUX_WLEXT_MONITOR) < 0) {
+            snprintf(errstr2, STATUS_MAX, "Failed to put interface '%s' in monitor "
+                    "mode: %s", local_wifi->interface, errstr);
+            cf_send_message(caph, errstr2, MSGFLAG_ERROR);
+
+            /* We've failed at everything */
+            snprintf(msg, STATUS_MAX, "Could not create a monitor vif and could "
+                    "not set mode of existing interface, unable to put "
+                    "'%s' into monitor mode.", local_wifi->interface);
+            return -1;
+        } else {
+            snprintf(errstr2, STATUS_MAX, "Configured '%s' as monitor mode "
+                    "interface instead of using a monitor vif",
+                    local_wifi->interface);
+            cf_send_message(caph, errstr2, MSGFLAG_INFO);
+        }
     } else {
         snprintf(errstr, STATUS_MAX, "Monitor interface '%s' already exists for "
                 "capture interface '%s', we'll use that.",
@@ -799,6 +820,64 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         cf_send_message(caph, errstr, MSGFLAG_INFO);
     }
 
+    /* If we're using a vif we need to bring down the parent and bring up the vif;
+     * if we're not using a vif we just need to bring up the interface */
+    if (strcmp(local_wifi->interface, local_wifi->cap_interface) != 0) {
+        int ign_primary = 0;
+        if ((placeholder_len = cf_find_flag(&placeholder, "ignoreprimary", 
+                        definition)) > 0) {
+            if (strncasecmp(placeholder, "true", placeholder_len) == 0) {
+                snprintf(errstr, STATUS_MAX,
+                        "Source '%s' ignoring state of primary interface and "
+                        "leaving it in an 'up' state; this may cause problems "
+                        "with channel hopping.", local_wifi->interface);
+                cf_send_message(caph, errstr, MSGFLAG_INFO);
+                ign_primary = 1;
+            }
+        }
+
+        if (!ign_primary) {
+            snprintf(errstr2, STATUS_MAX, "Bringing down parent interface '%s'",
+                    local_wifi->interface);
+            cf_send_message(caph, errstr2, MSGFLAG_INFO);
+
+            if (ifconfig_interface_down(local_wifi->interface, errstr) != 0) {
+                snprintf(msg, STATUS_MAX, "Could not bring down parent interface "
+                        "'%s' to capture using '%s': %s", local_wifi->interface,
+                        local_wifi->cap_interface, errstr);
+                return -1;
+            }
+        }
+    }
+
+    /* Bring up the cap interface no matter what */
+    if (ifconfig_interface_up(local_wifi->cap_interface, errstr) != 0) {
+        snprintf(msg, STATUS_MAX, "Could not bring up capture interface '%s', "
+                "check 'dmesg' for errors loading firmware: %s",
+                local_wifi->cap_interface, errstr);
+        return -1;
+    }
+
+    /* Open the pcap */
+    local_wifi->pd = pcap_open_live(local_wifi->cap_interface, 
+            MAX_PACKET_LEN, 1, 1000, pcap_errstr);
+
+    if (local_wifi->pd == NULL || strlen(pcap_errstr) != 0) {
+        snprintf(msg, STATUS_MAX, "Could not open capture interface '%s' on '%s' "
+                "as a pcap capture: %s", local_wifi->cap_interface, 
+                local_wifi->interface, pcap_errstr);
+        return -1;
+    }
+
+    local_wifi->datalink_type = pcap_datalink(local_wifi->pd);
+
+    if (strcmp(local_wifi->interface, local_wifi->cap_interface) != 0) {
+        snprintf(msg, STATUS_MAX, "Linux Wi-Fi capturing from monitor vif '%s' on "
+                "interface '%s'", local_wifi->cap_interface, local_wifi->interface);
+    } else {
+        snprintf(msg, STATUS_MAX, "Linux Wi-Fi capturing from interface '%s'",
+                local_wifi->interface);
+    }
 
     return 1;
 }
@@ -982,6 +1061,8 @@ void pcap_dispatch_cb(u_char *user, const struct pcap_pkthdr *header,
     local_wifi_t *local_wifi = (local_wifi_t *) caph->userdata;
     int ret;
 
+    fprintf(stderr, "debug - pcap_dispatch - got packet %u\n", header->caplen);
+
     /* Try repeatedly to send the packet; go into a thread wait state if
      * the write buffer is full & we'll be woken up as soon as it flushes
      * data out in the main select() loop */
@@ -1008,6 +1089,8 @@ void capture_thread(kis_capture_handler_t *caph) {
     local_wifi_t *local_wifi = (local_wifi_t *) caph->userdata;
     char errstr[PCAP_ERRBUF_SIZE];
     char *pcap_errstr;
+    char iferrstr[STATUS_MAX];
+    int ifflags = 0, ifret;
 
     /* Simple capture thread: since we don't care about blocking and 
      * channel control is managed by the channel hopping thread, all we have
@@ -1026,6 +1109,17 @@ void capture_thread(kis_capture_handler_t *caph) {
     fprintf(stderr, "debug - %s\n", errstr);
 
     cf_send_error(caph, errstr);
+
+    ifret = ifconfig_get_flags(local_wifi->cap_interface, iferrstr, &ifflags);
+
+    if (ifret < 0 || !(ifflags & IFF_UP)) {
+        snprintf(errstr, PCAP_ERRBUF_SIZE, "Interface '%s' no longer appears to be up; "
+                "This can happen when it is unplugged, or another service like DHCP or "
+                "NetworKManager has taken over and shut it down on us.", 
+                local_wifi->cap_interface);
+        cf_send_error(caph, errstr);
+    }
+
     cf_handler_spindown(caph);
 
     fprintf(stderr, "debug - linux wifi - capture thread finishing\n");
@@ -1043,6 +1137,9 @@ int main(int argc, char *argv[]) {
         .mac80211_handle = NULL,
         .mac80211_family = NULL,
         .seq_channel_failure = 0,
+        .nm_client = NULL,
+        .nm_device = NULL,
+        .reset_nm_management = 0,
     };
 
     /* Remap stderr so we can log debugging to a file */
@@ -1081,6 +1178,13 @@ int main(int argc, char *argv[]) {
     cf_handler_set_capture_cb(caph, capture_thread);
 
     cf_handler_loop(caph);
+
+#ifdef HAVE_LIBNM
+    if (local_wifi.nm_client != NULL && local_wifi.nm_device != NULL &&
+            local_wifi.reset_nm_management) {
+        nm_device_set_managed(local_wifi.nm_device, 0);
+    }
+#endif
 
     fprintf(stderr, "FATAL: Exited main select() loop, waiting to be killed\n");
 
