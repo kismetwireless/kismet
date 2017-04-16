@@ -134,7 +134,7 @@ int Kis_DLT_Radiotap::HandlePacket(kis_packet *in_pack) {
 		(kis_datachunk *) in_pack->fetch(pack_comp_linkframe);
 
 	if (linkchunk == NULL) {
-		// printf("debug - dltppi no link\n");
+		// printf("debug - dltrtap no link\n");
 		return 1;
 	}
 
@@ -145,10 +145,12 @@ int Kis_DLT_Radiotap::HandlePacket(kis_packet *in_pack) {
 	kis_ref_capsource *capsrc =
 		(kis_ref_capsource *) in_pack->fetch(pack_comp_capsrc);
 
+    /*
 	if (capsrc == NULL) {
 		// printf("debug - no capsrc?\n");
 		return 1;
 	}
+    */
 
 	union {
 		int8_t	i8;
@@ -426,7 +428,7 @@ int Kis_DLT_Radiotap::HandlePacket(kis_packet *in_pack) {
 
 	// If we're validating the FCS, and don't already know it's junk, do
     // the FCS check
-	if (capsrc->ref_source->FetchValidateCRC() && fcschunk != NULL &&
+	if (capsrc != NULL && capsrc->ref_source->FetchValidateCRC() && fcschunk != NULL &&
             fcschunk->checksum_valid) {
 		// Compare it and flag the packet
 		uint32_t calc_crc =
