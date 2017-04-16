@@ -2,38 +2,6 @@ include Makefile.inc
 
 DEPEND		= .depend
 
-CAPSOURCES = \
-	packetsource_pcap.o packetsource_wext.o packetsource_bsdrt.o \
-	packetsource_ipwlive.o packetsource_airpcap.o 
-
-PSO	= util.o cygwin_utils.o globalregistry.o \
-	pollabletracker.o ringbuf.o ringbuf2.o ringbuf_handler.o \
-	packet.o messagebus.o configfile.o getopt.o \
-	filtercore.o ifcontrol.o iwcontrol.o madwifing_control.o nl80211_control.o \
-	psutils.o ipc_remote.o battery.o kismet_json.o \
-	tcpserver2.o tcpclient2.o serialclient2.o pipeclient.o ipc_remote2.o \
-	packetsourcetracker.o $(CAPSOURCES) \
-	datasourcetracker.o kis_datasource.o \
-	kis_net_microhttpd.o system_monitor.o kis_httpd_websession.o base64.o \
-	gps_manager.o kis_gps.o gpsserial2.o gpsgpsd2.o gpsfake.o gpsweb.o \
-	packetchain.o \
-	trackedelement.o entrytracker.o \
-	msgpack_adapter.o xmlserialize_adapter.o json_adapter.o \
-	plugintracker.o alertracker.o timetracker.o channeltracker2.o \
-	devicetracker.o devicetracker_workers.o devicetracker_httpd.o \
-	kis_dlt.o kis_dlt_ppi.o kis_dlt_radiotap.o kis_dlt_prism2.o \
-	phy_80211.o phy_80211_dissectors.o phy_rtl433.o phy_zwave.o \
-	kis_dissector_ipdata.o \
-	manuf.o \
-	dumpfile.o dumpfile_pcap.o dumpfile_gpsxml.o \
-	dumpfile_tuntap.o dumpfile_netxml.o dumpfile_nettxt.o dumpfile_string.o \
-	dumpfile_alert.o dumpfile_devicetracker.o \
-	statealert.o \
-	messagebus_restclient.o \
-	kismet_server.o \
-
-PS	= kismet_server
-
 # Common pure-c code for capturesource binaries
 DATASOURCE_COMMON_C = \
 	msgpuck.o msgpuck_hints.o \
@@ -53,20 +21,31 @@ CAPTURE_LINUX_WIFI_O = \
 CAPTURE_LINUX_WIFI	= kismet_cap_linux_wifi
 
 # Capture binaries to build
-DATASOURCE_BINS = \
-	$(CAPTURE_PCAPFILE) \
-	$(CAPTURE_LINUX_WIFI)
+DATASOURCE_BINS = @DATASOURCE_BINS@
 
-CSO = util.o cygwin_utils.o globalregistry.o pollabletracker.o ringbuf.o \
+PSO	= util.o cygwin_utils.o globalregistry.o \
+	pollabletracker.o ringbuf.o ringbuf2.o ringbuf_handler.o \
 	packet.o messagebus.o configfile.o getopt.o \
 	filtercore.o ifcontrol.o iwcontrol.o madwifing_control.o nl80211_control.o \
-	psutils.o ipc_remote.o \
-	timetracker.o kismet_json.o \
-	packetsourcetracker.o packetchain.o $(CAPSOURCES) \
-	dumpfile.o dumpfile_tuntap.o \
-	kis_net_microhttpd.o base64.o entrytracker.o trackedelement.o msgpack_adapter.o \
-	kismet_capture.o
-CS	= kismet_capture
+	psutils.o ipc_remote.o battery.o kismet_json.o \
+	tcpserver2.o tcpclient2.o serialclient2.o pipeclient.o ipc_remote2.o \
+	datasourcetracker.o kis_datasource.o \
+	kis_net_microhttpd.o system_monitor.o kis_httpd_websession.o base64.o \
+	gps_manager.o kis_gps.o gpsserial2.o gpsgpsd2.o gpsfake.o gpsweb.o \
+	packetchain.o \
+	trackedelement.o entrytracker.o \
+	msgpack_adapter.o xmlserialize_adapter.o json_adapter.o \
+	plugintracker.o alertracker.o timetracker.o channeltracker2.o \
+	devicetracker.o devicetracker_workers.o devicetracker_httpd.o \
+	kis_dlt.o kis_dlt_ppi.o kis_dlt_radiotap.o kis_dlt_prism2.o \
+	phy_80211.o phy_80211_dissectors.o phy_rtl433.o phy_zwave.o \
+	kis_dissector_ipdata.o \
+	manuf.o \
+	dumpfile.o dumpfile_pcap.o dumpfile_gpsxml.o \
+	messagebus_restclient.o \
+	kismet_server.o \
+
+PS	= kismet_server
 
 ALL	= Makefile $(DEPEND) $(PS) $(CS) 
 
