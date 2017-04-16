@@ -1334,7 +1334,7 @@ int cf_send_listresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
     /* Actual KV pairs we encode into the packet */
     simple_cap_proto_kv_t **kv_pairs;
 
-    if (msg != NULL)
+    if (msg != NULL && strlen(msg) != 0)
         num_kvs++;
 
     if (len != 0)
@@ -1353,7 +1353,7 @@ int cf_send_listresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
 
     kv_pos++;
 
-    if (msg != NULL) {
+    if (msg != NULL && strlen(msg) != 0) {
         kv_pairs[kv_pos] = 
             encode_kv_message(msg, success ? MSGFLAG_INFO : MSGFLAG_ERROR);
         if (kv_pairs[kv_pos] == NULL) {
@@ -1397,7 +1397,7 @@ int cf_send_proberesp(kis_capture_handler_t *caph, uint32_t seq, unsigned int su
     /* Actual KV pairs we encode into the packet */
     simple_cap_proto_kv_t **kv_pairs;
 
-    if (msg != NULL)
+    if (msg != NULL && strlen(msg) != 0)
         num_kvs++;
 
     if (chanset != NULL)
@@ -1419,7 +1419,7 @@ int cf_send_proberesp(kis_capture_handler_t *caph, uint32_t seq, unsigned int su
 
     kv_pos++;
 
-    if (msg != NULL) {
+    if (msg != NULL && strlen(msg) != 0) {
         kv_pairs[kv_pos] = 
             encode_kv_message(msg, success ? MSGFLAG_INFO : MSGFLAG_ERROR);
         if (kv_pairs[kv_pos] == NULL) {
@@ -1475,7 +1475,7 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
     /* Actual KV pairs we encode into the packet */
     simple_cap_proto_kv_t **kv_pairs;
 
-    if (msg != NULL)
+    if (msg != NULL && strlen(msg) != 0)
         num_kvs++;
 
     if (chanset != NULL)
@@ -1500,7 +1500,7 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
 
     kv_pos++;
 
-    if (msg != NULL) {
+    if (msg != NULL && strlen(msg) != 0) {
         kv_pairs[kv_pos] = 
             encode_kv_message(msg, success ? MSGFLAG_INFO : MSGFLAG_ERROR);
         if (kv_pairs[kv_pos] == NULL) {
@@ -1622,13 +1622,13 @@ int cf_send_configresp(kis_capture_handler_t *caph, unsigned int seqno,
     /* Actual KV pairs we encode into the packet */
     simple_cap_proto_kv_t **kv_pairs;
 
-    if (msg != NULL)
+    if (msg != NULL && strlen(msg) != 0)
         num_kvs++;
 
     kv_pairs = 
         (simple_cap_proto_kv_t **) malloc(sizeof(simple_cap_proto_kv_t *) * num_kvs);
 
-    if (msg != NULL) {
+    if (msg != NULL && strlen(msg) != 0) {
         kv_pairs[kv_pos] = encode_kv_message(msg, 
                 success ? MSGFLAG_INFO : MSGFLAG_ERROR);
 
@@ -1661,7 +1661,7 @@ int cf_send_configresp_channel(kis_capture_handler_t *caph, unsigned int seqno,
     /* Actual KV pairs we encode into the packet */
     simple_cap_proto_kv_t **kv_pairs;
 
-    if (msg != NULL)
+    if (msg != NULL && strlen(msg) != 0)
         num_kvs++;
 
     if (channel != NULL)
@@ -1670,7 +1670,7 @@ int cf_send_configresp_channel(kis_capture_handler_t *caph, unsigned int seqno,
     kv_pairs = 
         (simple_cap_proto_kv_t **) malloc(sizeof(simple_cap_proto_kv_t *) * num_kvs);
 
-    if (msg != NULL) {
+    if (msg != NULL && strlen(msg) != 0) {
         kv_pairs[kv_pos] = encode_kv_message(msg, 
                 success ? MSGFLAG_INFO : MSGFLAG_ERROR);
 
@@ -1715,7 +1715,7 @@ int cf_send_configresp_chanhop(kis_capture_handler_t *caph, unsigned int seqno,
     /* Actual KV pairs we encode into the packet */
     simple_cap_proto_kv_t **kv_pairs;
 
-    if (msg != NULL)
+    if (msg != NULL && strlen(msg) != 0)
         num_kvs++;
 
     if (channel_list_sz != 0)
@@ -1724,7 +1724,7 @@ int cf_send_configresp_chanhop(kis_capture_handler_t *caph, unsigned int seqno,
     kv_pairs = 
         (simple_cap_proto_kv_t **) malloc(sizeof(simple_cap_proto_kv_t *) * num_kvs);
 
-    if (msg != NULL) {
+    if (msg != NULL && strlen(msg) != 0) {
         kv_pairs[kv_pos] = encode_kv_message(msg, 
                 success ? MSGFLAG_INFO : MSGFLAG_ERROR);
 
