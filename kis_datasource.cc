@@ -77,7 +77,7 @@ KisDatasource::~KisDatasource() {
         // Lose our local ref
         ringbuf_handler.reset();
     } else {
-        fprintf(stderr, "debug - ~kds null ringbuf\n");
+        // fprintf(stderr, "debug - ~kds null ringbuf\n");
     }
 
     // We don't call a normal close here because we can't risk double-free
@@ -143,7 +143,7 @@ void KisDatasource::open_interface(string in_definition, unsigned int in_transac
     
     // If we can't open local interfaces, die
     if (!get_source_builder()->get_local_capable()) {
-        fprintf(stderr, "debug - kds - open_interface - does not support cap\n");
+        // fprintf(stderr, "debug - kds - open_interface - does not support cap\n");
         if (in_cb != NULL) {
             in_cb(in_transaction, false, "Driver does not support direct capture");
         }

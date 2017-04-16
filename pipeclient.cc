@@ -129,7 +129,7 @@ int PipeClient::Poll(fd_set& in_rset, fd_set& in_wset) {
         buf = new uint8_t[len];
 
         if ((ret = read(read_fd, buf, len)) <= 0) {
-            fprintf(stderr, "debug - pipeclient - read returned %ld errno %s\n", ret, strerror(errno));
+            // fprintf(stderr, "debug - pipeclient - read returned %ld errno %s\n", ret, strerror(errno));
             if (errno != EINTR && errno != EAGAIN) {
 
                 if (ret == 0) {
@@ -171,7 +171,7 @@ int PipeClient::Poll(fd_set& in_rset, fd_set& in_wset) {
         // Peek the data into our buffer
         ret = handler->PeekWriteBufferData(buf, len);
 
-        fprintf(stderr, "debug - pipe client write - used %u peeked %u\n", len, ret);
+        // fprintf(stderr, "debug - pipe client write - used %u peeked %u\n", len, ret);
 
         if ((iret = write(write_fd, buf, ret)) < 0) {
             if (errno != EINTR && errno != EAGAIN) {

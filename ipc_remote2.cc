@@ -54,7 +54,7 @@ IPCRemoteV2::IPCRemoteV2(GlobalRegistry *in_globalreg,
 
     ipchandler->SetProtocolErrorCb([this]() {
         local_locker lock(&ipc_locker);
-        fprintf(stderr, "debug - ipchandler got protocol error, shutting down pid %u\n", child_pid);
+        // fprintf(stderr, "debug - ipchandler got protocol error, shutting down pid %u\n", child_pid);
 
         close_ipc();
     });
@@ -191,7 +191,7 @@ int IPCRemoteV2::launch_kis_explicit_binary(string cmdpath, vector<string> args)
         close(inpipepair[1]);
         close(outpipepair[0]);
 
-        fprintf(stderr, "debug - ipcremote2 - exec %s\n", cmdarg[0]);
+        // fprintf(stderr, "debug - ipcremote2 - exec %s\n", cmdarg[0]);
         execvp(cmdarg[0], cmdarg);
 
         exit(255);
@@ -346,7 +346,7 @@ int IPCRemoteV2::soft_kill() {
     local_locker lock(&ipc_locker);
 
     if (pipeclient != NULL) {
-        fprintf(stderr, "debug - IPCRemoteV2 soft_kill pipeclient != null, removing pollable and closing pipes\n");
+        // fprintf(stderr, "debug - IPCRemoteV2 soft_kill pipeclient != null, removing pollable and closing pipes\n");
         pollabletracker->RemovePollable(pipeclient);
         pipeclient->ClosePipes();
     }
@@ -354,7 +354,7 @@ int IPCRemoteV2::soft_kill() {
     if (child_pid <= 0)
         return -1;
 
-    fprintf(stderr, "debug - sending sigterm to %d\n", child_pid);
+    // fprintf(stderr, "debug - sending sigterm to %d\n", child_pid);
     return kill(child_pid, SIGTERM);
 }
 
@@ -373,7 +373,7 @@ int IPCRemoteV2::hard_kill() {
 void IPCRemoteV2::notify_killed(int in_exit) {
     stringstream ss;
 
-    fprintf(stderr, "debug - ipcremote2 notify_killed\n");
+    // fprintf(stderr, "debug - ipcremote2 notify_killed\n");
 
     if (ipchandler != NULL) {
         ss << "IPC process '" << binary_path << "' " << child_pid << " exited, " <<
