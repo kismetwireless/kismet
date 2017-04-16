@@ -373,8 +373,9 @@ void Datasourcetracker::open_datasource(string in_source,
 
         if (!proto_found) {
             stringstream ss;
-            ss << "Unable to find driver for '" << type << "'.  Make sure "
-                "that any plugins required are loaded.";
+            ss << "Unable to find datasource for '" << type << "'.  Make sure "
+                "that any plugins required are loaded and that the capture "
+                "interface is available.";
 
             if (in_cb != NULL) {
                 in_cb(false, ss.str());
