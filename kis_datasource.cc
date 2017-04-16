@@ -402,10 +402,12 @@ void KisDatasource::trigger_error(string in_error) {
 
     stringstream ss;
 
-    ss << "Data source " << get_source_name() << " (" <<
-        get_source_interface() << ") encountered an error: " <<
-        in_error;
-    _MSG(ss.str(), MSGFLAG_ERROR);
+    if (!quiet_errors) {
+        ss << "Data source " << get_source_name() << " (" <<
+            get_source_interface() << ") encountered an error: " <<
+            in_error;
+        _MSG(ss.str(), MSGFLAG_ERROR);
+    }
 
     handle_source_error();
 
@@ -586,6 +588,9 @@ void KisDatasource::proto_packet_probe_resp(KVmap in_kvpairs) {
         return;
     }
 
+    // Quiet errors display for shutdown of pipe
+    quiet_errors = true;
+
     // Get the sequence number and look up our command
     uint32_t seq = get_kv_success_sequence(i->second);
     auto ci = command_ack_map.find(seq);
@@ -595,6 +600,7 @@ void KisDatasource::proto_packet_probe_resp(KVmap in_kvpairs) {
                     get_kv_success(i->second), msg);
         command_ack_map.erase(ci);
     }
+
 }
 
 void KisDatasource::proto_packet_open_resp(KVmap in_kvpairs) {
@@ -639,6 +645,9 @@ void KisDatasource::proto_packet_open_resp(KVmap in_kvpairs) {
         return;
     }
 
+    // Quiet errors display for shutdown of pipe
+    quiet_errors = true;
+
     // Get the sequence number and look up our command
     uint32_t seq = get_kv_success_sequence(i->second);
     auto ci = command_ack_map.find(seq);
@@ -673,6 +682,9 @@ void KisDatasource::proto_packet_list_resp(KVmap in_kvpairs) {
         trigger_error("No valid response found for list request");
         return;
     }
+
+    // Quiet errors display for shutdown of pipe
+    quiet_errors = true;
 
     // Get the sequence number and look up our command
     uint32_t seq = get_kv_success_sequence(i->second);
@@ -1162,7 +1174,7 @@ void KisDatasource::handle_kv_config_hop(KisDatasourceCapKeyedObject *in_obj) {
     } catch (const std::exception& e) {
         // Something went wrong with msgpack unpacking
         stringstream ss;
-        ss << "failed to unpack chanset bundle: " << e.what();
+        ss << "failed to unpack hop config bundle: " << e.what();
         trigger_error(ss.str());
 
         return;
@@ -1218,7 +1230,7 @@ void KisDatasource::handle_kv_interfacelist(KisDatasourceCapKeyedObject *in_obj)
     } catch (const std::exception& e) {
         // Something went wrong with msgpack unpacking
         stringstream ss;
-        ss << "failed to unpack proberesp channels bundle: " << e.what();
+        ss << "failed to unpack interface list bundle: " << e.what();
 
         trigger_error(ss.str());
 

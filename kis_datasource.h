@@ -435,6 +435,8 @@ protected:
     bool mode_probing;
     bool mode_listing;
 
+    // We've gotten our response from an operation, don't report additional errors
+    bool quiet_errors;
 
 
     // Packetchain
