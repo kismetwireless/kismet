@@ -1333,6 +1333,8 @@ void KisDatasource::send_command_probe_interface(string in_definition,
 
     success = write_packet("PROBEDEVICE", kvmap, seqno);
 
+    delete(definition);
+
     if (!success) {
         if (in_cb != NULL) {
             in_cb(in_transaction, false, "unable to generate command frame");
@@ -1365,6 +1367,8 @@ void KisDatasource::send_command_open_interface(string in_definition,
 
     success = write_packet("OPENDEVICE", kvmap, seqno);
 
+    delete(definition);
+
     if (!success) {
         if (in_cb != NULL) {
             in_cb(in_transaction, false, "unable to generate command frame");
@@ -1395,6 +1399,8 @@ void KisDatasource::send_command_set_channel(string in_channel,
     shared_ptr<tracked_command> cmd;
 
     success = write_packet("CONFIGURE", kvmap, seqno);
+
+    delete(chanset);
 
     if (!success) {
         if (in_cb != NULL) {
@@ -1453,6 +1459,8 @@ void KisDatasource::send_command_set_channel_hop(double in_rate,
     shared_ptr<tracked_command> cmd;
 
     success = write_packet("CONFIGURE", kvmap, seqno);
+
+    delete(chanhop);
 
     if (!success) {
         if (in_cb != NULL) {
