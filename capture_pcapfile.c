@@ -106,7 +106,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     pcapfname = strndup(placeholder, placeholder_len);
 
     if (stat(pcapfname, &sbuf) < 0) {
-        snprintf(msg, STATUS_MAX, "Unable to find pcapfile '%s'", pcapfname);
+        // snprintf(msg, STATUS_MAX, "Unable to find pcapfile '%s'", pcapfname);
         return 0;
     }
 
