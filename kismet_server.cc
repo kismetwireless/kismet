@@ -1053,6 +1053,7 @@ int main(int argc, char *argv[], char *envp[]) {
 #ifdef USE_PACKETSOURCE_PCAPFILE
     datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourcePcapfileBuilder(globalregistry)));
 #endif
+    datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceLinuxWifiBuilder(globalregistry)));
 
     // Start the plugin handler
     if (plugins) {
@@ -1169,18 +1170,6 @@ int main(int argc, char *argv[], char *envp[]) {
     
     // Set the global silence now that we're set up
     glob_silent = local_silent;
-
-    // Hack in DS test
-    fprintf(stderr, "TESTCODE - Opening hardcoded sources for DST\n");
-    /*
-    datasourcetracker->open_datasource("wlan0", [](bool success, string reason) {
-            fprintf(stderr, "TESTCODE - wlan0 %u: %s\n", success, reason.c_str());
-            });
-            */
-    datasourcetracker->open_datasource("test.pcap:realtime=true", 
-            [](bool success, string reason) {
-            fprintf(stderr, "TESTCODE - test3.pcap %u: %s\n", success, reason.c_str());
-            });
 
     // Core loop
     while (1) {
