@@ -24,7 +24,7 @@
 
 #include "endian_magic.h"
 #include "dumpfile_pcap.h"
-#include "packetsource_pcap.h"
+#include "kis_ppi.h"
 #include "phy_80211.h"
 
 int dumpfilepcap_chain_hook(CHAINCALL_PARMS) {
@@ -78,11 +78,6 @@ void Dumpfile_Pcap::Startup_Dumpfile() {
 
 	dumpfile = NULL;
 	dumper = NULL;
-
-	if (globalreg->sourcetracker == NULL) {
-		fprintf(stderr, "FATAL OOPS:  Sourcetracker missing before Dumpfile_Pcap\n");
-		exit(1);
-	}
 
 	// Process a resume request
 	dumpformat = dump_unknown;

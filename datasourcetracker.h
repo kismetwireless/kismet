@@ -287,6 +287,10 @@ protected:
     int completion_cleanup_id;
     void schedule_cleanup();
 
+    // UUIDs to source numbers
+    unsigned int next_source_num;
+    map<uuid, unsigned int> uuid_source_num_map;
+
 };
 
 

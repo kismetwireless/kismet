@@ -45,7 +45,6 @@
 #include "alertracker.h"
 #include "manuf.h"
 #include "configfile.h"
-#include "packetsource.h"
 
 #include "base64.h"
 

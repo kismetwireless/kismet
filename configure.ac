@@ -794,6 +794,13 @@ if test "$wantpcap" = yes; then
 	pcaplnk="-l${pcaplib}"
 	AC_SUBST(pcaplnk)
 	pcap="yes"
+
+    DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_PCAPFILE)"
+
+    if test "$linux" = "yes"; then
+        DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_LINUX_WIFI)"
+    fi
+
 	fi
 fi
 
@@ -802,7 +809,7 @@ if test "$wantpcap" = "yes" -a "$pcap" != "yes"; then
 fi
 
 if test "$wantpcap" != "yes" -o "$pcap" != "yes"; then
-    AC_MSG_WARN(Compiling without libpcap support.  Many capture sources will be disabled.)
+    AC_MSG_WARN(Compiling without libpcap support.  Most capture sources will be disabled, this is almost certainly not what you want..)
 fi
 AC_SUBST(pcap)
 
@@ -1065,6 +1072,8 @@ sharedatadir=${sharedatadir}
 AC_SUBST(sharedatadir)
 
 CPPFLAGS="-I$BUNDLE_MSGPACK/include $CPPFLAGS"
+
+AC_SUBST(DATASOURCE_BINS)
 
 AC_CONFIG_FILES([Makefile Makefile.inc scripts/kismet conf/kismet.conf])
 AC_OUTPUT

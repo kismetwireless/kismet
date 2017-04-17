@@ -42,8 +42,6 @@
 #include "gps_manager.h"
 #include "alertracker.h"
 #include "manuf.h"
-#include "packetsourcetracker.h"
-#include "packetsource.h"
 #include "dumpfile_devicetracker.h"
 #include "entrytracker.h"
 #include "devicetracker_component.h"
@@ -53,6 +51,7 @@
 #include "structured.h"
 #include "kismet_json.h"
 #include "base64.h"
+#include "kis_datasource.h"
 
 int Devicetracker_packethook_commontracker(CHAINCALL_PARMS) {
 	return ((Devicetracker *) auxdata)->CommonTracker(in_pack);
@@ -141,8 +140,8 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
 	pack_comp_gps =
 		globalreg->packetchain->RegisterPacketComponent("GPS");
 
-	pack_comp_capsrc = _PCM(PACK_COMP_KISCAPSRC) =
-		globalreg->packetchain->RegisterPacketComponent("KISCAPSRC");
+	pack_comp_datasrc = 
+		globalreg->packetchain->RegisterPacketComponent("KISDATASRC");
 
 	// Common tracker, very early in the tracker chain
 	globalreg->packetchain->RegisterHandler(&Devicetracker_packethook_commontracker,
@@ -392,30 +391,24 @@ shared_ptr<kis_tracked_device_base> Devicetracker::FetchDevice(mac_addr in_devic
 int Devicetracker::CommonTracker(kis_packet *in_pack) {
     local_locker lock(&devicelist_mutex);
 
+	if (in_pack->error) {
+		// and bail
+		num_errorpackets++;
+		return 0;
+	}
+
 	kis_common_info *pack_common =
 		(kis_common_info *) in_pack->fetch(pack_comp_common);
-
-	kis_ref_capsource *pack_capsrc =
-		(kis_ref_capsource *) in_pack->fetch(pack_comp_capsrc);
 
     packets_rrd->add_sample(1, globalreg->timestamp.tv_sec);
 
 	num_packets++;
-
-	if (in_pack->error && pack_capsrc != NULL)  {
-		pack_capsrc->ref_source->AddErrorPacketCount();
-		return 0;
-	}
 
 	// If we can't figure it out at all (no common layer) just bail
 	if (pack_common == NULL)
 		return 0;
 
 	if (pack_common->error) {
-		if (pack_capsrc != NULL)  {
-			pack_capsrc->ref_source->AddErrorPacketCount();
-		}
-
 		// If we couldn't get any common data consider it an error
 		// and bail
 		num_errorpackets++;
@@ -494,8 +487,8 @@ shared_ptr<kis_tracked_device_base> Devicetracker::UpdateCommonDevice(mac_addr i
 		(kis_layer1_packinfo *) in_pack->fetch(pack_comp_radiodata);
 	kis_gps_packinfo *pack_gpsinfo =
 		(kis_gps_packinfo *) in_pack->fetch(pack_comp_gps);
-	kis_ref_capsource *pack_capsrc =
-		(kis_ref_capsource *) in_pack->fetch(pack_comp_capsrc);
+	packetchain_comp_datasource *pack_datasrc =
+		(packetchain_comp_datasource *) in_pack->fetch(pack_comp_datasrc);
 	kis_common_info *pack_common =
 		(kis_common_info *) in_pack->fetch(pack_comp_common);
 
@@ -603,13 +596,13 @@ shared_ptr<kis_tracked_device_base> Devicetracker::UpdateCommonDevice(mac_addr i
     }
 
 	// Update seenby records for time, frequency, packets
-	if ((in_flags & UCD_UPDATE_SEENBY) && pack_capsrc != NULL) {
+	if ((in_flags & UCD_UPDATE_SEENBY) && pack_datasrc != NULL) {
         double f = -1;
 
         if (pack_l1info != NULL)
             f = pack_l1info->freq_khz;
 
-        device->inc_seenby_count(pack_capsrc->ref_source, in_pack->ts.tv_sec, f);
+        device->inc_seenby_count(pack_datasrc->ref_source, in_pack->ts.tv_sec, f);
 	}
 
     return device;
@@ -626,8 +619,8 @@ int Devicetracker::PopulateCommon(shared_ptr<kis_tracked_device_base> device,
 		(kis_layer1_packinfo *) in_pack->fetch(pack_comp_radiodata);
 	kis_gps_packinfo *pack_gpsinfo =
 		(kis_gps_packinfo *) in_pack->fetch(pack_comp_gps);
-	kis_ref_capsource *pack_capsrc =
-		(kis_ref_capsource *) in_pack->fetch(pack_comp_capsrc);
+	packetchain_comp_datasource *pack_datasrc =
+		(packetchain_comp_datasource *) in_pack->fetch(pack_comp_datasrc);
 
 	// If we can't figure it out at all (no common layer) just bail
 	if (pack_common == NULL)
@@ -705,13 +698,13 @@ int Devicetracker::PopulateCommon(shared_ptr<kis_tracked_device_base> device,
     }
 
 	// Update seenby records for time, frequency, packets
-	if (pack_capsrc != NULL) {
+	if (pack_datasrc != NULL) {
         int f = -1;
 
         if (pack_l1info != NULL)
             f = pack_l1info->freq_khz;
 
-        device->inc_seenby_count(pack_capsrc->ref_source, in_pack->ts.tv_sec, f);
+        device->inc_seenby_count(pack_datasrc->ref_source, in_pack->ts.tv_sec, f);
 	}
 
     device->add_basic_crypt(pack_common->basic_crypt_set);

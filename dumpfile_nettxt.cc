@@ -23,8 +23,6 @@
 #include "globalregistry.h"
 #include "alertracker.h"
 #include "dumpfile_nettxt.h"
-#include "packetsource.h"
-#include "packetsourcetracker.h"
 
 Dumpfile_Nettxt::Dumpfile_Nettxt() {
 	fprintf(stderr, "FATAL OOPS: Dumpfile_Nettxt called with no globalreg\n");
@@ -40,13 +38,8 @@ Dumpfile_Nettxt::Dumpfile_Nettxt(GlobalRegistry *in_globalreg) :
 	type = "nettxt";
 	logclass = "text";
 
-	if (globalreg->netracker == NULL) {
-		_MSG("Deprecated netracker core disabled, disabling nettxt logfile.", 
-			 MSGFLAG_INFO);
-		// fprintf(stderr, "FATAL OOPS:  Netracker missing before Dumpfile_Nettxt\n");
-		// exit(1);
-		return;
-	}
+    return;
+
 
 	if (globalreg->kismet_config == NULL) {
 		fprintf(stderr, "FATAL OOPS:  Config file missing before Dumpfile_Nettxt\n");

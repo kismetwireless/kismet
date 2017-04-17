@@ -43,25 +43,16 @@ GlobalRegistry::GlobalRegistry() {
 
 	messagebus = NULL;
 	plugintracker = NULL;
-	sourcetracker = NULL;
-	netracker = NULL;
 	packetchain = NULL;
 	alertracker = NULL;
 	timetracker = NULL;
 	kisnetserver = NULL;
 	kisdroneserver = NULL;
 	kismet_config = NULL;
-	kismetui_config = NULL;
-	soundctl = NULL;
 	builtindissector = NULL;
-	rootipc = NULL;
-	panel_interface = NULL;
 	manufdb = NULL;
 
 	start_time = 0;
-
-	for (int x = 0; x < PROTO_REF_MAX; x++)
-		netproto_map[x] = -1;
 
 	filter_tracker = 0;
 	filter_tracker_bssid_invert = -1;
@@ -90,8 +81,6 @@ GlobalRegistry::GlobalRegistry() {
 		alertref_map[x] = -1;
 
 	pcapdump = NULL;
-
-	nlhandle = NULL;
 
 	checksum_packets = 0;
 }
@@ -187,22 +176,6 @@ Dumpfile *GlobalRegistry::FindDumpFileType(string in_type) {
 	}
 
 	return NULL;
-}
-
-void GlobalRegistry::AddNamedFd(string in_name, int fd) {
-	string un = StrUpper(in_name);
-
-	namedfd_map[un] = fd;
-}
-
-int GlobalRegistry::GetNamedFd(string in_name) {
-	string un = StrUpper(in_name);
-
-	if (namedfd_map.find(un) != namedfd_map.end()) {
-		return namedfd_map.find(un)->second;
-	}
-
-	return -1;
 }
 
 void GlobalRegistry::RegisterUsageFunc(usage_func in_cli) {

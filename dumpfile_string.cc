@@ -42,20 +42,6 @@ Dumpfile_String::Dumpfile_String(GlobalRegistry *in_globalreg) :
 	type = "string";
 	logclass = "string";
 
-	if (globalreg->sourcetracker == NULL) {
-		fprintf(stderr, "FATAL OOPS:  Sourcetracker missing before "
-				"Dumpfile_String\n");
-		exit(1);
-	}
-
-#if 0
-	if (globalreg->builtindissector == NULL) {
-		fprintf(stderr, "FATAL OOPS:  Sourcetracker missing before "
-				"Dumpfile_String\n");
-		exit(1);
-	}
-#endif
-
 	// Find the file name
 	if ((fname = ProcessConfigOpt()) == "" ||
 		globalreg->fatal_condition) {

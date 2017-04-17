@@ -22,8 +22,6 @@
 
 #include "globalregistry.h"
 #include "dumpfile_netxml.h"
-#include "packetsource.h"
-#include "packetsourcetracker.h"
 
 Dumpfile_Netxml::Dumpfile_Netxml() {
 	fprintf(stderr, "FATAL OOPS: Dumpfile_Netxml called with no globalreg\n");
@@ -39,13 +37,7 @@ Dumpfile_Netxml::Dumpfile_Netxml(GlobalRegistry *in_globalreg) :
 	type = "netxml";
 	logclass = "xml";
 
-	if (globalreg->netracker == NULL) {
-		// fprintf(stderr, "FATAL OOPS:  Netracker missing before Dumpfile_Netxml\n");
-		// exit(1);
-		_MSG("Deprecated nettracker core disabled, disabling netxml logfile.", 
-			 MSGFLAG_INFO);
-		return;
-	}
+    return;
 
 	if (globalreg->kismet_config == NULL) {
 		fprintf(stderr, "FATAL OOPS:  Config file missing before Dumpfile_Netxml\n");

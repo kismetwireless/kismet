@@ -26,7 +26,8 @@
 #include "messagebus.h"
 #include "packet.h"
 #include "packetchain.h"
-#include "packetsource.h"
+
+#include "kis_datasource.h"
 
 #include "kis_dlt_ppi.h"
 #include "kis_ppi.h"
@@ -69,12 +70,13 @@ int Kis_DLT_PPI::HandlePacket(kis_packet *in_pack) {
 		return 1;
 	}
 
-	kis_ref_capsource *capsrc =
-		(kis_ref_capsource *) in_pack->fetch(pack_comp_capsrc);
+	packetchain_comp_datasource *datasrc =
+		(packetchain_comp_datasource *) in_pack->fetch(pack_comp_datasrc);
 
-	if (capsrc == NULL) {
+    // Everything needs a data source so we know how to checksum
+	if (datasrc == NULL) {
 		// printf("debug - no capsrc?\n");
-		// return 1;
+		return 1;
 	}
 
 	ppi_packet_header *ppi_ph;
@@ -293,7 +295,13 @@ int Kis_DLT_PPI::HandlePacket(kis_packet *in_pack) {
 		in_pack->insert(pack_comp_checksum, fcschunk);
 	}
 
-	// If we're validating the FCS
+    // We've put the FCS in the fcschunk, so we just call the datasource FCS function
+    if (datasrc != NULL && datasrc->ref_source != NULL && fcschunk != NULL &&
+            fcschunk->checksum_valid) {
+        datasrc->ref_source->checksum_packet(in_pack);
+    }
+
+#if 0
 	if (capsrc != NULL && capsrc->ref_source->FetchValidateCRC() && fcschunk != NULL) {
 		// Compare it and flag the packet
 		uint32_t calc_crc =
@@ -307,6 +315,7 @@ int Kis_DLT_PPI::HandlePacket(kis_packet *in_pack) {
 			fcschunk->checksum_valid = 1;
 		}
 	}
+#endif
 
 
 	return 1;

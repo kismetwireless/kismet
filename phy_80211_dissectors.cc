@@ -35,7 +35,6 @@
 #include "packetchain.h"
 #include "alertracker.h"
 #include "configfile.h"
-#include "packetsource.h"
 
 // Handy little global so that it only has to do the ascii->mac_addr transform once
 mac_addr broadcast_mac = "FF:FF:FF:FF:FF:FF";
@@ -214,12 +213,6 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
     // If we don't have a dot11 frame, throw it away
     if (chunk->dlt != KDLT_IEEE802_11)
         return 0;
-
-    kis_ref_capsource *capsrc =
-        (kis_ref_capsource *) in_pack->fetch(_PCM(PACK_COMP_KISCAPSRC));
-    packet_parm srcparms;
-    if (capsrc != NULL)
-        srcparms = capsrc->ref_source->FetchGenericParms();
 
     // Flat-out dump if it's not big enough to be 80211, don't even bother making a
     // packinfo record for it because we're completely broken
@@ -593,15 +586,13 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
             // so we don't have to do more error checking
             if (GetLengthTagOffsets(packinfo->header_offset, chunk, 
                                     &tag_cache_map) < 0) {
-                if (srcparms.weak_dissect == 0) {
-                    // The frame is corrupt, bail.  This is a good indication that it's
-                    // corrupt but snuck past the FCS check, so we set the whole packet
-                    // as a failure condition
-                    packinfo->corrupt = 1;
-                    in_pack->insert(pack_comp_80211, (packet_component *) packinfo);
-                    in_pack->error = 1;
-                    return 0;
-                }
+                // The frame is corrupt, bail.  This is a good indication that it's
+                // corrupt but snuck past the FCS check, so we set the whole packet
+                // as a failure condition
+                packinfo->corrupt = 1;
+                in_pack->insert(pack_comp_80211, (packet_component *) packinfo);
+                in_pack->error = 1;
+                return 0;
             }
      
             if ((tcitr = tag_cache_map.find(0)) != tag_cache_map.end()) {

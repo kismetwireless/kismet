@@ -49,12 +49,6 @@ Dumpfile_Gpsxml::Dumpfile_Gpsxml(GlobalRegistry *in_globalreg) :
 	type = "gpsxml";
 	logclass = "gps";
 
-	if (globalreg->sourcetracker == NULL) {
-		fprintf(stderr, "FATAL OOPS:  Sourcetracker missing before "
-				"Dumpfile_Gpsxml\n");
-		exit(1);
-	}
-
 	// Find the file name
 	if ((fname = ProcessConfigOpt()) == "" ||
 		globalreg->fatal_condition) {

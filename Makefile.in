@@ -24,10 +24,9 @@ CAPTURE_LINUX_WIFI	= kismet_cap_linux_wifi
 DATASOURCE_BINS = @DATASOURCE_BINS@
 
 PSO	= util.o cygwin_utils.o globalregistry.o \
-	pollabletracker.o ringbuf.o ringbuf2.o ringbuf_handler.o \
-	packet.o messagebus.o configfile.o getopt.o \
-	filtercore.o ifcontrol.o iwcontrol.o madwifing_control.o nl80211_control.o \
-	psutils.o ipc_remote.o battery.o kismet_json.o \
+	pollabletracker.o ringbuf2.o ringbuf_handler.o \
+	packet.o messagebus.o configfile.o getopt.o filtercore.o \
+	psutils.o battery.o kismet_json.o \
 	tcpserver2.o tcpclient2.o serialclient2.o pipeclient.o ipc_remote2.o \
 	datasourcetracker.o kis_datasource.o \
 	kis_net_microhttpd.o system_monitor.o kis_httpd_websession.o base64.o \
@@ -37,19 +36,22 @@ PSO	= util.o cygwin_utils.o globalregistry.o \
 	msgpack_adapter.o xmlserialize_adapter.o json_adapter.o \
 	plugintracker.o alertracker.o timetracker.o channeltracker2.o \
 	devicetracker.o devicetracker_workers.o devicetracker_httpd.o \
-	kis_dlt.o kis_dlt_ppi.o kis_dlt_radiotap.o kis_dlt_prism2.o \
+	statealert.o \
+	kis_dlt.o kis_dlt_ppi.o kis_dlt_radiotap.o \
 	phy_80211.o phy_80211_dissectors.o phy_rtl433.o phy_zwave.o \
 	kis_dissector_ipdata.o \
 	manuf.o \
 	dumpfile.o dumpfile_pcap.o dumpfile_gpsxml.o \
+	dumpfile_netxml.o dumpfile_nettxt.o dumpfile_string.o \
+	dumpfile_alert.o dumpfile_devicetracker.o \
 	messagebus_restclient.o \
 	kismet_server.o \
 
 PS	= kismet_server
 
-ALL	= Makefile $(DEPEND) $(PS) $(CS) 
+ALL	= Makefile $(DEPEND) $(PS) $(DATASOURCE_BINS)
 
-INSTBINS = $(PS) $(CS) 
+INSTBINS = $(PS) $(DATASOURCE_BINS)
 
 all:	$(ALL)
 
@@ -58,11 +60,8 @@ all-with-plugins:
 	@make all
 	@make plugins
 
-$(PS):	$(PSO) $(CS)
-	$(LD) $(LDFLAGS) -o $(PS) $(PSO) $(LIBS) $(CXXLIBS) $(PCAPLIBS) $(KSLIBS) $(NETLINKLIBS)
-
-$(CS):	$(CSO)
-	$(LD) $(LDFLAGS) -o $(CS) $(CSO) $(LIBS) $(CXXLIBS) $(PCAPLIBS) $(CAPLIBS) $(KSLIBS) $(NETLINKLIBS)
+$(PS):	$(PSO) 
+	$(LD) $(LDFLAGS) -o $(PS) $(PSO) $(LIBS) $(CXXLIBS) $(PCAPLIBS) $(KSLIBS)
 
 
 $(CAPTURE_PCAPFILE):	$(CAPTURE_PCAPFILE_O)
@@ -76,7 +75,7 @@ datasources:	$(DATASOURCE_BINS)
 Makefile: Makefile.in configure
 	@-echo "'Makefile.in' or 'configure' are more current than this Makefile.  You should re-run 'configure'."
 
-binsuidinstall: $(CS)
+binsuidinstall: $(DATASOURCE_BINS)
 	$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CS) $(BIN)/$(CS); 
 
 commoninstall: $(INSTBINS)
@@ -90,13 +89,6 @@ commoninstall: $(INSTBINS)
 
 	mkdir -p $(MAN)/man5
 	$(INSTALL) -o $(INSTUSR) -g $(MANGRP) -m 644 man/kismet.conf.5 $(MAN)/man5/kismet.conf.5
-
-	mkdir -p $(WAV)
-	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 wav/new.wav $(WAV)/new.wav
-	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 wav/packet.wav $(WAV)/packet.wav
-	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 wav/alert.wav $(WAV)/alert.wav
-	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 wav/gpslost.wav $(WAV)/gpslost.wav
-	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 wav/gpslock.wav $(WAV)/gpslock.wav
 
 	mkdir -p $(HTTPD)
 	cp -r http_data/* $(HTTPD)
@@ -181,7 +173,7 @@ clean:
 	@-rm -f *.o *.mo
 	@-$(MAKE) all-plugins-clean
 	@-rm -f $(PS)
-	@-rm -f $(CS)
+	@-rm -f $(DATASOURCE_BINS)
 
 distclean:
 	@-$(MAKE) clean

@@ -56,17 +56,8 @@
 
 #include "kis_dlt_ppi.h"
 #include "kis_dlt_radiotap.h"
-#include "kis_dlt_prism2.h"
 
 #include "kis_dissector_ipdata.h"
-
-#include "packetsource.h"
-#include "packetsource_bsdrt.h"
-#include "packetsource_pcap.h"
-#include "packetsource_wext.h"
-#include "packetsource_ipwlive.h"
-#include "packetsource_airpcap.h"
-#include "packetsourcetracker.h"
 
 #include "kis_datasource.h"
 #include "datasourcetracker.h"
@@ -94,11 +85,9 @@
 #include "dumpfile_netxml.h"
 #include "dumpfile_nettxt.h"
 #include "dumpfile_gpsxml.h"
-#include "dumpfile_tuntap.h"
 #include "dumpfile_string.h"
 #include "dumpfile_alert.h"
 
-#include "ipc_remote.h"
 #include "ipc_remote2.h"
 
 #include "statealert.h"
@@ -256,11 +245,6 @@ void SpindownKismet(shared_ptr<PollableTracker> pollabletracker) {
     if (httpd != NULL)
         httpd->StopHttpd();
 
-    if (globalregistry->sourcetracker != NULL) {
-        // Shut down the packet sources
-        globalregistry->sourcetracker->StopSource(0);
-    }
-
     globalregistry->spindown = 1;
 
     // Start a short shutdown cycle for 2 seconds
@@ -300,11 +284,6 @@ void SpindownKismet(shared_ptr<PollableTracker> pollabletracker) {
             break;
         }
 
-    }
-
-    if (globalregistry->rootipc != NULL) {
-        // Shut down the channel control child
-        globalregistry->rootipc->ShutdownIPC(NULL);;
     }
 
     // Be noisy
@@ -495,7 +474,12 @@ void NcursesCancelHandler(int sig __attribute__((unused))) {
 
 void ncurses_wrapper_fork() {
     int pipefd[2];
-    pipe(pipefd);
+    
+    if (pipe(pipefd) < 0) {
+        fprintf(stderr, "FATAL: Could not make pipe to fork ncurses: %s\n", 
+                strerror(errno));
+        exit(1);
+    }
 
     if ((ncurses_kismet_pid = fork()) == 0) {
         close(pipefd[0]);
@@ -676,8 +660,6 @@ int main(int argc, char *argv[], char *envp[]) {
     // Set up usage functions
     globalregistry->RegisterUsageFunc(Devicetracker::usage);
 
-    int startup_ipc_id = -1;
-
     int max_fd = 0;
     fd_set rset, wset;
     struct timeval tm;
@@ -755,108 +737,6 @@ int main(int argc, char *argv[], char *envp[]) {
 
     // We need to create the pollable system near the top of execution as well
     shared_ptr<PollableTracker> pollabletracker(PollableTracker::create_pollabletracker(globalregistry));
-
-#ifndef SYS_CYGWIN
-    // Generate the root ipc packet capture and spawn it immediately, then register
-    // and sync the packet protocol stuff
-    if (getuid() != 0 && startroot == 0) {
-        globalregistry->messagebus->InjectMessage("Not running as root, and --no-root "
-            "was requested.  Will not attempt to spawn Kismet capture binary.  This "
-            "will make it impossible to add sources which require root.", 
-            MSGFLAG_INFO | MSGFLAG_PRINTERROR);
-    } else if (getuid() != 0) {
-        globalregistry->messagebus->InjectMessage("Not running as root - will try to "
-            "launch root control binary (" + string(BIN_LOC) + "/kismet_capture) to "
-            "control cards.", MSGFLAG_INFO);
-
-        // Terrible hack for dualhoming the rootipc object in the globalreg
-        // outside of the shared ptr, but it's going to go away, so I don't care
-        shared_ptr<RootIPCRemote> rootipc(RootIPCRemote::create_rootipcremote(globalregistry, "kismet_root"));
-
-        globalregistry->rootipc = rootipc.get();
-        globalregistry->rootipc->SpawnIPC();
-
-        startup_ipc_id = 
-            globalregistry->rootipc->RegisterIPCCmd(NULL, NULL, NULL, "STARTUP");
-
-        time_t ipc_spin_start = time(0);
-
-        while (1) {
-            FD_ZERO(&rset);
-            FD_ZERO(&wset);
-            max_fd = 0;
-
-            if (globalregistry->fatal_condition) {
-                fprintf(stderr, "debug - rootipc fatal\n");
-                CatchShutdown(-1);
-            }
-
-            max_fd = pollabletracker->MergePollableFds(&rset, &wset);
-
-            tm.tv_sec = 0;
-            tm.tv_usec = 100000;
-
-            if (select(max_fd + 1, &rset, &wset, NULL, &tm) < 0) {
-                if (errno != EINTR && errno != EAGAIN) {
-                    snprintf(errstr, STATUS_MAX, "Main select loop failed: %s",
-                             strerror(errno));
-                    CatchShutdown(-1);
-                }
-            }
-
-            pollabletracker->ProcessPollableSelect(rset, wset);
-
-            if (globalregistry->fatal_condition) {
-                fprintf(stderr, "debug - rootipc fatal after processpollable\n");
-                CatchShutdown(-1);
-            }
-
-            if (globalregistry->rootipc->FetchRootIPCSynced() > 0) {
-                // printf("debug - kismet server startup got root sync\n");
-                break;
-            }
-
-            if (time(0) - ipc_spin_start > 2) {
-                // printf("debug - kismet server startup timed out\n");
-                break;
-            }
-        }
-
-        if (globalregistry->rootipc->FetchRootIPCSynced() <= 0) {
-            critical_fail cf;
-            cf.fail_time = time(0);
-            cf.fail_msg = "Failed to start kismet_capture control binary.  Make sure "
-                "that kismet_capture is installed, is suid-root, and that your user "
-                "is in the 'kismet' group, or run Kismet as root.  See the "
-                "README for more information.";
-
-            int ipc_errno = globalregistry->rootipc->FetchErrno();
-
-            if (ipc_errno == EPERM || ipc_errno == EACCES) {
-                cf.fail_msg = "Could not launch kismet_capture control binary, "
-                    "due to permission errors.  To run Kismet suid-root your user "
-                    "MUST BE IN THE 'kismet' GROUP.  Use the 'groups' command to show "
-                    "what groups your user is in, and consult the Kismet README for "
-                    "more information.";
-            }
-
-            globalreg->critfail_vec.push_back(cf);
-
-            _MSG(cf.fail_msg, MSGFLAG_FATAL);
-        } else {
-            _MSG("Started kismet_capture control binary successfully, pid " +
-                 IntToString(globalreg->rootipc->FetchSpawnPid()), MSGFLAG_INFO);
-        }
-
-    } else {
-        globalregistry->messagebus->InjectMessage(
-            "Kismet was started as root, NOT launching external control binary.  "
-            "This is NOT the preferred method of starting Kismet as Kismet will "
-            "continue to run as root the entire time.  Please read the README "
-            "file section about Installation & Security and be sure this is "
-            "what you want to do.", MSGFLAG_ERROR);
-    }
-#endif
 
     // Open, initial parse, and assign the config file
     if (configfilename == NULL) {
@@ -941,49 +821,8 @@ int main(int argc, char *argv[], char *envp[]) {
     shared_ptr<Datasourcetracker> datasourcetracker;
     datasourcetracker = Datasourcetracker::create_dst(globalregistry);
 
-    // Create the packetsourcetracker
-    shared_ptr<Packetsourcetracker> packetsourcetracker;
-    packetsourcetracker = Packetsourcetracker::create_pst(globalregistry);
-    pollabletracker->RegisterPollable(packetsourcetracker);
-
     if (globalregistry->fatal_condition)
         CatchShutdown(-1);
-
-    // Register the IPC
-    if (globalregistry->rootipc != NULL) {
-        globalregistry->sourcetracker->RegisterIPC(globalregistry->rootipc, 0);
-
-    }
-
-#if !defined(SYS_CYGWIN) && !defined(SYS_ANDROID)
-    // Prep the tuntap device
-    Dumpfile_Tuntap *dtun = new Dumpfile_Tuntap(globalregistry);
-    if (globalregistry->fatal_condition)
-        CatchShutdown(-1);
-#endif
-
-    // Sync the IPC system -- everything that needs to be registered with the root 
-    // IPC needs to be registered before now
-    if (globalregistry->rootipc != NULL) {
-        globalregistry->rootipc->SyncRoot();
-        globalregistry->rootipc->SyncIPC();
-    }
-
-#if !defined(SYS_CYGWIN) && !defined(SYS_ANDROID)
-    // Fire the tuntap device setup now that we've sync'd the IPC system
-    dtun->OpenTuntap();
-#endif
-
-    // Fire the startup command to IPC, we're done and it can drop privs
-    if (globalregistry->rootipc != NULL) {
-        ipc_packet *ipc = (ipc_packet *) malloc(sizeof(ipc_packet));
-        memset(ipc, 0, sizeof(ipc_packet));
-        ipc->data_len = 0;
-        ipc->ipc_ack = 0;
-        ipc->ipc_cmdnum = startup_ipc_id;
-
-        globalreg->rootipc->SendIPC(ipc);
-    }
 
     // Create the alert tracker
     Alertracker::create_alertracker(globalregistry);
@@ -1001,7 +840,6 @@ int main(int argc, char *argv[], char *envp[]) {
     // Register the DLT handlers
     new Kis_DLT_PPI(globalregistry);
     new Kis_DLT_Radiotap(globalregistry);
-    new Kis_DLT_Prism2(globalregistry);
 
     new Kis_Dissector_IPdata(globalregistry);
 
@@ -1015,42 +853,8 @@ int main(int argc, char *argv[], char *envp[]) {
     if (globalregistry->devicetracker->RegisterPhyHandler(new Kis_Zwave_Phy(globalregistry)) < 0 || globalregistry->fatal_condition) 
         CatchShutdown(-1);
 
-    // Add the packet sources
-#ifdef USE_PACKETSOURCE_PCAPFILE
-    if (globalregistry->sourcetracker->RegisterPacketSource(new PacketSource_Pcapfile(globalregistry)) < 0 || globalregistry->fatal_condition) 
-        CatchShutdown(-1);
-#endif
-#ifdef USE_PACKETSOURCE_WEXT
-    if (globalregistry->sourcetracker->RegisterPacketSource(new PacketSource_Wext(globalregistry)) < 0 || globalregistry->fatal_condition) 
-        CatchShutdown(-1);
-#endif
-#ifdef USE_PACKETSOURCE_MADWIFI
-    if (globalregistry->sourcetracker->RegisterPacketSource(new PacketSource_Madwifi(globalregistry)) < 0 || globalregistry->fatal_condition) 
-        CatchShutdown(-1);
-#endif
-#ifdef USE_PACKETSOURCE_MADWIFING
-    if (globalregistry->sourcetracker->RegisterPacketSource(new PacketSource_MadwifiNG(globalregistry)) < 0 || globalregistry->fatal_condition) 
-        CatchShutdown(-1);
-#endif
-#ifdef USE_PACKETSOURCE_WRT54PRISM
-    if (globalregistry->sourcetracker->RegisterPacketSource(new PacketSource_Wrt54Prism(globalregistry)) < 0 || globalregistry->fatal_condition) 
-        CatchShutdown(-1);
-#endif
-#ifdef USE_PACKETSOURCE_BSDRT
-    if (globalregistry->sourcetracker->RegisterPacketSource(new PacketSource_BSDRT(globalregistry)) < 0 || globalregistry->fatal_condition) 
-        CatchShutdown(-1);
-#endif
-#ifdef USE_PACKETSOURCE_IPWLIVE
-    if (globalregistry->sourcetracker->RegisterPacketSource(new PacketSource_Ipwlive(globalregistry)) < 0 || globalregistry->fatal_condition) 
-        CatchShutdown(-1);
-#endif
-#ifdef USE_PACKETSOURCE_AIRPCAP
-    if (globalregistry->sourcetracker->RegisterPacketSource(new PacketSource_AirPcap(globalregistry)) < 0 || globalregistry->fatal_condition) 
-        CatchShutdown(-1);
-#endif
-
     // Add the datasources
-#ifdef USE_PACKETSOURCE_PCAPFILE
+#ifdef HAVE_LIBPCAP
     datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourcePcapfileBuilder(globalregistry)));
 #endif
     datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceLinuxWifiBuilder(globalregistry)));
@@ -1075,10 +879,6 @@ int main(int argc, char *argv[], char *envp[]) {
             CatchShutdown(-1);
         }
     }
-
-    // Enable cards from config/cmdline
-    if (globalregistry->sourcetracker->LoadConfiguration() < 0)
-        CatchShutdown(-1);
 
     // Create the GPS components
     GpsManager::create_gpsmanager(globalregistry);
@@ -1159,7 +959,8 @@ int main(int argc, char *argv[], char *envp[]) {
     globalregistry->messagebus->InjectMessage("Kismet starting to gather packets",
                                               MSGFLAG_INFO);
 
-    // Start sources
+#if 0
+    // TODO datasourcetracker equivalent
     globalregistry->sourcetracker->StartSource(0);
 
     if (globalregistry->sourcetracker->FetchSourceVec()->size() == 0) {
@@ -1167,6 +968,7 @@ int main(int argc, char *argv[], char *envp[]) {
              "client, or by placing them in the Kismet config file (" + 
              string(SYSCONF_LOC) + "/" + config_base + ")", MSGFLAG_INFO);
     }
+#endif
     
     // Set the global silence now that we're set up
     glob_silent = local_silent;

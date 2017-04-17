@@ -622,6 +622,7 @@ ac_includes_default="\
 #endif"
 
 ac_subst_vars='LTLIBOBJS
+DATASOURCE_BINS
 sharedatadir
 KSLIBS
 suidgroup
@@ -8255,6 +8256,13 @@ $as_echo "no" >&6; }
 	pcaplnk="-l${pcaplib}"
 
 	pcap="yes"
+
+    DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_PCAPFILE)"
+
+    if test "$linux" = "yes"; then
+        DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_LINUX_WIFI)"
+    fi
+
 	fi
 fi
 
@@ -8263,8 +8271,8 @@ if test "$wantpcap" = "yes" -a "$pcap" != "yes"; then
 fi
 
 if test "$wantpcap" != "yes" -o "$pcap" != "yes"; then
-    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Compiling without libpcap support.  Many capture sources will be disabled." >&5
-$as_echo "$as_me: WARNING: Compiling without libpcap support.  Many capture sources will be disabled." >&2;}
+    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Compiling without libpcap support.  Most capture sources will be disabled" >&5
+$as_echo "$as_me: WARNING: Compiling without libpcap support.  Most capture sources will be disabled" >&2;}
 fi
 
 
@@ -9162,6 +9170,8 @@ sharedatadir=${sharedatadir}
 
 
 CPPFLAGS="-I$BUNDLE_MSGPACK/include $CPPFLAGS"
+
+
 
 ac_config_files="$ac_config_files Makefile Makefile.inc scripts/kismet conf/kismet.conf"
 

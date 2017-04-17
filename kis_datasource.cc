@@ -51,7 +51,7 @@ KisDatasource::KisDatasource(GlobalRegistry *in_globalreg,
 	pack_comp_linkframe = packetchain->RegisterPacketComponent("LINKFRAME");
     pack_comp_l1info = packetchain->RegisterPacketComponent("RADIODATA");
     pack_comp_gps = packetchain->RegisterPacketComponent("GPS");
-	pack_comp_datasrc = globalreg->packetchain->RegisterPacketComponent("KISCAPSRC");
+	pack_comp_datasrc = globalreg->packetchain->RegisterPacketComponent("KISDATASRC");
 
     next_cmd_sequence = rand(); 
 

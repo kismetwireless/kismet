@@ -26,7 +26,6 @@
 #include "messagebus.h"
 #include "packet.h"
 #include "packetchain.h"
-#include "packetsource.h"
 
 #if defined(SYS_OPENBSD) || defined(SYS_NETBSD)
 #include <net80211/ieee80211.h>
@@ -50,6 +49,8 @@
 #endif
 
 #include "kis_dlt_radiotap.h"
+
+#include "kis_datasource.h"
 
 #include "tcpdump-extract.h"
 
@@ -142,15 +143,14 @@ int Kis_DLT_Radiotap::HandlePacket(kis_packet *in_pack) {
 		return 1;
 	}
 
-	kis_ref_capsource *capsrc =
-		(kis_ref_capsource *) in_pack->fetch(pack_comp_capsrc);
+	packetchain_comp_datasource *datasrc =
+		(packetchain_comp_datasource *) in_pack->fetch(pack_comp_datasrc);
 
-    /*
-	if (capsrc == NULL) {
+    // Everything needs a data source so we know how to checksum
+	if (datasrc == NULL) {
 		// printf("debug - no capsrc?\n");
 		return 1;
 	}
-    */
 
 	union {
 		int8_t	i8;
@@ -428,8 +428,9 @@ int Kis_DLT_Radiotap::HandlePacket(kis_packet *in_pack) {
 
 	// If we're validating the FCS, and don't already know it's junk, do
     // the FCS check
-	if (capsrc != NULL && capsrc->ref_source->FetchValidateCRC() && fcschunk != NULL &&
-            fcschunk->checksum_valid) {
+	if (datasrc != NULL && datasrc->ref_source != NULL && fcschunk != NULL) {
+        datasrc->ref_source->checksum_packet(in_pack);
+#if 0
 		// Compare it and flag the packet
 		uint32_t calc_crc =
 			crc32_le_80211(globalreg->crc32_table, decapchunk->data, 
@@ -443,12 +444,15 @@ int Kis_DLT_Radiotap::HandlePacket(kis_packet *in_pack) {
 		} else {
 			fcschunk->checksum_valid = 1;
 		}
+#endif
 	}
 
+#if 0
     // If we've validated the FCS and know this packet is junk, flag it at the
     // packet level
     if (fcschunk != NULL && fcschunk->checksum_valid == 0)
         in_pack->error = 1;
+#endif
 
     return 1;
 }

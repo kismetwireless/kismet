@@ -172,6 +172,18 @@ public:
     unsigned int get_source_number();
     void set_source_number(unsigned int in_number);
 
+    
+    // Perform a checksum on a packet after it's decapsulated; this is always
+    // called; a source should override it and check flags in the source
+    // definition to see if it should be checksummed
+    //
+    // Additional checksum data (like FCS frames) will be in the packet
+    // from the DLT decoders.
+    //
+    // Checksum functions should flag the packet as invalid directly via some
+    // method recognized by the device categorization stage
+    virtual void checksum_packet(kis_packet *in_pack) { return; }
+
 
 protected:
     // Source error; sets error state, fails all pending function callbacks,

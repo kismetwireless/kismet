@@ -30,7 +30,6 @@
 
 // Pre-defs for all the things we point to
 class MessageBus;
-class Packetsourcetracker;
 
 // Old network tracking core due to be removed
 class Netracker;
@@ -195,14 +194,11 @@ public:
     
     MessageBus *messagebus;
 
-    // Globals which should be deprecated in favor of named globals
+    // Globals which should be deprecated in favor of named globals; all code should
+    // be migrated to the shared pointer references
 
 	Plugintracker *plugintracker;
-    Packetsourcetracker *sourcetracker;
 	
-	// Old network tracker due to be removed
-    Netracker *netracker;
-
 	// New multiphy tracker
 	Devicetracker *devicetracker;
 
@@ -212,11 +208,7 @@ public:
     KisNetFramework *kisnetserver;
     KisDroneFramework *kisdroneserver;
     ConfigFile *kismet_config;
-    ConfigFile *kismetui_config;
-    SoundControl *soundctl;
 	KisBuiltinDissector *builtindissector;
-	RootIPCRemote *rootipc;
-	KisPanelInterface *panel_interface;
 	Manuf *manufdb;
 
     Kis_Net_Httpd *httpd_server;
@@ -228,9 +220,6 @@ public:
 	string version_tiny;
 	string revision;
 	string revdate;
-
-	// Map of named file pipes that sub-components should use
-	map<string, int> namedfd_map;
 
     // TODO probably deprecate these with the new logging system
 	// Vector of dumpfiles to close cleanly
@@ -247,13 +236,6 @@ public:
 	string homepath;
 
 	string logname;
-
-    // TODO eliminate these when netserver is removed
-    // Protocol references we don't want to keep looking up
-	int netproto_map[PROTO_REF_MAX];
-
-    // TODO eliminate these for per-phy filters and filters localized in
-    // devicetracker
 
     // Filter maps for the various filter types
     int filter_tracker;
@@ -291,9 +273,6 @@ public:
 
 	Dumpfile_Pcap *pcapdump;
 
-	// global netlink reference 
-	void *nlhandle;
-
 	// Critical failure elements
 	vector<critical_fail> critfail_vec;
 
@@ -328,10 +307,6 @@ public:
 	// Are we supposed to start checksumming packets?  (ie multiple sources, 
 	// whatever other conditions we use)
 	int checksum_packets;
-
-	// Add & retreive a named FD
-	void AddNamedFd(string name, int fd);
-	int GetNamedFd(string name);
 
     void RegisterLifetimeGlobal(shared_ptr<LifetimeGlobal> in_g);
     void RemoveLifetimeGlobal(shared_ptr<LifetimeGlobal> in_g);

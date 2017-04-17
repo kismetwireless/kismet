@@ -24,7 +24,6 @@
 #include "messagebus.h"
 #include "packet.h"
 #include "packetchain.h"
-#include "packetsource.h"
 #include "alertracker.h"
 
 #include "kis_dissector_ipdata.h"

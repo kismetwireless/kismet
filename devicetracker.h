@@ -42,7 +42,6 @@
 #include "globalregistry.h"
 #include "trackedelement.h"
 #include "entrytracker.h"
-#include "packetsource.h"
 #include "packet.h"
 #include "packetchain.h"
 #include "timetracker.h"
@@ -50,6 +49,7 @@
 #include "uuid.h"
 #include "configfile.h"
 #include "phyhandler.h"
+#include "kis_datasource.h"
 #include "packinfo_signal.h"
 #include "devicetracker_component.h"
 #include "trackercomponent_legacy.h"
@@ -262,17 +262,17 @@ public:
         return seenby_map;
     }
 
-    void inc_seenby_count(KisPacketSource *source, time_t tv_sec, int frequency) {
+    void inc_seenby_count(KisDatasource *source, time_t tv_sec, int frequency) {
         TrackerElement::map_iterator seenby_iter;
         shared_ptr<kis_tracked_seenby_data> seenby;
 
-        seenby_iter = seenby_map->find(source->FetchSourceID());
+        seenby_iter = seenby_map->find(source->get_source_number());
 
         // Make a new seenby record
         if (seenby_iter == seenby_map->end()) {
             seenby.reset(new kis_tracked_seenby_data(globalreg, seenby_val_id));
 
-            seenby->set_src_uuid(source->FetchUUID());
+            seenby->set_src_uuid(source->get_source_uuid());
             seenby->set_first_time(tv_sec);
             seenby->set_last_time(tv_sec);
             seenby->set_num_packets(1);
@@ -280,7 +280,7 @@ public:
             if (frequency > 0)
                 seenby->inc_frequency_count(frequency);
 
-            seenby_map->add_intmap(source->FetchSourceID(), seenby);
+            seenby_map->add_intmap(source->get_source_number(), seenby);
 
         } else {
             seenby = static_pointer_cast<kis_tracked_seenby_data>(seenby_iter->second);
@@ -750,6 +750,7 @@ protected:
 
 	GlobalRegistry *globalreg;
     shared_ptr<EntryTracker> entrytracker;
+    shared_ptr<Packetchain> packetchain;
 
     // Base IDs for tracker components
     int device_list_base_id, device_base_id, phy_base_id, phy_entry_id;
@@ -790,7 +791,7 @@ protected:
 
     // Packet components we add or interact with
 	int pack_comp_device, pack_comp_common, pack_comp_basicdata,
-		pack_comp_radiodata, pack_comp_gps, pack_comp_capsrc;
+		pack_comp_radiodata, pack_comp_gps, pack_comp_datasrc;
 
 	// Tracked devices
 	map<uint64_t, shared_ptr<kis_tracked_device_base> > tracked_map;
