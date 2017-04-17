@@ -157,6 +157,7 @@ kis_capture_handler_t *cf_handler_init() {
     ch->userdata = NULL;
 
     ch->capture_running = 0;
+    ch->hopping_running = 0;
 
     ch->channel_hop_list = NULL;
     ch->custom_channel_hop_list = NULL;
@@ -529,6 +530,7 @@ int cf_handler_launch_hopping_thread(kis_capture_handler_t *caph) {
     if (caph->hopping_running) {
         fprintf(stderr, "debug - hop thread already running, cancelling\n");
         pthread_cancel(caph->hopthread);
+        caph->hopping_running = 0;
     }
 
     if (pthread_create(&(caph->hopthread), &attr, cf_int_chanhop_thread, caph) < 0) {
@@ -786,10 +788,12 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
         r = cf_get_CHANSET(&cdef, cap_proto_frame);
 
         if (r < 0) {
+            fprintf(stderr, "DEBUG - unable to parse chanset kv\n");
             cf_send_configresp(caph, ntohl(cap_proto_frame->header.sequence_number),
                     0, "Unable to parse CHANSET KV");
             cbret = -1;
         } else if (r > 0) {
+            fprintf(stderr, "DEBUG - got chanset kv\n");
             if (caph->chancontrol_cb == NULL) {
                 pthread_mutex_unlock(&(caph->handler_lock));
                 cf_send_configresp(caph, ntohl(cap_proto_frame->header.sequence_number),
@@ -841,6 +845,7 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
                     cap_proto_frame);
 
             if (r < 0 || chanhop_channels_sz == 0) {
+                fprintf(stderr, "DEBUG - Unable to parse chanhop kv r %d channels %d\n", r, chanhop_channels_sz);
                 cf_send_configresp(caph, ntohl(cap_proto_frame->header.sequence_number),
                         0, "Unable to parse CHANHOP KV");
                 cbret = -1;
@@ -852,6 +857,7 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
                             0, "Source does not support setting channel");
                     cbret = -1;
                 } else {
+                    fprintf(stderr, "DEBUG - got chanhop kv\n");
                     /* Translate all the channels, or dupe them as strings */
                     chanhop_priv_channels = 
                         (void **) malloc(sizeof(void *) * chanhop_channels_sz);
@@ -1637,7 +1643,7 @@ int cf_send_configresp(kis_capture_handler_t *caph, unsigned int seqno,
             return -1;
         }
 
-        kv_pairs++;
+        kv_pos++;
     }
 
     kv_pairs[kv_pos] = encode_kv_success(success, seqno);
@@ -1649,6 +1655,7 @@ int cf_send_configresp(kis_capture_handler_t *caph, unsigned int seqno,
         return -1;
     }
 
+    fprintf(stderr, "debug - sending ch %p configresp success %u msg %s kvpairs %p len %u\n", caph, success, msg, kv_pairs, num_kvs);
     return cf_stream_packet(caph, "CONFIGRESP", kv_pairs, num_kvs);
 }
 
@@ -1679,7 +1686,7 @@ int cf_send_configresp_channel(kis_capture_handler_t *caph, unsigned int seqno,
             return -1;
         }
 
-        kv_pairs++;
+        kv_pos++;
     }
 
     if (channel != NULL) {
@@ -1733,7 +1740,7 @@ int cf_send_configresp_chanhop(kis_capture_handler_t *caph, unsigned int seqno,
             return -1;
         }
 
-        kv_pairs++;
+        kv_pos++;
     }
 
     if (channel_list_sz != 0) {
