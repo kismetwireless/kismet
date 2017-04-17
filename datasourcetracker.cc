@@ -235,6 +235,8 @@ Datasourcetracker::Datasourcetracker(GlobalRegistry *in_globalreg) :
     next_probe_id = 0;
     next_list_id = 0;
 
+    next_source_num = 0;
+
 }
 
 Datasourcetracker::~Datasourcetracker() {
@@ -462,6 +464,20 @@ void Datasourcetracker::open_datasource(string in_source,
             // Whenever we succeed (or fail) at opening a deferred open source,
             // call our callback w/ whatever we know
             if (success) {
+                local_locker lock(&dst_lock);
+
+                // Get the UUID and compare it to our map; re-use a UUID if we knew
+                // it before, otherwise add a new one
+                uuid u = ds->get_source_uuid();
+
+                auto i = uuid_source_num_map.find(u);
+                if (i != uuid_source_num_map.end()) {
+                    ds->set_source_number(i->second);
+                } else {
+                    ds->set_source_number(next_source_num++);
+                    uuid_source_num_map.emplace(u, ds->get_source_number());
+                }
+
                 in_cb(true, "");
             } else {
                 in_cb(false, reason);

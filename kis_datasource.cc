@@ -51,6 +51,7 @@ KisDatasource::KisDatasource(GlobalRegistry *in_globalreg,
 	pack_comp_linkframe = packetchain->RegisterPacketComponent("LINKFRAME");
     pack_comp_l1info = packetchain->RegisterPacketComponent("RADIODATA");
     pack_comp_gps = packetchain->RegisterPacketComponent("GPS");
+	pack_comp_datasrc = globalreg->packetchain->RegisterPacketComponent("KISCAPSRC");
 
     next_cmd_sequence = rand(); 
 
@@ -85,6 +86,16 @@ KisDatasource::~KisDatasource() {
     // be completed!
 
     pthread_mutex_destroy(&source_lock);
+}
+
+unsigned int KisDatasource::get_source_number() {
+    local_locker lock(&source_lock);
+    return source_number;
+}
+
+void KisDatasource::set_source_number(unsigned int in_number) {
+    local_locker lock(&source_lock);
+    source_number = in_number;
 }
 
 void KisDatasource::list_interfaces(unsigned int in_transaction, 
@@ -795,6 +806,11 @@ void KisDatasource::proto_packet_data(KVmap in_kvpairs) {
     if (gpsinfo != NULL) {
         packet->insert(pack_comp_gps, gpsinfo);
     }
+
+    packetchain_comp_datasource *datasrcinfo = new packetchain_comp_datasource();
+    datasrcinfo->ref_source = this;
+
+    packet->insert(pack_comp_datasrc, datasrcinfo);
 
     // Inject the packet into the packetchain if we have one
     packetchain->ProcessPacket(packet);

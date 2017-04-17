@@ -168,6 +168,10 @@ public:
     __ProxyGet(source_retry_attempts, uint32_t, uint32_t, source_retry_attempts);
 
 
+    // Source number
+    unsigned int get_source_number();
+    void set_source_number(unsigned int in_number);
+
 
 protected:
     // Source error; sets error state, fails all pending function callbacks,
@@ -363,6 +367,12 @@ protected:
     SharedTrackerElement source_hop_vec;
 
 
+    // Local ID number is an increasing number assigned to each unique UUID; it's
+    // used inside Kismet for fast mapping for seenby, etc.  DST maps this to
+    // unique UUIDs after an Open
+    unsigned int source_number;
+
+
     // Global registry all objects have for coordination
     GlobalRegistry *globalreg;
 
@@ -443,7 +453,7 @@ protected:
     shared_ptr<Packetchain> packetchain;
 
     // Packet components we inject
-    int pack_comp_linkframe, pack_comp_l1info, pack_comp_gps;
+    int pack_comp_linkframe, pack_comp_l1info, pack_comp_gps, pack_comp_datasrc;
 
 };
 
@@ -652,6 +662,21 @@ public:
     size_t size;
     char *object;
 };
+
+// Packet chain component; we need to use a raw pointer here but it only exists
+// for the lifetime of the packet being processed
+class packetchain_comp_datasource : public packet_component {
+public:
+    KisDatasource *ref_source;
+
+    packetchain_comp_datasource() {
+        self_destruct = 1;
+        ref_source = NULL;
+    }
+
+    virtual ~packetchain_comp_datasource() { }
+};
+
 
 #endif
 
