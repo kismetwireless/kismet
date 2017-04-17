@@ -17,6 +17,42 @@ capture_binary_path=%B/kismet_capture/
 # Prefix of where we log (as used in the logtemplate later)
 # logprefix=/some/path/to/logs
 
+
+# See the README for more information how to define sources; sources take the
+# form of:
+# source=interface:options
+#
+# For example to capture from a Wi-Fi interface in Linux you could specify:
+# source=wlan0
+#
+# or to specify a custom name,
+# source=wlan0:name=ath9k
+#
+# Sources may be defined in the config file or on the command line via the 
+# '-c' option.  Sources may also be defined live via the WebUI.
+
+
+# Default behavior of capture sources; if there are no options passed on the source
+# definition to control hopping, hop rate, or other attributes, these are applied
+
+# Hop channels if possible
+channel_hop = true
+
+# How fast do we hop channels?  Time can be hops/second or hops/minute.
+channel_hop_speed = 5/sec
+
+# If we have multiple sources with the same list of channels, Kismet can try to split
+# them up so that they hop from different starting positions; this maximizes the
+# coverage
+split_source_hopping = true
+
+# Should Kismet scramble the channel list so that it hops in a semi-random pattern?
+# This helps sources like Wi-Fi where many channels are adjacent and can overlap, 
+# by randomizing 2.4ghz channels Kismet can take advantage of the overlap.  Typically
+# leave this turned on.
+randomized_hopping = true
+
+
 # New GPS configuration
 # gps=type:options
 #
@@ -53,17 +89,6 @@ allowplugins=true
 # devices without historical data.
 #
 # tracker_max_devices=10000
-
-# See the README for more information how to define sources; sources take the
-# form of:
-# source=interface:options
-#
-# For example to capture from a Wi-Fi interface in Linux you could specify:
-# source=wlan0
-#
-# or to specify a custom name,
-# source=wlan0:name=ath9k
-
 
 # OUI file, expected format 00:11:22<tab>manufname
 # IEEE OUI file used to look up manufacturer info.  We default to the
