@@ -1061,7 +1061,7 @@ void pcap_dispatch_cb(u_char *user, const struct pcap_pkthdr *header,
     local_wifi_t *local_wifi = (local_wifi_t *) caph->userdata;
     int ret;
 
-    fprintf(stderr, "debug - pcap_dispatch - got packet %u\n", header->caplen);
+    // fprintf(stderr, "debug - pcap_dispatch - got packet %u\n", header->caplen);
 
     /* Try repeatedly to send the packet; go into a thread wait state if
      * the write buffer is full & we'll be woken up as soon as it flushes
@@ -1144,7 +1144,7 @@ int main(int argc, char *argv[]) {
 
     /* Remap stderr so we can log debugging to a file */
     FILE *sterr;
-    sterr = fopen("capture_linux_wifi.stderr", "a");
+    sterr = fopen("/tmp/capture_linux_wifi.stderr", "a");
     dup2(fileno(sterr), STDERR_FILENO);
 
     fprintf(stderr, "CAPTURE_LINUX_WIFI launched on pid %d\n", getpid());

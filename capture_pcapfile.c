@@ -313,7 +313,7 @@ int main(int argc, char *argv[]) {
 
     /* Remap stderr so we can log debugging to a file */
     FILE *sterr;
-    sterr = fopen("capture_pcapfile.stderr", "a");
+    sterr = fopen("/tmp/capture_pcapfile.stderr", "a");
     dup2(fileno(sterr), STDERR_FILENO);
 
     fprintf(stderr, "CAPTURE_PCAPFILE launched on pid %d\n", getpid());
