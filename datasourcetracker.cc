@@ -478,6 +478,12 @@ void Datasourcetracker::open_datasource(string in_source,
                     uuid_source_num_map.emplace(u, ds->get_source_number());
                 }
 
+                ds->set_channel_hop_rate(10, 0, 
+                        [](unsigned int, bool result, string reason) {
+                            fprintf(stderr, "debug - enabled channel hop %u %s\n",
+                                    result, reason.c_str());
+                        });
+
                 in_cb(true, "");
             } else {
                 in_cb(false, reason);

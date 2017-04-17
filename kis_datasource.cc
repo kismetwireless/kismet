@@ -371,13 +371,25 @@ void KisDatasource::BufferAvailable(size_t in_amt __attribute__((unused))) {
         // Extract the kv pairs
         KVmap kv_map;
 
-        ssize_t data_offt = 0;
+        size_t data_offt = 0;
         for (unsigned int kvn = 0; 
                 kvn < kis_ntoh32(frame->header.num_kv_pairs); kvn++) {
-            simple_cap_proto_kv *pkv =
-                (simple_cap_proto_kv *) &((frame->data)[data_offt]);
 
-            data_offt = 
+            if (frame_sz < sizeof(simple_cap_proto_t) + 
+                    sizeof(simple_cap_proto_kv_t) + data_offt) {
+                _MSG("Kismet data source " + get_source_name() + " got an invalid "
+                        "frame (KV too long for frame) from IPC/Network, closing.",
+                        MSGFLAG_ERROR);
+                trigger_error("Source got invalid control frame");
+
+                return;
+            }
+
+            simple_cap_proto_kv_t *pkv =
+                (simple_cap_proto_kv_t *) &((frame->data)[data_offt]);
+
+
+            data_offt += 
                 sizeof(simple_cap_proto_kv_h_t) +
                 kis_ntoh32(pkv->header.obj_sz);
 
@@ -656,8 +668,16 @@ void KisDatasource::proto_packet_open_resp(KVmap in_kvpairs) {
         return;
     }
 
-    // Quiet errors display for shutdown of pipe
-    quiet_errors = true;
+    // TODO configure channels based on source line, if any; otherwise, copy
+    // the source channels to the hopping list
+    
+    TrackerElementVector source_chan_vec(get_int_source_channels_vec());
+    TrackerElementVector hop_chan_vec(get_int_source_hop_vec());
+
+    hop_chan_vec.clear();
+    for (auto c = source_chan_vec.begin(); c != source_chan_vec.end(); ++c) {
+        hop_chan_vec.push_back(*c);
+    }
 
     // Get the sequence number and look up our command
     uint32_t seq = get_kv_success_sequence(i->second);

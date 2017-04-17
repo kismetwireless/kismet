@@ -221,7 +221,7 @@ int find_next_ifnum(const char *basename) {
 
 /* Convert a string into a local interpretation; allocate ret_localchan.
  */
-void *chantranslate_cb(kis_capture_handler_t *caph, char *chanstr) {
+void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
     local_channel_t *ret_localchan;
     unsigned int parsechan, parse_center1;
     char parsetype[16];
@@ -230,7 +230,7 @@ void *chantranslate_cb(kis_capture_handler_t *caph, char *chanstr) {
     char errstr[STATUS_MAX];
 
     /* Multipart scanf which matches all of our variants in one go */
-    r = sscanf(chanstr, "%u%16[^-]-%u", &parsechan, parsetype, &parse_center1);
+    r = sscanf(chanstr, "%u%15[^-]-%u", &parsechan, parsetype, &parse_center1);
 
     if (r <= 0) {
         snprintf(errstr, STATUS_MAX, "unable to parse any channel information from "
@@ -401,44 +401,24 @@ void local_channel_to_str(local_channel_t *chan, char *chanstr) {
     }
 }
 
-int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
-        char *msg, char **chanset, char ***chanlist, size_t *chanlist_sz) {
-    char *placeholder = NULL;
-    int placeholder_len;
-    char *interface;
-    unsigned int *iw_chanlist;
-    char errstr[STATUS_MAX];
+int populate_chanlist(char *interface, char *msg, char ***chanlist, 
+        size_t *chanlist_sz) {
     int ret;
+    unsigned int *iw_chanlist;
     unsigned int chan_sz;
     unsigned int ci;
     char conv_chan[16];
 
-    *chanset = NULL;
-    *chanlist = NULL;
-    *chanlist_sz = 0;
-
-    if ((placeholder_len = cf_parse_interface(&placeholder, definition)) <= 0) {
-        snprintf(msg, STATUS_MAX, "Unable to find interface in definition"); 
-        return 0;
-    }
-
-    interface = strndup(placeholder, placeholder_len);
-
-    /* We don't care about fixed channel */
-    *chanset = NULL;
-    
-
     /* Prefer mac80211 channel fetch */
-    ret = mac80211_get_chanlist(interface, errstr, chanlist, 
+    ret = mac80211_get_chanlist(interface, msg, chanlist, 
             (unsigned int *) chanlist_sz);
 
     if (ret < 0) {
-        ret = iwconfig_get_chanlist(interface, errstr, &iw_chanlist, &chan_sz);
+        ret = iwconfig_get_chanlist(interface, msg, &iw_chanlist, &chan_sz);
 
         /* We can't seem to get any channels from this interface, either 
          * through mac80211 or siocgiwfreq so we can't do anything */
         if (ret < 0 || chan_sz == 0) {
-            free(interface);
             return 0;
         }
 
@@ -459,7 +439,36 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
         }
     }
 
+    return 1;
+}
+
+int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
+        char *msg, char **chanset, char ***chanlist, size_t *chanlist_sz) {
+    char *placeholder = NULL;
+    int placeholder_len;
+    char *interface;
+    int ret;
+
+    *chanset = NULL;
+    *chanlist = NULL;
+    *chanlist_sz = 0;
+
+    if ((placeholder_len = cf_parse_interface(&placeholder, definition)) <= 0) {
+        snprintf(msg, STATUS_MAX, "Unable to find interface in definition"); 
+        return 0;
+    }
+
+    interface = strndup(placeholder, placeholder_len);
+
+    /* We don't care about fixed channel */
+    *chanset = NULL;
+   
+    ret = populate_chanlist(interface, msg, chanlist, chanlist_sz);
+
     free(interface);
+
+    if (ret < 0)
+        return -1;
 
     return 1;
 }
@@ -502,6 +511,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     *chanlist_sz = 0;
 
     int mode;
+
+    int ret;
 
 #ifdef HAVE_LIBNM
     NMClient *nmclient = NULL;
@@ -858,6 +869,14 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         return -1;
     }
 
+    ret = populate_chanlist(local_wifi->cap_interface, errstr, chanlist, chanlist_sz);
+    if (ret < 0) {
+        snprintf(msg, STATUS_MAX, "Could not get list of channels from capture "
+                "interface '%s' on '%s': %s", local_wifi->cap_interface,
+                local_wifi->interface, errstr);
+        return -1;
+    }
+
     /* Open the pcap */
     local_wifi->pd = pcap_open_live(local_wifi->cap_interface, 
             MAX_PACKET_LEN, 1, 1000, pcap_errstr);
@@ -1172,7 +1191,10 @@ int main(int argc, char *argv[]) {
     cf_handler_set_probe_cb(caph, probe_callback);
 
     /* Set the translation cb */
-    cf_handler_set_chantranslate_cb(caph, chantranslate_cb);
+    cf_handler_set_chantranslate_cb(caph, chantranslate_callback);
+
+    /* Set the control cb */
+    cf_handler_set_chancontrol_cb(caph, chancontrol_callback);
 
     /* Set the capture thread */
     cf_handler_set_capture_cb(caph, capture_thread);

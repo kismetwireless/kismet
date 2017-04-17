@@ -190,6 +190,61 @@ protected:
 
 typedef shared_ptr<DST_DatasourceList> SharedDSTList;
 
+// Tracker/serializable record of default values used for all datasources
+class datasourcetracker_defaults : public tracker_component {
+public:
+    datasourcetracker_defaults(GlobalRegistry *in_globalreg, int in_id) :
+        tracker_component(in_globalreg, in_id) {
+        register_fields();
+        reserve_fields(NULL);
+        }
+
+    datasourcetracker_defaults(GlobalRegistry *in_globalreg, int in_id,
+            SharedTrackerElement e) :
+        tracker_component(in_globalreg, in_id) {
+        register_fields();
+        reserve_fields(e);
+    }
+
+    virtual SharedTrackerElement clone_type() {
+        return SharedTrackerElement(new datasourcetracker_defaults(globalreg, get_id()));
+    }
+
+    __Proxy(hop_rate, double, double, double, hop_rate);
+    __Proxy(hop, uint8_t, bool, bool, hop);
+    __Proxy(split_same_sources, uint8_t, bool, bool, split_same_sources);
+    __Proxy(random_channel_order, uint8_t, bool, bool, random_channel_order);
+
+protected:
+    virtual void register_fields() {
+        tracker_component::register_fields();
+
+        RegisterField("kismet.datasourcetracker.default.hop_rate", TrackerDouble,
+                "default hop rate for sources", &hop_rate);
+        RegisterField("kismet.datasourcetracker.default.hop", TrackerUInt8,
+                "do sources hop by default", &hop);
+        RegisterField("kismet.datasourcetracker.default.split", TrackerUInt8,
+                "split channels among sources with the same channel list", 
+                &split_same_sources);
+        RegisterField("kismet.datasourcetracker.default.random_order", TrackerUInt8,
+                "scramble channel order to maximize use of overlap",
+                &random_channel_order);
+    }
+
+    // Double hoprate per second
+    SharedTrackerElement hop_rate;
+
+    // Boolean, do we hop at all
+    SharedTrackerElement hop;
+
+    // Boolean, do we try to split channels up among the same driver?
+    SharedTrackerElement split_same_sources;
+
+    // Boolean, do we scramble the hop pattern?
+    SharedTrackerElement random_channel_order;
+
+};
+
 class Datasourcetracker : public Kis_Net_Httpd_Stream_Handler, 
     public LifetimeGlobal, public TcpServerV2 {
 public:
@@ -290,6 +345,8 @@ protected:
     // UUIDs to source numbers
     unsigned int next_source_num;
     map<uuid, unsigned int> uuid_source_num_map;
+
+    shared_ptr<datasourcetracker_defaults> config_defaults;
 
 };
 

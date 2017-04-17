@@ -973,6 +973,11 @@ int main(int argc, char *argv[], char *envp[]) {
     // Set the global silence now that we're set up
     glob_silent = local_silent;
 
+    datasourcetracker->open_datasource("wlan1", [](bool success, string reason) {
+            fprintf(stderr, "TESTCODE - wlan1 %u: %s\n", success, reason.c_str());
+            });
+
+
     // Core loop
     while (1) {
         if (globalregistry->spindown) {
