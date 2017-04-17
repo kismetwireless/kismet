@@ -399,6 +399,8 @@ string ConfigFile::ExpandLogPath_nl(string path, string logname, string type,
             logtemplate.insert(nl, DATA_LOC);
         } else if (op == 'E') {
             logtemplate.insert(nl, SYSCONF_LOC);
+        } else if (op == 'B') {
+            logtemplate.insert(nl, BIN_LOC);
         }
     }
 
