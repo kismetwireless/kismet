@@ -1627,10 +1627,12 @@ void KisDatasource::launch_ipc() {
 
     // Get allowed paths for binaries
     vector<string> bin_paths = 
-        globalreg->kismet_config->FetchOptVec("capture_binary_paths");
+        globalreg->kismet_config->FetchOptVec("capture_binary_path");
 
+    // Explode any expansion macros in the path and add it to the list we search
     for (vector<string>::iterator i = bin_paths.begin(); i != bin_paths.end(); ++i) {
-        ipc_remote->add_path(*i);
+        ipc_remote->add_path(globalreg->kismet_config->ExpandLogPath(*i, "", 
+                    "", 0, 1));
     }
 
     int ret = ipc_remote->launch_kis_binary(get_source_ipc_binary(), ipc_binary_args);
