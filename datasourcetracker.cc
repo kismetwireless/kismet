@@ -18,6 +18,7 @@
 
 #include "config.hpp"
 
+#include "configfile.h"
 #include "datasourcetracker.h"
 #include "messagebus.h"
 #include "globalregistry.h"
@@ -236,6 +237,58 @@ Datasourcetracker::Datasourcetracker(GlobalRegistry *in_globalreg) :
     next_list_id = 0;
 
     next_source_num = 0;
+
+    config_defaults = 
+        static_pointer_cast<datasourcetracker_defaults>(
+                entrytracker->RegisterAndGetField("kismet.datasourcetracker.defaults", 
+                    shared_ptr<datasourcetracker_defaults>(new 
+                        datasourcetracker_defaults(globalreg, 0)), 
+                    "Datasource default values"));
+
+    if (globalreg->kismet_config->FetchOptBoolean("channel_hop", true)) {
+        _MSG("Enabling channel hopping by default on sources which support channel "
+                "control.", MSGFLAG_INFO);
+        config_defaults->set_hop(true);
+    }
+
+    string optval;
+    if ((optval = globalreg->kismet_config->FetchOpt("channel_hop_speed")) != "") {
+        unsigned int v;
+        double dv;
+
+        if (sscanf(optval.c_str(), "%u/sec", &v) == 1) {
+            _MSG("Setting default channel hop rate to " + IntToString(v) + 
+                    " channels per second", MSGFLAG_INFO);
+            config_defaults->set_hop_rate(v);
+        } else if (sscanf(optval.c_str(), "%u/min", &v) == 1) {
+            // Channel hop is # of hops a second, timed in usec, so to get hops per
+            // minute we get a minutes worth of usecs (60m), divide by the number
+            // of hops per minute, then divide a second by that.
+            dv = (double) 1000000 / (double) ((double) (1000000 * 60) / (double) v);
+            _MSG("Setting dfault channel hop rate to " + IntToString(v) + 
+                    " channels per minute", MSGFLAG_INFO);
+            config_defaults->set_hop_rate(dv);
+        } else {
+            _MSG("Unable to parse channel_hop_speed= from kismet config, expected "
+                    "value/sec or value/minute, defaulting to 1/sec", MSGFLAG_ERROR);
+            config_defaults->set_hop_rate(1);
+        }
+    } else {
+        _MSG("No channel_hop_speed= in kismet config, setting hop "
+                "rate to 1/sec", MSGFLAG_INFO);
+        config_defaults->set_hop_rate(1);
+    }
+
+    if (globalreg->kismet_config->FetchOptBoolean("split_source_hopping", true)) {
+        _MSG("Enabling channel list splitting on sources which share the same list "
+                "of channels", MSGFLAG_INFO);
+        config_defaults->set_split_same_sources(true);
+    }
+
+    if (globalreg->kismet_config->FetchOptBoolean("randomized_hopping", true)) {
+        _MSG("Enabling channel list shuffling to optimize overlaps", MSGFLAG_INFO);
+        config_defaults->set_random_channel_order(true);
+    }
 
 }
 
