@@ -144,13 +144,16 @@ public:
                 channelv2->device_decay)
             return;
 
+        if (device->get_frequency() == 0)
+            return;
+
         map<double, unsigned int>::iterator i =
             device_count.find(device->get_frequency());
 
         if (i != device_count.end()) {
             i->second++;
         } else {
-            device_count[device->get_frequency()] = 1;
+            device_count.emplace(device->get_frequency(), 1);
         }
     }
 
@@ -169,6 +172,8 @@ protected:
 
 
 int Channeltracker_V2::timetracker_event(int event_id __attribute__((unused))) {
+    local_locker locker(&lock);
+
     channeltracker_v2_device_worker worker(globalreg, this);
     globalreg->devicetracker->MatchOnDevices(&worker);
 
