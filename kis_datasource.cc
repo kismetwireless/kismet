@@ -1504,11 +1504,11 @@ void KisDatasource::send_command_set_channel_hop(double in_rate,
 
     // Pack the shuffle
     packer.pack(string("shuffle"));
-    packer.pack(in_shuffle);
+    packer.pack((uint8_t) in_shuffle);
 
     // Pack the offset
     packer.pack(string("offset"));
-    packer.pack(in_offt);
+    packer.pack((uint32_t) in_offt);
 
     // Pack the vector of channels
     packer.pack(string("channels"));
