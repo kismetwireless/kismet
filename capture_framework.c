@@ -499,12 +499,10 @@ void *cf_int_chanhop_thread(void *arg) {
             return NULL;
         }
 
-        if (hoppos >= caph->channel_hop_list_sz)
-            hoppos = 0;
-
         errstr[0] = 0;
         if ((caph->chancontrol_cb)(caph, 0, 
-                    caph->custom_channel_hop_list[hoppos], errstr) < 0) {
+                    caph->custom_channel_hop_list[hoppos % caph->channel_hop_list_sz], 
+                    errstr) < 0) {
             cf_send_error(caph, errstr);
             fprintf(stderr, "debug - failed channel hopping %s\n", errstr);
             caph->hopping_running = 0;
@@ -835,7 +833,6 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
                     free(translate_chan);
 
                 pthread_mutex_unlock(&(caph->handler_lock));
-
             }
         } else {
             /* We didn't find a CHANSET, look for CHANHOP.  We only respect one;
@@ -902,6 +899,7 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
         cbret = -1;
     }
 
+    fprintf(stderr, "returning cbret %d\n", cbret);
     return cbret;
 }
 
@@ -1495,7 +1493,7 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
     if (uuid != NULL)
         num_kvs++;
 
-    fprintf(stderr, "debug - openresp going to allocate %u kvs\n", num_kvs);
+    /* fprintf(stderr, "debug - openresp going to allocate %u kvs\n", num_kvs); */
 
     kv_pairs = 
         (simple_cap_proto_kv_t **) malloc(sizeof(simple_cap_proto_kv_t *) * num_kvs);
@@ -1511,7 +1509,6 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
     kv_pos++;
 
     if (msg != NULL && strlen(msg) != 0) {
-        fprintf(stderr, "debug - encoding msg pos %lu\n", kv_pos);
         kv_pairs[kv_pos] = 
             encode_kv_message(msg, success ? MSGFLAG_INFO : MSGFLAG_ERROR);
         if (kv_pairs[kv_pos] == NULL) {
@@ -1526,7 +1523,6 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
     }
 
     if (uuid != NULL) {
-        fprintf(stderr, "debug - encoding uuid pos %lu\n", kv_pos);
         kv_pairs[kv_pos] = encode_kv_uuid(uuid);
         if (kv_pairs[kv_pos] == NULL) {
             fprintf(stderr, "FATAL: Unable to allocate KV UUID pair\n");
@@ -1536,12 +1532,10 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
             free(kv_pairs);
             return -1;
         }
-        fprintf(stderr, "debug - kvpair result %s %u\n", kv_pairs[kv_pos]->header.key, ntohl(kv_pairs[kv_pos]->header.obj_sz));
         kv_pos++;
     }
 
     if (chanset != 0) {
-        fprintf(stderr, "debug - encodin chanset pos %lu\n", kv_pos);
         kv_pairs[kv_pos] = encode_kv_chanset(chanset);
         if (kv_pairs[kv_pos] == NULL) {
             fprintf(stderr, "FATAL: Unable to allocate KV CHANSET pair\n");
@@ -1555,7 +1549,6 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
     }
 
     if (channels_len != 0) {
-        fprintf(stderr, "debug - encoding channels in pos %lu openresp len %d\n", kv_pos, channels_len);
         kv_pairs[kv_pos] = encode_kv_channels(channels, channels_len);
         if (kv_pairs[kv_pos] == NULL) {
             fprintf(stderr, "FATAL: Unable to allocate KV CHANNELS pair\n");
