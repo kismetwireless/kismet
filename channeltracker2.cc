@@ -56,7 +56,10 @@ Channeltracker_V2::Channeltracker_V2(GlobalRegistry *in_globalreg) :
     timer_id = 
         globalreg->timetracker->RegisterTimer(0, &trigger_tm, 0, this);
 
-    pthread_mutex_init(&lock, NULL);
+    pthread_mutexattr_t mutexattr;
+    pthread_mutexattr_init(&mutexattr);
+    pthread_mutexattr_settype(&mutexattr, PTHREAD_MUTEX_RECURSIVE);
+    pthread_mutex_init(&lock, &mutexattr);
 }
 
 Channeltracker_V2::~Channeltracker_V2() {
