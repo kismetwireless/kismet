@@ -225,36 +225,21 @@ void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
     local_channel_t *ret_localchan;
     unsigned int parsechan, parse_center1;
     char parsetype[16];
+    char mod;
     int r;
     unsigned int ci;
     char errstr[STATUS_MAX];
 
-    /* Multipart scanf which matches all of our variants in one go */
-    r = sscanf(chanstr, "%u%15[^-]-%u", &parsechan, parsetype, &parse_center1);
+    /* Match HT40+ and HT40- */
+    r = sscanf(chanstr, "%uHT40%c", &parsechan, &mod);
 
-    if (r <= 0) {
-        snprintf(errstr, STATUS_MAX, "unable to parse any channel information from "
-                "channel string '%s'", chanstr);
-        cf_send_message(caph, errstr, MSGFLAG_ERROR);
-        return NULL;
-    }
+    if (r == 2) {
+        ret_localchan = (local_channel_t *) malloc(sizeof(local_channel_t));
+        memset(ret_localchan, 0, sizeof(local_channel_t));
 
-    ret_localchan = (local_channel_t *) malloc(sizeof(local_channel_t));
-    memset(ret_localchan, 0, sizeof(local_channel_t));
-
-    if (r == 1) {
-        (ret_localchan)->control_freq = parsechan;
-        return 0;
-    }
-
-    if (r >= 2) {
         (ret_localchan)->control_freq = parsechan;
 
-        if (strcasecmp(parsetype, "w5") == 0) {
-            (ret_localchan)->chan_width = NL80211_CHAN_WIDTH_5;
-        } else if (strcasecmp(parsetype, "w10") == 0) {
-            (ret_localchan)->chan_width = NL80211_CHAN_WIDTH_10;
-        } else if (strcasecmp(parsetype, "ht40-") == 0) {
+        if (mod == '-') {
             (ret_localchan)->chan_type = NL80211_CHAN_HT40MINUS;
 
             /* Search for the ht channel record */
@@ -271,7 +256,7 @@ void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
 
                 }
             }
-        } else if (strcasecmp(parsetype, "ht40+") == 0) {
+        } else if (mod == '+') {
             (ret_localchan)->chan_type = NL80211_CHAN_HT40PLUS;
 
             /* Search for the ht channel record */
@@ -289,6 +274,43 @@ void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
 
                 }
             }
+        } else {
+            /* otherwise return it as a basic channel; we don't know what to do */
+            snprintf(errstr, STATUS_MAX, "unable to parse attributes on channel "
+                    "'%s', treating as standard non-HT channel.", chanstr);
+            cf_send_message(caph, errstr, MSGFLAG_INFO);
+        }
+
+        return ret_localchan;
+    }
+
+
+    /* otherwise parse VHTXX, WXX, and VHTXX-YYY */
+    r = sscanf(chanstr, "%u%15[^-]-%u", &parsechan, parsetype, &parse_center1);
+
+    if (r <= 0) {
+        snprintf(errstr, STATUS_MAX, "unable to parse any channel information from "
+                "channel string '%s'", chanstr);
+        cf_send_message(caph, errstr, MSGFLAG_ERROR);
+        fprintf(stderr, "debug - %s\n", errstr);
+        return NULL;
+    }
+
+    ret_localchan = (local_channel_t *) malloc(sizeof(local_channel_t));
+    memset(ret_localchan, 0, sizeof(local_channel_t));
+
+    if (r == 1) {
+        (ret_localchan)->control_freq = parsechan;
+        return ret_localchan;
+    }
+
+    if (r >= 2) {
+        (ret_localchan)->control_freq = parsechan;
+
+        if (strcasecmp(parsetype, "w5") == 0) {
+            (ret_localchan)->chan_width = NL80211_CHAN_WIDTH_5;
+        } else if (strcasecmp(parsetype, "w10") == 0) {
+            (ret_localchan)->chan_width = NL80211_CHAN_WIDTH_10;
         } else if (strcasecmp(parsetype, "vht80") == 0) {
             (ret_localchan)->chan_width = NL80211_CHAN_WIDTH_80;
 
@@ -433,10 +455,12 @@ int populate_chanlist(char *interface, char *msg, char ***chanlist,
 
         *chanlist_sz = chan_sz;
     } else {
+        /*
         fprintf(stderr, "debug - linux wifi %s got channel list: \n", interface);
         for (unsigned int i = 0; i < *chanlist_sz; i++) {
             fprintf(stderr, "debug -     %s\n", (*chanlist)[i]);
         }
+        */
     }
 
     return 1;
@@ -979,6 +1003,9 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
     int r;
     char errstr[STATUS_MAX];
     char chanstr[STATUS_MAX];
+
+    if (privchan == NULL)
+        return 0;
 
     if (local_wifi->use_mac80211 == 0) {
         if ((r = iwconfig_set_channel(local_wifi->interface, 
