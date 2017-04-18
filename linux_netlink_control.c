@@ -275,11 +275,6 @@ int mac80211_set_channel_cache(const char *interface, void *handle,
 	struct nl_msg *msg;
 	int ret = 0;
 
-	int chanmode[] = {
-		NL80211_CHAN_NO_HT, NL80211_CHAN_HT20, 
-		NL80211_CHAN_HT40PLUS, NL80211_CHAN_HT40MINUS
-	};
-
 	if (chmode >= 4) {
 		snprintf(errstr, STATUS_MAX, 
                 "unable to set channel on interface '%s': invalid channel mode",
