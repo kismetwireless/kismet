@@ -97,10 +97,12 @@ public:
 
     // Set the channel hop rate and list of channels to hop on, using a string vector
     virtual void set_channel_hop(double in_rate, std::vector<std::string> in_chans,
-            unsigned int in_transaction, configure_callback_t in_cb);
+            bool in_shuffle, unsigned int in_offt, unsigned int in_transaction,
+            configure_callback_t in_cb);
     // Set the channel hop rate using a TrackerElement vector object
     virtual void set_channel_hop(double in_rate, SharedTrackerElement in_chans,
-            unsigned int in_transaction, configure_callback_t in_cb);
+            bool in_shuffle, unsigned int in_offt, unsigned int in_transaction,
+            configure_callback_t in_cb);
     // Set just the channel hop rate; internally this is the same as setting a 
     // hop+vector but we simplify the API for callers
     virtual void set_channel_hop_rate(double in_rate, unsigned int in_transaction,
@@ -155,6 +157,9 @@ public:
     __ProxyGet(source_hopping, uint8_t, bool, source_hopping);
     __ProxyGet(source_channel, string, string, source_channel);
     __ProxyGet(source_hop_rate, double, double, source_hop_rate);
+    __ProxyGet(source_split_hop, uint8_t, bool, source_hop_split);
+    __ProxyGet(source_hop_offset, uint32_t, uint32_t, source_hop_offset);
+    __ProxyGet(source_hop_shuffle, uint8_t, bool, source_hop_shuffle);
     __ProxyTrackable(source_hop_vec, TrackerElement, source_hop_vec);
 
     // IPC binary name, if any
@@ -319,8 +324,8 @@ protected:
     virtual void send_command_set_channel(string in_channel,
             unsigned int in_transaction, configure_callback_t in_cb);
     virtual void send_command_set_channel_hop(double in_rate,
-            SharedTrackerElement in_chans, unsigned int in_transaction,
-            configure_callback_t in_cb);
+            SharedTrackerElement in_chans, bool in_shuffle, unsigned int in_offt,
+            unsigned int in_transaction, configure_callback_t in_cb);
 
 
     // TrackerComponent API, we can't ever get instantiated from a saved element
@@ -344,6 +349,9 @@ protected:
     __ProxySet(int_source_hopping, uint8_t, bool, source_hopping);
     __ProxySet(int_source_channel, string, string, source_channel);
     __ProxySet(int_source_hop_rate, double, double, source_hop_rate);
+    __ProxySet(int_source_hop_split, uint8_t, bool, source_hop_split);
+    __ProxySet(int_source_hop_shuffle, uint8_t, bool, source_hop_shuffle);
+    __ProxySet(int_source_hop_offset, uint32_t, uint32_t, source_hop_offset);
     __ProxyTrackable(int_source_hop_vec, TrackerElement, source_hop_vec);
 
     // Prototype object which created us, defines our overall capabilities
@@ -377,6 +385,10 @@ protected:
     // Current hop rate and vector of channels we hop through, if we're hopping
     SharedTrackerElement source_hop_rate;
     SharedTrackerElement source_hop_vec;
+
+    SharedTrackerElement source_hop_split;
+    SharedTrackerElement source_hop_offset;
+    SharedTrackerElement source_hop_shuffle;
 
 
     // Local ID number is an increasing number assigned to each unique UUID; it's

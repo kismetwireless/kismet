@@ -162,6 +162,8 @@ kis_capture_handler_t *cf_handler_init() {
     ch->channel_hop_list = NULL;
     ch->custom_channel_hop_list = NULL;
     ch->channel_hop_list_sz = 0;
+    ch->channel_hop_shuffle = 0;
+    ch->channel_hop_shuffle_spacing = 0;
 
     return ch;
 }
@@ -250,7 +252,7 @@ void cf_handler_spindown(kis_capture_handler_t *caph) {
 }
 
 void cf_handler_assign_hop_channels(kis_capture_handler_t *caph, char **stringchans,
-        void **privchans, size_t chan_sz, double rate) {
+        void **privchans, size_t chan_sz, double rate, int shuffle, int offset) {
     size_t szi;
 
     pthread_mutex_lock(&(caph->handler_lock));
@@ -272,7 +274,44 @@ void cf_handler_assign_hop_channels(kis_capture_handler_t *caph, char **stringch
     caph->channel_hop_list_sz = chan_sz;
     caph->channel_hop_rate = rate;
 
-    /* TODO launch hopping thread */
+    caph->channel_hop_shuffle = shuffle;
+    caph->channel_hop_offset = offset;
+
+    if (caph->channel_hop_shuffle && caph->channel_hop_shuffle_spacing &&
+            chan_sz != 0) {
+        /* To find a proper randomization number, take the length of the channel
+         * list, divide by the preferred skipping distance.
+         *
+         * We then need to find the closest number to the skipping distance that
+         * is not a factor of the maximum so that we get full coverage.
+         */
+        caph->channel_hop_shuffle = chan_sz / caph->channel_hop_shuffle_spacing;
+
+        while ((chan_sz % caph->channel_hop_shuffle) == 0)
+            caph->channel_hop_shuffle++;
+    }
+
+    pthread_mutex_unlock(&(caph->handler_lock));
+
+    /* Launch the channel hop thread (cancelling any current channel hopping) */
+    cf_handler_launch_hopping_thread(caph);
+}
+
+void cf_handler_set_hop_shuffle_spacing(kis_capture_handler_t *caph, int spacing) {
+    pthread_mutex_lock(&(caph->handler_lock));
+
+    caph->channel_hop_shuffle_spacing = spacing;
+
+    /* Set the shuffle hop; the channel hop thread will pick it up on its own if it
+     * needs to */
+    if (caph->channel_hop_shuffle && caph->channel_hop_shuffle_spacing &&
+            caph->channel_hop_list_sz != 0) {
+        caph->channel_hop_shuffle = 
+            caph->channel_hop_list_sz/ caph->channel_hop_shuffle_spacing;
+
+        while ((caph->channel_hop_list_sz % caph->channel_hop_shuffle) == 0)
+            caph->channel_hop_shuffle++;
+    }
 
     pthread_mutex_unlock(&(caph->handler_lock));
 }
@@ -455,7 +494,9 @@ void *cf_int_chanhop_thread(void *arg) {
     pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
 
     /* Where we are in the hopping vec */
-    size_t hoppos = 0;
+    pthread_mutex_lock(&(caph->handler_lock));
+    size_t hoppos = caph->channel_hop_offset;
+    pthread_mutex_unlock(&(caph->handler_lock));
 
     /* How long we're waiting until the next time */
     unsigned int wait_sec;
@@ -511,8 +552,14 @@ void *cf_int_chanhop_thread(void *arg) {
             return NULL;
         }
 
+        /* Increment by the shuffle amount */
+        if (caph->channel_hop_shuffle)
+            hoppos += caph->channel_hop_shuffle;
+        else
+            hoppos++;
+
         pthread_mutex_unlock(&caph->handler_lock);
-        hoppos++;
+
     }
 
     return NULL;
@@ -778,6 +825,7 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
         char **chanhop_channels;
         void **chanhop_priv_channels;
         size_t chanhop_channels_sz, szi;
+        int chanhop_shuffle = 0, chanhop_offset = 0;
         void *translate_chan;
         int r;
 
@@ -838,10 +886,9 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
             /* We didn't find a CHANSET, look for CHANHOP.  We only respect one;
              * we'll never look at a CHANHOP if we got a CHANSET */
             r = cf_get_CHANHOP(&chanhop_rate, &chanhop_channels, &chanhop_channels_sz,
-                    cap_proto_frame);
+                    &chanhop_shuffle, &chanhop_offset, cap_proto_frame);
 
             if (r < 0 || chanhop_channels_sz == 0) {
-                fprintf(stderr, "DEBUG - Unable to parse chanhop kv r %d channels %d\n", r, chanhop_channels_sz);
                 cf_send_configresp(caph, ntohl(cap_proto_frame->header.sequence_number),
                         0, "Unable to parse CHANHOP KV");
                 cbret = -1;
@@ -870,7 +917,8 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
 
                     /* Set the hop data, which will handle our thread */
                     cf_handler_assign_hop_channels(caph, chanhop_channels,
-                            chanhop_priv_channels, chanhop_channels_sz, chanhop_rate);
+                            chanhop_priv_channels, chanhop_channels_sz, chanhop_rate,
+                            chanhop_shuffle, chanhop_offset);
 
                     /* Return a completion, and we do NOT free the channel lists we
                      * dynamically allocated out of the buffer with cf_get_CHANHOP, as
@@ -879,10 +927,6 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
                     cf_send_configresp_chanhop(caph, 
                             ntohl(cap_proto_frame->header.sequence_number), 1, NULL,
                             chanhop_rate, chanhop_channels, chanhop_channels_sz);
-
-                    /* Launch the channel hop thread (cancelling any current channel 
-                     * hopping) */
-                    cf_handler_launch_hopping_thread(caph);
 
                     pthread_mutex_unlock(&(caph->handler_lock));
 
@@ -934,7 +978,8 @@ int cf_get_CHANSET(char **ret_definition, simple_cap_proto_frame_t *in_frame) {
 }
 
 int cf_get_CHANHOP(double *hop_rate, char ***ret_channel_list,
-        size_t *ret_channel_list_sz, simple_cap_proto_frame_t *in_frame) {
+        size_t *ret_channel_list_sz, int *ret_shuffle, int *ret_offset,
+        simple_cap_proto_frame_t *in_frame) {
     simple_cap_proto_kv_t *ch_kv = NULL;
     int ch_len;
 
@@ -950,6 +995,8 @@ int cf_get_CHANHOP(double *hop_rate, char ***ret_channel_list,
     *ret_channel_list = NULL;
     *ret_channel_list_sz = 0;
     *hop_rate = 0;
+    *ret_offset = 0;
+    *ret_shuffle = 0;
 
     ch_len = find_simple_cap_proto_kv(in_frame, "CHANHOP", &ch_kv);
 
@@ -978,6 +1025,10 @@ int cf_get_CHANHOP(double *hop_rate, char ***ret_channel_list,
 
         if (strncasecmp(sval, "rate", sval_len) == 0) {
             *hop_rate = mp_decode_double(&mp_buf);
+        } else if (strncasecmp(sval, "shuffle", sval_len) == 0) {
+            *ret_shuffle = mp_decode_uint(&mp_buf);
+        } else if (strncasecmp(sval, "offset", sval_len) == 0) {
+            *ret_offset = mp_decode_uint(&mp_buf);
         } else if (strncasecmp(sval, "channels", sval_len) == 0) {
             if (*ret_channel_list != NULL) {
                 fprintf(stderr, "debug - duplicate channels list in chanhop\n");

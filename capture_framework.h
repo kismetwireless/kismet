@@ -233,6 +233,13 @@ struct kis_capture_handler {
     void **custom_channel_hop_list;
     size_t channel_hop_list_sz;
     double channel_hop_rate;
+
+    /* Do we shuffle?  Do we have a shuffle spacing from the driver? */
+    int channel_hop_shuffle;
+    int channel_hop_shuffle_spacing;
+
+    int channel_hop_offset;
+
 };
 
 /* Parse an interface name from a definition string.
@@ -291,9 +298,16 @@ void cf_handler_shutdown(kis_capture_handler_t *caph);
  */
 void cf_handler_spindown(kis_capture_handler_t *caph);
 
+
+
 /* Assign a channel hopping list processed by a capture binary */
 void cf_handler_assign_hop_channels(kis_capture_handler_t *caph, char **stringchans,
-        void **privchans, size_t chan_sz, double rate);
+        void **privchans, size_t chan_sz, double rate, int shuffle, int offset);
+
+/* Set a channel hop shuffle spacing */
+void cf_handler_set_hop_shuffle_spacing(kis_capture_handler_t *capf, int spacing);
+
+
 
 /* Parse command line options
  *
@@ -327,7 +341,6 @@ void cf_handler_set_capture_cb(kis_capture_handler_t *capf, cf_callback_capture 
 
 /* Set random data blob */
 void cf_handler_set_userdata(kis_capture_handler_t *capf, void *userdata);
-
 
 
 /* Initiate the capture thread, which will call the capture callback function in
@@ -400,7 +413,8 @@ int cf_get_CHANSET(char **ret_definition, simple_cap_proto_frame_t *in_frame);
  *  1+  Number of channels in chanhop command
  */
 int cf_get_CHANHOP(double *hop_rate, char ***ret_channel_list, 
-        size_t *ret_channel_list_sz, simple_cap_proto_frame_t *in_frame);
+        size_t *ret_channel_list_sz, int *ret_shuffle, int *ret_offset,
+        simple_cap_proto_frame_t *in_frame);
 
 /* Handle the sockets in a select() loop; this function will block until it
  * encounters an error or gets a shutdown command.

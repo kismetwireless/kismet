@@ -197,7 +197,8 @@ void KisDatasource::set_channel(string in_channel, unsigned int in_transaction,
 }
 
 void KisDatasource::set_channel_hop(double in_rate, std::vector<std::string> in_chans,
-        unsigned int in_transaction, configure_callback_t in_cb) {
+        bool in_shuffle, unsigned int in_offt, unsigned int in_transaction, 
+        configure_callback_t in_cb) {
     local_locker lock(&source_lock);
 
     if (!get_source_builder()->get_tune_capable()) {
@@ -218,11 +219,12 @@ void KisDatasource::set_channel_hop(double in_rate, std::vector<std::string> in_
     }
 
     // Call the tracker element variation
-    set_channel_hop(in_rate, elem, in_transaction, in_cb);
+    set_channel_hop(in_rate, elem, in_shuffle, in_offt, in_transaction, in_cb);
 }
 
 void KisDatasource::set_channel_hop(double in_rate, SharedTrackerElement in_chans,
-        unsigned int in_transaction, configure_callback_t in_cb) {
+        bool in_shuffle, unsigned int in_offt, unsigned int in_transaction, 
+        configure_callback_t in_cb) {
     local_locker lock(&source_lock);
 
     if (!get_source_builder()->get_tune_capable()) {
@@ -233,20 +235,23 @@ void KisDatasource::set_channel_hop(double in_rate, SharedTrackerElement in_chan
     }
 
     // Generate the command and send it
-    send_command_set_channel_hop(in_rate, in_chans, in_transaction, in_cb);
+    send_command_set_channel_hop(in_rate, in_chans, in_shuffle, in_offt, 
+            in_transaction, in_cb);
 }
 
 void KisDatasource::set_channel_hop_rate(double in_rate, unsigned int in_transaction,
         configure_callback_t in_cb) {
     // Don't bother checking if we can set channel since we're just calling a function
     // that already checks that
-    set_channel_hop(in_rate, get_source_hop_vec(), in_transaction, in_cb);
+    set_channel_hop(in_rate, get_source_hop_vec(), get_source_hop_shuffle(),
+            get_source_hop_offset(), in_transaction, in_cb);
 }
 
 void KisDatasource::set_channel_hop_list(std::vector<std::string> in_chans,
         unsigned int in_transaction, configure_callback_t in_cb) {
     // Again don't bother, we're just an API shim
-    set_channel_hop(get_source_hop_rate(), in_chans, in_transaction, in_cb);
+    set_channel_hop(get_source_hop_rate(), in_chans, get_source_hop_shuffle(),
+            get_source_hop_offset(), in_transaction, in_cb);
 }
 
 void KisDatasource::connect_ringbuffer(shared_ptr<RingbufferHandler> in_ringbuf) {
@@ -1207,6 +1212,15 @@ void KisDatasource::handle_kv_config_hop(KisDatasourceCapKeyedObject *in_obj) {
         } else {
             throw std::runtime_error(string("rate missing in hop config"));
         }
+
+        // Grab the shuffle and offset if we have them
+        if ((obj_iter = dict.find("shuffle")) != dict.end()) {
+            set_int_source_hop_shuffle(obj_iter->second.as<uint8_t>());
+        }
+
+        if ((obj_iter = dict.find("offset")) != dict.end()) {
+            set_int_source_hop_offset(obj_iter->second.as<uint32_t>());
+        }
     } catch (const std::exception& e) {
         // Something went wrong with msgpack unpacking
         stringstream ss;
@@ -1465,7 +1479,8 @@ void KisDatasource::send_command_set_channel(string in_channel,
 }
 
 void KisDatasource::send_command_set_channel_hop(double in_rate, 
-        SharedTrackerElement in_chans, unsigned int in_transaction,
+        SharedTrackerElement in_chans, bool in_shuffle, unsigned int in_offt,
+        unsigned int in_transaction,
         configure_callback_t in_cb) {
 
     // This is one of the more complex commands - we have to generate a 
@@ -1480,12 +1495,20 @@ void KisDatasource::send_command_set_channel_hop(double in_rate,
     stringstream stream;
     msgpack::packer<std::stringstream> packer(&stream);
 
-    // 2-element dictionary
-    packer.pack_map(2);
+    // 4-element dictionary
+    packer.pack_map(4);
 
     // Pack the rate dictionary entry
     packer.pack(string("rate"));
     packer.pack(in_rate);
+
+    // Pack the shuffle
+    packer.pack(string("shuffle"));
+    packer.pack(in_shuffle);
+
+    // Pack the offset
+    packer.pack(string("offset"));
+    packer.pack(in_offt);
 
     // Pack the vector of channels
     packer.pack(string("channels"));
@@ -1556,6 +1579,12 @@ void KisDatasource::register_fields() {
             "Hop rate if channel hopping", &source_hop_rate);
     RegisterField("kismet.datasource.hop_channels", TrackerVector,
             "Hop pattern if hopping", &source_hop_vec);
+    RegisterField("kismet.datasource.hop_split", TrackerUInt8,
+            "Split hopping among same type interfaces", &source_hop_split);
+    RegisterField("kismet.datasource.hop_offset", TrackerUInt32,
+            "Offset into hopping list for multiple sources", &source_hop_offset);
+    RegisterField("kismet.datasource.hop_shuffle", TrackerUInt8,
+            "Shuffle channels while hopping", &source_hop_shuffle);
 
     RegisterField("kismet.datasource.error", TrackerUInt8,
             "Source is in error state", &source_error);
@@ -1566,7 +1595,6 @@ void KisDatasource::register_fields() {
             "Source will try to re-open after failure", &source_retry);
     RegisterField("kismet.datasource.retry_attempts", TrackerUInt32,
             "Consecutive unsuccessful retry attempts", &source_retry_attempts);
-
 }
 
 void KisDatasource::reserve_fields(SharedTrackerElement e) {

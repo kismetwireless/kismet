@@ -592,11 +592,8 @@ void Datasourcetracker::open_datasource(string in_source,
                     uuid_source_num_map.emplace(u, ds->get_source_number());
                 }
 
-                ds->set_channel_hop_rate(10, 0, 
-                        [](unsigned int, bool result, string reason) {
-                            fprintf(stderr, "debug - enabled channel hop %u %s\n",
-                                    result, reason.c_str());
-                        });
+                // Figure out channel hopping
+                calculate_source_hopping(ds);
 
                 in_cb(true, "");
             } else {
@@ -628,6 +625,32 @@ void Datasourcetracker::schedule_cleanup() {
 }
 
 void Datasourcetracker::NewConnection(shared_ptr<RingbufferHandler> conn_handler) {
+
+}
+
+// Basic DST worker for figuring out how many sources of the same type
+// exist, and are hopping
+class dst_chansplit_worker : public DST_Worker {
+public:
+    dst_chansplit_worker(string in_type) {
+        match_type = in_type;
+    }
+
+    virtual void handle_datasource(SharedDatasource in_src) {
+        if (in_src->get_source_builder()->get_source_type() != match_type)
+            return;
+
+
+    }
+
+protected:
+    string match_type;
+
+    vector<SharedDatasource> target_sources;
+
+};
+
+void Datasourcetracker::calculate_source_hopping(SharedDatasource in_ds) {
 
 }
 

@@ -352,6 +352,10 @@ protected:
 
     shared_ptr<datasourcetracker_defaults> config_defaults;
 
+    // Re-assign channel hopping because we've opened a new source
+    // and want to do channel split
+    void calculate_source_hopping(SharedDatasource in_ds);
+
 };
 
 

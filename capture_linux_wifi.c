@@ -1228,6 +1228,10 @@ int main(int argc, char *argv[]) {
     /* Set the capture thread */
     cf_handler_set_capture_cb(caph, capture_thread);
 
+    /* Set a channel hop spacing of 4 to get the most out of 2.4 overlap;
+     * it does nothing and hurts nothing on 5ghz */
+    cf_handler_set_hop_shuffle_spacing(caph, 4);
+
     cf_handler_loop(caph);
 
 #ifdef HAVE_LIBNM

@@ -196,12 +196,16 @@ Content:
 Msgpack packed dictionary of parameters containing at least the following:
 * "channels": Vector of strings defining channels, as show in the `CHANNELS` KV pair.
 * "rate": double-precision float indicating channels per second.
+* "shuffle": uint8 boolean indicating the source should, at its discretion, shuffle the order of the channel hopping to take advantage of channel overlap where possible
+* "offset": start at an offset in the channel hopping list; this is used to tell the source to start hopping at a position other than 0; this lets Kismet easily split hopping between sources which share a type.
 
 Examples:
 
 `{"channels": ["1", "6", "11"], "rate": 10}` (10 channels per second on primary 802.11 channels)
 
-`{"channels": ["3", "6", "9"], "rate": 0.1}` (10 *seconds per channel* on alternate 802.11 channels, caused by a rate of 0.1 channels per second.)
+`{"channels": ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11"], "rate": 10, shuffle: 1, offset: 6}` (10 channels per second on 802.11 channels, tell the source to randomize to prevent overlap, and tell this source to start halfway through the list)
+
+`{"channels": ["3", "6", "9"], "rate": 0.16}` (10 *seconds per channel* on alternate 802.11 channels, caused by a rate of 0.1 channels per second.)
 
 #### DEFINITION
 A raw source definition, as a string.  This is identical to the source as defined in `kismet.conf` or on the Kismet command line.
