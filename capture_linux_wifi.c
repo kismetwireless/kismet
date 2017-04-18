@@ -335,6 +335,7 @@ void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
                             return NULL;
                         }
 
+                        (ret_localchan)->control_freq = wifi_ht_channels[ci].freq;
                         (ret_localchan)->center_freq1 = wifi_ht_channels[ci].freq80;
                     }
                 }
@@ -363,6 +364,7 @@ void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
                             return NULL;
                         }
 
+                        (ret_localchan)->control_freq = wifi_ht_channels[ci].freq;
                         (ret_localchan)->center_freq1 = wifi_ht_channels[ci].freq160;
                     }
                 }
