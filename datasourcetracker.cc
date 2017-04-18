@@ -632,26 +632,90 @@ void Datasourcetracker::NewConnection(shared_ptr<RingbufferHandler> conn_handler
 // exist, and are hopping
 class dst_chansplit_worker : public DST_Worker {
 public:
-    dst_chansplit_worker(string in_type) {
-        match_type = in_type;
+    dst_chansplit_worker(GlobalRegistry *in_globalreg, 
+            shared_ptr<datasourcetracker_defaults> in_defaults, 
+            SharedDatasource in_ds) {
+        globalreg = in_globalreg;
+        defaults = in_defaults;
+        target_sources.push_back(in_ds);
+        initial_ds = in_ds;
+        match_type = in_ds->get_source_builder()->get_source_type();
     }
 
     virtual void handle_datasource(SharedDatasource in_src) {
+        // Don't dupe ourselves
+        if (in_src == initial_ds)
+            return;
+
+        // Don't look at ones we don't care about
         if (in_src->get_source_builder()->get_source_type() != match_type)
             return;
 
+        // Don't look at ones that aren't hopping b/c of manual config
+        if (!in_src->get_source_hopping())
+            return;
+
+        target_sources.push_back(in_src);
+    }
+
+    virtual void finalize() {
+        if (target_sources.size() <= 1) {
+            initial_ds->set_channel_hop(defaults->get_hop_rate(),
+                    initial_ds->get_source_hop_vec(),
+                    defaults->get_random_channel_order(),
+                    0, 0, NULL);
+            return;
+        }
+
+        _MSG("Splitting channels for interfaces using '" + match_type + "' among " +
+                IntToString(target_sources.size()) + " interfaces", MSGFLAG_INFO);
+
+        int nintf = 0;
+        for (auto ds = target_sources.begin(); ds != target_sources.end(); ++ds) {
+            int offt_count = target_sources.size();
+
+            SharedTrackerElement ds_hopchans = (*ds)->get_source_hop_vec();
+            TrackerElementVector ds_hopvec(ds_hopchans);
+
+            int ds_offt = (ds_hopvec.size() / offt_count) * nintf;
+
+            (*ds)->set_channel_hop(defaults->get_hop_rate(), ds_hopchans, 
+                    defaults->get_random_channel_order(),
+                    ds_offt, 0, NULL);
+
+            nintf++;
+        }
 
     }
 
 protected:
     string match_type;
 
+    GlobalRegistry *globalreg;
+
+    SharedDatasource initial_ds;
     vector<SharedDatasource> target_sources;
+
+    shared_ptr<datasourcetracker_defaults> defaults;
 
 };
 
 void Datasourcetracker::calculate_source_hopping(SharedDatasource in_ds) {
 
+    // Turn on channel hopping with our defaults
+    if (config_defaults->get_hop()) {
+        if (config_defaults->get_split_same_sources()) {
+            dst_chansplit_worker worker(globalreg, config_defaults, in_ds);
+
+            iterate_datasources(&worker);
+
+        } else {
+            in_ds->set_channel_hop(config_defaults->get_hop_rate(),
+                    in_ds->get_source_hop_vec(),
+                    config_defaults->get_random_channel_order(),
+                    0, 0, NULL);
+        }
+    }
 }
 
 bool Datasourcetracker::Httpd_VerifyPath(const char *path, const char *method) {
