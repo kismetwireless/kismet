@@ -12,6 +12,7 @@ CAPTURE_PCAPFILE_O = \
 	$(DATASOURCE_COMMON_C) \
 	capture_pcapfile.o
 CAPTURE_PCAPFILE 	= kismet_cap_pcapfile
+BUILD_CAPTURE_PCAPFILE = @BUILD_CAPTURE_PCAPFILE@
 
 CAPTURE_LINUX_WIFI_O = \
 	$(DATASOURCE_COMMON_C) \
@@ -19,6 +20,7 @@ CAPTURE_LINUX_WIFI_O = \
 	wifi_ht_channels.o \
 	capture_linux_wifi.o
 CAPTURE_LINUX_WIFI	= kismet_cap_linux_wifi
+BUILD_CAPTURE_LINUX_WIFI = @BUILD_CAPTURE_LINUX_WIFI@
 
 # Capture binaries to build
 DATASOURCE_BINS = @DATASOURCE_BINS@
@@ -76,13 +78,27 @@ Makefile: Makefile.in configure
 	@-echo "'Makefile.in' or 'configure' are more current than this Makefile.  You should re-run 'configure'."
 
 binsuidinstall: $(DATASOURCE_BINS)
-	$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CS) $(BIN)/$(CS); 
+	mkdir -p $(BIN)/kismet_capture_tools/
+
+	@if test "$(BUILD_CAPTURE_LINUX_WIFI)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_LINUX_WIFI) $(BIN)/kismet_capture_tools/$(CAPTURE_LINUX_WIFI); \
+	fi;
 
 commoninstall: $(INSTBINS)
 	mkdir -p $(ETC)
 	mkdir -p $(BIN)
 
 	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(PS) $(BIN)/$(PS); 
+
+	mkdir -p $(BIN)/kismet_capture_tools/
+
+	@if test "$(BUILD_CAPTURE_PCAPFILE)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_PCAPFILE) $(BIN)/kismet_capture_tools/$(CAPTURE_PCAPFILE); \
+	fi;
+
+	@if test "$(BUILD_CAPTURE_LINUX_WIFI)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_LINUX_WIFI) $(BIN)/kismet_capture_tools/$(CAPTURE_LINUX_WIFI); \
+	fi;
 
 	mkdir -p $(MAN)/man1
 	$(INSTALL) -o $(INSTUSR) -g $(MANGRP) -m 644 man/kismet.1 $(MAN)/man1/kismet.1
@@ -93,10 +109,12 @@ commoninstall: $(INSTBINS)
 	mkdir -p $(HTTPD)
 	cp -r http_data/* $(HTTPD)
 
-suidinstall: $(CS)
+suidinstall: $(PS) $(DATASOURCE_BINS)
 	-groupadd -f $(SUIDGROUP)
+
 	$(MAKE) -e commoninstall
 	$(MAKE) -e binsuidinstall
+
 	@if test -f $(ETC)/kismet.conf; then \
 		echo "$(ETC)/kismet.conf already installed, not replacing it.  HOWEVER"; \
 		echo "if there have been any changes to the base config you will need"; \
@@ -126,9 +144,14 @@ suidinstall: $(CS)
 	@echo "TO ALTER YOUR NETWORK INTERACE STATES, but is more secure than running "
 	@echo "all of Kismet as root.  ONLY users in this group will be able to "
 	@echo "run Kismet and capture from physical network devices."
+	@echo
+	@echo "If you have just created this group, you will need to log out and back in"
+	@echo "before your user will have access.   Check the output of the 'groups' "
+	@echo "command to make sure your user has the proper group!"
 
 install: $(INSTBINS)
 	$(MAKE) -e commoninstall
+
 	@if test -f $(ETC)/kismet.conf; then \
 		echo "$(ETC)/kismet.conf already installed, not replacing it.  HOWEVER"; \
 		echo "if there have been any changes to the base config you will need"; \
@@ -161,7 +184,7 @@ install: $(INSTBINS)
 	@echo "READ THE KISMET DOCUMENTATION ABOUT THE KISMET SECURITY MODEL TO"
 	@echo "DECIDE IF YOU WANT TO INSTALL IT SUID-ROOT"
 	@echo
-	@echo "It is generally  more secure to install Kismet with the suid-root helper "
+	@echo "It is generally *MORE SECURE* to install Kismet with the suid-root "
 	@echo "option."
                 
 rpm:

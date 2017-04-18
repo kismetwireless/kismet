@@ -622,6 +622,8 @@ ac_includes_default="\
 #endif"
 
 ac_subst_vars='LTLIBOBJS
+BUILD_CAPTURE_LINUX_WIFI
+BUILD_CAPTURE_PCAPFILE
 DATASOURCE_BINS
 sharedatadir
 KSLIBS
@@ -8258,9 +8260,11 @@ $as_echo "no" >&6; }
 	pcap="yes"
 
     DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_PCAPFILE)"
+    BUILD_CAPTURE_PCAPFILE=1
 
     if test "$linux" = "yes"; then
         DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_LINUX_WIFI)"
+        BUILD_CAPTURE_LINUX_WIFI=1
     fi
 
 	fi
@@ -9170,6 +9174,8 @@ sharedatadir=${sharedatadir}
 
 
 CPPFLAGS="-I$BUNDLE_MSGPACK/include $CPPFLAGS"
+
+
 
 
 

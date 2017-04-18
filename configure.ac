@@ -796,9 +796,11 @@ if test "$wantpcap" = yes; then
 	pcap="yes"
 
     DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_PCAPFILE)"
+    BUILD_CAPTURE_PCAPFILE=1
 
     if test "$linux" = "yes"; then
         DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_LINUX_WIFI)"
+        BUILD_CAPTURE_LINUX_WIFI=1
     fi
 
 	fi
@@ -1074,6 +1076,8 @@ AC_SUBST(sharedatadir)
 CPPFLAGS="-I$BUNDLE_MSGPACK/include $CPPFLAGS"
 
 AC_SUBST(DATASOURCE_BINS)
+AC_SUBST(BUILD_CAPTURE_PCAPFILE)
+AC_SUBST(BUILD_CAPTURE_LINUX_WIFI)
 
 AC_CONFIG_FILES([Makefile Makefile.inc scripts/kismet conf/kismet.conf])
 AC_OUTPUT

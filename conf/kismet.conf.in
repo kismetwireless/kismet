@@ -12,7 +12,7 @@ include=%E/kismet_httpd.conf
 
 # Where capture binaries are allowed to live; for security reasons capture
 # binaries are only executed from these directories
-capture_binary_path=%B/kismet_capture/
+capture_binary_path=%B/kismet_capture_tools/
 
 # Prefix of where we log (as used in the logtemplate later)
 # logprefix=/some/path/to/logs
