@@ -339,6 +339,13 @@ int Datasourcetracker::system_startup() {
         }
     }
 
+    if (used_args) {
+        _MSG("Data sources passed on the command line (via -c source), ignoring "
+                "source= definitions in the Kismet config file.", MSGFLAG_INFO);
+    } else {
+        src_vec = globalreg->kismet_config->FetchOptVec("source");
+    }
+
     if (src_vec.size() == 0) {
         _MSG("No data sources defined; Kismet will not capture anything until "
                 "a source is added.", MSGFLAG_INFO);
