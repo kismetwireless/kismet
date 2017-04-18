@@ -305,7 +305,7 @@ wifi_channel wifi_ht_channels[MAX_WIFI_HT_CHANNEL + 1] = {
     [140] = { 
         .chan = 140, 
         .freq = 5700, 
-        .flags = WIFI_WIDTH_20MHZ | WIFI_HT_HT40PLUS | WIFI_HT_HT40MINUS 
+        .flags = WIFI_WIDTH_20MHZ | WIFI_HT_HT40MINUS 
     },
     [142] = { 
         /* Not commonly exposed */
