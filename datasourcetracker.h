@@ -262,6 +262,10 @@ private:
 public:
     virtual ~Datasourcetracker();
 
+    // Start up the system once kismet is up and running; this happens just before
+    // the main select loop in kismet
+    int system_startup();
+
     // Add a driver
     int register_datasource(SharedDatasourceBuilder in_builder);
 

@@ -19,6 +19,7 @@
 #include "config.hpp"
 
 #include "configfile.h"
+#include "getopt.h"
 #include "datasourcetracker.h"
 #include "messagebus.h"
 #include "globalregistry.h"
@@ -310,6 +311,59 @@ Datasourcetracker::~Datasourcetracker() {
     }
 
     pthread_mutex_destroy(&dst_lock);
+}
+
+int Datasourcetracker::system_startup() {
+    bool used_args = false;
+
+    vector<string> src_vec;
+
+    int option_idx = 0;
+
+	static struct option packetsource_long_options[] = {
+		{ "capture-source", required_argument, 0, 'c' },
+		{ 0, 0, 0, 0 }
+	};
+
+    optind = 0;
+
+    while (1) {
+        int r = getopt_long(globalreg->argc, globalreg->argv, "-c:",
+                packetsource_long_options, &option_idx);
+
+        if (r < 0) break;
+
+        if (r == 'c') {
+            used_args = true;
+            src_vec.push_back(string(optarg));
+        }
+    }
+
+    if (src_vec.size() == 0) {
+        _MSG("No data sources defined; Kismet will not capture anything until "
+                "a source is added.", MSGFLAG_INFO);
+        return 1;
+    }
+
+    for (unsigned int i = 0; i < src_vec.size(); i++) {
+        open_datasource(src_vec[i], [this, src_vec, i](bool success, string reason) {
+            if (success) {
+                _MSG("Data source '" + src_vec[i] + "' launched successfully.", 
+                        MSGFLAG_INFO);
+            } else {
+                if (reason.length() != 0) {
+                    _MSG("Data source '" + src_vec[i] + "' failed to launch: " + reason,
+                            MSGFLAG_ERROR);
+                } else {
+                    _MSG("Data source '" + src_vec[i] + "' failed to launch, "
+                            "no error given.", MSGFLAG_ERROR);
+                }
+            }
+        });
+    }
+
+
+    return 1;
 }
 
 void Datasourcetracker::iterate_datasources(DST_Worker *in_worker) {
