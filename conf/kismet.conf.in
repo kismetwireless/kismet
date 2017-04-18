@@ -36,21 +36,21 @@ capture_binary_path=%B/kismet_capture/
 # definition to control hopping, hop rate, or other attributes, these are applied
 
 # Hop channels if possible
-channel_hop = true
+channel_hop=true
 
 # How fast do we hop channels?  Time can be hops/second or hops/minute.
-channel_hop_speed = 5/sec
+channel_hop_speed=5/sec
 
 # If we have multiple sources with the same list of channels, Kismet can try to split
 # them up so that they hop from different starting positions; this maximizes the
 # coverage
-split_source_hopping = true
+split_source_hopping=true
 
 # Should Kismet scramble the channel list so that it hops in a semi-random pattern?
 # This helps sources like Wi-Fi where many channels are adjacent and can overlap, 
 # by randomizing 2.4ghz channels Kismet can take advantage of the overlap.  Typically
 # leave this turned on.
-randomized_hopping = true
+randomized_hopping=true
 
 
 # New GPS configuration
