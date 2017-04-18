@@ -224,7 +224,7 @@ protected:
         RegisterField("kismet.datasourcetracker.default.hop", TrackerUInt8,
                 "do sources hop by default", &hop);
         RegisterField("kismet.datasourcetracker.default.split", TrackerUInt8,
-                "split channels among sources with the same channel list", 
+                "split channels among sources with the same type", 
                 &split_same_sources);
         RegisterField("kismet.datasourcetracker.default.random_order", TrackerUInt8,
                 "scramble channel order to maximize use of overlap",

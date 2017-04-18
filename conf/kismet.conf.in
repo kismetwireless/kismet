@@ -41,7 +41,7 @@ channel_hop=true
 # How fast do we hop channels?  Time can be hops/second or hops/minute.
 channel_hop_speed=5/sec
 
-# If we have multiple sources with the same list of channels, Kismet can try to split
+# If we have multiple sources with the same type, Kismet can try to split
 # them up so that they hop from different starting positions; this maximizes the
 # coverage
 split_source_hopping=true
