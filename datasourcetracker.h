@@ -310,6 +310,9 @@ public:
     // TCPServerV2 API
     virtual void NewConnection(shared_ptr<RingbufferHandler> conn_handler);
 
+    // Parse a rate string
+    double string_to_rate(string in_str, double in_default);
+
 protected:
     GlobalRegistry *globalreg;
 
@@ -355,9 +358,6 @@ protected:
     // Re-assign channel hopping because we've opened a new source
     // and want to do channel split
     void calculate_source_hopping(SharedDatasource in_ds);
-
-    // Parse a rate string
-    double string_to_rate(string in_str, double in_default);
 
 };
 

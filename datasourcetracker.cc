@@ -256,6 +256,7 @@ Datasourcetracker::Datasourcetracker(GlobalRegistry *in_globalreg) :
     if ((optval = globalreg->kismet_config->FetchOpt("channel_hop_speed")) != "") {
         double dv = string_to_rate(optval, 1);
         config_defaults->set_hop_rate(dv);
+        _MSG("Setting default channel hop rate to " + optval, MSGFLAG_INFO);
     } else {
         _MSG("No channel_hop_speed= in kismet config, setting hop "
                 "rate to 1/sec", MSGFLAG_INFO);
@@ -615,9 +616,11 @@ void Datasourcetracker::NewConnection(shared_ptr<RingbufferHandler> conn_handler
 class dst_chansplit_worker : public DST_Worker {
 public:
     dst_chansplit_worker(GlobalRegistry *in_globalreg, 
+            Datasourcetracker *in_dst,
             shared_ptr<datasourcetracker_defaults> in_defaults, 
             SharedDatasource in_ds) {
         globalreg = in_globalreg;
+        dst = in_dst;
         defaults = in_defaults;
         target_sources.push_back(in_ds);
         initial_ds = in_ds;
@@ -661,10 +664,13 @@ public:
 
             int ds_offt = (ds_hopvec.size() / offt_count) * nintf;
 
-            double rate;
+            double rate = dst->string_to_rate((*ds)->get_definition_opt("hoprate"), -1);
 
+            if (rate < 0) {
+                rate = defaults->get_hop_rate();
+            }
 
-            (*ds)->set_channel_hop(defaults->get_hop_rate(), ds_hopchans, 
+            (*ds)->set_channel_hop(rate, ds_hopchans, 
                     defaults->get_random_channel_order(),
                     ds_offt, 0, NULL);
 
@@ -678,6 +684,8 @@ protected:
 
     GlobalRegistry *globalreg;
 
+    Datasourcetracker *dst;
+
     SharedDatasource initial_ds;
     vector<SharedDatasource> target_sources;
 
@@ -686,7 +694,7 @@ protected:
 };
 
 void Datasourcetracker::calculate_source_hopping(SharedDatasource in_ds) {
-    if (in_ds->get_definition_opt_bool("hop", false)) {
+    if (!in_ds->get_definition_opt_bool("hop", true)) {
         // Source doesn't hop regardless of defaults
         return;
     }
@@ -695,7 +703,7 @@ void Datasourcetracker::calculate_source_hopping(SharedDatasource in_ds) {
     if (config_defaults->get_hop()) {
         // Do we split sources?
         if (config_defaults->get_split_same_sources()) {
-            dst_chansplit_worker worker(globalreg, config_defaults, in_ds);
+            dst_chansplit_worker worker(globalreg, this, config_defaults, in_ds);
             iterate_datasources(&worker);
         } else {
             in_ds->set_channel_hop(config_defaults->get_hop_rate(),
