@@ -274,6 +274,11 @@ Datasourcetracker::Datasourcetracker(GlobalRegistry *in_globalreg) :
         config_defaults->set_random_channel_order(true);
     }
 
+    if (globalreg->kismet_config->FetchOptBoolean("retry_on_source_error", true)) {
+        _MSG("Sources will be re-opened if they encounter an error", MSGFLAG_INFO);
+        config_defaults->set_retry_on_error(true);
+    }
+
 }
 
 Datasourcetracker::~Datasourcetracker() {

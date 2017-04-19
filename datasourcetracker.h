@@ -214,6 +214,7 @@ public:
     __Proxy(hop, uint8_t, bool, bool, hop);
     __Proxy(split_same_sources, uint8_t, bool, bool, split_same_sources);
     __Proxy(random_channel_order, uint8_t, bool, bool, random_channel_order);
+    __Proxy(retry_on_error, uint8_t, bool, bool, retry_on_error);
 
 protected:
     virtual void register_fields() {
@@ -229,6 +230,8 @@ protected:
         RegisterField("kismet.datasourcetracker.default.random_order", TrackerUInt8,
                 "scramble channel order to maximize use of overlap",
                 &random_channel_order);
+        RegisterField("kismet.datasourcetracker.default.retry_on_error", TrackerUInt8,
+                "re-open sources if an error occurs", &retry_on_error);
     }
 
     // Double hoprate per second
@@ -242,6 +245,9 @@ protected:
 
     // Boolean, do we scramble the hop pattern?
     SharedTrackerElement random_channel_order;
+
+    // Boolean, do we retry on errors?
+    SharedTrackerElement retry_on_error;
 
 };
 

@@ -52,6 +52,9 @@ split_source_hopping=true
 # leave this turned on.
 randomized_hopping=true
 
+# Should sources be re-opened when they encounter an error?
+retry_on_source_error=true
+
 
 # New GPS configuration
 # gps=type:options
