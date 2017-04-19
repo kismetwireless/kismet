@@ -75,8 +75,6 @@ typedef struct {
 } ieee_long_double_t;
 
 // Munge a string to characters safe for calling in a shell
-void MungeToShell(char *in_data, unsigned int max);
-string MungeToShell(string in_data);
 string MungeToPrintable(const char *in_data, unsigned int max, int nullterm);
 string MungeToPrintable(string in_str);
 
@@ -192,20 +190,6 @@ string SanitizeCSV(string);
 void Float2Pair(float in_float, int16_t *primary, int64_t *mantissa);
 float Pair2Float(int16_t primary, int64_t mantissa);
 
-// Convert a standard channel to a frequency
-int ChanToFreq(int in_chan);
-int FreqToChan(int in_freq);
-
-// Convert an IEEE beacon rate to an integer # of beacons per second
-unsigned int Ieee80211Interval2NSecs(int in_rate);
-
-// Run a system command and return the error code.  Caller is responsible 
-// for security.  Does not fork out
-int RunSysCmd(char *in_cmd);
-
-// Fork and exec a syscmd, return the pid of the new process
-pid_t ExecSysCmd(char *in_cmd);
-
 #ifdef SYS_LINUX
 int FetchSysLoadAvg(uint8_t *in_avgmaj, uint8_t *in_avgmin);
 #endif
@@ -228,10 +212,6 @@ void crc32_init_table_80211(unsigned int *crc32_table);
 unsigned int crc32_le_80211(unsigned int *crc32_table, const unsigned char *buf, 
 							int len);
 
-
-// Proftpd process title manipulation functions
-void init_proc_title(int argc, char *argv[], char *envp[]);
-void set_proc_title(const char *fmt, ...);
 
 // Simple lexer for "advanced" filter stuff and other tools
 #define _kis_lex_none			0

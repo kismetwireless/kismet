@@ -65,44 +65,6 @@
 
 #include "packet.h"
 
-// Munge input to shell-safe
-void MungeToShell(char *in_data, unsigned int max) {
-    unsigned int i, j;
-
-    for (i = 0, j = 0; i < max && j < max; i++) {
-        if (in_data[i] == '\0')
-            break;
-
-        if (isalnum(in_data[i]) || isspace(in_data[i]) ||
-            in_data[i] == '=' || in_data[i] == '-' || in_data[i] == '_' ||
-            in_data[i] == '.' || in_data[i] == ',') {
-
-            if (j == i) {
-                j++;
-            } else {
-                in_data[j++] = in_data[i];
-            }
-        }
-    }
-
-    in_data[j] = '\0';
-
-}
-
-// Quick wrapper to save us time in other code
-string MungeToShell(string in_data) {
-    char *data = new char[in_data.length() + 1];
-    string ret;
-
-    snprintf(data, in_data.length() + 1, "%s", in_data.c_str());
-
-    MungeToShell(data, in_data.length() + 1);
-
-    ret = data;
-    delete[] data;
-    return ret;
-}
-
 // Munge text down to printable characters only.  Simpler, cleaner munger than
 // before (and more blatant when munging)
 string MungeToPrintable(const char *in_data, unsigned int max, int nullterm) {
@@ -633,36 +595,6 @@ vector<int> Str2IntVec(string in_text) {
     return ret;
 }
 
-int RunSysCmd(char *in_cmd) {
-    return system(in_cmd);
-}
-
-pid_t ExecSysCmd(char *in_cmd) {
-    // Slice it into an array to pass to exec
-    vector<string> cmdvec = StrTokenize(in_cmd, " ");
-    char **cmdarg = new char *[cmdvec.size() + 1];
-    pid_t retpid;
-    unsigned int x;
-
-    // Convert it to a pointer array
-    for (x = 0; x < cmdvec.size(); x++) 
-        cmdarg[x] = (char *) cmdvec[x].c_str();
-    cmdarg[x] = NULL;
-
-    if ((retpid = fork()) == 0) {
-        // Nuke the file descriptors so that they don't blat on
-        // input or output
-        for (unsigned int x = 0; x < 256; x++)
-            close(x);
-
-        execve(cmdarg[0], cmdarg, NULL);
-        exit(0);
-    }
-
-    delete[] cmdarg;
-    return retpid;
-}
-
 #ifdef SYS_LINUX
 int FetchSysLoadAvg(uint8_t *in_avgmaj, uint8_t *in_avgmin) {
     FILE *lf;
@@ -686,15 +618,6 @@ int FetchSysLoadAvg(uint8_t *in_avgmaj, uint8_t *in_avgmin) {
     return 1;
 }
 #endif
-
-// Convert the beacon interval to # of packets per second
-unsigned int Ieee80211Interval2NSecs(int in_interval) {
-	double interval_per_sec;
-
-	interval_per_sec = (double) in_interval * 1024 / 1000000;
-	
-	return (unsigned int) ceil(1.0f / interval_per_sec);
-}
 
 uint32_t Adler32IncrementalChecksum(const char *in_buf, size_t in_len,
         uint32_t *s1, uint32_t *s2) {
@@ -728,171 +651,6 @@ uint32_t Adler32Checksum(const char *in_buf, size_t in_len) {
     s2 = 0;
 
     return Adler32IncrementalChecksum(in_buf, in_len, &s1, &s2);
-}
-
-int ChanToFreq(int in_chan) {
-	// 80211 frequencies to channels
-	// Stolen from Linux net/wireless/util.c
-	if (in_chan == 14)
-		return 2484;
-	else if (in_chan < 14)
-		return 2407 + in_chan * 5;
-	if (in_chan >= 182 && in_chan <= 196)
-		return 4000 + in_chan * 5;
-	else
-		return 5000 + in_chan * 5;
-
-	return in_chan;
-}
-
-int FreqToChan(int in_freq) {
-	// 80211 frequencies to channels
-	// Stolen from Linux net/wireless/util.c
-	/* see 802.11 17.3.8.3.2 and Annex J */
-	if (in_freq == 2484)
-		return 14;
-	else if (in_freq < 2484)
-		return (in_freq - 2407) / 5;
-	else if (in_freq >= 4910 && in_freq <= 4980)
-		return (in_freq - 4000) / 5;
-	else if (in_freq <= 45000) /* DMG band lower limit */
-		return (in_freq - 5000) / 5;
-	else if (in_freq >= 58320 && in_freq <= 64800)
-		return (in_freq - 56160) / 2160;
-        else
-		return in_freq;
-}
-
-// Multiplatform method of setting a process title.  Lifted from proftpd main.c
-// * ProFTPD - FTP server daemon
-// * Copyright (c) 1997, 1998 Public Flood Software
-// * Copyright (c) 1999, 2000 MacGyver aka Habeeb J. Dihu <macgyver@tos.net>
-// * Copyright (c) 2001, 2002, 2003 The ProFTPD Project team
-//
-// Process title munging is ugly!
-
-// Externs to glibc
-#ifdef HAVE___PROGNAME
-extern char *__progname, *__progname_full;
-#endif /* HAVE___PROGNAME */
-extern char **environ;
-
-// This is not good at all.  i should probably rewrite this, but...
-static char **Argv = NULL;
-static char *LastArgv = NULL;
-
-void init_proc_title(int argc, char *argv[], char *envp[]) {
-	register int i, envpsize;
-	char **p;
-
-	/* Move the environment so setproctitle can use the space. */
-	for (i = envpsize = 0; envp[i] != NULL; i++)
-		envpsize += strlen(envp[i]) + 1;
-
-	if ((p = (char **)malloc((i + 1) * sizeof(char *))) != NULL) {
-		environ = p;
-
-		// Stupid strncpy because it makes the linker not whine
-		for (i = 0; envp[i] != NULL; i++)
-			if ((environ[i] = (char *) malloc(strlen(envp[i]) + 1)) != NULL)
-				strncpy(environ[i], envp[i], strlen(envp[i]) + 1);
-
-		environ[i] = NULL;
-	}
-
-	Argv = argv;
-
-	for (i = 0; i < argc; i++)
-		if (!i || (LastArgv + 1 == argv[i]))
-			LastArgv = argv[i] + strlen(argv[i]);
-
-	for (i = 0; envp[i] != NULL; i++)
-		if ((LastArgv + 1) == envp[i])
-			LastArgv = envp[i] + strlen(envp[i]);
-
-#ifdef HAVE___PROGNAME
-	/* Set the __progname and __progname_full variables so glibc and company
-	 * don't go nuts.
-	 */
-	__progname = strdup("kismet");
-	__progname_full = strdup(argv[0]);
-#endif /* HAVE___PROGNAME */
-}
-
-void set_proc_title(const char *fmt, ...) {
-	va_list msg;
-	static char statbuf[BUFSIZ];
-
-#ifndef HAVE_SETPROCTITLE
-#if PF_ARGV_TYPE == PF_ARGV_PSTAT
-	union pstun pst;
-#endif /* PF_ARGV_PSTAT */
-	char *p;
-	int i,maxlen = (LastArgv - Argv[0]) - 2;
-#endif /* HAVE_SETPROCTITLE */
-
-	va_start(msg,fmt);
-
-	memset(statbuf, 0, sizeof(statbuf));
-
-#ifdef HAVE_SETPROCTITLE
-# if __FreeBSD__ >= 4 && !defined(FREEBSD4_0) && !defined(FREEBSD4_1)
-	/* FreeBSD's setproctitle() automatically prepends the process name. */
-	vsnprintf(statbuf, sizeof(statbuf), fmt, msg);
-
-# else /* FREEBSD4 */
-	/* Manually append the process name for non-FreeBSD platforms. */
-	snprintf(statbuf, sizeof(statbuf), "%s: ", Argv[0]);
-	vsnprintf(statbuf + strlen(statbuf), sizeof(statbuf) - strlen(statbuf),
-			  fmt, msg);
-
-# endif /* FREEBSD4 */
-	setproctitle("%s", statbuf);
-
-#else /* HAVE_SETPROCTITLE */
-	/* Manually append the process name for non-setproctitle() platforms. */
-	snprintf(statbuf, sizeof(statbuf), "%s: ", Argv[0]);
-	vsnprintf(statbuf + strlen(statbuf), sizeof(statbuf) - strlen(statbuf),
-			  fmt, msg);
-
-#endif /* HAVE_SETPROCTITLE */
-
-	va_end(msg);
-
-#ifdef HAVE_SETPROCTITLE
-	return;
-#else
-	i = strlen(statbuf);
-
-#if PF_ARGV_TYPE == PF_ARGV_NEW
-	/* We can just replace argv[] arguments.  Nice and easy.
-	*/
-	Argv[0] = statbuf;
-	Argv[1] = NULL;
-#endif /* PF_ARGV_NEW */
-
-#if PF_ARGV_TYPE == PF_ARGV_WRITEABLE
-	/* We can overwrite individual argv[] arguments.  Semi-nice.
-	*/
-	snprintf(Argv[0], maxlen, "%s", statbuf);
-	p = &Argv[0][i];
-
-	while(p < LastArgv)
-		*p++ = '\0';
-	Argv[1] = NULL;
-#endif /* PF_ARGV_WRITEABLE */
-
-#if PF_ARGV_TYPE == PF_ARGV_PSTAT
-	pst.pst_command = statbuf;
-	pstat(PSTAT_SETCMD, pst, i, 0, 0);
-#endif /* PF_ARGV_PSTAT */
-
-#if PF_ARGV_TYPE == PF_ARGV_PSSTRINGS
-	PS_STRINGS->ps_nargvstr = 1;
-	PS_STRINGS->ps_argvstr = statbuf;
-#endif /* PF_ARGV_PSSTRINGS */
-
-#endif /* HAVE_SETPROCTITLE */
 }
 
 list<_kis_lex_rec> LexString(string in_line, string& errstr) {
