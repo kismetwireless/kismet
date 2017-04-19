@@ -1,0 +1,1707 @@
+******
+
+nextgen-fields has just been merged into Kismet Master.
+
+This is a major disruptive change to Kismet, and will present a bit more
+thrash in git-dev than normal.
+
+If you're looking for a stable Kismet build, grab a release tarball or grab
+the Kismet-Stable git branch!
+
+This is a major rewrite of how Kismet works, and will break any
+third-party plugins as the API changes and solidifies.
+
+This introduces the new web-based UI and removes the ncurses UI.
+
+At the time of merge, text and xml logs are not functional.  Support for
+these logs will return as development continues.
+
+There have been, and will continue to be, changes to the Kismet config files,
+which are documented in:
+
+    README2 - Rewrite of this readme file, currently focused on the new GPS
+    and web options
+
+    README.SSL - Using SSL with the Kismet webserver interface
+
+Developer documentation for the new API is in the docs/dev/ directory!
+
+******
+
+*OLD* readme to follow.
+
+******
+
+
+Kismet 2016-01-R1
+Mike Kershaw <dragorn@kismetwireless.net>
+http://www.kismetwireless.net
+
+1.  What is Kismet
+2.  Upgrading from earlier versions
+3.  Quick start
+4.  Suidroot & security
+5.  Capture sources
+6.  Caveats & quirks for specific drivers
+7.  Supported capture sources
+8.  Plugins
+9.  GPS
+10. Logging
+11. Filtering
+12. Alerts & IDS
+13. Server configuration options
+14. Kismet UI
+15. Kismet drones
+16. Talking to Kismet
+17. Troubleshooting
+18. Frequently asked questions
+
+1.  What is Kismet
+
+    Kismet is an 802.11 wireless network detector, sniffer, and intrusion
+    detection system.  Kismet will work with any wireless card which
+    supports raw monitoring mode, and can sniff 802.11b, 802.11a, 802.11g,
+    and 802.11n traffic (devices and drivers permitting).
+
+    Kismet also sports a plugin architecture allowing for additional
+    non-802.11 protocols to be decoded.
+
+    Kismet identifies networks by passively collecting packets and detecting
+    networks, which allows it to detect (and given time, expose the names
+    of) hidden networks and the presence of non-beaconing networks via data
+    traffic.
+
+2a. Upgrading from recent versions
+
+    2009-06-R1 has changed some basic behavior when using multi-vap capable
+    devices (ie, modern in-kernel Linux drivers).  Whenever possible, it
+    will create a new VAP and reconfigure it, instead of modifying the
+    existing interface.  To preserve the old behavior, specify
+    'forcevap=false' on the source line.
+
+2b. Upgrading from Kismet-old versions
+
+    This release marks a MAJOR change in how Kismet works and is configured.
+    While many aspects are similar, many others (the client, configuring
+    sources and channels, etc) are very different.  
+
+    To take advantage of the new features, replace your existing
+    configuration files with the latest configuration data.
+    
+    Most notably:
+     * Sources are defined differently.  See the "Capture Sources" section.
+     * All UI configuration is handled inside the Kismet client and stored
+       in the users home directory in ~/.kismet/kismet_ui.conf
+     * Most situations which were previously fatal conditions which caused
+       Kismet to exit can now be recovered from.
+     * New filtering options
+     * New alert options
+     * Completely new UI
+     * Revamped network protocol
+     * Significantly less CPU used for high numbers of networks
+     * Plugins
+
+     While this release breaks almost everything from previous releases, it
+     opens the door for smoother upgrades and major feature enhancements.
+
+3.  Quick start
+
+    PLEASE read the full manual, but for the impatient, here is the BARE
+    MINIMUM needed to get Kismet working:
+
+    * Download Kismet from http://www.kismetwireless.net/download.shtml
+    * Run "./configure".  Pay attention to the output!  If Kismet cannot
+      find all the headers and libraries it needs, major functionality may
+      be missing.  Most notably, compiling Kismet yourself will require
+      the development packages and headers, usually called foo-dev or
+      foo-devel.
+    * Make sure that all the functionality you need was enabled properly in
+      configure.  Almost all users will need pcap and libnl support for
+      proper operation.
+    * Compile Kismet with "make".
+    * Install Kismet with either "make install" or "make suidinstall".
+      YOU MUST READ THE "SUID INSTALLATION & SECURITY" SECTION OF THE 
+      README OR YOUR SYSTEM MAY BE INSECURE.
+    * If you have installed Kismet as suid-root, add your user to the
+      "kismet" group
+
+    * Run "kismet".  If you did not install Kismet with suid-root support,
+      you need to start it as root in nearly all situations.  This is not
+      recommended as it is less secure than privsep mode, where packet
+      processing is segregated from admin rights.
+    * When prompted to start the Kismet server, choose "Yes"
+    * When prompted to add a capture interface, add your wireless interface.
+      In nearly all cases, Kismet will autodetect the device type and
+      supported channels.  If it does not, you will have to manually define
+      the capture type (as explained later in this README)
+    * Logs will be stored in the directory you started Kismet from, unless
+      changed via the "logprefix" config file or "--log-prefix" startup
+      option.
+
+    * READ THE REST OF THIS README.  Kismet has a lot of features and a lot
+      of configuration options, to get the most out of it you should read
+      all of the documentation.
+
+3b.  Windows quick start
+
+    * Note, at the time of this writing, the updated CACE install is not yet
+    * available, so users wishing to take advantage of the newcore
+    * functionality will need to build Kismet themselves in Cygwin
+
+    Using the CACE Package:
+
+    * Download the Win32/Cygwin installer created by CACE and linked from
+      the download page (http://www.kismetwireless.net/download.shtml
+    * Run the installer
+    * Start Kismet
+    * Pick your AirPcap or Kismet Drone sources
+
+    * READ THE READ OF THIS README.
+
+    Compiling it yourself:
+
+    * Download the Cygwin setup tool (http://www.cygwin.org)
+    * Install Cygwin with make, GCC, libncurses, libncurses-dev
+    * Download the Airpcap_Devpack from CACE Support
+    * Put Airpcap_Devpack and Libpcap_Devpack in the kismet source directory
+    * Run "./configure", adding the options:
+        --with-airpcap-devpack=... --with-winpcap-devpack=...
+        --enable-airpcap
+      The airpcap/winpcap devpack is available from the CACE website.
+      Due to bugs in Cygwin, it appears that the airpcap and winpcap
+      directories must be inside the kismet source directory.  If they are
+      not, the Kismet binary will immediately exit with no output.
+    * Compile Kismet with "make".
+    * Install Kismet with "make install"
+
+    NOTE: KISMET WILL **ONLY** WORK WITH THE CACE AIRPCAP DEVICE, SAVED PCAP
+    FILES, -OR- REMOTE KISMET DRONES RUNNING ON A SUPPORTED PLATFORM.  NO 
+    OTHER HARDWARE IS SUPPORTED IN WINDOWS, PERIOD.  WINDOWS DRIVERS DO NOT 
+    INCLUDE SUPPORT FOR WIFI MONITORING WHICH KISMET REQUIRES.  THERE IS NO
+    WAY TO CHANGE THIS.
+
+3c.  OSX/Darwin quick start
+
+    * Please note:  Many have complained that iTerm does not send correct
+      key events.  However, Terminal.app appears to work fine, and is
+      recommended for using Kismet.
+
+    * Download Kismet from http://www.kismetwireless.net/download.shtml
+    * Run "./configure".  Pay attention to the output!  If Kismet cannot
+      find all the headers and libraries it needs, major functionality may
+      be missing.  Notably, you may need to install libpcap manually.
+
+      The libpcap included with OSX does not support PPI logging.  Kismet
+      will not be able to log to PPI correctly (so it will log 802.11
+      packets with no per-packet headers.)
+
+      Configure will automatically detect OSX and default to the group
+      "staff" for OSX suidinstall.  This may be overridden with the
+      '--with-suidgroup' configure option.
+
+    * Compile Kismet with "make".
+    * Install Kismet with either "make install" or "make suidinstall".
+      YOU MUST READ THE "SUID INSTALLATION & SECURITY" SECTION OF THE 
+      README OR YOUR SYSTEM MAY BE VULNERABLE.
+    * If you have installed Kismet as suid-root, add your user to the
+      "staff" group if it is not already.
+
+    * Run "kismet".  If you did not install Kismet with suid-root support,
+      you need to start it as root in nearly all situations.  This is not
+      recommended as it is less secure than privsep mode, where packet
+      processing is segregated from admin rights.
+    * When prompted to start the Kismet server, choose "Yes"
+    * When prompted to add a capture interface, add your wireless interface.
+      In nearly all cases, Kismet will autodetect the device type and
+      supported channels.  If it does not, you will have to manually define
+      the capture type (as explained later in this README)
+
+      For many Macs, this will be 'en1', however start a terminal and check
+      the output of "ifconfig -a".
+
+      The wireless interface must be enabled in the wireless control panel
+      for Kismet to work, otherwise it will not find any networks.
+
+      Kismet currently ONLY works with the Airport wireless devices, NOT USB
+      WIRELESS DEVICES.
+    * Logs will be stored in the directory you started Kismet from, unless
+      changed via the "logprefix" config file or "--log-prefix" startup
+      option.
+
+    * READ THE REST OF THIS README
+
+4.  Suidroot & Security
+
+    In order to configure the wireless card for monitor mode and start
+    capturing packets, Kismet needs root access.  There are two ways to
+    accomplish this:  Start Kismet as root, or install it so that the
+    control components are set to start as root.
+
+    Starting Kismet as root means that Kismet will continue running as root.
+    In theory this presents no additional risk, however if there are any
+    flaws in the Kismet packet dissection code then it may be possible for a
+    malicious packet to cause code execution as root.  Additionally,
+    third-party plugins will run as root, and may not be secure.
+
+    Installing Kismet as suid-root creates a limited-functionality binary
+    (kismet_capture) which is only launchable by members of the "kismet"
+    group.  Kismet uses this to configure cards and control the channels,
+    while packet decoding happens only in the user component, significantly
+    limiting the attack surface.
+
+    Distributions are strongly encouraged to use this method as it allows
+    standard group controls for what users can use Kismet to change card
+    states.
+
+    Embedded systems typically have much less storage space and RAM, and
+    often do not enforce user/root separation as strictly due to these
+    limitations.  On embedded systems, Kismet may be installed without the
+    kismet_capture binary and run in root mode only, however the above
+    risks still apply.
+
+    Under no situation should the kismet_server binary itself be set
+    suidroot as this will bypass any security checks.
+
+5.  Capture sources
+
+    All packets in Kismet come from a capture source.  Capture sources are
+    typically network cards on the local system, however they can also be a
+    previously recorded file or a remote capture system running a Kismet
+    drone.
+
+    Kismet will, in most cases, autodetect the driver and supported channels
+    for a capture source given only the network interface.  For many users
+    this will be sufficient, however many expanded options are available for
+    capture sources.
+
+    Kismet captures packets at the 802.11 layer.  This requires changing the
+    mode of the network interface, making it unavailable for normal use.  In
+    most cases it is not possible to remain associated to a wireless network
+    while running Kismet on the same interface.
+
+    Capture sources may be added via the Kismet UI under the "Add Source"
+    option, in which case the options may be added under the "Options:"
+    field, comma separated.  They may also be defined in the kismet.conf
+    configuration file as the "ncsource=" option, such as:
+        ncsource=wlan0:option1=foo,option2=bar
+
+    Source options:
+      name=foo          Custom name for the source (otherwise it will be
+                         named the same as the capture interface).  This is
+                         completely arbitrary and meaningful only to the
+                         user.
+      type=foo          Sources which can not autodetect the type must have
+                         the type specified.  This is rarely necessary.
+                         Additional information on supported source types
+                         follows.
+      uuid=foo          Users wishing a static unique identifier on sources
+                         may specify one here.  This is not necessary for
+                         most users.  UUID is of the format:
+                           XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX
+      hop=true|false    Disable channel hopping on this source.  Default
+                         behavior is for channel sources to hop channels to
+                         cover the entire spectrum.  
+      velocity=#        Channel hop velocity (number of channels per
+                         second), Kismet can hop 1-10 channels per second.
+      dwell=#           Channel dwell time, the number of seconds Kismet
+                         will wait on each channel.  If hopping is enabled
+                         and a channel dwell time is specified, Kismet will
+                         hop at N seconds per channel, instead of N channels
+                         per second.
+      channellist=name  Use an alternate channel list instead of the
+                         autodetected list of channels supported by this
+                         interface.  The channellist must be defined.
+      split=true|false  When multiple sources use the same channel list
+                         (either autodetected or by the channellist= option)
+                         Kismet will split them so that they do not cover the
+                         same channels at the same time.  Sources can be 
+                         forced to ignore this and begin hopping at the
+                         beginning of the channel list regardless of overlap.
+      retry=true|false  Kismet will attempt to re-open a capture source
+                         which has encountered an error.  This behavior can
+                         be disabled if the user wants the source to remain
+                         closed.
+      vap=interface     Create a secondary named interface for capture
+                         instead of trying to change the mode of the
+                         existing interface.  This is primarily only for use
+                         by drivers using the mac80211 interface under
+                         Linux.  Users wishing to do Kismet+Managed or
+                         Kismet+Injection should create a vap.
+      forcevap=t|f      True/False.  Force creation of a monitor-mode VAP
+                         when possible (all Linux mac80211 based drivers
+                         support this).  Default is "true", a VAP will be
+                         made of the name '<interface>mon', ie 'wlan0mon',
+                         'wlan1mon' and capture will be done with this VAP.
+                         This behavior can be forced OFF with
+                         'forcevap=false'.
+      wpa_scan=time     When using a mac80211 VAP, Kismet can use
+                         wpa_supplicant on a managed interface to trigger
+                         hardware assisted scans, enabling some view of the
+                         rest of the spectrum without significantly
+                         disrupting operation of the managed VAP.  Suggested
+                         time for scan intervals is 15 seconds.
+      validatefcs=t|f   True/False.  Kismet normally will not bother trying
+                         to validate the FCS checksum of incoming packets
+                         because most drivers only report valid frames in
+                         the first place.  Packet sources which report
+                         invalid frames by default will enable this option
+                         automatically.  If the drivers have been manually
+                         configured to report invalid packets, this should
+                         be specified to prevent Kismet from processing
+                         broken packets.
+      fcs=true|false    Force handling of FCS bytes on a packet source.
+                         Default is "false", which implies "native FCS
+                         handling".  Packet sources which include per-packet
+                         headers like radiotap or PPI will ignore this value
+                         as the FCS is encoded in the radio header.  Packet
+                         sources such as pcapfile, reading raw 802.11 pcap
+                         files with no headers, may need this turned on for
+                         proper behavior.
+      fcsfail=true      Force a mac80211 VAP to report packets with a known
+                         bad FCS (packet checksum).  This is only available
+                         on Linux and only when using mac80211 drivers.
+                         This MUST come after a 'vap=' option or it will be
+                         ignored.  Enabling 'fcsfail' will enable
+                         'validatefcs' automatically.  The 'fcsfail' option 
+                         should only be enabled when logging to PPI; Logging
+                         to normal PCAP will not preserve the FCS data and
+                         will produce unreadable output.
+                         WARNING:  With some driver versions, enabling this
+                         seems to cause kernel OOPS warnings and the
+                         interface will become unresponsive if capture is
+                         stopped and resume.  This option is for specific
+                         expert use only, when in doubt, leave it alone.
+      plcpfail=true     Force a mac80211 VAP to report packets which do not
+                         pass the PLCP check (if possible on that
+                         interface).  The same warnings and conditions as
+                         'fcsfail' apply.  This option is for specific,
+                         expert use only, when in doubt, leave it alone.
+      ignoreprimary=t   Ignore the state of the primary interface on
+                         mac80211.  Normally, Kismet will shut down the
+                         main interface (ie wlan0, wlan1) to prevent wpasupp
+                         or NetworkManager from changing the channel, etc.
+
+    Example sources (these are given as config file parameters, however they
+    will work equally well as command-line options, ie "-c wlan0"):
+      Capture on wlan0, channel 6, don't channel hop
+       ncsource=wlan0:hop=false,channel=6
+
+      Capture on wlan0, 802.11b channels only even if it supports 5GHz
+       ncsource=wlan0:channellist=IEEE80211b
+
+      Create a VAP on wlan0 named wlan0mon and use wpa_supplicant to
+      give us some view of other channels, while remaining associated to a
+      network:
+       ncsource=wlan0:vap=wlan0mon,hop=false,wpa_scan=15
+
+      Read from a pre-recorded pcap file:
+       ncsource=/home/foo/old.pcap
+
+      Capture using the first Airpcap device on Windows
+       ncsource=airpcap
+
+      Capture using a remote capture drone
+       ncsource=drone:host=10.10.100.2,port=2502
+
+    Channel lists:
+
+    Channel lists control the channels and patterns hopped to by capture
+    sources in Kismet, when the channels can not be autodetected (or when
+    the user wishes to override them for some reason).  The default channel
+    lists (IEEE80211b, IEEE80211a, and IEEE80211ab) are used only when a
+    channel list is not provided by the driver, so should not be changed in
+    most cases.
+
+    When the channel list is automatically created from the channels
+    supported by the driver, the preferredchannels= option will control
+    which channels are weighted for extra time.  By setting this to channels
+    known to be defaults (such as 1, 6, 11) or channels with known networks
+    of interest (such as in a stationary install), Kismet will devote more
+    time to those channels to gather more information.  For more complex
+    channel timing, keep reading about how channel lists work.
+
+    Channels can typically be specified as IEEE channels (11, 36, etc) 
+    or as frequencies (2401, 5200) however some platforms and drivers may
+    not support specifying channels or frequencies out of the IEEE standard
+    range.
+
+    channellist=name:channel,channel,channel
+
+    Additionally, individual channels in the list can be weighted so that
+    more time is spent on them; for a weighting value of 3, 3x more time is
+    spent on that channel.
+
+    channellist=foo:1:3,6:3,11:3,2,3,4,5,6,7,8,9,10
+
+    Up to 256 channels may be specified in a channel list.  For greater
+    numbers of channels, a range must be specified.
+
+    Ranges may consist of channels or of frequencies.
+
+    channellist=name:range-[start]-[end]-[overlap]-[iteration]
+
+    Channels between start and end, at a given iteration.  Kismet will not hop
+    directly between channels that overlap.
+
+    channellist=foo:range-1-11-3-1
+
+    A similar range using frequencies (802.11 2.4GHz channels are ~20MHz
+    wide; technically 22 but 20 suffices, and 5 MHz apart).
+
+    channellist=foo:range-2412-2462-20-5
+
+    Ranges are NOT split between sources.  Multiple sources hopping on the
+    same channel list which includes a range will not split the expanded
+    range - in other words, channel ranges are treated as a single channel
+    entry.
+
+    Multiple ranges can be specified in a single channel list, separated by
+    commas.  They may also be mixed with channels:
+
+    channellist=foo:range-1-11-3-1,36,52
+
+6.  Caveats and quirks for specific drivers:
+
+    Mac80211 General (Linux):
+
+      At the time of this release, the mac80211 drivers in Linux are
+      undergoing significant development, which means at any given time they
+      can exhibit extremely odd behavior or be outright broken.  Users are
+      encouraged to upgrade to the latest kernel, and to consider installing
+      the compat-wireless backport package, if problems are experienced.
+
+    Madwifi (Linux):
+
+      Madwifi-ng has been largely deprecated by ath5k/ath9k for normal
+      usage.  These drivers support multi-vap more cleanly via the mac80211
+      layer and do not, typically, have the same problems historically
+      present in madwifi.  
+      
+      Madwifi-ng sources can be specified as either the VAP (ath0, mon0,
+      etc) or as the control interface (wifi0, wifi1).  However, IF THE
+      CONTROL INTERFACE IS SPECIFIED, Kismet cannot extract the list of
+      supported channels, and will default to IEEE80211b channels.
+
+      Madwifi-ng continues to have problems with multi-vap and initial vap
+      creation.  It is recommended that the initial VAP creation be turned off
+      by the module parameter "autocreate=none" when loading ath_pci.  If the
+      madwifi monitor vap stops reporting packets soon after being created,
+      this is often the cause.
+
+      Combining managed and monitor VAPs appears to still not work well.
+
+    RT28xx (Linux)
+
+      There are 2 drivers for the RT28xx chipsets.  The in-kernel driver
+      available as of Linux-2.6.31 works properly with Kismet.  This is by
+      far the preferred driver to use.  Be sure to enable the RT28xx driver
+      in the wireless drivers section, NOT the staging driver.  The staging
+      driver is not mac80211 based and will not necessarily behave.
+
+      The out-of-kernel driver does not conform to mac80211 controls.
+      This driver also cannot be auto-detected (they don't provide a valid 
+      identifier in /sys) so the driver type mus be manually specified with 
+      'type=rt2870sta' on the source line.
+
+      This driver defaults to the name 'rausbX' which exposes a bug in some
+      versions of libpcap and may require the device be renamed (See
+      'Troubleshooting' section)
+
+    rt73-k2wrlz (Linux)
+
+      An out-of-tree rt73 driver similar to rt2870sta.  It may be necessary
+      to specify a type of 'rt73' manually when using this driver.
+
+      This driver defaults to the name 'rausbX' which exposes a bug in some
+      versions of libpcap and may require the device be renamed (See
+      'Troubleshooting' section)
+
+    WL (Linux, Intel)
+
+      Broadcom has released a binary version of their drivers called WL.
+      These drivers are incapable of monitor mode, and cannot be used with
+      Kismet.  Kismet will attempt to autodetect them and report this to the 
+      user.  Users of Broadcom cards should use the b43 or b43xx in-kernel
+      drivers.
+
+    OTUS (Linux)
+
+      Atheros released a driver for the 802.11n USB devices; however, this
+      does not have support for monitor mode and cannot be used with Kismet.
+      The ar9170 driver project is providing mac80211 kernel support for
+      this card, and works with Kismet.  ar9170 has been merged with the
+      wireless-git development kernel and should be present in the
+      compat-wireless packages.
+
+    Nokia ITT (Linux)
+
+      For any chance of Kismet working on the Nokia ITT, the scan interval
+      must be set to zero in the Nokia system control panel, connectivity
+      section.  It should be disconnected from any network, but wireless
+      must be turned on.
+
+      The Nokia drivers often return FCS-invalid packets.  The Nokia source
+      line should include 'fcs=true,validatefcs=true' to prevent these from
+      creating multiple false networks out of invalid packets.
+
+      The Nokia device does not autodetect properly, a driver type of
+      'nokia770', 'nokia800', 'nokia810', or 'nokiaitt' must be set.
+      'nokiaitt' is a generic source which should work on any Nokia ITT
+      tablet.
+
+    Orinoco (Linux)
+
+      Due to problems in monitor mode with newer firmwares, the Orinoco kernel
+      drivers have disabled monitor mode for newer/"modern" firmware versions
+      in the Orinoco cards.
+
+      Kismet will attempt to use the device, but warn the user that it will
+      probably fail.  Monitor support can be forced on in the module via the
+      module parameter "force_monitor=1" when loading orinoco.ko.
+
+      For non-hermes chipsets like prism2, use hostap (also in the kernel).
+
+    NDISWrapper (Linux)
+
+      The NDIS-Wrapper driver loads Windows drivers into the Linux network
+      stack.  These drivers are not capable of monitor mode, and will not
+      work with Kismet.
+
+      Note:  The rndis drivers are NOT the same as ndiswrapper.  rndis
+      drivers are for a specific USB chipset and are not related to
+      ndiswrapper, rndis will work.
+
+    BSD (BSD Generic)
+
+      Cards which work under the generic BSD framework for monitor mode with
+      radiotap headers should work with Kismet via the source types
+      "radiotap_bsd_ag", "radiotap_bsd_a", "radiotap_bsd_g", and
+      "radiotap_bsd".  Channel detection and device type autodetection are
+      currently not supported.
+
+      ncsource=wl0:type=radiotap_bsd_ag
+
+    Windows (Generic)
+
+      ONLY THE AIRPCAP DEVICE IS SUPPORTED UNDER WINDOWS.  THIS IS A
+      SPECIFIC HARDWARE DEVICE MADE BY CACE TECHNOLOGIES.  IF YOU DID NOT GO
+      AND BUY AN AIRPCAP SPECIFICALLY FOR CAPTURING DATA, YOU DO NOT HAVE ONE, 
+      AND THIS WILL NOT WORK.
+
+      The Airpcap has monitor mode drivers with a *public* interface for
+      controlling them.  This is the only device Kismet can capture packets
+      from on Windows.
+
+    AirPcap (Windows)
+
+      By default Kismet will open the first Airpcap device found.  Multiple
+      devices can be opened by using the full named interface, which can be
+      found in the AirPcap tools but follows the pattern \\.\airpcapXX ; The
+      first device is \\.\airpcap00, the second is \\.\airpcap01, and so on.
+
+    USB Devices (OSX)
+
+      Only devices using the Airport IOKit drivers are supported on OSX.
+      USB devices are, in general, not supported because the drivers lack
+      monitor mode or a method to set the channel.
+
+7.  Supported capture source types
+
+    Capture source types are only required in specific situations where
+    Kismet cannot detect the capture source type automatically.
+
+    Linux Capture Sources:
+
+      All modern drivers on Linux use the mac80211 driver framework.  Kismet
+      will auto-detect any driver using this framework.  A generic source
+      type 'mac80211' can be used for forcing a type, however it is not
+      strictly useful to do so.
+
+      adm8211           Kernel adm8211 driver
+      acx100            Kernel acx100 driver
+      hostap            Kernel prism2 driver
+      ipw2100           Kernel Intel 2100 driver
+      ipw2200           Kernel Intel 2200 driver
+      ipw2915           Kernel Intel 2915 driver
+      ipw3945           Kernel intel 3945 driver
+      mac80211          Generic mac80211 catch-all source for any mac80211
+                        drivers.
+      madwifi           Madwifi/Madwifi-ng
+      madwifi_a         Alias for madwifi, default 802.11a channels
+      madwifi_b         Alias for madwifi, default 802.11b/g channels
+      madwifi_g         Alias for madwifi, default 802.11b/g channels
+      madwifi_ag        Alias for madwifi, default 802.11abg channels
+      nokia770          Conexant-based driver in Nokia Maemo tablets
+      nokia800          Alias for nokia770
+      nokia810          Alias for nokia770
+      nokiaitt          Alias for nokia770
+
+      pcapfile          Pcap-formatted previously recorded file
+      rt2870sta         Out-of-kernel/Staging rt2870 11n driver (use
+                         in-kernel instead)
+      wl12xx            Patched wl12xx drivers for the N900, must use
+                         patched drivers from http://david.gnedt.eu/blog/,
+                         otherwise autodetected.
+      drone             Remote Kismet packet capture, source options
+                        "host=..." and "port=..." are required.
+                        ncsource=drone:host=localhost,port=2502
+
+    BSD Capture Sources:
+
+      Currently, the BSD packet capture sources do not support autodetection
+      or channel detection.
+
+      Capture on BSD should work with any driver which supports monitor mode
+      and which uses the standard BSD IOCTLs to set the mode and channel.
+
+      Patches/Additional BSD support welcome.
+
+      radiotap_bsd      Generic BSD capture source, default 802.11b/g channels
+      radiotap_bsd_g    Default 802.11b/g channels
+      radiotap_bsd_a    Default 802.11a channels
+      radiotap_bsd_ag   Default 802.11abg channels
+
+      pcapfile          Pcap-formatted previously recorded file
+      drone             Remote Kismet packet capture, source options
+                        "host=..." and "port=..." are required.
+
+    Windows Capture Sources:
+
+      Currently ONLY THE AIRPCAP DEVICE, PCAP FILE, AND DRONES RUNNING ON A
+      SUPPORTED PLATFORM are supported under Windows.  NO OTHER DEVICES CAN
+      BE USED FOR PACKET CAPTURE.
+
+      airpcap           Airpcap generic source.  Will autodetect the channel
+                        ranges.  Interface 'airpcap' will detect the first
+                        airpcap device (ncsource=airpcap), interface paths
+                        may be used to specify specific devices
+                        (ncsource=\\.\airpcap01)
+      airpcap_ask       List available sources and ask which one to use.
+                        Should NOT be used when launched by the Kismet UI.
+
+      pcapfile          Pcap-formatted previously recorded file
+      drone             Remote Kismet packet capture, source options
+                        "host=..." and "port=..." are required.
+
+    OSX/Macintosh Capture Sources:
+      darwin            Any device controlled by the Airport IOKit drivers
+                        under OSX.  Default 802.11b/g channels.
+
+      pcapfile          Pcap-formatted previously recorded file
+      drone             Remote Kismet packet capture, source options
+                        "host=..." and "port=..." are required.
+8.  Plugins
+
+    Kismet plugins can do almost anything that the native Kismet process can
+    do.  This includes extending the logging capability, adding IDS alerts,
+    defining new capture sources (within some limitations), and adding new
+    features to the Kismet UI.
+
+    Plugins need access to the Kismet source (and configuration
+    information) to compile, and should ALWAYS be recompiled when the 
+    Kismet version changes (for those using Kismet Git development code, 
+    this may require rebuilding plugins every time a checkout is done).
+
+    Plugins bundled with Kismet (and third-party plugins extracted into the
+    Kismet source dir) can be built with 'make plugins' and installed with
+    'make plugins-install' or 'make plugins-userinstall'.  These commands
+    will automatically configure the plugin to compile using the current
+    Kismet source directory, for third-party plugins compiled outside of the
+    tree (or for manually compiling plugins), the KIS_SRC_DIR variable must
+    be set or the symlinks to the Kismet source must be set up properly (see
+    the README for the plugin you are trying to compile for more
+    information).
+
+    "Restricted" plugins, which provide potentially invasive behavior such
+    as auto-guessing WEP based by the SSID or automatically running the PTW
+    WEP attack against captured data can be compiled and installed with:
+        make restricted-plugins
+        make restricted-plugins-install
+         -or-
+        make restricted-plugins-userinstall
+
+    Plugins for the Kismet server (capture and logging process) are loaded
+    from the system-wide plugin directory (/usr/local/lib/kismet/ by
+    default) or from the users Kismet settings directory
+    (~/.kismet/plugins).
+
+    When running Kismet with privilege separation enabled (installed
+    kismet_capture as root), plugins are only loaded by the Kismet server
+    process and not the root-level Kismet capture process, and plugins
+    cannot perform tasks that require root privileges.
+
+    When running Kismet without privilege separation (launching as root),
+    plugins run with root privileges.  This is not recommended.
+
+    Server plugins are only loaded when kismet.conf contains:
+      allowplugins=true
+
+    Client plugins are loaded from the system-wide plugin directory
+    (/usr/local/lib/kismet_client by default) or from the users Kismet
+    settings directory (~/.kismet/client_plugins).
+
+    The Kismet UI provides mechanisms for loading plugins (and specifying
+    plugins to be loaded automatically on startup) via the Plugins menu item.
+
+    Once a Kismet UI plugin is loaded, it cannot be unloaded.  To unload a
+    Kismet plugin, go to the Plugins window, configure the plugin to not
+    load on start, and restart Kismet.  To configure plugin loading in the
+    UI, select the plugin (the list is automatically generated from plugins
+    installed in the system and user plugin directories) and press enter.
+    Plugins will be loaded when the plugin window is closed.
+
+    Kismet server plugins cannot currently be manipulated via the Kismet UI,
+    but loaded plugins will be displayed.
+
+    If a plugin causes startup problems (most likely because it was compiled
+    for a different Kismet binary), Kismet will exit and explain which
+    plugin caused the crash during startup.  Plugins may also cause
+    instability during runtime; if runtime crashes occur while plugins are
+    loaded, remove them and re-test.  Often, recompiling the plugins against
+    the running Kismet source will help resolve these issues.
+
+9.  GPS
+
+    Kismet can integrate with a GPS device to provide coordinates for
+    networks it has detected.  These can be logged to the pcap file when PPI
+    logging is enabled, and to an XML file for processing with Kismap, included 
+    with the Kismet source, as well as other third-party tools.
+
+    Kismet can use the GPS network daemon 'gpsd', or can parse NMEA directly
+    from the GPS unit.
+
+    The GPS is controlled with the Kismet server config, kismet.conf.  For
+    using gpsd with gpsd running on the local system:
+
+      gps=true
+      gpstype=gpsd
+      gpshost=localhost:2947
+      gpsmodelock=false
+      gpsreconnect=true
+
+    By specifying gpsreconnect, if gpsd crashes or Kismet otherwises looses
+    its connection, it will be re-established.  Gpsmodelock compensates for
+    certain broken GPS/GPSd combinations, where the GPS never reports a
+    valid lock.  By forcing a gpsmodelock=true, Kismet assumes the GPS
+    always has a 2d lock.
+
+    For using a GPS device without gpsd:
+
+      gps=true
+      gpstype=serial
+      gpsdevice=/dev/ttyS0
+      gpsreconnect=true
+
+    The gpsdevice parameter should be set to the proper serial device for
+    your GPS.  For USB GPS devices this will typically be /dev/ttyUSB0, and 
+    for bluetooth devices this will often by /dev/rfcomm0 or similar.  Check
+    the output of "dmesg" after plugging in your device.
+
+    Kismet cannot know the location of a network, it can only know the
+    location where it saw a signal.   By circling the suspected location,
+    you can provide more GPS data for processing the network center point.
+
+    Kismet keeps running averages of the network location, however this is
+    not incredibly accurate, due to averaging and imprecision in
+    floating point math.  For plotting network locations, the GPSXML file
+    should be used.
+
+10. Logging
+
+    By default Kismet will log the pcap file, gps log, alerts, and network
+    log in XML and plaintext.
+
+    Logs are controlled by the --log-types command-line option or the
+    logtypes= config file line.  Logs are enabled by name (nettxt, gpsxml,
+    etc) or by class (text, pcap, etc).  When enabled by class, Kismet will
+    enable all logs of that class.  For example, enabling 'pcap' will turn
+    on pcap logging for plugins which can save packets.
+
+    Supported log classes:
+        alert               IDS alerts
+        gps                 GPS data (xml)
+        text                Text-formatted records (nettxt, etc)
+        xml                 XML-formatted records (netxml)
+        pcap                Pcap-formatted packet logs
+        string              Discovered strings
+
+    By default, Kismet will try to log to pcapfiles using the PPI per-packet
+    header.  The PPI header is a well-documented header supported by
+    Wireshark and other tools, which can contain spectrum data, radio data
+    such as signal and noise levels, and GPS data.
+
+    PPI is only available with recent libpcap versions.  When it is not
+    available, Kismet will fall back to standard 802.11 format with no extra
+    headers.
+
+    The pcap logging format is controlled by:
+      pcapdumpformat=ppi
+      or
+      pcapdumpformat=80211
+
+    The naming of logfiles is controlled by the "logtemplate" configuration
+    option.  By default, Kismet logs in the directory it is started in
+    (unless modified with the "--log-prefix" option).
+
+    The following variables can be used in the logtemplate:
+        %p      Prefix (as given by --log-prefix)
+        %n      Logging name (as given by --log-title)
+        %d      Starting date, Mmm-DD-YYYY
+        %D      Starting date, YYYYMMDD
+        %t      Starting time, HH-MM-SS
+        %T      Starting time, HHMMSS
+        %i      Incremental, in the case of multiple logs of the same name
+        %I      Incremental, padded with zeroes (00001)
+        %l      Log type (pcapdump, netxml, etc)
+        %h      Home directory of the user Kismet was started as
+
+    The log template with a --log-prefix of /tmp and a --log-title
+    of Kismet would expand from:
+      logtemplate=%p%n-%D-%t-%i.%l
+    to (for example):
+      /tmp/Kismet-20090428-12-45-33-1.pcapdump
+
+    Nested directories may be used (for example, with a template of the form
+    "%p/%l/%D-%t"), however they must be created prior to starting Kismet,
+    Kismet will not create the directories itself.
+
+    Most users should never need to change the logtemplate, however the
+    option remains available.  When changing the template, be sure to
+    include the "%p" prefix option in a logical location (ie, at the
+    beginning of the template) or else the --log-prefix argument will not
+    function as expected.
+
+11. Filtering
+
+    Kismet supports basic filtering; networks can be excluded from tracking,
+    pcap logging, or general logging, based on BSSID, source, or destination
+    MAC addresses.
+
+    Filters, when enabled, are "positive-pass"; anything matched by the
+    filter will be allowed, and all other matches are excluded.  To process
+    ONLY packets to or from the network with the BSSID AA:BB:CC:DD:EE:FF:
+
+        filter_tracker=BSSID(AA:BB:CC:DD:EE:FF)
+    
+    This behavior can be inverted by using the '!' operator.  To exclude
+    packets to or from the BSSID AA:BB:CC:DD:EE:FF:
+
+        filter_tracker=BSSID(!AA:BB:CC:DD:EE:FF)
+
+    Multiple MAC addresses can be stacked on the same filter line, to filter 
+    two all packets from AA:BB:CC:DD:EE:FF and 00:11:22:33:44:55:
+
+        filter_tracker=BSSID(!AA:BB:CC:DD:EE:FF,!00:11:22:33:44:55)
+
+    MAC addresses may also be masked in a fashion similar to IP netmasks; to
+    process only networks of a single manufacturer:
+
+        filter_tracker=BSSID(AA:BB:CC:00:00:00/FF:FF:FF:00:00:00)
+
+    Similarly, SOURCE(...), DEST(...), and ANY(...) may be used to filter
+    packets.  To process only packets FROM the MAC address
+    11:22:33:44:55:66:
+
+        filter_tracker=SOURCE(11:22:33:44:55:66)
+
+12. Alerts & IDS
+
+    Kismet includes IDS functionality, providing a stateless and stateful
+    IDS for layer 2 and layer 3 wireless attacks.  Kismet can alert on
+    fingerprints (specific single-packet attacks) and trends (unusual
+    probes, disassociation floods, etc).
+
+    Kismet can integrate with other tools using the tun/tap export to
+    provide a virtual network interface of wireless traffic; tools such as
+    Packet-o-Matic and Snort can use this exported data to perform
+    additional IDS functions.
+
+    Kismet as an IDS is most effective in a stationary (ie, non-wardriving)
+    setup, and for best results, a non-hopping source should be available on
+    the channels the primary networks are on.  Kismet IDS functions CAN be
+    used in mobile or channel-hopping installations (and are turned on by
+    default) but accuracy may suffer.
+
+    Alerts are configured with the "alert=" configuration option in
+    kismet.conf, and have two time parameters:  Throttle, and Burst.  The
+    throttle option controls how many alerts are allowed total per time
+    unit, while the burst option controls how many alerts are allowed in a
+    row.  For example:
+
+        alert=NETSTUMBLER,5/min,1/sec
+
+    Will allow 1 alert per second, at a maximum of 5 per minute.
+
+    Kismet supports the following alerts, where applicable the WVE (Wireless
+    Vulnerability and Exploits, http://www.wve.org) ID is included:
+
+        ADVCRYPTO           Trend/Stateful      802.11
+            An 802.11 AP changed advertised encryption options.  This 
+            may be a normal configuration change (though unlikely) or it 
+            may indicate a spoofed AP which did not correctly clone the 
+            original.
+
+        AIRJACKSSID         Fingerprint         802.11      Deprecated
+            The original 802.11 hacking tools, Airjack, set the initial SSID
+            to 'airjack' when starting up.  This alert is no longer relevant
+            as the Airjack tools have long since been discontinued.
+
+        APSPOOF             Fingerprint         802.11
+            A list of valid MAC addresses for a SSID may be given via the
+            'apspoof=' configuration file option.  If a beacon or probe
+            response for that SSID is seen from a MAC address not in that
+            list, this alert will be raised.  This can be used to detect
+            conflicting access points, spoofed access points, or attacks
+            such as Karma/Airbase which respond to all probe requests.
+
+            The 'apspoof=' configuration option can specific exact SSID
+            matches, regular expressions (if Kismet is compiled with PCRE
+            support), and single, multiple, or masked MAC addresses:
+                apspoof=Foo1:ssidregex="(?i:foobar)",validmacs=00:11:22:33:44:55
+
+                apspoof=Foo2:ssid="Foobar",
+                    validmacs="00:11:22:33:44:55,AA:BB:CC:DD:EE:FF"
+
+            When multiple MAC addresses are specified, they should be
+            enclosed in quotes (as above).
+
+            For more information about forming PCRE-compatible regular
+            expressions, see the PCRE docs (man pcrepattern).
+
+        BEACONRATE          Trend/Stateful      802.11
+            An 802.11 AP changed advertised beacon rates.  This may be
+            a normal configuration change (though unlikely) or it may
+            indicate a spoofed AP which did not correctly clone the 
+            original.
+
+        BSSTIMESTAMP        Trend/Stateful      802.11
+            Invalid/Out-of-sequence BSS Timestamps can indicate AP spoofing.
+            APs with fluctuating BSS timestamps could be suffering an "evil
+            twin" spoofing attack, as many tools do not attempt to sync the
+            BSS timestamp at all, and the fine-grained nature of the BSS
+            timestamp field makes it difficult to spoof accurately.  Some
+            APs may reset the BSS timestamp regularly, leading to a
+            false-positive.
+
+            References:
+                WVE-2005-0019
+
+        CHANCHANGE          Trend/Stateful      802.11
+            A previously detected access point changing channels may
+            indicate a spoofing attack.  By spoofing a legitimate AP on a
+            different channel, an attacker can lure clients to the spoofed
+            access point.  An AP changing channel during normal operation
+            may indicate such an attack is in process, however centrally
+            managed networks may automatically change AP channels to
+            less-used areas of the spectrum.
+
+             References:
+                WVE-2005-0019
+
+        CRYPTODROP          Trend/Stateful      802.11
+            Spoofing an AP with less-secure encryption options may fool
+            clients into connecting with compromised credentials.  The only
+            situation in which an access point should reduce encryption
+            security is when the AP is reconfigured.
+
+        DEAUTHFLOOD         Trend/Stateful      802.11
+        BCASTDISCON         Trend/Stateful      802.11
+            By spoofing disassociate and deauthenticate packets an attacker
+            may disconnect clients from a network, causing a
+            denial-of-service which lasts only as long as the attacker is
+            able to send the packets.
+
+            References:
+                WVE-2005-0019, WVE-2005-0045, WVE-2005-0046, WVE-2005-0061
+                http://802.11ninja.net
+                http://home.jwu.edu/jwright/papers/l2-wlan-ids.pdf
+
+        DHCPCLIENTID        Fingerprint         802.11
+            A client which sends a DHCP DISCOVER packet containing a
+            Client-ID tag (Tag 61) which doesn't match the source MAC of the
+            packet may be doing a DHCP denial-of-service to exhaust the DHCP
+            pool.
+
+        DHCPCONFLICT        Trend/Stateful      802.11
+            Clients which receive a DHCP address and continue to use a
+            different IP address may indicate a misconfigured or spoofed
+            client.
+
+        DISASSOCTRAFFIC     Trend/Stateful      802.11
+            A client which is disassociated from a network should not
+            immediately continue exchanging data.  This can indicate a
+            spoofed client attempting to incorrectly inject data into a
+            network, or can indicate a client being the victim of a
+            denial-of-service attack.
+
+        DISCONCODEINVALID   Fingerprint         802.11
+        DEAUTHCODEINVALID   Fingerprint         802.11
+            The 802.11 specification defines valid reason codes for
+            disconnect and deauthenticate events.  Various client and access
+            point drivers have been reported to improperly handle
+            invalid/undefined reason codes.
+
+        DHCPNAMECHANGE      Trend/Stateful      802.11
+        DHCPOSCHANGE        Trend/Stateful      802.11
+            The DHCP configuration protocol allows clients to optionally put
+            the hostname and DHCP client vendor/operating system in the DHCP
+            Discover packet.  These values should only change if the client
+            has changed drastically (such as a dual-boot system).  Changing
+            values can often indicate a client spoofing/MAC cloning attack.
+
+        DOT11D              Trend/Stateful      802.11
+            An 802.11 AP changed advertised 802.11d settings.  This may be
+            a normal configuration change (though unlikely) or it may
+            indicate a spoofed AP which did not correctly clone the 
+            original.
+            802.11d changes may also be an active attack meant to confuse
+            clients or alter their behavior.
+
+        LONGSSID            Fingerprint         802.11
+            The 802.11 specification allows a maximum of 32 bytes for the
+            SSID.  Over-sized SSIDs are indicative of an attack attempting
+            to exploit vulnerabilities in several drivers.
+
+        LUCENTTEST          Fingerprint         802.11      Deprecated
+            Old Lucent Orinoco cards in certain scanning test modes generate
+            identifiable packets.
+
+        MALFORMMGMT         Fingerprint         802.11
+            Malformed management frames may indicate errors in the capture
+            source (such as not discarding corrupted packets), but may also
+            be indicative of an attack.
+
+        MSFBCOMSSID         Fingerprint         802.11
+            Some versions of the Windows Broadcom wireless drivers do not
+            properly handle SSID fields longer than the 802.11
+            specification, leading to system compromise and code execution.
+            This vulnerability is exploited by the Metasploit framework.
+
+            References:
+                WVE-2006-0071
+
+        MSFDLINKRATE        Fingerprint         802.11
+            Some versions of the Windows D-Link wireless drivers do not
+            properly handle extremely long 802.11 valid rate fields, leading
+            to system compromise and code execution.  This vulnerability is
+            exploited by the Metasploit framework.
+
+            References:
+                WVE-2006-0072
+
+        MSFNETGEARBEACON    Fingerprint         802.11
+            Some versions of the Windows netgear wireless drivers do not
+            properly handle over-sized beacon frames, leading to system
+            compromise and code execution.  This vulnerability is exploited
+            by the Metasploit framework.
+
+        NETSTUMBLER         Fingerprint         802.11      Deprecated
+            Older versions of Netstumbler (3.22, 3.23, 3.30) generate, in
+            certain conditions, specific packets.
+
+        NULLPROBERESP       Fingerprint         802.11
+            Probe-response packets with a SSID IE tag component of length 0
+            can cause older cards (prism2, orinoco, airport-classic) to
+            fail.
+
+            References:
+                WVE-2005-0019
+
+        WPSBRUTE            Trend/Stateful      802.11
+            WPS is vulnerable to a brute-force attack which can reveal the
+            WPS key in a matter of hours.  An AP under attack will send an
+            unusual number of WPS responses.  This vulnerability is 
+            documented in the paper by Stefan Viehbock and implemented
+            in his tool and the Reaver attack tool.
+
+            References:
+                http://sviehb.files.wordpress.com/2011/12/viehboeck_wps.pdf
+
+13. Other Configuration
+
+    Kismet is divided into two main processes:  kismet_server and
+    kismet_client.  The server portion (responsible for capture, logging,
+    and decoding) is controlled by kismet.conf (by default in
+    /usr/local/etc) and the client is configured via preferences options.
+
+    For the most part, Kismet can run with no additional configuration by
+    adding capture sources runtime with the UI, however for
+    standalone/headless operation or advanced configuration, users will want
+    to edit the config file.
+
+    The Kismet config is a plain text file with option=value pairs.  Lines
+    beginning with # are considered comments and are ignored.
+
+    Most configuration options are self-explanatory or documented in the
+    config file itself.
+
+    By default Kismet only listens to the loopback interface on port 2501.
+    This may be changed:
+
+    listen=tcp://ip:port     Define the IP and port Kismet listens on.  By 
+                              default, for security reasons, Kismet will 
+                              listen only on 127.0.0.1, the loopback interface.  
+                              To listen on any interface, use the IP 0.0.0.0.
+    allowedhosts=...         Comma-separated list of IP addresses allowed to 
+                              connect to the Kismet server.  IP ranges may be 
+                              specified with netmasks (ie 10.10.10.0/24)
+    maxclients=N             Maximum number of clients allowed to simultaneously
+                              connect to the Kismet server.
+    maxbacklog=5000          Maximum number of backlogged "lines" the server
+                              keeps for clients which are not keeping up
+                              with the network protocol.  This also affects
+                              the amount of RAM potentially used by the
+                              Kismet server process, and may need to be
+                              lowered on extremely RAM-limited systems.
+
+    Kismet servers may also be configured to act as Kismet drones, exporting
+    a TCP stream of live packets:
+
+    dronelisten=..           Same as above, for drone capabilities
+    droneallowedhosts=..     ...
+    dronemaxclients=..       ...
+    droneringlen=65535       Equivalent of maxbacklog for Kismet clients,
+                              maximum amount of space used for backlogged
+                              packets as a drone.  May be reduced on
+                              extremely RAM-limited systems.
+
+    Kismet can export packets directly to other tools by creating a virtual
+    network interface (supported on Linux, minimal support on OSX and BSD
+    due to limited tuntap driver implementations on these platforms):
+
+    tuntap_export=true       Enable tuntap export
+    tuntap_device=kistap0    Virtual network interface created
+
+    Kismet can decrypt WEP networks for which the WEP key is already known:
+
+    wepkey=bssid,hexkey
+
+    Only the hex key can be given, since there is no consistent method to
+    turn a pass-phrase into a hex key for WEP for different vendors.
+
+    Sound and speech can be generated by the Kismet server, however
+    typically this would be done by the Kismet UI instead.  Sound is
+    disabled by default in the Kismet server:
+
+        enablesound=true|false  Play sound
+        soundbin=...            Path and options for sound player binary
+        sound=xxx,true|false    Enable playing sound trigger xxx
+
+        enablespeech=true|false Speak
+        speechbin=...           Text-to-Speech player
+        speechtype=raw|festival If using Festival (but NOT flite) speech
+                                 type must be set to 'festival', all other
+                                 tools should be set to 'raw'
+        speechencoding=...      NATO, Spelling, Speech.  Encoding of speech
+                                 fields for clarity, spell network SSIDs as
+                                 NATO, spelled-out letters, or speak them
+                                 normally.
+        speech=xxx,"format"     Format of spoken strings, see the Kismet UI
+                                 section for more information on formatting
+                                 of speech strings.
+
+    The OUI file (used by Kismet to determine the manufacturer of a device)
+    can be shared with other tools (such as Wireshark), so long as they use 
+    a compatible format.  By default, Kismet searches:
+        /etc/manuf
+        /usr/share/wireshark/wireshark/manuf
+        /usr/share/wireshark/manuf
+    Additional search paths can be added with the 'ouifile=' configuration
+    option.
+
+14. Kismet UI
+
+    The default Kismet UI uses the text-based ncurses library.  Additional
+    UIs may be available from the Links page on the Kismet website
+    (http://www.kismetwireless.net/links.shtml)
+
+    The Kismet UI functions much as any other curses application (such as
+    Midnight Commander or Links) does.  The menu is activated with 'escape',
+    '`' or '~'.  Navigation between elements of the UI is done with 'tab'.
+
+    Use of a mouse is supported in much of the Kismet UI, although not all
+    widgets fully support mouse operation.  Basic use of the UI with no
+    keyboard should be reasonable, however.
+
+    The main Kismet window consists of the network list, GPS information,
+    a summary of the current server statistics and packet source status, and
+    the status panel where errors and announcements are printed.  Additional
+    components of the main window may be turned on with the 'View' menu.
+
+    - Preferences
+
+    Configuration of the Kismet UI is done entirely inside the UI via the
+    'Kismet->Preferences->...' menus.  Preference changes are (for the most
+    part) immediate and do not require restarting.
+
+    By default, the Kismet UI will prompt on startup to launch the Kismet
+    server, this behavior (as well as auto-connection and server setup) can 
+    be changed via the Startup and Shutdown preferences
+    (Kismet->Preferences->Startup and Shutdown):
+
+        Open Kismet server launch window automatically
+            - Kismet will open the server startup window when the UI is
+              loaded, if the default server is not running.
+        Ask about launching server on startup
+            - Ask to start a server (instead of just opening the server
+              window)
+        Show Kismet server console by default
+            - Automatically open the Kismet server console window after
+              starting the server
+        Shut down Kismet server on exit automatically
+            - Kill locally started servers and issue a shutdown command to
+              remote servers when the UI exits
+        Prompt before shutting down Kismet server
+            - Don't kill servers without confirming
+
+    Kismet menus support shortcuts, for example '~Wl' is the same as
+    navigating to the 'Windows->Client List' menu option.
+
+    - Sound and Speech
+
+    The Kismet UI handles sound and speech playing for most users.  Sound
+    playing is straightforward (WAV files are installed, by default, to
+    /usr/local/share/kismet/wav) and can be played with any sound player
+    compatible with your install.
+
+    Speech is supported on Festival and Flite.  Any other text-to-speech
+    program should work as long as it accepts plain text on standard in.
+    Speech text is encoded depending on the type of speech event, where %1, %2,
+    etc are replaced with data by Kismet.  The supported events and
+    replacements are:
+        New network:
+            1. Network SSID encoded to speech encoding setting (spell, nato,
+               plain)
+            2. Network channel
+            3. Network BSSID
+        Alert:
+            1. Alert type
+        GPS Lost, GPS Lock:
+            No replacement options
+
+    - Tagging networks
+
+    Kismet can add custom data to a network in the form of tags.  In the
+    Kismet UI, networks and clients can both have tags added to them.  These
+    tags are displayed in the UI under network details, and logged to XML
+    and TXT output.
+
+    Tags can be set as permanent; By checking the "Remember note when
+    restarting Kismet" checkbox in the Network and Client Note windows, the
+    note is saved and will be re-applied to networks every time Kismet
+    loads.
+
+    Client tags are applied to a specific client in a specific network;
+    Currently there is no mechanism for adding a note to every instance of
+    the client.
+
+    - Sorting
+
+    Kismet defaults to "autofit" mode, where it tries to put as many of the
+    currently active networks on the screen as possible.  Because autofit
+    mode is so variable, it doesn't make sense to try to allow selecting
+    networks in autofit.
+
+    To select a network and view details, first sort by another method (such
+    as channel, time, etc) via the Sort menu, then select a network.
+
+15. Kismet Drones
+
+    Kismet Drones are designed to turn Kismet into a distributed IDS system.
+    Drones support all of the capture methods Kismet normally supports,
+    including multiple capture devices per drone.  Drones capture wireless
+    data and forward to a Kismet server over a secondary connection (ie,
+    wired Ethernet).  Drones do not do any decoding of packets and have
+    minimal hardware requirements.
+
+    A Kismet server connects to the drones and will provide a single Kismet
+    UI display, packet dump, and alert generation point.  Capture sources on
+    remote Kismet drones are forwarded to the Kismet server and appear as
+    independent capture devices which can be configured for channel hopping,
+    locking, etc.
+
+    Using the tun/tap export function, the central Kismet server can export
+    the packets from all attached drones to a virtual network interface for
+    use with external IDS/packet capture systems (such as Snort).
+
+    To start using Drones, launch the kismet_drone process on a remote
+    system (editing the kismet_drone.conf file to control what hosts are
+    allowed to connect) or turn on drone capabilities in the Kismet server
+    (by enabling the drone config options in kismet_server.conf).  When
+    running a kismet_server instance as a drone, local logging will act as
+    usual and Kismet clients can be connected to the server as normal; When
+    running kismet_drone, Kismet clients cannot connect directly to it, and
+    it will not log, a Kismet server instance must be started to provide
+    packet decoding, logging, and Kismet UI connectivity.
+
+16. Talking to Kismet
+
+    The Kismet client/server protocol is basic text.  Communicating with
+    Kismet can be as simple as using telnet or netcat, however writing a
+    full protocol dissector is suggested for serious applications.
+
+    This documents a simple case of the Kismet protocol and the basics of
+    communicating with a Kismet server, however for detailed information the
+    source should be consulted.  A more complete documentation of the
+    protocol will be done at some point.
+
+    The Kismet protocol consists of commands and response sentences.  A
+    command is of the form:
+
+        !ID COMMAND OPT1 OPT2 OPT3
+
+        Where ID is a number (which for proper error detection should be
+        unique) and the remainder of the arguments are the command and any
+        options it may take.
+
+        Options which contain spaces but should be treated as a single
+        argument should wrap those options in "\001...\001"
+
+    And a response sentence is of the form:
+    
+        *HEADER: f1 f2 f3 f4
+
+        Where HEADER is the sentence type, and the remainder are fields
+        requested by the client, in the order they were requested.
+
+        Fields are expected to be plain ASCII text, however a client should
+        take precautions to be sure that the value is sane for the terminal
+        before printing it.
+
+        Fields which may contain a space (used as the separator character)
+        are buffered with \001...\001.  As this could be any field, any
+        protocol parser should be able to handle fields so buffered.
+
+    Basic Kismet commands include:
+
+        !{#} SHUTDOWN
+            Shutdown Kismet instance
+
+        !{#} CAPABILITY {Sentence}
+            Query the accept fields for a protocol.  Returns the *CAPABILITY
+            sentence
+
+        !{#} ENABLE {Sentence} {Fields}|{*}
+            Enable a sentence, with either the provided fields and order, or
+            all fields in the default order if * is specified.
+
+        !{#} REMOVE {Sentence}
+            Remove a sentence.  Stop sending a sentence.
+
+        !{#} ADDNETTAG {BSSID} {Permanent} {Tag name} {Tag content}
+            Add an arbitrary tag to a network.  If permanent, it will be
+            cached in ~/.kismet/tags.conf
+
+        !{#} DELNETTAG {BSSID} {Tag name}
+            Remove a tag
+
+        !{#} ADDCLITAG {BSSID} {MAC} {Permanent} {Tag} {Content}
+            Add tag to specified client in network
+
+        !{#} DELCLITAG {BSSID} {MAC} {Tag}
+            Remove a tag
+
+        !{#} ADDSOURCE {source line}
+            Add a source dynamically.  Source line should be of the same
+            format as a 'ncsource=' config line
+
+    Protocol sentences:
+
+        When a sentence is enabled, any existing sentence data is sent (at
+        the discretion of the protocol handlers).  Additional data is sent
+        in the form of deltas; To conserve bandwidth and processing time,
+        only instances where the data has changed are sent.  For example,
+        when the *BSSID sentence is sent, a block of *BSSID records are
+        sent, for all networks previously detected by Kismet.  Until the
+        sentence is disabled, a record is sent once per second for each
+        network which has changed in some fashion (new packets).
+
+    Mandatory sentences:
+
+        Kismet expects a client to support AT LEAST the following mandatory
+        protocols, which are enabled by default.  At the very least, any
+        client should ignore these if it does not process them.  They may be
+        disabled with the REMOVE command.  In general, any client should
+        ignore protocols it does not understand.
+
+            *KISMET
+                Basic Kismet startup info
+            *PROTOCOLS
+                List of supported sentences
+            *ACK
+                Command response
+            *ERROR
+                Command failure
+            *TIME
+                Server timestamp
+
+    Example:
+
+        echo -e '\n!0 enable channel channel,networks' | nc localhost 2501
+
+        Enable the *CHANNEL sentence with the fields 'channel' and
+        'networks'.  The output could look something like:
+
+            *ACK: 0 OK 
+            *CHANNEL: 1 4 
+            *CHANNEL: 3 1 
+            *CHANNEL: 4 1 
+            *TIME: 1245176426
+
+17. Troubleshooting
+
+    Congratulations!  You're actually reading the troubleshooting section of
+    the README!  Many don't.
+
+    If you are having trouble getting Kismet to capture packets at all,
+    launch kismet_server independently of the client and watch the output,
+    it may be easier to spot problems then.
+
+    Some common problems with Kismet have easy solutions:
+
+    PROBLEM:  Fatal errors about old configuration files/missing config
+              values
+              Kismet has evolved over time, and has recently had a
+              significant rewrite of the entire application, rendering many
+              of the old configuration values obsolete, and changing many
+              others.
+    FIX:      Update your config files.  If you are moving to the latest
+              release of Kismet, it may be best to just remove your old
+              config files, copy the new ones, and reconfigure.
+
+    PROBLEM:  Kismet crashes immediately while starting up
+    FIX:      If you are building Kismet from SVN routinely, it's possible
+              that the build system has gotten screwed up with a recent
+              change.  Run 'make distclean' then './configure' and 'make'
+              again.  If the kismet_capture binary is out-of-sync with the
+              kismet_server or kismet_drone binaries, things will behave
+              oddly.
+
+    PROBLEM:  Kismet shows FATAL errors about permission denied
+    FIX:      Are you trying to capture from a network interface without
+              root privileges?  Kismet must either be installed as suid-root
+              (and the user starting it must be in the kismet group) or it
+              must be started as root, see the "Suid Root & Security"
+              section of the README.
+
+    PROBLEM:  Kismet can not autodetect my card type or doesn't understand
+              the "type=..." source option.
+    FIX:      Some drivers do not register with the /sys filesystem and can
+              not be properly autodetected.  Check the list of capture
+              sources known to be problematic in this README.
+              Secondly, check the output of './configure' when building
+              Kismet and make sure that support for your capture type is
+              present, most commonly support for pcap or wext is missing.
+
+    PROBLEM:  Kismet warns about interfering processes while starting up.
+              Many network services can interfere with Kismet (DHCP,
+              networkmanager, etc) by reconfiguring or shutting down the
+              network interface while Kismet is running.
+    FIX:      Only necessary if Kismet is not behaving as expected, or
+              encountering errors.  Shutdown or kill the offending
+              processes.  This can often be most quickly accomplished by
+              stopping the networking services for your interface ('ifdown
+              wlan0' for example).  In some specific configurations, these
+              alerts may be spurious (dhcp and wpa_supplicant alerts on a
+              multi-vap mac80211 interface doing sta+rfmon with a
+              wpa_supplicant scanning option, for example).
+
+    PROBLEM:  Kismet complains about multiple VAPs under madwifi-ng
+    FIX:      Destroy the other VAPs, or ignore this warning if there are no
+              run-time failures.  Madwifi-ng has historically had
+              significant problems with multi-vap and rfmon (for example, a
+              STA VAP and a RFMON VAP).
+
+    PROBLEM:  Shortly after starting on madwifi-ng, Kismet stops reporting
+              packets.
+    FIX:      There appears to be a race condition in madwifi-ng startup
+              where an autocreated VAP causes errors in future VAPs.  A
+              temporary fix is to reload the madwifi-ng driver before
+              starting Kismet, with the 'autocreate=none' modparm ('rmmod
+              ath_pci; modprobe ath_pci autocreate=none'), a more permanent
+              fix is to put this in the default module parameters for
+              ath_pci and make the necessary changes to your startup scripts
+              to create a managed VAP on startup.
+
+    PROBLEM:  './configure' is unable to find libpcap, wext, ncurses, pcre,
+              or some other library when building from source.
+    FIX:      Many distributions separate the runtime data from the data
+              necessary to compile programs against a library.  Install the
+              '-dev' or '-devel' or 'devel-' packages for each of the
+              libraries ('apt-get install libpcap-dev' for example)
+
+    PROBLEM:  Kismet exits immediately on Cygwin with no output.
+    FIX:      Cygwin appears to have problems linking static libraries when
+              they are not in a sub-directory of the build.  By default,
+              './configure' will look in "Airpcap_Devpack" and
+              "Winpcap_Devpack", you should probably just expand the devpack
+              zips there.
+
+    PROBLEM:  I can't capture on (some device that isn't an AirPCAP that I
+              bought from CACE) on Windows!
+    FIX:      Buy an AirPCAP and read the docs.
+
+    PROBLEM:  I can't see some parts of the Kismet UI
+    FIX:      Some terminals have bad default color assignments and render
+              dark grey as black.  Go into the Kismet color preferences and
+              change the items.
+
+    PROBLEM:  A plugin crashes Kismet (server or UI)
+    FIX:      Recompile the plugin and make sure it's build with the same
+              code as the Kismet server/client.  This is especially
+              problematic if you are following Kismet development in SVN.
+
+    PROBLEM:  Kismet makes the mouse slow or crashes the whole system
+    FIX:      This isn't actually Kismet.  Only the kernel layer should be
+              able to cause the system to lockup or crash, or interfere with
+              interrupts so badly that the mouse becomes unresponsive.
+              Kismet may exacerbate this behavior by changing the card
+              configuration and exposing flaws in the driver;  This most
+              often can happen while changing channels, try disabling
+              channel hopping (or slowing it down), and upgrade to the
+              latest drivers for your device.
+
+    PROBLEM:  Kismet cannot open a source, with the error:
+              "can't get usb bus index"
+    FIX:      Some versions of LibPcap interpret any interface with "USB"
+              in the name as a USB device on Linux, and attempt to do USB
+              bus capture instead of packet capture.
+              Rename the interface (with ifrename or udev rules) to
+              something that doesn't include 'usb'.  A newer version of
+              libpcap may also resolve this problem.
+
+    PROBLEM:  configure cannot find libnl on Ubuntu, but libnl-dev is
+              installed
+    FIX:      Some distributions (apparently, Ubuntu) require
+              libnfnetlink-dev to be installed as well.  Currently there is
+              no good way to autodetect this.
+
+18. Frequently Asked Questions
+
+    Q: Where did the name Kismet come from?
+    A: 'Kismet' means 'Fate' or 'Destiny'; While I wish I could take credit
+       for some plan about picking it for Kismets ability to uncover any
+       network in the area, I really just needed a name and clicked through
+       a thesaurus until I found a word that wasn't used in any other OSS
+       projects.
+
+    Q: Is there anything illegal about Kismet?
+    A: In and of itself, there should be nothing illegal about Kismet (it's
+       fundamentally no different than any other capture tool) but you
+       should check your local laws first.  Note, however:
+        - Recording data from networks that you do not have permission to
+          may be considered an illegal wiretap.
+        - Using networks you do not have permission to use may be considered
+          'Theft of Service' and is illegal.
+        - Don't be stupid.
+        - If you are stupid, I'm not responsible.
+
+    Q: Can Kismet crack WEP?
+    A: Yes, but also, no.  The base Kismet code does not do any WEP
+       cracking, however due to constant requests, there IS an Aircrack-PTW
+       plugin which will do PASSIVE WEP cracking only.  It will NOT do
+       arp-replay, fragmentation, or other active attacks, however if enough
+       packets are gathered it will attempt to crack the WEP key and insert
+       it into Kismet to decrypt that network.
+       The PTW-WEP cracking plugin is in the Kismet source tree in the
+       plugin-ptw/ directory.
+
+    Q: What's the deal with Newcore, and where did it go?
+    A: Newcore was a total rewrite of Kismet, which lasted years longer in a
+       development state than planned.  If you're reading this, you've got
+       the release that Newcore became already.
+
+    Q: What happened to the version numbers?
+    A: They stopped making sense.  3.0 to 3.1 was a 30,000 line change, but
+       calling it 4.0 didn't make any sense either.  I hate project
+       perpetually in 0.1, 0.9 status, but I also hate artificially
+       expanding the version numbers.  So, now, it's versioned by the
+       release date, YYYY-MM-RR.
+
+    Q: Can I use the old Kismet UI still?
+    A: No, sorry, too much has changed in the protocols, and the new UI is
+       much more flexible anyhow
+
+    Q: Can I use the old drones still?
+    A: No, again, too much has changed (however from now on it should be 
+       possible to mix versions since the drone protocol has been expanded
+       to be expandable)
+
+    Q: What is RFMON/Monitor mode?
+    A: In the wired world, promiscuous mode turns off the filtering
+       mechanism in the device and reports all packets on the Ethernet (or
+       whatever) layer.
+       With wireless drivers, this doesn't necessarily mean anything
+       (sometimes it causes different results, sometimes it doesn't).
+       Wireless drivers present a fake Ethernet device to the operating
+       systems, which reports only 802.11 data frames.  When looking at WPA
+       encrypted networks, this is even more limited, because packets are
+       encrypted for each client and only multicast/broadcast packets or
+       packets destined to the capture device could be reported as valid
+       data frames anyhow.
+       Monitor/RFMON mode is a special mode for wireless devices which
+       reports all packets the card sees, with the 802.11 headers intact,
+       including 802.11 management and control frames.
+
+    Q: Does Kismet work differently than NetStumbler?
+    A: Absolutely.  Netstumbler (and Ministumbler, InSSIDer, etc) work by
+       instructing the card to probe for networks and report the networks
+       the card sees responses from.  This method is obviously competent at
+       detecting networks in the area, however it can't record data, find
+       hidden networks, detect clients using networks, etc.
+
+    Q: Why are some probe SSIDs full of strange nonsense characters?
+    A: It appears with Windows Zero Config in many versions of Windows XP
+       has an off-by-one error which leaks a little bit of memory into a
+       probe request.  
+
+    Q: Why is the range of a network sometimes totally bogus when using a
+       GPS with Kismet?
+    A: Doing real-time GPS averaging leads to increasingly bad data due to
+       floating-point accuracy and averaging.  For more exact GPS data,
+       process the gpsxml file.
+
+    Q: What happened to gpsmap?
+    A: gpsmap was the old mapper code for Kismet.  It stopped being useful a
+       long time ago when the map sources it used went away.  It's being
+       replaced with a tile-based mapper, the beginnings of which are in
+       the kismap/ directory in the source code.  Kismap isn't quite
+       finished for the RC1 release, but development continues on it and it
+       will be available hopefully soon.
+
+    Q: How can I merge multiple capture files?
+    A: Use the 'mergecap' tool that comes with Wireshark.
+
+    Q: How can I support device X with Kismet on operating system Y?
+    A: Kismet is designed to be fairly modular (especially the newest
+       versions based on Newcore).  So long as your environment is something
+       like Posix and your device supports raw capture modes, it should be
+       possible.  Swing by IRC (#kismet on freenode) and chat.
+
+    Q: Why does Kismet make a new interface named foo-mon?
+    A: When mac80211 is available, Kismet will use to create a new virtual
+       interface, named after the existing interface (wlan0 for instance
+       will cause a wlan0mon to be created).  Kismet will use this virtual
+       interface for capture, so that it causes less disruption to the
+       configuration of the existing interface.
+
+    Q: How do I prevent Kismet from looking at data frames?
+    A: Set 'hidedata' to 'true' in the Kismet config file.  This will cause
+       Kismet to trim data frames as soon as they are identified.
+       Statistics like retransmit rates, data size/bandwidth, and so on will
+       continue, but the data contents will never be examined, even for
+       non-logging purposes (such as DHCP/IP detection, etc).
+
+       NOTICE FOR L.E.O. : Kismet WILL STILL CAPTURE the data into RAM.
+       Because the length of the 802.11 (or other PHY type) headers is
+       unknown until the packet is captured in many cases, it is not
+       possible to set the packet capture length ahead of time to exclude
+       data.  While Kismet will not examine in any way or log in any way the
+       data captured while hidedata=true is set, it will technically exist
+       as a capture in RAM until the next packet overwrites the buffer.
+
+    Q: What happens when I ask a question already here?
+    A: I'll probably be rude to you (or someone else will).  But that would
+       never happen, because everyone reads the docs all the way to the end,
+       right?  Right!?
+
