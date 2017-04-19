@@ -67,6 +67,15 @@ extern "C" {
 #endif
 }
 
+// Convert the beacon interval to # of packets per second
+unsigned int Ieee80211Interval2NSecs(int in_interval) {
+	double interval_per_sec;
+
+	interval_per_sec = (double) in_interval * 1024 / 1000000;
+	
+	return (unsigned int) ceil(1.0f / interval_per_sec);
+}
+
 void dot11_tracked_eapol::register_fields() {
     tracker_component::register_fields();
 
