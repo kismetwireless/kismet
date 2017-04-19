@@ -183,7 +183,6 @@ void mac80211_insert_flags(unsigned int *flags, unsigned int flags_sz,
         struct nl_msg *msg) {
 #ifdef HAVE_LINUX_NETLINK
 	struct nl_msg *nl_flags;
-	enum nl80211_mntr_flags flag = NL80211_MNTR_FLAG_MAX;
     unsigned int x;
 
 	if ((nl_flags = nlmsg_alloc()) == NULL) {
