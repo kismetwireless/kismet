@@ -356,6 +356,9 @@ protected:
     // and want to do channel split
     void calculate_source_hopping(SharedDatasource in_ds);
 
+    // Parse a rate string
+    double string_to_rate(string in_str, double in_default);
+
 };
 
 

@@ -254,26 +254,8 @@ Datasourcetracker::Datasourcetracker(GlobalRegistry *in_globalreg) :
 
     string optval;
     if ((optval = globalreg->kismet_config->FetchOpt("channel_hop_speed")) != "") {
-        unsigned int v;
-        double dv;
-
-        if (sscanf(optval.c_str(), "%u/sec", &v) == 1) {
-            _MSG("Setting default channel hop rate to " + IntToString(v) + 
-                    " channels per second", MSGFLAG_INFO);
-            config_defaults->set_hop_rate(v);
-        } else if (sscanf(optval.c_str(), "%u/min", &v) == 1) {
-            // Channel hop is # of hops a second, timed in usec, so to get hops per
-            // minute we get a minutes worth of usecs (60m), divide by the number
-            // of hops per minute, then divide a second by that.
-            dv = (double) 1000000 / (double) ((double) (1000000 * 60) / (double) v);
-            _MSG("Setting dfault channel hop rate to " + IntToString(v) + 
-                    " channels per minute", MSGFLAG_INFO);
-            config_defaults->set_hop_rate(dv);
-        } else {
-            _MSG("Unable to parse channel_hop_speed= from kismet config, expected "
-                    "value/sec or value/minute, defaulting to 1/sec", MSGFLAG_ERROR);
-            config_defaults->set_hop_rate(1);
-        }
+        double dv = string_to_rate(optval, 1);
+        config_defaults->set_hop_rate(dv);
     } else {
         _MSG("No channel_hop_speed= in kismet config, setting hop "
                 "rate to 1/sec", MSGFLAG_INFO);
@@ -679,6 +661,9 @@ public:
 
             int ds_offt = (ds_hopvec.size() / offt_count) * nintf;
 
+            double rate;
+
+
             (*ds)->set_channel_hop(defaults->get_hop_rate(), ds_hopchans, 
                     defaults->get_random_channel_order(),
                     ds_offt, 0, NULL);
@@ -701,14 +686,17 @@ protected:
 };
 
 void Datasourcetracker::calculate_source_hopping(SharedDatasource in_ds) {
+    if (in_ds->get_definition_opt_bool("hop", false)) {
+        // Source doesn't hop regardless of defaults
+        return;
+    }
 
-    // Turn on channel hopping with our defaults
+    // Turn on channel hopping if we do that
     if (config_defaults->get_hop()) {
+        // Do we split sources?
         if (config_defaults->get_split_same_sources()) {
             dst_chansplit_worker worker(globalreg, config_defaults, in_ds);
-
             iterate_datasources(&worker);
-
         } else {
             in_ds->set_channel_hop(config_defaults->get_hop_rate(),
                     in_ds->get_source_hop_vec(),
@@ -754,5 +742,23 @@ int Datasourcetracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind 
         const char *transfer_encoding, const char *data, uint64_t off, size_t size) {
 
     return 0;
+}
+
+double Datasourcetracker::string_to_rate(string in_str, double in_default) {
+    unsigned int v;
+    double dv;
+
+    if (sscanf(in_str.c_str(), "%u/sec", &v) == 1) {
+        return v;
+    } else if (sscanf(in_str.c_str(), "%u/min", &v) == 1) {
+        // Channel hop is # of hops a second, timed in usec, so to get hops per
+        // minute we get a minutes worth of usecs (60m), divide by the number
+        // of hops per minute, then divide a second by that.
+        dv = (double) 1000000 / (double) ((double) (1000000 * 60) / (double) v);
+
+        return dv;
+    } else {
+        return in_default;
+    }
 }
 
