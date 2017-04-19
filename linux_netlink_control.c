@@ -304,8 +304,9 @@ int mac80211_set_channel_cache(const char *interface, void *handle,
 
 nla_put_failure:
 	snprintf(errstr, STATUS_MAX, 
-            "unable to set channel %u/%u on interface '%s' via mac80211: error code %d",
-            channel, mac80211_chan_to_freq(channel), interface, ret);
+            "unable to set channel %u/%u mode %u on interface '%s' via mac80211: "
+            "error code %d", channel, mac80211_chan_to_freq(channel), chmode,
+            interface, ret);
 	nlmsg_free(msg);
 	return ret;
 #endif
