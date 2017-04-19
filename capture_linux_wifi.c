@@ -1190,10 +1190,12 @@ int main(int argc, char *argv[]) {
         .reset_nm_management = 0,
     };
 
+#if 0
     /* Remap stderr so we can log debugging to a file */
     FILE *sterr;
     sterr = fopen("/tmp/capture_linux_wifi.stderr", "a");
     dup2(fileno(sterr), STDERR_FILENO);
+#endif
 
     fprintf(stderr, "CAPTURE_LINUX_WIFI launched on pid %d\n", getpid());
 

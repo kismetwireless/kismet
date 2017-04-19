@@ -311,10 +311,12 @@ int main(int argc, char *argv[]) {
         .last_ts.tv_usec = 0
     };
 
+#if 0
     /* Remap stderr so we can log debugging to a file */
     FILE *sterr;
     sterr = fopen("/tmp/capture_pcapfile.stderr", "a");
     dup2(fileno(sterr), STDERR_FILENO);
+#endif
 
     fprintf(stderr, "CAPTURE_PCAPFILE launched on pid %d\n", getpid());
 
