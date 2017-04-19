@@ -100,7 +100,7 @@ xx. Kismet Data Sources
     When no options are provided for a data source, the defaults are controlled 
     by settings in kismet.conf:
 
-    channel_hop=true|false
+    channel_hop=true | false
 
         Controls if new sources enable channel hopping.  Because radios can only
         look at one channel at a time (typically), channel hopping jumps around
@@ -122,7 +122,7 @@ xx. Kismet Data Sources
             channel_hop_speed=5/sec
             channel_hop_speed=10/min
 
-    split_source_hopping=true|false
+    split_source_hopping=true | false
 
         Kismet can run with multiple interfaces for the same protocol - for instance,
         two, three, or even more Wi-Fi cards.  Typically it does not make sense to
@@ -133,7 +133,7 @@ xx. Kismet Data Sources
 
         Generally there is no reason to turn this off.
 
-    randomized_hopping=true|false
+    randomized_hopping=true | false
 
         Generally, data sources retrieve the list of channels in sequential order.
         On some source types (like Wi-Fi), channels can overlap; hopping in a 
@@ -141,8 +141,15 @@ xx. Kismet Data Sources
         nearby channels when possible.
 
         Generally, there is no reason to turn this off.
+
+    retry_on_source_error=true | false
+
+        If true, Kismet will try to re-open a source which is in an error state
+        after five seconds.
        
 xx. Datasource: Linux Wi-Fi
+
+    Wi-Fi Capture on Linux
 
     The Linux Wi-Fi data source handles capturing from Wi-Fi interfaces using the
     two most recent Linux standards:  The new netlink/mac80211 standard present
@@ -181,6 +188,97 @@ xx. Datasource: Linux Wi-Fi
 
     Many more devices should be supported - if yours isn't listed and works, let
     us know via Twitter (@kismetwireless).  
+
+
+    Wi-Fi Source Parameters
+
+    Linux Wi-Fi sources accept several options in the source definition:
+
+    fcsfail=true | false
+
+        mac80211-based drivers sometimes have the option to report packets 
+        which do not pass the frame checksum, or FCS.  Generally these packets
+        are garbage - they are packets which, due to in-air corruption due to
+        collisions with other packets, have become corrupt.
+
+        Usually there is no good reason to turn this on unless you are doing
+        research on non-standard packets and hope to glean some sort of
+        information from them.
+
+    hop=true | false
+
+        Enable channel hopping on this source.  If this is omitted, the source
+        will use the global hopping option.
+
+    hoprate=channels/sec | channels/min
+
+        Like the global channel_hop_rate configuration option, this sets the 
+        speed of channel hopping on this source only.  If this is omitted,
+        the source will use the global hop rate.
+
+    ignoreprimary=true | false
+
+        mac80211-based drivers use multiple virtual interfaces to control
+        behavior:  A single Wi-Fi interface might have 'wlan0' as the 
+        "normal" Wi-Fi interface, and Kismet would make 'wlan0mon' as the
+        capture interface.
+
+        Typically, all non-monitor interfaces must be placed into a "down"
+        state for capture to work reliably, or for channel hopping to work.
+
+        In the rare case where you are attempting to run Kismet on the same
+        interface as another mode (such as access point or client), you 
+        may want to leave the base interface running.  If you set 
+        "ignoreprimary=true" on the source, Kismet will not bring down the
+        primary interface.
+
+        This *almost always* must be combined with "hop=false" or setting
+        channels will fail.
+
+    plcpfail=true | false
+
+        mac80211-based drivers sometimes have the ability to report events
+        that may have looked like packets, but which have invalid low-level
+        packet headers (PLCP).  Generally these events have no meaning, and
+        very few drivers are able to report them.
+
+        Usually there is no good reason to turn this on, unless you are 
+        doing research attempting to capture Wi-Fi-like encoded data which
+        is not actually Wi-Fi.
+
+    uuid=AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE
+
+        Assign a custom UUID to this source.  If no custom UUID is provided,
+        a UUID is computed from the MAC address and the name of the datasource
+        capture engine; the auto-generated UUID will be consistent as long as
+        the MAC address of the capture interface remains the same.
+
+    vif=foo
+
+        mac80211-based drivers use multiple virtual interfaces to control 
+        behavior.  Kismet will make a monitor mode virtual interface (vif)
+        automatically, named after some simple rules:
+            - If the interface given to Kismet on the source definition is
+              already in monitor mode, Kismet will use that interface and
+              not create a VIF
+            - If the interface name is too long, such as when some 
+              distributions use the entire MAC address as the interface name,
+              Kismet will make a new interface named 'kismonX'
+            - Otherwise, Kismet will add 'mon' to the interface; ie given an
+              interface 'wlan0', Kismet will create 'wlan0mon'
+
+        The 'vif=' option allows setting a custom name which will be used
+        instead of creating a name.
+
+    retry=true | false
+        
+        Automatically try to re-open this interface if an error occurs.  If the
+        capture source encounters a fatal error, Kismet will try to re-open it in
+        five seconds.  If this is omitted, the source will use the global retry
+        option.
+
+
+
 
 
 xx. Kismet Webserver
