@@ -636,10 +636,6 @@ public:
         if (in_src->get_source_builder()->get_source_type() != match_type)
             return;
 
-        // Don't look at ones that aren't hopping b/c of manual config
-        if (!in_src->get_source_hopping())
-            return;
-
         target_sources.push_back(in_src);
     }
 
