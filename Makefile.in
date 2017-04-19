@@ -49,7 +49,7 @@ PSO	= util.o cygwin_utils.o globalregistry.o \
 	messagebus_restclient.o \
 	kismet_server.o \
 
-PS	= kismet_server
+PS	= kismet
 
 ALL	= Makefile $(DEPEND) $(PS) $(DATASOURCE_BINS)
 
@@ -89,6 +89,9 @@ commoninstall: $(INSTBINS)
 	mkdir -p $(BIN)
 
 	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(PS) $(BIN)/$(PS); 
+
+	# Symlink it to the old name
+	ln -s -f $(BIN)/$(PS) $(BIN)/kismet_server;
 
 	mkdir -p $(BIN)/kismet_capture_tools/
 
