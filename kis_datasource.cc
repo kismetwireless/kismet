@@ -425,6 +425,8 @@ void KisDatasource::BufferError(string in_error) {
 void KisDatasource::trigger_error(string in_error) {
     local_locker lock(&source_lock);
 
+    set_int_source_running(false);
+
     // Kill any interaction w/ the source
     close_source();
 
@@ -699,6 +701,8 @@ void KisDatasource::proto_packet_open_resp(KVmap in_kvpairs) {
     for (auto c = source_chan_vec.begin(); c != source_chan_vec.end(); ++c) {
         hop_chan_vec.push_back(*c);
     }
+
+    set_int_source_running(get_kv_success(i->second));
 
     // Get the sequence number and look up our command
     uint32_t seq = get_kv_success_sequence(i->second);
@@ -1570,6 +1574,9 @@ void KisDatasource::register_fields() {
             "capture command", &source_ipc_binary);
     RegisterField("kismet.datasource.ipc_pid", TrackerInt64,
             "capture process", &source_ipc_pid);
+
+    RegisterField("kismet.datasource.running", TrackerUInt8,
+            "capture is running", &source_running);
 
     RegisterField("kismet.datasource.name", TrackerString,
             "Human-readable name", &source_name);

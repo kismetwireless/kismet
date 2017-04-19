@@ -636,6 +636,10 @@ public:
         if (in_src->get_source_builder()->get_source_type() != match_type)
             return;
 
+        // Don't look at ones that aren't open yet
+        if (!in_src->get_source_running()) 
+            return;
+
         target_sources.push_back(in_src);
     }
 

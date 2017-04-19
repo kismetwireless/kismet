@@ -167,6 +167,8 @@ public:
     __ProxyGet(source_hop_shuffle, uint8_t, bool, source_hop_shuffle);
     __ProxyTrackable(source_hop_vec, TrackerElement, source_hop_vec);
 
+    __ProxyGet(source_running, uint8_t, bool, source_running);
+
     // IPC binary name, if any
     __ProxyGet(source_ipc_binary, string, string, source_ipc_binary);
     // IPC channel pid, if any
@@ -444,6 +446,9 @@ protected:
     // If we're an IPC instance, the IPC control.  The ringbuf_handler is associated
     // with the IPC instance.
     shared_ptr<IPCRemoteV2> ipc_remote;
+
+    SharedTrackerElement source_running;
+    __ProxySet(int_source_running, uint8_t, bool, source_running);
 
     SharedTrackerElement source_ipc_binary;
     __ProxySet(int_source_ipc_binary, string, string, source_ipc_binary);

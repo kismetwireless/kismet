@@ -496,6 +496,7 @@ void *cf_int_chanhop_thread(void *arg) {
     /* Where we are in the hopping vec */
     pthread_mutex_lock(&(caph->handler_lock));
     size_t hoppos = caph->channel_hop_offset;
+    fprintf(stderr, "debug - setting initial hop offset to %lu\n", hoppos);
     pthread_mutex_unlock(&(caph->handler_lock));
 
     /* How long we're waiting until the next time */
@@ -504,6 +505,7 @@ void *cf_int_chanhop_thread(void *arg) {
 
     char errstr[STATUS_MAX];
 
+    fprintf(stderr, "debug - launching chanhop loop\n");
     while (1) {
         pthread_mutex_lock(&(caph->handler_lock));
 
