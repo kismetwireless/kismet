@@ -112,6 +112,7 @@ public:
     virtual void set_channel_hop_list(std::vector<std::string> in_chans, 
             unsigned int in_transaction, configure_callback_t in_cb);
 
+
     // Connect an interface to a pre-existing ringbuffer (such as from a TCP server
     // connection); This doesn't require async because we're just binding the
     // interface; anything we do with the ringbuffer is itself async in the
@@ -125,6 +126,10 @@ public:
     // Closing sends a failure result to any pending async commands
     virtual void close_source();
 
+
+    // Get an option from the definition
+    string get_definition_opt(string in_opt);
+    bool get_definition_opt_bool(string in_opt, bool in_default);
 
 
 

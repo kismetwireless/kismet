@@ -443,6 +443,24 @@ void KisDatasource::trigger_error(string in_error) {
     set_int_source_error_reason(in_error);
 }
 
+string KisDatasource::get_definition_opt(string in_opt) {
+    auto i = source_definition_opts.find(StrLower(in_opt));
+
+    if (i == source_definition_opts.end())
+        return "";
+
+    return i->second;
+}
+
+bool KisDatasource::get_definition_opt_bool(string in_opt, bool in_def) {
+    auto i = source_definition_opts.find(StrLower(in_opt));
+
+    if (i == source_definition_opts.end())
+        return "";
+
+    return StringToBool(i->second, in_def);
+}
+
 bool KisDatasource::parse_interface_definition(string in_definition) {
     local_locker lock(&source_lock);
 
@@ -486,9 +504,10 @@ bool KisDatasource::parse_interface_definition(string in_definition) {
         set_source_name(get_source_interface());
     }
 
-    auto uuid_i = source_definition_opts.find("uuid");
-    if (uuid_i != source_definition_opts.end()) {
-        uuid u(uuid_i->second);
+    string uuidstr = get_definition_opt("uuid");
+
+    if (uuidstr != "") {
+        uuid u(uuidstr);
 
         if (u.error) {
             _MSG("Invalid UUID for data source " + get_source_name() + "/" + 
@@ -500,10 +519,7 @@ bool KisDatasource::parse_interface_definition(string in_definition) {
         local_uuid = true;
     }
 
-    auto error_i = source_definition_opts.find("retry");
-    if (error_i != source_definition_opts.end()) {
-        set_int_source_retry(StringToBool(error_i->second, true));
-    }
+    set_int_source_retry(get_definition_opt_bool("retry", true));
    
     return true;
 }
