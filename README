@@ -141,7 +141,46 @@ xx. Kismet Data Sources
         nearby channels when possible.
 
         Generally, there is no reason to turn this off.
-        
+       
+xx. Datasource: Linux Wi-Fi
+
+    The Linux Wi-Fi data source handles capturing from Wi-Fi interfaces using the
+    two most recent Linux standards:  The new netlink/mac80211 standard present
+    since approximately 2007, and the legacy ioctl-based IW extensions system
+    present since approximately 2002.
+
+    Packet capture on Wi-Fi is accomplished via "monitor mode", a special mode 
+    where the card is told to report all packets seen, and to report them at
+    the 802.11 link layer instead of emulating an Ethernet device.
+
+    Not all hardware and drivers support monitor mode, but many do.  Typically 
+    any driver shipped with the Linux kernel supports monitor mode, and does so
+    in a standard way Kismet understands.  If a specific piece of hardware does
+    not have a Linux driver yet, or does not have a standard driver with monitor
+    mode support, Kismet will not be able to use it.
+
+    The Linux Wi-Fi source is known to support, among others:
+        - All Atheros-based cards (ath5k, ath9k, ath10k with some restrictions, 
+          USB-based atheros cards like the AR9271)
+        - Modern Intel-based cards (all supported by the iwlwifi driver including
+          the 3945, 4965, 7265, 8265 and similar)
+        - Realtek USB devices (rtl8180 and rtl8187, such as the Alfa AWUS036H)
+        - Legacy ralink devices
+        - ZyDAS cards
+        - Almost all drivers shipped with the Linux kernel
+
+    It will NOT work with:
+        - Raspberry Pi 3 or ZeroW built-in Wi-Fi using standard drivers.  The Broadcom
+          embedded firmware does not support monitor mode.  It may be possible
+          to get it working with the Nexmon driver project, available at: 
+              https://github.com/seemoo-lab/nexmon
+        - Most out-of-kernel drivers installed by a distribution outside of
+          the normal kernel driver set.  Some distributions (raspbian for instance)
+          package custom drivers for many of the cheaper USB Wi-Fi adapters, and
+          these drivers do not support monitor mode.
+
+    Many more devices should be supported - if yours isn't listed and works, let
+    us know via Twitter (@kismetwireless).  
 
 
 xx. Kismet Webserver
