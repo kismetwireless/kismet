@@ -28,12 +28,7 @@
 
 #include <sys/socket.h>
 
-#ifdef SYS_LINUX
-#include <asm/types.h>
-#include <linux/if.h>
-#else
 #include <net/if.h>
-#endif
 
 #ifndef SYS_CYGWIN
 #include <net/if_arp.h>
