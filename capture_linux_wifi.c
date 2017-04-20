@@ -1202,7 +1202,7 @@ int main(int argc, char *argv[]) {
     GError *nmerror = NULL;
 #endif
 
-#if 1
+#if 0
     /* Remap stderr so we can log debugging to a file */
     FILE *sterr;
     sterr = fopen("/tmp/capture_linux_wifi.stderr", "a");
