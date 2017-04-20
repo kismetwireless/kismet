@@ -1200,6 +1200,7 @@ void KisDatasource::handle_kv_uuid(KisDatasourceCapKeyedObject *in_obj) {
 
 void KisDatasource::handle_kv_config_channel(KisDatasourceCapKeyedObject *in_obj) {
     // Very simple - we just copy the channel string over
+    set_int_source_hopping(false);
     set_int_source_channel(string(in_obj->object, in_obj->size));
 }
 
@@ -1240,6 +1241,8 @@ void KisDatasource::handle_kv_config_hop(KisDatasourceCapKeyedObject *in_obj) {
         } else {
             throw std::runtime_error(string("rate missing in hop config"));
         }
+
+        set_int_source_hopping(true);
 
         // Grab the shuffle and offset if we have them
         if ((obj_iter = dict.find("shuffle")) != dict.end()) {
@@ -1670,7 +1673,23 @@ void KisDatasource::handle_source_error() {
     error_timer_id = timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 5,
             NULL, 0, [this](int) -> int {
                 // Call open on the same sourceline, no transaction, no cb
-                open_interface(get_source_definition(), 0, NULL);
+                open_interface(get_source_definition(), 0, 
+                        [this](int, bool success, string) {
+                            if (!success)
+                                return;
+
+                            if (get_source_hopping()) {
+                                // Reset the channel hop if we're hopping
+                                set_channel_hop(get_source_hop_rate(),
+                                        get_source_hop_vec(),
+                                        get_source_hop_shuffle(),
+                                        get_source_hop_offset(),
+                                        0, NULL);
+                            } else if (get_source_channel() != "") {
+                                // Reset the fixed channel if we have one
+                                set_channel(get_source_channel(), 0, NULL);
+                            }
+                        });
                 return 0;
             });
 }
