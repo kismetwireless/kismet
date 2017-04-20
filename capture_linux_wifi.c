@@ -99,10 +99,7 @@ typedef struct {
     /* Number of sequential errors setting channel */
     unsigned int seq_channel_failure;
 
-    /* network manager objects; our nm client, device record,
-     * and do we reset network manager controlling the device? */
-    void *nm_client;
-    void *nm_device;
+    /* Do we try to reset networkmanager when we're done? */
     int reset_nm_management;
 } local_wifi_t;
 
@@ -600,7 +597,9 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     }
 
     /* We think we can do something with this interface; if we have support,
-     * connect to network manager */
+     * connect to network manager.  Because it looks like nm keeps trying
+     * to deliver reports to us as long as we're connected, DISCONNECT 
+     * when we're done! */
 #ifdef HAVE_LIBNM
     nmclient = nm_client_new(NULL, &nmerror);
 
@@ -623,10 +622,11 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
         if (nmdevices != NULL) {
             for (int i = 0; i < nmdevices->len; i++) {
-                NMDevice *d = g_ptr_array_index(nmdevices, i);
+                const NMDevice *d = g_ptr_array_index(nmdevices, i);
 
-                if (strcmp(nm_device_get_iface(d), local_wifi->interface) == 0) {
-                    nmdevice = d;
+                if (strcmp(nm_device_get_iface((NMDevice *) d), 
+                            local_wifi->interface) == 0) {
+                    nmdevice = (NMDevice *) d;
                     break;
                 }
             }
@@ -643,11 +643,14 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                     local_wifi->interface);
             cf_send_message(caph, errstr, MSGFLAG_INFO);
             nm_device_set_managed(nmdevice, 0);
-
-            local_wifi->nm_client = nmclient;
-            local_wifi->nm_device = nmdevice;
         }
     }
+
+    /* We HAVE to unref the nmclient and disconnect here or it keeps trying
+     * to deliver messages to us, filling up hundreds of megs of ram */
+    if (nmclient != NULL)
+        g_object_unref(nmclient);
+
 #endif
 
     if (mode != LINUX_WLEXT_MONITOR) {
@@ -812,6 +815,9 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                 snprintf(msg, STATUS_MAX, "Failed to create a monitor vif and could "
                         "not set mode of existing interface, unable to put "
                         "'%s' into monitor mode.", local_wifi->interface);
+
+                free(flags);
+
                 return -1;
             } else {
                 snprintf(errstr2, STATUS_MAX, "Configured '%s' as monitor mode "
@@ -831,6 +837,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                     local_wifi->interface);
             local_wifi->use_mac80211 = 1;
         }
+
+        free(flags);
     } else if (mode != LINUX_WLEXT_MONITOR) {
         /* Otherwise we want monitor mode but we don't have nl / found the same vif */
         if (iwconfig_set_mode(local_wifi->interface, errstr, 
@@ -1185,16 +1193,21 @@ int main(int argc, char *argv[]) {
         .mac80211_handle = NULL,
         .mac80211_family = NULL,
         .seq_channel_failure = 0,
-        .nm_client = NULL,
-        .nm_device = NULL,
         .reset_nm_management = 0,
     };
 
-#if 0
+#ifdef HAVE_LIBNM
+    NMClient *nmclient = NULL;
+    const GPtrArray *nmdevices;
+    GError *nmerror = NULL;
+#endif
+
+#if 1
     /* Remap stderr so we can log debugging to a file */
     FILE *sterr;
     sterr = fopen("/tmp/capture_linux_wifi.stderr", "a");
     dup2(fileno(sterr), STDERR_FILENO);
+    dup2(fileno(sterr), STDOUT_FILENO);
 #endif
 
     fprintf(stderr, "CAPTURE_LINUX_WIFI launched on pid %d\n", getpid());
@@ -1236,10 +1249,31 @@ int main(int argc, char *argv[]) {
 
     cf_handler_loop(caph);
 
+    /* We're done - try to reset the networkmanager awareness of the interface */
+
 #ifdef HAVE_LIBNM
-    if (local_wifi.nm_client != NULL && local_wifi.nm_device != NULL &&
-            local_wifi.reset_nm_management) {
-        nm_device_set_managed(local_wifi.nm_device, 0);
+    if (local_wifi.reset_nm_management) {
+        nmclient = nm_client_new(NULL, &nmerror);
+
+        if (nmclient != NULL) {
+            if (nm_client_get_nm_running(nmclient)) {
+                nmdevices = nm_client_get_devices(nmclient);
+
+                if (nmdevices != NULL) {
+                    for (int i = 0; i < nmdevices->len; i++) {
+                        const NMDevice *d = g_ptr_array_index(nmdevices, i);
+
+                        if (strcmp(nm_device_get_iface((NMDevice *) d), 
+                                    local_wifi.interface) == 0) {
+                            nm_device_set_managed((NMDevice *) d, 1);
+                            break;
+                        }
+                    }
+                }
+            }
+
+            g_object_unref(nmclient);
+        }
     }
 #endif
 
