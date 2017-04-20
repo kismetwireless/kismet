@@ -500,8 +500,8 @@ void *cf_int_chanhop_thread(void *arg) {
     pthread_mutex_unlock(&(caph->handler_lock));
 
     /* How long we're waiting until the next time */
-    unsigned int wait_sec;
-    unsigned int wait_usec;
+    unsigned int wait_sec = 0;
+    unsigned int wait_usec = 0;
 
     char errstr[STATUS_MAX];
 
@@ -945,6 +945,8 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
         cbret = -1;
     }
 
+    free(frame_buf);
+
     fprintf(stderr, "returning cbret %d\n", cbret);
     return cbret;
 }
@@ -1226,9 +1228,12 @@ void cf_handler_loop(kis_capture_handler_t *caph) {
                     pthread_mutex_unlock(&(caph->out_ringbuf_lock));
                     fprintf(stderr,
                             "FATAL:  Error during write(): %s\n", strerror(errno));
+                    free(peek_buf);
                     break;
                 }
             }
+
+            free(peek_buf);
 
             /* Flag it as consumed */
             kis_simple_ringbuf_read(caph->out_ringbuf, NULL, (size_t) written_sz);
@@ -1635,11 +1640,11 @@ int cf_send_data(kis_capture_handler_t *caph,
     simple_cap_proto_kv_t **kv_pairs;
 
     if (kv_message != NULL)
-        kv_pos++;
+        num_kvs++;
     if (kv_signal != NULL)
-        kv_signal++;
+        num_kvs++;
     if (kv_gps != NULL)
-        kv_gps++;
+        num_kvs++;
 
     kv_pairs = 
         (simple_cap_proto_kv_t **) malloc(sizeof(simple_cap_proto_kv_t *) * num_kvs);
