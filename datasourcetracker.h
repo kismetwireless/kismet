@@ -319,6 +319,9 @@ public:
     // Parse a rate string
     double string_to_rate(string in_str, double in_default);
 
+    // Access the defaults
+    shared_ptr<datasourcetracker_defaults> get_config_defaults();
+
 protected:
     GlobalRegistry *globalreg;
 

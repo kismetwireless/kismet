@@ -301,6 +301,10 @@ Datasourcetracker::~Datasourcetracker() {
     pthread_mutex_destroy(&dst_lock);
 }
 
+shared_ptr<datasourcetracker_defaults> Datasourcetracker::get_config_defaults() {
+    return config_defaults;
+}
+
 int Datasourcetracker::system_startup() {
     bool used_args = false;
 

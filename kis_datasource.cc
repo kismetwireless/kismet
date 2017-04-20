@@ -23,6 +23,7 @@
 #include "endian_magic.h"
 #include "configfile.h"
 #include "msgpack_adapter.h"
+#include "datasourcetracker.h"
 
 // We never instantiate from a generic tracker component or from a stored
 // record so we always re-allocate ourselves
@@ -47,6 +48,9 @@ KisDatasource::KisDatasource(GlobalRegistry *in_globalreg,
 
     packetchain =
         static_pointer_cast<Packetchain>(globalreg->FetchGlobal("PACKETCHAIN"));
+
+    datasourcetracker =
+        static_pointer_cast<Datasourcetracker>(globalreg->FetchGlobal("DATASOURCETRACKER"));
 
 	pack_comp_linkframe = packetchain->RegisterPacketComponent("LINKFRAME");
     pack_comp_l1info = packetchain->RegisterPacketComponent("RADIODATA");
@@ -472,36 +476,35 @@ bool KisDatasource::parse_interface_definition(string in_definition) {
 
     size_t cpos = in_definition.find(":");
 
+    // Turn the rest into an opt vector
+    std::vector<opt_pair> options;
+
     // If there's no ':' then there are no options
     if (cpos == string::npos) {
         set_int_source_interface(in_definition);
         set_source_name(in_definition);
-        return true;
-    }
+    } else {
+        // Slice the interface
+        set_int_source_interface(in_definition.substr(0, cpos));
 
-    // Slice the interface
-    set_int_source_interface(in_definition.substr(0, cpos));
+        // Blow up if we fail parsing
+        if (StringToOpts(in_definition.substr(cpos + 1, 
+                        in_definition.size() - cpos - 1), ",", &options) < 0) {
+            return false;
+        }
 
-    // Turn the rest into an opt vector
-    std::vector<opt_pair> options;
-
-    // Blow up if we fail parsing
-    if (StringToOpts(in_definition.substr(cpos + 1, 
-                in_definition.size() - cpos - 1), ",", &options) < 0) {
-        return false;
-    }
-
-    // Throw into a nice keyed dictionary so other elements of the DS can use it
-    for (auto i = options.begin(); i != options.end(); ++i) {
-        source_definition_opts[StrLower((*i).opt)] = (*i).val;
+        // Throw into a nice keyed dictionary so other elements of the DS can use it
+        for (auto i = options.begin(); i != options.end(); ++i) {
+            source_definition_opts[StrLower((*i).opt)] = (*i).val;
+        }
     }
 
     // Set some basic options
-    
-    auto name_i = source_definition_opts.find("name");
+   
+    string namestr = get_definition_opt("name");
 
-    if (name_i != source_definition_opts.end()) {
-        set_source_name(name_i->second);
+    if (namestr != "") {
+        set_source_name(namestr);
     } else {
         set_source_name(get_source_interface());
     }
@@ -521,7 +524,8 @@ bool KisDatasource::parse_interface_definition(string in_definition) {
         local_uuid = true;
     }
 
-    set_int_source_retry(get_definition_opt_bool("retry", true));
+    set_int_source_retry(get_definition_opt_bool("retry", 
+                datasourcetracker->get_config_defaults()->get_retry_on_error()));
    
     return true;
 }
@@ -700,6 +704,10 @@ void KisDatasource::proto_packet_open_resp(KVmap in_kvpairs) {
     hop_chan_vec.clear();
     for (auto c = source_chan_vec.begin(); c != source_chan_vec.end(); ++c) {
         hop_chan_vec.push_back(*c);
+    }
+
+    if (get_kv_success(i->second)) {
+        set_int_source_retry_attempts(0);
     }
 
     set_int_source_running(get_kv_success(i->second));

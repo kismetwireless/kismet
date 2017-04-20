@@ -45,6 +45,9 @@ typedef shared_ptr<KisDatasourceInterface> SharedInterface;
 // Simple keyed object derived from the low-level C protocol
 class KisDatasourceCapKeyedObject;
 
+// Fwd def for DST
+class Datasourcetracker;
+
 class KisDatasource : public tracker_component, public RingbufferInterface {
 public:
     // Initialize and tell us what sort of builder
@@ -488,6 +491,9 @@ protected:
 
     // Packet components we inject
     int pack_comp_linkframe, pack_comp_l1info, pack_comp_gps, pack_comp_datasrc;
+
+    // Reference to the DST
+    shared_ptr<Datasourcetracker> datasourcetracker;
 
 };
 
