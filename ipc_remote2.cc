@@ -168,7 +168,30 @@ int IPCRemoteV2::launch_kis_explicit_binary(string cmdpath, vector<string> args)
         pthread_mutex_unlock(&ipc_locker);
     } else if (child_pid == 0) {
         // We're the child process
-        
+      
+#if 0
+        cmdarg = new char*[args.size() + 8];
+
+        cmdarg[0] = strdup("valgrind");
+        cmdarg[1] = strdup("--tool=memcheck");
+        cmdarg[2] = strdup("--leak-check=full");
+        cmdarg[3] = strdup("--show-leak-kinds=all");
+        cmdarg[4] = strdup(cmdpath.c_str());
+
+        // Child reads from inpair
+        arg << "--in-fd=" << inpipepair[0];
+        cmdarg[5] = strdup(arg.str().c_str());
+        arg.str("");
+
+        // Child writes to writepair
+        arg << "--out-fd=" << outpipepair[1];
+        cmdarg[6] = strdup(arg.str().c_str());
+
+        for (unsigned int x = 0; x < args.size(); x++)
+            cmdarg[x+7] = strdup(args[x].c_str());
+
+        cmdarg[args.size() + 7] = NULL;
+#else
         // argv[0], "--in-fd" "--out-fd" ... NULL
         cmdarg = new char*[args.size() + 4];
         cmdarg[0] = strdup(cmdpath.c_str());
@@ -186,6 +209,7 @@ int IPCRemoteV2::launch_kis_explicit_binary(string cmdpath, vector<string> args)
             cmdarg[x+3] = strdup(args[x].c_str());
 
         cmdarg[args.size() + 3] = NULL;
+#endif
 
         // Close the unused half of the pairs on the child
         close(inpipepair[1]);
