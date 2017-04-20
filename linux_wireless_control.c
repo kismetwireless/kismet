@@ -571,6 +571,7 @@ int iwconfig_get_chanlist(const char *interface, char *errstr,
 	char buffer[sizeof(struct iw_range) * 2];
 	union iw_range_raw *range_raw;
 	struct iw_range range;
+    int k;
 
     *chan_list = NULL;
     *chan_list_len = 0;
@@ -689,7 +690,7 @@ int iwconfig_get_chanlist(const char *interface, char *errstr,
         return -1;
     }
 
-    for (int k = 0; k < range.num_frequency; k++) {
+    for (k = 0; k < range.num_frequency; k++) {
         int freq = (((double) range.freq[k].m) * pow(10, range.freq[k].e)) /
             1000000;
 
