@@ -63,7 +63,7 @@
 #include "config.h"
 
 #ifdef HAVE_LIBNM
-#include <NetworkManager.h>
+#include <libnm/NetworkManager.h>
 #include <glib.h>
 #endif
 
