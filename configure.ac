@@ -903,9 +903,36 @@ NMCFLAGS=""
 
 PKG_CHECK_MODULES(libnm, [libnm], havelibnm=yes, havelibnm=no)
 if test $havelibnm = yes; then
-    AC_DEFINE(HAVE_LIBNM, 1, NetworkManager interface library)
     NMLIBS=`pkg-config --libs libnm`
     NMCFLAGS=`pkg-config --cflags libnm`
+fi
+
+if test "$havelibnm" = "yes"; then
+	OLIBS="$LIBS"
+	LIBS="$LIBS $NMLIBS"
+	OCFL="$CPPFLAGS"
+	CPPFLAGS="$CPPFLAGS $NMCFLAGS"
+
+	AC_MSG_CHECKING(For nm_device_set_managed in libnm)
+	AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+            #include <libnm/NetworkManager.h>
+            #include <glib.h>
+			]], [[
+            nm_device_set_managed(NULL, 0);
+			return 0;
+			]])],[havelibnm=yes],[havelibnm=no])
+
+	LIBS="$OLIBS"
+    CPPFLAGS="$OCFL"
+else
+	AC_MSG_WARN(Libnm missing device_set_managed function, looks like a very old version)
+	havelibnm=no
+    NMLIBS=""
+    NMCFLAGS=""
+fi
+
+if test $havelibnm = yes; then
+    AC_DEFINE(HAVE_LIBNM, 1, NetworkManager interface library)
 fi
 
 AC_SUBST(NMLIBS)

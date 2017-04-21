@@ -8673,11 +8673,57 @@ $as_echo "yes" >&6; }
 	havelibnm=yes
 fi
 if test $havelibnm = yes; then
+    NMLIBS=`pkg-config --libs libnm`
+    NMCFLAGS=`pkg-config --cflags libnm`
+fi
+
+if test "$havelibnm" = "yes"; then
+	OLIBS="$LIBS"
+	LIBS="$LIBS $NMLIBS"
+	OCFL="$CPPFLAGS"
+	CPPFLAGS="$CPPFLAGS $NMCFLAGS"
+
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking For nm_device_set_managed in libnm" >&5
+$as_echo_n "checking For nm_device_set_managed in libnm... " >&6; }
+	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+            #include <libnm/NetworkManager.h>
+            #include <glib.h>
+
+int
+main ()
+{
+
+            nm_device_set_managed(NULL, 0);
+			return 0;
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_cxx_try_link "$LINENO"; then :
+  havelibnm=yes
+else
+  havelibnm=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+
+	LIBS="$OLIBS"
+    CPPFLAGS="$OCFL"
+else
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Libnm missing device_set_managed function" >&5
+$as_echo "$as_me: WARNING: Libnm missing device_set_managed function" >&2;}
+	havelibnm=no
+    NMLIBS=""
+    NMCFLAGS=""
+fi
+
+if test $havelibnm = yes; then
 
 $as_echo "#define HAVE_LIBNM 1" >>confdefs.h
 
-    NMLIBS=`pkg-config --libs libnm`
-    NMCFLAGS=`pkg-config --cflags libnm`
 fi
 
 
