@@ -725,13 +725,48 @@ void Datasourcetracker::calculate_source_hopping(SharedDatasource in_ds) {
 
 bool Datasourcetracker::Httpd_VerifyPath(const char *path, const char *method) {
     if (strcmp(method, "GET") == 0) {
-        if (strcmp(path, "/datasource/all_sources.msgpack") == 0) {
+        string stripped = Httpd_StripSuffix(path);
+        
+        if (!Httpd_CanSerialize(path))
+            return false;
+
+        if (stripped == "/datasource/all_sources")
             return true;
+
+        if (stripped == "/datasource/types")
+            return true;
+
+        if (stripped == "/datasource/defaults")
+            return true;
+
+        if (stripped == "/datasource/list_interfaces")
+            return true;
+
+        vector<string> tokenurl = StrTokenize(path, "/");
+
+        if (tokenurl.size() < 5)
+            return false;
+
+        // /datasource/by-uuid/aaa-bbb-cc-dd/source.json | .msgpack
+        if (tokenurl[1] == "datasource") {
+            if (tokenurl[2] == "by-uuid") {
+                if (Httpd_StripSuffix(tokenurl[4]) != "source")
+                    return false;
+
+                uuid u(tokenurl[3]);
+
+                if (u.error)
+                    return false;
+
+                local_locker lock(&dst_lock);
+
+                if (uuid_source_num_map.find(u) == uuid_source_num_map.end())
+                    return false;
+
+                return true;
+            }
         }
 
-        if (strcmp(path, "/datasource/supported_sources.msgpack") == 0) {
-            return true;
-        }
     }
 
     return false;
@@ -739,17 +774,69 @@ bool Datasourcetracker::Httpd_VerifyPath(const char *path, const char *method) {
 
 void Datasourcetracker::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
         Kis_Net_Httpd_Connection *connection,
-       const char *url, const char *method, const char *upload_data,
+       const char *path, const char *method, const char *upload_data,
        size_t *upload_data_size, std::stringstream &stream) {
 
-    if (strcmp(url, "/datasource/all_sources.msgpack") == 0) {
-        MsgpackAdapter::Pack(globalreg, stream, datasource_vec);
+    if (strcmp(method, "GET") != 0) {
         return;
     }
 
-    if (strcmp(url, "/datasource/supported_sources.msgpack") == 0) {
-        MsgpackAdapter::Pack(globalreg, stream, proto_vec);
+    string stripped = Httpd_StripSuffix(path);
+
+    if (!Httpd_CanSerialize(path))
         return;
+
+    local_locker lock(&dst_lock);
+
+    if (stripped == "/datasource/all_sources") {
+        Httpd_Serialize(path, stream, datasource_vec);
+        return;
+    }
+
+    if (stripped == "/datasource/types") {
+        Httpd_Serialize(path, stream, proto_vec);
+        return;
+    }
+
+    if (stripped == "/datasource/defaults") {
+        Httpd_Serialize(path, stream, config_defaults);
+        return;
+    }
+
+    if (stripped == "/datasource/list_interfaces") {
+        // TODO create a blocking interface list response
+        return;
+    }
+
+    vector<string> tokenurl = StrTokenize(path, "/");
+
+    if (tokenurl.size() < 5) {
+        return;
+    }
+
+    // /datasource/by-uuid/aaa-bbb-cc-dd/source.json | .msgpack
+    if (tokenurl[1] == "datasource") {
+        if (tokenurl[2] == "by-uuid") {
+            if (Httpd_StripSuffix(tokenurl[4]) != "source") {
+
+                return;
+            }
+
+            uuid u(tokenurl[3]);
+
+            if (u.error) {
+
+                return;
+            }
+
+            if (uuid_source_num_map.find(u) == uuid_source_num_map.end()) {
+                return;
+            }
+
+            // dump source
+            
+            return;
+        }
     }
 
 }

@@ -225,25 +225,6 @@ Initiate a login via HTTP Basic Auth
 
 Return if a login session is valid
 
-## Channels
-
-##### /channels/channels `/channels/channels.msgpack`, `/channels/channels.json`
-
-Channel usage and monitoring data.
-
-## Data Sources (new)
-
-Kismet is replacing the old PacketSource code with Data Sources.  Once this is complete, the PacketSource options will be deprecated, but development of DataSources is still ongoing.
-
-##### `/datasource/all_sources.msgpack`
-Msgpack array of all defined data sources.
-
-##### `/datasource/supported_sources.msgpack`
-Msgpack array of all supported sources (even those not configured with an interface).
-
-##### `/datasource/error_sources.msgpack`
-Msgpack array of defined sources which are currently in an error state.
-
 ## Messages
 
 Kismet uses the `messagebus` as in internal system for displaying message to the user.  The messagebus is used to pass error and state messages, as well as notifications about detected devices, etc.
@@ -272,64 +253,35 @@ List of the alert backlog.  The size of the backlog is configurable via the `ale
 
 Dictionary containing a list of alerts since Kismet timestamp `[TS]`, and a timestamp record indicating the time of this report.  This can be used to fetch only new alerts since the last time alerts were requested.
 
-## Packet Sources (old)
+## Channels
 
-Kismet is replacing the old PacketSource code with Data Sources.  Once this is complete, the PacketSource options will be deprecated, but development of DataSources is still ongoing.  Until such time as DataSources are complete, the PacketSources API will be used.
+##### /channels/channels `/channels/channels.msgpack`, `/channels/channels.json`
 
-##### `/packetsource/all_sources.msgpack`
-Msgpack array of all packet sources.
+Channel usage and monitoring data.
 
-##### `/packetsource/config/channel.cmd`
+## Datasources
 
-*LOGIN REQUIRED*.
+Kismet uses data sources to capture information - typically packets, but sometimes complete device or event records.  Data sources are defined in the Kismet config file via the `source=...` config option, or on the Kismet command line with the `-c` option as in `kismet -c wlan1`.
 
-Set the channel of a packet source.  This command is limited as it is due to be replaced with the more featureful DataSource API.  This command expects a posted dictionary including:
+##### /datasource/all_sources `/datasource/all_sources.msgpack`, `/datasource/all_sources.json`
 
-| Key | Value | Type | Desc |
-| --- | ----- | ---- | ---- |
-| cmd | `lock` / `hop` | string | Indicate lock (single channel) or hop (multi-channel) |
-| uuid | device uuid | string | Packetsource UUID |
-| channel | channel # | string | Channel to lock to (optional, not required if setting hopping) |
+List containing all data sources and the current information about them
 
-##### Examples
+##### /datasource/types `/datasource/types.msgpack`, `/datasource/types.json`
 
-To lock a source to channel 6 only:
-```python
-{
-    "cmd": "lock",
-    "uuid": "e92e066a-0d50-11e6-a771-08076944c403",
-    "channel": "6"
-}
-```
+List containing all defined datasource types & basic information about them
 
-To return a source to standard hopping behavior:
-```python
-{
-    "cmd": "hop",
-    "uuid": "e92e066a-0d50-11e6-a771-08076944c403",
-}
+##### /datasource/defaults `/datasource/defaults.msgpack`, `/datasource/defaults.json`
 
-```
+Default settings for new data sources
 
-##### `/packetsource/config/add_source.cmd`
+##### /datasource/list_interfaces `/datasource/list_interfaces.msgpack`, `/datasource/list_interfaces.json`
 
-*LOGIN REQUIRED*.
+Query all possible data source drivers and return a list of auto-detected interfaces that could be used to capture.
 
-Adds and automatically starts a packetsource.  This is equivalent to a `ncsource=` config variable or a `-c` on the Kismet server command line.
+##### /datasource/by-uuid/[uuid]/source `/datasource/by-uuid/[uuid]/source.msgpack`, `/datasource/by-uuid/[uuid]/source.json`
 
-Expects a command dictionary including:
-
-| Key | Value | Type | Desc |
-| --- | ----- | ---- | ---- |
-| source | source definition | string | New source definition |
-
-##### Examples:
-
-```python
-{
-    "source": "wlan0:validatefcs=true"
-}
-```
+Return information about a specific data source, specified by the source UUID `[uuid]`
 
 ## GPS
 
@@ -351,6 +303,7 @@ Expects a command dictionary including:
 | lon | longitude | double | GPS longitude |
 | alt | altitude (in Meters) | double | GPS altitude in meters (optional) |
 | spd | speed (kph) | double | Speed in kilometers per hour (optional) |
+
 
 ## 802.11 Specific
 
