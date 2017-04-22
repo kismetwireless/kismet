@@ -245,6 +245,11 @@ void SpindownKismet(shared_ptr<PollableTracker> pollabletracker) {
     if (httpd != NULL)
         httpd->StopHttpd();
 
+    shared_ptr<Datasourcetracker> datasourcetracker = 
+        static_pointer_cast<Datasourcetracker>(globalregistry->FetchGlobal("DATASOURCETRACKER"));
+    if (datasourcetracker != NULL)
+        datasourcetracker->system_shutdown();
+
     globalregistry->spindown = 1;
 
     // Start a short shutdown cycle for 2 seconds
@@ -501,12 +506,16 @@ void ncurses_wrapper_fork() {
         signal(SIGKILL, NcursesCancelHandler);
         signal(SIGQUIT, NcursesCancelHandler);
         signal(SIGINT, NcursesCancelHandler);
+        signal(SIGTERM, NcursesCancelHandler);
+        signal(SIGHUP, NcursesCancelHandler);
 
         signal(SIGABRT, NcursesKillHandler);
         signal(SIGCHLD, NcursesKillHandler);
 
         // Ignore WINCH and have a wrong-sized screen
         signal(SIGWINCH, SIG_IGN);
+
+        signal(SIGPIPE, SIG_IGN);
 
         FILE *c_stdin = fdopen(pipefd[0], "r");
         fcntl(pipefd[0], F_SETFL, fcntl(pipefd[0], F_GETFL, 0) | O_NONBLOCK);
@@ -593,6 +602,7 @@ int main(int argc, char *argv[], char *envp[]) {
 
     static struct option wrapper_longopt[] = {
         { "no-ncurses-wrapper", no_argument, 0, 'w' },
+        { "daemonize", no_argument, 0, 'D' },
         { "debug", no_argument, 0, 'd' },
         { 0, 0, 0, 0 }
     };
@@ -612,6 +622,8 @@ int main(int argc, char *argv[], char *envp[]) {
             wrapper = false; 
         } else if (r == 'd') {
             debug_mode = true;
+            wrapper = false;
+        } else if (r == 'D') {
             wrapper = false;
         }
     }

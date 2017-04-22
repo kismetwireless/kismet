@@ -271,18 +271,18 @@ void KisDatasource::connect_ringbuffer(shared_ptr<RingbufferHandler> in_ringbuf)
 void KisDatasource::close_source() {
     local_locker lock(&source_lock);
 
-    // Delete the ringbuf handler
+    if (get_source_error())
+        return;
+
     if (ringbuf_handler != NULL) {
-        // Remove ourself from getting notifications from the rb
-        ringbuf_handler->RemoveReadBufferInterface();
-        // We're shutting down, issue a protocol error to kill any line-drivers
-        // attached to this buffer
-        ringbuf_handler->ProtocolError();
-        // Lose our local ref
-        ringbuf_handler.reset();
+        uint32_t seqno = 0;
+        write_packet("CLOSEDEVICE", KVmap(), seqno);
     }
 
+    quiet_errors = true;
+
     cancel_all_commands("Closing source");
+
 }
 
 void KisDatasource::BufferAvailable(size_t in_amt __attribute__((unused))) {

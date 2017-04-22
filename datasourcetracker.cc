@@ -365,6 +365,18 @@ int Datasourcetracker::system_startup() {
     return 1;
 }
 
+void Datasourcetracker::system_shutdown() {
+    local_locker lock(&dst_lock);
+
+    TrackerElementVector dvec(datasource_vec);
+
+    for (auto i = dvec.begin(); i != dvec.end(); ++i) {
+        SharedDatasource ds = static_pointer_cast<KisDatasource>(*i);
+
+        ds->close_source();
+    }
+}
+
 void Datasourcetracker::iterate_datasources(DST_Worker *in_worker) {
     local_locker lock(&dst_lock);
 

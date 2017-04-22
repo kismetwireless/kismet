@@ -272,6 +272,9 @@ public:
     // the main select loop in kismet
     int system_startup();
 
+    // Shut down all sources, this happens as kismet is terminating
+    void system_shutdown();
+
     // Add a driver
     int register_datasource(SharedDatasourceBuilder in_builder);
 
@@ -292,7 +295,7 @@ public:
             function<void (bool, string)> in_cb);
 
     // Remove a data source by UUID; stop it if necessary
-    bool remove_datasource(uuid in_uud);
+    bool remove_datasource(uuid in_uuid);
     // Remove a data source by index; stop it if necessary
     bool remove_datasource(int in_index);
 
