@@ -524,6 +524,14 @@ public:
         register_fields();
         reserve_fields(NULL);
         initialize();
+
+        entrytracker = 
+            static_pointer_cast<EntryTracker>(globalreg->FetchGlobal("ENTRY_TRACKER"));
+
+        if (in_id == 0) {
+            tracked_id = entrytracker->RegisterField("kismet.datasource.type_driver",
+                    TrackerMap, "Datasource type definition / driver");
+        }
     }
 
     KisDatasourceBuilder(GlobalRegistry *in_globalreg, int in_id,
@@ -532,7 +540,16 @@ public:
         register_fields();
         reserve_fields(e);
         initialize();
+
+        entrytracker = 
+            static_pointer_cast<EntryTracker>(globalreg->FetchGlobal("ENTRY_TRACKER"));
+
+        if (in_id == 0) {
+            tracked_id = entrytracker->RegisterField("kismet.datasource.type_driver",
+                    TrackerMap, "Datasource type definition / driver");
+        }
     }
+
 
     virtual ~KisDatasourceBuilder() { };
 
