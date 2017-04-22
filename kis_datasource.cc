@@ -43,6 +43,9 @@ KisDatasource::KisDatasource(GlobalRegistry *in_globalreg,
 
     set_source_builder(in_builder);
 
+    if (in_builder != NULL)
+        add_map(in_builder);
+
     timetracker = 
         static_pointer_cast<Timetracker>(globalreg->FetchGlobal("TIMETRACKER"));
 
@@ -865,6 +868,8 @@ void KisDatasource::proto_packet_data(KVmap in_kvpairs) {
 
     packet->insert(pack_comp_datasrc, datasrcinfo);
 
+    inc_source_num_packets(1);
+
     // Inject the packet into the packetchain if we have one
     packetchain->ProcessPacket(packet);
 
@@ -1625,10 +1630,18 @@ void KisDatasource::register_fields() {
     RegisterField("kismet.datasource.error_reason", TrackerString,
             "Last known reason for error state", &source_error_reason);
 
+    RegisterField("kismet.datasource.num_packets", TrackerUInt64,
+            "Number of packets seen by source", &source_num_packets);
+    RegisterField("kismet.datasource.num_error_packets", TrackerUInt64,
+            "Number of invalid/error packets seen by source",
+            &source_num_error_packets);
+
     RegisterField("kismet.datasource.retry", TrackerUInt8,
             "Source will try to re-open after failure", &source_retry);
     RegisterField("kismet.datasource.retry_attempts", TrackerUInt32,
             "Consecutive unsuccessful retry attempts", &source_retry_attempts);
+    RegisterField("kismet.datasource.total_retry_attempts", TrackerUInt32,
+            "Total unsuccessful retry attempts", &source_total_retry_attempts);
 }
 
 void KisDatasource::reserve_fields(SharedTrackerElement e) {
@@ -1658,6 +1671,7 @@ void KisDatasource::handle_source_error() {
 
     // Increment our failures
     inc_int_source_retry_attempts(1);
+    inc_int_source_total_retry_attempts(1);
 
     // Notify about it
     ss << "Source " << get_source_name() << " has encountered an error. "

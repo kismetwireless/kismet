@@ -172,6 +172,14 @@ public:
 
     __ProxyGet(source_running, uint8_t, bool, source_running);
 
+    __Proxy(source_num_packets, uint64_t, uint64_t, uint64_t, source_num_packets);
+    __ProxyIncDec(source_num_packets, uint64_t, uint64_t, source_num_packets);
+
+    __Proxy(source_num_error_packets, uint64_t, uint64_t, uint64_t, 
+            source_num_error_packets);
+    __ProxyIncDec(source_num_error_packets, uint64_t, uint64_t, 
+            source_num_error_packets);
+
     // IPC binary name, if any
     __ProxyGet(source_ipc_binary, string, string, source_ipc_binary);
     // IPC channel pid, if any
@@ -400,6 +408,9 @@ protected:
     SharedTrackerElement source_hop_offset;
     SharedTrackerElement source_hop_shuffle;
 
+    SharedTrackerElement source_num_packets;
+    SharedTrackerElement source_num_error_packets;
+
 
     // Local ID number is an increasing number assigned to each unique UUID; it's
     // used inside Kismet for fast mapping for seenby, etc.  DST maps this to
@@ -431,6 +442,13 @@ protected:
     __ProxySet(int_source_retry_attempts, uint32_t, uint32_t, source_retry_attempts);
     __ProxyIncDec(int_source_retry_attempts, uint32_t, uint32_t, source_retry_attempts);
     SharedTrackerElement source_retry_attempts;
+
+    // How many total errors?
+    __ProxySet(int_source_total_retry_attempts, uint32_t, uint32_t, 
+            source_total_retry_attempts);
+    __ProxyIncDec(int_source_total_retry_attempts, uint32_t, uint32_t, 
+            source_total_retry_attempts);
+    SharedTrackerElement source_total_retry_attempts;
 
     // Timer ID for trying to recover from an error
     int error_timer_id;
