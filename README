@@ -160,6 +160,17 @@ xx. Datasource: Linux Wi-Fi
     where the card is told to report all packets seen, and to report them at
     the 802.11 link layer instead of emulating an Ethernet device.
 
+    The Linux Wi-Fi source will auto-detect supported interfaces by querying the
+    network interface list and checking for wireless configuration APIs.  It
+    can be manually specified with 'type=linuxwifi.
+
+    The Linux Wi-Fi capture uses the 'kismet_cap_linux_wifi' tool, and should
+    typically be installed suid-root:  Linux requires root to manipulate the
+    network interfaces and create new ones.
+
+
+    Supported Hardware
+
     Not all hardware and drivers support monitor mode, but many do.  Typically 
     any driver shipped with the Linux kernel supports monitor mode, and does so
     in a standard way Kismet understands.  If a specific piece of hardware does
