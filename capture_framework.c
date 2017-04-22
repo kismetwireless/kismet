@@ -99,6 +99,73 @@ int cf_find_flag(char **ret_value, const char *flag, char *definition) {
     return 0;
 }
 
+int cf_split_list(char *in_str, size_t in_sz, char in_split, char ***ret_splitlist, 
+        size_t *ret_splitlist_sz) {
+
+    char *start = in_str;
+    char *end = in_str;
+    size_t num_fields = 0;
+
+    *ret_splitlist = NULL;
+    *ret_splitlist_sz = 0;
+
+    /* Count all the fields */
+    while ((size_t) (end - in_str) <= in_sz) {
+        if (*start == in_split)
+            start++;
+
+        if (*end == in_split || *end == 0 || end == in_str + in_sz) {
+            if (end != start) {
+                num_fields++;
+            }
+
+            start = end + 1;
+            end = start;
+        }
+
+        end++;
+    }
+
+    printf("got %lu fields\n", num_fields);
+
+    if (num_fields == 1) {
+        *ret_splitlist = (char **) malloc(sizeof(char *));
+
+        if (*ret_splitlist == NULL)
+            return -1;
+
+        (*ret_splitlist)[0] = strndup(in_str, in_sz);
+        *ret_splitlist_sz = 1;
+        return 0;
+    }
+
+    *ret_splitlist = (char **) malloc(sizeof(char *) * num_fields);
+
+    start = in_str;
+    end = in_str;
+
+    *ret_splitlist_sz = num_fields;
+
+    num_fields = 0;
+    while ((size_t) (end - in_str) <= in_sz && num_fields <= *ret_splitlist_sz) {
+        if (*start == in_split)
+            start++;
+
+        if (*end == in_split || *end == 0 || end == in_str + in_sz) {
+            if (end != start) {
+                (*ret_splitlist)[num_fields++] = strndup(start, end - start);
+            }
+
+            start = end + 1;
+            end = start;
+        }
+
+        end++;
+    }
+
+    return 0;
+}
+
 kis_capture_handler_t *cf_handler_init() {
     kis_capture_handler_t *ch;
     pthread_mutexattr_t mutexattr;

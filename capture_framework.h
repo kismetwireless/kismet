@@ -269,6 +269,22 @@ int cf_parse_interface(char **ret_interface, char *definition);
  */
 int cf_find_flag(char **ret_value, const char *flag, char *definition);
 
+/* Parse a comma separated list of strings, such as channels, into an array of char*.
+ *
+ * Expects the size of the incoming string in in_sz, allowing for direct passing
+ * of values extracted via cf_find_flag which are not null terminated
+ *
+ * Parsed list is placed into *ret_splitlist and the length is placed into 
+ * *ret_splitlist_sz.  The caller is responsible for freeing the strings and
+ * the array.
+ *
+ * Returns:
+ * -1   Error
+ *  0   Success
+ */
+int cf_split_list(char *in_str, size_t in_sz, char in_split, char ***ret_splitlist, 
+        size_t *ret_splitlist_sz);
+
 /* Initialize a caphandler
  *
  * Returns:
