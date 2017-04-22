@@ -146,6 +146,15 @@ void KisDatasource::probe_interface(string in_definition, unsigned int in_transa
         return;
     }
 
+    // Populate our local info about the interface
+    if (!parse_interface_definition(in_definition)) {
+        if (in_cb != NULL) {
+            in_cb(in_transaction, false, "Malformed source config");
+        }
+
+        return;
+    }
+
     // Launch the IPC
     launch_ipc();
 
@@ -173,9 +182,6 @@ void KisDatasource::open_interface(string in_definition, unsigned int in_transac
     if (error_timer_id > 0)
         timetracker->RemoveTimer(error_timer_id);
 
-    // Launch the IPC
-    launch_ipc();
-
     // Populate our local info about the interface
     if (!parse_interface_definition(in_definition)) {
         if (in_cb != NULL) {
@@ -184,6 +190,9 @@ void KisDatasource::open_interface(string in_definition, unsigned int in_transac
 
         return;
     }
+
+    // Launch the IPC
+    launch_ipc();
 
     // Create and send open command
     send_command_open_interface(in_definition, in_transaction, in_cb);
@@ -1216,6 +1225,13 @@ void KisDatasource::handle_kv_config_hop(KisDatasourceCapKeyedObject *in_obj) {
     MsgpackAdapter::MsgpackStrMap::iterator obj_iter;
     vector<string> channel_vec;
 
+    vector<string> blocked_channel_vec;
+
+    // Get any channels we mask out from the source definition
+    blocked_channel_vec = StrTokenize(get_definition_opt("blockedchannels"), ",");
+
+    string blocked_msg_list = "";
+
     try {
         msgpack::unpack(result, in_obj->object, in_obj->size);
         msgpack::object deserialized = result.get();
@@ -1232,10 +1248,32 @@ void KisDatasource::handle_kv_config_hop(KisDatasourceCapKeyedObject *in_obj) {
             hop_chan_vec.clear();
 
             for (unsigned int x = 0; x < channel_vec.size(); x++) {
+                // Skip blocked channels - we know they cause the source
+                // problems for some reason
+                bool skip = false;
+                for (unsigned int z = 0; z < blocked_channel_vec.size(); z++) {
+                    if (StrLower(channel_vec[x]) == StrLower(blocked_channel_vec[z])) {
+                        if (blocked_msg_list.length() != 0)
+                            blocked_msg_list += ",";
+                        blocked_msg_list += channel_vec[x];
+
+                        skip = true;
+                        break;
+                    }
+                }
+
+                if (skip)
+                    continue;
+                
                 SharedTrackerElement chanstr = 
                     channel_entry_builder->clone_type();
                 chanstr->set(channel_vec[x]);
                 hop_chan_vec.push_back(chanstr);
+            }
+
+            if (blocked_msg_list.length() != 0) {
+                _MSG("Source '" + get_source_name() + "' ignoring channels '" +
+                        blocked_msg_list + "'", MSGFLAG_INFO);
             }
         } else {
             throw std::runtime_error(string("channel list missing in hop config"));

@@ -194,6 +194,23 @@ xx. Datasource: Linux Wi-Fi
 
     Linux Wi-Fi sources accept several options in the source definition:
 
+    blockedchannels="a,b,c,d"
+
+        Some Linux Wi-Fi drivers report channels which they then do not 
+        actually support properly - specifically, the Intel 8265 seems to
+        be guilty of this, and will actually crash the firmware of the NIC 
+        when setting some channels.
+
+        Channels found in the blockedchannels list will be excluded from the
+        source, regardless of what channels the source claims to support.
+
+        Note that the channels must be quoted:
+            source=wlan1:blockedchannels="1,2,3,4,5,6,6HT40-"
+
+        When passing the source definition via '-c' on the command line, the
+        shell may remove quotes if they are not escaped:
+            $ kismet -c wlan1:blockedchannels=\"1,2,3,4,5,6\"
+
     fcsfail=true | false
 
         mac80211-based drivers sometimes have the option to report packets 
