@@ -168,6 +168,14 @@ simple_cap_proto_kv_t *encode_kv_success(unsigned int success, uint32_t sequence
  */
 simple_cap_proto_kv_t *encode_kv_warning(const char *warning);
 
+/* Encode source type KV
+ *
+ * Returns:
+ * Pointer on success
+ * NULL on failure
+ */
+simple_cap_proto_kv_t *encode_kv_sourcetype(const char *sourcetype);
+
 /* Encode a chanset response
  *
  * Returns:

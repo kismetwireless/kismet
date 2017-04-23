@@ -119,6 +119,20 @@ KV Pairs:
 Responses:
 * NONE
 
+#### NEWSOURCE (Datasource->Kismet Network)
+Sent from a datasource running in network mode (remote capture) to Kismet to tell it to create a source and attach it to the network socket.
+
+The driver type must be included so that Kismet knows how to map the remote interface.
+
+Kismet will respond by initiating a typical OPENDEVICE sequence to sync the state.
+
+KV Pairs:
+* DEFINITION
+* SOURCETYPE
+
+Responses:
+* OPENDEVICE
+
 #### OPENDEVICE (Kismet->Datasource)
 Open a device.  This should only be sent to a datasource which is capable of handling this device type, but may still return errors.
 
@@ -293,6 +307,15 @@ Msgpack packed dictionary containing the following:
 * "freq_khz": double-precision float of the center frequency of the signal record, in kHz
 * "channel": arbitrary string representing a human-readable channel
 * "datarate": double-precision float representing a phy-specific data rate (optional)
+
+#### SOURCETYPE
+A simple string value of the source type - this must match the definition in the datasource code for Kismet.  This value is used to tell Kismet what type of device a network based remote capture needs.
+
+Simple string `(char *)` of the source type, length dictated by the KV length record.
+
+Example:
+
+`"linuxwifi"`
 
 #### SUCCESS
 A simple boolean indicating success or failure of the relevant command.  This value is padded to 4 bytes and is followed by the `uint32_t` sequence number of the command, if any, this success value applies to.
