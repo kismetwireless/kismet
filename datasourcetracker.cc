@@ -830,22 +830,25 @@ void Datasourcetracker::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
     if (tokenurl[1] == "datasource") {
         if (tokenurl[2] == "by-uuid") {
             if (Httpd_StripSuffix(tokenurl[4]) != "source") {
-
                 return;
             }
 
             uuid u(tokenurl[3]);
 
             if (u.error) {
-
                 return;
             }
 
-            if (uuid_source_num_map.find(u) == uuid_source_num_map.end()) {
-                return;
-            }
+            TrackerElementVector svec(datasource_vec);
 
-            // dump source
+            for (auto i = svec.begin(); i != svec.end(); ++i) {
+                SharedDatasource ds = static_pointer_cast<KisDatasource>(*i);
+
+                if (ds->get_source_uuid() == u) {
+                    Httpd_Serialize(path, stream, ds);
+                    break;
+                }
+            }
             
             return;
         }
