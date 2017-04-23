@@ -1212,6 +1212,12 @@ void KisDatasource::handle_kv_uuid(KisDatasourceCapKeyedObject *in_obj) {
     }
 }
 
+string KisDatasource::handle_kv_warning(KisDatasourceCapKeyedObject *in_obj) {
+    // Stupid simple
+    set_int_source_warning(string(in_obj->object, in_obj->size));
+    return (string(in_obj->object, in_obj->size));
+}
+
 void KisDatasource::handle_kv_config_channel(KisDatasourceCapKeyedObject *in_obj) {
     // Very simple - we just copy the channel string over
     set_int_source_hopping(false);
@@ -1641,6 +1647,9 @@ void KisDatasource::register_fields() {
             "Original source= definition", &source_definition);
     RegisterField("kismet.datasource.interface", TrackerString,
             "Interface", &source_interface);
+
+    RegisterField("kismet.datasource.warning", TrackerString,
+            "Warning or unusual interface state", &source_warning);
 
     channel_entry_builder.reset(new TrackerElement(TrackerString, 0));
     RegisterComplexField("kismet.datasource.channel_entry",

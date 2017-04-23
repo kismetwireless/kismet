@@ -162,6 +162,11 @@ public:
     __ProxyGet(source_definition, string, string, source_definition);
     __ProxyGet(source_interface, string, string, source_interface);
     __ProxyTrackable(source_channels_vec, TrackerElement, source_channels_vec);
+
+    // Any alert state passed from the driver we want to be able to consistently
+    // report to the user
+    __ProxyGet(source_warning, string, string, source_warning);
+
     __ProxyGet(source_hopping, uint8_t, bool, source_hopping);
     __ProxyGet(source_channel, string, string, source_channel);
     __ProxyGet(source_hop_rate, double, double, source_hop_rate);
@@ -315,6 +320,7 @@ protected:
     virtual bool get_kv_success(KisDatasourceCapKeyedObject *in_obj);
     virtual uint32_t get_kv_success_sequence(KisDatasourceCapKeyedObject *in_obj);
     virtual string handle_kv_message(KisDatasourceCapKeyedObject *in_obj);
+    virtual string handle_kv_warning(KisDatasourceCapKeyedObject *in_obj);
     virtual void handle_kv_channels(KisDatasourceCapKeyedObject *in_obj);
     virtual void handle_kv_config_channel(KisDatasourceCapKeyedObject *in_obj);
     virtual void handle_kv_config_hop(KisDatasourceCapKeyedObject *in_obj);
@@ -364,6 +370,9 @@ protected:
     __ProxySet(int_source_definition, string, string, source_definition);
     __ProxySet(int_source_interface, string, string, source_interface);
     __ProxyTrackable(int_source_channels_vec, TrackerElement, source_channels_vec);
+
+    __ProxySet(int_source_warning, string, string, source_warning);
+
     __ProxySet(int_source_hopping, uint8_t, bool, source_hopping);
     __ProxySet(int_source_channel, string, string, source_channel);
     __ProxySet(int_source_hop_rate, double, double, source_hop_rate);
@@ -393,6 +402,9 @@ protected:
 
     // Possible channels supported by this source
     SharedTrackerElement source_channels_vec;
+
+    // Warning to the user if something is funny in the source
+    SharedTrackerElement source_warning;
 
     // Are we channel hopping?
     SharedTrackerElement source_hopping;

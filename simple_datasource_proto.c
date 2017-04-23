@@ -535,6 +535,24 @@ simple_cap_proto_kv_t *encode_kv_interfacelist(char **interfaces,
     return kv;
 }
 
+simple_cap_proto_kv_t *encode_kv_warning(const char *warning) {
+    simple_cap_proto_kv_t *kv;
+
+    size_t content_sz = strlen(warning);
+
+    kv = (simple_cap_proto_kv_t *) malloc(sizeof(simple_cap_proto_kv_t) + content_sz);
+
+    if (kv == NULL)
+        return NULL;
+
+    snprintf(kv->header.key, 16, "%.16s", "WARNING");
+    kv->header.obj_sz = htonl(content_sz);
+
+    strncpy((char *) kv->object, warning, content_sz);
+
+    return kv;
+}
+
 simple_cap_proto_kv_t *encode_kv_channel(const char *channel) {
     simple_cap_proto_kv_t *kv;
 

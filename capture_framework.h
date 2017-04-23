@@ -481,6 +481,21 @@ int cf_stream_packet(kis_capture_handler_t *caph, const char *packtype,
 int cf_send_message(kis_capture_handler_t *caph, const char *message, 
         unsigned int flags);
 
+/* Send a MESSAGE+WARNING
+ * Can be called from any thread.
+ *
+ * Flags are expected to match the MSGFLAG_ flags in simple_datasource.h
+ * Additionally a WARNING message may be attached which will be stored in the
+ * source warning field
+ *
+ * Returns:
+ * -1   An error occurred writing the frame
+ *  0   Insufficient space in buffer
+ *  1   Success
+ */
+int cf_send_warning(kis_capture_handler_t *caph, const char *message, 
+        unsigned int flags, const char *warning);
+
 /* Send an ERROR
  * Can be called from any thread
  *
@@ -530,8 +545,8 @@ int cf_send_proberesp(kis_capture_handler_t *caph, uint32_t seq, unsigned int su
  *  1   Success
  */
 int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int success,
-        const char *msg, const char *uuid, const char *chanset, char **channels, 
-        size_t channels_len);
+        const char *msg, const char *uuid, const char *chanset, 
+        char **channels, size_t channels_len);
 
 /* Send a DATA frame with packet data
  * Can be called from any thread

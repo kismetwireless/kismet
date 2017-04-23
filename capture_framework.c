@@ -1427,6 +1427,35 @@ int cf_send_message(kis_capture_handler_t *caph, const char *msg, unsigned int f
     return cf_stream_packet(caph, "MESSAGE", kv_pairs, 1);
 }
 
+int cf_send_warning(kis_capture_handler_t *caph, const char *msg, unsigned int flags,
+        const char *warning) {
+    /* How many KV pairs are we allocating?  1 for success for sure */
+    size_t num_kvs = 2;
+
+    /* Actual KV pairs we encode into the packet */
+    simple_cap_proto_kv_t **kv_pairs;
+
+    kv_pairs = 
+        (simple_cap_proto_kv_t **) malloc(sizeof(simple_cap_proto_kv_t *) * num_kvs);
+
+    kv_pairs[0] = encode_kv_message(msg, flags);
+
+    if (kv_pairs[0] == NULL) {
+        free(kv_pairs);
+        return -1;
+    }
+
+    kv_pairs[1] = encode_kv_warning(warning);
+
+    if (kv_pairs[1] == NULL) {
+        free(kv_pairs[0]);
+        free(kv_pairs);
+        return -1;
+    }
+
+    return cf_stream_packet(caph, "MESSAGE", kv_pairs, 1);
+}
+
 int cf_send_error(kis_capture_handler_t *caph, const char *msg) {
     size_t num_kvs = 2;
 

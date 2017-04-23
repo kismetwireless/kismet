@@ -61,6 +61,7 @@ KV Pairs:
 * CHANHOP (optional)
 * SUCCESS (optional, datasource->kismet)
 * MESSAGE (optional, datasource->kismet)
+* WARNING (optional, datasource->kismet)
 
 Responses:
 * NONE
@@ -70,6 +71,7 @@ Pass capture data.  May be a packet, a decoded trackable entity, or other inform
 
 KV Pairs:
 * MESSAGE (optional)
+* WARNING (optional)
 * SIGNAL (optional)
 * PACKET (optional)
 * GPS (optional)
@@ -112,6 +114,7 @@ Message for the user - informational, warning, or other non-critical errors.  Es
 
 KV Pairs:
 * MESSAGE
+* WARNING
 
 Responses:
 * NONE
@@ -134,6 +137,7 @@ KV Pairs:
 * CHANNELS (optional)
 * CHANSET (optional)
 * MESSAGE (optional)
+* WARNING (optional)
 
 Responses:
 * NONE
@@ -308,6 +312,19 @@ Simple string `(char *)` of the UUID, length dictated by the KV length record.
 Example:
 
 `"b4d6e78a-109a-11e7-a60d-09076f44c503"`
+
+#### WARNING
+A warning to the user about an unusual interface state, which is displayed whenever the interface details are shown and may be shown to the user in other ways as well.
+
+This is a good way to report non-fatal but non-optimal conditions - for example the Linux Wi-Fi capture system uses this to alert the user to a problem with regulatory domains.
+
+Content:
+
+Simple string `(char *)` of the warning text, length indicated by the KV length record.
+
+Example:
+
+`"System-wide regulatory domain set to '00 - Unknown', this can cause problems with channel hopping."`
 
 ## Defining the driver:  Deriving from KisDatasource
 

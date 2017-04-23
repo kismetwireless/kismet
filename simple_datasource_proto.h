@@ -160,6 +160,14 @@ simple_cap_proto_kv_t *encode_simple_cap_proto_kv(const char *in_key, uint8_t *i
  */
 simple_cap_proto_kv_t *encode_kv_success(unsigned int success, uint32_t sequence);
 
+/* Encode a simple warning KV
+ *
+ * Returns:
+ * Pointer on success
+ * NULL on failure
+ */
+simple_cap_proto_kv_t *encode_kv_warning(const char *warning);
+
 /* Encode a chanset response
  *
  * Returns:
