@@ -202,4 +202,17 @@ int linux_sys_get_rfkill(const char *interface, unsigned int rfkill_type);
  */
 int linux_sys_clear_rfkill(const char *interface);
 
+/* Fetch the regulatory domain country code for the system
+ *
+ * This uses the /sys filesystem to query cfg80211 to see what the country code is
+ * set to.
+ *
+ * *ret_countrycode must be allocated by the caller and be able to hold 4 bytes.
+ *
+ * Returns:
+ * -1   Error, cannot get country code
+ *  0   Success
+ */
+int linux_sys_get_regdom(char *ret_countrycode);
+
 #endif

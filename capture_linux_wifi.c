@@ -537,6 +537,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     int ret;
 
+    char regdom[4];
+
 #ifdef HAVE_LIBNM
     NMClient *nmclient = NULL;
     NMDevice *nmdevice = NULL;
@@ -909,6 +911,18 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                 "interface '%s' on '%s': %s", local_wifi->cap_interface,
                 local_wifi->interface, errstr);
         return -1;
+    }
+
+    /* Get the iw regdom and see if it makes sense */
+    if (linux_sys_get_regdom(regdom) == 0) {
+        if (strcmp(regdom, "00") == 0) {
+            snprintf(errstr, STATUS_MAX, "System-wide wireless regulatory domain "
+                    "is set to '00'; this can cause problems setting channels.  If "
+                    "you encounter problems, set the regdom with a command like "
+                    "'sudo iw reg set US' or whatever country is appropriate for "
+                    "your location.");
+            cf_send_warning(caph, errstr, MSGFLAG_INFO, errstr);
+        }
     }
 
     /* Open the pcap */

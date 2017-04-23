@@ -794,5 +794,20 @@ int linux_sys_clear_rfkill(const char *interface) {
     return -1;
 }
 
+int linux_sys_get_regdom(char *ret_countrycode) {
+    FILE *regf;
+
+    if ((regf = fopen("/sys/module/cfg80211/parameters/ieee80211_regdom", "r")) == NULL)
+        return -1;
+
+    if (fscanf(regf, "%4s", ret_countrycode) != 1) {
+        fclose(regf);
+        return -1;
+    }
+
+    fclose(regf);
+    return 0;
+}
+
 #endif // wireless
 
