@@ -792,6 +792,10 @@ void KisDatasource::proto_packet_message(KVmap in_kvpairs) {
     if ((i = in_kvpairs.find("message")) != in_kvpairs.end()) {
         handle_kv_message(i->second);
     }
+
+    if ((i = in_kvpairs.find("warning")) != in_kvpairs.end()) {
+        handle_kv_warning(i->second);
+    }
 }
 
 void KisDatasource::proto_packet_configresp(KVmap in_kvpairs) {
@@ -801,6 +805,10 @@ void KisDatasource::proto_packet_configresp(KVmap in_kvpairs) {
     // Process any messages
     if ((i = in_kvpairs.find("message")) != in_kvpairs.end()) {
         msg = handle_kv_message(i->second);
+    }
+
+    if ((i = in_kvpairs.find("warning")) != in_kvpairs.end()) {
+        handle_kv_warning(i->second);
     }
 
     // Process config list
@@ -842,6 +850,10 @@ void KisDatasource::proto_packet_data(KVmap in_kvpairs) {
     // Process any messages
     if ((i = in_kvpairs.find("message")) != in_kvpairs.end()) {
         handle_kv_message(i->second);
+    }
+
+    if ((i = in_kvpairs.find("warning")) != in_kvpairs.end()) {
+        handle_kv_warning(i->second);
     }
 
     // Do we have a packet?
