@@ -1210,6 +1210,8 @@ int main(int argc, char *argv[]) {
         .reset_nm_management = 0,
     };
 
+    int rv;
+
 #ifdef HAVE_LIBNM
     NMClient *nmclient = NULL;
     const GPtrArray *nmdevices;
@@ -1261,7 +1263,7 @@ int main(int argc, char *argv[]) {
      * it does nothing and hurts nothing on 5ghz */
     cf_handler_set_hop_shuffle_spacing(caph, 4);
 
-    cf_handler_loop(caph);
+    rv = cf_handler_loop(caph);
 
     /* We're done - try to reset the networkmanager awareness of the interface */
 
@@ -1290,6 +1292,11 @@ int main(int argc, char *argv[]) {
         }
     }
 #endif
+
+    if (rv < 0) {
+        fprintf(stderr, "FATAL:  Error condition from select() loop, shutting down\n");
+        exit(1);
+    }
 
     fprintf(stderr, "FATAL: Exited main select() loop, waiting to be killed\n");
 

@@ -283,14 +283,23 @@ void KisDatasource::close_source() {
     if (get_source_error())
         return;
 
+    if (!get_source_running())
+        return;
+
     if (ringbuf_handler != NULL) {
         uint32_t seqno = 0;
         write_packet("CLOSEDEVICE", KVmap(), seqno);
     }
 
+    if (ipc_remote != NULL) {
+        ipc_remote->soft_kill();
+    }
+
     quiet_errors = true;
 
     cancel_all_commands("Closing source");
+
+    set_int_source_running(false);
 
 }
 
@@ -1715,6 +1724,8 @@ void KisDatasource::handle_source_error() {
     // If we're probing or listing we don't do any special handling
     if (mode_listing || mode_probing)
         return;
+
+    set_int_source_running(false);
 
     stringstream ss;
 

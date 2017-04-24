@@ -898,7 +898,7 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
         void *translate_chan;
         int r;
 
-        fprintf(stderr, "DEBUG - Got CONFIGURE request\n");
+        /* fprintf(stderr, "DEBUG - Got CONFIGURE request\n"); */
 
         /* Look to see if we have a CHANSET command */
         r = cf_get_CHANSET(&cdef, cap_proto_frame);
@@ -969,7 +969,7 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
                             0, "Source does not support setting channel");
                     cbret = -1;
                 } else {
-                    fprintf(stderr, "DEBUG - got chanhop kv\n");
+                    /* fprintf(stderr, "DEBUG - got chanhop kv\n"); */
                     /* Translate all the channels, or dupe them as strings */
                     chanhop_priv_channels = 
                         (void **) malloc(sizeof(void *) * chanhop_channels_sz);
@@ -1082,7 +1082,7 @@ int cf_get_CHANHOP(double *hop_rate, char ***ret_channel_list,
 
     if ((mp_ret = mp_check(&mp_buf, mp_end)) != 0 ||
             mp_buf != mp_end) {
-        fprintf(stderr, "debug - chanhop failed mp_check\n");
+        /* fprintf(stderr, "debug - chanhop failed mp_check\n"); */
         return -1;
     }
 
@@ -1102,7 +1102,7 @@ int cf_get_CHANHOP(double *hop_rate, char ***ret_channel_list,
             *ret_offset = mp_decode_uint(&mp_buf);
         } else if (strncasecmp(sval, "channels", sval_len) == 0) {
             if (*ret_channel_list != NULL) {
-                fprintf(stderr, "debug - duplicate channels list in chanhop\n");
+                /* fprintf(stderr, "debug - duplicate channels list in chanhop\n"); */
                 return -1;
             }
 
@@ -1111,7 +1111,7 @@ int cf_get_CHANHOP(double *hop_rate, char ***ret_channel_list,
             if (chan_size > 0) {
                 *ret_channel_list = (char **) malloc(sizeof(char *) * chan_size);
                 if (*ret_channel_list == NULL) {
-                    fprintf(stderr, "debug - chanhop failed to allocate channels\n");
+                    /* fprintf(stderr, "debug - chanhop failed to allocate channels\n"); */
                     return -1;
                 }
 
@@ -1134,13 +1134,14 @@ int cf_get_CHANHOP(double *hop_rate, char ***ret_channel_list,
     return chan_size;
 }
 
-void cf_handler_loop(kis_capture_handler_t *caph) {
+int cf_handler_loop(kis_capture_handler_t *caph) {
     fd_set rset, wset;
     int max_fd;
     int read_fd, write_fd;
     struct timeval tm;
     int spindown;
     int ret;
+    int rv = 0;
 
     if (caph->tcp_fd >= 0) {
         read_fd = caph->tcp_fd;
@@ -1168,6 +1169,7 @@ void cf_handler_loop(kis_capture_handler_t *caph) {
         if (caph->shutdown) {
             fprintf(stderr, "FATAL: Shutting down main select loop\n");
             pthread_mutex_unlock(&(caph->handler_lock));
+            rv = -1;
             break;
         }
 
@@ -1194,6 +1196,7 @@ void cf_handler_loop(kis_capture_handler_t *caph) {
         } else if (spindown != 0) {
             fprintf(stderr, "DEBUG - caphandler finished spinning down\n");
             pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+            rv = 0;
             break;
         }
 
@@ -1206,6 +1209,7 @@ void cf_handler_loop(kis_capture_handler_t *caph) {
             if (errno != EINTR && errno != EAGAIN) {
                 fprintf(stderr, 
                         "FATAL:  Error during select(): %s\n", strerror(errno));
+                rv = -1;
                 break;
             }
         }
@@ -1214,7 +1218,6 @@ void cf_handler_loop(kis_capture_handler_t *caph) {
             continue;
 
         if (FD_ISSET(read_fd, &rset)) {
-            fprintf(stderr, "debug - read set\n");
             /* We use a fixed-length read buffer for simplicity, and we shouldn't
              * ever have too many incoming packets queued because the datasource
              * protocol is very tx-heavy */
@@ -1234,6 +1237,7 @@ void cf_handler_loop(kis_capture_handler_t *caph) {
                         fprintf(stderr,
                                 "FATAL:  Error during read(): %s\n", strerror(errno));
                     }
+                    rv = -1;
                     break;
                 }
             }
@@ -1244,6 +1248,7 @@ void cf_handler_loop(kis_capture_handler_t *caph) {
                 /* Bail entirely - to do, report error if we can over connection */
                 fprintf(stderr,
                         "FATAL:  Error during read(): insufficient buffer space\n");
+                rv = -1;
                 break;
             }
 
@@ -1283,6 +1288,7 @@ void cf_handler_loop(kis_capture_handler_t *caph) {
                 fprintf(stderr,
                         "FATAL:  Error during write(): could not allocate write "
                         "buffer space\n");
+                rv = -1;
                 break;
             }
 
@@ -1296,6 +1302,7 @@ void cf_handler_loop(kis_capture_handler_t *caph) {
                     fprintf(stderr,
                             "FATAL:  Error during write(): %s\n", strerror(errno));
                     free(peek_buf);
+                    rv = -1;
                     break;
                 }
             }
@@ -1323,6 +1330,8 @@ void cf_handler_loop(kis_capture_handler_t *caph) {
         caph->capture_running = 0;
     }
     pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+
+    return rv;
 }
 
 int cf_send_raw_bytes(kis_capture_handler_t *caph, uint8_t *data, size_t len) {

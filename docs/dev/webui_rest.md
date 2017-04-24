@@ -295,7 +295,44 @@ Dynamically add a new source to Kismet.
 
 Expects a string variable named 'definition'.  This value is identical to the `source=interface:flags` format passed in the Kismet config file or via the `-c` command line option.
 
-`add_source.cmd` will return a successful HTTP code when the *source is successfully added*.  This may not equate to a source which is *successfully running* due to automatic re-opening of sources and other Kismet behavior.  The caller can check the returned UUID to query the status of the source.
+`add_source.cmd` will return a successful HTTP code when the *source is successfully added*.  This may not equate to a source which is *successfully running* due to automatic re-opening of sources and other Kismet behavior.  The caller can check the returned UUID to query the status of the source.  If the source cannot be created, HTTP 500 is returned.
+
+`add_source.cmd` will block until the source add is completed; this may be up to several seconds but typically will be nearly instant.
+
+##### POST /datasource/by-uuid/[uuid]/set_channel `/datasource/by-uuid/[uuid]/set_channel.cmd`, `/datasource/by-uuid/[uuid]/set_channel.jcmd`
+
+*LOGIN REQUIRED*.
+
+Change the channel configuration of the source identified by `[uuid]` - can be used to set a fixed channel or to control channel hopping.
+
+`set_channel.cmd` will return a successful HTTP code when the *channel is successfully set*.  If the channel or hopping pattern cannot be set, HTTP 500 is returned.
+
+`set_channel.cmd` will block until the source channel set is complete; this may be up to several seconds but typically will be nearly instant.
+
+Expects a command dictionary including:
+
+| Key | Value | Type | Desc |
+| --- | ----- | ---- | ---- |
+| channel | Single channel | String | Single channel; This disables channel hopping and sets a specific channel.  Channel format depends on the source. |
+| hoprate | Channel hopping speed | Double | Channel hopping speed, as channels per second.  For timing greater than a second, rate can be calculated with the formula `hoprate = 1 / (6 / N)` where N is the number of hops per minute. |
+| channels | List of channels | Vector of strings | The list of channel strings to use in hopping |
+| shuffle | 0 / 1 | Integer | Treated as boolean, tells the source to shuffle the channel list |
+
+* If `channel` is present, `hoprate`, `channels`, and `shuffle` should not be included, and will be ignored if present.  The source will be locked to a single channel.
+* If `channel` is not present, the remaining fields may be specified.
+* If `channels` is present, `hoprate` and `shuffle` are optional.  If they are not present, the current values for the source will be used.
+
+##### /datasource/by-uuid/[uuid]/close_source `/datasource/by-uuid/[uuid]/close_source.cmd`
+
+*LOGIN REQUIRED*.
+
+Close a source.  This puts the source into closed state, stops all packet capture, and terminates the capture binary.
+
+##### /datasource/by-uuid/[uuid]/open_source `/datasource/by-uuid/[uuid]/open_source.cmd`
+
+*LOGIN REQUIRED*.
+
+Re-open a closed source; this uses the same definition as the existing closed source.
 
 ## GPS
 

@@ -439,8 +439,11 @@ int cf_get_CHANHOP(double *hop_rate, char ***ret_channel_list,
  * this function should be initiated from that thread; for all others it can
  * be called from main();
  *
+ * Returns:
+ * -1   Error, process should exit
+ *  0   No error, process should wait to be killed
  */
-void cf_handler_loop(kis_capture_handler_t *caph);
+int cf_handler_loop(kis_capture_handler_t *caph);
 
 /* Send a blob of data.  This must be a formatted packet created by one of the
  * other functions.

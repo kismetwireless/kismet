@@ -247,6 +247,24 @@ class KismetConnector:
 
         return self.__simplify(cobj)
 
+    def get_url(self, url):
+        """
+        get_url(url) -> Simple string
+
+        Fetches a response from the Kismet server at a given URL and returns
+        it as a string object
+        """
+        try:
+            r = self.session.get("%s/%s" % (self.host_uri, url))
+            if not r.status_code == 200:
+                print "Did not get 200 OK: {} {}".format(url, r.status_code)
+                return (False, r.content)
+        except Exception as e:
+            print "Failed to get object: ", e
+            return (False, None)
+
+        return (True, r.content)
+
     def post_url(self, url, postdata):
         """
         post_url(url, postdata) -> Boolean

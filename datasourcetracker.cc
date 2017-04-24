@@ -423,6 +423,32 @@ bool Datasourcetracker::remove_datasource(uuid in_uuid) {
     return false;
 }
 
+bool Datasourcetracker::close_datasource(uuid in_uuid) {
+    local_locker lock(&dst_lock);
+
+    TrackerElementVector dsv(datasource_vec);
+
+    // Look for it in the sources vec and fully close it and get rid of it
+    for (auto i = dsv.begin(); i != dsv.end(); ++i) {
+        SharedDatasource kds = static_pointer_cast<KisDatasource>(*i);
+
+        if (kds->get_source_uuid() == in_uuid) {
+            stringstream ss;
+
+            ss << "Closing source '" << kds->get_source_name() << "'";
+            _MSG(ss.str(), MSGFLAG_INFO);
+
+            // Close it
+            kds->close_source();
+
+            // Done
+            return true;
+        }
+    }
+
+    return false;
+}
+
 int Datasourcetracker::register_datasource(SharedDatasourceBuilder in_builder) {
     local_locker lock(&dst_lock);
 
@@ -745,10 +771,31 @@ bool Datasourcetracker::Httpd_VerifyPath(const char *path, const char *method) {
     if (strcmp(method, "POST") == 0) {
         if (stripped == "/datasource/add_source")
             return true;
-        if (stripped == "/datasource/set_channel")
-            return true;
-        if (stripped == "/datasource_set_hopping")
-            return true;
+
+        vector<string> tokenurl = StrTokenize(path, "/");
+
+        if (tokenurl.size() < 5)
+            return false;
+
+        // /datasource/by-uuid/aaa-bbb-cc-dd/source.json | .msgpack
+        if (tokenurl[1] == "datasource") {
+            if (tokenurl[2] == "by-uuid") {
+                uuid u(tokenurl[3]);
+
+                if (u.error)
+                    return false;
+
+                local_locker lock(&dst_lock);
+
+                if (uuid_source_num_map.find(u) == uuid_source_num_map.end())
+                    return false;
+
+                if (Httpd_StripSuffix(tokenurl[4]) == "set_channel")
+                    return true;
+
+                return false;
+            }
+        }
     }
 
     if (strcmp(method, "GET") == 0) {
@@ -776,9 +823,6 @@ bool Datasourcetracker::Httpd_VerifyPath(const char *path, const char *method) {
         // /datasource/by-uuid/aaa-bbb-cc-dd/source.json | .msgpack
         if (tokenurl[1] == "datasource") {
             if (tokenurl[2] == "by-uuid") {
-                if (Httpd_StripSuffix(tokenurl[4]) != "source")
-                    return false;
-
                 uuid u(tokenurl[3]);
 
                 if (u.error)
@@ -788,6 +832,16 @@ bool Datasourcetracker::Httpd_VerifyPath(const char *path, const char *method) {
 
                 if (uuid_source_num_map.find(u) == uuid_source_num_map.end())
                     return false;
+
+                if (Httpd_StripSuffix(tokenurl[4]) == "source")
+                    return true;
+
+                if (Httpd_StripSuffix(tokenurl[4]) == "close_source")
+                    return true;
+
+                if (Httpd_StripSuffix(tokenurl[4]) == "open_source")
+                    return true;
+
 
                 return true;
             }
@@ -812,24 +866,26 @@ void Datasourcetracker::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
     if (!Httpd_CanSerialize(path))
         return;
 
-    local_locker lock(&dst_lock);
-
     if (stripped == "/datasource/all_sources") {
+        local_locker lock(&dst_lock);
         Httpd_Serialize(path, stream, datasource_vec);
         return;
     }
 
     if (stripped == "/datasource/types") {
+        local_locker lock(&dst_lock);
         Httpd_Serialize(path, stream, proto_vec);
         return;
     }
 
     if (stripped == "/datasource/defaults") {
+        local_locker lock(&dst_lock);
         Httpd_Serialize(path, stream, config_defaults);
         return;
     }
 
     if (stripped == "/datasource/list_interfaces") {
+        local_locker lock(&dst_lock);
         // TODO create a blocking interface list response
         return;
     }
@@ -843,24 +899,63 @@ void Datasourcetracker::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
     // /datasource/by-uuid/aaa-bbb-cc-dd/source.json | .msgpack
     if (tokenurl[1] == "datasource") {
         if (tokenurl[2] == "by-uuid") {
-            if (Httpd_StripSuffix(tokenurl[4]) != "source") {
-                return;
-            }
-
             uuid u(tokenurl[3]);
 
             if (u.error) {
                 return;
             }
 
+            SharedDatasource ds;
+
             TrackerElementVector svec(datasource_vec);
 
-            for (auto i = svec.begin(); i != svec.end(); ++i) {
-                SharedDatasource ds = static_pointer_cast<KisDatasource>(*i);
+            {
+                local_locker lock(&dst_lock);
+                for (auto i = svec.begin(); i != svec.end(); ++i) {
+                    SharedDatasource dsi = static_pointer_cast<KisDatasource>(*i);
 
-                if (ds->get_source_uuid() == u) {
-                    Httpd_Serialize(path, stream, ds);
-                    break;
+                    if (dsi->get_source_uuid() == u) {
+                        ds = dsi;
+                        break;
+                    }
+                }
+            }
+
+            if (ds == NULL) {
+                stream << "Error";
+                return;
+            }
+
+            if (Httpd_StripSuffix(tokenurl[4]) == "source") {
+                Httpd_Serialize(path, stream, ds);
+                return;
+            }
+
+            if (Httpd_StripSuffix(tokenurl[4]) == "close_source") {
+                if (ds->get_source_running()) {
+                    _MSG("Closing source '" + ds->get_source_name() + "' from REST "
+                            "interface request.", MSGFLAG_INFO);
+                    ds->close_source();
+                    stream << "Closing source";
+                    return;
+                } else {
+                    stream << "Source already closed";
+                    connection->httpcode = 500;
+                    return;
+                }
+            }
+
+            if (Httpd_StripSuffix(tokenurl[4]) == "open_source") {
+                if (!ds->get_source_running()) {
+                    _MSG("Re-opening source '" + ds->get_source_name() + "' from REST "
+                            "interface request.", MSGFLAG_INFO);
+                    ds->open_interface(ds->get_source_definition(), 0, NULL);
+                    stream << "Re-opening source";
+                    return;
+                } else {
+                    stream << "Source already open";
+                    connection->httpcode = 500;
+                    return;
                 }
             }
             
@@ -871,7 +966,7 @@ void Datasourcetracker::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
 }
 
 int Datasourcetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
-
+    fprintf(stderr, "postcomplete %s\n", concls->url.c_str());
     if (!Httpd_CanSerialize(concls->url)) {
         concls->response_stream << "Invalid request";
         concls->httpcode = 400;
@@ -884,6 +979,8 @@ int Datasourcetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
     }
 
     string stripped = Httpd_StripSuffix(concls->url);
+
+    fprintf(stderr, "stripped %s\n", stripped.c_str());
 
     SharedStructured structdata;
 
@@ -928,15 +1025,61 @@ int Datasourcetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
             // Block until the open cmd unlocks us
             r = cl->block_until();
             return 1;
-        } else if (stripped == "/datasource/set_channel") {
+        } 
 
-        } else if (stripped == "/datasource_set_hopping") {
+        fprintf(stderr, "tokenizing url\n");
+       
+        // No single url we liked, split and look at the path
+        vector<string> tokenurl = StrTokenize(concls->url, "/");
 
-        } else {
-            concls->response_stream << "Invalid request";
-            concls->httpcode = 400;
-            return 1;
+        if (tokenurl.size() < 5) {
+            fprintf(stderr, "unknown uri\n");
+            throw std::runtime_error("Unknown URI");
         }
+
+
+        // /datasource/by-uuid/aaa-bbb-cc-dd/command.cmd / .jcmd
+        if (tokenurl[1] == "datasource" && tokenurl[2] == "by-uuid") {
+            fprintf(stderr, "debug - tokenized url w/ uuid\n");
+            uuid u(tokenurl[3]);
+
+            if (u.error) 
+                throw std::runtime_error("Invalid UUID");
+
+            SharedDatasource ds;
+
+            {
+                local_locker lock(&dst_lock);
+
+                if (uuid_source_num_map.find(u) == uuid_source_num_map.end())
+                    throw std::runtime_error("Unknown source");
+
+                TrackerElementVector dsvec(datasource_vec);
+                for (auto i = dsvec.begin(); i != dsvec.end(); ++i) {
+                    SharedDatasource dsi = static_pointer_cast<KisDatasource>(*i);
+
+                    if (dsi->get_source_uuid() == u) {
+                        ds = dsi;
+                        break;
+                    }
+                }
+
+                if (ds == NULL) {
+                    throw std::runtime_error("Unknown source");
+                }
+            }
+
+            if (Httpd_StripSuffix(tokenurl[4]) == "set_channel") {
+
+            }
+
+
+        }
+
+        // Otherwise no URL path we liked
+        concls->response_stream << "Invalid request";
+        concls->httpcode = 400;
+        return 1;
     
     } catch (const std::exception& e) {
         concls->response_stream << "Invalid request " << e.what();

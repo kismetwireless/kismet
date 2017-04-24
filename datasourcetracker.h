@@ -295,10 +295,12 @@ public:
     void open_datasource(string in_source, SharedDatasourceBuilder in_proto,
             function<void (bool, string, SharedDatasource)> in_cb);
 
+    // Close a datasource - stop it if necessary, and place it into a closed state
+    // without automatic reconnection.
+    bool close_datasource(uuid in_uuid);
+
     // Remove a data source by UUID; stop it if necessary
     bool remove_datasource(uuid in_uuid);
-    // Remove a data source by index; stop it if necessary
-    bool remove_datasource(int in_index);
 
     // HTTP api
     virtual bool Httpd_VerifyPath(const char *path, const char *method);
