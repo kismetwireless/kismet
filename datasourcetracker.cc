@@ -348,7 +348,8 @@ int Datasourcetracker::system_startup() {
     }
 
     for (unsigned int i = 0; i < src_vec.size(); i++) {
-        open_datasource(src_vec[i], [this, src_vec, i](bool success, string reason) {
+        open_datasource(src_vec[i], 
+                [this, src_vec, i](bool success, string reason, SharedDatasource) {
             if (success) {
                 _MSG("Data source '" + src_vec[i] + "' launched successfully.", 
                         MSGFLAG_INFO);
@@ -444,7 +445,7 @@ int Datasourcetracker::register_datasource(SharedDatasourceBuilder in_builder) {
 }
 
 void Datasourcetracker::open_datasource(string in_source, 
-        function<void (bool, string)> in_cb) {
+        function<void (bool, string, SharedDatasource)> in_cb) {
     // fprintf(stderr, "debug - DST open source %s\n", in_source.c_str());
 
     // Open a datasource only from the string definition
@@ -501,7 +502,7 @@ void Datasourcetracker::open_datasource(string in_source,
                 "interface is available.";
 
             if (in_cb != NULL) {
-                in_cb(false, ss.str());
+                in_cb(false, ss.str(), NULL);
             }
 
             return;
@@ -547,7 +548,7 @@ void Datasourcetracker::open_datasource(string in_source,
                 ss << "Unable to find driver for '" << i->second->get_definition() << 
                     "'.  Make sure that any plugins required are loaded.";
                 _MSG(ss.str(), MSGFLAG_ERROR);
-                in_cb(false, ss.str());
+                in_cb(false, ss.str(), NULL);
             } else {
                 ss << "Found type '" << builder->get_source_type() << "' for '" <<
                     i->second->get_definition() << "'";
@@ -571,7 +572,7 @@ void Datasourcetracker::open_datasource(string in_source,
 
 void Datasourcetracker::open_datasource(string in_source, 
         SharedDatasourceBuilder in_proto,
-        function<void (bool, string)> in_cb) {
+        function<void (bool, string, SharedDatasource)> in_cb) {
     local_locker lock(&dst_lock);
 
     // Make a data source from the builder
@@ -602,9 +603,9 @@ void Datasourcetracker::open_datasource(string in_source,
                 // Figure out channel hopping
                 calculate_source_hopping(ds);
 
-                in_cb(true, "");
+                in_cb(true, "", ds);
             } else {
-                in_cb(false, reason);
+                in_cb(false, reason, ds);
             }
         });
 }
@@ -909,24 +910,24 @@ int Datasourcetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
             // Initiate the open
             open_datasource(concls->variable_cache["definition"]->str(),
-                    [this, cl](bool success, string reason) {
-                        if (success)
-                            reason = "";
+                    [this, cl, concls](bool success, string reason, 
+                        SharedDatasource ds) {
+                        if (success) {
+                            concls->response_stream << 
+                                ds->get_source_uuid().UUID2String();
+                            concls->httpcode = 200;
+                        } else {
+                            concls->response_stream << reason;
+                            concls->httpcode = 500;
+                        }
+
                         
                         cl->unlock(reason);
                     });
 
-            // Block until something unlocks us
+            // Block until the open cmd unlocks us
             r = cl->block_until();
-
-            if (r.length() != 0) {
-                throw std::runtime_error(r);
-            } else {
-                concls->response_stream << "Success";
-                concls->httpcode = 200;
-                return 1;
-            }
-
+            return 1;
         } else if (stripped == "/datasource/set_channel") {
 
         } else if (stripped == "/datasource_set_hopping") {

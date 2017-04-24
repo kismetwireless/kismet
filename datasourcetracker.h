@@ -285,14 +285,15 @@ public:
     //
     // Optional completion function will be called, asynchronously,
     // on completion.
-    void open_datasource(string in_source, function<void (bool, string)> in_cb);
+    void open_datasource(string in_source, 
+            function<void (bool, string, SharedDatasource)> in_cb);
 
     // Launch a source with a known prototype, given a basic source line
     // and a prototype.
     //
     // Optional completion function will be called on error or success
     void open_datasource(string in_source, SharedDatasourceBuilder in_proto,
-            function<void (bool, string)> in_cb);
+            function<void (bool, string, SharedDatasource)> in_cb);
 
     // Remove a data source by UUID; stop it if necessary
     bool remove_datasource(uuid in_uuid);

@@ -37,7 +37,7 @@ if not kr.check_session():
 (r, v) = kr.post_url("datasource/add_source.cmd", { "definition": sys.argv[2] })
 
 if r:
-    print "Source added successfully"
+    print "Source added successfully: ", v
 else:
     print "Error adding source - check Kismet messages"
 

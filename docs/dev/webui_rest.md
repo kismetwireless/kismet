@@ -263,6 +263,8 @@ Channel usage and monitoring data.
 
 Kismet uses data sources to capture information - typically packets, but sometimes complete device or event records.  Data sources are defined in the Kismet config file via the `source=...` config option, or on the Kismet command line with the `-c` option as in `kismet -c wlan1`.
 
+#### Querying data sources
+
 ##### /datasource/all_sources `/datasource/all_sources.msgpack`, `/datasource/all_sources.json`
 
 List containing all data sources and the current information about them
@@ -282,6 +284,18 @@ Query all possible data source drivers and return a list of auto-detected interf
 ##### /datasource/by-uuid/[uuid]/source `/datasource/by-uuid/[uuid]/source.msgpack`, `/datasource/by-uuid/[uuid]/source.json`
 
 Return information about a specific data source, specified by the source UUID `[uuid]`
+
+#### Controlling data sources
+
+##### /datasource/add_source.cmd `/datasource/add_source.cmd`
+
+*LOGIN REQUIRED*.
+
+Dynamically add a new source to Kismet.
+
+Expects a string variable named 'definition'.  This value is identical to the `source=interface:flags` format passed in the Kismet config file or via the `-c` command line option.
+
+`add_source.cmd` will return a successful HTTP code when the *source is successfully added*.  This may not equate to a source which is *successfully running* due to automatic re-opening of sources and other Kismet behavior.  The caller can check the returned UUID to query the status of the source.
 
 ## GPS
 
