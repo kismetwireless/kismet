@@ -24,7 +24,10 @@
 #include "messagebus.h"
 #include "globalregistry.h"
 #include "msgpack_adapter.h"
+#include "kismet_json.h"
 #include "timetracker.h"
+#include "structured.h"
+#include "base64.h"
 
 DST_DatasourceProbe::DST_DatasourceProbe(GlobalRegistry *in_globalreg, 
         string in_definition, SharedTrackerElement in_protovec) {
@@ -736,8 +739,18 @@ void Datasourcetracker::calculate_source_hopping(SharedDatasource in_ds) {
 }
 
 bool Datasourcetracker::Httpd_VerifyPath(const char *path, const char *method) {
+    string stripped = Httpd_StripSuffix(path);
+
+    if (strcmp(method, "POST") == 0) {
+        if (stripped == "/datasource/add_source")
+            return true;
+        if (stripped == "/datasource/set_channel")
+            return true;
+        if (stripped == "/datasource_set_hopping")
+            return true;
+    }
+
     if (strcmp(method, "GET") == 0) {
-        string stripped = Httpd_StripSuffix(path);
         
         if (!Httpd_CanSerialize(path))
             return false;
@@ -856,9 +869,79 @@ void Datasourcetracker::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
 
 }
 
-int Datasourcetracker::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind, 
-        const char *key, const char *filename, const char *content_type, 
-        const char *transfer_encoding, const char *data, uint64_t off, size_t size) {
+int Datasourcetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
+
+    if (!Httpd_CanSerialize(concls->url)) {
+        concls->response_stream << "Invalid request";
+        concls->httpcode = 400;
+        return 1;
+    }
+
+    // All the posts require login
+    if (!httpd->HasValidSession(concls, true)) {
+        return 1;
+    }
+
+    string stripped = Httpd_StripSuffix(concls->url);
+
+    SharedStructured structdata;
+
+    try {
+
+        // Parse the msgpack or json paramaters, we'll need them later
+        if (concls->variable_cache.find("msgpack") != concls->variable_cache.end()) {
+            structdata.reset(new StructuredMsgpack(Base64::decode(concls->variable_cache["msgpack"]->str())));
+        } else if (concls->variable_cache.find("json") != concls->variable_cache.end()) {
+            structdata.reset(new StructuredJson(concls->variable_cache["json"]->str()));
+        }
+
+        // Locker for waiting for the open callback
+        shared_ptr<conditional_locker<string> > cl(new conditional_locker<string>());
+
+        if (stripped == "/datasource/add_source") {
+            string r; 
+
+            if (concls->variable_cache.find("definition") == 
+                    concls->variable_cache.end()) 
+                throw std::runtime_error("Missing source definition");
+
+            cl->lock();
+
+            // Initiate the open
+            open_datasource(concls->variable_cache["definition"]->str(),
+                    [this, cl](bool success, string reason) {
+                        if (success)
+                            reason = "";
+                        
+                        cl->unlock(reason);
+                    });
+
+            // Block until something unlocks us
+            r = cl->block_until();
+
+            if (r.length() != 0) {
+                throw std::runtime_error(r);
+            } else {
+                concls->response_stream << "Success";
+                concls->httpcode = 200;
+                return 1;
+            }
+
+        } else if (stripped == "/datasource/set_channel") {
+
+        } else if (stripped == "/datasource_set_hopping") {
+
+        } else {
+            concls->response_stream << "Invalid request";
+            concls->httpcode = 400;
+            return 1;
+        }
+    
+    } catch (const std::exception& e) {
+        concls->response_stream << "Invalid request " << e.what();
+        concls->httpcode = 400;
+        return 1;
+    }
 
     return 0;
 }

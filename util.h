@@ -324,10 +324,12 @@ class conditional_locker {
 public:
     conditional_locker() {
         locked = false;
+        cmd_unlocked = false;
     }
 
     conditional_locker(t in_data) {
         locked = false;
+        cmd_unlocked = false;
         data = in_data;
     }
 
@@ -340,6 +342,11 @@ public:
     // Block this thread until another thread calls us and unlocks us, return
     // whatever value we were unlocked with
     t block_until() {
+        // If we've gotten an explicit unlock (not just initialized) then we're not
+        // going to get unlocked
+        if (cmd_unlocked) 
+            return data;
+
         std::unique_lock<std::mutex> lk(m);
         cv.wait(lk, [this] { return !locked; });
         return data;
@@ -351,6 +358,7 @@ public:
         {
             std::lock_guard<std::mutex> lg(m);
             locked = false;
+            cmd_unlocked = true;
             data = in_data;
         }
         cv.notify_one();
@@ -360,6 +368,7 @@ protected:
     std::mutex m;
     std::condition_variable cv;
     bool locked;
+    bool cmd_unlocked;
     t data;
 };
 
