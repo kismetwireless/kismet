@@ -259,6 +259,12 @@ void SpindownKismet(shared_ptr<PollableTracker> pollabletracker) {
     int max_fd = 0;
     fd_set rset, wset;
     struct timeval tm;
+
+    sigset_t mask, oldmask;
+    sigemptyset(&mask);
+    sigemptyset(&oldmask);
+    sigaddset(&mask, SIGCHLD);
+
     while (1) {
         FD_ZERO(&rset);
         FD_ZERO(&wset);
@@ -284,12 +290,20 @@ void SpindownKismet(shared_ptr<PollableTracker> pollabletracker) {
             }
         }
 
+        // Block signals while doing io loops */
+        sigprocmask(SIG_BLOCK, &mask, &oldmask);
+
         pollabletracker->ProcessPollableSelect(rset, wset);
+
+        sigprocmask(SIG_UNBLOCK, &mask, &oldmask);
+
         if (globalregistry->fatal_condition) {
             break;
         }
 
     }
+
+    sigprocmask(SIG_UNBLOCK, &mask, &oldmask);
 
     // Be noisy
     if (globalregistry->fatal_condition) {
@@ -545,6 +559,11 @@ void ncurses_wrapper_fork() {
         size_t len = 2048;
         char *buf = new char[len];
 
+        sigset_t mask, oldmask;
+        sigemptyset(&mask);
+        sigemptyset(&oldmask);
+        sigaddset(&mask, SIGCHLD);
+
         while (1) {
             fd_set rset;
             FD_ZERO(&rset);
@@ -555,6 +574,9 @@ void ncurses_wrapper_fork() {
                     break;
                 }
             }
+
+            // Block signals while doing io loops */
+            sigprocmask(SIG_BLOCK, &mask, &oldmask);
 
             if ((read = getline(&buf, &len, c_stdin)) != -1) {
                 wprintw(main_text, "%s", buf);
@@ -568,7 +590,11 @@ void ncurses_wrapper_fork() {
             if (feof(c_stdin) || ferror(c_stdin))
                 break;
 
+            sigprocmask(SIG_BLOCK, &mask, &oldmask);
         }
+
+        sigprocmask(SIG_UNBLOCK, &mask, &oldmask);
+
         delete[] buf;
     
         endwin();
@@ -989,6 +1015,11 @@ int main(int argc, char *argv[], char *envp[]) {
     
     datasourcetracker->system_startup();
 
+    sigset_t mask, oldmask;
+    sigemptyset(&mask);
+    sigemptyset(&oldmask);
+    sigaddset(&mask, SIGCHLD);
+
     // Core loop
     while (1) {
         if (globalregistry->spindown) {
@@ -1017,11 +1048,16 @@ int main(int argc, char *argv[], char *envp[]) {
             }
         }
 
+        // Block signals while doing io loops */
+        sigprocmask(SIG_BLOCK, &mask, &oldmask);
+
         globalregistry->timetracker->Tick();
 
         // fprintf(stderr, "debug - main poll()\n");
 
         pollabletracker->ProcessPollableSelect(rset, wset);
+
+        sigprocmask(SIG_UNBLOCK, &mask, &oldmask);
 
         if (globalregistry->fatal_condition) {
             fprintf(stderr, "fatal condition after processpollable\n");

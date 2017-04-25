@@ -462,12 +462,14 @@ void KisDatasource::trigger_error(string in_error) {
             get_source_interface() << ") encountered an error: " <<
             in_error;
         _MSG(ss.str(), MSGFLAG_ERROR);
+        set_int_source_error(true);
+        set_int_source_error_reason(in_error);
     }
 
     handle_source_error();
 
-    set_int_source_error(true);
-    set_int_source_error_reason(in_error);
+    /* Set errors as quiet after the first one */
+    quiet_errors = 1;
 }
 
 string KisDatasource::get_definition_opt(string in_opt) {
@@ -1757,6 +1759,12 @@ void KisDatasource::handle_source_error() {
         // Set a new event to try to re-open the interface
         error_timer_id = timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 5,
                 NULL, 0, [this](int) -> int {
+                local_locker lock(&source_lock);
+
+                error_timer_id = 0;
+
+                _MSG("Attempting to re-open source " + get_source_name(), MSGFLAG_INFO);
+
                 // Call open on the same sourceline, no transaction, no cb
                 open_interface(get_source_definition(), 0, 
                         [this](int, bool success, string) {
@@ -1775,8 +1783,11 @@ void KisDatasource::handle_source_error() {
                                 set_channel(get_source_channel(), 0, NULL);
                             }
                         });
+
                     return 0;
                 });
+    } else {
+        // fprintf(stderr, "debug - source error but we think a timer is already running\n");
     }
 }
 

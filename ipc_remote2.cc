@@ -102,7 +102,9 @@ void IPCRemoteV2::close_ipc() {
     // catcher reap the signal normally, we just don't need to know about it.
     remotehandler->remove_ipc(this);
 
-    soft_kill();
+    hard_kill();
+
+    child_pid = -1;
 }
 
 int IPCRemoteV2::launch_kis_binary(string cmd, vector<string> args) {
@@ -384,8 +386,8 @@ void IPCRemoteV2::set_tracker_free(bool in_free) {
 int IPCRemoteV2::soft_kill() {
     local_locker lock(&ipc_locker);
 
+    // fprintf(stderr, "debug - IPCRemoteV2 soft_kill %d ipeclient != null, removing pollable and closing pipes\n", child_pid);
     if (pipeclient != NULL) {
-        // fprintf(stderr, "debug - IPCRemoteV2 soft_kill pipeclient != null, removing pollable and closing pipes\n");
         pollabletracker->RemovePollable(pipeclient);
         pipeclient->ClosePipes();
     }
@@ -398,6 +400,9 @@ int IPCRemoteV2::soft_kill() {
 }
 
 int IPCRemoteV2::hard_kill() {
+    local_locker lock(&ipc_locker);
+
+    // fprintf(stderr, "debug - IPCRemoteV2 hard_kill %d pipeclient != null, removing pollable and closing pipes\n", child_pid);
     if (pipeclient != NULL) {
         pollabletracker->RemovePollable(pipeclient);
         pipeclient->ClosePipes();
