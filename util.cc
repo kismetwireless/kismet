@@ -621,27 +621,27 @@ int FetchSysLoadAvg(uint8_t *in_avgmaj, uint8_t *in_avgmin) {
 
 uint32_t Adler32IncrementalChecksum(const char *in_buf, size_t in_len,
         uint32_t *s1, uint32_t *s2) {
-	size_t i;
+    size_t i;
     const uint8_t *buf = (const uint8_t *) in_buf;
-	int CHAR_OFFSET = 0;
+    int CHAR_OFFSET = 0;
 
     if (in_len < 4)
         return 0;
 
-	for (i = 0; i < (in_len - 4); i += 4) {
-		*s2 += 4 * (*s1 + buf[i]) + 3 * buf[i + 1] + 
+    for (i = 0; i < (in_len - 4); i += 4) {
+        *s2 += 4 * (*s1 + buf[i]) + 3 * buf[i + 1] + 
             2 * buf[i+2] + buf[i + 3] + 
             10 * CHAR_OFFSET;
         *s1 += (buf[i + 0] + buf[i + 1] + buf[i + 2] + 
                 buf[i + 3] + 4 * CHAR_OFFSET); 
-	}
+    }
 
-	for (; i < in_len; i++) {
-		*s1 += (buf[i] + CHAR_OFFSET); 
+    for (; i < in_len; i++) {
+        *s1 += (buf[i] + CHAR_OFFSET); 
         *s2 += *s1;
-	}
+    }
 
-	return (*s1 & 0xffff) + (*s2 << 16);
+    return (*s1 & 0xffff) + (*s2 << 16);
 }
 
 uint32_t Adler32Checksum(const char *in_buf, size_t in_len) {
