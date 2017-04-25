@@ -125,13 +125,13 @@ int Alertracker::RegisterAlert(string in_header, string in_description,
     if ((unsigned int) in_unit > sat_day)
         in_unit = sat_day;
 
-	// Bail if the rates are impossible
-	if (in_burstunit > in_unit) {
+    // Bail if the rates are impossible
+    if (in_burstunit > in_unit) {
         _MSG("Failed to register alert " + in_header + ", time unit for "
                 "burst rate must be less than or equal to the time unit "
                 "for the max rate", MSGFLAG_ERROR);
-		return -1;
-	}
+        return -1;
+    }
 
     shared_alert_def arec = static_pointer_cast<tracked_alert_definition>(entrytracker->GetTrackedInstance(alert_def_id));
 
