@@ -492,8 +492,7 @@ int iwconfig_set_mode(const char *in_dev, char *in_err, int in_mode) {
     wrq.u.mode = in_mode;
 
     if (ioctl(skfd, SIOCSIWMODE, &wrq) < 0) {
-        snprintf(in_err, STATUS_MAX, 
-                "failed to set mode on interface '%s': %s",
+        snprintf(in_err, STATUS_MAX, "failed to set mode on interface '%s': %s",
                 in_dev, strerror(errno));
         close(skfd);
         return -1;
