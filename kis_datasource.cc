@@ -1739,23 +1739,24 @@ void KisDatasource::handle_source_error() {
         return;
     }
 
-    // Increment our failures
-    inc_int_source_retry_attempts(1);
-    inc_int_source_total_retry_attempts(1);
+    // If we already have an error timer, we're thinking about restarting, 
+    // be quiet about things; otherwise, talk about restarting, increment the
+    // count, and set a timer
+    if (error_timer_id <= 0) {
 
-    // Notify about it
-    ss << "Source " << get_source_name() << " has encountered an error. "
-        "Kismet will attempt to re-open the source in 5 seconds.  (" <<
-        get_source_retry_attempts() << " failures)";
-    _MSG(ss.str(), MSGFLAG_ERROR);
+        // Increment our failures
+        inc_int_source_retry_attempts(1);
+        inc_int_source_total_retry_attempts(1);
 
-    // Cancel any timers
-    if (error_timer_id > 0)
-        timetracker->RemoveTimer(error_timer_id);
+        // Notify about it
+        ss << "Source " << get_source_name() << " has encountered an error. "
+            "Kismet will attempt to re-open the source in 5 seconds.  (" <<
+            get_source_retry_attempts() << " failures)";
+        _MSG(ss.str(), MSGFLAG_ERROR);
 
-    // Set a new event to try to re-open the interface
-    error_timer_id = timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 5,
-            NULL, 0, [this](int) -> int {
+        // Set a new event to try to re-open the interface
+        error_timer_id = timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 5,
+                NULL, 0, [this](int) -> int {
                 // Call open on the same sourceline, no transaction, no cb
                 open_interface(get_source_definition(), 0, 
                         [this](int, bool success, string) {
@@ -1774,8 +1775,9 @@ void KisDatasource::handle_source_error() {
                                 set_channel(get_source_channel(), 0, NULL);
                             }
                         });
-                return 0;
-            });
+                    return 0;
+                });
+    }
 }
 
 void KisDatasource::launch_ipc() {
