@@ -588,41 +588,48 @@ int IPCRemoteV2Tracker::ensure_all_ipc_killed(int in_soft_delay, int in_max_dela
 }
 
 int IPCRemoteV2Tracker::timetracker_event(int event_id __attribute__((unused))) {
-    while (1) {
-        int pid_status;
-        pid_t caught_pid;
-        IPCRemoteV2 *dead_remote = NULL;
-        stringstream str;
+    stringstream str;
+    IPCRemoteV2 *dead_remote = NULL;
 
-        caught_pid = waitpid(-1, &pid_status, WNOHANG);
+    // Turn off sigchild while we process the list
+    sigset_t mask, oldmask;
 
-        if (caught_pid > 0) {
-            dead_remote = remove_ipc(caught_pid);
+    sigemptyset(&mask);
+    sigemptyset(&oldmask);
 
-            if (dead_remote != NULL) {
-                /*
-                str << "IPC child pid " << dead_remote->get_pid() << " exited with " <<
-                    "status " << WEXITSTATUS(pid_status);
-                _MSG(str.str(), MSGFLAG_INFO);
-                */
-                dead_remote->notify_killed(WEXITSTATUS(pid_status));
-                dead_remote->close_ipc();
+    sigaddset(&mask, SIGCHLD);
+    sigprocmask(SIG_BLOCK, &mask, &oldmask);
 
-                if (dead_remote->get_tracker_free()) {
-                    str.str("");
-                    str << "Deleting tracked IPC for " << dead_remote->get_pid();
-                    _MSG(str.str(), MSGFLAG_INFO);
-                    delete (dead_remote);
-                }
-            } else {
-                str << "IPC child pid " << caught_pid << " exited with status " <<
-                     WEXITSTATUS(pid_status) << " but was not tracked";
+    for (unsigned int x = 0; x < globalreg->sigchild_vec.size(); x++) {
+        pid_t caught_pid = globalreg->sigchild_vec[x].pid;
+        int pid_status = globalreg->sigchild_vec[x].status;
+
+        dead_remote = remove_ipc(caught_pid);
+
+        if (dead_remote != NULL) {
+            dead_remote->notify_killed(WEXITSTATUS(pid_status));
+            dead_remote->close_ipc();
+
+            if (dead_remote->get_tracker_free()) {
+                str.str("");
+                str << "Deleting tracked IPC for " << dead_remote->get_pid();
                 _MSG(str.str(), MSGFLAG_INFO);
             }
         } else {
-            break;
+            /* We don't care, and having initiated a shutdown we'll already have
+             * removed the source.
+             *
+            str << "IPC child pid " << caught_pid << " exited with status " <<
+                WEXITSTATUS(pid_status) << " but was not tracked";
+            _MSG(str.str(), MSGFLAG_INFO);
+            */
         }
+
     }
+
+    globalreg->sigchild_vec.clear();
+
+    sigprocmask(SIG_UNBLOCK, &mask, &oldmask);
 
     return 1;
 }
