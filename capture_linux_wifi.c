@@ -1402,18 +1402,7 @@ int main(int argc, char *argv[]) {
     }
 #endif
 
-    if (rv < 0) {
-        fprintf(stderr, "FATAL:  Error condition from select() loop, shutting down\n");
-        exit(1);
-    }
-
-    fprintf(stderr, "FATAL: Exited main select() loop, waiting to be killed\n");
-
     cf_handler_free(caph);
-
-    while (1) {
-        sleep(1);
-    }
 
     return 1;
 }

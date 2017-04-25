@@ -347,13 +347,7 @@ int main(int argc, char *argv[]) {
 
     cf_handler_loop(caph);
 
-    fprintf(stderr, "FATAL: Exited main select() loop, waiting to be killed\n");
-
     cf_handler_free(caph);
-
-    while (1) {
-        sleep(1);
-    }
 
     return 1;
 }
