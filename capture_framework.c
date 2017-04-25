@@ -835,7 +835,7 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
             pthread_mutex_unlock(&(caph->handler_lock));
         }
     } else if (strncasecmp(cap_proto_frame->header.type, "OPENDEVICE", 16) == 0) {
-        fprintf(stderr, "DEBUG - Got OPENDEVICE request\n");
+        /* fprintf(stderr, "DEBUG - Got OPENDEVICE request\n"); */
 
         if (caph->open_cb == NULL) {
             pthread_mutex_unlock(&(caph->handler_lock));
@@ -1194,7 +1194,7 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
             if (max_fd < write_fd)
                 max_fd = write_fd;
         } else if (spindown != 0) {
-            fprintf(stderr, "DEBUG - caphandler finished spinning down\n");
+            /* fprintf(stderr, "DEBUG - caphandler finished spinning down\n"); */
             pthread_mutex_unlock(&(caph->out_ringbuf_lock));
             rv = 0;
             break;
@@ -1321,7 +1321,7 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
         }
     }
 
-    fprintf(stderr, "FATAL - dropped out of select loop\n");
+    /* fprintf(stderr, "FATAL - dropped out of select loop\n"); */
     
     /* Kill the capture thread */
     pthread_mutex_lock(&(caph->out_ringbuf_lock));
