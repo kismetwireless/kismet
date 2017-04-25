@@ -1014,7 +1014,7 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
 
     free(frame_buf);
 
-    fprintf(stderr, "returning cbret %d\n", cbret);
+    /* fprintf(stderr, "returning cbret %d\n", cbret); */
     return cbret;
 }
 
