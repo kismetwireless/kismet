@@ -703,7 +703,7 @@ char *mac80211_find_parent(const char *interface) {
     snprintf(dirpath, 2048, "/sys/class/net/%s/phy80211/device", interface);
 
 	if ((devdir = opendir(dirpath)) == NULL)
-		return "";
+		return strdup("");
 
 	while ((devfile = readdir(devdir)) != NULL) {
 		if (strlen(devfile->d_name) < 9)
