@@ -97,7 +97,11 @@ int ifconfig_get_flags(const char *in_dev, char *errstr, int *flags) {
 }
 
 int ifconfig_interface_up(const char *in_dev, char *errstr) {
-    return ifconfig_delta_flags(in_dev, errstr, IFF_UP | IFF_RUNNING | IFF_PROMISC);
+    int r;
+    r = ifconfig_delta_flags(in_dev, errstr, (IFF_UP | IFF_RUNNING | IFF_PROMISC));
+
+    usleep(500000);
+    return r;
 }
 
 int ifconfig_interface_down(const char *in_dev, char *errstr) {
@@ -107,8 +111,11 @@ int ifconfig_interface_down(const char *in_dev, char *errstr) {
     if ((r = ifconfig_get_flags(in_dev, errstr, &flags)) < 0)
         return r;
 
-    return ifconfig_set_flags(in_dev, errstr, 
-            flags & ~(IFF_UP | IFF_RUNNING | IFF_PROMISC));
+    r = ifconfig_set_flags(in_dev, errstr, flags & ~(IFF_UP | IFF_RUNNING));
+
+    usleep(500000);
+
+    return r;
 }
 
 int ifconfig_delta_flags(const char *in_dev, char *errstr, int flags) {
