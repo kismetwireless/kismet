@@ -160,8 +160,17 @@ int IPCRemoteV2::launch_kis_explicit_binary(string cmdpath, vector<string> args)
         pthread_mutex_unlock(&ipc_locker);
         return -1;
     }
+    
+   
+    // Mask sigchild until we're done and it's in the list
+    sigset_t mask, oldmask;
 
-    // fprintf(stderr, "debug - ipcremote2 - inpair %d %d outpair %d %d\n", inpipepair[0], inpipepair[1], outpipepair[0], outpipepair[1]);
+    sigemptyset(&mask);
+    sigemptyset(&oldmask);
+
+    sigaddset(&mask, SIGCHLD);
+
+    sigprocmask(SIG_BLOCK, &mask, &oldmask);
 
     if ((child_pid = fork()) < 0) {
         _MSG("IPC could not fork()", MSGFLAG_ERROR);
@@ -215,6 +224,9 @@ int IPCRemoteV2::launch_kis_explicit_binary(string cmdpath, vector<string> args)
         close(inpipepair[1]);
         close(outpipepair[0]);
 
+        // Un-mask the child signals
+        sigprocmask(SIG_UNBLOCK, &mask, &oldmask);
+
         // fprintf(stderr, "debug - ipcremote2 - exec %s\n", cmdarg[0]);
         execvp(cmdarg[0], cmdarg);
 
@@ -244,6 +256,9 @@ int IPCRemoteV2::launch_kis_explicit_binary(string cmdpath, vector<string> args)
     }
 
     pthread_mutex_unlock(&ipc_locker);
+
+    // Unmask the child signal now that we're done
+    sigprocmask(SIG_UNBLOCK, &mask, &oldmask);
 
     return 1;
 }

@@ -330,30 +330,25 @@ void CatchChild(int sig) {
     int status;
     pid_t pid;
 
-    if (globalregistry->spindown)
-        return;
+    sigset_t mask, oldmask;
 
-    // printf("debug - sigchild\n");
+    sigemptyset(&mask);
+    sigemptyset(&oldmask);
 
-    while (1) {
-        pid = waitpid(-1, &status, WNOHANG);
+    sigaddset(&mask, SIGCHLD);
 
-        // printf("debug - pid %d status %d exit %d\n", pid, status, WEXITSTATUS(status));
+    sigprocmask(SIG_BLOCK, &mask, &oldmask);
 
-        if (pid != 0)
-            break;
+    while ((pid = waitpid(-1, &status, WNOHANG | WUNTRACED)) > 0) {
+        pid_fail frec;
+
+        frec.pid = pid;
+        frec.status = status;
+
+        globalregistry->sigchild_vec.push_back(frec);
     }
 
-    if (pid < 0) {
-        return;
-    }
-
-    pid_fail frec;
-
-    frec.pid = pid;
-    frec.status = status;
-
-    globalregistry->sigchild_vec.push_back(frec);
+    sigprocmask(SIG_UNBLOCK, &mask, &oldmask);
 }
 
 int Usage(char *argv) {
