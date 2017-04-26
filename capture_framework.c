@@ -230,7 +230,7 @@ kis_capture_handler_t *cf_handler_init() {
     ch->custom_channel_hop_list = NULL;
     ch->channel_hop_list_sz = 0;
     ch->channel_hop_shuffle = 0;
-    ch->channel_hop_shuffle_spacing = 0;
+    ch->channel_hop_shuffle_spacing = 1;
 
     return ch;
 }
@@ -344,18 +344,15 @@ void cf_handler_assign_hop_channels(kis_capture_handler_t *caph, char **stringch
     caph->channel_hop_shuffle = shuffle;
     caph->channel_hop_offset = offset;
 
-    if (caph->channel_hop_shuffle && caph->channel_hop_shuffle_spacing &&
-            chan_sz != 0) {
+    if (caph->channel_hop_shuffle && caph->channel_hop_shuffle_spacing && chan_sz != 0) {
         /* To find a proper randomization number, take the length of the channel
          * list, divide by the preferred skipping distance.
          *
          * We then need to find the closest number to the skipping distance that
          * is not a factor of the maximum so that we get full coverage.
          */
-        caph->channel_hop_shuffle = chan_sz / caph->channel_hop_shuffle_spacing;
-
-        while ((chan_sz % caph->channel_hop_shuffle) == 0)
-            caph->channel_hop_shuffle++;
+        while ((chan_sz % (chan_sz / caph->channel_hop_shuffle_spacing)) == 0)
+            caph->channel_hop_shuffle_spacing++;
     }
 
     pthread_mutex_unlock(&(caph->handler_lock));
@@ -373,11 +370,10 @@ void cf_handler_set_hop_shuffle_spacing(kis_capture_handler_t *caph, int spacing
      * needs to */
     if (caph->channel_hop_shuffle && caph->channel_hop_shuffle_spacing &&
             caph->channel_hop_list_sz != 0) {
-        caph->channel_hop_shuffle = 
-            caph->channel_hop_list_sz / caph->channel_hop_shuffle_spacing;
-
-        while ((caph->channel_hop_list_sz % caph->channel_hop_shuffle) == 0)
-            caph->channel_hop_shuffle++;
+        while ((caph->channel_hop_list_sz % 
+                    (caph->channel_hop_list_sz / 
+                     caph->channel_hop_shuffle_spacing)) == 0)
+            caph->channel_hop_shuffle_spacing++;
     }
 
     pthread_mutex_unlock(&(caph->handler_lock));
@@ -623,7 +619,7 @@ void *cf_int_chanhop_thread(void *arg) {
 
         /* Increment by the shuffle amount */
         if (caph->channel_hop_shuffle)
-            hoppos += caph->channel_hop_shuffle;
+            hoppos += caph->channel_hop_shuffle_spacing;
         else
             hoppos++;
 
