@@ -374,7 +374,7 @@ void cf_handler_set_hop_shuffle_spacing(kis_capture_handler_t *caph, int spacing
     if (caph->channel_hop_shuffle && caph->channel_hop_shuffle_spacing &&
             caph->channel_hop_list_sz != 0) {
         caph->channel_hop_shuffle = 
-            caph->channel_hop_list_sz/ caph->channel_hop_shuffle_spacing;
+            caph->channel_hop_list_sz / caph->channel_hop_shuffle_spacing;
 
         while ((caph->channel_hop_list_sz % caph->channel_hop_shuffle) == 0)
             caph->channel_hop_shuffle++;
@@ -1907,7 +1907,9 @@ int cf_send_configresp_chanhop(kis_capture_handler_t *caph, unsigned int seqno,
     }
 
     if (channel_list_sz != 0) {
-        kv_pairs[kv_pos] = encode_kv_chanhop(hop_rate, channel_list, channel_list_sz);
+        kv_pairs[kv_pos] = encode_kv_chanhop_complex(hop_rate, channel_list, 
+                channel_list_sz, caph->channel_hop_shuffle, 
+                caph->channel_hop_shuffle_spacing, caph->channel_hop_offset);
 
         if (kv_pairs[kv_pos] == NULL) {
             for (kvi = 0; kvi < kv_pos; kvi++) 

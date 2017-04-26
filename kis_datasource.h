@@ -173,6 +173,7 @@ public:
     __ProxyGet(source_split_hop, uint8_t, bool, source_hop_split);
     __ProxyGet(source_hop_offset, uint32_t, uint32_t, source_hop_offset);
     __ProxyGet(source_hop_shuffle, uint8_t, bool, source_hop_shuffle);
+    __ProxyGet(source_hop_shuffle_skip, uint32_t, uint32_t, source_hop_shuffle_skip);
     __ProxyTrackable(source_hop_vec, TrackerElement, source_hop_vec);
 
     __ProxyGet(source_running, uint8_t, bool, source_running);
@@ -378,6 +379,7 @@ protected:
     __ProxySet(int_source_hop_rate, double, double, source_hop_rate);
     __ProxySet(int_source_hop_split, uint8_t, bool, source_hop_split);
     __ProxySet(int_source_hop_shuffle, uint8_t, bool, source_hop_shuffle);
+    __ProxySet(int_source_hop_shuffle_skip, uint32_t, bool, source_hop_shuffle_skip);
     __ProxySet(int_source_hop_offset, uint32_t, uint32_t, source_hop_offset);
     __ProxyTrackable(int_source_hop_vec, TrackerElement, source_hop_vec);
 
@@ -419,6 +421,7 @@ protected:
     SharedTrackerElement source_hop_split;
     SharedTrackerElement source_hop_offset;
     SharedTrackerElement source_hop_shuffle;
+    SharedTrackerElement source_hop_shuffle_skip;
 
     SharedTrackerElement source_num_packets;
     SharedTrackerElement source_num_error_packets;

@@ -286,6 +286,17 @@ simple_cap_proto_kv_t *encode_kv_channels(char **channels, size_t len);
  */
 simple_cap_proto_kv_t *encode_kv_chanhop(double rate, char **channels, size_t len);
 
+/* Encode a complex CHANHOP KV pair
+ *
+ * Channels are arbitrary strings.
+ *
+ * Returns:
+ * Pointer on success
+ * NULL on failure
+ */
+simple_cap_proto_kv_t *encode_kv_chanhop_complex(double rate, char **channels,
+        size_t len, int shuffle, int shuffle_skip, int offset);
+
 #define MSGFLAG_NONE    0
 #define MSGFLAG_DEBUG   1
 #define MSGFLAG_INFO    2

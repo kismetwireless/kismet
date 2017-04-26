@@ -215,6 +215,7 @@ Msgpack packed dictionary of parameters containing at least the following:
 * "channels": Vector of strings defining channels, as show in the `CHANNELS` KV pair.
 * "rate": double-precision float indicating channels per second.
 * "shuffle": uint8 boolean indicating the source should, at its discretion, shuffle the order of the channel hopping to take advantage of channel overlap where possible
+* "shuffle_skip": uint32 boolean sent from the datasource to Kismet to communicate how many channels are skipped per hop.
 * "offset": start at an offset in the channel hopping list; this is used to tell the source to start hopping at a position other than 0; this lets Kismet easily split hopping between sources which share a type.
 
 Examples:

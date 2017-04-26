@@ -692,6 +692,69 @@ simple_cap_proto_kv_t *encode_kv_chanhop(double rate, char **channels, size_t le
     return kv;
 }
 
+simple_cap_proto_kv_t *encode_kv_chanhop_complex(double rate, char **channels,
+        size_t len, int shuffle, int shuffle_skip, int offset) {
+
+    const char *key_channels = "channels";
+    const char *key_rate = "rate";
+    const char *key_shuffle = "shuffle";
+    const char *key_shuffle_skip = "shuffle_skip";
+    const char *key_offset = "offset";
+
+    msgpuck_buffer_t *puckbuffer;
+
+    simple_cap_proto_kv_t *kv;
+    size_t content_sz;
+    
+    size_t i;
+
+    /* Allocate a chunk per channel as a guess, seems reasonable */
+    size_t initial_sz = (len * 32) + 256;
+
+    puckbuffer = mp_b_create_buffer(initial_sz);
+
+    if (puckbuffer == NULL) {
+        return NULL;
+    }
+
+    mp_b_encode_map(puckbuffer, 5);
+
+    mp_b_encode_str(puckbuffer, key_rate, strlen(key_rate));
+    mp_b_encode_double(puckbuffer, rate);
+
+    mp_b_encode_str(puckbuffer, key_channels, strlen(key_channels));
+    mp_b_encode_array(puckbuffer, len);
+
+    for (i = 0; i < len; i++) {
+        mp_b_encode_str(puckbuffer, channels[i], strlen(channels[i]));
+    }
+
+    mp_b_encode_str(puckbuffer, key_shuffle, strlen(key_shuffle));
+    mp_b_encode_uint(puckbuffer, shuffle);
+
+    mp_b_encode_str(puckbuffer, key_shuffle_skip, strlen(key_shuffle_skip));
+    mp_b_encode_uint(puckbuffer, shuffle_skip);
+
+    mp_b_encode_str(puckbuffer, key_offset, strlen(key_offset));
+    mp_b_encode_uint(puckbuffer, offset);
+
+    content_sz = mp_b_used_buffer(puckbuffer);
+
+    kv = (simple_cap_proto_kv_t *) malloc(sizeof(simple_cap_proto_kv_t) + content_sz);
+
+    if (kv == NULL)
+        return NULL;
+
+    snprintf(kv->header.key, 16, "%.16s", "CHANHOP");
+    kv->header.obj_sz = htonl(content_sz);
+
+    memcpy(kv->object, mp_b_get_buffer(puckbuffer), content_sz);
+
+    mp_b_free_buffer(puckbuffer);
+
+    return kv;
+}
+
 simple_cap_proto_kv_t *encode_kv_message(const char *message, unsigned int flags) {
 
     const char *key_message = "msg";

@@ -450,6 +450,8 @@ void KisDatasource::BufferError(string in_error) {
 void KisDatasource::trigger_error(string in_error) {
     local_locker lock(&source_lock);
 
+    fprintf(stderr, "debug - error - %s\n", in_error.c_str());
+
     set_int_source_running(false);
 
     // Kill any interaction w/ the source
@@ -1324,6 +1326,11 @@ void KisDatasource::handle_kv_config_hop(KisDatasourceCapKeyedObject *in_obj) {
         if ((obj_iter = dict.find("offset")) != dict.end()) {
             set_int_source_hop_offset(obj_iter->second.as<uint32_t>());
         }
+
+        if ((obj_iter = dict.find("shuffle_skip")) != dict.end()) {
+            set_int_source_hop_shuffle_skip(obj_iter->second.as<uint32_t>());
+        }
+
     } catch (const std::exception& e) {
         // Something went wrong with msgpack unpacking
         stringstream ss;
@@ -1694,6 +1701,9 @@ void KisDatasource::register_fields() {
             "Offset into hopping list for multiple sources", &source_hop_offset);
     RegisterField("kismet.datasource.hop_shuffle", TrackerUInt8,
             "Shuffle channels while hopping", &source_hop_shuffle);
+    RegisterField("kismet.datasource.hop_shuffle_skip", TrackerUInt32,
+            "Number of channels skipped by source during hop shuffling", 
+            &source_hop_shuffle_skip);
 
     RegisterField("kismet.datasource.error", TrackerUInt8,
             "Source is in error state", &source_error);
