@@ -165,9 +165,11 @@ function channelcoverage_display_refresh() {
     var chantitles = new Array();
     for (var ci in total_channel_list) {
         chantitles.push(ci);
-    }
+    }	
 
-    console.log(chantitles);
+    // Perform a natural
+    var ncollator = new Intl.Collator(undefined, {numeric: true, sensitivity: 'base'});
+    chantitles.sort(ncollator.compare);
 
     // Create the source datasets for the graph, covering all channels and
     // highlighting the channels we have a UUID in
@@ -180,8 +182,8 @@ function channelcoverage_display_refresh() {
 
         var dset = [];
 
-        for (var ci in total_channel_list) {
-            var clist = total_channel_list[ci];
+        for (var ci in chantitles) {
+            var clist = total_channel_list[chantitles[ci]];
 
             if (clist.indexOf(du) < 0) {
                 dset.push(0);
@@ -190,7 +192,7 @@ function channelcoverage_display_refresh() {
             }
         }
 
-        var color = "hsl(" + parseInt(255 * (ndev / cc_uuid_pos_map.length)) + ", 100%, 50%)";
+        var color = "hsl(" + parseInt(255 * (ndev / Object.keys(cc_uuid_pos_map).length)) + ", 100%, 50%)";
 
         source_datasets.push({
             label: d['name'],
@@ -198,6 +200,8 @@ function channelcoverage_display_refresh() {
             borderColor: color,
             backgroundColor: color,
         });
+
+	ndev++;
 
     }
 
@@ -209,6 +213,9 @@ function channelcoverage_display_refresh() {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+		scales: {
+			xAxes: [{ barPercentage: 5.0 }]
+		},
             },
             data: {
                 labels: chantitles,
@@ -221,7 +228,7 @@ function channelcoverage_display_refresh() {
         channelcoverage_chart.update(0);
     }
 
-    channelcoverage_display_tid = setTimeout(channelcoverage_display_refresh, 250);
+    channelcoverage_display_tid = setTimeout(channelcoverage_display_refresh, 500);
 }
 
 // We're done loading
