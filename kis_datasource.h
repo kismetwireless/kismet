@@ -379,7 +379,7 @@ protected:
     __ProxySet(int_source_hop_rate, double, double, source_hop_rate);
     __ProxySet(int_source_hop_split, uint8_t, bool, source_hop_split);
     __ProxySet(int_source_hop_shuffle, uint8_t, bool, source_hop_shuffle);
-    __ProxySet(int_source_hop_shuffle_skip, uint32_t, bool, source_hop_shuffle_skip);
+    __ProxySet(int_source_hop_shuffle_skip, uint32_t, uint32_t, source_hop_shuffle_skip);
     __ProxySet(int_source_hop_offset, uint32_t, uint32_t, source_hop_offset);
     __ProxyTrackable(int_source_hop_vec, TrackerElement, source_hop_vec);
 
