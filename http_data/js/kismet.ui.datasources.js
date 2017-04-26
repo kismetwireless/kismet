@@ -43,7 +43,7 @@ var cc_uuid_pos_map = {};
 
 exports.ChannelCoverage = function() {
     var w = $(window).width() * 0.85;
-    var h = $(window).height() * 0.75;
+    var h = $(window).height() * 0.50;
 
     if ($(window).width() < 450 || $(window).height() < 450) {
         w = $(window).width() - 5;
@@ -173,6 +173,8 @@ function channelcoverage_display_refresh() {
     // highlighting the channels we have a UUID in
     var source_datasets = []
 
+    var ndev = 0;
+
     for (var du in cc_uuid_pos_map) {
         var d = cc_uuid_pos_map[du];
 
@@ -188,9 +190,13 @@ function channelcoverage_display_refresh() {
             }
         }
 
+        var color = "hsl(" + parseInt(255 * (ndev / cc_uuid_pos_map.length)) + ", 100%, 50%)";
+
         source_datasets.push({
             label: d['name'],
             data: dset,
+            borderColor: color,
+            backgroundColor: color,
         });
 
     }
