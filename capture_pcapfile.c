@@ -96,8 +96,6 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     *chanlist = NULL;
     *chanlist_sz = 0;
 
-    fprintf(stderr, "debug - pcapfile - trying to probe source %s\n", definition);
-
     if ((placeholder_len = cf_parse_interface(&placeholder, definition)) <= 0) {
         snprintf(msg, STATUS_MAX, "Unable to find PCAP file name in definition"); 
         return 0;
@@ -106,7 +104,6 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     pcapfname = strndup(placeholder, placeholder_len);
 
     if (stat(pcapfname, &sbuf) < 0) {
-        // snprintf(msg, STATUS_MAX, "Unable to find pcapfile '%s'", pcapfname);
         return 0;
     }
 
@@ -119,12 +116,9 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
 
     pd = pcap_open_offline(pcapfname, errstr);
     if (strlen(errstr) > 0) {
-        fprintf(stderr, "debug - pcapfile - %s\n", errstr);
         snprintf(msg, STATUS_MAX, "%s", errstr);
         return 0;
     }
-
-    fprintf(stderr, "debug - probe ok!\n");
 
     pcap_close(pd);
 
@@ -194,12 +188,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     local_pcap->datalink_type = pcap_datalink(local_pcap->pd);
 
-    fprintf(stderr, "debug - pcapfile - opened pcap file!\n");
-
     /* Succesful open with no channel, hop, or chanset data */
     snprintf(msg, STATUS_MAX, "Opened pcapfile '%s' for playback", pcapfname);
-
-    fprintf(stderr, "debug - pcapfile - returning from open handler\n");
 
     if ((placeholder_len = cf_find_flag(&placeholder, "realtime", definition)) > 0) {
         if (strncasecmp(placeholder, "true", placeholder_len) == 0) {
