@@ -121,6 +121,9 @@ int TcpServerV2::ConfigureServer(short int in_port, unsigned int in_maxcli,
 int TcpServerV2::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
     int maxfd = in_max_fd;
 
+    if (!valid)
+        return -1;
+
     if (server_fd >= 0) {
         FD_SET(server_fd, out_rset);
         if (maxfd < server_fd)
@@ -128,14 +131,14 @@ int TcpServerV2::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
     }
 
     for (auto i = handler_map.begin(); i != handler_map.end(); ++i) {
-        if (i->second->GetReadBufferFree() != 0) {
+        if (i->second->GetReadBufferFree() > 0) {
             FD_SET(i->first, out_rset);
 
             if (maxfd < i->first)
                 maxfd = i->first;
         }
 
-        if (i->second->GetWriteBufferUsed() != 0) {
+        if (i->second->GetWriteBufferUsed() > 0) {
             FD_SET(i->first, out_wset);
 
             if (maxfd < i->first)
@@ -153,7 +156,7 @@ int TcpServerV2::Poll(fd_set& in_rset, fd_set& in_wset) {
     size_t len;
     uint8_t *buf;
 
-    if (valid)
+    if (!valid)
         return -1;
 
     int accept_fd = 0;
@@ -178,9 +181,7 @@ int TcpServerV2::Poll(fd_set& in_rset, fd_set& in_wset) {
         NewConnection(con_handler);
     }
 
-    for (auto i = handler_map.begin();
-            i != handler_map.end(); ++i) {
-
+    for (auto i = handler_map.begin(); i != handler_map.end(); ++i) {
         // Process incoming data
         if (FD_ISSET(i->first, &in_rset)) {
             // Read only as much as we have free in the buffer
@@ -267,8 +268,8 @@ void TcpServerV2::KillConnection(shared_ptr<RingbufferHandler> in_handler) {
     for (auto i = handler_map.begin(); i != handler_map.end(); ++i) {
         if (i->second == in_handler) {
             close(i->first);
-            handler_map.erase(i);
             i->second->BufferError("TCP connection closed");
+            handler_map.erase(i);
             return;
         }
     }
@@ -288,8 +289,7 @@ int TcpServerV2::AcceptConnection() {
 
     if ((new_fd = accept(server_fd, (struct sockaddr *) &client_addr, 
                     &client_len)) < 0) {
-        _MSG("TCP server accept() failed: " + kis_strerror_r(errno),
-                MSGFLAG_ERROR);
+        _MSG("TCP server accept() failed: " + kis_strerror_r(errno), MSGFLAG_ERROR);
         return -1;
     }
 
