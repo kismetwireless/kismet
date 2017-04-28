@@ -1,0 +1,21 @@
+Kismet Rest Examples
+
+
+These examples show how to talk to Kismet programmatically over the HTTP
+REST web API.
+
+The Python examples use the KismetRest library, which is in this directory.
+To install it, install as you would a normal Python module:
+    $ cd KismetRest
+    $ python2 ./setup.py build
+    $ sudo python2 ./setup.py install
+
+It may be necessary, on some distributions, to install the python setup tools
+package, for example:
+    $ sudo apt-get install python-setuptools
+
+As the Kismet API grows this Python code will likely need to change, up until
+the first release when it will be version-matched.  If the example code doesn't
+work, make sure you've updated your KismetRest library by re-running the build
+and install phases.
+
