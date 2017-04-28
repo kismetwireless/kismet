@@ -1136,8 +1136,6 @@ int Datasourcetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                         structdata->getKeyAsNumber("shuffle",
                                 ds->get_source_hop_shuffle());
 
-                    fprintf(stderr, "debug - %lu channels\n", converted_channels.size());
-
                     _MSG("Source '" + ds->get_source_name() + "' setting hopping "
                             "pattern", MSGFLAG_INFO);
 
