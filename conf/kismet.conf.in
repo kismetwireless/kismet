@@ -14,6 +14,14 @@ include=%E/kismet_httpd.conf
 # binaries are only executed from these directories
 capture_binary_path=%B/kismet_capture_tools/
 
+# Kismet can accept connections from remote capture datasources; by default this 
+# is enabled on the loopback interface *only*.  It's recommended that the remote
+# capture socket stay bound to the loopback local interface, and additional
+# authentication - such as SSH tunnels - is used.  Check the Kismet README for
+# more information about setting up remote capture securely!
+remote_capture_listen=127.0.0.1
+remote_capture_port=3501
+
 # Prefix of where we log (as used in the logtemplate later)
 # logprefix=/some/path/to/logs
 

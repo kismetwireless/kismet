@@ -56,8 +56,6 @@ DST_DatasourceProbe::DST_DatasourceProbe(GlobalRegistry *in_globalreg,
 DST_DatasourceProbe::~DST_DatasourceProbe() {
     local_eol_locker lock(&probe_lock);
 
-    // fprintf(stderr, "debug - ~DSTprobe %p\n", this);
-
     // Cancel any probing sources and delete them
     for (auto i = probe_vec.begin(); i != probe_vec.end(); ++i) {
         (*i)->close_source();
@@ -282,6 +280,33 @@ Datasourcetracker::Datasourcetracker(GlobalRegistry *in_globalreg) :
         config_defaults->set_retry_on_error(true);
     }
 
+    string listen = globalreg->kismet_config->FetchOpt("remote_capture_listen");
+    uint32_t listenport = 
+        globalreg->kismet_config->FetchOptUInt("remote_capture_port", 0);
+
+    if (listen.length() == 0) {
+        _MSG("No remote_capture_listen= line found in kismet.conf; no remote "
+                "capture will be enabled.", MSGFLAG_INFO);
+    }
+
+    if (listenport == 0) {
+        _MSG("No remote_capture_port= line found in kismet.conf; no remote "
+                "capture will be enabled.", MSGFLAG_INFO);
+    }
+
+    config_defaults->set_remote_cap_listen(listen);
+    config_defaults->set_remote_cap_port(listenport);
+
+    if (listen.length() != 0 && listenport != 0) {
+        _MSG("Launching remote capture server on " + listen + ":" + 
+                UIntToString(listenport), MSGFLAG_INFO);
+        if (ConfigureServer(listenport, 1024, listen, vector<string>()) < 0) {
+            _MSG("Failed to launch remote capture TCP server, check your "
+                    "remote_capture_listen= and remote_capture_port= lines in "
+                    "kismet.conf", MSGFLAG_FATAL);
+            globalreg->fatal_condition = 1;
+        }
+    }
 }
 
 Datasourcetracker::~Datasourcetracker() {
@@ -790,8 +815,9 @@ bool Datasourcetracker::Httpd_VerifyPath(const char *path, const char *method) {
                 if (uuid_source_num_map.find(u) == uuid_source_num_map.end())
                     return false;
 
-                if (Httpd_StripSuffix(tokenurl[4]) == "set_channel")
+                if (Httpd_StripSuffix(tokenurl[4]) == "set_channel") {
                     return true;
+                }
 
                 return false;
             }
@@ -966,7 +992,6 @@ void Datasourcetracker::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
 }
 
 int Datasourcetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
-    fprintf(stderr, "postcomplete %s\n", concls->url.c_str());
     if (!Httpd_CanSerialize(concls->url)) {
         concls->response_stream << "Invalid request";
         concls->httpcode = 400;
@@ -979,8 +1004,6 @@ int Datasourcetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
     }
 
     string stripped = Httpd_StripSuffix(concls->url);
-
-    fprintf(stderr, "stripped %s\n", stripped.c_str());
 
     SharedStructured structdata;
 
@@ -1017,8 +1040,8 @@ int Datasourcetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                             concls->response_stream << reason;
                             concls->httpcode = 500;
                         }
-
-                        
+                       
+                        // Unlock the locker so we unblock below
                         cl->unlock(reason);
                     });
 
@@ -1027,20 +1050,16 @@ int Datasourcetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
             return 1;
         } 
 
-        fprintf(stderr, "tokenizing url\n");
-       
         // No single url we liked, split and look at the path
         vector<string> tokenurl = StrTokenize(concls->url, "/");
 
         if (tokenurl.size() < 5) {
-            fprintf(stderr, "unknown uri\n");
             throw std::runtime_error("Unknown URI");
         }
 
 
         // /datasource/by-uuid/aaa-bbb-cc-dd/command.cmd / .jcmd
         if (tokenurl[1] == "datasource" && tokenurl[2] == "by-uuid") {
-            fprintf(stderr, "debug - tokenized url w/ uuid\n");
             uuid u(tokenurl[3]);
 
             if (u.error) 
@@ -1070,10 +1089,80 @@ int Datasourcetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
             }
 
             if (Httpd_StripSuffix(tokenurl[4]) == "set_channel") {
+                if (structdata->hasKey("channel")) {
+                    string ch = structdata->getKeyAsString("channel", "");
 
+                    if (ch.length() == 0) {
+                        throw std::runtime_error("could not parse channel");
+                    }
+
+                    cl->lock();
+
+                    _MSG("Setting source '" + ds->get_source_name() + "' channel '" +
+                            ch + "'", MSGFLAG_INFO);
+
+                    // Initiate the channel set
+                    ds->set_channel(ch, 0, 
+                            [this, cl, concls](unsigned int, bool success, 
+                                string reason) {
+
+                                if (success) {
+                                    concls->response_stream << "Success";
+                                    concls->httpcode = 200;
+                                } else {
+                                    concls->response_stream << reason;
+                                    concls->httpcode = 500;
+                                }
+                                
+                                cl->unlock(reason);
+                            });
+
+                    // Block until the open cmd unlocks us
+                    cl->block_until();
+                    return 1;
+
+                } else {
+                    // Get the channels as a vector
+                    SharedStructured chstruct;
+                    chstruct = structdata->getStructuredByKey("channels");
+                    vector<string> converted_channels = chstruct->getStringVec();
+
+                    // Get the hop rate and the shuffle; default to the source
+                    // state if we don't have them provided
+                    double rate = 
+                        structdata->getKeyAsNumber("rate", ds->get_source_hop_rate());
+
+                    unsigned int shuffle = 
+                        structdata->getKeyAsNumber("shuffle",
+                                ds->get_source_hop_shuffle());
+
+                    fprintf(stderr, "debug - %lu channels\n", converted_channels.size());
+
+                    _MSG("Source '" + ds->get_source_name() + "' setting hopping "
+                            "pattern", MSGFLAG_INFO);
+
+                    // Initiate the channel set
+                    ds->set_channel_hop(rate, converted_channels, shuffle, 
+                            ds->get_source_hop_offset(),
+                            0, [this, cl, concls](unsigned int, bool success, 
+                                string reason) {
+
+                                if (success) {
+                                    concls->response_stream << "Success";
+                                    concls->httpcode = 200;
+                                } else {
+                                    concls->response_stream << reason;
+                                    concls->httpcode = 500;
+                                }
+                                
+                                cl->unlock(reason);
+                            });
+
+                    // Block until the open cmd unlocks us
+                    cl->block_until();
+                    return 1;
+                }
             }
-
-
         }
 
         // Otherwise no URL path we liked

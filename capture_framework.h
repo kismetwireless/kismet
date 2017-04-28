@@ -236,7 +236,7 @@ struct kis_capture_handler {
 
     /* Do we shuffle?  Do we have a shuffle spacing from the driver? */
     int channel_hop_shuffle;
-    int channel_hop_shuffle_spacing;
+    unsigned int channel_hop_shuffle_spacing;
 
     int channel_hop_offset;
 

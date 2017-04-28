@@ -132,6 +132,7 @@ KV Pairs:
 
 Responses:
 * OPENDEVICE
+* ERROR
 
 #### OPENDEVICE (Kismet->Datasource)
 Open a device.  This should only be sent to a datasource which is capable of handling this device type, but may still return errors.

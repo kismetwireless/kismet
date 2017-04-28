@@ -35,6 +35,7 @@
 #include "entrytracker.h"
 #include "timetracker.h"
 #include "tcpserver2.h"
+#include "pollabletracker.h"
 
 /* Data source tracker
  *
@@ -216,6 +217,9 @@ public:
     __Proxy(random_channel_order, uint8_t, bool, bool, random_channel_order);
     __Proxy(retry_on_error, uint8_t, bool, bool, retry_on_error);
 
+    __Proxy(remote_cap_listen, string, string, string, remote_cap_listen);
+    __Proxy(remote_cap_port, uint32_t, uint32_t, uint32_t, remote_cap_port);
+
 protected:
     virtual void register_fields() {
         tracker_component::register_fields();
@@ -232,6 +236,13 @@ protected:
                 &random_channel_order);
         RegisterField("kismet.datasourcetracker.default.retry_on_error", TrackerUInt8,
                 "re-open sources if an error occurs", &retry_on_error);
+
+        RegisterField("kismet.datasourcetracker.default.remote_cap_listen", 
+                TrackerString, "listen address for remote capture",
+                &remote_cap_listen);
+        RegisterField("kismet.datasourcetracker.default.remote_cap_port",
+                TrackerUInt32, "listen port for remote capture",
+                &remote_cap_port);
     }
 
     // Double hoprate per second
@@ -249,6 +260,28 @@ protected:
     // Boolean, do we retry on errors?
     SharedTrackerElement retry_on_error;
 
+    // Remote listen
+    SharedTrackerElement remote_cap_listen;
+    SharedTrackerElement remote_cap_port;
+
+};
+
+// Intermediary ringbuffer handler which is responsible for parsing the incoming
+// simple packet protocol enough to get a NEWSOURCE command and either reject it
+// or spawn a datasource, which will then perform an OPENSOURCE reply to build a 
+// standard config
+class dst_incoming_remote : public RingbufferInterface {
+public:
+    dst_incoming_remote(GlobalRegistry *in_globalreg, 
+            function<void (bool, string, string)> in_cb);
+
+    virtual void BufferAvailable(size_t in_amt);
+    virtual void BufferError(string in_error);
+
+protected:
+    GlobalRegistry *globalreg;
+    int timerid;
+    function<void (bool, string, string)> cb;
 };
 
 class Datasourcetracker : public Kis_Net_Httpd_Stream_Handler, 
@@ -258,6 +291,11 @@ public:
         shared_ptr<Datasourcetracker> mon(new Datasourcetracker(in_globalreg));
         in_globalreg->RegisterLifetimeGlobal(mon);
         in_globalreg->InsertGlobal("DATASOURCETRACKER", mon);
+
+        shared_ptr<PollableTracker> pollabletracker = 
+            static_pointer_cast<PollableTracker>(in_globalreg->FetchGlobal("POLLABLETRACKER"));
+        pollabletracker->RegisterPollable(mon);
+
         mon->datasourcetracker = mon;
         return mon;
     }

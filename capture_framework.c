@@ -351,8 +351,13 @@ void cf_handler_assign_hop_channels(kis_capture_handler_t *caph, char **stringch
          * We then need to find the closest number to the skipping distance that
          * is not a factor of the maximum so that we get full coverage.
          */
-        while ((chan_sz % (chan_sz / caph->channel_hop_shuffle_spacing)) == 0)
+        while ((chan_sz % (chan_sz / caph->channel_hop_shuffle_spacing)) == 0) {
+            if (caph->channel_hop_shuffle_spacing >= chan_sz - 1) {
+                caph->channel_hop_shuffle_spacing = 1;
+                break;
+            }
             caph->channel_hop_shuffle_spacing++;
+        }
     }
 
     pthread_mutex_unlock(&(caph->handler_lock));
@@ -370,10 +375,14 @@ void cf_handler_set_hop_shuffle_spacing(kis_capture_handler_t *caph, int spacing
      * needs to */
     if (caph->channel_hop_shuffle && caph->channel_hop_shuffle_spacing &&
             caph->channel_hop_list_sz != 0) {
-        while ((caph->channel_hop_list_sz % 
-                    (caph->channel_hop_list_sz / 
-                     caph->channel_hop_shuffle_spacing)) == 0)
-            caph->channel_hop_shuffle_spacing++;
+        while ((caph->channel_hop_list_sz % (caph->channel_hop_list_sz / 
+                        caph->channel_hop_shuffle_spacing)) == 0) {
+            if (caph->channel_hop_shuffle_spacing >= caph->channel_hop_list_sz - 1) {
+                caph->channel_hop_shuffle_spacing = 1;
+                break;
+            }
+        caph->channel_hop_shuffle_spacing++;
+        }
     }
 
     pthread_mutex_unlock(&(caph->handler_lock));
@@ -487,20 +496,16 @@ void cf_handler_set_chanfree_cb(kis_capture_handler_t *capf, cf_callback_chanfre
 void *cf_int_capture_thread(void *arg) {
     kis_capture_handler_t *caph = (kis_capture_handler_t *) arg;
 
-    // fprintf(stderr, "debug - inside int_capture_thread\n");
-
     /* Set us cancelable */
     pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
     pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
 
     if (caph->capture_cb != NULL) {
-        // fprintf(stderr, "debug - launching capture callback\n");
         (*(caph->capture_cb))(caph);
     } else {
         fprintf(stderr, "ERROR - No capture handler defined for capture thread\n");
     }
 
-    // fprintf(stderr, "DEBUG - got to end of capture thread\n");
     cf_send_error(caph, "capture thread ended, source is closed.");
     
     cf_handler_spindown(caph);
@@ -524,7 +529,7 @@ int cf_handler_launch_capture_thread(kis_capture_handler_t *caph) {
 
     if (pthread_create(&(caph->capturethread), &attr, 
                 cf_int_capture_thread, caph) < 0) {
-        // fprintf(stderr, "debug - failed to pthread_create %s\n", strerror(errno));
+        /* fprintf(stderr, "debug - failed to pthread_create %s\n", strerror(errno)); */
         cf_send_error(caph, "failed to launch capture thread");
         cf_handler_spindown(caph);
         return -1;
@@ -534,7 +539,7 @@ int cf_handler_launch_capture_thread(kis_capture_handler_t *caph) {
 
     pthread_mutex_unlock(&(caph->handler_lock));
     
-    fprintf(stderr, "debug - capture thread launched\n");
+    /* fprintf(stderr, "debug - capture thread launched\n"); */
 
     return 1;
 }
@@ -599,7 +604,7 @@ void *cf_int_chanhop_thread(void *arg) {
         pthread_mutex_lock(&caph->handler_lock);
 
         if (caph->channel_hop_rate == 0 || caph->chancontrol_cb == NULL) {
-            // fprintf(stderr, "debug - no longer hopping / lost chancontrol cb, exiting hopping thread\n");
+            /* fprintf(stderr, "debug - no longer hopping / lost chancontrol cb, exiting hopping thread\n"); */
             caph->hopping_running = 0;
             pthread_mutex_unlock(&caph->handler_lock);
             return NULL;
@@ -610,7 +615,7 @@ void *cf_int_chanhop_thread(void *arg) {
                     caph->custom_channel_hop_list[hoppos % caph->channel_hop_list_sz], 
                     errstr) < 0) {
             cf_send_error(caph, errstr);
-            // fprintf(stderr, "debug - failed channel hopping %s\n", errstr);
+            /* fprintf(stderr, "debug - failed channel hopping %s\n", errstr); */
             caph->hopping_running = 0;
             pthread_mutex_unlock(&caph->handler_lock);
             cf_handler_spindown(caph);
@@ -638,7 +643,7 @@ int cf_handler_launch_hopping_thread(kis_capture_handler_t *caph) {
 
     pthread_mutex_lock(&(caph->handler_lock));
     if (caph->hopping_running) {
-        // fprintf(stderr, "debug - hop thread already running, cancelling\n");
+        /* fprintf(stderr, "debug - hop thread already running, cancelling\n"); */
         pthread_cancel(caph->hopthread);
         caph->hopping_running = 0;
     }
@@ -653,7 +658,7 @@ int cf_handler_launch_hopping_thread(kis_capture_handler_t *caph) {
 
     pthread_mutex_unlock(&(caph->handler_lock));
     
-    // fprintf(stderr, "debug - hopping thread launched\n");
+    /* fprintf(stderr, "debug - hopping thread launched\n"); */
 
     return 1;
 }
@@ -683,7 +688,7 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
     rb_available = kis_simple_ringbuf_used(caph->in_ringbuf);
 
     if (rb_available < sizeof(simple_cap_proto_t)) {
-        // fprintf(stderr, "DEBUG - insufficient data to represent a frame\n");
+        /* fprintf(stderr, "DEBUG - insufficient data to represent a frame\n"); */
         return 0;
     }
 
@@ -746,8 +751,6 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
     pthread_mutex_lock(&(caph->handler_lock));
 
     if (strncasecmp(cap_proto_frame->header.type, "LISTINTERFACES", 16) == 0) {
-        fprintf(stderr, "DEBUG - Got LISTINTERFACES request\n");
-
         if (caph->listdevices_cb == NULL) {
             pthread_mutex_unlock(&(caph->handler_lock));
             cf_send_listresp(caph, ntohl(cap_proto_frame->header.sequence_number),
@@ -783,7 +786,7 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
             pthread_mutex_unlock(&(caph->handler_lock));
         }
     } else if (strncasecmp(cap_proto_frame->header.type, "PROBEDEVICE", 16) == 0) {
-        // fprintf(stderr, "DEBUG - Got PROBEDEVICE request\n");
+        /* fprintf(stderr, "DEBUG - Got PROBEDEVICE request\n"); */
 
         if (caph->probe_cb == NULL) {
             pthread_mutex_unlock(&(caph->handler_lock));
@@ -908,7 +911,7 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
                 pthread_mutex_unlock(&(caph->handler_lock));
                 cf_send_configresp(caph, ntohl(cap_proto_frame->header.sequence_number),
                         0, "Source does not support setting channel");
-                cbret = -1;
+                cbret = 0;
             } else {
                 chanset_channel = strndup(cdef, r);
 
@@ -965,7 +968,6 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
                             0, "Source does not support setting channel");
                     cbret = -1;
                 } else {
-                    /* fprintf(stderr, "DEBUG - got chanhop kv\n"); */
                     /* Translate all the channels, or dupe them as strings */
                     chanhop_priv_channels = 
                         (void **) malloc(sizeof(void *) * chanhop_channels_sz);
@@ -1010,7 +1012,6 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
 
     free(frame_buf);
 
-    /* fprintf(stderr, "returning cbret %d\n", cbret); */
     return cbret;
 }
 
@@ -1857,6 +1858,8 @@ int cf_send_configresp_channel(kis_capture_handler_t *caph, unsigned int seqno,
             free(kv_pairs);
             return -1;
         }
+
+        kv_pos++;
     }
 
     kv_pairs[kv_pos] = encode_kv_success(success, seqno);

@@ -450,8 +450,6 @@ void KisDatasource::BufferError(string in_error) {
 void KisDatasource::trigger_error(string in_error) {
     local_locker lock(&source_lock);
 
-    fprintf(stderr, "debug - error - %s\n", in_error.c_str());
-
     set_int_source_running(false);
 
     // Kill any interaction w/ the source
