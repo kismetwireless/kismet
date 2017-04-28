@@ -1136,10 +1136,11 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
     char errstr[STATUS_MAX];
     char chanstr[STATUS_MAX];
 
-    if (privchan == NULL)
+    if (privchan == NULL) {
         return 0;
+    }
 
-    if (local_wifi->use_mac80211_channels) {
+    if (!local_wifi->use_mac80211_channels) {
         if ((r = iwconfig_set_channel(local_wifi->interface, 
                         channel->control_freq, errstr)) < 0) {
             /* Sometimes tuning a channel fails; this is only a problem if we fail
