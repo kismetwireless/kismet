@@ -788,6 +788,34 @@ int main(int argc, char *argv[], char *envp[]) {
     }
     globalregistry->kismet_config = conf;
 
+    struct stat fstat;
+    string configdir;
+
+    if (conf->FetchOpt("configdir") != "") {
+        configdir = conf->ExpandLogPath(conf->FetchOpt("configdir"), "", "", 0, 1);
+    } else {
+        globalregistry->messagebus->InjectMessage("No 'configdir' option in the config file",
+                MSGFLAG_FATAL);
+        CatchShutdown(-1);
+    }
+
+    if (stat(configdir.c_str(), &fstat) == -1) {
+        snprintf(errstr, STATUS_MAX, "Local config and cache directory '%s' does not exist, making it",
+                configdir.c_str());
+        globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
+        if (mkdir(configdir.c_str(), S_IRUSR | S_IWUSR | S_IXUSR) < 0) {
+            snprintf(errstr, STATUS_MAX, "Could not create config and cache directory: %s",
+                    strerror(errno));
+            globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+            CatchShutdown(-1);
+        }
+    } else if (! S_ISDIR(fstat.st_mode)) {
+        snprintf(errstr, STATUS_MAX, "Local config and cache directory '%s' exists but is not a directory",
+                configdir.c_str());
+        globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        CatchShutdown(-1);
+    }
+
     // Make the timetracker
     Timetracker::create_timetracker(globalregistry);
 
