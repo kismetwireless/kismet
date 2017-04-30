@@ -41,6 +41,7 @@ PSO	= util.o cygwin_utils.o globalregistry.o \
 	statealert.o \
 	kis_dlt.o kis_dlt_ppi.o kis_dlt_radiotap.o \
 	kaitaistream.o \
+	kaitai_parsers/wpaeap.o \
 	phy_80211.o phy_80211_dissectors.o phy_rtl433.o phy_zwave.o \
 	kis_dissector_ipdata.o \
 	manuf.o \
@@ -226,10 +227,10 @@ $(DEPEND): Makefile
 	@-rm -f $(DEPEND)
 	@echo "Generating dependencies... "
 	@echo > $(DEPEND)
-	@$(CXX) $(CFLAGS) -MM \
+	@$(CXX) $(CPPFLAGS) $(CXXFLAGS) -MM \
 		`echo $(PSO) $(CSO) | \
 		sed -e "s/\.o/\.cc/g" | sed -e "s/\.mo/\.m/g"` >> $(DEPEND)
-	@$(CC) $(CFLAGS) -MM \
+	@$(CC) $(CFLAGS) $(CPPFLAGS) -MM \
 		`echo $(CAPTURE_PCAPFILE_O) $(CAPTURE_LINUX_WIFI_O) | \
 		sed -e "s/\.o/\.c/g"` >> $(DEPEND)
 
