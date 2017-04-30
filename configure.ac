@@ -333,6 +333,11 @@ if test "$usedl" -eq 1; then
 	CLIENTCLIBS="$CLIENTCLIBS -ldl"
 fi
 
+# We need libz
+AC_CHECK_LIB([z], [deflate],
+             usez=1,
+             AC_MSG_ERROR([libz is required and could not be found]))
+LIBS="$LIBS -lz"
 
 # We need threads
 ACX_PTHREAD

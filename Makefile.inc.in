@@ -27,7 +27,7 @@ NMLIBS		= @NMLIBS@
 PCAPLIBS	= @pcaplnk@
 
 CFLAGS		= -Wall -g @NMCFLAGS@ @CPPFLAGS@
-CXXFLAGS 	= -Wall -g @CXXFLAGS@
+CXXFLAGS 	= -Wall -g -I. @CXXFLAGS@
 CPPFLAGS 	= @CPPFLAGS@
 
 SUIDGROUP 	= @suidgroup@
