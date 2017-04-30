@@ -28,6 +28,7 @@
 #include <map>
 #include <iomanip>
 #include <sstream>
+#include <iostream>
 
 #include "endian_magic.h"
 #include "phy_80211.h"
@@ -35,6 +36,9 @@
 #include "packetchain.h"
 #include "alertracker.h"
 #include "configfile.h"
+
+#include "kaitai/kaitaistream.h"
+#include "kaitai_parsers/wpaeap.h"
 
 // Handy little global so that it only has to do the ascii->mac_addr transform once
 mac_addr broadcast_mac = "FF:FF:FF:FF:FF:FF";
@@ -1785,8 +1789,9 @@ int Kis_80211_Phy::PacketDot11stringDissector(kis_packet *in_pack) {
 #endif
 
 int Kis_80211_Phy::PacketDot11WPSM3(kis_packet *in_pack) {
-    if (in_pack->error)
+    if (in_pack->error) {
         return 0;
+    }
 
     // Grab the 80211 info, compare, bail
     dot11_packinfo *packinfo;
@@ -1825,14 +1830,8 @@ int Kis_80211_Phy::PacketDot11WPSM3(kis_packet *in_pack) {
     unsigned int pos = packinfo->header_offset;
 
     uint8_t eapol_llc[] = { 0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00, 0x88, 0x8e };
-    uint8_t dot1x_v1_hdr[] = { 0x01, 0x00 };
-    uint8_t eapreq = 0x01;
-    uint8_t eaptype_et = 0xfe;
-    uint8_t wfawps[] = { 0x00, 0x37, 0x2a, 0x00, 0x00, 0x00, 0x01, 0x04 };
-    uint8_t wfa_msg[] = { 0x10, 0x22 };
-    uint8_t wfa_m3 = 0x07;
 
-    if (pos + sizeof(eapol_llc) + sizeof(dot1x_v1_hdr) >= chunk->length)
+    if (pos + sizeof(eapol_llc) >= chunk->length)
         return 0;
 
     if (memcmp(&(chunk->data[pos]), eapol_llc, sizeof(eapol_llc)))
@@ -1842,78 +1841,63 @@ int Kis_80211_Phy::PacketDot11WPSM3(kis_packet *in_pack) {
 
     pos += sizeof(eapol_llc);
 
-    if (memcmp(&(chunk->data[pos]), dot1x_v1_hdr, sizeof(dot1x_v1_hdr)))
-        return 0;
+    // Make an in-memory zero-copy stream instance to the packet contents after
+    // the SNAP/LLC header
+    membuf eapol_membuf((char *) &(chunk->data[pos]), 
+            (char *) &(chunk->data[chunk->length]));
+    std::istream eapol_stream(&eapol_membuf);
 
-    pos += sizeof(dot1x_v1_hdr);
+    try {
+        // Make a kaitai parser and parse with our wpaeap handler
+        kaitai::kstream ks(&eapol_stream);
+        wpaeap_t eap(&ks);
 
-    // 2 bytes of length, ignore, check before next compare
-    pos += 2;
-
-    // Check that it's a request
-    if (pos + 1 >= chunk->length)
-        return 0;
-
-    // printf("debug - eapreq inspecting %x %x %x\n", chunk->data[pos - 1], chunk->data[pos], chunk->data[pos + 1]);
-
-    if (chunk->data[pos] != eapreq)
-        return 0;
-
-    // printf("debug - eap request\n");
-
-    // don't care for id or length
-    pos += 4;
-
-    if (pos + 1 >= chunk->length)
-        return 0;
-
-    // printf("debug - et %x\n", chunk->data[pos]);
-
-    // Compare expanded type
-    if (chunk->data[pos] != eaptype_et)
-        return 0;
-
-    pos += 1;
-
-    // printf("debug - got past eaptype hdr\n");
-
-    if (pos + sizeof(wfawps) >= chunk->length)
-        return 0;
-
-    if (memcmp(&(chunk->data[pos]), wfawps, sizeof(wfawps)))
-        return 0;
-
-    pos += sizeof(wfawps);
-
-    // printf("debug - got wfawps eapol content\n");
-
-    // Don't care about flags
-    pos += 1;
-
-    while (pos + 5 < chunk->length) {
-        uint16_t tlen;
-        memcpy(&tlen, &(chunk->data[pos + 2]), 2);
-        tlen = kis_betoh16(tlen);
-
-        if (memcmp(&(chunk->data[pos]), wfa_msg, sizeof(wfa_msg))) {
-            // printf("debug - skipping tag %x%x %u long\n", chunk->data[pos], chunk->data[pos + 1], tlen);
-            pos += 4 + tlen;
-            continue;
+        // We only care about EAPOL packets for WPS decoding
+        if (eap.dot1x_type() != wpaeap_t::DOT1X_TYPE_ENUM_EAP_PACKET) {
+            return 0;
         }
 
-        if (tlen != 1) {
-            // printf("debug - weird eapol wfa len?\n");
-            pos += 4 + tlen;
+        // Assign the eapol packet parser
+        wpaeap_t::dot1x_eapol_t *eapol_packet =
+            static_cast<wpaeap_t::dot1x_eapol_t *>(eap.dot1x_content());
+
+        // We only catch M3 in this test so we only care about requests
+        if (eapol_packet->eapol_type() != wpaeap_t::EAPOL_TYPE_ENUM_REQUEST) {
+            return 0;
         }
 
-        pos += 4;
-
-        if (chunk->data[pos] == wfa_m3) {
-            // printf("debug - saw WPA M3 frame\n");
-            return 1;
+        // Make sure we're a WPS expanded type
+        if (eapol_packet->eapol_expanded_type() != 
+                wpaeap_t::EAPOL_EXPANDED_TYPE_ENUM_WFA_WPS) {
+            return 0;
         }
 
-        pos += tlen;
+        // Assign the expanded WFA WPS subframe
+        wpaeap_t::eapol_extended_wpa_wps_t *wps =
+            static_cast<wpaeap_t::eapol_extended_wpa_wps_t *>(eapol_packet->content());
+
+        // Go through the fields until we find the MESSAGE_TYPE field
+        for (auto i = wps->fields()->begin(); i != wps->fields()->end();  ++i) {
+            if ((*i)->type() == wpaeap_t::EAPOL_FIELD_TYPE_ENUM_MESSAGE_TYPE) {
+                // Assign the messagetype and compare
+                wpaeap_t::eapol_field_messagetype_t *msgfield =
+                    static_cast<wpaeap_t::eapol_field_messagetype_t *>((*i)->content());
+
+                // Check the actual flag
+                if (msgfield->messagetype() == wpaeap_t::EAPOL_MESSAGETYPE_ENUM_M3) {
+                    // fprintf(stderr, "debug - got wpa m3\n");
+                    return 1;
+                }
+
+                break;
+            }
+        }
+
+        // We got here but didn't get anything out of the packet, return false for m3
+        return 0;
+
+    } catch (const std::exception& e) {
+        return 0;
     }
 
 

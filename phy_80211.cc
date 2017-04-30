@@ -1442,45 +1442,42 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
             shared_ptr<dot11_advertised_ssid> ssid = 
                 static_pointer_cast<dot11_advertised_ssid>(si->second);
             if (ssid->get_crypt_set() & crypt_wps) {
-                wps = 1;
                 ssidchan = ssid->get_channel();
                 ssidtxt = ssid->get_ssid();
                 break;
             }
         }
 
-		if (wps) {
-			wps = PacketDot11WPSM3(in_pack);
+        wps = PacketDot11WPSM3(in_pack);
 
-			if (wps) {
-				// if we're w/in time of the last one, update, otherwise clear
-				if (globalreg->timestamp.tv_sec - 
-                        dot11dev->get_wps_m3_last() > (60 * 5))
-                    dot11dev->set_wps_m3_count(1);
-				else
-                    dot11dev->inc_wps_m3_count(1);
+        if (wps) {
+            // if we're w/in time of the last one, update, otherwise clear
+            if (globalreg->timestamp.tv_sec - 
+                    dot11dev->get_wps_m3_last() > (60 * 5))
+                dot11dev->set_wps_m3_count(1);
+            else
+                dot11dev->inc_wps_m3_count(1);
 
-                dot11dev->set_wps_m3_last(globalreg->timestamp.tv_sec);
+            dot11dev->set_wps_m3_last(globalreg->timestamp.tv_sec);
 
-				if (dot11dev->get_wps_m3_count() > 5) {
-					if (alertracker->PotentialAlert(alert_wpsbrute_ref)) {
-						string al = "IEEE80211 AP '" + ssidtxt + "' (" + 
-							dot11info->bssid_mac.Mac2String() +
-							") sending excessive number of WPS messages which may "
-							"indicate a WPS brute force attack such as Reaver";
+            if (dot11dev->get_wps_m3_count() > 5) {
+                if (alertracker->PotentialAlert(alert_wpsbrute_ref)) {
+                    string al = "IEEE80211 AP '" + ssidtxt + "' (" + 
+                        dot11info->bssid_mac.Mac2String() +
+                        ") sending excessive number of WPS messages which may "
+                        "indicate a WPS brute force attack such as Reaver";
 
-                        alertracker->RaiseAlert(alert_wpsbrute_ref, 
-                                in_pack, 
-                                dot11info->bssid_mac, dot11info->source_mac, 
-                                dot11info->dest_mac, dot11info->other_mac, 
-                                ssidchan, al);
-					}
+                    alertracker->RaiseAlert(alert_wpsbrute_ref, 
+                            in_pack, 
+                            dot11info->bssid_mac, dot11info->source_mac, 
+                            dot11info->dest_mac, dot11info->other_mac, 
+                            ssidchan, al);
+                }
 
-                    dot11dev->set_wps_m3_count(1);
-				}
-			}
-		}
-	}
+                dot11dev->set_wps_m3_count(1);
+            }
+        }
+    }
 
 	if (dot11info->type == packet_management &&
 		(dot11info->subtype == packet_sub_disassociation ||
