@@ -631,7 +631,7 @@ int mac80211_get_chanlist(const char *interface, char *errstr,
 #ifndef HAVE_LINUX_NETLINK
 	snprintf(errstr, STATUS_MAX, "Kismet was not compiled with netlink/nl80211 "
 			 "support, check the output of ./configure for why");
-	return NL80211_CHANLIST_NOT_NL80211;
+    return -1;
 #else
 	void *handle = NULL, *cache = NULL, *family = NULL;
 	struct nl_cb *cb;
