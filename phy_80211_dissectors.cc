@@ -1908,10 +1908,6 @@ shared_ptr<dot11_tracked_eapol>
     Kis_80211_Phy::PacketDot11EapolHandshake(kis_packet *in_pack,
             shared_ptr<dot11_tracked_device> dot11dev) {
 
-    const uint16_t info_install_mask = 0x0040;
-    const uint16_t info_ack_mask = 0x0080;
-    const uint16_t info_mic_mask = 0x0100;
-
     if (in_pack->error)
         return NULL;
 
@@ -1931,7 +1927,7 @@ shared_ptr<dot11_tracked_eapol>
 
     // If it's encrypted it's not eapol
     if (packinfo->cryptset)
-        return 0;
+        return NULL;
 
     // Grab the 80211 frame, if that doesn't exist, grab the link frame
     kis_datachunk *chunk = 
@@ -1955,90 +1951,77 @@ shared_ptr<dot11_tracked_eapol>
 
     uint8_t eapol_llc[] = { 0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00, 0x88, 0x8e };
 
-    // Sum up the size of the offset + llc header + key header(2) + length(2) + 
-    //    type(1) + keyinfo(2)
-    if (pos + sizeof(eapol_llc) + 2 + 2 + 1 + 2 >= chunk->length)
+    if (pos + sizeof(eapol_llc) >= chunk->length)
         return NULL;
 
     if (memcmp(&(chunk->data[pos]), eapol_llc, sizeof(eapol_llc)))
         return NULL;
 
-    // printf("debug - potential eapol frame, matched llc\n");
-
     pos += sizeof(eapol_llc);
 
-    // Is it a key?
-    if (chunk->data[pos + 1] != 3)
-        return NULL;
+    // Make an in-memory zero-copy stream instance to the packet contents after
+    // the SNAP/LLC header
+    membuf eapol_membuf((char *) &(chunk->data[pos]), 
+            (char *) &(chunk->data[chunk->length]));
+    std::istream eapol_stream(&eapol_membuf);
 
-    // Get past version and type
-    pos += 2;
+    try {
+        // Make a kaitai parser and parse with our wpaeap handler
+        kaitai::kstream ks(&eapol_stream);
+        wpaeap_t eap(&ks);
 
-    uint16_t datalen;
-    memcpy(&datalen, &(chunk->data[pos]), 2);
-    datalen = kis_ntoh16(datalen);
+        // We only care about RSN keys
+        if (eap.dot1x_type() != wpaeap_t::DOT1X_TYPE_ENUM_KEY) {
+            return NULL;
+        }
 
-    // Is the keylen too big for this frame?
-    if (packinfo->header_offset + sizeof(eapol_llc) + 4 + datalen > chunk->length) {
-        return NULL;
-    }
+        wpaeap_t::dot1x_key_t *dot1xkey =
+            static_cast<wpaeap_t::dot1x_key_t *>(eap.dot1x_content());
 
-    // Get the descriptor type, we've validated length already
-    pos += 2;
 
-    /* We can use WPA and RSN, maybe others, so don't check this after all
-    // Not an EAPOL WPA key
-    if (chunk->data[pos] != 0xFE) {
-        return NULL;
-    }
-    */
+        if (dot1xkey->key_descriptor_type() != 
+                wpaeap_t::DOT1X_KEY_TYPE_ENUM_EAPOL_RSN_KEY) {
+            return NULL;
+        }
 
-    // Regardless of the length of the key we know we're good up through the
-    // key information block
-    pos++;
+        wpaeap_t::eapol_rsn_key_t *rsnkey =
+            static_cast<wpaeap_t::eapol_rsn_key_t *>(dot1xkey->key_content());
 
-    // wpa key len is 92 bytes into the data, which is after our framelen, info, etc
-    uint16_t keylen;
-    memcpy(&keylen, &(chunk->data[pos + 92]), 2);
-    keylen = kis_ntoh16(keylen);
+        shared_ptr<dot11_tracked_eapol> eapol = dot11dev->create_eapol_packet();
 
-    uint16_t info;
-    memcpy(&info, &(chunk->data[pos]), 2);
-    info = kis_ntoh16(info);
+        eapol->set_eapol_time(in_pack->ts.tv_sec);
+        eapol->set_eapol_dir(packinfo->distrib);
 
-    shared_ptr<dot11_tracked_eapol> eapol = dot11dev->create_eapol_packet();
+        shared_ptr<kis_tracked_packet> tp = eapol->get_eapol_packet();
+        tp->set_ts_sec(in_pack->ts.tv_sec);
+        tp->set_ts_usec(in_pack->ts.tv_usec);
 
-    eapol->set_eapol_time(in_pack->ts.tv_sec);
-    eapol->set_eapol_dir(packinfo->distrib);
+        tp->set_dlt(chunk->dlt);
+        tp->set_source(chunk->source_id);
 
-    shared_ptr<kis_tracked_packet> tp = eapol->get_eapol_packet();
-    tp->set_ts_sec(in_pack->ts.tv_sec);
-    tp->set_ts_usec(in_pack->ts.tv_usec);
-    
-    tp->set_dlt(chunk->dlt);
-    tp->set_source(chunk->source_id);
+        tp->get_data()->set_bytearray(chunk->data, chunk->length);
 
-    tp->get_data()->set_bytearray(chunk->data, chunk->length);
+        wpaeap_t::eapol_rsn_key_info_t *keyinfo = rsnkey->key_information();
 
-    uint16_t countinfo = info & (info_install_mask | info_mic_mask | info_ack_mask);
-
-    switch (countinfo) {
-        case info_ack_mask:
+        if (keyinfo->key_ack() && !keyinfo->key_mic() && !keyinfo->install()) {
             eapol->set_eapol_msg_num(1);
-            break;
-        case info_mic_mask:
-            // account for broken supplicants the same way wireshark does
-            if (keylen)
+        } else if (keyinfo->key_mic() && !keyinfo->key_ack() && !keyinfo->install()) {
+            if (rsnkey->wpa_key_data_length()) {
                 eapol->set_eapol_msg_num(2);
-            else
+            } else {
                 eapol->set_eapol_msg_num(4);
-            break;
-        case (info_install_mask | info_mic_mask | info_ack_mask):
+            }
+        } else if (keyinfo->key_mic() && keyinfo->key_ack() && keyinfo->key_ack()) {
             eapol->set_eapol_msg_num(3);
-            break;
+        }
+
+        return eapol;
+
+    } catch (const std::exception& e) {
+        return NULL;
     }
 
-    return eapol;
+    return NULL;
 }
 
 
