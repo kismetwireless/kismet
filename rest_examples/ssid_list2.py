@@ -20,9 +20,8 @@ for d in devices:
     if not d['kismet.device.base.phyname'] == "IEEE802.11":
         continue
 
-    # Dot11 phy now puts this in the summary for us
-    # k = d['kismet.device.base.key']
-    # ssid = kr.device_field(k, "dot11.device/dot11.device.last_beaconed_ssid")
+    if not 'dot11.device.last_beaconed_ssid' in d:
+        continue
 
     if d['dot11.device.last_beaconed_ssid'] == "":
        continue

@@ -296,6 +296,15 @@ public:
 
     __ProxyTrackable(tag_map, TrackerElement, tag_map);
 
+    // Non-exported internal counter used for structured sorting
+    uint64_t get_kis_internal_id() {
+        return kis_internal_id;
+    }
+
+    void set_kis_internal_id(uint64_t in_id) {
+        kis_internal_id = in_id;
+    }
+
 protected:
     virtual void register_fields() {
         tracker_component::register_fields();
@@ -471,6 +480,12 @@ protected:
         add_map(packet_rrd_bin_1500_id, packet_rrd_bin_1500);
         add_map(packet_rrd_bin_jumbo_id, packet_rrd_bin_jumbo);
     }
+
+    // Unique, meaningless, incremental ID.  Practically, this is the order
+    // in which kismet saw devices; it has no purpose other than a sorting
+    // key which will always preserve order - time, etc, will not.  Used for breaking
+    // up long-running queries.
+    uint64_t kis_internal_id;
 
     // Unique key
     SharedTrackerElement key;
@@ -661,8 +676,12 @@ public:
 
     // Perform a device filter.  Pass a subclassed filter instance.  It is not
     // thread safe to retain a vector/copy of devices, so all work should be
-    // done inside the worker
-    void MatchOnDevices(DevicetrackerFilterWorker *worker);
+    // done inside the worker.
+    //
+    // If "batch" is true, Kismet will sort the devices based on the internal ID 
+    // and batch this processing in several groups to allow other threads time 
+    // to operate.
+    void MatchOnDevices(DevicetrackerFilterWorker *worker, bool batch = true);
 
 	typedef map<uint64_t, shared_ptr<kis_tracked_device_base> >::iterator device_itr;
 	typedef map<uint64_t, shared_ptr<kis_tracked_device_base> >::const_iterator const_device_itr;
@@ -746,6 +765,10 @@ public:
     void unlock_devicelist();
 
 protected:
+
+    // Internal ID counter
+    uint64_t next_kis_internal_id;
+
 	void SaveTags();
 
 	GlobalRegistry *globalreg;

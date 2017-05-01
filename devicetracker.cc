@@ -60,6 +60,8 @@ int Devicetracker_packethook_commontracker(CHAINCALL_PARMS) {
 Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
     Kis_Net_Httpd_Stream_Handler(in_globalreg) {
 
+    next_kis_internal_id = 1;
+
     // Initialize as recursive to allow multiple locks in a single thread
     pthread_mutexattr_t mutexattr;
     pthread_mutexattr_init(&mutexattr);
@@ -506,6 +508,8 @@ shared_ptr<kis_tracked_device_base> Devicetracker::UpdateCommonDevice(mac_addr i
 
 	if ((device = FetchDevice(key)) == NULL) {
         device.reset(new kis_tracked_device_base(globalreg, device_base_id));
+
+        device->set_kis_internal_id(next_kis_internal_id++);
 
         device->set_key(key);
         device->set_macaddr(in_mac);
@@ -1624,21 +1628,71 @@ string Devicetracker::FetchDeviceTag(mac_addr in_device) {
 }
 #endif
 
-void Devicetracker::MatchOnDevices(DevicetrackerFilterWorker *worker) {
-    local_locker lock(&devicelist_mutex);
+// Sort based on internal kismet ID
+bool devicetracker_sort_internal_id(shared_ptr<kis_tracked_device_base> a,
+	shared_ptr<kis_tracked_device_base> b) {
 
-    map<uint64_t, shared_ptr<kis_tracked_device_base> >::iterator tmi;
+	return a->get_kis_internal_id() < b->get_kis_internal_id();
+}
 
-    kismet__for_each(tracked_vec.begin(), tracked_vec.end(), 
-            [&](shared_ptr<kis_tracked_device_base> val) {
-            worker->MatchDevice(this, val);
-        }
-    );
-    /*
-    for (tmi = tracked_map.begin(); tmi != tracked_map.end(); ++tmi) {
-        worker->MatchDevice(this, tmi->second);
+void Devicetracker::MatchOnDevices(DevicetrackerFilterWorker *worker, bool batch) {
+    // We chunk into blocks of 500 devices and perform the match in 
+    // batches; this prevents a single query from running so long that
+    // things fall down.  It is slightly less efficient on huge data sets,
+    // but the tradeoff is a naive client being able to crash the whole
+    // show by doing a query against 20,000 devices in one go.
+   
+    // Handle non-batched stuff like internal memory management ops
+    if (!batch) {
+        local_locker lock(&devicelist_mutex);
+
+        kismet__for_each(tracked_vec.begin(), tracked_vec.end(), 
+                [&](shared_ptr<kis_tracked_device_base> val) {
+                    worker->MatchDevice(this, val);
+                });
+
+        worker->Finalize(this);
+        return;
     }
-    */
+    
+    size_t dpos = 0;
+    size_t chunk_sz = 500;
+
+    while (1) {
+        {
+            // Limited scope lock
+            
+            local_locker lock(&devicelist_mutex);
+
+            kismet__stable_sort(tracked_vec.begin(), tracked_vec.end(), 
+                    devicetracker_sort_internal_id);
+
+            auto b = tracked_vec.begin() + dpos;
+            auto e = b + chunk_sz;
+            bool last_loop = false;
+
+            if (e > tracked_vec.end()) {
+                e = tracked_vec.end();
+                last_loop = true;
+            }
+
+            // Parallel f-e
+            kismet__for_each(b, e, 
+                    [&](shared_ptr<kis_tracked_device_base> val) {
+                        worker->MatchDevice(this, val);
+                    });
+
+            if (last_loop)
+                break;
+
+            dpos += chunk_sz;
+        }
+
+        // We're now unlocked, do a tiny sleep to let another thread grab the lock
+        // if it needs to
+        usleep(1000);
+
+    }
 
     worker->Finalize(this);
 }
