@@ -546,7 +546,8 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
 }
 
 int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
-        char *msg, char **uuid, char **chanset, char ***chanlist, size_t *chanlist_sz) {
+        char *msg, char **uuid, char **chanset, char ***chanlist, size_t *chanlist_sz,
+        char **capif) {
     /* Try to open an interface for monitoring
      * 
      * - Confirm it's an interface, and that it's wireless, by doing a basic 
@@ -581,6 +582,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     *chanset = NULL;
     *chanlist = NULL;
     *chanlist_sz = 0;
+    *capif = NULL;
 
     int mode;
 
@@ -1048,6 +1050,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         snprintf(msg, STATUS_MAX, "Linux Wi-Fi capturing from interface '%s'",
                 local_wifi->interface);
     }
+
+    *capif = strdup(local_wifi->cap_interface);
 
     return 1;
 }

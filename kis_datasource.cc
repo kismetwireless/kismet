@@ -711,6 +711,10 @@ void KisDatasource::proto_packet_open_resp(KVmap in_kvpairs) {
         handle_kv_uuid(i->second);
     }
 
+    if ((i = in_kvpairs.find("capif")) != in_kvpairs.end()) {
+        handle_kv_capif(i->second);
+    }
+
     // If we didn't get a uuid and we don't have one, make up a timestamp-based one
     if (get_source_uuid().error && !local_uuid) {
         uuid nuuid;
@@ -1243,6 +1247,10 @@ void KisDatasource::handle_kv_uuid(KisDatasourceCapKeyedObject *in_obj) {
     }
 }
 
+void KisDatasource::handle_kv_capif(KisDatasourceCapKeyedObject *in_obj) {
+    set_int_source_cap_interface(string(in_obj->object, in_obj->size));
+}
+
 string KisDatasource::handle_kv_warning(KisDatasourceCapKeyedObject *in_obj) {
     // Stupid simple
     set_int_source_warning(string(in_obj->object, in_obj->size));
@@ -1683,6 +1691,8 @@ void KisDatasource::register_fields() {
             "Original source= definition", &source_definition);
     RegisterField("kismet.datasource.interface", TrackerString,
             "Interface", &source_interface);
+    RegisterField("kismet.datasource.capture_interface", TrackerString,
+            "Interface", &source_cap_interface);
 
     RegisterField("kismet.datasource.warning", TrackerString,
             "Warning or unusual interface state", &source_warning);

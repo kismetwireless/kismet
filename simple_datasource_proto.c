@@ -227,6 +227,24 @@ simple_cap_proto_kv_t *encode_kv_uuid(const char *uuid) {
     return kv;
 }
 
+simple_cap_proto_kv_t *encode_kv_capif(const char *capif) {
+    simple_cap_proto_kv_t *kv;
+
+    size_t content_sz = strlen(capif);
+
+    kv = (simple_cap_proto_kv_t *) malloc(sizeof(simple_cap_proto_kv_t) + content_sz);
+
+    if (kv == NULL)
+        return NULL;
+
+    snprintf(kv->header.key, 16, "%.16s", "CAPIF");
+    kv->header.obj_sz = htonl(content_sz);
+
+    memcpy(&(kv->object), capif, content_sz);
+
+    return kv;
+}
+
 simple_cap_proto_kv_t *encode_kv_capdata(struct timeval in_ts, int in_dlt, 
         uint32_t in_pack_sz, uint8_t *in_pack) {
 

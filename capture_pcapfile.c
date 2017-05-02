@@ -126,7 +126,8 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
 }
 
 int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
-        char *msg, char **uuid, char **chanset, char ***chanlist, size_t *chanlist_sz) {
+        char *msg, char **uuid, char **chanset, char ***chanlist, size_t *chanlist_sz,
+        char **capif) {
     char *placeholder = NULL;
     int placeholder_len;
 
@@ -143,6 +144,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     *chanlist = NULL;
     *chanlist_sz = 0;
     *uuid = NULL;
+    *capif = NULL;
 
     /* Clean up any old state */
     if (local_pcap->pcapfname != NULL) {

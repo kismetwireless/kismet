@@ -192,6 +192,14 @@ simple_cap_proto_kv_t *encode_kv_chanset(const char *channel);
  */
 simple_cap_proto_kv_t *encode_kv_uuid(const char *uuid);
 
+/* Encode a capif response
+ *
+ * Returns:
+ * Pointer on success
+ * NULL on failure
+ */
+simple_cap_proto_kv_t *encode_kv_capif(const char *capif);
+
 /* Encode a packet into a PACKET KV
  *
  * Returns:

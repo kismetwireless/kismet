@@ -117,7 +117,7 @@ typedef int (*cf_callback_probe)(kis_capture_handler_t *, uint32_t seqno,
  */
 typedef int (*cf_callback_open)(kis_capture_handler_t *, uint32_t seqno, 
         char *definition, char *msg, char **uuid, char **chanset, char ***chanlist,
-        size_t *chanlist_sz);
+        size_t *chanlist_sz, char **capif);
 
 /* Channel translate
  * Called to translate a channel from a generic string to a local representation
@@ -549,7 +549,7 @@ int cf_send_proberesp(kis_capture_handler_t *caph, uint32_t seq, unsigned int su
  */
 int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int success,
         const char *msg, const char *uuid, const char *chanset, 
-        char **channels, size_t channels_len);
+        char **channels, size_t channels_len, const char *capif);
 
 /* Send a DATA frame with packet data
  * Can be called from any thread

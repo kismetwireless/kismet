@@ -147,11 +147,12 @@ Responses:
 Device open response.  Sent to declare the source is open and functioning, or that there was an error.
 
 KV Pairs:
-* SUCCESS
-* UUID (optional)
+* CAPIF (optional)
 * CHANNELS (optional)
 * CHANSET (optional)
 * MESSAGE (optional)
+* SUCCESS
+* UUID (optional)
 * WARNING (optional)
 
 Responses:
@@ -181,6 +182,17 @@ Responses:
 ## Standard KV Pairs
 
 Kismet will automatically handle standard KV pairs in a message.  A datasource may define arbitrary additional KV pairs and handle them independently.
+
+#### CAPIF
+Some capture sources may use an alternate interface for capturing - for instance, the Linux Wi-Fi capture system will make a VIF (virtual interface) to capture on most modern drivers, or a USB capture may use the absolute path to the USB interface being used.
+
+Content:
+
+Simple string `(char *)` of the alternate interface, length dictated by the KV length record.
+
+Example:
+
+`"capif": "wlan0mon"`
 
 #### CHANNELS
 Conveys a list of channels supported by this device, if there is a user presentable list for this phy type.  Channels are considered free-form strings which are unique to a phy type, but should be human readable.  Channel definitions may also represent frequencies in a form relevant to the phy, such as "2412MHz", but the representation is phy specific.
