@@ -794,6 +794,21 @@ void Datasourcetracker::list_interfaces(function<void (vector<SharedInterface>)>
         // Lock on completion
         local_locker lock(&dst_lock);
 
+        // Figure out what interfaces are in use by active sources and amend their
+        // UUID records in the listing
+        TrackerElementVector dsv(datasource_vec);
+        for (auto il = interfaces.begin(); il != interfaces.end(); ++il) {
+            for (auto s = dsv.begin(); s != dsv.end(); ++s) {
+                SharedDatasource sds =
+                    static_pointer_cast<KisDatasource>(*s);
+                if ((*il)->get_interface() == sds->get_source_interface() ||
+                        (*il)->get_interface() == sds->get_source_cap_interface()) {
+                    (*il)->set_in_use_uuid(sds->get_source_uuid());
+                    break;
+                }
+            }
+        }
+
         in_cb(interfaces);
 
         auto i = listing_map.find(listid);

@@ -696,6 +696,8 @@ public:
 
     __ProxyTrackable(prototype, KisDatasourceBuilder, prototype);
 
+    __Proxy(in_use_uuid, uuid, uuid, uuid, in_use_uuid);
+
     void populate(string in_interface, string in_options) {
         vector<string> optvec = StrTokenize(in_options, ",");
         populate(in_interface, optvec);
@@ -728,12 +730,17 @@ protected:
         options_entry_id =
             RegisterField("kismet.datasource.probed.option", TrackerString,
                     "Interface option");
+
+        RegisterField("kismet.datasource.probed.in_use_uuid", TrackerUuid,
+                "Active source using this interface", &in_use_uuid);
     }
 
     SharedTrackerElement interface;
     SharedTrackerElement options_vec;
 
     SharedDatasourceBuilder prototype;
+
+    SharedTrackerElement in_use_uuid;
 
     int options_entry_id;
 
