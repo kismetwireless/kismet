@@ -1084,7 +1084,8 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno,
         /* if we can get the current channel with simple iwconfig ioctls
          * it's definitely a wifi device; even mac80211 devices respond 
          * to it */
-        if (iwconfig_get_channel(devfile->d_name, errstr) > 0) {
+        int mode;
+        if (iwconfig_get_mode(devfile->d_name, errstr, &mode) >= 0) {
             wifi_list_t *d = (wifi_list_t *) malloc(sizeof(wifi_list_t));
             num_devs++;
             d->device = strdup(devfile->d_name);
