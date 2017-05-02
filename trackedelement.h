@@ -1038,7 +1038,11 @@ class tracker_component : public TrackerElement {
 #define __ProxyTrackable(name, ttype, cvar) \
     virtual shared_ptr<ttype> get_##name() { return cvar; } \
     virtual void set_##name(shared_ptr<ttype> in) { \
+        if (cvar != NULL) \
+            del_map(static_pointer_cast<TrackerElement>(cvar)); \
         cvar = in; \
+        if (cvar != NULL) \
+            add_map(static_pointer_cast<TrackerElement>(cvar)); \
     }  \
     virtual shared_ptr<TrackerElement> get_tracker_##name() { \
         return static_pointer_cast<TrackerElement>(cvar); \
@@ -1051,7 +1055,11 @@ class tracker_component : public TrackerElement {
 #define __ProxyTrackableL(name, ttype, cvar, lambda) \
     virtual shared_ptr<ttype> get_##name() { return cvar; } \
     virtual bool set_##name(shared_ptr<ttype> in) { \
+        if (cvar != NULL) \
+            del_map(static_pointer_cast<TrackerElement>(cvar)); \
         cvar = in; \
+        if (cvar != NULL) \
+            add_map(static_pointer_cast<TrackerElement>(cvar)); \
         return lambda(in); \
     }  \
     virtual void set_only_##name(shared_ptr<ttype> in) { \
@@ -1068,12 +1076,17 @@ class tracker_component : public TrackerElement {
     virtual shared_ptr<ttype> get_##name() { \
         if (cvar == NULL) { \
             cvar = static_pointer_cast<ttype>(tracker->GetTrackedInstance(id)); \
-            add_map(cvar); \
+            if (cvar != NULL) \
+                add_map(static_pointer_cast<TrackerElement>(cvar)); \
         } \
         return cvar; \
     } \
     virtual void set_tracker_##name(shared_ptr<ttype> in) { \
+        if (cvar != NULL) \
+            del_map(static_pointer_cast<TrackerElement>(cvar)); \
         cvar = in; \
+        if (cvar != NULL) \
+            add_map(static_pointer_cast<TrackerElement>(cvar)); \
     } \
     virtual shared_ptr<TrackerElement> get_tracker_##name() { \
         return static_pointer_cast<TrackerElement>(cvar); \
