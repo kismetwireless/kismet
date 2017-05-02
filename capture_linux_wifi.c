@@ -180,12 +180,10 @@ int find_interface_mode_by_mac(const char *ignored_ifname, int wlmode, uint8_t *
 
     for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
         if (ignored_ifname != NULL && strcmp(ifa->ifa_name, ignored_ifname) == 0) {
-            fprintf(stderr, "debug - if %s == %s, skipping\n", ifa->ifa_name, ignored_ifname);
             continue;
         }
 
         if (ifconfig_get_hwaddr(ifa->ifa_name, errstr, dmac) < 0) {
-            fprintf(stderr, "debug - if %s no hwaddr, skipping\n", ifa->ifa_name);
             continue;
         }
 
@@ -202,8 +200,6 @@ int find_interface_mode_by_mac(const char *ignored_ifname, int wlmode, uint8_t *
                 }
             }
         }
-
-        fprintf(stderr, "debug - if %s doesn't match mac\n", ifa->ifa_name);
     }
 
     return -1;
@@ -343,7 +339,6 @@ void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
         snprintf(errstr, STATUS_MAX, "unable to parse any channel information from "
                 "channel string '%s'", chanstr);
         cf_send_message(caph, errstr, MSGFLAG_ERROR);
-        fprintf(stderr, "debug - %s\n", errstr);
         return NULL;
     }
 
@@ -1090,8 +1085,7 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno,
          * it's definitely a wifi device; even mac80211 devices respond 
          * to it */
         if (iwconfig_get_channel(devfile->d_name, errstr) > 0) {
-            wifi_list_t *d = (wifi_list_t *) sizeof(wifi_list_t);
-            fprintf(stderr, "debug - found wireless device %s\n", devfile->d_name);
+            wifi_list_t *d = (wifi_list_t *) malloc(sizeof(wifi_list_t));
             num_devs++;
             d->device = strdup(devfile->d_name);
             d->flags = NULL;
@@ -1112,6 +1106,7 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno,
     *flags = (char **) malloc(sizeof(char *) * num_devs);
 
     i = 0;
+
     while (devs != NULL) {
         wifi_list_t *td = devs->next;
         (*interfaces)[i] = devs->device;
@@ -1250,7 +1245,6 @@ void pcap_dispatch_cb(u_char *user, const struct pcap_pkthdr *header,
                         NULL, NULL, NULL,
                         header->ts, local_wifi->datalink_type,
                         header->caplen, (uint8_t *) data)) < 0) {
-            fprintf(stderr, "debug - linux_wifi - cf_send_data failed\n");
             pcap_breakloop(local_wifi->pd);
             cf_send_error(caph, "unable to send DATA frame");
             cf_handler_spindown(caph);
@@ -1275,8 +1269,6 @@ void capture_thread(kis_capture_handler_t *caph) {
      * channel control is managed by the channel hopping thread, all we have
      * to do is enter a blocking pcap loop */
 
-    fprintf(stderr, "debug - pcap_loop\n");
-
     pcap_loop(local_wifi->pd, -1, pcap_dispatch_cb, (u_char *) caph);
 
     pcap_errstr = pcap_geterr(local_wifi->pd);
@@ -1284,8 +1276,6 @@ void capture_thread(kis_capture_handler_t *caph) {
     snprintf(errstr, PCAP_ERRBUF_SIZE, "Interface '%s' closed: %s", 
             local_wifi->cap_interface, 
             strlen(pcap_errstr) == 0 ? "interface closed" : pcap_errstr );
-
-    fprintf(stderr, "debug - %s\n", errstr);
 
     cf_send_error(caph, errstr);
 
@@ -1300,8 +1290,6 @@ void capture_thread(kis_capture_handler_t *caph) {
     }
 
     cf_handler_spindown(caph);
-
-    fprintf(stderr, "debug - linux wifi - capture thread finishing\n");
 }
 
 int main(int argc, char *argv[]) {
@@ -1357,6 +1345,9 @@ int main(int argc, char *argv[]) {
 
     /* Set the callback for probing an interface */
     cf_handler_set_probe_cb(caph, probe_callback);
+
+    /* Set the list callback */
+    cf_handler_set_listdevices_cb(caph, list_callback);
 
     /* Set the translation cb */
     cf_handler_set_chantranslate_cb(caph, chantranslate_callback);
