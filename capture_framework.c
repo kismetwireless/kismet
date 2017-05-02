@@ -522,7 +522,6 @@ int cf_handler_launch_capture_thread(kis_capture_handler_t *caph) {
 
     pthread_mutex_lock(&(caph->handler_lock));
     if (caph->capture_running) {
-        fprintf(stderr, "debug - capture thread already running, doing nothing.\n");
         pthread_mutex_unlock(&(caph->handler_lock));
         return 0;
     }
@@ -545,11 +544,9 @@ int cf_handler_launch_capture_thread(kis_capture_handler_t *caph) {
 }
 
 void cf_handler_wait_ringbuffer(kis_capture_handler_t *caph) {
-    // fprintf(stderr, "debug - waiting for ringbuf_flush_cond\n");
     pthread_cond_wait(&(caph->out_ringbuf_flush_cond),
             &(caph->out_ringbuf_flush_cond_mutex));
     pthread_mutex_unlock(&(caph->out_ringbuf_flush_cond_mutex));
-    // fprintf(stderr, "debug - done waiting for ringbuffer to drain\n");
 }
 
 /* Internal capture thread which drives channel hopping
@@ -564,7 +561,6 @@ void *cf_int_chanhop_thread(void *arg) {
     /* Where we are in the hopping vec */
     pthread_mutex_lock(&(caph->handler_lock));
     size_t hoppos = caph->channel_hop_offset;
-    // fprintf(stderr, "debug - setting initial hop offset to %lu\n", hoppos);
     pthread_mutex_unlock(&(caph->handler_lock));
 
     /* How long we're waiting until the next time */
@@ -573,13 +569,11 @@ void *cf_int_chanhop_thread(void *arg) {
 
     char errstr[STATUS_MAX];
 
-    // fprintf(stderr, "debug - launching chanhop loop\n");
     while (1) {
         pthread_mutex_lock(&(caph->handler_lock));
 
         /* Cancel thread if we're no longer hopping */
         if (caph->channel_hop_rate == 0) {
-            // fprintf(stderr, "debug - no longer hopping - exiting hopping thread\n");
             caph->hopping_running = 0;
             pthread_mutex_unlock(&(caph->handler_lock));
             return NULL;
@@ -604,7 +598,6 @@ void *cf_int_chanhop_thread(void *arg) {
         pthread_mutex_lock(&caph->handler_lock);
 
         if (caph->channel_hop_rate == 0 || caph->chancontrol_cb == NULL) {
-            /* fprintf(stderr, "debug - no longer hopping / lost chancontrol cb, exiting hopping thread\n"); */
             caph->hopping_running = 0;
             pthread_mutex_unlock(&caph->handler_lock);
             return NULL;
@@ -615,7 +608,6 @@ void *cf_int_chanhop_thread(void *arg) {
                     caph->custom_channel_hop_list[hoppos % caph->channel_hop_list_sz], 
                     errstr) < 0) {
             cf_send_error(caph, errstr);
-            /* fprintf(stderr, "debug - failed channel hopping %s\n", errstr); */
             caph->hopping_running = 0;
             pthread_mutex_unlock(&caph->handler_lock);
             cf_handler_spindown(caph);
@@ -643,7 +635,6 @@ int cf_handler_launch_hopping_thread(kis_capture_handler_t *caph) {
 
     pthread_mutex_lock(&(caph->handler_lock));
     if (caph->hopping_running) {
-        /* fprintf(stderr, "debug - hop thread already running, cancelling\n"); */
         pthread_cancel(caph->hopthread);
         caph->hopping_running = 0;
     }
@@ -658,8 +649,6 @@ int cf_handler_launch_hopping_thread(kis_capture_handler_t *caph) {
 
     pthread_mutex_unlock(&(caph->handler_lock));
     
-    /* fprintf(stderr, "debug - hopping thread launched\n"); */
-
     return 1;
 }
 
@@ -754,7 +743,7 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
         if (caph->listdevices_cb == NULL) {
             pthread_mutex_unlock(&(caph->handler_lock));
             cf_send_listresp(caph, ntohl(cap_proto_frame->header.sequence_number),
-                    false, "We don't support listing", NULL, NULL, 0);
+                    true, "", NULL, NULL, 0);
             cbret = -1;
         } else {
             char **interfaces = NULL;
@@ -1537,7 +1526,7 @@ int cf_send_listresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
         kv_pairs[kv_pos] =
             encode_kv_interfacelist(interfaces, flags, len);
         if (kv_pairs[kv_pos] == NULL) {
-            fprintf(stderr, "FATAL: Unable to allocate KV MESSAGE pair\n");
+            fprintf(stderr, "FATAL: Unable to allocate KV INTERFACE pair\n");
             for (i = 0; i < kv_pos; i++) {
                 free(kv_pairs[i]);
             }
