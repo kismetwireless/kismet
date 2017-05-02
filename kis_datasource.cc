@@ -24,6 +24,7 @@
 #include "configfile.h"
 #include "msgpack_adapter.h"
 #include "datasourcetracker.h"
+#include "entrytracker.h"
 
 // We never instantiate from a generic tracker component or from a stored
 // record so we always re-allocate ourselves
@@ -66,6 +67,13 @@ KisDatasource::KisDatasource(GlobalRegistry *in_globalreg,
 
     mode_probing = false;
     mode_listing = false;
+
+    shared_ptr<EntryTracker> entrytracker = 
+        static_pointer_cast<EntryTracker>(globalreg->FetchGlobal("ENTRY_TRACKER"));
+    listed_interface_builder =
+        entrytracker->RegisterAndGetField("kismet.datasourcetracker.listed_interface", 
+                SharedInterface(new KisDatasourceInterface(globalreg, 0)), 
+                    "auto-discovered interface");
 }
 
 KisDatasource::~KisDatasource() {
@@ -778,7 +786,7 @@ void KisDatasource::proto_packet_list_resp(KVmap in_kvpairs) {
     auto ci = command_ack_map.find(seq);
     if (ci != command_ack_map.end()) {
         if (ci->second->list_cb != NULL)
-            ci->second->list_cb(seq, listed_interfaces);
+            ci->second->list_cb(ci->second->transaction, listed_interfaces);
         command_ack_map.erase(ci);
     }
 }
@@ -1342,7 +1350,7 @@ void KisDatasource::handle_kv_config_hop(KisDatasourceCapKeyedObject *in_obj) {
 void KisDatasource::handle_kv_interfacelist(KisDatasourceCapKeyedObject *in_obj) {
     // Clears the list of interfaces, then extracts the array of new interfaces
     // from the packet
-    
+   
     listed_interfaces.clear();
 
     // Unpack the dictionary
@@ -1470,7 +1478,7 @@ void KisDatasource::send_command_list_interfaces(unsigned int in_transaction,
     bool success;
     shared_ptr<tracked_command> cmd;
 
-    success = write_packet("LISTDEVICE", kvmap, seqno);
+    success = write_packet("LISTINTERFACES", kvmap, seqno);
 
     if (!success) {
         if (in_cb != NULL) {

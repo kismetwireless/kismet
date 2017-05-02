@@ -191,6 +191,124 @@ void DST_DatasourceProbe::probe_sources(
 
 }
 
+DST_DatasourceList::DST_DatasourceList(GlobalRegistry *in_globalreg,
+        SharedTrackerElement in_protovec) {
+    globalreg = in_globalreg;
+
+    timetracker =
+        static_pointer_cast<Timetracker>(globalreg->FetchGlobal("TIMETRACKER"));
+
+    // Make a recursive mutex that the owning thread can lock multiple times;
+    // Required to allow a timer event to reschedule itself on completion
+    pthread_mutexattr_t mutexattr;
+    pthread_mutexattr_init(&mutexattr);
+    pthread_mutexattr_settype(&mutexattr, PTHREAD_MUTEX_RECURSIVE);
+	pthread_mutex_init(&list_lock, &mutexattr);
+
+    proto_vec = in_protovec;
+
+    transaction_id = 0;
+
+    cancelled = false;
+    cancel_timer = -1;
+}
+
+DST_DatasourceList::~DST_DatasourceList() {
+    local_eol_locker lock(&list_lock);
+
+    // Cancel any probing sources and delete them
+    for (auto i = list_vec.begin(); i != list_vec.end(); ++i) {
+        (*i)->close_source();
+    }
+
+    pthread_mutex_destroy(&list_lock);
+}
+
+void DST_DatasourceList::cancel() {
+    local_locker lock(&list_lock);
+
+    cancelled = true;
+
+    // Cancel any pending timer
+    if (cancel_timer >= 0) {
+        timetracker->RemoveTimer(cancel_timer);
+    }
+    for (auto i = ipc_list_map.begin(); i != ipc_list_map.end(); ++i) {
+        i->second->close_source();
+    }
+
+    if (list_cb) 
+        list_cb(listed_sources);
+}
+
+void DST_DatasourceList::complete_list(vector<SharedInterface> in_list, 
+        unsigned int in_transaction) {
+    local_locker lock(&list_lock);
+
+    // If we're already in cancelled state these callbacks mean nothing, ignore them
+    if (cancelled)
+        return;
+
+    for (auto i = in_list.begin(); i != in_list.end(); ++i) {
+        listed_sources.push_back(*i);
+    }
+
+    auto v = ipc_list_map.find(in_transaction);
+    if (v != ipc_list_map.end()) {
+        complete_vec.push_back(v->second);
+        ipc_list_map.erase(v);
+    } else {
+    }
+
+    if (ipc_list_map.size() == 0) {
+        cancel();
+        return;
+    }
+}
+
+void DST_DatasourceList::list_sources(
+        function<void (vector<SharedInterface>)> in_cb) {
+    local_locker lock(&list_lock);
+
+    cancel_timer = 
+        timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 5, NULL, 0, 
+            [this] (int) -> int {
+                cancel();
+                return 0;
+            });
+
+    list_cb = in_cb;
+
+    TrackerElementVector vec(proto_vec);
+
+    vector<SharedDatasourceBuilder> remote_builders;
+
+    for (auto i = vec.begin(); i != vec.end(); ++i) {
+        SharedDatasourceBuilder b = static_pointer_cast<KisDatasourceBuilder>(*i);
+
+        if (!b->get_list_capable())
+            continue;
+       
+        unsigned int transaction = transaction_id++;
+
+        // Instantiate a local lister 
+        SharedDatasource pds = b->build_datasource(b);
+
+        ipc_list_map.emplace(transaction, pds);
+
+        pds->list_interfaces(transaction, 
+            [this] (unsigned int transaction, vector<SharedInterface> interfaces) {
+                complete_list(interfaces, transaction);
+            });
+    }
+
+    if (ipc_list_map.size() == 0) {
+        cancel();
+        return;
+    }
+}
+
+
 Datasourcetracker::Datasourcetracker(GlobalRegistry *in_globalreg) :
     Kis_Net_Httpd_Stream_Handler(in_globalreg),
     TcpServerV2(in_globalreg) {
@@ -661,6 +779,35 @@ void Datasourcetracker::open_datasource(string in_source,
         });
 }
 
+void Datasourcetracker::list_interfaces(function<void (vector<SharedInterface>)> in_cb) {
+    local_locker lock(&dst_lock);
+
+    // Create a DSTProber to handle the probing
+    SharedDSTList dst_list(new DST_DatasourceList(globalreg, proto_vec));
+    unsigned int listid = next_list_id++;
+
+    // Record it
+    listing_map.emplace(listid, dst_list);
+
+    // Initiate the probe
+    dst_list->list_sources([this, listid, in_cb](vector<SharedInterface> interfaces) {
+        // Lock on completion
+        local_locker lock(&dst_lock);
+
+        in_cb(interfaces);
+
+        auto i = listing_map.find(listid);
+
+        if (i != listing_map.end()) {
+            listing_complete_vec.push_back(i->second);
+            listing_map.erase(i);
+            schedule_cleanup();
+        } else {
+            // fprintf(stderr, "debug - DST couldn't find response %u\n", probeid);
+        }
+    });
+}
+
 void Datasourcetracker::schedule_cleanup() {
     local_locker lock(&dst_lock);
 
@@ -911,8 +1058,35 @@ void Datasourcetracker::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
     }
 
     if (stripped == "/datasource/list_interfaces") {
-        local_locker lock(&dst_lock);
-        // TODO create a blocking interface list response
+        // Require a login for doing an interface list
+        if (!httpd->HasValidSession(connection, true)) {
+            return;
+        }
+
+        // Locker for waiting for the list callback
+        shared_ptr<conditional_locker<string> > cl(new conditional_locker<string>());
+
+        cl->lock();
+
+        // Initiate the open
+        list_interfaces(
+                [this, cl, path, &stream](vector<SharedInterface> iflist) {
+                    SharedTrackerElement il(new TrackerElement(TrackerVector));
+                    TrackerElementVector iv(il);
+
+                    for (auto i = iflist.begin(); i != iflist.end(); ++i) {
+                        iv.push_back(*i);
+                    }
+
+                    Httpd_Serialize(path, stream, il);
+
+                    // Unlock the locker so we unblock below
+                    cl->unlock("done");
+                });
+
+        // Block until the list cmd unlocks us
+        cl->block_until();
+
         return;
     }
 

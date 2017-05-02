@@ -156,37 +156,47 @@ typedef shared_ptr<DST_DatasourceProbe> SharedDSTProbe;
 // List requests cancelled after 5 seconds
 class DST_DatasourceList {
 public:
-    DST_DatasourceList(time_t in_time,
-            shared_ptr<Datasourcetracker> in_tracker, 
-            vector<SharedDatasourceBuilder> in_protovec,
-            unsigned int in_transaction);
+    DST_DatasourceList(GlobalRegistry *in_globalreg, SharedTrackerElement in_protovec);
     virtual ~DST_DatasourceList();
 
-    time_t get_time() { return start_time; }
-    shared_ptr<Datasourcetracker> get_tracker() { return tracker; }
+    void list_sources(function<void (vector<SharedInterface>)> in_cb);
 
-    SharedTrackerElement get_device_list() {
-        return device_list;
-    }
+    string get_definition() { return definition; }
+    
+    // Complete a list - when the last one completes we're done
+    void complete_list(vector<SharedInterface> interfaces, unsigned int in_transaction);
 
     void cancel();
 
 protected:
-    pthread_mutex_t probe_lock;
+    pthread_mutex_t list_lock;
 
-    shared_ptr<Datasourcetracker> tracker;
+    GlobalRegistry *globalreg;
 
-    SharedTrackerElement device_list;
+    shared_ptr<Timetracker> timetracker;
 
-    map<pid_t, shared_ptr<RingbufferHandler> > ipc_handler_map;
+    // Probing instances
+    map<unsigned int, SharedDatasource> ipc_list_map;
 
-    // Vector of sources we're still waiting to return from listing
-    vector<shared_ptr<KisDatasource> > listsrc_vec;
+    SharedTrackerElement proto_vec;
 
-    // Source we matched
-    shared_ptr<KisDatasource> protosrc;
+    // Vector of sources we're still waiting to return from listing 
+    vector<SharedDatasource> list_vec;
 
-    time_t start_time;
+    // Vector of sources which are complete and waiting for cleanup
+    vector<SharedDatasource> complete_vec;
+
+    // Transaction ID
+    unsigned int transaction_id;
+
+    string definition;
+
+    function<void (vector<SharedInterface>)> list_cb;
+    bool cancelled;
+
+    int cancel_timer;
+
+    vector<SharedInterface> listed_sources;
 };
 
 typedef shared_ptr<DST_DatasourceList> SharedDSTList;
@@ -339,6 +349,11 @@ public:
 
     // Remove a data source by UUID; stop it if necessary
     bool remove_datasource(uuid in_uuid);
+
+    // List potential sources
+    //
+    // Optional completion function will be called with list of possible sources.
+    void list_interfaces(function<void (vector<SharedInterface>)> in_cb);
 
     // HTTP api
     virtual bool Httpd_VerifyPath(const char *path, const char *method);

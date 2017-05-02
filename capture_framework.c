@@ -1536,7 +1536,6 @@ int cf_send_listresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
         kv_pos++;
     }
 
-
     return cf_stream_packet(caph, "LISTRESP", kv_pairs, kv_pos);
 }
 

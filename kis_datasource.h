@@ -503,7 +503,7 @@ protected:
 
     // Interfaces we found via list
     vector<SharedInterface> listed_interfaces;
-    SharedInterface listed_interface_builder;
+    SharedTrackerElement listed_interface_builder;
 
 
     // Thread
@@ -722,16 +722,11 @@ protected:
         options_entry_id =
             RegisterField("kismet.datasource.probed.option", TrackerString,
                     "Interface option");
-
-        RegisterField("kismet.datasource.probed.driver", TrackerMap,
-                "Autoprobed driver");
-
     }
 
     SharedTrackerElement interface;
     SharedTrackerElement options_vec;
 
-    int prototype_id;
     SharedDatasourceBuilder prototype;
 
     int options_entry_id;
