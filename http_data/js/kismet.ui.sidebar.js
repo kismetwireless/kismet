@@ -36,14 +36,14 @@ var SidebarItems = new Array();
  * priority: order priority in list (optional)
  */
 exports.AddSidebarItem = function(options) {
-    if (! 'id' in options ||
-        ! 'listTitle' in options ||
-        ! 'clickCallback' in options) {
+    if (!('id' in options) ||
+        !('listTitle' in options) ||
+        !('clickCallback' in options)) {
         return;
     }
 
-    if (! 'priority' in options) {
-        options.priority = 0;
+    if (!('priority' in options)) {
+        options['priority'] = 0;
     }
 
     SidebarItems.push(options);
