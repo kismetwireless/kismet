@@ -798,7 +798,7 @@ exports.MemoryMonitor = function() {
         my: 'center-top',
         at: 'center-top',
         of: 'window',
-        offsetY: 20
+        offsetY: offty
     });
 
     memorydisplay_refresh();
