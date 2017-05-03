@@ -159,8 +159,9 @@ protected:
 
 };
 
-class Channeltracker_V2 : public tracker_component, public Kis_Net_Httpd_Stream_Handler,
-    public LifetimeGlobal, public TimetrackerEvent {
+class Channeltracker_V2 : public tracker_component, 
+    public Kis_Net_Httpd_CPPStream_Handler, public LifetimeGlobal, 
+    public TimetrackerEvent {
 public:
     static shared_ptr<Channeltracker_V2> create_channeltracker(GlobalRegistry *in_globalreg) {
         shared_ptr<Channeltracker_V2> mon(new Channeltracker_V2(in_globalreg));

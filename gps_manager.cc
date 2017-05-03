@@ -31,7 +31,7 @@
 #include "gpsweb.h"
 
 GpsManager::GpsManager(GlobalRegistry *in_globalreg) :
-    Kis_Net_Httpd_Stream_Handler(in_globalreg) {
+    Kis_Net_Httpd_CPPStream_Handler(in_globalreg) {
 
     globalreg = in_globalreg;
 

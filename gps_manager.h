@@ -77,7 +77,7 @@ public:
 
 /* GPS manager which handles configuring GPS sources and deciding which one
  * is going to be used */
-class GpsManager : public Kis_Net_Httpd_Stream_Handler, public LifetimeGlobal {
+class GpsManager : public Kis_Net_Httpd_CPPStream_Handler, public LifetimeGlobal {
 public:
     static shared_ptr<GpsManager> create_gpsmanager(GlobalRegistry *in_globalreg) {
         shared_ptr<GpsManager> mon(new GpsManager(in_globalreg));

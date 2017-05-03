@@ -28,7 +28,7 @@
 Kis_RTL433_Phy::Kis_RTL433_Phy(GlobalRegistry *in_globalreg,
         Devicetracker *in_tracker, int in_phyid) :
     Kis_Phy_Handler(in_globalreg, in_tracker, in_phyid),
-    Kis_Net_Httpd_Stream_Handler(in_globalreg) {
+    Kis_Net_Httpd_CPPStream_Handler(in_globalreg) {
 
     phyname = "RTL433";
 

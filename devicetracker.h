@@ -623,7 +623,7 @@ protected:
     pthread_mutex_t worker_mutex;
 };
 
-class Devicetracker : public Kis_Net_Httpd_Stream_Handler,
+class Devicetracker : public Kis_Net_Httpd_CPPStream_Handler,
     public TimetrackerEvent, public LifetimeGlobal {
 public:
     static shared_ptr<Devicetracker> create_devicetracker(GlobalRegistry *in_globalreg) {

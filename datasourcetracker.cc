@@ -310,7 +310,7 @@ void DST_DatasourceList::list_sources(
 
 
 Datasourcetracker::Datasourcetracker(GlobalRegistry *in_globalreg) :
-    Kis_Net_Httpd_Stream_Handler(in_globalreg),
+    Kis_Net_Httpd_CPPStream_Handler(in_globalreg),
     TcpServerV2(in_globalreg) {
     globalreg = in_globalreg;
 

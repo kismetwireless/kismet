@@ -76,7 +76,7 @@ protected:
     SharedTrackerElement deviceid;
 };
 
-class Kis_Zwave_Phy : public Kis_Phy_Handler, public Kis_Net_Httpd_Stream_Handler {
+class Kis_Zwave_Phy : public Kis_Phy_Handler, public Kis_Net_Httpd_CPPStream_Handler {
 public:
     Kis_Zwave_Phy() { }
 

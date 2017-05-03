@@ -25,7 +25,7 @@
 #include "messagebus.h"
 
 EntryTracker::EntryTracker(GlobalRegistry *in_globalreg) :
-    Kis_Net_Httpd_Stream_Handler(in_globalreg) {
+    Kis_Net_Httpd_CPPStream_Handler(in_globalreg) {
     globalreg = in_globalreg;
 
     // Initialize as recursive to allow multiple locks in a single thread

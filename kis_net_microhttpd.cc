@@ -831,13 +831,13 @@ string Kis_Net_Httpd_Handler::Httpd_StripSuffix(string path) {
     return httpd->StripSuffix(path);
 }
 
-bool Kis_Net_Httpd_Stream_Handler::Httpd_Serialize(string path, 
+bool Kis_Net_Httpd_CPPStream_Handler::Httpd_Serialize(string path, 
         std::stringstream &stream, SharedTrackerElement e, 
         TrackerElementSerializer::rename_map *name_map) {
     return entrytracker->Serialize(httpd->GetSuffix(path), stream, e, name_map);
 }
 
-int Kis_Net_Httpd_Stream_Handler::Httpd_HandleRequest(Kis_Net_Httpd *httpd, 
+int Kis_Net_Httpd_CPPStream_Handler::Httpd_HandleRequest(Kis_Net_Httpd *httpd, 
         Kis_Net_Httpd_Connection *connection,
         const char *url, const char *method, const char *upload_data,
         size_t *upload_data_size) {

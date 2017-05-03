@@ -26,7 +26,7 @@
 #include "packinfo_signal.h"
 
 Channeltracker_V2::Channeltracker_V2(GlobalRegistry *in_globalreg) :
-    tracker_component(in_globalreg, 0), Kis_Net_Httpd_Stream_Handler(in_globalreg) {
+    tracker_component(in_globalreg, 0), Kis_Net_Httpd_CPPStream_Handler(in_globalreg) {
 
     // Number of seconds we consider a device to be active on a frequency 
     // after the last time we see it

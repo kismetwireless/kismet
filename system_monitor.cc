@@ -33,7 +33,7 @@
 
 Systemmonitor::Systemmonitor(GlobalRegistry *in_globalreg) :
     tracker_component(in_globalreg, 0),
-    Kis_Net_Httpd_Stream_Handler(in_globalreg) {
+    Kis_Net_Httpd_CPPStream_Handler(in_globalreg) {
 
     // Initialize as recursive to allow multiple locks in a single thread
     pthread_mutexattr_t mutexattr;

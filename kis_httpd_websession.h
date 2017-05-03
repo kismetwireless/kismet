@@ -29,7 +29,7 @@
 // We need to subclass the HTTPD handler directly because even though we can
 // generally act like a stream, we need to be able to directly manipulate the
 // response header
-class Kis_Httpd_Websession : public Kis_Net_Httpd_Stream_Handler, 
+class Kis_Httpd_Websession : public Kis_Net_Httpd_CPPStream_Handler, 
     public LifetimeGlobal {
 public:
     static shared_ptr<Kis_Httpd_Websession> 

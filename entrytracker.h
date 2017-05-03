@@ -35,7 +35,7 @@
 #include "kis_net_microhttpd.h"
 
 // Allocate and track named fields and give each one a custom int
-class EntryTracker : public Kis_Net_Httpd_Stream_Handler, public LifetimeGlobal {
+class EntryTracker : public Kis_Net_Httpd_CPPStream_Handler, public LifetimeGlobal {
 public:
     static shared_ptr<EntryTracker> create_entrytracker(GlobalRegistry *in_globalreg) {
         shared_ptr<EntryTracker> mon(new EntryTracker(in_globalreg));

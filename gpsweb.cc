@@ -26,7 +26,7 @@
 // the stream_handler init
 GPSWeb::GPSWeb(GlobalRegistry *in_globalreg) : 
     Kis_Gps(in_globalreg),
-    Kis_Net_Httpd_Stream_Handler(NULL) {
+    Kis_Net_Httpd_CPPStream_Handler(NULL) {
 
     globalreg = in_globalreg;
 

@@ -389,7 +389,7 @@ protected:
     shared_ptr<kis_tracked_rrd<rtl433_empty_aggregator> > rain_rrd;
 };
 
-class Kis_RTL433_Phy : public Kis_Phy_Handler, public Kis_Net_Httpd_Stream_Handler {
+class Kis_RTL433_Phy : public Kis_Phy_Handler, public Kis_Net_Httpd_CPPStream_Handler {
 public:
     Kis_RTL433_Phy() { }
 

@@ -294,7 +294,7 @@ protected:
     function<void (bool, string, string)> cb;
 };
 
-class Datasourcetracker : public Kis_Net_Httpd_Stream_Handler, 
+class Datasourcetracker : public Kis_Net_Httpd_CPPStream_Handler, 
     public LifetimeGlobal, public TcpServerV2 {
 public:
     static shared_ptr<Datasourcetracker> create_dst(GlobalRegistry *in_globalreg) {

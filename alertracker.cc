@@ -30,7 +30,7 @@
 #include "msgpack_adapter.h"
 
 Alertracker::Alertracker(GlobalRegistry *in_globalreg) :
-    Kis_Net_Httpd_Stream_Handler(in_globalreg) {
+    Kis_Net_Httpd_CPPStream_Handler(in_globalreg) {
 	globalreg = in_globalreg;
 	next_alert_id = 0;
 

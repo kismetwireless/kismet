@@ -33,7 +33,7 @@
 //
 // Ranked between fixed GPS
 
-class GPSWeb : public Kis_Gps, public Kis_Net_Httpd_Stream_Handler {
+class GPSWeb : public Kis_Gps, public Kis_Net_Httpd_CPPStream_Handler {
 public:
     GPSWeb(GlobalRegistry *in_globalreg);
     virtual ~GPSWeb();

@@ -290,7 +290,7 @@ protected:
 
 typedef shared_ptr<tracked_alert_definition> shared_alert_def;
 
-class Alertracker : public Kis_Net_Httpd_Stream_Handler, public LifetimeGlobal {
+class Alertracker : public Kis_Net_Httpd_CPPStream_Handler, public LifetimeGlobal {
 public:
 	// Simple struct from reading config lines
 	struct alert_conf_rec {

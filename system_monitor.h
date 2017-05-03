@@ -30,7 +30,7 @@
 #include "devicetracker.h"
 #include "kis_net_microhttpd.h"
 
-class Systemmonitor : public tracker_component, public Kis_Net_Httpd_Stream_Handler,
+class Systemmonitor : public tracker_component, public Kis_Net_Httpd_CPPStream_Handler,
     public LifetimeGlobal, public TimetrackerEvent {
 public:
     static shared_ptr<Systemmonitor> create_systemmonitor(GlobalRegistry *in_globalreg) {

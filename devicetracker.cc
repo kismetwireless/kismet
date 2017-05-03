@@ -58,7 +58,7 @@ int Devicetracker_packethook_commontracker(CHAINCALL_PARMS) {
 }
 
 Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
-    Kis_Net_Httpd_Stream_Handler(in_globalreg) {
+    Kis_Net_Httpd_CPPStream_Handler(in_globalreg) {
 
     next_kis_internal_id = 1;
 

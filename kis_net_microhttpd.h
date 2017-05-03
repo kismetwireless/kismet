@@ -126,13 +126,13 @@ protected:
 
 };
 
-// Take a C++ stringstream and use it as a response
-class Kis_Net_Httpd_Stream_Handler : public Kis_Net_Httpd_Handler {
+// Take a C++ stream and use it as a response
+class Kis_Net_Httpd_CPPStream_Handler : public Kis_Net_Httpd_Handler {
 public:
-    Kis_Net_Httpd_Stream_Handler() { }
-    Kis_Net_Httpd_Stream_Handler(GlobalRegistry *in_globalreg) :
+    Kis_Net_Httpd_CPPStream_Handler() { }
+    Kis_Net_Httpd_CPPStream_Handler(GlobalRegistry *in_globalreg) :
         Kis_Net_Httpd_Handler(in_globalreg) { };
-    virtual ~Kis_Net_Httpd_Stream_Handler() { };
+    virtual ~Kis_Net_Httpd_CPPStream_Handler() { };
 
     virtual bool Httpd_VerifyPath(const char *path, const char *method) = 0;
 
@@ -154,7 +154,7 @@ public:
 };
 
 // Fallback handler to report that we can't serve static files
-class Kis_Net_Httpd_No_Files_Handler : public Kis_Net_Httpd_Stream_Handler {
+class Kis_Net_Httpd_No_Files_Handler : public Kis_Net_Httpd_CPPStream_Handler {
 public:
     virtual bool Httpd_VerifyPath(const char *path, const char *method);
 

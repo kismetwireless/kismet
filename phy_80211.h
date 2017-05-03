@@ -955,7 +955,7 @@ public:
 	macmap<int> allow_mac_map;
 };
 
-class Kis_80211_Phy : public Kis_Phy_Handler, public Kis_Net_Httpd_Stream_Handler,
+class Kis_80211_Phy : public Kis_Phy_Handler, public Kis_Net_Httpd_CPPStream_Handler,
     public TimetrackerEvent {
 public:
 	// Stub

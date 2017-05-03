@@ -89,7 +89,7 @@ protected:
     int timestamp_id;
 };
 
-class RestMessageClient : public MessageClient, public Kis_Net_Httpd_Stream_Handler,
+class RestMessageClient : public MessageClient, public Kis_Net_Httpd_CPPStream_Handler,
     public LifetimeGlobal {
 public:
     static shared_ptr<RestMessageClient> 
