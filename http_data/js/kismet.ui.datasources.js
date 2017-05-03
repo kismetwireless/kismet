@@ -29,7 +29,7 @@ $('<link>')
  */
 kismet_ui_sidebar.AddSidebarItem({
     id: 'datasource_channel_coverage',
-    listTitle: '<i class="fa fa-bar-chart-o"></i> Channel Coverage',
+    listTitle: '<i class="fa fa-bar-chart-o"></i> Estimated Channel Coverage',
     clickCallback: function() {
         exports.ChannelCoverage();
     },
@@ -44,17 +44,19 @@ var cc_uuid_pos_map = {};
 exports.ChannelCoverage = function() {
     var w = $(window).width() * 0.85;
     var h = $(window).height() * 0.50;
+    var offy = 20;
 
     if ($(window).width() < 450 || $(window).height() < 450) {
         w = $(window).width() - 5;
         h = $(window).height() - 5;
+        offy = 0;
     }
 
     channelcoverage_chart = null;
 
     channelcoverage_panel = $.jsPanel({
         id: 'channelcoverage',
-        headerTitle: '<i class="fa fa-bar-chart-o" /> Channel Coverage',
+        headerTitle: '<i class="fa fa-bar-chart-o" /> Estimated Channel Coverage',
         headerControls: {
             controls: 'closeonly',
             iconfont: 'jsglyph',
@@ -71,7 +73,7 @@ exports.ChannelCoverage = function() {
         my: 'center-top',
         at: 'center-top',
         of: 'window',
-        offsetY: 20
+        offsetY: offy,
     });
 
     channelcoverage_backend_refresh();
@@ -208,14 +210,19 @@ function channelcoverage_display_refresh() {
     if (channelcoverage_chart == null) {
         var canvas = $('#k-cc-canvas', channelcoverage_panel.content);
 
+        var bp = 5.0;
+
+        if (chantitles.length < 14)
+            bp = 2;
+
         channelcoverage_chart = new Chart(canvas, {
             type: "bar",
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-		scales: {
-			xAxes: [{ barPercentage: 5.0 }]
-		},
+                scales: {
+                    xAxes: [{ barPercentage: bp, }],
+                },
             },
             data: {
                 labels: chantitles,
@@ -230,6 +237,103 @@ function channelcoverage_display_refresh() {
 
     channelcoverage_display_tid = setTimeout(channelcoverage_display_refresh, 500);
 }
+
+/* Sidebar:  Data sources
+ *
+ * Combination of available data sources & current ones
+ *
+ */
+
+kismet_ui_sidebar.AddSidebarItem({
+    id: 'datasource_sources',
+    listTitle: '<i class="fa fa-cogs"></i> Data Sources',
+    priority: -500,
+    clickCallback: function() {
+        exports.DataSources();
+    },
+});
+
+var datasource_list_tid;
+var datasource_source_tid;
+var datasource_panel = null;
+
+exports.DataSources = function() {
+    var w = $(window).width() * 0.85;
+    var h = $(window).height() * 0.50;
+    var offy = 20;
+
+    if ($(window).width() < 450 || $(window).height() < 450) {
+        w = $(window).width() - 5;
+        h = $(window).height() - 5;
+        offy = 0;
+    }
+
+    datasource_panel = $.jsPanel({
+        id: 'datasources',
+        headerTitle: '<i class="fa fa-cogs" /> Data Sources',
+        headerControls: {
+            controls: 'closeonly',
+            iconfont: 'jsglyph',
+        },
+        content: '<p>',
+        onclosed: function() {
+        }
+    }).resize({
+        width: w,
+        height: h
+    }).reposition({
+        my: 'center-top',
+        at: 'center-top',
+        of: 'window',
+        offsetY: offy,
+    });
+
+    datasource_list_refresh();
+}
+
+function datasource_source_refresh() {
+    clearTimeout(datasource_list_tid);
+
+    $.get("/datasource/all_sources.json")
+    .done(function(data) {
+        var content = datasource_panel.content;
+        content.html("");
+    });
+}
+
+
+function datasource_list_refresh() {
+    clearTimeout(datasource_list_tid);
+
+    if (datasource_panel == null)
+        return;
+
+    if (datasource_panel.is(':hidden'))
+        return;
+
+    $.ajax({
+        url: "/datasource/list_interfaces.json", 
+        username: kismet.getStorage('kismet.base.login.username', 'kismet'),
+        password: kismet.getStorage('kismet.base.login.password', 'kismet')
+    })
+    .done(function(data) {
+        // Build a list of all devices we haven't seen before and set their 
+        // initial positions to match
+        var content = datasource_panel.content;
+
+        for (var ld = 0; ld < data.length; ld++) {
+            var d = data[ld];
+
+            content.append(
+                $('<p>')
+                .append(
+                    $('<b>')
+                    .text(d['kismet.datasource.probed.interface'])
+                )
+            );
+        }
+    });
+};
 
 // We're done loading
 exports.load_complete = 1;
