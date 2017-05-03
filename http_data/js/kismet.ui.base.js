@@ -770,10 +770,12 @@ var memory_chart = null;
 exports.MemoryMonitor = function() {
     var w = $(window).width() * 0.75;
     var h = $(window).height() * 0.5;
+    var offty = 20;
 
     if ($(window).width() < 450 || $(window).height() < 450) {
         w = $(window).width() - 5;
         h = $(window).height() - 5;
+        offty = 0;
     }
 
     memory_chart = null;
