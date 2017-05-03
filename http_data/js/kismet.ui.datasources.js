@@ -314,7 +314,11 @@ function datasource_list_refresh() {
     $.ajax({
         url: "/datasource/list_interfaces.json", 
         username: kismet.getStorage('kismet.base.login.username', 'kismet'),
-        password: kismet.getStorage('kismet.base.login.password', 'kismet')
+        password: kismet.getStorage('kismet.base.login.password', 'kismet'),
+        error: function(jqXHR, textStatus, errorThrown) {
+            datasource_panel.content.html("Error: " + textStatus);
+        },
+
     })
     .done(function(data) {
         // Build a list of all devices we haven't seen before and set their 
