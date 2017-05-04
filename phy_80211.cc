@@ -1873,13 +1873,7 @@ void Kis_80211_Phy::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
     return;
 }
 
-int Kis_80211_Phy::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind, 
-        const char *key, const char *filename, const char *content_type,
-        const char *transfer_encoding, const char *data, 
-        uint64_t off, size_t size) {
-
-    Kis_Net_Httpd_Connection *concls = (Kis_Net_Httpd_Connection *) coninfo_cls;
-
+int Kis_80211_Phy::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
     bool handled = false;
 
     string stripped = Httpd_StripSuffix(concls->url);
@@ -1893,28 +1887,6 @@ int Kis_80211_Phy::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind
     }
 
 #ifdef HAVE_LIBPCRE
-    // Process the post data - we care about 2 variables, cache either one.
-    // Whichever one finishes first, we process
-    if (size != 0) {
-        if (strcmp(key, "msgpack") == 0 ||
-                strcmp(key, "json") == 0) {
-            if (concls->variable_cache.find(key) == concls->variable_cache.end())
-                concls->variable_cache[key] = 
-                    unique_ptr<std::stringstream>(new std::stringstream);
-
-            concls->variable_cache[key]->write(data, size);
-        } else {
-            // fprintf(stderr, "debug - missing data\n");
-            concls->response_stream << "Invalid request: "
-                "expected JSON or Msgpack data";
-            concls->httpcode = 400;
-        }
-
-        // fprintf(stderr, "debug - wrote into '%s': '%s'\n", key, data);
-        return MHD_YES;
-    }
-
-
     // Common API
     SharedStructured structdata;
 
@@ -1922,17 +1894,11 @@ int Kis_80211_Phy::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind
 
     // Make sure we can extract the parameters
     try {
-        // Make sure we have the key
-        if (concls->variable_cache.find(key) == concls->variable_cache.end()) {
-            throw StructuredDataException("Completed POST collection, missing data");
-        }
-
-        // Decode the base64 msgpack and parse it, or parse the json
-
-        if (strcmp(key, "msgpack") == 0) {
-            structdata.reset(new StructuredMsgpack(Base64::decode(concls->variable_cache[key]->str())));
-        } else if (strcmp(key, "json") == 0) {
-            structdata.reset(new StructuredJson(concls->variable_cache[key]->str()));
+        if (concls->variable_cache.find("msgpack") != concls->variable_cache.end()) {
+            structdata.reset(new StructuredMsgpack(Base64::decode(concls->variable_cache["msgpack"]->str())));
+        } else if (concls->variable_cache.find("json") != 
+                concls->variable_cache.end()) {
+            structdata.reset(new StructuredJson(concls->variable_cache["json"]->str()));
         } else {
             // fprintf(stderr, "debug - missing data\n");
             throw StructuredDataException("Missing data");

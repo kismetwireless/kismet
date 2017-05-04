@@ -557,18 +557,12 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
         // fprintf(stderr, "con %p post complete\n", concls);
         concls->post_complete = true;
 
-        // Notify the processor it's complete
-        (concls->httpdhandler)->Httpd_PostComplete(concls);
-
-        // Send the content
-        // fprintf(stderr, "debug - sending postprocessor content %p\n", concls);
-        ret = kishttpd->SendHttpResponse(kishttpd, concls, 
-                url, concls->httpcode, concls->response_stream.str());
-      
-        return MHD_YES;
+        // Handle a post req inside the processor and return the results
+        return (concls->httpdhandler)->Httpd_HandlePostRequest(kishttpd, concls, url,
+                method, upload_data, upload_data_size);
     } else {
         // Handle GET + any others
-        ret = handler->Httpd_HandleRequest(kishttpd, concls, url, method, 
+        ret = handler->Httpd_HandleGetRequest(kishttpd, concls, url, method, 
                 upload_data, upload_data_size);
     }
 
@@ -736,59 +730,65 @@ int Kis_Net_Httpd::handle_static_file(void *cls, Kis_Net_Httpd_Connection *conne
     return -1;
 }
 
+void Kis_Net_Httpd::AppendHttpSession(Kis_Net_Httpd *httpd,
+        Kis_Net_Httpd_Connection *connection) {
+
+    if (connection->session != NULL) {
+        std::stringstream cookiestr;
+        std::stringstream cookie;
+
+        cookiestr << KIS_SESSION_COOKIE << "=";
+        cookiestr << connection->session->sessionid;
+        cookiestr << "; Path=/";
+
+        MHD_add_response_header(connection->response, MHD_HTTP_HEADER_SET_COOKIE, 
+                cookiestr.str().c_str());
+    }
+}
+
+void Kis_Net_Httpd::AppendStandardHeaders(Kis_Net_Httpd *httpd,
+        Kis_Net_Httpd_Connection *connection, const char *url) {
+
+    // Last-modified is always now
+    char lastmod[31];
+    struct tm tmstruct;
+    time_t now;
+    time(&now);
+    gmtime_r(&now, &tmstruct);
+    strftime(lastmod, 31, "%a, %d %b %Y %H:%M:%S %Z", &tmstruct);
+    MHD_add_response_header(connection->response, "Last-Modified", lastmod);
+
+    string suffix = GetSuffix(url);
+    string mime = httpd->GetMimeType(suffix);
+
+    if (mime != "") {
+        MHD_add_response_header(connection->response, "Content-Type", mime.c_str());
+    }
+
+    // Allow any?  This lets us handle webuis hosted elsewhere
+    MHD_add_response_header(connection->response, 
+            "Access-Control-Allow-Origin", "*");
+
+}
+
 int Kis_Net_Httpd::SendHttpResponse(Kis_Net_Httpd *httpd,
-        Kis_Net_Httpd_Connection *connection,
-        const char *url, int httpcode, string responsestr) {
+        Kis_Net_Httpd_Connection *connection) {
 
     int ret = MHD_YES;
 
-    // If this connection doesn't have a response, make one, populate it, and
-    // send it.  If there is already a response for this connection, it means
-    // something did a custom send - like a basicauth reject - so we just destroy
-    // the response at the end during cleanup.
-    if (connection->response == NULL) {
-        connection->response = 
-            MHD_create_response_from_buffer(responsestr.length(),
-                    (void *) responsestr.data(), MHD_RESPMEM_MUST_COPY);
-
-        if (connection->session != NULL) {
-            std::stringstream cookiestr;
-            std::stringstream cookie;
-
-            cookiestr << KIS_SESSION_COOKIE << "=";
-            cookiestr << connection->session->sessionid;
-            cookiestr << "; Path=/";
-
-            MHD_add_response_header(connection->response, MHD_HTTP_HEADER_SET_COOKIE, 
-                    cookiestr.str().c_str());
-        }
-
-        char lastmod[31];
-        struct tm tmstruct;
-        time_t now;
-        time(&now);
-        gmtime_r(&now, &tmstruct);
-        strftime(lastmod, 31, "%a, %d %b %Y %H:%M:%S %Z", &tmstruct);
-        MHD_add_response_header(connection->response, "Last-Modified", lastmod);
-
-        string suffix = GetSuffix(url);
-        string mime = httpd->GetMimeType(suffix);
-
-        if (mime != "") {
-            MHD_add_response_header(connection->response, "Content-Type", mime.c_str());
-        }
-
-        // Allow any?  This lets us handle webuis hosted elsewhere
-        MHD_add_response_header(connection->response, 
-                "Access-Control-Allow-Origin", "*");
-
-        ret = MHD_queue_response(connection->connection, httpcode, 
-                connection->response);
-    }
+    ret = MHD_queue_response(connection->connection, connection->httpcode, 
+            connection->response);
 
     MHD_destroy_response(connection->response);
 
     return ret;
+}
+
+int Kis_Net_Httpd::SendStandardHttpResponse(Kis_Net_Httpd *httpd,
+        Kis_Net_Httpd_Connection *connection, const char *url) {
+    AppendHttpSession(httpd, connection);
+    AppendStandardHeaders(httpd, connection, url);
+    return SendHttpResponse(httpd, connection);
 }
 
 Kis_Net_Httpd_Handler::Kis_Net_Httpd_Handler(GlobalRegistry *in_globalreg) {
@@ -839,7 +839,7 @@ bool Kis_Net_Httpd_CPPStream_Handler::Httpd_Serialize(string path,
     return entrytracker->Serialize(httpd->GetSuffix(path), stream, e, name_map);
 }
 
-int Kis_Net_Httpd_CPPStream_Handler::Httpd_HandleRequest(Kis_Net_Httpd *httpd, 
+int Kis_Net_Httpd_CPPStream_Handler::Httpd_HandleGetRequest(Kis_Net_Httpd *httpd, 
         Kis_Net_Httpd_Connection *connection,
         const char *url, const char *method, const char *upload_data,
         size_t *upload_data_size) {
@@ -850,10 +850,31 @@ int Kis_Net_Httpd_CPPStream_Handler::Httpd_HandleRequest(Kis_Net_Httpd *httpd,
     Httpd_CreateStreamResponse(httpd, connection, url, method, upload_data,
             upload_data_size, stream);
 
-    ret = httpd->SendHttpResponse(httpd, connection, url, MHD_HTTP_OK, stream.str());
+    connection->response = 
+        MHD_create_response_from_buffer(stream.str().length(),
+                (void *) stream.str().data(), MHD_RESPMEM_MUST_COPY);
+
+    ret = httpd->SendStandardHttpResponse(httpd, connection, url);
     
     return ret;
 }
+
+int Kis_Net_Httpd_CPPStream_Handler::Httpd_HandlePostRequest(Kis_Net_Httpd *httpd, 
+        Kis_Net_Httpd_Connection *connection,
+        const char *url, const char *method, const char *upload_data,
+        size_t *upload_data_size) {
+
+    // Call the post complete and populate our stream
+    Httpd_PostComplete(connection);
+
+    connection->response = 
+        MHD_create_response_from_buffer(connection->response_stream.str().length(),
+                (void *) connection->response_stream.str().data(), 
+                MHD_RESPMEM_MUST_COPY);
+
+    return httpd->SendStandardHttpResponse(httpd, connection, url);
+}
+
 
 bool Kis_Net_Httpd::HasValidSession(Kis_Net_Httpd_Connection *connection,
         bool send_invalid) {
@@ -1086,7 +1107,7 @@ static void free_ringbuf_aux_callback(void *cls) {
     delete(aux);
 }
 
-int Kis_Net_Httpd_Ringbuf_Stream_Handler::Httpd_HandleRequest(Kis_Net_Httpd *httpd, 
+int Kis_Net_Httpd_Ringbuf_Stream_Handler::Httpd_HandleGetRequest(Kis_Net_Httpd *httpd, 
         Kis_Net_Httpd_Connection *connection,
         const char *url, const char *method, const char *upload_data,
         size_t *upload_data_size) {

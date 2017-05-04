@@ -565,8 +565,6 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
         return 1;
     }
 
-    // fprintf(stderr, "debug - devicetracker con %p thinks we're complete, populating\n", concls);
-
     // Common structured API data
     SharedStructured structdata;
 
