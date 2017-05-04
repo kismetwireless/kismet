@@ -16,6 +16,9 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
+#ifndef __KIS_NET_MICROHTTPD__
+#define __KIS_NET_MICROHTTPD__
+
 #include "config.hpp"
 
 #include <stdio.h>
@@ -31,9 +34,8 @@
 
 #include "globalregistry.h"
 #include "trackedelement.h"
-
-#ifndef __KIS_NET_MICROHTTPD__
-#define __KIS_NET_MICROHTTPD__
+#include "ringbuf2.h"
+#include "ringbuf_handler.h"
 
 class Kis_Net_Httpd;
 class Kis_Net_Httpd_Session;
@@ -164,6 +166,83 @@ public:
             size_t *upload_data_size, std::stringstream &stream);
 };
 
+// A ringbuf-based stream handler which will continually stream output from
+// the ringbuffer to the HTTP connection
+//
+// Because this is a long-running handler, it must track the ringbuffer state
+// inside a connection object.
+class Kis_Net_Httpd_Ringbuf_Stream_Handler : public Kis_Net_Httpd_Handler {
+public:
+    Kis_Net_Httpd_Ringbuf_Stream_Handler() : Kis_Net_Httpd_Handler() { }
+    Kis_Net_Httpd_Ringbuf_Stream_Handler(GlobalRegistry *in_globalreg) :
+        Kis_Net_Httpd_Handler(in_globalreg) { };
+    virtual ~Kis_Net_Httpd_Ringbuf_Stream_Handler();
+
+    virtual int Httpd_HandleRequest(Kis_Net_Httpd *httpd,
+            Kis_Net_Httpd_Connection *connection,
+            const char *url, const char *method, const char *upload_data,
+            size_t *upload_data_size);
+
+    // Can this handler process this request?
+    virtual bool Httpd_VerifyPath(const char *path, const char *method) = 0;
+
+    // Called to create a streaming object; needs to create the ringbuf handler,
+    // and populate the aux object
+    virtual void Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
+            Kis_Net_Httpd_Connection *connection,
+            const char *url, const char *method, const char *upload_data,
+            size_t *upload_data_size) = 0;
+
+    // Called when a POST event is complete - all data has been uploaded and
+    // cached in the connection info.
+    virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *con __attribute__((unused))) = 0;
+
+    // Called by microhttpd during servicing a connecting; cls is a 
+    // kis_net_httpd_ringbuf_stream_aux which contains all our references to
+    // this class instance, the ringbuf streams, etc.  Locks waiting for the
+    // ringbuf to have data available to write.
+    static ssize_t ringbuf_event_cb(void *cls, uint64_t pos, char *buf, size_t max);
+
+};
+
+// A ringbuf-stream auxiliary class which is passed to the callback, added to the
+// connection record.  This holds the per-connection states
+class Kis_Net_Httpd_Ringbuf_Stream_Aux : public RingbufferInterface {
+public:
+    Kis_Net_Httpd_Ringbuf_Stream_Aux(Kis_Net_Httpd_Ringbuf_Stream_Handler *in_handler,
+            Kis_Net_Httpd_Connection *in_httpd_connection, 
+            shared_ptr<RingbufferHandler> in_ringbuf_handler);
+
+    bool get_in_error() { return in_error; }
+
+    // RBI interface to notify when data is in the buffer
+    virtual void BufferAvailable(size_t in_amt);
+
+    // Let the httpd callback pull the rb handler out
+    shared_ptr<RingbufferHandler> get_rbhandler() { return ringbuf_handler; }
+
+    // Block until data is available (called by the ringbuf_event_cb in the http
+    // session)
+    void block_until_data();
+
+public:
+    // Stream handler we belong to
+    Kis_Net_Httpd_Ringbuf_Stream_Handler *httpd_stream_handler;
+
+    // kis httpd connection we belong to
+    Kis_Net_Httpd_Connection *httpd_connection;
+
+    // Ringbuffer handler
+    shared_ptr<RingbufferHandler> ringbuf_handler;
+
+    // Conditional locker while waiting for the stream to have data
+    shared_ptr<conditional_locker<string> > cl;
+
+    // Are we in error?
+    bool in_error;
+};
+
+
 #define KIS_SESSION_COOKIE      "KISMET"
 #define KIS_HTTPD_POSTBUFFERSZ  (1024 * 32)
 
@@ -220,6 +299,9 @@ public:
 
     // Response created elsewhere, if any
     struct MHD_Response *response;
+
+    // Custom arbitrary value inserted by other processors
+    void *custom_extension;
 };
 
 class Kis_Net_Httpd_Session {

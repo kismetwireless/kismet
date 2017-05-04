@@ -32,6 +32,8 @@
 #include <microhttpd.h>
 #include <msgpack.hpp>
 
+#include <memory>
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -1011,5 +1013,95 @@ void Kis_Net_Httpd_No_Files_Handler::Httpd_CreateStreamResponse(Kis_Net_Httpd *h
     stream << "and restart Kismet";
     stream << "</body>";
     stream << "</html>";
+}
+
+Kis_Net_Httpd_Ringbuf_Stream_Aux::Kis_Net_Httpd_Ringbuf_Stream_Aux(
+        Kis_Net_Httpd_Ringbuf_Stream_Handler *in_handler,
+        Kis_Net_Httpd_Connection *in_httpd_connection,
+        shared_ptr<RingbufferHandler> in_ringbuf_handler) {
+    httpd_stream_handler = in_handler;
+    httpd_connection = in_httpd_connection;
+    ringbuf_handler = in_ringbuf_handler;
+
+    in_error = false;
+
+    // If the ringbuffer encounters an error, unlock the variable and set the
+    // error state
+    ringbuf_handler->SetProtocolErrorCb([this]() {
+        in_error = true;
+        cl->unlock("error");
+        });
+
+    // Lodge ourselves as the write handler
+    ringbuf_handler->SetWriteBufferInterface(this);
+}
+
+void Kis_Net_Httpd_Ringbuf_Stream_Aux::BufferAvailable(size_t in_amt) {
+    // All we need to do here is unlock the conditional lock; the 
+    // ringbuf_event_cb callback will unlock and read from the buffer, then
+    // re-lock and block
+    cl->unlock("data");
+}
+
+void Kis_Net_Httpd_Ringbuf_Stream_Aux::block_until_data() {
+    // Immediately return so we can flush out the buffer before we fail
+    if (in_error)
+        return;
+
+    cl->lock();
+    cl->block_until();
+}
+
+ssize_t Kis_Net_Httpd_Ringbuf_Stream_Handler::ringbuf_event_cb(void *cls, uint64_t pos,
+        char *buf, size_t max) {
+    Kis_Net_Httpd_Ringbuf_Stream_Aux *stream_aux = 
+        (Kis_Net_Httpd_Ringbuf_Stream_Aux *) cls;
+
+    shared_ptr<RingbufferHandler> rbh = stream_aux->get_rbhandler();
+
+    // We get called as soon as the webserver has either a) processed our request
+    // or b) sent what we gave it; we need to hold the thread until we
+    // get more data in the ringbuf, so we block until we have data
+    stream_aux->block_until_data();
+
+    size_t buffamt = rbh->GetWriteBufferUsed();
+
+    // We've hit an error / the stream is finished, so close it down
+    if (rbh == 0 && stream_aux->get_in_error()) {
+        return -1;
+    }
+
+    if (buffamt > max)
+        buffamt = max;
+
+    // Read from the buffer
+    size_t read_sz;
+    read_sz = rbh->GetWriteBufferData(buf, buffamt);
+
+    return (ssize_t) read_sz;
+}
+
+static void free_ringbuf_aux_callback(void *cls) {
+    Kis_Net_Httpd_Ringbuf_Stream_Aux *aux = (Kis_Net_Httpd_Ringbuf_Stream_Aux *) cls;
+    delete(aux);
+}
+
+int Kis_Net_Httpd_Ringbuf_Stream_Handler::Httpd_HandleRequest(Kis_Net_Httpd *httpd, 
+        Kis_Net_Httpd_Connection *connection,
+        const char *url, const char *method, const char *upload_data,
+        size_t *upload_data_size) {
+
+    shared_ptr<RingbufferHandler> rbh(new RingbufferHandler(128*1024, 128*1024));
+
+    Kis_Net_Httpd_Ringbuf_Stream_Aux *aux = 
+        new Kis_Net_Httpd_Ringbuf_Stream_Aux(this, connection, rbh);
+    connection->custom_extension = aux;
+
+    connection->response = 
+        MHD_create_response_from_callback(MHD_SIZE_UNKNOWN, 32 * 1024,
+            &ringbuf_event_cb, aux, &free_ringbuf_aux_callback);
+
+
+    return 1;
 }
 
