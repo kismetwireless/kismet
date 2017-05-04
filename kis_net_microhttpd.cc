@@ -1101,7 +1101,44 @@ int Kis_Net_Httpd_Ringbuf_Stream_Handler::Httpd_HandleRequest(Kis_Net_Httpd *htt
         MHD_create_response_from_callback(MHD_SIZE_UNKNOWN, 32 * 1024,
             &ringbuf_event_cb, aux, &free_ringbuf_aux_callback);
 
+    if (connection->session != NULL) {
+        std::stringstream cookiestr;
+        std::stringstream cookie;
 
-    return 1;
+        cookiestr << KIS_SESSION_COOKIE << "=";
+        cookiestr << connection->session->sessionid;
+        cookiestr << "; Path=/";
+
+        MHD_add_response_header(connection->response, MHD_HTTP_HEADER_SET_COOKIE, 
+                cookiestr.str().c_str());
+    }
+
+    char lastmod[31];
+    struct tm tmstruct;
+    time_t now;
+    time(&now);
+    gmtime_r(&now, &tmstruct);
+    strftime(lastmod, 31, "%a, %d %b %Y %H:%M:%S %Z", &tmstruct);
+    MHD_add_response_header(connection->response, "Last-Modified", lastmod);
+
+    string suffix = httpd->GetSuffix(url);
+    string mime = httpd->GetMimeType(suffix);
+
+    if (mime != "") {
+        MHD_add_response_header(connection->response, "Content-Type", mime.c_str());
+    }
+
+    // Allow any?  This lets us handle webuis hosted elsewhere
+    MHD_add_response_header(connection->response, 
+            "Access-Control-Allow-Origin", "*");
+
+    int ret;
+
+    ret = MHD_queue_response(connection->connection, 200, 
+            connection->response);
+
+    MHD_destroy_response(connection->response);
+
+    return ret;
 }
 
