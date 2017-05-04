@@ -765,10 +765,6 @@ public:
     void unlock_devicelist();
 
 protected:
-
-    // Internal ID counter
-    uint64_t next_kis_internal_id;
-
 	void SaveTags();
 
 	GlobalRegistry *globalreg;
@@ -820,6 +816,11 @@ protected:
 	map<uint64_t, shared_ptr<kis_tracked_device_base> > tracked_map;
 	// Vector of tracked devices so we can iterate them quickly
 	vector<shared_ptr<kis_tracked_device_base> > tracked_vec;
+
+    // Immutable vector, one entry per device; may never be sorted.  Devices
+    // which are removed are set to 'null'.  Each position corresponds to the
+    // device ID.
+    vector<shared_ptr<kis_tracked_device_base> > immutable_tracked_vec;
 
 	// Filtering
 	FilterCore *track_filter;

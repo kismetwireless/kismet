@@ -60,8 +60,6 @@ int Devicetracker_packethook_commontracker(CHAINCALL_PARMS) {
 Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
     Kis_Net_Httpd_CPPStream_Handler(in_globalreg) {
 
-    next_kis_internal_id = 1;
-
     // Initialize as recursive to allow multiple locks in a single thread
     pthread_mutexattr_t mutexattr;
     pthread_mutexattr_init(&mutexattr);
@@ -224,6 +222,7 @@ Devicetracker::~Devicetracker() {
     }
 
     tracked_vec.clear();
+    immutable_tracked_vec.clear();
 
     pthread_mutex_destroy(&devicelist_mutex);
 }
@@ -509,7 +508,9 @@ shared_ptr<kis_tracked_device_base> Devicetracker::UpdateCommonDevice(mac_addr i
 	if ((device = FetchDevice(key)) == NULL) {
         device.reset(new kis_tracked_device_base(globalreg, device_base_id));
 
-        device->set_kis_internal_id(next_kis_internal_id++);
+        // Device ID is the size of the vector so a new device always gets put
+        // in it's numbered slot
+        device->set_kis_internal_id(immutable_tracked_vec.size());
 
         device->set_key(key);
         device->set_macaddr(in_mac);
@@ -517,6 +518,7 @@ shared_ptr<kis_tracked_device_base> Devicetracker::UpdateCommonDevice(mac_addr i
 
         tracked_map[device->get_key()] = device;
         tracked_vec.push_back(device);
+        immutable_tracked_vec.push_back(device);
 
         device->set_first_time(in_pack->ts.tv_sec);
 
@@ -1664,21 +1666,20 @@ void Devicetracker::MatchOnDevices(DevicetrackerFilterWorker *worker, bool batch
             
             local_locker lock(&devicelist_mutex);
 
-            kismet__stable_sort(tracked_vec.begin(), tracked_vec.end(), 
-                    devicetracker_sort_internal_id);
-
-            auto b = tracked_vec.begin() + dpos;
+            auto b = immutable_tracked_vec.begin() + dpos;
             auto e = b + chunk_sz;
             bool last_loop = false;
 
-            if (e > tracked_vec.end()) {
-                e = tracked_vec.end();
+            if (e > immutable_tracked_vec.end()) {
+                e = immutable_tracked_vec.end();
                 last_loop = true;
             }
 
             // Parallel f-e
             kismet__for_each(b, e, 
                     [&](shared_ptr<kis_tracked_device_base> val) {
+                        if (val == NULL)
+                            return;
                         worker->MatchDevice(this, val);
                     });
 
@@ -1717,10 +1718,16 @@ int Devicetracker::timetracker_event(int eventid) {
                 [&](shared_ptr<kis_tracked_device_base> d) {
                     if (ts_now - d->get_last_time() > device_idle_expiration) {
                         // fprintf(stderr, "debug - forgetting device %s age %lu expiration %d\n", d->get_macaddr().Mac2String().c_str(), globalreg->timestamp.tv_sec - d->get_last_time(), device_idle_expiration);
+                        
                         device_itr mi = tracked_map.find(d->get_key());
-
                         if (mi != tracked_map.end())
                             tracked_map.erase(mi);
+
+                        // Forget it from the immutable vec, but keep its 
+                        // position; we need to have vecpos = devid
+                        auto iti = immutable_tracked_vec.begin() + 
+                            d->get_kis_internal_id();
+                        (*iti).reset();
 
                         purged = true;
 
