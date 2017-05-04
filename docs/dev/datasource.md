@@ -70,11 +70,12 @@ Responses:
 Pass capture data.  May be a packet, a decoded trackable entity, or other information.
 
 KV Pairs:
-* MESSAGE (optional)
-* WARNING (optional)
-* SIGNAL (optional)
-* PACKET (optional)
 * GPS (optional)
+* MESSAGE (optional)
+* PACKET (optional)
+* SIGNAL (optional)
+* SPECTRUM (optional)
+* WARNING (optional)
 
 Responses:
 * NONE
@@ -330,6 +331,24 @@ Simple string `(char *)` of the source type, length dictated by the KV length re
 Example:
 
 `"linuxwifi"`
+
+#### SPECTRUM
+Sources which report raw spectrum should send it using this KV.  Modeled after the output format from the *_sweep tools (hackrf_sweep, rtl_sweep, etc), this allows for simple transmission of the spectrum data as dB levels.
+
+A SPECTRUM record is inserted into the Kismet packetchain as a packet containing a "SPECTRUM" record.
+
+Content:
+
+Msgpack packed dictionary containing the following:
+* "timestamp": uint64 timestamp in seconds since the epoch (unix timestamp)
+* "hz_low": uint64 lowest frequency of sweep, in HZ
+* "hz_high": uint64 highest frequency of sweep, in HZ
+* "hz_bin_width": uint64 width of each signal record, in HZ
+* "db_samples": vector/array of samples, in dB, as int16 data.
+
+Example:
+
+{ "timestamp": 12345, "hz_low": 2400000000, "hz_high": 2480000000, "hz_bin_width": 1000000, "db_samples": [ -60, -60, -60, -10, -20, ... ] }
 
 #### SUCCESS
 A simple boolean indicating success or failure of the relevant command.  This value is padded to 4 bytes and is followed by the `uint32_t` sequence number of the command, if any, this success value applies to.
