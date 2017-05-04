@@ -340,7 +340,7 @@ A SPECTRUM record is inserted into the Kismet packetchain as a packet containing
 Content:
 
 Msgpack packed dictionary containing the following:
-* "timestamp": uint64 timestamp in seconds since the epoch (unix timestamp)
+* "timestamp": double timestamp in seconds+microseconds since the epoch
 * "hz_low": uint64 lowest frequency of sweep, in HZ
 * "hz_high": uint64 highest frequency of sweep, in HZ
 * "hz_bin_width": uint64 width of each signal record, in HZ
