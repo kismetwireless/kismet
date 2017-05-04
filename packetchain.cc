@@ -167,7 +167,17 @@ kis_packet *Packetchain::GeneratePacket() {
         pcl = genesis_chain[x];
    
         // Push it through the genesis chain and destroy it if we fail for some reason
-        if ((*(pcl->callback))(globalreg, pcl->auxdata, newpack) < 0) {
+        if (pcl->callback != NULL) {
+            if ((*(pcl->callback))(globalreg, pcl->auxdata, newpack) < 0) {
+                DestroyPacket(newpack);
+                return NULL;
+            } 
+        } else if (pcl->l_callback != NULL) {
+            if ((pcl->l_callback)(newpack) < 0) {
+                DestroyPacket(newpack);
+                return NULL;
+            }
+        } else {
             DestroyPacket(newpack);
             return NULL;
         }
@@ -183,32 +193,60 @@ int Packetchain::ProcessPacket(kis_packet *in_pack) {
         pc_link *pcl;
 
         for (unsigned int x = 0; x < postcap_chain.size() && 
-                (pcl = postcap_chain[x]); x++)
-            (*(pcl->callback))(globalreg, pcl->auxdata, in_pack);
+                (pcl = postcap_chain[x]); x++) {
+            if (pcl->callback != NULL)
+                (*(pcl->callback))(globalreg, pcl->auxdata, in_pack);
+            else if (pcl->l_callback != NULL)
+                (pcl->l_callback)(in_pack);
+        }
 
         for (unsigned int x = 0; x < llcdissect_chain.size() && 
-                (pcl = llcdissect_chain[x]); x++)
-            (*(pcl->callback))(globalreg, pcl->auxdata, in_pack);
+                (pcl = llcdissect_chain[x]); x++) {
+            if (pcl->callback != NULL)
+                (*(pcl->callback))(globalreg, pcl->auxdata, in_pack);
+            else if (pcl->l_callback != NULL)
+                (pcl->l_callback)(in_pack);
+        }
 
         for (unsigned int x = 0; x < decrypt_chain.size() && 
-                (pcl = decrypt_chain[x]); x++)
-            (*(pcl->callback))(globalreg, pcl->auxdata, in_pack);
+                (pcl = decrypt_chain[x]); x++) {
+            if (pcl->callback != NULL)
+                (*(pcl->callback))(globalreg, pcl->auxdata, in_pack);
+            else if (pcl->l_callback != NULL)
+                (pcl->l_callback)(in_pack);
+        }
 
         for (unsigned int x = 0; x < datadissect_chain.size() && 
-                (pcl = datadissect_chain[x]); x++)
-            (*(pcl->callback))(globalreg, pcl->auxdata, in_pack);
+                (pcl = datadissect_chain[x]); x++) {
+            if (pcl->callback != NULL)
+                (*(pcl->callback))(globalreg, pcl->auxdata, in_pack);
+            else if (pcl->l_callback != NULL)
+                (pcl->l_callback)(in_pack);
+        }
 
         for (unsigned int x = 0; x < classifier_chain.size() && 
-                (pcl = classifier_chain[x]); x++)
-            (*(pcl->callback))(globalreg, pcl->auxdata, in_pack);
+                (pcl = classifier_chain[x]); x++) {
+            if (pcl->callback != NULL)
+                (*(pcl->callback))(globalreg, pcl->auxdata, in_pack);
+            else if (pcl->l_callback != NULL)
+                (pcl->l_callback)(in_pack);
+        }
 
         for (unsigned int x = 0; x < tracker_chain.size() && 
-                (pcl = tracker_chain[x]); x++)
-            (*(pcl->callback))(globalreg, pcl->auxdata, in_pack);
+                (pcl = tracker_chain[x]); x++) {
+            if (pcl->callback != NULL)
+                (*(pcl->callback))(globalreg, pcl->auxdata, in_pack);
+            else if (pcl->l_callback != NULL)
+                (pcl->l_callback)(in_pack);
+        }
 
         for (unsigned int x = 0; x < logging_chain.size() && 
-                (pcl = logging_chain[x]); x++)
-            (*(pcl->callback))(globalreg, pcl->auxdata, in_pack);
+                (pcl = logging_chain[x]); x++) {
+            if (pcl->callback != NULL)
+                (*(pcl->callback))(globalreg, pcl->auxdata, in_pack);
+            else if (pcl->l_callback != NULL)
+                (pcl->l_callback)(in_pack);
+        }
     }
 
     DestroyPacket(in_pack);
@@ -232,9 +270,9 @@ void Packetchain::DestroyPacket(kis_packet *in_pack) {
 	delete in_pack;
 }
 
-int Packetchain::RegisterHandler(pc_callback in_cb, void *in_aux, 
-                                 int in_chain, int in_prio) {
-    local_locker lock(&packetchain_mutex);
+int Packetchain::RegisterIntHandler(pc_callback in_cb, void *in_aux,
+        function<int (kis_packet *)> in_l_cb, 
+        int in_chain, int in_prio) {
 
     pc_link *link = NULL;
     
@@ -248,6 +286,7 @@ int Packetchain::RegisterHandler(pc_callback in_cb, void *in_aux,
     link = new pc_link;
     link->priority = in_prio;
     link->callback = in_cb;
+    link->l_callback = in_l_cb;
     link->auxdata = in_aux;
 	link->id = next_handlerid++;
             
@@ -314,6 +353,16 @@ int Packetchain::RegisterHandler(pc_callback in_cb, void *in_aux,
     }
 
     return link->id;
+}
+
+int Packetchain::RegisterHandler(pc_callback in_cb, void *in_aux, 
+        int in_chain, int in_prio) {
+    return RegisterIntHandler(in_cb, in_aux, NULL, in_chain, in_prio);
+}
+
+int Packetchain::RegisterHandler(function<int (kis_packet *)> in_cb, int in_chain,
+        int in_prio) {
+    return RegisterIntHandler(NULL, NULL, in_cb, in_chain, in_prio);
 }
 
 int Packetchain::RemoveHandler(int in_id, int in_chain) {

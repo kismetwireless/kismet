@@ -32,6 +32,7 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <functional>
 
 #include <pthread.h>
 
@@ -111,17 +112,24 @@ public:
     typedef struct {
         int priority;
 		Packetchain::pc_callback callback;
+        function<int (kis_packet *)> l_callback;
         void *auxdata;
 		int id;
     } pc_link;
 
     // Register a callback, aux data, a chain to put it in, and the priority 
     int RegisterHandler(pc_callback in_cb, void *in_aux, int in_chain, int in_prio);
+    int RegisterHandler(function<int (kis_packet *)> in_cb, int in_chain, int in_prio);
     int RemoveHandler(pc_callback in_cb, int in_chain);
 	int RemoveHandler(int in_id, int in_chain);
 
 protected:
     GlobalRegistry *globalreg;
+
+    // Common function for both insertion methods
+    int RegisterIntHandler(pc_callback in_cb, void *in_aux, 
+            function<int (kis_packet *)> in_l_cb, 
+            int in_chain, int in_prio);
 
     int next_componentid, next_handlerid;
 
