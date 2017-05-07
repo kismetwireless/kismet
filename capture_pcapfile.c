@@ -126,8 +126,8 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
 }
 
 int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
-        char *msg, char **uuid, char **chanset, char ***chanlist, size_t *chanlist_sz,
-        char **capif) {
+        char *msg, uint32_t *dlt, char **uuid, char **chanset, char ***chanlist, 
+        size_t *chanlist_sz, char **capif) {
     char *placeholder = NULL;
     int placeholder_len;
 
@@ -145,6 +145,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     *chanlist_sz = 0;
     *uuid = NULL;
     *capif = NULL;
+    *dlt = 0;
 
     /* Clean up any old state */
     if (local_pcap->pcapfname != NULL) {
@@ -189,6 +190,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     }
 
     local_pcap->datalink_type = pcap_datalink(local_pcap->pd);
+    *dlt = local_pcap->datalink_type;
 
     /* Succesful open with no channel, hop, or chanset data */
     snprintf(msg, STATUS_MAX, "Opened pcapfile '%s' for playback", pcapfname);
@@ -252,7 +254,7 @@ void pcap_dispatch_cb(u_char *user, const struct pcap_pkthdr *header,
     while (1) {
         if ((ret = cf_send_data(caph, 
                         NULL, NULL, NULL,
-                        header->ts, local_pcap->datalink_type,
+                        header->ts, 
                         header->caplen, (uint8_t *) data)) < 0) {
             fprintf(stderr, "debug - pcapfile - cf_send_data failed\n");
             pcap_breakloop(local_pcap->pd);

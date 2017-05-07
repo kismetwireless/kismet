@@ -546,8 +546,8 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
 }
 
 int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
-        char *msg, char **uuid, char **chanset, char ***chanlist, size_t *chanlist_sz,
-        char **capif) {
+        char *msg, uint32_t *dlt, char **uuid, char **chanset, 
+        char ***chanlist, size_t *chanlist_sz, char **capif) {
     /* Try to open an interface for monitoring
      * 
      * - Confirm it's an interface, and that it's wireless, by doing a basic 
@@ -583,6 +583,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     *chanlist = NULL;
     *chanlist_sz = 0;
     *capif = NULL;
+    *dlt = 0;
 
     int mode;
 
@@ -1042,6 +1043,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     }
 
     local_wifi->datalink_type = pcap_datalink(local_wifi->pd);
+    *dlt = local_wifi->datalink_type;
 
     if (strcmp(local_wifi->interface, local_wifi->cap_interface) != 0) {
         snprintf(msg, STATUS_MAX, "Linux Wi-Fi capturing from monitor vif '%s' on "
@@ -1248,7 +1250,7 @@ void pcap_dispatch_cb(u_char *user, const struct pcap_pkthdr *header,
     while (1) {
         if ((ret = cf_send_data(caph, 
                         NULL, NULL, NULL,
-                        header->ts, local_wifi->datalink_type,
+                        header->ts, 
                         header->caplen, (uint8_t *) data)) < 0) {
             pcap_breakloop(local_wifi->pd);
             cf_send_error(caph, "unable to send DATA frame");

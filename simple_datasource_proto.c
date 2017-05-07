@@ -191,6 +191,26 @@ simple_cap_proto_kv_t *encode_kv_success(unsigned int success, uint32_t sequence
     return kv;
 }
 
+simple_cap_proto_kv_t *encode_kv_dlt(unsigned int dlt) {
+    simple_cap_proto_kv_t *kv;
+
+    size_t content_sz = sizeof(uint32_t);
+
+    uint32_t conv_dlt = (uint32_t) dlt;
+
+    kv = (simple_cap_proto_kv_t *) malloc(sizeof(simple_cap_proto_kv_t) + content_sz);
+
+    if (kv == NULL)
+        return NULL;
+
+    snprintf(kv->header.key, 16, "%.16s", "DLT");
+    kv->header.obj_sz = htonl(content_sz);
+
+    memcpy(kv->object, &conv_dlt, sizeof(uint32_t));
+
+    return kv;
+}
+
 simple_cap_proto_kv_t *encode_kv_chanset(const char *channel) {
     simple_cap_proto_kv_t *kv;
 
@@ -245,12 +265,11 @@ simple_cap_proto_kv_t *encode_kv_capif(const char *capif) {
     return kv;
 }
 
-simple_cap_proto_kv_t *encode_kv_capdata(struct timeval in_ts, int in_dlt, 
+simple_cap_proto_kv_t *encode_kv_capdata(struct timeval in_ts, 
         uint32_t in_pack_sz, uint8_t *in_pack) {
 
     const char *key_tv_sec = "tv_sec";
     const char *key_tv_usec = "tv_usec";
-    const char *key_dlt = "dlt";
     const char *key_pack_sz = "size";
     const char *key_packet = "packet";
 
@@ -266,16 +285,13 @@ simple_cap_proto_kv_t *encode_kv_capdata(struct timeval in_ts, int in_dlt,
         return NULL;
     }
 
-    mp_b_encode_map(puckbuffer, 5);
+    mp_b_encode_map(puckbuffer, 4);
 
     mp_b_encode_str(puckbuffer, key_tv_sec, strlen(key_tv_sec));
     mp_b_encode_uint(puckbuffer, in_ts.tv_sec);
 
     mp_b_encode_str(puckbuffer, key_tv_usec, strlen(key_tv_usec));
     mp_b_encode_uint(puckbuffer, in_ts.tv_usec);
-
-    mp_b_encode_str(puckbuffer, key_dlt, strlen(key_dlt));
-    mp_b_encode_uint(puckbuffer, in_dlt);
 
     mp_b_encode_str(puckbuffer, key_pack_sz, strlen(key_pack_sz));
     mp_b_encode_uint(puckbuffer, in_pack_sz);

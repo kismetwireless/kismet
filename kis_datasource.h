@@ -162,6 +162,9 @@ public:
     __ProxyGet(source_definition, string, string, source_definition);
     __ProxyGet(source_interface, string, string, source_interface);
     __ProxyGet(source_cap_interface, string, string, source_cap_interface);
+
+    __ProxyGet(source_dlt, uint32_t, uint32_t, source_dlt);
+
     __ProxyTrackable(source_channels_vec, TrackerElement, source_channels_vec);
 
     // Any alert state passed from the driver we want to be able to consistently
@@ -332,6 +335,7 @@ protected:
     virtual kis_packet *handle_kv_packet(KisDatasourceCapKeyedObject *in_obj);
     virtual void handle_kv_uuid(KisDatasourceCapKeyedObject *in_obj);
     virtual void handle_kv_capif(KisDatasourceCapKeyedObject *in_obj);
+    virtual unsigned int handle_kv_dlt(KisDatasourceCapKeyedObject *in_obj);
 
 
     // Assemble a packet it write it out the ringbuffer, returning a command 
@@ -373,6 +377,7 @@ protected:
     __ProxySet(int_source_definition, string, string, source_definition);
     __ProxySet(int_source_interface, string, string, source_interface);
     __ProxySet(int_source_cap_interface, string, string, source_cap_interface);
+    __ProxySet(int_source_dlt, uint32_t, uint32_t, source_dlt);
     __ProxyTrackable(int_source_channels_vec, TrackerElement, source_channels_vec);
 
     __ProxySet(int_source_warning, string, string, source_warning);
@@ -404,6 +409,9 @@ protected:
     // Optional interface we actually capture from - ie, linux wifi VIFs or resolved
     // USB device paths
     SharedTrackerElement source_cap_interface;
+
+    // Interface DLT
+    SharedTrackerElement source_dlt;
 
     // Builder for channel string elements
     SharedTrackerElement channel_entry_builder;

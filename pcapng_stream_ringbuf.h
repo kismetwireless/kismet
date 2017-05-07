@@ -128,7 +128,6 @@ class Pcap_Stream_Ringbuf {
 public:
     Pcap_Stream_Ringbuf(GlobalRegistry *in_globalreg, 
             shared_ptr<RingbufferHandler> in_handler,
-            int in_dlt, 
             function<bool (kis_packet *)> accept_filter,
             function<kis_datachunk * (kis_packet *)> data_selector);
 
@@ -154,8 +153,6 @@ protected:
 
     int packethandler_id;
     int pack_comp_linkframe, pack_comp_datasrc;
-
-    int dlt;
 
     function<bool (kis_packet *)> accept_cb;
     function<kis_datachunk * (kis_packet *)> selector_cb;

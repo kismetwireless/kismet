@@ -207,7 +207,7 @@ simple_cap_proto_kv_t *encode_kv_capif(const char *capif);
  * Null on failure
  *
  */
-simple_cap_proto_kv_t *encode_kv_capdata(struct timeval in_ts, int in_dlt, 
+simple_cap_proto_kv_t *encode_kv_capdata(struct timeval in_ts, 
         uint32_t in_pack_sz, uint8_t *in_pack);
 
 /* Encode a GPS KV
@@ -261,6 +261,15 @@ simple_cap_proto_kv_t *encode_kv_signal(uint32_t signal_dbm, uint32_t signal_rss
  */
 simple_cap_proto_kv_t *encode_kv_interfacelist(char **interfaces, char **options, 
         size_t len);
+
+/* Encode a DLT KV
+ *
+ * Returns:
+ * Pointer on success
+ * Null on failure
+ *
+ */
+simple_cap_proto_kv_t *encode_kv_dlt(unsigned int dlt);
 
 /* Encode a single channel into a kv 
  *

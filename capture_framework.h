@@ -103,6 +103,9 @@ typedef int (*cf_callback_probe)(kis_capture_handler_t *, uint32_t seqno,
  * *msg is allocated by the caller and can hold STATUS_MAX characters and should
  * be populated with any message the listcb wants to return
  *
+ * *dlt is allocated by the caller and should be filled with the interface DLT
+ * or link type (typically from pcap_get_linktype or a known fixed value);
+ *
  * *uuid is to be allocated by the cb and should hold the interface UUID
  * *chanset is to be allocated by the cb and should hold the channel,
  * if only one channel is supported.
@@ -116,8 +119,8 @@ typedef int (*cf_callback_probe)(kis_capture_handler_t *, uint32_t seqno,
  *  0   success
  */
 typedef int (*cf_callback_open)(kis_capture_handler_t *, uint32_t seqno, 
-        char *definition, char *msg, char **uuid, char **chanset, char ***chanlist,
-        size_t *chanlist_sz, char **capif);
+        char *definition, char *msg, uint32_t *dlt, char **uuid, 
+        char **chanset, char ***chanlist, size_t *chanlist_sz, char **capif);
 
 /* Channel translate
  * Called to translate a channel from a generic string to a local representation
@@ -548,7 +551,7 @@ int cf_send_proberesp(kis_capture_handler_t *caph, uint32_t seq, unsigned int su
  *  1   Success
  */
 int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int success,
-        const char *msg, const char *uuid, const char *chanset, 
+        const char *msg, const uint32_t dlt, const char *uuid, const char *chanset, 
         char **channels, size_t channels_len, const char *capif);
 
 /* Send a DATA frame with packet data
@@ -566,7 +569,7 @@ int cf_send_data(kis_capture_handler_t *caph,
         simple_cap_proto_kv_t *kv_message,
         simple_cap_proto_kv_t *kv_signal,
         simple_cap_proto_kv_t *kv_gps,
-        struct timeval ts, int dlt, uint32_t packet_sz, uint8_t *pack);
+        struct timeval ts, uint32_t packet_sz, uint8_t *pack);
 
 /* Send a CONFIGRESP with only a success and optional message
  *

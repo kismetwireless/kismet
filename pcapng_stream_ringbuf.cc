@@ -22,7 +22,6 @@
 
 Pcap_Stream_Ringbuf::Pcap_Stream_Ringbuf(GlobalRegistry *in_globalreg,
         shared_ptr<RingbufferHandler> in_handler,
-        int in_dlt,
         function<bool (kis_packet *)> accept_filter,
         function<kis_datachunk * (kis_packet *)> data_selector) {
 
@@ -33,10 +32,12 @@ Pcap_Stream_Ringbuf::Pcap_Stream_Ringbuf(GlobalRegistry *in_globalreg,
 
     handler = in_handler;
 
-    dlt = in_dlt;
-
     accept_cb = accept_filter;
     selector_cb = data_selector;
+
+    // Write the initial headers
+    if (pcapng_make_shb("", "", "Kismet") < 0)
+        return;
 
     packetchain->RegisterHandler([this](kis_packet *packet) {
             handle_chain_packet(packet);
@@ -45,6 +46,7 @@ Pcap_Stream_Ringbuf::Pcap_Stream_Ringbuf(GlobalRegistry *in_globalreg,
 
     pack_comp_linkframe = packetchain->RegisterPacketComponent("LINKFRAME");
     pack_comp_datasrc = packetchain->RegisterPacketComponent("KISDATASRC");
+
 }
 
 Pcap_Stream_Ringbuf::~Pcap_Stream_Ringbuf() {
@@ -219,7 +221,7 @@ int Pcap_Stream_Ringbuf::pcapng_make_idb(KisDatasource *in_datasource) {
 
     idb->block_type = PCAPNG_IDB_BLOCK_TYPE;
     idb->block_length = buf_sz + 4;
-    idb->dlt = dlt;
+    idb->dlt = in_datasource->get_source_dlt();
     idb->reserved = 0;
     idb->snaplen = 65535;
 
@@ -410,4 +412,35 @@ int Pcap_Stream_Ringbuf::pcapng_write_packet(kis_packet *in_packet,
 
     return 1;
 }
+
+// Handle a packet from the chain; given the accept_cb and selector_cb we
+// should be able to generically handle any sort of filtering - an advanced
+// filter can be applied by the caller function to filter to a specific device
+// or source.
+//
+// Interface descriptors are automatically created during packet insertion, and
+// packets linked to the proper interface.
+void Pcap_Stream_Ringbuf::handle_chain_packet(kis_packet *in_packet) {
+    kis_datachunk *target_datachunk;
+
+    // If we have an accept filter and it rejects, we're done
+    if (accept_cb != NULL && accept_cb(in_packet) == false)
+        return;
+
+    // If we have a selector filter, use it to get the data chunk, otherwise
+    // use the linkframe
+    if (selector_cb != NULL) {
+        target_datachunk = selector_cb(in_packet);
+    } else {
+        target_datachunk = (kis_datachunk *) in_packet->fetch(pack_comp_linkframe);
+    }
+
+    // If we didn't get a data chunk from the selector or there isn't a linkframe,
+    // silently ignore this packet
+    if (target_datachunk == NULL)
+        return;
+
+    pcapng_write_packet(in_packet, target_datachunk);
+}
+
 

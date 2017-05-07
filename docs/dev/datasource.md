@@ -151,6 +151,7 @@ KV Pairs:
 * CAPIF (optional)
 * CHANNELS (optional)
 * CHANSET (optional)
+* DLT
 * MESSAGE (optional)
 * SUCCESS
 * UUID (optional)
@@ -251,6 +252,14 @@ Example:
 
 `wlan0:hop=true,name=foobar`
 
+#### DLT
+Indicates the DLT (Data Link Type) of the capture interface; typically as reported by libpcap.
+
+Content:
+
+Simple `uint32_t` of the DLT.
+
+
 #### GPS
 If a driver contains its own location information (or is running on a remote system which has its own GPS), captured data may be tagged with GPS information.  This is not necessary when reporting data or device information with inherent location information (such as PPI+GPS packets, or some other phy type which embeds positional information in packets).
 
@@ -299,7 +308,6 @@ Content:
 Msgpack packed dictionary containing the following:
 * "tv_sec": uint64 timestamp in seconds since the epoch (time_t)
 * "tv_usec": uint64 timestamp in microseconds after the second
-* "dlt": uint64 integer data link type (per tcpdump)
 * "size": uint64 integer size of packet bytes
 * "packet": binary/raw (interpreted as uint8[]) content of packet.  Size must match the size field.
 

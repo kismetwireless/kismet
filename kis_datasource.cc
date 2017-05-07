@@ -715,6 +715,12 @@ void KisDatasource::proto_packet_open_resp(KVmap in_kvpairs) {
         handle_kv_capif(i->second);
     }
 
+    if ((i = in_kvpairs.find("dlt")) != in_kvpairs.end()) {
+        handle_kv_dlt(i->second);
+    } else {
+        trigger_error("No DLT found for interface");
+    }
+
     // If we didn't get a uuid and we don't have one, make up a timestamp-based one
     if (get_source_uuid().error && !local_uuid) {
         uuid nuuid;
@@ -1184,12 +1190,6 @@ kis_packet *KisDatasource::handle_kv_packet(KisDatasourceCapKeyedObject *in_obj)
             throw std::runtime_error(string("tv_usec timestamp missing"));
         }
 
-        if ((obj_iter = dict.find("dlt")) != dict.end()) {
-            datachunk->dlt = obj_iter->second.as<uint64_t>();
-        } else {
-            throw std::runtime_error(string("DLT missing"));
-        }
-
         // Record the size
         uint64_t size = 0;
         if ((obj_iter = dict.find("size")) != dict.end()) {
@@ -1227,6 +1227,8 @@ kis_packet *KisDatasource::handle_kv_packet(KisDatasourceCapKeyedObject *in_obj)
 
         return NULL;
     }
+
+    datachunk->dlt = get_source_dlt();
 
     packet->insert(pack_comp_linkframe, datachunk);
 
@@ -1412,6 +1414,21 @@ void KisDatasource::handle_kv_interfacelist(KisDatasourceCapKeyedObject *in_obj)
     }
 
     return;
+}
+
+unsigned int KisDatasource::handle_kv_dlt(KisDatasourceCapKeyedObject *in_obj) {
+    uint32_t *dlt;
+
+    if (in_obj->size != sizeof(uint32_t)) {
+        trigger_error("Invalid DLT object in response");
+        return 0;
+    }
+
+    dlt = (uint32_t *) in_obj->object;
+
+    set_int_source_dlt(*dlt);
+
+    return *dlt;
 }
 
 bool KisDatasource::write_packet(string in_cmd, KVmap in_kvpairs,
@@ -1693,6 +1710,9 @@ void KisDatasource::register_fields() {
             "Interface", &source_interface);
     RegisterField("kismet.datasource.capture_interface", TrackerString,
             "Interface", &source_cap_interface);
+
+    RegisterField("kismet.datasource.dlt", TrackerUInt32,
+            "DLT (link type)", &source_dlt);
 
     RegisterField("kismet.datasource.warning", TrackerString,
             "Warning or unusual interface state", &source_warning);
