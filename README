@@ -4,6 +4,89 @@ https://www.kismetwireless.net
 
 [ New kismet readme, in progress ]
 
+**. Quick Setup Guide
+
+    Kismet has many configuration knobs and options; but for the quickest
+    way to get the basics working:
+
+    1.  Install dependencies.  Kismet needs a number of libraries and 
+        development headers to compile; these should be available in 
+        nearly all distributions.  
+
+        For Ubuntu:
+
+        $ sudo apt-get install build-essentials libmicrohttpd-dev git \
+            libnl-3-dev libnl-genl-3-dev libcap-dev libpcap-dev \
+            libcurses5-dev libnm-dev
+
+    2.  Clone Kismet from git.  If you haven't cloned Kismet before:
+
+        $ git clone https://www.kismetwireless.net/kismet.git
+
+        If you have a Kismet repo already:
+
+        $ cd kismet
+        $ git pull
+
+        Git may appear that it has hung while it downloads - just give it
+        some time.  Typically a clone on a fast connection will take 
+        2 to 5 minutes.
+
+    3.  Run configure.  This will find all the specifics about your system
+        and prepare Kismet for compiling.  If you have any missing dependencies
+        or incompatible library versions, they will show up here.
+
+        $ cd kismet
+        $ ./configure
+
+        Pay attention to the summary at the end and look out for any warnings.
+
+    4.  Compile Kismet.  
+
+        $ make
+
+        You can accelerate the process by adding '-j #', depending on how many
+        CPUs you have.  For instance on a quad-core system:
+
+        $ make -j4
+
+    5.  Install Kismet.  Generally, you should install Kismet as suid-root; 
+        Kismet will automatically add a group and install the capture binaries
+        accordingly.
+
+        $ sudo make suidinstall
+
+    6.  Put yourself in the Kismet group.
+
+        $ sudo usermod -a -G kismet foouser
+
+        This will add 'foouser' to the Kismet group.
+
+    7.  Log out and back in.  Linux does not update groups until you log in; if
+        you have just added yourself to the Kismet group you will have to 
+        re-log in.
+
+        Check that you are in the Kismet group with:
+
+        $ groups
+
+    8.  Set a Kismet password for the webserver.  If you do not do this, anyone
+        with access to your Kismet server will be able to change configuration,
+        control interfaces, etc.
+
+        Edit /usr/local/etc/kismet_httpd.conf with your favorite editor.
+
+        $ sudo vim /usr/local/etc/kismet_httpd.conf
+
+        Change the httpd_user= line, for instance:
+
+        httpd_user=kismet:foobarbaz
+
+    9.  You're now ready to run Kismet!  Point it at your network interface:
+
+        $ kismet -c wlan0
+
+
 00. Upgrading & Using Kismet Git-Master
 
     Kismet is undergoing a large number of changes, including the transition to 
