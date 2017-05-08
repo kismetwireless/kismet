@@ -221,14 +221,25 @@ public:
 };
 
 // A ringbuf-stream auxiliary class which is passed to the callback, added to the
-// connection record.  This holds the per-connection states
+// connection record.  This holds the per-connection states.
+//
+// Free_aux_cb is called to free any aux data added into this record; the stream_aux
+// itself will be freed by the httpd system.
 class Kis_Net_Httpd_Ringbuf_Stream_Aux : public RingbufferInterface {
 public:
     Kis_Net_Httpd_Ringbuf_Stream_Aux(Kis_Net_Httpd_Ringbuf_Stream_Handler *in_handler,
             Kis_Net_Httpd_Connection *in_httpd_connection, 
-            shared_ptr<RingbufferHandler> in_ringbuf_handler);
+            shared_ptr<RingbufferHandler> in_ringbuf_handler,
+            void *in_aux,
+            function<void (Kis_Net_Httpd_Ringbuf_Stream_Aux *)> in_free_aux);
 
     bool get_in_error() { return in_error; }
+
+    void set_aux(void *in_aux, 
+            function<void (Kis_Net_Httpd_Ringbuf_Stream_Aux *)> in_free_aux) {
+        aux = in_aux;
+        free_aux_cb = in_free_aux;
+    }
 
     // RBI interface to notify when data is in the buffer
     virtual void BufferAvailable(size_t in_amt);
@@ -255,6 +266,13 @@ public:
 
     // Are we in error?
     bool in_error;
+
+    // Another arbitrary block - likely used to store the ringbuf processor for
+    // filling this connection
+    void *aux;
+
+    // Free function
+    function<void (Kis_Net_Httpd_Ringbuf_Stream_Aux *)> free_aux_cb;
 };
 
 

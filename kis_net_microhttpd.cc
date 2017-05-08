@@ -1039,10 +1039,14 @@ void Kis_Net_Httpd_No_Files_Handler::Httpd_CreateStreamResponse(Kis_Net_Httpd *h
 Kis_Net_Httpd_Ringbuf_Stream_Aux::Kis_Net_Httpd_Ringbuf_Stream_Aux(
         Kis_Net_Httpd_Ringbuf_Stream_Handler *in_handler,
         Kis_Net_Httpd_Connection *in_httpd_connection,
-        shared_ptr<RingbufferHandler> in_ringbuf_handler) {
+        shared_ptr<RingbufferHandler> in_ringbuf_handler,
+        void *in_aux, function<void (Kis_Net_Httpd_Ringbuf_Stream_Aux *)> in_free_aux) {
+
     httpd_stream_handler = in_handler;
     httpd_connection = in_httpd_connection;
     ringbuf_handler = in_ringbuf_handler;
+    aux = in_aux;
+    free_aux_cb = in_free_aux;
 
     in_error = false;
 
@@ -1104,6 +1108,13 @@ ssize_t Kis_Net_Httpd_Ringbuf_Stream_Handler::ringbuf_event_cb(void *cls, uint64
 
 static void free_ringbuf_aux_callback(void *cls) {
     Kis_Net_Httpd_Ringbuf_Stream_Aux *aux = (Kis_Net_Httpd_Ringbuf_Stream_Aux *) cls;
+
+    aux->ringbuf_handler->BufferError("closing http connection");
+
+    if (aux->free_aux_cb != NULL) {
+        aux->free_aux_cb(aux);
+    }
+
     delete(aux);
 }
 
@@ -1115,7 +1126,7 @@ int Kis_Net_Httpd_Ringbuf_Stream_Handler::Httpd_HandleGetRequest(Kis_Net_Httpd *
     shared_ptr<RingbufferHandler> rbh(new RingbufferHandler(128*1024, 128*1024));
 
     Kis_Net_Httpd_Ringbuf_Stream_Aux *aux = 
-        new Kis_Net_Httpd_Ringbuf_Stream_Aux(this, connection, rbh);
+        new Kis_Net_Httpd_Ringbuf_Stream_Aux(this, connection, rbh, NULL, NULL);
     connection->custom_extension = aux;
 
     connection->response = 
