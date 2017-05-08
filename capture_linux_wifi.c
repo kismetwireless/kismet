@@ -648,11 +648,19 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     /* Look up the driver and set any special attributes */
     if (strcmp(driver, "8812au") == 0) {
         snprintf(errstr, STATUS_MAX, "Interface '%s' looks to use the 8812au driver, "
-                "which has interesting quirks.  Disabling mac80211 VIF creation but "
-                "using mac80211 channel controls.", local_wifi->interface);
-        cf_send_message(caph, errstr, MSGFLAG_INFO);
+                "which has problems using mac80211 VIF mode.  Disabling mac80211 VIF "
+                "creation but retaining mac80211 channel controls.", 
+                local_wifi->interface);
+        cf_send_warning(caph, errstr, MSGFLAG_INFO, errstr);
 
         local_wifi->use_mac80211_vif = 0;
+    } else if (strcmp(driver, "ath10k_pci") == 0) {
+        snprintf(errstr, STATUS_MAX, "Interface '%s' looks to use the ath10k_pci "
+                "driver, which is known to report large numbers of invalid packets. "
+                "Kismet will attempt to filter these but it is not possible to "
+                "cleanly filter all of them; you may see large quantities of spurious "
+                "networks.", local_wifi->interface);
+        cf_send_warning(caph, errstr, MSGFLAG_INFO, errstr);
     }
 
     /* Try to get it into monitor mode if it isn't already; even mac80211 drivers
