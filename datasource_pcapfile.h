@@ -42,6 +42,15 @@ public:
     // from our prototype; all the list, probe, etc functions proxy to our binary
     // and we communicate using only standard Kismet functions so we don't need
     // to do anything else
+   
+    // Override defaults for pcapfile - we don't want to reload a pcapfile once
+    // it finishes unless we're explicitly told to loop it
+    virtual string override_default_option(string in_opt) {
+        if (in_opt == "retry")
+            return "false";
+
+        return "";
+    }
     
 };
 

@@ -55,6 +55,15 @@ public:
 
     virtual ~KisDatasource();
 
+    // Fetch default per-source options.  These override the global defaults,
+    // but are overridden by specific commands inside the definition.
+    //
+    // To override a default, return a string for that option; to ignore an
+    // opportunity to override, return an empty string.
+    virtual string override_default_option(string in_opt __attribute__((unused))) {
+        return "";
+    }
+
     // Async command API
     // All commands to change non-local state are asynchronous.  Failure, success,
     // and state change will not be known until the command completes.
@@ -131,8 +140,8 @@ public:
 
 
     // Get an option from the definition
-    string get_definition_opt(string in_opt);
-    bool get_definition_opt_bool(string in_opt, bool in_default);
+    virtual string get_definition_opt(string in_opt);
+    virtual bool get_definition_opt_bool(string in_opt, bool in_default);
 
 
 

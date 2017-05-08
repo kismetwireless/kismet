@@ -484,18 +484,21 @@ string KisDatasource::get_definition_opt(string in_opt) {
     auto i = source_definition_opts.find(StrLower(in_opt));
 
     if (i == source_definition_opts.end())
-        return "";
+        return override_default_option(in_opt);
 
     return i->second;
 }
 
 bool KisDatasource::get_definition_opt_bool(string in_opt, bool in_def) {
     auto i = source_definition_opts.find(StrLower(in_opt));
+    string opt;
 
-    if (i == source_definition_opts.end())
-        return "";
+    if (i != source_definition_opts.end())
+        opt = i->second;
+    else
+        opt = override_default_option(in_opt);
 
-    return StringToBool(i->second, in_def);
+    return StringToBool(opt, in_def);
 }
 
 bool KisDatasource::parse_interface_definition(string in_definition) {
@@ -1773,19 +1776,24 @@ void KisDatasource::handle_source_error() {
     if (mode_listing || mode_probing)
         return;
 
-    set_int_source_running(false);
-
     stringstream ss;
 
     // Do nothing if we don't handle retry
     if (!get_source_retry()) {
-        ss << "Source " << get_source_name() << " has encountered an error but "
-            "is not configured to automatically re-try opening; it will remain "
-            "closed.";
-        _MSG(ss.str(), MSGFLAG_ERROR);
+        if (get_source_running()) {
+            ss << "Source " << get_source_name() << " has encountered an error but "
+                "is not configured to automatically re-try opening; it will remain "
+                "closed.";
+            _MSG(ss.str(), MSGFLAG_ERROR);
+        }
+
+        set_int_source_running(false);
 
         return;
     }
+    
+    set_int_source_running(false);
+
 
     // If we already have an error timer, we're thinking about restarting, 
     // be quiet about things; otherwise, talk about restarting, increment the
