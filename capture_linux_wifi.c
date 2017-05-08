@@ -661,6 +661,12 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                 "cleanly filter all of them; you may see large quantities of spurious "
                 "networks.", local_wifi->interface);
         cf_send_warning(caph, errstr, MSGFLAG_INFO, errstr);
+    } else if (strcmp(driver, "iwlwifi") == 0) {
+        snprintf(errstr, STATUS_MAX, "Interface '%s' looks to use the Intel iwlwifi "
+                "driver.  Some Intel Wi-Fi cards encounter problems setting some "
+                "channels which can cause the interface to fully reset.",
+                local_wifi->interface);
+        cf_send_warning(caph, errstr, MSGFLAG_INFO, errstr);
     }
 
     /* Try to get it into monitor mode if it isn't already; even mac80211 drivers
