@@ -160,6 +160,28 @@ KV Pairs:
 Responses:
 * NONE
 
+#### PING (Kismet->Datasource and Datasource->Kismet)
+Send a keep-alive frame to monitor that the remote capture is still functional.
+
+Failure to receive a PONG response within 5 seconds indicates that a problem has occurred, and that the Kismet server should terminate the capture binary with an error, or that the capture binary should exit.
+
+KV Pairs:
+* None
+
+Responses:
+* PONG
+
+#### PONG (Kismet->Datasource and Datasource->Kismet)
+Respond to a keep-alive PING frame.
+
+Failure to send a PONG response within 5 seconds indicates a problem has occurred.
+
+KV Pairs:
+* None
+
+Responses:
+* None
+
 #### PROBEDEVICE (Kismet->Datasource)
 Probe if this datasource can handle a device of unknown type.  This is used during the probing for auto-type sources.
 

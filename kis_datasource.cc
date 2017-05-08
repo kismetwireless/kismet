@@ -64,6 +64,7 @@ KisDatasource::KisDatasource(GlobalRegistry *in_globalreg,
     next_cmd_sequence = rand(); 
 
     error_timer_id = -1;
+    ping_timer_id = -1;
 
     mode_probing = false;
     mode_listing = false;
@@ -82,6 +83,9 @@ KisDatasource::~KisDatasource() {
     // Cancel any timer
     if (error_timer_id > 0)
         timetracker->RemoveTimer(error_timer_id);
+
+    if (ping_timer_id > 0)
+        timetracker->RemoveTimer(ping_timer_id);
 
     // Delete the ringbuf handler
     if (ringbuf_handler != NULL) {
@@ -178,7 +182,6 @@ void KisDatasource::open_interface(string in_definition, unsigned int in_transac
     
     // If we can't open local interfaces, die
     if (!get_source_builder()->get_local_capable()) {
-        // fprintf(stderr, "debug - kds - open_interface - does not support cap\n");
         if (in_cb != NULL) {
             in_cb(in_transaction, false, "Driver does not support direct capture");
         }
@@ -379,8 +382,6 @@ void KisDatasource::BufferAvailable(size_t in_amt __attribute__((unused))) {
 
         // Get the size of the frame
         frame_sz = kis_ntoh32(frame->header.packet_sz);
-
-        // fprintf(stderr, "debug - kds BufferAvailable - peeked frame '%.16s' valid header needs %u bytes has %lu\n", frame->header.type, frame_sz, buffamt);
 
         if (frame_sz > buffamt) {
             // Nothing we can do right now, not enough data to 
@@ -640,6 +641,8 @@ void KisDatasource::proto_dispatch_packet(string in_type, KVmap in_kvmap) {
         proto_packet_message(in_kvmap);
     else if (ltype == "configresp")
         proto_packet_configresp(in_kvmap);
+    else if (ltype == "ping")
+        send_command_pong();
     else if (ltype == "data")
         proto_packet_data(in_kvmap);
 
@@ -769,8 +772,17 @@ void KisDatasource::proto_packet_open_resp(KVmap in_kvpairs) {
     // If the open failed, kill the source
     if (!get_kv_success(i->second)) {
         trigger_error(msg);
+        return;
     }
 
+    // If we got here we're valid; start a PING timer
+    if (ping_timer_id <= 0) {
+        ping_timer_id = timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 3, NULL,
+                1, [this](int) -> int {
+            send_command_ping();
+            return 1;
+        });
+    }
 }
 
 void KisDatasource::proto_packet_list_resp(KVmap in_kvpairs) {
@@ -1478,6 +1490,9 @@ bool KisDatasource::write_packet(string in_cmd, KVmap in_kvpairs,
                 &csum_s1, &csum_s2);
     }
 
+    if (in_kvpairs.size() == 0)
+        dcsum = hcsum;
+
     proto_hdr.header_checksum = kis_hton32(hcsum);
     proto_hdr.data_checksum = kis_hton32(dcsum);
 
@@ -1689,6 +1704,28 @@ void KisDatasource::send_command_set_channel_hop(double in_rate,
     cmd->configure_cb = in_cb;
 
     command_ack_map.emplace(seqno, cmd);
+}
+
+void KisDatasource::send_command_ping() {
+    local_locker lock(&source_lock);
+
+    KVmap kvmap;
+
+    // Nothing to fill in for the kvmap for a list request
+
+    uint32_t seqno;
+    write_packet("PING", kvmap, seqno);
+}
+
+void KisDatasource::send_command_pong() {
+    local_locker lock(&source_lock);
+
+    KVmap kvmap;
+
+    // Nothing to fill in for the kvmap for a list request
+
+    uint32_t seqno;
+    write_packet("PONG", kvmap, seqno);
 }
 
 void KisDatasource::register_fields() {

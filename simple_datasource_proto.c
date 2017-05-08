@@ -161,6 +161,10 @@ simple_cap_proto_t *encode_simple_cap_proto_hdr(size_t *ret_sz,
         dcsum = adler32_partial_csum((uint8_t *) kv, 
                 sizeof(simple_cap_proto_kv_t) + ntohl(kv->header.obj_sz), 
                 &csum_s1, &csum_s2);
+    } 
+    
+    if (in_kv_len == 0) {
+        dcsum = hcsum;
     }
 
     /* Set the total checksums */
@@ -874,13 +878,17 @@ int validate_simple_cap_proto(simple_cap_proto_t *in_packet) {
     /* Checksum the contents */
     calc_csum = adler32_csum((uint8_t *) in_packet, sizeof(simple_cap_proto_t));
 
-    if (original_hcsum != calc_csum)
+    if (original_hcsum != calc_csum) {
+        fprintf(stderr, "debug - hcsum didn't match\n");
         return -1;
+    }
 
     calc_csum = adler32_csum((uint8_t *) in_packet, ntohl(in_packet->packet_sz));
 
-    if (original_dcsum != calc_csum)
+    if (original_dcsum != calc_csum) {
+        fprintf(stderr, "debug - dcsum didn't match\n");
         return -1;
+    }
 
     /* Restore the contents */
     in_packet->header_checksum = htonl(original_hcsum);

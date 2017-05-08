@@ -520,6 +520,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     int placeholder_len;
     char *interface;
     int ret;
+    char errstr[STATUS_MAX];
 
     *chanset = NULL;
     *chanlist = NULL;
@@ -535,7 +536,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     /* We don't care about fixed channel */
     *chanset = NULL;
    
-    ret = populate_chanlist(interface, msg, chanlist, chanlist_sz);
+    ret = populate_chanlist(interface, errstr, chanlist, chanlist_sz);
 
     free(interface);
 

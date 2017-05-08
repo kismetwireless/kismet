@@ -176,6 +176,9 @@ typedef int (*cf_callback_unknown)(kis_capture_handler_t *, uint32_t,
 typedef void (*cf_callback_capture)(kis_capture_handler_t *);
 
 struct kis_capture_handler {
+    /* Last time we got a ping */
+    time_t last_ping;
+
     /* Descriptor pair */
     int in_fd;
     int out_fd;
@@ -601,6 +604,24 @@ int cf_send_configresp_channel(kis_capture_handler_t *caph,
 int cf_send_configresp_chanhop(kis_capture_handler_t *caph,
         unsigned int seq, unsigned int success, const char *msg, 
         double hop_rate, char **channel_list, size_t channel_list_sz);
+
+/* Send a PING request
+ *
+ * Returns:
+ * -1   An error occured
+ *  0   Insufficient space in buffer
+ *  1   Success
+ */
+int cf_send_ping(kis_capture_handler_t *caph);
+
+/* Send a PONG response
+ *
+ * Returns:
+ * -1   An error occured
+ *  0   Insufficient space in buffer
+ *  1   Success
+ */
+int cf_send_pong(kis_capture_handler_t *caph);
 
 #endif
 

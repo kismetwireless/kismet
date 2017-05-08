@@ -366,6 +366,8 @@ protected:
     virtual void send_command_set_channel_hop(double in_rate,
             SharedTrackerElement in_chans, bool in_shuffle, unsigned int in_offt,
             unsigned int in_transaction, configure_callback_t in_cb);
+    virtual void send_command_ping();
+    virtual void send_command_pong();
 
 
     // TrackerComponent API, we can't ever get instantiated from a saved element
@@ -490,6 +492,9 @@ protected:
 
     // Timer ID for trying to recover from an error
     int error_timer_id;
+
+    // Timer ID for sending a PING
+    int ping_timer_id;
 
     // Function that gets called when we encounter an error; allows for scheduling
     // bringup, etc

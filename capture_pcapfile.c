@@ -184,7 +184,6 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     local_pcap->pd = pcap_open_offline(pcapfname, errstr);
     if (strlen(errstr) > 0) {
-        fprintf(stderr, "debug - pcapfile - %s\n", errstr);
         snprintf(msg, STATUS_MAX, "%s", errstr);
         return -1;
     }

@@ -175,6 +175,8 @@ kis_capture_handler_t *cf_handler_init() {
     if (ch == NULL)
         return NULL;
 
+    ch->last_ping = time(NULL);
+
     ch->remote_host = NULL;
 
     ch->in_fd = -1;
@@ -879,6 +881,7 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
 
             pthread_mutex_unlock(&(caph->handler_lock));
         }
+
     } else if (strncasecmp(cap_proto_frame->header.type, "CONFIGURE", 16) == 0) {
         char *cdef, *chanset_channel;
         double chanhop_rate;
@@ -993,6 +996,11 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
                 }
             }
         }
+
+    } else if (strncasecmp(cap_proto_frame->header.type, "PING", 16) == 0) {
+        caph->last_ping = time(NULL);
+        cf_send_pong(caph);
+        cbret = 1;
     } else {
         fprintf(stderr, "DEBUG - got unhandled request - '%.16s'\n", cap_proto_frame->header.type);
 
@@ -1160,6 +1168,13 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
             pthread_mutex_unlock(&(caph->handler_lock));
             rv = -1;
             break;
+        }
+
+        if (time(NULL) - caph->last_ping > 5) {
+            fprintf(stderr, "FATAL - Capture source did not get PING from Kismet for "
+                    "over 5 seconds; shutting down");
+            caph->spindown = 1;
+            spindown = 1;
         }
 
         /* Copy spindown state outside of lock */
@@ -1394,13 +1409,12 @@ int cf_stream_packet(kis_capture_handler_t *caph, const char *packtype,
         free(in_kv_list[i]);
     }
 
-    free(in_kv_list);
+    if (in_kv_list != NULL)
+        free(in_kv_list);
+
     free(proto_hdr);
 
-    /* fprintf(stderr, "debug - wrote streaming packet '%s' len %lu buffer %lu\n", packtype, proto_sz, kis_simple_ringbuf_used(caph->out_ringbuf)); */
-
     pthread_mutex_unlock(&(caph->out_ringbuf_lock));
-
 
     return 1;
 }
@@ -1949,5 +1963,13 @@ int cf_send_configresp_chanhop(kis_capture_handler_t *caph, unsigned int seqno,
     kv_pos++;
 
     return cf_stream_packet(caph, "CONFIGRESP", kv_pairs, num_kvs);
+}
+
+int cf_send_ping(kis_capture_handler_t *caph) {
+    return cf_stream_packet(caph, "PING", NULL, 0);
+}
+
+int cf_send_pong(kis_capture_handler_t *caph) {
+    return cf_stream_packet(caph, "PONG", NULL, 0);
 }
 
