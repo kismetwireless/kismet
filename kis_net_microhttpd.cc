@@ -468,19 +468,6 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
     
     Kis_Net_Httpd_Handler *handler = NULL;
 
-    {
-        local_locker(&(kishttpd->controller_mutex));
-        /* Find a handler that can handle this path & method */
-        for (unsigned int i = 0; i < kishttpd->handler_vec.size(); i++) {
-            Kis_Net_Httpd_Handler *h = kishttpd->handler_vec[i];
-
-            if (h->Httpd_VerifyPath(url, method)) {
-                handler = h;
-                break;
-            }
-        }
-    }
-
     // If we don't have a connection state, make one
     if (*ptr == NULL) {
         concls = new Kis_Net_Httpd_Connection();
@@ -519,6 +506,19 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
         return MHD_YES;
     } else {
         concls = (Kis_Net_Httpd_Connection *) *ptr;
+    }
+
+    {
+        local_locker(&(kishttpd->controller_mutex));
+        /* Find a handler that can handle this path & method */
+        for (unsigned int i = 0; i < kishttpd->handler_vec.size(); i++) {
+            Kis_Net_Httpd_Handler *h = kishttpd->handler_vec[i];
+
+            if (h->Httpd_VerifyPath(url, method)) {
+                handler = h;
+                break;
+            }
+        }
     }
 
     if (handler == NULL) {
@@ -1133,44 +1133,6 @@ int Kis_Net_Httpd_Ringbuf_Stream_Handler::Httpd_HandleGetRequest(Kis_Net_Httpd *
         MHD_create_response_from_callback(MHD_SIZE_UNKNOWN, 32 * 1024,
             &ringbuf_event_cb, aux, &free_ringbuf_aux_callback);
 
-    if (connection->session != NULL) {
-        std::stringstream cookiestr;
-        std::stringstream cookie;
-
-        cookiestr << KIS_SESSION_COOKIE << "=";
-        cookiestr << connection->session->sessionid;
-        cookiestr << "; Path=/";
-
-        MHD_add_response_header(connection->response, MHD_HTTP_HEADER_SET_COOKIE, 
-                cookiestr.str().c_str());
-    }
-
-    char lastmod[31];
-    struct tm tmstruct;
-    time_t now;
-    time(&now);
-    gmtime_r(&now, &tmstruct);
-    strftime(lastmod, 31, "%a, %d %b %Y %H:%M:%S %Z", &tmstruct);
-    MHD_add_response_header(connection->response, "Last-Modified", lastmod);
-
-    string suffix = httpd->GetSuffix(url);
-    string mime = httpd->GetMimeType(suffix);
-
-    if (mime != "") {
-        MHD_add_response_header(connection->response, "Content-Type", mime.c_str());
-    }
-
-    // Allow any?  This lets us handle webuis hosted elsewhere
-    MHD_add_response_header(connection->response, 
-            "Access-Control-Allow-Origin", "*");
-
-    int ret;
-
-    ret = MHD_queue_response(connection->connection, 200, 
-            connection->response);
-
-    MHD_destroy_response(connection->response);
-
-    return ret;
+    return httpd->SendStandardHttpResponse(httpd, connection, url);
 }
 
