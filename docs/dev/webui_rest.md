@@ -395,7 +395,7 @@ To capture *all* packets from *all* interfaces, use the `/datasource/pcap/all_so
 
 This URI will stream stream indefinitely as packets are received.
 
-##### /devices/pcap/by-key/[key]/[key].pcapng
+##### /devices/by-key/[key]/pcap/[key].pcapng
 
 *LOGIN REQUIRED*
 

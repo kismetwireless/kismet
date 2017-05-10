@@ -25,7 +25,7 @@
 
 bool Devicetracker_Httpd_Pcap::Httpd_VerifyPath(const char *path, const char *method) {
     if (strcmp(method, "GET") == 0) {
-        // /devices/pcap/by-key/[key]/[key].pcapng
+        // /devices/by-key/[key]/pcap/[key].pcapng
         
         shared_ptr<Devicetracker> devicetracker =
             static_pointer_cast<Devicetracker>(http_globalreg->FetchGlobal("DEVICE_TRACKER"));
@@ -37,14 +37,15 @@ bool Devicetracker_Httpd_Pcap::Httpd_VerifyPath(const char *path, const char *me
         if (tokenurl[1] != "devices")
             return false;
 
-        if (tokenurl[2] != "pcap")
+        if (tokenurl[2] != "by-key")
             return false;
 
-        if (tokenurl[3] != "by-key")
+        if (tokenurl[4] != "pcap")
             return false;
+
 
         uint64_t key = 0;
-        std::stringstream ss(tokenurl[4]);
+        std::stringstream ss(tokenurl[3]);
         ss >> key;
 
         if (devicetracker->FetchDevice(key) == NULL)
@@ -71,7 +72,7 @@ void Devicetracker_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
         static_pointer_cast<Packetchain>(http_globalreg->FetchGlobal("PACKETCHAIN"));
     int pack_comp_device = packetchain->RegisterPacketComponent("DEVICE");
 
-    // /devices/pcap/by-key/[key]/[key].pcapng
+    // /devices/by-key/[key]/pcap/[key].pcapng
 
     shared_ptr<Devicetracker> devicetracker =
         static_pointer_cast<Devicetracker>(http_globalreg->FetchGlobal("DEVICE_TRACKER"));
@@ -83,14 +84,14 @@ void Devicetracker_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
     if (tokenurl[1] != "devices")
         return;
 
-    if (tokenurl[2] != "pcap")
+    if (tokenurl[2] != "by-key")
         return;
 
-    if (tokenurl[3] != "by-key")
+    if (tokenurl[4] != "pcap")
         return;
 
     uint64_t key = 0;
-    std::stringstream ss(tokenurl[4]);
+    std::stringstream ss(tokenurl[3]);
     ss >> key;
 
     if (devicetracker->FetchDevice(key) == NULL)
