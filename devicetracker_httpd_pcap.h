@@ -32,7 +32,7 @@ public:
     Devicetracker_Httpd_Pcap(GlobalRegistry *in_globalreg) : 
         Kis_Net_Httpd_Ringbuf_Stream_Handler(in_globalreg) { }
 
-    virtual ~Devicetracker_Httpd_Pcap();
+    virtual ~Devicetracker_Httpd_Pcap() { };
 
     // HandleGetRequest handles generating a stream so we don't need to implement that
     // Same for HandlePostRequest

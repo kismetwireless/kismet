@@ -45,8 +45,10 @@ void Devicetracker_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
         return;
     }
 
+    fprintf(stderr, "debug - httpd pcap %s\n", url);
     if (strcmp(url, "/data/all_packets.pcapng") == 0) {
         if (!httpd->HasValidSession(connection)) {
+            fprintf(stderr, "debug - 503 - invalid session\n");
             connection->httpcode = 503;
             return;
         }
@@ -57,10 +59,12 @@ void Devicetracker_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
         
         Kis_Net_Httpd_Ringbuf_Stream_Aux *saux = 
             (Kis_Net_Httpd_Ringbuf_Stream_Aux *) connection->custom_extension;
-        
+       
+        fprintf(stderr, "debug - making pcap stream on ringbuf\n");
         Pcap_Stream_Ringbuf *psrb = new Pcap_Stream_Ringbuf(http_globalreg,
                 saux->get_rbhandler(), NULL, NULL);
 
+        fprintf(stderr, "debug - assigning pcap stream to http aux\n");
         saux->set_aux(psrb, [](Kis_Net_Httpd_Ringbuf_Stream_Aux *aux) {
             if (aux->aux != NULL)
                 delete (Kis_Net_Httpd_Ringbuf_Stream_Aux *) (aux->aux);

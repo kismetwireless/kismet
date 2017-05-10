@@ -56,6 +56,7 @@
 #include "timetracker.h"
 #include "kis_net_microhttpd.h"
 #include "structured.h"
+#include "devicetracker_httpd_pcap.h"
 
 // How big the main vector of components is, if we ever get more than this
 // many tracked components we'll need to expand this but since it ties to
@@ -841,6 +842,8 @@ protected:
 	int PopulateCommon(shared_ptr<kis_tracked_device_base> device, kis_packet *in_pack);
 
     pthread_mutex_t devicelist_mutex;
+
+    shared_ptr<Devicetracker_Httpd_Pcap> httpd_pcap;
 };
 
 class kis_tracked_phy : public tracker_component {

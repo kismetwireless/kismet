@@ -68,6 +68,9 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
 
 	globalreg = in_globalreg;
 
+    // Create the pcap httpd
+    httpd_pcap.reset(new Devicetracker_Httpd_Pcap(globalreg));
+
     entrytracker =
         static_pointer_cast<EntryTracker>(globalreg->FetchGlobal("ENTRY_TRACKER"));
 

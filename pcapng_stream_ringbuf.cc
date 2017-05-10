@@ -35,11 +35,7 @@ Pcap_Stream_Ringbuf::Pcap_Stream_Ringbuf(GlobalRegistry *in_globalreg,
     accept_cb = accept_filter;
     selector_cb = data_selector;
 
-    // Write the initial headers
-    if (pcapng_make_shb("", "", "Kismet") < 0)
-        return;
-
-    packetchain->RegisterHandler([this](kis_packet *packet) {
+    packethandler_id = packetchain->RegisterHandler([this](kis_packet *packet) {
             handle_chain_packet(packet);
             return 1;
         }, CHAINPOS_LOGGING, -100);
@@ -47,10 +43,15 @@ Pcap_Stream_Ringbuf::Pcap_Stream_Ringbuf(GlobalRegistry *in_globalreg,
     pack_comp_linkframe = packetchain->RegisterPacketComponent("LINKFRAME");
     pack_comp_datasrc = packetchain->RegisterPacketComponent("KISDATASRC");
 
+    // Write the initial headers
+    if (pcapng_make_shb("", "", "Kismet") < 0)
+        return;
+
 }
 
 Pcap_Stream_Ringbuf::~Pcap_Stream_Ringbuf() {
     handler->BufferError("Shutting down pcap stream");
+    packetchain->RemoveHandler(packethandler_id, CHAINPOS_LOGGING);
 }
 
 int Pcap_Stream_Ringbuf::pcapng_make_shb(string in_hw, string in_os, string in_app) {

@@ -355,6 +355,45 @@ Expects a command dictionary including:
 | alt | altitude (in Meters) | double | GPS altitude in meters (optional) |
 | spd | speed (kph) | double | Speed in kilometers per hour (optional) |
 
+## Packet Capture
+
+Kismet can export packets in the pcap-ng format; this is a standard, extended version of the traditional pcap format.  Tools such as Wireshark (and tshark) can process complete pcapng frames, while tcpdump and other libpcap based tools (currently including Kismet) can process the simpler version of pcapng.
+
+##### /pcap/all_packets.pcapng 
+
+*LOGIN REQUIRED*
+
+Returns a stream of all packets seen by Kismet, in pcap-ng multi-interface format.
+
+The pcap-ng format allows for multiple interfaces with multiple link types in a single pcapng file.  This format can be read and processed by Wireshark and tshark, but may not be compatible with all traditional libpcap based tools.
+
+For compatibility with all libpcap tools, it may be necessary to post-process this file.  Alternatively, a device-specific libpcap will return a single interface and linktype.
+
+This URI will stream indefinitely as packets are received.
+
+##### /datasource/pcap/all_sources.pcapng
+
+*LOGIN REQUIRED*
+
+Returns a stream of all packets seen by Kismet, in pcap-ng multi-interface format.
+
+The pcap-ng format allows for multiple interfaces with multiple link types in a single pcapng file.  This format can be read and processed by Wireshark and tshark, but may not be compatible with all traditional libpcap based tools.
+
+For compatibility with all libpcap tools, it may be necessary to post-process this file.  Alternatively, a device-specific libpcap will return a single interface and linktype.
+
+This URI will stream indefinitely as packets are received.
+
+##### /datasource/pcap/by-uuid/[uuid]/[uuid].pcapng
+
+*LOGIN REQUIRED*
+
+Returns a stream of all packets seen by Kismet on a *specific datasource*, in pcap-ng format.
+
+Nearly all tools which support libpcap should be able to read a single-interface single-linktype pcapng file, including tcpdump and Kismet itself.  It should not be necessary to post-process this file to use on libpcap-based tools.
+
+To capture *all* packets from *all* interfaces, use the `/datasource/pcap/all_sources.pcapng` URI.
+
+This URI will stream stream indefinitely as packets are received.
 
 ## 802.11 Specific
 

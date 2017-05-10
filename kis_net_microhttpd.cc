@@ -1098,7 +1098,7 @@ ssize_t Kis_Net_Httpd_Ringbuf_Stream_Handler::ringbuf_event_cb(void *cls, uint64
     size_t buffamt = rbh->GetWriteBufferUsed();
 
     // We've hit an error / the stream is finished, so close it down
-    if (rbh == 0 && stream_aux->get_in_error()) {
+    if (buffamt == 0 && stream_aux->get_in_error()) {
         return -1;
     }
 
@@ -1135,11 +1135,15 @@ int Kis_Net_Httpd_Ringbuf_Stream_Handler::Httpd_HandleGetRequest(Kis_Net_Httpd *
         new Kis_Net_Httpd_Ringbuf_Stream_Aux(this, connection, rbh, NULL, NULL);
     connection->custom_extension = aux;
 
+    Httpd_CreateStreamResponse(httpd, connection, url, method, upload_data,
+            upload_data_size);
+
     connection->response = 
         MHD_create_response_from_callback(MHD_SIZE_UNKNOWN, 32 * 1024,
             &ringbuf_event_cb, aux, &free_ringbuf_aux_callback);
 
     return httpd->SendStandardHttpResponse(httpd, connection, url);
+
 }
 
 int Kis_Net_Httpd_Ringbuf_Stream_Handler::Httpd_HandlePostRequest(Kis_Net_Httpd *httpd,

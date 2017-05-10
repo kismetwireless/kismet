@@ -36,6 +36,7 @@
 #include "timetracker.h"
 #include "tcpserver2.h"
 #include "pollabletracker.h"
+#include "kis_net_microhttpd.h"
 
 /* Data source tracker
  *
@@ -294,6 +295,9 @@ protected:
     function<void (bool, string, string)> cb;
 };
 
+// Fwd def of datasource pcap feed
+class Datasourcetracker_Httpd_Pcap;
+
 class Datasourcetracker : public Kis_Net_Httpd_CPPStream_Handler, 
     public LifetimeGlobal, public TcpServerV2 {
 public:
@@ -349,6 +353,9 @@ public:
 
     // Remove a data source by UUID; stop it if necessary
     bool remove_datasource(uuid in_uuid);
+
+    // Find a datasource
+    SharedDatasource find_datasource(uuid in_uuid);
 
     // List potential sources
     //
@@ -424,8 +431,43 @@ protected:
     // and want to do channel split
     void calculate_source_hopping(SharedDatasource in_ds);
 
+    // Our pcap http interface
+    shared_ptr<Datasourcetracker_Httpd_Pcap> httpd_pcap;
+
 };
 
+/* This implements the core 'all data' pcap, and pcap filtered by datasource UUID.
+ */
+class Datasourcetracker_Httpd_Pcap : public Kis_Net_Httpd_Ringbuf_Stream_Handler {
+public:
+    Datasourcetracker_Httpd_Pcap() : Kis_Net_Httpd_Ringbuf_Stream_Handler() { }
+    Datasourcetracker_Httpd_Pcap(GlobalRegistry *in_globalreg);
+
+    virtual ~Datasourcetracker_Httpd_Pcap() { };
+
+    // HandleGetRequest handles generating a stream so we don't need to implement that
+    // Same for HandlePostRequest
+   
+    // Standard path validation
+    virtual bool Httpd_VerifyPath(const char *path, const char *method);
+
+    // We use this to attach the pcap stream
+    virtual void Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
+            Kis_Net_Httpd_Connection *connection,
+            const char *url, const char *method, const char *upload_data,
+            size_t *upload_data_size); 
+
+    // We don't currently handle POSTed data
+    virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *con __attribute__((unused))) {
+        return 0;
+    }
+
+protected:
+    shared_ptr<Datasourcetracker> datasourcetracker;
+
+    int pack_comp_datasrc;
+    
+};
 
 #endif
 

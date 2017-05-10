@@ -28,6 +28,7 @@
 #include "timetracker.h"
 #include "structured.h"
 #include "base64.h"
+#include "pcapng_stream_ringbuf.h"
 
 DST_DatasourceProbe::DST_DatasourceProbe(GlobalRegistry *in_globalreg, 
         string in_definition, SharedTrackerElement in_protovec) {
@@ -425,6 +426,8 @@ Datasourcetracker::Datasourcetracker(GlobalRegistry *in_globalreg) :
             globalreg->fatal_condition = 1;
         }
     }
+
+    httpd_pcap.reset(new Datasourcetracker_Httpd_Pcap(globalreg));
 }
 
 Datasourcetracker::~Datasourcetracker() {
@@ -564,6 +567,23 @@ bool Datasourcetracker::remove_datasource(uuid in_uuid) {
     }
 
     return false;
+}
+
+SharedDatasource Datasourcetracker::find_datasource(uuid in_uuid) {
+    local_locker lock(&dst_lock);
+
+    TrackerElementVector dsv(datasource_vec);
+
+    // Look for it in the sources vec and fully close it and get rid of it
+    for (auto i = dsv.begin(); i != dsv.end(); ++i) {
+        SharedDatasource kds = static_pointer_cast<KisDatasource>(*i);
+
+        if (kds->get_source_uuid() == in_uuid) {
+            return kds;
+        }
+    }
+
+    return NULL;
 }
 
 bool Datasourcetracker::close_datasource(uuid in_uuid) {
@@ -1382,5 +1402,160 @@ double Datasourcetracker::string_to_rate(string in_str, double in_default) {
     } else {
         return in_default;
     }
+}
+
+Datasourcetracker_Httpd_Pcap::Datasourcetracker_Httpd_Pcap(GlobalRegistry *in_globalreg) : Kis_Net_Httpd_Ringbuf_Stream_Handler(in_globalreg) {
+}
+
+
+bool Datasourcetracker_Httpd_Pcap::Httpd_VerifyPath(const char *path, 
+        const char *method) {
+    if (strcmp(method, "GET") == 0) {
+        datasourcetracker =
+            static_pointer_cast<Datasourcetracker>(http_globalreg->FetchGlobal("DATASOURCETRACKER"));
+
+        shared_ptr<Packetchain> packetchain = 
+            static_pointer_cast<Packetchain>(http_globalreg->FetchGlobal("PACKETCHAIN"));
+        pack_comp_datasrc = packetchain->RegisterPacketComponent("KISDATASRC");
+
+        // Total pcap of all data; we put it in 2 locations
+        if (strcmp(path, "/pcap/all_packets.pcapng") == 0) 
+            return true;
+
+        if (strcmp(path, "/datasource/pcap/all_sources.pcapng") == 0)
+            return true;
+
+
+        // Alternately, per-source capture:
+        // /datasource/pcap/by-uuid/aa-bb-cc-dd/aa-bb-cc-dd.pcapng
+
+        vector<string> tokenurl = StrTokenize(path, "/");
+
+        if (tokenurl.size() < 6) {
+            return false;
+        }
+        if (tokenurl[1] == "datasource") {
+            if (tokenurl[2] == "pcap") {
+                if (tokenurl[3] == "by-uuid") {
+                    uuid u(tokenurl[4]);
+
+                    if (u.error) {
+                        return false;
+                    }
+
+                    SharedDatasource ds = datasourcetracker->find_datasource(u);
+                    
+                    if (ds != NULL)
+                        return true;;
+                }
+            }
+        }
+    }
+
+    return false;
+}
+
+void Datasourcetracker_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
+        Kis_Net_Httpd_Connection *connection,
+        const char *url, const char *method, const char *upload_data,
+        size_t *upload_data_size) {
+
+    if (strcmp(method, "GET") != 0) {
+        return;
+    }
+
+    if (strcmp(url, "/pcap/all_packets.pcapng") == 0 ||
+            strcmp(url, "/datasource/pcap/all_sources.pcapng") == 0) {
+        if (!httpd->HasValidSession(connection)) {
+            connection->httpcode = 503;
+            return;
+        }
+
+        // At this point we're logged in and have an aux pointer for the
+        // ringbuf aux; We can create our pcap ringbuf stream and attach it.
+        // We need to close down the pcapringbuf during teardown.
+        
+        Kis_Net_Httpd_Ringbuf_Stream_Aux *saux = 
+            (Kis_Net_Httpd_Ringbuf_Stream_Aux *) connection->custom_extension;
+       
+        Pcap_Stream_Ringbuf *psrb = new Pcap_Stream_Ringbuf(http_globalreg,
+                saux->get_rbhandler(), NULL, NULL);
+
+        saux->set_aux(psrb, [](Kis_Net_Httpd_Ringbuf_Stream_Aux *aux) {
+            if (aux->aux != NULL)
+                delete (Kis_Net_Httpd_Ringbuf_Stream_Aux *) (aux->aux);
+        });
+
+        return;
+    }
+
+    // Find per-uuid and make a filtering pcapng
+    vector<string> tokenurl = StrTokenize(url, "/");
+
+    if (tokenurl.size() < 6) {
+        return;
+    }
+
+    if (tokenurl[1] == "datasource") {
+        if (tokenurl[2] == "pcap") {
+            if (tokenurl[3] == "by-uuid") {
+                uuid u(tokenurl[4]);
+
+                if (u.error) {
+                    return;
+                }
+
+                datasourcetracker =
+                    static_pointer_cast<Datasourcetracker>(http_globalreg->FetchGlobal("DATASOURCETRACKER"));
+
+                shared_ptr<Packetchain> packetchain = 
+                    static_pointer_cast<Packetchain>(http_globalreg->FetchGlobal("PACKETCHAIN"));
+                pack_comp_datasrc = packetchain->RegisterPacketComponent("KISDATASRC");
+
+                SharedDatasource ds = datasourcetracker->find_datasource(u);
+
+                if (ds == NULL)
+                    return;
+
+                if (!httpd->HasValidSession(connection)) {
+                    connection->httpcode = 503;
+                    return;
+                }
+
+                // Get the number of this source for fast compare
+                unsigned int dsnum = ds->get_source_number();
+
+                // Create the pcap stream and attach it to our ringbuf
+                Kis_Net_Httpd_Ringbuf_Stream_Aux *saux = 
+                    (Kis_Net_Httpd_Ringbuf_Stream_Aux *) connection->custom_extension;
+
+                // Fetch the datasource component and compare *source numbers*, not
+                // actual UUIDs - a UUID compare is expensive, a numeric compare is not!
+                Pcap_Stream_Ringbuf *psrb = new Pcap_Stream_Ringbuf(http_globalreg,
+                        saux->get_rbhandler(), 
+                        [this, dsnum] (kis_packet *packet) -> bool {
+                            packetchain_comp_datasource *datasrcinfo = 
+                                (packetchain_comp_datasource *) 
+                                packet->fetch(pack_comp_datasrc);
+                        
+                            if (datasrcinfo == NULL)
+                                return false;
+
+                            if (datasrcinfo->ref_source->get_source_number() == dsnum)
+                                return true;
+
+                        return false; 
+                        }, NULL);
+
+
+                saux->set_aux(psrb, [](Kis_Net_Httpd_Ringbuf_Stream_Aux *aux) {
+                        if (aux->aux != NULL)
+                        delete (Kis_Net_Httpd_Ringbuf_Stream_Aux *) (aux->aux);
+                        });
+
+            }
+        }
+    }
+
 }
 
