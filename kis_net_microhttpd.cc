@@ -468,6 +468,19 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
     
     Kis_Net_Httpd_Handler *handler = NULL;
 
+    {
+        local_locker(&(kishttpd->controller_mutex));
+        /* Find a handler that can handle this path & method */
+        for (unsigned int i = 0; i < kishttpd->handler_vec.size(); i++) {
+            Kis_Net_Httpd_Handler *h = kishttpd->handler_vec[i];
+
+            if (h->Httpd_VerifyPath(url, method)) {
+                handler = h;
+                break;
+            }
+        }
+    }
+
     // If we don't have a connection state, make one
     if (*ptr == NULL) {
         concls = new Kis_Net_Httpd_Connection();
@@ -506,19 +519,6 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
         return MHD_YES;
     } else {
         concls = (Kis_Net_Httpd_Connection *) *ptr;
-    }
-
-    {
-        local_locker(&(kishttpd->controller_mutex));
-        /* Find a handler that can handle this path & method */
-        for (unsigned int i = 0; i < kishttpd->handler_vec.size(); i++) {
-            Kis_Net_Httpd_Handler *h = kishttpd->handler_vec[i];
-
-            if (h->Httpd_VerifyPath(url, method)) {
-                handler = h;
-                break;
-            }
-        }
     }
 
     if (handler == NULL) {
@@ -1048,6 +1048,8 @@ Kis_Net_Httpd_Ringbuf_Stream_Aux::Kis_Net_Httpd_Ringbuf_Stream_Aux(
     aux = in_aux;
     free_aux_cb = in_free_aux;
 
+    cl.reset(new conditional_locker<string>());
+
     in_error = false;
 
     // If the ringbuffer encounters an error, unlock the variable and set the
@@ -1075,6 +1077,10 @@ void Kis_Net_Httpd_Ringbuf_Stream_Aux::block_until_data() {
 
     cl->lock();
     cl->block_until();
+}
+
+Kis_Net_Httpd_Ringbuf_Stream_Handler::~Kis_Net_Httpd_Ringbuf_Stream_Handler() {
+
 }
 
 ssize_t Kis_Net_Httpd_Ringbuf_Stream_Handler::ringbuf_event_cb(void *cls, uint64_t pos,
@@ -1136,3 +1142,10 @@ int Kis_Net_Httpd_Ringbuf_Stream_Handler::Httpd_HandleGetRequest(Kis_Net_Httpd *
     return httpd->SendStandardHttpResponse(httpd, connection, url);
 }
 
+int Kis_Net_Httpd_Ringbuf_Stream_Handler::Httpd_HandlePostRequest(Kis_Net_Httpd *httpd,
+        Kis_Net_Httpd_Connection *connection, 
+        const char *url, const char *method, const char *upload_data,
+        size_t *upload_data_size) {
+
+    return -1;
+}
