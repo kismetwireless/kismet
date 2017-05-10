@@ -148,7 +148,7 @@ int Pcap_Stream_Ringbuf::pcapng_make_shb(string in_hw, string in_os, string in_a
     }
 
     // Put the trailing size
-    buf_sz += 4;
+    *end_sz += 4;
     
     write_sz = handler->PutWriteBufferData(end_sz, 4, true);
 
@@ -257,7 +257,7 @@ int Pcap_Stream_Ringbuf::pcapng_make_idb(KisDatasource *in_datasource) {
     }
 
     // Put the trailing size
-    buf_sz += 4;
+    *end_sz += 4;
     
     write_sz = handler->PutWriteBufferData(end_sz, 4, true);
 
@@ -401,7 +401,7 @@ int Pcap_Stream_Ringbuf::pcapng_write_packet(kis_packet *in_packet,
     delete[] retbuf;
 
     // Put the trailing size
-    buf_sz += 4;
+    *end_sz += 4;
     
     write_sz = handler->PutWriteBufferData(end_sz, 4, true);
 
