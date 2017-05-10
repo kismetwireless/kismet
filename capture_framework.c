@@ -1001,6 +1001,8 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
         caph->last_ping = time(NULL);
         cf_send_pong(caph);
         cbret = 1;
+
+        pthread_mutex_unlock(&(caph->handler_lock));
     } else {
         fprintf(stderr, "DEBUG - got unhandled request - '%.16s'\n", cap_proto_frame->header.type);
 
@@ -1008,6 +1010,8 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
         cf_send_proberesp(caph, ntohl(cap_proto_frame->header.sequence_number),
                 false, "Unsupported request", NULL, NULL, 0);
         cbret = -1;
+
+        pthread_mutex_unlock(&(caph->handler_lock));
     }
 
     free(frame_buf);
@@ -1173,8 +1177,9 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
         if (time(NULL) - caph->last_ping > 5) {
             fprintf(stderr, "FATAL - Capture source did not get PING from Kismet for "
                     "over 5 seconds; shutting down");
-            caph->spindown = 1;
-            spindown = 1;
+            pthread_mutex_unlock(&(caph->handler_lock));
+            rv = -1;
+            break;
         }
 
         /* Copy spindown state outside of lock */
