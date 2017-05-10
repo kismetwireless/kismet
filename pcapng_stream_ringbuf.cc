@@ -168,7 +168,7 @@ int Pcap_Stream_Ringbuf::pcapng_make_idb(KisDatasource *in_datasource) {
     unsigned int logid = datasource_id_map.size();
     datasource_id_map.emplace(in_datasource->get_source_number(), logid);
 
-    fprintf(stderr, "debug - making idb for datasource %s %s number %u log number %u\n", in_datasource->get_source_interface().c_str(), in_datasource->get_source_uuid().UUID2String().c_str(), in_datasource->get_source_number(), logid);
+    // fprintf(stderr, "debug - making idb for datasource %s %s number %u log number %u\n", in_datasource->get_source_interface().c_str(), in_datasource->get_source_uuid().UUID2String().c_str(), in_datasource->get_source_number(), logid);
 
 
     uint8_t *retbuf;
