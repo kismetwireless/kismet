@@ -529,6 +529,17 @@ shared_ptr<kis_tracked_device_base> Devicetracker::UpdateCommonDevice(mac_addr i
             device->set_manuf(globalreg->manufdb->LookupOUI(device->get_macaddr()));
     }
 
+    // Tag the packet with the base device
+	kis_tracked_device_info *devinfo =
+		(kis_tracked_device_info *) in_pack->fetch(pack_comp_device);
+
+	if (devinfo == NULL) {
+		devinfo = new kis_tracked_device_info;
+		devinfo->devref = device;
+		in_pack->insert(pack_comp_device, devinfo);
+	}
+
+
     device->set_last_time(in_pack->ts.tv_sec);
 
     if (in_flags & UCD_UPDATE_PACKETS) {
@@ -644,6 +655,17 @@ int Devicetracker::PopulateCommon(shared_ptr<kis_tracked_device_base> device,
 		return 0;
 	}
 
+	kis_tracked_device_info *devinfo =
+		(kis_tracked_device_info *) in_pack->fetch(pack_comp_device);
+
+	if (devinfo == NULL) {
+        fprintf(stderr, "debug - populating devinfo\n");
+		devinfo = new kis_tracked_device_info;
+		devinfo->devref = device;
+		in_pack->insert(pack_comp_device, devinfo);
+	}
+
+
     // device->set_first_time(in_pack->ts.tv_sec);
 
     if (globalreg->manufdb != NULL)
@@ -720,15 +742,6 @@ int Devicetracker::PopulateCommon(shared_ptr<kis_tracked_device_base> device,
 
 	if (!(pack_common->channel == "0"))
         device->set_channel(pack_common->channel);
-
-	kis_tracked_device_info *devinfo =
-		(kis_tracked_device_info *) in_pack->fetch(pack_comp_device);
-
-	if (devinfo == NULL) {
-		devinfo = new kis_tracked_device_info;
-		devinfo->devref = device;
-		in_pack->insert(pack_comp_device, devinfo);
-	}
 
 	return 1;
 }

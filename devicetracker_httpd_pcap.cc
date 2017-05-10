@@ -112,11 +112,13 @@ void Devicetracker_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
                 kis_tracked_device_info *devinfo = 
                     (kis_tracked_device_info *) packet->fetch(pack_comp_device);
 
-                if (devinfo == NULL)
+                if (devinfo == NULL) {
                     return false;
+                }
 
-                if (devinfo->devref->get_key() == key)
+                if (devinfo->devref->get_key() == key) {
                     return true;
+                }
 
                 return false;
             }, NULL);

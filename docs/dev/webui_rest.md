@@ -395,6 +395,14 @@ To capture *all* packets from *all* interfaces, use the `/datasource/pcap/all_so
 
 This URI will stream stream indefinitely as packets are received.
 
+##### /devices/pcap/by-key/[key]/[key].pcapng
+
+*LOGIN REQUIRED*
+
+Returns a stream in pcap-ng format of all packets, from all interfaces, associated with the device specified by `[key]`; This stream will only include packets from the specified device (it will not include packets communicating *with* this device, only packets tagged as *originating with* this device.
+
+This URI will stream indefinitely as packets are received.
+
 ## 802.11 Specific
 
 ##### POST /phy/phy80211/ssid_regex `/phy/phy80211/ssid_regex.cmd`, `/phy/phy80211/ssid_regex.jcmd`
