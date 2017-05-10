@@ -933,6 +933,32 @@ private:
     Devicetracker *tracker;
 };
 
+// C++ lambda matcher
+class devicetracker_function_worker : public DevicetrackerFilterWorker {
+public:
+    devicetracker_function_worker(GlobalRegistry *in_globalreg,
+            function<bool (Devicetracker *, 
+                shared_ptr<kis_tracked_device_base>)> in_mcb,
+            function<void (Devicetracker *, 
+                vector<shared_ptr<kis_tracked_device_base> >)> in_fcb);
+    virtual ~devicetracker_function_worker();
+
+    virtual void MatchDevice(Devicetracker *devicetracker,
+            shared_ptr<kis_tracked_device_base> device);
+
+    virtual void Finalize(Devicetracker *devicetracker);
+
+protected:
+    GlobalRegistry *globalreg;
+
+    vector<shared_ptr<kis_tracked_device_base> > matched_devices;
+
+    function<bool (Devicetracker *, 
+            shared_ptr<kis_tracked_device_base>)> mcb;
+    function<void (Devicetracker *,
+            vector<shared_ptr<kis_tracked_device_base> >)> fcb;
+};
+
 // Matching worker to match fields against a string search term
 
 class devicetracker_stringmatch_worker : public DevicetrackerFilterWorker {

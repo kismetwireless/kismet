@@ -52,6 +52,46 @@
 #include "kismet_json.h"
 #include "base64.h"
 
+devicetracker_function_worker::devicetracker_function_worker(GlobalRegistry *in_globalreg,
+        function<bool (Devicetracker *, shared_ptr<kis_tracked_device_base>)> in_mcb,
+        function<void (Devicetracker *,
+            vector<shared_ptr<kis_tracked_device_base> >)> in_fcb) {
+
+    globalreg = in_globalreg;
+
+    mcb = in_mcb;
+    fcb = in_fcb;
+
+    pthread_mutex_init(&worker_mutex, NULL);
+}
+
+devicetracker_function_worker::~devicetracker_function_worker() {
+    pthread_mutex_destroy(&worker_mutex);
+}
+
+void devicetracker_function_worker::MatchDevice(Devicetracker *devicetracker,
+        shared_ptr<kis_tracked_device_base> device) {
+
+    local_locker lock(&worker_mutex);
+
+    if (mcb == NULL)
+        return;
+
+    if (mcb(devicetracker, device)) {
+        matched_devices.push_back(device);
+    }
+
+}
+
+void devicetracker_function_worker::Finalize(Devicetracker *devicetracker) {
+    local_locker lock(&worker_mutex);
+
+    if (fcb == NULL)
+        return;
+
+    fcb(devicetracker, matched_devices);
+}
+
 
 devicetracker_stringmatch_worker::devicetracker_stringmatch_worker(GlobalRegistry *in_globalreg,
         string in_query,
