@@ -455,7 +455,7 @@ To match on a single explicit SSID or any ssid ending in 'foo':
 }
 ```
 
-##### /phy/phy80211/handshake/[MAC]/[MAC]-handshake.pcap `/phy/phy80211/handshake/[MAC]/[MAC]-handshake.pcap` 
+##### /phy/phy80211/by-bssid/[MAC]/pcap/[MAC]-handshake.pcap 
 
 Retrieve a pcap file of WPA EAPOL key packets seen by the 802.11 access point with the BSSID `[MAC]`.  If there are no WPA handshake packets, an empty pcap file will be returned.
 

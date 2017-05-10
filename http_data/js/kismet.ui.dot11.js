@@ -304,11 +304,9 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                         }
 
                         var mac = opts['data']['kismet.device.base.macaddr'].split("/")[0];
-                        var url = '<a href="/phy/phy80211/handshake/' +
-                            mac +
-                            '/' +
+                        var url = '<a href="/phy/phy80211/by-bssid/' + mac + '/pcap/' +
                             mac + '-handshake.pcap">' +
-                            '<i class="fa fa-download"></i> PCAP download</a>' +
+                            '<i class="fa fa-download"></i> Download Pcap File</a>' +
                             warning;
                         return url;
                     },

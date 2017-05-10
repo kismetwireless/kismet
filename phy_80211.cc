@@ -1702,29 +1702,35 @@ bool Kis_80211_Phy::Httpd_VerifyPath(const char *path, const char *method) {
     if (strcmp(method, "GET") == 0) {
         vector<string> tokenurl = StrTokenize(path, "/");
 
-        // For now we only care about /phy/phy80211/handshake/[mac]/[mac]-handshake.pcap
-        if (tokenurl.size() < 6)
+        // we care about
+        // /phy/phy80211/by-bssid/[mac]/pcap/[mac]-handshake.pcap
+        if (tokenurl.size() < 7)
             return false;
 
-        if (tokenurl[1] == "phy") {
-            if (tokenurl[2] == "phy80211") {
-                if (tokenurl[3] == "handshake") {
-                    // Valid mac?
-                    mac_addr dmac(tokenurl[4]);
-                    if (dmac.error)
-                        return false;
+        if (tokenurl[1] != "phy")
+            return false;
 
-                    // Valid requested file?
-                    if (tokenurl[5] != tokenurl[4] + "-handshake.pcap")
-                        return false;
+        if (tokenurl[2] != "phy80211")
+            return false;
 
-                    // Does it exist?
-                    devicelist_scope_locker dlocker(devicetracker);
-                    if (devicetracker->FetchDevice(dmac, phyid) != NULL)
-                        return true;
-                }
-            }
-        }
+        if (tokenurl[3] != "by-bssid")
+            return false;
+
+        mac_addr dmac(tokenurl[4]);
+        if (dmac.error)
+            return false;
+
+        if (tokenurl[5] != "pcap")
+            return false;
+
+        // Valid requested file?
+        if (tokenurl[6] != tokenurl[4] + "-handshake.pcap")
+            return false;
+
+        // Does it exist?
+        devicelist_scope_locker dlocker(devicetracker);
+        if (devicetracker->FetchDevice(dmac, phyid) != NULL)
+            return true;
     }
 
     return false;
@@ -1836,38 +1842,50 @@ void Kis_80211_Phy::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
 
     vector<string> tokenurl = StrTokenize(url, "/");
 
-    // For now we only care about /phy/phy80211/handshake/[mac]/[mac]-handshake.pcap
-    if (tokenurl.size() < 6)
+    // /phy/phy80211/by-bssid/[mac]/pcap/[mac]-handshake.pcap
+    if (tokenurl.size() < 7)
         return;
 
-    if (tokenurl[1] == "phy") {
-        if (tokenurl[2] == "phy80211") {
-            if (tokenurl[3] == "handshake") {
-                // Valid mac?
-                mac_addr dmac(tokenurl[4]);
-                if (dmac.error) {
-                    stream << "Invalid MAC";
-                    return;
-                }
+    if (tokenurl[1] != "phy")
+        return;
 
-                // Valid requested file?
-                if (tokenurl[5] != tokenurl[4] + "-handshake.pcap") {
-                    stream << "Invalid file";
-                    return;
-                }
+    if (tokenurl[2] != "phy80211")
+        return;
 
-                // Validate the session and return a basic auth prompt
-                if (httpd->HasValidSession(connection, true)) {
-                    // It should exist and we'll handle if it doesn't in the stream
-                    // handler
-                    devicelist_scope_locker dlocker(devicetracker);
-                    GenerateHandshakePcap(devicetracker->FetchDevice(dmac, phyid), stream);
-                } else {
-                    stream << "Login required";
-                    return;
-                }
-            }
-        }
+    if (tokenurl[3] != "by-bssid")
+        return;
+
+    mac_addr dmac(tokenurl[4]);
+    if (dmac.error) {
+        stream << "invalid mac";
+        return;
+    }
+
+    if (tokenurl[5] != "pcap")
+        return;
+
+    // Valid requested file?
+    if (tokenurl[6] != tokenurl[4] + "-handshake.pcap") {
+        stream << "invalid file";
+        return;
+    }
+
+    // Does it exist?
+    devicelist_scope_locker dlocker(devicetracker);
+    if (devicetracker->FetchDevice(dmac, phyid) != NULL) {
+        stream << "unknown device";
+        return;
+    }
+
+    // Validate the session and return a basic auth prompt
+    if (httpd->HasValidSession(connection, true)) {
+        // It should exist and we'll handle if it doesn't in the stream
+        // handler
+        devicelist_scope_locker dlocker(devicetracker);
+        GenerateHandshakePcap(devicetracker->FetchDevice(dmac, phyid), stream);
+    } else {
+        stream << "Login required";
+        return;
     }
 
     return;
