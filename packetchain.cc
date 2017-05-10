@@ -368,8 +368,6 @@ int Packetchain::RegisterHandler(function<int (kis_packet *)> in_cb, int in_chai
 int Packetchain::RemoveHandler(int in_id, int in_chain) {
 	unsigned int x;
 
-    fprintf(stderr, "debug - removing handler id %d %d\n", in_id, in_chain);
-
     local_locker lock(&packetchain_mutex);
 
     switch (in_chain) {
@@ -456,8 +454,6 @@ int Packetchain::RemoveHandler(int in_id, int in_chain) {
 
 int Packetchain::RemoveHandler(pc_callback in_cb, int in_chain) {
 	unsigned int x;
-
-    fprintf(stderr, "debug - removing handler %p %d\n", in_cb, in_chain);
 
     local_locker lock(&packetchain_mutex);
 
