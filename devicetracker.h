@@ -647,6 +647,7 @@ public:
 
 	Kis_Phy_Handler *FetchPhyHandler(int in_phy);
 	Kis_Phy_Handler *FetchPhyHandler(uint64_t in_key);
+    Kis_Phy_Handler *FetchPhyHandlerByName(string in_name);
 
     string FetchPhyName(int in_phy);
 

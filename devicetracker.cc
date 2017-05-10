@@ -266,6 +266,15 @@ Kis_Phy_Handler *Devicetracker::FetchPhyHandler(uint64_t in_key) {
     return FetchPhyHandler(DevicetrackerKey::GetPhy(in_key));
 }
 
+Kis_Phy_Handler *Devicetracker::FetchPhyHandlerByName(string in_name) {
+    for (auto i = phy_handler_map.begin(); i != phy_handler_map.end(); ++i) {
+        if (i->second->FetchPhyName() == in_name) {
+            return i->second;
+        }
+    }
+    return NULL;
+}
+
 string Devicetracker::FetchPhyName(int in_phy) {
     if (in_phy == KIS_PHY_ANY) {
         return "ANY";
