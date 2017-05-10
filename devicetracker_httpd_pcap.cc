@@ -21,15 +21,37 @@
 #include "kis_net_microhttpd.h"
 #include "devicetracker_httpd_pcap.h"
 #include "pcapng_stream_ringbuf.h"
+#include "devicetracker.h"
 
 bool Devicetracker_Httpd_Pcap::Httpd_VerifyPath(const char *path, const char *method) {
     if (strcmp(method, "GET") == 0) {
-        // Total pcap of all data
-        if (strcmp(path, "/data/all_packets.pcapng") == 0) {
-            return true;
-        }
+        // /devices/pcap/by-key/[key]/[key].pcapng
+        
+        shared_ptr<Devicetracker> devicetracker =
+            static_pointer_cast<Devicetracker>(http_globalreg->FetchGlobal("DEVICE_TRACKER"));
 
-        // TODO device key lookup
+        vector<string> tokenurl = StrTokenize(path, "/");
+        if (tokenurl.size() < 6)
+            return false;
+
+        if (tokenurl[1] != "devices")
+            return false;
+
+        if (tokenurl[2] != "pcap")
+            return false;
+
+        if (tokenurl[3] != "by-key")
+            return false;
+
+        uint64_t key = 0;
+        std::stringstream ss(tokenurl[4]);
+        ss >> key;
+
+        if (devicetracker->FetchDevice(key) == NULL)
+            return false;
+
+        return true;
+
     }
 
     return false;
@@ -45,33 +67,64 @@ void Devicetracker_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
         return;
     }
 
-    fprintf(stderr, "debug - httpd pcap %s\n", url);
-    if (strcmp(url, "/data/all_packets.pcapng") == 0) {
-        if (!httpd->HasValidSession(connection)) {
-            fprintf(stderr, "debug - 503 - invalid session\n");
-            connection->httpcode = 503;
-            return;
-        }
+    shared_ptr<Packetchain> packetchain = 
+        static_pointer_cast<Packetchain>(http_globalreg->FetchGlobal("PACKETCHAIN"));
+    int pack_comp_device = packetchain->RegisterPacketComponent("DEVICE");
 
-        // At this point we're logged in and have an aux pointer for the
-        // ringbuf aux; We can create our pcap ringbuf stream and attach it.
-        // We need to close down the pcapringbuf during teardown.
-        
-        Kis_Net_Httpd_Ringbuf_Stream_Aux *saux = 
-            (Kis_Net_Httpd_Ringbuf_Stream_Aux *) connection->custom_extension;
-       
-        fprintf(stderr, "debug - making pcap stream on ringbuf\n");
-        Pcap_Stream_Ringbuf *psrb = new Pcap_Stream_Ringbuf(http_globalreg,
-                saux->get_rbhandler(), NULL, NULL);
+    // /devices/pcap/by-key/[key]/[key].pcapng
 
-        fprintf(stderr, "debug - assigning pcap stream to http aux\n");
-        saux->set_aux(psrb, [](Kis_Net_Httpd_Ringbuf_Stream_Aux *aux) {
-            if (aux->aux != NULL)
-                delete (Kis_Net_Httpd_Ringbuf_Stream_Aux *) (aux->aux);
-        });
+    shared_ptr<Devicetracker> devicetracker =
+        static_pointer_cast<Devicetracker>(http_globalreg->FetchGlobal("DEVICE_TRACKER"));
 
+    vector<string> tokenurl = StrTokenize(url, "/");
+    if (tokenurl.size() < 6)
+        return;
+
+    if (tokenurl[1] != "devices")
+        return;
+
+    if (tokenurl[2] != "pcap")
+        return;
+
+    if (tokenurl[3] != "by-key")
+        return;
+
+    uint64_t key = 0;
+    std::stringstream ss(tokenurl[4]);
+    ss >> key;
+
+    if (devicetracker->FetchDevice(key) == NULL)
+        return;
+
+
+    if (!httpd->HasValidSession(connection)) {
+        connection->httpcode = 503;
+        return;
     }
 
+    Kis_Net_Httpd_Ringbuf_Stream_Aux *saux = 
+        (Kis_Net_Httpd_Ringbuf_Stream_Aux *) connection->custom_extension;
+      
+    // Filter based on the device key
+    Pcap_Stream_Ringbuf *psrb = new Pcap_Stream_Ringbuf(http_globalreg,
+            saux->get_rbhandler(), 
+            [key, pack_comp_device](kis_packet *packet) -> bool {
+                kis_tracked_device_info *devinfo = 
+                    (kis_tracked_device_info *) packet->fetch(pack_comp_device);
+
+                if (devinfo == NULL)
+                    return false;
+
+                if (devinfo->devref->get_key() == key)
+                    return true;
+
+                return false;
+            }, NULL);
+
+    saux->set_aux(psrb, [](Kis_Net_Httpd_Ringbuf_Stream_Aux *aux) {
+            if (aux->aux != NULL)
+                delete (Kis_Net_Httpd_Ringbuf_Stream_Aux *) (aux->aux);
+            });
 
 }
 
