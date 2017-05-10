@@ -43,12 +43,16 @@ bool Devicetracker_Httpd_Pcap::Httpd_VerifyPath(const char *path, const char *me
         if (tokenurl[4] != "pcap")
             return false;
 
-
         uint64_t key = 0;
         std::stringstream ss(tokenurl[3]);
         ss >> key;
 
         if (devicetracker->FetchDevice(key) == NULL)
+            return false;
+
+        string keyurl = tokenurl[3] + ".pcapng";
+
+        if (tokenurl[5] != keyurl)
             return false;
 
         return true;
