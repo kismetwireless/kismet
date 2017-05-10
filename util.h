@@ -337,6 +337,7 @@ public:
     void lock() {
         std::lock_guard<std::mutex> lk(m);
         locked = true;
+        cmd_unlocked = false;
     }
 
     // Block this thread until another thread calls us and unlocks us, return

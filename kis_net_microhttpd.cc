@@ -1049,6 +1049,7 @@ Kis_Net_Httpd_Ringbuf_Stream_Aux::Kis_Net_Httpd_Ringbuf_Stream_Aux(
     free_aux_cb = in_free_aux;
 
     cl.reset(new conditional_locker<string>());
+    cl->lock();
 
     in_error = false;
 
