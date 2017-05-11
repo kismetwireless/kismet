@@ -148,11 +148,15 @@ function MoveToExpanded(tab) {
             iconfont: 'jsglyph',
         },
         onclosed: function() {
+            this.content.attr('id', '');
+            div.attr('id', tab.id);
             this.content.contents().appendTo(div);
         },
     });
 
     div.contents().appendTo(tab.jspanel.content);
+    div.attr('id', 'empty_' + tab.id);
+    tab.jspanel.content.attr('id', tab.id);
 }
 
 // Populate the sidebar content in the supplied div
