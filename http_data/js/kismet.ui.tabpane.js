@@ -139,7 +139,12 @@ function populateList(div) {
 function MoveToExpanded(tab) {
     var div = $('div#' + tab.id, TabDiv);
 
-    console.log(div);
+    var placeholder = $('<div>', {
+        id: 'original_' + tab.id,
+    })
+    .html("Content moved to window");
+
+    var original = div;
 
     tab.jspanel = $.jsPanel({
         id: 'tab_' + tab.id,
@@ -148,15 +153,12 @@ function MoveToExpanded(tab) {
             iconfont: 'jsglyph',
         },
         onclosed: function() {
-            this.content.attr('id', '');
-            div.attr('id', tab.id);
-            this.content.contents().appendTo(div);
+            placeholder.replaceWith(original);
         },
     });
 
-    div.contents().appendTo(tab.jspanel.content);
-    div.attr('id', 'empty_' + tab.id);
-    tab.jspanel.content.attr('id', tab.id);
+    div.replaceWith(placeholder);
+    tab.jspanel.content.replaceWith(original);
 }
 
 // Populate the sidebar content in the supplied div
