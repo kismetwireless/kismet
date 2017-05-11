@@ -23,6 +23,8 @@ $('<link>')
 /* List of objects used to turn into tabs */
 var TabItems = new Array();
 
+var TabDiv = null;
+
 /* Add a tab
  *
  * Options is a dictionary which must include:
@@ -34,18 +36,32 @@ var TabItems = new Array();
  * priority: order priority in list (optional)
  */
 exports.AddTab = function(options) {
-    if (! 'id' in options ||
-        ! 'tabTitle' in options ||
-        ! 'createCallback' in options) {
+    if (!('id' in options) ||
+        !('tabTitle' in options) ||
+        !('createCallback' in options)) {
         return;
     }
 
-    if (! 'priority' in options) {
+    if (!('priority' in options)) {
         options.priority = 0;
     }
 
+    if (!('expandable' in options)) {
+        options.expandable = false;
+    }
+
+    options.expanded = false;
+
     TabItems.push(options);
 };
+
+exports.RemoveTab = function(id) {
+    for (var x = 0; x < TabItems.length; x++) {
+        if (TabItems[x].id = id) {
+            TabItems.splice(x, 1);
+        }
+    }
+}
 
 function createListCallback(c) {
     return function() {
@@ -54,6 +70,8 @@ function createListCallback(c) {
 }
 
 function populateList(div) {
+    TabDiv = div;
+
     TabItems.sort(function(a, b) {
         if (a.priority < b.priority)
             return -1;
@@ -74,15 +92,27 @@ function populateList(div) {
     for (var i in TabItems) {
         var c = TabItems[i];
 
+        var title = c.tabTitle;;
+
+        if (c.expandable) {
+            title += ' <i class="fa fa-expand pseudolink"></i>';
+        }
+
         ul.append(
             $('<li>', { })
             .append(
                 $('<a>', {
                     href: '#' + c.id
                 })
-                .html(c.tabTitle)
+                .html(title)
             )
         );
+
+        if (c.expandable) {
+            $('i', ul).on('click', function() {
+                MoveToExpanded(c);
+            });
+        }
 
         var td = 
             $('<div>', {
@@ -104,6 +134,25 @@ function populateList(div) {
 
     var lasttab = kismet.getStorage('kismet.base.last_tab', '');
     $('a[href="' + lasttab + '"]', div).click();
+}
+
+function MoveToExpanded(tab) {
+    var div = $('div#' + tab.id, TabDiv);
+
+    console.log(div);
+
+    tab.jspanel = $.jsPanel({
+        id: 'tab_' + tab.id,
+        headerTitle: tab.tabTitle,
+        headerControls: {
+            iconfont: 'jsglyph',
+        },
+        onclosed: function() {
+            this.content.contents().appendTo(div);
+        },
+    });
+
+    div.contents().appendTo(tab.jspanel.content);
 }
 
 // Populate the sidebar content in the supplied div
