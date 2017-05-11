@@ -44,6 +44,7 @@
 #include "devicetracker.h"
 #include "devicetracker_component.h"
 #include "kis_net_microhttpd.h"
+#include "phy_80211_httpd_pcap.h"
 
 /*
  * 802.11 PHY handlers
@@ -1136,6 +1137,8 @@ protected:
     int device_idle_expiration;
     int device_idle_timer;
 
+    // Pcap handlers
+    unique_ptr<Phy_80211_Httpd_Pcap> httpd_pcap;
 };
 
 #endif

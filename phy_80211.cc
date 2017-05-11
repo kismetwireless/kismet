@@ -429,6 +429,8 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
 	ssid_conf->ParseConfig(ssid_conf->ExpandLogPath(globalreg->kismet_config->FetchOpt("configdir") + "/" + "ssid_map.conf", "", "", 0, 1).c_str());
 	globalreg->InsertGlobal("SSID_CONF_FILE", shared_ptr<ConfigFile>(ssid_conf));
 
+    httpd_pcap.reset(new Phy_80211_Httpd_Pcap(globalreg));
+
 }
 
 Kis_80211_Phy::~Kis_80211_Phy() {
