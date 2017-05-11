@@ -365,6 +365,7 @@
         state.resizer[0].onload = function() {
 			var body = this.contentDocument.body;
 			var height = body.offsetHeight;
+            var width = body.offsetWidth;
 			var contentDoc = this.contentDocument;
 			var defaultView = contentDoc.defaultView || contentDoc.parentWindow;
 
@@ -372,12 +373,21 @@
 				var newHeight = body.clientHeight || body.offsetHeight;
 				var docClientHeight = contentDoc.documentElement.clientHeight;
 
+				var newWidth = body.clientWidth || body.offsetWidth;
+				var docClientWidth = contentDoc.documentElement.clientWidth;
+
 				if ( ! newHeight && docClientHeight ) {
 					newHeight = docClientHeight;
 				}
 
-				if ( newHeight !== height ) {
+				if ( ! newWidth && docClientWidth ) {
+					newWidth = docClientWidth;
+				}
+
+				if ( newHeight !== height || newWidth !== width ) {
 					height = newHeight;
+					width = newWidth;
+                    console.log("triggered resizer", height, width);
                     channels_resize(state);
 				}
 			};
@@ -386,6 +396,11 @@
         state.resizer
             .appendTo(state.element)
             .attr('data', 'about:blank');
+
+        state.element.on('resize', function() {
+            console.log("element resize");
+            channels_resize(state);
+        });
 
         state.element.addClass(".channels");
 

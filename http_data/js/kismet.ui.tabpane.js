@@ -146,19 +146,62 @@ function MoveToExpanded(tab) {
 
     var original = div;
 
+    var panelcontainer = 
+        $('<div>', {
+            id: 'panel',
+            height: '100%',
+            width: '100%',
+        })
+        .append($('<div>', {
+            id: 'target',
+        }));
+
     tab.jspanel = $.jsPanel({
         id: 'tab_' + tab.id,
         headerTitle: tab.tabTitle,
         headerControls: {
             iconfont: 'jsglyph',
         },
+        content: panelcontainer,
         onclosed: function() {
             placeholder.replaceWith(original);
+            TabDiv.tabs("refresh");
         },
     });
 
     div.replaceWith(placeholder);
-    tab.jspanel.content.replaceWith(original);
+
+    // Take out the fixed height and width imposed by tab widther
+    original.removeProp('height');
+    original.removeProp('width');
+    original.css('height', '');
+    original.css('width', '');
+
+    $('#target', panelcontainer).replaceWith(original);
+
+    original.resize();
+
+    var w = $(window).width() * 0.75;
+    var h = $(window).height() * 0.5;
+    var offty = 20;
+
+    if ($(window).width() < 450 || $(window).height() < 450) {
+        w = $(window).width() - 5;
+        h = $(window).height() - 5;
+        offty = 0;
+    }
+
+    tab.jspanel.resize({
+        width: w,
+        height: h,
+    })
+    .reposition({
+        my: 'center-top',
+        at: 'center-top',
+        of: 'window',
+        offsetY: offty
+    });
+
 }
 
 // Populate the sidebar content in the supplied div
