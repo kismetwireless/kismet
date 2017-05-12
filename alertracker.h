@@ -339,6 +339,10 @@ public:
 	// Load alert rates from a config file
 	int ParseAlertConfig(ConfigFile *in_conf);
 
+    // Define an alert and limits
+    int DefineAlert(string name, alert_time_unit limit_unit, int limit_rate,
+            alert_time_unit limit_burst, int burst_rate);
+
 	// Activate a preconfigured alert from a file
 	int ActivateConfiguredAlert(string in_header, string in_desc);
 	int ActivateConfiguredAlert(string in_header, string in_desc, int in_phy);
@@ -349,6 +353,8 @@ public:
             Kis_Net_Httpd_Connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size, std::stringstream &stream);
+
+    virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *concls);
 
 protected:
     pthread_mutex_t alert_mutex;

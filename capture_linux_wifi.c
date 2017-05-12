@@ -43,6 +43,8 @@
 #include <pthread.h>
 #include <fcntl.h>
 
+#include <sched.h>
+
 /* According to POSIX.1-2001, POSIX.1-2008 */
 #include <sys/select.h>
 

@@ -28,13 +28,19 @@
 
 #include "json_adapter.h"
 #include "msgpack_adapter.h"
+#include "structured.h"
+#include "kismet_json.h"
+#include "base64.h"
 
 Alertracker::Alertracker(GlobalRegistry *in_globalreg) :
     Kis_Net_Httpd_CPPStream_Handler(in_globalreg) {
 	globalreg = in_globalreg;
 	next_alert_id = 0;
 
-    pthread_mutex_init(&alert_mutex, NULL);
+    pthread_mutexattr_t mutexattr;
+    pthread_mutexattr_init(&mutexattr);
+    pthread_mutexattr_settype(&mutexattr, PTHREAD_MUTEX_RECURSIVE);
+	pthread_mutex_init(&alert_mutex, &mutexattr);
 
 	if (globalreg->kismet_config == NULL) {
 		fprintf(stderr, "FATAL OOPS:  Alertracker called with null config\n");
@@ -350,6 +356,29 @@ int Alertracker::ParseAlertConfig(ConfigFile *in_conf) {
 	return 1;
 }
 
+int Alertracker::DefineAlert(string name, alert_time_unit limit_unit, int limit_rate,
+        alert_time_unit burst_unit, int burst_rate) {
+    local_locker lock(&alert_mutex);
+
+    for (auto i = alert_conf_map.begin(); i != alert_conf_map.end(); ++i) {
+        if (StrLower(name) == i->first) {
+            _MSG("Tried to define alert '" + name + "' twice.", MSGFLAG_ERROR);
+            return -1;
+        }
+    }
+
+    alert_conf_rec *rec = new alert_conf_rec;
+    rec->header = name;
+    rec->limit_unit = limit_unit;
+    rec->limit_rate = limit_rate;
+    rec->burst_unit = burst_unit;
+    rec->limit_burst = burst_rate;
+
+    alert_conf_map[StrLower(rec->header)] = rec;
+
+    return 1;
+}
+
 int Alertracker::ActivateConfiguredAlert(string in_header, string in_desc) {
 	return ActivateConfiguredAlert(in_header, in_desc, KIS_PHY_UNKNOWN);
 }
@@ -376,32 +405,44 @@ int Alertracker::ActivateConfiguredAlert(string in_header, string in_desc, int i
 }
 
 bool Alertracker::Httpd_VerifyPath(const char *path, const char *method) {
-    if (strcmp(method, "GET") != 0) {
-        return false;
-    }
-
     if (!Httpd_CanSerialize(path))
         return false;
 
-    // Split URL and process
-    vector<string> tokenurl = StrTokenize(path, "/");
-    if (tokenurl.size() < 3)
-        return false;
-
-    if (tokenurl[1] == "alerts") {
-        if (Httpd_StripSuffix(tokenurl[2]) == "definitions") {
-            return true;
-        } else if (Httpd_StripSuffix(tokenurl[2]) == "all_alerts") {
-            return true;
-        } else if (tokenurl[2] == "last-time") {
-            if (tokenurl.size() < 5)
-                return false;
-
-            if (Httpd_CanSerialize(tokenurl[4]))
-                return true;
-
+    if (strcmp(method, "GET") == 0) {
+        // Split URL and process
+        vector<string> tokenurl = StrTokenize(path, "/");
+        if (tokenurl.size() < 3)
             return false;
+
+        if (tokenurl[1] == "alerts") {
+            if (Httpd_StripSuffix(tokenurl[2]) == "definitions") {
+                return true;
+            } else if (Httpd_StripSuffix(tokenurl[2]) == "all_alerts") {
+                return true;
+            } else if (tokenurl[2] == "last-time") {
+                if (tokenurl.size() < 5)
+                    return false;
+
+                if (Httpd_CanSerialize(tokenurl[4]))
+                    return true;
+
+                return false;
+            }
         }
+        
+        return false;
+    } 
+
+    if (strcmp(method, "POST") == 0) {
+        string stripped = httpd->StripSuffix(path);
+
+        if (stripped == "/alerts/definitions/define_alert")
+            return true;
+
+        if (stripped == "/alerts/raise_alert")
+            return true;
+
+        return false;
     }
 
     return false;
@@ -476,4 +517,141 @@ void Alertracker::Httpd_CreateStreamResponse(
         Httpd_Serialize(path, stream, wrapper);
     }
 }
+
+int Alertracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
+    string stripped = Httpd_StripSuffix(concls->url);
+   
+    if (!Httpd_CanSerialize(concls->url) ||
+            (stripped != "/alerts/definitions/define_alert" &&
+             stripped != "/alerts/raise_alert")) {
+        concls->response_stream << "Invalid request";
+        concls->httpcode = 400;
+        return 1;
+    }
+
+    if (!httpd->HasValidSession(concls, true)) {
+        return -1;
+    }
+
+    local_locker lock(&alert_mutex);
+
+    SharedStructured structdata;
+
+    try {
+        if (concls->variable_cache.find("msgpack") != concls->variable_cache.end()) {
+            structdata.reset(new StructuredMsgpack(Base64::decode(concls->variable_cache["msgpack"]->str())));
+        } else if (concls->variable_cache.find("json") != concls->variable_cache.end()) {
+            structdata.reset(new StructuredJson(concls->variable_cache["json"]->str()));
+        } else {
+            throw std::runtime_error("could not find data");
+        }
+
+        if (stripped == "/alerts/definitions/define_alert") {
+            string name = structdata->getKeyAsString("name");
+            string desc = structdata->getKeyAsString("description");
+
+            alert_time_unit limit_unit;
+            int limit_rate;
+
+            alert_time_unit burst_unit;
+            int burst_rate;
+
+            if (ParseRateUnit(StrLower(structdata->getKeyAsString("throttle", "")),
+                        &limit_unit, &limit_rate) < 0) {
+                throw std::runtime_error("could not parse throttle limits");
+            }
+
+            if (ParseRateUnit(StrLower(structdata->getKeyAsString("burst", "")),
+                        &burst_unit, &burst_rate) < 0) {
+                throw std::runtime_error("could not parse burst limits");
+            }
+
+            int phyid = KIS_PHY_ANY;
+
+            string phyname = structdata->getKeyAsString("phyname", "");
+
+            if (phyname != "any" && phyname != "") {
+                shared_ptr<Devicetracker> devicetracker = 
+                    static_pointer_cast<Devicetracker>(globalreg->FetchGlobal("DEVICE_TRACKER"));
+                Kis_Phy_Handler *phyh = devicetracker->FetchPhyHandlerByName(phyname);
+
+                if (phyh == NULL)
+                    throw std::runtime_error("could not find phy");
+
+                phyid = phyh->FetchPhyId();
+            }
+
+            if (DefineAlert(name, limit_unit, limit_rate, burst_unit, burst_rate) < 0) {
+                concls->httpcode = 503;
+                throw std::runtime_error("could not add alert");
+            }
+
+            if (ActivateConfiguredAlert(name, desc, phyid) < 0) {
+                concls->httpcode = 504;
+                throw std::runtime_error("could not activate alert");
+            }
+
+            concls->response_stream << "Added alert";
+            return 1;
+
+        } else if (stripped == "/alerts/raise_alert") {
+            string name = structdata->getKeyAsString("name");
+    
+            int aref = FetchAlertRef(name);
+
+            if (aref < 0)
+                throw std::runtime_error("unknown alert type");
+
+            string text = structdata->getKeyAsString("text");
+
+            string bssid = structdata->getKeyAsString("bssid", "");
+            string source = structdata->getKeyAsString("source", "");
+            string dest = structdata->getKeyAsString("dest", "");
+            string other = structdata->getKeyAsString("other", "");
+            string channel = structdata->getKeyAsString("channel", "");
+
+            mac_addr bssid_mac, source_mac, dest_mac, other_mac;
+
+            if (bssid.length() != 0) {
+                bssid_mac = mac_addr(bssid);
+            }
+            if (source.length() != 0) {
+                source_mac = mac_addr(source);
+            }
+            if (dest.length() != 0) {
+                dest_mac = mac_addr(dest);
+            }
+            if (other.length() != 0) {
+                other_mac = mac_addr(other);
+            }
+
+            if (bssid_mac.error || source_mac.error || 
+                    dest_mac.error || other_mac.error) {
+                throw std::runtime_error("invalid mac");
+            }
+
+            if (!PotentialAlert(aref)) 
+                throw std::runtime_error("alert limit reached");
+
+            RaiseAlert(aref, NULL, bssid_mac, source_mac, dest_mac, other_mac,
+                    channel, text);
+
+            concls->response_stream << "alert raised";
+
+            return 1;
+        }
+
+    } catch (const std::exception& e) {
+        concls->response_stream << "Invalid request " << e.what();
+
+        if (concls->httpcode != 200)
+            concls->httpcode = 400;
+        return 1;
+    }
+
+
+
+    return 0;
+}
+
 

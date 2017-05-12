@@ -253,6 +253,40 @@ List of the alert backlog.  The size of the backlog is configurable via the `ale
 
 Dictionary containing a list of alerts since Kismet timestamp `[TS]`, and a timestamp record indicating the time of this report.  This can be used to fetch only new alerts since the last time alerts were requested.
 
+##### POST /alerts/definitions/define_alert.cmd
+
+*LOGIN REQUIRED*
+
+Define and activate a new alert.  This alert can then be raised via the `raise_alert.cmd` URI.
+
+Expects a command dictionary including:
+
+| Key | Value | Type | Desc |
+| --- | ----- | ---- | ---- |
+| name | Alert name | String | Simple alert name/identifier |
+| description | Alert description | String | Alert explanation / definition displayed to the user |
+| phyname | Name of phy type | String | (Optional) name of phy this alert is associated with.  If not provided, alert will apply to all phy types.  If provided, the defined phy *must* be found or the alert will not be defined. |
+| throttle | Alert throttle rate | String | Maximum number of alerts per time period, as defined in kismet.conf.  Time period may be 'sec', 'min', 'hour', or 'day', for example '10/min' |
+| burst | Alert burst rate | String | Maximum number of sequential alerts per time period, as defined in kismet.conf.  Time period may be 'sec', 'min', 'hour', or 'day'.  Alerts will be throttled to this burst rate even when the overall limit has not been hit.  For example, '1/sec' |
+
+##### POST /alerts/raise_alert.cmd
+
+*LOGIN REQUIRED*
+
+Trigger an alert.  This generates a standard Kismet alert of the specified type and parameters.
+
+Expects a command dictionary including:
+
+| Key | Value | Type | Desc |
+| --- | ----- | ---- | ---- |
+| name | Alert name | String | Alert name/identifier.  Must be a defined alert name. |
+| text | Alert content | String | Human-readable text for alert |
+| bssid | MAC address | String | (optional) MAC address of the BSSID, if Wi-Fi, related to this alert |
+| source | MAC address | String | (optional) MAC address the source device which triggered this alert |
+| dest | MAC address | String | (optional) MAC address of the destination device which triggered this alert |
+| other | MAC address | String | (optional) Related other MAC address of the event which triggered this alert |
+| channel | Channel | String | (optional) Phy-specific channel definition of the event which triggered this alert |
+
 ## Channels
 
 ##### /channels/channels `/channels/channels.msgpack`, `/channels/channels.json`
