@@ -1223,6 +1223,8 @@ int Datasourcetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
             structdata.reset(new StructuredMsgpack(Base64::decode(concls->variable_cache["msgpack"]->str())));
         } else if (concls->variable_cache.find("json") != concls->variable_cache.end()) {
             structdata.reset(new StructuredJson(concls->variable_cache["json"]->str()));
+        } else {
+            throw std::runtime_error("unable to find data");
         }
 
         // Locker for waiting for the open callback
