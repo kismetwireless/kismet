@@ -122,6 +122,9 @@ int EntryTracker::RegisterField(string in_name, shared_ptr<TrackerElement> in_bu
     // Set the builders ID now that we know it
     definition->builder->set_id(definition->field_id);
 
+    // Backprop the ID
+    in_builder->set_id(definition->field_id);
+
     return definition->field_id;
 }
 
