@@ -110,6 +110,9 @@ protected:
 
 	dumpfile_pcap_filter_cb cbfilter;
 	void *cbaux;
+
+    int pack_comp_80211, pack_comp_mangleframe, pack_comp_radiodata,
+        pack_comp_gps, pack_comp_checksum, pack_comp_decap, pack_comp_linkframe;
 };
 
 #endif /* pcap */

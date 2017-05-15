@@ -50,6 +50,15 @@ Dumpfile_Pcap::Dumpfile_Pcap(GlobalRegistry *in_globalreg) : Dumpfile(in_globalr
 	cbfilter = NULL;
 	cbaux = NULL;
 
+    pack_comp_80211 = globalreg->packetchain->RegisterPacketComponent("PHY80211");
+    pack_comp_mangleframe = globalreg->packetchain->RegisterPacketComponent("MANGLEDATA");
+    pack_comp_radiodata = globalreg->packetchain->RegisterPacketComponent("RADIODATA");
+    pack_comp_gps = globalreg->packetchain->RegisterPacketComponent("GPS");
+    pack_comp_checksum = globalreg->packetchain->RegisterPacketComponent("CHECKSUM");
+    pack_comp_decap = globalreg->packetchain->RegisterPacketComponent("DECAP");
+    pack_comp_linkframe = globalreg->packetchain->RegisterPacketComponent("LINKFRAME");
+
+
 	Startup_Dumpfile();
 }
 
@@ -185,20 +194,20 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 	// Grab the mangled frame if we have it, then try to grab up the list of
 	// data types and die if we can't get anything
 	dot11_packinfo *packinfo =
-		(dot11_packinfo *) in_pack->fetch(_PCM(PACK_COMP_80211));
+		(dot11_packinfo *) in_pack->fetch(pack_comp_80211);
 
 	// Grab the generic mangled frame
 	kis_datachunk *chunk = 
-		(kis_datachunk *) in_pack->fetch(_PCM(PACK_COMP_MANGLEFRAME));
+		(kis_datachunk *) in_pack->fetch(pack_comp_mangleframe);
 
 	kis_layer1_packinfo *radioinfo =
-		(kis_layer1_packinfo *) in_pack->fetch(_PCM(PACK_COMP_RADIODATA));
+		(kis_layer1_packinfo *) in_pack->fetch(pack_comp_radiodata);
 
 	kis_gps_packinfo *gpsdata =
-		(kis_gps_packinfo *) in_pack->fetch(_PCM(PACK_COMP_GPS));
+		(kis_gps_packinfo *) in_pack->fetch(pack_comp_gps);
 
 	kis_packet_checksum *fcsdata =
-		(kis_packet_checksum *) in_pack->fetch(_PCM(PACK_COMP_CHECKSUM));
+		(kis_packet_checksum *) in_pack->fetch(pack_comp_checksum);
 
 	if (cbfilter != NULL) {
 		// If we have a filter, grab the data using that
@@ -206,17 +215,18 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 	} else if (chunk == NULL) {
 		// Look for the 802.11 frame
 		if ((chunk = 
-			 (kis_datachunk *) in_pack->fetch(_PCM(PACK_COMP_DECAP))) == NULL) {
+			 (kis_datachunk *) in_pack->fetch(pack_comp_decap)) == NULL) {
 
 			// Look for any link frame, we'll check the DLT soon
 			chunk = 
-				(kis_datachunk *) in_pack->fetch(_PCM(PACK_COMP_LINKFRAME));
+				(kis_datachunk *) in_pack->fetch(pack_comp_linkframe);
 		}
 	}
 
 	// If after all of that we still didn't find a packet
-	if (chunk == NULL)
+	if (chunk == NULL) {
 		return 0;
+    }
 
 	if (chunk != NULL && (chunk->length < 0 || chunk->length > MAX_PACKET_LEN)) {
 		_MSG("Weird frame in pcap logger with the wrong size...", MSGFLAG_ERROR);
