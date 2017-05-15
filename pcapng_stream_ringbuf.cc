@@ -23,7 +23,7 @@
 Pcap_Stream_Ringbuf::Pcap_Stream_Ringbuf(GlobalRegistry *in_globalreg,
         shared_ptr<RingbufferHandler> in_handler,
         function<bool (kis_packet *)> accept_filter,
-        function<kis_datachunk * (kis_packet *)> data_selector) {
+        function<kis_datachunk * (kis_packet *)> data_selector) : streaming_agent() {
 
     globalreg = in_globalreg;
     
@@ -52,6 +52,10 @@ Pcap_Stream_Ringbuf::Pcap_Stream_Ringbuf(GlobalRegistry *in_globalreg,
 Pcap_Stream_Ringbuf::~Pcap_Stream_Ringbuf() {
     handler->BufferError("Shutting down pcap stream");
     packetchain->RemoveHandler(packethandler_id, CHAINPOS_LOGGING);
+}
+
+void Pcap_Stream_Ringbuf::stop_stream(string in_reason) {
+    handler->BufferError(in_reason);
 }
 
 int Pcap_Stream_Ringbuf::pcapng_make_shb(string in_hw, string in_os, string in_app) {
@@ -147,6 +151,8 @@ int Pcap_Stream_Ringbuf::pcapng_make_shb(string in_hw, string in_os, string in_a
         return -1;
     }
 
+    log_size += write_sz;
+
     // Put the trailing size
     *end_sz += 4;
     
@@ -157,6 +163,8 @@ int Pcap_Stream_Ringbuf::pcapng_make_shb(string in_hw, string in_os, string in_a
         delete[] buf;
         return -1;
     }
+
+    log_size += write_sz;
 
     return 1;
 }
@@ -259,6 +267,8 @@ int Pcap_Stream_Ringbuf::pcapng_make_idb(KisDatasource *in_datasource) {
         return -1;
     }
 
+    log_size += write_sz;
+
     // Put the trailing size
     *end_sz += 4;
     
@@ -269,6 +279,8 @@ int Pcap_Stream_Ringbuf::pcapng_make_idb(KisDatasource *in_datasource) {
         delete[] retbuf;
         return -1;
     }
+
+    log_size += write_sz;
 
     return logid;
 }
@@ -355,6 +367,8 @@ int Pcap_Stream_Ringbuf::pcapng_write_packet(kis_packet *in_packet,
         return -1;
     }
 
+    log_size += write_sz;
+
     delete[] retbuf;
 
     // Write the data to the ringbuf
@@ -364,6 +378,8 @@ int Pcap_Stream_Ringbuf::pcapng_write_packet(kis_packet *in_packet,
         handler->BufferError("unable to write packet content");
         return -1;
     }
+
+    log_size += write_sz;
 
     // Pad data to 32bit
     uint32_t pad = 0;
@@ -378,6 +394,8 @@ int Pcap_Stream_Ringbuf::pcapng_write_packet(kis_packet *in_packet,
             handler->BufferError("unable to write packet padding");
             return -1;
         }
+
+        log_size += write_sz;
     }
 
     // Allocate the options
@@ -401,6 +419,8 @@ int Pcap_Stream_Ringbuf::pcapng_write_packet(kis_packet *in_packet,
         return -1;
     }
 
+    log_size += write_sz;
+
     delete[] retbuf;
 
     // Put the trailing size
@@ -413,6 +433,8 @@ int Pcap_Stream_Ringbuf::pcapng_write_packet(kis_packet *in_packet,
         delete[] retbuf;
         return -1;
     }
+
+    log_size += write_sz;
 
     return 1;
 }
@@ -445,6 +467,8 @@ void Pcap_Stream_Ringbuf::handle_chain_packet(kis_packet *in_packet) {
         return;
 
     pcapng_write_packet(in_packet, target_datachunk);
+
+    log_packets++;
 }
 
 

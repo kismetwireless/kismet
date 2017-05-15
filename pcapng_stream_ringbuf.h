@@ -36,6 +36,7 @@
 #include "globalregistry.h"
 #include "packetchain.h"
 #include "kis_datasource.h"
+#include "streamtracker.h"
 
 /* PCAP-NG basic structs, as defined in:
  * http://xml2rfc.tools.ietf.org/cgi-bin/xml2rfc.cgi?url=https://raw.githubusercontent.com/pcapng/pcapng/master/draft-tuexen-opsawg-pcapng.xml&modeAsFormat=html/ascii&type=ascii#section_shb
@@ -124,7 +125,7 @@ typedef struct pcapng_epb pcapng_epb_t;
  * of the packet destined for export.
  *
  */
-class Pcap_Stream_Ringbuf {
+class Pcap_Stream_Ringbuf : public streaming_agent {
 public:
     Pcap_Stream_Ringbuf(GlobalRegistry *in_globalreg, 
             shared_ptr<RingbufferHandler> in_handler,
@@ -132,6 +133,8 @@ public:
             function<kis_datachunk * (kis_packet *)> data_selector);
 
     virtual ~Pcap_Stream_Ringbuf();
+
+    virtual void stop_stream(string in_reason);
 
 protected:
     virtual int pcapng_make_shb(string in_hw, string in_os, string in_app);
