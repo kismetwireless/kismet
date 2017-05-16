@@ -38,7 +38,7 @@ public:
 
     virtual ~streaming_agent() { };
 
-    void stop_stream(string in_reason __attribute__((unused))) { };
+    virtual void stop_stream(string in_reason __attribute__((unused))) { };
 
     uint64_t get_log_size() { return log_size; }
     uint64_t get_log_packets() { return log_packets; }
@@ -70,6 +70,8 @@ public:
         return SharedTrackerElement(new streaming_info_record(globalreg, get_id()));
     }
 
+    __Proxy(stream_id, double, double, double, stream_id);
+
     __Proxy(log_name, string, string, string, log_name);
     __Proxy(log_type, string, string, string, log_type);
     __Proxy(log_path, string, string, string, log_path);
@@ -78,11 +80,11 @@ public:
     __Proxy(log_packets, uint64_t, uint64_t, uint64_t, log_packets);
     __Proxy(log_size, uint64_t, uint64_t, uint64_t, log_size);
 
-    void set_agent(shared_ptr<streaming_agent> in_agent) {
+    void set_agent(streaming_agent *in_agent) {
         agent = in_agent;
     }
 
-    shared_ptr<streaming_agent> get_agent() {
+    streaming_agent *get_agent() {
         return agent;
     }
 
@@ -91,6 +93,7 @@ public:
         // itself a trackable component, we'll just grab it's data out when we're
         // about to serialize
         if (agent != NULL) {
+            set_stream_id(agent->get_stream_id());
             set_log_packets(agent->get_log_packets());
             set_log_size(agent->get_log_size());
         }
@@ -100,6 +103,9 @@ protected:
 
     virtual void register_fields() {
         tracker_component::register_fields();
+
+        RegisterField("kismet.stream.stream_id", TrackerDouble,
+                "Stream ID", &stream_id);
 
         RegisterField("kismet.stream.name", TrackerString,
                 "Stream / Log name", &log_name);
@@ -120,6 +126,9 @@ protected:
                 "Size of log, if known, in bytes", &log_size);
     }
 
+    // Internal ID
+    SharedTrackerElement stream_id;
+
     // Log name
     SharedTrackerElement log_name;
 
@@ -138,7 +147,7 @@ protected:
     // Size of log, if known
     SharedTrackerElement log_size;
 
-    shared_ptr<streaming_agent> agent;
+    streaming_agent *agent;
 };
 
 class StreamTracker : public Kis_Net_Httpd_CPPStream_Handler, public LifetimeGlobal {
@@ -156,6 +165,10 @@ private:
 public:
     virtual ~StreamTracker();
 
+    void register_streamer(streaming_agent *in_agent, string in_name,
+            string in_type, string in_path, string in_description);
+    void remove_streamer(double in_id);
+
     // HTTP API
     virtual bool Httpd_VerifyPath(const char *path, const char *method);
 
@@ -165,6 +178,8 @@ public:
             size_t *upload_data_size, std::stringstream &stream);
    
 protected:
+    pthread_mutex_t mutex;
+
     GlobalRegistry *globalreg;
 
     SharedTrackerElement tracked_stream_map;

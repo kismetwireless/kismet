@@ -50,12 +50,13 @@ Pcap_Stream_Ringbuf::Pcap_Stream_Ringbuf(GlobalRegistry *in_globalreg,
 }
 
 Pcap_Stream_Ringbuf::~Pcap_Stream_Ringbuf() {
-    handler->BufferError("Shutting down pcap stream");
+    handler->ProtocolError();
     packetchain->RemoveHandler(packethandler_id, CHAINPOS_LOGGING);
 }
 
 void Pcap_Stream_Ringbuf::stop_stream(string in_reason) {
-    handler->BufferError(in_reason);
+    packetchain->RemoveHandler(packethandler_id, CHAINPOS_LOGGING);
+    handler->ProtocolError();
 }
 
 int Pcap_Stream_Ringbuf::pcapng_make_shb(string in_hw, string in_os, string in_app) {
@@ -85,14 +86,14 @@ int Pcap_Stream_Ringbuf::pcapng_make_shb(string in_hw, string in_os, string in_a
         buf_sz += sizeof(pcapng_option) + PAD_TO_32BIT(in_app.length());
 
     if (handler->GetWriteBufferFree() < buf_sz + 4) {
-        handler->BufferError("Insufficient space in ringbuffer");
+        handler->ProtocolError();
         return -1;
     }
 
     buf = new uint8_t[buf_sz];
 
     if (buf == NULL) {
-        handler->BufferError("Unable to allocate shb");
+        handler->ProtocolError();
         return -1;
     }
 
@@ -146,7 +147,7 @@ int Pcap_Stream_Ringbuf::pcapng_make_shb(string in_hw, string in_os, string in_a
     write_sz = handler->PutWriteBufferData(buf, buf_sz, true);
 
     if (write_sz != buf_sz) {
-        handler->BufferError("Unable to write complete packet to buffer");
+        handler->ProtocolError();
         delete[] buf;
         return -1;
     }
@@ -159,7 +160,7 @@ int Pcap_Stream_Ringbuf::pcapng_make_shb(string in_hw, string in_os, string in_a
     write_sz = handler->PutWriteBufferData(end_sz, 4, true);
 
     if (write_sz != 4) {
-        handler->BufferError("Unable to write complete packet to buffer");
+        handler->ProtocolError();
         delete[] buf;
         return -1;
     }
@@ -218,14 +219,14 @@ int Pcap_Stream_Ringbuf::pcapng_make_idb(KisDatasource *in_datasource) {
     }
 
     if (handler->GetWriteBufferFree() < buf_sz + 4) {
-        handler->BufferError("Insufficient space in ringbuffer");
+        handler->ProtocolError();
         return -1;
     }
 
     retbuf = new uint8_t[buf_sz];
 
     if (retbuf == NULL) {
-        handler->BufferError("unable to allocate IDB");
+        handler->ProtocolError();
         return -1;
     }
 
@@ -262,7 +263,7 @@ int Pcap_Stream_Ringbuf::pcapng_make_idb(KisDatasource *in_datasource) {
     write_sz = handler->PutWriteBufferData(retbuf, buf_sz, true);
 
     if (write_sz != buf_sz) {
-        handler->BufferError("unable to write idb");
+        handler->ProtocolError();
         delete[] retbuf;
         return -1;
     }
@@ -275,7 +276,7 @@ int Pcap_Stream_Ringbuf::pcapng_make_idb(KisDatasource *in_datasource) {
     write_sz = handler->PutWriteBufferData(end_sz, 4, true);
 
     if (write_sz != 4) {
-        handler->BufferError("unable to write idb trailing size");
+        handler->ProtocolError();
         delete[] retbuf;
         return -1;
     }
@@ -336,7 +337,7 @@ int Pcap_Stream_Ringbuf::pcapng_write_packet(kis_packet *in_packet,
     retbuf = new uint8_t[buf_sz];
 
     if (retbuf == NULL) {
-        handler->BufferError("unable to allocate epb");
+        handler->ProtocolError();
         return -1;
     }
 
@@ -362,7 +363,7 @@ int Pcap_Stream_Ringbuf::pcapng_write_packet(kis_packet *in_packet,
     write_sz = handler->PutWriteBufferData(retbuf, buf_sz, true);
 
     if (write_sz != buf_sz) {
-        handler->BufferError("unable to write packet header");
+        handler->ProtocolError();
         delete[] retbuf;
         return -1;
     }
@@ -375,7 +376,7 @@ int Pcap_Stream_Ringbuf::pcapng_write_packet(kis_packet *in_packet,
     write_sz = handler->PutWriteBufferData(in_data->data, in_data->length, true);
 
     if (write_sz != in_data->length) {
-        handler->BufferError("unable to write packet content");
+        handler->ProtocolError();
         return -1;
     }
 
@@ -391,7 +392,7 @@ int Pcap_Stream_Ringbuf::pcapng_write_packet(kis_packet *in_packet,
         write_sz = handler->PutWriteBufferData(&pad, pad_sz, true);
 
         if (write_sz != pad_sz) {
-            handler->BufferError("unable to write packet padding");
+            handler->ProtocolError();
             return -1;
         }
 
@@ -402,7 +403,7 @@ int Pcap_Stream_Ringbuf::pcapng_write_packet(kis_packet *in_packet,
     retbuf = new uint8_t[sizeof(pcapng_option_t)];
 
     if (retbuf == NULL) {
-        handler->BufferError("unable to allocate options block");
+        handler->ProtocolError();
         return -1;
     }
 
@@ -414,7 +415,7 @@ int Pcap_Stream_Ringbuf::pcapng_write_packet(kis_packet *in_packet,
     write_sz = handler->PutWriteBufferData(retbuf, sizeof(pcapng_option_t), true);
 
     if (write_sz != sizeof(pcapng_option_t)) {
-        handler->BufferError("unable to write options block");
+        handler->ProtocolError();
         delete[] retbuf;
         return -1;
     }
@@ -429,7 +430,7 @@ int Pcap_Stream_Ringbuf::pcapng_write_packet(kis_packet *in_packet,
     write_sz = handler->PutWriteBufferData(end_sz, 4, true);
 
     if (write_sz != 4) {
-        handler->BufferError("Unable to write complete packet to buffer");
+        handler->ProtocolError();
         delete[] retbuf;
         return -1;
     }

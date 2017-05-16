@@ -29,6 +29,7 @@
 #include "structured.h"
 #include "base64.h"
 #include "pcapng_stream_ringbuf.h"
+#include "streamtracker.h"
 
 DST_DatasourceProbe::DST_DatasourceProbe(GlobalRegistry *in_globalreg, 
         string in_definition, SharedTrackerElement in_protovec) {
@@ -1466,6 +1467,8 @@ void Datasourcetracker_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *htt
         return;
     }
 
+    shared_ptr<StreamTracker> streamtracker =
+        static_pointer_cast<StreamTracker>(http_globalreg->FetchGlobal("STREAMTRACKER"));
     if (strcmp(url, "/pcap/all_packets.pcapng") == 0 ||
             strcmp(url, "/datasource/pcap/all_sources.pcapng") == 0) {
         if (!httpd->HasValidSession(connection)) {
@@ -1483,10 +1486,16 @@ void Datasourcetracker_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *htt
         Pcap_Stream_Ringbuf *psrb = new Pcap_Stream_Ringbuf(http_globalreg,
                 saux->get_rbhandler(), NULL, NULL);
 
-        saux->set_aux(psrb, [](Kis_Net_Httpd_Ringbuf_Stream_Aux *aux) {
-            if (aux->aux != NULL)
-                delete (Kis_Net_Httpd_Ringbuf_Stream_Aux *) (aux->aux);
-        });
+        saux->set_aux(psrb, 
+            [psrb, streamtracker](Kis_Net_Httpd_Ringbuf_Stream_Aux *aux) {
+                streamtracker->remove_streamer(psrb->get_stream_id());
+                if (aux->aux != NULL) {
+                    delete (Kis_Net_Httpd_Ringbuf_Stream_Aux *) (aux->aux);
+                }
+            });
+
+        streamtracker->register_streamer(psrb, "all_sources.pcapng",
+                "pcapng", "httpd", "pcapng of all packets on all sources");
 
         return;
     }

@@ -1116,7 +1116,7 @@ ssize_t Kis_Net_Httpd_Ringbuf_Stream_Handler::ringbuf_event_cb(void *cls, uint64
 static void free_ringbuf_aux_callback(void *cls) {
     Kis_Net_Httpd_Ringbuf_Stream_Aux *aux = (Kis_Net_Httpd_Ringbuf_Stream_Aux *) cls;
 
-    aux->ringbuf_handler->BufferError("closing http connection");
+    aux->ringbuf_handler->ProtocolError();
 
     if (aux->free_aux_cb != NULL) {
         aux->free_aux_cb(aux);

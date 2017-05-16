@@ -25,6 +25,12 @@ StreamTracker::StreamTracker(GlobalRegistry *in_globalreg) :
     Kis_Net_Httpd_CPPStream_Handler(in_globalreg), 
     LifetimeGlobal() {
 
+    // Initialize as recursive to allow multiple locks in a single thread
+    pthread_mutexattr_t mutexattr;
+    pthread_mutexattr_init(&mutexattr);
+    pthread_mutexattr_settype(&mutexattr, PTHREAD_MUTEX_RECURSIVE);
+	pthread_mutex_init(&mutex, &mutexattr);
+
     globalreg = in_globalreg;
 
     shared_ptr<EntryTracker> entrytracker = 
@@ -41,10 +47,14 @@ StreamTracker::StreamTracker(GlobalRegistry *in_globalreg) :
 }
 
 StreamTracker::~StreamTracker() {
+    local_eol_locker lock(&mutex);
 
+    pthread_mutex_destroy(&mutex);
 }
 
 bool StreamTracker::Httpd_VerifyPath(const char *path, const char *method) {
+    local_locker lock(&mutex);
+
     if (strcmp(method, "GET") != 0) 
         return false;
 
@@ -57,7 +67,7 @@ bool StreamTracker::Httpd_VerifyPath(const char *path, const char *method) {
         return true;
     }
 
-    vector<string> tokenurl = StrTokenize(path, "/");
+    vector<string> tokenurl = StrTokenize(stripped, "/");
 
     // /streams/by-id/[NUM]/stream_info
     // /streams/by-id/[NUM]/close_stream
@@ -93,6 +103,8 @@ void StreamTracker::Httpd_CreateStreamResponse(
         const char *path, const char *method, const char *upload_data,
         size_t *upload_data_size, std::stringstream &stream) {
 
+    local_locker lock(&mutex);
+
     if (strcmp(method, "GET") != 0) {
         return;
     }
@@ -114,7 +126,7 @@ void StreamTracker::Httpd_CreateStreamResponse(
         return;
     }
 
-    vector<string> tokenurl = StrTokenize(path, "/");
+    vector<string> tokenurl = StrTokenize(stripped, "/");
 
     // /streams/by-id/[NUM]/stream_info
     // /streams/by-id/[NUM]/close_stream
@@ -153,7 +165,40 @@ void StreamTracker::Httpd_CreateStreamResponse(
 
         ir->get_agent()->stop_stream("stream closed from web");
 
+        stream << "OK";
+
         return;
     }
+}
+
+void StreamTracker::register_streamer(streaming_agent *in_agent,
+        string in_name, string in_type, string in_path, string in_description) {
+
+    local_locker lock(&mutex);
+
+    shared_ptr<streaming_info_record> streamrec = 
+        static_pointer_cast<streaming_info_record>(info_builder->clone_type());
+
+    streamrec->set_agent(in_agent);
+    in_agent->set_stream_id(next_stream_id++);
+
+    streamrec->set_log_name(in_name);
+    streamrec->set_log_type(in_type);
+    streamrec->set_log_path(in_path);
+    streamrec->set_log_description(in_description);
+
+    TrackerElementDoubleMap::pair p(in_agent->get_stream_id(), streamrec);
+    stream_map.insert(p);
+}
+
+void StreamTracker::remove_streamer(double in_id) {
+    local_locker lock(&mutex);
+
+    auto si = stream_map.find(in_id);
+
+    if (si == stream_map.end())
+        return;
+
+    stream_map.erase(si);
 }
 
