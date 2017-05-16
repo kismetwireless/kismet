@@ -43,11 +43,11 @@ public:
     uint64_t get_log_size() { return log_size; }
     uint64_t get_log_packets() { return log_packets; }
 
-    uint64_t get_stream_id() { return stream_id; }
-    void set_stream_id(uint64_t id) { stream_id = id; }
+    double get_stream_id() { return stream_id; }
+    void set_stream_id(double id) { stream_id = id; }
 
 protected:
-    uint64_t stream_id;
+    double stream_id;
     uint64_t log_size;
     uint64_t log_packets;
 };
@@ -168,10 +168,12 @@ protected:
     GlobalRegistry *globalreg;
 
     SharedTrackerElement tracked_stream_map;
-    TrackerElementMap stream_map;
+    TrackerElementDoubleMap stream_map;
 
     shared_ptr<streaming_info_record> info_builder;
     int info_builder_id;
+
+    double next_stream_id;
 };
 
 #endif

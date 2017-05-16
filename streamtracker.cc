@@ -34,6 +34,10 @@ StreamTracker::StreamTracker(GlobalRegistry *in_globalreg) :
     info_builder_id = entrytracker->RegisterField("kismet.stream.stream",
             info_builder, "Export stream");
 
+    tracked_stream_map.reset(new TrackerElement(TrackerDoubleMap));
+    stream_map = TrackerElementDoubleMap(tracked_stream_map);
+
+    next_stream_id = 1;
 }
 
 StreamTracker::~StreamTracker() {
@@ -67,7 +71,7 @@ bool StreamTracker::Httpd_VerifyPath(const char *path, const char *method) {
     if (tokenurl[2] != "by-id")
         return false;
 
-    uint64_t sid;
+    double sid;
     std::stringstream ss(tokenurl[3]);
     ss >> sid;
 

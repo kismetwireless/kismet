@@ -99,6 +99,8 @@
 #include "msgpack_adapter.h"
 #include "json_adapter.h"
 
+#include "streamtracker.h"
+
 #ifndef exec_name
 char *exec_name;
 #endif
@@ -868,6 +870,9 @@ int main(int argc, char *argv[], char *envp[]) {
     // Create the packet chain
     _MSG("Creating packet chain...", MSGFLAG_INFO);
     Packetchain::create_packetchain(globalregistry);
+
+    // Create the stream tracking
+    StreamTracker::create_streamtracker(globalregistry);
 
     // Add the messagebus REST interface
     RestMessageClient::create_messageclient(globalregistry);
