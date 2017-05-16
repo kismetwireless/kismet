@@ -124,6 +124,8 @@ void Phy_80211_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
     if ((dev = devicetracker->FetchDevice(dmac, dot11phy->FetchPhyId())) == NULL)
         return;
 
+    shared_ptr<StreamTracker> streamtracker =
+        static_pointer_cast<StreamTracker>(http_globalreg->FetchGlobal("STREAMTRACKER"));
     shared_ptr<Packetchain> packetchain = 
         static_pointer_cast<Packetchain>(http_globalreg->FetchGlobal("PACKETCHAIN"));
     int pack_comp_dot11 = packetchain->RegisterPacketComponent("PHY80211");
@@ -149,9 +151,16 @@ void Phy_80211_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
                 return false;
             }, NULL);
 
-    saux->set_aux(psrb, [](Kis_Net_Httpd_Ringbuf_Stream_Aux *aux) {
-            if (aux->aux != NULL)
+    saux->set_aux(psrb, 
+        [psrb, streamtracker](Kis_Net_Httpd_Ringbuf_Stream_Aux *aux) {
+            streamtracker->remove_streamer(psrb->get_stream_id());
+            if (aux->aux != NULL) {
                 delete (Kis_Net_Httpd_Ringbuf_Stream_Aux *) (aux->aux);
-            });
+            }
+        });
+
+    streamtracker->register_streamer(psrb, "phy80211-" + dmac.Mac2String() + " .pcapng",
+            "pcapng", "httpd", 
+            "pcapng of all packets on phy80211 BSSID " + dmac.Mac2String());
 }
 

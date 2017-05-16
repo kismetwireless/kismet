@@ -98,9 +98,9 @@ void Devicetracker_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
     std::stringstream ss(tokenurl[3]);
     ss >> key;
 
-    if (devicetracker->FetchDevice(key) == NULL)
+    shared_ptr<kis_tracked_device_base> dev = devicetracker->FetchDevice(key);
+    if (dev == NULL)
         return;
-
 
     if (!httpd->HasValidSession(connection)) {
         connection->httpcode = 503;
@@ -128,10 +128,20 @@ void Devicetracker_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
                 return false;
             }, NULL);
 
-    saux->set_aux(psrb, [](Kis_Net_Httpd_Ringbuf_Stream_Aux *aux) {
-            if (aux->aux != NULL)
+    shared_ptr<StreamTracker> streamtracker =
+        static_pointer_cast<StreamTracker>(http_globalreg->FetchGlobal("STREAMTRACKER"));
+
+    saux->set_aux(psrb, 
+        [psrb, streamtracker](Kis_Net_Httpd_Ringbuf_Stream_Aux *aux) {
+            streamtracker->remove_streamer(psrb->get_stream_id());
+            if (aux->aux != NULL) {
                 delete (Kis_Net_Httpd_Ringbuf_Stream_Aux *) (aux->aux);
-            });
+            }
+        });
+
+    streamtracker->register_streamer(psrb, dev->get_macaddr().Mac2String() + ".pcapng",
+            "pcapng", "httpd", 
+            "pcapng of all packets for device " + dev->get_macaddr().Mac2String());
 
 }
 

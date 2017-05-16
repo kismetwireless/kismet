@@ -1469,6 +1469,7 @@ void Datasourcetracker_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *htt
 
     shared_ptr<StreamTracker> streamtracker =
         static_pointer_cast<StreamTracker>(http_globalreg->FetchGlobal("STREAMTRACKER"));
+
     if (strcmp(url, "/pcap/all_packets.pcapng") == 0 ||
             strcmp(url, "/datasource/pcap/all_sources.pcapng") == 0) {
         if (!httpd->HasValidSession(connection)) {
@@ -1559,10 +1560,19 @@ void Datasourcetracker_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *htt
                         }, NULL);
 
 
-                saux->set_aux(psrb, [](Kis_Net_Httpd_Ringbuf_Stream_Aux *aux) {
-                        if (aux->aux != NULL)
-                        delete (Kis_Net_Httpd_Ringbuf_Stream_Aux *) (aux->aux);
-                        });
+                saux->set_aux(psrb, 
+                    [psrb, streamtracker](Kis_Net_Httpd_Ringbuf_Stream_Aux *aux) {
+                        streamtracker->remove_streamer(psrb->get_stream_id());
+                        if (aux->aux != NULL) {
+                            delete (Kis_Net_Httpd_Ringbuf_Stream_Aux *) (aux->aux);
+                        }
+                    });
+
+                streamtracker->register_streamer(psrb, 
+                        ds->get_source_name() + ".pcapng",
+                        "pcapng", "httpd", 
+                        "pcapng of " + ds->get_source_name() + " (" + 
+                        ds->get_source_cap_interface());
 
             }
         }
