@@ -437,11 +437,27 @@ Returns a stream in pcap-ng format of all packets, from all interfaces, associat
 
 This URI will stream indefinitely as packets are received.
 
+## Streams
+
+A Kismet stream is any continually exporting entity - it can be a pcap file logged to disk, other disk logs, or logs streaming over the web interface.
+
+##### /streams/all_streams `/streams/all_streams.msgpack`, `/streams/all_streams.json`
+
+Returns a vector of all active Kismet streams.
+
+##### /streams/by-id/[id]/stream_info `/streams/by-id/[id]/stream_info.msgpack`, `/streams/by-id/[id]/stream_info.json`
+
+Returns information about a specific stream, indicated by `[id]`
+
+##### /streams/by-id/[id]/close_stream.cmd
+
+*LOGIN REQUIRED*
+
+Closes the stream (ending the log) specified by `[id]`
+
 ## 802.11 Specific
 
 ##### POST /phy/phy80211/ssid_regex `/phy/phy80211/ssid_regex.cmd`, `/phy/phy80211/ssid_regex.jcmd`
-
-*LOGIN _NOT_ REQUIRED*
 
 Retrieve an array of device summaries based on the supplied PCRE-compatible regular expression.  Devices are matched on advertised SSIDs or probe response SSIDs.
 

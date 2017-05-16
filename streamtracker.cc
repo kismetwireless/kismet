@@ -99,7 +99,14 @@ void StreamTracker::Httpd_CreateStreamResponse(
     string stripped = httpd->StripSuffix(path);
 
     if (stripped == "/streams/all_streams") {
-        Httpd_Serialize(path, stream, tracked_stream_map);
+        SharedTrackerElement outvec(new TrackerElement(TrackerVector));
+        TrackerElementVector outv(outvec);
+
+        for (auto si = stream_map.begin(); si != stream_map.end(); ++si) {
+            outv.push_back(si->second);
+        }
+
+        Httpd_Serialize(path, stream, outvec);
         return;
     }
 
