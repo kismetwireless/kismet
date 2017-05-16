@@ -16,8 +16,8 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#ifndef __STREAMTRACKER_V2_H__
-#define __STREAMTRACKER_V2_H__
+#ifndef __STREAMTRACKER_H__
+#define __STREAMTRACKER_H__
 
 #include "config.hpp"
 
@@ -78,6 +78,14 @@ public:
     __Proxy(log_packets, uint64_t, uint64_t, uint64_t, log_packets);
     __Proxy(log_size, uint64_t, uint64_t, uint64_t, log_size);
 
+    void set_agent(shared_ptr<streaming_agent> in_agent) {
+        agent = in_agent;
+    }
+
+    shared_ptr<streaming_agent> get_agent() {
+        return agent;
+    }
+
     virtual void pre_serialize() {
         // Due to other semantics it doesn't make sense to try to make the agent
         // itself a trackable component, we'll just grab it's data out when we're
@@ -131,6 +139,39 @@ protected:
     SharedTrackerElement log_size;
 
     shared_ptr<streaming_agent> agent;
+};
+
+class StreamTracker : public Kis_Net_Httpd_CPPStream_Handler, public LifetimeGlobal {
+public:
+    static shared_ptr<StreamTracker> create_streamtracker(GlobalRegistry *in_globalreg) {
+        shared_ptr<StreamTracker> mon(new StreamTracker(in_globalreg));
+        in_globalreg->RegisterLifetimeGlobal(mon);
+        in_globalreg->InsertGlobal("STREAMTRACKER", mon);
+        return mon;
+    }
+
+private:
+    StreamTracker(GlobalRegistry *in_globalreg);
+
+public:
+    virtual ~StreamTracker();
+
+    // HTTP API
+    virtual bool Httpd_VerifyPath(const char *path, const char *method);
+
+    virtual void Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
+            Kis_Net_Httpd_Connection *connection,
+            const char *url, const char *method, const char *upload_data,
+            size_t *upload_data_size, std::stringstream &stream);
+   
+protected:
+    GlobalRegistry *globalreg;
+
+    SharedTrackerElement tracked_stream_map;
+    TrackerElementMap stream_map;
+
+    shared_ptr<streaming_info_record> info_builder;
+    int info_builder_id;
 };
 
 #endif
