@@ -499,7 +499,7 @@ void Alertracker::Httpd_CreateStreamResponse(
             wrapper->add_map(msgvec);
 
             SharedTrackerElement ts(globalreg->entrytracker->GetTrackedInstance(alert_timestamp_id));
-            ts->set((uint64_t) globalreg->timestamp.tv_sec);
+            ts->set((uint64_t) time(0));
             wrapper->add_map(ts);
         } else {
             wrapper = msgvec;
@@ -507,7 +507,7 @@ void Alertracker::Httpd_CreateStreamResponse(
 
         for (vector<kis_alert_info *>::iterator i = alert_backlog.begin();
                 i != alert_backlog.end(); ++i) {
-            if (since_time <= (*i)->tm.tv_sec) {
+            if (since_time < (*i)->tm.tv_sec) {
                 shared_ptr<tracked_alert> ta(new tracked_alert(globalreg, alert_entry_id));
                 ta->from_alert_info(*i);
                 msgvec->add_vector(ta);
