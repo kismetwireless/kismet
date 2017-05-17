@@ -247,7 +247,7 @@ int Alertracker::RaiseAlert(int in_ref, kis_packet *in_pack,
 	// Increment and set the timers
     arec->inc_burst_sent(1);
     arec->inc_total_sent(1);
-    arec->set_time_last(time(0));
+    arec->set_time_last(info->tm.tv_sec);
 
 	alert_backlog.push_back(info);
 	if ((int) alert_backlog.size() > num_backlog) {
@@ -507,7 +507,7 @@ void Alertracker::Httpd_CreateStreamResponse(
 
         for (vector<kis_alert_info *>::iterator i = alert_backlog.begin();
                 i != alert_backlog.end(); ++i) {
-            if (since_time < (*i)->tm.tv_sec) {
+            if (since_time <= (*i)->tm.tv_sec) {
                 shared_ptr<tracked_alert> ta(new tracked_alert(globalreg, alert_entry_id));
                 ta->from_alert_info(*i);
                 msgvec->add_vector(ta);
