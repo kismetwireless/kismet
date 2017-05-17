@@ -454,6 +454,10 @@ void Pcap_Stream_Ringbuf::handle_chain_packet(kis_packet *in_packet) {
     if (accept_cb != NULL && accept_cb(in_packet) == false)
         return;
 
+    // If we're paused, ignore packets
+    if (get_stream_paused())
+        return;
+
     // If we have a selector filter, use it to get the data chunk, otherwise
     // use the linkframe
     if (selector_cb != NULL) {
@@ -470,6 +474,11 @@ void Pcap_Stream_Ringbuf::handle_chain_packet(kis_packet *in_packet) {
     pcapng_write_packet(in_packet, target_datachunk);
 
     log_packets++;
+
+    // Bail if this pushes us over the max
+    if (check_over_size() || check_over_packets()) {
+        handler->ProtocolError();
+    }
 }
 
 

@@ -34,6 +34,9 @@ public:
         stream_id = 0;
         log_packets = 0;
         log_size = 0;
+        max_size = 0;
+        max_packets = 0;
+        stream_paused = false;
     }
 
     virtual ~streaming_agent() { };
@@ -43,13 +46,36 @@ public:
     uint64_t get_log_size() { return log_size; }
     uint64_t get_log_packets() { return log_packets; }
 
+    void set_max_size(uint64_t in_sz) { max_size = in_sz; }
+    uint64_t get_max_size() { return max_size; }
+
+    void set_max_packets(uint64_t in_pk) { max_packets = in_pk; }
+    uint64_t get_max_packets() { return max_packets; }
+
     double get_stream_id() { return stream_id; }
     void set_stream_id(double id) { stream_id = id; }
+
+    virtual bool check_over_size() { 
+        return (max_size != 0 && log_size > max_size); 
+    }
+
+    virtual bool check_over_packets() { 
+        return (max_packets != 0 && log_packets > max_packets); 
+    }
+
+    virtual bool get_stream_paused() { return stream_paused; }
+    virtual void pause_stream() { stream_paused = true; }
+    virtual void resume_stream() { stream_paused = false; }
 
 protected:
     double stream_id;
     uint64_t log_size;
     uint64_t log_packets;
+
+    uint64_t max_size;
+    uint64_t max_packets;
+
+    bool stream_paused;
 };
 
 class streaming_info_record : public tracker_component {
@@ -80,6 +106,11 @@ public:
     __Proxy(log_packets, uint64_t, uint64_t, uint64_t, log_packets);
     __Proxy(log_size, uint64_t, uint64_t, uint64_t, log_size);
 
+    __Proxy(max_packets, uint64_t, uint64_t, uint64_t, max_packets);
+    __Proxy(max_size, uint64_t, uint64_t, uint64_t, max_size);
+
+    __Proxy(log_paused, uint8_t, bool, bool, log_paused);
+
     void set_agent(streaming_agent *in_agent) {
         agent = in_agent;
     }
@@ -96,6 +127,9 @@ public:
             set_stream_id(agent->get_stream_id());
             set_log_packets(agent->get_log_packets());
             set_log_size(agent->get_log_size());
+            set_max_packets(agent->get_max_packets());
+            set_max_size(agent->get_max_size());
+            set_log_paused(agent->get_stream_paused());
         }
     }
 
@@ -124,6 +158,15 @@ protected:
 
         RegisterField("kismet.stream.size", TrackerUInt64,
                 "Size of log, if known, in bytes", &log_size);
+
+        RegisterField("kismet.stream.max_packets", TrackerUInt64,
+                "Maximum number of packets", &max_packets);
+
+        RegisterField("kismet.stream.max_size", TrackerUInt64,
+                "Maximum allowed size (bytes)", &max_size);
+
+        RegisterField("kismet.stream.paused", TrackerUInt8,
+                "Stream processing paused", &log_paused);
     }
 
     // Internal ID
@@ -146,6 +189,12 @@ protected:
 
     // Size of log, if known
     SharedTrackerElement log_size;
+
+    // Maximum values, if any
+    SharedTrackerElement max_size;
+    SharedTrackerElement max_packets;
+
+    SharedTrackerElement log_paused;
 
     streaming_agent *agent;
 };
