@@ -1023,3 +1023,12 @@ string kis_strerror_r(int errnum) {
 #endif
 }
 
+double ts_to_double(struct timeval ts) {
+    return (double) ts.tv_sec + (double) ((double) ts.tv_usec / (double) 1000000);
+}
+
+double ts_now_to_double() {
+    struct timeval ts;
+    gettimeofday(&ts, NULL);
+    return (double) ts.tv_sec + (double) ((double) ts.tv_usec / (double) 1000000);
+}

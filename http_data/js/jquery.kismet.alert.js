@@ -235,7 +235,7 @@
 
             // Have we got new alerts?
             if (data['kismet.alert.list'].length > 0) {
-                if (data['kismet.alert.list'][0]['kismet.alert.timestamp_sec'] > last_closed_time) {
+                if (data['kismet.alert.list'][0]['kismet.alert.timestamp'] > last_closed_time) {
                     alertbg.addClass('ka-top-bg-alert');
                 }
     
@@ -276,7 +276,7 @@
        
         // Are we showing all alerts, or do we have new ones?
         if (alert_list.length > 0 &&
-                alert_list[0]['kismet.alert.timestamp_sec'] > last_closed_time) {
+                alert_list[0]['kismet.alert.timestamp'] > last_closed_time) {
             $('div#ka-dialog-none', c).hide();
             $('div#ka-alert-list', c).show();
 
@@ -289,7 +289,7 @@
 
             for (var x = 0; x < alert_list.length; x++) {
                 // Stop when we get to old ones
-                if (alert_list[x]['kismet.alert.timestamp_sec'] <= last_closed_time) {
+                if (alert_list[x]['kismet.alert.timestamp'] <= last_closed_time) {
                     // Set the text to 'show all'
                     $('a#ka-alert-show-all', c).text("Show all previous alerts...");
                     break;
@@ -297,7 +297,7 @@
 
                 var d = divs.eq(x);
 
-                var ds = (new Date(alert_list[x]['kismet.alert.timestamp_sec'] * 1000).toString()).substring(4, 25);
+                var ds = (new Date(alert_list[x]['kismet.alert.timestamp'] * 1000).toString()).substring(4, 25);
 
                 // Build the content of each alert line
                 d.append(

@@ -76,7 +76,7 @@ Alertracker::Alertracker(GlobalRegistry *in_globalreg) :
                 TrackerVector, "list of alerts");
     alert_timestamp_id =
         entrytracker->RegisterField("kismet.alert.timestamp",
-                TrackerUInt64, "alert update timestamp");
+                TrackerDouble, "alert update timestamp");
 
     shared_ptr<tracked_alert> alert_builder(new tracked_alert(globalreg, 0));
     alert_entry_id =
@@ -247,7 +247,7 @@ int Alertracker::RaiseAlert(int in_ref, kis_packet *in_pack,
 	// Increment and set the timers
     arec->inc_burst_sent(1);
     arec->inc_total_sent(1);
-    arec->set_time_last(info->tm.tv_sec);
+    arec->set_time_last(ts_to_double(info->tm));
 
 	alert_backlog.push_back(info);
 	if ((int) alert_backlog.size() > num_backlog) {
@@ -454,7 +454,7 @@ void Alertracker::Httpd_CreateStreamResponse(
         const char *path, const char *method, const char *upload_data,
         size_t *upload_data_size, std::stringstream &stream) {
 
-    time_t since_time = 0;
+    double since_time = 0;
     bool wrap = false;
 
     if (strcmp(method, "GET") != 0) {
@@ -477,13 +477,10 @@ void Alertracker::Httpd_CreateStreamResponse(
             if (tokenurl.size() < 5)
                 return;
 
-            long lastts;
-            if (sscanf(tokenurl[3].c_str(), "%ld", &lastts) != 1)
-                return;
+            std::stringstream ss(tokenurl[3]);
+            ss >> since_time;
 
             wrap = true;
-
-            since_time = lastts;
         }
     }
 
@@ -499,7 +496,7 @@ void Alertracker::Httpd_CreateStreamResponse(
             wrapper->add_map(msgvec);
 
             SharedTrackerElement ts(globalreg->entrytracker->GetTrackedInstance(alert_timestamp_id));
-            ts->set((uint64_t) time(0));
+            ts->set((double) ts_now_to_double());
             wrapper->add_map(ts);
         } else {
             wrapper = msgvec;
@@ -507,7 +504,7 @@ void Alertracker::Httpd_CreateStreamResponse(
 
         for (vector<kis_alert_info *>::iterator i = alert_backlog.begin();
                 i != alert_backlog.end(); ++i) {
-            if (since_time < (*i)->tm.tv_sec) {
+            if (since_time < ts_to_double((*i)->tm)) {
                 shared_ptr<tracked_alert> ta(new tracked_alert(globalreg, alert_entry_id));
                 ta->from_alert_info(*i);
                 msgvec->add_vector(ta);

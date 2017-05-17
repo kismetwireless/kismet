@@ -251,7 +251,9 @@ List of the alert backlog.  The size of the backlog is configurable via the `ale
 
 ##### /alerts/last-time[TS]/alerts `/alerts/last-time/[TS]/alerts.msgpack`, `/alerts/last-time/[TS]/alerts.json`
 
-Dictionary containing a list of alerts since Kismet timestamp `[TS]`, and a timestamp record indicating the time of this report.  This can be used to fetch only new alerts since the last time alerts were requested.
+Dictionary containing a list of alerts since Kismet double-precision timestamp `[TS]`, and a timestamp record indicating the time of this report.  This can be used to fetch only new alerts since the last time alerts were requested.
+
+Double-precision timestamps include the microseconds in the decimal value.  A pure second-precision timestamp may be provided, but could cause some alerts to be missed if they occurred in the fraction of the second after the request.
 
 ##### POST /alerts/definitions/define_alert.cmd
 

@@ -50,6 +50,8 @@
 #include <mutex>
 #include <condition_variable>
 
+#include <sys/time.h>
+
 #include <pthread.h> 
 
 // ieee float struct for a 64bit float for serialization
@@ -398,6 +400,8 @@ struct membuf : std::streambuf {
 	char *begin, *end;
 };
 
+double ts_to_double(struct timeval ts);
+double ts_now_to_double();
 
 #endif
 

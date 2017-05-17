@@ -99,13 +99,7 @@ public:
 
     __Proxy(header, string, string, string, header);
     __Proxy(phy, uint32_t, uint32_t, uint32_t, phy);
-    __Proxy(timestamp_sec, uint64_t, uint64_t, uint64_t, timestamp_sec);
-    __Proxy(timestamp_usec, uint64_t, uint64_t, uint64_t, timestamp_usec);
-
-    void set_timestamp(struct timeval tv) {
-        set_timestamp_sec(tv.tv_sec);
-        set_timestamp_usec(tv.tv_usec);
-    }
+    __Proxy(timestamp, double, double, double, timestamp);
 
     __Proxy(transmitter_mac, mac_addr, mac_addr, mac_addr, transmitter_mac);
     __Proxy(source_mac, mac_addr, mac_addr, mac_addr, source_mac);
@@ -121,7 +115,7 @@ public:
         set_device_key(info->device_key);
         set_header(info->header);
         set_phy(info->phy);
-        set_timestamp(info->tm);
+        set_timestamp(ts_to_double(info->tm));
         set_transmitter_mac(info->bssid);
         set_source_mac(info->source);
         set_dest_mac(info->dest);
@@ -143,11 +137,8 @@ protected:
         RegisterField("kismet.alert.phy_id", TrackerUInt32,
                 "ID of phy generating alert", &phy);
 
-        RegisterField("kismet.alert.timestamp_sec", TrackerUInt64,
-                "Timestamp (second component)", &timestamp_sec);
-
-        RegisterField("kismet.alert.timestamp_usec", TrackerUInt64,
-                "Timestmap (microsecond component)", &timestamp_usec);
+        RegisterField("kismet.alert.timestamp", TrackerDouble,
+                "Timestamp (sec.ms)", &timestamp);
 
         RegisterField("kismet.alert.transmitter_mac", TrackerMac,
                 "Transmitter MAC address", &transmitter_mac);
@@ -174,8 +165,7 @@ protected:
     SharedTrackerElement device_key;
     SharedTrackerElement header;
     SharedTrackerElement phy;
-    SharedTrackerElement timestamp_sec;
-    SharedTrackerElement timestamp_usec;
+    SharedTrackerElement timestamp;
     SharedTrackerElement transmitter_mac;
     SharedTrackerElement source_mac;
     SharedTrackerElement dest_mac;
@@ -229,7 +219,7 @@ public:
     __Proxy(total_sent, uint64_t, uint64_t, uint64_t, total_sent);
     __ProxyIncDec(total_sent, uint64_t, uint64_t, total_sent);
 
-    __Proxy(time_last, uint64_t, time_t, time_t, time_last);
+    __Proxy(time_last, double, double, double, time_last);
 
     int get_alert_ref() { return alert_ref; }
     void set_alert_ref(int in_ref) { alert_ref = in_ref; }
@@ -265,8 +255,8 @@ protected:
         RegisterField("kismet.alert.definition.total_sent", TrackerUInt64,
                 "Total alerts sent", &total_sent);
 
-        RegisterField("kismet.alert.definition.time_last", TrackerUInt64,
-                "Timestamp of last alert (unix ts)", &time_last);
+        RegisterField("kismet.alert.definition.time_last", TrackerDouble,
+                "Timestamp of last alert (sec.us)", &time_last);
 
     }
 
