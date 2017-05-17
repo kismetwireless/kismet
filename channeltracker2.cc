@@ -50,7 +50,7 @@ Channeltracker_V2::Channeltracker_V2(GlobalRegistry *in_globalreg) :
 		globalreg->packetchain->RegisterPacketComponent("RADIODATA");
 
     struct timeval trigger_tm;
-    trigger_tm.tv_sec = globalreg->timestamp.tv_sec + 1;
+    trigger_tm.tv_sec = time(0) + 1;
     trigger_tm.tv_usec = 0;
 
     timer_id = 
@@ -130,6 +130,7 @@ public:
             Channeltracker_V2 *channelv2) {
         globalreg = in_globalreg;
         this->channelv2 = channelv2;
+        stime = time(0);
     }
 
     virtual ~channeltracker_v2_device_worker() {
@@ -143,8 +144,7 @@ public:
         if (device == NULL)
             return;
 
-        if (device->get_last_time() < globalreg->timestamp.tv_sec - 
-                channelv2->device_decay)
+        if (device->get_last_time() < stime - channelv2->device_decay)
             return;
 
         if (device->get_frequency() == 0)
@@ -171,6 +171,8 @@ protected:
 
     map<double, unsigned int> device_count;
 
+    time_t stime;
+
 };
 
 
@@ -182,7 +184,7 @@ int Channeltracker_V2::timetracker_event(int event_id __attribute__((unused))) {
 
     // Reschedule
     struct timeval trigger_tm;
-    trigger_tm.tv_sec = globalreg->timestamp.tv_sec + 1;
+    trigger_tm.tv_sec = time(0) + 1;
     trigger_tm.tv_usec = 0;
 
     timer_id = 
@@ -193,7 +195,7 @@ int Channeltracker_V2::timetracker_event(int event_id __attribute__((unused))) {
 
 void Channeltracker_V2::update_device_counts(map<double, unsigned int> in_counts) {
     local_locker locker(&lock);
-    time_t ts = globalreg->timestamp.tv_sec;
+    time_t ts = time(0);
 
     for (map<double, unsigned int>::iterator i = in_counts.begin();
             i != in_counts.end(); ++i) {
@@ -261,14 +263,15 @@ int Channeltracker_V2::PacketChainHandler(CHAINCALL_PARMS) {
     if (freq_channel == NULL && chan_channel == NULL)
         return 1;
 
+    time_t stime = time(0);
+
     if (freq_channel) {
         (*(freq_channel->get_signal_data())) += *(l1info);
-        freq_channel->get_packets_rrd()->add_sample(1, 
-                cv2->globalreg->timestamp.tv_sec);
+        freq_channel->get_packets_rrd()->add_sample(1, stime);
 
         if (common != NULL) {
-            freq_channel->get_data_rrd()->add_sample(common->datasize,
-                    cv2->globalreg->timestamp.tv_sec);
+            freq_channel->get_data_rrd()->add_sample(common->datasize, stime);
+
             /*
             freq_channel->seen_device_map[common->device] = true;
             */
@@ -278,12 +281,10 @@ int Channeltracker_V2::PacketChainHandler(CHAINCALL_PARMS) {
 
     if (chan_channel) {
         (*(chan_channel->get_signal_data())) += *(l1info);
-        chan_channel->get_packets_rrd()->add_sample(1, 
-                cv2->globalreg->timestamp.tv_sec);
+        chan_channel->get_packets_rrd()->add_sample(1, stime);
 
         if (common != NULL) {
-            chan_channel->get_data_rrd()->add_sample(common->datasize,
-                    cv2->globalreg->timestamp.tv_sec);
+            chan_channel->get_data_rrd()->add_sample(common->datasize, stime);
         }
 
         /*
