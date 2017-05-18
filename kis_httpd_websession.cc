@@ -75,10 +75,9 @@ bool Kis_Httpd_Websession::Httpd_VerifyPath(const char *path, const char *method
     if (strcmp(method, "GET") != 0)
         return false;
 
-    if (strcmp(path, "/session/create_session") == 0)
-        return true;
+    string stripped = Httpd_StripSuffix(path);
 
-    if (strcmp(path, "/session/check_session") == 0)
+    if (stripped == "/session/check_session")
         return true;
 
     return false;
@@ -93,8 +92,10 @@ void Kis_Httpd_Websession::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
         return;
     }
 
-    if (strcmp(url, "/session/check_session") == 0) {
-        if (httpd->HasValidSession(connection)) {
+    string stripped = Httpd_StripSuffix(url);
+
+    if (stripped == "/session/check_session") {
+        if (httpd->HasValidSession(connection, true)) {
             stream << "Valid session";
         }
     }

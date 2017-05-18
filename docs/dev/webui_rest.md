@@ -217,10 +217,6 @@ Array of all PHY types and statistics
 
 ## Sessions and Logins
 
-##### `/session/create_session`
-
-Initiate a login via HTTP Basic Auth
-
 ##### `/session/check_session`
 
 Return if a login session is valid

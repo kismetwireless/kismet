@@ -850,13 +850,17 @@ int Kis_Net_Httpd_CPPStream_Handler::Httpd_HandleGetRequest(Kis_Net_Httpd *httpd
     Httpd_CreateStreamResponse(httpd, connection, url, method, upload_data,
             upload_data_size, stream);
 
-    connection->response = 
-        MHD_create_response_from_buffer(stream.str().length(),
-                (void *) stream.str().data(), MHD_RESPMEM_MUST_COPY);
+    if (connection->response == NULL) {
+        connection->response = 
+            MHD_create_response_from_buffer(stream.str().length(),
+                    (void *) stream.str().data(), MHD_RESPMEM_MUST_COPY);
 
-    ret = httpd->SendStandardHttpResponse(httpd, connection, url);
+        ret = httpd->SendStandardHttpResponse(httpd, connection, url);
+
+        return ret;
+    }
     
-    return ret;
+    return MHD_YES;
 }
 
 int Kis_Net_Httpd_CPPStream_Handler::Httpd_HandlePostRequest(Kis_Net_Httpd *httpd, 
@@ -867,12 +871,16 @@ int Kis_Net_Httpd_CPPStream_Handler::Httpd_HandlePostRequest(Kis_Net_Httpd *http
     // Call the post complete and populate our stream
     Httpd_PostComplete(connection);
 
-    connection->response = 
-        MHD_create_response_from_buffer(connection->response_stream.str().length(),
-                (void *) connection->response_stream.str().data(), 
-                MHD_RESPMEM_MUST_COPY);
+    if (connection->response == NULL) {
+        connection->response = 
+            MHD_create_response_from_buffer(connection->response_stream.str().length(),
+                    (void *) connection->response_stream.str().data(), 
+                    MHD_RESPMEM_MUST_COPY);
 
-    return httpd->SendStandardHttpResponse(httpd, connection, url);
+        return httpd->SendStandardHttpResponse(httpd, connection, url);
+    } 
+
+    return MHD_YES;
 }
 
 
@@ -933,6 +941,7 @@ bool Kis_Net_Httpd::HasValidSession(Kis_Net_Httpd_Connection *connection,
             MHD_create_response_from_buffer(respstr.length(),
                     (void *) respstr.c_str(), MHD_RESPMEM_MUST_COPY);
 
+        fprintf(stderr, "queue response fail\n");
         MHD_queue_basic_auth_fail_response(connection->connection,
                 "Kismet Admin", connection->response);
     }
@@ -1139,12 +1148,15 @@ int Kis_Net_Httpd_Ringbuf_Stream_Handler::Httpd_HandleGetRequest(Kis_Net_Httpd *
     Httpd_CreateStreamResponse(httpd, connection, url, method, upload_data,
             upload_data_size);
 
-    connection->response = 
-        MHD_create_response_from_callback(MHD_SIZE_UNKNOWN, 32 * 1024,
-            &ringbuf_event_cb, aux, &free_ringbuf_aux_callback);
+    if (connection->response == NULL) {
+        connection->response = 
+            MHD_create_response_from_callback(MHD_SIZE_UNKNOWN, 32 * 1024,
+                    &ringbuf_event_cb, aux, &free_ringbuf_aux_callback);
 
-    return httpd->SendStandardHttpResponse(httpd, connection, url);
+        return httpd->SendStandardHttpResponse(httpd, connection, url);
+    }
 
+    return MHD_YES;
 }
 
 int Kis_Net_Httpd_Ringbuf_Stream_Handler::Httpd_HandlePostRequest(Kis_Net_Httpd *httpd,
