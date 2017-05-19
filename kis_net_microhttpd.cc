@@ -941,7 +941,6 @@ bool Kis_Net_Httpd::HasValidSession(Kis_Net_Httpd_Connection *connection,
             MHD_create_response_from_buffer(respstr.length(),
                     (void *) respstr.c_str(), MHD_RESPMEM_MUST_COPY);
 
-        fprintf(stderr, "queue response fail\n");
         MHD_queue_basic_auth_fail_response(connection->connection,
                 "Kismet Admin", connection->response);
     }
