@@ -129,6 +129,8 @@ int ConfigFile::SaveConfig(const char *in_fname) {
 
     stringstream sstream;
 
+    fprintf(stderr, "debug - saveconfig %s\n", in_fname);
+
 	FILE *wf = NULL;
 
 	if ((wf = fopen(in_fname, "w")) == NULL) {
@@ -139,10 +141,10 @@ int ConfigFile::SaveConfig(const char *in_fname) {
 		return -1;
 	}
 
-	for (map<string, vector<config_entity> >::iterator x = config_map.begin();
-		 x != config_map.end(); ++x) {
+	for (auto x = config_map.begin(); x != config_map.end(); ++x) {
 		for (unsigned int y = 0; y < x->second.size(); y++) {
 			fprintf(wf, "%s=%s\n", x->first.c_str(), x->second[y].value.c_str());
+			fprintf(stderr, "%s=%s\n", x->first.c_str(), x->second[y].value.c_str());
 		}
 	}
 
@@ -266,6 +268,7 @@ void ConfigFile::SetOpt(string in_key, string in_val, int in_dirty) {
 
     vector<config_entity> v;
     config_entity e(in_val, "::dynamic::");
+    v.push_back(e);
 	config_map[StrLower(in_key)] = v;
 	SetOptDirty_nl(in_key, in_dirty);
 }
