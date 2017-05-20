@@ -64,6 +64,10 @@ RestMessageClient::~RestMessageClient() {
 }
 
 void RestMessageClient::ProcessMessage(string in_msg, int in_flags) {
+    // Don't propagate LOCAL messages
+    if (in_flags & MSGFLAG_LOCAL)
+        return;
+
     shared_ptr<tracked_message> msg = 
         static_pointer_cast<tracked_message>(globalreg->entrytracker->GetTrackedInstance(message_entry_id));
 
