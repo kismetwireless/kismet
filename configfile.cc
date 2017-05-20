@@ -129,8 +129,6 @@ int ConfigFile::SaveConfig(const char *in_fname) {
 
     stringstream sstream;
 
-    fprintf(stderr, "debug - saveconfig %s\n", in_fname);
-
 	FILE *wf = NULL;
 
 	if ((wf = fopen(in_fname, "w")) == NULL) {
@@ -144,7 +142,6 @@ int ConfigFile::SaveConfig(const char *in_fname) {
 	for (auto x = config_map.begin(); x != config_map.end(); ++x) {
 		for (unsigned int y = 0; y < x->second.size(); y++) {
 			fprintf(wf, "%s=%s\n", x->first.c_str(), x->second[y].value.c_str());
-			fprintf(stderr, "%s=%s\n", x->first.c_str(), x->second[y].value.c_str());
 		}
 	}
 
