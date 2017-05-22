@@ -31,6 +31,8 @@
 
 <script src="/js/js.storage.min.js"></script>
 
+<script src="/js/tooltipster.bundle.min.js"></script>
+
 <script src="/js/kismet.utils.js"></script>
 <script src="/js/kismet.ui.settings.js"></script>
 <script src="/js/kismet.ui.sidebar.js"></script>
@@ -44,6 +46,7 @@
 <script src="/js/jquery.kismet.channeldisplay.js"></script>
 <script src="/js/jquery.kismet.battery.js"></script>
 <script src="/js/jquery.kismet.alert.js"></script>
+<script src="/js/jquery.kismet.auth.js"></script>
 
 <link rel="stylesheet" href="/css/font-awesome.min.css">
 
@@ -56,10 +59,13 @@
 
 <link rel="stylesheet" type="text/css" href="/css/pushmenu.css" />
 
+<link rel="stylesheet" type="text/css" href="/css/tooltipster.bundle.min.css" />
+
 <link rel="stylesheet" href="/css/jquery.kismet.messagebus.css" />
 <link rel="stylesheet" href="/css/jquery.kismet.channeldisplay.css" />
 <link rel="stylesheet" href="/css/jquery.kismet.alert.css" />
 <link rel="stylesheet" href="/css/jquery.kismet.battery.css" />
+<link rel="stylesheet" href="/css/jquery.kismet.auth.css" />
 
 <link rel="stylesheet" type="text/css" href="css/reset.css" />
 <link rel="stylesheet" type="text/css" href="css/text.css" /> 
@@ -134,6 +140,7 @@ $(function() {
     kismet_ui.CreateDeviceTable($('#devices'));
 
     $('#topbar_alert').alert();
+    $('#topbar_login').loginwatcher();
     $('#topbar_battery').battery();
 
     kismet_ui.HealthCheck();
@@ -187,6 +194,7 @@ $(function() {
                     <i id="pm_open" class="fa fa-bars k-sb-hamburger"></i>
                     <div id="topbar_title">Kismet</div>
                     <div class="topright_holder">
+                        <div id="topbar_login"></div>
                         <div id="topbar_alert"></div>
                         <div id="topbar_battery"></div>
                     </div>
