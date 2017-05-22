@@ -44,7 +44,7 @@ var SettingsPanes = new Array();
  * priority: priority in list, lower is higher (optional)
  *
  * Settings panels should notify the when a setting is changed via
- * kismet_ui_sidbar.SettingsChanged()
+ * kismet_ui_settings.SettingsChanged()
  *
  */
 exports.AddSettingsPane = function(options) {
@@ -357,6 +357,17 @@ exports.ShowSettings = function(starter) {
     }
 
 };
+
+/* Add the settings sidebar */
+kismet_ui_sidebar.AddSidebarItem({
+    id: 'sidebar-settings',
+    listTitle: '<i class="fa fa-gear"></i> Settings',
+    priority: -100000,
+    clickCallback: function() {
+        exports.ShowSettings();
+    }
+});
+
 
 // We're done loading
 exports.load_complete = 1;

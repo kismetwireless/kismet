@@ -34,9 +34,9 @@
 <script src="/js/tooltipster.bundle.min.js"></script>
 
 <script src="/js/kismet.utils.js"></script>
-<script src="/js/kismet.ui.settings.js"></script>
 <script src="/js/kismet.ui.sidebar.js"></script>
 <script src="/js/kismet.ui.tabpane.js"></script>
+<script src="/js/kismet.ui.settings.js"></script>
 <script src="/js/kismet.ui.js"></script>
 
 <script src="/js/kismet.ui.base.js"></script>
@@ -145,11 +145,6 @@ $(function() {
 
     kismet_ui.HealthCheck();
 
-    $('#k-sb-settings').on('click', function() {
-        $('.pm_overlay').click();
-        kismet_ui_settings.ShowSettings();
-    });
-
     // Finalize the sidebar
     kismet_ui_sidebar.MakeSidebar($('.k-sb-main'));
 
@@ -179,12 +174,6 @@ $(function() {
             </div>
             <div class="k-sb-main">
             </div>
-            <div class="k-sb-footer">
-                <div id="k-sb-settings" class="k-sb-list-item">
-                    <i class="fa fa-gear"></i> Settings
-                </div>
-            </div>
-
         </div>
 
         <div id="panelcontainer">
