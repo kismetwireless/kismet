@@ -46,6 +46,8 @@ private:
 public:
     ~Kis_Httpd_Websession();
 
+    virtual void activate_config();
+
     virtual bool Httpd_VerifyPath(const char *path, const char *method);
 
     virtual void Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
@@ -53,14 +55,26 @@ public:
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size, std::stringstream &stream);
 
-    virtual void SetLogin(string in_username, string in_password);
+    virtual void set_login(string in_username, string in_password);
 
     // Live-check a session login
-    virtual bool CompareLogin(struct MHD_Connection *connection);
+    virtual bool validate_login(struct MHD_Connection *connection);
+
+    // Get current l/p
+    string get_username() { return conf_username; }
+    string get_password() { return conf_password; }
 
 protected:
+    bool activated; 
+
+    void userdir_login();
+
     GlobalRegistry *globalreg;
 
+    string user_httpd_config_file;
+    ConfigFile *user_httpd_config;
+
+    bool global_config;
     string conf_username;
     string conf_password;
 

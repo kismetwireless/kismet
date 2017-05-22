@@ -355,6 +355,8 @@ public:
     time_t session_lifetime;
 };
 
+class Kis_Httpd_Websession;
+
 class Kis_Net_Httpd : public LifetimeGlobal {
 public:
     static shared_ptr<Kis_Net_Httpd> create_httpd(GlobalRegistry *in_globalreg) {
@@ -377,6 +379,8 @@ public:
     bool HttpdRunning() { return running; }
     unsigned int FetchPort() { return http_port; };
     bool FetchUsingSSL() { return use_ssl; };
+
+    void RegisterSessionHandler(shared_ptr<Kis_Httpd_Websession> in_session);
 
     void RegisterHandler(Kis_Net_Httpd_Handler *in_handler);
     void RemoveHandler(Kis_Net_Httpd_Handler *in_handler);
@@ -468,6 +472,8 @@ protected:
     bool store_sessions;
     string sessiondb_file;
     ConfigFile *session_db;
+
+    shared_ptr<Kis_Httpd_Websession> websession;
 
 };
 

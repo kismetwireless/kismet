@@ -243,7 +243,7 @@ function checkClose(transfer = null) {
     }
 }
 
-exports.ShowSettings = function() {
+exports.ShowSettings = function(starter) {
     var w = $(window).width() * 0.75;
     var h = $(window).height() * 0.75;
 
@@ -268,7 +268,22 @@ exports.ShowSettings = function() {
             $('<div>', {
                 class: 'k-s-pane-content'
             })
-            .html("<h3>Kismet Settings</h3><p>Kismet UI settings are stored in your browsers local storage and are saved between uses.")
+            .append(
+                $('<h3>')
+                .html("Kismet Settings")
+            )
+            .append(
+                $('<p>')
+                .html('Kismet UI settings are stored in your browsers local storage, and are unique to each browser.')
+            )
+            .append(
+                $('<p>')
+                .html('To perform some actions (configuring data sources, downloading pcap files, and changing other server-side options), you need to be logged in.  Kismet generates a random password, which can be found in the file <code>~/.kismet/kismet_httpd.conf</code>.')
+            )
+            .append(
+                $('<p>')
+                .html('If you do not want to log in or are a guest on this server, you can still set local preferences and view device information.')
+            )
         )
         .append(
             $('<div>', {
@@ -329,6 +344,17 @@ exports.ShowSettings = function() {
         at: 'center',
         of: 'window',
     });
+
+    if (starter) {
+        for (var i in SettingsPanes) {
+            var c = SettingsPanes[i];
+
+            if (c.id == starter) {
+                clickSetting(c);
+                break;
+            }
+        }
+    }
 
 };
 

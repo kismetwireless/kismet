@@ -914,6 +914,7 @@ function memorydisplay_refresh() {
 
 // Settings options
 kismet_ui_settings.AddSettingsPane({
+    id: 'base_units_measurements',
     listTitle: 'Units &amp; Measurements',
     create: function(elem) {
         elem.append(
@@ -1079,6 +1080,7 @@ kismet_ui_settings.AddSettingsPane({
 });
 
 kismet_ui_settings.AddSettingsPane({
+    id: 'base_login_password',
     listTitle: 'Login &amp; Password',
     create: function(elem) {
         elem.append(
@@ -1095,14 +1097,15 @@ kismet_ui_settings.AddSettingsPane({
                 )
                 .append(
                     $('<p>')
-                    .html('Kismet requires a username and password for functionality which changes the server, such as adding interfaces or changing configuration.  The login info is defined in the kismet_httpd.conf file which is installed by default in /usr/local/etc/.')
+                    .html('Kismet requires a username and password for functionality which changes the server, such as adding interfaces or changing configuration.')
                 )
                 .append(
-                    $('<p>', {
-                        id: 'defaultwarning'
-                    })
-                    .html('<b>Warning</b>: You are using the <i>default Kismet login and password</i>.  This is a <i>bad idea</i> if your Kismet instance is exposed to the Internet, and we <i>strongly</i> recommend changing it.')
-                    .hide()
+                    $('<p>')
+                    .html('By default, the first time Kismet runs it generates a random password, which is stored in the file <code>~/.kismet/kismet_httpd.conf</code> in the home directory of the user running Kismet.  You will need this password to configure data sources, download pcap and other logs, or change server-side settings.')
+                )
+                .append(
+                    $('<p>')
+                    .html('If you are a guest on this server you may continue without entering an admin password, but you will not be able to perform some actions or view some data.')
                 )
                 .append(
                     $('<br>')
@@ -1132,11 +1135,78 @@ kismet_ui_settings.AddSettingsPane({
                         id: 'password'
                     })
                 )
+                .append(
+                    $('<span>', {
+                        id: 'pwsuccessdiv',
+                        style: 'padding-left: 5px',
+                    })
+                    .append(
+                        $('<i>', {
+                            id: 'pwsuccess',
+                            class: 'fa fa-refresh fa-spin',
+                        })
+                    )
+                    .append(
+                        $('<span>', {
+                            id: 'pwsuccesstext'
+                        })
+                    )
+                    .hide()
+                )
             )
         );
 
         $('#form', elem).on('change', function() {
             kismet_ui_settings.SettingsModified();
+        });
+
+        var checker_cb = function() {
+            // Cancel any pending timer
+            if (pw_check_tid > -1)
+                clearTimeout(pw_check_tid);
+
+            var checkerdiv = $('#pwsuccessdiv', elem);
+            var checker = $('#pwsuccess', checkerdiv);
+            var checkertext = $('#pwsuccesstext', checkerdiv);
+
+            checker.removeClass('fa-exclamation-circle');
+            checker.removeClass('fa-check-square');
+
+            checker.addClass('fa-spin');
+            checker.addClass('fa-refresh');
+            checkertext.text("  Checking...");
+
+            checkerdiv.show();
+
+            // Set a timer for a second from now to call the actual check 
+            // in case the user is still typing
+            pw_check_tid = setTimeout(function() {
+                exports.LoginCheck(function(success) {
+                    if (!success) {
+                        checker.removeClass('fa-check-square');
+                        checker.removeClass('fa-spin');
+                        checker.removeClass('fa-refresh');
+                        checker.addClass('fa-exclamation-circle');
+                        checkertext.text("  Invalid login");
+                    } else {
+                        checker.removeClass('fa-exclamation-circle');
+                        checker.removeClass('fa-spin');
+                        checker.removeClass('fa-refresh');
+                        checker.addClass('fa-check-square');
+                        checkertext.text("");
+                    }
+                }, $('#user', elem).val(), $('#password', elem).val());
+            }, 1000);
+        };
+
+        var pw_check_tid = -1;
+        jQuery('#password', elem).on('input propertychange paste', function() {
+            kismet_ui_settings.SettingsModified();
+            checker_cb();
+        });
+        jQuery('#user', elem).on('input propertychange paste', function() {
+            kismet_ui_settings.SettingsModified();
+            checker_cb();
         });
 
         $('#user', elem).val(kismet.getStorage('kismet.base.login.username', 'kismet'));
@@ -1148,6 +1218,9 @@ kismet_ui_settings.AddSettingsPane({
         }
 
         $('fs_login', elem).controlgroup();
+
+        // Check the current pw
+        checker_cb();
     },
     save: function(elem) {
         kismet.putStorage('kismet.base.login.username', $('#user', elem).val());
@@ -1473,6 +1546,219 @@ function devsignal_refresh(key, devsignal_panel, devsignal_chart,
     });
 };
 
+exports.login_error = false;
+exports.login_pending = false;
+
+exports.LoginCheck = function(cb, user, pw) {
+    user = user || kismet.getStorage('kismet.base.login.username', 'kismet');
+    pw = pw || kismet.getStorage('kismet.base.login.password', 'kismet');
+
+    $.ajax({
+        url: "/session/check_login",
+
+        beforeSend: function (xhr) {
+            xhr.setRequestHeader ("Authorization", "Basic " + btoa(user + ":" + pw));
+        },
+
+        xhrFields: {
+            withCredentials: false
+        },
+
+        error: function(jqXHR, textStatus, errorThrown) {
+            cb(false);
+        },
+
+        success: function(data, textStatus, jqXHR) {
+            cb(true);
+        }
+
+    });
+}
+
+exports.FirstLoginCheck = function() {
+    if (kismet.getStorage('kismet.base.warn_login', false) == false) {
+        var loginpanel = null; 
+
+        var content = 
+            $('<div>', {
+                style: 'padding: 10px;'
+            })
+            .append(
+                $('<h3>', { }
+                )
+                .append(
+                    $('<i>', {
+                        class: 'fa fa-exclamation-triangle',
+                        style: 'color: red; padding-right: 5px;'
+                    })
+                )
+                .append("Error")
+            )
+            .append(
+                $('<p>')
+                .html('Invalid admin login for the Kismet webserver.  To perform some functions (such as starting or stopping data sources, downloading captures, or changing server-side settings), you must be logged into Kismet.')
+            )
+            .append(
+                $('<p>')
+                .html('The kismet login is defined in kismet_httpd.conf; If you are a guest on this server, you can continue to view much of the information without logging in but you will not be able to change configurations')
+            )
+            .append(
+                $('<form>', {
+                    id: 'form'
+                })
+                .append(
+                    $('<div>', {
+                        style: 'float: right;',
+                    })
+                    .append(
+                        $('<input>', {
+                            type: 'checkbox',
+                            id: 'dontwarn',
+                            name: 'dontwarn',
+                            value: '',
+                        })
+                    )
+                    .append(
+                        $('<label>', {
+                            for: 'dontwarn',
+                        })
+                        .html('Don\'t warn again')
+                    )
+                )
+            )
+            .append(
+                $('<div>', {
+                    style: 'padding-top: 10px;'
+                })
+                .append(
+                    $('<button>', {
+                        class: 'k-wl-button-close',
+                    })
+                    .text('Continue')
+                    .button()
+                    .on('click', function() {
+                        loginpanel.close();               
+                    })
+                )
+                .append(
+                    $('<button>', {
+                        class: 'k-wl-button-settings',
+                        style: 'position: absolute; right: 5px;',
+                    })
+                    .text('Settings')
+                    .button()
+                    .on('click', function() {
+                        loginpanel.close();               
+                        kismet_ui_settings.ShowSettings('base_login_password');
+                    })
+                )
+
+            );
+
+        $('#dontwarn', content)
+            .checkboxradio()
+            .on('change', function() {
+                kismet.putStorage('kismet.base.warn_login', $(this).is(':checked'));
+            });
+
+
+        var w = ($(window).width() / 2) - 5;
+        if (w < 450) {
+            w = $(window).width() - 5;
+        }
+
+        exports.LoginCheck(function(success) {
+            if (!success) {
+                loginpanel = $.jsPanel({
+                    id: "login-alert",
+                    headerTitle: '<i class="fa fa-exclamation-triangle"></i> Login Error',
+                    headerControls: {
+                        controls: 'closeonly',
+                        iconfont: 'jsglyph',
+                    },
+                    contentSize: w + " auto",
+                    paneltype: 'modal',
+                    content: content,
+                });
+
+                return true;
+            }
+        });
+
+    }
+
+}
+
+exports.FirstTimeCheck = function() {
+    var welcomepanel = null; 
+    if (kismet.getStorage('kismet.base.seen_welcome', false) == false) {
+        var content = 
+            $('<div>', {
+                style: 'padding: 10px;'
+            })
+            .append(
+                $('<p>', { }
+                )
+                .html("Welcome!")
+            )
+            .append(
+                $('<p>')
+                .html('This is the first time you\'ve used this Kismet server in this browser.')
+            )
+            .append(
+                $('<p>')
+                .html('Kismet stores local settings in the HTML5 storage of your browser.')
+            )
+            .append(
+                $('<p>')
+                .html('You should configure your preferences and login settings in the settings panel!')
+            )
+            .append(
+                $('<div>', {})
+                .append(
+                    $('<button>', {
+                        class: 'k-w-button-settings'
+                    })
+                    .text('Settings')
+                    .button()
+                    .on('click', function() {
+                        welcomepanel.close();               
+                        kismet_ui_settings.ShowSettings();
+                    })
+                )
+                .append(
+                    $('<button>', {
+                        class: 'k-w-button-close',
+                        style: 'position: absolute; right: 5px;',
+                    })
+                    .text('Continue')
+                    .button()
+                    .on('click', function() {
+                        welcomepanel.close();
+                    })
+                )
+
+            );
+
+        welcomepanel = $.jsPanel({
+            id: "welcome-alert",
+            headerTitle: '<i class="fa fa-power-off"></i> Welcome',
+            headerControls: {
+                controls: 'closeonly',
+                iconfont: 'jsglyph',
+            },
+            contentSize: "auto auto",
+            paneltype: 'modal',
+            content: content,
+        });
+
+        kismet.putStorage('kismet.base.seen_welcome', true);
+
+        return true;
+    }
+
+    return false;
+}
 
 // We're done loading
 exports.load_complete = 1;

@@ -44,6 +44,7 @@
 #include "kis_net_microhttpd.h"
 #include "base64.h"
 #include "entrytracker.h"
+#include "kis_httpd_websession.h"
 
 Kis_Net_Httpd::Kis_Net_Httpd(GlobalRegistry *in_globalreg) {
     globalreg = in_globalreg;
@@ -123,20 +124,6 @@ Kis_Net_Httpd::Kis_Net_Httpd(GlobalRegistry *in_globalreg) {
         
     }
 
-    // Fetch configured usernames
-    string userpair = globalreg->kismet_config->FetchOpt("httpd_user");
-    vector<string> up = StrTokenize(userpair, ":");
-
-    if (up.size() != 2) {
-        _MSG("Expected user:password in httpd_user config variable.  Without a "
-                "valid user, it is not possible to configure Kismet via the web.",
-                MSGFLAG_FATAL);
-        globalreg->fatal_condition = 1;
-    }
-
-    conf_username = up[0];
-    conf_password = up[1];
-
     // Do we store sessions?
     store_sessions = false;
     session_db = NULL;
@@ -214,6 +201,10 @@ Kis_Net_Httpd::~Kis_Net_Httpd() {
     }
 
     pthread_mutex_destroy(&controller_mutex);
+}
+
+void Kis_Net_Httpd::RegisterSessionHandler(shared_ptr<Kis_Httpd_Websession> in_session) {
+    websession = in_session;
 }
 
 char *Kis_Net_Httpd::read_ssl_file(string in_fname) {
@@ -919,15 +910,7 @@ bool Kis_Net_Httpd::HasValidSession(Kis_Net_Httpd_Connection *connection,
     }
 
     // If we got here, we either don't have a session, or the session isn't valid.
-    // Check the login.
-    char *user;
-    char *pass = NULL;
-
-    user = MHD_basic_auth_get_username_password(connection->connection, &pass);
-    if (user == NULL || pass == NULL || conf_username != user || 
-            conf_password != pass) {
-        ;
-    } else {
+    if (websession != NULL && websession->validate_login(connection->connection)) {
         CreateSession(connection, NULL, 0);
         return true;
     }

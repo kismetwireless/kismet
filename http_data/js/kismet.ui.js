@@ -631,6 +631,7 @@ exports.CreateDeviceTable = function(element) {
 
 // Add the row highlighting
 kismet_ui_settings.AddSettingsPane({
+    id: 'core_device_row_highlights',
     listTitle: 'Device Row Highlighting',
     create: function(elem) {
         elem.append(

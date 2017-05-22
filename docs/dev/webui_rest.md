@@ -219,7 +219,15 @@ Array of all PHY types and statistics
 
 ##### `/session/check_session`
 
-Return if a login session is valid
+Check if a login/session cookie is valid.  Login will only be consulted if the session cookie is not present or is invalid.
+
+Returns 200 OK if session is valid, basic auth prompt if invalid.
+
+##### `/session/check_login`
+
+Check if a login is valid.  Login will always be checked, any session cookies will be ignored.
+
+Returns 200 OK if login is valid, 403 Unauthorized if login is invalid.
 
 ## Messages
 

@@ -878,7 +878,8 @@ int main(int argc, char *argv[], char *envp[]) {
     RestMessageClient::create_messageclient(globalregistry);
 
     // Add login session
-    Kis_Httpd_Websession::create_websession(globalregistry);
+    shared_ptr<Kis_Httpd_Websession> websession = 
+        Kis_Httpd_Websession::create_websession(globalregistry);
 
     // Add channel tracking
     Channeltracker_V2::create_channeltracker(globalregistry);
@@ -897,7 +898,6 @@ int main(int argc, char *argv[], char *envp[]) {
         CatchShutdown(-1);
 
     // Create the device tracker
-    _MSG("Creating device tracker...", MSGFLAG_INFO);
     Devicetracker::create_devicetracker(globalregistry);
 
     if (globalregistry->fatal_condition)
@@ -1047,6 +1047,7 @@ int main(int argc, char *argv[], char *envp[]) {
 
     
     datasourcetracker->system_startup();
+    websession->activate_config();
 
     sigset_t mask, oldmask;
     sigemptyset(&mask);

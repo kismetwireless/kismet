@@ -325,6 +325,10 @@ A plugin can register multiple categories of settings.
 
 Settings windows are registered via `kismet_ui_settings.AddSettingsPane(options)`, where options is a dictionary containing:
 
+#### id - string (required)
+
+Set the ID of this setting panel so that it can be referenced directly
+
 #### listTitle - string (required)
 
 The title of the settings group in the settings list
@@ -354,6 +358,15 @@ Settings panels are a vertically-scrolling panel, and generally constructed usin
 Settings should only be saved when the user clicks the 'Save' button in the settings panel - the `save` callback is called in the settings object passed to `AddSettingsPanel`.
 
 Settings plugins are responsible for telling the settings system when values are modified - this allows the settings window to show the 'Save Settings' button and the window-closing assistant.
+
+### Launching directly to settings
+
+A specific settings panel can be shown automatically by launching directly to that settings id when opening the settings panel:
+
+```javascript
+kismet_ui_settings.ShowSettings('demo_settings_panel');
+```
+
 
 ### Example Settings
 
@@ -434,6 +447,7 @@ function SaveSettings(elem) {
 
 // Finally, actually register a settings panel
 kismet_ui_settings.AddSettingsPanel({
+    id: 'demo_settings'
     listTitle: 'Demo Settings',
     create: function(e) { CreateSettings(e); },
     save: function(e) { SaveSettings(e); },
