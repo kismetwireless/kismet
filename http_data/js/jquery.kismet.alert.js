@@ -270,7 +270,22 @@
                 if (alert_list.length == 0) {
                     element.tooltipster('content', 'No alerts...');
                 } else {
-                    element.tooltipster('content', alert_list.length + ' old alerts');
+                    if (data['kismet.alert.list'][0]['kismet.alert.timestamp'] > last_closed_time) {
+
+                        var num_new = 0;
+                        for (var x = 0; x < alert_list.length; x++) {
+                            // Stop when we get to old ones
+                            if (alert_list[x]['kismet.alert.timestamp'] <= last_closed_time) {
+                                break;
+                            }
+
+                            num_new++;
+                        }
+
+                        element.tooltipster('content', num_new + ' new alerts...');
+                    } else {
+                        element.tooltipster('content', alert_list.length + ' old alerts');
+                    }
                 }
             }
 
