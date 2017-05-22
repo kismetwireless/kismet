@@ -451,6 +451,7 @@
                     for: "gt_bar",
                 })
                 .text("Current")
+                .tooltipster({ content: 'Realtime devices-per-channel'})
             )
             .append($('<input>', {
                 type: "radio",
@@ -464,6 +465,7 @@
                     for: "gt_line",
                 })
                 .text("Historical")
+                .tooltipster({ content: 'Historical RRD device records'})
             )
             .append($('<input>', {
                 type: "radio",

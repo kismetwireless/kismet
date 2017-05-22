@@ -108,6 +108,8 @@ function populateList(div) {
             )
         );
 
+        $('i', ul).tooltipster({content: 'Expand tab to own window'});
+
         if (c.expandable) {
             $('i', ul).on('click', function() {
                 MoveToExpanded(c);

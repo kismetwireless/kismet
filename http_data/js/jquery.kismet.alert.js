@@ -237,6 +237,24 @@
             if (data['kismet.alert.list'].length > 0) {
                 if (data['kismet.alert.list'][0]['kismet.alert.timestamp'] > last_closed_time) {
                     alertbg.addClass('ka-top-bg-alert');
+
+                    var num_new = 0;
+                    for (var x = 0; x < alert_list.length; x++) {
+                        // Stop when we get to old ones
+                        if (alert_list[x]['kismet.alert.timestamp'] <= last_closed_time) {
+                            break;
+                        }
+
+                        num_new++;
+                    }
+
+                    element.tooltipster('content', num_new + ' new alerts...');
+                } else {
+                    if (alert_list.length == 0) {
+                        element.tooltipster('content', 'No alerts...');
+                    } else {
+                        element.tooltipster('content', alert_list.length + ' old alerts');
+                    }
                 }
     
                 // Reverse, combine in the data var, slice and assign to the alert list
@@ -247,6 +265,12 @@
                 // Is the dialog showing?  Update it if it is
                 if (dialog != null) {
                     populate_alert_content(dialog.content);
+                }
+            } else {
+                if (alert_list.length == 0) {
+                    element.tooltipster('content', 'No alerts...');
+                } else {
+                    element.tooltipster('content', alert_list.length + ' old alerts');
                 }
             }
 
@@ -428,6 +452,10 @@
 
         alertclick.append(alertholder);
         element.append(alertclick);
+
+        element.tooltipster({
+            maxWidth: 450
+        });
 
         alert_refresh(0);
     };
