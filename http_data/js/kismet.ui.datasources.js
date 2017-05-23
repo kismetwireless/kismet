@@ -256,6 +256,9 @@ kismet_ui_sidebar.AddSidebarItem({
 var datasource_list_tid;
 var datasource_source_tid;
 var datasource_panel = null;
+var datasource_table = null;
+
+var kismet_sources = new Array();
 
 exports.DataSources = function() {
     var w = $(window).width() * 0.85;
@@ -268,6 +271,54 @@ exports.DataSources = function() {
         offy = 0;
     }
 
+    var cols = [
+        {
+            name: 'sourcename',
+            sTitle: 'Source',
+            mData: function(row, type, set) {
+                return kismet.ObjectByString(row, 'kismet.datasource.name');
+            },
+        },
+        {
+            name: 'interface',
+            sTitle: 'Interface',
+            mData: function(row, type, set) {
+                return kismet.ObjectByString(row, 'kismet.datasource.capture_interface');
+            },
+        },
+        {
+            name: 'packets',
+            sTitle: 'Packets',
+            mData: function(row, type, set) {
+                return kismet.ObjectByString(row, 'kismet.datasource.num_packets');
+            },
+        }
+        
+    ]
+
+    var content = 
+        $('<div>', { })
+        .append(
+            $('<table>', {
+                id: 'sourcetable'
+            })
+        );
+        
+    datasource_table = $('#sourcetable', content)
+        .DataTable( {
+            scrollResize: true,
+            scrollY: 200,
+
+            aoColumns: cols,
+
+            data: kismet_sources,
+
+            createdRow: function(row, data, index) {
+                row.id = data['kismet.datasource.uuid'];
+            },
+        })
+        .draw(false);
+
     datasource_panel = $.jsPanel({
         id: 'datasources',
         headerTitle: '<i class="fa fa-cogs" /> Data Sources',
@@ -275,8 +326,9 @@ exports.DataSources = function() {
             controls: 'closeonly',
             iconfont: 'jsglyph',
         },
-        content: '<p>',
+        content: content,
         onclosed: function() {
+            clearTimeout(datasource_list_tid);
         }
     }).resize({
         width: w,
@@ -288,16 +340,36 @@ exports.DataSources = function() {
         offsetY: offy,
     });
 
-    datasource_list_refresh();
+    datasource_source_refresh(function(data) {
+        for (var d in kismet_sources) {
+            var s = kismet_sources[d];
+
+            var row = datasource_table.row('#' + s['kismet.datasource.uuid']);
+
+            if (typeof(row.data()) === 'undefined') {
+                datasource_table.row.add(s);
+            } else {
+                row.data(s);
+            }
+        }
+
+        datasource_table.draw(false);
+    });
 }
 
-function datasource_source_refresh() {
+/* Get the list of active sources */
+function datasource_source_refresh(cb) {
     clearTimeout(datasource_list_tid);
 
     $.get("/datasource/all_sources.json")
     .done(function(data) {
-        var content = datasource_panel.content;
-        content.html("");
+        kismet_sources = data;
+        cb(data);
+    })
+    .always(function() {
+        datasource_list_tid = setTimeout(function() {
+            datasource_source_refresh(cb)
+        }, 1000);
     });
 }
 
@@ -313,8 +385,7 @@ function datasource_list_refresh() {
 
     $.ajax({
         url: "/datasource/list_interfaces.json", 
-        username: kismet.getStorage('kismet.base.login.username', 'kismet'),
-        password: kismet.getStorage('kismet.base.login.password', 'kismet'),
+
         error: function(jqXHR, textStatus, errorThrown) {
             datasource_panel.content.html("Error: " + textStatus);
         },
