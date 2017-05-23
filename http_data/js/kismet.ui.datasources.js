@@ -380,9 +380,8 @@ exports.DataSources = function() {
         .append(
             $('<table>', {
                 width: '100%',
-                height: '100%',
                 id: 'sourcetable',
-                class: 'k-ds-dstable',
+                class: 'k-ds-dstable nowrap',
             })
         );
         
@@ -394,9 +393,15 @@ exports.DataSources = function() {
 
             data: kismet_sources,
 
+            scrollY: true,
+            scrollX: true,
+            scrollCollapse: true,
+            pageResize: true,
+
             createdRow: function(row, data, index) {
                 row.id = data['kismet.datasource.uuid'];
             },
+
             drawCallback: function( settings ) {
                 var dt = this.api();
 

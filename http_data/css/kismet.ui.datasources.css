@@ -12,11 +12,3 @@ div.k-ds-tablediv {
     right: 5px;
 }
 
-table.k-ds-dstable td {
-    vertical-align: top;
-}
-
-table.k-ds-dstable tr {
-    height: 30px;
-}
-
