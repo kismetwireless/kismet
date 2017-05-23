@@ -199,6 +199,9 @@ public:
     __ProxyIncDec(source_num_error_packets, uint64_t, uint64_t, 
             source_num_error_packets);
 
+    __ProxyDynamicTrackable(source_packet_rrd, kis_tracked_minute_rrd<>, 
+            packet_rate_rrd, packet_rate_rrd_id);
+
     // IPC binary name, if any
     __ProxyGet(source_ipc_binary, string, string, source_ipc_binary);
     // IPC channel pid, if any
@@ -450,6 +453,9 @@ protected:
 
     SharedTrackerElement source_num_packets;
     SharedTrackerElement source_num_error_packets;
+
+    int packet_rate_rrd_id;
+    shared_ptr<kis_tracked_minute_rrd<> > packet_rate_rrd;
 
 
     // Local ID number is an increasing number assigned to each unique UUID; it's

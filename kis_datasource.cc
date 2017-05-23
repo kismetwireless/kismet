@@ -934,6 +934,7 @@ void KisDatasource::proto_packet_data(KVmap in_kvpairs) {
     packet->insert(pack_comp_datasrc, datasrcinfo);
 
     inc_source_num_packets(1);
+    get_source_packet_rrd()->add_sample(1, time(0));
 
     // Inject the packet into the packetchain if we have one
     packetchain->ProcessPacket(packet);
@@ -1791,6 +1792,10 @@ void KisDatasource::register_fields() {
     RegisterField("kismet.datasource.num_error_packets", TrackerUInt64,
             "Number of invalid/error packets seen by source",
             &source_num_error_packets);
+
+    packet_rate_rrd_id = RegisterComplexField("kismet.datasource.packets_rrd", 
+            shared_ptr<kis_tracked_minute_rrd<> >(new kis_tracked_minute_rrd<>(globalreg, 0)), 
+            "packet rate over past minute");
 
     RegisterField("kismet.datasource.retry", TrackerUInt8,
             "Source will try to re-open after failure", &source_retry);
