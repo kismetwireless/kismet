@@ -59,6 +59,8 @@
             // Remove the handler
             $('body').off('click', close_dialog_outside);
 
+            element.tooltipster('content', alert_list.length + ' old alerts');
+
             // Don't pass the click on
             e.stopImmediatePropagation();
 
@@ -238,17 +240,13 @@
                 if (data['kismet.alert.list'][0]['kismet.alert.timestamp'] > last_closed_time) {
                     alertbg.addClass('ka-top-bg-alert');
 
-                    var num_new = 0;
-                    for (var x = 0; x < alert_list.length; x++) {
-                        // Stop when we get to old ones
-                        if (alert_list[x]['kismet.alert.timestamp'] <= last_closed_time) {
-                            break;
-                        }
+                    var num_new = data['kismet.alert.list'].length;
 
-                        num_new++;
-                    }
+                    var plural = 's';
+                    if (num_new == 1)
+                        plural = '';
 
-                    element.tooltipster('content', num_new + ' new alerts...');
+                    element.tooltipster('content', num_new + ' new alert' + plural + '...');
                 } else {
                     if (alert_list.length == 0) {
                         element.tooltipster('content', 'No alerts...');
