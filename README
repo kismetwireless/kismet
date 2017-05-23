@@ -70,21 +70,30 @@ https://www.kismetwireless.net
 
         $ groups
 
-    8.  Set a Kismet password for the webserver.  If you do not do this, anyone
-        with access to your Kismet server will be able to change configuration,
-        control interfaces, etc.
-
-        Edit /usr/local/etc/kismet_httpd.conf with your favorite editor.
-
-        $ sudo vim /usr/local/etc/kismet_httpd.conf
-
-        Change the httpd_user= line, for instance:
-
-        httpd_user=kismet:foobarbaz
-
-    9.  You're now ready to run Kismet!  Point it at your network interface:
+    8.  You're now ready to run Kismet!  Point it at your network interface:
 
         $ kismet -c wlan0
+
+        THE FIRST TIME YOU RUN KISMET, it will generate a new, random password
+        for your web interface.
+
+        This password can be found in the config file:
+        ~/.kismet/kismet_httpd.conf
+
+        which is in the home directory of the user running Kismet.
+
+        You will need this password to control Kismet from the web page - without
+        it you can still view information about devices, view channel allocations,
+        and most other actions, but you CAN NOT control Kismet data sources,
+        view pcaps, or perform other actions.
+
+    9.  Point your browser at http://localhost:2501
+
+        You will be prompted to do basic configuration - Kismet has many options
+        in the web UI which can be tweaked.
+
+        To use all the features of the Kismet web UI, put in the password found
+        in ~/.kismet/kismet_httpd.conf
 
 
 00. Upgrading & Using Kismet Git-Master
@@ -451,6 +460,14 @@ xx. Kismet Webserver
     Kismet now integrates a webserver which serves the web-based UI and data
     to external clients.
 
+    THE FIRST TIME YOU RUN KISMET, it will generate a RANDOM password.  This
+    password is stored in:
+    ~/.kismet/kismet_httpd.conf
+
+    which is in the home directory of the user which ran Kismet.
+
+    You will need this password to log into Kismet for the first time.
+
     The webserver is configured via the kismet_httpd.conf file.  These options
     may be included in the base kismet.conf file, but are broken out for
     clarity.
@@ -462,15 +479,27 @@ xx. Kismet Webserver
 
     HTTP configuration options:
 
-    httpd_user=user:password
+    httpd_username=username
 
-        Set the username and password.  This is required for any actions which
-        can change the configuration (adding / removing sources, changing
-        configuration variables, acting as a web-based GPS, etc).
+        Set the username.  This is required for any actions which can change
+        configuration (adding / removing data sources, changing server-side
+        configuration data, downloading packet captures, etc).
 
-        If you do NOT change this setting, anyone with access to the IP and
-        port Kismet is running on will be able to change your configuration
-        using the default!
+        The default user is 'kismet', and by default, the httpd_username= and
+        httpd_password= configuration options are stored in the 
+        users home directory, in ~/.kismet/kismet_httpd.conf.
+
+    httpd_password=password
+
+        Set the password.  The first time you run Kismet, it will auto-generate
+        a random password and store it in ~/.kismet/kismet_httpd.conf .
+
+        It is generally preferred to keep the username and password in the
+        per-user configuration file, however they may also be set here in 
+        the global config.
+
+        If httpd_username or httpd_password is found in the global config, it is
+        used instead of the per-user config value.
 
     httpd_port=port
 
