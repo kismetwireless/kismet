@@ -287,12 +287,89 @@ exports.DataSources = function() {
             },
         },
         {
+            name: 'chanhop',
+            sTitle: 'Hop',
+            width: '8em',
+            mData: function(row, type, set) {
+                return kismet.ObjectByString(row, 'kismet.datasource.hopping');
+            },
+            mRender: function(data, type, row, meta) {
+                if (data === 1)
+                    return 'Y';
+                return 'N';
+            },
+        },
+        {
+            name: 'hoprate',
+            sTitle: 'Hop Rate',
+            width: '8em',
+            mData: function(row, type, set) {
+                return kismet.ObjectByString(row, 'kismet.datasource.hop_rate');
+            },
+            mRender: function(data, type, row, meta) {
+                if (kismet.ObjectByString(row, 'kismet.datasource.hopping'))
+                    return data;
+                return 'n/a';
+            },
+        },
+        {
             name: 'packets',
             sTitle: 'Packets',
             mData: function(row, type, set) {
                 return kismet.ObjectByString(row, 'kismet.datasource.num_packets');
             },
-        }
+        },
+        {
+            name: 'packetsrrd',
+            sTitle: 'Packets',
+            mData: '',
+            mRender: function(data, type, row, meta) {
+                return '<i>Preparing graph...</i>';
+            },
+            mDraw: function(column, table, row) {
+                var rid = table.column(column.name + ':name').index();
+                var match = "td:eq(" + rid + ")";
+
+                var data = row.data();
+
+                var simple_rrd =
+                    kismet.RecalcRrdData(
+                        data['kismet.datasource.packets_rrd'],
+                        data['kismet.datasource.packets_rrd']['kismet.common.rrd.last_time'],
+                        kismet.RRD_SECOND,
+                        data['kismet.datasource.packets_rrd']['kismet.common.rrd.minute_vec'], {
+                            transform: function(data, opt) {
+                                var slices = 3;
+                                var peak = 0;
+                                var ret = new Array();
+
+                                for (var ri = 0; ri < data.length; ri++) {
+                                    peak = Math.max(peak, data[ri]);
+
+                                    if ((ri % slices) == (slices - 1)) {
+                                        ret.push(peak);
+                                        peak = 0;
+                                    }
+                                }
+
+                                return ret;
+                            }
+                        });
+
+                // Render the sparkline
+                $(match, row.node()).sparkline(simple_rrd,
+                    { type: "bar",
+                        width: 100,
+                        height: 12,
+                        barColor: '#000000',
+                        nullColor: '#000000',
+                        zeroColor: '#000000'
+                    });
+
+            },
+            orderable: false,
+            searchable: false,
+        },
         
     ]
 
@@ -300,6 +377,8 @@ exports.DataSources = function() {
         $('<div>', { })
         .append(
             $('<table>', {
+                width: '100%',
+                height: '100%',
                 id: 'sourcetable'
             })
         );
@@ -307,7 +386,8 @@ exports.DataSources = function() {
     datasource_table = $('#sourcetable', content)
         .DataTable( {
             scrollResize: true,
-            scrollY: 200,
+
+            dom: 'fti',
 
             aoColumns: cols,
 
@@ -315,6 +395,25 @@ exports.DataSources = function() {
 
             createdRow: function(row, data, index) {
                 row.id = data['kismet.datasource.uuid'];
+            },
+            drawCallback: function( settings ) {
+                var dt = this.api();
+
+                dt.rows({
+                    page: 'current'
+                }).every(function(rowIdx, tableLoop, rowLoop) {
+                    for (var c in cols) {
+                        var col = cols[c];
+
+                        if (!('mDraw' in col)) {
+                            continue;
+                        }
+
+                        // Call the draw callback if one exists
+                        col.mDraw(col, dt, this);
+                    }
+
+                });
             },
         })
         .draw(false);
