@@ -321,7 +321,7 @@ exports.DataSources = function() {
         },
         {
             name: 'packetsrrd',
-            sTitle: 'Packets',
+            sTitle: '',
             mData: '',
             mRender: function(data, type, row, meta) {
                 return '<i>Preparing graph...</i>';
@@ -374,19 +374,20 @@ exports.DataSources = function() {
     ]
 
     var content = 
-        $('<div>', { })
+        $('<div>', { 
+            class: 'k-ds-tablediv',
+        })
         .append(
             $('<table>', {
                 width: '100%',
                 height: '100%',
-                id: 'sourcetable'
+                id: 'sourcetable',
+                class: 'k-ds-dstable',
             })
         );
         
     datasource_table = $('#sourcetable', content)
         .DataTable( {
-            scrollResize: true,
-
             dom: 'fti',
 
             aoColumns: cols,
@@ -426,6 +427,24 @@ exports.DataSources = function() {
             iconfont: 'jsglyph',
         },
         content: content,
+
+        onresized: function() {
+            /*
+            var dt_base_height = this.content.height();
+            var dt_base_width = this.content.width();
+
+            content.resize(dt_base_height, dt_base_width);
+
+
+            if (datasource_table != null && dt_base_height != null) {
+                $('div.dataTables_scrollBody', datasource_table).height($('#main_center').height() -
+                    dt_base_height - 80);
+                datasource_table.draw(false);
+            }
+            */
+
+        },
+
         onclosed: function() {
             clearTimeout(datasource_list_tid);
         }
@@ -437,7 +456,8 @@ exports.DataSources = function() {
         at: 'center-top',
         of: 'window',
         offsetY: offy,
-    });
+    })
+    .contentResize();
 
     datasource_source_refresh(function(data) {
         for (var d in kismet_sources) {
