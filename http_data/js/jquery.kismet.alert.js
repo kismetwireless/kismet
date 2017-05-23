@@ -265,7 +265,7 @@
                     populate_alert_content(dialog.content);
                 }
             } else {
-                if (alert_list.length == 0) {
+                if (alert_list.length == 0 || data['kismet.alert.list'].length == 0) {
                     element.tooltipster('content', 'No alerts...');
                 } else {
                     if (data['kismet.alert.list'][0]['kismet.alert.timestamp'] > last_closed_time) {
