@@ -1,0 +1,7 @@
+/*!
+ PageResize for DataTables v1.0.0
+ 2015 SpryMedia Ltd - datatables.net/license
+*/
+(function(c){var d=function(a){var b=a.table();this.s={dt:a,host:c(b.container()).parent(),header:c(b.header()),footer:c(b.footer()),body:c(b.body()),container:c(b.container()),table:c(b.node())};a=this.s.host;"static"===a.css("position")&&a.css("position","relative");this._attach();this._size()};d.prototype={_size:function(){var a=this.s,b=a.dt,f=b.table(),g=c(a.table).offset().top,d=c("tr",a.body).eq(0).height(),e=a.host.height();f.header().parentNode===f.body().parentNode&&(e-=a.header.height(),
+e-=a.footer.height());e=e-g-(a.container.height()-(g+a.table.height()));a=Math.floor(e/d);Infinity!==a&&(-Infinity!==a&&!isNaN(a)&&0<a&&a!==b.page.len())&&b.page.len(a).draw()},_attach:function(){var a=this,b=c("<object/>").css({position:"absolute",top:0,left:0,height:"100%",width:"100%",zIndex:-1}).attr("type","text/html");b[0].onload=function(){var b=this.contentDocument.body,c=b.offsetHeight;this.contentDocument.defaultView.onresize=function(){var d=b.clientHeight||b.offsetHeight;d!==c&&(c=d,a._size())}};
+b.appendTo(this.s.host).attr("data","about:blank")}};c.fn.dataTable.PageResize=d;c.fn.DataTable.PageResize=d;c(document).on("init.dt",function(a,b){if("dt"===a.namespace){var f=new c.fn.dataTable.Api(b);(c(f.table().node()).hasClass("pageResize")||b.oInit.pageResize||c.fn.dataTable.defaults.pageResize)&&new d(f)}})})(jQuery);
