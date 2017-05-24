@@ -212,11 +212,7 @@ public:
     __Proxy(source_retry, uint8_t, bool, bool, source_retry);
     __ProxyGet(source_retry_attempts, uint32_t, uint32_t, source_retry_attempts);
 
-
-    // Source number
-    unsigned int get_source_number();
-    void set_source_number(unsigned int in_number);
-
+    __Proxy(source_number, uint64_t, uint64_t, uint64_t, source_number);
     
     // Perform a checksum on a packet after it's decapsulated; this is always
     // called; a source should override it and check flags in the source
@@ -458,10 +454,10 @@ protected:
     shared_ptr<kis_tracked_minute_rrd<> > packet_rate_rrd;
 
 
-    // Local ID number is an increasing number assigned to each unique UUID; it's
-    // used inside Kismet for fast mapping for seenby, etc.  DST maps this to
-    // unique UUIDs after an Open
-    unsigned int source_number;
+    // Local ID number is an increasing number assigned to each 
+    // unique UUID; it's used inside Kismet for fast mapping for seenby, 
+    // etc.  DST maps this to unique UUIDs after an Open
+    SharedTrackerElement source_number;
 
 
     // Global registry all objects have for coordination

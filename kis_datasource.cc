@@ -107,16 +107,6 @@ KisDatasource::~KisDatasource() {
     pthread_mutex_destroy(&source_lock);
 }
 
-unsigned int KisDatasource::get_source_number() {
-    local_locker lock(&source_lock);
-    return source_number;
-}
-
-void KisDatasource::set_source_number(unsigned int in_number) {
-    local_locker lock(&source_lock);
-    source_number = in_number;
-}
-
 void KisDatasource::list_interfaces(unsigned int in_transaction, 
         list_callback_t in_cb) {
     local_locker lock(&source_lock);
@@ -1732,6 +1722,10 @@ void KisDatasource::send_command_pong() {
 
 void KisDatasource::register_fields() {
     tracker_component::register_fields();
+
+    RegisterField("kismet.datasource.source_number", TrackerUInt64,
+            "internal source number per Kismet instance",
+            &source_number);
 
     RegisterField("kismet.datasource.ipc_binary", TrackerString,
             "capture command", &source_ipc_binary);
