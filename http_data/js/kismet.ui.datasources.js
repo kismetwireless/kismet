@@ -260,6 +260,55 @@ var datasource_table = null;
 
 var kismet_sources = new Array();
 
+function PopulateExpanded(row) {
+    var data = row.data();
+
+    var expanded = 
+        $('<div>', {
+            class: 'k-ds-details',
+        });
+
+    if (kismet.ObjectByString(data, 'kismet.datasource.error')) {
+        expanded.append(
+            $('<div>', { 
+                style: 'padding-bottom: 10px;',
+            })
+            .append(
+                $('<i>', {
+                    class: 'fa fa-minus-circle k-ds-error',
+                })
+            )
+            .append(
+                $('<span>', { 
+                    style: 'padding-left: 10px;',
+                })
+                .html(kismet.ObjectByString(data, 'kismet.datasource.error_reason') + ' (' + kismet.ObjectByString(data, 'kismet.datasource.retry_attempts') + ' consecutive errors)')
+            )
+        )
+    }
+
+    var channels = kismet.ObjectByString(data, 'kismet.datasource.channels');
+    if (channels != 0 && channels.length > 1) {
+        var chantext = "";
+        for (var ci in channels) {
+            chantext += channels[ci];
+
+            if (ci < channels.length - 1)
+                chantext += ", ";
+        }
+
+        expanded.append(
+            $('<div>', { })
+            .append(
+                $('<span>', { })
+                .html("Channels: " + chantext)
+            )
+        );
+    }
+
+    return expanded;
+}
+
 exports.DataSources = function() {
     var w = $(window).width() * 0.85;
     var h = $(window).height() * 0.50;
@@ -272,6 +321,45 @@ exports.DataSources = function() {
     }
 
     var cols = [
+        {
+            name: 'gadgets',
+            sTitle: '',
+            mData: '',
+            mDraw: function(column, table, row) {
+                var rid = table.column(column.name + ':name').index();
+                var match = "td:eq(" + rid + ")";
+
+                var data = row.data();
+
+                var gadgets = $('<div>', {});
+
+                var warn = kismet.ObjectByString(data, 'kismet.datasource.warning');
+                if (warn.length != 0) {
+                    var g = 
+                        $('<i>', {
+                            class: 'fa fa-exclamation-triangle k-ds-warning',
+                        })
+                        .tooltipster({ content: warn });
+
+                    gadgets.append(g);
+                }
+
+                if (kismet.ObjectByString(data, 'kismet.datasource.running') == 0) {
+                    var g =
+                        $('<i>', {
+                            class: 'fa fa-minus-circle k-ds-error',
+                        })
+                        .tooltipster({ content: kismet.ObjectByString(data, 'kismet.datasource.error_reason')});
+
+                    gadgets.append(g);
+                }
+
+                $(match, row.node()).empty();
+                $(match, row.node()).append(gadgets);
+            },
+            orderable: false,
+            searchable: false,
+        },
         {
             name: 'sourcename',
             sTitle: 'Source',
@@ -287,6 +375,13 @@ exports.DataSources = function() {
             },
         },
         {
+            name: 'type',
+            sTitle: 'Type',
+            mData: function(row, type, set) {
+                return kismet.ObjectByString(row, 'kismet.datasource.type_driver/kismet.datasource.driver.type');
+            },
+        },
+        {
             name: 'chanhop',
             sTitle: 'Hop',
             width: '8em',
@@ -298,6 +393,7 @@ exports.DataSources = function() {
                     return 'Y';
                 return 'N';
             },
+            className: 'dt-right',
         },
         {
             name: 'hoprate',
@@ -307,10 +403,38 @@ exports.DataSources = function() {
                 return kismet.ObjectByString(row, 'kismet.datasource.hop_rate');
             },
             mRender: function(data, type, row, meta) {
-                if (kismet.ObjectByString(row, 'kismet.datasource.hopping'))
-                    return data;
+                if (kismet.ObjectByString(row, 'kismet.datasource.hopping')) {
+                    if (data >= 1) {
+                        return data + '/sec';
+                    } else {
+                        return (data * 6) + '/min';
+                    }
+                }
                 return 'n/a';
             },
+            className: 'dt-right',
+        },
+        {
+            name: 'numchannels',
+            sTitle: '# Channels',
+            mData: function(row, type, set) {
+                return kismet.ObjectByString(row, 'kismet.datasource.channels').length;
+            },
+            className: 'dt-right',
+        },
+        {
+            name: 'channel',
+            sTitle: 'Channel',
+            mData: function(row, type, set) {
+                return kismet.ObjectByString(row, 'kismet.datasource.channel');
+            },
+            mRender: function(data, type, row, meta) {
+                if (!kismet.ObjectByString(row, 'kismet.datasource.hopping')) {
+                    return data;
+                }
+                return 'n/a';
+            },
+            className: 'dt-right',
         },
         {
             name: 'packets',
@@ -318,6 +442,7 @@ exports.DataSources = function() {
             mData: function(row, type, set) {
                 return kismet.ObjectByString(row, 'kismet.datasource.num_packets');
             },
+            className: 'dt-right',
         },
         {
             name: 'packetsrrd',
@@ -331,6 +456,12 @@ exports.DataSources = function() {
                 var match = "td:eq(" + rid + ")";
 
                 var data = row.data();
+
+                if (typeof(data['kismet.datasource.packets_rrd']) === 'undefined')
+                    return;
+
+                if (data['kismet.datasource.packets_rrd'] == 0)
+                    return;
 
                 var simple_rrd =
                     kismet.RecalcRrdData(
@@ -399,7 +530,7 @@ exports.DataSources = function() {
             pageResize: true,
 
             createdRow: function(row, data, index) {
-                row.id = data['kismet.datasource.uuid'];
+                row.id = data['kismet.datasource.source_number'];
             },
 
             drawCallback: function( settings ) {
@@ -423,6 +554,20 @@ exports.DataSources = function() {
             },
         })
         .draw(false);
+
+    $('tbody', content).on('click', 'tr', function() {
+        var row = datasource_table.row($(this));
+
+        if (row.child.isShown()) {
+            row.child.hide();
+            $(this).removeClass('shown');
+        } else {
+            var expanded = PopulateExpanded(row);
+            row.child(expanded).show();
+            $(this).addClass('shown');
+        }
+
+    });
 
     datasource_panel = $.jsPanel({
         id: 'datasources',
@@ -468,12 +613,17 @@ exports.DataSources = function() {
         for (var d in kismet_sources) {
             var s = kismet_sources[d];
 
-            var row = datasource_table.row('#' + s['kismet.datasource.uuid']);
+            var row = datasource_table.row('#' + s['kismet.datasource.source_number']);
 
             if (typeof(row.data()) === 'undefined') {
                 datasource_table.row.add(s);
             } else {
                 row.data(s);
+
+                if (row.child.isShown()) {
+                    var expanded = PopulateExpanded(row);
+                    row.child(expanded).show();
+                }
             }
         }
 

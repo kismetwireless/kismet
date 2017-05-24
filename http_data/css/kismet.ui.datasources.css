@@ -12,3 +12,14 @@ div.k-ds-tablediv {
     right: 5px;
 }
 
+i.k-ds-warning {
+    color: yellow;
+}
+
+i.k-ds-error {
+    color: red;
+}
+
+div.k-ds-details {
+    padding: 10px;
+}
