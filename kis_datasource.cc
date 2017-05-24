@@ -758,6 +758,7 @@ void KisDatasource::proto_packet_open_resp(KVmap in_kvpairs) {
     }
 
     set_int_source_running(get_kv_success(i->second));
+    set_int_source_error(get_kv_success(i->second) == 0);
 
     // Get the sequence number and look up our command
     uint32_t seq = get_kv_success_sequence(i->second);
