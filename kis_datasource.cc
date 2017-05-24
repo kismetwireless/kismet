@@ -107,16 +107,6 @@ KisDatasource::~KisDatasource() {
     pthread_mutex_destroy(&source_lock);
 }
 
-unsigned int KisDatasource::get_source_number() {
-    local_locker lock(&source_lock);
-    return source_number;
-}
-
-void KisDatasource::set_source_number(unsigned int in_number) {
-    local_locker lock(&source_lock);
-    source_number = in_number;
-}
-
 void KisDatasource::list_interfaces(unsigned int in_transaction, 
         list_callback_t in_cb) {
     local_locker lock(&source_lock);
@@ -758,6 +748,7 @@ void KisDatasource::proto_packet_open_resp(KVmap in_kvpairs) {
     }
 
     set_int_source_running(get_kv_success(i->second));
+    set_int_source_error(get_kv_success(i->second) == 0);
 
     // Get the sequence number and look up our command
     uint32_t seq = get_kv_success_sequence(i->second);
@@ -1731,6 +1722,10 @@ void KisDatasource::send_command_pong() {
 
 void KisDatasource::register_fields() {
     tracker_component::register_fields();
+
+    RegisterField("kismet.datasource.source_number", TrackerUInt64,
+            "internal source number per Kismet instance",
+            &source_number);
 
     RegisterField("kismet.datasource.ipc_binary", TrackerString,
             "capture command", &source_ipc_binary);
