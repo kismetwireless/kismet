@@ -263,9 +263,12 @@ var kismet_sources = new Array();
 function PopulateExpanded(row) {
     var data = row.data();
 
+    var enclosing_width = $(row.node()).innerWidth() - 50;
+
     var expanded = 
         $('<div>', {
             class: 'k-ds-details',
+            style: 'max-width: ' + enclosing_width + 'px;',
         });
 
     if (kismet.ObjectByString(data, 'kismet.datasource.error')) {
@@ -326,10 +329,12 @@ function PopulateExpanded(row) {
 
         expanded.append(
             $('<div>', { 
-                style: 'padding-bottom: 5px; word-wrap: break-word;',     
+                style: 'padding-bottom: 5px;',
             })
             .append(
-                $('<span>', { })
+                $('<p>', { 
+                    style: 'word-break: break-word; white-space: normal;',
+                })
                 .html("Channels: " + chantext)
             )
         );
@@ -563,6 +568,8 @@ exports.DataSources = function() {
     datasource_table = $('#sourcetable', content)
         .DataTable( {
             dom: 'fti',
+
+            deferRender: true,
 
             aoColumns: cols,
 
