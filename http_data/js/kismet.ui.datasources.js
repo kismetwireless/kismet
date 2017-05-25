@@ -634,29 +634,37 @@ exports.DataSources = function() {
         content: content,
 
         onresized: function() {
-            /*
             var dt_base_height = this.content.height();
             var dt_base_width = this.content.width();
 
-            content.resize(dt_base_height, dt_base_width);
+            console.log(dt_base_height);
 
 
             if (datasource_table != null && dt_base_height != null) {
-                $('div.dataTables_scrollBody', datasource_table).height($('#main_center').height() -
-                    dt_base_height - 80);
+                $('div.dataTables_scrollBody', content).height(dt_base_height - 100);
                 datasource_table.draw(false);
             }
-            */
 
         },
 
         onclosed: function() {
             clearTimeout(datasource_list_tid);
         }
-    }).resize({
+    })
+    .on('resize', function() {
+       var dt_base_height = datasource_panel.content.height();
+       var dt_base_width = datasource_panel.content.width();
+
+       if (datasource_table != null && dt_base_height != null) {
+           $('div.dataTables_scrollBody', content).height(dt_base_height - 100);
+           datasource_table.draw(false);
+       }
+    })
+    .resize({
         width: w,
         height: h
-    }).reposition({
+    })
+    .reposition({
         my: 'center-top',
         at: 'center-top',
         of: 'window',
@@ -665,6 +673,8 @@ exports.DataSources = function() {
     .contentResize();
 
     datasource_source_refresh(function(data) {
+        var scrollPos = $(".dataTables_scrollBody", content).scrollTop();
+
         for (var d in kismet_sources) {
             var s = kismet_sources[d];
 
@@ -683,6 +693,7 @@ exports.DataSources = function() {
         }
 
         datasource_table.draw(false);
+        $(".dataTables_scrollBody", content).scrollTop(scrollPos);
     });
 }
 

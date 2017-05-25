@@ -4,7 +4,7 @@ canvas.k-cc-canvas {
 }
 
 div.k-ds-tablediv {
-    overflow-y: scroll;
+    overflow-y: hidden;
     position: absolute;
     top: 5px;
     left: 5px;
