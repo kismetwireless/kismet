@@ -291,7 +291,7 @@ function PopulateExpanded(row) {
     if (driver != 0) {
         expanded.append(
             $('<div>', {
-                style: 'padding-bottom: 5px;',     
+                style: 'padding-bottom: 5px; word-wrap: break-word;',     
             })
             .append(
                 $('<p>', { })
@@ -325,7 +325,9 @@ function PopulateExpanded(row) {
         }
 
         expanded.append(
-            $('<div>', { })
+            $('<div>', { 
+                style: 'padding-bottom: 5px; word-wrap: break-word;',     
+            })
             .append(
                 $('<span>', { })
                 .html("Channels: " + chantext)
