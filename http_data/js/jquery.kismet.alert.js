@@ -38,6 +38,43 @@
 
     var storage = null;
 
+    function update_tooltips() {
+        var num_new = 0;
+
+        var new_plural = 's';
+        var total_plural = 's';
+
+        for (var x = 0; x < alert_list.length; x++) {
+            if (alert_list[x]['kismet.alert.timestamp'] <= last_closed_time) {
+                break;
+            }
+
+            num_new++;
+        }
+
+        var num_total = alert_list.length - num_new;
+
+        if (num_new <= 1)
+            new_plural = '';
+
+        if (num_total <= 1)
+            total_plural = '';
+
+        if (num_new == 0) {
+            if (num_total == 0) {
+                element.tooltipster('content', 'No alerts');
+            } else {
+                element.tooltipster('content', num_total + ' old alert' + total_plural);
+            }
+        } else {
+            if (num_total == 0) {
+                element.tooltipster('content', num_new + ' alert' + new_plural);
+            } else {
+                element.tooltipster('content', num_new + ' alert' + new_plural + ' ' + num_total + ' old alert' + total_plural);
+            }
+        }
+    }
+
     // Close the alert panel if we click outside it
     var close_dialog_outside = function(e) {
         if (e == null ||
@@ -59,7 +96,7 @@
             // Remove the handler
             $('body').off('click', close_dialog_outside);
 
-            element.tooltipster('content', alert_list.length + ' old alerts');
+            update_tooltips();
 
             // Don't pass the click on
             e.stopImmediatePropagation();
@@ -239,20 +276,6 @@
             if (data['kismet.alert.list'].length > 0) {
                 if (data['kismet.alert.list'][0]['kismet.alert.timestamp'] > last_closed_time) {
                     alertbg.addClass('ka-top-bg-alert');
-
-                    var num_new = data['kismet.alert.list'].length;
-
-                    var plural = 's';
-                    if (num_new == 1)
-                        plural = '';
-
-                    element.tooltipster('content', num_new + ' new alert' + plural + '...');
-                } else {
-                    if (alert_list.length == 0) {
-                        element.tooltipster('content', 'No alerts...');
-                    } else {
-                        element.tooltipster('content', alert_list.length + ' old alerts');
-                    }
                 }
     
                 // Reverse, combine in the data var, slice and assign to the alert list
@@ -264,31 +287,11 @@
                 if (dialog != null) {
                     populate_alert_content(dialog.content);
                 }
-            } else {
-                if (alert_list.length == 0 || data['kismet.alert.list'].length == 0) {
-                    element.tooltipster('content', 'No alerts...');
-                } else {
-                    if (data['kismet.alert.list'][0]['kismet.alert.timestamp'] > last_closed_time) {
-
-                        var num_new = 0;
-                        for (var x = 0; x < alert_list.length; x++) {
-                            // Stop when we get to old ones
-                            if (alert_list[x]['kismet.alert.timestamp'] <= last_closed_time) {
-                                break;
-                            }
-
-                            num_new++;
-                        }
-
-                        element.tooltipster('content', num_new + ' new alerts...');
-                    } else {
-                        element.tooltipster('content', alert_list.length + ' old alerts');
-                    }
-                }
             }
 
         })
         .always(function() {
+            update_tooltips();
             timerid = setTimeout(alert_refresh, 1000);
         });
 
