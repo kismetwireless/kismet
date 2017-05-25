@@ -287,6 +287,33 @@ function PopulateExpanded(row) {
         )
     }
 
+    var driver = kismet.ObjectByString(data, 'kismet.datasource.type_driver');
+    if (driver != 0) {
+        expanded.append(
+            $('<div>', {
+                style: 'padding-bottom: 5px;',     
+            })
+            .append(
+                $('<p>', { })
+                .html('Datasource: ' + driver['kismet.datasource.driver.type'])
+            )
+            .append(
+                $('<p>', { })
+                .html(driver['kismet.datasource.driver.description'])
+            )
+        );
+    }
+
+    expanded.append(
+        $('<div>', {
+            style: 'padding-bottom: 5px;',
+        })
+        .append(
+            $('<p>', { })
+            .html('UUID: ' + kismet.ObjectByString(data, 'kismet.datasource.uuid'))
+        )
+    );
+
     var channels = kismet.ObjectByString(data, 'kismet.datasource.channels');
     if (channels != 0 && channels.length > 1) {
         var chantext = "";
@@ -306,12 +333,13 @@ function PopulateExpanded(row) {
         );
     }
 
+
     return expanded;
 }
 
 exports.DataSources = function() {
     var w = $(window).width() * 0.85;
-    var h = $(window).height() * 0.50;
+    var h = $(window).height() * 0.75;
     var offy = 20;
 
     if ($(window).width() < 450 || $(window).height() < 450) {
@@ -332,6 +360,20 @@ exports.DataSources = function() {
                 var data = row.data();
 
                 var gadgets = $('<div>', {});
+
+                var chev = 'fa-chevron-right';
+
+                if (row.child.isShown()) {
+                    chev = 'fa-chevron-down';
+                }
+
+                var g = 
+                    $('<i>', {
+                        class: 'fa ' + chev,
+                        id: 'expander',
+                        style: 'padding-right: 5px;',
+                    });
+                gadgets.append(g);
 
                 var warn = kismet.ObjectByString(data, 'kismet.datasource.warning');
                 if (warn.length != 0) {
@@ -390,8 +432,8 @@ exports.DataSources = function() {
             },
             mRender: function(data, type, row, meta) {
                 if (data === 1)
-                    return 'Y';
-                return 'N';
+                    return 'Hopping';
+                return 'Locked';
             },
             className: 'dt-right',
         },
@@ -410,7 +452,7 @@ exports.DataSources = function() {
                         return (data * 6) + '/min';
                     }
                 }
-                return 'n/a';
+                return 'Hopping';
             },
             className: 'dt-right',
         },
@@ -561,10 +603,14 @@ exports.DataSources = function() {
         if (row.child.isShown()) {
             row.child.hide();
             $(this).removeClass('shown');
+            $('#expander', $(this)).removeClass('fa-chevron-down');
+            $('#expander', $(this)).addClass('fa-chevron-right');
         } else {
             var expanded = PopulateExpanded(row);
             row.child(expanded).show();
             $(this).addClass('shown');
+            $('#expander', $(this)).addClass('fa-chevron-down');
+            $('#expander', $(this)).removeClass('fa-chevron-right');
         }
 
     });
