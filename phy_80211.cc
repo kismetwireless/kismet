@@ -1874,7 +1874,7 @@ void Kis_80211_Phy::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
 
     // Does it exist?
     devicelist_scope_locker dlocker(devicetracker);
-    if (devicetracker->FetchDevice(dmac, phyid) != NULL) {
+    if (devicetracker->FetchDevice(dmac, phyid) == NULL) {
         stream << "unknown device";
         return;
     }
