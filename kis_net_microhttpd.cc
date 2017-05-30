@@ -633,28 +633,52 @@ int Kis_Net_Httpd::handle_static_file(void *cls, Kis_Net_Httpd_Connection *conne
         return -1;
 
     string fullfile = kishttpd->http_data_dir + "/" + url;
+    string auxfile = kishttpd->http_aux_data_dir + "/" + url;
 
     if (fullfile[fullfile.size() - 1] == '/')
         fullfile += "index.html";
 
+    if (auxfile[auxfile.size() - 1] == '/')
+        auxfile += "index.html";
+
     char *realpath_path;
+    char *realpath_auxpath;
+
     const char *datadir_path;
+    const char *auxdir_path;
 
     datadir_path = kishttpd->http_data_dir.c_str();
-    realpath_path = realpath(fullfile.c_str(), NULL);
+    auxdir_path = kishttpd->http_aux_data_dir.c_str();
 
-    if (realpath_path == NULL) {
+    realpath_path = realpath(fullfile.c_str(), NULL);
+    realpath_auxpath = realpath(auxfile.c_str(), NULL);
+
+    if (realpath_path == NULL && realpath_auxpath == NULL) {
         return -1;
     } else {
         // Make sure we're hosted inside the data dir
-        if (strstr(realpath_path, datadir_path) == realpath_path) {
+        if ((realpath_path != NULL && 
+                    strstr(realpath_path, datadir_path) == realpath_path) ||
+                (realpath_auxpath != NULL && 
+                 strstr(realpath_auxpath, auxdir_path) == realpath_auxpath)) {
 
             struct MHD_Response *response;
             struct stat buf;
 
-            FILE *f = fopen(realpath_path, "rb");
+            FILE *f;
+            
             int fd;
+
+            // Try to open it from the main path
+            f = fopen(realpath_path, "rb");
+
+            // Try to open it from the auxpath
+            if (f == NULL) {
+                f = fopen(realpath_auxpath, "rb");
+            }
+
             free(realpath_path);
+            free(realpath_auxpath);
             
             if (f != NULL) {
                 fd = fileno(f);
