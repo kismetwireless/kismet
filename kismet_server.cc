@@ -321,8 +321,11 @@ void SpindownKismet(shared_ptr<PollableTracker> pollabletracker) {
 
     globalregistry->pcapdump = NULL;
 
-    if (globalregistry->plugintracker != NULL)
-        globalregistry->plugintracker->ShutdownPlugins();
+    fprintf(stderr, "Shutting down plugins...\n");
+    shared_ptr<Plugintracker> plugintracker =
+        globalregistry->FetchGlobalAs<Plugintracker>("PLUGINTRACKER");
+    if (plugintracker != NULL)
+        plugintracker->ShutdownPlugins();
 
     // Dump fatal errors again
     if (fqmescli != NULL) //  && globalregistry->fatal_condition) 
@@ -661,7 +664,6 @@ int main(int argc, char *argv[], char *envp[]) {
 
     // Timer for silence
     int local_silent = 0;
-    int startroot = 1;
 
     // Set a backtrace on C++ terminate errors
     if (!debug_mode) {
@@ -702,7 +704,6 @@ int main(int argc, char *argv[], char *envp[]) {
     const int nlwc = globalregistry->getopt_long_num++;
     const int dwc = globalregistry->getopt_long_num++;
     const int npwc = globalregistry->getopt_long_num++;
-    const int nrwc = globalregistry->getopt_long_num++;
     const int hdwc = globalregistry->getopt_long_num++;
 
     // Standard getopt parse run
@@ -714,7 +715,6 @@ int main(int argc, char *argv[], char *envp[]) {
         { "help", no_argument, 0, 'h' },
         { "daemonize", no_argument, 0, dwc },
         { "no-plugins", no_argument, 0, npwc },
-        { "no-root", no_argument, 0, nrwc },
         { "homedir", required_argument, 0, hdwc },
         { 0, 0, 0, 0 }
     };
@@ -749,8 +749,6 @@ int main(int argc, char *argv[], char *envp[]) {
             local_silent = 1;
         } else if (r == npwc) {
             plugins = 0;
-        } else if (r == nrwc) {
-            startroot = 0;
         } else if (r == hdwc) {
             globalregistry->homepath = string(optarg);
         }
@@ -925,9 +923,11 @@ int main(int argc, char *argv[], char *envp[]) {
 #endif
     datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceLinuxWifiBuilder(globalregistry)));
 
+    shared_ptr<Plugintracker> plugintracker;
+
     // Start the plugin handler
     if (plugins) {
-        globalregistry->plugintracker = new Plugintracker(globalregistry);
+        plugintracker = Plugintracker::create_plugintracker(globalregistry);
     } else {
         globalregistry->messagebus->InjectMessage(
             "Plugins disabled on the command line, plugins will NOT be loaded...",
@@ -935,10 +935,11 @@ int main(int argc, char *argv[], char *envp[]) {
     }
 
 
-    // Process userspace plugins
-    if (globalregistry->plugintracker != NULL) {
-        globalregistry->plugintracker->ScanUserPlugins();
-        globalregistry->plugintracker->ActivatePlugins();
+    // Process plugins and activate them
+    if (plugintracker != NULL) {
+        plugintracker->ScanPlugins();
+        plugintracker->ActivatePlugins();
+
         if (globalregistry->fatal_condition) {
             globalregistry->messagebus->InjectMessage(
                         "Failure during activating plugins", MSGFLAG_FATAL);
@@ -1005,15 +1006,6 @@ int main(int argc, char *argv[], char *envp[]) {
     bsstsa = new BSSTSStateAlert(globalregistry);
     if (globalregistry->fatal_condition)
         CatchShutdown(-1);
-
-    // Kick the plugin system one last time.  This will try to kick any plugins
-    // that aren't activated yet, and then bomb out if we can't turn them on at
-    // all.
-    if (globalregistry->plugintracker != NULL) {
-        globalregistry->plugintracker->LastChancePlugins();
-        if (globalregistry->fatal_condition)
-            CatchShutdown(-1);
-    }
 
     // Add system monitor 
     Systemmonitor::create_systemmonitor(globalregistry);

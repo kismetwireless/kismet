@@ -19,29 +19,40 @@
 #ifndef __PLUGINTRACKER_H__
 #define __PLUGINTRACKER_H__
 
-// Plugin handler core
+// Plugin handler
 //
-// Handles scanning the config file, stocking the vector of plugins with root
-// and nonroot plugins, getting the plugin info from the shared object, and
-// calling the various plugin handler hooks.
+// Plugins are responsible for completing the record passed to them
+// from Kismet and filling in the PluginRegistrationData record
+// 
+// Plugins must define two core functions, in the C name space:
 //
-// This is fairly platform specific -- posix systems should all be able to use
-// the dlopen/dlsym/dlclose system, but it will have to be turned into 
-// native code on win32 if we ever port there
+// int kis_plugin_version_check(struct plugin_server_info *)
 //
-// PLUGIN AUTHORS:  This is the Kismet internal tracking system that handles
-// plugins.  All you need to worry about is filling in the plugin_usrdata struct
-// and returning the proper info for register/unregister.
+// will be passed an empty plugin_server_info struct and is expected
+// to fill in all fields available.
 //
-// PLUGIN VERSIONING:  Plugins should define a kis_plugin_info(...) function
-// (as defined below) which fills in the supplied struct with the version_major,
-// version_minor, and version_tiny of the *kismet* versions the plugin was compiled
-// with.  These are used to make sure that the plugin is running in a sane environment.
+// Plugins should return negative on failure, non-negative on success
 //
-// Plugins which operate as root WILL NOT be able to perform root actions after
-// the privdrop has occured.  Currently there are no hooks to modularize the 
-// server/rootpid system, this may change if needed in the future.  Open any
-// files and sockets you need before the drop.
+// and
+//
+// int kis_plugin_register(GlobalRegistry *, PluginRegistrationData *)
+//
+// which is responsible for filling in the pluginregistration record
+// and performing plugin initialization.
+//
+// Plugins should return negative on failure, non-negative on success
+//
+//
+// Kismet plugins are first-order citizens in the ecosystem - a plugin
+// is passed the global registry and is able to look up and interact
+// with all registered components, including other plugins.
+//
+// This is a blessing and a curse - plugins are very tied to the kismet
+// ABI, but are equally capable of performing ANYTHING kismet can
+// do already.
+//
+// A secondary, abstracted plugin interface may come in the future to
+// provide a more stable plugin interface.
 
 #include "config.hpp"
 
@@ -53,126 +64,173 @@
 #include <algorithm>
 #include <string>
 #include <sys/types.h>
+#include <dlfcn.h>
 #include <dirent.h>
 
 #include "globalregistry.h"
 
-// Generic plugin function hook
-typedef int (*plugin_hook)(GlobalRegistry *);
+#include "trackedelement.h"
+#include "kis_net_microhttpd.h"
 
-// This struct is passed to a plugin to be filled in with all their info
-struct plugin_usrdata {
-	// Basic info about the plugin
-	string pl_name;
-	string pl_description;
-	string pl_version;
-	
-	// Can this plugin be unloaded?  Anything that touches capture sources 
-	// should definitely say no, and anything else that sets up dynamic 
-	// structures that can't be reasonably disassembled or recreated should
-	// answer no.  Unloadable plugins should still handle the unload event in
-	// a permanent fashion, this just means Kismet will not ask it to unload
-	// during runtime.
-	int pl_unloadable;
+// The registration object is created by the plugintracker and given to
+// a Kismet plugin; the plugin fills in the relevant information during
+// the registration process
+class PluginRegistrationData : public tracker_component {
+public:
+    PluginRegistrationData(GlobalRegistry *in_globalreg, int in_id) :
+        tracker_component(in_globalreg, in_id) {
+        register_fields();
+        reserve_fields(NULL);
 
-	// Call back to initialized.  A 0 return means "try again later in the build
-	// chain", a negative means "failure" and a positive means success.
-	plugin_hook plugin_register;
+        dlfile = NULL;
+    }
 
-	// Callback to be removed
-	plugin_hook plugin_unregister;
-	
+    PluginRegistrationData(GlobalRegistry *in_globalreg, int in_id,
+            SharedTrackerElement e) :
+        tracker_component(in_globalreg, in_id) {
+
+        register_fields();
+        reserve_fields(e);
+
+        dlfile = NULL;
+    }
+
+    virtual ~PluginRegistrationData() {
+        if (dlfile != NULL)
+            dlclose(dlfile);
+    }
+
+    virtual SharedTrackerElement clone_type() {
+        return SharedTrackerElement(new PluginRegistrationData(globalreg, get_id()));
+    }
+
+    __Proxy(plugin_name, string, string, string, plugin_name);
+    __Proxy(plugin_description, string, string, string, plugin_description);
+    __Proxy(plugin_author, string, string, string, plugin_author);
+    __Proxy(plugin_version, string, string, string, plugin_version);
+    __Proxy(plugin_so, string, string, string, plugin_so);
+    __Proxy(plugin_path, string, string, string, plugin_path);
+
+    void set_plugin_dlfile(void *in_dlfile) {
+        dlfile = in_dlfile;
+    }
+
+    void *get_plugin_dlfile() {
+        return dlfile;
+    }
+
+protected:
+    virtual void register_fields() {
+        tracker_component::register_fields();
+
+        RegisterField("kismet.plugin.name", TrackerString,
+                "plugin name", &plugin_name);
+        RegisterField("kismet.plugin.description", TrackerString,
+                "plugin description", &plugin_description);
+        RegisterField("kismet.plugin.author", TrackerString,
+                "plugin author", &plugin_author);
+        RegisterField("kismet.plugin.version", TrackerString,
+                "plugin version", &plugin_version);
+        RegisterField("kismet.plugin.shared_object", TrackerString,
+                "plugin shared object filename", &plugin_so);
+        RegisterField("kismet.plugin.path", TrackerString, 
+                "complete path of plugin", &plugin_path);
+    }
+
+    SharedTrackerElement plugin_name;
+    SharedTrackerElement plugin_author;
+    SharedTrackerElement plugin_description;
+    SharedTrackerElement plugin_version;
+
+    SharedTrackerElement plugin_so;
+    SharedTrackerElement plugin_path;
+
+    void *dlfile;
+
 };
+typedef shared_ptr<PluginRegistrationData> SharedPluginData;
 
 // Plugin information fetch function
-typedef int (*plugin_infocall)(plugin_usrdata *);
+typedef int (*plugin_register)(GlobalRegistry *, SharedPluginData);
 
-// Plugin version information, v1
-// This holds revision information for the KISMET THE PLUGIN WAS COMPILED WITH,
-// NOT THE PLUGIN VERSION (plugin version is passed in the info struct!)
-struct plugin_revision {
-	// V1 data 
+#define KIS_PLUGINTRACKER_VERSION   1
 
-	// Versioned for possible updates to the version api
-	int version_api_revision;
+// Server information record
+// The plugin should fill in this data and return it in the kis_plugin_version_check
+// callback.  It will be given a plugin_api_version which it must respect.
+struct plugin_server_info {
+    // V1 server info
+    
+    // Plugin API version; plugins can not expect fields to be present
+    // in this struct from a future version of the plugin revision.  This
+    // value is unlikely to change, but it may become necessary in the
+    // future to expand the versioning
+    unsigned int plugin_api_version;
 
-	string major;
-	string minor;
-	string tiny;
+    string kismet_major;
+    string kismet_minor;
+    string kismet_tiny;
 
-	// End V1 data
+    // End V1 info
 };
 
-#define KIS_PLUGINTRACKER_VREVISION		1
-
-// Plugin revision call.  If the kis_plugin_revision  symbol is available in the plugin,
-// then it will be passed an allocated plugin_revision struct, with the version_api_rev
-// set appropriately.  Plugins MUST ONLY use fields in the negotiated plugin version
-// record.  This record is not expected to change significantly over time, BUT IT MAY,
-// should it become necessary to add more complex data.
-typedef void (*plugin_revisioncall)(plugin_revision *);
+// Version check callback def.  Plugin is called with a populated
+// plugin_server_info record.
+//
+// Plugins are expected to return '1' if the version check is valid,
+// and negative if the version check fails.
+typedef int (*plugin_version_check)(plugin_server_info *);
 
 // Plugin management class
-class Plugintracker : public LifetimeGlobal {
+class Plugintracker : public LifetimeGlobal,
+    public Kis_Net_Httpd_CPPStream_Handler {
 public:
-	struct plugin_meta {
-		plugin_meta() {
-			dlfileptr = NULL;
-			activate = 0;
-			root = 0;
-			infosym = NULL;
-		};
+    static shared_ptr<Plugintracker> create_plugintracker(GlobalRegistry *in_globalreg) {
+        shared_ptr<Plugintracker> mon(new Plugintracker(in_globalreg));
+        in_globalreg->RegisterLifetimeGlobal(mon);
+        in_globalreg->InsertGlobal("PLUGINTRACKER", mon);
+        return mon;
+    }
 
-		// Path to plugin
-		string filename; 
-		// Object name of the plugin
-		string objectname;
+private:
+	Plugintracker(GlobalRegistry *in_globalreg);
 
-		// Pointer to dlopened file
-		void *dlfileptr;
-		// Plugin has successfully activated?
-		int activate;
-		// Plugin is activated as root?
-		int root;
-
-		// Data from the plugin
-		plugin_usrdata usrdata;
-
-		// Info symbol
-		plugin_infocall infosym;
-	};
-
+public:
 	static void Usage(char *name);
 
-	Plugintracker();
-	Plugintracker(GlobalRegistry *in_globalreg);
 	virtual ~Plugintracker();
 
-	// Parse the config file and load root plugins into the vector
-	int ScanRootPlugins();
-
-	// Scan the plugins directories and load all the found plugins for userspace
-	int ScanUserPlugins();
+    // Look for plugins in the config file
+    int ScanPlugins();
 
 	// Activate the vector of plugins (called repeatedly during startup)
 	int ActivatePlugins();
 
-	// Last chance for plugins to activate or we error out
-	int LastChancePlugins();
-
 	// Shut down the plugins and close the shared files
 	int ShutdownPlugins();
 
+    // HTTP API
+    virtual bool Httpd_VerifyPath(const char *path, const char *method);
+
+    virtual void Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
+            Kis_Net_Httpd_Connection *connection,
+            const char *url, const char *method, const char *upload_data,
+            size_t *upload_data_size, std::stringstream &stream);
+
 protected:
+    pthread_mutex_t plugin_lock;
+
 	GlobalRegistry *globalreg;
 	int plugins_active;
 
 	int ScanDirectory(DIR *in_dir, string in_path);
 
-	vector<plugin_meta *> plugin_vec;
+    // Final vector of registered activated plugins
+    SharedTrackerElement plugin_registry;
+    TrackerElementVector plugin_registry_vec;
 
-	int plugins_protoref;
+    // List of plugins before they're loaded
+    vector<SharedPluginData> plugin_preload;
 };
 
 #endif
-
