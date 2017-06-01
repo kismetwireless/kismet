@@ -516,6 +516,115 @@ int populate_chanlist(char *interface, char *msg, char ***chanlist,
     return 1;
 }
 
+/* Channel control callback; actually set a channel.  Determines if our
+ * custom channel needs a VHT frequency set. */
+int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *privchan,
+        char *msg) {
+    local_wifi_t *local_wifi = (local_wifi_t *) caph->userdata;
+    local_channel_t *channel = (local_channel_t *) privchan;
+    int r;
+    char errstr[STATUS_MAX];
+    char chanstr[STATUS_MAX];
+
+    if (privchan == NULL) {
+        return 0;
+    }
+
+    if (!local_wifi->use_mac80211_channels) {
+        if ((r = iwconfig_set_channel(local_wifi->interface, 
+                        channel->control_freq, errstr)) < 0) {
+            /* Sometimes tuning a channel fails; this is only a problem if we fail
+             * to tune a channel a bunch of times.  Spit out a tuning error at first;
+             * if we continually fail, if we have a seqno we're part of a CONFIGURE
+             * command and we send a configresp, otherwise send an error 
+             *
+             * If seqno == 0 we're inside the chanhop, so we can tolerate failures.
+             * If we're sending an explicit channel change command, error out
+             * immediately.
+             *
+             * */
+            if (local_wifi->seq_channel_failure < 10 && seqno == 0) {
+                local_channel_to_str(channel, chanstr);
+                snprintf(msg, STATUS_MAX, "Could not set channel %s; ignoring error "
+                        "and continuing (%s)", chanstr, errstr);
+                cf_send_message(caph, msg, MSGFLAG_ERROR);
+                return 0;
+            } else {
+                local_channel_to_str(channel, chanstr);
+                snprintf(msg, STATUS_MAX, "failed to set channel %s: %s", 
+                        chanstr, errstr);
+
+                if (seqno == 0) {
+                    cf_send_error(caph, msg);
+                }
+
+                return -1;
+            }
+        } else {
+            local_wifi->seq_channel_failure = 0;
+
+            if (seqno != 0) {
+                /* Send a config response with a reconstituted channel if we're
+                 * configuring the interface; re-use errstr as a buffer */
+                local_channel_to_str(channel, errstr);
+                cf_send_configresp_channel(caph, seqno, 1, NULL, errstr);
+            }
+        }
+
+        return 0;
+    } else {
+        /* Otherwise we're using mac80211 which means we need to figure out
+         * what kind of channel we're setting */
+        if (channel->chan_width != 0) {
+            /* An explicit channel width means we need to use _set_freq to set
+             * a control freq, a width, and possibly an extended center frequency
+             * for VHT; if center1 is 0 _set_frequency will automatically
+             * exclude it and only set the width */
+            r = mac80211_set_frequency_cache(local_wifi->cap_interface,
+                    local_wifi->mac80211_handle, local_wifi->mac80211_family,
+                    channel->control_freq, channel->chan_width,
+                    channel->center_freq1, channel->center_freq2, errstr);
+        } else {
+            /* Otherwise for HT40 and non-HT channels, set the channel w/ any
+             * flags present */
+            r = mac80211_set_channel_cache(local_wifi->cap_interface,
+                    local_wifi->mac80211_handle, local_wifi->mac80211_family,
+                    channel->control_freq, channel->chan_type, errstr);
+        } 
+
+        /* Handle channel set results */
+        if (r < 0) {
+            /* If seqno == 0 we're inside the chanhop, so we can tolerate failures.
+             * If we're sending an explicit channel change command, error out
+             * immediately.
+             */
+            if (local_wifi->seq_channel_failure < 10 && seqno == 0) {
+                local_channel_to_str(channel, chanstr);
+                snprintf(msg, STATUS_MAX, "Could not set channel %s; ignoring error "
+                        "and continuing (%s)", chanstr, errstr);
+                cf_send_message(caph, msg, MSGFLAG_ERROR);
+                return 0;
+            } else {
+                local_channel_to_str(channel, chanstr);
+                snprintf(msg, STATUS_MAX, "failed to set channel %s: %s", 
+                        chanstr, errstr);
+
+                if (seqno == 0) {
+                    cf_send_error(caph, msg);
+                }
+
+                return -1;
+            }
+        } else {
+            local_wifi->seq_channel_failure = 0;
+            return 0;
+        }
+    }
+   
+    return 0;
+}
+
+
 int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         char *msg, char **chanset, char ***chanlist, size_t *chanlist_sz) {
     char *placeholder = NULL;
@@ -595,6 +704,9 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     char regdom[4];
 
     char driver[32] = "";
+
+    char *localchanstr = NULL;
+    local_channel_t *localchan = NULL;
 
 #ifdef HAVE_LIBNM
     NMClient *nmclient = NULL;
@@ -1048,6 +1160,33 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         }
     }
 
+    if ((placeholder_len = 
+                cf_find_flag(&placeholder, "channel", definition)) > 0) {
+        localchanstr = strndup(placeholder, placeholder_len);
+
+        localchan = 
+            (local_channel_t *) chantranslate_callback(caph, localchanstr);
+
+        free(localchanstr);
+
+        if (localchan == NULL) {
+            snprintf(msg, STATUS_MAX, 
+                    "Could not parse channel= option provided in source "
+                    "definition");
+            return -1;
+        }
+
+        local_channel_to_str(localchan, errstr);
+        *chanset = strdup(errstr);
+
+        snprintf(errstr, STATUS_MAX, "Setting initial channel to %s", *chanset);
+        cf_send_message(caph, errstr, MSGFLAG_INFO);
+
+        if (chancontrol_callback(caph, 0, localchan, msg) < 0) {
+            return -1;
+        }
+    }
+
     /* Open the pcap */
     local_wifi->pd = pcap_open_live(local_wifi->cap_interface, 
             MAX_PACKET_LEN, 1, 1000, pcap_errstr);
@@ -1143,114 +1282,6 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno,
     }
 
     return num_devs;
-}
-
-/* Channel control callback; actually set a channel.  Determines if our
- * custom channel needs a VHT frequency set. */
-int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *privchan,
-        char *msg) {
-    local_wifi_t *local_wifi = (local_wifi_t *) caph->userdata;
-    local_channel_t *channel = (local_channel_t *) privchan;
-    int r;
-    char errstr[STATUS_MAX];
-    char chanstr[STATUS_MAX];
-
-    if (privchan == NULL) {
-        return 0;
-    }
-
-    if (!local_wifi->use_mac80211_channels) {
-        if ((r = iwconfig_set_channel(local_wifi->interface, 
-                        channel->control_freq, errstr)) < 0) {
-            /* Sometimes tuning a channel fails; this is only a problem if we fail
-             * to tune a channel a bunch of times.  Spit out a tuning error at first;
-             * if we continually fail, if we have a seqno we're part of a CONFIGURE
-             * command and we send a configresp, otherwise send an error 
-             *
-             * If seqno == 0 we're inside the chanhop, so we can tolerate failures.
-             * If we're sending an explicit channel change command, error out
-             * immediately.
-             *
-             * */
-            if (local_wifi->seq_channel_failure < 10 && seqno == 0) {
-                local_channel_to_str(channel, chanstr);
-                snprintf(msg, STATUS_MAX, "Could not set channel %s; ignoring error "
-                        "and continuing (%s)", chanstr, errstr);
-                cf_send_message(caph, msg, MSGFLAG_ERROR);
-                return 0;
-            } else {
-                local_channel_to_str(channel, chanstr);
-                snprintf(msg, STATUS_MAX, "failed to set channel %s: %s", 
-                        chanstr, errstr);
-
-                if (seqno == 0) {
-                    cf_send_error(caph, msg);
-                }
-
-                return -1;
-            }
-        } else {
-            local_wifi->seq_channel_failure = 0;
-
-            if (seqno != 0) {
-                /* Send a config response with a reconstituted channel if we're
-                 * configuring the interface; re-use errstr as a buffer */
-                local_channel_to_str(channel, errstr);
-                cf_send_configresp_channel(caph, seqno, 1, NULL, errstr);
-            }
-        }
-
-        return 0;
-    } else {
-        /* Otherwise we're using mac80211 which means we need to figure out
-         * what kind of channel we're setting */
-        if (channel->chan_width != 0) {
-            /* An explicit channel width means we need to use _set_freq to set
-             * a control freq, a width, and possibly an extended center frequency
-             * for VHT; if center1 is 0 _set_frequency will automatically
-             * exclude it and only set the width */
-            r = mac80211_set_frequency_cache(local_wifi->cap_interface,
-                    local_wifi->mac80211_handle, local_wifi->mac80211_family,
-                    channel->control_freq, channel->chan_width,
-                    channel->center_freq1, channel->center_freq2, errstr);
-        } else {
-            /* Otherwise for HT40 and non-HT channels, set the channel w/ any
-             * flags present */
-            r = mac80211_set_channel_cache(local_wifi->cap_interface,
-                    local_wifi->mac80211_handle, local_wifi->mac80211_family,
-                    channel->control_freq, channel->chan_type, errstr);
-        } 
-
-        /* Handle channel set results */
-        if (r < 0) {
-            /* If seqno == 0 we're inside the chanhop, so we can tolerate failures.
-             * If we're sending an explicit channel change command, error out
-             * immediately.
-             */
-            if (local_wifi->seq_channel_failure < 10 && seqno == 0) {
-                local_channel_to_str(channel, chanstr);
-                snprintf(msg, STATUS_MAX, "Could not set channel %s; ignoring error "
-                        "and continuing (%s)", chanstr, errstr);
-                cf_send_message(caph, msg, MSGFLAG_ERROR);
-                return 0;
-            } else {
-                local_channel_to_str(channel, chanstr);
-                snprintf(msg, STATUS_MAX, "failed to set channel %s: %s", 
-                        chanstr, errstr);
-
-                if (seqno == 0) {
-                    cf_send_error(caph, msg);
-                }
-
-                return -1;
-            }
-        } else {
-            local_wifi->seq_channel_failure = 0;
-            return 0;
-        }
-    }
-   
-    return 0;
 }
 
 void pcap_dispatch_cb(u_char *user, const struct pcap_pkthdr *header,

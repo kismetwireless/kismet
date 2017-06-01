@@ -953,7 +953,7 @@ protected:
 };
 
 void Datasourcetracker::calculate_source_hopping(SharedDatasource in_ds) {
-    if (!in_ds->get_definition_opt_bool("hop", true)) {
+    if (!in_ds->get_definition_opt_bool("channel_hop", true)) {
         // Source doesn't hop regardless of defaults
         return;
     }

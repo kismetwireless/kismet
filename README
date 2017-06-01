@@ -184,7 +184,8 @@ xx. Kismet Data Sources
     options, like telling it to not change channels and to go to channel 6
     to start with:
 
-        source=wlan1:hop=false,channel=6
+        source=wlan1:channel_hop=false,channel=6
+        source=wlan1:channel_hop=false,channel=11HT-
 
     Different data sources have different options, read on for more information
     about the different capture sources Kismet supports.
