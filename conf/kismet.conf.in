@@ -6,6 +6,10 @@
 # Version of Kismet config
 version=2017
 
+# Include optional site-local config options.  If this config file is not
+# present, it will be ignored.
+opt_include=%E/kismet_site.conf
+
 # Include the httpd config options
 # %E is expanded to the system etc path configured at install
 include=%E/kismet_httpd.conf

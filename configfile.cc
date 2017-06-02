@@ -100,14 +100,15 @@ int ConfigFile::ParseConfig_nl(const char *in_fname) {
             }
 
             // Handling including files
-            if (directive == "include") {
+            if (directive == "include" || directive == "opt_include") {
                 value = ExpandLogPath_nl(value, "", "", 0, 1);
 
                 sstream << "Including sub-config file: " << value;
                 _MSG(sstream.str(), MSGFLAG_INFO);
                 sstream.str("");
 
-                if (ParseConfig_nl(value.c_str()) < 0) {
+                if (ParseConfig_nl(value.c_str()) < 0 
+                        && directive != "opt_include") {
                     fclose(configf);
                     return -1;
                 }
