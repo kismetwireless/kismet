@@ -42,7 +42,8 @@ The manifest file should be placed in `[prefix]/plugins/[name]/manifest.conf`, a
 | description | Plugin description |
 | author | Plugin author |
 | version | Plugin version |
-| js | JS module and path as `module_name,/web/path/to/js`.  Multiple `js` modules can be defined per registry file.|
+| object | plugin shared object file name |
+| js | JS module and path as `module_name,/web/path/to/js`.|
 
 Example manifest:
 ```
@@ -52,9 +53,17 @@ author=Joe Random <joerandom@random.foo>
 version=1.0.0
 
 js=new_web_module,/plugin/webplugin/js/new_web_module.js
-js=other_web_module,/plugin/webplugin/js/other_web_module.js
 ```
 
+Example manifest for plugin with C++ code
+```
+name=Codeplugin
+description=Standard code-based plugin
+author=Joe Random <joerandom@random.foo>
+version=1.0.0
 
+object=kismet-codeplugin.so
 
+js=code_web_module,/plugin/codeplugin/js/code_web_module.js
+```
 

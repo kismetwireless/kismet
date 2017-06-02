@@ -992,12 +992,12 @@ int main(int argc, char *argv[], char *envp[]) {
 
     // Set the timer event to flush dumpfiles
     if (data_dump != 0 &&
-        globalregistry->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * data_dump,
-                                                   NULL, 1, 
-                                                   &FlushDatafilesEvent, NULL) < 0) {
+            globalregistry->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * data_dump,
+                NULL, 1, 
+                &FlushDatafilesEvent, NULL) < 0) {
         globalregistry->messagebus->InjectMessage("Failed to register timer event to "
-                                                  "sync data files for some reason.", 
-                                                  MSGFLAG_FATAL);
+                "sync data files for some reason.", 
+                MSGFLAG_FATAL);
         CatchShutdown(-1);
     }
 
@@ -1017,29 +1017,14 @@ int main(int argc, char *argv[], char *envp[]) {
     globalregistry->messagebus->InjectMessage("Kismet starting to gather packets",
                                               MSGFLAG_INFO);
 
-#if 0
-    // TODO datasourcetracker equivalent
-    globalregistry->sourcetracker->StartSource(0);
-
-    if (globalregistry->sourcetracker->FetchSourceVec()->size() == 0) {
-        _MSG("No packet sources defined.  You MUST ADD SOME using the Kismet "
-             "client, or by placing them in the Kismet config file (" + 
-             string(SYSCONF_LOC) + "/" + config_base + ")", MSGFLAG_INFO);
-    }
-#endif
-    
     // Set the global silence now that we're set up
     glob_silent = local_silent;
 
-    /*
-    datasourcetracker->open_datasource("wlan1", [](bool success, string reason) {
-            fprintf(stderr, "TESTCODE - wlan1 %u: %s\n", success, reason.c_str());
-            });
-            */
-
-    
     datasourcetracker->system_startup();
     websession->activate_config();
+
+    // Finalize any plugins which were waiting for other code to load
+    plugintracker->FinalizePlugins();
 
     sigset_t mask, oldmask;
     sigemptyset(&mask);

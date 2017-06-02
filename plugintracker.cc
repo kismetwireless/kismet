@@ -33,6 +33,7 @@
 #include "messagebus.h"
 #include "plugintracker.h"
 #include "version.h"
+#include "kis_httpd_registry.h"
 
 Plugintracker::Plugintracker(GlobalRegistry *in_globalreg) {
     globalreg = in_globalreg;
@@ -134,44 +135,116 @@ int Plugintracker::ScanPlugins() {
                  "): " + strerror(errno),
              MSGFLAG_ERROR);
     } else {
-        if (ScanDirectory(plugdir, plugin_path) < 0) return -1;
-        closedir(plugdir);
+        if (ScanDirectory(plugdir, plugin_path) < 0) {
+            closedir(plugdir);
+            return -1;}
+
     }
+    closedir(plugdir);
 
     return 1;
 }
 
-// Scan a directory for all .so files and query them
+// Scans a directory for sub-directories
 int Plugintracker::ScanDirectory(DIR *in_dir, string in_path) {
     struct dirent *plugfile;
 
     while ((plugfile = readdir(in_dir)) != NULL) {
         if (plugfile->d_name[0] == '.') continue;
 
-        string fname = plugfile->d_name;
+        struct stat sstat;
 
-        // Found a .so
-        if (fname.rfind(".so") == fname.length() - 3) {
-            // Make sure we haven't already loaded another copy
-            // of this plugin (based on the file name) - the same
-            // copy could exist in the system and user plugin directories
+        // Is it a directory?
+        if (stat(string(in_path + "/" + plugfile->d_name).c_str(), &sstat) < 0)
+            continue;
 
-            for (auto x = plugin_preload.begin(); x != plugin_preload.end();
-                 ++x) {
-                // Don't load the same plugin
-                if ((*x)->get_plugin_so() == fname) {
-                    continue;
-                }
+        if (!S_ISDIR(sstat.st_mode))
+            continue;
+
+        // Load the plugin manifest
+        ConfigFile cf(globalreg);
+
+        string manifest = in_path + "/" + plugfile->d_name + "/manifest.conf";
+
+        cf.ParseConfig(manifest.c_str());
+
+        SharedPluginData preg(new PluginRegistrationData(globalreg, 0));
+
+        string s;
+
+        if ((s = cf.FetchOpt("name")) == "") {
+            _MSG("Missing 'name=' in plugin manifest '" + manifest + "', "
+                    "cannot load plugin", MSGFLAG_ERROR);
+            continue;
+        }
+
+        preg->set_plugin_name(s);
+
+        if ((s = cf.FetchOpt("description")) == "") {
+            _MSG("Missing 'description=' in plugin manifest '" + manifest + "', "
+                    "cannot load plugin", MSGFLAG_ERROR);
+            continue;
+        }
+
+        preg->set_plugin_description(s);
+
+
+        if ((s = cf.FetchOpt("author")) == "") {
+            _MSG("Missing 'author=' in plugin manifest '" + manifest + "', "
+                    "cannot load plugin", MSGFLAG_ERROR);
+            continue;
+        }
+
+        preg->set_plugin_author(s);
+
+
+        if ((s = cf.FetchOpt("version")) == "") {
+            _MSG("Missing 'version=' in plugin manifest '" + manifest + "', "
+                    "cannot load plugin", MSGFLAG_ERROR);
+            continue;
+        }
+
+        preg->set_plugin_version(s);
+
+
+        if ((s = cf.FetchOpt("object")) != "") {
+            if (s.find("/") != string::npos) {
+                _MSG("Found path in 'object=' in plugin manifest '" + manifest +
+                        "', object= should define the file name only",
+                        MSGFLAG_ERROR);
+                continue;
             }
 
-            // Make a preload record
-            SharedPluginData prereg(new PluginRegistrationData(globalreg, 0));
-
-            prereg->set_plugin_so(fname);
-            prereg->set_plugin_path(in_path + "/" + fname);
-
-            plugin_preload.push_back(prereg);
+            preg->set_plugin_so(s);
+            preg->set_plugin_path(in_path + "/" + plugfile->d_name + "/" + s);
         }
+
+        if ((s = cf.FetchOpt("js")) != "") {
+            if (s.find(",") != string::npos) {
+                _MSG("Found an invalid 'js=' in plugin manifest '" + manifest +
+                        "', js= should define module,path", MSGFLAG_ERROR);
+                continue;
+            }
+
+            preg->set_plugin_js(s);
+        }
+
+        // Make sure we haven't already loaded another copy of the plugin
+        // based on the so or the pluginname
+        for (auto x : plugin_preload) {
+            // Don't load the same plugin
+            if (preg->get_plugin_so() != "" &&
+                    x->get_plugin_so() == preg->get_plugin_so()) {
+                continue;
+            }
+
+            if (x->get_plugin_name() == preg->get_plugin_name()) {
+                continue;
+            }
+        }
+
+        // We've gotten to here, it's valid, push it into the preload vector
+        plugin_preload.push_back(preg);
     }
 
     return 1;
@@ -206,96 +279,119 @@ int Plugintracker::ActivatePlugins() {
 
     local_locker lock(&plugin_lock);
 
+    shared_ptr<Kis_Httpd_Registry> httpdregistry =
+        globalreg->FetchGlobalAs<Kis_Httpd_Registry>("WEBREGISTRY");
+
     // Set the new signal handler, remember the old one; if something goes
     // wrong loading the plugins we need to catch it and return a special
     // error
     old_segv = signal(SIGSEGV, PluginServerSignalHandler);
 
-    for (auto x = plugin_preload.begin(); x != plugin_preload.end(); ++x) {
-        global_plugin_load = (*x)->get_plugin_path();
+    for (auto x : plugin_preload) {
+        // Does this plugin load a SO?
+        if (x->get_plugin_so() != "") {
+            global_plugin_load = x->get_plugin_path() + "/" + x->get_plugin_so();
 
-        void *dlfile = dlopen((*x)->get_plugin_path().c_str(), RTLD_LAZY);
+            void *dlfile = dlopen(global_plugin_load.c_str(), RTLD_LAZY);
 
-        if (dlfile == NULL) {
-            _MSG("Failed to open plugin '" + (*x)->get_plugin_path() +
-                     "' as "
-                     "a shared library: " +
-                     kis_strerror_r(errno),
-                 MSGFLAG_ERROR);
-            continue;
+            if (dlfile == NULL) {
+                _MSG("Failed to open plugin '" + x->get_plugin_path() +
+                        "' as "
+                        "a shared library: " +
+                        kis_strerror_r(errno),
+                        MSGFLAG_ERROR);
+                continue;
+            }
+
+            x->set_plugin_dlfile(dlfile);
+
+            // Find the symbol for kis_plugin_version_check
+            plugin_version_check vcheck_sym = 
+                (plugin_version_check) dlsym(dlfile, "kis_plugin_version_check");
+
+            if (vcheck_sym == NULL) {
+                _MSG("Failed to get plugin version check function from plugin '" +
+                        x->get_plugin_path() +
+                        "': Ensure that all plugins have "
+                        "been recompiled for the proper version of Kismet, "
+                        "especially if you're using a development or git version "
+                        "of Kismet.",
+                        MSGFLAG_ERROR);
+                continue;
+            }
+
+            struct plugin_server_info sinfo;
+            sinfo.plugin_api_version = KIS_PLUGINTRACKER_VERSION;
+
+            if ((*vcheck_sym)(&sinfo) < 0) {
+                _MSG("Plugin '" + x->get_plugin_path() +
+                        "' could not perform "
+                        "a version check.  Ensure that all plugins have been "
+                        "recompiled for the proper version of Kismet, especially "
+                        "if you're using a development or git version of Kismet.",
+                        MSGFLAG_ERROR);
+                continue;
+            }
+
+            if (sinfo.plugin_api_version != KIS_PLUGINTRACKER_VERSION ||
+                    sinfo.kismet_major != globalreg->version_major ||
+                    sinfo.kismet_minor != globalreg->version_minor ||
+                    sinfo.kismet_tiny != globalreg->version_tiny) {
+                _MSG("Plugin '" + x->get_plugin_path() +
+                        "' was compiled "
+                        "with a different version of Kismet; Please recompile "
+                        "the plugin and re-install it, or remove it entirely.",
+                        MSGFLAG_ERROR);
+                continue;
+            }
+
+            plugin_activation act_sym =
+                (plugin_activation) dlsym(dlfile, "kis_plugin_activate");
+
+            if (act_sym == NULL) {
+                _MSG("Failed to get plugin registration function from plugin '" +
+                        x->get_plugin_path() +
+                        "': Ensure that all plugins have "
+                        "been recompiled for the proper version of Kismet, "
+                        "especially if you're using a development or git version "
+                        "of Kismet.",
+                        MSGFLAG_ERROR);
+                continue;
+            }
+
+            if ((act_sym)(globalreg) < 0) {
+                _MSG("Plugin '" + x->get_plugin_path() + "' failed to activate, "
+                        "skipping.", MSGFLAG_ERROR);
+                continue;
+            }
         }
 
-        (*x)->set_plugin_dlfile(dlfile);
+        // If we have a JS module, load it
+        if (x->get_plugin_js() != "") {
+            string js = x->get_plugin_js();
+            size_t cpos = js.find(",");
 
-        // Find the symbol for kis_plugin_versioN_check
-        plugin_version_check vcheck_sym = 
-            (plugin_version_check) dlsym(dlfile, "kis_plugin_version_check");
+            if (cpos == string::npos || cpos >= js.length() - 2) {
+                _MSG("Plugin '" + x->get_plugin_path() + "' could not parse "
+                        "JS plugin module, expected modulename,path",
+                        MSGFLAG_ERROR);
+                continue;
+            }
 
-        if (vcheck_sym == NULL) {
-            _MSG("Failed to get plugin version check function from plugin '" +
-                     (*x)->get_plugin_path() +
-                     "': Ensure that all plugins have "
-                     "been recompiled for the proper version of Kismet, "
-                     "especially if you're using a development or git version "
-                     "of Kismet.",
-                 MSGFLAG_ERROR);
-            continue;
+            string module = js.substr(0, cpos - 1);
+            string path = js.substr(cpos + 1, js.length());
+
+            if (!httpdregistry->register_js_module(module, path)) {
+                _MSG("Plugin '" + x->get_plugin_path() + "' could not "
+                        "register JS plugin module", MSGFLAG_ERROR);
+                continue;
+            }
         }
 
-        struct plugin_server_info sinfo;
-        sinfo.plugin_api_version = KIS_PLUGINTRACKER_VERSION;
 
-        if ((*vcheck_sym)(&sinfo) < 0) {
-            _MSG("Plugin '" + (*x)->get_plugin_path() +
-                     "' could not perform "
-                     "a version check.  Ensure that all plugins have been "
-                     "recompiled for the proper version of Kismet, especially "
-                     "if you're using a development or git version of Kismet.",
-                 MSGFLAG_ERROR);
-            continue;
-        }
+        _MSG("Plugin '" + x->get_plugin_name() + "' loaded...", MSGFLAG_INFO);
 
-        if (sinfo.plugin_api_version != KIS_PLUGINTRACKER_VERSION ||
-            sinfo.kismet_major != globalreg->version_major ||
-            sinfo.kismet_minor != globalreg->version_minor ||
-            sinfo.kismet_tiny != globalreg->version_tiny) {
-            _MSG("Plugin '" + (*x)->get_plugin_path() +
-                     "' was compiled "
-                     "with a different version of Kismet; Please recompile the "
-                     "plugin and re-install it, or remove it entirely.",
-                 MSGFLAG_ERROR);
-            continue;
-        }
-
-        plugin_register reg_sym =
-            (plugin_register) dlsym(dlfile, "kis_plugin_register");
-
-        if (reg_sym == NULL) {
-            _MSG("Failed to get plugin registration function from plugin '" +
-                     (*x)->get_plugin_path() +
-                     "': Ensure that all plugins have "
-                     "been recompiled for the proper version of Kismet, "
-                     "especially if you're using a development or git version "
-                     "of Kismet.",
-                 MSGFLAG_ERROR);
-            continue;
-        }
-
-        if ((reg_sym)(globalreg, (*x)) < 0) {
-            _MSG("Plugin '" + (*x)->get_plugin_path() +
-                     "' could not perform "
-                     "a version check.  Ensure that all plugins have been "
-                     "recompiled for the proper version of Kismet, especially "
-                     "if you're using a development or git version of Kismet.",
-                 MSGFLAG_ERROR);
-            continue;
-        }
-
-        _MSG("Plugin '" + (*x)->get_plugin_name() + "' loaded...",
-                MSGFLAG_INFO);
-
-        plugin_registry_vec.push_back(*x);
-
+        plugin_registry_vec.push_back(x);
     }
 
     // Reset the segv handler
@@ -303,6 +399,32 @@ int Plugintracker::ActivatePlugins() {
 
     plugin_preload.clear();
 
+    return 1;
+}
+
+int Plugintracker::FinalizePlugins() {
+    // Look only at plugins that have a dl file, and attempt to run the finalize
+    // function in each
+    for (auto x : plugin_registry_vec) {
+        SharedPluginData pd = dynamic_pointer_cast<PluginRegistrationData>(x);
+
+        void *dlfile;
+
+        if ((dlfile = pd->get_plugin_dlfile()) != NULL) {
+            plugin_activation final_sym = 
+                (plugin_activation) dlsym(dlfile, "kis_plugin_finalize");
+
+            if (final_sym == NULL)
+                continue;
+
+            if ((final_sym)(globalreg) < 0) {
+                _MSG("Plugin '" + pd->get_plugin_path() + "' failed to complete "
+                        "activation...", MSGFLAG_ERROR);
+                continue;
+            }
+        }
+    }
+    
     return 1;
 }
 

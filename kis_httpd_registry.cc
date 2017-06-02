@@ -18,6 +18,8 @@
 
 #include "config.hpp"
 
+#include <pthread.h>
+
 #include "messagebus.h"
 #include "configfile.h"
 #include "kis_httpd_registry.h"
@@ -35,6 +37,12 @@ Kis_Httpd_Registry::Kis_Httpd_Registry(GlobalRegistry *in_globalreg) :
 
 }
 
+Kis_Httpd_Registry::~Kis_Httpd_Registry() {
+    local_eol_locker lock(&reg_lock);
+
+    pthread_mutex_destroy(&reg_lock);
+}
+
 bool Kis_Httpd_Registry::register_js_module(string in_module, string in_path) {
     local_locker lock(&reg_lock);
 
@@ -47,6 +55,18 @@ bool Kis_Httpd_Registry::register_js_module(string in_module, string in_path) {
     js_module_path_map.emplace(in_module, in_path);
 
     return true;
+}
+
+bool Kis_Httpd_Registry::Httpd_VerifyPath(const char *path, const char *method) {
+    return false;
+}
+
+void Kis_Httpd_Registry::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
+        Kis_Net_Httpd_Connection *connection,
+        const char *url, const char *method, const char *upload_data,
+        size_t *upload_data_size, std::stringstream &stream) {
+
+    return;
 }
 
 

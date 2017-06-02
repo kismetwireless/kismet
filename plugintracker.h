@@ -21,6 +21,25 @@
 
 // Plugin handler
 //
+// Plugins are installed into [LIB_LOC]/kismet/[plugin-name]/ or
+// ~/.kismet/[plugins]/[plugin-name]/
+//
+// A plugin directory should contain:
+//
+//  httpd/
+//      Any HTTP content the plugin serves, this will be made available
+//      on the webserver as /plugin/[plugin-name]/
+//
+//  foo.so
+//      A shared object containing the plugin code, if this plugin requires
+//      code.  If the plugin contains HTTP data only a manifest is sufficient
+//
+//  manifest.conf
+//      A manifest file containing information about the plugin to be loaded
+//      See docs/dev/plugin.md for more information about the format of the
+//      manifest file
+//
+//
 // Plugins are responsible for completing the record passed to them
 // from Kismet and filling in the PluginRegistrationData record
 // 
@@ -35,12 +54,26 @@
 //
 // and
 //
-// int kis_plugin_register(GlobalRegistry *, PluginRegistrationData *)
-//
-// which is responsible for filling in the pluginregistration record
-// and performing plugin initialization.
+// int kis_plugin_activate(GlobalRegistry *)
+//      
+// which is responsible for activating the plugin and registering it
+// with the system.
 //
 // Plugins should return negative on failure, non-negative on success
+//
+// Plugins which need system components which may not be active at plugin
+// activation time may include a third function:
+//
+// int kis_plugin_finalize(GloablRegistry *)
+//
+// which will be called at the final stage of Kismet initialization before
+// entry into the main loop.
+//
+// Even when including a kis_plugin_finalize function, plugins MUST 
+// return success during initial activation to receive the finalization
+// event.
+//
+// Plugins should return negative on failure, non-negative on success.
 //
 //
 // Kismet plugins are first-order citizens in the ecosystem - a plugin
@@ -110,6 +143,7 @@ public:
     __Proxy(plugin_version, string, string, string, plugin_version);
     __Proxy(plugin_so, string, string, string, plugin_so);
     __Proxy(plugin_path, string, string, string, plugin_path);
+    __Proxy(plugin_js, string, string, string, plugin_js);
 
     void set_plugin_dlfile(void *in_dlfile) {
         dlfile = in_dlfile;
@@ -134,7 +168,9 @@ protected:
         RegisterField("kismet.plugin.shared_object", TrackerString,
                 "plugin shared object filename", &plugin_so);
         RegisterField("kismet.plugin.path", TrackerString, 
-                "complete path of plugin", &plugin_path);
+                "path to plugin content", &plugin_path);
+        RegisterField("kismet.plugin.jsmodule", TrackerString,
+                "Plugin javascript module", &plugin_js);
     }
 
     SharedTrackerElement plugin_name;
@@ -145,13 +181,15 @@ protected:
     SharedTrackerElement plugin_so;
     SharedTrackerElement plugin_path;
 
+    SharedTrackerElement plugin_js;
+
     void *dlfile;
 
 };
 typedef shared_ptr<PluginRegistrationData> SharedPluginData;
 
-// Plugin information fetch function
-typedef int (*plugin_register)(GlobalRegistry *, SharedPluginData);
+// Plugin activation and final activation function
+typedef int (*plugin_activation)(GlobalRegistry *);
 
 #define KIS_PLUGINTRACKER_VERSION   1
 
@@ -174,11 +212,11 @@ struct plugin_server_info {
     // End V1 info
 };
 
-// Version check callback def.  Plugin is called with a populated
-// plugin_server_info record.
+// Plugin function called with an allocated plugin_server_info which complies with
+// the version specified in plugin_api_version.
 //
-// Plugins are expected to return '1' if the version check is valid,
-// and negative if the version check fails.
+// Plugins should fill in all fields relevant to that version, or if there is a
+// version mismatch, immediately return -1.
 typedef int (*plugin_version_check)(plugin_server_info *);
 
 // Plugin management class
@@ -200,11 +238,14 @@ public:
 
 	virtual ~Plugintracker();
 
-    // Look for plugins in the config file
+    // Look for plugins
     int ScanPlugins();
 
-	// Activate the vector of plugins (called repeatedly during startup)
+    // First-pass at activating plugins
 	int ActivatePlugins();
+
+    // Final chance at activating plugins
+    int FinalizePlugins();
 
 	// Shut down the plugins and close the shared files
 	int ShutdownPlugins();
