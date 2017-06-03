@@ -263,10 +263,14 @@ void Kis_Httpd_Websession::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
     }
 
     if (stripped == "/session/check_login") {
+        // Never use the session to validate the login, check it manually
+        // and reject it 
         if (!validate_login(connection->connection)) {
             stream << "Invalid login";
             connection->httpcode = 403;
         } else {
+            // Generate a session for the login, it's successful
+            httpd->HasValidSession(connection, false);
             stream << "Valid login";
         }
     }

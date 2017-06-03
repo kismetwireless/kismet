@@ -96,6 +96,9 @@ Kis_Net_Httpd::Kis_Net_Httpd(GlobalRegistry *in_globalreg) {
         RegisterHandler(new Kis_Net_Httpd_No_Files_Handler());
     }
 
+    session_timeout = 
+        globalreg->kismet_config->FetchOptUInt("httpd_session_timeout", 7200);
+
     use_ssl = globalreg->kismet_config->FetchOptBoolean("httpd_ssl", false);
     pem_path = globalreg->kismet_config->FetchOpt("httpd_ssl_cert");
     key_path = globalreg->kismet_config->FetchOpt("httpd_ssl_key");
@@ -934,8 +937,9 @@ bool Kis_Net_Httpd::HasValidSession(Kis_Net_Httpd_Connection *connection,
     }
 
     // If we got here, we either don't have a session, or the session isn't valid.
-    if (websession != NULL && websession->validate_login(connection->connection)) {
-        CreateSession(connection, NULL, 0);
+    if (websession != NULL && 
+            websession->validate_login(connection->connection)) {
+        CreateSession(connection, NULL, session_timeout);
         return true;
     }
 

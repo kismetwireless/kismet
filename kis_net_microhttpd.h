@@ -474,6 +474,7 @@ protected:
     ConfigFile *session_db;
 
     shared_ptr<Kis_Httpd_Websession> websession;
+    unsigned int session_timeout;
 
 };
 
