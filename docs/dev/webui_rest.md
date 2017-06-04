@@ -443,6 +443,14 @@ Returns a stream in pcap-ng format of all packets, from all interfaces, associat
 
 This URI will stream indefinitely as packets are received.
 
+## Plugins
+
+Kismet plugins may be active C++ code (loaded as a plugin.so shared object file) or they may be web content only which is loaded into the UI without requiring additional back-end code.
+
+##### /plugins/all_plugins `/plugins/all_plugins.msgpack`, `/plugins/all_plugins.json`
+
+Returns a vector of all activated Kismet plugins.
+
 ## Streams
 
 A Kismet stream is any continually exporting entity - it can be a pcap file logged to disk, other disk logs, or logs streaming over the web interface.

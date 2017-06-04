@@ -35,7 +35,9 @@
 #include "version.h"
 #include "kis_httpd_registry.h"
 
-Plugintracker::Plugintracker(GlobalRegistry *in_globalreg) {
+Plugintracker::Plugintracker(GlobalRegistry *in_globalreg) :
+    LifetimeGlobal(),
+    Kis_Net_Httpd_CPPStream_Handler(in_globalreg) {
     globalreg = in_globalreg;
 
     pthread_mutexattr_t mutexattr;
@@ -440,6 +442,17 @@ int Plugintracker::ShutdownPlugins() {
 }
 
 bool Plugintracker::Httpd_VerifyPath(const char *path, const char *method) {
+    if (strcmp(method, "GET") != 0) 
+        return false;
+
+    if (!Httpd_CanSerialize(path))
+        return false;
+
+    string stripped = Httpd_StripSuffix(path);
+
+    if (stripped == "/plugins/all_plugins")
+        return true;
+
     return false;
 }
 
@@ -447,5 +460,13 @@ void Plugintracker::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
         Kis_Net_Httpd_Connection *connection,
         const char *url, const char *method, const char *upload_data,
         size_t *upload_data_size, std::stringstream &stream) {
+
+    string stripped = Httpd_StripSuffix(url);
+
+    if (stripped == "/plugins/all_plugins") {
+        local_locker locker(&plugin_lock);
+
+        Httpd_Serialize(url, stream, plugin_registry);
+    }
 
 }
