@@ -1334,10 +1334,27 @@ int Datasourcetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                     return 1;
 
                 } else {
-                    // Get the channels as a vector
+                    // We need at least a channels or a rate to kick into
+                    // hopping mode
+                    if (!structdata->hasKey("channels") &&
+                            !structdata->hasKey("rate")) {
+                        throw std::runtime_error("expected channel, channels, "
+                                "or rate");
+                    }
+
+                    // Get the channels as a vector, default to the source 
+                    // default if the CGI doesn't define them
                     SharedStructured chstruct;
-                    chstruct = structdata->getStructuredByKey("channels");
-                    vector<string> converted_channels = chstruct->getStringVec();
+                    vector<string> converted_channels;
+
+                    if (structdata->hasKey("channels")) {
+                        chstruct = structdata->getStructuredByKey("channels");
+                        converted_channels = chstruct->getStringVec();
+                    } else {
+                        TrackerElementVector dscv(ds->get_source_hop_vec());
+                        for (auto c : dscv)
+                            converted_channels.push_back(c->get_string());
+                    }
 
                     // Get the hop rate and the shuffle; default to the source
                     // state if we don't have them provided
@@ -1349,7 +1366,7 @@ int Datasourcetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                                 ds->get_source_hop_shuffle());
 
                     _MSG("Source '" + ds->get_source_name() + "' setting hopping "
-                            "pattern", MSGFLAG_INFO);
+                            "pattern and rate", MSGFLAG_INFO);
 
                     // Initiate the channel set
                     ds->set_channel_hop(rate, converted_channels, shuffle, 

@@ -361,6 +361,7 @@ Expects a command dictionary including:
 * If `channel` is present, `hoprate`, `channels`, and `shuffle` should not be included, and will be ignored if present.  The source will be locked to a single channel.
 * If `channel` is not present, the remaining fields may be specified.
 * If `channels` is present, `hoprate` and `shuffle` are optional.  If they are not present, the current values for the source will be used.
+* If `channel` is not present, `channels` is not present, and `hoprate` is set, only the channel hopping rate will be changed.
 
 ##### /datasource/by-uuid/[uuid]/close_source `/datasource/by-uuid/[uuid]/close_source.cmd`
 
