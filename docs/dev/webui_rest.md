@@ -363,6 +363,13 @@ Expects a command dictionary including:
 * If `channels` is present, `hoprate` and `shuffle` are optional.  If they are not present, the current values for the source will be used.
 * If `channel` is not present, `channels` is not present, and `hoprate` is set, only the channel hopping rate will be changed.
 
+Examples:
+
+* `{'channel': "6HT40"}` will lock to Wi-Fi channel 6, HT40+ mode
+* `{'channels': ["1", "2", "6HT40+", "6HT40-"]}` will change the channel hopping list but retain the hopping rate and shuffle
+* `{'channels': ["1", "2", "3", "4", "5"], 'hoprate': 1}` will change the channel hopping rate to once per second over the given list
+* `{'hoprate': 5}` will set the hop rate to 5 channels per second, using the existing channels list in the datasource
+
 ##### /datasource/by-uuid/[uuid]/close_source `/datasource/by-uuid/[uuid]/close_source.cmd`
 
 *LOGIN REQUIRED*.
