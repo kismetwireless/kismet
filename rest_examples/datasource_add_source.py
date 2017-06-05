@@ -28,16 +28,18 @@ if results.source == None:
 
 kr = KismetRest.KismetConnector(uri)
 kr.set_login(user, passwd)
+kr.set_debug(True)
 
 if not kr.check_session():
     print "Invalid login, specify --user and --password if you have changed your "
     print "default Kismet config (which you should do)"
     sys.exit(1)
 
-(r, v) = kr.post_url("datasource/add_source.cmd", { "definition": sys.argv[2] })
+print("adding src ", results.source)
+r = kr.add_datasource(results.source)
 
 if r:
-    print "Source added successfully: ", v
+    print "Source added successfully"
 else:
     print "Error adding source - check Kismet messages"
 

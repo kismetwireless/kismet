@@ -122,7 +122,7 @@ class KismetConnector:
 
         # Set the default path for storing sessions
         self.sessioncache_path = None
-        self.set_session_cache("~/.kismet/pykismet_session")
+        self.set_session_cache("~/.pykismet_session")
 
     def set_debug(self, debug):
         """
@@ -278,16 +278,23 @@ class KismetConnector:
 
         r = self.session.post("%s/%s" % (self.host_uri, url), data=postdata)
 
+        if self.debug:
+            print "Got status code ", r.status_code
+
         # login required
         if r.status_code == 401:
             # Can we log in?
             if not self.login():
-                print "Cannot log in"
                 return (False, None)
 
-            print "Logged in, retrying post"
+            if self.debug:
+                print "Logged in, retrying post"
+
             # Try again after we log in
             r = self.session.post("%s/%s" % (self.host_uri, url), data=postdata)
+
+        if self.debug:
+            print "Got status code ", r.status_code
 
         # Did we succeed?
         if not r.status_code == 200:
@@ -341,6 +348,7 @@ class KismetConnector:
         r = self.session.get("%s/session/check_session" % self.host_uri)
 
         if not r.status_code == 200:
+            print "Invalid session"
             return False
 
         # Save the session
@@ -367,6 +375,18 @@ class KismetConnector:
 
         if not r.status_code == 200:
             return False
+
+        # Save the session
+        try:
+            lcachef = open(self.sessioncache_path, "w")
+            cd = requests.utils.dict_from_cookiejar(self.session.cookies)
+            cookie = cd["KISMET"]
+            lcachef.write(cookie)
+            lcachef.close()
+        except Exception as e:
+            print "Failed to save session:", e
+            x = 1
+
 
         return True
 
@@ -459,53 +479,85 @@ class KismetConnector:
         """
         return self.__unpack_simple_url("devices/by-mac/{}/devices.msgpack".format(mac))
 
-    def old_sources(self):
+    def datasources(self):
         """
-        old_sources() -> Packetsource list
-
-        Return list of all configured devices, using the soon-to-be-deprecated
-        PacketSource mechanism
+        datasources() -> Datasource list
+        
+        Return list of all datasources
         """
-        return self.__unpack_simple_url("packetsource/all_sources.msgpack")
 
-    def config_old_source_channel(self, uuid, hop, channel):
+        return self.__unpack_simple_url("datasource/all_sources.msgpack");
+
+    def config_datasource_set_channel(self, uuid, channel):
         """
-        config_old_source_channel(uuid, hop, channel) -> Boolean
+        config_datasource_set_channel(uuid, hop, channel) -> Boolean
 
-        Locks an old-style PacketSource to an 802.11 channel or frequency.
-        Channel should be integer (ie 6, 11, 53).
+        Locks an data source to an 802.11 channel or frequency.  Channel
+        may be complex channel such as "6HT40+".
 
         Requires valid login.
-
-        Returns success or failure.
         """
 
-        if hop:
-            hopcmd = "hop"
-        else:
-            hopcmd = "lock"
-
-        chancmd = "%d" % channel
-
         cmd = {
-                "cmd": hopcmd,
-                "uuid": uuid,
-                "channel": chancmd
-                }
+            "channel": channel
+        }
 
-        (r, v) = self.post_msgpack_url("packetsource/config/channel.cmd", cmd)
+        (r, v) = self.post_msgpack_url("datasource/by-uuid/{}/set_channel.cmd".format(uuid), cmd)
 
-        # Did we succeed?
         if not r:
             return False
 
         return True
 
-    def add_old_source(self, source):
+    def config_datasource_set_hop_rate(self, uuid, rate):
         """
-        add_old_source(sourceline) -> Boolean
+        config_datasource_set_hop_rate(uuid, rate)
 
-        Add a new source (of the old packetsource style) to kismet.  sourceline
+        Configures the hopping rate of a data source, while not changing the
+        channels used for hopping.
+
+        Requires valid login
+        """
+
+        cmd = {
+            "hoprate": rate
+        }
+
+        (r, v) = self.post_msgpack_url("datasource/by-uuid/{}/set_channel.cmd".format(uuid), cmd)
+
+        if not r:
+            return False
+
+        return True
+
+
+    def config_datasource_set_hop_channels(self, uuid, rate, channels):
+        """
+        config_datasource_set_hop(uuid, rate, channels)
+
+        Configures a data source for hopping at 'rate' over a vector of
+        channels.
+        
+        Requires valid login
+        """
+
+        cmd = {
+            "hoprate": rate,
+            "channels": channels
+        }
+
+        (r, v) = self.post_msgpack_url("datasource/by-uuid/{}/set_channel.cmd".format(uuid), cmd)
+
+        if not r:
+            return False
+
+        return True
+
+    def add_datasource(self, source):
+        """
+        add_datasource(sourceline) -> Boolean
+
+        Add a new source to kismet.  sourceline
         is a standard source definition.
 
         Requires valid login.
@@ -514,10 +566,10 @@ class KismetConnector:
         """
 
         cmd = {
-                "source": source
-                }
+            "definition": source
+        }
 
-        (r, v) = self.post_msgpack_url("packetsource/config/add_source.cmd", cmd)
+        (r, v) = self.post_msgpack_url("datasource/add_source.cmd", cmd)
 
         if not r:
             if self.debug:

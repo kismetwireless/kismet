@@ -1234,14 +1234,14 @@ int Datasourcetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
         if (stripped == "/datasource/add_source") {
             string r; 
 
-            if (concls->variable_cache.find("definition") == 
-                    concls->variable_cache.end()) 
+            if (!structdata->hasKey("definition")) {
                 throw std::runtime_error("Missing source definition");
+            }
 
             cl->lock();
 
             // Initiate the open
-            open_datasource(concls->variable_cache["definition"]->str(),
+            open_datasource(structdata->getKeyAsString("definition"),
                     [this, cl, concls](bool success, string reason, 
                         SharedDatasource ds) {
                         if (success) {
