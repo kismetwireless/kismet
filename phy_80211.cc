@@ -55,6 +55,8 @@
 #include "msgpack_adapter.h"
 #include "kismet_json.h"
 
+#include "kis_httpd_registry.h"
+
 #ifdef HAVE_LIBPCRE
 #include <pcre.h>
 #endif
@@ -430,6 +432,12 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
 	globalreg->InsertGlobal("SSID_CONF_FILE", shared_ptr<ConfigFile>(ssid_conf));
 
     httpd_pcap.reset(new Phy_80211_Httpd_Pcap(globalreg));
+
+    // Register js module for UI
+    shared_ptr<Kis_Httpd_Registry> httpregistry = 
+        globalreg->FetchGlobalAs<Kis_Httpd_Registry>("WEBREGISTRY");
+    httpregistry->register_js_module("kismet_ui_dot11", 
+            "/js/kismet.ui.dot11.js");
 
 }
 

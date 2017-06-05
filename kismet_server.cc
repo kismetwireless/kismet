@@ -71,6 +71,7 @@
 #include "system_monitor.h"
 #include "channeltracker2.h"
 #include "kis_httpd_websession.h"
+#include "kis_httpd_registry.h"
 #include "messagebus_restclient.h"
 
 #include "gps_manager.h"
@@ -878,6 +879,9 @@ int main(int argc, char *argv[], char *envp[]) {
     // Add login session
     shared_ptr<Kis_Httpd_Websession> websession = 
         Kis_Httpd_Websession::create_websession(globalregistry);
+
+    // Add module registry
+    Kis_Httpd_Registry::create_http_registry(globalregistry);
 
     // Add channel tracking
     Channeltracker_V2::create_channeltracker(globalregistry);

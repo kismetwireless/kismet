@@ -24,6 +24,7 @@
 #include "kismet_json.h"
 #include "endian_magic.h"
 #include "macaddr.h"
+#include "kis_httpd_registry.h"
 
 Kis_RTL433_Phy::Kis_RTL433_Phy(GlobalRegistry *in_globalreg,
         Devicetracker *in_tracker, int in_phyid) :
@@ -58,6 +59,12 @@ Kis_RTL433_Phy::Kis_RTL433_Phy(GlobalRegistry *in_globalreg,
     rtl433_weatherstation_id =
         entrytracker->RegisterField("rtl433.device.weatherstation",
                 weatherbuilder, "RTL433 weather station");
+
+    // Register js module for UI
+    shared_ptr<Kis_Httpd_Registry> httpregistry = 
+        globalreg->FetchGlobalAs<Kis_Httpd_Registry>("WEBREGISTRY");
+    httpregistry->register_js_module("kismet_ui_rtl433", 
+            "/js/kismet.ui.rtl433.js");
 
 }
 

@@ -25,6 +25,7 @@
 #include "endian_magic.h"
 #include "macaddr.h"
 #include "messagebus.h"
+#include "kis_httpd_registry.h"
 
 Kis_Zwave_Phy::Kis_Zwave_Phy(GlobalRegistry *in_globalreg,
         Devicetracker *in_tracker, int in_phyid) :
@@ -44,6 +45,12 @@ Kis_Zwave_Phy::Kis_Zwave_Phy(GlobalRegistry *in_globalreg,
     shared_ptr<zwave_tracked_device> builder(new zwave_tracked_device(globalreg, 0));
     zwave_device_id =
         entrytracker->RegisterField("zwave.device", builder, "Z-Wave Device");
+
+    // Register js module for UI
+    shared_ptr<Kis_Httpd_Registry> httpregistry = 
+        globalreg->FetchGlobalAs<Kis_Httpd_Registry>("WEBREGISTRY");
+    httpregistry->register_js_module("kismet_ui_zwave", 
+            "/js/kismet.ui.zwave.js");
 }
 
 Kis_Zwave_Phy::~Kis_Zwave_Phy() {

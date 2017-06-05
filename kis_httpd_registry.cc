@@ -58,13 +58,42 @@ bool Kis_Httpd_Registry::register_js_module(string in_module, string in_path) {
 }
 
 bool Kis_Httpd_Registry::Httpd_VerifyPath(const char *path, const char *method) {
+    if (strcmp(method, "GET") != 0)
+        return false;
+
+    if (!Httpd_CanSerialize(path))
+        return false;
+
+    if (strcmp(path, "/dynamic.json") == 0)
+        return true;
+
     return false;
 }
 
 void Kis_Httpd_Registry::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
         Kis_Net_Httpd_Connection *connection,
-        const char *url, const char *method, const char *upload_data,
+        const char *path, const char *method, const char *upload_data,
         size_t *upload_data_size, std::stringstream &stream) {
+
+    if (strcmp(method, "GET") != 0)
+        return;
+
+    if (strcmp(path, "/dynamic.json") == 0) {
+        stream << "{\"dynamicjs\": [";
+
+        bool f = true;
+        for (auto m : js_module_path_map) {
+            if (f)
+                f = false;
+            else
+                stream << ",";
+
+            stream << "{\"js\": \"" << m.second << "\", ";
+            stream << "\"module\": \"" << m.first << "\"}";
+        }
+    }
+
+    stream << "] }" << endl;
 
     return;
 }

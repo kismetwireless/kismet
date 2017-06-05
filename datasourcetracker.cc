@@ -30,6 +30,7 @@
 #include "base64.h"
 #include "pcapng_stream_ringbuf.h"
 #include "streamtracker.h"
+#include "kis_httpd_registry.h"
 
 DST_DatasourceProbe::DST_DatasourceProbe(GlobalRegistry *in_globalreg, 
         string in_definition, SharedTrackerElement in_protovec) {
@@ -429,6 +430,12 @@ Datasourcetracker::Datasourcetracker(GlobalRegistry *in_globalreg) :
     }
 
     httpd_pcap.reset(new Datasourcetracker_Httpd_Pcap(globalreg));
+
+    // Register js module for UI
+    shared_ptr<Kis_Httpd_Registry> httpregistry = 
+        globalreg->FetchGlobalAs<Kis_Httpd_Registry>("WEBREGISTRY");
+    httpregistry->register_js_module("kismet_ui_datasources", 
+            "/js/kismet.ui.datasources.js");
 }
 
 Datasourcetracker::~Datasourcetracker() {

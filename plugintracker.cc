@@ -222,7 +222,7 @@ int Plugintracker::ScanDirectory(DIR *in_dir, string in_path) {
         }
 
         if ((s = cf.FetchOpt("js")) != "") {
-            if (s.find(",") != string::npos) {
+            if (s.find(",") == string::npos) {
                 _MSG("Found an invalid 'js=' in plugin manifest '" + manifest +
                         "', js= should define module,path", MSGFLAG_ERROR);
                 continue;
@@ -380,7 +380,7 @@ int Plugintracker::ActivatePlugins() {
                 continue;
             }
 
-            string module = js.substr(0, cpos - 1);
+            string module = js.substr(0, cpos);
             string path = js.substr(cpos + 1, js.length());
 
             if (!httpdregistry->register_js_module(module, path)) {
