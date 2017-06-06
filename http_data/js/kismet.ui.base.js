@@ -568,7 +568,7 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                     title: "Error/Invalid"
                 },
                 {
-                    field: "kismet.device.base_packets.data",
+                    field: "kismet.device.base.packets.data",
                     title: "Data"
                 },
                 {
