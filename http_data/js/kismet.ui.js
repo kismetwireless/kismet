@@ -85,7 +85,10 @@ exports.AddDeviceColumn = function(id, options) {
 
     // Bypass datatable/jquery pathing
     coldef.mData = function(row, type, set) {
-        return kismet.ObjectByString(row, f);
+        if ('sanitize' in options && options['sanitize'] == false)
+            return kismet.ObjectByString(row, f);
+
+        return kismet.sanitizeHTML(kismet.ObjectByString(row, f));
     }
 
     // Datatable render function

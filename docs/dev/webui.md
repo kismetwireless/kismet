@@ -71,6 +71,16 @@ To tell Kismet which fields to include in the summary, the path to the field mus
 
 When requesting common fields that might have overlapping names (such as location and signal fields), or simply to make referencing the field easier, an alternate name can be provided by passing an array, for example:  `['kismet.device.base.signal/kismet.common.signal.last_signal_dbm', 'base.signal']`.
 
+#### drawfunc - function (optional)
+
+Optional function for performing custom drawing when the row is visible.  The devicetable is optimized to only call draw functions when the row is visible, so you don't need to worry about performing unnecessary work.
+
+The `drawfunc` function takes three arguments:
+
+* `dyncolumn`, the current column definition, which allows access to the name, id, and other fields passed to the `kismet_ui.AddDeviceColumn(...)` call
+* `datatable`, an object instance of the device table as a `.DataTable()` object, allowing access to the over-all data table records
+* `row`, an object instance of `.DataTable().row()` for the row being drawn.  This is already resolved to the actual row, eliminating the concern for sorting or visible position resolution.
+
 #### name - string (optional)
 
 Optional name of the column definition.  This allows searching by the column name in render functions to determine the index.
@@ -79,29 +89,23 @@ Optional name of the column definition.  This allows searching by the column nam
 
 Passed to DataTables as bSortable, allows disabling sorting by this column.  Most useful on graphical columns which don't contain sortable data.
 
-#### visible - boolean (optional)
-
-Passed to DataTables as bVisisible, allows creating invisible columns.  The most common use for an invisible column would be to create a searchable field which isn't shown.  Invisible columns cannot be selected by the user in the column selection UI.
-
-#### searchable - boolean (optional)
-
-Passed to DataTables as bSearchable, controls if the content of the column is searchable from the quick search field.
-
 #### renderfunc - function (optional)
 
 Optional function for rendering the field.  This is called as the `render` option of a DataTable row and takes the standard DataTable arguments: `data, type, row, meta`.
 
 Render functions must return an element to be inserted into the cell and are called before the entire row is assembled.
 
-#### drawfunc - function (optional)
+#### sanitize - boolean (optional)
 
-Optional function for performing custom drawing when the row is visible.  The devicetable is optimized to only call draw functions when the row is visible, so you don't need to worry about performing unncessary work.
+By default, all data is passed through a function which escapes HTML characters; if your data is *known to be safe* (such as locally-generated format data) and you want to insert HTML directly into the row, set sanitize to false.
 
-The `drawfunc` function takes three arguments:
+#### searchable - boolean (optional)
 
-* `dyncolumn`, the current column definition, which allows access to the name, id, and other fields passed to the `kismet_ui.AddDeviceColumn(...)` call
-* `datatable`, an object instance of the device table as a `.DataTable()` object, allowing access to the over-all data table records
-* `row`, an object instance of `.DataTable().row()` for the row being drawn.  This is already resolved to the actual row, eliminating the concern for sorting or visible position resolution.
+Passed to DataTables as bSearchable, controls if the content of the column is searchable from the quick search field.
+
+#### visible - boolean (optional)
+
+Passed to DataTables as bVisisible, allows creating invisible columns.  The most common use for an invisible column would be to create a searchable field which isn't shown.  Invisible columns cannot be selected by the user in the column selection UI.
 
 ### Example Columns
 

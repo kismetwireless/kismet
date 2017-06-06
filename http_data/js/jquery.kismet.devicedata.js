@@ -14,6 +14,7 @@
         // and may also include
         // 'index' - iteration index
         // 'container' - parent container for draw functions
+        // 'sanitize' - sanitize HTML of content, default true
 
         // Optional function for filtering if we display this entity, returns
         // boolean for display.  
@@ -66,6 +67,7 @@
             "id": "kismetDeviceData",
             "fields": [],
             "baseobject": "",
+            "sanitize": true,
         }, options);
 
         var subtable = $('table #' + settings['id'], this);
@@ -118,6 +120,10 @@
                      typeof(d) === 'string' && d === '0')) {
                 return;
             }
+
+            // We're through using it, sanitize it if we need to
+            if (settings.sanitize && typeof(d) === 'string')
+                d = kismet.sanitizeHTML(d);
 
             // Do we have a sub-group or group list?
             if ('groupTitle' in v) {

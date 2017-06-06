@@ -249,6 +249,10 @@ For example to simply show the value, centered in bold across the entire column:
 }
 ```
 
+### sanitize - boolean (optional)
+
+By default, devicedata fields are run through a sanitization function to convert HTML characters.  If you are *sure your data is safe* (for instance, it is locally generated HTML content), this can be overridden.
+
 ## Manipulating Devicedata Tables
 
 Most of the requirements for manipulating the content of a Devicedata table should be met by the internal functions for rendering, drawing, etc.  However, if you need to modify or access data from outside the Devicedata object, the following elements are created:
