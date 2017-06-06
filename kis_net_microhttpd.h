@@ -391,6 +391,9 @@ public:
     void RegisterMimeType(string suffix, string mimetype);
     string GetMimeType(string suffix);
 
+    // Register a static files directory (used for system, home, and plugin data)
+    void RegisterStaticDir(string in_url_prefix, string in_path);
+
     // Interrogate the session handler and figure out if this connection has a
     // valid session; optionally sends basic auth failure automatically
     bool HasValidSession(Kis_Net_Httpd_Connection *connection, bool send_reject = true);
@@ -425,7 +428,6 @@ protected:
     GlobalRegistry *globalreg;
 
     unsigned int http_port;
-    string http_data_dir, http_aux_data_dir;
 
     bool http_serve_files, http_serve_user_files;
 
@@ -441,6 +443,19 @@ protected:
     bool running;
 
     std::map<string, string> mime_type_map;
+
+    class static_dir {
+    public:
+        static_dir(string prefix, string path) {
+            this->prefix = prefix;
+            this->path = path;
+        };
+
+        string prefix;
+        string path;
+    };
+
+    vector<static_dir> static_dir_vec;
 
     pthread_mutex_t controller_mutex;
 

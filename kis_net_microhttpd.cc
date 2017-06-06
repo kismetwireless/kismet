@@ -64,6 +64,8 @@ Kis_Net_Httpd::Kis_Net_Httpd(GlobalRegistry *in_globalreg) {
 
     http_port = globalreg->kismet_config->FetchOptUInt("httpd_port", 2501);
 
+    string http_data_dir, http_aux_data_dir;
+
     http_data_dir = globalreg->kismet_config->FetchOpt("httpd_home");
     http_aux_data_dir = globalreg->kismet_config->FetchOpt("httpd_user_home");
 
@@ -78,6 +80,9 @@ Kis_Net_Httpd::Kis_Net_Httpd(GlobalRegistry *in_globalreg) {
         _MSG("Serving static content from '" + http_data_dir + "'",
                 MSGFLAG_INFO);
         http_serve_files = true;
+
+        // Add it as a possible file dir
+        RegisterStaticDir("/", http_data_dir);
     }
 
     if (http_aux_data_dir == "") {
@@ -90,6 +95,9 @@ Kis_Net_Httpd::Kis_Net_Httpd(GlobalRegistry *in_globalreg) {
         _MSG("Serving static userdir content from '" + http_aux_data_dir + "'",
                 MSGFLAG_INFO);
         http_serve_user_files = true;
+        
+        // Add it as a second possible source of '/' files
+        RegisterStaticDir("/", http_aux_data_dir);
     }
 
     if (http_serve_files == false && http_serve_user_files == false) {
@@ -268,7 +276,14 @@ string Kis_Net_Httpd::StripSuffix(string url) {
 }
 
 void Kis_Net_Httpd::RegisterMimeType(string suffix, string mimetype) {
-    mime_type_map[StrLower(suffix)] = mimetype;
+    local_locker lock(&controller_mutex);
+    mime_type_map.emplace(StrLower(suffix), mimetype);
+}
+
+void Kis_Net_Httpd::RegisterStaticDir(string in_prefix, string in_path) {
+    local_locker lock(&controller_mutex);
+
+    static_dir_vec.push_back(static_dir(in_prefix, in_path));
 }
 
 void Kis_Net_Httpd::RegisterHandler(Kis_Net_Httpd_Handler *in_handler) {
@@ -629,119 +644,119 @@ int Kis_Net_Httpd::handle_static_file(void *cls, Kis_Net_Httpd_Connection *conne
         const char *url, const char *method) {
     Kis_Net_Httpd *kishttpd = (Kis_Net_Httpd *) cls;
 
-    if (!kishttpd->http_serve_files)
-        return -1;
-
     if (strcmp(method, "GET") != 0)
         return -1;
 
-    string fullfile = kishttpd->http_data_dir + "/" + url;
-    string auxfile = kishttpd->http_aux_data_dir + "/" + url;
+    string surl(url);
 
-    if (fullfile[fullfile.size() - 1] == '/')
-        fullfile += "index.html";
+    // Append index.html to directory requests
+    if (surl[surl.length() - 1] == '/')
+        surl += "index.html";
 
-    if (auxfile[auxfile.size() - 1] == '/')
-        auxfile += "index.html";
+    local_locker lock(&(kishttpd->controller_mutex));
 
-    char *realpath_path;
-    char *realpath_auxpath;
+    for (auto sd : kishttpd->static_dir_vec) {
+        if (strlen(url) < sd.prefix.size())
+            continue;
 
-    const char *datadir_path;
-    const char *auxdir_path;
+        if (surl.find(sd.prefix) != 0) 
+            continue;
 
-    datadir_path = kishttpd->http_data_dir.c_str();
-    auxdir_path = kishttpd->http_aux_data_dir.c_str();
+        string modified_fpath = sd.path + "/" + 
+            surl.substr(sd.prefix.length(), surl.length());
 
-    realpath_path = realpath(fullfile.c_str(), NULL);
-    realpath_auxpath = realpath(auxfile.c_str(), NULL);
+        char *modified_realpath;
+        char *base_realpath = realpath(sd.path.c_str(), NULL);
 
-    if (realpath_path == NULL && realpath_auxpath == NULL) {
-        return -1;
-    } else {
-        // Make sure we're hosted inside the data dir
-        if ((realpath_path != NULL && 
-                    strstr(realpath_path, datadir_path) == realpath_path) ||
-                (realpath_auxpath != NULL && 
-                 strstr(realpath_auxpath, auxdir_path) == realpath_auxpath)) {
+        modified_realpath = realpath(modified_fpath.c_str(), NULL);
 
+        // Couldn't resolve real path
+        if (modified_realpath == NULL || base_realpath == NULL) {
+            if (modified_realpath != NULL)
+                free(modified_realpath);
+
+            if (base_realpath != NULL)
+                free(base_realpath);
+
+            continue;
+        }
+
+        // Make sure real path resolves inside the served path
+        if (strstr(modified_realpath, base_realpath) != modified_realpath) {
+            if (modified_realpath != NULL)
+                free(modified_realpath);
+
+            if (base_realpath != NULL)
+                free(base_realpath);
+
+            continue;
+        }
+
+        // The path is resolved, try to open the file
+        FILE *f = fopen(modified_realpath, "rb");
+
+        free(modified_realpath);
+        free(base_realpath);
+
+        if (f != NULL) {
             struct MHD_Response *response;
             struct stat buf;
 
-            FILE *f;
-            
             int fd;
 
-            // Try to open it from the main path
-            f = fopen(realpath_path, "rb");
-
-            // Try to open it from the auxpath
-            if (f == NULL) {
-                f = fopen(realpath_auxpath, "rb");
+            fd = fileno(f);
+            if (fstat(fd, &buf) != 0 || (!S_ISREG(buf.st_mode))) {
+                fclose(f);
+                return -1;
             }
 
-            free(realpath_path);
-            free(realpath_auxpath);
-            
-            if (f != NULL) {
-                fd = fileno(f);
-                if (fstat(fd, &buf) != 0 || (!S_ISREG(buf.st_mode))) {
-                    fclose(f);
-                    return -1;
-                }
+            response = MHD_create_response_from_callback(buf.st_size, 32 * 1024,
+                    &file_reader, f, &free_callback);
 
-                response = MHD_create_response_from_callback(buf.st_size, 32 * 1024,
-                        &file_reader, f, &free_callback);
-
-                if (response == NULL) {
-                    fclose(f);
-                    return -1;
-                }
-
-                if (connection->session != NULL) {
-                    std::stringstream cookiestr;
-                    std::stringstream cookie;
-
-                    cookiestr << KIS_SESSION_COOKIE << "=";
-                    cookiestr << connection->session->sessionid;
-                    cookiestr << "; Path=/";
-
-                    MHD_add_response_header(response, MHD_HTTP_HEADER_SET_COOKIE, 
-                                cookiestr.str().c_str());
-                }
-
-                char lastmod[31];
-                struct tm tmstruct;
-                localtime_r(&(buf.st_ctime), &tmstruct);
-                strftime(lastmod, 31, "%a, %d %b %Y %H:%M:%S %Z", &tmstruct);
-                MHD_add_response_header(response, "Last-Modified", lastmod);
-
-                string suffix = GetSuffix(url);
-                string mime = kishttpd->GetMimeType(suffix);
-
-                if (mime != "") {
-                    MHD_add_response_header(response, "Content-Type", mime.c_str());
-                }
-
-                // Allow any?
-                MHD_add_response_header(response, "Access-Control-Allow-Origin", "*");
-
-                // Never let the browser cache our responses.  Maybe moderate this
-                // in the future to cache for 60 seconds or something?
-                MHD_add_response_header(response, "Cache-Control", "no-cache");
-                MHD_add_response_header(response, "Pragma", "no-cache");
-                MHD_add_response_header(response, 
-                        "Expires", "Sat, 01 Jan 2000 00:00:00 GMT");
-
-                MHD_queue_response(connection->connection, MHD_HTTP_OK, response);
-                MHD_destroy_response(response);
-
-                return 1;
+            if (response == NULL) {
+                fclose(f);
+                return -1;
             }
 
-            return -1;
-        } else {
-            return -1;
+            if (connection->session != NULL) {
+                std::stringstream cookiestr;
+                std::stringstream cookie;
+
+                cookiestr << KIS_SESSION_COOKIE << "=";
+                cookiestr << connection->session->sessionid;
+                cookiestr << "; Path=/";
+
+                MHD_add_response_header(response, MHD_HTTP_HEADER_SET_COOKIE, 
+                        cookiestr.str().c_str());
+            }
+
+            char lastmod[31];
+            struct tm tmstruct;
+            localtime_r(&(buf.st_ctime), &tmstruct);
+            strftime(lastmod, 31, "%a, %d %b %Y %H:%M:%S %Z", &tmstruct);
+            MHD_add_response_header(response, "Last-Modified", lastmod);
+
+            string suffix = GetSuffix(url);
+            string mime = kishttpd->GetMimeType(suffix);
+
+            if (mime != "") {
+                MHD_add_response_header(response, "Content-Type", mime.c_str());
+            }
+
+            // Allow any?
+            MHD_add_response_header(response, "Access-Control-Allow-Origin", "*");
+
+            // Never let the browser cache our responses.  Maybe moderate this
+            // in the future to cache for 60 seconds or something?
+            MHD_add_response_header(response, "Cache-Control", "no-cache");
+            MHD_add_response_header(response, "Pragma", "no-cache");
+            MHD_add_response_header(response, 
+                    "Expires", "Sat, 01 Jan 2000 00:00:00 GMT");
+
+            MHD_queue_response(connection->connection, MHD_HTTP_OK, response);
+            MHD_destroy_response(response);
+
+            return 1;
         }
     }
 
