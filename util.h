@@ -151,6 +151,7 @@ int XtoI(char x);
 int Hex2UChar(unsigned char *in_hex, unsigned char *in_chr);
 
 vector<string> StrTokenize(string in_str, string in_split, int return_partial = 1);
+string StrJoin(vector<string> in_content, string in_delim, bool in_first = false);
 
 // 'smart' tokenizeing with start/end positions
 struct smart_word_token {

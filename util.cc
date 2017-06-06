@@ -340,6 +340,24 @@ vector<string> StrTokenize(string in_str, string in_split, int return_partial) {
     return ret;
 }
 
+string StrJoin(vector<string> in_content, string in_delim, bool in_first) {
+    ostringstream ostr;
+
+    bool d = false;
+
+    for (auto x = in_content.begin(); x != in_content.end(); ++x) {
+        if (d || in_first)
+            ostr << in_delim;
+
+        if (!d)
+            d = true;
+
+        ostr << (*x);
+    }
+
+    return ostr.str();
+}
+
 // Collapse into basic tokenizer
 vector<smart_word_token> NetStrTokenize(string in_str, string in_split, 
 										int return_partial) {
