@@ -247,6 +247,23 @@ exports.RecalcRrdData = function(start, now, type, data, opt = {}) {
     return adj_data;
 }
 
+exports.sanitizeHTML = function(s) {
+    var remap = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;',
+        '/': '&#x2F;',
+        '`': '&#x60;',
+        '=': '&#x3D;'
+    };
+
+    return String(string).replace(/[&<>"'`=\/]/g, function (s) {
+            return remap[s];
+    });
+}
+
 return exports;
 
 });
