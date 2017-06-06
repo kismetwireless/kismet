@@ -113,6 +113,8 @@ exports.GetDynamicIncludes = function() {
                 var module = data.dynamicjs[p]['module'];
                 var defer = data.dynamicjs[p]['defer'];
 
+                console.log("defer for module", module);
+
                 if (typeof window[module] !== 'undefined' &&
                         window[module].load_complete == 1) {
                     // window.clearInterval(interval);
@@ -120,12 +122,13 @@ exports.GetDynamicIncludes = function() {
                     data['dynamicjs'].splice(p, 1);
                     // console.log("done loading " + module + " on attempt " + attempts);
                     defer.resolve();
-                } else if (attempts >= 100) {
+                } else if (attempts >= 20) {
                     // window.clearInterval(interval);
                     // // Remove this entry from the list
                     data['dynamicjs'].splice(p, 1);
                     // console.log("loading went wrong");
-                    defer.reject('Something went wrong');
+                    alert("Failed to load JS module '" + module + "' if you have recently installed any plugins they may be causing errors loading.  Kismet will attempt to load the rest of the UI.");
+                    defer.resolve();
                 }
             }
 
