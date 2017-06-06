@@ -141,8 +141,11 @@ public:
     __Proxy(plugin_description, string, string, string, plugin_description);
     __Proxy(plugin_author, string, string, string, plugin_author);
     __Proxy(plugin_version, string, string, string, plugin_version);
+
     __Proxy(plugin_so, string, string, string, plugin_so);
+    __Proxy(plugin_dirname, string, string, string, plugin_dirname);
     __Proxy(plugin_path, string, string, string, plugin_path);
+
     __Proxy(plugin_js, string, string, string, plugin_js);
 
     void set_plugin_dlfile(void *in_dlfile) {
@@ -167,6 +170,8 @@ protected:
                 "plugin version", &plugin_version);
         RegisterField("kismet.plugin.shared_object", TrackerString,
                 "plugin shared object filename", &plugin_so);
+        RegisterField("kismet.plugin.dirname", TrackerString,
+                "plugin directory name", &plugin_dirname);
         RegisterField("kismet.plugin.path", TrackerString, 
                 "path to plugin content", &plugin_path);
         RegisterField("kismet.plugin.jsmodule", TrackerString,
@@ -179,6 +184,7 @@ protected:
     SharedTrackerElement plugin_version;
 
     SharedTrackerElement plugin_so;
+    SharedTrackerElement plugin_dirname;
     SharedTrackerElement plugin_path;
 
     SharedTrackerElement plugin_js;

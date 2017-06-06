@@ -26,6 +26,8 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <limits.h>
+#include <stdlib.h>
 
 #include "configfile.h"
 #include "getopt.h"
@@ -172,6 +174,9 @@ int Plugintracker::ScanDirectory(DIR *in_dir, string in_path) {
 
         SharedPluginData preg(new PluginRegistrationData(globalreg, 0));
 
+        preg->set_plugin_path(in_path + "/" + plugfile->d_name + "/");
+        preg->set_plugin_dirname(plugfile->d_name);
+
         string s;
 
         if ((s = cf.FetchOpt("name")) == "") {
@@ -218,7 +223,6 @@ int Plugintracker::ScanDirectory(DIR *in_dir, string in_path) {
             }
 
             preg->set_plugin_so(s);
-            preg->set_plugin_path(in_path + "/" + plugfile->d_name + "/" + s);
         }
 
         if ((s = cf.FetchOpt("js")) != "") {
@@ -383,6 +387,10 @@ int Plugintracker::ActivatePlugins() {
             string module = js.substr(0, cpos);
             string path = js.substr(cpos + 1, js.length());
 
+            // Alias the plugin directory
+            httpd->RegisterStaticDir("/plugin/" + x->get_plugin_dirname() + "/",
+                    x->get_plugin_path() + "/httpd/");
+
             if (!httpdregistry->register_js_module(module, path)) {
                 _MSG("Plugin '" + x->get_plugin_path() + "' could not "
                         "register JS plugin module", MSGFLAG_ERROR);
@@ -458,15 +466,14 @@ bool Plugintracker::Httpd_VerifyPath(const char *path, const char *method) {
 
 void Plugintracker::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
         Kis_Net_Httpd_Connection *connection,
-        const char *url, const char *method, const char *upload_data,
+        const char *path, const char *method, const char *upload_data,
         size_t *upload_data_size, std::stringstream &stream) {
 
-    string stripped = Httpd_StripSuffix(url);
+    string stripped = Httpd_StripSuffix(path);
 
     if (stripped == "/plugins/all_plugins") {
         local_locker locker(&plugin_lock);
 
-        Httpd_Serialize(url, stream, plugin_registry);
+        Httpd_Serialize(path, stream, plugin_registry);
     }
-
 }
