@@ -259,7 +259,7 @@ exports.sanitizeHTML = function(s) {
         '=': '&#x3D;'
     };
 
-    return String(string).replace(/[&<>"'`=\/]/g, function (s) {
+    return String(s).replace(/[&<>"'`=\/]/g, function (s) {
             return remap[s];
     });
 }
