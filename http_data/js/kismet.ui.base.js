@@ -1080,6 +1080,69 @@ kismet_ui_settings.AddSettingsPane({
 });
 
 kismet_ui_settings.AddSettingsPane({
+    id: 'base_plugins',
+    listTitle: 'Plugins',
+    create: function(elem) {
+        elem.append($('<i>').html('Loading plugin data...'));
+
+        $.get("/plugins/all_plugins.json")
+        .done(function(data) {
+            elem.empty();
+    
+            if (data.length == 0) {
+                elem.append($('<i>').html('No plugins loaded...'));
+            }
+
+            for (var pi in data) {
+                var pl = data[pi];
+
+                var sharedlib = $('<p>');
+
+                if (pl['kismet.plugin.shared_object'].length > 0) {
+                    sharedlib.html("Native code from " + pl['kismet.plugin.shared_object']);
+                } else {
+                    sharedlib.html("No native code");
+                }
+
+                elem.append(
+                    $('<div>', { 
+                        class: 'k-b-s-plugin-title',
+                    })
+                    .append(
+                        $('<b>', {
+                            class: 'k-b-s-plugin-title',
+                        })
+                        .text(pl['kismet.plugin.name'])
+                    )
+                    .append(
+                        $('<span>', { })
+                        .text(pl['kismet.plugin.version'])
+                    )
+                )
+                .append(
+                    $('<div>', {
+                        class: 'k-b-s-plugin-content',
+                    })
+                    .append(
+                        $('<p>', { })
+                        .text(pl['kismet.plugin.description'])
+                    )
+                    .append(
+                        $('<p>', { })
+                        .text(pl['kismet.plugin.author'])
+                    )
+                    .append(sharedlib)
+                );
+            }
+        });
+    },
+    save: function(elem) {
+
+    },
+});
+
+
+kismet_ui_settings.AddSettingsPane({
     id: 'base_login_password',
     listTitle: 'Login &amp; Password',
     create: function(elem) {

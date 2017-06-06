@@ -120,3 +120,18 @@ i.k-dsd-arrow-down {
     color: red;
 }
 
+div.k-b-s-plugin-title {
+    padding-left: 10px;
+    margin-top: 10px;
+    border-left: 5px solid black;
+}
+
+b.k-b-s-plugin-title {
+    padding-left: 10px;
+    padding-right: 10px;
+}
+
+div.k-b-s-plugin-content {
+    padding-left: 25px;
+}
+
