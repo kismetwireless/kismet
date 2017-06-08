@@ -158,18 +158,18 @@ exports.AddDeviceRowHighlight = function(options) {
 }
 
 /* Return columns from the selected list of column IDs */
-exports.GetDeviceColumns = function(selected) {
+exports.GetDeviceColumns = function(showall = false) {
     var ret = new Array();
+
+    console.log("getdevicecolumns", showall);
 
     var order = kismet.getStorage('kismet.datatable.columns', []);
 
     // If we don't have an order saved
     if (order.length == 0) {
-        console.log("no stored order length");
         for (var i in DeviceColumns) {
             ret.push(DeviceColumns[i]);
         }
-
         return ret;
     }
 
@@ -177,18 +177,23 @@ exports.GetDeviceColumns = function(selected) {
     for (var oi in order) {
         var o = order[oi];
 
-        // Find the column that matches
-        for (var dci in DeviceColumns) {
-            if (DeviceColumns[dci].kismetId === o.id) {
-                if (o.enable) {
-                    DeviceColumns[dci].bVisible = true;
-                    ret.push(DeviceColumns[dci]);
-                }
-            }
+        if (!o.enable)
+            continue;
+
+        // Find the column that matches the ID in the master list of columns
+        var dc = DeviceColumns.find(function(e, i, a) {
+            if (e.kismetId === o.id)
+                return true;
+            return false;
+        });
+
+        if (dc != undefined && dc.user_selectable) {
+            dc.bVisible = true;
+            ret.push(dc);
         }
     }
 
-    // If we didn't find anything, default to the normal behavior
+    // If we didn't find anything, default to the normal behavior - something is wrong
     if (ret.length == 0) {
         for (var i in DeviceColumns) {
             ret.push(DeviceColumns[i]);
@@ -196,9 +201,36 @@ exports.GetDeviceColumns = function(selected) {
         return ret;
     }
 
-    // Then append all the columns the user can't select
+    // If we're showing everything, find any other columns we don't have selected,
+    // now that we've added the visible ones in the right order.
+    if (showall) {
+        for (var dci in DeviceColumns) {
+            var dc = DeviceColumns[dci];
+
+            if (!dc.user_selectable)
+                continue;
+
+            var rc = ret.find(function(e, i, a) {
+                if (e.kismetId === dc.kismetId)
+                    return true;
+                return false;
+            });
+
+            if (rc == undefined) {
+                dc.bVisible = false;
+                ret.push(dc);
+            }
+        }
+
+        // Return the list w/out adding the non-user-selectable stuff
+        return ret;
+    }
+
+    // Then append all the columns the user can't select because we need them for
+    // fetching data or providing hidden sorting
     for (var dci in DeviceColumns) {
         if (!DeviceColumns[dci].user_selectable) {
+            console.log("adding", DeviceColumns[dci].kismetId, DeviceColumns[dci].bVisible);
             ret.push(DeviceColumns[dci]);
         }
     }
@@ -559,6 +591,10 @@ function ScheduleDeviceSummary() {
     return;
 }
 
+function CancelDeviceSummary() {
+    clearTimeout(deviceTid);
+}
+
 var devicetableElement = null;
 
 /* Create the device table */
@@ -613,9 +649,6 @@ exports.InitializeDeviceTable = function(element) {
 
     element.DataTable( {
         responsive: true,
-        colReorder: {
-            realtime: false,
-        },
         scrollResize: true,
         scrollY: 200,
         serverSide: true,
@@ -702,9 +735,14 @@ exports.InitializeDeviceTable = function(element) {
 exports.ResetDeviceTable = function(element) {
     devicetableElement = element;
 
+    CancelDeviceSummary();
+
     element.DataTable().destroy();
+    element.empty();
 
     exports.InitializeDeviceTable(element);
+
+    ScheduleDeviceSummary();
 }
 
 kismet_ui_settings.AddSettingsPane({
@@ -717,7 +755,7 @@ kismet_ui_settings.AddSettingsPane({
                 id: 'k-c-p-rowcontainer'
             });
        
-        var cols = exports.GetDeviceColumns();
+        var cols = exports.GetDeviceColumns(true);
 
         for (var ci in cols) {
             var c = cols[ci];
