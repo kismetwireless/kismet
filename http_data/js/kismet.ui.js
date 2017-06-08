@@ -161,8 +161,6 @@ exports.AddDeviceRowHighlight = function(options) {
 exports.GetDeviceColumns = function(showall = false) {
     var ret = new Array();
 
-    console.log("getdevicecolumns", showall);
-
     var order = kismet.getStorage('kismet.datatable.columns', []);
 
     // If we don't have an order saved
@@ -230,7 +228,6 @@ exports.GetDeviceColumns = function(showall = false) {
     // fetching data or providing hidden sorting
     for (var dci in DeviceColumns) {
         if (!DeviceColumns[dci].user_selectable) {
-            console.log("adding", DeviceColumns[dci].kismetId, DeviceColumns[dci].bVisible);
             ret.push(DeviceColumns[dci]);
         }
     }
