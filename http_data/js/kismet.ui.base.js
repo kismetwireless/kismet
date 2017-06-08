@@ -109,23 +109,27 @@ exports.drawPackets = function(dyncolumn, table, row) {
 // Define the basic columns
 kismet_ui.AddDeviceColumn('column_name', {
     sTitle: 'Name',
-    field: 'kismet.device.base.name'
+    field: 'kismet.device.base.name',
+    description: 'Device name'
 });
 
 kismet_ui.AddDeviceColumn('column_type', {
     sTitle: 'Type',
-    field: 'kismet.device.base.type'
+    field: 'kismet.device.base.type',
+    description: 'Device type'
 });
 
 kismet_ui.AddDeviceColumn('column_phy', {
     sTitle: 'Phy',
     field: 'kismet.device.base.phyname',
+    description: 'Capture Phy name',
     width: "8em",
 });
 
 kismet_ui.AddDeviceColumn('column_signal', {
     sTitle: 'Signal',
     field: 'kismet.device.base.signal/kismet.common.signal.last_signal_dbm',
+    description: 'Last-seen signal',
     width: "6em",
     renderfunc: function(d, t, r, m) {
         return exports.renderSignal(d, t, r, m);
@@ -135,6 +139,7 @@ kismet_ui.AddDeviceColumn('column_signal', {
 kismet_ui.AddDeviceColumn('column_channel', {
     sTitle: 'Channel',
     field: 'kismet.device.base.channel',
+    description: 'Last-seen channel',
     width: "6em",
     renderfunc: function(d, t, r, m) {
         if (d != 0) {
@@ -151,6 +156,7 @@ kismet_ui.AddDeviceColumn('column_channel', {
 kismet_ui.AddDeviceColumn('column_time', {
     sTitle: 'Last Seen',
     field: 'kismet.device.base.last_time',
+    description: 'Last-seen time',
     renderfunc: function(d, t, r, m) {
         return exports.renderLastTime(d, t, r, m);
     },
@@ -159,6 +165,7 @@ kismet_ui.AddDeviceColumn('column_time', {
 kismet_ui.AddDeviceColumn('column_datasize', {
     sTitle: 'Data',
     field: 'kismet.device.base.datasize',
+    description: 'Data seen',
     bUseRendered: false,
     renderfunc: function(d, t, r, m) {
         return exports.renderDataSize(d, t, r, m);
@@ -173,6 +180,7 @@ kismet_ui.AddDeviceColumn('column_packet_rrd', {
     field: ['kismet.device.base.packets.rrd/kismet.common.rrd.last_time',
             'packet.rrd.last_time'],
     name: 'packets',
+    description: 'Packet history graph',
     renderfunc: function(d, t, r, m) {
         return exports.renderPackets(d, t, r, m);
     },
@@ -191,6 +199,7 @@ kismet_ui.AddDeviceColumn('column_rrd_minute_hidden', {
     name: 'packets_rrd_min_data',
     searchable: false,
     visible: false,
+    selectable: false,
     orderable: false
 });
 
@@ -202,14 +211,16 @@ kismet_ui.AddDeviceColumn('column_device_key_hidden', {
     searchable: false,
     orderable: false,
     visible: false,
+    selectable: false,
 });
 
 // Hidden col for mac address, searchable
-kismet_ui.AddDeviceColumn('column_device_mac_hidden', {
+kismet_ui.AddDeviceColumn('column_device_mac', {
     sTitle: 'MAC',
     field: 'kismet.device.base.macaddr',
+    description: 'MAC address',
     searchable: true,
-    orderable: false,
+    orderable: true,
     visible: false,
     renderfunc: function(d, t, r, m) {
         return exports.renderMac(d, t, r, m);
@@ -217,13 +228,14 @@ kismet_ui.AddDeviceColumn('column_device_mac_hidden', {
 });
 
 // Hidden column for computing freq in the absence of channel
-kismet_ui.AddDeviceColumn('column_frequency_hidden', {
+kismet_ui.AddDeviceColumn('column_frequency', {
     sTitle: 'Frequency',
     field: 'kismet.device.base.frequency',
+    description: 'Frequency',
     name: 'frequency',
     searchable: false,
     visible: false,
-    orderable: false,
+    orderable: true,
 });
 
 

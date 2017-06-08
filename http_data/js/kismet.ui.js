@@ -56,6 +56,10 @@ exports.AddDeviceColumn = function(id, options) {
         field: options.field,
     };
 
+    if ('description' in options) {
+        coldef.description = options.description;
+    }
+
     if ('name' in options) {
         coldef.name = options.name;
     }
@@ -66,6 +70,14 @@ exports.AddDeviceColumn = function(id, options) {
 
     if ('visible' in options) {
         coldef.bVisible = options.visible;
+    } else {
+        coldef.bVisible = true;
+    }
+
+    if ('selectable' in options) {
+        coldef.user_selectable = options.selectable;
+    } else {
+        coldef.user_selectable = true;
     }
 
     if ('searchable' in options) {
@@ -149,8 +161,46 @@ exports.AddDeviceRowHighlight = function(options) {
 exports.GetDeviceColumns = function(selected) {
     var ret = new Array();
 
-    for (var i in DeviceColumns) {
-        ret.push(DeviceColumns[i]);
+    var order = kismet.getStorage('kismet.datatable.columns', []);
+
+    // If we don't have an order saved
+    if (order.length == 0) {
+        console.log("no stored order length");
+        for (var i in DeviceColumns) {
+            ret.push(DeviceColumns[i]);
+        }
+
+        return ret;
+    }
+
+    // Otherwise look for all the columns we have enabled
+    for (var oi in order) {
+        var o = order[oi];
+
+        // Find the column that matches
+        for (var dci in DeviceColumns) {
+            if (DeviceColumns[dci].kismetId === o.id) {
+                if (o.enable) {
+                    DeviceColumns[dci].bVisible = true;
+                    ret.push(DeviceColumns[dci]);
+                }
+            }
+        }
+    }
+
+    // If we didn't find anything, default to the normal behavior
+    if (ret.length == 0) {
+        for (var i in DeviceColumns) {
+            ret.push(DeviceColumns[i]);
+        }
+        return ret;
+    }
+
+    // Then append all the columns the user can't select
+    for (var dci in DeviceColumns) {
+        if (!DeviceColumns[dci].user_selectable) {
+            ret.push(DeviceColumns[dci]);
+        }
     }
 
     return ret;
@@ -161,9 +211,10 @@ exports.GetDeviceColumns = function(selected) {
  */
 exports.GetDeviceFields = function(selected) {
     var rawret = new Array();
+    var cols = exports.GetDeviceColumns();
 
-    for (var i in DeviceColumns) {
-        rawret.push(DeviceColumns[i]['field']);
+    for (var i in cols) {
+        rawret.push(cols[i]['field']);
     }
 
     for (var i in DeviceRowHighlights) {
@@ -508,10 +559,48 @@ function ScheduleDeviceSummary() {
     return;
 }
 
+var devicetableElement = null;
+
 /* Create the device table */
 exports.CreateDeviceTable = function(element) {
-    /* Make the fields list json and set the wrapper object to aData to make
-     the DT happy */
+    devicetableElement = element;
+
+    var dt = exports.InitializeDeviceTable(element);
+
+    // Set an onclick handler to spawn the device details dialog
+    $('tbody', element).on('click', 'tr', function () {
+        // Fetch the data of the row that got clicked
+        var device_dt = element.DataTable();
+        var data = device_dt.row( this ).data();
+        var key = data['kismet.device.base.key'];
+
+        kismet_ui.DeviceDetailWindow(key);
+    } );
+
+    $('tbody', element)
+        .on( 'mouseenter', 'td', function () {
+            var device_dt = element.DataTable();
+
+            if (typeof(device_dt.cell(this).index()) === 'Undefined')
+                return;
+
+            var colIdx = device_dt.cell(this).index().column;
+            var rowIdx = device_dt.cell(this).index().row;
+
+            // Remove from all cells
+            $(device_dt.cells().nodes()).removeClass('kismet-highlight');
+            // Highlight the td in this row
+            $('td', device_dt.row(rowIdx).nodes()).addClass('kismet-highlight');
+        } );
+
+    dt.draw(false);
+
+    // Start the auto-updating
+    ScheduleDeviceSummary();
+}
+
+exports.InitializeDeviceTable = function(element) {
+    /* Make the fields list json and set the wrapper object to aData to make the DT happy */
     var cols = exports.GetDeviceColumns();
 
     var fields = exports.GetDeviceFields();
@@ -523,6 +612,10 @@ exports.CreateDeviceTable = function(element) {
     var postdata = "json=" + JSON.stringify(json);
 
     element.DataTable( {
+        responsive: true,
+        colReorder: {
+            realtime: false,
+        },
         scrollResize: true,
         scrollY: 200,
         serverSide: true,
@@ -546,7 +639,7 @@ exports.CreateDeviceTable = function(element) {
         "deferRender": true,
 
         // Get our dynamic columns
-        aoColumns: exports.GetDeviceColumns([]),
+        aoColumns: cols,
 
         order:
             [ [ 0, "desc" ] ],
@@ -603,34 +696,170 @@ exports.CreateDeviceTable = function(element) {
     if (saved_search !== "")
         device_dt.search(JSON.parse(saved_search));
 
-    // Set an onclick handler to spawn the device details dialog
-    $('tbody', element).on('click', 'tr', function () {
-        // Fetch the data of the row that got clicked
-        var data = device_dt.row( this ).data();
-        var key = data['kismet.device.base.key'];
-
-        kismet_ui.DeviceDetailWindow(key);
-    } );
-
-    $('tbody', element)
-        .on( 'mouseenter', 'td', function () {
-            if (typeof(device_dt.cell(this).index()) === 'Undefined')
-                return;
-
-            var colIdx = device_dt.cell(this).index().column;
-            var rowIdx = device_dt.cell(this).index().row;
-
-            // Remove from all cells
-            $(device_dt.cells().nodes()).removeClass('kismet-highlight');
-            // Highlight the td in this row
-            $('td', device_dt.row(rowIdx).nodes()).addClass('kismet-highlight');
-        } );
-
-    device_dt.draw(false);
-
-    // Start the auto-updating
-    ScheduleDeviceSummary();
+    return device_dt;
 }
+
+exports.ResetDeviceTable = function(element) {
+    devicetableElement = element;
+
+    element.DataTable().destroy();
+
+    exports.InitializeDeviceTable(element);
+}
+
+kismet_ui_settings.AddSettingsPane({
+    id: 'core_devicelist_columns',
+    listTitle: 'Device List Columns',
+    create: function(elem) {
+
+        var rowcontainer = 
+            $('<div>', {
+                id: 'k-c-p-rowcontainer'
+            });
+       
+        var cols = exports.GetDeviceColumns();
+
+        for (var ci in cols) {
+            var c = cols[ci];
+
+            if (! c.user_selectable)
+                continue;
+
+            var crow = 
+                $('<div>', {
+                    class: 'k-c-p-column',
+                    id: c.kismetId,
+                })
+                .append(
+                    $('<i>', {
+                        class: 'k-c-p-c-mover fa fa-arrows-v'
+                    })
+                )
+                .append(
+                    $('<div>', {
+                        class: 'k-c-p-c-enable',
+                    })
+                    .append(
+                        $('<input>', {
+                            type: 'checkbox',
+                            id: 'k-c-p-c-enable'
+                        })
+                        .on('change', function() {
+                            kismet_ui_settings.SettingsModified();
+                            })
+                    )
+                )
+                .append(
+                    $('<div>', {
+                        class: 'k-c-p-c-name',
+                    })
+                    .text(c.description)
+                )
+                .append(
+                    $('<div>', {
+                        class: 'k-c-p-c-title',
+                    })
+                    .text(c.sTitle)
+                )
+                .append(
+                    $('<div>', {
+                        class: 'k-c-p-c-notes',
+                        id: 'k-c-p-c-notes',
+                    })
+                );
+
+            var notes = new Array;
+
+            if (c.bVisible != false) {
+                $('#k-c-p-c-enable', crow).prop('checked', true);
+            }
+
+            if (c.bSortable != false) {
+                notes.push("sortable");
+            }
+
+            if (c.bSearchable != false) {
+                notes.push("searchable");
+            }
+
+            $('#k-c-p-c-notes', crow).html(notes.join(", "));
+
+            rowcontainer.append(crow);
+        }
+
+        elem.append(
+            $('<div>', { })
+            .append(
+                $('<p>', { })
+                .html('Drag and drop columns to re-order the device display table.  Columns may also be shown or hidden individually.')
+            )
+        )
+        .append(
+            $('<div>', { 
+                class: 'k-c-p-header',
+            })
+            .append(
+                $('<i>', {
+                    class: 'k-c-p-c-mover fa fa-arrows-v',
+                    style: 'color: transparent !important',
+                })
+            )
+            .append(
+                $('<div>', {
+                    class: 'k-c-p-c-enable',
+                })
+                .append(
+                    $('<i>', {
+                        class: 'fa fa-eye'
+                    })
+                )
+            )
+            .append(
+                $('<div>', {
+                    class: 'k-c-p-c-name',
+                })
+                .html('<i>Column</i>')
+            )
+            .append(
+                $('<div>', {
+                    class: 'k-c-p-c-title',
+                })
+                .html('<i>Title</i>')
+            )
+            .append(
+                $('<div>', {
+                    class: 'k-c-p-c-notes',
+                })
+                .html('<i>Info</i>')
+            )
+        );
+
+        elem.append(rowcontainer);
+
+        rowcontainer.sortable({
+            change: function(event, ui) {
+                kismet_ui_settings.SettingsModified();
+            }
+        });
+
+
+    },
+    save: function(elem) {
+        // Generate a config array of objects which defines the user config for
+        // the datatable; save it; then kick the datatable redraw
+        var col_defs = new Array();
+
+        $('.k-c-p-column', elem).each(function(i, e) {
+            col_defs.push({
+                id: $(this).attr('id'),
+                enable: $('#k-c-p-c-enable', $(this)).is(':checked')
+            });
+        });
+
+        kismet.putStorage('kismet.datatable.columns', col_defs);
+        exports.ResetDeviceTable(devicetableElement);
+    },
+});
 
 // Add the row highlighting
 kismet_ui_settings.AddSettingsPane({

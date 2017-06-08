@@ -71,6 +71,10 @@ To tell Kismet which fields to include in the summary, the path to the field mus
 
 When requesting common fields that might have overlapping names (such as location and signal fields), or simply to make referencing the field easier, an alternate name can be provided by passing an array, for example:  `['kismet.device.base.signal/kismet.common.signal.last_signal_dbm', 'base.signal']`.
 
+#### description - string
+
+Human-readable *short* description of the column, used for displaying the column information in the settings pane.
+
 #### drawfunc - function (optional)
 
 Optional function for performing custom drawing when the row is visible.  The devicetable is optimized to only call draw functions when the row is visible, so you don't need to worry about performing unnecessary work.
@@ -103,9 +107,13 @@ By default, all data is passed through a function which escapes HTML characters;
 
 Passed to DataTables as bSearchable, controls if the content of the column is searchable from the quick search field.
 
+#### selectabe - boolean (optional)
+
+Column is selectable by the user (default: true).  The most common use for creating an unselectable column is to pair it with the 'visible' option to create an invisible, but searchable, column (or a column which provides data to another column).
+
 #### visible - boolean (optional)
 
-Passed to DataTables as bVisisible, allows creating invisible columns.  The most common use for an invisible column would be to create a searchable field which isn't shown.  Invisible columns cannot be selected by the user in the column selection UI.
+Passed to datatables as bVisible, allows creating a column which is by default invisible.  To create a column which the user cannot enable, team with 'selectable'.
 
 ### Example Columns
 
