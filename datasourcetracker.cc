@@ -1009,6 +1009,10 @@ bool Datasourcetracker::Httpd_VerifyPath(const char *path, const char *method) {
                     return true;
                 }
 
+                if (Httpd_StripSuffix(tokenurl[4]) == "set_hop") {
+                    return true;
+                }
+
                 return false;
             }
         }
@@ -1396,6 +1400,32 @@ int Datasourcetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                     cl->block_until();
                     return 1;
                 }
+            } else if (Httpd_StripSuffix(tokenurl[4]) == "set_hop") {
+                cl->lock();
+
+                _MSG("Setting source '" + ds->get_source_name() + "' channel hopping", 
+                        MSGFLAG_INFO);
+
+                // Set it to channel hop using all the current hop attributes
+                ds->set_channel_hop(ds->get_source_hop_rate(),
+                        ds->get_source_hop_vec(),
+                        ds->get_source_hop_shuffle(),
+                        ds->get_source_hop_offset(), 0,
+                        [this, cl, concls](unsigned int, bool success, 
+                            string reason) {
+
+                            if (success) {
+                                concls->response_stream << "Success";
+                                concls->httpcode = 200;
+                            } else {
+                                concls->response_stream << reason;
+                                concls->httpcode = 500;
+                            }
+                            cl->unlock(reason);
+                        });
+                // Block until the open cmd unlocks us
+                cl->block_until();
+                return 1;
             }
         }
 

@@ -370,6 +370,14 @@ Examples:
 * `{'channels': ["1", "2", "3", "4", "5"], 'hoprate': 1}` will change the channel hopping rate to once per second over the given list
 * `{'hoprate': 5}` will set the hop rate to 5 channels per second, using the existing channels list in the datasource
 
+##### POST /datasource/by-uuid/[uuid]/set_hop `/datasource/by-uuid/[uuid]/set_hop.cmd`, `/datasource/by-uuid/[uuid]/set_channel.jcmd]
+
+*LOGIN REQUIRED*
+
+Set hopping on the source indicated by `[uuid]`, using the sources existing information for hopping rate, channels, etc.
+
+This can be teamed with `/datasource/by-uuid/[uuid]/set_channel` for simple locking/hopping behavior.
+
 ##### /datasource/by-uuid/[uuid]/close_source `/datasource/by-uuid/[uuid]/close_source.cmd`
 
 *LOGIN REQUIRED*.

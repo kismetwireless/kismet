@@ -553,6 +553,27 @@ class KismetConnector:
 
         return True
 
+    def config_datasource_set_hop(self, uuid):
+        """
+        config_datasource_set_hop(uuid)
+
+        Configure a source for hopping; uses existing source hop / channel list / etc
+        attributes.
+
+        Requires valid login
+        """
+
+        cmd = {
+            "hop": True
+        }
+
+        (r, v) = self.post_msgpack_url("datasource/by-uuid/{}/set_hop.cmd".format(uuid), cmd)
+
+        if not r:
+            return False
+
+        return True
+
     def add_datasource(self, source):
         """
         add_datasource(sourceline) -> Boolean
