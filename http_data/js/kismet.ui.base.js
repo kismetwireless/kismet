@@ -116,7 +116,8 @@ kismet_ui.AddDeviceColumn('column_name', {
 kismet_ui.AddDeviceColumn('column_type', {
     sTitle: 'Type',
     field: 'kismet.device.base.type',
-    description: 'Device type'
+    description: 'Device type',
+    width: '4em',
 });
 
 kismet_ui.AddDeviceColumn('column_phy', {

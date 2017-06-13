@@ -645,7 +645,6 @@ exports.InitializeDeviceTable = function(element) {
     var postdata = "json=" + JSON.stringify(json);
 
     element.DataTable( {
-        responsive: true,
         scrollResize: true,
         scrollY: 200,
         serverSide: true,
@@ -669,7 +668,7 @@ exports.InitializeDeviceTable = function(element) {
         "deferRender": true,
 
         // Get our dynamic columns
-        aoColumns: cols,
+        columns: cols,
 
         order:
             [ [ 0, "desc" ] ],
