@@ -1014,9 +1014,6 @@ int main(int argc, char *argv[], char *envp[]) {
     // Add system monitor 
     Systemmonitor::create_systemmonitor(globalregistry);
 
-    // Start the http server as the last thing before we start sources
-    globalregistry->httpd_server->StartHttpd();
-
     // Blab about starting
     globalregistry->messagebus->InjectMessage("Kismet starting to gather packets",
                                               MSGFLAG_INFO);
@@ -1029,6 +1026,9 @@ int main(int argc, char *argv[], char *envp[]) {
 
     // Finalize any plugins which were waiting for other code to load
     plugintracker->FinalizePlugins();
+
+    // Start the http server as the last thing before we start sources
+    globalregistry->httpd_server->StartHttpd();
 
     sigset_t mask, oldmask;
     sigemptyset(&mask);
