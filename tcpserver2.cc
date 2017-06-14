@@ -161,7 +161,7 @@ int TcpServerV2::Poll(fd_set& in_rset, fd_set& in_wset) {
 
     int accept_fd = 0;
     if (server_fd >= 0 && FD_ISSET(server_fd, &in_rset)) {
-        if ((accept_fd = AcceptConnection()) < 0)
+        if ((accept_fd = AcceptConnection()) <= 0)
             return 0;
 
         if (!AllowConnection(accept_fd)) {
@@ -289,8 +289,12 @@ int TcpServerV2::AcceptConnection() {
 
     if ((new_fd = accept(server_fd, (struct sockaddr *) &client_addr, 
                     &client_len)) < 0) {
-        _MSG("TCP server accept() failed: " + kis_strerror_r(errno), MSGFLAG_ERROR);
-        return -1;
+        if (errno != EAGAIN && errno != EWOULDBLOCK) {
+            _MSG("TCP server accept() failed: " + kis_strerror_r(errno), MSGFLAG_ERROR);
+            return -1;
+        }
+
+        return 0;
     }
 
     if (handler_map.size() >= maxcli) {
