@@ -874,7 +874,15 @@ void Datasourcetracker::schedule_cleanup() {
 }
 
 void Datasourcetracker::NewConnection(shared_ptr<RingbufferHandler> conn_handler) {
+    fprintf(stderr, "debug - datasourcetracker got remote capture connection\n");
 
+    dst_incoming_remote *incoming = new dst_incoming_remote(globalreg, conn_handler, 
+                [this] (string in_type, string in_def, 
+                    shared_ptr<RingbufferHandler> in_handler) {
+            fprintf(stderr, "dst - got new remote source - %s %s\n", in_type.c_str(), in_def.c_str());
+        });
+
+    conn_handler->SetReadBufferInterface(incoming);
 }
 
 // Basic DST worker for figuring out how many sources of the same type
@@ -1632,5 +1640,46 @@ void Datasourcetracker_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *htt
         }
     }
 
+}
+
+dst_incoming_remote::dst_incoming_remote(GlobalRegistry *in_globalreg,
+        shared_ptr<RingbufferHandler> in_rbufhandler,
+        function<void (string, string, shared_ptr<RingbufferHandler>)> in_cb) {
+    
+    globalreg = in_globalreg;
+    rbuf_handler = in_rbufhandler;
+    cb = in_cb;
+
+    shared_ptr<Timetracker> timetracker = globalreg->FetchGlobalAs<Timetracker>("TIMETRACKER");
+
+    timerid =
+        timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 0, 
+            [this] (int) -> int {
+                _MSG("Remote source connected but never sent a NEWSOURCE control, "
+                        "closing connection.", MSGFLAG_ERROR);
+                rbuf_handler->ProtocolError();
+                delete(this);
+                return 0;
+            });
+}
+
+dst_incoming_remote::~dst_incoming_remote() {
+    shared_ptr<Timetracker> timetracker = globalreg->FetchGlobalAs<Timetracker>("TIMETRACKER");
+  
+    // Kill the error timer
+    if (timetracker != NULL && timerid > 0)
+        timetracker->RemoveTimer(timerid);
+
+    // Remove ourselves as a handler
+    if (rbuf_handler != NULL)
+        rbuf_handler->RemoveReadBufferInterface();
+}
+
+void dst_incoming_remote::BufferAvailable(size_t in_amt) {
+    fprintf(stderr, "debug - dst - incoming remote - buffer available %lu\n", in_amt);
+}
+
+void dst_incoming_remote::BufferError(string in_error) {
+    fprintf(stderr, "debug - dst - incoming remote - buffer error - %s\n", in_error.c_str());
 }
 

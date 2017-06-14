@@ -278,21 +278,30 @@ protected:
 };
 
 // Intermediary ringbuffer handler which is responsible for parsing the incoming
-// simple packet protocol enough to get a NEWSOURCE command and either reject it
-// or spawn a datasource, which will then perform an OPENSOURCE reply to build a 
-// standard config
+// simple packet protocol enough to get a NEWSOURCE command; The resulting source
+// type, definition, and rbufhandler is passed to the callback function; the cb
+// is responsible for looking up the type, closing the connection if it is invalid, etc.
 class dst_incoming_remote : public RingbufferInterface {
 public:
     dst_incoming_remote(GlobalRegistry *in_globalreg, 
-            function<void (bool, string, string)> in_cb);
+            shared_ptr<RingbufferHandler> in_rbufhandler,
+            function<void (string srctype, string srcdef,
+                shared_ptr<RingbufferHandler> handler)> in_cb);
+    ~dst_incoming_remote();
 
     virtual void BufferAvailable(size_t in_amt);
     virtual void BufferError(string in_error);
 
 protected:
     GlobalRegistry *globalreg;
+
+    // Timeout for killing this connection
     int timerid;
-    function<void (bool, string, string)> cb;
+
+    // Ringbuf_handler we're associated with
+    shared_ptr<RingbufferHandler> rbuf_handler;
+
+    function<void (string, string, shared_ptr<RingbufferHandler> )> cb;
 };
 
 // Fwd def of datasource pcap feed
