@@ -406,6 +406,9 @@ void KisDatasource::BufferAvailable(size_t in_amt __attribute__((unused))) {
 
             if (frame_sz < sizeof(simple_cap_proto_t) + 
                     sizeof(simple_cap_proto_kv_t) + data_offt) {
+
+                delete[] buf;
+
                 _MSG("Kismet data source " + get_source_name() + " got an invalid "
                         "frame (KV too long for frame) from IPC/Network, closing.",
                         MSGFLAG_ERROR);
