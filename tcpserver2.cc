@@ -181,6 +181,17 @@ int TcpServerV2::Poll(fd_set& in_rset, fd_set& in_wset) {
         NewConnection(con_handler);
     }
 
+    // Reap any pending closures
+    for (auto i = kill_map.begin(); i != kill_map.end(); ++i) {
+        auto h = handler_map.find(i->first);
+        
+        if (h != kill_map.end()) {
+            close(h->first);
+            handler_map.erase(h);
+        }
+    }
+    kill_map.clear();
+
     for (auto i = handler_map.begin(); i != handler_map.end(); ++i) {
         // Process incoming data
         if (FD_ISSET(i->first, &in_rset)) {
@@ -247,6 +258,17 @@ int TcpServerV2::Poll(fd_set& in_rset, fd_set& in_wset) {
         }
     }
 
+    // Reap any pending closures
+    for (auto i = kill_map.begin(); i != kill_map.end(); ++i) {
+        auto h = handler_map.find(i->first);
+        
+        if (h != kill_map.end()) {
+            close(h->first);
+            handler_map.erase(h);
+        }
+    }
+    kill_map.clear();
+
     return 0;
 }
 
@@ -257,19 +279,16 @@ void TcpServerV2::KillConnection(int in_fd) {
     auto i = handler_map.find(in_fd);
 
     if (i != handler_map.end()) {
+        kill_map.emplace(i->first, i->second);
         i->second->BufferError("TCP connection closed");
-        handler_map.erase(i);
     }
-
-    close(in_fd);
 }
 
 void TcpServerV2::KillConnection(shared_ptr<RingbufferHandler> in_handler) {
     for (auto i = handler_map.begin(); i != handler_map.end(); ++i) {
         if (i->second == in_handler) {
-            close(i->first);
+            kill_map.emplace(i->first, i->second);
             i->second->BufferError("TCP connection closed");
-            handler_map.erase(i);
             return;
         }
     }

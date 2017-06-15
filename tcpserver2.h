@@ -105,6 +105,8 @@ protected:
     // FD to handler
     map<int, shared_ptr<RingbufferHandler> > handler_map;
 
+    map<int, shared_ptr<RingbufferHandler> > kill_map;
+
 };
 
 #endif
