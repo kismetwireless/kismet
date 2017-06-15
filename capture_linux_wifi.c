@@ -1379,7 +1379,7 @@ int main(int argc, char *argv[]) {
 
     /* fprintf(stderr, "CAPTURE_LINUX_WIFI launched on pid %d\n", getpid()); */
 
-    kis_capture_handler_t *caph = cf_handler_init();
+    kis_capture_handler_t *caph = cf_handler_init("linuxwifi");
 
     if (caph == NULL) {
         fprintf(stderr, "FATAL: Could not allocate basic handler data, your system "
@@ -1416,6 +1416,10 @@ int main(int argc, char *argv[]) {
     /* Set a channel hop spacing of 4 to get the most out of 2.4 overlap;
      * it does nothing and hurts nothing on 5ghz */
     cf_handler_set_hop_shuffle_spacing(caph, 4);
+
+    /* Try to connect */
+    if (cf_handler_remote_connect(caph) < 0)
+        return 1;
 
     cf_handler_loop(caph);
 

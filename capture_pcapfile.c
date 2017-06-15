@@ -313,7 +313,7 @@ int main(int argc, char *argv[]) {
 
     fprintf(stderr, "CAPTURE_PCAPFILE launched on pid %d\n", getpid());
 
-    kis_capture_handler_t *caph = cf_handler_init();
+    kis_capture_handler_t *caph = cf_handler_init("pcapfile");
 
     if (caph == NULL) {
         fprintf(stderr, "FATAL: Could not allocate basic handler data, your system "
@@ -337,6 +337,11 @@ int main(int argc, char *argv[]) {
 
     /* Set the capture thread */
     cf_handler_set_capture_cb(caph, capture_thread);
+
+    /* Trigger any remote connection */
+    if (cf_handler_remote_connect(caph) < 0) {
+        return 1;
+    }
 
     cf_handler_loop(caph);
 

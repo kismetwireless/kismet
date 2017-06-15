@@ -17,6 +17,11 @@
 */
 
 #include <string.h>
+#include <netdb.h>
+#include <sys/socket.h>
+#include <fcntl.h>
+#include <string.h>
+#include <errno.h>
 
 #include "config.h"
 
@@ -166,7 +171,7 @@ int cf_split_list(char *in_str, size_t in_sz, char in_split, char ***ret_splitli
     return 0;
 }
 
-kis_capture_handler_t *cf_handler_init() {
+kis_capture_handler_t *cf_handler_init(const char *in_type) {
     kis_capture_handler_t *ch;
     pthread_mutexattr_t mutexattr;
 
@@ -177,7 +182,12 @@ kis_capture_handler_t *cf_handler_init() {
 
     ch->last_ping = time(NULL);
 
+    ch->capsource_type = strdup(in_type);
+
     ch->remote_host = NULL;
+    ch->remote_port = 0;
+
+    ch->cli_sourcedef = NULL;
 
     ch->in_fd = -1;
     ch->out_fd = -1;
@@ -254,6 +264,12 @@ void cf_handler_free(kis_capture_handler_t *caph) {
 
     if (caph->remote_host)
         free(caph->remote_host);
+
+    if (caph->capsource_type)
+        free(caph->capsource_type);
+
+    if (caph->cli_sourcedef)
+        free(caph->cli_sourcedef);
 
     if (caph->tcp_fd >= 0)
         close(caph->tcp_fd);
@@ -397,10 +413,14 @@ int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]) {
     opterr = 0;
     option_idx = 0;
 
+    char parse_hname[512];
+    unsigned int parse_port;
+
     static struct option longopt[] = {
         { "in-fd", required_argument, 0, 1 },
         { "out-fd", required_argument, 0, 2 },
         { "connect", required_argument, 0, 3 },
+        { "source", required_argument, 0, 4 },
         { 0, 0, 0, 0 }
     };
 
@@ -421,12 +441,33 @@ int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]) {
                 return -1;
             }
         } else if (r == 3) {
-            caph->remote_host = strdup(optarg);
+            if (sscanf(optarg, "%512[^:]:%u", parse_hname, &parse_port) != 2) {
+                fprintf(stderr, "FATAL: Expected host:port for --connect\n");
+                return -1;
+            }
+
+            caph->remote_host = strdup(parse_hname);
+            caph->remote_port = parse_port;
+        } else if (r == 4) {
+            caph->cli_sourcedef = strdup(optarg);
         }
     }
 
-    if (caph->remote_host != NULL)
+    if (caph->remote_host == NULL && caph->cli_sourcedef != NULL) {
+        fprintf(stderr, 
+                "WARNING: Ignoring --source option when not connecting to a remote host\n");
+    }
+
+    if (caph->remote_host != NULL) {
+        /* Must have a --source to present to the remote host */
+        if (caph->cli_sourcedef == NULL) {
+            fprintf(stderr, 
+                    "FATAL: --source option required when connecting to a remote host\n");
+            return -1;
+        }
+
         return 2;
+    }
 
     if (caph->in_fd == -1 || caph->out_fd == -1)
         return -1;
@@ -1133,6 +1174,68 @@ int cf_get_CHANHOP(double *hop_rate, char ***ret_channel_list,
     }
     
     return chan_size;
+}
+
+int cf_handler_remote_connect(kis_capture_handler_t *caph) {
+    struct hostent *connect_host;
+    struct sockaddr_in client_sock, local_sock;
+    int client_fd;
+    int sock_flags;
+
+    if (caph->remote_host == NULL)
+        return 0;
+
+    if ((connect_host = gethostbyname(caph->remote_host)) == NULL) {
+        fprintf(stderr, "FATAL - Could not resolve hostname for remote connection to '%s'\n",
+                caph->remote_host);
+        return -1;
+    }
+
+    fprintf(stderr, "debug - connecting to %s %u\n", caph->remote_host, caph->remote_port);
+
+    memset(&client_sock, 0, sizeof(client_sock));
+    client_sock.sin_family = connect_host->h_addrtype;
+    memcpy((char *) &(client_sock.sin_addr.s_addr), connect_host->h_addr_list[0],
+            connect_host->h_length);
+    client_sock.sin_port = htons(caph->remote_port);
+
+    if ((client_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+        fprintf(stderr, "FATAL - Could not connect to remote host '%s:%u': %s\n",
+                caph->remote_host, caph->remote_port, strerror(errno));
+        return -1;
+    }
+
+    memset(&local_sock, 0, sizeof(local_sock));
+    local_sock.sin_family = AF_INET;
+    local_sock.sin_addr.s_addr = htonl(INADDR_ANY);
+    local_sock.sin_port = htons(0);
+
+    if (bind(client_fd, (struct sockaddr *) &local_sock, sizeof(local_sock)) < 0) {
+        fprintf(stderr, "FATAL - Could not connect to remote host '%s:%u': %s\n",
+                caph->remote_host, caph->remote_port, strerror(errno));
+        close(client_fd);
+        return -1;
+    }
+
+    if (connect(client_fd, (struct sockaddr *) &client_sock, sizeof(client_sock)) < 0) {
+        if (errno != EINPROGRESS) {
+            fprintf(stderr, "FATAL - Could not connect to remote host '%s:%u': %s\n",
+                    caph->remote_host, caph->remote_port, strerror(errno));
+        }
+    }
+
+    sock_flags = fcntl(client_fd, F_GETFL, 0);
+    fcntl(client_fd, F_SETFL, sock_flags | O_NONBLOCK | FD_CLOEXEC);
+
+    caph->tcp_fd = client_fd;
+
+    fprintf(stderr, "INFO - Connected to '%s:%u', sending source info...\n",
+            caph->remote_host, caph->remote_port);
+
+    /* Send the NEWSOURCE command to the Kismet server */
+    cf_send_newsource(caph);
+
+    return 1;
 }
 
 int cf_handler_loop(kis_capture_handler_t *caph) {
@@ -1976,5 +2079,33 @@ int cf_send_ping(kis_capture_handler_t *caph) {
 
 int cf_send_pong(kis_capture_handler_t *caph) {
     return cf_stream_packet(caph, "PONG", NULL, 0);
+}
+
+int cf_send_newsource(kis_capture_handler_t *caph) {
+    size_t num_kvs = 2;
+    size_t kv_pos = 0;
+
+    /* Actual KV pairs we encode into the packet */
+    simple_cap_proto_kv_t **kv_pairs;
+
+    kv_pairs = 
+        (simple_cap_proto_kv_t **) malloc(sizeof(simple_cap_proto_kv_t *) * num_kvs);
+
+    kv_pairs[kv_pos] = encode_kv_definition(caph->cli_sourcedef);
+    if (kv_pairs[kv_pos] == NULL) {
+        free(kv_pairs);
+        return -1;
+    }
+    kv_pos++;
+
+    kv_pairs[kv_pos] = encode_kv_sourcetype(caph->capsource_type);
+    if (kv_pairs[kv_pos] == NULL) {
+        free(kv_pairs[0]);
+        free(kv_pairs);
+        return -1;
+    }
+    kv_pos++;
+
+    return cf_stream_packet(caph, "NEWSOURCE", kv_pairs, num_kvs);
 }
 

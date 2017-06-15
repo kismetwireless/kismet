@@ -176,6 +176,9 @@ typedef int (*cf_callback_unknown)(kis_capture_handler_t *, uint32_t,
 typedef void (*cf_callback_capture)(kis_capture_handler_t *);
 
 struct kis_capture_handler {
+    /* Capture source type */
+    char *capsource_type;
+
     /* Last time we got a ping */
     time_t last_ping;
 
@@ -183,8 +186,12 @@ struct kis_capture_handler {
     int in_fd;
     int out_fd;
 
-    /* Remote host if connecting */
+    /* Remote host and port if acting as a remote drone */
     char *remote_host;
+    unsigned int remote_port;
+
+    /* Specified commandline source, used for remote cap */
+    char *cli_sourcedef;
 
     /* TCP connection */
     int tcp_fd;
@@ -296,7 +303,7 @@ int cf_split_list(char *in_str, size_t in_sz, char in_split, char ***ret_splitli
  * Returns:
  * Pointer to handler or NULL on failure to allocate
  */
-kis_capture_handler_t *cf_handler_init();
+kis_capture_handler_t *cf_handler_init(const char *in_type);
 
 /* Destroy a caphandler
  *
@@ -333,12 +340,12 @@ void cf_handler_set_hop_shuffle_spacing(kis_capture_handler_t *capf, int spacing
 
 /* Parse command line options
  *
- * Parse command line for --in-fd, --out-fd, --connect, and populate.
+ * Parse command line for --in-fd, --out-fd, --connect, --source, and populate.
  * 
  * Returns:
  * -1   Missing in-fd/out-fd or --connect
  *  1   Success, using interproc IPC
- *  2   Success, using TCP
+ *  2   Success, using TCP remote connection
  */
 int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]);
 
@@ -437,6 +444,15 @@ int cf_get_CHANSET(char **ret_definition, simple_cap_proto_frame_t *in_frame);
 int cf_get_CHANHOP(double *hop_rate, char ***ret_channel_list, 
         size_t *ret_channel_list_sz, int *ret_shuffle, int *ret_offset,
         simple_cap_proto_frame_t *in_frame);
+
+/* Connect to a network socket, if remote connection is specified 
+ *
+ * Returns:
+ * -1   Error, could not connect, process should exit
+ *  0   No remote connection specified
+ *  1   Successful remote connection
+ */
+int cf_handler_remote_connect(kis_capture_handler_t *caph);
 
 /* Handle the sockets in a select() loop; this function will block until it
  * encounters an error or gets a shutdown command.
@@ -608,7 +624,7 @@ int cf_send_configresp_chanhop(kis_capture_handler_t *caph,
 /* Send a PING request
  *
  * Returns:
- * -1   An error occured
+ * -1   An error occurred
  *  0   Insufficient space in buffer
  *  1   Success
  */
@@ -617,11 +633,20 @@ int cf_send_ping(kis_capture_handler_t *caph);
 /* Send a PONG response
  *
  * Returns:
- * -1   An error occured
+ * -1   An error occurred
  *  0   Insufficient space in buffer
  *  1   Success
  */
 int cf_send_pong(kis_capture_handler_t *caph);
+
+/* Send a NEWSOURCE command to initiate connecting to a remote server
+ *
+ * Returns:
+ * -1   An error occurred 
+ *  0   Insufficient space in buffer
+ *  1   Success
+ */
+int cf_send_newsource(kis_capture_handler_t *caph);
 
 #endif
 
