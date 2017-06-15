@@ -368,8 +368,7 @@ bool TcpServerV2::AllowConnection(int in_fd) {
 
 shared_ptr<RingbufferHandler> TcpServerV2::AllocateConnection(int in_fd __attribute__((unused))) {
     // Basic allocation
-    shared_ptr<RingbufferHandler> rbh(new RingbufferHandler(ringbuf_size, 
-                ringbuf_size));  
+    shared_ptr<RingbufferHandler> rbh(new RingbufferHandler(ringbuf_size, ringbuf_size));  
 
     // Protocol errors kill the connection
     rbh->SetProtocolErrorCb([this, in_fd]() {
