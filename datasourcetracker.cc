@@ -1780,7 +1780,6 @@ void dst_incoming_remote::BufferAvailable(size_t in_amt) {
 
         size_t data_offt = 0;
         for (unsigned int kvn = 0; kvn < kis_ntoh32(frame->header.num_kv_pairs); kvn++) {
-
             if (frame_sz < sizeof(simple_cap_proto_t) + 
                     sizeof(simple_cap_proto_kv_t) + data_offt) {
                 delete[] buf;
@@ -1825,6 +1824,7 @@ void dst_incoming_remote::BufferAvailable(size_t in_amt) {
 
         }
 
+        printf("Got new remote source %s %s\n", definition.c_str(), srctype.c_str());
     }
 }
 
