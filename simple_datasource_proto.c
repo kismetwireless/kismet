@@ -37,14 +37,14 @@ uint32_t adler32_partial_csum(uint8_t *in_buf, size_t in_len,
     if (in_len < 4)
         return 0;
 
-	for (i = 0; i < (in_len - 4); i += 4) {
-		*s2 += 4 * (*s1 + buf[i]) + 3 * buf[i + 1] + 2 * buf[i+2] + buf[i + 3] + 
+    for (i = 0; i < (in_len - 4); i += 4) {
+        *s2 += 4 * (*s1 + buf[i]) + 3 * buf[i + 1] + 2 * buf[i+2] + buf[i + 3] + 
             10 * CHAR_OFFSET;
         *s1 += (buf[i + 0] + buf[i + 1] + buf[i + 2] + buf[i + 3] + 4 * CHAR_OFFSET); 
 	}
 
-	for (; i < in_len; i++) {
-		*s1 += (buf[i] + CHAR_OFFSET); 
+    for (; i < in_len; i++) {
+        *s1 += (buf[i] + CHAR_OFFSET); 
         *s2 += *s1;
 	}
 
@@ -605,6 +605,24 @@ simple_cap_proto_kv_t *encode_kv_sourcetype(const char *sourcetype) {
     kv->header.obj_sz = htonl(content_sz);
 
     strncpy((char *) kv->object, sourcetype, content_sz);
+
+    return kv;
+}
+
+simple_cap_proto_kv_t *encode_kv_definition(const char *definition) {
+    simple_cap_proto_kv_t *kv;
+
+    size_t content_sz = strlen(definition);
+
+    kv = (simple_cap_proto_kv_t *) malloc(sizeof(simple_cap_proto_kv_t) + content_sz);
+
+    if (kv == NULL)
+        return NULL;
+
+    snprintf(kv->header.key, 16, "%.16s", "DEFINITION");
+    kv->header.obj_sz = htonl(content_sz);
+
+    strncpy((char *) kv->object, definition, content_sz);
 
     return kv;
 }

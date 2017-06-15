@@ -176,6 +176,14 @@ simple_cap_proto_kv_t *encode_kv_warning(const char *warning);
  */
 simple_cap_proto_kv_t *encode_kv_sourcetype(const char *sourcetype);
 
+/* Encode source definition KV
+ *
+ * Returns:
+ * Pointer on success
+ * NULL on failure
+ */
+simple_cap_proto_kv_t *encode_kv_definition(const char *definition);
+
 /* Encode a chanset response
  *
  * Returns:
@@ -329,6 +337,7 @@ simple_cap_proto_kv_t *encode_kv_chanhop_complex(double rate, char **channels,
  *
  */
 simple_cap_proto_kv_t *encode_kv_message(const char *message, unsigned int flags);
+
 
 /* Validate if a header passes checksum
  *
