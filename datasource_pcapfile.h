@@ -104,8 +104,8 @@ public:
         // We're capable of opening a source
         set_local_capable(true);
 
-        // We can't do remote pcapfile
-        set_remote_capable(false);
+        // We can do remote pcapfile for testing
+        set_remote_capable(true);
 
         // We don't accept packets over HTTP passively, though I guess we could
         set_passive_capable(false);

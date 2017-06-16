@@ -129,7 +129,8 @@ public:
     // connection); This doesn't require async because we're just binding the
     // interface; anything we do with the ringbuffer is itself async in the
     // future however
-    virtual void connect_ringbuffer(shared_ptr<RingbufferHandler> in_ringbuf);
+    virtual void connect_ringbuffer(shared_ptr<RingbufferHandler> in_ringbuf,
+            string in_definition);
 
 
     // Close the source

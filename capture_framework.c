@@ -889,6 +889,9 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
 
             if (def_len > 0) {
                 nuldef = strndup(def, def_len);
+            } else {
+                fprintf(stderr, "FATAL - Got OPENDEVICE with no definition\n");
+                return -1;
             }
 
             msgstr[0] = 0;

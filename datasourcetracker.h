@@ -363,6 +363,10 @@ public:
     // Remove a data source by UUID; stop it if necessary
     bool remove_datasource(uuid in_uuid);
 
+    // Try to instantiate a remote data source
+    void open_remote_datasource(string in_type, string in_definition,
+            shared_ptr<RingbufferHandler> in_handler);
+
     // Find a datasource
     SharedDatasource find_datasource(uuid in_uuid);
 

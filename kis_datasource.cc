@@ -271,11 +271,19 @@ void KisDatasource::set_channel_hop_list(std::vector<std::string> in_chans,
             get_source_hop_offset(), in_transaction, in_cb);
 }
 
-void KisDatasource::connect_ringbuffer(shared_ptr<RingbufferHandler> in_ringbuf) {
+void KisDatasource::connect_ringbuffer(shared_ptr<RingbufferHandler> in_ringbuf,
+        string in_definition) {
     local_locker lock(&source_lock);
+
     // Assign the ringbuffer & set us as the wakeup interface
     ringbuf_handler = in_ringbuf;
     ringbuf_handler->SetReadBufferInterface(this);
+    printf("debug - connecting ringbuffer to local source\n");
+
+    printf("sending open interface command\n");
+
+    // Send an opensource
+    send_command_open_interface(in_definition, 0, NULL);
 }
 
 void KisDatasource::close_source() {
@@ -311,6 +319,8 @@ void KisDatasource::BufferAvailable(size_t in_amt __attribute__((unused))) {
     // We can survive unknown frame types, but we can't survive invalid ones -
     // if we get an invalid frame, throw an error and drop into the error
     // processing.
+    
+    printf("debug - ds - buffer avail %lu\n", in_amt);
     
     local_locker lock(&source_lock);
     

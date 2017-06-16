@@ -882,10 +882,43 @@ void Datasourcetracker::NewConnection(shared_ptr<RingbufferHandler> conn_handler
     dst_incoming_remote *incoming = new dst_incoming_remote(globalreg, conn_handler, 
                 [this] (string in_type, string in_def, 
                     shared_ptr<RingbufferHandler> in_handler) {
-            fprintf(stderr, "dst - got new remote source - %s %s\n", in_type.c_str(), in_def.c_str());
+            in_handler->RemoveReadBufferInterface();
+            open_remote_datasource(in_type, in_def, in_handler);
         });
 
     conn_handler->SetReadBufferInterface(incoming);
+}
+
+void Datasourcetracker::open_remote_datasource(string in_type, string in_definition,
+        shared_ptr<RingbufferHandler> in_handler) {
+    local_locker lock(&dst_lock);
+
+    TrackerElementVector proto_vector(proto_vec);
+
+    for (auto p : proto_vector) {
+        SharedDatasourceBuilder b = static_pointer_cast<KisDatasourceBuilder>(p);
+
+        if (!b->get_remote_capable())
+            continue;
+
+        if (b->get_source_type() == in_type) {
+            // Make a data source from the builder
+            SharedDatasource ds = b->build_datasource(b);
+
+            TrackerElementVector vec(datasource_vec);
+            vec.push_back(ds);
+
+            ds->connect_ringbuffer(in_handler, in_definition);
+
+            return;
+        }
+    }
+
+    _MSG("Datasourcetracker could not find local handler for remote source type '" +
+            in_type + "' definition '" + in_definition + "', closing connection.",
+            MSGFLAG_ERROR);
+    in_handler->ProtocolError();
+
 }
 
 // Basic DST worker for figuring out how many sources of the same type
@@ -1824,12 +1857,21 @@ void dst_incoming_remote::BufferAvailable(size_t in_amt) {
 
         }
 
-        printf("Got new remote source %s %s\n", definition.c_str(), srctype.c_str());
+        printf("debug - Got new remote source %s %s\n", definition.c_str(), srctype.c_str());
+
+        if (cb != NULL)
+            cb(srctype, definition, rbuf_handler);
+
+        // Zero out the rbuf handler so that it doesn't get closed
+        rbuf_handler = NULL;
+        delete(this);
+        return;
     }
 }
 
 void dst_incoming_remote::BufferError(string in_error) {
     fprintf(stderr, "debug - dst - incoming remote - buffer error - %s\n", in_error.c_str());
     delete(this);
+    return;
 }
 
