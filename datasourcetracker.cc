@@ -770,44 +770,46 @@ void Datasourcetracker::open_datasource(string in_source,
     return;
 }
 
-void Datasourcetracker::open_datasource(string in_source, 
-        SharedDatasourceBuilder in_proto,
+void Datasourcetracker::open_datasource(string in_source, SharedDatasourceBuilder in_proto,
         function<void (bool, string, SharedDatasource)> in_cb) {
     local_locker lock(&dst_lock);
 
     // Make a data source from the builder
     SharedDatasource ds = in_proto->build_datasource(in_proto);
 
-    TrackerElementVector vec(datasource_vec);
-    vec.push_back(ds);
-
     ds->open_interface(in_source, 0, 
         [this, ds, in_cb] (unsigned int, bool success, string reason) {
             // Whenever we succeed (or fail) at opening a deferred open source,
             // call our callback w/ whatever we know
             if (success) {
-                local_locker lock(&dst_lock);
-
-                // Get the UUID and compare it to our map; re-use a UUID if we knew
-                // it before, otherwise add a new one
-                uuid u = ds->get_source_uuid();
-
-                auto i = uuid_source_num_map.find(u);
-                if (i != uuid_source_num_map.end()) {
-                    ds->set_source_number(i->second);
-                } else {
-                    ds->set_source_number(next_source_num++);
-                    uuid_source_num_map.emplace(u, ds->get_source_number());
-                }
-
-                // Figure out channel hopping
-                calculate_source_hopping(ds);
-
+                merge_source(ds);
                 in_cb(true, "", ds);
             } else {
                 in_cb(false, reason, ds);
             }
         });
+}
+
+void Datasourcetracker::merge_source(SharedDatasource in_source) {
+    local_locker lock(&dst_lock);
+
+    // Get the UUID and compare it to our map; re-use a UUID if we knew
+    // it before, otherwise add a new one
+    uuid u = in_source->get_source_uuid();
+
+    auto i = uuid_source_num_map.find(u);
+    if (i != uuid_source_num_map.end()) {
+        in_source->set_source_number(i->second);
+    } else {
+        in_source->set_source_number(next_source_num++);
+        uuid_source_num_map.emplace(u, in_source->get_source_number());
+    }
+
+    // Figure out channel hopping
+    calculate_source_hopping(in_source);
+
+    TrackerElementVector vec(datasource_vec);
+    vec.push_back(in_source);
 }
 
 void Datasourcetracker::list_interfaces(function<void (vector<SharedInterface>)> in_cb) {
@@ -921,11 +923,9 @@ void Datasourcetracker::open_remote_datasource(string in_type, string in_definit
         if (b->get_source_type() == in_type) {
             // Make a data source from the builder
             SharedDatasource ds = b->build_datasource(b);
-
-            TrackerElementVector vec(datasource_vec);
-            vec.push_back(ds);
-
             ds->connect_ringbuffer(in_handler, in_definition);
+
+            merge_source(ds);
 
             return;
         }

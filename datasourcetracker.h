@@ -399,6 +399,8 @@ public:
     shared_ptr<datasourcetracker_defaults> get_config_defaults();
 
 protected:
+    virtual void merge_source(SharedDatasource in_source);
+
     GlobalRegistry *globalreg;
 
     shared_ptr<Datasourcetracker> datasourcetracker;
