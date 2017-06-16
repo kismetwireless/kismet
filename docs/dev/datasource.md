@@ -130,6 +130,7 @@ Kismet will respond by initiating a typical OPENDEVICE sequence to sync the stat
 KV Pairs:
 * DEFINITION
 * SOURCETYPE
+* UUID
 
 Responses:
 * OPENDEVICE

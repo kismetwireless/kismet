@@ -95,7 +95,7 @@ typedef int (*cf_callback_listdevices)(kis_capture_handler_t *, uint32_t seqno,
  */
 typedef int (*cf_callback_probe)(kis_capture_handler_t *, uint32_t seqno, 
         char *definition, char *msg, char **chanset, char ***chanlist, 
-        size_t *chanlist_sz);
+        size_t *chanlist_sz, char **uuid);
 
 /* Open callback
  * Called to open a datasource
@@ -646,7 +646,7 @@ int cf_send_pong(kis_capture_handler_t *caph);
  *  0   Insufficient space in buffer
  *  1   Success
  */
-int cf_send_newsource(kis_capture_handler_t *caph);
+int cf_send_newsource(kis_capture_handler_t *caph, const char *uuid);
 
 #endif
 

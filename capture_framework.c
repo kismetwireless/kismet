@@ -832,6 +832,8 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
             char **channels = NULL;
             size_t channels_sz = 0;
             char *chanset = NULL;
+
+            char *uuid = NULL;
             
             def_len = cf_get_DEFINITION(&def, cap_proto_frame);
 
@@ -842,7 +844,7 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
             msgstr[0] = 0;
             cbret = (*(caph->probe_cb))(caph,
                     ntohl(cap_proto_frame->header.sequence_number), nuldef,
-                    msgstr, &chanset, &channels, &channels_sz);
+                    msgstr, &chanset, &channels, &channels_sz, &uuid);
 
             cf_send_proberesp(caph, ntohl(cap_proto_frame->header.sequence_number),
                     cbret < 0 ? 0 : cbret, msgstr, chanset, channels, channels_sz);
@@ -1185,16 +1187,56 @@ int cf_handler_remote_connect(kis_capture_handler_t *caph) {
     int client_fd;
     int sock_flags;
 
+    char **channels = NULL;
+    size_t channels_sz = 0;
+    char *chanset = NULL;
+    char msgstr[STATUS_MAX];
+
+    char *uuid = NULL;
+
+    size_t ci;
+
+    int cbret;
+            
+
     if (caph->remote_host == NULL)
         return 0;
+
+    /* Perform a local probe on the source to see if it's valid */
+    msgstr[0] = 0;
+    cbret = (*(caph->probe_cb))(caph, 0, caph->cli_sourcedef, 
+            msgstr, &chanset, &channels, &channels_sz, &uuid);
+
+    if (channels) {
+        for (ci = 0; ci < channels_sz; ci++) {
+            free(channels[ci]);
+        }
+
+        free(channels);
+    }
+
+    if (chanset) 
+        free(chanset);
+
+    if (cbret < 0) {
+        fprintf(stderr, "FATAL - Could not probe local source prior to connecting to the "
+                "remote host: %s\n", msgstr);
+
+        if (uuid)
+            free(uuid);
+
+        return -1;
+    }
 
     if ((connect_host = gethostbyname(caph->remote_host)) == NULL) {
         fprintf(stderr, "FATAL - Could not resolve hostname for remote connection to '%s'\n",
                 caph->remote_host);
+        
+        if (uuid)
+            free(uuid);
+
         return -1;
     }
-
-    fprintf(stderr, "debug - connecting to %s %u\n", caph->remote_host, caph->remote_port);
 
     memset(&client_sock, 0, sizeof(client_sock));
     client_sock.sin_family = connect_host->h_addrtype;
@@ -1205,6 +1247,10 @@ int cf_handler_remote_connect(kis_capture_handler_t *caph) {
     if ((client_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         fprintf(stderr, "FATAL - Could not connect to remote host '%s:%u': %s\n",
                 caph->remote_host, caph->remote_port, strerror(errno));
+
+        if (uuid)
+            free(uuid);
+
         return -1;
     }
 
@@ -1217,6 +1263,10 @@ int cf_handler_remote_connect(kis_capture_handler_t *caph) {
         fprintf(stderr, "FATAL - Could not connect to remote host '%s:%u': %s\n",
                 caph->remote_host, caph->remote_port, strerror(errno));
         close(client_fd);
+
+        if (uuid)
+            free(uuid);
+
         return -1;
     }
 
@@ -1224,6 +1274,13 @@ int cf_handler_remote_connect(kis_capture_handler_t *caph) {
         if (errno != EINPROGRESS) {
             fprintf(stderr, "FATAL - Could not connect to remote host '%s:%u': %s\n",
                     caph->remote_host, caph->remote_port, strerror(errno));
+
+            close(client_fd);
+
+            if (uuid)
+                free(uuid);
+
+            return -1;
         }
     }
 
@@ -1236,7 +1293,10 @@ int cf_handler_remote_connect(kis_capture_handler_t *caph) {
             caph->remote_host, caph->remote_port);
 
     /* Send the NEWSOURCE command to the Kismet server */
-    cf_send_newsource(caph);
+    cf_send_newsource(caph, uuid);
+
+    if (uuid)
+        free(uuid);
 
     return 1;
 }
@@ -2084,8 +2144,8 @@ int cf_send_pong(kis_capture_handler_t *caph) {
     return cf_stream_packet(caph, "PONG", NULL, 0);
 }
 
-int cf_send_newsource(kis_capture_handler_t *caph) {
-    size_t num_kvs = 2;
+int cf_send_newsource(kis_capture_handler_t *caph, const char *uuid) {
+    size_t num_kvs = 3;
     size_t kv_pos = 0;
 
     /* Actual KV pairs we encode into the packet */
@@ -2104,6 +2164,15 @@ int cf_send_newsource(kis_capture_handler_t *caph) {
     kv_pairs[kv_pos] = encode_kv_sourcetype(caph->capsource_type);
     if (kv_pairs[kv_pos] == NULL) {
         free(kv_pairs[0]);
+        free(kv_pairs);
+        return -1;
+    }
+    kv_pos++;
+
+    kv_pairs[kv_pos] = encode_kv_uuid(uuid);
+    if (kv_pairs[kv_pos] == NULL) {
+        free(kv_pairs[0]);
+        free(kv_pairs[1]);
         free(kv_pairs);
         return -1;
     }

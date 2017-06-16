@@ -275,12 +275,24 @@ void KisDatasource::connect_ringbuffer(shared_ptr<RingbufferHandler> in_ringbuf,
         string in_definition) {
     local_locker lock(&source_lock);
 
+    if (ringbuf_handler != NULL) {
+        printf("debug - disconnecting existing ringbuffer from new remote source\n");
+        // ringbuf_handler->RemoveReadBufferInterface();
+        // ringbuf_handler->ProtocolError();
+        ringbuf_handler = NULL;
+    }
+
     // Assign the ringbuffer & set us as the wakeup interface
     ringbuf_handler = in_ringbuf;
     ringbuf_handler->SetReadBufferInterface(this);
-    printf("debug - connecting ringbuffer to local source\n");
 
-    printf("sending open interface command\n");
+    set_int_source_definition(in_definition);
+    
+    // Populate our local info about the interface
+    if (!parse_interface_definition(in_definition)) {
+        _MSG("Unable to parse interface definition", MSGFLAG_ERROR);
+        return;
+    }
 
     // Send an opensource
     send_command_open_interface(in_definition, 0, NULL);
@@ -319,8 +331,6 @@ void KisDatasource::BufferAvailable(size_t in_amt __attribute__((unused))) {
     // We can survive unknown frame types, but we can't survive invalid ones -
     // if we get an invalid frame, throw an error and drop into the error
     // processing.
-    
-    printf("debug - ds - buffer avail %lu\n", in_amt);
     
     local_locker lock(&source_lock);
     

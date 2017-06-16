@@ -877,21 +877,38 @@ void Datasourcetracker::schedule_cleanup() {
 }
 
 void Datasourcetracker::NewConnection(shared_ptr<RingbufferHandler> conn_handler) {
-    fprintf(stderr, "debug - datasourcetracker got remote capture connection\n");
-
     dst_incoming_remote *incoming = new dst_incoming_remote(globalreg, conn_handler, 
-                [this] (string in_type, string in_def, 
+                [this] (string in_type, string in_def, uuid in_uuid,
                     shared_ptr<RingbufferHandler> in_handler) {
             in_handler->RemoveReadBufferInterface();
-            open_remote_datasource(in_type, in_def, in_handler);
+            open_remote_datasource(in_type, in_def, in_uuid, in_handler);
         });
 
     conn_handler->SetReadBufferInterface(incoming);
 }
 
 void Datasourcetracker::open_remote_datasource(string in_type, string in_definition,
-        shared_ptr<RingbufferHandler> in_handler) {
+        uuid in_uuid, shared_ptr<RingbufferHandler> in_handler) {
     local_locker lock(&dst_lock);
+
+    // Look for an existing datasource with the same UUID
+    TrackerElementVector ds_vector(datasource_vec);
+
+    for (auto p : ds_vector) {
+        SharedDatasource d = static_pointer_cast<KisDatasource>(p);
+
+        if (!d->get_source_builder()->get_remote_capable())
+            continue;
+
+        if (d->get_source_uuid() == in_uuid) {
+            _MSG("Matching remote source '" + in_definition + "' with existing source "
+                    "with UUID " + in_uuid.UUID2String(), MSGFLAG_INFO);
+            d->connect_ringbuffer(in_handler, in_definition);
+            return;
+        }
+    }
+
+    // Otherwise look for a prototype that can handle it
 
     TrackerElementVector proto_vector(proto_vec);
 
@@ -1680,7 +1697,7 @@ void Datasourcetracker_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *htt
 
 dst_incoming_remote::dst_incoming_remote(GlobalRegistry *in_globalreg,
         shared_ptr<RingbufferHandler> in_rbufhandler,
-        function<void (string, string, shared_ptr<RingbufferHandler>)> in_cb) {
+        function<void (string, string, uuid, shared_ptr<RingbufferHandler>)> in_cb) {
     
     globalreg = in_globalreg;
     rbuf_handler = in_rbufhandler;
@@ -1700,7 +1717,6 @@ dst_incoming_remote::dst_incoming_remote(GlobalRegistry *in_globalreg,
 }
 
 dst_incoming_remote::~dst_incoming_remote() {
-    fprintf(stderr, "~dst_incoming_remote()\n");
     shared_ptr<Timetracker> timetracker = globalreg->FetchGlobalAs<Timetracker>("TIMETRACKER");
   
     // Kill the error timer
@@ -1713,7 +1729,6 @@ dst_incoming_remote::~dst_incoming_remote() {
 }
 
 void dst_incoming_remote::BufferAvailable(size_t in_amt) {
-    fprintf(stderr, "debug - dst - incoming remote - buffer available %lu\n", in_amt);
     // Handle reading raw frames off the incoming buffer, but we only look for the
     // NEWSOURCE command; any other frame is an error.
   
@@ -1724,6 +1739,7 @@ void dst_incoming_remote::BufferAvailable(size_t in_amt) {
 
     string definition;
     string srctype;
+    uuid srcuuid;
    
     while (1) {
         if (rbuf_handler == NULL)
@@ -1835,6 +1851,9 @@ void dst_incoming_remote::BufferAvailable(size_t in_amt) {
                 definition = string((char *) pkv->object, kis_ntoh32(pkv->header.obj_sz));
             } else if (strncmp(pkv->header.key, "SOURCETYPE", 16) == 0) {
                 srctype = string((char *) pkv->object, kis_ntoh32(pkv->header.obj_sz));
+            } else if (strncmp(pkv->header.key, "UUID", 16) == 0) {
+                string inu = string((char *) pkv->object, kis_ntoh32(pkv->header.obj_sz));
+                srcuuid = uuid(string((char *) pkv->object, kis_ntoh32(pkv->header.obj_sz)));
             }
         }
 
@@ -1857,10 +1876,16 @@ void dst_incoming_remote::BufferAvailable(size_t in_amt) {
 
         }
 
-        printf("debug - Got new remote source %s %s\n", definition.c_str(), srctype.c_str());
+        if (srcuuid == uuid()) {
+            _MSG("Got an invalid remote data source connection, invalid frame "
+                    "(missing UUID kv), disconnecting.", MSGFLAG_ERROR);
+            rbuf_handler->ProtocolError();
+
+            return;
+        }
 
         if (cb != NULL)
-            cb(srctype, definition, rbuf_handler);
+            cb(srctype, definition, srcuuid, rbuf_handler);
 
         // Zero out the rbuf handler so that it doesn't get closed
         rbuf_handler = NULL;
@@ -1870,7 +1895,6 @@ void dst_incoming_remote::BufferAvailable(size_t in_amt) {
 }
 
 void dst_incoming_remote::BufferError(string in_error) {
-    fprintf(stderr, "debug - dst - incoming remote - buffer error - %s\n", in_error.c_str());
     delete(this);
     return;
 }

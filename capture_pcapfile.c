@@ -79,9 +79,12 @@ typedef struct {
 } local_pcap_t;
 
 int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
-        char *msg, char **chanset, char ***chanlist, size_t *chanlist_sz) {
+        char *msg, char **chanset, char ***chanlist, size_t *chanlist_sz,
+        char **uuid) {
     char *placeholder = NULL;
     int placeholder_len;
+
+    *uuid = NULL;
 
     char *pcapfname = NULL;
 
@@ -108,9 +111,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     }
 
     if (!S_ISREG(sbuf.st_mode)) {
-        snprintf(msg, STATUS_MAX, 
-                "File '%s' is not a regular file", pcapfname);
-        fprintf(stderr, "debug - pcapfile - %s\n", errstr);
+        snprintf(msg, STATUS_MAX, "File '%s' is not a regular file", pcapfname);
         return 0;
     }
 
@@ -121,6 +122,15 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     }
 
     pcap_close(pd);
+
+    /* Kluge a UUID out of the name */
+    snprintf(errstr, PCAP_ERRBUF_SIZE, "%08X-0000-0000-0000-0000%08X",
+            adler32_csum((unsigned char *) "kismet_cap_pcapfile", 
+                strlen("kismet_cap_pcapfile")) & 0xFFFFFFFF,
+            adler32_csum((unsigned char *) "pcapfname", 
+                strlen("pcapfname")) & 0xFFFFFFFF);
+    *uuid = strdup(errstr);
+
 
     return 1;
 }
@@ -158,8 +168,6 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         local_pcap->pd = NULL;
     }
 
-    fprintf(stderr, "debug - pcapfile - trying to open source %s\n", definition);
-
     if ((placeholder_len = cf_parse_interface(&placeholder, definition)) <= 0) {
         /* What was not an error during probe definitely is an error during open */
         snprintf(msg, STATUS_MAX, "Unable to find PCAP file name in definition");
@@ -170,11 +178,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     local_pcap->pcapfname = pcapfname;
 
-    fprintf(stderr, "debug - pcapfile - got fname '%s'\n", pcapfname);
-
     if (stat(pcapfname, &sbuf) < 0) {
         snprintf(msg, STATUS_MAX, "Unable to find pcapfile '%s'", pcapfname);
-        fprintf(stderr, "debug - pcapfile - %s\n", errstr);
         return -1;
     }
 
@@ -190,6 +195,14 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     local_pcap->datalink_type = pcap_datalink(local_pcap->pd);
     *dlt = local_pcap->datalink_type;
+
+    /* Kluge a UUID out of the name */
+    snprintf(errstr, PCAP_ERRBUF_SIZE, "%08X-0000-0000-0000-0000%08X",
+            adler32_csum((unsigned char *) "kismet_cap_pcapfile", 
+                strlen("kismet_cap_pcapfile")) & 0xFFFFFFFF,
+            adler32_csum((unsigned char *) "pcapfname", 
+                strlen("pcapfname")) & 0xFFFFFFFF);
+    *uuid = strdup(errstr);
 
     /* Succesful open with no channel, hop, or chanset data */
     snprintf(msg, STATUS_MAX, "Opened pcapfile '%s' for playback", pcapfname);
@@ -255,7 +268,6 @@ void pcap_dispatch_cb(u_char *user, const struct pcap_pkthdr *header,
                         NULL, NULL, NULL,
                         header->ts, 
                         header->caplen, (uint8_t *) data)) < 0) {
-            fprintf(stderr, "debug - pcapfile - cf_send_data failed\n");
             pcap_breakloop(local_pcap->pd);
             cf_send_error(caph, "unable to send DATA frame");
             cf_handler_spindown(caph);
@@ -275,8 +287,6 @@ void capture_thread(kis_capture_handler_t *caph) {
     char errstr[PCAP_ERRBUF_SIZE];
     char *pcap_errstr;
 
-    fprintf(stderr, "debug - pcap_loop\n");
-
     pcap_loop(local_pcap->pd, -1, pcap_dispatch_cb, (u_char *) caph);
 
     pcap_errstr = pcap_geterr(local_pcap->pd);
@@ -285,12 +295,8 @@ void capture_thread(kis_capture_handler_t *caph) {
             local_pcap->pcapfname, 
             strlen(pcap_errstr) == 0 ? "end of pcapfile reached" : pcap_errstr );
 
-    fprintf(stderr, "debug - %s\n", errstr);
-
     cf_send_error(caph, errstr);
     cf_handler_spindown(caph);
-
-    fprintf(stderr, "debug - pcapfile - capture thread finishing\n");
 }
 
 int main(int argc, char *argv[]) {

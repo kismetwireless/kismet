@@ -626,7 +626,8 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
 
 
 int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
-        char *msg, char **chanset, char ***chanlist, size_t *chanlist_sz) {
+        char *msg, char **chanset, char ***chanlist, size_t *chanlist_sz,
+        char **uuid) {
     char *placeholder = NULL;
     int placeholder_len;
     char *interface;
@@ -637,12 +638,21 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     *chanlist = NULL;
     *chanlist_sz = 0;
 
+    uint8_t hwaddr[6];
+
     if ((placeholder_len = cf_parse_interface(&placeholder, definition)) <= 0) {
         snprintf(msg, STATUS_MAX, "Unable to find interface in definition"); 
         return 0;
     }
 
     interface = strndup(placeholder, placeholder_len);
+
+    /* get the mac address; this should be standard for anything */
+    if (ifconfig_get_hwaddr(interface, errstr, hwaddr) < 0) {
+        snprintf(msg, STATUS_MAX, "Could not fetch interface address from '%s': %s",
+                interface, errstr);
+        return -1;
+    }
 
     /* We don't care about fixed channel */
     *chanset = NULL;
@@ -654,6 +664,14 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     if (ret < 0)
         return -1;
 
+    /* Make a spoofed, but consistent, UUID based on the adler32 of the interface name 
+     * and the mac address of the device */
+    snprintf(errstr, STATUS_MAX, "%08X-0000-0000-0000-%02X%02X%02X%02X%02X%02X",
+            adler32_csum((unsigned char *) "kismet_cap_linux_wifi", 
+                strlen("kismet_cap_linux_wifi")) & 0xFFFFFFFF,
+            hwaddr[0] & 0xFF, hwaddr[1] & 0xFF, hwaddr[2] & 0xFF,
+            hwaddr[3] & 0xFF, hwaddr[4] & 0xFF, hwaddr[5] & 0xFF);
+    *uuid = strdup(errstr);
     return 1;
 }
 

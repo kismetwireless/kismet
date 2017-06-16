@@ -279,14 +279,14 @@ protected:
 
 // Intermediary ringbuffer handler which is responsible for parsing the incoming
 // simple packet protocol enough to get a NEWSOURCE command; The resulting source
-// type, definition, and rbufhandler is passed to the callback function; the cb
+// type, definition, uuid, and rbufhandler is passed to the callback function; the cb
 // is responsible for looking up the type, closing the connection if it is invalid, etc.
 class dst_incoming_remote : public RingbufferInterface {
 public:
     dst_incoming_remote(GlobalRegistry *in_globalreg, 
             shared_ptr<RingbufferHandler> in_rbufhandler,
             function<void (string srctype, string srcdef,
-                shared_ptr<RingbufferHandler> handler)> in_cb);
+                uuid srcuuid, shared_ptr<RingbufferHandler> handler)> in_cb);
     ~dst_incoming_remote();
 
     virtual void BufferAvailable(size_t in_amt);
@@ -301,7 +301,7 @@ protected:
     // Ringbuf_handler we're associated with
     shared_ptr<RingbufferHandler> rbuf_handler;
 
-    function<void (string, string, shared_ptr<RingbufferHandler> )> cb;
+    function<void (string, string, uuid, shared_ptr<RingbufferHandler> )> cb;
 };
 
 // Fwd def of datasource pcap feed
@@ -364,7 +364,7 @@ public:
     bool remove_datasource(uuid in_uuid);
 
     // Try to instantiate a remote data source
-    void open_remote_datasource(string in_type, string in_definition,
+    void open_remote_datasource(string in_type, string in_definition, uuid in_uuid,
             shared_ptr<RingbufferHandler> in_handler);
 
     // Find a datasource
