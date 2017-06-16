@@ -127,8 +127,8 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     snprintf(errstr, PCAP_ERRBUF_SIZE, "%08X-0000-0000-0000-0000%08X",
             adler32_csum((unsigned char *) "kismet_cap_pcapfile", 
                 strlen("kismet_cap_pcapfile")) & 0xFFFFFFFF,
-            adler32_csum((unsigned char *) "pcapfname", 
-                strlen("pcapfname")) & 0xFFFFFFFF);
+            adler32_csum((unsigned char *) pcapfname, 
+                strlen(pcapfname)) & 0xFFFFFFFF);
     *uuid = strdup(errstr);
 
 
@@ -200,8 +200,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     snprintf(errstr, PCAP_ERRBUF_SIZE, "%08X-0000-0000-0000-0000%08X",
             adler32_csum((unsigned char *) "kismet_cap_pcapfile", 
                 strlen("kismet_cap_pcapfile")) & 0xFFFFFFFF,
-            adler32_csum((unsigned char *) "pcapfname", 
-                strlen("pcapfname")) & 0xFFFFFFFF);
+            adler32_csum((unsigned char *) pcapfname, 
+                strlen(pcapfname)) & 0xFFFFFFFF);
     *uuid = strdup(errstr);
 
     /* Succesful open with no channel, hop, or chanset data */
