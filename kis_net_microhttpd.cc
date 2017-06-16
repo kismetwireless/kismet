@@ -55,7 +55,10 @@ Kis_Net_Httpd::Kis_Net_Httpd(GlobalRegistry *in_globalreg) {
     cert_pem = NULL;
     cert_key = NULL;
 
-    pthread_mutex_init(&controller_mutex, NULL);
+    pthread_mutexattr_t mutexattr;
+    pthread_mutexattr_init(&mutexattr);
+    pthread_mutexattr_settype(&mutexattr, PTHREAD_MUTEX_RECURSIVE);
+	pthread_mutex_init(&controller_mutex, &mutexattr);
 
     if (globalreg->kismet_config == NULL) {
         fprintf(stderr, "FATAL OOPS: Kis_Net_Httpd called without kismet_config\n");
@@ -164,27 +167,29 @@ Kis_Net_Httpd::Kis_Net_Httpd(GlobalRegistry *in_globalreg) {
                 if (sestok.size() != 4)
                     continue;
 
-                Kis_Net_Httpd_Session *sess = new Kis_Net_Httpd_Session();
+                shared_ptr<Kis_Net_Httpd_Session> sess(new Kis_Net_Httpd_Session());
 
                 sess->sessionid = sestok[0];
 
                 if (sscanf(sestok[1].c_str(), "%lu", &(sess->session_created)) != 1) {
-                    delete sess;
                     continue;
                 }
 
                 if (sscanf(sestok[2].c_str(), "%lu", &(sess->session_seen)) != 1) {
-                    delete sess;
                     continue;
                 }
 
                 if (sscanf(sestok[3].c_str(), "%lu", &(sess->session_lifetime)) != 1) {
-                    delete sess;
                     continue;
                 }
 
-                session_map[sess->sessionid] = sess;
+                // Ignore old sessions
+                if (sess->session_created + sess->session_lifetime < 
+                        globalreg->timestamp.tv_sec) 
+                    continue;
 
+                // Don't use AddSession because we don't want to trigger a write, yet
+                session_map.emplace(sess->sessionid, sess);
             }
         }
     }
@@ -206,10 +211,7 @@ Kis_Net_Httpd::~Kis_Net_Httpd() {
         delete(session_db);
     }
 
-    for (map<string, Kis_Net_Httpd_Session *>::iterator i = session_map.begin();
-            i != session_map.end(); ++i) {
-        delete(i->second);
-    }
+    session_map.clear();
 
     pthread_mutex_destroy(&controller_mutex);
 }
@@ -394,38 +396,46 @@ void Kis_Net_Httpd::MHD_Panic(void *cls, const char *file, unsigned int line,
     httpd->microhttpd = NULL;
 }
 
-void Kis_Net_Httpd::AddSession(Kis_Net_Httpd_Session *in_session) {
-    session_map[in_session->sessionid] = in_session;
+void Kis_Net_Httpd::AddSession(shared_ptr<Kis_Net_Httpd_Session> in_session) {
+    local_locker lock(&controller_mutex);
+
+    session_map.emplace(in_session->sessionid, in_session);
     WriteSessions();
 }
 
 void Kis_Net_Httpd::DelSession(string in_key) {
-    map<string, Kis_Net_Httpd_Session *>::iterator i = session_map.find(in_key);
+    local_locker lock(&controller_mutex);
 
-    DelSession(i);
+    auto i = session_map.find(in_key);
+
+    if (i != session_map.end())
+        DelSession(i);
+
 }
 
-void Kis_Net_Httpd::DelSession(map<string, Kis_Net_Httpd_Session *>::iterator in_itr) {
+void Kis_Net_Httpd::DelSession(map<string, shared_ptr<Kis_Net_Httpd_Session> >::iterator in_itr) {
+    local_locker lock(&controller_mutex);
+
     if (in_itr != session_map.end()) {
-        delete in_itr->second;
         session_map.erase(in_itr);
         WriteSessions();
     }
 }
 
 void Kis_Net_Httpd::WriteSessions() {
+    local_locker lock(&controller_mutex);
+
     if (!store_sessions)
         return;
 
     vector<string> sessions;
     stringstream str;
 
-    for (map<string, Kis_Net_Httpd_Session *>::iterator i = session_map.begin();
-            i != session_map.end(); ++i) {
+    for (auto i : session_map) {
         str.str("");
 
-        str << i->second->sessionid << "," << i->second->session_created << "," <<
-            i->second->session_seen << "," << i->second->session_lifetime;
+        str << i.second->sessionid << "," << i.second->session_created << "," <<
+            i.second->session_seen << "," << i.second->session_lifetime;
 
         sessions.push_back(str.str());
     }
@@ -434,7 +444,6 @@ void Kis_Net_Httpd::WriteSessions() {
 
     // Ignore failures here I guess?
     session_db->SaveConfig(sessiondb_file.c_str());
-
 }
 
 int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connection,
@@ -446,7 +455,7 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
     Kis_Net_Httpd *kishttpd = (Kis_Net_Httpd *) cls;
     
     // Update the session records if one exists
-    Kis_Net_Httpd_Session *s = NULL;
+    shared_ptr<Kis_Net_Httpd_Session> s = NULL;
     const char *cookieval;
     int ret = MHD_NO;
 
@@ -456,8 +465,7 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
             MHD_COOKIE_KIND, KIS_SESSION_COOKIE);
 
     if (cookieval != NULL) {
-        map<string, Kis_Net_Httpd_Session *>::iterator si = 
-            kishttpd->session_map.find(cookieval);
+        auto si = kishttpd->session_map.find(cookieval);
 
         if (si != kishttpd->session_map.end()) {
             s = si->second;
@@ -922,14 +930,14 @@ bool Kis_Net_Httpd::HasValidSession(Kis_Net_Httpd_Connection *connection,
     if (connection->session != NULL)
         return true;
 
-    Kis_Net_Httpd_Session *s;
+    shared_ptr<Kis_Net_Httpd_Session> s;
     const char *cookieval;
 
     cookieval = MHD_lookup_connection_value(connection->connection,
             MHD_COOKIE_KIND, KIS_SESSION_COOKIE);
 
     if (cookieval != NULL) {
-        map<string, Kis_Net_Httpd_Session *>::iterator si = session_map.find(cookieval);
+        auto si = session_map.find(cookieval);
 
         if (si != session_map.end()) {
 
@@ -942,18 +950,18 @@ bool Kis_Net_Httpd::HasValidSession(Kis_Net_Httpd_Connection *connection,
             }
 
             // Is the session still valid?
-            if (globalreg->timestamp.tv_sec < s->session_seen + s->session_lifetime) {
+            if (globalreg->timestamp.tv_sec < s->session_created + s->session_lifetime) {
                 connection->session = s;
                 return true;
             } else {
                 DelSession(si);
+                connection->session = NULL;
             }
         }
     }
 
     // If we got here, we either don't have a session, or the session isn't valid.
-    if (websession != NULL && 
-            websession->validate_login(connection->connection)) {
+    if (websession != NULL && websession->validate_login(connection->connection)) {
         CreateSession(connection, NULL, session_timeout);
         return true;
     }
@@ -976,7 +984,8 @@ bool Kis_Net_Httpd::HasValidSession(Kis_Net_Httpd_Connection *connection,
 
 void Kis_Net_Httpd::CreateSession(Kis_Net_Httpd_Connection *connection, 
         struct MHD_Response *response, time_t in_lifetime) {
-    Kis_Net_Httpd_Session *s;
+    
+    shared_ptr<Kis_Net_Httpd_Session> s;
 
     // Use 128 bits of entropy to make a session key
 
@@ -1020,7 +1029,7 @@ void Kis_Net_Httpd::CreateSession(Kis_Net_Httpd_Connection *connection,
         }
     }
 
-    s = new Kis_Net_Httpd_Session();
+    s.reset(new Kis_Net_Httpd_Session());
     s->sessionid = cookie.str();
     s->session_created = globalreg->timestamp.tv_sec;
     s->session_seen = s->session_created;

@@ -328,7 +328,7 @@ public:
     Kis_Net_Httpd_Handler *httpdhandler;    
 
     // Login session
-    Kis_Net_Httpd_Session *session;
+    shared_ptr<Kis_Net_Httpd_Session> session;
 
     // Connection
     struct MHD_Connection *connection;
@@ -477,12 +477,12 @@ protected:
 
     char *read_ssl_file(string in_fname);
 
-    void AddSession(Kis_Net_Httpd_Session *in_session);
+    void AddSession(shared_ptr<Kis_Net_Httpd_Session> in_session);
     void DelSession(string in_key);
-    void DelSession(map<string, Kis_Net_Httpd_Session *>::iterator in_itr);
+    void DelSession(map<string, shared_ptr<Kis_Net_Httpd_Session> >::iterator in_itr);
     void WriteSessions();
 
-    map<string, Kis_Net_Httpd_Session *> session_map;
+    map<string, shared_ptr<Kis_Net_Httpd_Session> > session_map;
 
     bool store_sessions;
     string sessiondb_file;
