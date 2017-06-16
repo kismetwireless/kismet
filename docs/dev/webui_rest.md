@@ -6,6 +6,55 @@ Kismet uses a REST-like interface on the embedded webserver for providing data a
 
 Data returned by JSON serializers will transform field names to match the path delimiters used in many JS implementations - specifically, all instances of '.' will be transformed to '_'.
 
+## Exploring the REST system
+
+The easiest way to explore the REST system, aside from the docs, is to query the JSON endpoints directly.  You can use `curl` and `python` to quickly grab output and format the JSON to be human readable:
+
+```
+$ curl http://localhost:2501/datasource/all_sources.json | python -mjson.tool
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100 36274  100 36274    0     0   761k      0 --:--:-- --:--:-- --:--:--  770k
+[
+    {
+        "kismet.datasource.capture_interface": "wlp3s0mon",
+        "kismet.datasource.channel": "",
+        "kismet.datasource.channels": [
+            "1",
+            "1HT40+",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "6HT40-",
+            "6HT40+",
+            "7",
+            "8",
+            "9",
+            "10",
+            "11",
+            "11HT40-"
+        ],
+        "kismet.datasource.definition": "wlp3s0",
+        "kismet.datasource.dlt": 127,
+        "kismet.datasource.error": 0,
+        "kismet.datasource.error_reason": "",
+        "kismet.datasource.hop_channels": [
+....
+```
+
+Similarly, POST data can be sent via curl; for example to test creating an alert via the dynamic alerts endpoint:
+
+```
+$ curl -d 'json={"name": "JSONALERT", "description": "Dynamic alert added at runtime", "throttle": "10/min", "burst": "1/sec"}' \
+    http://kismet:kismet@localhost:2501/alerts/definitions/define_alert.cmd
+```
+
+which passes the parameters in the `json=` variable, and the login and password in the URI (kismet:kismet in this example).
+
+More information about each field can be found in the `/system/tracked_fields.html` URI by visiting `http://localhost:2501/system/tracked_fields.html` in your browser.  This will show the field names, descriptions, and data types, for every known entity.
+
 ## Logins and Sessions
 
 Kismet uses session cookies to maintain a login session.  Typically GET requests which do not reveal sensitive configuration data do not require a login, while POST commands which change configuration or GET commands which might return parts of the Kismet configuration values will require the user to login with the credentials in the `kismet_httpd.conf` config file.
