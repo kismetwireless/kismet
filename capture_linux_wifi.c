@@ -731,6 +731,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     NMDevice *nmdevice = NULL;
     const GPtrArray *nmdevices;
     GError *nmerror = NULL;
+    int i;
 #endif
 
     if ((placeholder_len = cf_parse_interface(&placeholder, definition)) <= 0) {
@@ -835,7 +836,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         nmdevices = nm_client_get_devices(nmclient);
 
         if (nmdevices != NULL) {
-            for (int i = 0; i < nmdevices->len; i++) {
+            for (i = 0; i < nmdevices->len; i++) {
                 const NMDevice *d = g_ptr_array_index(nmdevices, i);
 
                 if (strcmp(nm_device_get_iface((NMDevice *) d), 
@@ -1385,6 +1386,7 @@ int main(int argc, char *argv[]) {
     NMClient *nmclient = NULL;
     const GPtrArray *nmdevices;
     GError *nmerror = NULL;
+    int i;
 #endif
 
 #if 0
@@ -1452,7 +1454,7 @@ int main(int argc, char *argv[]) {
                 nmdevices = nm_client_get_devices(nmclient);
 
                 if (nmdevices != NULL) {
-                    for (int i = 0; i < nmdevices->len; i++) {
+                    for (i = 0; i < nmdevices->len; i++) {
                         const NMDevice *d = g_ptr_array_index(nmdevices, i);
 
                         if (strcmp(nm_device_get_iface((NMDevice *) d), 
