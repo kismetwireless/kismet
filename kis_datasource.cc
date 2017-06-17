@@ -75,6 +75,8 @@ KisDatasource::KisDatasource(GlobalRegistry *in_globalreg,
         entrytracker->RegisterAndGetField("kismet.datasourcetracker.listed_interface", 
                 SharedInterface(new KisDatasourceInterface(globalreg, 0)), 
                     "auto-discovered interface");
+
+    last_pong = 0;
 }
 
 KisDatasource::~KisDatasource() {
@@ -293,6 +295,12 @@ void KisDatasource::connect_ringbuffer(shared_ptr<RingbufferHandler> in_ringbuf,
         _MSG("Unable to parse interface definition", MSGFLAG_ERROR);
         return;
     }
+
+    // We can't reconnect failed interfaces that are remote
+    set_int_source_retry(false);
+    
+    // We're remote
+    set_int_source_remote(true);
 
     // Send an opensource
     send_command_open_interface(in_definition, 0, NULL);
@@ -640,6 +648,8 @@ void KisDatasource::cancel_all_commands(string in_error) {
 }
 
 void KisDatasource::proto_dispatch_packet(string in_type, KVmap in_kvmap) {
+    local_locker lock(&source_lock);
+
     string ltype = StrLower(in_type);
 
     if (ltype == "proberesp")
@@ -656,6 +666,8 @@ void KisDatasource::proto_dispatch_packet(string in_type, KVmap in_kvmap) {
         proto_packet_configresp(in_kvmap);
     else if (ltype == "ping")
         send_command_pong();
+    else if (ltype == "pong")
+        last_pong = time(0);
     else if (ltype == "data")
         proto_packet_data(in_kvmap);
 
@@ -793,6 +805,15 @@ void KisDatasource::proto_packet_open_resp(KVmap in_kvpairs) {
     if (ping_timer_id <= 0) {
         ping_timer_id = timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 3, NULL,
                 1, [this](int) -> int {
+            if (last_pong != 0 && time(0) - last_pong > 5) {
+                _MSG("Source '" + get_source_name() + "' UUID " + 
+                        get_source_uuid().UUID2String() + " failed to respond to PING",
+                        MSGFLAG_ERROR);
+                trigger_error("Source '" + get_source_name() + "' UUID " + 
+                        get_source_uuid().UUID2String() + " failed to respond to PING");
+                return 0;
+            }
+
             send_command_ping();
             return 1;
         });
@@ -1757,6 +1778,9 @@ void KisDatasource::register_fields() {
 
     RegisterField("kismet.datasource.running", TrackerUInt8,
             "capture is running", &source_running);
+
+    RegisterField("kismet.datasource.remote", TrackerUInt8,
+            "capture is connected from a remote server", &source_remote);
 
     RegisterField("kismet.datasource.name", TrackerString,
             "Human-readable name", &source_name);

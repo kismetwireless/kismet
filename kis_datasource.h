@@ -192,6 +192,8 @@ public:
 
     __ProxyGet(source_running, uint8_t, bool, source_running);
 
+    __ProxyGet(source_remote, uint8_t, bool, source_remote);
+
     __Proxy(source_num_packets, uint64_t, uint64_t, uint64_t, source_num_packets);
     __ProxyIncDec(source_num_packets, uint64_t, uint64_t, source_num_packets);
 
@@ -514,6 +516,9 @@ protected:
     // with the IPC instance.
     shared_ptr<IPCRemoteV2> ipc_remote;
 
+    SharedTrackerElement source_remote;
+    __ProxySet(int_source_remote, uint8_t, bool, source_remote);
+
     SharedTrackerElement source_running;
     __ProxySet(int_source_running, uint8_t, bool, source_running);
 
@@ -548,6 +553,9 @@ protected:
 
     // We've gotten our response from an operation, don't report additional errors
     bool quiet_errors;
+
+    // Last time we saw a PONG
+    time_t last_pong;
 
 
     // Packetchain
