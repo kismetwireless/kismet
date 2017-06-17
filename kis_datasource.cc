@@ -274,7 +274,7 @@ void KisDatasource::set_channel_hop_list(std::vector<std::string> in_chans,
 }
 
 void KisDatasource::connect_ringbuffer(shared_ptr<RingbufferHandler> in_ringbuf,
-        string in_definition) {
+        string in_definition, open_callback_t in_cb) {
     local_locker lock(&source_lock);
 
     if (ringbuf_handler != NULL) {
@@ -303,7 +303,7 @@ void KisDatasource::connect_ringbuffer(shared_ptr<RingbufferHandler> in_ringbuf,
     set_int_source_remote(true);
 
     // Send an opensource
-    send_command_open_interface(in_definition, 0, NULL);
+    send_command_open_interface(in_definition, 0, in_cb);
 }
 
 void KisDatasource::close_source() {

@@ -130,7 +130,7 @@ public:
     // interface; anything we do with the ringbuffer is itself async in the
     // future however
     virtual void connect_ringbuffer(shared_ptr<RingbufferHandler> in_ringbuf,
-            string in_definition);
+            string in_definition, open_callback_t in_cb);
 
 
     // Close the source

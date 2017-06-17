@@ -905,7 +905,8 @@ void Datasourcetracker::open_remote_datasource(string in_type, string in_definit
         if (d->get_source_uuid() == in_uuid) {
             _MSG("Matching remote source '" + in_definition + "' with existing source "
                     "with UUID " + in_uuid.UUID2String(), MSGFLAG_INFO);
-            d->connect_ringbuffer(in_handler, in_definition);
+            d->connect_ringbuffer(in_handler, in_definition,
+                    [](unsigned int, bool, string) { });
             return;
         }
     }
@@ -923,9 +924,11 @@ void Datasourcetracker::open_remote_datasource(string in_type, string in_definit
         if (b->get_source_type() == in_type) {
             // Make a data source from the builder
             SharedDatasource ds = b->build_datasource(b);
-            ds->connect_ringbuffer(in_handler, in_definition);
-
-            merge_source(ds);
+            ds->connect_ringbuffer(in_handler, in_definition,
+                [this, ds](unsigned int, bool success, string msg) {
+                    if (success)
+                        merge_source(ds); 
+                });
 
             return;
         }
