@@ -180,7 +180,7 @@ kis_capture_handler_t *cf_handler_init(const char *in_type) {
     if (ch == NULL)
         return NULL;
 
-    ch->last_ping = time(NULL);
+    ch->last_ping = 0;
 
     ch->capsource_type = strdup(in_type);
 
@@ -1340,7 +1340,7 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
             break;
         }
 
-        if (time(NULL) - caph->last_ping > 5) {
+        if (caph->last_ping != 0 && time(NULL) - caph->last_ping > 5) {
             fprintf(stderr, "FATAL - Capture source did not get PING from Kismet for "
                     "over 5 seconds; shutting down");
             pthread_mutex_unlock(&(caph->handler_lock));
