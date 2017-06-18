@@ -206,39 +206,44 @@ int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
     if (FD_ISSET(cli_fd, &in_rset)) {
         // Allocate the biggest buffer we can fit in the ring, read as much
         // as we can at once.
-        
-        len = handler->GetReadBufferFree();
-        buf = new uint8_t[len];
+       
+        while (handler->GetReadBufferFree()) {
+            len = handler->GetReadBufferFree();
+            buf = new uint8_t[len];
 
-        if ((ret = read(cli_fd, buf, len)) <= 0) {
-            if (errno != EINTR && errno != EAGAIN) {
-                // Push the error upstream if we failed to read here
-                if (ret == 0) {
-                    msg << "TCP client closing " << host << ":" << port <<
-                        " - connection closed by remote side.";
+            if ((ret = read(cli_fd, buf, len)) <= 0) {
+                if (errno != EINTR && errno != EAGAIN) {
+                    // Push the error upstream if we failed to read here
+                    if (ret == 0) {
+                        msg << "TCP client closing " << host << ":" << port <<
+                            " - connection closed by remote side.";
+                    } else {
+                        msg << "TCP client error reading from " << host << ":" << port <<
+                            " - " << kis_strerror_r(errno);
+                    }
+                    handler->BufferError(msg.str());
+                    delete[] buf;
+                    Disconnect();
+                    return 0;
                 } else {
-                    msg << "TCP client error reading from " << host << ":" << port <<
-                        " - " << kis_strerror_r(errno);
+                    // Break out of while loop
+                    break;
                 }
-                handler->BufferError(msg.str());
-                delete[] buf;
-                Disconnect();
-                return 0;
-            }
-        } else {
-            // Insert into buffer
-            iret = handler->PutReadBufferData(buf, ret, true);
+            } else {
+                // Insert into buffer
+                iret = handler->PutReadBufferData(buf, ret, true);
 
-            if (iret != ret) {
-                // Die if we couldn't insert all our data, the error is already going
-                // upstream.
-                delete[] buf;
-                Disconnect();
-                return 0;
+                if (iret != ret) {
+                    // Die if we couldn't insert all our data, the error is already going
+                    // upstream.
+                    delete[] buf;
+                    Disconnect();
+                    return 0;
+                }
             }
+
+            delete[] buf;
         }
-
-        delete[] buf;
     }
 
     if (FD_ISSET(cli_fd, &in_wset)) {

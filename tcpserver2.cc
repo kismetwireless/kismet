@@ -193,41 +193,47 @@ int TcpServerV2::Poll(fd_set& in_rset, fd_set& in_wset) {
     for (auto i = handler_map.begin(); i != handler_map.end(); ++i) {
         // Process incoming data
         if (FD_ISSET(i->first, &in_rset)) {
-            // Read only as much as we have free in the buffer
-            len = i->second->GetReadBufferFree();
-            buf = new uint8_t[len];
 
-            if ((ret = read(i->first, buf, len)) <= 0) {
-                if (errno != EINTR && errno != EAGAIN) {
-                    // Push the error upstream if we failed to read here
-                    if (ret == 0) {
-                        msg << "TCP server closing connection from client " << i->first <<
-                            " - connection closed by remote side";
+            while (i->second->GetReadBufferFree()) {
+                // Read only as much as we have free in the buffer
+                len = i->second->GetReadBufferFree();
+                buf = new uint8_t[len];
+
+                if ((ret = read(i->first, buf, len)) <= 0) {
+                    if (errno != EINTR && errno != EAGAIN) {
+                        // Push the error upstream if we failed to read here
+                        if (ret == 0) {
+                            msg << "TCP server closing connection from client " << i->first <<
+                                " - connection closed by remote side";
+                        } else {
+                            msg << "TCP server error reading from client " << i->first << 
+                                " - " << kis_strerror_r(errno);
+                        }
+                        i->second->BufferError(msg.str());
+                        delete[] buf;
+                        KillConnection(i->first);
+                        return 0;
                     } else {
-                        msg << "TCP server error reading from client " << i->first << 
-                            " - " << kis_strerror_r(errno);
+                        // Drop out of while loop
+                        break;
                     }
-                    i->second->BufferError(msg.str());
-                    delete[] buf;
-                    KillConnection(i->first);
-                    return 0;
-                }
-            } else {
-                // Insert into buffer
-                iret = i->second->PutReadBufferData(buf, ret, true);
+                } else {
+                    // Insert into buffer
+                    iret = i->second->PutReadBufferData(buf, ret, true);
 
-                if (iret != ret) {
-                    // Die if we somehow couldn't insert all our data once we
-                    // read it from the socket since we can't put it back on the
-                    // input queue.  This should never happen because we're the
-                    // only input source but we'll handle it
-                    delete[] buf;
-                    KillConnection(i->first);
-                    return 0;
+                    if (iret != ret) {
+                        // Die if we somehow couldn't insert all our data once we
+                        // read it from the socket since we can't put it back on the
+                        // input queue.  This should never happen because we're the
+                        // only input source but we'll handle it
+                        delete[] buf;
+                        KillConnection(i->first);
+                        return 0;
+                    }
                 }
+
+                delete[] buf;
             }
-
-            delete[] buf;
         }
 
         if (FD_ISSET(i->first, &in_wset)) {

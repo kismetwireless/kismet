@@ -124,44 +124,48 @@ int PipeClient::Poll(fd_set& in_rset, fd_set& in_wset) {
     if (read_fd > -1 && FD_ISSET(read_fd, &in_rset)) {
         // Allocate the biggest buffer we can fit in the ring, read as much
         // as we can at once.
-        
-        len = handler->GetReadBufferFree();
-        buf = new uint8_t[len];
+       
+        while (handler->GetReadBufferFree()) {
+            len = handler->GetReadBufferFree();
+            buf = new uint8_t[len];
 
-        if ((ret = read(read_fd, buf, len)) <= 0) {
-            // fprintf(stderr, "debug - pipeclient - read returned %ld errno %s\n", ret, strerror(errno));
-            if (errno != EINTR && errno != EAGAIN) {
+            if ((ret = read(read_fd, buf, len)) <= 0) {
+                if (errno != EINTR && errno != EAGAIN) {
 
-                if (ret == 0) {
-                    msg << "Pipe client closing - remote side closed pipe";
+                    if (ret == 0) {
+                        msg << "Pipe client closing - remote side closed pipe";
+                    } else {
+                        msg << "Pipe client error reading - " << kis_strerror_r(errno);
+                    }
+
+                    delete[] buf;
+
+                    // Push the error upstream if we failed to read here
+                    handler->BufferError(msg.str());
+
+                    ClosePipes();
+
+                    // fprintf(stderr, "debug - pipeclient - returning from poll\n");
+                    return 0;
                 } else {
-                    msg << "Pipe client error reading - " << kis_strerror_r(errno);
+                    // Jump out of read loop
+                    break;
                 }
-    
-                delete[] buf;
+            } else {
+                // Insert into buffer
+                iret = handler->PutReadBufferData(buf, ret, true);
 
-                // Push the error upstream if we failed to read here
-                handler->BufferError(msg.str());
-
-                ClosePipes();
-
-                // fprintf(stderr, "debug - pipeclient - returning from poll\n");
-                return 0;
+                if (iret != ret) {
+                    // Die if we couldn't insert all our data, the error is already going
+                    // upstream.
+                    delete[] buf;
+                    ClosePipes();
+                    return 0;
+                }
             }
-        } else {
-            // Insert into buffer
-            iret = handler->PutReadBufferData(buf, ret, true);
 
-            if (iret != ret) {
-                // Die if we couldn't insert all our data, the error is already going
-                // upstream.
-                delete[] buf;
-                ClosePipes();
-                return 0;
-            }
+            delete[] buf;
         }
-
-        delete[] buf;
     }
 
     if (write_fd > -1 && FD_ISSET(write_fd, &in_wset)) {

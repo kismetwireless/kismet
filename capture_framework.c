@@ -1394,48 +1394,52 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
             continue;
 
         if (FD_ISSET(read_fd, &rset)) {
-            /* We use a fixed-length read buffer for simplicity, and we shouldn't
-             * ever have too many incoming packets queued because the datasource
-             * protocol is very tx-heavy */
-            ssize_t amt_read;
-            size_t amt_buffered;
-            uint8_t rbuf[1024];
+            while (kis_simple_ringbuf_available(caph->in_ringbuf)) {
+                /* We use a fixed-length read buffer for simplicity, and we shouldn't
+                 * ever have too many incoming packets queued because the datasource
+                 * protocol is very tx-heavy */
+                ssize_t amt_read;
+                size_t amt_buffered;
+                uint8_t rbuf[1024];
 
-            /* We deliberately read as much as we need and try to put it in the 
-             * buffer, if the buffer fills up something has gone wrong anyhow */
+                /* We deliberately read as much as we need and try to put it in the 
+                 * buffer, if the buffer fills up something has gone wrong anyhow */
 
-            if ((amt_read = read(read_fd, rbuf, 1024)) <= 0) {
-                if (errno != EINTR && errno != EAGAIN) {
-                    /* Bail entirely */
-                    if (amt_read == 0) {
-                        fprintf(stderr, "FATAL: Remote side closed read pipe\n");
+                if ((amt_read = read(read_fd, rbuf, 1024)) <= 0) {
+                    if (errno != EINTR && errno != EAGAIN) {
+                        /* Bail entirely */
+                        if (amt_read == 0) {
+                            fprintf(stderr, "FATAL: Remote side closed read pipe\n");
+                        } else {
+                            fprintf(stderr,
+                                    "FATAL:  Error during read(): %s\n", strerror(errno));
+                        }
+                        rv = -1;
+                        goto cap_loop_fail;
                     } else {
-                        fprintf(stderr,
-                                "FATAL:  Error during read(): %s\n", strerror(errno));
+                        /* Drop out of read/process loop */
+                        break;
                     }
+                }
+
+                amt_buffered = kis_simple_ringbuf_write(caph->in_ringbuf, rbuf, amt_read);
+
+                if ((ssize_t) amt_buffered != amt_read) {
+                    /* Bail entirely - to do, report error if we can over connection */
+                    fprintf(stderr,
+                            "FATAL:  Error during read(): insufficient buffer space\n");
                     rv = -1;
-                    break;
+                    goto cap_loop_fail;
+                }
+
+                // fprintf(stderr, "debug - capframework - read %lu\n", amt_buffered);
+
+                /* See if we have a complete packet to do something with */
+                if (cf_handle_rx_data(caph) < 0) {
+                    /* Enter spindown if processing an incoming packet failed */
+                    cf_handler_spindown(caph);
                 }
             }
-
-            amt_buffered = kis_simple_ringbuf_write(caph->in_ringbuf, rbuf, amt_read);
-
-            if ((ssize_t) amt_buffered != amt_read) {
-                /* Bail entirely - to do, report error if we can over connection */
-                fprintf(stderr,
-                        "FATAL:  Error during read(): insufficient buffer space\n");
-                rv = -1;
-                break;
-            }
-
-            // fprintf(stderr, "debug - capframework - read %lu\n", amt_buffered);
-
-            /* See if we have a complete packet to do something with */
-            if (cf_handle_rx_data(caph) < 0) {
-                /* Enter spindown if processing an incoming packet failed */
-                cf_handler_spindown(caph);
-            }
-
         }
 
         if (FD_ISSET(write_fd, &wset)) {
@@ -1498,7 +1502,8 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
     }
 
     /* fprintf(stderr, "FATAL - dropped out of select loop\n"); */
-    
+   
+cap_loop_fail:
     /* Kill the capture thread */
     pthread_mutex_lock(&(caph->out_ringbuf_lock));
     if (caph->capture_running) {
