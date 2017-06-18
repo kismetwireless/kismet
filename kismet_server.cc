@@ -532,7 +532,6 @@ void ncurses_wrapper_fork() {
 
         signal(SIGPIPE, SIG_IGN);
 
-        FILE *c_stdin = fdopen(pipefd[0], "r");
         fcntl(pipefd[0], F_SETFL, fcntl(pipefd[0], F_GETFL, 0) | O_NONBLOCK);
 
         WINDOW *top_bar, *main_text, *bottom_bar;
@@ -561,7 +560,7 @@ void ncurses_wrapper_fork() {
         mvwprintw(bottom_bar, 0, 0, "Visit http://localhost:2501 to view the Kismet UI");
         wrefresh(bottom_bar);
 
-        int read;
+        int nread;
         size_t len = 2048;
         char *buf = new char[len];
 
@@ -584,19 +583,21 @@ void ncurses_wrapper_fork() {
             // Block signals while doing io loops */
             sigprocmask(SIG_BLOCK, &mask, &oldmask);
 
-            if ((read = getline(&buf, &len, c_stdin)) != -1) {
-                wprintw(main_text, "%s", buf);
+            while ((nread = read(pipefd[0], buf, len - 1)) > 0) {
+                buf[nread] = 0;
+                waddstr(main_text, buf);
                 wrefresh(main_text);
 
                 ncurses_exitbuf.push_back(string(buf));
-                if (ncurses_exitbuf.size() > 48)
+                if (ncurses_exitbuf.size() > 10)
                     ncurses_exitbuf.erase(ncurses_exitbuf.begin());
             }
 
-            if (feof(c_stdin) || ferror(c_stdin))
+            if (errno != EINTR && errno != EAGAIN) {
                 break;
+            }
 
-            sigprocmask(SIG_BLOCK, &mask, &oldmask);
+            sigprocmask(SIG_UNBLOCK, &mask, &oldmask);
         }
 
         sigprocmask(SIG_UNBLOCK, &mask, &oldmask);
