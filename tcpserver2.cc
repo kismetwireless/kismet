@@ -215,6 +215,7 @@ int TcpServerV2::Poll(fd_set& in_rset, fd_set& in_wset) {
                         return 0;
                     } else {
                         // Drop out of while loop
+                        delete[] buf;
                         break;
                     }
                 } else {

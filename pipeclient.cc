@@ -149,6 +149,7 @@ int PipeClient::Poll(fd_set& in_rset, fd_set& in_wset) {
                     return 0;
                 } else {
                     // Jump out of read loop
+                    delete[] buf;
                     break;
                 }
             } else {

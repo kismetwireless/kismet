@@ -227,6 +227,7 @@ int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
                     return 0;
                 } else {
                     // Break out of while loop
+                    delete[] buf;
                     break;
                 }
             } else {
