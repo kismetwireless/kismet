@@ -569,7 +569,7 @@ exports.DataSources = function() {
         .DataTable( {
             dom: 'fti',
 
-            deferRender: true,
+            //deferRender: true,
 
             aoColumns: cols,
 
@@ -581,6 +581,7 @@ exports.DataSources = function() {
             pageResize: true,
 
             createdRow: function(row, data, index) {
+                // console.log("Created row", data['kismet.datasource.source_number']);
                 row.id = data['kismet.datasource.source_number'];
             },
 
@@ -637,8 +638,7 @@ exports.DataSources = function() {
             var dt_base_height = this.content.height();
             var dt_base_width = this.content.width();
 
-            console.log(dt_base_height);
-
+            // console.log(dt_base_height);
 
             if (datasource_table != null && dt_base_height != null) {
                 $('div.dataTables_scrollBody', content).height(dt_base_height - 100);
@@ -678,9 +678,12 @@ exports.DataSources = function() {
         for (var d in kismet_sources) {
             var s = kismet_sources[d];
 
+            // console.log("Looking at source ", s['kismet.datasource.source_number']);
+
             var row = datasource_table.row('#' + s['kismet.datasource.source_number']);
 
             if (typeof(row.data()) === 'undefined') {
+                console.log("Undefined row", s['kismet.datasource.source_number']);
                 datasource_table.row.add(s);
             } else {
                 row.data(s);
