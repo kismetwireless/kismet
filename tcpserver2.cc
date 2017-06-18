@@ -131,12 +131,10 @@ int TcpServerV2::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
     }
 
     for (auto i = handler_map.begin(); i != handler_map.end(); ++i) {
-        if (i->second->GetReadBufferFree() > 0) {
-            FD_SET(i->first, out_rset);
+        FD_SET(i->first, out_rset);
 
-            if (maxfd < i->first)
-                maxfd = i->first;
-        }
+        if (maxfd < i->first)
+            maxfd = i->first;
 
         if (i->second->GetWriteBufferUsed() > 0) {
             FD_SET(i->first, out_wset);

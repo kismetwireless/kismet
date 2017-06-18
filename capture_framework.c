@@ -1046,6 +1046,7 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
     } else if (strncasecmp(cap_proto_frame->header.type, "PING", 16) == 0) {
         caph->last_ping = time(NULL);
         cf_send_pong(caph);
+
         cbret = 1;
 
         pthread_mutex_unlock(&(caph->handler_lock));
@@ -1342,7 +1343,7 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
 
         if (caph->last_ping != 0 && time(NULL) - caph->last_ping > 5) {
             fprintf(stderr, "FATAL - Capture source did not get PING from Kismet for "
-                    "over 5 seconds; shutting down");
+                    "over 5 seconds; shutting down\n");
             pthread_mutex_unlock(&(caph->handler_lock));
             rv = -1;
             break;

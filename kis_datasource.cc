@@ -77,6 +77,8 @@ KisDatasource::KisDatasource(GlobalRegistry *in_globalreg,
                     "auto-discovered interface");
 
     last_pong = 0;
+
+    quiet_errors = 0;
 }
 
 KisDatasource::~KisDatasource() {
@@ -480,11 +482,6 @@ void KisDatasource::BufferError(string in_error) {
 void KisDatasource::trigger_error(string in_error) {
     local_locker lock(&source_lock);
 
-    set_int_source_running(false);
-
-    // Kill any interaction w/ the source
-    close_source();
-
     stringstream ss;
 
     if (!quiet_errors) {
@@ -496,10 +493,15 @@ void KisDatasource::trigger_error(string in_error) {
         set_int_source_error_reason(in_error);
     }
 
+    // Kill any interaction w/ the source
+    close_source();
+
     handle_source_error();
 
     /* Set errors as quiet after the first one */
     quiet_errors = 1;
+
+    set_int_source_running(false);
 }
 
 string KisDatasource::get_definition_opt(string in_opt) {
@@ -652,24 +654,25 @@ void KisDatasource::proto_dispatch_packet(string in_type, KVmap in_kvmap) {
 
     string ltype = StrLower(in_type);
 
-    if (ltype == "proberesp")
+    if (ltype == "proberesp") {
         proto_packet_probe_resp(in_kvmap);
-    else if (ltype == "openresp")
+    } else if (ltype == "openresp") {
         proto_packet_open_resp(in_kvmap);
-    else if (ltype == "listresp")
+    } else if (ltype == "listresp") {
         proto_packet_list_resp(in_kvmap);
-    else if (ltype == "error")
+    } else if (ltype == "error") {
         proto_packet_error(in_kvmap);
-    else if (ltype == "message")
+    } else if (ltype == "message") {
         proto_packet_message(in_kvmap);
-    else if (ltype == "configresp")
+    } else if (ltype == "configresp") {
         proto_packet_configresp(in_kvmap);
-    else if (ltype == "ping")
+    } else if (ltype == "ping") {
         send_command_pong();
-    else if (ltype == "pong")
+    } else if (ltype == "pong") {
         last_pong = time(0);
-    else if (ltype == "data")
+    } else if (ltype == "data") {
         proto_packet_data(in_kvmap);
+    }
 
     // We don't care about types we don't understand
 }
@@ -801,18 +804,35 @@ void KisDatasource::proto_packet_open_resp(KVmap in_kvpairs) {
         return;
     }
 
+    last_pong = 0;
+
     // If we got here we're valid; start a PING timer
     if (ping_timer_id <= 0) {
         ping_timer_id = timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 3, NULL,
                 1, [this](int) -> int {
+            local_locker lock(&source_lock);
+
+            /*
+            if (!get_source_running()) {
+                last_pong = 0;
+                return 1;
+            }
+
             if (last_pong != 0 && time(0) - last_pong > 5) {
                 _MSG("Source '" + get_source_name() + "' UUID " + 
                         get_source_uuid().UUID2String() + " failed to respond to PING",
                         MSGFLAG_ERROR);
                 trigger_error("Source '" + get_source_name() + "' UUID " + 
                         get_source_uuid().UUID2String() + " failed to respond to PING");
-                return 0;
+
+                last_pong = 0;
+
+                return 1;
             }
+
+            if (last_pong == 0)
+                last_pong = time(0);
+            */
 
             send_command_ping();
             return 1;
@@ -1026,7 +1046,7 @@ string KisDatasource::handle_kv_message(KisDatasourceCapKeyedObject *in_obj) {
             throw std::runtime_error("missing 'flags' entry");
         }
 
-        _MSG(msg, flags);
+        _MSG(get_source_name() + " - " + msg, flags);
 
     } catch (const std::exception& e) {
         // Something went wrong with msgpack unpacking
@@ -1863,6 +1883,18 @@ void KisDatasource::handle_source_error() {
     stringstream ss;
 
     // Do nothing if we don't handle retry
+    if (get_source_remote()) {
+        if (get_source_running()) {
+            ss << "Source " << get_source_name() << " has encountered an error.  Remote sources "
+                "are not automatically reconnected; re-launch the remote source to resume "
+                "capture.";
+            _MSG(ss.str(), MSGFLAG_ERROR);
+        }
+
+        set_int_source_running(false);
+        return;
+    }
+
     if (!get_source_retry()) {
         if (get_source_running()) {
             ss << "Source " << get_source_name() << " has encountered an error but "
