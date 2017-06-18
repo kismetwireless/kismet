@@ -808,32 +808,12 @@ void KisDatasource::proto_packet_open_resp(KVmap in_kvpairs) {
 
     // If we got here we're valid; start a PING timer
     if (ping_timer_id <= 0) {
-        ping_timer_id = timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 3, NULL,
+        ping_timer_id = timetracker->RegisterTimer(SERVER_TIMESLICES_SEC, NULL,
                 1, [this](int) -> int {
             local_locker lock(&source_lock);
 
-            /*
-            if (!get_source_running()) {
-                last_pong = 0;
-                return 1;
-            }
-
-            if (last_pong != 0 && time(0) - last_pong > 5) {
-                _MSG("Source '" + get_source_name() + "' UUID " + 
-                        get_source_uuid().UUID2String() + " failed to respond to PING",
-                        MSGFLAG_ERROR);
-                trigger_error("Source '" + get_source_name() + "' UUID " + 
-                        get_source_uuid().UUID2String() + " failed to respond to PING");
-
-                last_pong = 0;
-
-                return 1;
-            }
-
-            if (last_pong == 0)
-                last_pong = time(0);
-            */
-
+            // fprintf(stderr, "debug - %ld %s sending ping\n", time(0), get_source_name().c_str());
+            
             send_command_ping();
             return 1;
         });

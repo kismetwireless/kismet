@@ -905,8 +905,13 @@ void Datasourcetracker::open_remote_datasource(string in_type, string in_definit
         if (d->get_source_uuid() == in_uuid) {
             _MSG("Matching remote source '" + in_definition + "' with existing source "
                     "with UUID " + in_uuid.UUID2String(), MSGFLAG_INFO);
-            d->connect_ringbuffer(in_handler, in_definition,
-                    [](unsigned int, bool, string) { });
+
+            // Generate a detached thread for joining the ring buffer
+            std::thread t([this, d, in_handler, in_definition]{
+                d->connect_ringbuffer(in_handler, in_definition, NULL);
+            });
+            t.detach();
+
             return;
         }
     }
