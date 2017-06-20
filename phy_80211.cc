@@ -745,7 +745,11 @@ void Kis_80211_Phy::HandleSSID(shared_ptr<kis_tracked_device_base> basedev,
                         dot11info->channel, al);
             }
 
-            basedev->set_devicename(ssid->get_ssid());
+            if (ssid->get_ssid() != "") {
+                basedev->set_devicename(ssid->get_ssid());
+            } else {
+                basedev->set_devicename(basedev->get_macaddr().Mac2String());
+            }
 
             // Set the type
             ssid->set_ssid_beacon(true);
