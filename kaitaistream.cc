@@ -529,7 +529,7 @@ std::string kaitai::kstream::reverse(std::string val) {
 // Other internal methods
 // ========================================================================
 
-#define KS_STR_ENCODING_ICONV
+#undef KS_STR_ENCODING_ICONV
 
 #ifndef KS_STR_DEFAULT_ENCODING
 #define KS_STR_DEFAULT_ENCODING "UTF-8"
@@ -595,7 +595,7 @@ std::string kaitai::kstream::bytes_to_str(std::string src, std::string src_enc) 
     return dst;
 }
 #else
-std::string kaitai::kstream::bytes_to_str(std::string src, const char *src_enc) {
+std::string kaitai::kstream::bytes_to_str(std::string src, std::string src_enc) {
     return src;
 }
 #endif
