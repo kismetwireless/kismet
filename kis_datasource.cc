@@ -1477,7 +1477,7 @@ unsigned int KisDatasource::handle_kv_dlt(KisDatasourceCapKeyedObject *in_obj) {
 
     dlt = (uint32_t *) in_obj->object;
 
-    set_int_source_dlt(*dlt);
+    set_int_source_dlt(kis_ntoh32(*dlt));
 
     return *dlt;
 }
