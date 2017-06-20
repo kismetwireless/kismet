@@ -200,7 +200,7 @@ simple_cap_proto_kv_t *encode_kv_dlt(unsigned int dlt) {
 
     size_t content_sz = sizeof(uint32_t);
 
-    uint32_t conv_dlt = (uint32_t) dlt;
+    uint32_t conv_dlt = htonl((uint32_t) dlt);
 
     kv = (simple_cap_proto_kv_t *) malloc(sizeof(simple_cap_proto_kv_t) + content_sz);
 
