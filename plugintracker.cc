@@ -141,10 +141,10 @@ int Plugintracker::ScanPlugins() {
     } else {
         if (ScanDirectory(plugdir, plugin_path) < 0) {
             closedir(plugdir);
-            return -1;}
-
+            return -1;
+        }
+        closedir(plugdir);
     }
-    closedir(plugdir);
 
     return 1;
 }
