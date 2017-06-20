@@ -7,7 +7,7 @@ PKG_RELEASE:=1
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://www.kismetwireless.net/git/kismet.git
 #PKG_SOURCE_URL:=/home/dragorn/src/kismet
-PKG_SOURCE_VERSION:=4773a08cb84b72ca8ca19e8c352cfa60ecfc2c8f
+PKG_SOURCE_VERSION:=9f50b4d77784ac7468971c20e350e2f894eb4764
 PKG_SOURCE_SUBDIR:=$(PKG_NAME)-$(PKG_VERSION)
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION)-$(PKG_SOURCE_VERSION).tar.gz
 
@@ -38,7 +38,7 @@ CONFIGURE_ARGS += \
 	--bindir=/usr/bin \
 
 CONFIGURE_VARS += \
-	CXXFLAGS="$$$$CXXFLAGS -fno-rtti"  \
+	CXXFLAGS="$$$$CXXFLAGS"  \
 	LIBS="-lm" 
 
 define Build/Compile
@@ -49,8 +49,8 @@ endef
 
 define Package/kismet-new/install
 	$(INSTALL_DIR) $(1)/usr/bin
-	$(INSTALL_BIN) $(PKG_BUILD_DIR)/kismet_server $(1)/usr/bin/
-	$(INSTLAL_DIR) $(1)/usr/bin/kismet_capture_tools/
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/kismet $(1)/usr/bin/
+	$(INSTALL_DIR) $(1)/usr/bin/kismet_capture_tools/
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/kismet_cap_pcapfile $(1)/usr/bin/kismet_capture_tools/
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/kismet_cap_linux_wifi $(1)/usr/bin/kismet_capture_tools/
 
