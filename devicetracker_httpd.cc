@@ -60,6 +60,11 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
         string stripped = Httpd_StripSuffix(path);
         bool can_serialize = Httpd_CanSerialize(path);
 
+        // Explicit compare for .ekjson because it doesn't serialize the 
+        // same way
+        if (strcmp(path, "/devices/all_devices.ekjson") == 0)
+            return true;
+
         if (stripped == "/devices/all_devices" && can_serialize)
             return true;
 
@@ -377,6 +382,23 @@ void Devicetracker::Httpd_CreateStreamResponse(
         size_t *upload_data_size, std::stringstream &stream) {
 
     if (strcmp(method, "GET") != 0) {
+        return;
+    }
+
+    if (strcmp(path, "/devices/all_devices.ekjson") == 0) {
+        devicetracker_function_worker fw(globalreg, 
+                [&stream,this](Devicetracker *, shared_ptr<kis_tracked_device_base> d) -> bool {
+                    // Instantiate a manual serializer
+                    JsonAdapter::Serializer serial(globalreg); 
+
+                    serial.serialize(d, stream);
+                    stream << "\n";
+
+                    // Return false because we're not building a list, we're serializing
+                    // per element
+                    return false;
+                }, NULL);
+        MatchOnDevices(&fw);
         return;
     }
 
