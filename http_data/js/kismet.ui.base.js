@@ -1439,8 +1439,7 @@ exports.DeviceSignalDetails = function(key) {
         id: 'devsignal' + key,
         headerTitle: '<i class="fa fa-signal" /> Signal',
         headerControls: {
-            controls: 'closeonly',
-            iconfont: 'font-awesome',
+            iconfont: 'jsglyph',
         },
         content: content,
         onclosed: function() {
