@@ -24,7 +24,6 @@
 #include "globalregistry.h"
 #include "trackedelement.h"
 #include "devicetracker_component.h"
-#include "json_adapter.h"
 
 namespace JsonAdapter {
 
