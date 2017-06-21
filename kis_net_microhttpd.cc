@@ -1173,7 +1173,7 @@ int Kis_Net_Httpd_Ringbuf_Stream_Handler::Httpd_HandleGetRequest(Kis_Net_Httpd *
         const char *url, const char *method, const char *upload_data,
         size_t *upload_data_size) {
 
-    shared_ptr<RingbufferHandler> rbh(new RingbufferHandler(128*1024, 128*1024));
+    shared_ptr<RingbufferHandler> rbh(new RingbufferHandler(1024*1024*4, 1024*1024*4));
 
     Kis_Net_Httpd_Ringbuf_Stream_Aux *aux = 
         new Kis_Net_Httpd_Ringbuf_Stream_Aux(this, connection, rbh, NULL, NULL);

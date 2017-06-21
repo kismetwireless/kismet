@@ -334,6 +334,11 @@ int Pcap_Stream_Ringbuf::pcapng_write_packet(kis_packet *in_packet,
     // Allocate an end-of-options entry
     data_sz += sizeof(pcapng_option);
 
+    // Drop packet if we can't put it in the buffer
+    if (handler->GetWriteBufferFree() < buf_sz + 4) {
+        return 0;
+    }
+
     retbuf = new uint8_t[buf_sz];
 
     if (retbuf == NULL) {
@@ -431,7 +436,6 @@ int Pcap_Stream_Ringbuf::pcapng_write_packet(kis_packet *in_packet,
 
     if (write_sz != 4) {
         handler->ProtocolError();
-        delete[] retbuf;
         return -1;
     }
 
