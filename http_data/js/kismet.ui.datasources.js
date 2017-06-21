@@ -368,10 +368,10 @@ exports.DataSources = function() {
 
                 var gadgets = $('<div>', {});
 
-                var chev = 'fa-chevron-right';
+                var chev = 'fa-plus-square-o';
 
                 if (row.child.isShown()) {
-                    chev = 'fa-chevron-down';
+                    chev = 'fa-minus-square-o';
                 }
 
                 var g = 
