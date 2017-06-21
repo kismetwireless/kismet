@@ -239,6 +239,17 @@ kismet_ui.AddDeviceColumn('column_frequency', {
     orderable: true,
 });
 
+// Manufacturer name
+kismet_ui.AddDeviceColumn('column_manuf', {
+    sTitle: 'Manuf',
+    field: 'kismet.device.base.manuf',
+    description: 'Manufacturer',
+    name: 'manuf',
+    searchable: true,
+    visible: false,
+    orderable: true,
+});
+
 
 // Add the (quite complex) device details.
 // It has a priority of -1000 because we want it to always come first.
