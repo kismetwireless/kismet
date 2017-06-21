@@ -424,16 +424,26 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
 
                 groupIterate: true,
                 iterateTitle: function(opts) {
-                    console.log(opts);
                     var key = kismet.ObjectByString(opts['data'], opts['basekey'] + 'dot11.client.bssid_key');
                     if (key != 0) {
-                        return '<a class="expander collapsed" data-expander-target="#client_behavior" href="#">Client of ' + opts['index'] + '</a>';
+                        return '<a id="' + key + '" class="expander collapsed" data-expander-target="#client_behavior" href="#">Client of ' + opts['index'] + '</a>';
                     }
 
                     return '<a class="expander collapsed" data-expander-target="#client_behavior" href="#">Client of ' + opts['index'] + '</a>';
                 },
                 draw: function(opts) {
                     var tb = $('.expander', opts['container']).simpleexpand();
+
+                    var key = kismet.ObjectByString(opts['data'], opts['basekey'] + 'dot11.client.bssid_key');
+                    var mac = kismet.ObjectByString(opts['data'], opts['basekey'] + 'dot11.client.bssid').split('/')[0];
+                    var alink = $('a#' + key, opts['container']);
+                    $.get("/devices/by-key/" + key +
+                            "/device.json/dot11.device/dot11.device.last_beaconed_ssid")
+                    .done(function(clidata) {
+                        if (clidata !== '' && clidata !== '""') {
+                            alink.text("Client of " + mac + " (" + clidata.slice(1, clidata.length - 1) + ")");
+                        }
+                    });
                 },
 
                 fields: [
