@@ -244,6 +244,12 @@ Special endpoint generating EK (elastic-search) style JSON.  On this endpoint, e
 
 This can be useful for incrementally parsing the results or feeding the results to another tool like elasticsearch.
 
+##### /devices/last-time/[TS]/devices.ekjson
+
+Special endpoint generating EK (elastic-search) style JSON.  On this endpoint, each device is returned as a JSON object, one JSON record per line.
+
+Only devices which have changed since `[TS]` are returned.
+
 ##### /devices/last-time/[TS]/devices `/devices/last-time/[TS]/devices.msgpack`, `devices/last-time/[TS]/devices.json`
 
 Dictionary containing the list of all devices new or modified since the server timestamp `[TS]`, a flag indicating that the device list has drastically changed indicating that the entire device list should be re-loaded, and a timestamp record indicating the server time this report was generated.

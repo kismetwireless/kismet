@@ -162,6 +162,10 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
                     return false;
                 }
 
+                // Explicit catch of ekjson
+                if (tokenurl[4] == "devices.ekjson")
+                    return true;
+
                 return Httpd_CanSerialize(tokenurl[4]);
             }
         }
@@ -386,11 +390,11 @@ void Devicetracker::Httpd_CreateStreamResponse(
     }
 
     if (strcmp(path, "/devices/all_devices.ekjson") == 0) {
-        devicetracker_function_worker fw(globalreg, 
-                [&stream,this](Devicetracker *, shared_ptr<kis_tracked_device_base> d) -> bool {
-                    // Instantiate a manual serializer
-                    JsonAdapter::Serializer serial(globalreg); 
+        // Instantiate a manual serializer
+        JsonAdapter::Serializer serial(globalreg); 
 
+        devicetracker_function_worker fw(globalreg, 
+                [this, &stream, &serial](Devicetracker *, shared_ptr<kis_tracked_device_base> d) -> bool {
                     serial.serialize(d, stream);
                     stream << "\n";
 
@@ -529,6 +533,26 @@ void Devicetracker::Httpd_CreateStreamResponse(
             long lastts;
             if (sscanf(tokenurl[3].c_str(), "%ld", &lastts) != 1)
                 return;
+
+            // Special handling of the ekjson
+            if (tokenurl[4] == "devices.ekjson") {
+                // Instantiate a manual serializer
+                JsonAdapter::Serializer serial(globalreg); 
+
+                devicetracker_function_worker fw(globalreg, 
+                        [this, &stream, &serial, lastts](Devicetracker *, shared_ptr<kis_tracked_device_base> d) -> bool {
+                            if (d->get_last_time() <= lastts)
+                                return false;
+                            serial.serialize(d, stream);
+                            stream << "\n";
+
+                            // Return false because we're not building a list, we're serializing
+                            // per element
+                            return false;
+                        }, NULL);
+                MatchOnDevices(&fw);
+
+            }
 
             if (!Httpd_CanSerialize(tokenurl[4]))
                 return;
