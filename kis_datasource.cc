@@ -331,7 +331,21 @@ void KisDatasource::close_source() {
     cancel_all_commands("Closing source");
 
     set_int_source_running(false);
+}
 
+void KisDatasource::disable_source() {
+    local_locker lock(&source_lock);
+
+    close_source();
+
+    set_int_source_error(false);
+    set_int_source_error_reason("Source disabled");
+
+    // cancel any timers
+    if (error_timer_id > 0)
+        timetracker->RemoveTimer(error_timer_id);
+
+    error_timer_id = -1;
 }
 
 void KisDatasource::BufferAvailable(size_t in_amt __attribute__((unused))) {

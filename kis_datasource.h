@@ -137,7 +137,16 @@ public:
     // Cancels any current activity (probe, open, pending commands) and sends a
     // terminate command to the capture binary.
     // Closing sends a failure result to any pending async commands
+    // Closes an active source, and is called during the normal source shutdown
+    // process in case of an error.  Closed sources may automatically re-open if
+    // the retry option is configured.
     virtual void close_source();
+
+
+    // Disables a source
+    // Cancels any current activity, and sends a terminate to the capture binary.
+    // Disables any error state and disables the error retry.
+    virtual void disable_source();
 
 
     // Get an option from the definition

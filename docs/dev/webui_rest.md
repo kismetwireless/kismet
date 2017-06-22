@@ -445,11 +445,27 @@ This can be teamed with `/datasource/by-uuid/[uuid]/set_channel` for simple lock
 
 Close a source.  This puts the source into closed state, stops all packet capture, and terminates the capture binary.
 
+The source will remain in the sources list once closed.
+
+Closed sources will not attempt to re-open.
+
 ##### /datasource/by-uuid/[uuid]/open_source `/datasource/by-uuid/[uuid]/open_source.cmd`
 
 *LOGIN REQUIRED*.
 
 Re-open a closed source; this uses the same definition as the existing closed source.
+
+##### /datasource/by-uuid/[uuid]/disable_source `/datasource/by-uuid/[uuid]/disable_source.cmd`
+
+*LOGIN REQUIRED*.
+
+Alias for `close_source`, stops a source (if running) and cancels reconnect attempts.
+
+##### /datasource/by-uuid/[uuid]/enable_source `/datasource/by-uuid/[uuid]/enable_source.cmd`
+
+*LOGIN REQUIRED*.
+
+Alias for `open_source`, re-opens a defined source.
 
 ## GPS
 
