@@ -153,7 +153,7 @@ void DST_DatasourceProbe::probe_sources(
     // fprintf(stderr, "debug - dstprobe probing sources for %s\n", definition.c_str());
 
     cancel_timer = 
-        timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 5, NULL, 0, 
+        timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 0, 
             [this] (int) -> int {
                 // fprintf(stderr, "debug - dstprobe timer expired for %s\n", definition.c_str());
                 cancel();
@@ -277,7 +277,7 @@ void DST_DatasourceList::list_sources(
     local_locker lock(&list_lock);
 
     cancel_timer = 
-        timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 5, NULL, 0, 
+        timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 0, 
             [this] (int) -> int {
                 cancel();
                 return 0;
