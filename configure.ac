@@ -230,9 +230,46 @@ AC_CHECK_HEADERS([errno.h stdlib.h string.h sys/socket.h sys/time.h sys/wait.h u
 
 AC_CHECK_HEADERS([getopt.h])
 
-AC_CHECK_HEADERS([execinfo.h],
-    AC_DEFINE(HAVE_EXECINFO, 1, Execinfo header present) have_execinfo=yes,
-    AC_MSG_WARN(Missing execinfo header, cannot provide crash info))
+AC_CHECK_LIB([dw], [dwarf_begin], HAVE_LIBDW=1)
+AC_CHECK_LIB([bfd], [bfd_alloc], HAVE_LIBBFD=1)
+
+if test "$HAVE_LIBDW" -eq 1; then
+    AC_CHECK_HEADERS([elfutils/libdw.h elfutils/libdwfl.h dwarf.h], DEF_BW_HAS_LIBDW=1)
+fi
+
+if test "$HAVE_LIBBFD" -eq 1; then
+    AC_CHECK_HEADERS([bfd.h], DEF_BW_HAS_BFD=1)
+fi
+
+AC_CHECK_HEADERS([unwind.h], DEF_BW_HAS_UNWIND=1)
+AC_CHECK_HEADERS([execinfo.h], DEF_BW_HAS_BACKTRACE=1)
+
+BACKTRACE_WARNING="yes - Full debug info available on crash"
+if test "$DEF_BW_HAS_UNWIND" -eq 1; then
+    AC_DEFINE(BACKWARD_HAS_UNWIND, 1, unwind stack support)
+    BACKTRACE_OK=1
+elif test "$DEF_BW_HAS_BACKTRACE" -eq 1; then
+    AC_DEFINE(BACKWARD_HAS_BACKTRACE, 1, backtrace stack support)
+    BACKTRACE_OK=1
+else
+    BACKTRACE_OK=0
+    BACKTRACE_WARNING="no - Backtraces will not be available on crashes"
+    AC_DEFINE(DISABLE_BACKWARD, 1, cannot support backtrace dumping)
+fi
+
+
+if test "$BACKTRACE_OK" -eq 1; then
+    # Libdw is the best support
+    if test "$DEF_BW_HAS_LIBDW" -eq 1; then
+        AC_DEFINE(BACKWARD_HAS_DW, 1, libdl for stack printing)
+        LIBS="$LIBS -ldw"
+    elif test "$DEF_BW_HAS_BFD" -eq 1; then
+        AC_DEFINE(BACKWARD_HAS_BFD, 1, libbfd for stack printing)
+        LIBS="$LIBS -lbfd"
+    else
+        BACKTRACE_WARNING="Missing libdw or libbfd will not print full stacks on crash"
+    fi
+fi
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
@@ -1202,13 +1239,7 @@ else
 fi
 
 printf "        Built-in Debug: "
-if test "$have_execinfo" = "yes"; then
-	echo "yes";
-elif test "$linux" != "yes"; then
-	echo "n/a (only Linux)"
-else
-	echo "no (cannot dump built-in stack traces)";
-fi
+echo $BACKTRACE_WARNING
 
 # printf "           GPSD LibGPS: "
 # if test "$havelgps" = "yes"; then

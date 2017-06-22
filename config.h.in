@@ -3,14 +3,32 @@
 /* Define if building universal (internal helper macro) */
 #undef AC_APPLE_UNIVERSAL_BUILD
 
+/* backtrace stack support */
+#undef BACKWARD_HAS_BACKTRACE
+
+/* libbfd for stack printing */
+#undef BACKWARD_HAS_BFD
+
+/* libdl for stack printing */
+#undef BACKWARD_HAS_DW
+
+/* unwind stack support */
+#undef BACKWARD_HAS_UNWIND
+
 /* system binary directory */
 #undef BIN_LOC
 
 /* system data directory */
 #undef DATA_LOC
 
+/* cannot support backtrace dumping */
+#undef DISABLE_BACKWARD
+
 /* libairpcap header */
 #undef HAVE_AIRPCAP_H
+
+/* Define to 1 if you have the <bfd.h> header file. */
+#undef HAVE_BFD_H
 
 /* BSD radiotap packet headers */
 #undef HAVE_BSD_SYS_RADIOTAP
@@ -21,11 +39,17 @@
 /* define if the compiler supports basic C++11 syntax */
 #undef HAVE_CXX11
 
+/* Define to 1 if you have the <dwarf.h> header file. */
+#undef HAVE_DWARF_H
+
+/* Define to 1 if you have the <elfutils/libdwfl.h> header file. */
+#undef HAVE_ELFUTILS_LIBDWFL_H
+
+/* Define to 1 if you have the <elfutils/libdw.h> header file. */
+#undef HAVE_ELFUTILS_LIBDW_H
+
 /* Define to 1 if you have the <errno.h> header file. */
 #undef HAVE_ERRNO_H
-
-/* Execinfo header present */
-#undef HAVE_EXECINFO
 
 /* Define to 1 if you have the <execinfo.h> header file. */
 #undef HAVE_EXECINFO_H
@@ -195,6 +219,9 @@
 
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
+
+/* Define to 1 if you have the <unwind.h> header file. */
+#undef HAVE_UNWIND_H
 
 /* Define to 1 if you have the <Win32-Extensions.h> header file. */
 #undef HAVE_WIN32_EXTENSIONS_H

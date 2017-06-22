@@ -22,7 +22,7 @@
 
 #include "version.h"
 
-#include "stacktrace.h"
+#include "backward.h"
 
 #include <cstdlib>
 #include <exception>
@@ -446,7 +446,7 @@ void TerminationHandler() {
         std::cout << "Uncaught exception \"" << e.what() << "\"\n";
     }
 
-    print_stacktrace();
+    // print_stacktrace();
     std::abort();
 }
 
@@ -460,7 +460,7 @@ void SegVHandler(int sig __attribute__((unused))) {
 
     std::cout << "Segmentation Fault (SIGSEGV / 11)" << endl;
 
-    print_stacktrace();
+    // print_stacktrace();
     exit(-11);
 }
 
@@ -669,8 +669,11 @@ int main(int argc, char *argv[], char *envp[]) {
 
     // Set a backtrace on C++ terminate errors
     if (!debug_mode) {
+        backward::SignalHandling sh;
+        /*
         std::set_terminate(&TerminationHandler);
         signal(SIGSEGV, SegVHandler);
+        */
     }
 
     // Catch the interrupt handler to shut down
