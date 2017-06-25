@@ -5819,17 +5819,11 @@ $as_echo "#define BACKWARD_HAS_UNWIND 1" >>confdefs.h
 
 $as_echo "#define BACKWARD_HAS_BACKTRACE 0" >>confdefs.h
 
-
-$as_echo "#define BACKWARD_HAS_BACKTRACE_SYMBOL 0" >>confdefs.h
-
     BACKTRACE_OK=1
 elif test "$DEF_BW_HAS_BACKTRACE" -eq 1; then
     BACKTRACE_WARNING="yes - Full debug info available on crash, using backtrace"
 
 $as_echo "#define BACKWARD_HAS_BACKTRACE 1" >>confdefs.h
-
-
-$as_echo "#define BACKWARD_HAS_BACKTRACE_SYMBOL 1" >>confdefs.h
 
     BACKTRACE_OK=1
 else
@@ -5853,8 +5847,17 @@ $as_echo "#define BACKWARD_HAS_DW 1" >>confdefs.h
 $as_echo "#define BACKWARD_HAS_BFD 1" >>confdefs.h
 
         LIBS="$LIBS -lbfd"
-    else
+    elif test "$DEF_BW_HAS_BACKTRACE" -eq 1; then
+
+$as_echo "#define BACKWARD_HAS_BACKTRACE_SYMBOL 1" >>confdefs.h
+
         BACKTRACE_WARNING="partial - Missing libdw or libbfd will not print full stacks on crash"
+    else
+        BACKTRACE_OK=0
+        BACKTRACE_WARNING="no - Backtraces will not be available on crashes"
+
+$as_echo "#define DISABLE_BACKWARD 1" >>confdefs.h
+
     fi
 fi
 

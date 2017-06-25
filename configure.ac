@@ -247,12 +247,10 @@ if test "$DEF_BW_HAS_UNWIND" -eq 1; then
     BACKTRACE_WARNING="yes - Full debug info available on crash, using unwind"
     AC_DEFINE(BACKWARD_HAS_UNWIND, 1, unwind stack support)
     AC_DEFINE(BACKWARD_HAS_BACKTRACE, 0, no backtrace stack support)
-    AC_DEFINE(BACKWARD_HAS_BACKTRACE_SYMBOL, 0, no backtrace stack support)
     BACKTRACE_OK=1
 elif test "$DEF_BW_HAS_BACKTRACE" -eq 1; then
     BACKTRACE_WARNING="yes - Full debug info available on crash, using backtrace"
     AC_DEFINE(BACKWARD_HAS_BACKTRACE, 1, backtrace stack support)
-    AC_DEFINE(BACKWARD_HAS_BACKTRACE_SYMBOL, 1, backtrace stack support)
     BACKTRACE_OK=1
 else
     BACKTRACE_OK=0
@@ -269,8 +267,13 @@ if test "$BACKTRACE_OK" -eq 1; then
     elif test "$DEF_BW_HAS_BFD" -eq 1; then
         AC_DEFINE(BACKWARD_HAS_BFD, 1, libbfd for stack printing)
         LIBS="$LIBS -lbfd"
-    else
+    elif test "$DEF_BW_HAS_BACKTRACE" -eq 1; then
+        AC_DEFINE(BACKWARD_HAS_BACKTRACE_SYMBOL, 1, backtrace stack support)
         BACKTRACE_WARNING="partial - Missing libdw or libbfd will not print full stacks on crash"
+    else
+        BACKTRACE_OK=0
+        BACKTRACE_WARNING="no - Backtraces will not be available on crashes"
+        AC_DEFINE(DISABLE_BACKWARD, 1, cannot support backtrace dumping)
     fi
 fi
 
