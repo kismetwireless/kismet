@@ -19,7 +19,7 @@
 #ifndef __KISMET_JSON_H__
 #define __KISMET_JSON_H__
 
-#include "config.hpp"
+#include "config.h"
 
 #include <stdio.h>
 #ifdef HAVE_STDINT_H

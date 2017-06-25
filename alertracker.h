@@ -19,7 +19,7 @@
 #ifndef __ALERTRACKER_H__
 #define __ALERTRACKER_H__
 
-#include "config.hpp"
+#include "config.h"
 
 #include <stdio.h>
 #include <time.h>

@@ -19,7 +19,7 @@
 #ifndef __ENTRYTRACKER_H__
 #define __ENTRYTRACKER_H__
 
-#include "config.hpp"
+#include "config.h"
 
 #include <stdio.h>
 #include <stdint.h>

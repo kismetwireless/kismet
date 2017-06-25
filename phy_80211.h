@@ -21,7 +21,7 @@
 #ifndef __PHY_80211_H__
 #define __PHY_80211_H__
 
-#include "config.hpp"
+#include "config.h"
 
 #include <stdio.h>
 #include <time.h>

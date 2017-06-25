@@ -19,7 +19,7 @@
 #ifndef __PACKETSIGNATURES_H__
 #define __PACKETSIGNATURES_H__
 
-#include "config.hpp"
+#include "config.h"
 #ifdef HAVE_STDINT
 #include <stdint.h>
 #endif

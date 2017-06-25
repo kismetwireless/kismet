@@ -19,7 +19,7 @@
 #ifndef __MANUF_H__
 #define __MANUF_H__
 
-#include "config.hpp"
+#include "config.h"
 
 #include <string>
 #include <ctype.h>

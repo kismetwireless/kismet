@@ -24,7 +24,7 @@
 #ifndef H_6B9572DA_A64B_49E6_B234_051480991C89
 #define H_6B9572DA_A64B_49E6_B234_051480991C89
 
-#include "config.hpp"
+#include "config.h"
 
 #ifndef DISABLE_BACKWARD
 

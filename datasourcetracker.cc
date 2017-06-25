@@ -16,7 +16,7 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#include "config.hpp"
+#include "config.h"
 
 #include <string.h>
 
@@ -1259,10 +1259,11 @@ void Datasourcetracker::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
                     _MSG("Closing source '" + ds->get_source_name() + "' from REST "
                             "interface request.", MSGFLAG_INFO);
                     ds->disable_source();
-                    stream << "Closing source";
+                    stream << "Closing source " << ds->get_uuid().UUID2String();
                     return;
                 } else {
-                    stream << "Source already closed, disabling";
+                    stream << "Source already closed, disabling source " <<
+                        ds->get_uuid().UUID2String();
                     ds->disable_source();
                     return;
                 }

@@ -26,7 +26,7 @@
  * pcap data from the packetchain into the ringbuffer.
  */
 
-#include "config.hpp"
+#include "config.h"
 
 #include <algorithm>
 #include <functional>

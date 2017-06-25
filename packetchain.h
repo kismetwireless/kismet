@@ -19,7 +19,7 @@
 #ifndef __PACKETCHAIN_H__
 #define __PACKETCHAIN_H__
 
-#include "config.hpp"
+#include "config.h"
 
 #ifdef HAVE_STDINT_H
 #include <stdint.h>

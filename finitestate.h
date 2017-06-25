@@ -19,7 +19,7 @@
 #ifndef __FINITESTATE_H__
 #define __FINITESTATE_H__
 
-#include "config.hpp"
+#include "config.h"
 
 #include <time.h>
 #include <sys/time.h>

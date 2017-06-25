@@ -16,7 +16,7 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#include "config.hpp"
+#include "config.h"
 #include "kis_gps.h"
 
 Kis_Gps::Kis_Gps(GlobalRegistry *in_globalreg) {

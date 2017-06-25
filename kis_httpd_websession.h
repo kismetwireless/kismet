@@ -19,7 +19,7 @@
 #ifndef __KIS_HTTPD_WEBSESSION_H__
 #define __KIS_HTTPD_WEBSESSION_H__
 
-#include "config.hpp"
+#include "config.h"
 
 #include <string>
 #include "trackedelement.h"

@@ -19,7 +19,7 @@
 #ifndef __TRACKERCOMPONENT_LEGACY_H__
 #define __TRACKERCOMPONENT_LEGACY_H__
 
-#include "config.hpp"
+#include "config.h"
 
 #include <stdio.h>
 #include <time.h>

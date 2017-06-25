@@ -19,7 +19,7 @@
 #ifndef __DUMPFILE_NETXML_H__
 #define __DUMPFILE_NETXML_H__
 
-#include "config.hpp"
+#include "config.h"
 
 #include <stdio.h>
 #include <string>

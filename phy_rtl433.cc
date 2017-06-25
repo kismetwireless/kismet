@@ -17,7 +17,7 @@
 
 */
 
-#include "config.hpp"
+#include "config.h"
 
 #include "phy_rtl433.h"
 #include "devicetracker.h"

@@ -19,7 +19,7 @@
 #ifndef __TIMETRACKER_H__
 #define __TIMETRACKER_H__
 
-#include "config.hpp"
+#include "config.h"
 
 #include <stdio.h>
 #include <time.h>

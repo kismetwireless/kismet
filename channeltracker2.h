@@ -19,7 +19,7 @@
 #ifndef __CHANNELTRACKER_V2_H__
 #define __CHANNELTRACKER_V2_H__
 
-#include "config.hpp"
+#include "config.h"
 
 #include <string>
 #include <map>

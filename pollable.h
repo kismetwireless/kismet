@@ -19,7 +19,7 @@
 #ifndef __POLLABLE_H__
 #define __POLLABLE_H__
 
-#include "config.hpp"
+#include "config.h"
 
 #include <sys/time.h>
 #include <sys/types.h>

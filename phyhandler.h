@@ -19,7 +19,7 @@
 #ifndef __PHYHANDLER_H__
 #define __PHYHANDLER_H__
 
-#include "config.hpp"
+#include "config.h"
 
 #include <stdio.h>
 

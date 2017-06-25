@@ -19,7 +19,7 @@
 #ifndef __POLLABLETRACKER_H__
 #define __POLLABLETRACKER_H__
 
-#include "config.hpp"
+#include "config.h"
 
 #include <vector>
 

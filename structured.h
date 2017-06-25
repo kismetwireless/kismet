@@ -34,7 +34,7 @@
  *
  */
 
-#include "config.hpp"
+#include "config.h"
 
 #include <string>
 #include <vector>

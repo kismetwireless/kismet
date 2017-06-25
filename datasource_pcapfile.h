@@ -19,7 +19,7 @@
 #ifndef __DATASOURCE_PCAPFILE_H__
 #define __DATASOURCE_PCAPFILE_H__
 
-#include "config.hpp"
+#include "config.h"
 
 #include "kis_datasource.h"
 

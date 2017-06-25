@@ -16,7 +16,7 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#include "config.hpp"
+#include "config.h"
 #include "tcpserver2.h"
 
 TcpServerV2::TcpServerV2(GlobalRegistry *in_globalreg) {

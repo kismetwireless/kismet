@@ -19,7 +19,7 @@
 #ifndef __STREAMTRACKER_H__
 #define __STREAMTRACKER_H__
 
-#include "config.hpp"
+#include "config.h"
 
 #include <memory>
 

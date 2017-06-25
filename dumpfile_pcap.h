@@ -19,7 +19,7 @@
 #ifndef __DUMPFILE_PCAP_H__
 #define __DUMPFILE_PCAP_H__
 
-#include "config.hpp"
+#include "config.h"
 
 #ifdef HAVE_LIBPCAP
 #include <stdio.h>

@@ -19,7 +19,7 @@
 #ifndef __KIS_NET_MICROHTTPD__
 #define __KIS_NET_MICROHTTPD__
 
-#include "config.hpp"
+#include "config.h"
 
 #include <stdio.h>
 #include <time.h>

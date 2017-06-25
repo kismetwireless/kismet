@@ -19,7 +19,7 @@
 #ifndef __DUMPFILE_Devicetracker_H__
 #define __DUMPFILE_Devicetracker_H__
 
-#include "config.hpp"
+#include "config.h"
 
 #include <stdio.h>
 #include <string>

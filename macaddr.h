@@ -19,7 +19,7 @@
 #ifndef __MACADDR_H__
 #define __MACADDR_H__
 
-#include "config.hpp"
+#include "config.h"
 
 #include <stdio.h>
 #include <ctype.h>

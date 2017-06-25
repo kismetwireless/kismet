@@ -19,7 +19,7 @@
 #ifndef __MSGPACK_ADAPTER_H__
 #define __MSGPACK_ADAPTER_H__
 
-#include "config.hpp"
+#include "config.h"
 
 #include <stdio.h>
 #include <time.h>

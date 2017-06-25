@@ -19,7 +19,7 @@
 #ifndef __GLOBALREGISTRY_H__
 #define __GLOBALREGISTRY_H__
 
-#include "config.hpp"
+#include "config.h"
 
 #include <unistd.h>
 #include <memory>

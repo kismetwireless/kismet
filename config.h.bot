@@ -21,13 +21,24 @@
 #define kismin(x,y) ((x) < (y) ? (x) : (y))
 #define kismax(x,y) ((x) > (y) ? (x) : (y))
 
-// Timer slices per second
+/* Timer slices per second */
 #define SERVER_TIMESLICES_SEC 10
 
-// Max chars in SSID
+/* Max chars in SSID */
 #define MAX_SSID_LEN    255
 
 #ifndef _
 #define _(x) x
+#endif
+
+/* C++-specific */
+#ifdef __cplusplus
+
+/* Namespace (on non-obj-c files) */
+#ifndef __IN_OBJC_FILE__
+using namespace std;
+#define __STL_USE_NAMESPACES
+#endif
+
 #endif
 

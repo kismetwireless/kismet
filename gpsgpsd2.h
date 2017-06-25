@@ -19,7 +19,7 @@
 #ifndef __GPSGPSD_V2_H__
 #define __GPSGPSD_V2_H__
 
-#include "config.hpp"
+#include "config.h"
 
 #include "kis_gps.h"
 #include "timetracker.h"

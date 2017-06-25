@@ -19,7 +19,7 @@
 #ifndef __TCPSERVER_V2_H__
 #define __TCPSERVER_V2_H__
 
-#include "config.hpp"
+#include "config.h"
 
 #include <sys/types.h>
 #include <sys/socket.h>

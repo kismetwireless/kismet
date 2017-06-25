@@ -19,7 +19,7 @@
 #ifndef __DEVICETRACKER_HTTPD_PCAP__
 #define __DEVICETRACKER_HTTPD_PCAP__
 
-#include "config.hpp"
+#include "config.h"
 
 #include "kis_net_microhttpd.h"
 

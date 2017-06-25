@@ -19,7 +19,7 @@
 #ifndef __KIS_GPS_H__
 #define __KIS_GPS_H__
 
-#include "config.hpp"
+#include "config.h"
 
 #include "util.h"
 

@@ -16,7 +16,7 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#include "config.hpp"
+#include "config.h"
 
 #define KISMET_SERVER
 
@@ -669,7 +669,9 @@ int main(int argc, char *argv[], char *envp[]) {
 
     // Set a backtrace on C++ terminate errors
     if (!debug_mode) {
+#ifndef DISABLE_BACKWARD
         backward::SignalHandling sh;
+#endif
         /*
         std::set_terminate(&TerminationHandler);
         signal(SIGSEGV, SegVHandler);

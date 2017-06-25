@@ -19,7 +19,7 @@
 #ifndef __KIS_DISSECTOR_IPDATA_H__
 #define __KIS_DISSECTOR_IPDATA_H__
 
-#include "config.hpp"
+#include "config.h"
 
 #include "globalregistry.h"
 #include "packet.h"

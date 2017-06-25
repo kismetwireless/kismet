@@ -19,7 +19,7 @@
 #ifndef __DUMPFILE_STRING_H__
 #define __DUMPFILE_STRING_H__
 
-#include "config.hpp"
+#include "config.h"
 
 #include <stdio.h>
 #include <string>

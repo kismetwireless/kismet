@@ -87,7 +87,7 @@
 // A secondary, abstracted plugin interface may come in the future to
 // provide a more stable plugin interface.
 
-#include "config.hpp"
+#include "config.h"
 
 #include <stdio.h>
 #include <time.h>

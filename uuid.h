@@ -19,7 +19,7 @@
 #ifndef __UUID_H__
 #define __UUID_H__
 
-#include "config.hpp"
+#include "config.h"
 
 #include <string>
 #include <sstream>

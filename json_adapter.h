@@ -19,7 +19,7 @@
 #ifndef __JSON_ADAPTER_H__
 #define __JSON_ADAPTER_H__
 
-#include "config.hpp"
+#include "config.h"
 
 #include "globalregistry.h"
 #include "trackedelement.h"

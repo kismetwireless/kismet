@@ -177,7 +177,6 @@ fi
 
 AC_CONFIG_SRCDIR([kismet_server.cc])
 AC_CONFIG_HEADER([config.h])
-AC_CONFIG_HEADER([config.hpp])
 
 # Config location for code to default to
 CONFFILE_DIR=$sysconfdir
@@ -244,12 +243,16 @@ fi
 AC_CHECK_HEADERS([unwind.h], DEF_BW_HAS_UNWIND=1)
 AC_CHECK_HEADERS([execinfo.h], DEF_BW_HAS_BACKTRACE=1)
 
-BACKTRACE_WARNING="yes - Full debug info available on crash"
 if test "$DEF_BW_HAS_UNWIND" -eq 1; then
+    BACKTRACE_WARNING="yes - Full debug info available on crash, using unwind"
     AC_DEFINE(BACKWARD_HAS_UNWIND, 1, unwind stack support)
+    AC_DEFINE(BACKWARD_HAS_BACKTRACE, 0, no backtrace stack support)
+    AC_DEFINE(BACKWARD_HAS_BACKTRACE_SYMBOL, 0, no backtrace stack support)
     BACKTRACE_OK=1
 elif test "$DEF_BW_HAS_BACKTRACE" -eq 1; then
+    BACKTRACE_WARNING="yes - Full debug info available on crash, using backtrace"
     AC_DEFINE(BACKWARD_HAS_BACKTRACE, 1, backtrace stack support)
+    AC_DEFINE(BACKWARD_HAS_BACKTRACE_SYMBOL, 1, backtrace stack support)
     BACKTRACE_OK=1
 else
     BACKTRACE_OK=0
@@ -267,7 +270,7 @@ if test "$BACKTRACE_OK" -eq 1; then
         AC_DEFINE(BACKWARD_HAS_BFD, 1, libbfd for stack printing)
         LIBS="$LIBS -lbfd"
     else
-        BACKTRACE_WARNING="Missing libdw or libbfd will not print full stacks on crash"
+        BACKTRACE_WARNING="partial - Missing libdw or libbfd will not print full stacks on crash"
     fi
 fi
 

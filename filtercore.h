@@ -24,7 +24,7 @@
 // Basic filtering class used as a "smart struct" more than anything.  Handle
 // parsing, comparing, etc.
 
-#include "config.hpp"
+#include "config.h"
 
 #include <stdio.h>
 #include <time.h>

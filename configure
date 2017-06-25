@@ -4961,8 +4961,6 @@ fi
 
 ac_config_headers="$ac_config_headers config.h"
 
-ac_config_headers="$ac_config_headers config.hpp"
-
 
 # Config location for code to default to
 CONFFILE_DIR=$sysconfdir
@@ -5813,15 +5811,25 @@ fi
 done
 
 
-BACKTRACE_WARNING="yes - Full debug info available on crash"
 if test "$DEF_BW_HAS_UNWIND" -eq 1; then
+    BACKTRACE_WARNING="yes - Full debug info available on crash, using unwind"
 
 $as_echo "#define BACKWARD_HAS_UNWIND 1" >>confdefs.h
 
+
+$as_echo "#define BACKWARD_HAS_BACKTRACE 0" >>confdefs.h
+
+
+$as_echo "#define BACKWARD_HAS_BACKTRACE_SYMBOL 0" >>confdefs.h
+
     BACKTRACE_OK=1
 elif test "$DEF_BW_HAS_BACKTRACE" -eq 1; then
+    BACKTRACE_WARNING="yes - Full debug info available on crash, using backtrace"
 
 $as_echo "#define BACKWARD_HAS_BACKTRACE 1" >>confdefs.h
+
+
+$as_echo "#define BACKWARD_HAS_BACKTRACE_SYMBOL 1" >>confdefs.h
 
     BACKTRACE_OK=1
 else
@@ -5846,7 +5854,7 @@ $as_echo "#define BACKWARD_HAS_BFD 1" >>confdefs.h
 
         LIBS="$LIBS -lbfd"
     else
-        BACKTRACE_WARNING="Missing libdw or libbfd will not print full stacks on crash"
+        BACKTRACE_WARNING="partial - Missing libdw or libbfd will not print full stacks on crash"
     fi
 fi
 
@@ -10119,7 +10127,6 @@ for ac_config_target in $ac_config_targets
 do
   case $ac_config_target in
     "config.h") CONFIG_HEADERS="$CONFIG_HEADERS config.h" ;;
-    "config.hpp") CONFIG_HEADERS="$CONFIG_HEADERS config.hpp" ;;
     "Makefile") CONFIG_FILES="$CONFIG_FILES Makefile" ;;
     "Makefile.inc") CONFIG_FILES="$CONFIG_FILES Makefile.inc" ;;
     "scripts/kismet") CONFIG_FILES="$CONFIG_FILES scripts/kismet" ;;

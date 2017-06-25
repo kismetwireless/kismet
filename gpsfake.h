@@ -19,7 +19,7 @@
 #ifndef __GPSFAKE_V2_H__
 #define __GPSFAKE_V2_H__
 
-#include "config.hpp"
+#include "config.h"
 
 #include "kis_gps.h"
 #include "timetracker.h"
