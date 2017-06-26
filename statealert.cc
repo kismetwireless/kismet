@@ -92,7 +92,7 @@ int BSSTSStateAlert::ProcessPacket(kis_packet *in_pack) {
 
 	struct timeval ts_diff;
 	SubtractTimeval(&(in_pack->ts), &(br->ts), &ts_diff);
-	if (ts_diff.tv_sec > 1 || (ts_diff.tv_sec < 1 && ts_diff.tv_usec > 1000000)) {
+	if (ts_diff.tv_sec > 1 || (ts_diff.tv_sec < 1 && ts_diff.tv_usec > 5000000)) {
 		br->bss_timestamp = packinfo->timestamp;
 		br->ts.tv_sec = in_pack->ts.tv_sec;
 		br->ts.tv_usec = in_pack->ts.tv_usec;
@@ -101,7 +101,7 @@ int BSSTSStateAlert::ProcessPacket(kis_packet *in_pack) {
 	}
 
 	if (packinfo->timestamp < br->bss_timestamp &&
-		(long int) br->bss_timestamp - (long int) packinfo->timestamp > 1000000) {
+		(long int) br->bss_timestamp - (long int) packinfo->timestamp > 5000000) {
 		if (br->incident > 0) {
 			// Raise an alert
 			ostringstream oss;
