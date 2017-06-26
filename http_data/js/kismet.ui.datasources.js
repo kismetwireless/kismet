@@ -567,18 +567,15 @@ exports.DataSources = function() {
         
     datasource_table = $('#sourcetable', content)
         .DataTable( {
-            dom: 'fti',
-
-            //deferRender: true,
+            dom: 'ft',
 
             aoColumns: cols,
 
             data: kismet_sources,
 
-            scrollY: true,
-            scrollX: true,
-            scrollCollapse: true,
-            pageResize: true,
+            scrollY: '100px',
+            scrollResize: true,
+            paging: false,
 
             createdRow: function(row, data, index) {
                 // console.log("Created row", data['kismet.datasource.source_number']);
