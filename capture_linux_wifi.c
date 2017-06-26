@@ -575,6 +575,8 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
     } else {
         /* Otherwise we're using mac80211 which means we need to figure out
          * what kind of channel we're setting */
+        /* fprintf(stderr, "debug - %s setting channel %d w %d\n", local_wifi->cap_interface, channel->control_freq, channel->chan_width); */
+
         if (channel->chan_width != 0) {
             /* An explicit channel width means we need to use _set_freq to set
              * a control freq, a width, and possibly an extended center frequency
@@ -1076,7 +1078,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     } else if (mode != LINUX_WLEXT_MONITOR) {
         /* Otherwise we want monitor mode but we don't have nl / found the same vif */
 
-        fprintf(stderr, "debug - bringing down cap interface %s to set mode\n", local_wifi->cap_interface);
+        /* fprintf(stderr, "debug - bringing down cap interface %s to set mode\n", local_wifi->cap_interface); */
         if (ifconfig_interface_down(local_wifi->interface, errstr) != 0) {
             snprintf(msg, STATUS_MAX, "Could not bring down interface "
                     "'%s' to set monitor mode: %s", local_wifi->interface, errstr);
@@ -1149,7 +1151,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         }
     }
 
-    fprintf(stderr, "debug - bringing up cap interface %s to capture\n", local_wifi->cap_interface);
+    /* fprintf(stderr, "debug - bringing up cap interface %s to capture\n", local_wifi->cap_interface); */
 
     /* Bring up the cap interface no matter what */
     if (ifconfig_interface_up(local_wifi->cap_interface, errstr) != 0) {
@@ -1252,7 +1254,7 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno,
     unsigned int i;
 
     if ((devdir = opendir("/sys/class/net/")) == NULL) {
-        fprintf(stderr, "debug - no /sys/class/net dir?\n");
+        /* fprintf(stderr, "debug - no /sys/class/net dir?\n"); */
 
         /* Not an error, just nothing to do */
         *interfaces = NULL;
@@ -1309,7 +1311,7 @@ void pcap_dispatch_cb(u_char *user, const struct pcap_pkthdr *header,
     local_wifi_t *local_wifi = (local_wifi_t *) caph->userdata;
     int ret;
 
-    // fprintf(stderr, "debug - pcap_dispatch - got packet %u\n", header->caplen);
+    /* fprintf(stderr, "debug - pcap_dispatch - got packet %u\n", header->caplen); */
 
     /* Try repeatedly to send the packet; go into a thread wait state if
      * the write buffer is full & we'll be woken up as soon as it flushes

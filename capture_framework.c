@@ -340,6 +340,8 @@ void cf_handler_assign_hop_channels(kis_capture_handler_t *caph, char **stringch
         void **privchans, size_t chan_sz, double rate, int shuffle, int offset) {
     size_t szi;
 
+    /* fprintf(stderr, "debug - assign hop channels\n"); */
+
     pthread_mutex_lock(&(caph->handler_lock));
 
     /* Purge any existing data */
@@ -1051,7 +1053,7 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
 
         pthread_mutex_unlock(&(caph->handler_lock));
     } else {
-        fprintf(stderr, "DEBUG - got unhandled request - '%.16s'\n", cap_proto_frame->header.type);
+        /* fprintf(stderr, "DEBUG - got unhandled request - '%.16s'\n", cap_proto_frame->header.type); */
 
         pthread_mutex_unlock(&(caph->handler_lock));
         cf_send_proberesp(caph, ntohl(cap_proto_frame->header.sequence_number),
@@ -1365,7 +1367,7 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
         pthread_mutex_lock(&(caph->out_ringbuf_lock));
 
         if (kis_simple_ringbuf_used(caph->out_ringbuf) != 0) {
-            // fprintf(stderr, "debug - capf - writebuffer has %lu\n", kis_simple_ringbuf_used(caph->out_ringbuf));
+            /* fprintf(stderr, "debug - capf - writebuffer has %lu\n", kis_simple_ringbuf_used(caph->out_ringbuf)); */
             FD_SET(write_fd, &wset);
             if (max_fd < write_fd)
                 max_fd = write_fd;
@@ -1432,7 +1434,7 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
                     goto cap_loop_fail;
                 }
 
-                // fprintf(stderr, "debug - capframework - read %lu\n", amt_buffered);
+                /* fprintf(stderr, "debug - capframework - read %lu\n", amt_buffered); */
 
                 /* See if we have a complete packet to do something with */
                 if (cf_handle_rx_data(caph) < 0) {
@@ -1474,7 +1476,7 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
 
             peeked_sz = kis_simple_ringbuf_peek(caph->out_ringbuf, peek_buf, peek_sz);
 
-            // fprintf(stderr, "debug - peeked %lu\n", peeked_sz);
+            /* fprintf(stderr, "debug - peeked %lu\n", peeked_sz); */
 
             if ((written_sz = write(write_fd, peek_buf, peeked_sz)) < 0) {
                 if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
@@ -1519,7 +1521,7 @@ int cf_send_raw_bytes(kis_capture_handler_t *caph, uint8_t *data, size_t len) {
     pthread_mutex_lock(&(caph->out_ringbuf_lock));
 
     if (kis_simple_ringbuf_available(caph->out_ringbuf) < len) {
-        fprintf(stderr, "debug - Insufficient room in write buffer to queue data\n");
+        /* fprintf(stderr, "debug - Insufficient room in write buffer to queue data\n"); */
         pthread_mutex_unlock(&(caph->out_ringbuf_lock));
         return 0;
     }
