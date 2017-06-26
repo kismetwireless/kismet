@@ -345,7 +345,7 @@ function PopulateExpanded(row) {
 }
 
 exports.DataSources = function() {
-    var w = $(window).width() * 0.85;
+    var w = $(window).width() * 0.95;
     var h = $(window).height() * 0.75;
     var offy = 20;
 
@@ -572,6 +572,8 @@ exports.DataSources = function() {
             aoColumns: cols,
 
             data: kismet_sources,
+
+            order: [[ 1, "desc" ]],
 
             scrollY: '100px',
             scrollResize: true,
