@@ -909,6 +909,7 @@ void Datasourcetracker::open_remote_datasource(string in_type, string in_definit
             // Generate a detached thread for joining the ring buffer
             std::thread t([this, d, in_handler, in_definition]{
                 d->connect_ringbuffer(in_handler, in_definition, NULL);
+                calculate_source_hopping(d);
             });
             t.detach();
 
