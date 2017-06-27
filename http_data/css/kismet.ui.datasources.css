@@ -4,16 +4,17 @@ div.k-cc-main {
     left: 5px;
     bottom: 5px;
     right: 5px;
+    overflow-y: hidden !important;
 }
 
 div.k-cc-canvas {
     width: 100%;
     height: 100%;
+    overflow-y: hidden !important;
 }
 
 canvas.k-cc-canvas {
-    width: 100%;
-    height: 100%;
+    overflow-y: hidden !important;
 }
 
 div.k-ds-tablediv {

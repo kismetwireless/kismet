@@ -38,7 +38,10 @@ kismet_ui_sidebar.AddSidebarItem({
 var channelcoverage_backend_tid;
 var channelcoverage_display_tid;
 var channelcoverage_panel = null;
+var channelcoverage_canvas = null;
+var channelhop_canvas = null;
 var channelcoverage_chart = null;
+var channelhop_chart = null;
 var cc_uuid_pos_map = {};
 
 exports.ChannelCoverage = function() {
@@ -53,6 +56,7 @@ exports.ChannelCoverage = function() {
     }
 
     channelcoverage_chart = null;
+    channelhop_chart = null;
 
     var content =
         $('<div>', {
@@ -101,15 +105,11 @@ exports.ChannelCoverage = function() {
             })
             .append(
                 $('<canvas>', {
-                    id: 'k-cc-canvas',
+                    id: 'k-cc-cover-canvas',
                     class: 'k-cc-canvas'
                 })
             )
         );
-
-    content.tabs({
-        heightStyle: 'fill'
-    });
 
     channelcoverage_panel = $.jsPanel({
         id: 'channelcoverage',
@@ -122,13 +122,14 @@ exports.ChannelCoverage = function() {
         onclosed: function() {
             clearTimeout(channelcoverage_backend_tid);
             clearTimeout(channelcoverage_display_tid);
-        },
-        onresized: function() {
-            $(window).trigger('resize');
+            channelhop_chart = null;
+            channelhop_canvas = null;
+            channelcoverage_canvas = null;
+            channelcoverage_chart = null;
         },
     })
     .on('resize', function() {
-            $(window).trigger('resize');
+        resize_channelcoverage();
     }).resize({
         width: w,
         height: h
@@ -138,6 +139,11 @@ exports.ChannelCoverage = function() {
         of: 'window',
         offsetY: offy,
     });
+
+    content.tabs({
+        heightStyle: 'fill'
+    });
+
 
     channelcoverage_backend_refresh();
     channelcoverage_display_refresh();
@@ -180,6 +186,45 @@ function channelcoverage_backend_refresh() {
     .always(function() {
         channelcoverage_backend_tid = setTimeout(channelcoverage_backend_refresh, 5000);
     });
+}
+
+function resize_channelcoverage() {
+    if (channelcoverage_panel == null)
+        return;
+
+    var container = $('#k-cc-main', channelcoverage_panel.content);
+
+    var tabs = $('#k-cc-tab-ul', container);
+
+    var w = container.width();
+    var h = container.height() - tabs.outerHeight();
+
+    $('#k-cc-tab-estimate', container)
+        .css('width', w)
+        .css('height', h);
+
+    if (channelhop_canvas != null) {
+        channelhop_canvas
+            .css('width', w)
+            .css('height', h);
+
+        if (channelhop_chart != null)
+             channelhop_chart.resize();
+    }
+
+    $('#k-cc-tab-coverage', container)
+        .css('width', w)
+        .css('height', h);
+
+    if (channelcoverage_canvas != null) {
+        channelcoverage_canvas
+            .css('width', w)
+            .css('height', h);
+
+        if (channelcoverage_chart != null)
+             channelcoverage_chart.resize();
+    }
+
 }
 
 function channelcoverage_display_refresh() {
@@ -229,19 +274,20 @@ function channelcoverage_display_refresh() {
         }
     }
 
-    // Create the channel index for the x-axis
+    // Create the channel index for the x-axis, used in both the hopping and the coverage
+    // graphs
     var chantitles = new Array();
     for (var ci in total_channel_list) {
         chantitles.push(ci);
     }
 
-    // Perform a natural sort on it
+    // Perform a natural sort on it to get it in order
     var ncollator = new Intl.Collator(undefined, {numeric: true, sensitivity: 'base'});
     chantitles.sort(ncollator.compare);
 
-    // Create the source datasets for the graph, covering all channels and
-    // highlighting the channels we have a UUID in
-    var source_datasets = []
+    // Create the source datasets for the animated estimated hopping graph, covering all 
+    // channels and highlighting the channels we have a UUID in
+    var source_datasets = new Array()
 
     var ndev = 0;
 
@@ -269,19 +315,86 @@ function channelcoverage_display_refresh() {
             backgroundColor: color,
         });
 
-	ndev++;
+	    ndev++;
+    }
+
+    // Create the source list for the Y axis of the coverage graph; we make an intermediary
+    // which is sorted by name but includes UUID, then assemble the final one
+    var sourcetitles_tmp = new Array();
+    var sourcetitles = new Array();
+
+    for (var ci in cc_uuid_pos_map) {
+        sourcetitles_tmp.push({
+            name: cc_uuid_pos_map[ci].name,
+            uuid: ci
+        });
+    }
+
+    sourcetitles_tmp.sort(function(a, b) {
+        return a.name.localeCompare(b.name);
+    });
+
+    // Build the titles
+    for (var si in sourcetitles_tmp) {
+        sourcetitles.push(sourcetitles_tmp[si].name);
+    }
+
+    var bubble_dataset = new Array();
+
+    // Build the bubble data
+    ndev = 0;
+    for (var si in sourcetitles_tmp) {
+        var d = cc_uuid_pos_map[sourcetitles_tmp[si].uuid];
+        var ds = new Array;
+
+        if (d.hopping) {
+            for (var ci in d.channels) {
+                var c = d.channels[ci];
+
+                var cp = chantitles.indexOf(c);
+
+                if (cp < 0)
+                    continue;
+
+                ds.push({
+                    x: cp,
+                    y: si,
+                    r: 5
+                });
+            }
+        } else {
+            var cp = chantitles.indexOf(d.channel);
+            if (cp >= 0) {
+                ds.push({
+                    x: cp,
+                    y: si,
+                    r: 5
+                });
+            }
+        }
+
+        var color = "hsl(" + parseInt(255 * (ndev / Object.keys(cc_uuid_pos_map).length)) + ", 100%, 50%)";
+
+        bubble_dataset.push({
+            label: d.name,
+            data: ds,
+            borderColor: color,
+            backgroundColor: color,
+        });
+
+        ndev++;
 
     }
 
-    if (channelcoverage_chart == null) {
-        var canvas = $('#k-cc-canvas', channelcoverage_panel.content);
+    if (channelhop_canvas == null) {
+        channelhop_canvas = $('#k-cc-canvas', channelcoverage_panel.content);
 
         var bp = 5.0;
 
         if (chantitles.length < 14)
             bp = 2;
 
-        channelcoverage_chart = new Chart(canvas, {
+        channelhop_chart = new Chart(channelhop_canvas, {
             type: "bar",
             options: {
                 responsive: true,
@@ -296,8 +409,66 @@ function channelcoverage_display_refresh() {
             },
         });
     } else {
-        channelcoverage_chart.data.datasets = source_datasets;
+        channelhop_chart.data.datasets = source_datasets;
+        channelhop_chart.data.labels = chantitles;
+        channelhop_chart.update(0);
+    }
+
+    if (channelcoverage_canvas == null && sourcetitles.length != 0) {
+        channelcoverage_canvas = $('#k-cc-cover-canvas', channelcoverage_panel.content);
+
+        channelcoverage_chart = new Chart(channelcoverage_canvas, {
+            type: 'bubble',
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    xAxes: [{
+                        ticks: {
+                            autoSkip: false,
+                            stepSize: 1,
+                            callback: function(value, index, values) {
+                                return chantitles[value];
+                            },
+                            min: 0,
+                            max: chantitles.length - 1,
+                            position: 'bottom',
+                            type: 'linear',
+                        }
+                    }],
+                    yAxes: [{
+                        ticks: {
+                            autoSkip: false,
+                            stepSize: 1,
+                            callback: function(value, index, values) {
+                                return sourcetitles[value];
+                            },
+                            min: 0,
+                            max: sourcetitles.length - 1,
+                            position: 'left',
+                            type: 'linear',
+                        },
+                    }],
+                },
+            },
+            data: {
+                labels: chantitles,
+                yLabels: sourcetitles,
+                datasets: bubble_dataset,
+            },
+        });
+    } else if (sourcetitles.length != 0) {
+        channelcoverage_chart.data.datasets = bubble_dataset;
+
         channelcoverage_chart.data.labels = chantitles;
+        channelcoverage_chart.data.yLabels = sourcetitles;
+
+        channelcoverage_chart.options.scales.xAxes[0].ticks.min = 0; 
+        channelcoverage_chart.options.scales.xAxes[0].ticks.max = chantitles.length - 1; 
+
+        channelcoverage_chart.options.scales.yAxes[0].ticks.min = 0; 
+        channelcoverage_chart.options.scales.yAxes[0].ticks.max = sourcetitles.length - 1; 
+
         channelcoverage_chart.update(0);
     }
 
@@ -646,7 +817,6 @@ exports.DataSources = function() {
             paging: false,
 
             createdRow: function(row, data, index) {
-                // console.log("Created row", data['kismet.datasource.source_number']);
                 row.id = data['kismet.datasource.source_number'];
             },
 
@@ -703,8 +873,6 @@ exports.DataSources = function() {
             var dt_base_height = this.content.height();
             var dt_base_width = this.content.width();
 
-            // console.log(dt_base_height);
-
             if (datasource_table != null && dt_base_height != null) {
                 $('div.dataTables_scrollBody', content).height(dt_base_height - 100);
                 datasource_table.draw(false);
@@ -743,12 +911,9 @@ exports.DataSources = function() {
         for (var d in kismet_sources) {
             var s = kismet_sources[d];
 
-            // console.log("Looking at source ", s['kismet.datasource.source_number']);
-
             var row = datasource_table.row('#' + s['kismet.datasource.source_number']);
 
             if (typeof(row.data()) === 'undefined') {
-                console.log("Undefined row", s['kismet.datasource.source_number']);
                 datasource_table.row.add(s);
             } else {
                 row.data(s);
