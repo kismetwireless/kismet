@@ -66,14 +66,14 @@ This will download all the third-party package definitions.
 We want to copy the Kismet package over, because we'll potentially be making some modifications.
 
 ```
-$ cp -R ~/src/kismet/openwrt/kismet-new ~/src/openwrt-pineapple-tetra/package/network
+$ cp -R ~/src/kismet/packaging/openwrt/kismet-tetra ~/src/openwrt-pineapple-tetra/package/network
 ```
 
 Where, of course, you want to copy from your checked out Kismet code to the checked out OpenWRT Tetra code; your directories might be different.
 
 ## Edit the Kismet package
 
-If you want to get on the absolutely latest bleeding edge Kismet git, there are two changes you can make.  Open up package/network/kismet-new/Makefile in an editor, then:
+If you want to get on the absolutely latest bleeding edge Kismet git, there are two changes you can make.  Open up package/network/kismet-tetra/Makefile in an editor, then:
 
 1. Update the git version to the latest.  Run `git log` in the Kismet code directory, and get the latest commit ID.  It should look like a big string of numbers and letters, such as `commit 1e54a5c9d2e45180493c36d528a6e02841dacaa6`.  In the Makefile you're editing, replace the version in the line `PKG_SOURCE_VERSION:=` with this new commit.
 2. If you want to make building a lot faster, you can change the line `PKG_SOURCE_URL:=https://www.kismetwireless.net/kismet.git` to point to your local copy you've already checked out, for instance, `PKG_SOURCE_URL:/home/dragorn/src/kismet/`, replacing the path with the path to where you checked out Kismet git in the first step.
@@ -84,8 +84,8 @@ Now we need to enable the Kismet package.  Still in your OpenWRT directory:
 
 1. Enter OpenWRT configuration again:  `make menuconfig`
 2. Navigate to 'Network'
-3. Scroll all the way down to 'kismet-new', it will be several screens down.
-4. Enable kismet-new as a *module*.  Hit 'm' to do so.
+3. Scroll all the way down to 'kismet-tetra', it will be several screens down.
+4. Enable kismet-tetra as a *module*.  Hit 'm' to do so.
 5. Exit, saving when prompted to.
 
 ## Compile OpenWRT
@@ -102,7 +102,7 @@ If everything went well, you now have a bunch of packages to copy to your Tetra:
 
 ```
 $ cd bin/ar71xx/packages
-$ scp  packages/libmicrohttpd_0.9.38-1.2_ar71xx.ipk base/libpcap_1.5.3-1_ar71xx.ipk base/libnl_3.2.21-1_ar71xx.ipk base/libnettle_3.1.1-1_ar71xx.ipk packages/libgcrypt_1.6.1-1_ar71xx.ipk packages/libgpg-error_1.12-1_ar71xx.ipk base/libstdcpp_4.8-linaro-1_ar71xx.ipk packages/libcap_2.24-1_ar71xx.ipk base/kismet-new_2017git-1_ar71xx.ipk packages/libpcre_8.39-1_ar71xx.ipk packages/libgnutls_3.4.15-1_ar71xx.ipk root@172.16.42.1:/tmp
+$ scp  packages/libmicrohttpd_0.9.38-1.2_ar71xx.ipk base/libpcap_1.5.3-1_ar71xx.ipk base/libnl_3.2.21-1_ar71xx.ipk base/libnettle_3.1.1-1_ar71xx.ipk packages/libgcrypt_1.6.1-1_ar71xx.ipk packages/libgpg-error_1.12-1_ar71xx.ipk base/libstdcpp_4.8-linaro-1_ar71xx.ipk packages/libcap_2.24-1_ar71xx.ipk base/kismet-tetra_2017git-1_ar71xx.ipk packages/libpcre_8.39-1_ar71xx.ipk packages/libgnutls_3.4.15-1_ar71xx.ipk root@172.16.42.1:/tmp
 ```
 
 ## Install Kismet on the tetra
