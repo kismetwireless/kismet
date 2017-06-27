@@ -1,6 +1,6 @@
 include $(TOPDIR)/rules.mk
 
-PKG_NAME:=kismet-new
+PKG_NAME:=kismet-tetra
 PKG_VERSION:=2017git
 PKG_RELEASE:=1
 
@@ -15,7 +15,7 @@ include $(INCLUDE_DIR)/package.mk
 
 PKG_BUILD_DEPENDS:=+libpthread +libpcap +libpcre +libmicrohttpd +libnl +libcap +libncurses +libstdcpp
 
-define Package/kismet-new
+define Package/kismet-tetra
   SECTION:=net
   CATEGORY:=Network
   TITLE:=Kismet (2017)
@@ -24,7 +24,7 @@ define Package/kismet-new
   DEPENDS:=+libpthread +libpcap +libpcre +libmicrohttpd +libnl +libcap +libstdcpp +libncurses
 endef
 
-define Package/kismet-new/description
+define Package/kismet-tetra/description
  Kismet wireless capture and IDS
  Latest web-ui based Kismet
 endef
@@ -47,7 +47,7 @@ define Build/Compile
 		all
 endef
 
-define Package/kismet-new/install
+define Package/kismet-tetra/install
 	$(INSTALL_DIR) $(1)/usr/bin
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/kismet $(1)/usr/bin/
 	$(INSTALL_DIR) $(1)/usr/bin/kismet_capture_tools/
@@ -60,5 +60,5 @@ define Package/kismet-new/install
 	cp -Rv $(PKG_BUILD_DIR)/http_data $(1)/etc/kismet/
 endef
 
-$(eval $(call BuildPackage,kismet-new))
+$(eval $(call BuildPackage,kismet-tetra))
 
