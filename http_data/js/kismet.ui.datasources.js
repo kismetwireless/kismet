@@ -46,7 +46,7 @@ var cc_uuid_pos_map = {};
 
 exports.ChannelCoverage = function() {
     var w = $(window).width() * 0.85;
-    var h = $(window).height() * 0.50;
+    var h = $(window).height() * 0.75;
     var offy = 20;
 
     if ($(window).width() < 450 || $(window).height() < 450) {
@@ -115,8 +115,9 @@ exports.ChannelCoverage = function() {
         id: 'channelcoverage',
         headerTitle: '<i class="fa fa-bar-chart-o" /> Channel Coverage',
         headerControls: {
-            controls: 'closeonly',
             iconfont: 'jsglyph',
+            minimize: 'remove',
+            smallify: 'remove',
         },
         content: content,
         onclosed: function() {
@@ -127,6 +128,9 @@ exports.ChannelCoverage = function() {
             channelcoverage_canvas = null;
             channelcoverage_chart = null;
         },
+        onresized: resize_channelcoverage,
+        onmaximized: resize_channelcoverage,
+        onnormalized: resize_channelcoverage,
     })
     .on('resize', function() {
         resize_channelcoverage();
@@ -581,6 +585,16 @@ function PopulateExpanded(row) {
     return expanded;
 }
 
+function datasourcepanel_resize(element) {
+    var dt_base_height = element.content.height();
+    var dt_base_width = element.content.width();
+    
+    if (datasource_table != null && dt_base_height != null) {
+        $('div.dataTables_scrollBody', element.content).height(dt_base_height - 100);
+        datasource_table.draw(false);
+    }
+}
+
 exports.DataSources = function() {
     var w = $(window).width() * 0.95;
     var h = $(window).height() * 0.75;
@@ -864,20 +878,20 @@ exports.DataSources = function() {
         id: 'datasources',
         headerTitle: '<i class="fa fa-cogs" /> Data Sources',
         headerControls: {
-            controls: 'closeonly',
             iconfont: 'jsglyph',
+            minimize: 'remove',
+            smallify: 'remove',
         },
         content: content,
 
         onresized: function() {
-            var dt_base_height = this.content.height();
-            var dt_base_width = this.content.width();
-
-            if (datasource_table != null && dt_base_height != null) {
-                $('div.dataTables_scrollBody', content).height(dt_base_height - 100);
-                datasource_table.draw(false);
-            }
-
+            datasourcepanel_resize(this);
+        },
+        onmaximized: function() {
+            datasourcepanel_resize(this);
+        },
+        onnormalized: function() {
+            datasourcepanel_resize(this);
         },
 
         onclosed: function() {
