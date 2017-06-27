@@ -29,7 +29,7 @@ $('<link>')
  */
 kismet_ui_sidebar.AddSidebarItem({
     id: 'datasource_channel_coverage',
-    listTitle: '<i class="fa fa-bar-chart-o"></i> Estimated Channel Coverage',
+    listTitle: '<i class="fa fa-bar-chart-o"></i> Channel Coverage',
     clickCallback: function() {
         exports.ChannelCoverage();
     },
@@ -54,18 +54,81 @@ exports.ChannelCoverage = function() {
 
     channelcoverage_chart = null;
 
+    var content =
+        $('<div>', {
+            id: "k-cc-main",
+            class: "k-cc-main",
+        })
+        .append(
+            $('<ul>', {
+                id: "k-cc-tab-ul"
+            })
+            .append(
+                $('<li>', { })
+                .append(
+                    $('<a>', {
+                        href: '#k-cc-tab-estimate'
+                    })
+                    .html("Estimated Hopping")
+                )
+            )
+            .append(
+                $('<li>', { })
+                .append(
+                    $('<a>', {
+                        href: '#k-cc-tab-coverage'
+                    })
+                    .html("Channel Coverage")
+                )
+            )
+        )
+        .append(
+            $('<div>', {
+                id: 'k-cc-tab-estimate',
+                class: 'k-cc-canvas'
+            })
+            .append(
+                $('<canvas>', {
+                    id: 'k-cc-canvas',
+                    class: 'k-cc-canvas'
+                })
+            )
+        )
+        .append(
+            $('<div>', {
+                id: 'k-cc-tab-coverage',
+                class: 'k-cc-canvas'
+            })
+            .append(
+                $('<canvas>', {
+                    id: 'k-cc-canvas',
+                    class: 'k-cc-canvas'
+                })
+            )
+        );
+
+    content.tabs({
+        heightStyle: 'fill'
+    });
+
     channelcoverage_panel = $.jsPanel({
         id: 'channelcoverage',
-        headerTitle: '<i class="fa fa-bar-chart-o" /> Estimated Channel Coverage',
+        headerTitle: '<i class="fa fa-bar-chart-o" /> Channel Coverage',
         headerControls: {
             controls: 'closeonly',
             iconfont: 'jsglyph',
         },
-        content: '<canvas id="k-cc-canvas" style="k-cc-canvas" />',
+        content: content,
         onclosed: function() {
             clearTimeout(channelcoverage_backend_tid);
             clearTimeout(channelcoverage_display_tid);
-        }
+        },
+        onresized: function() {
+            $(window).trigger('resize');
+        },
+    })
+    .on('resize', function() {
+            $(window).trigger('resize');
     }).resize({
         width: w,
         height: h
@@ -94,7 +157,11 @@ function channelcoverage_backend_refresh() {
         // Build a list of all devices we haven't seen before and set their 
         // initial positions to match
         for (var di = 0; di < data.length; di++) {
-            if (!(data[di]['kismet.datasource.uuid'] in cc_uuid_pos_map)) {
+            if (data[di]['kismet.datasource.running'] == 0) {
+                if ((data[di]['kismet.datasource.uuid'] in cc_uuid_pos_map)) {
+                   delete cc_uuid_pos_map[data[di]['kismet.datasource.uuid']];
+                }
+            } else if (!(data[di]['kismet.datasource.uuid'] in cc_uuid_pos_map)) {
                 cc_uuid_pos_map[data[di]['kismet.datasource.uuid']] = {
                     uuid: data[di]['kismet.datasource.uuid'],
                     name: data[di]['kismet.datasource.name'],
@@ -106,9 +173,8 @@ function channelcoverage_backend_refresh() {
                     position: data[di]['kismet.datasource.hop_offset'],
                     skip: data[di]['kismet.datasource.hop_shuffle_skip'],
                 };
-            } else if (data[di]['kismet.datasource.running'] == 0) {
-                delete cc_uuid_pos_map[data[di]['kismet.datasource.uuid']];
-            }
+            } 
+
         }
     })
     .always(function() {
@@ -167,9 +233,9 @@ function channelcoverage_display_refresh() {
     var chantitles = new Array();
     for (var ci in total_channel_list) {
         chantitles.push(ci);
-    }	
+    }
 
-    // Perform a natural
+    // Perform a natural sort on it
     var ncollator = new Intl.Collator(undefined, {numeric: true, sensitivity: 'base'});
     chantitles.sort(ncollator.compare);
 
