@@ -343,7 +343,7 @@ void SpindownKismet(shared_ptr<PollableTracker> pollabletracker) {
 
     globalregistry->DeleteLifetimeGlobals();
 
-    exit(0);
+    exit(globalregistry->fatal_condition ? 1 : 0);
 }
 
 void CatchChild(int sig) {
@@ -849,9 +849,14 @@ int main(int argc, char *argv[], char *envp[]) {
 
 
     if (daemonize) {
-        if (fork() != 0) {
-            fprintf(stderr, "Silencing output and entering daemon mode...\n");
+        int pid = fork();
+        if (pid < 0) {
+            fprintf(stderr, "FATAL: Unable to fork child process: %s\n",
+              strerror(errno));
             exit(1);
+        } else if (pid > 0) {
+            fprintf(stderr, "Silencing output and entering daemon mode...\n");
+            exit(0);
         }
 
         // remove messagebus clients
