@@ -1439,10 +1439,6 @@ int main(int argc, char *argv[]) {
      * it does nothing and hurts nothing on 5ghz */
     cf_handler_set_hop_shuffle_spacing(caph, 4);
 
-    /* Try to connect */
-    if (cf_handler_remote_connect(caph) < 0)
-        return 1;
-
     cf_handler_loop(caph);
 
     /* We're done - try to reset the networkmanager awareness of the interface */

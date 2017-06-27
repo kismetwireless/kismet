@@ -193,6 +193,9 @@ struct kis_capture_handler {
     /* Specified commandline source, used for remote cap */
     char *cli_sourcedef;
 
+    /* Retry remote connections */
+    int remote_retry;
+
     /* TCP connection */
     int tcp_fd;
 

@@ -344,11 +344,6 @@ int main(int argc, char *argv[]) {
     /* Set the capture thread */
     cf_handler_set_capture_cb(caph, capture_thread);
 
-    /* Trigger any remote connection */
-    if (cf_handler_remote_connect(caph) < 0) {
-        return 1;
-    }
-
     cf_handler_loop(caph);
 
     cf_handler_free(caph);
