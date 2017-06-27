@@ -71,18 +71,18 @@ exports.ChannelCoverage = function() {
                 $('<li>', { })
                 .append(
                     $('<a>', {
-                        href: '#k-cc-tab-estimate'
+                        href: '#k-cc-tab-coverage'
                     })
-                    .html("Estimated Hopping")
+                    .html("Channel Coverage")
                 )
             )
             .append(
                 $('<li>', { })
                 .append(
                     $('<a>', {
-                        href: '#k-cc-tab-coverage'
+                        href: '#k-cc-tab-estimate'
                     })
-                    .html("Channel Coverage")
+                    .html("Estimated Hopping")
                 )
             )
         )
