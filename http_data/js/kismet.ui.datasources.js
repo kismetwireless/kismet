@@ -88,24 +88,24 @@ exports.ChannelCoverage = function() {
         )
         .append(
             $('<div>', {
-                id: 'k-cc-tab-estimate',
-                class: 'k-cc-canvas'
-            })
-            .append(
-                $('<canvas>', {
-                    id: 'k-cc-canvas',
-                    class: 'k-cc-canvas'
-                })
-            )
-        )
-        .append(
-            $('<div>', {
                 id: 'k-cc-tab-coverage',
                 class: 'k-cc-canvas'
             })
             .append(
                 $('<canvas>', {
                     id: 'k-cc-cover-canvas',
+                    class: 'k-cc-canvas'
+                })
+            )
+        )
+        .append(
+            $('<div>', {
+                id: 'k-cc-tab-estimate',
+                class: 'k-cc-canvas'
+            })
+            .append(
+                $('<canvas>', {
+                    id: 'k-cc-canvas',
                     class: 'k-cc-canvas'
                 })
             )
