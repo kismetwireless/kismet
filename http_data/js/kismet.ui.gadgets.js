@@ -11,6 +11,15 @@ var exports = {};
 // Flag we're still loading
 exports.load_complete = 0;
 
+// Load our css
+$('<link>')
+    .appendTo('head')
+    .attr({
+        type: 'text/css', 
+        rel: 'stylesheet',
+        href: '/css/kismet.ui.gadgets.css'
+    });
+
 var gadgets = new Array();
 
 var active_gadgets = new Array();
@@ -100,6 +109,23 @@ exports.UpdateGadgets = function() {
 
     active_gadgets = newgadgets;
 }
+
+var renderGadgets = function(d, t, r, m) {
+
+}
+
+kismet_ui.AddDeviceColumn('column_gadget', {
+    sTitle: ' ',
+    field: 'kismet.device.base.name',
+    description: 'UI gadgets',
+    renderfunc: function(d, t, r, m) {
+        renderGadgets(d, t, r, m);
+    },
+    orderable: false,
+    searchable: false,
+    priority: -1000,
+});
+        
 
 // We're done loading
 exports.load_complete = 1;
