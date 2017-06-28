@@ -398,6 +398,9 @@ public:
     // Access the defaults
     shared_ptr<datasourcetracker_defaults> get_config_defaults();
 
+    // Queue a remote handler to be removed
+    void queue_dead_remote(dst_incoming_remote *in_dead);
+
 protected:
     virtual void merge_source(SharedDatasource in_source);
 
@@ -431,6 +434,10 @@ protected:
 
     // Sub-workers slated for being removed
     vector<SharedDSTList> listing_complete_vec;
+
+    // Remote connections slated to be removed
+    vector<dst_incoming_remote *> dst_remote_complete_vec;
+    int remote_complete_timer;
 
     // Cleanup task
     int completion_cleanup_id;

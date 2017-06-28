@@ -432,6 +432,8 @@ Datasourcetracker::Datasourcetracker(GlobalRegistry *in_globalreg) :
         }
     }
 
+    remote_complete_timer = -1;
+
     httpd_pcap.reset(new Datasourcetracker_Httpd_Pcap(globalreg));
 
     // Register js module for UI
@@ -1049,6 +1051,35 @@ void Datasourcetracker::calculate_source_hopping(SharedDatasource in_ds) {
         }
     }
 }
+
+void Datasourcetracker::queue_dead_remote(dst_incoming_remote *in_dead) {
+    local_locker lock(&dst_lock);
+
+    for (auto x : dst_remote_complete_vec) {
+        if (x == in_dead)
+            return;
+    }
+
+    if (remote_complete_timer > 0) {
+        timetracker->RemoveTimer(remote_complete_timer);
+    }
+
+    remote_complete_timer =
+        timetracker->RegisterTimer(1, NULL, 0, 
+            [this] (int) -> int {
+                local_locker lock(&dst_lock);
+                
+                for (auto x : dst_remote_complete_vec) {
+                    delete(x);
+                }
+
+                dst_remote_complete_vec.clear();
+
+                return 0;
+            });
+
+}
+
 
 bool Datasourcetracker::Httpd_VerifyPath(const char *path, const char *method) {
     string stripped = Httpd_StripSuffix(path);
@@ -1728,7 +1759,13 @@ dst_incoming_remote::dst_incoming_remote(GlobalRegistry *in_globalreg,
                 _MSG("Remote source connected but didn't send a NEWSOURCE control, "
                         "closing connection.", MSGFLAG_ERROR);
                 rbuf_handler->ProtocolError();
-                delete(this);
+
+                shared_ptr<Datasourcetracker> datasourcetracker =
+                    globalreg->FetchGlobalAs<Datasourcetracker>("DATASOURCETRACKER");
+
+                if (datasourcetracker != NULL) 
+                    datasourcetracker->queue_dead_remote(this);
+
                 return 0;
             });
 }
@@ -1906,13 +1943,24 @@ void dst_incoming_remote::BufferAvailable(size_t in_amt) {
 
         // Zero out the rbuf handler so that it doesn't get closed
         rbuf_handler = NULL;
-        delete(this);
+
+        shared_ptr<Datasourcetracker> datasourcetracker =
+            globalreg->FetchGlobalAs<Datasourcetracker>("DATASOURCETRACKER");
+
+        if (datasourcetracker != NULL) 
+            datasourcetracker->queue_dead_remote(this);
+
         return;
     }
 }
 
 void dst_incoming_remote::BufferError(string in_error) {
-    delete(this);
+    shared_ptr<Datasourcetracker> datasourcetracker =
+        globalreg->FetchGlobalAs<Datasourcetracker>("DATASOURCETRACKER");
+
+    if (datasourcetracker != NULL) 
+        datasourcetracker->queue_dead_remote(this);
+
     return;
 }
 
