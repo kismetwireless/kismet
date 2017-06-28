@@ -1226,9 +1226,12 @@ int cf_handler_remote_connect(kis_capture_handler_t *caph) {
 
     int first = 1;
 
-    // If we have nothing to connect to...
+    /* If we have nothing to connect to... */
     if (caph->remote_host == NULL)
         return 0;
+
+    /* Reset the last ping */
+    caph->last_ping = 0;
 
     while (1) {
         if (first) {
@@ -1343,12 +1346,15 @@ int cf_handler_remote_connect(kis_capture_handler_t *caph) {
 
         fprintf(stderr, "INFO - Connected to '%s:%u', sending source info...\n",
                 caph->remote_host, caph->remote_port);
-
+    
         /* Send the NEWSOURCE command to the Kismet server */
         cf_send_newsource(caph, uuid);
 
         if (uuid)
             free(uuid);
+
+        /* We connected, break out */
+        break;
     }
 
     return 1;
