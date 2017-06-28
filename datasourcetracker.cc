@@ -1055,6 +1055,8 @@ void Datasourcetracker::calculate_source_hopping(SharedDatasource in_ds) {
 void Datasourcetracker::queue_dead_remote(dst_incoming_remote *in_dead) {
     local_locker lock(&dst_lock);
 
+    fprintf(stderr, "debug - queueing dead remote\n");
+
     for (auto x : dst_remote_complete_vec) {
         if (x == in_dead)
             return;
@@ -1068,6 +1070,8 @@ void Datasourcetracker::queue_dead_remote(dst_incoming_remote *in_dead) {
         timetracker->RegisterTimer(1, NULL, 0, 
             [this] (int) -> int {
                 local_locker lock(&dst_lock);
+
+                fprintf(stderr, "debug - cleaning up remote connections\n");
                 
                 for (auto x : dst_remote_complete_vec) {
                     delete(x);
@@ -1758,13 +1762,8 @@ dst_incoming_remote::dst_incoming_remote(GlobalRegistry *in_globalreg,
             [this] (int) -> int {
                 _MSG("Remote source connected but didn't send a NEWSOURCE control, "
                         "closing connection.", MSGFLAG_ERROR);
-                rbuf_handler->ProtocolError();
 
-                shared_ptr<Datasourcetracker> datasourcetracker =
-                    globalreg->FetchGlobalAs<Datasourcetracker>("DATASOURCETRACKER");
-
-                if (datasourcetracker != NULL) 
-                    datasourcetracker->queue_dead_remote(this);
+                kill();
 
                 return 0;
             });
@@ -1780,6 +1779,28 @@ dst_incoming_remote::~dst_incoming_remote() {
     // Remove ourselves as a handler
     if (rbuf_handler != NULL)
         rbuf_handler->RemoveReadBufferInterface();
+}
+
+void dst_incoming_remote::kill() {
+    // Kill the error timer
+    shared_ptr<Timetracker> timetracker = globalreg->FetchGlobalAs<Timetracker>("TIMETRACKER");
+    if (timetracker != NULL && timerid > 0)
+        timetracker->RemoveTimer(timerid);
+
+    if (rbuf_handler != NULL) {
+        fprintf(stderr, "debug - dst incoming kill() sending protocol error\n");
+        rbuf_handler->ProtocolError();
+        rbuf_handler->RemoveReadBufferInterface();
+        rbuf_handler = NULL;
+    } else {
+        fprintf(stderr, "debug - dst incoming rbuf handler null\n");
+    }
+
+    shared_ptr<Datasourcetracker> datasourcetracker =
+        globalreg->FetchGlobalAs<Datasourcetracker>("DATASOURCETRACKER");
+
+    if (datasourcetracker != NULL) 
+        datasourcetracker->queue_dead_remote(this);
 }
 
 void dst_incoming_remote::BufferAvailable(size_t in_amt) {
@@ -1944,23 +1965,15 @@ void dst_incoming_remote::BufferAvailable(size_t in_amt) {
         // Zero out the rbuf handler so that it doesn't get closed
         rbuf_handler = NULL;
 
-        shared_ptr<Datasourcetracker> datasourcetracker =
-            globalreg->FetchGlobalAs<Datasourcetracker>("DATASOURCETRACKER");
-
-        if (datasourcetracker != NULL) 
-            datasourcetracker->queue_dead_remote(this);
+        kill();
 
         return;
     }
 }
 
 void dst_incoming_remote::BufferError(string in_error) {
-    shared_ptr<Datasourcetracker> datasourcetracker =
-        globalreg->FetchGlobalAs<Datasourcetracker>("DATASOURCETRACKER");
-
-    if (datasourcetracker != NULL) 
-        datasourcetracker->queue_dead_remote(this);
-
+    _MSG("Incoming remote source failed: " + in_error, MSGFLAG_ERROR);
+    kill();
     return;
 }
 

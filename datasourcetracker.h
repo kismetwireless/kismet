@@ -292,6 +292,8 @@ public:
     virtual void BufferAvailable(size_t in_amt);
     virtual void BufferError(string in_error);
 
+    virtual void kill();
+
 protected:
     GlobalRegistry *globalreg;
 

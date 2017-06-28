@@ -1880,7 +1880,7 @@ void KisDatasource::handle_source_error() {
     if (get_source_remote()) {
         if (get_source_running()) {
             ss << "Source " << get_source_name() << " has encountered an error.  Remote sources "
-                "are not automatically reconnected; re-launch the remote source to resume "
+                "are not locally reconnected; waiting for the remote source to resume "
                 "capture.";
             _MSG(ss.str(), MSGFLAG_ERROR);
         }
