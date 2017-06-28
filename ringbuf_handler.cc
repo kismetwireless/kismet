@@ -123,8 +123,18 @@ size_t RingbufferHandler::GetWriteBufferFree() {
 size_t RingbufferHandler::GetReadBufferData(void *in_ptr, size_t in_sz) {
     local_locker lock(&handler_locker);
 
-    if (read_buffer) 
-        return read_buffer->read(in_ptr, in_sz);
+    if (read_buffer) {
+        local_locker rlock(&r_callback_locker);
+        size_t s;
+
+        s = read_buffer->read(in_ptr, in_sz);
+
+        if (readbuf_drain_cb != NULL) {
+            readbuf_drain_cb(s);
+        }
+
+        return s;
+    }
 
     return 0;
 }
@@ -132,8 +142,18 @@ size_t RingbufferHandler::GetReadBufferData(void *in_ptr, size_t in_sz) {
 size_t RingbufferHandler::GetWriteBufferData(void *in_ptr, size_t in_sz) {
     local_locker lock(&handler_locker);
 
-    if (write_buffer)
-        return write_buffer->read(in_ptr, in_sz);
+    if (write_buffer) {
+        local_locker wlock(&w_callback_locker);
+        size_t s;
+
+        s = write_buffer->read(in_ptr, in_sz);
+
+        if (writebuf_drain_cb != NULL) {
+            writebuf_drain_cb(s);
+        }
+
+        return s;
+    }
 
     return 0;
 }
@@ -154,6 +174,14 @@ size_t RingbufferHandler::PeekWriteBufferData(void *in_ptr, size_t in_sz) {
         return write_buffer->peek(in_ptr, in_sz);
 
     return 0;
+}
+
+size_t RingbufferHandler::ConsumeReadBufferData(size_t in_sz) {
+    return GetReadBufferData(NULL, in_sz);
+}
+
+size_t RingbufferHandler::ConsumeWriteBufferData(size_t in_sz) {
+    return GetWriteBufferData(NULL, in_sz);
 }
 
 size_t RingbufferHandler::PutReadBufferData(void *in_ptr, size_t in_sz, 
@@ -262,6 +290,28 @@ void RingbufferHandler::RemoveWriteBufferInterface() {
     wbuf_notify = NULL;
 }
 
+void RingbufferHandler::SetReadBufferDrainCb(function<void (size_t)> in_cb) {
+    local_locker lock(&r_callback_locker);
+
+    readbuf_drain_cb = in_cb;
+}
+
+void RingbufferHandler::SetWriteBufferDrainCb(function<void (size_t)> in_cb) {
+    local_locker lock(&w_callback_locker);
+
+    writebuf_drain_cb = in_cb;
+}
+
+void RingbufferHandler::RemoveReadBufferDrainCb() {
+    local_locker lock(&r_callback_locker);
+    readbuf_drain_cb = NULL;
+}
+
+void RingbufferHandler::RemoveWriteBufferDrainCb() {
+    local_locker lock(&w_callback_locker);
+    writebuf_drain_cb = NULL;
+}
+
 void RingbufferHandler::BufferError(string in_error) {
     ReadBufferError(in_error);
     WriteBufferError(in_error);
@@ -310,5 +360,95 @@ RingbufferInterface::~RingbufferInterface() {
         if (write_handler)
             ringbuffer_handler->RemoveWriteBufferInterface();
     }
+}
+
+RingbufferHandlerOStreambuf::~RingbufferHandlerOStreambuf() {
+    if (rb_handler != NULL) {
+        rb_handler->RemoveWriteBufferDrainCb();
+        rb_handler = NULL;
+    }
+}
+
+std::streamsize RingbufferHandlerOStreambuf::xsputn(const char_type *s, std::streamsize n) {
+    if (rb_handler == NULL) {
+        return -1;
+    }
+
+    ssize_t written = rb_handler->PutWriteBufferData((void *) s, (size_t) n, true);
+
+    if (written == n)
+        return n;
+
+    // If we couldn't write it all into the buffer, flag a full error
+    if (written != n && !blocking) {
+        rb_handler->BufferError("write buffer full, streambuf unable to write data");
+        return -1;
+    }
+
+    // Otherwise go into a loop, blocking, until we've written the entire buffer...
+    
+    // Initialize the locking variable
+    blocking_cl.reset(new conditional_locker<size_t>());
+
+    // Set a write completion callback
+    rb_handler->SetWriteBufferDrainCb([this](size_t amt __attribute__((unused))) {
+        blocking_cl->unlock(amt);
+    });
+
+    // Jump as far as we managed to write
+    ssize_t wpos = written;
+    while (1) {
+        written = rb_handler->PutWriteBufferData((void *) (s + wpos), n - wpos, true);
+
+        if (wpos + written == n) {
+            rb_handler->RemoveWriteBufferDrainCb();
+            return n;
+        }
+
+        // Keep track of where we are
+        wpos += written;
+
+        // Block until the buffer flushes
+        blocking_cl->block_until();
+    }
+
+    rb_handler->RemoveWriteBufferDrainCb();
+
+    return n;
+}
+
+RingbufferHandlerOStreambuf::int_type RingbufferHandlerOStreambuf::overflow(int_type ch) {
+    if (rb_handler == NULL)
+        return -1;
+
+    if (rb_handler->PutWriteBufferData((void *) &ch, 1, true) == 1) 
+        return 1;
+
+    // Not blocking, nothing we can do
+    if (!blocking) {
+        rb_handler->BufferError("write buffer full, streambuf unable to write data");
+        return -1;
+    }
+
+    // Initialize the locking variable
+    blocking_cl.reset(new conditional_locker<size_t>());
+
+    // Set a write completion callback
+    rb_handler->SetWriteBufferDrainCb([this](size_t amt __attribute__((unused))) {
+        blocking_cl->unlock(amt);
+    });
+
+    while (1) {
+        if (rb_handler->PutWriteBufferData((void *) &ch, 1, true) == 1) {
+            rb_handler->RemoveWriteBufferDrainCb();
+            return 1;
+        }
+
+        blocking_cl->block_until();
+    }
+
+    rb_handler->RemoveWriteBufferDrainCb();
+
+    return 1;
 }
 

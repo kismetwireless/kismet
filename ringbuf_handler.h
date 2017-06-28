@@ -24,8 +24,12 @@
 #include <stdlib.h>
 #include <string>
 #include <functional>
+#include <streambuf>
+#include <iostream>
+#include <memory>
 
 #include "ringbuf2.h"
+#include "util.h"
 
 class RingbufferInterface;
 
@@ -60,6 +64,7 @@ public:
     size_t GetWriteBufferFree();
 
     // Fetch read and write buffer data, up to sz.  Consumes data from buffer.
+    // Automatically triggers buffer drain callbacks
     // Returns amount read
     size_t GetReadBufferData(void *in_ptr, size_t in_sz);
     size_t GetWriteBufferData(void *in_ptr, size_t in_sz);
@@ -70,6 +75,7 @@ public:
     size_t PeekWriteBufferData(void *in_ptr, size_t in_sz);
 
     // Consume data w/out copying it (used to flag data we previously peeked)
+    // Automatically triggers buffer drain callbacks
     size_t ConsumeReadBufferData(size_t in_sz);
     size_t ConsumeWriteBufferData(size_t in_sz);
 
@@ -85,6 +91,14 @@ public:
 
     void RemoveReadBufferInterface();
     void RemoveWriteBufferInterface();
+
+    // Set simple functional callbacks to be called when we drain an interface; used to
+    // allow quick unlocking of blocked writers
+    void SetReadBufferDrainCb(function<void (size_t)> in_cb);
+    void SetWriteBufferDrainCb(function<void (size_t)> in_cb);
+
+    void RemoveReadBufferDrainCb();
+    void RemoveWriteBufferDrainCb();
 
     // Propagate a line-layer buffer error to any listeners (line IO system to interfaces)
     void BufferError(string in_error);
@@ -114,7 +128,35 @@ protected:
     pthread_mutex_t w_callback_locker;
 
     function<void (void)> protoerror_cb;
+
+    function<void (size_t)> readbuf_drain_cb;
+    function<void (size_t)> writebuf_drain_cb;
 };
+
+// A C++ streambuf-compatible wrapper around a ringbuf handler
+struct RingbufferHandlerOStreambuf : public std::streambuf {
+    RingbufferHandlerOStreambuf(shared_ptr<RingbufferHandler> in_rbhandler) :
+        rb_handler(in_rbhandler), blocking(false) { }
+    RingbufferHandlerOStreambuf(shared_ptr<RingbufferHandler> in_rbhandler, bool in_blocking) :
+        rb_handler(in_rbhandler), blocking(in_blocking) { }
+
+    virtual ~RingbufferHandlerOStreambuf();
+
+protected:
+    std::streamsize xsputn(const char_type *s, std::streamsize n) override;
+    int_type overflow(int_type ch) override;
+
+private:
+    // Ringbuf handler we bind to
+    shared_ptr<RingbufferHandler> rb_handler;
+
+    // Do we block when buffer is full?
+    bool blocking;
+
+    // Locker variable if we block
+    shared_ptr<conditional_locker<size_t> > blocking_cl;
+};
+
 
 // Ringbuffer interface, interacts with a ringbuffer handler 
 class RingbufferInterface {
