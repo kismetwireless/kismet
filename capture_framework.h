@@ -196,6 +196,9 @@ struct kis_capture_handler {
     /* Retry remote connections */
     int remote_retry;
 
+    /* Kick into daemon mode for remote connections */
+    int daemonize;
+
     /* TCP connection */
     int tcp_fd;
 

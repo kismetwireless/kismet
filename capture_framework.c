@@ -196,6 +196,9 @@ kis_capture_handler_t *cf_handler_init(const char *in_type) {
     /* Disable retry by default */
     ch->remote_retry = 0;
 
+    /* Disable daemon mode by default */
+    ch->daemonize = 0;
+
     /* Allocate a smaller incoming ringbuffer since most of our traffic is
      * on the outgoing channel */
     ch->in_ringbuf = kis_simple_ringbuf_create(1024 * 16);
@@ -422,6 +425,7 @@ int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]) {
     unsigned int parse_port;
 
     int retry = 1;
+    int daemon = 0;
 
     static struct option longopt[] = {
         { "in-fd", required_argument, 0, 1 },
@@ -429,6 +433,7 @@ int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]) {
         { "connect", required_argument, 0, 3 },
         { "source", required_argument, 0, 4 },
         { "disable-retry", no_argument, 0, 5 },
+        { "daemonize", no_argument, 0, 6},
         { 0, 0, 0, 0 }
     };
 
@@ -461,6 +466,9 @@ int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]) {
         } else if (r == 5) {
             fprintf(stderr, "INFO: Disabling automatic reconnection to remote servers\n");
             retry = 0;
+        } else if (r == 6) {
+            fprintf(stderr, "INFO: Entering daemon mode after initial setup\n");
+            daemon = 1;
         }
     }
 
@@ -479,6 +487,9 @@ int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]) {
 
         /* Set retry only when we have a remote host */
         caph->remote_retry = retry;
+
+        /* Set daemon mode only when we have a remote host */
+        caph->daemonize = daemon;
 
         return 2;
     }
@@ -1351,6 +1362,20 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
     int spindown;
     int ret;
     int rv = 0;
+
+    /* If we're going into daemon mode, fork-exec and drop out here */
+    if (caph->daemonize) {
+        int pid = fork();
+
+        if (pid < 0) {
+            fprintf(stderr, "FATAL:  Unable to fork child process: %s\n",
+                    strerror(errno));
+            exit(1);
+        } else if (pid > 0) {
+            fprintf(stderr, "INFO: Entering daemon mode...\n");
+            exit(0);
+        }
+    }
 
     /* Loop for reconnecting */
     while (1) {
