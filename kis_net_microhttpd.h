@@ -185,9 +185,15 @@ public:
 // inside a connection object.
 class Kis_Net_Httpd_Ringbuf_Stream_Handler : public Kis_Net_Httpd_Handler {
 public:
-    Kis_Net_Httpd_Ringbuf_Stream_Handler() : Kis_Net_Httpd_Handler() { }
+    Kis_Net_Httpd_Ringbuf_Stream_Handler() : Kis_Net_Httpd_Handler() {
+        // Default rb size
+        k_n_h_r_ringbuf_size = 1024*1024*4;
+    }
     Kis_Net_Httpd_Ringbuf_Stream_Handler(GlobalRegistry *in_globalreg) :
-        Kis_Net_Httpd_Handler(in_globalreg) { };
+        Kis_Net_Httpd_Handler(in_globalreg) { 
+        // Default rb size
+        k_n_h_r_ringbuf_size = 1024*1024*4;
+    };
     virtual ~Kis_Net_Httpd_Ringbuf_Stream_Handler();
 
     virtual int Httpd_HandleGetRequest(Kis_Net_Httpd *httpd,
@@ -218,6 +224,12 @@ public:
     // ringbuf to have data available to write.
     static ssize_t ringbuf_event_cb(void *cls, uint64_t pos, char *buf, size_t max);
 
+    virtual void Httpd_Set_Ringbuf_Size(size_t in_sz) {
+        k_n_h_r_ringbuf_size = in_sz;
+    }
+
+protected:
+    size_t k_n_h_r_ringbuf_size;
 };
 
 // A ringbuf-stream auxiliary class which is passed to the callback, added to the
@@ -267,8 +279,8 @@ public:
     // Are we in error?
     bool in_error;
 
-    // Another arbitrary block - likely used to store the ringbuf processor for
-    // filling this connection
+    // Additional arbitrary data - Used by the ringbuf streamer to store the
+    // ringbuf processor, and by the CPP Streamer to store the streambuf
     void *aux;
 
     // Free function

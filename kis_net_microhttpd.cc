@@ -1173,7 +1173,8 @@ int Kis_Net_Httpd_Ringbuf_Stream_Handler::Httpd_HandleGetRequest(Kis_Net_Httpd *
         const char *url, const char *method, const char *upload_data,
         size_t *upload_data_size) {
 
-    shared_ptr<RingbufferHandler> rbh(new RingbufferHandler(1024*1024*4, 1024*1024*4));
+    // No read buffer
+    shared_ptr<RingbufferHandler> rbh(new RingbufferHandler(0, k_n_h_r_ringbuf_size));
 
     Kis_Net_Httpd_Ringbuf_Stream_Aux *aux = 
         new Kis_Net_Httpd_Ringbuf_Stream_Aux(this, connection, rbh, NULL, NULL);
@@ -1198,5 +1199,30 @@ int Kis_Net_Httpd_Ringbuf_Stream_Handler::Httpd_HandlePostRequest(Kis_Net_Httpd 
         const char *url, const char *method, const char *upload_data,
         size_t *upload_data_size) {
 
+    // No read, default write
+    shared_ptr<RingbufferHandler> rbh(new RingbufferHandler(0, k_n_h_r_ringbuf_size));
+
+    Kis_Net_Httpd_Ringbuf_Stream_Aux *aux = 
+        new Kis_Net_Httpd_Ringbuf_Stream_Aux(this, connection, rbh, NULL, NULL);
+
+    // Create the output buffer and set it to block
+    aux->aux = new RingbufferHandlerOStreambuf(rbh, true);
+
+    connection->custom_extension = aux;
+
+    // Call the post complete and populate our stream
+    Httpd_PostComplete(connection);
+
+    if (connection->response == NULL) {
+        connection->response = 
+            MHD_create_response_from_callback(MHD_SIZE_UNKNOWN, 32 * 1024,
+                    &ringbuf_event_cb, aux, &free_ringbuf_aux_callback);
+
+        return httpd->SendStandardHttpResponse(httpd, connection, url);
+    }
+
+    return MHD_YES;
+
     return -1;
 }
+
