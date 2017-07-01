@@ -29,3 +29,7 @@ kismet_server
 
 # Plugin stuff
 plugin-*/*.so
+
+# Packaging
+!packaging/centos/el7/Makefile
+packaging/centos/el7/kismet-git.spec
