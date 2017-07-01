@@ -32,3 +32,4 @@ plugin-*/*.so
 
 # Allow for packaging
 !packaging/centos/el7/Makefile
+packaging/centos/el7/kismet-git.spec
