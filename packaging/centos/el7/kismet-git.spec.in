@@ -62,5 +62,5 @@ exit 0
 /usr/share/kismet/httpd/*
 
 %changelog
-* Sun Jun 18 2017 Michael Hubbard <mhubbard@binarygrove.com>
-- Initial RPM package.
+* Sat Jul 01 2017 Michael Hubbard <mhubbard@binarygrove.com>
+- Initial RPM spec file.

@@ -13,6 +13,7 @@ Source: https://kismetwireless.net/code/kismet-%{major}-%{minor}-R%{micro}.tar.x
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 BuildRequires: ncurses-devel libpcap-devel libnl-devel pcre-devel bluez-libs-devel libcap-devel 
 Requires: bluez-libs libnl libpcap libcap
+Requires(pre): shadow-utils
 Provides: kismet
 Conflicts: kismet-git
 
@@ -73,5 +74,5 @@ getent group kismet >/dev/null || groupadd -r kismet
 /usr/lib64/kismet_client/spectools_ui.so
 
 %changelog
-* Sun Jun 18 2017 Michael Hubbard <mhubbard@binarygrove.com> - 2016-07-R1
-- Initial RPM sepcificaton.
+* Sat Jul 01 2017 Michael Hubbard <mhubbard@binarygrove.com> - 2016-07-R1
+- Initial RPM spec file.
