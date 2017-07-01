@@ -30,6 +30,6 @@ kismet_server
 # Plugin stuff
 plugin-*/*.so
 
-# Allow for packaging
+# Packaging
 !packaging/centos/el7/Makefile
 packaging/centos/el7/kismet-git.spec
