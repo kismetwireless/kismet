@@ -29,3 +29,6 @@ kismet_server
 
 # Plugin stuff
 plugin-*/*.so
+
+# Allow for packaging
+!packaging/centos/el7/Makefile
