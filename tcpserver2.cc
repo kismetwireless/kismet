@@ -157,6 +157,17 @@ int TcpServerV2::Poll(fd_set& in_rset, fd_set& in_wset) {
     if (!valid)
         return -1;
 
+    // Reap any pending closures
+    for (auto i = kill_map.begin(); i != kill_map.end(); ++i) {
+        auto h = handler_map.find(i->first);
+        
+        if (h != kill_map.end()) {
+            close(h->first);
+            handler_map.erase(h);
+        }
+    }
+    kill_map.clear();
+
     int accept_fd = 0;
     if (server_fd >= 0 && FD_ISSET(server_fd, &in_rset)) {
         if ((accept_fd = AcceptConnection()) <= 0)
@@ -178,17 +189,6 @@ int TcpServerV2::Poll(fd_set& in_rset, fd_set& in_wset) {
 
         NewConnection(con_handler);
     }
-
-    // Reap any pending closures
-    for (auto i = kill_map.begin(); i != kill_map.end(); ++i) {
-        auto h = handler_map.find(i->first);
-        
-        if (h != kill_map.end()) {
-            close(h->first);
-            handler_map.erase(h);
-        }
-    }
-    kill_map.clear();
 
     for (auto i = handler_map.begin(); i != handler_map.end(); ++i) {
         // Process incoming data

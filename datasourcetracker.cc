@@ -1062,25 +1062,23 @@ void Datasourcetracker::queue_dead_remote(dst_incoming_remote *in_dead) {
             return;
     }
 
-    if (remote_complete_timer > 0) {
-        timetracker->RemoveTimer(remote_complete_timer);
+    if (remote_complete_timer <= 0) {
+        remote_complete_timer =
+            timetracker->RegisterTimer(1, NULL, 0, 
+                [this] (int) -> int {
+                    local_locker lock(&dst_lock);
+
+                    fprintf(stderr, "debug - cleaning up remote connections\n");
+                    
+                    for (auto x : dst_remote_complete_vec) {
+                        delete(x);
+                    }
+
+                    dst_remote_complete_vec.clear();
+
+                    return 0;
+                });
     }
-
-    remote_complete_timer =
-        timetracker->RegisterTimer(1, NULL, 0, 
-            [this] (int) -> int {
-                local_locker lock(&dst_lock);
-
-                fprintf(stderr, "debug - cleaning up remote connections\n");
-                
-                for (auto x : dst_remote_complete_vec) {
-                    delete(x);
-                }
-
-                dst_remote_complete_vec.clear();
-
-                return 0;
-            });
 
 }
 
@@ -1788,12 +1786,12 @@ void dst_incoming_remote::kill() {
         timetracker->RemoveTimer(timerid);
 
     if (rbuf_handler != NULL) {
-        fprintf(stderr, "debug - dst incoming kill() sending protocol error\n");
-        rbuf_handler->ProtocolError();
+        // fprintf(stderr, "debug - dst incoming kill() sending protocol error\n");
         rbuf_handler->RemoveReadBufferInterface();
+        rbuf_handler->ProtocolError();
         rbuf_handler = NULL;
     } else {
-        fprintf(stderr, "debug - dst incoming rbuf handler null\n");
+        // fprintf(stderr, "debug - dst incoming rbuf handler null\n");
     }
 
     shared_ptr<Datasourcetracker> datasourcetracker =
