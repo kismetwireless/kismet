@@ -404,6 +404,17 @@ int Alertracker::ActivateConfiguredAlert(string in_header, string in_desc, int i
 						 rec->burst_unit, rec->limit_burst, in_phy);
 }
 
+int Alertracker::FindActivatedAlert(string in_header) {
+    local_locker lock(&alert_mutex);
+
+    for (auto x : alert_ref_map) {
+        if (x.second->get_header() == in_header)
+            return x.first;
+    }
+
+    return -1;
+}
+
 bool Alertracker::Httpd_VerifyPath(const char *path, const char *method) {
     if (!Httpd_CanSerialize(path))
         return false;

@@ -337,6 +337,9 @@ public:
 	int ActivateConfiguredAlert(string in_header, string in_desc);
 	int ActivateConfiguredAlert(string in_header, string in_desc, int in_phy);
 
+    // Find an activated alert
+    int FindActivatedAlert(string in_header);
+
     virtual bool Httpd_VerifyPath(const char *path, const char *method);
 
     virtual void Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
