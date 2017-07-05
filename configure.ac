@@ -228,6 +228,7 @@ AC_CHECK_HEADERS([errno.h stdlib.h string.h sys/socket.h sys/time.h sys/wait.h u
 	AC_MSG_ERROR(Missing required system header))
 
 AC_CHECK_HEADERS([getopt.h])
+AC_CHECK_HEADERS([glob.h])
 
 AC_CHECK_LIB([dw], [dwarf_begin], HAVE_LIBDW=1)
 AC_CHECK_LIB([bfd], [bfd_alloc], HAVE_LIBBFD=1)

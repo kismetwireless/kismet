@@ -5673,6 +5673,18 @@ fi
 
 done
 
+for ac_header in glob.h
+do :
+  ac_fn_cxx_check_header_mongrel "$LINENO" "glob.h" "ac_cv_header_glob_h" "$ac_includes_default"
+if test "x$ac_cv_header_glob_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_GLOB_H 1
+_ACEOF
+
+fi
+
+done
+
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for dwarf_begin in -ldw" >&5
 $as_echo_n "checking for dwarf_begin in -ldw... " >&6; }

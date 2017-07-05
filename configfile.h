@@ -74,6 +74,7 @@ protected:
 
     // Internal non-locking versions for use when parsing configs ourselves
     int ParseConfig_nl(const char *in_fname);
+    void ParseOptInclude(const string path);
     string ExpandLogPath_nl(string path, string logname, string type, 
             int start, int overwrite = 0);
 

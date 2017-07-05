@@ -26,6 +26,8 @@
 #include <errno.h>
 #include <pthread.h>
 #include <stdexcept>
+#include <glob.h>
+#include <sys/stat.h>
 
 #include "util.h"
 
@@ -99,19 +101,19 @@ int ConfigFile::ParseConfig_nl(const char *in_fname) {
                 continue;
             }
 
-            // Handling including files
-            if (directive == "include" || directive == "opt_include") {
+            if (directive == "include") {
                 value = ExpandLogPath_nl(value, "", "", 0, 1);
 
                 sstream << "Including sub-config file: " << value;
                 _MSG(sstream.str(), MSGFLAG_INFO);
                 sstream.str("");
 
-                if (ParseConfig_nl(value.c_str()) < 0 
-                        && directive != "opt_include") {
+                if (ParseConfig_nl(value.c_str()) < 0) {
                     fclose(configf);
                     return -1;
                 }
+            } else if (directive == "opt_include") {
+                ParseOptInclude(ExpandLogPath_nl(value, "", "", 0, 1));
             } else {
                 config_entity e(value, in_fname);
                 config_map[StrLower(directive)].push_back(e);
@@ -123,6 +125,42 @@ int ConfigFile::ParseConfig_nl(const char *in_fname) {
     fclose(configf);
 
     return 1;
+}
+
+void ConfigFile::ParseOptInclude(const string path) {
+    glob_t globbed;
+    size_t i;
+    struct stat st;
+
+    stringstream sstream;
+
+    if (glob(path.c_str(), GLOB_TILDE_CHECK, NULL, &globbed) == 0) {
+        for(i=0; i<globbed.gl_pathc; i++) {
+            if (stat(globbed.gl_pathv[i], &st) != 0) {
+                continue;
+            }
+
+            if (!S_ISREG(st.st_mode)) {
+                continue;
+            }
+
+            sstream << "Loading optional sub-config file: " << globbed.gl_pathv[i];
+            _MSG(sstream.str(), MSGFLAG_INFO);
+            sstream.str("");
+
+            if (ParseConfig_nl(globbed.gl_pathv[i]) < 0) {
+                sstream << "Parsing failed for optional sub-config file: " << globbed.gl_pathv[i];
+                _MSG(sstream.str(), MSGFLAG_ERROR);
+                sstream.str("");
+            }
+        }
+    } else {
+        sstream << "Optional sub-config file not present: " << path;
+        _MSG(sstream.str(), MSGFLAG_INFO);
+        sstream.str("");
+    }
+
+    globfree(&globbed);
 }
 
 int ConfigFile::SaveConfig(const char *in_fname) {
