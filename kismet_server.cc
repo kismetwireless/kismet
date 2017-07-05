@@ -897,15 +897,15 @@ int main(int argc, char *argv[], char *envp[]) {
     // Add channel tracking
     Channeltracker_V2::create_channeltracker(globalregistry);
 
+    // Create the alert tracker
+    Alertracker::create_alertracker(globalregistry);
+
     // Add the datasource tracker
     shared_ptr<Datasourcetracker> datasourcetracker;
     datasourcetracker = Datasourcetracker::create_dst(globalregistry);
 
     if (globalregistry->fatal_condition)
         CatchShutdown(-1);
-
-    // Create the alert tracker
-    Alertracker::create_alertracker(globalregistry);
 
     if (globalregistry->fatal_condition)
         CatchShutdown(-1);

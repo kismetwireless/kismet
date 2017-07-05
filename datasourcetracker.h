@@ -404,6 +404,7 @@ public:
     void queue_dead_remote(dst_incoming_remote *in_dead);
 
 protected:
+    // Merge a source into the source list, preserving UUID and source number
     virtual void merge_source(SharedDatasource in_source);
 
     GlobalRegistry *globalreg;
@@ -436,6 +437,10 @@ protected:
 
     // Sub-workers slated for being removed
     vector<SharedDSTList> listing_complete_vec;
+
+    // Sources which could not be opened in any way and which do not have a UUID
+    // assignment (mis-defined startup sources, for instance)
+    vector<SharedDatasource> broken_source_vec;
 
     // Remote connections slated to be removed
     vector<dst_incoming_remote *> dst_remote_complete_vec;

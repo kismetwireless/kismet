@@ -169,8 +169,8 @@ int PipeClient::Poll(fd_set& in_rset, fd_set& in_wset) {
         }
     }
 
-    if (write_fd > -1 && FD_ISSET(write_fd, &in_wset)) {
-        len = handler->GetWriteBufferUsed();
+    if (write_fd > -1 && FD_ISSET(write_fd, &in_wset) && 
+            (len = handler->GetWriteBufferUsed()) > 0) {
         buf = new uint8_t[len];
 
         // Peek the data into our buffer

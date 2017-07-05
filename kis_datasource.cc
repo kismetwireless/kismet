@@ -25,6 +25,7 @@
 #include "msgpack_adapter.h"
 #include "datasourcetracker.h"
 #include "entrytracker.h"
+#include "alertracker.h"
 
 // We never instantiate from a generic tracker component or from a stored
 // record so we always re-allocate ourselves
@@ -83,6 +84,8 @@ KisDatasource::KisDatasource(GlobalRegistry *in_globalreg,
 
 KisDatasource::~KisDatasource() {
     local_eol_locker lock(&source_lock);
+
+    fprintf(stderr, "debug - ~KisDatasource\n");
 
     // Cancel any timer
     if (error_timer_id > 0)
@@ -625,6 +628,7 @@ void KisDatasource::cancel_command(uint32_t in_transaction, string in_error) {
             timetracker->RemoveTimer(cmd->timer_id);
         }
 
+        fprintf(stderr, "debug - erasing from command ack via cancel %u\n", in_transaction);
         command_ack_map.erase(i);
 
         // Cancel any callbacks, zeroing them out as we call them so they
@@ -727,6 +731,7 @@ void KisDatasource::proto_packet_probe_resp(KVmap in_kvpairs) {
         if (ci->second->probe_cb != NULL)
             ci->second->probe_cb(ci->second->transaction, 
                     get_kv_success(i->second), msg);
+        fprintf(stderr, "debug - probe resp removing command %u\n", seq);
         command_ack_map.erase(ci);
     }
 
@@ -806,14 +811,14 @@ void KisDatasource::proto_packet_open_resp(KVmap in_kvpairs) {
     uint32_t seq = get_kv_success_sequence(i->second);
     auto ci = command_ack_map.find(seq);
     if (ci != command_ack_map.end()) {
+        fprintf(stderr, "debug - trying to do something with command %u\n", seq);
         if (ci->second->open_cb != NULL)
-            ci->second->open_cb(ci->second->transaction, 
-                    get_kv_success(i->second), msg);
+            ci->second->open_cb(ci->second->transaction, get_source_running(), msg);
         command_ack_map.erase(ci);
     }
 
     // If the open failed, kill the source
-    if (!get_kv_success(i->second)) {
+    if (!get_source_running()) {
         trigger_error(msg);
         return;
     }
@@ -859,6 +864,7 @@ void KisDatasource::proto_packet_list_resp(KVmap in_kvpairs) {
     uint32_t seq = get_kv_success_sequence(i->second);
     auto ci = command_ack_map.find(seq);
     if (ci != command_ack_map.end()) {
+        fprintf(stderr, "debug - erasingcommand ack from list %u\n", seq);
         if (ci->second->list_cb != NULL)
             ci->second->list_cb(ci->second->transaction, listed_interfaces);
         command_ack_map.erase(ci);
@@ -923,6 +929,7 @@ void KisDatasource::proto_packet_configresp(KVmap in_kvpairs) {
     uint32_t seq = get_kv_success_sequence(i->second);
     auto ci = command_ack_map.find(seq);
     if (ci != command_ack_map.end()) {
+        fprintf(stderr, "debug - erasing command ack from configure %u\n", seq);
         if (ci->second->configure_cb != NULL)
             ci->second->configure_cb(seq, get_kv_success(i->second), msg);
         command_ack_map.erase(ci);
@@ -1879,9 +1886,20 @@ void KisDatasource::handle_source_error() {
     // Do nothing if we don't handle retry
     if (get_source_remote()) {
         if (get_source_running()) {
-            ss << "Source " << get_source_name() << " has encountered an error.  Remote sources "
-                "are not locally reconnected; waiting for the remote source to resume "
-                "capture.";
+            ss << "Source " << get_source_name() << " has encountered an error.  "
+                "Remote sources are not locally reconnected; waiting for the remote source "
+                "to reconnect to resume capture.";
+
+            shared_ptr<Alertracker> alertracker =
+                globalreg->FetchGlobalAs<Alertracker>("ALERTTRACKER");
+            if (alertracker == NULL) 
+                throw std::runtime_error("Missing alertracker from datasource");
+
+            int aref = alertracker->FindActivatedAlert("SOURCEERROR");
+
+            alertracker->RaiseAlert(aref, NULL, mac_addr(), mac_addr(),
+                    mac_addr(), mac_addr(), "", ss.str());
+
             _MSG(ss.str(), MSGFLAG_ERROR);
         }
 
@@ -1894,6 +1912,17 @@ void KisDatasource::handle_source_error() {
             ss << "Source " << get_source_name() << " has encountered an error but "
                 "is not configured to automatically re-try opening; it will remain "
                 "closed.";
+
+            shared_ptr<Alertracker> alertracker =
+                globalreg->FetchGlobalAs<Alertracker>("ALERTTRACKER");
+            if (alertracker == NULL) 
+                throw std::runtime_error("Missing alertracker from datasource");
+
+            int aref = alertracker->FindActivatedAlert("SOURCEERROR");
+
+            alertracker->RaiseAlert(aref, NULL, mac_addr(), mac_addr(),
+                    mac_addr(), mac_addr(), "", ss.str());
+
             _MSG(ss.str(), MSGFLAG_ERROR);
         }
 
@@ -1918,6 +1947,17 @@ void KisDatasource::handle_source_error() {
         ss << "Source " << get_source_name() << " has encountered an error. "
             "Kismet will attempt to re-open the source in 5 seconds.  (" <<
             get_source_retry_attempts() << " failures)";
+
+        shared_ptr<Alertracker> alertracker =
+            globalreg->FetchGlobalAs<Alertracker>("ALERTTRACKER");
+        if (alertracker == NULL) 
+            throw std::runtime_error("Missing alertracker from datasource");
+
+        int aref = alertracker->FindActivatedAlert("SOURCEERROR");
+
+        alertracker->RaiseAlert(aref, NULL, mac_addr(), mac_addr(),
+                mac_addr(), mac_addr(), "", ss.str());
+
         _MSG(ss.str(), MSGFLAG_ERROR);
 
         // Set a new event to try to re-open the interface

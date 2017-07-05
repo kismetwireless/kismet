@@ -26,6 +26,7 @@
 #include "messagebus.h"
 #include "globalregistry.h"
 #include "msgpack_adapter.h"
+#include "alertracker.h"
 #include "kismet_json.h"
 #include "timetracker.h"
 #include "structured.h"
@@ -321,17 +322,25 @@ Datasourcetracker::Datasourcetracker(GlobalRegistry *in_globalreg) :
     globalreg = in_globalreg;
 
     entrytracker = 
-        static_pointer_cast<EntryTracker>(globalreg->FetchGlobal("ENTRY_TRACKER"));
+        globalreg->FetchGlobalAs<EntryTracker>("ENTRY_TRACKER");
     if (entrytracker == NULL)
-        throw std::runtime_error("entrytracker not initialized before "
-                "Datasourcetracker");
+        throw std::runtime_error("entrytracker not initialized before Datasourcetracker");
 
     timetracker =
-        static_pointer_cast<Timetracker>(globalreg->FetchGlobal("TIMETRACKER"));
+        globalreg->FetchGlobalAs<Timetracker>("TIMETRACKER");
     if (timetracker == NULL)
-        throw std::runtime_error("timetracker not initialized before "
-                "Datasourcetracker");
+        throw std::runtime_error("timetracker not initialized before Datasourcetracker");
 
+    // Create an alert for source errors
+    shared_ptr<Alertracker> alertracker =
+        globalreg->FetchGlobalAs<Alertracker>("ALERTTRACKER");
+    if (alertracker == NULL)
+        throw std::runtime_error("alertracker not initialized before Datasourcetracker");
+
+    alertracker->DefineAlert("SOURCEERROR", sat_second, 1, sat_second, 10);
+    alertracker->ActivateConfiguredAlert("SOURCEERROR",
+            "A data source encountered an error.  Depending on the source configuration "
+            "Kismet may automatically attempt to re-open the source.");
 
     // Make a recursive mutex that the owning thread can lock multiple times;
     // Required to allow a timer event to reschedule itself on completion
@@ -787,7 +796,13 @@ void Datasourcetracker::open_datasource(string in_source, SharedDatasourceBuilde
                 merge_source(ds);
                 in_cb(true, "", ds);
             } else {
+                // It's 'safe' to put them in the broken source vec because all we do is
+                // clear that vector on a timer; if the source is in error state but
+                // bound elsewhere in the system it won't be removed.
+                local_locker lock(&dst_lock);
+                broken_source_vec.push_back(ds);
                 in_cb(false, reason, ds);
+                schedule_cleanup();
             }
         });
 }
@@ -874,6 +889,7 @@ void Datasourcetracker::schedule_cleanup() {
 
             probing_complete_vec.clear();
             listing_complete_vec.clear();
+            broken_source_vec.clear();
 
             return 0;
         });
