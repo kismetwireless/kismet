@@ -51,6 +51,8 @@
 <script src="/js/jquery.kismet.devicedata.js"></script>
 <script src="/js/jquery.kismet.messagebus.js"></script>
 <script src="/js/jquery.kismet.channeldisplay.js"></script>
+
+<script src="/js/kismet.ui.iconbar.js"></script>
 <script src="/js/jquery.kismet.battery.js"></script>
 <script src="/js/jquery.kismet.alert.js"></script>
 <script src="/js/jquery.kismet.auth.js"></script>
@@ -148,9 +150,38 @@ $(function() {
 
     kismet_ui.CreateDeviceTable($('#devices'));
 
+    kismet_ui_iconbar.AddIconbarItem({
+        id: 'login',
+        priority: 100,
+        createCallback: function(div) {
+            div.loginwatcher();
+        }
+    });
+
+    kismet_ui_iconbar.AddIconbarItem({
+        id: 'alert',
+        priority: 125,
+        createCallback: function(div) {
+            div.alert();
+        },
+    });
+
+    kismet_ui_iconbar.AddIconbarItem({
+        id: 'battery',
+        priority: 150,
+        createCallback: function(div) {
+            div.battery();
+        }
+    });
+
+
+    kismet_ui_iconbar.makeIconbar($('#iconbar'));
+
+    /*
     $('#topbar_alert').alert();
     $('#topbar_login').loginwatcher();
-    $('#topbar_battery').battery();
+    $('#topbar_battery').battery(); 
+    */
 
     kismet_ui.HealthCheck();
 
@@ -191,11 +222,7 @@ $(function() {
                 <div id="topbar">
                     <i id="pm_open" class="fa fa-bars k-sb-hamburger"></i>
                     <div id="topbar_title">Kismet</div>
-                    <div class="topright_holder">
-                        <div id="topbar_login"></div>
-                        <div id="topbar_alert"></div>
-                        <div id="topbar_battery"></div>
-                    </div>
+                    <div class="topright_holder" id="iconbar"></div>
                 </div>
             </div>
 
