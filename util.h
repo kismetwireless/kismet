@@ -48,6 +48,7 @@
 #include <functional>
 #include <thread>
 #include <mutex>
+#include <chrono>
 #include <condition_variable>
 
 #include <sys/time.h>
@@ -268,6 +269,9 @@ int GetLengthTagOffsets(unsigned int init_offset,
 class local_locker {
 public:
     local_locker(pthread_mutex_t *in) {
+        cpplock = NULL;
+        lock = in;
+
 #ifdef HAVE_PTHREAD_TIMELOCK
         struct timespec t;
 
@@ -275,19 +279,33 @@ public:
         t.tv_sec += 5; \
 
         if (pthread_mutex_timedlock(in, &t) != 0) {
-            throw(std::runtime_error("mutex not available w/in 5 seconds"));
+            throw(std::runtime_error("deadlocked thread: mutex not available w/in 5 seconds"));
         }
 #else
         pthread_mutex_lock(in);
 #endif
-        lock = in;
+    }
+
+    local_locker(std::recursive_timed_mutex *in) {
+        lock = NULL;
+        cpplock = in;
+        
+        if (!cpplock->try_lock_for(std::chrono::seconds(5))) {
+            throw(std::runtime_error("deadlocked thread: mutex not available w/in 5 seconds"));
+        }
     }
 
     ~local_locker() {
-        pthread_mutex_unlock(lock);
+        if (lock != NULL)
+            pthread_mutex_unlock(lock);
+        else if (cpplock != NULL)
+            cpplock->unlock();
     }
+
 protected:
     pthread_mutex_t *lock;
+    std::recursive_timed_mutex *cpplock;
+
 };
 
 // Act as a scoped locker on a mutex that never expires; used for performing
