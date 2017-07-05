@@ -31,27 +31,44 @@
 #include "ringbuf2.h"
 #include "util.h"
 
-class RingbufferInterface;
+class BufferInterface;
 
-// Common handler for a ringbuffer, which allows a simple standardized interface
-// to the buffer when data is added.
+// Common minimal API for a buffer
+class CommonBuffer {
+public:
+    CommonBuffer(size_t in_sz);
+    virtual ~CommonBuffer();
+
+    virtual void clear();
+
+    virtual size_t size();
+    virtual size_t available();
+    virtual size_t used();
+
+    virtual size_t write(unsigned char *data, size_t in_sz);
+
+    virtual size_t consume(size_t in_sz);
+
+// Common handler for a buffer, which allows a simple standardized interface
+// to the buffer when data is added.  Typically used with a Ringbuffer or a 
+// Chainbuffer (When using a chainbuffer, be aware of the chainbuf limitations)
 //
 // Anything that handles async / nonblocking data can use this interface.
 // 
-// Network servers and consumers should communicate by defining ringbuffer
+// Network servers and consumers should communicate by defining buffer
 // interfaces
 //
-// Typically a ringbuffer handler is created for each async communication task
+// Typically a buffer handler is created for each async communication task
 // (ie client connection, server socket, serial port, etc) and connected to 
 // the low-level IO driver (often a Pollable) which reads and writes directly
-// to the ring buffers.  The Ringbuffer Handler then automatically calls bound 
+// to the ring buffers.  The buffer handler then automatically calls bound 
 // handlers for read/write events.
 //
-class RingbufferHandler {
+template<class B> class BufferHandler {
 public:
     // For one-way buffers, define a buffer as having a size of zero
-    RingbufferHandler(size_t r_buffer_sz, size_t w_buffer_sz);
-    virtual ~RingbufferHandler();
+    BufferHandler(size_t r_buffer_sz, size_t w_buffer_sz);
+    virtual ~BufferHandler();
 
     // Basic size ops
     size_t GetReadBufferSize();
@@ -86,8 +103,8 @@ public:
     size_t PutWriteBufferData(void *in_ptr, size_t in_sz, bool in_atomic);
 
     // Set interface callbacks to be called when we have data in the buffers
-    void SetReadBufferInterface(RingbufferInterface *in_interface);
-    void SetWriteBufferInterface(RingbufferInterface *in_interface);
+    void SetReadBufferInterface(BufferInterface *in_interface);
+    void SetWriteBufferInterface(BufferInterface *in_interface);
 
     void RemoveReadBufferInterface();
     void RemoveWriteBufferInterface();
@@ -116,12 +133,12 @@ public:
 
 protected:
 
-    RingbufV2 *read_buffer;
-    RingbufV2 *write_buffer;
+    B *read_buffer;
+    B *write_buffer;
 
     // Interfaces we notify when there has been activity on a buffer
-    RingbufferInterface *wbuf_notify;
-    RingbufferInterface *rbuf_notify;
+    BufferInterface *wbuf_notify;
+    BufferInterface *rbuf_notify;
 
     pthread_mutex_t handler_locker;
     pthread_mutex_t r_callback_locker;
@@ -133,22 +150,22 @@ protected:
     function<void (size_t)> writebuf_drain_cb;
 };
 
-// A C++ streambuf-compatible wrapper around a ringbuf handler
-struct RingbufferHandlerOStreambuf : public std::streambuf {
-    RingbufferHandlerOStreambuf(shared_ptr<RingbufferHandler> in_rbhandler) :
+// A C++ streambuf-compatible wrapper around a buf handler
+template<class B> struct BufferHandlerOStreambuf : public std::streambuf {
+    BufferHandlerOStreambuf(shared_ptr<BufferHandler<B> > in_rbhandler) :
         rb_handler(in_rbhandler), blocking(false) { }
-    RingbufferHandlerOStreambuf(shared_ptr<RingbufferHandler> in_rbhandler, bool in_blocking) :
+    BufferHandlerOStreambuf(shared_ptr<BufferHandler<B> > in_rbhandler, bool in_blocking) :
         rb_handler(in_rbhandler), blocking(in_blocking) { }
 
-    virtual ~RingbufferHandlerOStreambuf();
+    virtual ~BufferHandlerOStreambuf();
 
 protected:
     std::streamsize xsputn(const char_type *s, std::streamsize n) override;
     int_type overflow(int_type ch) override;
 
 private:
-    // Ringbuf handler we bind to
-    shared_ptr<RingbufferHandler> rb_handler;
+    // buf handler we bind to
+    shared_ptr<BufferHandler> rb_handler;
 
     // Do we block when buffer is full?
     bool blocking;
@@ -158,11 +175,11 @@ private:
 };
 
 
-// Ringbuffer interface, interacts with a ringbuffer handler 
-class RingbufferInterface {
+// buffer interface, interacts with a buffer handler 
+class BufferInterface {
 public:
-    RingbufferInterface();
-    virtual ~RingbufferInterface();
+    BufferInterface();
+    virtual ~BufferInterface();
 
     // Called when the linked buffer grows
     virtual void BufferAvailable(size_t in_amt) = 0;
@@ -171,7 +188,7 @@ public:
     virtual void BufferError(string in_error __attribute__((unused))) { }
 
 protected:
-    RingbufferHandler *ringbuffer_handler;
+    BufferHandler *buffer_handler;
     bool read_handler;
     bool write_handler;
 };
