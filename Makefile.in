@@ -26,7 +26,7 @@ BUILD_CAPTURE_LINUX_WIFI = @BUILD_CAPTURE_LINUX_WIFI@
 DATASOURCE_BINS = @DATASOURCE_BINS@
 
 PSO	= util.o cygwin_utils.o globalregistry.o \
-	pollabletracker.o ringbuf2.o ringbuf_handler.o \
+	pollabletracker.o ringbuf2.o ringbuf_handler.o chainbuf.o \
 	packet.o messagebus.o configfile.o getopt.o filtercore.o \
 	psutils.o battery.o kismet_json.o \
 	tcpserver2.o tcpclient2.o serialclient2.o pipeclient.o ipc_remote2.o \
