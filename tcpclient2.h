@@ -27,20 +27,20 @@
 
 #include "messagebus.h"
 #include "globalregistry.h"
-#include "ringbuf_handler.h"
+#include "buffer_handler.h"
 #include "pollable.h"
 
 // New TCP client code.
 //
 // This code replaces tcpclient and clinetframework with a cleaner TCP implementation
-// which interacts with a ringbufferhandler
+// which interacts with a bufferhandler
 //
-// We don't have to implement a ringbuffer interface directly, because we check the
-// write buffer during the poll() sequence.  The consumer will use the ringbuffer
+// We don't have to implement a buffer interface directly, because we check the
+// write buffer during the poll() sequence.  The consumer will use the buffer
 // interface for reading data coming in from the client.
 class TcpClientV2 : public Pollable {
 public:
-    TcpClientV2(GlobalRegistry *in_globalreg, RingbufferHandler *in_rbhandler);
+    TcpClientV2(GlobalRegistry *in_globalreg, BufferHandlerGeneric *in_rbhandler);
     virtual ~TcpClientV2();
 
     // Connect to a host, returns 0 if connection initiated and negative if fail
@@ -55,7 +55,7 @@ public:
 
 protected:
     GlobalRegistry *globalreg;
-    RingbufferHandler *handler;
+    BufferHandlerGeneric *handler;
 
     bool pending_connect;
     bool connected;

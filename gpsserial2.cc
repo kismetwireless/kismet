@@ -113,7 +113,7 @@ int GPSSerialV2::OpenGps(string in_opts) {
         name = proto_device;
 
     // We never write to a serial gps so don't make a write buffer
-    serialhandler = new RingbufferHandler(2048, 0);
+    serialhandler = new BufferHandler<RingbufV2>(2048, 0);
     // Set the read handler to us
     serialhandler->SetReadBufferInterface(this);
     // Link it to a serial port
@@ -200,7 +200,7 @@ void GPSSerialV2::BufferAvailable(size_t in_amt) {
 
 	for (unsigned int it = 0; it < inptok.size(); it++) {
         // Consume the data from the ringbuffer
-        serialhandler->GetReadBufferData(NULL, inptok[it].length() + 1);
+        serialhandler->ConsumeReadBufferData(inptok[it].length() + 1);
 
 		if (inptok[it].length() < 4)
 			continue;

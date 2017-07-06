@@ -154,7 +154,17 @@ template<class B>
 class BufferHandler : public BufferHandlerGeneric {
 public:
     // For one-way buffers, define a buffer as having a size of zero
-    BufferHandler(size_t r_buffer_sz, size_t w_buffer_sz);
+    BufferHandler(size_t r_buffer_sz, size_t w_buffer_sz) {
+        if (r_buffer_sz != 0)
+            read_buffer = new B(r_buffer_sz);
+        else
+            read_buffer = NULL;
+
+        if (w_buffer_sz != 0)
+            write_buffer = new B(w_buffer_sz);
+        else
+            write_buffer = NULL;
+    }
 };
 
 // A C++ streambuf-compatible wrapper around a buf handler
@@ -195,7 +205,7 @@ public:
     virtual void BufferError(string in_error __attribute__((unused))) { }
 
 protected:
-    BufferHandler *buffer_handler;
+    BufferHandlerGeneric *buffer_handler;
     bool read_handler;
     bool write_handler;
 };

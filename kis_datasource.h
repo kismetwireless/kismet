@@ -25,7 +25,7 @@
 
 #include "globalregistry.h"
 #include "ipc_remote2.h"
-#include "ringbuf_handler.h"
+#include "buffer_handler.h"
 #include "uuid.h"
 #include "gps_manager.h"
 #include "packet.h"
@@ -48,7 +48,7 @@ class KisDatasourceCapKeyedObject;
 // Fwd def for DST
 class Datasourcetracker;
 
-class KisDatasource : public tracker_component, public RingbufferInterface {
+class KisDatasource : public tracker_component, public BufferInterface {
 public:
     // Initialize and tell us what sort of builder
     KisDatasource(GlobalRegistry *in_globalreg, SharedDatasourceBuilder in_builder);
@@ -125,11 +125,11 @@ public:
             unsigned int in_transaction, configure_callback_t in_cb);
 
 
-    // Connect an interface to a pre-existing ringbuffer (such as from a TCP server
+    // Connect an interface to a pre-existing buffer (such as from a TCP server
     // connection); This doesn't require async because we're just binding the
-    // interface; anything we do with the ringbuffer is itself async in the
+    // interface; anything we do with the buffer is itself async in the
     // future however
-    virtual void connect_ringbuffer(shared_ptr<RingbufferHandler> in_ringbuf,
+    virtual void connect_buffer(shared_ptr<BufferHandlerGeneric> in_ringbuf,
             string in_definition, open_callback_t in_cb);
 
 
@@ -155,14 +155,14 @@ public:
 
 
 
-    // Ringbuffer interface - called when the attached ringbuffer has data available.
+    // Buffer interface - called when the attached ringbuffer has data available.
     // Datasources only bind to the read side of the buffer handler.  This connection
     // may be made to IPC or network, and speaks the kismet datasource simplified
     // protocol.  This function does basic framing and then calls the private 
     // hierarchy of key-value parsers.
     virtual void BufferAvailable(size_t in_amt);
 
-    // Ringbuffer interface - handles error on IPC or TCP, called when there is a 
+    // Buffer interface - handles error on IPC or TCP, called when there is a 
     // low-level error on the communications stack (process death, etc).
     // Passes error to the the internal source_error function
     virtual void BufferError(string in_error);
@@ -240,7 +240,7 @@ public:
 
 protected:
     // Source error; sets error state, fails all pending function callbacks,
-    // shuts down the ringbuffer and ipc, and initiates retry if we retry errors
+    // shuts down the buffer and ipc, and initiates retry if we retry errors
     virtual void trigger_error(string in_reason);
 
 
@@ -358,9 +358,9 @@ protected:
     virtual unsigned int handle_kv_dlt(KisDatasourceCapKeyedObject *in_obj);
 
 
-    // Assemble a packet it write it out the ringbuffer, returning a command 
+    // Assemble a packet it write it out the buffer, returning a command 
     // sequence number in ret_seqno.  Returns false on low-level failure such as
-    // inability to write to the ringbuffer
+    // inability to write to the buffer
     virtual bool write_packet(string in_cmd, KVmap in_kvpairs, uint32_t &ret_seqno);
 
 
@@ -517,9 +517,9 @@ protected:
 
 
 
-    // Communications API.  We implement a ringbuffer interface and listen to the
+    // Communications API.  We implement a buffer interface and listen to the
     // incoming read buffer, we're agnostic if it's a network or IPC buffer.
-    shared_ptr<RingbufferHandler> ringbuf_handler;
+    shared_ptr<BufferHandlerGeneric> ringbuf_handler;
 
     // If we're an IPC instance, the IPC control.  The ringbuf_handler is associated
     // with the IPC instance.

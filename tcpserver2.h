@@ -38,7 +38,7 @@
 
 #include "messagebus.h"
 #include "globalregistry.h"
-#include "ringbuf_handler.h"
+#include "buffer_handler.h"
 #include "pollable.h"
 
 #ifndef MAXHOSTNAMELEN
@@ -48,7 +48,7 @@
 // New TCP server code
 //
 // This code replaces tcpserver and netframework with a cleaner TCP implementation
-// which interacts with a ringbufferhandler
+// which interacts with a bufferhandler
 
 class TcpServerV2 : public Pollable {
 public:
@@ -64,18 +64,18 @@ public:
             string in_bindaddress, vector<string> in_filtervec);
 
     virtual void KillConnection(int in_fd);
-    virtual void KillConnection(shared_ptr<RingbufferHandler> in_handler);
+    virtual void KillConnection(shared_ptr<BufferHandlerGeneric> in_handler);
 
     virtual void Shutdown();
 
-    virtual void SetRingbufSize(unsigned int in_sz);
+    virtual void SetBufferSize(unsigned int in_sz);
 
     // Pollable
     virtual int MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset);
     virtual int Poll(fd_set& in_rset, fd_set& in_wset);
    
     // Must be filled in
-    virtual void NewConnection(shared_ptr<RingbufferHandler> conn_handler) = 0;
+    virtual void NewConnection(shared_ptr<BufferHandlerGeneric> conn_handler) = 0;
 protected:
     GlobalRegistry *globalreg;
 
@@ -86,7 +86,7 @@ protected:
     virtual bool AllowConnection(int in_fd);
 
     // Allocate the connection
-    virtual shared_ptr<RingbufferHandler> AllocateConnection(int in_fd);
+    virtual shared_ptr<BufferHandlerGeneric> AllocateConnection(int in_fd);
 
     bool valid;
 
@@ -103,9 +103,9 @@ protected:
     int server_fd;
 
     // FD to handler
-    map<int, shared_ptr<RingbufferHandler> > handler_map;
+    map<int, shared_ptr<BufferHandlerGeneric> > handler_map;
 
-    map<int, shared_ptr<RingbufferHandler> > kill_map;
+    map<int, shared_ptr<BufferHandlerGeneric> > kill_map;
 
 };
 

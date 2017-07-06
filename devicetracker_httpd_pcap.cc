@@ -107,8 +107,8 @@ void Devicetracker_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
         return;
     }
 
-    Kis_Net_Httpd_Ringbuf_Stream_Aux *saux = 
-        (Kis_Net_Httpd_Ringbuf_Stream_Aux *) connection->custom_extension;
+    Kis_Net_Httpd_Buffer_Stream_Aux *saux = 
+        (Kis_Net_Httpd_Buffer_Stream_Aux *) connection->custom_extension;
       
     // Filter based on the device key
     Pcap_Stream_Ringbuf *psrb = new Pcap_Stream_Ringbuf(http_globalreg,
@@ -132,10 +132,10 @@ void Devicetracker_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
         static_pointer_cast<StreamTracker>(http_globalreg->FetchGlobal("STREAMTRACKER"));
 
     saux->set_aux(psrb, 
-        [psrb, streamtracker](Kis_Net_Httpd_Ringbuf_Stream_Aux *aux) {
+        [psrb, streamtracker](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
             streamtracker->remove_streamer(psrb->get_stream_id());
             if (aux->aux != NULL) {
-                delete (Kis_Net_Httpd_Ringbuf_Stream_Aux *) (aux->aux);
+                delete (Kis_Net_Httpd_Buffer_Stream_Aux *) (aux->aux);
             }
         });
 

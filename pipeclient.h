@@ -27,7 +27,7 @@
 
 #include "messagebus.h"
 #include "globalregistry.h"
-#include "ringbuf_handler.h"
+#include "buffer_handler.h"
 #include "pollable.h"
 
 // Pipe client code for communicating with another process
@@ -41,7 +41,7 @@
 // or write directly but consumes out of the handler
 class PipeClient : public Pollable {
 public:
-    PipeClient(GlobalRegistry *in_globalreg, shared_ptr<RingbufferHandler> in_rbhandler);
+    PipeClient(GlobalRegistry *in_globalreg, shared_ptr<BufferHandlerGeneric> in_rbhandler);
     virtual ~PipeClient();
 
     // Bind to a r/w pair of pipes
@@ -58,7 +58,7 @@ protected:
     pthread_mutex_t pipe_lock;
 
     GlobalRegistry *globalreg;
-    shared_ptr<RingbufferHandler> handler;
+    shared_ptr<BufferHandlerGeneric> handler;
 
     int read_fd, write_fd;
 };

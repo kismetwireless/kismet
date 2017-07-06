@@ -896,10 +896,10 @@ void Datasourcetracker::schedule_cleanup() {
     //fprintf(stderr, "debug - dst scheduling cleanup as %d\n", completion_cleanup_id);
 }
 
-void Datasourcetracker::NewConnection(shared_ptr<RingbufferHandler> conn_handler) {
+void Datasourcetracker::NewConnection(shared_ptr<BufferHandlerGeneric> conn_handler) {
     dst_incoming_remote *incoming = new dst_incoming_remote(globalreg, conn_handler, 
                 [this] (string in_type, string in_def, uuid in_uuid,
-                    shared_ptr<RingbufferHandler> in_handler) {
+                    shared_ptr<BufferHandlerGeneric> in_handler) {
             in_handler->RemoveReadBufferInterface();
             open_remote_datasource(in_type, in_def, in_uuid, in_handler);
         });
@@ -908,7 +908,7 @@ void Datasourcetracker::NewConnection(shared_ptr<RingbufferHandler> conn_handler
 }
 
 void Datasourcetracker::open_remote_datasource(string in_type, string in_definition,
-        uuid in_uuid, shared_ptr<RingbufferHandler> in_handler) {
+        uuid in_uuid, shared_ptr<BufferHandlerGeneric> in_handler) {
     local_locker lock(&dst_lock);
 
     // Look for an existing datasource with the same UUID
@@ -926,7 +926,7 @@ void Datasourcetracker::open_remote_datasource(string in_type, string in_definit
 
             // Generate a detached thread for joining the ring buffer
             std::thread t([this, d, in_handler, in_definition]{
-                d->connect_ringbuffer(in_handler, in_definition, NULL);
+                d->connect_buffer(in_handler, in_definition, NULL);
                 calculate_source_hopping(d);
             });
             t.detach();
@@ -948,7 +948,7 @@ void Datasourcetracker::open_remote_datasource(string in_type, string in_definit
         if (b->get_source_type() == in_type) {
             // Make a data source from the builder
             SharedDatasource ds = b->build_datasource(b);
-            ds->connect_ringbuffer(in_handler, in_definition,
+            ds->connect_buffer(in_handler, in_definition,
                 [this, ds](unsigned int, bool success, string msg) {
                     if (success)
                         merge_source(ds); 
@@ -1662,17 +1662,17 @@ void Datasourcetracker_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *htt
         // ringbuf aux; We can create our pcap ringbuf stream and attach it.
         // We need to close down the pcapringbuf during teardown.
         
-        Kis_Net_Httpd_Ringbuf_Stream_Aux *saux = 
-            (Kis_Net_Httpd_Ringbuf_Stream_Aux *) connection->custom_extension;
+        Kis_Net_Httpd_Buffer_Stream_Aux *saux = 
+            (Kis_Net_Httpd_Buffer_Stream_Aux *) connection->custom_extension;
        
         Pcap_Stream_Ringbuf *psrb = new Pcap_Stream_Ringbuf(http_globalreg,
                 saux->get_rbhandler(), NULL, NULL);
 
         saux->set_aux(psrb, 
-            [psrb, streamtracker](Kis_Net_Httpd_Ringbuf_Stream_Aux *aux) {
+            [psrb, streamtracker](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
                 streamtracker->remove_streamer(psrb->get_stream_id());
                 if (aux->aux != NULL) {
-                    delete (Kis_Net_Httpd_Ringbuf_Stream_Aux *) (aux->aux);
+                    delete (Kis_Net_Httpd_Buffer_Stream_Aux *) (aux->aux);
                 }
             });
 
@@ -1719,8 +1719,8 @@ void Datasourcetracker_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *htt
                 unsigned int dsnum = ds->get_source_number();
 
                 // Create the pcap stream and attach it to our ringbuf
-                Kis_Net_Httpd_Ringbuf_Stream_Aux *saux = 
-                    (Kis_Net_Httpd_Ringbuf_Stream_Aux *) connection->custom_extension;
+                Kis_Net_Httpd_Buffer_Stream_Aux *saux = 
+                    (Kis_Net_Httpd_Buffer_Stream_Aux *) connection->custom_extension;
 
                 // Fetch the datasource component and compare *source numbers*, not
                 // actual UUIDs - a UUID compare is expensive, a numeric compare is not!
@@ -1742,10 +1742,10 @@ void Datasourcetracker_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *htt
 
 
                 saux->set_aux(psrb, 
-                    [psrb, streamtracker](Kis_Net_Httpd_Ringbuf_Stream_Aux *aux) {
+                    [psrb, streamtracker](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
                         streamtracker->remove_streamer(psrb->get_stream_id());
                         if (aux->aux != NULL) {
-                            delete (Kis_Net_Httpd_Ringbuf_Stream_Aux *) (aux->aux);
+                            delete (Kis_Net_Httpd_Buffer_Stream_Aux *) (aux->aux);
                         }
                     });
 
@@ -1762,8 +1762,8 @@ void Datasourcetracker_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *htt
 }
 
 dst_incoming_remote::dst_incoming_remote(GlobalRegistry *in_globalreg,
-        shared_ptr<RingbufferHandler> in_rbufhandler,
-        function<void (string, string, uuid, shared_ptr<RingbufferHandler>)> in_cb) {
+        shared_ptr<BufferHandlerGeneric> in_rbufhandler,
+        function<void (string, string, uuid, shared_ptr<BufferHandlerGeneric>)> in_cb) {
     
     globalreg = in_globalreg;
     rbuf_handler = in_rbufhandler;

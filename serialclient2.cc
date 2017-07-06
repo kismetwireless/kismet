@@ -31,7 +31,7 @@
 #include "pollabletracker.h"
 
 SerialClientV2::SerialClientV2(GlobalRegistry *in_globalreg, 
-        RingbufferHandler *in_rbhandler) {
+        BufferHandlerGeneric *in_rbhandler) {
     globalreg = in_globalreg;
     handler = in_rbhandler;
 

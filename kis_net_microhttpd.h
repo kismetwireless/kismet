@@ -31,11 +31,12 @@
 #include <sstream>
 #include <pthread.h>
 #include <microhttpd.h>
+#include <memory>
 
 #include "globalregistry.h"
 #include "trackedelement.h"
 #include "ringbuf2.h"
-#include "ringbuf_handler.h"
+#include "buffer_handler.h"
 
 class Kis_Net_Httpd;
 class Kis_Net_Httpd_Session;
@@ -178,23 +179,23 @@ public:
             size_t *upload_data_size, std::stringstream &stream);
 };
 
-// A ringbuf-based stream handler which will continually stream output from
-// the ringbuffer to the HTTP connection
+// A buffer-based stream handler which will continually stream output from
+// the buffer to the HTTP connection
 //
-// Because this is a long-running handler, it must track the ringbuffer state
+// Because this is a long-running handler, it must track the buffer state
 // inside a connection object.
-class Kis_Net_Httpd_Ringbuf_Stream_Handler : public Kis_Net_Httpd_Handler {
+class Kis_Net_Httpd_Buffer_Stream_Handler : public Kis_Net_Httpd_Handler {
 public:
-    Kis_Net_Httpd_Ringbuf_Stream_Handler() : Kis_Net_Httpd_Handler() {
+    Kis_Net_Httpd_Buffer_Stream_Handler() : Kis_Net_Httpd_Handler() {
         // Default rb size
         k_n_h_r_ringbuf_size = 1024*1024*4;
     }
-    Kis_Net_Httpd_Ringbuf_Stream_Handler(GlobalRegistry *in_globalreg) :
+    Kis_Net_Httpd_Buffer_Stream_Handler(GlobalRegistry *in_globalreg) :
         Kis_Net_Httpd_Handler(in_globalreg) { 
         // Default rb size
         k_n_h_r_ringbuf_size = 1024*1024*4;
     };
-    virtual ~Kis_Net_Httpd_Ringbuf_Stream_Handler();
+    virtual ~Kis_Net_Httpd_Buffer_Stream_Handler();
 
     virtual int Httpd_HandleGetRequest(Kis_Net_Httpd *httpd,
             Kis_Net_Httpd_Connection *connection,
@@ -219,36 +220,52 @@ public:
     virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *con __attribute__((unused))) = 0;
 
     // Called by microhttpd during servicing a connecting; cls is a 
-    // kis_net_httpd_ringbuf_stream_aux which contains all our references to
-    // this class instance, the ringbuf streams, etc.  Locks waiting for the
-    // ringbuf to have data available to write.
-    static ssize_t ringbuf_event_cb(void *cls, uint64_t pos, char *buf, size_t max);
+    // kis_net_httpd_buffer_stream_aux which contains all our references to
+    // this class instance, the buf streams, etc.  Locks waiting for the
+    // buf to have data available to write.
+    static ssize_t buffer_event_cb(void *cls, uint64_t pos, char *buf, size_t max);
 
-    virtual void Httpd_Set_Ringbuf_Size(size_t in_sz) {
+    virtual void Httpd_Set_Buffer_Size(size_t in_sz) {
         k_n_h_r_ringbuf_size = in_sz;
     }
 
 protected:
+    virtual shared_ptr<BufferHandlerGeneric> allocate_buffer() = 0;
+
     size_t k_n_h_r_ringbuf_size;
 };
 
-// A ringbuf-stream auxiliary class which is passed to the callback, added to the
+// Ringbuf-based stream handler
+class Kis_Net_Httpd_Ringbuf_Stream_Handler : public Kis_Net_Httpd_Buffer_Stream_Handler {
+public:
+    Kis_Net_Httpd_Ringbuf_Stream_Handler() : Kis_Net_Httpd_Buffer_Stream_Handler() { }
+
+    Kis_Net_Httpd_Ringbuf_Stream_Handler(GlobalRegistry *in_globalreg) :
+        Kis_Net_Httpd_Buffer_Stream_Handler(in_globalreg) { }
+
+protected:
+    virtual shared_ptr<BufferHandlerGeneric> allocate_buffer() {
+        return static_pointer_cast<BufferHandlerGeneric>(shared_ptr<BufferHandler<RingbufV2> >(new BufferHandler<RingbufV2>(0, k_n_h_r_ringbuf_size)));
+    }
+};
+
+// A buffer-stream auxiliary class which is passed to the callback, added to the
 // connection record.  This holds the per-connection states.
 //
 // Free_aux_cb is called to free any aux data added into this record; the stream_aux
 // itself will be freed by the httpd system.
-class Kis_Net_Httpd_Ringbuf_Stream_Aux : public RingbufferInterface {
+class Kis_Net_Httpd_Buffer_Stream_Aux : public BufferInterface {
 public:
-    Kis_Net_Httpd_Ringbuf_Stream_Aux(Kis_Net_Httpd_Ringbuf_Stream_Handler *in_handler,
+    Kis_Net_Httpd_Buffer_Stream_Aux(Kis_Net_Httpd_Buffer_Stream_Handler *in_handler,
             Kis_Net_Httpd_Connection *in_httpd_connection, 
-            shared_ptr<RingbufferHandler> in_ringbuf_handler,
+            shared_ptr<BufferHandlerGeneric> in_ringbuf_handler,
             void *in_aux,
-            function<void (Kis_Net_Httpd_Ringbuf_Stream_Aux *)> in_free_aux);
+            function<void (Kis_Net_Httpd_Buffer_Stream_Aux *)> in_free_aux);
 
     bool get_in_error() { return in_error; }
 
     void set_aux(void *in_aux, 
-            function<void (Kis_Net_Httpd_Ringbuf_Stream_Aux *)> in_free_aux) {
+            function<void (Kis_Net_Httpd_Buffer_Stream_Aux *)> in_free_aux) {
         aux = in_aux;
         free_aux_cb = in_free_aux;
     }
@@ -257,21 +274,21 @@ public:
     virtual void BufferAvailable(size_t in_amt);
 
     // Let the httpd callback pull the rb handler out
-    shared_ptr<RingbufferHandler> get_rbhandler() { return ringbuf_handler; }
+    shared_ptr<BufferHandlerGeneric> get_rbhandler() { return ringbuf_handler; }
 
-    // Block until data is available (called by the ringbuf_event_cb in the http
+    // Block until data is available (called by the buffer_event_cb in the http
     // session)
     void block_until_data();
 
 public:
     // Stream handler we belong to
-    Kis_Net_Httpd_Ringbuf_Stream_Handler *httpd_stream_handler;
+    Kis_Net_Httpd_Buffer_Stream_Handler *httpd_stream_handler;
 
     // kis httpd connection we belong to
     Kis_Net_Httpd_Connection *httpd_connection;
 
-    // Ringbuffer handler
-    shared_ptr<RingbufferHandler> ringbuf_handler;
+    // Buffer handler
+    shared_ptr<BufferHandlerGeneric> ringbuf_handler;
 
     // Conditional locker while waiting for the stream to have data
     shared_ptr<conditional_locker<string> > cl;
@@ -279,12 +296,12 @@ public:
     // Are we in error?
     bool in_error;
 
-    // Additional arbitrary data - Used by the ringbuf streamer to store the
-    // ringbuf processor, and by the CPP Streamer to store the streambuf
+    // Additional arbitrary data - Used by the buffer streamer to store the
+    // buffer processor, and by the CPP Streamer to store the streambuf
     void *aux;
 
     // Free function
-    function<void (Kis_Net_Httpd_Ringbuf_Stream_Aux *)> free_aux_cb;
+    function<void (Kis_Net_Httpd_Buffer_Stream_Aux *)> free_aux_cb;
 };
 
 

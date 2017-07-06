@@ -23,22 +23,23 @@
 
 #include "kis_gps.h"
 #include "timetracker.h"
-#include "ringbuf_handler.h"
+#include "buffer_handler.h"
+#include "ringbuf2.h"
 #include "globalregistry.h"
 #include "tcpclient2.h"
 #include "pollabletracker.h"
 
 // New GPSD interface
 //
-// This code uses the new ringbuffer handler interface for communicating with a 
+// This code uses the new buffer handler interface for communicating with a 
 // gpsd host
 
-class GPSGpsdV2 : public Kis_Gps, public RingbufferInterface {
+class GPSGpsdV2 : public Kis_Gps, public BufferInterface {
 public:
     GPSGpsdV2(GlobalRegistry *in_globalreg);
     virtual ~GPSGpsdV2();
 
-    // RingbufferInterface API
+    // BufferInterface API
     virtual void BufferAvailable(size_t in_amt);
 
     // Kis_GPS API
@@ -58,7 +59,7 @@ protected:
     shared_ptr<PollableTracker> pollabletracker;
 
     shared_ptr<TcpClientV2> tcpclient;
-    RingbufferHandler *tcphandler;
+    BufferHandler<RingbufV2> *tcphandler;
 
     // Device
     string host;

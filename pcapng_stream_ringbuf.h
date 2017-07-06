@@ -32,7 +32,7 @@
 #include <functional>
 
 #include "ringbuf2.h"
-#include "ringbuf_handler.h"
+#include "buffer_handler.h"
 #include "globalregistry.h"
 #include "packetchain.h"
 #include "kis_datasource.h"
@@ -128,7 +128,7 @@ typedef struct pcapng_epb pcapng_epb_t;
 class Pcap_Stream_Ringbuf : public streaming_agent {
 public:
     Pcap_Stream_Ringbuf(GlobalRegistry *in_globalreg, 
-            shared_ptr<RingbufferHandler> in_handler,
+            shared_ptr<BufferHandlerGeneric> in_handler,
             function<bool (kis_packet *)> accept_filter,
             function<kis_datachunk * (kis_packet *)> data_selector);
 
@@ -175,7 +175,7 @@ protected:
 
     shared_ptr<Packetchain> packetchain;
 
-    shared_ptr<RingbufferHandler> handler;
+    shared_ptr<BufferHandlerGeneric> handler;
 
     int packethandler_id;
     int pack_comp_linkframe, pack_comp_datasrc;

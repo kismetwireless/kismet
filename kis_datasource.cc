@@ -278,12 +278,12 @@ void KisDatasource::set_channel_hop_list(std::vector<std::string> in_chans,
             get_source_hop_offset(), in_transaction, in_cb);
 }
 
-void KisDatasource::connect_ringbuffer(shared_ptr<RingbufferHandler> in_ringbuf,
+void KisDatasource::connect_buffer(shared_ptr<BufferHandlerGeneric> in_ringbuf,
         string in_definition, open_callback_t in_cb) {
     local_locker lock(&source_lock);
 
-    if (ringbuf_handler != NULL) {
-        printf("debug - disconnecting existing ringbuffer from new remote source\n");
+    if (ringbuf_handler != NULL && ringbuf_handler != in_ringbuf) {
+        // printf("debug - disconnecting existing ringbuffer from new remote source\n");
         // ringbuf_handler->RemoveReadBufferInterface();
         // ringbuf_handler->ProtocolError();
         ringbuf_handler = NULL;
@@ -442,7 +442,7 @@ void KisDatasource::BufferAvailable(size_t in_amt __attribute__((unused))) {
         }
 
         // Consume the packet in the ringbuf 
-        ringbuf_handler->GetReadBufferData(NULL, frame_sz);
+        ringbuf_handler->ConsumeReadBufferData(frame_sz);
 
         // Extract the kv pairs
         KVmap kv_map;
@@ -2019,7 +2019,7 @@ void KisDatasource::launch_ipc() {
     set_int_source_ipc_pid(-1);
 
     // Make a new handler and new ipc.  Give a generous buffer.
-    ringbuf_handler.reset(new RingbufferHandler((128 * 1024), (128 * 1024)));
+    ringbuf_handler.reset(new BufferHandler<RingbufV2>((1024 * 1024), (1024 * 1024)));
     ringbuf_handler->SetReadBufferInterface(this);
 
     ipc_remote.reset(new IPCRemoteV2(globalreg, ringbuf_handler));

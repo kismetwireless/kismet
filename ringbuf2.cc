@@ -111,6 +111,9 @@ size_t RingbufV2::write(unsigned char *data, size_t in_sz) {
 size_t RingbufV2::peek(unsigned char *ptr, size_t in_sz) {
     local_locker lock(&buffer_locker);
 
+    if (ptr == NULL)
+        return 0;
+
     // No matter what is requested we can't read more than we have
     size_t opsize = used_nl();
 

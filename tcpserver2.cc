@@ -18,6 +18,7 @@
 
 #include "config.h"
 #include "tcpserver2.h"
+#include "ringbuf2.h"
 
 TcpServerV2::TcpServerV2(GlobalRegistry *in_globalreg) {
     globalreg = in_globalreg;
@@ -32,7 +33,7 @@ TcpServerV2::~TcpServerV2() {
     Shutdown();
 }
 
-void TcpServerV2::SetRingbufSize(unsigned int in_sz) {
+void TcpServerV2::SetBufferSize(unsigned int in_sz) {
     ringbuf_size = in_sz;
 }
 
@@ -178,7 +179,7 @@ int TcpServerV2::Poll(fd_set& in_rset, fd_set& in_wset) {
             return 0;
         }
 
-        shared_ptr<RingbufferHandler> con_handler = AllocateConnection(accept_fd);
+        shared_ptr<BufferHandlerGeneric> con_handler = AllocateConnection(accept_fd);
 
         if (con_handler == NULL) {
             KillConnection(accept_fd);
@@ -289,7 +290,7 @@ void TcpServerV2::KillConnection(int in_fd) {
     }
 }
 
-void TcpServerV2::KillConnection(shared_ptr<RingbufferHandler> in_handler) {
+void TcpServerV2::KillConnection(shared_ptr<BufferHandlerGeneric> in_handler) {
     for (auto i = handler_map.begin(); i != handler_map.end(); ++i) {
         if (i->second == in_handler) {
             kill_map.emplace(i->first, i->second);
@@ -331,7 +332,7 @@ int TcpServerV2::AcceptConnection() {
     // Nonblocking, don't clone
     fcntl(new_fd, F_SETFL, fcntl(new_fd, F_GETFL, 0) | O_NONBLOCK | FD_CLOEXEC);
 
-    // Return the new fd; it is validated elsewhere and the ringbuffer and handler
+    // Return the new fd; it is validated elsewhere and the buffer and handler
     // is made for it elsewhere
     return new_fd;
 }
@@ -371,9 +372,9 @@ bool TcpServerV2::AllowConnection(int in_fd) {
     return false;
 }
 
-shared_ptr<RingbufferHandler> TcpServerV2::AllocateConnection(int in_fd __attribute__((unused))) {
+shared_ptr<BufferHandlerGeneric> TcpServerV2::AllocateConnection(int in_fd __attribute__((unused))) {
     // Basic allocation
-    shared_ptr<RingbufferHandler> rbh(new RingbufferHandler(ringbuf_size, ringbuf_size));  
+    shared_ptr<BufferHandlerGeneric> rbh(new BufferHandler<RingbufV2>(ringbuf_size, ringbuf_size));  
 
     // Protocol errors kill the connection
     rbh->SetProtocolErrorCb([this, in_fd]() {

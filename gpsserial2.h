@@ -23,7 +23,8 @@
 
 #include "kis_gps.h"
 #include "timetracker.h"
-#include "ringbuf_handler.h"
+#include "buffer_handler.h"
+#include "ringbuf2.h"
 #include "globalregistry.h"
 #include "serialclient2.h"
 #include "pollabletracker.h"
@@ -33,12 +34,12 @@
 // This code replaces gpsserial with a new gps driver based on
 // a ringbuffer interface, serialclientv2, and new kis_gps interface.
 
-class GPSSerialV2 : public Kis_Gps, public RingbufferInterface {
+class GPSSerialV2 : public Kis_Gps, public BufferInterface {
 public:
     GPSSerialV2(GlobalRegistry *in_globalreg);
     virtual ~GPSSerialV2();
 
-    // RingbufferInterface API
+    // BufferInterface API
     virtual void BufferAvailable(size_t in_amt);
 
     // Kis_GPS Api
@@ -58,7 +59,7 @@ protected:
     shared_ptr<PollableTracker> pollabletracker;
     
     shared_ptr<SerialClientV2> serialclient;
-    RingbufferHandler *serialhandler;
+    BufferHandler<RingbufV2> *serialhandler;
 
     // Device
     string serial_device;

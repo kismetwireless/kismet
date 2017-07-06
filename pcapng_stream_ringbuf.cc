@@ -21,7 +21,7 @@
 #include "pcapng_stream_ringbuf.h"
 
 Pcap_Stream_Ringbuf::Pcap_Stream_Ringbuf(GlobalRegistry *in_globalreg,
-        shared_ptr<RingbufferHandler> in_handler,
+        shared_ptr<BufferHandlerGeneric> in_handler,
         function<bool (kis_packet *)> accept_filter,
         function<kis_datachunk * (kis_packet *)> data_selector) : streaming_agent() {
 
@@ -507,5 +507,4 @@ void Pcap_Stream_Ringbuf::handle_chain_packet(kis_packet *in_packet) {
         handler->ProtocolError();
     }
 }
-
 

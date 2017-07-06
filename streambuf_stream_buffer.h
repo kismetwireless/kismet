@@ -16,28 +16,27 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#ifndef __STREAMBUF_STREAM_RINGBUF__
-#define __STREAMBUF_STREAM_RINGBUF__
+#ifndef __STREAMBUF_STREAM_BUFFER__
+#define __STREAMBUF_STREAM_BUFFER__
 
-/* A streambuf/ostream compatible object, with optional blocking, to a ringbuf_handler
- * backed ringbuffer system.
+/* A streambuf/ostream compatible object, with optional blocking, to a buf_handler
+ * backed buffer system.
  *
  * Useful for streaming serialized data out a memory-managed HTTP connection.
  */
 
 #include "config.h"
-#include "ringbuf2.h"
-#include "ringbuf_handler.h"
+#include "buffer_handler.h"
 #include "globalregistry.h"
 #include "streamtracker.h"
 
-class Streambuf_Stream_Ringbuf : public streaming_agent {
+class Streambuf_Stream_Buffer : public streaming_agent {
 public:
-    Streambuf_Stream_Ringbuf(GlobalRegistry *in_globalreg,
-            shared_ptr<RingbufferHandler> in_handler,
+    Streambuf_Stream_Buffer(GlobalRegistry *in_globalreg,
+            shared_ptr<BufferHandlerGeneric> in_handler,
             bool in_blocking);
 
-    virtual ~Streambuf_Stream_Ringbuf();
+    virtual ~Streambuf_Stream_Buffer();
 
     virtual void stop_stream(string in_reason);
 
@@ -46,9 +45,9 @@ public:
 protected:
     GlobalRegistry *globalreg;
 
-    shared_ptr<RingbufferHandler> handler;
+    shared_ptr<BufferHandlerGeneric> handler;
 
-    RingbufferHandlerOStreambuf streambuf;
+    BufferHandlerOStreambuf streambuf;
 };
 
 #endif

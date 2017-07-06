@@ -27,20 +27,20 @@
 
 #include "messagebus.h"
 #include "globalregistry.h"
-#include "ringbuf_handler.h"
+#include "buffer_handler.h"
 #include "pollable.h"
 
 // New serial client code
 //
 // This code replaces serialclient and clinetframework with a cleaner serial
-// implementation which interacts with a ringbufferhandler
+// implementation which interacts with a bufferhandler
 //
 // This doesn't need to implement a ringbuffer interface directly because
 // it checks using the poll() sequence.  The consumer will use a rb interface
 // for reading incoming data.
 class SerialClientV2 : public Pollable {
 public:
-    SerialClientV2(GlobalRegistry *in_globalreg, RingbufferHandler *in_rbhandler);
+    SerialClientV2(GlobalRegistry *in_globalreg, BufferHandlerGeneric *in_rbhandler);
     virtual ~SerialClientV2();
 
     // Open a serial port @ a given baud rate
@@ -55,7 +55,7 @@ public:
 
 protected:
     GlobalRegistry *globalreg;
-    RingbufferHandler *handler;
+    BufferHandlerGeneric *handler;
 
     int device_fd;
 

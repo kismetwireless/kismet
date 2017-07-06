@@ -30,7 +30,7 @@
 #include "pollabletracker.h"
 
 IPCRemoteV2::IPCRemoteV2(GlobalRegistry *in_globalreg, 
-        shared_ptr<RingbufferHandler> in_rbhandler) {
+        shared_ptr<BufferHandlerGeneric> in_rbhandler) {
 
     globalreg = in_globalreg;
 

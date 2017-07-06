@@ -1093,11 +1093,11 @@ void Kis_Net_Httpd_No_Files_Handler::Httpd_CreateStreamResponse(Kis_Net_Httpd *h
     stream << "</html>";
 }
 
-Kis_Net_Httpd_Ringbuf_Stream_Aux::Kis_Net_Httpd_Ringbuf_Stream_Aux(
-        Kis_Net_Httpd_Ringbuf_Stream_Handler *in_handler,
+Kis_Net_Httpd_Buffer_Stream_Aux::Kis_Net_Httpd_Buffer_Stream_Aux(
+        Kis_Net_Httpd_Buffer_Stream_Handler *in_handler,
         Kis_Net_Httpd_Connection *in_httpd_connection,
-        shared_ptr<RingbufferHandler> in_ringbuf_handler,
-        void *in_aux, function<void (Kis_Net_Httpd_Ringbuf_Stream_Aux *)> in_free_aux) {
+        shared_ptr<BufferHandlerGeneric> in_ringbuf_handler,
+        void *in_aux, function<void (Kis_Net_Httpd_Buffer_Stream_Aux *)> in_free_aux) {
 
     httpd_stream_handler = in_handler;
     httpd_connection = in_httpd_connection;
@@ -1110,8 +1110,7 @@ Kis_Net_Httpd_Ringbuf_Stream_Aux::Kis_Net_Httpd_Ringbuf_Stream_Aux(
 
     in_error = false;
 
-    // If the ringbuffer encounters an error, unlock the variable and set the
-    // error state
+    // If the buffer encounters an error, unlock the variable and set the error state
     ringbuf_handler->SetProtocolErrorCb([this]() {
         in_error = true;
         cl->unlock("error");
@@ -1121,14 +1120,14 @@ Kis_Net_Httpd_Ringbuf_Stream_Aux::Kis_Net_Httpd_Ringbuf_Stream_Aux(
     ringbuf_handler->SetWriteBufferInterface(this);
 }
 
-void Kis_Net_Httpd_Ringbuf_Stream_Aux::BufferAvailable(size_t in_amt) {
+void Kis_Net_Httpd_Buffer_Stream_Aux::BufferAvailable(size_t in_amt) {
     // All we need to do here is unlock the conditional lock; the 
-    // ringbuf_event_cb callback will unlock and read from the buffer, then
+    // buffer_event_cb callback will unlock and read from the buffer, then
     // re-lock and block
     cl->unlock("data");
 }
 
-void Kis_Net_Httpd_Ringbuf_Stream_Aux::block_until_data() {
+void Kis_Net_Httpd_Buffer_Stream_Aux::block_until_data() {
     // Immediately return so we can flush out the buffer before we fail
     if (in_error)
         return;
@@ -1137,20 +1136,20 @@ void Kis_Net_Httpd_Ringbuf_Stream_Aux::block_until_data() {
     cl->block_until();
 }
 
-Kis_Net_Httpd_Ringbuf_Stream_Handler::~Kis_Net_Httpd_Ringbuf_Stream_Handler() {
+Kis_Net_Httpd_Buffer_Stream_Handler::~Kis_Net_Httpd_Buffer_Stream_Handler() {
 
 }
 
-ssize_t Kis_Net_Httpd_Ringbuf_Stream_Handler::ringbuf_event_cb(void *cls, uint64_t pos,
+ssize_t Kis_Net_Httpd_Buffer_Stream_Handler::buffer_event_cb(void *cls, uint64_t pos,
         char *buf, size_t max) {
-    Kis_Net_Httpd_Ringbuf_Stream_Aux *stream_aux = 
-        (Kis_Net_Httpd_Ringbuf_Stream_Aux *) cls;
+    Kis_Net_Httpd_Buffer_Stream_Aux *stream_aux = 
+        (Kis_Net_Httpd_Buffer_Stream_Aux *) cls;
 
-    shared_ptr<RingbufferHandler> rbh = stream_aux->get_rbhandler();
+    shared_ptr<BufferHandlerGeneric> rbh = stream_aux->get_rbhandler();
 
     // We get called as soon as the webserver has either a) processed our request
     // or b) sent what we gave it; we need to hold the thread until we
-    // get more data in the ringbuf, so we block until we have data
+    // get more data in the buf, so we block until we have data
     stream_aux->block_until_data();
 
     size_t buffamt = rbh->GetWriteBufferUsed();
@@ -1170,8 +1169,8 @@ ssize_t Kis_Net_Httpd_Ringbuf_Stream_Handler::ringbuf_event_cb(void *cls, uint64
     return (ssize_t) read_sz;
 }
 
-static void free_ringbuf_aux_callback(void *cls) {
-    Kis_Net_Httpd_Ringbuf_Stream_Aux *aux = (Kis_Net_Httpd_Ringbuf_Stream_Aux *) cls;
+static void free_buffer_aux_callback(void *cls) {
+    Kis_Net_Httpd_Buffer_Stream_Aux *aux = (Kis_Net_Httpd_Buffer_Stream_Aux *) cls;
 
     aux->ringbuf_handler->ProtocolError();
 
@@ -1182,16 +1181,16 @@ static void free_ringbuf_aux_callback(void *cls) {
     delete(aux);
 }
 
-int Kis_Net_Httpd_Ringbuf_Stream_Handler::Httpd_HandleGetRequest(Kis_Net_Httpd *httpd, 
+int Kis_Net_Httpd_Buffer_Stream_Handler::Httpd_HandleGetRequest(Kis_Net_Httpd *httpd, 
         Kis_Net_Httpd_Connection *connection,
         const char *url, const char *method, const char *upload_data,
         size_t *upload_data_size) {
 
     // No read buffer
-    shared_ptr<RingbufferHandler> rbh(new RingbufferHandler(0, k_n_h_r_ringbuf_size));
+    shared_ptr<BufferHandlerGeneric> rbh(allocate_buffer());
 
-    Kis_Net_Httpd_Ringbuf_Stream_Aux *aux = 
-        new Kis_Net_Httpd_Ringbuf_Stream_Aux(this, connection, rbh, NULL, NULL);
+    Kis_Net_Httpd_Buffer_Stream_Aux *aux = 
+        new Kis_Net_Httpd_Buffer_Stream_Aux(this, connection, rbh, NULL, NULL);
     connection->custom_extension = aux;
 
     Httpd_CreateStreamResponse(httpd, connection, url, method, upload_data,
@@ -1200,7 +1199,7 @@ int Kis_Net_Httpd_Ringbuf_Stream_Handler::Httpd_HandleGetRequest(Kis_Net_Httpd *
     if (connection->response == NULL) {
         connection->response = 
             MHD_create_response_from_callback(MHD_SIZE_UNKNOWN, 32 * 1024,
-                    &ringbuf_event_cb, aux, &free_ringbuf_aux_callback);
+                    &buffer_event_cb, aux, &free_buffer_aux_callback);
 
         return httpd->SendStandardHttpResponse(httpd, connection, url);
     }
@@ -1208,19 +1207,16 @@ int Kis_Net_Httpd_Ringbuf_Stream_Handler::Httpd_HandleGetRequest(Kis_Net_Httpd *
     return MHD_YES;
 }
 
-int Kis_Net_Httpd_Ringbuf_Stream_Handler::Httpd_HandlePostRequest(Kis_Net_Httpd *httpd,
+int Kis_Net_Httpd_Buffer_Stream_Handler::Httpd_HandlePostRequest(Kis_Net_Httpd *httpd,
         Kis_Net_Httpd_Connection *connection, 
         const char *url, const char *method, const char *upload_data,
         size_t *upload_data_size) {
 
     // No read, default write
-    shared_ptr<RingbufferHandler> rbh(new RingbufferHandler(0, k_n_h_r_ringbuf_size));
+    shared_ptr<BufferHandlerGeneric> rbh(allocate_buffer());
 
-    Kis_Net_Httpd_Ringbuf_Stream_Aux *aux = 
-        new Kis_Net_Httpd_Ringbuf_Stream_Aux(this, connection, rbh, NULL, NULL);
-
-    // Create the output buffer and set it to block
-    aux->aux = new RingbufferHandlerOStreambuf(rbh, true);
+    Kis_Net_Httpd_Buffer_Stream_Aux *aux = 
+        new Kis_Net_Httpd_Buffer_Stream_Aux(this, connection, rbh, NULL, NULL);
 
     connection->custom_extension = aux;
 
@@ -1230,7 +1226,7 @@ int Kis_Net_Httpd_Ringbuf_Stream_Handler::Httpd_HandlePostRequest(Kis_Net_Httpd 
     if (connection->response == NULL) {
         connection->response = 
             MHD_create_response_from_callback(MHD_SIZE_UNKNOWN, 32 * 1024,
-                    &ringbuf_event_cb, aux, &free_ringbuf_aux_callback);
+                    &buffer_event_cb, aux, &free_buffer_aux_callback);
 
         return httpd->SendStandardHttpResponse(httpd, connection, url);
     }

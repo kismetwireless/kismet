@@ -26,7 +26,7 @@
 #include <pthread.h>
 
 #include "globalregistry.h"
-#include "ringbuf_handler.h"
+#include "buffer_handler.h"
 #include "pipeclient.h"
 #include "timetracker.h"
 #include "pollabletracker.h"
@@ -39,7 +39,7 @@
  * to communicate with external capture binaries.
  *
  * Automatically creates a pipeclient to interface the IPC binary with the
- * ringbuffer handler.
+ * buffer handler.
  *
  * Automatically registers the IPC process with the IPC handler for process
  * lifecycle maintenance.
@@ -50,7 +50,7 @@ class IPCRemoteV2Tracker;
 
 class IPCRemoteV2 {
 public:
-    IPCRemoteV2(GlobalRegistry *in_globalreg, shared_ptr<RingbufferHandler> in_rbhandler);
+    IPCRemoteV2(GlobalRegistry *in_globalreg, shared_ptr<BufferHandlerGeneric> in_rbhandler);
     virtual ~IPCRemoteV2();
 
     // Add paths to look for binary in.  Paths are searched in the order
@@ -100,7 +100,7 @@ protected:
     shared_ptr<PollableTracker> pollabletracker;
 
     // Handler for proxying IPC results
-    shared_ptr<RingbufferHandler> ipchandler;
+    shared_ptr<BufferHandlerGeneric> ipchandler;
 
     // Client that reads/writes from the pipes and populates the IPC
     shared_ptr<PipeClient> pipeclient;

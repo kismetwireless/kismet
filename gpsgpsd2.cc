@@ -108,7 +108,7 @@ int GPSGpsdV2::OpenGps(string in_opts) {
 
     // GPSD network connection writes data as well as reading, but most of it is
     // inbound data
-    tcphandler = new RingbufferHandler(4096, 512);
+    tcphandler = new BufferHandler<RingbufV2>(4096, 512);
     // Set the read handler to us
     tcphandler->SetReadBufferInterface(this);
     // Link it to a tcp connection
@@ -116,7 +116,7 @@ int GPSGpsdV2::OpenGps(string in_opts) {
     tcpclient->Connect(proto_host, proto_port);
 
     // Register a pollable event
-    pollabletracker->RegisterPollable(tcpclient);
+    pollabletracker->RegisterPollable(static_pointer_cast<Pollable>(tcpclient));
 
     host = proto_host;
     port = proto_port;

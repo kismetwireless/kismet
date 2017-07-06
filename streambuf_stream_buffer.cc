@@ -16,23 +16,23 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#include "streambuf_stream_ringbuf.h"
+#include "streambuf_stream_buffer.h"
 
-Streambuf_Stream_Ringbuf::Streambuf_Stream_Ringbuf(GlobalRegistry *in_globalreg,
-        shared_ptr<RingbufferHandler> in_handler,
+Streambuf_Stream_Buffer::Streambuf_Stream_Buffer(GlobalRegistry *in_globalreg,
+        shared_ptr<BufferHandlerGeneric> in_handler,
         bool in_blocking) :
         globalreg(in_globalreg), handler(in_handler), 
         streambuf(in_handler, in_blocking) { }
 
-Streambuf_Stream_Ringbuf::~Streambuf_Stream_Ringbuf() {
+Streambuf_Stream_Buffer::~Streambuf_Stream_Buffer() {
     handler->ProtocolError();
 }
 
-void Streambuf_Stream_Ringbuf::stop_stream(string in_reason __attribute__((unused))) {
+void Streambuf_Stream_Buffer::stop_stream(string in_reason __attribute__((unused))) {
     handler->ProtocolError();
 }
 
-ostream *Streambuf_Stream_Ringbuf::get_ostream() {
+ostream *Streambuf_Stream_Buffer::get_ostream() {
     return (ostream *) &streambuf;
 }
 

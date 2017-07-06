@@ -28,7 +28,7 @@
 // Kismet as the rewrite continues
 //
 // Automatically thread locks locally to prevent multiple operations overlapping
-class RingbufV2 : CommonBuffer {
+class RingbufV2 : public CommonBuffer {
 public:
     RingbufV2(size_t in_sz);
     virtual ~RingbufV2();

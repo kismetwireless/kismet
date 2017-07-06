@@ -37,6 +37,7 @@
 #include "tcpserver2.h"
 #include "pollabletracker.h"
 #include "kis_net_microhttpd.h"
+#include "buffer_handler.h"
 
 /* Data source tracker
  *
@@ -277,16 +278,16 @@ protected:
 
 };
 
-// Intermediary ringbuffer handler which is responsible for parsing the incoming
+// Intermediary buffer handler which is responsible for parsing the incoming
 // simple packet protocol enough to get a NEWSOURCE command; The resulting source
 // type, definition, uuid, and rbufhandler is passed to the callback function; the cb
 // is responsible for looking up the type, closing the connection if it is invalid, etc.
-class dst_incoming_remote : public RingbufferInterface {
+class dst_incoming_remote : public BufferInterface {
 public:
     dst_incoming_remote(GlobalRegistry *in_globalreg, 
-            shared_ptr<RingbufferHandler> in_rbufhandler,
+            shared_ptr<BufferHandlerGeneric> in_rbufhandler,
             function<void (string srctype, string srcdef,
-                uuid srcuuid, shared_ptr<RingbufferHandler> handler)> in_cb);
+                uuid srcuuid, shared_ptr<BufferHandlerGeneric> handler)> in_cb);
     ~dst_incoming_remote();
 
     virtual void BufferAvailable(size_t in_amt);
@@ -300,10 +301,10 @@ protected:
     // Timeout for killing this connection
     int timerid;
 
-    // Ringbuf_handler we're associated with
-    shared_ptr<RingbufferHandler> rbuf_handler;
+    // buf_handler we're associated with
+    shared_ptr<BufferHandlerGeneric> rbuf_handler;
 
-    function<void (string, string, uuid, shared_ptr<RingbufferHandler> )> cb;
+    function<void (string, string, uuid, shared_ptr<BufferHandlerGeneric> )> cb;
 };
 
 // Fwd def of datasource pcap feed
@@ -367,7 +368,7 @@ public:
 
     // Try to instantiate a remote data source
     void open_remote_datasource(string in_type, string in_definition, uuid in_uuid,
-            shared_ptr<RingbufferHandler> in_handler);
+            shared_ptr<BufferHandlerGeneric> in_handler);
 
     // Find a datasource
     SharedDatasource find_datasource(uuid in_uuid);
@@ -392,7 +393,7 @@ public:
     void iterate_datasources(DST_Worker *in_worker);
 
     // TCPServerV2 API
-    virtual void NewConnection(shared_ptr<RingbufferHandler> conn_handler);
+    virtual void NewConnection(shared_ptr<BufferHandlerGeneric> conn_handler);
 
     // Parse a rate string
     double string_to_rate(string in_str, double in_default);

@@ -31,7 +31,7 @@
 #include "pollabletracker.h"
 
 TcpClientV2::TcpClientV2(GlobalRegistry *in_globalreg, 
-        RingbufferHandler *in_rbhandler) {
+        BufferHandlerGeneric *in_rbhandler) {
     globalreg = in_globalreg;
     handler = in_rbhandler;
 
@@ -266,7 +266,7 @@ int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
             }
         } else {
             // Consume whatever we managed to write
-            handler->GetWriteBufferData(NULL, iret);
+            handler->ConsumeWriteBufferData(iret);
         }
 
         delete[] buf;
