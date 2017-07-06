@@ -138,7 +138,13 @@ public:
 
 protected:
     virtual int pcapng_make_shb(string in_hw, string in_os, string in_app);
+
     virtual int pcapng_make_idb(KisDatasource *in_datasource);
+    virtual int pcapng_make_idb(unsigned int in_sourcenumber, string in_interface, 
+            string in_description, int in_dlt);
+
+    virtual int pcapng_write_packet(unsigned int in_sourcenumber, struct timeval *in_tv,
+            uint8_t *in_data, size_t in_length);
     virtual int pcapng_write_packet(kis_packet *in_packet, kis_datachunk *in_data);
 
     virtual void handle_chain_packet(kis_packet *in_packet);
