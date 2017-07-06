@@ -290,7 +290,7 @@ int Pcap_Stream_Ringbuf::pcapng_make_idb(unsigned int in_sourcenumber, string in
 }
 
 int Pcap_Stream_Ringbuf::pcapng_write_packet(unsigned int in_sourcenumber, 
-        struct timeval *in_tv, uint8_t *in_data, size_t in_length) {
+        struct timeval *in_tv, vector<data_block> in_blocks) {
     uint8_t *retbuf;
 
     // Interface ID for multiple interfaces per file
@@ -311,8 +311,14 @@ int Pcap_Stream_Ringbuf::pcapng_write_packet(unsigned int in_sourcenumber,
 
     size_t write_sz;
 
+    size_t aggregate_block_sz = 0;
+
+    for (auto db : in_blocks) {
+        aggregate_block_sz += db.len;
+    }
+
     // Pad to 32
-    data_sz += PAD_TO_32BIT(in_length);
+    data_sz += PAD_TO_32BIT(aggregate_block_sz);
 
     // Allocate an end-of-options entry
     data_sz += sizeof(pcapng_option);
@@ -344,8 +350,8 @@ int Pcap_Stream_Ringbuf::pcapng_write_packet(unsigned int in_sourcenumber,
     epb->timestamp_high = (conv_ts >> 32);
     epb->timestamp_low = conv_ts;
 
-    epb->captured_length = in_length;
-    epb->original_length = in_length;
+    epb->captured_length = aggregate_block_sz;
+    epb->original_length = aggregate_block_sz;
 
     // Write the header to the ringbuf
     write_sz = handler->PutWriteBufferData(retbuf, buf_sz, true);
@@ -360,21 +366,24 @@ int Pcap_Stream_Ringbuf::pcapng_write_packet(unsigned int in_sourcenumber,
 
     delete[] retbuf;
 
-    // Write the data to the ringbuf
-    write_sz = handler->PutWriteBufferData(in_data, in_length, true);
+    // Write all the incoming blocks sequentially
+    for (auto db : in_blocks) {
+        // Write the data to the ringbuf
+        write_sz = handler->PutWriteBufferData(db.data, db.len, true);
 
-    if (write_sz != in_length) {
-        handler->ProtocolError();
-        return -1;
+        if (write_sz != db.len) {
+            handler->ProtocolError();
+            return -1;
+        }
+
+        log_size += write_sz;
     }
-
-    log_size += write_sz;
 
     // Pad data to 32bit
     uint32_t pad = 0;
     size_t pad_sz = 0;
 
-    pad_sz = PAD_TO_32BIT(in_length) - in_length;
+    pad_sz = PAD_TO_32BIT(aggregate_block_sz) - aggregate_block_sz;
 
     if (pad_sz > 0) {
         write_sz = handler->PutWriteBufferData(&pad, pad_sz, true);
@@ -452,8 +461,10 @@ int Pcap_Stream_Ringbuf::pcapng_write_packet(kis_packet *in_packet, kis_datachun
         ng_interface_id = ds_id_rec->second;
     }
 
-    return pcapng_write_packet(ng_interface_id, &(in_packet->ts), 
-            in_data->data, in_data->length);
+    vector<data_block> blocks;
+    blocks.push_back(data_block(in_data->data, in_data->length));
+
+    return pcapng_write_packet(ng_interface_id, &(in_packet->ts), blocks);
 }
 
 // Handle a packet from the chain; given the accept_cb and selector_cb we

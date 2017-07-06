@@ -136,16 +136,33 @@ public:
 
     virtual void stop_stream(string in_reason);
 
+    struct data_block {
+        data_block(uint8_t *in_d, size_t in_l) {
+            data = in_d;
+            len = in_l;
+        }
+
+        uint8_t *data;
+        size_t len;
+    };
+
 protected:
     virtual int pcapng_make_shb(string in_hw, string in_os, string in_app);
 
+    // Create a new interface record from an existing datasource
     virtual int pcapng_make_idb(KisDatasource *in_datasource);
+
+    // Low-level datasource creation
     virtual int pcapng_make_idb(unsigned int in_sourcenumber, string in_interface, 
             string in_description, int in_dlt);
 
-    virtual int pcapng_write_packet(unsigned int in_sourcenumber, struct timeval *in_tv,
-            uint8_t *in_data, size_t in_length);
+    // Write a complete block using native headers
     virtual int pcapng_write_packet(kis_packet *in_packet, kis_datachunk *in_data);
+
+    // Low-level packet logging; accepts a vector of blocks to minimize the copying
+    // needed to append custom headers
+    virtual int pcapng_write_packet(unsigned int in_sourcenumber, struct timeval *in_tv,
+            vector<data_block> in_blocks);
 
     virtual void handle_chain_packet(kis_packet *in_packet);
 
