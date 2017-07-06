@@ -21,19 +21,11 @@
 #include <stdlib.h>
 
 #include "util.h"
-#include "ringbuf2.h"
-#include "ringbuf_handler.h"
+#include "buffer_handler.h"
 
-RingbufferHandler::RingbufferHandler(size_t r_buffer_sz, size_t w_buffer_sz) {
-    if (r_buffer_sz != 0)
-        read_buffer = new RingbufV2(r_buffer_sz);
-    else
-        read_buffer = NULL;
-
-    if (w_buffer_sz != 0)
-        write_buffer = new RingbufV2(w_buffer_sz);
-    else
-        write_buffer = NULL;
+BufferHandlerGeneric::BufferHandlerGeneric() {
+    read_buffer = NULL;
+    write_buffer = NULL;
 
     rbuf_notify = NULL;
     wbuf_notify = NULL;
@@ -48,7 +40,7 @@ RingbufferHandler::RingbufferHandler(size_t r_buffer_sz, size_t w_buffer_sz) {
     pthread_mutex_init(&w_callback_locker, &mutexattr);
 }
 
-RingbufferHandler::~RingbufferHandler() {
+BufferHandlerGeneric::~BufferHandlerGeneric() {
     local_eol_locker lock(&handler_locker);
     local_eol_locker rlock(&r_callback_locker);
     local_eol_locker wlock(&w_callback_locker);
@@ -66,7 +58,7 @@ RingbufferHandler::~RingbufferHandler() {
     pthread_mutex_destroy(&w_callback_locker);
 }
 
-size_t RingbufferHandler::GetReadBufferSize() {
+size_t BufferHandlerGeneric::GetReadBufferSize() {
     local_locker lock(&handler_locker);
 
     if (read_buffer)
@@ -75,7 +67,7 @@ size_t RingbufferHandler::GetReadBufferSize() {
     return 0;
 }
 
-size_t RingbufferHandler::GetWriteBufferSize() {
+size_t BufferHandlerGeneric::GetWriteBufferSize() {
     local_locker lock(&handler_locker);
 
     if (write_buffer)
@@ -84,7 +76,7 @@ size_t RingbufferHandler::GetWriteBufferSize() {
     return 0;
 }
 
-size_t RingbufferHandler::GetReadBufferUsed() {
+size_t BufferHandlerGeneric::GetReadBufferUsed() {
     local_locker lock(&handler_locker);
 
     if (read_buffer)
@@ -93,7 +85,7 @@ size_t RingbufferHandler::GetReadBufferUsed() {
     return 0;
 }
 
-size_t RingbufferHandler::GetWriteBufferUsed() {
+size_t BufferHandlerGeneric::GetWriteBufferUsed() {
     local_locker lock(&handler_locker);
 
     if (write_buffer)
@@ -102,7 +94,7 @@ size_t RingbufferHandler::GetWriteBufferUsed() {
     return 0;
 }
 
-size_t RingbufferHandler::GetReadBufferFree() {
+size_t BufferHandlerGeneric::GetReadBufferFree() {
     local_locker lock(&handler_locker);
 
     if (read_buffer)
@@ -111,7 +103,7 @@ size_t RingbufferHandler::GetReadBufferFree() {
     return 0;
 }
 
-size_t RingbufferHandler::GetWriteBufferFree() {
+size_t BufferHandlerGeneric::GetWriteBufferFree() {
     local_locker lock(&handler_locker);
 
     if (write_buffer)
@@ -120,7 +112,7 @@ size_t RingbufferHandler::GetWriteBufferFree() {
     return 0;
 }
 
-size_t RingbufferHandler::GetReadBufferData(void *in_ptr, size_t in_sz) {
+size_t BufferHandlerGeneric::GetReadBufferData(void *in_ptr, size_t in_sz) {
     local_locker lock(&handler_locker);
 
     if (read_buffer) {
@@ -139,7 +131,7 @@ size_t RingbufferHandler::GetReadBufferData(void *in_ptr, size_t in_sz) {
     return 0;
 }
 
-size_t RingbufferHandler::GetWriteBufferData(void *in_ptr, size_t in_sz) {
+size_t BufferHandlerGeneric::GetWriteBufferData(void *in_ptr, size_t in_sz) {
     local_locker lock(&handler_locker);
 
     if (write_buffer) {
@@ -158,7 +150,7 @@ size_t RingbufferHandler::GetWriteBufferData(void *in_ptr, size_t in_sz) {
     return 0;
 }
 
-size_t RingbufferHandler::PeekReadBufferData(void *in_ptr, size_t in_sz) {
+size_t BufferHandlerGeneric::PeekReadBufferData(void *in_ptr, size_t in_sz) {
     local_locker lock(&handler_locker);
 
     if (read_buffer)
@@ -167,7 +159,7 @@ size_t RingbufferHandler::PeekReadBufferData(void *in_ptr, size_t in_sz) {
     return 0;
 }
 
-size_t RingbufferHandler::PeekWriteBufferData(void *in_ptr, size_t in_sz) {
+size_t BufferHandlerGeneric::PeekWriteBufferData(void *in_ptr, size_t in_sz) {
     local_locker lock(&handler_locker);
 
     if (write_buffer)
@@ -176,15 +168,15 @@ size_t RingbufferHandler::PeekWriteBufferData(void *in_ptr, size_t in_sz) {
     return 0;
 }
 
-size_t RingbufferHandler::ConsumeReadBufferData(size_t in_sz) {
+size_t BufferHandlerGeneric::ConsumeReadBufferData(size_t in_sz) {
     return GetReadBufferData(NULL, in_sz);
 }
 
-size_t RingbufferHandler::ConsumeWriteBufferData(size_t in_sz) {
+size_t BufferHandlerGeneric::ConsumeWriteBufferData(size_t in_sz) {
     return GetWriteBufferData(NULL, in_sz);
 }
 
-size_t RingbufferHandler::PutReadBufferData(void *in_ptr, size_t in_sz, 
+size_t BufferHandlerGeneric::PutReadBufferData(void *in_ptr, size_t in_sz, 
         bool in_atomic) {
     size_t ret;
 
@@ -217,7 +209,7 @@ size_t RingbufferHandler::PutReadBufferData(void *in_ptr, size_t in_sz,
     return ret;
 }
     
-size_t RingbufferHandler::PutWriteBufferData(void *in_ptr, size_t in_sz,
+size_t BufferHandlerGeneric::PutWriteBufferData(void *in_ptr, size_t in_sz,
         bool in_atomic) {
     size_t ret;
 
@@ -254,7 +246,7 @@ size_t RingbufferHandler::PutWriteBufferData(void *in_ptr, size_t in_sz,
     return ret;
 }
 
-void RingbufferHandler::SetReadBufferInterface(RingbufferInterface *in_interface) {
+void BufferHandlerGeneric::SetReadBufferInterface(RingbufferInterface *in_interface) {
     local_locker lock(&r_callback_locker);
 
     rbuf_notify = in_interface;
@@ -266,7 +258,7 @@ void RingbufferHandler::SetReadBufferInterface(RingbufferInterface *in_interface
 
 }
 
-void RingbufferHandler::SetWriteBufferInterface(RingbufferInterface *in_interface) {
+void BufferHandlerGeneric::SetWriteBufferInterface(RingbufferInterface *in_interface) {
     local_locker lock(&w_callback_locker);
 
     wbuf_notify = in_interface;
@@ -277,67 +269,67 @@ void RingbufferHandler::SetWriteBufferInterface(RingbufferInterface *in_interfac
         wbuf_notify->BufferAvailable(pending);
 }
 
-void RingbufferHandler::RemoveReadBufferInterface() {
+void BufferHandlerGeneric::RemoveReadBufferInterface() {
     local_locker lock(&r_callback_locker);
     // fprintf(stderr, "debug - RBH removing read buffer interface\n");
 
     rbuf_notify = NULL;
 }
 
-void RingbufferHandler::RemoveWriteBufferInterface() {
+void BufferHandlerGeneric::RemoveWriteBufferInterface() {
     local_locker lock(&w_callback_locker);
 
     wbuf_notify = NULL;
 }
 
-void RingbufferHandler::SetReadBufferDrainCb(function<void (size_t)> in_cb) {
+void BufferHandlerGeneric::SetReadBufferDrainCb(function<void (size_t)> in_cb) {
     local_locker lock(&r_callback_locker);
 
     readbuf_drain_cb = in_cb;
 }
 
-void RingbufferHandler::SetWriteBufferDrainCb(function<void (size_t)> in_cb) {
+void BufferHandlerGeneric::SetWriteBufferDrainCb(function<void (size_t)> in_cb) {
     local_locker lock(&w_callback_locker);
 
     writebuf_drain_cb = in_cb;
 }
 
-void RingbufferHandler::RemoveReadBufferDrainCb() {
+void BufferHandlerGeneric::RemoveReadBufferDrainCb() {
     local_locker lock(&r_callback_locker);
     readbuf_drain_cb = NULL;
 }
 
-void RingbufferHandler::RemoveWriteBufferDrainCb() {
+void BufferHandlerGeneric::RemoveWriteBufferDrainCb() {
     local_locker lock(&w_callback_locker);
     writebuf_drain_cb = NULL;
 }
 
-void RingbufferHandler::BufferError(string in_error) {
+void BufferHandlerGeneric::BufferError(string in_error) {
     ReadBufferError(in_error);
     WriteBufferError(in_error);
 }
 
-void RingbufferHandler::ReadBufferError(string in_error) {
+void BufferHandlerGeneric::ReadBufferError(string in_error) {
     local_locker lock(&r_callback_locker);
 
     if (rbuf_notify)
         rbuf_notify->BufferError(in_error);
 }
 
-void RingbufferHandler::WriteBufferError(string in_error) {
+void BufferHandlerGeneric::WriteBufferError(string in_error) {
     local_locker lock(&w_callback_locker);
 
     if (wbuf_notify)
         wbuf_notify->BufferError(in_error);
 }
 
-void RingbufferHandler::SetProtocolErrorCb(function<void (void)> in_cb) {
+void BufferHandlerGeneric::SetProtocolErrorCb(function<void (void)> in_cb) {
     local_locker lock(&handler_locker);
 
     protoerror_cb = in_cb;
 }
 
-void RingbufferHandler::ProtocolError() {
+void BufferHandlerGeneric::ProtocolError() {
     local_locker lock(&handler_locker);
 
     // fprintf(stderr, "debug - RBH calling protocol error\n");
@@ -347,29 +339,42 @@ void RingbufferHandler::ProtocolError() {
 
 }
 
-RingbufferInterface::RingbufferInterface() {
-    ringbuffer_handler = NULL;
+template<class B>
+BufferHandler<B>::BufferHandler(size_t r_buffer_sz, size_t w_buffer_sz) {
+    if (r_buffer_sz != 0)
+        read_buffer = new B(r_buffer_sz);
+    else
+        read_buffer = NULL;
+
+    if (w_buffer_sz != 0)
+        write_buffer = new B(w_buffer_sz);
+    else
+        write_buffer = NULL;
+}
+
+BufferInterface::BufferInterface() {
+    buffer_handler = NULL;
     read_handler = false;
     write_handler = false;
 }
 
-RingbufferInterface::~RingbufferInterface() {
-    if (ringbuffer_handler != NULL) {
+BufferInterface::~BufferInterface() {
+    if (buffer_handler != NULL) {
         if (read_handler)
-            ringbuffer_handler->RemoveReadBufferInterface();
+            buffer_handler->RemoveReadBufferInterface();
         if (write_handler)
-            ringbuffer_handler->RemoveWriteBufferInterface();
+            buffer_handler->RemoveWriteBufferInterface();
     }
 }
 
-RingbufferHandlerOStreambuf::~RingbufferHandlerOStreambuf() {
+BufferHandlerOStreambuf::~BufferHandlerOStreambuf() {
     if (rb_handler != NULL) {
         rb_handler->RemoveWriteBufferDrainCb();
         rb_handler = NULL;
     }
 }
 
-std::streamsize RingbufferHandlerOStreambuf::xsputn(const char_type *s, std::streamsize n) {
+std::streamsize BufferHandlerOStreambuf::xsputn(const char_type *s, std::streamsize n) {
     if (rb_handler == NULL) {
         return -1;
     }
@@ -417,7 +422,7 @@ std::streamsize RingbufferHandlerOStreambuf::xsputn(const char_type *s, std::str
     return n;
 }
 
-RingbufferHandlerOStreambuf::int_type RingbufferHandlerOStreambuf::overflow(int_type ch) {
+BufferHandlerOStreambuf::int_type BufferHandlerOStreambuf::overflow(int_type ch) {
     if (rb_handler == NULL)
         return -1;
 

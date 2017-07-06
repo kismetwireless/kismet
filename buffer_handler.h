@@ -28,7 +28,6 @@
 #include <iostream>
 #include <memory>
 
-#include "ringbuf2.h"
 #include "util.h"
 
 class BufferInterface;
@@ -36,18 +35,19 @@ class BufferInterface;
 // Common minimal API for a buffer
 class CommonBuffer {
 public:
-    CommonBuffer(size_t in_sz);
-    virtual ~CommonBuffer();
+    virtual ~CommonBuffer() { };
 
-    virtual void clear();
+    virtual void clear() = 0;
 
-    virtual size_t size();
-    virtual size_t available();
-    virtual size_t used();
+    virtual size_t size() = 0;
+    virtual size_t available() = 0;
+    virtual size_t used() = 0;
 
-    virtual size_t write(unsigned char *data, size_t in_sz);
+    virtual size_t write(unsigned char *data, size_t in_sz) = 0;
 
-    virtual size_t consume(size_t in_sz);
+    virtual size_t peek(unsigned char *data, size_t in_sz) = 0;
+    virtual size_t consume(size_t in_sz) = 0;
+};
 
 // Common handler for a buffer, which allows a simple standardized interface
 // to the buffer when data is added.  Typically used with a Ringbuffer or a 
@@ -64,77 +64,77 @@ public:
 // to the ring buffers.  The buffer handler then automatically calls bound 
 // handlers for read/write events.
 //
-template<class B> class BufferHandler {
+class BufferHandlerGeneric {
 public:
-    // For one-way buffers, define a buffer as having a size of zero
-    BufferHandler(size_t r_buffer_sz, size_t w_buffer_sz);
-    virtual ~BufferHandler();
+    BufferHandlerGeneric();
+
+    virtual ~BufferHandlerGeneric();
 
     // Basic size ops
-    size_t GetReadBufferSize();
-    size_t GetWriteBufferSize();
+    virtual size_t GetReadBufferSize();
+    virtual size_t GetWriteBufferSize();
 
-    size_t GetReadBufferUsed();
-    size_t GetWriteBufferUsed();
+    virtual size_t GetReadBufferUsed();
+    virtual size_t GetWriteBufferUsed();
 
-    size_t GetReadBufferFree();
-    size_t GetWriteBufferFree();
+    virtual size_t GetReadBufferFree();
+    virtual size_t GetWriteBufferFree();
 
     // Fetch read and write buffer data, up to sz.  Consumes data from buffer.
     // Automatically triggers buffer drain callbacks
     // Returns amount read
-    size_t GetReadBufferData(void *in_ptr, size_t in_sz);
-    size_t GetWriteBufferData(void *in_ptr, size_t in_sz);
+    virtual size_t GetReadBufferData(void *in_ptr, size_t in_sz);
+    virtual size_t GetWriteBufferData(void *in_ptr, size_t in_sz);
 
     // Fetch read and write buffer data, up to in_amt.  Does not consume data.
     // Returns amount peeked
-    size_t PeekReadBufferData(void *in_ptr, size_t in_sz);
-    size_t PeekWriteBufferData(void *in_ptr, size_t in_sz);
+    virtual size_t PeekReadBufferData(void *in_ptr, size_t in_sz);
+    virtual size_t PeekWriteBufferData(void *in_ptr, size_t in_sz);
 
     // Consume data w/out copying it (used to flag data we previously peeked)
     // Automatically triggers buffer drain callbacks
-    size_t ConsumeReadBufferData(size_t in_sz);
-    size_t ConsumeWriteBufferData(size_t in_sz);
+    virtual size_t ConsumeReadBufferData(size_t in_sz);
+    virtual size_t ConsumeWriteBufferData(size_t in_sz);
 
     // Place data in read or write buffer
     // Automatically triggers callbacks
     // Returns amount of data actually written
-    size_t PutReadBufferData(void *in_ptr, size_t in_sz, bool in_atomic);
-    size_t PutWriteBufferData(void *in_ptr, size_t in_sz, bool in_atomic);
+    virtual size_t PutReadBufferData(void *in_ptr, size_t in_sz, bool in_atomic);
+    virtual size_t PutWriteBufferData(void *in_ptr, size_t in_sz, bool in_atomic);
 
     // Set interface callbacks to be called when we have data in the buffers
-    void SetReadBufferInterface(BufferInterface *in_interface);
-    void SetWriteBufferInterface(BufferInterface *in_interface);
+    virtual void SetReadBufferInterface(BufferInterface *in_interface);
+    virtual void SetWriteBufferInterface(BufferInterface *in_interface);
 
-    void RemoveReadBufferInterface();
-    void RemoveWriteBufferInterface();
+    virtual void RemoveReadBufferInterface();
+    virtual void RemoveWriteBufferInterface();
 
     // Set simple functional callbacks to be called when we drain an interface; used to
     // allow quick unlocking of blocked writers
-    void SetReadBufferDrainCb(function<void (size_t)> in_cb);
-    void SetWriteBufferDrainCb(function<void (size_t)> in_cb);
+    virtual void SetReadBufferDrainCb(function<void (size_t)> in_cb);
+    virtual void SetWriteBufferDrainCb(function<void (size_t)> in_cb);
 
-    void RemoveReadBufferDrainCb();
-    void RemoveWriteBufferDrainCb();
+    virtual void RemoveReadBufferDrainCb();
+    virtual void RemoveWriteBufferDrainCb();
 
     // Propagate a line-layer buffer error to any listeners (line IO system to interfaces)
-    void BufferError(string in_error);
+    virtual void BufferError(string in_error);
     // Propagate an error to a specific listener
-    void ReadBufferError(string in_error);
-    void WriteBufferError(string in_error);
+    virtual void ReadBufferError(string in_error);
+    virtual void WriteBufferError(string in_error);
 
     // Propagate a protocol-layer error to any line-drivers (protocol parser
     // to line drivers).  We don't pass a string to the line drivers because
     // the protocol driver should present the error usefully
-    void ProtocolError();
+    virtual void ProtocolError();
     // Set a protocol error callback; line level drivers should set this and initiate
     // a shutdown of the line connections
-    void SetProtocolErrorCb(function<void (void)> in_cb);
+    virtual void SetProtocolErrorCb(function<void (void)> in_cb);
 
 protected:
-
-    B *read_buffer;
-    B *write_buffer;
+    // Generic buffers
+    CommonBuffer *read_buffer;
+    CommonBuffer *write_buffer;
 
     // Interfaces we notify when there has been activity on a buffer
     BufferInterface *wbuf_notify;
@@ -150,11 +150,18 @@ protected:
     function<void (size_t)> writebuf_drain_cb;
 };
 
+template<class B> 
+class BufferHandler : public BufferHandlerGeneric {
+public:
+    // For one-way buffers, define a buffer as having a size of zero
+    BufferHandler(size_t r_buffer_sz, size_t w_buffer_sz);
+};
+
 // A C++ streambuf-compatible wrapper around a buf handler
-template<class B> struct BufferHandlerOStreambuf : public std::streambuf {
-    BufferHandlerOStreambuf(shared_ptr<BufferHandler<B> > in_rbhandler) :
+struct BufferHandlerOStreambuf : public std::streambuf {
+    BufferHandlerOStreambuf(shared_ptr<BufferHandlerGeneric > in_rbhandler) :
         rb_handler(in_rbhandler), blocking(false) { }
-    BufferHandlerOStreambuf(shared_ptr<BufferHandler<B> > in_rbhandler, bool in_blocking) :
+    BufferHandlerOStreambuf(shared_ptr<BufferHandlerGeneric > in_rbhandler, bool in_blocking) :
         rb_handler(in_rbhandler), blocking(in_blocking) { }
 
     virtual ~BufferHandlerOStreambuf();
@@ -165,7 +172,7 @@ protected:
 
 private:
     // buf handler we bind to
-    shared_ptr<BufferHandler> rb_handler;
+    shared_ptr<BufferHandlerGeneric > rb_handler;
 
     // Do we block when buffer is full?
     bool blocking;

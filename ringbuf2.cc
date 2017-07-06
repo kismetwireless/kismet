@@ -34,10 +34,9 @@ RingbufV2::RingbufV2(size_t in_sz) {
 }
 
 RingbufV2::~RingbufV2() {
-    {
-        local_locker lock(&buffer_locker);
-        delete[] buffer;
-    }
+    local_eol_locker lock(&buffer_locker);
+    
+    delete[] buffer;
 
     pthread_mutex_destroy(&buffer_locker);
 }
@@ -75,7 +74,7 @@ size_t RingbufV2::available_nl() {
     return buffer_sz - length;
 }
 
-size_t RingbufV2::write(void *data, size_t in_sz) {
+size_t RingbufV2::write(unsigned char *data, size_t in_sz) {
     local_locker lock(&buffer_locker);
 
     size_t copy_start;
@@ -109,48 +108,7 @@ size_t RingbufV2::write(void *data, size_t in_sz) {
     return 0;
 }
 
-size_t RingbufV2::read(void *ptr, size_t in_sz) {
-    local_locker lock(&buffer_locker);
-
-    // No matter what is requested we can't read more than we have
-    size_t opsize = used_nl();
-
-    if (opsize == 0)
-        return 0;
-
-    if (opsize > in_sz)
-        opsize = in_sz;
-
-    // Can we read contiguously?
-    if (start_pos + opsize < buffer_sz) {
-        if (ptr != NULL)
-            memcpy(ptr, buffer + start_pos, opsize);
-
-        start_pos += opsize;
-        length -= opsize;
-
-        return opsize;
-    } else {
-        // Split into chunks
-        size_t chunk_a = buffer_sz - start_pos;
-        size_t chunk_b = opsize - chunk_a;
-
-        if (ptr != NULL) {
-            memcpy(ptr, buffer + start_pos, chunk_a);
-            memcpy((uint8_t *) ptr + chunk_a, buffer, chunk_b);
-        }
-
-        // Loop the ring buffer and mark read
-        start_pos = chunk_b;
-        length -= opsize;
-
-        return opsize;
-    }
-
-    return 0;
-}
-
-size_t RingbufV2::peek(void *ptr, size_t in_sz) {
+size_t RingbufV2::peek(unsigned char *ptr, size_t in_sz) {
     local_locker lock(&buffer_locker);
 
     // No matter what is requested we can't read more than we have
@@ -174,6 +132,39 @@ size_t RingbufV2::peek(void *ptr, size_t in_sz) {
 
         memcpy(ptr, buffer + start_pos, chunk_a);
         memcpy((uint8_t *) ptr + chunk_a, buffer, chunk_b);
+
+        return opsize;
+    }
+
+    return 0;
+}
+
+size_t RingbufV2::consume(size_t in_sz) {
+    local_locker lock(&buffer_locker);
+
+    // No matter what is requested we can't read more than we have
+    size_t opsize = used_nl();
+
+    if (opsize == 0)
+        return 0;
+
+    if (opsize > in_sz)
+        opsize = in_sz;
+
+    // Can we read contiguously?
+    if (start_pos + opsize < buffer_sz) {
+        start_pos += opsize;
+        length -= opsize;
+
+        return opsize;
+    } else {
+        // Split into chunks
+        size_t chunk_a = buffer_sz - start_pos;
+        size_t chunk_b = opsize - chunk_a;
+
+        // Loop the ring buffer and mark read
+        start_pos = chunk_b;
+        length -= opsize;
 
         return opsize;
     }

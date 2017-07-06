@@ -22,33 +22,34 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <pthread.h>
+#include "buffer_handler.h"
 
 // A better ringbuffer implementation that will replace the old ringbuffer in 
 // Kismet as the rewrite continues
 //
 // Automatically thread locks locally to prevent multiple operations overlapping
-class RingbufV2 {
+class RingbufV2 : CommonBuffer {
 public:
     RingbufV2(size_t in_sz);
-    ~RingbufV2();
+    virtual ~RingbufV2();
 
     // Reset a buffer
-    void clear();
+    virtual void clear();
 
-    size_t size();
-    size_t available();
-    size_t used();
+    virtual size_t size();
+    virtual size_t available();
+    virtual size_t used();
 
     // Write data into a buffer
     // Return amount of data actually written
-    size_t write(void *in_data, size_t in_sz);
+    virtual size_t write(unsigned char *in_data, size_t in_sz);
 
     // Peek data from a buffer, up to sz
     // Peeked data is not consumed
     // Return the amount of data actually peeked
-    size_t peek(void *in_data, size_t in_sz);
+    virtual size_t peek(unsigned char *in_data, size_t in_sz);
 
-    size_t consume(size_t in_sz);
+    virtual size_t consume(size_t in_sz);
 
 protected:
     // Mutex for all operations on the buffer
