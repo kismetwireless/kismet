@@ -1064,6 +1064,7 @@ protected:
             kis_data_packinfo *pack_datainfo);
 
     void GenerateHandshakePcap(shared_ptr<kis_tracked_device_base> dev, 
+            Kis_Net_Httpd_Connection *connection,
             std::stringstream &stream);
 
     int dot11_device_entry_id;

@@ -318,6 +318,9 @@ public:
     // Cache of variables in session
     map<string, std::unique_ptr<std::stringstream> > variable_cache;
 
+    // Optional alternate filename to pass to the browser for downloading
+    string optional_filename;
+
     // HTTP code of response
     int httpcode;
 

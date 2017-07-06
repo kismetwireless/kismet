@@ -806,9 +806,23 @@ void Kis_Net_Httpd::AppendStandardHeaders(Kis_Net_Httpd *httpd,
         MHD_add_response_header(connection->response, "Content-Type", mime.c_str());
     }
 
+    // If we have an optional filename set, set our disposition type and then
+    // add the filename attribute
+    if (connection->optional_filename != "") {
+        string disp = "attachment; filename=\"" + connection->optional_filename + "\"";
+        MHD_add_response_header(connection->response, "Content-Disposition", disp.c_str());
+    }
+
     // Allow any?  This lets us handle webuis hosted elsewhere
     MHD_add_response_header(connection->response, 
             "Access-Control-Allow-Origin", "*");
+
+    // Never let the browser cache our responses.  Maybe moderate this
+    // in the future to cache for 60 seconds or something?
+    MHD_add_response_header(connection->response, "Cache-Control", "no-cache");
+    MHD_add_response_header(connection->response, "Pragma", "no-cache");
+    MHD_add_response_header(connection->response, 
+            "Expires", "Sat, 01 Jan 2000 00:00:00 GMT");
 
 }
 
