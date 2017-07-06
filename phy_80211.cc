@@ -1751,7 +1751,7 @@ bool Kis_80211_Phy::Httpd_VerifyPath(const char *path, const char *method) {
 }
 
 void Kis_80211_Phy::GenerateHandshakePcap(shared_ptr<kis_tracked_device_base> dev, 
-        std::stringstream &stream) {
+        Kis_Net_Httpd_Connection *connection, std::stringstream &stream) {
     // We need to make a temp file and then use that to make the pcap log
     int pcapfd, readfd;
     FILE *pcapw;
@@ -1795,6 +1795,17 @@ void Kis_80211_Phy::GenerateHandshakePcap(shared_ptr<kis_tracked_device_base> de
             static_pointer_cast<dot11_tracked_device>(dev->get_map_value(dot11_device_entry_id));
 
         if (dot11dev != NULL) {
+            // Make a filename
+            string dmac = dev->get_macaddr().Mac2String();
+            std::replace(dmac.begin(), dmac.end(), ':', '-');
+
+            string ssid = "";
+
+            if (dot11dev->get_last_beaconed_ssid().length() != 0) 
+                ssid = " " + dot11dev->get_last_beaconed_ssid();
+
+            connection->optional_filename = "handshake " + dmac + ssid + ".pcap";
+
             TrackerElementVector hsvec(dot11dev->get_wpa_key_vec());
 
             for (TrackerElementVector::iterator i = hsvec.begin(); 
@@ -1896,7 +1907,7 @@ void Kis_80211_Phy::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
         // It should exist and we'll handle if it doesn't in the stream
         // handler
         devicelist_scope_locker dlocker(devicetracker);
-        GenerateHandshakePcap(devicetracker->FetchDevice(dmac, phyid), stream);
+        GenerateHandshakePcap(devicetracker->FetchDevice(dmac, phyid), connection, stream);
     } else {
         stream << "Login required";
         return;

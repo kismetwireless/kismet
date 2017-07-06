@@ -545,3 +545,33 @@ kismet_ui.AddChannelList("Wi-Fi (802.11)", function(in_freq) {
 
 When using conversion functions, always return the unmodified frequency if no conversion can be found - often devices can be mixed from multiple plugins and frequencies which do not correspond to any known channel may be passed to your conversion function.
 
+## Iconbar docked icons
+
+Kismet displays widgets in the upper right in the 'icon bar'; This is where simple single-icon alert-style elements can be added, and where by default, the login status, alert icon, and battery status are displayed.
+
+Plugins may create their own tabs by calling `kismet_ui_iconbar.AddIconbarItem(...)` and passing an object dictionary containing:
+
+#### id - string (required)
+
+The ID is used to identify the iconbar item and identify the div created.
+
+#### createCallback(div) - function (required)
+
+The createCallback is called with the div created for the icon.  The createCallback can perform any actions to set up the iconbar item, including setting animations and click handlers.
+
+#### priority - integer (optional)
+
+If provided, sets the default priority in the iconbar list for the icon; plugins are encouraged to use negative numbers to place themselves to the left of the stock iconbar items.
+
+### Example iconbar item
+
+```javascript
+// Add the alert handler icon using the jquery.kismet.alert code
+kismet_ui_iconbar.AddIconbarItem({
+    id: 'alert',
+    priority: 125,
+    createCallback: function(div) {
+        div.alert();
+    },
+});
+```
