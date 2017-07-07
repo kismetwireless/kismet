@@ -5686,6 +5686,9 @@ fi
 done
 
 
+HAVE_LIBDW=0
+HAVE_LIBBFD=0
+
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for dwarf_begin in -ldw" >&5
 $as_echo_n "checking for dwarf_begin in -ldw... " >&6; }
 if ${ac_cv_lib_dw_dwarf_begin+:} false; then :
@@ -5798,6 +5801,11 @@ done
 
 fi
 
+DEF_BW_HAS_UNWIND=0
+DEF_BW_HAS_BACKTRACE=0
+
+BACKTRACE_OK=0
+
 for ac_header in unwind.h
 do :
   ac_fn_cxx_check_header_mongrel "$LINENO" "unwind.h" "ac_cv_header_unwind_h" "$ac_includes_default"
@@ -5845,7 +5853,6 @@ else
 $as_echo "#define DISABLE_BACKWARD 1" >>confdefs.h
 
 fi
-
 
 if test "$BACKTRACE_OK" -eq 1; then
     # Libdw is the best support

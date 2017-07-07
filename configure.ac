@@ -230,6 +230,9 @@ AC_CHECK_HEADERS([errno.h stdlib.h string.h sys/socket.h sys/time.h sys/wait.h u
 AC_CHECK_HEADERS([getopt.h])
 AC_CHECK_HEADERS([glob.h])
 
+HAVE_LIBDW=0
+HAVE_LIBBFD=0
+
 AC_CHECK_LIB([dw], [dwarf_begin], HAVE_LIBDW=1)
 AC_CHECK_LIB([bfd], [bfd_alloc], HAVE_LIBBFD=1)
 
@@ -240,6 +243,11 @@ fi
 if test "$HAVE_LIBBFD" -eq 1; then
     AC_CHECK_HEADERS([bfd.h], DEF_BW_HAS_BFD=1)
 fi
+
+DEF_BW_HAS_UNWIND=0
+DEF_BW_HAS_BACKTRACE=0
+
+BACKTRACE_OK=0
 
 AC_CHECK_HEADERS([unwind.h], DEF_BW_HAS_UNWIND=1)
 AC_CHECK_HEADERS([execinfo.h], DEF_BW_HAS_BACKTRACE=1)
@@ -258,7 +266,6 @@ else
     BACKTRACE_WARNING="no - Backtraces will not be available on crashes"
     AC_DEFINE(DISABLE_BACKWARD, 1, cannot support backtrace dumping)
 fi
-
 
 if test "$BACKTRACE_OK" -eq 1; then
     # Libdw is the best support
