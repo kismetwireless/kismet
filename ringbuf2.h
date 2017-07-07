@@ -22,6 +22,7 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <mutex>
 #include "buffer_handler.h"
 
 // A better ringbuffer implementation that will replace the old ringbuffer in 
@@ -37,7 +38,7 @@ public:
     virtual void clear();
 
     virtual size_t size();
-    virtual size_t available();
+    virtual ssize_t available();
     virtual size_t used();
 
     // Write data into a buffer
@@ -50,6 +51,9 @@ public:
     virtual size_t peek(unsigned char *in_data, size_t in_sz);
 
     virtual size_t consume(size_t in_sz);
+
+    virtual ssize_t reserve(unsigned char **data, size_t in_sz);
+    virtual bool commit(size_t in_sz);
 
 protected:
     // Mutex for all operations on the buffer

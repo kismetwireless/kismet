@@ -28,6 +28,8 @@
 #include <vector>
 #include <mutex>
 
+#include "buffer_handler.h"
+
 /* Fairly basic linked buffer system which allows linear writing and linear reading.
  * Random access is not supported; use a string buffer for that.
  *
@@ -41,26 +43,29 @@
  *
  */
 
-class Chainbuf {
+class Chainbuf : public CommonBuffer {
 public:
     // Size per chunk and number of slots to pre-allocate in the buffer
     Chainbuf(size_t in_chunk = 1024, size_t pre_allocate = 128);
     virtual ~Chainbuf();
 
     // Erase buffer
-    void clear();
+    virtual void clear();
 
     // Return amount used in buffer
-    size_t used();
+    virtual size_t used();
+
+    // Return about available (effectively "infinite"), use a crappy hack for now
+    virtual size_t available() { return 1024 * 1024 * 2014; }
 
     // Return total size ever used by buffer, not current used
-    size_t total();
+    virtual size_t total();
 
     // Write amount to buffer, arbitrarily allocating new chunks
-    size_t write(uint8_t *in_data, size_t in_sz);
+    virtual size_t write(unsigned char *in_data, size_t in_sz);
    
     // Peek from buffer; will only return up to chunk size per peek
-    size_t peek(uint8_t **ret_data);
+    virtual size_t peek(uint8_t *ret_data, size_t in_sz);
 
     // Consume from buffer
     size_t consume(size_t in_sz);

@@ -37,15 +37,41 @@ class CommonBuffer {
 public:
     virtual ~CommonBuffer() { };
 
+    // Clear all data (and free memory used, for dynamic buffers)
     virtual void clear() = 0;
 
+    // Fetch total size of buffer
     virtual size_t size() = 0;
-    virtual size_t available() = 0;
+
+    // Fetch available space in buffer, -1 indicates unbounded dynamic buffer
+    virtual ssize_t available() = 0;
+
+    // Fetch amount used in current buffer
     virtual size_t used() = 0;
 
+    // Reserve space in the write buffer; for fixed-size buffers such as a ringbuf this
+    // will reserve the space and provide a direct pointer to the space.  For continual
+    // dynamic buffers (like chainbuf) this may induce copy or may provide direct access.
+    // Callers should not make any assumptions about the underlying nature of the buffer.
+    //
+    // Only one reservation may be made at a time.  Additional reservations without a
+    // commit will fail.
+    //
+    // The caller must call 'commit' when the data has been copied.
+    virtual ssize_t reserve(unsigned char **data, size_t in_sz) = 0;
+
+    // Commit changes to the reserved block
+    virtual bool commit(size_t in_sz) = 0;
+
+    // Write an existing block of data to the buffer; this performs a memcpy to copy 
+    // the data into the buffer
     virtual size_t write(unsigned char *data, size_t in_sz) = 0;
 
+    // Copy data from the buffer into an existing memory allocation; this performs a
+    // memcpy to extract data from the buffer
     virtual size_t peek(unsigned char *data, size_t in_sz) = 0;
+
+    // Remove data from a buffer
     virtual size_t consume(size_t in_sz) = 0;
 };
 
