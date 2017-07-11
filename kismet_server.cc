@@ -446,7 +446,10 @@ void TerminationHandler() {
         std::cout << "Uncaught exception \"" << e.what() << "\"\n";
     }
 
-    // print_stacktrace();
+    using namespace backward;
+    StackTrace st; st.load_here(32);
+    Printer p; p.print(st);
+
     std::abort();
 }
 
@@ -671,9 +674,11 @@ int main(int argc, char *argv[], char *envp[]) {
     if (!debug_mode) {
 #ifndef DISABLE_BACKWARD
         backward::SignalHandling sh;
+
+        // Catch C++ exceptions and print a stacktrace
+        std::set_terminate(&TerminationHandler);
 #endif
         /*
-        std::set_terminate(&TerminationHandler);
         signal(SIGSEGV, SegVHandler);
         */
     }
