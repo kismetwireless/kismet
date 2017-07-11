@@ -222,6 +222,8 @@ class KismetConnector:
                 lcachef = open(self.sessioncache_path, "w")
                 lcachef.write(cookie)
                 lcachef.close()
+        except KeyError as ke:
+            pass
         except Exception as e:
             print "Failed to save session:", e
             x = 1
