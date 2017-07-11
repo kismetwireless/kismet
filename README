@@ -455,6 +455,87 @@ xx. Data source: Pcapfile
         Assign a custom UUID to this source.  If no custom UUID is provided,
         a purely random UUID is generated.
 
+xx. Remote Packet Capture
+
+    Kismet can capture from a remote source over a TCP connection.
+
+    Kismet remote packet feeds are initiated by the same tools that Kismet uses to
+    configure a local source; for example if Kismet is running on a host on IP 
+    192.168.1.2, to capture from a Linux Wi-Fi device on another device you could
+    use:
+
+        $ /usr/local/bin/kismet_capture_tools/kismet_cap_linux_wifi \
+            --connect 192.168.1.2:3501 --source=wlan1
+
+    Specifically, this uses the kismet_cap_linux_wifi tool, which is by default 
+    installed in `/usr/local/bin/kismet_capture_tools/`, to connect to the IP
+    192.168.1.2 port 3501.
+
+    The --source=... parameter is the same as you would use in a `source=' Kismet
+    configuration file entry, or as `-c' to Kismet itself.
+
+    By default, Kismet only allows remote packet connections from the localhost IP; 
+    you must either:
+
+    1.  Set up a tunnel, for example using SSH port forwarding, to connect the remote 
+        device to the host Kismet is running on.  This is very simple to do, and adds
+        security to the remote packet connection:
+
+        $ ssh someuser@192.168.1.2 -L 3501:localhost:3501
+
+        Then in another terminal:
+
+        $ /usr/local/bin/kismet_capture_tools/kismet_cap_linux_wifi \
+            --connect localhost:3501 --source=wlan1
+
+        The `ssh' command places SSH in the background (using `-f'), connects to 
+        the host Kismet is running on, and tunnels port 3501.
+
+        The kismet_cap_linux_wifi command is the same as the first example, but
+        connects to localhost:3501 to use the SSH port forwarding.
+
+        Other, more elegant solutions exist for building the SSH tunnel, such 
+        as `autossh'.
+
+    2.  Kismet can be configured to accept connections on a specific interface,
+        or from all IP addresses, by changing the `remote_capture_listen=' line in
+        kismet.conf:
+
+        remote_capture_listen=0.0.0.0
+
+        would enable listening on all interfaces, while
+
+        remote_capture_listen=192.168.1.2
+
+        would enable listening only on the given IP (again using the above example 
+        of Kismet running on 192.168.1.2).
+
+        Remote capture *should only be enabled on interfaces on a protected LAN*.
+
+    Additional remote capture arguments
+
+    Kismet capture tools supporting remote capture also support the following options:
+
+    --connect=[host]:[port]
+
+        Connects to a remote Kismet server on [host] and port [port].  When using
+        `--connect=...' you MUST specify a `--source=...' options
+
+    --source=[source definition]
+
+        Define a source; this is used only in remote connection mode.  The source
+        definition is the same as defining a local source for Kismet via `-c' or
+        the `source=' config file option.
+
+    --disable-retry
+
+        By default, a remote source will attempt to reconnect if the connection
+        to the Kismet server is lost.
+
+    --daemonize
+
+        Places the capture tool in the background and daemonizes it.
+
 
 xx. Kismet Webserver
 
