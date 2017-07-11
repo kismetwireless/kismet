@@ -1,5 +1,8 @@
 include $(TOPDIR)/rules.mk
 
+# This package is primarily designed for the Wi-Fi Pineapple Tetra but can be 
+# easily adapted to other OpenWRT builds.
+
 PKG_NAME:=kismet-tetra
 PKG_VERSION:=2017git
 PKG_RELEASE:=1
