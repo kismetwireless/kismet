@@ -85,7 +85,7 @@ KisDatasource::KisDatasource(GlobalRegistry *in_globalreg,
 KisDatasource::~KisDatasource() {
     local_eol_locker lock(&source_lock);
 
-    fprintf(stderr, "debug - ~KisDatasource\n");
+    // fprintf(stderr, "debug - ~KisDatasource\n");
 
     // Cancel any timer
     if (error_timer_id > 0)
@@ -628,7 +628,7 @@ void KisDatasource::cancel_command(uint32_t in_transaction, string in_error) {
             timetracker->RemoveTimer(cmd->timer_id);
         }
 
-        fprintf(stderr, "debug - erasing from command ack via cancel %u\n", in_transaction);
+        // fprintf(stderr, "debug - erasing from command ack via cancel %u\n", in_transaction);
         command_ack_map.erase(i);
 
         // Cancel any callbacks, zeroing them out as we call them so they
@@ -731,7 +731,7 @@ void KisDatasource::proto_packet_probe_resp(KVmap in_kvpairs) {
         if (ci->second->probe_cb != NULL)
             ci->second->probe_cb(ci->second->transaction, 
                     get_kv_success(i->second), msg);
-        fprintf(stderr, "debug - probe resp removing command %u\n", seq);
+        // fprintf(stderr, "debug - probe resp removing command %u\n", seq);
         command_ack_map.erase(ci);
     }
 
@@ -811,7 +811,6 @@ void KisDatasource::proto_packet_open_resp(KVmap in_kvpairs) {
     uint32_t seq = get_kv_success_sequence(i->second);
     auto ci = command_ack_map.find(seq);
     if (ci != command_ack_map.end()) {
-        fprintf(stderr, "debug - trying to do something with command %u\n", seq);
         if (ci->second->open_cb != NULL)
             ci->second->open_cb(ci->second->transaction, get_source_running(), msg);
         command_ack_map.erase(ci);
@@ -864,7 +863,7 @@ void KisDatasource::proto_packet_list_resp(KVmap in_kvpairs) {
     uint32_t seq = get_kv_success_sequence(i->second);
     auto ci = command_ack_map.find(seq);
     if (ci != command_ack_map.end()) {
-        fprintf(stderr, "debug - erasingcommand ack from list %u\n", seq);
+        // fprintf(stderr, "debug - erasingcommand ack from list %u\n", seq);
         if (ci->second->list_cb != NULL)
             ci->second->list_cb(ci->second->transaction, listed_interfaces);
         command_ack_map.erase(ci);
@@ -929,7 +928,7 @@ void KisDatasource::proto_packet_configresp(KVmap in_kvpairs) {
     uint32_t seq = get_kv_success_sequence(i->second);
     auto ci = command_ack_map.find(seq);
     if (ci != command_ack_map.end()) {
-        fprintf(stderr, "debug - erasing command ack from configure %u\n", seq);
+        // fprintf(stderr, "debug - erasing command ack from configure %u\n", seq);
         if (ci->second->configure_cb != NULL)
             ci->second->configure_cb(seq, get_kv_success(i->second), msg);
         command_ack_map.erase(ci);
