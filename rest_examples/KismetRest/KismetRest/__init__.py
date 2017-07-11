@@ -217,16 +217,14 @@ class KismetConnector:
 
         try:
             cd = requests.utils.dict_from_cookiejar(self.session.cookies)
-            cookie = cd["KISMET"]
-            if (len(cookie) != 0):
-                lcachef = open(self.sessioncache_path, "w")
-                lcachef.write(cookie)
-                lcachef.close()
-        except KeyError as ke:
-            pass
+            if "KISMET" in cd:
+                cookie = cd["KISMET"]
+                if (len(cookie) != 0):
+                    lcachef = open(self.sessioncache_path, "w")
+                    lcachef.write(cookie)
+                    lcachef.close()
         except Exception as e:
             print "Failed to save session:", e
-            x = 1
 
         try:
             obj = msgpack.unpackb(urlbin)
