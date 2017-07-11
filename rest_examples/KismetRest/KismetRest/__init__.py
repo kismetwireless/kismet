@@ -311,9 +311,10 @@ class KismetConnector:
                 lcachef = open(self.sessioncache_path, "w")
                 lcachef.write(cookie)
                 lcachef.close()
+        except KeyError as e:
+            pass
         except Exception as e:
             print "Failed to save session:", e
-            x = 1
 
         return (True, r.content)
 
@@ -359,9 +360,10 @@ class KismetConnector:
             cookie = cd["KISMET"]
             lcachef.write(cookie)
             lcachef.close()
+        except KeyError as e:
+            pass
         except Exception as e:
             print "Failed to save session:", e
-            x = 1
 
         return True
 
@@ -384,9 +386,10 @@ class KismetConnector:
             cookie = cd["KISMET"]
             lcachef.write(cookie)
             lcachef.close()
+        except KeyError as e:
+            pass
         except Exception as e:
             print "Failed to save session:", e
-            x = 1
 
 
         return True
