@@ -1314,6 +1314,25 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
 
             packinfo->header_offset += 24;
             break;
+        case distrib_inter:
+            // If we aren't long enough to hold a intra-ds packet, bail
+            if (chunk->length < 30) {
+                fprintf(stderr, "debug - distrib unknown, chunk %d\n", chunk->length);
+                packinfo->corrupt = 1;
+                in_pack->insert(pack_comp_80211, packinfo);
+                return 0;
+            }
+
+            packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
+            packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
+            packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
+
+            packinfo->distrib = distrib_inter;
+
+            // First byte of offsets
+            packinfo->header_offset += 30;
+            break;
+
         case distrib_unknown:
             // If we aren't long enough to hold a intra-ds packet, bail
             if (chunk->length < 30) {
