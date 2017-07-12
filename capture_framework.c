@@ -241,6 +241,10 @@ kis_capture_handler_t *cf_handler_init(const char *in_type) {
     ch->chanfree_cb = NULL;
     ch->chancontrol_cb = NULL;
 
+    ch->spectrumconfig_cb = NULL;
+
+    ch->capture_cb = NULL;
+
     ch->userdata = NULL;
 
     ch->capture_running = 0;
@@ -562,6 +566,13 @@ void cf_handler_set_userdata(kis_capture_handler_t *capf, void *userdata) {
 void cf_handler_set_capture_cb(kis_capture_handler_t *capf, cf_callback_capture cb) {
     pthread_mutex_lock(&(capf->handler_lock));
     capf->capture_cb = cb;
+    pthread_mutex_unlock(&(capf->handler_lock));
+}
+
+void cf_handler_set_spectrumconfig_cb(kis_capture_handler_t *capf, 
+        cf_callback_spectrumconfig cb) {
+    pthread_mutex_lock(&(capf->handler_lock));
+    capf->spectrumconfig_cb = cb;
     pthread_mutex_unlock(&(capf->handler_lock));
 }
 
@@ -1237,6 +1248,12 @@ int cf_get_CHANHOP(double *hop_rate, char ***ret_channel_list,
     }
     
     return chan_size;
+}
+
+int cf_get_SPECSET(uint64_t *ret_start_hz, uint64_t *ret_end_hz,
+        uint64_t *ret_num_freq, uint64_t *ret_bin_width,
+        uint8_t *ret_amp, uint64_t *ret_if_amp, uint64_t *ret_baseband_amp) {
+
 }
 
 int cf_handler_remote_connect(kis_capture_handler_t *caph) {

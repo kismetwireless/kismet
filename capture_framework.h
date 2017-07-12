@@ -170,10 +170,52 @@ typedef int (*cf_callback_chancontrol)(kis_capture_handler_t *, uint32_t seqno,
  */
 typedef void (*cf_callback_chanfree)(void *);
 
+/* Unknown frame callback
+ * Called when an unknown frame is received on the protocol
+ *
+ * This callback is only needed to handle custom frames.
+ *
+ * Returns:
+ * -1   Error occurred, close source
+ *  0   Success, or frame ignored
+ */
 typedef int (*cf_callback_unknown)(kis_capture_handler_t *, uint32_t, 
         simple_cap_proto_frame_t *);
 
+/* Capture callback
+ * Called inside the capture thread as the primary capture mechanism for the source.
+ *
+ * This callback should loop as long as the source is running, and will be placed 
+ * in its own thread.  This callback may block, and does not need to be aware of
+ * other network IO.
+ *
+ * This callback should perform locking on the handler_lock mutexes if changing
+ * data in the handler.
+ *
+ * Returns:
+ *      On returning, the capture thread is cancelled and the source is closed.
+ */
 typedef void (*cf_callback_capture)(kis_capture_handler_t *);
+
+/* Spectrum configure callback
+ * Configures the basic parameters of a spectrum-capable device
+ *
+ * Called in response to a SPECSET block in a CONFIGURE command
+ *
+ * msg is allocated by the caller and can hold up to STATUS_MAX characters.  It 
+ * will be transmitted along with the success or failure value if seqno != 0
+ *
+ * In all other situations, the callback may communicate status to the user
+ * via cf_send_message(...)
+ *
+ * Returns:
+ * -1   Error occurred
+ *  0   Success
+ */
+typedef int (*cf_callback_spectrumconfig)(kis_capture_handler_t *, uint32_t seqno,
+    uint64_t start_hz, uint64_t end_hz, uint64_t num_per_freq, uint64_t bin_width,
+    unsigned int amp, uint64_t if_amp, uint64_t baseband_amp, 
+    simple_cap_proto_frame_t *in_frame);
 
 struct kis_capture_handler {
     /* Capture source type */
@@ -236,6 +278,8 @@ struct kis_capture_handler {
     cf_callback_unknown unknown_cb;
 
     cf_callback_capture capture_cb;
+
+    cf_callback_spectrumconfig spectrumconfig_cb;
 
 
     /* Arbitrary data blob */
@@ -382,6 +426,9 @@ void cf_handler_set_chancontrol_cb(kis_capture_handler_t *capf,
         cf_callback_chancontrol cb);
 void cf_handler_set_chanfree_cb(kis_capture_handler_t *capf, cf_callback_chanfree cb);
 
+void cf_handler_set_spectrumconfig_cb(kis_capture_handler_t *capf, 
+        cf_callback_spectrumconfig cb);
+
 void cf_handler_set_unknown_cb(kis_capture_handler_t *capf, cf_callback_unknown cb);
 
 /* Set the capture function, which runs inside its own thread */
@@ -465,6 +512,19 @@ int cf_get_CHANSET(char **ret_definition, simple_cap_proto_frame_t *in_frame);
 int cf_get_CHANHOP(double *hop_rate, char ***ret_channel_list, 
         size_t *ret_channel_list_sz, int *ret_shuffle, int *ret_offset,
         simple_cap_proto_frame_t *in_frame);
+
+/* Extract a SPECSET kv from a config packet
+ *
+ * Returns the parameters in the function call.
+ *
+ * Returns:
+ * -1   Error
+ *  0   No SPECSET key found
+ *  1   Success
+ */
+int cf_get_SPECSET(uint64_t *ret_start_hz, uint64_t *ret_end_hz,
+        uint64_t *ret_num_freq, uint64_t *ret_bin_width,
+        uint8_t *ret_amp, uint64_t *ret_if_amp, uint64_t *ret_baseband_amp);
 
 /* Connect to a network socket, if remote connection is specified 
  *
