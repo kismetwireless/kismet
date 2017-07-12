@@ -1319,10 +1319,8 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
             basedev->set_type_string("Wi-Fi Client");
             basedev->set_devicename(basedev->get_macaddr().Mac2String());
         }
-    } else if (dot11info->ess || 
-            (dot11info->type == packet_management &&
-             dot11info->subtype == packet_sub_beacon)) {
-        // ESS from-ap packets mean we must be an AP; same for beacons
+    } else if (dot11info->ess) { 
+        // ESS from-ap packets mean we must be an AP
         basedev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_AP);
 
         // If we're an AP always set the type and name because that's the
@@ -1336,7 +1334,7 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 				string al = "IEEE80211 Network BSSID " + 
 					dot11info->bssid_mac.Mac2String() + 
 					" previously advertised as AP network, now advertising as "
-					"Ad-Hoc which may indicate AP spoofing/impersonation";
+					"Ad-Hoc/WDS which may indicate AP spoofing/impersonation";
 
                 alertracker->RaiseAlert(alert_adhoc_ref, in_pack,
                         dot11info->bssid_mac, dot11info->source_mac,
@@ -1350,7 +1348,7 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
         basedev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_PEER);
 
         if (basedev->get_basic_type_set() == KIS_DEVICE_BASICTYPE_PEER)
-            basedev->set_type_string("Wi-Fi Ad-hoc Device");
+            basedev->set_type_string("Wi-Fi Ad-hoc / WDS ");
 
 		// Throw alert if device changes to adhoc
         if (!dot11dev->bitcheck_type_set(DOT11_DEVICE_TYPE_ADHOC) &&
@@ -1359,7 +1357,7 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 				string al = "IEEE80211 Network BSSID " + 
 					dot11info->bssid_mac.Mac2String() + 
 					" previously advertised as AP network, now advertising as "
-					"Ad-Hoc which may indicate AP spoofing/impersonation";
+					"Ad-Hoc/WDS which may indicate AP spoofing/impersonation";
 
                 alertracker->RaiseAlert(alert_adhoc_ref, in_pack,
                         dot11info->bssid_mac, dot11info->source_mac,
