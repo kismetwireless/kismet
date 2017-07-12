@@ -24,22 +24,22 @@
 #include "kis_datasource.h"
 
 // Sweep record with full data
-class Spectrumtracker_Sweep : public tracker_component {
+class Spectrum_Sweep : public tracker_component {
 public:
-    Spectrumtracker_Sweep(GlobalRegistry *in_globalreg, int in_id) :
+    Spectrum_Sweep(GlobalRegistry *in_globalreg, int in_id) :
         tracker_component(in_globalreg, in_id) {
         register_fields();
         reserve_fields(NULL);
     }
 
-    Spectrumtracker_Sweep(GlobalRegistry *in_globalreg, int in_id, SharedTrackerElement e) :
+    Spectrum_Sweep(GlobalRegistry *in_globalreg, int in_id, SharedTrackerElement e) :
         tracker_component(in_globalreg, in_id) {
         register_fields();
         reserve_fields(e);
     }
 
     virtual SharedTrackerElement clone_type() {
-        return SharedTrackerElement(new Spectrumtracker_Sweep(globalreg, get_id()));
+        return SharedTrackerElement(new Spectrum_Sweep(globalreg, get_id()));
     }
 
     virtual void register_fields() {
@@ -75,19 +75,19 @@ protected:
 
 };
 
-// Spectrum device record to be added to a device record
+// Spectrum-specific sub-type of Kismet data sources
 class SpectrumDatasource : public KisDatasource {
 public:
     SpectrumDatasource(GlobalRegistry *in_globalreg, SharedDatasourceBuilder in_builder);
 
     // Configure sweeping
     virtual void set_sweep(uint64_t in_start_hz, uint64_t in_end_hz, uint64_t in_num_per_freq,
-            uint64_t in_bin_width);
+            uint64_t in_bin_width) = 0;
 
     // Configure sweeping with amplification
     virtual void set_sweep_amp(uint64_t in_start_hz, uint64_t in_end_hz, 
             uint64_t in_num_per_freq, uint64_t in_bin_width, bool in_amp,
-            uint64_t in_if_amp, uint64_t in_baseband_amp);
+            uint64_t in_if_amp, uint64_t in_baseband_amp) = 0;
 
     __ProxyGet(spectrum_configurable, uint8_t, bool, spectrum_configurable);
 
