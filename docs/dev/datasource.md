@@ -49,6 +49,7 @@ Reconfigure a source.  Typically used to pass channel configuration data but may
 KV Pairs:
 * CHANSET (optional)
 * CHANHOP (optional)
+* SPECSET (optional)
 
 Responses:
 * CONFIGRESP
@@ -362,6 +363,20 @@ Simple string `(char *)` of the source type, length dictated by the KV length re
 Example:
 
 `"linuxwifi"`
+
+#### SPECSET
+Sources which support raw spectrum capture should accept this KV in the CONFIGURE frame.  Modeled on the configuration required to configure the *_sweep tools (such as hackrf_sweep), SPECSET passes the basic set of spectrum configuration parameters.
+
+Content:
+
+Msgpack packed dictionary containing the following:
+* "start_hz": uint64 unsigned value, starting frequency, in Hz, of sweep (optional)
+* "end_hz": uint64 unsigned value, ending frequency, in Hz, of sweep (optional)
+* "samples_per_freq": uint64 unsigned value, number of samples taken per frequency bin (optional)
+* "bin_width": uint64 unsigned value, width of each sample bin, in Hz (optional)
+* "amp": uint8 unsigned value, treated as boolean, enables amp (if available) (optional)
+* "if_amp": uint64 unsigned value, LNA/IF amplifier level (optional)
+* "baseband_amp": uint64 unsigned value, Baseband/VGA amplifier level (optional)
 
 #### SPECTRUM
 Sources which report raw spectrum should send it using this KV.  Modeled after the output format from the *_sweep tools (hackrf_sweep, rtl_sweep, etc), this allows for simple transmission of the spectrum data as dB levels.
