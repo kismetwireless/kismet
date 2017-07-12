@@ -1199,7 +1199,7 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 
 	// Got nothing to do
 	if (dot11info == NULL) {
-        fprintf(stderr, "debug - no dot11info\n");
+        // fprintf(stderr, "debug - no dot11info\n");
 		return 0;
     }
 
@@ -1207,12 +1207,12 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 		(kis_common_info *) in_pack->fetch(pack_comp_common);
 
 	if (commoninfo == NULL) {
-        fprintf(stderr, "debug - no commoninfo\n");
+        // fprintf(stderr, "debug - no commoninfo\n");
 		return 0;
     }
 
 	if (commoninfo->error) {
-        fprintf(stderr, "debug - common error\n");
+        // fprintf(stderr, "debug - common error\n");
 		return 0;
     }
 
