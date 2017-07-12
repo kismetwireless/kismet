@@ -184,6 +184,8 @@ kis_capture_handler_t *cf_handler_init(const char *in_type) {
 
     ch->capsource_type = strdup(in_type);
 
+    ch->remote_capable = 1;
+
     ch->remote_host = NULL;
     ch->remote_port = 0;
 
@@ -251,6 +253,10 @@ kis_capture_handler_t *cf_handler_init(const char *in_type) {
     ch->channel_hop_shuffle_spacing = 1;
 
     return ch;
+}
+
+void cf_set_remote_capable(kis_capture_handler_t *caph, int in_capable) {
+    caph->remote_capable = in_capable;
 }
 
 void cf_handler_free(kis_capture_handler_t *caph) {
@@ -434,16 +440,19 @@ int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]) {
         { "source", required_argument, 0, 4 },
         { "disable-retry", no_argument, 0, 5 },
         { "daemonize", no_argument, 0, 6},
+        { "help", no_argument, 0, 'h'},
         { 0, 0, 0, 0 }
     };
 
     while (1) {
-        int r = getopt_long(argc, argv, "-", longopt, &option_idx);
+        int r = getopt_long(argc, argv, "h-", longopt, &option_idx);
 
         if (r < 0)
             break;
 
-        if (r == 1) {
+        if (r == 'h') {
+            return -2;
+        } else if (r == 1) {
             if (sscanf(optarg, "%d", &(caph->in_fd)) != 1) {
                 fprintf(stderr, "FATAL: Unable to parse incoming file descriptor\n");
                 return -1;
@@ -500,6 +509,29 @@ int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]) {
     return 1;
 
 }
+
+void cf_print_help(kis_capture_handler_t *caph, const char *argv0) {
+    fprintf(stderr, "%s is a capture driver for Kismet.  Typically it is started\n"
+            "automatically by the Kismet server.\n", argv0);
+    
+    if (caph->remote_capable) {
+        fprintf(stderr, "\n%s supports sending data to a remote Kismet server\n"
+                "Usage: %s [options]\n"
+                " --connect [host]:[port]     Connect to remote Kismet server on [host] \n"
+                "                             and [port]; typically Kismet accepts remote \n"
+                "                             capture on port 3501.\n"
+                " --source [source def]       Specify a source to send to the remote \n"
+                "                             Kismet server; only used in conjunction with \n"
+                "                             remote capture.\n"
+                " --disable-retry             Do not attempt to reconnect to a remote server\n"
+                "                             if there is an error; exit immediately\n"
+                " --daemonize                 Background the capture tool and enter daemon\n"
+                "                             mode.\n",
+                argv0, argv0);
+    }
+
+}
+
 
 void cf_handler_set_listdevices_cb(kis_capture_handler_t *capf, 
         cf_callback_listdevices cb) {

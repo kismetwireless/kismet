@@ -1410,7 +1410,7 @@ int main(int argc, char *argv[]) {
     }
 
     if (cf_handler_parse_opts(caph, argc, argv) < 1) {
-        fprintf(stderr, "FATAL: Missing command line parameters.\n");
+        cf_print_help(caph, argv[0]);
         return -1;
     }
 

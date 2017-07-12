@@ -179,6 +179,10 @@ struct kis_capture_handler {
     /* Capture source type */
     char *capsource_type;
 
+    /* Does this driver support remote capture?  Most should, and it defaults to 
+     * true. */
+    int remote_capable;
+
     /* Last time we got a ping */
     time_t last_ping;
 
@@ -260,6 +264,13 @@ struct kis_capture_handler {
     int channel_hop_offset;
 
 };
+
+/* Set remote capability flags.
+ * Most sources should support remote capture as nearly no extra work is required,
+ * however sources which for some reason cannot can set the flag to 0.
+ *
+ */
+void cf_set_remote_capable(kis_capture_handler_t *caph, int in_capable);
 
 /* Parse an interface name from a definition string.
  * Returns a pointer to the start of the interface name in the definition in
@@ -349,11 +360,15 @@ void cf_handler_set_hop_shuffle_spacing(kis_capture_handler_t *capf, int spacing
  * Parse command line for --in-fd, --out-fd, --connect, --source, and populate.
  * 
  * Returns:
- * -1   Missing in-fd/out-fd or --connect
+ * -1   Missing in-fd/out-fd or --connect, or unknown argument, caller should print
+ *      help and exit
  *  1   Success, using interproc IPC
  *  2   Success, using TCP remote connection
  */
 int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]);
+
+/* Print the standard help header */
+void cf_print_help(kis_capture_handler_t *caph, const char *argv0);
 
 /* Set callbacks; pass NULL to remove a callback. */
 void cf_handler_set_listdevices_cb(kis_capture_handler_t *capf, 
