@@ -554,6 +554,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
 		// is impossible
 		if (dot11info->source_mac == globalreg->empty_mac) {
 			if (dot11info->bssid_mac == globalreg->empty_mac) {
+                // fprintf(stderr, "debug - dot11info bssid and src are empty and mgmt\n");
 				ci->error = 1;
 			}
 
@@ -573,6 +574,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
             // map some phys as a device since we know they're being talked to
             ci->device = dot11info->dest_mac;
         } else if (dot11info->source_mac == globalreg->empty_mac) {
+            // fprintf(stderr, "debug - dot11info sourcemacis empty and phy\n");
             ci->error = 1;
 		} else {
             ci->device = dot11info->source_mac;
@@ -599,6 +601,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
         if (dot11info->bssid_mac == globalreg->empty_mac ||
                 dot11info->source_mac == globalreg->empty_mac ||
                 dot11info->dest_mac == globalreg->empty_mac) {
+            // fprintf(stderr, "debug - dot11info macs are empty and data\n");
             ci->error = 1;
         }
 	} 
@@ -606,6 +609,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
 	if (dot11info->type == packet_noise || dot11info->corrupt ||
 			   in_pack->error || dot11info->type == packet_unknown ||
 			   dot11info->subtype == packet_sub_unknown) {
+        // fprintf(stderr, "debug - noise, corrupt, error, etc %d %d %d %d %d\n", dot11info->type == packet_noise, dot11info->corrupt, in_pack->error, dot11info->type == packet_unknown, dot11info->subtype == packet_sub_unknown);
 		ci->error = 1;
 	}
 
@@ -1187,6 +1191,7 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 
 	// We can't do anything w/ it from the packet layer
 	if (in_pack->error || in_pack->filtered) {
+        // fprintf(stderr, "debug - error packet\n");
 		return 0;
 	}
 
@@ -1195,23 +1200,30 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 		(dot11_packinfo *) in_pack->fetch(pack_comp_80211);
 
 	// Got nothing to do
-	if (dot11info == NULL)
+	if (dot11info == NULL) {
+        fprintf(stderr, "debug - no dot11info\n");
 		return 0;
+    }
 
 	kis_common_info *commoninfo =
 		(kis_common_info *) in_pack->fetch(pack_comp_common);
 
-	if (commoninfo == NULL)
+	if (commoninfo == NULL) {
+        fprintf(stderr, "debug - no commoninfo\n");
 		return 0;
+    }
 
-	if (commoninfo->error)
+	if (commoninfo->error) {
+        fprintf(stderr, "debug - common error\n");
 		return 0;
+    }
 
     // There's nothing we can sensibly do with completely corrupt packets, 
     // so we just get rid of them.
     // TODO make sure phy corrupt packets are handled for statistics
-    if (dot11info->corrupt) 
+    if (dot11info->corrupt)  {
         return 0;
+    }
 
     // Find & update the common attributes of our base record.
     // We want to update signal, frequency, location, packet counts, devices,
@@ -1231,8 +1243,10 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 	// We can't do anything useful
 	if (dot11info->corrupt || dot11info->type == packet_noise ||
 		dot11info->type == packet_unknown || 
-		dot11info->subtype == packet_sub_unknown)
+		dot11info->subtype == packet_sub_unknown) {
+        // fprintf(stderr, "debug - unknown or noise packet\n");
 		return 0;
+    }
 
 	kis_gps_packinfo *pack_gpsinfo =
 		(kis_gps_packinfo *) in_pack->fetch(pack_comp_gps);

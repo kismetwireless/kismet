@@ -304,7 +304,6 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
 
             if (addr0 == NULL) {
                 packinfo->corrupt = 1;
-                packinfo->corrupt = 1;
                 in_pack->insert(pack_comp_80211, packinfo);
                 return 0;
             }
@@ -316,7 +315,6 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
             packinfo->subtype = packet_sub_rts;
 
             if (addr0 == NULL || addr1 == NULL) {
-                packinfo->corrupt = 1;
                 packinfo->corrupt = 1;
                 in_pack->insert(pack_comp_80211, packinfo);
                 return 0;
@@ -330,7 +328,6 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
 
             if (addr0 == NULL) {
                 packinfo->corrupt = 1;
-                packinfo->corrupt = 1;
                 in_pack->insert(pack_comp_80211, packinfo);
                 return 0;
             }
@@ -341,7 +338,6 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
             packinfo->subtype = packet_sub_ack;
 
             if (addr0 == NULL) {
-                packinfo->corrupt = 1;
                 packinfo->corrupt = 1;
                 in_pack->insert(pack_comp_80211, packinfo);
                 return 0;
@@ -394,11 +390,13 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
         // an arbitrary number to pick, but this should keep some drivers from messing
         // with us
         // TODO: Make this a driver option
+        /*
         if (chunk->length > 512) {
             packinfo->corrupt = 1;
             in_pack->insert(pack_comp_80211, packinfo);
             return 0;
-        }
+        } 
+        */
 
         fixed_parameters *fixparm = NULL;
 
@@ -453,8 +451,10 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
             packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
 
             // If beacons aren't do a broadcast destination, consider them corrupt.
-            if (packinfo->dest_mac != broadcast_mac) 
+            if (packinfo->dest_mac != broadcast_mac) {
+                // fprintf(stderr, "debug - dest mac not broadcast\n");
                 packinfo->corrupt = 1;
+            }
             
         } else if (fc->subtype == 9) {
             // I'm not positive this is the right handling of atim packets.  
@@ -524,6 +524,7 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
             // If we're not long enough to have the fixparm and look like a normal
             // mgt header, bail.
             if (chunk->length < 36) {
+                // fprintf(stderr, "debug - chunk too short\n");
                 packinfo->corrupt = 1;
                 in_pack->insert(pack_comp_80211, packinfo);
                 return 0;
@@ -593,6 +594,7 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
                 // The frame is corrupt, bail.  This is a good indication that it's
                 // corrupt but snuck past the FCS check, so we set the whole packet
                 // as a failure condition
+                // fprintf(stderr, "debug - IE tags corrupt\n");
                 packinfo->corrupt = 1;
                 in_pack->insert(pack_comp_80211, (packet_component *) packinfo);
                 in_pack->error = 1;
@@ -678,6 +680,7 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
                 taglen = (chunk->data[tag_offset] & 0xFF);
 
                 if (tag_offset + taglen > chunk->length) {
+                    // fprintf(stderr, "debug - corrupt tag offset supported rates\n");
                     // Otherwise we're corrupt, set it and stop processing
                     packinfo->corrupt = 1;
                     in_pack->insert(pack_comp_80211, packinfo);
@@ -717,6 +720,7 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
 
                 if (tag_offset + taglen > chunk->length) {
                     // Otherwise we're corrupt, set it and stop processing
+                    // fprintf(stderr, "debug - extended rates corrupt\n");
                     packinfo->corrupt = 1;
                     in_pack->insert(pack_comp_80211, packinfo);
                     return 0;
@@ -731,11 +735,13 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
                 }
             }
 
+            /*
             // If beacons don't have a SSID and a basicrate then we consider them
             // corrupt
             if (found_ssid_tag == 0 || found_rate_tag == 0) {
                 packinfo->corrupt = 1;
             }
+            */
 
             // Match HT 802.11n tag
             if ((tcitr = tag_cache_map.find(45)) != tag_cache_map.end()) {
