@@ -424,6 +424,10 @@ function channelcoverage_display_refresh() {
         channelcoverage_chart = new Chart(channelcoverage_canvas, {
             type: 'bubble',
             options: {
+                title: {
+                    display: true,
+                    text: 'Per-Source Channel Coverage',
+                },
                 responsive: true,
                 maintainAspectRatio: false,
                 scales: {
@@ -435,7 +439,7 @@ function channelcoverage_display_refresh() {
                                 return chantitles[value];
                             },
                             min: 0,
-                            max: chantitles.length - 1,
+                            max: chantitles.length,
                             position: 'bottom',
                             type: 'linear',
                         }
@@ -448,7 +452,7 @@ function channelcoverage_display_refresh() {
                                 return sourcetitles[value];
                             },
                             min: 0,
-                            max: sourcetitles.length - 1,
+                            max: sourcetitles.length,
                             position: 'left',
                             type: 'linear',
                         },
@@ -468,10 +472,10 @@ function channelcoverage_display_refresh() {
         channelcoverage_chart.data.yLabels = sourcetitles;
 
         channelcoverage_chart.options.scales.xAxes[0].ticks.min = 0; 
-        channelcoverage_chart.options.scales.xAxes[0].ticks.max = chantitles.length - 1; 
+        channelcoverage_chart.options.scales.xAxes[0].ticks.max = chantitles.length; 
 
         channelcoverage_chart.options.scales.yAxes[0].ticks.min = 0; 
-        channelcoverage_chart.options.scales.yAxes[0].ticks.max = sourcetitles.length - 1; 
+        channelcoverage_chart.options.scales.yAxes[0].ticks.max = sourcetitles.length; 
 
         channelcoverage_chart.update(0);
     }
