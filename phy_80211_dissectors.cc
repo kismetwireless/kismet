@@ -573,7 +573,8 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
         if (fc->subtype == packet_sub_probe_req || 
             fc->subtype == packet_sub_disassociation || 
             fc->subtype == packet_sub_authentication || 
-            fc->subtype == packet_sub_deauthentication) {
+            fc->subtype == packet_sub_deauthentication ||
+            fc->subtype == packet_sub_action) {
             // Shortcut handling of probe req, disassoc, auth, deauth since they're
             // not normal management frames
             packinfo->header_offset = 24;
