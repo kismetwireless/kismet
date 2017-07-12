@@ -68,12 +68,16 @@ enum ieee_80211_subtype {
 	packet_sub_aruba = 15,
 
     // Phy subtypes
+    packet_sub_vht_ntp = 5,
+    packet_sub_block_ack_req = 8,
+    packet_sub_block_ack = 9,
 	packet_sub_pspoll = 10,
     packet_sub_rts = 11,
     packet_sub_cts = 12,
     packet_sub_ack = 13,
     packet_sub_cf_end = 14,
     packet_sub_cf_end_ack = 15,
+
     // Data subtypes
     packet_sub_data = 0,
     packet_sub_data_cf_ack = 1,
