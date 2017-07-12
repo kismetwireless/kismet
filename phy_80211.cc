@@ -573,7 +573,6 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
             // map some phys as a device since we know they're being talked to
             ci->device = dot11info->dest_mac;
         } else if (dot11info->source_mac == globalreg->empty_mac) {
-            fprintf(stderr, "debug - dot11info sourcemacis empty and phy\n");
             ci->error = 1;
 		} else {
             ci->device = dot11info->source_mac;
