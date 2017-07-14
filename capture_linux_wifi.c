@@ -628,17 +628,20 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
 
 
 int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
-        char *msg, char **chanset, char ***chanlist, size_t *chanlist_sz,
-        char **uuid) {
+        char *msg, char **uuid, cf_params_interface_t **ret_interface,
+        cf_params_spectrum_t **ret_spectrum) {
     char *placeholder = NULL;
     int placeholder_len;
     char *interface;
     int ret;
     char errstr[STATUS_MAX];
 
-    *chanset = NULL;
-    *chanlist = NULL;
-    *chanlist_sz = 0;
+    *ret_spectrum = NULL;
+    *ret_interface = cf_params_interface_new();
+
+    (*ret_interface)->chanset = NULL;
+    (*ret_interface)->channels = NULL;
+    (*ret_interface)->channels_len = 0;
 
     uint8_t hwaddr[6];
 
@@ -656,10 +659,8 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
         return -1;
     }
 
-    /* We don't care about fixed channel */
-    *chanset = NULL;
-   
-    ret = populate_chanlist(interface, errstr, chanlist, chanlist_sz);
+    ret = populate_chanlist(interface, errstr, &((*ret_interface)->channels),
+            &((*ret_interface)->channels_len));
 
     free(interface);
 

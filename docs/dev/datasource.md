@@ -155,6 +155,7 @@ KV Pairs:
 * CHANSET (optional)
 * DLT
 * MESSAGE (optional)
+* SPECSET (optional)
 * SUCCESS
 * UUID (optional)
 * WARNING (optional)
@@ -201,6 +202,7 @@ KV Pairs:
 * MESSAGE (optional)
 * CHANNELS (optional)
 * CHANSET (optional)
+* SPECSET (optional)
 
 Responses:
 * NONE
@@ -365,7 +367,7 @@ Example:
 `"linuxwifi"`
 
 #### SPECSET
-Sources which support raw spectrum capture should accept this KV in the CONFIGURE frame.  Modeled on the configuration required to configure the *_sweep tools (such as hackrf_sweep), SPECSET passes the basic set of spectrum configuration parameters.
+Sources which support raw spectrum capture should accept this KV in the CONFIGURE frame and return it in the PROBERESP and OPENRESP frames.  Modeled on the configuration required to configure the *_sweep tools (such as hackrf_sweep), SPECSET passes the basic set of spectrum configuration parameters.
 
 Content:
 
@@ -381,7 +383,7 @@ Msgpack packed dictionary containing the following:
 #### SPECTRUM
 Sources which report raw spectrum should send it using this KV.  Modeled after the output format from the *_sweep tools (hackrf_sweep, rtl_sweep, etc), this allows for simple transmission of the spectrum data as dB levels.
 
-A SPECTRUM record is inserted into the Kismet packetchain as a packet containing a "SPECTRUM" record.
+A SPECTRUM record is inserted into the Kismet packetchain packet as a "SPECTRUM" record.  If a PACKET record is also found, both may be inserted into the same packet.
 
 Content:
 

@@ -79,8 +79,8 @@ typedef struct {
 } local_pcap_t;
 
 int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
-        char *msg, char **chanset, char ***chanlist, size_t *chanlist_sz,
-        char **uuid) {
+        char *msg, char **uuid, cf_params_interface_t **ret_interface, 
+        cf_params_spectrum_t **ret_spectrum) {
     char *placeholder = NULL;
     int placeholder_len;
 
@@ -94,10 +94,14 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
 
     pcap_t *pd;
 
+    *ret_spectrum = NULL;
+
+    *ret_interface = cf_params_interface_new();
+
     /* pcapfile does not support channel ops */
-    *chanset = NULL;
-    *chanlist = NULL;
-    *chanlist_sz = 0;
+    (*ret_interface)->chanset = NULL;
+    (*ret_interface)->channels = NULL;
+    (*ret_interface)->channels_len = 0;
 
     if ((placeholder_len = cf_parse_interface(&placeholder, definition)) <= 0) {
         snprintf(msg, STATUS_MAX, "Unable to find PCAP file name in definition"); 

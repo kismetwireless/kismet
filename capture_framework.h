@@ -58,6 +58,13 @@
 struct kis_capture_handler;
 typedef struct kis_capture_handler kis_capture_handler_t;
 
+struct cf_params_interface;
+typedef struct cf_params_interface cf_params_interface_t;
+
+struct cf_params_spectrum;
+typedef struct cf_params_spectrum cf_params_spectrum_t;
+
+
 /* List devices callback
  * Called to list devices available
  *
@@ -82,11 +89,11 @@ typedef int (*cf_callback_listdevices)(kis_capture_handler_t *, uint32_t seqno,
  * *msg is allocated by the caller and can hold STATUS_MAX characters and should
  * be populated with any message the listcb wants to return.
  *
- * *chanset is to be allocated by the cb and should hold the supported channel,
- * if only one channel is supported.  
- * **chanlist is to be allocated by the cb and should hold the supported channel list,
- * if any.
- * *chanlist_sz is to be filled in by the cb with the number of channels in the chanlist
+ * **ret_interface and **ret_spectrum are to be allocated by the callback
+ * function if the results are populated.
+ *
+ * **uuid should be allocated by the callback if it is populated during
+ * probing of the device.
  *
  * Return values:
  * -1   error occurred while probing
@@ -94,8 +101,8 @@ typedef int (*cf_callback_listdevices)(kis_capture_handler_t *, uint32_t seqno,
  *  1   interface supported
  */
 typedef int (*cf_callback_probe)(kis_capture_handler_t *, uint32_t seqno, 
-        char *definition, char *msg, char **chanset, char ***chanlist, 
-        size_t *chanlist_sz, char **uuid);
+        char *definition, char *msg, char **uuid, cf_params_interface_t **ret_interface,
+        cf_params_spectrum_t **ret_spectrum);
 
 /* Open callback
  * Called to open a datasource
@@ -306,7 +313,24 @@ struct kis_capture_handler {
     unsigned int channel_hop_shuffle_spacing;
 
     int channel_hop_offset;
+};
 
+
+struct cf_params_interface {
+    char *capif;
+    char *chanset;
+    char **channels;
+    size_t channels_len;
+};
+
+struct cf_params_spectrum {
+    uint64_t start_hz;
+    uint64_t end_hz;
+    uint64_t samples_per_freq;
+    uint64_t bin_width;
+    uint8_t amp;
+    uint64_t if_amp;
+    uint64_t baseband_amp;
 };
 
 /* Set remote capability flags.
@@ -371,6 +395,28 @@ kis_capture_handler_t *cf_handler_init(const char *in_type);
  * Closes any sockets/descriptors and destroys ringbuffers
  */
 void cf_handler_free(kis_capture_handler_t *caph);
+
+
+/* Initialize an interface param
+ *
+ * Returns:
+ * Pointer to interface parameter struct or NULL
+ */
+cf_params_interface_t *cf_params_interface_new();
+
+/* Destroy an interface parameter and it's internal fields */
+void cf_params_interface_free(cf_params_interface_t *pi);
+
+/* Initialize a spectrum param
+ *
+ * Returns:
+ * Pointer to spectrum parameter struct or NULL
+ */
+cf_params_spectrum_t *cf_params_spectrum_new();
+
+/* Destroy an interface parameter and it's internal fields */
+void cf_params_spectrum_free(cf_params_spectrum_t *si);
+
 
 /* Shutdown immediately - dies at the start of the next select() loop, regardless
  * of pending data.
@@ -524,7 +570,8 @@ int cf_get_CHANHOP(double *hop_rate, char ***ret_channel_list,
  */
 int cf_get_SPECSET(uint64_t *ret_start_hz, uint64_t *ret_end_hz,
         uint64_t *ret_num_freq, uint64_t *ret_bin_width,
-        uint8_t *ret_amp, uint64_t *ret_if_amp, uint64_t *ret_baseband_amp);
+        uint8_t *ret_amp, uint64_t *ret_if_amp, uint64_t *ret_baseband_amp,
+        simple_cap_proto_frame_t *in_frame);
 
 /* Connect to a network socket, if remote connection is specified 
  *
@@ -628,8 +675,10 @@ int cf_send_error(kis_capture_handler_t *caph, const char *message);
 int cf_send_listresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int success,
         const char *msg, char **interfaces, char **flags, size_t len);
 
-/* Send a PROBERESP response
- * Call be called from any thread
+/* Send a PROBERESP response; can contain traditional interface data, spectrum interface
+ * data, both, or neither in the case of an error.
+ *
+ * Can be called from any thread
  *
  * Returns:
  * -1   An error occurred while creating the packet
@@ -637,7 +686,7 @@ int cf_send_listresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
  *  1   Success
  */
 int cf_send_proberesp(kis_capture_handler_t *caph, uint32_t seq, unsigned int success,
-        const char *msg, const char *chanset, char **channels, size_t channels_len);
+        const char *msg, cf_params_interface_t *interface, cf_params_spectrum_t *spectrum);
 
 /* Send an OPENRESP response
  * Can be called from any thread
