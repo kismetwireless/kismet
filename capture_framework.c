@@ -460,6 +460,58 @@ void cf_handler_set_hop_shuffle_spacing(kis_capture_handler_t *caph, int spacing
     pthread_mutex_unlock(&(caph->handler_lock));
 }
 
+void cf_handler_list_devices(kis_capture_handler_t *caph) {
+    char **interfaces = NULL;
+    char **flags = NULL;
+
+    /* Callback ret */
+    int cbret = -1;
+
+    /* Status buffer */
+    char msgstr[STATUS_MAX];
+
+    unsigned int i;
+
+    msgstr[0] = 0;
+
+    if (caph->listdevices_cb == NULL) {
+        fprintf(stderr, "%s does not support listing available devices, sorry!\n",
+                caph->capsource_type);
+        return;
+    }
+
+    cbret = (*(caph->listdevices_cb))(caph, 0, msgstr, &interfaces, &flags);
+
+    if (cbret <= 0) {
+        fprintf(stderr, "%s - No supported data sources found...\n", caph->capsource_type);
+        return;
+    }
+
+    fprintf(stderr, "%s supported data sources:\n", caph->capsource_type);
+
+    if (cbret > 0) {
+        for (i = 0; i < (size_t) cbret; i++) {
+            if (interfaces[i] != NULL) {
+                fprintf(stderr, "    %s", interfaces[i]);
+                free(interfaces[i]);
+
+                if (flags[i] != NULL) {
+                    fprintf(stderr, ":%s", flags[i]);
+                }
+                
+                fprintf(stderr, "\n");
+            }
+
+            if (flags[i] != NULL)
+                free(flags[i]);
+        }
+
+        free(interfaces);
+        free(flags);
+
+    }
+}
+
 int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]) {
     int option_idx;
 
@@ -480,6 +532,7 @@ int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]) {
         { "source", required_argument, 0, 4 },
         { "disable-retry", no_argument, 0, 5 },
         { "daemonize", no_argument, 0, 6},
+        { "list", no_argument, 0, 7},
         { "help", no_argument, 0, 'h'},
         { 0, 0, 0, 0 }
     };
@@ -518,6 +571,9 @@ int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]) {
         } else if (r == 6) {
             fprintf(stderr, "INFO: Entering daemon mode after initial setup\n");
             daemon = 1;
+        } else if (r == 7) {
+            cf_handler_list_devices(caph);
+            exit(1);
         }
     }
 
@@ -566,7 +622,8 @@ void cf_print_help(kis_capture_handler_t *caph, const char *argv0) {
                 " --disable-retry             Do not attempt to reconnect to a remote server\n"
                 "                             if there is an error; exit immediately\n"
                 " --daemonize                 Background the capture tool and enter daemon\n"
-                "                             mode.\n",
+                "                             mode.\n"
+                " --list                      List supported devices detected\n",
                 argv0, argv0);
     }
 

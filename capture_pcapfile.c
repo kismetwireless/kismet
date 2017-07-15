@@ -333,11 +333,6 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
-    if (cf_handler_parse_opts(caph, argc, argv) < 1) {
-        cf_print_help(caph, argv[0]);
-        return -1;
-    }
-
     /* Set the local data ptr */
     cf_handler_set_userdata(caph, &local_pcap);
 
@@ -349,6 +344,11 @@ int main(int argc, char *argv[]) {
 
     /* Set the capture thread */
     cf_handler_set_capture_cb(caph, capture_thread);
+
+    if (cf_handler_parse_opts(caph, argc, argv) < 1) {
+        cf_print_help(caph, argv[0]);
+        return -1;
+    }
 
     cf_handler_loop(caph);
 
