@@ -628,7 +628,8 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
 
 
 int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
-        char *msg, char **uuid, cf_params_interface_t **ret_interface,
+        char *msg, char **uuid, simple_cap_proto_frame_t *frame,
+        cf_params_interface_t **ret_interface,
         cf_params_spectrum_t **ret_spectrum) {
     char *placeholder = NULL;
     int placeholder_len;
@@ -638,10 +639,6 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
 
     *ret_spectrum = NULL;
     *ret_interface = cf_params_interface_new();
-
-    (*ret_interface)->chanset = NULL;
-    (*ret_interface)->channels = NULL;
-    (*ret_interface)->channels_len = 0;
 
     uint8_t hwaddr[6];
 
@@ -679,8 +676,9 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
 }
 
 int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
-        char *msg, uint32_t *dlt, char **uuid, char **chanset, 
-        char ***chanlist, size_t *chanlist_sz, char **capif) {
+        char *msg, uint32_t *dlt, char **uuid, simple_cap_proto_frame_t *frame,
+        cf_params_interface_t **ret_interface,
+        cf_params_spectrum_t **ret_spectrum) {
     /* Try to open an interface for monitoring
      * 
      * - Confirm it's an interface, and that it's wireless, by doing a basic 
@@ -712,11 +710,10 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     char ifnam[IFNAMSIZ];
 
     *uuid = NULL;
-    *chanset = NULL;
-    *chanlist = NULL;
-    *chanlist_sz = 0;
-    *capif = NULL;
     *dlt = 0;
+
+    *ret_interface = cf_params_interface_new();
+    *ret_spectrum = NULL;
 
     int mode;
 
@@ -1162,7 +1159,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         return -1;
     }
 
-    ret = populate_chanlist(local_wifi->cap_interface, errstr, chanlist, chanlist_sz);
+    ret = populate_chanlist(local_wifi->cap_interface, errstr, 
+            &((*ret_interface)->channels), &((*ret_interface)->channels_len));
     if (ret < 0) {
         snprintf(msg, STATUS_MAX, "Could not get list of channels from capture "
                 "interface '%s' on '%s': %s", local_wifi->cap_interface,
@@ -1199,9 +1197,10 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         }
 
         local_channel_to_str(localchan, errstr);
-        *chanset = strdup(errstr);
+        (*ret_interface)->chanset = strdup(errstr);
 
-        snprintf(errstr, STATUS_MAX, "Setting initial channel to %s", *chanset);
+        snprintf(errstr, STATUS_MAX, "Setting initial channel to %s", 
+                (*ret_interface)->chanset);
         cf_send_message(caph, errstr, MSGFLAG_INFO);
 
         if (chancontrol_callback(caph, 0, localchan, msg) < 0) {
@@ -1231,7 +1230,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                 local_wifi->interface);
     }
 
-    *capif = strdup(local_wifi->cap_interface);
+    (*ret_interface)->capif = strdup(local_wifi->cap_interface);
 
     return 1;
 }

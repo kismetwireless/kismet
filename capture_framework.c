@@ -947,7 +947,7 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
             msgstr[0] = 0;
             cbret = (*(caph->probe_cb))(caph,
                     ntohl(cap_proto_frame->header.sequence_number), nuldef,
-                    msgstr, &uuid, &interfaceparams, &spectrumparams);
+                    msgstr, &uuid, cap_proto_frame, &interfaceparams, &spectrumparams);
 
             cf_send_proberesp(caph, ntohl(cap_proto_frame->header.sequence_number),
                     cbret < 0 ? 0 : cbret, msgstr, interfaceparams, spectrumparams);
@@ -972,19 +972,18 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
         if (caph->open_cb == NULL) {
             pthread_mutex_unlock(&(caph->handler_lock));
             cf_send_openresp(caph, ntohl(cap_proto_frame->header.sequence_number),
-                    false, "source doesn't support opening", 0, NULL, NULL, 
-                    NULL, 0, NULL);
+                    false, "source cannot be opened", 0, NULL, NULL, NULL);
             cbret = -1;
         } else {
             char *def, *nuldef = NULL;
             int def_len;
 
-            char **channels = NULL;
-            size_t channels_sz = 0;
-            char *chanset = NULL;
-            char *uuid = NULL;
-            char *capif = NULL;
             uint32_t dlt;
+
+            cf_params_interface_t *interfaceparams = NULL;
+            cf_params_spectrum_t *spectrumparams = NULL;
+
+            char *uuid = NULL;
             
             def_len = cf_get_DEFINITION(&def, cap_proto_frame);
 
@@ -998,11 +997,12 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
             msgstr[0] = 0;
             cbret = (*(caph->open_cb))(caph,
                     ntohl(cap_proto_frame->header.sequence_number), nuldef,
-                    msgstr, &dlt, &uuid, &chanset, &channels, &channels_sz, &capif);
+                    msgstr, &dlt, &uuid, cap_proto_frame,
+                    &interfaceparams, &spectrumparams);
 
             cf_send_openresp(caph, ntohl(cap_proto_frame->header.sequence_number),
-                    cbret < 0 ? 0 : cbret, msgstr, dlt, uuid, chanset, 
-                    channels, channels_sz, capif);
+                    cbret < 0 ? 0 : cbret, msgstr, dlt, uuid, interfaceparams,
+                    spectrumparams);
 
             if (nuldef != NULL)
                 free(nuldef);
@@ -1010,15 +1010,12 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
             if (uuid != NULL)
                 free(uuid);
 
-            for (i = 0; i < channels_sz; i++) {
-                free(channels[i]);
-            }
+            if (interfaceparams != NULL)
+                cf_params_interface_free(interfaceparams);
 
-            if (channels != NULL)
-                free(channels);
+            if (spectrumparams != NULL)
+                cf_params_spectrum_free(spectrumparams);
 
-            if (chanset != NULL)
-                free(chanset);
 
             if (cbret >= 0) {
                 cf_handler_launch_capture_thread(caph);
@@ -1389,7 +1386,8 @@ int cf_handler_remote_connect(kis_capture_handler_t *caph) {
         cpi = NULL;
         cps = NULL;
 
-        cbret = (*(caph->probe_cb))(caph, 0, caph->cli_sourcedef, msgstr, &uuid, &cpi, &cps);
+        cbret = (*(caph->probe_cb))(caph, 0, caph->cli_sourcedef, msgstr, &uuid, 
+                NULL, &cpi, &cps);
 
         if (cpi != NULL)
             cf_params_interface_free(cpi);
@@ -2058,8 +2056,8 @@ int cf_send_proberesp(kis_capture_handler_t *caph, uint32_t seq,
 }
 
 int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int success,
-        const char *msg, uint32_t dlt, const char *uuid, const char *chanset, 
-        char **channels, size_t channels_len, const char *capif) {
+        const char *msg, uint32_t dlt, const char *uuid, 
+        cf_params_interface_t *interface, cf_params_spectrum_t *spectrum) {
     /* How many KV pairs are we allocating?  2 for success + dlt for sure */
     size_t num_kvs = 2;
 
@@ -2072,16 +2070,21 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
     if (msg != NULL && strlen(msg) != 0)
         num_kvs++;
 
-    if (chanset != NULL)
-        num_kvs++;
+    if (interface != NULL) {
+        if (interface->chanset != NULL)
+            num_kvs++;
 
-    if (channels_len != 0)
-        num_kvs++;
+        if (interface->channels_len != 0)
+            num_kvs++;
+
+        if (interface->capif != NULL)
+            num_kvs++;
+    }
 
     if (uuid != NULL)
         num_kvs++;
 
-    if (capif != NULL)
+    if (spectrum != NULL)
         num_kvs++;
 
     /* fprintf(stderr, "debug - openresp going to allocate %u kvs\n", num_kvs); */
@@ -2136,36 +2139,55 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
         kv_pos++;
     }
 
-    if (capif != NULL) {
-        kv_pairs[kv_pos] = encode_kv_capif(capif);
-        if (kv_pairs[kv_pos] == NULL) {
-            fprintf(stderr, "FATAL: Unable to allocate KV CAPIF pair\n");
-            for (i = 0; i < kv_pos; i++) {
-                free(kv_pairs[i]);
+    if (interface != NULL) {
+        if (interface->capif != NULL) {
+            kv_pairs[kv_pos] = encode_kv_capif(interface->capif);
+            if (kv_pairs[kv_pos] == NULL) {
+                fprintf(stderr, "FATAL: Unable to allocate KV CAPIF pair\n");
+                for (i = 0; i < kv_pos; i++) {
+                    free(kv_pairs[i]);
+                }
+                free(kv_pairs);
+                return -1;
             }
-            free(kv_pairs);
-            return -1;
+            kv_pos++;
         }
-        kv_pos++;
+
+        if (interface->chanset != 0) {
+            kv_pairs[kv_pos] = encode_kv_chanset(interface->chanset);
+            if (kv_pairs[kv_pos] == NULL) {
+                fprintf(stderr, "FATAL: Unable to allocate KV CHANSET pair\n");
+                for (i = 0; i < kv_pos; i++) {
+                    free(kv_pairs[i]);
+                }
+                free(kv_pairs);
+                return -1;
+            }
+            kv_pos++;
+        }
+
+        if (interface->channels_len != 0) {
+            kv_pairs[kv_pos] = encode_kv_channels(interface->channels, 
+                    interface->channels_len);
+            if (kv_pairs[kv_pos] == NULL) {
+                fprintf(stderr, "FATAL: Unable to allocate KV CHANNELS pair\n");
+                for (i = 0; i < kv_pos; i++) {
+                    free(kv_pairs[i]);
+                }
+                free(kv_pairs);
+                return -1;
+            }
+            kv_pos++;
+        }
     }
 
-    if (chanset != 0) {
-        kv_pairs[kv_pos] = encode_kv_chanset(chanset);
-        if (kv_pairs[kv_pos] == NULL) {
-            fprintf(stderr, "FATAL: Unable to allocate KV CHANSET pair\n");
-            for (i = 0; i < kv_pos; i++) {
-                free(kv_pairs[i]);
-            }
-            free(kv_pairs);
-            return -1;
-        }
-        kv_pos++;
-    }
+    if (spectrum != NULL) {
+        kv_pairs[kv_pos] = encode_kv_specset(spectrum->start_hz, spectrum->end_hz,
+                spectrum->samples_per_freq, spectrum->bin_width, spectrum->amp,
+                spectrum->if_amp, spectrum->baseband_amp);
 
-    if (channels_len != 0) {
-        kv_pairs[kv_pos] = encode_kv_channels(channels, channels_len);
         if (kv_pairs[kv_pos] == NULL) {
-            fprintf(stderr, "FATAL: Unable to allocate KV CHANNELS pair\n");
+            fprintf(stderr, "FATAL: Unable to allocate KV SPECSET pair\n");
             for (i = 0; i < kv_pos; i++) {
                 free(kv_pairs[i]);
             }

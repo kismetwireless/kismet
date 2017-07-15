@@ -79,7 +79,8 @@ typedef struct {
 } local_pcap_t;
 
 int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
-        char *msg, char **uuid, cf_params_interface_t **ret_interface, 
+        char *msg, char **uuid, simple_cap_proto_frame_t *frame,
+        cf_params_interface_t **ret_interface, 
         cf_params_spectrum_t **ret_spectrum) {
     char *placeholder = NULL;
     int placeholder_len;
@@ -97,6 +98,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     *ret_spectrum = NULL;
 
     *ret_interface = cf_params_interface_new();
+    *ret_spectrum = NULL;
 
     /* pcapfile does not support channel ops */
     (*ret_interface)->chanset = NULL;
@@ -140,8 +142,9 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
 }
 
 int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
-        char *msg, uint32_t *dlt, char **uuid, char **chanset, char ***chanlist, 
-        size_t *chanlist_sz, char **capif) {
+        char *msg, uint32_t *dlt, char **uuid, simple_cap_proto_frame_t *frame,
+        cf_params_interface_t **ret_interface, 
+        cf_params_spectrum_t **ret_spectrum) {
     char *placeholder = NULL;
     int placeholder_len;
 
@@ -154,11 +157,10 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     char errstr[PCAP_ERRBUF_SIZE] = "";
 
     /* pcapfile does not support channel ops */
-    *chanset = NULL;
-    *chanlist = NULL;
-    *chanlist_sz = 0;
+    *ret_interface = cf_params_interface_new();
+    *ret_spectrum = NULL;
+
     *uuid = NULL;
-    *capif = NULL;
     *dlt = 0;
 
     /* Clean up any old state */

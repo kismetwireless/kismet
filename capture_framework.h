@@ -68,7 +68,7 @@ typedef struct cf_params_spectrum cf_params_spectrum_t;
 /* List devices callback
  * Called to list devices available
  *
- * *msg is allocated by the caller and can hold STATUS_MAX characters and should
+ * *msg is allocated by the framework and can hold STATUS_MAX characters and should
  * be populated with any message the listcb wants to return.
  * **interfaces must be allocated by the list cb and should contain allocated
  * strings of interfaces
@@ -86,7 +86,7 @@ typedef int (*cf_callback_listdevices)(kis_capture_handler_t *, uint32_t seqno,
 /* Probe definition callback
  * Called to determine if definition is supported by this datasource
  *
- * *msg is allocated by the caller and can hold STATUS_MAX characters and should
+ * *msg is allocated by the framework and can hold STATUS_MAX characters and should
  * be populated with any message the listcb wants to return.
  *
  * **ret_interface and **ret_spectrum are to be allocated by the callback
@@ -101,25 +101,23 @@ typedef int (*cf_callback_listdevices)(kis_capture_handler_t *, uint32_t seqno,
  *  1   interface supported
  */
 typedef int (*cf_callback_probe)(kis_capture_handler_t *, uint32_t seqno, 
-        char *definition, char *msg, char **uuid, cf_params_interface_t **ret_interface,
+        char *definition, char *msg, char **uuid, simple_cap_proto_frame_t *frame,
+        cf_params_interface_t **ret_interface,
         cf_params_spectrum_t **ret_spectrum);
 
 /* Open callback
  * Called to open a datasource
  *
- * *msg is allocated by the caller and can hold STATUS_MAX characters and should
+ * *msg is allocated by the framework and can hold STATUS_MAX characters and should
  * be populated with any message the listcb wants to return
  *
- * *dlt is allocated by the caller and should be filled with the interface DLT
+ * *dlt is allocated by the framework, and should be filled with the interface DLT
  * or link type (typically from pcap_get_linktype or a known fixed value);
  *
- * *uuid is to be allocated by the cb and should hold the interface UUID
- * *chanset is to be allocated by the cb and should hold the channel,
- * if only one channel is supported.
- * **chanlist is to be allocated by the cb and should hold the supported channel list,
- * if any.
- * *chanlist_sz is to be filled in by the cb with the number of channels in the
- * chanlist.
+ * **uuid is to be allocated by the cb and should hold the interface UUID
+ *
+ * **ret_interface and **ret_spectrum are to be allocated by the callback function
+ * if the results are populated.  They will be freed by the framework.
  *
  * Return values:
  * -1   error occurred while opening
@@ -127,7 +125,8 @@ typedef int (*cf_callback_probe)(kis_capture_handler_t *, uint32_t seqno,
  */
 typedef int (*cf_callback_open)(kis_capture_handler_t *, uint32_t seqno, 
         char *definition, char *msg, uint32_t *dlt, char **uuid, 
-        char **chanset, char ***chanlist, size_t *chanlist_sz, char **capif);
+        simple_cap_proto_frame_t *frame, cf_params_interface_t **ret_interface,
+        cf_params_spectrum_t **ret_spectrum);
 
 /* Channel translate
  * Called to translate a channel from a generic string to a local representation
@@ -156,7 +155,7 @@ typedef void *(*cf_callback_chantranslate)(kis_capture_handler_t *, char *chanst
  * callback; typically an error during hopping may be allowable while an error
  * during an explicit channel set is not.
  *
- * msg is allocated by the caller and can hold up to STATUS_MAX characters.  It
+ * msg is allocated by the framework and can hold up to STATUS_MAX characters.  It
  * will be transmitted along with success or failure if seqno != 0.
  *
  * In all other situations, the callback may communicate to the user status 
@@ -209,7 +208,7 @@ typedef void (*cf_callback_capture)(kis_capture_handler_t *);
  *
  * Called in response to a SPECSET block in a CONFIGURE command
  *
- * msg is allocated by the caller and can hold up to STATUS_MAX characters.  It 
+ * msg is allocated by the framework and can hold up to STATUS_MAX characters.  It 
  * will be transmitted along with the success or failure value if seqno != 0
  *
  * In all other situations, the callback may communicate status to the user
@@ -700,8 +699,8 @@ int cf_send_proberesp(kis_capture_handler_t *caph, uint32_t seq, unsigned int su
  *  1   Success
  */
 int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int success,
-        const char *msg, const uint32_t dlt, const char *uuid, const char *chanset, 
-        char **channels, size_t channels_len, const char *capif);
+        const char *msg, const uint32_t dlt, const char *uuid, 
+        cf_params_interface_t *interface, cf_params_spectrum_t *spectrum);
 
 /* Send a DATA frame with packet data
  * Can be called from any thread
