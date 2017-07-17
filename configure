@@ -622,6 +622,7 @@ ac_includes_default="\
 #endif"
 
 ac_subst_vars='LTLIBOBJS
+BUILD_CAPTURE_HACKRF_SWEEP
 BUILD_CAPTURE_LINUX_WIFI
 BUILD_CAPTURE_PCAPFILE
 DATASOURCE_BINS
@@ -5824,6 +5825,7 @@ if test "$HAVE_LIBHACKRF" -eq 1 && test "$HAVE_LIBFFTW3"; then
 $as_echo "#define BUILD_HACKRF_SWEEP 1" >>confdefs.h
 
     BUILD_HACKRF_SWEEP=1
+    DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_HACKRF_SWEEP)"
 fi
 
 HAVE_LIBDW=0
@@ -9701,6 +9703,7 @@ sharedatadir=${sharedatadir}
 
 
 CPPFLAGS="-I$BUNDLE_MSGPACK/include $CPPFLAGS"
+
 
 
 
