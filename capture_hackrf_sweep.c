@@ -111,12 +111,13 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
         char *msg, char **uuid, simple_cap_proto_frame_t *frame,
         cf_params_interface_t **ret_interface,
         cf_params_spectrum_t **ret_spectrum) {
-#if 0
     char *placeholder = NULL;
     int placeholder_len;
-    char *interface;
-    int ret;
+    char *interface = NULL;
+    char *serial = NULL;
     char errstr[STATUS_MAX];
+    hackrf_device_list_t *list;
+    int x;
 
     *ret_spectrum = cf_params_spectrum_new();
     *ret_interface = NULL;
@@ -128,31 +129,66 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
 
     interface = strndup(placeholder, placeholder_len);
 
-    /* get the mac address; this should be standard for anything */
-    if (ifconfig_get_hwaddr(interface, errstr, hwaddr) < 0) {
-        snprintf(msg, STATUS_MAX, "Could not fetch interface address from '%s': %s",
-                interface, errstr);
-        return -1;
+    // All hackrfsweeps use 'hackrf' as the interface
+    if (strcmp(interface, "hackrf") != 0) {
+        snprintf(msg, STATUS_MAX, "Doesn't look like a hackrf");
+        return 0;
     }
 
-    ret = populate_chanlist(interface, errstr, &((*ret_interface)->channels),
-            &((*ret_interface)->channels_len));
 
-    free(interface);
+    if (hackrf_init() != HACKRF_SUCCESS) {
+        snprintf(msg, STATUS_MAX, "hackrf_sweep could not initialize libhackrf");
+        return 0;
+    }
 
-    if (ret < 0)
-        return -1;
+    list = hackrf_device_list();
 
-    /* Make a spoofed, but consistent, UUID based on the adler32 of the interface name 
-     * and the mac address of the device */
-    snprintf(errstr, STATUS_MAX, "%08X-0000-0000-0000-%02X%02X%02X%02X%02X%02X",
-            adler32_csum((unsigned char *) "kismet_cap_linux_wifi", 
-                strlen("kismet_cap_linux_wifi")) & 0xFFFFFFFF,
-            hwaddr[0] & 0xFF, hwaddr[1] & 0xFF, hwaddr[2] & 0xFF,
-            hwaddr[3] & 0xFF, hwaddr[4] & 0xFF, hwaddr[5] & 0xFF);
-    *uuid = strdup(errstr);
-    return 1;
-#endif
+    if (list == NULL) {
+        return 0;
+    }
+
+    if (list->devicecount == 0)
+        return 0;
+
+
+    // Figure out if we have a serial #
+    if ((placeholder_len = cf_find_flag(&placeholder, "serial", definition)) > 0) {
+        serial = strndup(placeholder, placeholder_len);
+    } 
+
+    if (serial == NULL && list->devicecount != 1) {
+        snprintf(msg, STATUS_MAX, "multiple hackrf devices found, specify serial number");
+        hackrf_device_list_free(list);
+        hackrf_exit();
+        return 0;
+    }
+
+    for (x = 0; x < list->devicecount; x++) {
+        if (strcmp(serial, list->serial_numbers[x]) == 0) {
+            unsigned long s;
+            if (sscanf(serial, "%lx", &s) == 1) {
+                /* Make a spoofed, but consistent, UUID based on the adler32 of the 
+                 * capture name and the serial of the device */
+                snprintf(errstr, STATUS_MAX, "%08X-0000-0000-%04lX-%12lX",
+                        adler32_csum((unsigned char *) "kismet_cap_hackrf_sweep", 
+                            strlen("kismet_cap_hackrf_sweep")) & 0xFFFFFFFF,
+                        (s >> 48) & 0xFFFF, s & 0xFFFFFFFFFFFF);
+                *uuid = strdup(errstr);
+
+                hackrf_device_list_free(list);
+                hackrf_exit();
+
+                return 1;
+            }
+
+        }
+
+    }
+
+    hackrf_device_list_free(list);
+    hackrf_exit();
+
+    return 0;
 }
 
 int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
@@ -759,75 +795,6 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno,
     hackrf_exit();
 
     return x;
-
-#if 0
-    DIR *devdir;
-    struct dirent *devfile;
-    char errstr[STATUS_MAX];
-
-    /* Basic list of devices */
-    typedef struct wifi_list {
-        char *device;
-        char *flags;
-        struct wifi_list *next;
-    } wifi_list_t; 
-
-    wifi_list_t *devs = NULL;
-    size_t num_devs = 0;
-
-    unsigned int i;
-
-    if ((devdir = opendir("/sys/class/net/")) == NULL) {
-        /* fprintf(stderr, "debug - no /sys/class/net dir?\n"); */
-
-        /* Not an error, just nothing to do */
-        *interfaces = NULL;
-        *flags = NULL;
-        return 0;
-    }
-
-    /* Look at the files in the sys dir and see if they're wi-fi */
-    while ((devfile = readdir(devdir)) != NULL) {
-        /* if we can get the current channel with simple iwconfig ioctls
-         * it's definitely a wifi device; even mac80211 devices respond 
-         * to it */
-        int mode;
-        if (iwconfig_get_mode(devfile->d_name, errstr, &mode) >= 0) {
-            wifi_list_t *d = (wifi_list_t *) malloc(sizeof(wifi_list_t));
-            num_devs++;
-            d->device = strdup(devfile->d_name);
-            d->flags = NULL;
-            d->next = devs;
-            devs = d;
-        }
-    }
-
-    closedir(devdir);
-
-    if (num_devs == 0) {
-        *interfaces = NULL;
-        *flags = NULL;
-        return 0;
-    }
-
-    *interfaces = (char **) malloc(sizeof(char *) * num_devs);
-    *flags = (char **) malloc(sizeof(char *) * num_devs);
-
-    i = 0;
-
-    while (devs != NULL) {
-        wifi_list_t *td = devs->next;
-        (*interfaces)[i] = devs->device;
-        (*flags)[i] = devs->flags;
-
-        free(devs);
-        devs = td;
-
-        i++;
-    }
-
-    return num_devs;
-#endif
 }
 
 void capture_thread(kis_capture_handler_t *caph) {
