@@ -487,6 +487,8 @@ if test "$needlibm" = "yes"; then
 				 AC_MSG_ERROR([libm is needed and is not available]))
 else
 	AC_MSG_RESULT([yes])
+    LIBMLIB="-lm"
+    AC_SUBST(LIBMLIB)
 fi
 
 # Do we use libstdc++?

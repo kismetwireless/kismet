@@ -106,6 +106,125 @@ void capture_thread(kis_capture_handler_t *) {
 #include <libhackrf/hackrf.h>
 #include <fftw3.h>
 #include <inttypes.h>
+#include <math.h>
+
+/* Copied directly from hackrf_sweep.c */
+#define FD_BUFFER_SIZE (8*1024)
+
+#define FREQ_ONE_MHZ (1000000ull)
+
+#define FREQ_MIN_MHZ (0)    /*    0 MHz */
+#define FREQ_MAX_MHZ (7250) /* 7250 MHz */
+
+#define DEFAULT_SAMPLE_RATE_HZ (20000000) /* 20MHz default sample rate */
+#define DEFAULT_BASEBAND_FILTER_BANDWIDTH (15000000) /* 5MHz default */
+
+#define TUNE_STEP (DEFAULT_SAMPLE_RATE_HZ / FREQ_ONE_MHZ)
+#define OFFSET 7500000
+
+#define BLOCKS_PER_TRANSFER 16
+#define THROWAWAY_BLOCKS 2
+
+#if defined _WIN32
+	#define sleep(a) Sleep( (a*1000) )
+#endif
+
+uint32_t num_samples = SAMPLES_PER_BLOCK;
+int num_ranges = 0;
+uint16_t frequencies[MAX_SWEEP_RANGES*2];
+int step_count;
+
+static float TimevalDiff(const struct timeval *a, const struct timeval *b) {
+   return (a->tv_sec - b->tv_sec) + 1e-6f * (a->tv_usec - b->tv_usec);
+}
+
+int parse_u32(char* s, uint32_t* const value) {
+	uint_fast8_t base = 10;
+	char* s_end;
+	uint64_t ulong_value;
+
+	if( strlen(s) > 2 ) {
+		if( s[0] == '0' ) {
+			if( (s[1] == 'x') || (s[1] == 'X') ) {
+				base = 16;
+				s += 2;
+			} else if( (s[1] == 'b') || (s[1] == 'B') ) {
+				base = 2;
+				s += 2;
+			}
+		}
+	}
+
+	s_end = s;
+	ulong_value = strtoul(s, &s_end, base);
+	if( (s != s_end) && (*s_end == 0) ) {
+		*value = (uint32_t)ulong_value;
+		return HACKRF_SUCCESS;
+	} else {
+		return HACKRF_ERROR_INVALID_PARAM;
+	}
+}
+
+int parse_u32_range(char* s, uint32_t* const value_min, uint32_t* const value_max) {
+	int result;
+
+	char *sep = strchr(s, ':');
+	if (!sep)
+		return HACKRF_ERROR_INVALID_PARAM;
+
+	*sep = 0;
+
+	result = parse_u32(s, value_min);
+	if (result != HACKRF_SUCCESS)
+		return result;
+	result = parse_u32(sep + 1, value_max);
+	if (result != HACKRF_SUCCESS)
+		return result;
+
+	return HACKRF_SUCCESS;
+}
+
+volatile bool do_exit = false;
+
+FILE* fd = NULL;
+volatile uint32_t byte_count = 0;
+volatile uint64_t sweep_count = 0;
+
+struct timeval time_start;
+struct timeval t_start;
+struct timeval time_stamp;
+
+bool amp = false;
+uint32_t amp_enable;
+
+bool antenna = false;
+uint32_t antenna_enable;
+
+bool binary_output = false;
+bool ifft_output = false;
+bool one_shot = false;
+volatile bool sweep_started = false;
+
+int fftSize = 20;
+double fft_bin_width;
+fftwf_complex *fftwIn = NULL;
+fftwf_complex *fftwOut = NULL;
+fftwf_plan fftwPlan = NULL;
+fftwf_complex *ifftwIn = NULL;
+fftwf_complex *ifftwOut = NULL;
+fftwf_plan ifftwPlan = NULL;
+uint32_t ifft_idx = 0;
+float* pwr;
+float* window;
+
+float logPower(fftwf_complex in, float scale)
+{
+	float re = in[0] * scale;
+	float im = in[1] * scale;
+	float magsq = re * re + im * im;
+	return log2f(magsq) * 10.0f / log2(10.0f);
+}
+
 
 int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         char *msg, char **uuid, simple_cap_proto_frame_t *frame,
