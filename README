@@ -17,20 +17,20 @@ https://www.kismetwireless.net
 
         $ sudo apt-get install build-essential libmicrohttpd-dev git \
             libnl-3-dev libnl-genl-3-dev libcap-dev libpcap-dev \
-            libncurses5-dev libnm-dev libdw-dev
+            libncurses5-dev libnm-dev libdw-dev libsqlite3-dev
+
+        Additionally, to support HackRF sweep, you'll need:
+
+        $ sudo apt-get install libhackrf-dev libfftw3-dev
 
     2.  Clone Kismet from git.  If you haven't cloned Kismet before:
 
-        $ git clone https://www.kismetwireless.net/kismet.git
+        $ git clone https://www.kismetwireless.net/git/kismet.git
 
         If you have a Kismet repo already:
 
         $ cd kismet
         $ git pull
-
-        Git may appear that it has hung while it downloads - just give it
-        some time.  Typically a clone on a fast connection will take 
-        2 to 5 minutes.
 
     3.  Run configure.  This will find all the specifics about your system
         and prepare Kismet for compiling.  If you have any missing dependencies
@@ -39,7 +39,9 @@ https://www.kismetwireless.net
         $ cd kismet
         $ ./configure
 
-        Pay attention to the summary at the end and look out for any warnings.
+        Pay attention to the summary at the end and look out for any warnings!  The
+        summary will show key features and raise warnings for missing dependencies which
+        will drastically affect the compiled Kismet.
 
     4.  Compile Kismet.  
 
@@ -70,7 +72,21 @@ https://www.kismetwireless.net
 
         $ groups
 
-    8.  You're now ready to run Kismet!  Point it at your network interface:
+    8.  You're now ready to run Kismet!  Point it at your network interface... Different
+        distributions (and kernel versions, and distribution versions) name interfaces
+        differently; your interface may be 'wlan0' or 'wlan1', or it may be named 
+        something like 'wlp0s1', or it may be named using the MAC address of the card
+        and look like 'wlx00c0ca8d7f2e'.
+
+        You can list the cards Kismet detects on your system with:
+
+        $ /usr/local/bin/kismet_capture_tools/kismet_cap_linux_wifi --list
+
+        The results will resemble:
+
+            linuxwifi supported data sources:
+                wlan0
+                wlx00c0ca8d7f2e
 
         $ kismet -c wlan0
 
