@@ -230,6 +230,36 @@ AC_CHECK_HEADERS([errno.h stdlib.h string.h sys/socket.h sys/time.h sys/wait.h u
 AC_CHECK_HEADERS([getopt.h])
 AC_CHECK_HEADERS([glob.h])
 
+HAVE_LIBHACKRF=0
+HAVE_LIBFFTW3=0
+HAVE_HACKRF_H=0
+HAVE_FFTW3_H=0
+BUILD_HACKRF_SWEEP=0
+
+AC_CHECK_HEADERS([libhackrf/hackrf.h],
+    HAVE_HACKRF_H=1,
+    AC_MSG_WARN("Missing hackrf.h from libhackrf"))
+AC_CHECK_HEADERS([fftw3.h],
+    HAVE_FFTW3_H=1,
+    AC_MSG_WARN("Missing fftw3.h from libfftw"))
+
+if test "$HAVE_HACKRF_H" -eq 1; then
+    AC_CHECK_LIB([hackrf], [hackrf_init],
+			HAVE_LIBHACKRF=1,
+			 AC_MSG_WARN([libhackrf not available]))
+fi
+
+if test "$HAVE_FFTW3_H" -eq 1; then
+    AC_CHECK_LIB([fftw3], [ffwtf_malloc],
+            HAVE_LIBFFTW3=1,
+            AC_MSG_WARN([libfftw3 not available]))
+fi
+
+if test "$HAVE_LIBHACKRF" -eq 1 && test "$HAVE_LIBFFTW3"; then
+    AC_DEFINE(BUILD_HACKRF_SWEEP, 1, Able to build hackrf sweep source)
+    BUILD_HACKRF_SWEEP=1
+fi
+
 HAVE_LIBDW=0
 HAVE_LIBBFD=0
 
@@ -1250,6 +1280,13 @@ elif test "$linux" != "yes"; then
 	echo "n/a (only Linux)"
 else
 	echo "no (will not be able to control NetworkManager)";
+fi
+
+printf "       HackRF spectrum: "
+if test "$BUILD_HACKRF_SWEEP" -eq 1; then
+	echo "yes (libhackrf and libfftw3 present)";
+else
+	echo "no (missing libhackrf or libfftw3)";
 fi
 
 printf "        Built-in Debug: "
