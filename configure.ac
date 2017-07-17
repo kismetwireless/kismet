@@ -793,6 +793,41 @@ if test "$wantpcre" = "yes"; then
 	fi # pcre
 fi
 
+AC_ARG_ENABLE(sqlite3,
+	[  --disable-sqlite3       disable building sqlite3 logging],
+	[case "${enableval}" in
+	  no) wantsql3=no ;;
+	   *) wantsql3=yes ;;
+	 esac],
+	[wantsql3=yes]
+)
+
+if test "$wantsql3" = "yes"; then
+	# Check for sqlite3
+	sql3l=no
+	AC_CHECK_LIB([sqlite3], [sqlite3_libversion], sql3l=yes, sql3l=no)
+
+	if test "$sql3l" != "yes"; then
+		AC_MSG_WARN(Failed to find libsqlite3)
+		wantsql3=no
+	fi
+
+	if test "$wantsql3" = "yes"; then
+	sql3h=no
+	AC_CHECK_HEADER([sqlite3.h], sql3h=yes, sql3h=no)
+
+	if test "$sql3h" != "yes"; then
+		AC_MSG_WARN(Failed to find sqlite3 headers check that the libsqlite3-devel package is installed if your distribution provides separate packages)
+		wantsql3=no
+	fi
+	fi # wantsql3
+
+	if test "$wantsql3" = "yes"; then
+	AC_DEFINE(HAVE_LIBSQLITE3, 1, libsqlite3 database support)
+	LIBS="$LIBS -lsqlite3"
+	fi # sqlite3
+fi
+
 # Handle airpcap/winpcap on cygwin
 if test "$cygwin" = yes; then
 AC_CHECK_HEADERS([windows.h Win32-Extensions.h])
@@ -1305,6 +1340,13 @@ else
 	echo "no (missing libhackrf or libfftw3)";
 fi
 
+printf "      SQLite3 Database: "
+if test "$wantsql3" = "yes"; then
+	echo "yes"
+else
+	echo "no - some logging will not be available"
+fi
+
 printf "        Built-in Debug: "
 echo $BACKTRACE_WARNING
 
@@ -1385,21 +1427,6 @@ if test "$havelibnm" != "yes" -a "$linux" = "yes"; then
     echo "disable NetworkManager or manually tell it to ignore specific interaces."
 fi
 
-if test "$havenetlink" = "yes" -a "$pcap" = "yes"; then
-	echo
-	echo "*** WARNING ***"
-	echo "In some situations, libpcap links to libnl.  If Kismet finds a newer "
-	echo "libnl, it can cause an immediate segfault when starting Kismet. "
-	echo
-	echo "It is very hard to test at compile time (and run-time changes can "
-	echo "cause it to break).  If you experience immediate segfaults when "
-	echo "trying to start kismet_server, check your libpcap.so with 'ldd'"
-	echo "and either install a libpcap which does not link libnl1, or "
-	echo "force Kismet to compile with a degraded libnl via "
-	echo "./configure --with-netlink-version=1"
-	echo
-fi
-
 if test "$want_asan" = "yes" -a "$want_tsan" = "yes"; then
 	echo
     echo "*** WARNING ***"
@@ -1407,5 +1434,12 @@ if test "$want_asan" = "yes" -a "$want_tsan" = "yes"; then
     echo "and address sanitizer debugging simultaneously will work due to "
     echo "binary differences.  Likely, the compiler will reject this, "
     echo "but you can try."
+elif test "$want_asan" = "yes" -o "$want_tsan" = "yes"; then
+    echo 
+    echo "*** NOTICE ***"
+    echo "Compiling with ASAN or TSAN debugging can greatly increase the "
+    echo "amount of RAM Kismet needs; you may see degraded performance or "
+    echo "increased system load."
 fi
+
 

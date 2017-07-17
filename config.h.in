@@ -123,6 +123,9 @@
 /* libpcre regex support */
 #undef HAVE_LIBPCRE
 
+/* libsqlite3 database support */
+#undef HAVE_LIBSQLITE3
+
 /* Define to 1 if you have the <libutil.h> header file. */
 #undef HAVE_LIBUTIL_H
 
