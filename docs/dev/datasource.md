@@ -372,8 +372,8 @@ Sources which support raw spectrum capture should accept this KV in the CONFIGUR
 Content:
 
 Msgpack packed dictionary containing the following:
-* "start_hz": uint64 unsigned value, starting frequency, in Hz, of sweep (optional)
-* "end_hz": uint64 unsigned value, ending frequency, in Hz, of sweep (optional)
+* "start_mhz": uint64 unsigned value, starting frequency, in MHz, of sweep (optional)
+* "end_mhz": uint64 unsigned value, ending frequency, in MHz, of sweep (optional)
 * "samples_per_freq": uint64 unsigned value, number of samples taken per frequency bin (optional)
 * "bin_width": uint64 unsigned value, width of each sample bin, in Hz (optional)
 * "amp": uint8 unsigned value, treated as boolean, enables amp (if available) (optional)
@@ -389,14 +389,14 @@ Content:
 
 Msgpack packed dictionary containing the following:
 * "timestamp": double timestamp in seconds+microseconds since the epoch
-* "hz_low": uint64 lowest frequency of sweep, in HZ
-* "hz_high": uint64 highest frequency of sweep, in HZ
-* "hz_bin_width": uint64 width of each signal record, in HZ
+* "mhz_low": uint64 lowest frequency of sweep, in MHz
+* "mhz_high": uint64 highest frequency of sweep, in MHz
+* "hz_bin_width": uint64 width of each signal record, in Hz
 * "db_samples": vector/array of samples, in dB, as int16 data.
 
 Example:
 
-{ "timestamp": 12345, "hz_low": 2400000000, "hz_high": 2480000000, "hz_bin_width": 1000000, "db_samples": [ -60, -60, -60, -10, -20, ... ] }
+{ "timestamp": 12345, "mhz_low": 2400000, "mhz_high": 2480000, "hz_bin_width": 1000000, "db_samples": [ -60, -60, -60, -10, -20, ... ] }
 
 #### SUCCESS
 A simple boolean indicating success or failure of the relevant command.  This value is padded to 4 bytes and is followed by the `uint32_t` sequence number of the command, if any, this success value applies to.

@@ -328,7 +328,7 @@ simple_cap_proto_kv_t *encode_kv_chanhop_complex(double rate, char **channels,
  * Pointer on success
  * NULL on failure
  */
-simple_cap_proto_kv_t *encode_kv_specset(uint64_t start_hz, uint64_t end_hz, 
+simple_cap_proto_kv_t *encode_kv_specset(uint64_t start_mhz, uint64_t end_mhz, 
         uint64_t samples_per_freq, uint64_t bin_width, uint8_t amp,
         uint64_t if_amp, uint64_t baseband_amp);
 

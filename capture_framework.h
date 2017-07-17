@@ -219,7 +219,7 @@ typedef void (*cf_callback_capture)(kis_capture_handler_t *);
  *  0   Success
  */
 typedef int (*cf_callback_spectrumconfig)(kis_capture_handler_t *, uint32_t seqno,
-    uint64_t start_hz, uint64_t end_hz, uint64_t num_per_freq, uint64_t bin_width,
+    uint64_t start_mhz, uint64_t end_mhz, uint64_t num_per_freq, uint64_t bin_width,
     unsigned int amp, uint64_t if_amp, uint64_t baseband_amp, 
     simple_cap_proto_frame_t *in_frame);
 
@@ -323,8 +323,8 @@ struct cf_params_interface {
 };
 
 struct cf_params_spectrum {
-    uint64_t start_hz;
-    uint64_t end_hz;
+    uint64_t start_mhz;
+    uint64_t end_mhz;
     uint64_t samples_per_freq;
     uint64_t bin_width;
     uint8_t amp;
@@ -567,7 +567,7 @@ int cf_get_CHANHOP(double *hop_rate, char ***ret_channel_list,
  *  0   No SPECSET key found
  *  1   Success
  */
-int cf_get_SPECSET(uint64_t *ret_start_hz, uint64_t *ret_end_hz,
+int cf_get_SPECSET(uint64_t *ret_start_mhz, uint64_t *ret_end_mhz,
         uint64_t *ret_num_freq, uint64_t *ret_bin_width,
         uint8_t *ret_amp, uint64_t *ret_if_amp, uint64_t *ret_baseband_amp,
         simple_cap_proto_frame_t *in_frame);

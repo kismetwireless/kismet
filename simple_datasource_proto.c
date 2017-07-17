@@ -811,12 +811,12 @@ simple_cap_proto_kv_t *encode_kv_chanhop_complex(double rate, char **channels,
     return kv;
 }
 
-simple_cap_proto_kv_t *encode_kv_specset(uint64_t start_hz, uint64_t end_hz, 
+simple_cap_proto_kv_t *encode_kv_specset(uint64_t start_mhz, uint64_t end_mhz, 
         uint64_t samples_per_freq, uint64_t bin_width, uint8_t amp,
         uint64_t if_amp, uint64_t baseband_amp) {
 
-    const char *key_start = "start_hz";
-    const char *key_end = "end_hz";
+    const char *key_start = "start_mhz";
+    const char *key_end = "end_mhz";
     const char *key_samples = "samples_per_freq";
     const char *key_binwidth = "bin_width";
     const char *key_amp = "amp";
@@ -828,8 +828,6 @@ simple_cap_proto_kv_t *encode_kv_specset(uint64_t start_hz, uint64_t end_hz,
     simple_cap_proto_kv_t *kv;
     size_t content_sz;
     
-    size_t i;
-
     /* Allocate a chunk per channel as a guess, seems reasonable */
     size_t initial_sz = (7 * 32) + 256;
 
@@ -842,10 +840,10 @@ simple_cap_proto_kv_t *encode_kv_specset(uint64_t start_hz, uint64_t end_hz,
     mp_b_encode_map(puckbuffer, 7);
 
     mp_b_encode_str(puckbuffer, key_start, strlen(key_start));
-    mp_b_encode_uint(puckbuffer, start_hz);
+    mp_b_encode_uint(puckbuffer, start_mhz);
 
     mp_b_encode_str(puckbuffer, key_end, strlen(key_end));
-    mp_b_encode_uint(puckbuffer, end_hz);
+    mp_b_encode_uint(puckbuffer, end_mhz);
 
     mp_b_encode_str(puckbuffer, key_samples, strlen(key_samples));
     mp_b_encode_uint(puckbuffer, samples_per_freq);

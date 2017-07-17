@@ -1335,7 +1335,7 @@ int cf_get_CHANHOP(double *hop_rate, char ***ret_channel_list,
     return chan_size;
 }
 
-int cf_get_SPECSET(uint64_t *ret_start_hz, uint64_t *ret_end_hz,
+int cf_get_SPECSET(uint64_t *ret_start_mhz, uint64_t *ret_end_mhz,
         uint64_t *ret_num_freq, uint64_t *ret_bin_width,
         uint8_t *ret_amp, uint64_t *ret_if_amp, uint64_t *ret_baseband_amp,
         simple_cap_proto_frame_t *in_frame) {
@@ -1352,8 +1352,8 @@ int cf_get_SPECSET(uint64_t *ret_start_hz, uint64_t *ret_end_hz,
     uint32_t dict_size;
     uint32_t dict_itr;
 
-    *ret_start_hz = 0;
-    *ret_end_hz = 0;
+    *ret_start_mhz = 0;
+    *ret_end_mhz = 0;
     *ret_num_freq = 0;
     *ret_bin_width = 0;
     *ret_amp = 0;
@@ -1384,10 +1384,10 @@ int cf_get_SPECSET(uint64_t *ret_start_hz, uint64_t *ret_end_hz,
     for (dict_itr = 0; dict_itr < dict_size; dict_itr++) {
         sval = mp_decode_str(&mp_buf, &sval_len);
 
-        if (strncasecmp(sval, "start_hz", sval_len) == 0) {
-            *ret_start_hz = mp_decode_uint(&mp_buf);
-        } else if (strncasecmp(sval, "end_hz", sval_len) == 0) {
-            *ret_end_hz = mp_decode_uint(&mp_buf);
+        if (strncasecmp(sval, "start_mhz", sval_len) == 0) {
+            *ret_start_mhz = mp_decode_uint(&mp_buf);
+        } else if (strncasecmp(sval, "end_mhz", sval_len) == 0) {
+            *ret_end_mhz = mp_decode_uint(&mp_buf);
         } else if (strncasecmp(sval, "samples_per_freq", sval_len) == 0) {
             *ret_num_freq = mp_decode_uint(&mp_buf);
         } else if (strncasecmp(sval, "bin_with", sval_len) == 0) {
@@ -2094,7 +2094,7 @@ int cf_send_proberesp(kis_capture_handler_t *caph, uint32_t seq,
     }
 
     if (spectrum != NULL) {
-        kv_pairs[kv_pos] = encode_kv_specset(spectrum->start_hz, spectrum->end_hz,
+        kv_pairs[kv_pos] = encode_kv_specset(spectrum->start_mhz, spectrum->end_mhz,
                 spectrum->samples_per_freq, spectrum->bin_width, spectrum->amp,
                 spectrum->if_amp, spectrum->baseband_amp);
 
@@ -2239,7 +2239,7 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
     }
 
     if (spectrum != NULL) {
-        kv_pairs[kv_pos] = encode_kv_specset(spectrum->start_hz, spectrum->end_hz,
+        kv_pairs[kv_pos] = encode_kv_specset(spectrum->start_mhz, spectrum->end_mhz,
                 spectrum->samples_per_freq, spectrum->bin_width, spectrum->amp,
                 spectrum->if_amp, spectrum->baseband_amp);
 
