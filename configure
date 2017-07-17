@@ -730,6 +730,7 @@ ac_subst_files=''
 ac_user_opts='
 enable_option_checking
 enable_largefile
+enable_mutextimeout
 with_linuxheaders
 enable_linuxwext
 with_pcreheaders
@@ -1393,6 +1394,7 @@ Optional Features:
   --disable-FEATURE       do not include FEATURE (same as --enable-FEATURE=no)
   --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
   --disable-largefile     omit support for large files
+  --disable-mutextimeout  disable failsafe mutex lock timeout
   --disable-linuxwext     disable Linux wireless extensions
   --disable-pcre          disable building pcre components
   --enable-airpcap        enable checking for CACE airpcap
@@ -7971,6 +7973,27 @@ $as_echo "#define PF_ARGV_TYPE PF_ARGV_WRITEABLE" >>confdefs.h
     fi
   fi
 fi
+
+# Allow disabling mutex timeout, use with caution
+# Check whether --enable-mutextimeout was given.
+if test "${enable_mutextimeout+set}" = set; then :
+  enableval=$enable_mutextimeout; case "${enableval}" in
+	  no) wantmutex=0 ;;
+	   *) wantmutex=1 ;;
+	 esac
+else
+  wantmutex=1
+
+fi
+
+
+if test "$wantmutex" -eq 0; then
+
+$as_echo "#define DISABLE_MUTEX_TIMEOUT 1" >>confdefs.h
+
+fi
+
+linux_wireless="no"
 
 # Check for linux headers if we're on linux systems
 if test "$linux" = "yes"; then

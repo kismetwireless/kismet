@@ -272,7 +272,8 @@ public:
         cpplock = NULL;
         lock = in;
 
-#ifdef HAVE_PTHREAD_TIMELOCK
+#if defined(HAVE_PTHREAD_TIMELOCK) && !defined(DISABLE_MUTEX_TIMEOUT)
+        // Only use timeouts if a) they're supported and b) not disabled in configure
         struct timespec t;
 
         clock_gettime(CLOCK_REALTIME , &t); 
@@ -289,10 +290,14 @@ public:
     local_locker(std::recursive_timed_mutex *in) {
         lock = NULL;
         cpplock = in;
-        
+       
+#ifdef DISABLE_MUTEX_TIMEOUT
+        cpplock->lock();
+#else
         if (!cpplock->try_lock_for(std::chrono::seconds(5))) {
             throw(std::runtime_error("deadlocked thread: mutex not available w/in 5 seconds"));
         }
+#endif
     }
 
     ~local_locker() {

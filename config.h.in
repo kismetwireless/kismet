@@ -30,6 +30,9 @@
 /* cannot support backtrace dumping */
 #undef DISABLE_BACKWARD
 
+/* Remove mutex deadlock timeout protection */
+#undef DISABLE_MUTEX_TIMEOUT
+
 /* libairpcap header */
 #undef HAVE_AIRPCAP_H
 

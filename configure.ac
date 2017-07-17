@@ -633,6 +633,22 @@ else
   fi
 fi
 
+# Allow disabling mutex timeout, use with caution
+AC_ARG_ENABLE(mutextimeout,
+	[  --disable-mutextimeout  disable failsafe mutex lock timeout],
+	[case "${enableval}" in
+	  no) wantmutex=0 ;;
+	   *) wantmutex=1 ;;
+	 esac],
+	[wantmutex=1]
+)
+
+if test "$wantmutex" -eq 0; then
+    AC_DEFINE(DISABLE_MUTEX_TIMEOUT, 1, [Remove mutex deadlock timeout protection])
+fi
+
+linux_wireless="no"
+
 # Check for linux headers if we're on linux systems
 if test "$linux" = "yes"; then
 
