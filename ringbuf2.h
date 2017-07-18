@@ -37,40 +37,35 @@ public:
     // Reset a buffer
     virtual void clear();
 
-    virtual size_t size();
+    virtual ssize_t size();
     virtual ssize_t available();
     virtual size_t used();
 
     // Write data into a buffer
     // Return amount of data actually written
-    virtual size_t write(unsigned char *in_data, size_t in_sz);
+    virtual ssize_t write(unsigned char *in_data, size_t in_sz);
 
-    // Peek data from a buffer, up to sz
-    // Peeked data is not consumed
-    // Return the amount of data actually peeked
-    virtual size_t peek(unsigned char *in_data, size_t in_sz);
+    // Peek at data
+    virtual ssize_t peek(unsigned char **in_data, size_t in_sz);
+    virtual ssize_t zero_copy_peek(unsigned char **in_data, size_t in_sz);
+    virtual void peek_free(unsigned char *in_data);
 
     virtual size_t consume(size_t in_sz);
 
     virtual ssize_t reserve(unsigned char **data, size_t in_sz);
-    virtual bool commit(size_t in_sz);
+    virtual bool commit(unsigned char *data, size_t in_sz);
 
 protected:
-    // Mutex for all operations on the buffer
-    pthread_mutex_t buffer_locker;
-
-    // Non-locking internal versions
-    size_t size_nl();
-    size_t available_nl();
-    size_t used_nl();
-
-    uint8_t *buffer;
+    unsigned char *buffer;
     // Total size
     size_t buffer_sz;
     // Where reads start
     size_t start_pos;
     // Length of data currently in buffer
     size_t length;
+
+    // Do we need to free our peeked or committed data?
+    bool free_peek, free_commit;
 };
 
 

@@ -35,13 +35,18 @@ class BufferInterface;
 // Common minimal API for a buffer
 class CommonBuffer {
 public:
+    CommonBuffer() {
+        write_reserved = false;
+        peek_reserved = false;
+    }
+
     virtual ~CommonBuffer() { };
 
     // Clear all data (and free memory used, for dynamic buffers)
     virtual void clear() = 0;
 
-    // Fetch total size of buffer
-    virtual size_t size() = 0;
+    // Fetch total size of buffer; -1 indicates unbounded dynamic buffer
+    virtual ssize_t size() = 0;
 
     // Fetch available space in buffer, -1 indicates unbounded dynamic buffer
     virtual ssize_t available() = 0;
@@ -54,25 +59,73 @@ public:
     // dynamic buffers (like chainbuf) this may induce copy or may provide direct access.
     // Callers should not make any assumptions about the underlying nature of the buffer.
     //
-    // Only one reservation may be made at a time.  Additional reservations without a
-    // commit will fail.
+    // The reserved space is provided in a data pointer; this object must be
+    // returned to the buffer via commit()
     //
-    // The caller must call 'commit' when the data has been copied.
+    // This data pointer may be a direct link (zero-copy) to the buffer, or may 
+    // require an additional memory copy.
+    //
+    // Only one reservation may be made at a time.  Additional reservations without a
+    // commit should fail.
+    //
+    // The buffer should not be written to while there is a data reservation.  Implementations
+    // should protect reserve/write using the 'reserved' class variable.
+    //
+    // Implementations must track internally if the reserved data must be free'd upon commit
     virtual ssize_t reserve(unsigned char **data, size_t in_sz) = 0;
 
     // Commit changes to the reserved block
-    virtual bool commit(size_t in_sz) = 0;
+    virtual bool commit(unsigned char *data, size_t in_sz) = 0;
 
-    // Write an existing block of data to the buffer; this performs a memcpy to copy 
-    // the data into the buffer
-    virtual size_t write(unsigned char *data, size_t in_sz) = 0;
+    // Write an existing block of data to the buffer; this always performs a memcpy to copy 
+    // the data into the buffer.  When possible, it is more efficient to use the 
+    // reservation system.
+    virtual ssize_t write(unsigned char *data, size_t in_sz) = 0;
 
-    // Copy data from the buffer into an existing memory allocation; this performs a
-    // memcpy to extract data from the buffer
-    virtual size_t peek(unsigned char *data, size_t in_sz) = 0;
+    // Peek data.  If possible, this will be a zero-copy operation, if not, it will 
+    // allocate a buffer.  Content is returned in the **data pointer, which will be
+    // a buffer of at least the returned size;  Peeking may return less data
+    // than requested.
+    //
+    // Callers MUST free the data with 'peek_free(...)'.  Buffer implementations MUST
+    // track if the peeked data must be deleted or if it is a zero-copy reference.
+    //
+    // Only one piece of data should be peek'd at a time, additional attempts prior
+    // to a peek_free may fail.  This includes peek() and zero_copy_peek()
+    //
+    // peek will perform a copy to fulfill the total data size if the underlying
+    // buffer implementation cannot return a zero-copy reference; as such it is most 
+    // appropriate for performing read operations of structured data where the entire
+    // object must be available.
+    virtual ssize_t peek(unsigned char **data, size_t in_sz) = 0;
+
+    // Attempt a zero-copy peek; if the underlying buffer supports zero-copy references
+    // this will return a direct pointer to the buffer contents; if the underlying buffer
+    // does not, it may allocate memory and perform a copy.
+    //
+    // Callers MUST free the data with 'peek_free(...)'.  Buffer implementations MUST
+    // track if the peeked data must be deleted or if it is a zero-copy reference.
+    //
+    // zero_copy_peek will NEVER allocate and copy a buffer when a no-copy shorter
+    // buffer is available; This is most suited for draining buffers to an IO system
+    // where the exact record length is not relevant; in general it is not as useful
+    // when a fixed record size must be available.
+    //
+    // Only one piece of data should be peek'd at a time, additional attempts prior
+    // to a peek_free may fail; this includes peek() and zero_copy_peek()
+    virtual ssize_t zero_copy_peek(unsigned char **data, size_t in_sz) = 0;
+
+    virtual void peek_free(unsigned char *data) = 0;
 
     // Remove data from a buffer
     virtual size_t consume(size_t in_sz) = 0;
+
+protected:
+    // Mutex for all operations on the buffer
+    std::recursive_timed_mutex buffer_locker;
+
+    bool write_reserved;
+    bool peek_reserved;
 };
 
 // Common handler for a buffer, which allows a simple standardized interface
