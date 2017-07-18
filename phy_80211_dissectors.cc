@@ -291,6 +291,7 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
 
         common->type = packet_basic_phy;
 
+#if 0
         // Throw away large phy packets just like we throw away large management.
         // Phy stuff is all really small, so we set the limit smaller.
         if (chunk->length > 128) {
@@ -298,12 +299,47 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
             in_pack->insert(pack_comp_80211, packinfo);
             return 0;
         }
+#endif
 
-        if (fc->subtype == 10) {
+        if (fc->subtype == 5) { 
+            packinfo->subtype = packet_sub_vht_ntp;
+
+            if (addr0 == NULL || addr1 == NULL) {
+                packinfo->corrupt = 1;
+                in_pack->insert(pack_comp_80211, packinfo);
+                return 0;
+            }
+
+            packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
+            packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
+
+        } if (fc->subtype == 8) {
+            packinfo->subtype = packet_sub_block_ack_req;
+
+            if (addr0 == NULL || addr1 == NULL) {
+                packinfo->corrupt = 1;
+                in_pack->insert(pack_comp_80211, packinfo);
+                return 0;
+            }
+
+            packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
+            packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
+
+        } else if (fc->subtype == 9) {
+            packinfo->subtype = packet_sub_block_ack;
+
+            if (addr0 == NULL || addr1 == NULL) {
+                packinfo->corrupt = 1;
+                in_pack->insert(pack_comp_80211, packinfo);
+                return 0;
+            }
+
+            packinfo->source_mac = mac_addr(addr0, PHY80211_MAC_LEN);
+            packinfo->dest_mac = mac_addr(addr1, PHY80211_MAC_LEN);
+        } else if (fc->subtype == 10) {
             packinfo->subtype = packet_sub_pspoll;
 
             if (addr0 == NULL) {
-                packinfo->corrupt = 1;
                 packinfo->corrupt = 1;
                 in_pack->insert(pack_comp_80211, packinfo);
                 return 0;
@@ -317,7 +353,6 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
 
             if (addr0 == NULL || addr1 == NULL) {
                 packinfo->corrupt = 1;
-                packinfo->corrupt = 1;
                 in_pack->insert(pack_comp_80211, packinfo);
                 return 0;
             }
@@ -330,24 +365,28 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
 
             if (addr0 == NULL) {
                 packinfo->corrupt = 1;
-                packinfo->corrupt = 1;
                 in_pack->insert(pack_comp_80211, packinfo);
                 return 0;
             }
 
             packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
+            
+            // Kluge into source mac so we can resolve the device
+            packinfo->source_mac = mac_addr(addr0, PHY80211_MAC_LEN);
 
         } else if (fc->subtype == 13) {
             packinfo->subtype = packet_sub_ack;
 
             if (addr0 == NULL) {
                 packinfo->corrupt = 1;
-                packinfo->corrupt = 1;
                 in_pack->insert(pack_comp_80211, packinfo);
                 return 0;
             }
 
             packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
+
+            // Kluge into source mac so we can resolve the device
+            packinfo->source_mac = mac_addr(addr0, PHY80211_MAC_LEN);
 
         } else if (fc->subtype == 14) {
             packinfo->subtype = packet_sub_cf_end;
@@ -356,6 +395,7 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
             packinfo->subtype = packet_sub_cf_end_ack;
 
         } else {
+            fprintf(stderr, "debug - unknown type - %u %u\n", fc->type, fc->subtype);
             packinfo->subtype = packet_sub_unknown;
         }
 
@@ -394,7 +434,15 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
         // an arbitrary number to pick, but this should keep some drivers from messing
         // with us
         // TODO: Make this a driver option
+        /*
         if (chunk->length > 512) {
+            packinfo->corrupt = 1;
+            in_pack->insert(pack_comp_80211, packinfo);
+            return 0;
+        } 
+        */
+
+        if (addr0 == NULL || addr1 == NULL || addr2 == NULL) {
             packinfo->corrupt = 1;
             in_pack->insert(pack_comp_80211, packinfo);
             return 0;
@@ -453,8 +501,10 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
             packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
 
             // If beacons aren't do a broadcast destination, consider them corrupt.
-            if (packinfo->dest_mac != broadcast_mac) 
+            if (packinfo->dest_mac != broadcast_mac) {
+                fprintf(stderr, "debug - dest mac not broadcast\n");
                 packinfo->corrupt = 1;
+            }
             
         } else if (fc->subtype == 9) {
             // I'm not positive this is the right handling of atim packets.  
@@ -502,7 +552,15 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
             memcpy(&rcode, (const char *) &(chunk->data[24]), 2);
 
             packinfo->mgt_reason_code = rcode;
+        } else if (fc->subtype == 13) {
+            packinfo->subtype = packet_sub_action;
+
+            packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
+            packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
+            packinfo->bssid_mac = mac_addr(addr3, PHY80211_MAC_LEN);
+
         } else {
+            fprintf(stderr, "debug - unknown type - %u %u\n", fc->type, fc->subtype);
             packinfo->subtype = packet_sub_unknown;
         }
 
@@ -515,7 +573,8 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
         if (fc->subtype == packet_sub_probe_req || 
             fc->subtype == packet_sub_disassociation || 
             fc->subtype == packet_sub_authentication || 
-            fc->subtype == packet_sub_deauthentication) {
+            fc->subtype == packet_sub_deauthentication ||
+            fc->subtype == packet_sub_action) {
             // Shortcut handling of probe req, disassoc, auth, deauth since they're
             // not normal management frames
             packinfo->header_offset = 24;
@@ -524,6 +583,7 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
             // If we're not long enough to have the fixparm and look like a normal
             // mgt header, bail.
             if (chunk->length < 36) {
+                fprintf(stderr, "debug - chunk too short for management\n");
                 packinfo->corrupt = 1;
                 in_pack->insert(pack_comp_80211, packinfo);
                 return 0;
@@ -571,10 +631,6 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
         map<int, vector<int> > tag_cache_map;
         map<int, vector<int> >::iterator tcitr;
 
-        // Extract various tags from the packet
-        int found_ssid_tag = 0;
-        int found_rate_tag = 0;
-
         if (fc->subtype == packet_sub_beacon || 
             fc->subtype == packet_sub_probe_req || 
             fc->subtype == packet_sub_probe_resp) {
@@ -593,6 +649,7 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
                 // The frame is corrupt, bail.  This is a good indication that it's
                 // corrupt but snuck past the FCS check, so we set the whole packet
                 // as a failure condition
+                fprintf(stderr, "debug - IE tags corrupt\n");
                 packinfo->corrupt = 1;
                 in_pack->insert(pack_comp_80211, (packet_component *) packinfo);
                 in_pack->error = 1;
@@ -602,7 +659,6 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
             if ((tcitr = tag_cache_map.find(0)) != tag_cache_map.end()) {
                 tag_offset = tcitr->second[0];
 
-                found_ssid_tag = 1;
                 taglen = (chunk->data[tag_offset] & 0xFF);
                 packinfo->ssid_len = taglen;
 
@@ -647,15 +703,6 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
                 packinfo->ssid_len = 0;
             }
 
-            // Probe req's with no SSID are bad
-            if (fc->subtype == packet_sub_probe_resp) {
-                if (found_ssid_tag == 0) {
-                    packinfo->corrupt = 1;
-                    in_pack->insert(pack_comp_80211, packinfo);
-                    return 0;
-                }
-            }
-
             // Extract the CISCO beacon info
             if ((tcitr = tag_cache_map.find(133)) != tag_cache_map.end()) {
                 tag_offset = tcitr->second[0];
@@ -678,6 +725,7 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
                 taglen = (chunk->data[tag_offset] & 0xFF);
 
                 if (tag_offset + taglen > chunk->length) {
+                    fprintf(stderr, "debug - corrupt tag offset supported rates\n");
                     // Otherwise we're corrupt, set it and stop processing
                     packinfo->corrupt = 1;
                     in_pack->insert(pack_comp_80211, packinfo);
@@ -701,7 +749,6 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
                     }
                 }
 
-                found_rate_tag = 1;
                 for (unsigned int x = 0; x < taglen; x++) {
                     if (packinfo->maxrate < 
                         (chunk->data[tag_offset+1+x] & 0x7F) * 0.5)
@@ -717,12 +764,12 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
 
                 if (tag_offset + taglen > chunk->length) {
                     // Otherwise we're corrupt, set it and stop processing
+                    fprintf(stderr, "debug - extended rates corrupt\n");
                     packinfo->corrupt = 1;
                     in_pack->insert(pack_comp_80211, packinfo);
                     return 0;
                 }
 
-                found_rate_tag = 1;
                 for (unsigned int x = 0; x < taglen; x++) {
                     if (packinfo->maxrate < 
                         (chunk->data[tag_offset+1+x] & 0x7F) * 0.5)
@@ -731,11 +778,13 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
                 }
             }
 
+            /*
             // If beacons don't have a SSID and a basicrate then we consider them
             // corrupt
             if (found_ssid_tag == 0 || found_rate_tag == 0) {
                 packinfo->corrupt = 1;
             }
+            */
 
             // Match HT 802.11n tag
             if ((tcitr = tag_cache_map.find(45)) != tag_cache_map.end()) {
@@ -744,6 +793,7 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
                 taglen = (chunk->data[tag_offset] & 0xFF);
                 if (tag_offset + taglen > chunk->length || taglen < 7) {
                     // We're corrupt, set it and stop processing
+                    fprintf(stderr, "debug - tag 45 HT corrupt\n");
                     packinfo->corrupt = 1;
                     in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
                     return 0;
@@ -821,6 +871,7 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
 
                 if (tag_offset + taglen > chunk->length) {
                     // Otherwise we're corrupt, set it and stop processing
+                    fprintf(stderr, "debug - tag 3 channel corrupt\n");
                     packinfo->corrupt = 1;
                     in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
                     return 0;
@@ -858,6 +909,7 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
                     unsigned int offt = 0;
 
                     if (tag_orig + taglen > chunk->length) {
+                        fprintf(stderr, "debug - wps corrupt\n");
                         packinfo->corrupt = 1;
                         in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
                         return 0;
@@ -878,6 +930,7 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
                     for (;;) {
                         // Check if we have the type and length (2 bytes each)
                         if (offt + 4 > taglen) {
+                            fprintf(stderr, "debug - wps length corrupt\n");
                             packinfo->corrupt = 1;
                             in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
                             return 0;
@@ -887,6 +940,7 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
                         uint16_t length = 
                             kis_ntoh16(kis_extract16(&(chunk->data[tag_orig + offt + 2])));
                         if (offt + 4 + length > taglen) {
+                            fprintf(stderr, "debug - wps typelength corrupt\n");
                             packinfo->corrupt = 1;
                             in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
                             return 0;
@@ -980,6 +1034,7 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
 
                 if (tag_offset + taglen > chunk->length) {
                     packinfo->corrupt = 1;
+                    fprintf(stderr, "debug - 11d corrupt\n");
                     in_pack->insert(pack_comp_80211, packinfo);
                     return 0;
                 }
@@ -1093,6 +1148,7 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
                         unsigned int offt = 0;
 
                         if (tag_orig + taglen > chunk->length || taglen < 6) {
+                            fprintf(stderr, "debug - wpa2 rsn corrupt, len %u\n", taglen);
                             packinfo->corrupt = 1;
                             in_pack->insert(pack_comp_80211, packinfo);
                             return 0;
@@ -1105,6 +1161,7 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
                         if (offt + 3 > taglen ||
                             memcmp(&(chunk->data[tag_orig + offt]), RSN_OUI,
                                    sizeof(RSN_OUI))) {
+                            fprintf(stderr, "debug - wpa2 multicast corrupt\n");
                             packinfo->corrupt = 1;
                             in_pack->insert(pack_comp_80211, packinfo);
                             return 0;
@@ -1223,6 +1280,7 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
             packinfo->subtype = packet_sub_data_qos_cf_ack_poll;
             packinfo->header_offset += 2;
         } else {
+            fprintf(stderr, "debug - unknown type/subtype %u %u\n", packinfo->type, packinfo->subtype);
             packinfo->corrupt = 1;
             packinfo->subtype = packet_sub_unknown;
             in_pack->insert(pack_comp_80211, packinfo);
@@ -1256,9 +1314,29 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
 
             packinfo->header_offset += 24;
             break;
+        case distrib_inter:
+            // If we aren't long enough to hold a intra-ds packet, bail
+            if (chunk->length < 30) {
+                fprintf(stderr, "debug - distrib unknown, chunk %d\n", chunk->length);
+                packinfo->corrupt = 1;
+                in_pack->insert(pack_comp_80211, packinfo);
+                return 0;
+            }
+
+            packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
+            packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
+            packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
+
+            packinfo->distrib = distrib_inter;
+
+            // First byte of offsets
+            packinfo->header_offset += 30;
+            break;
+
         case distrib_unknown:
             // If we aren't long enough to hold a intra-ds packet, bail
             if (chunk->length < 30) {
+                fprintf(stderr, "debug - distrib unknown, chunk %d\n", chunk->length);
                 packinfo->corrupt = 1;
                 in_pack->insert(pack_comp_80211, packinfo);
                 return 0;
@@ -1274,6 +1352,7 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
             packinfo->header_offset += 30;
             break;
         default:
+            fprintf(stderr, "debug - corrupt distrib %d\n", packinfo->distrib);
             packinfo->corrupt = 1;
             in_pack->insert(pack_comp_80211, packinfo);
             return 0;
@@ -1477,6 +1556,7 @@ eap_end:
     if (packinfo->bssid_mac.error == 1 ||
         packinfo->source_mac.error == 1 ||
         packinfo->dest_mac.error == 1) {
+        fprintf(stderr, "debug - mac address error\n");
         packinfo->corrupt = 1;
     }
 

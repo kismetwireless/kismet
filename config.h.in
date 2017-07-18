@@ -21,11 +21,17 @@
 /* system binary directory */
 #undef BIN_LOC
 
+/* Able to build hackrf sweep source */
+#undef BUILD_HACKRF_SWEEP
+
 /* system data directory */
 #undef DATA_LOC
 
 /* cannot support backtrace dumping */
 #undef DISABLE_BACKWARD
+
+/* Remove mutex deadlock timeout protection */
+#undef DISABLE_MUTEX_TIMEOUT
 
 /* libairpcap header */
 #undef HAVE_AIRPCAP_H
@@ -57,6 +63,9 @@
 /* Define to 1 if you have the <execinfo.h> header file. */
 #undef HAVE_EXECINFO_H
 
+/* Define to 1 if you have the <fftw3.h> header file. */
+#undef HAVE_FFTW3_H
+
 /* Define to 1 if you have the <getopt.h> header file. */
 #undef HAVE_GETOPT_H
 
@@ -87,6 +96,9 @@
 /* Curses terminal lib */
 #undef HAVE_LIBCURSES
 
+/* Define to 1 if you have the <libhackrf/hackrf.h> header file. */
+#undef HAVE_LIBHACKRF_HACKRF_H
+
 /* NCurses terminal lib */
 #undef HAVE_LIBNCURSES
 
@@ -110,6 +122,9 @@
 
 /* libpcre regex support */
 #undef HAVE_LIBPCRE
+
+/* libsqlite3 database support */
+#undef HAVE_LIBSQLITE3
 
 /* Define to 1 if you have the <libutil.h> header file. */
 #undef HAVE_LIBUTIL_H

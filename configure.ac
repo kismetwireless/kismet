@@ -230,6 +230,37 @@ AC_CHECK_HEADERS([errno.h stdlib.h string.h sys/socket.h sys/time.h sys/wait.h u
 AC_CHECK_HEADERS([getopt.h])
 AC_CHECK_HEADERS([glob.h])
 
+HAVE_LIBHACKRF=0
+HAVE_LIBFFTW3=0
+HAVE_HACKRF_H=0
+HAVE_FFTW3_H=0
+BUILD_HACKRF_SWEEP=0
+
+AC_CHECK_HEADERS([libhackrf/hackrf.h],
+    HAVE_HACKRF_H=1,
+    AC_MSG_WARN("Missing hackrf.h from libhackrf"))
+AC_CHECK_HEADERS([fftw3.h],
+    HAVE_FFTW3_H=1,
+    AC_MSG_WARN("Missing fftw3.h from libfftw"))
+
+if test "$HAVE_HACKRF_H" -eq 1; then
+    AC_CHECK_LIB([hackrf], [hackrf_init],
+			HAVE_LIBHACKRF=1,
+			 AC_MSG_WARN([libhackrf not available]))
+fi
+
+if test "$HAVE_FFTW3_H" -eq 1; then
+    AC_CHECK_LIB([fftw3], [ffwtf_malloc],
+            HAVE_LIBFFTW3=1,
+            AC_MSG_WARN([libfftw3 not available]))
+fi
+
+if test "$HAVE_LIBHACKRF" -eq 1 && test "$HAVE_LIBFFTW3"; then
+    AC_DEFINE(BUILD_HACKRF_SWEEP, 1, Able to build hackrf sweep source)
+    BUILD_HACKRF_SWEEP=1
+    DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_HACKRF_SWEEP)"
+fi
+
 HAVE_LIBDW=0
 HAVE_LIBBFD=0
 
@@ -456,6 +487,8 @@ if test "$needlibm" = "yes"; then
 				 AC_MSG_ERROR([libm is needed and is not available]))
 else
 	AC_MSG_RESULT([yes])
+    LIBMLIB="-lm"
+    AC_SUBST(LIBMLIB)
 fi
 
 # Do we use libstdc++?
@@ -603,6 +636,22 @@ else
   fi
 fi
 
+# Allow disabling mutex timeout, use with caution
+AC_ARG_ENABLE(mutextimeout,
+	[  --disable-mutextimeout  disable failsafe mutex lock timeout],
+	[case "${enableval}" in
+	  no) wantmutex=0 ;;
+	   *) wantmutex=1 ;;
+	 esac],
+	[wantmutex=1]
+)
+
+if test "$wantmutex" -eq 0; then
+    AC_DEFINE(DISABLE_MUTEX_TIMEOUT, 1, [Remove mutex deadlock timeout protection])
+fi
+
+linux_wireless="no"
+
 # Check for linux headers if we're on linux systems
 if test "$linux" = "yes"; then
 
@@ -745,6 +794,41 @@ if test "$wantpcre" = "yes"; then
 	AC_DEFINE(HAVE_LIBPCRE, 1, libpcre regex support)
 	LIBS="$LIBS -lpcre"
 	fi # pcre
+fi
+
+AC_ARG_ENABLE(sqlite3,
+	[  --disable-sqlite3       disable building sqlite3 logging],
+	[case "${enableval}" in
+	  no) wantsql3=no ;;
+	   *) wantsql3=yes ;;
+	 esac],
+	[wantsql3=yes]
+)
+
+if test "$wantsql3" = "yes"; then
+	# Check for sqlite3
+	sql3l=no
+	AC_CHECK_LIB([sqlite3], [sqlite3_libversion], sql3l=yes, sql3l=no)
+
+	if test "$sql3l" != "yes"; then
+		AC_MSG_WARN(Failed to find libsqlite3)
+		wantsql3=no
+	fi
+
+	if test "$wantsql3" = "yes"; then
+	sql3h=no
+	AC_CHECK_HEADER([sqlite3.h], sql3h=yes, sql3h=no)
+
+	if test "$sql3h" != "yes"; then
+		AC_MSG_WARN(Failed to find sqlite3 headers check that the libsqlite3-devel package is installed if your distribution provides separate packages)
+		wantsql3=no
+	fi
+	fi # wantsql3
+
+	if test "$wantsql3" = "yes"; then
+	AC_DEFINE(HAVE_LIBSQLITE3, 1, libsqlite3 database support)
+	LIBS="$LIBS -lsqlite3"
+	fi # sqlite3
 fi
 
 # Handle airpcap/winpcap on cygwin
@@ -1161,6 +1245,7 @@ CPPFLAGS="-I$BUNDLE_MSGPACK/include $CPPFLAGS"
 AC_SUBST(DATASOURCE_BINS)
 AC_SUBST(BUILD_CAPTURE_PCAPFILE)
 AC_SUBST(BUILD_CAPTURE_LINUX_WIFI)
+AC_SUBST(BUILD_CAPTURE_HACKRF_SWEEP)
 
 AC_CONFIG_FILES([Makefile Makefile.inc scripts/kismet conf/kismet.conf])
 AC_OUTPUT
@@ -1252,6 +1337,20 @@ else
 	echo "no (will not be able to control NetworkManager)";
 fi
 
+printf "       HackRF spectrum: "
+if test "$BUILD_HACKRF_SWEEP" -eq 1; then
+	echo "yes (libhackrf and libfftw3 present)";
+else
+	echo "no (missing libhackrf or libfftw3)";
+fi
+
+printf "      SQLite3 Database: "
+if test "$wantsql3" = "yes"; then
+	echo "yes"
+else
+	echo "no - some logging will not be available"
+fi
+
 printf "        Built-in Debug: "
 echo $BACKTRACE_WARNING
 
@@ -1332,21 +1431,6 @@ if test "$havelibnm" != "yes" -a "$linux" = "yes"; then
     echo "disable NetworkManager or manually tell it to ignore specific interaces."
 fi
 
-if test "$havenetlink" = "yes" -a "$pcap" = "yes"; then
-	echo
-	echo "*** WARNING ***"
-	echo "In some situations, libpcap links to libnl.  If Kismet finds a newer "
-	echo "libnl, it can cause an immediate segfault when starting Kismet. "
-	echo
-	echo "It is very hard to test at compile time (and run-time changes can "
-	echo "cause it to break).  If you experience immediate segfaults when "
-	echo "trying to start kismet_server, check your libpcap.so with 'ldd'"
-	echo "and either install a libpcap which does not link libnl1, or "
-	echo "force Kismet to compile with a degraded libnl via "
-	echo "./configure --with-netlink-version=1"
-	echo
-fi
-
 if test "$want_asan" = "yes" -a "$want_tsan" = "yes"; then
 	echo
     echo "*** WARNING ***"
@@ -1354,5 +1438,12 @@ if test "$want_asan" = "yes" -a "$want_tsan" = "yes"; then
     echo "and address sanitizer debugging simultaneously will work due to "
     echo "binary differences.  Likely, the compiler will reject this, "
     echo "but you can try."
+elif test "$want_asan" = "yes" -o "$want_tsan" = "yes"; then
+    echo 
+    echo "*** NOTICE ***"
+    echo "Compiling with ASAN or TSAN debugging can greatly increase the "
+    echo "amount of RAM Kismet needs; you may see degraded performance or "
+    echo "increased system load."
 fi
+
 

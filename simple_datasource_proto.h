@@ -322,6 +322,16 @@ simple_cap_proto_kv_t *encode_kv_chanhop(double rate, char **channels, size_t le
 simple_cap_proto_kv_t *encode_kv_chanhop_complex(double rate, char **channels,
         size_t len, int shuffle, int shuffle_skip, int offset);
 
+/* Encode a SPECSET KV pair
+ *
+ * Returns:
+ * Pointer on success
+ * NULL on failure
+ */
+simple_cap_proto_kv_t *encode_kv_specset(uint64_t start_mhz, uint64_t end_mhz, 
+        uint64_t samples_per_freq, uint64_t bin_width, uint8_t amp,
+        uint64_t if_amp, uint64_t baseband_amp);
+
 #define MSGFLAG_NONE    0
 #define MSGFLAG_DEBUG   1
 #define MSGFLAG_INFO    2

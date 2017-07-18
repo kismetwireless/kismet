@@ -24,22 +24,22 @@
 #include "kis_datasource.h"
 
 // Sweep record with full data
-class Spectrumtracker_Sweep : public tracker_component {
+class Spectrum_Sweep : public tracker_component {
 public:
-    Spectrumtracker_Sweep(GlobalRegistry *in_globalreg, int in_id) :
+    Spectrum_Sweep(GlobalRegistry *in_globalreg, int in_id) :
         tracker_component(in_globalreg, in_id) {
         register_fields();
         reserve_fields(NULL);
     }
 
-    Spectrumtracker_Sweep(GlobalRegistry *in_globalreg, int in_id, SharedTrackerElement e) :
+    Spectrum_Sweep(GlobalRegistry *in_globalreg, int in_id, SharedTrackerElement e) :
         tracker_component(in_globalreg, in_id) {
         register_fields();
         reserve_fields(e);
     }
 
     virtual SharedTrackerElement clone_type() {
-        return SharedTrackerElement(new Spectrumtracker_Sweep(globalreg, get_id()));
+        return SharedTrackerElement(new Spectrum_Sweep(globalreg, get_id()));
     }
 
     virtual void register_fields() {
@@ -47,8 +47,8 @@ public:
 
         RegisterField("kismet.spectrum.sweep.num_samples", TrackerUInt64,
                 "Number of samples per sweep record", &num_samples_sweep);
-        RegisterField("kismet.spectrum.sweep.start_hz", TrackerUInt64,
-                "Starting frequency of sweep (Hz)", &start_hz);
+        RegisterField("kismet.spectrum.sweep.start_mhz", TrackerUInt64,
+                "Starting frequency of sweep (MHz)", &start_mhz);
         RegisterField("kismet.spectrum.sweep.bin_hz", TrackerUInt64,
                 "Sample width / Bin size (Hz)", &sample_hz_width);
         RegisterField("kismet.spectrum.sweep.samples_per_freq,", TrackerUInt64,
@@ -60,14 +60,14 @@ public:
     }
 
     __Proxy(num_samples, uint64_t, uint64_t, uint64_t, num_samples_sweep);
-    __Proxy(start_hz, uint64_t, uint64_t, uint64_t, start_hz);
+    __Proxy(start_mhz, uint64_t, uint64_t, uint64_t, start_mhz);
     __Proxy(bin_hz, uint64_t, uint64_t, uint64_t, sample_hz_width);
     __Proxy(samples_per_freq, uint64_t, uint64_t, uint64_t, samples_per_freq);
 
 protected:
 
     SharedTrackerElement num_samples_sweep;
-    SharedTrackerElement start_hz;
+    SharedTrackerElement start_mhz;
     SharedTrackerElement sample_hz_width;
     SharedTrackerElement samples_per_freq;
 
@@ -75,24 +75,24 @@ protected:
 
 };
 
-// Spectrum device record to be added to a device record
+// Spectrum-specific sub-type of Kismet data sources
 class SpectrumDatasource : public KisDatasource {
 public:
     SpectrumDatasource(GlobalRegistry *in_globalreg, SharedDatasourceBuilder in_builder);
 
     // Configure sweeping
-    virtual void set_sweep(uint64_t in_start_hz, uint64_t in_end_hz, uint64_t in_num_per_freq,
-            uint64_t in_bin_width);
+    virtual void set_sweep(uint64_t in_start_mhz, uint64_t in_end_mhz, uint64_t in_num_per_freq,
+            uint64_t in_bin_width) = 0;
 
     // Configure sweeping with amplification
-    virtual void set_sweep_amp(uint64_t in_start_hz, uint64_t in_end_hz, 
+    virtual void set_sweep_amp(uint64_t in_start_mhz, uint64_t in_end_mhz, 
             uint64_t in_num_per_freq, uint64_t in_bin_width, bool in_amp,
-            uint64_t in_if_amp, uint64_t in_baseband_amp);
+            uint64_t in_if_amp, uint64_t in_baseband_amp) = 0;
 
     __ProxyGet(spectrum_configurable, uint8_t, bool, spectrum_configurable);
 
-    __ProxyGet(spectrum_min_hz, uint64_t, uint64_t, spectrum_min_hz);
-    __ProxyGet(spectrum_max_hz, uint64_t, uint64_t, spectrum_max_hz);
+    __ProxyGet(spectrum_min_mhz, uint64_t, uint64_t, spectrum_min_mhz);
+    __ProxyGet(spectrum_max_mhz, uint64_t, uint64_t, spectrum_max_mhz);
 
     __ProxyGet(spectrum_min_bin_hz, uint64_t, uint64_t, spectrum_min_bin_hz);
     __ProxyGet(spectrum_max_bin_hz, uint64_t, uint64_t, spectrum_max_bin_hz);
@@ -116,14 +116,14 @@ protected:
         RegisterField("kismet.spectrum.device.configurable", TrackerUInt8,
                 "spectrum range is configurable (bool)", &spectrum_configurable);
 
-        RegisterField("kismet.spectrum.device.min_hz", TrackerUInt64,
-                "minimum frequency of spectrum sweep (Hz)", &spectrum_min_hz);
-        RegisterField("kismet.spectrum.device.max_hz", TrackerUInt64,
-                "maximum frequency of spectrum sweep (Hz)", &spectrum_max_hz);
-        RegisterField("kismet.spectrum.device.min_bin_hz", TrackerUInt64,
-                "minimum size of frequency bin (Hz)", &spectrum_min_bin_hz);
-        RegisterField("kismet.spectrum.device.max_bin_hz", TrackerUInt64,
-                "maximum size of frequency bin (Hz)", &spectrum_max_bin_hz);
+        RegisterField("kismet.spectrum.device.min_mhz", TrackerUInt64,
+                "minimum frequency of spectrum sweep (Hz)", &spectrum_min_mhz);
+        RegisterField("kismet.spectrum.device.max_mhz", TrackerUInt64,
+                "maximum frequency of spectrum sweep (Hz)", &spectrum_max_mhz);
+        RegisterField("kismet.spectrum.device.min_bin_mhz", TrackerUInt64,
+                "minimum size of frequency bin (Hz)", &spectrum_min_bin_mhz);
+        RegisterField("kismet.spectrum.device.max_bin_mhz", TrackerUInt64,
+                "maximum size of frequency bin (Hz)", &spectrum_max_bin_mhz);
         RegisterField("kismet.spectrum.device.min_num_samples_per", TrackerUInt64,
                 "minimum number of samples per frequency bin", &spectrum_min_num_samples_per);
         RegisterField("kismet.spectrum.device.max_num_samples_per", TrackerUInt64,
@@ -154,8 +154,8 @@ protected:
 
     __ProxySet(spectrum_configurable, uint8_t, bool, spectrum_configurable);
 
-    __ProxySet(spectrum_min_hz, uint64_t, uint64_t, spectrum_min_hz);
-    __ProxySet(spectrum_max_hz, uint64_t, uint64_t, spectrum_max_hz);
+    __ProxySet(spectrum_min_mhz, uint64_t, uint64_t, spectrum_min_mhz);
+    __ProxySet(spectrum_max_mhz, uint64_t, uint64_t, spectrum_max_mhz);
 
     __ProxySet(spectrum_min_bin_hz, uint64_t, uint64_t, spectrum_min_bin_hz);
     __ProxySet(spectrum_max_bin_hz, uint64_t, uint64_t, spectrum_max_bin_hz);
@@ -174,8 +174,8 @@ protected:
 
     SharedTrackerElement spectrum_configurable;
 
-    SharedTrackerElement spectrum_min_hz;
-    SharedTrackerElement spectrum_max_hz;
+    SharedTrackerElement spectrum_min_mhz;
+    SharedTrackerElement spectrum_max_mhz;
     SharedTrackerElement spectrum_min_bin_hz;
     SharedTrackerElement spectrum_max_bin_hz;
     SharedTrackerElement spectrum_min_num_samples_per;

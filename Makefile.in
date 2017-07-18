@@ -22,6 +22,12 @@ CAPTURE_LINUX_WIFI_O = \
 CAPTURE_LINUX_WIFI	= kismet_cap_linux_wifi
 BUILD_CAPTURE_LINUX_WIFI = @BUILD_CAPTURE_LINUX_WIFI@
 
+CAPTURE_HACKRF_SWEEP_O = \
+	$(DATASOURCE_COMMON_C) \
+	capture_hackrf_sweep.o
+CAPTURE_HACKRF_SWEEP = kismet_cap_hackrf_sweep
+BUILD_CAPTURE_HACKRF_SWEEP = @BUILD_CAPTURE_HACKRF_SWEEP@
+
 # Capture binaries to build
 DATASOURCE_BINS = @DATASOURCE_BINS@
 
@@ -78,6 +84,9 @@ $(CAPTURE_PCAPFILE):	$(CAPTURE_PCAPFILE_O)
 $(CAPTURE_LINUX_WIFI):	$(CAPTURE_LINUX_WIFI_O)
 	$(CC) $(LDFLAGS) -o $(CAPTURE_LINUX_WIFI) $(CAPTURE_LINUX_WIFI_O) $(PCAPLIBS) -lpthread -lm $(NMLIBS) $(NETLINKLIBS)
 
+$(CAPTURE_HACKRF_SWEEP):	$(CAPTURE_HACKRF_SWEEP_O)
+	$(CC) $(LDFLAGS) -o $(CAPTURE_HACKRF_SWEEP) $(CAPTURE_HACKRF_SWEEP_O) -lhackrf -lfftw3 $(LIBMLIB)
+
 datasources:	$(DATASOURCE_BINS)
 
 Makefile: Makefile.in configure
@@ -107,6 +116,10 @@ commoninstall: $(INSTBINS)
 
 	@if test "$(BUILD_CAPTURE_LINUX_WIFI)"x = "1"x; then \
 		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_LINUX_WIFI) $(BIN)/kismet_capture_tools/$(CAPTURE_LINUX_WIFI); \
+	fi;
+
+	@if test "$(BUILD_CAPTURE_HACKRF_SWEEP)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_HACKRF_SWEEP) $(BIN)/kismet_capture_tools/$(CAPTURE_HACKRF_SWEEP); \
 	fi;
 
 	mkdir -p $(MAN)/man1

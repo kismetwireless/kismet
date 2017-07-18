@@ -554,6 +554,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
 		// is impossible
 		if (dot11info->source_mac == globalreg->empty_mac) {
 			if (dot11info->bssid_mac == globalreg->empty_mac) {
+                fprintf(stderr, "debug - dot11info bssid and src are empty and mgmt\n");
 				ci->error = 1;
 			}
 
@@ -568,8 +569,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
 
         ci->transmitter = dot11info->bssid_mac;
 	} else if (dot11info->type == packet_phy) {
-        if (dot11info->subtype == packet_sub_ack ||
-                dot11info->subtype == packet_sub_cts) {
+        if (dot11info->subtype == packet_sub_ack || dot11info->subtype == packet_sub_cts) {
             // map some phys as a device since we know they're being talked to
             ci->device = dot11info->dest_mac;
         } else if (dot11info->source_mac == globalreg->empty_mac) {
@@ -599,6 +599,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
         if (dot11info->bssid_mac == globalreg->empty_mac ||
                 dot11info->source_mac == globalreg->empty_mac ||
                 dot11info->dest_mac == globalreg->empty_mac) {
+            fprintf(stderr, "debug - dot11info macs are empty and data\n");
             ci->error = 1;
         }
 	} 
@@ -606,6 +607,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
 	if (dot11info->type == packet_noise || dot11info->corrupt ||
 			   in_pack->error || dot11info->type == packet_unknown ||
 			   dot11info->subtype == packet_sub_unknown) {
+        fprintf(stderr, "debug - noise, corrupt, error, etc %d %d %d %d %d\n", dot11info->type == packet_noise, dot11info->corrupt, in_pack->error, dot11info->type == packet_unknown, dot11info->subtype == packet_sub_unknown);
 		ci->error = 1;
 	}
 
@@ -1187,6 +1189,7 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 
 	// We can't do anything w/ it from the packet layer
 	if (in_pack->error || in_pack->filtered) {
+        // fprintf(stderr, "debug - error packet\n");
 		return 0;
 	}
 
@@ -1195,23 +1198,30 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 		(dot11_packinfo *) in_pack->fetch(pack_comp_80211);
 
 	// Got nothing to do
-	if (dot11info == NULL)
+	if (dot11info == NULL) {
+        // fprintf(stderr, "debug - no dot11info\n");
 		return 0;
+    }
 
 	kis_common_info *commoninfo =
 		(kis_common_info *) in_pack->fetch(pack_comp_common);
 
-	if (commoninfo == NULL)
+	if (commoninfo == NULL) {
+        // fprintf(stderr, "debug - no commoninfo\n");
 		return 0;
+    }
 
-	if (commoninfo->error)
+	if (commoninfo->error) {
+        // fprintf(stderr, "debug - common error\n");
 		return 0;
+    }
 
     // There's nothing we can sensibly do with completely corrupt packets, 
     // so we just get rid of them.
     // TODO make sure phy corrupt packets are handled for statistics
-    if (dot11info->corrupt) 
+    if (dot11info->corrupt)  {
         return 0;
+    }
 
     // Find & update the common attributes of our base record.
     // We want to update signal, frequency, location, packet counts, devices,
@@ -1231,8 +1241,10 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 	// We can't do anything useful
 	if (dot11info->corrupt || dot11info->type == packet_noise ||
 		dot11info->type == packet_unknown || 
-		dot11info->subtype == packet_sub_unknown)
+		dot11info->subtype == packet_sub_unknown) {
+        // fprintf(stderr, "debug - unknown or noise packet\n");
 		return 0;
+    }
 
 	kis_gps_packinfo *pack_gpsinfo =
 		(kis_gps_packinfo *) in_pack->fetch(pack_comp_gps);
@@ -1253,12 +1265,10 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 
         dot11dev.reset(new dot11_tracked_device(globalreg, dot11_device_entry_id));
         dot11_tracked_device::attach_base_parent(dot11dev, basedev);
-        // basedev->add_map(dot11dev);
     }
 
     // Update the last beacon timestamp
-    if (dot11info->type == packet_management &&
-            dot11info->subtype == packet_sub_beacon) {
+    if (dot11info->type == packet_management && dot11info->subtype == packet_sub_beacon) {
         dot11dev->set_last_beacon_timestamp(in_pack->ts.tv_sec);
     }
 
@@ -1290,16 +1300,26 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
         }
     }
 
+    if (dot11info->distrib == distrib_inter) {
+        basedev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_PEER);
+
+        // If we're /only/ a IBSS peer
+        if (basedev->get_basic_type_set() == KIS_DEVICE_BASICTYPE_PEER) {
+            basedev->set_type_string("Wi-Fi Peer");
+            basedev->set_devicename(basedev->get_macaddr().Mac2String());
+        }
+    }
+
 	if (dot11info->type == packet_phy) {
         // Phy to a known device mac, we know it's a wifi device
         basedev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_CLIENT);
 
-        // If we're only a client, set the type name and device name
+        // If we're /only/ a client, set the type name and device name
         if (basedev->get_basic_type_set() == KIS_DEVICE_BASICTYPE_CLIENT) {
             basedev->set_type_string("Wi-Fi Client");
             basedev->set_devicename(basedev->get_macaddr().Mac2String());
         }
-    } else if (dot11info->ess) {
+    } else if (dot11info->ess) { 
         // ESS from-ap packets mean we must be an AP
         basedev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_AP);
 
@@ -1314,7 +1334,7 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 				string al = "IEEE80211 Network BSSID " + 
 					dot11info->bssid_mac.Mac2String() + 
 					" previously advertised as AP network, now advertising as "
-					"Ad-Hoc which may indicate AP spoofing/impersonation";
+					"Ad-Hoc/WDS which may indicate AP spoofing/impersonation";
 
                 alertracker->RaiseAlert(alert_adhoc_ref, in_pack,
                         dot11info->bssid_mac, dot11info->source_mac,
@@ -1328,7 +1348,7 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
         basedev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_PEER);
 
         if (basedev->get_basic_type_set() == KIS_DEVICE_BASICTYPE_PEER)
-            basedev->set_type_string("Wi-Fi Ad-hoc Device");
+            basedev->set_type_string("Wi-Fi Ad-hoc / WDS ");
 
 		// Throw alert if device changes to adhoc
         if (!dot11dev->bitcheck_type_set(DOT11_DEVICE_TYPE_ADHOC) &&
@@ -1337,7 +1357,7 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 				string al = "IEEE80211 Network BSSID " + 
 					dot11info->bssid_mac.Mac2String() + 
 					" previously advertised as AP network, now advertising as "
-					"Ad-Hoc which may indicate AP spoofing/impersonation";
+					"Ad-Hoc/WDS which may indicate AP spoofing/impersonation";
 
                 alertracker->RaiseAlert(alert_adhoc_ref, in_pack,
                         dot11info->bssid_mac, dot11info->source_mac,
@@ -1509,8 +1529,8 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
                 dot11info->channel, al);
     }
 
-    if (basedev->get_type_string() == "") {
-        printf("unclassed device as of packet %d\n", packetnum);
+    if (basedev->get_type_string().length() == 0) {
+        fprintf(stderr, "debug - unclassed device as of packet %d typeset %lu\n", packetnum, basedev->get_basic_type_set());
     }
 
 

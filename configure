@@ -622,6 +622,7 @@ ac_includes_default="\
 #endif"
 
 ac_subst_vars='LTLIBOBJS
+BUILD_CAPTURE_HACKRF_SWEEP
 BUILD_CAPTURE_LINUX_WIFI
 BUILD_CAPTURE_PCAPFILE
 DATASOURCE_BINS
@@ -653,6 +654,7 @@ caplibs
 mangrp
 instgrp
 CXXLIBS
+LIBMLIB
 PTHREAD_CFLAGS
 PTHREAD_LIBS
 PTHREAD_CC
@@ -730,10 +732,12 @@ ac_subst_files=''
 ac_user_opts='
 enable_option_checking
 enable_largefile
+enable_mutextimeout
 with_linuxheaders
 enable_linuxwext
 with_pcreheaders
 enable_pcre
+enable_sqlite3
 enable_airpcap
 with_airpcap_devpack
 with_winpcap_devpack
@@ -1393,8 +1397,10 @@ Optional Features:
   --disable-FEATURE       do not include FEATURE (same as --enable-FEATURE=no)
   --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
   --disable-largefile     omit support for large files
+  --disable-mutextimeout  disable failsafe mutex lock timeout
   --disable-linuxwext     disable Linux wireless extensions
   --disable-pcre          disable building pcre components
+  --disable-sqlite3       disable building sqlite3 logging
   --enable-airpcap        enable checking for CACE airpcap
   --disable-pcap          disable libpcap (most sources) capture support
   --disable-optimization        disable -Ox gcc optimization
@@ -5686,6 +5692,143 @@ fi
 done
 
 
+HAVE_LIBHACKRF=0
+HAVE_LIBFFTW3=0
+HAVE_HACKRF_H=0
+HAVE_FFTW3_H=0
+BUILD_HACKRF_SWEEP=0
+
+for ac_header in libhackrf/hackrf.h
+do :
+  ac_fn_cxx_check_header_mongrel "$LINENO" "libhackrf/hackrf.h" "ac_cv_header_libhackrf_hackrf_h" "$ac_includes_default"
+if test "x$ac_cv_header_libhackrf_hackrf_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_LIBHACKRF_HACKRF_H 1
+_ACEOF
+ HAVE_HACKRF_H=1
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: \"Missing hackrf.h from libhackrf\"" >&5
+$as_echo "$as_me: WARNING: \"Missing hackrf.h from libhackrf\"" >&2;}
+fi
+
+done
+
+for ac_header in fftw3.h
+do :
+  ac_fn_cxx_check_header_mongrel "$LINENO" "fftw3.h" "ac_cv_header_fftw3_h" "$ac_includes_default"
+if test "x$ac_cv_header_fftw3_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_FFTW3_H 1
+_ACEOF
+ HAVE_FFTW3_H=1
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: \"Missing fftw3.h from libfftw\"" >&5
+$as_echo "$as_me: WARNING: \"Missing fftw3.h from libfftw\"" >&2;}
+fi
+
+done
+
+
+if test "$HAVE_HACKRF_H" -eq 1; then
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for hackrf_init in -lhackrf" >&5
+$as_echo_n "checking for hackrf_init in -lhackrf... " >&6; }
+if ${ac_cv_lib_hackrf_hackrf_init+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lhackrf  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char hackrf_init ();
+int
+main ()
+{
+return hackrf_init ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_cxx_try_link "$LINENO"; then :
+  ac_cv_lib_hackrf_hackrf_init=yes
+else
+  ac_cv_lib_hackrf_hackrf_init=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_hackrf_hackrf_init" >&5
+$as_echo "$ac_cv_lib_hackrf_hackrf_init" >&6; }
+if test "x$ac_cv_lib_hackrf_hackrf_init" = xyes; then :
+  HAVE_LIBHACKRF=1
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: libhackrf not available" >&5
+$as_echo "$as_me: WARNING: libhackrf not available" >&2;}
+fi
+
+fi
+
+if test "$HAVE_FFTW3_H" -eq 1; then
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for ffwtf_malloc in -lfftw3" >&5
+$as_echo_n "checking for ffwtf_malloc in -lfftw3... " >&6; }
+if ${ac_cv_lib_fftw3_ffwtf_malloc+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lfftw3  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char ffwtf_malloc ();
+int
+main ()
+{
+return ffwtf_malloc ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_cxx_try_link "$LINENO"; then :
+  ac_cv_lib_fftw3_ffwtf_malloc=yes
+else
+  ac_cv_lib_fftw3_ffwtf_malloc=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_fftw3_ffwtf_malloc" >&5
+$as_echo "$ac_cv_lib_fftw3_ffwtf_malloc" >&6; }
+if test "x$ac_cv_lib_fftw3_ffwtf_malloc" = xyes; then :
+  HAVE_LIBFFTW3=1
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: libfftw3 not available" >&5
+$as_echo "$as_me: WARNING: libfftw3 not available" >&2;}
+fi
+
+fi
+
+if test "$HAVE_LIBHACKRF" -eq 1 && test "$HAVE_LIBFFTW3"; then
+
+$as_echo "#define BUILD_HACKRF_SWEEP 1" >>confdefs.h
+
+    BUILD_HACKRF_SWEEP=1
+    DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_HACKRF_SWEEP)"
+fi
+
 HAVE_LIBDW=0
 HAVE_LIBBFD=0
 
@@ -7283,6 +7426,8 @@ fi
 else
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
+    LIBMLIB="-lm"
+
 fi
 
 # Do we use libstdc++?
@@ -7836,6 +7981,27 @@ $as_echo "#define PF_ARGV_TYPE PF_ARGV_WRITEABLE" >>confdefs.h
   fi
 fi
 
+# Allow disabling mutex timeout, use with caution
+# Check whether --enable-mutextimeout was given.
+if test "${enable_mutextimeout+set}" = set; then :
+  enableval=$enable_mutextimeout; case "${enableval}" in
+	  no) wantmutex=0 ;;
+	   *) wantmutex=1 ;;
+	 esac
+else
+  wantmutex=1
+
+fi
+
+
+if test "$wantmutex" -eq 0; then
+
+$as_echo "#define DISABLE_MUTEX_TIMEOUT 1" >>confdefs.h
+
+fi
+
+linux_wireless="no"
+
 # Check for linux headers if we're on linux systems
 if test "$linux" = "yes"; then
 
@@ -8150,6 +8316,96 @@ $as_echo "#define HAVE_LIBPCRE 1" >>confdefs.h
 
 	LIBS="$LIBS -lpcre"
 	fi # pcre
+fi
+
+# Check whether --enable-sqlite3 was given.
+if test "${enable_sqlite3+set}" = set; then :
+  enableval=$enable_sqlite3; case "${enableval}" in
+	  no) wantsql3=no ;;
+	   *) wantsql3=yes ;;
+	 esac
+else
+  wantsql3=yes
+
+fi
+
+
+if test "$wantsql3" = "yes"; then
+	# Check for sqlite3
+	sql3l=no
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for sqlite3_libversion in -lsqlite3" >&5
+$as_echo_n "checking for sqlite3_libversion in -lsqlite3... " >&6; }
+if ${ac_cv_lib_sqlite3_sqlite3_libversion+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lsqlite3  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char sqlite3_libversion ();
+int
+main ()
+{
+return sqlite3_libversion ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_cxx_try_link "$LINENO"; then :
+  ac_cv_lib_sqlite3_sqlite3_libversion=yes
+else
+  ac_cv_lib_sqlite3_sqlite3_libversion=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_sqlite3_sqlite3_libversion" >&5
+$as_echo "$ac_cv_lib_sqlite3_sqlite3_libversion" >&6; }
+if test "x$ac_cv_lib_sqlite3_sqlite3_libversion" = xyes; then :
+  sql3l=yes
+else
+  sql3l=no
+fi
+
+
+	if test "$sql3l" != "yes"; then
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Failed to find libsqlite3" >&5
+$as_echo "$as_me: WARNING: Failed to find libsqlite3" >&2;}
+		wantsql3=no
+	fi
+
+	if test "$wantsql3" = "yes"; then
+	sql3h=no
+	ac_fn_cxx_check_header_mongrel "$LINENO" "sqlite3.h" "ac_cv_header_sqlite3_h" "$ac_includes_default"
+if test "x$ac_cv_header_sqlite3_h" = xyes; then :
+  sql3h=yes
+else
+  sql3h=no
+fi
+
+
+
+	if test "$sql3h" != "yes"; then
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Failed to find sqlite3 headers check that the libsqlite3-devel package is installed if your distribution provides separate packages" >&5
+$as_echo "$as_me: WARNING: Failed to find sqlite3 headers check that the libsqlite3-devel package is installed if your distribution provides separate packages" >&2;}
+		wantsql3=no
+	fi
+	fi # wantsql3
+
+	if test "$wantsql3" = "yes"; then
+
+$as_echo "#define HAVE_LIBSQLITE3 1" >>confdefs.h
+
+	LIBS="$LIBS -lsqlite3"
+	fi # sqlite3
 fi
 
 # Handle airpcap/winpcap on cygwin
@@ -9450,6 +9706,7 @@ sharedatadir=${sharedatadir}
 
 
 CPPFLAGS="-I$BUNDLE_MSGPACK/include $CPPFLAGS"
+
 
 
 
@@ -10972,6 +11229,20 @@ else
 	echo "no (will not be able to control NetworkManager)";
 fi
 
+printf "       HackRF spectrum: "
+if test "$BUILD_HACKRF_SWEEP" -eq 1; then
+	echo "yes (libhackrf and libfftw3 present)";
+else
+	echo "no (missing libhackrf or libfftw3)";
+fi
+
+printf "      SQLite3 Database: "
+if test "$wantsql3" = "yes"; then
+	echo "yes"
+else
+	echo "no - some logging will not be available"
+fi
+
 printf "        Built-in Debug: "
 echo $BACKTRACE_WARNING
 
@@ -11052,21 +11323,6 @@ if test "$havelibnm" != "yes" -a "$linux" = "yes"; then
     echo "disable NetworkManager or manually tell it to ignore specific interaces."
 fi
 
-if test "$havenetlink" = "yes" -a "$pcap" = "yes"; then
-	echo
-	echo "*** WARNING ***"
-	echo "In some situations, libpcap links to libnl.  If Kismet finds a newer "
-	echo "libnl, it can cause an immediate segfault when starting Kismet. "
-	echo
-	echo "It is very hard to test at compile time (and run-time changes can "
-	echo "cause it to break).  If you experience immediate segfaults when "
-	echo "trying to start kismet_server, check your libpcap.so with 'ldd'"
-	echo "and either install a libpcap which does not link libnl1, or "
-	echo "force Kismet to compile with a degraded libnl via "
-	echo "./configure --with-netlink-version=1"
-	echo
-fi
-
 if test "$want_asan" = "yes" -a "$want_tsan" = "yes"; then
 	echo
     echo "*** WARNING ***"
@@ -11074,5 +11330,12 @@ if test "$want_asan" = "yes" -a "$want_tsan" = "yes"; then
     echo "and address sanitizer debugging simultaneously will work due to "
     echo "binary differences.  Likely, the compiler will reject this, "
     echo "but you can try."
+elif test "$want_asan" = "yes" -o "$want_tsan" = "yes"; then
+    echo
+    echo "*** NOTICE ***"
+    echo "Compiling with ASAN or TSAN debugging can greatly increase the "
+    echo "amount of RAM Kismet needs; you may see degraded performance or "
+    echo "increased system load."
 fi
+
 

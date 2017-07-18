@@ -79,8 +79,9 @@ typedef struct {
 } local_pcap_t;
 
 int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
-        char *msg, char **chanset, char ***chanlist, size_t *chanlist_sz,
-        char **uuid) {
+        char *msg, char **uuid, simple_cap_proto_frame_t *frame,
+        cf_params_interface_t **ret_interface, 
+        cf_params_spectrum_t **ret_spectrum) {
     char *placeholder = NULL;
     int placeholder_len;
 
@@ -94,10 +95,15 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
 
     pcap_t *pd;
 
+    *ret_spectrum = NULL;
+
+    *ret_interface = cf_params_interface_new();
+    *ret_spectrum = NULL;
+
     /* pcapfile does not support channel ops */
-    *chanset = NULL;
-    *chanlist = NULL;
-    *chanlist_sz = 0;
+    (*ret_interface)->chanset = NULL;
+    (*ret_interface)->channels = NULL;
+    (*ret_interface)->channels_len = 0;
 
     if ((placeholder_len = cf_parse_interface(&placeholder, definition)) <= 0) {
         snprintf(msg, STATUS_MAX, "Unable to find PCAP file name in definition"); 
@@ -136,8 +142,9 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
 }
 
 int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
-        char *msg, uint32_t *dlt, char **uuid, char **chanset, char ***chanlist, 
-        size_t *chanlist_sz, char **capif) {
+        char *msg, uint32_t *dlt, char **uuid, simple_cap_proto_frame_t *frame,
+        cf_params_interface_t **ret_interface, 
+        cf_params_spectrum_t **ret_spectrum) {
     char *placeholder = NULL;
     int placeholder_len;
 
@@ -150,11 +157,10 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     char errstr[PCAP_ERRBUF_SIZE] = "";
 
     /* pcapfile does not support channel ops */
-    *chanset = NULL;
-    *chanlist = NULL;
-    *chanlist_sz = 0;
+    *ret_interface = cf_params_interface_new();
+    *ret_spectrum = NULL;
+
     *uuid = NULL;
-    *capif = NULL;
     *dlt = 0;
 
     /* Clean up any old state */
@@ -327,11 +333,6 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
-    if (cf_handler_parse_opts(caph, argc, argv) < 1) {
-        fprintf(stderr, "FATAL: Missing command line parameters.\n");
-        return -1;
-    }
-
     /* Set the local data ptr */
     cf_handler_set_userdata(caph, &local_pcap);
 
@@ -343,6 +344,11 @@ int main(int argc, char *argv[]) {
 
     /* Set the capture thread */
     cf_handler_set_capture_cb(caph, capture_thread);
+
+    if (cf_handler_parse_opts(caph, argc, argv) < 1) {
+        cf_print_help(caph, argv[0]);
+        return -1;
+    }
 
     cf_handler_loop(caph);
 

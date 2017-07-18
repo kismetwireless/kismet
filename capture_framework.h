@@ -58,10 +58,17 @@
 struct kis_capture_handler;
 typedef struct kis_capture_handler kis_capture_handler_t;
 
+struct cf_params_interface;
+typedef struct cf_params_interface cf_params_interface_t;
+
+struct cf_params_spectrum;
+typedef struct cf_params_spectrum cf_params_spectrum_t;
+
+
 /* List devices callback
  * Called to list devices available
  *
- * *msg is allocated by the caller and can hold STATUS_MAX characters and should
+ * *msg is allocated by the framework and can hold STATUS_MAX characters and should
  * be populated with any message the listcb wants to return.
  * **interfaces must be allocated by the list cb and should contain allocated
  * strings of interfaces
@@ -79,14 +86,14 @@ typedef int (*cf_callback_listdevices)(kis_capture_handler_t *, uint32_t seqno,
 /* Probe definition callback
  * Called to determine if definition is supported by this datasource
  *
- * *msg is allocated by the caller and can hold STATUS_MAX characters and should
+ * *msg is allocated by the framework and can hold STATUS_MAX characters and should
  * be populated with any message the listcb wants to return.
  *
- * *chanset is to be allocated by the cb and should hold the supported channel,
- * if only one channel is supported.  
- * **chanlist is to be allocated by the cb and should hold the supported channel list,
- * if any.
- * *chanlist_sz is to be filled in by the cb with the number of channels in the chanlist
+ * **ret_interface and **ret_spectrum are to be allocated by the callback
+ * function if the results are populated.
+ *
+ * **uuid should be allocated by the callback if it is populated during
+ * probing of the device.
  *
  * Return values:
  * -1   error occurred while probing
@@ -94,25 +101,23 @@ typedef int (*cf_callback_listdevices)(kis_capture_handler_t *, uint32_t seqno,
  *  1   interface supported
  */
 typedef int (*cf_callback_probe)(kis_capture_handler_t *, uint32_t seqno, 
-        char *definition, char *msg, char **chanset, char ***chanlist, 
-        size_t *chanlist_sz, char **uuid);
+        char *definition, char *msg, char **uuid, simple_cap_proto_frame_t *frame,
+        cf_params_interface_t **ret_interface,
+        cf_params_spectrum_t **ret_spectrum);
 
 /* Open callback
  * Called to open a datasource
  *
- * *msg is allocated by the caller and can hold STATUS_MAX characters and should
+ * *msg is allocated by the framework and can hold STATUS_MAX characters and should
  * be populated with any message the listcb wants to return
  *
- * *dlt is allocated by the caller and should be filled with the interface DLT
+ * *dlt is allocated by the framework, and should be filled with the interface DLT
  * or link type (typically from pcap_get_linktype or a known fixed value);
  *
- * *uuid is to be allocated by the cb and should hold the interface UUID
- * *chanset is to be allocated by the cb and should hold the channel,
- * if only one channel is supported.
- * **chanlist is to be allocated by the cb and should hold the supported channel list,
- * if any.
- * *chanlist_sz is to be filled in by the cb with the number of channels in the
- * chanlist.
+ * **uuid is to be allocated by the cb and should hold the interface UUID
+ *
+ * **ret_interface and **ret_spectrum are to be allocated by the callback function
+ * if the results are populated.  They will be freed by the framework.
  *
  * Return values:
  * -1   error occurred while opening
@@ -120,7 +125,8 @@ typedef int (*cf_callback_probe)(kis_capture_handler_t *, uint32_t seqno,
  */
 typedef int (*cf_callback_open)(kis_capture_handler_t *, uint32_t seqno, 
         char *definition, char *msg, uint32_t *dlt, char **uuid, 
-        char **chanset, char ***chanlist, size_t *chanlist_sz, char **capif);
+        simple_cap_proto_frame_t *frame, cf_params_interface_t **ret_interface,
+        cf_params_spectrum_t **ret_spectrum);
 
 /* Channel translate
  * Called to translate a channel from a generic string to a local representation
@@ -149,7 +155,7 @@ typedef void *(*cf_callback_chantranslate)(kis_capture_handler_t *, char *chanst
  * callback; typically an error during hopping may be allowable while an error
  * during an explicit channel set is not.
  *
- * msg is allocated by the caller and can hold up to STATUS_MAX characters.  It
+ * msg is allocated by the framework and can hold up to STATUS_MAX characters.  It
  * will be transmitted along with success or failure if seqno != 0.
  *
  * In all other situations, the callback may communicate to the user status 
@@ -170,14 +176,60 @@ typedef int (*cf_callback_chancontrol)(kis_capture_handler_t *, uint32_t seqno,
  */
 typedef void (*cf_callback_chanfree)(void *);
 
+/* Unknown frame callback
+ * Called when an unknown frame is received on the protocol
+ *
+ * This callback is only needed to handle custom frames.
+ *
+ * Returns:
+ * -1   Error occurred, close source
+ *  0   Success, or frame ignored
+ */
 typedef int (*cf_callback_unknown)(kis_capture_handler_t *, uint32_t, 
         simple_cap_proto_frame_t *);
 
+/* Capture callback
+ * Called inside the capture thread as the primary capture mechanism for the source.
+ *
+ * This callback should loop as long as the source is running, and will be placed 
+ * in its own thread.  This callback may block, and does not need to be aware of
+ * other network IO.
+ *
+ * This callback should perform locking on the handler_lock mutexes if changing
+ * data in the handler.
+ *
+ * Returns:
+ *      On returning, the capture thread is cancelled and the source is closed.
+ */
 typedef void (*cf_callback_capture)(kis_capture_handler_t *);
+
+/* Spectrum configure callback
+ * Configures the basic parameters of a spectrum-capable device
+ *
+ * Called in response to a SPECSET block in a CONFIGURE command
+ *
+ * msg is allocated by the framework and can hold up to STATUS_MAX characters.  It 
+ * will be transmitted along with the success or failure value if seqno != 0
+ *
+ * In all other situations, the callback may communicate status to the user
+ * via cf_send_message(...)
+ *
+ * Returns:
+ * -1   Error occurred
+ *  0   Success
+ */
+typedef int (*cf_callback_spectrumconfig)(kis_capture_handler_t *, uint32_t seqno,
+    uint64_t start_mhz, uint64_t end_mhz, uint64_t num_per_freq, uint64_t bin_width,
+    unsigned int amp, uint64_t if_amp, uint64_t baseband_amp, 
+    simple_cap_proto_frame_t *in_frame);
 
 struct kis_capture_handler {
     /* Capture source type */
     char *capsource_type;
+
+    /* Does this driver support remote capture?  Most should, and it defaults to 
+     * true. */
+    int remote_capable;
 
     /* Last time we got a ping */
     time_t last_ping;
@@ -233,6 +285,8 @@ struct kis_capture_handler {
 
     cf_callback_capture capture_cb;
 
+    cf_callback_spectrumconfig spectrumconfig_cb;
+
 
     /* Arbitrary data blob */
     void *userdata;
@@ -258,8 +312,32 @@ struct kis_capture_handler {
     unsigned int channel_hop_shuffle_spacing;
 
     int channel_hop_offset;
-
 };
+
+
+struct cf_params_interface {
+    char *capif;
+    char *chanset;
+    char **channels;
+    size_t channels_len;
+};
+
+struct cf_params_spectrum {
+    uint64_t start_mhz;
+    uint64_t end_mhz;
+    uint64_t samples_per_freq;
+    uint64_t bin_width;
+    uint8_t amp;
+    uint64_t if_amp;
+    uint64_t baseband_amp;
+};
+
+/* Set remote capability flags.
+ * Most sources should support remote capture as nearly no extra work is required,
+ * however sources which for some reason cannot can set the flag to 0.
+ *
+ */
+void cf_set_remote_capable(kis_capture_handler_t *caph, int in_capable);
 
 /* Parse an interface name from a definition string.
  * Returns a pointer to the start of the interface name in the definition in
@@ -317,6 +395,28 @@ kis_capture_handler_t *cf_handler_init(const char *in_type);
  */
 void cf_handler_free(kis_capture_handler_t *caph);
 
+
+/* Initialize an interface param
+ *
+ * Returns:
+ * Pointer to interface parameter struct or NULL
+ */
+cf_params_interface_t *cf_params_interface_new();
+
+/* Destroy an interface parameter and it's internal fields */
+void cf_params_interface_free(cf_params_interface_t *pi);
+
+/* Initialize a spectrum param
+ *
+ * Returns:
+ * Pointer to spectrum parameter struct or NULL
+ */
+cf_params_spectrum_t *cf_params_spectrum_new();
+
+/* Destroy an interface parameter and it's internal fields */
+void cf_params_spectrum_free(cf_params_spectrum_t *si);
+
+
 /* Shutdown immediately - dies at the start of the next select() loop, regardless
  * of pending data.
  *
@@ -349,11 +449,15 @@ void cf_handler_set_hop_shuffle_spacing(kis_capture_handler_t *capf, int spacing
  * Parse command line for --in-fd, --out-fd, --connect, --source, and populate.
  * 
  * Returns:
- * -1   Missing in-fd/out-fd or --connect
+ * -1   Missing in-fd/out-fd or --connect, or unknown argument, caller should print
+ *      help and exit
  *  1   Success, using interproc IPC
  *  2   Success, using TCP remote connection
  */
 int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]);
+
+/* Print the standard help header */
+void cf_print_help(kis_capture_handler_t *caph, const char *argv0);
 
 /* Set callbacks; pass NULL to remove a callback. */
 void cf_handler_set_listdevices_cb(kis_capture_handler_t *capf, 
@@ -366,6 +470,9 @@ void cf_handler_set_chantranslate_cb(kis_capture_handler_t *capf,
 void cf_handler_set_chancontrol_cb(kis_capture_handler_t *capf, 
         cf_callback_chancontrol cb);
 void cf_handler_set_chanfree_cb(kis_capture_handler_t *capf, cf_callback_chanfree cb);
+
+void cf_handler_set_spectrumconfig_cb(kis_capture_handler_t *capf, 
+        cf_callback_spectrumconfig cb);
 
 void cf_handler_set_unknown_cb(kis_capture_handler_t *capf, cf_callback_unknown cb);
 
@@ -449,6 +556,20 @@ int cf_get_CHANSET(char **ret_definition, simple_cap_proto_frame_t *in_frame);
  */
 int cf_get_CHANHOP(double *hop_rate, char ***ret_channel_list, 
         size_t *ret_channel_list_sz, int *ret_shuffle, int *ret_offset,
+        simple_cap_proto_frame_t *in_frame);
+
+/* Extract a SPECSET kv from a config packet
+ *
+ * Returns the parameters in the function call.
+ *
+ * Returns:
+ * -1   Error
+ *  0   No SPECSET key found
+ *  1   Success
+ */
+int cf_get_SPECSET(uint64_t *ret_start_mhz, uint64_t *ret_end_mhz,
+        uint64_t *ret_num_freq, uint64_t *ret_bin_width,
+        uint8_t *ret_amp, uint64_t *ret_if_amp, uint64_t *ret_baseband_amp,
         simple_cap_proto_frame_t *in_frame);
 
 /* Connect to a network socket, if remote connection is specified 
@@ -553,8 +674,10 @@ int cf_send_error(kis_capture_handler_t *caph, const char *message);
 int cf_send_listresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int success,
         const char *msg, char **interfaces, char **flags, size_t len);
 
-/* Send a PROBERESP response
- * Call be called from any thread
+/* Send a PROBERESP response; can contain traditional interface data, spectrum interface
+ * data, both, or neither in the case of an error.
+ *
+ * Can be called from any thread
  *
  * Returns:
  * -1   An error occurred while creating the packet
@@ -562,7 +685,7 @@ int cf_send_listresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
  *  1   Success
  */
 int cf_send_proberesp(kis_capture_handler_t *caph, uint32_t seq, unsigned int success,
-        const char *msg, const char *chanset, char **channels, size_t channels_len);
+        const char *msg, cf_params_interface_t *interface, cf_params_spectrum_t *spectrum);
 
 /* Send an OPENRESP response
  * Can be called from any thread
@@ -576,8 +699,8 @@ int cf_send_proberesp(kis_capture_handler_t *caph, uint32_t seq, unsigned int su
  *  1   Success
  */
 int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int success,
-        const char *msg, const uint32_t dlt, const char *uuid, const char *chanset, 
-        char **channels, size_t channels_len, const char *capif);
+        const char *msg, const uint32_t dlt, const char *uuid, 
+        cf_params_interface_t *interface, cf_params_spectrum_t *spectrum);
 
 /* Send a DATA frame with packet data
  * Can be called from any thread

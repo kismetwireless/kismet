@@ -811,6 +811,73 @@ simple_cap_proto_kv_t *encode_kv_chanhop_complex(double rate, char **channels,
     return kv;
 }
 
+simple_cap_proto_kv_t *encode_kv_specset(uint64_t start_mhz, uint64_t end_mhz, 
+        uint64_t samples_per_freq, uint64_t bin_width, uint8_t amp,
+        uint64_t if_amp, uint64_t baseband_amp) {
+
+    const char *key_start = "start_mhz";
+    const char *key_end = "end_mhz";
+    const char *key_samples = "samples_per_freq";
+    const char *key_binwidth = "bin_width";
+    const char *key_amp = "amp";
+    const char *key_if_amp = "if_amp";
+    const char *key_baseband_amp = "baseband_amp";
+
+    msgpuck_buffer_t *puckbuffer;
+
+    simple_cap_proto_kv_t *kv;
+    size_t content_sz;
+    
+    /* Allocate a chunk per channel as a guess, seems reasonable */
+    size_t initial_sz = (7 * 32) + 256;
+
+    puckbuffer = mp_b_create_buffer(initial_sz);
+
+    if (puckbuffer == NULL) {
+        return NULL;
+    }
+
+    mp_b_encode_map(puckbuffer, 7);
+
+    mp_b_encode_str(puckbuffer, key_start, strlen(key_start));
+    mp_b_encode_uint(puckbuffer, start_mhz);
+
+    mp_b_encode_str(puckbuffer, key_end, strlen(key_end));
+    mp_b_encode_uint(puckbuffer, end_mhz);
+
+    mp_b_encode_str(puckbuffer, key_samples, strlen(key_samples));
+    mp_b_encode_uint(puckbuffer, samples_per_freq);
+
+    mp_b_encode_str(puckbuffer, key_binwidth, strlen(key_binwidth));
+    mp_b_encode_uint(puckbuffer, bin_width);
+
+    mp_b_encode_str(puckbuffer, key_amp, strlen(key_amp));
+    mp_b_encode_uint(puckbuffer, amp);
+
+    mp_b_encode_str(puckbuffer, key_if_amp, strlen(key_if_amp));
+    mp_b_encode_uint(puckbuffer, if_amp);
+
+    mp_b_encode_str(puckbuffer, key_baseband_amp, strlen(key_baseband_amp));
+    mp_b_encode_uint(puckbuffer, baseband_amp);
+
+    content_sz = mp_b_used_buffer(puckbuffer);
+
+    kv = (simple_cap_proto_kv_t *) malloc(sizeof(simple_cap_proto_kv_t) + content_sz);
+
+    if (kv == NULL)
+        return NULL;
+
+    snprintf(kv->header.key, 16, "%.16s", "SPECSET");
+    kv->header.obj_sz = htonl(content_sz);
+
+    memcpy(kv->object, mp_b_get_buffer(puckbuffer), content_sz);
+
+    mp_b_free_buffer(puckbuffer);
+
+    return kv;
+
+}
+
 simple_cap_proto_kv_t *encode_kv_message(const char *message, unsigned int flags) {
 
     const char *key_message = "msg";

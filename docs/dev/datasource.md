@@ -49,6 +49,7 @@ Reconfigure a source.  Typically used to pass channel configuration data but may
 KV Pairs:
 * CHANSET (optional)
 * CHANHOP (optional)
+* SPECSET (optional)
 
 Responses:
 * CONFIGRESP
@@ -154,6 +155,7 @@ KV Pairs:
 * CHANSET (optional)
 * DLT
 * MESSAGE (optional)
+* SPECSET (optional)
 * SUCCESS
 * UUID (optional)
 * WARNING (optional)
@@ -200,6 +202,7 @@ KV Pairs:
 * MESSAGE (optional)
 * CHANNELS (optional)
 * CHANSET (optional)
+* SPECSET (optional)
 
 Responses:
 * NONE
@@ -363,23 +366,37 @@ Example:
 
 `"linuxwifi"`
 
+#### SPECSET
+Sources which support raw spectrum capture should accept this KV in the CONFIGURE frame and return it in the PROBERESP and OPENRESP frames.  Modeled on the configuration required to configure the *_sweep tools (such as hackrf_sweep), SPECSET passes the basic set of spectrum configuration parameters.
+
+Content:
+
+Msgpack packed dictionary containing the following:
+* "start_mhz": uint64 unsigned value, starting frequency, in MHz, of sweep (optional)
+* "end_mhz": uint64 unsigned value, ending frequency, in MHz, of sweep (optional)
+* "samples_per_freq": uint64 unsigned value, number of samples taken per frequency bin (optional)
+* "bin_width": uint64 unsigned value, width of each sample bin, in Hz (optional)
+* "amp": uint8 unsigned value, treated as boolean, enables amp (if available) (optional)
+* "if_amp": uint64 unsigned value, LNA/IF amplifier level (optional)
+* "baseband_amp": uint64 unsigned value, Baseband/VGA amplifier level (optional)
+
 #### SPECTRUM
 Sources which report raw spectrum should send it using this KV.  Modeled after the output format from the *_sweep tools (hackrf_sweep, rtl_sweep, etc), this allows for simple transmission of the spectrum data as dB levels.
 
-A SPECTRUM record is inserted into the Kismet packetchain as a packet containing a "SPECTRUM" record.
+A SPECTRUM record is inserted into the Kismet packetchain packet as a "SPECTRUM" record.  If a PACKET record is also found, both may be inserted into the same packet.
 
 Content:
 
 Msgpack packed dictionary containing the following:
 * "timestamp": double timestamp in seconds+microseconds since the epoch
-* "hz_low": uint64 lowest frequency of sweep, in HZ
-* "hz_high": uint64 highest frequency of sweep, in HZ
-* "hz_bin_width": uint64 width of each signal record, in HZ
+* "mhz_low": uint64 lowest frequency of sweep, in MHz
+* "mhz_high": uint64 highest frequency of sweep, in MHz
+* "hz_bin_width": uint64 width of each signal record, in Hz
 * "db_samples": vector/array of samples, in dB, as int16 data.
 
 Example:
 
-{ "timestamp": 12345, "hz_low": 2400000000, "hz_high": 2480000000, "hz_bin_width": 1000000, "db_samples": [ -60, -60, -60, -10, -20, ... ] }
+{ "timestamp": 12345, "mhz_low": 2400000, "mhz_high": 2480000, "hz_bin_width": 1000000, "db_samples": [ -60, -60, -60, -10, -20, ... ] }
 
 #### SUCCESS
 A simple boolean indicating success or failure of the relevant command.  This value is padded to 4 bytes and is followed by the `uint32_t` sequence number of the command, if any, this success value applies to.

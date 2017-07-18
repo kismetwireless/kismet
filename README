@@ -17,20 +17,20 @@ https://www.kismetwireless.net
 
         $ sudo apt-get install build-essential libmicrohttpd-dev git \
             libnl-3-dev libnl-genl-3-dev libcap-dev libpcap-dev \
-            libncurses5-dev libnm-dev libdw-dev
+            libncurses5-dev libnm-dev libdw-dev libsqlite3-dev
+
+        Additionally, to support HackRF sweep, you'll need:
+
+        $ sudo apt-get install libhackrf-dev libfftw3-dev
 
     2.  Clone Kismet from git.  If you haven't cloned Kismet before:
 
-        $ git clone https://www.kismetwireless.net/kismet.git
+        $ git clone https://www.kismetwireless.net/git/kismet.git
 
         If you have a Kismet repo already:
 
         $ cd kismet
         $ git pull
-
-        Git may appear that it has hung while it downloads - just give it
-        some time.  Typically a clone on a fast connection will take 
-        2 to 5 minutes.
 
     3.  Run configure.  This will find all the specifics about your system
         and prepare Kismet for compiling.  If you have any missing dependencies
@@ -39,7 +39,9 @@ https://www.kismetwireless.net
         $ cd kismet
         $ ./configure
 
-        Pay attention to the summary at the end and look out for any warnings.
+        Pay attention to the summary at the end and look out for any warnings!  The
+        summary will show key features and raise warnings for missing dependencies which
+        will drastically affect the compiled Kismet.
 
     4.  Compile Kismet.  
 
@@ -70,7 +72,21 @@ https://www.kismetwireless.net
 
         $ groups
 
-    8.  You're now ready to run Kismet!  Point it at your network interface:
+    8.  You're now ready to run Kismet!  Point it at your network interface... Different
+        distributions (and kernel versions, and distribution versions) name interfaces
+        differently; your interface may be 'wlan0' or 'wlan1', or it may be named 
+        something like 'wlp0s1', or it may be named using the MAC address of the card
+        and look like 'wlx00c0ca8d7f2e'.
+
+        You can list the cards Kismet detects on your system with:
+
+        $ /usr/local/bin/kismet_capture_tools/kismet_cap_linux_wifi --list
+
+        The results will resemble:
+
+            linuxwifi supported data sources:
+                wlan0
+                wlx00c0ca8d7f2e
 
         $ kismet -c wlan0
 
@@ -454,6 +470,87 @@ xx. Data source: Pcapfile
 
         Assign a custom UUID to this source.  If no custom UUID is provided,
         a purely random UUID is generated.
+
+xx. Remote Packet Capture
+
+    Kismet can capture from a remote source over a TCP connection.
+
+    Kismet remote packet feeds are initiated by the same tools that Kismet uses to
+    configure a local source; for example if Kismet is running on a host on IP 
+    192.168.1.2, to capture from a Linux Wi-Fi device on another device you could
+    use:
+
+        $ /usr/local/bin/kismet_capture_tools/kismet_cap_linux_wifi \
+            --connect 192.168.1.2:3501 --source=wlan1
+
+    Specifically, this uses the kismet_cap_linux_wifi tool, which is by default 
+    installed in `/usr/local/bin/kismet_capture_tools/`, to connect to the IP
+    192.168.1.2 port 3501.
+
+    The --source=... parameter is the same as you would use in a `source=' Kismet
+    configuration file entry, or as `-c' to Kismet itself.
+
+    By default, Kismet only allows remote packet connections from the localhost IP; 
+    you must either:
+
+    1.  Set up a tunnel, for example using SSH port forwarding, to connect the remote 
+        device to the host Kismet is running on.  This is very simple to do, and adds
+        security to the remote packet connection:
+
+        $ ssh someuser@192.168.1.2 -L 3501:localhost:3501
+
+        Then in another terminal:
+
+        $ /usr/local/bin/kismet_capture_tools/kismet_cap_linux_wifi \
+            --connect localhost:3501 --source=wlan1
+
+        The `ssh' command places SSH in the background (using `-f'), connects to 
+        the host Kismet is running on, and tunnels port 3501.
+
+        The kismet_cap_linux_wifi command is the same as the first example, but
+        connects to localhost:3501 to use the SSH port forwarding.
+
+        Other, more elegant solutions exist for building the SSH tunnel, such 
+        as `autossh'.
+
+    2.  Kismet can be configured to accept connections on a specific interface,
+        or from all IP addresses, by changing the `remote_capture_listen=' line in
+        kismet.conf:
+
+        remote_capture_listen=0.0.0.0
+
+        would enable listening on all interfaces, while
+
+        remote_capture_listen=192.168.1.2
+
+        would enable listening only on the given IP (again using the above example 
+        of Kismet running on 192.168.1.2).
+
+        Remote capture *should only be enabled on interfaces on a protected LAN*.
+
+    Additional remote capture arguments
+
+    Kismet capture tools supporting remote capture also support the following options:
+
+    --connect=[host]:[port]
+
+        Connects to a remote Kismet server on [host] and port [port].  When using
+        `--connect=...' you MUST specify a `--source=...' options
+
+    --source=[source definition]
+
+        Define a source; this is used only in remote connection mode.  The source
+        definition is the same as defining a local source for Kismet via `-c' or
+        the `source=' config file option.
+
+    --disable-retry
+
+        By default, a remote source will attempt to reconnect if the connection
+        to the Kismet server is lost.
+
+    --daemonize
+
+        Places the capture tool in the background and daemonizes it.
 
 
 xx. Kismet Webserver
