@@ -202,9 +202,9 @@ int TcpServerV2::Poll(fd_set& in_rset, fd_set& in_wset) {
                         i->second->GetReadBufferAvailable());
 
                 if (r_sz <= 0) {
-                    i->second->CommitReadBufferData(buf, 0);
                     msg << "TCP server closing connection from client " << i->first << 
                         " unable to reserve space in buffer, something went wrong";
+                    i->second->CommitReadBufferData(buf, 0);
                     i->second->BufferError(msg.str());
                     KillConnection(i->first);
                 }
@@ -219,11 +219,11 @@ int TcpServerV2::Poll(fd_set& in_rset, fd_set& in_wset) {
                             msg << "TCP server error reading from client " << i->first << 
                                 " - " << kis_strerror_r(errno);
                         }
-                        i->second->BufferError(msg.str());
-                        
+
                         // Dump the commit
                         i->second->CommitReadBufferData(buf, 0);
-
+                        i->second->BufferError(msg.str());
+                        
                         KillConnection(i->first);
                         return 0;
                     } else {
@@ -265,9 +265,9 @@ int TcpServerV2::Poll(fd_set& in_rset, fd_set& in_wset) {
                     // Push the error upstream
                     msg << "TCP server error writing to client " << i->first <<
                         " - " << kis_strerror_r(errno);
-                    i->second->BufferError(msg.str());
 
                     i->second->PeekFreeWriteBufferData(buf);
+                    i->second->BufferError(msg.str());
 
                     KillConnection(i->first);
                     return 0;

@@ -165,9 +165,8 @@ int SerialClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
                             baud << " - " << kis_strerror_r(errno);
                     }
 
-                    handler->BufferError(msg.str());
-
                     handler->CommitReadBufferData(buf, 0);
+                    handler->BufferError(msg.str());
 
                     Close();
                     return 0;
@@ -199,9 +198,9 @@ int SerialClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
                 // Push the error upstream
                 msg << "Serial client error writing to " << device << "@" << baud <<
                     " - " << kis_strerror_r(errno);
-                handler->BufferError(msg.str());
 
                 handler->PeekFreeWriteBufferData(buf);
+                handler->BufferError(msg.str());
 
                 Close();
                 return 0;

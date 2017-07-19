@@ -221,10 +221,10 @@ int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
                         msg << "TCP client error reading from " << host << ":" << port <<
                             " - " << kis_strerror_r(errno);
                     }
-                    handler->BufferError(msg.str());
 
                     // Dump the commit
                     handler->CommitReadBufferData(buf, 0);
+                    handler->BufferError(msg.str());
 
                     Disconnect();
                     return 0;
@@ -262,9 +262,9 @@ int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
                 // Push the error upstream
                 msg << "TCP client error writing to " << host << ":" << port <<
                     " - " << kis_strerror_r(errno);
-                handler->BufferError(msg.str());
 
                 handler->PeekFreeWriteBufferData(buf);
+                handler->BufferError(msg.str());
 
                 Disconnect();
                 return 0;
