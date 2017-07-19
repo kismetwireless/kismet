@@ -56,23 +56,26 @@ public:
     virtual size_t used();
 
     // Return about available (effectively "infinite"), use a crappy hack for now
-    virtual size_t available() { return 1024 * 1024 * 2014; }
+    virtual ssize_t available() { return -1; }
 
-    // Return total size ever used by buffer, not current used
+    // Total size ever used by buffer
     virtual size_t total();
 
-    // Write amount to buffer, arbitrarily allocating new chunks
-    virtual size_t write(unsigned char *in_data, size_t in_sz);
-   
     // Peek from buffer; will only return up to chunk size per peek
-    virtual size_t peek(uint8_t *ret_data, size_t in_sz);
+    virtual ssize_t peek(unsigned char **ret_data, size_t in_sz);
+    virtual ssize_t zero_copy_peek(unsigned char **ret_data, size_t in_sz);
+    virtual void peek_free(unsigned char *in_data);
+
+    // Write amount to buffer, arbitrarily allocating new chunks
+    virtual ssize_t write(unsigned char *in_data, size_t in_sz);
+  
+    virtual ssize_t reserve(unsigned char **data, size_t in_sz);
+    virtual bool commit(unsigned char *data, size_t in_sz);
 
     // Consume from buffer
     size_t consume(size_t in_sz);
 
 protected:
-    std::recursive_timed_mutex cblock;
-
     size_t chunk_sz;
     bool free_after_read;
 
@@ -85,6 +88,8 @@ protected:
 
     size_t used_sz;
     size_t total_sz;
+
+    bool free_read, free_commit;
 
 };
 
