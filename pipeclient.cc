@@ -190,7 +190,7 @@ int PipeClient::Poll(fd_set& in_rset, fd_set& in_wset) {
             handler->ConsumeWriteBufferData(iret);
         }
 
-        delete[] buf;
+        // delete[] buf;
     }
 
     return 0;
