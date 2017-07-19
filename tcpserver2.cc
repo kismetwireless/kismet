@@ -274,10 +274,9 @@ int TcpServerV2::Poll(fd_set& in_rset, fd_set& in_wset) {
                 }
             } else {
                 // Consume whatever we managed to write
+                i->second->PeekFreeReadBufferData(buf);
                 i->second->ConsumeWriteBufferData(iret);
             }
-
-            i->second->PeekFreeReadBufferData(buf);
         }
     }
 
