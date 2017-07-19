@@ -31,13 +31,63 @@ RingbufV2::RingbufV2(size_t in_sz) {
     buffer_sz = in_sz;
     start_pos = 0;
     length = 0;
+
+#ifdef PROFILE_RINGBUFV2 
+    zero_copy_w_bytes = 0;
+    zero_copy_r_bytes = 0;
+    copy_w_bytes = 0;
+    copy_r_bytes = 0;
+    last_profile_bytes = 0;
+#endif
 }
 
 RingbufV2::~RingbufV2() {
     local_locker lock(&buffer_locker);
+
+#ifdef PROFILE_RINGBUFV2
+    profile();
+#endif
     
     delete[] buffer;
 }
+
+#ifdef PROFILE_RINGBUFV2
+void RingbufV2::profile() {
+    fprintf(stderr, "profile - ringbufv2 - %p stats - \n"
+            "    len %lu\n"
+            "    write zero copy %lu\n"
+            "    write forced copy %lu\n"
+            "    write efficiency %2.2f\n"
+            "    read zero copy %lu\n"
+            "    read forced copy %lu\n"
+            "    read efficiency %2.2f\n",
+            this,
+            buffer_sz, 
+            zero_copy_w_bytes, copy_w_bytes, 
+            (double) ((double) zero_copy_w_bytes / (double) (copy_w_bytes + zero_copy_w_bytes)),
+            zero_copy_r_bytes, copy_r_bytes, 
+            (double) ((double) zero_copy_r_bytes / (double) (copy_r_bytes + zero_copy_r_bytes)));
+
+    double total = zero_copy_w_bytes + zero_copy_r_bytes;
+    char u = 'B';
+
+    if (total < 1024) {
+        ;
+    } else if (total < 1024 * 1024) {
+        total /= 1024;
+        u = 'K';
+    } else if (total < 1024 * 1024 * 1024) {
+        total /= (1024 * 1024);
+        u = 'M';
+    } else if (total < (double) (1024.0 * 1024.0 * 1024.0 * 1024.0)) {
+        total /= (1024 * 1024 * 1024);
+        u = 'G';
+    }
+
+    fprintf(stderr, "     total saved: %2.2f %c\n", total, u);
+    last_profile_bytes = 0;
+}
+#endif
 
 void RingbufV2::clear() {
     local_locker lock(&buffer_locker);
@@ -80,7 +130,12 @@ ssize_t RingbufV2::peek(unsigned char **ptr, size_t in_sz) {
         free_peek = false;
         *ptr = buffer + start_pos;
 
-        // fprintf(stderr, "debug - ringbuf2 zero peek from %lu sz %lu\n", start_pos, opsize);
+#ifdef PROFILE_RINGBUFV2
+        zero_copy_r_bytes += opsize;
+        last_profile_bytes += opsize;
+        if (last_profile_bytes > (1024*1024))
+            profile();
+#endif
 
         return opsize;
     } else {
@@ -97,6 +152,12 @@ ssize_t RingbufV2::peek(unsigned char **ptr, size_t in_sz) {
 
         // fprintf(stderr, "debug - ringbuf2 peek from %lu sz %lu\n", start_pos, opsize);
 
+#ifdef PROFILE_RINGBUFV2
+        copy_r_bytes += opsize;
+        last_profile_bytes += opsize;
+        if (last_profile_bytes > (1024*1024))
+            profile();
+#endif
         return opsize;
     }
 }
@@ -121,6 +182,13 @@ ssize_t RingbufV2::zero_copy_peek(unsigned char **ptr, size_t in_sz) {
 
     peek_reserved = true;
     free_peek = false;
+
+#ifdef PROFILE_RINGBUFV2
+    zero_copy_r_bytes += opsize;
+    last_profile_bytes += opsize;
+    if (last_profile_bytes > (1024*1024))
+        profile();
+#endif
 
     *ptr = (buffer + start_pos);
     return opsize;
@@ -197,11 +265,20 @@ ssize_t RingbufV2::write(unsigned char *data, size_t in_sz) {
         return 0;
     }
 
+#ifdef PROFILE_RINGBUFV2
+    if (data != NULL)
+        copy_w_bytes += in_sz;
+    else
+        zero_copy_w_bytes += in_sz;
+    last_profile_bytes += in_sz;
+    if (last_profile_bytes > (1024*1024))
+        profile();
+#endif
+
     size_t copy_start;
 
     // Figure out if we can write a contiguous block
     copy_start = (start_pos + length) % buffer_sz;
-
 
     if (copy_start + in_sz < buffer_sz) {
         // fprintf(stderr, "debug - ringbuf2 write len %lu copy_start %lu start pos %lu length %lu buffer %lu\n", in_sz, copy_start, start_pos, length, buffer_sz);

@@ -54,6 +54,8 @@ PipeClient::~PipeClient() {
     shared_ptr<PollableTracker> pollabletracker =
         static_pointer_cast<PollableTracker>(globalreg->FetchGlobal("POLLABLETRACKER"));
 
+    handler.reset();
+
     pthread_mutex_destroy(&pipe_lock);
 }
 

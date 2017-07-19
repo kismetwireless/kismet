@@ -455,6 +455,8 @@ Datasourcetracker::Datasourcetracker(GlobalRegistry *in_globalreg) :
 Datasourcetracker::~Datasourcetracker() {
     local_eol_locker lock(&dst_lock);
 
+    // fprintf(stderr, "debug - ~datasourcetracker\n");
+
     globalreg->RemoveGlobal("DATA_SOURCE_TRACKER");
 
     if (completion_cleanup_id >= 0)
@@ -468,6 +470,8 @@ Datasourcetracker::~Datasourcetracker() {
         // TODO implement these
         // i->second->cancel();
     }
+
+    datasource_vec.reset();
 
     pthread_mutex_destroy(&dst_lock);
 }

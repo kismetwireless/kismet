@@ -85,7 +85,7 @@ KisDatasource::KisDatasource(GlobalRegistry *in_globalreg,
 KisDatasource::~KisDatasource() {
     local_eol_locker lock(&source_lock);
 
-    // fprintf(stderr, "debug - ~KisDatasource\n");
+    fprintf(stderr, "debug - ~KisDatasource\n");
 
     // Cancel any timer
     if (error_timer_id > 0)
@@ -106,6 +106,8 @@ KisDatasource::~KisDatasource() {
     } else {
         // fprintf(stderr, "debug - ~kds null ringbuf\n");
     }
+
+    ipc_remote.reset();
 
     // We don't call a normal close here because we can't risk double-free
     // or going through commands again - if the source is being deleted, it should

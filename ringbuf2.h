@@ -25,6 +25,8 @@
 #include <mutex>
 #include "buffer_handler.h"
 
+// #define PROFILE_RINGBUFV2   1
+
 // A better ringbuffer implementation that will replace the old ringbuffer in 
 // Kismet as the rewrite continues
 //
@@ -56,6 +58,10 @@ public:
     virtual ssize_t zero_copy_reserve(unsigned char **data, size_t in_sz);
     virtual bool commit(unsigned char *data, size_t in_sz);
 
+#ifdef PROFILE_RINGBUFV2
+    virtual void profile();
+#endif
+
 protected:
     unsigned char *buffer;
     // Total size
@@ -67,6 +73,10 @@ protected:
 
     // Do we need to free our peeked or committed data?
     bool free_peek, free_commit;
+
+#ifdef PROFILE_RINGBUFV2 
+    size_t zero_copy_w_bytes, zero_copy_r_bytes, copy_w_bytes, copy_r_bytes, last_profile_bytes;
+#endif
 };
 
 
