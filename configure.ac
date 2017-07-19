@@ -250,12 +250,12 @@ if test "$HAVE_HACKRF_H" -eq 1; then
 fi
 
 if test "$HAVE_FFTW3_H" -eq 1; then
-    AC_CHECK_LIB([fftw3], [ffwtf_malloc],
+    AC_CHECK_LIB([fftw3], [fftw_malloc],
             HAVE_LIBFFTW3=1,
             AC_MSG_WARN([libfftw3 not available]))
 fi
 
-if test "$HAVE_LIBHACKRF" -eq 1 && test "$HAVE_LIBFFTW3"; then
+if test "$HAVE_LIBHACKRF" -eq 1 && test "$HAVE_LIBFFTW3" -eq 1; then
     AC_DEFINE(BUILD_HACKRF_SWEEP, 1, Able to build hackrf sweep source)
     BUILD_HACKRF_SWEEP=1
     DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_HACKRF_SWEEP)"
