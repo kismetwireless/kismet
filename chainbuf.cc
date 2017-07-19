@@ -253,6 +253,11 @@ ssize_t Chainbuf::reserve(unsigned char **data, size_t in_sz) {
     return in_sz;
 }
 
+ssize_t Chainbuf::zero_copy_reserve(unsigned char **data, size_t in_sz) {
+    // We can't do better than our zero copy attempt
+    return reserve(data, in_sz);
+}
+
 bool Chainbuf::commit(unsigned char *data, size_t in_sz) {
     local_locker lock(&buffer_locker);
 

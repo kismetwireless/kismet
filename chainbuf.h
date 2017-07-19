@@ -73,6 +73,7 @@ public:
     virtual ssize_t write(unsigned char *in_data, size_t in_sz);
   
     virtual ssize_t reserve(unsigned char **data, size_t in_sz);
+    virtual ssize_t zero_copy_reserve(unsigned char **data, size_t in_sz);
     virtual bool commit(unsigned char *data, size_t in_sz);
 
     // Consume from buffer

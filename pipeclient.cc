@@ -126,7 +126,7 @@ int PipeClient::Poll(fd_set& in_rset, fd_set& in_wset) {
         // as we can at once.
        
         while (handler->GetReadBufferAvailable()) {
-            len = handler->ReserveReadBufferData((void **) &buf,
+            len = handler->ZeroCopyReserveReadBufferData((void **) &buf,
                     handler->GetReadBufferAvailable());
 
             // fprintf(stderr, "debug - read buffer available reserved %lu\n", len);

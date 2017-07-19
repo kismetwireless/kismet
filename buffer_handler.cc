@@ -297,6 +297,26 @@ ssize_t BufferHandlerGeneric::ReserveWriteBufferData(void **in_ptr, size_t in_sz
     return -1;
 }
 
+ssize_t BufferHandlerGeneric::ZeroCopyReserveReadBufferData(void **in_ptr, size_t in_sz) {
+    local_locker lock(&handler_locker);
+
+    if (read_buffer != NULL) {
+        return read_buffer->zero_copy_reserve((unsigned char **) in_ptr, in_sz);
+    }
+
+    return -1;
+}
+
+ssize_t BufferHandlerGeneric::ZeroCopyReserveWriteBufferData(void **in_ptr, size_t in_sz) {
+    local_locker lock(&handler_locker);
+
+    if (write_buffer != NULL) {
+        return write_buffer->zero_copy_reserve((unsigned char **) in_ptr, in_sz);
+    }
+
+    return -1;
+}
+
 bool BufferHandlerGeneric::CommitReadBufferData(void *in_ptr, size_t in_sz) {
     bool s = false;;
 

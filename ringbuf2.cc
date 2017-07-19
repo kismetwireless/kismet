@@ -271,6 +271,40 @@ ssize_t RingbufV2::reserve(unsigned char **data, size_t in_sz) {
     }
 }
 
+ssize_t RingbufV2::zero_copy_reserve(unsigned char **data, size_t in_sz) {
+    local_locker lock(&buffer_locker);
+
+    if (write_reserved) {
+        throw std::runtime_error("ringbuf v2 write already locked");
+    }
+
+    if (in_sz == 0) {
+        fprintf(stderr, "debug - ringbuf2 - zcr got req for 0\n");
+        return 0;
+    }
+
+    size_t copy_start;
+
+    // Figure out if we can write a contiguous block
+    copy_start = (start_pos + length) % buffer_sz;
+
+    write_reserved = true;
+    free_commit = false;
+
+    *data = buffer + copy_start;
+
+    // If we're looking for less than our total available, then return either what
+    // we were looking for, or the contiguous remainder of the buffer
+    if (in_sz < (size_t) available()) {
+        // fprintf(stderr, "debug - %lu less than %lu\n", in_sz, available());
+        return min(in_sz, buffer_sz - copy_start);
+    }
+
+    // Otherwise return the contiguous buffer left
+    // fprintf(stderr, "debug - contiguous\n");
+    return (buffer_sz - copy_start);
+}
+
 bool RingbufV2::commit(unsigned char *data, size_t in_sz) {
     local_locker lock(&buffer_locker);
 

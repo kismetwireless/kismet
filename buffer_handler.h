@@ -74,6 +74,16 @@ public:
     // Implementations must track internally if the reserved data must be free'd upon commit
     virtual ssize_t reserve(unsigned char **data, size_t in_sz) = 0;
 
+    // Reserve as much space as possible, up to in_sz, and do as much as possible to 
+    // ensure it is a zero-copy buffer.
+    //
+    // A zero-copy reservation may be smaller than the requested reservation size.
+    //
+    // Only one reservation may be made at a time.
+    //
+    // The caller must commit the reserved data.
+    virtual ssize_t zero_copy_reserve(unsigned char **data, size_t in_sz) = 0;
+
     // Commit changes to the reserved block
     virtual bool commit(unsigned char *data, size_t in_sz) = 0;
 
@@ -212,6 +222,20 @@ public:
     // Returns the amount of data allocated in the reserved block
     virtual ssize_t ReserveReadBufferData(void **in_ptr, size_t len);
     virtual ssize_t ReserveWriteBufferData(void **in_ptr, size_t len);
+
+    // Reserve space in one of the buffers; Take excessive measures to make this a
+    // zero-copy buffer, including reserving less size than requested.  This is most 
+    // appropriate for incoming data streams being written to a buffer.
+    //
+    // Callers must conclude the write operation with CommitReadBufferData(..) or
+    // CommitWriteBufferData(..)
+    //
+    // Only one block of data may be reserved at a time.
+    //
+    // Returns the amount of data available in the reserved block
+    virtual ssize_t ZeroCopyReserveReadBufferData(void **in_ptr, size_t len);
+    virtual ssize_t ZeroCopyReserveWriteBufferData(void **in_ptr, size_t len);
+    
 
     // Commit a pending reserved data block to the buffer
     //
