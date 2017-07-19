@@ -377,14 +377,18 @@ void KisDatasource::BufferAvailable(size_t in_amt __attribute__((unused))) {
         }
 
         // Allocate as much as we can and peek it from the buffer
-        buf = new uint8_t[buffamt];
-        ringbuf_handler->PeekReadBufferData(buf, buffamt);
+        buffamt = ringbuf_handler->PeekReadBufferData((void **) &buf, buffamt);
+
+        if (buffamt < sizeof(simple_cap_proto_t)) {
+            ringbuf_handler->PeekFreeReadBufferData(buf);
+            return;
+        }
 
         // Turn it into a frame header
         frame = (simple_cap_proto_frame_t *) buf;
 
         if (kis_ntoh32(frame->header.signature) != KIS_CAP_SIMPLE_PROTO_SIG) {
-            delete[] buf;
+            ringbuf_handler->PeekFreeReadBufferData(buf);
 
             _MSG("Kismet data source " + get_source_name() + " got an invalid "
                     "control from on IPC/Network, closing.", MSGFLAG_ERROR);
@@ -408,7 +412,7 @@ void KisDatasource::BufferAvailable(size_t in_amt __attribute__((unused))) {
 
         // Compare to the saved checksum
         if (calc_checksum != header_checksum) {
-            delete[] buf;
+            ringbuf_handler->PeekFreeReadBufferData(buf);
 
             _MSG("Kismet data source " + get_source_name() + " got an invalid hdr " +
                     "checksum on control from IPC/Network, closing.", MSGFLAG_ERROR);
@@ -423,7 +427,7 @@ void KisDatasource::BufferAvailable(size_t in_amt __attribute__((unused))) {
         if (frame_sz > buffamt) {
             // Nothing we can do right now, not enough data to 
             // make up a complete packet.
-            delete[] buf;
+            ringbuf_handler->PeekFreeReadBufferData(buf);
             return;
         }
 
@@ -432,7 +436,7 @@ void KisDatasource::BufferAvailable(size_t in_amt __attribute__((unused))) {
 
         // Compare to the saved checksum
         if (calc_checksum != data_checksum) {
-            delete[] buf;
+            ringbuf_handler->PeekFreeReadBufferData(buf);
 
             _MSG("Kismet data source " + get_source_name() + " got an invalid checksum "
                     "on control from IPC/Network, closing.", MSGFLAG_ERROR);
@@ -440,9 +444,6 @@ void KisDatasource::BufferAvailable(size_t in_amt __attribute__((unused))) {
 
             return;
         }
-
-        // Consume the packet in the ringbuf 
-        ringbuf_handler->ConsumeReadBufferData(frame_sz);
 
         // Extract the kv pairs
         KVmap kv_map;
@@ -454,7 +455,9 @@ void KisDatasource::BufferAvailable(size_t in_amt __attribute__((unused))) {
             if (frame_sz < sizeof(simple_cap_proto_t) + 
                     sizeof(simple_cap_proto_kv_t) + data_offt) {
 
-                delete[] buf;
+                // Consume the packet in the ringbuf 
+                ringbuf_handler->PeekFreeReadBufferData(buf);
+                ringbuf_handler->ConsumeReadBufferData(frame_sz);
 
                 _MSG("Kismet data source " + get_source_name() + " got an invalid "
                         "frame (KV too long for frame) from IPC/Network, closing.",
@@ -466,7 +469,6 @@ void KisDatasource::BufferAvailable(size_t in_amt __attribute__((unused))) {
 
             simple_cap_proto_kv_t *pkv =
                 (simple_cap_proto_kv_t *) &((frame->data)[data_offt]);
-
 
             data_offt += 
                 sizeof(simple_cap_proto_kv_h_t) +
@@ -487,7 +489,9 @@ void KisDatasource::BufferAvailable(size_t in_amt __attribute__((unused))) {
             delete i->second;
         }
 
-        delete[] buf;
+        // Consume the packet in the ringbuf 
+        ringbuf_handler->PeekFreeReadBufferData(buf);
+        ringbuf_handler->ConsumeReadBufferData(frame_sz);
     }
 }
 
