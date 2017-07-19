@@ -258,7 +258,7 @@ int TcpServerV2::Poll(fd_set& in_rset, fd_set& in_wset) {
 
             // Peek the data into our buffer as a zero-copy op whenever possible; we
             // don't care how much we get
-            ret = i->second->PeekWriteBufferData((void **) &buf, len);
+            ret = i->second->ZeroCopyPeekWriteBufferData((void **) &buf, len);
 
             if ((iret = write(i->first, buf, ret)) < 0) {
                 if (errno != EINTR && errno != EAGAIN) {
