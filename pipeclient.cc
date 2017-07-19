@@ -154,6 +154,7 @@ int PipeClient::Poll(fd_set& in_rset, fd_set& in_wset) {
                 }
             } else {
                 // Insert into buffer
+                // fprintf(stderr, "debug - pipeclient committing %lu\n", ret);
                 iret = handler->CommitReadBufferData(buf, ret);
 
                 if (!iret) {

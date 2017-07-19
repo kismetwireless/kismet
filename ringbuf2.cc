@@ -26,6 +26,8 @@
 RingbufV2::RingbufV2(size_t in_sz) {
     buffer = new unsigned char[in_sz];
 
+    memset(buffer, 0xAA, in_sz);
+
     buffer_sz = in_sz;
     start_pos = 0;
     length = 0;
@@ -66,21 +68,20 @@ ssize_t RingbufV2::peek(unsigned char **ptr, size_t in_sz) {
     }
 
     // No matter what is requested we can't read more than we have
-    size_t opsize = used();
+    size_t opsize = min(in_sz, used());
 
     if (opsize == 0)
         return 0;
 
-    if (opsize > in_sz)
-        opsize = in_sz;
-
-    // For now we always copy the buffer for peek
     peek_reserved = true;
 
     if (start_pos + opsize < buffer_sz) {
         // Can we read contiguously? if so we can do a zero-copy peek
         free_peek = false;
         *ptr = buffer + start_pos;
+
+        // fprintf(stderr, "debug - ringbuf2 zero peek from %lu sz %lu\n", start_pos, opsize);
+
         return opsize;
     } else {
         // We have to allocate
@@ -92,7 +93,9 @@ ssize_t RingbufV2::peek(unsigned char **ptr, size_t in_sz) {
         size_t chunk_b = opsize - chunk_a;
 
         memcpy(*ptr, buffer + start_pos, chunk_a);
-        memcpy((unsigned char *) *ptr + chunk_a, buffer, chunk_b);
+        memcpy(*ptr + chunk_a, buffer, chunk_b);
+
+        // fprintf(stderr, "debug - ringbuf2 peek from %lu sz %lu\n", start_pos, opsize);
 
         return opsize;
     }
@@ -106,13 +109,10 @@ ssize_t RingbufV2::zero_copy_peek(unsigned char **ptr, size_t in_sz) {
     }
 
     // No matter what is requested we can't read more than we have
-    size_t opsize = used();
+    size_t opsize = min(in_sz, used());
 
     if (opsize == 0)
         return 0;
-
-    if (opsize > in_sz)
-        opsize = in_sz;
 
     // Trim to only the part of the buffer we can point to directly
     if (start_pos + opsize > buffer_sz) {
@@ -153,18 +153,15 @@ size_t RingbufV2::consume(size_t in_sz) {
     }
 
     // No matter what is requested we can't read more than we have
-    size_t opsize = used();
-
-    if (opsize == 0)
-        return 0;
-
-    if (opsize > in_sz)
-        opsize = in_sz;
+    size_t opsize = min(in_sz, used());
 
     // Can we read contiguously?
     if (start_pos + opsize < buffer_sz) {
+
         start_pos += opsize;
         length -= opsize;
+
+        // fprintf(stderr, "debug - ringbuf2 consuming %lu new start %lu new len %lu\n", in_sz, start_pos, length);
 
         return opsize;
     } else {
@@ -175,6 +172,9 @@ size_t RingbufV2::consume(size_t in_sz) {
         // Loop the ring buffer and mark read
         start_pos = chunk_b;
         length -= opsize;
+
+        // fprintf(stderr, "debug - ringbuf2 loop consuming %lu new start pos %lu new len %lu\n", in_sz, start_pos, length);
+
 
         return opsize;
     }
@@ -189,27 +189,39 @@ ssize_t RingbufV2::write(unsigned char *data, size_t in_sz) {
         throw std::runtime_error("ringbuf v2 write already locked");
     }
 
-    size_t copy_start;
-
-    if (available() >= 0 && (size_t) available() < in_sz)
+    if (in_sz == 0)
         return 0;
 
+    if (available() < (ssize_t) in_sz) {
+        // fprintf(stderr, "debug - ringbuf2 - insufficient space in buffer for %lu\n", in_sz);
+        return 0;
+    }
+
+    size_t copy_start;
+
     // Figure out if we can write a contiguous block
-    copy_start = 
-        (start_pos + length) % buffer_sz;
+    copy_start = (start_pos + length) % buffer_sz;
+
 
     if (copy_start + in_sz < buffer_sz) {
-        memcpy(buffer + copy_start, data, in_sz);
+        // fprintf(stderr, "debug - ringbuf2 write len %lu copy_start %lu start pos %lu length %lu buffer %lu\n", in_sz, copy_start, start_pos, length, buffer_sz);
+
+        if (data != NULL)
+            memcpy(buffer + copy_start, data, in_sz);
         length += in_sz;
 
         return in_sz;
     } else {
+        // fprintf(stderr, "debug - ringbuf2 split write len %lu copy_start %lu start pos %lu length %lu buffer %lu\n", in_sz, copy_start, start_pos, length, buffer_sz);
+
         // Compute the two chunks
         size_t chunk_a = buffer_sz - copy_start;
         size_t chunk_b = in_sz - chunk_a;
 
-        memcpy(buffer + start_pos + length, data, chunk_a);
-        memcpy(buffer, (unsigned char *) data + chunk_a, chunk_b);
+        if (data != NULL) {
+            memcpy(buffer + start_pos + length, data, chunk_a);
+            memcpy(buffer, (unsigned char *) data + chunk_a, chunk_b);
+        }
 
         /* Increase the length of the buffer */
         length += in_sz;
@@ -227,28 +239,34 @@ ssize_t RingbufV2::reserve(unsigned char **data, size_t in_sz) {
         throw std::runtime_error("ringbuf v2 write already locked");
     }
 
+    if (in_sz == 0)
+        return 0;
+
     size_t copy_start;
 
-    if (available() >= 0 && (size_t) available() < in_sz)
+    if (available() < (ssize_t) in_sz) {
+        // fprintf(stderr, "debug - ringbuf2 - insufficient space in buffer for %lu\n", in_sz);
         return 0;
+    }
 
     // Figure out if we can write a contiguous block
     copy_start = (start_pos + length) % buffer_sz;
 
-    // For now we always copy the buffer for peek
     write_reserved = true;
 
     if (copy_start + in_sz < buffer_sz) {
-        // If we're entirely w/in one loop of the buffer we can return a zero-copy
-        // pointer
         free_commit = false;
         *data = buffer + copy_start;
 
+        // fprintf(stderr, "debug - ringbuf2 - zerocopy reserve at %lu len  %lu\n", copy_start, in_sz);
+
         return in_sz;
     } else {
-        // We have to allocate a buffer because we span the end of the ringbuf
         free_commit = true;
         *data = new unsigned char[in_sz];
+
+        // fprintf(stderr, "debug - ringbuf2 - copy reserve at %lu len  %lu\n", copy_start, in_sz);
+
         return in_sz;
     }
 }
@@ -268,6 +286,11 @@ bool RingbufV2::commit(unsigned char *data, size_t in_sz) {
     if (free_commit) {
         free_commit = false;
 
+        if (in_sz == 0)
+            return true;
+
+        // fprintf(stderr, "debug - writing copied buffer %lu\n", in_sz);
+
         ssize_t written = write(data, in_sz);
 
         delete[] data;
@@ -276,12 +299,18 @@ bool RingbufV2::commit(unsigned char *data, size_t in_sz) {
             return false;
 
         return (size_t) written == in_sz;
+    } else {
+        if (in_sz == 0)
+            return true;
+
+        // fprintf(stderr, "debug - finalizing zerocopy buffer %lu\n", in_sz);
+
+        ssize_t written = write(NULL, in_sz);
+        if (written < 0)
+            return false;
+
+        return (size_t) written == in_sz;
     }
-
-    // If we don't need to free our commit buffer, the data is already written 
-    // in and we're done
-
-    return true;
 }
 
 

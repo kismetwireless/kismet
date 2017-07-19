@@ -80,7 +80,8 @@ ssize_t Chainbuf::write(uint8_t *in_data, size_t in_sz) {
         // Whole buffer or whole chunk
         size_t w_sz = min(in_sz - total_written, free_chunk_sz);
 
-        memcpy(buff_vec[write_block] + write_offt, in_data + total_written, w_sz);
+        if (in_data != NULL)
+            memcpy(buff_vec[write_block] + write_offt, in_data + total_written, w_sz);
 
         total_written += w_sz;
 
@@ -275,10 +276,11 @@ bool Chainbuf::commit(unsigned char *data, size_t in_sz) {
             return false;
 
         return (size_t) written == in_sz;
+    } else {
+        ssize_t written = write(NULL, in_sz);
+        if (written < 0)
+            return false;
+
+        return (size_t) written == in_sz;
     }
-
-    // If we don't need to free our commit buffer, the data is already written 
-    // in and we're done
-
-    return true;
 }

@@ -321,6 +321,7 @@ void KisDatasource::close_source() {
         return;
 
     if (ringbuf_handler != NULL) {
+        ringbuf_handler->RemoveReadBufferInterface();
         uint32_t seqno = 0;
         write_packet("CLOSEDEVICE", KVmap(), seqno);
     }
@@ -362,7 +363,7 @@ void KisDatasource::BufferAvailable(size_t in_amt __attribute__((unused))) {
     local_locker lock(&source_lock);
     
     simple_cap_proto_frame_t *frame;
-    uint8_t *buf;
+    uint8_t *buf = NULL;
     uint32_t frame_sz;
     uint32_t header_checksum, data_checksum, calc_checksum;
 
@@ -384,6 +385,9 @@ void KisDatasource::BufferAvailable(size_t in_amt __attribute__((unused))) {
             return;
         }
 
+        // fprintf(stderr, "debug - sig %x header %u data %u sequence %u\n", frame->header.signature, kis_ntoh32(frame->header.header_checksum), kis_ntoh32(frame->header.data_checksum), kis_ntoh32(frame->header.sequence_number));
+
+
         // Turn it into a frame header
         frame = (simple_cap_proto_frame_t *) buf;
 
@@ -402,6 +406,8 @@ void KisDatasource::BufferAvailable(size_t in_amt __attribute__((unused))) {
         header_checksum = kis_ntoh32(frame->header.header_checksum);
         data_checksum = kis_ntoh32(frame->header.data_checksum);
 
+        // fprintf(stderr, "debug - sig %x header %u data %u sequence %u\n", frame->header.signature, header_checksum, data_checksum, kis_ntoh32(frame->header.sequence_number));
+
         // Zero the checksum field in the packet
         frame->header.header_checksum = 0;
         frame->header.data_checksum = 0;
@@ -410,9 +416,24 @@ void KisDatasource::BufferAvailable(size_t in_amt __attribute__((unused))) {
         calc_checksum = Adler32Checksum((const char *) frame, 
                 sizeof(simple_cap_proto_t));
 
+        // fprintf(stderr, "debug - frame type... %s len %u?\n", string(frame->header.type, 16).c_str(), kis_ntoh32(frame->header.packet_sz));
+
         // Compare to the saved checksum
         if (calc_checksum != header_checksum) {
+            // Restore the headers in case
+            frame->header.header_checksum = kis_hton32(header_checksum);
+            frame->header.data_checksum = kis_hton32(data_checksum);
+
             ringbuf_handler->PeekFreeReadBufferData(buf);
+
+#if 0
+            fprintf(stderr, "debug - calc %X header %X\n", calc_checksum, header_checksum);
+
+            for (unsigned int x = 0; x < 100; x++) {
+                fprintf(stderr, "%02X ", ((uint8_t *) frame)[x] & 0xFF);
+            }
+            fprintf(stderr, "\n");
+#endif
 
             _MSG("Kismet data source " + get_source_name() + " got an invalid hdr " +
                     "checksum on control from IPC/Network, closing.", MSGFLAG_ERROR);
@@ -424,7 +445,21 @@ void KisDatasource::BufferAvailable(size_t in_amt __attribute__((unused))) {
         // Get the size of the frame
         frame_sz = kis_ntoh32(frame->header.packet_sz);
 
+        // fprintf(stderr, "debug - got frame sz %u\n", frame_sz);
+
         if (frame_sz > buffamt) {
+            // fprintf(stderr, "debug - got frame sz %u too big for current buffer %lu\n", frame_sz, buffamt);
+            // Restore the headers in case
+            frame->header.header_checksum = kis_hton32(header_checksum);
+            frame->header.data_checksum = kis_hton32(data_checksum);
+
+#if 0
+            for (unsigned int x = 0; x < buffamt; x++) {
+                fprintf(stderr, "%02X ", buf[x] & 0xFF);
+            }
+            fprintf(stderr, "\n");
+#endif
+
             // Nothing we can do right now, not enough data to 
             // make up a complete packet.
             ringbuf_handler->PeekFreeReadBufferData(buf);

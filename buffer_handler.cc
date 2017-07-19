@@ -310,11 +310,12 @@ bool BufferHandlerGeneric::CommitReadBufferData(void *in_ptr, size_t in_sz) {
         {
             local_locker lock(&r_callback_locker);
 
-            if (!s)
-                rbuf_notify->BufferError("error committing to read buffer");
-
-            if (rbuf_notify)
-                rbuf_notify->BufferAvailable(in_sz);
+            if (rbuf_notify) {
+                if (!s)
+                    rbuf_notify->BufferError("error committing to read buffer");
+                else
+                    rbuf_notify->BufferAvailable(in_sz);
+            }
         }
     }
 
@@ -334,11 +335,12 @@ bool BufferHandlerGeneric::CommitWriteBufferData(void *in_ptr, size_t in_sz) {
         {
             local_locker lock(&w_callback_locker);
 
-            if (!s)
-                rbuf_notify->BufferError("error committing to write buffer");
-
-            if (wbuf_notify)
-                wbuf_notify->BufferAvailable(in_sz);
+            if (wbuf_notify) {
+                if (!s)
+                    wbuf_notify->BufferError("error committing to write buffer");
+                else
+                    wbuf_notify->BufferAvailable(in_sz);
+            }
         }
     }
 
