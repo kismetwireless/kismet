@@ -329,12 +329,7 @@ int Pcap_Stream_Ringbuf::pcapng_write_packet(unsigned int in_sourcenumber,
         return 0;
     }
 
-    retbuf = new uint8_t[buf_sz];
-
-    if (retbuf == NULL) {
-        handler->ProtocolError();
-        return -1;
-    }
+    handler->ReserveWriteBufferData((void **) &retbuf, buf_sz);
 
     epb = (pcapng_epb *) retbuf;
 
@@ -355,17 +350,14 @@ int Pcap_Stream_Ringbuf::pcapng_write_packet(unsigned int in_sourcenumber,
     epb->original_length = aggregate_block_sz;
 
     // Write the header to the ringbuf
-    write_sz = handler->PutWriteBufferData(retbuf, buf_sz, true);
+    write_sz = handler->CommitWriteBufferData(retbuf, buf_sz);
 
     if (write_sz != buf_sz) {
         handler->ProtocolError();
-        delete[] retbuf;
         return -1;
     }
 
     log_size += write_sz;
-
-    delete[] retbuf;
 
     // Write all the incoming blocks sequentially
     for (auto db : in_blocks) {
