@@ -150,47 +150,49 @@ int SerialClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
         // Allocate the biggest buffer we can fit in the ring, read as much
         // as we can at once.
         
-        len = handler->GetReadBufferFree();
-        buf = new uint8_t[len];
+        while (handler->GetReadBufferAvailable() > 0) {
+            len = handler->ReserveReadBufferData((void **) &buf, 
+                    handler->GetReadBufferAvailable());
 
-        if ((ret = read(device_fd, buf, len)) <= 0) {
-            if (errno != EINTR && errno != EAGAIN) {
-                // Push the error upstream if we failed to read here
-                if (ret == 0) {
-                    msg << "Serial client closing " << device << "@" << baud <<
-                        " - connection closed / device removed";
-                } else {
-                    msg << "Serial client error reading from " << device << "@" << 
-                        baud << " - " << kis_strerror_r(errno);
+            if ((ret = read(device_fd, buf, len)) <= 0) {
+                if (errno != EINTR && errno != EAGAIN) {
+                    // Push the error upstream if we failed to read here
+                    if (ret == 0) {
+                        msg << "Serial client closing " << device << "@" << baud <<
+                            " - connection closed / device removed";
+                    } else {
+                        msg << "Serial client error reading from " << device << "@" << 
+                            baud << " - " << kis_strerror_r(errno);
+                    }
+
+                    handler->BufferError(msg.str());
+
+                    handler->CommitReadBufferData(buf, 0);
+
+                    Close();
+                    return 0;
                 }
+            } else {
+                // Insert into buffer
+                iret = handler->CommitReadBufferData(buf, ret);
 
-                handler->BufferError(msg.str());
-                delete[] buf;
-                Close();
-                return 0;
+                if (iret != ret) {
+                    // Die if we couldn't insert all our data, the error is already going
+                    // upstream.
+                    Close();
+                    return 0;
+                }
             }
-        } else {
-            // Insert into buffer
-            iret = handler->PutReadBufferData(buf, ret, true);
 
-            if (iret != ret) {
-                // Die if we couldn't insert all our data, the error is already going
-                // upstream.
-                delete[] buf;
-                Close();
-                return 0;
-            }
+            // delete[] buf;
         }
-
-        delete[] buf;
     }
 
     if (FD_ISSET(device_fd, &in_wset)) {
         len = handler->GetWriteBufferUsed();
-        buf = new uint8_t[len];
 
         // Peek the data into our buffer
-        ret = handler->PeekWriteBufferData(buf, len);
+        ret = handler->PeekWriteBufferData((void **) &buf, len);
 
         if ((iret = write(device_fd, buf, len)) < 0) {
             if (errno != EINTR && errno != EAGAIN) {
@@ -198,13 +200,16 @@ int SerialClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
                 msg << "Serial client error writing to " << device << "@" << baud <<
                     " - " << kis_strerror_r(errno);
                 handler->BufferError(msg.str());
-                delete[] buf;
+
+                handler->PeekFreeWriteBufferData(buf);
+
                 Close();
                 return 0;
             }
         } else {
             // Consume whatever we managed to write
-            handler->GetWriteBufferData(NULL, iret);
+            handler->PeekFreeReadBufferData(buf);
+            handler->ConsumeWriteBufferData(iret);
         }
 
         delete[] buf;
