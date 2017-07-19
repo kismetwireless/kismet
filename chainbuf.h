@@ -55,8 +55,11 @@ public:
     // Return amount used in buffer
     virtual size_t used();
 
-    // Return about available (effectively "infinite"), use a crappy hack for now
-    virtual ssize_t available() { return -1; }
+    // Return about available (effectively "infinite"), use a crappy hack for now and
+    // always return the chunk size
+    virtual ssize_t available() { 
+        return chunk_sz;
+    }
 
     // Total size ever used by buffer
     virtual size_t total();
