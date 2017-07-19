@@ -721,7 +721,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     int ret;
 
-    char regdom[4];
+    char regdom[5];
 
     char driver[32] = "";
 
