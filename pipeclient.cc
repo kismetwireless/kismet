@@ -129,6 +129,8 @@ int PipeClient::Poll(fd_set& in_rset, fd_set& in_wset) {
             len = handler->ReserveReadBufferData((void **) &buf,
                     handler->GetReadBufferAvailable());
 
+            // fprintf(stderr, "debug - read buffer available reserved %lu\n", len);
+
             if ((ret = read(read_fd, buf, len)) <= 0) {
                 if (errno != EINTR && errno != EAGAIN) {
 
@@ -154,7 +156,7 @@ int PipeClient::Poll(fd_set& in_rset, fd_set& in_wset) {
                 // Insert into buffer
                 iret = handler->CommitReadBufferData(buf, ret);
 
-                if (iret != ret) {
+                if (!iret) {
                     // Die if we couldn't insert all our data, the error is already going
                     // upstream.
                     ClosePipes();

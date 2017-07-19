@@ -352,7 +352,7 @@ int Pcap_Stream_Ringbuf::pcapng_write_packet(unsigned int in_sourcenumber,
     // Write the header to the ringbuf
     write_sz = handler->CommitWriteBufferData(retbuf, buf_sz);
 
-    if (write_sz != buf_sz) {
+    if (!write_sz) {
         handler->ProtocolError();
         return -1;
     }

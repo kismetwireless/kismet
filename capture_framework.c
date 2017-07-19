@@ -573,6 +573,7 @@ int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]) {
             daemon = 1;
         } else if (r == 7) {
             cf_handler_list_devices(caph);
+            cf_handler_free(caph);
             exit(1);
         }
     }
@@ -1570,9 +1571,11 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
         if (pid < 0) {
             fprintf(stderr, "FATAL:  Unable to fork child process: %s\n",
                     strerror(errno));
+            cf_handler_free(caph);
             exit(1);
         } else if (pid > 0) {
             fprintf(stderr, "INFO: Entering daemon mode...\n");
+            cf_handler_free(caph);
             exit(0);
         }
     }

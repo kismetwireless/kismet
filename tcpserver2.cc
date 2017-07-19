@@ -238,7 +238,7 @@ int TcpServerV2::Poll(fd_set& in_rset, fd_set& in_wset) {
                     // Commit the data
                     iret = i->second->CommitReadBufferData(buf, ret);
 
-                    if (iret != ret) {
+                    if (!iret) {
                         // Die if we somehow couldn't insert all our data once we
                         // read it from the socket since we can't put it back on the
                         // input queue.  This should never happen because we're the

@@ -651,9 +651,11 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
 
     /* get the mac address; this should be standard for anything */
     if (ifconfig_get_hwaddr(interface, errstr, hwaddr) < 0) {
+        /*
         snprintf(msg, STATUS_MAX, "Could not fetch interface address from '%s': %s",
                 interface, errstr);
-        return -1;
+                */
+        return 0;
     }
 
     ret = populate_chanlist(interface, errstr, &((*ret_interface)->channels),
@@ -662,7 +664,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     free(interface);
 
     if (ret < 0)
-        return -1;
+        return 0;
 
     /* Make a spoofed, but consistent, UUID based on the adler32 of the interface name 
      * and the mac address of the device */

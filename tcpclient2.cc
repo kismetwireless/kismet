@@ -238,7 +238,7 @@ int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
                 // Finalize buffer
                 iret = handler->CommitReadBufferData(buf, ret);
 
-                if (iret != ret) {
+                if (!iret) {
                     // Die if we couldn't insert all our data, the error is already going
                     // upstream.
                     Disconnect();
