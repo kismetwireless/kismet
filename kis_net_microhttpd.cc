@@ -1162,9 +1162,15 @@ ssize_t Kis_Net_Httpd_Buffer_Stream_Handler::buffer_event_cb(void *cls, uint64_t
     if (buffamt > max)
         buffamt = max;
 
-    // Read from the buffer
+    // Read from the buffer; currently we have to force a copy into our existing
+    // buffer unfortunately
+    unsigned char *zbuf;
+
     size_t read_sz;
-    read_sz = rbh->GetWriteBufferData(buf, buffamt);
+    read_sz = rbh->PeekReadBufferData((void **) &zbuf, buffamt);
+    memcpy(buf, zbuf, read_sz);
+    rbh->PeekFreeReadBufferData(zbuf);
+    rbh->ConsumeReadBufferData(read_sz);
 
     return (ssize_t) read_sz;
 }
