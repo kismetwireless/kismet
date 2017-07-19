@@ -169,19 +169,20 @@ bool GPSSerialV2::FetchGpsConnected() {
 void GPSSerialV2::BufferAvailable(size_t in_amt) {
     local_locker lock(&gps_locker);
 
-    char *buf = new char[in_amt + 1];
+    size_t buf_sz;
+    char *buf;
 
-    // Peek at the data
-    serialhandler->PeekReadBufferData(buf, in_amt);
-
-    // Force a null termination
-    buf[in_amt] = 0;
+    // Peek at all the data we have available
+    buf_sz = serialhandler->PeekReadBufferData((void **) &buf, 
+            serialhandler->GetReadBufferAvailable());
 
     // Aggregate into a new location; then copy into the main location
     // depending on what we found.  Locations can come in multiple sentences
     // so if we're within a second of the previous one we can aggregate them
-    vector<string> inptok = StrTokenize(buf, "\n", 0);
-    delete[] buf;
+    vector<string> inptok = StrTokenize(string(buf, buf_sz), "\n", 0);
+
+    // We've tokenized a copy of the buffer so unlock what we peeked
+    serialhandler->PeekFreeReadBufferData(buf);
 
     if (inptok.size() < 1) {
         return;
@@ -198,6 +199,7 @@ void GPSSerialV2::BufferAvailable(size_t in_amt) {
     set_speed = false;
     set_fix = false;
 
+    // TODO fix assumptions about token length and spacing...
 	for (unsigned int it = 0; it < inptok.size(); it++) {
         // Consume the data from the ringbuffer
         serialhandler->ConsumeReadBufferData(inptok[it].length() + 1);
