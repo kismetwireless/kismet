@@ -207,9 +207,9 @@ int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
         // Allocate the biggest buffer we can fit in the ring, read as much
         // as we can at once.
        
-        while (handler->GetReadBufferFree()) {
-            len = handler->GetReadBufferFree();
-            buf = new uint8_t[len];
+        while (handler->GetReadBufferAvailable() > 0) {
+            len = handler->ReserveReadBufferData((void **) &buf, 
+                    handler->GetReadBufferAvailable());
 
             if ((ret = read(cli_fd, buf, len)) <= 0) {
                 if (errno != EINTR && errno != EAGAIN) {
@@ -222,37 +222,40 @@ int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
                             " - " << kis_strerror_r(errno);
                     }
                     handler->BufferError(msg.str());
-                    delete[] buf;
+
+                    // Dump the commit
+                    handler->CommitReadBufferData(buf, 0);
+
                     Disconnect();
                     return 0;
                 } else {
-                    // Break out of while loop
-                    delete[] buf;
+                    // Dump the commit
+                    handler->CommitReadBufferData(buf, 0);
+
                     break;
                 }
             } else {
-                // Insert into buffer
-                iret = handler->PutReadBufferData(buf, ret, true);
+                // Finalize buffer
+                iret = handler->CommitReadBufferData(buf, ret);
 
                 if (iret != ret) {
                     // Die if we couldn't insert all our data, the error is already going
                     // upstream.
-                    delete[] buf;
                     Disconnect();
                     return 0;
                 }
             }
 
-            delete[] buf;
+            // Should never get here
+            // delete[] buf;
         }
     }
 
     if (FD_ISSET(cli_fd, &in_wset)) {
         len = handler->GetWriteBufferUsed();
-        buf = new uint8_t[len];
 
         // Peek the data into our buffer
-        ret = handler->PeekWriteBufferData(buf, len);
+        ret = handler->PeekWriteBufferData((void **) &buf, len);
 
         if ((iret = write(cli_fd, buf, len)) < 0) {
             if (errno != EINTR && errno != EAGAIN) {
@@ -260,7 +263,9 @@ int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
                 msg << "TCP client error writing to " << host << ":" << port <<
                     " - " << kis_strerror_r(errno);
                 handler->BufferError(msg.str());
-                delete[] buf;
+
+                handler->PeekFreeWriteBufferData(buf);
+
                 Disconnect();
                 return 0;
             }
@@ -269,7 +274,7 @@ int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
             handler->ConsumeWriteBufferData(iret);
         }
 
-        delete[] buf;
+        handler->PeekFreeWriteBufferData(buf);
     }
 
     return 0;
