@@ -169,13 +169,12 @@ bool GPSGpsdV2::FetchGpsConnected() {
 void GPSGpsdV2::BufferAvailable(size_t in_amt) {
     local_locker lock(&gps_locker);
 
-    char *buf = new char[in_amt + 1];
+    size_t buf_sz;
+    char *buf;
 
-    // Peek at the data
-    tcphandler->PeekReadBufferData(buf, in_amt);
-
-    // Force a null termination
-    buf[in_amt] = 0;
+    // Peek at all the data we have available
+    buf_sz = tcphandler->PeekReadBufferData((void **) &buf, 
+            tcphandler->GetReadBufferAvailable());
 
     // Aggregate into a new location; then copy into the main location
     // depending on what we found.  Locations can come in multiple sentences
@@ -187,8 +186,8 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
     bool set_fix;
     bool set_heading;
 
-	vector<string> inptok = StrTokenize(buf, "\n", 0);
-	delete[] buf;
+	vector<string> inptok = StrTokenize(string(buf, buf_sz), "\n", 0);
+    tcphandler->PeekFreeReadBufferData(buf);
 
 	if (inptok.size() < 1) {
         return;
@@ -202,7 +201,7 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
 
 	for (unsigned int it = 0; it < inptok.size(); it++) {
         // Consume the data from the ringbuffer
-        tcphandler->GetReadBufferData(NULL, inptok[it].length() + 1);
+        tcphandler->ConsumeReadBufferData(inptok[it].length() + 1);
 
         // Trip the garbage out of it
         inptok[it] = StrPrintable(inptok[it]);
