@@ -144,6 +144,14 @@ void RingbufV2::peek_free(unsigned char *in_data) {
 size_t RingbufV2::consume(size_t in_sz) {
     local_locker lock(&buffer_locker);
 
+    if (peek_reserved) {
+        throw std::runtime_error("ringbuf v2 consume while peeked data pending");
+    }
+
+    if (write_reserved) {
+        throw std::runtime_error("ringbuf v2 consume while write block is reserved");
+    }
+
     // No matter what is requested we can't read more than we have
     size_t opsize = used();
 
