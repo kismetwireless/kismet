@@ -1840,14 +1840,18 @@ void dst_incoming_remote::BufferAvailable(size_t in_amt) {
         }
 
         // Allocate as much as we can and peek it from the buffer
-        buf = new uint8_t[buffamt];
-        rbuf_handler->PeekReadBufferData(buf, buffamt);
+        buffamt = rbuf_handler->PeekReadBufferData((void **) &buf, buffamt);
+
+        if (buffamt < sizeof(simple_cap_proto_t)) {
+            rbuf_handler->PeekFreeReadBufferData(buf);
+            return;
+        }
 
         // Turn it into a frame header
         frame = (simple_cap_proto_frame_t *) buf;
 
         if (kis_ntoh32(frame->header.signature) != KIS_CAP_SIMPLE_PROTO_SIG) {
-            delete[] buf;
+            rbuf_handler->PeekFreeReadBufferData(buf);
             _MSG("Got an invalid remote data source connection, disconnecting.",
                     MSGFLAG_ERROR);
             rbuf_handler->ProtocolError();
@@ -1869,7 +1873,7 @@ void dst_incoming_remote::BufferAvailable(size_t in_amt) {
 
         // Compare to the saved checksum
         if (calc_checksum != header_checksum) {
-            delete[] buf;
+            rbuf_handler->PeekFreeReadBufferData(buf);
 
             _MSG("Got an invalid remote data source connection, invalid checksum, "
                     "disconnecting.", MSGFLAG_ERROR);
@@ -1884,7 +1888,7 @@ void dst_incoming_remote::BufferAvailable(size_t in_amt) {
         if (frame_sz > buffamt) {
             // Nothing we can do right now, not enough data to 
             // make up a complete packet.
-            delete[] buf;
+            rbuf_handler->PeekFreeReadBufferData(buf);
             return;
         }
 
@@ -1893,7 +1897,7 @@ void dst_incoming_remote::BufferAvailable(size_t in_amt) {
 
         // Compare to the saved checksum
         if (calc_checksum != data_checksum) {
-            delete[] buf;
+            rbuf_handler->PeekFreeReadBufferData(buf);
 
             _MSG("Got an invalid remote data source connection, invalid checksum, "
                     "disconnecting.", MSGFLAG_ERROR);
@@ -1902,12 +1906,10 @@ void dst_incoming_remote::BufferAvailable(size_t in_amt) {
             return;
         }
 
-        // Consume the packet in the ringbuf 
-        rbuf_handler->GetReadBufferData(NULL, frame_sz);
-
         // Check the header type
         if (strncmp(frame->header.type, "NEWSOURCE", 16) != 0) {
-            delete[] buf;
+            rbuf_handler->PeekFreeReadBufferData(buf);
+            rbuf_handler->ConsumeReadBufferData(frame_sz);
 
             _MSG("Got an invalid remote data source connection, invalid frame "
                     "(expected NEWSOURCE), disconnecting.", MSGFLAG_ERROR);
@@ -1920,7 +1922,9 @@ void dst_incoming_remote::BufferAvailable(size_t in_amt) {
         for (unsigned int kvn = 0; kvn < kis_ntoh32(frame->header.num_kv_pairs); kvn++) {
             if (frame_sz < sizeof(simple_cap_proto_t) + 
                     sizeof(simple_cap_proto_kv_t) + data_offt) {
-                delete[] buf;
+
+                rbuf_handler->PeekFreeReadBufferData(buf);
+                rbuf_handler->ConsumeReadBufferData(frame_sz);
 
                 _MSG("Got an invalid remote data source connection, invalid frame "
                         "(KV too long for frame), disconnecting.", MSGFLAG_ERROR);
@@ -1946,7 +1950,10 @@ void dst_incoming_remote::BufferAvailable(size_t in_amt) {
             }
         }
 
-        delete[] buf;
+        // We've now extracted everything we can from the frame, consume it in the 
+        // buffer and delete it
+        rbuf_handler->PeekFreeReadBufferData(buf);
+        rbuf_handler->ConsumeReadBufferData(frame_sz);
 
         if (definition == "") {
             _MSG("Got an invalid remote data source connection, invalid frame "
