@@ -58,7 +58,7 @@ BufferHandlerGeneric::~BufferHandlerGeneric() {
     pthread_mutex_destroy(&w_callback_locker);
 }
 
-size_t BufferHandlerGeneric::GetReadBufferSize() {
+ssize_t BufferHandlerGeneric::GetReadBufferSize() {
     local_locker lock(&handler_locker);
 
     if (read_buffer)
@@ -67,7 +67,7 @@ size_t BufferHandlerGeneric::GetReadBufferSize() {
     return 0;
 }
 
-size_t BufferHandlerGeneric::GetWriteBufferSize() {
+ssize_t BufferHandlerGeneric::GetWriteBufferSize() {
     local_locker lock(&handler_locker);
 
     if (write_buffer)
@@ -94,7 +94,7 @@ size_t BufferHandlerGeneric::GetWriteBufferUsed() {
     return 0;
 }
 
-size_t BufferHandlerGeneric::GetReadBufferFree() {
+ssize_t BufferHandlerGeneric::GetReadBufferAvailable() {
     local_locker lock(&handler_locker);
 
     if (read_buffer)
@@ -103,7 +103,7 @@ size_t BufferHandlerGeneric::GetReadBufferFree() {
     return 0;
 }
 
-size_t BufferHandlerGeneric::GetWriteBufferFree() {
+ssize_t BufferHandlerGeneric::GetWriteBufferAvailable() {
     local_locker lock(&handler_locker);
 
     if (write_buffer)
@@ -112,82 +112,96 @@ size_t BufferHandlerGeneric::GetWriteBufferFree() {
     return 0;
 }
 
-size_t BufferHandlerGeneric::GetReadBufferData(void *in_ptr, size_t in_sz) {
-    local_locker lock(&handler_locker);
-
-    if (read_buffer) {
-        local_locker rlock(&r_callback_locker);
-        size_t s;
-
-        if (in_ptr == NULL) {
-            s = read_buffer->consume(in_sz);
-        } else {
-            s = read_buffer->peek((unsigned char *) in_ptr, in_sz);
-            read_buffer->consume(s);
-        }
-
-        if (readbuf_drain_cb != NULL) {
-            readbuf_drain_cb(s);
-        }
-
-        return s;
-    }
-
-    return 0;
-}
-
-size_t BufferHandlerGeneric::GetWriteBufferData(void *in_ptr, size_t in_sz) {
-    local_locker lock(&handler_locker);
-
-    if (write_buffer) {
-        local_locker wlock(&w_callback_locker);
-        size_t s;
-
-        if (in_ptr == NULL) {
-            s = write_buffer->consume(in_sz);
-        } else {
-            s = write_buffer->peek((unsigned char *) in_ptr, in_sz);
-            write_buffer->consume(s);
-        }
-
-        if (writebuf_drain_cb != NULL) {
-            writebuf_drain_cb(s);
-        }
-
-        return s;
-    }
-
-    return 0;
-}
-
-size_t BufferHandlerGeneric::PeekReadBufferData(void *in_ptr, size_t in_sz) {
+ssize_t BufferHandlerGeneric::PeekReadBufferData(void **in_ptr, size_t in_sz) {
     local_locker lock(&handler_locker);
 
     if (in_ptr == NULL)
         return 0;
 
     if (read_buffer)
-        return read_buffer->peek((unsigned char *) in_ptr, in_sz);
+        return read_buffer->peek((unsigned char **) in_ptr, in_sz);
 
     return 0;
 }
 
-size_t BufferHandlerGeneric::PeekWriteBufferData(void *in_ptr, size_t in_sz) {
+ssize_t BufferHandlerGeneric::PeekWriteBufferData(void **in_ptr, size_t in_sz) {
     local_locker lock(&handler_locker);
 
     if (write_buffer)
-        return write_buffer->peek((unsigned char *) in_ptr, in_sz);
+        return write_buffer->peek((unsigned char **) in_ptr, in_sz);
 
     return 0;
 }
 
+ssize_t BufferHandlerGeneric::ZeroCopyPeekReadBufferData(void **in_ptr, size_t in_sz) {
+    local_locker lock(&handler_locker);
+
+    if (in_ptr == NULL)
+        return 0;
+
+    if (read_buffer)
+        return read_buffer->zero_copy_peek((unsigned char **) in_ptr, in_sz);
+
+    return 0;
+}
+
+ssize_t BufferHandlerGeneric::ZeroCopyPeekWriteBufferData(void **in_ptr, size_t in_sz) {
+    local_locker lock(&handler_locker);
+
+    if (write_buffer)
+        return write_buffer->zero_copy_peek((unsigned char **) in_ptr, in_sz);
+
+    return 0;
+}
+
+void BufferHandlerGeneric::PeekFreeReadBufferData(void *in_ptr) {
+    local_locker lock(&handler_locker);
+
+    if (read_buffer)
+        return read_buffer->peek_free((unsigned char *) in_ptr);
+
+    return;
+}
+
+void BufferHandlerGeneric::PeekFreeWriteBufferData(void *in_ptr) {
+    local_locker lock(&handler_locker);
+
+    if (write_buffer)
+        return write_buffer->peek_free((unsigned char *) in_ptr);
+
+    return;
+}
+
 size_t BufferHandlerGeneric::ConsumeReadBufferData(size_t in_sz) {
-    return GetReadBufferData(NULL, in_sz);
+    local_locker lock(&handler_locker);
+    size_t sz;
+
+    if (read_buffer) {
+        sz = read_buffer->consume(in_sz);
+
+        if (readbuf_drain_cb != NULL) {
+            readbuf_drain_cb(sz);
+        }
+    }
+
+    return 0;
 }
 
 size_t BufferHandlerGeneric::ConsumeWriteBufferData(size_t in_sz) {
-    return GetWriteBufferData(NULL, in_sz);
+    local_locker lock(&handler_locker);
+    size_t sz;
+
+    if (write_buffer) {
+        sz = write_buffer->consume(in_sz);
+
+        if (writebuf_drain_cb != NULL) {
+            writebuf_drain_cb(sz);
+        }
+    }
+
+    return 0;
 }
+
 
 size_t BufferHandlerGeneric::PutReadBufferData(void *in_ptr, size_t in_sz, 
         bool in_atomic) {
@@ -200,8 +214,10 @@ size_t BufferHandlerGeneric::PutReadBufferData(void *in_ptr, size_t in_sz,
         if (!read_buffer)
             return 0;
 
-        // Don't write any if we're an atomic complete write
-        if (in_atomic && read_buffer->available() < in_sz)
+        // Don't write any if we're an atomic complete write; buffers which report
+        // -1 for available size are infinite
+        if (in_atomic && read_buffer->available() >= 0 && 
+                (size_t) read_buffer->available() < in_sz)
             return 0;
 
         ret = read_buffer->write((unsigned char *) in_ptr, in_sz);
@@ -237,8 +253,10 @@ size_t BufferHandlerGeneric::PutWriteBufferData(void *in_ptr, size_t in_sz,
             return 0;
         }
 
-        // Don't write any if we're an atomic complete write
-        if (in_atomic && write_buffer->available() < in_sz)
+        // Don't write any if we're an atomic complete write; buffers which report
+        // -1 for available size are infinite
+        if (in_atomic && write_buffer->available() >= 0 &&
+                (size_t) write_buffer->available() < in_sz)
             return 0;
 
         ret = write_buffer->write((unsigned char *) in_ptr, in_sz);
@@ -257,6 +275,74 @@ size_t BufferHandlerGeneric::PutWriteBufferData(void *in_ptr, size_t in_sz,
     }
 
     return ret;
+}
+
+ssize_t BufferHandlerGeneric::ReserveReadBufferData(void **in_ptr, size_t in_sz) {
+    local_locker lock(&handler_locker);
+
+    if (read_buffer != NULL) {
+        return read_buffer->reserve((unsigned char **) in_ptr, in_sz);
+    }
+
+    return -1;
+}
+
+ssize_t BufferHandlerGeneric::ReserveWriteBufferData(void **in_ptr, size_t in_sz) {
+    local_locker lock(&handler_locker);
+
+    if (write_buffer != NULL) {
+        return write_buffer->reserve((unsigned char **) in_ptr, in_sz);
+    }
+
+    return -1;
+}
+
+bool BufferHandlerGeneric::CommitReadBufferData(void *in_ptr, size_t in_sz) {
+    bool s = false;;
+
+    if (read_buffer != NULL) {
+        {
+            local_locker lock(&handler_locker);
+
+            s = read_buffer->commit((unsigned char *) in_ptr, in_sz);
+        }
+
+        {
+            local_locker lock(&r_callback_locker);
+
+            if (!s)
+                rbuf_notify->BufferError("error committing to read buffer");
+
+            if (rbuf_notify)
+                rbuf_notify->BufferAvailable(in_sz);
+        }
+    }
+
+    return s;
+}
+
+bool BufferHandlerGeneric::CommitWriteBufferData(void *in_ptr, size_t in_sz) {
+    bool s = false;;
+
+    if (write_buffer != NULL) {
+        {
+            local_locker lock(&handler_locker);
+
+            s = write_buffer->commit((unsigned char *) in_ptr, in_sz);
+        }
+
+        {
+            local_locker lock(&w_callback_locker);
+
+            if (!s)
+                rbuf_notify->BufferError("error committing to write buffer");
+
+            if (wbuf_notify)
+                wbuf_notify->BufferAvailable(in_sz);
+        }
+    }
+
+    return s;
 }
 
 void BufferHandlerGeneric::SetReadBufferInterface(BufferInterface *in_interface) {

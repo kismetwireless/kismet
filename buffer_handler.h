@@ -150,36 +150,74 @@ public:
     virtual ~BufferHandlerGeneric();
 
     // Basic size ops
-    virtual size_t GetReadBufferSize();
-    virtual size_t GetWriteBufferSize();
+    virtual ssize_t GetReadBufferSize();
+    virtual ssize_t GetWriteBufferSize();
 
     virtual size_t GetReadBufferUsed();
     virtual size_t GetWriteBufferUsed();
 
-    virtual size_t GetReadBufferFree();
-    virtual size_t GetWriteBufferFree();
-
-    // Fetch read and write buffer data, up to sz.  Consumes data from buffer.
-    // Automatically triggers buffer drain callbacks
-    // Returns amount read
-    virtual size_t GetReadBufferData(void *in_ptr, size_t in_sz);
-    virtual size_t GetWriteBufferData(void *in_ptr, size_t in_sz);
+    virtual ssize_t GetReadBufferAvailable();
+    virtual ssize_t GetWriteBufferAvailable();
 
     // Fetch read and write buffer data, up to in_amt.  Does not consume data.
+    // When possible, minimizes copies; actual copy and memory use depends on the
+    // lower-level buffer, and consumers should not rely on specific behaviors.
+    //
+    // Consumers MUST conclude a peek operation with PeekFreeReadBufferData(...) or
+    // PeekFreeWriteBufferData(...), and may not perform multiple peeks simultaneously;
+    // refer to the comments for CommonBuffer
+    //
     // Returns amount peeked
-    virtual size_t PeekReadBufferData(void *in_ptr, size_t in_sz);
-    virtual size_t PeekWriteBufferData(void *in_ptr, size_t in_sz);
+    virtual ssize_t PeekReadBufferData(void **in_ptr, size_t in_sz);
+    virtual ssize_t PeekWriteBufferData(void **in_ptr, size_t in_sz);
 
-    // Consume data w/out copying it (used to flag data we previously peeked)
+    // Perform a zero-copy (when possible) peek of the buffer.  Does not consume
+    // data.  When possible, minimizes copying of data (or performs no copy of data),
+    // and is suitable for draining a buffer to the IO system.
+    virtual ssize_t ZeroCopyPeekReadBufferData(void **in_ptr, size_t in_sz);
+    virtual ssize_t ZeroCopyPeekWriteBufferData(void **in_ptr, size_t in_sz);
+
+    virtual void PeekFreeReadBufferData(void *in_ptr);
+    virtual void PeekFreeWriteBufferData(void *in_ptr);
+
+    // Consume data from the buffer.  Must not be called while there is pending 'peek'd 
+    // data.
+    //
     // Automatically triggers buffer drain callbacks
     virtual size_t ConsumeReadBufferData(size_t in_sz);
     virtual size_t ConsumeWriteBufferData(size_t in_sz);
 
-    // Place data in read or write buffer
+    // Place data in read or write buffer.  Performs a copy of the existing data and
+    // writes it into the buffer.
+    //
     // Automatically triggers callbacks
+    //
     // Returns amount of data actually written
     virtual size_t PutReadBufferData(void *in_ptr, size_t in_sz, bool in_atomic);
     virtual size_t PutWriteBufferData(void *in_ptr, size_t in_sz, bool in_atomic);
+
+    // Reserve space in the buffers; the returned pointer is suitable for direct
+    // writing.  Whenever possible, this will be a zero-copy operation, however on
+    // some buffer structures this may require copying of the data content to the
+    // buffer.
+    //
+    // Callers must not make assumptions about the underlying structure of the buffer
+    // or of the pointer they are given.
+    //
+    // Callers must conclude the write operation with CommitReadBufferData(..) or
+    // CommitWriteBufferData(..).
+    //
+    // Only one block of data may be reserved at a time.
+    //
+    // Returns the amount of data allocated in the reserved block
+    virtual ssize_t ReserveReadBufferData(void **in_ptr, size_t len);
+    virtual ssize_t ReserveWriteBufferData(void **in_ptr, size_t len);
+
+    // Commit a pending reserved data block to the buffer
+    //
+    // Automatically triggers callbacks.
+    virtual bool CommitReadBufferData(void *in_ptr, size_t in_sz);
+    virtual bool CommitWriteBufferData(void *in_ptr, size_t in_sz);
 
     // Set interface callbacks to be called when we have data in the buffers
     virtual void SetReadBufferInterface(BufferInterface *in_interface);
