@@ -153,7 +153,8 @@ int TcpServerV2::Poll(fd_set& in_rset, fd_set& in_wset) {
     stringstream msg;
     int ret, iret;
     size_t len;
-    uint8_t *buf;
+    unsigned char *buf;
+    ssize_t r_sz;
 
     if (!valid)
         return -1;
@@ -195,10 +196,18 @@ int TcpServerV2::Poll(fd_set& in_rset, fd_set& in_wset) {
         // Process incoming data
         if (FD_ISSET(i->first, &in_rset)) {
 
-            while (i->second->GetReadBufferFree()) {
-                // Read only as much as we have free in the buffer
-                len = i->second->GetReadBufferFree();
-                buf = new uint8_t[len];
+            while (i->second->GetReadBufferAvailable()) {
+                // Read only as much as we can get w/ a direct reference
+                r_sz = i->second->ReserveReadBufferData((void **) &buf, 
+                        i->second->GetReadBufferAvailable());
+
+                if (r_sz <= 0) {
+                    i->second->CommitReadBufferData(buf, 0);
+                    msg << "TCP server closing connection from client " << i->first << 
+                        " unable to reserve space in buffer, something went wrong";
+                    i->second->BufferError(msg.str());
+                    KillConnection(i->first);
+                }
 
                 if ((ret = read(i->first, buf, len)) <= 0) {
                     if (errno != EINTR && errno != EAGAIN) {
@@ -211,56 +220,64 @@ int TcpServerV2::Poll(fd_set& in_rset, fd_set& in_wset) {
                                 " - " << kis_strerror_r(errno);
                         }
                         i->second->BufferError(msg.str());
-                        delete[] buf;
+                        
+                        // Dump the commit
+                        i->second->CommitReadBufferData(buf, 0);
+
                         KillConnection(i->first);
                         return 0;
                     } else {
                         // Drop out of while loop
-                        delete[] buf;
+                        
+                        // Dump the commit
+                        i->second->CommitReadBufferData(buf, 0);
+
                         break;
                     }
                 } else {
-                    // Insert into buffer
-                    iret = i->second->PutReadBufferData(buf, ret, true);
+                    // Commit the data
+                    iret = i->second->CommitReadBufferData(buf, ret);
 
                     if (iret != ret) {
                         // Die if we somehow couldn't insert all our data once we
                         // read it from the socket since we can't put it back on the
                         // input queue.  This should never happen because we're the
                         // only input source but we'll handle it
-                        delete[] buf;
                         KillConnection(i->first);
                         return 0;
                     }
                 }
 
-                delete[] buf;
+                // We never get here; delete 
+                // delete[] buf;
             }
         }
 
         if (FD_ISSET(i->first, &in_wset)) {
             len = i->second->GetWriteBufferUsed();
-            buf = new uint8_t[len];
 
-            // Peek the data into our buffer
-            ret = i->second->PeekWriteBufferData(buf, len);
+            // Peek the data into our buffer as a zero-copy op whenever possible; we
+            // don't care how much we get
+            ret = i->second->PeekWriteBufferData((void **) &buf, len);
 
-            if ((iret = write(i->first, buf, len)) < 0) {
+            if ((iret = write(i->first, buf, ret)) < 0) {
                 if (errno != EINTR && errno != EAGAIN) {
                     // Push the error upstream
                     msg << "TCP server error writing to client " << i->first <<
                         " - " << kis_strerror_r(errno);
                     i->second->BufferError(msg.str());
-                    delete[] buf;
+
+                    i->second->PeekFreeWriteBufferData(buf);
+
                     KillConnection(i->first);
                     return 0;
                 }
             } else {
                 // Consume whatever we managed to write
-                i->second->GetWriteBufferData(NULL, iret);
+                i->second->ConsumeWriteBufferData(iret);
             }
 
-            delete[] buf;
+            i->second->PeekFreeReadBufferData(buf);
         }
     }
 
