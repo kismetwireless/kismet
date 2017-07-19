@@ -85,7 +85,7 @@ int Pcap_Stream_Ringbuf::pcapng_make_shb(string in_hw, string in_os, string in_a
     if (in_app.length() > 0) 
         buf_sz += sizeof(pcapng_option) + PAD_TO_32BIT(in_app.length());
 
-    if (handler->GetWriteBufferFree() < buf_sz + 4) {
+    if (handler->GetWriteBufferAvailable() < (ssize_t) buf_sz + 4) {
         handler->ProtocolError();
         return -1;
     }
@@ -221,7 +221,7 @@ int Pcap_Stream_Ringbuf::pcapng_make_idb(unsigned int in_sourcenumber, string in
         buf_sz += sizeof(pcapng_option_t) + PAD_TO_32BIT(in_desc.length());
     }
 
-    if (handler->GetWriteBufferFree() < buf_sz + 4) {
+    if (handler->GetWriteBufferAvailable() < (ssize_t) buf_sz + 4) {
         handler->ProtocolError();
         return -1;
     }
@@ -324,7 +324,8 @@ int Pcap_Stream_Ringbuf::pcapng_write_packet(unsigned int in_sourcenumber,
     data_sz += sizeof(pcapng_option);
 
     // Drop packet if we can't put it in the buffer
-    if (handler->GetWriteBufferFree() < buf_sz + 4) {
+    if (handler->GetWriteBufferAvailable() < (ssize_t) buf_sz + 4) {
+        fprintf(stderr, "WARNING - pcapng ringbuf stream dropping packets\n");
         return 0;
     }
 
