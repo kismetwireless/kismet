@@ -155,7 +155,7 @@ void Phy_80211_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
         [psrb, streamtracker](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
             streamtracker->remove_streamer(psrb->get_stream_id());
             if (aux->aux != NULL) {
-                delete (Kis_Net_Httpd_Buffer_Stream_Aux *) (aux->aux);
+                delete (Pcap_Stream_Ringbuf *) (aux->aux);
             }
         });
 

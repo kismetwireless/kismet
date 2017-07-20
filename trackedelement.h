@@ -1234,7 +1234,9 @@ public:
 
     typedef map<SharedTrackerElement, SharedElementSummary> rename_map;
 
-    virtual ~TrackerElementSerializer() { }
+    virtual ~TrackerElementSerializer() {
+        local_locker lock(&mutex);
+    }
     virtual void serialize(shared_ptr<TrackerElement> in_elem, 
             std::ostream &stream, rename_map *name_map = NULL) = 0;
 
@@ -1244,6 +1246,7 @@ public:
     static void pre_serialize_path(SharedElementSummary in_summary);
 protected:
     GlobalRegistry *globalreg;
+    std::recursive_timed_mutex mutex;
 };
 
 // Get an element using path semantics

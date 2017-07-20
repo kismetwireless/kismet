@@ -39,6 +39,7 @@ public:
 
     virtual void serialize(SharedTrackerElement in_elem, std::ostream &stream,
             rename_map *name_map = NULL) {
+        local_locker lock(&mutex);
         Pack(globalreg, stream, in_elem, name_map);
     }
 };

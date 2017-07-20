@@ -88,8 +88,10 @@ protected:
     bool free_after_read;
 
     unsigned int write_block;
+    uint8_t *write_buf;
     size_t write_offt;
     unsigned int read_block;
+    uint8_t *read_buf;
     size_t read_offt;
 
     std::vector<uint8_t *> buff_vec;
@@ -98,6 +100,8 @@ protected:
     size_t total_sz;
 
     bool free_read, free_commit;
+
+    size_t alloc_delta;
 
 };
 

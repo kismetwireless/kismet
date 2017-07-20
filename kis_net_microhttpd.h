@@ -259,7 +259,9 @@ public:
 
 protected:
     virtual shared_ptr<BufferHandlerGeneric> allocate_buffer() {
-        return static_pointer_cast<BufferHandlerGeneric>(shared_ptr<BufferHandler<Chainbuf> >(new BufferHandler<Chainbuf>(NULL, new Chainbuf(1024, 512))));
+        // Allocate a buffer directly, in a multiple of the max output size for the webserver
+        // buffer
+        return static_pointer_cast<BufferHandlerGeneric>(shared_ptr<BufferHandler<Chainbuf> >(new BufferHandler<Chainbuf>(NULL, new Chainbuf(64 * 1024, 512))));
     }
 
 };
@@ -278,6 +280,11 @@ public:
             function<void (Kis_Net_Httpd_Buffer_Stream_Aux *)> in_free_aux);
 
     bool get_in_error() { return in_error; }
+
+    void trigger_error() {
+        in_error = true;
+        cl->unlock("triggered");
+    }
 
     void set_aux(void *in_aux, 
             function<void (Kis_Net_Httpd_Buffer_Stream_Aux *)> in_free_aux) {

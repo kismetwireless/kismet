@@ -32,18 +32,22 @@ Chainbuf::Chainbuf(size_t in_chunk, size_t pre_allocate) {
     total_sz = 0;
 
     write_block = 0;
+    write_buf = buff_vec[0];
     read_block = 0;
+    read_buf = buff_vec[0];
     write_offt = 0;
     read_offt = 0;
 
     free_read = false;
     free_commit = false;
+
+    alloc_delta = 0;
 }
 
 Chainbuf::~Chainbuf() {
     local_locker lock(&buffer_locker);
 
-    fprintf(stderr, "debug - freeing chainbuf, total size %lu chunks %lu\n", total_sz, (total_sz / chunk_sz) + 1);
+    fprintf(stderr, "debug - freeing chainbuf, total size %lu chunks %lu, largest allocation delta %lu\n", total_sz, (total_sz / chunk_sz) + 1, alloc_delta);
 
     clear();
 }
@@ -85,8 +89,12 @@ ssize_t Chainbuf::write(uint8_t *in_data, size_t in_sz) {
 
         // fprintf(stderr, "debug - w_sz %lu block %p\n", w_sz, buff_vec[write_block]);
 
-        if (in_data != NULL)
-            memcpy(buff_vec[write_block] + write_offt, in_data + total_written, w_sz);
+        if (in_data != NULL) {
+            if (w_sz == 1)
+                write_buf[write_offt] = in_data[total_written];
+            else
+                memcpy(write_buf + write_offt, in_data + total_written, w_sz);
+        }
 
         write_offt += w_sz;
 
@@ -100,8 +108,15 @@ ssize_t Chainbuf::write(uint8_t *in_data, size_t in_sz) {
             uint8_t *newchunk = new uint8_t[chunk_sz];
             buff_vec.push_back(newchunk);
             write_block++;
+            write_buf = buff_vec[write_block];
 
-            // fprintf(stderr, "debug - chainbuf - new write block %u total %lu\n", write_block, buff_vec.size());
+            if (read_buf == NULL) {
+                read_buf = buff_vec[read_block];
+            }
+
+            // Track the max simultaneously allocated
+            if (write_block - read_block > alloc_delta)
+                alloc_delta = write_block - read_block;
 
             write_offt = 0;
         }
@@ -117,18 +132,29 @@ ssize_t Chainbuf::peek(uint8_t **ret_data, size_t in_sz) {
         throw std::runtime_error("chainbuf peek already locked");
     }
 
+    if (used() == 0) {
+        free_read = false;
+        peek_reserved = true;
+
+        *ret_data = NULL;
+        return 0;
+    }
+
     size_t goal_sz = min(used(), in_sz);
 
     // If we're contiguous 
     if (read_offt + goal_sz <= chunk_sz) {
         free_read = false;
-        *ret_data = buff_vec[read_block] + read_offt;
+        peek_reserved = true;
+
+        *ret_data = read_buf + read_offt;
         return goal_sz;
     }
 
     // Otherwise we have to copy it out; copy through every block until we
     // hit the max length
     free_read = true;
+    peek_reserved = true;
     *ret_data = new uint8_t[goal_sz];
 
     size_t left = goal_sz;
@@ -145,7 +171,7 @@ ssize_t Chainbuf::peek(uint8_t **ret_data, size_t in_sz) {
             copy_sz = left;
 
         // Copy whatever space we have in the buffer remaining
-        memcpy(*ret_data + copy_offt, buff_vec[read_block + block_offt] + offt, copy_sz);
+        memcpy(*ret_data + copy_offt, read_buf + block_offt + offt, copy_sz);
         // Subtract what we just copied
         left -= copy_sz;
         // Start at the beginning of the next buffer
@@ -166,6 +192,20 @@ ssize_t Chainbuf::zero_copy_peek(uint8_t **ret_data, size_t in_sz) {
         throw std::runtime_error("chainbuf peek already locked");
     }
 
+    if (used() == 0) {
+        free_read = false;
+        peek_reserved = true;
+
+        *ret_data = NULL;
+
+        return 0;
+    }
+
+    if (read_buf == NULL) {
+        fprintf(stderr, "read in null at block %u used %lu\n", read_block, used());
+        throw std::runtime_error("chainbuf advanced into null readbuf");
+    }
+
     // fprintf(stderr, "debug - chainbuf peeking read_block %u\n", read_block);
 
     // Pick the least size: a zero-copy of our buffer, the requested size,
@@ -173,7 +213,7 @@ ssize_t Chainbuf::zero_copy_peek(uint8_t **ret_data, size_t in_sz) {
     size_t goal_sz = min(chunk_sz - read_offt, in_sz);
     goal_sz = min(goal_sz, used());
 
-    *ret_data = buff_vec[read_block] + read_offt;
+    *ret_data = read_buf + read_offt;
 
     peek_reserved = true;
     free_read = false;
@@ -188,7 +228,7 @@ void Chainbuf::peek_free(unsigned char *in_data) {
         throw std::runtime_error("chainbuf peek_free on unlocked buffer");
     }
 
-    if (free_read) {
+    if (free_read && in_data != NULL) {
         delete[] in_data;
     }
 
@@ -213,6 +253,7 @@ size_t Chainbuf::consume(size_t in_sz) {
     while (consumed_sz < (ssize_t) in_sz) {
         ssize_t rd_sz = 0;
 
+        // If we've wandered out of our block...
         if (read_block + block_offt >= buff_vec.size())
             throw std::runtime_error("chainbuf ran out of room in buffer vector "
                     "during consume");
@@ -243,7 +284,13 @@ size_t Chainbuf::consume(size_t in_sz) {
 
             // Move the global read pointer
             read_block++;
-            // fprintf(stderr, "debug - chainbuf read_block moved to %u\n", read_block);
+
+            if (read_block < buff_vec.size()) 
+                read_buf = buff_vec[read_block];
+            else
+                read_buf = NULL;
+
+            // fprintf(stderr, "debug - chainbuf - moved read_buf to %p\n", read_buf);
         }
 
     }
@@ -262,7 +309,7 @@ ssize_t Chainbuf::reserve(unsigned char **data, size_t in_sz) {
 
     // If we can fit inside the chunk we're in now...
     if (in_sz < chunk_sz - write_offt) {
-        *data = buff_vec[write_block] + write_offt;
+        *data = write_buf + write_offt;
         free_commit = false;
         return in_sz;
     }

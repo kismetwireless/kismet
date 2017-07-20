@@ -1143,18 +1143,26 @@ Kis_Net_Httpd_Buffer_Stream_Handler::~Kis_Net_Httpd_Buffer_Stream_Handler() {
 
 ssize_t Kis_Net_Httpd_Buffer_Stream_Handler::buffer_event_cb(void *cls, uint64_t pos,
         char *buf, size_t max) {
+
+    if (buf == NULL || max == 0)
+        return 0;
+
     // fprintf(stderr, "debug - knmh - webserver buffer event max %lu\n", max);
-    Kis_Net_Httpd_Buffer_Stream_Aux *stream_aux = 
-        (Kis_Net_Httpd_Buffer_Stream_Aux *) cls;
+
+    Kis_Net_Httpd_Buffer_Stream_Aux *stream_aux = (Kis_Net_Httpd_Buffer_Stream_Aux *) cls;
 
     shared_ptr<BufferHandlerGeneric> rbh = stream_aux->get_rbhandler();
 
-    size_t buffamt = rbh->GetWriteBufferUsed();
+    // Read from the buffer; currently we have to force a copy into our existing
+    // buffer unfortunately
+    unsigned char *zbuf;
 
-    // fprintf(stderr, "debug - knmh - buffer_event buffamt %lu\n", buffamt);
+    size_t read_sz;
+    read_sz = rbh->ZeroCopyPeekWriteBufferData((void **) &zbuf, max);
 
-    // We've hit an error / the stream is finished, so close it down
-    if (buffamt == 0) {
+    if (read_sz == 0) {
+        rbh->PeekFreeWriteBufferData(zbuf);
+
         if (stream_aux->get_in_error()) {
             return -1;
         }
@@ -1163,24 +1171,20 @@ ssize_t Kis_Net_Httpd_Buffer_Stream_Handler::buffer_event_cb(void *cls, uint64_t
         // or b) sent what we gave it; we need to hold the thread until we
         // get more data in the buf, so we block until we have data
         stream_aux->block_until_data();
+        // fprintf(stderr, "debug - knmh - conclude webserver buffer event block\n");
+        return 0;
     }
 
-    if (buffamt > max)
-        buffamt = max;
+    // fprintf(stderr, "debug - zbuf %p buf %p buffamt %lu read_sz %lu\n", zbuf, buf, buffamt, read_sz);
 
-    // Read from the buffer; currently we have to force a copy into our existing
-    // buffer unfortunately
-    unsigned char *zbuf;
-
-    size_t read_sz;
-    read_sz = rbh->ZeroCopyPeekWriteBufferData((void **) &zbuf, buffamt);
-
-    // fprintf(stderr, "debug - peeked and copying %lu requested %lu\n", read_sz, buffamt);
-
-    memcpy(buf, zbuf, read_sz);
+    if (read_sz != 0 && zbuf != NULL && buf != NULL) {
+        memcpy(buf, zbuf, read_sz);
+    }
 
     rbh->PeekFreeWriteBufferData(zbuf);
     rbh->ConsumeWriteBufferData(read_sz);
+
+    // fprintf(stderr, "debug - knmh - conclude webserver buffer event ret %lu\n", read_sz);
 
     return (ssize_t) read_sz;
 }

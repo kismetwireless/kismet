@@ -389,20 +389,27 @@ void Devicetracker::Httpd_CreateStreamResponse(
         return;
     }
 
-    Kis_Net_Httpd_Buffer_Stream_Aux *saux = 
-        (Kis_Net_Httpd_Buffer_Stream_Aux *) connection->custom_extension;
-   
-    BufferHandlerOStreambuf streambuf(saux->get_rbhandler());
-    std::ostream stream(&streambuf);
-
-    // Set us immediately in error so the webserver will flush us out
-    saux->in_error = true;
-
     // fprintf(stderr, "debug - making ostream pointing to buffer\n");
 
     if (strcmp(path, "/devices/all_devices.ekjson") == 0) {
+        std::thread t([this, connection]{
+        fprintf(stderr, "debug - starting serialization %lu\n", time(0));
         // Instantiate a manual serializer
         JsonAdapter::Serializer serial(globalreg); 
+
+        // Instantiate the aux and stream inside the thread
+        Kis_Net_Httpd_Buffer_Stream_Aux *saux = 
+            (Kis_Net_Httpd_Buffer_Stream_Aux *) connection->custom_extension;
+   
+        BufferHandlerOStreambuf *streambuf = 
+            new BufferHandlerOStreambuf(saux->get_rbhandler());
+        std::ostream stream(streambuf);
+
+        saux->set_aux(streambuf, 
+            [streambuf](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
+                if (aux->aux != NULL)
+                    delete((BufferHandlerOStreambuf *) (aux->aux));
+            });
 
         devicetracker_function_worker fw(globalreg, 
                 [this, &stream, &serial](Devicetracker *, shared_ptr<kis_tracked_device_base> d) -> bool {
@@ -414,8 +421,29 @@ void Devicetracker::Httpd_CreateStreamResponse(
                     return false;
                 }, NULL);
         MatchOnDevices(&fw);
+        fprintf(stderr, "debug - ending serialization %lu\n", time(0));
+        saux->trigger_error();
+        });
+        t.detach();
         return;
     }
+
+    // Make a fixed stream buffer
+    Kis_Net_Httpd_Buffer_Stream_Aux *saux = 
+        (Kis_Net_Httpd_Buffer_Stream_Aux *) connection->custom_extension;
+   
+    BufferHandlerOStreambuf *streambuf = new BufferHandlerOStreambuf(saux->get_rbhandler());
+    std::ostream stream(streambuf);
+
+    saux->set_aux(streambuf, 
+            [streambuf](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
+                if (aux->aux != NULL)
+                    delete((BufferHandlerOStreambuf *) (aux->aux));
+            });
+
+
+    // Set us immediately in error so the webserver will flush us out
+    saux->in_error = true;
 
     string stripped = Httpd_StripSuffix(path);
 
