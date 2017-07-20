@@ -60,6 +60,10 @@ public:
     virtual ssize_t available() { 
         return chunk_sz;
     }
+    
+    virtual ssize_t size() {
+        return chunk_sz;
+    }
 
     // Total size ever used by buffer
     virtual size_t total();

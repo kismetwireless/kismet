@@ -23,7 +23,8 @@ Chainbuf::Chainbuf(size_t in_chunk, size_t pre_allocate) {
     chunk_sz = in_chunk;
 
     // Allocate slots in the vector, but not bytes
-    buff_vec = std::vector<uint8_t *>(pre_allocate);
+    buff_vec = std::vector<uint8_t *>();
+    buff_vec.reserve(pre_allocate);
 
     buff_vec.push_back(new uint8_t[chunk_sz]);
 
@@ -80,8 +81,14 @@ ssize_t Chainbuf::write(uint8_t *in_data, size_t in_sz) {
         // Whole buffer or whole chunk
         size_t w_sz = min(in_sz - total_written, free_chunk_sz);
 
+        // fprintf(stderr, "debug - chainbuf - in_sz %lu free in block %lu total written %lu\n", in_sz, free_chunk_sz, total_written);
+
+        // fprintf(stderr, "debug - w_sz %lu block %p\n", w_sz, buff_vec[write_block]);
+
         if (in_data != NULL)
             memcpy(buff_vec[write_block] + write_offt, in_data + total_written, w_sz);
+
+        write_offt += w_sz;
 
         total_written += w_sz;
 
@@ -93,6 +100,9 @@ ssize_t Chainbuf::write(uint8_t *in_data, size_t in_sz) {
             uint8_t *newchunk = new uint8_t[chunk_sz];
             buff_vec.push_back(newchunk);
             write_block++;
+
+            // fprintf(stderr, "debug - chainbuf - new write block %u total %lu\n", write_block, buff_vec.size());
+
             write_offt = 0;
         }
     }
@@ -156,13 +166,18 @@ ssize_t Chainbuf::zero_copy_peek(uint8_t **ret_data, size_t in_sz) {
         throw std::runtime_error("chainbuf peek already locked");
     }
 
+    // fprintf(stderr, "debug - chainbuf peeking read_block %u\n", read_block);
+
     // Pick the least size: a zero-copy of our buffer, the requested size,
     // or the amount actually used
     size_t goal_sz = min(chunk_sz - read_offt, in_sz);
     goal_sz = min(goal_sz, used());
 
     *ret_data = buff_vec[read_block] + read_offt;
+
+    peek_reserved = true;
     free_read = false;
+
     return goal_sz;
 }
 
@@ -211,6 +226,8 @@ size_t Chainbuf::consume(size_t in_sz) {
         // Jump the read offset
         read_offt += rd_sz;
 
+        // fprintf(stderr, "debug - chainbuf - consumed, read_offt %lu\n", read_offt);
+
         // We've jumped to the next block...
         if (read_offt >= chunk_sz) {
             // Universal read offt jumps
@@ -220,15 +237,18 @@ size_t Chainbuf::consume(size_t in_sz) {
             block_offt++;
 
             // Remove the old read block and set the slot to null
+            // fprintf(stderr, "debug - chainbuf read_block freeing %u\n", read_block);
             delete[](buff_vec[read_block]);
             buff_vec[read_block] = NULL;
 
             // Move the global read pointer
             read_block++;
+            // fprintf(stderr, "debug - chainbuf read_block moved to %u\n", read_block);
         }
 
     }
 
+    // fprintf(stderr, "debug - chainbuf - consumed %lu used %lu\n", consumed_sz, used_sz);
     used_sz -= consumed_sz;
     return consumed_sz;
 }
