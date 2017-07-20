@@ -306,6 +306,11 @@ public:
         else
             write_buffer = NULL;
     }
+
+    BufferHandler(B *r_buf, B *w_buf) {
+        read_buffer = r_buf;
+        write_buffer = w_buf;
+    }
 };
 
 // A C++ streambuf-compatible wrapper around a buf handler

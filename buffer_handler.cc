@@ -484,13 +484,17 @@ BufferHandlerOStreambuf::~BufferHandlerOStreambuf() {
 
 std::streamsize BufferHandlerOStreambuf::xsputn(const char_type *s, std::streamsize n) {
     if (rb_handler == NULL) {
+        // fprintf(stderr, "debug - no rb handler\n");
         return -1;
     }
 
+    // fprintf(stderr, "debug - ostreambuf putting %lu\n", n);
     ssize_t written = rb_handler->PutWriteBufferData((void *) s, (size_t) n, true);
 
     if (written == n)
         return n;
+
+    // fprintf(stderr, "debug - ostreambuf couldn't put all, blocking?\n");
 
     // If we couldn't write it all into the buffer, flag a full error
     if (written != n && !blocking) {
