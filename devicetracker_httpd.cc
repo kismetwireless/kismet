@@ -224,7 +224,7 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
     return false;
 }
 
-void Devicetracker::httpd_all_phys(string path, std::stringstream &stream,
+void Devicetracker::httpd_all_phys(string path, std::ostream &stream,
         string in_wrapper_key) {
 
     SharedTrackerElement phyvec =
@@ -251,10 +251,10 @@ void Devicetracker::httpd_all_phys(string path, std::stringstream &stream,
         phyvec->add_vector(p);
     }
 
-    Httpd_Serialize(path, stream, wrapper);
+    entrytracker->Serialize(httpd->GetSuffix(path), stream, wrapper, NULL);
 }
 
-void Devicetracker::httpd_device_summary(string url, std::stringstream &stream, 
+void Devicetracker::httpd_device_summary(string url, std::ostream &stream, 
         shared_ptr<TrackerElementVector> subvec, 
         vector<SharedElementSummary> summary_vec,
         string in_wrapper_key) {
@@ -306,10 +306,10 @@ void Devicetracker::httpd_device_summary(string url, std::stringstream &stream,
         }
     }
 
-    Httpd_Serialize(url, stream, wrapper, &rename_map);
+    entrytracker->Serialize(httpd->GetSuffix(url), stream, wrapper, &rename_map);
 }
 
-void Devicetracker::httpd_xml_device_summary(std::stringstream &stream) {
+void Devicetracker::httpd_xml_device_summary(std::ostream &stream) {
     local_locker lock(&devicelist_mutex);
 
     SharedTrackerElement devvec =
@@ -383,11 +383,22 @@ void Devicetracker::Httpd_CreateStreamResponse(
         Kis_Net_Httpd *httpd __attribute__((unused)),
         Kis_Net_Httpd_Connection *connection,
         const char *path, const char *method, const char *upload_data,
-        size_t *upload_data_size, std::stringstream &stream) {
+        size_t *upload_data_size) {
 
     if (strcmp(method, "GET") != 0) {
         return;
     }
+
+    Kis_Net_Httpd_Buffer_Stream_Aux *saux = 
+        (Kis_Net_Httpd_Buffer_Stream_Aux *) connection->custom_extension;
+   
+    BufferHandlerOStreambuf streambuf(saux->get_rbhandler());
+    std::ostream stream(&streambuf);
+
+    // Set us immediately in error so the webserver will flush us out
+    saux->in_error = true;
+
+    // fprintf(stderr, "debug - making ostream pointing to buffer\n");
 
     if (strcmp(path, "/devices/all_devices.ekjson") == 0) {
         // Instantiate a manual serializer
@@ -486,12 +497,13 @@ void Devicetracker::Httpd_CreateStreamResponse(
                         return;
                     } 
 
-                    Httpd_Serialize(tokenurl[4], stream, sub);
+                    entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, sub, NULL);
 
                     return;
                 }
 
-                Httpd_Serialize(tokenurl[4], stream, tmi->second);
+                entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, 
+                        tmi->second, NULL);
 
                 return;
             } else {
@@ -522,7 +534,7 @@ void Devicetracker::Httpd_CreateStreamResponse(
                 }
             }
 
-            Httpd_Serialize(tokenurl[4], stream, devvec);
+            entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, devvec, NULL);
 
             return;
         } else if (tokenurl[2] == "last-time") {
@@ -590,7 +602,7 @@ void Devicetracker::Httpd_CreateStreamResponse(
                     devvec->add_vector((*vi));
             }
 
-            Httpd_Serialize(tokenurl[4], stream, wrapper);
+            entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, wrapper, NULL);
 
             return;
         }
@@ -1028,7 +1040,8 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 wrapper = outdevs;
             }
 
-            Httpd_Serialize(tokenurl[3], concls->response_stream, wrapper, &rename_map);
+            entrytracker->Serialize(httpd->GetSuffix(tokenurl[3]), concls->response_stream, 
+                    wrapper, &rename_map);
             return 1;
 
         } else if (tokenurl[2] == "last-time") {
@@ -1122,7 +1135,8 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
             // Put the simplified map in the vector
             wrapper->add_map(outdevs);
 
-            Httpd_Serialize(tokenurl[4], concls->response_stream, wrapper, &rename_map);
+            entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), 
+                    concls->response_stream, wrapper, &rename_map);
             return MHD_YES;
         }
     }

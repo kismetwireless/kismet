@@ -36,7 +36,7 @@
 #include "msgpack_adapter.h"
 
 void MsgpackAdapter::Packer(GlobalRegistry *globalreg, SharedTrackerElement v,
-        msgpack::packer<std::stringstream> &o,
+        msgpack::packer<std::ostream> &o,
         TrackerElementSerializer::rename_map *name_map) {
 
     if (v == NULL) {
@@ -214,9 +214,9 @@ void MsgpackAdapter::Packer(GlobalRegistry *globalreg, SharedTrackerElement v,
     }
 }
 
-void MsgpackAdapter::Pack(GlobalRegistry *globalreg, std::stringstream &stream,
+void MsgpackAdapter::Pack(GlobalRegistry *globalreg, std::ostream &stream,
         SharedTrackerElement e, TrackerElementSerializer::rename_map *name_map) {
-    msgpack::packer<std::stringstream> packer(&stream);
+    msgpack::packer<std::ostream> packer(&stream);
     Packer(globalreg, e, packer, name_map);
 }
 

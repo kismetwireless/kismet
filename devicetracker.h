@@ -624,7 +624,7 @@ protected:
     pthread_mutex_t worker_mutex;
 };
 
-class Devicetracker : public Kis_Net_Httpd_CPPStream_Handler,
+class Devicetracker : public Kis_Net_Httpd_Chain_Stream_Handler,
     public TimetrackerEvent, public LifetimeGlobal {
 public:
     static shared_ptr<Devicetracker> create_devicetracker(GlobalRegistry *in_globalreg) {
@@ -735,27 +735,27 @@ public:
     virtual void Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
             Kis_Net_Httpd_Connection *connection,
             const char *url, const char *method, const char *upload_data,
-            size_t *upload_data_size, std::stringstream &stream);
+            size_t *upload_data_size);
 
     virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *concls);
     
     // Generate a list of all phys, serialized appropriately.  If specified,
     // wrap it in a dictionary and name it with the key in in_wrapper, which
     // is required for some js libs like datatables.
-    void httpd_all_phys(string url, std::stringstream &stream, 
+    void httpd_all_phys(string url, std::ostream &stream, 
             string in_wrapper_key = "");
 
     // Generate a device summary, serialized.  Optionally provide an existing
     // vector to generate a summary of devices matching a given criteria via
     // a worker.  Also optionally, wrap the results in a dictionary named via
     // the in_wrapper key, which is required for some js libs like datatables
-    void httpd_device_summary(string url, std::stringstream &stream, 
+    void httpd_device_summary(string url, std::ostream &stream, 
             shared_ptr<TrackerElementVector> subvec, 
             vector<SharedElementSummary> summary_vec,
             string in_wrapper_key = "");
 
     // TODO merge this into a normal serializer call
-    void httpd_xml_device_summary(std::stringstream &stream);
+    void httpd_xml_device_summary(std::ostream &stream);
 
     // Timetracker event handler
     virtual int timetracker_event(int eventid);

@@ -64,7 +64,7 @@ public:
 
     ~XmlserializeAdapter();
 
-    void XmlSerialize(SharedTrackerElement v, std::stringstream &steam);
+    void XmlSerialize(SharedTrackerElement v, std::ostream &steam);
 
     void RegisterField(string in_field, string in_entity);
     void RegisterFieldAttr(string in_field, string in_path, string in_attr);
@@ -127,7 +127,7 @@ protected:
         vector<Schemaimportlocation *> schema_import_vector;
     };
 
-    bool StreamSimpleValue(SharedTrackerElement v, std::stringstream &stream);
+    bool StreamSimpleValue(SharedTrackerElement v, std::ostream &stream);
 
     map<string, Xmladapter *> field_adapter_map;
 };

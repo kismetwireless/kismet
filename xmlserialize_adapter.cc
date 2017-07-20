@@ -38,7 +38,7 @@ XmlserializeAdapter::~XmlserializeAdapter() {
 }
 
 void XmlserializeAdapter::XmlSerialize(SharedTrackerElement v, 
-        std::stringstream &stream) {
+        std::ostream &stream) {
 
     if (v == NULL)
         return;
@@ -230,8 +230,7 @@ void XmlserializeAdapter::XmlSerialize(SharedTrackerElement v,
 
 }
 
-bool XmlserializeAdapter::StreamSimpleValue(SharedTrackerElement v,
-        std::stringstream &stream) {
+bool XmlserializeAdapter::StreamSimpleValue(SharedTrackerElement v, std::ostream &stream) {
     switch (v->get_type()) {
         case TrackerString:
             stream << SanitizeXML(GetTrackerValue<string>(v));

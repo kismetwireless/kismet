@@ -36,6 +36,7 @@
 #include "globalregistry.h"
 #include "trackedelement.h"
 #include "ringbuf2.h"
+#include "chainbuf.h"
 #include "buffer_handler.h"
 
 class Kis_Net_Httpd;
@@ -247,6 +248,20 @@ protected:
     virtual shared_ptr<BufferHandlerGeneric> allocate_buffer() {
         return static_pointer_cast<BufferHandlerGeneric>(shared_ptr<BufferHandler<RingbufV2> >(new BufferHandler<RingbufV2>(0, k_n_h_r_ringbuf_size)));
     }
+};
+
+class Kis_Net_Httpd_Chain_Stream_Handler : public Kis_Net_Httpd_Buffer_Stream_Handler {
+public:
+    Kis_Net_Httpd_Chain_Stream_Handler() : Kis_Net_Httpd_Buffer_Stream_Handler() { }
+
+    Kis_Net_Httpd_Chain_Stream_Handler(GlobalRegistry *in_globalreg) :
+        Kis_Net_Httpd_Buffer_Stream_Handler(in_globalreg) { }
+
+protected:
+    virtual shared_ptr<BufferHandlerGeneric> allocate_buffer() {
+        return static_pointer_cast<BufferHandlerGeneric>(shared_ptr<BufferHandler<Chainbuf> >(new BufferHandler<Chainbuf>(NULL, new Chainbuf(1024, 512))));
+    }
+
 };
 
 // A buffer-stream auxiliary class which is passed to the callback, added to the

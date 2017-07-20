@@ -1236,7 +1236,7 @@ public:
 
     virtual ~TrackerElementSerializer() { }
     virtual void serialize(shared_ptr<TrackerElement> in_elem, 
-            std::stringstream &stream, rename_map *name_map = NULL) = 0;
+            std::ostream &stream, rename_map *name_map = NULL) = 0;
 
     // Fields extracted from a summary path need to preserialize their parent
     // paths or updates may not happen in the expected fashion, serializers should

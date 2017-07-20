@@ -1124,6 +1124,7 @@ void Kis_Net_Httpd_Buffer_Stream_Aux::BufferAvailable(size_t in_amt) {
     // All we need to do here is unlock the conditional lock; the 
     // buffer_event_cb callback will unlock and read from the buffer, then
     // re-lock and block
+    // fprintf(stderr, "debug - knmh - unlocking %lu\n", in_amt);
     cl->unlock("data");
 }
 
@@ -1142,21 +1143,26 @@ Kis_Net_Httpd_Buffer_Stream_Handler::~Kis_Net_Httpd_Buffer_Stream_Handler() {
 
 ssize_t Kis_Net_Httpd_Buffer_Stream_Handler::buffer_event_cb(void *cls, uint64_t pos,
         char *buf, size_t max) {
+    // fprintf(stderr, "debug - knmh - webserver buffer event max %lu\n", max);
     Kis_Net_Httpd_Buffer_Stream_Aux *stream_aux = 
         (Kis_Net_Httpd_Buffer_Stream_Aux *) cls;
 
     shared_ptr<BufferHandlerGeneric> rbh = stream_aux->get_rbhandler();
 
-    // We get called as soon as the webserver has either a) processed our request
-    // or b) sent what we gave it; we need to hold the thread until we
-    // get more data in the buf, so we block until we have data
-    stream_aux->block_until_data();
-
     size_t buffamt = rbh->GetWriteBufferUsed();
 
+    // fprintf(stderr, "debug - knmh - buffer_event buffamt %lu\n", buffamt);
+
     // We've hit an error / the stream is finished, so close it down
-    if (buffamt == 0 && stream_aux->get_in_error()) {
-        return -1;
+    if (buffamt == 0) {
+        if (stream_aux->get_in_error()) {
+            return -1;
+        }
+
+        // We get called as soon as the webserver has either a) processed our request
+        // or b) sent what we gave it; we need to hold the thread until we
+        // get more data in the buf, so we block until we have data
+        stream_aux->block_until_data();
     }
 
     if (buffamt > max)
@@ -1167,10 +1173,14 @@ ssize_t Kis_Net_Httpd_Buffer_Stream_Handler::buffer_event_cb(void *cls, uint64_t
     unsigned char *zbuf;
 
     size_t read_sz;
-    read_sz = rbh->PeekReadBufferData((void **) &zbuf, buffamt);
+    read_sz = rbh->ZeroCopyPeekWriteBufferData((void **) &zbuf, buffamt);
+
+    // fprintf(stderr, "debug - peeked and copying %lu requested %lu\n", read_sz, buffamt);
+
     memcpy(buf, zbuf, read_sz);
-    rbh->PeekFreeReadBufferData(zbuf);
-    rbh->ConsumeReadBufferData(read_sz);
+
+    rbh->PeekFreeWriteBufferData(zbuf);
+    rbh->ConsumeWriteBufferData(read_sz);
 
     return (ssize_t) read_sz;
 }

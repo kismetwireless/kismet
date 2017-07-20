@@ -41,7 +41,7 @@ string JsonAdapter::SanitizeString(string in) {
     return itr;
 }
 
-void JsonAdapter::Pack(GlobalRegistry *globalreg, std::stringstream &stream,
+void JsonAdapter::Pack(GlobalRegistry *globalreg, std::ostream &stream,
     SharedTrackerElement e, TrackerElementSerializer::rename_map *name_map) {
 
     if (e == NULL) {
