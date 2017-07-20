@@ -1683,7 +1683,7 @@ void Devicetracker::MatchOnDevices(DevicetrackerFilterWorker *worker, bool batch
     }
     
     size_t dpos = 0;
-    size_t chunk_sz = 500;
+    size_t chunk_sz = 50;
 
     while (1) {
         {
