@@ -74,6 +74,8 @@ Kis_DLT_Radiotap::Kis_DLT_Radiotap(GlobalRegistry *in_globalreg) :
 	globalreg->InsertGlobal("DLT_RADIOTAP", shared_ptr<Kis_DLT_Radiotap>(this));
 
 	_MSG("Registering support for DLT_RADIOTAP packet header decoding", MSGFLAG_INFO);
+
+    crc32_init_table_80211(crc32_table);
 }
 
 Kis_DLT_Radiotap::~Kis_DLT_Radiotap() {
@@ -426,8 +428,7 @@ int Kis_DLT_Radiotap::HandlePacket(kis_packet *in_pack) {
         in_pack->insert(pack_comp_checksum, fcschunk);
     }
 
-	// If we're validating the FCS, and don't already know it's junk, do
-    // the FCS check
+    // Radiotap only encapsulates wireless so we can do our own fcs
 	if (datasrc != NULL && datasrc->ref_source != NULL && fcschunk != NULL) {
         datasrc->ref_source->checksum_packet(in_pack);
 #if 0
@@ -463,4 +464,47 @@ int Kis_DLT_Radiotap::HandlePacket(kis_packet *in_pack) {
 #undef BITNO_2
 #undef BIT
 
+// Taken from the BBN USRP 802.11 encoding code
+unsigned int Kis_DLT_Radiotap::update_crc32_80211(unsigned int crc, const unsigned char *data,
+        int len, unsigned int poly) {
+	int i, j;
+	unsigned short ch;
+
+	for ( i = 0; i < len; ++i) {
+		ch = data[i];
+		for (j = 0; j < 8; ++j) {
+			if ((crc ^ ch) & 0x0001) {
+				crc = (crc >> 1) ^ poly;
+			} else {
+				crc = (crc >> 1);
+			}
+			ch >>= 1;
+		}
+	}
+	return crc;
+}
+
+void Kis_DLT_Radiotap::crc32_init_table_80211(unsigned int *crc32_table) {
+	int i;
+	unsigned char c;
+
+	for (i = 0; i < 256; ++i) {
+		c = (unsigned char) i;
+		crc32_table[i] = update_crc32_80211(0, &c, 1, IEEE_802_3_CRC32_POLY);
+	}
+}
+
+unsigned int Kis_DLT_Radiotap::crc32_le_80211(unsigned int *crc32_table, 
+        const unsigned char *buf, int len) {
+	int i;
+	unsigned int crc = 0xFFFFFFFF;
+
+	for (i = 0; i < len; ++i) {
+		crc = (crc >> 8) ^ crc32_table[(crc ^ buf[i]) & 0xFF];
+	}
+
+	crc ^= 0xFFFFFFFF;
+
+	return crc;
+}
 
