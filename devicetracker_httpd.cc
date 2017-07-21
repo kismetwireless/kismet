@@ -420,9 +420,6 @@ void Devicetracker::Httpd_CreateStreamResponse(
         return;
     }
 
-    // Set us immediately in error so the webserver will flush us out
-    saux->in_error = true;
-
     string stripped = Httpd_StripSuffix(path);
 
     if (stripped == "/devices/all_devices") {
