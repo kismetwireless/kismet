@@ -1112,8 +1112,7 @@ Kis_Net_Httpd_Buffer_Stream_Aux::Kis_Net_Httpd_Buffer_Stream_Aux(
 
     // If the buffer encounters an error, unlock the variable and set the error state
     ringbuf_handler->SetProtocolErrorCb([this]() {
-        in_error = true;
-        cl->unlock("error");
+            trigger_error();
         });
 
     // Lodge ourselves as the write handler
@@ -1130,8 +1129,17 @@ void Kis_Net_Httpd_Buffer_Stream_Aux::BufferAvailable(size_t in_amt) {
 
 void Kis_Net_Httpd_Buffer_Stream_Aux::block_until_data() {
     // Immediately return so we can flush out the buffer before we fail
-    if (in_error)
+    if (in_error) {
+        fprintf(stderr, "debug - going to block but in error\n");
         return;
+    }
+
+    // Immediately return if we have pending data
+    shared_ptr<BufferHandlerGeneric> rbh = get_rbhandler();
+    if (rbh->GetReadBufferUsed()) {
+        fprintf(stderr, "debug - going to block but have data\n");
+        return;
+    }
 
     cl->lock();
     cl->block_until();
@@ -1147,9 +1155,12 @@ ssize_t Kis_Net_Httpd_Buffer_Stream_Handler::buffer_event_cb(void *cls, uint64_t
     if (buf == NULL || max == 0)
         return 0;
 
-    // fprintf(stderr, "debug - knmh - webserver buffer event max %lu\n", max);
-
     Kis_Net_Httpd_Buffer_Stream_Aux *stream_aux = (Kis_Net_Httpd_Buffer_Stream_Aux *) cls;
+
+    // We get called as soon as the webserver has either a) processed our request
+    // or b) sent what we gave it; we need to hold the thread until we
+    // get more data in the buf, so we block until we have data
+    stream_aux->block_until_data();
 
     shared_ptr<BufferHandlerGeneric> rbh = stream_aux->get_rbhandler();
 
@@ -1160,21 +1171,18 @@ ssize_t Kis_Net_Httpd_Buffer_Stream_Handler::buffer_event_cb(void *cls, uint64_t
     size_t read_sz;
     read_sz = rbh->ZeroCopyPeekWriteBufferData((void **) &zbuf, max);
 
+    fprintf(stderr, "debug - buffer event got %lu\n", read_sz);
+
     if (read_sz == 0) {
         rbh->PeekFreeWriteBufferData(zbuf);
 
         if (stream_aux->get_in_error()) {
+            fprintf(stderr, "debug - knmh - buffer_event_cb - returning -1\n");
             return -1;
         }
 
-        // We get called as soon as the webserver has either a) processed our request
-        // or b) sent what we gave it; we need to hold the thread until we
-        // get more data in the buf, so we block until we have data
-        stream_aux->block_until_data();
         return 0;
     }
-
-    // fprintf(stderr, "debug - zbuf %p buf %p buffamt %lu read_sz %lu\n", zbuf, buf, buffamt, read_sz);
 
     if (read_sz != 0 && zbuf != NULL && buf != NULL) {
         memcpy(buf, zbuf, read_sz);
@@ -1182,8 +1190,6 @@ ssize_t Kis_Net_Httpd_Buffer_Stream_Handler::buffer_event_cb(void *cls, uint64_t
 
     rbh->PeekFreeWriteBufferData(zbuf);
     rbh->ConsumeWriteBufferData(read_sz);
-
-    // fprintf(stderr, "debug - knmh - conclude webserver buffer event ret %lu\n", read_sz);
 
     return (ssize_t) read_sz;
 }
@@ -1205,26 +1211,36 @@ int Kis_Net_Httpd_Buffer_Stream_Handler::Httpd_HandleGetRequest(Kis_Net_Httpd *h
         const char *url, const char *method, const char *upload_data,
         size_t *upload_data_size) {
 
-    // No read buffer
-    shared_ptr<BufferHandlerGeneric> rbh(allocate_buffer());
-
-    Kis_Net_Httpd_Buffer_Stream_Aux *aux = 
-        new Kis_Net_Httpd_Buffer_Stream_Aux(this, connection, rbh, NULL, NULL);
-    connection->custom_extension = aux;
-
-    // Run it in its own thread and set up the connection streaming object
-    std::thread t([this, httpd, connection, url, method, upload_data, upload_data_size]{
-            Httpd_CreateStreamResponse(httpd, connection, url, method, upload_data,
-                    upload_data_size);
-            // Trigger 'error' when the function is complete, causing us to finish 
-            // the stream
-            Kis_Net_Httpd_Buffer_Stream_Aux *saux = 
-                (Kis_Net_Httpd_Buffer_Stream_Aux *) connection->custom_extension;
-            saux->trigger_error();
-            });
-    t.detach();
-
     if (connection->response == NULL) {
+        // No read buffer
+        shared_ptr<BufferHandlerGeneric> rbh(allocate_buffer());
+
+        Kis_Net_Httpd_Buffer_Stream_Aux *aux = 
+            new Kis_Net_Httpd_Buffer_Stream_Aux(this, connection, rbh, NULL, NULL);
+        connection->custom_extension = aux;
+
+        // Establish a locker to make sure the thread is fully operational
+        shared_ptr<conditional_locker<int> > cl(new conditional_locker<int>());
+        cl->lock();
+
+        // Run it in its own thread and set up the connection streaming object
+        std::thread t([this, cl, httpd, connection, url, method, upload_data, upload_data_size]{
+                cl->unlock(1);
+
+                Httpd_CreateStreamResponse(httpd, connection, url, method, upload_data,
+                        upload_data_size);
+
+                // Trigger 'error' when the function is complete, causing us to finish 
+                // the stream
+                
+                Kis_Net_Httpd_Buffer_Stream_Aux *saux = 
+                    (Kis_Net_Httpd_Buffer_Stream_Aux *) connection->custom_extension;
+                saux->trigger_error();
+                });
+        t.detach();
+
+        // Block until the populating thread has launched
+        cl->block_until();
         connection->response = 
             MHD_create_response_from_callback(MHD_SIZE_UNKNOWN, 32 * 1024,
                     &buffer_event_cb, aux, &free_buffer_aux_callback);

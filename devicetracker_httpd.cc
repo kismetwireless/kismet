@@ -389,7 +389,6 @@ void Devicetracker::Httpd_CreateStreamResponse(
         return;
     }
 
-    // Instantiate the aux and stream inside the thread
     Kis_Net_Httpd_Buffer_Stream_Aux *saux = 
         (Kis_Net_Httpd_Buffer_Stream_Aux *) connection->custom_extension;
 
@@ -405,8 +404,6 @@ void Devicetracker::Httpd_CreateStreamResponse(
 
 
     if (strcmp(path, "/devices/all_devices.ekjson") == 0) {
-        fprintf(stderr, "debug - starting serialization %lu\n", time(0));
-
         // Instantiate a manual serializer
         JsonAdapter::Serializer serial(globalreg); 
 
@@ -420,8 +417,6 @@ void Devicetracker::Httpd_CreateStreamResponse(
                     return false;
                 }, NULL);
         MatchOnDevices(&fw);
-        fprintf(stderr, "debug - ending serialization %lu\n", time(0));
-
         return;
     }
 
@@ -627,14 +622,6 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
     // Split URL and process
     vector<string> tokenurl = StrTokenize(concls->url, "/");
 
-    // All URLs are at least /devices/summary/x or /devices/last-time/ts/x
-    if (tokenurl.size() < 4) {
-        concls->response_stream << "Invalid request";
-        concls->httpcode = 400;
-        return 1;
-    }
-
-    // Instantiate the aux and stream inside the thread
     Kis_Net_Httpd_Buffer_Stream_Aux *saux = 
         (Kis_Net_Httpd_Buffer_Stream_Aux *) concls->custom_extension;
 
@@ -647,6 +634,13 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 if (aux->aux != NULL)
                     delete((BufferHandlerOStreambuf *) (aux->aux));
             });
+
+    // All URLs are at least /devices/summary/x or /devices/last-time/ts/x
+    if (tokenurl.size() < 4) {
+        stream << "Invalid request";
+        concls->httpcode = 400;
+        return 1;
+    }
 
     // Common structured API data
     SharedStructured structdata;

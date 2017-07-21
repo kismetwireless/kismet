@@ -279,15 +279,26 @@ public:
             void *in_aux,
             function<void (Kis_Net_Httpd_Buffer_Stream_Aux *)> in_free_aux);
 
-    bool get_in_error() { return in_error; }
+    virtual ~Kis_Net_Httpd_Buffer_Stream_Aux() {
+        local_locker lock(&aux_mutex);
+    }
+
+    bool get_in_error() { 
+        local_locker lock(&aux_mutex);
+        return in_error;
+    }
 
     void trigger_error() {
+        local_locker lock(&aux_mutex);
+
         in_error = true;
         cl->unlock("triggered");
     }
 
     void set_aux(void *in_aux, 
             function<void (Kis_Net_Httpd_Buffer_Stream_Aux *)> in_free_aux) {
+        local_locker lock(&aux_mutex);
+
         aux = in_aux;
         free_aux_cb = in_free_aux;
     }
@@ -303,6 +314,8 @@ public:
     void block_until_data();
 
 public:
+    std::recursive_timed_mutex aux_mutex;
+
     // Stream handler we belong to
     Kis_Net_Httpd_Buffer_Stream_Handler *httpd_stream_handler;
 
