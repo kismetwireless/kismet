@@ -389,27 +389,26 @@ void Devicetracker::Httpd_CreateStreamResponse(
         return;
     }
 
-    // fprintf(stderr, "debug - making ostream pointing to buffer\n");
+    // Instantiate the aux and stream inside the thread
+    Kis_Net_Httpd_Buffer_Stream_Aux *saux = 
+        (Kis_Net_Httpd_Buffer_Stream_Aux *) connection->custom_extension;
 
-    if (strcmp(path, "/devices/all_devices.ekjson") == 0) {
-        std::thread t([this, connection]{
-        fprintf(stderr, "debug - starting serialization %lu\n", time(0));
-        // Instantiate a manual serializer
-        JsonAdapter::Serializer serial(globalreg); 
+    BufferHandlerOStreambuf *streambuf = 
+        new BufferHandlerOStreambuf(saux->get_rbhandler());
+    std::ostream stream(streambuf);
 
-        // Instantiate the aux and stream inside the thread
-        Kis_Net_Httpd_Buffer_Stream_Aux *saux = 
-            (Kis_Net_Httpd_Buffer_Stream_Aux *) connection->custom_extension;
-   
-        BufferHandlerOStreambuf *streambuf = 
-            new BufferHandlerOStreambuf(saux->get_rbhandler());
-        std::ostream stream(streambuf);
-
-        saux->set_aux(streambuf, 
+    saux->set_aux(streambuf, 
             [streambuf](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
                 if (aux->aux != NULL)
                     delete((BufferHandlerOStreambuf *) (aux->aux));
             });
+
+
+    if (strcmp(path, "/devices/all_devices.ekjson") == 0) {
+        fprintf(stderr, "debug - starting serialization %lu\n", time(0));
+
+        // Instantiate a manual serializer
+        JsonAdapter::Serializer serial(globalreg); 
 
         devicetracker_function_worker fw(globalreg, 
                 [this, &stream, &serial](Devicetracker *, shared_ptr<kis_tracked_device_base> d) -> bool {
@@ -422,25 +421,9 @@ void Devicetracker::Httpd_CreateStreamResponse(
                 }, NULL);
         MatchOnDevices(&fw);
         fprintf(stderr, "debug - ending serialization %lu\n", time(0));
-        saux->trigger_error();
-        });
-        t.detach();
+
         return;
     }
-
-    // Make a fixed stream buffer
-    Kis_Net_Httpd_Buffer_Stream_Aux *saux = 
-        (Kis_Net_Httpd_Buffer_Stream_Aux *) connection->custom_extension;
-   
-    BufferHandlerOStreambuf *streambuf = new BufferHandlerOStreambuf(saux->get_rbhandler());
-    std::ostream stream(streambuf);
-
-    saux->set_aux(streambuf, 
-            [streambuf](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
-                if (aux->aux != NULL)
-                    delete((BufferHandlerOStreambuf *) (aux->aux));
-            });
-
 
     // Set us immediately in error so the webserver will flush us out
     saux->in_error = true;
@@ -651,6 +634,20 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
         return 1;
     }
 
+    // Instantiate the aux and stream inside the thread
+    Kis_Net_Httpd_Buffer_Stream_Aux *saux = 
+        (Kis_Net_Httpd_Buffer_Stream_Aux *) concls->custom_extension;
+
+    BufferHandlerOStreambuf *streambuf = 
+        new BufferHandlerOStreambuf(saux->get_rbhandler());
+    std::ostream stream(streambuf);
+
+    saux->set_aux(streambuf, 
+            [streambuf](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
+                if (aux->aux != NULL)
+                    delete((BufferHandlerOStreambuf *) (aux->aux));
+            });
+
     // Common structured API data
     SharedStructured structdata;
 
@@ -678,8 +675,8 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
     } catch(const StructuredDataException e) {
         // fprintf(stderr, "debug - missing data key %s data %s\n", key, data);
-        concls->response_stream << "Invalid request: ";
-        concls->response_stream << e.what();
+        stream << "Invalid request: ";
+        stream << e.what();
         concls->httpcode = 400;
         return 1;
     }
@@ -687,13 +684,13 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
     if (tokenurl[1] == "devices") {
         if (tokenurl[2] == "by-key") {
             if (tokenurl.size() < 5) {
-                concls->response_stream << "Invalid request";
+                stream << "Invalid request";
                 concls->httpcode = 400;
                 return 1;
             }
 
             if (!Httpd_CanSerialize(tokenurl[4])) {
-                concls->response_stream << "Invalid request";
+                stream << "Invalid request";
                 concls->httpcode = 400;
                 return 1;
             }
@@ -706,7 +703,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 tracked_map.find(key);
 
             if (tmi == tracked_map.end()) {
-                concls->response_stream << "Invalid request";
+                stream << "Invalid request";
                 concls->httpcode = 400;
                 return 1;
             }
@@ -736,7 +733,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
                         if (mapvec.size() != 2) {
                             // fprintf(stderr, "debug - malformed rename pair\n");
-                            concls->response_stream << "Invalid request: "
+                            stream << "Invalid request: "
                                 "Expected field, rename";
                             concls->httpcode = 400;
                             return 1;
@@ -755,8 +752,8 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                     regexdata = structdata->getStructuredByKey("regex");
                 }
             } catch(const StructuredDataException e) {
-                concls->response_stream << "Invalid request: ";
-                concls->response_stream << e.what();
+                stream << "Invalid request: ";
+                stream << e.what();
                 concls->httpcode = 400;
                 return 1;
             }
@@ -1068,14 +1065,14 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 wrapper = outdevs;
             }
 
-            entrytracker->Serialize(httpd->GetSuffix(tokenurl[3]), concls->response_stream, 
+            entrytracker->Serialize(httpd->GetSuffix(tokenurl[3]), stream, 
                     wrapper, &rename_map);
             return 1;
 
         } else if (tokenurl[2] == "last-time") {
             if (tokenurl.size() < 5) {
                 // fprintf(stderr, "debug - couldn't parse ts\n");
-                concls->response_stream << "Invalid request";
+                stream << "Invalid request";
                 concls->httpcode = 400;
                 return 1;
             }
@@ -1085,7 +1082,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
             if (sscanf(tokenurl[3].c_str(), "%ld", &lastts) != 1 ||
                     !Httpd_CanSerialize(tokenurl[4])) {
                 // fprintf(stderr, "debug - couldn't parse/deserialize\n");
-                concls->response_stream << "Invalid request";
+                stream << "Invalid request";
                 concls->httpcode = 400;
                 return 1;
             }
@@ -1164,12 +1161,12 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
             wrapper->add_map(outdevs);
 
             entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), 
-                    concls->response_stream, wrapper, &rename_map);
+                    stream, wrapper, &rename_map);
             return MHD_YES;
         }
     }
 
-    concls->response_stream << "OK";
+    stream << "OK";
 
     return MHD_YES;
 }

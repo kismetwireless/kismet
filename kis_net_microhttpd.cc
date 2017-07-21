@@ -1171,7 +1171,6 @@ ssize_t Kis_Net_Httpd_Buffer_Stream_Handler::buffer_event_cb(void *cls, uint64_t
         // or b) sent what we gave it; we need to hold the thread until we
         // get more data in the buf, so we block until we have data
         stream_aux->block_until_data();
-        // fprintf(stderr, "debug - knmh - conclude webserver buffer event block\n");
         return 0;
     }
 
@@ -1213,8 +1212,17 @@ int Kis_Net_Httpd_Buffer_Stream_Handler::Httpd_HandleGetRequest(Kis_Net_Httpd *h
         new Kis_Net_Httpd_Buffer_Stream_Aux(this, connection, rbh, NULL, NULL);
     connection->custom_extension = aux;
 
-    Httpd_CreateStreamResponse(httpd, connection, url, method, upload_data,
-            upload_data_size);
+    // Run it in its own thread and set up the connection streaming object
+    std::thread t([this, httpd, connection, url, method, upload_data, upload_data_size]{
+            Httpd_CreateStreamResponse(httpd, connection, url, method, upload_data,
+                    upload_data_size);
+            // Trigger 'error' when the function is complete, causing us to finish 
+            // the stream
+            Kis_Net_Httpd_Buffer_Stream_Aux *saux = 
+                (Kis_Net_Httpd_Buffer_Stream_Aux *) connection->custom_extension;
+            saux->trigger_error();
+            });
+    t.detach();
 
     if (connection->response == NULL) {
         connection->response = 
@@ -1240,8 +1248,17 @@ int Kis_Net_Httpd_Buffer_Stream_Handler::Httpd_HandlePostRequest(Kis_Net_Httpd *
 
     connection->custom_extension = aux;
 
-    // Call the post complete and populate our stream
-    Httpd_PostComplete(connection);
+    // Call the post complete and populate our stream; run it in it's own thread so
+    // we can async empty the buffer
+    std::thread t([this, connection] {
+            Httpd_PostComplete(connection);
+            // Trigger 'error' when the function is complete, causing us to finish 
+            // the stream
+            Kis_Net_Httpd_Buffer_Stream_Aux *saux = 
+                (Kis_Net_Httpd_Buffer_Stream_Aux *) connection->custom_extension;
+            saux->trigger_error();
+            });
+    t.detach();
 
     if (connection->response == NULL) {
         connection->response = 
