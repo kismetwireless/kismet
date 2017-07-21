@@ -47,7 +47,7 @@ Chainbuf::Chainbuf(size_t in_chunk, size_t pre_allocate) {
 Chainbuf::~Chainbuf() {
     local_locker lock(&buffer_locker);
 
-    fprintf(stderr, "debug - freeing chainbuf, total size %lu chunks %lu, largest allocation delta %lu\n", total_sz, (total_sz / chunk_sz) + 1, alloc_delta);
+    // fprintf(stderr, "debug - freeing chainbuf, total size %lu chunks %lu, largest allocation delta %lu\n", total_sz, (total_sz / chunk_sz) + 1, alloc_delta);
 
     clear();
 }
