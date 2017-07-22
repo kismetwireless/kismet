@@ -193,7 +193,7 @@ int SerialClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
         // Peek the data into our buffer
         ret = handler->ZeroCopyPeekWriteBufferData((void **) &buf, len);
 
-        if ((iret = write(device_fd, buf, len)) < 0) {
+        if ((iret = write(device_fd, buf, ret)) < 0) {
             if (errno != EINTR && errno != EAGAIN) {
                 // Push the error upstream
                 msg << "Serial client error writing to " << device << "@" << baud <<
