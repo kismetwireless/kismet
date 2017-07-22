@@ -569,3 +569,46 @@ BufferHandlerOStreambuf::int_type BufferHandlerOStreambuf::overflow(int_type ch)
     return 1;
 }
 
+BufferHandlerOStringStreambuf::~BufferHandlerOStringStreambuf() {
+    rb_handler = NULL;
+}
+
+std::streamsize BufferHandlerOStringStreambuf::xsputn(const char_type *s, std::streamsize n) {
+    std::streamsize sz = std::stringbuf::xsputn(s, n);
+
+    if (str().length() >= 1024)
+        sync();
+
+    return sz;
+}
+
+BufferHandlerOStringStreambuf::int_type BufferHandlerOStringStreambuf::overflow(int_type ch) {
+    BufferHandlerOStringStreambuf::int_type it = std::stringbuf::overflow(ch);
+
+    if (str().length() >= 1024)
+        sync();
+
+    return it;
+}
+
+int BufferHandlerOStringStreambuf::sync() {
+    if (rb_handler == NULL) {
+        return -1;
+    }
+
+    size_t sz = str().length();
+
+    // fprintf(stderr, "debug - ostringstreambuf syncing %lu\n", sz);
+    ssize_t written = 
+        rb_handler->PutWriteBufferData((void *) str().c_str(), (size_t) sz, true);
+
+    if (written != (ssize_t) sz) {
+        fprintf(stderr, "debug - ostringstreambuf couldn't write temp string, wrote %lu of %lu\n", written, sz);
+        return -1;
+    }
+
+    str("");
+
+    return 0;
+}
+

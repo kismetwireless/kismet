@@ -279,9 +279,7 @@ public:
             void *in_aux,
             function<void (Kis_Net_Httpd_Buffer_Stream_Aux *)> in_free_aux);
 
-    virtual ~Kis_Net_Httpd_Buffer_Stream_Aux() {
-        local_locker lock(&aux_mutex);
-    }
+    virtual ~Kis_Net_Httpd_Buffer_Stream_Aux();
 
     bool get_in_error() { 
         local_locker lock(&aux_mutex);
@@ -301,6 +299,19 @@ public:
 
         aux = in_aux;
         free_aux_cb = in_free_aux;
+    }
+
+    void set_sync(function<void (Kis_Net_Httpd_Buffer_Stream_Aux *)> in_cb) {
+        local_locker lock(&aux_mutex);
+
+        sync_cb = in_cb;
+    }
+
+    void sync() {
+        local_locker lock(&aux_mutex);
+
+        if (sync_cb)
+            sync_cb(this);
     }
 
     // RBI interface to notify when data is in the buffer
@@ -331,12 +342,20 @@ public:
     // Are we in error?
     bool in_error;
 
+    // Possible worker thread for processing the buffer fill
+    std::thread generator_thread;
+
     // Additional arbitrary data - Used by the buffer streamer to store the
     // buffer processor, and by the CPP Streamer to store the streambuf
     void *aux;
 
     // Free function
     function<void (Kis_Net_Httpd_Buffer_Stream_Aux *)> free_aux_cb;
+
+    // Sync function; called to make sure the buffer is flushed and fully synced 
+    // prior to flagging it complete
+    function<void (Kis_Net_Httpd_Buffer_Stream_Aux *)> sync_cb;
+    
 };
 
 

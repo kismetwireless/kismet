@@ -389,17 +389,27 @@ void Devicetracker::Httpd_CreateStreamResponse(
         return;
     }
 
+    // Allocate our buffer aux
     Kis_Net_Httpd_Buffer_Stream_Aux *saux = 
         (Kis_Net_Httpd_Buffer_Stream_Aux *) connection->custom_extension;
 
-    BufferHandlerOStreambuf *streambuf = 
-        new BufferHandlerOStreambuf(saux->get_rbhandler());
+    BufferHandlerOStringStreambuf *streambuf = 
+        new BufferHandlerOStringStreambuf(saux->get_rbhandler());
     std::ostream stream(streambuf);
 
+    // Set our cleanup function
     saux->set_aux(streambuf, 
             [streambuf](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
                 if (aux->aux != NULL)
                     delete((BufferHandlerOStreambuf *) (aux->aux));
+            });
+
+    // Set our sync function which is called by the webserver side before we
+    // clean up...
+    saux->set_sync([streambuf](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
+            if (aux->aux != NULL) {
+                ((BufferHandlerOStringStreambuf *) aux->aux)->pubsync();
+                }
             });
 
 

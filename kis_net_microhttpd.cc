@@ -1117,6 +1117,15 @@ Kis_Net_Httpd_Buffer_Stream_Aux::Kis_Net_Httpd_Buffer_Stream_Aux(
     ringbuf_handler->SetWriteBufferInterface(this);
 }
 
+Kis_Net_Httpd_Buffer_Stream_Aux::~Kis_Net_Httpd_Buffer_Stream_Aux() {
+    local_locker lock(&aux_mutex);
+
+    if (ringbuf_handler) {
+        ringbuf_handler->RemoveWriteBufferInterface();
+        ringbuf_handler->SetProtocolErrorCb(NULL);
+    }
+}
+
 void Kis_Net_Httpd_Buffer_Stream_Aux::BufferAvailable(size_t in_amt) {
     // All we need to do here is unlock the conditional lock; the 
     // buffer_event_cb callback will unlock and read from the buffer, then
@@ -1196,6 +1205,11 @@ ssize_t Kis_Net_Httpd_Buffer_Stream_Handler::buffer_event_cb(void *cls, uint64_t
 static void free_buffer_aux_callback(void *cls) {
     Kis_Net_Httpd_Buffer_Stream_Aux *aux = (Kis_Net_Httpd_Buffer_Stream_Aux *) cls;
 
+    // Wait for the thread to complete
+    if (aux->generator_thread.joinable()) {
+        aux->generator_thread.join();
+    }
+
     if (aux->free_aux_cb != NULL) {
         aux->free_aux_cb(aux);
     }
@@ -1221,8 +1235,11 @@ int Kis_Net_Httpd_Buffer_Stream_Handler::Httpd_HandleGetRequest(Kis_Net_Httpd *h
         shared_ptr<conditional_locker<int> > cl(new conditional_locker<int>());
         cl->lock();
 
-        // Run it in its own thread and set up the connection streaming object
-        std::thread t([this, cl, httpd, connection, url, method, upload_data, upload_data_size]{
+        // Run it in its own thread and set up the connection streaming object; we MUST pass
+        // the aux as a direct pointer because the microhttpd backend can delete the 
+        // connection BEFORE calling our cleanup on our response!
+        aux->generator_thread =
+            std::thread([this, cl, aux, httpd, connection, url, method, upload_data, upload_data_size]{
                 cl->unlock(1);
 
                 Httpd_CreateStreamResponse(httpd, connection, url, method, upload_data,
@@ -1231,12 +1248,10 @@ int Kis_Net_Httpd_Buffer_Stream_Handler::Httpd_HandleGetRequest(Kis_Net_Httpd *h
                 // Trigger 'error' when the function is complete, causing us to finish 
                 // the stream
                 
-                Kis_Net_Httpd_Buffer_Stream_Aux *saux = 
-                    (Kis_Net_Httpd_Buffer_Stream_Aux *) connection->custom_extension;
-
-                saux->trigger_error();
+                aux->sync();
+                aux->trigger_error();
                 });
-        t.detach();
+        // aux->generator_thread.detach();
 
         // Block until the populating thread has launched
         cl->block_until();
@@ -1268,18 +1283,20 @@ int Kis_Net_Httpd_Buffer_Stream_Handler::Httpd_HandlePostRequest(Kis_Net_Httpd *
 
         connection->custom_extension = aux;
 
-        // Call the post complete and populate our stream; run it in it's own thread so
-        // we can async empty the buffer
-        std::thread t([this, cl, connection] {
+        // Call the post complete and populate our stream;
+        // Run it in its own thread and set up the connection streaming object; we MUST pass
+        // the aux as a direct pointer because the microhttpd backend can delete the 
+        // connection BEFORE calling our cleanup on our response!
+        aux->generator_thread =
+            std::thread([this, cl, aux, connection] {
                 Httpd_PostComplete(connection);
                 cl->unlock(1);
                 // Trigger 'error' when the function is complete, causing us to finish 
                 // the stream
-                Kis_Net_Httpd_Buffer_Stream_Aux *saux = 
-                    (Kis_Net_Httpd_Buffer_Stream_Aux *) connection->custom_extension;
-                saux->trigger_error();
+                aux->sync();
+                aux->trigger_error();
                 });
-        t.detach();
+        // aux->generator_thread.detach();
 
         cl->block_until();
 

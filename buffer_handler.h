@@ -337,6 +337,27 @@ private:
     shared_ptr<conditional_locker<size_t> > blocking_cl;
 };
 
+// A C++ streambuf-compatible wrapper around a buf handler with an interstitial string
+// cache
+struct BufferHandlerOStringStreambuf : public std::stringbuf {
+    BufferHandlerOStringStreambuf(shared_ptr<BufferHandlerGeneric > in_rbhandler) :
+        rb_handler(in_rbhandler) { }
+
+    virtual ~BufferHandlerOStringStreambuf();
+
+protected:
+    // Wrap the stringbuf functions 
+    std::streamsize xsputn(const char_type *s, std::streamsize n) override;
+    int_type overflow(int_type ch) override;
+
+    int sync() override;
+
+private:
+    // buf handler we bind to
+    shared_ptr<BufferHandlerGeneric > rb_handler;
+    
+};
+
 
 // buffer interface, interacts with a buffer handler 
 class BufferInterface {
