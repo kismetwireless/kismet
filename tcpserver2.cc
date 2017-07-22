@@ -132,7 +132,9 @@ int TcpServerV2::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
     }
 
     for (auto i = handler_map.begin(); i != handler_map.end(); ++i) {
-        FD_SET(i->first, out_rset);
+        if (i->second->GetWriteBufferAvailable()) {
+            FD_SET(i->first, out_rset);
+        }
 
         if (maxfd < i->first)
             maxfd = i->first;
@@ -201,7 +203,7 @@ int TcpServerV2::Poll(fd_set& in_rset, fd_set& in_wset) {
                 r_sz = i->second->ZeroCopyReserveReadBufferData((void **) &buf, 
                         i->second->GetReadBufferAvailable());
 
-                if (r_sz <= 0) {
+                if (r_sz < 0) {
                     msg << "TCP server closing connection from client " << i->first << 
                         " unable to reserve space in buffer, something went wrong";
                     i->second->CommitReadBufferData(buf, 0);
@@ -209,7 +211,7 @@ int TcpServerV2::Poll(fd_set& in_rset, fd_set& in_wset) {
                     KillConnection(i->first);
                 }
 
-                if ((ret = read(i->first, buf, len)) <= 0) {
+                if ((ret = read(i->first, buf, r_sz)) <= 0) {
                     if (errno != EINTR && errno != EAGAIN) {
                         // Push the error upstream if we failed to read here
                         if (ret == 0) {
@@ -274,7 +276,7 @@ int TcpServerV2::Poll(fd_set& in_rset, fd_set& in_wset) {
                 }
             } else {
                 // Consume whatever we managed to write
-                i->second->PeekFreeReadBufferData(buf);
+                i->second->PeekFreeWriteBufferData(buf);
                 i->second->ConsumeWriteBufferData(iret);
             }
         }
