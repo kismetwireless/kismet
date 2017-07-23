@@ -642,6 +642,14 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                     delete((BufferHandlerOStreambuf *) (aux->aux));
             });
 
+    // Set our sync function which is called by the webserver side before we
+    // clean up...
+    saux->set_sync([streambuf](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
+            if (aux->aux != NULL) {
+                ((BufferHandlerOStringStreambuf *) aux->aux)->pubsync();
+                }
+            });
+
     // All URLs are at least /devices/summary/x or /devices/last-time/ts/x
     if (tokenurl.size() < 4) {
         stream << "Invalid request";
