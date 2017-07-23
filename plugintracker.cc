@@ -387,10 +387,6 @@ int Plugintracker::ActivatePlugins() {
             string module = js.substr(0, cpos);
             string path = js.substr(cpos + 1, js.length());
 
-            // Alias the plugin directory
-            httpd->RegisterStaticDir("/plugin/" + x->get_plugin_dirname() + "/",
-                    x->get_plugin_path() + "/httpd/");
-
             if (!httpdregistry->register_js_module(module, path)) {
                 _MSG("Plugin '" + x->get_plugin_path() + "' could not "
                         "register JS plugin module", MSGFLAG_ERROR);
@@ -398,6 +394,9 @@ int Plugintracker::ActivatePlugins() {
             }
         }
 
+        // Alias the plugin directory
+        httpd->RegisterStaticDir("/plugin/" + x->get_plugin_dirname() + "/",
+                x->get_plugin_path() + "/httpd/");
 
         _MSG("Plugin '" + x->get_plugin_name() + "' loaded...", MSGFLAG_INFO);
 
