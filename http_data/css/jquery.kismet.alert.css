@@ -1,5 +1,7 @@
 div.ka-top-icon {
     display: inline-block;
+    font-size: 10px;
+    font-weight: normal;
     padding-left: 5px;
     padding-right: 5px;
 }

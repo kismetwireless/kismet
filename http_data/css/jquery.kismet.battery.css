@@ -1,10 +1,12 @@
 span.battime {
     font-size: 10pt;
+    font-weight: normal;
     padding-right: 5px;
 }
 
 i.batpower {
     font-size: 14pt;
+    font-weight: normal;
 }
 
 @keyframes battery-blink {
