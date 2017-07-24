@@ -1,0 +1,202 @@
+<html>
+
+<title>Kismet</title>
+
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<script src="/js/jquery-3.1.0.min.js"></script>
+<script src="/js/jquery-ui.min.js"></script>
+<script src="/js/jquery.ui.touch-punch.min.js"></script>
+<script src="/js/jquery.ajax.binary.js"></script>
+<script src="/js/jquery.jspanel-compiled.min.js"></script>
+<script src="/js/simple-expand.min.js"></script>
+
+<script src="/js/jquery.sparkline.min.js"></script>
+
+<script src="/js/raphael.min.js"></script>
+<script src="/js/morris.min.js"></script>
+
+<script src="/js/Chart.bundle.min.js"></script>
+
+<script src="/js/js.storage.min.js"></script>
+
+<script src="/js/tooltipster.bundle.min.js"></script>
+
+<script src="/js/kismet.utils.js"></script>
+
+<!-- Core UI elements that get loaded first, we need these for some of the kismet
+    UI base code unfortunately even if we don't implement them -->
+<script src="/js/kismet.ui.sidebar.js"></script>
+<script src="/js/kismet.ui.tabpane.js"></script>
+<script src="/js/kismet.ui.settings.js"></script>
+
+<script src="/js/kismet.ui.js"></script>
+<script src="/js/kismet.ui.base.js"></script>
+
+<script src="/js/kismet.ui.iconbar.js"></script>
+<script src="/js/jquery.kismet.alert.js"></script>
+<script src="/js/jquery.kismet.battery.js"></script>
+<script src="/js/jquery.kismet.channeldisplay.js"></script>
+
+<script src="/js/kismet.ui.dot11.js"></script>
+
+<!-- Local includes from our relative js dir -->
+<script src="js/packery.pkgd.min.js"></script>
+
+<link rel="stylesheet" type="text/css" href="/css/font-awesome.min.css" />
+
+<link rel="stylesheet" type="text/css" href="/css/tooltipster.bundle.min.css" />
+
+<link rel="stylesheet" type="text/css" href="/css/jquery-ui.min.css" />
+<link rel="stylesheet" type="text/css" href="/css/jquery.jspanel.min.css" />
+<link rel="stylesheet" type="text/css" href="/css/morris.css" />
+
+<link rel="stylesheet" type="text/css" href="/css/jquery.kismet.messagebus.css" />
+<link rel="stylesheet" type="text/css" href="/css/jquery.kismet.channeldisplay.css" />
+<link rel="stylesheet" type="text/css" href="/css/jquery.kismet.alert.css" />
+<link rel="stylesheet" type="text/css" href="/css/jquery.kismet.battery.css" />
+<link rel="stylesheet" type="text/css" href="/css/jquery.kismet.channeldisplay.css" />
+
+<link rel="stylesheet" type="text/css" href="/css/reset.css" />
+<link rel="stylesheet" type="text/css" href="/css/text.css" /> 
+<link rel="stylesheet" type="text/css" href="/css/layout.css" /> 
+
+<link rel="stylesheet" type="text/css" href="/css/kismet.css" />
+
+<!-- Local includes from our relative css link -->
+<link rel="stylesheet" type="text/css" href="css/dashboard.css" />
+
+<script>
+
+function datasources() {
+    $.get("/datasource/all_sources.json")
+    .done(function(data) {
+        $('#numsources').html(data.length);
+    })
+    .always(function() {
+        setTimeout(datasources, 1000);
+    });
+}
+
+function status() {
+    $.get("/system/status.json")
+    .done(function(data) {
+        $('#numdevs').html(data['kismet.system.devices.count']);
+
+        var now = (data['kismet.device.packets_rrd']['kismet.common.rrd.last_time'] - 1) % 60;
+        $('#numpackets').html(data['kismet.device.packets_rrd']['kismet.common.rrd.minute_vec'][now]);
+
+        var simple_rrd =
+            kismet.RecalcRrdData(
+                data['kismet.device.packets_rrd']['kismet.common.rrd.last_time'],
+                data['kismet.device.packets_rrd']['kismet.common.rrd.last_time'],
+                kismet.RRD_SECOND,
+                data['kismet.device.packets_rrd']['kismet.common.rrd.minute_vec']);
+
+        var w = $('#pps').width();
+        var h = $('#pps').height();
+        var bw = w / 63;
+
+        w = Math.round(w) + 'px';
+        h = Math.round(h) + 'px';
+
+        // Render the sparkline
+        $('#pps').sparkline(simple_rrd,
+            { type: "bar",
+                width: w,
+                height: h,
+                barWidth: bw,
+                barColor: '#909090',
+                nullColor: '#000000',
+                zeroColor: '#000000'
+            });
+        })
+    .always(function() {
+        setTimeout(status, 1000);
+    });
+}
+
+
+$(function() {
+    // Set a global timeout
+    $.ajaxSetup({
+        timeout:5000,
+        xhrFields: {
+            // withCredentials: true
+        }
+    });
+
+    kismet_ui_iconbar.AddIconbarItem({
+        id: 'alert',
+        priority: 125,
+        createCallback: function(div) {
+            div.alert();
+        },
+    });
+
+    kismet_ui_iconbar.AddIconbarItem({
+        id: 'battery',
+        priority: 150,
+        createCallback: function(div) {
+            div.battery();
+        }
+    });
+
+
+    kismet_ui_iconbar.makeIconbar($('#iconbar'));
+
+    $('.grid').packery({
+        itemSelector: '.grid-item',
+        percentPosition: true,
+    });
+
+    datasources();
+    status();
+    $('#channels').channels();
+});
+
+</script>
+
+</head>
+
+<body>
+
+<div class="k-p-db-header">
+<div class="topright_holder" id="iconbar"></div>
+Kismet - Simplified Dashboard
+</div>
+
+<div class="grid k-p-db-grid">
+  <div class="grid-item"><div class="grid-inner">
+    <div class="k-p-db-bignum" id="numsources">--</div>
+    <div class="k-p-db-subtitle">Active Sources</div>
+  </div></div>
+
+  <div class="grid-item"><div class="grid-inner">
+    <div class="k-p-db-bignum" id="numpackets">--</div>
+    <div class="k-p-db-subtitle">Packets/Sec</div>
+  </div></div>
+
+  <div class="grid-item"><div class="grid-inner">
+    <div class="k-p-db-bignum" id="numdevs">--</div>
+    <div class="k-p-db-subtitle">Devices</div>
+  </div></div>
+
+  <div class="grid-item"><div class="grid-inner">
+    <div class="k-p-db-bignum" id="numaps">--</div>
+    <div class="k-p-db-subtitle">Access Points</div>
+  </div></div>
+
+  <div class="grid-item grid-item--widthfull"><div class="grid-inner">
+  <center>Packets/Sec Past Minute</center>
+  <div class="pps" id="pps"></div>
+  </div></div>
+
+  <div class="grid-item grid-item--widthfull channels"><div class="grid-inner" id="channels">
+  </div></div>
+</div>
+
+</body>
+</html>
+

@@ -1,0 +1,16 @@
+Simplified Kismet Dashboard
+--------------------------------
+
+This plugin creates a simplified alternate UI for Kismet, presenting some
+of the core data as a dashboard-style interface.
+
+It can be installed with:
+
+make plugins-userinstall
+-or-
+make plugins-install
+
+and accessed via:
+
+http://localhost:2501/plugin/dashboard/
+
