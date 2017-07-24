@@ -766,6 +766,10 @@ public:
     void lock_devicelist();
     void unlock_devicelist();
 
+    shared_ptr<kis_tracked_rrd<> > get_packets_rrd() {
+        return packets_rrd;
+    }
+
 protected:
 	void SaveTags();
 

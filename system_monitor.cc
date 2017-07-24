@@ -60,6 +60,9 @@ Systemmonitor::Systemmonitor(GlobalRegistry *in_globalreg) :
 
     timer_id = 
         globalreg->timetracker->RegisterTimer(0, &trigger_tm, 0, this);
+
+    // Link the RRD out of the devicetracker
+    add_map(devicetracker->get_packets_rrd());
 }
 
 Systemmonitor::~Systemmonitor() {
