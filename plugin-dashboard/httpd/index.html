@@ -73,6 +73,18 @@ function datasources() {
     $.get("/datasource/all_sources.json")
     .done(function(data) {
         $('#numsources').html(data.length);
+
+        var chans = {};
+        for (var i = 0; i < data.length; i++) {
+            var ds = data[i];
+
+            for (var c in ds['kismet.datasource.channels']) {
+                console.log(chans);
+                chans[ds['kismet.datasource.channels'][c]] = 1;
+            }
+        }
+
+        $('#numchans').html(Object.keys(chans).length);
     })
     .always(function() {
         setTimeout(datasources, 1000);
@@ -174,6 +186,11 @@ Kismet - Simplified Dashboard
   </div></div>
 
   <div class="grid-item"><div class="grid-inner">
+    <div class="k-p-db-bignum" id="numchans">--</div>
+    <div class="k-p-db-subtitle">Channels</div>
+  </div></div>
+
+  <div class="grid-item"><div class="grid-inner">
     <div class="k-p-db-bignum" id="numpackets">--</div>
     <div class="k-p-db-subtitle">Packets/Sec</div>
   </div></div>
@@ -181,11 +198,6 @@ Kismet - Simplified Dashboard
   <div class="grid-item"><div class="grid-inner">
     <div class="k-p-db-bignum" id="numdevs">--</div>
     <div class="k-p-db-subtitle">Devices</div>
-  </div></div>
-
-  <div class="grid-item"><div class="grid-inner">
-    <div class="k-p-db-bignum" id="numaps">--</div>
-    <div class="k-p-db-subtitle">Access Points</div>
   </div></div>
 
   <div class="grid-item grid-item--widthfull"><div class="grid-inner">
