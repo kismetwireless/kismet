@@ -230,6 +230,17 @@ AC_CHECK_HEADERS([errno.h stdlib.h string.h sys/socket.h sys/time.h sys/wait.h u
 AC_CHECK_HEADERS([getopt.h])
 AC_CHECK_HEADERS([glob.h])
 
+# Configure for a remote-capture-only build
+caponly=0
+AC_ARG_ENABLE(capture-tools-only,
+	[  --enable-capture-tools-only  Configure and build for capture tools and remote only],
+	[case "${enableval}" in
+	  no) caponly=0 ;;
+	   *) caponly=1 ;;
+	 esac],
+	[caponly=0]
+)
+
 HAVE_LIBHACKRF=0
 HAVE_LIBFFTW3=0
 HAVE_HACKRF_H=0
@@ -522,7 +533,7 @@ if test "$foundcxxl"x == "x"; then
 				 foundcxxl="stdc++" CXXLIBS="$CXXLIBS -lstdc++")
 fi
 
-if test "$foundcxxl"x == "x"; then
+if test "$foundcxxl"x == "x" -a "$caponly" -eq 1; then
 	AC_MSG_ERROR(Neither uclibc uClibc++ or standard gcc stdc++ libraries found.)
 fi
 CC="$oCC"
@@ -548,12 +559,17 @@ fi
 AC_SUBST(mangrp)
 
 # We need microhttpd
+HAVE_LIBMICROHTTPD=0
 AC_CHECK_LIB([microhttpd], [MHD_start_daemon],
-             KSLIBS="$KSLIBS -lmicrohttpd",
-             AC_MSG_ERROR([libmicrohttpd is needed and is not available]))
-AC_CHECK_HEADER([microhttpd.h], 
-	AC_DEFINE(HAVE_MICROHTTPD_H, 1, microhttpd is present),
-    AC_MSG_ERROR([microhttpd.h is not available check that libmicrohttpd-dev is installed]))
+             KSLIBS="$KSLIBS -lmicrohttpd" HAVE_LIBMICROHTTPD=1,
+             HAVE_LIBMICROHTTPD=0)
+if test "$HAVE_LIBMICROHTTPD" -eq 0 -a "$caponly" -eq 0; then
+    AC_MSG_ERROR([libmicrohttpd is needed and is not available])
+elif test "$HAVE_LIBMICROHTTPD" -eq 1; then
+    AC_CHECK_HEADER([microhttpd.h], 
+    	AC_DEFINE(HAVE_MICROHTTPD_H, 1, microhttpd is present),
+        AC_MSG_ERROR([microhttpd.h is not available check that libmicrohttpd-dev is installed]))
+fi
 
 # Check for ncurses for pretty wrapper; no longer mandatory
 
@@ -1202,8 +1218,6 @@ if test "$cygwin" = "yes"; then
 	suid="no"
 fi
 
-
-# gpsmap checks
 
 # We include GPS handling code regardless, for now.
 AC_DEFINE(HAVE_GPS, 1, GPS support will be built.)

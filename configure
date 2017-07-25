@@ -731,6 +731,7 @@ SHELL'
 ac_subst_files=''
 ac_user_opts='
 enable_option_checking
+enable_capture_tools_only
 enable_largefile
 enable_mutextimeout
 with_linuxheaders
@@ -1396,6 +1397,7 @@ Optional Features:
   --disable-option-checking  ignore unrecognized --enable/--with options
   --disable-FEATURE       do not include FEATURE (same as --enable-FEATURE=no)
   --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
+  --enable-capture-tools-only  Configure and build for capture tools and remote only
   --disable-largefile     omit support for large files
   --disable-mutextimeout  disable failsafe mutex lock timeout
   --disable-linuxwext     disable Linux wireless extensions
@@ -5692,6 +5694,20 @@ fi
 done
 
 
+# Configure for a remote-capture-only build
+caponly=0
+# Check whether --enable-capture-tools-only was given.
+if test "${enable_capture_tools_only+set}" = set; then :
+  enableval=$enable_capture_tools_only; case "${enableval}" in
+	  no) caponly=0 ;;
+	   *) caponly=1 ;;
+	 esac
+else
+  caponly=0
+
+fi
+
+
 HAVE_LIBHACKRF=0
 HAVE_LIBFFTW3=0
 HAVE_HACKRF_H=0
@@ -7543,7 +7559,7 @@ fi
 
 fi
 
-if test "$foundcxxl"x == "x"; then
+if test "$foundcxxl"x == "x" -a "$caponly" -eq 1; then
 	as_fn_error $? "Neither uclibc uClibc++ or standard gcc stdc++ libraries found." "$LINENO" 5
 fi
 CC="$oCC"
@@ -7574,6 +7590,7 @@ fi
 
 
 # We need microhttpd
+HAVE_LIBMICROHTTPD=0
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for MHD_start_daemon in -lmicrohttpd" >&5
 $as_echo_n "checking for MHD_start_daemon in -lmicrohttpd... " >&6; }
 if ${ac_cv_lib_microhttpd_MHD_start_daemon+:} false; then :
@@ -7611,12 +7628,15 @@ fi
 { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_microhttpd_MHD_start_daemon" >&5
 $as_echo "$ac_cv_lib_microhttpd_MHD_start_daemon" >&6; }
 if test "x$ac_cv_lib_microhttpd_MHD_start_daemon" = xyes; then :
-  KSLIBS="$KSLIBS -lmicrohttpd"
+  KSLIBS="$KSLIBS -lmicrohttpd" HAVE_LIBMICROHTTPD=1
 else
-  as_fn_error $? "libmicrohttpd is needed and is not available" "$LINENO" 5
+  HAVE_LIBMICROHTTPD=0
 fi
 
-ac_fn_cxx_check_header_mongrel "$LINENO" "microhttpd.h" "ac_cv_header_microhttpd_h" "$ac_includes_default"
+if test "$HAVE_LIBMICROHTTPD" -eq 0 -a "$caponly" -eq 0; then
+    as_fn_error $? "libmicrohttpd is needed and is not available" "$LINENO" 5
+elif test "$HAVE_LIBMICROHTTPD" -eq 1; then
+    ac_fn_cxx_check_header_mongrel "$LINENO" "microhttpd.h" "ac_cv_header_microhttpd_h" "$ac_includes_default"
 if test "x$ac_cv_header_microhttpd_h" = xyes; then :
 
 $as_echo "#define HAVE_MICROHTTPD_H 1" >>confdefs.h
@@ -7626,6 +7646,7 @@ else
 fi
 
 
+fi
 
 # Check for ncurses for pretty wrapper; no longer mandatory
 
@@ -9674,8 +9695,6 @@ if test "$cygwin" = "yes"; then
 	suid="no"
 fi
 
-
-# gpsmap checks
 
 # We include GPS handling code regardless, for now.
 
