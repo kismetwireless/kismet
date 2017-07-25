@@ -1045,28 +1045,6 @@ fi
 
 # havenetlink=no
 if test "$linux" = "yes"; then
-# havenetlink=yes
-# 	AC_CHECK_HEADERS([asm/types.h netlink/genl/genl.h netlink/genl/family.h netlink/genl/ctrl.h netlink/msg.h netlink/attr.h linux/nl80211.h linux/if_arp.h linux/wireless.h],
-# 	AC_DEFINE(HAVE_NETLINKHEADERS, 1, Netlink headers are there),
-# 	havenetlink=no,
-# 	[#include <sys/socket.h>])
-havenetlink=yes
-
-#if test "$havenetlink" = "yes"; then
-#	AC_CHECK_LIB([nl], [nl_handle_alloc],
-#    AC_DEFINE(HAVE_LIBNL, 1, libnl netlink library), havenetlink=no)
-#else
-#	AC_MSG_WARN(Missing libnl or libnl too old support will not be able to control mac80211 vaps)
-#fi
-
-netlink_force=no
-
-AC_ARG_WITH(netlink-version,
-	[  --with-netlink-version[=1|2|3|tiny]     Force libnl version ],
-	[
-	netlink_force=$withval
-	])
-
 AC_CHECK_PROG(havepkgconfig, [pkg-config], yes, no)
 if test "$havepkgconfig" = "no"; then
   AC_MSG_WARN(Missing pkg-config will lead to multiple other checks failing)
@@ -1116,16 +1094,29 @@ NLLIBS=""
 NLCFLAGS=""
 nlname=""
 
+havenetlink=yes
+netlink_force=no
+
+AC_ARG_WITH(netlink-tiny,
+	[  --with-netlink-tiny                       Force libnl-tiny ],
+	[
+	netlink_force="tiny"
+	])
+
 if test "$havenetlink" = "yes"; then
 	PKG_CHECK_MODULES(libnl30, [libnl-3.0], libnl30=yes, libnl30=no)
 	PKG_CHECK_MODULES(libnlgenl30, [libnl-genl-3.0], libnlgenl30=yes, libnlgenl30=no)
 	PKG_CHECK_MODULES(libnl20, [libnl-2.0], libnl20=yes, libnl20=no)
 	PKG_CHECK_MODULES(libnl1, [libnl-1], libnl1=yes, libnl1=no)
-    AC_CHECK_HEADER([libnl-tiny/netlink/netlink.h], libnltiny=yes, libnltiny=no)
 
 	picked_nl=no
-    if test $picked_nl = "no" -a "$libnltiny" = "yes"; then
+
+    if test $netlink_force = "tiny"; then
         picked_nl="tiny"
+        AC_CHECK_HEADER([netlink/netlink.h], 
+                AC_DEFINE(HAVE_LIBNLTINY_HEADERS, 1, [libnltiny headers present]), 
+                AC_MSG_ERROR([libnl-tiny requested but could not find headers]))
+
         AC_DEFINE(HAVE_LIBNL, 1, libnl netlink library)
         AC_DEFINE(HAVE_LIBNLTINY, 1, libnl-2.0 netlink library)
         nlname = "libnl-tiny"

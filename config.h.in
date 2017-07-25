@@ -117,6 +117,9 @@
 /* libnl-2.0 netlink library */
 #undef HAVE_LIBNLTINY
 
+/* libnltiny headers present */
+#undef HAVE_LIBNLTINY_HEADERS
+
 /* NetworkManager interface library */
 #undef HAVE_LIBNM
 
