@@ -10,13 +10,13 @@ PKG_RELEASE:=1
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://www.kismetwireless.net/git/kismet.git
 #PKG_SOURCE_URL:=/home/dragorn/src/kismet
-PKG_SOURCE_VERSION:=9e0311c52a4547741f81064a8dc808a01192387f
+PKG_SOURCE_VERSION:=001db22614971d94878d8177ff881baa01eef9d6
 PKG_SOURCE_SUBDIR:=$(PKG_NAME)-$(PKG_VERSION)
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION)-$(PKG_SOURCE_VERSION).tar.gz
 
 include $(INCLUDE_DIR)/package.mk
 
-PKG_BUILD_DEPENDS:=+libpthread +libpcap +libpcre +libmicrohttpd +libnl +libcap +libncurses +libstdcpp
+PKG_BUILD_DEPENDS:=+libpthread +libpcap +libnl +libcap
 
 define Package/kismet-remote
   SECTION:=net
@@ -31,12 +31,13 @@ define Package/kismet-remote/description
 endef
 
 define Build/Configure
-  $(call Build/Configure/Default,--with-linux-headers=$(LINUX_DIR)) --with-remote-only
+  $(call Build/Configure/Default,--with-linux-headers=$(LINUX_DIR)) 
 endef
 
 CONFIGURE_ARGS += \
 	--sysconfdir=/etc/kismet \
 	--bindir=/usr/bin \
+	--enable-capture-tools-only 
 
 CONFIGURE_VARS += \
 	CXXFLAGS="$$$$CXXFLAGS"  \
@@ -45,7 +46,7 @@ CONFIGURE_VARS += \
 define Build/Compile
 	$(MAKE) -C $(PKG_BUILD_DIR) \
 		LD="$(TARGET_CXX)" \
-		all
+		datasources
 endef
 
 define Package/kismet-remote/install
