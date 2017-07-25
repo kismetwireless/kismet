@@ -1417,7 +1417,7 @@ int cf_handler_remote_connect(kis_capture_handler_t *caph) {
 
     int cbret;
 
-    int first = 1;
+    static int first = 1;
 
     cf_params_interface_t *cpi;
     cf_params_spectrum_t *cps;
