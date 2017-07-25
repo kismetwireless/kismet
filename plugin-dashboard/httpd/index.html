@@ -69,6 +69,9 @@
 
 <script>
 
+var last_packets = 0;
+var last_devs = 0;
+
 function datasources() {
     $.get("/datasource/all_sources.json")
     .done(function(data) {
@@ -79,7 +82,6 @@ function datasources() {
             var ds = data[i];
 
             for (var c in ds['kismet.datasource.channels']) {
-                console.log(chans);
                 chans[ds['kismet.datasource.channels'][c]] = 1;
             }
         }
@@ -94,10 +96,37 @@ function datasources() {
 function status() {
     $.get("/system/status.json")
     .done(function(data) {
-        $('#numdevs').html(data['kismet.system.devices.count']);
+        var devices = data['kismet.system.devices.count'];
+
+        $('#numdevs').html(devices);
+
+        if (devices < last_devs) {
+            $('#devsup').hide();
+            $('#devssdown').show();
+        } else if (devices == last_devs) {
+            $('#devsup').hide();
+            $('#devsdown').hide();
+        } else {
+            $('#devsdown').hide();
+            $('#devsup').show();
+        }
+
+        last_devs = devices;
 
         var now = (data['kismet.device.packets_rrd']['kismet.common.rrd.last_time'] - 1) % 60;
-        $('#numpackets').html(data['kismet.device.packets_rrd']['kismet.common.rrd.minute_vec'][now]);
+        var packets = data['kismet.device.packets_rrd']['kismet.common.rrd.minute_vec'][now];
+
+        $('#numpackets').html(packets);
+
+        if (packets < last_packets) {
+            $('#packetsup').hide();
+            $('#packetsdown').show();
+        } else {
+            $('#packetsdown').hide();
+            $('#packetsup').show();
+        }
+
+        last_packets = packets;
 
         var simple_rrd =
             kismet.RecalcRrdData(
@@ -138,6 +167,11 @@ $(function() {
             // withCredentials: true
         }
     });
+
+    $("#packetsup").hide();
+    $("#packetsdown").hide();
+    $("#devsup").hide();
+    $("#devsdown").hide();
 
     kismet_ui_iconbar.AddIconbarItem({
         id: 'alert',
@@ -193,12 +227,24 @@ Kismet - Simplified Dashboard
   </div></div>
 
   <div class="grid-item"><div class="grid-inner">
-    <div class="k-p-db-bignum" id="numpackets">--</div>
+    <div class="k-p-db-bignum-arrows">
+        <div class="k-p-db-middle" id="numpackets">--</div>
+        <div class="k-p-db-middle">
+            <i class="fa fa-chevron-up k-p-db-up" id="packetsup"></i>
+            <i class="fa fa-chevron-down k-p-db-down" id="packetsdown"></i>
+        </div>
+    </div>
     <div class="k-p-db-subtitle">Packets/Sec</div>
   </div></div>
 
   <div class="grid-item"><div class="grid-inner">
-    <div class="k-p-db-bignum" id="numdevs">--</div>
+    <div class="k-p-db-bignum-arrows">
+        <div class="k-p-db-middle" id="numdevs">--</div>
+        <div class="k-p-db-middle">
+            <i class="fa fa-chevron-up k-p-db-up" id="devsup"></i>
+            <i class="fa fa-chevron-down k-p-db-down" id="devsdown"></i>
+        </div>
+    </div>
     <div class="k-p-db-subtitle">Devices</div>
   </div></div>
 

@@ -23,11 +23,36 @@ div.grid-inner {
 div.k-p-db-bignum {
     font-size: 36px;
     text-align: center;
+    line-height: 40px;
+}
+
+div.k-p-db-bignum-arrows {
+    margin-left: 20px;
+    font-size: 36px;
+    text-align: center;
+    line-height: 40px;
 }
 
 div.k-p-db-subtitle {
     font-size: 12px;
     text-align: center;
+}
+
+div.k-p-db-middle {
+    min-width: 18px;
+    margin-left: -5px;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+i.k-p-db-up {
+    font-size: 18px;
+    color: green;
+}
+
+i.k-p-db-down {
+    font-size: 18px;
+    color: red;
 }
 
 div.channels {
