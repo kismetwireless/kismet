@@ -1062,7 +1062,7 @@ havenetlink=yes
 netlink_force=no
 
 AC_ARG_WITH(netlink-version,
-	[  --with-netlink-version[=1|2|3]     Force using libnl1, libnl2, or libnl-3 ],
+	[  --with-netlink-version[=1|2|3|tiny]     Force libnl version ],
 	[
 	netlink_force=$withval
 	])
@@ -1121,8 +1121,16 @@ if test "$havenetlink" = "yes"; then
 	PKG_CHECK_MODULES(libnlgenl30, [libnl-genl-3.0], libnlgenl30=yes, libnlgenl30=no)
 	PKG_CHECK_MODULES(libnl20, [libnl-2.0], libnl20=yes, libnl20=no)
 	PKG_CHECK_MODULES(libnl1, [libnl-1], libnl1=yes, libnl1=no)
+    AC_CHECK_HEADER([libnl-tiny/netlink/netlink.h], libnltiny=yes, libnltiny=no)
 
 	picked_nl=no
+    if test $picked_nl = "no" -a "$libnltiny" = "yes"; then
+        picked_nl="tiny"
+        AC_DEFINE(HAVE_LIBNL, 1, libnl netlink library)
+        AC_DEFINE(HAVE_LIBNLTINY, 1, libnl-2.0 netlink library)
+        nlname = "libnl-tiny"
+    fi
+
 	if test $picked_nl = "no" -a "$libnl30" = "yes" -a "$libnlgenl30" = "yes"; then
 		if test $netlink_force = "no" -o $netlink_force = "3"; then
 			picked_nl=3
@@ -1155,8 +1163,12 @@ if test "$havenetlink" = "yes"; then
 	fi
 
 	if test "$nlname" != ""; then
-		NLLIBS=`pkg-config --libs $nlname`
-		NLCFLAGS=`pkg-config --cflags $nlname`
+        if test "$picked_nl" == "tiny"; then
+            NLLIBS="-lnl-tiny"
+        else
+		    NLLIBS=`pkg-config --libs $nlname`
+		    NLCFLAGS=`pkg-config --cflags $nlname`
+        fi
 	fi
 fi
 

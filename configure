@@ -1416,7 +1416,7 @@ Optional Packages:
   --with-pcreheaders=DIR      Custom location of the PCRE library headers
   --with-airpcap=DIR     Location of the CACE AirPcap device pack NOTE cygwin appears to have link errors if the path is not within the current directory
   --with-winpcap=DIR     Location of the WinPcap device pack NOTE cygwin appears to have link errors if the path is not within the current directory
-  --with-netlink-version=1|2|3     Force using libnl1, libnl2, or libnl-3
+  --with-netlink-version=1|2|3|tiny     Force libnl version
   --with-suidgroup=group       Group allowed to execute the kismet_capture suid root helper process
 
 Some influential environment variables:
@@ -9561,8 +9561,27 @@ else
 $as_echo "yes" >&6; }
 	libnl1=yes
 fi
+    ac_fn_cxx_check_header_mongrel "$LINENO" "libnl-tiny/netlink/netlink.h" "ac_cv_header_libnl_tiny_netlink_netlink_h" "$ac_includes_default"
+if test "x$ac_cv_header_libnl_tiny_netlink_netlink_h" = xyes; then :
+  libnltiny=yes
+else
+  libnltiny=no
+fi
+
+
 
 	picked_nl=no
+    if test $picked_nl = "no" -a "$libnltiny" = "yes"; then
+        picked_nl="tiny"
+
+$as_echo "#define HAVE_LIBNL 1" >>confdefs.h
+
+
+$as_echo "#define HAVE_LIBNLTINY 1" >>confdefs.h
+
+        nlname = "libnl-tiny"
+    fi
+
 	if test $picked_nl = "no" -a "$libnl30" = "yes" -a "$libnlgenl30" = "yes"; then
 		if test $netlink_force = "no" -o $netlink_force = "3"; then
 			picked_nl=3
@@ -9607,8 +9626,12 @@ $as_echo "#define HAVE_LIBNL10 1" >>confdefs.h
 	fi
 
 	if test "$nlname" != ""; then
-		NLLIBS=`pkg-config --libs $nlname`
-		NLCFLAGS=`pkg-config --cflags $nlname`
+        if test "$picked_nl" == "tiny"; then
+            NLLIBS="-lnl-tiny"
+        else
+		    NLLIBS=`pkg-config --libs $nlname`
+		    NLCFLAGS=`pkg-config --cflags $nlname`
+        fi
 	fi
 fi
 

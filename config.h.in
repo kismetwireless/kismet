@@ -114,6 +114,9 @@
 /* libnl-3.0 netlink library */
 #undef HAVE_LIBNL30
 
+/* libnl-2.0 netlink library */
+#undef HAVE_LIBNLTINY
+
 /* NetworkManager interface library */
 #undef HAVE_LIBNM
 
