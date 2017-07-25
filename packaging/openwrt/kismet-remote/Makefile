@@ -16,14 +16,14 @@ PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION)-$(PKG_SOURCE_VERSION).tar.gz
 
 include $(INCLUDE_DIR)/package.mk
 
-PKG_BUILD_DEPENDS:=+libpthread +libpcap +libnl +libcap
+PKG_BUILD_DEPENDS:=+libpthread +libpcap +libnl 
 
 define Package/kismet-remote
   SECTION:=net
   CATEGORY:=Network
   TITLE:=Kismet (2017)
   URL:=https://www.kismetwireless.net/
-  DEPENDS:=+libpthread +libpcap +libnl +libcap 
+  DEPENDS:=+libpthread +libpcap +libnl 
 endef
 
 define Package/kismet-remote/description
