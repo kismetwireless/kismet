@@ -235,6 +235,7 @@ HAVE_LIBFFTW3=0
 HAVE_HACKRF_H=0
 HAVE_FFTW3_H=0
 BUILD_HACKRF_SWEEP=0
+HACKRF_MISSING_REASON="Missing required libhack/libfftw3 libraries"
 
 AC_CHECK_HEADERS([libhackrf/hackrf.h],
     HAVE_HACKRF_H=1,
@@ -247,18 +248,35 @@ if test "$HAVE_HACKRF_H" -eq 1; then
     AC_CHECK_LIB([hackrf], [hackrf_init],
 			HAVE_LIBHACKRF=1,
 			 AC_MSG_WARN([libhackrf not available]))
+else
+    HACKRF_MISSING_REASON="Missing libhackrf/hackrf.h"
 fi
 
 if test "$HAVE_FFTW3_H" -eq 1; then
     AC_CHECK_LIB([fftw3], [fftw_malloc],
             HAVE_LIBFFTW3=1,
             AC_MSG_WARN([libfftw3 not available]))
+else
+    HACKRF_MISSING_REASON="missing libfftw3.h"
 fi
 
 if test "$HAVE_LIBHACKRF" -eq 1 && test "$HAVE_LIBFFTW3" -eq 1; then
-    AC_DEFINE(BUILD_HACKRF_SWEEP, 1, Able to build hackrf sweep source)
-    BUILD_HACKRF_SWEEP=1
-    DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_HACKRF_SWEEP)"
+    AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+    		#include <libhackrf/hackrf.h>
+    		]], [[
+            int s = SAMPLES_PER_BLOCK;
+    		return 0;
+    		]])],[hackrfsweep=1],[hackrfsweep=0])
+    if test "$hackrfsweep" -eq 1; then
+        AC_DEFINE(BUILD_HACKRF_SWEEP, 1, Able to build hackrf sweep source)
+        BUILD_HACKRF_SWEEP=1
+        DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_HACKRF_SWEEP)"
+    else
+        AC_MSG_WARN([Old version of libhack does not contain sweep code])
+        HACKRF_MISSING_REASON="old version of libhackrf found"
+    fi
+else
+    HACKRF_MISSING_REASON="missing libhackrf or libfftw3"
 fi
 
 HAVE_LIBDW=0
@@ -1341,7 +1359,7 @@ printf "       HackRF spectrum: "
 if test "$BUILD_HACKRF_SWEEP" -eq 1; then
 	echo "yes (libhackrf and libfftw3 present)";
 else
-	echo "no (missing libhackrf or libfftw3)";
+	echo "no ($HACKRF_MISSING_REASON)";
 fi
 
 printf "      SQLite3 Database: "

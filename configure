@@ -5697,6 +5697,7 @@ HAVE_LIBFFTW3=0
 HAVE_HACKRF_H=0
 HAVE_FFTW3_H=0
 BUILD_HACKRF_SWEEP=0
+HACKRF_MISSING_REASON="Missing required libhack/libfftw3 libraries"
 
 for ac_header in libhackrf/hackrf.h
 do :
@@ -5773,6 +5774,8 @@ else
 $as_echo "$as_me: WARNING: libhackrf not available" >&2;}
 fi
 
+else
+    HACKRF_MISSING_REASON="Missing libhackrf/hackrf.h"
 fi
 
 if test "$HAVE_FFTW3_H" -eq 1; then
@@ -5819,14 +5822,47 @@ else
 $as_echo "$as_me: WARNING: libfftw3 not available" >&2;}
 fi
 
+else
+    HACKRF_MISSING_REASON="missing libfftw3.h"
 fi
 
 if test "$HAVE_LIBHACKRF" -eq 1 && test "$HAVE_LIBFFTW3" -eq 1; then
+    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+    		#include <libhackrf/hackrf.h>
+
+int
+main ()
+{
+
+            int s = SAMPLES_PER_BLOCK;
+    		return 0;
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_cxx_try_link "$LINENO"; then :
+  hackrfsweep=1
+else
+  hackrfsweep=0
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+    if test "$hackrfsweep" -eq 1; then
 
 $as_echo "#define BUILD_HACKRF_SWEEP 1" >>confdefs.h
 
-    BUILD_HACKRF_SWEEP=1
-    DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_HACKRF_SWEEP)"
+        BUILD_HACKRF_SWEEP=1
+        DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_HACKRF_SWEEP)"
+    else
+        { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Old version of libhack does not contain sweep code" >&5
+$as_echo "$as_me: WARNING: Old version of libhack does not contain sweep code" >&2;}
+        HACKRF_MISSING_REASON="old version of libhackrf found"
+    fi
+else
+    HACKRF_MISSING_REASON="missing libhackrf or libfftw3"
 fi
 
 HAVE_LIBDW=0
@@ -11233,7 +11269,7 @@ printf "       HackRF spectrum: "
 if test "$BUILD_HACKRF_SWEEP" -eq 1; then
 	echo "yes (libhackrf and libfftw3 present)";
 else
-	echo "no (missing libhackrf or libfftw3)";
+	echo "no ($HACKRF_MISSING_REASON)";
 fi
 
 printf "      SQLite3 Database: "
