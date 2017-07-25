@@ -430,8 +430,8 @@ int Kis_DLT_Radiotap::HandlePacket(kis_packet *in_pack) {
 
     // Radiotap only encapsulates wireless so we can do our own fcs
 	if (datasrc != NULL && datasrc->ref_source != NULL && fcschunk != NULL) {
-        datasrc->ref_source->checksum_packet(in_pack);
-#if 0
+        /* datasrc->ref_source->checksum_packet(in_pack); */
+
 		// Compare it and flag the packet
 		uint32_t calc_crc =
 			crc32_le_80211(globalreg->crc32_table, decapchunk->data, 
@@ -441,11 +441,11 @@ int Kis_DLT_Radiotap::HandlePacket(kis_packet *in_pack) {
         // compare both representations
 		if (memcmp(fcschunk->checksum_ptr, &calc_crc, 4) &&
             memcmp(fcschunk->checksum_ptr, &flipped_crc, 4)) {
+            fprintf(stderr, "debug - radiotap - invalid crc\n");
 			fcschunk->checksum_valid = 0;
 		} else {
 			fcschunk->checksum_valid = 1;
 		}
-#endif
 	}
 
 #if 0
