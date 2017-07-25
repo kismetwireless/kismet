@@ -120,10 +120,11 @@ ssize_t RingbufV2::peek(unsigned char **ptr, size_t in_sz) {
     // No matter what is requested we can't read more than we have
     size_t opsize = min(in_sz, used());
 
+    // Always reserve first since we may blindly peek_free later
+    peek_reserved = true;
+
     if (opsize == 0)
         return 0;
-
-    peek_reserved = true;
 
     if (start_pos + opsize < buffer_sz) {
         // Can we read contiguously? if so we can do a zero-copy peek
@@ -169,6 +170,10 @@ ssize_t RingbufV2::zero_copy_peek(unsigned char **ptr, size_t in_sz) {
         throw std::runtime_error("ringbuf v2 peek already locked");
     }
 
+    // Always reserve first since we might blindly peek_free later
+    peek_reserved = true;
+    free_peek = false;
+
     // No matter what is requested we can't read more than we have
     size_t opsize = min(in_sz, used());
 
@@ -179,9 +184,6 @@ ssize_t RingbufV2::zero_copy_peek(unsigned char **ptr, size_t in_sz) {
     if (start_pos + opsize > buffer_sz) {
         opsize = buffer_sz - start_pos;
     }
-
-    peek_reserved = true;
-    free_peek = false;
 
 #ifdef PROFILE_RINGBUFV2
     zero_copy_r_bytes += opsize;
