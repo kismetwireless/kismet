@@ -27,15 +27,6 @@
 #ifdef HAVE_LINUX_NETLINK
 #include <sys/types.h>
 #include <asm/types.h>
-#ifdef HAVE_LIBNLTINY
-#include <libnl-tiny/netlink/genl/genl.h>
-#include <libnl-tiny/netlink/genl/family.h>
-#include <libnl-tiny/netlink/genl/ctrl.h>
-#include <libnl-tiny/netlink/msg.h>
-#include <libnl-tiny/netlink/attr.h>
-#include <libnl-tiny/netlink/netlink.h>
-#include <libnl-tiny/netlink/socket.h>
-#else
 #include <netlink/genl/genl.h>
 #include <netlink/genl/family.h>
 #include <netlink/genl/ctrl.h>
@@ -43,7 +34,6 @@
 #include <netlink/attr.h>
 #include <netlink/netlink.h>
 #include <netlink/socket.h>
-#endif
 #include "nl80211.h"
 #include <net/if.h>
 #endif
