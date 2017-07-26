@@ -1275,7 +1275,7 @@ sharedatadir=`(
 sharedatadir=${sharedatadir}
 AC_SUBST(sharedatadir)
 
-CPPFLAGS="-I$BUNDLE_MSGPACK/include $CPPFLAGS"
+CPPFLAGS="$CPPFLAGS -I$BUNDLE_MSGPACK/include"
 
 AC_SUBST(DATASOURCE_BINS)
 AC_SUBST(BUILD_CAPTURE_PCAPFILE)

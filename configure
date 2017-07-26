@@ -9774,7 +9774,7 @@ sharedatadir=`(
 sharedatadir=${sharedatadir}
 
 
-CPPFLAGS="-I$BUNDLE_MSGPACK/include $CPPFLAGS"
+CPPFLAGS="$CPPFLAGS -I$BUNDLE_MSGPACK/include"
 
 
 
