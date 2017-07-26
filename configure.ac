@@ -1119,7 +1119,7 @@ if test "$havenetlink" = "yes"; then
 
         AC_DEFINE(HAVE_LIBNL, 1, libnl netlink library)
         AC_DEFINE(HAVE_LIBNLTINY, 1, libnl-2.0 netlink library)
-        nlname = "libnl-tiny"
+        nlname="libnl-tiny"
     fi
 
 	if test $picked_nl = "no" -a "$libnl30" = "yes" -a "$libnlgenl30" = "yes"; then

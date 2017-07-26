@@ -9570,7 +9570,7 @@ $as_echo "#define HAVE_LIBNL 1" >>confdefs.h
 
 $as_echo "#define HAVE_LIBNLTINY 1" >>confdefs.h
 
-        nlname = "libnl-tiny"
+        nlname="libnl-tiny"
     fi
 
 	if test $picked_nl = "no" -a "$libnl30" = "yes" -a "$libnlgenl30" = "yes"; then
