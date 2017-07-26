@@ -3802,16 +3802,6 @@ then
     # Not GCC - assume it's the vendor's compiler.
     #
     case "$host_os" in
-    hpux*)
-        #
-        # HP's ANSI C compiler; flags suggested by Jost Martin.
-        # "-Ae" for ANSI C plus extensions such as "long long".
-        # "+O2", for optimization.  XXX - works with "-g"?
-        #
-        CFLAGS="-Ae +O2 $CFLAGS"
-        { $as_echo "$as_me:${as_lineno-$LINENO}: result: HP ANSI C compiler - added -Ae +O2" >&5
-$as_echo "HP ANSI C compiler - added -Ae +O2" >&6; }
-        ;;
 	darwin10*)
 		# Snow leopard and newer, no -bundle in plugins
         CFLAGS="-no-cpp-precomp $CFLAGS"
@@ -3891,13 +3881,6 @@ $as_echo "none needed" >&6; }
     esac
 else
     case "$host_os" in
-    solaris*)
-        # the X11 headers don't automatically include prototype info
-        # and a lot don't include the return type
-        CFLAGS="$CFLAGS -Wno-return-type -DFUNCPROTO=15"
-        { $as_echo "$as_me:${as_lineno-$LINENO}: result: GCC on Solaris - added -Wno-return-type -DFUNCPROTO=15" >&5
-$as_echo "GCC on Solaris - added -Wno-return-type -DFUNCPROTO=15" >&6; }
-        ;;
 	darwin10*)
 		# Snow leopard and newer, no -bundle in plugins
         CFLAGS="-no-cpp-precomp $CFLAGS"
@@ -9784,6 +9767,7 @@ CPPFLAGS="$CPPFLAGS -I$BUNDLE_MSGPACK/include"
 
 
 
+
 ac_config_files="$ac_config_files Makefile Makefile.inc scripts/kismet conf/kismet.conf"
 
 cat >confcache <<\_ACEOF
@@ -11317,13 +11301,6 @@ fi
 
 printf "        Built-in Debug: "
 echo $BACKTRACE_WARNING
-
-# printf "           GPSD LibGPS: "
-# if test "$havelgps" = "yes"; then
-# 	echo "yes (GPSD LibGPS client)";
-# else
-# 	echo "no (Using Kismet GPSD interface for GPSD <= 2.90)";
-# fi
 
 if test "$havepkgconfig" = "no"; then
 	echo

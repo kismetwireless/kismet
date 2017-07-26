@@ -246,7 +246,7 @@ $(DEPEND): Makefile
 	@echo "Generating dependencies... "
 	@echo > $(DEPEND)
 	@$(CXX) $(CPPFLAGS) $(CXXFLAGS) -MM \
-		`echo $(PSO) $(CSO) | \
+		`echo $(PSO) | \
 		sed -e "s/\.o/\.cc/g" | sed -e "s/\.mo/\.m/g"` >> $(DEPEND)
 	@$(CC) $(CFLAGS) $(CPPFLAGS) -MM \
 		`echo $(CAPTURE_PCAPFILE_O) $(CAPTURE_LINUX_WIFI_O) | \
