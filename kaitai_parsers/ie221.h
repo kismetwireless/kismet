@@ -22,18 +22,16 @@ public:
     ~ie221_t();
 
 private:
-    uint8_t m_tag_number;
     uint8_t m_tag_length;
-    std::string m_wmm_oui;
-    std::string m_vendor_type;
+    std::string m_vendor_oui;
+    uint8_t m_vendor_type;
     ie221_t* m__root;
     kaitai::kstruct* m__parent;
 
 public:
-    uint8_t tag_number() const { return m_tag_number; }
     uint8_t tag_length() const { return m_tag_length; }
-    std::string wmm_oui() const { return m_wmm_oui; }
-    std::string vendor_type() const { return m_vendor_type; }
+    std::string vendor_oui() const { return m_vendor_oui; }
+    uint8_t vendor_type() const { return m_vendor_type; }
     ie221_t* _root() const { return m__root; }
     kaitai::kstruct* _parent() const { return m__parent; }
 };
