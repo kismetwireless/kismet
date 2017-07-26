@@ -9764,9 +9764,11 @@ CPPFLAGS="$CPPFLAGS -I$BUNDLE_MSGPACK/include"
 
 
 
+#AC_SUBST(CPPFLAGS)
+#AC_SUBST(CFLAGS)
+#AC_SUBST(CXXFLAGS)
 
-
-
+CPPFLAGS="$CPPFLAGS -Itest/"
 
 ac_config_files="$ac_config_files Makefile Makefile.inc scripts/kismet conf/kismet.conf"
 
