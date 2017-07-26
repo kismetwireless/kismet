@@ -11,9 +11,7 @@ ie_wmm_t::ie_wmm_t(kaitai::kstream *p_io, kaitai::kstruct *p_parent, ie_wmm_t *p
     m_tag_number = m__io->read_u1();
     m_tag_length = m__io->read_u1();
     m_wmm_oui = m__io->ensure_fixed_contents(std::string("\x00\x50\xF2", 3));
-    m_wmm_type = m__io->read_u1();
-    m_wme_subtype = m__io->read_u1();
-    m_wme_version = m__io->read_u1();
+    m_vendor_type = m__io->ensure_fixed_contents(std::string("\x75\x31", 2));
 }
 
 ie_wmm_t::~ie_wmm_t() {
