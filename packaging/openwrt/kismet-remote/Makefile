@@ -8,22 +8,26 @@ PKG_VERSION:=2017git
 PKG_RELEASE:=1
 
 PKG_SOURCE_PROTO:=git
-PKG_SOURCE_URL:=https://www.kismetwireless.net/git/kismet.git
 #PKG_SOURCE_URL:=/home/dragorn/src/kismet
-PKG_SOURCE_VERSION:=bfa39a2e629fbcdebb3ef6dac72698a4553c8304
+
+PKG_SOURCE_URL:=https://www.kismetwireless.net/git/kismet.git
+PKG_SOURCE_VERSION:=HEAD
+
+#PKG_SOURCE_VERSION:=87e089cb1c0251cc13d8922458ee4f2de41456ca
+
 PKG_SOURCE_SUBDIR:=$(PKG_NAME)-$(PKG_VERSION)
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION)-$(PKG_SOURCE_VERSION).tar.gz
 
 include $(INCLUDE_DIR)/package.mk
 
-PKG_BUILD_DEPENDS:=+libpthread +libpcap +libnl 
+PKG_BUILD_DEPENDS:=+libpthread +libpcap +libnl-tiny
 
 define Package/kismet-remote
   SECTION:=net
   CATEGORY:=Network
   TITLE:=Kismet (2017)
   URL:=https://www.kismetwireless.net/
-  DEPENDS:=+libpthread +libpcap +libnl 
+  DEPENDS:=+libpthread +libpcap +libnl-tiny
 endef
 
 define Package/kismet-remote/description
@@ -35,13 +39,12 @@ define Build/Configure
 endef
 
 CONFIGURE_ARGS += \
-	--sysconfdir=/etc/kismet \
 	--bindir=/usr/bin \
-	--enable-capture-tools-only 
+	--enable-capture-tools-only \
+	--with-netlink-tiny 
 
-CONFIGURE_VARS += \
-	CXXFLAGS="$$$$CXXFLAGS"  \
-	LIBS="-lm" 
+TARGET_CFLAGS+=-I$(STAGING_DIR)/usr/include/libnl-tiny
+TARGET_CPPFLAGS+=-I$(STAGING_DIR)/usr/include/libnl-tiny
 
 define Build/Compile
 	$(MAKE) -C $(PKG_BUILD_DIR) \
