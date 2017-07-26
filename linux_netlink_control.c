@@ -27,13 +27,17 @@
 #ifdef HAVE_LINUX_NETLINK
 #include <sys/types.h>
 #include <asm/types.h>
-#include <netlink/msg.h>
-#include <netlink/attr.h>
-#include <netlink/netlink.h>
-#include <netlink/socket.h>
+
+#ifdef HAVE_LIBNLTINY
+#define _GNU_SOURCE
+#endif
+
 #include <netlink/genl/genl.h>
 #include <netlink/genl/family.h>
 #include <netlink/genl/ctrl.h>
+#include <netlink/msg.h>
+#include <netlink/attr.h>
+
 #include "nl80211.h"
 #include <net/if.h>
 #endif
