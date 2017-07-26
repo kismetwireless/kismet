@@ -430,6 +430,8 @@ Datasourcetracker::Datasourcetracker(GlobalRegistry *in_globalreg) :
     config_defaults->set_remote_cap_listen(listen);
     config_defaults->set_remote_cap_port(listenport);
 
+    config_defaults->set_remote_cap_timestamp(globalreg->kismet_config->FetchOptBoolean("override_remote_timestamp", true));
+
     if (listen.length() != 0 && listenport != 0) {
         _MSG("Launching remote capture server on " + listen + ":" + 
                 UIntToString(listenport), MSGFLAG_INFO);

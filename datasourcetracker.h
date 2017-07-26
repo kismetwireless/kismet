@@ -232,6 +232,8 @@ public:
     __Proxy(remote_cap_listen, string, string, string, remote_cap_listen);
     __Proxy(remote_cap_port, uint32_t, uint32_t, uint32_t, remote_cap_port);
 
+    __Proxy(remote_cap_timestamp, uint8_t, bool, bool, remote_cap_timestamp);
+
 protected:
     virtual void register_fields() {
         tracker_component::register_fields();
@@ -255,6 +257,10 @@ protected:
         RegisterField("kismet.datasourcetracker.default.remote_cap_port",
                 TrackerUInt32, "listen port for remote capture",
                 &remote_cap_port);
+
+        RegisterField("kismet.datasourcetracker.default.remote_cap_timestamp",
+                TrackerUInt8, "overwrite remote capture timestamp with server timestamp",
+                &remote_cap_timestamp);
     }
 
     // Double hoprate per second
@@ -275,6 +281,8 @@ protected:
     // Remote listen
     SharedTrackerElement remote_cap_listen;
     SharedTrackerElement remote_cap_port;
+
+    SharedTrackerElement remote_cap_timestamp;
 
 };
 

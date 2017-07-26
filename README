@@ -255,6 +255,13 @@ xx. Kismet Data Sources
 
         If true, Kismet will try to re-open a source which is in an error state
         after five seconds.
+
+    timestamp=true | false
+
+        If true, Kismet will override the timestamp of the packet with the 
+        local timestamp of the server; this is the default behavior for
+        remote capture sources but can be turned off either on a per-source
+        basis or by turning it off in kismet.conf
        
 xx. Datasource: Linux Wi-Fi
 

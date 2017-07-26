@@ -525,6 +525,9 @@ protected:
     // with the IPC instance.
     shared_ptr<IPCRemoteV2> ipc_remote;
 
+    // Do we clobber the remote timestamp?
+    bool clobber_timestamp;
+
     SharedTrackerElement source_remote;
     __ProxySet(int_source_remote, uint8_t, bool, source_remote);
 

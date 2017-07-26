@@ -642,6 +642,9 @@ bool KisDatasource::parse_interface_definition(string in_definition) {
 
     set_int_source_retry(get_definition_opt_bool("retry", 
                 datasourcetracker->get_config_defaults()->get_retry_on_error()));
+
+    clobber_timestamp = get_definition_opt_bool("timestamp", 
+            datasourcetracker->get_config_defaults()->get_remote_cap_timestamp());
    
     return true;
 }
@@ -1290,16 +1293,25 @@ kis_packet *KisDatasource::handle_kv_packet(KisDatasourceCapKeyedObject *in_obj)
         msgpack::object deserialized = result.get();
         dict = deserialized.as<MsgpackAdapter::MsgpackStrMap>();
 
-        if ((obj_iter = dict.find("tv_sec")) != dict.end()) {
-            packet->ts.tv_sec = (time_t) obj_iter->second.as<uint64_t>();
-        } else {
-            throw std::runtime_error(string("tv_sec timestamp missing"));
-        }
+        if (clobber_timestamp && get_source_remote()) {
+            struct timeval tv;
+            gettimeofday(&tv, NULL);
 
-        if ((obj_iter = dict.find("tv_usec")) != dict.end()) {
-            packet->ts.tv_usec = (time_t) obj_iter->second.as<uint64_t>();
+            packet->ts.tv_sec = tv.tv_sec;
+            packet->ts.tv_usec = tv.tv_usec;
+
         } else {
-            throw std::runtime_error(string("tv_usec timestamp missing"));
+            if ((obj_iter = dict.find("tv_sec")) != dict.end()) {
+                packet->ts.tv_sec = (time_t) obj_iter->second.as<uint64_t>();
+            } else {
+                throw std::runtime_error(string("tv_sec timestamp missing"));
+            }
+
+            if ((obj_iter = dict.find("tv_usec")) != dict.end()) {
+                packet->ts.tv_usec = (time_t) obj_iter->second.as<uint64_t>();
+            } else {
+                throw std::runtime_error(string("tv_usec timestamp missing"));
+            }
         }
 
         // Record the size
