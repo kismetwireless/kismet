@@ -217,9 +217,11 @@ int TcpServerV2::Poll(fd_set& in_rset, fd_set& in_wset) {
                         if (ret == 0) {
                             msg << "TCP server closing connection from client " << i->first <<
                                 " - connection closed by remote side";
+                            _MSG(msg.str(), MSGFLAG_ERROR);
                         } else {
                             msg << "TCP server error reading from client " << i->first << 
                                 " - " << kis_strerror_r(errno);
+                            _MSG(msg.str(), MSGFLAG_ERROR);
                         }
 
                         // Dump the commit
@@ -245,6 +247,9 @@ int TcpServerV2::Poll(fd_set& in_rset, fd_set& in_wset) {
                         // read it from the socket since we can't put it back on the
                         // input queue.  This should never happen because we're the
                         // only input source but we'll handle it
+                        msg << "Could not commit read data for client " << i->first;
+                        _MSG(msg.str(), MSGFLAG_ERROR);
+
                         KillConnection(i->first);
                         return 0;
                     }
@@ -262,22 +267,25 @@ int TcpServerV2::Poll(fd_set& in_rset, fd_set& in_wset) {
             // don't care how much we get
             ret = i->second->ZeroCopyPeekWriteBufferData((void **) &buf, len);
 
-            if ((iret = write(i->first, buf, ret)) < 0) {
-                if (errno != EINTR && errno != EAGAIN) {
-                    // Push the error upstream
-                    msg << "TCP server error writing to client " << i->first <<
-                        " - " << kis_strerror_r(errno);
+            if (ret > 0) {
+                if ((iret = write(i->first, buf, ret)) < 0) {
+                    if (errno != EINTR && errno != EAGAIN) {
+                        // Push the error upstream
+                        msg << "TCP server error writing to client " << i->first <<
+                            " - " << kis_strerror_r(errno);
+                        _MSG(msg.str(), MSGFLAG_ERROR);
 
+                        i->second->PeekFreeWriteBufferData(buf);
+                        i->second->BufferError(msg.str());
+
+                        KillConnection(i->first);
+                        return 0;
+                    }
+                } else {
+                    // Consume whatever we managed to write
                     i->second->PeekFreeWriteBufferData(buf);
-                    i->second->BufferError(msg.str());
-
-                    KillConnection(i->first);
-                    return 0;
+                    i->second->ConsumeWriteBufferData(iret);
                 }
-            } else {
-                // Consume whatever we managed to write
-                i->second->PeekFreeWriteBufferData(buf);
-                i->second->ConsumeWriteBufferData(iret);
             }
         }
     }
