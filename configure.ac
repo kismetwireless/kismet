@@ -1187,6 +1187,7 @@ fi
 fi
 
 AC_SUBST(NLLIBS)
+AC_SUBST(NLCFLAGS)
 
 if test "$darwin" = "yes"; then
 	suidgroup="staff"

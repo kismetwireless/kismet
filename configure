@@ -629,6 +629,7 @@ DATASOURCE_BINS
 sharedatadir
 KSLIBS
 suidgroup
+NLCFLAGS
 NLLIBS
 libnl1_LIBS
 libnl1_CFLAGS
@@ -9668,6 +9669,7 @@ $as_echo "#define HAVE_LINUX_NETLINK 1" >>confdefs.h
 fi
 
 fi
+
 
 
 
