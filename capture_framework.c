@@ -1426,9 +1426,6 @@ int cf_handler_remote_connect(kis_capture_handler_t *caph) {
     if (caph->remote_host == NULL)
         return 0;
 
-    /* Reset the last ping */
-    caph->last_ping = 0;
-
     while (1) {
         if (first) {
             first = 0;
@@ -1437,6 +1434,16 @@ int cf_handler_remote_connect(kis_capture_handler_t *caph) {
                     "server...\n");
             sleep(5);
         }
+    
+        /* Reset the last ping */
+        caph->last_ping = 0;
+
+        /* Reset spindown */
+        caph->spindown = 0;
+
+        /* Clear the buffers */
+        kis_simple_ringbuf_clear(caph->in_ringbuf);
+        kis_simple_ringbuf_clear(caph->out_ringbuf);
 
         /* Perform a local probe on the source to see if it's valid */
         msgstr[0] = 0;
