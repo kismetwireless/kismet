@@ -85,7 +85,7 @@ KisDatasource::KisDatasource(GlobalRegistry *in_globalreg,
 KisDatasource::~KisDatasource() {
     local_eol_locker lock(&source_lock);
 
-    fprintf(stderr, "debug - ~KisDatasource\n");
+    // fprintf(stderr, "debug - ~KisDatasource\n");
 
     // Cancel any timer
     if (error_timer_id > 0)
