@@ -392,9 +392,9 @@ int Alertracker::ActivateConfiguredAlert(string in_header, string in_desc, int i
         string hdr = StrLower(in_header);
 
         if (alert_conf_map.find(hdr) == alert_conf_map.end()) {
-            _MSG("Alert type " + string(in_header) + " not found in list of activated "
-                    "alerts.", MSGFLAG_INFO);
-            return -1;
+            _MSG("Using default rates (10/min,1/sec) for alert '" + in_header + "'",
+                    MSGFLAG_INFO);
+            DefineAlert(in_header, sat_minute, 10, sat_second, 1);
         }
 
         rec = alert_conf_map[hdr];
