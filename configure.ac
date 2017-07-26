@@ -456,7 +456,7 @@ else
     AC_MSG_RESULT([no])
 fi
 
-OCPFLAGS=$CPPFLAGS
+OCPPFLAGS=$CPPFLAGS
 CPPFLAGS="$CPPFLAGS -fopenmp"
 OLDFLAGS=$LDFLAGS
 LDFLAGS="$CPPFLAGS -fopenmp"
@@ -1047,7 +1047,7 @@ fi
 if test "$havelibnm" = "yes"; then
 	OLIBS="$LIBS"
 	LIBS="$LIBS $NMLIBS"
-	OCFL="$CPPFLAGS"
+	OCPPFL="$CPPFLAGS"
 	CPPFLAGS="$CPPFLAGS $NMCFLAGS"
 
 	AC_MSG_CHECKING(For nm_device_set_managed in libnm)
@@ -1060,7 +1060,7 @@ if test "$havelibnm" = "yes"; then
 			]])],[havelibnm=yes],[havelibnm=no])
 
 	LIBS="$OLIBS"
-    CPPFLAGS="$OCFL"
+    CPPFLAGS="$OCPPFL"
 else
 	AC_MSG_WARN(Libnm missing device_set_managed function, looks like a very old version)
 	havelibnm=no
@@ -1151,7 +1151,7 @@ fi
 if test "$havenetlink" = "yes"; then
 	OLIBS="$LIBS"
 	LIBS="$LIBS $NLLIBS"
-	OCFL="$CPPFLAGS"
+	OCPPFL="$CPPFLAGS"
 	CPPFLAGS="$CPPFLAGS $NLCFLAGS"
 
 	AC_MSG_CHECKING(For mac80211 support in netlink library)
@@ -1173,6 +1173,7 @@ if test "$havenetlink" = "yes"; then
 			]])],[havenetlink=yes],[havenetlink=no])
 
 	LIBS="$OLIBS"
+	CPPFLAGS="$OCPPFL"
 else
 	AC_MSG_WARN(Missing libnl netlink library will not be able to control mac80211 vaps)
 	havenetlink=no
@@ -1270,8 +1271,6 @@ AC_SUBST(BUILD_CAPTURE_HACKRF_SWEEP)
 #AC_SUBST(CPPFLAGS)
 #AC_SUBST(CFLAGS)
 #AC_SUBST(CXXFLAGS)
-
-CPPFLAGS="$CPPFLAGS -Itest/"
 
 AC_CONFIG_FILES([Makefile Makefile.inc scripts/kismet conf/kismet.conf])
 AC_OUTPUT

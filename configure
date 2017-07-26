@@ -7336,7 +7336,7 @@ else
 $as_echo "no" >&6; }
 fi
 
-OCPFLAGS=$CPPFLAGS
+OCPPFLAGS=$CPPFLAGS
 CPPFLAGS="$CPPFLAGS -fopenmp"
 OLDFLAGS=$LDFLAGS
 LDFLAGS="$CPPFLAGS -fopenmp"
@@ -9181,7 +9181,7 @@ fi
 if test "$havelibnm" = "yes"; then
 	OLIBS="$LIBS"
 	LIBS="$LIBS $NMLIBS"
-	OCFL="$CPPFLAGS"
+	OCPPFL="$CPPFLAGS"
 	CPPFLAGS="$CPPFLAGS $NMCFLAGS"
 
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking For nm_device_set_managed in libnm" >&5
@@ -9212,7 +9212,7 @@ rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
 
 	LIBS="$OLIBS"
-    CPPFLAGS="$OCFL"
+    CPPFLAGS="$OCPPFL"
 else
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Libnm missing device_set_managed function" >&5
 $as_echo "$as_me: WARNING: Libnm missing device_set_managed function" >&2;}
@@ -9612,7 +9612,7 @@ fi
 if test "$havenetlink" = "yes"; then
 	OLIBS="$LIBS"
 	LIBS="$LIBS $NLLIBS"
-	OCFL="$CPPFLAGS"
+	OCPPFL="$CPPFLAGS"
 	CPPFLAGS="$CPPFLAGS $NLCFLAGS"
 
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking For mac80211 support in netlink library" >&5
@@ -9652,6 +9652,7 @@ rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
 
 	LIBS="$OLIBS"
+	CPPFLAGS="$OCPPFL"
 else
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Missing libnl netlink library will not be able to control mac80211 vaps" >&5
 $as_echo "$as_me: WARNING: Missing libnl netlink library will not be able to control mac80211 vaps" >&2;}
@@ -9767,8 +9768,6 @@ CPPFLAGS="$CPPFLAGS -I$BUNDLE_MSGPACK/include"
 #AC_SUBST(CPPFLAGS)
 #AC_SUBST(CFLAGS)
 #AC_SUBST(CXXFLAGS)
-
-CPPFLAGS="$CPPFLAGS -Itest/"
 
 ac_config_files="$ac_config_files Makefile Makefile.inc scripts/kismet conf/kismet.conf"
 
