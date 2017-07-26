@@ -259,6 +259,12 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
                 "An invalid reason code indicates an improperly behaving device or "
                 "an attempted attack.",
                 phyid);
+    alert_wmm_ref =
+        alertracker->ActivateConfiguredAlert("WMMOVERFLOW",
+                "The Wi-Fi standard specifies 24 bytes for WMM IE tags.  Over-sized "
+                "WMM fields may indicate an attempt to exploit bugs in Broadcom chipsets "
+                "using the Broadpwn attack",
+                phyid);
 #if 0
 	alert_dhcpclient_ref =
 		alertracker->ActivateConfiguredAlert("DHCPCLIENTID", phyid);

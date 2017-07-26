@@ -1099,7 +1099,7 @@ protected:
 	int alert_netstumbler_ref, alert_nullproberesp_ref, alert_lucenttest_ref,
 		alert_msfbcomssid_ref, alert_msfdlinkrate_ref, alert_msfnetgearbeacon_ref,
 		alert_longssid_ref, alert_disconinvalid_ref, alert_deauthinvalid_ref,
-		alert_dhcpclient_ref;
+		alert_dhcpclient_ref, alert_wmm_ref;
 
 	// Are we allowed to send wepkeys to the client (server config)
 	int client_wepkey_allowed;
