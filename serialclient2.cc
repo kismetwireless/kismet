@@ -170,6 +170,9 @@ int SerialClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
 
                     Close();
                     return 0;
+                } else {
+                    handler->CommitReadBufferData(buf, 0);
+                    break;
                 }
             } else {
                 // Insert into buffer
