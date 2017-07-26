@@ -48,7 +48,7 @@ PSO	= util.o cygwin_utils.o globalregistry.o \
 	statealert.o \
 	kis_dlt.o kis_dlt_ppi.o kis_dlt_radiotap.o \
 	kaitaistream.o \
-	kaitai_parsers/wpaeap.o kaitai_parsers/ie_wmm.o \
+	kaitai_parsers/wpaeap.o kaitai_parsers/ie221.o \
 	phy_80211.o phy_80211_dissectors.o phy_rtl433.o phy_zwave.o \
 	kis_dissector_ipdata.o \
 	manuf.o \
