@@ -1460,7 +1460,7 @@ int cf_handler_remote_connect(kis_capture_handler_t *caph) {
         if (cps != NULL)
             cf_params_spectrum_free(cps);
 
-        if (cbret < 0) {
+        if (cbret <= 0) {
             fprintf(stderr, "FATAL - Could not probe local source prior to connecting to the "
                     "remote host: %s\n", msgstr);
 
