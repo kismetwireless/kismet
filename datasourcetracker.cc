@@ -915,6 +915,8 @@ void Datasourcetracker::NewConnection(shared_ptr<BufferHandlerGeneric> conn_hand
 
 void Datasourcetracker::open_remote_datasource(string in_type, string in_definition,
         uuid in_uuid, shared_ptr<BufferHandlerGeneric> in_handler) {
+    SharedDatasource merge_target_device;
+     
     local_locker lock(&dst_lock);
 
     // Look for an existing datasource with the same UUID
@@ -927,18 +929,26 @@ void Datasourcetracker::open_remote_datasource(string in_type, string in_definit
             continue;
 
         if (d->get_source_uuid() == in_uuid) {
-            _MSG("Matching remote source '" + in_definition + "' with existing source "
-                    "with UUID " + in_uuid.UUID2String(), MSGFLAG_INFO);
-
-            // Generate a detached thread for joining the ring buffer
-            std::thread t([this, d, in_handler, in_definition]{
-                d->connect_buffer(in_handler, in_definition, NULL);
-                calculate_source_hopping(d);
-            });
-            t.detach();
-
-            return;
+            merge_target_device = d;
+            break;
         }
+    }
+
+    if (merge_target_device != NULL) {
+        // Explicitly unlock our mutex before running a thread
+        lock.unlock();
+
+        _MSG("Matching remote source '" + in_definition + "' with existing source "
+                "with UUID " + in_uuid.UUID2String(), MSGFLAG_INFO);
+
+        // Generate a detached thread for joining the ring buffer
+        std::thread t([this, merge_target_device, in_handler, in_definition]{
+                merge_target_device->connect_buffer(in_handler, in_definition, NULL);
+                calculate_source_hopping(merge_target_device);
+                });
+        t.detach();
+
+        return;
     }
 
     // Otherwise look for a prototype that can handle it
@@ -952,6 +962,9 @@ void Datasourcetracker::open_remote_datasource(string in_type, string in_definit
             continue;
 
         if (b->get_source_type() == in_type) {
+            // Explicitly unlock the mutex before we fire the connection handler
+            lock.unlock();
+
             // Make a data source from the builder
             SharedDatasource ds = b->build_datasource(b);
             ds->connect_buffer(in_handler, in_definition,

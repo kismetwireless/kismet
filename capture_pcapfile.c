@@ -124,7 +124,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     pd = pcap_open_offline(pcapfname, errstr);
     if (strlen(errstr) > 0) {
         snprintf(msg, STATUS_MAX, "%s", errstr);
-        return 0;
+        return -1;
     }
 
     pcap_close(pd);
