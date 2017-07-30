@@ -277,7 +277,7 @@ public:
         struct timespec t;
 
         clock_gettime(CLOCK_REALTIME , &t); 
-        t.tv_sec += 5; \
+        t.tv_sec += 5; 
 
         if (pthread_mutex_timedlock(in, &t) != 0) {
             throw(std::runtime_error("deadlocked thread: mutex not available w/in 5 seconds"));
@@ -298,6 +298,41 @@ public:
             throw(std::runtime_error("deadlocked thread: mutex not available w/in 5 seconds"));
         }
 #endif
+    }
+
+    void unlock() {
+        if (lock != NULL)
+            pthread_mutex_unlock(lock);
+        else if (cpplock != NULL)
+            cpplock->unlock();
+    }
+
+    void relock() {
+        if (lock != NULL) {
+#if defined(HAVE_PTHREAD_TIMELOCK) && !defined(DISABLE_MUTEX_TIMEOUT)
+            // Only use timeouts if a) they're supported and b) not disabled in configure
+            struct timespec t;
+
+            clock_gettime(CLOCK_REALTIME , &t); 
+            t.tv_sec += 5; 
+
+            if (pthread_mutex_timedlock(lock, &t) != 0) {
+                throw(std::runtime_error("deadlocked thread: mutex not available w/in 5 seconds"));
+            }
+#else
+            pthread_mutex_lock(in);
+#endif
+
+        } else if (cpplock != NULL) {
+#ifdef DISABLE_MUTEX_TIMEOUT
+            cpplock->lock();
+#else
+            if (!cpplock->try_lock_for(std::chrono::seconds(5))) {
+                throw(std::runtime_error("deadlocked thread: mutex not available w/in 5 seconds"));
+            }
+#endif
+        }
+
     }
 
     ~local_locker() {
