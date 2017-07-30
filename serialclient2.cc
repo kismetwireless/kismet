@@ -127,8 +127,9 @@ int SerialClientV2::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) 
     if (handler->GetWriteBufferUsed())
         FD_SET(device_fd, out_wset);
 
-    // We always want to read data
-    FD_SET(device_fd, out_rset);
+    // We always want to read data if we have any space
+    if (handler->GetReadBufferAvailable() > 0)
+        FD_SET(device_fd, out_rset);
 
     if (in_max_fd < device_fd)
         return device_fd;

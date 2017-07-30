@@ -132,12 +132,12 @@ int TcpServerV2::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
     }
 
     for (auto i = handler_map.begin(); i != handler_map.end(); ++i) {
-        if (i->second->GetWriteBufferAvailable()) {
+        if (i->second->GetReadBufferAvailable() > 0) {
             FD_SET(i->first, out_rset);
-        }
 
-        if (maxfd < i->first)
-            maxfd = i->first;
+            if (maxfd < i->first)
+                maxfd = i->first;
+        }
 
         if (i->second->GetWriteBufferUsed() > 0) {
             FD_SET(i->first, out_wset);
@@ -268,7 +268,7 @@ int TcpServerV2::Poll(fd_set& in_rset, fd_set& in_wset) {
             ret = i->second->ZeroCopyPeekWriteBufferData((void **) &buf, len);
 
             if (ret > 0) {
-                if ((iret = write(i->first, buf, ret)) < 0) {
+                if ((iret = write(i->first, buf, ret)) <= 0) {
                     if (errno != EINTR && errno != EAGAIN) {
                         // Push the error upstream
                         msg << "TCP server error writing to client " << i->first <<
