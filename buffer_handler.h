@@ -282,6 +282,8 @@ protected:
     BufferInterface *rbuf_notify;
 
     pthread_mutex_t handler_locker;
+    pthread_mutex_t rbuf_locker;
+    pthread_mutex_t wbuf_locker;
     pthread_mutex_t r_callback_locker;
     pthread_mutex_t w_callback_locker;
 

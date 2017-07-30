@@ -294,7 +294,7 @@ class dst_incoming_remote : public BufferInterface {
 public:
     dst_incoming_remote(GlobalRegistry *in_globalreg, 
             shared_ptr<BufferHandlerGeneric> in_rbufhandler,
-            function<void (string srctype, string srcdef,
+            function<void (dst_incoming_remote *, string srctype, string srcdef,
                 uuid srcuuid, shared_ptr<BufferHandlerGeneric> handler)> in_cb);
     ~dst_incoming_remote();
 
@@ -302,6 +302,10 @@ public:
     virtual void BufferError(string in_error);
 
     virtual void kill();
+
+    virtual void handshake_rb(std::thread t) {
+        std::swap(handshake_thread, t);
+    }
 
 protected:
     GlobalRegistry *globalreg;
@@ -312,7 +316,10 @@ protected:
     // buf_handler we're associated with
     shared_ptr<BufferHandlerGeneric> rbuf_handler;
 
-    function<void (string, string, uuid, shared_ptr<BufferHandlerGeneric> )> cb;
+    function<void (dst_incoming_remote *, string, string, uuid, 
+            shared_ptr<BufferHandlerGeneric> )> cb;
+
+    std::thread handshake_thread;
 };
 
 // Fwd def of datasource pcap feed
@@ -375,7 +382,8 @@ public:
     bool remove_datasource(uuid in_uuid);
 
     // Try to instantiate a remote data source
-    void open_remote_datasource(string in_type, string in_definition, uuid in_uuid,
+    void open_remote_datasource(dst_incoming_remote *incoming, string in_type, 
+            string in_definition, uuid in_uuid,
             shared_ptr<BufferHandlerGeneric> in_handler);
 
     // Find a datasource

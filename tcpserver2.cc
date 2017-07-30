@@ -404,6 +404,7 @@ shared_ptr<BufferHandlerGeneric> TcpServerV2::AllocateConnection(int in_fd __att
 
     // Protocol errors kill the connection
     rbh->SetProtocolErrorCb([this, in_fd]() {
+        // fprintf(stderr, "debug - tcpserver - protocolerror\n");
         KillConnection(in_fd);
     });
 

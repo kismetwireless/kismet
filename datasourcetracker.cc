@@ -118,7 +118,6 @@ void DST_DatasourceProbe::complete_probe(bool in_success, unsigned int in_transa
     auto v = ipc_probe_map.find(in_transaction);
     if (v != ipc_probe_map.end()) {
         if (in_success) {
-            // fprintf(stderr, "debug - dstp - complete_probe - found transaction id, setting builder\n");
             source_builder = v->second->get_source_builder();
         }
 
@@ -134,7 +133,6 @@ void DST_DatasourceProbe::complete_probe(bool in_success, unsigned int in_transa
     // If we've succeeded, cancel any others, cancel will take care of our
     // callback for completion
     if (in_success) {
-        // fprintf(stderr, "debug - dstp - completed with success! Calling cancel?\n");
         cancel();
         return;
     } else {
@@ -151,12 +149,9 @@ void DST_DatasourceProbe::probe_sources(
     // Lock while we generate all of the probes; 
     local_locker lock(&probe_lock);
 
-    // fprintf(stderr, "debug - dstprobe probing sources for %s\n", definition.c_str());
-
     cancel_timer = 
         timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 0, 
             [this] (int) -> int {
-                // fprintf(stderr, "debug - dstprobe timer expired for %s\n", definition.c_str());
                 cancel();
                 return 0;
             });
@@ -178,7 +173,6 @@ void DST_DatasourceProbe::probe_sources(
         // Instantiate a local prober
         SharedDatasource pds = b->build_datasource(b);
 
-        // fprintf(stderr, "debug - kdsp - probe_sources - emplacing transaction %u\n", transaction);
         ipc_probe_map.emplace(transaction, pds);
 
         pds->probe_interface(definition, transaction, 
@@ -887,15 +881,18 @@ void Datasourcetracker::schedule_cleanup() {
 
     completion_cleanup_id = 
         timetracker->RegisterTimer(1, NULL, 0, [this] (int) -> int {
+            fprintf(stderr, "debug - dst cleanup scheduler\n");
+                {
             local_locker lock(&dst_lock);
 
             completion_cleanup_id = -1;
 
-            // fprintf(stderr, "debug - dst cleanup scheduler - emptying complete vecs\n");
+            fprintf(stderr, "debug - dst cleanup scheduler - emptying complete vecs\n");
 
             probing_complete_vec.clear();
             listing_complete_vec.clear();
             broken_source_vec.clear();
+            }
 
             return 0;
         });
@@ -904,17 +901,18 @@ void Datasourcetracker::schedule_cleanup() {
 
 void Datasourcetracker::NewConnection(shared_ptr<BufferHandlerGeneric> conn_handler) {
     dst_incoming_remote *incoming = new dst_incoming_remote(globalreg, conn_handler, 
-                [this] (string in_type, string in_def, uuid in_uuid,
-                    shared_ptr<BufferHandlerGeneric> in_handler) {
+                [this] (dst_incoming_remote *i, string in_type, string in_def, 
+                    uuid in_uuid, shared_ptr<BufferHandlerGeneric> in_handler) {
             in_handler->RemoveReadBufferInterface();
-            open_remote_datasource(in_type, in_def, in_uuid, in_handler);
+            open_remote_datasource(i, in_type, in_def, in_uuid, in_handler);
         });
 
     conn_handler->SetReadBufferInterface(incoming);
 }
 
-void Datasourcetracker::open_remote_datasource(string in_type, string in_definition,
-        uuid in_uuid, shared_ptr<BufferHandlerGeneric> in_handler) {
+void Datasourcetracker::open_remote_datasource(dst_incoming_remote *incoming,
+        string in_type, string in_definition, uuid in_uuid, 
+        shared_ptr<BufferHandlerGeneric> in_handler) {
     SharedDatasource merge_target_device;
      
     local_locker lock(&dst_lock);
@@ -935,6 +933,15 @@ void Datasourcetracker::open_remote_datasource(string in_type, string in_definit
     }
 
     if (merge_target_device != NULL) {
+        if (merge_target_device->get_source_running()) {
+            _MSG("Incoming connection for source " + in_uuid.UUID2String() + " matches " +
+                    merge_target_device->get_source_name() + " which is still running.  Make "
+                    "sure that multiple remote capture binaries are not running for the same "
+                    "source.", MSGFLAG_ERROR);
+            in_handler->ProtocolError();
+            return;
+        }
+                    
         // Explicitly unlock our mutex before running a thread
         lock.unlock();
 
@@ -942,11 +949,11 @@ void Datasourcetracker::open_remote_datasource(string in_type, string in_definit
                 "with UUID " + in_uuid.UUID2String(), MSGFLAG_INFO);
 
         // Generate a detached thread for joining the ring buffer
-        std::thread t([this, merge_target_device, in_handler, in_definition]{
+        incoming->handshake_rb(std::thread([this, merge_target_device, in_handler, 
+                    in_definition]{
                 merge_target_device->connect_buffer(in_handler, in_definition, NULL);
                 calculate_source_hopping(merge_target_device);
-                });
-        t.detach();
+                }));
 
         return;
     }
@@ -1090,8 +1097,6 @@ void Datasourcetracker::calculate_source_hopping(SharedDatasource in_ds) {
 void Datasourcetracker::queue_dead_remote(dst_incoming_remote *in_dead) {
     local_locker lock(&dst_lock);
 
-    fprintf(stderr, "debug - queueing dead remote\n");
-
     for (auto x : dst_remote_complete_vec) {
         if (x == in_dead)
             return;
@@ -1103,14 +1108,13 @@ void Datasourcetracker::queue_dead_remote(dst_incoming_remote *in_dead) {
                 [this] (int) -> int {
                     local_locker lock(&dst_lock);
 
-                    fprintf(stderr, "debug - cleaning up remote connections\n");
-                    
                     for (auto x : dst_remote_complete_vec) {
                         delete(x);
                     }
 
                     dst_remote_complete_vec.clear();
 
+                    remote_complete_timer = 0;
                     return 0;
                 });
     }
@@ -1782,7 +1786,7 @@ void Datasourcetracker_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *htt
 
 dst_incoming_remote::dst_incoming_remote(GlobalRegistry *in_globalreg,
         shared_ptr<BufferHandlerGeneric> in_rbufhandler,
-        function<void (string, string, uuid, shared_ptr<BufferHandlerGeneric>)> in_cb) {
+        function<void (dst_incoming_remote *, string, string, uuid, shared_ptr<BufferHandlerGeneric>)> in_cb) {
     
     globalreg = in_globalreg;
     rbuf_handler = in_rbufhandler;
@@ -1804,7 +1808,7 @@ dst_incoming_remote::dst_incoming_remote(GlobalRegistry *in_globalreg,
 
 dst_incoming_remote::~dst_incoming_remote() {
     shared_ptr<Timetracker> timetracker = globalreg->FetchGlobalAs<Timetracker>("TIMETRACKER");
-  
+
     // Kill the error timer
     if (timetracker != NULL && timerid > 0)
         timetracker->RemoveTimer(timerid);
@@ -1812,6 +1816,11 @@ dst_incoming_remote::~dst_incoming_remote() {
     // Remove ourselves as a handler
     if (rbuf_handler != NULL)
         rbuf_handler->RemoveReadBufferInterface();
+
+    // Wait for the thread to finish
+    fprintf(stderr, "debug - waiting for handshake thread\n");
+    handshake_thread.join();
+    fprintf(stderr, "debug - handshake done\n");
 }
 
 void dst_incoming_remote::kill() {
@@ -2000,7 +2009,7 @@ void dst_incoming_remote::BufferAvailable(size_t in_amt) {
         }
 
         if (cb != NULL)
-            cb(srctype, definition, srcuuid, rbuf_handler);
+            cb(this, srctype, definition, srcuuid, rbuf_handler);
 
         // Zero out the rbuf handler so that it doesn't get closed
         rbuf_handler = NULL;

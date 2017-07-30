@@ -80,6 +80,8 @@ KisDatasource::KisDatasource(GlobalRegistry *in_globalreg,
     last_pong = 0;
 
     quiet_errors = 0;
+
+    set_int_source_running(false);
 }
 
 KisDatasource::~KisDatasource() {
@@ -284,6 +286,8 @@ void KisDatasource::connect_buffer(shared_ptr<BufferHandlerGeneric> in_ringbuf,
         string in_definition, open_callback_t in_cb) {
     local_locker lock(&source_lock);
 
+    set_int_source_running(true);
+
     if (ringbuf_handler != NULL && ringbuf_handler != in_ringbuf) {
         // printf("debug - disconnecting existing ringbuffer from new remote source\n");
         // ringbuf_handler->RemoveReadBufferInterface();
@@ -299,6 +303,7 @@ void KisDatasource::connect_buffer(shared_ptr<BufferHandlerGeneric> in_ringbuf,
     
     // Populate our local info about the interface
     if (!parse_interface_definition(in_definition)) {
+        set_int_source_running(false);
         _MSG("Unable to parse interface definition", MSGFLAG_ERROR);
         return;
     }
@@ -661,8 +666,6 @@ shared_ptr<KisDatasource::tracked_command> KisDatasource::get_command(uint32_t i
 void KisDatasource::cancel_command(uint32_t in_transaction, string in_error) {
     local_locker lock(&source_lock);
 
-    // fprintf(stderr, "debug - kds - cancel command %u\n", in_transaction);
-
     auto i = command_ack_map.find(in_transaction);
     if (i != command_ack_map.end()) {
         shared_ptr<tracked_command> cmd = i->second;
@@ -873,8 +876,11 @@ void KisDatasource::proto_packet_open_resp(KVmap in_kvpairs) {
         ping_timer_id = timetracker->RegisterTimer(SERVER_TIMESLICES_SEC, NULL,
                 1, [this](int) -> int {
             local_locker lock(&source_lock);
-
-            // fprintf(stderr, "debug - %ld %s sending ping\n", time(0), get_source_name().c_str());
+            
+            if (!get_source_running()) {
+                ping_timer_id = 0;
+                return 0;
+            }
             
             send_command_ping();
             return 1;
