@@ -1434,6 +1434,12 @@ int cf_handler_remote_connect(kis_capture_handler_t *caph) {
                     "server...\n");
             sleep(5);
         }
+
+        /* Close the fd if it's open */
+        if (caph->tcp_fd >= 0) {
+            close(caph->tcp_fd);
+            caph->tcp_fd = -1;
+        }
     
         /* Reset the last ping */
         caph->last_ping = 0;
