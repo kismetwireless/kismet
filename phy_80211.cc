@@ -727,11 +727,13 @@ void Kis_80211_Phy::HandleSSID(shared_ptr<kis_tracked_device_base> basedev,
             if (basedev->get_manuf() == "" && dot11info->wps_manuf != "")
                 basedev->set_manuf(dot11info->wps_manuf);
 
-            ssid->set_last_time(in_pack->ts.tv_sec);
+            if (ssid->get_last_time() < in_pack->ts.tv_sec)
+                ssid->set_last_time(in_pack->ts.tv_sec);
             ssid->inc_beacons_sec();
         } else {
             ssid = static_pointer_cast<dot11_advertised_ssid>(ssid_itr->second);
-            ssid->set_last_time(in_pack->ts.tv_sec);
+            if (ssid->get_last_time() < in_pack->ts.tv_sec)
+                ssid->set_last_time(in_pack->ts.tv_sec);
         }
 
         if (dot11info->subtype == packet_sub_beacon) {
@@ -1036,7 +1038,8 @@ void Kis_80211_Phy::HandleProbedSSID(shared_ptr<kis_tracked_device_base> basedev
         }
 
         if (probessid != NULL) {
-            probessid->set_last_time(in_pack->ts.tv_sec);
+            if (probessid->get_last_time() < in_pack->ts.tv_sec)
+                probessid->set_last_time(in_pack->ts.tv_sec);
 
             // Add the location data, if any
             if (pack_gpsinfo != NULL && pack_gpsinfo->fix > 1) {
@@ -1087,7 +1090,8 @@ void Kis_80211_Phy::HandleClient(shared_ptr<kis_tracked_device_base> basedev,
         client->set_first_time(in_pack->ts.tv_sec);
     }
 
-    client->set_last_time(in_pack->ts.tv_sec);
+    if (client->get_last_time() < in_pack->ts.tv_sec)
+        client->set_last_time(in_pack->ts.tv_sec);
 
     if (dot11info->type == packet_data) {
         client->inc_datasize(dot11info->datasize);

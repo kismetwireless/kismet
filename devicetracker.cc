@@ -42,7 +42,6 @@
 #include "gps_manager.h"
 #include "alertracker.h"
 #include "manuf.h"
-#include "dumpfile_devicetracker.h"
 #include "entrytracker.h"
 #include "devicetracker_component.h"
 #include "msgpack_adapter.h"
@@ -549,7 +548,8 @@ shared_ptr<kis_tracked_device_base> Devicetracker::UpdateCommonDevice(mac_addr i
 	}
 
 
-    device->set_last_time(in_pack->ts.tv_sec);
+    if (device->get_last_time() < in_pack->ts.tv_sec)
+        device->set_last_time(in_pack->ts.tv_sec);
 
     if (in_flags & UCD_UPDATE_PACKETS) {
         device->inc_packets();
@@ -642,37 +642,37 @@ int Devicetracker::PopulateCommon(shared_ptr<kis_tracked_device_base> device,
 
     local_locker lock(&devicelist_mutex);
 
-	kis_common_info *pack_common =
-		(kis_common_info *) in_pack->fetch(pack_comp_common);
-	kis_layer1_packinfo *pack_l1info =
-		(kis_layer1_packinfo *) in_pack->fetch(pack_comp_radiodata);
-	kis_gps_packinfo *pack_gpsinfo =
-		(kis_gps_packinfo *) in_pack->fetch(pack_comp_gps);
-	packetchain_comp_datasource *pack_datasrc =
-		(packetchain_comp_datasource *) in_pack->fetch(pack_comp_datasrc);
+    kis_common_info *pack_common =
+        (kis_common_info *) in_pack->fetch(pack_comp_common);
+    kis_layer1_packinfo *pack_l1info =
+        (kis_layer1_packinfo *) in_pack->fetch(pack_comp_radiodata);
+    kis_gps_packinfo *pack_gpsinfo =
+        (kis_gps_packinfo *) in_pack->fetch(pack_comp_gps);
+    packetchain_comp_datasource *pack_datasrc =
+        (packetchain_comp_datasource *) in_pack->fetch(pack_comp_datasrc);
 
-	// If we can't figure it out at all (no common layer) just bail
-	if (pack_common == NULL)
-		return 0;
+    // If we can't figure it out at all (no common layer) just bail
+    if (pack_common == NULL)
+        return 0;
 
-	// We shouldn't have ever been able to get this far w/out having a phy
-	// handler since we wouldn't know the phy id
-	Kis_Phy_Handler *handler = FetchPhyHandler(pack_common->phyid);
-	if (handler == NULL) {
-		_MSG("DeviceTracker failed to populate common because we couldn't find "
-			 "a matching phy handler", MSGFLAG_ERROR);
-		return 0;
-	}
+    // We shouldn't have ever been able to get this far w/out having a phy
+    // handler since we wouldn't know the phy id
+    Kis_Phy_Handler *handler = FetchPhyHandler(pack_common->phyid);
+    if (handler == NULL) {
+        _MSG("DeviceTracker failed to populate common because we couldn't find "
+                "a matching phy handler", MSGFLAG_ERROR);
+        return 0;
+    }
 
-	kis_tracked_device_info *devinfo =
-		(kis_tracked_device_info *) in_pack->fetch(pack_comp_device);
+    kis_tracked_device_info *devinfo =
+        (kis_tracked_device_info *) in_pack->fetch(pack_comp_device);
 
-	if (devinfo == NULL) {
+    if (devinfo == NULL) {
         fprintf(stderr, "debug - populating devinfo\n");
-		devinfo = new kis_tracked_device_info;
-		devinfo->devref = device;
-		in_pack->insert(pack_comp_device, devinfo);
-	}
+        devinfo = new kis_tracked_device_info;
+        devinfo->devref = device;
+        in_pack->insert(pack_comp_device, devinfo);
+    }
 
 
     // device->set_first_time(in_pack->ts.tv_sec);
@@ -689,12 +689,13 @@ int Devicetracker::PopulateCommon(shared_ptr<kis_tracked_device_base> device,
 
     device->get_packets_rrd()->add_sample(1, globalreg->timestamp.tv_sec);
 
-    device->set_last_time(in_pack->ts.tv_sec);
+    if (device->get_last_time() < in_pack->ts.tv_sec) 
+        device->set_last_time(in_pack->ts.tv_sec);
 
-	if (pack_common->error)
+    if (pack_common->error)
         device->inc_error_packets();
 
-	if (pack_common->type == packet_basic_data) {
+    if (pack_common->type == packet_basic_data) {
         // TODO fix directional data
         device->inc_data_packets();
         device->inc_datasize(pack_common->datasize);
@@ -713,885 +714,46 @@ int Devicetracker::PopulateCommon(shared_ptr<kis_tracked_device_base> device,
             device->get_packet_rrd_bin_jumbo()->add_sample(1, globalreg->timestamp.tv_sec);
         }
 
-	} else if (pack_common->type == packet_basic_mgmt ||
-			   pack_common->type == packet_basic_phy) {
+    } else if (pack_common->type == packet_basic_mgmt ||
+            pack_common->type == packet_basic_phy) {
         device->inc_llc_packets();
-	}
+    }
 
-	if (pack_l1info != NULL) {
-		if (!(pack_l1info->channel == "0"))
+    if (pack_l1info != NULL) {
+        if (!(pack_l1info->channel == "0"))
             device->set_channel(pack_l1info->channel);
-		if (pack_l1info->freq_khz != 0)
+        if (pack_l1info->freq_khz != 0)
             device->set_frequency(pack_l1info->freq_khz);
 
-		Packinfo_Sig_Combo *sc = new Packinfo_Sig_Combo(pack_l1info, pack_gpsinfo);
+        Packinfo_Sig_Combo *sc = new Packinfo_Sig_Combo(pack_l1info, pack_gpsinfo);
         (*(device->get_signal_data())) += *sc;
 
-		delete(sc);
+        delete(sc);
 
         device->inc_frequency_count((int) pack_l1info->freq_khz);
-	}
+    }
 
     if (pack_gpsinfo != NULL) {
         device->get_location()->add_loc(pack_gpsinfo->lat, pack_gpsinfo->lon,
                 pack_gpsinfo->alt, pack_gpsinfo->fix);
     }
 
-	// Update seenby records for time, frequency, packets
-	if (pack_datasrc != NULL) {
+    // Update seenby records for time, frequency, packets
+    if (pack_datasrc != NULL) {
         int f = -1;
 
         if (pack_l1info != NULL)
             f = pack_l1info->freq_khz;
 
         device->inc_seenby_count(pack_datasrc->ref_source, in_pack->ts.tv_sec, f);
-	}
+    }
 
     device->add_basic_crypt(pack_common->basic_crypt_set);
 
-	if (!(pack_common->channel == "0"))
+    if (!(pack_common->channel == "0"))
         device->set_channel(pack_common->channel);
 
-	return 1;
-}
-
-void Devicetracker::WriteXML(FILE *in_logfile) {
-#if 0
-	shared_ptr<Packetsourcetracker> pst =
-		static_pointer_cast<Packetsourcetracker>(globalreg->FetchGlobal("PACKETSOURCE_TRACKER"));
-
-	// Punt and die, better than segv
-	if (pst == NULL) {
-		_MSG("Devicetracker XML log - packetsourcetracker vanished!", MSGFLAG_ERROR);
-		return;
-	}
-
-#if 0
-	GpsWrapper *gpsw =
-		(GpsWrapper *) globalreg->FetchGlobal("GPSWRAPPER");
-
-	if (gpsw == NULL) {
-		_MSG("Devicetracker XML log - gpswrapper vanished!", MSGFLAG_ERROR);
-		return;
-	}
-#endif
-
-	fprintf(in_logfile, "<?xml version=\"1.0\"?>\n");
-
-	fprintf(in_logfile,
-			"<k:run xmlns:k=\"http://www.kismetwireless.net/xml\"\n"
-			"xmlns:xs=\"http://www.w3.org/2001/XMLSchema\"\n"
-			"xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n"
-			"xsi:schemaLocation=\"http://www.kismetwireless.net/xml kismet.xsd\"\n");
-
-	for (map<int, Kis_Phy_Handler *>::iterator x = phy_handler_map.begin();
-		 x != phy_handler_map.end(); ++x) {
-		fprintf(in_logfile,
-				"\nxmlns:%s=\"http://www.kismetwireless.net/xml/%s\"",
-				x->second->FetchPhyXsdNs().c_str(),
-				x->second->FetchPhyXsdNs().c_str());
-	}
-	fprintf(in_logfile, ">\n\n");
-
-	// write the schema into the run element
-	fprintf(in_logfile, "<xs:schema\n"
-			"xmlns:xs=\"http://www.w3.org/2001/XMLSchema\"\n"
-			"xmlns=\"http://xmlns.myexample.com/version3\"\n"
-			"targetNamespace=\"http://www.kismetwireless.net/xml\"\n"
-			"xmlns:common=\"http://www.kismetwireless.net/xml/common\"\n"
-			"xmlns:device=\"http://www.kismetwireless.net/xml/device\"\n"
-			"xmlns:gps=\"http://www.kismetwireless.net/xml/gps\"\n"
-			"xmlns:run=\"http://www.kismetwireless.net/xml/run\"\n");
-
-	for (map<int, Kis_Phy_Handler *>::iterator x = phy_handler_map.begin();
-		 x != phy_handler_map.end(); ++x) {
-		fprintf(in_logfile, "xmlns:%s=\"http://www.kismetwireless.net/xml/%s\"\n",
-				x->second->FetchPhyXsdNs().c_str(),
-				x->second->FetchPhyXsdNs().c_str());
-	}
-
-	fprintf(in_logfile, "elementFormDefault=\"unqualified\"\n"
-			"attributeFromDefault=\"unqualified\">\n");
-
-	fprintf(in_logfile,
-			"<xs:import namespace=\"http://www.kismetwireless.net/xml/common\" "
-			"schemaLocation=\"http://www.kismetwireless.net/xml/common.xsd\"/>\n"
-			"<xs:import namespace=\"http://www.kismetwireless.net/xml/device\" "
-			"schemaLocation=\"http://www.kismetwireless.net/xml/device.xsd\"/>\n"
-			"<xs:import namespace=\"http://www.kismetwireless.net/xml/gps\" "
-			"schemaLocation=\"http://www.kismetwireless.net/xml/gps.xsd\"/>\n"
-			"<xs:import namespace=\"http://www.kismetwireless.net/xml/run\" "
-			"schemaLocation=\"http://www.kismetwireless.net/xml/run.xsd\"/>\n");
-
-	for (map<int, Kis_Phy_Handler *>::iterator x = phy_handler_map.begin();
-		 x != phy_handler_map.end(); ++x) {
-		fprintf(in_logfile,
-				"<xs:import namespace=\"http://www.kismetwireless.net/xml/%s\" "
-				"schemaLocation=\"%s\"/>\n",
-				x->second->FetchPhyXsdNs().c_str(),
-				x->second->FetchPhyXsdUrl().c_str());
-	}
-
-	fprintf(in_logfile,
-			"<xs:element name=\"run\"/>\n"
-			"</xs:schema>\n");
-
-
-	fprintf(in_logfile,
-			"<version>%s-%s-%s</version>\n",
-			globalreg->version_major.c_str(),
-			globalreg->version_minor.c_str(),
-			globalreg->version_tiny.c_str());
-
-	fprintf(in_logfile,
-			"<server>%s</server>\n",
-			SanitizeXML(globalreg->servername).c_str());
-
-	fprintf(in_logfile,
-			"<logname>%s</logname>\n",
-			SanitizeXML(globalreg->logname).c_str());
-
-	fprintf(in_logfile,
-			"<startTime>%.24s</startTime>\n",
-			ctime(&(globalreg->start_time)));
-	fprintf(in_logfile,
-			"<endTime>%.24s</endTime>\n",
-			ctime(&(globalreg->timestamp.tv_sec)));
-
-	vector<pst_packetsource *> *pstv = pst->FetchSourceVec();
-
-	fprintf(in_logfile, "<captureSources>\n");
-	for (unsigned int x = 0; x < pstv->size(); x++) {
-		pst_packetsource *ps = (*pstv)[x];
-
-		if (ps == NULL)
-			continue;
-
-		if (ps->strong_source == NULL || ps->proto_source == NULL)
-			continue;
-
-		fprintf(in_logfile,
-				"<captureSource>\n"
-				"<uuid>%s</uuid>\n"
-				"<definition>%s</definition>\n"
-				"<name>%s</name>\n"
-				"<interface>%s</interface>\n"
-				"<type>%s</type>\n"
-				"<packets>%u</packets>\n"
-				"<errorPackets>%u</errorPackets>\n",
-
-				ps->strong_source->FetchUUID().UUID2String().c_str(),
-				ps->sourceline.c_str(),
-				ps->strong_source->FetchName().c_str(),
-				ps->strong_source->FetchInterface().c_str(),
-				ps->strong_source->FetchType().c_str(),
-				ps->strong_source->FetchNumPackets(),
-				ps->strong_source->FetchNumErrorPackets());
-
-		// TODO rewrite this for phy-specific channel handling
-		string channels;
-		if (ps->channel_ptr != NULL) {
-			for (unsigned int c = 0; c < ps->channel_ptr->channel_vec.size(); c++) {
-				if (ps->channel_ptr->channel_vec[c].range == 0) {
-					channels += IntToString(ps->channel_ptr->channel_vec[c].u.chan_t.channel);
-					if (ps->channel_ptr->channel_vec[c].u.chan_t.dwell > 1)
-						channels += string(":") +
-							IntToString(ps->channel_ptr->channel_vec[c].u.chan_t.dwell);
-				} else {
-					channels += string("range-") + IntToString(ps->channel_ptr->channel_vec[c].u.range_t.start) + string("-") + IntToString(ps->channel_ptr->channel_vec[c].u.range_t.end) + string("-") + IntToString(ps->channel_ptr->channel_vec[c].u.range_t.width) + string("-") + IntToString(ps->channel_ptr->channel_vec[c].u.range_t.iter);
-				}
-
-				if (c != ps->channel_ptr->channel_vec.size() - 1)
-					channels += ",";
-			}
-		} else {
-			channels = IntToString(ps->strong_source->FetchChannel());
-		}
-
-		fprintf(in_logfile, "<channels>%s</channels>\n", channels.c_str());
-
-		fprintf(in_logfile, "<channelhop>%s</channelhop>\n",
-				(ps->channel_dwell || ps->channel_hop) ? "true" : "false");
-
-		fprintf(in_logfile, "</captureSource>\n");
-	}
-	fprintf(in_logfile, "</captureSources>\n");
-
-	fprintf(in_logfile, "<totalDevices>%u</totalDevices>\n",
-			FetchNumDevices(KIS_PHY_ANY));
-
-	fprintf(in_logfile, "<phyTypes>\n");
-
-	for (map<int, Kis_Phy_Handler *>::iterator x = phy_handler_map.begin();
-		 x != phy_handler_map.end(); ++x) {
-		fprintf(in_logfile,
-				"<phyType>\n"
-				"<name>%s</name>\n"
-				"<devices>%u</devices>\n"
-				"<packets>%u</packets>\n"
-				"<packetData>%u</packetData>\n"
-				"<packetFiltered>%u</packetFiltered>\n"
-				"<packetError>%u</packetError>\n"
-				"</phyType>\n",
-				SanitizeXML(x->second->FetchPhyName()).c_str(),
-				FetchNumDevices(x->first),
-				FetchNumPackets(x->first),
-				FetchNumDatapackets(x->first),
-				FetchNumFilterpackets(x->first),
-				FetchNumErrorpackets(x->first));
-	}
-	fprintf(in_logfile, "</phyTypes>\n");
-
-#if 0
-	fprintf(in_logfile,
-			"<gpsDevices>\n"
-			"<gpsDevice>\n"
-			"<device>%s</device>\n"
-			"<type>%s</type>\n"
-			"</gpsDevice>\n"
-			"</gpsDevices>\n",
-			SanitizeXML(gpsw->FetchDevice()).c_str(),
-			SanitizeXML(gpsw->FetchType()).c_str());
-#endif
-
-	vector<kis_tracked_device_base *> *devlist = NULL;// = FetchDevices(KIS_PHY_ANY);
-
-	if (devlist->size() > 0)
-		fprintf(in_logfile, "<devices>\n");
-
-	for (unsigned int x = 0; x < devlist->size(); x++) {
-		kis_tracked_device_base *dev = (*devlist)[x];
-		Kis_Phy_Handler *phy = FetchPhyHandler(dev->get_key());
-
-		if (phy == NULL)
-			fprintf(in_logfile, "<device phy=\"unknown\">\n");
-		else
-			fprintf(in_logfile,
-					"<device xsi:type=\"%s:%sdevice\" phy=\"%s\">\n",
-					phy->FetchPhyXsdNs().c_str(), phy->FetchPhyXsdNs().c_str(),
-					phy->FetchPhyXsdNs().c_str());
-
-		fprintf(in_logfile,
-				"<deviceMac>%s</deviceMac>\n",
-				dev->get_mac().Mac2String().c_str());
-
-		if (dev->get_name() != "")
-			fprintf(in_logfile,
-					"<name>%s</name>\n",
-					SanitizeXML(dev->get_name()).c_str());
-
-		if (dev->get_type_string() != "")
-			fprintf(in_logfile, "<classifiedType>%s</classifiedType>\n",
-					SanitizeXML(dev->get_type_string()).c_str());
-
-		fprintf(in_logfile, "<commonTypes>\n");
-		if ((dev->get_basic_type_set() & KIS_DEVICE_BASICTYPE_AP))
-			fprintf(in_logfile, "<commonType>ap</commonType>\n");
-		if ((dev->get_basic_type_set() & KIS_DEVICE_BASICTYPE_CLIENT))
-			fprintf(in_logfile, "<commonType>client</commonType>\n");
-		if ((dev->get_basic_type_set() & KIS_DEVICE_BASICTYPE_WIRED))
-			fprintf(in_logfile, "<commonType>wired</commonType>\n");
-		if ((dev->get_basic_type_set() & KIS_DEVICE_BASICTYPE_PEER))
-			fprintf(in_logfile, "<commonType>peer</commonType>\n");
-		fprintf(in_logfile, "</commonTypes>\n");
-
-		fprintf(in_logfile, "<commonCryptTypes>\n");
-		// Empty or only generic encryption known
-		if (dev->get_basic_crypt_set() == KIS_DEVICE_BASICCRYPT_NONE)
-			fprintf(in_logfile, "<commonCrypt>none</commonCrypt>\n");
-		if ((dev->get_basic_crypt_set() == KIS_DEVICE_BASICCRYPT_ENCRYPTED))
-			fprintf(in_logfile, "<commonCrypt>encrypted</commonCrypt>\n");
-		// Deeper detection of l2/l3
-		if ((dev->get_basic_crypt_set() & KIS_DEVICE_BASICCRYPT_L2))
-			fprintf(in_logfile, "<commonCrypt>L2 encrypted</commonCrypt>\n");
-		if ((dev->get_basic_crypt_set() & KIS_DEVICE_BASICCRYPT_L2))
-			fprintf(in_logfile, "<commonCrypt>L3 encrypted</commonCrypt>\n");
-		fprintf(in_logfile, "</commonCryptTypes>\n");
-
-        time_t t = dev->get_first_time();
-		fprintf(in_logfile,
-				"<firstSeen>%.24s</firstSeen>\n",
-				ctime(&t));
-        t = dev->get_last_time();
-		fprintf(in_logfile,
-				"<lastSeen>%.24s</lastSeen>\n",
-				ctime(&t));
-
-        SharedTrackerElement seenby_map = dev->get_seenby_map();
-
-        if (seenby_map->size() > 0)
-			fprintf(in_logfile, "<seenBySources>\n");
-
-        for (TrackerElement::map_const_iterator si = seenby_map->begin();
-                si != seenby_map->end(); ++si) {
-            shared_ptr<kis_tracked_seenby_data> sbd = 
-                static_pointer_cast<kis_tracked_seenby_data>(si->second);
-
-            time_t st;
-
-			fprintf(in_logfile,
-					"<seenBySource>\n"
-					"<uuid>%s</uuid>\n",
-					sbd->get_uuid().UUID2String().c_str());
-
-            st = sbd->get_first_time();
-			fprintf(in_logfile, "<firstSeen>%.24s</firstSeen>\n",
-					ctime(&st));
-
-            st = sbd->get_last_time();
-			fprintf(in_logfile, "<lastSeen>%.24s</lastSeen>\n",
-					ctime(&st));
-
-			fprintf(in_logfile, "<packets>%lu</packets>\n",
-                    sbd->get_num_packets());
-
-#if 0
-            TrackerElement *fe = sbd->get_freq_mhz_map();
-
-            if (fe->size() > 0) {
-				fprintf(in_logfile, "<frequencySeen>\n");
-
-                for (TrackerElement::map_const_iterator fi = fe->begin();
-                        fi != fe->end(); ++fi) {
-					fprintf(in_logfile, "<frequency mhz=\"%u\" packets=\"%lu\"/>\n",
-							fi->first, GetTrackerValue<uint64_t>(fi->second));
-                }
-
-				fprintf(in_logfile, "</frequencySeen>\n");
-			}
-#endif
-
-			fprintf(in_logfile, "</seenBySource>\n");
-		}
-
-        if (seenby_map->size() > 0)
-			fprintf(in_logfile, "</seenBySources>\n");
-
-        shared_ptr<kis_tracked_location> location = dev->get_location();
-        shared_ptr<kis_tracked_signal_data> snrdata = dev->get_signal_data();
-
-        if (location->get_valid()) {
-			fprintf(in_logfile,
-					"<gpsAverage>\n"
-					"<latitude>%f</latitude>\n"
-					"<longitude>%f</longitude>\n"
-					"<altitude>%f</altitude>\n"
-					"</gpsAverage>\n",
-                    location->get_avg_loc()->get_lat(),
-                    location->get_avg_loc()->get_lon(),
-                    location->get_avg_loc()->get_alt());
-
-			fprintf(in_logfile,
-					"<gpsMinimum>\n"
-					"<latitude>%f</latitude>\n"
-					"<longitude>%f</longitude>\n"
-                    "<altitude>%f</altitude>\n",
-                    location->get_min_loc()->get_lat(),
-                    location->get_min_loc()->get_lon(),
-                    location->get_min_loc()->get_alt());
-			fprintf(in_logfile, "</gpsMinimum>\n");
-
-			fprintf(in_logfile,
-					"<gpsMaximum>\n"
-					"<latitude>%f</latitude>\n"
-					"<longitude>%f</longitude>\n"
-                    "<altitude>%f</altitude>\n",
-                    location->get_max_loc()->get_lat(),
-                    location->get_max_loc()->get_lon(),
-                    location->get_max_loc()->get_alt());
-			fprintf(in_logfile, "</gpsMaximum>\n");
-
-            shared_ptr<kis_tracked_location_triplet> peak_location = snrdata->get_peak_loc();
-
-            if (peak_location->get_valid()) {
-                fprintf(in_logfile,
-                        "<gpsPeaksignal>\n"
-                        "<latitude>%f</latitude>\n"
-                        "<longitude>%f</longitude>\n"
-                        "<altitude>%f</altitude>\n",
-                        peak_location->get_lat(),
-                        peak_location->get_lon(),
-                        peak_location->get_alt());
-                fprintf(in_logfile, "</gpsPeaksignal>\n");
-            }
-		}
-
-        if (snrdata->get_last_signal_dbm() != 0) {
-			// Smells like DBM signalling
-			fprintf(in_logfile, "<signalLevel type=\"dbm\">\n");
-
-			fprintf(in_logfile, "<lastSignal>%d</lastSignal>\n",
-					snrdata->get_last_signal_dbm());
-
-            if (snrdata->get_last_noise_dbm() != 0)
-				fprintf(in_logfile, "<lastNoise>%d</lastNoise>\n",
-						snrdata->get_last_noise_dbm());
-
-			fprintf(in_logfile, "<minSignal>%d</minSignal>\n",
-					snrdata->get_min_signal_dbm());
-
-            if (snrdata->get_min_noise_dbm() != 0)
-				fprintf(in_logfile, "<minNoise>%d</minNoise>\n",
-						snrdata->get_min_noise_dbm());
-
-			fprintf(in_logfile, "<maxSignal>%d</maxSignal>\n",
-					snrdata->get_max_signal_dbm());
-
-            if (snrdata->get_max_noise_dbm() != 0)
-				fprintf(in_logfile, "<maxNoise>%d</maxNoise>\n",
-						snrdata->get_max_noise_dbm());
-
-			fprintf(in_logfile, "</signalLevel>\n");
-		} else if (snrdata->get_last_signal_rssi() != 0) {
-			// Smells like RSSI
-			fprintf(in_logfile, "<signalLevel type=\"rssi\">\n");
-
-			fprintf(in_logfile, "<lastSignal>%d</lastSignal>\n",
-					snrdata->get_last_signal_rssi());
-
-			if (snrdata->get_last_noise_rssi() != 0)
-				fprintf(in_logfile, "<lastNoise>%d</lastNoise>\n",
-						snrdata->get_last_noise_rssi());
-
-			fprintf(in_logfile, "<minSignal>%d</minSignal>\n",
-					snrdata->get_min_signal_rssi());
-
-			if (snrdata->get_min_noise_rssi() != 0)
-				fprintf(in_logfile, "<minNoise>%d</minNoise>\n",
-						snrdata->get_min_noise_rssi());
-
-			fprintf(in_logfile, "<maxSignal>%d</maxSignal>\n",
-					snrdata->get_max_signal_rssi());
-
-			if (snrdata->get_max_noise_rssi() != 0)
-				fprintf(in_logfile, "<maxNoise>%d</maxNoise>\n",
-						snrdata->get_max_noise_rssi());
-
-			fprintf(in_logfile, "</signalLevel>\n");
-		}
-
-		fprintf(in_logfile,
-				"<packets>%lu</packets>\n"
-				"<packetLink>%lu</packetLink>\n"
-				"<packetData>%lu</packetData>\n"
-				"<packetFiltered>%lu</packetFiltered>\n"
-				"<packetError>%lu</packetError>\n"
-				"<dataBytes>%lu</dataBytes>\n",
-                dev->get_packets(), dev->get_llc_packets(), dev->get_data_packets(),
-                dev->get_filter_packets(), dev->get_error_packets(),
-                dev->get_datasize());
-
-		if (dev->get_manuf() != "")
-			fprintf(in_logfile, "<manufacturer>%s</manufacturer>\n",
-					SanitizeXML(dev->get_manuf()).c_str());
-
-        /*
-        if (dev->get_tag() != "") {
-            fprintf(in_logfile, "<tags><tag name=\"tag\">%s</tag></tags>",
-                    SanitizeXML(dev->get_tag()).c_str());
-        }
-        */
-
-		// Call all the phy handlers for logging
-		for (map<int, Kis_Phy_Handler *>::iterator x = phy_handler_map.begin();
-			 x != phy_handler_map.end(); ++x) {
-			x->second->ExportLogRecord(dev, "xml", in_logfile, 0);
-		}
-
-		fprintf(in_logfile, "</device>\n");
-
-	}
-
-	if (devlist->size() > 0)
-		fprintf(in_logfile, "</devices>\n");
-
-	fprintf(in_logfile, "</k:run>\n");
-#endif
-}
-
-void Devicetracker::WriteTXT(FILE *in_logfile) {
-#if 0
-	shared_ptr<Packetsourcetracker> pst =
-        static_pointer_cast<Packetsourcetracker>(globalreg->FetchGlobal("PACKETSOURCE_TRACKER"));
-
-	// Punt and die, better than segv
-	if (pst == NULL) {
-		_MSG("Devicetracker TXT log - packetsourcetracker vanished!", MSGFLAG_ERROR);
-		return;
-	}
-
-	GpsWrapper *gpsw =
-		(GpsWrapper *) globalreg->FetchGlobal("GPSWRAPPER");
-
-	if (gpsw == NULL) {
-		_MSG("Devicetracker TXT log - gpswrapper vanished!", MSGFLAG_ERROR);
-		return;
-	}
-
-	fprintf(in_logfile, "Version: %s-%s-%s\n",
-			globalreg->version_major.c_str(),
-			globalreg->version_minor.c_str(),
-			globalreg->version_tiny.c_str());
-	fprintf(in_logfile, "\n");
-
-	fprintf(in_logfile, "Server: %s\n",
-			globalreg->servername.c_str());
-	fprintf(in_logfile, "\n");
-
-	fprintf(in_logfile, "Log name: %s\n",
-			globalreg->logname.c_str());
-	fprintf(in_logfile, "\n");
-
-	fprintf(in_logfile, "Start time: %.24s\n",
-			ctime(&(globalreg->start_time)));
-	fprintf(in_logfile, "End time: %.24s\n",
-			ctime(&(globalreg->timestamp.tv_sec)));
-	fprintf(in_logfile, "\n");
-
-	vector<pst_packetsource *> *pstv = pst->FetchSourceVec();
-
-	fprintf(in_logfile, "Capture sources:\n");
-	for (unsigned int x = 0; x < pstv->size(); x++) {
-		pst_packetsource *ps = (*pstv)[x];
-
-		if (ps == NULL)
-			continue;
-
-		if (ps->strong_source == NULL || ps->proto_source == NULL)
-			continue;
-
-		fprintf(in_logfile,
-				" UUID: %s\n"
-				" Definition: %s\n"
-				" Name: %s\n"
-				" Interface: %s\n"
-				" Type: %s\n"
-				" Packets: %u\n"
-				" Error packets: %u\n",
-
-				ps->strong_source->FetchUUID().UUID2String().c_str(),
-				ps->sourceline.c_str(),
-				ps->strong_source->FetchName().c_str(),
-				ps->strong_source->FetchInterface().c_str(),
-				ps->strong_source->FetchType().c_str(),
-				ps->strong_source->FetchNumPackets(),
-				ps->strong_source->FetchNumErrorPackets());
-
-		// TODO rewrite this for phy-specific channel handling
-		string channels;
-		if (ps->channel_ptr != NULL) {
-			for (unsigned int c = 0; c < ps->channel_ptr->channel_vec.size(); c++) {
-				if (ps->channel_ptr->channel_vec[c].range == 0) {
-					channels += IntToString(ps->channel_ptr->channel_vec[c].u.chan_t.channel);
-					if (ps->channel_ptr->channel_vec[c].u.chan_t.dwell > 1)
-						channels += string(":") +
-							IntToString(ps->channel_ptr->channel_vec[c].u.chan_t.dwell);
-				} else {
-					channels += string("range-") + IntToString(ps->channel_ptr->channel_vec[c].u.range_t.start) + string("-") + IntToString(ps->channel_ptr->channel_vec[c].u.range_t.end) + string("-") + IntToString(ps->channel_ptr->channel_vec[c].u.range_t.width) + string("-") + IntToString(ps->channel_ptr->channel_vec[c].u.range_t.iter);
-				}
-
-				if (c != ps->channel_ptr->channel_vec.size() - 1)
-					channels += ",";
-			}
-		} else {
-			channels = IntToString(ps->strong_source->FetchChannel());
-		}
-
-		fprintf(in_logfile, " Channels: %s\n", channels.c_str());
-
-		fprintf(in_logfile, " Channel hopping: %s\n",
-				(ps->channel_dwell || ps->channel_hop) ? "true" : "false");
-
-		fprintf(in_logfile, "\n");
-	}
-
-	fprintf(in_logfile, "Total devices: %u\n", FetchNumDevices(KIS_PHY_ANY));
-	fprintf(in_logfile, "\n");
-
-	fprintf(in_logfile, "Phy types:\n");
-
-	for (map<int, Kis_Phy_Handler *>::iterator x = phy_handler_map.begin();
-		 x != phy_handler_map.end(); ++x) {
-		fprintf(in_logfile,
-				" Phy name: %s\n"
-				" Devices: %u\n"
-				" Packets: %u\n"
-				" Data packets: %u\n"
-				" Filtered packets: %u\n"
-				" Error packets: %u\n\n",
-				x->second->FetchPhyName().c_str(),
-				FetchNumDevices(x->first),
-				FetchNumPackets(x->first),
-				FetchNumDatapackets(x->first),
-				FetchNumFilterpackets(x->first),
-				FetchNumErrorpackets(x->first));
-	}
-
-	if (gpsw != NULL) {
-		fprintf(in_logfile, "GPS device: %s\n",
-				gpsw->FetchDevice().c_str());
-		fprintf(in_logfile, "GPS type: %s\n",
-				gpsw->FetchType().c_str());
-	} else {
-		fprintf(in_logfile, "GPS device: None\n");
-	}
-	fprintf(in_logfile, "\n");
-
-	vector<kis_tracked_device_base *> *devlist = NULL; // = FetchDevices(KIS_PHY_ANY);
-
-	if (devlist->size() > 0)
-		fprintf(in_logfile, "Devices:\n");
-
-	for (unsigned int x = 0; x < devlist->size(); x++) {
-		kis_tracked_device_base *dev = (*devlist)[x];
-		Kis_Phy_Handler *phy = FetchPhyHandler(dev->get_key());
-
-		fprintf(in_logfile,
-				" Device MAC: %s\n",
-                dev->get_mac().Mac2String().c_str());
-
-		if (phy == NULL)
-			fprintf(in_logfile, " Device phy: Unknown\n");
-		else
-			fprintf(in_logfile, " Device phy: %s\n",
-					phy->FetchPhyName().c_str());
-
-		if (dev->get_name() != "")
-			fprintf(in_logfile,
-					" Device name: %s\n",
-					dev->get_name().c_str());
-
-		if (dev->get_type_string() != "")
-			fprintf(in_logfile, " Device type: %s\n",
-					dev->get_type_string().c_str());
-
-		fprintf(in_logfile, " Basic device type:\n");
-		if (dev->get_basic_type_set() == KIS_DEVICE_BASICTYPE_DEVICE)
-			fprintf(in_logfile, "  Generic device (No special characteristics detected)\n");
-		if ((dev->get_basic_type_set() & KIS_DEVICE_BASICTYPE_AP))
-			fprintf(in_logfile, "  AP (Central network controller)\n");
-		if ((dev->get_basic_type_set() & KIS_DEVICE_BASICTYPE_CLIENT))
-			fprintf(in_logfile, "  Client (Network client)\n");
-		if ((dev->get_basic_type_set() & KIS_DEVICE_BASICTYPE_WIRED))
-			fprintf(in_logfile, "  Wired (Bridged wired device)\n");
-		if ((dev->get_basic_type_set() & KIS_DEVICE_BASICTYPE_PEER))
-			fprintf(in_logfile, "  Peer (Ad-hoc or peerless client)\n");
-		fprintf(in_logfile, "\n");
-
-		fprintf(in_logfile, " Basic device encryption:\n");
-
-		// Empty or only generic encryption known
-		if (dev->get_basic_crypt_set() == KIS_DEVICE_BASICCRYPT_NONE)
-			fprintf(in_logfile, "  None (No detected encryption)\n");
-		if ((dev->get_basic_crypt_set() == KIS_DEVICE_BASICCRYPT_ENCRYPTED))
-			fprintf(in_logfile, "  Encrypted (Some form of encryption in use)\n");
-		// Deeper detection of l2/l3
-		if ((dev->get_basic_crypt_set() & KIS_DEVICE_BASICCRYPT_L2))
-			fprintf(in_logfile, "  L2 encrypted (Link layer encryption)\n");
-		if ((dev->get_basic_crypt_set() & KIS_DEVICE_BASICCRYPT_L2))
-			fprintf(in_logfile, "  L3 encrypted (L3+ encryption)\n");
-		fprintf(in_logfile, "\n");
-
-        time_t dt;
-
-        dt = dev->get_first_time();
-		fprintf(in_logfile,
-				" First seen: %.24s\n",
-				ctime(&(dt)));
-        dt = dev->get_last_time();
-		fprintf(in_logfile,
-				" Last seen: %.24s\n",
-				ctime(&(dt)));
-		fprintf(in_logfile, "\n");
-
-        SharedTrackerElement seenby_map = dev->get_seenby_map();
-
-		if (seenby_map->size() > 0)
-			fprintf(in_logfile, " Seen by capture sources:\n");
-
-        for (TrackerElement::map_const_iterator si = seenby_map->begin();
-                si != seenby_map->end(); ++si) {
-            shared_ptr<kis_tracked_seenby_data> sbd = 
-                static_pointer_cast<kis_tracked_seenby_data>(si->second);
-
-			fprintf(in_logfile,
-					"  UUID: %s>\n",
-					sbd->get_uuid().UUID2String().c_str());
-
-            time_t st;
-
-            st = sbd->get_first_time();
-			fprintf(in_logfile, "  First seen: %.24s\n",
-					ctime(&(st)));
-
-            st = sbd->get_last_time();
-			fprintf(in_logfile, "  Last seen: %.24s\n",
-					ctime(&(st)));
-			fprintf(in_logfile, "  Packets: %lu\n",
-                    sbd->get_num_packets());
-
-            TrackerElement *fe = sbd->get_freq_mhz_map();
-
-            if (fe->size() > 0) {
-				fprintf(in_logfile, "  Frequencies seen:\n");
-
-                for (TrackerElement::map_const_iterator fi = fe->begin();
-                        fi != fe->end(); ++fi) {
-					fprintf(in_logfile, "   Frequency (MHz): %u\n"
-							"   Packets: %lu\n",
-							fi->first, GetTrackerValue<uint64_t>(fi->second));
-                }
-            }
-
-			fprintf(in_logfile, "\n");
-		}
-
-        shared_ptr<kis_tracked_location> location = dev->get_location();
-        shared_ptr<kis_tracked_signal_data> snrdata = dev->get_signal_data();
-
-        if (location->get_valid()) {
-			fprintf(in_logfile,
-					"  GPS average latitude: %f\n"
-					"  GPS average longitude: %f\n"
-					"  GPS average altitude: %f\n"
-					"\n",
-                    location->get_avg_loc()->get_lat(),
-                    location->get_avg_loc()->get_lon(),
-                    location->get_avg_loc()->get_alt());
-
-			fprintf(in_logfile,
-					"  GPS bounding minimum latitude: %f\n"
-					"  GPS bounding minimum longitude: %f\n"
-                    "  GPS bounding minimum altitude: %f\n",
-                    location->get_min_loc()->get_lat(),
-                    location->get_min_loc()->get_lon(),
-                    location->get_min_loc()->get_alt());
-
-			fprintf(in_logfile, "\n");
-
-			fprintf(in_logfile,
-					"  GPS bounding maximum latitude: %f\n"
-					"  GPS bounding maximum longitude: %f\n"
-                    "  GPS bounding maximum altitude: %f\n",
-                    location->get_max_loc()->get_lat(),
-                    location->get_max_loc()->get_lon(),
-                    location->get_max_loc()->get_alt());
-
-			fprintf(in_logfile, "\n");
-
-            shared_ptr<kis_tracked_location_triplet> peak_location = snrdata->get_peak_loc();
-
-			fprintf(in_logfile,
-					"  GPS peak signal latitude: %f\n"
-					"  GPS peak signal longitude: %f\n"
-                    "  GPS peak signal altitude: %f\n",
-                    peak_location->get_lat(),
-                    peak_location->get_lon(),
-                    peak_location->get_alt());
-		}
-
-        if (snrdata->get_last_signal_dbm() != 0) {
-			fprintf(in_logfile, " Signal (as dBm)\n");
-
-			fprintf(in_logfile, "  Latest signal: %d\n",
-                    snrdata->get_last_signal_dbm());
-
-            fprintf(in_logfile, "  Latest noise: %d\n",
-                    snrdata->get_last_noise_dbm());
-
-			fprintf(in_logfile, "  Minimum signal: %d\n",
-                    snrdata->get_min_signal_dbm());
-
-            fprintf(in_logfile, "  Minimum noise: %d\n",
-                    snrdata->get_min_noise_dbm());
-
-			fprintf(in_logfile, "  Maximum signal: %d\n",
-                    snrdata->get_max_signal_dbm());
-
-			fprintf(in_logfile, "  Maximum noise: %d\n",
-                    snrdata->get_max_noise_dbm());
-
-			fprintf(in_logfile, "\n");
-        }
-
-        if (snrdata->get_last_signal_rssi() != 0) {
-			fprintf(in_logfile, " Signal (as RSSI)\n");
-
-			fprintf(in_logfile, "  Latest signal: %d\n",
-                    snrdata->get_last_signal_rssi());
-
-            fprintf(in_logfile, "  Latest noise: %d\n",
-                    snrdata->get_last_noise_rssi());
-
-			fprintf(in_logfile, "  Minimum signal: %d\n",
-                    snrdata->get_min_signal_rssi());
-
-            fprintf(in_logfile, "  Minimum noise: %d\n",
-                    snrdata->get_min_noise_rssi());
-
-			fprintf(in_logfile, "  Maximum signal: %d\n",
-                    snrdata->get_max_signal_rssi());
-
-			fprintf(in_logfile, "  Maximum noise: %d\n",
-                    snrdata->get_max_noise_rssi());
-
-			fprintf(in_logfile, "\n");
-        }
-
-		fprintf(in_logfile,
-				" Total packets: %lu\n"
-				" Link-type packets: %lu\n"
-				" Data packets: %lu\n"
-				" Filtered packets: %lu\n"
-				" Error packets: %lu\n"
-				" Data (in bytes): %lu\n\n",
-                dev->get_packets(), dev->get_llc_packets(), dev->get_data_packets(),
-                dev->get_filter_packets(), dev->get_error_packets(),
-                dev->get_datasize());
-
-        if (dev->get_manuf() != "")
-			fprintf(in_logfile, " Manufacturer: %s\n\n",
-					dev->get_manuf().c_str());
-
-        /*
-        if (dev->get_tag() != "") {
-            fprintf(in_logfile, " Tag: %s\n",
-                    dev->get_tag().c_str());
-		}
-        */
-
-		// Call all the phy handlers for logging
-		for (map<int, Kis_Phy_Handler *>::iterator x = phy_handler_map.begin();
-			 x != phy_handler_map.end(); ++x) {
-			x->second->ExportLogRecord(dev, "text", in_logfile, 1);
-		}
-
-		fprintf(in_logfile, "\n");
-
-	}
-
-	if (devlist->size() > 0)
-		fprintf(in_logfile, "\n");
-#endif
-
-}
-
-int Devicetracker::LogDevices(string in_logclass,
-							  string in_logtype, FILE *in_logfile) {
-#if 0
-	string logclass = StrLower(in_logclass);
-	string logtype = StrLower(in_logtype);
-
-	if (logclass == "xml") {
-		WriteXML(in_logfile);
-		return 1;
-	} else if (logclass == "text") {
-		WriteTXT(in_logfile);
-		return 1;
-	}
-#endif
-
-	return 0;
+    return 1;
 }
 
 #if 0

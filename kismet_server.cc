@@ -83,11 +83,6 @@
 
 #include "dumpfile.h"
 #include "dumpfile_pcap.h"
-#include "dumpfile_netxml.h"
-#include "dumpfile_nettxt.h"
-#include "dumpfile_gpsxml.h"
-#include "dumpfile_string.h"
-#include "dumpfile_alert.h"
 
 #include "ipc_remote2.h"
 
@@ -987,21 +982,6 @@ int main(int argc, char *argv[], char *envp[]) {
     if (globalregistry->fatal_condition)
         CatchShutdown(-1);
 #endif
-    new Dumpfile_Netxml(globalregistry);
-    if (globalregistry->fatal_condition)
-        CatchShutdown(-1);
-    new Dumpfile_Nettxt(globalregistry);
-    if (globalregistry->fatal_condition)
-        CatchShutdown(-1);
-    new Dumpfile_Gpsxml(globalregistry);
-    if (globalregistry->fatal_condition)
-        CatchShutdown(-1);
-    new Dumpfile_String(globalregistry);
-    if (globalregistry->fatal_condition)
-        CatchShutdown(-1);
-    new Dumpfile_Alert(globalregistry);
-    if (globalregistry->fatal_condition)
-        CatchShutdown(-1);
 
     if (conf->FetchOpt("writeinterval") != "") {
         if (sscanf(conf->FetchOpt("writeinterval").c_str(), "%d", &data_dump) != 1) {

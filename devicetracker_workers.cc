@@ -42,7 +42,6 @@
 #include "gps_manager.h"
 #include "alertracker.h"
 #include "manuf.h"
-#include "dumpfile_devicetracker.h"
 #include "entrytracker.h"
 #include "devicetracker_component.h"
 #include "msgpack_adapter.h"

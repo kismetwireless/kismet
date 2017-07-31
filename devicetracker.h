@@ -839,10 +839,6 @@ protected:
 	int next_phy_id;
 	map<int, Kis_Phy_Handler *> phy_handler_map;
 
-	// Log helpers
-	void WriteXML(FILE *in_logfile);
-	void WriteTXT(FILE *in_logfile);
-
 	// Populate the common components of a device
 	int PopulateCommon(shared_ptr<kis_tracked_device_base> device, kis_packet *in_pack);
 
