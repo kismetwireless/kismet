@@ -202,8 +202,11 @@ void Systemmonitor::pre_serialize() {
     set_battery_ac(batinfo.ac);
     set_battery_remaining(batinfo.remaining_sec);
 
-    set_timestamp_sec(globalreg->timestamp.tv_sec);
-    set_timestamp_usec(globalreg->timestamp.tv_usec);
+    struct timeval now;
+    gettimeofday(&now, NULL);
+
+    set_timestamp_sec(now.tv_sec);
+    set_timestamp_usec(now.tv_usec);
 }
 
 bool Systemmonitor::Httpd_VerifyPath(const char *path, const char *method) {
@@ -213,6 +216,10 @@ bool Systemmonitor::Httpd_VerifyPath(const char *path, const char *method) {
     if (strcmp(path, "/system/status.msgpack") == 0)
         return true;
     if (strcmp(path, "/system/status.json") == 0)
+        return true;
+    if (strcmp(path, "/system/timestamp.msgpack") == 0)
+        return true;
+    if (strcmp(path, "/system/timestamp.json") == 0)
         return true;
 
     return false;
@@ -238,7 +245,32 @@ void Systemmonitor::Httpd_CreateStreamResponse(
     } else if (strcmp(path, "/system/status.json") == 0) {
         JsonAdapter::Pack(globalreg, stream, 
             static_pointer_cast<Systemmonitor>(globalreg->FetchGlobal("SYSTEM_MONITOR")));
-    }
+    } else if (strcmp(path, "/system/timestamp.msgpack") == 0) {
+        SharedTrackerElement tse(new TrackerElement(TrackerMap, 0));
 
+        tse->add_map(timestamp_sec);
+        tse->add_map(timestamp_usec);
+
+        struct timeval now;
+        gettimeofday(&now, NULL);
+
+        set_timestamp_sec(now.tv_sec);
+        set_timestamp_usec(now.tv_usec);
+
+        MsgpackAdapter::Pack(globalreg, stream, tse);
+    } else if (strcmp(path, "/system/timestamp.json") == 0) {
+        SharedTrackerElement tse(new TrackerElement(TrackerMap, 0));
+
+        tse->add_map(timestamp_sec);
+        tse->add_map(timestamp_usec);
+
+        struct timeval now;
+        gettimeofday(&now, NULL);
+
+        set_timestamp_sec(now.tv_sec);
+        set_timestamp_usec(now.tv_usec);
+
+        JsonAdapter::Pack(globalreg, stream, tse);
+    }
 }
 

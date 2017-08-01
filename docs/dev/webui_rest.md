@@ -190,8 +190,13 @@ regex = [
 
 Dictionary of system status, including battery and memory use.
 
+##### /system/timestamp `/system/timestamp.msgpack`, `/system/timestamp.json`
+
+Dictionary of system timestamp as second, microsecond
+
 ##### /system/tracked_fields `/system/tracked_fields.html`
 Human-readable table of all registered field names, types, and descriptions.  While it cannot represent the nested features of some data structures, it will describe every allocated field.
+
 
 ### Device Handling
 
