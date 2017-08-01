@@ -75,13 +75,13 @@ bool Phy_80211_Httpd_Pcap::Httpd_VerifyPath(const char *path, const char *method
 
 }
 
-void Phy_80211_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
+int Phy_80211_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
         Kis_Net_Httpd_Connection *connection,
         const char *url, const char *method, const char *upload_data,
         size_t *upload_data_size) {
 
     if (strcmp(method, "GET") != 0) {
-        return;
+        return MHD_YES;
     }
 
     shared_ptr<Devicetracker> devicetracker =
@@ -91,38 +91,38 @@ void Phy_80211_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
         devicetracker->FetchPhyHandlerByName("IEEE802.11");
 
     if (dot11phy == NULL)
-        return;
+        return MHD_YES;
 
     vector<string> tokenurl = StrTokenize(url, "/");
 
     // /phy/phy80211/by-bssid/[mac]/pcap/[mac].pcapng
     if (tokenurl.size() < 7)
-        return;
+        return MHD_YES;
 
     if (tokenurl[1] != "phy")
-        return;
+        return MHD_YES;
 
     if (tokenurl[2] != "phy80211")
-        return;
+        return MHD_YES;
 
     if (tokenurl[3] != "by-bssid")
-        return;
+        return MHD_YES;
 
     mac_addr dmac(tokenurl[4]);
     if (dmac.error)
-        return;
+        return MHD_YES;
 
     if (tokenurl[5] != "pcap")
-        return;
+        return MHD_YES;
 
     // Valid requested file?
     if (tokenurl[6] != tokenurl[4] + ".pcapng")
-        return;
+        return MHD_YES;
 
     // Does it exist?
     shared_ptr<kis_tracked_device_base> dev;
     if ((dev = devicetracker->FetchDevice(dmac, dot11phy->FetchPhyId())) == NULL)
-        return;
+        return MHD_YES;
 
     shared_ptr<StreamTracker> streamtracker =
         static_pointer_cast<StreamTracker>(http_globalreg->FetchGlobal("STREAMTRACKER"));
@@ -162,5 +162,7 @@ void Phy_80211_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
     streamtracker->register_streamer(psrb, "phy80211-" + dmac.Mac2String() + " .pcapng",
             "pcapng", "httpd", 
             "pcapng of all packets on phy80211 BSSID " + dmac.Mac2String());
+
+    return MHD_NO;
 }
 

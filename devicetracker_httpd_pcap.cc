@@ -63,13 +63,13 @@ bool Devicetracker_Httpd_Pcap::Httpd_VerifyPath(const char *path, const char *me
 
 }
 
-void Devicetracker_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
+int Devicetracker_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
         Kis_Net_Httpd_Connection *connection,
         const char *url, const char *method, const char *upload_data,
         size_t *upload_data_size) {
 
     if (strcmp(method, "GET") != 0) {
-        return;
+        return MHD_YES;
     }
 
     shared_ptr<Packetchain> packetchain = 
@@ -83,16 +83,16 @@ void Devicetracker_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
 
     vector<string> tokenurl = StrTokenize(url, "/");
     if (tokenurl.size() < 6)
-        return;
+        return MHD_YES;
 
     if (tokenurl[1] != "devices")
-        return;
+        return MHD_YES;
 
     if (tokenurl[2] != "by-key")
-        return;
+        return MHD_YES;
 
     if (tokenurl[4] != "pcap")
-        return;
+        return MHD_YES;
 
     uint64_t key = 0;
     std::stringstream ss(tokenurl[3]);
@@ -100,11 +100,11 @@ void Devicetracker_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
 
     shared_ptr<kis_tracked_device_base> dev = devicetracker->FetchDevice(key);
     if (dev == NULL)
-        return;
+        return MHD_YES;
 
     if (!httpd->HasValidSession(connection)) {
         connection->httpcode = 503;
-        return;
+        return MHD_YES;
     }
 
     Kis_Net_Httpd_Buffer_Stream_Aux *saux = 
@@ -143,5 +143,6 @@ void Devicetracker_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
             "pcapng", "httpd", 
             "pcapng of all packets for device " + dev->get_macaddr().Mac2String());
 
+    return MHD_NO;
 }
 

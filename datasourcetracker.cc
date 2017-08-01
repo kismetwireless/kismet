@@ -1237,7 +1237,7 @@ void Datasourcetracker::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
     if (stripped == "/datasource/all_sources") {
         local_locker lock(&dst_lock);
         Httpd_Serialize(path, stream, datasource_vec);
-        return;
+        return; 
     }
 
     if (stripped == "/datasource/types") {
@@ -1366,12 +1366,12 @@ int Datasourcetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
     if (!Httpd_CanSerialize(concls->url)) {
         concls->response_stream << "Invalid request";
         concls->httpcode = 400;
-        return 1;
+        return MHD_YES;
     }
 
     // All the posts require login
     if (!httpd->HasValidSession(concls, true)) {
-        return 1;
+        return MHD_YES;
     }
 
     string stripped = Httpd_StripSuffix(concls->url);
@@ -1420,7 +1420,7 @@ int Datasourcetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
             // Block until the open cmd unlocks us
             r = cl->block_until();
-            return 1;
+            return MHD_YES;
         } 
 
         // No single url we liked, split and look at the path
@@ -1492,7 +1492,7 @@ int Datasourcetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
                     // Block until the open cmd unlocks us
                     cl->block_until();
-                    return 1;
+                    return MHD_YES;
 
                 } else {
                     // We need at least a channels or a rate to kick into
@@ -1548,7 +1548,7 @@ int Datasourcetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
                     // Block until the open cmd unlocks us
                     cl->block_until();
-                    return 1;
+                    return MHD_YES;
                 }
             } else if (Httpd_StripSuffix(tokenurl[4]) == "set_hop") {
                 cl->lock();
@@ -1575,22 +1575,22 @@ int Datasourcetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                         });
                 // Block until the open cmd unlocks us
                 cl->block_until();
-                return 1;
+                return MHD_YES;
             }
         }
 
         // Otherwise no URL path we liked
         concls->response_stream << "Invalid request";
         concls->httpcode = 400;
-        return 1;
+        return MHD_YES;
     
     } catch (const std::exception& e) {
         concls->response_stream << "Invalid request " << e.what();
         concls->httpcode = 400;
-        return 1;
+        return MHD_YES;
     }
 
-    return 0;
+    return MHD_YES;
 }
 
 double Datasourcetracker::string_to_rate(string in_str, double in_default) {
@@ -1662,13 +1662,13 @@ bool Datasourcetracker_Httpd_Pcap::Httpd_VerifyPath(const char *path,
     return false;
 }
 
-void Datasourcetracker_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
+int Datasourcetracker_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
         Kis_Net_Httpd_Connection *connection,
         const char *url, const char *method, const char *upload_data,
         size_t *upload_data_size) {
 
     if (strcmp(method, "GET") != 0) {
-        return;
+        return MHD_YES;
     }
 
     shared_ptr<StreamTracker> streamtracker =
@@ -1678,7 +1678,7 @@ void Datasourcetracker_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *htt
             strcmp(url, "/datasource/pcap/all_sources.pcapng") == 0) {
         if (!httpd->HasValidSession(connection)) {
             connection->httpcode = 503;
-            return;
+            return MHD_YES;
         }
 
         // At this point we're logged in and have an aux pointer for the
@@ -1702,14 +1702,14 @@ void Datasourcetracker_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *htt
         streamtracker->register_streamer(psrb, "all_sources.pcapng",
                 "pcapng", "httpd", "pcapng of all packets on all sources");
 
-        return;
+        return MHD_NO;
     }
 
     // Find per-uuid and make a filtering pcapng
     vector<string> tokenurl = StrTokenize(url, "/");
 
     if (tokenurl.size() < 6) {
-        return;
+        return MHD_YES;
     }
 
     if (tokenurl[1] == "datasource") {
@@ -1718,7 +1718,7 @@ void Datasourcetracker_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *htt
                 uuid u(tokenurl[4]);
 
                 if (u.error) {
-                    return;
+                    return MHD_YES;
                 }
 
                 datasourcetracker =
@@ -1731,11 +1731,11 @@ void Datasourcetracker_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *htt
                 SharedDatasource ds = datasourcetracker->find_datasource(u);
 
                 if (ds == NULL)
-                    return;
+                    return MHD_YES;
 
                 if (!httpd->HasValidSession(connection)) {
                     connection->httpcode = 503;
-                    return;
+                    return MHD_YES;
                 }
 
                 // Get the number of this source for fast compare
@@ -1778,10 +1778,13 @@ void Datasourcetracker_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *htt
                         "pcapng of " + ds->get_source_name() + " (" + 
                         ds->get_source_cap_interface());
 
+                return MHD_NO;
+
             }
         }
     }
 
+    return MHD_YES;
 }
 
 dst_incoming_remote::dst_incoming_remote(GlobalRegistry *in_globalreg,

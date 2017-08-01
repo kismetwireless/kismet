@@ -378,14 +378,14 @@ void Devicetracker::httpd_xml_device_summary(std::ostream &stream) {
     delete(xml);
 }
 
-void Devicetracker::Httpd_CreateStreamResponse(
+int Devicetracker::Httpd_CreateStreamResponse(
         Kis_Net_Httpd *httpd __attribute__((unused)),
         Kis_Net_Httpd_Connection *connection,
         const char *path, const char *method, const char *upload_data,
         size_t *upload_data_size) {
 
     if (strcmp(method, "GET") != 0) {
-        return;
+        return MHD_YES;
     }
 
     // Allocate our buffer aux
@@ -426,52 +426,54 @@ void Devicetracker::Httpd_CreateStreamResponse(
                     return false;
                 }, NULL);
         MatchOnDevices(&fw);
-        return;
+        return MHD_YES;
     }
 
     string stripped = Httpd_StripSuffix(path);
 
     if (stripped == "/devices/all_devices") {
         httpd_device_summary(path, stream, NULL, vector<SharedElementSummary>());
-        return;
+        return MHD_YES;
     }
 
     if (stripped == "/devices/all_devices_dt") {
         httpd_device_summary(path, stream, NULL, 
                 vector<SharedElementSummary>(), "aaData");
-        return;
+        return MHD_YES;
     }
 
     // XML is special right now
     if (strcmp(path, "/devices/all_devices.xml") == 0) {
         httpd_xml_device_summary(stream);
-        return;
+        return MHD_YES;
     }
 
     if (stripped == "/phy/all_phys") {
         httpd_all_phys(path, stream);
+        return MHD_YES;
     }
 
     if (stripped == "/phy/all_phys_dt") {
         httpd_all_phys(path, stream, "aaData");
+        return MHD_YES;
     }
 
     vector<string> tokenurl = StrTokenize(path, "/");
 
     if (tokenurl.size() < 2)
-        return;
+        return MHD_YES;
 
     if (tokenurl[1] == "devices") {
         if (tokenurl.size() < 5)
-            return;
+            return MHD_YES;
 
         if (tokenurl[2] == "by-key") {
             if (tokenurl.size() < 5) {
-                return;
+                return MHD_YES;
             }
 
             if (!Httpd_CanSerialize(tokenurl[4]))
-                return;
+                return MHD_YES;
 
             local_locker lock(&devicelist_mutex);
 
@@ -491,7 +493,7 @@ void Devicetracker::Httpd_CreateStreamResponse(
 
             if (tmi == tracked_map.end()) {
                 stream << "Invalid device key";
-                return;
+                return MHD_YES;
             }
 
             string target = Httpd_StripSuffix(tokenurl[4]);
@@ -506,34 +508,34 @@ void Devicetracker::Httpd_CreateStreamResponse(
                     SharedTrackerElement sub = tmi->second->get_child_path(fpath);
 
                     if (sub == NULL) {
-                        return;
+                        return MHD_YES;
                     } 
 
                     entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, sub, NULL);
 
-                    return;
+                    return MHD_YES;
                 }
 
                 entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, 
                         tmi->second, NULL);
 
-                return;
+                return MHD_YES;
             } else {
-                return;
+                return MHD_YES;
             }
         } else if (tokenurl[2] == "by-mac") {
             if (tokenurl.size() < 5)
-                return;
+                return MHD_YES;
 
             if (!Httpd_CanSerialize(tokenurl[4]))
-                return;
+                return MHD_YES;
 
             local_locker lock(&devicelist_mutex);
 
             mac_addr mac = mac_addr(tokenurl[3]);
 
             if (mac.error) {
-                return;
+                return MHD_YES;
             }
 
             SharedTrackerElement devvec =
@@ -548,15 +550,15 @@ void Devicetracker::Httpd_CreateStreamResponse(
 
             entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, devvec, NULL);
 
-            return;
+            return MHD_YES;
         } else if (tokenurl[2] == "last-time") {
             if (tokenurl.size() < 5)
-                return;
+                return MHD_YES;
 
             // Is the timestamp an int?
             long lastts;
             if (sscanf(tokenurl[3].c_str(), "%ld", &lastts) != 1)
-                return;
+                return MHD_YES;
 
             // Special handling of the ekjson
             if (tokenurl[4] == "devices.ekjson") {
@@ -579,7 +581,7 @@ void Devicetracker::Httpd_CreateStreamResponse(
             }
 
             if (!Httpd_CanSerialize(tokenurl[4]))
-                return;
+                return MHD_YES;
 
             local_locker lock(&devicelist_mutex);
 
@@ -616,10 +618,12 @@ void Devicetracker::Httpd_CreateStreamResponse(
 
             entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, wrapper, NULL);
 
-            return;
+            return MHD_YES;
         }
 
     }
+
+    return MHD_YES;
 }
 
 int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
@@ -653,7 +657,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
     if (tokenurl.size() < 4) {
         stream << "Invalid request";
         concls->httpcode = 400;
-        return 1;
+        return MHD_YES;
     }
 
     // Common structured API data
@@ -686,7 +690,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
         stream << "Invalid request: ";
         stream << e.what();
         concls->httpcode = 400;
-        return 1;
+        return MHD_YES;
     }
 
     if (tokenurl[1] == "devices") {
@@ -694,13 +698,13 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
             if (tokenurl.size() < 5) {
                 stream << "Invalid request";
                 concls->httpcode = 400;
-                return 1;
+                return MHD_YES;
             }
 
             if (!Httpd_CanSerialize(tokenurl[4])) {
                 stream << "Invalid request";
                 concls->httpcode = 400;
-                return 1;
+                return MHD_YES;
             }
 
             uint64_t key = 0;
@@ -713,7 +717,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
             if (tmi == tracked_map.end()) {
                 stream << "Invalid request";
                 concls->httpcode = 400;
-                return 1;
+                return MHD_YES;
             }
 
             string target = Httpd_StripSuffix(tokenurl[4]);
@@ -721,7 +725,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
             if (target == "set_name") {
                 // Must have a session to set the name
                 if (!httpd->HasValidSession(concls)) {
-                    return 1;
+                    return MHD_YES;
                 }
 
             }
@@ -744,7 +748,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                             stream << "Invalid request: "
                                 "Expected field, rename";
                             concls->httpcode = 400;
-                            return 1;
+                            return MHD_YES;
                         }
 
                         SharedElementSummary s(new TrackerElementSummary(mapvec[0], 
@@ -763,7 +767,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 stream << "Invalid request: ";
                 stream << e.what();
                 concls->httpcode = 400;
-                return 1;
+                return MHD_YES;
             }
 
             // Wrapper we insert under
@@ -864,7 +868,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 if (dt_order_col >= summary_vec.size())
                     dt_order_col = -1;
 
-                if (dt_order_col >= 0 &&
+                if (dt_order_col > 0 &&
                         concls->variable_cache.find("order[0][dir]") !=
                         concls->variable_cache.end()) {
                     string ord = concls->variable_cache["order[0][dir]"]->str();
@@ -977,7 +981,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                         dt_search_paths, matchdevs);
                 MatchOnDevices(&worker);
                 
-                if (dt_order_col >= 0) {
+                if (dt_order_col > 0) {
                     kismet__stable_sort(matchvec.begin(), matchvec.end(), 
                             [&](SharedTrackerElement a, SharedTrackerElement b) {
                             SharedTrackerElement fa =
@@ -1028,7 +1032,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 if (dt_filter_elem != NULL)
                     dt_filter_elem->set((uint64_t) tracked_vec.size());
 
-                if (dt_order_col >= 0) {
+                if (dt_order_col > 0) {
                     kismet__stable_sort(tracked_vec.begin(), tracked_vec.end(), 
                             [&](SharedTrackerElement a, SharedTrackerElement b) {
                             SharedTrackerElement fa =
@@ -1075,14 +1079,14 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
             entrytracker->Serialize(httpd->GetSuffix(tokenurl[3]), stream, 
                     wrapper, &rename_map);
-            return 1;
+            return MHD_YES;
 
         } else if (tokenurl[2] == "last-time") {
             if (tokenurl.size() < 5) {
                 // fprintf(stderr, "debug - couldn't parse ts\n");
                 stream << "Invalid request";
                 concls->httpcode = 400;
-                return 1;
+                return MHD_YES;
             }
 
             // Is the timestamp an int?
@@ -1092,7 +1096,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 // fprintf(stderr, "debug - couldn't parse/deserialize\n");
                 stream << "Invalid request";
                 concls->httpcode = 400;
-                return 1;
+                return MHD_YES;
             }
 
             // We always wrap in a map

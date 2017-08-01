@@ -211,13 +211,23 @@ public:
     virtual bool Httpd_VerifyPath(const char *path, const char *method) = 0;
 
     // Called as a connection is being set up; responsible for populating
-    virtual void Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
+    //
+    // Returns:
+    //  MHD_NO  - Streambuffer should not automatically close out the buffer
+    //  MHD_YES - Streambuffer should automatically close the buffer when the
+    //            streamresponse is complete
+    virtual int Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
             Kis_Net_Httpd_Connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size) = 0;
 
     // Called when a POST event is complete - all data has been uploaded and
     // cached in the connection info.
+    //
+    // Returns:
+    //  MHD_NO  - Streambuffer should not automatically close out the buffer
+    //  MHD_YES - Streambuffer should automatically close the buffer when the
+    //            streamresponse is complete
     virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *con __attribute__((unused))) = 0;
 
     // Called by microhttpd during servicing a connecting; cls is a 

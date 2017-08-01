@@ -1186,6 +1186,7 @@ ssize_t Kis_Net_Httpd_Buffer_Stream_Handler::buffer_event_cb(void *cls, uint64_t
         rbh->PeekFreeWriteBufferData(zbuf);
 
         if (stream_aux->get_in_error()) {
+            fprintf(stderr, "debug - stream in error\n");
             return -1;
         }
 
@@ -1242,14 +1243,16 @@ int Kis_Net_Httpd_Buffer_Stream_Handler::Httpd_HandleGetRequest(Kis_Net_Httpd *h
             std::thread([this, cl, aux, httpd, connection, url, method, upload_data, upload_data_size]{
                 cl->unlock(1);
 
-                Httpd_CreateStreamResponse(httpd, connection, url, method, upload_data,
+                int r = 
+                    Httpd_CreateStreamResponse(httpd, connection, url, method, upload_data,
                         upload_data_size);
 
                 // Trigger 'error' when the function is complete, causing us to finish 
                 // the stream
-                
-                aux->sync();
-                aux->trigger_error();
+                if (r == MHD_YES) {
+                    aux->sync();
+                    aux->trigger_error();
+                }
                 });
         // aux->generator_thread.detach();
 
@@ -1289,12 +1292,15 @@ int Kis_Net_Httpd_Buffer_Stream_Handler::Httpd_HandlePostRequest(Kis_Net_Httpd *
         // connection BEFORE calling our cleanup on our response!
         aux->generator_thread =
             std::thread([this, cl, aux, connection] {
-                Httpd_PostComplete(connection);
+                int r = Httpd_PostComplete(connection);
                 cl->unlock(1);
+
                 // Trigger 'error' when the function is complete, causing us to finish 
                 // the stream
-                aux->sync();
-                aux->trigger_error();
+                if (r == MHD_YES) {
+                    aux->sync();
+                    aux->trigger_error();
+                }
                 });
         // aux->generator_thread.detach();
 
