@@ -1186,7 +1186,6 @@ ssize_t Kis_Net_Httpd_Buffer_Stream_Handler::buffer_event_cb(void *cls, uint64_t
         rbh->PeekFreeWriteBufferData(zbuf);
 
         if (stream_aux->get_in_error()) {
-            fprintf(stderr, "debug - stream in error\n");
             return -1;
         }
 
