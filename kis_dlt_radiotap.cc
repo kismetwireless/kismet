@@ -441,7 +441,7 @@ int Kis_DLT_Radiotap::HandlePacket(kis_packet *in_pack) {
         // compare both representations
 		if (memcmp(fcschunk->checksum_ptr, &calc_crc, 4) &&
             memcmp(fcschunk->checksum_ptr, &flipped_crc, 4)) {
-            fprintf(stderr, "debug - radiotap - invalid crc from %s\n", datasrc->ref_source->get_source_name().c_str());
+            // fprintf(stderr, "debug - radiotap - invalid crc from %s\n", datasrc->ref_source->get_source_name().c_str());
 			fcschunk->checksum_valid = 0;
 		} else {
 			fcschunk->checksum_valid = 1;
