@@ -125,6 +125,10 @@ Kis_DLT_Radiotap::~Kis_DLT_Radiotap() {
 #define BITNO_2(x) (((x) & 2) ? 1 : 0)
 #define BIT(n)	(1 << n)
 int Kis_DLT_Radiotap::HandlePacket(kis_packet *in_pack) {
+    static int packnum = 0;
+
+    packnum++;
+
 	kis_datachunk *decapchunk = 
 		(kis_datachunk *) in_pack->fetch(pack_comp_decap);
 
@@ -382,16 +386,9 @@ int Kis_DLT_Radiotap::HandlePacket(kis_packet *in_pack) {
         return 0;
 	}
 
-#if 0
-	decapchunk->length = linkchunk->length - 
-		EXTRACT_LE_16BITS(&(hdr->it_len)) - fcs_cut;
-	decapchunk->data = new uint8_t[decapchunk->length];
-	memcpy(decapchunk->data, linkchunk->data + 
-		   EXTRACT_LE_16BITS(&(hdr->it_len)), decapchunk->length);
-#endif
-	decapchunk->set_data(linkchunk->data + EXTRACT_LE_16BITS(&(hdr->it_len)),
-						 (linkchunk->length - EXTRACT_LE_16BITS(&(hdr->it_len)) - 
-						  fcs_cut), false);
+    decapchunk->set_data(linkchunk->data + EXTRACT_LE_16BITS(&(hdr->it_len)),
+            (linkchunk->length - EXTRACT_LE_16BITS(&(hdr->it_len)) - 
+             fcs_cut), false);
 
 	in_pack->insert(pack_comp_radiodata, radioheader);
 	in_pack->insert(pack_comp_decap, decapchunk);
@@ -406,10 +403,7 @@ int Kis_DLT_Radiotap::HandlePacket(kis_packet *in_pack) {
 
         // If we know it's invalid already from the flags, flag it, otherwise
         // it's assumed good until proven otherwise
-        if (fcs_flag_invalid)
-            fcschunk->checksum_valid = 0;
-        else
-            fcschunk->checksum_valid = 1;
+        fcschunk->checksum_valid = !fcs_flag_invalid;
 
 		in_pack->insert(pack_comp_checksum, fcschunk);
 	}
@@ -428,9 +422,13 @@ int Kis_DLT_Radiotap::HandlePacket(kis_packet *in_pack) {
         in_pack->insert(pack_comp_checksum, fcschunk);
     }
 
-    // Radiotap only encapsulates wireless so we can do our own fcs
-	if (datasrc != NULL && datasrc->ref_source != NULL && fcschunk != NULL) {
-        /* datasrc->ref_source->checksum_packet(in_pack); */
+    // Radiotap only encapsulates wireless so we can do our own fcs algo locally; 
+    // if we have an unknown FCS, and FCS bytes available, we should do a full
+    // checksum
+	if (datasrc != NULL && datasrc->ref_source != NULL && fcschunk != NULL &&
+            fcschunk->checksum_valid) {
+
+        // fprintf(stderr, "debug - radiotap - %d %x\n", packnum, *(fcschunk->checksum_ptr) & 0xFFFFFFFF); 
 
 		// Compare it and flag the packet
 		uint32_t calc_crc =
@@ -441,19 +439,20 @@ int Kis_DLT_Radiotap::HandlePacket(kis_packet *in_pack) {
         // compare both representations
 		if (memcmp(fcschunk->checksum_ptr, &calc_crc, 4) &&
             memcmp(fcschunk->checksum_ptr, &flipped_crc, 4)) {
-            // fprintf(stderr, "debug - radiotap - invalid crc from %s\n", datasrc->ref_source->get_source_name().c_str());
+            // fprintf(stderr, "debug - radiotap - %d invalid crc from %s\n", packnum, datasrc->ref_source->get_source_name().c_str());
 			fcschunk->checksum_valid = 0;
 		} else {
+            // fprintf(stderr, "debug - radiotap - crc valid\n");
 			fcschunk->checksum_valid = 1;
 		}
 	}
 
-#if 1
     // If we've validated the FCS and know this packet is junk, flag it at the
     // packet level
-    if (fcschunk != NULL && fcschunk->checksum_valid == 0)
+    if (fcschunk != NULL && fcschunk->checksum_valid == 0) {
+        // fprintf(stderr, "debug - setting packet in error %d\n", packnum);
         in_pack->error = 1;
-#endif
+    }
 
     return 1;
 }
