@@ -1855,6 +1855,23 @@ exports.FirstTimeCheck = function() {
     return false;
 }
 
+/* Highlight active devices */
+kismet_ui.AddDeviceRowHighlight({
+    name: "Active",
+    description: "Device has been active in the past 10 seconds",
+    priority: 10,
+    defaultcolor: "#cee1ff",
+    defaultenable: false,
+    fields: [
+        'kismet.device.base.last_time'
+    ],
+    selector: function(data) {
+        var ts = data['kismet.device.base.last_time'];
+
+        return (kismet.timestamp_sec - ts < 10);
+    }
+});
+
 // We're done loading
 exports.load_complete = 1;
 
