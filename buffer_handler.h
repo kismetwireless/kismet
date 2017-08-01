@@ -68,9 +68,6 @@ public:
     // Only one reservation may be made at a time.  Additional reservations without a
     // commit should fail.
     //
-    // The buffer should not be written to while there is a data reservation.  Implementations
-    // should protect reserve/write using the 'reserved' class variable.
-    //
     // Implementations must track internally if the reserved data must be free'd upon commit
     virtual ssize_t reserve(unsigned char **data, size_t in_sz) = 0;
 

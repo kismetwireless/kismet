@@ -123,8 +123,10 @@ ssize_t RingbufV2::peek(unsigned char **ptr, size_t in_sz) {
     // Always reserve first since we may blindly peek_free later
     peek_reserved = true;
 
-    if (opsize == 0)
+    if (opsize == 0) {
+        free_peek = false;
         return 0;
+    }
 
     if (start_pos + opsize < buffer_sz) {
         // Can we read contiguously? if so we can do a zero-copy peek
@@ -216,10 +218,6 @@ size_t RingbufV2::consume(size_t in_sz) {
 
     if (peek_reserved) {
         throw std::runtime_error("ringbuf v2 consume while peeked data pending");
-    }
-
-    if (write_reserved) {
-        throw std::runtime_error("ringbuf v2 consume while write block is reserved");
     }
 
     // No matter what is requested we can't read more than we have
