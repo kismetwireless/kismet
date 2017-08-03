@@ -10,6 +10,9 @@ include $(KIS_SRC_DIR)/Makefile.inc
 BLDHOME	= .
 top_builddir = $(BLDHOME)
 
+RTLCFLAGS=@RTLCFLAGS@
+RTLLIBS=@RTLLIBS@
+
 # As we have no live code, all we need is the manifest.conf to "compile"
 all:	manifest.conf
 
