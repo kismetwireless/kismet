@@ -1,0 +1,24 @@
+AC_INIT
+
+AC_CONFIG_SRCDIR([capture_rtl433.c])
+
+AC_PREREQ(2.57)
+
+# Check for host type
+AC_CANONICAL_HOST
+
+# Checks for programs.
+AC_PROG_CC
+AC_PROG_CXX
+AC_PROG_INSTALL
+AC_PROG_MAKE_SET
+AC_PROG_CPP
+
+AC_LANG_CPLUSPLUS
+
+
+
+AC_CONFIG_FILES([Makefile])
+AC_OUTPUT
+
+
