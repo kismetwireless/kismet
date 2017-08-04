@@ -239,10 +239,6 @@ The command dictionary should be passed as either JSON in the `json` POST variab
 | fields | Field specification | field specification array listing fields and mappings |
 | regex | Regex specification | Optional, regular expression filter |
 
-##### /devices/all_devices `/devices/all_devices.msgpack`, `/devices/all_devices.json`
-
-Array of complete device records.  This may incur a significant load on both the Kismet server and on the receiving system, depending on the number of devices tracked.
-
 ##### /devices/all_devices.ekjson
 
 Special endpoint generating EK (elastic-search) style JSON.  On this endpoint, each device is returned as a JSON object, one JSON record per line.

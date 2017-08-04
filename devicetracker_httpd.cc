@@ -64,6 +64,7 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
         if (strcmp(path, "/devices/all_devices.ekjson") == 0)
             return true;
 
+        /*
         if (stripped == "/devices/all_devices" && can_serialize)
             return true;
 
@@ -72,6 +73,7 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
 
         if (strcmp(path, "/devices/all_devices.xml") == 0)
             return true;
+        */
 
         if (stripped == "/phy/all_phys" && can_serialize)
             return true;
@@ -431,6 +433,7 @@ int Devicetracker::Httpd_CreateStreamResponse(
 
     string stripped = Httpd_StripSuffix(path);
 
+    /*
     if (stripped == "/devices/all_devices") {
         httpd_device_summary(path, stream, NULL, vector<SharedElementSummary>());
         return MHD_YES;
@@ -447,6 +450,7 @@ int Devicetracker::Httpd_CreateStreamResponse(
         httpd_xml_device_summary(stream);
         return MHD_YES;
     }
+    */
 
     if (stripped == "/phy/all_phys") {
         httpd_all_phys(path, stream);
