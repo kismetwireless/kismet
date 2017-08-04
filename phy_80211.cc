@@ -1270,7 +1270,7 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 
     if (dot11dev == NULL) {
         stringstream ss;
-        ss << "Detected new 802.11 Wi-Fi device " << commoninfo->device.Mac2String();
+        ss << "Detected new 802.11 Wi-Fi device " << commoninfo->device.Mac2String() << " packet " << packetnum;
         _MSG(ss.str(), MSGFLAG_INFO);
 
         dot11dev.reset(new dot11_tracked_device(globalreg, dot11_device_entry_id));
