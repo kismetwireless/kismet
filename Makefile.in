@@ -3,19 +3,18 @@ include Makefile.inc
 DEPEND		= .depend
 
 # Common pure-c code for capturesource binaries
-DATASOURCE_COMMON_C = \
+DATASOURCE_COMMON_C_O = \
 	msgpuck.c.o msgpuck_hints.c.o \
 	simple_ringbuf_c.c.o msgpuck_buffer.c.o \
 	simple_datasource_proto.c.o capture_framework.c.o 
+DATASOURCE_COMMON_A = libkismetdatasource.a
 
 CAPTURE_PCAPFILE_O = \
-	$(DATASOURCE_COMMON_C) \
 	capture_pcapfile.c.o
 CAPTURE_PCAPFILE 	= kismet_cap_pcapfile
 BUILD_CAPTURE_PCAPFILE = @BUILD_CAPTURE_PCAPFILE@
 
 CAPTURE_LINUX_WIFI_O = \
-	$(DATASOURCE_COMMON_C) \
 	interface_control.c.o linux_wireless_control.c.o linux_netlink_control.c.o \
 	wifi_ht_channels.c.o \
 	capture_linux_wifi.c.o
@@ -23,7 +22,6 @@ CAPTURE_LINUX_WIFI	= kismet_cap_linux_wifi
 BUILD_CAPTURE_LINUX_WIFI = @BUILD_CAPTURE_LINUX_WIFI@
 
 CAPTURE_HACKRF_SWEEP_O = \
-	$(DATASOURCE_COMMON_C) \
 	capture_hackrf_sweep.c.o
 CAPTURE_HACKRF_SWEEP = kismet_cap_hackrf_sweep
 BUILD_CAPTURE_HACKRF_SWEEP = @BUILD_CAPTURE_HACKRF_SWEEP@
@@ -75,15 +73,17 @@ all-with-plugins:
 $(PS):	$(PSO) 
 	$(LD) $(LDFLAGS) -o $(PS) $(PSO) $(LIBS) $(CXXLIBS) $(PCAPLIBS) $(KSLIBS)
 
+$(DATASOURCE_COMMON_A):	$(DATASOURCE_COMMON_C_O)
+	$(AR) rcs $(DATASOURCE_COMMON_A) $(DATASOURCE_COMMON_C_O)
 
-$(CAPTURE_PCAPFILE):	$(CAPTURE_PCAPFILE_O)
-	$(CC) $(LDFLAGS) -o $(CAPTURE_PCAPFILE) $(CAPTURE_PCAPFILE_O) $(PCAPLIBS) -lpthread
+$(CAPTURE_PCAPFILE):	$(CAPTURE_PCAPFILE_O) $(DATASOURCE_COMMON_A)
+	$(CC) $(LDFLAGS) -o $(CAPTURE_PCAPFILE) $(CAPTURE_PCAPFILE_O) $(DATASOURCE_COMMON_A) $(PCAPLIBS) -lpthread
 
-$(CAPTURE_LINUX_WIFI):	$(CAPTURE_LINUX_WIFI_O)
-	$(CC) $(LDFLAGS) -o $(CAPTURE_LINUX_WIFI) $(CAPTURE_LINUX_WIFI_O) $(PCAPLIBS) -lpthread -lm $(NMLIBS) $(NETLINKLIBS)
+$(CAPTURE_LINUX_WIFI):	$(CAPTURE_LINUX_WIFI_O) $(DATASOURCE_COMMON_A)
+	$(CC) $(LDFLAGS) -o $(CAPTURE_LINUX_WIFI) $(CAPTURE_LINUX_WIFI_O) $(DATASOURCE_COMMON_A) $(PCAPLIBS) -lpthread -lm $(NMLIBS) $(NETLINKLIBS)
 
-$(CAPTURE_HACKRF_SWEEP):	$(CAPTURE_HACKRF_SWEEP_O)
-	$(CC) $(LDFLAGS) -o $(CAPTURE_HACKRF_SWEEP) $(CAPTURE_HACKRF_SWEEP_O) -lhackrf -lfftw3 $(LIBMLIB)
+$(CAPTURE_HACKRF_SWEEP):	$(CAPTURE_HACKRF_SWEEP_O) $(DATASOURCE_COMMON_A)
+	$(CC) $(LDFLAGS) -o $(CAPTURE_HACKRF_SWEEP) $(CAPTURE_HACKRF_SWEEP_O) $(DATASOURCE_COMMON_A) -lhackrf -lfftw3 $(LIBMLIB)
 
 datasources:	$(DATASOURCE_BINS)
 
