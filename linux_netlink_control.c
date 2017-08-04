@@ -74,11 +74,11 @@ static inline void nl_socket_free(struct nl_sock *h) {
 
 static inline int __genl_ctrl_alloc_cache(struct nl_sock *h, struct nl_cache **cache) {
 #ifdef HAVE_LINUX_NETLINK
-	struct nl_cache *tmp = genl_ctrl_alloc_cache(h);
-	if (!tmp)
-		return -1;
-	*cache = tmp;
-	return 0;
+    struct nl_cache *tmp = genl_ctrl_alloc_cache(h);
+    if (!tmp)
+        return -1;
+    *cache = tmp;
+    return 0;
 #else
     *cache = NULL;
     return 0;
@@ -94,16 +94,16 @@ unsigned int mac80211_chan_to_freq(unsigned int in_chan) {
     if (in_chan > 250)
         return in_chan;
 
-	if (in_chan == 14)
-		return 2484;
-	else if (in_chan < 14)
-		return 2407 + in_chan * 5;
-	else if (in_chan >= 182 && in_chan <= 196)
-		return 4000 + in_chan * 5;
-	else
-		return 5000 + in_chan * 5;
+    if (in_chan == 14)
+        return 2484;
+    else if (in_chan < 14)
+        return 2407 + in_chan * 5;
+    else if (in_chan >= 182 && in_chan <= 196)
+        return 4000 + in_chan * 5;
+    else
+        return 5000 + in_chan * 5;
 
-	return in_chan;
+    return in_chan;
 }
 
 unsigned int mac80211_freq_to_chan(unsigned int in_freq) {
@@ -133,24 +133,24 @@ int mac80211_connect(const char *interface, void **handle, void **cache,
 	struct nl_cache *nl_cache;
 	struct genl_family *nl80211;
 
-	if (*handle == NULL) {
-		if ((nl_handle = nl_socket_alloc()) == NULL) {
-			snprintf(errstr, STATUS_MAX, 
+    if (*handle == NULL) {
+        if ((nl_handle = nl_socket_alloc()) == NULL) {
+            snprintf(errstr, STATUS_MAX, 
                     "failed to connect interface '%s' via netlink: unable to "
                     "allocate netlink socket.", interface);
-			return -1;
-		}
+            return -1;
+        }
 
-		if (genl_connect(nl_handle)) {
-			snprintf(errstr, STATUS_MAX, 
+        if (genl_connect(nl_handle)) {
+            snprintf(errstr, STATUS_MAX, 
                     "failed to connect interface '%s' via netlink: unable to "
                     "connect to netlink: %s", interface, strerror(errno));
-			nl_socket_free(nl_handle);
-			return -1;
-		}
-	} else {
-		nl_handle = (struct nl_sock *) (*handle);
-	}
+            nl_socket_free(nl_handle);
+            return -1;
+        }
+    } else {
+        nl_handle = (struct nl_sock *) (*handle);
+    }
 
 	if (genl_ctrl_alloc_cache(nl_handle, &nl_cache) != 0) {
 		snprintf(errstr, STATUS_MAX, 
@@ -160,17 +160,17 @@ int mac80211_connect(const char *interface, void **handle, void **cache,
 		return -1;
 	}
 
-	if ((nl80211 = genl_ctrl_search_by_name(nl_cache, "nl80211")) == NULL) {
-		snprintf(errstr, STATUS_MAX, 
+    if ((nl80211 = genl_ctrl_search_by_name(nl_cache, "nl80211")) == NULL) {
+        snprintf(errstr, STATUS_MAX, 
                 "failed to connect interface '%s' via netlink: failed to find "
                 "nl80211 controls, kernel may be very old.", interface);
-		nl_socket_free(nl_handle);
-		return -1;
-	}
+        nl_socket_free(nl_handle);
+        return -1;
+    }
 
-	(*handle) = (void *) nl_handle;
-	(*cache) = (void *) nl_cache;
-	(*family) = (void *) nl80211;
+    (*handle) = (void *) nl_handle;
+    (*cache) = (void *) nl_cache;
+    (*family) = (void *) nl80211;
 
 	return 0;
 #endif
@@ -186,158 +186,158 @@ void mac80211_disconnect(void *handle, void *cache) {
 void mac80211_insert_flags(unsigned int *flags, unsigned int flags_sz, 
         struct nl_msg *msg) {
 #ifdef HAVE_LINUX_NETLINK
-	struct nl_msg *nl_flags;
+    struct nl_msg *nl_flags;
     unsigned int x;
 
-	if ((nl_flags = nlmsg_alloc()) == NULL) {
-		return;
-	}
+    if ((nl_flags = nlmsg_alloc()) == NULL) {
+        return;
+    }
 
-	for (x = 0; x < flags_sz; x++) {
-		NLA_PUT_FLAG(nl_flags, flags[x]);
-	}
+    for (x = 0; x < flags_sz; x++) {
+        NLA_PUT_FLAG(nl_flags, flags[x]);
+    }
 
-	nla_put_nested(msg, NL80211_ATTR_MNTR_FLAGS, nl_flags);
+    nla_put_nested(msg, NL80211_ATTR_MNTR_FLAGS, nl_flags);
 
 nla_put_failure:
-	nlmsg_free(nl_flags);
+    nlmsg_free(nl_flags);
 #endif
 }
 
 int mac80211_create_monitor_vif(const char *interface, const char *newinterface, 
-       unsigned int *flags, unsigned int flags_sz, char *errstr) {
+        unsigned int *flags, unsigned int flags_sz, char *errstr) {
 #ifndef HAVE_LINUX_NETLINK
-	snprintf(errstr, STATUS_MAX, "Kismet was not compiled with netlink/mac80211 "
-			 "support, check the output of ./configure for why");
-	return -1;
+    snprintf(errstr, STATUS_MAX, "Kismet was not compiled with netlink/mac80211 "
+            "support, check the output of ./configure for why");
+    return -1;
 #else
 
-	struct nl_sock *nl_handle = NULL;
-	struct nl_cache *nl_cache = NULL;
-	struct genl_family *nl80211 = NULL;
-	struct nl_msg *msg;
+    struct nl_sock *nl_handle = NULL;
+    struct nl_cache *nl_cache = NULL;
+    struct genl_family *nl80211 = NULL;
+    struct nl_msg *msg;
 
-	if (if_nametoindex(newinterface) > 0) 
-		return 1;
+    if (if_nametoindex(newinterface) > 0) 
+        return 1;
 
-	if (mac80211_connect(interface, (void **) &nl_handle, 
-						 (void **) &nl_cache, (void **) &nl80211, errstr) < 0)
-		return -1;
+    if (mac80211_connect(interface, (void **) &nl_handle, 
+                (void **) &nl_cache, (void **) &nl80211, errstr) < 0)
+        return -1;
 
-	if ((msg = nlmsg_alloc()) == NULL) {
-		snprintf(errstr, STATUS_MAX, 
+    if ((msg = nlmsg_alloc()) == NULL) {
+        snprintf(errstr, STATUS_MAX, 
                 "unable to create monitor vif %s:%s, unable to allocate nl80211 "
                 "message", interface, newinterface);
-		mac80211_disconnect(nl_handle, nl_cache);
-		return -1;
-	}
+        mac80211_disconnect(nl_handle, nl_cache);
+        return -1;
+    }
 
-	genlmsg_put(msg, 0, 0, genl_family_get_id(nl80211), 0, 0, 
-				NL80211_CMD_NEW_INTERFACE, 0);
-	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, if_nametoindex(interface));
-	NLA_PUT_STRING(msg, NL80211_ATTR_IFNAME, newinterface);
-	NLA_PUT_U32(msg, NL80211_ATTR_IFTYPE, NL80211_IFTYPE_MONITOR);
+    genlmsg_put(msg, 0, 0, genl_family_get_id(nl80211), 0, 0, 
+            NL80211_CMD_NEW_INTERFACE, 0);
+    NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, if_nametoindex(interface));
+    NLA_PUT_STRING(msg, NL80211_ATTR_IFNAME, newinterface);
+    NLA_PUT_U32(msg, NL80211_ATTR_IFTYPE, NL80211_IFTYPE_MONITOR);
 
     if (flags_sz > 0)
         mac80211_insert_flags(flags, flags_sz, msg);
 
-	if (nl_send_auto_complete(nl_handle, msg) < 0 || nl_wait_for_ack(nl_handle) < 0) {
+    if (nl_send_auto_complete(nl_handle, msg) < 0 || nl_wait_for_ack(nl_handle) < 0) {
 nla_put_failure:
-		snprintf(errstr, STATUS_MAX, 
+        snprintf(errstr, STATUS_MAX, 
                 "failed to create monitor interface %s:%s",
                 interface, newinterface);
-		nlmsg_free(msg);
-		mac80211_disconnect(nl_handle, nl_cache);
-		return -1;
-	}
+        nlmsg_free(msg);
+        mac80211_disconnect(nl_handle, nl_cache);
+        return -1;
+    }
 
-	nlmsg_free(msg);
-	mac80211_disconnect(nl_handle, nl_cache);
+    nlmsg_free(msg);
+    mac80211_disconnect(nl_handle, nl_cache);
 
-	if (if_nametoindex(newinterface) <= 0) {
-		snprintf(errstr, STATUS_MAX, 
+    if (if_nametoindex(newinterface) <= 0) {
+        snprintf(errstr, STATUS_MAX, 
                 "creating a monitor interface for %s:%s worked, but couldn't"
                 "find that interface after creation.", interface, newinterface);
-		return -1;
-	}
+        return -1;
+    }
 
-	return 0;
+    return 0;
 #endif
 }
 
 int mac80211_set_channel_cache(const char *interface, void *handle,
-							  void *family, int channel,
-							  unsigned int chmode, char *errstr) {
+        void *family, int channel,
+        unsigned int chmode, char *errstr) {
 #ifndef HAVE_LINUX_NETLINK
-	snprintf(errstr, STATUS_MAX, "Kismet was not compiled with netlink/mac80211 "
-			 "support, check the output of ./configure for why");
+    snprintf(errstr, STATUS_MAX, "Kismet was not compiled with netlink/mac80211 "
+            "support, check the output of ./configure for why");
     return -1;
 #else
-	struct nl_sock *nl_handle = (struct nl_sock *) handle;
-	struct genl_family *nl80211 = (struct genl_family *) family;
-	struct nl_msg *msg;
-	int ret = 0;
+    struct nl_sock *nl_handle = (struct nl_sock *) handle;
+    struct genl_family *nl80211 = (struct genl_family *) family;
+    struct nl_msg *msg;
+    int ret = 0;
 
-	if (chmode >= 4) {
-		snprintf(errstr, STATUS_MAX, 
+    if (chmode >= 4) {
+        snprintf(errstr, STATUS_MAX, 
                 "unable to set channel on interface '%s': invalid channel mode",
                 interface);
-		return -1;
-	}
+        return -1;
+    }
 
-	if ((msg = nlmsg_alloc()) == NULL) {
-		snprintf(errstr, STATUS_MAX, 
+    if ((msg = nlmsg_alloc()) == NULL) {
+        snprintf(errstr, STATUS_MAX, 
                 "unable to set channel on interface '%s': unable to allocate mac80211 "
                 "control message.", interface);
-		return -1;
-	}
+        return -1;
+    }
 
-	genlmsg_put(msg, 0, 0, genl_family_get_id(nl80211), 0, 0, NL80211_CMD_SET_WIPHY, 0);
-	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, if_nametoindex(interface));
-	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY_FREQ, mac80211_chan_to_freq(channel));
-	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY_CHANNEL_TYPE, chmode);
+    genlmsg_put(msg, 0, 0, genl_family_get_id(nl80211), 0, 0, NL80211_CMD_SET_WIPHY, 0);
+    NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, if_nametoindex(interface));
+    NLA_PUT_U32(msg, NL80211_ATTR_WIPHY_FREQ, mac80211_chan_to_freq(channel));
+    NLA_PUT_U32(msg, NL80211_ATTR_WIPHY_CHANNEL_TYPE, chmode);
 
-	if ((ret = nl_send_auto_complete(nl_handle, msg)) >= 0) {
-		if ((ret = nl_wait_for_ack(nl_handle)) < 0) 
-			goto nla_put_failure;
-	}
+    if ((ret = nl_send_auto_complete(nl_handle, msg)) >= 0) {
+        if ((ret = nl_wait_for_ack(nl_handle)) < 0) 
+            goto nla_put_failure;
+    }
 
-	nlmsg_free(msg);
+    nlmsg_free(msg);
 
-	return 0;
+    return 0;
 
 nla_put_failure:
-	snprintf(errstr, STATUS_MAX, 
+    snprintf(errstr, STATUS_MAX, 
             "unable to set channel %u/%u mode %u on interface '%s' via mac80211: "
             "error code %d", channel, mac80211_chan_to_freq(channel), chmode,
             interface, ret);
-	nlmsg_free(msg);
-	return ret;
+    nlmsg_free(msg);
+    return ret;
 #endif
 }
 
 int mac80211_set_channel(const char *interface, int channel, 
-						unsigned int chmode, char *errstr) {
+        unsigned int chmode, char *errstr) {
 #ifndef HAVE_LINUX_NETLINK
-	snprintf(errstr, STATUS_MAX, "Kismet was not compiled with netlink/mac80211 "
-			 "support, check the output of ./configure for why");
+    snprintf(errstr, STATUS_MAX, "Kismet was not compiled with netlink/mac80211 "
+            "support, check the output of ./configure for why");
     return -1;
 #else
-	struct nl_sock *nl_handle = NULL;
-	struct nl_cache *nl_cache = NULL;
-	struct genl_family *nl80211 = NULL;
+    struct nl_sock *nl_handle = NULL;
+    struct nl_cache *nl_cache = NULL;
+    struct genl_family *nl80211 = NULL;
 
-	if (mac80211_connect(interface, (void **) &nl_handle, 
-						 (void **) &nl_cache, (void **) &nl80211, errstr) < 0)
-		return -1;
+    if (mac80211_connect(interface, (void **) &nl_handle, 
+                (void **) &nl_cache, (void **) &nl80211, errstr) < 0)
+        return -1;
 
-	int ret = 
-		mac80211_set_channel_cache(interface, (void *) nl_handle,
+    int ret = 
+        mac80211_set_channel_cache(interface, (void *) nl_handle,
                 (void *) nl80211, channel, chmode, errstr);
 
-	mac80211_disconnect(nl_handle, nl_cache);
+    mac80211_disconnect(nl_handle, nl_cache);
 
-	return ret;
+    return ret;
 #endif
 }
 
@@ -350,35 +350,35 @@ int mac80211_set_frequency_cache(const char *interface, void *handle, void *fami
 			 "support, check the output of ./configure for why");
     return -1;
 #else
-	struct nl_sock *nl_handle = (struct nl_sock *) handle;
-	struct genl_family *nl80211 = (struct genl_family *) family;
-	struct nl_msg *msg;
-	int ret = 0;
+    struct nl_sock *nl_handle = (struct nl_sock *) handle;
+    struct genl_family *nl80211 = (struct genl_family *) family;
+    struct nl_msg *msg;
+    int ret = 0;
 
-	if ((msg = nlmsg_alloc()) == NULL) {
-		snprintf(errstr, STATUS_MAX, 
+    if ((msg = nlmsg_alloc()) == NULL) {
+        snprintf(errstr, STATUS_MAX, 
                 "unable to set channel/frequency on interface '%s': unable to "
                 "allocate mac80211 control message.", interface);
-		return -1;
-	}
+        return -1;
+    }
 
-	genlmsg_put(msg, 0, 0, genl_family_get_id(nl80211), 0, 0, NL80211_CMD_SET_WIPHY, 0);
-	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, if_nametoindex(interface));
-	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY_FREQ, control_freq);
+    genlmsg_put(msg, 0, 0, genl_family_get_id(nl80211), 0, 0, NL80211_CMD_SET_WIPHY, 0);
+    NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, if_nametoindex(interface));
+    NLA_PUT_U32(msg, NL80211_ATTR_WIPHY_FREQ, control_freq);
     NLA_PUT_U32(msg, NL80211_ATTR_CHANNEL_WIDTH, chan_width);
 
     if (center_freq1 != 0) {
         NLA_PUT_U32(msg, NL80211_ATTR_CENTER_FREQ1, center_freq1);
     }
 
-	if ((ret = nl_send_auto_complete(nl_handle, msg)) >= 0) {
-		if ((ret = nl_wait_for_ack(nl_handle)) < 0) 
-			goto nla_put_failure;
-	}
+    if ((ret = nl_send_auto_complete(nl_handle, msg)) >= 0) {
+        if ((ret = nl_wait_for_ack(nl_handle)) < 0) 
+            goto nla_put_failure;
+    }
 
-	nlmsg_free(msg);
+    nlmsg_free(msg);
 
-	return 0;
+    return 0;
 
 nla_put_failure:
 	snprintf(errstr, STATUS_MAX, 
@@ -395,25 +395,25 @@ int mac80211_set_frequency(const char *interface,
         unsigned int center_freq1, unsigned int center_freq2,
         char *errstr) {
 #ifndef HAVE_LINUX_NETLINK
-	snprintf(errstr, STATUS_MAX, "Kismet was not compiled with netlink/mac80211 "
-			 "support, check the output of ./configure for why");
+    snprintf(errstr, STATUS_MAX, "Kismet was not compiled with netlink/mac80211 "
+            "support, check the output of ./configure for why");
     return -1;
 #else
-	struct nl_sock *nl_handle = NULL;
-	struct nl_cache *nl_cache = NULL;
-	struct genl_family *nl80211 = NULL;
+    struct nl_sock *nl_handle = NULL;
+    struct nl_cache *nl_cache = NULL;
+    struct genl_family *nl80211 = NULL;
 
-	if (mac80211_connect(interface, (void **) &nl_handle, 
-						 (void **) &nl_cache, (void **) &nl80211, errstr) < 0)
-		return -1;
+    if (mac80211_connect(interface, (void **) &nl_handle, 
+                (void **) &nl_cache, (void **) &nl80211, errstr) < 0)
+        return -1;
 
-	int ret = 
-		mac80211_set_frequency_cache(interface, (void *) nl_handle, (void *) nl80211, 
+    int ret = 
+        mac80211_set_frequency_cache(interface, (void *) nl_handle, (void *) nl80211, 
                 control_freq, chan_width, center_freq1, center_freq2, errstr);
 
-	mac80211_disconnect(nl_handle, nl_cache);
+    mac80211_disconnect(nl_handle, nl_cache);
 
-	return ret;
+    return ret;
 #endif
 }
 
@@ -425,37 +425,37 @@ struct nl80211_channel_block {
 
 #ifdef HAVE_LINUX_NETLINK
 static int nl80211_freqlist_cb(struct nl_msg *msg, void *arg) {
-	struct nlattr *tb_msg[NL80211_ATTR_MAX + 1];
-	struct genlmsghdr *gnlh = (struct genlmsghdr *) nlmsg_data(nlmsg_hdr(msg));
-	struct nlattr *tb_band[NL80211_BAND_ATTR_MAX + 1];
-	struct nlattr *tb_freq[NL80211_FREQUENCY_ATTR_MAX + 1];
-	struct nlattr *nl_band, *nl_freq;
-	int rem_band, rem_freq, num_freq = 0;
-	uint32_t freq;
-	struct nl80211_channel_block *chanb = (struct nl80211_channel_block *) arg;
+    struct nlattr *tb_msg[NL80211_ATTR_MAX + 1];
+    struct genlmsghdr *gnlh = (struct genlmsghdr *) nlmsg_data(nlmsg_hdr(msg));
+    struct nlattr *tb_band[NL80211_BAND_ATTR_MAX + 1];
+    struct nlattr *tb_freq[NL80211_FREQUENCY_ATTR_MAX + 1];
+    struct nlattr *nl_band, *nl_freq;
+    int rem_band, rem_freq, num_freq = 0;
+    uint32_t freq;
+    struct nl80211_channel_block *chanb = (struct nl80211_channel_block *) arg;
     char channel_str[32];
     int band_ht40, band_ht80, band_ht160;
     unsigned int hti;
 
-	nla_parse(tb_msg, NL80211_ATTR_MAX, genlmsg_attrdata(gnlh, 0),
-			  genlmsg_attrlen(gnlh, 0), NULL);
+    nla_parse(tb_msg, NL80211_ATTR_MAX, genlmsg_attrdata(gnlh, 0),
+            genlmsg_attrlen(gnlh, 0), NULL);
 
-	if (!tb_msg[NL80211_ATTR_WIPHY_BANDS]) {
-		return NL_SKIP;
-	}
+    if (!tb_msg[NL80211_ATTR_WIPHY_BANDS]) {
+        return NL_SKIP;
+    }
 
-	if (tb_msg[NL80211_ATTR_WIPHY_NAME]) {
-		if (strcmp(nla_get_string(tb_msg[NL80211_ATTR_WIPHY_NAME]), 
-				   chanb->phyname) != 0) {
-			return NL_SKIP;
-		}
-	}
+    if (tb_msg[NL80211_ATTR_WIPHY_NAME]) {
+        if (strcmp(nla_get_string(tb_msg[NL80211_ATTR_WIPHY_NAME]), 
+                    chanb->phyname) != 0) {
+            return NL_SKIP;
+        }
+    }
 
-	// Count the number of channels
-	for (nl_band = (struct nlattr *) nla_data(tb_msg[NL80211_ATTR_WIPHY_BANDS]),
-		 rem_band = nla_len(tb_msg[NL80211_ATTR_WIPHY_BANDS]);
-		 nla_ok(nl_band, rem_band); 
-         nl_band = (struct nlattr *) nla_next(nl_band, &rem_band)) {
+    // Count the number of channels
+    for (nl_band = (struct nlattr *) nla_data(tb_msg[NL80211_ATTR_WIPHY_BANDS]),
+            rem_band = nla_len(tb_msg[NL80211_ATTR_WIPHY_BANDS]);
+            nla_ok(nl_band, rem_band); 
+            nl_band = (struct nlattr *) nla_next(nl_band, &rem_band)) {
 
         band_ht40 = 0;
         band_ht80 = 0;
@@ -491,25 +491,25 @@ static int nl80211_freqlist_cb(struct nl_msg *msg, void *arg) {
             }
         }
 
-		for (nl_freq = (struct nlattr *) nla_data(tb_band[NL80211_BAND_ATTR_FREQS]),
-			 rem_freq = nla_len(tb_band[NL80211_BAND_ATTR_FREQS]);
-			 nla_ok(nl_freq, rem_freq); 
-			 nl_freq = (struct nlattr *) nla_next(nl_freq, &rem_freq)) {
+        for (nl_freq = (struct nlattr *) nla_data(tb_band[NL80211_BAND_ATTR_FREQS]),
+                rem_freq = nla_len(tb_band[NL80211_BAND_ATTR_FREQS]);
+                nla_ok(nl_freq, rem_freq); 
+                nl_freq = (struct nlattr *) nla_next(nl_freq, &rem_freq)) {
 
-			nla_parse(tb_freq, NL80211_FREQUENCY_ATTR_MAX, 
-					  (struct nlattr *) nla_data(nl_freq),
-					  nla_len(nl_freq), NULL);
+            nla_parse(tb_freq, NL80211_FREQUENCY_ATTR_MAX, 
+                    (struct nlattr *) nla_data(nl_freq),
+                    nla_len(nl_freq), NULL);
 
-			if (!tb_freq[NL80211_FREQUENCY_ATTR_FREQ])
-				continue;
+            if (!tb_freq[NL80211_FREQUENCY_ATTR_FREQ])
+                continue;
 
-			if (tb_freq[NL80211_FREQUENCY_ATTR_DISABLED])
-				continue;
+            if (tb_freq[NL80211_FREQUENCY_ATTR_DISABLED])
+                continue;
 
             /* We've got at least one actual frequency */
-			num_freq++;
+            num_freq++;
 
-			freq = nla_get_u32(tb_freq[NL80211_FREQUENCY_ATTR_FREQ]);
+            freq = nla_get_u32(tb_freq[NL80211_FREQUENCY_ATTR_FREQ]);
 
             /* Look us up in the wifi_ht_channels list and add channels if we
              * need to add HT capabilities.  We could convert this to a channel
@@ -534,38 +534,38 @@ static int nl80211_freqlist_cb(struct nl_msg *msg, void *arg) {
                     break;
                 }
             }
-		}
-	}
+        }
+    }
 
-	chanb->nfreqs = num_freq;
-	chanb->channel_list = malloc(sizeof(char *) * num_freq);
-	num_freq = 0;
+    chanb->nfreqs = num_freq;
+    chanb->channel_list = malloc(sizeof(char *) * num_freq);
+    num_freq = 0;
 
-	// Assemble a return
-	for (nl_band = (struct nlattr *) nla_data(tb_msg[NL80211_ATTR_WIPHY_BANDS]),
-		 rem_band = nla_len(tb_msg[NL80211_ATTR_WIPHY_BANDS]);
-		 nla_ok(nl_band, rem_band); 
-		 nl_band = (struct nlattr *) nla_next(nl_band, &rem_band)) {
+    // Assemble a return
+    for (nl_band = (struct nlattr *) nla_data(tb_msg[NL80211_ATTR_WIPHY_BANDS]),
+            rem_band = nla_len(tb_msg[NL80211_ATTR_WIPHY_BANDS]);
+            nla_ok(nl_band, rem_band); 
+            nl_band = (struct nlattr *) nla_next(nl_band, &rem_band)) {
 
-		nla_parse(tb_band, NL80211_BAND_ATTR_MAX, (struct nlattr *) nla_data(nl_band),
-				  nla_len(nl_band), NULL);
+        nla_parse(tb_band, NL80211_BAND_ATTR_MAX, (struct nlattr *) nla_data(nl_band),
+                nla_len(nl_band), NULL);
 
-		for (nl_freq = (struct nlattr *) nla_data(tb_band[NL80211_BAND_ATTR_FREQS]),
-			 rem_freq = nla_len(tb_band[NL80211_BAND_ATTR_FREQS]);
-			 nla_ok(nl_freq, rem_freq); 
-			 nl_freq = (struct nlattr *) nla_next(nl_freq, &rem_freq)) {
+        for (nl_freq = (struct nlattr *) nla_data(tb_band[NL80211_BAND_ATTR_FREQS]),
+                rem_freq = nla_len(tb_band[NL80211_BAND_ATTR_FREQS]);
+                nla_ok(nl_freq, rem_freq); 
+                nl_freq = (struct nlattr *) nla_next(nl_freq, &rem_freq)) {
 
-			nla_parse(tb_freq, NL80211_FREQUENCY_ATTR_MAX, 
-					  (struct nlattr *) nla_data(nl_freq),
-					  nla_len(nl_freq), NULL);
+            nla_parse(tb_freq, NL80211_FREQUENCY_ATTR_MAX, 
+                    (struct nlattr *) nla_data(nl_freq),
+                    nla_len(nl_freq), NULL);
 
-			if (!tb_freq[NL80211_FREQUENCY_ATTR_FREQ])
-				continue;
+            if (!tb_freq[NL80211_FREQUENCY_ATTR_FREQ])
+                continue;
 
-			if (tb_freq[NL80211_FREQUENCY_ATTR_DISABLED])
-				continue;
+            if (tb_freq[NL80211_FREQUENCY_ATTR_DISABLED])
+                continue;
 
-			freq = nla_get_u32(tb_freq[NL80211_FREQUENCY_ATTR_FREQ]);
+            freq = nla_get_u32(tb_freq[NL80211_FREQUENCY_ATTR_FREQ]);
 
             snprintf(channel_str, 32, "%u", mac80211_freq_to_chan(freq));
             chanb->channel_list[num_freq++] = strdup(channel_str);
@@ -602,10 +602,10 @@ static int nl80211_freqlist_cb(struct nl_msg *msg, void *arg) {
                     break;
                 }
             }
-		}
-	}
+        }
+    }
 
-	return NL_SKIP;
+    return NL_SKIP;
 }
 #endif
 
@@ -626,98 +626,97 @@ static int nl80211_finish_cb(struct nl_msg *msg, void *arg) {
 
 int mac80211_get_chanlist(const char *interface, char *errstr,
         char ***ret_chan_list, unsigned int *ret_num_chans) {
-	struct nl80211_channel_block cblock = {
+    struct nl80211_channel_block cblock = {
         .phyname = NULL,
         .nfreqs = 0,
         .channel_list = NULL,
     };
 
 #ifndef HAVE_LINUX_NETLINK
-	snprintf(errstr, STATUS_MAX, "Kismet was not compiled with netlink/nl80211 "
-			 "support, check the output of ./configure for why");
+    snprintf(errstr, STATUS_MAX, "Kismet was not compiled with netlink/nl80211 "
+            "support, check the output of ./configure for why");
     return -1;
 #else
-	void *handle = NULL, *cache = NULL, *family = NULL;
-	struct nl_cb *cb;
-	int err;
-	struct nl_msg *msg;
+    void *handle = NULL, *cache = NULL, *family = NULL;
+    struct nl_cb *cb;
+    int err;
+    struct nl_msg *msg;
 
-	cblock.phyname = mac80211_find_parent(interface);
-	if (strlen(cblock.phyname) == 0) {
-		if (if_nametoindex(interface) <= 0) {
-			snprintf(errstr, STATUS_MAX, 
+    cblock.phyname = mac80211_find_parent(interface);
+    if (strlen(cblock.phyname) == 0) {
+        if (if_nametoindex(interface) <= 0) {
+            snprintf(errstr, STATUS_MAX, 
                     "failed to get channels from interface '%s': interface does "
                     "not exist.", interface);
             return -1;
-		} 
+        } 
 
-		snprintf(errstr, STATUS_MAX, 
+        snprintf(errstr, STATUS_MAX, 
                 "failed to find parent phy interface for interface '%s': interface "
                 "may not be a mac80211 wifi device?", interface);
         return -1;
-	}
+    }
 
-	if (mac80211_connect(interface, &handle, &cache, &family, errstr) < 0) {
+    if (mac80211_connect(interface, &handle, &cache, &family, errstr) < 0) {
         return -1;
-	}
+    }
 
-	msg = nlmsg_alloc();
-	cb = nl_cb_alloc(NL_CB_DEFAULT);
+    msg = nlmsg_alloc();
+    cb = nl_cb_alloc(NL_CB_DEFAULT);
 
-	err = 1;
+    err = 1;
 
-	nl_cb_set(cb, NL_CB_VALID, NL_CB_CUSTOM, nl80211_freqlist_cb, &cblock);
-	nl_cb_set(cb, NL_CB_FINISH, NL_CB_CUSTOM, nl80211_finish_cb, &err);
-	nl_cb_err(cb, NL_CB_CUSTOM, nl80211_error_cb, &err);
+    nl_cb_set(cb, NL_CB_VALID, NL_CB_CUSTOM, nl80211_freqlist_cb, &cblock);
+    nl_cb_set(cb, NL_CB_FINISH, NL_CB_CUSTOM, nl80211_finish_cb, &err);
+    nl_cb_err(cb, NL_CB_CUSTOM, nl80211_error_cb, &err);
 
-	genlmsg_put(msg, 0, 0, genl_family_get_id((struct genl_family *) family),
-			  0, NLM_F_DUMP, NL80211_CMD_GET_WIPHY, 0);
+    genlmsg_put(msg, 0, 0, genl_family_get_id((struct genl_family *) family),
+            0, NLM_F_DUMP, NL80211_CMD_GET_WIPHY, 0);
 
-	if (nl_send_auto_complete((struct nl_sock *) handle, msg) < 0) {
-		snprintf(errstr, STATUS_MAX, 
+    if (nl_send_auto_complete((struct nl_sock *) handle, msg) < 0) {
+        snprintf(errstr, STATUS_MAX, 
                 "failed to fetch channels from interface '%s': failed to "
                 "write netlink command", interface);
-		mac80211_disconnect(handle, cache);
+        mac80211_disconnect(handle, cache);
         free(cb);
         return -1;
-	}
+    }
 
-	while (err)
-		nl_recvmsgs((struct nl_sock *) handle, cb);
+    while (err)
+        nl_recvmsgs((struct nl_sock *) handle, cb);
 
     free(cb);
-	mac80211_disconnect(handle, cache);
+    mac80211_disconnect(handle, cache);
 
-	(*ret_num_chans) = cblock.nfreqs;
+    (*ret_num_chans) = cblock.nfreqs;
     (*ret_chan_list) = (cblock.channel_list);
 
-	free(cblock.phyname);
+    free(cblock.phyname);
 
-	return (*ret_num_chans);
+    return (*ret_num_chans);
 #endif
 }
 
-
 char *mac80211_find_parent(const char *interface) {
-	DIR *devdir;
-	struct dirent *devfile;
+    DIR *devdir;
+    struct dirent *devfile;
     char dirpath[2048];
     char *dev;
 
     snprintf(dirpath, 2048, "/sys/class/net/%s/phy80211/device", interface);
 
-	if ((devdir = opendir(dirpath)) == NULL)
-		return strdup("");
+    if ((devdir = opendir(dirpath)) == NULL)
+        return strdup("");
 
-	while ((devfile = readdir(devdir)) != NULL) {
-		if (strlen(devfile->d_name) < 9)
-			continue;
+    while ((devfile = readdir(devdir)) != NULL) {
+        if (strlen(devfile->d_name) < 9)
+            continue;
 
-		if (strncmp("ieee80211:phy", devfile->d_name, 13) == 0) {
+        if (strncmp("ieee80211:phy", devfile->d_name, 13) == 0) {
             dev = strdup(devfile->d_name + 10);
-			closedir(devdir);
-			return dev;
-		}
+            closedir(devdir);
+            return dev;
+        }
 
         if (strncmp("ieee80211", devfile->d_name, 9) == 0) {
             DIR *ieeedir;
@@ -741,9 +740,9 @@ char *mac80211_find_parent(const char *interface) {
 
             closedir(ieeedir);
         }
-	}
+    }
 
-	closedir(devdir);
+    closedir(devdir);
     return NULL;
 }
 
