@@ -40,14 +40,21 @@
 
 #include <arpa/inet.h>
 
-#include "config.h"
-#include "simple_datasource_proto.h"
-#include "capture_framework.h"
+#include <stdio.h>
+#include <string.h>
+
+#include <config.h>
+#include <simple_datasource_proto.h>
+#include <capture_framework.h>
+
+#include <rtl-sdr.h>
 
 typedef struct {
     pid_t rtl433_pid;
 
     FILE *rtl433_stdout;
+
+    unsigned int rtlnum;
 } local_rtl433_t;
 
 int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
@@ -58,58 +65,47 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     char *placeholder = NULL;
     int placeholder_len;
 
-    *uuid = NULL;
+    char *rtlname = NULL;
+    unsigned int rtlnum = 0;
 
-    char *pcapfname = NULL;
+    *uuid = NULL;
 
     struct stat sbuf;
 
-    char errstr[PCAP_ERRBUF_SIZE] = "";
-
-    pcap_t *pd;
-
     *ret_spectrum = NULL;
+    *ret_interface = NULL;
+
+    if ((placeholder_len = cf_parse_interface(&placeholder, definition)) <= 0) {
+        snprintf(msg, STATUS_MAX, "Unable to find interface"); 
+        return 0;
+    }
+
+    rtlname = strndup(placeholder, placeholder_len);
+
+    if (strcmp(rtlname, "rtl433") == 0) {
+        rtlnum = 0;
+    } else if (sscanf(rtlname, "rtl433-%u", &rtlnum) != 1) {
+        return 0;
+    }
+
+    if (rtlnum >= rtlsdr_get_device_count())
+        return 0;
 
     *ret_interface = cf_params_interface_new();
     *ret_spectrum = NULL;
 
-    /* pcapfile does not support channel ops */
     (*ret_interface)->chanset = NULL;
     (*ret_interface)->channels = NULL;
     (*ret_interface)->channels_len = 0;
 
-    if ((placeholder_len = cf_parse_interface(&placeholder, definition)) <= 0) {
-        snprintf(msg, STATUS_MAX, "Unable to find PCAP file name in definition"); 
-        return 0;
-    }
-
-    pcapfname = strndup(placeholder, placeholder_len);
-
-    if (stat(pcapfname, &sbuf) < 0) {
-        return 0;
-    }
-
-    if (!S_ISREG(sbuf.st_mode)) {
-        snprintf(msg, STATUS_MAX, "File '%s' is not a regular file", pcapfname);
-        return 0;
-    }
-
-    pd = pcap_open_offline(pcapfname, errstr);
-    if (strlen(errstr) > 0) {
-        snprintf(msg, STATUS_MAX, "%s", errstr);
-        return -1;
-    }
-
-    pcap_close(pd);
 
     /* Kluge a UUID out of the name */
     snprintf(errstr, PCAP_ERRBUF_SIZE, "%08X-0000-0000-0000-0000%08X",
-            adler32_csum((unsigned char *) "kismet_cap_pcapfile", 
-                strlen("kismet_cap_pcapfile")) & 0xFFFFFFFF,
-            adler32_csum((unsigned char *) pcapfname, 
-                strlen(pcapfname)) & 0xFFFFFFFF);
+            adler32_csum((unsigned char *) "kismet_cap_rtl433", 
+                strlen("kismet_cap_rtl433")) & 0xFFFFFFFF,
+            adler32_csum((unsigned char *) rtlname, 
+                strlen(rtlname)) & 0xFFFFFFFF);
     *uuid = strdup(errstr);
-
 
     return 1;
 }
@@ -121,15 +117,11 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     char *placeholder = NULL;
     int placeholder_len;
 
-    char *pcapfname = NULL;
+    char *rtlname = NULL;
+    unsigned int rtlnum = 0;
 
-    struct stat sbuf;
+    char errstr[STATUS_MAX] = "";
 
-    local_pcap_t *local_pcap = (local_pcap_t *) caph->userdata;
-
-    char errstr[PCAP_ERRBUF_SIZE] = "";
-
-    /* pcapfile does not support channel ops */
     *ret_interface = cf_params_interface_new();
     *ret_spectrum = NULL;
 
@@ -279,24 +271,11 @@ void capture_thread(kis_capture_handler_t *caph) {
 }
 
 int main(int argc, char *argv[]) {
-    local_pcap_t local_pcap = {
-        .pd = NULL,
-        .pcapfname = NULL,
-        .datalink_type = -1,
-        .override_dlt = -1,
-        .realtime = 0,
-        .last_ts.tv_sec = 0,
-        .last_ts.tv_usec = 0
+    local_rtl433_t local_rtl433 = {
+        .rtl433_pid = -1,
+        .rtl433_stdout = NULL,
+        .rtlnum = 0
     };
-
-#if 0
-    /* Remap stderr so we can log debugging to a file */
-    FILE *sterr;
-    sterr = fopen("/tmp/capture_pcapfile.stderr", "a");
-    dup2(fileno(sterr), STDERR_FILENO);
-#endif
-
-    fprintf(stderr, "CAPTURE_PCAPFILE launched on pid %d\n", getpid());
 
     kis_capture_handler_t *caph = cf_handler_init("pcapfile");
 

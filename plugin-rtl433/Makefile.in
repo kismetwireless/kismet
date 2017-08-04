@@ -13,8 +13,17 @@ top_builddir = $(BLDHOME)
 RTLCFLAGS=@RTLCFLAGS@
 RTLLIBS=@RTLLIBS@
 
+RTL433_CAPTURE_O = \
+	capture_rtl433.c.o
+RTL433_CAPTURE = kismet_cap_rtl433
+
+KISMET_CFLAGS = -I$(KIS_SRC_DIR)
+
 # As we have no live code, all we need is the manifest.conf to "compile"
-all:	manifest.conf
+all:	$(RTL433_CAPTURE)
+
+$(RTL433_CAPTURE):	$(RTL433_CAPTURE_O) $(KIS_SRC_DIR)/libkismetdatasource.a
+	$(CC) $(LDFLAGS) -o $(RTL433_CAPTURE) $(RTL433_CAPTURE_O) $(KIS_SRC_DIR)/libkismetdatasource.a $(RTLLIBS) -lpthread
 
 # We have no requirements for install or userinstall, we just copy our data
 install:
@@ -32,5 +41,8 @@ userinstall:
 	cp -r httpd/* $(HOME)/.kismet/plugins/${PLUGIN_NAME}/httpd
 
 clean:
-	@echo "Nothing to clean"
+	@rm -f $(RTL433_CAPTURE)
+	@rm -f *.o
 
+%.c.o:	%.c 
+	$(CC) $(CFLAGS) $(KISMET_CFLAGS) -c $*.c -o $@ 
