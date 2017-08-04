@@ -4,60 +4,60 @@ DEPEND		= .depend
 
 # Common pure-c code for capturesource binaries
 DATASOURCE_COMMON_C = \
-	msgpuck.o msgpuck_hints.o \
-	simple_ringbuf_c.o msgpuck_buffer.o \
-	simple_datasource_proto.o capture_framework.o 
+	msgpuck.c.o msgpuck_hints.c.o \
+	simple_ringbuf_c.c.o msgpuck_buffer.c.o \
+	simple_datasource_proto.c.o capture_framework.c.o 
 
 CAPTURE_PCAPFILE_O = \
 	$(DATASOURCE_COMMON_C) \
-	capture_pcapfile.o
+	capture_pcapfile.c.o
 CAPTURE_PCAPFILE 	= kismet_cap_pcapfile
 BUILD_CAPTURE_PCAPFILE = @BUILD_CAPTURE_PCAPFILE@
 
 CAPTURE_LINUX_WIFI_O = \
 	$(DATASOURCE_COMMON_C) \
-	interface_control.o linux_wireless_control.o linux_netlink_control.o \
-	wifi_ht_channels.o \
-	capture_linux_wifi.o
+	interface_control.c.o linux_wireless_control.c.o linux_netlink_control.c.o \
+	wifi_ht_channels.c.o \
+	capture_linux_wifi.c.o
 CAPTURE_LINUX_WIFI	= kismet_cap_linux_wifi
 BUILD_CAPTURE_LINUX_WIFI = @BUILD_CAPTURE_LINUX_WIFI@
 
 CAPTURE_HACKRF_SWEEP_O = \
 	$(DATASOURCE_COMMON_C) \
-	capture_hackrf_sweep.o
+	capture_hackrf_sweep.c.o
 CAPTURE_HACKRF_SWEEP = kismet_cap_hackrf_sweep
 BUILD_CAPTURE_HACKRF_SWEEP = @BUILD_CAPTURE_HACKRF_SWEEP@
 
 # Capture binaries to build
 DATASOURCE_BINS = @DATASOURCE_BINS@
 
-PSO	= util.o cygwin_utils.o globalregistry.o \
-	pollabletracker.o ringbuf2.o chainbuf.o buffer_handler.o \
-	packet.o messagebus.o configfile.o getopt.o filtercore.o \
-	psutils.o battery.o kismet_json.o \
-	tcpserver2.o tcpclient2.o serialclient2.o pipeclient.o ipc_remote2.o \
-	datasourcetracker.o kis_datasource.o \
-	kis_net_microhttpd.o system_monitor.o base64.o \
-	kis_httpd_websession.o kis_httpd_registry.o \
-	gps_manager.o kis_gps.o gpsserial2.o gpsgpsd2.o gpsfake.o gpsweb.o \
-	packetchain.o \
-	trackedelement.o entrytracker.o \
-	msgpack_adapter.o xmlserialize_adapter.o json_adapter.o \
-	plugintracker.o alertracker.o timetracker.o channeltracker2.o \
-	devicetracker.o devicetracker_workers.o devicetracker_httpd.o \
-	statealert.o \
-	kis_dlt.o kis_dlt_ppi.o kis_dlt_radiotap.o \
-	kaitaistream.o \
-	kaitai_parsers/wpaeap.o kaitai_parsers/ie221.o \
-	phy_80211.o phy_80211_dissectors.o phy_rtl433.o phy_zwave.o \
-	kis_dissector_ipdata.o \
-	manuf.o \
-	dumpfile.o dumpfile_pcap.o \
-	messagebus_restclient.o \
-	streamtracker.o \
-	pcapng_stream_ringbuf.o streambuf_stream_buffer.o \
-	devicetracker_httpd_pcap.o phy_80211_httpd_pcap.o \
-	kismet_server.o \
+PSO	= util.cc.o cygwin_utils.cc.o globalregistry.cc.o \
+	pollabletracker.cc.o ringbuf2.cc.o chainbuf.cc.o buffer_handler.cc.o \
+	packet.cc.o messagebus.cc.o configfile.cc.o getopt.cc.o filtercore.cc.o \
+	psutils.cc.o battery.cc.o kismet_json.cc.o \
+	tcpserver2.cc.o tcpclient2.cc.o serialclient2.cc.o pipeclient.cc.o ipc_remote2.cc.o \
+	datasourcetracker.cc.o kis_datasource.cc.o \
+	kis_net_microhttpd.cc.o system_monitor.cc.o base64.cc.o \
+	kis_httpd_websession.cc.o kis_httpd_registry.cc.o \
+	gps_manager.cc.o kis_gps.cc.o gpsserial2.cc.o gpsgpsd2.cc.o gpsfake.cc.o gpsweb.cc.o \
+	packetchain.cc.o \
+	trackedelement.cc.o entrytracker.cc.o \
+	msgpack_adapter.cc.o xmlserialize_adapter.cc.o json_adapter.cc.o \
+	plugintracker.cc.o alertracker.cc.o timetracker.cc.o channeltracker2.cc.o \
+	devicetracker.cc.o devicetracker_workers.cc.o devicetracker_httpd.cc.o \
+	statealert.cc.o \
+	kis_dlt.cc.o kis_dlt_ppi.cc.o kis_dlt_radiotap.cc.o \
+	kaitaistream.cc.o \
+	kaitai_parsers/wpaeap.cc.o kaitai_parsers/ie221.cc.o \
+	phy_80211.cc.o phy_80211_dissectors.cc.o phy_rtl433.cc.o phy_zwave.cc.o \
+	kis_dissector_ipdata.cc.o \
+	manuf.cc.o \
+	dumpfile.cc.o dumpfile_pcap.cc.o \
+	messagebus_restclient.cc.o \
+	streamtracker.cc.o \
+	pcapng_stream_ringbuf.cc.o streambuf_stream_buffer.cc.o \
+	devicetracker_httpd_pcap.cc.o phy_80211_httpd_pcap.cc.o \
+	kismet_server.cc.o 
 
 PS	= kismet
 
@@ -245,10 +245,10 @@ $(DEPEND): Makefile
 	@echo > $(DEPEND)
 	@$(CXX) $(CPPFLAGS) $(CXXFLAGS) -MM \
 		`echo $(PSO) | \
-		sed -e "s/\.o/\.cc/g" | sed -e "s/\.mo/\.m/g"` >> $(DEPEND)
+		sed -e "s/\.cc.o/\.cc/g" | sed -e "s/\.mo/\.m/g"` >> $(DEPEND)
 	@$(CC) $(CFLAGS) $(CPPFLAGS) -MM \
 		`echo $(CAPTURE_PCAPFILE_O) $(CAPTURE_LINUX_WIFI_O) | \
-		sed -e "s/\.o/\.c/g"` >> $(DEPEND)
+		sed -e "s/\.c.o/\.c/g"` >> $(DEPEND)
 
 plugins: Makefile
 	@( export KIS_SRC_DIR=`pwd`; for x in plugin-*/; do  if [ ! -d "$$x" ]; then continue; fi; echo "PLUGIN: $$x"; ( cd "$$x"; make; ); done )
@@ -298,10 +298,10 @@ kaitai-parsers:
 
 include $(DEPEND)
 
-.c.o:	$(DEPEND)
+%.c.o:	%.c $(DEPEND)
 	$(CC) $(CFLAGS) -c $*.c -o $@ 
 
-.cc.o:	$(DEPEND)
+%.cc.o:	%.cc $(DEPEND)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $*.cc -o $@ 
 
 .m.mo:	$(DEPEND)
