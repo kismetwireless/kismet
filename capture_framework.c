@@ -22,6 +22,8 @@
 #include <fcntl.h>
 #include <string.h>
 #include <errno.h>
+#include <ctype.h>
+#include <stdlib.h>
 
 #include "config.h"
 
@@ -2526,5 +2528,43 @@ int cf_send_newsource(kis_capture_handler_t *caph, const char *uuid) {
     kv_pos++;
 
     return cf_stream_packet(caph, "NEWSOURCE", kv_pairs, num_kvs);
+}
+
+double cf_parse_frequency(const char *freq) {
+    char *ufreq;
+    unsigned int i;
+    double v = 0;
+
+    if (freq == NULL)
+        return 0;
+
+    if (strlen(freq) == 0)
+        return 0;
+
+    /* Make a buffer at least as big */
+    ufreq = (char *) malloc(strlen(freq));
+
+    for (i = 0; i < strlen(ufreq); i++) 
+        ufreq[i] = toupper(ufreq[i]);
+
+    i = sscanf(freq, "%lf%s", &v, ufreq);
+
+    if (i == 1 || strlen(ufreq) == 0) {
+        /* Did we parse a single number or a scientific notation? */
+        /* Assume it's in hz */
+        v = v / 1000;
+    } else if (i == 2) {
+        /* hz */
+        if (ufreq[0] == 'h' || ufreq[0] == 'H') {
+            v = v / 1000;
+        } else if (ufreq[0] == 'm' || ufreq[0] == 'M') {
+            v = v * 1000;
+        } else if (ufreq[0] == 'g' || ufreq[0] == 'G') {
+            v = v * 1000 * 1000;
+        }
+    }
+
+    free(ufreq);
+    return v;
 }
 

@@ -777,5 +777,14 @@ int cf_send_pong(kis_capture_handler_t *caph);
  */
 int cf_send_newsource(kis_capture_handler_t *caph, const char *uuid);
 
+/* Simple frequency parser, returns the frequency in khz from multiple input 
+ * formats, such as:
+ * 123KHz
+ * 123000Hz
+ * 1.23MHz
+ * 1.23e5KHz
+ */
+double cf_parse_frequency(const char *freq);
+
 #endif
 
