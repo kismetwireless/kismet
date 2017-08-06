@@ -55,12 +55,16 @@ typedef struct {
     FILE *rtl433_stdout;
 
     unsigned int rtlnum;
+
+    double frequency;
 } local_rtl433_t;
 
 int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         char *msg, char **uuid, simple_cap_proto_frame_t *frame,
         cf_params_interface_t **ret_interface, 
         cf_params_spectrum_t **ret_spectrum) {
+
+    char errstr[STATUS_MAX];
 
     char *placeholder = NULL;
     int placeholder_len;
@@ -100,7 +104,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
 
 
     /* Kluge a UUID out of the name */
-    snprintf(errstr, PCAP_ERRBUF_SIZE, "%08X-0000-0000-0000-0000%08X",
+    snprintf(errstr, STATUS_MAX, "%08X-0000-0000-0000-0000%08X",
             adler32_csum((unsigned char *) "kismet_cap_rtl433", 
                 strlen("kismet_cap_rtl433")) & 0xFFFFFFFF,
             adler32_csum((unsigned char *) rtlname, 
@@ -119,6 +123,9 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     char *rtlname = NULL;
     unsigned int rtlnum = 0;
+    char *freq;
+
+    local_rtl433_t *local_rtl = (local_rtl433_t *) caph->userdata;
 
     char errstr[STATUS_MAX] = "";
 
@@ -126,54 +133,60 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     *ret_spectrum = NULL;
 
     *uuid = NULL;
-    *dlt = 0;
-
-    /* Clean up any old state */
-    if (local_pcap->pcapfname != NULL) {
-        free(local_pcap->pcapfname);
-        local_pcap->pcapfname = NULL;
-    }
-
-    if (local_pcap->pd != NULL) {
-        pcap_close(local_pcap->pd);
-        local_pcap->pd = NULL;
-    }
+    // User-defined DLT; we don't report packets with actual DLTs
+    *dlt = 147;
 
     if ((placeholder_len = cf_parse_interface(&placeholder, definition)) <= 0) {
-        /* What was not an error during probe definitely is an error during open */
-        snprintf(msg, STATUS_MAX, "Unable to find PCAP file name in definition");
+        snprintf(msg, STATUS_MAX, "Unable to find interface"); 
+        return 0;
+    }
+
+    rtlname = strndup(placeholder, placeholder_len);
+
+    if (strcmp(rtlname, "rtl433") == 0) {
+        rtlnum = 0;
+    } else if (sscanf(rtlname, "rtl433-%u", &rtlnum) != 1) {
+        return 0;
+    }
+
+    if (rtlnum >= rtlsdr_get_device_count()) {
+        snprintf(msg, STATUS_MAX, "Could not find RTLSDR with index %u", rtlnum);
         return -1;
     }
 
-    pcapfname = strndup(placeholder, placeholder_len);
+    if ((placeholder_len =
+                cf_find_flag(&placeholder, "frequency", definition)) > 0) {
+        frequency = strndup(placeholder, placeholder_len);
 
-    local_pcap->pcapfname = pcapfname;
+        local_rtl433->frequency = cf_parse_frequency(frequency);
 
-    if (stat(pcapfname, &sbuf) < 0) {
-        snprintf(msg, STATUS_MAX, "Unable to find pcapfile '%s'", pcapfname);
-        return -1;
+        free(frequency);
+
+        if (local_rtl433_t->frequency == 0) {
+            snprintf(msg, STATUS_MAX, "Could not parse frequency= option");
+            return -1;
+        }
+
+        /* rtl_433 takes frequency in hz */
+        local_rtl433->frequency *= 1000;
     }
 
-    /* We don't check for regular file during open, only probe; we don't want to 
-     * open a fifo during probe and then cause a glitch, but we could open it during
-     * normal operation */
+    *ret_interface = cf_params_interface_new();
+    *ret_spectrum = NULL;
 
-    local_pcap->pd = pcap_open_offline(pcapfname, errstr);
-    if (strlen(errstr) > 0) {
-        snprintf(msg, STATUS_MAX, "%s", errstr);
-        return -1;
-    }
-
-    local_pcap->datalink_type = pcap_datalink(local_pcap->pd);
-    *dlt = local_pcap->datalink_type;
+    (*ret_interface)->chanset = NULL;
+    (*ret_interface)->channels = NULL;
+    (*ret_interface)->channels_len = 0;
 
     /* Kluge a UUID out of the name */
-    snprintf(errstr, PCAP_ERRBUF_SIZE, "%08X-0000-0000-0000-0000%08X",
-            adler32_csum((unsigned char *) "kismet_cap_pcapfile", 
-                strlen("kismet_cap_pcapfile")) & 0xFFFFFFFF,
-            adler32_csum((unsigned char *) pcapfname, 
-                strlen(pcapfname)) & 0xFFFFFFFF);
+    snprintf(errstr, STATUS_MAX, "%08X-0000-0000-0000-0000%08X",
+            adler32_csum((unsigned char *) "kismet_cap_rtl433", 
+                strlen("kismet_cap_rtl433")) & 0xFFFFFFFF,
+            adler32_csum((unsigned char *) rtlname, 
+                strlen(rtlname)) & 0xFFFFFFFF);
     *uuid = strdup(errstr);
+
+
 
     /* Succesful open with no channel, hop, or chanset data */
     snprintf(msg, STATUS_MAX, "Opened pcapfile '%s' for playback", pcapfname);
