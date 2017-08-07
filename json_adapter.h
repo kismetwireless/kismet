@@ -25,6 +25,9 @@
 #include "trackedelement.h"
 #include "devicetracker_component.h"
 
+// Standard JSON serialization adapter; will form complete JSON objects out
+// of the input objects.  Best connected to a chainbuf output stream via a
+// BufferHandlerOStreambuf or similar
 namespace JsonAdapter {
 
 void Pack(GlobalRegistry *globalreg, std::ostream &stream, SharedTrackerElement e,
@@ -45,5 +48,39 @@ public:
 };
 
 }
+
+// "ELK-style" JSON adapter.  This will behave the same as the normal JSON
+// serializer with one important difference:  If the top-level object *is a vector
+// type*, it will serialize each member of the vector independently as a complete
+// JSON object separated by newlines.  This allows for a 'streamed' JSON output
+// which will not require loading the entire object into RAM
+namespace EkJsonAdapter {
+
+string SanitizeString(string in);
+
+class Serializer : public TrackerElementSerializer {
+public:
+    Serializer(GlobalRegistry *in_globalreg) :
+        TrackerElementSerializer(in_globalreg) { }
+
+    virtual void serialize(SharedTrackerElement in_elem, std::ostream &stream,
+            rename_map *name_map = NULL) {
+        local_locker lock(&mutex);
+
+        if (in_elem->get_type() == TrackerVector) {
+            TrackerElementVector v(in_elem);
+
+            for (auto i : v) {
+                JsonAdapter::Pack(globalreg, stream, i, name_map);
+                stream << "\n";
+            }
+        } else {
+            JsonAdapter::Pack(globalreg, stream, in_elem, name_map);
+        }
+    }
+};
+
+}
+
 
 #endif
