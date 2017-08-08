@@ -84,11 +84,17 @@ Filter Specification:
 
 
 class KismetConnectorException(Exception):
-    """
-    Custom exception handler
-    """
     pass
 
+class KismetLoginException(Exception):
+    def __init__(self, message, rcode):
+        super(Exception, self).__init__(message)
+        self.rcode = rcode
+
+class KismetRequestException(Exception):
+    def __init__(self, message, rcode):
+        super(Exception, self).__init__(message)
+        self.rcode = rcode
 
 class KismetConnector:
     """
@@ -198,16 +204,22 @@ class KismetConnector:
 
         ret = []
         for line in r.iter_lines():
-            # filter out keep-alive new lines
-            if line:
-                decoded_line = line.decode('utf-8')
+            try:
+                # filter out keep-alive new lines
+                if line:
+                    decoded_line = line.decode('utf-8')
 
-                obj = json.loads(decoded_line)
+                    obj = json.loads(decoded_line)
 
-                if callback != None:
-                    callback(obj)
-                else:
-                    ret.append(obj)
+                    if callback != None:
+                        callback(obj)
+                    else:
+                        ret.append(obj)
+            except Exception as e:
+                if self.debug:
+                    print "Failed to parse JSON: {} {}".format(r.url, e.message)
+
+                raise KismetRequestException("Unable to parse JSON on req {}: {}".format(r.url, e.message), r.status_code)
 
         return ret
 
@@ -227,29 +239,24 @@ class KismetConnector:
         """
         try:
             r = self.session.get("%s/%s" % (self.host_uri, url), stream=True)
-            if not r.status_code == 200:
-                if self.debug:
-                    print "Did not get 200 OK: {} {}".format(url, r.status_code)
-                return (r.status_code, None)
         except Exception as e:
             if self.debug:
                 print "Failed to get object: ", e
-
-            return (r.status_code, None)
+            raise KismetRequestException("Failed to get object: {}".format(e.message), -1)
 
         # login required
         if r.status_code == 401:
             if self.debug:
-                print "DEBUG - Login required & no valid login procided"
+                print "DEBUG - Login required & no valid login provided"
 
-            return (r.status_code, None)
+            raise KismetLoginException("Login required for {}".format(url), r.status_code);
 
         # Did we succeed?
         if not r.status_code == 200:
             if self.debug:
                 print "Request failed:", r.status_code
 
-            return (r.status_code, None)
+            raise KismetRequestException("Request failed {} {}".format(url, r.status_code), r.status_code)
 
         # Update our session
         self.__update_session()
@@ -266,56 +273,63 @@ class KismetConnector:
         """
         try:
             r = self.session.get("%s/%s" % (self.host_uri, url))
-            if not r.status_code == 200:
-                print "Did not get 200 OK: {} {}".format(url, r.status_code)
-                return (r.status_code, r.content)
-        except Exception as e:
-            print "Failed to get object: ", e
-            return (r.status_code, None)
-
-        self.__update_session()
-
-        return (r.status_code, r.content)
-
-    def __post_json_url(self, url, postdata, callback = None):
-        """
-        __post_json_url(url, postdata, callback) -> [result code, Unpacked Object]
-
-        Internal function for unpacking a json/ekjson GET url, with optional callback
-        called for each object in an ekjson.
-
-        Returns a tuple of the HTTP result code and:
-
-            a) None, if unable to fetch or parse a result
-            b) None, if a callback is provided
-            c) A vector of objects, if callback is provided
-
-        """
-        try:
-            r = self.session.post("%s/%s" % (self.host_uri, url), data=postdata, stream=True)
-            if not r.status_code == 200:
-                if self.debug:
-                    print "Did not get 200 OK: {} {}".format(url, r.status_code)
-                return (r.status_code, None)
         except Exception as e:
             if self.debug:
                 print "Failed to get object: ", e
-
-            return (r.status_code, None)
+            raise KismetRequestException("Failed to get object: {}".format(e.message), r.status_code)
 
         # login required
         if r.status_code == 401:
             if self.debug:
-                print "DEBUG - Login required & no valid login procided"
+                print "DEBUG - Login required & no valid login provided"
 
-            return (r.status_code, None)
+            raise KismetLoginException("Login required for {}".format(url), r.status_code);
 
         # Did we succeed?
         if not r.status_code == 200:
             if self.debug:
                 print "Request failed:", r.status_code
 
-            return (r.status_code, None)
+            raise KismetRequestException("Request failed {} {}".format(url, r.status_code), r.status_code)
+
+        # Update our session
+        self.__update_session()
+
+        return r.content
+
+    def __post_json_url(self, url, postdata, callback = None):
+        """
+        __post_json_url(url, postdata, callback) -> [result code, Unpacked Object]
+
+        Internal function for unpacking a json/ekjson POST url, with the same
+        semantics as __get_json_url internally.  POSTDATA is a standard python
+        object which is then JSON encoded.
+        """
+        try:
+            if postdata != None:
+                pd = json.dumps(postdata)
+            else:
+                pd = ""
+
+            r = self.session.post("%s/%s" % (self.host_uri, url), data = pd, stream=True)
+        except Exception as e:
+            if self.debug:
+                print "Failed to POST object: ", e
+            raise KismetRequestException("Failed to POST object: {}".format(e.message), -1)
+
+        # login required
+        if r.status_code == 401:
+            if self.debug:
+                print "DEBUG - Login required & no valid login provided"
+
+            raise KismetLoginException("Login required for POST {}".format(url), r.status_code);
+
+        # Did we succeed?
+        if not r.status_code == 200:
+            if self.debug:
+                print "Request failed:", r.status_code
+
+            raise KismetRequestException("Request failed for POST {} {}".format(url, r.status_code), r.status_code)
 
         # Update our session
         self.__update_session()
@@ -331,14 +345,32 @@ class KismetConnector:
         unprocessed string object
         """
         try:
-            r = self.session.post("%s/%s" % (self.host_uri, url), data = postdata)
-            if not r.status_code == 200:
-                print "Did not get 200 OK: {} {}".format(url, r.status_code)
-                return (r.status_code, r.content)
-        except Exception as e:
-            print "Failed to get object: ", e
-            return (r.status_code, None)
+            if postdata != None:
+                pd = json.dumps(postdata)
+            else:
+                pd = ""
 
+            r = self.session.post("%s/%s" % (self.host_uri, url), data = pd)
+        except Exception as e:
+            if self.debug:
+                print "Failed to POST object: ", e
+            raise KismetRequestException("Failed to POST object: {}".format(e.message), -1)
+
+        # login required
+        if r.status_code == 401:
+            if self.debug:
+                print "DEBUG - Login required & no valid login provided"
+
+            raise KismetLoginException("Login required for POST {}".format(url), r.status_code);
+
+        # Did we succeed?
+        if not r.status_code == 200:
+            if self.debug:
+                print "Request failed:", r.status_code
+
+            raise KismetRequestException("Request failed for POST {} {}".format(url, r.status_code), r.status_code)
+
+        # Update our session
         self.__update_session()
 
         return (r.status_code, r.content)
@@ -382,28 +414,54 @@ class KismetConnector:
 
         Return fetch the system status
         """
-        return self.__unpack_simple_url("system/status.msgpack")
+        (r, status) = self.__get_json_url("system/status.json")
 
-    def device_summary(self):
+        return status[0]
+
+    def device_summary(self, callback = None):
         """
-        device_summary() -> device summary list
+        device_summary(callback) -> device list
 
-        Return summary of all devices
+        Deprecated API - now referenced as device_list(..)
         """
-        return self.__unpack_simple_url("devices/all_devices.msgpack")
+        
+        return self.device_list(callback)
 
-    def device_summary_since(self, ts):
+    def device_list(self, callback = None):
+        """
+        device_list(callback) -> device list
+
+        Return all fields of all devices.  This may be extremely memory and CPU
+        intensive and should be avoided.  Memory use can be reduced by providing a
+        callback, which will be invoked for each device.
+
+        In general THIS API SHOULD BE AVOIDED.  There are several potentially serious
+        repercussions in querying all fields of all devices in a very high device count
+        environment.
+
+        It is strongly recommended that you use smart_device_list(...)
+        """
+
+        (r, devices) = self.__get_json_url("devices/all_devices.ekjson", callback)
+
+        return devices
+
+    def device_summary_since(self, ts = 0, fields = None, callback = None):
         """
         device_summary_since(ts) -> device summary list 
+
+        Deprecated API - now referenced as smart_device_list(...)
 
         Return object containing summary of devices added or changed since ts
         and ts info
         """
-        return self.__unpack_simple_url("devices/last-time/{}/devices.msgpack".format(ts))
+        return self.smart_device_list(ts = ts, fields = fields, callback = callback)
 
-    def smart_summary_since(self, ts, fields, regex = None):
+    def smart_summary_since(self, ts = 0, fields = None, regex = None, callback = None):
         """
         smart_summary_since(ts, fields) -> device summary list
+
+        Deprecated API - now referenced as smart_device_list(...)
 
         Return object containing summary of devices added or changed since ts
         and ts info.  Restricted summary to provided vector of fields defined by
