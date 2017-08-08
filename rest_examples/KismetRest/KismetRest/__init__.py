@@ -1,12 +1,25 @@
 #!/usr/bin/env python
 
-import msgpack
+import json
 import requests
-import base64
 import os
 
 """
-Field Specification:
+The field simplification and pathing options are best described in the 
+developer docs for Kismet under docs/dev/webui_rest.md ; basically, they
+allow for selecting specific fields from the tree and returning ONLY those
+fields, instead of the entire object.
+
+This will increase the speed of searches of large sets of data, and decrease
+the time it takes for Kismet to return them.
+
+Whenever possible this API will use the 'ekjson' format for multiple returned
+objects - this places a JSON object for each element in an array/vector response
+as a complete JSON record followed by a newline; this allows for parsing the
+JSON response without allocating the entire vector object in memory first, and 
+enables streamed-base parsing of very large responses.
+
+Field Simplification Specification:
 
     Several endpoints in Kismet take a field filtering object.  These
     use a common specification:
@@ -95,26 +108,6 @@ class KismetConnector:
 
         self.host_uri = host_uri
 
-        self.TRACKER_STRING = 0
-        self.TRACKER_INT8 = 1
-        self.TRACKER_UINT8 = 2
-        self.TRACKER_INT16 = 3
-        self.TRACKER_UINT16 = 4
-        self.TRACKER_INT32 = 5
-        self.TRACKER_UINT32 = 6
-        self.TRACKER_INT64 = 7
-        self.TRACKER_UINT64 = 8
-        self.TRACKER_FLOAT = 9
-        self.TRACKER_DOUBLE = 10
-        self.TRACKER_MAC = 11
-        self.TRACKER_UUID = 12
-        self.TRACKER_VECTOR = 13
-        self.TRACKER_MAP = 14
-        self.TRACKER_INTMAP = 15
-        self.TRACKER_MACMAP = 16
-        self.TRACKER_STRINGMAP = 17
-        self.TRACKER_DOUBLEMAP = 18
-
         self.username = "unknown"
         self.password = "nopass"
 
@@ -163,58 +156,16 @@ class KismetConnector:
 
                 lcachef.close()
             except Exception as e:
-                print "Failed to read session cache:", e
+                if self.debug:
+                    print "Failed to read session cache:", e
 
-    def __simplify(self, unpacked):
+    def __update_session(self):
         """
-        __simplify(unpacked_object) -> Python object
-        Strip out Kismet type data and return a simplified Python
-        object
+        __update_session() -> None
 
-        unpacked: Python object unpacked from Kismet message
+        Internal utility function for extracting an updated session key, if one is
+        present, from the connection.  Typically called after fetching any URI.
         """
-
-        if unpacked[0] == self.TRACKER_VECTOR:
-            retarr = []
-
-            for x in range(0, len(unpacked[1])):
-                retarr.append(self.__simplify(unpacked[1][x]))
-
-            return retarr
-
-        if (unpacked[0] == self.TRACKER_MAP or unpacked[0] == self.TRACKER_INTMAP or
-                unpacked[0] == self.TRACKER_MACMAP or 
-                unpacked[0] == self.TRACKER_STRINGMAP or
-                unpacked[0] == self.TRACKER_DOUBLEMAP):
-
-            retdict = {}
-
-            for k in unpacked[1].keys():
-                retdict[k] = self.__simplify(unpacked[1][k])
-
-            return retdict
-
-        if unpacked[0] == self.TRACKER_MAC:
-            return unpacked[1][0]
-
-        return unpacked[1]
-
-    def __unpack_url(self, url):
-        """
-        __unpack_url(url) -> Unpacked Object
-
-        Unpacks a msgpack object at a given URL, inside the provided host URI
-        """
-        try:
-            r = self.session.get("%s/%s" % (self.host_uri, url))
-            if not r.status_code == 200:
-                print "Did not get 200 OK: {} {}".format(url, r.status_code)
-                return None
-            urlbin = r.content
-        except Exception as e:
-            print "Failed to get object: ", e
-            return None
-
         try:
             cd = requests.utils.dict_from_cookiejar(self.session.cookies)
             cookie = cd["KISMET"]
@@ -225,120 +176,172 @@ class KismetConnector:
         except KeyError as e:
             pass
         except Exception as e:
-            print "Failed to save session:", e
+            if self.debug:
+                print "DEBUG - Failed to save session:", e
 
+    def __process_json_stream(self, r, callback):
+        """
+        __process_json_stream(httpresult, callback)
+
+        Process a response as a JSON object stream - this may be an ekjson style
+        response with multiple objects or it may be a single traditional JSON
+        response.
+
+        If callback is provided and is not None, callback is called for each 
+        object in the stream and an empty vector object is returned; otherwise each
+        object in the stream is added to the vector and returned.
+
+        A vector object in the stream is not converted into multiple callbacks - 
+        if a URI does not return an ekjson style vector split into multiple objects,
+        it will not be split into multiple objects here.
+        """
+
+        ret = []
+        for line in r.iter_lines():
+            # filter out keep-alive new lines
+            if line:
+                decoded_line = line.decode('utf-8')
+
+                obj = json.loads(decoded_line)
+
+                if callback != None:
+                    callback(obj)
+                else:
+                    ret.append(obj)
+
+        return ret
+
+    def __get_json_url(self, url, callback = None):
+        """
+        __get_json_url(url, callback) -> [result code, Unpacked Object]
+
+        Internal function for unpacking a json/ekjson GET url, with optional callback
+        called for each object in an ekjson.
+
+        Returns a tuple of the HTTP result code and:
+
+            a) None, if unable to fetch or parse a result
+            b) None, if a callback is provided
+            c) A vector of objects, if callback is provided
+
+        """
         try:
-            obj = msgpack.unpackb(urlbin)
-        except Exception as e:
-            print "Failed to unpack object: ", e
-            return None
-
-        return obj
-
-    def __unpack_simple_url(self, url):
-        """
-        __unpack_simple_url(url) -> Python Object
-
-        Unpacks a msgpack object and returns the simplified python object
-        """
-        cobj = self.__unpack_url(url)
-
-        if cobj == None:
-            return {}
-
-        return self.__simplify(cobj)
-
-    def get_url(self, url):
-        """
-        get_url(url) -> Simple string
-
-        Fetches a response from the Kismet server at a given URL and returns
-        it as a string object
-        """
-        try:
-            r = self.session.get("%s/%s" % (self.host_uri, url))
+            r = self.session.get("%s/%s" % (self.host_uri, url), stream=True)
             if not r.status_code == 200:
-                print "Did not get 200 OK: {} {}".format(url, r.status_code)
-                return (False, r.content)
+                if self.debug:
+                    print "Did not get 200 OK: {} {}".format(url, r.status_code)
+                return (r.status_code, None)
         except Exception as e:
-            print "Failed to get object: ", e
-            return (False, None)
+            if self.debug:
+                print "Failed to get object: ", e
 
-        return (True, r.content)
-
-    def post_url(self, url, postdata):
-        """
-        post_url(url, postdata) -> Boolean
-
-        Post data to a URL.  Automatically attempt to log in if we are not 
-        current logged in.
-        """
-
-        if self.debug:
-            print "Posting to URL %s/%s" % (self.host_uri, url)
-
-        r = self.session.post("%s/%s" % (self.host_uri, url), data=postdata)
-
-        if self.debug:
-            print "Got status code ", r.status_code
+            return (r.status_code, None)
 
         # login required
         if r.status_code == 401:
-            # Can we log in?
-            if not self.login():
-                return (False, None)
-
             if self.debug:
-                print "Logged in, retrying post"
+                print "DEBUG - Login required & no valid login procided"
 
-            # Try again after we log in
-            r = self.session.post("%s/%s" % (self.host_uri, url), data=postdata)
-
-        if self.debug:
-            print "Got status code ", r.status_code
+            return (r.status_code, None)
 
         # Did we succeed?
         if not r.status_code == 200:
             if self.debug:
-                print "Post failed:", r.content
-            return (False, None)
+                print "Request failed:", r.status_code
 
-        # Save the session
+            return (r.status_code, None)
+
+        # Update our session
+        self.__update_session()
+
+        # Process our stream
+        return (r.status_code, self.__process_json_stream(r, callback))
+
+    def __get_string_url(self, url):
+        """
+        __get_string_url(url) -> (result, string)
+
+        Internal function to perform a simple fetch of a URL and return it as an
+        unprocessed string object
+        """
         try:
-            cd = requests.utils.dict_from_cookiejar(self.session.cookies)
-            cookie = cd["KISMET"]
-            if (len(cookie) != 0):
-                lcachef = open(self.sessioncache_path, "w")
-                lcachef.write(cookie)
-                lcachef.close()
-        except KeyError as e:
-            pass
+            r = self.session.get("%s/%s" % (self.host_uri, url))
+            if not r.status_code == 200:
+                print "Did not get 200 OK: {} {}".format(url, r.status_code)
+                return (r.status_code, r.content)
         except Exception as e:
-            print "Failed to save session:", e
+            print "Failed to get object: ", e
+            return (r.status_code, None)
 
-        return (True, r.content)
+        self.__update_session()
 
-    def post_msgpack_url(self, url, postdata):
+        return (r.status_code, r.content)
+
+    def __post_json_url(self, url, postdata, callback = None):
         """
-        post_msgpack_url(url, postdata) -> Boolean
+        __post_json_url(url, postdata, callback) -> [result code, Unpacked Object]
 
-        Post an encoded msgpack command to a URL.  Automatically attempt to log in
-        if we are not current logged in.
+        Internal function for unpacking a json/ekjson GET url, with optional callback
+        called for each object in an ekjson.
+
+        Returns a tuple of the HTTP result code and:
+
+            a) None, if unable to fetch or parse a result
+            b) None, if a callback is provided
+            c) A vector of objects, if callback is provided
+
         """
-
-        if self.debug:
-            print "Posting to MSGPACK URL %s/%s" % (self.host_uri, url)
-
         try:
-            finaldata = {
-                    "msgpack": base64.b64encode(msgpack.packb(postdata))
-                    }
+            r = self.session.post("%s/%s" % (self.host_uri, url), data=postdata, stream=True)
+            if not r.status_code == 200:
+                if self.debug:
+                    print "Did not get 200 OK: {} {}".format(url, r.status_code)
+                return (r.status_code, None)
         except Exception as e:
             if self.debug:
-                print "Failed to encode post data:", e
-            return (False, None)
+                print "Failed to get object: ", e
 
-        return self.post_url(url, postdata=finaldata)
+            return (r.status_code, None)
+
+        # login required
+        if r.status_code == 401:
+            if self.debug:
+                print "DEBUG - Login required & no valid login procided"
+
+            return (r.status_code, None)
+
+        # Did we succeed?
+        if not r.status_code == 200:
+            if self.debug:
+                print "Request failed:", r.status_code
+
+            return (r.status_code, None)
+
+        # Update our session
+        self.__update_session()
+
+        # Process our stream
+        return (r.status_code, self.__process_json_stream(r, callback))
+
+    def __post_string_url(self, url, postdata):
+        """
+        __post_string_url(url, postdata) -> (result, string)
+
+        Internal function to perform a simple fetch of a URL and return it as an
+        unprocessed string object
+        """
+        try:
+            r = self.session.post("%s/%s" % (self.host_uri, url), data = postdata)
+            if not r.status_code == 200:
+                print "Did not get 200 OK: {} {}".format(url, r.status_code)
+                return (r.status_code, r.content)
+        except Exception as e:
+            print "Failed to get object: ", e
+            return (r.status_code, None)
+
+        self.__update_session()
+
+        return (r.status_code, r.content)
 
     def login(self):
         """
@@ -353,17 +356,7 @@ class KismetConnector:
             print "Invalid session"
             return False
 
-        # Save the session
-        try:
-            lcachef = open(self.sessioncache_path, "w")
-            cd = requests.utils.dict_from_cookiejar(self.session.cookies)
-            cookie = cd["KISMET"]
-            lcachef.write(cookie)
-            lcachef.close()
-        except KeyError as e:
-            pass
-        except Exception as e:
-            print "Failed to save session:", e
+        self.__update_session()
 
         return True
 
@@ -379,18 +372,7 @@ class KismetConnector:
         if not r.status_code == 200:
             return False
 
-        # Save the session
-        try:
-            lcachef = open(self.sessioncache_path, "w")
-            cd = requests.utils.dict_from_cookiejar(self.session.cookies)
-            cookie = cd["KISMET"]
-            lcachef.write(cookie)
-            lcachef.close()
-        except KeyError as e:
-            pass
-        except Exception as e:
-            print "Failed to save session:", e
-
+        self.__update_session()
 
         return True
 
