@@ -50,6 +50,9 @@ exports.AddTab = function(options) {
         options.expandable = false;
     }
 
+    if (!('expandCallback' in options)) {
+        options.expandCallback = null;
+
     options.expanded = false;
 
     TabItems.push(options);
@@ -203,6 +206,11 @@ function MoveToExpanded(tab) {
         of: 'window',
         offsetY: offty
     });
+
+    // Call the tab expansion callback
+    if (('expandCallback' in tab) && tab['expandCallback'] != null) {
+        tab['expandCallback'](jspanel);
+    }
 
 }
 
