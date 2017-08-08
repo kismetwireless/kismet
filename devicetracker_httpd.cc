@@ -189,6 +189,7 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
 
                 long lastts;
                 if (sscanf(tokenurl[3].c_str(), "%ld", &lastts) != 1) {
+                    fprintf(stderr, "debug - unable to parse ts\n");
                     return false;
                 }
 
@@ -433,25 +434,6 @@ int Devicetracker::Httpd_CreateStreamResponse(
 
     string stripped = Httpd_StripSuffix(path);
 
-    /*
-    if (stripped == "/devices/all_devices") {
-        httpd_device_summary(path, stream, NULL, vector<SharedElementSummary>());
-        return MHD_YES;
-    }
-
-    if (stripped == "/devices/all_devices_dt") {
-        httpd_device_summary(path, stream, NULL, 
-                vector<SharedElementSummary>(), "aaData");
-        return MHD_YES;
-    }
-
-    // XML is special right now
-    if (strcmp(path, "/devices/all_devices.xml") == 0) {
-        httpd_xml_device_summary(stream);
-        return MHD_YES;
-    }
-    */
-
     if (stripped == "/phy/all_phys") {
         httpd_all_phys(path, stream);
         return MHD_YES;
@@ -655,11 +637,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
             // fprintf(stderr, "debug - missing data\n");
             throw StructuredDataException("Missing data");
         }
-
-        // fprintf(stderr, "debug - parsed structured data\n");
-
     } catch(const StructuredDataException e) {
-        // fprintf(stderr, "debug - missing data key %s data %s\n", key, data);
         stream << "Invalid request: ";
         stream << e.what();
         concls->httpcode = 400;
@@ -1056,7 +1034,6 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
         } else if (tokenurl[2] == "last-time") {
             if (tokenurl.size() < 5) {
-                // fprintf(stderr, "debug - couldn't parse ts\n");
                 stream << "Invalid request";
                 concls->httpcode = 400;
                 return MHD_YES;
@@ -1066,7 +1043,6 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
             long lastts;
             if (sscanf(tokenurl[3].c_str(), "%ld", &lastts) != 1 ||
                     !Httpd_CanSerialize(tokenurl[4])) {
-                // fprintf(stderr, "debug - couldn't parse/deserialize\n");
                 stream << "Invalid request";
                 concls->httpcode = 400;
                 return MHD_YES;

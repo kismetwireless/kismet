@@ -1995,6 +1995,9 @@ void SummarizeTrackerElement(shared_ptr<EntryTracker> entrytracker,
     unsigned int fn = 0;
     ret_elem.reset(new TrackerElement(TrackerMap));
 
+    if (in_summarization.size() == 0)
+        ret_elem = in;
+
     for (vector<SharedElementSummary>::iterator si = in_summarization.begin();
             si != in_summarization.end(); ++si) {
         fn++;
