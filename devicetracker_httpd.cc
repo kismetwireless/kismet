@@ -564,24 +564,10 @@ int Devicetracker::Httpd_CreateStreamResponse(
             if (sscanf(tokenurl[3].c_str(), "%ld", &lastts) != 1)
                 return MHD_YES;
 
-            // Special handling of the ekjson
-            if (tokenurl[4] == "devices.ekjson") {
-                // Instantiate a manual serializer
-                JsonAdapter::Serializer serial(globalreg); 
-
-                devicetracker_function_worker fw(globalreg, 
-                        [this, &stream, &serial, lastts](Devicetracker *, shared_ptr<kis_tracked_device_base> d) -> bool {
-                            if (d->get_last_time() <= lastts)
-                                return false;
-                            serial.serialize(d, stream);
-                            stream << "\n";
-
-                            // Return false because we're not building a list, we're serializing
-                            // per element
-                            return false;
-                        }, NULL);
-                MatchOnDevices(&fw);
-
+            // If it's negative, subtract from the current ts
+            if (lastts < 0) {
+                time_t now = time(0);
+                lastts = now - lastts;
             }
 
             if (!Httpd_CanSerialize(tokenurl[4]))
@@ -589,38 +575,21 @@ int Devicetracker::Httpd_CreateStreamResponse(
 
             local_locker lock(&devicelist_mutex);
 
-            SharedTrackerElement wrapper(new TrackerElement(TrackerMap));
-
-            SharedTrackerElement refresh =
-                globalreg->entrytracker->GetTrackedInstance(device_update_required_id);
-
-            // If we've changed the list more recently, we have to do a refresh
-            if (lastts < full_refresh_time) {
-                refresh->set((uint8_t) 1);
-            } else {
-                refresh->set((uint8_t) 0);
-            }
-
-            wrapper->add_map(refresh);
-
-            SharedTrackerElement updatets =
-                globalreg->entrytracker->GetTrackedInstance(device_update_timestamp_id);
-            updatets->set((int64_t) globalreg->timestamp.tv_sec);
-
-            wrapper->add_map(updatets);
-
             SharedTrackerElement devvec =
                 globalreg->entrytracker->GetTrackedInstance(device_list_base_id);
 
-            wrapper->add_map(devvec);
+            devicetracker_function_worker fw(globalreg, 
+                    [this, &stream, devvec, lastts](Devicetracker *, shared_ptr<kis_tracked_device_base> d) -> bool {
+                        if (d->get_last_time() <= lastts)
+                            return false;
 
-            vector<shared_ptr<kis_tracked_device_base> >::iterator vi;
-            for (vi = tracked_vec.begin(); vi != tracked_vec.end(); ++vi) {
-                if ((*vi)->get_last_time() > lastts)
-                    devvec->add_vector((*vi));
-            }
+                        devvec->add_vector(d);
+                        
+                        return false;
+                    }, NULL);
+            MatchOnDevices(&fw);
 
-            entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, wrapper, NULL);
+            entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, devvec, NULL);
 
             return MHD_YES;
         }
@@ -1103,81 +1072,58 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 return MHD_YES;
             }
 
-            // We always wrap in a map
-            SharedTrackerElement wrapper(new TrackerElement(TrackerMap));
-
-            SharedTrackerElement refresh =
-                globalreg->entrytracker->GetTrackedInstance(device_update_required_id);
-
-            // If we've changed the list more recently, we have to do a refresh
-            if (lastts < full_refresh_time) {
-                refresh->set((uint8_t) 1);
-            } else {
-                refresh->set((uint8_t) 0);
+            // If it's negative, subtract from the current ts
+            if (lastts < 0) {
+                time_t now = time(0);
+                lastts = now - lastts;
             }
-
-            wrapper->add_map(refresh);
-
-            SharedTrackerElement updatets =
-                globalreg->entrytracker->GetTrackedInstance(device_update_timestamp_id);
-            updatets->set((int64_t) globalreg->timestamp.tv_sec);
-
-            wrapper->add_map(updatets);
 
             // Rename cache generated during simplification
             TrackerElementSerializer::rename_map rename_map;
+        
+            // List of devices that pass the timestamp filter
+            SharedTrackerElement timedevs(new TrackerElement(TrackerVector));
+            
+            //  List of devices that pass the regex filter
+            SharedTrackerElement regexdevs(new TrackerElement(TrackerVector));
 
-            // Create the device vector of all devices, and simplify it
-            SharedTrackerElement sourcedevs =
-                globalreg->entrytracker->GetTrackedInstance(device_list_base_id);
-            TrackerElementVector sourcevec(sourcedevs);
+            devicetracker_function_worker tw(globalreg, 
+                    [this, &stream, timedevs, lastts](Devicetracker *, shared_ptr<kis_tracked_device_base> d) -> bool {
+                        if (d->get_last_time() <= lastts)
+                            return false;
+
+                        timedevs->add_vector(d);
+                        
+                        return false;
+                    }, NULL);
+            MatchOnDevices(&tw);
 
             if (regexdata != NULL) {
-                devicetracker_pcre_worker worker(globalreg, regexdata, sourcedevs);
-                MatchOnDevices(&worker);
-            }
-
-            SharedTrackerElement outdevs =
-                globalreg->entrytracker->GetTrackedInstance(device_list_base_id);
-
-            if (regexdata != NULL) {
-                // If we filtered, that's our list
-                TrackerElementVector::iterator vi;
-                for (vi = sourcevec.begin(); vi != sourcevec.end(); ++vi) {
-                    shared_ptr<kis_tracked_device_base> vid =
-                        static_pointer_cast<kis_tracked_device_base>(*vi);
-
-                    if (vid->get_last_time() > lastts) {
-                        SharedTrackerElement simple;
-
-                        SummarizeTrackerElement(entrytracker,
-                                (*vi), summary_vec,
-                                simple, rename_map);
-
-                        outdevs->add_vector(simple);
-                    }
-                }
+                devicetracker_pcre_worker worker(globalreg, regexdata, regexdevs);
+                MatchOnDevices(&worker, timedevs);
             } else {
-                // Otherwise we use the complete list
-                vector<shared_ptr<kis_tracked_device_base> >::iterator vi;
-                for (vi = tracked_vec.begin(); vi != tracked_vec.end(); ++vi) {
-                    if ((*vi)->get_last_time() > lastts) {
+                regexdevs = timedevs;
+            }
+
+            // Final devices being simplified and sent out
+            SharedTrackerElement outdevs(new TrackerElement(TrackerVector));
+
+            devicetracker_function_worker sw(globalreg, 
+                    [this, summary_vec, &rename_map, outdevs](Devicetracker *, shared_ptr<kis_tracked_device_base> d) -> bool {
                         SharedTrackerElement simple;
 
-                        SummarizeTrackerElement(entrytracker,
-                                (*vi), summary_vec,
+                        SummarizeTrackerElement(entrytracker, 
+                                static_pointer_cast<TrackerElement>(d), summary_vec,
                                 simple, rename_map);
 
                         outdevs->add_vector(simple);
-                    }
-                }
-            }
-
-            // Put the simplified map in the vector
-            wrapper->add_map(outdevs);
+                        
+                        return false;
+                    }, NULL);
+            MatchOnDevices(&sw, regexdevs);
 
             entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), 
-                    stream, wrapper, &rename_map);
+                    stream, outdevs, &rename_map);
             return MHD_YES;
         }
     }

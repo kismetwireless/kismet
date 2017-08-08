@@ -67,6 +67,10 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
 
 	globalreg = in_globalreg;
 
+    // create a vector
+    SharedTrackerElement itve(new TrackerElement(TrackerVector));
+    immutable_tracked_vec = TrackerElementVector(itve);
+
     // Create the pcap httpd
     httpd_pcap.reset(new Devicetracker_Httpd_Pcap(globalreg));
 
@@ -824,7 +828,9 @@ bool devicetracker_sort_internal_id(shared_ptr<kis_tracked_device_base> a,
 	return a->get_kis_internal_id() < b->get_kis_internal_id();
 }
 
-void Devicetracker::MatchOnDevices(DevicetrackerFilterWorker *worker, bool batch) {
+void Devicetracker::MatchOnDevices(DevicetrackerFilterWorker *worker, 
+        TrackerElementVector vec, bool batch) {
+
     // We chunk into blocks of 500 devices and perform the match in 
     // batches; this prevents a single query from running so long that
     // things fall down.  It is slightly less efficient on huge data sets,
@@ -835,9 +841,11 @@ void Devicetracker::MatchOnDevices(DevicetrackerFilterWorker *worker, bool batch
     if (!batch) {
         local_locker lock(&devicelist_mutex);
 
-        kismet__for_each(tracked_vec.begin(), tracked_vec.end(), 
-                [&](shared_ptr<kis_tracked_device_base> val) {
-                    worker->MatchDevice(this, val);
+        kismet__for_each(vec.begin(), vec.end(), 
+                [&](SharedTrackerElement val) {
+                    shared_ptr<kis_tracked_device_base> v = 
+                        static_pointer_cast<kis_tracked_device_base>(val);
+                    worker->MatchDevice(this, v);
                 });
 
         worker->Finalize(this);
@@ -853,21 +861,24 @@ void Devicetracker::MatchOnDevices(DevicetrackerFilterWorker *worker, bool batch
             
             local_locker lock(&devicelist_mutex);
 
-            auto b = immutable_tracked_vec.begin() + dpos;
+            auto b = vec.begin() + dpos;
             auto e = b + chunk_sz;
             bool last_loop = false;
 
-            if (e > immutable_tracked_vec.end()) {
-                e = immutable_tracked_vec.end();
+            if (e > vec.end()) {
+                e = vec.end();
                 last_loop = true;
             }
 
             // Parallel f-e
             kismet__for_each(b, e, 
-                    [&](shared_ptr<kis_tracked_device_base> val) {
+                    [&](SharedTrackerElement val) {
                         if (val == NULL)
                             return;
-                        worker->MatchDevice(this, val);
+                        shared_ptr<kis_tracked_device_base> v = 
+                            static_pointer_cast<kis_tracked_device_base>(val);
+
+                        worker->MatchDevice(this, v);
                     });
 
             if (last_loop)
@@ -883,6 +894,10 @@ void Devicetracker::MatchOnDevices(DevicetrackerFilterWorker *worker, bool batch
     }
 
     worker->Finalize(this);
+}
+
+void Devicetracker::MatchOnDevices(DevicetrackerFilterWorker *worker, bool batch) {
+    MatchOnDevices(worker, immutable_tracked_vec, batch);
 }
 
 // Simple std::sort comparison function to order by the least frequently

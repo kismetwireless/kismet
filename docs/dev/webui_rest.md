@@ -55,6 +55,26 @@ which passes the parameters in the `json=` variable, and the login and password 
 
 More information about each field can be found in the `/system/tracked_fields.html` URI by visiting `http://localhost:2501/system/tracked_fields.html` in your browser.  This will show the field names, descriptions, and data types, for every known entity.
 
+## Serialization Types
+
+Kismet can export data as several different formats; generally these formats are indicated by the type of endpoint being requested (such as foo.msgpack or foo.json)
+
+### JSON
+
+Kismet will export objects in traditional JSON format suitable for consumption in javascript or any other language with a JSON interpreter.
+
+### MSGPACK
+
+Kismet can export objects in binary msgpack format, which may in some instances offer an advantage in parsing time over stock JSON.  The format of the msgpack and json objects will be identical.
+
+### EKJSON
+
+"EK" JSON is modeled after the Elastic Search JSON format, where a complete JSON object is found on each line of the output.
+
+Kismet supports ekjson on any REST UI which returns a vector/list/array of results.  The results will be the same as standard JSON, however each item in the list will be a discrete JSON object.
+
+The primary advantage of the ekjson format is the ability to process it *as a stream* instead of as a single giant object - this reduces the client-side memory requirements of searches with a large number of devices drastically.
+
 ## Logins and Sessions
 
 Kismet uses session cookies to maintain a login session.  Typically GET requests which do not reveal sensitive configuration data do not require a login, while POST commands which change configuration or GET commands which might return parts of the Kismet configuration values will require the user to login with the credentials in the `kismet_httpd.conf` config file.
@@ -222,13 +242,21 @@ The command dictionary should be passed as either JSON in the `json` POST variab
 | regex | Regex specification | Optional, regular expression filter |
 | wrapper | "foo" | string | Optional, wrapper dictionary to surround the data |
 
-##### POST /devices/last-time/[TS]/devices `/devices/last-time/[TS]/devices.msgpack`, `devices/last-time/[TS]/devices.json`
+##### /devices/all_devices.ekjson
 
-Dictionary containing the list of all devices new or modified since the server timestamp `[TS]`, a flag indicating that the device list has drastically changed indicating that the entire device list should be re-loaded, and a timestamp record indicating the server time this report was generated.
+Special endpoint generating EK (elastic-search) style JSON.  On this endpoint, each device is returned as a JSON object, one JSON record per line.
 
-This endpoint is most useful for clients and scripts which need to monitor the state of *active* devices.  This is used by the Kismet Web UI to update changed devices.
+This can be useful for incrementally parsing the results or feeding the results to another tool like elasticsearch.
 
-This endpoint expects a variable containing a dictionary which defines the fields to include in the results; only these fields will be sent.
+##### POST /devices/last-time/[TS]/devices `/devices/last-time/[TS]/devices.msgpack`, `devices/last-time/[TS]/devices.json`, `devices/last-time/[TS]/devices.ekjson`
+
+List containing the list of all devices which are new or have been modified since the server timestamp `[TS]`.
+
+If `[TS]` is negative, it will be translated to be `[TS]` seconds before the current server timestamp; a client may therefor request all devices modified in the past 60 seconds by passing a `[TS]` of `-60`.
+
+This endpoint is most useful for clients and scripts which need to monitor the state of *active* devices.
+
+This endpoint accepts a field simplification dictionary which defines the fields to include in the results; only these fields will be sent.
 
 Optionally, a regex dictionary may be provided to filter the devices returned.
 
@@ -236,26 +264,18 @@ The command dictionary should be passed as either JSON in the `json` POST variab
 
 | Key | Value | Type | Desc |
 | --- | ----- | ---- | ---- |
-| fields | Field specification | field specification array listing fields and mappings |
+| fields | Field specification | Optional, field specification array listing fields and mappings |
 | regex | Regex specification | Optional, regular expression filter |
 
-##### /devices/all_devices.ekjson
+##### /devices/last-time/[TS]/devices `/devices/last-time/[TS]/devices.msgpack`, `devices/last-time/[TS]/devices.json`, `devices/last-time/[TS]/devices.ekjson`
 
-Special endpoint generating EK (elastic-search) style JSON.  On this endpoint, each device is returned as a JSON object, one JSON record per line.
+List containing the list of all devices which are new or have been modified since the server timestamp `[TS]`.
 
-This can be useful for incrementally parsing the results or feeding the results to another tool like elasticsearch.
+If `[TS]` is negative, it will be translated to be `[TS]` seconds before the current server timestamp; a client may therefor request all devices modified in the past 60 seconds by passing a `[TS]` of `-60`.
 
-##### /devices/last-time/[TS]/devices.ekjson
+This endpoint is most useful for clients and scripts which need to monitor the state of *active* devices.
 
-Special endpoint generating EK (elastic-search) style JSON.  On this endpoint, each device is returned as a JSON object, one JSON record per line.
-
-Only devices which have changed since `[TS]` are returned.
-
-##### /devices/last-time/[TS]/devices `/devices/last-time/[TS]/devices.msgpack`, `devices/last-time/[TS]/devices.json`
-
-Dictionary containing the list of all devices new or modified since the server timestamp `[TS]`, a flag indicating that the device list has drastically changed indicating that the entire device list should be re-loaded, and a timestamp record indicating the server time this report was generated.
-
-This endpoint is most useful for clients and scripts which need to monitor the state of *active* devices.  This is used by the Kismet Web UI to update changed devices.
+The device list may be further refined by using the `POST` equivalent of this URI.
 
 ##### /devices/by-key/[DEVICEKEY]/device `/devices/by-key/[DEVICEKEY]/device.msgpack`, `/devices/by-key/[DEVICEKY]/device.json`
 

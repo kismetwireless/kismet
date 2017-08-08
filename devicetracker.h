@@ -676,14 +676,19 @@ public:
 	shared_ptr<kis_tracked_device_base> FetchDevice(uint64_t in_key);
 	shared_ptr<kis_tracked_device_base> FetchDevice(mac_addr in_device, unsigned int in_phy);
 
-    // Perform a device filter.  Pass a subclassed filter instance.  It is not
-    // thread safe to retain a vector/copy of devices, so all work should be
-    // done inside the worker.
+    // Perform a device filter.  Pass a subclassed filter instance.
     //
     // If "batch" is true, Kismet will sort the devices based on the internal ID 
     // and batch this processing in several groups to allow other threads time 
     // to operate.
+    //
+    // Typically used to build a subset of devices for serialization
     void MatchOnDevices(DevicetrackerFilterWorker *worker, bool batch = true);
+
+    // Perform a device filter as above, but provide a source vec rather than the
+    // list of ALL devices
+    void MatchOnDevices(DevicetrackerFilterWorker *worker, 
+            TrackerElementVector source_vec, bool batch = true);
 
 	typedef map<uint64_t, shared_ptr<kis_tracked_device_base> >::iterator device_itr;
 	typedef map<uint64_t, shared_ptr<kis_tracked_device_base> >::const_iterator const_device_itr;
@@ -826,7 +831,7 @@ protected:
     // Immutable vector, one entry per device; may never be sorted.  Devices
     // which are removed are set to 'null'.  Each position corresponds to the
     // device ID.
-    vector<shared_ptr<kis_tracked_device_base> > immutable_tracked_vec;
+    TrackerElementVector immutable_tracked_vec;
 
 	// Filtering
 	FilterCore *track_filter;
