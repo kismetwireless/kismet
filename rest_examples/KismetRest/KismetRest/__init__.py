@@ -311,11 +311,15 @@ class KismetConnector:
             else:
                 pd = ""
 
-            r = self.session.post("%s/%s" % (self.host_uri, url), data = pd, stream=True)
+            fd = {
+                "json": pd
+            }
+
+            r = self.session.post("%s/%s" % (self.host_uri, url), data = fd, stream=True)
         except Exception as e:
             if self.debug:
                 print "Failed to POST object: ", e
-            raise KismetRequestException("Failed to POST object: {}".format(e.message), -1)
+            raise KismetRequestException("Failed to POST to {} {}".format(url, e.message), -1)
 
         # login required
         if r.status_code == 401:
@@ -350,7 +354,11 @@ class KismetConnector:
             else:
                 pd = ""
 
-            r = self.session.post("%s/%s" % (self.host_uri, url), data = pd)
+            fd = {
+                "json": pd
+            }
+
+            r = self.session.post("%s/%s" % (self.host_uri, url), data = fd)
         except Exception as e:
             if self.debug:
                 print "Failed to POST object: ", e
@@ -462,38 +470,40 @@ class KismetConnector:
         smart_summary_since(ts, fields) -> device summary list
 
         Deprecated API - now referenced as smart_device_list(...)
+        """
+        return self.smart_device_list(ts = ts, fields = fields)
 
-        Return object containing summary of devices added or changed since ts
-        and ts info.  Restricted summary to provided vector of fields defined by
-        the fieldspec.
+    def smart_device_list(self, ts = 0, fields = None, regex = None, callback = None):
+        """
+        smart_device_list(ts, fields, callback)
 
-        Optionally filter responses and return only responses which match the
-        regex defined by the filterspec
+        Perform a 'smart' device list.  The device list can be manipulated in
+        several ways:
+
+            1.  Devices active since last timestamp.  By setting the 'ts' parameter,
+                only devices which have been active since that timestamp will be 
+                returned.
+            2.  Devices which match a regex, as defined by the regex spec above
+            3.  Devices can be simplified to reduce the amount of work being done
+                and number of fields being returned.
+
+        If a callback is given, it will be called for each device in the result.
+        If no callback is provided, the results will be returned as a vector.
         """
 
         cmd = {
-                "fields": fields,
-                }
+            "foo": "bar"
+        }
+
+        if not fields == None:
+            cmd["fields"] = fields
 
         if not regex == None:
             cmd["regex"] = regex;
 
-        (r, v) = self.post_msgpack_url("devices/last-time/{}/devices.msgpack".format(ts), cmd)
+        (r, v) = self.__post_json_url("devices/last-time/{}/devices.ekjson".format(ts), cmd, callback)
 
-        # Did we succeed?
-        if not r:
-            if self.debug:
-                print "Failed to post smart summary: ", r
-            return False
-
-        try:
-            obj = msgpack.unpackb(v)
-        except Exception as e:
-            if self.debug:
-                print "Failed to unpack object: ", e
-            return list()
-
-        return self.__simplify(obj)
+        return v;
 
     def device(self, key):
         """
