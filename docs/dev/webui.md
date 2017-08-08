@@ -481,9 +481,17 @@ The ID of the div to be created
 
 Title HTML of the tab.  May include special formatting, but typically should be plain text.
 
-#### createCallback - function (required)
+#### expandable - boolean (optional)
+
+Tab is expandable into its own sub-window (handled by jspanel).  This allows the user to 'pop' a tab out into its own panel floating over the base window, to show other tabs and content simultaneously.
+
+#### createCallback(div) - function (required)
 
 A function, taking the newly created div as an argument.  This function is responsible for populating the div once it is added to the page layout.
+
+#### expandCallback(jspanel) - function (option)
+
+A function, taking a jspanel as an argument.  This function is called when the tab is expanded into its own breakout jspanel window, if the tab is marked as expandable.  This allows tabs to set attributes on the expanded jspanel window.
 
 #### priority - integer (optional)
 
