@@ -303,7 +303,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                             warning = '<br><i style="color: red;">While handshake packets have been seen, no complete handshakes collected.</i>';
                         }
 
-                        var mac = opts['data']['kismet.device.base.macaddr'].split("/")[0];
+                        var mac = opts['data']['kismet.device.base.macaddr'];
                         var url = '<a href="/phy/phy80211/by-bssid/' + mac + '/pcap/' +
                             mac + '-handshake.pcap">' +
                             '<i class="fa fa-download"></i> Download Pcap File</a>' +
@@ -595,7 +595,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                         // Now we get the client id, form an ajax query, and embed
                         // a whole new devicedata into our container.  It works!
                         var clientid = kismet.ObjectByString(data, opts['basekey']);
-                        var apkey = data['kismet.device.base.macaddr'].split('/')[0];
+                        var apkey = data['kismet.device.base.macaddr'];
 
                         $.get("/devices/by-key/" + clientid + "/device.json")
                         .done(function(clidata) {

@@ -37,8 +37,7 @@ exports.renderMac = function(data, type, row, meta) {
     if (typeof(data) === 'undefined') {
         return "<i>n/a</i>";
     }
-
-    return data.split('/')[0];
+    return data;
 }
 
 exports.renderSignal = function(data, type, row, meta) {
@@ -273,10 +272,6 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
             {
                 field: "kismet.device.base.macaddr",
                 title: "MAC Address",
-                render: function(opts) {
-                    // Split out the mac from the mask
-                    return opts['value'].split('/')[0];
-                }
             },
             {
                 field: "kismet.device.base.manuf",
@@ -1488,7 +1483,7 @@ function devsignal_refresh(key, devsignal_panel, devsignal_chart,
     $.get("/devices/by-key/" + key + "/device.json")
     .done(function(data) {
         var title = '<i class="fa fa-signal" /> Signal ' +
-            data['kismet.device.base.macaddr'].split("/")[0] + ' ' +
+            data['kismet.device.base.macaddr'] + ' ' +
             data['kismet.device.base.name'];
         devsignal_panel.headerTitle(title);
 
