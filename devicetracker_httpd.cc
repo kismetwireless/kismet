@@ -644,6 +644,48 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
         return MHD_YES;
     }
 
+    try {
+        if (structdata->hasKey("fields")) {
+            SharedStructured fields = structdata->getStructuredByKey("fields");
+            StructuredData::structured_vec fvec = fields->getStructuredArray();
+
+            for (StructuredData::structured_vec::iterator i = fvec.begin(); 
+                    i != fvec.end(); ++i) {
+                if ((*i)->isString()) {
+                    SharedElementSummary s(new TrackerElementSummary((*i)->getString(), 
+                                entrytracker));
+                    summary_vec.push_back(s);
+                } else if ((*i)->isArray()) {
+                    StructuredData::string_vec mapvec = (*i)->getStringVec();
+
+                    if (mapvec.size() != 2) {
+                        // fprintf(stderr, "debug - malformed rename pair\n");
+                        stream << "Invalid request: "
+                            "Expected field, rename";
+                        concls->httpcode = 400;
+                        return MHD_YES;
+                    }
+
+                    SharedElementSummary s(new TrackerElementSummary(mapvec[0], 
+                                mapvec[1], entrytracker));
+                    summary_vec.push_back(s);
+                }
+            }
+        }
+
+        // Get the wrapper, if one exists, default to empty if it doesn't
+        wrapper_name = structdata->getKeyAsString("wrapper", "");
+
+        if (structdata->hasKey("regex")) {
+            regexdata = structdata->getStructuredByKey("regex");
+        }
+    } catch(const StructuredDataException e) {
+        stream << "Invalid request: ";
+        stream << e.what();
+        concls->httpcode = 400;
+        return MHD_YES;
+    }
+
     if (tokenurl[1] == "devices") {
         if (tokenurl[2] == "by-key") {
             if (tokenurl.size() < 5) {
@@ -682,45 +724,6 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
             }
 
         } else if (tokenurl[2] == "summary") {
-            try {
-                SharedStructured fields = structdata->getStructuredByKey("fields");
-                StructuredData::structured_vec fvec = fields->getStructuredArray();
-
-                for (StructuredData::structured_vec::iterator i = fvec.begin(); 
-                        i != fvec.end(); ++i) {
-                    if ((*i)->isString()) {
-                        SharedElementSummary s(new TrackerElementSummary((*i)->getString(), entrytracker));
-                        summary_vec.push_back(s);
-                    } else if ((*i)->isArray()) {
-                        StructuredData::string_vec mapvec = (*i)->getStringVec();
-
-                        if (mapvec.size() != 2) {
-                            // fprintf(stderr, "debug - malformed rename pair\n");
-                            stream << "Invalid request: "
-                                "Expected field, rename";
-                            concls->httpcode = 400;
-                            return MHD_YES;
-                        }
-
-                        SharedElementSummary s(new TrackerElementSummary(mapvec[0], 
-                                    mapvec[1], entrytracker));
-                        summary_vec.push_back(s);
-                    }
-                }
-
-                // Get the wrapper, if one exists, default to empty if it doesn't
-                wrapper_name = structdata->getKeyAsString("wrapper", "");
-
-                if (structdata->hasKey("regex")) {
-                    regexdata = structdata->getStructuredByKey("regex");
-                }
-            } catch(const StructuredDataException e) {
-                stream << "Invalid request: ";
-                stream << e.what();
-                concls->httpcode = 400;
-                return MHD_YES;
-            }
-
             // Wrapper we insert under
             SharedTrackerElement wrapper = NULL;
 
@@ -1074,10 +1077,14 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                     }, NULL);
             MatchOnDevices(&tw);
 
+            // fprintf(stderr, "debug - %lu time devs\n", timedevs->get_vector()->size());
+
             if (regexdata != NULL) {
                 devicetracker_pcre_worker worker(globalreg, regexdata, regexdevs);
                 MatchOnDevices(&worker, timedevs);
+                // fprintf(stderr, "debug - %lu regex devs\n", regexdevs->get_vector()->size());
             } else {
+                // fprintf(stderr, "debug - no regex\n");
                 regexdevs = timedevs;
             }
 
