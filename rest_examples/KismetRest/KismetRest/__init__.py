@@ -575,12 +575,9 @@ class KismetConnector:
             "channel": channel
         }
 
-        (r, v) = self.post_msgpack_url("datasource/by-uuid/{}/set_channel.cmd".format(uuid), cmd)
+        (r, v) = self.__post_string_url("datasource/by-uuid/{}/set_channel.cmd".format(uuid), cmd)
 
-        if not r:
-            return False
-
-        return True
+        return r == 200
 
     def config_datasource_set_hop_rate(self, uuid, rate):
         """
@@ -596,12 +593,9 @@ class KismetConnector:
             "hoprate": rate
         }
 
-        (r, v) = self.post_msgpack_url("datasource/by-uuid/{}/set_channel.cmd".format(uuid), cmd)
+        (r, v) = self.__post_string_url("datasource/by-uuid/{}/set_channel.cmd".format(uuid), cmd)
 
-        if not r:
-            return False
-
-        return True
+        return r == 200
 
 
     def config_datasource_set_hop_channels(self, uuid, rate, channels):
@@ -619,12 +613,9 @@ class KismetConnector:
             "channels": channels
         }
 
-        (r, v) = self.post_msgpack_url("datasource/by-uuid/{}/set_channel.cmd".format(uuid), cmd)
+        (r, v) = self.__post_string_url("datasource/by-uuid/{}/set_channel.cmd".format(uuid), cmd)
 
-        if not r:
-            return False
-
-        return True
+        return r == 200
 
     def config_datasource_set_hop(self, uuid):
         """
@@ -640,12 +631,9 @@ class KismetConnector:
             "hop": True
         }
 
-        (r, v) = self.post_msgpack_url("datasource/by-uuid/{}/set_hop.cmd".format(uuid), cmd)
+        (r, v) = self.__post_string_url("datasource/by-uuid/{}/set_hop.cmd".format(uuid), cmd)
 
-        if not r:
-            return False
-
-        return True
+        return r == 200
 
     def add_datasource(self, source):
         """
@@ -663,149 +651,44 @@ class KismetConnector:
             "definition": source
         }
 
-        (r, v) = self.post_msgpack_url("datasource/add_source.cmd", cmd)
+        (r, v) = self.__post_string_url("datasource/add_source.cmd", cmd)
 
-        if not r:
-            if self.debug:
-                print "Could not add source", v
+        return r == 200
 
-            return False
-
-        return True
-
-    def send_gps(self, lat, lon, alt, speed):
+    def device_filtered_dot11_summary(self, pcre, fields = None, callback = None, ts = 0):
         """
-        SendGPS(lat, lon, alt, speed) -> Boolean
+        device_filtered_dot11_summary() -> device list, filtered by dot11 ssid
 
-        Sends a GPS position over the HTTP POST interface.
+        Deprecated API, this can now be handled by smart_device_list, which
+        this function uses.
 
-        Requires valid login.
-
-        Returns success or failure.
         """
 
-        cmd = {
-                "lat": lat,
-                "lon": lon,
-                "alt": alt,
-                "spd": speed
-                }
+        regex = []
 
-        (r, v) = self.post_msgpack_url("gps/web/update.cmd", cmd)
+        # Split the incoming PCRE into SSID matches
+        for p in pcre:
+            regex.append(['dot11.device/dot11.device.advertised_ssid_map/dot11.advertisedssid.ssid', pcre])
 
-        # Did we succeed?
-        if not r:
-            print "GPS update failed"
-            return False
+        return self.smart_device_list(callback = callback, regex = regex, fields = fields, ts = ts)
 
-        return True
-
-    def device_filtered_dot11_summary(self, pcre, fields = None):
-        """
-        device_filtered_dot11_summary() -> device summary list, filtered by
-        dot11 ssid
-
-        Return summary of all devices that match filter terms
-        """
-
-        cmd = {
-                "essid": pcre
-                }
-
-        if fields != None:
-            cmd["fields"] = fields
-
-        (r, v) = self.post_msgpack_url("phy/phy80211/ssid_regex.cmd", cmd)
-        if not r:
-            print "Could not fetch summary"
-
-            if self.debug:
-                print "Error: ", v
-
-            return list()
-
-        try:
-            obj = msgpack.unpackb(v)
-        except Exception as e:
-            if self.debug:
-                print "Failed to unpack object: ", e
-            return list()
-
-        return self.__simplify(obj)
-
-    def device_filtered_dot11_probe_summary(self, pcre, fields = None):
+    def device_filtered_dot11_probe_summary(self, pcre, fields = None, callback = None, ts = 0):
         """
         device_filtered_dot11_probe_summary() -> device summary list, filtered by
         dot11 ssid
 
-        Return summary of all devices that match filter terms
+        Deprecated API, this can now be handled by smart_device_list, which
+        this function uses
         """
 
-        cmd = {
-                "essid": pcre
-                }
+        regex = []
 
-        if fields != None:
-            cmd["fields"] = fields
+        # Split the incoming PCRE into SSID matches
+        for p in pcre:
+            regex.append(['dot11.device/dot11.device.probed_ssid_map/dot11.probedssid.ssid', pcre])
 
-        (r, v) = self.post_msgpack_url("phy/phy80211/probe_regex.cmd", cmd)
-        if not r:
-            print "Could not fetch summary"
-
-            if self.debug:
-                print "Error: ", v
-
-            return list()
-
-        try:
-            obj = msgpack.unpackb(v)
-        except Exception as e:
-            if self.debug:
-                print "Failed to unpack object: ", e
-            return list()
-
-        return self.__simplify(obj)
-
-    def device_dot11_clients(self, device):
-        """
-        device_dot11_clients() -> device list of clients associated to a 
-        given dot11 device
-
-        Returns full device records of all client devices
-        """
-
-        devices = list()
-
-        if not "dot11.device" in device:
-            if self.debug:
-                print "Not a dot11 device"
-
-            return list()
-
-        d11device = device["dot11.device"]
-
-        if not "dot11.device.associated_client_map" in d11device:
-            if self.debug:
-                print "Missing associated client map"
-
-            return list()
-
-        for m in d11device["dot11.device.associated_client_map"]:
-            if self.debug:
-                print "Client {}".format(m)
-
-            d = self.device(d11device["dot11.device.associated_client_map"][m])
-
-            if d != None:
-                devices.append(d)
-
-        return devices
+        return self.smart_device_list(callback = callback, regex = regex, fields = fields, ts = ts)
 
 if __name__ == "__main__":
     x = KismetConnector()
     print x.system_status()
-    print x.device_summary()
-    y = 'Example'
-    t = 'Example 2'
-    print x.device_filtered_dot11_summary([y, t])
-    #print x.old_sources()
