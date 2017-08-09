@@ -501,35 +501,54 @@ class KismetConnector:
 
         (r, v) = self.__post_json_url("devices/last-time/{}/devices.ekjson".format(ts), cmd, callback)
 
-        return v;
+        # Always return a vector
+        return v
 
     def device(self, key):
         """
         device(key) -> device object
 
-        Return complete device object of device referenced by key
+        Deprecated, prefer device_by_key
         """
-        return self.__unpack_simple_url("devices/by-key/{}/device.msgpack".format(key))
+        return self.device_by_key(key)
 
     def device_field(self, key, field):
         """
         device_field(key, path) -> Field object
 
-        Return specific field of a device referenced by key.
-
-        field: Kismet tracked field path, ex:
-            dot11.device/dot11.device.last_beaconed_ssid
+        Deprecated, prefer device_by_key with field
         """
-        return self.__unpack_simple_url("devices/by-key/{}/device.msgpack/{}".format(key, field))
+        return self.device_by_key(key, field = field)
+
+    def device_by_key(self, key, field = None):
+        """
+        device_by_key(key) -> device object
+
+        Fetch a complete device record by the Kismet key (unique key per Kismet session)
+        or fetch a specific sub-field by path
+        """
+
+        if not field == None:
+            field = "/" + field
+
+        (r, v) = self.__get_json_url("devices/by-key/{}/device.json{}".format(key, field))
+
+        # Single entity so pop out of the vector
+        return v[0]
 
     def device_by_mac(self, mac):
         """
         device_by_mac(mac) -> vector of device objects
 
         Return a vector of all devices in all phy types matching the supplied MAC
-        address
+        address; typically this will return a vector of a single device, but MAC addresses
+        could overlap between phy types.
         """
-        return self.__unpack_simple_url("devices/by-mac/{}/devices.msgpack".format(mac))
+
+        (r, v) = self.__get_json_url("devices/by-mac/{}/devices.json".format(mac))
+
+        # Single-entity request, pop out vector
+        return v[0]
 
     def datasources(self):
         """
@@ -538,7 +557,9 @@ class KismetConnector:
         Return list of all datasources
         """
 
-        return self.__unpack_simple_url("datasource/all_sources.msgpack");
+        (r, v) = self.__get_json_url("datasource/all_sources.json")
+
+        return v[0]
 
     def config_datasource_set_channel(self, uuid, channel):
         """
