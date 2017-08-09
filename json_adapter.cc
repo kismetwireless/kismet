@@ -126,8 +126,8 @@ void JsonAdapter::Pack(GlobalRegistry *globalreg, std::ostream &stream,
             break;
         case TrackerMac:
             mac = GetTrackerValue<mac_addr>(e);
-            // Mac is quoted as a string value
-            stream << "\"" << mac.MacFull2String() << "\"";
+            // Mac is quoted as a string value, mac only
+            stream << "\"" << mac.Mac2String() << "\"";
             break;
         case TrackerUuid:
             euuid = GetTrackerValue<uuid>(e);

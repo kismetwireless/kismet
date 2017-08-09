@@ -121,9 +121,8 @@ void MsgpackAdapter::Packer(GlobalRegistry *globalreg, SharedTrackerElement v,
             break;
         case TrackerMac:
             mac = GetTrackerValue<mac_addr>(v);
-            o.pack_array(2);
+            // Macs are sent as a string of jsut the macaddr
             o.pack(mac.Mac2String());
-            o.pack(mac.MacMask2String());
             break;
         case TrackerUuid:
             o.pack(GetTrackerValue<uuid>(v).UUID2String());
@@ -174,9 +173,8 @@ void MsgpackAdapter::Packer(GlobalRegistry *globalreg, SharedTrackerElement v,
             for (mac_map_iter = tmacmap->begin(); 
                     mac_map_iter != tmacmap->end();
                     ++mac_map_iter) {
-                // Macmaps need to go out as just the mac string,
-                // not a vector of mac+mask
-                o.pack(mac_map_iter->first.MacFull2String());
+                // macmaps sent as macaddr only
+                o.pack(mac_map_iter->first.Mac2String());
                 Packer(globalreg, mac_map_iter->second, o, name_map);
             }
             break;
