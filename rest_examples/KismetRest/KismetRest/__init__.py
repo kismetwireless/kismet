@@ -491,9 +491,7 @@ class KismetConnector:
         If no callback is provided, the results will be returned as a vector.
         """
 
-        cmd = {
-            "foo": "bar"
-        }
+        cmd = { }
 
         if not fields == None:
             cmd["fields"] = fields
