@@ -52,6 +52,7 @@ exports.AddTab = function(options) {
 
     if (!('expandCallback' in options)) {
         options.expandCallback = null;
+    }
 
     options.expanded = false;
 
