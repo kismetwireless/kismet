@@ -1,7 +1,5 @@
 include Makefile.inc
 
-DEPEND		= .depend
-
 # Common pure-c code for capturesource binaries
 DATASOURCE_COMMON_C_O = \
 	msgpuck.c.o msgpuck_hints.c.o \
@@ -29,6 +27,9 @@ BUILD_CAPTURE_HACKRF_SWEEP = @BUILD_CAPTURE_HACKRF_SWEEP@
 # Capture binaries to build
 DATASOURCE_BINS = @DATASOURCE_BINS@
 
+KAITAI_PARSERS = \
+	kaitai_parsers/wpaeap.cc.o kaitai_parsers/ie221.cc.o
+
 PSO	= util.cc.o cygwin_utils.cc.o globalregistry.cc.o \
 	pollabletracker.cc.o ringbuf2.cc.o chainbuf.cc.o buffer_handler.cc.o \
 	packet.cc.o messagebus.cc.o configfile.cc.o getopt.cc.o filtercore.cc.o \
@@ -46,7 +47,7 @@ PSO	= util.cc.o cygwin_utils.cc.o globalregistry.cc.o \
 	statealert.cc.o \
 	kis_dlt.cc.o kis_dlt_ppi.cc.o kis_dlt_radiotap.cc.o \
 	kaitaistream.cc.o \
-	kaitai_parsers/wpaeap.cc.o kaitai_parsers/ie221.cc.o \
+	$(KAITAI_PARSERS) \
 	phy_80211.cc.o phy_80211_dissectors.cc.o phy_rtl433.cc.o phy_zwave.cc.o \
 	kis_dissector_ipdata.cc.o \
 	manuf.cc.o \
@@ -59,7 +60,7 @@ PSO	= util.cc.o cygwin_utils.cc.o globalregistry.cc.o \
 
 PS	= kismet
 
-ALL	= Makefile $(DEPEND) $(PS) $(DATASOURCE_BINS)
+ALL	= Makefile $(PS) $(DATASOURCE_BINS)
 
 INSTBINS = $(PS) $(DATASOURCE_BINS)
 
@@ -214,7 +215,9 @@ rpm:
 
 clean:
 	@-rm -f *.o *.mo
-	@-rm -rf kaitai_parsers/*.o
+	@-rm -f *.d
+	@-rm -f kaitai_parsers/*.o
+	@-rm -f kaitai_parsers/*.d
 	@-$(MAKE) all-plugins-clean
 	@-rm -f $(PS)
 	@-rm -f $(DATASOURCE_BINS)
@@ -223,7 +226,6 @@ distclean:
 	@-$(MAKE) clean
 	@-$(MAKE) all-plugins-clean
 	@-rm -f *~
-	@-rm -f $(DEPEND)
 	@-rm -f config.status
 	@-rm -f config.h
 	@-rm -f config.log
@@ -232,23 +234,6 @@ distclean:
 	@-rm -rf *.ipk
 	@-rm -f scripts/kismet
 	@-rm -f Makefile
-
-dep:
-	@$(MAKE) depend
-
-depend: Makefile
-	@$(MAKE) $(DEPEND)
-
-$(DEPEND): Makefile
-	@-rm -f $(DEPEND)
-	@echo "Generating dependencies... "
-	@echo > $(DEPEND)
-	@$(CXX) $(CPPFLAGS) $(CXXFLAGS) -MM \
-		`echo $(PSO) | \
-		sed -e "s/\.cc.o/\.cc/g" | sed -e "s/\.mo/\.m/g"` >> $(DEPEND)
-	@$(CC) $(CFLAGS) $(CPPFLAGS) -MM \
-		`echo $(CAPTURE_PCAPFILE_O) $(CAPTURE_LINUX_WIFI_O) | \
-		sed -e "s/\.c.o/\.c/g"` >> $(DEPEND)
 
 plugins: Makefile
 	@( export KIS_SRC_DIR=`pwd`; for x in plugin-*/; do  if [ ! -d "$$x" ]; then continue; fi; echo "PLUGIN: $$x"; ( cd "$$x"; make; ); done )
@@ -296,16 +281,24 @@ kaitai-parsers:
 	kaitai-struct-compiler --outdir kaitai_parsers/ -t cpp_stl -I kaitai_definitions/ kaitai_definitions/*.ksy
 	rename 's/\.cpp$$/\.cc/' kaitai_parsers/*.cpp -v -f
 
-include $(DEPEND)
+%.c.o:	%.c
+%.c.o : %.c %.c.d
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $*.c -o $@
 
-%.c.o:	%.c $(DEPEND)
-	$(CC) $(CFLAGS) -c $*.c -o $@ 
+%.cc.o: %.cc
+%.cc.o:	%.cc %.cc.d
+	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $*.cc -o $@
 
-%.cc.o:	%.cc $(DEPEND)
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $*.cc -o $@ 
+%.c.d:  %.c
+	$(CC) -MM $(CFLAGS) $(CPPFLAGS) $*.c | sed -e "s/$*.o/$*.c.o/" > $*.c.d
 
-.m.mo:	$(DEPEND)
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $*.m -o $@ 
-	
+%.cc.d: %.cc
+	$(CXX) -MM $(CXXFLAGS) $(CPPFLAGS) $*.cc | sed -e "s/$*.o/$*.cc.o/" > $*.cc.d
 
-.SUFFIXES: .c .cc .o .m .mo
+.PRECIOUS: %.Td %.c.d %.cc.d
+
+include $(wildcard $(patsubst %c.o,%c.d,$(PSO)))
+include $(wildcard $(patsubst %c.o,%c.d,$(DATASOURCE_COMMON_C_O)))
+
+.SUFFIXES: .c .cc .o 
+
