@@ -144,13 +144,8 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
                     return false;
                 }
 
-                // Try to find the actual mac
-                vector<shared_ptr<kis_tracked_device_base> >::iterator vi;
-                for (vi = tracked_vec.begin(); vi != tracked_vec.end(); ++vi) {
-                    if ((*vi)->get_macaddr() == mac) {
-                        return true;
-                    }
-                }
+                if (tracked_mac_multimap.count(mac) > 0)
+                    return true;
 
                 return false;
             } else if (tokenurl[2] == "last-time") {
@@ -216,9 +211,32 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
 
                 string target = Httpd_StripSuffix(tokenurl[4]);
 
+                if (target == "device") {
+                    return true;
+                }
+
                 if (target == "set_name") {
                     return true;
                 }
+            } else if (tokenurl[2] == "by-mac") {
+                if (tokenurl.size() < 5)
+                    return false;
+
+                local_locker lock(&devicelist_mutex);
+
+                if (!Httpd_CanSerialize(tokenurl[4]))
+                    return false;
+
+                mac_addr mac = mac_addr(tokenurl[3]);
+
+                if (mac.error) {
+                    return false;
+                }
+
+                if (tracked_mac_multimap.count(mac) > 0)
+                    return true;
+
+                return false;
             }
         }
     }
@@ -524,14 +542,11 @@ int Devicetracker::Httpd_CreateStreamResponse(
                 return MHD_YES;
             }
 
-            SharedTrackerElement devvec =
-                globalreg->entrytracker->GetTrackedInstance(device_list_base_id);
+            SharedTrackerElement devvec(new TrackerElement(TrackerVector));
 
-            vector<shared_ptr<kis_tracked_device_base> >::iterator vi;
-            for (vi = tracked_vec.begin(); vi != tracked_vec.end(); ++vi) {
-                if ((*vi)->get_macaddr() == mac) {
-                    devvec->add_vector((*vi));
-                }
+            auto mmp = tracked_mac_multimap.equal_range(mac);
+            for (auto mmpi = mmp.first; mmpi != mmp.second; ++mmpi) {
+                devvec->add_vector(mmpi->second);
             }
 
             entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, devvec, NULL);
@@ -624,6 +639,9 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
     // Wrapper, if any
     string wrapper_name;
 
+    // Rename cache generated during simplification
+    TrackerElementSerializer::rename_map rename_map;
+
     SharedStructured regexdata;
 
     try {
@@ -687,7 +705,66 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
     }
 
     if (tokenurl[1] == "devices") {
-        if (tokenurl[2] == "by-key") {
+        if (tokenurl[2] == "by-mac") {
+            if (tokenurl.size() < 5) {
+                stream << "Invalid request";
+                concls->httpcode = 400;
+                return MHD_YES;
+            }
+
+            if (!Httpd_CanSerialize(tokenurl[4])) {
+                stream << "Invalid request";
+                concls->httpcode = 400;
+                return MHD_YES;
+            }
+
+            local_locker lock(&devicelist_mutex);
+
+            if (!Httpd_CanSerialize(tokenurl[4])) {
+                stream << "Invalid request";
+                concls->httpcode = 400;
+                return MHD_YES;
+            }
+
+            mac_addr mac = mac_addr(tokenurl[3]);
+
+            if (mac.error) {
+                stream << "Invalid request";
+                concls->httpcode = 400;
+                return MHD_YES;
+            }
+
+            if (tracked_mac_multimap.count(mac) == 0) {
+                stream << "Invalid request";
+                concls->httpcode = 400;
+                return MHD_YES;
+            }
+
+            string target = Httpd_StripSuffix(tokenurl[4]);
+
+            if (target == "devices") {
+                SharedTrackerElement devvec(new TrackerElement(TrackerVector));
+
+                auto mmp = tracked_mac_multimap.equal_range(mac);
+
+                for (auto mmpi = mmp.first; mmpi != mmp.second; ++mmpi) {
+                    SharedTrackerElement simple;
+
+                    SummarizeTrackerElement(entrytracker, mmpi->second, summary_vec,
+                            simple, rename_map);
+            
+                    devvec->add_vector(simple);
+                }
+
+                entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, devvec, NULL);
+
+                return MHD_YES;
+            }
+
+            stream << "Invalid request";
+            concls->httpcode = 400;
+            return MHD_YES;
+        } else if (tokenurl[2] == "by-key") {
             if (tokenurl.size() < 5) {
                 stream << "Invalid request";
                 concls->httpcode = 400;
@@ -715,6 +792,18 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
             string target = Httpd_StripSuffix(tokenurl[4]);
 
+            if (target == "device") {
+                SharedTrackerElement simple;
+
+                SummarizeTrackerElement(entrytracker, tmi->second, summary_vec,
+                        simple, rename_map);
+
+                entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, 
+                        simple, NULL);
+
+                return MHD_YES;
+            }
+
             if (target == "set_name") {
                 // Must have a session to set the name
                 if (!httpd->HasValidSession(concls)) {
@@ -730,9 +819,6 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
             // DT fields
             SharedTrackerElement dt_length_elem = NULL;
             SharedTrackerElement dt_filter_elem = NULL;
-
-            // Rename cache generated during simplification
-            TrackerElementSerializer::rename_map rename_map;
 
             SharedTrackerElement outdevs =
                 globalreg->entrytracker->GetTrackedInstance(device_list_base_id);

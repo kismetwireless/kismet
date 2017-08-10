@@ -281,6 +281,16 @@ The device list may be further refined by using the `POST` equivalent of this UR
 
 Complete dictionary object containing all information about the device referenced by [DEVICEKEY].
 
+##### POST /devices/by-key/[DEVICEKEY]/device `/devices/by-key/[DEVICEKEY]/device.msgpack`, `/devices/by-key/[DEVICEKY]/device.json`
+
+Dictionary object of device, simplified by the `fields` argument in accordance to the field simplification rules described above.
+
+The command dictionary should be passed as either JSON in the `json` POST variable, or as base64-encoded msgpack in the `msgpack` variable, and is expected to contain:
+
+| Key | Value | Type | Desc |
+| --- | ----- | ---- | ---- |
+| fields | Field specification | Optional, field specification array listing fields and mappings |
+
 ##### /devices/by-key/[DEVICEKEY]/device[/path/to/subkey] `/devices/by-key/[DEVICEKEY]/device.msgpack[/path/to/subkey]`, `/devices/by-key/[DEVICEKEY]/device.json[/path/to/subkey]`
 
 Dictionary containing all the device data referenced by `[DEVICEKEY]`, in the sub-tree `[path/to/subkey]`.  Allows fetching single fields or objects from the device tree without fetching the entire device record.
@@ -288,6 +298,16 @@ Dictionary containing all the device data referenced by `[DEVICEKEY]`, in the su
 ##### /devices/by-mac/[DEVICEMAC]/devices `/devices/by-mac/[DEVICEMAC]/devices.msgpack`, `/devices/by-mac/[DEVICEMAC]/devices.json`
 
 Array/list of all devices matching `[DEVICEMAC]` across all PHY types.  It is possible (though not likely) that there can be a MAC address collision between different PHY types, especially types which synthesize false MAC addresses when no official address is available.
+
+##### POST /devices/by-mac/[DEVICEMAC]/devices `/devices/by-mac/[DEVICEMAC]/devices.msgpack`, `/devices/by-mac/[DEVICEMAC]/devices.json`
+
+Dictionary object of device, simplified by the `fields` argument in accordance to the field simplification rules described above.
+
+The command dictionary should be passed as either JSON in the `json` POST variable, or as base64-encoded msgpack in the `msgpack` variable, and is expected to contain:
+
+| Key | Value | Type | Desc |
+| --- | ----- | ---- | ---- |
+| fields | Field specification | Optional, field specification array listing fields and mappings |
 
 ## Phy Handling
 

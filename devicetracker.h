@@ -827,6 +827,10 @@ protected:
 	map<uint64_t, shared_ptr<kis_tracked_device_base> > tracked_map;
 	// Vector of tracked devices so we can iterate them quickly
 	vector<shared_ptr<kis_tracked_device_base> > tracked_vec;
+    // MAC address lookups are incredibly expensive from the webui if we don't
+    // track by map; in theory multiple objects in different PHYs could have the
+    // same MAC so it's not a simple 1:1 map
+    multimap<mac_addr, shared_ptr<kis_tracked_device_base> > tracked_mac_multimap;
 
     // Immutable vector, one entry per device; may never be sorted.  Devices
     // which are removed are set to 'null'.  Each position corresponds to the

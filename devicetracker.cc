@@ -229,6 +229,7 @@ Devicetracker::~Devicetracker() {
 
     tracked_vec.clear();
     immutable_tracked_vec.clear();
+    tracked_mac_multimap.clear();
 
     pthread_mutex_destroy(&devicelist_mutex);
 }
@@ -534,6 +535,7 @@ shared_ptr<kis_tracked_device_base> Devicetracker::UpdateCommonDevice(mac_addr i
         tracked_map[device->get_key()] = device;
         tracked_vec.push_back(device);
         immutable_tracked_vec.push_back(device);
+        tracked_mac_multimap.emplace(in_mac, device);
 
         device->set_first_time(in_pack->ts.tv_sec);
 
@@ -927,9 +929,18 @@ int Devicetracker::timetracker_event(int eventid) {
 
                         // Forget it from the immutable vec, but keep its 
                         // position; we need to have vecpos = devid
-                        auto iti = immutable_tracked_vec.begin() + 
-                            d->get_kis_internal_id();
+                        auto iti = immutable_tracked_vec.begin() + d->get_kis_internal_id();
                         (*iti).reset();
+
+                        // Erase it from the multimap
+                        auto mmp = tracked_mac_multimap.equal_range(d->get_macaddr());
+
+                        for (auto mmpi = mmp.first; mmpi != mmp.second; ++mmpi) {
+                            if (mmpi->second->get_key() == d->get_key()) {
+                                tracked_mac_multimap.erase(mmpi);
+                                break;
+                            }
+                        }
 
                         purged = true;
 
