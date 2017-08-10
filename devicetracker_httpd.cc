@@ -756,7 +756,8 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                     devvec->add_vector(simple);
                 }
 
-                entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, devvec, NULL);
+                entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, 
+                        devvec, &rename_map);
 
                 return MHD_YES;
             }
@@ -799,7 +800,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                         simple, rename_map);
 
                 entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, 
-                        simple, NULL);
+                        simple, &rename_map);
 
                 return MHD_YES;
             }
@@ -1191,8 +1192,8 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                     }, NULL);
             MatchOnDevices(&sw, regexdevs);
 
-            entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), 
-                    stream, outdevs, &rename_map);
+            entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, 
+                    outdevs, &rename_map);
             return MHD_YES;
         }
     }
