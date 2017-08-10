@@ -290,10 +290,10 @@ kaitai-parsers:
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $*.cc -o $@
 
 %.c.d:  %.c
-	$(CC) -MM $(CFLAGS) $(CPPFLAGS) $*.c | sed -e "s/$*.o/$*.c.o/" > $*.c.d
+	$(CC) -MM $(CFLAGS) $(CPPFLAGS) $*.c | sed -e "s/\.o/\.c.o/" > $*.c.d
 
 %.cc.d: %.cc
-	$(CXX) -MM $(CXXFLAGS) $(CPPFLAGS) $*.cc | sed -e "s/$*.o/$*.cc.o/" > $*.cc.d
+	$(CXX) -MM $(CXXFLAGS) $(CPPFLAGS) $*.cc | sed -e "s/\.o/\.cc.o/" > $*.cc.d
 
 .PRECIOUS: %.Td %.c.d %.cc.d
 
