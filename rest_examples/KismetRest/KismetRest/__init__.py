@@ -217,7 +217,7 @@ class KismetConnector:
                         ret.append(obj)
             except Exception as e:
                 if self.debug:
-                    print "Failed to parse JSON: {} {}".format(r.url, e.message)
+                    print "Failed to parse JSON: {}, {}, {}".format(r.url, e.message, line)
 
                 raise KismetRequestException("Unable to parse JSON on req {}: {}".format(r.url, e.message), r.status_code)
 
@@ -499,6 +499,8 @@ class KismetConnector:
         if not regex == None:
             cmd["regex"] = regex;
 
+        print ts
+
         (r, v) = self.__post_json_url("devices/last-time/{}/devices.ekjson".format(ts), cmd, callback)
 
         # Always return a vector
@@ -520,32 +522,52 @@ class KismetConnector:
         """
         return self.device_by_key(key, field = field)
 
-    def device_by_key(self, key, field = None):
+    def device_by_key(self, key, field = None, fields = None):
         """
         device_by_key(key) -> device object
 
         Fetch a complete device record by the Kismet key (unique key per Kismet session)
-        or fetch a specific sub-field by path
+        or fetch a specific sub-field by path.
+
+        If a field simplification set is passed in 'fields', perform a simplification
+        on the result
         """
 
-        if not field == None:
-            field = "/" + field
+        if fields == None:
+            if not field == None:
+                field = "/" + field
 
-        (r, v) = self.__get_json_url("devices/by-key/{}/device.json{}".format(key, field))
+            (r, v) = self.__get_json_url("devices/by-key/{}/device.json{}".format(key, field))
+        else:
+            cmd = {
+                "fields": fields
+            }
+
+            (r, v) = self.__post_json_url("devices/by-key/{}/device.json".format(key), cmd)
 
         # Single entity so pop out of the vector
         return v[0]
 
-    def device_by_mac(self, mac):
+    def device_by_mac(self, mac, fields = None):
         """
         device_by_mac(mac) -> vector of device objects
 
         Return a vector of all devices in all phy types matching the supplied MAC
         address; typically this will return a vector of a single device, but MAC addresses
         could overlap between phy types.
+
+        If a field simplification set is passed in 'fields', perform a simplification
+        on the result
         """
 
-        (r, v) = self.__get_json_url("devices/by-mac/{}/devices.json".format(mac))
+        if fields == None:
+            (r, v) = self.__get_json_url("devices/by-mac/{}/devices.json".format(mac))
+        else:
+            cmd = {
+                "fields": fields
+            }
+
+            (r, v) = self.__post_json_url("devices/by-mac/{}/devices.json".format(mac), cmd)
 
         # Single-entity request, pop out vector
         return v[0]
