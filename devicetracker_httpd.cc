@@ -564,7 +564,7 @@ int Devicetracker::Httpd_CreateStreamResponse(
             // If it's negative, subtract from the current ts
             if (lastts < 0) {
                 time_t now = time(0);
-                lastts = now - lastts;
+                lastts = now + lastts;
             }
 
             if (!Httpd_CanSerialize(tokenurl[4]))
@@ -1141,7 +1141,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
             // If it's negative, subtract from the current ts
             if (lastts < 0) {
                 time_t now = time(0);
-                lastts = now - lastts;
+                lastts = now + lastts;
             }
 
             // Rename cache generated during simplification
