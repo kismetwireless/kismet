@@ -499,8 +499,6 @@ class KismetConnector:
         if not regex == None:
             cmd["regex"] = regex;
 
-        print ts
-
         (r, v) = self.__post_json_url("devices/last-time/{}/devices.ekjson".format(ts), cmd, callback)
 
         # Always return a vector
