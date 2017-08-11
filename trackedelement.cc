@@ -1431,7 +1431,8 @@ bool operator>(TrackerElement &te1, double d) {
 
 tracker_component::tracker_component(GlobalRegistry *in_globalreg, int in_id) {
     globalreg = in_globalreg;
-    tracker = in_globalreg->entrytracker;
+
+    entrytracker = in_globalreg->FetchGlobalAs<EntryTracker>("ENTRY_TRACKER");
 
     set_type(TrackerMap);
     set_id(in_id);
@@ -1441,7 +1442,7 @@ tracker_component::tracker_component(GlobalRegistry *in_globalreg, int in_id,
         shared_ptr<TrackerElement> e __attribute__((unused))) {
 
     globalreg = in_globalreg;
-    tracker = in_globalreg->entrytracker;
+    entrytracker = in_globalreg->FetchGlobalAs<EntryTracker>("ENTRY_TRACKER");
 
     set_type(TrackerMap);
     set_id(in_id);
@@ -1467,7 +1468,7 @@ string tracker_component::get_name(int in_id) {
 
 int tracker_component::RegisterField(string in_name, TrackerType in_type, 
         string in_desc, shared_ptr<TrackerElement> *in_dest) {
-    int id = tracker->RegisterField(in_name, in_type, in_desc);
+    int id = entrytracker->RegisterField(in_name, in_type, in_desc);
 
     registered_field *rf = new registered_field(id, in_dest);
 
@@ -1478,7 +1479,7 @@ int tracker_component::RegisterField(string in_name, TrackerType in_type,
 
 int tracker_component::RegisterField(string in_name, TrackerType in_type, 
         string in_desc) {
-    int id = tracker->RegisterField(in_name, in_type, in_desc);
+    int id = entrytracker->RegisterField(in_name, in_type, in_desc);
 
     return id;
 }
@@ -1486,7 +1487,7 @@ int tracker_component::RegisterField(string in_name, TrackerType in_type,
 int tracker_component::RegisterField(string in_name, 
         shared_ptr<TrackerElement> in_builder, 
         string in_desc, shared_ptr<TrackerElement> *in_dest) {
-    int id = tracker->RegisterField(in_name, in_builder, in_desc);
+    int id = entrytracker->RegisterField(in_name, in_builder, in_desc);
 
     registered_field *rf = new registered_field(id, in_dest);
 
@@ -1498,7 +1499,7 @@ int tracker_component::RegisterField(string in_name,
 int tracker_component::RegisterComplexField(string in_name, 
         shared_ptr<TrackerElement> in_builder, 
         string in_desc) {
-    int id = tracker->RegisterField(in_name, in_builder, in_desc);
+    int id = entrytracker->RegisterField(in_name, in_builder, in_desc);
     in_builder->set_id(id);
     return id;
 }
@@ -1532,7 +1533,7 @@ shared_ptr<TrackerElement>
         }
     }
 
-    r = tracker->GetTrackedInstance(i);
+    r = entrytracker->GetTrackedInstance(i);
     add_map(r);
 
     return r;
@@ -1555,7 +1556,7 @@ shared_ptr<TrackerElement>
         if (in_path[x].length() == 0)
             continue;
 
-        int id = globalreg->entrytracker->GetFieldId(in_path[x]);
+        int id = entrytracker->GetFieldId(in_path[x]);
 
         if (id < 0) {
             return NULL;

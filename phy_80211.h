@@ -800,7 +800,7 @@ public:
 
     __ProxyTrackable(wpa_key_vec, TrackerElement, wpa_key_vec);
     shared_ptr<dot11_tracked_eapol> create_eapol_packet() {
-        return static_pointer_cast<dot11_tracked_eapol>(tracker->GetTrackedInstance(wpa_key_entry_id));
+        return static_pointer_cast<dot11_tracked_eapol>(entrytracker->GetTrackedInstance(wpa_key_entry_id));
     }
 
     __Proxy(wpa_present_handshake, uint8_t, uint8_t, uint8_t, wpa_present_handshake);

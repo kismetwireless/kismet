@@ -1075,7 +1075,7 @@ class tracker_component : public TrackerElement {
 #define __ProxyDynamicTrackable(name, ttype, cvar, id) \
     virtual shared_ptr<ttype> get_##name() { \
         if (cvar == NULL) { \
-            cvar = static_pointer_cast<ttype>(tracker->GetTrackedInstance(id)); \
+            cvar = static_pointer_cast<ttype>(entrytracker->GetTrackedInstance(id)); \
             if (cvar != NULL) \
                 add_map(static_pointer_cast<TrackerElement>(cvar)); \
         } \
@@ -1189,7 +1189,7 @@ protected:
     };
 
     GlobalRegistry *globalreg;
-    EntryTracker *tracker;
+    shared_ptr<EntryTracker> entrytracker;
 
     vector<registered_field *> registered_fields;
 };
