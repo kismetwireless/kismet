@@ -709,6 +709,71 @@ class KismetConnector:
 
         return self.smart_device_list(callback = callback, regex = regex, fields = fields, ts = ts)
 
+    def define_alert(self, name, description, rate = "10/min", burst = "1/sec", phyname = None):
+        """
+        define_alert(name, description, rate, burst) -> Boolean
+
+        LOGIN REQUIRED
+
+        Define a new alert.  This alert can then be triggered on external
+        conditions via raise_alert(...)
+
+        Phyname is optional, and links the alert to a specific PHY type.
+
+        Rate and Burst are optional rate and burst limits.
+        """
+
+        cmd = {
+            "name": name,
+            "description": description,
+            "throttle": rate,
+            "burst": burst
+        }
+
+        if not phyname == None:
+            cmd["phyname"] = phyname
+
+        (r, v) = self.__post_string_url("alerts/definitions/define_alert.cmd", cmd)
+
+        return r == 200
+
+
+    def raise_alert(self, name, text, bssid = None, source = None, dest = None, other = None, channel = None):
+        """
+        raise_alert(name, text, bssid, source, dest, other, channel)
+
+        LOGIN REQUIRED
+
+        Trigger an alert; the alert can be one defined via define_alert(...) or an alert
+        built into the system.
+
+        The alert name and content of the alert are required, all other fields are optional.
+        """
+
+        cmd = {
+            "name": name,
+            "text": text
+        }
+
+        if not bssid == None:
+            cmd["bssid"] = bssid
+
+        if not source == None:
+            cmd["source"] = source
+
+        if not dest == None:
+            cmd["dest"] = dest
+
+        if not other == None:
+            cmd["other"] = other
+
+        if not channel == None:
+            cmd["channel"] = channel
+
+        (r, v) = self.__post_string_url("alerts/raise_alert.cmd", cmd)
+
+        return r == 200
+
 if __name__ == "__main__":
     x = KismetConnector()
     print x.system_status()
