@@ -199,6 +199,10 @@ void StreamTracker::remove_streamer(double in_id) {
     if (si == stream_map.end())
         return;
 
+    shared_ptr<streaming_info_record> a =
+        static_pointer_cast<streaming_info_record>(si->second);
+    a->get_agent()->stop_stream("stream removed");
+
     stream_map.erase(si);
 }
 
