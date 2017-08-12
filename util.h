@@ -365,14 +365,19 @@ public:
 #else
         pthread_mutex_lock(in);
 #endif
-        lock = in;
     }
 
-    ~local_eol_locker() {
-
+    local_eol_locker(std::recursive_timed_mutex *in) {
+#ifdef DISABLE_MUTEX_TIMEOUT
+        in->lock();
+#else
+        if (!in->try_lock_for(std::chrono::seconds(5))) {
+            throw(std::runtime_error("deadlocked thread: mutex not available w/in 5 seconds"));
+        }
+#endif
     }
-protected:
-    pthread_mutex_t *lock;
+
+    ~local_eol_locker() { }
 };
 
 // Local copy of strerror_r because glibc did such an amazingly poor job of it
