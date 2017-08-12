@@ -185,7 +185,7 @@ class KismetConnector:
             if self.debug:
                 print "DEBUG - Failed to save session:", e
 
-    def __process_json_stream(self, r, callback):
+    def __process_json_stream(self, r, callback, args = None):
         """
         __process_json_stream(httpresult, callback)
 
@@ -212,7 +212,9 @@ class KismetConnector:
                     obj = json.loads(decoded_line)
 
                     if callback != None:
-                        callback(obj)
+                        if args == None:
+                            args = []
+                        callback(obj, *args)
                     else:
                         ret.append(obj)
             except Exception as e:
@@ -223,7 +225,7 @@ class KismetConnector:
 
         return ret
 
-    def __get_json_url(self, url, callback = None):
+    def __get_json_url(self, url, callback = None, cbargs = None):
         """
         __get_json_url(url, callback) -> [result code, Unpacked Object]
 
@@ -262,7 +264,7 @@ class KismetConnector:
         self.__update_session()
 
         # Process our stream
-        return (r.status_code, self.__process_json_stream(r, callback))
+        return (r.status_code, self.__process_json_stream(r, callback, cbargs))
 
     def __get_string_url(self, url):
         """
@@ -297,7 +299,7 @@ class KismetConnector:
 
         return r.content
 
-    def __post_json_url(self, url, postdata, callback = None):
+    def __post_json_url(self, url, postdata, callback = None, cbargs = None):
         """
         __post_json_url(url, postdata, callback) -> [result code, Unpacked Object]
 
@@ -339,7 +341,7 @@ class KismetConnector:
         self.__update_session()
 
         # Process our stream
-        return (r.status_code, self.__process_json_stream(r, callback))
+        return (r.status_code, self.__process_json_stream(r, callback, cbargs))
 
     def __post_string_url(self, url, postdata):
         """
@@ -426,18 +428,18 @@ class KismetConnector:
 
         return status[0]
 
-    def device_summary(self, callback = None):
+    def device_summary(self, callback = None, cbargs = None):
         """
-        device_summary(callback) -> device list
+        device_summary([callback, cbargs]) -> device list
 
         Deprecated API - now referenced as device_list(..)
         """
         
-        return self.device_list(callback)
+        return self.device_list(callback, cbargs)
 
-    def device_list(self, callback = None):
+    def device_list(self, callback = None, cbargs = None):
         """
-        device_list(callback) -> device list
+        device_list([callback, cbargs]) -> device list
 
         Return all fields of all devices.  This may be extremely memory and CPU
         intensive and should be avoided.  Memory use can be reduced by providing a
@@ -450,32 +452,32 @@ class KismetConnector:
         It is strongly recommended that you use smart_device_list(...)
         """
 
-        (r, devices) = self.__get_json_url("devices/all_devices.ekjson", callback)
+        (r, devices) = self.__get_json_url("devices/all_devices.ekjson", callback, cbargs)
 
         return devices
 
-    def device_summary_since(self, ts = 0, fields = None, callback = None):
+    def device_summary_since(self, ts = 0, fields = None, callback = None, cbargs = None):
         """
-        device_summary_since(ts) -> device summary list 
+        device_summary_since(ts, [fields, callback, cbargs]) -> device summary list 
 
         Deprecated API - now referenced as smart_device_list(...)
 
         Return object containing summary of devices added or changed since ts
         and ts info
         """
-        return self.smart_device_list(ts = ts, fields = fields, callback = callback)
+        return self.smart_device_list(ts = ts, fields = fields, callback = callback, cbargs = cbargs)
 
-    def smart_summary_since(self, ts = 0, fields = None, regex = None, callback = None):
+    def smart_summary_since(self, ts = 0, fields = None, regex = None, callback = None, cbargs = None):
         """
-        smart_summary_since(ts, fields) -> device summary list
+        smart_summary_since([ts, fields, regex, callback, cbargs]) -> device summary list
 
         Deprecated API - now referenced as smart_device_list(...)
         """
-        return self.smart_device_list(ts = ts, fields = fields)
+        return self.smart_device_list(ts = ts, fields = fields, regex = regex, callback = callback, cbargs = cbargs)
 
-    def smart_device_list(self, ts = 0, fields = None, regex = None, callback = None):
+    def smart_device_list(self, ts = 0, fields = None, regex = None, callback = None, cbargs = None):
         """
-        smart_device_list(ts, fields, callback)
+        smart_device_list([ts, fields, regex, callback, cbargs])
 
         Perform a 'smart' device list.  The device list can be manipulated in
         several ways:
@@ -499,7 +501,7 @@ class KismetConnector:
         if not regex == None:
             cmd["regex"] = regex;
 
-        (r, v) = self.__post_json_url("devices/last-time/{}/devices.ekjson".format(ts), cmd, callback)
+        (r, v) = self.__post_json_url("devices/last-time/{}/devices.ekjson".format(ts), cmd, callback, cbargs)
 
         # Always return a vector
         return v
@@ -675,9 +677,9 @@ class KismetConnector:
 
         return r == 200
 
-    def device_filtered_dot11_summary(self, pcre, fields = None, callback = None, ts = 0):
+    def device_filtered_dot11_summary(self, pcre, fields = None, callback = None, cbargs = None, ts = 0):
         """
-        device_filtered_dot11_summary() -> device list, filtered by dot11 ssid
+        device_filtered_dot11_summary(pcre, [fields, ts, callback, cbargs]) -> device list, filtered by dot11 ssid
 
         Deprecated API, this can now be handled by smart_device_list, which
         this function uses.
@@ -690,12 +692,11 @@ class KismetConnector:
         for p in pcre:
             regex.append(['dot11.device/dot11.device.advertised_ssid_map/dot11.advertisedssid.ssid', pcre])
 
-        return self.smart_device_list(callback = callback, regex = regex, fields = fields, ts = ts)
+        return self.smart_device_list(callback = callback, cbargs = cbargs, regex = regex, fields = fields, ts = ts)
 
-    def device_filtered_dot11_probe_summary(self, pcre, fields = None, callback = None, ts = 0):
+    def device_filtered_dot11_probe_summary(self, pcre, fields = None, callback = None, cbargs = None, ts = 0):
         """
-        device_filtered_dot11_probe_summary() -> device summary list, filtered by
-        dot11 ssid
+        device_filtered_dot11_probe_summary(pcre, [fields, ts, callback, cbargs]) -> device summary list, filtered by dot11 ssid
 
         Deprecated API, this can now be handled by smart_device_list, which
         this function uses
@@ -707,7 +708,7 @@ class KismetConnector:
         for p in pcre:
             regex.append(['dot11.device/dot11.device.probed_ssid_map/dot11.probedssid.ssid', pcre])
 
-        return self.smart_device_list(callback = callback, regex = regex, fields = fields, ts = ts)
+        return self.smart_device_list(callback = callback, cbargs = cbargs, regex = regex, fields = fields, ts = ts)
 
     def define_alert(self, name, description, rate = "10/min", burst = "1/sec", phyname = None):
         """
