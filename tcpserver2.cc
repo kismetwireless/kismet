@@ -81,7 +81,8 @@ int TcpServerV2::ConfigureServer(short int in_port, unsigned int in_maxcli,
         serv_sock.sin_addr.s_addr = htonl(INADDR_ANY);
     }
 
-    if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+    // Make a socket that closes on execve
+    if ((server_fd = socket(AF_INET, SOCK_CLOEXEC | SOCK_STREAM, 0)) < 0) {
         _MSG("TCP server socket() failed: " + kis_strerror_r(errno),
                 MSGFLAG_ERROR);
         return -1;
@@ -103,9 +104,6 @@ int TcpServerV2::ConfigureServer(short int in_port, unsigned int in_maxcli,
         return -1;
     }
 
-    // Set it to nonblocking and close it when we exec
-    fcntl(server_fd, F_SETFL, fcntl(server_fd, F_GETFL, 0) | O_NONBLOCK | FD_CLOEXEC);
-
     // Enable listening
     if (listen(server_fd, 20) < 0) {
         _MSG("TCP server listen() failed : " + kis_strerror_r(errno),
@@ -113,6 +111,9 @@ int TcpServerV2::ConfigureServer(short int in_port, unsigned int in_maxcli,
         close(server_fd);
         return -1;
     }
+
+    // Set it to nonblocking 
+    fcntl(server_fd, F_SETFL, fcntl(server_fd, F_GETFL, 0) | O_NONBLOCK);
 
     valid = true;
 
@@ -338,8 +339,9 @@ int TcpServerV2::AcceptConnection() {
     memset(&client_addr, 0, sizeof(struct sockaddr_in));
     client_len = sizeof(struct sockaddr_in);
 
-    if ((new_fd = accept(server_fd, (struct sockaddr *) &client_addr, 
-                    &client_len)) < 0) {
+    // Accept it as a socket which closes on execve
+    if ((new_fd = accept4(server_fd, (struct sockaddr *) &client_addr, 
+                    &client_len, SOCK_CLOEXEC)) < 0) {
         if (errno != EAGAIN && errno != EWOULDBLOCK) {
             _MSG("TCP server accept() failed: " + kis_strerror_r(errno), MSGFLAG_ERROR);
             return -1;
@@ -356,7 +358,7 @@ int TcpServerV2::AcceptConnection() {
     }
 
     // Nonblocking, don't clone
-    fcntl(new_fd, F_SETFL, fcntl(new_fd, F_GETFL, 0) | O_NONBLOCK | FD_CLOEXEC);
+    fcntl(new_fd, F_SETFL, fcntl(new_fd, F_GETFL, 0) | O_NONBLOCK);
 
     // Return the new fd; it is validated elsewhere and the buffer and handler
     // is made for it elsewhere
