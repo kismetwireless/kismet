@@ -22,6 +22,7 @@
 #include "config.h"
 
 #include <memory>
+#include <mutex>
 
 #include "globalregistry.h"
 #include "trackedelement.h"
@@ -29,16 +30,142 @@
 #include "devicetracker_component.h"
 #include "streamtracker.h"
 
-// Subset of a streaming agent; an actual log file being written to disk in its
-// running instance
-class logfile : public streaming_agent {
+class KisLogfileBuilder;
+typedef shared_ptr<KisLogfileBuilder> SharedLogBuilder;
+
+class KisLogfile;
+typedef shared_ptr<KisLogfile> SharedLogfile;
+
+// Logfile builders are responsible for telling the logging tracker what sort of 
+// log we are, the type and default name, if we're a singleton log that can't have multiple
+// simultaneous instances, how to actually instantiate the log, and various other
+// attributes
+class KisLogfileBuilder : public tracker_component {
 public:
-    logfile(GlobalRegistry *in_globalreg);
-    virtual ~logfile();
+    KisLogfileBuilder(GlobalRegistry *in_globalreg, int in_id) :
+        tracker_component(in_globalreg, in_id) {
+        register_fields();
+        reserve_fields(NULL);
+
+        if (in_id == 0) {
+            if (in_id == 0) {
+                tracked_id = entrytracker->RegisterField("kismet.log.type_driver",
+                        TrackerMap, "Log type definition / driver");
+            }
+        }
+
+        initialize();
+    }
+
+    KisLogfileBuilder(GlobalRegistry *in_globalreg, int in_id, SharedTrackerElement e) :
+        tracker_component(in_globalreg, in_id) {
+
+        register_fields();
+        reserve_fields(e);
+
+        if (in_id == 0) {
+            if (in_id == 0) {
+                tracked_id = entrytracker->RegisterField("kismet.log.type_driver",
+                        TrackerMap, "Log type definition / driver");
+            }
+        }
+
+        initialize();
+    }
+
+    virtual ~KisLogfileBuilder();
+
+    virtual SharedTrackerElement clone_type() {
+        return SharedTrackerElement(new KisLogfileBuilder(globalreg, get_id()));
+    }
+
+    virtual SharedLogfile build_logfile(SharedLogBuilder in_shared_builder) {
+        return NULL;
+    }
+
+    virtual void initialize();
+
+    __Proxy(log_class, string, string, string, log_class);
+    __Proxy(log_name, string, string, string, log_name);
+    __Proxy(stream, uint8_t, bool, bool, stream_log);
+    __Proxy(single, uint8_t, bool, bool, singleton);
 
 protected:
+    virtual void register_fields() {
+        tracker_component::register_fields();
+
+        RegisterField("kismet.logfile.type.class", TrackerString,
+                "Class/type", &log_class);
+        RegisterField("kismet.logfile.type.name", TrackerString,
+                "Base type name", &log_name);
+        RegisterField("kismet.logfile.type.stream", TrackerUInt8,
+                "Continual streaming", &stream_log);
+        RegisterField("kismet.logfile.type.singleton", TrackerUInt8,
+                "Single-instance of log type permitted", &singleton);
+    }
+
+    SharedTrackerElement log_class;
+    SharedTrackerElement log_name;
+    SharedTrackerElement stream_log;
+    SharedTrackerElement singleton;
+};
+
+// Logfiles written to disk can be 'block' logs (like the device log), or they can be
+// streaming logs (like gps or pcapng streams); 
+class KisLogfile : public tracker_component, public streaming_agent {
+public:
+    KisLogfile(GlobalRegistry *in_globalreg, int in_id) :
+        tracker_component(in_globalreg, in_id) {
+        register_fields();
+        reserve_fields(NULL);
+    }
+
+    KisLogfile(GlobalRegistry *in_globalreg, int in_id, SharedTrackerElement e) :
+        tracker_component(in_globalreg, in_id) {
+        register_fields();
+        reserve_fields(e);
+    }
+
+    KisLogfile(GlobalRegistry *in_globalreg, int in_id, SharedLogBuilder in_builder) :
+        tracker_component(in_globalreg, in_id) {
+        register_fields();
+        reserve_fields(NULL);
+        builder = in_builder;
+    }
+
+    virtual ~KisLogfile() { 
+        local_eol_locker(&log_mutex);
+
+        if (streaming_log) {
+            shared_ptr<StreamTracker> streamtracker = 
+                globalreg->FetchGlobalAs<StreamTracker>("STREAMTRACKER");
+
+            streamtracker->remove_streamer(get_stream_id());
+        }
+    
+    }
+
+    virtual SharedTrackerElement clone_type() {
+        return SharedTrackerElement(new KisLogfile(globalreg, get_id(), builder));
+    }
+
+protected:
+    virtual void register_fields() {
+        tracker_component::register_fields();
+
+        RegisterField("kismet.logfile.description", TrackerString,
+                "Log description", &log_description);
+
+    }
+
     GlobalRegistry *globalreg;
 
+    // Builder/prototype that made us
+    SharedLogBuilder builder;
+
+    std::recursive_timed_mutex log_mutex;
+
+    SharedTrackerElement log_description;
 };
 
 class LogTracker : public Kis_Net_Httpd_CPPStream_Handler, public LifetimeGlobal {
